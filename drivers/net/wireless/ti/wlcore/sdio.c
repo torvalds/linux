@@ -26,7 +26,7 @@
 #include "wl12xx_80211.h"
 #include "io.h"
 
-static bool dump = false;
+static bool dump;
 
 struct wl12xx_sdio_glue {
 	struct device *dev;

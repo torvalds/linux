@@ -57,9 +57,9 @@ DECLARE_EVENT_CLASS(cdnsp_log_ep,
 		__entry->first_prime_det = pep->stream_info.first_prime_det;
 		__entry->drbls_count = pep->stream_info.drbls_count;
 	),
-	TP_printk("%s: SID: %08x ep state: %x stream: enabled: %d num  %d "
+	TP_printk("%s: SID: %08x, ep state: %x, stream: enabled: %d num %d "
 		  "tds %d, first prime: %d drbls %d",
-		  __get_str(name), __entry->state, __entry->stream_id,
+		  __get_str(name), __entry->stream_id, __entry->state,
 		  __entry->enabled, __entry->num_streams, __entry->td_count,
 		  __entry->first_prime_det, __entry->drbls_count)
 );

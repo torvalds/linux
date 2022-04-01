@@ -41,6 +41,8 @@
 #include "i915_drv.h"
 #include "intel_display_types.h"
 #include "intel_dsi.h"
+#include "intel_dsi_vbt.h"
+#include "vlv_dsi.h"
 #include "vlv_sideband.h"
 
 #define MIPI_TRANSFER_MODE_SHIFT	0

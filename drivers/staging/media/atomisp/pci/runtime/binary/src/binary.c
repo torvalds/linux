@@ -108,7 +108,6 @@ ia_css_binary_internal_res(const struct ia_css_frame_info *in_info,
 			       binary_dvs_env.height);
 }
 
-/* ISP2400 */
 /* Computation results of the origin coordinate of bayer on the shading table. */
 struct sh_css_shading_table_bayer_origin_compute_results {
 	u32 bayer_scale_hor_ratio_in;	/* Horizontal ratio (in) of bayer scaling. */
@@ -119,23 +118,7 @@ struct sh_css_shading_table_bayer_origin_compute_results {
 	u32 sc_bayer_origin_y_bqs_on_shading_table; /* Y coordinate (in bqs) of bayer origin on shading table. */
 };
 
-/* ISP2401 */
-/* Requirements for the shading correction. */
-struct sh_css_binary_sc_requirements {
-	/* Bayer scaling factor, for the scaling which is applied before shading correction. */
-	u32 bayer_scale_hor_ratio_in;  /* Horizontal ratio (in) of scaling applied BEFORE shading correction. */
-	u32 bayer_scale_hor_ratio_out; /* Horizontal ratio (out) of scaling applied BEFORE shading correction. */
-	u32 bayer_scale_ver_ratio_in;  /* Vertical ratio (in) of scaling applied BEFORE shading correction. */
-	u32 bayer_scale_ver_ratio_out; /* Vertical ratio (out) of scaling applied BEFORE shading correction. */
-
-	/* ISP internal frame is composed of the real sensor data and the padding data. */
-	u32 sensor_data_origin_x_bqs_on_internal; /* X origin (in bqs) of sensor data on internal frame
-								at shading correction. */
-	u32 sensor_data_origin_y_bqs_on_internal; /* Y origin (in bqs) of sensor data on internal frame
-								at shading correction. */
-};
-
-/* ISP2400: Get the requirements for the shading correction. */
+/* Get the requirements for the shading correction. */
 static int
 ia_css_binary_compute_shading_table_bayer_origin(
     const struct ia_css_binary *binary,				/* [in] */
@@ -261,227 +244,12 @@ ia_css_binary_compute_shading_table_bayer_origin(
 	return err;
 }
 
-/* ISP2401: Get the requirements for the shading correction. */
-static int
-sh_css_binary_get_sc_requirements(const struct ia_css_binary *binary, /* [in] */
-				  unsigned int required_bds_factor,   /* [in] */
-				  const struct ia_css_stream_config *stream_config, /* [in] */
-				  struct sh_css_binary_sc_requirements *scr) /* [out] */
-{
-	int err;
-
-	/* Numerator and denominator of the fixed bayer downscaling factor. (numerator >= denominator) */
-	unsigned int bds_num, bds_den;
-
-	/* Horizontal/Vertical ratio of bayer scaling between input area and output area. */
-	unsigned int bs_hor_ratio_in, bs_hor_ratio_out, bs_ver_ratio_in, bs_ver_ratio_out;
-
-	/* Left padding set by InputFormatter. */
-	unsigned int left_padding_bqs;
-
-	/* Flags corresponding to NEED_BDS_FACTOR_2_00/NEED_BDS_FACTOR_1_50/NEED_BDS_FACTOR_1_25 macros
-	 * defined in isp kernels. */
-	unsigned int need_bds_factor_2_00, need_bds_factor_1_50, need_bds_factor_1_25;
-
-	/* Left padding adjusted inside the isp kernels. */
-	unsigned int left_padding_adjusted_bqs;
-
-	/* Top padding padded inside the isp kernel for bayer downscaling binaries. */
-	unsigned int top_padding_bqs;
-
-	/* Bayer downscaling factor 1.0 by fixed-point. */
-	int bds_frac_acc = FRAC_ACC;	/* FRAC_ACC is defined in ia_css_fixedbds_param.h. */
-
-	/* Right/Down shift amount caused by filters applied BEFORE shading corrertion. */
-	unsigned int right_shift_bqs_before_bs; /* right shift before bayer scaling */
-	unsigned int right_shift_bqs_after_bs;  /* right shift after bayer scaling */
-	unsigned int down_shift_bqs_before_bs;  /* down shift before bayer scaling */
-	unsigned int down_shift_bqs_after_bs;   /* down shift after bayer scaling */
-
-	/* Origin of the real sensor data area on the internal frame at shading correction. */
-	unsigned int sensor_data_origin_x_bqs_on_internal;
-	unsigned int sensor_data_origin_y_bqs_on_internal;
-
-	unsigned int bs_frac = bds_frac_acc;	/* scaling factor 1.0 in fixed point */
-	unsigned int bs_out, bs_in;		/* scaling ratio in fixed point */
-
-	IA_CSS_ENTER_PRIVATE("binary=%p, required_bds_factor=%d, stream_config=%p",
-			     binary, required_bds_factor, stream_config);
-
-	/* Get the numerator and denominator of the required bayer downscaling factor. */
-	err = sh_css_bds_factor_get_numerator_denominator(required_bds_factor,
-							  &bds_num, &bds_den);
-	if (err) {
-		IA_CSS_LEAVE_ERR_PRIVATE(err);
-		return err;
-	}
-
-	IA_CSS_LOG("bds_num=%d, bds_den=%d", bds_num, bds_den);
-
-	/* Set the horizontal/vertical ratio of bayer scaling between input area and output area. */
-	bs_hor_ratio_in  = bds_num;
-	bs_hor_ratio_out = bds_den;
-	bs_ver_ratio_in  = bds_num;
-	bs_ver_ratio_out = bds_den;
-
-	/* Set the left padding set by InputFormatter. (ia_css_ifmtr_configure() in ifmtr.c) */
-	if (stream_config->left_padding == -1)
-		left_padding_bqs = _ISP_BQS(binary->left_padding);
-	else
-		left_padding_bqs = (unsigned int)((int)ISP_VEC_NELEMS - _ISP_BQS(stream_config->left_padding));
-
-	IA_CSS_LOG("stream.left_padding=%d, binary.left_padding=%d, left_padding_bqs=%d",
-		   stream_config->left_padding, binary->left_padding,
-		   left_padding_bqs);
-
-	/* Set the left padding adjusted inside the isp kernels.
-	* When the bds_factor isn't 1.00, the left padding size is adjusted inside the isp,
-	* before bayer downscaling. (scaled_hor_plane_index(), raw_compute_hphase() in raw.isp.c)
-	*/
-	need_bds_factor_2_00 = ((binary->info->sp.bds.supported_bds_factors &
-				(PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_2_00) |
-				PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_2_50) |
-				PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_3_00) |
-				PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_4_00) |
-				PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_4_50) |
-				PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_5_00) |
-				PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_6_00) |
-				PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_8_00))) != 0);
-
-	need_bds_factor_1_50 = ((binary->info->sp.bds.supported_bds_factors &
-				(PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_1_50) |
-				PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_2_25) |
-				PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_3_00) |
-				PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_4_50) |
-				PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_6_00))) != 0);
-
-	need_bds_factor_1_25 = ((binary->info->sp.bds.supported_bds_factors &
-				(PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_1_25) |
-				PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_2_50) |
-				PACK_BDS_FACTOR(SH_CSS_BDS_FACTOR_5_00))) != 0);
-
-	if (binary->info->sp.pipeline.left_cropping > 0 &&
-	    (need_bds_factor_2_00 || need_bds_factor_1_50 || need_bds_factor_1_25)) {
-		/*
-		* downscale 2.0  -> first_vec_adjusted_bqs = 128
-		* downscale 1.5  -> first_vec_adjusted_bqs = 96
-		* downscale 1.25 -> first_vec_adjusted_bqs = 80
-		*/
-		unsigned int first_vec_adjusted_bqs = ISP_VEC_NELEMS * bs_hor_ratio_in / bs_hor_ratio_out;
-		left_padding_adjusted_bqs = first_vec_adjusted_bqs
-			    - _ISP_BQS(binary->info->sp.pipeline.left_cropping);
-	} else {
-		left_padding_adjusted_bqs = left_padding_bqs;
-	}
-
-	IA_CSS_LOG("supported_bds_factors=%d, need_bds_factor:2_00=%d, 1_50=%d, 1_25=%d",
-		   binary->info->sp.bds.supported_bds_factors,
-		   need_bds_factor_2_00, need_bds_factor_1_50,
-		   need_bds_factor_1_25);
-	IA_CSS_LOG("left_cropping=%d, left_padding_adjusted_bqs=%d",
-		   binary->info->sp.pipeline.left_cropping,
-		   left_padding_adjusted_bqs);
-
-	/* Set the top padding padded inside the isp kernel for bayer downscaling binaries.
-	* When the bds_factor isn't 1.00, the top padding is padded inside the isp
-	* before bayer downscaling, because the top cropping size (input margin) is not enough.
-	* (calculate_input_line(), raw_compute_vphase(), dma_read_raw() in raw.isp.c)
-	* NOTE: In dma_read_raw(), the factor passed to raw_compute_vphase() is got by get_bds_factor_for_dma_read().
-	*       This factor is BDS_FPVAL_100/BDS_FPVAL_125/BDS_FPVAL_150/BDS_FPVAL_200.
-	*/
-	top_padding_bqs = 0;
-	if (binary->info->sp.pipeline.top_cropping > 0 &&
-	    (required_bds_factor == SH_CSS_BDS_FACTOR_1_25 ||
-	    required_bds_factor == SH_CSS_BDS_FACTOR_1_50 ||
-	    required_bds_factor == SH_CSS_BDS_FACTOR_2_00)) {
-		/* Calculation from calculate_input_line() and raw_compute_vphase() in raw.isp.c. */
-		int top_cropping_bqs = _ISP_BQS(binary->info->sp.pipeline.top_cropping);
-		/* top cropping (in bqs) */
-		int factor = bds_num * bds_frac_acc /
-		bds_den;	/* downscaling factor by fixed-point */
-		int top_padding_bqsxfrac_acc = (top_cropping_bqs * factor - top_cropping_bqs *
-						bds_frac_acc)
-		+ (2 * bds_frac_acc - factor);	/* top padding by fixed-point (in bqs) */
-
-		top_padding_bqs = (unsigned int)((top_padding_bqsxfrac_acc + bds_frac_acc / 2 -
-						1) / bds_frac_acc);
-	}
-
-	IA_CSS_LOG("top_cropping=%d, top_padding_bqs=%d",
-		   binary->info->sp.pipeline.top_cropping, top_padding_bqs);
-
-	/* Set the right/down shift amount caused by filters applied BEFORE bayer scaling,
-	* which scaling is applied BEFORE shading corrertion.
-	*
-	* When the bds_factor isn't 1.00, 3x3 anti-alias filter is applied to each color plane(Gr/R/B/Gb)
-	* before bayer downscaling.
-	* This filter shifts each color plane (Gr/R/B/Gb) to right/down directions by 1 pixel.
-	*/
-	right_shift_bqs_before_bs = 0;
-	down_shift_bqs_before_bs = 0;
-
-	if (need_bds_factor_2_00 || need_bds_factor_1_50 || need_bds_factor_1_25) {
-		right_shift_bqs_before_bs = 1;
-		down_shift_bqs_before_bs = 1;
-	}
-
-	IA_CSS_LOG("right_shift_bqs_before_bs=%d, down_shift_bqs_before_bs=%d",
-		   right_shift_bqs_before_bs, down_shift_bqs_before_bs);
-
-	/* Set the right/down shift amount caused by filters applied AFTER bayer scaling,
-	* which scaling is applied BEFORE shading corrertion.
-	*
-	* When DPC&BNR is processed between bayer scaling and shading correction,
-	* DPC&BNR moves each color plane (Gr/R/B/Gb) to right/down directions by 1 pixel.
-	*/
-	right_shift_bqs_after_bs = 0;
-	down_shift_bqs_after_bs = 0;
-
-	/* if DPC&BNR is enabled in the binary */
-	if (binary->info->mem_offsets.offsets.param->dmem.dp.size != 0) {
-		right_shift_bqs_after_bs = 1;
-		down_shift_bqs_after_bs = 1;
-	}
-
-	IA_CSS_LOG("right_shift_bqs_after_bs=%d, down_shift_bqs_after_bs=%d",
-		   right_shift_bqs_after_bs, down_shift_bqs_after_bs);
-
-	bs_out = bs_hor_ratio_out * bs_frac;
-	bs_in = bs_hor_ratio_in * bs_frac;
-	sensor_data_origin_x_bqs_on_internal =
-		((left_padding_adjusted_bqs + right_shift_bqs_before_bs) * bs_out + bs_in / 2) / bs_in
-		+ right_shift_bqs_after_bs;	/* "+ bs_in/2": rounding */
-
-	bs_out = bs_ver_ratio_out * bs_frac;
-	bs_in = bs_ver_ratio_in * bs_frac;
-	sensor_data_origin_y_bqs_on_internal =
-		((top_padding_bqs + down_shift_bqs_before_bs) * bs_out + bs_in / 2) / bs_in
-		+ down_shift_bqs_after_bs;	/* "+ bs_in/2": rounding */
-
-	scr->bayer_scale_hor_ratio_in			= (uint32_t)bs_hor_ratio_in;
-	scr->bayer_scale_hor_ratio_out			= (uint32_t)bs_hor_ratio_out;
-	scr->bayer_scale_ver_ratio_in			= (uint32_t)bs_ver_ratio_in;
-	scr->bayer_scale_ver_ratio_out			= (uint32_t)bs_ver_ratio_out;
-	scr->sensor_data_origin_x_bqs_on_internal	= (uint32_t)sensor_data_origin_x_bqs_on_internal;
-	scr->sensor_data_origin_y_bqs_on_internal	= (uint32_t)sensor_data_origin_y_bqs_on_internal;
-
-	IA_CSS_LOG("sc_requirements: %d, %d, %d, %d, %d, %d",
-		   scr->bayer_scale_hor_ratio_in,
-		   scr->bayer_scale_hor_ratio_out,
-		   scr->bayer_scale_ver_ratio_in, scr->bayer_scale_ver_ratio_out,
-		   scr->sensor_data_origin_x_bqs_on_internal,
-		   scr->sensor_data_origin_y_bqs_on_internal);
-
-	IA_CSS_LEAVE_ERR_PRIVATE(err);
-	return err;
-}
-
 /* Get the shading information of Shading Correction Type 1. */
 static int
-isp2400_binary_get_shading_info_type_1(const struct ia_css_binary *binary,	/* [in] */
-				       unsigned int required_bds_factor,			/* [in] */
-				       const struct ia_css_stream_config *stream_config,	/* [in] */
-				       struct ia_css_shading_info *info)			/* [out] */
+binary_get_shading_info_type_1(const struct ia_css_binary *binary,	/* [in] */
+			       unsigned int required_bds_factor,			/* [in] */
+			       const struct ia_css_stream_config *stream_config,	/* [in] */
+			       struct ia_css_shading_info *info)			/* [out] */
 {
 	int err;
 	struct sh_css_shading_table_bayer_origin_compute_results res;
@@ -522,173 +290,6 @@ isp2400_binary_get_shading_info_type_1(const struct ia_css_binary *binary,	/* [i
 	return err;
 }
 
-/* Get the shading information of Shading Correction Type 1. */
-static int
-isp2401_binary_get_shading_info_type_1(const struct ia_css_binary *binary,	/* [in] */
-				       unsigned int required_bds_factor,			/* [in] */
-				       const struct ia_css_stream_config *stream_config,	/* [in] */
-				       struct ia_css_shading_info *shading_info,		/* [out] */
-				       struct ia_css_pipe_config *pipe_config)			/* [out] */
-{
-	int err;
-	struct sh_css_binary_sc_requirements scr;
-
-	u32 in_width_bqs, in_height_bqs, internal_width_bqs, internal_height_bqs;
-	u32 num_hor_grids, num_ver_grids, bqs_per_grid_cell, tbl_width_bqs, tbl_height_bqs;
-	u32 sensor_org_x_bqs_on_internal, sensor_org_y_bqs_on_internal, sensor_width_bqs, sensor_height_bqs;
-	u32 sensor_center_x_bqs_on_internal, sensor_center_y_bqs_on_internal;
-	u32 left, right, upper, lower;
-	u32 adjust_left, adjust_right, adjust_upper, adjust_lower, adjust_width_bqs, adjust_height_bqs;
-	u32 internal_org_x_bqs_on_tbl, internal_org_y_bqs_on_tbl;
-	u32 sensor_org_x_bqs_on_tbl, sensor_org_y_bqs_on_tbl;
-
-	assert(binary);
-	assert(stream_config);
-	assert(shading_info);
-	assert(pipe_config);
-
-	IA_CSS_ENTER_PRIVATE("binary=%p, required_bds_factor=%d, stream_config=%p",
-			     binary, required_bds_factor, stream_config);
-
-	/* Initialize by default values. */
-	*shading_info = DEFAULT_SHADING_INFO_TYPE_1;
-
-	err = sh_css_binary_get_sc_requirements(binary, required_bds_factor, stream_config, &scr);
-	if (err) {
-		IA_CSS_LEAVE_ERR_PRIVATE(err);
-		return err;
-	}
-
-	IA_CSS_LOG("binary: id=%d, sctbl=%dx%d, deci=%d",
-		binary->info->sp.id, binary->sctbl_width_per_color, binary->sctbl_height, binary->deci_factor_log2);
-	IA_CSS_LOG("binary: in=%dx%d, in_padded_w=%d, int=%dx%d, int_padded_w=%d, out=%dx%d, out_padded_w=%d",
-		binary->in_frame_info.res.width, binary->in_frame_info.res.height, binary->in_frame_info.padded_width,
-		binary->internal_frame_info.res.width, binary->internal_frame_info.res.height,
-		binary->internal_frame_info.padded_width,
-		binary->out_frame_info[0].res.width, binary->out_frame_info[0].res.height,
-		binary->out_frame_info[0].padded_width);
-
-	/* Set the input size from sensor, which includes left/top crop size. */
-	in_width_bqs	    = _ISP_BQS(binary->in_frame_info.res.width);
-	in_height_bqs	    = _ISP_BQS(binary->in_frame_info.res.height);
-
-	/*
-	 * Frame size internally used in ISP, including sensor data and padding.
-	 * This is the frame size, to which the shading correction is applied.
-	 */
-	internal_width_bqs  = _ISP_BQS(binary->internal_frame_info.res.width);
-	internal_height_bqs = _ISP_BQS(binary->internal_frame_info.res.height);
-
-	/* Shading table. */
-	num_hor_grids = binary->sctbl_width_per_color;
-	num_ver_grids = binary->sctbl_height;
-	bqs_per_grid_cell = (1 << binary->deci_factor_log2);
-	tbl_width_bqs  = (num_hor_grids - 1) * bqs_per_grid_cell;
-	tbl_height_bqs = (num_ver_grids - 1) * bqs_per_grid_cell;
-
-	IA_CSS_LOG("tbl_width_bqs=%d, tbl_height_bqs=%d", tbl_width_bqs, tbl_height_bqs);
-
-	/*
-	 * Real sensor data area on the internal frame at shading correction.
-	 * Filters and scaling are applied to the internal frame before
-	 * shading correction, depending on the binary.
-	 */
-	sensor_org_x_bqs_on_internal = scr.sensor_data_origin_x_bqs_on_internal;
-	sensor_org_y_bqs_on_internal = scr.sensor_data_origin_y_bqs_on_internal;
-	{
-		unsigned int bs_frac = 8;	/* scaling factor 1.0 in fixed point (8 == FRAC_ACC macro in ISP) */
-		unsigned int bs_out, bs_in;	/* scaling ratio in fixed point */
-
-		bs_out = scr.bayer_scale_hor_ratio_out * bs_frac;
-		bs_in = scr.bayer_scale_hor_ratio_in * bs_frac;
-		sensor_width_bqs  = (in_width_bqs * bs_out + bs_in / 2) / bs_in; /* "+ bs_in/2": rounding */
-
-		bs_out = scr.bayer_scale_ver_ratio_out * bs_frac;
-		bs_in = scr.bayer_scale_ver_ratio_in * bs_frac;
-		sensor_height_bqs = (in_height_bqs * bs_out + bs_in / 2) / bs_in; /* "+ bs_in/2": rounding */
-	}
-
-	/* Center of the sensor data on the internal frame at shading correction. */
-	sensor_center_x_bqs_on_internal = sensor_org_x_bqs_on_internal + sensor_width_bqs / 2;
-	sensor_center_y_bqs_on_internal = sensor_org_y_bqs_on_internal + sensor_height_bqs / 2;
-
-	/* Size of left/right/upper/lower sides of the sensor center on the internal frame. */
-	left  = sensor_center_x_bqs_on_internal;
-	right = internal_width_bqs - sensor_center_x_bqs_on_internal;
-	upper = sensor_center_y_bqs_on_internal;
-	lower = internal_height_bqs - sensor_center_y_bqs_on_internal;
-
-	/* Align the size of left/right/upper/lower sides to a multiple of the grid cell size. */
-	adjust_left  = CEIL_MUL(left,  bqs_per_grid_cell);
-	adjust_right = CEIL_MUL(right, bqs_per_grid_cell);
-	adjust_upper = CEIL_MUL(upper, bqs_per_grid_cell);
-	adjust_lower = CEIL_MUL(lower, bqs_per_grid_cell);
-
-	/* Shading table should cover the adjusted frame size. */
-	adjust_width_bqs  = adjust_left + adjust_right;
-	adjust_height_bqs = adjust_upper + adjust_lower;
-
-	IA_CSS_LOG("adjust_width_bqs=%d, adjust_height_bqs=%d", adjust_width_bqs, adjust_height_bqs);
-
-	if (adjust_width_bqs > tbl_width_bqs || adjust_height_bqs > tbl_height_bqs) {
-		IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
-		return -EINVAL;
-	}
-
-	/* Origin of the internal frame on the shading table. */
-	internal_org_x_bqs_on_tbl = adjust_left - left;
-	internal_org_y_bqs_on_tbl = adjust_upper - upper;
-
-	/* Origin of the real sensor data area on the shading table. */
-	sensor_org_x_bqs_on_tbl = internal_org_x_bqs_on_tbl + sensor_org_x_bqs_on_internal;
-	sensor_org_y_bqs_on_tbl = internal_org_y_bqs_on_tbl + sensor_org_y_bqs_on_internal;
-
-	/* The shading information necessary as API is stored in the shading_info. */
-	shading_info->info.type_1.num_hor_grids	    = num_hor_grids;
-	shading_info->info.type_1.num_ver_grids	    = num_ver_grids;
-	shading_info->info.type_1.bqs_per_grid_cell = bqs_per_grid_cell;
-
-	shading_info->info.type_1.bayer_scale_hor_ratio_in  = scr.bayer_scale_hor_ratio_in;
-	shading_info->info.type_1.bayer_scale_hor_ratio_out = scr.bayer_scale_hor_ratio_out;
-	shading_info->info.type_1.bayer_scale_ver_ratio_in  = scr.bayer_scale_ver_ratio_in;
-	shading_info->info.type_1.bayer_scale_ver_ratio_out = scr.bayer_scale_ver_ratio_out;
-
-	shading_info->info.type_1.isp_input_sensor_data_res_bqs.width  = in_width_bqs;
-	shading_info->info.type_1.isp_input_sensor_data_res_bqs.height = in_height_bqs;
-
-	shading_info->info.type_1.sensor_data_res_bqs.width  = sensor_width_bqs;
-	shading_info->info.type_1.sensor_data_res_bqs.height = sensor_height_bqs;
-
-	shading_info->info.type_1.sensor_data_origin_bqs_on_sctbl.x = (int32_t)sensor_org_x_bqs_on_tbl;
-	shading_info->info.type_1.sensor_data_origin_bqs_on_sctbl.y = (int32_t)sensor_org_y_bqs_on_tbl;
-
-	/* The shading information related to ISP (but, not necessary as API) is stored in the pipe_config. */
-	pipe_config->internal_frame_origin_bqs_on_sctbl.x = (int32_t)internal_org_x_bqs_on_tbl;
-	pipe_config->internal_frame_origin_bqs_on_sctbl.y = (int32_t)internal_org_y_bqs_on_tbl;
-
-	IA_CSS_LOG("shading_info: grids=%dx%d, cell=%d, scale=%d,%d,%d,%d, input=%dx%d, data=%dx%d, origin=(%d,%d)",
-		   shading_info->info.type_1.num_hor_grids,
-		   shading_info->info.type_1.num_ver_grids,
-		   shading_info->info.type_1.bqs_per_grid_cell,
-		   shading_info->info.type_1.bayer_scale_hor_ratio_in,
-		   shading_info->info.type_1.bayer_scale_hor_ratio_out,
-		   shading_info->info.type_1.bayer_scale_ver_ratio_in,
-		   shading_info->info.type_1.bayer_scale_ver_ratio_out,
-		   shading_info->info.type_1.isp_input_sensor_data_res_bqs.width,
-		   shading_info->info.type_1.isp_input_sensor_data_res_bqs.height,
-		   shading_info->info.type_1.sensor_data_res_bqs.width,
-		   shading_info->info.type_1.sensor_data_res_bqs.height,
-		   shading_info->info.type_1.sensor_data_origin_bqs_on_sctbl.x,
-		   shading_info->info.type_1.sensor_data_origin_bqs_on_sctbl.y);
-
-	IA_CSS_LOG("pipe_config: origin=(%d,%d)",
-		   pipe_config->internal_frame_origin_bqs_on_sctbl.x,
-		   pipe_config->internal_frame_origin_bqs_on_sctbl.y);
-
-	IA_CSS_LEAVE_ERR_PRIVATE(err);
-	return err;
-}
-
 
 int
 ia_css_binary_get_shading_info(const struct ia_css_binary *binary,			/* [in] */
@@ -706,24 +307,13 @@ ia_css_binary_get_shading_info(const struct ia_css_binary *binary,			/* [in] */
 	IA_CSS_ENTER_PRIVATE("binary=%p, type=%d, required_bds_factor=%d, stream_config=%p",
 			     binary, type, required_bds_factor, stream_config);
 
-	if (type != IA_CSS_SHADING_CORRECTION_TYPE_1) {
-		err = -ENOTSUPP;
-
-		IA_CSS_LEAVE_ERR_PRIVATE(err);
-		return err;
-	}
-
-	if (!IS_ISP2401)
-		err = isp2400_binary_get_shading_info_type_1(binary,
-							     required_bds_factor,
-							     stream_config,
-							     shading_info);
+	if (type == IA_CSS_SHADING_CORRECTION_TYPE_1)
+		err = binary_get_shading_info_type_1(binary,
+						     required_bds_factor,
+						     stream_config,
+						     shading_info);
 	else
-		err = isp2401_binary_get_shading_info_type_1(binary,
-							     required_bds_factor,
-							     stream_config,
-							     shading_info,
-							     pipe_config);
+		err = -ENOTSUPP;
 
 	IA_CSS_LEAVE_ERR_PRIVATE(err);
 	return err;
@@ -805,11 +395,7 @@ ia_css_binary_3a_grid_info(const struct ia_css_binary *binary,
 	s3a_info->deci_factor_log2  = binary->deci_factor_log2;
 	s3a_info->elem_bit_depth    = SH_CSS_BAYER_BITS;
 	s3a_info->use_dmem          = binary->info->sp.s3a.s3atbl_use_dmem;
-#if defined(HAS_NO_HMEM)
-	s3a_info->has_histogram     = 1;
-#else
 	s3a_info->has_histogram     = 0;
-#endif
 	IA_CSS_LEAVE_ERR_PRIVATE(err);
 	return err;
 }
@@ -965,15 +551,9 @@ binary_grid_deci_factor_log2(int width, int height)
 	/* 3A/Shading decimation factor spcification (at August 2008)
 	 * ------------------------------------------------------------------
 	 * [Image Width (BQ)] [Decimation Factor (BQ)] [Resulting grid cells]
-	#ifndef ISP2401
 	 * 1280 ?c             32                       40 ?c
 	 *  640 ?c 1279        16                       40 ?c 80
 	 *      ?c  639         8                          ?c 80
-	#else
-	 * from 1280                   32                 from 40
-	 * from  640 to 1279           16                 from 40 to 80
-	 *           to  639            8                         to 80
-	#endif
 	 * ------------------------------------------------------------------
 	 */
 	/* Maximum and minimum decimation factor by the specification */
@@ -1335,26 +915,14 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 
 	if (info->enable.sc)
 	{
-		if (!IS_ISP2401) {
-			binary->sctbl_width_per_color = _ISP2400_SCTBL_WIDTH_PER_COLOR(sc_3a_dis_padded_width, s3a_log_deci);
-			binary->sctbl_aligned_width_per_color = ISP2400_SH_CSS_MAX_SCTBL_ALIGNED_WIDTH_PER_COLOR;
-			binary->sctbl_height = _ISP2400_SCTBL_HEIGHT(sc_3a_dis_height, s3a_log_deci);
-		} else {
-			binary->sctbl_width_per_color = _ISP2401_SCTBL_WIDTH_PER_COLOR(isp_internal_width, s3a_log_deci);
-			binary->sctbl_aligned_width_per_color = ISP2401_SH_CSS_MAX_SCTBL_ALIGNED_WIDTH_PER_COLOR;
-			binary->sctbl_height = _ISP2401_SCTBL_HEIGHT(isp_internal_height, s3a_log_deci);
-			binary->sctbl_legacy_width_per_color  = _ISP_SCTBL_LEGACY_WIDTH_PER_COLOR(sc_3a_dis_padded_width, s3a_log_deci);
-			binary->sctbl_legacy_height = _ISP_SCTBL_LEGACY_HEIGHT(sc_3a_dis_height, s3a_log_deci);
-		}
+		binary->sctbl_width_per_color = _ISP_SCTBL_WIDTH_PER_COLOR(sc_3a_dis_padded_width, s3a_log_deci);
+		binary->sctbl_aligned_width_per_color = SH_CSS_MAX_SCTBL_ALIGNED_WIDTH_PER_COLOR;
+		binary->sctbl_height = _ISP_SCTBL_HEIGHT(sc_3a_dis_height, s3a_log_deci);
 	} else
 	{
 		binary->sctbl_width_per_color         = 0;
 		binary->sctbl_aligned_width_per_color = 0;
 		binary->sctbl_height                  = 0;
-		if (IS_ISP2401) {
-			binary->sctbl_legacy_width_per_color  = 0;
-			binary->sctbl_legacy_height	      = 0;
-		}
 	}
 	ia_css_sdis_init_info(&binary->dis,
 			      sc_3a_dis_width,
@@ -1383,20 +951,13 @@ static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
 		*req_vf_info;
 
 	struct ia_css_binary_xinfo *xcandidate;
-#ifndef ISP2401
 	bool need_ds, need_dz, need_dvs, need_xnr, need_dpc;
-#else
-	bool need_ds, need_dz, need_dvs, need_xnr, need_dpc, need_tnr;
-#endif
 	bool striped;
 	bool enable_yuv_ds;
 	bool enable_high_speed;
 	bool enable_dvs_6axis;
 	bool enable_reduced_pipe;
 	bool enable_capture_pp_bli;
-#ifdef ISP2401
-	bool enable_luma_only;
-#endif
 	int err = -EINVAL;
 	bool continuous;
 	unsigned int isp_pipe_version;
@@ -1418,41 +979,26 @@ static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
 	stream_format = descr->stream_format;
 	req_in_info = descr->in_info;
 	req_bds_out_info = descr->bds_out_info;
-	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++)
-	{
+	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++) {
 		req_out_info[i] = descr->out_info[i];
 		if (req_out_info[i] && (req_out_info[i]->res.width != 0))
 			req_bin_out_info = req_out_info[i];
 	}
 	if (!req_bin_out_info)
 		return -EINVAL;
-#ifndef ISP2401
 	req_vf_info = descr->vf_info;
-#else
-
-	if ((descr->vf_info) && (descr->vf_info->res.width == 0))
-		/* width==0 means that there is no vf pin (e.g. in SkyCam preview case) */
-		req_vf_info = NULL;
-	else
-		req_vf_info = descr->vf_info;
-#endif
 
 	need_xnr = descr->enable_xnr;
 	need_ds = descr->enable_fractional_ds;
 	need_dz = false;
 	need_dvs = false;
 	need_dpc = descr->enable_dpc;
-#ifdef ISP2401
-	need_tnr = descr->enable_tnr;
-#endif
+
 	enable_yuv_ds = descr->enable_yuv_ds;
 	enable_high_speed = descr->enable_high_speed;
 	enable_dvs_6axis  = descr->enable_dvs_6axis;
 	enable_reduced_pipe = descr->enable_reduced_pipe;
 	enable_capture_pp_bli = descr->enable_capture_pp_bli;
-#ifdef ISP2401
-	enable_luma_only = descr->enable_luma_only;
-#endif
 	continuous = descr->continuous;
 	striped = descr->striped;
 	isp_pipe_version = descr->isp_pipe_version;
@@ -1462,8 +1008,7 @@ static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
 	internal_res.width = 0;
 	internal_res.height = 0;
 
-	if (mode == IA_CSS_BINARY_MODE_VIDEO)
-	{
+	if (mode == IA_CSS_BINARY_MODE_VIDEO) {
 		dvs_env = descr->dvs_env;
 		need_dz = descr->enable_dz;
 		/* Video is the only mode that has a nodz variant. */
@@ -1472,8 +1017,7 @@ static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
 
 	/* print a map of the binary file */
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,	"BINARY INFO:\n");
-	for (i = 0; i < IA_CSS_BINARY_NUM_MODES; i++)
-	{
+	for (i = 0; i < IA_CSS_BINARY_NUM_MODES; i++) {
 		xcandidate = binary_infos[i];
 		if (xcandidate) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,	"%d:\n", i);
@@ -1488,8 +1032,7 @@ static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
 
 	/* printf("sh_css_binary_find: pipe version %d\n", isp_pipe_version); */
 	for (xcandidate = binary_infos[mode]; xcandidate;
-	     xcandidate = xcandidate->next)
-	{
+	     xcandidate = xcandidate->next) {
 		struct ia_css_binary_info *candidate = &xcandidate->sp;
 		/* printf("sh_css_binary_find: evaluating candidate:
 		 * %d\n",candidate->id); */
@@ -1747,24 +1290,6 @@ static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
 			continue;
 		}
 
-#ifdef ISP2401
-		if (candidate->enable.luma_only != enable_luma_only) {
-			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-					    "ia_css_binary_find() [%d] continue: %d != %d\n",
-					    __LINE__, candidate->enable.luma_only,
-					    descr->enable_luma_only);
-			continue;
-		}
-
-		if (!candidate->enable.tnr && need_tnr) {
-			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-					    "ia_css_binary_find() [%d] continue: !%d && %d\n",
-					    __LINE__, candidate->enable.tnr,
-					    descr->enable_tnr);
-			continue;
-		}
-
-#endif
 		/* reconfigure any variable properties of the binary */
 		err = ia_css_binary_fill_info(xcandidate, online, two_ppc,
 					      stream_format, req_in_info,

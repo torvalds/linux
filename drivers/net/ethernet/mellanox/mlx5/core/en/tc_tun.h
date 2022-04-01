@@ -94,7 +94,8 @@ mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
 #endif
 int mlx5e_tc_tun_route_lookup(struct mlx5e_priv *priv,
 			      struct mlx5_flow_spec *spec,
-			      struct mlx5_flow_attr *attr);
+			      struct mlx5_flow_attr *attr,
+			      struct net_device *filter_dev);
 
 bool mlx5e_tc_tun_device_to_offload(struct mlx5e_priv *priv,
 				    struct net_device *netdev);

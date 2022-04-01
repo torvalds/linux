@@ -48,12 +48,6 @@ struct snd_ivtv_card *to_snd_ivtv_card(struct v4l2_device *v4l2_dev)
 	return to_ivtv(v4l2_dev)->alsa;
 }
 
-static inline
-struct snd_ivtv_card *p_to_snd_ivtv_card(struct v4l2_device **v4l2_dev)
-{
-	return container_of(v4l2_dev, struct snd_ivtv_card, v4l2_dev);
-}
-
 static void snd_ivtv_card_free(struct snd_ivtv_card *itvsc)
 {
 	if (itvsc == NULL)

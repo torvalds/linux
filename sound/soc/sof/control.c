@@ -69,7 +69,6 @@ static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
 {
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	struct snd_soc_component *scomp = scontrol->scomp;
-	enum sof_ipc_ctrl_type ctrl_type;
 	int ret;
 
 	if (!scontrol->comp_data_dirty)
@@ -78,20 +77,13 @@ static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
 	if (!pm_runtime_active(scomp->dev))
 		return;
 
-	if (scontrol->cmd == SOF_CTRL_CMD_BINARY)
-		ctrl_type = SOF_IPC_COMP_GET_DATA;
-	else
-		ctrl_type = SOF_IPC_COMP_GET_VALUE;
-
 	/* set the ABI header values */
 	cdata->data->magic = SOF_ABI_MAGIC;
 	cdata->data->abi = SOF_ABI_VERSION;
 
 	/* refresh the component data from DSP */
 	scontrol->comp_data_dirty = false;
-	ret = snd_sof_ipc_set_get_comp_data(scontrol, ctrl_type,
-					    SOF_CTRL_TYPE_VALUE_CHAN_GET,
-					    scontrol->cmd, false);
+	ret = snd_sof_ipc_set_get_comp_data(scontrol, false);
 	if (ret < 0) {
 		dev_err(scomp->dev, "error: failed to get control data: %d\n", ret);
 		/* Set the flag to re-try next time to get the data */
@@ -142,11 +134,7 @@ int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 
 	/* notify DSP of mixer updates */
 	if (pm_runtime_active(scomp->dev))
-		snd_sof_ipc_set_get_comp_data(scontrol,
-					      SOF_IPC_COMP_SET_VALUE,
-					      SOF_CTRL_TYPE_VALUE_CHAN_SET,
-					      SOF_CTRL_CMD_VOLUME,
-					      true);
+		snd_sof_ipc_set_get_comp_data(scontrol, true);
 	return change;
 }
 
@@ -215,11 +203,7 @@ int snd_sof_switch_put(struct snd_kcontrol *kcontrol,
 
 	/* notify DSP of mixer updates */
 	if (pm_runtime_active(scomp->dev))
-		snd_sof_ipc_set_get_comp_data(scontrol,
-					      SOF_IPC_COMP_SET_VALUE,
-					      SOF_CTRL_TYPE_VALUE_CHAN_SET,
-					      SOF_CTRL_CMD_SWITCH,
-					      true);
+		snd_sof_ipc_set_get_comp_data(scontrol, true);
 
 	return change;
 }
@@ -264,11 +248,7 @@ int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 
 	/* notify DSP of enum updates */
 	if (pm_runtime_active(scomp->dev))
-		snd_sof_ipc_set_get_comp_data(scontrol,
-					      SOF_IPC_COMP_SET_VALUE,
-					      SOF_CTRL_TYPE_VALUE_CHAN_SET,
-					      SOF_CTRL_CMD_ENUM,
-					      true);
+		snd_sof_ipc_set_get_comp_data(scontrol, true);
 
 	return change;
 }
@@ -342,11 +322,7 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 
 	/* notify DSP of byte control updates */
 	if (pm_runtime_active(scomp->dev))
-		snd_sof_ipc_set_get_comp_data(scontrol,
-					      SOF_IPC_COMP_SET_DATA,
-					      SOF_CTRL_TYPE_DATA_SET,
-					      scontrol->cmd,
-					      true);
+		snd_sof_ipc_set_get_comp_data(scontrol, true);
 
 	return 0;
 }
@@ -391,7 +367,7 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	}
 
 	/* Check that header id matches the command */
-	if (header.numid != scontrol->cmd) {
+	if (header.numid != cdata->cmd) {
 		dev_err_ratelimited(scomp->dev,
 				    "error: incorrect numid %d\n",
 				    header.numid);
@@ -422,11 +398,7 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 
 	/* notify DSP of byte control updates */
 	if (pm_runtime_active(scomp->dev))
-		snd_sof_ipc_set_get_comp_data(scontrol,
-					      SOF_IPC_COMP_SET_DATA,
-					      SOF_CTRL_TYPE_DATA_SET,
-					      scontrol->cmd,
-					      true);
+		snd_sof_ipc_set_get_comp_data(scontrol, true);
 
 	return 0;
 }
@@ -463,8 +435,7 @@ int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int _
 	cdata->data->magic = SOF_ABI_MAGIC;
 	cdata->data->abi = SOF_ABI_VERSION;
 	/* get all the component data from DSP */
-	ret = snd_sof_ipc_set_get_comp_data(scontrol, SOF_IPC_COMP_GET_DATA, SOF_CTRL_TYPE_DATA_GET,
-					    scontrol->cmd, false);
+	ret = snd_sof_ipc_set_get_comp_data(scontrol, false);
 	if (ret < 0)
 		goto out;
 
@@ -485,7 +456,7 @@ int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int _
 		goto out;
 	}
 
-	header.numid = scontrol->cmd;
+	header.numid = cdata->cmd;
 	header.length = data_size;
 	if (copy_to_user(tlvd, &header, sizeof(struct snd_ctl_tlv))) {
 		ret = -EFAULT;
@@ -545,7 +516,7 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	if (data_size > size)
 		return -ENOSPC;
 
-	header.numid = scontrol->cmd;
+	header.numid = cdata->cmd;
 	header.length = data_size;
 	if (copy_to_user(tlvd, &header, sizeof(struct snd_ctl_tlv)))
 		return -EFAULT;
@@ -599,6 +570,13 @@ void snd_sof_control_notify(struct snd_sof_dev *sdev,
 	struct soc_enum *se;
 	bool found = false;
 	int i, type;
+
+	if (cdata->type == SOF_CTRL_TYPE_VALUE_COMP_GET ||
+	    cdata->type == SOF_CTRL_TYPE_VALUE_COMP_SET) {
+		dev_err(sdev->dev,
+			"Component data is not supported in control notification\n");
+		return;
+	}
 
 	/* Find the swidget first */
 	list_for_each_entry(swidget, &sdev->widget_list, list) {
@@ -665,11 +643,6 @@ void snd_sof_control_notify(struct snd_sof_dev *sdev,
 	case SOF_CTRL_TYPE_VALUE_CHAN_SET:
 		expected_size += cdata->num_elems *
 				 sizeof(struct sof_ipc_ctrl_value_chan);
-		break;
-	case SOF_CTRL_TYPE_VALUE_COMP_GET:
-	case SOF_CTRL_TYPE_VALUE_COMP_SET:
-		expected_size += cdata->num_elems *
-				 sizeof(struct sof_ipc_ctrl_value_comp);
 		break;
 	case SOF_CTRL_TYPE_DATA_GET:
 	case SOF_CTRL_TYPE_DATA_SET:

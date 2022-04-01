@@ -46,65 +46,9 @@ patternProperties:
         type: object
         description: Ethernet switch ports
 
-        allOf:
-          - $ref: "http://devicetree.org/schemas/net/ethernet-controller.yaml#"
+        $ref: dsa-port.yaml#
 
-        properties:
-          reg:
-            description: Port number
-
-          label:
-            description:
-              Describes the label associated with this port, which will become
-              the netdev name
-            $ref: /schemas/types.yaml#/definitions/string
-
-          link:
-            description:
-              Should be a list of phandles to other switch's DSA port. This
-              port is used as the outgoing port towards the phandle ports. The
-              full routing information must be given, not just the one hop
-              routes to neighbouring switches
-            $ref: /schemas/types.yaml#/definitions/phandle-array
-
-          ethernet:
-            description:
-              Should be a phandle to a valid Ethernet device node.  This host
-              device is what the switch port is connected to
-            $ref: /schemas/types.yaml#/definitions/phandle
-
-          dsa-tag-protocol:
-            description:
-              Instead of the default, the switch will use this tag protocol if
-              possible. Useful when a device supports multiple protocols and
-              the default is incompatible with the Ethernet device.
-            enum:
-              - dsa
-              - edsa
-              - ocelot
-              - ocelot-8021q
-              - seville
-
-          phy-handle: true
-
-          phy-mode: true
-
-          fixed-link: true
-
-          mac-address: true
-
-          sfp: true
-
-          managed: true
-
-          rx-internal-delay-ps: true
-
-          tx-internal-delay-ps: true
-
-        required:
-          - reg
-
-        additionalProperties: false
+        unevaluatedProperties: false
 
 oneOf:
   - required:

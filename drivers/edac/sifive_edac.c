@@ -19,7 +19,7 @@ struct sifive_edac_priv {
 	struct edac_device_ctl_info *dci;
 };
 
-/**
+/*
  * EDAC error callback
  *
  * @event: non-zero if unrecoverable.

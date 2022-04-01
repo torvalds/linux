@@ -19,7 +19,7 @@ MODULE_DESCRIPTION("ACPI EC sysfs access driver");
 MODULE_LICENSE("GPL");
 
 static bool write_support;
-module_param(write_support, bool, 0644);
+module_param_hw(write_support, bool, other, 0644);
 MODULE_PARM_DESC(write_support, "Dangerous, reboot and removal of battery may "
 		 "be needed.");
 

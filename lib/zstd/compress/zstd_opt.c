@@ -8,6 +8,18 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
+/*
+ * Disable inlining for the optimal parser for the kernel build.
+ * It is unlikely to be used in the kernel, and where it is used
+ * latency shouldn't matter because it is very slow to begin with.
+ * We prefer a ~180KB binary size win over faster optimal parsing.
+ *
+ * TODO(https://github.com/facebook/zstd/issues/2862):
+ * Improve the code size of the optimal parser in general, so we
+ * don't need this hack for the kernel build.
+ */
+#define ZSTD_NO_INLINE 1
+
 #include "zstd_compress_internal.h"
 #include "hist.h"
 #include "zstd_opt.h"

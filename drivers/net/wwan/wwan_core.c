@@ -3,6 +3,7 @@
 
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/debugfs.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/idr.h>
@@ -25,6 +26,7 @@ static DEFINE_IDA(minors); /* minors for WWAN port chardevs */
 static DEFINE_IDA(wwan_dev_ids); /* for unique WWAN device IDs */
 static struct class *wwan_class;
 static int wwan_major;
+static struct dentry *wwan_debugfs_dir;
 
 #define to_wwan_dev(d) container_of(d, struct wwan_device, dev)
 #define to_wwan_port(d) container_of(d, struct wwan_port, dev)
@@ -40,6 +42,7 @@ static int wwan_major;
  * @port_id: Current available port ID to pick.
  * @ops: wwan device ops
  * @ops_ctxt: context to pass to ops
+ * @debugfs_dir:  WWAN device debugfs dir
  */
 struct wwan_device {
 	unsigned int id;
@@ -47,6 +50,9 @@ struct wwan_device {
 	atomic_t port_id;
 	const struct wwan_ops *ops;
 	void *ops_ctxt;
+#ifdef CONFIG_WWAN_DEBUGFS
+	struct dentry *debugfs_dir;
+#endif
 };
 
 /**
@@ -142,6 +148,20 @@ static struct wwan_device *wwan_dev_get_by_name(const char *name)
 	return to_wwan_dev(dev);
 }
 
+#ifdef CONFIG_WWAN_DEBUGFS
+struct dentry *wwan_get_debugfs_dir(struct device *parent)
+{
+	struct wwan_device *wwandev;
+
+	wwandev = wwan_dev_get_by_parent(parent);
+	if (IS_ERR(wwandev))
+		return ERR_CAST(wwandev);
+
+	return wwandev->debugfs_dir;
+}
+EXPORT_SYMBOL_GPL(wwan_get_debugfs_dir);
+#endif
+
 /* This function allocates and registers a new WWAN device OR if a WWAN device
  * already exist for the given parent, it gets a reference and return it.
  * This function is not exported (for now), it is called indirectly via
@@ -189,6 +209,12 @@ static struct wwan_device *wwan_create_dev(struct device *parent)
 		goto done_unlock;
 	}
 
+#ifdef CONFIG_WWAN_DEBUGFS
+	wwandev->debugfs_dir =
+			debugfs_create_dir(kobject_name(&wwandev->dev.kobj),
+					   wwan_debugfs_dir);
+#endif
+
 done_unlock:
 	mutex_unlock(&wwan_register_lock);
 
@@ -218,10 +244,14 @@ static void wwan_remove_dev(struct wwan_device *wwandev)
 	else
 		ret = device_for_each_child(&wwandev->dev, NULL, is_wwan_child);
 
-	if (!ret)
+	if (!ret) {
+#ifdef CONFIG_WWAN_DEBUGFS
+		debugfs_remove_recursive(wwandev->debugfs_dir);
+#endif
 		device_unregister(&wwandev->dev);
-	else
+	} else {
 		put_device(&wwandev->dev);
+	}
 
 	mutex_unlock(&wwan_register_lock);
 }
@@ -1117,6 +1147,10 @@ static int __init wwan_init(void)
 		goto destroy;
 	}
 
+#ifdef CONFIG_WWAN_DEBUGFS
+	wwan_debugfs_dir = debugfs_create_dir("wwan", NULL);
+#endif
+
 	return 0;
 
 destroy:
@@ -1128,6 +1162,7 @@ unregister:
 
 static void __exit wwan_exit(void)
 {
+	debugfs_remove_recursive(wwan_debugfs_dir);
 	__unregister_chrdev(wwan_major, 0, WWAN_MAX_MINORS, "wwan_port");
 	rtnl_link_unregister(&wwan_rtnl_link_ops);
 	class_destroy(wwan_class);

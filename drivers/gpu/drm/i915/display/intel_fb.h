@@ -6,6 +6,7 @@
 #ifndef __INTEL_FB_H__
 #define __INTEL_FB_H__
 
+#include <linux/bits.h>
 #include <linux/types.h>
 
 struct drm_device;
@@ -16,12 +17,34 @@ struct drm_i915_private;
 struct drm_mode_fb_cmd2;
 struct intel_fb_view;
 struct intel_framebuffer;
+struct intel_plane;
 struct intel_plane_state;
 
-bool is_ccs_plane(const struct drm_framebuffer *fb, int plane);
-bool is_gen12_ccs_plane(const struct drm_framebuffer *fb, int plane);
-bool is_gen12_ccs_cc_plane(const struct drm_framebuffer *fb, int plane);
-bool is_semiplanar_uv_plane(const struct drm_framebuffer *fb, int color_plane);
+#define INTEL_PLANE_CAP_NONE		0
+#define INTEL_PLANE_CAP_CCS_RC		BIT(0)
+#define INTEL_PLANE_CAP_CCS_RC_CC	BIT(1)
+#define INTEL_PLANE_CAP_CCS_MC		BIT(2)
+#define INTEL_PLANE_CAP_TILING_X	BIT(3)
+#define INTEL_PLANE_CAP_TILING_Y	BIT(4)
+#define INTEL_PLANE_CAP_TILING_Yf	BIT(5)
+
+bool intel_fb_is_ccs_modifier(u64 modifier);
+bool intel_fb_is_rc_ccs_cc_modifier(u64 modifier);
+bool intel_fb_is_mc_ccs_modifier(u64 modifier);
+
+bool intel_fb_is_ccs_aux_plane(const struct drm_framebuffer *fb, int color_plane);
+int intel_fb_rc_ccs_cc_plane(const struct drm_framebuffer *fb);
+
+u64 *intel_fb_plane_get_modifiers(struct drm_i915_private *i915,
+				  u8 plane_caps);
+bool intel_fb_plane_supports_modifier(struct intel_plane *plane, u64 modifier);
+
+const struct drm_format_info *
+intel_fb_get_format_info(const struct drm_mode_fb_cmd2 *cmd);
+
+bool
+intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
+				    u64 modifier);
 
 bool is_surface_linear(const struct drm_framebuffer *fb, int color_plane);
 
@@ -66,5 +89,7 @@ struct drm_framebuffer *
 intel_user_framebuffer_create(struct drm_device *dev,
 			      struct drm_file *filp,
 			      const struct drm_mode_fb_cmd2 *user_mode_cmd);
+
+bool intel_fb_uses_dpt(const struct drm_framebuffer *fb);
 
 #endif /* __INTEL_FB_H__ */

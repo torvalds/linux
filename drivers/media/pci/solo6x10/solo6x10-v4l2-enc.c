@@ -391,12 +391,12 @@ static int solo_send_desc(struct solo_enc_dev *solo_enc, int skip,
 }
 
 /* Extract values from VOP header - VE_STATUSxx */
-static inline int vop_interlaced(const vop_header *vh)
+static inline __always_unused int vop_interlaced(const vop_header *vh)
 {
 	return (__le32_to_cpu((*vh)[0]) >> 30) & 1;
 }
 
-static inline u8 vop_channel(const vop_header *vh)
+static inline __always_unused u8 vop_channel(const vop_header *vh)
 {
 	return (__le32_to_cpu((*vh)[0]) >> 24) & 0x1F;
 }
@@ -411,12 +411,12 @@ static inline u32 vop_mpeg_size(const vop_header *vh)
 	return __le32_to_cpu((*vh)[0]) & 0xFFFFF;
 }
 
-static inline u8 vop_hsize(const vop_header *vh)
+static inline u8 __always_unused vop_hsize(const vop_header *vh)
 {
 	return (__le32_to_cpu((*vh)[1]) >> 8) & 0xFF;
 }
 
-static inline u8 vop_vsize(const vop_header *vh)
+static inline u8 __always_unused vop_vsize(const vop_header *vh)
 {
 	return __le32_to_cpu((*vh)[1]) & 0xFF;
 }
@@ -436,12 +436,12 @@ static inline u32 vop_jpeg_size(const vop_header *vh)
 	return __le32_to_cpu((*vh)[4]) & 0xFFFFF;
 }
 
-static inline u32 vop_sec(const vop_header *vh)
+static inline u32 __always_unused vop_sec(const vop_header *vh)
 {
 	return __le32_to_cpu((*vh)[5]);
 }
 
-static inline u32 vop_usec(const vop_header *vh)
+static inline __always_unused u32 vop_usec(const vop_header *vh)
 {
 	return __le32_to_cpu((*vh)[6]);
 }

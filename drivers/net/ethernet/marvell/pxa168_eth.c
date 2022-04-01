@@ -1388,7 +1388,6 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 {
 	struct pxa168_eth_private *pep = NULL;
 	struct net_device *dev = NULL;
-	struct resource *res;
 	struct clk *clk;
 	struct device_node *np;
 	int err;
@@ -1419,9 +1418,11 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 		goto err_netdev;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	BUG_ON(!res);
-	dev->irq = res->start;
+	err = platform_get_irq(pdev, 0);
+	if (err == -EPROBE_DEFER)
+		goto err_netdev;
+	BUG_ON(dev->irq < 0);
+	dev->irq = err;
 	dev->netdev_ops = &pxa168_eth_netdev_ops;
 	dev->watchdog_timeo = 2 * HZ;
 	dev->base_addr = 0;

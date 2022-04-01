@@ -20,7 +20,6 @@ Block
    kyber-iosched
    null_blk
    pr
-   queue-sysfs
    request
    stat
    switching-sched

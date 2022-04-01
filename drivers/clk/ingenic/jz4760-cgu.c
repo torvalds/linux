@@ -313,6 +313,16 @@ static const struct ingenic_cgu_clk_info jz4760_cgu_clocks[] = {
 		.parents = { JZ4760_CLK_H2CLK, },
 		.gate = { CGU_REG_CLKGR0, 21 },
 	},
+	[JZ4760_CLK_MDMA] = {
+		"mdma", CGU_CLK_GATE,
+		.parents = { JZ4760_CLK_HCLK, },
+		.gate = { CGU_REG_CLKGR0, 25 },
+	},
+	[JZ4760_CLK_BDMA] = {
+		"bdma", CGU_CLK_GATE,
+		.parents = { JZ4760_CLK_HCLK, },
+		.gate = { CGU_REG_CLKGR1, 0 },
+	},
 	[JZ4760_CLK_I2C0] = {
 		"i2c0", CGU_CLK_GATE,
 		.parents = { JZ4760_CLK_EXT, },

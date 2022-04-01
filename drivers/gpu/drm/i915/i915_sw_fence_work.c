@@ -23,7 +23,7 @@ static void fence_work(struct work_struct *work)
 	dma_fence_put(&f->dma);
 }
 
-static int __i915_sw_fence_call
+static int
 fence_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 {
 	struct dma_fence_work *f = container_of(fence, typeof(*f), chain);

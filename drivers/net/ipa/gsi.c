@@ -93,6 +93,7 @@
 
 #define GSI_CHANNEL_STOP_RETRIES	10
 #define GSI_CHANNEL_MODEM_HALT_RETRIES	10
+#define GSI_CHANNEL_MODEM_FLOW_RETRIES	5	/* disable flow control only */
 
 #define GSI_MHI_EVENT_ID_START		10	/* 1st reserved event id */
 #define GSI_MHI_EVENT_ID_END		16	/* Last reserved event id */
@@ -339,10 +340,10 @@ static u32 gsi_ring_index(struct gsi_ring *ring, u32 offset)
  * completion to be signaled.  Returns true if the command completes
  * or false if it times out.
  */
-static bool
-gsi_command(struct gsi *gsi, u32 reg, u32 val, struct completion *completion)
+static bool gsi_command(struct gsi *gsi, u32 reg, u32 val)
 {
 	unsigned long timeout = msecs_to_jiffies(GSI_CMD_TIMEOUT);
+	struct completion *completion = &gsi->completion;
 
 	reinit_completion(completion);
 
@@ -366,8 +367,6 @@ gsi_evt_ring_state(struct gsi *gsi, u32 evt_ring_id)
 static void gsi_evt_ring_command(struct gsi *gsi, u32 evt_ring_id,
 				 enum gsi_evt_cmd_opcode opcode)
 {
-	struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
-	struct completion *completion = &evt_ring->completion;
 	struct device *dev = gsi->dev;
 	bool timeout;
 	u32 val;
@@ -378,7 +377,7 @@ static void gsi_evt_ring_command(struct gsi *gsi, u32 evt_ring_id,
 	val = u32_encode_bits(evt_ring_id, EV_CHID_FMASK);
 	val |= u32_encode_bits(opcode, EV_OPCODE_FMASK);
 
-	timeout = !gsi_command(gsi, GSI_EV_CH_CMD_OFFSET, val, completion);
+	timeout = !gsi_command(gsi, GSI_EV_CH_CMD_OFFSET, val);
 
 	gsi_irq_ev_ctrl_disable(gsi);
 
@@ -478,7 +477,6 @@ static enum gsi_channel_state gsi_channel_state(struct gsi_channel *channel)
 static void
 gsi_channel_command(struct gsi_channel *channel, enum gsi_ch_cmd_opcode opcode)
 {
-	struct completion *completion = &channel->completion;
 	u32 channel_id = gsi_channel_id(channel);
 	struct gsi *gsi = channel->gsi;
 	struct device *dev = gsi->dev;
@@ -490,7 +488,7 @@ gsi_channel_command(struct gsi_channel *channel, enum gsi_ch_cmd_opcode opcode)
 
 	val = u32_encode_bits(channel_id, CH_CHID_FMASK);
 	val |= u32_encode_bits(opcode, CH_OPCODE_FMASK);
-	timeout = !gsi_command(gsi, GSI_CH_CMD_OFFSET, val, completion);
+	timeout = !gsi_command(gsi, GSI_CH_CMD_OFFSET, val);
 
 	gsi_irq_ch_ctrl_disable(gsi);
 
@@ -1074,13 +1072,10 @@ static void gsi_isr_chan_ctrl(struct gsi *gsi)
 
 	while (channel_mask) {
 		u32 channel_id = __ffs(channel_mask);
-		struct gsi_channel *channel;
 
 		channel_mask ^= BIT(channel_id);
 
-		channel = &gsi->channel[channel_id];
-
-		complete(&channel->completion);
+		complete(&gsi->completion);
 	}
 }
 
@@ -1094,13 +1089,10 @@ static void gsi_isr_evt_ctrl(struct gsi *gsi)
 
 	while (event_mask) {
 		u32 evt_ring_id = __ffs(event_mask);
-		struct gsi_evt_ring *evt_ring;
 
 		event_mask ^= BIT(evt_ring_id);
 
-		evt_ring = &gsi->evt_ring[evt_ring_id];
-
-		complete(&evt_ring->completion);
+		complete(&gsi->completion);
 	}
 }
 
@@ -1110,7 +1102,7 @@ gsi_isr_glob_chan_err(struct gsi *gsi, u32 err_ee, u32 channel_id, u32 code)
 {
 	if (code == GSI_OUT_OF_RESOURCES) {
 		dev_err(gsi->dev, "channel %u out of resources\n", channel_id);
-		complete(&gsi->channel[channel_id].completion);
+		complete(&gsi->completion);
 		return;
 	}
 
@@ -1127,7 +1119,7 @@ gsi_isr_glob_evt_err(struct gsi *gsi, u32 err_ee, u32 evt_ring_id, u32 code)
 		struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
 		u32 channel_id = gsi_channel_id(evt_ring->channel);
 
-		complete(&evt_ring->completion);
+		complete(&gsi->completion);
 		dev_err(gsi->dev, "evt_ring for channel %u out of resources\n",
 			channel_id);
 		return;
@@ -1171,18 +1163,23 @@ static void gsi_isr_gp_int1(struct gsi *gsi)
 	u32 result;
 	u32 val;
 
-	/* This interrupt is used to handle completions of the two GENERIC
-	 * GSI commands.  We use these to allocate and halt channels on
-	 * the modem's behalf due to a hardware quirk on IPA v4.2.  Once
-	 * allocated, the modem "owns" these channels, and as a result we
-	 * have no way of knowing the channel's state at any given time.
+	/* This interrupt is used to handle completions of GENERIC GSI
+	 * commands.  We use these to allocate and halt channels on the
+	 * modem's behalf due to a hardware quirk on IPA v4.2.  The modem
+	 * "owns" channels even when the AP allocates them, and have no
+	 * way of knowing whether a modem channel's state has been changed.
+	 *
+	 * We also use GENERIC commands to enable/disable channel flow
+	 * control for IPA v4.2+.
 	 *
 	 * It is recommended that we halt the modem channels we allocated
 	 * when shutting down, but it's possible the channel isn't running
 	 * at the time we issue the HALT command.  We'll get an error in
 	 * that case, but it's harmless (the channel is already halted).
+	 * Similarly, we could get an error back when updating flow control
+	 * on a channel because it's not in the proper state.
 	 *
-	 * For this reason, we silently ignore a CHANNEL_NOT_RUNNING error
+	 * In either case, we silently ignore a CHANNEL_NOT_RUNNING error
 	 * if we receive it.
 	 */
 	val = ioread32(gsi->virt + GSI_CNTXT_SCRATCH_0_OFFSET);
@@ -1648,19 +1645,25 @@ static void gsi_channel_teardown_one(struct gsi *gsi, u32 channel_id)
 	gsi_evt_ring_de_alloc_command(gsi, evt_ring_id);
 }
 
+/* We use generic commands only to operate on modem channels.  We don't have
+ * the ability to determine channel state for a modem channel, so we simply
+ * issue the command and wait for it to complete.
+ */
 static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
-			       enum gsi_generic_cmd_opcode opcode)
+			       enum gsi_generic_cmd_opcode opcode,
+			       u8 params)
 {
-	struct completion *completion = &gsi->completion;
 	bool timeout;
 	u32 val;
 
-	/* The error global interrupt type is always enabled (until we
-	 * teardown), so we won't change that.  A generic EE command
-	 * completes with a GSI global interrupt of type GP_INT1.  We
-	 * only perform one generic command at a time (to allocate or
-	 * halt a modem channel) and only from this function.  So we
-	 * enable the GP_INT1 IRQ type here while we're expecting it.
+	/* The error global interrupt type is always enabled (until we tear
+	 * down), so we will keep it enabled.
+	 *
+	 * A generic EE command completes with a GSI global interrupt of
+	 * type GP_INT1.  We only perform one generic command at a time
+	 * (to allocate, halt, or enable/disable flow control on a modem
+	 * channel), and only from this function.  So we enable the GP_INT1
+	 * IRQ type here, and disable it again after the command completes.
 	 */
 	val = BIT(ERROR_INT) | BIT(GP_INT1);
 	iowrite32(val, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
@@ -1674,8 +1677,9 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 	val = u32_encode_bits(opcode, GENERIC_OPCODE_FMASK);
 	val |= u32_encode_bits(channel_id, GENERIC_CHID_FMASK);
 	val |= u32_encode_bits(GSI_EE_MODEM, GENERIC_EE_FMASK);
+	val |= u32_encode_bits(params, GENERIC_PARAMS_FMASK);
 
-	timeout = !gsi_command(gsi, GSI_GENERIC_CMD_OFFSET, val, completion);
+	timeout = !gsi_command(gsi, GSI_GENERIC_CMD_OFFSET, val);
 
 	/* Disable the GP_INT1 IRQ type again */
 	iowrite32(BIT(ERROR_INT), gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
@@ -1692,7 +1696,7 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 static int gsi_modem_channel_alloc(struct gsi *gsi, u32 channel_id)
 {
 	return gsi_generic_command(gsi, channel_id,
-				   GSI_GENERIC_ALLOCATE_CHANNEL);
+				   GSI_GENERIC_ALLOCATE_CHANNEL, 0);
 }
 
 static void gsi_modem_channel_halt(struct gsi *gsi, u32 channel_id)
@@ -1702,12 +1706,38 @@ static void gsi_modem_channel_halt(struct gsi *gsi, u32 channel_id)
 
 	do
 		ret = gsi_generic_command(gsi, channel_id,
-					  GSI_GENERIC_HALT_CHANNEL);
+					  GSI_GENERIC_HALT_CHANNEL, 0);
 	while (ret == -EAGAIN && retries--);
 
 	if (ret)
 		dev_err(gsi->dev, "error %d halting modem channel %u\n",
 			ret, channel_id);
+}
+
+/* Enable or disable flow control for a modem GSI TX channel (IPA v4.2+) */
+void
+gsi_modem_channel_flow_control(struct gsi *gsi, u32 channel_id, bool enable)
+{
+	u32 retries = 0;
+	u32 command;
+	int ret;
+
+	command = enable ? GSI_GENERIC_ENABLE_FLOW_CONTROL
+			 : GSI_GENERIC_DISABLE_FLOW_CONTROL;
+	/* Disabling flow control on IPA v4.11+ can return -EAGAIN if enable
+	 * is underway.  In this case we need to retry the command.
+	 */
+	if (!enable && gsi->version >= IPA_VERSION_4_11)
+		retries = GSI_CHANNEL_MODEM_FLOW_RETRIES;
+
+	do
+		ret = gsi_generic_command(gsi, channel_id, command, 0);
+	while (ret == -EAGAIN && retries--);
+
+	if (ret)
+		dev_err(gsi->dev,
+			"error %d %sabling mode channel %u flow control\n",
+			ret, enable ? "en" : "dis", channel_id);
 }
 
 /* Setup function for channels */
@@ -1975,18 +2005,6 @@ static void gsi_channel_evt_ring_exit(struct gsi_channel *channel)
 	gsi_evt_ring_id_free(gsi, evt_ring_id);
 }
 
-/* Init function for event rings; there is no gsi_evt_ring_exit() */
-static void gsi_evt_ring_init(struct gsi *gsi)
-{
-	u32 evt_ring_id = 0;
-
-	gsi->event_bitmap = gsi_event_bitmap_init(GSI_EVT_RING_COUNT_MAX);
-	gsi->ieob_enabled_bitmap = 0;
-	do
-		init_completion(&gsi->evt_ring[evt_ring_id].completion);
-	while (++evt_ring_id < GSI_EVT_RING_COUNT_MAX);
-}
-
 static bool gsi_channel_data_valid(struct gsi *gsi,
 				   const struct ipa_gsi_endpoint_data *data)
 {
@@ -2069,7 +2087,6 @@ static int gsi_channel_init_one(struct gsi *gsi,
 	channel->tlv_count = data->channel.tlv_count;
 	channel->tre_count = tre_count;
 	channel->event_count = data->channel.event_count;
-	init_completion(&channel->completion);
 
 	ret = gsi_channel_evt_ring_init(channel);
 	if (ret)
@@ -2129,7 +2146,8 @@ static int gsi_channel_init(struct gsi *gsi, u32 count,
 	/* IPA v4.2 requires the AP to allocate channels for the modem */
 	modem_alloc = gsi->version == IPA_VERSION_4_2;
 
-	gsi_evt_ring_init(gsi);			/* No matching exit required */
+	gsi->event_bitmap = gsi_event_bitmap_init(GSI_EVT_RING_COUNT_MAX);
+	gsi->ieob_enabled_bitmap = 0;
 
 	/* The endpoint data array is indexed by endpoint name */
 	for (i = 0; i < count; i++) {

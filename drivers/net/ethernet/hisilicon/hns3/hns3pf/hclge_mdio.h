@@ -4,6 +4,10 @@
 #ifndef __HCLGE_MDIO_H
 #define __HCLGE_MDIO_H
 
+#include "hnae3.h"
+
+struct hclge_dev;
+
 int hclge_mac_mdio_config(struct hclge_dev *hdev);
 int hclge_mac_connect_phy(struct hnae3_handle *handle);
 void hclge_mac_disconnect_phy(struct hnae3_handle *handle);

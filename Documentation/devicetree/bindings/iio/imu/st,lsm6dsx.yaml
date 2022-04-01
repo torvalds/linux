@@ -61,6 +61,13 @@ properties:
     type: boolean
     description: enable/disable internal i2c controller pullup resistors.
 
+  st,disable-sensor-hub:
+    type: boolean
+    description:
+      Enable/disable internal i2c controller slave autoprobing at bootstrap.
+      Disable sensor-hub is useful if i2c controller clock/data lines are
+      connected through a pull-up with other chip lines (e.g. SDO/SA0).
+
   drive-open-drain:
     type: boolean
     description:

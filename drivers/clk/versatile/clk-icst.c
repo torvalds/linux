@@ -543,8 +543,8 @@ static void __init of_syscon_icst_setup(struct device_node *np)
 
 	regclk = icst_clk_setup(NULL, &icst_desc, name, parent_name, map, ctype);
 	if (IS_ERR(regclk)) {
-		kfree(name);
 		pr_err("error setting up syscon ICST clock %s\n", name);
+		kfree(name);
 		return;
 	}
 	of_clk_add_provider(np, of_clk_src_simple_get, regclk);

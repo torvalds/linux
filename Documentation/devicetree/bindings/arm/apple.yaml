@@ -12,12 +12,19 @@ maintainers:
 description: |
   ARM platforms using SoCs designed by Apple Inc., branded "Apple Silicon".
 
-  This currently includes devices based on the "M1" SoC, starting with the
-  three Mac models released in late 2020:
+  This currently includes devices based on the "M1" SoC:
 
   - Mac mini (M1, 2020)
   - MacBook Pro (13-inch, M1, 2020)
   - MacBook Air (M1, 2020)
+  - iMac (24-inch, M1, 2021)
+
+  And devices based on the "M1 Pro" and "M1 Max" SoCs:
+
+  - MacBook Pro (14-inch, M1 Pro, 2021)
+  - MacBook Pro (14-inch, M1 Max, 2021)
+  - MacBook Pro (16-inch, M1 Pro, 2021)
+  - MacBook Pro (16-inch, M1 Max, 2021)
 
   The compatible property should follow this format:
 
@@ -56,7 +63,23 @@ properties:
               - apple,j274 # Mac mini (M1, 2020)
               - apple,j293 # MacBook Pro (13-inch, M1, 2020)
               - apple,j313 # MacBook Air (M1, 2020)
+              - apple,j456 # iMac (24-inch, 4x USB-C, M1, 2021)
+              - apple,j457 # iMac (24-inch, 2x USB-C, M1, 2021)
           - const: apple,t8103
+          - const: apple,arm-platform
+      - description: Apple M1 Pro SoC based platforms
+        items:
+          - enum:
+              - apple,j314s # MacBook Pro (14-inch, M1 Pro, 2021)
+              - apple,j316s # MacBook Pro (16-inch, M1 Pro, 2021)
+          - const: apple,t6000
+          - const: apple,arm-platform
+      - description: Apple M1 Max SoC based platforms
+        items:
+          - enum:
+              - apple,j314c # MacBook Pro (14-inch, M1 Max, 2021)
+              - apple,j316c # MacBook Pro (16-inch, M1 Max, 2021)
+          - const: apple,t6001
           - const: apple,arm-platform
 
 additionalProperties: true

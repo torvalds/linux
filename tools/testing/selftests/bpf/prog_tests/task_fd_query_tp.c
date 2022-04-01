@@ -13,8 +13,8 @@ static void test_task_fd_query_tp_core(const char *probe_name,
 	__u32 duration = 0;
 	char buf[256];
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
-	if (CHECK(err, "bpf_prog_load", "err %d errno %d\n", err, errno))
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
+	if (CHECK(err, "bpf_prog_test_load", "err %d errno %d\n", err, errno))
 		goto close_prog;
 
 	snprintf(buf, sizeof(buf),

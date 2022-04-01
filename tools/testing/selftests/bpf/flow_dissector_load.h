@@ -4,6 +4,7 @@
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
+#include "testing_helpers.h"
 
 static inline int bpf_flow_load(struct bpf_object **obj,
 				const char *path,
@@ -18,7 +19,7 @@ static inline int bpf_flow_load(struct bpf_object **obj,
 	int prog_array_fd;
 	int ret, fd, i;
 
-	ret = bpf_prog_load(path, BPF_PROG_TYPE_FLOW_DISSECTOR, obj,
+	ret = bpf_prog_test_load(path, BPF_PROG_TYPE_FLOW_DISSECTOR, obj,
 			    prog_fd);
 	if (ret)
 		return ret;

@@ -139,10 +139,13 @@ err:
 	if (!p_ptt)
 		return -EBUSY;
 	qed_hw_err_notify(p_hwfn, p_ptt, QED_HW_ERR_RAMROD_FAIL,
-			  "Ramrod is stuck [CID %08x cmd %02x protocol %02x echo %04x]\n",
+			  "Ramrod is stuck [CID %08x %s:%02x %s:%02x echo %04x]\n",
 			  le32_to_cpu(p_ent->elem.hdr.cid),
+			  qed_get_ramrod_cmd_id_str(p_ent->elem.hdr.protocol_id,
+						    p_ent->elem.hdr.cmd_id),
 			  p_ent->elem.hdr.cmd_id,
-			  p_ent->elem.hdr.protocol_id,
+			  qed_get_protocol_type_str(p_ent->elem.hdr.protocol_id),
+						    p_ent->elem.hdr.protocol_id,
 			  le16_to_cpu(p_ent->elem.hdr.echo));
 	qed_ptt_release(p_hwfn, p_ptt);
 
@@ -170,13 +173,16 @@ static int qed_spq_fill_entry(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
-	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
-		   "Ramrod header: [CID 0x%08x CMD 0x%02x protocol 0x%02x] Data pointer: [%08x:%08x] Completion Mode: %s\n",
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SPQ,
+		   "Ramrod hdr: [CID 0x%08x %s:0x%02x %s:0x%02x] Data ptr: [%08x:%08x] Cmpltion Mode: %s\n",
 		   p_ent->elem.hdr.cid,
+		   qed_get_ramrod_cmd_id_str(p_ent->elem.hdr.protocol_id,
+					     p_ent->elem.hdr.cmd_id),
 		   p_ent->elem.hdr.cmd_id,
-		   p_ent->elem.hdr.protocol_id,
-		   p_ent->elem.data_ptr.hi,
-		   p_ent->elem.data_ptr.lo,
+		   qed_get_protocol_type_str(p_ent->elem.hdr.protocol_id),
+					     p_ent->elem.hdr.protocol_id,
+		   p_ent->elem.data_ptr.hi, p_ent->elem.data_ptr.lo,
 		   D_TRINE(p_ent->comp_mode, QED_SPQ_MODE_EBLOCK,
 			   QED_SPQ_MODE_BLOCK, "MODE_EBLOCK", "MODE_BLOCK",
 			   "MODE_CB"));
@@ -271,8 +277,16 @@ qed_async_event_completion(struct qed_hwfn *p_hwfn,
 {
 	qed_spq_async_comp_cb cb;
 
-	if (!p_hwfn->p_spq || (p_eqe->protocol_id >= MAX_PROTOCOL_TYPE))
+	if (!p_hwfn->p_spq)
 		return -EINVAL;
+
+	if (p_eqe->protocol_id >= MAX_PROTOCOL_TYPE) {
+		DP_ERR(p_hwfn, "Wrong protocol: %s:%d\n",
+		       qed_get_protocol_type_str(p_eqe->protocol_id),
+		       p_eqe->protocol_id);
+
+		return -EINVAL;
+	}
 
 	cb = p_hwfn->p_spq->async_comp_cb[p_eqe->protocol_id];
 	if (cb) {
@@ -280,8 +294,10 @@ qed_async_event_completion(struct qed_hwfn *p_hwfn,
 			  &p_eqe->data, p_eqe->fw_return_code);
 	} else {
 		DP_NOTICE(p_hwfn,
-			  "Unknown Async completion for protocol: %d\n",
+			  "Unknown Async completion for %s:%d\n",
+			  qed_get_protocol_type_str(p_eqe->protocol_id),
 			  p_eqe->protocol_id);
+
 		return -EINVAL;
 	}
 }
@@ -830,8 +846,12 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 	if (p_hwfn->cdev->recov_in_prog) {
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_SPQ,
-			   "Recovery is in progress. Skip spq post [cmd %02x protocol %02x]\n",
-			   p_ent->elem.hdr.cmd_id, p_ent->elem.hdr.protocol_id);
+			   "Recovery is in progress. Skip spq post [%s:%02x %s:%02x]\n",
+			   qed_get_ramrod_cmd_id_str(p_ent->elem.hdr.protocol_id,
+						     p_ent->elem.hdr.cmd_id),
+			   p_ent->elem.hdr.cmd_id,
+			   qed_get_protocol_type_str(p_ent->elem.hdr.protocol_id),
+			   p_ent->elem.hdr.protocol_id);
 
 		/* Let the flow complete w/o any error handling */
 		qed_spq_recov_set_ret_code(p_ent, fw_return_code);

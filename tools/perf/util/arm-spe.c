@@ -51,12 +51,15 @@ struct arm_spe {
 	u8				timeless_decoding;
 	u8				data_queued;
 
+	u64				sample_type;
 	u8				sample_flc;
 	u8				sample_llc;
 	u8				sample_tlb;
 	u8				sample_branch;
 	u8				sample_remote_access;
 	u8				sample_memory;
+	u8				sample_instructions;
+	u64				instructions_sample_period;
 
 	u64				l1d_miss_id;
 	u64				l1d_access_id;
@@ -67,6 +70,7 @@ struct arm_spe {
 	u64				branch_miss_id;
 	u64				remote_access_id;
 	u64				memory_id;
+	u64				instructions_id;
 
 	u64				kernel_start;
 
@@ -89,6 +93,7 @@ struct arm_spe_queue {
 	u64				time;
 	u64				timestamp;
 	struct thread			*thread;
+	u64				period_instructions;
 };
 
 static void arm_spe_dump(struct arm_spe *spe __maybe_unused,
@@ -201,6 +206,7 @@ static struct arm_spe_queue *arm_spe__alloc_queue(struct arm_spe *spe,
 	speq->pid = -1;
 	speq->tid = -1;
 	speq->cpu = -1;
+	speq->period_instructions = 0;
 
 	/* params set */
 	params.get_trace = arm_spe_get_trace;
@@ -287,6 +293,12 @@ static void arm_spe_prep_sample(struct arm_spe *spe,
 	event->sample.header.size = sizeof(struct perf_event_header);
 }
 
+static int arm_spe__inject_event(union perf_event *event, struct perf_sample *sample, u64 type)
+{
+	event->header.size = perf_event__sample_event_size(sample, type, 0);
+	return perf_event__synthesize_sample(event, type, 0, sample);
+}
+
 static inline int
 arm_spe_deliver_synth_event(struct arm_spe *spe,
 			    struct arm_spe_queue *speq __maybe_unused,
@@ -294,6 +306,12 @@ arm_spe_deliver_synth_event(struct arm_spe *spe,
 			    struct perf_sample *sample)
 {
 	int ret;
+
+	if (spe->synth_opts.inject) {
+		ret = arm_spe__inject_event(event, sample, spe->sample_type);
+		if (ret)
+			return ret;
+	}
 
 	ret = perf_session__deliver_synth_event(spe->session, event, sample);
 	if (ret)
@@ -317,6 +335,7 @@ static int arm_spe__synth_mem_sample(struct arm_spe_queue *speq,
 	sample.addr = record->virt_addr;
 	sample.phys_addr = record->phys_addr;
 	sample.data_src = data_src;
+	sample.weight = record->latency;
 
 	return arm_spe_deliver_synth_event(spe, speq, event, &sample);
 }
@@ -334,6 +353,36 @@ static int arm_spe__synth_branch_sample(struct arm_spe_queue *speq,
 	sample.id = spe_events_id;
 	sample.stream_id = spe_events_id;
 	sample.addr = record->to_ip;
+	sample.weight = record->latency;
+
+	return arm_spe_deliver_synth_event(spe, speq, event, &sample);
+}
+
+static int arm_spe__synth_instruction_sample(struct arm_spe_queue *speq,
+					     u64 spe_events_id, u64 data_src)
+{
+	struct arm_spe *spe = speq->spe;
+	struct arm_spe_record *record = &speq->decoder->record;
+	union perf_event *event = speq->event_buf;
+	struct perf_sample sample = { .ip = 0, };
+
+	/*
+	 * Handles perf instruction sampling period.
+	 */
+	speq->period_instructions++;
+	if (speq->period_instructions < spe->instructions_sample_period)
+		return 0;
+	speq->period_instructions = 0;
+
+	arm_spe_prep_sample(spe, speq, event, &sample);
+
+	sample.id = spe_events_id;
+	sample.stream_id = spe_events_id;
+	sample.addr = record->virt_addr;
+	sample.phys_addr = record->phys_addr;
+	sample.data_src = data_src;
+	sample.period = spe->instructions_sample_period;
+	sample.weight = record->latency;
 
 	return arm_spe_deliver_synth_event(spe, speq, event, &sample);
 }
@@ -463,6 +512,12 @@ static int arm_spe_sample(struct arm_spe_queue *speq)
 
 	if (spe->sample_memory && arm_spe__is_memory_event(record->type)) {
 		err = arm_spe__synth_mem_sample(speq, spe->memory_id, data_src);
+		if (err)
+			return err;
+	}
+
+	if (spe->sample_instructions) {
+		err = arm_spe__synth_instruction_sample(speq, spe->instructions_id, data_src);
 		if (err)
 			return err;
 	}
@@ -980,11 +1035,14 @@ arm_spe_synth_events(struct arm_spe *spe, struct perf_session *session)
 	attr.type = PERF_TYPE_HARDWARE;
 	attr.sample_type = evsel->core.attr.sample_type & PERF_SAMPLE_MASK;
 	attr.sample_type |= PERF_SAMPLE_IP | PERF_SAMPLE_TID |
-			    PERF_SAMPLE_PERIOD | PERF_SAMPLE_DATA_SRC;
+			    PERF_SAMPLE_PERIOD | PERF_SAMPLE_DATA_SRC |
+			    PERF_SAMPLE_WEIGHT;
 	if (spe->timeless_decoding)
 		attr.sample_type &= ~(u64)PERF_SAMPLE_TIME;
 	else
 		attr.sample_type |= PERF_SAMPLE_TIME;
+
+	spe->sample_type = attr.sample_type;
 
 	attr.exclude_user = evsel->core.attr.exclude_user;
 	attr.exclude_kernel = evsel->core.attr.exclude_kernel;
@@ -1092,7 +1150,29 @@ arm_spe_synth_events(struct arm_spe *spe, struct perf_session *session)
 			return err;
 		spe->memory_id = id;
 		arm_spe_set_event_name(evlist, id, "memory");
+		id += 1;
 	}
+
+	if (spe->synth_opts.instructions) {
+		if (spe->synth_opts.period_type != PERF_ITRACE_PERIOD_INSTRUCTIONS) {
+			pr_warning("Only instruction-based sampling period is currently supported by Arm SPE.\n");
+			goto synth_instructions_out;
+		}
+		if (spe->synth_opts.period > 1)
+			pr_warning("Arm SPE has a hardware-based sample period.\n"
+				   "Additional instruction events will be discarded by --itrace\n");
+
+		spe->sample_instructions = true;
+		attr.config = PERF_COUNT_HW_INSTRUCTIONS;
+		attr.sample_period = spe->synth_opts.period;
+		spe->instructions_sample_period = attr.sample_period;
+		err = arm_spe_synth_event(session, &attr, id);
+		if (err)
+			return err;
+		spe->instructions_id = id;
+		arm_spe_set_event_name(evlist, id, "instructions");
+	}
+synth_instructions_out:
 
 	return 0;
 }

@@ -1467,7 +1467,7 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	for (address = 0; address < fwsize; address += 0x800) {
 		memcpy(fw_ptr, fw_entry->data + address, 0x800);
 		ret += usb_control_msg(hdw->usb_dev, pipe, 0xa0, 0x40, address,
-				       0, fw_ptr, 0x800, HZ);
+				       0, fw_ptr, 0x800, 1000);
 	}
 
 	trace_firmware("Upload done, releasing device's CPU");
@@ -1605,7 +1605,7 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 			((u32 *)fw_ptr)[icnt] = swab32(((u32 *)fw_ptr)[icnt]);
 
 		ret |= usb_bulk_msg(hdw->usb_dev, pipe, fw_ptr,bcnt,
-				    &actual_length, HZ);
+				    &actual_length, 1000);
 		ret |= (actual_length != bcnt);
 		if (ret) break;
 		fw_done += bcnt;
@@ -1718,16 +1718,16 @@ int pvr2_hdw_get_streaming(struct pvr2_hdw *hdw)
 int pvr2_hdw_set_streaming(struct pvr2_hdw *hdw,int enable_flag)
 {
 	int ret,st;
-	LOCK_TAKE(hdw->big_lock); do {
-		pvr2_hdw_untrip_unlocked(hdw);
-		if ((!enable_flag) != !(hdw->state_pipeline_req)) {
-			hdw->state_pipeline_req = enable_flag != 0;
-			pvr2_trace(PVR2_TRACE_START_STOP,
-				   "/*--TRACE_STREAM--*/ %s",
-				   enable_flag ? "enable" : "disable");
-		}
-		pvr2_hdw_state_sched(hdw);
-	} while (0); LOCK_GIVE(hdw->big_lock);
+	LOCK_TAKE(hdw->big_lock);
+	pvr2_hdw_untrip_unlocked(hdw);
+	if (!enable_flag != !hdw->state_pipeline_req) {
+		hdw->state_pipeline_req = enable_flag != 0;
+		pvr2_trace(PVR2_TRACE_START_STOP,
+			   "/*--TRACE_STREAM--*/ %s",
+			   enable_flag ? "enable" : "disable");
+	}
+	pvr2_hdw_state_sched(hdw);
+	LOCK_GIVE(hdw->big_lock);
 	if ((ret = pvr2_hdw_wait(hdw,0)) < 0) return ret;
 	if (enable_flag) {
 		while ((st = hdw->master_state) != PVR2_STATE_RUN) {
@@ -3394,7 +3394,8 @@ void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw,
 	int ret;
 	u16 address;
 	unsigned int pipe;
-	LOCK_TAKE(hdw->big_lock); do {
+	LOCK_TAKE(hdw->big_lock);
+	do {
 		if ((hdw->fw_buffer == NULL) == !enable_flag) break;
 
 		if (!enable_flag) {
@@ -3438,7 +3439,7 @@ void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw,
 						      0xa0,0xc0,
 						      address,0,
 						      hdw->fw_buffer+address,
-						      0x800,HZ);
+						      0x800,1000);
 				if (ret < 0) break;
 			}
 
@@ -3457,8 +3458,8 @@ void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw,
 			pvr2_trace(PVR2_TRACE_FIRMWARE,
 				   "Done sucking down EEPROM contents");
 		}
-
-	} while (0); LOCK_GIVE(hdw->big_lock);
+	} while (0);
+	LOCK_GIVE(hdw->big_lock);
 }
 
 
@@ -3473,7 +3474,8 @@ int pvr2_hdw_cpufw_get(struct pvr2_hdw *hdw,unsigned int offs,
 		       char *buf,unsigned int cnt)
 {
 	int ret = -EINVAL;
-	LOCK_TAKE(hdw->big_lock); do {
+	LOCK_TAKE(hdw->big_lock);
+	do {
 		if (!buf) break;
 		if (!cnt) break;
 
@@ -3498,7 +3500,8 @@ int pvr2_hdw_cpufw_get(struct pvr2_hdw *hdw,unsigned int offs,
 			   "Read firmware data offs=%d cnt=%d",
 			   offs,cnt);
 		ret = cnt;
-	} while (0); LOCK_GIVE(hdw->big_lock);
+	} while (0);
+	LOCK_GIVE(hdw->big_lock);
 
 	return ret;
 }
@@ -3977,7 +3980,7 @@ void pvr2_hdw_cpureset_assert(struct pvr2_hdw *hdw,int val)
 	/* Write the CPUCS register on the 8051.  The lsb of the register
 	   is the reset bit; a 1 asserts reset while a 0 clears it. */
 	pipe = usb_sndctrlpipe(hdw->usb_dev, 0);
-	ret = usb_control_msg(hdw->usb_dev,pipe,0xa0,0x40,0xe600,0,da,1,HZ);
+	ret = usb_control_msg(hdw->usb_dev,pipe,0xa0,0x40,0xe600,0,da,1,1000);
 	if (ret < 0) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "cpureset_assert(%d) error=%d",val,ret);

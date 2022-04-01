@@ -865,7 +865,7 @@ qla_edif_app_getfcinfo(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 			    "APP request entry - portid=%06x.\n", tdid.b24);
 
 			/* Ran out of space */
-			if (pcnt > app_req.num_ports)
+			if (pcnt >= app_req.num_ports)
 				break;
 
 			if (tdid.b24 != 0 && tdid.b24 != fcport->d_id.b24)

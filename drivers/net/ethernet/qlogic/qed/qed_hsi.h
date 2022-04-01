@@ -2721,6 +2721,25 @@ void qed_memset_task_ctx(void *p_ctx_mem, u32 ctx_size, u8 ctx_type);
 #define NUM_STORMS 6
 
 /**
+ * qed_get_protocol_type_str(): Get a string for Protocol type.
+ *
+ * @protocol_type: Protocol type (using enum protocol_type).
+ *
+ * Return: String.
+ */
+const char *qed_get_protocol_type_str(u32 protocol_type);
+
+/**
+ * qed_get_ramrod_cmd_id_str(): Get a string for Ramrod command ID.
+ *
+ * @protocol_type: Protocol type (using enum protocol_type).
+ * @ramrod_cmd_id: Ramrod command ID (using per-protocol enum <protocol>_ramrod_cmd_id).
+ *
+ * Return: String.
+ */
+const char *qed_get_ramrod_cmd_id_str(u32 protocol_type, u32 ramrod_cmd_id);
+
+/**
  * qed_set_rdma_error_level(): Sets the RDMA assert level.
  *                             If the severity of the error will be
  *                             above the level, the FW will assert.

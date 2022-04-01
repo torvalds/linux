@@ -93,7 +93,7 @@ struct msft_data {
 	struct list_head handle_map;
 	__u16 pending_add_handle;
 	__u16 pending_remove_handle;
-	__u8 reregistering;
+	__u8 resuming;
 	__u8 suspending;
 	__u8 filter_enabled;
 };
@@ -156,7 +156,6 @@ failed:
 	return false;
 }
 
-/* This function requires the caller holds hdev->lock */
 static void reregister_monitor(struct hci_dev *hdev, int handle)
 {
 	struct adv_monitor *monitor;
@@ -166,9 +165,9 @@ static void reregister_monitor(struct hci_dev *hdev, int handle)
 	while (1) {
 		monitor = idr_get_next(&hdev->adv_monitors_idr, &handle);
 		if (!monitor) {
-			/* All monitors have been reregistered */
-			msft->reregistering = false;
-			hci_update_background_scan(hdev);
+			/* All monitors have been resumed */
+			msft->resuming = false;
+			hci_update_passive_scan(hdev);
 			return;
 		}
 
@@ -183,202 +182,6 @@ static void reregister_monitor(struct hci_dev *hdev, int handle)
 		hci_free_adv_monitor(hdev, monitor);
 		handle++;
 	}
-}
-
-/* This function requires the caller holds hdev->lock */
-static void remove_monitor_on_suspend(struct hci_dev *hdev, int handle)
-{
-	struct adv_monitor *monitor;
-	struct msft_data *msft = hdev->msft_data;
-	int err;
-
-	while (1) {
-		monitor = idr_get_next(&hdev->adv_monitors_idr, &handle);
-		if (!monitor) {
-			/* All monitors have been removed */
-			msft->suspending = false;
-			hci_update_background_scan(hdev);
-			return;
-		}
-
-		msft->pending_remove_handle = (u16)handle;
-		err = __msft_remove_monitor(hdev, monitor, handle);
-
-		/* If success, return and wait for monitor removed callback */
-		if (!err)
-			return;
-
-		/* Otherwise free the monitor and keep removing */
-		hci_free_adv_monitor(hdev, monitor);
-		handle++;
-	}
-}
-
-/* This function requires the caller holds hdev->lock */
-void msft_suspend(struct hci_dev *hdev)
-{
-	struct msft_data *msft = hdev->msft_data;
-
-	if (!msft)
-		return;
-
-	if (msft_monitor_supported(hdev)) {
-		msft->suspending = true;
-		/* Quitely remove all monitors on suspend to avoid waking up
-		 * the system.
-		 */
-		remove_monitor_on_suspend(hdev, 0);
-	}
-}
-
-/* This function requires the caller holds hdev->lock */
-void msft_resume(struct hci_dev *hdev)
-{
-	struct msft_data *msft = hdev->msft_data;
-
-	if (!msft)
-		return;
-
-	if (msft_monitor_supported(hdev)) {
-		msft->reregistering = true;
-		/* Monitors are removed on suspend, so we need to add all
-		 * monitors on resume.
-		 */
-		reregister_monitor(hdev, 0);
-	}
-}
-
-void msft_do_open(struct hci_dev *hdev)
-{
-	struct msft_data *msft = hdev->msft_data;
-
-	if (hdev->msft_opcode == HCI_OP_NOP)
-		return;
-
-	if (!msft) {
-		bt_dev_err(hdev, "MSFT extension not registered");
-		return;
-	}
-
-	bt_dev_dbg(hdev, "Initialize MSFT extension");
-
-	/* Reset existing MSFT data before re-reading */
-	kfree(msft->evt_prefix);
-	msft->evt_prefix = NULL;
-	msft->evt_prefix_len = 0;
-	msft->features = 0;
-
-	if (!read_supported_features(hdev, msft)) {
-		hdev->msft_data = NULL;
-		kfree(msft);
-		return;
-	}
-
-	if (msft_monitor_supported(hdev)) {
-		msft->reregistering = true;
-		msft_set_filter_enable(hdev, true);
-		/* Monitors get removed on power off, so we need to explicitly
-		 * tell the controller to re-monitor.
-		 */
-		reregister_monitor(hdev, 0);
-	}
-}
-
-void msft_do_close(struct hci_dev *hdev)
-{
-	struct msft_data *msft = hdev->msft_data;
-	struct msft_monitor_advertisement_handle_data *handle_data, *tmp;
-	struct adv_monitor *monitor;
-
-	if (!msft)
-		return;
-
-	bt_dev_dbg(hdev, "Cleanup of MSFT extension");
-
-	/* The controller will silently remove all monitors on power off.
-	 * Therefore, remove handle_data mapping and reset monitor state.
-	 */
-	list_for_each_entry_safe(handle_data, tmp, &msft->handle_map, list) {
-		monitor = idr_find(&hdev->adv_monitors_idr,
-				   handle_data->mgmt_handle);
-
-		if (monitor && monitor->state == ADV_MONITOR_STATE_OFFLOADED)
-			monitor->state = ADV_MONITOR_STATE_REGISTERED;
-
-		list_del(&handle_data->list);
-		kfree(handle_data);
-	}
-}
-
-void msft_register(struct hci_dev *hdev)
-{
-	struct msft_data *msft = NULL;
-
-	bt_dev_dbg(hdev, "Register MSFT extension");
-
-	msft = kzalloc(sizeof(*msft), GFP_KERNEL);
-	if (!msft) {
-		bt_dev_err(hdev, "Failed to register MSFT extension");
-		return;
-	}
-
-	INIT_LIST_HEAD(&msft->handle_map);
-	hdev->msft_data = msft;
-}
-
-void msft_unregister(struct hci_dev *hdev)
-{
-	struct msft_data *msft = hdev->msft_data;
-
-	if (!msft)
-		return;
-
-	bt_dev_dbg(hdev, "Unregister MSFT extension");
-
-	hdev->msft_data = NULL;
-
-	kfree(msft->evt_prefix);
-	kfree(msft);
-}
-
-void msft_vendor_evt(struct hci_dev *hdev, struct sk_buff *skb)
-{
-	struct msft_data *msft = hdev->msft_data;
-	u8 event;
-
-	if (!msft)
-		return;
-
-	/* When the extension has defined an event prefix, check that it
-	 * matches, and otherwise just return.
-	 */
-	if (msft->evt_prefix_len > 0) {
-		if (skb->len < msft->evt_prefix_len)
-			return;
-
-		if (memcmp(skb->data, msft->evt_prefix, msft->evt_prefix_len))
-			return;
-
-		skb_pull(skb, msft->evt_prefix_len);
-	}
-
-	/* Every event starts at least with an event code and the rest of
-	 * the data is variable and depends on the event code.
-	 */
-	if (skb->len < 1)
-		return;
-
-	event = *skb->data;
-	skb_pull(skb, 1);
-
-	bt_dev_dbg(hdev, "MSFT vendor event %u", event);
-}
-
-__u64 msft_get_features(struct hci_dev *hdev)
-{
-	struct msft_data *msft = hdev->msft_data;
-
-	return msft ? msft->features : 0;
 }
 
 /* is_mgmt = true matches the handle exposed to userspace via mgmt.
@@ -446,13 +249,9 @@ unlock:
 	if (status && monitor)
 		hci_free_adv_monitor(hdev, monitor);
 
-	/* If in restart/reregister sequence, keep registering. */
-	if (msft->reregistering)
-		reregister_monitor(hdev, msft->pending_add_handle + 1);
-
 	hci_dev_unlock(hdev);
 
-	if (!msft->reregistering)
+	if (!msft->resuming)
 		hci_add_adv_patterns_monitor_complete(hdev, status);
 }
 
@@ -499,11 +298,6 @@ static void msft_le_cancel_monitor_advertisement_cb(struct hci_dev *hdev,
 		kfree(handle_data);
 	}
 
-	/* If in suspend/remove sequence, keep removing. */
-	if (msft->suspending)
-		remove_monitor_on_suspend(hdev,
-					  msft->pending_remove_handle + 1);
-
 	/* If remove all monitors is required, we need to continue the process
 	 * here because the earlier it was paused when waiting for the
 	 * response from controller.
@@ -524,6 +318,316 @@ static void msft_le_cancel_monitor_advertisement_cb(struct hci_dev *hdev,
 done:
 	if (!msft->suspending)
 		hci_remove_adv_monitor_complete(hdev, status);
+}
+
+static int msft_remove_monitor_sync(struct hci_dev *hdev,
+				    struct adv_monitor *monitor)
+{
+	struct msft_cp_le_cancel_monitor_advertisement cp;
+	struct msft_monitor_advertisement_handle_data *handle_data;
+	struct sk_buff *skb;
+	u8 status;
+
+	handle_data = msft_find_handle_data(hdev, monitor->handle, true);
+
+	/* If no matched handle, just remove without telling controller */
+	if (!handle_data)
+		return -ENOENT;
+
+	cp.sub_opcode = MSFT_OP_LE_CANCEL_MONITOR_ADVERTISEMENT;
+	cp.handle = handle_data->msft_handle;
+
+	skb = __hci_cmd_sync(hdev, hdev->msft_opcode, sizeof(cp), &cp,
+			     HCI_CMD_TIMEOUT);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	status = skb->data[0];
+	skb_pull(skb, 1);
+
+	msft_le_cancel_monitor_advertisement_cb(hdev, status, hdev->msft_opcode,
+						skb);
+
+	return status;
+}
+
+/* This function requires the caller holds hci_req_sync_lock */
+int msft_suspend_sync(struct hci_dev *hdev)
+{
+	struct msft_data *msft = hdev->msft_data;
+	struct adv_monitor *monitor;
+	int handle = 0;
+
+	if (!msft || !msft_monitor_supported(hdev))
+		return 0;
+
+	msft->suspending = true;
+
+	while (1) {
+		monitor = idr_get_next(&hdev->adv_monitors_idr, &handle);
+		if (!monitor)
+			break;
+
+		msft_remove_monitor_sync(hdev, monitor);
+
+		handle++;
+	}
+
+	/* All monitors have been removed */
+	msft->suspending = false;
+
+	return 0;
+}
+
+static bool msft_monitor_rssi_valid(struct adv_monitor *monitor)
+{
+	struct adv_rssi_thresholds *r = &monitor->rssi;
+
+	if (r->high_threshold < MSFT_RSSI_THRESHOLD_VALUE_MIN ||
+	    r->high_threshold > MSFT_RSSI_THRESHOLD_VALUE_MAX ||
+	    r->low_threshold < MSFT_RSSI_THRESHOLD_VALUE_MIN ||
+	    r->low_threshold > MSFT_RSSI_THRESHOLD_VALUE_MAX)
+		return false;
+
+	/* High_threshold_timeout is not supported,
+	 * once high_threshold is reached, events are immediately reported.
+	 */
+	if (r->high_threshold_timeout != 0)
+		return false;
+
+	if (r->low_threshold_timeout > MSFT_RSSI_LOW_TIMEOUT_MAX)
+		return false;
+
+	/* Sampling period from 0x00 to 0xFF are all allowed */
+	return true;
+}
+
+static bool msft_monitor_pattern_valid(struct adv_monitor *monitor)
+{
+	return msft_monitor_rssi_valid(monitor);
+	/* No additional check needed for pattern-based monitor */
+}
+
+static int msft_add_monitor_sync(struct hci_dev *hdev,
+				 struct adv_monitor *monitor)
+{
+	struct msft_cp_le_monitor_advertisement *cp;
+	struct msft_le_monitor_advertisement_pattern_data *pattern_data;
+	struct msft_le_monitor_advertisement_pattern *pattern;
+	struct adv_pattern *entry;
+	size_t total_size = sizeof(*cp) + sizeof(*pattern_data);
+	ptrdiff_t offset = 0;
+	u8 pattern_count = 0;
+	struct sk_buff *skb;
+	u8 status;
+
+	if (!msft_monitor_pattern_valid(monitor))
+		return -EINVAL;
+
+	list_for_each_entry(entry, &monitor->patterns, list) {
+		pattern_count++;
+		total_size += sizeof(*pattern) + entry->length;
+	}
+
+	cp = kmalloc(total_size, GFP_KERNEL);
+	if (!cp)
+		return -ENOMEM;
+
+	cp->sub_opcode = MSFT_OP_LE_MONITOR_ADVERTISEMENT;
+	cp->rssi_high = monitor->rssi.high_threshold;
+	cp->rssi_low = monitor->rssi.low_threshold;
+	cp->rssi_low_interval = (u8)monitor->rssi.low_threshold_timeout;
+	cp->rssi_sampling_period = monitor->rssi.sampling_period;
+
+	cp->cond_type = MSFT_MONITOR_ADVERTISEMENT_TYPE_PATTERN;
+
+	pattern_data = (void *)cp->data;
+	pattern_data->count = pattern_count;
+
+	list_for_each_entry(entry, &monitor->patterns, list) {
+		pattern = (void *)(pattern_data->data + offset);
+		/* the length also includes data_type and offset */
+		pattern->length = entry->length + 2;
+		pattern->data_type = entry->ad_type;
+		pattern->start_byte = entry->offset;
+		memcpy(pattern->pattern, entry->value, entry->length);
+		offset += sizeof(*pattern) + entry->length;
+	}
+
+	skb = __hci_cmd_sync(hdev, hdev->msft_opcode, total_size, cp,
+			     HCI_CMD_TIMEOUT);
+	kfree(cp);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	status = skb->data[0];
+	skb_pull(skb, 1);
+
+	msft_le_monitor_advertisement_cb(hdev, status, hdev->msft_opcode, skb);
+
+	return status;
+}
+
+/* This function requires the caller holds hci_req_sync_lock */
+int msft_resume_sync(struct hci_dev *hdev)
+{
+	struct msft_data *msft = hdev->msft_data;
+	struct adv_monitor *monitor;
+	int handle = 0;
+
+	if (!msft || !msft_monitor_supported(hdev))
+		return 0;
+
+	msft->resuming = true;
+
+	while (1) {
+		monitor = idr_get_next(&hdev->adv_monitors_idr, &handle);
+		if (!monitor)
+			break;
+
+		msft_add_monitor_sync(hdev, monitor);
+
+		handle++;
+	}
+
+	/* All monitors have been resumed */
+	msft->resuming = false;
+
+	return 0;
+}
+
+void msft_do_open(struct hci_dev *hdev)
+{
+	struct msft_data *msft = hdev->msft_data;
+
+	if (hdev->msft_opcode == HCI_OP_NOP)
+		return;
+
+	if (!msft) {
+		bt_dev_err(hdev, "MSFT extension not registered");
+		return;
+	}
+
+	bt_dev_dbg(hdev, "Initialize MSFT extension");
+
+	/* Reset existing MSFT data before re-reading */
+	kfree(msft->evt_prefix);
+	msft->evt_prefix = NULL;
+	msft->evt_prefix_len = 0;
+	msft->features = 0;
+
+	if (!read_supported_features(hdev, msft)) {
+		hdev->msft_data = NULL;
+		kfree(msft);
+		return;
+	}
+
+	if (msft_monitor_supported(hdev)) {
+		msft->resuming = true;
+		msft_set_filter_enable(hdev, true);
+		/* Monitors get removed on power off, so we need to explicitly
+		 * tell the controller to re-monitor.
+		 */
+		reregister_monitor(hdev, 0);
+	}
+}
+
+void msft_do_close(struct hci_dev *hdev)
+{
+	struct msft_data *msft = hdev->msft_data;
+	struct msft_monitor_advertisement_handle_data *handle_data, *tmp;
+	struct adv_monitor *monitor;
+
+	if (!msft)
+		return;
+
+	bt_dev_dbg(hdev, "Cleanup of MSFT extension");
+
+	/* The controller will silently remove all monitors on power off.
+	 * Therefore, remove handle_data mapping and reset monitor state.
+	 */
+	list_for_each_entry_safe(handle_data, tmp, &msft->handle_map, list) {
+		monitor = idr_find(&hdev->adv_monitors_idr,
+				   handle_data->mgmt_handle);
+
+		if (monitor && monitor->state == ADV_MONITOR_STATE_OFFLOADED)
+			monitor->state = ADV_MONITOR_STATE_REGISTERED;
+
+		list_del(&handle_data->list);
+		kfree(handle_data);
+	}
+}
+
+void msft_register(struct hci_dev *hdev)
+{
+	struct msft_data *msft = NULL;
+
+	bt_dev_dbg(hdev, "Register MSFT extension");
+
+	msft = kzalloc(sizeof(*msft), GFP_KERNEL);
+	if (!msft) {
+		bt_dev_err(hdev, "Failed to register MSFT extension");
+		return;
+	}
+
+	INIT_LIST_HEAD(&msft->handle_map);
+	hdev->msft_data = msft;
+}
+
+void msft_unregister(struct hci_dev *hdev)
+{
+	struct msft_data *msft = hdev->msft_data;
+
+	if (!msft)
+		return;
+
+	bt_dev_dbg(hdev, "Unregister MSFT extension");
+
+	hdev->msft_data = NULL;
+
+	kfree(msft->evt_prefix);
+	kfree(msft);
+}
+
+void msft_vendor_evt(struct hci_dev *hdev, void *data, struct sk_buff *skb)
+{
+	struct msft_data *msft = hdev->msft_data;
+	u8 event;
+
+	if (!msft)
+		return;
+
+	/* When the extension has defined an event prefix, check that it
+	 * matches, and otherwise just return.
+	 */
+	if (msft->evt_prefix_len > 0) {
+		if (skb->len < msft->evt_prefix_len)
+			return;
+
+		if (memcmp(skb->data, msft->evt_prefix, msft->evt_prefix_len))
+			return;
+
+		skb_pull(skb, msft->evt_prefix_len);
+	}
+
+	/* Every event starts at least with an event code and the rest of
+	 * the data is variable and depends on the event code.
+	 */
+	if (skb->len < 1)
+		return;
+
+	event = *skb->data;
+	skb_pull(skb, 1);
+
+	bt_dev_dbg(hdev, "MSFT vendor event %u", event);
+}
+
+__u64 msft_get_features(struct hci_dev *hdev)
+{
+	struct msft_data *msft = hdev->msft_data;
+
+	return msft ? msft->features : 0;
 }
 
 static void msft_le_set_advertisement_filter_enable_cb(struct hci_dev *hdev,
@@ -558,35 +662,6 @@ static void msft_le_set_advertisement_filter_enable_cb(struct hci_dev *hdev,
 			    cp->enable ? "on" : "off");
 
 	hci_dev_unlock(hdev);
-}
-
-static bool msft_monitor_rssi_valid(struct adv_monitor *monitor)
-{
-	struct adv_rssi_thresholds *r = &monitor->rssi;
-
-	if (r->high_threshold < MSFT_RSSI_THRESHOLD_VALUE_MIN ||
-	    r->high_threshold > MSFT_RSSI_THRESHOLD_VALUE_MAX ||
-	    r->low_threshold < MSFT_RSSI_THRESHOLD_VALUE_MIN ||
-	    r->low_threshold > MSFT_RSSI_THRESHOLD_VALUE_MAX)
-		return false;
-
-	/* High_threshold_timeout is not supported,
-	 * once high_threshold is reached, events are immediately reported.
-	 */
-	if (r->high_threshold_timeout != 0)
-		return false;
-
-	if (r->low_threshold_timeout > MSFT_RSSI_LOW_TIMEOUT_MAX)
-		return false;
-
-	/* Sampling period from 0x00 to 0xFF are all allowed */
-	return true;
-}
-
-static bool msft_monitor_pattern_valid(struct adv_monitor *monitor)
-{
-	return msft_monitor_rssi_valid(monitor);
-	/* No additional check needed for pattern-based monitor */
 }
 
 /* This function requires the caller holds hdev->lock */
@@ -656,7 +731,7 @@ int msft_add_monitor_pattern(struct hci_dev *hdev, struct adv_monitor *monitor)
 	if (!msft)
 		return -EOPNOTSUPP;
 
-	if (msft->reregistering || msft->suspending)
+	if (msft->resuming || msft->suspending)
 		return -EBUSY;
 
 	return __msft_add_monitor_pattern(hdev, monitor);
@@ -700,7 +775,7 @@ int msft_remove_monitor(struct hci_dev *hdev, struct adv_monitor *monitor,
 	if (!msft)
 		return -EOPNOTSUPP;
 
-	if (msft->reregistering || msft->suspending)
+	if (msft->resuming || msft->suspending)
 		return -EBUSY;
 
 	return __msft_remove_monitor(hdev, monitor, handle);

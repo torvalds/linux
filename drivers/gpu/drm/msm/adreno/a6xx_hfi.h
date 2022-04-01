@@ -33,6 +33,17 @@ struct a6xx_hfi_queue {
 	spinlock_t lock;
 	u32 *data;
 	atomic_t seqnum;
+
+	/*
+	 * Tracking for the start index of the last N messages in the
+	 * queue, for the benefit of devcore dump / crashdec (since
+	 * parsing in the reverse direction to decode the last N
+	 * messages is difficult to do and would rely on heuristics
+	 * which are not guaranteed to be correct)
+	 */
+#define HFI_HISTORY_SZ 8
+	s32 history[HFI_HISTORY_SZ];
+	u8  history_idx;
 };
 
 /* This is the outgoing queue to the GMU */

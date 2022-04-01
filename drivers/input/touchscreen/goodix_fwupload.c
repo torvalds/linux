@@ -207,7 +207,7 @@ static int goodix_firmware_upload(struct goodix_ts_data *ts)
 
 	error = goodix_reset_no_int_sync(ts);
 	if (error)
-		return error;
+		goto release;
 
 	error = goodix_enter_upload_mode(ts->client);
 	if (error)

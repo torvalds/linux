@@ -276,8 +276,8 @@ static union iucv_param *iucv_param[NR_CPUS];
 static union iucv_param *iucv_param_irq[NR_CPUS];
 
 /**
- * iucv_call_b2f0
- * @code: identifier of IUCV call to CP.
+ * __iucv_call_b2f0
+ * @command: identifier of IUCV call to CP.
  * @parm: pointer to a struct iucv_parm block
  *
  * Calls CP to execute IUCV commands.
@@ -309,7 +309,7 @@ static inline int iucv_call_b2f0(int command, union iucv_param *parm)
 	return ccode == 1 ? parm->ctrl.iprcode : ccode;
 }
 
-/**
+/*
  * iucv_query_maxconn
  *
  * Determines the maximum number of connections that may be established.
@@ -493,8 +493,8 @@ static void iucv_retrieve_cpu(void *data)
 	cpumask_clear_cpu(cpu, &iucv_buffer_cpumask);
 }
 
-/**
- * iucv_setmask_smp
+/*
+ * iucv_setmask_mp
  *
  * Allow iucv interrupts on all cpus.
  */
@@ -512,7 +512,7 @@ static void iucv_setmask_mp(void)
 	cpus_read_unlock();
 }
 
-/**
+/*
  * iucv_setmask_up
  *
  * Allow iucv interrupts on a single cpu.
@@ -529,7 +529,7 @@ static void iucv_setmask_up(void)
 		smp_call_function_single(cpu, iucv_block_cpu, NULL, 1);
 }
 
-/**
+/*
  * iucv_enable
  *
  * This function makes iucv ready for use. It allocates the pathid
@@ -564,7 +564,7 @@ out:
 	return rc;
 }
 
-/**
+/*
  * iucv_disable
  *
  * This function shuts down iucv. It disables iucv interrupts, retrieves
@@ -1347,8 +1347,9 @@ EXPORT_SYMBOL(iucv_message_send);
  * @srccls: source class of message
  * @buffer: address of send buffer or address of struct iucv_array
  * @size: length of send buffer
- * @ansbuf: address of answer buffer or address of struct iucv_array
+ * @answer: address of answer buffer or address of struct iucv_array
  * @asize: size of reply buffer
+ * @residual: ignored
  *
  * This function transmits data to another application. Data to be
  * transmitted is in a buffer. The receiver of the send is expected to
@@ -1400,13 +1401,6 @@ out:
 }
 EXPORT_SYMBOL(iucv_message_send2way);
 
-/**
- * iucv_path_pending
- * @data: Pointer to external interrupt buffer
- *
- * Process connection pending work item. Called from tasklet while holding
- * iucv_table_lock.
- */
 struct iucv_path_pending {
 	u16 ippathid;
 	u8  ipflags1;
@@ -1420,6 +1414,13 @@ struct iucv_path_pending {
 	u8  res4[3];
 } __packed;
 
+/**
+ * iucv_path_pending
+ * @data: Pointer to external interrupt buffer
+ *
+ * Process connection pending work item. Called from tasklet while holding
+ * iucv_table_lock.
+ */
 static void iucv_path_pending(struct iucv_irq_data *data)
 {
 	struct iucv_path_pending *ipp = (void *) data;
@@ -1461,13 +1462,6 @@ out_sever:
 	iucv_sever_pathid(ipp->ippathid, error);
 }
 
-/**
- * iucv_path_complete
- * @data: Pointer to external interrupt buffer
- *
- * Process connection complete work item. Called from tasklet while holding
- * iucv_table_lock.
- */
 struct iucv_path_complete {
 	u16 ippathid;
 	u8  ipflags1;
@@ -1481,6 +1475,13 @@ struct iucv_path_complete {
 	u8  res4[3];
 } __packed;
 
+/**
+ * iucv_path_complete
+ * @data: Pointer to external interrupt buffer
+ *
+ * Process connection complete work item. Called from tasklet while holding
+ * iucv_table_lock.
+ */
 static void iucv_path_complete(struct iucv_irq_data *data)
 {
 	struct iucv_path_complete *ipc = (void *) data;
@@ -1492,13 +1493,6 @@ static void iucv_path_complete(struct iucv_irq_data *data)
 		path->handler->path_complete(path, ipc->ipuser);
 }
 
-/**
- * iucv_path_severed
- * @data: Pointer to external interrupt buffer
- *
- * Process connection severed work item. Called from tasklet while holding
- * iucv_table_lock.
- */
 struct iucv_path_severed {
 	u16 ippathid;
 	u8  res1;
@@ -1511,6 +1505,13 @@ struct iucv_path_severed {
 	u8  res5[3];
 } __packed;
 
+/**
+ * iucv_path_severed
+ * @data: Pointer to external interrupt buffer
+ *
+ * Process connection severed work item. Called from tasklet while holding
+ * iucv_table_lock.
+ */
 static void iucv_path_severed(struct iucv_irq_data *data)
 {
 	struct iucv_path_severed *ips = (void *) data;
@@ -1528,13 +1529,6 @@ static void iucv_path_severed(struct iucv_irq_data *data)
 	}
 }
 
-/**
- * iucv_path_quiesced
- * @data: Pointer to external interrupt buffer
- *
- * Process connection quiesced work item. Called from tasklet while holding
- * iucv_table_lock.
- */
 struct iucv_path_quiesced {
 	u16 ippathid;
 	u8  res1;
@@ -1547,6 +1541,13 @@ struct iucv_path_quiesced {
 	u8  res5[3];
 } __packed;
 
+/**
+ * iucv_path_quiesced
+ * @data: Pointer to external interrupt buffer
+ *
+ * Process connection quiesced work item. Called from tasklet while holding
+ * iucv_table_lock.
+ */
 static void iucv_path_quiesced(struct iucv_irq_data *data)
 {
 	struct iucv_path_quiesced *ipq = (void *) data;
@@ -1556,13 +1557,6 @@ static void iucv_path_quiesced(struct iucv_irq_data *data)
 		path->handler->path_quiesced(path, ipq->ipuser);
 }
 
-/**
- * iucv_path_resumed
- * @data: Pointer to external interrupt buffer
- *
- * Process connection resumed work item. Called from tasklet while holding
- * iucv_table_lock.
- */
 struct iucv_path_resumed {
 	u16 ippathid;
 	u8  res1;
@@ -1575,6 +1569,13 @@ struct iucv_path_resumed {
 	u8  res5[3];
 } __packed;
 
+/**
+ * iucv_path_resumed
+ * @data: Pointer to external interrupt buffer
+ *
+ * Process connection resumed work item. Called from tasklet while holding
+ * iucv_table_lock.
+ */
 static void iucv_path_resumed(struct iucv_irq_data *data)
 {
 	struct iucv_path_resumed *ipr = (void *) data;
@@ -1584,13 +1585,6 @@ static void iucv_path_resumed(struct iucv_irq_data *data)
 		path->handler->path_resumed(path, ipr->ipuser);
 }
 
-/**
- * iucv_message_complete
- * @data: Pointer to external interrupt buffer
- *
- * Process message complete work item. Called from tasklet while holding
- * iucv_table_lock.
- */
 struct iucv_message_complete {
 	u16 ippathid;
 	u8  ipflags1;
@@ -1606,6 +1600,13 @@ struct iucv_message_complete {
 	u8  res2[3];
 } __packed;
 
+/**
+ * iucv_message_complete
+ * @data: Pointer to external interrupt buffer
+ *
+ * Process message complete work item. Called from tasklet while holding
+ * iucv_table_lock.
+ */
 static void iucv_message_complete(struct iucv_irq_data *data)
 {
 	struct iucv_message_complete *imc = (void *) data;
@@ -1624,13 +1625,6 @@ static void iucv_message_complete(struct iucv_irq_data *data)
 	}
 }
 
-/**
- * iucv_message_pending
- * @data: Pointer to external interrupt buffer
- *
- * Process message pending work item. Called from tasklet while holding
- * iucv_table_lock.
- */
 struct iucv_message_pending {
 	u16 ippathid;
 	u8  ipflags1;
@@ -1653,6 +1647,13 @@ struct iucv_message_pending {
 	u8  res2[3];
 } __packed;
 
+/**
+ * iucv_message_pending
+ * @data: Pointer to external interrupt buffer
+ *
+ * Process message pending work item. Called from tasklet while holding
+ * iucv_table_lock.
+ */
 static void iucv_message_pending(struct iucv_irq_data *data)
 {
 	struct iucv_message_pending *imp = (void *) data;
@@ -1673,7 +1674,7 @@ static void iucv_message_pending(struct iucv_irq_data *data)
 	}
 }
 
-/**
+/*
  * iucv_tasklet_fn:
  *
  * This tasklet loops over the queue of irq buffers created by
@@ -1717,7 +1718,7 @@ static void iucv_tasklet_fn(unsigned long ignored)
 	spin_unlock(&iucv_table_lock);
 }
 
-/**
+/*
  * iucv_work_fn:
  *
  * This work function loops over the queue of path pending irq blocks
@@ -1748,9 +1749,8 @@ static void iucv_work_fn(struct work_struct *work)
 	spin_unlock_bh(&iucv_table_lock);
 }
 
-/**
+/*
  * iucv_external_interrupt
- * @code: irq code
  *
  * Handles external interrupts coming in from CP.
  * Places the interrupt buffer on a queue and schedules iucv_tasklet_fn().

@@ -962,7 +962,6 @@
 
 		gpu: gpu@b00000 {
 			compatible = "qcom,adreno-530.2", "qcom,adreno";
-			#stream-id-cells = <16>;
 
 			reg = <0x00b00000 0x3f000>;
 			reg-names = "kgsl_3d0_reg_memory";
@@ -986,9 +985,6 @@
 
 			nvmem-cells = <&speedbin_efuse>;
 			nvmem-cell-names = "speed_bin";
-
-			qcom,gpu-quirk-two-pass-use-wfi;
-			qcom,gpu-quirk-fault-detect-mask;
 
 			operating-points-v2 = <&gpu_opp_table>;
 

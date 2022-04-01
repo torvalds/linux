@@ -9,7 +9,7 @@ objdir := $(OUTPUT)tools/$(TOOL)/
 toolobjs := $(addprefix $(objdir),$(TOOL_OBJS))
 $(OUTPUT)$(TOOL): $(toolobjs) FORCE
 	$(ECHO) "  LD      " $(subst $(OUTPUT),,$@)
-	$(QUIET) $(LD) $(CFLAGS) $(LDFLAGS) $(toolobjs) -L$(OUTPUT) -o $@
+	$(QUIET) $(LD) $(CFLAGS) $(toolobjs) $(LDFLAGS) -L$(OUTPUT) -o $@
 	$(ECHO) "  STRIP   " $(subst $(OUTPUT),,$@)
 	$(QUIET) $(STRIPCMD) $@
 
@@ -21,6 +21,7 @@ $(KERNEL_INCLUDE):
 
 $(objdir)%.o: %.c $(KERNEL_INCLUDE)
 	$(ECHO) "  CC      " $(subst $(OUTPUT),,$@)
+	$(QUIET) $(MKDIR) -p $(objdir) 2>/dev/null
 	$(QUIET) $(CC) -c $(CFLAGS) -o $@ $<
 
 all: $(OUTPUT)$(TOOL)

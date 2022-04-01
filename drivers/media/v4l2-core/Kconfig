@@ -52,6 +52,10 @@ config V4L2_JPEG_HELPER
 config V4L2_H264
 	tristate
 
+# Used by drivers that need v4l2-vp9.ko
+config V4L2_VP9
+	tristate
+
 # Used by drivers that need v4l2-mem2mem.ko
 config V4L2_MEM2MEM_DEV
 	tristate

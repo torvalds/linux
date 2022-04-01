@@ -13,7 +13,6 @@ static void btf_dump_printf(void *ctx, const char *fmt, va_list args)
 }
 
 void test_btf_split() {
-	struct btf_dump_opts opts;
 	struct btf_dump *d = NULL;
 	const struct btf_type *t;
 	struct btf *btf1, *btf2;
@@ -68,8 +67,7 @@ void test_btf_split() {
 	dump_buf_file = open_memstream(&dump_buf, &dump_buf_sz);
 	if (!ASSERT_OK_PTR(dump_buf_file, "dump_memstream"))
 		return;
-	opts.ctx = dump_buf_file;
-	d = btf_dump__new(btf2, NULL, &opts, btf_dump_printf);
+	d = btf_dump__new(btf2, btf_dump_printf, dump_buf_file, NULL);
 	if (!ASSERT_OK_PTR(d, "btf_dump__new"))
 		goto cleanup;
 	for (i = 1; i < btf__type_cnt(btf2); i++) {

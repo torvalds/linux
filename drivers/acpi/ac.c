@@ -48,19 +48,12 @@ static const struct acpi_device_id ac_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, ac_device_ids);
 
-/* Lists of PMIC ACPI HIDs with an (often better) native charger driver */
-static const struct acpi_ac_bl acpi_ac_blacklist[] = {
-	{ "INT33F4", -1 }, /* X-Powers AXP288 PMIC */
-	{ "INT34D3",  3 }, /* Intel Cherrytrail Whiskey Cove PMIC */
-};
-
 #ifdef CONFIG_PM_SLEEP
 static int acpi_ac_resume(struct device *dev);
 #endif
 static SIMPLE_DEV_PM_OPS(acpi_ac_pm, NULL, acpi_ac_resume);
 
 static int ac_sleep_before_get_state_ms;
-static int ac_check_pmic = 1;
 static int ac_only;
 
 static struct acpi_driver acpi_ac_driver = {
@@ -200,12 +193,6 @@ static int __init thinkpad_e530_quirk(const struct dmi_system_id *d)
 	return 0;
 }
 
-static int __init ac_do_not_check_pmic_quirk(const struct dmi_system_id *d)
-{
-	ac_check_pmic = 0;
-	return 0;
-}
-
 static int __init ac_only_quirk(const struct dmi_system_id *d)
 {
 	ac_only = 1;
@@ -215,26 +202,10 @@ static int __init ac_only_quirk(const struct dmi_system_id *d)
 /* Please keep this list alphabetically sorted */
 static const struct dmi_system_id ac_dmi_table[]  __initconst = {
 	{
-		/* ECS EF20EA, AXP288 PMIC but uses separate fuel-gauge */
-		.callback = ac_do_not_check_pmic_quirk,
-		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
-		},
-	},
-	{
 		/* Kodlix GK45 returning incorrect state */
 		.callback = ac_only_quirk,
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "GK45"),
-		},
-	},
-	{
-		/* Lenovo Ideapad Miix 320, AXP288 PMIC, separate fuel-gauge */
-		.callback = ac_do_not_check_pmic_quirk,
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "80XF"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo MIIX 320-10ICR"),
 		},
 	},
 	{
@@ -341,23 +312,15 @@ static int acpi_ac_remove(struct acpi_device *device)
 
 static int __init acpi_ac_init(void)
 {
-	unsigned int i;
 	int result;
 
 	if (acpi_disabled)
 		return -ENODEV;
 
-	dmi_check_system(ac_dmi_table);
+	if (acpi_quirk_skip_acpi_ac_and_battery())
+		return -ENODEV;
 
-	if (ac_check_pmic) {
-		for (i = 0; i < ARRAY_SIZE(acpi_ac_blacklist); i++)
-			if (acpi_dev_present(acpi_ac_blacklist[i].hid, "1",
-					     acpi_ac_blacklist[i].hrv)) {
-				pr_info("found native %s PMIC, not loading\n",
-					acpi_ac_blacklist[i].hid);
-				return -ENODEV;
-			}
-	}
+	dmi_check_system(ac_dmi_table);
 
 	result = acpi_bus_register_driver(&acpi_ac_driver);
 	if (result < 0)

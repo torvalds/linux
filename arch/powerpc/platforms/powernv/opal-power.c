@@ -53,7 +53,7 @@ static bool detect_epow(void)
 }
 
 /* Check for existing EPOW, DPO events */
-static bool poweroff_pending(void)
+static bool __init poweroff_pending(void)
 {
 	int rc;
 	__be64 opal_dpo_timeout;

@@ -15,6 +15,7 @@
 #include <linux/falloc.h>
 #include <linux/suspend.h>
 #include <linux/fs.h>
+#include <linux/module.h>
 #include "blk.h"
 
 static inline struct inode *bdev_file_inode(struct file *file)
@@ -340,8 +341,7 @@ static ssize_t __blkdev_direct_IO_async(struct kiocb *iocb,
 	} else {
 		ret = bio_iov_iter_get_pages(bio, iter);
 		if (unlikely(ret)) {
-			bio->bi_status = BLK_STS_IOERR;
-			bio_endio(bio);
+			bio_put(bio);
 			return ret;
 		}
 	}
@@ -566,21 +566,48 @@ static ssize_t blkdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct block_device *bdev = iocb->ki_filp->private_data;
 	loff_t size = bdev_nr_bytes(bdev);
+	size_t count = iov_iter_count(to);
 	loff_t pos = iocb->ki_pos;
 	size_t shorted = 0;
-	ssize_t ret;
+	ssize_t ret = 0;
 
-	if (unlikely(pos + iov_iter_count(to) > size)) {
+	if (unlikely(pos + count > size)) {
 		if (pos >= size)
 			return 0;
 		size -= pos;
-		if (iov_iter_count(to) > size) {
-			shorted = iov_iter_count(to) - size;
+		if (count > size) {
+			shorted = count - size;
 			iov_iter_truncate(to, size);
 		}
 	}
 
-	ret = generic_file_read_iter(iocb, to);
+	if (iocb->ki_flags & IOCB_DIRECT) {
+		struct address_space *mapping = iocb->ki_filp->f_mapping;
+
+		if (iocb->ki_flags & IOCB_NOWAIT) {
+			if (filemap_range_needs_writeback(mapping, iocb->ki_pos,
+						iocb->ki_pos + count - 1))
+				return -EAGAIN;
+		} else {
+			ret = filemap_write_and_wait_range(mapping,
+						iocb->ki_pos,
+					        iocb->ki_pos + count - 1);
+			if (ret < 0)
+				return ret;
+		}
+
+		file_accessed(iocb->ki_filp);
+
+		ret = blkdev_direct_IO(iocb, to);
+		if (ret >= 0) {
+			iocb->ki_pos += ret;
+			count -= ret;
+		}
+		if (ret < 0 || !count)
+			return ret;
+	}
+
+	ret = filemap_read(iocb, to, ret);
 
 	if (unlikely(shorted))
 		iov_iter_reexpand(to, iov_iter_count(to) + shorted);

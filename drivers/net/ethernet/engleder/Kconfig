@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Engleder network device configuration
+#
+
+config NET_VENDOR_ENGLEDER
+	bool "Engleder devices"
+	default y
+	help
+	  If you have a network (Ethernet) card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Engleder devices. If you say Y, you will be asked
+	  for your specific card in the following questions.
+
+if NET_VENDOR_ENGLEDER
+
+config TSNEP
+	tristate "TSN endpoint support"
+	depends on HAS_IOMEM && HAS_DMA
+	depends on PTP_1588_CLOCK_OPTIONAL
+	select PHYLIB
+	help
+	  Support for the Engleder TSN endpoint Ethernet MAC IP Core.
+
+	  To compile this driver as a module, choose M here. The module will be
+	  called tsnep.
+
+config TSNEP_SELFTESTS
+	bool "TSN endpoint self test support"
+	default n
+	depends on TSNEP
+	help
+	  This enables self test support within the TSN endpoint driver.
+
+	  If unsure, say N.
+
+endif # NET_VENDOR_ENGLEDER

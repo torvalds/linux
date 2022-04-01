@@ -22,6 +22,7 @@ properties:
       - socionext,uniphier-pxs2-usb3-hsphy
       - socionext,uniphier-ld20-usb3-hsphy
       - socionext,uniphier-pxs3-usb3-hsphy
+      - socionext,uniphier-nx1-usb3-hsphy
 
   reg:
     maxItems: 1

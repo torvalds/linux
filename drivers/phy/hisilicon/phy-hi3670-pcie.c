@@ -757,8 +757,8 @@ static int hi3670_pcie_phy_get_resources(struct hi3670_pcie_phy *phy,
 		return PTR_ERR(phy->sysctrl);
 
 	phy->pmctrl = syscon_regmap_lookup_by_compatible("hisilicon,hi3670-pmctrl");
-	if (IS_ERR(phy->sysctrl))
-		return PTR_ERR(phy->sysctrl);
+	if (IS_ERR(phy->pmctrl))
+		return PTR_ERR(phy->pmctrl);
 
 	/* clocks */
 	phy->phy_ref_clk = devm_clk_get(dev, "phy_ref");

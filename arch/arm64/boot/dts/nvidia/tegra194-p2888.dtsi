@@ -39,7 +39,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				phy: phy@0 {
+				phy: ethernet-phy@0 {
 					compatible = "ethernet-phy-ieee802.3-c22";
 					reg = <0x0>;
 					interrupt-parent = <&gpio>;
@@ -317,7 +317,7 @@
 		};
 	};
 
-	vdd_5v0_sys: regulator@0 {
+	vdd_5v0_sys: regulator-vdd-5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "VIN_SYS_5V0";
 		regulator-min-microvolt = <5000000>;
@@ -326,7 +326,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_hdmi: regulator@1 {
+	vdd_hdmi: regulator-vdd-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_5V0_HDMI_CON";
 		regulator-min-microvolt = <5000000>;
@@ -335,7 +335,7 @@
 		enable-active-high;
 	};
 
-	vdd_3v3_pcie: regulator@2 {
+	vdd_3v3_pcie: regulator-vdd-3v3-pcie {
 		compatible = "regulator-fixed";
 		regulator-name = "PEX_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -345,7 +345,7 @@
 		enable-active-high;
 	};
 
-	vdd_12v_pcie: regulator@3 {
+	vdd_12v_pcie: regulator-vdd-12v-pcie {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_12V";
 		regulator-min-microvolt = <1200000>;
@@ -354,7 +354,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_5v_sata: regulator@4 {
+	vdd_5v_sata: regulator-vdd-5v0-sata {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_5V_SATA";
 		regulator-min-microvolt = <5000000>;

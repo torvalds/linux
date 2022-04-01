@@ -69,6 +69,7 @@ static void amdgpu_pll_reduce_ratio(unsigned *nom, unsigned *den,
 /**
  * amdgpu_pll_get_fb_ref_div - feedback and ref divider calculation
  *
+ * @adev: amdgpu_device pointer
  * @nom: nominator
  * @den: denominator
  * @post_div: post divider
@@ -106,6 +107,7 @@ static void amdgpu_pll_get_fb_ref_div(struct amdgpu_device *adev, unsigned int n
 /**
  * amdgpu_pll_compute - compute PLL paramaters
  *
+ * @adev: amdgpu_device pointer
  * @pll: information about the PLL
  * @freq: requested frequency
  * @dot_clock_p: resulting pixel clock

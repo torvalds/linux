@@ -475,13 +475,6 @@ Default: 00b.
 #define	MSR_INFRA			0x02
 #define	MSR_AP				0x03
 
-/*   88EU (MSR) Media Status Register	(Offset 0x4C, 8 bits) */
-#define	USB_INTR_CONTENT_C2H_OFFSET	0
-#define	USB_INTR_CONTENT_CPWM1_OFFSET	16
-#define	USB_INTR_CONTENT_CPWM2_OFFSET	20
-#define	USB_INTR_CONTENT_HISR_OFFSET	48
-#define	USB_INTR_CONTENT_HISRE_OFFSET	52
-
 /*  88E Driver Initialization Offload REG_FDHM0(Offset 0x88, 8 bits) */
 /* IOL config for REG_FDHM0(Reg0x88) */
 #define CMD_INIT_LLT			BIT(0)
@@ -1283,52 +1276,14 @@ Current IOREG MAP
 
 #define	EEPROM_RF_BOARD_OPTION_88E		0xC1
 #define	EEPROM_RF_FEATURE_OPTION_88E		0xC2
-#define	EEPROM_RF_BT_SETTING_88E		0xC3
-#define	EEPROM_VERSION_88E			0xC4
-#define	EEPROM_CUSTOMERID_88E			0xC5
 #define	EEPROM_RF_ANTENNA_OPT_88E		0xC9
-
-/*  RTL88EE */
-#define	EEPROM_MAC_ADDR_88EE			0xD0
-#define	EEPROM_VID_88EE				0xD6
-#define	EEPROM_DID_88EE				0xD8
-#define	EEPROM_SVID_88EE			0xDA
-#define	EEPROM_SMID_88EE			0xDC
 
 /* RTL88EU */
 #define	EEPROM_MAC_ADDR_88EU			0xD7
-#define	EEPROM_VID_88EU				0xD0
-#define	EEPROM_PID_88EU				0xD2
 #define EEPROM_USB_OPTIONAL_FUNCTION0		0xD4
 
 /*  RTL88ES */
 #define	EEPROM_MAC_ADDR_88ES			0x11A
-
-/* 		EEPROM/Efuse Value Type */
-#define EETYPE_TX_PWR				0x0
-
-/*  Default Value for EEPROM or EFUSE!!! */
-#define EEPROM_Default_TSSI			0x0
-#define EEPROM_Default_TxPowerDiff		0x0
-#define EEPROM_Default_CrystalCap		0x5
-/*  Default: 2X2, RTL8192CE(QFPN68) */
-#define EEPROM_Default_BoardType		0x02
-#define EEPROM_Default_TxPower			0x1010
-#define EEPROM_Default_HT2T_TxPwr		0x10
-
-#define EEPROM_Default_LegacyHTTxPowerDiff	0x3
-#define EEPROM_Default_ThermalMeter		0x12
-
-#define EEPROM_Default_AntTxPowerDiff		0x0
-#define EEPROM_Default_TxPwDiff_CrystalCap	0x5
-#define EEPROM_Default_TxPowerLevel		0x2A
-
-#define EEPROM_Default_HT40_2SDiff		0x0
-/*  HT20<->40 default Tx Power Index Difference */
-#define EEPROM_Default_HT20_Diff		2
-#define EEPROM_Default_LegacyHTTxPowerDiff	0x3
-#define EEPROM_Default_HT40_PwrMaxOffset	0
-#define EEPROM_Default_HT20_PwrMaxOffset	0
 
 #define EEPROM_Default_CrystalCap_88E		0x20
 #define	EEPROM_Default_ThermalMeter_88E		0x18
@@ -1339,18 +1294,7 @@ Current IOREG MAP
 #define		EEPROM_DEFAULT_24G_OFDM_DIFF	0X04
 
 #define		EEPROM_DEFAULT_DIFF		0XFE
-#define	EEPROM_DEFAULT_CHANNEL_PLAN		0x7F
 #define	EEPROM_DEFAULT_BOARD_OPTION		0x00
-#define	EEPROM_DEFAULT_FEATURE_OPTION		0x00
-#define	EEPROM_DEFAULT_BT_OPTION		0x10
-
-/*  For debug */
-#define EEPROM_Default_PID			0x1234
-#define EEPROM_Default_VID			0x5678
-#define EEPROM_Default_CustomerID		0xAB
-#define	EEPROM_Default_CustomerID_8188E		0x00
-#define EEPROM_Default_SubCustomerID		0xCD
-#define EEPROM_Default_Version			0
 
 #define EEPROM_CHANNEL_PLAN_FCC			0x0
 #define EEPROM_CHANNEL_PLAN_IC			0x1
@@ -1367,11 +1311,6 @@ Current IOREG MAP
 #define EEPROM_USB_OPTIONAL1			0xE
 #define EEPROM_CHANNEL_PLAN_BY_HW_MASK		0x80
 
-#define EEPROM_CID_DEFAULT		0x0
-#define EEPROM_CID_TOSHIBA		0x4
-#define EEPROM_CID_CCX			0x10 /*  CCX test. */
-#define EEPROM_CID_QMI			0x0D
-#define EEPROM_CID_WHQL			0xFE
 #define	RTL_EEPROM_ID			0x8129
 
 #endif /* __RTL8188E_SPEC_H__ */

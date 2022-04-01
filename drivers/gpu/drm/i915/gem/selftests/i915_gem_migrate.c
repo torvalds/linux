@@ -4,6 +4,7 @@
  */
 
 #include "gt/intel_migrate.h"
+#include "gem/i915_gem_ttm_move.h"
 
 static int igt_fill_check_buffer(struct drm_i915_gem_object *obj,
 				 bool fill)
@@ -227,17 +228,38 @@ out_put:
 	return err;
 }
 
+static int igt_lmem_pages_failsafe_migrate(void *arg)
+{
+	int fail_gpu, fail_alloc, ret;
+
+	for (fail_gpu = 0; fail_gpu < 2; ++fail_gpu) {
+		for (fail_alloc = 0; fail_alloc < 2; ++fail_alloc) {
+			pr_info("Simulated failure modes: gpu: %d, alloc: %d\n",
+				fail_gpu, fail_alloc);
+			i915_ttm_migrate_set_failure_modes(fail_gpu,
+							   fail_alloc);
+			ret = igt_lmem_pages_migrate(arg);
+			if (ret)
+				goto out_err;
+		}
+	}
+
+out_err:
+	i915_ttm_migrate_set_failure_modes(false, false);
+	return ret;
+}
+
 int i915_gem_migrate_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_smem_create_migrate),
 		SUBTEST(igt_lmem_create_migrate),
 		SUBTEST(igt_same_create_migrate),
-		SUBTEST(igt_lmem_pages_migrate),
+		SUBTEST(igt_lmem_pages_failsafe_migrate),
 	};
 
 	if (!HAS_LMEM(i915))
 		return 0;
 
-	return intel_gt_live_subtests(tests, &i915->gt);
+	return intel_gt_live_subtests(tests, to_gt(i915));
 }

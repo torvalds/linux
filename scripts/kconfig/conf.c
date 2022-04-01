@@ -35,6 +35,7 @@ enum input_mode {
 	olddefconfig,
 	yes2modconfig,
 	mod2yesconfig,
+	mod2noconfig,
 };
 static enum input_mode input_mode = oldaskconfig;
 static int input_mode_opt;
@@ -163,8 +164,6 @@ enum conf_def_mode {
 	def_default,
 	def_yes,
 	def_mod,
-	def_y2m,
-	def_m2y,
 	def_no,
 	def_random
 };
@@ -302,12 +301,10 @@ static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 	return has_changed;
 }
 
-static void conf_rewrite_mod_or_yes(enum conf_def_mode mode)
+static void conf_rewrite_tristates(tristate old_val, tristate new_val)
 {
 	struct symbol *sym;
 	int i;
-	tristate old_val = (mode == def_y2m) ? yes : mod;
-	tristate new_val = (mode == def_y2m) ? mod : yes;
 
 	for_all_symbols(i, sym) {
 		if (sym_get_type(sym) == S_TRISTATE &&
@@ -685,6 +682,7 @@ static const struct option long_opts[] = {
 	{"olddefconfig",  no_argument,       &input_mode_opt, olddefconfig},
 	{"yes2modconfig", no_argument,       &input_mode_opt, yes2modconfig},
 	{"mod2yesconfig", no_argument,       &input_mode_opt, mod2yesconfig},
+	{"mod2noconfig",  no_argument,       &input_mode_opt, mod2noconfig},
 	{NULL, 0, NULL, 0}
 };
 
@@ -713,6 +711,7 @@ static void conf_usage(const char *progname)
 	printf("  --randconfig            New config with random answer to all options\n");
 	printf("  --yes2modconfig         Change answers from yes to mod if possible\n");
 	printf("  --mod2yesconfig         Change answers from mod to yes if possible\n");
+	printf("  --mod2noconfig          Change answers from mod to no if possible\n");
 	printf("  (If none of the above is given, --oldaskconfig is the default)\n");
 }
 
@@ -788,6 +787,7 @@ int main(int ac, char **av)
 	case olddefconfig:
 	case yes2modconfig:
 	case mod2yesconfig:
+	case mod2noconfig:
 		conf_read(NULL);
 		break;
 	case allnoconfig:
@@ -862,10 +862,13 @@ int main(int ac, char **av)
 	case savedefconfig:
 		break;
 	case yes2modconfig:
-		conf_rewrite_mod_or_yes(def_y2m);
+		conf_rewrite_tristates(yes, mod);
 		break;
 	case mod2yesconfig:
-		conf_rewrite_mod_or_yes(def_m2y);
+		conf_rewrite_tristates(mod, yes);
+		break;
+	case mod2noconfig:
+		conf_rewrite_tristates(mod, no);
 		break;
 	case oldaskconfig:
 		rootEntry = &rootmenu;

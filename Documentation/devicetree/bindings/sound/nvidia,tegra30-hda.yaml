@@ -50,9 +50,11 @@ properties:
       - const: hda2codec_2x
 
   resets:
+    minItems: 2
     maxItems: 3
 
   reset-names:
+    minItems: 2
     items:
       - const: hda
       - const: hda2hdmi

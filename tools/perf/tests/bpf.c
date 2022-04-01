@@ -296,9 +296,13 @@ static int check_env(void)
 		return err;
 	}
 
+/* temporarily disable libbpf deprecation warnings */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 	err = bpf_load_program(BPF_PROG_TYPE_KPROBE, insns,
 			       ARRAY_SIZE(insns),
 			       license, kver_int, NULL, 0);
+#pragma GCC diagnostic pop
 	if (err < 0) {
 		pr_err("Missing basic BPF support, skip this test: %s\n",
 		       strerror(errno));

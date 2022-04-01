@@ -23,4 +23,8 @@ iosm-y = \
 	iosm_ipc_flash.o		\
 	iosm_ipc_coredump.o
 
+iosm-$(CONFIG_WWAN_DEBUGFS) += \
+	iosm_ipc_debugfs.o		\
+	iosm_ipc_trace.o
+
 obj-$(CONFIG_IOSM) := iosm.o

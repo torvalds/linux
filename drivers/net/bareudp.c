@@ -38,6 +38,13 @@ struct bareudp_net {
 	struct list_head        bareudp_list;
 };
 
+struct bareudp_conf {
+	__be16 ethertype;
+	__be16 port;
+	u16 sport_min;
+	bool multi_proto_mode;
+};
+
 /* Pseudo network device */
 struct bareudp_dev {
 	struct net         *net;        /* netns for packet i/o */
@@ -602,7 +609,8 @@ static struct bareudp_dev *bareudp_find_dev(struct bareudp_net *bn,
 }
 
 static int bareudp_configure(struct net *net, struct net_device *dev,
-			     struct bareudp_conf *conf)
+			     struct bareudp_conf *conf,
+			     struct netlink_ext_ack *extack)
 {
 	struct bareudp_net *bn = net_generic(net, bareudp_net_id);
 	struct bareudp_dev *t, *bareudp = netdev_priv(dev);
@@ -611,13 +619,17 @@ static int bareudp_configure(struct net *net, struct net_device *dev,
 	bareudp->net = net;
 	bareudp->dev = dev;
 	t = bareudp_find_dev(bn, conf);
-	if (t)
+	if (t) {
+		NL_SET_ERR_MSG(extack, "Another bareudp device using the same port already exists");
 		return -EBUSY;
+	}
 
 	if (conf->multi_proto_mode &&
 	    (conf->ethertype != htons(ETH_P_MPLS_UC) &&
-	     conf->ethertype != htons(ETH_P_IP)))
+	     conf->ethertype != htons(ETH_P_IP))) {
+		NL_SET_ERR_MSG(extack, "Cannot set multiproto mode for this ethertype (only IPv4 and unicast MPLS are supported)");
 		return -EINVAL;
+	}
 
 	bareudp->port = conf->port;
 	bareudp->ethertype = conf->ethertype;
@@ -664,7 +676,7 @@ static int bareudp_newlink(struct net *net, struct net_device *dev,
 	if (err)
 		return err;
 
-	err = bareudp_configure(net, dev, &conf);
+	err = bareudp_configure(net, dev, &conf, extack);
 	if (err)
 		return err;
 
@@ -720,40 +732,6 @@ static struct rtnl_link_ops bareudp_link_ops __read_mostly = {
 	.get_size       = bareudp_get_size,
 	.fill_info      = bareudp_fill_info,
 };
-
-struct net_device *bareudp_dev_create(struct net *net, const char *name,
-				      u8 name_assign_type,
-				      struct bareudp_conf *conf)
-{
-	struct nlattr *tb[IFLA_MAX + 1];
-	struct net_device *dev;
-	int err;
-
-	memset(tb, 0, sizeof(tb));
-	dev = rtnl_create_link(net, name, name_assign_type,
-			       &bareudp_link_ops, tb, NULL);
-	if (IS_ERR(dev))
-		return dev;
-
-	err = bareudp_configure(net, dev, conf);
-	if (err) {
-		free_netdev(dev);
-		return ERR_PTR(err);
-	}
-	err = dev_set_mtu(dev, IP_MAX_MTU - BAREUDP_BASE_HLEN);
-	if (err)
-		goto err;
-
-	err = rtnl_configure_link(dev, NULL);
-	if (err < 0)
-		goto err;
-
-	return dev;
-err:
-	bareudp_dellink(dev, NULL);
-	return ERR_PTR(err);
-}
-EXPORT_SYMBOL_GPL(bareudp_dev_create);
 
 static __net_init int bareudp_init_net(struct net *net)
 {

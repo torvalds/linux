@@ -394,8 +394,13 @@ EXPORT_SYMBOL_GPL(timer_unstable_counter_workaround);
 
 static atomic_t timer_unstable_counter_workaround_in_use = ATOMIC_INIT(0);
 
-static void erratum_set_next_event_generic(const int access, unsigned long evt,
-						struct clock_event_device *clk)
+/*
+ * Force the inlining of this function so that the register accesses
+ * can be themselves correctly inlined.
+ */
+static __always_inline
+void erratum_set_next_event_generic(const int access, unsigned long evt,
+				    struct clock_event_device *clk)
 {
 	unsigned long ctrl;
 	u64 cval;

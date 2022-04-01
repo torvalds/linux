@@ -146,10 +146,11 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 {
 	struct acp6x_dev_data *adata;
 	struct platform_device_info pdevinfo[ACP6x_DEVS];
-	int ret, index;
+	int index = 0;
 	int val = 0x00;
 	u32 addr;
 	unsigned int irqflags;
+	int ret;
 
 	irqflags = IRQF_SHARED;
 	/* Yellow Carp device check */

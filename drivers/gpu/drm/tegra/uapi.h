@@ -27,10 +27,9 @@ struct tegra_drm_file {
 struct tegra_drm_mapping {
 	struct kref ref;
 
-	struct device *dev;
+	struct host1x_bo_mapping *map;
 	struct host1x_bo *bo;
-	struct sg_table *sgt;
-	enum dma_data_direction direction;
+
 	dma_addr_t iova;
 	dma_addr_t iova_end;
 };

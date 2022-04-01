@@ -91,23 +91,23 @@ struct uv_cb_header {
 
 /* Query Ultravisor Information */
 struct uv_cb_qui {
-	struct uv_cb_header header;
-	u64 reserved08;
-	u64 inst_calls_list[4];
-	u64 reserved30[2];
-	u64 uv_base_stor_len;
-	u64 reserved48;
-	u64 conf_base_phys_stor_len;
-	u64 conf_base_virt_stor_len;
-	u64 conf_virt_var_stor_len;
-	u64 cpu_stor_len;
-	u32 reserved70[3];
-	u32 max_num_sec_conf;
-	u64 max_guest_stor_addr;
-	u8  reserved88[158 - 136];
-	u16 max_guest_cpu_id;
-	u64 uv_feature_indications;
-	u8  reserveda0[200 - 168];
+	struct uv_cb_header header;		/* 0x0000 */
+	u64 reserved08;				/* 0x0008 */
+	u64 inst_calls_list[4];			/* 0x0010 */
+	u64 reserved30[2];			/* 0x0030 */
+	u64 uv_base_stor_len;			/* 0x0040 */
+	u64 reserved48;				/* 0x0048 */
+	u64 conf_base_phys_stor_len;		/* 0x0050 */
+	u64 conf_base_virt_stor_len;		/* 0x0058 */
+	u64 conf_virt_var_stor_len;		/* 0x0060 */
+	u64 cpu_stor_len;			/* 0x0068 */
+	u32 reserved70[3];			/* 0x0070 */
+	u32 max_num_sec_conf;			/* 0x007c */
+	u64 max_guest_stor_addr;		/* 0x0080 */
+	u8  reserved88[158 - 136];		/* 0x0088 */
+	u16 max_guest_cpu_id;			/* 0x009e */
+	u64 uv_feature_indications;		/* 0x00a0 */
+	u8  reserveda8[200 - 168];		/* 0x00a8 */
 } __packed __aligned(8);
 
 /* Initialize Ultravisor */

@@ -48,6 +48,11 @@ Optional properties:
 			devices, the presence of this property indicates that
 			the weim bus should operate in Burst Clock Mode.
 
+ - fsl,continuous-burst-clk	Make Burst Clock to output continuous clock.
+			Without this option Burst Clock will output clock
+			only when necessary. This takes effect only if
+			"fsl,burst-clk-enable" is set.
+
 Timing property for child nodes. It is mandatory, not optional.
 
  - fsl,weim-cs-timing:	The timing array, contains timing values for the

@@ -83,6 +83,7 @@ struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
 		xskb = &pool->heads[i];
 		xskb->pool = pool;
 		xskb->xdp.frame_sz = umem->chunk_size - umem->headroom;
+		INIT_LIST_HEAD(&xskb->free_list_node);
 		if (pool->unaligned)
 			pool->free_heads[i] = xskb;
 		else
@@ -500,7 +501,7 @@ struct xdp_buff *xp_alloc(struct xsk_buff_pool *pool)
 		pool->free_list_cnt--;
 		xskb = list_first_entry(&pool->free_list, struct xdp_buff_xsk,
 					free_list_node);
-		list_del(&xskb->free_list_node);
+		list_del_init(&xskb->free_list_node);
 	}
 
 	xskb->xdp.data = xskb->xdp.data_hard_start + XDP_PACKET_HEADROOM;
@@ -568,7 +569,7 @@ static u32 xp_alloc_reused(struct xsk_buff_pool *pool, struct xdp_buff **xdp, u3
 	i = nb_entries;
 	while (i--) {
 		xskb = list_first_entry(&pool->free_list, struct xdp_buff_xsk, free_list_node);
-		list_del(&xskb->free_list_node);
+		list_del_init(&xskb->free_list_node);
 
 		*xdp = &xskb->xdp;
 		xdp++;
@@ -615,6 +616,9 @@ EXPORT_SYMBOL(xp_can_alloc);
 
 void xp_free(struct xdp_buff_xsk *xskb)
 {
+	if (!list_empty(&xskb->free_list_node))
+		return;
+
 	xskb->pool->free_list_cnt++;
 	list_add(&xskb->free_list_node, &xskb->pool->free_list);
 }

@@ -25,7 +25,7 @@ struct intel_pmic_opregion {
 	struct mutex lock;
 	struct acpi_lpat_conversion_table *lpat_table;
 	struct regmap *regmap;
-	struct intel_pmic_opregion_data *data;
+	const struct intel_pmic_opregion_data *data;
 	struct intel_pmic_regs_handler_ctx ctx;
 };
 
@@ -53,7 +53,7 @@ static acpi_status intel_pmic_power_handler(u32 function,
 {
 	struct intel_pmic_opregion *opregion = region_context;
 	struct regmap *regmap = opregion->regmap;
-	struct intel_pmic_opregion_data *d = opregion->data;
+	const struct intel_pmic_opregion_data *d = opregion->data;
 	int reg, bit, result;
 
 	if (bits != 32 || !value64)
@@ -95,7 +95,7 @@ static int pmic_read_temp(struct intel_pmic_opregion *opregion,
 		return 0;
 	}
 
-	temp = acpi_lpat_raw_to_temp(opregion->lpat_table, raw_temp);
+	temp = opregion->data->lpat_raw_to_temp(opregion->lpat_table, raw_temp);
 	if (temp < 0)
 		return temp;
 
@@ -135,7 +135,7 @@ static int pmic_thermal_aux(struct intel_pmic_opregion *opregion, int reg,
 static int pmic_thermal_pen(struct intel_pmic_opregion *opregion, int reg,
 			    int bit, u32 function, u64 *value)
 {
-	struct intel_pmic_opregion_data *d = opregion->data;
+	const struct intel_pmic_opregion_data *d = opregion->data;
 	struct regmap *regmap = opregion->regmap;
 
 	if (!d->get_policy || !d->update_policy)
@@ -171,7 +171,7 @@ static acpi_status intel_pmic_thermal_handler(u32 function,
 		void *handler_context, void *region_context)
 {
 	struct intel_pmic_opregion *opregion = region_context;
-	struct intel_pmic_opregion_data *d = opregion->data;
+	const struct intel_pmic_opregion_data *d = opregion->data;
 	int reg, bit, result;
 
 	if (bits != 32 || !value64)
@@ -255,7 +255,7 @@ static acpi_status intel_pmic_regs_handler(u32 function,
 
 int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
 					struct regmap *regmap,
-					struct intel_pmic_opregion_data *d)
+					const struct intel_pmic_opregion_data *d)
 {
 	acpi_status status = AE_OK;
 	struct intel_pmic_opregion *opregion;
@@ -344,7 +344,7 @@ EXPORT_SYMBOL_GPL(intel_pmic_install_opregion_handler);
 int intel_soc_pmic_exec_mipi_pmic_seq_element(u16 i2c_address, u32 reg_address,
 					      u32 value, u32 mask)
 {
-	struct intel_pmic_opregion_data *d;
+	const struct intel_pmic_opregion_data *d;
 	int ret;
 
 	if (!intel_pmic_opregion) {

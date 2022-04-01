@@ -632,7 +632,6 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 		/* Check hole before the start pos */
 		if (cur_blk + cur_len - 1 < o_start) {
 			if (next_blk == EXT_MAX_BLOCKS) {
-				o_start = o_end;
 				ret = -ENODATA;
 				goto out;
 			}

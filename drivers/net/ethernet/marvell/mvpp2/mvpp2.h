@@ -1239,7 +1239,8 @@ struct mvpp2_port {
 	phy_interface_t phy_interface;
 	struct phylink *phylink;
 	struct phylink_config phylink_config;
-	struct phylink_pcs phylink_pcs;
+	struct phylink_pcs pcs_gmac;
+	struct phylink_pcs pcs_xlg;
 	struct phy *comphy;
 
 	struct mvpp2_bm_pool *pool_long;

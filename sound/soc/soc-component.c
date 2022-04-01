@@ -932,6 +932,34 @@ int snd_soc_pcm_component_pointer(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+void snd_soc_pcm_component_delay(struct snd_pcm_substream *substream,
+				 snd_pcm_sframes_t *cpu_delay,
+				 snd_pcm_sframes_t *codec_delay)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_component *component;
+	snd_pcm_sframes_t delay;
+	int i;
+
+	/*
+	 * We're looking for the delay through the full audio path so it needs to
+	 * be the maximum of the Components doing transmit and the maximum of the
+	 * Components doing receive (ie, all CPUs and all CODECs) rather than
+	 * just the maximum of all Components.
+	 */
+	for_each_rtd_components(rtd, i, component) {
+		if (!component->driver->delay)
+			continue;
+
+		delay = component->driver->delay(component, substream);
+
+		if (snd_soc_component_is_codec(component))
+			*codec_delay = max(*codec_delay, delay);
+		else
+			*cpu_delay = max(*cpu_delay, delay);
+	}
+}
+
 int snd_soc_pcm_component_ioctl(struct snd_pcm_substream *substream,
 				unsigned int cmd, void *arg)
 {

@@ -29,6 +29,8 @@
 #include <mem_user.h>
 #include <os.h>
 
+#include "um_arch.h"
+
 #define DEFAULT_COMMAND_LINE_ROOT "root=98:0"
 #define DEFAULT_COMMAND_LINE_CONSOLE "console=tty"
 
@@ -407,6 +409,7 @@ void __init setup_arch(char **cmdline_p)
 	stack_protections((unsigned long) &init_thread_info);
 	setup_physmem(uml_physmem, uml_reserved, physmem_size, highmem);
 	mem_total_pages(physmem_size, iomem_size, highmem);
+	uml_dtb_init();
 	read_initrd();
 
 	paging_init();

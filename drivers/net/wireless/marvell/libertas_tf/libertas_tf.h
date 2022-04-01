@@ -268,10 +268,12 @@ struct txpd {
 	__le32 tx_packet_location;
 	/* Tx packet length */
 	__le16 tx_packet_length;
-	/* First 2 byte of destination MAC address */
-	u8 tx_dest_addr_high[2];
-	/* Last 4 byte of destination MAC address */
-	u8 tx_dest_addr_low[4];
+	struct_group_attr(tx_dest_addr, __packed,
+		/* First 2 byte of destination MAC address */
+		u8 tx_dest_addr_high[2];
+		/* Last 4 byte of destination MAC address */
+		u8 tx_dest_addr_low[4];
+	);
 	/* Pkt Priority */
 	u8 priority;
 	/* Pkt Trasnit Power control */
@@ -280,7 +282,7 @@ struct txpd {
 	u8 pktdelay_2ms;
 	/* reserved */
 	u8 reserved1;
-};
+} __packed;
 
 /* RxPD Descriptor */
 struct rxpd {
@@ -311,7 +313,7 @@ struct rxpd {
 	/* Pkt Priority */
 	u8 priority;
 	u8 reserved[3];
-};
+} __packed;
 
 struct cmd_header {
 	__le16 command;
@@ -377,14 +379,14 @@ struct cmd_ds_mac_control {
 	struct cmd_header hdr;
 	__le16 action;
 	u16 reserved;
-};
+} __packed;
 
 struct cmd_ds_802_11_mac_address {
 	struct cmd_header hdr;
 
 	__le16 action;
 	uint8_t macadd[ETH_ALEN];
-};
+} __packed;
 
 struct cmd_ds_mac_multicast_addr {
 	struct cmd_header hdr;
@@ -392,27 +394,27 @@ struct cmd_ds_mac_multicast_addr {
 	__le16 action;
 	__le16 nr_of_adrs;
 	u8 maclist[ETH_ALEN * MRVDRV_MAX_MULTICAST_LIST_SIZE];
-};
+} __packed;
 
 struct cmd_ds_set_mode {
 	struct cmd_header hdr;
 
 	__le16 mode;
-};
+} __packed;
 
 struct cmd_ds_set_bssid {
 	struct cmd_header hdr;
 
 	u8 bssid[6];
 	u8 activate;
-};
+} __packed;
 
 struct cmd_ds_802_11_radio_control {
 	struct cmd_header hdr;
 
 	__le16 action;
 	__le16 control;
-};
+} __packed;
 
 
 struct cmd_ds_802_11_rf_channel {
@@ -423,20 +425,20 @@ struct cmd_ds_802_11_rf_channel {
 	__le16 rftype;      /* unused */
 	__le16 reserved;    /* unused */
 	u8 channellist[32]; /* unused */
-};
+} __packed;
 
 struct cmd_ds_set_boot2_ver {
 	struct cmd_header hdr;
 
 	__le16 action;
 	__le16 version;
-};
+} __packed;
 
 struct cmd_ds_802_11_reset {
 	struct cmd_header hdr;
 
 	__le16 action;
-};
+} __packed;
 
 struct cmd_ds_802_11_beacon_control {
 	struct cmd_header hdr;
@@ -444,14 +446,14 @@ struct cmd_ds_802_11_beacon_control {
 	__le16 action;
 	__le16 beacon_enable;
 	__le16 beacon_period;
-};
+} __packed;
 
 struct cmd_ds_802_11_beacon_set {
 	struct cmd_header hdr;
 
 	__le16 len;
 	u8 beacon[MRVL_MAX_BCN_SIZE];
-};
+} __packed;
 
 struct cmd_ctrl_node;
 

@@ -143,6 +143,7 @@ struct otx2_cpt_eng_grp_info {
 };
 
 struct otx2_cpt_eng_grps {
+	struct mutex lock;
 	struct otx2_cpt_eng_grp_info grp[OTX2_CPT_MAX_ENGINE_GROUPS];
 	struct otx2_cpt_engs_available avail;
 	void *obj;			/* device specific data */
@@ -160,5 +161,9 @@ int otx2_cpt_create_eng_grps(struct otx2_cptpf_dev *cptpf,
 int otx2_cpt_disable_all_cores(struct otx2_cptpf_dev *cptpf);
 int otx2_cpt_get_eng_grp(struct otx2_cpt_eng_grps *eng_grps, int eng_type);
 int otx2_cpt_discover_eng_capabilities(struct otx2_cptpf_dev *cptpf);
-
+int otx2_cpt_dl_custom_egrp_create(struct otx2_cptpf_dev *cptpf,
+				   struct devlink_param_gset_ctx *ctx);
+int otx2_cpt_dl_custom_egrp_delete(struct otx2_cptpf_dev *cptpf,
+				   struct devlink_param_gset_ctx *ctx);
+void otx2_cpt_print_uc_dbg_info(struct otx2_cptpf_dev *cptpf);
 #endif /* __OTX2_CPTPF_UCODE_H */

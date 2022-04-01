@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * tusb1210.c - TUSB1210 USB ULPI PHY driver
  *
  * Copyright (C) 2015 Intel Corporation

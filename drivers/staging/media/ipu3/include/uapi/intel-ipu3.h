@@ -34,11 +34,17 @@
  * struct ipu3_uapi_grid_config - Grid plane config
  *
  * @width:	Grid horizontal dimensions, in number of grid blocks(cells).
+ *		For AWB, the range is (16, 80).
+ *		For AF/AE, the range is (16, 32).
  * @height:	Grid vertical dimensions, in number of grid cells.
+ *		For AWB, the range is (16, 60).
+ *		For AF/AE, the range is (16, 24).
  * @block_width_log2:	Log2 of the width of each cell in pixels.
- *			for (2^3, 2^4, 2^5, 2^6, 2^7), values [3, 7].
+ *			For AWB, the range is [3, 6].
+ *			For AF/AE, the range is [3, 7].
  * @block_height_log2:	Log2 of the height of each cell in pixels.
- *			for (2^3, 2^4, 2^5, 2^6, 2^7), values [3, 7].
+ *			For AWB, the range is [3, 6].
+ *			For AF/AE, the range is [3, 7].
  * @height_per_slice:	The number of blocks in vertical axis per slice.
  *			Default 2.
  * @x_start: X value of top left corner of Region of Interest(ROI).
@@ -61,17 +67,39 @@ struct ipu3_uapi_grid_config {
 	__u16 y_end;
 } __packed;
 
+/**
+ * struct ipu3_uapi_awb_set_item - Memory layout for each cell in AWB
+ *
+ * @Gr_avg:	Green average for red lines in the cell.
+ * @R_avg:	Red average in the cell.
+ * @B_avg:	Blue average in the cell.
+ * @Gb_avg:	Green average for blue lines in the cell.
+ * @sat_ratio:  Percentage of pixels over the thresholds specified in
+ *		ipu3_uapi_awb_config_s, coded from 0 to 255.
+ * @padding0:   Unused byte for padding.
+ * @padding1:   Unused byte for padding.
+ * @padding2:   Unused byte for padding.
+ */
+struct ipu3_uapi_awb_set_item {
+	__u8 Gr_avg;
+	__u8 R_avg;
+	__u8 B_avg;
+	__u8 Gb_avg;
+	__u8 sat_ratio;
+	__u8 padding0;
+	__u8 padding1;
+	__u8 padding2;
+} __attribute__((packed));
+
 /*
  * The grid based data is divided into "slices" called set, each slice of setX
  * refers to ipu3_uapi_grid_config width * height_per_slice.
  */
 #define IPU3_UAPI_AWB_MAX_SETS				60
 /* Based on grid size 80 * 60 and cell size 16 x 16 */
-#define IPU3_UAPI_AWB_SET_SIZE				1280
-#define IPU3_UAPI_AWB_MD_ITEM_SIZE			8
+#define IPU3_UAPI_AWB_SET_SIZE				160
 #define IPU3_UAPI_AWB_SPARE_FOR_BUBBLES \
-	(IPU3_UAPI_MAX_BUBBLE_SIZE * IPU3_UAPI_MAX_STRIPES * \
-	 IPU3_UAPI_AWB_MD_ITEM_SIZE)
+	(IPU3_UAPI_MAX_BUBBLE_SIZE * IPU3_UAPI_MAX_STRIPES)
 #define IPU3_UAPI_AWB_MAX_BUFFER_SIZE \
 	(IPU3_UAPI_AWB_MAX_SETS * \
 	 (IPU3_UAPI_AWB_SET_SIZE + IPU3_UAPI_AWB_SPARE_FOR_BUBBLES))
@@ -83,7 +111,7 @@ struct ipu3_uapi_grid_config {
  *		the average values for each color channel.
  */
 struct ipu3_uapi_awb_raw_buffer {
-	__u8 meta_data[IPU3_UAPI_AWB_MAX_BUFFER_SIZE]
+	struct ipu3_uapi_awb_set_item meta_data[IPU3_UAPI_AWB_MAX_BUFFER_SIZE]
 		__attribute__((aligned(32)));
 } __packed;
 

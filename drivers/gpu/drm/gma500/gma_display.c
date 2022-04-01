@@ -15,6 +15,7 @@
 #include <drm/drm_vblank.h>
 
 #include "framebuffer.h"
+#include "gem.h"
 #include "gma_display.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
@@ -54,7 +55,7 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct drm_framebuffer *fb = crtc->primary->fb;
-	struct gtt_range *gtt;
+	struct psb_gem_object *pobj;
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
@@ -70,14 +71,14 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		goto gma_pipe_cleaner;
 	}
 
-	gtt = to_gtt_range(fb->obj[0]);
+	pobj = to_psb_gem_object(fb->obj[0]);
 
 	/* We are displaying this buffer, make sure it is actually loaded
 	   into the GTT */
-	ret = psb_gtt_pin(gtt);
+	ret = psb_gem_pin(pobj);
 	if (ret < 0)
 		goto gma_pipe_set_base_exit;
-	start = gtt->offset;
+	start = pobj->offset;
 	offset = y * fb->pitches[0] + x * fb->format->cpp[0];
 
 	REG_WRITE(map->stride, fb->pitches[0]);
@@ -125,7 +126,7 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 gma_pipe_cleaner:
 	/* If there was a previous display we can now unpin it */
 	if (old_fb)
-		psb_gtt_unpin(to_gtt_range(old_fb->obj[0]));
+		psb_gem_unpin(to_psb_gem_object(old_fb->obj[0]));
 
 gma_pipe_set_base_exit:
 	gma_power_end(dev);
@@ -331,8 +332,8 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 	uint32_t base = (pipe == 0) ? CURABASE : CURBBASE;
 	uint32_t temp;
 	size_t addr = 0;
-	struct gtt_range *gt;
-	struct gtt_range *cursor_gt = gma_crtc->cursor_gt;
+	struct psb_gem_object *pobj;
+	struct psb_gem_object *cursor_pobj = gma_crtc->cursor_pobj;
 	struct drm_gem_object *obj;
 	void *tmp_dst, *tmp_src;
 	int ret = 0, i, cursor_pages;
@@ -348,9 +349,8 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 
 		/* Unpin the old GEM object */
 		if (gma_crtc->cursor_obj) {
-			gt = container_of(gma_crtc->cursor_obj,
-					  struct gtt_range, gem);
-			psb_gtt_unpin(gt);
+			pobj = to_psb_gem_object(gma_crtc->cursor_obj);
+			psb_gem_unpin(pobj);
 			drm_gem_object_put(gma_crtc->cursor_obj);
 			gma_crtc->cursor_obj = NULL;
 		}
@@ -375,40 +375,40 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 		goto unref_cursor;
 	}
 
-	gt = container_of(obj, struct gtt_range, gem);
+	pobj = to_psb_gem_object(obj);
 
 	/* Pin the memory into the GTT */
-	ret = psb_gtt_pin(gt);
+	ret = psb_gem_pin(pobj);
 	if (ret) {
 		dev_err(dev->dev, "Can not pin down handle 0x%x\n", handle);
 		goto unref_cursor;
 	}
 
 	if (dev_priv->ops->cursor_needs_phys) {
-		if (cursor_gt == NULL) {
+		if (!cursor_pobj) {
 			dev_err(dev->dev, "No hardware cursor mem available");
 			ret = -ENOMEM;
 			goto unref_cursor;
 		}
 
 		/* Prevent overflow */
-		if (gt->npage > 4)
+		if (pobj->npage > 4)
 			cursor_pages = 4;
 		else
-			cursor_pages = gt->npage;
+			cursor_pages = pobj->npage;
 
 		/* Copy the cursor to cursor mem */
-		tmp_dst = dev_priv->vram_addr + cursor_gt->offset;
+		tmp_dst = dev_priv->vram_addr + cursor_pobj->offset;
 		for (i = 0; i < cursor_pages; i++) {
-			tmp_src = kmap(gt->pages[i]);
+			tmp_src = kmap(pobj->pages[i]);
 			memcpy(tmp_dst, tmp_src, PAGE_SIZE);
-			kunmap(gt->pages[i]);
+			kunmap(pobj->pages[i]);
 			tmp_dst += PAGE_SIZE;
 		}
 
 		addr = gma_crtc->cursor_addr;
 	} else {
-		addr = gt->offset;
+		addr = pobj->offset;
 		gma_crtc->cursor_addr = addr;
 	}
 
@@ -425,8 +425,8 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 
 	/* unpin the old bo */
 	if (gma_crtc->cursor_obj) {
-		gt = container_of(gma_crtc->cursor_obj, struct gtt_range, gem);
-		psb_gtt_unpin(gt);
+		pobj = to_psb_gem_object(gma_crtc->cursor_obj);
+		psb_gem_unpin(pobj);
 		drm_gem_object_put(gma_crtc->cursor_obj);
 	}
 
@@ -483,20 +483,23 @@ void gma_crtc_commit(struct drm_crtc *crtc)
 
 void gma_crtc_disable(struct drm_crtc *crtc)
 {
-	struct gtt_range *gt;
+	struct psb_gem_object *pobj;
 	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 
 	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
 
 	if (crtc->primary->fb) {
-		gt = to_gtt_range(crtc->primary->fb->obj[0]);
-		psb_gtt_unpin(gt);
+		pobj = to_psb_gem_object(crtc->primary->fb->obj[0]);
+		psb_gem_unpin(pobj);
 	}
 }
 
 void gma_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+
+	if (gma_crtc->cursor_pobj)
+		drm_gem_object_put(&gma_crtc->cursor_pobj->base);
 
 	kfree(gma_crtc->crtc_state);
 	drm_crtc_cleanup(crtc);

@@ -275,6 +275,12 @@
 		output-high;
 		line-name = "I2C3_MUX_OE_N";
 	};
+
+	usb_power {
+		gpio-hog;
+		gpios = <ASPEED_GPIO(O, 3) GPIO_ACTIVE_LOW>;
+		output-high;
+	};
 };
 
 &emmc_controller {
@@ -2060,6 +2066,11 @@
 
 &i2c12 {
 	status = "okay";
+
+	tpm@2e {
+		compatible = "nuvoton,npct75x";
+		reg = <0x2e>;
+	};
 
 	eeprom@50 {
 		compatible = "atmel,24c64";

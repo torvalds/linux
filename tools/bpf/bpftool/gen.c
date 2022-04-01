@@ -218,9 +218,10 @@ static int codegen_datasecs(struct bpf_object *obj, const char *obj_name)
 	char sec_ident[256], map_ident[256];
 	int i, err = 0;
 
-	d = btf_dump__new(btf, NULL, NULL, codegen_btf_dump_printf);
-	if (IS_ERR(d))
-		return PTR_ERR(d);
+	d = btf_dump__new(btf, codegen_btf_dump_printf, NULL, NULL);
+	err = libbpf_get_error(d);
+	if (err)
+		return err;
 
 	bpf_object__for_each_map(map, obj) {
 		/* only generate definitions for memory-mapped internal maps */
@@ -485,7 +486,6 @@ static void codegen_destroy(struct bpf_object *obj, const char *obj_name)
 
 static int gen_trace(struct bpf_object *obj, const char *obj_name, const char *header_guard)
 {
-	struct bpf_object_load_attr load_attr = {};
 	DECLARE_LIBBPF_OPTS(gen_loader_opts, opts);
 	struct bpf_map *map;
 	char ident[256];
@@ -495,12 +495,7 @@ static int gen_trace(struct bpf_object *obj, const char *obj_name, const char *h
 	if (err)
 		return err;
 
-	load_attr.obj = obj;
-	if (verifier_logs)
-		/* log_level1 + log_level2 + stats, but not stable UAPI */
-		load_attr.log_level = 1 + 2 + 4;
-
-	err = bpf_object__load_xattr(&load_attr);
+	err = bpf_object__load(obj);
 	if (err) {
 		p_err("failed to load object file");
 		goto out;
@@ -718,11 +713,15 @@ static int do_skeleton(int argc, char **argv)
 	if (obj_name[0] == '\0')
 		get_obj_name(obj_name, file);
 	opts.object_name = obj_name;
+	if (verifier_logs)
+		/* log_level1 + log_level2 + stats, but not stable UAPI */
+		opts.kernel_log_level = 1 + 2 + 4;
 	obj = bpf_object__open_mem(obj_data, file_sz, &opts);
-	if (IS_ERR(obj)) {
+	err = libbpf_get_error(obj);
+	if (err) {
 		char err_buf[256];
 
-		libbpf_strerror(PTR_ERR(obj), err_buf, sizeof(err_buf));
+		libbpf_strerror(err, err_buf, sizeof(err_buf));
 		p_err("failed to open BPF object file: %s", err_buf);
 		obj = NULL;
 		goto out;

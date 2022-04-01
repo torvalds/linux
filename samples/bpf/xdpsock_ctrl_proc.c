@@ -15,6 +15,9 @@
 #include <bpf/xsk.h>
 #include "xdpsock.h"
 
+/* libbpf APIs for AF_XDP are deprecated starting from v0.7 */
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 static const char *opt_if = "";
 
 static struct option long_options[] = {

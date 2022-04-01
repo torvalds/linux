@@ -5,9 +5,10 @@
  * Copyright 2021 Google LLC.
  */
 
+#include <dt-bindings/gpio/gpio.h>
+
 &dsi0_out {
 	remote-endpoint = <&sn65dsi86_in>;
-	data-lanes = <0 1 2 3>;
 };
 
 edp_brij_i2c: &i2c2 {

@@ -35,7 +35,7 @@ Installazione Sphinx
 ====================
 
 I marcatori ReST utilizzati nei file in Documentation/ sono pensati per essere
-processati da ``Sphinx`` nella versione 1.3 o superiore.
+processati da ``Sphinx`` nella versione 1.7 o superiore.
 
 Esiste uno script che verifica i requisiti Sphinx. Per ulteriori dettagli
 consultate :ref:`it_sphinx-pre-install`.
@@ -53,11 +53,6 @@ pacchettizzato dalla vostra distribuzione.
 
 .. note::
 
-   #) Le versioni di Sphinx inferiori alla 1.5 non funzionano bene
-      con il pacchetto Python docutils versione 0.13.1 o superiore.
-      Se volete usare queste versioni, allora dovere eseguire
-      ``pip install 'docutils==0.12'``.
-
    #) Viene raccomandato l'uso del tema RTD per la documentazione in HTML.
       A seconda della versione di Sphinx, potrebbe essere necessaria
       l'installazione tramite il comando ``pip install sphinx_rtd_theme``.
@@ -67,13 +62,13 @@ pacchettizzato dalla vostra distribuzione.
       utilizzando LaTeX. Per una corretta interpretazione, è necessario aver
       installato texlive con i pacchetti amdfonts e amsmath.
 
-Riassumendo, se volete installare la versione 1.7.9 di Sphinx dovete eseguire::
+Riassumendo, se volete installare la versione 2.4.4 di Sphinx dovete eseguire::
 
-       $ virtualenv sphinx_1.7.9
-       $ . sphinx_1.7.9/bin/activate
-       (sphinx_1.7.9) $ pip install -r Documentation/sphinx/requirements.txt
+       $ virtualenv sphinx_2.4.4
+       $ . sphinx_2.4.4/bin/activate
+       (sphinx_2.4.4) $ pip install -r Documentation/sphinx/requirements.txt
 
-Dopo aver eseguito ``. sphinx_1.7.9/bin/activate``, il prompt cambierà per
+Dopo aver eseguito ``. sphinx_2.4.4/bin/activate``, il prompt cambierà per
 indicare che state usando il nuovo ambiente. Se aprite un nuova sessione,
 prima di generare la documentazione, dovrete rieseguire questo comando per
 rientrare nell'ambiente virtuale.
@@ -94,7 +89,7 @@ Generazione in PDF e LaTeX
 --------------------------
 
 Al momento, la generazione di questi documenti è supportata solo dalle
-versioni di Sphinx superiori alla 1.4.
+versioni di Sphinx superiori alla 2.4.
 
 Per la generazione di PDF e LaTeX, avrete bisogno anche del pacchetto
 ``XeLaTeX`` nella versione 3.14159265
@@ -119,8 +114,8 @@ l'installazione::
 	You should run:
 
 		sudo dnf install -y texlive-luatex85
-		/usr/bin/virtualenv sphinx_1.7.9
-		. sphinx_1.7.9/bin/activate
+		/usr/bin/virtualenv sphinx_2.4.4
+		. sphinx_2.4.4/bin/activate
 		pip install -r Documentation/sphinx/requirements.txt
 
 	Can't build as 1 mandatory dependency is missing at ./scripts/sphinx-pre-install line 468.

@@ -58,7 +58,7 @@ static struct irq_chip fsl_mpic_err_chip = {
 	.irq_unmask	= fsl_mpic_unmask_err,
 };
 
-int mpic_setup_error_int(struct mpic *mpic, int intvec)
+int __init mpic_setup_error_int(struct mpic *mpic, int intvec)
 {
 	int i;
 
@@ -121,7 +121,7 @@ static irqreturn_t fsl_error_int_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-void mpic_err_int_init(struct mpic *mpic, irq_hw_number_t irqnum)
+void __init mpic_err_int_init(struct mpic *mpic, irq_hw_number_t irqnum)
 {
 	unsigned int virq;
 	int ret;

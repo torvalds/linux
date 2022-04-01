@@ -233,7 +233,7 @@ static void dc_gpio_set(struct gpio_chip *chip, unsigned gpio, int value)
 	spin_unlock_irqrestore(&pmap->lock, flags);
 }
 
-static int dc_gpiochip_add(struct dc_pinmap *pmap, struct device_node *np)
+static int dc_gpiochip_add(struct dc_pinmap *pmap)
 {
 	struct gpio_chip *chip = &pmap->chip;
 	int ret;
@@ -248,7 +248,6 @@ static int dc_gpiochip_add(struct dc_pinmap *pmap, struct device_node *np)
 	chip->set		= dc_gpio_set;
 	chip->base		= -1;
 	chip->ngpio		= PINS_COUNT;
-	chip->of_node		= np;
 	chip->of_gpio_n_cells	= 2;
 
 	spin_lock_init(&pmap->lock);
@@ -326,7 +325,7 @@ static int dc_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(pmap->pctl);
 	}
 
-	return dc_gpiochip_add(pmap, pdev->dev.of_node);
+	return dc_gpiochip_add(pmap);
 }
 
 static const struct of_device_id dc_pinctrl_ids[] = {

@@ -11,7 +11,9 @@ maintainers:
 
 properties:
   compatible:
-    const: qcom,pm8941-charger
+    enum:
+      - qcom,pm8226-charger
+      - qcom,pm8941-charger
 
   reg:
     maxItems: 1

@@ -44,7 +44,9 @@ properties:
       SoC == State of Charge == Capacity.
 
   maxim,rcomp:
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    minItems: 1
+    maxItems: 2
     description: |
       A value to compensate readings for various battery chemistries and operating temperatures.
       max17040,41 have 2 byte rcomp, default to 0x97 0x00.

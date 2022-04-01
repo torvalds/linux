@@ -542,20 +542,26 @@ retry:
 	return page;
 }
 
-#ifdef CONFIG_PPC_MM_SLICES
+#ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+static inline int file_to_psize(struct file *file)
+{
+	struct hstate *hstate = hstate_file(file);
+	return shift_to_mmu_psize(huge_page_shift(hstate));
+}
+
 unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 					unsigned long len, unsigned long pgoff,
 					unsigned long flags)
 {
-	struct hstate *hstate = hstate_file(file);
-	int mmu_psize = shift_to_mmu_psize(huge_page_shift(hstate));
-
 #ifdef CONFIG_PPC_RADIX_MMU
 	if (radix_enabled())
 		return radix__hugetlb_get_unmapped_area(file, addr, len,
 						       pgoff, flags);
 #endif
-	return slice_get_unmapped_area(addr, len, flags, mmu_psize, 1);
+#ifdef CONFIG_PPC_MM_SLICES
+	return slice_get_unmapped_area(addr, len, flags, file_to_psize(file), 1);
+#endif
+	BUG();
 }
 #endif
 

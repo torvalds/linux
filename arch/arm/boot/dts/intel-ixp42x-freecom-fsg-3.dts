@@ -97,6 +97,65 @@
 					fis-index-block = <0x1f>;
 				};
 			};
+
+			/* Small syscon with some LEDs at CS2 */
+			syscon@2,0 {
+				compatible = "freecom,fsg-cs2-system-controller", "syscon";
+				reg = <2 0x0 0x200>;
+				reg-io-width = <2>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <2 0x0 0x0 0x200>;
+
+				led@0,0 {
+					compatible = "register-bit-led";
+					reg = <0x00 0x02>;
+					mask = <0x01>;
+					label = "fsg:blue:wlan";
+					linux,default-trigger = "wlan";
+					default-state = "on";
+				};
+				led@0,1 {
+					compatible = "register-bit-led";
+					reg = <0x00 0x02>;
+					mask = <0x02>;
+					label = "fsg:blue:wan";
+					linux,default-trigger = "";
+					default-state = "on";
+				};
+				led@0,2 {
+					compatible = "register-bit-led";
+					reg = <0x00 0x02>;
+					mask = <0x04>;
+					label = "fsg:blue:sata";
+					linux,default-trigger = "";
+					default-state = "on";
+				};
+				led@0,3 {
+					compatible = "register-bit-led";
+					reg = <0x00 0x02>;
+					mask = <0x04>;
+					label = "fsg:blue:usb";
+					linux,default-trigger = "";
+					default-state = "on";
+				};
+				led@0,4 {
+					compatible = "register-bit-led";
+					reg = <0x00 0x02>;
+					mask = <0x08>;
+					label = "fsg:blue:sync";
+					linux,default-trigger = "";
+					default-state = "on";
+				};
+				led@0,5 {
+					compatible = "register-bit-led";
+					reg = <0x00 0x02>;
+					mask = <0x10>;
+					label = "fsg:blue:ring";
+					linux,default-trigger = "";
+					default-state = "on";
+				};
+			};
 		};
 
 		pci@c0000000 {

@@ -11,9 +11,11 @@ systems.  Some systems use variants that don't meet branding requirements,
 and so are not advertised as being I2C but come under different names,
 e.g. TWI (Two Wire Interface), IIC.
 
-The official I2C specification is the `"I2C-bus specification and user
-manual" (UM10204) <https://www.nxp.com/docs/en/user-guide/UM10204.pdf>`_
-published by NXP Semiconductors.
+The latest official I2C specification is the `"I2C-bus specification and user
+manual" (UM10204) <https://www.nxp.com/webapp/Download?colCode=UM10204>`_
+published by NXP Semiconductors. However, you need to log-in to the site to
+access the PDF. An older version of the specification (revision 6) is archived
+`here <https://web.archive.org/web/20210813122132/https://www.nxp.com/docs/en/user-guide/UM10204.pdf>`_.
 
 SMBus (System Management Bus) is based on the I2C protocol, and is mostly
 a subset of I2C protocols and signaling.  Many I2C devices will work on an

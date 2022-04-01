@@ -67,7 +67,7 @@
 #define DEFAULT_TSO_CSUM_ENABLE		(true)
 #define DEFAULT_VLAN_FILTER_ENABLE	(true)
 #define DEFAULT_VLAN_RX_OFFLOAD		(true)
-#define TX_OVERHEAD			(8)
+#define TX_ALIGNMENT			(4)
 #define RXW_PADDING			2
 
 #define LAN78XX_USB_VENDOR_ID		(0x0424)
@@ -76,6 +76,8 @@
 #define LAN7801_USB_PRODUCT_ID		(0x7801)
 #define LAN78XX_EEPROM_MAGIC		(0x78A5)
 #define LAN78XX_OTP_MAGIC		(0x78F3)
+#define AT29M2AF_USB_VENDOR_ID		(0x07C9)
+#define AT29M2AF_USB_PRODUCT_ID	(0x0012)
 
 #define	MII_READ			1
 #define	MII_WRITE			0
@@ -89,6 +91,41 @@
 #define WAKE_ALL			(WAKE_PHY | WAKE_UCAST | \
 					 WAKE_MCAST | WAKE_BCAST | \
 					 WAKE_ARP | WAKE_MAGIC)
+
+#define LAN78XX_NAPI_WEIGHT		64
+
+#define TX_URB_NUM			10
+#define TX_SS_URB_NUM			TX_URB_NUM
+#define TX_HS_URB_NUM			TX_URB_NUM
+#define TX_FS_URB_NUM			TX_URB_NUM
+
+/* A single URB buffer must be large enough to hold a complete jumbo packet
+ */
+#define TX_SS_URB_SIZE			(32 * 1024)
+#define TX_HS_URB_SIZE			(16 * 1024)
+#define TX_FS_URB_SIZE			(10 * 1024)
+
+#define RX_SS_URB_NUM			30
+#define RX_HS_URB_NUM			10
+#define RX_FS_URB_NUM			10
+#define RX_SS_URB_SIZE			TX_SS_URB_SIZE
+#define RX_HS_URB_SIZE			TX_HS_URB_SIZE
+#define RX_FS_URB_SIZE			TX_FS_URB_SIZE
+
+#define SS_BURST_CAP_SIZE		RX_SS_URB_SIZE
+#define SS_BULK_IN_DELAY		0x2000
+#define HS_BURST_CAP_SIZE		RX_HS_URB_SIZE
+#define HS_BULK_IN_DELAY		0x2000
+#define FS_BURST_CAP_SIZE		RX_FS_URB_SIZE
+#define FS_BULK_IN_DELAY		0x2000
+
+#define TX_CMD_LEN			8
+#define TX_SKB_MIN_LEN			(TX_CMD_LEN + ETH_HLEN)
+#define LAN78XX_TSO_SIZE(dev)		((dev)->tx_urb_size - TX_SKB_MIN_LEN)
+
+#define RX_CMD_LEN			10
+#define RX_SKB_MIN_LEN			(RX_CMD_LEN + ETH_HLEN)
+#define RX_MAX_FRAME_LEN(mtu)		((mtu) + ETH_HLEN + VLAN_HLEN)
 
 /* USB related defines */
 #define BULK_IN_PIPE			1
@@ -385,14 +422,22 @@ struct lan78xx_net {
 	struct usb_interface	*intf;
 	void			*driver_priv;
 
-	int			rx_qlen;
-	int			tx_qlen;
+	unsigned int		tx_pend_data_len;
+	size_t			n_tx_urbs;
+	size_t			n_rx_urbs;
+	size_t			tx_urb_size;
+	size_t			rx_urb_size;
+
+	struct sk_buff_head	rxq_free;
 	struct sk_buff_head	rxq;
+	struct sk_buff_head	rxq_done;
+	struct sk_buff_head	rxq_overflow;
+	struct sk_buff_head	txq_free;
 	struct sk_buff_head	txq;
-	struct sk_buff_head	done;
 	struct sk_buff_head	txq_pend;
 
-	struct tasklet_struct	bh;
+	struct napi_struct	napi;
+
 	struct delayed_work	wq;
 
 	int			msg_enable;
@@ -404,8 +449,8 @@ struct lan78xx_net {
 	struct mutex		phy_mutex; /* for phy access */
 	unsigned int		pipe_in, pipe_out, pipe_intr;
 
-	u32			hard_mtu;	/* count any extra framing */
-	size_t			rx_urb_size;	/* size for rx urbs */
+	unsigned int		bulk_in_delay;
+	unsigned int		burst_cap;
 
 	unsigned long		flags;
 
@@ -442,6 +487,129 @@ struct lan78xx_net {
 static int msg_level = -1;
 module_param(msg_level, int, 0);
 MODULE_PARM_DESC(msg_level, "Override default message level");
+
+static struct sk_buff *lan78xx_get_buf(struct sk_buff_head *buf_pool)
+{
+	if (skb_queue_empty(buf_pool))
+		return NULL;
+
+	return skb_dequeue(buf_pool);
+}
+
+static void lan78xx_release_buf(struct sk_buff_head *buf_pool,
+				struct sk_buff *buf)
+{
+	buf->data = buf->head;
+	skb_reset_tail_pointer(buf);
+
+	buf->len = 0;
+	buf->data_len = 0;
+
+	skb_queue_tail(buf_pool, buf);
+}
+
+static void lan78xx_free_buf_pool(struct sk_buff_head *buf_pool)
+{
+	struct skb_data *entry;
+	struct sk_buff *buf;
+
+	while (!skb_queue_empty(buf_pool)) {
+		buf = skb_dequeue(buf_pool);
+		if (buf) {
+			entry = (struct skb_data *)buf->cb;
+			usb_free_urb(entry->urb);
+			dev_kfree_skb_any(buf);
+		}
+	}
+}
+
+static int lan78xx_alloc_buf_pool(struct sk_buff_head *buf_pool,
+				  size_t n_urbs, size_t urb_size,
+				  struct lan78xx_net *dev)
+{
+	struct skb_data *entry;
+	struct sk_buff *buf;
+	struct urb *urb;
+	int i;
+
+	skb_queue_head_init(buf_pool);
+
+	for (i = 0; i < n_urbs; i++) {
+		buf = alloc_skb(urb_size, GFP_ATOMIC);
+		if (!buf)
+			goto error;
+
+		if (skb_linearize(buf) != 0) {
+			dev_kfree_skb_any(buf);
+			goto error;
+		}
+
+		urb = usb_alloc_urb(0, GFP_ATOMIC);
+		if (!urb) {
+			dev_kfree_skb_any(buf);
+			goto error;
+		}
+
+		entry = (struct skb_data *)buf->cb;
+		entry->urb = urb;
+		entry->dev = dev;
+		entry->length = 0;
+		entry->num_of_packet = 0;
+
+		skb_queue_tail(buf_pool, buf);
+	}
+
+	return 0;
+
+error:
+	lan78xx_free_buf_pool(buf_pool);
+
+	return -ENOMEM;
+}
+
+static struct sk_buff *lan78xx_get_rx_buf(struct lan78xx_net *dev)
+{
+	return lan78xx_get_buf(&dev->rxq_free);
+}
+
+static void lan78xx_release_rx_buf(struct lan78xx_net *dev,
+				   struct sk_buff *rx_buf)
+{
+	lan78xx_release_buf(&dev->rxq_free, rx_buf);
+}
+
+static void lan78xx_free_rx_resources(struct lan78xx_net *dev)
+{
+	lan78xx_free_buf_pool(&dev->rxq_free);
+}
+
+static int lan78xx_alloc_rx_resources(struct lan78xx_net *dev)
+{
+	return lan78xx_alloc_buf_pool(&dev->rxq_free,
+				      dev->n_rx_urbs, dev->rx_urb_size, dev);
+}
+
+static struct sk_buff *lan78xx_get_tx_buf(struct lan78xx_net *dev)
+{
+	return lan78xx_get_buf(&dev->txq_free);
+}
+
+static void lan78xx_release_tx_buf(struct lan78xx_net *dev,
+				   struct sk_buff *tx_buf)
+{
+	lan78xx_release_buf(&dev->txq_free, tx_buf);
+}
+
+static void lan78xx_free_tx_resources(struct lan78xx_net *dev)
+{
+	lan78xx_free_buf_pool(&dev->txq_free);
+}
+
+static int lan78xx_alloc_tx_resources(struct lan78xx_net *dev)
+{
+	return lan78xx_alloc_buf_pool(&dev->txq_free,
+				      dev->n_tx_urbs, dev->tx_urb_size, dev);
+}
 
 static int lan78xx_read_reg(struct lan78xx_net *dev, u32 index, u32 *data)
 {
@@ -1200,6 +1368,8 @@ static int lan78xx_update_flowcontrol(struct lan78xx_net *dev, u8 duplex,
 	return 0;
 }
 
+static void lan78xx_rx_urb_submit_all(struct lan78xx_net *dev);
+
 static int lan78xx_mac_reset(struct lan78xx_net *dev)
 {
 	unsigned long start_time = jiffies;
@@ -1331,7 +1501,9 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 				  jiffies + STAT_UPDATE_TIMER);
 		}
 
-		tasklet_schedule(&dev->bh);
+		lan78xx_rx_urb_submit_all(dev);
+
+		napi_schedule(&dev->napi);
 	}
 
 	return 0;
@@ -2228,7 +2400,7 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 	if (dev->domain_data.phyirq > 0)
 		phydev->irq = dev->domain_data.phyirq;
 	else
-		phydev->irq = 0;
+		phydev->irq = PHY_POLL;
 	netdev_dbg(dev->net, "phydev->irq = %d\n", phydev->irq);
 
 	/* set to AUTOMDIX */
@@ -2371,37 +2543,24 @@ found:
 static int lan78xx_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct lan78xx_net *dev = netdev_priv(netdev);
-	int ll_mtu = new_mtu + netdev->hard_header_len;
-	int old_hard_mtu = dev->hard_mtu;
-	int old_rx_urb_size = dev->rx_urb_size;
+	int max_frame_len = RX_MAX_FRAME_LEN(new_mtu);
 	int ret;
 
 	/* no second zero-length packet read wanted after mtu-sized packets */
-	if ((ll_mtu % dev->maxpacket) == 0)
+	if ((max_frame_len % dev->maxpacket) == 0)
 		return -EDOM;
 
 	ret = usb_autopm_get_interface(dev->intf);
 	if (ret < 0)
 		return ret;
 
-	lan78xx_set_rx_max_frame_length(dev, new_mtu + VLAN_ETH_HLEN);
-
-	netdev->mtu = new_mtu;
-
-	dev->hard_mtu = netdev->mtu + netdev->hard_header_len;
-	if (dev->rx_urb_size == old_hard_mtu) {
-		dev->rx_urb_size = dev->hard_mtu;
-		if (dev->rx_urb_size > old_rx_urb_size) {
-			if (netif_running(dev->net)) {
-				unlink_urbs(dev, &dev->rxq);
-				tasklet_schedule(&dev->bh);
-			}
-		}
-	}
+	ret = lan78xx_set_rx_max_frame_length(dev, max_frame_len);
+	if (!ret)
+		netdev->mtu = new_mtu;
 
 	usb_autopm_put_interface(dev->intf);
 
-	return 0;
+	return ret;
 }
 
 static int lan78xx_set_mac_addr(struct net_device *netdev, void *p)
@@ -2555,6 +2714,44 @@ static void lan78xx_init_ltm(struct lan78xx_net *dev)
 	lan78xx_write_reg(dev, LTM_BELT_ACT1, regs[3]);
 	lan78xx_write_reg(dev, LTM_INACTIVE0, regs[4]);
 	lan78xx_write_reg(dev, LTM_INACTIVE1, regs[5]);
+}
+
+static int lan78xx_urb_config_init(struct lan78xx_net *dev)
+{
+	int result = 0;
+
+	switch (dev->udev->speed) {
+	case USB_SPEED_SUPER:
+		dev->rx_urb_size = RX_SS_URB_SIZE;
+		dev->tx_urb_size = TX_SS_URB_SIZE;
+		dev->n_rx_urbs = RX_SS_URB_NUM;
+		dev->n_tx_urbs = TX_SS_URB_NUM;
+		dev->bulk_in_delay = SS_BULK_IN_DELAY;
+		dev->burst_cap = SS_BURST_CAP_SIZE / SS_USB_PKT_SIZE;
+		break;
+	case USB_SPEED_HIGH:
+		dev->rx_urb_size = RX_HS_URB_SIZE;
+		dev->tx_urb_size = TX_HS_URB_SIZE;
+		dev->n_rx_urbs = RX_HS_URB_NUM;
+		dev->n_tx_urbs = TX_HS_URB_NUM;
+		dev->bulk_in_delay = HS_BULK_IN_DELAY;
+		dev->burst_cap = HS_BURST_CAP_SIZE / HS_USB_PKT_SIZE;
+		break;
+	case USB_SPEED_FULL:
+		dev->rx_urb_size = RX_FS_URB_SIZE;
+		dev->tx_urb_size = TX_FS_URB_SIZE;
+		dev->n_rx_urbs = RX_FS_URB_NUM;
+		dev->n_tx_urbs = TX_FS_URB_NUM;
+		dev->bulk_in_delay = FS_BULK_IN_DELAY;
+		dev->burst_cap = FS_BURST_CAP_SIZE / FS_USB_PKT_SIZE;
+		break;
+	default:
+		netdev_warn(dev->net, "USB bus speed not supported\n");
+		result = -EIO;
+		break;
+	}
+
+	return result;
 }
 
 static int lan78xx_start_hw(struct lan78xx_net *dev, u32 reg, u32 hw_enable)
@@ -2764,28 +2961,11 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 	/* Init LTM */
 	lan78xx_init_ltm(dev);
 
-	if (dev->udev->speed == USB_SPEED_SUPER) {
-		buf = DEFAULT_BURST_CAP_SIZE / SS_USB_PKT_SIZE;
-		dev->rx_urb_size = DEFAULT_BURST_CAP_SIZE;
-		dev->rx_qlen = 4;
-		dev->tx_qlen = 4;
-	} else if (dev->udev->speed == USB_SPEED_HIGH) {
-		buf = DEFAULT_BURST_CAP_SIZE / HS_USB_PKT_SIZE;
-		dev->rx_urb_size = DEFAULT_BURST_CAP_SIZE;
-		dev->rx_qlen = RX_MAX_QUEUE_MEMORY / dev->rx_urb_size;
-		dev->tx_qlen = RX_MAX_QUEUE_MEMORY / dev->hard_mtu;
-	} else {
-		buf = DEFAULT_BURST_CAP_SIZE / FS_USB_PKT_SIZE;
-		dev->rx_urb_size = DEFAULT_BURST_CAP_SIZE;
-		dev->rx_qlen = 4;
-		dev->tx_qlen = 4;
-	}
-
-	ret = lan78xx_write_reg(dev, BURST_CAP, buf);
+	ret = lan78xx_write_reg(dev, BURST_CAP, dev->burst_cap);
 	if (ret < 0)
 		return ret;
 
-	ret = lan78xx_write_reg(dev, BULK_IN_DLY, DEFAULT_BULK_IN_DELAY);
+	ret = lan78xx_write_reg(dev, BULK_IN_DLY, dev->bulk_in_delay);
 	if (ret < 0)
 		return ret;
 
@@ -2898,7 +3078,7 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 		return ret;
 
 	ret = lan78xx_set_rx_max_frame_length(dev,
-					      dev->net->mtu + VLAN_ETH_HLEN);
+					      RX_MAX_FRAME_LEN(dev->net->mtu));
 
 	return ret;
 }
@@ -2978,6 +3158,8 @@ static int lan78xx_open(struct net_device *net)
 
 	dev->link_on = false;
 
+	napi_enable(&dev->napi);
+
 	lan78xx_defer_kevent(dev, EVENT_LINK_RESET);
 done:
 	mutex_unlock(&dev->dev_mutex);
@@ -3011,15 +3193,16 @@ static void lan78xx_terminate_urbs(struct lan78xx_net *dev)
 	dev->wait = NULL;
 	remove_wait_queue(&unlink_wakeup, &wait);
 
-	while (!skb_queue_empty(&dev->done)) {
-		struct skb_data *entry;
-		struct sk_buff *skb;
+	/* empty Rx done, Rx overflow and Tx pend queues
+	 */
+	while (!skb_queue_empty(&dev->rxq_done)) {
+		struct sk_buff *skb = skb_dequeue(&dev->rxq_done);
 
-		skb = skb_dequeue(&dev->done);
-		entry = (struct skb_data *)(skb->cb);
-		usb_free_urb(entry->urb);
-		dev_kfree_skb(skb);
+		lan78xx_release_rx_buf(dev, skb);
 	}
+
+	skb_queue_purge(&dev->rxq_overflow);
+	skb_queue_purge(&dev->txq_pend);
 }
 
 static int lan78xx_stop(struct net_device *net)
@@ -3035,7 +3218,7 @@ static int lan78xx_stop(struct net_device *net)
 
 	clear_bit(EVENT_DEV_OPEN, &dev->flags);
 	netif_stop_queue(net);
-	tasklet_kill(&dev->bh);
+	napi_disable(&dev->napi);
 
 	lan78xx_terminate_urbs(dev);
 
@@ -3071,48 +3254,6 @@ static int lan78xx_stop(struct net_device *net)
 	return 0;
 }
 
-static struct sk_buff *lan78xx_tx_prep(struct lan78xx_net *dev,
-				       struct sk_buff *skb, gfp_t flags)
-{
-	u32 tx_cmd_a, tx_cmd_b;
-	void *ptr;
-
-	if (skb_cow_head(skb, TX_OVERHEAD)) {
-		dev_kfree_skb_any(skb);
-		return NULL;
-	}
-
-	if (skb_linearize(skb)) {
-		dev_kfree_skb_any(skb);
-		return NULL;
-	}
-
-	tx_cmd_a = (u32)(skb->len & TX_CMD_A_LEN_MASK_) | TX_CMD_A_FCS_;
-
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		tx_cmd_a |= TX_CMD_A_IPE_ | TX_CMD_A_TPE_;
-
-	tx_cmd_b = 0;
-	if (skb_is_gso(skb)) {
-		u16 mss = max(skb_shinfo(skb)->gso_size, TX_CMD_B_MSS_MIN_);
-
-		tx_cmd_b = (mss << TX_CMD_B_MSS_SHIFT_) & TX_CMD_B_MSS_MASK_;
-
-		tx_cmd_a |= TX_CMD_A_LSO_;
-	}
-
-	if (skb_vlan_tag_present(skb)) {
-		tx_cmd_a |= TX_CMD_A_IVTG_;
-		tx_cmd_b |= skb_vlan_tag_get(skb) & TX_CMD_B_VTAG_MASK_;
-	}
-
-	ptr = skb_push(skb, 8);
-	put_unaligned_le32(tx_cmd_a, ptr);
-	put_unaligned_le32(tx_cmd_b, ptr + 4);
-
-	return skb;
-}
-
 static enum skb_state defer_bh(struct lan78xx_net *dev, struct sk_buff *skb,
 			       struct sk_buff_head *list, enum skb_state state)
 {
@@ -3126,12 +3267,13 @@ static enum skb_state defer_bh(struct lan78xx_net *dev, struct sk_buff *skb,
 
 	__skb_unlink(skb, list);
 	spin_unlock(&list->lock);
-	spin_lock(&dev->done.lock);
+	spin_lock(&dev->rxq_done.lock);
 
-	__skb_queue_tail(&dev->done, skb);
-	if (skb_queue_len(&dev->done) == 1)
-		tasklet_schedule(&dev->bh);
-	spin_unlock_irqrestore(&dev->done.lock, flags);
+	__skb_queue_tail(&dev->rxq_done, skb);
+	if (skb_queue_len(&dev->rxq_done) == 1)
+		napi_schedule(&dev->napi);
+
+	spin_unlock_irqrestore(&dev->rxq_done.lock, flags);
 
 	return old_state;
 }
@@ -3146,7 +3288,7 @@ static void tx_complete(struct urb *urb)
 		dev->net->stats.tx_packets += entry->num_of_packet;
 		dev->net->stats.tx_bytes += entry->length;
 	} else {
-		dev->net->stats.tx_errors++;
+		dev->net->stats.tx_errors += entry->num_of_packet;
 
 		switch (urb->status) {
 		case -EPIPE:
@@ -3179,7 +3321,15 @@ static void tx_complete(struct urb *urb)
 
 	usb_autopm_put_interface_async(dev->intf);
 
-	defer_bh(dev, skb, &dev->txq, tx_done);
+	skb_unlink(skb, &dev->txq);
+
+	lan78xx_release_tx_buf(dev, skb);
+
+	/* Re-schedule NAPI if Tx data pending but no URBs in progress.
+	 */
+	if (skb_queue_empty(&dev->txq) &&
+	    !skb_queue_empty(&dev->txq_pend))
+		napi_schedule(&dev->napi);
 }
 
 static void lan78xx_queue_skb(struct sk_buff_head *list,
@@ -3191,35 +3341,96 @@ static void lan78xx_queue_skb(struct sk_buff_head *list,
 	entry->state = state;
 }
 
+static unsigned int lan78xx_tx_urb_space(struct lan78xx_net *dev)
+{
+	return skb_queue_len(&dev->txq_free) * dev->tx_urb_size;
+}
+
+static unsigned int lan78xx_tx_pend_data_len(struct lan78xx_net *dev)
+{
+	return dev->tx_pend_data_len;
+}
+
+static void lan78xx_tx_pend_skb_add(struct lan78xx_net *dev,
+				    struct sk_buff *skb,
+				    unsigned int *tx_pend_data_len)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->txq_pend.lock, flags);
+
+	__skb_queue_tail(&dev->txq_pend, skb);
+
+	dev->tx_pend_data_len += skb->len;
+	*tx_pend_data_len = dev->tx_pend_data_len;
+
+	spin_unlock_irqrestore(&dev->txq_pend.lock, flags);
+}
+
+static void lan78xx_tx_pend_skb_head_add(struct lan78xx_net *dev,
+					 struct sk_buff *skb,
+					 unsigned int *tx_pend_data_len)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->txq_pend.lock, flags);
+
+	__skb_queue_head(&dev->txq_pend, skb);
+
+	dev->tx_pend_data_len += skb->len;
+	*tx_pend_data_len = dev->tx_pend_data_len;
+
+	spin_unlock_irqrestore(&dev->txq_pend.lock, flags);
+}
+
+static void lan78xx_tx_pend_skb_get(struct lan78xx_net *dev,
+				    struct sk_buff **skb,
+				    unsigned int *tx_pend_data_len)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->txq_pend.lock, flags);
+
+	*skb = __skb_dequeue(&dev->txq_pend);
+	if (*skb)
+		dev->tx_pend_data_len -= (*skb)->len;
+	*tx_pend_data_len = dev->tx_pend_data_len;
+
+	spin_unlock_irqrestore(&dev->txq_pend.lock, flags);
+}
+
 static netdev_tx_t
 lan78xx_start_xmit(struct sk_buff *skb, struct net_device *net)
 {
 	struct lan78xx_net *dev = netdev_priv(net);
-	struct sk_buff *skb2 = NULL;
+	unsigned int tx_pend_data_len;
 
 	if (test_bit(EVENT_DEV_ASLEEP, &dev->flags))
 		schedule_delayed_work(&dev->wq, 0);
 
-	if (skb) {
-		skb_tx_timestamp(skb);
-		skb2 = lan78xx_tx_prep(dev, skb, GFP_ATOMIC);
+	skb_tx_timestamp(skb);
+
+	lan78xx_tx_pend_skb_add(dev, skb, &tx_pend_data_len);
+
+	/* Set up a Tx URB if none is in progress */
+
+	if (skb_queue_empty(&dev->txq))
+		napi_schedule(&dev->napi);
+
+	/* Stop stack Tx queue if we have enough data to fill
+	 * all the free Tx URBs.
+	 */
+	if (tx_pend_data_len > lan78xx_tx_urb_space(dev)) {
+		netif_stop_queue(net);
+
+		netif_dbg(dev, hw, dev->net, "tx data len: %u, urb space %u",
+			  tx_pend_data_len, lan78xx_tx_urb_space(dev));
+
+		/* Kick off transmission of pending data */
+
+		if (!skb_queue_empty(&dev->txq_free))
+			napi_schedule(&dev->napi);
 	}
-
-	if (skb2) {
-		skb_queue_tail(&dev->txq_pend, skb2);
-
-		/* throttle TX patch at slower than SUPER SPEED USB */
-		if ((dev->udev->speed < USB_SPEED_SUPER) &&
-		    (skb_queue_len(&dev->txq_pend) > 10))
-			netif_stop_queue(net);
-	} else {
-		netif_dbg(dev, tx_err, dev->net,
-			  "lan78xx_tx_prep return NULL\n");
-		dev->net->stats.tx_errors++;
-		dev->net->stats.tx_dropped++;
-	}
-
-	tasklet_schedule(&dev->bh);
 
 	return NETDEV_TX_OK;
 }
@@ -3275,9 +3486,6 @@ static int lan78xx_bind(struct lan78xx_net *dev, struct usb_interface *intf)
 			    "lan78xx_setup_irq_domain() failed : %d", ret);
 		goto out1;
 	}
-
-	dev->net->hard_header_len += TX_OVERHEAD;
-	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
 
 	/* Init all registers */
 	ret = lan78xx_reset(dev);
@@ -3357,8 +3565,6 @@ static void lan78xx_rx_vlan_offload(struct lan78xx_net *dev,
 
 static void lan78xx_skb_return(struct lan78xx_net *dev, struct sk_buff *skb)
 {
-	int status;
-
 	dev->net->stats.rx_packets++;
 	dev->net->stats.rx_bytes += skb->len;
 
@@ -3371,21 +3577,21 @@ static void lan78xx_skb_return(struct lan78xx_net *dev, struct sk_buff *skb)
 	if (skb_defer_rx_timestamp(skb))
 		return;
 
-	status = netif_rx(skb);
-	if (status != NET_RX_SUCCESS)
-		netif_dbg(dev, rx_err, dev->net,
-			  "netif_rx status %d\n", status);
+	napi_gro_receive(&dev->napi, skb);
 }
 
-static int lan78xx_rx(struct lan78xx_net *dev, struct sk_buff *skb)
+static int lan78xx_rx(struct lan78xx_net *dev, struct sk_buff *skb,
+		      int budget, int *work_done)
 {
-	if (skb->len < dev->net->hard_header_len)
+	if (skb->len < RX_SKB_MIN_LEN)
 		return 0;
 
+	/* Extract frames from the URB buffer and pass each one to
+	 * the stack in a new NAPI SKB.
+	 */
 	while (skb->len > 0) {
 		u32 rx_cmd_a, rx_cmd_b, align_count, size;
 		u16 rx_cmd_c;
-		struct sk_buff *skb2;
 		unsigned char *packet;
 
 		rx_cmd_a = get_unaligned_le32(skb->data);
@@ -3407,41 +3613,36 @@ static int lan78xx_rx(struct lan78xx_net *dev, struct sk_buff *skb)
 			netif_dbg(dev, rx_err, dev->net,
 				  "Error rx_cmd_a=0x%08x", rx_cmd_a);
 		} else {
-			/* last frame in this batch */
-			if (skb->len == size) {
-				lan78xx_rx_csum_offload(dev, skb,
-							rx_cmd_a, rx_cmd_b);
-				lan78xx_rx_vlan_offload(dev, skb,
-							rx_cmd_a, rx_cmd_b);
+			u32 frame_len = size - ETH_FCS_LEN;
+			struct sk_buff *skb2;
 
-				skb_trim(skb, skb->len - 4); /* remove fcs */
-				skb->truesize = size + sizeof(struct sk_buff);
-
-				return 1;
-			}
-
-			skb2 = skb_clone(skb, GFP_ATOMIC);
-			if (unlikely(!skb2)) {
-				netdev_warn(dev->net, "Error allocating skb");
+			skb2 = napi_alloc_skb(&dev->napi, frame_len);
+			if (!skb2)
 				return 0;
-			}
 
-			skb2->len = size;
-			skb2->data = packet;
-			skb_set_tail_pointer(skb2, size);
+			memcpy(skb2->data, packet, frame_len);
+
+			skb_put(skb2, frame_len);
 
 			lan78xx_rx_csum_offload(dev, skb2, rx_cmd_a, rx_cmd_b);
 			lan78xx_rx_vlan_offload(dev, skb2, rx_cmd_a, rx_cmd_b);
 
-			skb_trim(skb2, skb2->len - 4); /* remove fcs */
-			skb2->truesize = size + sizeof(struct sk_buff);
-
-			lan78xx_skb_return(dev, skb2);
+			/* Processing of the URB buffer must complete once
+			 * it has started. If the NAPI work budget is exhausted
+			 * while frames remain they are added to the overflow
+			 * queue for delivery in the next NAPI polling cycle.
+			 */
+			if (*work_done < budget) {
+				lan78xx_skb_return(dev, skb2);
+				++(*work_done);
+			} else {
+				skb_queue_tail(&dev->rxq_overflow, skb2);
+			}
 		}
 
 		skb_pull(skb, size);
 
-		/* padding bytes before the next frame starts */
+		/* skip padding bytes before the next frame starts */
 		if (skb->len)
 			skb_pull(skb, align_count);
 	}
@@ -3449,85 +3650,13 @@ static int lan78xx_rx(struct lan78xx_net *dev, struct sk_buff *skb)
 	return 1;
 }
 
-static inline void rx_process(struct lan78xx_net *dev, struct sk_buff *skb)
+static inline void rx_process(struct lan78xx_net *dev, struct sk_buff *skb,
+			      int budget, int *work_done)
 {
-	if (!lan78xx_rx(dev, skb)) {
+	if (!lan78xx_rx(dev, skb, budget, work_done)) {
+		netif_dbg(dev, rx_err, dev->net, "drop\n");
 		dev->net->stats.rx_errors++;
-		goto done;
 	}
-
-	if (skb->len) {
-		lan78xx_skb_return(dev, skb);
-		return;
-	}
-
-	netif_dbg(dev, rx_err, dev->net, "drop\n");
-	dev->net->stats.rx_errors++;
-done:
-	skb_queue_tail(&dev->done, skb);
-}
-
-static void rx_complete(struct urb *urb);
-
-static int rx_submit(struct lan78xx_net *dev, struct urb *urb, gfp_t flags)
-{
-	struct sk_buff *skb;
-	struct skb_data *entry;
-	unsigned long lockflags;
-	size_t size = dev->rx_urb_size;
-	int ret = 0;
-
-	skb = netdev_alloc_skb_ip_align(dev->net, size);
-	if (!skb) {
-		usb_free_urb(urb);
-		return -ENOMEM;
-	}
-
-	entry = (struct skb_data *)skb->cb;
-	entry->urb = urb;
-	entry->dev = dev;
-	entry->length = 0;
-
-	usb_fill_bulk_urb(urb, dev->udev, dev->pipe_in,
-			  skb->data, size, rx_complete, skb);
-
-	spin_lock_irqsave(&dev->rxq.lock, lockflags);
-
-	if (netif_device_present(dev->net) &&
-	    netif_running(dev->net) &&
-	    !test_bit(EVENT_RX_HALT, &dev->flags) &&
-	    !test_bit(EVENT_DEV_ASLEEP, &dev->flags)) {
-		ret = usb_submit_urb(urb, GFP_ATOMIC);
-		switch (ret) {
-		case 0:
-			lan78xx_queue_skb(&dev->rxq, skb, rx_start);
-			break;
-		case -EPIPE:
-			lan78xx_defer_kevent(dev, EVENT_RX_HALT);
-			break;
-		case -ENODEV:
-		case -ENOENT:
-			netif_dbg(dev, ifdown, dev->net, "device gone\n");
-			netif_device_detach(dev->net);
-			break;
-		case -EHOSTUNREACH:
-			ret = -ENOLINK;
-			break;
-		default:
-			netif_dbg(dev, rx_err, dev->net,
-				  "rx submit, %d\n", ret);
-			tasklet_schedule(&dev->bh);
-		}
-	} else {
-		netif_dbg(dev, ifdown, dev->net, "rx: stopped\n");
-		ret = -ENOLINK;
-	}
-	spin_unlock_irqrestore(&dev->rxq.lock, lockflags);
-	if (ret) {
-		dev_kfree_skb_any(skb);
-		usb_free_urb(urb);
-	}
-	return ret;
 }
 
 static void rx_complete(struct urb *urb)
@@ -3538,13 +3667,18 @@ static void rx_complete(struct urb *urb)
 	int urb_status = urb->status;
 	enum skb_state state;
 
+	netif_dbg(dev, rx_status, dev->net,
+		  "rx done: status %d", urb->status);
+
 	skb_put(skb, urb->actual_length);
 	state = rx_done;
-	entry->urb = NULL;
+
+	if (urb != entry->urb)
+		netif_warn(dev, rx_err, dev->net, "URB pointer mismatch");
 
 	switch (urb_status) {
 	case 0:
-		if (skb->len < dev->net->hard_header_len) {
+		if (skb->len < RX_SKB_MIN_LEN) {
 			state = rx_cleanup;
 			dev->net->stats.rx_errors++;
 			dev->net->stats.rx_length_errors++;
@@ -3562,16 +3696,12 @@ static void rx_complete(struct urb *urb)
 		netif_dbg(dev, ifdown, dev->net,
 			  "rx shutdown, code %d\n", urb_status);
 		state = rx_cleanup;
-		entry->urb = urb;
-		urb = NULL;
 		break;
 	case -EPROTO:
 	case -ETIME:
 	case -EILSEQ:
 		dev->net->stats.rx_errors++;
 		state = rx_cleanup;
-		entry->urb = urb;
-		urb = NULL;
 		break;
 
 	/* data overrun ... flush fifo? */
@@ -3587,202 +3717,326 @@ static void rx_complete(struct urb *urb)
 	}
 
 	state = defer_bh(dev, skb, &dev->rxq, state);
+}
 
-	if (urb) {
-		if (netif_running(dev->net) &&
-		    !test_bit(EVENT_RX_HALT, &dev->flags) &&
-		    state != unlink_start) {
-			rx_submit(dev, urb, GFP_ATOMIC);
-			return;
+static int rx_submit(struct lan78xx_net *dev, struct sk_buff *skb, gfp_t flags)
+{
+	struct skb_data	*entry = (struct skb_data *)skb->cb;
+	size_t size = dev->rx_urb_size;
+	struct urb *urb = entry->urb;
+	unsigned long lockflags;
+	int ret = 0;
+
+	usb_fill_bulk_urb(urb, dev->udev, dev->pipe_in,
+			  skb->data, size, rx_complete, skb);
+
+	spin_lock_irqsave(&dev->rxq.lock, lockflags);
+
+	if (netif_device_present(dev->net) &&
+	    netif_running(dev->net) &&
+	    !test_bit(EVENT_RX_HALT, &dev->flags) &&
+	    !test_bit(EVENT_DEV_ASLEEP, &dev->flags)) {
+		ret = usb_submit_urb(urb, flags);
+		switch (ret) {
+		case 0:
+			lan78xx_queue_skb(&dev->rxq, skb, rx_start);
+			break;
+		case -EPIPE:
+			lan78xx_defer_kevent(dev, EVENT_RX_HALT);
+			break;
+		case -ENODEV:
+		case -ENOENT:
+			netif_dbg(dev, ifdown, dev->net, "device gone\n");
+			netif_device_detach(dev->net);
+			break;
+		case -EHOSTUNREACH:
+			ret = -ENOLINK;
+			napi_schedule(&dev->napi);
+			break;
+		default:
+			netif_dbg(dev, rx_err, dev->net,
+				  "rx submit, %d\n", ret);
+			napi_schedule(&dev->napi);
+			break;
 		}
-		usb_free_urb(urb);
+	} else {
+		netif_dbg(dev, ifdown, dev->net, "rx: stopped\n");
+		ret = -ENOLINK;
 	}
-	netif_dbg(dev, rx_err, dev->net, "no read resubmitted\n");
+	spin_unlock_irqrestore(&dev->rxq.lock, lockflags);
+
+	if (ret)
+		lan78xx_release_rx_buf(dev, skb);
+
+	return ret;
+}
+
+static void lan78xx_rx_urb_submit_all(struct lan78xx_net *dev)
+{
+	struct sk_buff *rx_buf;
+
+	/* Ensure the maximum number of Rx URBs is submitted
+	 */
+	while ((rx_buf = lan78xx_get_rx_buf(dev)) != NULL) {
+		if (rx_submit(dev, rx_buf, GFP_ATOMIC) != 0)
+			break;
+	}
+}
+
+static void lan78xx_rx_urb_resubmit(struct lan78xx_net *dev,
+				    struct sk_buff *rx_buf)
+{
+	/* reset SKB data pointers */
+
+	rx_buf->data = rx_buf->head;
+	skb_reset_tail_pointer(rx_buf);
+	rx_buf->len = 0;
+	rx_buf->data_len = 0;
+
+	rx_submit(dev, rx_buf, GFP_ATOMIC);
+}
+
+static void lan78xx_fill_tx_cmd_words(struct sk_buff *skb, u8 *buffer)
+{
+	u32 tx_cmd_a;
+	u32 tx_cmd_b;
+
+	tx_cmd_a = (u32)(skb->len & TX_CMD_A_LEN_MASK_) | TX_CMD_A_FCS_;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		tx_cmd_a |= TX_CMD_A_IPE_ | TX_CMD_A_TPE_;
+
+	tx_cmd_b = 0;
+	if (skb_is_gso(skb)) {
+		u16 mss = max(skb_shinfo(skb)->gso_size, TX_CMD_B_MSS_MIN_);
+
+		tx_cmd_b = (mss << TX_CMD_B_MSS_SHIFT_) & TX_CMD_B_MSS_MASK_;
+
+		tx_cmd_a |= TX_CMD_A_LSO_;
+	}
+
+	if (skb_vlan_tag_present(skb)) {
+		tx_cmd_a |= TX_CMD_A_IVTG_;
+		tx_cmd_b |= skb_vlan_tag_get(skb) & TX_CMD_B_VTAG_MASK_;
+	}
+
+	put_unaligned_le32(tx_cmd_a, buffer);
+	put_unaligned_le32(tx_cmd_b, buffer + 4);
+}
+
+static struct skb_data *lan78xx_tx_buf_fill(struct lan78xx_net *dev,
+					    struct sk_buff *tx_buf)
+{
+	struct skb_data *entry = (struct skb_data *)tx_buf->cb;
+	int remain = dev->tx_urb_size;
+	u8 *tx_data = tx_buf->data;
+	u32 urb_len = 0;
+
+	entry->num_of_packet = 0;
+	entry->length = 0;
+
+	/* Work through the pending SKBs and copy the data of each SKB into
+	 * the URB buffer if there room for all the SKB data.
+	 *
+	 * There must be at least DST+SRC+TYPE in the SKB (with padding enabled)
+	 */
+	while (remain >= TX_SKB_MIN_LEN) {
+		unsigned int pending_bytes;
+		unsigned int align_bytes;
+		struct sk_buff *skb;
+		unsigned int len;
+
+		lan78xx_tx_pend_skb_get(dev, &skb, &pending_bytes);
+
+		if (!skb)
+			break;
+
+		align_bytes = (TX_ALIGNMENT - (urb_len % TX_ALIGNMENT)) %
+			      TX_ALIGNMENT;
+		len = align_bytes + TX_CMD_LEN + skb->len;
+		if (len > remain) {
+			lan78xx_tx_pend_skb_head_add(dev, skb, &pending_bytes);
+			break;
+		}
+
+		tx_data += align_bytes;
+
+		lan78xx_fill_tx_cmd_words(skb, tx_data);
+		tx_data += TX_CMD_LEN;
+
+		len = skb->len;
+		if (skb_copy_bits(skb, 0, tx_data, len) < 0) {
+			struct net_device_stats *stats = &dev->net->stats;
+
+			stats->tx_dropped++;
+			dev_kfree_skb_any(skb);
+			tx_data -= TX_CMD_LEN;
+			continue;
+		}
+
+		tx_data += len;
+		entry->length += len;
+		entry->num_of_packet += skb_shinfo(skb)->gso_segs ?: 1;
+
+		dev_kfree_skb_any(skb);
+
+		urb_len = (u32)(tx_data - (u8 *)tx_buf->data);
+
+		remain = dev->tx_urb_size - urb_len;
+	}
+
+	skb_put(tx_buf, urb_len);
+
+	return entry;
 }
 
 static void lan78xx_tx_bh(struct lan78xx_net *dev)
 {
-	int length;
-	struct urb *urb = NULL;
-	struct skb_data *entry;
-	unsigned long flags;
-	struct sk_buff_head *tqp = &dev->txq_pend;
-	struct sk_buff *skb, *skb2;
 	int ret;
-	int count, pos;
-	int skb_totallen, pkt_cnt;
 
-	skb_totallen = 0;
-	pkt_cnt = 0;
-	count = 0;
-	length = 0;
-	spin_lock_irqsave(&tqp->lock, flags);
-	skb_queue_walk(tqp, skb) {
-		if (skb_is_gso(skb)) {
-			if (!skb_queue_is_first(tqp, skb)) {
-				/* handle previous packets first */
-				break;
-			}
-			count = 1;
-			length = skb->len - TX_OVERHEAD;
-			__skb_unlink(skb, tqp);
-			spin_unlock_irqrestore(&tqp->lock, flags);
-			goto gso_skb;
-		}
+	/* Start the stack Tx queue if it was stopped
+	 */
+	netif_tx_lock(dev->net);
+	if (netif_queue_stopped(dev->net)) {
+		if (lan78xx_tx_pend_data_len(dev) < lan78xx_tx_urb_space(dev))
+			netif_wake_queue(dev->net);
+	}
+	netif_tx_unlock(dev->net);
 
-		if ((skb_totallen + skb->len) > MAX_SINGLE_PACKET_SIZE)
+	/* Go through the Tx pending queue and set up URBs to transfer
+	 * the data to the device. Stop if no more pending data or URBs,
+	 * or if an error occurs when a URB is submitted.
+	 */
+	do {
+		struct skb_data *entry;
+		struct sk_buff *tx_buf;
+		unsigned long flags;
+
+		if (skb_queue_empty(&dev->txq_pend))
 			break;
-		skb_totallen = skb->len + roundup(skb_totallen, sizeof(u32));
-		pkt_cnt++;
-	}
-	spin_unlock_irqrestore(&tqp->lock, flags);
 
-	/* copy to a single skb */
-	skb = alloc_skb(skb_totallen, GFP_ATOMIC);
-	if (!skb)
-		goto drop;
+		tx_buf = lan78xx_get_tx_buf(dev);
+		if (!tx_buf)
+			break;
 
-	skb_put(skb, skb_totallen);
+		entry = lan78xx_tx_buf_fill(dev, tx_buf);
 
-	for (count = pos = 0; count < pkt_cnt; count++) {
-		skb2 = skb_dequeue(tqp);
-		if (skb2) {
-			length += (skb2->len - TX_OVERHEAD);
-			memcpy(skb->data + pos, skb2->data, skb2->len);
-			pos += roundup(skb2->len, sizeof(u32));
-			dev_kfree_skb(skb2);
+		spin_lock_irqsave(&dev->txq.lock, flags);
+		ret = usb_autopm_get_interface_async(dev->intf);
+		if (ret < 0) {
+			spin_unlock_irqrestore(&dev->txq.lock, flags);
+			goto out;
 		}
-	}
 
-gso_skb:
-	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb)
-		goto drop;
+		usb_fill_bulk_urb(entry->urb, dev->udev, dev->pipe_out,
+				  tx_buf->data, tx_buf->len, tx_complete,
+				  tx_buf);
 
-	entry = (struct skb_data *)skb->cb;
-	entry->urb = urb;
-	entry->dev = dev;
-	entry->length = length;
-	entry->num_of_packet = count;
-
-	spin_lock_irqsave(&dev->txq.lock, flags);
-	ret = usb_autopm_get_interface_async(dev->intf);
-	if (ret < 0) {
-		spin_unlock_irqrestore(&dev->txq.lock, flags);
-		goto drop;
-	}
-
-	usb_fill_bulk_urb(urb, dev->udev, dev->pipe_out,
-			  skb->data, skb->len, tx_complete, skb);
-
-	if (length % dev->maxpacket == 0) {
-		/* send USB_ZERO_PACKET */
-		urb->transfer_flags |= URB_ZERO_PACKET;
-	}
+		if (tx_buf->len % dev->maxpacket == 0) {
+			/* send USB_ZERO_PACKET */
+			entry->urb->transfer_flags |= URB_ZERO_PACKET;
+		}
 
 #ifdef CONFIG_PM
-	/* if this triggers the device is still a sleep */
-	if (test_bit(EVENT_DEV_ASLEEP, &dev->flags)) {
-		/* transmission will be done in resume */
-		usb_anchor_urb(urb, &dev->deferred);
-		/* no use to process more packets */
-		netif_stop_queue(dev->net);
-		usb_put_urb(urb);
-		spin_unlock_irqrestore(&dev->txq.lock, flags);
-		netdev_dbg(dev->net, "Delaying transmission for resumption\n");
-		return;
-	}
-#endif
-
-	ret = usb_submit_urb(urb, GFP_ATOMIC);
-	switch (ret) {
-	case 0:
-		netif_trans_update(dev->net);
-		lan78xx_queue_skb(&dev->txq, skb, tx_start);
-		if (skb_queue_len(&dev->txq) >= dev->tx_qlen)
+		/* if device is asleep stop outgoing packet processing */
+		if (test_bit(EVENT_DEV_ASLEEP, &dev->flags)) {
+			usb_anchor_urb(entry->urb, &dev->deferred);
 			netif_stop_queue(dev->net);
-		break;
-	case -EPIPE:
-		netif_stop_queue(dev->net);
-		lan78xx_defer_kevent(dev, EVENT_TX_HALT);
-		usb_autopm_put_interface_async(dev->intf);
-		break;
-	case -ENODEV:
-	case -ENOENT:
-		netif_dbg(dev, tx_err, dev->net,
-			  "tx: submit urb err %d (disconnected?)", ret);
-		netif_device_detach(dev->net);
-		break;
-	default:
-		usb_autopm_put_interface_async(dev->intf);
-		netif_dbg(dev, tx_err, dev->net,
-			  "tx: submit urb err %d\n", ret);
-		break;
-	}
-
-	spin_unlock_irqrestore(&dev->txq.lock, flags);
-
-	if (ret) {
-		netif_dbg(dev, tx_err, dev->net, "drop, code %d\n", ret);
-drop:
-		dev->net->stats.tx_dropped++;
-		if (skb)
-			dev_kfree_skb_any(skb);
-		usb_free_urb(urb);
-	} else {
-		netif_dbg(dev, tx_queued, dev->net,
-			  "> tx, len %d, type 0x%x\n", length, skb->protocol);
-	}
-}
-
-static void lan78xx_rx_bh(struct lan78xx_net *dev)
-{
-	struct urb *urb;
-	int i;
-
-	if (skb_queue_len(&dev->rxq) < dev->rx_qlen) {
-		for (i = 0; i < 10; i++) {
-			if (skb_queue_len(&dev->rxq) >= dev->rx_qlen)
-				break;
-			urb = usb_alloc_urb(0, GFP_ATOMIC);
-			if (urb)
-				if (rx_submit(dev, urb, GFP_ATOMIC) == -ENOLINK)
-					return;
-		}
-
-		if (skb_queue_len(&dev->rxq) < dev->rx_qlen)
-			tasklet_schedule(&dev->bh);
-	}
-	if (skb_queue_len(&dev->txq) < dev->tx_qlen)
-		netif_wake_queue(dev->net);
-}
-
-static void lan78xx_bh(struct tasklet_struct *t)
-{
-	struct lan78xx_net *dev = from_tasklet(dev, t, bh);
-	struct sk_buff *skb;
-	struct skb_data *entry;
-
-	while ((skb = skb_dequeue(&dev->done))) {
-		entry = (struct skb_data *)(skb->cb);
-		switch (entry->state) {
-		case rx_done:
-			entry->state = rx_cleanup;
-			rx_process(dev, skb);
-			continue;
-		case tx_done:
-			usb_free_urb(entry->urb);
-			dev_kfree_skb(skb);
-			continue;
-		case rx_cleanup:
-			usb_free_urb(entry->urb);
-			dev_kfree_skb(skb);
-			continue;
-		default:
-			netdev_dbg(dev->net, "skb state %d\n", entry->state);
+			spin_unlock_irqrestore(&dev->txq.lock, flags);
+			netdev_dbg(dev->net,
+				   "Delaying transmission for resumption\n");
 			return;
 		}
+#endif
+		ret = usb_submit_urb(entry->urb, GFP_ATOMIC);
+		switch (ret) {
+		case 0:
+			netif_trans_update(dev->net);
+			lan78xx_queue_skb(&dev->txq, tx_buf, tx_start);
+			break;
+		case -EPIPE:
+			netif_stop_queue(dev->net);
+			lan78xx_defer_kevent(dev, EVENT_TX_HALT);
+			usb_autopm_put_interface_async(dev->intf);
+			break;
+		case -ENODEV:
+		case -ENOENT:
+			netif_dbg(dev, tx_err, dev->net,
+				  "tx submit urb err %d (disconnected?)", ret);
+			netif_device_detach(dev->net);
+			break;
+		default:
+			usb_autopm_put_interface_async(dev->intf);
+			netif_dbg(dev, tx_err, dev->net,
+				  "tx submit urb err %d\n", ret);
+			break;
+		}
+
+		spin_unlock_irqrestore(&dev->txq.lock, flags);
+
+		if (ret) {
+			netdev_warn(dev->net, "failed to tx urb %d\n", ret);
+out:
+			dev->net->stats.tx_dropped += entry->num_of_packet;
+			lan78xx_release_tx_buf(dev, tx_buf);
+		}
+	} while (ret == 0);
+}
+
+static int lan78xx_bh(struct lan78xx_net *dev, int budget)
+{
+	struct sk_buff_head done;
+	struct sk_buff *rx_buf;
+	struct skb_data *entry;
+	unsigned long flags;
+	int work_done = 0;
+
+	/* Pass frames received in the last NAPI cycle before
+	 * working on newly completed URBs.
+	 */
+	while (!skb_queue_empty(&dev->rxq_overflow)) {
+		lan78xx_skb_return(dev, skb_dequeue(&dev->rxq_overflow));
+		++work_done;
 	}
+
+	/* Take a snapshot of the done queue and move items to a
+	 * temporary queue. Rx URB completions will continue to add
+	 * to the done queue.
+	 */
+	__skb_queue_head_init(&done);
+
+	spin_lock_irqsave(&dev->rxq_done.lock, flags);
+	skb_queue_splice_init(&dev->rxq_done, &done);
+	spin_unlock_irqrestore(&dev->rxq_done.lock, flags);
+
+	/* Extract receive frames from completed URBs and
+	 * pass them to the stack. Re-submit each completed URB.
+	 */
+	while ((work_done < budget) &&
+	       (rx_buf = __skb_dequeue(&done))) {
+		entry = (struct skb_data *)(rx_buf->cb);
+		switch (entry->state) {
+		case rx_done:
+			rx_process(dev, rx_buf, budget, &work_done);
+			break;
+		case rx_cleanup:
+			break;
+		default:
+			netdev_dbg(dev->net, "rx buf state %d\n",
+				   entry->state);
+			break;
+		}
+
+		lan78xx_rx_urb_resubmit(dev, rx_buf);
+	}
+
+	/* If budget was consumed before processing all the URBs put them
+	 * back on the front of the done queue. They will be first to be
+	 * processed in the next NAPI cycle.
+	 */
+	spin_lock_irqsave(&dev->rxq_done.lock, flags);
+	skb_queue_splice(&done, &dev->rxq_done);
+	spin_unlock_irqrestore(&dev->rxq_done.lock, flags);
 
 	if (netif_device_present(dev->net) && netif_running(dev->net)) {
 		/* reset update timer delta */
@@ -3792,12 +4046,61 @@ static void lan78xx_bh(struct tasklet_struct *t)
 				  jiffies + STAT_UPDATE_TIMER);
 		}
 
-		if (!skb_queue_empty(&dev->txq_pend))
-			lan78xx_tx_bh(dev);
+		/* Submit all free Rx URBs */
 
 		if (!test_bit(EVENT_RX_HALT, &dev->flags))
-			lan78xx_rx_bh(dev);
+			lan78xx_rx_urb_submit_all(dev);
+
+		/* Submit new Tx URBs */
+
+		lan78xx_tx_bh(dev);
 	}
+
+	return work_done;
+}
+
+static int lan78xx_poll(struct napi_struct *napi, int budget)
+{
+	struct lan78xx_net *dev = container_of(napi, struct lan78xx_net, napi);
+	int result = budget;
+	int work_done;
+
+	/* Don't do any work if the device is suspended */
+
+	if (test_bit(EVENT_DEV_ASLEEP, &dev->flags)) {
+		napi_complete_done(napi, 0);
+		return 0;
+	}
+
+	/* Process completed URBs and submit new URBs */
+
+	work_done = lan78xx_bh(dev, budget);
+
+	if (work_done < budget) {
+		napi_complete_done(napi, work_done);
+
+		/* Start a new polling cycle if data was received or
+		 * data is waiting to be transmitted.
+		 */
+		if (!skb_queue_empty(&dev->rxq_done)) {
+			napi_schedule(napi);
+		} else if (netif_carrier_ok(dev->net)) {
+			if (skb_queue_empty(&dev->txq) &&
+			    !skb_queue_empty(&dev->txq_pend)) {
+				napi_schedule(napi);
+			} else {
+				netif_tx_lock(dev->net);
+				if (netif_queue_stopped(dev->net)) {
+					netif_wake_queue(dev->net);
+					napi_schedule(napi);
+				}
+				netif_tx_unlock(dev->net);
+			}
+		}
+		result = work_done;
+	}
+
+	return result;
 }
 
 static void lan78xx_delayedwork(struct work_struct *work)
@@ -3843,7 +4146,7 @@ static void lan78xx_delayedwork(struct work_struct *work)
 					   status);
 		} else {
 			clear_bit(EVENT_RX_HALT, &dev->flags);
-			tasklet_schedule(&dev->bh);
+			napi_schedule(&dev->napi);
 		}
 	}
 
@@ -3937,6 +4240,8 @@ static void lan78xx_disconnect(struct usb_interface *intf)
 
 	set_bit(EVENT_DEV_DISCONNECT, &dev->flags);
 
+	netif_napi_del(&dev->napi);
+
 	udev = interface_to_usbdev(intf);
 	net = dev->net;
 
@@ -3961,6 +4266,9 @@ static void lan78xx_disconnect(struct usb_interface *intf)
 
 	lan78xx_unbind(dev, intf);
 
+	lan78xx_free_tx_resources(dev);
+	lan78xx_free_rx_resources(dev);
+
 	usb_kill_urb(dev->urb_intr);
 	usb_free_urb(dev->urb_intr);
 
@@ -3973,14 +4281,16 @@ static void lan78xx_tx_timeout(struct net_device *net, unsigned int txqueue)
 	struct lan78xx_net *dev = netdev_priv(net);
 
 	unlink_urbs(dev, &dev->txq);
-	tasklet_schedule(&dev->bh);
+	napi_schedule(&dev->napi);
 }
 
 static netdev_features_t lan78xx_features_check(struct sk_buff *skb,
 						struct net_device *netdev,
 						netdev_features_t features)
 {
-	if (skb->len + TX_OVERHEAD > MAX_SINGLE_PACKET_SIZE)
+	struct lan78xx_net *dev = netdev_priv(netdev);
+
+	if (skb->len > LAN78XX_TSO_SIZE(dev))
 		features &= ~NETIF_F_GSO_MASK;
 
 	features = vlan_features_check(skb, features);
@@ -4046,12 +4356,31 @@ static int lan78xx_probe(struct usb_interface *intf,
 
 	skb_queue_head_init(&dev->rxq);
 	skb_queue_head_init(&dev->txq);
-	skb_queue_head_init(&dev->done);
+	skb_queue_head_init(&dev->rxq_done);
 	skb_queue_head_init(&dev->txq_pend);
+	skb_queue_head_init(&dev->rxq_overflow);
 	mutex_init(&dev->phy_mutex);
 	mutex_init(&dev->dev_mutex);
 
-	tasklet_setup(&dev->bh, lan78xx_bh);
+	ret = lan78xx_urb_config_init(dev);
+	if (ret < 0)
+		goto out2;
+
+	ret = lan78xx_alloc_tx_resources(dev);
+	if (ret < 0)
+		goto out2;
+
+	ret = lan78xx_alloc_rx_resources(dev);
+	if (ret < 0)
+		goto out3;
+
+	/* MTU range: 68 - 9000 */
+	netdev->max_mtu = MAX_SINGLE_PACKET_SIZE;
+
+	netif_set_gso_max_size(netdev, LAN78XX_TSO_SIZE(dev));
+
+	netif_napi_add(netdev, &dev->napi, lan78xx_poll, LAN78XX_NAPI_WEIGHT);
+
 	INIT_DELAYED_WORK(&dev->wq, lan78xx_delayedwork);
 	init_usb_anchor(&dev->deferred);
 
@@ -4066,27 +4395,27 @@ static int lan78xx_probe(struct usb_interface *intf,
 
 	if (intf->cur_altsetting->desc.bNumEndpoints < 3) {
 		ret = -ENODEV;
-		goto out2;
+		goto out4;
 	}
 
 	dev->pipe_in = usb_rcvbulkpipe(udev, BULK_IN_PIPE);
 	ep_blkin = usb_pipe_endpoint(udev, dev->pipe_in);
 	if (!ep_blkin || !usb_endpoint_is_bulk_in(&ep_blkin->desc)) {
 		ret = -ENODEV;
-		goto out2;
+		goto out4;
 	}
 
 	dev->pipe_out = usb_sndbulkpipe(udev, BULK_OUT_PIPE);
 	ep_blkout = usb_pipe_endpoint(udev, dev->pipe_out);
 	if (!ep_blkout || !usb_endpoint_is_bulk_out(&ep_blkout->desc)) {
 		ret = -ENODEV;
-		goto out2;
+		goto out4;
 	}
 
 	ep_intr = &intf->cur_altsetting->endpoint[2];
 	if (!usb_endpoint_is_int_in(&ep_intr->desc)) {
 		ret = -ENODEV;
-		goto out2;
+		goto out4;
 	}
 
 	dev->pipe_intr = usb_rcvintpipe(dev->udev,
@@ -4094,30 +4423,25 @@ static int lan78xx_probe(struct usb_interface *intf,
 
 	ret = lan78xx_bind(dev, intf);
 	if (ret < 0)
-		goto out2;
-
-	if (netdev->mtu > (dev->hard_mtu - netdev->hard_header_len))
-		netdev->mtu = dev->hard_mtu - netdev->hard_header_len;
-
-	/* MTU range: 68 - 9000 */
-	netdev->max_mtu = MAX_SINGLE_PACKET_SIZE;
-	netif_set_gso_max_size(netdev, MAX_SINGLE_PACKET_SIZE - MAX_HEADER);
+		goto out4;
 
 	period = ep_intr->desc.bInterval;
 	maxp = usb_maxpacket(dev->udev, dev->pipe_intr, 0);
 	buf = kmalloc(maxp, GFP_KERNEL);
-	if (buf) {
-		dev->urb_intr = usb_alloc_urb(0, GFP_KERNEL);
-		if (!dev->urb_intr) {
-			ret = -ENOMEM;
-			kfree(buf);
-			goto out3;
-		} else {
-			usb_fill_int_urb(dev->urb_intr, dev->udev,
-					 dev->pipe_intr, buf, maxp,
-					 intr_complete, dev, period);
-			dev->urb_intr->transfer_flags |= URB_FREE_BUFFER;
-		}
+	if (!buf) {
+		ret = -ENOMEM;
+		goto out5;
+	}
+
+	dev->urb_intr = usb_alloc_urb(0, GFP_KERNEL);
+	if (!dev->urb_intr) {
+		ret = -ENOMEM;
+		goto out6;
+	} else {
+		usb_fill_int_urb(dev->urb_intr, dev->udev,
+				 dev->pipe_intr, buf, maxp,
+				 intr_complete, dev, period);
+		dev->urb_intr->transfer_flags |= URB_FREE_BUFFER;
 	}
 
 	dev->maxpacket = usb_maxpacket(dev->udev, dev->pipe_out, 1);
@@ -4125,7 +4449,7 @@ static int lan78xx_probe(struct usb_interface *intf,
 	/* Reject broken descriptors. */
 	if (dev->maxpacket == 0) {
 		ret = -ENODEV;
-		goto out4;
+		goto out6;
 	}
 
 	/* driver requires remote-wakeup capability during autosuspend. */
@@ -4133,12 +4457,12 @@ static int lan78xx_probe(struct usb_interface *intf,
 
 	ret = lan78xx_phy_init(dev);
 	if (ret < 0)
-		goto out4;
+		goto out7;
 
 	ret = register_netdev(netdev);
 	if (ret != 0) {
 		netif_err(dev, probe, netdev, "couldn't register the device\n");
-		goto out5;
+		goto out8;
 	}
 
 	usb_set_intfdata(intf, dev);
@@ -4153,12 +4477,19 @@ static int lan78xx_probe(struct usb_interface *intf,
 
 	return 0;
 
-out5:
+out8:
 	phy_disconnect(netdev->phydev);
-out4:
+out7:
 	usb_free_urb(dev->urb_intr);
-out3:
+out6:
+	kfree(buf);
+out5:
 	lan78xx_unbind(dev, intf);
+out4:
+	netif_napi_del(&dev->napi);
+	lan78xx_free_rx_resources(dev);
+out3:
+	lan78xx_free_tx_resources(dev);
 out2:
 	free_netdev(netdev);
 out1:
@@ -4579,8 +4910,7 @@ static bool lan78xx_submit_deferred_urbs(struct lan78xx_net *dev)
 		if (!netif_device_present(dev->net) ||
 		    !netif_carrier_ok(dev->net) ||
 		    pipe_halted) {
-			usb_free_urb(urb);
-			dev_kfree_skb(skb);
+			lan78xx_release_tx_buf(dev, skb);
 			continue;
 		}
 
@@ -4590,15 +4920,14 @@ static bool lan78xx_submit_deferred_urbs(struct lan78xx_net *dev)
 			netif_trans_update(dev->net);
 			lan78xx_queue_skb(&dev->txq, skb, tx_start);
 		} else {
-			usb_free_urb(urb);
-			dev_kfree_skb(skb);
-
 			if (ret == -EPIPE) {
 				netif_stop_queue(dev->net);
 				pipe_halted = true;
 			} else if (ret == -ENODEV) {
 				netif_device_detach(dev->net);
 			}
+
+			lan78xx_release_tx_buf(dev, skb);
 		}
 	}
 
@@ -4630,8 +4959,7 @@ static int lan78xx_resume(struct usb_interface *intf)
 			if (ret < 0) {
 				if (ret == -ENODEV)
 					netif_device_detach(dev->net);
-
-			netdev_warn(dev->net, "Failed to submit intr URB");
+				netdev_warn(dev->net, "Failed to submit intr URB");
 			}
 		}
 
@@ -4650,14 +4978,14 @@ static int lan78xx_resume(struct usb_interface *intf)
 
 		if (!pipe_halted &&
 		    netif_device_present(dev->net) &&
-		    (skb_queue_len(&dev->txq) < dev->tx_qlen))
+		    (lan78xx_tx_pend_data_len(dev) < lan78xx_tx_urb_space(dev)))
 			netif_start_queue(dev->net);
 
 		ret = lan78xx_start_tx_path(dev);
 		if (ret < 0)
 			goto out;
 
-		tasklet_schedule(&dev->bh);
+		napi_schedule(&dev->napi);
 
 		if (!timer_pending(&dev->stat_monitor)) {
 			dev->delta = 1;
@@ -4733,6 +5061,10 @@ static const struct usb_device_id products[] = {
 	{
 	/* LAN7801 USB Gigabit Ethernet Device */
 	USB_DEVICE(LAN78XX_USB_VENDOR_ID, LAN7801_USB_PRODUCT_ID),
+	},
+	{
+	/* ATM2-AF USB Gigabit Ethernet Device */
+	USB_DEVICE(AT29M2AF_USB_VENDOR_ID, AT29M2AF_USB_PRODUCT_ID),
 	},
 	{},
 };

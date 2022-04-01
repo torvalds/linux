@@ -32,7 +32,6 @@ static void __sbi_tlb_flush_range(struct mm_struct *mm, unsigned long start,
 				  unsigned long size, unsigned long stride)
 {
 	struct cpumask *cmask = mm_cpumask(mm);
-	struct cpumask hmask;
 	unsigned int cpuid;
 	bool broadcast;
 
@@ -46,9 +45,7 @@ static void __sbi_tlb_flush_range(struct mm_struct *mm, unsigned long start,
 		unsigned long asid = atomic_long_read(&mm->context.id);
 
 		if (broadcast) {
-			riscv_cpuid_to_hartid_mask(cmask, &hmask);
-			sbi_remote_sfence_vma_asid(cpumask_bits(&hmask),
-						   start, size, asid);
+			sbi_remote_sfence_vma_asid(cmask, start, size, asid);
 		} else if (size <= stride) {
 			local_flush_tlb_page_asid(start, asid);
 		} else {
@@ -56,9 +53,7 @@ static void __sbi_tlb_flush_range(struct mm_struct *mm, unsigned long start,
 		}
 	} else {
 		if (broadcast) {
-			riscv_cpuid_to_hartid_mask(cmask, &hmask);
-			sbi_remote_sfence_vma(cpumask_bits(&hmask),
-					      start, size);
+			sbi_remote_sfence_vma(cmask, start, size);
 		} else if (size <= stride) {
 			local_flush_tlb_page(start);
 		} else {

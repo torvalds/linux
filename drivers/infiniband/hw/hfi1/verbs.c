@@ -1628,8 +1628,7 @@ static int init_cntr_names(const char *names_in, const size_t names_len,
 			n++;
 
 	names_out =
-		kmalloc((n + num_extra_names) * sizeof(struct rdma_stat_desc) +
-				names_len,
+		kzalloc((n + num_extra_names) * sizeof(*q) + names_len,
 			GFP_KERNEL);
 	if (!names_out) {
 		*num_cntrs = 0;
@@ -1637,7 +1636,7 @@ static int init_cntr_names(const char *names_in, const size_t names_len,
 		return -ENOMEM;
 	}
 
-	p = names_out + (n + num_extra_names) * sizeof(struct rdma_stat_desc);
+	p = names_out + (n + num_extra_names) * sizeof(*q);
 	memcpy(p, names_in, names_len);
 
 	q = (struct rdma_stat_desc *)names_out;

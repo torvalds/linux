@@ -12,6 +12,8 @@
 #include <sound/sof/header.h>
 #include <sound/sof/dai-intel.h>
 #include <sound/sof/dai-imx.h>
+#include <sound/sof/dai-amd.h>
+#include <sound/sof/dai-mediatek.h>
 
 /*
  * DAI Configuration.
@@ -50,12 +52,25 @@
 #define SOF_DAI_FMT_INV_MASK		0x0f00
 #define SOF_DAI_FMT_CLOCK_PROVIDER_MASK	0xf000
 
-/* DAI_CONFIG flags */
-#define SOF_DAI_CONFIG_FLAGS_MASK	0x3
-#define SOF_DAI_CONFIG_FLAGS_NONE	(0 << 0) /**< DAI_CONFIG sent without stage information */
-#define SOF_DAI_CONFIG_FLAGS_HW_PARAMS	(1 << 0) /**< DAI_CONFIG sent during hw_params stage */
-#define SOF_DAI_CONFIG_FLAGS_HW_FREE	(2 << 0) /**< DAI_CONFIG sent during hw_free stage */
-#define SOF_DAI_CONFIG_FLAGS_RFU	(3 << 0) /**< not used, reserved for future use */
+/*
+ * DAI_CONFIG flags. The 4 LSB bits are used for the commands, HW_PARAMS, HW_FREE and PAUSE
+ * representing when the IPC is sent. The 4 MSB bits are used to add quirks along with the above
+ * commands.
+ */
+#define SOF_DAI_CONFIG_FLAGS_CMD_MASK	0xF
+#define SOF_DAI_CONFIG_FLAGS_NONE	0 /**< DAI_CONFIG sent without stage information */
+#define SOF_DAI_CONFIG_FLAGS_HW_PARAMS	BIT(0) /**< DAI_CONFIG sent during hw_params stage */
+#define SOF_DAI_CONFIG_FLAGS_HW_FREE	BIT(1) /**< DAI_CONFIG sent during hw_free stage */
+/**< DAI_CONFIG sent during pause trigger. Only available ABI 3.20 onwards */
+#define SOF_DAI_CONFIG_FLAGS_PAUSE	BIT(2)
+#define SOF_DAI_CONFIG_FLAGS_QUIRK_SHIFT 4
+#define SOF_DAI_CONFIG_FLAGS_QUIRK_MASK  (0xF << SOF_DAI_CONFIG_FLAGS_QUIRK_SHIFT)
+/*
+ * This should be used along with the SOF_DAI_CONFIG_FLAGS_HW_PARAMS to indicate that pipeline
+ * stop/pause and DAI DMA stop/pause should happen in two steps. This change is only available
+ * ABI 3.20 onwards.
+ */
+#define SOF_DAI_CONFIG_FLAGS_2_STEP_STOP BIT(0)
 
 /** \brief Types of DAI */
 enum sof_ipc_dai_type {
@@ -66,6 +81,10 @@ enum sof_ipc_dai_type {
 	SOF_DAI_INTEL_ALH,		/**< Intel ALH  */
 	SOF_DAI_IMX_SAI,		/**< i.MX SAI */
 	SOF_DAI_IMX_ESAI,		/**< i.MX ESAI */
+	SOF_DAI_AMD_BT,			/**< AMD ACP BT*/
+	SOF_DAI_AMD_SP,			/**< AMD ACP SP */
+	SOF_DAI_AMD_DMIC,		/**< AMD ACP DMIC */
+	SOF_DAI_MEDIATEK_AFE,		/**< Mediatek AFE */
 };
 
 /* general purpose DAI configuration */
@@ -90,6 +109,10 @@ struct sof_ipc_dai_config {
 		struct sof_ipc_dai_alh_params alh;
 		struct sof_ipc_dai_esai_params esai;
 		struct sof_ipc_dai_sai_params sai;
+		struct sof_ipc_dai_acp_params acpbt;
+		struct sof_ipc_dai_acp_params acpsp;
+		struct sof_ipc_dai_acp_params acpdmic;
+		struct sof_ipc_dai_mtk_afe_params afe;
 	};
 } __packed;
 

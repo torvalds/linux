@@ -20,8 +20,11 @@ EXPORT_SYMBOL(kuap_unlock_all_ool);
 
 void setup_kuap(bool disabled)
 {
-	if (!disabled)
+	if (!disabled) {
 		kuap_lock_all_ool();
+		init_mm.context.sr0 |= SR_KS;
+		current->thread.sr0 |= SR_KS;
+	}
 
 	if (smp_processor_id() != boot_cpuid)
 		return;

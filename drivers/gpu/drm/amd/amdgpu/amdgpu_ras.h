@@ -319,6 +319,19 @@ struct ras_common_if {
 	char name[32];
 };
 
+#define MAX_UMC_CHANNEL_NUM 32
+
+struct ecc_info_per_ch {
+	uint16_t ce_count_lo_chip;
+	uint16_t ce_count_hi_chip;
+	uint64_t mca_umc_status;
+	uint64_t mca_umc_addr;
+};
+
+struct umc_ecc_info {
+	struct ecc_info_per_ch ecc[MAX_UMC_CHANNEL_NUM];
+};
+
 struct amdgpu_ras {
 	/* ras infrastructure */
 	/* for ras itself. */
@@ -358,6 +371,9 @@ struct amdgpu_ras {
 	struct delayed_work ras_counte_delay_work;
 	atomic_t ras_ue_count;
 	atomic_t ras_ce_count;
+
+	/* record umc error info queried from smu */
+	struct umc_ecc_info umc_ecc;
 };
 
 struct ras_fs_data {

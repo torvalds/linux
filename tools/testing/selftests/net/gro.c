@@ -57,17 +57,14 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "../kselftest.h"
+
 #define DPORT 8000
 #define SPORT 1500
 #define PAYLOAD_LEN 100
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define NUM_PACKETS 4
 #define START_SEQ 100
 #define START_ACK 100
-#define SIP6 "fdaa::2"
-#define DIP6 "fdaa::1"
-#define SIP4 "192.168.1.200"
-#define DIP4 "192.168.1.100"
 #define ETH_P_NONE 0
 #define TOTAL_HDR_LEN (ETH_HLEN + sizeof(struct ipv6hdr) + sizeof(struct tcphdr))
 #define MSS (4096 - sizeof(struct tcphdr) - sizeof(struct ipv6hdr))
@@ -75,6 +72,10 @@
 #define NUM_LARGE_PKT (MAX_PAYLOAD / MSS)
 #define MAX_HDR_LEN (ETH_HLEN + sizeof(struct ipv6hdr) + sizeof(struct tcphdr))
 
+static const char *addr6_src = "fdaa::2";
+static const char *addr6_dst = "fdaa::1";
+static const char *addr4_src = "192.168.1.200";
+static const char *addr4_dst = "192.168.1.100";
 static int proto = -1;
 static uint8_t src_mac[ETH_ALEN], dst_mac[ETH_ALEN];
 static char *testname = "data";
@@ -178,18 +179,18 @@ static uint16_t tcp_checksum(void *buf, int payload_len)
 	uint32_t sum = 0;
 
 	if (proto == PF_INET6) {
-		if (inet_pton(AF_INET6, SIP6, &ph6.saddr) != 1)
+		if (inet_pton(AF_INET6, addr6_src, &ph6.saddr) != 1)
 			error(1, errno, "inet_pton6 source ip pseudo");
-		if (inet_pton(AF_INET6, DIP6, &ph6.daddr) != 1)
+		if (inet_pton(AF_INET6, addr6_dst, &ph6.daddr) != 1)
 			error(1, errno, "inet_pton6 dest ip pseudo");
 		ph6.protocol = htons(IPPROTO_TCP);
 		ph6.payload_len = htons(sizeof(struct tcphdr) + payload_len);
 
 		sum = checksum_nofold(&ph6, sizeof(ph6), 0);
 	} else if (proto == PF_INET) {
-		if (inet_pton(AF_INET, SIP4, &ph4.saddr) != 1)
+		if (inet_pton(AF_INET, addr4_src, &ph4.saddr) != 1)
 			error(1, errno, "inet_pton source ip pseudo");
-		if (inet_pton(AF_INET, DIP4, &ph4.daddr) != 1)
+		if (inet_pton(AF_INET, addr4_dst, &ph4.daddr) != 1)
 			error(1, errno, "inet_pton dest ip pseudo");
 		ph4.protocol = htons(IPPROTO_TCP);
 		ph4.payload_len = htons(sizeof(struct tcphdr) + payload_len);
@@ -229,9 +230,9 @@ static void fill_networklayer(void *buf, int payload_len)
 		ip6h->payload_len = htons(sizeof(struct tcphdr) + payload_len);
 		ip6h->nexthdr = IPPROTO_TCP;
 		ip6h->hop_limit = 8;
-		if (inet_pton(AF_INET6, SIP6, &ip6h->saddr) != 1)
+		if (inet_pton(AF_INET6, addr6_src, &ip6h->saddr) != 1)
 			error(1, errno, "inet_pton source ip6");
-		if (inet_pton(AF_INET6, DIP6, &ip6h->daddr) != 1)
+		if (inet_pton(AF_INET6, addr6_dst, &ip6h->daddr) != 1)
 			error(1, errno, "inet_pton dest ip6");
 	} else if (proto == PF_INET) {
 		memset(iph, 0, sizeof(*iph));
@@ -243,9 +244,9 @@ static void fill_networklayer(void *buf, int payload_len)
 		iph->tot_len = htons(sizeof(struct tcphdr) +
 				payload_len + sizeof(struct iphdr));
 		iph->frag_off = htons(0x4000); /* DF = 1, MF = 0 */
-		if (inet_pton(AF_INET, SIP4, &iph->saddr) != 1)
+		if (inet_pton(AF_INET, addr4_src, &iph->saddr) != 1)
 			error(1, errno, "inet_pton source ip");
-		if (inet_pton(AF_INET, DIP4, &iph->daddr) != 1)
+		if (inet_pton(AF_INET, addr4_dst, &iph->daddr) != 1)
 			error(1, errno, "inet_pton dest ip");
 		iph->check = checksum_fold(buf, sizeof(struct iphdr), 0);
 	}
@@ -731,7 +732,7 @@ static void set_timeout(int fd)
 {
 	struct timeval timeout;
 
-	timeout.tv_sec = 120;
+	timeout.tv_sec = 3;
 	timeout.tv_usec = 0;
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
 		       sizeof(timeout)) < 0)
@@ -1023,11 +1024,13 @@ static void gro_receiver(void)
 static void parse_args(int argc, char **argv)
 {
 	static const struct option opts[] = {
+		{ "daddr", required_argument, NULL, 'd' },
 		{ "dmac", required_argument, NULL, 'D' },
 		{ "iface", required_argument, NULL, 'i' },
 		{ "ipv4", no_argument, NULL, '4' },
 		{ "ipv6", no_argument, NULL, '6' },
 		{ "rx", no_argument, NULL, 'r' },
+		{ "saddr", required_argument, NULL, 's' },
 		{ "smac", required_argument, NULL, 'S' },
 		{ "test", required_argument, NULL, 't' },
 		{ "verbose", no_argument, NULL, 'v' },
@@ -1035,7 +1038,7 @@ static void parse_args(int argc, char **argv)
 	};
 	int c;
 
-	while ((c = getopt_long(argc, argv, "46D:i:rS:t:v", opts, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "46d:D:i:rs:S:t:v", opts, NULL)) != -1) {
 		switch (c) {
 		case '4':
 			proto = PF_INET;
@@ -1045,6 +1048,9 @@ static void parse_args(int argc, char **argv)
 			proto = PF_INET6;
 			ethhdr_proto = htons(ETH_P_IPV6);
 			break;
+		case 'd':
+			addr4_dst = addr6_dst = optarg;
+			break;
 		case 'D':
 			dmac = optarg;
 			break;
@@ -1053,6 +1059,9 @@ static void parse_args(int argc, char **argv)
 			break;
 		case 'r':
 			tx_socket = false;
+			break;
+		case 's':
+			addr4_src = addr6_src = optarg;
 			break;
 		case 'S':
 			smac = optarg;
@@ -1091,5 +1100,7 @@ int main(int argc, char **argv)
 		gro_sender();
 	else
 		gro_receiver();
+
+	fprintf(stderr, "Gro::%s test passed.\n", testname);
 	return 0;
 }

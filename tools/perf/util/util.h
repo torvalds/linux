@@ -11,6 +11,9 @@
 #include <stddef.h>
 #include <linux/compiler.h>
 #include <sys/types.h>
+#ifndef __cplusplus
+#include <internal/cpumap.h>
+#endif
 
 /* General helper functions */
 void usage(const char *err) __noreturn;
@@ -39,7 +42,7 @@ int fetch_kernel_version(unsigned int *puint,
 #define KVER_FMT	"%d.%d.%d"
 #define KVER_PARAM(x)	KVER_VERSION(x), KVER_PATCHLEVEL(x), KVER_SUBLEVEL(x)
 
-const char *perf_tip(const char *dirpath);
+int perf_tip(char **strp, const char *dirpath);
 
 #ifndef HAVE_SCHED_GETCPU_SUPPORT
 int sched_getcpu(void);
@@ -66,6 +69,12 @@ extern bool test_attr__enabled;
 void test_attr__ready(void);
 void test_attr__init(void);
 struct perf_event_attr;
-void test_attr__open(struct perf_event_attr *attr, pid_t pid, int cpu,
+void test_attr__open(struct perf_event_attr *attr, pid_t pid, struct perf_cpu cpu,
 		     int fd, int group_fd, unsigned long flags);
+
+struct perf_debuginfod {
+	const char	*urls;
+	bool		 set;
+};
+void perf_debuginfod_setup(struct perf_debuginfod *di);
 #endif /* GIT_COMPAT_UTIL_H */

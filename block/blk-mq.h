@@ -65,9 +65,6 @@ void blk_mq_request_bypass_insert(struct request *rq, bool at_head,
 				  bool run_queue);
 void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 				struct list_head *list);
-
-/* Used by blk_insert_cloned_request() to issue request directly */
-blk_status_t blk_mq_request_issue_directly(struct request *rq, bool last);
 void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 				    struct list_head *list);
 
@@ -127,6 +124,8 @@ extern void blk_mq_sysfs_unregister(struct request_queue *q);
 extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
 void blk_mq_free_plug_rqs(struct blk_plug *plug);
 void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule);
+
+void blk_mq_cancel_work_sync(struct request_queue *q);
 
 void blk_mq_release(struct request_queue *q);
 
@@ -375,5 +374,24 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 	return __blk_mq_active_requests(hctx) < depth;
 }
 
+/* run the code block in @dispatch_ops with rcu/srcu read lock held */
+#define __blk_mq_run_dispatch_ops(q, check_sleep, dispatch_ops)	\
+do {								\
+	if (!blk_queue_has_srcu(q)) {				\
+		rcu_read_lock();				\
+		(dispatch_ops);					\
+		rcu_read_unlock();				\
+	} else {						\
+		int srcu_idx;					\
+								\
+		might_sleep_if(check_sleep);			\
+		srcu_idx = srcu_read_lock((q)->srcu);		\
+		(dispatch_ops);					\
+		srcu_read_unlock((q)->srcu, srcu_idx);		\
+	}							\
+} while (0)
+
+#define blk_mq_run_dispatch_ops(q, dispatch_ops)		\
+	__blk_mq_run_dispatch_ops(q, true, dispatch_ops)	\
 
 #endif

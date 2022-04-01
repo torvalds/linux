@@ -527,7 +527,7 @@ static const uint16_t filter_12tap_16p_183[108] = {
 	0, 84, 16328, 16032, 416, 1944, 1944, 416, 16032, 16328, 84, 0,
 };
 
-const uint16_t *wbscl_get_filter_3tap_16p(struct fixed31_32 ratio)
+static const uint16_t *wbscl_get_filter_3tap_16p(struct fixed31_32 ratio)
 {
 	if (ratio.value < dc_fixpt_one.value)
 		return filter_3tap_16p_upscale;
@@ -539,7 +539,7 @@ const uint16_t *wbscl_get_filter_3tap_16p(struct fixed31_32 ratio)
 		return filter_3tap_16p_183;
 }
 
-const uint16_t *wbscl_get_filter_4tap_16p(struct fixed31_32 ratio)
+static const uint16_t *wbscl_get_filter_4tap_16p(struct fixed31_32 ratio)
 {
 	if (ratio.value < dc_fixpt_one.value)
 		return filter_4tap_16p_upscale;

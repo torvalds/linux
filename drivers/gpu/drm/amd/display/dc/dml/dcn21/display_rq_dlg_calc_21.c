@@ -1711,14 +1711,6 @@ void dml21_rq_dlg_get_dlg_reg(
 	dml_print("DML_DLG: Calculation for pipe[%d] end\n", pipe_idx);
 }
 
-void dml_rq_dlg_get_arb_params(struct display_mode_lib *mode_lib, display_arb_params_st *arb_param)
-{
-	memset(arb_param, 0, sizeof(*arb_param));
-	arb_param->max_req_outstanding = 256;
-	arb_param->min_req_outstanding = 68;
-	arb_param->sat_level_us = 60;
-}
-
 static void calculate_ttu_cursor(
 		struct display_mode_lib *mode_lib,
 		double *refcyc_per_req_delivery_pre_cur,

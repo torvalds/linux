@@ -598,7 +598,7 @@ void regmap_debugfs_init(struct regmap *map)
 		map->debugfs_name = kasprintf(GFP_KERNEL, "dummy%d",
 						dummy_index);
 		if (!map->debugfs_name)
-				return;
+			return;
 		name = map->debugfs_name;
 		dummy_index++;
 	}

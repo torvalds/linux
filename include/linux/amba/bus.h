@@ -90,13 +90,7 @@ enum amba_vendor {
 	AMBA_VENDOR_ST = 0x80,
 	AMBA_VENDOR_QCOM = 0x51,
 	AMBA_VENDOR_LSI = 0xb6,
-	AMBA_VENDOR_LINUX = 0xfe,	/* This value is not official */
 };
-
-/* This is used to generate pseudo-ID for AMBA device */
-#define AMBA_LINUX_ID(conf, rev, part) \
-	(((conf) & 0xff) << 24 | ((rev) & 0xf) << 20 | \
-	AMBA_VENDOR_LINUX << 12 | ((part) & 0xfff))
 
 extern struct bus_type amba_bustype;
 
@@ -123,29 +117,8 @@ void amba_device_put(struct amba_device *);
 int amba_device_add(struct amba_device *, struct resource *);
 int amba_device_register(struct amba_device *, struct resource *);
 void amba_device_unregister(struct amba_device *);
-struct amba_device *amba_find_device(const char *, struct device *, unsigned int, unsigned int);
 int amba_request_regions(struct amba_device *, const char *);
 void amba_release_regions(struct amba_device *);
-
-static inline int amba_pclk_enable(struct amba_device *dev)
-{
-	return clk_enable(dev->pclk);
-}
-
-static inline void amba_pclk_disable(struct amba_device *dev)
-{
-	clk_disable(dev->pclk);
-}
-
-static inline int amba_pclk_prepare(struct amba_device *dev)
-{
-	return clk_prepare(dev->pclk);
-}
-
-static inline void amba_pclk_unprepare(struct amba_device *dev)
-{
-	clk_unprepare(dev->pclk);
-}
 
 /* Some drivers don't use the struct amba_device */
 #define AMBA_CONFIG_BITS(a) (((a) >> 24) & 0xff)

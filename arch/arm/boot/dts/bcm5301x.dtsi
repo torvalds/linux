@@ -148,15 +148,6 @@
 		};
 	};
 
-	usb2_phy: usb2-phy@1800c000 {
-		compatible = "brcm,ns-usb2-phy";
-		reg = <0x1800c000 0x1000>;
-		reg-names = "dmu";
-		#phy-cells = <0>;
-		clocks = <&genpll BCM_NSP_GENPLL_USB_PHY_REF_CLK>;
-		clock-names = "phy-ref-clk";
-	};
-
 	axi@18000000 {
 		compatible = "brcm,bus-axi";
 		reg = <0x18000000 0x1000>;
@@ -242,6 +233,8 @@
 
 			gpio-controller;
 			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
 		pcie0: pcie@12000 {
@@ -408,7 +401,7 @@
 	i2c0: i2c@18009000 {
 		compatible = "brcm,iproc-i2c";
 		reg = <0x18009000 0x50>;
-		interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clock-frequency = <100000>;
@@ -421,14 +414,14 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		cru@100 {
-			compatible = "simple-bus";
+		cru-bus@100 {
+			compatible = "brcm,ns-cru", "simple-mfd";
 			reg = <0x100 0x1a4>;
 			ranges;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			lcpll0: lcpll0@100 {
+			lcpll0: clock-controller@100 {
 				#clock-cells = <1>;
 				compatible = "brcm,nsp-lcpll0";
 				reg = <0x100 0x14>;
@@ -437,7 +430,7 @@
 						     "sdio", "ddr_phy";
 			};
 
-			genpll: genpll@140 {
+			genpll: clock-controller@140 {
 				#clock-cells = <1>;
 				compatible = "brcm,nsp-genpll";
 				reg = <0x140 0x24>;
@@ -446,6 +439,20 @@
 						     "ethernetclk",
 						     "usbclk", "iprocfast",
 						     "sata1", "sata2";
+			};
+
+			usb2_phy: phy@164 {
+				compatible = "brcm,ns-usb2-phy";
+				reg = <0x164 0x4>;
+				brcm,syscon-clkset = <&cru_clkset>;
+				clocks = <&genpll BCM_NSP_GENPLL_USB_PHY_REF_CLK>;
+				clock-names = "phy-ref-clk";
+				#phy-cells = <0>;
+			};
+
+			cru_clkset: syscon@180 {
+				compatible = "brcm,cru-clkset", "syscon";
+				reg = <0x180 0x4>;
 			};
 
 			pinctrl: pin-controller@1c0 {

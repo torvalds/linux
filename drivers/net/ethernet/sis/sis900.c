@@ -392,7 +392,7 @@ static int sis96x_get_mac_addr(struct pci_dev *pci_dev,
 			/* get MAC address from EEPROM */
 			for (i = 0; i < 3; i++)
 			        addr[i] = read_eeprom(ioaddr, i + EEPROMMACAddr);
-			 eth_hw_addr_set(net_dev, (u8 *)addr);
+			eth_hw_addr_set(net_dev, (u8 *)addr);
 
 			rc = 1;
 			break;

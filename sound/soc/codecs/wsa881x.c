@@ -772,7 +772,8 @@ static int wsa881x_put_pa_gain(struct snd_kcontrol *kc,
 
 		usleep_range(1000, 1010);
 	}
-	return 0;
+
+	return 1;
 }
 
 static int wsa881x_get_port(struct snd_kcontrol *kcontrol,
@@ -816,15 +817,22 @@ static int wsa881x_set_port(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	int portidx = mixer->reg;
 
-	if (ucontrol->value.integer.value[0])
+	if (ucontrol->value.integer.value[0]) {
+		if (data->port_enable[portidx])
+			return 0;
+
 		data->port_enable[portidx] = true;
-	else
+	} else {
+		if (!data->port_enable[portidx])
+			return 0;
+
 		data->port_enable[portidx] = false;
+	}
 
 	if (portidx == WSA881X_PORT_BOOST) /* Boost Switch */
 		wsa881x_boost_ctrl(comp, data->port_enable[portidx]);
 
-	return 0;
+	return 1;
 }
 
 static const char * const smart_boost_lvl_text[] = {
@@ -1018,7 +1026,7 @@ static const struct snd_soc_dai_ops wsa881x_dai_ops = {
 	.hw_params = wsa881x_hw_params,
 	.hw_free = wsa881x_hw_free,
 	.mute_stream = wsa881x_digital_mute,
-	.set_sdw_stream = wsa881x_set_sdw_stream,
+	.set_stream = wsa881x_set_sdw_stream,
 };
 
 static struct snd_soc_dai_driver wsa881x_dais[] = {

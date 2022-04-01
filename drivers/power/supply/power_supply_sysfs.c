@@ -106,6 +106,7 @@ static const char * const POWER_SUPPLY_HEALTH_TEXT[] = {
 	[POWER_SUPPLY_HEALTH_WARM]		    = "Warm",
 	[POWER_SUPPLY_HEALTH_COOL]		    = "Cool",
 	[POWER_SUPPLY_HEALTH_HOT]		    = "Hot",
+	[POWER_SUPPLY_HEALTH_NO_BATTERY]	    = "No battery",
 };
 
 static const char * const POWER_SUPPLY_TECHNOLOGY_TEXT[] = {
@@ -131,6 +132,12 @@ static const char * const POWER_SUPPLY_SCOPE_TEXT[] = {
 	[POWER_SUPPLY_SCOPE_UNKNOWN]	= "Unknown",
 	[POWER_SUPPLY_SCOPE_SYSTEM]	= "System",
 	[POWER_SUPPLY_SCOPE_DEVICE]	= "Device",
+};
+
+static const char * const POWER_SUPPLY_CHARGE_BEHAVIOUR_TEXT[] = {
+	[POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO]		= "auto",
+	[POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE]	= "inhibit-charge",
+	[POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE]	= "force-discharge",
 };
 
 static struct power_supply_attr power_supply_attrs[] = {
@@ -172,6 +179,7 @@ static struct power_supply_attr power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(CHARGE_CONTROL_LIMIT_MAX),
 	POWER_SUPPLY_ATTR(CHARGE_CONTROL_START_THRESHOLD),
 	POWER_SUPPLY_ATTR(CHARGE_CONTROL_END_THRESHOLD),
+	POWER_SUPPLY_ENUM_ATTR(CHARGE_BEHAVIOUR),
 	POWER_SUPPLY_ATTR(INPUT_CURRENT_LIMIT),
 	POWER_SUPPLY_ATTR(INPUT_VOLTAGE_LIMIT),
 	POWER_SUPPLY_ATTR(INPUT_POWER_LIMIT),
@@ -484,3 +492,52 @@ out:
 
 	return ret;
 }
+
+ssize_t power_supply_charge_behaviour_show(struct device *dev,
+					   unsigned int available_behaviours,
+					   enum power_supply_charge_behaviour current_behaviour,
+					   char *buf)
+{
+	bool match = false, available, active;
+	ssize_t count = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(POWER_SUPPLY_CHARGE_BEHAVIOUR_TEXT); i++) {
+		available = available_behaviours & BIT(i);
+		active = i == current_behaviour;
+
+		if (available && active) {
+			count += sysfs_emit_at(buf, count, "[%s] ",
+					       POWER_SUPPLY_CHARGE_BEHAVIOUR_TEXT[i]);
+			match = true;
+		} else if (available) {
+			count += sysfs_emit_at(buf, count, "%s ",
+					       POWER_SUPPLY_CHARGE_BEHAVIOUR_TEXT[i]);
+		}
+	}
+
+	if (!match) {
+		dev_warn(dev, "driver reporting unsupported charge behaviour\n");
+		return -EINVAL;
+	}
+
+	if (count)
+		buf[count - 1] = '\n';
+
+	return count;
+}
+EXPORT_SYMBOL_GPL(power_supply_charge_behaviour_show);
+
+int power_supply_charge_behaviour_parse(unsigned int available_behaviours, const char *buf)
+{
+	int i = sysfs_match_string(POWER_SUPPLY_CHARGE_BEHAVIOUR_TEXT, buf);
+
+	if (i < 0)
+		return i;
+
+	if (available_behaviours & BIT(i))
+		return i;
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(power_supply_charge_behaviour_parse);

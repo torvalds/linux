@@ -166,6 +166,7 @@
 
 &adsp_pil {
 	status = "okay";
+	firmware-name = "qcom/apq8096/adsp.mbn";
 };
 
 &blsp2_i2c1 {
@@ -232,6 +233,7 @@
 &hsusb_phy1 {
 	status = "okay";
 
+	vdd-supply = <&vreg_l28a_0p925>;
 	vdda-pll-supply = <&vreg_l12a_1p8>;
 	vdda-phy-dpdm-supply = <&vreg_l24a_3p075>;
 };
@@ -239,6 +241,7 @@
 &hsusb_phy2 {
 	status = "okay";
 
+	vdd-supply = <&vreg_l28a_0p925>;
 	vdda-pll-supply = <&vreg_l12a_1p8>;
 	vdda-phy-dpdm-supply = <&vreg_l24a_3p075>;
 };
@@ -632,6 +635,8 @@
 
 &pm8994_spmi_regulators {
 	qcom,saw-reg = <&saw3>;
+	vdd_s11-supply = <&vph_pwr>;
+
 	s9 {
 		qcom,saw-slave;
 	};
@@ -640,6 +645,7 @@
 	};
 	s11 {
 		qcom,saw-leader;
+		regulator-name = "VDD_APCC";
 		regulator-always-on;
 		regulator-min-microvolt = <980000>;
 		regulator-max-microvolt = <980000>;
@@ -672,6 +678,8 @@
 };
 
 &pmi8994_spmi_regulators {
+	vdd_s2-supply = <&vph_pwr>;
+
 	vdd_gfx: s2@1700 {
 		reg = <0x1700 0x100>;
 		regulator-name = "VDD_GFX";
@@ -709,7 +717,7 @@
 		vdd_l17_l29-supply = <&vph_pwr_bbyp>;
 		vdd_l20_l21-supply = <&vph_pwr_bbyp>;
 		vdd_l25-supply = <&vreg_s3a_1p3>;
-		vdd_lvs1_lvs2-supply = <&vreg_s4a_1p8>;
+		vdd_lvs1_2-supply = <&vreg_s4a_1p8>;
 
 		vreg_s3a_1p3: s3 {
 			regulator-name = "vreg_s3a_1p3";

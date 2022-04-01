@@ -654,6 +654,12 @@ rtw89_phy_cofig_rf_reg_store(struct rtw89_dev *rtwdev,
 	u16 idx = info->curr_idx % RTW89_H2C_RF_PAGE_SIZE;
 	u8 page = info->curr_idx / RTW89_H2C_RF_PAGE_SIZE;
 
+	if (page >= RTW89_H2C_RF_PAGE_NUM) {
+		rtw89_warn(rtwdev, "RF parameters exceed size. path=%d, idx=%d",
+			   rf_path, info->curr_idx);
+		return;
+	}
+
 	info->rtw89_phy_config_rf_h2c[page][idx] =
 		cpu_to_le32((reg->addr << 20) | reg->data);
 	info->curr_idx++;
@@ -662,30 +668,29 @@ rtw89_phy_cofig_rf_reg_store(struct rtw89_dev *rtwdev,
 static int rtw89_phy_config_rf_reg_fw(struct rtw89_dev *rtwdev,
 				      struct rtw89_fw_h2c_rf_reg_info *info)
 {
-	u16 page = info->curr_idx / RTW89_H2C_RF_PAGE_SIZE;
-	u16 len = (info->curr_idx % RTW89_H2C_RF_PAGE_SIZE) * 4;
+	u16 remain = info->curr_idx;
+	u16 len = 0;
 	u8 i;
 	int ret = 0;
 
-	if (page > RTW89_H2C_RF_PAGE_NUM) {
+	if (remain > RTW89_H2C_RF_PAGE_NUM * RTW89_H2C_RF_PAGE_SIZE) {
 		rtw89_warn(rtwdev,
-			   "rf reg h2c total page num %d larger than %d (RTW89_H2C_RF_PAGE_NUM)\n",
-			   page, RTW89_H2C_RF_PAGE_NUM);
-		return -EINVAL;
+			   "rf reg h2c total len %d larger than %d\n",
+			   remain, RTW89_H2C_RF_PAGE_NUM * RTW89_H2C_RF_PAGE_SIZE);
+		ret = -EINVAL;
+		goto out;
 	}
 
-	for (i = 0; i < page; i++) {
-		ret = rtw89_fw_h2c_rf_reg(rtwdev, info,
-					  RTW89_H2C_RF_PAGE_SIZE * 4, i);
+	for (i = 0; i < RTW89_H2C_RF_PAGE_NUM && remain; i++, remain -= len) {
+		len = remain > RTW89_H2C_RF_PAGE_SIZE ? RTW89_H2C_RF_PAGE_SIZE : remain;
+		ret = rtw89_fw_h2c_rf_reg(rtwdev, info, len * 4, i);
 		if (ret)
-			return ret;
+			goto out;
 	}
-	ret = rtw89_fw_h2c_rf_reg(rtwdev, info, len, i);
-	if (ret)
-		return ret;
+out:
 	info->curr_idx = 0;
 
-	return 0;
+	return ret;
 }
 
 static void rtw89_phy_config_rf_reg(struct rtw89_dev *rtwdev,
@@ -1099,9 +1104,15 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev,
 	switch (band) {
 	case RTW89_BAND_2G:
 		lmt = (*chip->txpwr_lmt_2g)[bw][ntx][rs][bf][regd][ch_idx];
+		if (!lmt)
+			lmt = (*chip->txpwr_lmt_2g)[bw][ntx][rs][bf]
+						   [RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_5G:
 		lmt = (*chip->txpwr_lmt_5g)[bw][ntx][rs][bf][regd][ch_idx];
+		if (!lmt)
+			lmt = (*chip->txpwr_lmt_5g)[bw][ntx][rs][bf]
+						   [RTW89_WW][ch_idx];
 		break;
 	default:
 		rtw89_warn(rtwdev, "unknown band type: %d\n", band);
@@ -1224,9 +1235,15 @@ static s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 	switch (band) {
 	case RTW89_BAND_2G:
 		lmt_ru = (*chip->txpwr_lmt_ru_2g)[ru][ntx][regd][ch_idx];
+		if (!lmt_ru)
+			lmt_ru = (*chip->txpwr_lmt_ru_2g)[ru][ntx]
+							 [RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_5G:
 		lmt_ru = (*chip->txpwr_lmt_ru_5g)[ru][ntx][regd][ch_idx];
+		if (!lmt_ru)
+			lmt_ru = (*chip->txpwr_lmt_ru_5g)[ru][ntx]
+							 [RTW89_WW][ch_idx];
 		break;
 	default:
 		rtw89_warn(rtwdev, "unknown band type: %d\n", band);
@@ -1767,7 +1784,7 @@ static void rtw89_phy_cfo_dm(struct rtw89_dev *rtwdev)
 	}
 	rtw89_phy_cfo_crystal_cap_adjust(rtwdev, new_cfo);
 	cfo->cfo_avg_pre = new_cfo;
-	x_cap_update =  cfo->crystal_cap == pre_x_cap ? false : true;
+	x_cap_update =  cfo->crystal_cap != pre_x_cap;
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "Xcap_up=%d\n", x_cap_update);
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "Xcap: D:%x C:%x->%x, ofst=%d\n",
 		    cfo->def_x_cap, pre_x_cap, cfo->crystal_cap,
@@ -2404,6 +2421,116 @@ void rtw89_phy_env_monitor_track(struct rtw89_dev *rtwdev)
 		    env->ccx_watchdog_result, chk_result);
 }
 
+static bool rtw89_physts_ie_page_valid(enum rtw89_phy_status_bitmap *ie_page)
+{
+	if (*ie_page > RTW89_PHYSTS_BITMAP_NUM ||
+	    *ie_page == RTW89_RSVD_9)
+		return false;
+	else if (*ie_page > RTW89_RSVD_9)
+		*ie_page -= 1;
+
+	return true;
+}
+
+static u32 rtw89_phy_get_ie_bitmap_addr(enum rtw89_phy_status_bitmap ie_page)
+{
+	static const u8 ie_page_shift = 2;
+
+	return R_PHY_STS_BITMAP_ADDR_START + (ie_page << ie_page_shift);
+}
+
+static u32 rtw89_physts_get_ie_bitmap(struct rtw89_dev *rtwdev,
+				      enum rtw89_phy_status_bitmap ie_page)
+{
+	u32 addr;
+
+	if (!rtw89_physts_ie_page_valid(&ie_page))
+		return 0;
+
+	addr = rtw89_phy_get_ie_bitmap_addr(ie_page);
+
+	return rtw89_phy_read32(rtwdev, addr);
+}
+
+static void rtw89_physts_set_ie_bitmap(struct rtw89_dev *rtwdev,
+				       enum rtw89_phy_status_bitmap ie_page,
+				       u32 val)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u32 addr;
+
+	if (!rtw89_physts_ie_page_valid(&ie_page))
+		return;
+
+	if (chip->chip_id == RTL8852A)
+		val &= B_PHY_STS_BITMAP_MSK_52A;
+
+	addr = rtw89_phy_get_ie_bitmap_addr(ie_page);
+	rtw89_phy_write32(rtwdev, addr, val);
+}
+
+static void rtw89_physts_enable_ie_bitmap(struct rtw89_dev *rtwdev,
+					  enum rtw89_phy_status_bitmap bitmap,
+					  enum rtw89_phy_status_ie_type ie,
+					  bool enable)
+{
+	u32 val = rtw89_physts_get_ie_bitmap(rtwdev, bitmap);
+
+	if (enable)
+		val |= BIT(ie);
+	else
+		val &= ~BIT(ie);
+
+	rtw89_physts_set_ie_bitmap(rtwdev, bitmap, val);
+}
+
+static void rtw89_physts_enable_fail_report(struct rtw89_dev *rtwdev,
+					    bool enable,
+					    enum rtw89_phy_idx phy_idx)
+{
+	if (enable) {
+		rtw89_phy_write32_clr(rtwdev, R_PLCP_HISTOGRAM,
+				      B_STS_DIS_TRIG_BY_FAIL);
+		rtw89_phy_write32_clr(rtwdev, R_PLCP_HISTOGRAM,
+				      B_STS_DIS_TRIG_BY_BRK);
+	} else {
+		rtw89_phy_write32_set(rtwdev, R_PLCP_HISTOGRAM,
+				      B_STS_DIS_TRIG_BY_FAIL);
+		rtw89_phy_write32_set(rtwdev, R_PLCP_HISTOGRAM,
+				      B_STS_DIS_TRIG_BY_BRK);
+	}
+}
+
+static void rtw89_physts_parsing_init(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u8 i;
+
+	if (chip->chip_id == RTL8852A && rtwdev->hal.cv == CHIP_CBV)
+		rtw89_physts_enable_fail_report(rtwdev, false, RTW89_PHY_0);
+
+	for (i = 0; i < RTW89_PHYSTS_BITMAP_NUM; i++) {
+		if (i >= RTW89_CCK_PKT)
+			rtw89_physts_enable_ie_bitmap(rtwdev, i,
+						      RTW89_PHYSTS_IE09_FTR_0,
+						      true);
+		if ((i >= RTW89_CCK_BRK && i <= RTW89_VHT_MU) ||
+		    (i >= RTW89_RSVD_9 && i <= RTW89_CCK_PKT))
+			continue;
+		rtw89_physts_enable_ie_bitmap(rtwdev, i,
+					      RTW89_PHYSTS_IE24_OFDM_TD_PATH_A,
+					      true);
+	}
+	rtw89_physts_enable_ie_bitmap(rtwdev, RTW89_VHT_PKT,
+				      RTW89_PHYSTS_IE13_DL_MU_DEF, true);
+	rtw89_physts_enable_ie_bitmap(rtwdev, RTW89_HE_PKT,
+				      RTW89_PHYSTS_IE13_DL_MU_DEF, true);
+
+	/* force IE01 for channel index, only channel field is valid */
+	rtw89_physts_enable_ie_bitmap(rtwdev, RTW89_CCK_PKT,
+				      RTW89_PHYSTS_IE01_CMN_OFDM, true);
+}
+
 static void rtw89_phy_dig_read_gain_table(struct rtw89_dev *rtwdev, int type)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
@@ -2839,6 +2966,7 @@ void rtw89_phy_dm_init(struct rtw89_dev *rtwdev)
 	rtw89_chip_bb_sethw(rtwdev);
 
 	rtw89_phy_env_monitor_init(rtwdev);
+	rtw89_physts_parsing_init(rtwdev);
 	rtw89_phy_dig_init(rtwdev);
 	rtw89_phy_cfo_init(rtwdev);
 

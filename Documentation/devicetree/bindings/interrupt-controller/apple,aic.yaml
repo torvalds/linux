@@ -65,6 +65,9 @@ properties:
       Specifies base physical address and size of the AIC registers.
     maxItems: 1
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - '#interrupt-cells'

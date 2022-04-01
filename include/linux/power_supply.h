@@ -66,6 +66,7 @@ enum {
 	POWER_SUPPLY_HEALTH_WARM,
 	POWER_SUPPLY_HEALTH_COOL,
 	POWER_SUPPLY_HEALTH_HOT,
+	POWER_SUPPLY_HEALTH_NO_BATTERY,
 };
 
 enum {
@@ -132,6 +133,7 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX,
 	POWER_SUPPLY_PROP_CHARGE_CONTROL_START_THRESHOLD, /* in percents! */
 	POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD, /* in percents! */
+	POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 	POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT,
 	POWER_SUPPLY_PROP_INPUT_POWER_LIMIT,
@@ -200,6 +202,12 @@ enum power_supply_usb_type {
 	POWER_SUPPLY_USB_TYPE_PD_DRP,		/* PD Dual Role Port */
 	POWER_SUPPLY_USB_TYPE_PD_PPS,		/* PD Programmable Power Supply */
 	POWER_SUPPLY_USB_TYPE_APPLE_BRICK_ID,	/* Apple Charging Method */
+};
+
+enum power_supply_charge_behaviour {
+	POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO = 0,
+	POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE,
+	POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE,
 };
 
 enum power_supply_notifier_events {
@@ -342,37 +350,206 @@ struct power_supply_resistance_temp_table {
 
 #define POWER_SUPPLY_OCV_TEMP_MAX 20
 
-/*
+/**
+ * struct power_supply_battery_info - information about batteries
+ * @technology: from the POWER_SUPPLY_TECHNOLOGY_* enum
+ * @energy_full_design_uwh: energy content when fully charged in microwatt
+ *   hours
+ * @charge_full_design_uah: charge content when fully charged in microampere
+ *   hours
+ * @voltage_min_design_uv: minimum voltage across the poles when the battery
+ *   is at minimum voltage level in microvolts. If the voltage drops below this
+ *   level the battery will need precharging when using CC/CV charging.
+ * @voltage_max_design_uv: voltage across the poles when the battery is fully
+ *   charged in microvolts. This is the "nominal voltage" i.e. the voltage
+ *   printed on the label of the battery.
+ * @tricklecharge_current_ua: the tricklecharge current used when trickle
+ *   charging the battery in microamperes. This is the charging phase when the
+ *   battery is completely empty and we need to carefully trickle in some
+ *   charge until we reach the precharging voltage.
+ * @precharge_current_ua: current to use in the precharge phase in microamperes,
+ *   the precharge rate is limited by limiting the current to this value.
+ * @precharge_voltage_max_uv: the maximum voltage allowed when precharging in
+ *   microvolts. When we pass this voltage we will nominally switch over to the
+ *   CC (constant current) charging phase defined by constant_charge_current_ua
+ *   and constant_charge_voltage_max_uv.
+ * @charge_term_current_ua: when the current in the CV (constant voltage)
+ *   charging phase drops below this value in microamperes the charging will
+ *   terminate completely and not restart until the voltage over the battery
+ *   poles reach charge_restart_voltage_uv unless we use maintenance charging.
+ * @charge_restart_voltage_uv: when the battery has been fully charged by
+ *   CC/CV charging and charging has been disabled, and the voltage subsequently
+ *   drops below this value in microvolts, the charging will be restarted
+ *   (typically using CV charging).
+ * @overvoltage_limit_uv: If the voltage exceeds the nominal voltage
+ *   voltage_max_design_uv and we reach this voltage level, all charging must
+ *   stop and emergency procedures take place, such as shutting down the system
+ *   in some cases.
+ * @constant_charge_current_max_ua: current in microamperes to use in the CC
+ *   (constant current) charging phase. The charging rate is limited
+ *   by this current. This is the main charging phase and as the current is
+ *   constant into the battery the voltage slowly ascends to
+ *   constant_charge_voltage_max_uv.
+ * @constant_charge_voltage_max_uv: voltage in microvolts signifying the end of
+ *   the CC (constant current) charging phase and the beginning of the CV
+ *   (constant voltage) charging phase.
+ * @factory_internal_resistance_uohm: the internal resistance of the battery
+ *   at fabrication time, expressed in microohms. This resistance will vary
+ *   depending on the lifetime and charge of the battery, so this is just a
+ *   nominal ballpark figure.
+ * @ocv_temp: array indicating the open circuit voltage (OCV) capacity
+ *   temperature indices. This is an array of temperatures in degrees Celsius
+ *   indicating which capacity table to use for a certain temperature, since
+ *   the capacity for reasons of chemistry will be different at different
+ *   temperatures. Determining capacity is a multivariate problem and the
+ *   temperature is the first variable we determine.
+ * @temp_ambient_alert_min: the battery will go outside of operating conditions
+ *   when the ambient temperature goes below this temperature in degrees
+ *   Celsius.
+ * @temp_ambient_alert_max: the battery will go outside of operating conditions
+ *   when the ambient temperature goes above this temperature in degrees
+ *   Celsius.
+ * @temp_alert_min: the battery should issue an alert if the internal
+ *   temperature goes below this temperature in degrees Celsius.
+ * @temp_alert_max: the battery should issue an alert if the internal
+ *   temperature goes above this temperature in degrees Celsius.
+ * @temp_min: the battery will go outside of operating conditions when
+ *   the internal temperature goes below this temperature in degrees Celsius.
+ *   Normally this means the system should shut down.
+ * @temp_max: the battery will go outside of operating conditions when
+ *   the internal temperature goes above this temperature in degrees Celsius.
+ *   Normally this means the system should shut down.
+ * @ocv_table: for each entry in ocv_temp there is a corresponding entry in
+ *   ocv_table and a size for each entry in ocv_table_size. These arrays
+ *   determine the capacity in percent in relation to the voltage in microvolts
+ *   at the indexed temperature.
+ * @ocv_table_size: for each entry in ocv_temp this array is giving the size of
+ *   each entry in the array of capacity arrays in ocv_table.
+ * @resist_table: this is a table that correlates a battery temperature to the
+ *   expected internal resistance at this temperature. The resistance is given
+ *   as a percentage of factory_internal_resistance_uohm. Knowing the
+ *   resistance of the battery is usually necessary for calculating the open
+ *   circuit voltage (OCV) that is then used with the ocv_table to calculate
+ *   the capacity of the battery. The resist_table must be ordered descending
+ *   by temperature: highest temperature with lowest resistance first, lowest
+ *   temperature with highest resistance last.
+ * @resist_table_size: the number of items in the resist_table.
+ *
  * This is the recommended struct to manage static battery parameters,
  * populated by power_supply_get_battery_info(). Most platform drivers should
  * use these for consistency.
+ *
  * Its field names must correspond to elements in enum power_supply_property.
  * The default field value is -EINVAL.
- * Power supply class itself doesn't use this.
+ *
+ * The charging parameters here assume a CC/CV charging scheme. This method
+ * is most common with Lithium Ion batteries (other methods are possible) and
+ * looks as follows:
+ *
+ * ^ Battery voltage
+ * |                                               --- overvoltage_limit_uv
+ * |
+ * |                    ...................................................
+ * |                 .. constant_charge_voltage_max_uv
+ * |              ..
+ * |             .
+ * |            .
+ * |           .
+ * |          .
+ * |         .
+ * |     .. precharge_voltage_max_uv
+ * |  ..
+ * |. (trickle charging)
+ * +------------------------------------------------------------------> time
+ *
+ * ^ Current into the battery
+ * |
+ * |      ............. constant_charge_current_max_ua
+ * |      .            .
+ * |      .             .
+ * |      .              .
+ * |      .               .
+ * |      .                ..
+ * |      .                  ....
+ * |      .                       .....
+ * |    ... precharge_current_ua       .......  charge_term_current_ua
+ * |    .                                    .
+ * |    .                                    .
+ * |.... tricklecharge_current_ua            .
+ * |                                         .
+ * +-----------------------------------------------------------------> time
+ *
+ * These diagrams are synchronized on time and the voltage and current
+ * follow each other.
+ *
+ * With CC/CV charging commence over time like this for an empty battery:
+ *
+ * 1. When the battery is completely empty it may need to be charged with
+ *    an especially small current so that electrons just "trickle in",
+ *    this is the tricklecharge_current_ua.
+ *
+ * 2. Next a small initial pre-charge current (precharge_current_ua)
+ *    is applied if the voltage is below precharge_voltage_max_uv until we
+ *    reach precharge_voltage_max_uv. CAUTION: in some texts this is referred
+ *    to as "trickle charging" but the use in the Linux kernel is different
+ *    see below!
+ *
+ * 3. Then the main charging current is applied, which is called the constant
+ *    current (CC) phase. A current regulator is set up to allow
+ *    constant_charge_current_max_ua of current to flow into the battery.
+ *    The chemical reaction in the battery will make the voltage go up as
+ *    charge goes into the battery. This current is applied until we reach
+ *    the constant_charge_voltage_max_uv voltage.
+ *
+ * 4. At this voltage we switch over to the constant voltage (CV) phase. This
+ *    means we allow current to go into the battery, but we keep the voltage
+ *    fixed. This current will continue to charge the battery while keeping
+ *    the voltage the same. A chemical reaction in the battery goes on
+ *    storing energy without affecting the voltage. Over time the current
+ *    will slowly drop and when we reach charge_term_current_ua we will
+ *    end the constant voltage phase.
+ *
+ * After this the battery is fully charged, and if we do not support maintenance
+ * charging, the charging will not restart until power dissipation makes the
+ * voltage fall so that we reach charge_restart_voltage_uv and at this point
+ * we restart charging at the appropriate phase, usually this will be inside
+ * the CV phase.
+ *
+ * If we support maintenance charging the voltage is however kept high after
+ * the CV phase with a very low current. This is meant to let the same charge
+ * go in for usage while the charger is still connected, mainly for
+ * dissipation for the power consuming entity while connected to the
+ * charger.
+ *
+ * All charging MUST terminate if the overvoltage_limit_uv is ever reached.
+ * Overcharging Lithium Ion cells can be DANGEROUS and lead to fire or
+ * explosions.
+ *
+ * The power supply class itself doesn't use this struct as of now.
  */
 
 struct power_supply_battery_info {
-	unsigned int technology;	    /* from the enum above */
-	int energy_full_design_uwh;	    /* microWatt-hours */
-	int charge_full_design_uah;	    /* microAmp-hours */
-	int voltage_min_design_uv;	    /* microVolts */
-	int voltage_max_design_uv;	    /* microVolts */
-	int tricklecharge_current_ua;	    /* microAmps */
-	int precharge_current_ua;	    /* microAmps */
-	int precharge_voltage_max_uv;	    /* microVolts */
-	int charge_term_current_ua;	    /* microAmps */
-	int charge_restart_voltage_uv;	    /* microVolts */
-	int overvoltage_limit_uv;	    /* microVolts */
-	int constant_charge_current_max_ua; /* microAmps */
-	int constant_charge_voltage_max_uv; /* microVolts */
-	int factory_internal_resistance_uohm;   /* microOhms */
-	int ocv_temp[POWER_SUPPLY_OCV_TEMP_MAX];/* celsius */
-	int temp_ambient_alert_min;             /* celsius */
-	int temp_ambient_alert_max;             /* celsius */
-	int temp_alert_min;                     /* celsius */
-	int temp_alert_max;                     /* celsius */
-	int temp_min;                           /* celsius */
-	int temp_max;                           /* celsius */
+	unsigned int technology;
+	int energy_full_design_uwh;
+	int charge_full_design_uah;
+	int voltage_min_design_uv;
+	int voltage_max_design_uv;
+	int tricklecharge_current_ua;
+	int precharge_current_ua;
+	int precharge_voltage_max_uv;
+	int charge_term_current_ua;
+	int charge_restart_voltage_uv;
+	int overvoltage_limit_uv;
+	int constant_charge_current_max_ua;
+	int constant_charge_voltage_max_uv;
+	int factory_internal_resistance_uohm;
+	int ocv_temp[POWER_SUPPLY_OCV_TEMP_MAX];
+	int temp_ambient_alert_min;
+	int temp_ambient_alert_max;
+	int temp_alert_min;
+	int temp_alert_max;
+	int temp_min;
+	int temp_max;
 	struct power_supply_battery_ocv_table *ocv_table[POWER_SUPPLY_OCV_TEMP_MAX];
 	int ocv_table_size[POWER_SUPPLY_OCV_TEMP_MAX];
 	struct power_supply_resistance_temp_table *resist_table;
@@ -405,7 +582,7 @@ devm_power_supply_get_by_phandle(struct device *dev, const char *property)
 #endif /* CONFIG_OF */
 
 extern int power_supply_get_battery_info(struct power_supply *psy,
-					 struct power_supply_battery_info *info);
+					 struct power_supply_battery_info **info_out);
 extern void power_supply_put_battery_info(struct power_supply *psy,
 					  struct power_supply_battery_info *info);
 extern int power_supply_ocv2cap_simple(struct power_supply_battery_ocv_table *table,
@@ -537,6 +714,30 @@ static inline int power_supply_add_hwmon_sysfs(struct power_supply *psy)
 
 static inline
 void power_supply_remove_hwmon_sysfs(struct power_supply *psy) {}
+#endif
+
+#ifdef CONFIG_SYSFS
+ssize_t power_supply_charge_behaviour_show(struct device *dev,
+					   unsigned int available_behaviours,
+					   enum power_supply_charge_behaviour behaviour,
+					   char *buf);
+
+int power_supply_charge_behaviour_parse(unsigned int available_behaviours, const char *buf);
+#else
+static inline
+ssize_t power_supply_charge_behaviour_show(struct device *dev,
+					   unsigned int available_behaviours,
+					   enum power_supply_charge_behaviour behaviour,
+					   char *buf)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int power_supply_charge_behaviour_parse(unsigned int available_behaviours,
+						      const char *buf)
+{
+	return -EOPNOTSUPP;
+}
 #endif
 
 #endif /* __LINUX_POWER_SUPPLY_H__ */

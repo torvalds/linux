@@ -48,6 +48,7 @@ struct svm_range_bo {
 	struct work_struct		eviction_work;
 	struct svm_range_list		*svms;
 	uint32_t			evicting;
+	struct work_struct		release_work;
 };
 
 enum svm_work_list_ops {
@@ -75,8 +76,6 @@ struct svm_work_list_item {
  *              aligned, page size is (last - start + 1)
  * @list:       link list node, used to scan all ranges of svms
  * @update_list:link list node used to add to update_list
- * @remove_list:link list node used to add to remove list
- * @insert_list:link list node used to add to insert list
  * @mapping:    bo_va mapping structure to create and update GPU page table
  * @npages:     number of pages
  * @dma_addr:   dma mapping address on each GPU for system memory physical page
@@ -112,8 +111,6 @@ struct svm_range {
 	struct interval_tree_node	it_node;
 	struct list_head		list;
 	struct list_head		update_list;
-	struct list_head		remove_list;
-	struct list_head		insert_list;
 	uint64_t			npages;
 	dma_addr_t			*dma_addr[MAX_GPU_INSTANCE];
 	struct ttm_resource		*ttm_res;
@@ -195,7 +192,7 @@ void svm_range_list_lock_and_flush_work(struct svm_range_list *svms, struct mm_s
  */
 #define KFD_IS_SVM_API_SUPPORTED(dev) ((dev)->pgmap.type != 0)
 
-void svm_range_bo_unref(struct svm_range_bo *svm_bo);
+void svm_range_bo_unref_async(struct svm_range_bo *svm_bo);
 #else
 
 struct kfd_process;

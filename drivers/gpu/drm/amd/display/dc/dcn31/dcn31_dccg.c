@@ -462,7 +462,7 @@ void dccg31_set_physymclk(
 }
 
 /* Controls the generation of pixel valid for OTG in (OTG -> HPO case) */
-void dccg31_set_dtbclk_dto(
+static void dccg31_set_dtbclk_dto(
 		struct dccg *dccg,
 		int dtbclk_inst,
 		int req_dtbclk_khz,

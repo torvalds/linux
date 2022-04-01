@@ -507,6 +507,8 @@ void mlx5_debug_cq_remove(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 	if (!mlx5_debugfs_root)
 		return;
 
-	if (cq->dbg)
+	if (cq->dbg) {
 		rem_res_tree(cq->dbg);
+		cq->dbg = NULL;
+	}
 }

@@ -29,7 +29,7 @@ void serial_test_xdp_info(void)
 
 	/* Setup prog */
 
-	err = bpf_prog_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
+	err = bpf_prog_test_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 

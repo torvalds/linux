@@ -51,15 +51,6 @@ properties:
       appropriate of the LOCHNAGARx_PIN_NUM_GPIOS define, see [3].
     maxItems: 1
 
-  pinctrl-0:
-    description:
-      A phandle to the default pinctrl state.
-
-  pinctrl-names:
-    description:
-      A pinctrl state named "default" must be defined.
-    const: default
-
   pin-settings:
     type: object
     patternProperties:
@@ -180,6 +171,9 @@ properties:
           - function
 
     additionalProperties: false
+
+allOf:
+  - $ref: "pinctrl.yaml#"
 
 required:
   - compatible

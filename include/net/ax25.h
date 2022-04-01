@@ -229,7 +229,10 @@ struct ctl_table;
 
 typedef struct ax25_dev {
 	struct ax25_dev		*next;
+
 	struct net_device	*dev;
+	netdevice_tracker	dev_tracker;
+
 	struct net_device	*forward;
 	struct ctl_table_header *sysheader;
 	int			values[AX25_MAX_VALUES];

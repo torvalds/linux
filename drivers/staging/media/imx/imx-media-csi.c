@@ -150,7 +150,7 @@ static inline bool requires_passthrough(struct v4l2_fwnode_endpoint *ep,
 					const struct imx_media_pixfmt *incc)
 {
 	if (ep->bus_type == V4L2_MBUS_BT656) // including BT.1120
-		return 0;
+		return false;
 
 	return incc->bayer || is_parallel_16bit_bus(ep) ||
 		(is_parallel_bus(ep) &&

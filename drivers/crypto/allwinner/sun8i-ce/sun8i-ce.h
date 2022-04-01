@@ -94,6 +94,7 @@
 #define ESR_R40	2
 #define ESR_H5	3
 #define ESR_H6	4
+#define ESR_D1	5
 
 #define PRNG_DATA_SIZE (160 / 8)
 #define PRNG_SEED_SIZE DIV_ROUND_UP(175, 8)

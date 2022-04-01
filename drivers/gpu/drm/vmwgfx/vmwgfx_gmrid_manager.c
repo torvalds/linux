@@ -42,6 +42,7 @@ struct vmwgfx_gmrid_man {
 	uint32_t max_gmr_ids;
 	uint32_t max_gmr_pages;
 	uint32_t used_gmr_pages;
+	uint8_t type;
 };
 
 static struct vmwgfx_gmrid_man *to_gmrid_manager(struct ttm_resource_manager *man)
@@ -132,6 +133,18 @@ static void vmw_gmrid_man_put_node(struct ttm_resource_manager *man,
 	kfree(res);
 }
 
+static void vmw_gmrid_man_debug(struct ttm_resource_manager *man,
+				struct drm_printer *printer)
+{
+	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
+
+	BUG_ON(gman->type != VMW_PL_GMR && gman->type != VMW_PL_MOB);
+
+	drm_printf(printer, "%s's used: %u pages, max: %u pages, %u id's\n",
+		   (gman->type == VMW_PL_MOB) ? "Mob" : "GMR",
+		   gman->used_gmr_pages, gman->max_gmr_pages, gman->max_gmr_ids);
+}
+
 static const struct ttm_resource_manager_func vmw_gmrid_manager_func;
 
 int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type)
@@ -146,12 +159,12 @@ int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type)
 	man = &gman->manager;
 
 	man->func = &vmw_gmrid_manager_func;
-	/* TODO: This is most likely not correct */
 	man->use_tt = true;
 	ttm_resource_manager_init(man, 0);
 	spin_lock_init(&gman->lock);
 	gman->used_gmr_pages = 0;
 	ida_init(&gman->gmr_ida);
+	gman->type = type;
 
 	switch (type) {
 	case VMW_PL_GMR:
@@ -190,4 +203,5 @@ void vmw_gmrid_man_fini(struct vmw_private *dev_priv, int type)
 static const struct ttm_resource_manager_func vmw_gmrid_manager_func = {
 	.alloc = vmw_gmrid_man_get_node,
 	.free = vmw_gmrid_man_put_node,
+	.debug = vmw_gmrid_man_debug
 };

@@ -38,37 +38,26 @@ enum hqd_dequeue_request_type {
 	SAVE_WAVES
 };
 
-static inline struct amdgpu_device *get_amdgpu_device(struct kgd_dev *kgd)
-{
-	return (struct amdgpu_device *)kgd;
-}
-
-static void lock_srbm(struct kgd_dev *kgd, uint32_t mec, uint32_t pipe,
+static void lock_srbm(struct amdgpu_device *adev, uint32_t mec, uint32_t pipe,
 			uint32_t queue, uint32_t vmid)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
 	mutex_lock(&adev->srbm_mutex);
 	nv_grbm_select(adev, mec, pipe, queue, vmid);
 }
 
-static void unlock_srbm(struct kgd_dev *kgd)
+static void unlock_srbm(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
 	nv_grbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
 }
 
-static void acquire_queue(struct kgd_dev *kgd, uint32_t pipe_id,
+static void acquire_queue(struct amdgpu_device *adev, uint32_t pipe_id,
 				uint32_t queue_id)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
 	uint32_t mec = (pipe_id / adev->gfx.mec.num_pipe_per_mec) + 1;
 	uint32_t pipe = (pipe_id % adev->gfx.mec.num_pipe_per_mec);
 
-	lock_srbm(kgd, mec, pipe, queue_id, 0);
+	lock_srbm(adev, mec, pipe, queue_id, 0);
 }
 
 static uint64_t get_queue_mask(struct amdgpu_device *adev,
@@ -80,34 +69,30 @@ static uint64_t get_queue_mask(struct amdgpu_device *adev,
 	return 1ull << bit;
 }
 
-static void release_queue(struct kgd_dev *kgd)
+static void release_queue(struct amdgpu_device *adev)
 {
-	unlock_srbm(kgd);
+	unlock_srbm(adev);
 }
 
-static void program_sh_mem_settings_v10_3(struct kgd_dev *kgd, uint32_t vmid,
+static void program_sh_mem_settings_v10_3(struct amdgpu_device *adev, uint32_t vmid,
 					uint32_t sh_mem_config,
 					uint32_t sh_mem_ape1_base,
 					uint32_t sh_mem_ape1_limit,
 					uint32_t sh_mem_bases)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
-	lock_srbm(kgd, 0, 0, 0, vmid);
+	lock_srbm(adev, 0, 0, 0, vmid);
 
 	WREG32_SOC15(GC, 0, mmSH_MEM_CONFIG, sh_mem_config);
 	WREG32_SOC15(GC, 0, mmSH_MEM_BASES, sh_mem_bases);
 	/* APE1 no longer exists on GFX9 */
 
-	unlock_srbm(kgd);
+	unlock_srbm(adev);
 }
 
 /* ATC is defeatured on Sienna_Cichlid */
-static int set_pasid_vmid_mapping_v10_3(struct kgd_dev *kgd, unsigned int pasid,
+static int set_pasid_vmid_mapping_v10_3(struct amdgpu_device *adev, unsigned int pasid,
 					unsigned int vmid)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
 	uint32_t value = pasid << IH_VMID_0_LUT__PASID__SHIFT;
 
 	/* Mapping vmid to pasid also for IH block */
@@ -118,22 +103,21 @@ static int set_pasid_vmid_mapping_v10_3(struct kgd_dev *kgd, unsigned int pasid,
 	return 0;
 }
 
-static int init_interrupts_v10_3(struct kgd_dev *kgd, uint32_t pipe_id)
+static int init_interrupts_v10_3(struct amdgpu_device *adev, uint32_t pipe_id)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t mec;
 	uint32_t pipe;
 
 	mec = (pipe_id / adev->gfx.mec.num_pipe_per_mec) + 1;
 	pipe = (pipe_id % adev->gfx.mec.num_pipe_per_mec);
 
-	lock_srbm(kgd, mec, pipe, 0, 0);
+	lock_srbm(adev, mec, pipe, 0, 0);
 
 	WREG32_SOC15(GC, 0, mmCPC_INT_CNTL,
 		CP_INT_CNTL_RING0__TIME_STAMP_INT_ENABLE_MASK |
 		CP_INT_CNTL_RING0__OPCODE_ERROR_INT_ENABLE_MASK);
 
-	unlock_srbm(kgd);
+	unlock_srbm(adev);
 
 	return 0;
 }
@@ -188,12 +172,11 @@ static inline struct v10_sdma_mqd *get_sdma_mqd(void *mqd)
 	return (struct v10_sdma_mqd *)mqd;
 }
 
-static int hqd_load_v10_3(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
-			uint32_t queue_id, uint32_t __user *wptr,
-			uint32_t wptr_shift, uint32_t wptr_mask,
-			struct mm_struct *mm)
+static int hqd_load_v10_3(struct amdgpu_device *adev, void *mqd,
+			uint32_t pipe_id, uint32_t queue_id,
+			uint32_t __user *wptr, uint32_t wptr_shift,
+			uint32_t wptr_mask, struct mm_struct *mm)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct v10_compute_mqd *m;
 	uint32_t *mqd_hqd;
 	uint32_t reg, hqd_base, data;
@@ -201,7 +184,7 @@ static int hqd_load_v10_3(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	m = get_mqd(mqd);
 
 	pr_debug("Load hqd of pipe %d queue %d\n", pipe_id, queue_id);
-	acquire_queue(kgd, pipe_id, queue_id);
+	acquire_queue(adev, pipe_id, queue_id);
 
 	/* HIQ is set during driver init period with vmid set to 0*/
 	if (m->cp_hqd_vmid == 0) {
@@ -281,16 +264,15 @@ static int hqd_load_v10_3(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	data = REG_SET_FIELD(m->cp_hqd_active, CP_HQD_ACTIVE, ACTIVE, 1);
 	WREG32_SOC15(GC, 0, mmCP_HQD_ACTIVE, data);
 
-	release_queue(kgd);
+	release_queue(adev);
 
 	return 0;
 }
 
-static int hiq_mqd_load_v10_3(struct kgd_dev *kgd, void *mqd,
+static int hiq_mqd_load_v10_3(struct amdgpu_device *adev, void *mqd,
 			    uint32_t pipe_id, uint32_t queue_id,
 			    uint32_t doorbell_off)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq.ring;
 	struct v10_compute_mqd *m;
 	uint32_t mec, pipe;
@@ -298,7 +280,7 @@ static int hiq_mqd_load_v10_3(struct kgd_dev *kgd, void *mqd,
 
 	m = get_mqd(mqd);
 
-	acquire_queue(kgd, pipe_id, queue_id);
+	acquire_queue(adev, pipe_id, queue_id);
 
 	mec = (pipe_id / adev->gfx.mec.num_pipe_per_mec) + 1;
 	pipe = (pipe_id % adev->gfx.mec.num_pipe_per_mec);
@@ -334,16 +316,15 @@ static int hiq_mqd_load_v10_3(struct kgd_dev *kgd, void *mqd,
 
 out_unlock:
 	spin_unlock(&adev->gfx.kiq.ring_lock);
-	release_queue(kgd);
+	release_queue(adev);
 
 	return r;
 }
 
-static int hqd_dump_v10_3(struct kgd_dev *kgd,
+static int hqd_dump_v10_3(struct amdgpu_device *adev,
 			uint32_t pipe_id, uint32_t queue_id,
 			uint32_t (**dump)[2], uint32_t *n_regs)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t i = 0, reg;
 #define HQD_N_REGS 56
 #define DUMP_REG(addr) do {				\
@@ -357,13 +338,13 @@ static int hqd_dump_v10_3(struct kgd_dev *kgd,
 	if (*dump == NULL)
 		return -ENOMEM;
 
-	acquire_queue(kgd, pipe_id, queue_id);
+	acquire_queue(adev, pipe_id, queue_id);
 
 	for (reg = SOC15_REG_OFFSET(GC, 0, mmCP_MQD_BASE_ADDR);
 	     reg <= SOC15_REG_OFFSET(GC, 0, mmCP_HQD_PQ_WPTR_HI); reg++)
 		DUMP_REG(reg);
 
-	release_queue(kgd);
+	release_queue(adev);
 
 	WARN_ON_ONCE(i != HQD_N_REGS);
 	*n_regs = i;
@@ -371,10 +352,9 @@ static int hqd_dump_v10_3(struct kgd_dev *kgd,
 	return 0;
 }
 
-static int hqd_sdma_load_v10_3(struct kgd_dev *kgd, void *mqd,
+static int hqd_sdma_load_v10_3(struct amdgpu_device *adev, void *mqd,
 			     uint32_t __user *wptr, struct mm_struct *mm)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct v10_sdma_mqd *m;
 	uint32_t sdma_rlc_reg_offset;
 	unsigned long end_jiffies;
@@ -441,11 +421,10 @@ static int hqd_sdma_load_v10_3(struct kgd_dev *kgd, void *mqd,
 	return 0;
 }
 
-static int hqd_sdma_dump_v10_3(struct kgd_dev *kgd,
+static int hqd_sdma_dump_v10_3(struct amdgpu_device *adev,
 			     uint32_t engine_id, uint32_t queue_id,
 			     uint32_t (**dump)[2], uint32_t *n_regs)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t sdma_rlc_reg_offset = get_sdma_rlc_reg_offset(adev,
 			engine_id, queue_id);
 	uint32_t i = 0, reg;
@@ -473,15 +452,15 @@ static int hqd_sdma_dump_v10_3(struct kgd_dev *kgd,
 	return 0;
 }
 
-static bool hqd_is_occupied_v10_3(struct kgd_dev *kgd, uint64_t queue_address,
-				uint32_t pipe_id, uint32_t queue_id)
+static bool hqd_is_occupied_v10_3(struct amdgpu_device *adev,
+				uint64_t queue_address, uint32_t pipe_id,
+				uint32_t queue_id)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t act;
 	bool retval = false;
 	uint32_t low, high;
 
-	acquire_queue(kgd, pipe_id, queue_id);
+	acquire_queue(adev, pipe_id, queue_id);
 	act = RREG32_SOC15(GC, 0, mmCP_HQD_ACTIVE);
 	if (act) {
 		low = lower_32_bits(queue_address >> 8);
@@ -491,13 +470,13 @@ static bool hqd_is_occupied_v10_3(struct kgd_dev *kgd, uint64_t queue_address,
 		   high == RREG32_SOC15(GC, 0, mmCP_HQD_PQ_BASE_HI))
 			retval = true;
 	}
-	release_queue(kgd);
+	release_queue(adev);
 	return retval;
 }
 
-static bool hqd_sdma_is_occupied_v10_3(struct kgd_dev *kgd, void *mqd)
+static bool hqd_sdma_is_occupied_v10_3(struct amdgpu_device *adev,
+				void *mqd)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct v10_sdma_mqd *m;
 	uint32_t sdma_rlc_reg_offset;
 	uint32_t sdma_rlc_rb_cntl;
@@ -514,18 +493,17 @@ static bool hqd_sdma_is_occupied_v10_3(struct kgd_dev *kgd, void *mqd)
 	return false;
 }
 
-static int hqd_destroy_v10_3(struct kgd_dev *kgd, void *mqd,
+static int hqd_destroy_v10_3(struct amdgpu_device *adev, void *mqd,
 				enum kfd_preempt_type reset_type,
 				unsigned int utimeout, uint32_t pipe_id,
 				uint32_t queue_id)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	enum hqd_dequeue_request_type type;
 	unsigned long end_jiffies;
 	uint32_t temp;
 	struct v10_compute_mqd *m = get_mqd(mqd);
 
-	acquire_queue(kgd, pipe_id, queue_id);
+	acquire_queue(adev, pipe_id, queue_id);
 
 	if (m->cp_hqd_vmid == 0)
 		WREG32_FIELD15(GC, 0, RLC_CP_SCHEDULERS, scheduler1, 0);
@@ -555,20 +533,19 @@ static int hqd_destroy_v10_3(struct kgd_dev *kgd, void *mqd,
 		if (time_after(jiffies, end_jiffies)) {
 			pr_err("cp queue pipe %d queue %d preemption failed\n",
 					pipe_id, queue_id);
-			release_queue(kgd);
+			release_queue(adev);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
 	}
 
-	release_queue(kgd);
+	release_queue(adev);
 	return 0;
 }
 
-static int hqd_sdma_destroy_v10_3(struct kgd_dev *kgd, void *mqd,
+static int hqd_sdma_destroy_v10_3(struct amdgpu_device *adev, void *mqd,
 				unsigned int utimeout)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct v10_sdma_mqd *m;
 	uint32_t sdma_rlc_reg_offset;
 	uint32_t temp;
@@ -606,12 +583,12 @@ static int hqd_sdma_destroy_v10_3(struct kgd_dev *kgd, void *mqd,
 }
 
 
-static int address_watch_disable_v10_3(struct kgd_dev *kgd)
+static int address_watch_disable_v10_3(struct amdgpu_device *adev)
 {
 	return 0;
 }
 
-static int address_watch_execute_v10_3(struct kgd_dev *kgd,
+static int address_watch_execute_v10_3(struct amdgpu_device *adev,
 					unsigned int watch_point_id,
 					uint32_t cntl_val,
 					uint32_t addr_hi,
@@ -620,11 +597,10 @@ static int address_watch_execute_v10_3(struct kgd_dev *kgd,
 	return 0;
 }
 
-static int wave_control_execute_v10_3(struct kgd_dev *kgd,
+static int wave_control_execute_v10_3(struct amdgpu_device *adev,
 					uint32_t gfx_index_val,
 					uint32_t sq_cmd)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t data = 0;
 
 	mutex_lock(&adev->grbm_idx_mutex);
@@ -645,28 +621,24 @@ static int wave_control_execute_v10_3(struct kgd_dev *kgd,
 	return 0;
 }
 
-static uint32_t address_watch_get_offset_v10_3(struct kgd_dev *kgd,
+static uint32_t address_watch_get_offset_v10_3(struct amdgpu_device *adev,
 					unsigned int watch_point_id,
 					unsigned int reg_offset)
 {
 	return 0;
 }
 
-static void set_vm_context_page_table_base_v10_3(struct kgd_dev *kgd, uint32_t vmid,
-		uint64_t page_table_base)
+static void set_vm_context_page_table_base_v10_3(struct amdgpu_device *adev,
+		uint32_t vmid, uint64_t page_table_base)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
 	/* SDMA is on gfxhub as well for Navi1* series */
 	adev->gfxhub.funcs->setup_vm_pt_regs(adev, vmid, page_table_base);
 }
 
-static void program_trap_handler_settings_v10_3(struct kgd_dev *kgd,
+static void program_trap_handler_settings_v10_3(struct amdgpu_device *adev,
 			uint32_t vmid, uint64_t tba_addr, uint64_t tma_addr)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
-	lock_srbm(kgd, 0, 0, 0, vmid);
+	lock_srbm(adev, 0, 0, 0, vmid);
 
 	/*
 	 * Program TBA registers
@@ -685,15 +657,14 @@ static void program_trap_handler_settings_v10_3(struct kgd_dev *kgd,
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmSQ_SHADER_TMA_HI),
 			 upper_32_bits(tma_addr >> 8));
 
-	unlock_srbm(kgd);
+	unlock_srbm(adev);
 }
 
 #if 0
-uint32_t enable_debug_trap_v10_3(struct kgd_dev *kgd,
+uint32_t enable_debug_trap_v10_3(struct amdgpu_device *adev,
 				uint32_t trap_debug_wave_launch_mode,
 				uint32_t vmid)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t data = 0;
 	uint32_t orig_wave_cntl_value;
 	uint32_t orig_stall_vmid;
@@ -720,10 +691,8 @@ uint32_t enable_debug_trap_v10_3(struct kgd_dev *kgd,
 	return 0;
 }
 
-uint32_t disable_debug_trap_v10_3(struct kgd_dev *kgd)
+uint32_t disable_debug_trap_v10_3(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
 	mutex_lock(&adev->grbm_idx_mutex);
 
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmSPI_GDBG_TRAP_MASK), 0);
@@ -733,11 +702,10 @@ uint32_t disable_debug_trap_v10_3(struct kgd_dev *kgd)
 	return 0;
 }
 
-uint32_t set_wave_launch_trap_override_v10_3(struct kgd_dev *kgd,
+uint32_t set_wave_launch_trap_override_v10_3(struct amdgpu_device *adev,
 						uint32_t trap_override,
 						uint32_t trap_mask)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t data = 0;
 
 	mutex_lock(&adev->grbm_idx_mutex);
@@ -762,11 +730,10 @@ uint32_t set_wave_launch_trap_override_v10_3(struct kgd_dev *kgd,
 	return 0;
 }
 
-uint32_t set_wave_launch_mode_v10_3(struct kgd_dev *kgd,
+uint32_t set_wave_launch_mode_v10_3(struct amdgpu_device *adev,
 					uint8_t wave_launch_mode,
 					uint32_t vmid)
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t data = 0;
 	bool is_stall_mode;
 	bool is_mode_set;
@@ -805,16 +772,14 @@ uint32_t set_wave_launch_mode_v10_3(struct kgd_dev *kgd,
  *	sem_rearm_wait_time      -- Wait Count for Semaphore re-arm.
  *	deq_retry_wait_time      -- Wait Count for Global Wave Syncs.
  */
-void get_iq_wait_times_v10_3(struct kgd_dev *kgd,
+void get_iq_wait_times_v10_3(struct amdgpu_device *adev,
 					uint32_t *wait_times)
 
 {
-	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-
 	*wait_times = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_IQ_WAIT_TIME2));
 }
 
-void build_grace_period_packet_info_v10_3(struct kgd_dev *kgd,
+void build_grace_period_packet_info_v10_3(struct amdgpu_device *adev,
 						uint32_t wait_times,
 						uint32_t grace_period,
 						uint32_t *reg_offset,

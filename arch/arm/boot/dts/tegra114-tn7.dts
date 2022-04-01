@@ -62,7 +62,7 @@
 		clock-frequency = <400000>;
 
 		palmas: pmic@58 {
-			compatible = "ti,palmas";
+			compatible = "ti,tps65913", "ti,palmas";
 			reg = <0x58>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -273,7 +273,7 @@
 		power-supply = <&lcd_bl_en>;
 	};
 
-	clk32k_in: clock@0 {
+	clk32k_in: clock-32k {
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 		#clock-cells = <0>;
@@ -303,7 +303,7 @@
 	};
 
 	/* FIXME: output of BQ24192 */
-	vs_sys: regulator@0 {
+	vs_sys: regulator-vs {
 		compatible = "regulator-fixed";
 		regulator-name = "VS_SYS";
 		regulator-min-microvolt = <4200000>;
@@ -312,7 +312,7 @@
 		regulator-boot-on;
 	};
 
-	lcd_bl_en: regulator@1 {
+	lcd_bl_en: regulator-lcden {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_LCD_BL";
 		regulator-min-microvolt = <16500000>;
@@ -323,7 +323,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_lcd: regulator@2 {
+	vdd_lcd: regulator-lcd {
 		compatible = "regulator-fixed";
 		regulator-name = "VD_LCD_1V8";
 		regulator-min-microvolt = <1800000>;

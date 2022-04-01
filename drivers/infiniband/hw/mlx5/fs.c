@@ -1508,7 +1508,7 @@ _get_flow_table(struct mlx5_ib_dev *dev,
 		    !esw_encap)
 			flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
 		break;
-	case MLX5_FLOW_NAMESPACE_FDB:
+	case MLX5_FLOW_NAMESPACE_FDB_BYPASS:
 		max_table_size = BIT(
 			MLX5_CAP_ESW_FLOWTABLE_FDB(dev->mdev, log_max_ft_size));
 		if (MLX5_CAP_ESW_FLOWTABLE_FDB(dev->mdev, decap) && esw_encap)
@@ -1517,7 +1517,7 @@ _get_flow_table(struct mlx5_ib_dev *dev,
 					       reformat_l3_tunnel_to_l2) &&
 		    esw_encap)
 			flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
-		priority = FDB_BYPASS_PATH;
+		priority = fs_matcher->priority;
 		break;
 	case MLX5_FLOW_NAMESPACE_RDMA_RX:
 		max_table_size = BIT(
@@ -1546,8 +1546,8 @@ _get_flow_table(struct mlx5_ib_dev *dev,
 	case MLX5_FLOW_NAMESPACE_EGRESS:
 		prio = &dev->flow_db->egress_prios[priority];
 		break;
-	case MLX5_FLOW_NAMESPACE_FDB:
-		prio = &dev->flow_db->fdb;
+	case MLX5_FLOW_NAMESPACE_FDB_BYPASS:
+		prio = &dev->flow_db->fdb[priority];
 		break;
 	case MLX5_FLOW_NAMESPACE_RDMA_RX:
 		prio = &dev->flow_db->rdma_rx[priority];
@@ -1937,7 +1937,7 @@ mlx5_ib_ft_type_to_namespace(enum mlx5_ib_uapi_flow_table_type table_type,
 		*namespace = MLX5_FLOW_NAMESPACE_EGRESS;
 		break;
 	case MLX5_IB_UAPI_FLOW_TABLE_TYPE_FDB:
-		*namespace = MLX5_FLOW_NAMESPACE_FDB;
+		*namespace = MLX5_FLOW_NAMESPACE_FDB_BYPASS;
 		break;
 	case MLX5_IB_UAPI_FLOW_TABLE_TYPE_RDMA_RX:
 		*namespace = MLX5_FLOW_NAMESPACE_RDMA_RX;
@@ -2029,8 +2029,8 @@ static int get_dests(struct uverbs_attr_bundle *attrs,
 	}
 
 	/* Allow only DEVX object, drop as dest for FDB */
-	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB && !(dest_devx ||
-	     (*flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DROP)))
+	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB_BYPASS &&
+	    !(dest_devx || (*flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DROP)))
 		return -EINVAL;
 
 	/* Allow only DEVX object or QP as dest when inserting to RDMA_RX */
@@ -2050,7 +2050,7 @@ static int get_dests(struct uverbs_attr_bundle *attrs,
 		if (!is_flow_dest(devx_obj, dest_id, dest_type))
 			return -EINVAL;
 		/* Allow only flow table as dest when inserting to FDB or RDMA_RX */
-		if ((fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB ||
+		if ((fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB_BYPASS ||
 		     fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_RX) &&
 		    *dest_type != MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE)
 			return -EINVAL;
@@ -2320,7 +2320,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_MATCHER_CREATE)(
 	if (err)
 		goto end;
 
-	if (obj->ns_type == MLX5_FLOW_NAMESPACE_FDB &&
+	if (obj->ns_type == MLX5_FLOW_NAMESPACE_FDB_BYPASS &&
 	    mlx5_eswitch_mode(dev->mdev) != MLX5_ESWITCH_OFFLOADS) {
 		err = -EINVAL;
 		goto end;

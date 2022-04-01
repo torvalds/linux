@@ -3211,7 +3211,6 @@ static void __exit u132_hcd_exit(void)
 	platform_driver_unregister(&u132_platform_driver);
 	printk(KERN_INFO "u132-hcd driver deregistered\n");
 	wait_event(u132_hcd_wait, u132_instances == 0);
-	flush_workqueue(workqueue);
 	destroy_workqueue(workqueue);
 }
 

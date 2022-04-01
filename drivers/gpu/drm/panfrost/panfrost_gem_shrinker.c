@@ -52,7 +52,7 @@ static bool panfrost_gem_purge(struct drm_gem_object *obj)
 		goto unlock_mappings;
 
 	panfrost_gem_teardown_mappings_locked(bo);
-	drm_gem_shmem_purge_locked(obj);
+	drm_gem_shmem_purge_locked(&bo->base);
 	ret = true;
 
 	mutex_unlock(&shmem->pages_lock);

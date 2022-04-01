@@ -23,6 +23,9 @@ void intel_rps_disable(struct intel_rps *rps);
 void intel_rps_park(struct intel_rps *rps);
 void intel_rps_unpark(struct intel_rps *rps);
 void intel_rps_boost(struct i915_request *rq);
+void intel_rps_dec_waiters(struct intel_rps *rps);
+u32 intel_rps_get_boost_frequency(struct intel_rps *rps);
+int intel_rps_set_boost_frequency(struct intel_rps *rps, u32 freq);
 
 int intel_rps_set(struct intel_rps *rps, u8 val);
 void intel_rps_mark_interactive(struct intel_rps *rps, bool interactive);
@@ -42,6 +45,8 @@ u32 intel_rps_get_rpn_frequency(struct intel_rps *rps);
 u32 intel_rps_read_punit_req(struct intel_rps *rps);
 u32 intel_rps_read_punit_req_frequency(struct intel_rps *rps);
 u32 intel_rps_read_state_cap(struct intel_rps *rps);
+void intel_rps_raise_unslice(struct intel_rps *rps);
+void intel_rps_lower_unslice(struct intel_rps *rps);
 
 void gen5_rps_irq_handler(struct intel_rps *rps);
 void gen6_rps_irq_handler(struct intel_rps *rps, u32 pm_iir);

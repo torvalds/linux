@@ -133,7 +133,7 @@ Linux内核5.x版本 <http://kernel.org/>
 
    即使只升级一个小版本，也不要跳过此步骤。每个版本中都会添加新的配置选项，
    如果配置文件没有按预定设置，就会出现奇怪的问题。如果您想以最少的工作量
-   将现有配置升级到新版本，请使用 ``makeoldconfig`` ，它只会询问您新配置
+   将现有配置升级到新版本，请使用 ``make oldconfig`` ，它只会询问您新配置
    选项的答案。
 
  - 其他配置命令包括::
@@ -161,7 +161,7 @@ Linux内核5.x版本 <http://kernel.org/>
      "make ${PLATFORM}_defconfig"
                         使用arch/$arch/configs/${PLATFORM}_defconfig中
                         的默认选项值创建一个./.config文件。
-                        用“makehelp”来获取您体系架构中所有可用平台的列表。
+                        用“make help”来获取您体系架构中所有可用平台的列表。
 
      "make allyesconfig"
                         通过尽可能将选项值设置为“y”，创建一个
@@ -197,9 +197,10 @@ Linux内核5.x版本 <http://kernel.org/>
      "make localyesconfig" 与localmodconfig类似，只是它会将所有模块选项转换
                            为内置（=y）。你可以同时通过LMC_KEEP保留模块。
 
-     "make kvmconfig"   为kvm客体内核支持启用其他选项。
+     "make kvm_guest.config"
+                        为kvm客户机内核支持启用其他选项。
 
-     "make xenconfig"   为xen dom0客体内核支持启用其他选项。
+     "make xen.config"  为xen dom0客户机内核支持启用其他选项。
 
      "make tinyconfig"  配置尽可能小的内核。
 
@@ -229,7 +230,7 @@ Linux内核5.x版本 <http://kernel.org/>
    请注意，您仍然可以使用此内核运行a.out用户程序。
 
  - 执行 ``make`` 来创建压缩内核映像。如果您安装了lilo以适配内核makefile，
-   那么也可以进行 ``makeinstall`` ，但是您可能需要先检查特定的lilo设置。
+   那么也可以进行 ``make install`` ，但是您可能需要先检查特定的lilo设置。
 
    实际安装必须以root身份执行，但任何正常构建都不需要。
    无须徒然使用root身份。

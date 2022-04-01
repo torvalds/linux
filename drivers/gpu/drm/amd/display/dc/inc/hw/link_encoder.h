@@ -268,7 +268,8 @@ struct hpo_dp_link_encoder_funcs {
 
 	void (*enable_link_phy)(struct hpo_dp_link_encoder *enc,
 		const struct dc_link_settings *link_settings,
-		enum transmitter transmitter);
+		enum transmitter transmitter,
+		enum hpd_source_id hpd_source);
 
 	void (*disable_link_phy)(struct hpo_dp_link_encoder *link_enc,
 		enum signal_type signal);

@@ -137,6 +137,7 @@ enum {
 	IFLA_CAN_DATA_BITRATE_CONST,
 	IFLA_CAN_BITRATE_MAX,
 	IFLA_CAN_TDC,
+	IFLA_CAN_CTRLMODE_EXT,
 
 	/* add new constants above here */
 	__IFLA_CAN_MAX,
@@ -164,6 +165,18 @@ enum {
 	/* add new constants above here */
 	__IFLA_CAN_TDC,
 	IFLA_CAN_TDC_MAX = __IFLA_CAN_TDC - 1
+};
+
+/*
+ * IFLA_CAN_CTRLMODE_EXT nest: controller mode extended parameters
+ */
+enum {
+	IFLA_CAN_CTRLMODE_UNSPEC,
+	IFLA_CAN_CTRLMODE_SUPPORTED,	/* u32 */
+
+	/* add new constants above here */
+	__IFLA_CAN_CTRLMODE,
+	IFLA_CAN_CTRLMODE_MAX = __IFLA_CAN_CTRLMODE - 1
 };
 
 /* u16 termination range: 1..65535 Ohms */

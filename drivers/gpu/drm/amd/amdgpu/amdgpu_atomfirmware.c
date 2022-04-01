@@ -470,8 +470,8 @@ bool amdgpu_atomfirmware_dynamic_boot_config_supported(struct amdgpu_device *ade
 
 /**
  * amdgpu_atomfirmware_ras_rom_addr -- Get the RAS EEPROM addr from VBIOS
- * adev: amdgpu_device pointer
- * i2c_address: pointer to u8; if not NULL, will contain
+ * @adev: amdgpu_device pointer
+ * @i2c_address: pointer to u8; if not NULL, will contain
  *    the RAS EEPROM address if the function returns true
  *
  * Return true if VBIOS supports RAS EEPROM address reporting,

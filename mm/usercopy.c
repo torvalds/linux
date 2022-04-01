@@ -20,6 +20,7 @@
 #include <linux/atomic.h>
 #include <linux/jump_label.h>
 #include <asm/sections.h>
+#include "slab.h"
 
 /*
  * Checks if a given pointer and length is contained by the current
@@ -223,7 +224,7 @@ static inline void check_page_span(const void *ptr, unsigned long n,
 static inline void check_heap_object(const void *ptr, unsigned long n,
 				     bool to_user)
 {
-	struct page *page;
+	struct folio *folio;
 
 	if (!virt_addr_valid(ptr))
 		return;
@@ -231,16 +232,16 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 	/*
 	 * When CONFIG_HIGHMEM=y, kmap_to_page() will give either the
 	 * highmem page or fallback to virt_to_page(). The following
-	 * is effectively a highmem-aware virt_to_head_page().
+	 * is effectively a highmem-aware virt_to_slab().
 	 */
-	page = compound_head(kmap_to_page((void *)ptr));
+	folio = page_folio(kmap_to_page((void *)ptr));
 
-	if (PageSlab(page)) {
+	if (folio_test_slab(folio)) {
 		/* Check slab allocator for flags and size. */
-		__check_heap_object(ptr, n, page, to_user);
+		__check_heap_object(ptr, n, folio_slab(folio), to_user);
 	} else {
 		/* Verify object does not incorrectly span multiple pages. */
-		check_page_span(ptr, n, page, to_user);
+		check_page_span(ptr, n, folio_page(folio, 0), to_user);
 	}
 }
 

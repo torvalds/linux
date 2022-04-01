@@ -22,7 +22,6 @@
 #include <bpf/libbpf.h>
 #include <bpf/btf.h>
 
-#include "bpf_rlimit.h"
 #include "bpf_util.h"
 #include "../test_btf.h"
 #include "test_progs.h"
@@ -3939,6 +3938,23 @@ static struct btf_raw_test raw_tests[] = {
 	.btf_load_err = true,
 	.err_str = "Invalid component_idx",
 },
+{
+	.descr = "type_tag test #1",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPE_TAG_ENC(NAME_TBD, 1),			/* [2] */
+		BTF_PTR_ENC(2),					/* [3] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0tag"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "tag_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = 4,
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 1,
+},
 
 }; /* struct btf_raw_test raw_tests[] */
 
@@ -4046,20 +4062,40 @@ static void *btf_raw_create(const struct btf_header *hdr,
 			next_str_idx < strs_cnt ? strs_idx[next_str_idx] : NULL;
 
 done:
+	free(strs_idx);
 	if (err) {
-		if (raw_btf)
-			free(raw_btf);
-		if (strs_idx)
-			free(strs_idx);
+		free(raw_btf);
 		return NULL;
 	}
 	return raw_btf;
 }
 
+static int load_raw_btf(const void *raw_data, size_t raw_size)
+{
+	LIBBPF_OPTS(bpf_btf_load_opts, opts);
+	int btf_fd;
+
+	if (always_log) {
+		opts.log_buf = btf_log_buf,
+		opts.log_size = BTF_LOG_BUF_SIZE,
+		opts.log_level = 1;
+	}
+
+	btf_fd = bpf_btf_load(raw_data, raw_size, &opts);
+	if (btf_fd < 0 && !always_log) {
+		opts.log_buf = btf_log_buf,
+		opts.log_size = BTF_LOG_BUF_SIZE,
+		opts.log_level = 1;
+		btf_fd = bpf_btf_load(raw_data, raw_size, &opts);
+	}
+
+	return btf_fd;
+}
+
 static void do_test_raw(unsigned int test_num)
 {
 	struct btf_raw_test *test = &raw_tests[test_num - 1];
-	struct bpf_create_map_attr create_attr = {};
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	int map_fd = -1, btf_fd = -1;
 	unsigned int raw_btf_size;
 	struct btf_header *hdr;
@@ -4085,16 +4121,14 @@ static void do_test_raw(unsigned int test_num)
 	hdr->str_len = (int)hdr->str_len + test->str_len_delta;
 
 	*btf_log_buf = '\0';
-	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
-			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      always_log);
+	btf_fd = load_raw_btf(raw_btf, raw_btf_size);
 	free(raw_btf);
 
 	err = ((btf_fd < 0) != test->btf_load_err);
 	if (CHECK(err, "btf_fd:%d test->btf_load_err:%u",
 		  btf_fd, test->btf_load_err) ||
 	    CHECK(test->err_str && !strstr(btf_log_buf, test->err_str),
-		  "expected err_str:%s", test->err_str)) {
+		  "expected err_str:%s\n", test->err_str)) {
 		err = -1;
 		goto done;
 	}
@@ -4102,16 +4136,11 @@ static void do_test_raw(unsigned int test_num)
 	if (err || btf_fd < 0)
 		goto done;
 
-	create_attr.name = test->map_name;
-	create_attr.map_type = test->map_type;
-	create_attr.key_size = test->key_size;
-	create_attr.value_size = test->value_size;
-	create_attr.max_entries = test->max_entries;
-	create_attr.btf_fd = btf_fd;
-	create_attr.btf_key_type_id = test->key_type_id;
-	create_attr.btf_value_type_id = test->value_type_id;
-
-	map_fd = bpf_create_map_xattr(&create_attr);
+	opts.btf_fd = btf_fd;
+	opts.btf_key_type_id = test->key_type_id;
+	opts.btf_value_type_id = test->value_type_id;
+	map_fd = bpf_map_create(test->map_type, test->map_name,
+				test->key_size, test->value_size, test->max_entries, &opts);
 
 	err = ((map_fd < 0) != test->map_create_err);
 	CHECK(err, "map_fd:%d test->map_create_err:%u",
@@ -4217,9 +4246,7 @@ static int test_big_btf_info(unsigned int test_num)
 		goto done;
 	}
 
-	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
-			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      always_log);
+	btf_fd = load_raw_btf(raw_btf, raw_btf_size);
 	if (CHECK(btf_fd < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
@@ -4275,7 +4302,7 @@ done:
 static int test_btf_id(unsigned int test_num)
 {
 	const struct btf_get_info_test *test = &get_info_tests[test_num - 1];
-	struct bpf_create_map_attr create_attr = {};
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	uint8_t *raw_btf = NULL, *user_btf[2] = {};
 	int btf_fd[2] = {-1, -1}, map_fd = -1;
 	struct bpf_map_info map_info = {};
@@ -4305,9 +4332,7 @@ static int test_btf_id(unsigned int test_num)
 		info[i].btf_size = raw_btf_size;
 	}
 
-	btf_fd[0] = bpf_load_btf(raw_btf, raw_btf_size,
-				 btf_log_buf, BTF_LOG_BUF_SIZE,
-				 always_log);
+	btf_fd[0] = load_raw_btf(raw_btf, raw_btf_size);
 	if (CHECK(btf_fd[0] < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
@@ -4340,16 +4365,11 @@ static int test_btf_id(unsigned int test_num)
 	}
 
 	/* Test btf members in struct bpf_map_info */
-	create_attr.name = "test_btf_id";
-	create_attr.map_type = BPF_MAP_TYPE_ARRAY;
-	create_attr.key_size = sizeof(int);
-	create_attr.value_size = sizeof(unsigned int);
-	create_attr.max_entries = 4;
-	create_attr.btf_fd = btf_fd[0];
-	create_attr.btf_key_type_id = 1;
-	create_attr.btf_value_type_id = 2;
-
-	map_fd = bpf_create_map_xattr(&create_attr);
+	opts.btf_fd = btf_fd[0];
+	opts.btf_key_type_id = 1;
+	opts.btf_value_type_id = 2;
+	map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "test_btf_id",
+				sizeof(int), sizeof(int), 4, &opts);
 	if (CHECK(map_fd < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
@@ -4442,9 +4462,7 @@ static void do_test_get_info(unsigned int test_num)
 		goto done;
 	}
 
-	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
-			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      always_log);
+	btf_fd = load_raw_btf(raw_btf, raw_btf_size);
 	if (CHECK(btf_fd <= 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
@@ -5138,7 +5156,7 @@ static void do_test_pprint(int test_num)
 {
 	const struct btf_raw_test *test = &pprint_test_template[test_num];
 	enum pprint_mapv_kind_t mapv_kind = test->mapv_kind;
-	struct bpf_create_map_attr create_attr = {};
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	bool ordered_map, lossless_map, percpu_map;
 	int err, ret, num_cpus, rounded_value_size;
 	unsigned int key, nr_read_elems;
@@ -5164,26 +5182,19 @@ static void do_test_pprint(int test_num)
 		return;
 
 	*btf_log_buf = '\0';
-	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
-			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      always_log);
+	btf_fd = load_raw_btf(raw_btf, raw_btf_size);
 	free(raw_btf);
 
-	if (CHECK(btf_fd < 0, "errno:%d", errno)) {
+	if (CHECK(btf_fd < 0, "errno:%d\n", errno)) {
 		err = -1;
 		goto done;
 	}
 
-	create_attr.name = test->map_name;
-	create_attr.map_type = test->map_type;
-	create_attr.key_size = test->key_size;
-	create_attr.value_size = test->value_size;
-	create_attr.max_entries = test->max_entries;
-	create_attr.btf_fd = btf_fd;
-	create_attr.btf_key_type_id = test->key_type_id;
-	create_attr.btf_value_type_id = test->value_type_id;
-
-	map_fd = bpf_create_map_xattr(&create_attr);
+	opts.btf_fd = btf_fd;
+	opts.btf_key_type_id = test->key_type_id;
+	opts.btf_value_type_id = test->value_type_id;
+	map_fd = bpf_map_create(test->map_type, test->map_name,
+				test->key_size, test->value_size, test->max_entries, &opts);
 	if (CHECK(map_fd < 0, "errno:%d", errno)) {
 		err = -1;
 		goto done;
@@ -6538,9 +6549,7 @@ static void do_test_info_raw(unsigned int test_num)
 		return;
 
 	*btf_log_buf = '\0';
-	btf_fd = bpf_load_btf(raw_btf, raw_btf_size,
-			      btf_log_buf, BTF_LOG_BUF_SIZE,
-			      always_log);
+	btf_fd = load_raw_btf(raw_btf, raw_btf_size);
 	free(raw_btf);
 
 	if (CHECK(btf_fd < 0, "invalid btf_fd errno:%d", errno)) {
@@ -6629,7 +6638,7 @@ struct btf_dedup_test {
 	struct btf_dedup_opts opts;
 };
 
-const struct btf_dedup_test dedup_tests[] = {
+static struct btf_dedup_test dedup_tests[] = {
 
 {
 	.descr = "dedup: unused strings filtering",
@@ -6648,9 +6657,6 @@ const struct btf_dedup_test dedup_tests[] = {
 			BTF_END_RAW,
 		},
 		BTF_STR_SEC("\0int\0long"),
-	},
-	.opts = {
-		.dont_resolve_fwds = false,
 	},
 },
 {
@@ -6673,9 +6679,6 @@ const struct btf_dedup_test dedup_tests[] = {
 			BTF_END_RAW,
 		},
 		BTF_STR_SEC("\0int\0long int"),
-	},
-	.opts = {
-		.dont_resolve_fwds = false,
 	},
 },
 {
@@ -6757,9 +6760,6 @@ const struct btf_dedup_test dedup_tests[] = {
 		},
 		BTF_STR_SEC("\0a\0b\0c\0d\0int\0float\0next\0s"),
 	},
-	.opts = {
-		.dont_resolve_fwds = false,
-	},
 },
 {
 	.descr = "dedup: struct <-> fwd resolution w/ hash collision",
@@ -6802,8 +6802,7 @@ const struct btf_dedup_test dedup_tests[] = {
 		BTF_STR_SEC("\0s\0x"),
 	},
 	.opts = {
-		.dont_resolve_fwds = false,
-		.dedup_table_size = 1, /* force hash collisions */
+		.force_collisions = true, /* force hash collisions */
 	},
 },
 {
@@ -6849,8 +6848,7 @@ const struct btf_dedup_test dedup_tests[] = {
 		BTF_STR_SEC("\0s\0x"),
 	},
 	.opts = {
-		.dont_resolve_fwds = false,
-		.dedup_table_size = 1, /* force hash collisions */
+		.force_collisions = true, /* force hash collisions */
 	},
 },
 {
@@ -6874,15 +6872,16 @@ const struct btf_dedup_test dedup_tests[] = {
 			BTF_RESTRICT_ENC(8),						/* [11] restrict */
 			BTF_FUNC_PROTO_ENC(1, 2),					/* [12] func_proto */
 				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
-				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 8),
+				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 18),
 			BTF_FUNC_ENC(NAME_TBD, 12),					/* [13] func */
 			BTF_TYPE_FLOAT_ENC(NAME_TBD, 2),				/* [14] float */
 			BTF_DECL_TAG_ENC(NAME_TBD, 13, -1),				/* [15] decl_tag */
 			BTF_DECL_TAG_ENC(NAME_TBD, 13, 1),				/* [16] decl_tag */
 			BTF_DECL_TAG_ENC(NAME_TBD, 7, -1),				/* [17] decl_tag */
+			BTF_TYPE_TAG_ENC(NAME_TBD, 8),					/* [18] type_tag */
 			BTF_END_RAW,
 		},
-		BTF_STR_SEC("\0A\0B\0C\0D\0E\0F\0G\0H\0I\0J\0K\0L\0M\0N\0O\0P\0Q"),
+		BTF_STR_SEC("\0A\0B\0C\0D\0E\0F\0G\0H\0I\0J\0K\0L\0M\0N\0O\0P\0Q\0R"),
 	},
 	.expect = {
 		.raw_types = {
@@ -6903,18 +6902,16 @@ const struct btf_dedup_test dedup_tests[] = {
 			BTF_RESTRICT_ENC(8),						/* [11] restrict */
 			BTF_FUNC_PROTO_ENC(1, 2),					/* [12] func_proto */
 				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
-				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 8),
+				BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 18),
 			BTF_FUNC_ENC(NAME_TBD, 12),					/* [13] func */
 			BTF_TYPE_FLOAT_ENC(NAME_TBD, 2),				/* [14] float */
 			BTF_DECL_TAG_ENC(NAME_TBD, 13, -1),				/* [15] decl_tag */
 			BTF_DECL_TAG_ENC(NAME_TBD, 13, 1),				/* [16] decl_tag */
 			BTF_DECL_TAG_ENC(NAME_TBD, 7, -1),				/* [17] decl_tag */
+			BTF_TYPE_TAG_ENC(NAME_TBD, 8),					/* [18] type_tag */
 			BTF_END_RAW,
 		},
-		BTF_STR_SEC("\0A\0B\0C\0D\0E\0F\0G\0H\0I\0J\0K\0L\0M\0N\0O\0P\0Q"),
-	},
-	.opts = {
-		.dont_resolve_fwds = false,
+		BTF_STR_SEC("\0A\0B\0C\0D\0E\0F\0G\0H\0I\0J\0K\0L\0M\0N\0O\0P\0Q\0R"),
 	},
 },
 {
@@ -6967,9 +6964,6 @@ const struct btf_dedup_test dedup_tests[] = {
 		},
 		BTF_STR_SEC("\0int\0some other int\0float"),
 	},
-	.opts = {
-		.dont_resolve_fwds = false,
-	},
 },
 {
 	.descr = "dedup: enum fwd resolution",
@@ -7010,9 +7004,6 @@ const struct btf_dedup_test dedup_tests[] = {
 			BTF_END_RAW,
 		},
 		BTF_STR_SEC("\0e1\0e1_val\0e2\0e2_val"),
-	},
-	.opts = {
-		.dont_resolve_fwds = false,
 	},
 },
 {
@@ -7056,8 +7047,7 @@ const struct btf_dedup_test dedup_tests[] = {
 		BTF_STR_SEC("\0.bss\0t"),
 	},
 	.opts = {
-		.dont_resolve_fwds = false,
-		.dedup_table_size = 1
+		.force_collisions = true
 	},
 },
 {
@@ -7100,9 +7090,6 @@ const struct btf_dedup_test dedup_tests[] = {
 			BTF_END_RAW,
 		},
 		BTF_STR_SEC("\0t\0a1\0a2\0f\0tag"),
-	},
-	.opts = {
-		.dont_resolve_fwds = false,
 	},
 },
 {
@@ -7154,9 +7141,6 @@ const struct btf_dedup_test dedup_tests[] = {
 		},
 		BTF_STR_SEC("\0a1\0a2\0f\0tag1\0tag2\0tag3"),
 	},
-	.opts = {
-		.dont_resolve_fwds = false,
-	},
 },
 {
 	.descr = "dedup: struct/struct_member tags",
@@ -7202,9 +7186,6 @@ const struct btf_dedup_test dedup_tests[] = {
 		},
 		BTF_STR_SEC("\0t\0m1\0m2\0tag1\0tag2\0tag3"),
 	},
-	.opts = {
-		.dont_resolve_fwds = false,
-	},
 },
 {
 	.descr = "dedup: typedef tags",
@@ -7235,8 +7216,160 @@ const struct btf_dedup_test dedup_tests[] = {
 		},
 		BTF_STR_SEC("\0t\0tag1\0tag2\0tag3"),
 	},
-	.opts = {
-		.dont_resolve_fwds = false,
+},
+{
+	.descr = "dedup: btf_type_tag #1",
+	.input = {
+		.raw_types = {
+			/* ptr -> tag2 -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 2),		/* [3] */
+			BTF_PTR_ENC(3),					/* [4] */
+			/* ptr -> tag2 -> tag1 -> int */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [5] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 5),		/* [6] */
+			BTF_PTR_ENC(6),					/* [7] */
+			/* ptr -> tag1 -> int */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [8] */
+			BTF_PTR_ENC(8),					/* [9] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0tag2"),
+	},
+	.expect = {
+		.raw_types = {
+			/* ptr -> tag2 -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 2),		/* [3] */
+			BTF_PTR_ENC(3),					/* [4] */
+			/* ptr -> tag1 -> int */
+			BTF_PTR_ENC(2),					/* [5] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0tag2"),
+	},
+},
+{
+	.descr = "dedup: btf_type_tag #2",
+	.input = {
+		.raw_types = {
+			/* ptr -> tag2 -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 2),		/* [3] */
+			BTF_PTR_ENC(3),					/* [4] */
+			/* ptr -> tag2 -> int */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 1),		/* [5] */
+			BTF_PTR_ENC(5),					/* [6] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0tag2"),
+	},
+	.expect = {
+		.raw_types = {
+			/* ptr -> tag2 -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 2),		/* [3] */
+			BTF_PTR_ENC(3),					/* [4] */
+			/* ptr -> tag2 -> int */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 1),		/* [5] */
+			BTF_PTR_ENC(5),					/* [6] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0tag2"),
+	},
+},
+{
+	.descr = "dedup: btf_type_tag #3",
+	.input = {
+		.raw_types = {
+			/* ptr -> tag2 -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 2),		/* [3] */
+			BTF_PTR_ENC(3),					/* [4] */
+			/* ptr -> tag1 -> tag2 -> int */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 1),		/* [5] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 5),		/* [6] */
+			BTF_PTR_ENC(6),					/* [7] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0tag2"),
+	},
+	.expect = {
+		.raw_types = {
+			/* ptr -> tag2 -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 2),		/* [3] */
+			BTF_PTR_ENC(3),					/* [4] */
+			/* ptr -> tag1 -> tag2 -> int */
+			BTF_TYPE_TAG_ENC(NAME_NTH(2), 1),		/* [5] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 5),		/* [6] */
+			BTF_PTR_ENC(6),					/* [7] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0tag2"),
+	},
+},
+{
+	.descr = "dedup: btf_type_tag #4",
+	.input = {
+		.raw_types = {
+			/* ptr -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_PTR_ENC(2),					/* [3] */
+			/* ptr -> tag1 -> long */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 64, 8),	/* [4] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 4),		/* [5] */
+			BTF_PTR_ENC(5),					/* [6] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1"),
+	},
+	.expect = {
+		.raw_types = {
+			/* ptr -> tag1 -> int */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),		/* [2] */
+			BTF_PTR_ENC(2),					/* [3] */
+			/* ptr -> tag1 -> long */
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 64, 8),	/* [4] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 4),		/* [5] */
+			BTF_PTR_ENC(5),					/* [6] */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1"),
+	},
+},
+{
+	.descr = "dedup: btf_type_tag #5, struct",
+	.input = {
+		.raw_types = {
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),				/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),					/* [2] */
+			BTF_TYPE_ENC(NAME_NTH(2), BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 1), 4),	/* [3] */
+			BTF_MEMBER_ENC(NAME_NTH(3), 2, BTF_MEMBER_OFFSET(0, 0)),
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),					/* [4] */
+			BTF_TYPE_ENC(NAME_NTH(2), BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 1), 4),	/* [5] */
+			BTF_MEMBER_ENC(NAME_NTH(3), 4, BTF_MEMBER_OFFSET(0, 0)),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0t\0m"),
+	},
+	.expect = {
+		.raw_types = {
+			BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),				/* [1] */
+			BTF_TYPE_TAG_ENC(NAME_NTH(1), 1),					/* [2] */
+			BTF_TYPE_ENC(NAME_NTH(2), BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 1), 4),	/* [3] */
+			BTF_MEMBER_ENC(NAME_NTH(3), 2, BTF_MEMBER_OFFSET(0, 0)),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0tag1\0t\0m"),
 	},
 },
 
@@ -7257,6 +7390,7 @@ static int btf_type_size(const struct btf_type *t)
 	case BTF_KIND_TYPEDEF:
 	case BTF_KIND_FUNC:
 	case BTF_KIND_FLOAT:
+	case BTF_KIND_TYPE_TAG:
 		return base_size;
 	case BTF_KIND_INT:
 		return base_size + sizeof(__u32);
@@ -7295,7 +7429,7 @@ static void dump_btf_strings(const char *strs, __u32 len)
 
 static void do_test_dedup(unsigned int test_num)
 {
-	const struct btf_dedup_test *test = &dedup_tests[test_num - 1];
+	struct btf_dedup_test *test = &dedup_tests[test_num - 1];
 	__u32 test_nr_types, expect_nr_types, test_btf_size, expect_btf_size;
 	const struct btf_header *test_hdr, *expect_hdr;
 	struct btf *test_btf = NULL, *expect_btf = NULL;
@@ -7339,7 +7473,8 @@ static void do_test_dedup(unsigned int test_num)
 		goto done;
 	}
 
-	err = btf__dedup(test_btf, NULL, &test->opts);
+	test->opts.sz = sizeof(test->opts);
+	err = btf__dedup(test_btf, &test->opts);
 	if (CHECK(err, "btf_dedup failed errno:%d", err)) {
 		err = -1;
 		goto done;

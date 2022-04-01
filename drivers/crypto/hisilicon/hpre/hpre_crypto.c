@@ -1177,13 +1177,10 @@ static void hpre_rsa_exit_tfm(struct crypto_akcipher *tfm)
 static void hpre_key_to_big_end(u8 *data, int len)
 {
 	int i, j;
-	u8 tmp;
 
 	for (i = 0; i < len / 2; i++) {
 		j = len - i - 1;
-		tmp = data[j];
-		data[j] = data[i];
-		data[i] = tmp;
+		swap(data[j], data[i]);
 	}
 }
 
@@ -1865,7 +1862,7 @@ static int hpre_curve25519_src_init(struct hpre_asym_request *hpre_req,
 	 */
 	if (memcmp(ptr, p, ctx->key_sz) == 0) {
 		dev_err(dev, "gx is p!\n");
-		return -EINVAL;
+		goto err;
 	} else if (memcmp(ptr, p, ctx->key_sz) > 0) {
 		hpre_curve25519_src_modulo_p(ptr);
 	}

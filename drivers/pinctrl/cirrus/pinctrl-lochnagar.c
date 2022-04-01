@@ -1161,9 +1161,6 @@ static int lochnagar_pin_probe(struct platform_device *pdev)
 	priv->gpio_chip.can_sleep = true;
 	priv->gpio_chip.parent = dev;
 	priv->gpio_chip.base = -1;
-#ifdef CONFIG_OF_GPIO
-	priv->gpio_chip.of_node = dev->of_node;
-#endif
 
 	switch (lochnagar->type) {
 	case LOCHNAGAR1:

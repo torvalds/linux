@@ -90,15 +90,12 @@ static int snd_virmidi_probe(struct platform_device *devptr)
 	}
 	for (idx = 0; idx < midi_devs[dev]; idx++) {
 		struct snd_rawmidi *rmidi;
-		struct snd_virmidi_dev *rdev;
 
 		err = snd_virmidi_new(card, idx, &rmidi);
 		if (err < 0)
 			return err;
-		rdev = rmidi->private_data;
 		vmidi->midi[idx] = rmidi;
 		strcpy(rmidi->name, "Virtual Raw MIDI");
-		rdev->seq_mode = SNDRV_VIRMIDI_SEQ_DISPATCH;
 	}
 
 	strcpy(card->driver, "VirMIDI");

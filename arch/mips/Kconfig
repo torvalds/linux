@@ -32,7 +32,6 @@ config MIPS
 	select GENERIC_ATOMIC64 if !64BIT
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_CPU_AUTOPROBE
-	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_GETTIMEOFDAY
 	select GENERIC_IOMAP
 	select GENERIC_IRQ_PROBE
@@ -264,7 +263,6 @@ config BMIPS_GENERIC
 	bool "Broadcom Generic BMIPS kernel"
 	select ARCH_HAS_RESET_CONTROLLER
 	select ARCH_HAS_SYNC_DMA_FOR_CPU_ALL
-	select ARCH_HAS_PHYS_TO_DMA
 	select BOOT_RAW
 	select NO_EXCEPT_FILL
 	select USE_OF
@@ -640,9 +638,6 @@ config MACH_REALTEK_RTL
 	select SYS_SUPPORTS_MIPS16
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_VPE_LOADER
-	select SYS_HAS_EARLY_PRINTK
-	select SYS_HAS_EARLY_PRINTK_8250
-	select USE_GENERIC_EARLY_PRINTK_8250
 	select BOOT_RAW
 	select PINCTRL
 	select USE_OF
@@ -765,7 +760,6 @@ config SGI_IP30
 	select HAVE_PCI
 	select IRQ_MIPS_CPU
 	select IRQ_DOMAIN_HIERARCHY
-	select NR_CPUS_DEFAULT_2
 	select PCI_DRIVERS_GENERIC
 	select PCI_XTALK_BRIDGE
 	select SYS_HAS_EARLY_PRINTK
@@ -1611,7 +1605,6 @@ config CPU_R4300
 	depends on SYS_HAS_CPU_R4300
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
-	select CPU_HAS_LOAD_STORE_LR
 	help
 	  MIPS Technologies R4300-series processors.
 
@@ -1907,6 +1900,10 @@ config SYS_HAS_CPU_MIPS64_R1
 config SYS_HAS_CPU_MIPS64_R2
 	bool
 
+config SYS_HAS_CPU_MIPS64_R5
+	bool
+	select ARCH_HAS_SYNC_DMA_FOR_CPU if DMA_NONCOHERENT
+
 config SYS_HAS_CPU_MIPS64_R6
 	bool
 	select ARCH_HAS_SYNC_DMA_FOR_CPU if DMA_NONCOHERENT
@@ -2065,7 +2062,7 @@ config CPU_SUPPORTS_ADDRWINCFG
 	bool
 config CPU_SUPPORTS_HUGEPAGES
 	bool
-	depends on !(32BIT && (ARCH_PHYS_ADDR_T_64BIT || EVA))
+	depends on !(32BIT && (PHYS_ADDR_T_64BIT || EVA))
 config MIPS_PGD_C0_CONTEXT
 	bool
 	depends on 64BIT
@@ -2115,6 +2112,16 @@ config MIPS_VA_BITS_48
 	  overhead as well as slower TLB fault handling.
 
 	  If unsure, say N.
+
+config ZBOOT_LOAD_ADDRESS
+	hex "Compressed kernel load address"
+	default 0xffffffff80400000 if BCM47XX
+	default 0x0
+	depends on SYS_SUPPORTS_ZBOOT
+	help
+	  The address to load compressed kernel, aka vmlinuz.
+
+	  This is only used if non-zero.
 
 choice
 	prompt "Kernel page size"
@@ -2666,6 +2673,8 @@ config NUMA
 	bool "NUMA Support"
 	depends on SYS_SUPPORTS_NUMA
 	select SMP
+	select HAVE_SETUP_PER_CPU_AREA
+	select NEED_PER_CPU_EMBED_FIRST_CHUNK
 	help
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
 	  Access).  This option improves performance on systems with more
@@ -2675,14 +2684,6 @@ config NUMA
 
 config SYS_SUPPORTS_NUMA
 	bool
-
-config HAVE_SETUP_PER_CPU_AREA
-	def_bool y
-	depends on NUMA
-
-config NEED_PER_CPU_EMBED_FIRST_CHUNK
-	def_bool y
-	depends on NUMA
 
 config RELOCATABLE
 	bool "Relocatable kernel"
@@ -3097,7 +3098,7 @@ config STACKTRACE_SUPPORT
 config PGTABLE_LEVELS
 	int
 	default 4 if PAGE_SIZE_4KB && MIPS_VA_BITS_48
-	default 3 if 64BIT && !PAGE_SIZE_64KB
+	default 3 if 64BIT && (!PAGE_SIZE_64KB || MIPS_VA_BITS_48)
 	default 2
 
 config MIPS_AUTO_PFN_OFFSET

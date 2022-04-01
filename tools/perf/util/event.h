@@ -44,13 +44,16 @@ struct perf_event_attr;
 /* perf sample has 16 bits size limit */
 #define PERF_SAMPLE_MAX_SIZE (1 << 16)
 
+/* number of register is bound by the number of bits in regs_dump::mask (64) */
+#define PERF_SAMPLE_REGS_CACHE_SIZE (8 * sizeof(u64))
+
 struct regs_dump {
 	u64 abi;
 	u64 mask;
 	u64 *regs;
 
 	/* Cached values/mask filled by first register access. */
-	u64 cache_regs[PERF_REGS_MAX];
+	u64 cache_regs[PERF_SAMPLE_REGS_CACHE_SIZE];
 	u64 cache_mask;
 };
 

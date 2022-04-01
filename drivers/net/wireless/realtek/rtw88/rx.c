@@ -6,6 +6,7 @@
 #include "rx.h"
 #include "ps.h"
 #include "debug.h"
+#include "fw.h"
 
 void rtw_rx_stats(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 		  struct sk_buff *skb)
@@ -138,6 +139,13 @@ static void rtw_rx_addr_match(struct rtw_dev *rtwdev,
 	rtw_iterate_vifs_atomic(rtwdev, rtw_rx_addr_match_iter, &data);
 }
 
+static void rtw_set_rx_freq_by_pktstat(struct rtw_rx_pkt_stat *pkt_stat,
+				       struct ieee80211_rx_status *rx_status)
+{
+	rx_status->freq = pkt_stat->freq;
+	rx_status->band = pkt_stat->band;
+}
+
 void rtw_rx_fill_rx_status(struct rtw_dev *rtwdev,
 			   struct rtw_rx_pkt_stat *pkt_stat,
 			   struct ieee80211_hdr *hdr,
@@ -150,6 +158,8 @@ void rtw_rx_fill_rx_status(struct rtw_dev *rtwdev,
 	memset(rx_status, 0, sizeof(*rx_status));
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->band = hw->conf.chandef.chan->band;
+	if (rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_SCAN_OFFLOAD))
+		rtw_set_rx_freq_by_pktstat(pkt_stat, rx_status);
 	if (pkt_stat->crc_err)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 	if (pkt_stat->decrypted)

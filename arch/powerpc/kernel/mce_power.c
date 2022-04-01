@@ -77,14 +77,14 @@ static bool mce_in_guest(void)
 }
 
 /* flush SLBs and reload */
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 void flush_and_reload_slb(void)
 {
-	/* Invalidate all SLBs */
-	slb_flush_all_realmode();
-
 	if (early_radix_enabled())
 		return;
+
+	/* Invalidate all SLBs */
+	slb_flush_all_realmode();
 
 	/*
 	 * This probably shouldn't happen, but it may be possible it's
@@ -99,7 +99,7 @@ void flush_and_reload_slb(void)
 
 void flush_erat(void)
 {
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	if (!early_cpu_has_feature(CPU_FTR_ARCH_300)) {
 		flush_and_reload_slb();
 		return;
@@ -114,7 +114,7 @@ void flush_erat(void)
 
 static int mce_flush(int what)
 {
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_64S_HASH_MMU
 	if (what == MCE_FLUSH_SLB) {
 		flush_and_reload_slb();
 		return 1;
@@ -455,7 +455,7 @@ static int mce_find_instr_ea_and_phys(struct pt_regs *regs, uint64_t *addr,
 	 * in real-mode is tricky and can lead to recursive
 	 * faults
 	 */
-	struct ppc_inst instr;
+	ppc_inst_t instr;
 	unsigned long pfn, instr_addr;
 	struct instruction_op op;
 	struct pt_regs tmp = *regs;
@@ -499,8 +499,10 @@ static int mce_handle_ierror(struct pt_regs *regs, unsigned long srr1,
 			/* attempt to correct the error */
 			switch (table[i].error_type) {
 			case MCE_ERROR_TYPE_SLB:
+#ifdef CONFIG_PPC_64S_HASH_MMU
 				if (local_paca->in_mce == 1)
 					slb_save_contents(local_paca->mce_faulty_slbs);
+#endif
 				handled = mce_flush(MCE_FLUSH_SLB);
 				break;
 			case MCE_ERROR_TYPE_ERAT:
@@ -588,8 +590,10 @@ static int mce_handle_derror(struct pt_regs *regs,
 			/* attempt to correct the error */
 			switch (table[i].error_type) {
 			case MCE_ERROR_TYPE_SLB:
+#ifdef CONFIG_PPC_64S_HASH_MMU
 				if (local_paca->in_mce == 1)
 					slb_save_contents(local_paca->mce_faulty_slbs);
+#endif
 				if (mce_flush(MCE_FLUSH_SLB))
 					handled = 1;
 				break;

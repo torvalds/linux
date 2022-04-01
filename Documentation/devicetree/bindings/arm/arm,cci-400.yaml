@@ -166,16 +166,6 @@ examples:
               };
           };
 
-          dma0: dma@3000000 {
-              /* compatible = "arm,pl330", "arm,primecell"; */
-              cci-control-port = <&cci_control0>;
-              reg = <0x0 0x3000000 0x0 0x1000>;
-              interrupts = <10>;
-              #dma-cells = <1>;
-              #dma-channels = <8>;
-              #dma-requests = <32>;
-          };
-
           cci@2c090000 {
               compatible = "arm,cci-400";
               #address-cells = <1>;

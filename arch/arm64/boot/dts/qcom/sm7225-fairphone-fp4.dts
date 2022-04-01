@@ -15,6 +15,7 @@
 / {
 	model = "Fairphone 4";
 	compatible = "fairphone,fp4", "qcom,sm7225";
+	chassis-type = "handset";
 
 	/* required for bootloader to select correct board */
 	qcom,msm-id = <434 0x10000>, <459 0x10000>;
@@ -52,6 +53,27 @@
 			gpios = <&pm6350_gpios 2 GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	reserved-memory {
+		/*
+		 * The rmtfs memory region in downstream is 'dynamically allocated'
+		 * but given the same address every time. Hard code it as this address is
+		 * where the modem firmware expects it to be.
+		 */
+		memory@efe01000 {
+			compatible = "qcom,rmtfs-mem";
+			reg = <0 0xefe01000 0 0x600000>;
+			no-map;
+
+			qcom,client-id = <1>;
+			qcom,vmid = <15>;
+		};
+	};
+};
+
+&adsp {
+	status = "okay";
+	firmware-name = "qcom/sm7225/fairphone4/adsp.mdt";
 };
 
 &apps_rsc {
@@ -266,6 +288,16 @@
 			regulator-allow-bypass;
 		};
 	};
+};
+
+&cdsp {
+	status = "okay";
+	firmware-name = "qcom/sm7225/fairphone4/cdsp.mdt";
+};
+
+&mpss {
+	status = "okay";
+	firmware-name = "qcom/sm7225/fairphone4/modem.mdt";
 };
 
 &pm6350_gpios {

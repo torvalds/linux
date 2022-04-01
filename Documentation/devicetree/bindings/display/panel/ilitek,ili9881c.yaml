@@ -9,24 +9,28 @@ title: Ilitek ILI9881c based MIPI-DSI panels
 maintainers:
   - Maxime Ripard <mripard@kernel.org>
 
+allOf:
+  - $ref: panel-common.yaml#
+
 properties:
   compatible:
     items:
       - enum:
           - bananapi,lhr050h41
           - feixin,k101-im2byl02
+          - wanchanglong,w552946aba
       - const: ilitek,ili9881c
 
   backlight: true
   power-supply: true
   reg: true
   reset-gpios: true
+  rotation: true
 
 required:
   - compatible
   - power-supply
   - reg
-  - reset-gpios
 
 additionalProperties: false
 

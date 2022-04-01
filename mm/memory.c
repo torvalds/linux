@@ -41,6 +41,7 @@
 
 #include <linux/kernel_stat.h>
 #include <linux/mm.h>
+#include <linux/mm_inline.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/coredump.h>
 #include <linux/sched/numa_balancing.h>
@@ -719,8 +720,6 @@ static void restore_exclusive_pte(struct vm_area_struct *vma,
 	else if (is_writable_device_exclusive_entry(entry))
 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
 
-	set_pte_at(vma->vm_mm, address, ptep, pte);
-
 	/*
 	 * No need to take a page reference as one was already
 	 * created when the swap entry was made.
@@ -733,6 +732,8 @@ static void restore_exclusive_pte(struct vm_area_struct *vma,
 		 * memory so the entry shouldn't point to a filebacked page.
 		 */
 		WARN_ON_ONCE(!PageAnon(page));
+
+	set_pte_at(vma->vm_mm, address, ptep, pte);
 
 	if (vma->vm_flags & VM_LOCKED)
 		mlock_vma_page(page);
@@ -1304,6 +1305,28 @@ copy_page_range(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma)
 	return ret;
 }
 
+/*
+ * Parameter block passed down to zap_pte_range in exceptional cases.
+ */
+struct zap_details {
+	struct address_space *zap_mapping;	/* Check page->mapping if set */
+	struct folio *single_folio;	/* Locked folio to be unmapped */
+};
+
+/*
+ * We set details->zap_mapping when we want to unmap shared but keep private
+ * pages. Return true if skip zapping this page, false otherwise.
+ */
+static inline bool
+zap_skip_check_mapping(struct zap_details *details, struct page *page)
+{
+	if (!details || !page)
+		return false;
+
+	return details->zap_mapping &&
+		(details->zap_mapping != page_rmapping(page));
+}
+
 static unsigned long zap_pte_range(struct mmu_gather *tlb,
 				struct vm_area_struct *vma, pmd_t *pmd,
 				unsigned long addr, unsigned long end,
@@ -1443,8 +1466,8 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
 			else if (zap_huge_pmd(tlb, vma, pmd, addr))
 				goto next;
 			/* fall through */
-		} else if (details && details->single_page &&
-			   PageTransCompound(details->single_page) &&
+		} else if (details && details->single_folio &&
+			   folio_test_pmd_mappable(details->single_folio) &&
 			   next - addr == HPAGE_PMD_SIZE && pmd_none(*pmd)) {
 			spinlock_t *ptl = pmd_lock(tlb->mm, pmd);
 			/*
@@ -3332,31 +3355,30 @@ static inline void unmap_mapping_range_tree(struct rb_root_cached *root,
 }
 
 /**
- * unmap_mapping_page() - Unmap single page from processes.
- * @page: The locked page to be unmapped.
+ * unmap_mapping_folio() - Unmap single folio from processes.
+ * @folio: The locked folio to be unmapped.
  *
- * Unmap this page from any userspace process which still has it mmaped.
+ * Unmap this folio from any userspace process which still has it mmaped.
  * Typically, for efficiency, the range of nearby pages has already been
  * unmapped by unmap_mapping_pages() or unmap_mapping_range().  But once
- * truncation or invalidation holds the lock on a page, it may find that
- * the page has been remapped again: and then uses unmap_mapping_page()
+ * truncation or invalidation holds the lock on a folio, it may find that
+ * the page has been remapped again: and then uses unmap_mapping_folio()
  * to unmap it finally.
  */
-void unmap_mapping_page(struct page *page)
+void unmap_mapping_folio(struct folio *folio)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = folio->mapping;
 	struct zap_details details = { };
 	pgoff_t	first_index;
 	pgoff_t	last_index;
 
-	VM_BUG_ON(!PageLocked(page));
-	VM_BUG_ON(PageTail(page));
+	VM_BUG_ON(!folio_test_locked(folio));
 
-	first_index = page->index;
-	last_index = page->index + thp_nr_pages(page) - 1;
+	first_index = folio->index;
+	last_index = folio->index + folio_nr_pages(folio) - 1;
 
 	details.zap_mapping = mapping;
-	details.single_page = page;
+	details.single_folio = folio;
 
 	i_mmap_lock_write(mapping);
 	if (unlikely(!RB_EMPTY_ROOT(&mapping->i_mmap.rb_root)))
@@ -3507,7 +3529,6 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 	if (unlikely(!si))
 		goto out;
 
-	delayacct_set_flag(current, DELAYACCT_PF_SWAPIN);
 	page = lookup_swap_cache(entry, vma, vmf->address);
 	swapcache = page;
 
@@ -3555,7 +3576,6 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 					vmf->address, &vmf->ptl);
 			if (likely(pte_same(*vmf->pte, vmf->orig_pte)))
 				ret = VM_FAULT_OOM;
-			delayacct_clear_flag(current, DELAYACCT_PF_SWAPIN);
 			goto unlock;
 		}
 
@@ -3569,13 +3589,11 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 		 * owner processes (which may be unknown at hwpoison time)
 		 */
 		ret = VM_FAULT_HWPOISON;
-		delayacct_clear_flag(current, DELAYACCT_PF_SWAPIN);
 		goto out_release;
 	}
 
 	locked = lock_page_or_retry(page, vma->vm_mm, vmf->flags);
 
-	delayacct_clear_flag(current, DELAYACCT_PF_SWAPIN);
 	if (!locked) {
 		ret |= VM_FAULT_RETRY;
 		goto out_release;
@@ -3626,7 +3644,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 	inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
 	dec_mm_counter_fast(vma->vm_mm, MM_SWAPENTS);
 	pte = mk_pte(page, vma->vm_page_prot);
-	if ((vmf->flags & FAULT_FLAG_WRITE) && reuse_swap_page(page, NULL)) {
+	if ((vmf->flags & FAULT_FLAG_WRITE) && reuse_swap_page(page)) {
 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
 		vmf->flags &= ~FAULT_FLAG_WRITE;
 		ret |= VM_FAULT_WRITE;
@@ -3639,8 +3657,6 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 		pte = pte_mkuffd_wp(pte);
 		pte = pte_wrprotect(pte);
 	}
-	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, pte);
-	arch_do_swap_page(vma->vm_mm, vma, vmf->address, pte, vmf->orig_pte);
 	vmf->orig_pte = pte;
 
 	/* ksm created a completely new copy */
@@ -3650,6 +3666,9 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 	} else {
 		do_page_add_anon_rmap(page, vma, vmf->address, exclusive);
 	}
+
+	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, pte);
+	arch_do_swap_page(vma->vm_mm, vma, vmf->address, pte, vmf->orig_pte);
 
 	swap_free(entry);
 	if (mem_cgroup_swap_full(page) ||

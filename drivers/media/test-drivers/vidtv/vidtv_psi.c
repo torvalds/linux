@@ -94,34 +94,28 @@ static void vidtv_psi_update_version_num(struct vidtv_psi_table_header *h)
 static u16 vidtv_psi_get_sec_len(struct vidtv_psi_table_header *h)
 {
 	u16 mask;
-	u16 ret;
 
 	mask = GENMASK(11, 0);
 
-	ret = be16_to_cpu(h->bitfield) & mask;
-	return ret;
+	return be16_to_cpu(h->bitfield) & mask;
 }
 
 u16 vidtv_psi_get_pat_program_pid(struct vidtv_psi_table_pat_program *p)
 {
 	u16 mask;
-	u16 ret;
 
 	mask = GENMASK(12, 0);
 
-	ret = be16_to_cpu(p->bitfield) & mask;
-	return ret;
+	return be16_to_cpu(p->bitfield) & mask;
 }
 
 u16 vidtv_psi_pmt_stream_get_elem_pid(struct vidtv_psi_table_pmt_stream *s)
 {
 	u16 mask;
-	u16 ret;
 
 	mask = GENMASK(12, 0);
 
-	ret = be16_to_cpu(s->bitfield) & mask;
-	return ret;
+	return be16_to_cpu(s->bitfield) & mask;
 }
 
 static void vidtv_psi_set_desc_loop_len(__be16 *bitfield, u16 new_len,

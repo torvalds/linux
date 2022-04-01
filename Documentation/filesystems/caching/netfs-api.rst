@@ -1,896 +1,452 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-===============================
-FS-Cache Network Filesystem API
-===============================
+==============================
+Network Filesystem Caching API
+==============================
 
-There's an API by which a network filesystem can make use of the FS-Cache
-facilities.  This is based around a number of principles:
+Fscache provides an API by which a network filesystem can make use of local
+caching facilities.  The API is arranged around a number of principles:
 
- (1) Caches can store a number of different object types.  There are two main
-     object types: indices and files.  The first is a special type used by
-     FS-Cache to make finding objects faster and to make retiring of groups of
-     objects easier.
+ (1) A cache is logically organised into volumes and data storage objects
+     within those volumes.
 
- (2) Every index, file or other object is represented by a cookie.  This cookie
-     may or may not have anything associated with it, but the netfs doesn't
-     need to care.
+ (2) Volumes and data storage objects are represented by various types of
+     cookie.
 
- (3) Barring the top-level index (one entry per cached netfs), the index
-     hierarchy for each netfs is structured according the whim of the netfs.
+ (3) Cookies have keys that distinguish them from their peers.
 
-This API is declared in <linux/fscache.h>.
+ (4) Cookies have coherency data that allows a cache to determine if the
+     cached data is still valid.
+
+ (5) I/O is done asynchronously where possible.
+
+This API is used by::
+
+	#include <linux/fscache.h>.
 
 .. This document contains the following sections:
 
-	 (1) Network filesystem definition
-	 (2) Index definition
-	 (3) Object definition
-	 (4) Network filesystem (un)registration
-	 (5) Cache tag lookup
-	 (6) Index registration
-	 (7) Data file registration
-	 (8) Miscellaneous object registration
- 	 (9) Setting the data file size
-	(10) Page alloc/read/write
-	(11) Page uncaching
-	(12) Index and data file consistency
-	(13) Cookie enablement
-	(14) Miscellaneous cookie operations
-	(15) Cookie unregistration
-	(16) Index invalidation
-	(17) Data file invalidation
-	(18) FS-Cache specific page flags.
-
-
-Network Filesystem Definition
-=============================
-
-FS-Cache needs a description of the network filesystem.  This is specified
-using a record of the following structure::
-
-	struct fscache_netfs {
-		uint32_t			version;
-		const char			*name;
-		struct fscache_cookie		*primary_index;
-		...
-	};
-
-This first two fields should be filled in before registration, and the third
-will be filled in by the registration function; any other fields should just be
-ignored and are for internal use only.
-
-The fields are:
-
- (1) The name of the netfs (used as the key in the toplevel index).
-
- (2) The version of the netfs (if the name matches but the version doesn't, the
-     entire in-cache hierarchy for this netfs will be scrapped and begun
-     afresh).
-
- (3) The cookie representing the primary index will be allocated according to
-     another parameter passed into the registration function.
-
-For example, kAFS (linux/fs/afs/) uses the following definitions to describe
-itself::
-
-	struct fscache_netfs afs_cache_netfs = {
-		.version	= 0,
-		.name		= "afs",
-	};
-
-
-Index Definition
-================
-
-Indices are used for two purposes:
-
- (1) To aid the finding of a file based on a series of keys (such as AFS's
-     "cell", "volume ID", "vnode ID").
-
- (2) To make it easier to discard a subset of all the files cached based around
-     a particular key - for instance to mirror the removal of an AFS volume.
-
-However, since it's unlikely that any two netfs's are going to want to define
-their index hierarchies in quite the same way, FS-Cache tries to impose as few
-restraints as possible on how an index is structured and where it is placed in
-the tree.  The netfs can even mix indices and data files at the same level, but
-it's not recommended.
-
-Each index entry consists of a key of indeterminate length plus some auxiliary
-data, also of indeterminate length.
-
-There are some limits on indices:
-
- (1) Any index containing non-index objects should be restricted to a single
-     cache.  Any such objects created within an index will be created in the
-     first cache only.  The cache in which an index is created can be
-     controlled by cache tags (see below).
-
- (2) The entry data must be atomically journallable, so it is limited to about
-     400 bytes at present.  At least 400 bytes will be available.
-
- (3) The depth of the index tree should be judged with care as the search
-     function is recursive.  Too many layers will run the kernel out of stack.
-
-
-Object Definition
-=================
-
-To define an object, a structure of the following type should be filled out::
-
-	struct fscache_cookie_def
-	{
-		uint8_t name[16];
-		uint8_t type;
-
-		struct fscache_cache_tag *(*select_cache)(
-			const void *parent_netfs_data,
-			const void *cookie_netfs_data);
-
-		enum fscache_checkaux (*check_aux)(void *cookie_netfs_data,
-						   const void *data,
-						   uint16_t datalen,
-						   loff_t object_size);
-
-		void (*get_context)(void *cookie_netfs_data, void *context);
-
-		void (*put_context)(void *cookie_netfs_data, void *context);
-
-		void (*mark_pages_cached)(void *cookie_netfs_data,
-					  struct address_space *mapping,
-					  struct pagevec *cached_pvec);
-	};
-
-This has the following fields:
-
- (1) The type of the object [mandatory].
-
-     This is one of the following values:
-
-	FSCACHE_COOKIE_TYPE_INDEX
-	    This defines an index, which is a special FS-Cache type.
-
-	FSCACHE_COOKIE_TYPE_DATAFILE
-	    This defines an ordinary data file.
-
-	Any other value between 2 and 255
-	    This defines an extraordinary object such as an XATTR.
-
- (2) The name of the object type (NUL terminated unless all 16 chars are used)
-     [optional].
-
- (3) A function to select the cache in which to store an index [optional].
-
-     This function is invoked when an index needs to be instantiated in a cache
-     during the instantiation of a non-index object.  Only the immediate index
-     parent for the non-index object will be queried.  Any indices above that
-     in the hierarchy may be stored in multiple caches.  This function does not
-     need to be supplied for any non-index object or any index that will only
-     have index children.
-
-     If this function is not supplied or if it returns NULL then the first
-     cache in the parent's list will be chosen, or failing that, the first
-     cache in the master list.
-
- (4) A function to check the auxiliary data [optional].
-
-     This function will be called to check that a match found in the cache for
-     this object is valid.  For instance with AFS it could check the auxiliary
-     data against the data version number returned by the server to determine
-     whether the index entry in a cache is still valid.
-
-     If this function is absent, it will be assumed that matching objects in a
-     cache are always valid.
-
-     The function is also passed the cache's idea of the object size and may
-     use this to manage coherency also.
-
-     If present, the function should return one of the following values:
-
-	FSCACHE_CHECKAUX_OKAY
-	    - the entry is okay as is
-
-	FSCACHE_CHECKAUX_NEEDS_UPDATE
-	    - the entry requires update
-
-	FSCACHE_CHECKAUX_OBSOLETE
-	    - the entry should be deleted
-
-     This function can also be used to extract data from the auxiliary data in
-     the cache and copy it into the netfs's structures.
-
- (5) A pair of functions to manage contexts for the completion callback
-     [optional].
-
-     The cache read/write functions are passed a context which is then passed
-     to the I/O completion callback function.  To ensure this context remains
-     valid until after the I/O completion is called, two functions may be
-     provided: one to get an extra reference on the context, and one to drop a
-     reference to it.
-
-     If the context is not used or is a type of object that won't go out of
-     scope, then these functions are not required.  These functions are not
-     required for indices as indices may not contain data.  These functions may
-     be called in interrupt context and so may not sleep.
-
- (6) A function to mark a page as retaining cache metadata [optional].
-
-     This is called by the cache to indicate that it is retaining in-memory
-     information for this page and that the netfs should uncache the page when
-     it has finished.  This does not indicate whether there's data on the disk
-     or not.  Note that several pages at once may be presented for marking.
-
-     The PG_fscache bit is set on the pages before this function would be
-     called, so the function need not be provided if this is sufficient.
-
-     This function is not required for indices as they're not permitted data.
-
- (7) A function to unmark all the pages retaining cache metadata [mandatory].
-
-     This is called by FS-Cache to indicate that a backing store is being
-     unbound from a cookie and that all the marks on the pages should be
-     cleared to prevent confusion.  Note that the cache will have torn down all
-     its tracking information so that the pages don't need to be explicitly
-     uncached.
-
-     This function is not required for indices as they're not permitted data.
-
-
-Network Filesystem (Un)registration
-===================================
-
-The first step is to declare the network filesystem to the cache.  This also
-involves specifying the layout of the primary index (for AFS, this would be the
-"cell" level).
-
-The registration function is::
-
-	int fscache_register_netfs(struct fscache_netfs *netfs);
-
-It just takes a pointer to the netfs definition.  It returns 0 or an error as
-appropriate.
-
-For kAFS, registration is done as follows::
-
-	ret = fscache_register_netfs(&afs_cache_netfs);
-
-The last step is, of course, unregistration::
-
-	void fscache_unregister_netfs(struct fscache_netfs *netfs);
-
-
-Cache Tag Lookup
-================
-
-FS-Cache permits the use of more than one cache.  To permit particular index
-subtrees to be bound to particular caches, the second step is to look up cache
-representation tags.  This step is optional; it can be left entirely up to
-FS-Cache as to which cache should be used.  The problem with doing that is that
-FS-Cache will always pick the first cache that was registered.
-
-To get the representation for a named tag::
-
-	struct fscache_cache_tag *fscache_lookup_cache_tag(const char *name);
-
-This takes a text string as the name and returns a representation of a tag.  It
-will never return an error.  It may return a dummy tag, however, if it runs out
-of memory; this will inhibit caching with this tag.
-
-Any representation so obtained must be released by passing it to this function::
-
-	void fscache_release_cache_tag(struct fscache_cache_tag *tag);
-
-The tag will be retrieved by FS-Cache when it calls the object definition
-operation select_cache().
-
-
-Index Registration
-==================
-
-The third step is to inform FS-Cache about part of an index hierarchy that can
-be used to locate files.  This is done by requesting a cookie for each index in
-the path to the file::
-
-	struct fscache_cookie *
-	fscache_acquire_cookie(struct fscache_cookie *parent,
-			       const struct fscache_object_def *def,
-			       const void *index_key,
-			       size_t index_key_len,
-			       const void *aux_data,
-			       size_t aux_data_len,
-			       void *netfs_data,
-			       loff_t object_size,
-			       bool enable);
-
-This function creates an index entry in the index represented by parent,
-filling in the index entry by calling the operations pointed to by def.
-
-A unique key that represents the object within the parent must be pointed to by
-index_key and is of length index_key_len.
-
-An optional blob of auxiliary data that is to be stored within the cache can be
-pointed to with aux_data and should be of length aux_data_len.  This would
-typically be used for storing coherency data.
-
-The netfs may pass an arbitrary value in netfs_data and this will be presented
-to it in the event of any calling back.  This may also be used in tracing or
-logging of messages.
-
-The cache tracks the size of the data attached to an object and this set to be
-object_size.  For indices, this should be 0.  This value will be passed to the
-->check_aux() callback.
-
-Note that this function never returns an error - all errors are handled
-internally.  It may, however, return NULL to indicate no cookie.  It is quite
-acceptable to pass this token back to this function as the parent to another
-acquisition (or even to the relinquish cookie, read page and write page
-functions - see below).
-
-Note also that no indices are actually created in a cache until a non-index
-object needs to be created somewhere down the hierarchy.  Furthermore, an index
-may be created in several different caches independently at different times.
-This is all handled transparently, and the netfs doesn't see any of it.
-
-A cookie will be created in the disabled state if enabled is false.  A cookie
-must be enabled to do anything with it.  A disabled cookie can be enabled by
-calling fscache_enable_cookie() (see below).
-
-For example, with AFS, a cell would be added to the primary index.  This index
-entry would have a dependent inode containing volume mappings within this cell::
-
-	cell->cache =
-		fscache_acquire_cookie(afs_cache_netfs.primary_index,
-				       &afs_cell_cache_index_def,
-				       cell->name, strlen(cell->name),
-				       NULL, 0,
-				       cell, 0, true);
-
-And then a particular volume could be added to that index by ID, creating
-another index for vnodes (AFS inode equivalents)::
-
-	volume->cache =
-		fscache_acquire_cookie(volume->cell->cache,
-				       &afs_volume_cache_index_def,
-				       &volume->vid, sizeof(volume->vid),
-				       NULL, 0,
-				       volume, 0, true);
+	 (1) Overview
+	 (2) Volume registration
+	 (3) Data file registration
+	 (4) Declaring a cookie to be in use
+	 (5) Resizing a data file (truncation)
+	 (6) Data I/O API
+	 (7) Data file coherency
+	 (8) Data file invalidation
+	 (9) Write back resource management
+	(10) Caching of local modifications
+	(11) Page release and invalidation
+
+
+Overview
+========
+
+The fscache hierarchy is organised on two levels from a network filesystem's
+point of view.  The upper level represents "volumes" and the lower level
+represents "data storage objects".  These are represented by two types of
+cookie, hereafter referred to as "volume cookies" and "cookies".
+
+A network filesystem acquires a volume cookie for a volume using a volume key,
+which represents all the information that defines that volume (e.g. cell name
+or server address, volume ID or share name).  This must be rendered as a
+printable string that can be used as a directory name (ie. no '/' characters
+and shouldn't begin with a '.').  The maximum name length is one less than the
+maximum size of a filename component (allowing the cache backend one char for
+its own purposes).
+
+A filesystem would typically have a volume cookie for each superblock.
+
+The filesystem then acquires a cookie for each file within that volume using an
+object key.  Object keys are binary blobs and only need to be unique within
+their parent volume.  The cache backend is reponsible for rendering the binary
+blob into something it can use and may employ hash tables, trees or whatever to
+improve its ability to find an object.  This is transparent to the network
+filesystem.
+
+A filesystem would typically have a cookie for each inode, and would acquire it
+in iget and relinquish it when evicting the cookie.
+
+Once it has a cookie, the filesystem needs to mark the cookie as being in use.
+This causes fscache to send the cache backend off to look up/create resources
+for the cookie in the background, to check its coherency and, if necessary, to
+mark the object as being under modification.
+
+A filesystem would typically "use" the cookie in its file open routine and
+unuse it in file release and it needs to use the cookie around calls to
+truncate the cookie locally.  It *also* needs to use the cookie when the
+pagecache becomes dirty and unuse it when writeback is complete.  This is
+slightly tricky, and provision is made for it.
+
+When performing a read, write or resize on a cookie, the filesystem must first
+begin an operation.  This copies the resources into a holding struct and puts
+extra pins into the cache to stop cache withdrawal from tearing down the
+structures being used.  The actual operation can then be issued and conflicting
+invalidations can be detected upon completion.
+
+The filesystem is expected to use netfslib to access the cache, but that's not
+actually required and it can use the fscache I/O API directly.
+
+
+Volume Registration
+===================
+
+The first step for a network filsystem is to acquire a volume cookie for the
+volume it wants to access::
+
+	struct fscache_volume *
+	fscache_acquire_volume(const char *volume_key,
+			       const char *cache_name,
+			       const void *coherency_data,
+			       size_t coherency_len);
+
+This function creates a volume cookie with the specified volume key as its name
+and notes the coherency data.
+
+The volume key must be a printable string with no '/' characters in it.  It
+should begin with the name of the filesystem and should be no longer than 254
+characters.  It should uniquely represent the volume and will be matched with
+what's stored in the cache.
+
+The caller may also specify the name of the cache to use.  If specified,
+fscache will look up or create a cache cookie of that name and will use a cache
+of that name if it is online or comes online.  If no cache name is specified,
+it will use the first cache that comes to hand and set the name to that.
+
+The specified coherency data is stored in the cookie and will be matched
+against coherency data stored on disk.  The data pointer may be NULL if no data
+is provided.  If the coherency data doesn't match, the entire cache volume will
+be invalidated.
+
+This function can return errors such as EBUSY if the volume key is already in
+use by an acquired volume or ENOMEM if an allocation failure occured.  It may
+also return a NULL volume cookie if fscache is not enabled.  It is safe to
+pass a NULL cookie to any function that takes a volume cookie.  This will
+cause that function to do nothing.
+
+
+When the network filesystem has finished with a volume, it should relinquish it
+by calling::
+
+	void fscache_relinquish_volume(struct fscache_volume *volume,
+				       const void *coherency_data,
+				       bool invalidate);
+
+This will cause the volume to be committed or removed, and if sealed the
+coherency data will be set to the value supplied.  The amount of coherency data
+must match the length specified when the volume was acquired.  Note that all
+data cookies obtained in this volume must be relinquished before the volume is
+relinquished.
 
 
 Data File Registration
 ======================
 
-The fourth step is to request a data file be created in the cache.  This is
-identical to index cookie acquisition.  The only difference is that the type in
-the object definition should be something other than index type::
-
-	vnode->cache =
-		fscache_acquire_cookie(volume->cache,
-				       &afs_vnode_cache_object_def,
-				       &key, sizeof(key),
-				       &aux, sizeof(aux),
-				       vnode, vnode->status.size, true);
-
-
-Miscellaneous Object Registration
-=================================
-
-An optional step is to request an object of miscellaneous type be created in
-the cache.  This is almost identical to index cookie acquisition.  The only
-difference is that the type in the object definition should be something other
-than index type.  While the parent object could be an index, it's more likely
-it would be some other type of object such as a data file::
-
-	xattr->cache =
-		fscache_acquire_cookie(vnode->cache,
-				       &afs_xattr_cache_object_def,
-				       &xattr->name, strlen(xattr->name),
-				       NULL, 0,
-				       xattr, strlen(xattr->val), true);
-
-Miscellaneous objects might be used to store extended attributes or directory
-entries for example.
-
-
-Setting the Data File Size
-==========================
-
-The fifth step is to set the physical attributes of the file, such as its size.
-This doesn't automatically reserve any space in the cache, but permits the
-cache to adjust its metadata for data tracking appropriately::
-
-	int fscache_attr_changed(struct fscache_cookie *cookie);
-
-The cache will return -ENOBUFS if there is no backing cache or if there is no
-space to allocate any extra metadata required in the cache.
-
-Note that attempts to read or write data pages in the cache over this size may
-be rebuffed with -ENOBUFS.
-
-This operation schedules an attribute adjustment to happen asynchronously at
-some point in the future, and as such, it may happen after the function returns
-to the caller.  The attribute adjustment excludes read and write operations.
-
-
-Page alloc/read/write
-=====================
-
-And the sixth step is to store and retrieve pages in the cache.  There are
-three functions that are used to do this.
-
-Note:
-
- (1) A page should not be re-read or re-allocated without uncaching it first.
-
- (2) A read or allocated page must be uncached when the netfs page is released
-     from the pagecache.
-
- (3) A page should only be written to the cache if previous read or allocated.
-
-This permits the cache to maintain its page tracking in proper order.
-
-
-PAGE READ
----------
-
-Firstly, the netfs should ask FS-Cache to examine the caches and read the
-contents cached for a particular page of a particular file if present, or else
-allocate space to store the contents if not::
-
-	typedef
-	void (*fscache_rw_complete_t)(struct page *page,
-				      void *context,
-				      int error);
-
-	int fscache_read_or_alloc_page(struct fscache_cookie *cookie,
-				       struct page *page,
-				       fscache_rw_complete_t end_io_func,
-				       void *context,
-				       gfp_t gfp);
-
-The cookie argument must specify a cookie for an object that isn't an index,
-the page specified will have the data loaded into it (and is also used to
-specify the page number), and the gfp argument is used to control how any
-memory allocations made are satisfied.
-
-If the cookie indicates the inode is not cached:
-
- (1) The function will return -ENOBUFS.
-
-Else if there's a copy of the page resident in the cache:
-
- (1) The mark_pages_cached() cookie operation will be called on that page.
-
- (2) The function will submit a request to read the data from the cache's
-     backing device directly into the page specified.
-
- (3) The function will return 0.
-
- (4) When the read is complete, end_io_func() will be invoked with:
-
-       * The netfs data supplied when the cookie was created.
-
-       * The page descriptor.
-
-       * The context argument passed to the above function.  This will be
-         maintained with the get_context/put_context functions mentioned above.
-
-       * An argument that's 0 on success or negative for an error code.
-
-     If an error occurs, it should be assumed that the page contains no usable
-     data.  fscache_readpages_cancel() may need to be called.
-
-     end_io_func() will be called in process context if the read is results in
-     an error, but it might be called in interrupt context if the read is
-     successful.
-
-Otherwise, if there's not a copy available in cache, but the cache may be able
-to store the page:
-
- (1) The mark_pages_cached() cookie operation will be called on that page.
-
- (2) A block may be reserved in the cache and attached to the object at the
-     appropriate place.
-
- (3) The function will return -ENODATA.
-
-This function may also return -ENOMEM or -EINTR, in which case it won't have
-read any data from the cache.
-
-
-Page Allocate
--------------
-
-Alternatively, if there's not expected to be any data in the cache for a page
-because the file has been extended, a block can simply be allocated instead::
-
-	int fscache_alloc_page(struct fscache_cookie *cookie,
-			       struct page *page,
-			       gfp_t gfp);
-
-This is similar to the fscache_read_or_alloc_page() function, except that it
-never reads from the cache.  It will return 0 if a block has been allocated,
-rather than -ENODATA as the other would.  One or the other must be performed
-before writing to the cache.
-
-The mark_pages_cached() cookie operation will be called on the page if
-successful.
-
-
-Page Write
-----------
-
-Secondly, if the netfs changes the contents of the page (either due to an
-initial download or if a user performs a write), then the page should be
-written back to the cache::
-
-	int fscache_write_page(struct fscache_cookie *cookie,
-			       struct page *page,
-			       loff_t object_size,
-			       gfp_t gfp);
-
-The cookie argument must specify a data file cookie, the page specified should
-contain the data to be written (and is also used to specify the page number),
-object_size is the revised size of the object and the gfp argument is used to
-control how any memory allocations made are satisfied.
-
-The page must have first been read or allocated successfully and must not have
-been uncached before writing is performed.
-
-If the cookie indicates the inode is not cached then:
-
- (1) The function will return -ENOBUFS.
-
-Else if space can be allocated in the cache to hold this page:
-
- (1) PG_fscache_write will be set on the page.
-
- (2) The function will submit a request to write the data to cache's backing
-     device directly from the page specified.
-
- (3) The function will return 0.
-
- (4) When the write is complete PG_fscache_write is cleared on the page and
-     anyone waiting for that bit will be woken up.
-
-Else if there's no space available in the cache, -ENOBUFS will be returned.  It
-is also possible for the PG_fscache_write bit to be cleared when no write took
-place if unforeseen circumstances arose (such as a disk error).
-
-Writing takes place asynchronously.
-
-
-Multiple Page Read
-------------------
-
-A facility is provided to read several pages at once, as requested by the
-readpages() address space operation::
-
-	int fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
-					struct address_space *mapping,
-					struct list_head *pages,
-					int *nr_pages,
-					fscache_rw_complete_t end_io_func,
-					void *context,
-					gfp_t gfp);
-
-This works in a similar way to fscache_read_or_alloc_page(), except:
-
- (1) Any page it can retrieve data for is removed from pages and nr_pages and
-     dispatched for reading to the disk.  Reads of adjacent pages on disk may
-     be merged for greater efficiency.
-
- (2) The mark_pages_cached() cookie operation will be called on several pages
-     at once if they're being read or allocated.
-
- (3) If there was an general error, then that error will be returned.
-
-     Else if some pages couldn't be allocated or read, then -ENOBUFS will be
-     returned.
-
-     Else if some pages couldn't be read but were allocated, then -ENODATA will
-     be returned.
-
-     Otherwise, if all pages had reads dispatched, then 0 will be returned, the
-     list will be empty and ``*nr_pages`` will be 0.
-
- (4) end_io_func will be called once for each page being read as the reads
-     complete.  It will be called in process context if error != 0, but it may
-     be called in interrupt context if there is no error.
-
-Note that a return of -ENODATA, -ENOBUFS or any other error does not preclude
-some of the pages being read and some being allocated.  Those pages will have
-been marked appropriately and will need uncaching.
-
-
-Cancellation of Unread Pages
-----------------------------
-
-If one or more pages are passed to fscache_read_or_alloc_pages() but not then
-read from the cache and also not read from the underlying filesystem then
-those pages will need to have any marks and reservations removed.  This can be
-done by calling::
-
-	void fscache_readpages_cancel(struct fscache_cookie *cookie,
-				      struct list_head *pages);
-
-prior to returning to the caller.  The cookie argument should be as passed to
-fscache_read_or_alloc_pages().  Every page in the pages list will be examined
-and any that have PG_fscache set will be uncached.
-
-
-Page Uncaching
-==============
-
-To uncache a page, this function should be called::
-
-	void fscache_uncache_page(struct fscache_cookie *cookie,
-				  struct page *page);
-
-This function permits the cache to release any in-memory representation it
-might be holding for this netfs page.  This function must be called once for
-each page on which the read or write page functions above have been called to
-make sure the cache's in-memory tracking information gets torn down.
-
-Note that pages can't be explicitly deleted from the a data file.  The whole
-data file must be retired (see the relinquish cookie function below).
-
-Furthermore, note that this does not cancel the asynchronous read or write
-operation started by the read/alloc and write functions, so the page
-invalidation functions must use::
-
-	bool fscache_check_page_write(struct fscache_cookie *cookie,
-				      struct page *page);
-
-to see if a page is being written to the cache, and::
-
-	void fscache_wait_on_page_write(struct fscache_cookie *cookie,
-					struct page *page);
-
-to wait for it to finish if it is.
-
-
-When releasepage() is being implemented, a special FS-Cache function exists to
-manage the heuristics of coping with vmscan trying to eject pages, which may
-conflict with the cache trying to write pages to the cache (which may itself
-need to allocate memory)::
-
-	bool fscache_maybe_release_page(struct fscache_cookie *cookie,
-					struct page *page,
-					gfp_t gfp);
-
-This takes the netfs cookie, and the page and gfp arguments as supplied to
-releasepage().  It will return false if the page cannot be released yet for
-some reason and if it returns true, the page has been uncached and can now be
-released.
-
-To make a page available for release, this function may wait for an outstanding
-storage request to complete, or it may attempt to cancel the storage request -
-in which case the page will not be stored in the cache this time.
-
-
-Bulk Image Page Uncache
------------------------
-
-A convenience routine is provided to perform an uncache on all the pages
-attached to an inode.  This assumes that the pages on the inode correspond on a
-1:1 basis with the pages in the cache::
-
-	void fscache_uncache_all_inode_pages(struct fscache_cookie *cookie,
-					     struct inode *inode);
-
-This takes the netfs cookie that the pages were cached with and the inode that
-the pages are attached to.  This function will wait for pages to finish being
-written to the cache and for the cache to finish with the page generally.  No
-error is returned.
-
-
-Index and Data File consistency
-===============================
-
-To find out whether auxiliary data for an object is up to data within the
-cache, the following function can be called::
-
-	int fscache_check_consistency(struct fscache_cookie *cookie,
-				      const void *aux_data);
-
-This will call back to the netfs to check whether the auxiliary data associated
-with a cookie is correct; if aux_data is non-NULL, it will update the auxiliary
-data buffer first.  It returns 0 if it is and -ESTALE if it isn't; it may also
-return -ENOMEM and -ERESTARTSYS.
-
-To request an update of the index data for an index or other object, the
-following function should be called::
-
-	void fscache_update_cookie(struct fscache_cookie *cookie,
-				   const void *aux_data);
-
-This function will update the cookie's auxiliary data buffer from aux_data if
-that is non-NULL and then schedule this to be stored on disk.  The update
-method in the parent index definition will be called to transfer the data.
-
-Note that partial updates may happen automatically at other times, such as when
-data blocks are added to a data file object.
-
-
-Cookie Enablement
-=================
-
-Cookies exist in one of two states: enabled and disabled.  If a cookie is
-disabled, it ignores all attempts to acquire child cookies; check, update or
-invalidate its state; allocate, read or write backing pages - though it is
-still possible to uncache pages and relinquish the cookie.
-
-The initial enablement state is set by fscache_acquire_cookie(), but the cookie
-can be enabled or disabled later.  To disable a cookie, call::
-
-	void fscache_disable_cookie(struct fscache_cookie *cookie,
-				    const void *aux_data,
-    				    bool invalidate);
-
-If the cookie is not already disabled, this locks the cookie against other
-enable and disable ops, marks the cookie as being disabled, discards or
-invalidates any backing objects and waits for cessation of activity on any
-associated object before unlocking the cookie.
-
-All possible failures are handled internally.  The caller should consider
-calling fscache_uncache_all_inode_pages() afterwards to make sure all page
-markings are cleared up.
-
-Cookies can be enabled or reenabled with::
-
-    	void fscache_enable_cookie(struct fscache_cookie *cookie,
-				   const void *aux_data,
-				   loff_t object_size,
-    				   bool (*can_enable)(void *data),
-    				   void *data)
-
-If the cookie is not already enabled, this locks the cookie against other
-enable and disable ops, invokes can_enable() and, if the cookie is not an index
-cookie, will begin the procedure of acquiring backing objects.
-
-The optional can_enable() function is passed the data argument and returns a
-ruling as to whether or not enablement should actually be permitted to begin.
-
-All possible failures are handled internally.  The cookie will only be marked
-as enabled if provisional backing objects are allocated.
-
-The object's data size is updated from object_size and is passed to the
-->check_aux() function.
-
-In both cases, the cookie's auxiliary data buffer is updated from aux_data if
-that is non-NULL inside the enablement lock before proceeding.
-
-
-Miscellaneous Cookie operations
-===============================
-
-There are a number of operations that can be used to control cookies:
-
-     * Cookie pinning::
-
-	int fscache_pin_cookie(struct fscache_cookie *cookie);
-	void fscache_unpin_cookie(struct fscache_cookie *cookie);
-
-     These operations permit data cookies to be pinned into the cache and to
-     have the pinning removed.  They are not permitted on index cookies.
-
-     The pinning function will return 0 if successful, -ENOBUFS in the cookie
-     isn't backed by a cache, -EOPNOTSUPP if the cache doesn't support pinning,
-     -ENOSPC if there isn't enough space to honour the operation, -ENOMEM or
-     -EIO if there's any other problem.
-
-   * Data space reservation::
-
-	int fscache_reserve_space(struct fscache_cookie *cookie, loff_t size);
-
-     This permits a netfs to request cache space be reserved to store up to the
-     given amount of a file.  It is permitted to ask for more than the current
-     size of the file to allow for future file expansion.
-
-     If size is given as zero then the reservation will be cancelled.
-
-     The function will return 0 if successful, -ENOBUFS in the cookie isn't
-     backed by a cache, -EOPNOTSUPP if the cache doesn't support reservations,
-     -ENOSPC if there isn't enough space to honour the operation, -ENOMEM or
-     -EIO if there's any other problem.
-
-     Note that this doesn't pin an object in a cache; it can still be culled to
-     make space if it's not in use.
-
-
-Cookie Unregistration
-=====================
-
-To get rid of a cookie, this function should be called::
+Once it has a volume cookie, a network filesystem can use it to acquire a
+cookie for data storage::
+
+	struct fscache_cookie *
+	fscache_acquire_cookie(struct fscache_volume *volume,
+			       u8 advice,
+			       const void *index_key,
+			       size_t index_key_len,
+			       const void *aux_data,
+			       size_t aux_data_len,
+			       loff_t object_size)
+
+This creates the cookie in the volume using the specified index key.  The index
+key is a binary blob of the given length and must be unique for the volume.
+This is saved into the cookie.  There are no restrictions on the content, but
+its length shouldn't exceed about three quarters of the maximum filename length
+to allow for encoding.
+
+The caller should also pass in a piece of coherency data in aux_data.  A buffer
+of size aux_data_len will be allocated and the coherency data copied in.  It is
+assumed that the size is invariant over time.  The coherency data is used to
+check the validity of data in the cache.  Functions are provided by which the
+coherency data can be updated.
+
+The file size of the object being cached should also be provided.  This may be
+used to trim the data and will be stored with the coherency data.
+
+This function never returns an error, though it may return a NULL cookie on
+allocation failure or if fscache is not enabled.  It is safe to pass in a NULL
+volume cookie and pass the NULL cookie returned to any function that takes it.
+This will cause that function to do nothing.
+
+
+When the network filesystem has finished with a cookie, it should relinquish it
+by calling::
 
 	void fscache_relinquish_cookie(struct fscache_cookie *cookie,
-				       const void *aux_data,
 				       bool retire);
 
-If retire is non-zero, then the object will be marked for recycling, and all
-copies of it will be removed from all active caches in which it is present.
-Not only that but all child objects will also be retired.
-
-If retire is zero, then the object may be available again when next the
-acquisition function is called.  Retirement here will overrule the pinning on a
-cookie.
-
-The cookie's auxiliary data will be updated from aux_data if that is non-NULL
-so that the cache can lazily update it on disk.
-
-One very important note - relinquish must NOT be called for a cookie unless all
-the cookies for "child" indices, objects and pages have been relinquished
-first.
+This will cause fscache to either commit the storage backing the cookie or
+delete it.
 
 
-Index Invalidation
-==================
+Marking A Cookie In-Use
+=======================
 
-There is no direct way to invalidate an index subtree.  To do this, the caller
-should relinquish and retire the cookie they have, and then acquire a new one.
+Once a cookie has been acquired by a network filesystem, the filesystem should
+tell fscache when it intends to use the cookie (typically done on file open)
+and should say when it has finished with it (typically on file close)::
+
+	void fscache_use_cookie(struct fscache_cookie *cookie,
+				bool will_modify);
+	void fscache_unuse_cookie(struct fscache_cookie *cookie,
+				  const void *aux_data,
+				  const loff_t *object_size);
+
+The *use* function tells fscache that it will use the cookie and, additionally,
+indicate if the user is intending to modify the contents locally.  If not yet
+done, this will trigger the cache backend to go and gather the resources it
+needs to access/store data in the cache.  This is done in the background, and
+so may not be complete by the time the function returns.
+
+The *unuse* function indicates that a filesystem has finished using a cookie.
+It optionally updates the stored coherency data and object size and then
+decreases the in-use counter.  When the last user unuses the cookie, it is
+scheduled for garbage collection.  If not reused within a short time, the
+resources will be released to reduce system resource consumption.
+
+A cookie must be marked in-use before it can be accessed for read, write or
+resize - and an in-use mark must be kept whilst there is dirty data in the
+pagecache in order to avoid an oops due to trying to open a file during process
+exit.
+
+Note that in-use marks are cumulative.  For each time a cookie is marked
+in-use, it must be unused.
+
+
+Resizing A Data File (Truncation)
+=================================
+
+If a network filesystem file is resized locally by truncation, the following
+should be called to notify the cache::
+
+	void fscache_resize_cookie(struct fscache_cookie *cookie,
+				   loff_t new_size);
+
+The caller must have first marked the cookie in-use.  The cookie and the new
+size are passed in and the cache is synchronously resized.  This is expected to
+be called from ``->setattr()`` inode operation under the inode lock.
+
+
+Data I/O API
+============
+
+To do data I/O operations directly through a cookie, the following functions
+are available::
+
+	int fscache_begin_read_operation(struct netfs_cache_resources *cres,
+					 struct fscache_cookie *cookie);
+	int fscache_read(struct netfs_cache_resources *cres,
+			 loff_t start_pos,
+			 struct iov_iter *iter,
+			 enum netfs_read_from_hole read_hole,
+			 netfs_io_terminated_t term_func,
+			 void *term_func_priv);
+	int fscache_write(struct netfs_cache_resources *cres,
+			  loff_t start_pos,
+			  struct iov_iter *iter,
+			  netfs_io_terminated_t term_func,
+			  void *term_func_priv);
+
+The *begin* function sets up an operation, attaching the resources required to
+the cache resources block from the cookie.  Assuming it doesn't return an error
+(for instance, it will return -ENOBUFS if given a NULL cookie, but otherwise do
+nothing), then one of the other two functions can be issued.
+
+The *read* and *write* functions initiate a direct-IO operation.  Both take the
+previously set up cache resources block, an indication of the start file
+position, and an I/O iterator that describes buffer and indicates the amount of
+data.
+
+The read function also takes a parameter to indicate how it should handle a
+partially populated region (a hole) in the disk content.  This may be to ignore
+it, skip over an initial hole and place zeros in the buffer or give an error.
+
+The read and write functions can be given an optional termination function that
+will be run on completion::
+
+	typedef
+	void (*netfs_io_terminated_t)(void *priv, ssize_t transferred_or_error,
+				      bool was_async);
+
+If a termination function is given, the operation will be run asynchronously
+and the termination function will be called upon completion.  If not given, the
+operation will be run synchronously.  Note that in the asynchronous case, it is
+possible for the operation to complete before the function returns.
+
+Both the read and write functions end the operation when they complete,
+detaching any pinned resources.
+
+The read operation will fail with ESTALE if invalidation occurred whilst the
+operation was ongoing.
+
+
+Data File Coherency
+===================
+
+To request an update of the coherency data and file size on a cookie, the
+following should be called::
+
+	void fscache_update_cookie(struct fscache_cookie *cookie,
+				   const void *aux_data,
+				   const loff_t *object_size);
+
+This will update the cookie's coherency data and/or file size.
 
 
 Data File Invalidation
 ======================
 
 Sometimes it will be necessary to invalidate an object that contains data.
-Typically this will be necessary when the server tells the netfs of a foreign
-change - at which point the netfs has to throw away all the state it had for an
-inode and reload from the server.
+Typically this will be necessary when the server informs the network filesystem
+of a remote third-party change - at which point the filesystem has to throw
+away the state and cached data that it had for an file and reload from the
+server.
 
-To indicate that a cache object should be invalidated, the following function
-can be called::
+To indicate that a cache object should be invalidated, the following should be
+called::
 
-	void fscache_invalidate(struct fscache_cookie *cookie);
+	void fscache_invalidate(struct fscache_cookie *cookie,
+				const void *aux_data,
+				loff_t size,
+				unsigned int flags);
 
-This can be called with spinlocks held as it defers the work to a thread pool.
-All extant storage, retrieval and attribute change ops at this point are
-cancelled and discarded.  Some future operations will be rejected until the
-cache has had a chance to insert a barrier in the operations queue.  After
-that, operations will be queued again behind the invalidation operation.
+This increases the invalidation counter in the cookie to cause outstanding
+reads to fail with -ESTALE, sets the coherency data and file size from the
+information supplied, blocks new I/O on the cookie and dispatches the cache to
+go and get rid of the old data.
 
-The invalidation operation will perform an attribute change operation and an
-auxiliary data update operation as it is very likely these will have changed.
-
-Using the following function, the netfs can wait for the invalidation operation
-to have reached a point at which it can start submitting ordinary operations
-once again::
-
-	void fscache_wait_on_invalidate(struct fscache_cookie *cookie);
+Invalidation runs asynchronously in a worker thread so that it doesn't block
+too much.
 
 
-FS-cache Specific Page Flag
-===========================
+Write-Back Resource Management
+==============================
 
-FS-Cache makes use of a page flag, PG_private_2, for its own purpose.  This is
-given the alternative name PG_fscache.
+To write data to the cache from network filesystem writeback, the cache
+resources required need to be pinned at the point the modification is made (for
+instance when the page is marked dirty) as it's not possible to open a file in
+a thread that's exiting.
 
-PG_fscache is used to indicate that the page is known by the cache, and that
-the cache must be informed if the page is going to go away.  It's an indication
-to the netfs that the cache has an interest in this page, where an interest may
-be a pointer to it, resources allocated or reserved for it, or I/O in progress
-upon it.
+The following facilities are provided to manage this:
 
-The netfs can use this information in methods such as releasepage() to
-determine whether it needs to uncache a page or update it.
+ * An inode flag, ``I_PINNING_FSCACHE_WB``, is provided to indicate that an
+   in-use is held on the cookie for this inode.  It can only be changed if the
+   the inode lock is held.
 
-Furthermore, if this bit is set, releasepage() and invalidatepage() operations
-will be called on a page to get rid of it, even if PG_private is not set.  This
-allows caching to attempted on a page before read_cache_pages() to be called
-after fscache_read_or_alloc_pages() as the former will try and release pages it
-was given under certain circumstances.
+ * A flag, ``unpinned_fscache_wb`` is placed in the ``writeback_control``
+   struct that gets set if ``__writeback_single_inode()`` clears
+   ``I_PINNING_FSCACHE_WB`` because all the dirty pages were cleared.
 
-This bit does not overlap with such as PG_private.  This means that FS-Cache
-can be used with a filesystem that uses the block buffering code.
+To support this, the following functions are provided::
 
-There are a number of operations defined on this flag::
+	int fscache_set_page_dirty(struct page *page,
+				   struct fscache_cookie *cookie);
+	void fscache_unpin_writeback(struct writeback_control *wbc,
+				     struct fscache_cookie *cookie);
+	void fscache_clear_inode_writeback(struct fscache_cookie *cookie,
+					   struct inode *inode,
+					   const void *aux);
 
-	int PageFsCache(struct page *page);
-	void SetPageFsCache(struct page *page)
-	void ClearPageFsCache(struct page *page)
-	int TestSetPageFsCache(struct page *page)
-	int TestClearPageFsCache(struct page *page)
+The *set* function is intended to be called from the filesystem's
+``set_page_dirty`` address space operation.  If ``I_PINNING_FSCACHE_WB`` is not
+set, it sets that flag and increments the use count on the cookie (the caller
+must already have called ``fscache_use_cookie()``).
 
-These functions are bit test, bit set, bit clear, bit test and set and bit
-test and clear operations on PG_fscache.
+The *unpin* function is intended to be called from the filesystem's
+``write_inode`` superblock operation.  It cleans up after writing by unusing
+the cookie if unpinned_fscache_wb is set in the writeback_control struct.
+
+The *clear* function is intended to be called from the netfs's ``evict_inode``
+superblock operation.  It must be called *after*
+``truncate_inode_pages_final()``, but *before* ``clear_inode()``.  This cleans
+up any hanging ``I_PINNING_FSCACHE_WB``.  It also allows the coherency data to
+be updated.
+
+
+Caching of Local Modifications
+==============================
+
+If a network filesystem has locally modified data that it wants to write to the
+cache, it needs to mark the pages to indicate that a write is in progress, and
+if the mark is already present, it needs to wait for it to be removed first
+(presumably due to an already in-progress operation).  This prevents multiple
+competing DIO writes to the same storage in the cache.
+
+Firstly, the netfs should determine if caching is available by doing something
+like::
+
+	bool caching = fscache_cookie_enabled(cookie);
+
+If caching is to be attempted, pages should be waited for and then marked using
+the following functions provided by the netfs helper library::
+
+	void set_page_fscache(struct page *page);
+	void wait_on_page_fscache(struct page *page);
+	int wait_on_page_fscache_killable(struct page *page);
+
+Once all the pages in the span are marked, the netfs can ask fscache to
+schedule a write of that region::
+
+	void fscache_write_to_cache(struct fscache_cookie *cookie,
+				    struct address_space *mapping,
+				    loff_t start, size_t len, loff_t i_size,
+				    netfs_io_terminated_t term_func,
+				    void *term_func_priv,
+				    bool caching)
+
+And if an error occurs before that point is reached, the marks can be removed
+by calling::
+
+	void fscache_clear_page_bits(struct fscache_cookie *cookie,
+				     struct address_space *mapping,
+				     loff_t start, size_t len,
+				     bool caching)
+
+In both of these functions, the cookie representing the cache object to be
+written to and a pointer to the mapping to which the source pages are attached
+are passed in; start and len indicate the size of the region that's going to be
+written (it doesn't have to align to page boundaries necessarily, but it does
+have to align to DIO boundaries on the backing filesystem).  The caching
+parameter indicates if caching should be skipped, and if false, the functions
+do nothing.
+
+The write function takes some additional parameters: i_size indicates the size
+of the netfs file and term_func indicates an optional completion function, to
+which term_func_priv will be passed, along with the error or amount written.
+
+Note that the write function will always run asynchronously and will unmark all
+the pages upon completion before calling term_func.
+
+
+Page Release and Invalidation
+=============================
+
+Fscache keeps track of whether we have any data in the cache yet for a cache
+object we've just created.  It knows it doesn't have to do any reading until it
+has done a write and then the page it wrote from has been released by the VM,
+after which it *has* to look in the cache.
+
+To inform fscache that a page might now be in the cache, the following function
+should be called from the ``releasepage`` address space op::
+
+	void fscache_note_page_release(struct fscache_cookie *cookie);
+
+if the page has been released (ie. releasepage returned true).
+
+Page release and page invalidation should also wait for any mark left on the
+page to say that a DIO write is underway from that page::
+
+	void wait_on_page_fscache(struct page *page);
+	int wait_on_page_fscache_killable(struct page *page);
+
+
+API Function Reference
+======================
+
+.. kernel-doc:: include/linux/fscache.h

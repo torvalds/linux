@@ -17,71 +17,91 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_rect.h>
 
-static unsigned int clip_offset(struct drm_rect *clip,
-				unsigned int pitch, unsigned int cpp)
+static unsigned int clip_offset(const struct drm_rect *clip, unsigned int pitch, unsigned int cpp)
 {
 	return clip->y1 * pitch + clip->x1 * cpp;
 }
 
 /**
+ * drm_fb_clip_offset - Returns the clipping rectangles byte-offset in a framebuffer
+ * @pitch: Framebuffer line pitch in byte
+ * @format: Framebuffer format
+ * @clip: Clip rectangle
+ *
+ * Returns:
+ * The byte offset of the clip rectangle's top-left corner within the framebuffer.
+ */
+unsigned int drm_fb_clip_offset(unsigned int pitch, const struct drm_format_info *format,
+				const struct drm_rect *clip)
+{
+	return clip_offset(clip, pitch, format->cpp[0]);
+}
+EXPORT_SYMBOL(drm_fb_clip_offset);
+
+/**
  * drm_fb_memcpy - Copy clip buffer
  * @dst: Destination buffer
+ * @dst_pitch: Number of bytes between two consecutive scanlines within dst
  * @vaddr: Source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
  *
  * This function does not apply clipping on dst, i.e. the destination
- * is a small buffer containing the clip rect only.
+ * is at the top-left corner.
  */
-void drm_fb_memcpy(void *dst, void *vaddr, struct drm_framebuffer *fb,
-		   struct drm_rect *clip)
+void drm_fb_memcpy(void *dst, unsigned int dst_pitch, const void *vaddr,
+		   const struct drm_framebuffer *fb, const struct drm_rect *clip)
 {
 	unsigned int cpp = fb->format->cpp[0];
 	size_t len = (clip->x2 - clip->x1) * cpp;
 	unsigned int y, lines = clip->y2 - clip->y1;
 
+	if (!dst_pitch)
+		dst_pitch = len;
+
 	vaddr += clip_offset(clip, fb->pitches[0], cpp);
 	for (y = 0; y < lines; y++) {
 		memcpy(dst, vaddr, len);
 		vaddr += fb->pitches[0];
-		dst += len;
+		dst += dst_pitch;
 	}
 }
 EXPORT_SYMBOL(drm_fb_memcpy);
 
 /**
- * drm_fb_memcpy_dstclip - Copy clip buffer
+ * drm_fb_memcpy_toio - Copy clip buffer
  * @dst: Destination buffer (iomem)
  * @dst_pitch: Number of bytes between two consecutive scanlines within dst
  * @vaddr: Source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
  *
- * This function applies clipping on dst, i.e. the destination is a
- * full (iomem) framebuffer but only the clip rect content is copied over.
+ * This function does not apply clipping on dst, i.e. the destination
+ * is at the top-left corner.
  */
-void drm_fb_memcpy_dstclip(void __iomem *dst, unsigned int dst_pitch,
-			   void *vaddr, struct drm_framebuffer *fb,
-			   struct drm_rect *clip)
+void drm_fb_memcpy_toio(void __iomem *dst, unsigned int dst_pitch, const void *vaddr,
+			const struct drm_framebuffer *fb, const struct drm_rect *clip)
 {
 	unsigned int cpp = fb->format->cpp[0];
-	unsigned int offset = clip_offset(clip, dst_pitch, cpp);
 	size_t len = (clip->x2 - clip->x1) * cpp;
 	unsigned int y, lines = clip->y2 - clip->y1;
 
-	vaddr += offset;
-	dst += offset;
+	if (!dst_pitch)
+		dst_pitch = len;
+
+	vaddr += clip_offset(clip, fb->pitches[0], cpp);
 	for (y = 0; y < lines; y++) {
 		memcpy_toio(dst, vaddr, len);
 		vaddr += fb->pitches[0];
 		dst += dst_pitch;
 	}
 }
-EXPORT_SYMBOL(drm_fb_memcpy_dstclip);
+EXPORT_SYMBOL(drm_fb_memcpy_toio);
 
 /**
  * drm_fb_swab - Swap bytes into clip buffer
  * @dst: Destination buffer
+ * @dst_pitch: Number of bytes between two consecutive scanlines within dst
  * @src: Source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
@@ -91,20 +111,26 @@ EXPORT_SYMBOL(drm_fb_memcpy_dstclip);
  * time to speed up slow uncached reads.
  *
  * This function does not apply clipping on dst, i.e. the destination
- * is a small buffer containing the clip rect only.
+ * is at the top-left corner.
  */
-void drm_fb_swab(void *dst, void *src, struct drm_framebuffer *fb,
-		 struct drm_rect *clip, bool cached)
+void drm_fb_swab(void *dst, unsigned int dst_pitch, const void *src,
+		 const struct drm_framebuffer *fb, const struct drm_rect *clip,
+		 bool cached)
 {
 	u8 cpp = fb->format->cpp[0];
 	size_t len = drm_rect_width(clip) * cpp;
-	u16 *src16, *dst16 = dst;
-	u32 *src32, *dst32 = dst;
+	const u16 *src16;
+	const u32 *src32;
+	u16 *dst16;
+	u32 *dst32;
 	unsigned int x, y;
 	void *buf = NULL;
 
 	if (WARN_ON_ONCE(cpp != 2 && cpp != 4))
 		return;
+
+	if (!dst_pitch)
+		dst_pitch = len;
 
 	if (!cached)
 		buf = kmalloc(len, GFP_KERNEL);
@@ -121,6 +147,9 @@ void drm_fb_swab(void *dst, void *src, struct drm_framebuffer *fb,
 			src32 = src;
 		}
 
+		dst16 = dst;
+		dst32 = dst;
+
 		for (x = clip->x1; x < clip->x2; x++) {
 			if (cpp == 4)
 				*dst32++ = swab32(*src32++);
@@ -129,13 +158,14 @@ void drm_fb_swab(void *dst, void *src, struct drm_framebuffer *fb,
 		}
 
 		src += fb->pitches[0];
+		dst += dst_pitch;
 	}
 
 	kfree(buf);
 }
 EXPORT_SYMBOL(drm_fb_swab);
 
-static void drm_fb_xrgb8888_to_rgb332_line(u8 *dbuf, __le32 *sbuf, unsigned int pixels)
+static void drm_fb_xrgb8888_to_rgb332_line(u8 *dbuf, const __le32 *sbuf, unsigned int pixels)
 {
 	unsigned int x;
 	u32 pix;
@@ -151,22 +181,23 @@ static void drm_fb_xrgb8888_to_rgb332_line(u8 *dbuf, __le32 *sbuf, unsigned int 
 /**
  * drm_fb_xrgb8888_to_rgb332 - Convert XRGB8888 to RGB332 clip buffer
  * @dst: RGB332 destination buffer
+ * @dst_pitch: Number of bytes between two consecutive scanlines within dst
  * @src: XRGB8888 source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
  *
  * Drivers can use this function for RGB332 devices that don't natively support XRGB8888.
- *
- * This function does not apply clipping on dst, i.e. the destination is a small buffer
- * containing the clip rect only.
  */
-void drm_fb_xrgb8888_to_rgb332(void *dst, void *src, struct drm_framebuffer *fb,
-			       struct drm_rect *clip)
+void drm_fb_xrgb8888_to_rgb332(void *dst, unsigned int dst_pitch, const void *src,
+			       const struct drm_framebuffer *fb, const struct drm_rect *clip)
 {
 	size_t width = drm_rect_width(clip);
 	size_t src_len = width * sizeof(u32);
 	unsigned int y;
 	void *sbuf;
+
+	if (!dst_pitch)
+		dst_pitch = width;
 
 	/* Use a buffer to speed up access on buffers with uncached read mapping (i.e. WC) */
 	sbuf = kmalloc(src_len, GFP_KERNEL);
@@ -178,14 +209,14 @@ void drm_fb_xrgb8888_to_rgb332(void *dst, void *src, struct drm_framebuffer *fb,
 		memcpy(sbuf, src, src_len);
 		drm_fb_xrgb8888_to_rgb332_line(dst, sbuf, width);
 		src += fb->pitches[0];
-		dst += width;
+		dst += dst_pitch;
 	}
 
 	kfree(sbuf);
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb332);
 
-static void drm_fb_xrgb8888_to_rgb565_line(u16 *dbuf, u32 *sbuf,
+static void drm_fb_xrgb8888_to_rgb565_line(u16 *dbuf, const u32 *sbuf,
 					   unsigned int pixels,
 					   bool swab)
 {
@@ -206,6 +237,7 @@ static void drm_fb_xrgb8888_to_rgb565_line(u16 *dbuf, u32 *sbuf,
 /**
  * drm_fb_xrgb8888_to_rgb565 - Convert XRGB8888 to RGB565 clip buffer
  * @dst: RGB565 destination buffer
+ * @dst_pitch: Number of bytes between two consecutive scanlines within dst
  * @vaddr: XRGB8888 source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
@@ -213,19 +245,19 @@ static void drm_fb_xrgb8888_to_rgb565_line(u16 *dbuf, u32 *sbuf,
  *
  * Drivers can use this function for RGB565 devices that don't natively
  * support XRGB8888.
- *
- * This function does not apply clipping on dst, i.e. the destination
- * is a small buffer containing the clip rect only.
  */
-void drm_fb_xrgb8888_to_rgb565(void *dst, void *vaddr,
-			       struct drm_framebuffer *fb,
-			       struct drm_rect *clip, bool swab)
+void drm_fb_xrgb8888_to_rgb565(void *dst, unsigned int dst_pitch, const void *vaddr,
+			       const struct drm_framebuffer *fb, const struct drm_rect *clip,
+			       bool swab)
 {
 	size_t linepixels = clip->x2 - clip->x1;
 	size_t src_len = linepixels * sizeof(u32);
 	size_t dst_len = linepixels * sizeof(u16);
 	unsigned y, lines = clip->y2 - clip->y1;
 	void *sbuf;
+
+	if (!dst_pitch)
+		dst_pitch = dst_len;
 
 	/*
 	 * The cma memory is write-combined so reads are uncached.
@@ -240,7 +272,7 @@ void drm_fb_xrgb8888_to_rgb565(void *dst, void *vaddr,
 		memcpy(sbuf, vaddr, src_len);
 		drm_fb_xrgb8888_to_rgb565_line(dst, sbuf, linepixels, swab);
 		vaddr += fb->pitches[0];
-		dst += dst_len;
+		dst += dst_pitch;
 	}
 
 	kfree(sbuf);
@@ -248,9 +280,9 @@ void drm_fb_xrgb8888_to_rgb565(void *dst, void *vaddr,
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb565);
 
 /**
- * drm_fb_xrgb8888_to_rgb565_dstclip - Convert XRGB8888 to RGB565 clip buffer
+ * drm_fb_xrgb8888_to_rgb565_toio - Convert XRGB8888 to RGB565 clip buffer
  * @dst: RGB565 destination buffer (iomem)
- * @dst_pitch: destination buffer pitch
+ * @dst_pitch: Number of bytes between two consecutive scanlines within dst
  * @vaddr: XRGB8888 source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
@@ -258,37 +290,36 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb565);
  *
  * Drivers can use this function for RGB565 devices that don't natively
  * support XRGB8888.
- *
- * This function applies clipping on dst, i.e. the destination is a
- * full (iomem) framebuffer but only the clip rect content is copied over.
  */
-void drm_fb_xrgb8888_to_rgb565_dstclip(void __iomem *dst, unsigned int dst_pitch,
-				       void *vaddr, struct drm_framebuffer *fb,
-				       struct drm_rect *clip, bool swab)
+void drm_fb_xrgb8888_to_rgb565_toio(void __iomem *dst, unsigned int dst_pitch,
+				    const void *vaddr, const struct drm_framebuffer *fb,
+				    const struct drm_rect *clip, bool swab)
 {
 	size_t linepixels = clip->x2 - clip->x1;
 	size_t dst_len = linepixels * sizeof(u16);
 	unsigned y, lines = clip->y2 - clip->y1;
 	void *dbuf;
 
+	if (!dst_pitch)
+		dst_pitch = dst_len;
+
 	dbuf = kmalloc(dst_len, GFP_KERNEL);
 	if (!dbuf)
 		return;
 
 	vaddr += clip_offset(clip, fb->pitches[0], sizeof(u32));
-	dst += clip_offset(clip, dst_pitch, sizeof(u16));
 	for (y = 0; y < lines; y++) {
 		drm_fb_xrgb8888_to_rgb565_line(dbuf, vaddr, linepixels, swab);
 		memcpy_toio(dst, dbuf, dst_len);
 		vaddr += fb->pitches[0];
-		dst += dst_len;
+		dst += dst_pitch;
 	}
 
 	kfree(dbuf);
 }
-EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb565_dstclip);
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb565_toio);
 
-static void drm_fb_xrgb8888_to_rgb888_line(u8 *dbuf, u32 *sbuf,
+static void drm_fb_xrgb8888_to_rgb888_line(u8 *dbuf, const u32 *sbuf,
 					   unsigned int pixels)
 {
 	unsigned int x;
@@ -303,23 +334,24 @@ static void drm_fb_xrgb8888_to_rgb888_line(u8 *dbuf, u32 *sbuf,
 /**
  * drm_fb_xrgb8888_to_rgb888 - Convert XRGB8888 to RGB888 clip buffer
  * @dst: RGB888 destination buffer
+ * @dst_pitch: Number of bytes between two consecutive scanlines within dst
  * @src: XRGB8888 source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
  *
  * Drivers can use this function for RGB888 devices that don't natively
  * support XRGB8888.
- *
- * This function does not apply clipping on dst, i.e. the destination
- * is a small buffer containing the clip rect only.
  */
-void drm_fb_xrgb8888_to_rgb888(void *dst, void *src, struct drm_framebuffer *fb,
-			       struct drm_rect *clip)
+void drm_fb_xrgb8888_to_rgb888(void *dst, unsigned int dst_pitch, const void *src,
+			       const struct drm_framebuffer *fb, const struct drm_rect *clip)
 {
 	size_t width = drm_rect_width(clip);
 	size_t src_len = width * sizeof(u32);
 	unsigned int y;
 	void *sbuf;
+
+	if (!dst_pitch)
+		dst_pitch = width * 3;
 
 	/* Use a buffer to speed up access on buffers with uncached read mapping (i.e. WC) */
 	sbuf = kmalloc(src_len, GFP_KERNEL);
@@ -331,7 +363,7 @@ void drm_fb_xrgb8888_to_rgb888(void *dst, void *src, struct drm_framebuffer *fb,
 		memcpy(sbuf, src, src_len);
 		drm_fb_xrgb8888_to_rgb888_line(dst, sbuf, width);
 		src += fb->pitches[0];
-		dst += width * 3;
+		dst += dst_pitch;
 	}
 
 	kfree(sbuf);
@@ -339,48 +371,103 @@ void drm_fb_xrgb8888_to_rgb888(void *dst, void *src, struct drm_framebuffer *fb,
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb888);
 
 /**
- * drm_fb_xrgb8888_to_rgb888_dstclip - Convert XRGB8888 to RGB888 clip buffer
+ * drm_fb_xrgb8888_to_rgb888_toio - Convert XRGB8888 to RGB888 clip buffer
  * @dst: RGB565 destination buffer (iomem)
- * @dst_pitch: destination buffer pitch
+ * @dst_pitch: Number of bytes between two consecutive scanlines within dst
  * @vaddr: XRGB8888 source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
  *
  * Drivers can use this function for RGB888 devices that don't natively
  * support XRGB8888.
- *
- * This function applies clipping on dst, i.e. the destination is a
- * full (iomem) framebuffer but only the clip rect content is copied over.
  */
-void drm_fb_xrgb8888_to_rgb888_dstclip(void __iomem *dst, unsigned int dst_pitch,
-				       void *vaddr, struct drm_framebuffer *fb,
-				       struct drm_rect *clip)
+void drm_fb_xrgb8888_to_rgb888_toio(void __iomem *dst, unsigned int dst_pitch,
+				    const void *vaddr, const struct drm_framebuffer *fb,
+				    const struct drm_rect *clip)
 {
 	size_t linepixels = clip->x2 - clip->x1;
 	size_t dst_len = linepixels * 3;
 	unsigned y, lines = clip->y2 - clip->y1;
 	void *dbuf;
 
+	if (!dst_pitch)
+		dst_pitch = dst_len;
+
 	dbuf = kmalloc(dst_len, GFP_KERNEL);
 	if (!dbuf)
 		return;
 
 	vaddr += clip_offset(clip, fb->pitches[0], sizeof(u32));
-	dst += clip_offset(clip, dst_pitch, sizeof(u16));
 	for (y = 0; y < lines; y++) {
 		drm_fb_xrgb8888_to_rgb888_line(dbuf, vaddr, linepixels);
 		memcpy_toio(dst, dbuf, dst_len);
 		vaddr += fb->pitches[0];
-		dst += dst_len;
+		dst += dst_pitch;
 	}
 
 	kfree(dbuf);
 }
-EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb888_dstclip);
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb888_toio);
+
+static void drm_fb_xrgb8888_to_xrgb2101010_line(u32 *dbuf, const u32 *sbuf,
+						unsigned int pixels)
+{
+	unsigned int x;
+	u32 val32;
+
+	for (x = 0; x < pixels; x++) {
+		val32 = ((sbuf[x] & 0x000000FF) << 2) |
+			((sbuf[x] & 0x0000FF00) << 4) |
+			((sbuf[x] & 0x00FF0000) << 6);
+		*dbuf++ = val32 | ((val32 >> 8) & 0x00300C03);
+	}
+}
+
+/**
+ * drm_fb_xrgb8888_to_xrgb2101010_toio - Convert XRGB8888 to XRGB2101010 clip
+ * buffer
+ * @dst: XRGB2101010 destination buffer (iomem)
+ * @dst_pitch: Number of bytes between two consecutive scanlines within dst
+ * @vaddr: XRGB8888 source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ *
+ * Drivers can use this function for XRGB2101010 devices that don't natively
+ * support XRGB8888.
+ */
+void drm_fb_xrgb8888_to_xrgb2101010_toio(void __iomem *dst,
+					 unsigned int dst_pitch, const void *vaddr,
+					 const struct drm_framebuffer *fb,
+					 const struct drm_rect *clip)
+{
+	size_t linepixels = clip->x2 - clip->x1;
+	size_t dst_len = linepixels * sizeof(u32);
+	unsigned int y, lines = clip->y2 - clip->y1;
+	void *dbuf;
+
+	if (!dst_pitch)
+		dst_pitch = dst_len;
+
+	dbuf = kmalloc(dst_len, GFP_KERNEL);
+	if (!dbuf)
+		return;
+
+	vaddr += clip_offset(clip, fb->pitches[0], sizeof(u32));
+	for (y = 0; y < lines; y++) {
+		drm_fb_xrgb8888_to_xrgb2101010_line(dbuf, vaddr, linepixels);
+		memcpy_toio(dst, dbuf, dst_len);
+		vaddr += fb->pitches[0];
+		dst += dst_pitch;
+	}
+
+	kfree(dbuf);
+}
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_xrgb2101010_toio);
 
 /**
  * drm_fb_xrgb8888_to_gray8 - Convert XRGB8888 to grayscale
  * @dst: 8-bit grayscale destination buffer
+ * @dst_pitch: Number of bytes between two consecutive scanlines within dst
  * @vaddr: XRGB8888 source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
@@ -394,16 +481,21 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb888_dstclip);
  *
  * ITU BT.601 is used for the RGB -> luma (brightness) conversion.
  */
-void drm_fb_xrgb8888_to_gray8(u8 *dst, void *vaddr, struct drm_framebuffer *fb,
-			       struct drm_rect *clip)
+void drm_fb_xrgb8888_to_gray8(void *dst, unsigned int dst_pitch, const void *vaddr,
+			      const struct drm_framebuffer *fb, const struct drm_rect *clip)
 {
 	unsigned int len = (clip->x2 - clip->x1) * sizeof(u32);
 	unsigned int x, y;
 	void *buf;
-	u32 *src;
+	u8 *dst8;
+	u32 *src32;
 
 	if (WARN_ON(fb->format->format != DRM_FORMAT_XRGB8888))
 		return;
+
+	if (!dst_pitch)
+		dst_pitch = drm_rect_width(clip);
+
 	/*
 	 * The cma memory is write-combined so reads are uncached.
 	 * Speed up by fetching one line at a time.
@@ -412,20 +504,22 @@ void drm_fb_xrgb8888_to_gray8(u8 *dst, void *vaddr, struct drm_framebuffer *fb,
 	if (!buf)
 		return;
 
+	vaddr += clip_offset(clip, fb->pitches[0], sizeof(u32));
 	for (y = clip->y1; y < clip->y2; y++) {
-		src = vaddr + (y * fb->pitches[0]);
-		src += clip->x1;
-		memcpy(buf, src, len);
-		src = buf;
+		dst8 = dst;
+		src32 = memcpy(buf, vaddr, len);
 		for (x = clip->x1; x < clip->x2; x++) {
-			u8 r = (*src & 0x00ff0000) >> 16;
-			u8 g = (*src & 0x0000ff00) >> 8;
-			u8 b =  *src & 0x000000ff;
+			u8 r = (*src32 & 0x00ff0000) >> 16;
+			u8 g = (*src32 & 0x0000ff00) >> 8;
+			u8 b =  *src32 & 0x000000ff;
 
 			/* ITU BT.601: Y = 0.299 R + 0.587 G + 0.114 B */
-			*dst++ = (3 * r + 6 * g + b) / 10;
-			src++;
+			*dst8++ = (3 * r + 6 * g + b) / 10;
+			src32++;
 		}
+
+		vaddr += fb->pitches[0];
+		dst += dst_pitch;
 	}
 
 	kfree(buf);
@@ -433,7 +527,7 @@ void drm_fb_xrgb8888_to_gray8(u8 *dst, void *vaddr, struct drm_framebuffer *fb,
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_gray8);
 
 /**
- * drm_fb_blit_rect_dstclip - Copy parts of a framebuffer to display memory
+ * drm_fb_blit_toio - Copy parts of a framebuffer to display memory
  * @dst:	The display memory to copy to
  * @dst_pitch:	Number of bytes between two consecutive scanlines within dst
  * @dst_format:	FOURCC code of the display's color format
@@ -445,17 +539,14 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_gray8);
  * formats of the display and the framebuffer mismatch, the blit function
  * will attempt to convert between them.
  *
- * Use drm_fb_blit_dstclip() to copy the full framebuffer.
- *
  * Returns:
  * 0 on success, or
  * -EINVAL if the color-format conversion failed, or
  * a negative error code otherwise.
  */
-int drm_fb_blit_rect_dstclip(void __iomem *dst, unsigned int dst_pitch,
-			     uint32_t dst_format, void *vmap,
-			     struct drm_framebuffer *fb,
-			     struct drm_rect *clip)
+int drm_fb_blit_toio(void __iomem *dst, unsigned int dst_pitch, uint32_t dst_format,
+		     const void *vmap, const struct drm_framebuffer *fb,
+		     const struct drm_rect *clip)
 {
 	uint32_t fb_format = fb->format->format;
 
@@ -464,58 +555,32 @@ int drm_fb_blit_rect_dstclip(void __iomem *dst, unsigned int dst_pitch,
 		fb_format = DRM_FORMAT_XRGB8888;
 	if (dst_format == DRM_FORMAT_ARGB8888)
 		dst_format = DRM_FORMAT_XRGB8888;
+	if (fb_format == DRM_FORMAT_ARGB2101010)
+		fb_format = DRM_FORMAT_XRGB2101010;
+	if (dst_format == DRM_FORMAT_ARGB2101010)
+		dst_format = DRM_FORMAT_XRGB2101010;
 
 	if (dst_format == fb_format) {
-		drm_fb_memcpy_dstclip(dst, dst_pitch, vmap, fb, clip);
+		drm_fb_memcpy_toio(dst, dst_pitch, vmap, fb, clip);
 		return 0;
 
 	} else if (dst_format == DRM_FORMAT_RGB565) {
 		if (fb_format == DRM_FORMAT_XRGB8888) {
-			drm_fb_xrgb8888_to_rgb565_dstclip(dst, dst_pitch,
-							  vmap, fb, clip,
-							  false);
+			drm_fb_xrgb8888_to_rgb565_toio(dst, dst_pitch, vmap, fb, clip, false);
 			return 0;
 		}
 	} else if (dst_format == DRM_FORMAT_RGB888) {
 		if (fb_format == DRM_FORMAT_XRGB8888) {
-			drm_fb_xrgb8888_to_rgb888_dstclip(dst, dst_pitch,
-							  vmap, fb, clip);
+			drm_fb_xrgb8888_to_rgb888_toio(dst, dst_pitch, vmap, fb, clip);
+			return 0;
+		}
+	} else if (dst_format == DRM_FORMAT_XRGB2101010) {
+		if (fb_format == DRM_FORMAT_XRGB8888) {
+			drm_fb_xrgb8888_to_xrgb2101010_toio(dst, dst_pitch, vmap, fb, clip);
 			return 0;
 		}
 	}
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL(drm_fb_blit_rect_dstclip);
-
-/**
- * drm_fb_blit_dstclip - Copy framebuffer to display memory
- * @dst:	The display memory to copy to
- * @dst_pitch:	Number of bytes between two consecutive scanlines within dst
- * @dst_format:	FOURCC code of the display's color format
- * @vmap:	The framebuffer memory to copy from
- * @fb:		The framebuffer to copy from
- *
- * This function copies a full framebuffer to display memory. If the formats
- * of the display and the framebuffer mismatch, the copy function will
- * attempt to convert between them.
- *
- * See drm_fb_blit_rect_dstclip() for more information.
- *
- * Returns:
- * 0 on success, or a negative error code otherwise.
- */
-int drm_fb_blit_dstclip(void __iomem *dst, unsigned int dst_pitch,
-			uint32_t dst_format, void *vmap,
-			struct drm_framebuffer *fb)
-{
-	struct drm_rect fullscreen = {
-		.x1 = 0,
-		.x2 = fb->width,
-		.y1 = 0,
-		.y2 = fb->height,
-	};
-	return drm_fb_blit_rect_dstclip(dst, dst_pitch, dst_format, vmap, fb,
-					&fullscreen);
-}
-EXPORT_SYMBOL(drm_fb_blit_dstclip);
+EXPORT_SYMBOL(drm_fb_blit_toio);

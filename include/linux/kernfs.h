@@ -6,7 +6,6 @@
 #ifndef __LINUX_KERNFS_H
 #define __LINUX_KERNFS_H
 
-#include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -14,14 +13,18 @@
 #include <linux/lockdep.h>
 #include <linux/rbtree.h>
 #include <linux/atomic.h>
+#include <linux/bug.h>
+#include <linux/types.h>
 #include <linux/uidgid.h>
 #include <linux/wait.h>
+#include <linux/rwsem.h>
 
 struct file;
 struct dentry;
 struct iattr;
 struct seq_file;
 struct vm_area_struct;
+struct vm_operations_struct;
 struct super_block;
 struct file_system_type;
 struct poll_table_struct;
@@ -197,6 +200,7 @@ struct kernfs_root {
 	struct list_head	supers;
 
 	wait_queue_head_t	deactivate_waitq;
+	struct rw_semaphore	kernfs_rwsem;
 };
 
 struct kernfs_open_file {

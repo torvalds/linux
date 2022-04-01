@@ -20,6 +20,11 @@ properties:
           - const: st-ericsson,mop500
           - const: st-ericsson,u8500
 
+      - description: ST-Ericsson HREF520
+        items:
+          - const: st-ericsson,href520
+          - const: st-ericsson,u8500
+
       - description: ST-Ericsson HREF (v60+)
         items:
           - const: st-ericsson,hrefv60+
@@ -30,9 +35,34 @@ properties:
           - const: calaosystems,snowball-a9500
           - const: st-ericsson,u9500
 
+      - description: Samsung Galaxy Ace 2 (GT-I8160)
+        items:
+          - const: samsung,codina
+          - const: st-ericsson,u8500
+
+      - description: Samsung Galaxy Beam (GT-I8530)
+        items:
+          - const: samsung,gavini
+          - const: st-ericsson,u8500
+
       - description: Samsung Galaxy S III mini (GT-I8190)
         items:
           - const: samsung,golden
+          - const: st-ericsson,u8500
+
+      - description: Samsung Galaxy S Advance (GT-I9070)
+        items:
+          - const: samsung,janice
+          - const: st-ericsson,u8500
+
+      - description: Samsung Galaxy Amp (SGH-I407)
+        items:
+          - const: samsung,kyle
+          - const: st-ericsson,u8500
+
+      - description: Samsung Galaxy XCover 2 (GT-S7710)
+        items:
+          - const: samsung,skomer
           - const: st-ericsson,u8500
 
 additionalProperties: true

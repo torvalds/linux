@@ -104,7 +104,7 @@ static inline int kvm_mmu_page_as_id(struct kvm_mmu_page *sp)
 	return kvm_mmu_role_as_id(sp->role);
 }
 
-static inline bool kvm_vcpu_ad_need_write_protect(struct kvm_vcpu *vcpu)
+static inline bool kvm_mmu_page_ad_need_write_protect(struct kvm_mmu_page *sp)
 {
 	/*
 	 * When using the EPT page-modification log, the GPAs in the CPU dirty
@@ -112,13 +112,12 @@ static inline bool kvm_vcpu_ad_need_write_protect(struct kvm_vcpu *vcpu)
 	 * on write protection to record dirty pages, which bypasses PML, since
 	 * writes now result in a vmexit.  Note, the check on CPU dirty logging
 	 * being enabled is mandatory as the bits used to denote WP-only SPTEs
-	 * are reserved for NPT w/ PAE (32-bit KVM).
+	 * are reserved for PAE paging (32-bit KVM).
 	 */
-	return vcpu->arch.mmu == &vcpu->arch.guest_mmu &&
-	       kvm_x86_ops.cpu_dirty_log_size;
+	return kvm_x86_ops.cpu_dirty_log_size && sp->role.guest_mode;
 }
 
-int mmu_try_to_unsync_pages(struct kvm_vcpu *vcpu, struct kvm_memory_slot *slot,
+int mmu_try_to_unsync_pages(struct kvm *kvm, const struct kvm_memory_slot *slot,
 			    gfn_t gfn, bool can_unsync, bool prefetch);
 
 void kvm_mmu_gfn_disallow_lpage(const struct kvm_memory_slot *slot, gfn_t gfn);

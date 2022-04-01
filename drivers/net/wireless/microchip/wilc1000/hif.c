@@ -1312,7 +1312,7 @@ int wilc_set_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
 	if (result)
-		netdev_err(vif->ndev, "Failed to get mac address\n");
+		netdev_err(vif->ndev, "Failed to set mac address\n");
 
 	return result;
 }
@@ -1929,6 +1929,7 @@ int wilc_edit_station(struct wilc_vif *vif, const u8 *mac,
 
 int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 {
+	struct wilc *wilc = vif->wilc;
 	struct wid wid;
 	int result;
 	s8 power_mode;
@@ -1944,6 +1945,8 @@ int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
 	if (result)
 		netdev_err(vif->ndev, "Failed to send power management\n");
+	else
+		wilc->power_save_mode = enabled;
 
 	return result;
 }

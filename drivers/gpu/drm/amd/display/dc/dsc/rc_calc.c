@@ -60,31 +60,3 @@ void calc_rc_params(struct rc_params *rc, const struct drm_dsc_config *pps)
 			   pps->dsc_version_minor);
 	DC_FP_END();
 }
-
-/**
- * calc_dsc_bytes_per_pixel - calculate bytes per pixel
- * @pps: DRM struct with all required DSC values
- *
- * Based on the information inside drm_dsc_config, this function calculates the
- * total of bytes per pixel.
- *
- * @note This calculation requires float point operation, most of it executes
- * under kernel_fpu_{begin,end}.
- *
- * Return:
- * Return the number of bytes per pixel
- */
-u32 calc_dsc_bytes_per_pixel(const struct drm_dsc_config *pps)
-
-{
-	u32 ret;
-	u16 drm_bpp = pps->bits_per_pixel;
-	int slice_width  = pps->slice_width;
-	bool is_navite_422_or_420 = pps->native_422 || pps->native_420;
-
-	DC_FP_START();
-	ret = _do_bytes_per_pixel_calc(slice_width, drm_bpp,
-				       is_navite_422_or_420);
-	DC_FP_END();
-	return ret;
-}

@@ -14,7 +14,7 @@
 
 int igt_flush_test(struct drm_i915_private *i915)
 {
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 	int ret = intel_gt_is_wedged(gt) ? -EIO : 0;
 
 	cond_resched();

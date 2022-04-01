@@ -17,9 +17,8 @@ properties:
     description:
       Specifies the MAC address that was assigned to the network device.
     $ref: /schemas/types.yaml#/definitions/uint8-array
-    items:
-      - minItems: 6
-        maxItems: 6
+    minItems: 6
+    maxItems: 6
 
   mac-address:
     description:
@@ -28,9 +27,8 @@ properties:
       to the device by the boot program is different from the
       local-mac-address property.
     $ref: /schemas/types.yaml#/definitions/uint8-array
-    items:
-      - minItems: 6
-        maxItems: 6
+    minItems: 6
+    maxItems: 6
 
   max-frame-size:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -69,6 +67,7 @@ properties:
       - rev-mii
       - rmii
       - rev-rmii
+      - moca
 
       # RX and TX delays are added by the MAC when required
       - rgmii
@@ -163,33 +162,30 @@ properties:
           type: array
         then:
           deprecated: true
-          minItems: 1
-          maxItems: 1
           items:
-            items:
-              - minimum: 0
-                maximum: 31
-                description:
-                  Emulated PHY ID, choose any but unique to the all
-                  specified fixed-links
+            - minimum: 0
+              maximum: 31
+              description:
+                Emulated PHY ID, choose any but unique to the all
+                specified fixed-links
 
-              - enum: [0, 1]
-                description:
-                  Duplex configuration. 0 for half duplex or 1 for
-                  full duplex
+            - enum: [0, 1]
+              description:
+                Duplex configuration. 0 for half duplex or 1 for
+                full duplex
 
-              - enum: [10, 100, 1000]
-                description:
-                  Link speed in Mbits/sec.
+            - enum: [10, 100, 1000, 2500, 10000]
+              description:
+                Link speed in Mbits/sec.
 
-              - enum: [0, 1]
-                description:
-                  Pause configuration. 0 for no pause, 1 for pause
+            - enum: [0, 1]
+              description:
+                Pause configuration. 0 for no pause, 1 for pause
 
-              - enum: [0, 1]
-                description:
-                  Asymmetric pause configuration. 0 for no asymmetric
-                  pause, 1 for asymmetric pause
+            - enum: [0, 1]
+              description:
+                Asymmetric pause configuration. 0 for no asymmetric
+                pause, 1 for asymmetric pause
 
 
       - if:
@@ -200,7 +196,7 @@ properties:
               description:
                 Link speed.
               $ref: /schemas/types.yaml#/definitions/uint32
-              enum: [10, 100, 1000]
+              enum: [10, 100, 1000, 2500, 10000]
 
             full-duplex:
               $ref: /schemas/types.yaml#/definitions/flag

@@ -1387,7 +1387,6 @@ static struct tegra_function tegra194_functions[] = {
 		.schmitt_bit = schmitt_b,			\
 		.drvtype_bit = 13,				\
 		.lpdr_bit = e_lpdr,				\
-		.drv_reg = -1,					\
 
 #define drive_touch_clk_pcc4            DRV_PINGROUP_ENTRY_Y(0x2004,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)
 #define drive_uart3_rx_pcc6             DRV_PINGROUP_ENTRY_Y(0x200c,	12,	5,	20,	5,	-1,	-1,	-1,	-1,	1)

@@ -894,10 +894,11 @@ static struct attribute *orangefs_default_attrs[] = {
 	&perf_time_interval_secs_attribute.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(orangefs_default);
 
 static struct kobj_type orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
-	.default_attrs = orangefs_default_attrs,
+	.default_groups = orangefs_default_groups,
 };
 
 static struct orangefs_attribute acache_hard_limit_attribute =
@@ -931,10 +932,11 @@ static struct attribute *acache_orangefs_default_attrs[] = {
 	&acache_timeout_msecs_attribute.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(acache_orangefs_default);
 
 static struct kobj_type acache_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
-	.default_attrs = acache_orangefs_default_attrs,
+	.default_groups = acache_orangefs_default_groups,
 };
 
 static struct orangefs_attribute capcache_hard_limit_attribute =
@@ -968,10 +970,11 @@ static struct attribute *capcache_orangefs_default_attrs[] = {
 	&capcache_timeout_secs_attribute.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(capcache_orangefs_default);
 
 static struct kobj_type capcache_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
-	.default_attrs = capcache_orangefs_default_attrs,
+	.default_groups = capcache_orangefs_default_groups,
 };
 
 static struct orangefs_attribute ccache_hard_limit_attribute =
@@ -1005,10 +1008,11 @@ static struct attribute *ccache_orangefs_default_attrs[] = {
 	&ccache_timeout_secs_attribute.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(ccache_orangefs_default);
 
 static struct kobj_type ccache_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
-	.default_attrs = ccache_orangefs_default_attrs,
+	.default_groups = ccache_orangefs_default_groups,
 };
 
 static struct orangefs_attribute ncache_hard_limit_attribute =
@@ -1042,10 +1046,11 @@ static struct attribute *ncache_orangefs_default_attrs[] = {
 	&ncache_timeout_msecs_attribute.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(ncache_orangefs_default);
 
 static struct kobj_type ncache_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
-	.default_attrs = ncache_orangefs_default_attrs,
+	.default_groups = ncache_orangefs_default_groups,
 };
 
 static struct orangefs_attribute pc_acache_attribute =
@@ -1072,10 +1077,11 @@ static struct attribute *pc_orangefs_default_attrs[] = {
 	&pc_ncache_attribute.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(pc_orangefs_default);
 
 static struct kobj_type pc_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
-	.default_attrs = pc_orangefs_default_attrs,
+	.default_groups = pc_orangefs_default_groups,
 };
 
 static struct orangefs_attribute stats_reads_attribute =
@@ -1095,10 +1101,11 @@ static struct attribute *stats_orangefs_default_attrs[] = {
 	&stats_writes_attribute.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(stats_orangefs_default);
 
 static struct kobj_type stats_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
-	.default_attrs = stats_orangefs_default_attrs,
+	.default_groups = stats_orangefs_default_groups,
 };
 
 static struct kobject *orangefs_obj;

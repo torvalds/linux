@@ -63,12 +63,12 @@ int pvrdma_uar_table_init(struct pvrdma_dev *dev)
 	tbl->max = num;
 	tbl->mask = mask;
 	spin_lock_init(&tbl->lock);
-	tbl->table = kcalloc(BITS_TO_LONGS(num), sizeof(long), GFP_KERNEL);
+	tbl->table = bitmap_zalloc(num, GFP_KERNEL);
 	if (!tbl->table)
 		return -ENOMEM;
 
 	/* 0th UAR is taken by the device. */
-	set_bit(0, tbl->table);
+	__set_bit(0, tbl->table);
 
 	return 0;
 }
@@ -77,7 +77,7 @@ void pvrdma_uar_table_cleanup(struct pvrdma_dev *dev)
 {
 	struct pvrdma_id_table *tbl = &dev->uar_table.tbl;
 
-	kfree(tbl->table);
+	bitmap_free(tbl->table);
 }
 
 int pvrdma_uar_alloc(struct pvrdma_dev *dev, struct pvrdma_uar_map *uar)
@@ -100,7 +100,7 @@ int pvrdma_uar_alloc(struct pvrdma_dev *dev, struct pvrdma_uar_map *uar)
 		return -ENOMEM;
 	}
 
-	set_bit(obj, tbl->table);
+	__set_bit(obj, tbl->table);
 	obj |= tbl->top;
 
 	spin_unlock_irqrestore(&tbl->lock, flags);
@@ -120,7 +120,7 @@ void pvrdma_uar_free(struct pvrdma_dev *dev, struct pvrdma_uar_map *uar)
 
 	obj = uar->index & (tbl->max - 1);
 	spin_lock_irqsave(&tbl->lock, flags);
-	clear_bit(obj, tbl->table);
+	__clear_bit(obj, tbl->table);
 	tbl->last = min(tbl->last, obj);
 	tbl->top = (tbl->top + tbl->max) & tbl->mask;
 	spin_unlock_irqrestore(&tbl->lock, flags);

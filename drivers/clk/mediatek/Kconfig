@@ -344,6 +344,23 @@ config COMMON_CLK_MT7629_HIFSYS
 	  This driver supports MediaTek MT7629 HIFSYS clocks providing
 	  to PCI-E and USB.
 
+config COMMON_CLK_MT7986
+	bool "Clock driver for MediaTek MT7986"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select COMMON_CLK_MEDIATEK
+	default ARCH_MEDIATEK
+	help
+	  This driver supports MediaTek MT7986 basic clocks and clocks
+	  required for various peripherals found on MediaTek.
+
+config COMMON_CLK_MT7986_ETHSYS
+	bool "Clock driver for MediaTek MT7986 ETHSYS"
+	depends on COMMON_CLK_MT7986
+	default COMMON_CLK_MT7986
+	help
+	  This driver adds support for clocks for Ethernet and SGMII
+	  required on MediaTek MT7986 SoC.
+
 config COMMON_CLK_MT8135
 	bool "Clock driver for MediaTek MT8135"
 	depends on (ARCH_MEDIATEK && ARM) || COMPILE_TEST

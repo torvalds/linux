@@ -276,13 +276,13 @@ static void dst_buf_done(struct amvdec_session *sess,
 
 	switch (sess->pixfmt_cap) {
 	case V4L2_PIX_FMT_NV12M:
-		vbuf->vb2_buf.planes[0].bytesused = output_size;
-		vbuf->vb2_buf.planes[1].bytesused = output_size / 2;
+		vb2_set_plane_payload(&vbuf->vb2_buf, 0, output_size);
+		vb2_set_plane_payload(&vbuf->vb2_buf, 1, output_size / 2);
 		break;
 	case V4L2_PIX_FMT_YUV420M:
-		vbuf->vb2_buf.planes[0].bytesused = output_size;
-		vbuf->vb2_buf.planes[1].bytesused = output_size / 4;
-		vbuf->vb2_buf.planes[2].bytesused = output_size / 4;
+		vb2_set_plane_payload(&vbuf->vb2_buf, 0, output_size);
+		vb2_set_plane_payload(&vbuf->vb2_buf, 1, output_size / 4);
+		vb2_set_plane_payload(&vbuf->vb2_buf, 2, output_size / 4);
 		break;
 	}
 

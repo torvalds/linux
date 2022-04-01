@@ -65,10 +65,19 @@
 #define ACPI_ECKV_WIFI_DATA_SIZE	2
 
 /*
- * 1 type, 1 enabled, 1 block list size, 16 block list array
+ * TAS size: 1 elelment for type,
+ *	     1 element for enabled field,
+ *	     1 element for block list size,
+ *	     16 elements for block list array
  */
 #define APCI_WTAS_BLACK_LIST_MAX	16
 #define ACPI_WTAS_WIFI_DATA_SIZE	(3 + APCI_WTAS_BLACK_LIST_MAX)
+#define ACPI_WTAS_ENABLED_MSK		0x1
+#define ACPI_WTAS_OVERRIDE_IEC_MSK	0x2
+#define ACPI_WTAS_ENABLE_IEC_MSK	0x4
+#define ACPI_WTAS_OVERRIDE_IEC_POS	0x1
+#define ACPI_WTAS_ENABLE_IEC_POS	0x2
+
 
 #define ACPI_PPAG_WIFI_DATA_SIZE_V1	((IWL_NUM_CHAIN_LIMITS * \
 					  IWL_NUM_SUB_BANDS_V1) + 2)
@@ -103,6 +112,11 @@ struct iwl_geo_profile_band {
 
 struct iwl_geo_profile {
 	struct iwl_geo_profile_band bands[ACPI_GEO_NUM_BANDS_REV2];
+};
+
+/* Same thing as with SAR, all revisions fit in revision 2 */
+struct iwl_ppag_chain {
+	s8 subbands[ACPI_SAR_NUM_SUB_BANDS_REV2];
 };
 
 enum iwl_dsm_funcs_rev_0 {
@@ -198,8 +212,8 @@ int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 		     struct iwl_per_chain_offset *table,
 		     u32 n_bands, u32 n_profiles);
 
-int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt, __le32 *block_list_array,
-		     int *block_list_size);
+int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
+		     struct iwl_tas_config_cmd_v3 *cmd);
 
 __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt);
 
@@ -280,8 +294,7 @@ static inline bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 }
 
 static inline int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
-				   __le32 *block_list_array,
-				   int *block_list_size)
+				   struct iwl_tas_config_cmd_v3 *cmd)
 {
 	return -ENOENT;
 }

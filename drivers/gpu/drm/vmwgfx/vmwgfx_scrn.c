@@ -442,19 +442,15 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 		vps->bo_size = 0;
 	}
 
-	vps->bo = kzalloc(sizeof(*vps->bo), GFP_KERNEL);
-	if (!vps->bo)
-		return -ENOMEM;
-
 	vmw_svga_enable(dev_priv);
 
 	/* After we have alloced the backing store might not be able to
 	 * resume the overlays, this is preferred to failing to alloc.
 	 */
 	vmw_overlay_pause_all(dev_priv);
-	ret = vmw_bo_init(dev_priv, vps->bo, size,
-			      &vmw_vram_placement,
-			      false, true, &vmw_bo_bo_free);
+	ret = vmw_bo_create(dev_priv, size,
+			    &vmw_vram_placement,
+			    false, true, &vmw_bo_bo_free, &vps->bo);
 	vmw_overlay_resume_all(dev_priv);
 	if (ret) {
 		vps->bo = NULL; /* vmw_bo_init frees on error */

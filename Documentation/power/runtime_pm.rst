@@ -265,6 +265,10 @@ defined in include/linux/pm.h:
       RPM_SUSPENDED, which means that each device is initially regarded by the
       PM core as 'suspended', regardless of its real hardware status
 
+  `enum rpm_status last_status;`
+    - the last runtime PM status of the device captured before disabling runtime
+      PM for it (invalid initially and when disable_depth is 0)
+
   `unsigned int runtime_auto;`
     - if set, indicates that the user space has allowed the device driver to
       power manage the device at run time via the /sys/devices/.../power/control
@@ -333,10 +337,12 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
 
   `int pm_runtime_resume(struct device *dev);`
     - execute the subsystem-level resume callback for the device; returns 0 on
-      success, 1 if the device's runtime PM status was already 'active' or
-      error code on failure, where -EAGAIN means it may be safe to attempt to
-      resume the device again in future, but 'power.runtime_error' should be
-      checked additionally, and -EACCES means that 'power.disable_depth' is
+      success, 1 if the device's runtime PM status is already 'active' (also if
+      'power.disable_depth' is nonzero, but the status was 'active' when it was
+      changing from 0 to 1) or error code on failure, where -EAGAIN means it may
+      be safe to attempt to resume the device again in future, but
+      'power.runtime_error' should be checked additionally, and -EACCES means
+      that the callback could not be run, because 'power.disable_depth' was
       different from 0
 
   `int pm_runtime_resume_and_get(struct device *dev);`

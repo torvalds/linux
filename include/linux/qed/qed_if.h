@@ -652,6 +652,7 @@ struct qed_dev_info {
 
 	bool wol_support;
 	bool smart_an;
+	bool esl;
 
 	/* MBI version */
 	u32 mbi_version;
@@ -805,6 +806,12 @@ enum qed_nvm_flash_cmd {
 struct qed_devlink {
 	struct qed_dev *cdev;
 	struct devlink_health_reporter *fw_reporter;
+};
+
+struct qed_sb_info_dbg {
+	u32 igu_prod;
+	u32 igu_cons;
+	u16 pi[PIS_PER_SB];
 };
 
 struct qed_common_cb_ops {
@@ -1194,6 +1201,13 @@ struct qed_common_ops {
 	struct devlink* (*devlink_register)(struct qed_dev *cdev);
 
 	void (*devlink_unregister)(struct devlink *devlink);
+
+	__printf(2, 3) void (*mfw_report)(struct qed_dev *cdev, char *fmt, ...);
+
+	int (*get_sb_info)(struct qed_dev *cdev, struct qed_sb_info *sb,
+			   u16 qid, struct qed_sb_info_dbg *sb_dbg);
+
+	int (*get_esl_status)(struct qed_dev *cdev, bool *esl_active);
 };
 
 #define MASK_FIELD(_name, _value) \

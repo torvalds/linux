@@ -134,19 +134,22 @@ static void do_test_lru(enum test_type test, int cpu)
 		 */
 		int outer_fd = map_fd[array_of_lru_hashs_idx];
 		unsigned int mycpu, mynode;
+		LIBBPF_OPTS(bpf_map_create_opts, opts,
+			.map_flags = BPF_F_NUMA_NODE,
+		);
 
 		assert(cpu < MAX_NR_CPUS);
 
 		ret = syscall(__NR_getcpu, &mycpu, &mynode, NULL);
 		assert(!ret);
 
+		opts.numa_node = mynode;
 		inner_lru_map_fds[cpu] =
-			bpf_create_map_node(BPF_MAP_TYPE_LRU_HASH,
-					    test_map_names[INNER_LRU_HASH_PREALLOC],
-					    sizeof(uint32_t),
-					    sizeof(long),
-					    inner_lru_hash_size, 0,
-					    mynode);
+			bpf_map_create(BPF_MAP_TYPE_LRU_HASH,
+				       test_map_names[INNER_LRU_HASH_PREALLOC],
+				       sizeof(uint32_t),
+				       sizeof(long),
+				       inner_lru_hash_size, &opts);
 		if (inner_lru_map_fds[cpu] == -1) {
 			printf("cannot create BPF_MAP_TYPE_LRU_HASH %s(%d)\n",
 			       strerror(errno), errno);

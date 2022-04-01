@@ -441,8 +441,18 @@ int x509_note_issuer(void *context, size_t hdrlen,
 		     const void *value, size_t vlen)
 {
 	struct x509_parse_context *ctx = context;
+	struct asymmetric_key_id *kid;
+
 	ctx->cert->raw_issuer = value;
 	ctx->cert->raw_issuer_size = vlen;
+
+	if (!ctx->cert->sig->auth_ids[2]) {
+		kid = asymmetric_key_generate_id(value, vlen, "", 0);
+		if (IS_ERR(kid))
+			return PTR_ERR(kid);
+		ctx->cert->sig->auth_ids[2] = kid;
+	}
+
 	return x509_fabricate_name(ctx, hdrlen, tag, &ctx->cert->issuer, vlen);
 }
 

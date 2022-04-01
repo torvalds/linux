@@ -7,6 +7,7 @@
 #include "prestera.h"
 #include "prestera_hw.h"
 #include "prestera_acl.h"
+#include "prestera_flow.h"
 #include "prestera_span.h"
 
 struct prestera_span_entry {

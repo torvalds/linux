@@ -1,6 +1,6 @@
-/**********************************************************
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
+/*
  * Copyright 2012-2021 VMware, Inc.
- * SPDX-License-Identifier: GPL-2.0 OR MIT
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -22,7 +22,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- **********************************************************/
+ */
 
 /*
  * svga3d_dx.h --
@@ -508,11 +508,11 @@ typedef struct SVGA3dCmdDXSetPredication {
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-typedef struct MKS3dDXSOState {
+typedef struct SVGA3dDXSOState {
 	uint32 offset;
 	uint32 intOffset;
-	uint32 vertexCount;
-	uint32 dead;
+	uint32 dead1;
+	uint32 dead2;
 } SVGA3dDXSOState;
 #pragma pack(pop)
 

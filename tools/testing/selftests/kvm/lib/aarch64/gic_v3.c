@@ -19,7 +19,8 @@ struct gicv3_data {
 	unsigned int nr_spis;
 };
 
-#define sgi_base_from_redist(redist_base) (redist_base + SZ_64K)
+#define sgi_base_from_redist(redist_base) 	(redist_base + SZ_64K)
+#define DIST_BIT				(1U << 31)
 
 enum gicv3_intid_range {
 	SGI_RANGE,
@@ -48,6 +49,14 @@ static void gicv3_gicr_wait_for_rwp(void *redist_base)
 		GUEST_ASSERT(count--);
 		udelay(10);
 	}
+}
+
+static void gicv3_wait_for_rwp(uint32_t cpu_or_dist)
+{
+	if (cpu_or_dist & DIST_BIT)
+		gicv3_gicd_wait_for_rwp();
+	else
+		gicv3_gicr_wait_for_rwp(gicv3_data.redist_base[cpu_or_dist]);
 }
 
 static enum gicv3_intid_range get_intid_range(unsigned int intid)
@@ -81,39 +90,175 @@ static void gicv3_write_eoir(uint32_t irq)
 	isb();
 }
 
-static void
-gicv3_config_irq(unsigned int intid, unsigned int offset)
+static void gicv3_write_dir(uint32_t irq)
+{
+	write_sysreg_s(irq, SYS_ICC_DIR_EL1);
+	isb();
+}
+
+static void gicv3_set_priority_mask(uint64_t mask)
+{
+	write_sysreg_s(mask, SYS_ICC_PMR_EL1);
+}
+
+static void gicv3_set_eoi_split(bool split)
+{
+	uint32_t val;
+
+	/* All other fields are read-only, so no need to read CTLR first. In
+	 * fact, the kernel does the same.
+	 */
+	val = split ? (1U << 1) : 0;
+	write_sysreg_s(val, SYS_ICC_CTLR_EL1);
+	isb();
+}
+
+uint32_t gicv3_reg_readl(uint32_t cpu_or_dist, uint64_t offset)
+{
+	void *base = cpu_or_dist & DIST_BIT ? gicv3_data.dist_base
+		: sgi_base_from_redist(gicv3_data.redist_base[cpu_or_dist]);
+	return readl(base + offset);
+}
+
+void gicv3_reg_writel(uint32_t cpu_or_dist, uint64_t offset, uint32_t reg_val)
+{
+	void *base = cpu_or_dist & DIST_BIT ? gicv3_data.dist_base
+		: sgi_base_from_redist(gicv3_data.redist_base[cpu_or_dist]);
+	writel(reg_val, base + offset);
+}
+
+uint32_t gicv3_getl_fields(uint32_t cpu_or_dist, uint64_t offset, uint32_t mask)
+{
+	return gicv3_reg_readl(cpu_or_dist, offset) & mask;
+}
+
+void gicv3_setl_fields(uint32_t cpu_or_dist, uint64_t offset,
+		uint32_t mask, uint32_t reg_val)
+{
+	uint32_t tmp = gicv3_reg_readl(cpu_or_dist, offset) & ~mask;
+
+	tmp |= (reg_val & mask);
+	gicv3_reg_writel(cpu_or_dist, offset, tmp);
+}
+
+/*
+ * We use a single offset for the distributor and redistributor maps as they
+ * have the same value in both. The only exceptions are registers that only
+ * exist in one and not the other, like GICR_WAKER that doesn't exist in the
+ * distributor map. Such registers are conveniently marked as reserved in the
+ * map that doesn't implement it; like GICR_WAKER's offset of 0x0014 being
+ * marked as "Reserved" in the Distributor map.
+ */
+static void gicv3_access_reg(uint32_t intid, uint64_t offset,
+		uint32_t reg_bits, uint32_t bits_per_field,
+		bool write, uint32_t *val)
 {
 	uint32_t cpu = guest_get_vcpuid();
-	uint32_t mask = 1 << (intid % 32);
 	enum gicv3_intid_range intid_range = get_intid_range(intid);
-	void *reg;
+	uint32_t fields_per_reg, index, mask, shift;
+	uint32_t cpu_or_dist;
 
-	/* We care about 'cpu' only for SGIs or PPIs */
-	if (intid_range == SGI_RANGE || intid_range == PPI_RANGE) {
-		GUEST_ASSERT(cpu < gicv3_data.nr_cpus);
+	GUEST_ASSERT(bits_per_field <= reg_bits);
+	GUEST_ASSERT(*val < (1U << bits_per_field));
+	/* Some registers like IROUTER are 64 bit long. Those are currently not
+	 * supported by readl nor writel, so just asserting here until then.
+	 */
+	GUEST_ASSERT(reg_bits == 32);
 
-		reg = sgi_base_from_redist(gicv3_data.redist_base[cpu]) +
-			offset;
-		writel(mask, reg);
-		gicv3_gicr_wait_for_rwp(gicv3_data.redist_base[cpu]);
-	} else if (intid_range == SPI_RANGE) {
-		reg = gicv3_data.dist_base + offset + (intid / 32) * 4;
-		writel(mask, reg);
-		gicv3_gicd_wait_for_rwp();
-	} else {
-		GUEST_ASSERT(0);
-	}
+	fields_per_reg = reg_bits / bits_per_field;
+	index = intid % fields_per_reg;
+	shift = index * bits_per_field;
+	mask = ((1U << bits_per_field) - 1) << shift;
+
+	/* Set offset to the actual register holding intid's config. */
+	offset += (intid / fields_per_reg) * (reg_bits / 8);
+
+	cpu_or_dist = (intid_range == SPI_RANGE) ? DIST_BIT : cpu;
+
+	if (write)
+		gicv3_setl_fields(cpu_or_dist, offset, mask, *val << shift);
+	*val = gicv3_getl_fields(cpu_or_dist, offset, mask) >> shift;
 }
 
-static void gicv3_irq_enable(unsigned int intid)
+static void gicv3_write_reg(uint32_t intid, uint64_t offset,
+		uint32_t reg_bits, uint32_t bits_per_field, uint32_t val)
 {
-	gicv3_config_irq(intid, GICD_ISENABLER);
+	gicv3_access_reg(intid, offset, reg_bits,
+			bits_per_field, true, &val);
 }
 
-static void gicv3_irq_disable(unsigned int intid)
+static uint32_t gicv3_read_reg(uint32_t intid, uint64_t offset,
+		uint32_t reg_bits, uint32_t bits_per_field)
 {
-	gicv3_config_irq(intid, GICD_ICENABLER);
+	uint32_t val;
+
+	gicv3_access_reg(intid, offset, reg_bits,
+			bits_per_field, false, &val);
+	return val;
+}
+
+static void gicv3_set_priority(uint32_t intid, uint32_t prio)
+{
+	gicv3_write_reg(intid, GICD_IPRIORITYR, 32, 8, prio);
+}
+
+/* Sets the intid to be level-sensitive or edge-triggered. */
+static void gicv3_irq_set_config(uint32_t intid, bool is_edge)
+{
+	uint32_t val;
+
+	/* N/A for private interrupts. */
+	GUEST_ASSERT(get_intid_range(intid) == SPI_RANGE);
+	val = is_edge ? 2 : 0;
+	gicv3_write_reg(intid, GICD_ICFGR, 32, 2, val);
+}
+
+static void gicv3_irq_enable(uint32_t intid)
+{
+	bool is_spi = get_intid_range(intid) == SPI_RANGE;
+	uint32_t cpu = guest_get_vcpuid();
+
+	gicv3_write_reg(intid, GICD_ISENABLER, 32, 1, 1);
+	gicv3_wait_for_rwp(is_spi ? DIST_BIT : cpu);
+}
+
+static void gicv3_irq_disable(uint32_t intid)
+{
+	bool is_spi = get_intid_range(intid) == SPI_RANGE;
+	uint32_t cpu = guest_get_vcpuid();
+
+	gicv3_write_reg(intid, GICD_ICENABLER, 32, 1, 1);
+	gicv3_wait_for_rwp(is_spi ? DIST_BIT : cpu);
+}
+
+static void gicv3_irq_set_active(uint32_t intid)
+{
+	gicv3_write_reg(intid, GICD_ISACTIVER, 32, 1, 1);
+}
+
+static void gicv3_irq_clear_active(uint32_t intid)
+{
+	gicv3_write_reg(intid, GICD_ICACTIVER, 32, 1, 1);
+}
+
+static bool gicv3_irq_get_active(uint32_t intid)
+{
+	return gicv3_read_reg(intid, GICD_ISACTIVER, 32, 1);
+}
+
+static void gicv3_irq_set_pending(uint32_t intid)
+{
+	gicv3_write_reg(intid, GICD_ISPENDR, 32, 1, 1);
+}
+
+static void gicv3_irq_clear_pending(uint32_t intid)
+{
+	gicv3_write_reg(intid, GICD_ICPENDR, 32, 1, 1);
+}
+
+static bool gicv3_irq_get_pending(uint32_t intid)
+{
+	return gicv3_read_reg(intid, GICD_ISPENDR, 32, 1);
 }
 
 static void gicv3_enable_redist(void *redist_base)
@@ -237,4 +382,15 @@ const struct gic_common_ops gicv3_ops = {
 	.gic_irq_disable = gicv3_irq_disable,
 	.gic_read_iar = gicv3_read_iar,
 	.gic_write_eoir = gicv3_write_eoir,
+	.gic_write_dir = gicv3_write_dir,
+	.gic_set_priority_mask = gicv3_set_priority_mask,
+	.gic_set_eoi_split = gicv3_set_eoi_split,
+	.gic_set_priority = gicv3_set_priority,
+	.gic_irq_set_active = gicv3_irq_set_active,
+	.gic_irq_clear_active = gicv3_irq_clear_active,
+	.gic_irq_get_active = gicv3_irq_get_active,
+	.gic_irq_set_pending = gicv3_irq_set_pending,
+	.gic_irq_clear_pending = gicv3_irq_clear_pending,
+	.gic_irq_get_pending = gicv3_irq_get_pending,
+	.gic_irq_set_config = gicv3_irq_set_config,
 };

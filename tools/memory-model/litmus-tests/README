@@ -63,6 +63,10 @@ LB+poonceonces.litmus
 	As above, but with store-release replaced with WRITE_ONCE()
 	and load-acquire replaced with READ_ONCE().
 
+LB+unlocklockonceonce+poacquireonce.litmus
+	Does a unlock+lock pair provides ordering guarantee between a
+	load and a store?
+
 MP+onceassign+derefonce.litmus
 	As below, but with rcu_assign_pointer() and an rcu_dereference().
 
@@ -89,6 +93,10 @@ MP+pooncerelease+poacquireonce.litmus
 MP+porevlocks.litmus
 	As below, but with the first access of the writer process
 	and the second access of reader process protected by a lock.
+
+MP+unlocklockonceonce+fencermbonceonce.litmus
+	Does a unlock+lock pair provides ordering guarantee between a
+	store and another store?
 
 MP+fencewmbonceonce+fencermbonceonce.litmus
 	Does a smp_wmb() (between the stores) and an smp_rmb() (between

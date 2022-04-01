@@ -6,6 +6,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/kallsyms.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>

@@ -28,7 +28,23 @@ static struct cxl_cel_entry mock_cel[] = {
 		.opcode = cpu_to_le16(CXL_MBOX_OP_SET_LSA),
 		.effect = cpu_to_le16(EFFECT(1) | EFFECT(2)),
 	},
+	{
+		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_HEALTH_INFO),
+		.effect = cpu_to_le16(0),
+	},
 };
+
+/* See CXL 2.0 Table 181 Get Health Info Output Payload */
+struct cxl_mbox_health_info {
+	u8 health_status;
+	u8 media_status;
+	u8 ext_status;
+	u8 life_used;
+	__le16 temperature;
+	__le32 dirty_shutdowns;
+	__le32 volatile_errors;
+	__le32 pmem_errors;
+} __packed;
 
 static struct {
 	struct cxl_mbox_get_supported_logs gsl;
@@ -54,7 +70,7 @@ static int mock_gsl(struct cxl_mbox_cmd *cmd)
 	return 0;
 }
 
-static int mock_get_log(struct cxl_mem *cxlm, struct cxl_mbox_cmd *cmd)
+static int mock_get_log(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mbox_get_log *gl = cmd->payload_in;
 	u32 offset = le32_to_cpu(gl->offset);
@@ -64,7 +80,7 @@ static int mock_get_log(struct cxl_mem *cxlm, struct cxl_mbox_cmd *cmd)
 
 	if (cmd->size_in < sizeof(*gl))
 		return -EINVAL;
-	if (length > cxlm->payload_size)
+	if (length > cxlds->payload_size)
 		return -EINVAL;
 	if (offset + length > sizeof(mock_cel))
 		return -EINVAL;
@@ -78,9 +94,9 @@ static int mock_get_log(struct cxl_mem *cxlm, struct cxl_mbox_cmd *cmd)
 	return 0;
 }
 
-static int mock_id(struct cxl_mem *cxlm, struct cxl_mbox_cmd *cmd)
+static int mock_id(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 {
-	struct platform_device *pdev = to_platform_device(cxlm->dev);
+	struct platform_device *pdev = to_platform_device(cxlds->dev);
 	struct cxl_mbox_identify id = {
 		.fw_revision = { "mock fw v1 " },
 		.lsa_size = cpu_to_le32(LSA_SIZE),
@@ -120,10 +136,10 @@ static int mock_id(struct cxl_mem *cxlm, struct cxl_mbox_cmd *cmd)
 	return 0;
 }
 
-static int mock_get_lsa(struct cxl_mem *cxlm, struct cxl_mbox_cmd *cmd)
+static int mock_get_lsa(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mbox_get_lsa *get_lsa = cmd->payload_in;
-	void *lsa = dev_get_drvdata(cxlm->dev);
+	void *lsa = dev_get_drvdata(cxlds->dev);
 	u32 offset, length;
 
 	if (sizeof(*get_lsa) > cmd->size_in)
@@ -139,10 +155,10 @@ static int mock_get_lsa(struct cxl_mem *cxlm, struct cxl_mbox_cmd *cmd)
 	return 0;
 }
 
-static int mock_set_lsa(struct cxl_mem *cxlm, struct cxl_mbox_cmd *cmd)
+static int mock_set_lsa(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mbox_set_lsa *set_lsa = cmd->payload_in;
-	void *lsa = dev_get_drvdata(cxlm->dev);
+	void *lsa = dev_get_drvdata(cxlds->dev);
 	u32 offset, length;
 
 	if (sizeof(*set_lsa) > cmd->size_in)
@@ -156,9 +172,39 @@ static int mock_set_lsa(struct cxl_mem *cxlm, struct cxl_mbox_cmd *cmd)
 	return 0;
 }
 
-static int cxl_mock_mbox_send(struct cxl_mem *cxlm, struct cxl_mbox_cmd *cmd)
+static int mock_health_info(struct cxl_dev_state *cxlds,
+			    struct cxl_mbox_cmd *cmd)
 {
-	struct device *dev = cxlm->dev;
+	struct cxl_mbox_health_info health_info = {
+		/* set flags for maint needed, perf degraded, hw replacement */
+		.health_status = 0x7,
+		/* set media status to "All Data Lost" */
+		.media_status = 0x3,
+		/*
+		 * set ext_status flags for:
+		 *  ext_life_used: normal,
+		 *  ext_temperature: critical,
+		 *  ext_corrected_volatile: warning,
+		 *  ext_corrected_persistent: normal,
+		 */
+		.ext_status = 0x18,
+		.life_used = 15,
+		.temperature = cpu_to_le16(25),
+		.dirty_shutdowns = cpu_to_le32(10),
+		.volatile_errors = cpu_to_le32(20),
+		.pmem_errors = cpu_to_le32(30),
+	};
+
+	if (cmd->size_out < sizeof(health_info))
+		return -EINVAL;
+
+	memcpy(cmd->payload_out, &health_info, sizeof(health_info));
+	return 0;
+}
+
+static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
+{
+	struct device *dev = cxlds->dev;
 	int rc = -EIO;
 
 	switch (cmd->opcode) {
@@ -166,16 +212,19 @@ static int cxl_mock_mbox_send(struct cxl_mem *cxlm, struct cxl_mbox_cmd *cmd)
 		rc = mock_gsl(cmd);
 		break;
 	case CXL_MBOX_OP_GET_LOG:
-		rc = mock_get_log(cxlm, cmd);
+		rc = mock_get_log(cxlds, cmd);
 		break;
 	case CXL_MBOX_OP_IDENTIFY:
-		rc = mock_id(cxlm, cmd);
+		rc = mock_id(cxlds, cmd);
 		break;
 	case CXL_MBOX_OP_GET_LSA:
-		rc = mock_get_lsa(cxlm, cmd);
+		rc = mock_get_lsa(cxlds, cmd);
 		break;
 	case CXL_MBOX_OP_SET_LSA:
-		rc = mock_set_lsa(cxlm, cmd);
+		rc = mock_set_lsa(cxlds, cmd);
+		break;
+	case CXL_MBOX_OP_GET_HEALTH_INFO:
+		rc = mock_health_info(cxlds, cmd);
 		break;
 	default:
 		break;
@@ -196,7 +245,7 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct cxl_memdev *cxlmd;
-	struct cxl_mem *cxlm;
+	struct cxl_dev_state *cxlds;
 	void *lsa;
 	int rc;
 
@@ -208,30 +257,30 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 		return rc;
 	dev_set_drvdata(dev, lsa);
 
-	cxlm = cxl_mem_create(dev);
-	if (IS_ERR(cxlm))
-		return PTR_ERR(cxlm);
+	cxlds = cxl_dev_state_create(dev);
+	if (IS_ERR(cxlds))
+		return PTR_ERR(cxlds);
 
-	cxlm->mbox_send = cxl_mock_mbox_send;
-	cxlm->payload_size = SZ_4K;
+	cxlds->mbox_send = cxl_mock_mbox_send;
+	cxlds->payload_size = SZ_4K;
 
-	rc = cxl_mem_enumerate_cmds(cxlm);
+	rc = cxl_enumerate_cmds(cxlds);
 	if (rc)
 		return rc;
 
-	rc = cxl_mem_identify(cxlm);
+	rc = cxl_dev_state_identify(cxlds);
 	if (rc)
 		return rc;
 
-	rc = cxl_mem_create_range_info(cxlm);
+	rc = cxl_mem_create_range_info(cxlds);
 	if (rc)
 		return rc;
 
-	cxlmd = devm_cxl_add_memdev(cxlm);
+	cxlmd = devm_cxl_add_memdev(cxlds);
 	if (IS_ERR(cxlmd))
 		return PTR_ERR(cxlmd);
 
-	if (range_len(&cxlm->pmem_range) && IS_ENABLED(CONFIG_CXL_PMEM))
+	if (range_len(&cxlds->pmem_range) && IS_ENABLED(CONFIG_CXL_PMEM))
 		rc = devm_cxl_add_nvdimm(dev, cxlmd);
 
 	return 0;

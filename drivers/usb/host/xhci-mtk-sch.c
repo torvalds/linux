@@ -781,7 +781,7 @@ int xhci_mtk_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 
 	ret = xhci_check_bandwidth(hcd, udev);
 	if (!ret)
-		INIT_LIST_HEAD(&mtk->bw_ep_chk_list);
+		list_del_init(&mtk->bw_ep_chk_list);
 
 	return ret;
 }

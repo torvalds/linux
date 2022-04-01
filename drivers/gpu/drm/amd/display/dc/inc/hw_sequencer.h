@@ -64,6 +64,7 @@ struct hw_sequencer_funcs {
 	enum dc_status (*apply_ctx_to_hw)(struct dc *dc,
 			struct dc_state *context);
 	void (*disable_plane)(struct dc *dc, struct pipe_ctx *pipe_ctx);
+	void (*disable_pixel_data)(struct dc *dc, struct pipe_ctx *pipe_ctx, bool blank);
 	void (*apply_ctx_for_surface)(struct dc *dc,
 			const struct dc_stream_state *stream,
 			int num_planes, struct dc_state *context);

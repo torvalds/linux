@@ -42,8 +42,9 @@
 #define   CORE_FABRIC_STAT_MASK		0x001F001F
 #define CORE_LANE_CFG(port)		(0x84000 + 0x4000 * (port))
 #define   CORE_LANE_CFG_REFCLK0REQ	BIT(0)
-#define   CORE_LANE_CFG_REFCLK1		BIT(1)
+#define   CORE_LANE_CFG_REFCLK1REQ	BIT(1)
 #define   CORE_LANE_CFG_REFCLK0ACK	BIT(2)
+#define   CORE_LANE_CFG_REFCLK1ACK	BIT(3)
 #define   CORE_LANE_CFG_REFCLKEN	(BIT(9) | BIT(10))
 #define CORE_LANE_CTL(port)		(0x84004 + 0x4000 * (port))
 #define   CORE_LANE_CTL_CFGACC		BIT(15)
@@ -482,9 +483,9 @@ static int apple_pcie_setup_refclk(struct apple_pcie *pcie,
 	if (res < 0)
 		return res;
 
-	rmw_set(CORE_LANE_CFG_REFCLK1, pcie->base + CORE_LANE_CFG(port->idx));
+	rmw_set(CORE_LANE_CFG_REFCLK1REQ, pcie->base + CORE_LANE_CFG(port->idx));
 	res = readl_relaxed_poll_timeout(pcie->base + CORE_LANE_CFG(port->idx),
-					 stat, stat & CORE_LANE_CFG_REFCLK1,
+					 stat, stat & CORE_LANE_CFG_REFCLK1ACK,
 					 100, 50000);
 
 	if (res < 0)
@@ -516,7 +517,7 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 	int ret, i;
 
 	reset = gpiod_get_from_of_node(np, "reset-gpios", 0,
-				       GPIOD_OUT_LOW, "#PERST");
+				       GPIOD_OUT_LOW, "PERST#");
 	if (IS_ERR(reset))
 		return PTR_ERR(reset);
 
@@ -539,12 +540,22 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 
 	rmw_set(PORT_APPCLK_EN, port->base + PORT_APPCLK);
 
+	/* Assert PERST# before setting up the clock */
+	gpiod_set_value(reset, 1);
+
 	ret = apple_pcie_setup_refclk(pcie, port);
 	if (ret < 0)
 		return ret;
 
+	/* The minimal Tperst-clk value is 100us (PCIe CEM r5.0, 2.9.2) */
+	usleep_range(100, 200);
+
+	/* Deassert PERST# */
 	rmw_set(PORT_PERST_OFF, port->base + PORT_PERST);
-	gpiod_set_value(reset, 1);
+	gpiod_set_value(reset, 0);
+
+	/* Wait for 100ms after PERST# deassertion (PCIe r5.0, 6.6.1) */
+	msleep(100);
 
 	ret = readl_relaxed_poll_timeout(port->base + PORT_STATUS, stat,
 					 stat & PORT_STATUS_READY, 100, 250000);
@@ -552,6 +563,9 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 		dev_err(pcie->dev, "port %pOF ready wait timeout\n", np);
 		return ret;
 	}
+
+	rmw_clear(PORT_REFCLK_CGDIS, port->base + PORT_REFCLK);
+	rmw_clear(PORT_APPCLK_CGDIS, port->base + PORT_APPCLK);
 
 	ret = apple_pcie_port_setup_irq(port);
 	if (ret)

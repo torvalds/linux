@@ -233,6 +233,10 @@
 	compatible = "allwinner,sun50i-h5-de2-clk";
 };
 
+&mbus {
+	compatible = "allwinner,sun50i-h5-mbus";
+};
+
 &mmc0 {
 	compatible = "allwinner,sun50i-h5-mmc",
 		     "allwinner,sun50i-a64-mmc";

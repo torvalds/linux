@@ -196,18 +196,18 @@ static int dw_spi_alpine_init(struct platform_device *pdev,
 	return 0;
 }
 
-static int dw_spi_dw_apb_init(struct platform_device *pdev,
-			      struct dw_spi_mmio *dwsmmio)
+static int dw_spi_pssi_init(struct platform_device *pdev,
+			    struct dw_spi_mmio *dwsmmio)
 {
 	dw_spi_dma_setup_generic(&dwsmmio->dws);
 
 	return 0;
 }
 
-static int dw_spi_dwc_ssi_init(struct platform_device *pdev,
-			       struct dw_spi_mmio *dwsmmio)
+static int dw_spi_hssi_init(struct platform_device *pdev,
+			    struct dw_spi_mmio *dwsmmio)
 {
-	dwsmmio->dws.caps = DW_SPI_CAP_DWC_SSI;
+	dwsmmio->dws.ip = DW_HSSI_ID;
 
 	dw_spi_dma_setup_generic(&dwsmmio->dws);
 
@@ -217,7 +217,8 @@ static int dw_spi_dwc_ssi_init(struct platform_device *pdev,
 static int dw_spi_keembay_init(struct platform_device *pdev,
 			       struct dw_spi_mmio *dwsmmio)
 {
-	dwsmmio->dws.caps = DW_SPI_CAP_KEEMBAY_MST | DW_SPI_CAP_DWC_SSI;
+	dwsmmio->dws.ip = DW_HSSI_ID;
+	dwsmmio->dws.caps = DW_SPI_CAP_KEEMBAY_MST;
 
 	return 0;
 }
@@ -342,12 +343,12 @@ static int dw_spi_mmio_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id dw_spi_mmio_of_match[] = {
-	{ .compatible = "snps,dw-apb-ssi", .data = dw_spi_dw_apb_init},
+	{ .compatible = "snps,dw-apb-ssi", .data = dw_spi_pssi_init},
 	{ .compatible = "mscc,ocelot-spi", .data = dw_spi_mscc_ocelot_init},
 	{ .compatible = "mscc,jaguar2-spi", .data = dw_spi_mscc_jaguar2_init},
 	{ .compatible = "amazon,alpine-dw-apb-ssi", .data = dw_spi_alpine_init},
-	{ .compatible = "renesas,rzn1-spi", .data = dw_spi_dw_apb_init},
-	{ .compatible = "snps,dwc-ssi-1.01a", .data = dw_spi_dwc_ssi_init},
+	{ .compatible = "renesas,rzn1-spi", .data = dw_spi_pssi_init},
+	{ .compatible = "snps,dwc-ssi-1.01a", .data = dw_spi_hssi_init},
 	{ .compatible = "intel,keembay-ssi", .data = dw_spi_keembay_init},
 	{ .compatible = "microchip,sparx5-spi", dw_spi_mscc_sparx5_init},
 	{ .compatible = "canaan,k210-spi", dw_spi_canaan_k210_init},
@@ -357,7 +358,7 @@ MODULE_DEVICE_TABLE(of, dw_spi_mmio_of_match);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id dw_spi_mmio_acpi_match[] = {
-	{"HISI0173", (kernel_ulong_t)dw_spi_dw_apb_init},
+	{"HISI0173", (kernel_ulong_t)dw_spi_pssi_init},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, dw_spi_mmio_acpi_match);
@@ -377,3 +378,4 @@ module_platform_driver(dw_spi_mmio_driver);
 MODULE_AUTHOR("Jean-Hugues Deschenes <jean-hugues.deschenes@octasic.com>");
 MODULE_DESCRIPTION("Memory-mapped I/O interface driver for DW SPI Core");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(SPI_DW_CORE);

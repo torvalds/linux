@@ -11,6 +11,8 @@
 	model = "OnePlus 6T";
 	compatible = "oneplus,fajita", "qcom,sdm845";
 	chassis-type = "handset";
+	qcom,msm-id = <0x141 0x20001>;
+	qcom,board-id = <8 0 18801 41>;
 };
 
 &display_panel {

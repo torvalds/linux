@@ -185,8 +185,8 @@ out:
 }
 EXPORT_SYMBOL(ptp_get_vclocks_index);
 
-void ptp_convert_timestamp(struct skb_shared_hwtstamps *hwtstamps,
-			   int vclock_index)
+ktime_t ptp_convert_timestamp(const struct skb_shared_hwtstamps *hwtstamps,
+			      int vclock_index)
 {
 	char name[PTP_CLOCK_NAME_LEN] = "";
 	struct ptp_vclock *vclock;
@@ -198,12 +198,12 @@ void ptp_convert_timestamp(struct skb_shared_hwtstamps *hwtstamps,
 	snprintf(name, PTP_CLOCK_NAME_LEN, "ptp%d", vclock_index);
 	dev = class_find_device_by_name(ptp_class, name);
 	if (!dev)
-		return;
+		return 0;
 
 	ptp = dev_get_drvdata(dev);
 	if (!ptp->is_virtual_clock) {
 		put_device(dev);
-		return;
+		return 0;
 	}
 
 	vclock = info_to_vclock(ptp->info);
@@ -215,7 +215,7 @@ void ptp_convert_timestamp(struct skb_shared_hwtstamps *hwtstamps,
 	spin_unlock_irqrestore(&vclock->lock, flags);
 
 	put_device(dev);
-	hwtstamps->hwtstamp = ns_to_ktime(ns);
+	return ns_to_ktime(ns);
 }
 EXPORT_SYMBOL(ptp_convert_timestamp);
 #endif

@@ -92,7 +92,7 @@ struct ceva_ahci_priv {
 };
 
 static unsigned int ceva_ahci_read_id(struct ata_device *dev,
-					struct ata_taskfile *tf, u16 *id)
+				      struct ata_taskfile *tf, __le16 *id)
 {
 	u32 err_mask;
 

@@ -334,7 +334,7 @@ int pci_epc_set_msi(struct pci_epc *epc, u8 func_no, u8 vfunc_no, u8 interrupts)
 	u8 encode_int;
 
 	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions ||
-	    interrupts > 32)
+	    interrupts < 1 || interrupts > 32)
 		return -EINVAL;
 
 	if (vfunc_no > 0 && (!epc->max_vfs || vfunc_no > epc->max_vfs[func_no]))

@@ -13,6 +13,7 @@ config CRYPTO_DEV_QAT
 	select CRYPTO_SHA512
 	select CRYPTO_LIB_AES
 	select FW_LOADER
+	select CRC8
 
 config CRYPTO_DEV_QAT_DH895xCC
 	tristate "Support for Intel(R) DH895xCC"

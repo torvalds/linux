@@ -247,6 +247,13 @@ struct atomisp_device {
 	 * structures and css API calls. */
 	struct rt_mutex mutex;
 	/*
+	 * This mutex ensures that we don't allow an open to succeed while
+	 * the initialization process is incomplete
+	 */
+	struct rt_mutex loading;
+	/* Set once the ISP is ready to allow opens */
+	bool ready;
+	/*
 	 * Serialise streamoff: mutex is dropped during streamoff to
 	 * cancel the watchdog queue. MUST be acquired BEFORE
 	 * "mutex".

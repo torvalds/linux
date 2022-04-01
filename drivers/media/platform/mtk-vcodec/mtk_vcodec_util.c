@@ -10,16 +10,6 @@
 #include "mtk_vcodec_drv.h"
 #include "mtk_vcodec_util.h"
 
-/* For encoder, this will enable logs in venc/*/
-bool mtk_vcodec_dbg;
-EXPORT_SYMBOL(mtk_vcodec_dbg);
-
-/* The log level of v4l2 encoder or decoder driver.
- * That is, files under mtk-vcodec/.
- */
-int mtk_v4l2_dbg_level;
-EXPORT_SYMBOL(mtk_v4l2_dbg_level);
-
 void __iomem *mtk_vcodec_get_reg_addr(struct mtk_vcodec_ctx *data,
 					unsigned int reg_idx)
 {

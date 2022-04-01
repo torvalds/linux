@@ -31,6 +31,15 @@ config SAMPLE_FTRACE_DIRECT
 	  This builds an ftrace direct function example
 	  that hooks to wake_up_process and prints the parameters.
 
+config SAMPLE_FTRACE_DIRECT_MULTI
+	tristate "Build register_ftrace_direct_multi() example"
+	depends on DYNAMIC_FTRACE_WITH_DIRECT_CALLS && m
+	depends on HAVE_SAMPLE_FTRACE_DIRECT_MULTI
+	help
+	  This builds an ftrace direct function example
+	  that hooks to wake_up_process and schedule, and prints
+	  the function addresses.
+
 config SAMPLE_TRACE_ARRAY
         tristate "Build sample module for kernel access to Ftrace instancess"
 	depends on EVENT_TRACING && m
@@ -232,10 +241,19 @@ config SAMPLE_WATCH_QUEUE
 	  Build example userspace program to use the new mount_notify(),
 	  sb_notify() syscalls and the KEYCTL_WATCH_KEY keyctl() function.
 
+config SAMPLE_CORESIGHT_SYSCFG
+	tristate "Build example loadable module for CoreSight config"
+	depends on CORESIGHT && m
+	help
+	  Build an example loadable module that adds new CoreSight features
+	  and configuration using the CoreSight system configuration API.
+	  This demonstrates how a user may create their own CoreSight
+	  configurations and easily load them into the system at runtime.
+
 endif # SAMPLES
 
 config HAVE_SAMPLE_FTRACE_DIRECT
 	bool
 
-config HAVE_SAMPLE_FTRACE_MULTI_DIRECT
+config HAVE_SAMPLE_FTRACE_DIRECT_MULTI
 	bool

@@ -88,12 +88,12 @@ const struct argp bench_ringbufs_argp = {
 
 static struct counter buf_hits;
 
-static inline void bufs_trigger_batch()
+static inline void bufs_trigger_batch(void)
 {
 	(void)syscall(__NR_getpgid);
 }
 
-static void bufs_validate()
+static void bufs_validate(void)
 {
 	if (env.consumer_cnt != 1) {
 		fprintf(stderr, "rb-libbpf benchmark doesn't support multi-consumer!\n");
@@ -132,7 +132,7 @@ static void ringbuf_libbpf_measure(struct bench_res *res)
 	res->drops = atomic_swap(&ctx->skel->bss->dropped, 0);
 }
 
-static struct ringbuf_bench *ringbuf_setup_skeleton()
+static struct ringbuf_bench *ringbuf_setup_skeleton(void)
 {
 	struct ringbuf_bench *skel;
 
@@ -167,7 +167,7 @@ static int buf_process_sample(void *ctx, void *data, size_t len)
 	return 0;
 }
 
-static void ringbuf_libbpf_setup()
+static void ringbuf_libbpf_setup(void)
 {
 	struct ringbuf_libbpf_ctx *ctx = &ringbuf_libbpf_ctx;
 	struct bpf_link *link;
@@ -223,7 +223,7 @@ static void ringbuf_custom_measure(struct bench_res *res)
 	res->drops = atomic_swap(&ctx->skel->bss->dropped, 0);
 }
 
-static void ringbuf_custom_setup()
+static void ringbuf_custom_setup(void)
 {
 	struct ringbuf_custom_ctx *ctx = &ringbuf_custom_ctx;
 	const size_t page_size = getpagesize();
@@ -352,7 +352,7 @@ static void perfbuf_measure(struct bench_res *res)
 	res->drops = atomic_swap(&ctx->skel->bss->dropped, 0);
 }
 
-static struct perfbuf_bench *perfbuf_setup_skeleton()
+static struct perfbuf_bench *perfbuf_setup_skeleton(void)
 {
 	struct perfbuf_bench *skel;
 
@@ -390,15 +390,10 @@ perfbuf_process_sample_raw(void *input_ctx, int cpu,
 	return LIBBPF_PERF_EVENT_CONT;
 }
 
-static void perfbuf_libbpf_setup()
+static void perfbuf_libbpf_setup(void)
 {
 	struct perfbuf_libbpf_ctx *ctx = &perfbuf_libbpf_ctx;
 	struct perf_event_attr attr;
-	struct perf_buffer_raw_opts pb_opts = {
-		.event_cb = perfbuf_process_sample_raw,
-		.ctx = (void *)(long)0,
-		.attr = &attr,
-	};
 	struct bpf_link *link;
 
 	ctx->skel = perfbuf_setup_skeleton();
@@ -423,7 +418,8 @@ static void perfbuf_libbpf_setup()
 	}
 
 	ctx->perfbuf = perf_buffer__new_raw(bpf_map__fd(ctx->skel->maps.perfbuf),
-					    args.perfbuf_sz, &pb_opts);
+					    args.perfbuf_sz, &attr,
+					    perfbuf_process_sample_raw, NULL, NULL);
 	if (!ctx->perfbuf) {
 		fprintf(stderr, "failed to create perfbuf\n");
 		exit(1);

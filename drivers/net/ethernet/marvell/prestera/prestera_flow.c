@@ -40,6 +40,11 @@ static int prestera_flow_block_flower_cb(struct prestera_flow_block *block,
 		return 0;
 	case FLOW_CLS_STATS:
 		return prestera_flower_stats(block, f);
+	case FLOW_CLS_TMPLT_CREATE:
+		return prestera_flower_tmplt_create(block, f);
+	case FLOW_CLS_TMPLT_DESTROY:
+		prestera_flower_tmplt_destroy(block, f);
+		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -60,11 +65,102 @@ static int prestera_flow_block_cb(enum tc_setup_type type,
 	}
 }
 
+static void prestera_flow_block_destroy(void *cb_priv)
+{
+	struct prestera_flow_block *block = cb_priv;
+
+	prestera_flower_template_cleanup(block);
+
+	WARN_ON(!list_empty(&block->binding_list));
+
+	kfree(block);
+}
+
+static struct prestera_flow_block *
+prestera_flow_block_create(struct prestera_switch *sw, struct net *net)
+{
+	struct prestera_flow_block *block;
+
+	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	if (!block)
+		return NULL;
+
+	INIT_LIST_HEAD(&block->binding_list);
+	block->net = net;
+	block->sw = sw;
+
+	return block;
+}
+
 static void prestera_flow_block_release(void *cb_priv)
 {
 	struct prestera_flow_block *block = cb_priv;
 
-	prestera_acl_block_destroy(block);
+	prestera_flow_block_destroy(block);
+}
+
+static bool
+prestera_flow_block_is_bound(const struct prestera_flow_block *block)
+{
+	return block->ruleset_zero;
+}
+
+static struct prestera_flow_block_binding *
+prestera_flow_block_lookup(struct prestera_flow_block *block,
+			   struct prestera_port *port)
+{
+	struct prestera_flow_block_binding *binding;
+
+	list_for_each_entry(binding, &block->binding_list, list)
+		if (binding->port == port)
+			return binding;
+
+	return NULL;
+}
+
+static int prestera_flow_block_bind(struct prestera_flow_block *block,
+				    struct prestera_port *port)
+{
+	struct prestera_flow_block_binding *binding;
+	int err;
+
+	binding = kzalloc(sizeof(*binding), GFP_KERNEL);
+	if (!binding)
+		return -ENOMEM;
+
+	binding->span_id = PRESTERA_SPAN_INVALID_ID;
+	binding->port = port;
+
+	if (prestera_flow_block_is_bound(block)) {
+		err = prestera_acl_ruleset_bind(block->ruleset_zero, port);
+		if (err)
+			goto err_ruleset_bind;
+	}
+
+	list_add(&binding->list, &block->binding_list);
+	return 0;
+
+err_ruleset_bind:
+	kfree(binding);
+	return err;
+}
+
+static int prestera_flow_block_unbind(struct prestera_flow_block *block,
+				      struct prestera_port *port)
+{
+	struct prestera_flow_block_binding *binding;
+
+	binding = prestera_flow_block_lookup(block, port);
+	if (!binding)
+		return -ENOENT;
+
+	list_del(&binding->list);
+
+	if (prestera_flow_block_is_bound(block))
+		prestera_acl_ruleset_unbind(block->ruleset_zero, port);
+
+	kfree(binding);
+	return 0;
 }
 
 static struct prestera_flow_block *
@@ -78,7 +174,7 @@ prestera_flow_block_get(struct prestera_switch *sw,
 	block_cb = flow_block_cb_lookup(f->block,
 					prestera_flow_block_cb, sw);
 	if (!block_cb) {
-		block = prestera_acl_block_create(sw, f->net);
+		block = prestera_flow_block_create(sw, f->net);
 		if (!block)
 			return ERR_PTR(-ENOMEM);
 
@@ -86,7 +182,7 @@ prestera_flow_block_get(struct prestera_switch *sw,
 					       sw, block,
 					       prestera_flow_block_release);
 		if (IS_ERR(block_cb)) {
-			prestera_acl_block_destroy(block);
+			prestera_flow_block_destroy(block);
 			return ERR_CAST(block_cb);
 		}
 
@@ -110,7 +206,7 @@ static void prestera_flow_block_put(struct prestera_flow_block *block)
 		return;
 
 	flow_block_cb_free(block_cb);
-	prestera_acl_block_destroy(block);
+	prestera_flow_block_destroy(block);
 }
 
 static int prestera_setup_flow_block_bind(struct prestera_port *port,
@@ -128,7 +224,7 @@ static int prestera_setup_flow_block_bind(struct prestera_port *port,
 
 	block_cb = block->block_cb;
 
-	err = prestera_acl_block_bind(block, port);
+	err = prestera_flow_block_bind(block, port);
 	if (err)
 		goto err_block_bind;
 
@@ -162,7 +258,7 @@ static void prestera_setup_flow_block_unbind(struct prestera_port *port,
 
 	prestera_span_destroy(block);
 
-	err = prestera_acl_block_unbind(block, port);
+	err = prestera_flow_block_unbind(block, port);
 	if (err)
 		goto error;
 

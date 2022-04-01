@@ -347,9 +347,7 @@
 #define RADIO_REG_SYS_MANUAL_DFT_0	0xAD4078
 #define RFIC_REG_RD			0xAD0470
 #define WFPM_CTRL_REG			0xA03030
-#define WFPM_CTRL_REG_GEN2		0xd03030
 #define WFPM_OTP_CFG1_ADDR		0x00a03098
-#define WFPM_OTP_CFG1_ADDR_GEN2		0x00d03098
 #define WFPM_OTP_CFG1_IS_JACKET_BIT	BIT(4)
 #define WFPM_OTP_CFG1_IS_CDB_BIT	BIT(5)
 
@@ -454,6 +452,13 @@ enum {
 #define UREG_DOORBELL_TO_ISR6_SUSPEND	BIT(18)
 #define UREG_DOORBELL_TO_ISR6_RESUME	BIT(19)
 #define UREG_DOORBELL_TO_ISR6_PNVM	BIT(20)
+
+/*
+ * From BZ family driver triggers this bit for suspend and resume
+ * The driver should update CSR_IPC_SLEEP_CONTROL before triggering
+ * this interrupt with suspend/resume value
+ */
+#define UREG_DOORBELL_TO_ISR6_SLEEP_CTRL	BIT(31)
 
 #define CNVI_MBOX_C			0xA3400C
 

@@ -245,11 +245,12 @@ static int xhci_mtk_host_disable(struct xhci_hcd_mtk *mtk)
 	/* wait for host ip to sleep */
 	ret = readl_poll_timeout(&ippc->ip_pw_sts1, value,
 			  (value & STS1_IP_SLEEP_STS), 100, 100000);
-	if (ret) {
+	if (ret)
 		dev_err(mtk->dev, "ip sleep failed!!!\n");
-		return ret;
-	}
-	return 0;
+	else /* workaound for platforms using low level latch */
+		usleep_range(100, 200);
+
+	return ret;
 }
 
 static int xhci_mtk_ssusb_config(struct xhci_hcd_mtk *mtk)
@@ -300,7 +301,7 @@ static void usb_wakeup_ip_sleep_set(struct xhci_hcd_mtk *mtk, bool enable)
 	case SSUSB_UWK_V1_1:
 		reg = mtk->uwk_reg_base + PERI_WK_CTRL0;
 		msk = WC0_IS_EN | WC0_IS_C(0xf) | WC0_IS_P;
-		val = enable ? (WC0_IS_EN | WC0_IS_C(0x8)) : 0;
+		val = enable ? (WC0_IS_EN | WC0_IS_C(0x1)) : 0;
 		break;
 	case SSUSB_UWK_V1_2:
 		reg = mtk->uwk_reg_base + PERI_WK_CTRL0;
@@ -437,11 +438,8 @@ static int xhci_mtk_setup(struct usb_hcd *hcd)
 	if (ret)
 		return ret;
 
-	if (usb_hcd_is_primary_hcd(hcd)) {
+	if (usb_hcd_is_primary_hcd(hcd))
 		ret = xhci_mtk_sch_init(mtk);
-		if (ret)
-			return ret;
-	}
 
 	return ret;
 }

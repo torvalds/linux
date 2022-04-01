@@ -372,4 +372,16 @@ static inline bool inet_can_nonlocal_bind(struct net *net,
 		inet->freebind || inet->transparent;
 }
 
+static inline bool inet_addr_valid_or_nonlocal(struct net *net,
+					       struct inet_sock *inet,
+					       __be32 addr,
+					       int addr_type)
+{
+	return inet_can_nonlocal_bind(net, inet) ||
+		addr == htonl(INADDR_ANY) ||
+		addr_type == RTN_LOCAL ||
+		addr_type == RTN_MULTICAST ||
+		addr_type == RTN_BROADCAST;
+}
+
 #endif	/* _INET_SOCK_H */

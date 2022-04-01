@@ -7,6 +7,7 @@
 
 extern struct nft_expr_type nft_imm_type;
 extern struct nft_expr_type nft_cmp_type;
+extern struct nft_expr_type nft_counter_type;
 extern struct nft_expr_type nft_lookup_type;
 extern struct nft_expr_type nft_bitwise_type;
 extern struct nft_expr_type nft_byteorder_type;
@@ -21,6 +22,7 @@ extern struct nft_expr_type nft_last_type;
 #ifdef CONFIG_NETWORK_SECMARK
 extern struct nft_object_type nft_secmark_obj_type;
 #endif
+extern struct nft_object_type nft_counter_obj_type;
 
 int nf_tables_core_module_init(void);
 void nf_tables_core_module_exit(void);
@@ -120,6 +122,8 @@ bool nft_pipapo_lookup(const struct net *net, const struct nft_set *set,
 bool nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
 			    const u32 *key, const struct nft_set_ext **ext);
 
+void nft_counter_init_seqcount(void);
+
 struct nft_expr;
 struct nft_regs;
 struct nft_pktinfo;
@@ -143,4 +147,6 @@ void nft_dynset_eval(const struct nft_expr *expr,
 		     struct nft_regs *regs, const struct nft_pktinfo *pkt);
 void nft_rt_get_eval(const struct nft_expr *expr,
 		     struct nft_regs *regs, const struct nft_pktinfo *pkt);
+void nft_counter_eval(const struct nft_expr *expr, struct nft_regs *regs,
+                      const struct nft_pktinfo *pkt);
 #endif /* _NET_NF_TABLES_CORE_H */

@@ -27,7 +27,7 @@
 #define __DC_HWSS_DCN30_H__
 
 #include "hw_sequencer_private.h"
-
+#include "dcn20/dcn20_hwseq.h"
 struct dc;
 
 void dcn30_init_hw(struct dc *dc);
@@ -46,6 +46,9 @@ void dcn30_enable_writeback(
 void dcn30_disable_writeback(
 		struct dc *dc,
 		unsigned int dwb_pipe_inst);
+
+void dcn30_prepare_bandwidth(struct dc *dc,
+ 	struct dc_state *context);
 
 bool dcn30_mmhubbub_warmup(
 	struct dc *dc,

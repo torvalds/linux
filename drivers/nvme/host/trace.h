@@ -68,7 +68,7 @@ TRACE_EVENT(nvme_setup_cmd,
 		__entry->nsid = le32_to_cpu(cmd->common.nsid);
 		__entry->metadata = !!blk_integrity_rq(req);
 		__entry->fctype = cmd->fabrics.fctype;
-		__assign_disk_name(__entry->disk, req->rq_disk);
+		__assign_disk_name(__entry->disk, req->q->disk);
 		memcpy(__entry->cdw10, &cmd->common.cdw10,
 			sizeof(__entry->cdw10));
 	    ),
@@ -103,7 +103,7 @@ TRACE_EVENT(nvme_complete_rq,
 		__entry->retries = nvme_req(req)->retries;
 		__entry->flags = nvme_req(req)->flags;
 		__entry->status = nvme_req(req)->status;
-		__assign_disk_name(__entry->disk, req->rq_disk);
+		__assign_disk_name(__entry->disk, req->q->disk);
 	    ),
 	    TP_printk("nvme%d: %sqid=%d, cmdid=%u, res=%#llx, retries=%u, flags=0x%x, status=%#x",
 		      __entry->ctrl_id, __print_disk_name(__entry->disk),
@@ -153,7 +153,7 @@ TRACE_EVENT(nvme_sq,
 	),
 	TP_fast_assign(
 		__entry->ctrl_id = nvme_req(req)->ctrl->instance;
-		__assign_disk_name(__entry->disk, req->rq_disk);
+		__assign_disk_name(__entry->disk, req->q->disk);
 		__entry->qid = nvme_req_qid(req);
 		__entry->sq_head = le16_to_cpu(sq_head);
 		__entry->sq_tail = sq_tail;

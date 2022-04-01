@@ -41,8 +41,32 @@ bool i915_sg_trim(struct sg_table *orig_st)
 	return true;
 }
 
+static void i915_refct_sgt_release(struct kref *ref)
+{
+	struct i915_refct_sgt *rsgt =
+		container_of(ref, typeof(*rsgt), kref);
+
+	sg_free_table(&rsgt->table);
+	kfree(rsgt);
+}
+
+static const struct i915_refct_sgt_ops rsgt_ops = {
+	.release = i915_refct_sgt_release
+};
+
 /**
- * i915_sg_from_mm_node - Create an sg_table from a struct drm_mm_node
+ * i915_refct_sgt_init - Initialize a struct i915_refct_sgt with default ops
+ * @rsgt: The struct i915_refct_sgt to initialize.
+ * size: The size of the underlying memory buffer.
+ */
+void i915_refct_sgt_init(struct i915_refct_sgt *rsgt, size_t size)
+{
+	__i915_refct_sgt_init(rsgt, size, &rsgt_ops);
+}
+
+/**
+ * i915_rsgt_from_mm_node - Create a refcounted sg_table from a struct
+ * drm_mm_node
  * @node: The drm_mm_node.
  * @region_start: An offset to add to the dma addresses of the sg list.
  *
@@ -50,25 +74,28 @@ bool i915_sg_trim(struct sg_table *orig_st)
  * taking a maximum segment length into account, splitting into segments
  * if necessary.
  *
- * Return: A pointer to a kmalloced struct sg_table on success, negative
+ * Return: A pointer to a kmalloced struct i915_refct_sgt on success, negative
  * error code cast to an error pointer on failure.
  */
-struct sg_table *i915_sg_from_mm_node(const struct drm_mm_node *node,
-				      u64 region_start)
+struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
+					      u64 region_start)
 {
 	const u64 max_segment = SZ_1G; /* Do we have a limit on this? */
 	u64 segment_pages = max_segment >> PAGE_SHIFT;
 	u64 block_size, offset, prev_end;
+	struct i915_refct_sgt *rsgt;
 	struct sg_table *st;
 	struct scatterlist *sg;
 
-	st = kmalloc(sizeof(*st), GFP_KERNEL);
-	if (!st)
+	rsgt = kmalloc(sizeof(*rsgt), GFP_KERNEL);
+	if (!rsgt)
 		return ERR_PTR(-ENOMEM);
 
+	i915_refct_sgt_init(rsgt, node->size << PAGE_SHIFT);
+	st = &rsgt->table;
 	if (sg_alloc_table(st, DIV_ROUND_UP(node->size, segment_pages),
 			   GFP_KERNEL)) {
-		kfree(st);
+		i915_refct_sgt_put(rsgt);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -104,11 +131,11 @@ struct sg_table *i915_sg_from_mm_node(const struct drm_mm_node *node,
 	sg_mark_end(sg);
 	i915_sg_trim(st);
 
-	return st;
+	return rsgt;
 }
 
 /**
- * i915_sg_from_buddy_resource - Create an sg_table from a struct
+ * i915_rsgt_from_buddy_resource - Create a refcounted sg_table from a struct
  * i915_buddy_block list
  * @res: The struct i915_ttm_buddy_resource.
  * @region_start: An offset to add to the dma addresses of the sg list.
@@ -117,11 +144,11 @@ struct sg_table *i915_sg_from_mm_node(const struct drm_mm_node *node,
  * taking a maximum segment length into account, splitting into segments
  * if necessary.
  *
- * Return: A pointer to a kmalloced struct sg_table on success, negative
+ * Return: A pointer to a kmalloced struct i915_refct_sgts on success, negative
  * error code cast to an error pointer on failure.
  */
-struct sg_table *i915_sg_from_buddy_resource(struct ttm_resource *res,
-					     u64 region_start)
+struct i915_refct_sgt *i915_rsgt_from_buddy_resource(struct ttm_resource *res,
+						     u64 region_start)
 {
 	struct i915_ttm_buddy_resource *bman_res = to_ttm_buddy_resource(res);
 	const u64 size = res->num_pages << PAGE_SHIFT;
@@ -129,18 +156,21 @@ struct sg_table *i915_sg_from_buddy_resource(struct ttm_resource *res,
 	struct i915_buddy_mm *mm = bman_res->mm;
 	struct list_head *blocks = &bman_res->blocks;
 	struct i915_buddy_block *block;
+	struct i915_refct_sgt *rsgt;
 	struct scatterlist *sg;
 	struct sg_table *st;
 	resource_size_t prev_end;
 
 	GEM_BUG_ON(list_empty(blocks));
 
-	st = kmalloc(sizeof(*st), GFP_KERNEL);
-	if (!st)
+	rsgt = kmalloc(sizeof(*rsgt), GFP_KERNEL);
+	if (!rsgt)
 		return ERR_PTR(-ENOMEM);
 
+	i915_refct_sgt_init(rsgt, size);
+	st = &rsgt->table;
 	if (sg_alloc_table(st, res->num_pages, GFP_KERNEL)) {
-		kfree(st);
+		i915_refct_sgt_put(rsgt);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -181,7 +211,7 @@ struct sg_table *i915_sg_from_buddy_resource(struct ttm_resource *res,
 	sg_mark_end(sg);
 	i915_sg_trim(st);
 
-	return st;
+	return rsgt;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

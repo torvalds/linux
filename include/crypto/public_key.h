@@ -36,7 +36,7 @@ extern void public_key_free(struct public_key *key);
  * Public key cryptography signature data
  */
 struct public_key_signature {
-	struct asymmetric_key_id *auth_ids[2];
+	struct asymmetric_key_id *auth_ids[3];
 	u8 *s;			/* Signature */
 	u8 *digest;
 	u32 s_size;		/* Number of bytes in signature */

@@ -2,6 +2,8 @@
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  */
+#include <linux/rtnetlink.h>
+
 #include "core.h"
 #include "debug.h"
 
@@ -86,6 +88,9 @@ ath11k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 	if (ret)
 		ath11k_warn(ar->ab,
 			    "INIT Country code set to fw failed : %d\n", ret);
+
+	ath11k_mac_11d_scan_stop(ar);
+	ar->regdom_set_by_user = true;
 }
 
 int ath11k_reg_update_chan_list(struct ath11k *ar)
@@ -179,6 +184,11 @@ int ath11k_reg_update_chan_list(struct ath11k *ar)
 	ret = ath11k_wmi_send_scan_chan_list_cmd(ar, params);
 	kfree(params);
 
+	if (ar->pending_11d) {
+		complete(&ar->finish_11d_ch_list);
+		ar->pending_11d = false;
+	}
+
 	return ret;
 }
 
@@ -244,8 +254,15 @@ int ath11k_regd_update(struct ath11k *ar)
 		goto err;
 	}
 
+	if (ar->pending_11d)
+		complete(&ar->finish_11d_scan);
+
 	rtnl_lock();
 	wiphy_lock(ar->hw->wiphy);
+
+	if (ar->pending_11d)
+		reinit_completion(&ar->finish_11d_ch_list);
+
 	ret = regulatory_set_wiphy_regd_sync(ar->hw->wiphy, regd_copy);
 	wiphy_unlock(ar->hw->wiphy);
 	rtnl_unlock();
@@ -456,6 +473,9 @@ ath11k_reg_adjust_bw(u16 start_freq, u16 end_freq, u16 max_bw)
 {
 	u16 bw;
 
+	if (end_freq <= start_freq)
+		return 0;
+
 	bw = end_freq - start_freq;
 	bw = min_t(u16, bw, max_bw);
 
@@ -463,8 +483,10 @@ ath11k_reg_adjust_bw(u16 start_freq, u16 end_freq, u16 max_bw)
 		bw = 80;
 	else if (bw >= 40 && bw < 80)
 		bw = 40;
-	else if (bw < 40)
+	else if (bw >= 20 && bw < 40)
 		bw = 20;
+	else
+		bw = 0;
 
 	return bw;
 }
@@ -488,73 +510,77 @@ ath11k_reg_update_weather_radar_band(struct ath11k_base *ab,
 				     struct cur_reg_rule *reg_rule,
 				     u8 *rule_idx, u32 flags, u16 max_bw)
 {
+	u32 start_freq;
 	u32 end_freq;
 	u16 bw;
 	u8 i;
 
 	i = *rule_idx;
 
+	/* there might be situations when even the input rule must be dropped */
+	i--;
+
+	/* frequencies below weather radar */
 	bw = ath11k_reg_adjust_bw(reg_rule->start_freq,
 				  ETSI_WEATHER_RADAR_BAND_LOW, max_bw);
+	if (bw > 0) {
+		i++;
 
-	ath11k_reg_update_rule(regd->reg_rules + i, reg_rule->start_freq,
-			       ETSI_WEATHER_RADAR_BAND_LOW, bw,
-			       reg_rule->ant_gain, reg_rule->reg_power,
-			       flags);
+		ath11k_reg_update_rule(regd->reg_rules + i,
+				       reg_rule->start_freq,
+				       ETSI_WEATHER_RADAR_BAND_LOW, bw,
+				       reg_rule->ant_gain, reg_rule->reg_power,
+				       flags);
 
-	ath11k_dbg(ab, ATH11K_DBG_REG,
-		   "\t%d. (%d - %d @ %d) (%d, %d) (%d ms) (FLAGS %d)\n",
-		   i + 1, reg_rule->start_freq, ETSI_WEATHER_RADAR_BAND_LOW,
-		   bw, reg_rule->ant_gain, reg_rule->reg_power,
-		   regd->reg_rules[i].dfs_cac_ms,
-		   flags);
-
-	if (reg_rule->end_freq > ETSI_WEATHER_RADAR_BAND_HIGH)
-		end_freq = ETSI_WEATHER_RADAR_BAND_HIGH;
-	else
-		end_freq = reg_rule->end_freq;
-
-	bw = ath11k_reg_adjust_bw(ETSI_WEATHER_RADAR_BAND_LOW, end_freq,
-				  max_bw);
-
-	i++;
-
-	ath11k_reg_update_rule(regd->reg_rules + i,
-			       ETSI_WEATHER_RADAR_BAND_LOW, end_freq, bw,
-			       reg_rule->ant_gain, reg_rule->reg_power,
-			       flags);
-
-	regd->reg_rules[i].dfs_cac_ms = ETSI_WEATHER_RADAR_BAND_CAC_TIMEOUT;
-
-	ath11k_dbg(ab, ATH11K_DBG_REG,
-		   "\t%d. (%d - %d @ %d) (%d, %d) (%d ms) (FLAGS %d)\n",
-		   i + 1, ETSI_WEATHER_RADAR_BAND_LOW, end_freq,
-		   bw, reg_rule->ant_gain, reg_rule->reg_power,
-		   regd->reg_rules[i].dfs_cac_ms,
-		   flags);
-
-	if (end_freq == reg_rule->end_freq) {
-		regd->n_reg_rules--;
-		*rule_idx = i;
-		return;
+		ath11k_dbg(ab, ATH11K_DBG_REG,
+			   "\t%d. (%d - %d @ %d) (%d, %d) (%d ms) (FLAGS %d)\n",
+			   i + 1, reg_rule->start_freq,
+			   ETSI_WEATHER_RADAR_BAND_LOW, bw, reg_rule->ant_gain,
+			   reg_rule->reg_power, regd->reg_rules[i].dfs_cac_ms,
+			   flags);
 	}
 
+	/* weather radar frequencies */
+	start_freq = max_t(u32, reg_rule->start_freq,
+			   ETSI_WEATHER_RADAR_BAND_LOW);
+	end_freq = min_t(u32, reg_rule->end_freq, ETSI_WEATHER_RADAR_BAND_HIGH);
+
+	bw = ath11k_reg_adjust_bw(start_freq, end_freq, max_bw);
+	if (bw > 0) {
+		i++;
+
+		ath11k_reg_update_rule(regd->reg_rules + i, start_freq,
+				       end_freq, bw, reg_rule->ant_gain,
+				       reg_rule->reg_power, flags);
+
+		regd->reg_rules[i].dfs_cac_ms = ETSI_WEATHER_RADAR_BAND_CAC_TIMEOUT;
+
+		ath11k_dbg(ab, ATH11K_DBG_REG,
+			   "\t%d. (%d - %d @ %d) (%d, %d) (%d ms) (FLAGS %d)\n",
+			   i + 1, start_freq, end_freq, bw,
+			   reg_rule->ant_gain, reg_rule->reg_power,
+			   regd->reg_rules[i].dfs_cac_ms, flags);
+	}
+
+	/* frequencies above weather radar */
 	bw = ath11k_reg_adjust_bw(ETSI_WEATHER_RADAR_BAND_HIGH,
 				  reg_rule->end_freq, max_bw);
+	if (bw > 0) {
+		i++;
 
-	i++;
+		ath11k_reg_update_rule(regd->reg_rules + i,
+				       ETSI_WEATHER_RADAR_BAND_HIGH,
+				       reg_rule->end_freq, bw,
+				       reg_rule->ant_gain, reg_rule->reg_power,
+				       flags);
 
-	ath11k_reg_update_rule(regd->reg_rules + i, ETSI_WEATHER_RADAR_BAND_HIGH,
-			       reg_rule->end_freq, bw,
-			       reg_rule->ant_gain, reg_rule->reg_power,
-			       flags);
-
-	ath11k_dbg(ab, ATH11K_DBG_REG,
-		   "\t%d. (%d - %d @ %d) (%d, %d) (%d ms) (FLAGS %d)\n",
-		   i + 1, ETSI_WEATHER_RADAR_BAND_HIGH, reg_rule->end_freq,
-		   bw, reg_rule->ant_gain, reg_rule->reg_power,
-		   regd->reg_rules[i].dfs_cac_ms,
-		   flags);
+		ath11k_dbg(ab, ATH11K_DBG_REG,
+			   "\t%d. (%d - %d @ %d) (%d, %d) (%d ms) (FLAGS %d)\n",
+			   i + 1, ETSI_WEATHER_RADAR_BAND_HIGH,
+			   reg_rule->end_freq, bw, reg_rule->ant_gain,
+			   reg_rule->reg_power, regd->reg_rules[i].dfs_cac_ms,
+			   flags);
+	}
 
 	*rule_idx = i;
 }

@@ -2,6 +2,7 @@
 /* Copyright (c) 2019 Mellanox Technologies. */
 
 #include <linux/mlx5/eswitch.h>
+#include <linux/err.h>
 #include "dr_types.h"
 
 #define DR_DOMAIN_SW_STEERING_SUPPORTED(dmn, dmn_type)	\
@@ -72,9 +73,9 @@ static int dr_domain_init_resources(struct mlx5dr_domain *dmn)
 	}
 
 	dmn->uar = mlx5_get_uars_page(dmn->mdev);
-	if (!dmn->uar) {
+	if (IS_ERR(dmn->uar)) {
 		mlx5dr_err(dmn, "Couldn't allocate UAR\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(dmn->uar);
 		goto clean_pd;
 	}
 
@@ -135,25 +136,14 @@ static void dr_domain_fill_uplink_caps(struct mlx5dr_domain *dmn,
 
 static int dr_domain_query_vport(struct mlx5dr_domain *dmn,
 				 u16 vport_number,
+				 bool other_vport,
 				 struct mlx5dr_cmd_vport_cap *vport_caps)
 {
-	u16 cmd_vport = vport_number;
-	bool other_vport = true;
 	int ret;
-
-	if (vport_number == MLX5_VPORT_UPLINK) {
-		dr_domain_fill_uplink_caps(dmn, vport_caps);
-		return 0;
-	}
-
-	if (dmn->info.caps.is_ecpf && vport_number == MLX5_VPORT_ECPF) {
-		other_vport = false;
-		cmd_vport = 0;
-	}
 
 	ret = mlx5dr_cmd_query_esw_vport_context(dmn->mdev,
 						 other_vport,
-						 cmd_vport,
+						 vport_number,
 						 &vport_caps->icm_address_rx,
 						 &vport_caps->icm_address_tx);
 	if (ret)
@@ -161,7 +151,7 @@ static int dr_domain_query_vport(struct mlx5dr_domain *dmn,
 
 	ret = mlx5dr_cmd_query_gvmi(dmn->mdev,
 				    other_vport,
-				    cmd_vport,
+				    vport_number,
 				    &vport_caps->vport_gvmi);
 	if (ret)
 		return ret;
@@ -174,9 +164,13 @@ static int dr_domain_query_vport(struct mlx5dr_domain *dmn,
 
 static int dr_domain_query_esw_mngr(struct mlx5dr_domain *dmn)
 {
-	return dr_domain_query_vport(dmn,
-				     dmn->info.caps.is_ecpf ? MLX5_VPORT_ECPF : 0,
+	return dr_domain_query_vport(dmn, 0, false,
 				     &dmn->info.caps.vports.esw_manager_caps);
+}
+
+static void dr_domain_query_uplink(struct mlx5dr_domain *dmn)
+{
+	dr_domain_fill_uplink_caps(dmn, &dmn->info.caps.vports.uplink_caps);
 }
 
 static struct mlx5dr_cmd_vport_cap *
@@ -190,7 +184,7 @@ dr_domain_add_vport_cap(struct mlx5dr_domain *dmn, u16 vport)
 	if (!vport_caps)
 		return NULL;
 
-	ret = dr_domain_query_vport(dmn, vport, vport_caps);
+	ret = dr_domain_query_vport(dmn, vport, true, vport_caps);
 	if (ret) {
 		kvfree(vport_caps);
 		return NULL;
@@ -207,15 +201,25 @@ dr_domain_add_vport_cap(struct mlx5dr_domain *dmn, u16 vport)
 	return vport_caps;
 }
 
+static bool dr_domain_is_esw_mgr_vport(struct mlx5dr_domain *dmn, u16 vport)
+{
+	struct mlx5dr_cmd_caps *caps = &dmn->info.caps;
+
+	return (caps->is_ecpf && vport == MLX5_VPORT_ECPF) ||
+	       (!caps->is_ecpf && vport == 0);
+}
+
 struct mlx5dr_cmd_vport_cap *
 mlx5dr_domain_get_vport_cap(struct mlx5dr_domain *dmn, u16 vport)
 {
 	struct mlx5dr_cmd_caps *caps = &dmn->info.caps;
 	struct mlx5dr_cmd_vport_cap *vport_caps;
 
-	if ((caps->is_ecpf && vport == MLX5_VPORT_ECPF) ||
-	    (!caps->is_ecpf && vport == 0))
+	if (dr_domain_is_esw_mgr_vport(dmn, vport))
 		return &caps->vports.esw_manager_caps;
+
+	if (vport == MLX5_VPORT_UPLINK)
+		return &caps->vports.uplink_caps;
 
 vport_load:
 	vport_caps = xa_load(&caps->vports.vports_caps_xa, vport);
@@ -239,17 +243,6 @@ static void dr_domain_clear_vports(struct mlx5dr_domain *dmn)
 		vport_caps = xa_erase(&dmn->info.caps.vports.vports_caps_xa, i);
 		kvfree(vport_caps);
 	}
-}
-
-static int dr_domain_query_uplink(struct mlx5dr_domain *dmn)
-{
-	struct mlx5dr_cmd_vport_cap *vport_caps;
-
-	vport_caps = mlx5dr_domain_get_vport_cap(dmn, MLX5_VPORT_UPLINK);
-	if (!vport_caps)
-		return -EINVAL;
-
-	return 0;
 }
 
 static int dr_domain_query_fdb_caps(struct mlx5_core_dev *mdev,
@@ -281,11 +274,7 @@ static int dr_domain_query_fdb_caps(struct mlx5_core_dev *mdev,
 		goto free_vports_caps_xa;
 	}
 
-	ret = dr_domain_query_uplink(dmn);
-	if (ret) {
-		mlx5dr_err(dmn, "Failed to query uplink vport caps (err: %d)", ret);
-		goto free_vports_caps_xa;
-	}
+	dr_domain_query_uplink(dmn);
 
 	return 0;
 
@@ -406,7 +395,7 @@ mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type)
 	}
 
 	dr_domain_init_csum_recalc_fts(dmn);
-
+	mlx5dr_dbg_init_dump(dmn);
 	return dmn;
 
 uninit_caps:
@@ -442,11 +431,12 @@ int mlx5dr_domain_sync(struct mlx5dr_domain *dmn, u32 flags)
 
 int mlx5dr_domain_destroy(struct mlx5dr_domain *dmn)
 {
-	if (refcount_read(&dmn->refcount) > 1)
+	if (WARN_ON_ONCE(refcount_read(&dmn->refcount) > 1))
 		return -EBUSY;
 
 	/* make sure resources are not used by the hardware */
 	mlx5dr_cmd_sync_steering(dmn->mdev);
+	mlx5dr_dbg_uninit_dump(dmn);
 	dr_domain_uninit_csum_recalc_fts(dmn);
 	dr_domain_uninit_resources(dmn);
 	dr_domain_caps_uninit(dmn);

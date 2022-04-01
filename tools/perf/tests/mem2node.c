@@ -25,14 +25,15 @@ static unsigned long *get_bitmap(const char *str, int nbits)
 {
 	struct perf_cpu_map *map = perf_cpu_map__new(str);
 	unsigned long *bm = NULL;
-	int i;
 
 	bm = bitmap_zalloc(nbits);
 
 	if (map && bm) {
-		for (i = 0; i < map->nr; i++) {
-			set_bit(map->map[i], bm);
-		}
+		struct perf_cpu cpu;
+		int i;
+
+		perf_cpu_map__for_each_cpu(cpu, i, map)
+			set_bit(cpu.cpu, bm);
 	}
 
 	if (map)

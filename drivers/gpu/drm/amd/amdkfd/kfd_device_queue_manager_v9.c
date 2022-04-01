@@ -62,7 +62,7 @@ static int update_qpd_v9(struct device_queue_manager *dqm,
 				SH_MEM_ALIGNMENT_MODE_UNALIGNED <<
 					SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT;
 
-		if (dqm->dev->device_info->asic_family == CHIP_ALDEBARAN) {
+		if (KFD_GC_VERSION(dqm->dev) == IP_VERSION(9, 4, 2)) {
 			/* Aldebaran can safely support different XNACK modes
 			 * per process
 			 */

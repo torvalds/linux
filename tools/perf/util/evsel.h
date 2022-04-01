@@ -11,6 +11,7 @@
 #include <perf/evsel.h>
 #include "symbol_conf.h"
 #include <internal/cpumap.h>
+#include <perf/cpumap.h>
 
 struct bpf_object;
 struct cgroup;
@@ -121,7 +122,6 @@ struct evsel {
 	bool			errored;
 	struct hashmap		*per_pkg_mask;
 	int			err;
-	int			cpu_iter;
 	struct {
 		evsel__sb_cb_t	*cb;
 		void		*data;
@@ -192,11 +192,8 @@ static inline struct perf_cpu_map *evsel__cpus(struct evsel *evsel)
 
 static inline int evsel__nr_cpus(struct evsel *evsel)
 {
-	return evsel__cpus(evsel)->nr;
+	return perf_cpu_map__nr(evsel__cpus(evsel));
 }
-
-void perf_counts_values__scale(struct perf_counts_values *count,
-			       bool scale, s8 *pscaled);
 
 void evsel__compute_deltas(struct evsel *evsel, int cpu, int thread,
 			   struct perf_counts_values *count);
@@ -288,12 +285,12 @@ void arch_evsel__fixup_new_cycles(struct perf_event_attr *attr);
 int evsel__set_filter(struct evsel *evsel, const char *filter);
 int evsel__append_tp_filter(struct evsel *evsel, const char *filter);
 int evsel__append_addr_filter(struct evsel *evsel, const char *filter);
-int evsel__enable_cpu(struct evsel *evsel, int cpu);
+int evsel__enable_cpu(struct evsel *evsel, int cpu_map_idx);
 int evsel__enable(struct evsel *evsel);
 int evsel__disable(struct evsel *evsel);
-int evsel__disable_cpu(struct evsel *evsel, int cpu);
+int evsel__disable_cpu(struct evsel *evsel, int cpu_map_idx);
 
-int evsel__open_per_cpu(struct evsel *evsel, struct perf_cpu_map *cpus, int cpu);
+int evsel__open_per_cpu(struct evsel *evsel, struct perf_cpu_map *cpus, int cpu_map_idx);
 int evsel__open_per_thread(struct evsel *evsel, struct perf_thread_map *threads);
 int evsel__open(struct evsel *evsel, struct perf_cpu_map *cpus,
 		struct perf_thread_map *threads);
@@ -305,10 +302,6 @@ bool evsel__detect_missing_features(struct evsel *evsel);
 enum rlimit_action { NO_CHANGE, SET_TO_MAX, INCREASED_MAX };
 bool evsel__increase_rlimit(enum rlimit_action *set_rlimit);
 
-bool evsel__ignore_missing_thread(struct evsel *evsel,
-				  int nr_cpus, int cpu,
-				  struct perf_thread_map *threads,
-				  int thread, int err);
 bool evsel__precise_ip_fallback(struct evsel *evsel);
 
 struct perf_sample;
@@ -337,32 +330,32 @@ static inline bool evsel__match2(struct evsel *e1, struct evsel *e2)
 	       (e1->core.attr.config == e2->core.attr.config);
 }
 
-int evsel__read_counter(struct evsel *evsel, int cpu, int thread);
+int evsel__read_counter(struct evsel *evsel, int cpu_map_idx, int thread);
 
-int __evsel__read_on_cpu(struct evsel *evsel, int cpu, int thread, bool scale);
+int __evsel__read_on_cpu(struct evsel *evsel, int cpu_map_idx, int thread, bool scale);
 
 /**
  * evsel__read_on_cpu - Read out the results on a CPU and thread
  *
  * @evsel - event selector to read value
- * @cpu - CPU of interest
+ * @cpu_map_idx - CPU of interest
  * @thread - thread of interest
  */
-static inline int evsel__read_on_cpu(struct evsel *evsel, int cpu, int thread)
+static inline int evsel__read_on_cpu(struct evsel *evsel, int cpu_map_idx, int thread)
 {
-	return __evsel__read_on_cpu(evsel, cpu, thread, false);
+	return __evsel__read_on_cpu(evsel, cpu_map_idx, thread, false);
 }
 
 /**
  * evsel__read_on_cpu_scaled - Read out the results on a CPU and thread, scaled
  *
  * @evsel - event selector to read value
- * @cpu - CPU of interest
+ * @cpu_map_idx - CPU of interest
  * @thread - thread of interest
  */
-static inline int evsel__read_on_cpu_scaled(struct evsel *evsel, int cpu, int thread)
+static inline int evsel__read_on_cpu_scaled(struct evsel *evsel, int cpu_map_idx, int thread)
 {
-	return __evsel__read_on_cpu(evsel, cpu, thread, true);
+	return __evsel__read_on_cpu(evsel, cpu_map_idx, thread, true);
 }
 
 int evsel__parse_sample(struct evsel *evsel, union perf_event *event,

@@ -131,9 +131,7 @@ Ftrace Histogram Options
 Since it is too long to write a histogram action as a string for per-event
 action option, there are tree-style options under per-event 'hist' subkey
 for the histogram actions. For the detail of the each parameter,
-please read the event histogram document [3]_.
-
-.. [3] See :ref:`Documentation/trace/histogram.rst <histogram>`
+please read the event histogram document (Documentation/trace/histogram.rst)
 
 ftrace.[instance.INSTANCE.]event.GROUP.EVENT.hist.[N.]keys = KEY1[, KEY2[...]]
   Set histogram key parameters. (Mandatory)

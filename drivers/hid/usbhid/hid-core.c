@@ -1563,8 +1563,8 @@ static int hid_resume_common(struct hid_device *hid, bool driver_suspended)
 	int status = 0;
 
 	hid_restart_io(hid);
-	if (driver_suspended && hid->driver && hid->driver->resume)
-		status = hid->driver->resume(hid);
+	if (driver_suspended)
+		status = hid_driver_resume(hid);
 	return status;
 }
 
@@ -1588,11 +1588,9 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 		{
 			set_bit(HID_SUSPENDED, &usbhid->iofl);
 			spin_unlock_irq(&usbhid->lock);
-			if (hid->driver && hid->driver->suspend) {
-				status = hid->driver->suspend(hid, message);
-				if (status < 0)
-					goto failed;
-			}
+			status = hid_driver_suspend(hid, message);
+			if (status < 0)
+				goto failed;
 			driver_suspended = true;
 		} else {
 			usbhid_mark_busy(usbhid);
@@ -1602,8 +1600,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 
 	} else {
 		/* TODO: resume() might need to handle suspend failure */
-		if (hid->driver && hid->driver->suspend)
-			status = hid->driver->suspend(hid, message);
+		status = hid_driver_suspend(hid, message);
 		driver_suspended = true;
 		spin_lock_irq(&usbhid->lock);
 		set_bit(HID_SUSPENDED, &usbhid->iofl);
@@ -1644,8 +1641,8 @@ static int hid_reset_resume(struct usb_interface *intf)
 	int status;
 
 	status = hid_post_reset(intf);
-	if (status >= 0 && hid->driver && hid->driver->reset_resume) {
-		int ret = hid->driver->reset_resume(hid);
+	if (status >= 0) {
+		int ret = hid_driver_reset_resume(hid);
 		if (ret < 0)
 			status = ret;
 	}

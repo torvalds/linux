@@ -27,8 +27,7 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include "../comedidev.h"
-
+#include <linux/comedi/comedidev.h>
 #include <linux/delay.h>
 
 #define DT2814_CSR 0

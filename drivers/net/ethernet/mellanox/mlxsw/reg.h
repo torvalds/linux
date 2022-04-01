@@ -69,52 +69,6 @@ MLXSW_REG_DEFINE(spad, MLXSW_REG_SPAD_ID, MLXSW_REG_SPAD_LEN);
  */
 MLXSW_ITEM_BUF(reg, spad, base_mac, 0x02, 6);
 
-/* SMID - Switch Multicast ID
- * --------------------------
- * The MID record maps from a MID (Multicast ID), which is a unique identifier
- * of the multicast group within the stacking domain, into a list of local
- * ports into which the packet is replicated.
- */
-#define MLXSW_REG_SMID_ID 0x2007
-#define MLXSW_REG_SMID_LEN 0x240
-
-MLXSW_REG_DEFINE(smid, MLXSW_REG_SMID_ID, MLXSW_REG_SMID_LEN);
-
-/* reg_smid_swid
- * Switch partition ID.
- * Access: Index
- */
-MLXSW_ITEM32(reg, smid, swid, 0x00, 24, 8);
-
-/* reg_smid_mid
- * Multicast identifier - global identifier that represents the multicast group
- * across all devices.
- * Access: Index
- */
-MLXSW_ITEM32(reg, smid, mid, 0x00, 0, 16);
-
-/* reg_smid_port
- * Local port memebership (1 bit per port).
- * Access: RW
- */
-MLXSW_ITEM_BIT_ARRAY(reg, smid, port, 0x20, 0x20, 1);
-
-/* reg_smid_port_mask
- * Local port mask (1 bit per port).
- * Access: W
- */
-MLXSW_ITEM_BIT_ARRAY(reg, smid, port_mask, 0x220, 0x20, 1);
-
-static inline void mlxsw_reg_smid_pack(char *payload, u16 mid,
-				       u8 port, bool set)
-{
-	MLXSW_REG_ZERO(smid, payload);
-	mlxsw_reg_smid_swid_set(payload, 0);
-	mlxsw_reg_smid_mid_set(payload, mid);
-	mlxsw_reg_smid_port_set(payload, port, set);
-	mlxsw_reg_smid_port_mask_set(payload, port, 1);
-}
-
 /* SSPR - Switch System Port Record Register
  * -----------------------------------------
  * Configures the system port to local port mapping.
@@ -141,7 +95,7 @@ MLXSW_ITEM32(reg, sspr, m, 0x00, 31, 1);
  *
  * Access: RW
  */
-MLXSW_ITEM32(reg, sspr, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, sspr, 0x00, 16, 0x00, 12);
 
 /* reg_sspr_sub_port
  * Virtual port within the physical port.
@@ -161,7 +115,7 @@ MLXSW_ITEM32(reg, sspr, sub_port, 0x00, 8, 8);
  */
 MLXSW_ITEM32(reg, sspr, system_port, 0x04, 0, 16);
 
-static inline void mlxsw_reg_sspr_pack(char *payload, u8 local_port)
+static inline void mlxsw_reg_sspr_pack(char *payload, u16 local_port)
 {
 	MLXSW_REG_ZERO(sspr, payload);
 	mlxsw_reg_sspr_m_set(payload, 1);
@@ -407,7 +361,7 @@ static inline void mlxsw_reg_sfd_uc_pack(char *payload, int rec_index,
 					 enum mlxsw_reg_sfd_rec_policy policy,
 					 const char *mac, u16 fid_vid,
 					 enum mlxsw_reg_sfd_rec_action action,
-					 u8 local_port)
+					 u16 local_port)
 {
 	mlxsw_reg_sfd_rec_pack(payload, rec_index,
 			       MLXSW_REG_SFD_REC_TYPE_UNICAST, mac, action);
@@ -415,15 +369,6 @@ static inline void mlxsw_reg_sfd_uc_pack(char *payload, int rec_index,
 	mlxsw_reg_sfd_uc_sub_port_set(payload, rec_index, 0);
 	mlxsw_reg_sfd_uc_fid_vid_set(payload, rec_index, fid_vid);
 	mlxsw_reg_sfd_uc_system_port_set(payload, rec_index, local_port);
-}
-
-static inline void mlxsw_reg_sfd_uc_unpack(char *payload, int rec_index,
-					   char *mac, u16 *p_fid_vid,
-					   u8 *p_local_port)
-{
-	mlxsw_reg_sfd_rec_mac_memcpy_from(payload, rec_index, mac);
-	*p_fid_vid = mlxsw_reg_sfd_uc_fid_vid_get(payload, rec_index);
-	*p_local_port = mlxsw_reg_sfd_uc_system_port_get(payload, rec_index);
 }
 
 /* reg_sfd_uc_lag_sub_port
@@ -476,15 +421,6 @@ mlxsw_reg_sfd_uc_lag_pack(char *payload, int rec_index,
 	mlxsw_reg_sfd_uc_lag_fid_vid_set(payload, rec_index, fid_vid);
 	mlxsw_reg_sfd_uc_lag_lag_vid_set(payload, rec_index, lag_vid);
 	mlxsw_reg_sfd_uc_lag_lag_id_set(payload, rec_index, lag_id);
-}
-
-static inline void mlxsw_reg_sfd_uc_lag_unpack(char *payload, int rec_index,
-					       char *mac, u16 *p_vid,
-					       u16 *p_lag_id)
-{
-	mlxsw_reg_sfd_rec_mac_memcpy_from(payload, rec_index, mac);
-	*p_vid = mlxsw_reg_sfd_uc_lag_fid_vid_get(payload, rec_index);
-	*p_lag_id = mlxsw_reg_sfd_uc_lag_lag_id_get(payload, rec_index);
 }
 
 /* reg_sfd_mc_pgi
@@ -568,17 +504,41 @@ static inline void
 mlxsw_reg_sfd_uc_tunnel_pack(char *payload, int rec_index,
 			     enum mlxsw_reg_sfd_rec_policy policy,
 			     const char *mac, u16 fid,
-			     enum mlxsw_reg_sfd_rec_action action, u32 uip,
+			     enum mlxsw_reg_sfd_rec_action action,
 			     enum mlxsw_reg_sfd_uc_tunnel_protocol proto)
 {
 	mlxsw_reg_sfd_rec_pack(payload, rec_index,
 			       MLXSW_REG_SFD_REC_TYPE_UNICAST_TUNNEL, mac,
 			       action);
 	mlxsw_reg_sfd_rec_policy_set(payload, rec_index, policy);
-	mlxsw_reg_sfd_uc_tunnel_uip_msb_set(payload, rec_index, uip >> 24);
-	mlxsw_reg_sfd_uc_tunnel_uip_lsb_set(payload, rec_index, uip);
 	mlxsw_reg_sfd_uc_tunnel_fid_set(payload, rec_index, fid);
 	mlxsw_reg_sfd_uc_tunnel_protocol_set(payload, rec_index, proto);
+}
+
+static inline void
+mlxsw_reg_sfd_uc_tunnel_pack4(char *payload, int rec_index,
+			      enum mlxsw_reg_sfd_rec_policy policy,
+			      const char *mac, u16 fid,
+			      enum mlxsw_reg_sfd_rec_action action, u32 uip)
+{
+	mlxsw_reg_sfd_uc_tunnel_uip_msb_set(payload, rec_index, uip >> 24);
+	mlxsw_reg_sfd_uc_tunnel_uip_lsb_set(payload, rec_index, uip);
+	mlxsw_reg_sfd_uc_tunnel_pack(payload, rec_index, policy, mac, fid,
+				     action,
+				     MLXSW_REG_SFD_UC_TUNNEL_PROTOCOL_IPV4);
+}
+
+static inline void
+mlxsw_reg_sfd_uc_tunnel_pack6(char *payload, int rec_index, const char *mac,
+			      u16 fid, enum mlxsw_reg_sfd_rec_action action,
+			      u32 uip_ptr)
+{
+	mlxsw_reg_sfd_uc_tunnel_uip_lsb_set(payload, rec_index, uip_ptr);
+	/* Only static policy is supported for IPv6 unicast tunnel entry. */
+	mlxsw_reg_sfd_uc_tunnel_pack(payload, rec_index,
+				     MLXSW_REG_SFD_REC_POLICY_STATIC_ENTRY,
+				     mac, fid, action,
+				     MLXSW_REG_SFD_UC_TUNNEL_PROTOCOL_IPV6);
 }
 
 enum mlxsw_reg_tunnel_port {
@@ -692,7 +652,7 @@ MLXSW_ITEM32_INDEXED(reg, sfn, mac_system_port, MLXSW_REG_SFN_BASE_LEN, 0, 16,
 
 static inline void mlxsw_reg_sfn_mac_unpack(char *payload, int rec_index,
 					    char *mac, u16 *p_vid,
-					    u8 *p_local_port)
+					    u16 *p_local_port)
 {
 	mlxsw_reg_sfn_rec_mac_memcpy_from(payload, rec_index, mac);
 	*p_vid = mlxsw_reg_sfn_mac_fid_get(payload, rec_index);
@@ -781,7 +741,7 @@ MLXSW_REG_DEFINE(spms, MLXSW_REG_SPMS_ID, MLXSW_REG_SPMS_LEN);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, spms, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, spms, 0x00, 16, 0x00, 12);
 
 enum mlxsw_reg_spms_state {
 	MLXSW_REG_SPMS_STATE_NO_CHANGE,
@@ -800,7 +760,7 @@ enum mlxsw_reg_spms_state {
  */
 MLXSW_ITEM_BIT_ARRAY(reg, spms, state, 0x04, 0x400, 2);
 
-static inline void mlxsw_reg_spms_pack(char *payload, u8 local_port)
+static inline void mlxsw_reg_spms_pack(char *payload, u16 local_port)
 {
 	MLXSW_REG_ZERO(spms, payload);
 	mlxsw_reg_spms_local_port_set(payload, local_port);
@@ -833,7 +793,7 @@ MLXSW_ITEM32(reg, spvid, tport, 0x00, 24, 1);
  * When tport = 1: Tunnel port.
  * Access: Index
  */
-MLXSW_ITEM32(reg, spvid, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, spvid, 0x00, 16, 0x00, 12);
 
 /* reg_spvid_sub_port
  * Virtual port within the physical port.
@@ -868,7 +828,7 @@ MLXSW_ITEM32(reg, spvid, et_vlan, 0x04, 16, 2);
  */
 MLXSW_ITEM32(reg, spvid, pvid, 0x04, 0, 12);
 
-static inline void mlxsw_reg_spvid_pack(char *payload, u8 local_port, u16 pvid,
+static inline void mlxsw_reg_spvid_pack(char *payload, u16 local_port, u16 pvid,
 					u8 et_vlan)
 {
 	MLXSW_REG_ZERO(spvid, payload);
@@ -911,7 +871,7 @@ MLXSW_ITEM32(reg, spvm, pte, 0x00, 30, 1);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, spvm, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, spvm, 0x00, 16, 0x00, 12);
 
 /* reg_spvm_sub_port
  * Virtual port within the physical port.
@@ -959,7 +919,7 @@ MLXSW_ITEM32_INDEXED(reg, spvm, rec_vid,
 		     MLXSW_REG_SPVM_BASE_LEN, 0, 12,
 		     MLXSW_REG_SPVM_REC_LEN, 0, false);
 
-static inline void mlxsw_reg_spvm_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_spvm_pack(char *payload, u16 local_port,
 				       u16 vid_begin, u16 vid_end,
 				       bool is_member, bool untagged)
 {
@@ -994,7 +954,7 @@ MLXSW_REG_DEFINE(spaft, MLXSW_REG_SPAFT_ID, MLXSW_REG_SPAFT_LEN);
  *
  * Note: CPU port is not supported (all tag types are allowed).
  */
-MLXSW_ITEM32(reg, spaft, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, spaft, 0x00, 16, 0x00, 12);
 
 /* reg_spaft_sub_port
  * Virtual port within the physical port.
@@ -1021,7 +981,7 @@ MLXSW_ITEM32(reg, spaft, allow_prio_tagged, 0x04, 30, 1);
  */
 MLXSW_ITEM32(reg, spaft, allow_tagged, 0x04, 29, 1);
 
-static inline void mlxsw_reg_spaft_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_spaft_pack(char *payload, u16 local_port,
 					bool allow_untagged)
 {
 	MLXSW_REG_ZERO(spaft, payload);
@@ -1124,76 +1084,6 @@ mlxsw_reg_sfgc_pack(char *payload, enum mlxsw_reg_sfgc_type type,
 	mlxsw_reg_sfgc_table_type_set(payload, table_type);
 	mlxsw_reg_sfgc_flood_table_set(payload, flood_table);
 	mlxsw_reg_sfgc_mid_set(payload, MLXSW_PORT_MID);
-}
-
-/* SFTR - Switch Flooding Table Register
- * -------------------------------------
- * The switch flooding table is used for flooding packet replication. The table
- * defines a bit mask of ports for packet replication.
- */
-#define MLXSW_REG_SFTR_ID 0x2012
-#define MLXSW_REG_SFTR_LEN 0x420
-
-MLXSW_REG_DEFINE(sftr, MLXSW_REG_SFTR_ID, MLXSW_REG_SFTR_LEN);
-
-/* reg_sftr_swid
- * Switch partition ID with which to associate the port.
- * Access: Index
- */
-MLXSW_ITEM32(reg, sftr, swid, 0x00, 24, 8);
-
-/* reg_sftr_flood_table
- * Flooding table index to associate with the specific type on the specific
- * switch partition.
- * Access: Index
- */
-MLXSW_ITEM32(reg, sftr, flood_table, 0x00, 16, 6);
-
-/* reg_sftr_index
- * Index. Used as an index into the Flooding Table in case the table is
- * configured to use VID / FID or FID Offset.
- * Access: Index
- */
-MLXSW_ITEM32(reg, sftr, index, 0x00, 0, 16);
-
-/* reg_sftr_table_type
- * See mlxsw_flood_table_type
- * Access: RW
- */
-MLXSW_ITEM32(reg, sftr, table_type, 0x04, 16, 3);
-
-/* reg_sftr_range
- * Range of entries to update
- * Access: Index
- */
-MLXSW_ITEM32(reg, sftr, range, 0x04, 0, 16);
-
-/* reg_sftr_port
- * Local port membership (1 bit per port).
- * Access: RW
- */
-MLXSW_ITEM_BIT_ARRAY(reg, sftr, port, 0x20, 0x20, 1);
-
-/* reg_sftr_cpu_port_mask
- * CPU port mask (1 bit per port).
- * Access: W
- */
-MLXSW_ITEM_BIT_ARRAY(reg, sftr, port_mask, 0x220, 0x20, 1);
-
-static inline void mlxsw_reg_sftr_pack(char *payload,
-				       unsigned int flood_table,
-				       unsigned int index,
-				       enum mlxsw_flood_table_type table_type,
-				       unsigned int range, u8 port, bool set)
-{
-	MLXSW_REG_ZERO(sftr, payload);
-	mlxsw_reg_sftr_swid_set(payload, 0);
-	mlxsw_reg_sftr_flood_table_set(payload, flood_table);
-	mlxsw_reg_sftr_index_set(payload, index);
-	mlxsw_reg_sftr_table_type_set(payload, table_type);
-	mlxsw_reg_sftr_range_set(payload, range);
-	mlxsw_reg_sftr_port_set(payload, port, set);
-	mlxsw_reg_sftr_port_mask_set(payload, port, 1);
 }
 
 /* SFDF - Switch Filtering DB Flush
@@ -1347,7 +1237,7 @@ MLXSW_ITEM32(reg, sldr, num_ports, 0x04, 24, 8);
 MLXSW_ITEM32_INDEXED(reg, sldr, system_port, 0x08, 0, 16, 4, 0, false);
 
 static inline void mlxsw_reg_sldr_lag_add_port_pack(char *payload, u8 lag_id,
-						    u8 local_port)
+						    u16 local_port)
 {
 	MLXSW_REG_ZERO(sldr, payload);
 	mlxsw_reg_sldr_op_set(payload, MLXSW_REG_SLDR_OP_LAG_ADD_PORT_LIST);
@@ -1357,7 +1247,7 @@ static inline void mlxsw_reg_sldr_lag_add_port_pack(char *payload, u8 lag_id,
 }
 
 static inline void mlxsw_reg_sldr_lag_remove_port_pack(char *payload, u8 lag_id,
-						       u8 local_port)
+						       u16 local_port)
 {
 	MLXSW_REG_ZERO(sldr, payload);
 	mlxsw_reg_sldr_op_set(payload, MLXSW_REG_SLDR_OP_LAG_REMOVE_PORT_LIST);
@@ -1397,7 +1287,7 @@ MLXSW_ITEM32(reg, slcr, pp, 0x00, 24, 1);
  * Reserved when pp = Global Configuration
  * Access: Index
  */
-MLXSW_ITEM32(reg, slcr, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, slcr, 0x00, 16, 0x00, 12);
 
 enum mlxsw_reg_slcr_type {
 	MLXSW_REG_SLCR_TYPE_CRC, /* default */
@@ -1515,7 +1405,7 @@ MLXSW_ITEM32(reg, slcor, col, 0x00, 30, 2);
  * Not supported for CPU port
  * Access: Index
  */
-MLXSW_ITEM32(reg, slcor, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, slcor, 0x00, 16, 0x00, 12);
 
 /* reg_slcor_lag_id
  * LAG Identifier. Index into the LAG descriptor table.
@@ -1531,7 +1421,7 @@ MLXSW_ITEM32(reg, slcor, lag_id, 0x00, 0, 10);
 MLXSW_ITEM32(reg, slcor, port_index, 0x04, 0, 10);
 
 static inline void mlxsw_reg_slcor_pack(char *payload,
-					u8 local_port, u16 lag_id,
+					u16 local_port, u16 lag_id,
 					enum mlxsw_reg_slcor_col col)
 {
 	MLXSW_REG_ZERO(slcor, payload);
@@ -1541,7 +1431,7 @@ static inline void mlxsw_reg_slcor_pack(char *payload,
 }
 
 static inline void mlxsw_reg_slcor_port_add_pack(char *payload,
-						 u8 local_port, u16 lag_id,
+						 u16 local_port, u16 lag_id,
 						 u8 port_index)
 {
 	mlxsw_reg_slcor_pack(payload, local_port, lag_id,
@@ -1550,21 +1440,21 @@ static inline void mlxsw_reg_slcor_port_add_pack(char *payload,
 }
 
 static inline void mlxsw_reg_slcor_port_remove_pack(char *payload,
-						    u8 local_port, u16 lag_id)
+						    u16 local_port, u16 lag_id)
 {
 	mlxsw_reg_slcor_pack(payload, local_port, lag_id,
 			     MLXSW_REG_SLCOR_COL_LAG_REMOVE_PORT);
 }
 
 static inline void mlxsw_reg_slcor_col_enable_pack(char *payload,
-						   u8 local_port, u16 lag_id)
+						   u16 local_port, u16 lag_id)
 {
 	mlxsw_reg_slcor_pack(payload, local_port, lag_id,
 			     MLXSW_REG_SLCOR_COL_LAG_COLLECTOR_ENABLED);
 }
 
 static inline void mlxsw_reg_slcor_col_disable_pack(char *payload,
-						    u8 local_port, u16 lag_id)
+						    u16 local_port, u16 lag_id)
 {
 	mlxsw_reg_slcor_pack(payload, local_port, lag_id,
 			     MLXSW_REG_SLCOR_COL_LAG_COLLECTOR_ENABLED);
@@ -1583,7 +1473,7 @@ MLXSW_REG_DEFINE(spmlr, MLXSW_REG_SPMLR_ID, MLXSW_REG_SPMLR_LEN);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, spmlr, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, spmlr, 0x00, 16, 0x00, 12);
 
 /* reg_spmlr_sub_port
  * Virtual port within the physical port.
@@ -1611,7 +1501,7 @@ enum mlxsw_reg_spmlr_learn_mode {
  */
 MLXSW_ITEM32(reg, spmlr, learn_mode, 0x04, 30, 2);
 
-static inline void mlxsw_reg_spmlr_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_spmlr_pack(char *payload, u16 local_port,
 					enum mlxsw_reg_spmlr_learn_mode mode)
 {
 	MLXSW_REG_ZERO(spmlr, payload);
@@ -1642,7 +1532,7 @@ MLXSW_ITEM32(reg, svfa, swid, 0x00, 24, 8);
  *
  * Note: Reserved for 802.1Q FIDs.
  */
-MLXSW_ITEM32(reg, svfa, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, svfa, 0x00, 16, 0x00, 12);
 
 enum mlxsw_reg_svfa_mt {
 	MLXSW_REG_SVFA_MT_VID_TO_FID,
@@ -1696,7 +1586,7 @@ MLXSW_ITEM32(reg, svfa, counter_set_type, 0x08, 24, 8);
  */
 MLXSW_ITEM32(reg, svfa, counter_index, 0x08, 0, 24);
 
-static inline void mlxsw_reg_svfa_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_svfa_pack(char *payload, u16 local_port,
 				       enum mlxsw_reg_svfa_mt mt, bool valid,
 				       u16 fid, u16 vid)
 {
@@ -1733,7 +1623,7 @@ MLXSW_ITEM32(reg, spvtr, tport, 0x00, 24, 1);
  * When tport = 1: tunnel port.
  * Access: Index
  */
-MLXSW_ITEM32(reg, spvtr, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, spvtr, 0x00, 16, 0x00, 12);
 
 /* reg_spvtr_ippe
  * Ingress Port Prio Mode Update Enable.
@@ -1803,7 +1693,7 @@ enum mlxsw_reg_spvtr_epvid_mode {
 MLXSW_ITEM32(reg, spvtr, epvid_mode, 0x04, 0, 4);
 
 static inline void mlxsw_reg_spvtr_pack(char *payload, bool tport,
-					u8 local_port,
+					u16 local_port,
 					enum mlxsw_reg_spvtr_ipvid_mode ipvid_mode)
 {
 	MLXSW_REG_ZERO(spvtr, payload);
@@ -1828,7 +1718,7 @@ MLXSW_REG_DEFINE(svpe, MLXSW_REG_SVPE_ID, MLXSW_REG_SVPE_LEN);
  *
  * Note: CPU port is not supported (uses VLAN mode only).
  */
-MLXSW_ITEM32(reg, svpe, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, svpe, 0x00, 16, 0x00, 12);
 
 /* reg_svpe_vp_en
  * Virtual port enable.
@@ -1838,7 +1728,7 @@ MLXSW_ITEM32(reg, svpe, local_port, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, svpe, vp_en, 0x00, 8, 1);
 
-static inline void mlxsw_reg_svpe_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_svpe_pack(char *payload, u16 local_port,
 				       bool enable)
 {
 	MLXSW_REG_ZERO(svpe, payload);
@@ -1948,7 +1838,7 @@ MLXSW_REG_DEFINE(spvmlr, MLXSW_REG_SPVMLR_ID, MLXSW_REG_SPVMLR_LEN);
  *
  * Note: CPU port is not supported.
  */
-MLXSW_ITEM32(reg, spvmlr, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, spvmlr, 0x00, 16, 0x00, 12);
 
 /* reg_spvmlr_num_rec
  * Number of records to update.
@@ -1971,7 +1861,7 @@ MLXSW_ITEM32_INDEXED(reg, spvmlr, rec_learn_enable, MLXSW_REG_SPVMLR_BASE_LEN,
 MLXSW_ITEM32_INDEXED(reg, spvmlr, rec_vid, MLXSW_REG_SPVMLR_BASE_LEN, 0, 12,
 		     MLXSW_REG_SPVMLR_REC_LEN, 0x00, false);
 
-static inline void mlxsw_reg_spvmlr_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_spvmlr_pack(char *payload, u16 local_port,
 					 u16 vid_begin, u16 vid_end,
 					 bool learn_enable)
 {
@@ -2009,7 +1899,7 @@ MLXSW_REG_DEFINE(spvc, MLXSW_REG_SPVC_ID, MLXSW_REG_SPVC_LEN);
  * through Rx port i and a Tx port j then port i and port j must have the
  * same configuration.
  */
-MLXSW_ITEM32(reg, spvc, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, spvc, 0x00, 16, 0x00, 12);
 
 /* reg_spvc_inner_et2
  * Vlan Tag1 EtherType2 enable.
@@ -2074,7 +1964,7 @@ MLXSW_ITEM32(reg, spvc, inner_et0, 0x08, 1, 1);
  */
 MLXSW_ITEM32(reg, spvc, et0, 0x08, 0, 1);
 
-static inline void mlxsw_reg_spvc_pack(char *payload, u8 local_port, bool et1,
+static inline void mlxsw_reg_spvc_pack(char *payload, u16 local_port, bool et1,
 				       bool et0)
 {
 	MLXSW_REG_ZERO(spvc, payload);
@@ -2104,7 +1994,7 @@ MLXSW_REG_DEFINE(spevet, MLXSW_REG_SPEVET_ID, MLXSW_REG_SPEVET_LEN);
  * Not supported to CPU port.
  * Access: Index
  */
-MLXSW_ITEM32(reg, spevet, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, spevet, 0x00, 16, 0x00, 12);
 
 /* reg_spevet_et_vlan
  * Egress EtherType VLAN to push when SPVID.egr_et_set field set for the packet:
@@ -2115,12 +2005,128 @@ MLXSW_ITEM32(reg, spevet, local_port, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, spevet, et_vlan, 0x04, 16, 2);
 
-static inline void mlxsw_reg_spevet_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_spevet_pack(char *payload, u16 local_port,
 					 u8 et_vlan)
 {
 	MLXSW_REG_ZERO(spevet, payload);
 	mlxsw_reg_spevet_local_port_set(payload, local_port);
 	mlxsw_reg_spevet_et_vlan_set(payload, et_vlan);
+}
+
+/* SFTR-V2 - Switch Flooding Table Version 2 Register
+ * --------------------------------------------------
+ * The switch flooding table is used for flooding packet replication. The table
+ * defines a bit mask of ports for packet replication.
+ */
+#define MLXSW_REG_SFTR2_ID 0x202F
+#define MLXSW_REG_SFTR2_LEN 0x120
+
+MLXSW_REG_DEFINE(sftr2, MLXSW_REG_SFTR2_ID, MLXSW_REG_SFTR2_LEN);
+
+/* reg_sftr2_swid
+ * Switch partition ID with which to associate the port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sftr2, swid, 0x00, 24, 8);
+
+/* reg_sftr2_flood_table
+ * Flooding table index to associate with the specific type on the specific
+ * switch partition.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sftr2, flood_table, 0x00, 16, 6);
+
+/* reg_sftr2_index
+ * Index. Used as an index into the Flooding Table in case the table is
+ * configured to use VID / FID or FID Offset.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sftr2, index, 0x00, 0, 16);
+
+/* reg_sftr2_table_type
+ * See mlxsw_flood_table_type
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sftr2, table_type, 0x04, 16, 3);
+
+/* reg_sftr2_range
+ * Range of entries to update
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sftr2, range, 0x04, 0, 16);
+
+/* reg_sftr2_port
+ * Local port membership (1 bit per port).
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, sftr2, port, 0x20, 0x80, 1);
+
+/* reg_sftr2_port_mask
+ * Local port mask (1 bit per port).
+ * Access: WO
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, sftr2, port_mask, 0xA0, 0x80, 1);
+
+static inline void mlxsw_reg_sftr2_pack(char *payload,
+					unsigned int flood_table,
+					unsigned int index,
+					enum mlxsw_flood_table_type table_type,
+					unsigned int range, u16 port, bool set)
+{
+	MLXSW_REG_ZERO(sftr2, payload);
+	mlxsw_reg_sftr2_swid_set(payload, 0);
+	mlxsw_reg_sftr2_flood_table_set(payload, flood_table);
+	mlxsw_reg_sftr2_index_set(payload, index);
+	mlxsw_reg_sftr2_table_type_set(payload, table_type);
+	mlxsw_reg_sftr2_range_set(payload, range);
+	mlxsw_reg_sftr2_port_set(payload, port, set);
+	mlxsw_reg_sftr2_port_mask_set(payload, port, 1);
+}
+
+/* SMID-V2 - Switch Multicast ID Version 2 Register
+ * ------------------------------------------------
+ * The MID record maps from a MID (Multicast ID), which is a unique identifier
+ * of the multicast group within the stacking domain, into a list of local
+ * ports into which the packet is replicated.
+ */
+#define MLXSW_REG_SMID2_ID 0x2034
+#define MLXSW_REG_SMID2_LEN 0x120
+
+MLXSW_REG_DEFINE(smid2, MLXSW_REG_SMID2_ID, MLXSW_REG_SMID2_LEN);
+
+/* reg_smid2_swid
+ * Switch partition ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, smid2, swid, 0x00, 24, 8);
+
+/* reg_smid2_mid
+ * Multicast identifier - global identifier that represents the multicast group
+ * across all devices.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, smid2, mid, 0x00, 0, 16);
+
+/* reg_smid2_port
+ * Local port memebership (1 bit per port).
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, smid2, port, 0x20, 0x80, 1);
+
+/* reg_smid2_port_mask
+ * Local port mask (1 bit per port).
+ * Access: WO
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, smid2, port_mask, 0xA0, 0x80, 1);
+
+static inline void mlxsw_reg_smid2_pack(char *payload, u16 mid, u16 port,
+					bool set)
+{
+	MLXSW_REG_ZERO(smid2, payload);
+	mlxsw_reg_smid2_swid_set(payload, 0);
+	mlxsw_reg_smid2_mid_set(payload, mid);
+	mlxsw_reg_smid2_port_set(payload, port, set);
+	mlxsw_reg_smid2_port_mask_set(payload, port, 1);
 }
 
 /* CWTP - Congetion WRED ECN TClass Profile
@@ -2139,7 +2145,7 @@ MLXSW_REG_DEFINE(cwtp, MLXSW_REG_CWTP_ID, MLXSW_REG_CWTP_LEN);
  * Not supported for CPU port
  * Access: Index
  */
-MLXSW_ITEM32(reg, cwtp, local_port, 0, 16, 8);
+MLXSW_ITEM32_LP(reg, cwtp, 0x00, 16, 0x00, 12);
 
 /* reg_cwtp_traffic_class
  * Traffic Class to configure
@@ -2173,7 +2179,7 @@ MLXSW_ITEM32_INDEXED(reg, cwtp, profile_max, MLXSW_REG_CWTP_BASE_LEN,
 #define MLXSW_REG_CWTP_MAX_PROFILE 2
 #define MLXSW_REG_CWTP_DEFAULT_PROFILE 1
 
-static inline void mlxsw_reg_cwtp_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_cwtp_pack(char *payload, u16 local_port,
 				       u8 traffic_class)
 {
 	int i;
@@ -2217,7 +2223,7 @@ MLXSW_REG_DEFINE(cwtpm, MLXSW_REG_CWTPM_ID, MLXSW_REG_CWTPM_LEN);
  * Not supported for CPU port
  * Access: Index
  */
-MLXSW_ITEM32(reg, cwtpm, local_port, 0, 16, 8);
+MLXSW_ITEM32_LP(reg, cwtpm, 0x00, 16, 0x00, 12);
 
 /* reg_cwtpm_traffic_class
  * Traffic Class to configure
@@ -2291,7 +2297,7 @@ MLXSW_ITEM32(reg, cwtpm, ntcp_r, 64, 0, 2);
 
 #define MLXSW_REG_CWTPM_RESET_PROFILE 0
 
-static inline void mlxsw_reg_cwtpm_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_cwtpm_pack(char *payload, u16 local_port,
 					u8 traffic_class, u8 profile,
 					bool wred, bool ecn)
 {
@@ -2363,7 +2369,7 @@ MLXSW_ITEM32(reg, ppbt, op, 0x00, 28, 3);
  * Local port. Not including CPU port.
  * Access: Index
  */
-MLXSW_ITEM32(reg, ppbt, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, ppbt, 0x00, 16, 0x00, 12);
 
 /* reg_ppbt_g
  * group - When set, the binding is of an ACL group. When cleared,
@@ -2382,7 +2388,7 @@ MLXSW_ITEM32(reg, ppbt, acl_info, 0x10, 0, 16);
 
 static inline void mlxsw_reg_ppbt_pack(char *payload, enum mlxsw_reg_pxbt_e e,
 				       enum mlxsw_reg_pxbt_op op,
-				       u8 local_port, u16 acl_info)
+				       u16 local_port, u16 acl_info)
 {
 	MLXSW_REG_ZERO(ppbt, payload);
 	mlxsw_reg_ppbt_e_set(payload, e);
@@ -3513,7 +3519,7 @@ MLXSW_REG_DEFINE(qpts, MLXSW_REG_QPTS_ID, MLXSW_REG_QPTS_LEN);
  *
  * Note: CPU port is supported.
  */
-MLXSW_ITEM32(reg, qpts, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, qpts, 0x00, 16, 0x00, 12);
 
 enum mlxsw_reg_qpts_trust_state {
 	MLXSW_REG_QPTS_TRUST_STATE_PCP = 1,
@@ -3526,7 +3532,7 @@ enum mlxsw_reg_qpts_trust_state {
  */
 MLXSW_ITEM32(reg, qpts, trust_state, 0x04, 0, 3);
 
-static inline void mlxsw_reg_qpts_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_qpts_pack(char *payload, u16 local_port,
 				       enum mlxsw_reg_qpts_trust_state ts)
 {
 	MLXSW_REG_ZERO(qpts, payload);
@@ -3717,7 +3723,7 @@ MLXSW_REG_DEFINE(qtct, MLXSW_REG_QTCT_ID, MLXSW_REG_QTCT_LEN);
  *
  * Note: CPU port is not supported.
  */
-MLXSW_ITEM32(reg, qtct, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, qtct, 0x00, 16, 0x00, 12);
 
 /* reg_qtct_sub_port
  * Virtual port within the physical port.
@@ -3742,7 +3748,7 @@ MLXSW_ITEM32(reg, qtct, switch_prio, 0x00, 0, 4);
  */
 MLXSW_ITEM32(reg, qtct, tclass, 0x04, 0, 4);
 
-static inline void mlxsw_reg_qtct_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_qtct_pack(char *payload, u16 local_port,
 				       u8 switch_prio, u8 tclass)
 {
 	MLXSW_REG_ZERO(qtct, payload);
@@ -3766,7 +3772,7 @@ MLXSW_REG_DEFINE(qeec, MLXSW_REG_QEEC_ID, MLXSW_REG_QEEC_LEN);
  *
  * Note: CPU port is supported.
  */
-MLXSW_ITEM32(reg, qeec, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, qeec, 0x00, 16, 0x00, 12);
 
 enum mlxsw_reg_qeec_hr {
 	MLXSW_REG_QEEC_HR_PORT,
@@ -3908,8 +3914,9 @@ MLXSW_ITEM32(reg, qeec, max_shaper_bs, 0x1C, 0, 6);
 #define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP1	5
 #define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP2	11
 #define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP3	11
+#define MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP4	11
 
-static inline void mlxsw_reg_qeec_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_qeec_pack(char *payload, u16 local_port,
 				       enum mlxsw_reg_qeec_hr hr, u8 index,
 				       u8 next_index)
 {
@@ -3920,7 +3927,7 @@ static inline void mlxsw_reg_qeec_pack(char *payload, u8 local_port,
 	mlxsw_reg_qeec_next_element_index_set(payload, next_index);
 }
 
-static inline void mlxsw_reg_qeec_ptps_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_qeec_ptps_pack(char *payload, u16 local_port,
 					    bool ptps)
 {
 	MLXSW_REG_ZERO(qeec, payload);
@@ -3944,7 +3951,7 @@ MLXSW_REG_DEFINE(qrwe, MLXSW_REG_QRWE_ID, MLXSW_REG_QRWE_LEN);
  *
  * Note: CPU port is supported. No support for router port.
  */
-MLXSW_ITEM32(reg, qrwe, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, qrwe, 0x00, 16, 0x00, 12);
 
 /* reg_qrwe_dscp
  * Whether to enable DSCP rewrite (default is 0, don't rewrite).
@@ -3958,7 +3965,7 @@ MLXSW_ITEM32(reg, qrwe, dscp, 0x04, 1, 1);
  */
 MLXSW_ITEM32(reg, qrwe, pcp, 0x04, 0, 1);
 
-static inline void mlxsw_reg_qrwe_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_qrwe_pack(char *payload, u16 local_port,
 				       bool rewrite_pcp, bool rewrite_dscp)
 {
 	MLXSW_REG_ZERO(qrwe, payload);
@@ -3985,7 +3992,7 @@ MLXSW_REG_DEFINE(qpdsm, MLXSW_REG_QPDSM_ID, MLXSW_REG_QPDSM_LEN);
  * Local Port. Supported for data packets from CPU port.
  * Access: Index
  */
-MLXSW_ITEM32(reg, qpdsm, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, qpdsm, 0x00, 16, 0x00, 12);
 
 /* reg_qpdsm_prio_entry_color0_e
  * Enable update of the entry for color 0 and a given port.
@@ -4038,7 +4045,7 @@ MLXSW_ITEM32_INDEXED(reg, qpdsm, prio_entry_color2_dscp,
 		     MLXSW_REG_QPDSM_BASE_LEN, 8, 6,
 		     MLXSW_REG_QPDSM_PRIO_ENTRY_REC_LEN, 0x00, false);
 
-static inline void mlxsw_reg_qpdsm_pack(char *payload, u8 local_port)
+static inline void mlxsw_reg_qpdsm_pack(char *payload, u16 local_port)
 {
 	MLXSW_REG_ZERO(qpdsm, payload);
 	mlxsw_reg_qpdsm_local_port_set(payload, local_port);
@@ -4071,7 +4078,7 @@ MLXSW_REG_DEFINE(qpdp, MLXSW_REG_QPDP_ID, MLXSW_REG_QPDP_LEN);
  * Local Port. Supported for data packets from CPU port.
  * Access: Index
  */
-MLXSW_ITEM32(reg, qpdp, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, qpdp, 0x00, 16, 0x00, 12);
 
 /* reg_qpdp_switch_prio
  * Default port Switch Priority (default 0)
@@ -4079,7 +4086,7 @@ MLXSW_ITEM32(reg, qpdp, local_port, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, qpdp, switch_prio, 0x04, 0, 4);
 
-static inline void mlxsw_reg_qpdp_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_qpdp_pack(char *payload, u16 local_port,
 				       u8 switch_prio)
 {
 	MLXSW_REG_ZERO(qpdp, payload);
@@ -4106,7 +4113,7 @@ MLXSW_REG_DEFINE(qpdpm, MLXSW_REG_QPDPM_ID, MLXSW_REG_QPDPM_LEN);
  * Local Port. Supported for data packets from CPU port.
  * Access: Index
  */
-MLXSW_ITEM32(reg, qpdpm, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, qpdpm, 0x00, 16, 0x00, 12);
 
 /* reg_qpdpm_dscp_e
  * Enable update of the specific entry. When cleared, the switch_prio and color
@@ -4125,7 +4132,7 @@ MLXSW_ITEM16_INDEXED(reg, qpdpm, dscp_entry_prio,
 		     MLXSW_REG_QPDPM_BASE_LEN, 0, 4,
 		     MLXSW_REG_QPDPM_DSCP_ENTRY_REC_LEN, 0x00, false);
 
-static inline void mlxsw_reg_qpdpm_pack(char *payload, u8 local_port)
+static inline void mlxsw_reg_qpdpm_pack(char *payload, u16 local_port)
 {
 	MLXSW_REG_ZERO(qpdpm, payload);
 	mlxsw_reg_qpdpm_local_port_set(payload, local_port);
@@ -4157,7 +4164,7 @@ MLXSW_REG_DEFINE(qtctm, MLXSW_REG_QTCTM_ID, MLXSW_REG_QTCTM_LEN);
  * No support for CPU port.
  * Access: Index
  */
-MLXSW_ITEM32(reg, qtctm, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, qtctm, 0x00, 16, 0x00, 12);
 
 /* reg_qtctm_mc
  * Multicast Mode
@@ -4167,7 +4174,7 @@ MLXSW_ITEM32(reg, qtctm, local_port, 0x00, 16, 8);
 MLXSW_ITEM32(reg, qtctm, mc, 0x04, 0, 1);
 
 static inline void
-mlxsw_reg_qtctm_pack(char *payload, u8 local_port, bool mc)
+mlxsw_reg_qtctm_pack(char *payload, u16 local_port, bool mc)
 {
 	MLXSW_REG_ZERO(qtctm, payload);
 	mlxsw_reg_qtctm_local_port_set(payload, local_port);
@@ -4300,7 +4307,7 @@ MLXSW_ITEM32(reg, pmlp, rxtx, 0x00, 31, 1);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, pmlp, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, pmlp, 0x00, 16, 0x00, 12);
 
 /* reg_pmlp_width
  * 0 - Unmap local port.
@@ -4331,7 +4338,7 @@ MLXSW_ITEM32_INDEXED(reg, pmlp, tx_lane, 0x04, 16, 4, 0x04, 0x00, false);
  */
 MLXSW_ITEM32_INDEXED(reg, pmlp, rx_lane, 0x04, 24, 4, 0x04, 0x00, false);
 
-static inline void mlxsw_reg_pmlp_pack(char *payload, u8 local_port)
+static inline void mlxsw_reg_pmlp_pack(char *payload, u16 local_port)
 {
 	MLXSW_REG_ZERO(pmlp, payload);
 	mlxsw_reg_pmlp_local_port_set(payload, local_port);
@@ -4350,7 +4357,7 @@ MLXSW_REG_DEFINE(pmtu, MLXSW_REG_PMTU_ID, MLXSW_REG_PMTU_LEN);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, pmtu, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, pmtu, 0x00, 16, 0x00, 12);
 
 /* reg_pmtu_max_mtu
  * Maximum MTU.
@@ -4378,7 +4385,7 @@ MLXSW_ITEM32(reg, pmtu, admin_mtu, 0x08, 16, 16);
  */
 MLXSW_ITEM32(reg, pmtu, oper_mtu, 0x0C, 16, 16);
 
-static inline void mlxsw_reg_pmtu_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_pmtu_pack(char *payload, u16 local_port,
 				       u16 new_mtu)
 {
 	MLXSW_REG_ZERO(pmtu, payload);
@@ -4412,7 +4419,7 @@ MLXSW_ITEM32(reg, ptys, an_disable_admin, 0x00, 30, 1);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, ptys, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, ptys, 0x00, 16, 0x00, 12);
 
 #define MLXSW_REG_PTYS_PROTO_MASK_IB	BIT(0)
 #define MLXSW_REG_PTYS_PROTO_MASK_ETH	BIT(2)
@@ -4572,7 +4579,7 @@ enum mlxsw_reg_ptys_connector_type {
  */
 MLXSW_ITEM32(reg, ptys, connector_type, 0x2C, 0, 4);
 
-static inline void mlxsw_reg_ptys_eth_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_ptys_eth_pack(char *payload, u16 local_port,
 					   u32 proto_admin, bool autoneg)
 {
 	MLXSW_REG_ZERO(ptys, payload);
@@ -4582,7 +4589,7 @@ static inline void mlxsw_reg_ptys_eth_pack(char *payload, u8 local_port,
 	mlxsw_reg_ptys_an_disable_admin_set(payload, !autoneg);
 }
 
-static inline void mlxsw_reg_ptys_ext_eth_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_ptys_ext_eth_pack(char *payload, u16 local_port,
 					       u32 proto_admin, bool autoneg)
 {
 	MLXSW_REG_ZERO(ptys, payload);
@@ -4624,7 +4631,7 @@ static inline void mlxsw_reg_ptys_ext_eth_unpack(char *payload,
 			mlxsw_reg_ptys_ext_eth_proto_oper_get(payload);
 }
 
-static inline void mlxsw_reg_ptys_ib_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_ptys_ib_pack(char *payload, u16 local_port,
 					  u16 proto_admin, u16 link_width)
 {
 	MLXSW_REG_ZERO(ptys, payload);
@@ -4672,7 +4679,7 @@ MLXSW_ITEM32(reg, ppad, single_base_mac, 0x00, 28, 1);
  * port number, if single_base_mac = 0 then local_port is reserved
  * Access: RW
  */
-MLXSW_ITEM32(reg, ppad, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, ppad, 0x00, 16, 0x00, 24);
 
 /* reg_ppad_mac
  * If single_base_mac = 0 - base MAC address, mac[7:0] is reserved.
@@ -4682,7 +4689,7 @@ MLXSW_ITEM32(reg, ppad, local_port, 0x00, 16, 8);
 MLXSW_ITEM_BUF(reg, ppad, mac, 0x02, 6);
 
 static inline void mlxsw_reg_ppad_pack(char *payload, bool single_base_mac,
-				       u8 local_port)
+				       u16 local_port)
 {
 	MLXSW_REG_ZERO(ppad, payload);
 	mlxsw_reg_ppad_single_base_mac_set(payload, !!single_base_mac);
@@ -4711,7 +4718,7 @@ MLXSW_ITEM32(reg, paos, swid, 0x00, 24, 8);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, paos, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, paos, 0x00, 16, 0x00, 12);
 
 /* reg_paos_admin_status
  * Port administrative state (the desired state of the port):
@@ -4756,7 +4763,7 @@ MLXSW_ITEM32(reg, paos, ee, 0x04, 30, 1);
  */
 MLXSW_ITEM32(reg, paos, e, 0x04, 0, 2);
 
-static inline void mlxsw_reg_paos_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_paos_pack(char *payload, u16 local_port,
 				       enum mlxsw_port_admin_status status)
 {
 	MLXSW_REG_ZERO(paos, payload);
@@ -4782,7 +4789,7 @@ MLXSW_REG_DEFINE(pfcc, MLXSW_REG_PFCC_ID, MLXSW_REG_PFCC_LEN);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, pfcc, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, pfcc, 0x00, 16, 0x00, 12);
 
 /* reg_pfcc_pnat
  * Port number access type. Determines the way local_port is interpreted:
@@ -4899,7 +4906,7 @@ static inline void mlxsw_reg_pfcc_prio_pack(char *payload, u8 pfc_en)
 	mlxsw_reg_pfcc_pfcrx_set(payload, pfc_en);
 }
 
-static inline void mlxsw_reg_pfcc_pack(char *payload, u8 local_port)
+static inline void mlxsw_reg_pfcc_pack(char *payload, u16 local_port)
 {
 	MLXSW_REG_ZERO(pfcc, payload);
 	mlxsw_reg_pfcc_local_port_set(payload, local_port);
@@ -4928,11 +4935,9 @@ MLXSW_ITEM32(reg, ppcnt, swid, 0x00, 24, 8);
 
 /* reg_ppcnt_local_port
  * Local port number.
- * 255 indicates all ports on the device, and is only allowed
- * for Set() operation.
  * Access: Index
  */
-MLXSW_ITEM32(reg, ppcnt, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, ppcnt, 0x00, 16, 0x00, 12);
 
 /* reg_ppcnt_pnat
  * Port number access type:
@@ -4980,6 +4985,14 @@ MLXSW_ITEM32(reg, ppcnt, grp, 0x00, 0, 6);
  * Access: OP
  */
 MLXSW_ITEM32(reg, ppcnt, clr, 0x04, 31, 1);
+
+/* reg_ppcnt_lp_gl
+ * Local port global variable.
+ * 0: local_port 255 = all ports of the device.
+ * 1: local_port indicates local port number for all ports.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, ppcnt, lp_gl, 0x04, 30, 1);
 
 /* reg_ppcnt_prio_tc
  * Priority for counter set that support per priority, valid values: 0-7.
@@ -5404,7 +5417,7 @@ MLXSW_ITEM64(reg, ppcnt, wred_discard,
 MLXSW_ITEM64(reg, ppcnt, ecn_marked_tc,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x08, 0, 64);
 
-static inline void mlxsw_reg_ppcnt_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_ppcnt_pack(char *payload, u16 local_port,
 					enum mlxsw_reg_ppcnt_grp grp,
 					u8 prio_tc)
 {
@@ -5414,6 +5427,7 @@ static inline void mlxsw_reg_ppcnt_pack(char *payload, u8 local_port,
 	mlxsw_reg_ppcnt_pnat_set(payload, 0);
 	mlxsw_reg_ppcnt_grp_set(payload, grp);
 	mlxsw_reg_ppcnt_clr_set(payload, 0);
+	mlxsw_reg_ppcnt_lp_gl_set(payload, 1);
 	mlxsw_reg_ppcnt_prio_tc_set(payload, prio_tc);
 }
 
@@ -5430,7 +5444,7 @@ MLXSW_REG_DEFINE(plib, MLXSW_REG_PLIB_ID, MLXSW_REG_PLIB_LEN);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, plib, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, plib, 0x00, 16, 0x00, 12);
 
 /* reg_plib_ib_port
  * InfiniBand port remapping for local_port.
@@ -5468,7 +5482,7 @@ MLXSW_ITEM32(reg, pptb, mm, 0x00, 28, 2);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, pptb, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, pptb, 0x00, 16, 0x00, 12);
 
 /* reg_pptb_um
  * Enables the update of the untagged_buf field.
@@ -5515,7 +5529,7 @@ MLXSW_ITEM_BIT_ARRAY(reg, pptb, prio_to_buff_msb, 0x0C, 0x04, 4);
 
 #define MLXSW_REG_PPTB_ALL_PRIO 0xFF
 
-static inline void mlxsw_reg_pptb_pack(char *payload, u8 local_port)
+static inline void mlxsw_reg_pptb_pack(char *payload, u16 local_port)
 {
 	MLXSW_REG_ZERO(pptb, payload);
 	mlxsw_reg_pptb_mm_set(payload, MLXSW_REG_PPTB_MM_UM);
@@ -5545,7 +5559,7 @@ MLXSW_REG_DEFINE(pbmc, MLXSW_REG_PBMC_ID, MLXSW_REG_PBMC_LEN);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, pbmc, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, pbmc, 0x00, 16, 0x00, 12);
 
 /* reg_pbmc_xoff_timer_value
  * When device generates a pause frame, it uses this value as the pause
@@ -5612,7 +5626,7 @@ MLXSW_ITEM32_INDEXED(reg, pbmc, buf_xoff_threshold, 0x0C, 16, 16,
 MLXSW_ITEM32_INDEXED(reg, pbmc, buf_xon_threshold, 0x0C, 0, 16,
 		     0x08, 0x04, false);
 
-static inline void mlxsw_reg_pbmc_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_pbmc_pack(char *payload, u16 local_port,
 				       u16 xoff_timer_value, u16 xoff_refresh)
 {
 	MLXSW_REG_ZERO(pbmc, payload);
@@ -5661,7 +5675,7 @@ MLXSW_ITEM32(reg, pspa, swid, 0x00, 24, 8);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, pspa, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, pspa, 0x00, 16, 0x00, 0);
 
 /* reg_pspa_sub_port
  * Virtual port within the local port. Set to 0 when virtual ports are
@@ -5670,7 +5684,7 @@ MLXSW_ITEM32(reg, pspa, local_port, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, pspa, sub_port, 0x00, 8, 8);
 
-static inline void mlxsw_reg_pspa_pack(char *payload, u8 swid, u8 local_port)
+static inline void mlxsw_reg_pspa_pack(char *payload, u8 swid, u16 local_port)
 {
 	MLXSW_REG_ZERO(pspa, payload);
 	mlxsw_reg_pspa_swid_set(payload, swid);
@@ -5772,7 +5786,7 @@ MLXSW_REG_DEFINE(pplr, MLXSW_REG_PPLR_ID, MLXSW_REG_PPLR_LEN);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, pplr, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, pplr, 0x00, 16, 0x00, 12);
 
 /* Phy local loopback. When set the port's egress traffic is looped back
  * to the receiver and the port transmitter is disabled.
@@ -5785,7 +5799,7 @@ MLXSW_ITEM32(reg, pplr, local_port, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, pplr, lb_en, 0x04, 0, 8);
 
-static inline void mlxsw_reg_pplr_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_pplr_pack(char *payload, u16 local_port,
 				       bool phy_local)
 {
 	MLXSW_REG_ZERO(pplr, payload);
@@ -5846,7 +5860,7 @@ MLXSW_ITEM32(reg, pmtdb, status, 0x00, 0, 4);
  * the module.
  * Access: RO
  */
-MLXSW_ITEM16_INDEXED(reg, pmtdb, port_num, 0x04, 0, 8, 0x02, 0x00, false);
+MLXSW_ITEM16_INDEXED(reg, pmtdb, port_num, 0x04, 0, 10, 0x02, 0x00, false);
 
 static inline void mlxsw_reg_pmtdb_pack(char *payload, u8 slot_index, u8 module,
 					u8 ports_width, u8 num_ports)
@@ -5915,7 +5929,7 @@ MLXSW_REG_DEFINE(pddr, MLXSW_REG_PDDR_ID, MLXSW_REG_PDDR_LEN);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, pddr, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, pddr, 0x00, 16, 0x00, 12);
 
 enum mlxsw_reg_pddr_page_select {
 	MLXSW_REG_PDDR_PAGE_SELECT_TROUBLESHOOTING_INFO = 1,
@@ -5944,7 +5958,7 @@ MLXSW_ITEM32(reg, pddr, trblsh_group_opcode, 0x08, 0, 16);
  */
 MLXSW_ITEM32(reg, pddr, trblsh_status_opcode, 0x0C, 0, 16);
 
-static inline void mlxsw_reg_pddr_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_pddr_pack(char *payload, u16 local_port,
 				       u8 page_select)
 {
 	MLXSW_REG_ZERO(pddr, payload);
@@ -6014,7 +6028,7 @@ MLXSW_REG_DEFINE(pllp, MLXSW_REG_PLLP_ID, MLXSW_REG_PLLP_LEN);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, pllp, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, pllp, 0x00, 16, 0x00, 12);
 
 /* reg_pllp_label_port
  * Front panel label of the port.
@@ -6034,7 +6048,7 @@ MLXSW_ITEM32(reg, pllp, split_num, 0x04, 0, 4);
  */
 MLXSW_ITEM32(reg, pllp, slot_index, 0x08, 0, 4);
 
-static inline void mlxsw_reg_pllp_pack(char *payload, u8 local_port)
+static inline void mlxsw_reg_pllp_pack(char *payload, u16 local_port)
 {
 	MLXSW_REG_ZERO(pllp, payload);
 	mlxsw_reg_pllp_local_port_set(payload, local_port);
@@ -10245,7 +10259,7 @@ MLXSW_REG_DEFINE(mpar, MLXSW_REG_MPAR_ID, MLXSW_REG_MPAR_LEN);
  * The local port to mirror the packets from.
  * Access: Index
  */
-MLXSW_ITEM32(reg, mpar, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, mpar, 0x00, 16, 0x00, 4);
 
 enum mlxsw_reg_mpar_i_e {
 	MLXSW_REG_MPAR_TYPE_EGRESS,
@@ -10282,7 +10296,7 @@ MLXSW_ITEM32(reg, mpar, pa_id, 0x04, 0, 4);
  */
 MLXSW_ITEM32(reg, mpar, probability_rate, 0x08, 0, 32);
 
-static inline void mlxsw_reg_mpar_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_mpar_pack(char *payload, u16 local_port,
 				       enum mlxsw_reg_mpar_i_e i_e,
 				       bool enable, u8 pa_id,
 				       u32 probability_rate)
@@ -10386,7 +10400,7 @@ MLXSW_REG_DEFINE(mlcr, MLXSW_REG_MLCR_ID, MLXSW_REG_MLCR_LEN);
  * Local port number.
  * Access: RW
  */
-MLXSW_ITEM32(reg, mlcr, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, mlcr, 0x00, 16, 0x00, 24);
 
 #define MLXSW_REG_MLCR_DURATION_MAX 0xFFFF
 
@@ -10405,7 +10419,7 @@ MLXSW_ITEM32(reg, mlcr, beacon_duration, 0x04, 0, 16);
  */
 MLXSW_ITEM32(reg, mlcr, beacon_remain, 0x08, 0, 16);
 
-static inline void mlxsw_reg_mlcr_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_mlcr_pack(char *payload, u16 local_port,
 				       bool active)
 {
 	MLXSW_REG_ZERO(mlcr, payload);
@@ -10778,7 +10792,7 @@ MLXSW_REG_DEFINE(mpsc, MLXSW_REG_MPSC_ID, MLXSW_REG_MPSC_LEN);
  * Not supported for CPU port
  * Access: Index
  */
-MLXSW_ITEM32(reg, mpsc, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, mpsc, 0x00, 16, 0x00, 12);
 
 /* reg_mpsc_e
  * Enable sampling on port local_port
@@ -10795,7 +10809,7 @@ MLXSW_ITEM32(reg, mpsc, e, 0x04, 30, 1);
  */
 MLXSW_ITEM32(reg, mpsc, rate, 0x08, 0, 32);
 
-static inline void mlxsw_reg_mpsc_pack(char *payload, u8 local_port, bool e,
+static inline void mlxsw_reg_mpsc_pack(char *payload, u16 local_port, bool e,
 				       u32 rate)
 {
 	MLXSW_REG_ZERO(mpsc, payload);
@@ -11003,7 +11017,7 @@ MLXSW_REG_DEFINE(momte, MLXSW_REG_MOMTE_ID, MLXSW_REG_MOMTE_LEN);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, momte, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, momte, 0x00, 16, 0x00, 12);
 
 enum mlxsw_reg_momte_type {
 	MLXSW_REG_MOMTE_TYPE_WRED = 0x20,
@@ -11030,7 +11044,7 @@ MLXSW_ITEM32(reg, momte, type, 0x04, 0, 8);
  */
 MLXSW_ITEM_BIT_ARRAY(reg, momte, tclass_en, 0x08, 0x08, 1);
 
-static inline void mlxsw_reg_momte_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_momte_pack(char *payload, u16 local_port,
 					enum mlxsw_reg_momte_type type)
 {
 	MLXSW_REG_ZERO(momte, payload);
@@ -11098,7 +11112,7 @@ MLXSW_REG_DEFINE(mtpptr, MLXSW_REG_MTPPTR_ID, MLXSW_REG_MTPPTR_LEN);
  * Not supported for CPU port.
  * Access: Index
  */
-MLXSW_ITEM32(reg, mtpptr, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, mtpptr, 0x00, 16, 0x00, 12);
 
 enum mlxsw_reg_mtpptr_dir {
 	MLXSW_REG_MTPPTR_DIR_INGRESS,
@@ -11305,7 +11319,7 @@ mlxsw_reg_mgpir_unpack(char *payload, u8 *num_of_devices,
  * -----------------------------------
  */
 #define MLXSW_REG_MFDE_ID 0x9200
-#define MLXSW_REG_MFDE_LEN 0x18
+#define MLXSW_REG_MFDE_LEN 0x30
 
 MLXSW_REG_DEFINE(mfde, MLXSW_REG_MFDE_ID, MLXSW_REG_MFDE_LEN);
 
@@ -11315,10 +11329,32 @@ MLXSW_REG_DEFINE(mfde, MLXSW_REG_MFDE_ID, MLXSW_REG_MFDE_LEN);
  */
 MLXSW_ITEM32(reg, mfde, irisc_id, 0x00, 24, 8);
 
+enum mlxsw_reg_mfde_severity {
+	/* Unrecoverable switch behavior */
+	MLXSW_REG_MFDE_SEVERITY_FATL = 2,
+	/* Unexpected state with possible systemic failure */
+	MLXSW_REG_MFDE_SEVERITY_NRML = 3,
+	/* Unexpected state without systemic failure */
+	MLXSW_REG_MFDE_SEVERITY_INTR = 5,
+};
+
+/* reg_mfde_severity
+ * The severity of the event.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, severity, 0x00, 16, 8);
+
 enum mlxsw_reg_mfde_event_id {
+	/* CRspace timeout */
 	MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO = 1,
 	/* KVD insertion machine stopped */
 	MLXSW_REG_MFDE_EVENT_ID_KVD_IM_STOP,
+	/* Triggered by MFGD.trigger_test */
+	MLXSW_REG_MFDE_EVENT_ID_TEST,
+	/* Triggered when firmware hits an assert */
+	MLXSW_REG_MFDE_EVENT_ID_FW_ASSERT,
+	/* Fatal error interrupt from hardware */
+	MLXSW_REG_MFDE_EVENT_ID_FATAL_CAUSE,
 };
 
 /* reg_mfde_event_id
@@ -11359,32 +11395,110 @@ MLXSW_ITEM32(reg, mfde, command_type, 0x04, 24, 2);
  */
 MLXSW_ITEM32(reg, mfde, reg_attr_id, 0x04, 0, 16);
 
-/* reg_mfde_log_address
+/* reg_mfde_crspace_to_log_address
  * crspace address accessed, which resulted in timeout.
- * Valid in case event_id == MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO
  * Access: RO
  */
-MLXSW_ITEM32(reg, mfde, log_address, 0x10, 0, 32);
+MLXSW_ITEM32(reg, mfde, crspace_to_log_address, 0x10, 0, 32);
 
-/* reg_mfde_log_id
+/* reg_mfde_crspace_to_oe
+ * 0 - New event
+ * 1 - Old event, occurred before MFGD activation.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, crspace_to_oe, 0x14, 24, 1);
+
+/* reg_mfde_crspace_to_log_id
  * Which irisc triggered the timeout.
- * Valid in case event_id == MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO
  * Access: RO
  */
-MLXSW_ITEM32(reg, mfde, log_id, 0x14, 0, 4);
+MLXSW_ITEM32(reg, mfde, crspace_to_log_id, 0x14, 0, 4);
 
-/* reg_mfde_log_ip
+/* reg_mfde_crspace_to_log_ip
  * IP (instruction pointer) that triggered the timeout.
- * Valid in case event_id == MLXSW_REG_MFDE_EVENT_ID_CRSPACE_TO
  * Access: RO
  */
-MLXSW_ITEM64(reg, mfde, log_ip, 0x18, 0, 64);
+MLXSW_ITEM64(reg, mfde, crspace_to_log_ip, 0x18, 0, 64);
 
-/* reg_mfde_pipes_mask
+/* reg_mfde_kvd_im_stop_oe
+ * 0 - New event
+ * 1 - Old event, occurred before MFGD activation.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, kvd_im_stop_oe, 0x10, 24, 1);
+
+/* reg_mfde_kvd_im_stop_pipes_mask
  * Bit per kvh pipe.
  * Access: RO
  */
-MLXSW_ITEM32(reg, mfde, pipes_mask, 0x10, 0, 16);
+MLXSW_ITEM32(reg, mfde, kvd_im_stop_pipes_mask, 0x10, 0, 16);
+
+/* reg_mfde_fw_assert_var0-4
+ * Variables passed to assert.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fw_assert_var0, 0x10, 0, 32);
+MLXSW_ITEM32(reg, mfde, fw_assert_var1, 0x14, 0, 32);
+MLXSW_ITEM32(reg, mfde, fw_assert_var2, 0x18, 0, 32);
+MLXSW_ITEM32(reg, mfde, fw_assert_var3, 0x1C, 0, 32);
+MLXSW_ITEM32(reg, mfde, fw_assert_var4, 0x20, 0, 32);
+
+/* reg_mfde_fw_assert_existptr
+ * The instruction pointer when assert was triggered.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fw_assert_existptr, 0x24, 0, 32);
+
+/* reg_mfde_fw_assert_callra
+ * The return address after triggering assert.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fw_assert_callra, 0x28, 0, 32);
+
+/* reg_mfde_fw_assert_oe
+ * 0 - New event
+ * 1 - Old event, occurred before MFGD activation.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fw_assert_oe, 0x2C, 24, 1);
+
+/* reg_mfde_fw_assert_tile_v
+ * 0: The assert was from main
+ * 1: The assert was from a tile
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fw_assert_tile_v, 0x2C, 23, 1);
+
+/* reg_mfde_fw_assert_tile_index
+ * When tile_v=1, the tile_index that caused the assert.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fw_assert_tile_index, 0x2C, 16, 6);
+
+/* reg_mfde_fw_assert_ext_synd
+ * A generated one-to-one identifier which is specific per-assert.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fw_assert_ext_synd, 0x2C, 0, 16);
+
+/* reg_mfde_fatal_cause_id
+ * HW interrupt cause id.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fatal_cause_id, 0x10, 0, 18);
+
+/* reg_mfde_fatal_cause_tile_v
+ * 0: The assert was from main
+ * 1: The assert was from a tile
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fatal_cause_tile_v, 0x14, 23, 1);
+
+/* reg_mfde_fatal_cause_tile_index
+ * When tile_v=1, the tile_index that caused the assert.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfde, fatal_cause_tile_index, 0x14, 16, 6);
 
 /* TNGCR - Tunneling NVE General Configuration Register
  * ----------------------------------------------------
@@ -11692,7 +11806,7 @@ MLXSW_REG_DEFINE(tnqdr, MLXSW_REG_TNQDR_ID, MLXSW_REG_TNQDR_LEN);
  * Local port number (receive port). CPU port is supported.
  * Access: Index
  */
-MLXSW_ITEM32(reg, tnqdr, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, tnqdr, 0x00, 16, 0x00, 12);
 
 /* reg_tnqdr_dscp
  * For encapsulation, the default DSCP.
@@ -11700,7 +11814,7 @@ MLXSW_ITEM32(reg, tnqdr, local_port, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, tnqdr, dscp, 0x04, 0, 6);
 
-static inline void mlxsw_reg_tnqdr_pack(char *payload, u8 local_port)
+static inline void mlxsw_reg_tnqdr_pack(char *payload, u16 local_port)
 {
 	MLXSW_REG_ZERO(tnqdr, payload);
 	mlxsw_reg_tnqdr_local_port_set(payload, local_port);
@@ -12028,7 +12142,7 @@ MLXSW_REG_DEFINE(sbcm, MLXSW_REG_SBCM_ID, MLXSW_REG_SBCM_LEN);
  * For Egress: excludes IP Router
  * Access: Index
  */
-MLXSW_ITEM32(reg, sbcm, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, sbcm, 0x00, 16, 0x00, 4);
 
 /* reg_sbcm_pg_buff
  * PG buffer - Port PG (dir=ingress) / traffic class (dir=egress)
@@ -12082,7 +12196,7 @@ MLXSW_ITEM32(reg, sbcm, max_buff, 0x1C, 0, 24);
  */
 MLXSW_ITEM32(reg, sbcm, pool, 0x24, 0, 4);
 
-static inline void mlxsw_reg_sbcm_pack(char *payload, u8 local_port, u8 pg_buff,
+static inline void mlxsw_reg_sbcm_pack(char *payload, u16 local_port, u8 pg_buff,
 				       enum mlxsw_reg_sbxx_dir dir,
 				       u32 min_buff, u32 max_buff,
 				       bool infi_max, u8 pool)
@@ -12114,7 +12228,7 @@ MLXSW_REG_DEFINE(sbpm, MLXSW_REG_SBPM_ID, MLXSW_REG_SBPM_LEN);
  * For Egress: excludes IP Router
  * Access: Index
  */
-MLXSW_ITEM32(reg, sbpm, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, sbpm, 0x00, 16, 0x00, 12);
 
 /* reg_sbpm_pool
  * The pool associated to quota counting on the local_port.
@@ -12168,7 +12282,7 @@ MLXSW_ITEM32(reg, sbpm, min_buff, 0x18, 0, 24);
  */
 MLXSW_ITEM32(reg, sbpm, max_buff, 0x1C, 0, 24);
 
-static inline void mlxsw_reg_sbpm_pack(char *payload, u8 local_port, u8 pool,
+static inline void mlxsw_reg_sbpm_pack(char *payload, u16 local_port, u8 pool,
 				       enum mlxsw_reg_sbxx_dir dir, bool clr,
 				       u32 min_buff, u32 max_buff)
 {
@@ -12266,6 +12380,16 @@ MLXSW_REG_DEFINE(sbsr, MLXSW_REG_SBSR_ID, MLXSW_REG_SBSR_LEN);
  */
 MLXSW_ITEM32(reg, sbsr, clr, 0x00, 31, 1);
 
+#define MLXSW_REG_SBSR_NUM_PORTS_IN_PAGE 256
+
+/* reg_sbsr_port_page
+ * Determines the range of the ports specified in the 'ingress_port_mask'
+ * and 'egress_port_mask' bit masks.
+ * {ingress,egress}_port_mask[x] is (256 * port_page) + x
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sbsr, port_page, 0x04, 0, 4);
+
 /* reg_sbsr_ingress_port_mask
  * Bit vector for all ingress network ports.
  * Indicates which of the ports (for which the relevant bit is set)
@@ -12353,7 +12477,7 @@ MLXSW_REG_DEFINE(sbib, MLXSW_REG_SBIB_ID, MLXSW_REG_SBIB_LEN);
  * Not supported for CPU port and router port
  * Access: Index
  */
-MLXSW_ITEM32(reg, sbib, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, sbib, 0x00, 16, 0x00, 12);
 
 /* reg_sbib_buff_size
  * Units represented in cells
@@ -12363,7 +12487,7 @@ MLXSW_ITEM32(reg, sbib, local_port, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, sbib, buff_size, 0x08, 0, 24);
 
-static inline void mlxsw_reg_sbib_pack(char *payload, u8 local_port,
+static inline void mlxsw_reg_sbib_pack(char *payload, u16 local_port,
 				       u32 buff_size)
 {
 	MLXSW_REG_ZERO(sbib, payload);
@@ -12374,7 +12498,6 @@ static inline void mlxsw_reg_sbib_pack(char *payload, u8 local_port,
 static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(sgcr),
 	MLXSW_REG(spad),
-	MLXSW_REG(smid),
 	MLXSW_REG(sspr),
 	MLXSW_REG(sfdat),
 	MLXSW_REG(sfd),
@@ -12384,7 +12507,6 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(spvm),
 	MLXSW_REG(spaft),
 	MLXSW_REG(sfgc),
-	MLXSW_REG(sftr),
 	MLXSW_REG(sfdf),
 	MLXSW_REG(sldr),
 	MLXSW_REG(slcr),
@@ -12397,6 +12519,8 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(spvmlr),
 	MLXSW_REG(spvc),
 	MLXSW_REG(spevet),
+	MLXSW_REG(sftr2),
+	MLXSW_REG(smid2),
 	MLXSW_REG(cwtp),
 	MLXSW_REG(cwtpm),
 	MLXSW_REG(pgcr),
@@ -12556,7 +12680,7 @@ MLXSW_ITEM32(reg, pude, swid, 0x00, 24, 8);
  * Local port number.
  * Access: Index
  */
-MLXSW_ITEM32(reg, pude, local_port, 0x00, 16, 8);
+MLXSW_ITEM32_LP(reg, pude, 0x00, 16, 0x00, 12);
 
 /* reg_pude_admin_status
  * Port administrative state (the desired state).

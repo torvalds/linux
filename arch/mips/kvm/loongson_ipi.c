@@ -120,7 +120,7 @@ static int loongson_vipi_write(struct loongson_kvm_ipi *ipi,
 		s->status |= data;
 		irq.cpu = id;
 		irq.irq = 6;
-		kvm_vcpu_ioctl_interrupt(kvm->vcpus[id], &irq);
+		kvm_vcpu_ioctl_interrupt(kvm_get_vcpu(kvm, id), &irq);
 		break;
 
 	case CORE0_CLEAR_OFF:
@@ -128,7 +128,7 @@ static int loongson_vipi_write(struct loongson_kvm_ipi *ipi,
 		if (!s->status) {
 			irq.cpu = id;
 			irq.irq = -6;
-			kvm_vcpu_ioctl_interrupt(kvm->vcpus[id], &irq);
+			kvm_vcpu_ioctl_interrupt(kvm_get_vcpu(kvm, id), &irq);
 		}
 		break;
 

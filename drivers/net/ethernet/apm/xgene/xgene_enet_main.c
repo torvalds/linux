@@ -869,7 +869,7 @@ static void xgene_enet_timeout(struct net_device *ndev, unsigned int txqueue)
 
 	for (i = 0; i < pdata->txq_cnt; i++) {
 		txq = netdev_get_tx_queue(ndev, i);
-		txq->trans_start = jiffies;
+		txq_trans_cond_update(txq);
 		netif_tx_start_queue(txq);
 	}
 }

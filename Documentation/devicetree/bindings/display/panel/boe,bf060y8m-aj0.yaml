@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/boe,bf060y8m-aj0.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: BOE BF060Y8M-AJ0 5.99" 1080x2160 AMOLED Panel
+
+maintainers:
+  - AngeloGioacchino Del Regno <angelogioacchino.delregno@somainline.org>
+
+description: |
+  This is a 5.99" 1080x2160 16.7M Color active matrix AMOLED
+  video mode panel module on MIPI-DSI 4-Lane interface, GGRB
+  pixel arrangement, 63 micrometers pitch, with an active
+  area of 68.04 x 136.08 millimeters.
+  Each pixel is divided into red and green dots, or blue and
+  green dots, and two pixels share red or blue dots which are
+  arranged in vertical stripe.
+  The DriverIC for this panel module is SW43404.
+
+allOf:
+  - $ref: panel-common.yaml#
+
+properties:
+  compatible:
+    const: boe,bf060y8m-aj0
+
+  elvdd-supply:
+    description: EL Driving positive (VDD) supply (4.40-4.80V)
+  elvss-supply:
+    description: EL Driving negative (VSS) supply (-5.00V to -1.40V)
+  vcc-supply:
+    description: Core (TSP) voltage supply (2.70-3.60V)
+  vci-supply:
+    description: DriverIC Operation supply (2.60-3.60V)
+  vddio-supply:
+    description: I/O voltage supply (1.62-1.98V)
+
+  port: true
+  reg: true
+  reset-gpios: true
+
+required:
+  - compatible
+  - elvdd-supply
+  - elvss-supply
+  - vcc-supply
+  - vci-supply
+  - vddio-supply
+  - reg
+  - reset-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    dsi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        panel@0 {
+            compatible = "boe,bf060y8m-aj0";
+            reg = <0>;
+
+            reset-gpios = <&tlmm 94 GPIO_ACTIVE_HIGH>;
+
+            vcc-supply = <&disp_vcc_vreg>;
+            vddio-supply = <&disp_vddio_vreg>;
+            vci-supply = <&disp_vci_vreg>;
+            elvdd-supply = <&disp_elvdd_vreg>;
+            elvss-supply = <&disp_elvss_vreg>;
+
+            port {
+                panel_in: endpoint {
+                    remote-endpoint = <&dsi0_out>;
+                };
+            };
+        };
+    };

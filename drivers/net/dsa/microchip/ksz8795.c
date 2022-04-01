@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/gpio.h>
+#include <linux/if_vlan.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_data/microchip-ksz.h>
@@ -1002,18 +1003,13 @@ static void ksz8_cfg_port_member(struct ksz_device *dev, int port, u8 member)
 	data &= ~PORT_VLAN_MEMBERSHIP;
 	data |= (member & dev->port_mask);
 	ksz_pwrite8(dev, port, P_MIRROR_CTRL, data);
-	dev->ports[port].member = member;
 }
 
 static void ksz8_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 {
 	struct ksz_device *dev = ds->priv;
-	int forward = dev->member;
 	struct ksz_port *p;
-	int member = -1;
 	u8 data;
-
-	p = &dev->ports[port];
 
 	ksz_pread8(dev, port, P_STP_CTRL, &data);
 	data &= ~(PORT_TX_ENABLE | PORT_RX_ENABLE | PORT_LEARN_DISABLE);
@@ -1021,38 +1017,18 @@ static void ksz8_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 	switch (state) {
 	case BR_STATE_DISABLED:
 		data |= PORT_LEARN_DISABLE;
-		if (port < dev->phy_port_cnt)
-			member = 0;
 		break;
 	case BR_STATE_LISTENING:
 		data |= (PORT_RX_ENABLE | PORT_LEARN_DISABLE);
-		if (port < dev->phy_port_cnt &&
-		    p->stp_state == BR_STATE_DISABLED)
-			member = dev->host_mask | p->vid_member;
 		break;
 	case BR_STATE_LEARNING:
 		data |= PORT_RX_ENABLE;
 		break;
 	case BR_STATE_FORWARDING:
 		data |= (PORT_TX_ENABLE | PORT_RX_ENABLE);
-
-		/* This function is also used internally. */
-		if (port == dev->cpu_port)
-			break;
-
-		/* Port is a member of a bridge. */
-		if (dev->br_member & BIT(port)) {
-			dev->member |= BIT(port);
-			member = dev->member;
-		} else {
-			member = dev->host_mask | p->vid_member;
-		}
 		break;
 	case BR_STATE_BLOCKING:
 		data |= PORT_LEARN_DISABLE;
-		if (port < dev->phy_port_cnt &&
-		    p->stp_state == BR_STATE_DISABLED)
-			member = dev->host_mask | p->vid_member;
 		break;
 	default:
 		dev_err(ds->dev, "invalid STP state: %d\n", state);
@@ -1060,22 +1036,11 @@ static void ksz8_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 	}
 
 	ksz_pwrite8(dev, port, P_STP_CTRL, data);
+
+	p = &dev->ports[port];
 	p->stp_state = state;
-	/* Port membership may share register with STP state. */
-	if (member >= 0 && member != p->member)
-		ksz8_cfg_port_member(dev, port, (u8)member);
 
-	/* Check if forwarding needs to be updated. */
-	if (state != BR_STATE_FORWARDING) {
-		if (dev->br_member & BIT(port))
-			dev->member &= ~BIT(port);
-	}
-
-	/* When topology has changed the function ksz_update_port_member
-	 * should be called to modify port forwarding behavior.
-	 */
-	if (forward != dev->member)
-		ksz_update_port_member(dev, port);
+	ksz_update_port_member(dev, port);
 }
 
 static void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
@@ -1341,7 +1306,7 @@ static void ksz8795_cpu_interface_select(struct ksz_device *dev, int port)
 
 static void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
-	struct ksz_port *p = &dev->ports[port];
+	struct dsa_switch *ds = dev->ds;
 	struct ksz8 *ksz8 = dev->priv;
 	const u32 *masks;
 	u8 member;
@@ -1368,10 +1333,11 @@ static void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 		if (!ksz_is_ksz88x3(dev))
 			ksz8795_cpu_interface_select(dev, port);
 
-		member = dev->port_mask;
+		member = dsa_user_ports(ds);
 	} else {
-		member = dev->host_mask | p->vid_member;
+		member = BIT(dsa_upstream_port(ds, port));
 	}
+
 	ksz8_cfg_port_member(dev, port, member);
 }
 
@@ -1392,20 +1358,13 @@ static void ksz8_config_cpu_port(struct dsa_switch *ds)
 	ksz_cfg(dev, regs[S_TAIL_TAG_CTRL], masks[SW_TAIL_TAG_ENABLE], true);
 
 	p = &dev->ports[dev->cpu_port];
-	p->vid_member = dev->port_mask;
 	p->on = 1;
 
 	ksz8_port_setup(dev, dev->cpu_port, true);
-	dev->member = dev->host_mask;
 
 	for (i = 0; i < dev->phy_port_cnt; i++) {
 		p = &dev->ports[i];
 
-		/* Initialize to non-zero so that ksz_cfg_port_member() will
-		 * be called.
-		 */
-		p->vid_member = BIT(i);
-		p->member = dev->port_mask;
 		ksz8_port_stp_state_set(ds, i, BR_STATE_DISABLED);
 
 		/* Last port may be disabled. */

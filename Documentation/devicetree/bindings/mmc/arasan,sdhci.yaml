@@ -118,6 +118,9 @@ properties:
   phy-names:
     const: phy_arasan
 
+  resets:
+    maxItems: 1
+
   arasan,soc-ctl-syscon:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:

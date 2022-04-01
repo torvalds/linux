@@ -26,7 +26,7 @@ struct ntxec {
  * This convenience function converts an 8-bit value to 16-bit for use in the
  * second kind of register.
  */
-static inline __be16 ntxec_reg8(u8 value)
+static inline u16 ntxec_reg8(u8 value)
 {
 	return value << 8;
 }

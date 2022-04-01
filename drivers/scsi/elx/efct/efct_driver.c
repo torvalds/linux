@@ -261,7 +261,7 @@ efct_firmware_write(struct efct *efct, const u8 *buf, size_t buf_len,
 
 	dma.size = FW_WRITE_BUFSIZE;
 	dma.virt = dma_alloc_coherent(&efct->pci->dev,
-				      dma.size, &dma.phys, GFP_DMA);
+				      dma.size, &dma.phys, GFP_KERNEL);
 	if (!dma.virt)
 		return -ENOMEM;
 
@@ -541,13 +541,10 @@ efct_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, efct);
 
-	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)) != 0) {
-		dev_warn(&pdev->dev, "trying DMA_BIT_MASK(32)\n");
-		if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)) != 0) {
-			dev_err(&pdev->dev, "setting DMA_BIT_MASK failed\n");
-			rc = -1;
-			goto dma_mask_out;
-		}
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (rc) {
+		dev_err(&pdev->dev, "setting DMA_BIT_MASK failed\n");
+		goto dma_mask_out;
 	}
 
 	num_interrupts = efct_device_interrupts_required(efct);

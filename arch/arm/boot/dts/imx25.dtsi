@@ -62,7 +62,7 @@
 
 	clocks {
 		osc {
-			compatible = "fsl,imx-osc", "fixed-clock";
+			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
 		};
@@ -200,7 +200,7 @@
 			};
 		};
 
-		spba@50000000 {
+		spba-bus@50000000 {
 			compatible = "fsl,spba-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;

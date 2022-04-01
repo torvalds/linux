@@ -66,7 +66,7 @@ SYM_FUNC_START(restore_registers)
 	/* tell the hibernation core that we've just restored the memory */
 	movq	%rax, in_suspend(%rip)
 
-	ret
+	RET
 SYM_FUNC_END(restore_registers)
 
 SYM_FUNC_START(swsusp_arch_suspend)
@@ -96,7 +96,7 @@ SYM_FUNC_START(swsusp_arch_suspend)
 	FRAME_BEGIN
 	call swsusp_save
 	FRAME_END
-	ret
+	RET
 SYM_FUNC_END(swsusp_arch_suspend)
 
 SYM_FUNC_START(restore_image)

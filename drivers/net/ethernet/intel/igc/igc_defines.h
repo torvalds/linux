@@ -85,9 +85,6 @@
 
 #define IGC_WUFC_EXT_FILTER_MASK GENMASK(31, 8)
 
-/* Physical Func Reset Done Indication */
-#define IGC_CTRL_EXT_LINK_MODE_MASK	0x00C00000
-
 /* Loop limit on how long we wait for auto-negotiation to complete */
 #define COPPER_LINK_UP_LIMIT		10
 #define PHY_AUTO_NEG_LIMIT		45
@@ -584,7 +581,6 @@
 #define IGC_GEN_POLL_TIMEOUT	1920
 
 /* PHY Control Register */
-#define MII_CR_FULL_DUPLEX	0x0100  /* FDX =1, half duplex =0 */
 #define MII_CR_RESTART_AUTO_NEG	0x0200  /* Restart auto negotiation */
 #define MII_CR_POWER_DOWN	0x0800  /* Power down */
 #define MII_CR_AUTO_NEG_EN	0x1000  /* Auto Neg Enable */
@@ -604,9 +600,6 @@
 #define PHY_LP_ABILITY		0x05 /* Link Partner Ability (Base Page) */
 #define PHY_1000T_CTRL		0x09 /* 1000Base-T Control Reg */
 #define PHY_1000T_STATUS	0x0A /* 1000Base-T Status Reg */
-
-/* Bit definitions for valid PHY IDs. I = Integrated E = External */
-#define I225_I_PHY_ID		0x67C9DC00
 
 /* MDI Control */
 #define IGC_MDIC_DATA_MASK	0x0000FFFF

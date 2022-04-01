@@ -235,9 +235,9 @@ void inet_frag_kill(struct inet_frag_queue *fq)
 		/* The RCU read lock provides a memory barrier
 		 * guaranteeing that if fqdir->dead is false then
 		 * the hash table destruction will not start until
-		 * after we unlock.  Paired with inet_frags_exit_net().
+		 * after we unlock.  Paired with fqdir_pre_exit().
 		 */
-		if (!fqdir->dead) {
+		if (!READ_ONCE(fqdir->dead)) {
 			rhashtable_remove_fast(&fqdir->rhashtable, &fq->node,
 					       fqdir->f->rhash_params);
 			refcount_dec(&fq->refcnt);
@@ -352,9 +352,11 @@ static struct inet_frag_queue *inet_frag_create(struct fqdir *fqdir,
 /* TODO : call from rcu_read_lock() and no longer use refcount_inc_not_zero() */
 struct inet_frag_queue *inet_frag_find(struct fqdir *fqdir, void *key)
 {
+	/* This pairs with WRITE_ONCE() in fqdir_pre_exit(). */
+	long high_thresh = READ_ONCE(fqdir->high_thresh);
 	struct inet_frag_queue *fq = NULL, *prev;
 
-	if (!fqdir->high_thresh || frag_mem_limit(fqdir) > fqdir->high_thresh)
+	if (!high_thresh || frag_mem_limit(fqdir) > high_thresh)
 		return NULL;
 
 	rcu_read_lock();

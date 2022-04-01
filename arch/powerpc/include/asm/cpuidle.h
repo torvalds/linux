@@ -85,7 +85,7 @@ extern struct pnv_idle_states_t *pnv_idle_states;
 extern int nr_pnv_idle_states;
 
 unsigned long pnv_cpu_offline(unsigned int cpu);
-int validate_psscr_val_mask(u64 *psscr_val, u64 *psscr_mask, u32 flags);
+int __init validate_psscr_val_mask(u64 *psscr_val, u64 *psscr_mask, u32 flags);
 static inline void report_invalid_psscr_val(u64 psscr_val, int err)
 {
 	switch (err) {

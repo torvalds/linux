@@ -25,6 +25,7 @@ struct failover_ops {
 struct failover {
 	struct list_head list;
 	struct net_device __rcu *failover_dev;
+	netdevice_tracker	dev_tracker;
 	struct failover_ops __rcu *ops;
 };
 

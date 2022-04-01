@@ -960,6 +960,7 @@ static int atmel_aes_handle_queue(struct atmel_aes_dev *dd,
 	ctx = crypto_tfm_ctx(areq->tfm);
 
 	dd->areq = areq;
+	dd->ctx = ctx;
 	start_async = (areq != new_areq);
 	dd->is_async = start_async;
 
@@ -1274,7 +1275,6 @@ static int atmel_aes_init_tfm(struct crypto_skcipher *tfm)
 
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct atmel_aes_reqctx));
 	ctx->base.dd = dd;
-	ctx->base.dd->ctx = &ctx->base;
 	ctx->base.start = atmel_aes_start;
 
 	return 0;
@@ -1291,7 +1291,6 @@ static int atmel_aes_ctr_init_tfm(struct crypto_skcipher *tfm)
 
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct atmel_aes_reqctx));
 	ctx->base.dd = dd;
-	ctx->base.dd->ctx = &ctx->base;
 	ctx->base.start = atmel_aes_ctr_start;
 
 	return 0;
@@ -1783,7 +1782,6 @@ static int atmel_aes_gcm_init(struct crypto_aead *tfm)
 
 	crypto_aead_set_reqsize(tfm, sizeof(struct atmel_aes_reqctx));
 	ctx->base.dd = dd;
-	ctx->base.dd->ctx = &ctx->base;
 	ctx->base.start = atmel_aes_gcm_start;
 
 	return 0;
@@ -1927,7 +1925,6 @@ static int atmel_aes_xts_init_tfm(struct crypto_skcipher *tfm)
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct atmel_aes_reqctx) +
 				    crypto_skcipher_reqsize(ctx->fallback_tfm));
 	ctx->base.dd = dd;
-	ctx->base.dd->ctx = &ctx->base;
 	ctx->base.start = atmel_aes_xts_start;
 
 	return 0;
@@ -2154,7 +2151,6 @@ static int atmel_aes_authenc_init_tfm(struct crypto_aead *tfm,
 	crypto_aead_set_reqsize(tfm, (sizeof(struct atmel_aes_authenc_reqctx) +
 				      auth_reqsize));
 	ctx->base.dd = dd;
-	ctx->base.dd->ctx = &ctx->base;
 	ctx->base.start = atmel_aes_authenc_start;
 
 	return 0;

@@ -314,6 +314,7 @@ struct ena_com_dev {
 
 	struct ena_rss rss;
 	u32 supported_features;
+	u32 capabilities;
 	u32 dma_addr_bits;
 
 	struct ena_host_attribute host_attr;
@@ -965,6 +966,18 @@ static inline void ena_com_enable_adaptive_moderation(struct ena_com_dev *ena_de
 static inline void ena_com_disable_adaptive_moderation(struct ena_com_dev *ena_dev)
 {
 	ena_dev->adaptive_coalescing = false;
+}
+
+/* ena_com_get_cap - query whether device supports a capability.
+ * @ena_dev: ENA communication layer struct
+ * @cap_id: enum value representing the capability
+ *
+ * @return - true if capability is supported or false otherwise
+ */
+static inline bool ena_com_get_cap(struct ena_com_dev *ena_dev,
+				   enum ena_admin_aq_caps_id cap_id)
+{
+	return !!(ena_dev->capabilities & BIT(cap_id));
 }
 
 /* ena_com_update_intr_reg - Prepare interrupt register

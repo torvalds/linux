@@ -241,9 +241,11 @@ static irqreturn_t pcc_mbox_irq(int irq, void *p)
 	if (ret)
 		return IRQ_NONE;
 
-	val &= pchan->cmd_complete.status_mask;
-	if (!val)
-		return IRQ_NONE;
+	if (val) { /* Ensure GAS exists and value is non-zero */
+		val &= pchan->cmd_complete.status_mask;
+		if (!val)
+			return IRQ_NONE;
+	}
 
 	ret = pcc_chan_reg_read(&pchan->error, &val);
 	if (ret)
@@ -289,7 +291,7 @@ pcc_mbox_request_channel(struct mbox_client *cl, int subspace_id)
 	pchan = chan_info + subspace_id;
 	chan = pchan->chan.mchan;
 	if (IS_ERR(chan) || chan->cl) {
-		dev_err(dev, "Channel not found for idx: %d\n", subspace_id);
+		pr_err("Channel not found for idx: %d\n", subspace_id);
 		return ERR_PTR(-EBUSY);
 	}
 	dev = chan->mbox->dev;

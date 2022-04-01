@@ -882,7 +882,7 @@ struct dt_init {
 static int bd9995x_fw_probe(struct bd9995x_device *bd)
 {
 	int ret;
-	struct power_supply_battery_info info;
+	struct power_supply_battery_info *info;
 	u32 property;
 	int i;
 	int regval;
@@ -891,49 +891,41 @@ static int bd9995x_fw_probe(struct bd9995x_device *bd)
 	struct battery_init battery_inits[] = {
 		{
 			.name = "trickle-charging current",
-			.info_data = &info.tricklecharge_current_ua,
 			.range = &charging_current_ranges[0],
 			.ranges = 2,
 			.data = &init->itrich_set,
 		}, {
 			.name = "pre-charging current",
-			.info_data = &info.precharge_current_ua,
 			.range = &charging_current_ranges[0],
 			.ranges = 2,
 			.data = &init->iprech_set,
 		}, {
 			.name = "pre-to-trickle charge voltage threshold",
-			.info_data = &info.precharge_voltage_max_uv,
 			.range = &trickle_to_pre_threshold_ranges[0],
 			.ranges = 2,
 			.data = &init->vprechg_th_set,
 		}, {
 			.name = "charging termination current",
-			.info_data = &info.charge_term_current_ua,
 			.range = &charging_current_ranges[0],
 			.ranges = 2,
 			.data = &init->iterm_set,
 		}, {
 			.name = "charging re-start voltage",
-			.info_data = &info.charge_restart_voltage_uv,
 			.range = &charge_voltage_regulation_ranges[0],
 			.ranges = 2,
 			.data = &init->vrechg_set,
 		}, {
 			.name = "battery overvoltage limit",
-			.info_data = &info.overvoltage_limit_uv,
 			.range = &charge_voltage_regulation_ranges[0],
 			.ranges = 2,
 			.data = &init->vbatovp_set,
 		}, {
 			.name = "fast-charging max current",
-			.info_data = &info.constant_charge_current_max_ua,
 			.range = &fast_charge_current_ranges[0],
 			.ranges = 1,
 			.data = &init->ichg_set,
 		}, {
 			.name = "fast-charging voltage",
-			.info_data = &info.constant_charge_voltage_max_uv,
 			.range = &charge_voltage_regulation_ranges[0],
 			.ranges = 2,
 			.data = &init->vfastchg_reg_set1,
@@ -966,6 +958,16 @@ static int bd9995x_fw_probe(struct bd9995x_device *bd)
 	if (ret < 0)
 		return ret;
 
+	/* Put pointers to the generic battery info */
+	battery_inits[0].info_data = &info->tricklecharge_current_ua;
+	battery_inits[1].info_data = &info->precharge_current_ua;
+	battery_inits[2].info_data = &info->precharge_voltage_max_uv;
+	battery_inits[3].info_data = &info->charge_term_current_ua;
+	battery_inits[4].info_data = &info->charge_restart_voltage_uv;
+	battery_inits[5].info_data = &info->overvoltage_limit_uv;
+	battery_inits[6].info_data = &info->constant_charge_current_max_ua;
+	battery_inits[7].info_data = &info->constant_charge_voltage_max_uv;
+
 	for (i = 0; i < ARRAY_SIZE(battery_inits); i++) {
 		int val = *battery_inits[i].info_data;
 		const struct linear_range *range = battery_inits[i].range;
@@ -980,7 +982,7 @@ static int bd9995x_fw_probe(struct bd9995x_device *bd)
 			dev_err(bd->dev, "Unsupported value for %s\n",
 				battery_inits[i].name);
 
-			power_supply_put_battery_info(bd->charger, &info);
+			power_supply_put_battery_info(bd->charger, info);
 			return -EINVAL;
 		}
 		if (!found) {
@@ -991,7 +993,7 @@ static int bd9995x_fw_probe(struct bd9995x_device *bd)
 		*(battery_inits[i].data) = regval;
 	}
 
-	power_supply_put_battery_info(bd->charger, &info);
+	power_supply_put_battery_info(bd->charger, info);
 
 	for (i = 0; i < ARRAY_SIZE(props); i++) {
 		ret = device_property_read_u32(bd->dev, props[i].prop,

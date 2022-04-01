@@ -35,6 +35,8 @@ properties:
       phandle of the gpio for power ic line
       Power IC supply enable, High active
 
+  port: true
+
 required:
   - compatible
   - reg

@@ -28,6 +28,9 @@ enum nf_ct_ext_id {
 #if IS_ENABLED(CONFIG_NETFILTER_SYNPROXY)
 	NF_CT_EXT_SYNPROXY,
 #endif
+#if IS_ENABLED(CONFIG_NET_ACT_CT)
+	NF_CT_EXT_ACT_CT,
+#endif
 	NF_CT_EXT_NUM,
 };
 
@@ -40,6 +43,7 @@ enum nf_ct_ext_id {
 #define NF_CT_EXT_TIMEOUT_TYPE struct nf_conn_timeout
 #define NF_CT_EXT_LABELS_TYPE struct nf_conn_labels
 #define NF_CT_EXT_SYNPROXY_TYPE struct nf_conn_synproxy
+#define NF_CT_EXT_ACT_CT_TYPE struct nf_conn_act_ct_ext
 
 /* Extensions: optional stuff which isn't permanently in struct. */
 struct nf_ct_ext {

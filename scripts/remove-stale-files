@@ -24,7 +24,7 @@ set -e
 # with O=, make sure to remove the stale files in the output tree. Otherwise,
 # the build system wrongly compiles the stale ones.
 if [ -n "${building_out_of_srctree}" ]; then
-	for f in fdt_rw.c fdt_ro.c fdt_wip.c fdt.c
+	for f in fdt_rw.c fdt_ro.c fdt_wip.c fdt.c ashldi3.S bswapsdi2.S font.c lib1funcs.S hyp-stub.S
 	do
 		rm -f arch/arm/boot/compressed/${f}
 	done
@@ -33,4 +33,11 @@ if [ -n "${building_out_of_srctree}" ]; then
 	do
 		rm -f arch/mips/boot/compressed/${f}
 	done
+
+	for f in firmware.c real2.S
+	do
+		rm -f arch/parisc/boot/compressed/${f}
+	done
 fi
+
+rm -f scripts/extract-cert

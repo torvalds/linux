@@ -94,7 +94,7 @@ static inline struct sk_buff *nf_hook_egress(struct sk_buff *skb, int *rc,
 		return skb;
 #endif
 
-	e = rcu_dereference(dev->nf_hooks_egress);
+	e = rcu_dereference_check(dev->nf_hooks_egress, rcu_read_lock_bh_held());
 	if (!e)
 		return skb;
 

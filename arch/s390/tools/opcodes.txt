@@ -276,6 +276,7 @@ b285	lpctl	S_RD
 b286	qsi	S_RD
 b287	lsctl	S_RD
 b28e	qctri	S_RD
+b28f	qpaci	S_RD
 b299	srnm	S_RD
 b29c	stfpc	S_RD
 b29d	lfpc	S_RD
@@ -1098,7 +1099,7 @@ eb61	stric	RSY_RDRU
 eb62	mric	RSY_RDRU
 eb6a	asi	SIY_IRD
 eb6e	alsi	SIY_IRD
-eb71	lpswey	SIY_URD
+eb71	lpswey	SIY_RD
 eb7a	agsi	SIY_IRD
 eb7e	algsi	SIY_IRD
 eb80	icmh	RSY_RURD

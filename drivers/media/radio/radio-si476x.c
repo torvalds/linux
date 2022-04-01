@@ -313,12 +313,6 @@ struct si476x_radio {
 };
 
 static inline struct si476x_radio *
-v4l2_dev_to_radio(struct v4l2_device *d)
-{
-	return container_of(d, struct si476x_radio, v4l2dev);
-}
-
-static inline struct si476x_radio *
 v4l2_ctrl_handler_to_radio(struct v4l2_ctrl_handler *d)
 {
 	return container_of(d, struct si476x_radio, ctrl_handler);

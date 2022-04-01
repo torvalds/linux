@@ -150,7 +150,6 @@ static inline int mmu_get_tsize(int psize)
  */
 #ifdef CONFIG_PPC64
 
-int mmu_linear_psize;		/* Page size used for the linear mapping */
 int mmu_pte_psize;		/* Page size used for PTE pages */
 int mmu_vmemmap_psize;		/* Page size used for the virtual mem map */
 int book3e_htw_mode;		/* HW tablewalk?  Value is PPC_HTW_* */
@@ -433,7 +432,7 @@ void tlb_flush_pgtable(struct mmu_gather *tlb, unsigned long address)
 	}
 }
 
-static void setup_page_sizes(void)
+static void __init setup_page_sizes(void)
 {
 	unsigned int tlb0cfg;
 	unsigned int tlb0ps;
@@ -571,7 +570,7 @@ out:
 	}
 }
 
-static void setup_mmu_htw(void)
+static void __init setup_mmu_htw(void)
 {
 	/*
 	 * If we want to use HW tablewalk, enable it by patching the TLB miss
@@ -645,7 +644,7 @@ static void early_init_this_mmu(void)
 
 		if (map)
 			linear_map_top = map_mem_in_cams(linear_map_top,
-							 num_cams, true, true);
+							 num_cams, false, true);
 	}
 #endif
 
@@ -657,14 +656,6 @@ static void early_init_this_mmu(void)
 
 static void __init early_init_mmu_global(void)
 {
-	/* XXX This will have to be decided at runtime, but right
-	 * now our boot and TLB miss code hard wires it. Ideally
-	 * we should find out a suitable page size and patch the
-	 * TLB miss code (either that or use the PACA to store
-	 * the value we want)
-	 */
-	mmu_linear_psize = MMU_PAGE_1G;
-
 	/* XXX This should be decided at runtime based on supported
 	 * page sizes in the TLB, but for now let's assume 16M is
 	 * always there and a good fit (which it probably is)
@@ -766,7 +757,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 		num_cams = (mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY) / 4;
 
 		linear_sz = map_mem_in_cams(first_memblock_size, num_cams,
-					    false, true);
+					    true, true);
 
 		ppc64_rma_size = min_t(u64, linear_sz, 0x40000000);
 	} else

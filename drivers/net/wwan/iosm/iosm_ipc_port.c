@@ -27,7 +27,7 @@ static void ipc_port_ctrl_stop(struct wwan_port *port)
 {
 	struct iosm_cdev *ipc_port = wwan_port_get_drvdata(port);
 
-	ipc_imem_sys_cdev_close(ipc_port);
+	ipc_imem_sys_port_close(ipc_port->ipc_imem, ipc_port->channel);
 }
 
 /* transfer control data to modem */

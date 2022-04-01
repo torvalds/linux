@@ -76,6 +76,26 @@ struct device_node *of_irq_find_parent(struct device_node *child)
 }
 EXPORT_SYMBOL_GPL(of_irq_find_parent);
 
+/*
+ * These interrupt controllers abuse interrupt-map for unspeakable
+ * reasons and rely on the core code to *ignore* it (the drivers do
+ * their own parsing of the property).
+ *
+ * If you think of adding to the list for something *new*, think
+ * again. There is a high chance that you will be sent back to the
+ * drawing board.
+ */
+static const char * const of_irq_imap_abusers[] = {
+	"CBEA,platform-spider-pic",
+	"sti,platform-spider-pic",
+	"realtek,rtl-intc",
+	"fsl,ls1021a-extirq",
+	"fsl,ls1043a-extirq",
+	"fsl,ls1088a-extirq",
+	"renesas,rza1-irqc",
+	NULL,
+};
+
 /**
  * of_irq_parse_raw - Low level interrupt tree parsing
  * @addr:	address specifier (start of "reg" property of the device) in be32 format
@@ -159,12 +179,15 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 		/*
 		 * Now check if cursor is an interrupt-controller and
 		 * if it is then we are done, unless there is an
-		 * interrupt-map which takes precedence.
+		 * interrupt-map which takes precedence except on one
+		 * of these broken platforms that want to parse
+		 * interrupt-map themselves for $reason.
 		 */
 		bool intc = of_property_read_bool(ipar, "interrupt-controller");
 
 		imap = of_get_property(ipar, "interrupt-map", &imaplen);
-		if (imap == NULL && intc) {
+		if (intc &&
+		    (!imap || of_device_compatible_match(ipar, of_irq_imap_abusers))) {
 			pr_debug(" -> got it !\n");
 			return 0;
 		}

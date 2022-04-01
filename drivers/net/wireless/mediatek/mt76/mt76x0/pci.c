@@ -85,6 +85,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.set_rts_threshold = mt76x02_set_rts_threshold,
 	.get_antenna = mt76_get_antenna,
 	.reconfig_complete = mt76x02_reconfig_complete,
+	.set_sar_specs = mt76x0_set_sar_specs,
 };
 
 static int mt76x0e_init_hardware(struct mt76x02_dev *dev, bool resume)

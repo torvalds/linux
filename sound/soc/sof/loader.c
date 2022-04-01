@@ -820,8 +820,8 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 	/* boot the firmware on the DSP */
 	ret = snd_sof_dsp_run(sdev);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to start DSP\n");
-		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_MBOX | SOF_DBG_DUMP_PCI);
+		snd_sof_dsp_dbg_dump(sdev, "Failed to start DSP",
+				     SOF_DBG_DUMP_MBOX | SOF_DBG_DUMP_PCI);
 		return ret;
 	}
 
@@ -835,16 +835,13 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 				 sdev->fw_state > SOF_FW_BOOT_IN_PROGRESS,
 				 msecs_to_jiffies(sdev->boot_timeout));
 	if (ret == 0) {
-		dev_err(sdev->dev, "error: firmware boot failure\n");
-		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX |
+		snd_sof_dsp_dbg_dump(sdev, "Firmware boot failure due to timeout",
+				     SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX |
 				     SOF_DBG_DUMP_TEXT | SOF_DBG_DUMP_PCI);
-		sof_set_fw_state(sdev, SOF_FW_BOOT_FAILED);
 		return -EIO;
 	}
 
-	if (sdev->fw_state == SOF_FW_BOOT_COMPLETE)
-		dev_dbg(sdev->dev, "firmware boot complete\n");
-	else
+	if (sdev->fw_state == SOF_FW_BOOT_READY_FAILED)
 		return -EIO; /* FW boots but fw_ready op failed */
 
 	/* perform post fw run operations */
@@ -853,6 +850,9 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "error: failed post fw run op\n");
 		return ret;
 	}
+
+	dev_dbg(sdev->dev, "firmware boot complete\n");
+	sof_set_fw_state(sdev, SOF_FW_BOOT_COMPLETE);
 
 	return 0;
 }

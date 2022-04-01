@@ -282,7 +282,7 @@ salinfo_event_open(struct inode *inode, struct file *file)
 static ssize_t
 salinfo_event_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct salinfo_data *data = PDE_DATA(file_inode(file));
+	struct salinfo_data *data = pde_data(file_inode(file));
 	char cmd[32];
 	size_t size;
 	int i, n, cpu = -1;
@@ -340,7 +340,7 @@ static const struct proc_ops salinfo_event_proc_ops = {
 static int
 salinfo_log_open(struct inode *inode, struct file *file)
 {
-	struct salinfo_data *data = PDE_DATA(inode);
+	struct salinfo_data *data = pde_data(inode);
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -365,7 +365,7 @@ salinfo_log_open(struct inode *inode, struct file *file)
 static int
 salinfo_log_release(struct inode *inode, struct file *file)
 {
-	struct salinfo_data *data = PDE_DATA(inode);
+	struct salinfo_data *data = pde_data(inode);
 
 	if (data->state == STATE_NO_DATA) {
 		vfree(data->log_buffer);
@@ -433,7 +433,7 @@ retry:
 static ssize_t
 salinfo_log_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct salinfo_data *data = PDE_DATA(file_inode(file));
+	struct salinfo_data *data = pde_data(file_inode(file));
 	u8 *buf;
 	u64 bufsize;
 
@@ -494,7 +494,7 @@ salinfo_log_clear(struct salinfo_data *data, int cpu)
 static ssize_t
 salinfo_log_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct salinfo_data *data = PDE_DATA(file_inode(file));
+	struct salinfo_data *data = pde_data(file_inode(file));
 	char cmd[32];
 	size_t size;
 	u32 offset;

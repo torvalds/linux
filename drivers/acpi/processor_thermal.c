@@ -53,10 +53,17 @@ static int phys_package_first_cpu(int cpu)
 
 static int cpu_has_cpufreq(unsigned int cpu)
 {
-	struct cpufreq_policy policy;
-	if (!acpi_processor_cpufreq_init || cpufreq_get_policy(&policy, cpu))
+	struct cpufreq_policy *policy;
+
+	if (!acpi_processor_cpufreq_init)
 		return 0;
-	return 1;
+
+	policy = cpufreq_cpu_get(cpu);
+	if (policy) {
+		cpufreq_cpu_put(policy);
+		return 1;
+	}
+	return 0;
 }
 
 static int cpufreq_get_max_state(unsigned int cpu)

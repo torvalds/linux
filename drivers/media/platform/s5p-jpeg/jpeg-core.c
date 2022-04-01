@@ -2425,17 +2425,17 @@ static int s5p_jpeg_job_ready(void *priv)
 	return 1;
 }
 
-static struct v4l2_m2m_ops s5p_jpeg_m2m_ops = {
+static const struct v4l2_m2m_ops s5p_jpeg_m2m_ops = {
 	.device_run	= s5p_jpeg_device_run,
 	.job_ready	= s5p_jpeg_job_ready,
 };
 
-static struct v4l2_m2m_ops exynos3250_jpeg_m2m_ops = {
+static const struct v4l2_m2m_ops exynos3250_jpeg_m2m_ops = {
 	.device_run	= exynos3250_jpeg_device_run,
 	.job_ready	= s5p_jpeg_job_ready,
 };
 
-static struct v4l2_m2m_ops exynos4_jpeg_m2m_ops = {
+static const struct v4l2_m2m_ops exynos4_jpeg_m2m_ops = {
 	.device_run	= exynos4_jpeg_device_run,
 	.job_ready	= s5p_jpeg_job_ready,
 };

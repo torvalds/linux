@@ -601,7 +601,7 @@ void dlm_receive_rcom(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
 
 	spin_lock(&ls->ls_recover_lock);
 	status = ls->ls_recover_status;
-	stop = test_bit(LSFL_RECOVER_STOP, &ls->ls_flags);
+	stop = dlm_recovery_stopped(ls);
 	seq = ls->ls_recover_seq;
 	spin_unlock(&ls->ls_recover_lock);
 

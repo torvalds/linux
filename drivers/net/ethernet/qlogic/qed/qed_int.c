@@ -1045,7 +1045,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 		if (!parities)
 			continue;
 
-		for (j = 0, bit_idx = 0; bit_idx < 32; j++) {
+		for (j = 0, bit_idx = 0; bit_idx < 32 && j < 32; j++) {
 			struct aeu_invert_reg_bit *p_bit = &p_aeu->bits[j];
 
 			if (qed_int_is_parity_flag(p_hwfn, p_bit) &&
@@ -1083,7 +1083,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 			 * to current group, making them responsible for the
 			 * previous assertion.
 			 */
-			for (j = 0, bit_idx = 0; bit_idx < 32; j++) {
+			for (j = 0, bit_idx = 0; bit_idx < 32 && j < 32; j++) {
 				long unsigned int bitmask;
 				u8 bit, bit_len;
 
@@ -1382,7 +1382,7 @@ static void qed_int_sb_attn_init(struct qed_hwfn *p_hwfn,
 	memset(sb_info->parity_mask, 0, sizeof(u32) * NUM_ATTN_REGS);
 	for (i = 0; i < NUM_ATTN_REGS; i++) {
 		/* j is array index, k is bit index */
-		for (j = 0, k = 0; k < 32; j++) {
+		for (j = 0, k = 0; k < 32 && j < 32; j++) {
 			struct aeu_invert_reg_bit *p_aeu;
 
 			p_aeu = &aeu_descs[i].bits[j];
@@ -2398,4 +2398,26 @@ int qed_int_set_timer_res(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	}
 
 	return rc;
+}
+
+int qed_int_get_sb_dbg(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		       struct qed_sb_info *p_sb, struct qed_sb_info_dbg *p_info)
+{
+	u16 sbid = p_sb->igu_sb_id;
+	u32 i;
+
+	if (IS_VF(p_hwfn->cdev))
+		return -EINVAL;
+
+	if (sbid >= NUM_OF_SBS(p_hwfn->cdev))
+		return -EINVAL;
+
+	p_info->igu_prod = qed_rd(p_hwfn, p_ptt, IGU_REG_PRODUCER_MEMORY + sbid * 4);
+	p_info->igu_cons = qed_rd(p_hwfn, p_ptt, IGU_REG_CONSUMER_MEM + sbid * 4);
+
+	for (i = 0; i < PIS_PER_SB; i++)
+		p_info->pi[i] = (u16)qed_rd(p_hwfn, p_ptt,
+					    CAU_REG_PI_MEMORY + sbid * 4 * PIS_PER_SB + i * 4);
+
+	return 0;
 }

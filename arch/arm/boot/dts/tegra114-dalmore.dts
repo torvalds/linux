@@ -894,7 +894,7 @@
 		};
 
 		palmas: tps65913@58 {
-			compatible = "ti,palmas";
+			compatible = "ti,tps65913", "ti,palmas";
 			reg = <0x58>;
 			interrupts = <0 86 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -1084,7 +1084,8 @@
 	spi@7000da00 {
 		status = "okay";
 		spi-max-frequency = <25000000>;
-		spi-flash@0 {
+
+		flash@0 {
 			compatible = "winbond,w25q32dw", "jedec,spi-nor";
 			reg = <0>;
 			spi-max-frequency = <20000000>;
@@ -1151,7 +1152,7 @@
 		default-brightness-level = <6>;
 	};
 
-	clk32k_in: clock@0 {
+	clk32k_in: clock-32k {
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 		#clock-cells = <0>;
@@ -1186,7 +1187,7 @@
 		};
 	};
 
-	vdd_ac_bat_reg: regulator@0 {
+	vdd_ac_bat_reg: regulator-acbat {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_ac_bat";
 		regulator-min-microvolt = <5000000>;
@@ -1194,7 +1195,7 @@
 		regulator-always-on;
 	};
 
-	dvdd_ts_reg: regulator@1 {
+	dvdd_ts_reg: regulator-ts {
 		compatible = "regulator-fixed";
 		regulator-name = "dvdd_ts";
 		regulator-min-microvolt = <1800000>;
@@ -1203,7 +1204,7 @@
 		gpio = <&gpio TEGRA_GPIO(H, 5) GPIO_ACTIVE_HIGH>;
 	};
 
-	usb1_vbus_reg: regulator@3 {
+	usb1_vbus_reg: regulator-usb1 {
 		compatible = "regulator-fixed";
 		regulator-name = "usb1_vbus";
 		regulator-min-microvolt = <5000000>;
@@ -1214,7 +1215,7 @@
 		vin-supply = <&tps65090_dcdc1_reg>;
 	};
 
-	usb3_vbus_reg: regulator@4 {
+	usb3_vbus_reg: regulator-usb3 {
 		compatible = "regulator-fixed";
 		regulator-name = "usb2_vbus";
 		regulator-min-microvolt = <5000000>;
@@ -1225,7 +1226,7 @@
 		vin-supply = <&tps65090_dcdc1_reg>;
 	};
 
-	vdd_hdmi_reg: regulator@5 {
+	vdd_hdmi_reg: regulator-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_hdmi_5v0";
 		regulator-min-microvolt = <5000000>;
@@ -1233,7 +1234,7 @@
 		vin-supply = <&tps65090_dcdc1_reg>;
 	};
 
-	vdd_cam_1v8_reg: regulator@6 {
+	vdd_cam_1v8_reg: regulator-cam {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_cam_1v8_reg";
 		regulator-min-microvolt = <1800000>;
@@ -1242,7 +1243,7 @@
 		gpio = <&palmas_gpio 6 0>;
 	};
 
-	vdd_5v0_hdmi: regulator@7 {
+	vdd_5v0_hdmi: regulator-hdmicon {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_5V0_HDMI_CON";
 		regulator-min-microvolt = <5000000>;

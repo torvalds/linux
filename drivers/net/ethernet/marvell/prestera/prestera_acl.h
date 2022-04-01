@@ -1,114 +1,130 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2020 Marvell International Ltd. All rights reserved. */
+/* Copyright (c) 2020-2021 Marvell International Ltd. All rights reserved. */
 
 #ifndef _PRESTERA_ACL_H_
 #define _PRESTERA_ACL_H_
 
-enum prestera_acl_rule_match_entry_type {
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_ETH_TYPE = 1,
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_ETH_DMAC,
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_ETH_SMAC,
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_IP_PROTO,
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_PORT,
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_IP_SRC,
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_IP_DST,
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_L4_PORT_SRC,
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_L4_PORT_DST,
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_L4_PORT_RANGE_SRC,
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_L4_PORT_RANGE_DST,
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_VLAN_ID,
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_VLAN_TPID,
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_ICMP_TYPE,
-	PRESTERA_ACL_RULE_MATCH_ENTRY_TYPE_ICMP_CODE
+#include <linux/types.h>
+#include "prestera_counter.h"
+
+#define PRESTERA_ACL_KEYMASK_PCL_ID		0x3FF
+#define PRESTERA_ACL_KEYMASK_PCL_ID_USER			\
+	(PRESTERA_ACL_KEYMASK_PCL_ID & 0x00FF)
+
+#define rule_match_set_n(match_p, type, val_p, size)		\
+	memcpy(&(match_p)[PRESTERA_ACL_RULE_MATCH_TYPE_##type],	\
+	       val_p, size)
+#define rule_match_set(match_p, type, val)			\
+	memcpy(&(match_p)[PRESTERA_ACL_RULE_MATCH_TYPE_##type],	\
+	       &(val), sizeof(val))
+
+enum prestera_acl_match_type {
+	PRESTERA_ACL_RULE_MATCH_TYPE_PCL_ID,
+	PRESTERA_ACL_RULE_MATCH_TYPE_ETH_TYPE,
+	PRESTERA_ACL_RULE_MATCH_TYPE_ETH_DMAC_0,
+	PRESTERA_ACL_RULE_MATCH_TYPE_ETH_DMAC_1,
+	PRESTERA_ACL_RULE_MATCH_TYPE_ETH_SMAC_0,
+	PRESTERA_ACL_RULE_MATCH_TYPE_ETH_SMAC_1,
+	PRESTERA_ACL_RULE_MATCH_TYPE_IP_PROTO,
+	PRESTERA_ACL_RULE_MATCH_TYPE_SYS_PORT,
+	PRESTERA_ACL_RULE_MATCH_TYPE_SYS_DEV,
+	PRESTERA_ACL_RULE_MATCH_TYPE_IP_SRC,
+	PRESTERA_ACL_RULE_MATCH_TYPE_IP_DST,
+	PRESTERA_ACL_RULE_MATCH_TYPE_L4_PORT_SRC,
+	PRESTERA_ACL_RULE_MATCH_TYPE_L4_PORT_DST,
+	PRESTERA_ACL_RULE_MATCH_TYPE_L4_PORT_RANGE_SRC,
+	PRESTERA_ACL_RULE_MATCH_TYPE_L4_PORT_RANGE_DST,
+	PRESTERA_ACL_RULE_MATCH_TYPE_VLAN_ID,
+	PRESTERA_ACL_RULE_MATCH_TYPE_VLAN_TPID,
+	PRESTERA_ACL_RULE_MATCH_TYPE_ICMP_TYPE,
+	PRESTERA_ACL_RULE_MATCH_TYPE_ICMP_CODE,
+
+	__PRESTERA_ACL_RULE_MATCH_TYPE_MAX
 };
 
 enum prestera_acl_rule_action {
-	PRESTERA_ACL_RULE_ACTION_ACCEPT,
-	PRESTERA_ACL_RULE_ACTION_DROP,
-	PRESTERA_ACL_RULE_ACTION_TRAP
+	PRESTERA_ACL_RULE_ACTION_ACCEPT = 0,
+	PRESTERA_ACL_RULE_ACTION_DROP = 1,
+	PRESTERA_ACL_RULE_ACTION_TRAP = 2,
+	PRESTERA_ACL_RULE_ACTION_COUNT = 7,
+
+	PRESTERA_ACL_RULE_ACTION_MAX
 };
 
-struct prestera_switch;
-struct prestera_port;
-struct prestera_acl_rule;
-struct prestera_acl_ruleset;
-
-struct prestera_flow_block_binding {
-	struct list_head list;
-	struct prestera_port *port;
-	int span_id;
+enum {
+	PRESTERA_ACL_IFACE_TYPE_PORT,
+	PRESTERA_ACL_IFACE_TYPE_INDEX
 };
 
-struct prestera_flow_block {
-	struct list_head binding_list;
-	struct prestera_switch *sw;
-	struct net *net;
-	struct prestera_acl_ruleset *ruleset;
-	struct flow_block_cb *block_cb;
+struct prestera_acl_match {
+	__be32 key[__PRESTERA_ACL_RULE_MATCH_TYPE_MAX];
+	__be32 mask[__PRESTERA_ACL_RULE_MATCH_TYPE_MAX];
 };
 
-struct prestera_acl_rule_action_entry {
-	struct list_head list;
+struct prestera_acl_action_count {
+	u32 id;
+};
+
+struct prestera_acl_rule_entry_key {
+	u32 prio;
+	struct prestera_acl_match match;
+};
+
+struct prestera_acl_hw_action_info {
 	enum prestera_acl_rule_action id;
+	union {
+		struct prestera_acl_action_count count;
+	};
 };
 
-struct prestera_acl_rule_match_entry {
-	struct list_head list;
-	enum prestera_acl_rule_match_entry_type type;
-	union {
+/* This struct (arg) used only to be passed as parameter for
+ * acl_rule_entry_create. Must be flat. Can contain object keys, which will be
+ * resolved to object links, before saving to acl_rule_entry struct
+ */
+struct prestera_acl_rule_entry_arg {
+	u32 vtcam_id;
+	struct {
 		struct {
-			u8 key;
-			u8 mask;
-		} u8;
+			u8 valid:1;
+		} accept, drop, trap;
 		struct {
-			u16 key;
-			u16 mask;
-		} u16;
-		struct {
-			u32 key;
-			u32 mask;
-		} u32;
-		struct {
-			u64 key;
-			u64 mask;
-		} u64;
-		struct {
-			u8 key[ETH_ALEN];
-			u8 mask[ETH_ALEN];
-		} mac;
-	} keymask;
+			u8 valid:1;
+			u32 client;
+		} count;
+	};
 };
+
+struct prestera_acl_rule {
+	struct rhash_head ht_node; /* Member of acl HT */
+	struct list_head list;
+	struct prestera_acl_ruleset *ruleset;
+	unsigned long cookie;
+	u32 priority;
+	struct prestera_acl_rule_entry_key re_key;
+	struct prestera_acl_rule_entry_arg re_arg;
+	struct prestera_acl_rule_entry *re;
+};
+
+struct prestera_acl_iface {
+	union {
+		struct prestera_port *port;
+		u32 index;
+	};
+	u8 type;
+};
+
+struct prestera_acl;
+struct prestera_switch;
+struct prestera_flow_block;
 
 int prestera_acl_init(struct prestera_switch *sw);
 void prestera_acl_fini(struct prestera_switch *sw);
-struct prestera_flow_block *
-prestera_acl_block_create(struct prestera_switch *sw, struct net *net);
-void prestera_acl_block_destroy(struct prestera_flow_block *block);
-struct net *prestera_acl_block_net(struct prestera_flow_block *block);
-struct prestera_switch *prestera_acl_block_sw(struct prestera_flow_block *block);
-int prestera_acl_block_bind(struct prestera_flow_block *block,
-			    struct prestera_port *port);
-int prestera_acl_block_unbind(struct prestera_flow_block *block,
-			      struct prestera_port *port);
-struct prestera_acl_ruleset *
-prestera_acl_block_ruleset_get(struct prestera_flow_block *block);
+
 struct prestera_acl_rule *
-prestera_acl_rule_create(struct prestera_flow_block *block,
+prestera_acl_rule_create(struct prestera_acl_ruleset *ruleset,
 			 unsigned long cookie);
-u32 prestera_acl_rule_priority_get(struct prestera_acl_rule *rule);
 void prestera_acl_rule_priority_set(struct prestera_acl_rule *rule,
 				    u32 priority);
-u16 prestera_acl_rule_ruleset_id_get(const struct prestera_acl_rule *rule);
-struct list_head *
-prestera_acl_rule_action_list_get(struct prestera_acl_rule *rule);
-u8 prestera_acl_rule_action_len(struct prestera_acl_rule *rule);
-u8 prestera_acl_rule_match_len(struct prestera_acl_rule *rule);
-int prestera_acl_rule_action_add(struct prestera_acl_rule *rule,
-				 struct prestera_acl_rule_action_entry *entry);
-struct list_head *
-prestera_acl_rule_match_list_get(struct prestera_acl_rule *rule);
-int prestera_acl_rule_match_add(struct prestera_acl_rule *rule,
-				struct prestera_acl_rule_match_entry *entry);
 void prestera_acl_rule_destroy(struct prestera_acl_rule *rule);
 struct prestera_acl_rule *
 prestera_acl_rule_lookup(struct prestera_acl_ruleset *ruleset,
@@ -117,8 +133,39 @@ int prestera_acl_rule_add(struct prestera_switch *sw,
 			  struct prestera_acl_rule *rule);
 void prestera_acl_rule_del(struct prestera_switch *sw,
 			   struct prestera_acl_rule *rule);
-int prestera_acl_rule_get_stats(struct prestera_switch *sw,
+int prestera_acl_rule_get_stats(struct prestera_acl *acl,
 				struct prestera_acl_rule *rule,
 				u64 *packets, u64 *bytes, u64 *last_use);
+struct prestera_acl_rule_entry *
+prestera_acl_rule_entry_find(struct prestera_acl *acl,
+			     struct prestera_acl_rule_entry_key *key);
+void prestera_acl_rule_entry_destroy(struct prestera_acl *acl,
+				     struct prestera_acl_rule_entry *e);
+struct prestera_acl_rule_entry *
+prestera_acl_rule_entry_create(struct prestera_acl *acl,
+			       struct prestera_acl_rule_entry_key *key,
+			       struct prestera_acl_rule_entry_arg *arg);
+struct prestera_acl_ruleset *
+prestera_acl_ruleset_get(struct prestera_acl *acl,
+			 struct prestera_flow_block *block);
+struct prestera_acl_ruleset *
+prestera_acl_ruleset_lookup(struct prestera_acl *acl,
+			    struct prestera_flow_block *block);
+void prestera_acl_ruleset_keymask_set(struct prestera_acl_ruleset *ruleset,
+				      void *keymask);
+bool prestera_acl_ruleset_is_offload(struct prestera_acl_ruleset *ruleset);
+int prestera_acl_ruleset_offload(struct prestera_acl_ruleset *ruleset);
+void prestera_acl_ruleset_put(struct prestera_acl_ruleset *ruleset);
+int prestera_acl_ruleset_bind(struct prestera_acl_ruleset *ruleset,
+			      struct prestera_port *port);
+int prestera_acl_ruleset_unbind(struct prestera_acl_ruleset *ruleset,
+				struct prestera_port *port);
+void
+prestera_acl_rule_keymask_pcl_id_set(struct prestera_acl_rule *rule,
+				     u16 pcl_id);
+
+int prestera_acl_vtcam_id_get(struct prestera_acl *acl, u8 lookup,
+			      void *keymask, u32 *vtcam_id);
+int prestera_acl_vtcam_id_put(struct prestera_acl *acl, u32 vtcam_id);
 
 #endif /* _PRESTERA_ACL_H_ */

@@ -50,7 +50,7 @@ int mr_check_range(struct rxe_mr *mr, u64 iova, size_t length)
 
 static void rxe_mr_init(int access, struct rxe_mr *mr)
 {
-	u32 lkey = mr->pelem.index << 8 | rxe_get_next_key(-1);
+	u32 lkey = mr->elem.index << 8 | rxe_get_next_key(-1);
 	u32 rkey = (access & IB_ACCESS_REMOTE) ? lkey : 0;
 
 	/* set ibmr->l/rkey and also copy into private l/rkey
@@ -135,19 +135,19 @@ static int rxe_mr_alloc(struct rxe_mr *mr, int num_buf, int both)
 
 	ret = rxe_mr_alloc_map_set(num_map, &mr->cur_map_set);
 	if (ret)
-		goto err_out;
+		return -ENOMEM;
 
 	if (both) {
 		ret = rxe_mr_alloc_map_set(num_map, &mr->next_map_set);
-		if (ret) {
-			rxe_mr_free_map_set(mr->num_map, mr->cur_map_set);
-			goto err_out;
-		}
+		if (ret)
+			goto err_free;
 	}
 
 	return 0;
 
-err_out:
+err_free:
+	rxe_mr_free_map_set(mr->num_map, mr->cur_map_set);
+	mr->cur_map_set = NULL;
 	return -ENOMEM;
 }
 
@@ -214,7 +214,7 @@ int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
 				pr_warn("%s: Unable to get virtual address\n",
 						__func__);
 				err = -ENOMEM;
-				goto err_cleanup_map;
+				goto err_release_umem;
 			}
 
 			buf->addr = (uintptr_t)vaddr;
@@ -237,8 +237,6 @@ int rxe_mr_init_user(struct rxe_pd *pd, u64 start, u64 length, u64 iova,
 
 	return 0;
 
-err_cleanup_map:
-	rxe_mr_free_map_set(mr->num_map, mr->cur_map_set);
 err_release_umem:
 	ib_umem_release(umem);
 err_out:
@@ -699,9 +697,9 @@ int rxe_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	return 0;
 }
 
-void rxe_mr_cleanup(struct rxe_pool_entry *arg)
+void rxe_mr_cleanup(struct rxe_pool_elem *elem)
 {
-	struct rxe_mr *mr = container_of(arg, typeof(*mr), pelem);
+	struct rxe_mr *mr = container_of(elem, typeof(*mr), elem);
 
 	ib_umem_release(mr->umem);
 

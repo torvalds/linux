@@ -499,7 +499,8 @@ static enum bp_result link_transmitter_control(
 void dcn31_hpo_dp_link_enc_enable_dp_output(
 	struct hpo_dp_link_encoder *enc,
 	const struct dc_link_settings *link_settings,
-	enum transmitter transmitter)
+	enum transmitter transmitter,
+	enum hpd_source_id hpd_source)
 {
 	struct dcn31_hpo_dp_link_encoder *enc3 = DCN3_1_HPO_DP_LINK_ENC_FROM_HPO_LINK_ENC(enc);
 	struct bp_transmitter_control cntl = { 0 };
@@ -507,6 +508,9 @@ void dcn31_hpo_dp_link_enc_enable_dp_output(
 
 	/* Set the transmitter */
 	enc3->base.transmitter = transmitter;
+
+	/* Set the hpd source */
+	enc3->base.hpd_source = hpd_source;
 
 	/* Enable the PHY */
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;

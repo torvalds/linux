@@ -58,7 +58,6 @@ void intel_snps_phy_set_signal_levels(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	const struct intel_ddi_buf_trans *trans;
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
-	int level = intel_ddi_level(encoder, crtc_state, 0);
 	int n_entries, ln;
 
 	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
@@ -66,6 +65,7 @@ void intel_snps_phy_set_signal_levels(struct intel_encoder *encoder,
 		return;
 
 	for (ln = 0; ln < 4; ln++) {
+		int level = intel_ddi_level(encoder, crtc_state, ln);
 		u32 val = 0;
 
 		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_MAIN, trans->entries[level].snps.vswing);
@@ -186,6 +186,7 @@ static const struct intel_mpllb_state dg2_dp_uhbr10_100 = {
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_PMIX_EN, 1) |
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_WORD_DIV2_EN, 1) |
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_DP2_MODE, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_SHIM_DIV32_CLK_SEL, 1) |
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_V2I, 2),
 	.mpllb_div2 =
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_REF_CLK_DIV, 2) |
@@ -369,6 +370,7 @@ static const struct intel_mpllb_state dg2_dp_uhbr10_38_4 = {
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_PMIX_EN, 1) |
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_WORD_DIV2_EN, 1) |
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_DP2_MODE, 1) |
+		REG_FIELD_PREP(SNPS_PHY_MPLLB_SHIM_DIV32_CLK_SEL, 1) |
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_V2I, 2),
 	.mpllb_div2 =
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_REF_CLK_DIV, 1) |

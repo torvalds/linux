@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/crypto.h>
+#include <net/devlink.h>
 #include "otx2_cpt_hw_types.h"
 #include "rvu.h"
 #include "mbox.h"

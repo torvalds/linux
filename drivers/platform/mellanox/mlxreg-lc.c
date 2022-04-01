@@ -413,7 +413,7 @@ mlxreg_lc_create_static_devices(struct mlxreg_lc *mlxreg_lc, struct mlxreg_hotpl
 				int size)
 {
 	struct mlxreg_hotplug_device *dev = devs;
-	int i;
+	int i, ret;
 
 	/* Create static I2C device feeding by auxiliary or main power. */
 	for (i = 0; i < size; i++, dev++) {
@@ -423,6 +423,7 @@ mlxreg_lc_create_static_devices(struct mlxreg_lc *mlxreg_lc, struct mlxreg_hotpl
 				dev->brdinfo->type, dev->nr, dev->brdinfo->addr);
 
 			dev->adapter = NULL;
+			ret = PTR_ERR(dev->client);
 			goto fail_create_static_devices;
 		}
 	}
@@ -435,7 +436,7 @@ fail_create_static_devices:
 		i2c_unregister_device(dev->client);
 		dev->client = NULL;
 	}
-	return IS_ERR(dev->client);
+	return ret;
 }
 
 static void

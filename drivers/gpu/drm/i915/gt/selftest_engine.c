@@ -12,7 +12,7 @@ int intel_engine_live_selftests(struct drm_i915_private *i915)
 		live_engine_pm_selftests,
 		NULL,
 	};
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 	typeof(*tests) *fn;
 
 	for (fn = tests; *fn; fn++) {

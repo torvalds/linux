@@ -313,7 +313,7 @@ void acpi_tb_parse_fadt(void)
 	acpi_tb_install_standard_table((acpi_physical_address)acpi_gbl_FADT.
 				       Xdsdt,
 				       ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
-				       FALSE, TRUE, &acpi_gbl_dsdt_index);
+				       NULL, FALSE, TRUE, &acpi_gbl_dsdt_index);
 
 	/* If Hardware Reduced flag is set, there is no FACS */
 
@@ -322,14 +322,14 @@ void acpi_tb_parse_fadt(void)
 			acpi_tb_install_standard_table((acpi_physical_address)
 						       acpi_gbl_FADT.facs,
 						       ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
-						       FALSE, TRUE,
+						       NULL, FALSE, TRUE,
 						       &acpi_gbl_facs_index);
 		}
 		if (acpi_gbl_FADT.Xfacs) {
 			acpi_tb_install_standard_table((acpi_physical_address)
 						       acpi_gbl_FADT.Xfacs,
 						       ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL,
-						       FALSE, TRUE,
+						       NULL, FALSE, TRUE,
 						       &acpi_gbl_xfacs_index);
 		}
 	}

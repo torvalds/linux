@@ -16,6 +16,7 @@
 #include <linux/uaccess.h>
 #include <as-layout.h>
 #include <mem_user.h>
+#include <registers.h>
 #include <skas.h>
 #include <os.h>
 

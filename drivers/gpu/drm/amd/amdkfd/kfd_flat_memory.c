@@ -394,7 +394,7 @@ int kfd_init_apertures(struct kfd_process *process)
 			pdd->gpuvm_base = pdd->gpuvm_limit = 0;
 			pdd->scratch_base = pdd->scratch_limit = 0;
 		} else {
-			switch (dev->device_info->asic_family) {
+			switch (dev->adev->asic_type) {
 			case CHIP_KAVERI:
 			case CHIP_HAWAII:
 			case CHIP_CARRIZO:
@@ -406,29 +406,14 @@ int kfd_init_apertures(struct kfd_process *process)
 			case CHIP_VEGAM:
 				kfd_init_apertures_vi(pdd, id);
 				break;
-			case CHIP_VEGA10:
-			case CHIP_VEGA12:
-			case CHIP_VEGA20:
-			case CHIP_RAVEN:
-			case CHIP_RENOIR:
-			case CHIP_ARCTURUS:
-			case CHIP_ALDEBARAN:
-			case CHIP_NAVI10:
-			case CHIP_NAVI12:
-			case CHIP_NAVI14:
-			case CHIP_SIENNA_CICHLID:
-			case CHIP_NAVY_FLOUNDER:
-			case CHIP_VANGOGH:
-			case CHIP_DIMGREY_CAVEFISH:
-			case CHIP_BEIGE_GOBY:
-			case CHIP_YELLOW_CARP:
-			case CHIP_CYAN_SKILLFISH:
-				kfd_init_apertures_v9(pdd, id);
-				break;
 			default:
-				WARN(1, "Unexpected ASIC family %u",
-				     dev->device_info->asic_family);
-				return -EINVAL;
+				if (KFD_GC_VERSION(dev) >= IP_VERSION(9, 0, 1))
+					kfd_init_apertures_v9(pdd, id);
+				else {
+					WARN(1, "Unexpected ASIC family %u",
+					     dev->adev->asic_type);
+					return -EINVAL;
+				}
 			}
 
 			if (!dev->use_iommu_v2) {

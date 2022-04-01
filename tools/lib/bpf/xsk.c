@@ -35,6 +35,11 @@
 #include "libbpf_internal.h"
 #include "xsk.h"
 
+/* entire xsk.h and xsk.c is going away in libbpf 1.0, so ignore all internal
+ * uses of deprecated APIs
+ */
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #ifndef SOL_XDP
  #define SOL_XDP 283
 #endif
@@ -364,8 +369,6 @@ int xsk_umem__create_v0_0_2(struct xsk_umem **umem_ptr, void *umem_area,
 static enum xsk_prog get_xsk_prog(void)
 {
 	enum xsk_prog detected = XSK_PROG_FALLBACK;
-	struct bpf_load_program_attr prog_attr;
-	struct bpf_create_map_attr map_attr;
 	__u32 size_out, retval, duration;
 	char data_in = 0, data_out;
 	struct bpf_insn insns[] = {
@@ -375,27 +378,15 @@ static enum xsk_prog get_xsk_prog(void)
 		BPF_EMIT_CALL(BPF_FUNC_redirect_map),
 		BPF_EXIT_INSN(),
 	};
-	int prog_fd, map_fd, ret;
+	int prog_fd, map_fd, ret, insn_cnt = ARRAY_SIZE(insns);
 
-	memset(&map_attr, 0, sizeof(map_attr));
-	map_attr.map_type = BPF_MAP_TYPE_XSKMAP;
-	map_attr.key_size = sizeof(int);
-	map_attr.value_size = sizeof(int);
-	map_attr.max_entries = 1;
-
-	map_fd = bpf_create_map_xattr(&map_attr);
+	map_fd = bpf_map_create(BPF_MAP_TYPE_XSKMAP, NULL, sizeof(int), sizeof(int), 1, NULL);
 	if (map_fd < 0)
 		return detected;
 
 	insns[0].imm = map_fd;
 
-	memset(&prog_attr, 0, sizeof(prog_attr));
-	prog_attr.prog_type = BPF_PROG_TYPE_XDP;
-	prog_attr.insns = insns;
-	prog_attr.insns_cnt = ARRAY_SIZE(insns);
-	prog_attr.license = "GPL";
-
-	prog_fd = bpf_load_program_xattr(&prog_attr, NULL, 0);
+	prog_fd = bpf_prog_load(BPF_PROG_TYPE_XDP, NULL, "GPL", insns, insn_cnt, NULL);
 	if (prog_fd < 0) {
 		close(map_fd);
 		return detected;
@@ -495,10 +486,13 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 	};
 	struct bpf_insn *progs[] = {prog, prog_redirect_flags};
 	enum xsk_prog option = get_xsk_prog();
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		.log_buf = log_buf,
+		.log_size = log_buf_size,
+	);
 
-	prog_fd = bpf_load_program(BPF_PROG_TYPE_XDP, progs[option], insns_cnt[option],
-				   "LGPL-2.1 or BSD-2-Clause", 0, log_buf,
-				   log_buf_size);
+	prog_fd = bpf_prog_load(BPF_PROG_TYPE_XDP, NULL, "LGPL-2.1 or BSD-2-Clause",
+				progs[option], insns_cnt[option], &opts);
 	if (prog_fd < 0) {
 		pr_warn("BPF log buffer:\n%s", log_buf);
 		return prog_fd;
@@ -554,8 +548,7 @@ static int xsk_get_max_queues(struct xsk_socket *xsk)
 		return -errno;
 
 	ifr.ifr_data = (void *)&channels;
-	memcpy(ifr.ifr_name, ctx->ifname, IFNAMSIZ - 1);
-	ifr.ifr_name[IFNAMSIZ - 1] = '\0';
+	libbpf_strlcpy(ifr.ifr_name, ctx->ifname, IFNAMSIZ);
 	err = ioctl(fd, SIOCETHTOOL, &ifr);
 	if (err && errno != EOPNOTSUPP) {
 		ret = -errno;
@@ -590,8 +583,8 @@ static int xsk_create_bpf_maps(struct xsk_socket *xsk)
 	if (max_queues < 0)
 		return max_queues;
 
-	fd = bpf_create_map_name(BPF_MAP_TYPE_XSKMAP, "xsks_map",
-				 sizeof(int), sizeof(int), max_queues, 0);
+	fd = bpf_map_create(BPF_MAP_TYPE_XSKMAP, "xsks_map",
+			    sizeof(int), sizeof(int), max_queues, NULL);
 	if (fd < 0)
 		return fd;
 
@@ -725,14 +718,12 @@ static int xsk_link_lookup(int ifindex, __u32 *prog_id, int *link_fd)
 
 static bool xsk_probe_bpf_link(void)
 {
-	DECLARE_LIBBPF_OPTS(bpf_link_create_opts, opts,
-			    .flags = XDP_FLAGS_SKB_MODE);
-	struct bpf_load_program_attr prog_attr;
+	LIBBPF_OPTS(bpf_link_create_opts, opts, .flags = XDP_FLAGS_SKB_MODE);
 	struct bpf_insn insns[2] = {
 		BPF_MOV64_IMM(BPF_REG_0, XDP_PASS),
 		BPF_EXIT_INSN()
 	};
-	int prog_fd, link_fd = -1;
+	int prog_fd, link_fd = -1, insn_cnt = ARRAY_SIZE(insns);
 	int ifindex_lo = 1;
 	bool ret = false;
 	int err;
@@ -744,13 +735,7 @@ static bool xsk_probe_bpf_link(void)
 	if (link_fd >= 0)
 		return true;
 
-	memset(&prog_attr, 0, sizeof(prog_attr));
-	prog_attr.prog_type = BPF_PROG_TYPE_XDP;
-	prog_attr.insns = insns;
-	prog_attr.insns_cnt = ARRAY_SIZE(insns);
-	prog_attr.license = "GPL";
-
-	prog_fd = bpf_load_program_xattr(&prog_attr, NULL, 0);
+	prog_fd = bpf_prog_load(BPF_PROG_TYPE_XDP, NULL, "GPL", insns, insn_cnt, NULL);
 	if (prog_fd < 0)
 		return ret;
 
@@ -782,8 +767,7 @@ static int xsk_create_xsk_struct(int ifindex, struct xsk_socket *xsk)
 	}
 
 	ctx->ifindex = ifindex;
-	memcpy(ctx->ifname, ifname, IFNAMSIZ -1);
-	ctx->ifname[IFNAMSIZ - 1] = 0;
+	libbpf_strlcpy(ctx->ifname, ifname, IFNAMSIZ);
 
 	xsk->ctx = ctx;
 	xsk->ctx->has_bpf_link = xsk_probe_bpf_link();
@@ -965,8 +949,7 @@ static struct xsk_ctx *xsk_create_ctx(struct xsk_socket *xsk,
 	ctx->refcount = 1;
 	ctx->umem = umem;
 	ctx->queue_id = queue_id;
-	memcpy(ctx->ifname, ifname, IFNAMSIZ - 1);
-	ctx->ifname[IFNAMSIZ - 1] = '\0';
+	libbpf_strlcpy(ctx->ifname, ifname, IFNAMSIZ);
 
 	ctx->fill = fill;
 	ctx->comp = comp;

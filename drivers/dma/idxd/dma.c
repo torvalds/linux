@@ -21,20 +21,27 @@ static inline struct idxd_wq *to_idxd_wq(struct dma_chan *c)
 }
 
 void idxd_dma_complete_txd(struct idxd_desc *desc,
-			   enum idxd_complete_type comp_type)
+			   enum idxd_complete_type comp_type,
+			   bool free_desc)
 {
+	struct idxd_device *idxd = desc->wq->idxd;
 	struct dma_async_tx_descriptor *tx;
 	struct dmaengine_result res;
 	int complete = 1;
 
-	if (desc->completion->status == DSA_COMP_SUCCESS)
+	if (desc->completion->status == DSA_COMP_SUCCESS) {
 		res.result = DMA_TRANS_NOERROR;
-	else if (desc->completion->status)
+	} else if (desc->completion->status) {
+		if (idxd->request_int_handles && comp_type != IDXD_COMPLETE_ABORT &&
+		    desc->completion->status == DSA_COMP_INT_HANDLE_INVAL &&
+		    idxd_queue_int_handle_resubmit(desc))
+			return;
 		res.result = DMA_TRANS_WRITE_FAILED;
-	else if (comp_type == IDXD_COMPLETE_ABORT)
+	} else if (comp_type == IDXD_COMPLETE_ABORT) {
 		res.result = DMA_TRANS_ABORTED;
-	else
+	} else {
 		complete = 0;
+	}
 
 	tx = &desc->txd;
 	if (complete && tx->cookie) {
@@ -44,6 +51,9 @@ void idxd_dma_complete_txd(struct idxd_desc *desc,
 		tx->callback = NULL;
 		tx->callback_result = NULL;
 	}
+
+	if (free_desc)
+		idxd_free_desc(desc->wq, desc);
 }
 
 static void op_flag_setup(unsigned long flags, u32 *desc_flags)
@@ -153,8 +163,10 @@ static dma_cookie_t idxd_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	cookie = dma_cookie_assign(tx);
 
 	rc = idxd_submit_desc(wq, desc);
-	if (rc < 0)
+	if (rc < 0) {
+		idxd_free_desc(wq, desc);
 		return rc;
+	}
 
 	return cookie;
 }
@@ -277,6 +289,14 @@ static int idxd_dmaengine_drv_probe(struct idxd_dev *idxd_dev)
 
 	mutex_lock(&wq->wq_lock);
 	wq->type = IDXD_WQT_KERNEL;
+
+	rc = idxd_wq_request_irq(wq);
+	if (rc < 0) {
+		idxd->cmd_status = IDXD_SCMD_WQ_IRQ_ERR;
+		dev_dbg(dev, "WQ %d irq setup failed: %d\n", wq->id, rc);
+		goto err_irq;
+	}
+
 	rc = __drv_enable_wq(wq);
 	if (rc < 0) {
 		dev_dbg(dev, "Enable wq %d failed: %d\n", wq->id, rc);
@@ -310,13 +330,15 @@ static int idxd_dmaengine_drv_probe(struct idxd_dev *idxd_dev)
 	return 0;
 
 err_dma:
-	idxd_wq_quiesce(wq);
+	__idxd_wq_quiesce(wq);
 	percpu_ref_exit(&wq->wq_active);
 err_ref:
 	idxd_wq_free_resources(wq);
 err_res_alloc:
 	__drv_disable_wq(wq);
 err:
+	idxd_wq_free_irq(wq);
+err_irq:
 	wq->type = IDXD_WQT_NONE;
 	mutex_unlock(&wq->wq_lock);
 	return rc;
@@ -327,11 +349,13 @@ static void idxd_dmaengine_drv_remove(struct idxd_dev *idxd_dev)
 	struct idxd_wq *wq = idxd_dev_to_wq(idxd_dev);
 
 	mutex_lock(&wq->wq_lock);
-	idxd_wq_quiesce(wq);
+	__idxd_wq_quiesce(wq);
 	idxd_unregister_dma_channel(wq);
 	idxd_wq_free_resources(wq);
 	__drv_disable_wq(wq);
 	percpu_ref_exit(&wq->wq_active);
+	idxd_wq_free_irq(wq);
+	wq->type = IDXD_WQT_NONE;
 	mutex_unlock(&wq->wq_lock);
 }
 

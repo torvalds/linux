@@ -98,6 +98,9 @@ void optc2_set_dsc_config(struct timing_generator *optc,
 					uint32_t dsc_bytes_per_pixel,
 					uint32_t dsc_slice_width);
 
+void optc2_get_dsc_status(struct timing_generator *optc,
+					uint32_t *dsc_mode);
+
 void optc2_set_odm_bypass(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing);
 

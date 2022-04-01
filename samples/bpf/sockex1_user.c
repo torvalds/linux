@@ -11,17 +11,26 @@
 int main(int ac, char **argv)
 {
 	struct bpf_object *obj;
+	struct bpf_program *prog;
 	int map_fd, prog_fd;
 	char filename[256];
-	int i, sock;
+	int i, sock, err;
 	FILE *f;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 
-	if (bpf_prog_load(filename, BPF_PROG_TYPE_SOCKET_FILTER,
-			  &obj, &prog_fd))
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj))
 		return 1;
 
+	prog = bpf_object__next_program(obj, NULL);
+	bpf_program__set_type(prog, BPF_PROG_TYPE_SOCKET_FILTER);
+
+	err = bpf_object__load(obj);
+	if (err)
+		return 1;
+
+	prog_fd = bpf_program__fd(prog);
 	map_fd = bpf_object__find_map_fd_by_name(obj, "my_map");
 
 	sock = open_raw_sock("lo");

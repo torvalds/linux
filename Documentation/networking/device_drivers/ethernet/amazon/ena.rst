@@ -135,7 +135,7 @@ The ENA driver supports two Queue Operation modes for Tx SQs:
 
 - **Low Latency Queue (LLQ) mode or "push-mode":**
   In this mode the driver pushes the transmit descriptors and the
-  first 128 bytes of the packet directly to the ENA device memory
+  first 96 bytes of the packet directly to the ENA device memory
   space. The rest of the packet payload is fetched by the
   device. For this operation mode, the driver uses a dedicated PCI
   device memory BAR, which is mapped with write-combine capability.

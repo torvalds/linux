@@ -386,7 +386,7 @@ size_t pcmcia_get_tuple(struct pcmcia_device *p_dev, cisdata_t code,
 }
 EXPORT_SYMBOL(pcmcia_get_tuple);
 
-
+#ifdef CONFIG_NET
 /*
  * pcmcia_do_get_mac() - internal helper for pcmcia_get_mac_from_cis()
  *
@@ -431,3 +431,4 @@ int pcmcia_get_mac_from_cis(struct pcmcia_device *p_dev, struct net_device *dev)
 }
 EXPORT_SYMBOL(pcmcia_get_mac_from_cis);
 
+#endif /* CONFIG_NET */

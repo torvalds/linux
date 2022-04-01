@@ -1023,6 +1023,10 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
 
 		__PN(avg_atom);
 		__PN(avg_per_cpu);
+
+#ifdef CONFIG_SCHED_CORE
+		PN_SCHEDSTAT(core_forceidle_sum);
+#endif
 	}
 
 	__P(nr_switches);

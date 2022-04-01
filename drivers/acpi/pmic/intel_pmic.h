@@ -2,6 +2,8 @@
 #ifndef __INTEL_PMIC_H
 #define __INTEL_PMIC_H
 
+#include <acpi/acpi_lpat.h>
+
 struct pmic_table {
 	int address;	/* operation region address */
 	int reg;	/* corresponding thermal register */
@@ -17,6 +19,8 @@ struct intel_pmic_opregion_data {
 	int (*update_policy)(struct regmap *r, int reg, int bit, int enable);
 	int (*exec_mipi_pmic_seq_element)(struct regmap *r, u16 i2c_address,
 					  u32 reg_address, u32 value, u32 mask);
+	int (*lpat_raw_to_temp)(struct acpi_lpat_conversion_table *lpat_table,
+				int raw);
 	struct pmic_table *power_table;
 	int power_table_count;
 	struct pmic_table *thermal_table;
@@ -25,6 +29,8 @@ struct intel_pmic_opregion_data {
 	int pmic_i2c_address;
 };
 
-int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle, struct regmap *regmap, struct intel_pmic_opregion_data *d);
+int intel_pmic_install_opregion_handler(struct device *dev, acpi_handle handle,
+					struct regmap *regmap,
+					const struct intel_pmic_opregion_data *d);
 
 #endif

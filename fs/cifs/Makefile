@@ -25,7 +25,7 @@ cifs-$(CONFIG_CIFS_DFS_UPCALL) += cifs_dfs_ref.o dfs_cache.o
 
 cifs-$(CONFIG_CIFS_SWN_UPCALL) += netlink.o cifs_swn.o
 
-cifs-$(CONFIG_CIFS_FSCACHE) += fscache.o cache.o
+cifs-$(CONFIG_CIFS_FSCACHE) += fscache.o
 
 cifs-$(CONFIG_CIFS_SMB_DIRECT) += smbdirect.o
 

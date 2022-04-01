@@ -83,8 +83,8 @@ enum ath11k_htc_conn_flags {
 	ATH11K_HTC_CONN_FLAGS_THRESHOLD_LEVEL_ONE_HALF      = 0x1,
 	ATH11K_HTC_CONN_FLAGS_THRESHOLD_LEVEL_THREE_FOURTHS = 0x2,
 	ATH11K_HTC_CONN_FLAGS_THRESHOLD_LEVEL_UNITY         = 0x3,
-	ATH11K_HTC_CONN_FLAGS_REDUCE_CREDIT_DRIBBLE    = 1 << 2,
-	ATH11K_HTC_CONN_FLAGS_DISABLE_CREDIT_FLOW_CTRL = 1 << 3
+	ATH11K_HTC_CONN_FLAGS_REDUCE_CREDIT_DRIBBLE	    = 0x4,
+	ATH11K_HTC_CONN_FLAGS_DISABLE_CREDIT_FLOW_CTRL	    = 0x8,
 };
 
 enum ath11k_htc_conn_svc_status {
@@ -115,6 +115,8 @@ struct ath11k_htc_conn_svc_resp {
 	u32 flags_len;
 	u32 svc_meta_pad;
 } __packed;
+
+#define ATH11K_GLOBAL_DISABLE_CREDIT_FLOW BIT(1)
 
 struct ath11k_htc_setup_complete_extended {
 	u32 msg_id;
@@ -305,5 +307,6 @@ int ath11k_htc_send(struct ath11k_htc *htc, enum ath11k_htc_ep_id eid,
 struct sk_buff *ath11k_htc_alloc_skb(struct ath11k_base *ar, int size);
 void ath11k_htc_rx_completion_handler(struct ath11k_base *ar,
 				      struct sk_buff *skb);
-
+void ath11k_htc_tx_completion_handler(struct ath11k_base *ab,
+				      struct sk_buff *skb);
 #endif

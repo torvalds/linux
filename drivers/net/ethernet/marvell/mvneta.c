@@ -38,6 +38,7 @@
 #include <net/ipv6.h>
 #include <net/tso.h>
 #include <net/page_pool.h>
+#include <net/pkt_cls.h>
 #include <linux/bpf_trace.h>
 
 /* Registers */
@@ -247,11 +248,38 @@
 #define      MVNETA_TXQ_SENT_DESC_MASK           0x3fff0000
 #define MVNETA_PORT_TX_RESET                     0x3cf0
 #define      MVNETA_PORT_TX_DMA_RESET            BIT(0)
+#define MVNETA_TXQ_CMD1_REG			 0x3e00
+#define      MVNETA_TXQ_CMD1_BW_LIM_SEL_V1	 BIT(3)
+#define      MVNETA_TXQ_CMD1_BW_LIM_EN		 BIT(0)
+#define MVNETA_REFILL_NUM_CLK_REG		 0x3e08
+#define      MVNETA_REFILL_MAX_NUM_CLK		 0x0000ffff
 #define MVNETA_TX_MTU                            0x3e0c
 #define MVNETA_TX_TOKEN_SIZE                     0x3e14
 #define      MVNETA_TX_TOKEN_SIZE_MAX            0xffffffff
+#define MVNETA_TXQ_BUCKET_REFILL_REG(q)		 (0x3e20 + ((q) << 2))
+#define      MVNETA_TXQ_BUCKET_REFILL_PERIOD_MASK	0x3ff00000
+#define      MVNETA_TXQ_BUCKET_REFILL_PERIOD_SHIFT	20
+#define      MVNETA_TXQ_BUCKET_REFILL_VALUE_MAX	 0x0007ffff
 #define MVNETA_TXQ_TOKEN_SIZE_REG(q)             (0x3e40 + ((q) << 2))
 #define      MVNETA_TXQ_TOKEN_SIZE_MAX           0x7fffffff
+
+/* The values of the bucket refill base period and refill period are taken from
+ * the reference manual, and adds up to a base resolution of 10Kbps. This allows
+ * to cover all rate-limit values from 10Kbps up to 5Gbps
+ */
+
+/* Base period for the rate limit algorithm */
+#define MVNETA_TXQ_BUCKET_REFILL_BASE_PERIOD_NS	100
+
+/* Number of Base Period to wait between each bucket refill */
+#define MVNETA_TXQ_BUCKET_REFILL_PERIOD	1000
+
+/* The base resolution for rate limiting, in bps. Any max_rate value should be
+ * a multiple of that value.
+ */
+#define MVNETA_TXQ_RATE_LIMIT_RESOLUTION (NSEC_PER_SEC / \
+					 (MVNETA_TXQ_BUCKET_REFILL_BASE_PERIOD_NS * \
+					  MVNETA_TXQ_BUCKET_REFILL_PERIOD))
 
 #define MVNETA_LPI_CTRL_0                        0x2cc0
 #define MVNETA_LPI_CTRL_1                        0x2cc4
@@ -492,13 +520,13 @@ struct mvneta_port {
 	u8 mcast_count[256];
 	u16 tx_ring_size;
 	u16 rx_ring_size;
-	u8 prio_tc_map[8];
 
 	phy_interface_t phy_interface;
 	struct device_node *dn;
 	unsigned int tx_csum_limit;
 	struct phylink *phylink;
 	struct phylink_config phylink_config;
+	struct phylink_pcs phylink_pcs;
 	struct phy *comphy;
 
 	struct mvneta_bm *bm_priv;
@@ -2212,7 +2240,7 @@ mvneta_run_xdp(struct mvneta_port *pp, struct mvneta_rx_queue *rxq,
 			mvneta_xdp_put_buff(pp, rxq, xdp, sinfo, sync);
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(act);
+		bpf_warn_invalid_xdp_action(pp->dev, prog, act);
 		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(pp->dev, prog, act);
@@ -3819,58 +3847,31 @@ static int mvneta_set_mac_addr(struct net_device *dev, void *addr)
 	return 0;
 }
 
-static void mvneta_validate(struct phylink_config *config,
-			    unsigned long *supported,
-			    struct phylink_link_state *state)
+static struct mvneta_port *mvneta_pcs_to_port(struct phylink_pcs *pcs)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+	return container_of(pcs, struct mvneta_port, phylink_pcs);
+}
 
+static int mvneta_pcs_validate(struct phylink_pcs *pcs,
+			       unsigned long *supported,
+			       const struct phylink_link_state *state)
+{
 	/* We only support QSGMII, SGMII, 802.3z and RGMII modes.
 	 * When in 802.3z mode, we must have AN enabled:
 	 * "Bit 2 Field InBandAnEn In-band Auto-Negotiation enable. ...
 	 * When <PortType> = 1 (1000BASE-X) this field must be set to 1."
 	 */
 	if (phy_interface_mode_is_8023z(state->interface) &&
-	    !phylink_test(state->advertising, Autoneg)) {
-		linkmode_zero(supported);
-		return;
-	}
+	    !phylink_test(state->advertising, Autoneg))
+		return -EINVAL;
 
-	/* Allow all the expected bits */
-	phylink_set(mask, Autoneg);
-	phylink_set_port_modes(mask);
-
-	/* Asymmetric pause is unsupported */
-	phylink_set(mask, Pause);
-
-	/* Half-duplex at speeds higher than 100Mbit is unsupported */
-	if (state->interface != PHY_INTERFACE_MODE_2500BASEX) {
-		phylink_set(mask, 1000baseT_Full);
-		phylink_set(mask, 1000baseX_Full);
-	}
-
-	if (state->interface == PHY_INTERFACE_MODE_2500BASEX) {
-		phylink_set(mask, 2500baseT_Full);
-		phylink_set(mask, 2500baseX_Full);
-	}
-
-	if (!phy_interface_mode_is_8023z(state->interface)) {
-		/* 10M and 100M are only supported in non-802.3z mode */
-		phylink_set(mask, 10baseT_Half);
-		phylink_set(mask, 10baseT_Full);
-		phylink_set(mask, 100baseT_Half);
-		phylink_set(mask, 100baseT_Full);
-	}
-
-	linkmode_and(supported, supported, mask);
-	linkmode_and(state->advertising, state->advertising, mask);
+	return 0;
 }
 
-static void mvneta_mac_pcs_get_state(struct phylink_config *config,
-				     struct phylink_link_state *state)
+static void mvneta_pcs_get_state(struct phylink_pcs *pcs,
+				 struct phylink_link_state *state)
 {
-	struct net_device *ndev = to_net_dev(config->dev);
-	struct mvneta_port *pp = netdev_priv(ndev);
+	struct mvneta_port *pp = mvneta_pcs_to_port(pcs);
 	u32 gmac_stat;
 
 	gmac_stat = mvreg_read(pp, MVNETA_GMAC_STATUS);
@@ -3888,23 +3889,118 @@ static void mvneta_mac_pcs_get_state(struct phylink_config *config,
 	state->link = !!(gmac_stat & MVNETA_GMAC_LINK_UP);
 	state->duplex = !!(gmac_stat & MVNETA_GMAC_FULL_DUPLEX);
 
-	state->pause = 0;
 	if (gmac_stat & MVNETA_GMAC_RX_FLOW_CTRL_ENABLE)
 		state->pause |= MLO_PAUSE_RX;
 	if (gmac_stat & MVNETA_GMAC_TX_FLOW_CTRL_ENABLE)
 		state->pause |= MLO_PAUSE_TX;
 }
 
-static void mvneta_mac_an_restart(struct phylink_config *config)
+static int mvneta_pcs_config(struct phylink_pcs *pcs,
+			     unsigned int mode, phy_interface_t interface,
+			     const unsigned long *advertising,
+			     bool permit_pause_to_mac)
 {
-	struct net_device *ndev = to_net_dev(config->dev);
-	struct mvneta_port *pp = netdev_priv(ndev);
+	struct mvneta_port *pp = mvneta_pcs_to_port(pcs);
+	u32 mask, val, an, old_an, changed;
+
+	mask = MVNETA_GMAC_INBAND_AN_ENABLE |
+	       MVNETA_GMAC_INBAND_RESTART_AN |
+	       MVNETA_GMAC_AN_SPEED_EN |
+	       MVNETA_GMAC_AN_FLOW_CTRL_EN |
+	       MVNETA_GMAC_AN_DUPLEX_EN;
+
+	if (phylink_autoneg_inband(mode)) {
+		mask |= MVNETA_GMAC_CONFIG_MII_SPEED |
+			MVNETA_GMAC_CONFIG_GMII_SPEED |
+			MVNETA_GMAC_CONFIG_FULL_DUPLEX;
+		val = MVNETA_GMAC_INBAND_AN_ENABLE;
+
+		if (interface == PHY_INTERFACE_MODE_SGMII) {
+			/* SGMII mode receives the speed and duplex from PHY */
+			val |= MVNETA_GMAC_AN_SPEED_EN |
+			       MVNETA_GMAC_AN_DUPLEX_EN;
+		} else {
+			/* 802.3z mode has fixed speed and duplex */
+			val |= MVNETA_GMAC_CONFIG_GMII_SPEED |
+			       MVNETA_GMAC_CONFIG_FULL_DUPLEX;
+
+			/* The FLOW_CTRL_EN bit selects either the hardware
+			 * automatically or the CONFIG_FLOW_CTRL manually
+			 * controls the GMAC pause mode.
+			 */
+			if (permit_pause_to_mac)
+				val |= MVNETA_GMAC_AN_FLOW_CTRL_EN;
+
+			/* Update the advertisement bits */
+			mask |= MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL;
+			if (phylink_test(advertising, Pause))
+				val |= MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL;
+		}
+	} else {
+		/* Phy or fixed speed - disable in-band AN modes */
+		val = 0;
+	}
+
+	old_an = an = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+	an = (an & ~mask) | val;
+	changed = old_an ^ an;
+	if (changed)
+		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, an);
+
+	/* We are only interested in the advertisement bits changing */
+	return !!(changed & MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL);
+}
+
+static void mvneta_pcs_an_restart(struct phylink_pcs *pcs)
+{
+	struct mvneta_port *pp = mvneta_pcs_to_port(pcs);
 	u32 gmac_an = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
 
 	mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG,
 		    gmac_an | MVNETA_GMAC_INBAND_RESTART_AN);
 	mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG,
 		    gmac_an & ~MVNETA_GMAC_INBAND_RESTART_AN);
+}
+
+static const struct phylink_pcs_ops mvneta_phylink_pcs_ops = {
+	.pcs_validate = mvneta_pcs_validate,
+	.pcs_get_state = mvneta_pcs_get_state,
+	.pcs_config = mvneta_pcs_config,
+	.pcs_an_restart = mvneta_pcs_an_restart,
+};
+
+static int mvneta_mac_prepare(struct phylink_config *config, unsigned int mode,
+			      phy_interface_t interface)
+{
+	struct net_device *ndev = to_net_dev(config->dev);
+	struct mvneta_port *pp = netdev_priv(ndev);
+	u32 val;
+
+	if (pp->phy_interface != interface ||
+	    phylink_autoneg_inband(mode)) {
+		/* Force the link down when changing the interface or if in
+		 * in-band mode. According to Armada 370 documentation, we
+		 * can only change the port mode and in-band enable when the
+		 * link is down.
+		 */
+		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+		val &= ~MVNETA_GMAC_FORCE_LINK_PASS;
+		val |= MVNETA_GMAC_FORCE_LINK_DOWN;
+		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
+	}
+
+	if (pp->phy_interface != interface)
+		WARN_ON(phy_power_off(pp->comphy));
+
+	/* Enable the 1ms clock */
+	if (phylink_autoneg_inband(mode)) {
+		unsigned long rate = clk_get_rate(pp->clk);
+
+		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER,
+			    MVNETA_GMAC_1MS_CLOCK_ENABLE | (rate / 1000));
+	}
+
+	return 0;
 }
 
 static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
@@ -3915,20 +4011,11 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 	u32 new_ctrl0, gmac_ctrl0 = mvreg_read(pp, MVNETA_GMAC_CTRL_0);
 	u32 new_ctrl2, gmac_ctrl2 = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
 	u32 new_ctrl4, gmac_ctrl4 = mvreg_read(pp, MVNETA_GMAC_CTRL_4);
-	u32 new_clk, gmac_clk = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
-	u32 new_an, gmac_an = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
 
 	new_ctrl0 = gmac_ctrl0 & ~MVNETA_GMAC0_PORT_1000BASE_X;
 	new_ctrl2 = gmac_ctrl2 & ~(MVNETA_GMAC2_INBAND_AN_ENABLE |
 				   MVNETA_GMAC2_PORT_RESET);
 	new_ctrl4 = gmac_ctrl4 & ~(MVNETA_GMAC4_SHORT_PREAMBLE_ENABLE);
-	new_clk = gmac_clk & ~MVNETA_GMAC_1MS_CLOCK_ENABLE;
-	new_an = gmac_an & ~(MVNETA_GMAC_INBAND_AN_ENABLE |
-			     MVNETA_GMAC_INBAND_RESTART_AN |
-			     MVNETA_GMAC_AN_SPEED_EN |
-			     MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL |
-			     MVNETA_GMAC_AN_FLOW_CTRL_EN |
-			     MVNETA_GMAC_AN_DUPLEX_EN);
 
 	/* Even though it might look weird, when we're configured in
 	 * SGMII or QSGMII mode, the RGMII bit needs to be set.
@@ -3940,9 +4027,6 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 	    phy_interface_mode_is_8023z(state->interface))
 		new_ctrl2 |= MVNETA_GMAC2_PCS_ENABLE;
 
-	if (phylink_test(state->advertising, Pause))
-		new_an |= MVNETA_GMAC_ADVERT_SYM_FLOW_CTRL;
-
 	if (!phylink_autoneg_inband(mode)) {
 		/* Phy or fixed speed - nothing to do, leave the
 		 * configured speed, duplex and flow control as-is.
@@ -3950,43 +4034,10 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 	} else if (state->interface == PHY_INTERFACE_MODE_SGMII) {
 		/* SGMII mode receives the state from the PHY */
 		new_ctrl2 |= MVNETA_GMAC2_INBAND_AN_ENABLE;
-		new_clk |= MVNETA_GMAC_1MS_CLOCK_ENABLE;
-		new_an = (new_an & ~(MVNETA_GMAC_FORCE_LINK_DOWN |
-				     MVNETA_GMAC_FORCE_LINK_PASS |
-				     MVNETA_GMAC_CONFIG_MII_SPEED |
-				     MVNETA_GMAC_CONFIG_GMII_SPEED |
-				     MVNETA_GMAC_CONFIG_FULL_DUPLEX)) |
-			 MVNETA_GMAC_INBAND_AN_ENABLE |
-			 MVNETA_GMAC_AN_SPEED_EN |
-			 MVNETA_GMAC_AN_DUPLEX_EN;
 	} else {
 		/* 802.3z negotiation - only 1000base-X */
 		new_ctrl0 |= MVNETA_GMAC0_PORT_1000BASE_X;
-		new_clk |= MVNETA_GMAC_1MS_CLOCK_ENABLE;
-		new_an = (new_an & ~(MVNETA_GMAC_FORCE_LINK_DOWN |
-				     MVNETA_GMAC_FORCE_LINK_PASS |
-				     MVNETA_GMAC_CONFIG_MII_SPEED)) |
-			 MVNETA_GMAC_INBAND_AN_ENABLE |
-			 MVNETA_GMAC_CONFIG_GMII_SPEED |
-			 /* The MAC only supports FD mode */
-			 MVNETA_GMAC_CONFIG_FULL_DUPLEX;
-
-		if (state->pause & MLO_PAUSE_AN && state->an_enabled)
-			new_an |= MVNETA_GMAC_AN_FLOW_CTRL_EN;
 	}
-
-	/* Armada 370 documentation says we can only change the port mode
-	 * and in-band enable when the link is down, so force it down
-	 * while making these changes. We also do this for GMAC_CTRL2
-	 */
-	if ((new_ctrl0 ^ gmac_ctrl0) & MVNETA_GMAC0_PORT_1000BASE_X ||
-	    (new_ctrl2 ^ gmac_ctrl2) & MVNETA_GMAC2_INBAND_AN_ENABLE ||
-	    (new_an  ^ gmac_an) & MVNETA_GMAC_INBAND_AN_ENABLE) {
-		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG,
-			    (gmac_an & ~MVNETA_GMAC_FORCE_LINK_PASS) |
-			    MVNETA_GMAC_FORCE_LINK_DOWN);
-	}
-
 
 	/* When at 2.5G, the link partner can send frames with shortened
 	 * preambles.
@@ -3994,28 +4045,48 @@ static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
 	if (state->interface == PHY_INTERFACE_MODE_2500BASEX)
 		new_ctrl4 |= MVNETA_GMAC4_SHORT_PREAMBLE_ENABLE;
 
-	if (pp->phy_interface != state->interface) {
-		if (pp->comphy)
-			WARN_ON(phy_power_off(pp->comphy));
-		WARN_ON(mvneta_config_interface(pp, state->interface));
-	}
-
 	if (new_ctrl0 != gmac_ctrl0)
 		mvreg_write(pp, MVNETA_GMAC_CTRL_0, new_ctrl0);
 	if (new_ctrl2 != gmac_ctrl2)
 		mvreg_write(pp, MVNETA_GMAC_CTRL_2, new_ctrl2);
 	if (new_ctrl4 != gmac_ctrl4)
 		mvreg_write(pp, MVNETA_GMAC_CTRL_4, new_ctrl4);
-	if (new_clk != gmac_clk)
-		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER, new_clk);
-	if (new_an != gmac_an)
-		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, new_an);
 
 	if (gmac_ctrl2 & MVNETA_GMAC2_PORT_RESET) {
 		while ((mvreg_read(pp, MVNETA_GMAC_CTRL_2) &
 			MVNETA_GMAC2_PORT_RESET) != 0)
 			continue;
 	}
+}
+
+static int mvneta_mac_finish(struct phylink_config *config, unsigned int mode,
+			     phy_interface_t interface)
+{
+	struct net_device *ndev = to_net_dev(config->dev);
+	struct mvneta_port *pp = netdev_priv(ndev);
+	u32 val, clk;
+
+	/* Disable 1ms clock if not in in-band mode */
+	if (!phylink_autoneg_inband(mode)) {
+		clk = mvreg_read(pp, MVNETA_GMAC_CLOCK_DIVIDER);
+		clk &= ~MVNETA_GMAC_1MS_CLOCK_ENABLE;
+		mvreg_write(pp, MVNETA_GMAC_CLOCK_DIVIDER, clk);
+	}
+
+	if (pp->phy_interface != interface)
+		/* Enable the Serdes PHY */
+		WARN_ON(mvneta_config_interface(pp, interface));
+
+	/* Allow the link to come up if in in-band mode, otherwise the
+	 * link is forced via mac_link_down()/mac_link_up()
+	 */
+	if (phylink_autoneg_inband(mode)) {
+		val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
+		val &= ~MVNETA_GMAC_FORCE_LINK_DOWN;
+		mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
+	}
+
+	return 0;
 }
 
 static void mvneta_set_eee(struct mvneta_port *pp, bool enable)
@@ -4104,10 +4175,10 @@ static void mvneta_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops mvneta_phylink_ops = {
-	.validate = mvneta_validate,
-	.mac_pcs_get_state = mvneta_mac_pcs_get_state,
-	.mac_an_restart = mvneta_mac_an_restart,
+	.validate = phylink_generic_validate,
+	.mac_prepare = mvneta_mac_prepare,
 	.mac_config = mvneta_mac_config,
+	.mac_finish = mvneta_mac_finish,
 	.mac_link_down = mvneta_mac_link_down,
 	.mac_link_up = mvneta_mac_link_up,
 };
@@ -4539,8 +4610,11 @@ static void mvneta_ethtool_get_drvinfo(struct net_device *dev,
 }
 
 
-static void mvneta_ethtool_get_ringparam(struct net_device *netdev,
-					 struct ethtool_ringparam *ring)
+static void
+mvneta_ethtool_get_ringparam(struct net_device *netdev,
+			     struct ethtool_ringparam *ring,
+			     struct kernel_ethtool_ringparam *kernel_ring,
+			     struct netlink_ext_ack *extack)
 {
 	struct mvneta_port *pp = netdev_priv(netdev);
 
@@ -4550,8 +4624,11 @@ static void mvneta_ethtool_get_ringparam(struct net_device *netdev,
 	ring->tx_pending = pp->tx_ring_size;
 }
 
-static int mvneta_ethtool_set_ringparam(struct net_device *dev,
-					struct ethtool_ringparam *ring)
+static int
+mvneta_ethtool_set_ringparam(struct net_device *dev,
+			     struct ethtool_ringparam *ring,
+			     struct kernel_ethtool_ringparam *kernel_ring,
+			     struct netlink_ext_ack *extack)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
 
@@ -4919,43 +4996,144 @@ static void mvneta_clear_rx_prio_map(struct mvneta_port *pp)
 	mvreg_write(pp, MVNETA_VLAN_PRIO_TO_RXQ, 0);
 }
 
-static void mvneta_setup_rx_prio_map(struct mvneta_port *pp)
+static void mvneta_map_vlan_prio_to_rxq(struct mvneta_port *pp, u8 pri, u8 rxq)
 {
-	u32 val = 0;
-	int i;
+	u32 val = mvreg_read(pp, MVNETA_VLAN_PRIO_TO_RXQ);
 
-	for (i = 0; i < rxq_number; i++)
-		val |= MVNETA_VLAN_PRIO_RXQ_MAP(i, pp->prio_tc_map[i]);
+	val &= ~MVNETA_VLAN_PRIO_RXQ_MAP(pri, 0x7);
+	val |= MVNETA_VLAN_PRIO_RXQ_MAP(pri, rxq);
 
 	mvreg_write(pp, MVNETA_VLAN_PRIO_TO_RXQ, val);
 }
 
+static int mvneta_enable_per_queue_rate_limit(struct mvneta_port *pp)
+{
+	unsigned long core_clk_rate;
+	u32 refill_cycles;
+	u32 val;
+
+	core_clk_rate = clk_get_rate(pp->clk);
+	if (!core_clk_rate)
+		return -EINVAL;
+
+	refill_cycles = MVNETA_TXQ_BUCKET_REFILL_BASE_PERIOD_NS /
+			(NSEC_PER_SEC / core_clk_rate);
+
+	if (refill_cycles > MVNETA_REFILL_MAX_NUM_CLK)
+		return -EINVAL;
+
+	/* Enable bw limit algorithm version 3 */
+	val = mvreg_read(pp, MVNETA_TXQ_CMD1_REG);
+	val &= ~(MVNETA_TXQ_CMD1_BW_LIM_SEL_V1 | MVNETA_TXQ_CMD1_BW_LIM_EN);
+	mvreg_write(pp, MVNETA_TXQ_CMD1_REG, val);
+
+	/* Set the base refill rate */
+	mvreg_write(pp, MVNETA_REFILL_NUM_CLK_REG, refill_cycles);
+
+	return 0;
+}
+
+static void mvneta_disable_per_queue_rate_limit(struct mvneta_port *pp)
+{
+	u32 val = mvreg_read(pp, MVNETA_TXQ_CMD1_REG);
+
+	val |= (MVNETA_TXQ_CMD1_BW_LIM_SEL_V1 | MVNETA_TXQ_CMD1_BW_LIM_EN);
+	mvreg_write(pp, MVNETA_TXQ_CMD1_REG, val);
+}
+
+static int mvneta_setup_queue_rates(struct mvneta_port *pp, int queue,
+				    u64 min_rate, u64 max_rate)
+{
+	u32 refill_val, rem;
+	u32 val = 0;
+
+	/* Convert to from Bps to bps */
+	max_rate *= 8;
+
+	if (min_rate)
+		return -EINVAL;
+
+	refill_val = div_u64_rem(max_rate, MVNETA_TXQ_RATE_LIMIT_RESOLUTION,
+				 &rem);
+
+	if (rem || !refill_val ||
+	    refill_val > MVNETA_TXQ_BUCKET_REFILL_VALUE_MAX)
+		return -EINVAL;
+
+	val = refill_val;
+	val |= (MVNETA_TXQ_BUCKET_REFILL_PERIOD <<
+		MVNETA_TXQ_BUCKET_REFILL_PERIOD_SHIFT);
+
+	mvreg_write(pp, MVNETA_TXQ_BUCKET_REFILL_REG(queue), val);
+
+	return 0;
+}
+
 static int mvneta_setup_mqprio(struct net_device *dev,
-			       struct tc_mqprio_qopt *qopt)
+			       struct tc_mqprio_qopt_offload *mqprio)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
+	int rxq, txq, tc, ret;
 	u8 num_tc;
-	int i;
 
-	qopt->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
-	num_tc = qopt->num_tc;
+	if (mqprio->qopt.hw != TC_MQPRIO_HW_OFFLOAD_TCS)
+		return 0;
+
+	num_tc = mqprio->qopt.num_tc;
 
 	if (num_tc > rxq_number)
 		return -EINVAL;
 
+	mvneta_clear_rx_prio_map(pp);
+
 	if (!num_tc) {
-		mvneta_clear_rx_prio_map(pp);
+		mvneta_disable_per_queue_rate_limit(pp);
 		netdev_reset_tc(dev);
 		return 0;
 	}
 
-	memcpy(pp->prio_tc_map, qopt->prio_tc_map, sizeof(pp->prio_tc_map));
+	netdev_set_num_tc(dev, mqprio->qopt.num_tc);
 
-	mvneta_setup_rx_prio_map(pp);
+	for (tc = 0; tc < mqprio->qopt.num_tc; tc++) {
+		netdev_set_tc_queue(dev, tc, mqprio->qopt.count[tc],
+				    mqprio->qopt.offset[tc]);
 
-	netdev_set_num_tc(dev, qopt->num_tc);
-	for (i = 0; i < qopt->num_tc; i++)
-		netdev_set_tc_queue(dev, i, qopt->count[i], qopt->offset[i]);
+		for (rxq = mqprio->qopt.offset[tc];
+		     rxq < mqprio->qopt.count[tc] + mqprio->qopt.offset[tc];
+		     rxq++) {
+			if (rxq >= rxq_number)
+				return -EINVAL;
+
+			mvneta_map_vlan_prio_to_rxq(pp, tc, rxq);
+		}
+	}
+
+	if (mqprio->shaper != TC_MQPRIO_SHAPER_BW_RATE) {
+		mvneta_disable_per_queue_rate_limit(pp);
+		return 0;
+	}
+
+	if (mqprio->qopt.num_tc > txq_number)
+		return -EINVAL;
+
+	ret = mvneta_enable_per_queue_rate_limit(pp);
+	if (ret)
+		return ret;
+
+	for (tc = 0; tc < mqprio->qopt.num_tc; tc++) {
+		for (txq = mqprio->qopt.offset[tc];
+		     txq < mqprio->qopt.count[tc] + mqprio->qopt.offset[tc];
+		     txq++) {
+			if (txq >= txq_number)
+				return -EINVAL;
+
+			ret = mvneta_setup_queue_rates(pp, txq,
+						       mqprio->min_rate[tc],
+						       mqprio->max_rate[tc]);
+			if (ret)
+				return ret;
+		}
+	}
 
 	return 0;
 }
@@ -5166,6 +5344,9 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	pp->phylink_config.dev = &dev->dev;
 	pp->phylink_config.type = PHYLINK_NETDEV;
+	pp->phylink_config.mac_capabilities = MAC_SYM_PAUSE | MAC_10 |
+		MAC_100 | MAC_1000FD | MAC_2500FD;
+
 	phy_interface_set_rgmii(pp->phylink_config.supported_interfaces);
 	__set_bit(PHY_INTERFACE_MODE_QSGMII,
 		  pp->phylink_config.supported_interfaces);
@@ -5236,6 +5417,9 @@ static int mvneta_probe(struct platform_device *pdev)
 		err = PTR_ERR(pp->base);
 		goto err_clk;
 	}
+
+	pp->phylink_pcs.ops = &mvneta_phylink_pcs_ops;
+	phylink_set_pcs(phylink, &pp->phylink_pcs);
 
 	/* Alloc per-cpu port structure */
 	pp->ports = alloc_percpu(struct mvneta_pcpu_port);
@@ -5355,7 +5539,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	dev->hw_features |= dev->features;
 	dev->vlan_features |= dev->features;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
-	dev->gso_max_segs = MVNETA_MAX_TSO_SEGS;
+	netif_set_gso_max_segs(dev, MVNETA_MAX_TSO_SEGS);
 
 	/* MTU range: 68 - 9676 */
 	dev->min_mtu = ETH_MIN_MTU;
