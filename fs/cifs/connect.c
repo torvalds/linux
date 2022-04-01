@@ -245,7 +245,7 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 
 		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 			tcon->need_reconnect = true;
-			tcon->tidStatus = CifsNeedReconnect;
+			tcon->status = TID_NEED_RECON;
 		}
 		if (ses->tcon_ipc)
 			ses->tcon_ipc->need_reconnect = true;
@@ -2207,7 +2207,7 @@ get_ses_fail:
 
 static int match_tcon(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 {
-	if (tcon->tidStatus == CifsExiting)
+	if (tcon->status == TID_EXITING)
 		return 0;
 	if (strncmp(tcon->treeName, ctx->UNC, MAX_TREE_SIZE))
 		return 0;
@@ -3513,6 +3513,9 @@ static int connect_dfs_target(struct mount_ctx *mnt_ctx, const char *full_path,
 	struct cifs_sb_info *cifs_sb = mnt_ctx->cifs_sb;
 	char *oldmnt = cifs_sb->ctx->mount_options;
 
+	cifs_dbg(FYI, "%s: full_path=%s ref_path=%s target=%s\n", __func__, full_path, ref_path,
+		 dfs_cache_get_tgt_name(tit));
+
 	rc = dfs_cache_get_tgt_referral(ref_path, tit, &ref);
 	if (rc)
 		goto out;
@@ -3611,13 +3614,18 @@ static int __follow_dfs_link(struct mount_ctx *mnt_ctx)
 	if (rc)
 		goto out;
 
-	/* Try all dfs link targets */
+	/* Try all dfs link targets.  If an I/O fails from currently connected DFS target with an
+	 * error other than STATUS_PATH_NOT_COVERED (-EREMOTE), then retry it from other targets as
+	 * specified in MS-DFSC "3.1.5.2 I/O Operation to Target Fails with an Error Other Than
+	 * STATUS_PATH_NOT_COVERED."
+	 */
 	for (rc = -ENOENT, tit = dfs_cache_get_tgt_iterator(&tl);
 	     tit; tit = dfs_cache_get_next_tgt(&tl, tit)) {
 		rc = connect_dfs_target(mnt_ctx, full_path, mnt_ctx->leaf_fullpath + 1, tit);
 		if (!rc) {
 			rc = is_path_remote(mnt_ctx);
-			break;
+			if (!rc || rc == -EREMOTE)
+				break;
 		}
 	}
 
@@ -3691,7 +3699,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 		goto error;
 
 	rc = is_path_remote(&mnt_ctx);
-	if (rc == -EREMOTE)
+	if (rc)
 		rc = follow_dfs_link(&mnt_ctx);
 	if (rc)
 		goto error;
@@ -4478,12 +4486,12 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	/* only send once per connect */
 	spin_lock(&cifs_tcp_ses_lock);
 	if (tcon->ses->status != CifsGood ||
-	    (tcon->tidStatus != CifsNew &&
-	    tcon->tidStatus != CifsNeedTcon)) {
+	    (tcon->status != TID_NEW &&
+	    tcon->status != TID_NEED_TCON)) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		return 0;
 	}
-	tcon->tidStatus = CifsInTcon;
+	tcon->status = TID_IN_TCON;
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	tree = kzalloc(MAX_TREE_SIZE, GFP_KERNEL);
@@ -4524,13 +4532,13 @@ out:
 
 	if (rc) {
 		spin_lock(&cifs_tcp_ses_lock);
-		if (tcon->tidStatus == CifsInTcon)
-			tcon->tidStatus = CifsNeedTcon;
+		if (tcon->status == TID_IN_TCON)
+			tcon->status = TID_NEED_TCON;
 		spin_unlock(&cifs_tcp_ses_lock);
 	} else {
 		spin_lock(&cifs_tcp_ses_lock);
-		if (tcon->tidStatus == CifsInTcon)
-			tcon->tidStatus = CifsGood;
+		if (tcon->status == TID_IN_TCON)
+			tcon->status = TID_GOOD;
 		spin_unlock(&cifs_tcp_ses_lock);
 		tcon->need_reconnect = false;
 	}
@@ -4546,24 +4554,24 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	/* only send once per connect */
 	spin_lock(&cifs_tcp_ses_lock);
 	if (tcon->ses->status != CifsGood ||
-	    (tcon->tidStatus != CifsNew &&
-	    tcon->tidStatus != CifsNeedTcon)) {
+	    (tcon->status != TID_NEW &&
+	    tcon->status != TID_NEED_TCON)) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		return 0;
 	}
-	tcon->tidStatus = CifsInTcon;
+	tcon->status = TID_IN_TCON;
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	rc = ops->tree_connect(xid, tcon->ses, tcon->treeName, tcon, nlsc);
 	if (rc) {
 		spin_lock(&cifs_tcp_ses_lock);
-		if (tcon->tidStatus == CifsInTcon)
-			tcon->tidStatus = CifsNeedTcon;
+		if (tcon->status == TID_IN_TCON)
+			tcon->status = TID_NEED_TCON;
 		spin_unlock(&cifs_tcp_ses_lock);
 	} else {
 		spin_lock(&cifs_tcp_ses_lock);
-		if (tcon->tidStatus == CifsInTcon)
-			tcon->tidStatus = CifsGood;
+		if (tcon->status == TID_IN_TCON)
+			tcon->status = TID_GOOD;
 		spin_unlock(&cifs_tcp_ses_lock);
 		tcon->need_reconnect = false;
 	}
