@@ -68,10 +68,7 @@ struct scd30_state {
 	scd30_command_t command;
 };
 
-int scd30_suspend(struct device *dev);
-int scd30_resume(struct device *dev);
-
-static __maybe_unused SIMPLE_DEV_PM_OPS(scd30_pm_ops, scd30_suspend, scd30_resume);
+extern const struct dev_pm_ops scd30_pm_ops;
 
 int scd30_probe(struct device *dev, int irq, const char *name, void *priv, scd30_command_t command);
 

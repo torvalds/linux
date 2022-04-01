@@ -252,7 +252,7 @@ static struct serdev_device_driver scd30_serdev_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = scd30_serdev_of_match,
-		.pm = &scd30_pm_ops,
+		.pm = pm_sleep_ptr(&scd30_pm_ops),
 	},
 	.probe = scd30_serdev_probe,
 };

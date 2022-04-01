@@ -517,7 +517,7 @@ static const struct iio_chan_spec scd30_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(3),
 };
 
-int __maybe_unused scd30_suspend(struct device *dev)
+static int scd30_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct scd30_state *state  = iio_priv(indio_dev);
@@ -529,9 +529,8 @@ int __maybe_unused scd30_suspend(struct device *dev)
 
 	return regulator_disable(state->vdd);
 }
-EXPORT_SYMBOL(scd30_suspend);
 
-int __maybe_unused scd30_resume(struct device *dev)
+static int scd30_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct scd30_state *state = iio_priv(indio_dev);
@@ -543,7 +542,8 @@ int __maybe_unused scd30_resume(struct device *dev)
 
 	return scd30_command_write(state, CMD_START_MEAS, state->pressure_comp);
 }
-EXPORT_SYMBOL(scd30_resume);
+
+EXPORT_SIMPLE_DEV_PM_OPS(scd30_pm_ops, scd30_suspend, scd30_resume);
 
 static void scd30_stop_meas(void *data)
 {
