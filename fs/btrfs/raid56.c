@@ -685,39 +685,25 @@ static struct sector_ptr *rbio_stripe_sector(const struct btrfs_raid_bio *rbio,
 							      sector_nr)];
 }
 
-static int rbio_stripe_page_index(struct btrfs_raid_bio *rbio, int stripe,
-				  int index)
+/* Grab a sector inside P stripe */
+static struct sector_ptr *rbio_pstripe_sector(const struct btrfs_raid_bio *rbio,
+					      unsigned int sector_nr)
 {
-	return stripe * rbio->stripe_npages + index;
+	return rbio_stripe_sector(rbio, rbio->nr_data, sector_nr);
 }
 
-/*
- * these are just the pages from the rbio array, not from anything
- * the FS sent down to us
- */
-static struct page *rbio_stripe_page(struct btrfs_raid_bio *rbio, int stripe,
-				     int index)
-{
-	return rbio->stripe_pages[rbio_stripe_page_index(rbio, stripe, index)];
-}
-
-/*
- * helper to index into the pstripe
- */
-static struct page *rbio_pstripe_page(struct btrfs_raid_bio *rbio, int index)
-{
-	return rbio_stripe_page(rbio, rbio->nr_data, index);
-}
-
-/*
- * helper to index into the qstripe, returns null
- * if there is no qstripe
- */
-static struct page *rbio_qstripe_page(struct btrfs_raid_bio *rbio, int index)
+/* Grab a sector inside Q stripe, return NULL if not RAID6 */
+static struct sector_ptr *rbio_qstripe_sector(const struct btrfs_raid_bio *rbio,
+					      unsigned int sector_nr)
 {
 	if (rbio->nr_data + 1 == rbio->real_stripes)
 		return NULL;
-	return rbio_stripe_page(rbio, rbio->nr_data + 1, index);
+	return rbio_stripe_sector(rbio, rbio->nr_data + 1, sector_nr);
+}
+
+static int rbio_stripe_page_index(struct btrfs_raid_bio *rbio, int stripe, int index)
+{
+	return stripe * rbio->stripe_npages + index;
 }
 
 /*
@@ -1036,40 +1022,6 @@ static struct sector_ptr *sector_in_rbio(struct btrfs_raid_bio *rbio,
 }
 
 /*
- * the read/modify/write code wants to use the original bio for
- * any pages it included, and then use the rbio for everything
- * else.  This function decides if a given index (stripe number)
- * and page number in that stripe fall inside the original bio
- * or the rbio.
- *
- * if you set bio_list_only, you'll get a NULL back for any ranges
- * that are outside the bio_list
- *
- * This doesn't take any refs on anything, you get a bare page pointer
- * and the caller must bump refs as required.
- *
- * You must call index_rbio_pages once before you can trust
- * the answers from this function.
- */
-static struct page *page_in_rbio(struct btrfs_raid_bio *rbio,
-				 int index, int pagenr, int bio_list_only)
-{
-	int chunk_page;
-	struct page *p = NULL;
-
-	chunk_page = index * (rbio->stripe_len >> PAGE_SHIFT) + pagenr;
-
-	spin_lock_irq(&rbio->bio_list_lock);
-	p = rbio->bio_pages[chunk_page];
-	spin_unlock_irq(&rbio->bio_list_lock);
-
-	if (p || bio_list_only)
-		return p;
-
-	return rbio->stripe_pages[chunk_page];
-}
-
-/*
  * allocation and initial setup for the btrfs_raid_bio.  Not
  * this does not allocate any pages for rbio->pages.
  */
@@ -1336,6 +1288,7 @@ static void index_rbio_pages(struct btrfs_raid_bio *rbio)
 static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 {
 	struct btrfs_io_context *bioc = rbio->bioc;
+	const u32 sectorsize = bioc->fs_info->sectorsize;
 	void **pointers = rbio->finish_pointers;
 	int nr_data = rbio->nr_data;
 	int stripe;
@@ -1384,34 +1337,36 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 		clear_bit(RBIO_CACHE_READY_BIT, &rbio->flags);
 
 	for (sectornr = 0; sectornr < rbio->stripe_nsectors; sectornr++) {
-		struct page *p;
-		/* first collect one page from each data stripe */
+		struct sector_ptr *sector;
+
+		/* First collect one sector from each data stripe */
 		for (stripe = 0; stripe < nr_data; stripe++) {
-			p = page_in_rbio(rbio, stripe, sectornr, 0);
-			pointers[stripe] = kmap_local_page(p);
+			sector = sector_in_rbio(rbio, stripe, sectornr, 0);
+			pointers[stripe] = kmap_local_page(sector->page) +
+					   sector->pgoff;
 		}
 
-		/* then add the parity stripe */
-		p = rbio_pstripe_page(rbio, sectornr);
-		SetPageUptodate(p);
-		pointers[stripe++] = kmap_local_page(p);
+		/* Then add the parity stripe */
+		sector = rbio_pstripe_sector(rbio, sectornr);
+		sector->uptodate = 1;
+		pointers[stripe++] = kmap_local_page(sector->page) + sector->pgoff;
 
 		if (has_qstripe) {
-
 			/*
-			 * raid6, add the qstripe and call the
-			 * library function to fill in our p/q
+			 * RAID6, add the qstripe and call the library function
+			 * to fill in our p/q
 			 */
-			p = rbio_qstripe_page(rbio, sectornr);
-			SetPageUptodate(p);
-			pointers[stripe++] = kmap_local_page(p);
+			sector = rbio_qstripe_sector(rbio, sectornr);
+			sector->uptodate = 1;
+			pointers[stripe++] = kmap_local_page(sector->page) +
+					     sector->pgoff;
 
-			raid6_call.gen_syndrome(rbio->real_stripes, PAGE_SIZE,
+			raid6_call.gen_syndrome(rbio->real_stripes, sectorsize,
 						pointers);
 		} else {
 			/* raid5 */
-			copy_page(pointers[nr_data], pointers[0]);
-			run_xor(pointers + 1, nr_data - 1, PAGE_SIZE);
+			memcpy(pointers[nr_data], pointers[0], sectorsize);
+			run_xor(pointers + 1, nr_data - 1, sectorsize);
 		}
 		for (stripe = stripe - 1; stripe >= 0; stripe--)
 			kunmap_local(pointers[stripe]);
