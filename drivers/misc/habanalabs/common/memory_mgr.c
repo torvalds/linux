@@ -35,7 +35,7 @@ struct hl_mmap_mem_buf *hl_mmap_mem_buf_get(struct hl_mem_mgr *mmg, u32 handle)
 }
 
 /**
- * @hl_mmap_mem_buf_release - release buffer
+ * hl_mmap_mem_buf_release - release buffer
  *
  * @kref: kref that reached 0.
  *
@@ -58,7 +58,7 @@ static void hl_mmap_mem_buf_release(struct kref *kref)
 }
 
 /**
- * @hl_mmap_mem_buf_put - decrease the reference to the buffer
+ * hl_mmap_mem_buf_put - decrease the reference to the buffer
  *
  * @buf: memory manager buffer descriptor
  *
@@ -71,7 +71,7 @@ int hl_mmap_mem_buf_put(struct hl_mmap_mem_buf *buf)
 }
 
 /**
- * @hl_mmap_mem_buf_alloc - allocate a new mappable buffer
+ * hl_mmap_mem_buf_alloc - allocate a new mappable buffer
  *
  * @mmg: parent unifed memory manager
  * @behavior: behavior object describing this buffer polymorphic behavior
@@ -127,7 +127,7 @@ free_buf:
 }
 
 /**
- * @hl_mmap_mem_buf_vm_close - handle mmap close
+ * hl_mmap_mem_buf_vm_close - handle mmap close
  *
  * @vma: the vma object for which mmap was closed.
  *
@@ -156,7 +156,7 @@ static const struct vm_operations_struct hl_mmap_mem_buf_vm_ops = {
 };
 
 /**
- * @hl_mem_mgr_mmap - map the given buffer to the user
+ * hl_mem_mgr_mmap - map the given buffer to the user
  *
  * @mmg: unifed memory manager
  * @vma: the vma object for which mmap was closed.
@@ -240,7 +240,7 @@ put_mem:
 }
 
 /**
- * @hl_mem_mgr_init - initialize unified memory manager
+ * hl_mem_mgr_init - initialize unified memory manager
  *
  * @dev: owner device pointer
  * @mmg: structure to initialize
@@ -255,7 +255,7 @@ void hl_mem_mgr_init(struct device *dev, struct hl_mem_mgr *mmg)
 }
 
 /**
- * @hl_mem_mgr_fini - release unified memory manager
+ * hl_mem_mgr_fini - release unified memory manager
  *
  * @mmg: parent unifed memory manager
  *

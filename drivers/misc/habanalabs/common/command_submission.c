@@ -2667,7 +2667,7 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	struct multi_cs_completion *mcs_compl;
 	struct hl_device *hdev = hpriv->hdev;
-	struct multi_cs_data mcs_data = {0};
+	struct multi_cs_data mcs_data = {};
 	union hl_wait_cs_args *args = data;
 	struct hl_ctx *ctx = hpriv->ctx;
 	struct hl_fence **fence_arr;

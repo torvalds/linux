@@ -684,6 +684,7 @@ u64 hl_mmu_get_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte)
 /**
  * hl_mmu_get_hop_pte_phys_addr() - extract PTE address from HOP
  * @ctx: pointer to the context structure to initialize.
+ * @mmu_prop: MMU properties.
  * @hop_idx: HOP index.
  * @hop_addr: HOP address.
  * @virt_addr: virtual address fro the translation.
