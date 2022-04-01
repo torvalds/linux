@@ -479,7 +479,7 @@
 	};
 
 	hdmirx_ctrler: hdmirx-controller@fdee0000 {
-		compatible = "rk3588,hdmirx-ctrler", "rockchip,hdmirx-ctrler";
+		compatible = "rockchip,rk3588-hdmirx-ctrler", "rockchip,hdmirx-ctrler";
 		reg = <0x0 0xfdee0000 0x0 0x6000>;
 		reg-names = "hdmirx_regs";
 		power-domains = <&power RK3588_PD_VO1>;
@@ -489,10 +489,20 @@
 			     <GIC_SPI 436 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cec", "hdmi", "dma";
-		clocks = <&cru ACLK_HDMIRX>, <&cru CLK_HDMIRX_AUD>,
-			 <&cru CLK_CR_PARA>, <&cru PCLK_HDMIRX>,
-			 <&cru CLK_HDMIRX_REF>, <&hclk_vo1>;
-		clock-names = "aclk", "audio", "cr_para", "pclk", "ref", "hclk_vo1";
+		clocks = <&cru ACLK_HDMIRX>,
+			 <&cru CLK_HDMIRX_AUD>,
+			 <&cru CLK_CR_PARA>,
+			 <&cru PCLK_HDMIRX>,
+			 <&cru CLK_HDMIRX_REF>,
+			 <&cru PCLK_S_HDMIRX>,
+			 <&hclk_vo1>;
+		clock-names = "aclk",
+			      "audio",
+			      "cr_para",
+			      "pclk",
+			      "ref",
+			      "hclk_s_hdmirx",
+			      "hclk_vo1";
 		resets = <&cru SRST_A_HDMIRX>, <&cru SRST_P_HDMIRX>,
 			 <&cru SRST_HDMIRX_REF>, <&cru SRST_A_HDMIRX_BIU>;
 		reset-names = "rst_a", "rst_p", "rst_ref", "rst_biu";
