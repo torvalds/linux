@@ -663,7 +663,6 @@ static struct i2c_driver chipone_i2c_driver = {
 	.id_table = chipone_i2c_id,
 	.driver = {
 		.name = "chipone-icn6211-i2c",
-		.owner = THIS_MODULE,
 		.of_match_table = chipone_of_match,
 	},
 };
