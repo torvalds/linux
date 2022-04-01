@@ -1209,6 +1209,10 @@ static int mhi_queue(struct mhi_device *mhi_dev, struct mhi_buf_info *buf_info,
 	if (unlikely(ret))
 		return ret;
 
+	/* Let controller mark last busy for runtime PM framework if needed */
+	if (mhi_cntrl->runtime_last_busy)
+		mhi_cntrl->runtime_last_busy(mhi_cntrl);
+
 	read_lock_irqsave(&mhi_cntrl->pm_lock, flags);
 
 	/* trigger M3 exit if necessary */
