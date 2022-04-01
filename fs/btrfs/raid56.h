@@ -35,7 +35,7 @@ int raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 int raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc, u32 stripe_len);
 
 void raid56_add_scrub_pages(struct btrfs_raid_bio *rbio, struct page *page,
-			    u64 logical);
+			    unsigned int pgoff, u64 logical);
 
 struct btrfs_raid_bio *raid56_parity_alloc_scrub_rbio(struct bio *bio,
 				struct btrfs_io_context *bioc, u32 stripe_len,

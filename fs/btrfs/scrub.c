@@ -2205,7 +2205,11 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 	for (i = 0; i < sblock->sector_count; i++) {
 		struct scrub_sector *sector = sblock->sectors[i];
 
-		raid56_add_scrub_pages(rbio, sector->page, sector->logical);
+		/*
+		 * For now, our scrub is still one page per sector, so pgoff
+		 * is always 0.
+		 */
+		raid56_add_scrub_pages(rbio, sector->page, 0, sector->logical);
 	}
 
 	btrfs_init_work(&sblock->work, scrub_missing_raid56_worker, NULL, NULL);

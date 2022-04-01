@@ -2381,17 +2381,19 @@ struct btrfs_raid_bio *raid56_parity_alloc_scrub_rbio(struct bio *bio,
 
 /* Used for both parity scrub and missing. */
 void raid56_add_scrub_pages(struct btrfs_raid_bio *rbio, struct page *page,
-			    u64 logical)
+			    unsigned int pgoff, u64 logical)
 {
+	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
 	int stripe_offset;
 	int index;
 
 	ASSERT(logical >= rbio->bioc->raid_map[0]);
-	ASSERT(logical + PAGE_SIZE <= rbio->bioc->raid_map[0] +
+	ASSERT(logical + sectorsize <= rbio->bioc->raid_map[0] +
 				rbio->stripe_len * rbio->nr_data);
 	stripe_offset = (int)(logical - rbio->bioc->raid_map[0]);
-	index = stripe_offset >> PAGE_SHIFT;
-	rbio->bio_pages[index] = page;
+	index = stripe_offset / sectorsize;
+	rbio->bio_sectors[index].page = page;
+	rbio->bio_sectors[index].pgoff = pgoff;
 }
 
 /*
