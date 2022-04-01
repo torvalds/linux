@@ -142,6 +142,7 @@ static const struct hwseq_private_funcs dcn32_private_funcs = {
 	.subvp_update_force_pstate = dcn32_subvp_update_force_pstate,
 	.update_mall_sel = dcn32_update_mall_sel,
 	.calculate_dccg_k1_k2_values = dcn32_calculate_dccg_k1_k2_values,
+	.set_pixels_per_cycle = dcn32_set_pixels_per_cycle,
 };
 
 void dcn32_hw_sequencer_init_functions(struct dc *dc)

@@ -1114,3 +1114,20 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 
 	return odm_combine_factor;
 }
+
+void dcn32_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx)
+{
+	uint32_t pix_per_cycle = 1;
+	uint32_t odm_combine_factor = 1;
+
+	if (!pipe_ctx || !pipe_ctx->stream || !pipe_ctx->stream_res.stream_enc)
+		return;
+
+	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
+	if (optc2_is_two_pixels_per_containter(&pipe_ctx->stream->timing) || odm_combine_factor > 1)
+		pix_per_cycle = 2;
+
+	if (pipe_ctx->stream_res.stream_enc->funcs->set_input_mode)
+		pipe_ctx->stream_res.stream_enc->funcs->set_input_mode(pipe_ctx->stream_res.stream_enc,
+				pix_per_cycle);
+}

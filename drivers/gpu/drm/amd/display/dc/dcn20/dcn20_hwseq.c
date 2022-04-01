@@ -2535,9 +2535,8 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 
 	tg->funcs->set_early_control(tg, early_control);
 
-	if (pipe_ctx->stream_res.stream_enc->funcs->set_input_mode)
-		pipe_ctx->stream_res.stream_enc->funcs->set_input_mode(pipe_ctx->stream_res.stream_enc,
-			timing->pixel_encoding == PIXEL_ENCODING_YCBCR420 ? 2 : 1);
+	if (dc->hwseq->funcs.set_pixels_per_cycle)
+		dc->hwseq->funcs.set_pixels_per_cycle(pipe_ctx);
 
 	/* enable audio only within mode set */
 	if (pipe_ctx->stream_res.audio != NULL) {

@@ -54,9 +54,9 @@ static void enc32_dp_set_odm_combine(
 	struct stream_encoder *enc,
 	bool odm_combine)
 {
-	//struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
-	//TODO: REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_COMBINE, odm_combine);
+	REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_PER_CYCLE_PROCESSING_MODE, odm_combine ? 1 : 0);
 }
 
 /* setup stream encoder in dvi mode */
