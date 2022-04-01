@@ -1345,6 +1345,158 @@ static int smu_v13_0_0_get_power_limit(struct smu_context *smu,
 	return 0;
 }
 
+static int smu_v13_0_0_get_power_profile_mode(struct smu_context *smu,
+					      char *buf)
+{
+	DpmActivityMonitorCoeffIntExternal_t activity_monitor_external;
+	DpmActivityMonitorCoeffInt_t *activity_monitor =
+		&(activity_monitor_external.DpmActivityMonitorCoeffInt);
+	static const char *title[] = {
+			"PROFILE_INDEX(NAME)",
+			"CLOCK_TYPE(NAME)",
+			"FPS",
+			"MinActiveFreqType",
+			"MinActiveFreq",
+			"BoosterFreqType",
+			"BoosterFreq",
+			"PD_Data_limit_c",
+			"PD_Data_error_coeff",
+			"PD_Data_error_rate_coeff"};
+	int16_t workload_type = 0;
+	uint32_t i, size = 0;
+	int result = 0;
+
+	if (!buf)
+		return -EINVAL;
+
+	size += sysfs_emit_at(buf, size, "%16s %s %s %s %s %s %s %s %s %s\n",
+			title[0], title[1], title[2], title[3], title[4], title[5],
+			title[6], title[7], title[8], title[9]);
+
+	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
+		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+		workload_type = smu_cmn_to_asic_specific_index(smu,
+							       CMN2ASIC_MAPPING_WORKLOAD,
+							       i);
+		if (workload_type < 0)
+			return -EINVAL;
+
+		result = smu_cmn_update_table(smu,
+					      SMU_TABLE_ACTIVITY_MONITOR_COEFF,
+					      workload_type,
+					      (void *)(&activity_monitor_external),
+					      false);
+		if (result) {
+			dev_err(smu->adev->dev, "[%s] Failed to get activity monitor!", __func__);
+			return result;
+		}
+
+		size += sysfs_emit_at(buf, size, "%2d %14s%s:\n",
+			i, amdgpu_pp_profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
+
+		size += sysfs_emit_at(buf, size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			0,
+			"GFXCLK",
+			activity_monitor->Gfx_FPS,
+			activity_monitor->Gfx_MinActiveFreqType,
+			activity_monitor->Gfx_MinActiveFreq,
+			activity_monitor->Gfx_BoosterFreqType,
+			activity_monitor->Gfx_BoosterFreq,
+			activity_monitor->Gfx_PD_Data_limit_c,
+			activity_monitor->Gfx_PD_Data_error_coeff,
+			activity_monitor->Gfx_PD_Data_error_rate_coeff);
+
+		size += sysfs_emit_at(buf, size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			1,
+			"FCLK",
+			activity_monitor->Fclk_FPS,
+			activity_monitor->Fclk_MinActiveFreqType,
+			activity_monitor->Fclk_MinActiveFreq,
+			activity_monitor->Fclk_BoosterFreqType,
+			activity_monitor->Fclk_BoosterFreq,
+			activity_monitor->Fclk_PD_Data_limit_c,
+			activity_monitor->Fclk_PD_Data_error_coeff,
+			activity_monitor->Fclk_PD_Data_error_rate_coeff);
+	}
+
+	return size;
+}
+
+static int smu_v13_0_0_set_power_profile_mode(struct smu_context *smu,
+					      long *input,
+					      uint32_t size)
+{
+	DpmActivityMonitorCoeffIntExternal_t activity_monitor_external;
+	DpmActivityMonitorCoeffInt_t *activity_monitor =
+		&(activity_monitor_external.DpmActivityMonitorCoeffInt);
+	int workload_type, ret = 0;
+
+	smu->power_profile_mode = input[size];
+
+	if (smu->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", smu->power_profile_mode);
+		return -EINVAL;
+	}
+
+	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+		ret = smu_cmn_update_table(smu,
+					   SMU_TABLE_ACTIVITY_MONITOR_COEFF,
+					   WORKLOAD_PPLIB_CUSTOM_BIT,
+					   (void *)(&activity_monitor_external),
+					   false);
+		if (ret) {
+			dev_err(smu->adev->dev, "[%s] Failed to get activity monitor!", __func__);
+			return ret;
+		}
+
+		switch (input[0]) {
+		case 0: /* Gfxclk */
+			activity_monitor->Gfx_FPS = input[1];
+			activity_monitor->Gfx_MinActiveFreqType = input[2];
+			activity_monitor->Gfx_MinActiveFreq = input[3];
+			activity_monitor->Gfx_BoosterFreqType = input[4];
+			activity_monitor->Gfx_BoosterFreq = input[5];
+			activity_monitor->Gfx_PD_Data_limit_c = input[6];
+			activity_monitor->Gfx_PD_Data_error_coeff = input[7];
+			activity_monitor->Gfx_PD_Data_error_rate_coeff = input[8];
+			break;
+		case 1: /* Fclk */
+			activity_monitor->Fclk_FPS = input[1];
+			activity_monitor->Fclk_MinActiveFreqType = input[2];
+			activity_monitor->Fclk_MinActiveFreq = input[3];
+			activity_monitor->Fclk_BoosterFreqType = input[4];
+			activity_monitor->Fclk_BoosterFreq = input[5];
+			activity_monitor->Fclk_PD_Data_limit_c = input[6];
+			activity_monitor->Fclk_PD_Data_error_coeff = input[7];
+			activity_monitor->Fclk_PD_Data_error_rate_coeff = input[8];
+			break;
+		}
+
+		ret = smu_cmn_update_table(smu,
+					   SMU_TABLE_ACTIVITY_MONITOR_COEFF,
+					   WORKLOAD_PPLIB_CUSTOM_BIT,
+					   (void *)(&activity_monitor_external),
+					   true);
+		if (ret) {
+			dev_err(smu->adev->dev, "[%s] Failed to set activity monitor!", __func__);
+			return ret;
+		}
+	}
+
+	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+	workload_type = smu_cmn_to_asic_specific_index(smu,
+						       CMN2ASIC_MAPPING_WORKLOAD,
+						       smu->power_profile_mode);
+	if (workload_type < 0)
+		return -EINVAL;
+
+	return smu_cmn_send_smc_msg_with_param(smu,
+					       SMU_MSG_SetWorkloadMask,
+					       1 << workload_type,
+					       NULL);
+}
 
 static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.get_allowed_feature_mask = smu_v13_0_0_get_allowed_feature_mask,
@@ -1395,6 +1547,8 @@ static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.get_power_limit = smu_v13_0_0_get_power_limit,
 	.set_power_limit = smu_v13_0_set_power_limit,
 	.set_power_source = smu_v13_0_set_power_source,
+	.get_power_profile_mode = smu_v13_0_0_get_power_profile_mode,
+	.set_power_profile_mode = smu_v13_0_0_set_power_profile_mode,
 };
 
 void smu_v13_0_0_set_ppt_funcs(struct smu_context *smu)
