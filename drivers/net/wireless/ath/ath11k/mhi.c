@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
-/* Copyright (c) 2020 The Linux Foundation. All rights reserved. */
+/*
+ * Copyright (c) 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ */
 
 #include <linux/msi.h>
 #include <linux/pci.h>
@@ -11,6 +14,7 @@
 #include "debug.h"
 #include "mhi.h"
 #include "pci.h"
+#include "pcic.h"
 
 #define MHI_TIMEOUT_DEFAULT_MS	90000
 #define RDDM_DUMP_SIZE	0x420000
@@ -205,7 +209,7 @@ void ath11k_mhi_set_mhictrl_reset(struct ath11k_base *ab)
 {
 	u32 val;
 
-	val = ath11k_pci_read32(ab, MHISTATUS);
+	val = ath11k_pcic_read32(ab, MHISTATUS);
 
 	ath11k_dbg(ab, ATH11K_DBG_PCI, "MHISTATUS 0x%x\n", val);
 
@@ -213,29 +217,29 @@ void ath11k_mhi_set_mhictrl_reset(struct ath11k_base *ab)
 	 * has SYSERR bit set and thus need to set MHICTRL_RESET
 	 * to clear SYSERR.
 	 */
-	ath11k_pci_write32(ab, MHICTRL, MHICTRL_RESET_MASK);
+	ath11k_pcic_write32(ab, MHICTRL, MHICTRL_RESET_MASK);
 
 	mdelay(10);
 }
 
 static void ath11k_mhi_reset_txvecdb(struct ath11k_base *ab)
 {
-	ath11k_pci_write32(ab, PCIE_TXVECDB, 0);
+	ath11k_pcic_write32(ab, PCIE_TXVECDB, 0);
 }
 
 static void ath11k_mhi_reset_txvecstatus(struct ath11k_base *ab)
 {
-	ath11k_pci_write32(ab, PCIE_TXVECSTATUS, 0);
+	ath11k_pcic_write32(ab, PCIE_TXVECSTATUS, 0);
 }
 
 static void ath11k_mhi_reset_rxvecdb(struct ath11k_base *ab)
 {
-	ath11k_pci_write32(ab, PCIE_RXVECDB, 0);
+	ath11k_pcic_write32(ab, PCIE_RXVECDB, 0);
 }
 
 static void ath11k_mhi_reset_rxvecstatus(struct ath11k_base *ab)
 {
-	ath11k_pci_write32(ab, PCIE_RXVECSTATUS, 0);
+	ath11k_pcic_write32(ab, PCIE_RXVECSTATUS, 0);
 }
 
 void ath11k_mhi_clear_vector(struct ath11k_base *ab)
@@ -254,9 +258,9 @@ static int ath11k_mhi_get_msi(struct ath11k_pci *ab_pci)
 	int *irq;
 	unsigned int msi_data;
 
-	ret = ath11k_pci_get_user_msi_assignment(ab_pci,
-						 "MHI", &num_vectors,
-						 &user_base_data, &base_vector);
+	ret = ath11k_pcic_get_user_msi_assignment(ab_pci,
+						  "MHI", &num_vectors,
+						  &user_base_data, &base_vector);
 	if (ret)
 		return ret;
 
@@ -273,8 +277,7 @@ static int ath11k_mhi_get_msi(struct ath11k_pci *ab_pci)
 		if (test_bit(ATH11K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags))
 			msi_data += i;
 
-		irq[i] = ath11k_pci_get_msi_irq(ab->dev,
-						msi_data);
+		irq[i] = ath11k_pcic_get_msi_irq(ab->dev, msi_data);
 	}
 
 	ab_pci->mhi_ctrl->irq = irq;
