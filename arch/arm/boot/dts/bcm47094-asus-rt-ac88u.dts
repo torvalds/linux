@@ -25,6 +25,9 @@
 	nvram@1c080000 {
 		compatible = "brcm,nvram";
 		reg = <0x1c080000 0x00180000>;
+
+		et1macaddr: et1macaddr {
+		};
 	};
 
 	leds {
@@ -237,6 +240,11 @@
 			};
 		};
 	};
+};
+
+&gmac1 {
+	nvmem-cells = <&et1macaddr>;
+	nvmem-cell-names = "mac-address";
 };
 
 &usb2 {
