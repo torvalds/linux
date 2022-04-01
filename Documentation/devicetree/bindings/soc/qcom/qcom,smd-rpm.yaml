@@ -25,7 +25,8 @@ description: |
   rpm_requests.
 
 maintainers:
-  - Kathiravan T <kathirav@codeaurora.org>
+  - Andy Gross <agross@kernel.org>
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
 
 properties:
   compatible:

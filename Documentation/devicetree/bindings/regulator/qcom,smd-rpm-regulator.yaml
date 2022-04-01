@@ -69,7 +69,8 @@ description:
   l12, l13, l14, l15, l16, l17, l18, l19, l20, l21, l22
 
 maintainers:
-  - Kathiravan T <kathirav@codeaurora.org>
+  - Andy Gross <agross@kernel.org>
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
 
 properties:
   compatible:
