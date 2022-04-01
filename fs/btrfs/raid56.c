@@ -179,12 +179,6 @@ struct btrfs_raid_bio {
 	struct sector_ptr *bio_sectors;
 
 	/*
-	 * pointers to the pages in the bio_list.  Stored
-	 * here for faster lookup
-	 */
-	struct page **bio_pages;
-
-	/*
 	 * For subpage support, we need to map each sector to above
 	 * stripe_pages.
 	 */
@@ -265,7 +259,7 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info)
 
 /*
  * caching an rbio means to copy anything from the
- * bio_pages array into the stripe_pages array.  We
+ * bio_sectors array into the stripe_pages array.  We
  * use the page uptodate bit in the stripe cache array
  * to indicate if it has valid data
  *
@@ -281,18 +275,6 @@ static void cache_rbio_pages(struct btrfs_raid_bio *rbio)
 	if (ret)
 		return;
 
-	for (i = 0; i < rbio->nr_pages; i++) {
-		if (!rbio->bio_pages[i])
-			continue;
-
-		copy_highpage(rbio->stripe_pages[i], rbio->bio_pages[i]);
-		SetPageUptodate(rbio->stripe_pages[i]);
-	}
-
-	/*
-	 * This work is duplicated with the above loop, will be removed when
-	 * the switch is done.
-	 */
 	for (i = 0; i < rbio->nr_sectors; i++) {
 		/* Some range not covered by bio (partial write), skip it */
 		if (!rbio->bio_sectors[i].page)
@@ -1067,8 +1049,8 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	atomic_set(&rbio->stripes_pending, 0);
 
 	/*
-	 * the stripe_pages, bio_pages, etc arrays point to the extra
-	 * memory we allocated past the end of the rbio
+	 * The stripe_pages, bio_sectors, etc arrays point to the extra memory
+	 * we allocated past the end of the rbio.
 	 */
 	p = rbio + 1;
 #define CONSUME_ALLOC(ptr, count)	do {				\
@@ -1076,7 +1058,6 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 		p = (unsigned char *)p + sizeof(*(ptr)) * (count);	\
 	} while (0)
 	CONSUME_ALLOC(rbio->stripe_pages, num_pages);
-	CONSUME_ALLOC(rbio->bio_pages, num_pages);
 	CONSUME_ALLOC(rbio->bio_sectors, num_sectors);
 	CONSUME_ALLOC(rbio->stripe_sectors, num_sectors);
 	CONSUME_ALLOC(rbio->finish_pointers, real_stripes);
@@ -1246,26 +1227,8 @@ static void index_one_bio(struct btrfs_raid_bio *rbio, struct bio *bio)
 static void index_rbio_pages(struct btrfs_raid_bio *rbio)
 {
 	struct bio *bio;
-	u64 start;
-	unsigned long stripe_offset;
-	unsigned long page_index;
 
 	spin_lock_irq(&rbio->bio_list_lock);
-	bio_list_for_each(bio, &rbio->bio_list) {
-		struct bio_vec bvec;
-		struct bvec_iter iter;
-		int i = 0;
-
-		start = bio->bi_iter.bi_sector << 9;
-		stripe_offset = start - rbio->bioc->raid_map[0];
-		page_index = stripe_offset >> PAGE_SHIFT;
-
-		bio_for_each_segment(bvec, bio, iter) {
-			rbio->bio_pages[page_index + i] = bvec.bv_page;
-			i++;
-		}
-	}
-	/* This loop will replace above loop when the full switch is done */
 	bio_list_for_each(bio, &rbio->bio_list)
 		index_one_bio(rbio, bio);
 
