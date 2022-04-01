@@ -1397,7 +1397,7 @@ static void ext4_destroy_inode(struct inode *inode)
 
 static void init_once(void *foo)
 {
-	struct ext4_inode_info *ei = (struct ext4_inode_info *) foo;
+	struct ext4_inode_info *ei = foo;
 
 	INIT_LIST_HEAD(&ei->i_orphan);
 	init_rwsem(&ei->xattr_sem);
@@ -3836,7 +3836,7 @@ static struct task_struct *ext4_lazyinit_task;
  */
 static int ext4_lazyinit_thread(void *arg)
 {
-	struct ext4_lazy_init *eli = (struct ext4_lazy_init *)arg;
+	struct ext4_lazy_init *eli = arg;
 	struct list_head *pos, *n;
 	struct ext4_li_request *elr;
 	unsigned long next_wakeup, cur;

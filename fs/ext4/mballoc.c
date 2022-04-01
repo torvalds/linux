@@ -2919,7 +2919,7 @@ const struct seq_operations ext4_mb_seq_groups_ops = {
 
 int ext4_seq_mb_stats_show(struct seq_file *seq, void *offset)
 {
-	struct super_block *sb = (struct super_block *)seq->private;
+	struct super_block *sb = seq->private;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
 	seq_puts(seq, "mballoc:\n");

@@ -2031,7 +2031,7 @@ int ext4_find_dest_de(struct inode *dir, struct inode *inode,
 	unsigned int offset = 0;
 	char *top;
 
-	de = (struct ext4_dir_entry_2 *)buf;
+	de = buf;
 	top = buf + buf_size - reclen;
 	while ((char *) de <= top) {
 		if (ext4_check_dir_entry(dir, NULL, de, bh,
@@ -2587,7 +2587,7 @@ int ext4_generic_delete_entry(struct inode *dir,
 
 	i = 0;
 	pde = NULL;
-	de = (struct ext4_dir_entry_2 *)entry_buf;
+	de = entry_buf;
 	while (i < buf_size - csum_size) {
 		if (ext4_check_dir_entry(dir, NULL, de, bh,
 					 entry_buf, buf_size, i))
