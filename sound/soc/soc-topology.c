@@ -40,7 +40,7 @@
  */
 #define SOC_TPLG_PASS_MANIFEST		0
 #define SOC_TPLG_PASS_VENDOR		1
-#define SOC_TPLG_PASS_MIXER		2
+#define SOC_TPLG_PASS_CONTROL		2
 #define SOC_TPLG_PASS_WIDGET		3
 #define SOC_TPLG_PASS_PCM_DAI		4
 #define SOC_TPLG_PASS_GRAPH		5
@@ -360,7 +360,7 @@ static void remove_mixer(struct snd_soc_component *comp,
 {
 	struct snd_card *card = comp->card->snd_card;
 
-	if (pass != SOC_TPLG_PASS_MIXER)
+	if (pass != SOC_TPLG_PASS_CONTROL)
 		return;
 
 	if (dobj->ops && dobj->ops->control_unload)
@@ -376,7 +376,7 @@ static void remove_enum(struct snd_soc_component *comp,
 {
 	struct snd_card *card = comp->card->snd_card;
 
-	if (pass != SOC_TPLG_PASS_MIXER)
+	if (pass != SOC_TPLG_PASS_CONTROL)
 		return;
 
 	if (dobj->ops && dobj->ops->control_unload)
@@ -392,7 +392,7 @@ static void remove_bytes(struct snd_soc_component *comp,
 {
 	struct snd_card *card = comp->card->snd_card;
 
-	if (pass != SOC_TPLG_PASS_MIXER)
+	if (pass != SOC_TPLG_PASS_CONTROL)
 		return;
 
 	if (dobj->ops && dobj->ops->control_unload)
@@ -2467,7 +2467,7 @@ static int soc_tplg_load_header(struct soc_tplg *tplg,
 	case SND_SOC_TPLG_TYPE_MIXER:
 	case SND_SOC_TPLG_TYPE_ENUM:
 	case SND_SOC_TPLG_TYPE_BYTES:
-		hdr_pass = SOC_TPLG_PASS_MIXER;
+		hdr_pass = SOC_TPLG_PASS_CONTROL;
 		elem_load = soc_tplg_kcontrol_elems_load;
 		break;
 	case SND_SOC_TPLG_TYPE_DAPM_GRAPH:
