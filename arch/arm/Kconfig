@@ -347,22 +347,6 @@ config ARCH_MULTIPLATFORM
 	select SPARSE_IRQ
 	select USE_OF
 
-config ARCH_EP93XX
-	bool "EP93xx-based"
-	select ARCH_SPARSEMEM_ENABLE
-	select ARM_AMBA
-	imply ARM_PATCH_PHYS_VIRT
-	select ARM_VIC
-	select AUTO_ZRELADDR
-	select CLKSRC_MMIO
-	select CPU_ARM920T
-	select GPIOLIB
-	select COMMON_CLK
-	select IRQ_DOMAIN
-	select SPARSE_IRQ
-	help
-	  This enables support for the Cirrus EP93xx series of CPUs.
-
 config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	select CPU_SA110
