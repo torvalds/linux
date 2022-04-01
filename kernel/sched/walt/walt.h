@@ -187,6 +187,9 @@ extern int max_possible_cluster_id;
 extern unsigned int __read_mostly sched_init_task_load_windows;
 extern unsigned int __read_mostly sched_load_granule;
 
+extern unsigned int sysctl_sched_idle_enough;
+extern unsigned int sysctl_sched_cluster_util_thres_pct;
+
 /* 1ms default for 20ms window size scaled to 1024 */
 extern unsigned int sysctl_sched_min_task_util_for_boost;
 extern unsigned int sysctl_sched_min_task_util_for_uclamp;
@@ -345,6 +348,7 @@ struct sched_avg_stats {
 	int nr_misfit;
 	int nr_max;
 	int nr_scaled;
+	u32 avg_cap;
 };
 
 struct waltgov_callback {
@@ -776,6 +780,8 @@ static inline bool task_fits_max(struct task_struct *p, int cpu)
 
 extern struct sched_avg_stats *sched_get_nr_running_avg(void);
 extern unsigned int sched_get_cluster_util_pct(struct walt_sched_cluster *cluster);
+extern unsigned int sched_get_cpu_avg_cap(int cpu);
+extern unsigned int waltgov_get_avg_cap(unsigned int cpu);
 extern void sched_update_hyst_times(void);
 
 extern void walt_rt_init(void);
@@ -784,6 +790,8 @@ extern void walt_halt_init(void);
 extern void walt_fixup_init(void);
 extern int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 					int sync, int sibling_count_hint);
+extern int walt_find_cluster_packing_cpu(int start_cpu);
+extern bool walt_choose_packing_cpu(int packing_cpu, struct task_struct *p);
 
 static inline unsigned int cpu_max_possible_freq(int cpu)
 {
