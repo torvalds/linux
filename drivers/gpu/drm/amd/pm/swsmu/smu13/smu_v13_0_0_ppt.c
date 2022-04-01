@@ -1550,6 +1550,8 @@ static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.get_power_profile_mode = smu_v13_0_0_get_power_profile_mode,
 	.set_power_profile_mode = smu_v13_0_0_set_power_profile_mode,
 	.run_btc = smu_v13_0_run_btc,
+	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
+	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 };
 
 void smu_v13_0_0_set_ppt_funcs(struct smu_context *smu)
