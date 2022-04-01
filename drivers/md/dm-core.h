@@ -210,7 +210,7 @@ struct dm_table {
 #define DM_TIO_MAGIC 28714
 struct dm_target_io {
 	unsigned short magic;
-	unsigned short flags;
+	blk_short_t flags;
 	unsigned int target_bio_nr;
 	struct dm_io *io;
 	struct dm_target *ti;
@@ -244,7 +244,7 @@ static inline void dm_tio_set_flag(struct dm_target_io *tio, unsigned int bit)
 #define DM_IO_MAGIC 19577
 struct dm_io {
 	unsigned short magic;
-	unsigned short flags;
+	blk_short_t flags;
 	atomic_t io_count;
 	struct mapped_device *md;
 	struct bio *orig_bio;

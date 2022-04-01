@@ -891,15 +891,21 @@ static struct hash_cell *__find_device_hash_cell(struct dm_ioctl *param)
 	struct hash_cell *hc = NULL;
 
 	if (*param->uuid) {
-		if (*param->name || param->dev)
+		if (*param->name || param->dev) {
+			DMERR("Invalid ioctl structure: uuid %s, name %s, dev %llx",
+			      param->uuid, param->name, (unsigned long long)param->dev);
 			return NULL;
+		}
 
 		hc = __get_uuid_cell(param->uuid);
 		if (!hc)
 			return NULL;
 	} else if (*param->name) {
-		if (param->dev)
+		if (param->dev) {
+			DMERR("Invalid ioctl structure: name %s, dev %llx",
+			      param->name, (unsigned long long)param->dev);
 			return NULL;
+		}
 
 		hc = __get_name_cell(param->name);
 		if (!hc)
@@ -1851,8 +1857,11 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
 	if (copy_from_user(param_kernel, user, minimum_data_size))
 		return -EFAULT;
 
-	if (param_kernel->data_size < minimum_data_size)
+	if (param_kernel->data_size < minimum_data_size) {
+		DMERR("Invalid data size in the ioctl structure: %u",
+		      param_kernel->data_size);
 		return -EINVAL;
+	}
 
 	secure_data = param_kernel->flags & DM_SECURE_DATA_FLAG;
 
