@@ -1703,7 +1703,7 @@ static bool dc_link_construct_legacy(struct dc_link *link,
 	enc_init_data.transmitter =
 		translate_encoder_to_transmitter(enc_init_data.encoder);
 	link->link_enc =
-		link->dc->res_pool->funcs->link_enc_create(&enc_init_data);
+		link->dc->res_pool->funcs->link_enc_create(dc_ctx, &enc_init_data);
 
 	if (!link->link_enc) {
 		DC_ERROR("Failed to create link encoder!\n");

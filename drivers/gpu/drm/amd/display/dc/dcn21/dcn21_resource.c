@@ -1325,6 +1325,7 @@ static int map_transmitter_id_to_phy_instance(
 }
 
 static struct link_encoder *dcn21_link_encoder_create(
+	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn21_link_encoder *enc21 =
