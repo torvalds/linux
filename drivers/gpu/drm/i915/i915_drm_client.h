@@ -9,6 +9,10 @@
 #include <linux/kref.h>
 #include <linux/xarray.h>
 
+#include "gt/intel_engine_types.h"
+
+#define I915_LAST_UABI_ENGINE_CLASS I915_ENGINE_CLASS_VIDEO_ENHANCE
+
 struct drm_i915_private;
 
 struct i915_drm_clients {
@@ -24,6 +28,11 @@ struct i915_drm_client {
 	unsigned int id;
 
 	struct i915_drm_clients *clients;
+
+	/**
+	 * @past_runtime: Accumulation of pphwsp runtimes from closed contexts.
+	 */
+	atomic64_t past_runtime[I915_LAST_UABI_ENGINE_CLASS + 1];
 };
 
 void i915_drm_clients_init(struct i915_drm_clients *clients,
