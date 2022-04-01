@@ -701,11 +701,6 @@ static struct sector_ptr *rbio_qstripe_sector(const struct btrfs_raid_bio *rbio,
 	return rbio_stripe_sector(rbio, rbio->nr_data + 1, sector_nr);
 }
 
-static int rbio_stripe_page_index(struct btrfs_raid_bio *rbio, int stripe, int index)
-{
-	return stripe * rbio->stripe_npages + index;
-}
-
 /*
  * The first stripe in the table for a logical address
  * has the lock.  rbios are added in one of three ways:
@@ -1116,7 +1111,7 @@ static int alloc_rbio_pages(struct btrfs_raid_bio *rbio)
 /* only allocate pages for p/q stripes */
 static int alloc_rbio_parity_pages(struct btrfs_raid_bio *rbio)
 {
-	int data_pages = rbio_stripe_page_index(rbio, rbio->nr_data, 0);
+	const int data_pages = rbio->nr_data * rbio->stripe_npages;
 	int ret;
 
 	ret = btrfs_alloc_page_array(rbio->nr_pages - data_pages,
