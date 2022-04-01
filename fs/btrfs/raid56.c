@@ -52,6 +52,16 @@ struct btrfs_stripe_hash_table {
 	struct btrfs_stripe_hash table[];
 };
 
+/*
+ * A bvec like structure to present a sector inside a page.
+ *
+ * Unlike bvec we don't need bvlen, as it's fixed to sectorsize.
+ */
+struct sector_ptr {
+	struct page *page;
+	unsigned int pgoff;
+};
+
 enum btrfs_rbio_ops {
 	BTRFS_RBIO_WRITE,
 	BTRFS_RBIO_READ_REBUILD,
@@ -171,8 +181,12 @@ struct btrfs_raid_bio {
 	struct page **bio_pages;
 
 	/*
-	 * bitmap to record which horizontal stripe has data
+	 * For subpage support, we need to map each sector to above
+	 * stripe_pages.
 	 */
+	struct sector_ptr *stripe_sectors;
+
+	/* Bitmap to record which horizontal stripe has data */
 	unsigned long *dbitmap;
 
 	/* allocated with real_stripes-many pointers for finish_*() calls */
@@ -292,6 +306,26 @@ static int rbio_bucket(struct btrfs_raid_bio *rbio)
 }
 
 /*
+ * Update the stripe_sectors[] array to use correct page and pgoff
+ *
+ * Should be called every time any page pointer in stripes_pages[] got modified.
+ */
+static void index_stripe_sectors(struct btrfs_raid_bio *rbio)
+{
+	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
+	u32 offset;
+	int i;
+
+	for (i = 0, offset = 0; i < rbio->nr_sectors; i++, offset += sectorsize) {
+		int page_index = offset >> PAGE_SHIFT;
+
+		ASSERT(page_index < rbio->nr_pages);
+		rbio->stripe_sectors[i].page = rbio->stripe_pages[page_index];
+		rbio->stripe_sectors[i].pgoff = offset_in_page(offset);
+	}
+}
+
+/*
  * stealing an rbio means taking all the uptodate pages from the stripe
  * array in the source rbio and putting them into the destination rbio
  */
@@ -317,6 +351,8 @@ static void steal_rbio(struct btrfs_raid_bio *src, struct btrfs_raid_bio *dest)
 		dest->stripe_pages[i] = s;
 		src->stripe_pages[i] = NULL;
 	}
+	index_stripe_sectors(dest);
+	index_stripe_sectors(src);
 }
 
 /*
@@ -977,6 +1013,7 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	rbio = kzalloc(sizeof(*rbio) +
 		       sizeof(*rbio->stripe_pages) * num_pages +
 		       sizeof(*rbio->bio_pages) * num_pages +
+		       sizeof(*rbio->stripe_sectors) * num_sectors +
 		       sizeof(*rbio->finish_pointers) * real_stripes +
 		       sizeof(*rbio->dbitmap) * BITS_TO_LONGS(stripe_nsectors) +
 		       sizeof(*rbio->finish_pbitmap) * BITS_TO_LONGS(stripe_nsectors),
@@ -1013,6 +1050,7 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	} while (0)
 	CONSUME_ALLOC(rbio->stripe_pages, num_pages);
 	CONSUME_ALLOC(rbio->bio_pages, num_pages);
+	CONSUME_ALLOC(rbio->stripe_sectors, num_sectors);
 	CONSUME_ALLOC(rbio->finish_pointers, real_stripes);
 	CONSUME_ALLOC(rbio->dbitmap, BITS_TO_LONGS(stripe_nsectors));
 	CONSUME_ALLOC(rbio->finish_pbitmap, BITS_TO_LONGS(stripe_nsectors));
@@ -1032,16 +1070,29 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 /* allocate pages for all the stripes in the bio, including parity */
 static int alloc_rbio_pages(struct btrfs_raid_bio *rbio)
 {
-	return btrfs_alloc_page_array(rbio->nr_pages, rbio->stripe_pages);
+	int ret;
+
+	ret = btrfs_alloc_page_array(rbio->nr_pages, rbio->stripe_pages);
+	if (ret < 0)
+		return ret;
+	/* Mapping all sectors */
+	index_stripe_sectors(rbio);
+	return 0;
 }
 
 /* only allocate pages for p/q stripes */
 static int alloc_rbio_parity_pages(struct btrfs_raid_bio *rbio)
 {
 	int data_pages = rbio_stripe_page_index(rbio, rbio->nr_data, 0);
+	int ret;
 
-	return btrfs_alloc_page_array(rbio->nr_pages - data_pages,
-				      rbio->stripe_pages + data_pages);
+	ret = btrfs_alloc_page_array(rbio->nr_pages - data_pages,
+				     rbio->stripe_pages + data_pages);
+	if (ret < 0)
+		return ret;
+
+	index_stripe_sectors(rbio);
+	return 0;
 }
 
 /*
@@ -2283,6 +2334,7 @@ static int alloc_rbio_essential_pages(struct btrfs_raid_bio *rbio)
 			rbio->stripe_pages[index] = page;
 		}
 	}
+	index_stripe_sectors(rbio);
 	return 0;
 }
 
