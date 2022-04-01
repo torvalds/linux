@@ -48,6 +48,12 @@ properties:
   '#clock-cells':
     const: 1
 
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: xo
+
 required:
   - compatible
   - '#clock-cells'
