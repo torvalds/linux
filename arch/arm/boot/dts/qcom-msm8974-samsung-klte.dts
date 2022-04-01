@@ -54,7 +54,7 @@
 
 	smd {
 		rpm {
-			rpm_requests {
+			rpm-requests {
 				pma8084-regulators {
 					compatible = "qcom,rpm-pma8084-regulators";
 					status = "okay";

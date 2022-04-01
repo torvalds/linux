@@ -55,7 +55,7 @@
 
 	smd {
 		rpm {
-			rpm_requests {
+			rpm-requests {
 				pm8941-regulators {
 					vdd_l1_l3-supply = <&pm8941_s1>;
 					vdd_l2_lvs1_2_3-supply = <&pm8941_s3>;

@@ -60,7 +60,7 @@
 
 	smd {
 		rpm {
-			rpm_requests {
+			rpm-requests {
 				pm8841-regulators {
 					s1 {
 						regulator-min-microvolt = <675000>;
