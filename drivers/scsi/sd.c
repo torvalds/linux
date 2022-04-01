@@ -3475,6 +3475,7 @@ static int sd_probe(struct device *dev)
 	error = device_add_disk(dev, gd, NULL);
 	if (error) {
 		put_device(&sdkp->disk_dev);
+		blk_cleanup_disk(gd);
 		goto out;
 	}
 
