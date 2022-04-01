@@ -309,6 +309,24 @@ static int rbio_bucket(struct btrfs_raid_bio *rbio)
 	return hash_64(num >> 16, BTRFS_STRIPE_HASH_TABLE_BITS);
 }
 
+static bool full_page_sectors_uptodate(struct btrfs_raid_bio *rbio,
+				       unsigned int page_nr)
+{
+	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
+	const u32 sectors_per_page = PAGE_SIZE / sectorsize;
+	int i;
+
+	ASSERT(page_nr < rbio->nr_pages);
+
+	for (i = sectors_per_page * page_nr;
+	     i < sectors_per_page * page_nr + sectors_per_page;
+	     i++) {
+		if (!rbio->stripe_sectors[i].uptodate)
+			return false;
+	}
+	return true;
+}
+
 /*
  * Update the stripe_sectors[] array to use correct page and pgoff
  *
@@ -330,8 +348,11 @@ static void index_stripe_sectors(struct btrfs_raid_bio *rbio)
 }
 
 /*
- * stealing an rbio means taking all the uptodate pages from the stripe
- * array in the source rbio and putting them into the destination rbio
+ * Stealing an rbio means taking all the uptodate pages from the stripe array
+ * in the source rbio and putting them into the destination rbio.
+ *
+ * This will also update the involved stripe_sectors[] which are referring to
+ * the old pages.
  */
 static void steal_rbio(struct btrfs_raid_bio *src, struct btrfs_raid_bio *dest)
 {
@@ -344,9 +365,8 @@ static void steal_rbio(struct btrfs_raid_bio *src, struct btrfs_raid_bio *dest)
 
 	for (i = 0; i < dest->nr_pages; i++) {
 		s = src->stripe_pages[i];
-		if (!s || !PageUptodate(s)) {
+		if (!s || !full_page_sectors_uptodate(src, i))
 			continue;
-		}
 
 		d = dest->stripe_pages[i];
 		if (d)
