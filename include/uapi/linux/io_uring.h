@@ -63,6 +63,12 @@ struct io_uring_sqe {
 	};
 	__u64	addr3;
 	__u64	__pad2[1];
+
+	/*
+	 * If the ring is initialized with IORING_SETUP_SQE128, then this field
+	 * contains 64-bytes of padding, doubling the size of the SQE.
+	 */
+	__u64	__big_sqe_pad[0];
 };
 
 enum {
@@ -118,6 +124,8 @@ enum {
  * IORING_SQ_TASKRUN in the sq ring flags. Not valid with COOP_TASKRUN.
  */
 #define IORING_SETUP_TASKRUN_FLAG	(1U << 9)
+
+#define IORING_SETUP_SQE128		(1U << 10) /* SQEs are 128 byte */
 
 enum io_uring_op {
 	IORING_OP_NOP,
