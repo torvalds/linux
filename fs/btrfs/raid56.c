@@ -59,7 +59,8 @@ struct btrfs_stripe_hash_table {
  */
 struct sector_ptr {
 	struct page *page;
-	unsigned int pgoff;
+	unsigned int pgoff:24;
+	unsigned int uptodate:8;
 };
 
 enum btrfs_rbio_ops {
@@ -174,6 +175,9 @@ struct btrfs_raid_bio {
 	 */
 	struct page **stripe_pages;
 
+	/* Pointers to the sectors in the bio_list, for faster lookup */
+	struct sector_ptr *bio_sectors;
+
 	/*
 	 * pointers to the pages in the bio_list.  Stored
 	 * here for faster lookup
@@ -283,6 +287,24 @@ static void cache_rbio_pages(struct btrfs_raid_bio *rbio)
 
 		copy_highpage(rbio->stripe_pages[i], rbio->bio_pages[i]);
 		SetPageUptodate(rbio->stripe_pages[i]);
+	}
+
+	/*
+	 * This work is duplicated with the above loop, will be removed when
+	 * the switch is done.
+	 */
+	for (i = 0; i < rbio->nr_sectors; i++) {
+		/* Some range not covered by bio (partial write), skip it */
+		if (!rbio->bio_sectors[i].page)
+			continue;
+
+		ASSERT(rbio->stripe_sectors[i].page);
+		memcpy_page(rbio->stripe_sectors[i].page,
+			    rbio->stripe_sectors[i].pgoff,
+			    rbio->bio_sectors[i].page,
+			    rbio->bio_sectors[i].pgoff,
+			    rbio->bioc->fs_info->sectorsize);
+		rbio->stripe_sectors[i].uptodate = 1;
 	}
 	set_bit(RBIO_CACHE_READY_BIT, &rbio->flags);
 }
@@ -1012,7 +1034,7 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 
 	rbio = kzalloc(sizeof(*rbio) +
 		       sizeof(*rbio->stripe_pages) * num_pages +
-		       sizeof(*rbio->bio_pages) * num_pages +
+		       sizeof(*rbio->bio_sectors) * num_sectors +
 		       sizeof(*rbio->stripe_sectors) * num_sectors +
 		       sizeof(*rbio->finish_pointers) * real_stripes +
 		       sizeof(*rbio->dbitmap) * BITS_TO_LONGS(stripe_nsectors) +
@@ -1050,6 +1072,7 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	} while (0)
 	CONSUME_ALLOC(rbio->stripe_pages, num_pages);
 	CONSUME_ALLOC(rbio->bio_pages, num_pages);
+	CONSUME_ALLOC(rbio->bio_sectors, num_sectors);
 	CONSUME_ALLOC(rbio->stripe_sectors, num_sectors);
 	CONSUME_ALLOC(rbio->finish_pointers, real_stripes);
 	CONSUME_ALLOC(rbio->dbitmap, BITS_TO_LONGS(stripe_nsectors));
@@ -1166,6 +1189,32 @@ static void validate_rbio_for_rmw(struct btrfs_raid_bio *rbio)
 	}
 }
 
+static void index_one_bio(struct btrfs_raid_bio *rbio, struct bio *bio)
+{
+	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
+	u32 offset = (bio->bi_iter.bi_sector << SECTOR_SHIFT) -
+		     rbio->bioc->raid_map[0];
+
+	if (bio_flagged(bio, BIO_CLONED))
+		bio->bi_iter = btrfs_bio(bio)->iter;
+
+	bio_for_each_segment(bvec, bio, iter) {
+		u32 bvec_offset;
+
+		for (bvec_offset = 0; bvec_offset < bvec.bv_len;
+		     bvec_offset += sectorsize, offset += sectorsize) {
+			int index = offset / sectorsize;
+			struct sector_ptr *sector = &rbio->bio_sectors[index];
+
+			sector->page = bvec.bv_page;
+			sector->pgoff = bvec.bv_offset + bvec_offset;
+			ASSERT(sector->pgoff < PAGE_SIZE);
+		}
+	}
+}
+
 /*
  * helper function to walk our bio list and populate the bio_pages array with
  * the result.  This seems expensive, but it is faster than constantly
@@ -1196,6 +1245,10 @@ static void index_rbio_pages(struct btrfs_raid_bio *rbio)
 			i++;
 		}
 	}
+	/* This loop will replace above loop when the full switch is done */
+	bio_list_for_each(bio, &rbio->bio_list)
+		index_one_bio(rbio, bio);
+
 	spin_unlock_irq(&rbio->bio_list_lock);
 }
 
