@@ -1198,9 +1198,9 @@ do_reset:
 		if (hard_reset)
 			dev_info(hdev->dev, "Going to reset device\n");
 		else if (reset_upon_device_release)
-			dev_info(hdev->dev, "Going to reset device after release by user\n");
+			dev_dbg(hdev->dev, "Going to reset device after release by user\n");
 		else
-			dev_info(hdev->dev, "Going to reset engines of inference device\n");
+			dev_dbg(hdev->dev, "Going to reset engines of inference device\n");
 	}
 
 again:
@@ -1406,7 +1406,10 @@ kill_processes:
 
 	hdev->reset_info.needs_reset = false;
 
-	dev_notice(hdev->dev, "Successfully finished resetting the device\n");
+	if (hard_reset)
+		dev_info(hdev->dev, "Successfully finished resetting the device\n");
+	else
+		dev_dbg(hdev->dev, "Successfully finished resetting the device\n");
 
 	if (hard_reset) {
 		hdev->reset_info.hard_reset_cnt++;
