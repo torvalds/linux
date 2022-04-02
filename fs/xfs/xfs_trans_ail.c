@@ -873,17 +873,17 @@ xfs_trans_ail_delete(
 	int			shutdown_type)
 {
 	struct xfs_ail		*ailp = lip->li_ailp;
-	struct xfs_mount	*mp = ailp->ail_log->l_mp;
+	struct xlog		*log = ailp->ail_log;
 	xfs_lsn_t		tail_lsn;
 
 	spin_lock(&ailp->ail_lock);
 	if (!test_bit(XFS_LI_IN_AIL, &lip->li_flags)) {
 		spin_unlock(&ailp->ail_lock);
-		if (shutdown_type && !xlog_is_shutdown(ailp->ail_log)) {
-			xfs_alert_tag(mp, XFS_PTAG_AILDELETE,
+		if (shutdown_type && !xlog_is_shutdown(log)) {
+			xfs_alert_tag(log->l_mp, XFS_PTAG_AILDELETE,
 	"%s: attempting to delete a log item that is not in the AIL",
 					__func__);
-			xfs_force_shutdown(mp, shutdown_type);
+			xlog_force_shutdown(log, shutdown_type);
 		}
 		return;
 	}
