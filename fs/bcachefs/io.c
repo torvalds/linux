@@ -2089,22 +2089,28 @@ static noinline void read_from_stale_dirty_pointer(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret;
 
-	bch2_bkey_val_to_text(&buf, c, k);
-	bch2_fs_inconsistent(c, "Attempting to read from stale dirty pointer: %s", buf.buf);
-
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
-			     POS(ptr.dev, PTR_BUCKET_NR(ca, &ptr)),
+			     PTR_BUCKET_POS(c, &ptr),
 			     BTREE_ITER_CACHED);
 
-	ret = lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
-	if (ret)
-		goto out;
+	pr_buf(&buf, "Attempting to read from stale dirty pointer:");
+	pr_indent_push(&buf, 2);
+	pr_newline(&buf);
 
 	bch2_bkey_val_to_text(&buf, c, k);
-	bch_err(c, "%s", buf.buf);
-	bch_err(c, "memory gen: %u", *bucket_gen(ca, iter.pos.offset));
+	pr_newline(&buf);
+
+	pr_buf(&buf, "memory gen: %u", *bucket_gen(ca, iter.pos.offset));
+
+	ret = lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
+	if (!ret) {
+		pr_newline(&buf);
+		bch2_bkey_val_to_text(&buf, c, k);
+	}
+
+	bch2_fs_inconsistent(c, "%s", buf.buf);
+
 	bch2_trans_iter_exit(trans, &iter);
-out:
 	printbuf_exit(&buf);
 }
 
