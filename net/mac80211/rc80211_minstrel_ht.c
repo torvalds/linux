@@ -1439,17 +1439,17 @@ minstrel_ht_update_rates(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	/* Start with max_tp_rate[0] */
 	minstrel_ht_set_rate(mp, mi, rates, i++, mi->max_tp_rate[0]);
 
-	if (mp->hw->max_rates >= 3) {
-		/* At least 3 tx rates supported, use max_tp_rate[1] next */
-		minstrel_ht_set_rate(mp, mi, rates, i++, mi->max_tp_rate[1]);
-	}
+	/* Fill up remaining, keep one entry for max_probe_rate */
+	for (; i < (mp->hw->max_rates - 1); i++)
+		minstrel_ht_set_rate(mp, mi, rates, i, mi->max_tp_rate[i]);
 
-	if (mp->hw->max_rates >= 2) {
+	if (i < mp->hw->max_rates)
 		minstrel_ht_set_rate(mp, mi, rates, i++, mi->max_prob_rate);
-	}
+
+	if (i < IEEE80211_TX_RATE_TABLE_SIZE)
+		rates->rate[i].idx = -1;
 
 	mi->sta->max_rc_amsdu_len = minstrel_ht_get_max_amsdu_len(mi);
-	rates->rate[i].idx = -1;
 	rate_control_set_rates(mp->hw, mi->sta, rates);
 }
 
