@@ -18,15 +18,24 @@ enum dvbm_cmd {
 	DVBM_ISP_SET_CFG,
 	DVBM_ISP_FRM_START,
 	DVBM_ISP_FRM_END,
+	DVBM_ISP_FRM_QUARTER,
 	DVBM_ISP_CMD_BUTT,
 
 	DVBM_VEPU_CMD_BASE  = 0x10,
 	DVBM_VEPU_SET_RESYNC,
 	DVBM_VEPU_SET_CFG,
 	DVBM_VEPU_GET_ADR,
-	DVBM_VEPU_GET_CUR_ID,
+	DVBM_VEPU_GET_FRAME_INFO,
 	DVBM_VEPU_DUMP_REGS,
 	DVBM_VEPU_CMD_BUTT,
+};
+
+enum isp_frame_status {
+	ISP_FRAME_START,
+	ISP_FRAME_ONE_QUARTER,
+	ISP_FRAME_HALF,
+	ISP_FRAME_THREE_QUARTERS,
+	ISP_FRAME_FINISH,
 };
 
 enum dvbm_cb_event {
@@ -39,6 +48,7 @@ enum dvbm_cb_event {
 	DVBM_VEPU_REQ_CONNECT,
 	DVBM_VEPU_NOTIFY_FRM_STR,
 	DVBM_VEPU_NOTIFY_FRM_END,
+	DVBM_VEPU_NOTIFY_FRM_INFO,
 	DVBM_VEPU_EVENT_BUTT,
 };
 
@@ -69,11 +79,21 @@ struct dvbm_isp_frm_cfg {
 	u32 cbuf_start;
 };
 
+struct dvbm_isp_frm_info {
+	u32 frame_cnt;
+	u32 line_cnt;
+};
+
 struct dvbm_addr_cfg {
 	u32 ybuf_top;
 	u32 ybuf_bot;
+	u32 ybuf_sadr;
 	u32 cbuf_top;
 	u32 cbuf_bot;
+	u32 cbuf_sadr;
+	u32 frame_id;
+	u32 line_cnt;
+	u32 overflow;
 };
 
 struct dvbm_vepu_cfg {

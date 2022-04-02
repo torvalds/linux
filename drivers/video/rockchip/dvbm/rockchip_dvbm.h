@@ -189,15 +189,20 @@ struct dvbm_ctx {
 	atomic_t vepu_ref;
 	atomic_t vepu_link;
 	struct dvbm_cb	vepu_cb;
+	struct dvbm_addr_cfg vepu_cfg;
 
 	/* isp infos */
 	struct dvbm_port port_isp;
 	struct dvbm_cb	isp_cb;
+	struct dvbm_isp_cfg_t isp_cfg;
+	struct dvbm_isp_frm_info isp_frm_info;
 	atomic_t isp_link;
 	atomic_t isp_ref;
+	u32 isp_max_lcnt;
 	u32 isp_frm_start;
 	u32 isp_frm_end;
-	u64 isp_frm_ns;
+	ktime_t isp_frm_time;
+	u32 isp_frm_quater_cnt;
 
 	/* debug infos */
 	u32 dump_s;
