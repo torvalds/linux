@@ -1175,12 +1175,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			}
 		}
 		break;
-	case HW_VAR_RPT_TIMER_SETTING:
-		{
-			u16 min_rpt_time = (*(u16 *)val);
-			ODM_RA_Set_TxRPT_Time(podmpriv, min_rpt_time);
-		}
-		break;
 	case HW_VAR_FIFO_CLEARN_UP:
 		{
 			struct pwrctrl_priv *pwrpriv = &Adapter->pwrctrlpriv;
