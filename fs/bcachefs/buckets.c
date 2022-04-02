@@ -624,13 +624,13 @@ int bch2_mark_alloc(struct btree_trans *trans,
 	return 0;
 }
 
-void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
-			       size_t b, enum bch_data_type data_type,
-			       unsigned sectors, struct gc_pos pos,
-			       unsigned flags)
+int bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
+			      size_t b, enum bch_data_type data_type,
+			      unsigned sectors, struct gc_pos pos,
+			      unsigned flags)
 {
 	struct bucket old, new, *g;
-	bool overflow;
+	int ret = 0;
 
 	BUG_ON(!(flags & BTREE_TRIGGER_GC));
 	BUG_ON(data_type != BCH_DATA_sb &&
@@ -640,7 +640,7 @@ void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 	 * Backup superblock might be past the end of our normal usable space:
 	 */
 	if (b >= ca->mi.nbuckets)
-		return;
+		return 0;
 
 	percpu_down_read(&c->mark_lock);
 	g = gc_bucket(ca, b);
@@ -648,27 +648,34 @@ void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 	bucket_lock(g);
 	old = *g;
 
+	if (bch2_fs_inconsistent_on(g->data_type &&
+			g->data_type != data_type, c,
+			"different types of data in same bucket: %s, %s",
+			bch2_data_types[g->data_type],
+			bch2_data_types[data_type])) {
+		ret = -EIO;
+		goto err;
+	}
+
+	if (bch2_fs_inconsistent_on((u64) g->dirty_sectors + sectors > ca->mi.bucket_size, c,
+			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %u > bucket size",
+			ca->dev_idx, b, g->gen,
+			bch2_data_types[g->data_type ?: data_type],
+			g->dirty_sectors, sectors)) {
+		ret = -EIO;
+		goto err;
+	}
+
+
 	g->data_type = data_type;
 	g->dirty_sectors += sectors;
-	overflow = g->dirty_sectors < sectors;
-
 	new = *g;
+err:
 	bucket_unlock(g);
-
-	bch2_fs_inconsistent_on(old.data_type &&
-				old.data_type != data_type, c,
-		"different types of data in same bucket: %s, %s",
-		bch2_data_types[old.data_type],
-		bch2_data_types[data_type]);
-
-	bch2_fs_inconsistent_on(overflow, c,
-		"bucket %u:%zu gen %u data type %s sector count overflow: %u + %u > U16_MAX",
-		ca->dev_idx, b, new.gen,
-		bch2_data_types[old.data_type ?: data_type],
-		old.dirty_sectors, sectors);
-
-	bch2_dev_usage_update_m(c, ca, old, new, 0, true);
+	if (!ret)
+		bch2_dev_usage_update_m(c, ca, old, new, 0, true);
 	percpu_up_read(&c->mark_lock);
+	return ret;
 }
 
 static s64 ptr_disk_sectors(s64 sectors, struct extent_ptr_decoded p)
@@ -811,25 +818,22 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 	old = *g;
 
 	ret = check_bucket_ref(c, k, ptr, sectors, data_type,
-			       new.gen, new.data_type,
-			       new.dirty_sectors, new.cached_sectors);
-	if (ret) {
-		bucket_unlock(g);
+			       g->gen, g->data_type,
+			       g->dirty_sectors, g->cached_sectors);
+	if (ret)
 		goto err;
-	}
 
-	new.dirty_sectors += sectors;
 	if (data_type)
-		new.data_type = data_type;
+		g->data_type = data_type;
+	g->dirty_sectors += sectors;
 
 	g->stripe		= k.k->p.offset;
 	g->stripe_redundancy	= s->nr_redundant;
-
 	new = *g;
-	bucket_unlock(g);
-
-	bch2_dev_usage_update_m(c, ca, old, new, journal_seq, true);
 err:
+	bucket_unlock(g);
+	if (!ret)
+		bch2_dev_usage_update_m(c, ca, old, new, journal_seq, true);
 	percpu_up_read(&c->mark_lock);
 	printbuf_exit(&buf);
 	return ret;
@@ -875,29 +879,22 @@ static int bch2_mark_pointer(struct btree_trans *trans,
 
 	percpu_down_read(&c->mark_lock);
 	g = PTR_GC_BUCKET(ca, &p.ptr);
-
 	bucket_lock(g);
 	old = *g;
 
 	bucket_data_type = g->data_type;
-
 	ret = __mark_pointer(trans, k, &p.ptr, sectors,
 			     data_type, g->gen,
 			     &bucket_data_type,
 			     &g->dirty_sectors,
 			     &g->cached_sectors);
-	if (ret) {
-		bucket_unlock(g);
-		goto err;
-	}
-
-	g->data_type = bucket_data_type;
+	if (!ret)
+		g->data_type = bucket_data_type;
 
 	new = *g;
 	bucket_unlock(g);
-
-	bch2_dev_usage_update_m(c, ca, old, new, journal_seq, true);
-err:
+	if (!ret)
+		bch2_dev_usage_update_m(c, ca, old, new, journal_seq, true);
 	percpu_up_read(&c->mark_lock);
 
 	return ret;

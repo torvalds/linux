@@ -194,9 +194,9 @@ bch2_fs_usage_read_short(struct bch_fs *);
 
 void bch2_fs_usage_initialize(struct bch_fs *);
 
-void bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
-			       size_t, enum bch_data_type, unsigned,
-			       struct gc_pos, unsigned);
+int bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
+			      size_t, enum bch_data_type, unsigned,
+			      struct gc_pos, unsigned);
 
 int bch2_mark_alloc(struct btree_trans *, struct bkey_s_c, struct bkey_s_c, unsigned);
 int bch2_mark_extent(struct btree_trans *, struct bkey_s_c, struct bkey_s_c, unsigned);
