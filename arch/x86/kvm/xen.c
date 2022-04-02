@@ -39,8 +39,8 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 	}
 
 	do {
-		ret = kvm_gfn_to_pfn_cache_init(kvm, gpc, NULL, false, true,
-						gpa, PAGE_SIZE, false);
+		ret = kvm_gfn_to_pfn_cache_init(kvm, gpc, NULL, KVM_HOST_USES_PFN,
+						gpa, PAGE_SIZE);
 		if (ret)
 			goto out;
 
@@ -1025,8 +1025,7 @@ static int evtchn_set_fn(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm
 			break;
 
 		idx = srcu_read_lock(&kvm->srcu);
-		rc = kvm_gfn_to_pfn_cache_refresh(kvm, gpc, gpc->gpa,
-						  PAGE_SIZE, false);
+		rc = kvm_gfn_to_pfn_cache_refresh(kvm, gpc, gpc->gpa, PAGE_SIZE);
 		srcu_read_unlock(&kvm->srcu, idx);
 	} while(!rc);
 

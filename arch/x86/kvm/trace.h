@@ -1339,23 +1339,25 @@ TRACE_EVENT(kvm_hv_stimer_cleanup,
 		  __entry->vcpu_id, __entry->timer_index)
 );
 
-TRACE_EVENT(kvm_apicv_update_request,
-	    TP_PROTO(bool activate, unsigned long bit),
-	    TP_ARGS(activate, bit),
+TRACE_EVENT(kvm_apicv_inhibit_changed,
+	    TP_PROTO(int reason, bool set, unsigned long inhibits),
+	    TP_ARGS(reason, set, inhibits),
 
 	TP_STRUCT__entry(
-		__field(bool, activate)
-		__field(unsigned long, bit)
+		__field(int, reason)
+		__field(bool, set)
+		__field(unsigned long, inhibits)
 	),
 
 	TP_fast_assign(
-		__entry->activate = activate;
-		__entry->bit = bit;
+		__entry->reason = reason;
+		__entry->set = set;
+		__entry->inhibits = inhibits;
 	),
 
-	TP_printk("%s bit=%lu",
-		  __entry->activate ? "activate" : "deactivate",
-		  __entry->bit)
+	TP_printk("%s reason=%u, inhibits=0x%lx",
+		  __entry->set ? "set" : "cleared",
+		  __entry->reason, __entry->inhibits)
 );
 
 TRACE_EVENT(kvm_apicv_accept_irq,
