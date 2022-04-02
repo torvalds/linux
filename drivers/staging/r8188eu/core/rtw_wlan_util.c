@@ -760,6 +760,35 @@ void HT_info_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
 	memcpy(&pmlmeinfo->HT_info, pIE->data, pIE->Length);
 }
 
+static void set_min_ampdu_spacing(struct adapter *adapter, u8 spacing)
+{
+	u8 sec_spacing;
+
+	if (spacing <= 7) {
+		switch (adapter->securitypriv.dot11PrivacyAlgrthm) {
+		case _NO_PRIVACY_:
+		case _AES_:
+			sec_spacing = 0;
+			break;
+		case _WEP40_:
+		case _WEP104_:
+		case _TKIP_:
+		case _TKIP_WTMIC_:
+			sec_spacing = 6;
+			break;
+		default:
+			sec_spacing = 7;
+			break;
+		}
+
+		if (spacing < sec_spacing)
+			spacing = sec_spacing;
+
+		rtw_write8(adapter, REG_AMPDU_MIN_SPACE,
+			   (rtw_read8(adapter, REG_AMPDU_MIN_SPACE) & 0xf8) | spacing);
+	}
+}
+
 void HTOnAssocRsp(struct adapter *padapter)
 {
 	unsigned char		max_AMPDU_len;
@@ -784,7 +813,7 @@ void HTOnAssocRsp(struct adapter *padapter)
 
 	min_MPDU_spacing = (pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x1c) >> 2;
 
-	SetHwReg8188EU(padapter, HW_VAR_AMPDU_MIN_SPACE, (u8 *)(&min_MPDU_spacing));
+	set_min_ampdu_spacing(padapter, min_MPDU_spacing);
 
 	SetHwReg8188EU(padapter, HW_VAR_AMPDU_FACTOR, (u8 *)(&max_AMPDU_len));
 }

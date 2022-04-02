@@ -1113,34 +1113,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		haldata->AcParam_BE = ((u32 *)(val))[0];
 		rtw_write32(Adapter, REG_EDCA_BE_PARAM, ((u32 *)(val))[0]);
 		break;
-	case HW_VAR_AMPDU_MIN_SPACE:
-		{
-			u8 MinSpacingToSet;
-			u8 SecMinSpace;
-
-			MinSpacingToSet = *((u8 *)val);
-			if (MinSpacingToSet <= 7) {
-				switch (Adapter->securitypriv.dot11PrivacyAlgrthm) {
-				case _NO_PRIVACY_:
-				case _AES_:
-					SecMinSpace = 0;
-					break;
-				case _WEP40_:
-				case _WEP104_:
-				case _TKIP_:
-				case _TKIP_WTMIC_:
-					SecMinSpace = 6;
-					break;
-				default:
-					SecMinSpace = 7;
-					break;
-				}
-				if (MinSpacingToSet < SecMinSpace)
-					MinSpacingToSet = SecMinSpace;
-				rtw_write8(Adapter, REG_AMPDU_MIN_SPACE, (rtw_read8(Adapter, REG_AMPDU_MIN_SPACE) & 0xf8) | MinSpacingToSet);
-			}
-		}
-		break;
 	case HW_VAR_AMPDU_FACTOR:
 		{
 			u8 RegToSet_Normal[4] = {0x41, 0xa8, 0x72, 0xb9};
