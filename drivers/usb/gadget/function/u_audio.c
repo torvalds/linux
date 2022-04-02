@@ -1197,7 +1197,7 @@ static void g_audio_work(struct work_struct *data)
 	struct g_audio *audio = container_of(data, struct g_audio, work);
 	struct usb_gadget *gadget = audio->gadget;
 	struct snd_uac_chip *uac = audio->uac;
-	struct uac_rtd_params *prm = &uac->c_prm;
+	struct uac_rtd_params *prm;
 	struct device *dev = &gadget->dev;
 	char *uac_event[4]  = { NULL, NULL, NULL, NULL };
 	char srate_str[19];
@@ -1223,6 +1223,7 @@ static void g_audio_work(struct work_struct *data)
 		case SET_SAMPLE_RATE_OUT:
 			uac_event[0] = "USB_STATE=SET_SAMPLE_RATE";
 			uac_event[1] = "STREAM_DIRECTION=OUT";
+			prm = &uac->c_prm;
 			snprintf(srate_str, sizeof(srate_str), "SAMPLE_RATE=%d",
 				 prm->srate);
 			uac_event[2] = srate_str;
@@ -1230,6 +1231,7 @@ static void g_audio_work(struct work_struct *data)
 		case SET_SAMPLE_RATE_IN:
 			uac_event[0] = "USB_STATE=SET_SAMPLE_RATE";
 			uac_event[1] = "STREAM_DIRECTION=IN";
+			prm = &uac->p_prm;
 			snprintf(srate_str, sizeof(srate_str), "SAMPLE_RATE=%d",
 				 prm->srate);
 			uac_event[2] = srate_str;
