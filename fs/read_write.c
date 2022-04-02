@@ -1630,7 +1630,6 @@ int generic_write_checks_count(struct kiocb *iocb, loff_t *count)
 	if (!*count)
 		return 0;
 
-	/* FIXME: this is for backwards compatibility with 2.4 */
 	if (iocb->ki_flags & IOCB_APPEND)
 		iocb->ki_pos = i_size_read(inode);
 

@@ -2112,22 +2112,23 @@ static int invent_group_ids(struct mount *mnt, bool recurse)
 int count_mounts(struct mnt_namespace *ns, struct mount *mnt)
 {
 	unsigned int max = READ_ONCE(sysctl_mount_max);
-	unsigned int mounts = 0, old, pending, sum;
+	unsigned int mounts = 0;
 	struct mount *p;
+
+	if (ns->mounts >= max)
+		return -ENOSPC;
+	max -= ns->mounts;
+	if (ns->pending_mounts >= max)
+		return -ENOSPC;
+	max -= ns->pending_mounts;
 
 	for (p = mnt; p; p = next_mnt(p, mnt))
 		mounts++;
 
-	old = ns->mounts;
-	pending = ns->pending_mounts;
-	sum = old + pending;
-	if ((old > sum) ||
-	    (pending > sum) ||
-	    (max < sum) ||
-	    (mounts > (max - sum)))
+	if (mounts > max)
 		return -ENOSPC;
 
-	ns->pending_mounts = pending + mounts;
+	ns->pending_mounts += mounts;
 	return 0;
 }
 
@@ -2921,7 +2922,7 @@ static int do_move_mount_old(struct path *path, const char *old_name)
  * add a mount into a namespace's mount tree
  */
 static int do_add_mount(struct mount *newmnt, struct mountpoint *mp,
-			struct path *path, int mnt_flags)
+			const struct path *path, int mnt_flags)
 {
 	struct mount *parent = real_mount(path->mnt);
 
@@ -3044,7 +3045,7 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 	return err;
 }
 
-int finish_automount(struct vfsmount *m, struct path *path)
+int finish_automount(struct vfsmount *m, const struct path *path)
 {
 	struct dentry *dentry = path->dentry;
 	struct mountpoint *mp;
