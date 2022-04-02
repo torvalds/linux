@@ -8,6 +8,7 @@
 /dts-v1/;
 #include "r9a07g043.dtsi"
 #include "rzg2ul-smarc-som.dtsi"
+#include "rzg2ul-smarc-pinfunction.dtsi"
 #include "rz-smarc-common.dtsi"
 
 / {
@@ -71,11 +72,6 @@
 
 &phyrst {
 	status = "disabled";
-};
-
-&scif0 {
-	/delete-property/ pinctrl-0;
-	/delete-property/ pinctrl-names;
 };
 
 &sdhi1 {
