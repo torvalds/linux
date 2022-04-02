@@ -7,8 +7,8 @@
 	cam_ircut0: cam_ircut {
 		status = "okay";
 		compatible = "rockchip,ircut";
-		ircut-open-gpios = <&gpio1 RK_PA3 GPIO_ACTIVE_HIGH>;
-		ircut-close-gpios  = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
+		ircut-open-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
+		ircut-close-gpios  = <&gpio1 RK_PA3 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 	};
