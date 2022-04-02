@@ -608,6 +608,9 @@ void amdgpu_cgs_destroy_device(struct cgs_device *cgs_device);
 typedef uint32_t (*amdgpu_rreg_t)(struct amdgpu_device*, uint32_t);
 typedef void (*amdgpu_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
 
+typedef uint32_t (*amdgpu_rreg_ext_t)(struct amdgpu_device*, uint64_t);
+typedef void (*amdgpu_wreg_ext_t)(struct amdgpu_device*, uint64_t, uint32_t);
+
 typedef uint64_t (*amdgpu_rreg64_t)(struct amdgpu_device*, uint32_t);
 typedef void (*amdgpu_wreg64_t)(struct amdgpu_device*, uint32_t, uint64_t);
 
@@ -798,6 +801,8 @@ struct amdgpu_device {
 	amdgpu_wreg_t			pcie_wreg;
 	amdgpu_rreg_t			pciep_rreg;
 	amdgpu_wreg_t			pciep_wreg;
+	amdgpu_rreg_ext_t		pcie_rreg_ext;
+	amdgpu_wreg_ext_t		pcie_wreg_ext;
 	amdgpu_rreg64_t			pcie_rreg64;
 	amdgpu_wreg64_t			pcie_wreg64;
 	/* protects concurrent UVD register access */
@@ -1088,9 +1093,13 @@ uint32_t amdgpu_device_wait_on_rreg(struct amdgpu_device *adev,
 			    uint32_t expected_value, uint32_t mask);
 uint32_t amdgpu_device_rreg(struct amdgpu_device *adev,
 			    uint32_t reg, uint32_t acc_flags);
+u32 amdgpu_device_indirect_rreg_ext(struct amdgpu_device *adev,
+				    u64 reg_addr);
 void amdgpu_device_wreg(struct amdgpu_device *adev,
 			uint32_t reg, uint32_t v,
 			uint32_t acc_flags);
+void amdgpu_device_indirect_wreg_ext(struct amdgpu_device *adev,
+				     u64 reg_addr, u32 reg_data);
 void amdgpu_mm_wreg_mmio_rlc(struct amdgpu_device *adev,
 			     uint32_t reg, uint32_t v);
 void amdgpu_mm_wreg8(struct amdgpu_device *adev, uint32_t offset, uint8_t value);
@@ -1142,6 +1151,8 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define WREG32_PCIE(reg, v) adev->pcie_wreg(adev, (reg), (v))
 #define RREG32_PCIE_PORT(reg) adev->pciep_rreg(adev, (reg))
 #define WREG32_PCIE_PORT(reg, v) adev->pciep_wreg(adev, (reg), (v))
+#define RREG32_PCIE_EXT(reg) adev->pcie_rreg_ext(adev, (reg))
+#define WREG32_PCIE_EXT(reg, v) adev->pcie_wreg_ext(adev, (reg), (v))
 #define RREG64_PCIE(reg) adev->pcie_rreg64(adev, (reg))
 #define WREG64_PCIE(reg, v) adev->pcie_wreg64(adev, (reg), (v))
 #define RREG32_SMC(reg) adev->smc_rreg(adev, (reg))

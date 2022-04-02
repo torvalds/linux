@@ -61,6 +61,7 @@ struct amdgpu_nbio_funcs {
 	u32 (*get_hdp_flush_done_offset)(struct amdgpu_device *adev);
 	u32 (*get_pcie_index_offset)(struct amdgpu_device *adev);
 	u32 (*get_pcie_data_offset)(struct amdgpu_device *adev);
+	u32 (*get_pcie_index_hi_offset)(struct amdgpu_device *adev);
 	u32 (*get_pcie_port_index_offset)(struct amdgpu_device *adev);
 	u32 (*get_pcie_port_data_offset)(struct amdgpu_device *adev);
 	u32 (*get_rev_id)(struct amdgpu_device *adev);

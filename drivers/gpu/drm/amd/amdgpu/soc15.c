@@ -866,6 +866,8 @@ static int soc15_common_early_init(void *handle)
 	adev->smc_wreg = NULL;
 	adev->pcie_rreg = &amdgpu_device_indirect_rreg;
 	adev->pcie_wreg = &amdgpu_device_indirect_wreg;
+	adev->pcie_rreg_ext = &amdgpu_device_indirect_rreg_ext;
+	adev->pcie_wreg_ext = &amdgpu_device_indirect_wreg_ext;
 	adev->pcie_rreg64 = &amdgpu_device_indirect_rreg64;
 	adev->pcie_wreg64 = &amdgpu_device_indirect_wreg64;
 	adev->uvd_ctx_rreg = &soc15_uvd_ctx_rreg;

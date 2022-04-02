@@ -319,6 +319,11 @@ static u32 nbio_v7_9_get_pcie_data_offset(struct amdgpu_device *adev)
 	return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX0_PCIE_DATA2);
 }
 
+static u32 nbio_v7_9_get_pcie_index_hi_offset(struct amdgpu_device *adev)
+{
+	return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX0_PCIE_INDEX2_HI);
+}
+
 const struct nbio_hdp_flush_reg nbio_v7_9_hdp_flush_reg = {
 	.ref_and_mask_cp0 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP0_MASK,
 	.ref_and_mask_cp1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP1_MASK,
@@ -382,6 +387,7 @@ const struct amdgpu_nbio_funcs nbio_v7_9_funcs = {
 	.get_hdp_flush_done_offset = nbio_v7_9_get_hdp_flush_done_offset,
 	.get_pcie_index_offset = nbio_v7_9_get_pcie_index_offset,
 	.get_pcie_data_offset = nbio_v7_9_get_pcie_data_offset,
+	.get_pcie_index_hi_offset = nbio_v7_9_get_pcie_index_hi_offset,
 	.get_rev_id = nbio_v7_9_get_rev_id,
 	.mc_access_enable = nbio_v7_9_mc_access_enable,
 	.get_memsize = nbio_v7_9_get_memsize,
