@@ -194,7 +194,8 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR(dmabuf)) {
-		mpp_err("dma_buf_get fd %d failed\n", fd);
+		ret = PTR_ERR(dmabuf);
+		mpp_err("dma_buf_get fd %d failed(%d)\n", fd, ret);
 		return NULL;
 	}
 	/* A new DMA buffer */
@@ -216,15 +217,15 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 
 	attach = dma_buf_attach(buffer->dmabuf, dma->dev);
 	if (IS_ERR(attach)) {
-		mpp_err("dma_buf_attach fd %d failed\n", fd);
 		ret = PTR_ERR(attach);
+		mpp_err("dma_buf_attach fd %d failed(%d)\n", fd, ret);
 		goto fail_attach;
 	}
 
 	sgt = dma_buf_map_attachment(attach, buffer->dir);
 	if (IS_ERR(sgt)) {
-		mpp_err("dma_buf_map_attachment fd %d failed\n", fd);
 		ret = PTR_ERR(sgt);
+		mpp_err("dma_buf_map_attachment fd %d failed(%d)\n", fd, ret);
 		goto fail_map;
 	}
 	buffer->iova = sg_dma_address(sgt->sgl);
