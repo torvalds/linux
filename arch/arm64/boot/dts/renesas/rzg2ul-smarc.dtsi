@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the RZ/G2UL Type-1 SMARC EVK parts
+ *
+ * Copyright (C) 2022 Renesas Electronics Corp.
+ */
+
+#include "rzg2ul-smarc-som.dtsi"
+#include "rzg2ul-smarc-pinfunction.dtsi"
+#include "rz-smarc-common.dtsi"
+
+&vccq_sdhi1 {
+	gpios = <&pinctrl RZG2L_GPIO(6, 1) GPIO_ACTIVE_HIGH>;
+};
