@@ -1094,18 +1094,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			}
 		}
 		break;
-	case HW_VAR_ACK_PREAMBLE:
-		{
-			u8 regTmp;
-			u8 bShortPreamble = *((bool *)val);
-			/*  Joseph marked out for Netgear 3500 TKIP channel 7 issue.(Temporarily) */
-			regTmp = (haldata->nCur40MhzPrimeSC) << 5;
-			if (bShortPreamble)
-				regTmp |= 0x80;
-
-			rtw_write8(Adapter, REG_RRSR + 2, regTmp);
-		}
-		break;
 	case HW_VAR_DM_FLAG:
 		podmpriv->SupportAbility = *((u8 *)val);
 		break;

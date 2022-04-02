@@ -1304,26 +1304,36 @@ void update_IOT_info(struct adapter *padapter)
 	}
 }
 
+static void set_ack_preamble(struct adapter *adapter, bool short_preamble)
+{
+	struct hal_data_8188e *haldata = &adapter->haldata;
+	u8 val8;
+
+	/*  Joseph marked out for Netgear 3500 TKIP channel 7 issue.(Temporarily) */
+	val8 = haldata->nCur40MhzPrimeSC << 5;
+	if (short_preamble)
+		val8 |= 0x80;
+
+	rtw_write8(adapter, REG_RRSR + 2, val8);
+};
+
 void update_capinfo(struct adapter *Adapter, u16 updateCap)
 {
 	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
-	bool		ShortPreamble;
 
 	/*  Check preamble mode, 2005.01.06, by rcnjko. */
 	/*  Mark to update preamble value forever, 2008.03.18 by lanhsin */
 
 	if (updateCap & cShortPreamble) { /*  Short Preamble */
 		if (pmlmeinfo->preamble_mode != PREAMBLE_SHORT) { /*  PREAMBLE_LONG or PREAMBLE_AUTO */
-			ShortPreamble = true;
 			pmlmeinfo->preamble_mode = PREAMBLE_SHORT;
-			SetHwReg8188EU(Adapter, HW_VAR_ACK_PREAMBLE, (u8 *)&ShortPreamble);
+			set_ack_preamble(Adapter, true);
 		}
 	} else { /*  Long Preamble */
 		if (pmlmeinfo->preamble_mode != PREAMBLE_LONG) {  /*  PREAMBLE_SHORT or PREAMBLE_AUTO */
-			ShortPreamble = false;
 			pmlmeinfo->preamble_mode = PREAMBLE_LONG;
-			SetHwReg8188EU(Adapter, HW_VAR_ACK_PREAMBLE, (u8 *)&ShortPreamble);
+			set_ack_preamble(Adapter, false);
 		}
 	}
 
