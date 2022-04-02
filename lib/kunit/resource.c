@@ -98,11 +98,15 @@ EXPORT_SYMBOL_GPL(kunit_alloc_and_get_resource);
 void kunit_remove_resource(struct kunit *test, struct kunit_resource *res)
 {
 	unsigned long flags;
+	bool was_linked;
 
 	spin_lock_irqsave(&test->lock, flags);
-	list_del(&res->node);
+	was_linked = !list_empty(&res->node);
+	list_del_init(&res->node);
 	spin_unlock_irqrestore(&test->lock, flags);
-	kunit_put_resource(res);
+
+	if (was_linked)
+		kunit_put_resource(res);
 }
 EXPORT_SYMBOL_GPL(kunit_remove_resource);
 
