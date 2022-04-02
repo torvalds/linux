@@ -909,7 +909,7 @@
 					    QORIQ_CLK_PLL_DIV(8)>,
 				 <&clockgen QORIQ_CLK_SYSCLK 0>;
 			clock-names = "ipg", "per";
-			fsl,clk-source = <0>;
+			fsl,clk-source = /bits/ 8 <0>;
 			status = "disabled";
 		};
 
@@ -921,7 +921,7 @@
 					    QORIQ_CLK_PLL_DIV(8)>,
 				 <&clockgen QORIQ_CLK_SYSCLK 0>;
 			clock-names = "ipg", "per";
-			fsl,clk-source = <0>;
+			fsl,clk-source = /bits/ 8 <0>;
 			status = "disabled";
 		};
 
