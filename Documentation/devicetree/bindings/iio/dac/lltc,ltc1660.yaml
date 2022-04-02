@@ -41,7 +41,7 @@ examples:
     spi {
       #address-cells = <1>;
       #size-cells = <0>;
-  
+
       dac@0 {
         compatible = "lltc,ltc1660";
         reg = <0>;

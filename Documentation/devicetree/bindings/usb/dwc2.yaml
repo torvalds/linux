@@ -139,12 +139,12 @@ properties:
 
   snps,need-phy-for-wake:
     $ref: /schemas/types.yaml#/definitions/flag
-    description: If present indicates that the phy needs to be left on for 
+    description: If present indicates that the phy needs to be left on for
       remote wakeup during suspend.
 
   snps,reset-phy-on-wake:
     $ref: /schemas/types.yaml#/definitions/flag
-    description: If present indicates that we need to reset the PHY when we 
+    description: If present indicates that we need to reset the PHY when we
       detect a wakeup. This is due to a hardware errata.
 
   port:

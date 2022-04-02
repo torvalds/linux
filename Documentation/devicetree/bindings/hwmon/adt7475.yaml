@@ -81,4 +81,3 @@ examples:
         adi,pwm-active-state = <1 0 1>;
       };
     };
-

@@ -83,4 +83,3 @@ examples:
             resets = <&sys_rst 14>;
         };
     };
-

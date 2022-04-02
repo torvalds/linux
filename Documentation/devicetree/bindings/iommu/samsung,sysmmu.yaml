@@ -107,4 +107,3 @@ examples:
       power-domains = <&pd_gsc>;
       #iommu-cells = <0>;
     };
-

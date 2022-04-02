@@ -57,4 +57,3 @@ examples:
         #reset-cells = <1>;
         cpu-syscon = <&cpu_ctrl>;
     };
-

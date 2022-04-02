@@ -51,4 +51,3 @@ examples:
           interrupts = <208>, <209>, <210>;
           #mbox-cells = <1>;
     };
-

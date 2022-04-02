@@ -302,7 +302,7 @@ examples:
         pcie0 {
             #size-cells = <2>;
             #address-cells = <3>;
- 
+
             wifi_0: wifi@0 {
                 reg = <0 0 0 0 0>;
                 memory-region = <&qcn9074_0>;
