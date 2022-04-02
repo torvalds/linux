@@ -1121,6 +1121,7 @@ const struct file_operations rga_fops = {
 };
 
 static struct miscdevice rga_dev = {
+	.minor = MISC_DYNAMIC_MINOR,
 	.name = "rga",
 	.fops = &rga_fops,
 };
@@ -1497,13 +1498,13 @@ static int __init rga_init(void)
 		return ret;
 	}
 
-	rga_init_timer();
-
 	ret = misc_register(&rga_dev);
 	if (ret) {
 		pr_err("cannot register miscdev (%d)\n", ret);
 		return ret;
 	}
+
+	rga_init_timer();
 
 	rga_mm_init(&rga_drvdata->mm);
 
