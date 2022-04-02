@@ -356,17 +356,6 @@ config ARCH_FOOTBRIDGE
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
 
-config ARCH_IOP32X
-	bool "IOP32x-based"
-	select CPU_XSCALE
-	select GPIO_IOP
-	select GPIOLIB
-	select FORCE_PCI
-	select PLAT_IOP
-	help
-	  Support for Intel's 80219 and IOP32X (XScale) family of
-	  processors.
-
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	select ARCH_SUPPORTS_BIG_ENDIAN
@@ -686,9 +675,6 @@ config ARCH_MPS2
 
 # Definitions to make life easier
 config ARCH_ACORN
-	bool
-
-config PLAT_IOP
 	bool
 
 config PLAT_ORION
