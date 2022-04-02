@@ -20,6 +20,7 @@
 #include <linux/string.h>
 
 #include "rk_crypto_core.h"
+#include "rk_crypto_utils.h"
 #include "rk_crypto_v1.h"
 #include "rk_crypto_v2.h"
 #include "rk_crypto_v3.h"
@@ -53,56 +54,6 @@ static void rk_crypto_disable_clk(struct rk_crypto_dev *rk_dev)
 	clk_bulk_disable_unprepare(rk_dev->clks_num, rk_dev->clk_bulks);
 }
 
-static int check_scatter_align(struct scatterlist *sg_src,
-			       struct scatterlist *sg_dst,
-			       int align_mask)
-{
-	int in, out, align;
-
-	in = IS_ALIGNED((u32)sg_src->offset, 4) &&
-	     IS_ALIGNED((u32)sg_src->length, align_mask) &&
-	     (sg_phys(sg_src) < SZ_4G);
-	if (!sg_dst)
-		return in;
-
-	out = IS_ALIGNED((u32)sg_dst->offset, 4) &&
-	      IS_ALIGNED((u32)sg_dst->length, align_mask) &&
-	      (sg_phys(sg_dst) < SZ_4G);
-	align = in && out;
-
-	return (align && (sg_src->length == sg_dst->length));
-}
-
-static bool check_scatterlist_align(struct crypto_async_request *async_req,
-				    int align_mask)
-{
-	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(async_req);
-	struct scatterlist *src_tmp = NULL;
-	struct scatterlist *dst_tmp = NULL;
-	unsigned int i;
-
-	if (alg_ctx->req_dst && alg_ctx->src_nents != alg_ctx->dst_nents)
-		return false;
-
-	src_tmp = alg_ctx->req_src;
-	dst_tmp = alg_ctx->req_dst;
-
-	for (i = 0; i < alg_ctx->src_nents; i++) {
-		if (!src_tmp)
-			return false;
-
-		if (!check_scatter_align(src_tmp, dst_tmp, align_mask))
-			return false;
-
-		src_tmp = sg_next(src_tmp);
-
-		if (alg_ctx->req_dst)
-			dst_tmp = sg_next(dst_tmp);
-	}
-
-	return true;
-}
-
 static int rk_load_data(struct rk_crypto_dev *rk_dev,
 			struct scatterlist *sg_src,
 			struct scatterlist *sg_dst)
@@ -119,7 +70,9 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 		return 0;
 
 	if (alg_ctx->left_bytes == alg_ctx->total)
-		alg_ctx->aligned = check_scatterlist_align(rk_dev->async_req, alg_ctx->align_size);
+		alg_ctx->aligned = rk_crypto_check_align(alg_ctx->req_src, alg_ctx->src_nents,
+							 alg_ctx->req_dst, alg_ctx->dst_nents,
+							 alg_ctx->align_size);
 
 	CRYPTO_TRACE("aligned = %d, total = %u, left_bytes = %u\n",
 		     alg_ctx->aligned, alg_ctx->total, alg_ctx->left_bytes);

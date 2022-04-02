@@ -62,3 +62,53 @@ void rk_crypto_read_regs(struct rk_crypto_dev *rk_dev, u32 base_addr, u8 *data, 
 		memcpy(data + i * 4, tmp_buf, bytes % 4);
 	}
 }
+
+static int check_scatter_align(struct scatterlist *sg_src,
+			       struct scatterlist *sg_dst,
+			       int align_mask)
+{
+	int in, out, align;
+
+	in = IS_ALIGNED((u32)sg_src->offset, 4) &&
+	     IS_ALIGNED((u32)sg_src->length, align_mask) &&
+	     (sg_phys(sg_src) < SZ_4G);
+	if (!sg_dst)
+		return in;
+
+	out = IS_ALIGNED((u32)sg_dst->offset, 4) &&
+	      IS_ALIGNED((u32)sg_dst->length, align_mask) &&
+	      (sg_phys(sg_dst) < SZ_4G);
+	align = in && out;
+
+	return (align && (sg_src->length == sg_dst->length));
+}
+
+bool rk_crypto_check_align(struct scatterlist *src_sg, size_t src_nents,
+			   struct scatterlist *dst_sg, size_t dst_nents,
+			   int align_mask)
+{
+	struct scatterlist *src_tmp = NULL;
+	struct scatterlist *dst_tmp = NULL;
+	unsigned int i;
+
+	if (dst_sg && src_nents != dst_nents)
+		return false;
+
+	src_tmp = src_sg;
+	dst_tmp = dst_sg;
+
+	for (i = 0; i < src_nents; i++) {
+		if (!src_tmp)
+			return false;
+
+		if (!check_scatter_align(src_tmp, dst_tmp, align_mask))
+			return false;
+
+		src_tmp = sg_next(src_tmp);
+
+		if (dst_sg)
+			dst_tmp = sg_next(dst_tmp);
+	}
+
+	return true;
+}
