@@ -443,7 +443,7 @@ err_alloc_file:
  *    as a file descriptor by calling dma_buf_fd().
  *
  * 2. Userspace passes this file-descriptors to all drivers it wants this buffer
- *    to share with: First the filedescriptor is converted to a &dma_buf using
+ *    to share with: First the file descriptor is converted to a &dma_buf using
  *    dma_buf_get(). Then the buffer is attached to the device using
  *    dma_buf_attach().
  *
