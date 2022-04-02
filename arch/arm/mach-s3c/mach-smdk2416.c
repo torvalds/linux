@@ -239,6 +239,7 @@ static void __init smdk2416_machine_init(void)
 MACHINE_START(SMDK2416, "SMDK2416")
 	/* Maintainer: Yauhen Kharuzhy <jekhor@gmail.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2416,
 
 	.init_irq	= s3c2416_init_irq,
 	.map_io		= smdk2416_map_io,

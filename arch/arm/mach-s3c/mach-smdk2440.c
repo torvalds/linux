@@ -171,6 +171,7 @@ static void __init smdk2440_machine_init(void)
 MACHINE_START(S3C2440, "SMDK2440")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2440,
 
 	.init_irq	= s3c2440_init_irq,
 	.map_io		= smdk2440_map_io,

@@ -36,7 +36,7 @@
 #include <asm/system_misc.h>
 
 #include "map.h"
-#include <mach/irqs.h>
+#include "irqs.h"
 #include "regs-gpio.h"
 #include "gpio-samsung.h"
 

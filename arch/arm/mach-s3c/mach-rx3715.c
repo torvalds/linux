@@ -204,6 +204,7 @@ static void __init rx3715_init_machine(void)
 MACHINE_START(RX3715, "IPAQ-RX3715")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2440,
 	.map_io		= rx3715_map_io,
 	.reserve	= rx3715_reserve,
 	.init_irq	= s3c2440_init_irq,

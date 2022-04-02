@@ -11,7 +11,7 @@
 #include <linux/of.h>
 
 #include "cpu.h"
-#include <mach/irqs.h>
+#include "irqs.h"
 #include "map.h"
 
 #include "regs-sys-s3c64xx.h"
