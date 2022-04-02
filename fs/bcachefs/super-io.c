@@ -833,6 +833,13 @@ int bch2_write_super(struct bch_fs *c)
 	if (c->opts.nochanges)
 		goto out;
 
+	/*
+	 * Defer writing the superblock until filesystem initialization is
+	 * complete - don't write out a partly initialized superblock:
+	 */
+	if (!BCH_SB_INITIALIZED(c->disk_sb.sb))
+		goto out;
+
 	for_each_online_member(ca, c, i) {
 		__set_bit(ca->dev_idx, sb_written.d);
 		ca->sb_write_error = 0;
