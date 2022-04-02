@@ -229,14 +229,16 @@ int bnxt_xdp_xmit(struct net_device *dev, int num_frames,
 	ring = smp_processor_id() % bp->tx_nr_rings_xdp;
 	txr = &bp->tx_ring[ring];
 
+	if (READ_ONCE(txr->dev_state) == BNXT_DEV_STATE_CLOSING)
+		return -EINVAL;
+
 	if (static_branch_unlikely(&bnxt_xdp_locking_key))
 		spin_lock(&txr->xdp_tx_lock);
 
 	for (i = 0; i < num_frames; i++) {
 		struct xdp_frame *xdp = frames[i];
 
-		if (!txr || !bnxt_tx_avail(bp, txr) ||
-		    !(bp->bnapi[ring]->flags & BNXT_NAPI_FLAG_XDP))
+		if (!bnxt_tx_avail(bp, txr))
 			break;
 
 		mapping = dma_map_single(&pdev->dev, xdp->data, xdp->len,
