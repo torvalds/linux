@@ -145,9 +145,14 @@ static irqreturn_t mipi_irq_hdl(int irq, void *ctx)
 	struct rkisp_device *isp = hw_dev->isp[hw_dev->mipi_dev_id];
 	void __iomem *base = !hw_dev->is_unite ?
 		hw_dev->base_addr : hw_dev->base_next_addr;
+	ktime_t t = 0;
+	s64 us;
 
 	if (hw_dev->is_thunderboot)
 		return IRQ_HANDLED;
+
+	if (rkisp_irq_dbg)
+		t = ktime_get();
 
 	if (hw_dev->isp_ver == ISP_V13 || hw_dev->isp_ver == ISP_V12) {
 		u32 err1, err2, err3;
@@ -185,6 +190,11 @@ static irqreturn_t mipi_irq_hdl(int irq, void *ctx)
 			rkisp_mipi_isr(mis_val, isp);
 	}
 
+	if (rkisp_irq_dbg) {
+		us = ktime_us_delta(ktime_get(), t);
+		v4l2_dbg(0, rkisp_debug, &isp->v4l2_dev,
+			 "%s %lldus\n", __func__, us);
+	}
 	return IRQ_HANDLED;
 }
 
@@ -197,9 +207,14 @@ static irqreturn_t mi_irq_hdl(int irq, void *ctx)
 		hw_dev->base_addr : hw_dev->base_next_addr;
 	u32 mis_val, tx_isr = MI_RAW0_WR_FRAME | MI_RAW1_WR_FRAME |
 		MI_RAW2_WR_FRAME | MI_RAW3_WR_FRAME;
+	ktime_t t = 0;
+	s64 us;
 
 	if (hw_dev->is_thunderboot)
 		return IRQ_HANDLED;
+
+	if (rkisp_irq_dbg)
+		t = ktime_get();
 
 	mis_val = readl(base + CIF_MI_MIS);
 	if (mis_val) {
@@ -209,6 +224,12 @@ static irqreturn_t mi_irq_hdl(int irq, void *ctx)
 			isp = hw_dev->isp[hw_dev->mipi_dev_id];
 			rkisp_mi_isr(mis_val & tx_isr, isp);
 		}
+	}
+
+	if (rkisp_irq_dbg) {
+		us = ktime_us_delta(ktime_get(), t);
+		v4l2_dbg(0, rkisp_debug, &isp->v4l2_dev,
+			 "%s:0x%x %lldus\n", __func__, mis_val, us);
 	}
 	return IRQ_HANDLED;
 }
@@ -221,9 +242,14 @@ static irqreturn_t isp_irq_hdl(int irq, void *ctx)
 	void __iomem *base = !hw_dev->is_unite ?
 		hw_dev->base_addr : hw_dev->base_next_addr;
 	unsigned int mis_val, mis_3a = 0;
+	ktime_t t = 0;
+	s64 us;
 
 	if (hw_dev->is_thunderboot)
 		return IRQ_HANDLED;
+
+	if (rkisp_irq_dbg)
+		t = ktime_get();
 
 	mis_val = readl(base + CIF_ISP_MIS);
 	if (hw_dev->isp_ver == ISP_V20 ||
@@ -234,6 +260,11 @@ static irqreturn_t isp_irq_hdl(int irq, void *ctx)
 	if (mis_val || mis_3a)
 		rkisp_isp_isr(mis_val, mis_3a, isp);
 
+	if (rkisp_irq_dbg) {
+		us = ktime_us_delta(ktime_get(), t);
+		v4l2_dbg(0, rkisp_debug, &isp->v4l2_dev,
+			 "%s:0x%x %lldus\n", __func__, mis_val, us);
+	}
 	return IRQ_HANDLED;
 }
 

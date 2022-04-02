@@ -63,6 +63,10 @@ bool rkisp_monitor;
 module_param_named(monitor, rkisp_monitor, bool, 0644);
 MODULE_PARM_DESC(monitor, "rkisp abnormal restart monitor");
 
+bool rkisp_irq_dbg;
+module_param_named(irq_dbg, rkisp_irq_dbg, bool, 0644);
+MODULE_PARM_DESC(irq_dbg, "rkisp interrupt runtime");
+
 static bool rkisp_clk_dbg;
 module_param_named(clk_dbg, rkisp_clk_dbg, bool, 0644);
 MODULE_PARM_DESC(clk_dbg, "rkisp clk set by user");
