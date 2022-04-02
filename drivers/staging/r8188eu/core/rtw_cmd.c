@@ -293,7 +293,7 @@ post_process:
 				rtw_free_cmd_obj(pcmd);
 			else
 				/* todo: !!! fill rsp_buf to pcmd->rsp if (pcmd->rsp!= NULL) */
-				pcmd_callback(pcmd->padapter, pcmd);/* need conider that free cmd_obj in rtw_cmd_callback */
+				pcmd_callback(pcmd->padapter, pcmd);/* need consider that free cmd_obj in rtw_cmd_callback */
 		} else {
 			rtw_free_cmd_obj(pcmd);
 		}
