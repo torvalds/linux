@@ -1270,6 +1270,33 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void rkcif_hw_shutdown(struct platform_device *pdev)
+{
+	struct rkcif_hw *cif_hw = platform_get_drvdata(pdev);
+	struct rkcif_device *cif_dev = NULL;
+	int i = 0;
+
+	if (cif_hw->chip_id == CHIP_RK3588_CIF ||
+	    cif_hw->chip_id == CHIP_RV1106_CIF) {
+		write_cif_reg(cif_hw->base_addr, 0, 0);
+	} else {
+		for (i = 0; i < cif_hw->dev_num; i++) {
+			cif_dev = cif_hw->cif_dev[i];
+			if (atomic_read(&cif_dev->pipe.stream_cnt)) {
+				if (cif_dev->inf_id == RKCIF_MIPI_LVDS)
+					rkcif_write_register(cif_dev,
+							     CIF_REG_MIPI_LVDS_CTRL,
+							     0);
+				else
+					rkcif_write_register(cif_dev,
+							     CIF_REG_DVP_CTRL,
+							     0);
+			}
+		}
+	}
+	disable_irq(cif_hw->irq);
+}
+
 static int __maybe_unused rkcif_runtime_suspend(struct device *dev)
 {
 	struct rkcif_hw *cif_hw = dev_get_drvdata(dev);
@@ -1306,6 +1333,7 @@ static struct platform_driver rkcif_hw_plat_drv = {
 	},
 	.probe = rkcif_plat_hw_probe,
 	.remove = rkcif_plat_remove,
+	.shutdown = rkcif_hw_shutdown,
 };
 
 static int __init rk_cif_plat_drv_init(void)

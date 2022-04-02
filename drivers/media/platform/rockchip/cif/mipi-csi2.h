@@ -147,8 +147,10 @@ struct csi2_dev {
 	const struct csi2_match_data	*match_data;
 	int			num_sensors;
 	atomic_t		frm_sync_seq;
-	struct csi2_err_stats err_list[RK_CSI2_ERR_MAX];
-	bool is_check_sot_sync;
+	struct csi2_err_stats	err_list[RK_CSI2_ERR_MAX];
+	int			irq1;
+	int			irq2;
+	bool			is_check_sot_sync;
 };
 
 u32 rkcif_csi2_get_sof(struct csi2_dev *csi2_dev);
