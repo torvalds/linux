@@ -1021,7 +1021,7 @@ static int perf_top__start_counters(struct perf_top *top)
 
 	evlist__for_each_entry(evlist, counter) {
 try_again:
-		if (evsel__open(counter, top->evlist->core.cpus,
+		if (evsel__open(counter, top->evlist->core.user_requested_cpus,
 				     top->evlist->core.threads) < 0) {
 
 			/*
