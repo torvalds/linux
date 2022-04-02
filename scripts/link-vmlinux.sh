@@ -50,7 +50,7 @@ gen_initcalls()
 {
 	info GEN .tmp_initcalls.lds
 
-	${PYTHON} ${srctree}/scripts/jobserver-exec		\
+	${PYTHON3} ${srctree}/scripts/jobserver-exec		\
 	${PERL} ${srctree}/scripts/generate_initcall_order.pl	\
 		${KBUILD_VMLINUX_OBJS} ${KBUILD_VMLINUX_LIBS}	\
 		> .tmp_initcalls.lds
