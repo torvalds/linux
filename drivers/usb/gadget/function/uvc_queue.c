@@ -345,8 +345,6 @@ void uvcg_complete_buffer(struct uvc_video_queue *queue,
 		return;
 	}
 
-	list_del(&buf->queue);
-
 	buf->buf.field = V4L2_FIELD_NONE;
 	buf->buf.sequence = queue->sequence++;
 	buf->buf.vb2_buf.timestamp = ktime_get_ns();
