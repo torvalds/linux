@@ -171,22 +171,24 @@ static void chipone_configure_pll(struct chipone *icn,
 				  const struct drm_display_mode *mode)
 {
 	unsigned int best_p = 0, best_m = 0, best_s = 0;
+	unsigned int mode_clock = mode->clock * 1000;
 	unsigned int delta, min_delta = 0xffffffff;
 	unsigned int freq_p, freq_s, freq_out;
 	unsigned int p_min, p_max;
 	unsigned int p, m, s;
 	unsigned int fin;
+	bool best_p_pot;
+	u8 ref_div;
 
 	/*
-	 * DSI clock lane frequency (input into PLL) is calculated as:
-	 *  DSI_CLK = mode clock * bpp / dsi_data_lanes / 2
-	 * the 2 is there because the bus is DDR.
+	 * DSI byte clock frequency (input into PLL) is calculated as:
+	 *  DSI_CLK = mode clock * bpp / dsi_data_lanes / 8
 	 *
 	 * DPI pixel clock frequency (output from PLL) is mode clock.
 	 *
 	 * The chip contains fractional PLL which works as follows:
 	 *  DPI_CLK = ((DSI_CLK / P) * M) / S
-	 * P is pre-divider, register PLL_REF_DIV[3:0] is 2^(n+1) divider
+	 * P is pre-divider, register PLL_REF_DIV[3:0] is 1:n divider
 	 *                   register PLL_REF_DIV[4] is extra 1:2 divider
 	 * M is integer multiplier, register PLL_INT(0) is multiplier
 	 * S is post-divider, register PLL_REF_DIV[7:5] is 2^(n+1) divider
@@ -194,15 +196,17 @@ static void chipone_configure_pll(struct chipone *icn,
 	 * It seems the PLL input clock after applying P pre-divider have
 	 * to be lower than 20 MHz.
 	 */
-	fin = mode->clock * mipi_dsi_pixel_format_to_bpp(icn->dsi->format) /
-	      icn->dsi->lanes / 2; /* in kHz */
+	fin = mode_clock * mipi_dsi_pixel_format_to_bpp(icn->dsi->format) /
+	      icn->dsi->lanes / 8; /* in Hz */
 
 	/* Minimum value of P predivider for PLL input in 5..20 MHz */
-	p_min = ffs(fin / 20000);
-	p_max = (fls(fin / 5000) - 1) & 0x1f;
+	p_min = clamp(DIV_ROUND_UP(fin, 20000000), 1U, 31U);
+	p_max = clamp(fin / 5000000, 1U, 31U);
 
 	for (p = p_min; p < p_max; p++) {	/* PLL_REF_DIV[4,3:0] */
-		freq_p = fin / BIT(p + 1);
+		if (p > 16 && p & 1)		/* P > 16 uses extra /2 */
+			continue;
+		freq_p = fin / p;
 		if (freq_p == 0)		/* Divider too high */
 			break;
 
@@ -211,21 +215,21 @@ static void chipone_configure_pll(struct chipone *icn,
 			if (freq_s == 0)	/* Divider too high */
 				break;
 
-			m = mode->clock / freq_s;
+			m = mode_clock / freq_s;
 
 			/* Multiplier is 8 bit */
 			if (m > 0xff)
 				continue;
 
 			/* Limit PLL VCO frequency to 1 GHz */
-			freq_out = (fin * m) / BIT(p + 1);
-			if (freq_out > 1000000)
+			freq_out = (fin * m) / p;
+			if (freq_out > 1000000000)
 				continue;
 
 			/* Apply post-divider */
 			freq_out /= BIT(s + 1);
 
-			delta = abs(mode->clock - freq_out);
+			delta = abs(mode_clock - freq_out);
 			if (delta < min_delta) {
 				best_p = p;
 				best_m = m;
@@ -235,17 +239,20 @@ static void chipone_configure_pll(struct chipone *icn,
 		}
 	}
 
+	best_p_pot = !(best_p & 1);
+
 	dev_dbg(icn->dev,
-		"PLL: P[3:0]=2^%d P[4]=2*%d M=%d S[7:5]=2^%d delta=%d => DSI f_in=%d kHz ; DPI f_out=%ld kHz\n",
-		best_p, !!best_p, best_m, best_s + 1, min_delta, fin,
-		(fin * best_m) / BIT(best_p + best_s + 2));
+		"PLL: P[3:0]=%d P[4]=2*%d M=%d S[7:5]=2^%d delta=%d => DSI f_in=%d Hz ; DPI f_out=%d Hz\n",
+		best_p >> best_p_pot, best_p_pot, best_m, best_s + 1,
+		min_delta, fin, (fin * best_m) / (best_p << (best_s + 1)));
+
+	ref_div = PLL_REF_DIV_P(best_p >> best_p_pot) | PLL_REF_DIV_S(best_s);
+	if (best_p_pot)	/* Prefer /2 pre-divider */
+		ref_div |= PLL_REF_DIV_Pe;
 
 	/* Clock source selection fixed to MIPI DSI clock lane */
 	chipone_writeb(icn, PLL_CTRL(6), PLL_CTRL_6_MIPI_CLK);
-	chipone_writeb(icn, PLL_REF_DIV,
-		       /* Prefer /2 pre-divider */
-		       (best_p ? PLL_REF_DIV_Pe : 0) |
-		       PLL_REF_DIV_P(best_p) | PLL_REF_DIV_S(best_s));
+	chipone_writeb(icn, PLL_REF_DIV, ref_div);
 	chipone_writeb(icn, PLL_INT(0), best_m);
 }
 
