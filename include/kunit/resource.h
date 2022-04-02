@@ -25,11 +25,13 @@ typedef void (*kunit_resource_free_t)(struct kunit_resource *);
  * struct kunit_resource - represents a *test managed resource*
  * @data: for the user to store arbitrary data.
  * @name: optional name
- * @free: a user supplied function to free the resource. Populated by
- * kunit_resource_alloc().
+ * @free: a user supplied function to free the resource.
  *
  * Represents a *test managed resource*, a resource which will automatically be
- * cleaned up at the end of a test case.
+ * cleaned up at the end of a test case. This cleanup is performed by the 'free'
+ * function. The struct kunit_resource itself is freed automatically with
+ * kfree() if it was allocated by KUnit (e.g., by kunit_alloc_resource()), but
+ * must be freed by the user otherwise.
  *
  * Resources are reference counted so if a resource is retrieved via
  * kunit_alloc_and_get_resource() or kunit_find_resource(), we need
@@ -86,17 +88,8 @@ struct kunit_resource {
 	/* private: internal use only. */
 	struct kref refcount;
 	struct list_head node;
+	bool should_kfree;
 };
-
-/*
- * Like kunit_alloc_resource() below, but returns the struct kunit_resource
- * object that contains the allocation. This is mostly for testing purposes.
- */
-struct kunit_resource *kunit_alloc_and_get_resource(struct kunit *test,
-						    kunit_resource_init_t init,
-						    kunit_resource_free_t free,
-						    gfp_t internal_gfp,
-						    void *context);
 
 /**
  * kunit_get_resource() - Hold resource for use.  Should not need to be used
@@ -118,11 +111,14 @@ static inline void kunit_release_resource(struct kref *kref)
 	struct kunit_resource *res = container_of(kref, struct kunit_resource,
 						  refcount);
 
-	/* If free function is defined, resource was dynamically allocated. */
-	if (res->free) {
+	if (res->free)
 		res->free(res);
+
+	/* 'res' is valid here, as if should_kfree is set, res->free may not free
+	 * 'res' itself, just res->data
+	 */
+	if (res->should_kfree)
 		kfree(res);
-	}
 }
 
 /**
@@ -143,6 +139,24 @@ static inline void kunit_put_resource(struct kunit_resource *res)
 }
 
 /**
+ * __kunit_add_resource() - Internal helper to add a resource.
+ *
+ * res->should_kfree is not initialised.
+ * @test: The test context object.
+ * @init: a user-supplied function to initialize the result (if needed).  If
+ *        none is supplied, the resource data value is simply set to @data.
+ *	  If an init function is supplied, @data is passed to it instead.
+ * @free: a user-supplied function to free the resource (if needed).
+ * @res: The resource.
+ * @data: value to pass to init function or set in resource data field.
+ */
+int __kunit_add_resource(struct kunit *test,
+			 kunit_resource_init_t init,
+			 kunit_resource_free_t free,
+			 struct kunit_resource *res,
+			 void *data);
+
+/**
  * kunit_add_resource() - Add a *test managed resource*.
  * @test: The test context object.
  * @init: a user-supplied function to initialize the result (if needed).  If
@@ -152,11 +166,18 @@ static inline void kunit_put_resource(struct kunit_resource *res)
  * @res: The resource.
  * @data: value to pass to init function or set in resource data field.
  */
-int kunit_add_resource(struct kunit *test,
-		       kunit_resource_init_t init,
-		       kunit_resource_free_t free,
-		       struct kunit_resource *res,
-		       void *data);
+static inline int kunit_add_resource(struct kunit *test,
+				     kunit_resource_init_t init,
+				     kunit_resource_free_t free,
+				     struct kunit_resource *res,
+				     void *data)
+{
+	res->should_kfree = false;
+	return __kunit_add_resource(test, init, free, res, data);
+}
+
+static inline struct kunit_resource *
+kunit_find_named_resource(struct kunit *test, const char *name);
 
 /**
  * kunit_add_named_resource() - Add a named *test managed resource*.
@@ -167,18 +188,84 @@ int kunit_add_resource(struct kunit *test,
  * @name: name to be set for resource.
  * @data: value to pass to init function or set in resource data field.
  */
-int kunit_add_named_resource(struct kunit *test,
+static inline int kunit_add_named_resource(struct kunit *test,
+					   kunit_resource_init_t init,
+					   kunit_resource_free_t free,
+					   struct kunit_resource *res,
+					   const char *name,
+					   void *data)
+{
+	struct kunit_resource *existing;
+
+	if (!name)
+		return -EINVAL;
+
+	existing = kunit_find_named_resource(test, name);
+	if (existing) {
+		kunit_put_resource(existing);
+		return -EEXIST;
+	}
+
+	res->name = name;
+	res->should_kfree = false;
+
+	return __kunit_add_resource(test, init, free, res, data);
+}
+
+/**
+ * kunit_alloc_and_get_resource() - Allocates and returns a *test managed resource*.
+ * @test: The test context object.
+ * @init: a user supplied function to initialize the resource.
+ * @free: a user supplied function to free the resource (if needed).
+ * @internal_gfp: gfp to use for internal allocations, if unsure, use GFP_KERNEL
+ * @context: for the user to pass in arbitrary data to the init function.
+ *
+ * Allocates a *test managed resource*, a resource which will automatically be
+ * cleaned up at the end of a test case. See &struct kunit_resource for an
+ * example.
+ *
+ * This is effectively identical to kunit_alloc_resource, but returns the
+ * struct kunit_resource pointer, not just the 'data' pointer. It therefore
+ * also increments the resource's refcount, so kunit_put_resource() should be
+ * called when you've finished with it.
+ *
+ * Note: KUnit needs to allocate memory for a kunit_resource object. You must
+ * specify an @internal_gfp that is compatible with the use context of your
+ * resource.
+ */
+static inline struct kunit_resource *
+kunit_alloc_and_get_resource(struct kunit *test,
 			     kunit_resource_init_t init,
 			     kunit_resource_free_t free,
-			     struct kunit_resource *res,
-			     const char *name,
-			     void *data);
+			     gfp_t internal_gfp,
+			     void *context)
+{
+	struct kunit_resource *res;
+	int ret;
+
+	res = kzalloc(sizeof(*res), internal_gfp);
+	if (!res)
+		return NULL;
+
+	res->should_kfree = true;
+
+	ret = __kunit_add_resource(test, init, free, res, context);
+	if (!ret) {
+		/*
+		 * bump refcount for get; kunit_resource_put() should be called
+		 * when done.
+		 */
+		kunit_get_resource(res);
+		return res;
+	}
+	return NULL;
+}
 
 /**
  * kunit_alloc_resource() - Allocates a *test managed resource*.
  * @test: The test context object.
  * @init: a user supplied function to initialize the resource.
- * @free: a user supplied function to free the resource.
+ * @free: a user supplied function to free the resource (if needed).
  * @internal_gfp: gfp to use for internal allocations, if unsure, use GFP_KERNEL
  * @context: for the user to pass in arbitrary data to the init function.
  *
@@ -202,7 +289,8 @@ static inline void *kunit_alloc_resource(struct kunit *test,
 	if (!res)
 		return NULL;
 
-	if (!kunit_add_resource(test, init, free, res, context))
+	res->should_kfree = true;
+	if (!__kunit_add_resource(test, init, free, res, context))
 		return res->data;
 
 	return NULL;
