@@ -357,22 +357,6 @@ config ARCH_FOOTBRIDGE
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
 
-config ARCH_IXP4XX
-	bool "IXP4xx-based"
-	depends on CPU_BIG_ENDIAN
-	select ARM_PATCH_PHYS_VIRT
-	select CPU_XSCALE
-	select GPIO_IXP4XX
-	select GPIOLIB
-	select HAVE_PCI
-	select IXP4XX_IRQ
-	select IXP4XX_TIMER
-	select SPARSE_IRQ
-	select USB_EHCI_BIG_ENDIAN_DESC
-	select USB_EHCI_BIG_ENDIAN_MMIO
-	help
-	  Support for Intel's IXP4XX (XScale) family of processors.
-
 config ARCH_PXA
 	bool "PXA2xx/PXA3xx-based"
 	depends on CPU_LITTLE_ENDIAN
