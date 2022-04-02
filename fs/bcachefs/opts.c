@@ -324,7 +324,7 @@ void bch2_opt_to_text(struct printbuf *out,
 		if (flags & OPT_SHOW_FULL_LIST)
 			bch2_string_opt_to_text(out, opt->choices, v);
 		else
-			pr_buf(out, opt->choices[v]);
+			pr_buf(out, "%s", opt->choices[v]);
 		break;
 	case BCH_OPT_FN:
 		opt->to_text(out, c, sb, v);

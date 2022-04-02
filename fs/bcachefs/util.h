@@ -388,7 +388,7 @@ static inline void pr_uuid(struct printbuf *out, u8 *uuid)
 	char uuid_str[40];
 
 	uuid_unparse_lower(uuid, uuid_str);
-	pr_buf(out, uuid_str);
+	pr_buf(out, "%s", uuid_str);
 }
 
 int bch2_strtoint_h(const char *, int *);
