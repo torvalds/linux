@@ -181,7 +181,6 @@ config MACH_AML_M5900
 
 config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
-	select ISA
 	select MACH_BAST_IDE
 	select S3C2410_COMMON_DCLK
 	select S3C2410_IOTIMING if ARM_S3C2410_CPUFREQ

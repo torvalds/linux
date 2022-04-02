@@ -67,11 +67,6 @@ static struct map_desc vr1000_iodesc[] __initdata = {
 	  .pfn		= PA_CS2(BAST_PA_ISAIO),
 	  .length	= SZ_16M,
 	  .type		= MT_DEVICE,
-  }, {
-	  .virtual	= (u32)S3C24XX_VA_ISA_WORD,
-	  .pfn		= PA_CS3(BAST_PA_ISAIO),
-	  .length	= SZ_16M,
-	  .type		= MT_DEVICE,
   },
 
   /*  CPLD control registers, and external interrupt controls */

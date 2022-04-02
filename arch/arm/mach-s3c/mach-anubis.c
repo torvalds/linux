@@ -57,11 +57,6 @@ static struct map_desc anubis_iodesc[] __initdata = {
 	.pfn		= __phys_to_pfn(0x0),
 	.length		= SZ_4M,
 	.type		= MT_DEVICE,
-  }, {
-	.virtual	= (u32)S3C24XX_VA_ISA_WORD,
-	.pfn		= __phys_to_pfn(0x0),
-	.length 	= SZ_4M,
-	.type		= MT_DEVICE,
   },
 
   /* we could possibly compress the next set down into a set of smaller tables
