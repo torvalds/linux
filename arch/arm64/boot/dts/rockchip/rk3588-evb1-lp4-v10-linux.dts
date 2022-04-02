@@ -15,6 +15,20 @@
 	compatible = "rockchip,rk3588-evb1-lp4-v10", "rockchip,rk3588";
 };
 
+&route_hdmi0 {
+	status = "okay";
+	connect = <&vp0_out_hdmi0>;
+	/delete-property/ force-output;
+	/delete-node/ force_timing;
+};
+
+&route_hdmi1 {
+	status = "okay";
+	connect = <&vp1_out_hdmi1>;
+	/delete-property/ force-output;
+	/delete-node/ force_timing;
+};
+
 &vcc_1v8_s0 {
 	/delete-property/ regulator-state-mem;
 	regulator-state-mem {
