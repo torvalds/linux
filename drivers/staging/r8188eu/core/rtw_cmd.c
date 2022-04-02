@@ -1082,7 +1082,13 @@ exit:
 
 static void antenna_select_wk_hdl(struct adapter *padapter, u8 antenna)
 {
-	SetHwReg8188EU(padapter, HW_VAR_ANTENNA_DIVERSITY_SELECT, (u8 *)(&antenna));
+	struct hal_data_8188e *haldata = &padapter->haldata;
+
+	/* switch current antenna to optimum antenna */
+	if (haldata->CurAntenna != antenna) {
+		ODM_UpdateRxIdleAnt_88E(&haldata->odmpriv, antenna == 2 ? MAIN_ANT : AUX_ANT);
+		haldata->CurAntenna = antenna;
+	}
 }
 
 u8 rtw_antenna_select_cmd(struct adapter *padapter, u8 antenna, u8 enqueue)

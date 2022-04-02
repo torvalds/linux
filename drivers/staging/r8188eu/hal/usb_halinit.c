@@ -1181,19 +1181,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			ODM_RA_Set_TxRPT_Time(podmpriv, min_rpt_time);
 		}
 		break;
-	case HW_VAR_ANTENNA_DIVERSITY_SELECT:
-		{
-			u8 Optimum_antenna = (*(u8 *)val);
-			u8 Ant;
-			/* switch antenna to Optimum_antenna */
-			if (haldata->CurAntenna !=  Optimum_antenna) {
-				Ant = (Optimum_antenna == 2) ? MAIN_ANT : AUX_ANT;
-				ODM_UpdateRxIdleAnt_88E(&haldata->odmpriv, Ant);
-
-				haldata->CurAntenna = Optimum_antenna;
-			}
-		}
-		break;
 	case HW_VAR_FIFO_CLEARN_UP:
 		{
 			struct pwrctrl_priv *pwrpriv = &Adapter->pwrctrlpriv;
