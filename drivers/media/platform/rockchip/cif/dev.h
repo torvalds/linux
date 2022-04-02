@@ -490,6 +490,8 @@ struct rkcif_stream {
 	struct list_head		rx_buf_head;
 	int				buf_num_toisp;
 	u64				line_int_cnt;
+	int				lack_buf_cnt;
+	bool				is_stop_dma;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
