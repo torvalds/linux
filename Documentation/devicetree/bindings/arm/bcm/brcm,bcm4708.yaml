@@ -83,8 +83,13 @@ properties:
               - brcm,bcm953012er
               - brcm,bcm953012hr
               - brcm,bcm953012k
-              - meraki,mr32
           - const: brcm,bcm53012
+          - const: brcm,bcm4708
+
+      - description: BCM53016 based boards
+        items:
+          - enum:
+              - meraki,mr32
           - const: brcm,bcm53016
           - const: brcm,bcm4708
 
