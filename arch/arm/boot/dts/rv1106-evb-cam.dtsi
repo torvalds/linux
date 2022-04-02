@@ -50,6 +50,11 @@
 				remote-endpoint = <&os04a10_out>;
 				data-lanes = <1 2>;
 			};
+			csi_dphy_input4: endpoint@4 {
+				reg = <4>;
+				remote-endpoint = <&jx_k17_out>;
+				data-lanes = <1 2>;
+			};
 		};
 
 		port@1 {
@@ -155,6 +160,28 @@
 		port {
 			os04a10_out: endpoint {
 				remote-endpoint = <&csi_dphy_input3>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	jx_k17: jx_k17@40 {
+		compatible = "soi,jx_k17";
+		status = "okay";
+		reg = <0x40>;
+		clocks = <&cru MCLK_REF_MIPI0>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipi_refclk_out0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "T3801-A";
+		rockchip,camera-module-lens-name = "22IRC-5M-F18";
+		port {
+			jx_k17_out: endpoint {
+				remote-endpoint = <&csi_dphy_input4>;
 				data-lanes = <1 2>;
 			};
 		};
