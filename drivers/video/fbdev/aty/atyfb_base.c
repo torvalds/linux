@@ -79,7 +79,6 @@
 
 #ifdef __powerpc__
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include "../macmodes.h"
 #endif
 #ifdef __sparc__
