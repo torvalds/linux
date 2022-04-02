@@ -480,6 +480,7 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 			return NULL;
 		}
 	} else {
+		job->core = rga_drvdata->scheduler[0]->core;
 		job->scheduler = rga_drvdata->scheduler[0];
 	}
 
