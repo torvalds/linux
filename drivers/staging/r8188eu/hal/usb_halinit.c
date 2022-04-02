@@ -942,17 +942,6 @@ static void hw_var_set_opmode(struct adapter *Adapter, u8 *val)
 	}
 }
 
-static void hw_var_set_bssid(struct adapter *Adapter, u8 *val)
-{
-	u8 idx = 0;
-	u32 reg_bssid;
-
-	reg_bssid = REG_BSSID;
-
-	for (idx = 0; idx < 6; idx++)
-		rtw_write8(Adapter, (reg_bssid + idx), val[idx]);
-}
-
 void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 {
 	struct hal_data_8188e *haldata = &Adapter->haldata;
@@ -962,9 +951,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 	switch (variable) {
 	case HW_VAR_SET_OPMODE:
 		hw_var_set_opmode(Adapter, val);
-		break;
-	case HW_VAR_BSSID:
-		hw_var_set_bssid(Adapter, val);
 		break;
 	case HW_VAR_BASIC_RATE:
 		{
