@@ -518,9 +518,9 @@ static const struct rockchip_rgb_data rv1126_rgb = {
 static void rv1106_rgb_enable(struct rockchip_rgb *rgb)
 {
 	regmap_write(rgb->grf, RV1106_VENC_GRF_VOP_IO_WRAPPER,
-		     RV1106_IO_BYPASS_SEL(rgb->data_sync_bypass) ? 0x3 : 0x0);
+		     RV1106_IO_BYPASS_SEL(rgb->data_sync_bypass ? 0x3 : 0x0));
 	regmap_write(rgb->grf, RV1106_VOGRF_VOP_PIPE_BYPASS,
-		     RV1106_VOP_PIPE_BYPASS(rgb->data_sync_bypass) ? 0x3 : 0x0);
+		     RV1106_VOP_PIPE_BYPASS(rgb->data_sync_bypass ? 0x3 : 0x0));
 }
 
 static const struct rockchip_rgb_funcs rv1106_rgb_funcs = {
