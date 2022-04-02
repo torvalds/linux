@@ -5,8 +5,10 @@
   add_device_randomness
   add_memory
   add_memory_subsection
+  add_swap_extent
   add_taint
   add_timer
+  add_to_page_cache_lru
   add_uevent_var
   add_wait_queue
   adjust_managed_page_count
@@ -148,6 +150,7 @@
   class_interface_unregister
   __class_register
   class_unregister
+  __cleancache_get_page
   cleanup_srcu_struct
   clear_page
   __ClearPageMovable
@@ -222,6 +225,7 @@
   config_group_init_type_name
   config_item_get
   config_item_put
+  congestion_wait
   console_drivers
   console_printk
   console_stop
@@ -857,6 +861,9 @@
   __fdget
   fd_install
   fget
+  filemap_allow_speculation
+  filemap_check_errors
+  filemap_map_pages
   filp_close
   filp_open_block
   find_get_pid
@@ -921,6 +928,7 @@
   fwnode_property_read_u32_array
   fwnode_property_read_u64_array
   gcd
+  generate_random_uuid
   generic_device_group
   generic_file_llseek
   generic_handle_irq
@@ -1302,6 +1310,7 @@
   kobj_sysfs_ops
   krealloc
   kset_create_and_add
+  kset_register
   ksize
   ksoftirqd
   kstat
@@ -1388,6 +1397,7 @@
   lzorle1x_1_compress
   match_hex
   match_int
+  match_strdup
   match_string
   match_token
   mbox_chan_received_data
@@ -1450,7 +1460,10 @@
   __memset_io
   memstart_addr
   memunmap
+  migrate_page_copy
+  migrate_page_move_mapping
   migrate_pages
+  migrate_page_states
   migrate_swap
   mii_check_media
   mii_ethtool_get_link_ksettings
@@ -1675,9 +1688,17 @@
   on_each_cpu_cond
   oops_in_progress
   overflowuid
+  page_cache_ra_unbounded
+  page_cache_sync_ra
+  pagecache_write_begin
+  pagecache_write_end
   page_endio
+  __page_file_index
+  __page_file_mapping
+  page_get_link
   page_mapping
   __page_pinner_migration_failed
+  page_symlink
   panic
   panic_notifier_list
   panic_timeout
@@ -1732,6 +1753,11 @@
   pci_write_config_dword
   pcpu_nr_pages
   PDE_DATA
+  percpu_counter_add_batch
+  percpu_counter_destroy
+  __percpu_counter_init
+  percpu_counter_set
+  __percpu_counter_sum
   __per_cpu_offset
   per_cpu_ptr_to_phys
   perf_aux_output_begin
@@ -1905,10 +1931,12 @@
   qcom_smem_state_update_bits
   queue_delayed_work_on
   queue_work_on
+  radix_tree_gang_lookup
   radix_tree_insert
   radix_tree_iter_delete
   radix_tree_lookup
   radix_tree_next_chunk
+  radix_tree_preload
   ___ratelimit
   rational_best_approximation
   raw_notifier_call_chain
@@ -1957,6 +1985,7 @@
   rdev_get_drvdata
   rdev_get_id
   rdev_get_regmap
+  read_cache_page_gfp
   reboot_mode
   refcount_dec_and_lock
   refcount_dec_not_one
@@ -2948,6 +2977,8 @@
   trace_seq_printf
   trace_seq_putc
   tracing_off
+  truncate_inode_pages_range
+  truncate_pagecache_range
   try_module_get
   try_to_free_mem_cgroup_pages
   try_wait_for_completion
@@ -3170,6 +3201,11 @@
   usb_unregister_notify
   __usecs_to_jiffies
   usleep_range
+  utf8_casefold
+  utf8_load
+  utf8s_to_utf16s
+  utf8_strncasecmp_folded
+  utf8_unload
   uuid_null
   v4l2_async_notifier_add_fwnode_subdev
   v4l2_async_notifier_add_subdev
@@ -3318,6 +3354,7 @@
   vm_map_pages
   vm_map_ram
   vm_node_stat
+  vm_unmap_aliases
   vm_unmapped_area
   vm_unmap_ram
   vm_zone_stat
@@ -3332,10 +3369,13 @@
   wait_for_completion
   wait_for_completion_interruptible
   wait_for_completion_interruptible_timeout
+  wait_for_completion_io
   wait_for_completion_io_timeout
   wait_for_completion_killable
   wait_for_completion_killable_timeout
   wait_for_completion_timeout
+  wait_for_stable_page
+  wait_on_page_writeback
   wait_woken
   __wake_up
   wake_up_if_idle
@@ -3359,10 +3399,12 @@
   ww_mutex_lock
   ww_mutex_unlock
   __xa_alloc
+  __xa_clear_mark
   xa_destroy
   xa_erase
   xa_find
   xa_find_after
+  xa_get_mark
   xa_load
   xa_store
   xhci_add_endpoint
