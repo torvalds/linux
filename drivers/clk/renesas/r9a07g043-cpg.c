@@ -112,6 +112,8 @@ static struct rzg2l_mod_clk r9a07g043_mod_clks[] = {
 				0x588, 0),
 	DEF_MOD("sci1",		R9A07G043_SCI1_CLKP, R9A07G043_CLK_P0,
 				0x588, 1),
+	DEF_MOD("gpio",		R9A07G043_GPIO_HCLK, R9A07G043_OSCCLK,
+				0x598, 0),
 };
 
 static struct rzg2l_reset r9a07g043_resets[] = {
@@ -127,6 +129,9 @@ static struct rzg2l_reset r9a07g043_resets[] = {
 	DEF_RST(R9A07G043_SCIF4_RST_SYSTEM_N, 0x884, 4),
 	DEF_RST(R9A07G043_SCI0_RST, 0x888, 0),
 	DEF_RST(R9A07G043_SCI1_RST, 0x888, 1),
+	DEF_RST(R9A07G043_GPIO_RSTN, 0x898, 0),
+	DEF_RST(R9A07G043_GPIO_PORT_RESETN, 0x898, 1),
+	DEF_RST(R9A07G043_GPIO_SPARE_RESETN, 0x898, 2),
 };
 
 static const unsigned int r9a07g043_crit_mod_clks[] __initconst = {
