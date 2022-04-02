@@ -15,3 +15,13 @@ static inline bool task_may_not_preempt(struct task_struct *task, int cpu)
 {
 	return false;
 }
+
+static inline bool uclamp_boosted(struct task_struct *p)
+{
+	return false;
+}
+
+static inline bool uclamp_latency_sensitive(struct task_struct *p)
+{
+	return false;
+}
