@@ -13,12 +13,12 @@
 #include <linux/slab.h>
 #include <linux/console.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/export.h>
 #include <linux/interrupt.h>
 
 #include <asm/hvconsole.h>
-#include <asm/prom.h>
 #include <asm/firmware.h>
 #include <asm/hvsi.h>
 #include <asm/udbg.h>
