@@ -47,9 +47,6 @@
 #define MAX_FIELD_ARRAY_SIZE 1024
 #define MAX_FIELD_ARG_NAME 256
 
-#define MAX_BPF_COPY_SIZE PAGE_SIZE
-#define MAX_STACK_BPF_DATA 512
-
 static char *register_page_data;
 
 static DEFINE_MUTEX(reg_mutex);
@@ -410,19 +407,6 @@ parse:
 				    type[0] != 'u', FILTER_OTHER);
 }
 
-static void user_event_parse_flags(struct user_event *user, char *flags)
-{
-	char *flag;
-
-	if (flags == NULL)
-		return;
-
-	while ((flag = strsep(&flags, ",")) != NULL) {
-		if (strcmp(flag, "BPF_ITER") == 0)
-			user->flags |= FLAG_BPF_ITER;
-	}
-}
-
 static int user_event_parse_fields(struct user_event *user, char *args)
 {
 	char *field;
@@ -718,63 +702,13 @@ discard:
 }
 
 #ifdef CONFIG_PERF_EVENTS
-static void user_event_bpf(struct user_event *user, struct iov_iter *i)
-{
-	struct user_bpf_context context;
-	struct user_bpf_iter bpf_i;
-	char fast_data[MAX_STACK_BPF_DATA];
-	void *temp = NULL;
-
-	if ((user->flags & FLAG_BPF_ITER) && iter_is_iovec(i)) {
-		/* Raw iterator */
-		context.data_type = USER_BPF_DATA_ITER;
-		context.data_len = i->count;
-		context.iter = &bpf_i;
-
-		bpf_i.iov_offset = i->iov_offset;
-		bpf_i.iov = i->iov;
-		bpf_i.nr_segs = i->nr_segs;
-	} else if (i->nr_segs == 1 && iter_is_iovec(i)) {
-		/* Single buffer from user */
-		context.data_type = USER_BPF_DATA_USER;
-		context.data_len = i->count;
-		context.udata = i->iov->iov_base + i->iov_offset;
-	} else {
-		/* Multi buffer from user */
-		struct iov_iter copy = *i;
-		size_t copy_size = min_t(size_t, i->count, MAX_BPF_COPY_SIZE);
-
-		context.data_type = USER_BPF_DATA_KERNEL;
-		context.kdata = fast_data;
-
-		if (unlikely(copy_size > sizeof(fast_data))) {
-			temp = kmalloc(copy_size, GFP_NOWAIT);
-
-			if (temp)
-				context.kdata = temp;
-			else
-				copy_size = sizeof(fast_data);
-		}
-
-		context.data_len = copy_nofault(context.kdata,
-						copy_size, &copy);
-	}
-
-	trace_call_bpf(&user->call, &context);
-
-	kfree(temp);
-}
-
 /*
- * Writes the user supplied payload out to perf ring buffer or eBPF program.
+ * Writes the user supplied payload out to perf ring buffer.
  */
 static void user_event_perf(struct user_event *user, struct iov_iter *i,
 			    void *tpdata, bool *faulted)
 {
 	struct hlist_head *perf_head;
-
-	if (bpf_prog_array_valid(&user->call))
-		user_event_bpf(user, i);
 
 	perf_head = this_cpu_ptr(user->call.perf_events);
 
@@ -1141,8 +1075,6 @@ static int user_event_parse(char *name, char *args, char *flags,
 
 	user->tracepoint.name = name;
 
-	user_event_parse_flags(user, flags);
-
 	ret = user_event_parse_fields(user, args);
 
 	if (ret)
@@ -1170,11 +1102,11 @@ static int user_event_parse(char *name, char *args, char *flags,
 #endif
 
 	mutex_lock(&event_mutex);
+
 	ret = user_event_trace_register(user);
-	mutex_unlock(&event_mutex);
 
 	if (ret)
-		goto put_user;
+		goto put_user_lock;
 
 	user->index = index;
 
@@ -1186,8 +1118,12 @@ static int user_event_parse(char *name, char *args, char *flags,
 	set_bit(user->index, page_bitmap);
 	hash_add(register_table, &user->node, key);
 
+	mutex_unlock(&event_mutex);
+
 	*newuser = user;
 	return 0;
+put_user_lock:
+	mutex_unlock(&event_mutex);
 put_user:
 	user_event_destroy_fields(user);
 	user_event_destroy_validators(user);
@@ -1579,9 +1515,6 @@ static int user_seq_show(struct seq_file *m, void *p)
 				seq_puts(m, " other");
 			busy++;
 		}
-
-		if (flags & FLAG_BPF_ITER)
-			seq_puts(m, " FLAG:BPF_ITER");
 
 		seq_puts(m, "\n");
 		active++;

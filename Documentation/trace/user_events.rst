@@ -7,7 +7,7 @@ user_events: User-based Event Tracing
 Overview
 --------
 User based trace events allow user processes to create events and trace data
-that can be viewed via existing tools, such as ftrace, perf and eBPF.
+that can be viewed via existing tools, such as ftrace and perf.
 To enable this feature, build your kernel with CONFIG_USER_EVENTS=y.
 
 Programs can view status of the events via
@@ -67,8 +67,7 @@ The command string format is as follows::
 
 Supported Flags
 ^^^^^^^^^^^^^^^
-**BPF_ITER** - EBPF programs attached to this event will get the raw iovec
-struct instead of any data copies for max performance.
+None yet
 
 Field Format
 ^^^^^^^^^^^^
@@ -160,7 +159,7 @@ The following values are defined to aid in checking what has been attached:
 
 **EVENT_STATUS_FTRACE** - Bit set if ftrace has been attached (Bit 0).
 
-**EVENT_STATUS_PERF** - Bit set if perf/eBPF has been attached (Bit 1).
+**EVENT_STATUS_PERF** - Bit set if perf has been attached (Bit 1).
 
 Writing Data
 ------------
@@ -203,13 +202,6 @@ It's advised for user programs to do the following::
   writev(fd, (const struct iovec*)io, 2);
 
 **NOTE:** *The write_index is not emitted out into the trace being recorded.*
-
-EBPF
-----
-EBPF programs that attach to a user-based event tracepoint are given a pointer
-to a struct user_bpf_context. The bpf context contains the data type (which can
-be a user or kernel buffer, or can be a pointer to the iovec) and the data
-length that was emitted (minus the write_index).
 
 Example Code
 ------------

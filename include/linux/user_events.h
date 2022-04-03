@@ -32,9 +32,6 @@
 /* Create dynamic location entry within a 32-bit value */
 #define DYN_LOC(offset, size) ((size) << 16 | (offset))
 
-/* Use raw iterator for attached BPF program(s), no affect on ftrace/perf */
-#define FLAG_BPF_ITER (1 << 0)
-
 /*
  * Describes an event registration and stores the results of the registration.
  * This structure is passed to the DIAG_IOCSREG ioctl, callers at a minimum
@@ -62,55 +59,5 @@ struct user_reg {
 
 /* Requests to delete a user_event */
 #define DIAG_IOCSDEL _IOW(DIAG_IOC_MAGIC, 1, char*)
-
-/* Data type that was passed to the BPF program */
-enum {
-	/* Data resides in kernel space */
-	USER_BPF_DATA_KERNEL,
-
-	/* Data resides in user space */
-	USER_BPF_DATA_USER,
-
-	/* Data is a pointer to a user_bpf_iter structure */
-	USER_BPF_DATA_ITER,
-};
-
-/*
- * Describes an iovec iterator that BPF programs can use to access data for
- * a given user_event write() / writev() call.
- */
-struct user_bpf_iter {
-
-	/* Offset of the data within the first iovec */
-	__u32 iov_offset;
-
-	/* Number of iovec structures */
-	__u32 nr_segs;
-
-	/* Pointer to iovec structures */
-	const struct iovec *iov;
-};
-
-/* Context that BPF programs receive when attached to a user_event */
-struct user_bpf_context {
-
-	/* Data type being passed (see union below) */
-	__u32 data_type;
-
-	/* Length of the data */
-	__u32 data_len;
-
-	/* Pointer to data, varies by data type */
-	union {
-		/* Kernel data (data_type == USER_BPF_DATA_KERNEL) */
-		void *kdata;
-
-		/* User data (data_type == USER_BPF_DATA_USER) */
-		void *udata;
-
-		/* Direct iovec (data_type == USER_BPF_DATA_ITER) */
-		struct user_bpf_iter *iter;
-	};
-};
 
 #endif /* _UAPI_LINUX_USER_EVENTS_H */

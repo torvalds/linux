@@ -45,7 +45,7 @@
 			     PARAMS(print));		       \
 	DEFINE_EVENT(name, name, PARAMS(proto), PARAMS(args));
 
-#include "stages/stage1_defines.h"
+#include "stages/stage1_struct_define.h"
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(name, proto, args, tstruct, assign, print)	\
@@ -109,7 +109,7 @@
  * The size of an array is also encoded, in the higher 16 bits of <item>.
  */
 
-#include "stages/stage2_defines.h"
+#include "stages/stage2_data_offsets.h"
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
@@ -181,7 +181,7 @@
  * in binary.
  */
 
-#include "stages/stage3_defines.h"
+#include "stages/stage3_trace_output.h"
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
@@ -236,7 +236,7 @@ static struct trace_event_functions trace_event_type_funcs_##call = {	\
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
-#include "stages/stage4_defines.h"
+#include "stages/stage4_event_fields.h"
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, func, print)	\
@@ -249,7 +249,7 @@ static struct trace_event_fields trace_event_fields_##call[] = {	\
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
-#include "stages/stage5_defines.h"
+#include "stages/stage5_get_offsets.h"
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
@@ -372,7 +372,7 @@ static inline notrace int trace_event_get_offsets_##call(		\
 #define _TRACE_PERF_INIT(call)
 #endif /* CONFIG_PERF_EVENTS */
 
-#include "stages/stage6_defines.h"
+#include "stages/stage6_event_callback.h"
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
@@ -418,7 +418,7 @@ static inline void ftrace_test_probe_##call(void)			\
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
-#include "stages/stage7_defines.h"
+#include "stages/stage7_class_define.h"
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
