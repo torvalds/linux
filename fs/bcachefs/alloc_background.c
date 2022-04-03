@@ -302,71 +302,86 @@ static unsigned bch_alloc_v1_val_u64s(const struct bch_alloc *a)
 	return DIV_ROUND_UP(bytes, sizeof(u64));
 }
 
-const char *bch2_alloc_v1_invalid(const struct bch_fs *c, struct bkey_s_c k)
+int bch2_alloc_v1_invalid(const struct bch_fs *c, struct bkey_s_c k, struct printbuf *err)
 {
 	struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
 
-	if (k.k->p.inode >= c->sb.nr_devices ||
-	    !c->devs[k.k->p.inode])
-		return "invalid device";
+	if (!bch2_dev_exists2(c, k.k->p.inode)) {
+		pr_buf(err, "invalid device (%llu)", k.k->p.inode);
+		return -EINVAL;
+	}
 
 	/* allow for unknown fields */
-	if (bkey_val_u64s(a.k) < bch_alloc_v1_val_u64s(a.v))
-		return "incorrect value size";
+	if (bkey_val_u64s(a.k) < bch_alloc_v1_val_u64s(a.v)) {
+		pr_buf(err, "incorrect value size (%zu < %u)",
+		       bkey_val_u64s(a.k), bch_alloc_v1_val_u64s(a.v));
+		return -EINVAL;
+	}
 
-	return NULL;
+	return 0;
 }
 
-const char *bch2_alloc_v2_invalid(const struct bch_fs *c, struct bkey_s_c k)
+int bch2_alloc_v2_invalid(const struct bch_fs *c, struct bkey_s_c k, struct printbuf *err)
 {
 	struct bkey_alloc_unpacked u;
 
-	if (k.k->p.inode >= c->sb.nr_devices ||
-	    !c->devs[k.k->p.inode])
-		return "invalid device";
+	if (!bch2_dev_exists2(c, k.k->p.inode)) {
+		pr_buf(err, "invalid device (%llu)", k.k->p.inode);
+		return -EINVAL;
+	}
 
-	if (bch2_alloc_unpack_v2(&u, k))
-		return "unpack error";
+	if (bch2_alloc_unpack_v2(&u, k)) {
+		pr_buf(err, "unpack error");
+		return -EINVAL;
+	}
 
-	return NULL;
+	return 0;
 }
 
-const char *bch2_alloc_v3_invalid(const struct bch_fs *c, struct bkey_s_c k)
+int bch2_alloc_v3_invalid(const struct bch_fs *c, struct bkey_s_c k, struct printbuf *err)
 {
 	struct bkey_alloc_unpacked u;
 	struct bch_dev *ca;
 
-	if (k.k->p.inode >= c->sb.nr_devices ||
-	    !c->devs[k.k->p.inode])
-		return "invalid device";
+	if (!bch2_dev_exists2(c, k.k->p.inode)) {
+		pr_buf(err, "invalid device (%llu)", k.k->p.inode);
+		return -EINVAL;
+	}
 
 	ca = bch_dev_bkey_exists(c, k.k->p.inode);
 
 	if (k.k->p.offset < ca->mi.first_bucket ||
-	    k.k->p.offset >= ca->mi.nbuckets)
-		return "invalid bucket";
+	    k.k->p.offset >= ca->mi.nbuckets) {
+		pr_buf(err, "invalid bucket");
+		return -EINVAL;
+	}
 
-	if (bch2_alloc_unpack_v3(&u, k))
-		return "unpack error";
+	if (bch2_alloc_unpack_v3(&u, k)) {
+		pr_buf(err, "unpack error");
+		return -EINVAL;
+	}
 
-	return NULL;
+	return 0;
 }
 
-const char *bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k)
+int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k, struct printbuf *err)
 {
 	struct bch_dev *ca;
 
-	if (k.k->p.inode >= c->sb.nr_devices ||
-	    !c->devs[k.k->p.inode])
-		return "invalid device";
+	if (!bch2_dev_exists2(c, k.k->p.inode)) {
+		pr_buf(err, "invalid device (%llu)", k.k->p.inode);
+		return -EINVAL;
+	}
 
 	ca = bch_dev_bkey_exists(c, k.k->p.inode);
 
 	if (k.k->p.offset < ca->mi.first_bucket ||
-	    k.k->p.offset >= ca->mi.nbuckets)
-		return "invalid bucket";
+	    k.k->p.offset >= ca->mi.nbuckets) {
+		pr_buf(err, "invalid bucket");
+		return -EINVAL;
+	}
 
-	return NULL;
+	return 0;
 }
 
 void bch2_alloc_v4_swab(struct bkey_s k)

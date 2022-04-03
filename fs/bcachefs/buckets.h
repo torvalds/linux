@@ -9,6 +9,7 @@
 #define _BUCKETS_H
 
 #include "buckets_types.h"
+#include "extents.h"
 #include "super.h"
 
 #define for_each_bucket(_b, _buckets)				\
@@ -83,8 +84,7 @@ static inline struct bucket *PTR_GC_BUCKET(struct bch_dev *ca,
 static inline enum bch_data_type ptr_data_type(const struct bkey *k,
 					       const struct bch_extent_ptr *ptr)
 {
-	if (k->type == KEY_TYPE_btree_ptr ||
-	    k->type == KEY_TYPE_btree_ptr_v2)
+	if (bkey_is_btree_ptr(k))
 		return BCH_DATA_btree;
 
 	return ptr->cached ? BCH_DATA_cached : BCH_DATA_user;

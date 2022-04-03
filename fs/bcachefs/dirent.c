@@ -83,38 +83,58 @@ const struct bch_hash_desc bch2_dirent_hash_desc = {
 	.is_visible	= dirent_is_visible,
 };
 
-const char *bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k)
+int bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k,
+			struct printbuf *err)
 {
 	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 	unsigned len;
 
-	if (bkey_val_bytes(k.k) < sizeof(struct bch_dirent))
-		return "value too small";
+	if (bkey_val_bytes(k.k) < sizeof(struct bch_dirent)) {
+		pr_buf(err, "incorrect value size (%zu < %zu)",
+		       bkey_val_bytes(k.k), sizeof(*d.v));
+		return -EINVAL;
+	}
 
 	len = bch2_dirent_name_bytes(d);
-	if (!len)
-		return "empty name";
+	if (!len) {
+		pr_buf(err, "empty name");
+		return -EINVAL;
+	}
 
-	if (bkey_val_u64s(k.k) > dirent_val_u64s(len))
-		return "value too big";
+	if (bkey_val_u64s(k.k) > dirent_val_u64s(len)) {
+		pr_buf(err, "value too big (%zu > %u)",
+		       bkey_val_u64s(k.k),dirent_val_u64s(len));
+		return -EINVAL;
+	}
 
-	if (len > BCH_NAME_MAX)
-		return "dirent name too big";
+	if (len > BCH_NAME_MAX) {
+		pr_buf(err, "dirent name too big (%u > %lu)",
+		       len, BCH_NAME_MAX);
+		return -EINVAL;
+	}
 
-	if (len == 1 && !memcmp(d.v->d_name, ".", 1))
-		return "invalid name";
+	if (len == 1 && !memcmp(d.v->d_name, ".", 1)) {
+		pr_buf(err, "invalid name");
+		return -EINVAL;
+	}
 
-	if (len == 2 && !memcmp(d.v->d_name, "..", 2))
-		return "invalid name";
+	if (len == 2 && !memcmp(d.v->d_name, "..", 2)) {
+		pr_buf(err, "invalid name");
+		return -EINVAL;
+	}
 
-	if (memchr(d.v->d_name, '/', len))
-		return "invalid name";
+	if (memchr(d.v->d_name, '/', len)) {
+		pr_buf(err, "invalid name");
+		return -EINVAL;
+	}
 
 	if (d.v->d_type != DT_SUBVOL &&
-	    le64_to_cpu(d.v->d_inum) == d.k->p.inode)
-		return "dirent points to own directory";
+	    le64_to_cpu(d.v->d_inum) == d.k->p.inode) {
+		pr_buf(err, "dirent points to own directory");
+		return -EINVAL;
+	}
 
-	return NULL;
+	return 0;
 }
 
 void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c,

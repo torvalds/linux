@@ -293,76 +293,89 @@ int bch2_inode_write(struct btree_trans *trans,
 	return bch2_trans_update(trans, iter, &inode_p->inode.k_i, 0);
 }
 
-const char *bch2_inode_invalid(const struct bch_fs *c, struct bkey_s_c k)
+static int __bch2_inode_invalid(struct bkey_s_c k, struct printbuf *err)
 {
-	struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);
 	struct bch_inode_unpacked unpacked;
 
-	if (k.k->p.inode)
-		return "nonzero k.p.inode";
+	if (k.k->p.inode) {
+		pr_buf(err, "nonzero k.p.inode");
+		return -EINVAL;
+	}
 
-	if (bkey_val_bytes(k.k) < sizeof(struct bch_inode))
-		return "incorrect value size";
+	if (k.k->p.offset < BLOCKDEV_INODE_MAX) {
+		pr_buf(err, "fs inode in blockdev range");
+		return -EINVAL;
+	}
 
-	if (k.k->p.offset < BLOCKDEV_INODE_MAX)
-		return "fs inode in blockdev range";
+	if (bch2_inode_unpack(k, &unpacked)){
+		pr_buf(err, "invalid variable length fields");
+		return -EINVAL;
+	}
 
-	if (INODE_STR_HASH(inode.v) >= BCH_STR_HASH_NR)
-		return "invalid str hash type";
+	if (unpacked.bi_data_checksum >= BCH_CSUM_OPT_NR + 1) {
+		pr_buf(err, "invalid data checksum type (%u >= %u",
+			unpacked.bi_data_checksum, BCH_CSUM_OPT_NR + 1);
+		return -EINVAL;
+	}
 
-	if (bch2_inode_unpack(k, &unpacked))
-		return "invalid variable length fields";
-
-	if (unpacked.bi_data_checksum >= BCH_CSUM_OPT_NR + 1)
-		return "invalid data checksum type";
-
-	if (unpacked.bi_compression >= BCH_COMPRESSION_OPT_NR + 1)
-		return "invalid data checksum type";
+	if (unpacked.bi_compression >= BCH_COMPRESSION_OPT_NR + 1) {
+		pr_buf(err, "invalid data checksum type (%u >= %u)",
+		       unpacked.bi_compression, BCH_COMPRESSION_OPT_NR + 1);
+		return -EINVAL;
+	}
 
 	if ((unpacked.bi_flags & BCH_INODE_UNLINKED) &&
-	    unpacked.bi_nlink != 0)
-		return "flagged as unlinked but bi_nlink != 0";
+	    unpacked.bi_nlink != 0) {
+		pr_buf(err, "flagged as unlinked but bi_nlink != 0");
+		return -EINVAL;
+	}
 
-	if (unpacked.bi_subvol && !S_ISDIR(unpacked.bi_mode))
-		return "subvolume root but not a directory";
+	if (unpacked.bi_subvol && !S_ISDIR(unpacked.bi_mode)) {
+		pr_buf(err, "subvolume root but not a directory");
+		return -EINVAL;
+	}
 
-	return NULL;
+	return 0;
 }
 
-const char *bch2_inode_v2_invalid(const struct bch_fs *c, struct bkey_s_c k)
+int bch2_inode_invalid(const struct bch_fs *c, struct bkey_s_c k,
+		       struct printbuf *err)
+{
+	struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);
+
+	if (bkey_val_bytes(k.k) < sizeof(*inode.v)) {
+		pr_buf(err, "incorrect value size (%zu < %zu)",
+		       bkey_val_bytes(k.k), sizeof(*inode.v));
+		return -EINVAL;
+	}
+
+	if (INODE_STR_HASH(inode.v) >= BCH_STR_HASH_NR) {
+		pr_buf(err, "invalid str hash type (%llu >= %u)",
+		       INODE_STR_HASH(inode.v), BCH_STR_HASH_NR);
+		return -EINVAL;
+	}
+
+	return __bch2_inode_invalid(k, err);
+}
+
+int bch2_inode_v2_invalid(const struct bch_fs *c, struct bkey_s_c k,
+			  struct printbuf *err)
 {
 	struct bkey_s_c_inode_v2 inode = bkey_s_c_to_inode_v2(k);
-	struct bch_inode_unpacked unpacked;
 
-	if (k.k->p.inode)
-		return "nonzero k.p.inode";
+	if (bkey_val_bytes(k.k) < sizeof(*inode.v)) {
+		pr_buf(err, "incorrect value size (%zu < %zu)",
+		       bkey_val_bytes(k.k), sizeof(*inode.v));
+		return -EINVAL;
+	}
 
-	if (bkey_val_bytes(k.k) < sizeof(struct bch_inode))
-		return "incorrect value size";
+	if (INODEv2_STR_HASH(inode.v) >= BCH_STR_HASH_NR) {
+		pr_buf(err, "invalid str hash type (%llu >= %u)",
+		       INODEv2_STR_HASH(inode.v), BCH_STR_HASH_NR);
+		return -EINVAL;
+	}
 
-	if (k.k->p.offset < BLOCKDEV_INODE_MAX)
-		return "fs inode in blockdev range";
-
-	if (INODEv2_STR_HASH(inode.v) >= BCH_STR_HASH_NR)
-		return "invalid str hash type";
-
-	if (bch2_inode_unpack(k, &unpacked))
-		return "invalid variable length fields";
-
-	if (unpacked.bi_data_checksum >= BCH_CSUM_OPT_NR + 1)
-		return "invalid data checksum type";
-
-	if (unpacked.bi_compression >= BCH_COMPRESSION_OPT_NR + 1)
-		return "invalid data checksum type";
-
-	if ((unpacked.bi_flags & BCH_INODE_UNLINKED) &&
-	    unpacked.bi_nlink != 0)
-		return "flagged as unlinked but bi_nlink != 0";
-
-	if (unpacked.bi_subvol && !S_ISDIR(unpacked.bi_mode))
-		return "subvolume root but not a directory";
-
-	return NULL;
+	return __bch2_inode_invalid(k, err);
 }
 
 static void __bch2_inode_unpacked_to_text(struct printbuf *out, struct bch_inode_unpacked *inode)
@@ -396,16 +409,21 @@ void bch2_inode_to_text(struct printbuf *out, struct bch_fs *c,
 	__bch2_inode_unpacked_to_text(out, &inode);
 }
 
-const char *bch2_inode_generation_invalid(const struct bch_fs *c,
-					  struct bkey_s_c k)
+int bch2_inode_generation_invalid(const struct bch_fs *c, struct bkey_s_c k,
+				  struct printbuf *err)
 {
-	if (k.k->p.inode)
-		return "nonzero k.p.inode";
+	if (k.k->p.inode) {
+		pr_buf(err, "nonzero k.p.inode");
+		return -EINVAL;
+	}
 
-	if (bkey_val_bytes(k.k) != sizeof(struct bch_inode_generation))
-		return "incorrect value size";
+	if (bkey_val_bytes(k.k) != sizeof(struct bch_inode_generation)) {
+		pr_buf(err, "incorrect value size (%zu != %zu)",
+		       bkey_val_bytes(k.k), sizeof(struct bch_inode_generation));
+		return -EINVAL;
+	}
 
-	return NULL;
+	return 0;
 }
 
 void bch2_inode_generation_to_text(struct printbuf *out, struct bch_fs *c,

@@ -69,32 +69,51 @@ const struct bch_hash_desc bch2_xattr_hash_desc = {
 	.cmp_bkey	= xattr_cmp_bkey,
 };
 
-const char *bch2_xattr_invalid(const struct bch_fs *c, struct bkey_s_c k)
+int bch2_xattr_invalid(const struct bch_fs *c, struct bkey_s_c k,
+		       struct printbuf *err)
 {
 	const struct xattr_handler *handler;
 	struct bkey_s_c_xattr xattr = bkey_s_c_to_xattr(k);
 
-	if (bkey_val_bytes(k.k) < sizeof(struct bch_xattr))
-		return "value too small";
+	if (bkey_val_bytes(k.k) < sizeof(struct bch_xattr)) {
+		pr_buf(err, "incorrect value size (%zu < %zu)",
+		       bkey_val_bytes(k.k), sizeof(*xattr.v));
+		return -EINVAL;
+	}
 
 	if (bkey_val_u64s(k.k) <
 	    xattr_val_u64s(xattr.v->x_name_len,
-			   le16_to_cpu(xattr.v->x_val_len)))
-		return "value too small";
+			   le16_to_cpu(xattr.v->x_val_len))) {
+		pr_buf(err, "value too small (%zu < %u)",
+		       bkey_val_u64s(k.k),
+		       xattr_val_u64s(xattr.v->x_name_len,
+				      le16_to_cpu(xattr.v->x_val_len)));
+		return -EINVAL;
+	}
 
+	/* XXX why +4 ? */
 	if (bkey_val_u64s(k.k) >
 	    xattr_val_u64s(xattr.v->x_name_len,
-			   le16_to_cpu(xattr.v->x_val_len) + 4))
-		return "value too big";
+			   le16_to_cpu(xattr.v->x_val_len) + 4)) {
+		pr_buf(err, "value too big (%zu > %u)",
+		       bkey_val_u64s(k.k),
+		       xattr_val_u64s(xattr.v->x_name_len,
+				      le16_to_cpu(xattr.v->x_val_len) + 4));
+		return -EINVAL;
+	}
 
 	handler = bch2_xattr_type_to_handler(xattr.v->x_type);
-	if (!handler)
-		return "invalid type";
+	if (!handler) {
+		pr_buf(err, "invalid type (%u)", xattr.v->x_type);
+		return -EINVAL;
+	}
 
-	if (memchr(xattr.v->x_name, '\0', xattr.v->x_name_len))
-		return "xattr name has invalid characters";
+	if (memchr(xattr.v->x_name, '\0', xattr.v->x_name_len)) {
+		pr_buf(err, "xattr name has invalid characters");
+		return -EINVAL;
+	}
 
-	return NULL;
+	return 0;
 }
 
 void bch2_xattr_to_text(struct printbuf *out, struct bch_fs *c,

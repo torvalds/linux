@@ -367,13 +367,12 @@ int bch2_bkey_pick_read_device(struct bch_fs *, struct bkey_s_c,
 
 /* KEY_TYPE_btree_ptr: */
 
-const char *bch2_btree_ptr_invalid(const struct bch_fs *, struct bkey_s_c);
+int bch2_btree_ptr_invalid(const struct bch_fs *, struct bkey_s_c, struct printbuf *);
 void bch2_btree_ptr_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
 
-const char *bch2_btree_ptr_v2_invalid(const struct bch_fs *, struct bkey_s_c);
-void bch2_btree_ptr_v2_to_text(struct printbuf *, struct bch_fs *,
-			    struct bkey_s_c);
+int bch2_btree_ptr_v2_invalid(const struct bch_fs *, struct bkey_s_c, struct printbuf *);
+void bch2_btree_ptr_v2_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
 			      int, struct bkey_s);
 
@@ -396,13 +395,11 @@ void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
 
 /* KEY_TYPE_extent: */
 
-const char *bch2_extent_invalid(const struct bch_fs *, struct bkey_s_c);
-void bch2_extent_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 bool bch2_extent_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
 #define bch2_bkey_ops_extent (struct bkey_ops) {		\
-	.key_invalid	= bch2_extent_invalid,			\
-	.val_to_text	= bch2_extent_to_text,			\
+	.key_invalid	= bch2_bkey_ptrs_invalid,		\
+	.val_to_text	= bch2_bkey_ptrs_to_text,		\
 	.swab		= bch2_ptr_swab,			\
 	.key_normalize	= bch2_extent_normalize,		\
 	.key_merge	= bch2_extent_merge,			\
@@ -412,7 +409,7 @@ bool bch2_extent_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
 /* KEY_TYPE_reservation: */
 
-const char *bch2_reservation_invalid(const struct bch_fs *, struct bkey_s_c);
+int bch2_reservation_invalid(const struct bch_fs *, struct bkey_s_c, struct printbuf *);
 void bch2_reservation_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 bool bch2_reservation_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
@@ -618,7 +615,7 @@ bool bch2_bkey_matches_ptr(struct bch_fs *, struct bkey_s_c,
 bool bch2_extent_normalize(struct bch_fs *, struct bkey_s);
 void bch2_bkey_ptrs_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
-const char *bch2_bkey_ptrs_invalid(const struct bch_fs *, struct bkey_s_c);
+int bch2_bkey_ptrs_invalid(const struct bch_fs *, struct bkey_s_c, struct printbuf *);
 
 void bch2_ptr_swab(struct bkey_s);
 

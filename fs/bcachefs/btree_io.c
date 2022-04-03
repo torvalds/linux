@@ -762,14 +762,23 @@ fsck_err:
 	return ret;
 }
 
+static int bset_key_invalid(struct bch_fs *c, struct btree *b,
+			    struct bkey_s_c k,
+			    bool updated_range, int write,
+			    struct printbuf *err)
+{
+	return __bch2_bkey_invalid(c, k, btree_node_type(b), err) ?:
+		(!updated_range ? bch2_bkey_in_btree_node(b, k, err) : 0) ?:
+		(write ? bch2_bkey_val_invalid(c, k, err) : 0);
+}
+
 static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 			 struct bset *i, unsigned *whiteout_u64s,
 			 int write, bool have_retry)
 {
 	unsigned version = le16_to_cpu(i->version);
 	struct bkey_packed *k, *prev = NULL;
-	struct printbuf buf1 = PRINTBUF;
-	struct printbuf buf2 = PRINTBUF;
+	struct printbuf buf = PRINTBUF;
 	bool updated_range = b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
 		BTREE_PTR_RANGE_UPDATED(&bkey_i_to_btree_ptr_v2(&b->key)->v);
 	int ret = 0;
@@ -778,7 +787,6 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 	     k != vstruct_last(i);) {
 		struct bkey_s u;
 		struct bkey tmp;
-		const char *invalid;
 
 		if (btree_err_on(bkey_next(k) > vstruct_last(i),
 				 BTREE_ERR_FIXABLE, c, NULL, b, i,
@@ -804,14 +812,15 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 
 		u = __bkey_disassemble(b, k, &tmp);
 
-		invalid = __bch2_bkey_invalid(c, u.s_c, btree_node_type(b)) ?:
-			(!updated_range ?  bch2_bkey_in_btree_node(b, u.s_c) : NULL) ?:
-			(write ? bch2_bkey_val_invalid(c, u.s_c) : NULL);
-		if (invalid) {
-			printbuf_reset(&buf1);
-			bch2_bkey_val_to_text(&buf1, c, u.s_c);
-			btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i,
-				  "invalid bkey: %s\n%s", invalid, buf1.buf);
+		printbuf_reset(&buf);
+		if (bset_key_invalid(c, b, u.s_c, updated_range, write, &buf)) {
+			printbuf_reset(&buf);
+			pr_buf(&buf, "invalid bkey:\n  ");
+			bch2_bkey_val_to_text(&buf, c, u.s_c);
+			pr_buf(&buf, "  \n");
+			bset_key_invalid(c, b, u.s_c, updated_range, write, &buf);
+
+			btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i, "%s", buf.buf);
 
 			i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
 			memmove_u64s_down(k, bkey_next(k),
@@ -827,16 +836,15 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 		if (prev && bkey_iter_cmp(b, prev, k) > 0) {
 			struct bkey up = bkey_unpack_key(b, prev);
 
-			printbuf_reset(&buf1);
-			bch2_bkey_to_text(&buf1, &up);
-			printbuf_reset(&buf2);
-			bch2_bkey_to_text(&buf2, u.k);
+			printbuf_reset(&buf);
+			pr_buf(&buf, "keys out of order: ");
+			bch2_bkey_to_text(&buf, &up);
+			pr_buf(&buf, " > ");
+			bch2_bkey_to_text(&buf, u.k);
 
 			bch2_dump_bset(c, b, i, 0);
 
-			if (btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i,
-				      "keys out of order: %s > %s",
-				      buf1.buf, buf2.buf)) {
+			if (btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i, "%s", buf.buf)) {
 				i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
 				memmove_u64s_down(k, bkey_next(k),
 						  (u64 *) vstruct_end(i) - (u64 *) k);
@@ -848,8 +856,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 		k = bkey_next(k);
 	}
 fsck_err:
-	printbuf_exit(&buf2);
-	printbuf_exit(&buf1);
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -868,6 +875,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	unsigned u64s;
 	unsigned blacklisted_written, nonblacklisted_written = 0;
 	unsigned ptr_written = btree_ptr_sectors_written(&b->key);
+	struct printbuf buf = PRINTBUF;
 	int ret, retry_read = 0, write = READ;
 
 	b->version_ondisk = U16_MAX;
@@ -1060,17 +1068,20 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	for (k = i->start; k != vstruct_last(i);) {
 		struct bkey tmp;
 		struct bkey_s u = __bkey_disassemble(b, k, &tmp);
-		const char *invalid = bch2_bkey_val_invalid(c, u.s_c);
 
-		if (invalid ||
+		printbuf_reset(&buf);
+
+		if (bch2_bkey_val_invalid(c, u.s_c, &buf) ||
 		    (bch2_inject_invalid_keys &&
 		     !bversion_cmp(u.k->version, MAX_VERSION))) {
-			struct printbuf buf = PRINTBUF;
+			printbuf_reset(&buf);
 
+			pr_buf(&buf, "invalid bkey\n  ");
 			bch2_bkey_val_to_text(&buf, c, u.s_c);
-			btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i,
-				  "invalid bkey %s: %s", buf.buf, invalid);
-			printbuf_exit(&buf);
+			pr_buf(&buf, "\n  ");
+			bch2_bkey_val_invalid(c, u.s_c, &buf);
+
+			btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i, "%s", buf.buf);
 
 			btree_keys_account_key_drop(&b->nr, 0, k);
 
@@ -1107,6 +1118,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 		set_btree_node_need_rewrite(b);
 out:
 	mempool_free(iter, &c->fill_iter);
+	printbuf_exit(&buf);
 	return retry_read;
 fsck_err:
 	if (ret == BTREE_RETRY_READ) {
@@ -1715,10 +1727,16 @@ static int validate_bset_for_write(struct bch_fs *c, struct btree *b,
 				   struct bset *i, unsigned sectors)
 {
 	unsigned whiteout_u64s = 0;
+	struct printbuf buf = PRINTBUF;
 	int ret;
 
-	if (bch2_bkey_invalid(c, bkey_i_to_s_c(&b->key), BKEY_TYPE_btree))
-		return -1;
+	ret = bch2_bkey_invalid(c, bkey_i_to_s_c(&b->key), BKEY_TYPE_btree, &buf);
+
+	if (ret)
+		bch2_fs_inconsistent(c, "invalid btree node key before write: %s", buf.buf);
+	printbuf_exit(&buf);
+	if (ret)
+		return ret;
 
 	ret = validate_bset_keys(c, b, i, &whiteout_u64s, WRITE, false) ?:
 		validate_bset(c, NULL, b, i, b->written, sectors, WRITE, false);

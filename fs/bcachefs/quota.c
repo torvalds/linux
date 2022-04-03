@@ -57,15 +57,22 @@ const struct bch_sb_field_ops bch_sb_field_ops_quota = {
 	.to_text	= bch2_sb_quota_to_text,
 };
 
-const char *bch2_quota_invalid(const struct bch_fs *c, struct bkey_s_c k)
+int bch2_quota_invalid(const struct bch_fs *c, struct bkey_s_c k,
+		       struct printbuf *err)
 {
-	if (k.k->p.inode >= QTYP_NR)
-		return "invalid quota type";
+	if (k.k->p.inode >= QTYP_NR) {
+		pr_buf(err, "invalid quota type (%llu >= %u)",
+		       k.k->p.inode, QTYP_NR);
+		return -EINVAL;
+	}
 
-	if (bkey_val_bytes(k.k) != sizeof(struct bch_quota))
-		return "incorrect value size";
+	if (bkey_val_bytes(k.k) != sizeof(struct bch_quota)) {
+		pr_buf(err, "incorrect value size (%zu != %zu)",
+		       bkey_val_bytes(k.k), sizeof(struct bch_quota));
+		return -EINVAL;
+	}
 
-	return NULL;
+	return 0;
 }
 
 void bch2_quota_to_text(struct printbuf *out, struct bch_fs *c,

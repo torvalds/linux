@@ -26,39 +26,55 @@ void bch2_snapshot_to_text(struct printbuf *out, struct bch_fs *c,
 	       le32_to_cpu(s.v->subvol));
 }
 
-const char *bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k)
+int bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k,
+			  struct printbuf *err)
 {
 	struct bkey_s_c_snapshot s;
 	u32 i, id;
 
 	if (bkey_cmp(k.k->p, POS(0, U32_MAX)) > 0 ||
-	    bkey_cmp(k.k->p, POS(0, 1)) < 0)
-		return "bad pos";
+	    bkey_cmp(k.k->p, POS(0, 1)) < 0) {
+		pr_buf(err, "bad pos");
+		return -EINVAL;
+	}
 
-	if (bkey_val_bytes(k.k) != sizeof(struct bch_snapshot))
-		return "bad val size";
+	if (bkey_val_bytes(k.k) != sizeof(struct bch_snapshot)) {
+		pr_buf(err, "bad val size (%zu != %zu)",
+		       bkey_val_bytes(k.k), sizeof(struct bch_snapshot));
+		return -EINVAL;
+	}
 
 	s = bkey_s_c_to_snapshot(k);
 
 	id = le32_to_cpu(s.v->parent);
-	if (id && id <= k.k->p.offset)
-		return "bad parent node";
+	if (id && id <= k.k->p.offset) {
+		pr_buf(err, "bad parent node (%u <= %llu)",
+		       id, k.k->p.offset);
+		return -EINVAL;
+	}
 
-	if (le32_to_cpu(s.v->children[0]) < le32_to_cpu(s.v->children[1]))
-		return "children not normalized";
+	if (le32_to_cpu(s.v->children[0]) < le32_to_cpu(s.v->children[1])) {
+		pr_buf(err, "children not normalized");
+		return -EINVAL;
+	}
 
 	if (s.v->children[0] &&
-	    s.v->children[0] == s.v->children[1])
-		return "duplicate child nodes";
+	    s.v->children[0] == s.v->children[1]) {
+		pr_buf(err, "duplicate child nodes");
+		return -EINVAL;
+	}
 
 	for (i = 0; i < 2; i++) {
 		id = le32_to_cpu(s.v->children[i]);
 
-		if (id >= k.k->p.offset)
-			return "bad child node";
+		if (id >= k.k->p.offset) {
+			pr_buf(err, "bad child node (%u >= %llu)",
+			       id, k.k->p.offset);
+			return -EINVAL;
+		}
 	}
 
-	return NULL;
+	return 0;
 }
 
 int bch2_mark_snapshot(struct btree_trans *trans,
@@ -729,18 +745,22 @@ static int bch2_delete_dead_snapshots_hook(struct btree_trans *trans,
 
 /* Subvolumes: */
 
-const char *bch2_subvolume_invalid(const struct bch_fs *c, struct bkey_s_c k)
+int bch2_subvolume_invalid(const struct bch_fs *c, struct bkey_s_c k,
+			   struct printbuf *err)
 {
-	if (bkey_cmp(k.k->p, SUBVOL_POS_MIN) < 0)
-		return "invalid pos";
+	if (bkey_cmp(k.k->p, SUBVOL_POS_MIN) < 0 ||
+	    bkey_cmp(k.k->p, SUBVOL_POS_MAX) > 0) {
+		pr_buf(err, "invalid pos");
+		return -EINVAL;
+	}
 
-	if (bkey_cmp(k.k->p, SUBVOL_POS_MAX) > 0)
-		return "invalid pos";
+	if (bkey_val_bytes(k.k) != sizeof(struct bch_subvolume)) {
+		pr_buf(err, "incorrect value size (%zu != %zu)",
+		       bkey_val_bytes(k.k), sizeof(struct bch_subvolume));
+		return -EINVAL;
+	}
 
-	if (bkey_val_bytes(k.k) != sizeof(struct bch_subvolume))
-		return "bad val size";
-
-	return NULL;
+	return 0;
 }
 
 void bch2_subvolume_to_text(struct printbuf *out, struct bch_fs *c,

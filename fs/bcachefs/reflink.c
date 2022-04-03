@@ -25,18 +25,25 @@ static inline unsigned bkey_type_to_indirect(const struct bkey *k)
 
 /* reflink pointers */
 
-const char *bch2_reflink_p_invalid(const struct bch_fs *c, struct bkey_s_c k)
+int bch2_reflink_p_invalid(const struct bch_fs *c, struct bkey_s_c k,
+			   struct printbuf *err)
 {
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 
-	if (bkey_val_bytes(p.k) != sizeof(*p.v))
-		return "incorrect value size";
+	if (bkey_val_bytes(p.k) != sizeof(*p.v)) {
+		pr_buf(err, "incorrect value size (%zu != %zu)",
+		       bkey_val_bytes(p.k), sizeof(*p.v));
+		return -EINVAL;
+	}
 
 	if (c->sb.version >= bcachefs_metadata_version_reflink_p_fix &&
-	    le64_to_cpu(p.v->idx) < le32_to_cpu(p.v->front_pad))
-		return "idx < front_pad";
+	    le64_to_cpu(p.v->idx) < le32_to_cpu(p.v->front_pad)) {
+		pr_buf(err, "idx < front_pad (%llu < %u)",
+		       le64_to_cpu(p.v->idx), le32_to_cpu(p.v->front_pad));
+		return -EINVAL;
+	}
 
-	return NULL;
+	return 0;
 }
 
 void bch2_reflink_p_to_text(struct printbuf *out, struct bch_fs *c,
@@ -70,14 +77,18 @@ bool bch2_reflink_p_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 
 /* indirect extents */
 
-const char *bch2_reflink_v_invalid(const struct bch_fs *c, struct bkey_s_c k)
+int bch2_reflink_v_invalid(const struct bch_fs *c, struct bkey_s_c k,
+			   struct printbuf *err)
 {
 	struct bkey_s_c_reflink_v r = bkey_s_c_to_reflink_v(k);
 
-	if (bkey_val_bytes(r.k) < sizeof(*r.v))
-		return "incorrect value size";
+	if (bkey_val_bytes(r.k) < sizeof(*r.v)) {
+		pr_buf(err, "incorrect value size (%zu < %zu)",
+		       bkey_val_bytes(r.k), sizeof(*r.v));
+		return -EINVAL;
+	}
 
-	return bch2_bkey_ptrs_invalid(c, k);
+	return bch2_bkey_ptrs_invalid(c, k, err);
 }
 
 void bch2_reflink_v_to_text(struct printbuf *out, struct bch_fs *c,
@@ -118,12 +129,16 @@ int bch2_trans_mark_reflink_v(struct btree_trans *trans,
 
 /* indirect inline data */
 
-const char *bch2_indirect_inline_data_invalid(const struct bch_fs *c,
-					      struct bkey_s_c k)
+int bch2_indirect_inline_data_invalid(const struct bch_fs *c, struct bkey_s_c k,
+				      struct printbuf *err)
 {
-	if (bkey_val_bytes(k.k) < sizeof(struct bch_indirect_inline_data))
-		return "incorrect value size";
-	return NULL;
+	if (bkey_val_bytes(k.k) < sizeof(struct bch_indirect_inline_data)) {
+		pr_buf(err, "incorrect value size (%zu < %zu)",
+		       bkey_val_bytes(k.k), sizeof(struct bch_indirect_inline_data));
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 void bch2_indirect_inline_data_to_text(struct printbuf *out,

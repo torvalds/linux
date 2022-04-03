@@ -8,14 +8,18 @@
 #include "lru.h"
 #include "recovery.h"
 
-const char *bch2_lru_invalid(const struct bch_fs *c, struct bkey_s_c k)
+int bch2_lru_invalid(const struct bch_fs *c, struct bkey_s_c k,
+		     struct printbuf *err)
 {
 	const struct bch_lru *lru = bkey_s_c_to_lru(k).v;
 
-	if (bkey_val_bytes(k.k) < sizeof(*lru))
-		return "incorrect value size";
+	if (bkey_val_bytes(k.k) < sizeof(*lru)) {
+		pr_buf(err, "incorrect value size (%zu < %zu)",
+		       bkey_val_bytes(k.k), sizeof(*lru));
+		return -EINVAL;
+	}
 
-	return NULL;
+	return 0;
 }
 
 void bch2_lru_to_text(struct printbuf *out, struct bch_fs *c,

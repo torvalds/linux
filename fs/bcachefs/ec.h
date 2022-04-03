@@ -6,7 +6,8 @@
 #include "buckets_types.h"
 #include "keylist_types.h"
 
-const char *bch2_stripe_invalid(const struct bch_fs *, struct bkey_s_c);
+int bch2_stripe_invalid(const struct bch_fs *, struct bkey_s_c,
+			struct printbuf *);
 void bch2_stripe_to_text(struct printbuf *, struct bch_fs *,
 			 struct bkey_s_c);
 

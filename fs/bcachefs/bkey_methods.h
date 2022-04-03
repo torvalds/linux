@@ -14,8 +14,8 @@ extern const char * const bch2_bkey_types[];
 
 struct bkey_ops {
 	/* Returns reason for being invalid if invalid, else NULL: */
-	const char *	(*key_invalid)(const struct bch_fs *,
-				       struct bkey_s_c);
+	int		(*key_invalid)(const struct bch_fs *, struct bkey_s_c,
+				       struct printbuf *);
 	void		(*val_to_text)(struct printbuf *, struct bch_fs *,
 				       struct bkey_s_c);
 	void		(*swab)(struct bkey_s);
@@ -32,12 +32,12 @@ struct bkey_ops {
 
 extern const struct bkey_ops bch2_bkey_ops[];
 
-const char *bch2_bkey_val_invalid(struct bch_fs *, struct bkey_s_c);
-const char *__bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c,
-				enum btree_node_type);
-const char *bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c,
-			      enum btree_node_type);
-const char *bch2_bkey_in_btree_node(struct btree *, struct bkey_s_c);
+int bch2_bkey_val_invalid(struct bch_fs *, struct bkey_s_c, struct printbuf *);
+int __bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c,
+				enum btree_node_type, struct printbuf *);
+int bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c,
+			      enum btree_node_type, struct printbuf *);
+int bch2_bkey_in_btree_node(struct btree *, struct bkey_s_c, struct printbuf *);
 
 void bch2_bpos_to_text(struct printbuf *, struct bpos);
 void bch2_bkey_to_text(struct printbuf *, const struct bkey *);

@@ -209,7 +209,7 @@ static int journal_validate_key(struct bch_fs *c, const char *where,
 				unsigned version, int big_endian, int write)
 {
 	void *next = vstruct_next(entry);
-	const char *invalid;
+	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	if (journal_entry_err_on(!k->k.u64s, c,
@@ -249,22 +249,28 @@ static int journal_validate_key(struct bch_fs *c, const char *where,
 		bch2_bkey_compat(level, btree_id, version, big_endian,
 				 write, NULL, bkey_to_packed(k));
 
-	invalid = bch2_bkey_invalid(c, bkey_i_to_s_c(k),
-				    __btree_node_type(level, btree_id));
-	if (invalid) {
-		struct printbuf buf = PRINTBUF;
+	if (bch2_bkey_invalid(c, bkey_i_to_s_c(k),
+			      __btree_node_type(level, btree_id), &buf)) {
+		printbuf_reset(&buf);
+		pr_buf(&buf, "invalid %s in %s entry offset %zi/%u:",
+		       type, where,
+		       (u64 *) k - entry->_data,
+		       le16_to_cpu(entry->u64s));
+		pr_newline(&buf);
+		pr_indent_push(&buf, 2);
 
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(k));
-		mustfix_fsck_err(c, "invalid %s in %s entry offset %zi/%u: %s\n%s",
-				 type, where,
-				 (u64 *) k - entry->_data,
-				 le16_to_cpu(entry->u64s),
-				 invalid, buf.buf);
-		printbuf_exit(&buf);
+		pr_newline(&buf);
+		bch2_bkey_invalid(c, bkey_i_to_s_c(k),
+				  __btree_node_type(level, btree_id), &buf);
+
+		mustfix_fsck_err(c, "%s", buf.buf);
 
 		le16_add_cpu(&entry->u64s, -((u16) k->k.u64s));
 		memmove(k, bkey_next(k), next - (void *) bkey_next(k));
 		journal_entry_null_range(vstruct_next(entry), next);
+
+		printbuf_exit(&buf);
 		return FSCK_DELETED_KEY;
 	}
 
@@ -272,6 +278,7 @@ static int journal_validate_key(struct bch_fs *c, const char *where,
 		bch2_bkey_compat(level, btree_id, version, big_endian,
 				 write, NULL, bkey_to_packed(k));
 fsck_err:
+	printbuf_exit(&buf);
 	return ret;
 }
 
