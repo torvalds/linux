@@ -804,15 +804,12 @@ static void validate_recv_ctrl_frame(struct adapter *padapter,
 	__le16 fc = *(__le16 *)pframe;
 	/* uint len = precv_frame->len; */
 
-	if (!ieee80211_is_ctl(fc))
-		return;
-
 	/* receive the frames that ra(a1) is my address */
 	if (memcmp(GetAddr1Ptr(pframe), myid(&padapter->eeprompriv), ETH_ALEN))
 		return;
 
 	/* only handle ps-poll */
-	if (GetFrameSubType(pframe) == WIFI_PSPOLL) {
+	if (ieee80211_is_pspoll(fc)) {
 		u16 aid;
 		u8 wmmps_ac = 0;
 		struct sta_info *psta = NULL;
