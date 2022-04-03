@@ -803,104 +803,104 @@ static void validate_recv_ctrl_frame(struct adapter *padapter,
 	u8 *pframe = precv_frame->rx_data;
 	__le16 fc = *(__le16 *)pframe;
 	/* uint len = precv_frame->len; */
+	u16 aid;
+	u8 wmmps_ac;
+	struct sta_info *psta;
 
 	/* receive the frames that ra(a1) is my address */
 	if (memcmp(GetAddr1Ptr(pframe), myid(&padapter->eeprompriv), ETH_ALEN))
 		return;
 
 	/* only handle ps-poll */
-	if (ieee80211_is_pspoll(fc)) {
-		u16 aid;
-		u8 wmmps_ac = 0;
-		struct sta_info *psta = NULL;
+	if (!ieee80211_is_pspoll(fc))
+		return;
 
-		aid = GetAid(pframe);
-		psta = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));
+	aid = GetAid(pframe);
+	psta = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));
 
-		if (!psta || psta->aid != aid)
-			return;
+	if (!psta || psta->aid != aid)
+		return;
 
-		/* for rx pkt statistics */
-		psta->sta_stats.rx_ctrl_pkts++;
+	/* for rx pkt statistics */
+	psta->sta_stats.rx_ctrl_pkts++;
 
-		switch (pattrib->priority) {
-		case 1:
-		case 2:
-			wmmps_ac = psta->uapsd_bk & BIT(0);
-			break;
-		case 4:
-		case 5:
-			wmmps_ac = psta->uapsd_vi & BIT(0);
-			break;
-		case 6:
-		case 7:
-			wmmps_ac = psta->uapsd_vo & BIT(0);
-			break;
-		case 0:
-		case 3:
-		default:
-			wmmps_ac = psta->uapsd_be & BIT(0);
-			break;
-		}
+	switch (pattrib->priority) {
+	case 1:
+	case 2:
+		wmmps_ac = psta->uapsd_bk & BIT(0);
+		break;
+	case 4:
+	case 5:
+		wmmps_ac = psta->uapsd_vi & BIT(0);
+		break;
+	case 6:
+	case 7:
+		wmmps_ac = psta->uapsd_vo & BIT(0);
+		break;
+	case 0:
+	case 3:
+	default:
+		wmmps_ac = psta->uapsd_be & BIT(0);
+		break;
+	}
 
-		if (wmmps_ac)
-			return;
+	if (wmmps_ac)
+		return;
 
-		if (psta->state & WIFI_STA_ALIVE_CHK_STATE) {
-			psta->expire_to = pstapriv->expire_to;
-			psta->state ^= WIFI_STA_ALIVE_CHK_STATE;
-		}
+	if (psta->state & WIFI_STA_ALIVE_CHK_STATE) {
+		psta->expire_to = pstapriv->expire_to;
+		psta->state ^= WIFI_STA_ALIVE_CHK_STATE;
+	}
 
-		if ((psta->state & WIFI_SLEEP_STATE) && (pstapriv->sta_dz_bitmap & BIT(psta->aid))) {
-			struct list_head *xmitframe_plist, *xmitframe_phead;
-			struct xmit_frame *pxmitframe = NULL;
-			struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
+	if ((psta->state & WIFI_SLEEP_STATE) && (pstapriv->sta_dz_bitmap & BIT(psta->aid))) {
+		struct list_head *xmitframe_plist, *xmitframe_phead;
+		struct xmit_frame *pxmitframe = NULL;
+		struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
-			spin_lock_bh(&pxmitpriv->lock);
+		spin_lock_bh(&pxmitpriv->lock);
 
-			xmitframe_phead = get_list_head(&psta->sleep_q);
-			xmitframe_plist = xmitframe_phead->next;
+		xmitframe_phead = get_list_head(&psta->sleep_q);
+		xmitframe_plist = xmitframe_phead->next;
 
-			if (xmitframe_phead != xmitframe_plist) {
-				pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
+		if (xmitframe_phead != xmitframe_plist) {
+			pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
 
-				xmitframe_plist = xmitframe_plist->next;
+			xmitframe_plist = xmitframe_plist->next;
 
-				list_del_init(&pxmitframe->list);
+			list_del_init(&pxmitframe->list);
 
-				psta->sleepq_len--;
+			psta->sleepq_len--;
 
-				if (psta->sleepq_len > 0)
-					pxmitframe->attrib.mdata = 1;
-				else
-					pxmitframe->attrib.mdata = 0;
+			if (psta->sleepq_len > 0)
+				pxmitframe->attrib.mdata = 1;
+			else
+				pxmitframe->attrib.mdata = 0;
 
-				pxmitframe->attrib.triggered = 1;
+			pxmitframe->attrib.triggered = 1;
 
-				if (psta->sleepq_len == 0) {
-					pstapriv->tim_bitmap &= ~BIT(psta->aid);
+			if (psta->sleepq_len == 0) {
+				pstapriv->tim_bitmap &= ~BIT(psta->aid);
 
-					/* upate BCN for TIM IE */
-					/* update_BCNTIM(padapter); */
-					update_beacon(padapter, _TIM_IE_, NULL, false);
-				}
-			} else {
-				if (pstapriv->tim_bitmap & BIT(psta->aid)) {
-					if (psta->sleepq_len == 0)
-						/* issue nulldata with More data bit = 0 to indicate we have no buffered packets */
-						issue_nulldata(padapter, psta->hwaddr, 0, 0, 0);
-					else
-						psta->sleepq_len = 0;
-
-					pstapriv->tim_bitmap &= ~BIT(psta->aid);
-
-					/* upate BCN for TIM IE */
-					/* update_BCNTIM(padapter); */
-					update_beacon(padapter, _TIM_IE_, NULL, false);
-				}
+				/* upate BCN for TIM IE */
+				/* update_BCNTIM(padapter); */
+				update_beacon(padapter, _TIM_IE_, NULL, false);
 			}
-			spin_unlock_bh(&pxmitpriv->lock);
+		} else {
+			if (pstapriv->tim_bitmap & BIT(psta->aid)) {
+				if (psta->sleepq_len == 0)
+					/* issue nulldata with More data bit = 0 to indicate we have no buffered packets */
+					issue_nulldata(padapter, psta->hwaddr, 0, 0, 0);
+				else
+					psta->sleepq_len = 0;
+
+				pstapriv->tim_bitmap &= ~BIT(psta->aid);
+
+				/* upate BCN for TIM IE */
+				/* update_BCNTIM(padapter); */
+				update_beacon(padapter, _TIM_IE_, NULL, false);
+			}
 		}
+		spin_unlock_bh(&pxmitpriv->lock);
 	}
 }
 
