@@ -945,7 +945,7 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	struct security_priv	*psecuritypriv = &adapter->securitypriv;
 	int ret = _SUCCESS;
 
-	bretry = GetRetry(ptr);
+	bretry = ieee80211_has_retry(hdr->frame_control);
 	pda = ieee80211_get_DA(hdr);
 	psa = ieee80211_get_SA(hdr);
 	pbssid = get_hdr_bssid(ptr);
