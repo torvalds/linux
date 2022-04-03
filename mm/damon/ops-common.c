@@ -10,7 +10,7 @@
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
 
-#include "prmtv-common.h"
+#include "ops-common.h"
 
 /*
  * Get an online page for a pfn if it's in the LRU list.  Otherwise, returns
