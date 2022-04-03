@@ -537,12 +537,18 @@ static int tusb1210_probe(struct ulpi *ulpi)
 	tusb1210_probe_charger_detect(tusb);
 
 	tusb->phy = ulpi_phy_create(ulpi, &phy_ops);
-	if (IS_ERR(tusb->phy))
-		return PTR_ERR(tusb->phy);
+	if (IS_ERR(tusb->phy)) {
+		ret = PTR_ERR(tusb->phy);
+		goto err_remove_charger;
+	}
 
 	phy_set_drvdata(tusb->phy, tusb);
 	ulpi_set_drvdata(ulpi, tusb);
 	return 0;
+
+err_remove_charger:
+	tusb1210_remove_charger_detect(tusb);
+	return ret;
 }
 
 static void tusb1210_remove(struct ulpi *ulpi)
