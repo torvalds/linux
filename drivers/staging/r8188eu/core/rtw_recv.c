@@ -940,13 +940,14 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	u8 *psa, *pda, *pbssid;
 	struct sta_info *psta = NULL;
 	u8 *ptr = precv_frame->rx_data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
 	struct rx_pkt_attrib	*pattrib = &precv_frame->attrib;
 	struct security_priv	*psecuritypriv = &adapter->securitypriv;
 	int ret = _SUCCESS;
 
 	bretry = GetRetry(ptr);
 	pda = get_da(ptr);
-	psa = get_sa(ptr);
+	psa = ieee80211_get_SA(hdr);
 	pbssid = get_hdr_bssid(ptr);
 
 	if (!pbssid) {
