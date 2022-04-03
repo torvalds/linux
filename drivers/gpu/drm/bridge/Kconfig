@@ -32,6 +32,7 @@ config DRM_CHIPONE_ICN6211
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select DRM_PANEL_BRIDGE
+	select REGMAP_I2C
 	help
 	  ICN6211 is MIPI-DSI/RGB Converter bridge from chipone.
 

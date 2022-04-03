@@ -14,6 +14,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
 #define VENDOR_ID		0x00
@@ -134,6 +135,7 @@
 
 struct chipone {
 	struct device *dev;
+	struct regmap *regmap;
 	struct i2c_client *client;
 	struct drm_bridge bridge;
 	struct drm_display_mode mode;
@@ -146,6 +148,77 @@ struct chipone {
 	bool interface_i2c;
 };
 
+static const struct regmap_range chipone_dsi_readable_ranges[] = {
+	regmap_reg_range(VENDOR_ID, VERSION_ID),
+	regmap_reg_range(FIRMWARE_VERSION, PLL_SSC_OFFSET(3)),
+	regmap_reg_range(GPIO_OEN, MIPI_ULPS_CTRL),
+	regmap_reg_range(MIPI_CLK_CHK_VAR, MIPI_T_TA_SURE_PRE),
+	regmap_reg_range(MIPI_T_LPX_SET, MIPI_INIT_TIME_H),
+	regmap_reg_range(MIPI_T_CLK_TERM_EN, MIPI_T_CLK_SETTLE),
+	regmap_reg_range(MIPI_TO_HS_RX_L, MIPI_PHY_(5)),
+	regmap_reg_range(MIPI_PD_RX, MIPI_RST_NUM),
+	regmap_reg_range(MIPI_DBG_SET_(0), MIPI_DBG_SET_(9)),
+	regmap_reg_range(MIPI_DBG_SEL, MIPI_ATE_STATUS_(1)),
+};
+
+static const struct regmap_access_table chipone_dsi_readable_table = {
+	.yes_ranges = chipone_dsi_readable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(chipone_dsi_readable_ranges),
+};
+
+static const struct regmap_range chipone_dsi_writeable_ranges[] = {
+	regmap_reg_range(CONFIG_FINISH, PLL_SSC_OFFSET(3)),
+	regmap_reg_range(GPIO_OEN, MIPI_ULPS_CTRL),
+	regmap_reg_range(MIPI_CLK_CHK_VAR, MIPI_T_TA_SURE_PRE),
+	regmap_reg_range(MIPI_T_LPX_SET, MIPI_INIT_TIME_H),
+	regmap_reg_range(MIPI_T_CLK_TERM_EN, MIPI_T_CLK_SETTLE),
+	regmap_reg_range(MIPI_TO_HS_RX_L, MIPI_PHY_(5)),
+	regmap_reg_range(MIPI_PD_RX, MIPI_RST_NUM),
+	regmap_reg_range(MIPI_DBG_SET_(0), MIPI_DBG_SET_(9)),
+	regmap_reg_range(MIPI_DBG_SEL, MIPI_ATE_STATUS_(1)),
+};
+
+static const struct regmap_access_table chipone_dsi_writeable_table = {
+	.yes_ranges = chipone_dsi_writeable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(chipone_dsi_writeable_ranges),
+};
+
+static const struct regmap_config chipone_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.rd_table = &chipone_dsi_readable_table,
+	.wr_table = &chipone_dsi_writeable_table,
+	.cache_type = REGCACHE_RBTREE,
+	.max_register = MIPI_ATE_STATUS_(1),
+};
+
+static int chipone_dsi_read(void *context,
+			    const void *reg, size_t reg_size,
+			    void *val, size_t val_size)
+{
+	struct mipi_dsi_device *dsi = context;
+	const u16 reg16 = (val_size << 8) | *(u8 *)reg;
+	int ret;
+
+	ret = mipi_dsi_generic_read(dsi, &reg16, 2, val, val_size);
+
+	return ret == val_size ? 0 : -EINVAL;
+}
+
+static int chipone_dsi_write(void *context, const void *data, size_t count)
+{
+	struct mipi_dsi_device *dsi = context;
+
+	return mipi_dsi_generic_write(dsi, data, 2);
+}
+
+static const struct regmap_bus chipone_dsi_regmap_bus = {
+	.read				= chipone_dsi_read,
+	.write				= chipone_dsi_write,
+	.reg_format_endian_default	= REGMAP_ENDIAN_NATIVE,
+	.val_format_endian_default	= REGMAP_ENDIAN_NATIVE,
+};
+
 static inline struct chipone *bridge_to_chipone(struct drm_bridge *bridge)
 {
 	return container_of(bridge, struct chipone, bridge);
@@ -153,18 +226,16 @@ static inline struct chipone *bridge_to_chipone(struct drm_bridge *bridge)
 
 static void chipone_readb(struct chipone *icn, u8 reg, u8 *val)
 {
-	if (icn->interface_i2c)
-		*val = i2c_smbus_read_byte_data(icn->client, reg);
-	else
-		mipi_dsi_generic_read(icn->dsi, (u8[]){reg, 1}, 2, val, 1);
+	int ret, pval;
+
+	ret = regmap_read(icn->regmap, reg, &pval);
+
+	*val = ret ? 0 : pval & 0xff;
 }
 
 static int chipone_writeb(struct chipone *icn, u8 reg, u8 val)
 {
-	if (icn->interface_i2c)
-		return i2c_smbus_write_byte_data(icn->client, reg, val);
-	else
-		return mipi_dsi_generic_write(icn->dsi, (u8[]){reg, val}, 2);
+	return regmap_write(icn->regmap, reg, val);
 }
 
 static void chipone_configure_pll(struct chipone *icn,
@@ -591,6 +662,11 @@ static int chipone_dsi_probe(struct mipi_dsi_device *dsi)
 	if (ret)
 		return ret;
 
+	icn->regmap = devm_regmap_init(dev, &chipone_dsi_regmap_bus,
+				       dsi, &chipone_regmap_config);
+	if (IS_ERR(icn->regmap))
+		return PTR_ERR(icn->regmap);
+
 	icn->interface_i2c = false;
 	icn->dsi = dsi;
 
@@ -615,6 +691,10 @@ static int chipone_i2c_probe(struct i2c_client *client,
 	ret = chipone_common_probe(dev, &icn);
 	if (ret)
 		return ret;
+
+	icn->regmap = devm_regmap_init_i2c(client, &chipone_regmap_config);
+	if (IS_ERR(icn->regmap))
+		return PTR_ERR(icn->regmap);
 
 	icn->interface_i2c = true;
 	icn->client = client;
