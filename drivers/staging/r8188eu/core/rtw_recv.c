@@ -800,9 +800,8 @@ static void validate_recv_ctrl_frame(struct adapter *padapter,
 {
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
 	struct sta_priv *pstapriv = &padapter->stapriv;
-	u8 *pframe = precv_frame->rx_data;
-	u16 aid;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
+	struct ieee80211_pspoll *pspoll = (struct ieee80211_pspoll *)hdr;
 	u8 wmmps_ac;
 	struct sta_info *psta;
 
@@ -814,10 +813,8 @@ static void validate_recv_ctrl_frame(struct adapter *padapter,
 	if (!ieee80211_is_pspoll(hdr->frame_control))
 		return;
 
-	aid = GetAid(pframe);
 	psta = rtw_get_stainfo(pstapriv, hdr->addr2);
-
-	if (!psta || psta->aid != aid)
+	if (!psta || psta->aid != (le16_to_cpu(pspoll->aid) & 0x3FFF))
 		return;
 
 	/* for rx pkt statistics */
