@@ -308,6 +308,7 @@ static inline pmd_t __mk_pmd(pte_t * ptep, unsigned long prot)
 	return pmd;
 }
 
+#define pmd_pfn(pmd)	     (pmd_val(pmd) >> PAGE_SHIFT)
 #define pmd_page(pmd)        virt_to_page(__va(pmd_val(pmd)))
 
 /*

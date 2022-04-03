@@ -249,6 +249,9 @@ config MIGRATION
 	  pages as migration can relocate pages to satisfy a huge page
 	  allocation instead of reclaiming.
 
+config DEVICE_MIGRATION
+	def_bool MIGRATION && ZONE_DEVICE
+
 config ARCH_ENABLE_HUGEPAGE_MIGRATION
 	bool
 
@@ -791,9 +794,6 @@ config ZONE_DEVICE
 
 	  If FS_DAX is enabled, then say Y.
 
-config DEV_PAGEMAP_OPS
-	bool
-
 #
 # Helpers to mirror range of the CPU page tables of a process into device page
 # tables.
@@ -805,7 +805,6 @@ config HMM_MIRROR
 config DEVICE_PRIVATE
 	bool "Unaddressable device memory (GPU memory, ...)"
 	depends on ZONE_DEVICE
-	select DEV_PAGEMAP_OPS
 
 	help
 	  Allows creation of struct pages to represent unaddressable device
