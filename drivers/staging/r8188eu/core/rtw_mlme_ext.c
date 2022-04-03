@@ -478,7 +478,6 @@ unsigned int OnProbeReq(struct adapter *padapter, struct recv_frame *precv_frame
 	u8 is_valid_p2p_probereq = false;
 
 	struct wifidirect_info	*pwdinfo = &padapter->wdinfo;
-	u8 wifi_test_chk_rate = 1;
 
 	if (!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE) &&
 	    !rtw_p2p_chk_state(pwdinfo, P2P_STATE_IDLE) &&
@@ -493,16 +492,14 @@ unsigned int OnProbeReq(struct adapter *padapter, struct recv_frame *precv_frame
 
 		/*	Commented by Kurt 2012/10/16 */
 		/*	IOT issue: Google Nexus7 use 1M rate to send p2p_probe_req after GO nego completed and Nexus7 is client */
-		if (wifi_test_chk_rate == 1) {
-			is_valid_p2p_probereq = process_probe_req_p2p_ie(pwdinfo, pframe, len);
-			if (is_valid_p2p_probereq) {
-				if (rtw_p2p_chk_role(pwdinfo, P2P_ROLE_DEVICE)) {
-					/*  FIXME */
-					report_survey_event(padapter, precv_frame);
-					p2p_listen_state_process(padapter,  get_sa(pframe));
+		is_valid_p2p_probereq = process_probe_req_p2p_ie(pwdinfo, pframe, len);
+		if (is_valid_p2p_probereq) {
+			if (rtw_p2p_chk_role(pwdinfo, P2P_ROLE_DEVICE)) {
+				/*  FIXME */
+				report_survey_event(padapter, precv_frame);
+				p2p_listen_state_process(padapter,  get_sa(pframe));
 
-					return _SUCCESS;
-				}
+				return _SUCCESS;
 			}
 		}
 	}
