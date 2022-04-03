@@ -801,22 +801,21 @@ static void validate_recv_ctrl_frame(struct adapter *padapter,
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	u8 *pframe = precv_frame->rx_data;
-	__le16 fc = *(__le16 *)pframe;
-	/* uint len = precv_frame->len; */
 	u16 aid;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
 	u8 wmmps_ac;
 	struct sta_info *psta;
 
 	/* receive the frames that ra(a1) is my address */
-	if (memcmp(GetAddr1Ptr(pframe), myid(&padapter->eeprompriv), ETH_ALEN))
+	if (memcmp(hdr->addr1, myid(&padapter->eeprompriv), ETH_ALEN))
 		return;
 
 	/* only handle ps-poll */
-	if (!ieee80211_is_pspoll(fc))
+	if (!ieee80211_is_pspoll(hdr->frame_control))
 		return;
 
 	aid = GetAid(pframe);
-	psta = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));
+	psta = rtw_get_stainfo(pstapriv, hdr->addr2);
 
 	if (!psta || psta->aid != aid)
 		return;
