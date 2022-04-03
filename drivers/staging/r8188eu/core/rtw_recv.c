@@ -962,19 +962,15 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	if (ieee80211_has_a4(hdr->frame_control))
 		return _FAIL;
 
-	if (ieee80211_has_fromds(hdr->frame_control)) {
-		memcpy(pattrib->ra, pda, ETH_ALEN);
-		memcpy(pattrib->ta, pbssid, ETH_ALEN);
+	memcpy(pattrib->ra, hdr->addr1, ETH_ALEN);
+	memcpy(pattrib->ta, hdr->addr2, ETH_ALEN);
+
+	if (ieee80211_has_fromds(hdr->frame_control))
 		ret = ap2sta_data_frame(adapter, precv_frame, &psta);
-	} else if (ieee80211_has_tods(hdr->frame_control)) {
-		memcpy(pattrib->ra, pbssid, ETH_ALEN);
-		memcpy(pattrib->ta, psa, ETH_ALEN);
+	else if (ieee80211_has_tods(hdr->frame_control))
 		ret = sta2ap_data_frame(adapter, precv_frame, &psta);
-	} else {
-		memcpy(pattrib->ra, pda, ETH_ALEN);
-		memcpy(pattrib->ta, psa, ETH_ALEN);
+	else
 		ret = sta2sta_data_frame(adapter, precv_frame, &psta);
-	}
 
 	if (ret == _FAIL || ret == RTW_RX_HANDLED)
 		return ret;
