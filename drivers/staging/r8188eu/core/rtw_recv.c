@@ -936,15 +936,12 @@ static void validate_recv_mgnt_frame(struct adapter *padapter,
 static int validate_recv_data_frame(struct adapter *adapter,
 				    struct recv_frame *precv_frame)
 {
-	u8 bretry;
 	struct sta_info *psta = NULL;
 	u8 *ptr = precv_frame->rx_data;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
 	struct rx_pkt_attrib	*pattrib = &precv_frame->attrib;
 	struct security_priv	*psecuritypriv = &adapter->securitypriv;
 	int ret;
-
-	bretry = ieee80211_has_retry(hdr->frame_control);
 
 	memcpy(pattrib->dst, ieee80211_get_DA(hdr), ETH_ALEN);
 	memcpy(pattrib->src, ieee80211_get_SA(hdr), ETH_ALEN);
@@ -999,7 +996,8 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	precv_frame->preorder_ctrl = &psta->recvreorder_ctrl[pattrib->priority];
 
 	/*  decache, drop duplicate recv packets */
-	if (recv_decache(precv_frame, bretry, &psta->sta_recvpriv.rxcache) == _FAIL)
+	if (recv_decache(precv_frame, ieee80211_has_retry(hdr->frame_control),
+			 &psta->sta_recvpriv.rxcache) == _FAIL)
 		return _FAIL;
 
 	if (pattrib->privacy) {
