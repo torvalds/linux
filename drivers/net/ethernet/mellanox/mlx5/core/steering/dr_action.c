@@ -530,6 +530,37 @@ static int dr_action_handle_cs_recalc(struct mlx5dr_domain *dmn,
 	return 0;
 }
 
+static void dr_action_modify_ttl_adjust(struct mlx5dr_domain *dmn,
+					struct mlx5dr_ste_actions_attr *attr,
+					bool rx_rule,
+					bool *recalc_cs_required)
+{
+	*recalc_cs_required = false;
+
+	/* if device supports csum recalculation - no adjustment needed */
+	if (mlx5dr_ste_supp_ttl_cs_recalc(&dmn->info.caps))
+		return;
+
+	/* no adjustment needed on TX rules */
+	if (!rx_rule)
+		return;
+
+	if (!MLX5_CAP_ESW_FLOWTABLE(dmn->mdev, fdb_ipv4_ttl_modify)) {
+		/* Ignore the modify TTL action.
+		 * It is always kept as last HW action.
+		 */
+		attr->modify_actions--;
+		return;
+	}
+
+	if (dmn->type == MLX5DR_DOMAIN_TYPE_FDB)
+		/* Due to a HW bug on some devices, modifying TTL on RX flows
+		 * will cause an incorrect checksum calculation. In such cases
+		 * we will use a FW table to recalculate the checksum.
+		 */
+		*recalc_cs_required = true;
+}
+
 static void dr_action_print_sequence(struct mlx5dr_domain *dmn,
 				     struct mlx5dr_action *actions[],
 				     int last_idx)
@@ -650,8 +681,9 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 		case DR_ACTION_TYP_MODIFY_HDR:
 			attr.modify_index = action->rewrite->index;
 			attr.modify_actions = action->rewrite->num_of_actions;
-			recalc_cs_required = action->rewrite->modify_ttl &&
-					     !mlx5dr_ste_supp_ttl_cs_recalc(&dmn->info.caps);
+			if (action->rewrite->modify_ttl)
+				dr_action_modify_ttl_adjust(dmn, &attr, rx_rule,
+							    &recalc_cs_required);
 			break;
 		case DR_ACTION_TYP_L2_TO_TNL_L2:
 		case DR_ACTION_TYP_L2_TO_TNL_L3:
@@ -732,12 +764,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 	*new_hw_ste_arr_sz = nic_matcher->num_of_builders;
 	last_ste = ste_arr + DR_STE_SIZE * (nic_matcher->num_of_builders - 1);
 
-	/* Due to a HW bug in some devices, modifying TTL on RX flows will
-	 * cause an incorrect checksum calculation. In this case we will
-	 * use a FW table to recalculate.
-	 */
-	if (dmn->type == MLX5DR_DOMAIN_TYPE_FDB &&
-	    rx_rule && recalc_cs_required && dest_action) {
+	if (recalc_cs_required && dest_action) {
 		ret = dr_action_handle_cs_recalc(dmn, dest_action, &attr.final_icm_addr);
 		if (ret) {
 			mlx5dr_err(dmn,
@@ -1558,12 +1585,6 @@ dr_action_modify_check_is_ttl_modify(const void *sw_action)
 	return sw_field == MLX5_ACTION_IN_FIELD_OUT_IP_TTL;
 }
 
-static bool dr_action_modify_ttl_ignore(struct mlx5dr_domain *dmn)
-{
-	return !mlx5dr_ste_supp_ttl_cs_recalc(&dmn->info.caps) &&
-	       !MLX5_CAP_ESW_FLOWTABLE(dmn->mdev, fdb_ipv4_ttl_modify);
-}
-
 static int dr_actions_convert_modify_header(struct mlx5dr_action *action,
 					    u32 max_hw_actions,
 					    u32 num_sw_actions,
@@ -1575,6 +1596,7 @@ static int dr_actions_convert_modify_header(struct mlx5dr_action *action,
 	const struct mlx5dr_ste_action_modify_field *hw_dst_action_info;
 	const struct mlx5dr_ste_action_modify_field *hw_src_action_info;
 	struct mlx5dr_domain *dmn = action->rewrite->dmn;
+	__be64 *modify_ttl_sw_action = NULL;
 	int ret, i, hw_idx = 0;
 	__be64 *sw_action;
 	__be64 hw_action;
@@ -1587,8 +1609,14 @@ static int dr_actions_convert_modify_header(struct mlx5dr_action *action,
 	action->rewrite->allow_rx = 1;
 	action->rewrite->allow_tx = 1;
 
-	for (i = 0; i < num_sw_actions; i++) {
-		sw_action = &sw_actions[i];
+	for (i = 0; i < num_sw_actions || modify_ttl_sw_action; i++) {
+		/* modify TTL is handled separately, as a last action */
+		if (i == num_sw_actions) {
+			sw_action = modify_ttl_sw_action;
+			modify_ttl_sw_action = NULL;
+		} else {
+			sw_action = &sw_actions[i];
+		}
 
 		ret = dr_action_modify_check_field_limitation(action,
 							      sw_action);
@@ -1597,10 +1625,9 @@ static int dr_actions_convert_modify_header(struct mlx5dr_action *action,
 
 		if (!(*modify_ttl) &&
 		    dr_action_modify_check_is_ttl_modify(sw_action)) {
-			if (dr_action_modify_ttl_ignore(dmn))
-				continue;
-
+			modify_ttl_sw_action = sw_action;
 			*modify_ttl = true;
+			continue;
 		}
 
 		/* Convert SW action to HW action */
