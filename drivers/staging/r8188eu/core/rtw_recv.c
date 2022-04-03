@@ -795,8 +795,8 @@ exit:
 	return ret;
 }
 
-static int validate_recv_ctrl_frame(struct adapter *padapter,
-				    struct recv_frame *precv_frame)
+static void validate_recv_ctrl_frame(struct adapter *padapter,
+				     struct recv_frame *precv_frame)
 {
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
 	struct sta_priv *pstapriv = &padapter->stapriv;
@@ -805,11 +805,11 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 	/* uint len = precv_frame->len; */
 
 	if (!ieee80211_is_ctl(fc))
-		return _FAIL;
+		return;
 
 	/* receive the frames that ra(a1) is my address */
 	if (memcmp(GetAddr1Ptr(pframe), myid(&padapter->eeprompriv), ETH_ALEN))
-		return _FAIL;
+		return;
 
 	/* only handle ps-poll */
 	if (GetFrameSubType(pframe) == WIFI_PSPOLL) {
@@ -821,7 +821,7 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 		psta = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));
 
 		if (!psta || psta->aid != aid)
-			return _FAIL;
+			return;
 
 		/* for rx pkt statistics */
 		psta->sta_stats.rx_ctrl_pkts++;
@@ -847,7 +847,7 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 		}
 
 		if (wmmps_ac)
-			return _FAIL;
+			return;
 
 		if (psta->state & WIFI_STA_ALIVE_CHK_STATE) {
 			psta->expire_to = pstapriv->expire_to;
@@ -905,8 +905,6 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 			spin_unlock_bh(&pxmitpriv->lock);
 		}
 	}
-
-	return _FAIL;
 }
 
 struct recv_frame *recvframe_chk_defrag(struct adapter *padapter, struct recv_frame *precv_frame);
