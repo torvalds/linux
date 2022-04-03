@@ -937,7 +937,7 @@ static int validate_recv_data_frame(struct adapter *adapter,
 				    struct recv_frame *precv_frame)
 {
 	u8 bretry;
-	u8 *psa, *pda, *pbssid;
+	u8 *pbssid;
 	struct sta_info *psta = NULL;
 	u8 *ptr = precv_frame->rx_data;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
@@ -946,15 +946,13 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	int ret;
 
 	bretry = ieee80211_has_retry(hdr->frame_control);
-	pda = ieee80211_get_DA(hdr);
-	psa = ieee80211_get_SA(hdr);
 
 	pbssid = get_hdr_bssid(ptr);
 	if (!pbssid)
 		return _FAIL;
 
-	memcpy(pattrib->dst, pda, ETH_ALEN);
-	memcpy(pattrib->src, psa, ETH_ALEN);
+	memcpy(pattrib->dst, ieee80211_get_DA(hdr), ETH_ALEN);
+	memcpy(pattrib->src, ieee80211_get_SA(hdr), ETH_ALEN);
 
 	memcpy(pattrib->bssid, pbssid, ETH_ALEN);
 
