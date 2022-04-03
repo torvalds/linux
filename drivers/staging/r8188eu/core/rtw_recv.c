@@ -943,17 +943,15 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
 	struct rx_pkt_attrib	*pattrib = &precv_frame->attrib;
 	struct security_priv	*psecuritypriv = &adapter->securitypriv;
-	int ret = _SUCCESS;
+	int ret;
 
 	bretry = ieee80211_has_retry(hdr->frame_control);
 	pda = ieee80211_get_DA(hdr);
 	psa = ieee80211_get_SA(hdr);
-	pbssid = get_hdr_bssid(ptr);
 
-	if (!pbssid) {
-		ret = _FAIL;
-		goto exit;
-	}
+	pbssid = get_hdr_bssid(ptr);
+	if (!pbssid)
+		return _FAIL;
 
 	memcpy(pattrib->dst, pda, ETH_ALEN);
 	memcpy(pattrib->src, psa, ETH_ALEN);
@@ -986,16 +984,11 @@ static int validate_recv_data_frame(struct adapter *adapter,
 		break;
 	}
 
-	if (ret == _FAIL) {
-		goto exit;
-	} else if (ret == RTW_RX_HANDLED) {
-		goto exit;
-	}
+	if (ret == _FAIL || ret == RTW_RX_HANDLED)
+		return ret;
 
-	if (!psta) {
-		ret = _FAIL;
-		goto exit;
-	}
+	if (!psta)
+		return _FAIL;
 
 	/* psta->rssi = prxcmd->rssi; */
 	/* psta->signal_quality = prxcmd->sq; */
@@ -1023,10 +1016,8 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	precv_frame->preorder_ctrl = &psta->recvreorder_ctrl[pattrib->priority];
 
 	/*  decache, drop duplicate recv packets */
-	if (recv_decache(precv_frame, bretry, &psta->sta_recvpriv.rxcache) == _FAIL) {
-		ret = _FAIL;
-		goto exit;
-	}
+	if (recv_decache(precv_frame, bretry, &psta->sta_recvpriv.rxcache) == _FAIL)
+		return _FAIL;
 
 	if (pattrib->privacy) {
 		GET_ENCRY_ALGO(psecuritypriv, psta, pattrib->encrypt, is_multicast_ether_addr(pattrib->ra));
@@ -1038,9 +1029,7 @@ static int validate_recv_data_frame(struct adapter *adapter,
 		pattrib->icv_len = 0;
 	}
 
-exit:
-
-	return ret;
+	return _SUCCESS;
 }
 
 static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv_frame)
