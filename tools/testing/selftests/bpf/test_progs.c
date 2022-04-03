@@ -761,8 +761,10 @@ int cd_flavor_subdir(const char *exec_name)
 	const char *flavor = strrchr(exec_name, '/');
 
 	if (!flavor)
-		return 0;
-	flavor++;
+		flavor = exec_name;
+	else
+		flavor++;
+
 	flavor = strrchr(flavor, '-');
 	if (!flavor)
 		return 0;
