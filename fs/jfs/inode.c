@@ -357,7 +357,8 @@ static ssize_t jfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 }
 
 const struct address_space_operations jfs_aops = {
-	.set_page_dirty	= __set_page_dirty_buffers,
+	.dirty_folio	= block_dirty_folio,
+	.invalidate_folio = block_invalidate_folio,
 	.readpage	= jfs_readpage,
 	.readahead	= jfs_readahead,
 	.writepage	= jfs_writepage,

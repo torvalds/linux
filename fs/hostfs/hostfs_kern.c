@@ -14,6 +14,7 @@
 #include <linux/statfs.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
+#include <linux/writeback.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include "hostfs.h"
@@ -504,7 +505,7 @@ static int hostfs_write_end(struct file *file, struct address_space *mapping,
 static const struct address_space_operations hostfs_aops = {
 	.writepage 	= hostfs_writepage,
 	.readpage	= hostfs_readpage,
-	.set_page_dirty = __set_page_dirty_nobuffers,
+	.dirty_folio	= filemap_dirty_folio,
 	.write_begin	= hostfs_write_begin,
 	.write_end	= hostfs_write_end,
 };

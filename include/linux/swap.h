@@ -428,7 +428,7 @@ extern int swap_writepage(struct page *page, struct writeback_control *wbc);
 extern void end_swap_bio_write(struct bio *bio);
 extern int __swap_writepage(struct page *page, struct writeback_control *wbc,
 	bio_end_io_t end_write_func);
-extern int swap_set_page_dirty(struct page *page);
+bool swap_dirty_folio(struct address_space *mapping, struct folio *folio);
 
 int add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
 		unsigned long nr_pages, sector_t start_block);

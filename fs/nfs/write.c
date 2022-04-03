@@ -2057,21 +2057,21 @@ out:
 }
 EXPORT_SYMBOL_GPL(nfs_wb_all);
 
-int nfs_wb_page_cancel(struct inode *inode, struct page *page)
+int nfs_wb_folio_cancel(struct inode *inode, struct folio *folio)
 {
 	struct nfs_page *req;
 	int ret = 0;
 
-	wait_on_page_writeback(page);
+	folio_wait_writeback(folio);
 
 	/* blocking call to cancel all requests and join to a single (head)
 	 * request */
-	req = nfs_lock_and_join_requests(page);
+	req = nfs_lock_and_join_requests(&folio->page);
 
 	if (IS_ERR(req)) {
 		ret = PTR_ERR(req);
 	} else if (req) {
-		/* all requests from this page have been cancelled by
+		/* all requests from this folio have been cancelled by
 		 * nfs_lock_and_join_requests, so just remove the head
 		 * request from the inode / page_private pointer and
 		 * release it */

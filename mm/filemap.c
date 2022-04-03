@@ -72,7 +72,7 @@
  * Lock ordering:
  *
  *  ->i_mmap_rwsem		(truncate_pagecache)
- *    ->private_lock		(__free_pte->__set_page_dirty_buffers)
+ *    ->private_lock		(__free_pte->block_dirty_folio)
  *      ->swap_lock		(exclusive_swap_page, others)
  *        ->i_pages lock
  *
@@ -115,7 +115,7 @@
  *    ->memcg->move_lock	(page_remove_rmap->lock_page_memcg)
  *    bdi.wb->list_lock		(zap_pte_range->set_page_dirty)
  *    ->inode->i_lock		(zap_pte_range->set_page_dirty)
- *    ->private_lock		(zap_pte_range->__set_page_dirty_buffers)
+ *    ->private_lock		(zap_pte_range->block_dirty_folio)
  *
  * ->i_mmap_rwsem
  *   ->tasklist_lock            (memory_failure, collect_procs_ao)
@@ -2464,7 +2464,7 @@ static bool filemap_range_uptodate(struct address_space *mapping,
 		pos -= folio_pos(folio);
 	}
 
-	return mapping->a_ops->is_partially_uptodate(&folio->page, pos, count);
+	return mapping->a_ops->is_partially_uptodate(folio, pos, count);
 }
 
 static int filemap_update_page(struct kiocb *iocb,
@@ -2856,7 +2856,7 @@ static inline loff_t folio_seek_hole_data(struct xa_state *xas,
 	offset = offset_in_folio(folio, start) & ~(bsz - 1);
 
 	do {
-		if (ops->is_partially_uptodate(&folio->page, offset, bsz) ==
+		if (ops->is_partially_uptodate(folio, offset, bsz) ==
 							seek_data)
 			break;
 		start = (start + bsz) & ~(bsz - 1);

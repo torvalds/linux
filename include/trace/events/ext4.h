@@ -608,44 +608,44 @@ DEFINE_EVENT(ext4__page_op, ext4_releasepage,
 	TP_ARGS(page)
 );
 
-DECLARE_EVENT_CLASS(ext4_invalidatepage_op,
-	TP_PROTO(struct page *page, unsigned int offset, unsigned int length),
+DECLARE_EVENT_CLASS(ext4_invalidate_folio_op,
+	TP_PROTO(struct folio *folio, size_t offset, size_t length),
 
-	TP_ARGS(page, offset, length),
+	TP_ARGS(folio, offset, length),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
 		__field(	ino_t,	ino			)
 		__field(	pgoff_t, index			)
-		__field(	unsigned int, offset		)
-		__field(	unsigned int, length		)
+		__field(	size_t, offset			)
+		__field(	size_t, length			)
 	),
 
 	TP_fast_assign(
-		__entry->dev	= page->mapping->host->i_sb->s_dev;
-		__entry->ino	= page->mapping->host->i_ino;
-		__entry->index	= page->index;
+		__entry->dev	= folio->mapping->host->i_sb->s_dev;
+		__entry->ino	= folio->mapping->host->i_ino;
+		__entry->index	= folio->index;
 		__entry->offset	= offset;
 		__entry->length	= length;
 	),
 
-	TP_printk("dev %d,%d ino %lu page_index %lu offset %u length %u",
+	TP_printk("dev %d,%d ino %lu folio_index %lu offset %zu length %zu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
 		  (unsigned long) __entry->index,
 		  __entry->offset, __entry->length)
 );
 
-DEFINE_EVENT(ext4_invalidatepage_op, ext4_invalidatepage,
-	TP_PROTO(struct page *page, unsigned int offset, unsigned int length),
+DEFINE_EVENT(ext4_invalidate_folio_op, ext4_invalidate_folio,
+	TP_PROTO(struct folio *folio, size_t offset, size_t length),
 
-	TP_ARGS(page, offset, length)
+	TP_ARGS(folio, offset, length)
 );
 
-DEFINE_EVENT(ext4_invalidatepage_op, ext4_journalled_invalidatepage,
-	TP_PROTO(struct page *page, unsigned int offset, unsigned int length),
+DEFINE_EVENT(ext4_invalidate_folio_op, ext4_journalled_invalidate_folio,
+	TP_PROTO(struct folio *folio, size_t offset, size_t length),
 
-	TP_ARGS(page, offset, length)
+	TP_ARGS(folio, offset, length)
 );
 
 TRACE_EVENT(ext4_discard_blocks,

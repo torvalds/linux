@@ -1747,7 +1747,7 @@ unsigned int f2fs_cluster_blocks_are_contiguous(struct dnode_of_data *dn)
 
 const struct address_space_operations f2fs_compress_aops = {
 	.releasepage = f2fs_release_page,
-	.invalidatepage = f2fs_invalidate_page,
+	.invalidate_folio = f2fs_invalidate_folio,
 };
 
 struct address_space *COMPRESS_MAPPING(struct f2fs_sb_info *sbi)

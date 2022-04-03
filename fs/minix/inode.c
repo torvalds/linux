@@ -442,7 +442,8 @@ static sector_t minix_bmap(struct address_space *mapping, sector_t block)
 }
 
 static const struct address_space_operations minix_aops = {
-	.set_page_dirty	= __set_page_dirty_buffers,
+	.dirty_folio	= block_dirty_folio,
+	.invalidate_folio = block_invalidate_folio,
 	.readpage = minix_readpage,
 	.writepage = minix_writepage,
 	.write_begin = minix_write_begin,

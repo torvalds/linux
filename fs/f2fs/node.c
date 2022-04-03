@@ -2137,23 +2137,24 @@ skip_write:
 	return 0;
 }
 
-static int f2fs_set_node_page_dirty(struct page *page)
+static bool f2fs_dirty_node_folio(struct address_space *mapping,
+		struct folio *folio)
 {
-	trace_f2fs_set_page_dirty(page, NODE);
+	trace_f2fs_set_page_dirty(&folio->page, NODE);
 
-	if (!PageUptodate(page))
-		SetPageUptodate(page);
+	if (!folio_test_uptodate(folio))
+		folio_mark_uptodate(folio);
 #ifdef CONFIG_F2FS_CHECK_FS
-	if (IS_INODE(page))
-		f2fs_inode_chksum_set(F2FS_P_SB(page), page);
+	if (IS_INODE(&folio->page))
+		f2fs_inode_chksum_set(F2FS_P_SB(&folio->page), &folio->page);
 #endif
-	if (!PageDirty(page)) {
-		__set_page_dirty_nobuffers(page);
-		inc_page_count(F2FS_P_SB(page), F2FS_DIRTY_NODES);
-		set_page_private_reference(page);
-		return 1;
+	if (!folio_test_dirty(folio)) {
+		filemap_dirty_folio(mapping, folio);
+		inc_page_count(F2FS_P_SB(&folio->page), F2FS_DIRTY_NODES);
+		set_page_private_reference(&folio->page);
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 /*
@@ -2162,8 +2163,8 @@ static int f2fs_set_node_page_dirty(struct page *page)
 const struct address_space_operations f2fs_node_aops = {
 	.writepage	= f2fs_write_node_page,
 	.writepages	= f2fs_write_node_pages,
-	.set_page_dirty	= f2fs_set_node_page_dirty,
-	.invalidatepage	= f2fs_invalidate_page,
+	.dirty_folio	= f2fs_dirty_node_folio,
+	.invalidate_folio = f2fs_invalidate_folio,
 	.releasepage	= f2fs_release_page,
 #ifdef CONFIG_MIGRATION
 	.migratepage	= f2fs_migrate_page,
