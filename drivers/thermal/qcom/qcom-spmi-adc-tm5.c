@@ -78,11 +78,10 @@ enum adc5_timer_select {
 	ADC5_TIMER_SEL_NONE,
 };
 
-struct adc_tm5_data {
-	const u32	full_scale_code_volt;
-	unsigned int	*decimation;
-	unsigned int	*hw_settle;
-	bool		is_hc;
+enum adc5_gen {
+	ADC_TM5,
+	ADC_TM_HC,
+	ADC_TM5_MAX
 };
 
 enum adc_tm5_cal_method {
@@ -92,6 +91,19 @@ enum adc_tm5_cal_method {
 };
 
 struct adc_tm5_chip;
+struct adc_tm5_channel;
+
+struct adc_tm5_data {
+	const u32 full_scale_code_volt;
+	unsigned int *decimation;
+	unsigned int *hw_settle;
+	int (*disable_channel)(struct adc_tm5_channel *channel);
+	int (*configure)(struct adc_tm5_channel *channel, int low, int high);
+	irqreturn_t (*isr)(int irq, void *data);
+	int (*init)(struct adc_tm5_chip *chip);
+	char *irq_name;
+	int gen;
+};
 
 /**
  * struct adc_tm5_channel - ADC Thermal Monitoring channel data.
@@ -137,22 +149,6 @@ struct adc_tm5_chip {
 	unsigned int		decimation;
 	unsigned int		avg_samples;
 	u16			base;
-};
-
-static const struct adc_tm5_data adc_tm5_data_pmic = {
-	.full_scale_code_volt = 0x70e4,
-	.decimation = (unsigned int []) { 250, 420, 840 },
-	.hw_settle = (unsigned int []) { 15, 100, 200, 300, 400, 500, 600, 700,
-					 1000, 2000, 4000, 8000, 16000, 32000,
-					 64000, 128000 },
-};
-
-static const struct adc_tm5_data adc_tm_hc_data_pmic = {
-	.full_scale_code_volt = 0x70e4,
-	.decimation = (unsigned int []) { 256, 512, 1024 },
-	.hw_settle = (unsigned int []) { 0, 100, 200, 300, 400, 500, 600, 700,
-					 1000, 2000, 4000, 6000, 8000, 10000 },
-	.is_hc = true,
 };
 
 static int adc_tm5_read(struct adc_tm5_chip *adc_tm, u16 offset, u8 *data, int len)
@@ -343,14 +339,14 @@ static int adc_tm5_set_trips(void *data, int low, int high)
 		channel->channel, low, high);
 
 	if (high == INT_MAX && low <= -INT_MAX)
-		ret = adc_tm5_disable_channel(channel);
+		ret = chip->data->disable_channel(channel);
 	else
-		ret = adc_tm5_configure(channel, low, high);
+		ret = chip->data->configure(channel, low, high);
 
 	return ret;
 }
 
-static struct thermal_zone_of_device_ops adc_tm5_ops = {
+static struct thermal_zone_of_device_ops adc_tm5_thermal_ops = {
 	.get_temp = adc_tm5_get_temp,
 	.set_trips = adc_tm5_set_trips,
 };
@@ -366,7 +362,7 @@ static int adc_tm5_register_tzd(struct adc_tm5_chip *adc_tm)
 		tzd = devm_thermal_zone_of_sensor_register(adc_tm->dev,
 							   adc_tm->channels[i].channel,
 							   &adc_tm->channels[i],
-							   &adc_tm5_ops);
+							   &adc_tm5_thermal_ops);
 		if (IS_ERR(tzd)) {
 			if (PTR_ERR(tzd) == -ENODEV) {
 				dev_warn(adc_tm->dev, "thermal sensor on channel %d is not used\n",
@@ -526,6 +522,33 @@ static int adc_tm5_get_dt_channel_data(struct adc_tm5_chip *adc_tm,
 	return 0;
 }
 
+static const struct adc_tm5_data adc_tm5_data_pmic = {
+	.full_scale_code_volt = 0x70e4,
+	.decimation = (unsigned int []) { 250, 420, 840 },
+	.hw_settle = (unsigned int []) { 15, 100, 200, 300, 400, 500, 600, 700,
+					 1000, 2000, 4000, 8000, 16000, 32000,
+					 64000, 128000 },
+	.disable_channel = adc_tm5_disable_channel,
+	.configure = adc_tm5_configure,
+	.isr = adc_tm5_isr,
+	.init = adc_tm5_init,
+	.irq_name = "pm-adc-tm5",
+	.gen = ADC_TM5,
+};
+
+static const struct adc_tm5_data adc_tm_hc_data_pmic = {
+	.full_scale_code_volt = 0x70e4,
+	.decimation = (unsigned int []) { 256, 512, 1024 },
+	.hw_settle = (unsigned int []) { 0, 100, 200, 300, 400, 500, 600, 700,
+					 1000, 2000, 4000, 6000, 8000, 10000 },
+	.disable_channel = adc_tm5_disable_channel,
+	.configure = adc_tm5_configure,
+	.isr = adc_tm5_isr,
+	.init = adc_tm_hc_init,
+	.irq_name = "pm-adc-tm5",
+	.gen = ADC_TM_HC,
+};
+
 static int adc_tm5_get_dt_data(struct adc_tm5_chip *adc_tm, struct device_node *node)
 {
 	struct adc_tm5_channel *channels;
@@ -623,10 +646,7 @@ static int adc_tm5_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (adc_tm->data->is_hc)
-		ret = adc_tm_hc_init(adc_tm);
-	else
-		ret = adc_tm5_init(adc_tm);
+	ret = adc_tm->data->init(adc_tm);
 	if (ret) {
 		dev_err(dev, "adc-tm init failed\n");
 		return ret;
@@ -638,8 +658,8 @@ static int adc_tm5_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return devm_request_threaded_irq(dev, irq, NULL, adc_tm5_isr,
-					 IRQF_ONESHOT, "pm-adc-tm5", adc_tm);
+	return devm_request_threaded_irq(dev, irq, NULL, adc_tm->data->isr,
+			IRQF_ONESHOT, adc_tm->data->irq_name, adc_tm);
 }
 
 static const struct of_device_id adc_tm5_match_table[] = {
