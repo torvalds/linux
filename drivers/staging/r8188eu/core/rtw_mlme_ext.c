@@ -503,14 +503,9 @@ unsigned int OnProbeReq(struct adapter *padapter, struct recv_frame *precv_frame
 
 					return _SUCCESS;
 				}
-
-				if (rtw_p2p_chk_role(pwdinfo, P2P_ROLE_GO))
-					goto _continue;
 			}
 		}
 	}
-
-_continue:
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 		return _SUCCESS;
