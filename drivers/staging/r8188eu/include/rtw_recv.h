@@ -80,7 +80,6 @@ struct rx_pkt_attrib {
 	u8	drvinfo_sz;
 	u8	shift_sz;
 	u8	hdrlen; /* the WLAN Header Len */
-	u8	to_fr_ds;
 	u8	amsdu;
 	bool	qos;
 	u8	priority;

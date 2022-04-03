@@ -152,8 +152,6 @@ enum WIFI_REG_DOMAIN {
 
 #define GetFrDs(pbuf)	(((*(__le16 *)(pbuf)) & cpu_to_le16(_FROM_DS_)) != 0)
 
-#define get_tofr_ds(pframe)	((GetToDs(pframe) << 1) | GetFrDs(pframe))
-
 #define SetMFrag(pbuf)	\
 	*(__le16 *)(pbuf) |= cpu_to_le16(_MORE_FRAG_)
 

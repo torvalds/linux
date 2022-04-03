@@ -958,25 +958,22 @@ static int validate_recv_data_frame(struct adapter *adapter,
 
 	memcpy(pattrib->bssid, pbssid, ETH_ALEN);
 
-	switch (pattrib->to_fr_ds) {
-	case 0:
-		memcpy(pattrib->ra, pda, ETH_ALEN);
-		memcpy(pattrib->ta, psa, ETH_ALEN);
-		ret = sta2sta_data_frame(adapter, precv_frame, &psta);
-		break;
-	case 1:
+	/* address4 is used only if both to_ds and from_ds are set */
+	if (ieee80211_has_a4(hdr->frame_control))
+		return _FAIL;
+
+	if (ieee80211_has_fromds(hdr->frame_control)) {
 		memcpy(pattrib->ra, pda, ETH_ALEN);
 		memcpy(pattrib->ta, pbssid, ETH_ALEN);
 		ret = ap2sta_data_frame(adapter, precv_frame, &psta);
-		break;
-	case 2:
+	} else if (ieee80211_has_tods(hdr->frame_control)) {
 		memcpy(pattrib->ra, pbssid, ETH_ALEN);
 		memcpy(pattrib->ta, psa, ETH_ALEN);
 		ret = sta2ap_data_frame(adapter, precv_frame, &psta);
-		break;
-	default:
-		ret = _FAIL;
-		break;
+	} else {
+		memcpy(pattrib->ra, pda, ETH_ALEN);
+		memcpy(pattrib->ta, psa, ETH_ALEN);
+		ret = sta2sta_data_frame(adapter, precv_frame, &psta);
 	}
 
 	if (ret == _FAIL || ret == RTW_RX_HANDLED)
@@ -1035,7 +1032,6 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 
 	int retval = _FAIL;
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
-	u8 *ptr = precv_frame->rx_data;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
 	struct mlme_ext_priv *pmlmeext = &adapter->mlmeextpriv;
 
@@ -1047,8 +1043,6 @@ static int validate_recv_frame(struct adapter *adapter, struct recv_frame *precv
 
 	if ((hdr->frame_control & cpu_to_le16(IEEE80211_FCTL_VERS)) != 0)
 		return _FAIL;
-
-	pattrib->to_fr_ds = get_tofr_ds(ptr);
 
 	pattrib->frag_num = le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG;
 	pattrib->seq_num = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
