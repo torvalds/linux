@@ -2594,30 +2594,20 @@ void _rtw_roaming(struct adapter *padapter, struct wlan_network *tgt_network)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *cur_network = &pmlmepriv->cur_network;
-	int do_join_r;
 
 	if (rtw_to_roam(padapter) > 0) {
 		memcpy(&pmlmepriv->assoc_ssid, &cur_network->network.ssid, sizeof(struct ndis_802_11_ssid));
 
 		pmlmepriv->assoc_by_bssid = false;
 
-		while (1) {
-			do_join_r = rtw_do_join(padapter);
-			if (do_join_r == _SUCCESS) {
+		while (rtw_do_join(padapter) != _SUCCESS) {
+			rtw_dec_to_roam(padapter);
+			if (rtw_to_roam(padapter) <= 0) {
+				rtw_indicate_disconnect(padapter);
 				break;
-			} else {
-				rtw_dec_to_roam(padapter);
-
-				if (rtw_to_roam(padapter) > 0) {
-					continue;
-				} else {
-					rtw_indicate_disconnect(padapter);
-					break;
-				}
 			}
 		}
 	}
-
 }
 
 signed int rtw_linked_check(struct adapter *padapter)
