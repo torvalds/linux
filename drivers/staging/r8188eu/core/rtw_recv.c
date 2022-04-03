@@ -937,7 +937,6 @@ static int validate_recv_data_frame(struct adapter *adapter,
 				    struct recv_frame *precv_frame)
 {
 	u8 bretry;
-	u8 *pbssid;
 	struct sta_info *psta = NULL;
 	u8 *ptr = precv_frame->rx_data;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
@@ -947,14 +946,8 @@ static int validate_recv_data_frame(struct adapter *adapter,
 
 	bretry = ieee80211_has_retry(hdr->frame_control);
 
-	pbssid = get_hdr_bssid(ptr);
-	if (!pbssid)
-		return _FAIL;
-
 	memcpy(pattrib->dst, ieee80211_get_DA(hdr), ETH_ALEN);
 	memcpy(pattrib->src, ieee80211_get_SA(hdr), ETH_ALEN);
-
-	memcpy(pattrib->bssid, pbssid, ETH_ALEN);
 
 	/* address4 is used only if both to_ds and from_ds are set */
 	if (ieee80211_has_a4(hdr->frame_control))
@@ -963,12 +956,16 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	memcpy(pattrib->ra, hdr->addr1, ETH_ALEN);
 	memcpy(pattrib->ta, hdr->addr2, ETH_ALEN);
 
-	if (ieee80211_has_fromds(hdr->frame_control))
+	if (ieee80211_has_fromds(hdr->frame_control)) {
+		memcpy(pattrib->bssid, hdr->addr2, ETH_ALEN);
 		ret = ap2sta_data_frame(adapter, precv_frame, &psta);
-	else if (ieee80211_has_tods(hdr->frame_control))
+	} else if (ieee80211_has_tods(hdr->frame_control)) {
+		memcpy(pattrib->bssid, hdr->addr1, ETH_ALEN);
 		ret = sta2ap_data_frame(adapter, precv_frame, &psta);
-	else
+	} else {
+		memcpy(pattrib->bssid, hdr->addr3, ETH_ALEN);
 		ret = sta2sta_data_frame(adapter, precv_frame, &psta);
+	}
 
 	if (ret == _FAIL || ret == RTW_RX_HANDLED)
 		return ret;
