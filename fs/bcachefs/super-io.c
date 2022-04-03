@@ -16,6 +16,7 @@
 #include "quota.h"
 #include "super-io.h"
 #include "super.h"
+#include "trace.h"
 #include "vstructs.h"
 
 #include <linux/backing-dev.h>
@@ -798,6 +799,8 @@ int bch2_write_super(struct bch_fs *c)
 	bool wrote, can_mount_without_written, can_mount_with_written;
 	unsigned degraded_flags = BCH_FORCE_IF_DEGRADED;
 	int ret = 0;
+
+	trace_write_super(c, _RET_IP_);
 
 	if (c->opts.very_degraded)
 		degraded_flags |= BCH_FORCE_IF_LOST;

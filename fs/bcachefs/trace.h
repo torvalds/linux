@@ -82,6 +82,26 @@ DECLARE_EVENT_CLASS(bio,
 		  (unsigned long long)__entry->sector, __entry->nr_sector)
 );
 
+/* super-io.c: */
+TRACE_EVENT(write_super,
+	TP_PROTO(struct bch_fs *c, unsigned long ip),
+	TP_ARGS(c, ip),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev	)
+		__field(unsigned long,	ip	)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= c->dev;
+		__entry->ip		= ip;
+	),
+
+	TP_printk("%d,%d for %pS",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  (void *) __entry->ip)
+);
+
 /* io.c: */
 
 DEFINE_EVENT(bio, read_split,
