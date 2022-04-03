@@ -911,14 +911,14 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 
 struct recv_frame *recvframe_chk_defrag(struct adapter *padapter, struct recv_frame *precv_frame);
 
-static int validate_recv_mgnt_frame(struct adapter *padapter,
-				    struct recv_frame *precv_frame)
+static void validate_recv_mgnt_frame(struct adapter *padapter,
+				     struct recv_frame *precv_frame)
 {
 	struct sta_info *psta;
 
 	precv_frame = recvframe_chk_defrag(padapter, precv_frame);
 	if (!precv_frame)
-		return _SUCCESS;
+		return;
 
 	/* for rx pkt statistics */
 	psta = rtw_get_stainfo(&padapter->stapriv, GetAddr2Ptr(precv_frame->rx_data));
@@ -940,8 +940,6 @@ static int validate_recv_mgnt_frame(struct adapter *padapter,
 	}
 
 	mgt_dispatcher(padapter, precv_frame);
-
-	return _SUCCESS;
 }
 
 static int validate_recv_data_frame(struct adapter *adapter,
