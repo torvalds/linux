@@ -915,24 +915,24 @@ static void validate_recv_mgnt_frame(struct adapter *padapter,
 				     struct recv_frame *precv_frame)
 {
 	struct sta_info *psta;
+	struct ieee80211_hdr *hdr;
 
 	precv_frame = recvframe_chk_defrag(padapter, precv_frame);
 	if (!precv_frame)
 		return;
 
-	/* for rx pkt statistics */
-	psta = rtw_get_stainfo(&padapter->stapriv, GetAddr2Ptr(precv_frame->rx_data));
+	hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
+	psta = rtw_get_stainfo(&padapter->stapriv, hdr->addr2);
 	if (psta) {
 		psta->sta_stats.rx_mgnt_pkts++;
-		if (GetFrameSubType(precv_frame->rx_data) == WIFI_BEACON) {
+		if (ieee80211_is_beacon(hdr->frame_control))
 			psta->sta_stats.rx_beacon_pkts++;
-		} else if (GetFrameSubType(precv_frame->rx_data) == WIFI_PROBEREQ) {
+		else if (ieee80211_is_probe_req(hdr->frame_control))
 			psta->sta_stats.rx_probereq_pkts++;
-		} else if (GetFrameSubType(precv_frame->rx_data) == WIFI_PROBERSP) {
-			if (!memcmp(padapter->eeprompriv.mac_addr, GetAddr1Ptr(precv_frame->rx_data), ETH_ALEN))
+		else if (ieee80211_is_probe_resp(hdr->frame_control)) {
+			if (!memcmp(padapter->eeprompriv.mac_addr, hdr->addr1, ETH_ALEN))
 				psta->sta_stats.rx_probersp_pkts++;
-			else if (is_broadcast_mac_addr(GetAddr1Ptr(precv_frame->rx_data)) ||
-				 is_multicast_mac_addr(GetAddr1Ptr(precv_frame->rx_data)))
+			else if (is_broadcast_mac_addr(hdr->addr1) || is_multicast_mac_addr(hdr->addr1))
 				psta->sta_stats.rx_probersp_bm_pkts++;
 			else
 				psta->sta_stats.rx_probersp_uo_pkts++;
