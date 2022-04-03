@@ -1257,26 +1257,13 @@ int r8712_restruct_wmm_ie(struct _adapter *adapter, u8 *in_ie, u8 *out_ie,
  */
 static int SecIsInPMKIDList(struct _adapter *Adapter, u8 *bssid)
 {
-	struct security_priv *psecuritypriv = &Adapter->securitypriv;
-	int i = 0;
+	struct security_priv *p = &Adapter->securitypriv;
+	int i;
 
-	do {
-		if (psecuritypriv->PMKIDList[i].bUsed &&
-		   (!memcmp(psecuritypriv->PMKIDList[i].Bssid,
-			    bssid, ETH_ALEN)))
-			break;
-		i++;
-
-	} while (i < NUM_PMKID_CACHE);
-
-	if (i == NUM_PMKID_CACHE) {
-		i = -1; /* Could not find. */
-	} else {
-		; /* There is one Pre-Authentication Key for the
-		   * specific BSSID.
-		   */
-	}
-	return i;
+	for (i = 0; i < NUM_PMKID_CACHE; i++)
+		if (p->PMKIDList[i].bUsed && !memcmp(p->PMKIDList[i].Bssid, bssid, ETH_ALEN))
+			return i;
+	return -1;
 }
 
 sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
