@@ -8957,7 +8957,7 @@ static int gaudi_add_sync_to_engine_map_entry(
 	 */
 	if (reg_value == 0 || reg_value == 0xffffffff)
 		return 0;
-	reg_value -= (u32)CFG_BASE;
+	reg_value -= lower_32_bits(CFG_BASE);
 
 	/* create a new hash entry */
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
