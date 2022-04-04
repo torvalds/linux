@@ -809,10 +809,10 @@ static int ad3552r_configure_custom_gain(struct ad3552r_desc *dac,
 
 	gain_child = fwnode_get_named_child_node(child,
 						 "custom-output-range-config");
-	if (IS_ERR(gain_child)) {
+	if (!gain_child) {
 		dev_err(dev,
 			"mandatory custom-output-range-config property missing\n");
-		return PTR_ERR(gain_child);
+		return -EINVAL;
 	}
 
 	dac->ch_data[ch].range_override = 1;
