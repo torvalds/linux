@@ -1168,8 +1168,113 @@ static int parse_usdt_spec(struct usdt_spec *spec, const struct usdt_note *note,
 	return 0;
 }
 
+/* Architecture-specific logic for parsing USDT argument location specs */
+
+#if defined(__x86_64__) || defined(__i386__)
+
+static int calc_pt_regs_off(const char *reg_name)
+{
+	static struct {
+		const char *names[4];
+		size_t pt_regs_off;
+	} reg_map[] = {
+#if __x86_64__
+#define reg_off(reg64, reg32) offsetof(struct pt_regs, reg64)
+#else
+#define reg_off(reg64, reg32) offsetof(struct pt_regs, reg32)
+#endif
+		{ {"rip", "eip", "", ""}, reg_off(rip, eip) },
+		{ {"rax", "eax", "ax", "al"}, reg_off(rax, eax) },
+		{ {"rbx", "ebx", "bx", "bl"}, reg_off(rbx, ebx) },
+		{ {"rcx", "ecx", "cx", "cl"}, reg_off(rcx, ecx) },
+		{ {"rdx", "edx", "dx", "dl"}, reg_off(rdx, edx) },
+		{ {"rsi", "esi", "si", "sil"}, reg_off(rsi, esi) },
+		{ {"rdi", "edi", "di", "dil"}, reg_off(rdi, edi) },
+		{ {"rbp", "ebp", "bp", "bpl"}, reg_off(rbp, ebp) },
+		{ {"rsp", "esp", "sp", "spl"}, reg_off(rsp, esp) },
+#undef reg_off
+#if __x86_64__
+		{ {"r8", "r8d", "r8w", "r8b"}, offsetof(struct pt_regs, r8) },
+		{ {"r9", "r9d", "r9w", "r9b"}, offsetof(struct pt_regs, r9) },
+		{ {"r10", "r10d", "r10w", "r10b"}, offsetof(struct pt_regs, r10) },
+		{ {"r11", "r11d", "r11w", "r11b"}, offsetof(struct pt_regs, r11) },
+		{ {"r12", "r12d", "r12w", "r12b"}, offsetof(struct pt_regs, r12) },
+		{ {"r13", "r13d", "r13w", "r13b"}, offsetof(struct pt_regs, r13) },
+		{ {"r14", "r14d", "r14w", "r14b"}, offsetof(struct pt_regs, r14) },
+		{ {"r15", "r15d", "r15w", "r15b"}, offsetof(struct pt_regs, r15) },
+#endif
+	};
+	int i, j;
+
+	for (i = 0; i < ARRAY_SIZE(reg_map); i++) {
+		for (j = 0; j < ARRAY_SIZE(reg_map[i].names); j++) {
+			if (strcmp(reg_name, reg_map[i].names[j]) == 0)
+				return reg_map[i].pt_regs_off;
+		}
+	}
+
+	pr_warn("usdt: unrecognized register '%s'\n", reg_name);
+	return -ENOENT;
+}
+
+static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec *arg)
+{
+	char *reg_name = NULL;
+	int arg_sz, len, reg_off;
+	long off;
+
+	if (sscanf(arg_str, " %d @ %ld ( %%%m[^)] ) %n", &arg_sz, &off, &reg_name, &len) == 3) {
+		/* Memory dereference case, e.g., -4@-20(%rbp) */
+		arg->arg_type = USDT_ARG_REG_DEREF;
+		arg->val_off = off;
+		reg_off = calc_pt_regs_off(reg_name);
+		free(reg_name);
+		if (reg_off < 0)
+			return reg_off;
+		arg->reg_off = reg_off;
+	} else if (sscanf(arg_str, " %d @ %%%ms %n", &arg_sz, &reg_name, &len) == 2) {
+		/* Register read case, e.g., -4@%eax */
+		arg->arg_type = USDT_ARG_REG;
+		arg->val_off = 0;
+
+		reg_off = calc_pt_regs_off(reg_name);
+		free(reg_name);
+		if (reg_off < 0)
+			return reg_off;
+		arg->reg_off = reg_off;
+	} else if (sscanf(arg_str, " %d @ $%ld %n", &arg_sz, &off, &len) == 2) {
+		/* Constant value case, e.g., 4@$71 */
+		arg->arg_type = USDT_ARG_CONST;
+		arg->val_off = off;
+		arg->reg_off = 0;
+	} else {
+		pr_warn("usdt: unrecognized arg #%d spec '%s'\n", arg_num, arg_str);
+		return -EINVAL;
+	}
+
+	arg->arg_signed = arg_sz < 0;
+	if (arg_sz < 0)
+		arg_sz = -arg_sz;
+
+	switch (arg_sz) {
+	case 1: case 2: case 4: case 8:
+		arg->arg_bitshift = 64 - arg_sz * 8;
+		break;
+	default:
+		pr_warn("usdt: unsupported arg #%d (spec '%s') size: %d\n",
+			arg_num, arg_str, arg_sz);
+		return -EINVAL;
+	}
+
+	return len;
+}
+
+#else
+
 static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec *arg)
 {
 	pr_warn("usdt: libbpf doesn't support USDTs on current architecture\n");
 	return -ENOTSUP;
 }
+
+#endif
