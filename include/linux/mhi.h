@@ -39,6 +39,7 @@ struct mhi_buf_info;
  * @MHI_CB_BW_REQ: Received a bandwidth switch request from device
  * @MHI_CB_FALLBACK_IMG: MHI device was loaded with the provided fallback image
  * @MHI_CB_DTR_SIGNAL: DTR signaling update
+ * @MHI_CB_DTR_START_CHANNELS: DTR signal for client driver to start channels
  */
 enum mhi_callback {
 	MHI_CB_IDLE,
@@ -52,6 +53,7 @@ enum mhi_callback {
 	MHI_CB_BW_REQ,
 	MHI_CB_FALLBACK_IMG,
 	MHI_CB_DTR_SIGNAL,
+	MHI_CB_DTR_START_CHANNELS,
 };
 
 /**
