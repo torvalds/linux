@@ -539,10 +539,6 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	/*  Save target channel */
 	haldata->CurrentChannel = 6;/* default set to 6 */
 
-	if (pwrctrlpriv->reg_rfoff) {
-		pwrctrlpriv->rf_pwrstate = rf_off;
-	}
-
 	/*  2010/08/09 MH We need to check if we need to turnon or off RF after detecting */
 	/*  HW GPIO pin. Before PHY_RFConfig8192C. */
 	/*  2010/08/26 MH If Efuse does not support sective suspend then disable the function. */

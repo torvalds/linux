@@ -49,8 +49,6 @@ struct pwrctrl_priv {
 
 	bool	bpower_saving;
 
-	u8	reg_rfoff;
-
 	uint	ips_enter_cnts;
 	uint	ips_leave_cnts;
 
