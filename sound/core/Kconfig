@@ -84,7 +84,7 @@ config SND_PCM_TIMER
 	help
 	  If you disable this option, pcm timer will be unavailable, so
 	  those stubs that use pcm timer (e.g. dmix, dsnoop & co) may work
-	  incorrectlly.
+	  incorrectly.
 
 	  For some embedded devices, we may disable it to reduce memory
 	  footprint, about 20KB on x86_64 platform.

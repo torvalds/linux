@@ -36,19 +36,6 @@ static int smn_read(struct pci_dev *dev, u32 smn_addr, u32 *data)
 	return 0;
 }
 
-static void configure_acp_groupregisters(struct acp_dev_data *adata)
-{
-	struct snd_sof_dev *sdev = adata->dev;
-
-	/* Group Enable */
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_BASE_ADDR_GRP_1,
-			  ACP_SRAM_PTE_OFFSET | BIT(31));
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_PAGE_SIZE_GRP_1,
-			  PAGE_SIZE_4K_ENABLE);
-
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_CTRL, ACP_ATU_CACHE_INVALID);
-}
-
 static void init_dma_descriptor(struct acp_dev_data *adata)
 {
 	struct snd_sof_dev *sdev = adata->dev;
@@ -264,7 +251,6 @@ static int acp_memory_init(struct snd_sof_dev *sdev)
 
 	snd_sof_dsp_update_bits(sdev, ACP_DSP_BAR, ACP_DSP_SW_INTR_CNTL,
 				ACP_DSP_INTR_EN_MASK, ACP_DSP_INTR_EN_MASK);
-	configure_acp_groupregisters(adata);
 	init_dma_descriptor(adata);
 
 	return 0;
@@ -273,7 +259,7 @@ static int acp_memory_init(struct snd_sof_dev *sdev)
 static irqreturn_t acp_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
-	unsigned int val;
+	unsigned int val, count = ACP_HW_SEM_RETRY_COUNT;
 
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_EXTERNAL_INTR_STAT);
 	if (val & ACP_SHA_STAT) {
@@ -284,9 +270,22 @@ static irqreturn_t acp_irq_thread(int irq, void *context)
 
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_DSP_SW_INTR_STAT);
 	if (val & ACP_DSP_TO_HOST_IRQ) {
+		while (snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_AXI2DAGB_SEM_0)) {
+			/* Wait until acquired HW Semaphore lock or timeout */
+			count--;
+			if (!count) {
+				dev_err(sdev->dev, "%s: Failed to acquire HW lock\n", __func__);
+				return IRQ_NONE;
+			}
+		}
+
 		sof_ops(sdev)->irq_thread(irq, sdev);
 		val |= ACP_DSP_TO_HOST_IRQ;
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_DSP_SW_INTR_STAT, val);
+
+		/* Unlock or Release HW Semaphore */
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_AXI2DAGB_SEM_0, 0x0);
+
 		return IRQ_HANDLED;
 	}
 

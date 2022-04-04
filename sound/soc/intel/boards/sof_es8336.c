@@ -21,11 +21,15 @@
 #include <sound/soc-acpi.h>
 #include "hda_dsp_common.h"
 
+/* jd-inv + terminating entry */
+#define MAX_NO_PROPS 2
+
 #define SOF_ES8336_SSP_CODEC(quirk)		((quirk) & GENMASK(3, 0))
 #define SOF_ES8336_SSP_CODEC_MASK		(GENMASK(3, 0))
 
 #define SOF_ES8336_TGL_GPIO_QUIRK		BIT(4)
 #define SOF_ES8336_ENABLE_DMIC			BIT(5)
+#define SOF_ES8336_JD_INVERTED			BIT(6)
 
 static unsigned long quirk;
 
@@ -63,7 +67,14 @@ static const struct acpi_gpio_mapping *gpio_mapping = acpi_es8336_gpios;
 
 static void log_quirks(struct device *dev)
 {
-	dev_info(dev, "quirk SSP%ld",  SOF_ES8336_SSP_CODEC(quirk));
+	dev_info(dev, "quirk mask %#lx\n", quirk);
+	dev_info(dev, "quirk SSP%ld\n",  SOF_ES8336_SSP_CODEC(quirk));
+	if (quirk & SOF_ES8336_ENABLE_DMIC)
+		dev_info(dev, "quirk DMIC enabled\n");
+	if (quirk & SOF_ES8336_TGL_GPIO_QUIRK)
+		dev_info(dev, "quirk TGL GPIO enabled\n");
+	if (quirk & SOF_ES8336_JD_INVERTED)
+		dev_info(dev, "quirk JD inverted enabled\n");
 }
 
 static int sof_es8316_speaker_power_event(struct snd_soc_dapm_widget *w,
@@ -228,24 +239,25 @@ static int sof_es8336_quirk_cb(const struct dmi_system_id *id)
 	return 1;
 }
 
+/*
+ * this table should only be used to add GPIO or jack-detection quirks
+ * that cannot be detected from ACPI tables. The SSP and DMIC
+ * information are providing by the platform driver and are aligned
+ * with the topology used.
+ *
+ * If the GPIO support is missing, the quirk parameter can be used to
+ * enable speakers. In that case it's recommended to keep the SSP and DMIC
+ * information consistent, overriding the SSP and DMIC can only be done
+ * if the topology file is modified as well.
+ */
 static const struct dmi_system_id sof_es8336_quirk_table[] = {
-	{
-		.callback = sof_es8336_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "CHUWI Innovation And Technology"),
-			DMI_MATCH(DMI_BOARD_NAME, "Hi10 X"),
-		},
-		.driver_data = (void *)SOF_ES8336_SSP_CODEC(2)
-	},
 	{
 		.callback = sof_es8336_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "IP3 tech"),
 			DMI_MATCH(DMI_BOARD_NAME, "WN1"),
 		},
-		.driver_data = (void *)(SOF_ES8336_SSP_CODEC(0) |
-					SOF_ES8336_TGL_GPIO_QUIRK |
-					SOF_ES8336_ENABLE_DMIC)
+		.driver_data = (void *)(SOF_ES8336_TGL_GPIO_QUIRK)
 	},
 	{}
 };
@@ -280,7 +292,7 @@ static struct snd_soc_dai_link_component platform_component[] = {
 	}
 };
 
-SND_SOC_DAILINK_DEF(ssp1_codec,
+SND_SOC_DAILINK_DEF(es8336_codec,
 	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-ESSX8336:00", "ES8316 HiFi")));
 
 static struct snd_soc_dai_link_component dmic_component[] = {
@@ -344,8 +356,8 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		goto devm_err;
 
 	links[id].id = id;
-	links[id].codecs = ssp1_codec;
-	links[id].num_codecs = ARRAY_SIZE(ssp1_codec);
+	links[id].codecs = es8336_codec;
+	links[id].num_codecs = ARRAY_SIZE(es8336_codec);
 	links[id].platforms = platform_component;
 	links[id].num_platforms = ARRAY_SIZE(platform_component);
 	links[id].init = sof_es8316_init;
@@ -447,6 +459,8 @@ devm_err:
 	return NULL;
 }
 
+static char soc_components[30];
+
  /* i2c-<HID>:00 with HID being 8 chars */
 static char codec_name[SND_ACPI_I2C_ID_LEN];
 
@@ -455,10 +469,13 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card;
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
+	struct property_entry props[MAX_NO_PROPS] = {};
 	struct sof_es8336_private *priv;
+	struct fwnode_handle *fwnode;
 	struct acpi_device *adev;
 	struct snd_soc_dai_link *dai_links;
 	struct device *codec_dev;
+	unsigned int cnt = 0;
 	int dmic_be_num = 0;
 	int hdmi_num = 3;
 	int ret;
@@ -470,11 +487,33 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	card = &sof_es8336_card;
 	card->dev = dev;
 
-	if (!dmi_check_system(sof_es8336_quirk_table))
-		quirk = SOF_ES8336_SSP_CODEC(2);
+	/* check GPIO DMI quirks */
+	dmi_check_system(sof_es8336_quirk_table);
 
-	if (quirk & SOF_ES8336_ENABLE_DMIC)
-		dmic_be_num = 2;
+	if (!mach->mach_params.i2s_link_mask) {
+		dev_warn(dev, "No I2S link information provided, using SSP0. This may need to be modified with the quirk module parameter\n");
+	} else {
+		/*
+		 * Set configuration based on platform NHLT.
+		 * In this machine driver, we can only support one SSP for the
+		 * ES8336 link, the else-if below are intentional.
+		 * In some cases multiple SSPs can be reported by NHLT, starting MSB-first
+		 * seems to pick the right connection.
+		 */
+		unsigned long ssp = 0;
+
+		if (mach->mach_params.i2s_link_mask & BIT(2))
+			ssp = SOF_ES8336_SSP_CODEC(2);
+		else if (mach->mach_params.i2s_link_mask & BIT(1))
+			ssp = SOF_ES8336_SSP_CODEC(1);
+		else  if (mach->mach_params.i2s_link_mask & BIT(0))
+			ssp = SOF_ES8336_SSP_CODEC(0);
+
+		quirk |= ssp;
+	}
+
+	if (mach->mach_params.dmic_num)
+		quirk |= SOF_ES8336_ENABLE_DMIC;
 
 	if (quirk_override != -1) {
 		dev_info(dev, "Overriding quirk 0x%lx => 0x%x\n",
@@ -482,6 +521,9 @@ static int sof_es8336_probe(struct platform_device *pdev)
 		quirk = quirk_override;
 	}
 	log_quirks(dev);
+
+	if (quirk & SOF_ES8336_ENABLE_DMIC)
+		dmic_be_num = 2;
 
 	sof_es8336_card.num_links += dmic_be_num + hdmi_num;
 	dai_links = sof_card_dai_links_create(dev,
@@ -499,6 +541,13 @@ static int sof_es8336_probe(struct platform_device *pdev)
 			 "i2c-%s", acpi_dev_name(adev));
 		put_device(&adev->dev);
 		dai_links[0].codecs->name = codec_name;
+
+		/* also fixup codec dai name if relevant */
+		if (!strncmp(mach->id, "ESSX8326", SND_ACPI_I2C_ID_LEN))
+			dai_links[0].codecs->dai_name = "ES8326 HiFi";
+	} else {
+		dev_err(dev, "Error cannot find '%s' dev\n", mach->id);
+		return -ENXIO;
 	}
 
 	ret = snd_soc_fixup_dai_links_platform_name(&sof_es8336_card,
@@ -506,38 +555,64 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* get speaker enable GPIO */
-	codec_dev = bus_find_device_by_name(&i2c_bus_type, NULL, codec_name);
+	codec_dev = acpi_get_first_physical_node(adev);
 	if (!codec_dev)
 		return -EPROBE_DEFER;
+	priv->codec_dev = get_device(codec_dev);
 
+	if (quirk & SOF_ES8336_JD_INVERTED)
+		props[cnt++] = PROPERTY_ENTRY_BOOL("everest,jack-detect-inverted");
+
+	if (cnt) {
+		fwnode = fwnode_create_software_node(props, NULL);
+		if (IS_ERR(fwnode)) {
+			put_device(codec_dev);
+			return PTR_ERR(fwnode);
+		}
+
+		ret = device_add_software_node(codec_dev, to_software_node(fwnode));
+
+		fwnode_handle_put(fwnode);
+
+		if (ret) {
+			put_device(codec_dev);
+			return ret;
+		}
+	}
+
+	/* get speaker enable GPIO */
 	ret = devm_acpi_dev_add_driver_gpios(codec_dev, gpio_mapping);
 	if (ret)
 		dev_warn(codec_dev, "unable to add GPIO mapping table\n");
 
-	priv->gpio_pa = gpiod_get(codec_dev, "pa-enable", GPIOD_OUT_LOW);
+	priv->gpio_pa = gpiod_get_optional(codec_dev, "pa-enable", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->gpio_pa)) {
-		ret = PTR_ERR(priv->gpio_pa);
-		dev_err(codec_dev, "%s, could not get pa-enable: %d\n",
-			__func__, ret);
-		goto err;
+		ret = dev_err_probe(dev, PTR_ERR(priv->gpio_pa),
+				    "could not get pa-enable GPIO\n");
+		goto err_put_codec;
 	}
 
-	priv->codec_dev = codec_dev;
 	INIT_LIST_HEAD(&priv->hdmi_pcm_list);
 
 	snd_soc_card_set_drvdata(card, priv);
+
+	if (mach->mach_params.dmic_num > 0) {
+		snprintf(soc_components, sizeof(soc_components),
+			 "cfg-dmics:%d", mach->mach_params.dmic_num);
+		card->components = soc_components;
+	}
 
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret) {
 		gpiod_put(priv->gpio_pa);
 		dev_err(dev, "snd_soc_register_card failed: %d\n", ret);
-		goto err;
+		goto err_put_codec;
 	}
 	platform_set_drvdata(pdev, &sof_es8336_card);
 	return 0;
 
-err:
+err_put_codec:
+	device_remove_software_node(priv->codec_dev);
 	put_device(codec_dev);
 	return ret;
 }
@@ -548,6 +623,7 @@ static int sof_es8336_remove(struct platform_device *pdev)
 	struct sof_es8336_private *priv = snd_soc_card_get_drvdata(card);
 
 	gpiod_put(priv->gpio_pa);
+	device_remove_software_node(priv->codec_dev);
 	put_device(priv->codec_dev);
 
 	return 0;

@@ -25,6 +25,7 @@
 #define SOF_IPC_INFO_LOCKS		BIT(1)
 #define SOF_IPC_INFO_LOCKSV		BIT(2)
 #define SOF_IPC_INFO_GDB		BIT(3)
+#define SOF_IPC_INFO_D3_PERSISTENT	BIT(4)
 
 /* extended data types that can be appended onto end of sof_ipc_fw_ready */
 enum sof_ipc_ext_data {
