@@ -29,4 +29,9 @@ int kfd_dbg_trap_disable(struct kfd_process *target);
 int kfd_dbg_trap_enable(struct kfd_process *target, uint32_t fd,
 			void __user *runtime_info,
 			uint32_t *runtime_info_size);
+static inline bool kfd_dbg_is_per_vmid_supported(struct kfd_node *dev)
+{
+	return KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2);
+}
+
 #endif
