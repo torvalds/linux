@@ -122,7 +122,8 @@ static inline const char *ovl_xattr(struct ovl_fs *ofs, enum ovl_xattr ox)
 	return ovl_xattr_table[ox][ofs->config.userxattr];
 }
 
-static inline int ovl_do_rmdir(struct inode *dir, struct dentry *dentry)
+static inline int ovl_do_rmdir(struct ovl_fs *ofs,
+			       struct inode *dir, struct dentry *dentry)
 {
 	int err = vfs_rmdir(&init_user_ns, dir, dentry);
 
@@ -130,7 +131,8 @@ static inline int ovl_do_rmdir(struct inode *dir, struct dentry *dentry)
 	return err;
 }
 
-static inline int ovl_do_unlink(struct inode *dir, struct dentry *dentry)
+static inline int ovl_do_unlink(struct ovl_fs *ofs, struct inode *dir,
+				struct dentry *dentry)
 {
 	int err = vfs_unlink(&init_user_ns, dir, dentry, NULL);
 
@@ -138,8 +140,8 @@ static inline int ovl_do_unlink(struct inode *dir, struct dentry *dentry)
 	return err;
 }
 
-static inline int ovl_do_link(struct dentry *old_dentry, struct inode *dir,
-			      struct dentry *new_dentry)
+static inline int ovl_do_link(struct ovl_fs *ofs, struct dentry *old_dentry,
+			      struct inode *dir, struct dentry *new_dentry)
 {
 	int err = vfs_link(old_dentry, &init_user_ns, dir, new_dentry, NULL);
 
@@ -147,7 +149,8 @@ static inline int ovl_do_link(struct dentry *old_dentry, struct inode *dir,
 	return err;
 }
 
-static inline int ovl_do_create(struct inode *dir, struct dentry *dentry,
+static inline int ovl_do_create(struct ovl_fs *ofs,
+				struct inode *dir, struct dentry *dentry,
 				umode_t mode)
 {
 	int err = vfs_create(&init_user_ns, dir, dentry, mode, true);
@@ -156,7 +159,8 @@ static inline int ovl_do_create(struct inode *dir, struct dentry *dentry,
 	return err;
 }
 
-static inline int ovl_do_mkdir(struct inode *dir, struct dentry *dentry,
+static inline int ovl_do_mkdir(struct ovl_fs *ofs,
+			       struct inode *dir, struct dentry *dentry,
 			       umode_t mode)
 {
 	int err = vfs_mkdir(&init_user_ns, dir, dentry, mode);
@@ -164,7 +168,8 @@ static inline int ovl_do_mkdir(struct inode *dir, struct dentry *dentry,
 	return err;
 }
 
-static inline int ovl_do_mknod(struct inode *dir, struct dentry *dentry,
+static inline int ovl_do_mknod(struct ovl_fs *ofs,
+			       struct inode *dir, struct dentry *dentry,
 			       umode_t mode, dev_t dev)
 {
 	int err = vfs_mknod(&init_user_ns, dir, dentry, mode, dev);
@@ -173,7 +178,8 @@ static inline int ovl_do_mknod(struct inode *dir, struct dentry *dentry,
 	return err;
 }
 
-static inline int ovl_do_symlink(struct inode *dir, struct dentry *dentry,
+static inline int ovl_do_symlink(struct ovl_fs *ofs,
+				 struct inode *dir, struct dentry *dentry,
 				 const char *oldname)
 {
 	int err = vfs_symlink(&init_user_ns, dir, dentry, oldname);
@@ -233,9 +239,9 @@ static inline int ovl_removexattr(struct ovl_fs *ofs, struct dentry *dentry,
 	return ovl_do_removexattr(ofs, dentry, ovl_xattr(ofs, ox));
 }
 
-static inline int ovl_do_rename(struct inode *olddir, struct dentry *olddentry,
-				struct inode *newdir, struct dentry *newdentry,
-				unsigned int flags)
+static inline int ovl_do_rename(struct ovl_fs *ofs, struct inode *olddir,
+				struct dentry *olddentry, struct inode *newdir,
+				struct dentry *newdentry, unsigned int flags)
 {
 	int err;
 	struct renamedata rd = {
@@ -257,14 +263,16 @@ static inline int ovl_do_rename(struct inode *olddir, struct dentry *olddentry,
 	return err;
 }
 
-static inline int ovl_do_whiteout(struct inode *dir, struct dentry *dentry)
+static inline int ovl_do_whiteout(struct ovl_fs *ofs,
+				  struct inode *dir, struct dentry *dentry)
 {
 	int err = vfs_whiteout(&init_user_ns, dir, dentry);
 	pr_debug("whiteout(%pd2) = %i\n", dentry, err);
 	return err;
 }
 
-static inline struct dentry *ovl_do_tmpfile(struct dentry *dentry, umode_t mode)
+static inline struct dentry *ovl_do_tmpfile(struct ovl_fs *ofs,
+					    struct dentry *dentry, umode_t mode)
 {
 	struct dentry *ret = vfs_tmpfile(&init_user_ns, dentry, mode, 0);
 	int err = PTR_ERR_OR_ZERO(ret);
@@ -479,12 +487,13 @@ static inline int ovl_verify_upper(struct ovl_fs *ofs, struct dentry *index,
 extern const struct file_operations ovl_dir_operations;
 struct file *ovl_dir_real_file(const struct file *file, bool want_upper);
 int ovl_check_empty_dir(struct dentry *dentry, struct list_head *list);
-void ovl_cleanup_whiteouts(struct dentry *upper, struct list_head *list);
+void ovl_cleanup_whiteouts(struct ovl_fs *ofs, struct dentry *upper,
+			   struct list_head *list);
 void ovl_cache_free(struct list_head *list);
 void ovl_dir_cache_free(struct inode *inode);
 int ovl_check_d_type_supported(struct path *realpath);
-int ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
-			struct dentry *dentry, int level);
+int ovl_workdir_cleanup(struct ovl_fs *ofs, struct inode *dir,
+			struct vfsmount *mnt, struct dentry *dentry, int level);
 int ovl_indexdir_cleanup(struct ovl_fs *ofs);
 
 /*
@@ -588,12 +597,15 @@ struct ovl_cattr {
 
 #define OVL_CATTR(m) (&(struct ovl_cattr) { .mode = (m) })
 
-int ovl_mkdir_real(struct inode *dir, struct dentry **newdentry, umode_t mode);
-struct dentry *ovl_create_real(struct inode *dir, struct dentry *newdentry,
+int ovl_mkdir_real(struct ovl_fs *ofs, struct inode *dir,
+		   struct dentry **newdentry, umode_t mode);
+struct dentry *ovl_create_real(struct ovl_fs *ofs,
+			       struct inode *dir, struct dentry *newdentry,
 			       struct ovl_cattr *attr);
-int ovl_cleanup(struct inode *dir, struct dentry *dentry);
-struct dentry *ovl_lookup_temp(struct dentry *workdir);
-struct dentry *ovl_create_temp(struct dentry *workdir, struct ovl_cattr *attr);
+int ovl_cleanup(struct ovl_fs *ofs, struct inode *dir, struct dentry *dentry);
+struct dentry *ovl_lookup_temp(struct ovl_fs *ofs, struct dentry *workdir);
+struct dentry *ovl_create_temp(struct ovl_fs *ofs, struct dentry *workdir,
+			       struct ovl_cattr *attr);
 
 /* file.c */
 extern const struct file_operations ovl_file_operations;
