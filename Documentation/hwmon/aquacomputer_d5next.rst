@@ -7,6 +7,7 @@ Supported devices:
 
 * Aquacomputer D5 Next watercooling pump
 * Aquacomputer Farbwerk 360 RGB controller
+* Aquacomputer Octo fan controller
 
 Author: Aleksa Savic
 
@@ -27,6 +28,9 @@ interface. Configuring the pump through this driver is not implemented, as it
 seems to require sending it a complete configuration. That includes addressable
 RGB LEDs, for which there is no standard sysfs interface. Thus, that task is
 better suited for userspace tools.
+
+The Octo exposes four temperature sensors and eight PWM controllable fans, along
+with their speed (in RPM), power, voltage and current.
 
 The Farbwerk 360 exposes four temperature sensors. Depending on the device,
 not all sysfs and debugfs entries will be available.
