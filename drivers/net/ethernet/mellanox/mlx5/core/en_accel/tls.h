@@ -33,7 +33,6 @@
 #ifndef __MLX5E_TLS_H__
 #define __MLX5E_TLS_H__
 
-#include "accel/tls.h"
 #include "en_accel/ktls.h"
 
 #ifdef CONFIG_MLX5_EN_TLS

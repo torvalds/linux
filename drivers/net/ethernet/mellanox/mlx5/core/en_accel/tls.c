@@ -34,7 +34,6 @@
 #include <linux/netdevice.h>
 #include <net/ipv6.h>
 #include "en_accel/tls.h"
-#include "accel/tls.h"
 
 void mlx5e_tls_build_netdev(struct mlx5e_priv *priv)
 {

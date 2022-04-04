@@ -4,9 +4,38 @@
 #ifndef __MLX5E_KTLS_H__
 #define __MLX5E_KTLS_H__
 
+#include <linux/tls.h>
 #include "en.h"
 
 #ifdef CONFIG_MLX5_EN_TLS
+int mlx5_ktls_create_key(struct mlx5_core_dev *mdev,
+			 struct tls_crypto_info *crypto_info,
+			 u32 *p_key_id);
+void mlx5_ktls_destroy_key(struct mlx5_core_dev *mdev, u32 key_id);
+
+static inline bool mlx5_accel_is_ktls_device(struct mlx5_core_dev *mdev)
+{
+	if (!MLX5_CAP_GEN(mdev, tls_tx) && !MLX5_CAP_GEN(mdev, tls_rx))
+		return false;
+
+	if (!MLX5_CAP_GEN(mdev, log_max_dek))
+		return false;
+
+	return MLX5_CAP_TLS(mdev, tls_1_2_aes_gcm_128);
+}
+
+static inline bool mlx5e_ktls_type_check(struct mlx5_core_dev *mdev,
+					 struct tls_crypto_info *crypto_info)
+{
+	switch (crypto_info->cipher_type) {
+	case TLS_CIPHER_AES_GCM_128:
+		if (crypto_info->version == TLS_1_2_VERSION)
+			return MLX5_CAP_TLS(mdev,  tls_1_2_aes_gcm_128);
+		break;
+	}
+
+	return false;
+}
 
 void mlx5e_ktls_build_netdev(struct mlx5e_priv *priv);
 int mlx5e_ktls_init_rx(struct mlx5e_priv *priv);
@@ -18,14 +47,12 @@ void mlx5e_ktls_rx_resync_destroy_resp_list(struct mlx5e_ktls_resync_resp *resp_
 
 static inline bool mlx5e_accel_is_ktls_tx(struct mlx5_core_dev *mdev)
 {
-	return !is_kdump_kernel() &&
-		mlx5_accel_is_ktls_tx(mdev);
+	return !is_kdump_kernel() && MLX5_CAP_GEN(mdev, tls_tx);
 }
 
 static inline bool mlx5e_accel_is_ktls_rx(struct mlx5_core_dev *mdev)
 {
-	return !is_kdump_kernel() &&
-		mlx5_accel_is_ktls_rx(mdev);
+	return !is_kdump_kernel() && MLX5_CAP_GEN(mdev, tls_rx);
 }
 
 static inline bool mlx5e_accel_is_ktls_device(struct mlx5_core_dev *mdev)
@@ -35,6 +62,18 @@ static inline bool mlx5e_accel_is_ktls_device(struct mlx5_core_dev *mdev)
 }
 
 #else
+static inline int
+mlx5_ktls_create_key(struct mlx5_core_dev *mdev,
+		     struct tls_crypto_info *crypto_info,
+		     u32 *p_key_id) { return -EOPNOTSUPP; }
+static inline void
+mlx5_ktls_destroy_key(struct mlx5_core_dev *mdev, u32 key_id) {}
+
+static inline bool
+mlx5_accel_is_ktls_device(struct mlx5_core_dev *mdev) { return false; }
+static inline bool
+mlx5e_ktls_type_check(struct mlx5_core_dev *mdev,
+		      struct tls_crypto_info *crypto_info) { return false; }
 
 static inline void mlx5e_ktls_build_netdev(struct mlx5e_priv *priv)
 {

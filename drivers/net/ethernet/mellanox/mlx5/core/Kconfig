@@ -177,23 +177,14 @@ config MLX5_EN_IPSEC
 	  Note: Support for hardware with this capability needs to be selected
 	  for this option to become available.
 
-config MLX5_TLS
+config MLX5_EN_TLS
 	bool "Mellanox Technologies TLS Connect-X support"
 	depends on TLS_DEVICE
 	depends on TLS=y || MLX5_CORE=m
 	depends on MLX5_CORE_EN
 	select MLX5_ACCEL
-	select MLX5_EN_TLS
-	help
-	Build TLS support for the Connect-X family of network cards by Mellanox
-	Technologies.
-
-config MLX5_EN_TLS
-	bool
 	help
 	Build support for TLS cryptography-offload acceleration in the NIC.
-	Note: Support for hardware with this capability needs to be selected
-	for this option to become available.
 
 config MLX5_SW_STEERING
 	bool "Mellanox Technologies software-managed steering"
