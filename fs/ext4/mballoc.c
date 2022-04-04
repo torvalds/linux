@@ -695,13 +695,10 @@ static int __mb_check_buddy(struct ext4_buddy *e4b, char *file,
 		for (i = 0; i < max; i++) {
 
 			if (mb_test_bit(i, buddy)) {
-				/* only single bit in buddy2 may be 1 */
+				/* only single bit in buddy2 may be 0 */
 				if (!mb_test_bit(i << 1, buddy2)) {
 					MB_CHECK_ASSERT(
 						mb_test_bit((i<<1)+1, buddy2));
-				} else if (!mb_test_bit((i << 1) + 1, buddy2)) {
-					MB_CHECK_ASSERT(
-						mb_test_bit(i << 1, buddy2));
 				}
 				continue;
 			}
