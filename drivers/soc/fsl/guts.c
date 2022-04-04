@@ -110,71 +110,6 @@ static const struct fsl_soc_die_attr *fsl_soc_die_match(
 	return NULL;
 }
 
-static int fsl_guts_probe(struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-	struct soc_device_attribute *soc_dev_attr;
-	static struct soc_device *soc_dev;
-	struct device *dev = &pdev->dev;
-	const struct fsl_soc_die_attr *soc_die;
-	struct ccsr_guts __iomem *regs;
-	const char *machine = NULL;
-	bool little_endian;
-	u32 svr;
-
-	regs = of_iomap(np, 0);
-	if (IS_ERR(regs))
-		return PTR_ERR(regs);
-
-	little_endian = of_property_read_bool(np, "little-endian");
-	if (little_endian)
-		svr = ioread32(&regs->svr);
-	else
-		svr = ioread32be(&regs->svr);
-	iounmap(regs);
-
-	/* Register soc device */
-	soc_dev_attr = devm_kzalloc(dev, sizeof(*soc_dev_attr), GFP_KERNEL);
-	if (!soc_dev_attr)
-		return -ENOMEM;
-
-	if (of_property_read_string(of_root, "model", &machine))
-		of_property_read_string_index(of_root, "compatible", 0, &machine);
-	if (machine) {
-		soc_dev_attr->machine = devm_kstrdup(dev, machine, GFP_KERNEL);
-		if (!soc_dev_attr->machine)
-			return -ENOMEM;
-	}
-
-	soc_die = fsl_soc_die_match(svr, fsl_soc_die);
-	if (soc_die) {
-		soc_dev_attr->family = devm_kasprintf(dev, GFP_KERNEL,
-						      "QorIQ %s", soc_die->die);
-	} else {
-		soc_dev_attr->family = devm_kasprintf(dev, GFP_KERNEL, "QorIQ");
-	}
-	if (!soc_dev_attr->family)
-		return -ENOMEM;
-	soc_dev_attr->soc_id = devm_kasprintf(dev, GFP_KERNEL,
-					      "svr:0x%08x", svr);
-	if (!soc_dev_attr->soc_id)
-		return -ENOMEM;
-	soc_dev_attr->revision = devm_kasprintf(dev, GFP_KERNEL, "%d.%d",
-						(svr >>  4) & 0xf, svr & 0xf);
-	if (!soc_dev_attr->revision)
-		return -ENOMEM;
-
-	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR(soc_dev))
-		return PTR_ERR(soc_dev);
-
-	pr_info("Machine: %s\n", soc_dev_attr->machine);
-	pr_info("SoC family: %s\n", soc_dev_attr->family);
-	pr_info("SoC ID: %s, Revision: %s\n",
-		soc_dev_attr->soc_id, soc_dev_attr->revision);
-	return 0;
-}
-
 /*
  * Table for matching compatible strings, for device tree
  * guts node, for Freescale QorIQ SOCs.
@@ -206,18 +141,91 @@ static const struct of_device_id fsl_guts_of_match[] = {
 	{ .compatible = "fsl,ls1028a-dcfg", },
 	{}
 };
-MODULE_DEVICE_TABLE(of, fsl_guts_of_match);
-
-static struct platform_driver fsl_guts_driver = {
-	.driver = {
-		.name = "fsl-guts",
-		.of_match_table = fsl_guts_of_match,
-	},
-	.probe = fsl_guts_probe,
-};
 
 static int __init fsl_guts_init(void)
 {
-	return platform_driver_register(&fsl_guts_driver);
+	struct soc_device_attribute *soc_dev_attr;
+	static struct soc_device *soc_dev;
+	const struct fsl_soc_die_attr *soc_die;
+	struct ccsr_guts __iomem *regs;
+	const char *machine = NULL;
+	struct device_node *np;
+	bool little_endian;
+	u32 svr;
+	int ret;
+
+	np = of_find_matching_node_and_match(NULL, fsl_guts_of_match, NULL);
+	if (!np)
+		return 0;
+
+	regs = of_iomap(np, 0);
+	if (IS_ERR(regs)) {
+		of_node_put(np);
+		return PTR_ERR(regs);
+	}
+
+	little_endian = of_property_read_bool(np, "little-endian");
+	if (little_endian)
+		svr = ioread32(&regs->svr);
+	else
+		svr = ioread32be(&regs->svr);
+	iounmap(regs);
+	of_node_put(np);
+
+	/* Register soc device */
+	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		return -ENOMEM;
+
+	if (of_property_read_string(of_root, "model", &machine))
+		of_property_read_string_index(of_root, "compatible", 0, &machine);
+	if (machine) {
+		soc_dev_attr->machine = kstrdup(machine, GFP_KERNEL);
+		if (!soc_dev_attr->machine)
+			goto err_nomem;
+	}
+
+	soc_die = fsl_soc_die_match(svr, fsl_soc_die);
+	if (soc_die) {
+		soc_dev_attr->family = kasprintf(GFP_KERNEL, "QorIQ %s",
+						 soc_die->die);
+	} else {
+		soc_dev_attr->family = kasprintf(GFP_KERNEL, "QorIQ");
+	}
+	if (!soc_dev_attr->family)
+		goto err_nomem;
+
+	soc_dev_attr->soc_id = kasprintf(GFP_KERNEL, "svr:0x%08x", svr);
+	if (!soc_dev_attr->soc_id)
+		goto err_nomem;
+
+	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%d.%d",
+					   (svr >>  4) & 0xf, svr & 0xf);
+	if (!soc_dev_attr->revision)
+		goto err_nomem;
+
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR(soc_dev)) {
+		ret = PTR_ERR(soc_dev);
+		goto err;
+	}
+
+	pr_info("Machine: %s\n", soc_dev_attr->machine);
+	pr_info("SoC family: %s\n", soc_dev_attr->family);
+	pr_info("SoC ID: %s, Revision: %s\n",
+		soc_dev_attr->soc_id, soc_dev_attr->revision);
+
+	return 0;
+
+err_nomem:
+	ret = -ENOMEM;
+err:
+	kfree(soc_dev_attr->machine);
+	kfree(soc_dev_attr->family);
+	kfree(soc_dev_attr->soc_id);
+	kfree(soc_dev_attr->revision);
+	kfree(soc_dev_attr);
+
+	return ret;
 }
 core_initcall(fsl_guts_init);
