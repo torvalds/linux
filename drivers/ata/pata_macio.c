@@ -853,12 +853,8 @@ static int pata_macio_slave_config(struct scsi_device *sdev)
 #ifdef CONFIG_PM_SLEEP
 static int pata_macio_do_suspend(struct pata_macio_priv *priv, pm_message_t mesg)
 {
-	int rc;
-
 	/* First, core libata suspend to do most of the work */
-	rc = ata_host_suspend(priv->host, mesg);
-	if (rc)
-		return rc;
+	ata_host_suspend(priv->host, mesg);
 
 	/* Restore to default timings */
 	pata_macio_default_timings(priv);
@@ -1333,19 +1329,11 @@ static int pata_macio_pci_resume(struct pci_dev *pdev)
 
 static const struct of_device_id pata_macio_match[] =
 {
-	{
-	.name 		= "IDE",
-	},
-	{
-	.name 		= "ATA",
-	},
-	{
-	.type		= "ide",
-	},
-	{
-	.type		= "ata",
-	},
-	{},
+	{ .name = "IDE", },
+	{ .name = "ATA", },
+	{ .type = "ide", },
+	{ .type = "ata", },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, pata_macio_match);
 
