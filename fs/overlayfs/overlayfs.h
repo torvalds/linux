@@ -7,6 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/uuid.h>
 #include <linux/fs.h>
+#include <linux/namei.h>
 #include "ovl_entry.h"
 
 #undef pr_fmt
@@ -308,6 +309,13 @@ static inline struct dentry *ovl_do_tmpfile(struct ovl_fs *ofs,
 
 	pr_debug("tmpfile(%pd2, 0%o) = %i\n", dentry, mode, err);
 	return ret;
+}
+
+static inline struct dentry *ovl_lookup_upper(struct ovl_fs *ofs,
+					      const char *name,
+					      struct dentry *base, int len)
+{
+	return lookup_one(ovl_upper_mnt_userns(ofs), name, base, len);
 }
 
 static inline bool ovl_open_flags_need_copy_up(int flags)
