@@ -210,6 +210,8 @@ static int mt7986_wmac_gpio_setup(struct mt7915_dev *dev)
 		if (IS_ERR_OR_NULL(state))
 			return -EINVAL;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	ret = pinctrl_select_state(pinctrl, state);
