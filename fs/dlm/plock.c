@@ -157,13 +157,7 @@ int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 		goto out;
 	}
 
-	spin_lock(&ops_lock);
-	if (!list_empty(&op->list)) {
-		log_error(ls, "dlm_posix_lock: op on list %llx",
-			  (unsigned long long)number);
-		list_del(&op->list);
-	}
-	spin_unlock(&ops_lock);
+	WARN_ON(!list_empty(&op->list));
 
 	rv = op->info.rv;
 
@@ -190,13 +184,7 @@ static int dlm_plock_callback(struct plock_op *op)
 	struct plock_xop *xop = (struct plock_xop *)op;
 	int rv = 0;
 
-	spin_lock(&ops_lock);
-	if (!list_empty(&op->list)) {
-		log_print("dlm_plock_callback: op on list %llx",
-			  (unsigned long long)op->info.number);
-		list_del(&op->list);
-	}
-	spin_unlock(&ops_lock);
+	WARN_ON(!list_empty(&op->list));
 
 	/* check if the following 2 are still valid or make a copy */
 	file = xop->file;
@@ -289,13 +277,7 @@ int dlm_posix_unlock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	send_op(op);
 	wait_event(recv_wq, (op->done != 0));
 
-	spin_lock(&ops_lock);
-	if (!list_empty(&op->list)) {
-		log_error(ls, "dlm_posix_unlock: op on list %llx",
-			  (unsigned long long)number);
-		list_del(&op->list);
-	}
-	spin_unlock(&ops_lock);
+	WARN_ON(!list_empty(&op->list));
 
 	rv = op->info.rv;
 
@@ -343,13 +325,7 @@ int dlm_posix_get(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	send_op(op);
 	wait_event(recv_wq, (op->done != 0));
 
-	spin_lock(&ops_lock);
-	if (!list_empty(&op->list)) {
-		log_error(ls, "dlm_posix_get: op on list %llx",
-			  (unsigned long long)number);
-		list_del(&op->list);
-	}
-	spin_unlock(&ops_lock);
+	WARN_ON(!list_empty(&op->list));
 
 	/* info.rv from userspace is 1 for conflict, 0 for no-conflict,
 	   -ENOENT if there are no locks on the file */
