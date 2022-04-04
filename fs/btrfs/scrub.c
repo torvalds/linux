@@ -1538,7 +1538,8 @@ static int scrub_repair_sector_from_good_copy(struct scrub_block *sblock_bad,
 	BUG_ON(sector_good->page == NULL);
 	if (force_write || sblock_bad->header_error ||
 	    sblock_bad->checksum_error || sector_bad->io_error) {
-		struct bio *bio;
+		struct bio bio;
+		struct bio_vec bvec;
 		int ret;
 
 		if (!sector_bad->dev->bdev) {
@@ -1547,26 +1548,20 @@ static int scrub_repair_sector_from_good_copy(struct scrub_block *sblock_bad,
 			return -EIO;
 		}
 
-		bio = btrfs_bio_alloc(1);
-		bio_set_dev(bio, sector_bad->dev->bdev);
-		bio->bi_iter.bi_sector = sector_bad->physical >> 9;
-		bio->bi_opf = REQ_OP_WRITE;
+		bio_init(&bio, sector_bad->dev->bdev, &bvec, 1, REQ_OP_WRITE);
+		bio.bi_iter.bi_sector = sector_bad->physical >> 9;
+		__bio_add_page(&bio, sector_good->page, sectorsize, 0);
 
-		ret = bio_add_page(bio, sector_good->page, sectorsize, 0);
-		if (ret != sectorsize) {
-			bio_put(bio);
-			return -EIO;
-		}
+		btrfsic_check_bio(&bio);
+		ret = submit_bio_wait(&bio);
+		bio_uninit(&bio);
 
-		btrfsic_check_bio(bio);
-		if (submit_bio_wait(bio)) {
+		if (ret) {
 			btrfs_dev_stat_inc_and_print(sector_bad->dev,
 				BTRFS_DEV_STAT_WRITE_ERRS);
 			atomic64_inc(&fs_info->dev_replace.num_write_errors);
-			bio_put(bio);
 			return -EIO;
 		}
-		bio_put(bio);
 	}
 
 	return 0;
