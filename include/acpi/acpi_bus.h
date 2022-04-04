@@ -481,6 +481,8 @@ void acpi_initialize_hp_context(struct acpi_device *adev,
 extern struct bus_type acpi_bus_type;
 
 int acpi_bus_for_each_dev(int (*fn)(struct device *, void *), void *data);
+int acpi_dev_for_each_child(struct acpi_device *adev,
+			    int (*fn)(struct device *, void *), void *data);
 
 /*
  * Events
