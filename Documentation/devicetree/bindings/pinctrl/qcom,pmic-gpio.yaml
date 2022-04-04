@@ -53,6 +53,7 @@ properties:
           - qcom,pmr735b-gpio
           - qcom,pms405-gpio
           - qcom,pmx55-gpio
+          - qcom,pmx65-gpio
 
       - enum:
           - qcom,spmi-gpio
@@ -140,6 +141,7 @@ $defs:
                                             and gpio10)
                  - gpio1-gpio11 for pmx55 (holes on gpio3, gpio7, gpio10
                                             and gpio11)
+                 - gpio1-gpio16 for pmx65
 
         items:
           pattern: "^gpio([0-9]+)$"
