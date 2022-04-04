@@ -282,10 +282,6 @@ irqreturn_t hl_irq_handler_user_cq(int irq, void *arg)
 	struct hl_user_interrupt *user_cq = arg;
 	struct hl_device *hdev = user_cq->hdev;
 
-	dev_dbg(hdev->dev,
-		"got user completion interrupt id %u",
-		user_cq->interrupt_id);
-
 	/* Handle user cq interrupts registered on all interrupts */
 	handle_user_cq(hdev, &hdev->common_user_interrupt);
 
