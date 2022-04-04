@@ -441,7 +441,6 @@ static void rtw_init_default_value(struct adapter *padapter)
 u8 rtw_reset_drv_sw(struct adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
 
 	/* hal_priv */
 	rtl8188eu_init_default_value(padapter);
@@ -456,8 +455,6 @@ u8 rtw_reset_drv_sw(struct adapter *padapter)
 	pmlmepriv->LinkDetectInfo.bBusyTraffic = false;
 
 	_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY | _FW_UNDER_LINKING);
-
-	pwrctrlpriv->pwr_state_check_cnts = 0;
 
 	/* mlmeextpriv */
 	padapter->mlmeextpriv.sitesurvey_res.state = SCAN_DISABLE;

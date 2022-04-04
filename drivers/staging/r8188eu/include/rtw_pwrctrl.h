@@ -69,7 +69,6 @@ struct pwrctrl_priv {
 	u8		bSupportRemoteWakeup;
 	struct timer_list pwr_state_check_timer;
 	int		pwr_state_check_interval;
-	u8		pwr_state_check_cnts;
 
 	int		ps_flag;
 

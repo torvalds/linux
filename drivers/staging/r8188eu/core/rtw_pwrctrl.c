@@ -133,9 +133,8 @@ void rtw_ps_processor(struct adapter *padapter)
 	if (!rtw_pwr_unassociated_idle(padapter))
 		goto exit;
 
-	if ((pwrpriv->rf_pwrstate == rf_on) && ((pwrpriv->pwr_state_check_cnts % 4) == 0)) {
+	if (pwrpriv->rf_pwrstate == rf_on) {
 		pwrpriv->change_rfpwrstate = rf_off;
-
 		ips_enter(padapter);
 	}
 exit:
@@ -342,7 +341,6 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 	pwrctrlpriv->ips_mode_req = padapter->registrypriv.ips_mode;
 
 	pwrctrlpriv->pwr_state_check_interval = RTW_PWR_STATE_CHK_INTERVAL;
-	pwrctrlpriv->pwr_state_check_cnts = 0;
 	pwrctrlpriv->bInSuspend = false;
 	pwrctrlpriv->bkeepfwalive = false;
 
