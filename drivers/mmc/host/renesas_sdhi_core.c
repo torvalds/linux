@@ -144,9 +144,9 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 		return clk_get_rate(priv->clk);
 
 	if (priv->clkh) {
+		/* HS400 with 4TAP needs different clock settings */
 		bool use_4tap = priv->quirks && priv->quirks->hs400_4taps;
-		bool need_slow_clkh = (host->mmc->ios.timing == MMC_TIMING_UHS_SDR104) ||
-				      (host->mmc->ios.timing == MMC_TIMING_MMC_HS400);
+		bool need_slow_clkh = host->mmc->ios.timing == MMC_TIMING_MMC_HS400;
 		clkh_shift = use_4tap && need_slow_clkh ? 1 : 2;
 		ref_clk = priv->clkh;
 	}
