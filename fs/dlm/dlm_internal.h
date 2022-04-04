@@ -409,24 +409,24 @@ struct dlm_header {
 
 struct dlm_message {
 	struct dlm_header	m_header;
-	uint32_t		m_type;		/* DLM_MSG_ */
-	uint32_t		m_nodeid;
-	uint32_t		m_pid;
-	uint32_t		m_lkid;		/* lkid on sender */
-	uint32_t		m_remid;	/* lkid on receiver */
-	uint32_t		m_parent_lkid;
-	uint32_t		m_parent_remid;
-	uint32_t		m_exflags;
-	uint32_t		m_sbflags;
-	uint32_t		m_flags;
-	uint32_t		m_lvbseq;
-	uint32_t		m_hash;
-	int			m_status;
-	int			m_grmode;
-	int			m_rqmode;
-	int			m_bastmode;
-	int			m_asts;
-	int			m_result;	/* 0 or -EXXX */
+	__le32			m_type;		/* DLM_MSG_ */
+	__le32			m_nodeid;
+	__le32			m_pid;
+	__le32			m_lkid;		/* lkid on sender */
+	__le32			m_remid;	/* lkid on receiver */
+	__le32			m_parent_lkid;
+	__le32			m_parent_remid;
+	__le32			m_exflags;
+	__le32			m_sbflags;
+	__le32			m_flags;
+	__le32			m_lvbseq;
+	__le32			m_hash;
+	__le32			m_status;
+	__le32			m_grmode;
+	__le32			m_rqmode;
+	__le32			m_bastmode;
+	__le32			m_asts;
+	__le32			m_result;	/* 0 or -EXXX */
 	char			m_extra[];	/* name or lvb */
 };
 

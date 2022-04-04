@@ -14,6 +14,7 @@
 #include "dir.h"
 #include "config.h"
 #include "requestqueue.h"
+#include "util.h"
 
 struct rq_entry {
 	struct list_head list;
@@ -83,8 +84,10 @@ int dlm_process_requestqueue(struct dlm_ls *ls)
 
 		log_limit(ls, "dlm_process_requestqueue msg %d from %d "
 			  "lkid %x remid %x result %d seq %u",
-			  ms->m_type, le32_to_cpu(ms->m_header.h_nodeid),
-			  ms->m_lkid, ms->m_remid, ms->m_result,
+			  le32_to_cpu(ms->m_type),
+			  le32_to_cpu(ms->m_header.h_nodeid),
+			  le32_to_cpu(ms->m_lkid), le32_to_cpu(ms->m_remid),
+			  from_dlm_errno(le32_to_cpu(ms->m_result)),
 			  e->recover_seq);
 
 		dlm_receive_message_saved(ls, &e->request, e->recover_seq);
@@ -125,7 +128,7 @@ void dlm_wait_requestqueue(struct dlm_ls *ls)
 
 static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int nodeid)
 {
-	uint32_t type = ms->m_type;
+	__le32 type = ms->m_type;
 
 	/* the ls is being cleaned up and freed by release_lockspace */
 	if (!atomic_read(&ls->ls_count))
@@ -137,9 +140,9 @@ static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int nodeid)
 	/* directory operations are always purged because the directory is
 	   always rebuilt during recovery and the lookups resent */
 
-	if (type == DLM_MSG_REMOVE ||
-	    type == DLM_MSG_LOOKUP ||
-	    type == DLM_MSG_LOOKUP_REPLY)
+	if (type == cpu_to_le32(DLM_MSG_REMOVE) ||
+	    type == cpu_to_le32(DLM_MSG_LOOKUP) ||
+	    type == cpu_to_le32(DLM_MSG_LOOKUP_REPLY))
 		return 1;
 
 	if (!dlm_no_directory(ls))

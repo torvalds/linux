@@ -11,8 +11,8 @@
 #ifndef __UTIL_DOT_H__
 #define __UTIL_DOT_H__
 
-void dlm_message_out(struct dlm_message *ms);
-void dlm_message_in(struct dlm_message *ms);
+int to_dlm_errno(int err);
+int from_dlm_errno(int err);
 
 #endif
 
