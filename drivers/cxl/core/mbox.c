@@ -180,9 +180,8 @@ int cxl_mbox_send_cmd(struct cxl_dev_state *cxlds, u16 opcode, void *in,
 	if (rc)
 		return rc;
 
-	/* TODO: Map return code to proper kernel style errno */
 	if (mbox_cmd.return_code != CXL_MBOX_CMD_RC_SUCCESS)
-		return -ENXIO;
+		return cxl_mbox_cmd_rc2errno(&mbox_cmd);
 
 	/*
 	 * Variable sized commands can't be validated and so it's up to the
