@@ -219,7 +219,12 @@ int radeon_bo_create(struct radeon_device *rdev,
 int radeon_bo_kmap(struct radeon_bo *bo, void **ptr)
 {
 	bool is_iomem;
-	int r;
+	long r;
+
+	r = dma_resv_wait_timeout(bo->tbo.base.resv, DMA_RESV_USAGE_KERNEL,
+				  false, MAX_SCHEDULE_TIMEOUT);
+	if (r < 0)
+		return r;
 
 	if (bo->kptr) {
 		if (ptr) {
