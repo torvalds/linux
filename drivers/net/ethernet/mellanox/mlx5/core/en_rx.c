@@ -51,7 +51,7 @@
 #include "accel/ipsec.h"
 #include "fpga/ipsec.h"
 #include "en_accel/ipsec_rxtx.h"
-#include "en_accel/tls_rxtx.h"
+#include "en_accel/ktls_txrx.h"
 #include "en/xdp.h"
 #include "en/xsk/rx.h"
 #include "en/health.h"
@@ -1416,7 +1416,8 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 
 	skb->mac_len = ETH_HLEN;
 
-	mlx5e_tls_handle_rx_skb(rq, skb, cqe, &cqe_bcnt);
+	if (unlikely(get_cqe_tls_offload(cqe)))
+		mlx5e_ktls_handle_rx_skb(rq, skb, cqe, &cqe_bcnt);
 
 	if (unlikely(mlx5_ipsec_is_rx_flow(cqe)))
 		mlx5e_ipsec_offload_handle_rx_skb(netdev, skb, cqe);

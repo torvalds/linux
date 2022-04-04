@@ -5,6 +5,7 @@
 #define __MLX5E_KTLS_H__
 
 #include <linux/tls.h>
+#include <net/tls.h>
 #include "en.h"
 
 #ifdef CONFIG_MLX5_EN_TLS
@@ -61,6 +62,25 @@ static inline bool mlx5e_accel_is_ktls_device(struct mlx5_core_dev *mdev)
 		mlx5_accel_is_ktls_device(mdev);
 }
 
+struct mlx5e_tls_sw_stats {
+	atomic64_t tx_tls_ctx;
+	atomic64_t tx_tls_del;
+	atomic64_t rx_tls_ctx;
+	atomic64_t rx_tls_del;
+};
+
+struct mlx5e_tls {
+	struct mlx5e_tls_sw_stats sw_stats;
+	struct workqueue_struct *rx_wq;
+};
+
+int mlx5e_ktls_init(struct mlx5e_priv *priv);
+void mlx5e_ktls_cleanup(struct mlx5e_priv *priv);
+
+int mlx5e_ktls_get_count(struct mlx5e_priv *priv);
+int mlx5e_ktls_get_strings(struct mlx5e_priv *priv, uint8_t *data);
+int mlx5e_ktls_get_stats(struct mlx5e_priv *priv, u64 *data);
+
 #else
 static inline int
 mlx5_ktls_create_key(struct mlx5_core_dev *mdev,
@@ -107,6 +127,18 @@ static inline bool mlx5e_accel_is_ktls_tx(struct mlx5_core_dev *mdev) { return f
 static inline bool mlx5e_accel_is_ktls_rx(struct mlx5_core_dev *mdev) { return false; }
 static inline bool mlx5e_accel_is_ktls_device(struct mlx5_core_dev *mdev) { return false; }
 
+static inline int mlx5e_ktls_init(struct mlx5e_priv *priv) { return 0; }
+static inline void mlx5e_ktls_cleanup(struct mlx5e_priv *priv) { }
+static inline int mlx5e_ktls_get_count(struct mlx5e_priv *priv) { return 0; }
+static inline int mlx5e_ktls_get_strings(struct mlx5e_priv *priv, uint8_t *data)
+{
+	return 0;
+}
+
+static inline int mlx5e_ktls_get_stats(struct mlx5e_priv *priv, u64 *data)
+{
+	return 0;
+}
 #endif
 
 #endif /* __MLX5E_TLS_H__ */

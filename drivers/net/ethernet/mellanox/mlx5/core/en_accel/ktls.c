@@ -3,7 +3,6 @@
 
 #include "en.h"
 #include "lib/mlx5.h"
-#include "en_accel/tls.h"
 #include "en_accel/ktls.h"
 #include "en_accel/ktls_utils.h"
 #include "en_accel/fs_tcp.h"
@@ -158,4 +157,25 @@ void mlx5e_ktls_cleanup_rx(struct mlx5e_priv *priv)
 		mlx5e_accel_fs_tcp_destroy(priv);
 
 	destroy_workqueue(priv->tls->rx_wq);
+}
+
+int mlx5e_ktls_init(struct mlx5e_priv *priv)
+{
+	struct mlx5e_tls *tls;
+
+	if (!mlx5e_accel_is_ktls_device(priv->mdev))
+		return 0;
+
+	tls = kzalloc(sizeof(*tls), GFP_KERNEL);
+	if (!tls)
+		return -ENOMEM;
+
+	priv->tls = tls;
+	return 0;
+}
+
+void mlx5e_ktls_cleanup(struct mlx5e_priv *priv)
+{
+	kfree(priv->tls);
+	priv->tls = NULL;
 }
