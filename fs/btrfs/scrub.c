@@ -1458,8 +1458,9 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 		return scrub_recheck_block_on_raid56(fs_info, sblock);
 
 	for (i = 0; i < sblock->sector_count; i++) {
-		struct bio *bio;
 		struct scrub_sector *sector = sblock->sectors[i];
+		struct bio bio;
+		struct bio_vec bvec;
 
 		if (sector->dev->bdev == NULL) {
 			sector->io_error = 1;
@@ -1468,20 +1469,17 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 		}
 
 		WARN_ON(!sector->page);
-		bio = btrfs_bio_alloc(1);
-		bio_set_dev(bio, sector->dev->bdev);
+		bio_init(&bio, sector->dev->bdev, &bvec, 1, REQ_OP_READ);
+		bio_add_page(&bio, sector->page, fs_info->sectorsize, 0);
+		bio.bi_iter.bi_sector = sector->physical >> 9;
 
-		bio_add_page(bio, sector->page, fs_info->sectorsize, 0);
-		bio->bi_iter.bi_sector = sector->physical >> 9;
-		bio->bi_opf = REQ_OP_READ;
-
-		btrfsic_check_bio(bio);
-		if (submit_bio_wait(bio)) {
+		btrfsic_check_bio(&bio);
+		if (submit_bio_wait(&bio)) {
 			sector->io_error = 1;
 			sblock->no_io_error_seen = 0;
 		}
 
-		bio_put(bio);
+		bio_uninit(&bio);
 	}
 
 	if (sblock->no_io_error_seen)
