@@ -411,23 +411,6 @@ config ARCH_DOVE
 	help
 	  Support for the Marvell Dove SoC 88AP510
 
-config ARCH_PXA
-	bool "PXA2xx/PXA3xx-based"
-	select ARM_CPU_SUSPEND if PM
-	select AUTO_ZRELADDR
-	select COMMON_CLK
-	select CLKSRC_PXA
-	select CLKSRC_MMIO
-	select TIMER_OF
-	select CPU_XSCALE if !CPU_XSC3
-	select GPIO_PXA
-	select GPIOLIB
-	select IRQ_DOMAIN
-	select PLAT_PXA
-	select SPARSE_IRQ
-	help
-	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
-
 config ARCH_RPC
 	bool "RiscPC"
 	depends on !CC_IS_CLANG && GCC_VERSION < 90100 && GCC_VERSION >= 60000
