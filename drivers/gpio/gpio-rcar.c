@@ -411,7 +411,7 @@ static const struct gpio_rcar_info gpio_rcar_info_gen3 = {
 	.has_inen = false,
 };
 
-static const struct gpio_rcar_info gpio_rcar_info_v3u = {
+static const struct gpio_rcar_info gpio_rcar_info_gen4 = {
 	.has_outdtsel = true,
 	.has_both_edge_trigger = true,
 	.has_always_in = true,
@@ -421,7 +421,7 @@ static const struct gpio_rcar_info gpio_rcar_info_v3u = {
 static const struct of_device_id gpio_rcar_of_table[] = {
 	{
 		.compatible = "renesas,gpio-r8a779a0",
-		.data = &gpio_rcar_info_v3u,
+		.data = &gpio_rcar_info_gen4,
 	}, {
 		.compatible = "renesas,rcar-gen1-gpio",
 		.data = &gpio_rcar_info_gen1,
@@ -431,6 +431,9 @@ static const struct of_device_id gpio_rcar_of_table[] = {
 	}, {
 		.compatible = "renesas,rcar-gen3-gpio",
 		.data = &gpio_rcar_info_gen3,
+	}, {
+		.compatible = "renesas,rcar-gen4-gpio",
+		.data = &gpio_rcar_info_gen4,
 	}, {
 		.compatible = "renesas,gpio-rcar",
 		.data = &gpio_rcar_info_gen1,
