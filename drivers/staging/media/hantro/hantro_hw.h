@@ -245,12 +245,16 @@ struct hantro_postproc_ctx {
 /**
  * struct hantro_postproc_ops - post-processor operations
  *
- * @enable:	Enable the post-processor block. Optional.
- * @disable:	Disable the post-processor block. Optional.
+ * @enable:		Enable the post-processor block. Optional.
+ * @disable:		Disable the post-processor block. Optional.
+ * @enum_framesizes:	Enumerate possible scaled output formats.
+ *			Returns zero if OK, a negative value in error cases.
+ *			Optional.
  */
 struct hantro_postproc_ops {
 	void (*enable)(struct hantro_ctx *ctx);
 	void (*disable)(struct hantro_ctx *ctx);
+	int (*enum_framesizes)(struct hantro_ctx *ctx, struct v4l2_frmsizeenum *fsize);
 };
 
 /**
