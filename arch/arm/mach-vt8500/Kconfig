@@ -10,6 +10,7 @@ config ARCH_VT8500
 config ARCH_WM8505
 	bool "VIA/Wondermedia 85xx and WM8650"
  	depends on ARCH_MULTI_V5
+	depends on CPU_LITTLE_ENDIAN
  	select ARCH_VT8500
  	select CPU_ARM926T
 

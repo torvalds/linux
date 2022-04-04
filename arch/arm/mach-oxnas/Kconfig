@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_OXNAS
 	bool "Oxford Semiconductor OXNAS Family SoCs"
+	depends on (ARCH_MULTI_V5 && CPU_LITTLE_ENDIAN) || ARCH_MULTI_V6
 	select ARCH_HAS_RESET_CONTROLLER
 	select COMMON_CLK_OXNAS
 	select GPIOLIB
@@ -11,7 +12,6 @@ menuconfig ARCH_OXNAS
 	select RESET_OXNAS
 	select VERSATILE_FPGA_IRQ
 	select PINCTRL
-	depends on ARCH_MULTI_V5 || ARCH_MULTI_V6
 	help
 	  Support for OxNas SoC family developed by Oxford Semiconductor.
 

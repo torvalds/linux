@@ -3,6 +3,7 @@
 config ARCH_LPC32XX
 	bool "NXP LPC32XX"
 	depends on ARCH_MULTI_V5
+	depends on CPU_LITTLE_ENDIAN
 	select ARM_AMBA
 	select CLKSRC_LPC32XX
 	select CPU_ARM926T

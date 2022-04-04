@@ -2,6 +2,7 @@
 menuconfig ARCH_MOXART
 	bool "MOXA ART SoC"
 	depends on ARCH_MULTI_V4
+	depends on CPU_LITTLE_ENDIAN
 	select CPU_FA526
 	select ARM_DMA_MEM_BUFFERABLE
 	select FARADAY_FTINTC010
