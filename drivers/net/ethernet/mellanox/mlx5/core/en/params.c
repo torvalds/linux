@@ -804,7 +804,7 @@ static u8 mlx5e_build_icosq_log_wq_sz(struct mlx5_core_dev *mdev,
 
 static u8 mlx5e_build_async_icosq_log_wq_sz(struct mlx5_core_dev *mdev)
 {
-	if (mlx5e_accel_is_ktls_rx(mdev))
+	if (mlx5e_is_ktls_rx(mdev))
 		return MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
 
 	return MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE;
@@ -833,7 +833,7 @@ static void mlx5e_build_async_icosq_param(struct mlx5_core_dev *mdev,
 
 	mlx5e_build_sq_param_common(mdev, param);
 	param->stop_room = mlx5e_stop_room_for_wqe(mdev, 1); /* for XSK NOP */
-	param->is_tls = mlx5e_accel_is_ktls_rx(mdev);
+	param->is_tls = mlx5e_is_ktls_rx(mdev);
 	if (param->is_tls)
 		param->stop_room += mlx5e_stop_room_for_wqe(mdev, 1); /* for TLS RX resync NOP */
 	MLX5_SET(sqc, sqc, reg_umr, MLX5_CAP_ETH(mdev, reg_umr_sq));

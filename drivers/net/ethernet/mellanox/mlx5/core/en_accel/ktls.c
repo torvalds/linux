@@ -97,15 +97,15 @@ void mlx5e_ktls_build_netdev(struct mlx5e_priv *priv)
 	struct net_device *netdev = priv->netdev;
 	struct mlx5_core_dev *mdev = priv->mdev;
 
-	if (!mlx5e_accel_is_ktls_tx(mdev) && !mlx5e_accel_is_ktls_rx(mdev))
+	if (!mlx5e_is_ktls_tx(mdev) && !mlx5e_is_ktls_rx(mdev))
 		return;
 
-	if (mlx5e_accel_is_ktls_tx(mdev)) {
+	if (mlx5e_is_ktls_tx(mdev)) {
 		netdev->hw_features |= NETIF_F_HW_TLS_TX;
 		netdev->features    |= NETIF_F_HW_TLS_TX;
 	}
 
-	if (mlx5e_accel_is_ktls_rx(mdev))
+	if (mlx5e_is_ktls_rx(mdev))
 		netdev->hw_features |= NETIF_F_HW_TLS_RX;
 
 	netdev->tlsdev_ops = &mlx5e_ktls_ops;
@@ -130,7 +130,7 @@ int mlx5e_ktls_init_rx(struct mlx5e_priv *priv)
 {
 	int err;
 
-	if (!mlx5e_accel_is_ktls_rx(priv->mdev))
+	if (!mlx5e_is_ktls_rx(priv->mdev))
 		return 0;
 
 	priv->tls->rx_wq = create_singlethread_workqueue("mlx5e_tls_rx");
@@ -150,7 +150,7 @@ int mlx5e_ktls_init_rx(struct mlx5e_priv *priv)
 
 void mlx5e_ktls_cleanup_rx(struct mlx5e_priv *priv)
 {
-	if (!mlx5e_accel_is_ktls_rx(priv->mdev))
+	if (!mlx5e_is_ktls_rx(priv->mdev))
 		return;
 
 	if (priv->netdev->features & NETIF_F_HW_TLS_RX)
@@ -163,7 +163,7 @@ int mlx5e_ktls_init(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tls *tls;
 
-	if (!mlx5e_accel_is_ktls_device(priv->mdev))
+	if (!mlx5e_is_ktls_device(priv->mdev))
 		return 0;
 
 	tls = kzalloc(sizeof(*tls), GFP_KERNEL);
