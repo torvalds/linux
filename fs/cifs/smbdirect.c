@@ -649,7 +649,7 @@ static int smbd_ia_open(
 		smbd_max_frmr_depth,
 		info->id->device->attrs.max_fast_reg_page_list_len);
 	info->mr_type = IB_MR_TYPE_MEM_REG;
-	if (info->id->device->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG)
+	if (info->id->device->attrs.kernel_cap_flags & IBK_SG_GAPS_REG)
 		info->mr_type = IB_MR_TYPE_SG_GAPS;
 
 	info->pd = ib_alloc_pd(info->id->device, 0);

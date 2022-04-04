@@ -1298,6 +1298,10 @@ struct ib_uverbs_ex_modify_cq {
 
 #define IB_DEVICE_NAME_MAX 64
 
+/*
+ * bits 9, 15, 16, 19, 22, 27, 30, 31, 32, 33, 35 and 37 may be set by old
+ * kernels and should not be used.
+ */
 enum ib_uverbs_device_cap_flags {
 	IB_UVERBS_DEVICE_RESIZE_MAX_WR = 1 << 0,
 	IB_UVERBS_DEVICE_BAD_PKEY_CNTR = 1 << 1,

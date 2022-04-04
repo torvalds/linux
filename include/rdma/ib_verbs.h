@@ -236,14 +236,6 @@ enum ib_device_cap_flags {
 	IB_DEVICE_SRQ_RESIZE = IB_UVERBS_DEVICE_SRQ_RESIZE,
 	IB_DEVICE_N_NOTIFY_CQ = IB_UVERBS_DEVICE_N_NOTIFY_CQ,
 
-	/*
-	 * This device supports a per-device lkey or stag that can be
-	 * used without performing a memory registration for the local
-	 * memory.  Note that ULPs should never check this flag, but
-	 * instead of use the local_dma_lkey flag in the ib_pd structure,
-	 * which will always contain a usable lkey.
-	 */
-	IB_DEVICE_LOCAL_DMA_LKEY = 1 << 15,
 	/* Reserved, old SEND_W_INV = 1 << 16,*/
 	IB_DEVICE_MEM_WINDOW = IB_UVERBS_DEVICE_MEM_WINDOW,
 	/*
@@ -254,7 +246,6 @@ enum ib_device_cap_flags {
 	 * IPoIB driver may set NETIF_F_IP_CSUM for datagram mode.
 	 */
 	IB_DEVICE_UD_IP_CSUM = IB_UVERBS_DEVICE_UD_IP_CSUM,
-	IB_DEVICE_UD_TSO = 1 << 19,
 	IB_DEVICE_XRC = IB_UVERBS_DEVICE_XRC,
 
 	/*
@@ -267,59 +258,53 @@ enum ib_device_cap_flags {
 	 * stag.
 	 */
 	IB_DEVICE_MEM_MGT_EXTENSIONS = IB_UVERBS_DEVICE_MEM_MGT_EXTENSIONS,
-	IB_DEVICE_BLOCK_MULTICAST_LOOPBACK = 1 << 22,
 	IB_DEVICE_MEM_WINDOW_TYPE_2A = IB_UVERBS_DEVICE_MEM_WINDOW_TYPE_2A,
 	IB_DEVICE_MEM_WINDOW_TYPE_2B = IB_UVERBS_DEVICE_MEM_WINDOW_TYPE_2B,
 	IB_DEVICE_RC_IP_CSUM = IB_UVERBS_DEVICE_RC_IP_CSUM,
 	/* Deprecated. Please use IB_RAW_PACKET_CAP_IP_CSUM. */
 	IB_DEVICE_RAW_IP_CSUM = IB_UVERBS_DEVICE_RAW_IP_CSUM,
-	/*
-	 * Devices should set IB_DEVICE_CROSS_CHANNEL if they
-	 * support execution of WQEs that involve synchronization
-	 * of I/O operations with single completion queue managed
-	 * by hardware.
-	 */
-	IB_DEVICE_CROSS_CHANNEL = 1 << 27,
 	IB_DEVICE_MANAGED_FLOW_STEERING =
 		IB_UVERBS_DEVICE_MANAGED_FLOW_STEERING,
-	IB_DEVICE_INTEGRITY_HANDOVER = 1 << 30,
-	IB_DEVICE_ON_DEMAND_PAGING = 1ULL << 31,
-	IB_DEVICE_SG_GAPS_REG = 1ULL << 32,
-	IB_DEVICE_VIRTUAL_FUNCTION = 1ULL << 33,
 	/* Deprecated. Please use IB_RAW_PACKET_CAP_SCATTER_FCS. */
 	IB_DEVICE_RAW_SCATTER_FCS = IB_UVERBS_DEVICE_RAW_SCATTER_FCS,
-	IB_DEVICE_RDMA_NETDEV_OPA = 1ULL << 35,
 	/* The device supports padding incoming writes to cacheline. */
 	IB_DEVICE_PCI_WRITE_END_PADDING =
 		IB_UVERBS_DEVICE_PCI_WRITE_END_PADDING,
-	IB_DEVICE_ALLOW_USER_UNREG = 1ULL << 37,
 };
 
-#define IB_UVERBS_DEVICE_CAP_FLAGS_MASK	(IB_UVERBS_DEVICE_RESIZE_MAX_WR | \
-		IB_UVERBS_DEVICE_BAD_PKEY_CNTR | \
-		IB_UVERBS_DEVICE_BAD_QKEY_CNTR | \
-		IB_UVERBS_DEVICE_RAW_MULTI | \
-		IB_UVERBS_DEVICE_AUTO_PATH_MIG | \
-		IB_UVERBS_DEVICE_CHANGE_PHY_PORT | \
-		IB_UVERBS_DEVICE_UD_AV_PORT_ENFORCE | \
-		IB_UVERBS_DEVICE_CURR_QP_STATE_MOD | \
-		IB_UVERBS_DEVICE_SHUTDOWN_PORT | \
-		IB_UVERBS_DEVICE_PORT_ACTIVE_EVENT | \
-		IB_UVERBS_DEVICE_SYS_IMAGE_GUID | \
-		IB_UVERBS_DEVICE_RC_RNR_NAK_GEN | \
-		IB_UVERBS_DEVICE_SRQ_RESIZE | \
-		IB_UVERBS_DEVICE_N_NOTIFY_CQ | \
-		IB_UVERBS_DEVICE_MEM_WINDOW | \
-		IB_UVERBS_DEVICE_UD_IP_CSUM | \
-		IB_UVERBS_DEVICE_XRC | \
-		IB_UVERBS_DEVICE_MEM_MGT_EXTENSIONS | \
-		IB_UVERBS_DEVICE_MEM_WINDOW_TYPE_2A | \
-		IB_UVERBS_DEVICE_MEM_WINDOW_TYPE_2B | \
-		IB_UVERBS_DEVICE_RC_IP_CSUM | \
-		IB_UVERBS_DEVICE_RAW_IP_CSUM | \
-		IB_UVERBS_DEVICE_MANAGED_FLOW_STEERING | \
-		IB_UVERBS_DEVICE_RAW_SCATTER_FCS | \
-		IB_UVERBS_DEVICE_PCI_WRITE_END_PADDING)
+enum ib_kernel_cap_flags {
+	/*
+	 * This device supports a per-device lkey or stag that can be
+	 * used without performing a memory registration for the local
+	 * memory.  Note that ULPs should never check this flag, but
+	 * instead of use the local_dma_lkey flag in the ib_pd structure,
+	 * which will always contain a usable lkey.
+	 */
+	IBK_LOCAL_DMA_LKEY = 1 << 0,
+	/* IB_QP_CREATE_INTEGRITY_EN is supported to implement T10-PI */
+	IBK_INTEGRITY_HANDOVER = 1 << 1,
+	/* IB_ACCESS_ON_DEMAND is supported during reg_user_mr() */
+	IBK_ON_DEMAND_PAGING = 1 << 2,
+	/* IB_MR_TYPE_SG_GAPS is supported */
+	IBK_SG_GAPS_REG = 1 << 3,
+	/* Driver supports RDMA_NLDEV_CMD_DELLINK */
+	IBK_ALLOW_USER_UNREG = 1 << 4,
+
+	/* ipoib will use IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK */
+	IBK_BLOCK_MULTICAST_LOOPBACK = 1 << 5,
+	/* iopib will use IB_QP_CREATE_IPOIB_UD_LSO for its QPs */
+	IBK_UD_TSO = 1 << 6,
+	/* iopib will use the device ops:
+	 *   get_vf_config
+	 *   get_vf_guid
+	 *   get_vf_stats
+	 *   set_vf_guid
+	 *   set_vf_link_state
+	 */
+	IBK_VIRTUAL_FUNCTION = 1 << 7,
+	/* ipoib will use IB_QP_CREATE_NETDEV_USE for its QPs */
+	IBK_RDMA_NETDEV_OPA = 1 << 8,
+};
 
 enum ib_atomic_cap {
 	IB_ATOMIC_NONE,
@@ -417,6 +402,7 @@ struct ib_device_attr {
 	int			max_qp;
 	int			max_qp_wr;
 	u64			device_cap_flags;
+	u64			kernel_cap_flags;
 	int			max_send_sge;
 	int			max_recv_sge;
 	int			max_sge_rd;
@@ -4344,7 +4330,7 @@ static inline int ib_check_mr_access(struct ib_device *ib_dev,
 		return -EINVAL;
 
 	if (flags & IB_ACCESS_ON_DEMAND &&
-	    !(ib_dev->attrs.device_cap_flags & IB_DEVICE_ON_DEMAND_PAGING))
+	    !(ib_dev->attrs.kernel_cap_flags & IBK_ON_DEMAND_PAGING))
 		return -EINVAL;
 	return 0;
 }

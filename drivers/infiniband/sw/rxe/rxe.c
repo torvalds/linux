@@ -46,6 +46,7 @@ static void rxe_init_device_param(struct rxe_dev *rxe)
 	rxe->attr.max_qp			= RXE_MAX_QP;
 	rxe->attr.max_qp_wr			= RXE_MAX_QP_WR;
 	rxe->attr.device_cap_flags		= RXE_DEVICE_CAP_FLAGS;
+	rxe->attr.kernel_cap_flags		= IBK_ALLOW_USER_UNREG;
 	rxe->attr.max_send_sge			= RXE_MAX_SGE;
 	rxe->attr.max_recv_sge			= RXE_MAX_SGE;
 	rxe->attr.max_sge_rd			= RXE_MAX_SGE_RD;

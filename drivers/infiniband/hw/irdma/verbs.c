@@ -25,7 +25,9 @@ static int irdma_query_device(struct ib_device *ibdev,
 			    iwdev->netdev->dev_addr);
 	props->fw_ver = (u64)irdma_fw_major_ver(&rf->sc_dev) << 32 |
 			irdma_fw_minor_ver(&rf->sc_dev);
-	props->device_cap_flags = iwdev->device_cap_flags;
+	props->device_cap_flags = IB_DEVICE_MEM_WINDOW |
+				  IB_DEVICE_MEM_MGT_EXTENSIONS;
+	props->kernel_cap_flags = IBK_LOCAL_DMA_LKEY;
 	props->vendor_id = pcidev->vendor;
 	props->vendor_part_id = pcidev->device;
 

@@ -855,13 +855,13 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 					   IB_DEVICE_MEM_WINDOW_TYPE_2B;
 		props->max_mw = 1 << MLX5_CAP_GEN(mdev, log_max_mkey);
 		/* We support 'Gappy' memory registration too */
-		props->device_cap_flags |= IB_DEVICE_SG_GAPS_REG;
+		props->kernel_cap_flags |= IBK_SG_GAPS_REG;
 	}
 	/* IB_WR_REG_MR always requires changing the entity size with UMR */
 	if (!MLX5_CAP_GEN(dev->mdev, umr_modify_entity_size_disabled))
 		props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 	if (MLX5_CAP_GEN(mdev, sho)) {
-		props->device_cap_flags |= IB_DEVICE_INTEGRITY_HANDOVER;
+		props->kernel_cap_flags |= IBK_INTEGRITY_HANDOVER;
 		/* At this stage no support for signature handover */
 		props->sig_prot_cap = IB_PROT_T10DIF_TYPE_1 |
 				      IB_PROT_T10DIF_TYPE_2 |
@@ -870,7 +870,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 				       IB_GUARD_T10DIF_CSUM;
 	}
 	if (MLX5_CAP_GEN(mdev, block_lb_mc))
-		props->device_cap_flags |= IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
+		props->kernel_cap_flags |= IBK_BLOCK_MULTICAST_LOOPBACK;
 
 	if (MLX5_CAP_GEN(dev->mdev, eth_net_offloads) && raw_support) {
 		if (MLX5_CAP_ETH(mdev, csum_cap)) {
@@ -921,7 +921,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 
 	if (MLX5_CAP_GEN(mdev, ipoib_basic_offloads)) {
 		props->device_cap_flags |= IB_DEVICE_UD_IP_CSUM;
-		props->device_cap_flags |= IB_DEVICE_UD_TSO;
+		props->kernel_cap_flags |= IBK_UD_TSO;
 	}
 
 	if (MLX5_CAP_GEN(dev->mdev, rq_delay_drop) &&
@@ -997,7 +997,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 
 	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING)) {
 		if (dev->odp_caps.general_caps & IB_ODP_SUPPORT)
-			props->device_cap_flags |= IB_DEVICE_ON_DEMAND_PAGING;
+			props->kernel_cap_flags |= IBK_ON_DEMAND_PAGING;
 		props->odp_caps = dev->odp_caps;
 		if (!uhw) {
 			/* ODP for kernel QPs is not implemented for receive
@@ -1018,11 +1018,8 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		}
 	}
 
-	if (MLX5_CAP_GEN(mdev, cd))
-		props->device_cap_flags |= IB_DEVICE_CROSS_CHANNEL;
-
 	if (mlx5_core_is_vf(mdev))
-		props->device_cap_flags |= IB_DEVICE_VIRTUAL_FUNCTION;
+		props->kernel_cap_flags |= IBK_VIRTUAL_FUNCTION;
 
 	if (mlx5_ib_port_link_layer(ibdev, 1) ==
 	    IB_LINK_LAYER_ETHERNET && raw_support) {
