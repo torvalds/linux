@@ -864,8 +864,11 @@ mt7915_mac_fill_rx_vector(struct mt7915_dev *dev, struct sk_buff *skb)
 	int i;
 
 	band_idx = le32_get_bits(rxv_hdr[1], MT_RXV_HDR_BAND_IDX);
-	if (band_idx && !phy->band_idx)
+	if (band_idx && !phy->band_idx) {
 		phy = mt7915_ext_phy(dev);
+		if (!phy)
+			goto out;
+	}
 
 	rcpi = le32_to_cpu(rxv[6]);
 	ib_rssi = le32_to_cpu(rxv[7]);
@@ -890,8 +893,8 @@ mt7915_mac_fill_rx_vector(struct mt7915_dev *dev, struct sk_buff *skb)
 
 	phy->test.last_freq_offset = foe;
 	phy->test.last_snr = snr;
+out:
 #endif
-
 	dev_kfree_skb(skb);
 }
 
