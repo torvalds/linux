@@ -74,10 +74,6 @@ no-header-test += asm/stat.h
 no-header-test += linux/bpf_perf_event.h
 endif
 
-ifeq ($(SRCARCH),riscv)
-no-header-test += linux/bpf_perf_event.h
-endif
-
 ifeq ($(SRCARCH),sparc)
 no-header-test += asm/stat.h
 no-header-test += asm/uctx.h
