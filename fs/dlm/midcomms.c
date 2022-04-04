@@ -571,14 +571,14 @@ dlm_midcomms_recv_node_lookup(int nodeid, const union dlm_packet *p,
 			return NULL;
 		}
 
-		switch (le32_to_cpu(p->rcom.rc_type)) {
-		case DLM_RCOM_NAMES:
+		switch (p->rcom.rc_type) {
+		case cpu_to_le32(DLM_RCOM_NAMES):
 			fallthrough;
-		case DLM_RCOM_NAMES_REPLY:
+		case cpu_to_le32(DLM_RCOM_NAMES_REPLY):
 			fallthrough;
-		case DLM_RCOM_STATUS:
+		case cpu_to_le32(DLM_RCOM_STATUS):
 			fallthrough;
-		case DLM_RCOM_STATUS_REPLY:
+		case cpu_to_le32(DLM_RCOM_STATUS_REPLY):
 			node = nodeid2node(nodeid, 0);
 			if (node) {
 				spin_lock(&node->state_lock);
@@ -738,14 +738,14 @@ static void dlm_midcomms_receive_buffer_3_2(union dlm_packet *p, int nodeid)
 		 *
 		 * length already checked.
 		 */
-		switch (le32_to_cpu(p->rcom.rc_type)) {
-		case DLM_RCOM_NAMES:
+		switch (p->rcom.rc_type) {
+		case cpu_to_le32(DLM_RCOM_NAMES):
 			fallthrough;
-		case DLM_RCOM_NAMES_REPLY:
+		case cpu_to_le32(DLM_RCOM_NAMES_REPLY):
 			fallthrough;
-		case DLM_RCOM_STATUS:
+		case cpu_to_le32(DLM_RCOM_STATUS):
 			fallthrough;
-		case DLM_RCOM_STATUS_REPLY:
+		case cpu_to_le32(DLM_RCOM_STATUS_REPLY):
 			break;
 		default:
 			log_print("unsupported rcom type received: %u, will skip this message from node %d",
