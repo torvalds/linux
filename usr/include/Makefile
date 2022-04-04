@@ -65,10 +65,6 @@ no-header-test += asm/sigcontext.h
 no-header-test += linux/if_bonding.h
 endif
 
-ifeq ($(SRCARCH),mips)
-no-header-test += asm/stat.h
-endif
-
 ifeq ($(SRCARCH),powerpc)
 no-header-test += asm/stat.h
 no-header-test += linux/bpf_perf_event.h
