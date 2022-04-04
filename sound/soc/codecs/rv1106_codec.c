@@ -1242,55 +1242,6 @@ static int rv1106_codec_lineout_put_tlv(struct snd_kcontrol *kcontrol,
 	return snd_soc_put_volsw_range(kcontrol, ucontrol);
 }
 
-static int rv1106_codec_adc_reinit_mics(struct rv1106_codec_priv *rv1106)
-{
-	/* vendor step 1 */
-	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL6,
-			   ACODEC_ADC_L_WORK |
-			   ACODEC_ADC_R_WORK,
-			   ACODEC_ADC_L_INIT |
-			   ACODEC_ADC_R_INIT);
-
-	/* vendor step 2 */
-	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL6,
-			   ACODEC_ADC_L_ALC_WORK |
-			   ACODEC_ADC_R_ALC_WORK,
-			   ACODEC_ADC_L_ALC_INIT |
-			   ACODEC_ADC_R_ALC_INIT);
-
-	/* vendor step 3 */
-	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL1,
-			   ACODEC_ADC_L_MIC_WORK |
-			   ACODEC_ADC_R_MIC_WORK,
-			   ACODEC_ADC_L_MIC_MUTE |
-			   ACODEC_ADC_R_MIC_MUTE);
-
-	usleep_range(200, 250);	/* estimated value */
-
-	/* vendor step 1 */
-	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL6,
-			   ACODEC_ADC_L_WORK |
-			   ACODEC_ADC_R_WORK,
-			   ACODEC_ADC_L_WORK |
-			   ACODEC_ADC_R_WORK);
-
-	/* vendor step 2 */
-	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL6,
-			   ACODEC_ADC_L_ALC_WORK |
-			   ACODEC_ADC_R_ALC_WORK,
-			   ACODEC_ADC_L_ALC_WORK |
-			   ACODEC_ADC_R_ALC_WORK);
-
-	/* vendor step 3 */
-	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL1,
-			   ACODEC_ADC_L_MIC_WORK |
-			   ACODEC_ADC_R_MIC_WORK,
-			   ACODEC_ADC_L_MIC_WORK |
-			   ACODEC_ADC_R_MIC_WORK);
-
-	return 0;
-}
-
 static int rv1106_codec_adc_ana_enable(struct rv1106_codec_priv *rv1106)
 {
 	unsigned int agc_func_en;
@@ -1475,13 +1426,6 @@ static int rv1106_codec_adc_ana_disable(struct rv1106_codec_priv *rv1106)
 static int rv1106_codec_open_capture(struct rv1106_codec_priv *rv1106)
 {
 	rv1106_codec_adc_ana_enable(rv1106);
-	rv1106_codec_adc_reinit_mics(rv1106);
-
-	regmap_update_bits(rv1106->regmap, ACODEC_ADC_BIST_MODE_SEL,
-			   ACODEC_ADC_L_BIST_MSK |
-			   ACODEC_ADC_R_BIST_MSK,
-			   ACODEC_ADC_BIST_LEFT |
-			   ACODEC_ADC_BIST_RIGHT);
 
 	return 0;
 }
