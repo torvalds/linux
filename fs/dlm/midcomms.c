@@ -1062,6 +1062,10 @@ static struct dlm_msg *dlm_midcomms_get_msg_3_2(struct dlm_mhandle *mh, int node
 	return msg;
 }
 
+/* avoid false positive for nodes_srcu, unlock happens in
+ * dlm_midcomms_commit_mhandle which is a must call if success
+ */
+#ifndef __CHECKER__
 struct dlm_mhandle *dlm_midcomms_get_mhandle(int nodeid, int len,
 					     gfp_t allocation, char **ppc)
 {
@@ -1127,6 +1131,7 @@ err:
 	srcu_read_unlock(&nodes_srcu, idx);
 	return NULL;
 }
+#endif
 
 static void dlm_midcomms_commit_msg_3_2(struct dlm_mhandle *mh)
 {
@@ -1136,6 +1141,10 @@ static void dlm_midcomms_commit_msg_3_2(struct dlm_mhandle *mh)
 	dlm_lowcomms_commit_msg(mh->msg);
 }
 
+/* avoid false positive for nodes_srcu, lock was happen in
+ * dlm_midcomms_get_mhandle
+ */
+#ifndef __CHECKER__
 void dlm_midcomms_commit_mhandle(struct dlm_mhandle *mh)
 {
 	switch (mh->node->version) {
@@ -1157,6 +1166,7 @@ void dlm_midcomms_commit_mhandle(struct dlm_mhandle *mh)
 		break;
 	}
 }
+#endif
 
 int dlm_midcomms_start(void)
 {

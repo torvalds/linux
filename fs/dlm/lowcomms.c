@@ -1303,6 +1303,10 @@ static struct dlm_msg *dlm_lowcomms_new_msg_con(struct connection *con, int len,
 	return msg;
 }
 
+/* avoid false positive for nodes_srcu, unlock happens in
+ * dlm_lowcomms_commit_msg which is a must call if success
+ */
+#ifndef __CHECKER__
 struct dlm_msg *dlm_lowcomms_new_msg(int nodeid, int len, gfp_t allocation,
 				     char **ppc, void (*cb)(void *data),
 				     void *data)
@@ -1336,6 +1340,7 @@ struct dlm_msg *dlm_lowcomms_new_msg(int nodeid, int len, gfp_t allocation,
 	msg->idx = idx;
 	return msg;
 }
+#endif
 
 static void _dlm_lowcomms_commit_msg(struct dlm_msg *msg)
 {
@@ -1362,11 +1367,16 @@ out:
 	return;
 }
 
+/* avoid false positive for nodes_srcu, lock was happen in
+ * dlm_lowcomms_new_msg
+ */
+#ifndef __CHECKER__
 void dlm_lowcomms_commit_msg(struct dlm_msg *msg)
 {
 	_dlm_lowcomms_commit_msg(msg);
 	srcu_read_unlock(&connections_srcu, msg->idx);
 }
+#endif
 
 void dlm_lowcomms_put_msg(struct dlm_msg *msg)
 {
