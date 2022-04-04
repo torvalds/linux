@@ -2879,6 +2879,11 @@ static int coda_register_device(struct coda_dev *dev, int i)
 	if (dev->devtype->vdevs[i]->type == CODA_INST_ENCODER) {
 		v4l2_disable_ioctl(vfd, VIDIOC_DECODER_CMD);
 		v4l2_disable_ioctl(vfd, VIDIOC_TRY_DECODER_CMD);
+		if (dev->devtype->vdevs[i]->dst_formats[0] == V4L2_PIX_FMT_JPEG) {
+			v4l2_disable_ioctl(vfd, VIDIOC_ENUM_FRAMEINTERVALS);
+			v4l2_disable_ioctl(vfd, VIDIOC_G_PARM);
+			v4l2_disable_ioctl(vfd, VIDIOC_S_PARM);
+		}
 	} else {
 		v4l2_disable_ioctl(vfd, VIDIOC_ENCODER_CMD);
 		v4l2_disable_ioctl(vfd, VIDIOC_TRY_ENCODER_CMD);
