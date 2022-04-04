@@ -13,6 +13,7 @@
 # will most likely get a sudden build breakage... Hopefully we will fix
 # new warnings before CI updates!
 subdir-ccflags-y := -Wall -Wextra
+subdir-ccflags-y += -Wno-format-security
 subdir-ccflags-y += -Wno-unused-parameter
 subdir-ccflags-y += -Wno-type-limits
 subdir-ccflags-y += -Wno-missing-field-initializers
@@ -32,8 +33,9 @@ subdir-ccflags-y += -I$(srctree)/$(src)
 # core driver code
 i915-y += i915_driver.o \
 	  i915_config.o \
-	  i915_irq.o \
 	  i915_getparam.o \
+	  i915_ioctl.o \
+	  i915_irq.o \
 	  i915_mitigations.o \
 	  i915_module.o \
 	  i915_params.o \
@@ -161,7 +163,6 @@ gem-y += \
 i915-y += \
 	  $(gem-y) \
 	  i915_active.o \
-	  i915_buddy.o \
 	  i915_cmd_parser.o \
 	  i915_deps.o \
 	  i915_gem_evict.o \
@@ -174,7 +175,7 @@ i915-y += \
 	  i915_trace_points.o \
 	  i915_ttm_buddy_manager.o \
 	  i915_vma.o \
-	  i915_vma_snapshot.o \
+	  i915_vma_resource.o \
 	  intel_wopcm.o
 
 # general-purpose microcontroller (GuC) support
@@ -197,6 +198,7 @@ i915-y += gt/uc/intel_uc.o \
 
 # modesetting core code
 i915-y += \
+	display/hsw_ips.o \
 	display/intel_atomic.o \
 	display/intel_atomic_plane.o \
 	display/intel_audio.o \

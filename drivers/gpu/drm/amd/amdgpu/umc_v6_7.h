@@ -41,9 +41,32 @@
 #define UMC_V6_7_CHANNEL_INSTANCE_NUM		8
 /* total channel instances in one umc block */
 #define UMC_V6_7_TOTAL_CHANNEL_NUM	(UMC_V6_7_CHANNEL_INSTANCE_NUM * UMC_V6_7_UMC_INSTANCE_NUM)
+/* one piece of normalizing address is mapped to 8 pieces of physical address */
+#define UMC_V6_7_NA_MAP_PA_NUM	8
+/* R14 bit shift should be considered, double the number */
+#define UMC_V6_7_BAD_PAGE_NUM_PER_CHANNEL	(UMC_V6_7_NA_MAP_PA_NUM * 2)
+/* The CH4 bit in SOC physical address */
+#define UMC_V6_7_PA_CH4_BIT	12
+/* The C2 bit in SOC physical address */
+#define UMC_V6_7_PA_C2_BIT	17
+/* The R14 bit in SOC physical address */
+#define UMC_V6_7_PA_R14_BIT	34
 /* UMC regiser per channel offset */
 #define UMC_V6_7_PER_CHANNEL_OFFSET		0x400
-extern const struct amdgpu_umc_ras_funcs umc_v6_7_ras_funcs;
+
+/* XOR bit 20, 25, 34 of PA into CH4 bit (bit 12 of PA),
+ * hash bit is only effective when related setting is enabled
+ */
+#define CHANNEL_HASH(channel_idx, pa) (((channel_idx) >> 4) ^ \
+			(((pa)  >> 20) & 0x1ULL & adev->df.hash_status.hash_64k) ^ \
+			(((pa)  >> 25) & 0x1ULL & adev->df.hash_status.hash_2m) ^ \
+			(((pa)  >> 34) & 0x1ULL & adev->df.hash_status.hash_1g))
+#define SET_CHANNEL_HASH(channel_idx, pa) do { \
+		(pa) &= ~(0x1ULL << UMC_V6_7_PA_CH4_BIT); \
+		(pa) |= (CHANNEL_HASH(channel_idx, pa) << UMC_V6_7_PA_CH4_BIT); \
+	} while (0)
+
+extern struct amdgpu_umc_ras umc_v6_7_ras;
 extern const uint32_t
 	umc_v6_7_channel_idx_tbl_second[UMC_V6_7_UMC_INSTANCE_NUM][UMC_V6_7_CHANNEL_INSTANCE_NUM];
 extern const uint32_t

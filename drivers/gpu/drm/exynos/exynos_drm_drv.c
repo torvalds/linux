@@ -455,6 +455,9 @@ static int exynos_drm_init(void)
 {
 	int ret;
 
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	ret = exynos_drm_register_devices();
 	if (ret)
 		return ret;

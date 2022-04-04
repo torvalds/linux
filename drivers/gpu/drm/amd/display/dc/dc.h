@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.167"
+#define DC_VER "3.2.177"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -195,10 +195,8 @@ struct dc_caps {
 	unsigned int cursor_cache_size;
 	struct dc_plane_cap planes[MAX_PLANES];
 	struct dc_color_caps color;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool dp_hpo;
 	bool hdmi_frl_pcon_support;
-#endif
 	bool edp_dsc_support;
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
@@ -307,7 +305,6 @@ struct dc_cap_funcs {
 
 struct link_training_settings;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 union allow_lttpr_non_transparent_mode {
 	struct {
 		bool DP1_4A : 1;
@@ -315,7 +312,7 @@ union allow_lttpr_non_transparent_mode {
 	} bits;
 	unsigned char raw;
 };
-#endif
+
 /* Structure to hold configuration flags set by dm at dc creation. */
 struct dc_config {
 	bool gpu_vm_support;
@@ -323,16 +320,12 @@ struct dc_config {
 	bool fbc_support;
 	bool disable_fractional_pwm;
 	bool allow_seamless_boot_optimization;
-	bool power_down_display_on_boot;
+	bool seamless_boot_edp_requested;
 	bool edp_not_connected;
 	bool edp_no_power_sequencing;
 	bool force_enum_edp;
 	bool forced_clocks;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	union allow_lttpr_non_transparent_mode allow_lttpr_non_transparent_mode;
-#else
-	bool allow_lttpr_non_transparent_mode;
-#endif
 	bool multi_mon_pp_mclk_switch;
 	bool disable_dmcu;
 	bool enable_4to1MPC;
@@ -361,6 +354,7 @@ enum dc_psr_power_opts {
 	psr_power_opt_invalid = 0x0,
 	psr_power_opt_smu_opt_static_screen = 0x1,
 	psr_power_opt_z10_static_screen = 0x10,
+	psr_power_opt_ds_disable_allow = 0x100,
 };
 
 enum dcc_option {
@@ -397,6 +391,7 @@ enum dcn_pwr_state {
 enum dcn_zstate_support_state {
 	DCN_ZSTATE_SUPPORT_UNKNOWN,
 	DCN_ZSTATE_SUPPORT_ALLOW,
+	DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY,
 	DCN_ZSTATE_SUPPORT_DISALLOW,
 };
 #endif
@@ -519,12 +514,13 @@ union root_clock_optimization_options {
 
 union dpia_debug_options {
 	struct {
-		uint32_t disable_dpia:1;
-		uint32_t force_non_lttpr:1;
-		uint32_t extend_aux_rd_interval:1;
-		uint32_t disable_mst_dsc_work_around:1;
-		uint32_t hpd_delay_in_ms:12;
-		uint32_t reserved:16;
+		uint32_t disable_dpia:1; /* bit 0 */
+		uint32_t force_non_lttpr:1; /* bit 1 */
+		uint32_t extend_aux_rd_interval:1; /* bit 2 */
+		uint32_t disable_mst_dsc_work_around:1; /* bit 3 */
+		uint32_t hpd_delay_in_ms:12; /* bits 4-15 */
+		uint32_t disable_force_tbt3_work_around:1; /* bit 16 */
+		uint32_t reserved:15;
 	} bits;
 	uint32_t raw;
 };
@@ -688,13 +684,12 @@ struct dc_debug_options {
 	bool disable_dsc_edp;
 	unsigned int  force_dsc_edp_policy;
 	bool enable_dram_clock_change_one_display_vactive;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* TODO - remove once tested */
 	bool legacy_dp2_lt;
 	bool set_mst_en_for_sst;
 	bool disable_uhbr;
 	bool force_dp2_lt_fallback_method;
-#endif
+	bool ignore_cable_id;
 	union mem_low_power_enable_options enable_mem_low_power;
 	union root_clock_optimization_options root_clock_optimization;
 	bool hpo_optimization;
@@ -710,10 +705,13 @@ struct dc_debug_options {
 	int crb_alloc_policy_min_disp_count;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool disable_z10;
+	bool enable_z9_disable_interface;
 	bool enable_sw_cntl_psr;
 	union dpia_debug_options dpia_debug;
 #endif
 	bool apply_vendor_specific_lttpr_wa;
+	bool ignore_dpref_ss;
+	uint8_t psr_power_use_phy_fsm;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -1131,7 +1129,7 @@ struct dc_validation_set {
 	uint8_t plane_count;
 };
 
-bool dc_validate_seamless_boot_timing(const struct dc *dc,
+bool dc_validate_boot_timing(const struct dc *dc,
 				const struct dc_sink *sink,
 				struct dc_crtc_timing *crtc_timing);
 
@@ -1208,10 +1206,12 @@ struct dpcd_caps {
 
 	/* dongle type (DP converter, CV smart dongle) */
 	enum display_dongle_type dongle_type;
+	bool is_dongle_type_one;
 	/* branch device or sink device */
 	bool is_branch_dev;
 	/* Dongle's downstream count. */
 	union sink_count sink_count;
+	bool is_mst_capable;
 	/* If dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER,
 	indicates 'Frame Sequential-to-lllFrame Pack' conversion capability.*/
 	struct dc_dongle_caps dongle_caps;
@@ -1234,15 +1234,16 @@ struct dpcd_caps {
 	union dpcd_fec_capability fec_cap;
 	struct dpcd_dsc_capabilities dsc_caps;
 	struct dc_lttpr_caps lttpr_caps;
-	struct psr_caps psr_caps;
 	struct dpcd_usb4_dp_tunneling_info usb4_dp_tun_info;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	union dp_128b_132b_supported_link_rates dp_128b_132b_supported_link_rates;
 	union dp_main_line_channel_coding_cap channel_coding_cap;
 	union dp_sink_video_fallback_formats fallback_formats;
 	union dp_fec_capability1 fec_cap1;
-#endif
+	union dp_cable_id cable_id;
+	uint8_t edp_rev;
+	union edp_alpm_caps alpm_caps;
+	struct edp_psr_info psr_info;
 };
 
 union dpcd_sink_ext_caps {
@@ -1448,7 +1449,10 @@ void dc_z10_restore(const struct dc *dc);
 void dc_z10_save_init(struct dc *dc);
 #endif
 
+bool dc_is_dmub_outbox_supported(struct dc *dc);
 bool dc_enable_dmub_notifications(struct dc *dc);
+
+void dc_enable_dmub_outbox(struct dc *dc);
 
 bool dc_process_dmub_aux_transfer_async(struct dc *dc,
 				uint32_t link_index,

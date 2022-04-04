@@ -5,10 +5,12 @@
 
 #include <drm/drm_atomic_state_helper.h>
 
+#include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_bw.h"
 #include "intel_cdclk.h"
 #include "intel_display_types.h"
+#include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
 #include "intel_pm.h"
 
@@ -75,10 +77,9 @@ static int icl_pcode_read_qgv_point_info(struct drm_i915_private *dev_priv,
 	u16 dclk;
 	int ret;
 
-	ret = sandybridge_pcode_read(dev_priv,
-				     ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
-				     ICL_PCODE_MEM_SS_READ_QGV_POINT_INFO(point),
-				     &val, &val2);
+	ret = snb_pcode_read(dev_priv, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+			     ICL_PCODE_MEM_SS_READ_QGV_POINT_INFO(point),
+			     &val, &val2);
 	if (ret)
 		return ret;
 
@@ -102,10 +103,8 @@ static int adls_pcode_read_psf_gv_point_info(struct drm_i915_private *dev_priv,
 	int ret;
 	int i;
 
-	ret = sandybridge_pcode_read(dev_priv,
-				     ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
-				     ADL_PCODE_MEM_SS_READ_PSF_GV_INFO,
-				     &val, NULL);
+	ret = snb_pcode_read(dev_priv, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+			     ADL_PCODE_MEM_SS_READ_PSF_GV_INFO, &val, NULL);
 	if (ret)
 		return ret;
 
@@ -675,6 +674,49 @@ intel_atomic_get_bw_state(struct intel_atomic_state *state)
 	return to_intel_bw_state(bw_state);
 }
 
+static void skl_crtc_calc_dbuf_bw(struct intel_bw_state *bw_state,
+				  const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_dbuf_bw *crtc_bw = &bw_state->dbuf_bw[crtc->pipe];
+	enum plane_id plane_id;
+
+	memset(&crtc_bw->used_bw, 0, sizeof(crtc_bw->used_bw));
+
+	if (!crtc_state->hw.active)
+		return;
+
+	for_each_plane_id_on_crtc(crtc, plane_id) {
+		const struct skl_ddb_entry *ddb_y =
+			&crtc_state->wm.skl.plane_ddb_y[plane_id];
+		const struct skl_ddb_entry *ddb_uv =
+			&crtc_state->wm.skl.plane_ddb_uv[plane_id];
+		unsigned int data_rate = crtc_state->data_rate[plane_id];
+		unsigned int dbuf_mask = 0;
+		enum dbuf_slice slice;
+
+		dbuf_mask |= skl_ddb_dbuf_slice_mask(i915, ddb_y);
+		dbuf_mask |= skl_ddb_dbuf_slice_mask(i915, ddb_uv);
+
+		/*
+		 * FIXME: To calculate that more properly we probably
+		 * need to split per plane data_rate into data_rate_y
+		 * and data_rate_uv for multiplanar formats in order not
+		 * to get accounted those twice if they happen to reside
+		 * on different slices.
+		 * However for pre-icl this would work anyway because
+		 * we have only single slice and for icl+ uv plane has
+		 * non-zero data rate.
+		 * So in worst case those calculation are a bit
+		 * pessimistic, which shouldn't pose any significant
+		 * problem anyway.
+		 */
+		for_each_dbuf_slice_in_mask(i915, slice, dbuf_mask)
+			crtc_bw->used_bw[slice] += data_rate;
+	}
+}
+
 int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
@@ -687,50 +729,13 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 	int i;
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
-		enum plane_id plane_id;
-		struct intel_dbuf_bw *crtc_bw;
-
 		new_bw_state = intel_atomic_get_bw_state(state);
 		if (IS_ERR(new_bw_state))
 			return PTR_ERR(new_bw_state);
 
 		old_bw_state = intel_atomic_get_old_bw_state(state);
 
-		crtc_bw = &new_bw_state->dbuf_bw[crtc->pipe];
-
-		memset(&crtc_bw->used_bw, 0, sizeof(crtc_bw->used_bw));
-
-		if (!crtc_state->hw.active)
-			continue;
-
-		for_each_plane_id_on_crtc(crtc, plane_id) {
-			const struct skl_ddb_entry *plane_alloc =
-				&crtc_state->wm.skl.plane_ddb_y[plane_id];
-			const struct skl_ddb_entry *uv_plane_alloc =
-				&crtc_state->wm.skl.plane_ddb_uv[plane_id];
-			unsigned int data_rate = crtc_state->data_rate[plane_id];
-			unsigned int dbuf_mask = 0;
-			enum dbuf_slice slice;
-
-			dbuf_mask |= skl_ddb_dbuf_slice_mask(dev_priv, plane_alloc);
-			dbuf_mask |= skl_ddb_dbuf_slice_mask(dev_priv, uv_plane_alloc);
-
-			/*
-			 * FIXME: To calculate that more properly we probably
-			 * need to to split per plane data_rate into data_rate_y
-			 * and data_rate_uv for multiplanar formats in order not
-			 * to get accounted those twice if they happen to reside
-			 * on different slices.
-			 * However for pre-icl this would work anyway because
-			 * we have only single slice and for icl+ uv plane has
-			 * non-zero data rate.
-			 * So in worst case those calculation are a bit
-			 * pessimistic, which shouldn't pose any significant
-			 * problem anyway.
-			 */
-			for_each_dbuf_slice_in_mask(dev_priv, slice, dbuf_mask)
-				crtc_bw->used_bw[slice] += data_rate;
-		}
+		skl_crtc_calc_dbuf_bw(new_bw_state, crtc_state);
 	}
 
 	if (!old_bw_state)
@@ -811,26 +816,11 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state)
 	return 0;
 }
 
-int intel_bw_atomic_check(struct intel_atomic_state *state)
+static u16 icl_qgv_points_mask(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
-	struct intel_bw_state *new_bw_state = NULL;
-	const struct intel_bw_state *old_bw_state = NULL;
-	unsigned int data_rate;
-	unsigned int num_active_planes;
-	struct intel_crtc *crtc;
-	int i, ret;
-	u32 allowed_points = 0;
-	unsigned int max_bw_point = 0, max_bw = 0;
-	unsigned int num_qgv_points = dev_priv->max_bw[0].num_qgv_points;
-	unsigned int num_psf_gv_points = dev_priv->max_bw[0].num_psf_gv_points;
-	bool changed = false;
-	u32 mask = 0;
-
-	/* FIXME earlier gens need some checks too */
-	if (DISPLAY_VER(dev_priv) < 11)
-		return 0;
+	unsigned int num_psf_gv_points = i915->max_bw[0].num_psf_gv_points;
+	unsigned int num_qgv_points = i915->max_bw[0].num_qgv_points;
+	u16 mask = 0;
 
 	/*
 	 * We can _not_ use the whole ADLS_QGV_PT_MASK here, as PCode rejects
@@ -843,6 +833,16 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	if (num_psf_gv_points > 0)
 		mask |= REG_GENMASK(num_psf_gv_points - 1, 0) << ADLS_PSF_PT_SHIFT;
 
+	return mask;
+}
+
+static int intel_bw_check_data_rate(struct intel_atomic_state *state, bool *changed)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_crtc_state *new_crtc_state, *old_crtc_state;
+	struct intel_crtc *crtc;
+	int i;
+
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
 		unsigned int old_data_rate =
@@ -853,6 +853,7 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 			intel_bw_crtc_num_active_planes(old_crtc_state);
 		unsigned int new_active_planes =
 			intel_bw_crtc_num_active_planes(new_crtc_state);
+		struct intel_bw_state *new_bw_state;
 
 		/*
 		 * Avoid locking the bw state when
@@ -869,14 +870,39 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 		new_bw_state->data_rate[crtc->pipe] = new_data_rate;
 		new_bw_state->num_active_planes[crtc->pipe] = new_active_planes;
 
-		changed = true;
+		*changed = true;
 
-		drm_dbg_kms(&dev_priv->drm,
-			    "pipe %c data rate %u num active planes %u\n",
-			    pipe_name(crtc->pipe),
+		drm_dbg_kms(&i915->drm,
+			    "[CRTC:%d:%s] data rate %u num active planes %u\n",
+			    crtc->base.base.id, crtc->base.name,
 			    new_bw_state->data_rate[crtc->pipe],
 			    new_bw_state->num_active_planes[crtc->pipe]);
 	}
+
+	return 0;
+}
+
+int intel_bw_atomic_check(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	const struct intel_bw_state *old_bw_state;
+	struct intel_bw_state *new_bw_state;
+	unsigned int data_rate;
+	unsigned int num_active_planes;
+	int i, ret;
+	u32 allowed_points = 0;
+	unsigned int max_bw_point = 0, max_bw = 0;
+	unsigned int num_qgv_points = dev_priv->max_bw[0].num_qgv_points;
+	unsigned int num_psf_gv_points = dev_priv->max_bw[0].num_psf_gv_points;
+	bool changed = false;
+
+	/* FIXME earlier gens need some checks too */
+	if (DISPLAY_VER(dev_priv) < 11)
+		return 0;
+
+	ret = intel_bw_check_data_rate(state, &changed);
+	if (ret)
+		return ret;
 
 	old_bw_state = intel_atomic_get_old_bw_state(state);
 	new_bw_state = intel_atomic_get_new_bw_state(state);
@@ -974,7 +1000,8 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	 * We store the ones which need to be masked as that is what PCode
 	 * actually accepts as a parameter.
 	 */
-	new_bw_state->qgv_points_mask = ~allowed_points & mask;
+	new_bw_state->qgv_points_mask = ~allowed_points &
+		icl_qgv_points_mask(dev_priv);
 
 	/*
 	 * If the actual mask had changed we need to make sure that

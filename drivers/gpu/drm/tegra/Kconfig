@@ -6,6 +6,7 @@ config DRM_TEGRA
 	depends on DRM
 	depends on OF
 	select DRM_DP_AUX_BUS
+	select DRM_DP_HELPER
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select DRM_PANEL

@@ -3232,8 +3232,8 @@ int r600_suspend(struct radeon_device *rdev)
 	radeon_audio_fini(rdev);
 	r600_cp_stop(rdev);
 	if (rdev->has_uvd) {
-		uvd_v1_0_fini(rdev);
 		radeon_uvd_suspend(rdev);
+		uvd_v1_0_fini(rdev);
 	}
 	r600_irq_suspend(rdev);
 	radeon_wb_disable(rdev);

@@ -19,6 +19,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_module.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
@@ -441,7 +442,7 @@ static struct platform_driver sun4i_drv_platform_driver = {
 		.pm = &sun4i_drv_drm_pm_ops,
 	},
 };
-module_platform_driver(sun4i_drv_platform_driver);
+drm_module_platform_driver(sun4i_drv_platform_driver);
 
 MODULE_AUTHOR("Boris Brezillon <boris.brezillon@free-electrons.com>");
 MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com>");
