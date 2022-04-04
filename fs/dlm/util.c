@@ -20,24 +20,6 @@
 #define DLM_ERRNO_ETIMEDOUT	       110
 #define DLM_ERRNO_EINPROGRESS	       115
 
-void header_out(struct dlm_header *hd)
-{
-	hd->h_version		= cpu_to_le32(hd->h_version);
-	/* does it for others u32 in union as well */
-	hd->u.h_lockspace	= cpu_to_le32(hd->u.h_lockspace);
-	hd->h_nodeid		= cpu_to_le32(hd->h_nodeid);
-	hd->h_length		= cpu_to_le16(hd->h_length);
-}
-
-void header_in(struct dlm_header *hd)
-{
-	hd->h_version		= le32_to_cpu(hd->h_version);
-	/* does it for others u32 in union as well */
-	hd->u.h_lockspace	= le32_to_cpu(hd->u.h_lockspace);
-	hd->h_nodeid		= le32_to_cpu(hd->h_nodeid);
-	hd->h_length		= le16_to_cpu(hd->h_length);
-}
-
 /* higher errno values are inconsistent across architectures, so select
    one set of values for on the wire */
 
@@ -85,8 +67,6 @@ static int from_dlm_errno(int err)
 
 void dlm_message_out(struct dlm_message *ms)
 {
-	header_out(&ms->m_header);
-
 	ms->m_type		= cpu_to_le32(ms->m_type);
 	ms->m_nodeid		= cpu_to_le32(ms->m_nodeid);
 	ms->m_pid		= cpu_to_le32(ms->m_pid);
@@ -109,8 +89,6 @@ void dlm_message_out(struct dlm_message *ms)
 
 void dlm_message_in(struct dlm_message *ms)
 {
-	header_in(&ms->m_header);
-
 	ms->m_type		= le32_to_cpu(ms->m_type);
 	ms->m_nodeid		= le32_to_cpu(ms->m_nodeid);
 	ms->m_pid		= le32_to_cpu(ms->m_pid);
@@ -133,8 +111,6 @@ void dlm_message_in(struct dlm_message *ms)
 
 void dlm_rcom_out(struct dlm_rcom *rc)
 {
-	header_out(&rc->rc_header);
-
 	rc->rc_type		= cpu_to_le32(rc->rc_type);
 	rc->rc_result		= cpu_to_le32(rc->rc_result);
 	rc->rc_id		= cpu_to_le64(rc->rc_id);
@@ -144,8 +120,6 @@ void dlm_rcom_out(struct dlm_rcom *rc)
 
 void dlm_rcom_in(struct dlm_rcom *rc)
 {
-	header_in(&rc->rc_header);
-
 	rc->rc_type		= le32_to_cpu(rc->rc_type);
 	rc->rc_result		= le32_to_cpu(rc->rc_result);
 	rc->rc_id		= le64_to_cpu(rc->rc_id);

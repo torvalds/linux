@@ -1571,8 +1571,8 @@ static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype,
 	}
 
 	log_error(ls, "remwait error %x remote %d %x msg %d flags %x no wait",
-		  lkb->lkb_id, ms ? ms->m_header.h_nodeid : 0, lkb->lkb_remid,
-		  mstype, lkb->lkb_flags);
+		  lkb->lkb_id, ms ? le32_to_cpu(ms->m_header.h_nodeid) : 0,
+		  lkb->lkb_remid, mstype, lkb->lkb_flags);
 	return -1;
 
  out_del:
@@ -3564,10 +3564,10 @@ static int _create_message(struct dlm_ls *ls, int mb_len,
 
 	ms = (struct dlm_message *) mb;
 
-	ms->m_header.h_version = (DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
-	ms->m_header.u.h_lockspace = ls->ls_global_id;
-	ms->m_header.h_nodeid = dlm_our_nodeid();
-	ms->m_header.h_length = mb_len;
+	ms->m_header.h_version = cpu_to_le32(DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
+	ms->m_header.u.h_lockspace = cpu_to_le32(ls->ls_global_id);
+	ms->m_header.h_nodeid = cpu_to_le32(dlm_our_nodeid());
+	ms->m_header.h_length = cpu_to_le16(mb_len);
 	ms->m_header.h_cmd = DLM_MSG;
 
 	ms->m_type = mstype;
@@ -3861,7 +3861,7 @@ static int send_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms_in,
 	struct dlm_rsb *r = &ls->ls_stub_rsb;
 	struct dlm_message *ms;
 	struct dlm_mhandle *mh;
-	int error, nodeid = ms_in->m_header.h_nodeid;
+	int error, nodeid = le32_to_cpu(ms_in->m_header.h_nodeid);
 
 	error = create_message(r, NULL, nodeid, DLM_MSG_LOOKUP_REPLY, &ms, &mh);
 	if (error)
@@ -3900,7 +3900,8 @@ static void receive_flags_reply(struct dlm_lkb *lkb, struct dlm_message *ms)
 
 static int receive_extralen(struct dlm_message *ms)
 {
-	return (ms->m_header.h_length - sizeof(struct dlm_message));
+	return (le16_to_cpu(ms->m_header.h_length) -
+		sizeof(struct dlm_message));
 }
 
 static int receive_lvb(struct dlm_ls *ls, struct dlm_lkb *lkb,
@@ -3934,7 +3935,7 @@ static void fake_astfn(void *astparam)
 static int receive_request_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 				struct dlm_message *ms)
 {
-	lkb->lkb_nodeid = ms->m_header.h_nodeid;
+	lkb->lkb_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
 	lkb->lkb_ownpid = ms->m_pid;
 	lkb->lkb_remid = ms->m_lkid;
 	lkb->lkb_grmode = DLM_LOCK_IV;
@@ -3982,7 +3983,7 @@ static int receive_unlock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 static void setup_stub_lkb(struct dlm_ls *ls, struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb = &ls->ls_stub_lkb;
-	lkb->lkb_nodeid = ms->m_header.h_nodeid;
+	lkb->lkb_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
 	lkb->lkb_remid = ms->m_lkid;
 }
 
@@ -3991,7 +3992,7 @@ static void setup_stub_lkb(struct dlm_ls *ls, struct dlm_message *ms)
 
 static int validate_message(struct dlm_lkb *lkb, struct dlm_message *ms)
 {
-	int from = ms->m_header.h_nodeid;
+	int from = le32_to_cpu(ms->m_header.h_nodeid);
 	int error = 0;
 
 	/* currently mixing of user/kernel locks are not supported */
@@ -4105,7 +4106,7 @@ static int receive_request(struct dlm_ls *ls, struct dlm_message *ms)
 	int from_nodeid;
 	int error, namelen = 0;
 
-	from_nodeid = ms->m_header.h_nodeid;
+	from_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
 
 	error = create_lkb(ls, &lkb);
 	if (error)
@@ -4205,7 +4206,7 @@ static int receive_convert(struct dlm_ls *ls, struct dlm_message *ms)
 		log_error(ls, "receive_convert %x remid %x recover_seq %llu "
 			  "remote %d %x", lkb->lkb_id, lkb->lkb_remid,
 			  (unsigned long long)lkb->lkb_recover_seq,
-			  ms->m_header.h_nodeid, ms->m_lkid);
+			  le32_to_cpu(ms->m_header.h_nodeid), ms->m_lkid);
 		error = -ENOENT;
 		dlm_put_lkb(lkb);
 		goto fail;
@@ -4259,7 +4260,7 @@ static int receive_unlock(struct dlm_ls *ls, struct dlm_message *ms)
 	if (lkb->lkb_remid != ms->m_lkid) {
 		log_error(ls, "receive_unlock %x remid %x remote %d %x",
 			  lkb->lkb_id, lkb->lkb_remid,
-			  ms->m_header.h_nodeid, ms->m_lkid);
+			  le32_to_cpu(ms->m_header.h_nodeid), ms->m_lkid);
 		error = -ENOENT;
 		dlm_put_lkb(lkb);
 		goto fail;
@@ -4396,7 +4397,7 @@ static void receive_lookup(struct dlm_ls *ls, struct dlm_message *ms)
 {
 	int len, error, ret_nodeid, from_nodeid, our_nodeid;
 
-	from_nodeid = ms->m_header.h_nodeid;
+	from_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
 	our_nodeid = dlm_our_nodeid();
 
 	len = receive_extralen(ms);
@@ -4419,7 +4420,7 @@ static void receive_remove(struct dlm_ls *ls, struct dlm_message *ms)
 	uint32_t hash, b;
 	int rv, len, dir_nodeid, from_nodeid;
 
-	from_nodeid = ms->m_header.h_nodeid;
+	from_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
 
 	len = receive_extralen(ms);
 
@@ -4510,7 +4511,7 @@ static int receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
 	int error, mstype, result;
-	int from_nodeid = ms->m_header.h_nodeid;
+	int from_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
 
 	error = find_lkb(ls, ms->m_remid, &lkb);
 	if (error)
@@ -4662,8 +4663,8 @@ static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 
 	default:
 		log_error(r->res_ls, "receive_convert_reply %x remote %d %x %d",
-			  lkb->lkb_id, ms->m_header.h_nodeid, ms->m_lkid,
-			  ms->m_result);
+			  lkb->lkb_id, le32_to_cpu(ms->m_header.h_nodeid),
+			  ms->m_lkid, ms->m_result);
 		dlm_print_rsb(r);
 		dlm_print_lkb(lkb);
 	}
@@ -4842,8 +4843,8 @@ static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
 		/* This should never happen */
 		log_error(ls, "receive_lookup_reply %x from %d ret %d "
 			  "master %d dir %d our %d first %x %s",
-			  lkb->lkb_id, ms->m_header.h_nodeid, ret_nodeid,
-			  r->res_master_nodeid, r->res_dir_nodeid,
+			  lkb->lkb_id, le32_to_cpu(ms->m_header.h_nodeid),
+			  ret_nodeid, r->res_master_nodeid, r->res_dir_nodeid,
 			  dlm_our_nodeid(), r->res_first_lkid, r->res_name);
 	}
 
@@ -4855,7 +4856,7 @@ static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	} else if (ret_nodeid == -1) {
 		/* the remote node doesn't believe it's the dir node */
 		log_error(ls, "receive_lookup_reply %x from %d bad ret_nodeid",
-			  lkb->lkb_id, ms->m_header.h_nodeid);
+			  lkb->lkb_id, le32_to_cpu(ms->m_header.h_nodeid));
 		r->res_master_nodeid = 0;
 		r->res_nodeid = -1;
 		lkb->lkb_nodeid = -1;
@@ -4889,10 +4890,10 @@ static void _receive_message(struct dlm_ls *ls, struct dlm_message *ms,
 {
 	int error = 0, noent = 0;
 
-	if (!dlm_is_member(ls, ms->m_header.h_nodeid)) {
+	if (!dlm_is_member(ls, le32_to_cpu(ms->m_header.h_nodeid))) {
 		log_limit(ls, "receive %d from non-member %d %x %x %d",
-			  ms->m_type, ms->m_header.h_nodeid, ms->m_lkid,
-			  ms->m_remid, ms->m_result);
+			  ms->m_type, le32_to_cpu(ms->m_header.h_nodeid),
+			  ms->m_lkid, ms->m_remid, ms->m_result);
 		return;
 	}
 
@@ -4986,11 +4987,13 @@ static void _receive_message(struct dlm_ls *ls, struct dlm_message *ms,
 
 	if (error == -ENOENT && noent) {
 		log_debug(ls, "receive %d no %x remote %d %x saved_seq %u",
-			  ms->m_type, ms->m_remid, ms->m_header.h_nodeid,
+			  ms->m_type, ms->m_remid,
+			  le32_to_cpu(ms->m_header.h_nodeid),
 			  ms->m_lkid, saved_seq);
 	} else if (error == -ENOENT) {
 		log_error(ls, "receive %d no %x remote %d %x saved_seq %u",
-			  ms->m_type, ms->m_remid, ms->m_header.h_nodeid,
+			  ms->m_type, ms->m_remid,
+			  le32_to_cpu(ms->m_header.h_nodeid),
 			  ms->m_lkid, saved_seq);
 
 		if (ms->m_type == DLM_MSG_CONVERT)
@@ -5000,7 +5003,7 @@ static void _receive_message(struct dlm_ls *ls, struct dlm_message *ms,
 	if (error == -EINVAL) {
 		log_error(ls, "receive %d inval from %d lkid %x remid %x "
 			  "saved_seq %u",
-			  ms->m_type, ms->m_header.h_nodeid,
+			  ms->m_type, le32_to_cpu(ms->m_header.h_nodeid),
 			  ms->m_lkid, ms->m_remid, saved_seq);
 	}
 }
@@ -5067,18 +5070,20 @@ void dlm_receive_buffer(union dlm_packet *p, int nodeid)
 		return;
 	}
 
-	if (hd->h_nodeid != nodeid) {
+	if (le32_to_cpu(hd->h_nodeid) != nodeid) {
 		log_print("invalid h_nodeid %d from %d lockspace %x",
-			  hd->h_nodeid, nodeid, hd->u.h_lockspace);
+			  le32_to_cpu(hd->h_nodeid), nodeid,
+			  le32_to_cpu(hd->u.h_lockspace));
 		return;
 	}
 
-	ls = dlm_find_lockspace_global(hd->u.h_lockspace);
+	ls = dlm_find_lockspace_global(le32_to_cpu(hd->u.h_lockspace));
 	if (!ls) {
 		if (dlm_config.ci_log_debug) {
 			printk_ratelimited(KERN_DEBUG "dlm: invalid lockspace "
 				"%u from %d cmd %d type %d\n",
-				hd->u.h_lockspace, nodeid, hd->h_cmd, type);
+				le32_to_cpu(hd->u.h_lockspace), nodeid,
+				hd->h_cmd, type);
 		}
 
 		if (hd->h_cmd == DLM_RCOM && type == DLM_RCOM_STATUS)
@@ -5108,7 +5113,7 @@ static void recover_convert_waiter(struct dlm_ls *ls, struct dlm_lkb *lkb,
 		ms_stub->m_flags = DLM_IFL_STUB_MS;
 		ms_stub->m_type = DLM_MSG_CONVERT_REPLY;
 		ms_stub->m_result = -EINPROGRESS;
-		ms_stub->m_header.h_nodeid = lkb->lkb_nodeid;
+		ms_stub->m_header.h_nodeid = cpu_to_le32(lkb->lkb_nodeid);
 		_receive_convert_reply(lkb, ms_stub);
 
 		/* Same special case as in receive_rcom_lock_args() */
@@ -5230,7 +5235,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 			ms_stub->m_flags = DLM_IFL_STUB_MS;
 			ms_stub->m_type = DLM_MSG_UNLOCK_REPLY;
 			ms_stub->m_result = stub_unlock_result;
-			ms_stub->m_header.h_nodeid = lkb->lkb_nodeid;
+			ms_stub->m_header.h_nodeid = cpu_to_le32(lkb->lkb_nodeid);
 			_receive_unlock_reply(lkb, ms_stub);
 			dlm_put_lkb(lkb);
 			break;
@@ -5241,7 +5246,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 			ms_stub->m_flags = DLM_IFL_STUB_MS;
 			ms_stub->m_type = DLM_MSG_CANCEL_REPLY;
 			ms_stub->m_result = stub_cancel_result;
-			ms_stub->m_header.h_nodeid = lkb->lkb_nodeid;
+			ms_stub->m_header.h_nodeid = cpu_to_le32(lkb->lkb_nodeid);
 			_receive_cancel_reply(lkb, ms_stub);
 			dlm_put_lkb(lkb);
 			break;
@@ -5606,7 +5611,7 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 {
 	struct rcom_lock *rl = (struct rcom_lock *) rc->rc_buf;
 
-	lkb->lkb_nodeid = rc->rc_header.h_nodeid;
+	lkb->lkb_nodeid = le32_to_cpu(rc->rc_header.h_nodeid);
 	lkb->lkb_ownpid = le32_to_cpu(rl->rl_ownpid);
 	lkb->lkb_remid = le32_to_cpu(rl->rl_lkid);
 	lkb->lkb_exflags = le32_to_cpu(rl->rl_exflags);
@@ -5621,8 +5626,8 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	lkb->lkb_astfn = (rl->rl_asts & DLM_CB_CAST) ? &fake_astfn : NULL;
 
 	if (lkb->lkb_exflags & DLM_LKF_VALBLK) {
-		int lvblen = rc->rc_header.h_length - sizeof(struct dlm_rcom) -
-			 sizeof(struct rcom_lock);
+		int lvblen = le16_to_cpu(rc->rc_header.h_length) -
+			sizeof(struct dlm_rcom) - sizeof(struct rcom_lock);
 		if (lvblen > ls->ls_lvblen)
 			return -EINVAL;
 		lkb->lkb_lvbptr = dlm_allocate_lvb(ls);
@@ -5658,7 +5663,7 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 	struct dlm_rsb *r;
 	struct dlm_lkb *lkb;
 	uint32_t remid = 0;
-	int from_nodeid = rc->rc_header.h_nodeid;
+	int from_nodeid = le32_to_cpu(rc->rc_header.h_nodeid);
 	int error;
 
 	if (rl->rl_parent_lkid) {
@@ -5748,7 +5753,8 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 	error = find_lkb(ls, lkid, &lkb);
 	if (error) {
 		log_error(ls, "dlm_recover_process_copy no %x remote %d %x %d",
-			  lkid, rc->rc_header.h_nodeid, remid, result);
+			  lkid, le32_to_cpu(rc->rc_header.h_nodeid), remid,
+			  result);
 		return error;
 	}
 
@@ -5758,7 +5764,8 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 
 	if (!is_process_copy(lkb)) {
 		log_error(ls, "dlm_recover_process_copy bad %x remote %d %x %d",
-			  lkid, rc->rc_header.h_nodeid, remid, result);
+			  lkid, le32_to_cpu(rc->rc_header.h_nodeid), remid,
+			  result);
 		dlm_dump_rsb(r);
 		unlock_rsb(r);
 		put_rsb(r);
@@ -5773,7 +5780,8 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 		   a barrier between recover_masters and recover_locks. */
 
 		log_debug(ls, "dlm_recover_process_copy %x remote %d %x %d",
-			  lkid, rc->rc_header.h_nodeid, remid, result);
+			  lkid, le32_to_cpu(rc->rc_header.h_nodeid), remid,
+			  result);
 	
 		dlm_send_rcom_lock(r, lkb);
 		goto out;
@@ -5783,7 +5791,8 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 		break;
 	default:
 		log_error(ls, "dlm_recover_process_copy %x remote %d %x %d unk",
-			  lkid, rc->rc_header.h_nodeid, remid, result);
+			  lkid, le32_to_cpu(rc->rc_header.h_nodeid), remid,
+			  result);
 	}
 
 	/* an ack for dlm_recover_locks() which waits for replies from

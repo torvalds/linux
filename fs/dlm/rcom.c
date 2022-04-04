@@ -34,10 +34,10 @@ static void _create_rcom(struct dlm_ls *ls, int to_nodeid, int type, int len,
 
 	rc = (struct dlm_rcom *) mb;
 
-	rc->rc_header.h_version = (DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
-	rc->rc_header.u.h_lockspace = ls->ls_global_id;
-	rc->rc_header.h_nodeid = dlm_our_nodeid();
-	rc->rc_header.h_length = mb_len;
+	rc->rc_header.h_version = cpu_to_le32(DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
+	rc->rc_header.u.h_lockspace = cpu_to_le32(ls->ls_global_id);
+	rc->rc_header.h_nodeid = cpu_to_le32(dlm_our_nodeid());
+	rc->rc_header.h_length = cpu_to_le16(mb_len);
 	rc->rc_header.h_cmd = DLM_RCOM;
 
 	rc->rc_type = type;
@@ -127,10 +127,10 @@ static int check_rcom_config(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
 {
 	struct rcom_config *rf = (struct rcom_config *) rc->rc_buf;
 
-	if ((rc->rc_header.h_version & 0xFFFF0000) != DLM_HEADER_MAJOR) {
+	if ((le32_to_cpu(rc->rc_header.h_version) & 0xFFFF0000) != DLM_HEADER_MAJOR) {
 		log_error(ls, "version mismatch: %x nodeid %d: %x",
 			  DLM_HEADER_MAJOR | DLM_HEADER_MINOR, nodeid,
-			  rc->rc_header.h_version);
+			  le32_to_cpu(rc->rc_header.h_version));
 		return -EPROTO;
 	}
 
@@ -227,7 +227,7 @@ static void receive_rcom_status(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	struct dlm_rcom *rc;
 	struct rcom_status *rs;
 	uint32_t status;
-	int nodeid = rc_in->rc_header.h_nodeid;
+	int nodeid = le32_to_cpu(rc_in->rc_header.h_nodeid);
 	int len = sizeof(struct rcom_config);
 	struct dlm_msg *msg;
 	int num_slots = 0;
@@ -289,12 +289,14 @@ static void receive_sync_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	if (!test_bit(LSFL_RCOM_WAIT, &ls->ls_flags) ||
 	    rc_in->rc_id != ls->ls_rcom_seq) {
 		log_debug(ls, "reject reply %d from %d seq %llx expect %llx",
-			  rc_in->rc_type, rc_in->rc_header.h_nodeid,
+			  rc_in->rc_type,
+			  le32_to_cpu(rc_in->rc_header.h_nodeid),
 			  (unsigned long long)rc_in->rc_id,
 			  (unsigned long long)ls->ls_rcom_seq);
 		goto out;
 	}
-	memcpy(ls->ls_recover_buf, rc_in, rc_in->rc_header.h_length);
+	memcpy(ls->ls_recover_buf, rc_in,
+	       le16_to_cpu(rc_in->rc_header.h_length));
 	set_bit(LSFL_RCOM_READY, &ls->ls_flags);
 	clear_bit(LSFL_RCOM_WAIT, &ls->ls_flags);
 	wake_up(&ls->ls_wait_general);
@@ -336,8 +338,9 @@ static void receive_rcom_names(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	int error, inlen, outlen, nodeid;
 	struct dlm_msg *msg;
 
-	nodeid = rc_in->rc_header.h_nodeid;
-	inlen = rc_in->rc_header.h_length - sizeof(struct dlm_rcom);
+	nodeid = le32_to_cpu(rc_in->rc_header.h_nodeid);
+	inlen = le16_to_cpu(rc_in->rc_header.h_length) -
+		sizeof(struct dlm_rcom);
 	outlen = DLM_MAX_APP_BUFSIZE - sizeof(struct dlm_rcom);
 
 	error = create_rcom_stateless(ls, nodeid, DLM_RCOM_NAMES_REPLY, outlen,
@@ -375,8 +378,9 @@ static void receive_rcom_lookup(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 {
 	struct dlm_rcom *rc;
 	struct dlm_mhandle *mh;
-	int error, ret_nodeid, nodeid = rc_in->rc_header.h_nodeid;
-	int len = rc_in->rc_header.h_length - sizeof(struct dlm_rcom);
+	int error, ret_nodeid, nodeid = le32_to_cpu(rc_in->rc_header.h_nodeid);
+	int len = le16_to_cpu(rc_in->rc_header.h_length) -
+		sizeof(struct dlm_rcom);
 
 	/* Old code would send this special id to trigger a debug dump. */
 	if (rc_in->rc_id == 0xFFFFFFFF) {
@@ -464,7 +468,7 @@ static void receive_rcom_lock(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 {
 	struct dlm_rcom *rc;
 	struct dlm_mhandle *mh;
-	int error, nodeid = rc_in->rc_header.h_nodeid;
+	int error, nodeid = le32_to_cpu(rc_in->rc_header.h_nodeid);
 
 	dlm_recover_master_copy(ls, rc_in);
 
@@ -500,10 +504,10 @@ int dlm_send_ls_not_ready(int nodeid, struct dlm_rcom *rc_in)
 
 	rc = (struct dlm_rcom *) mb;
 
-	rc->rc_header.h_version = (DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
+	rc->rc_header.h_version = cpu_to_le32(DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
 	rc->rc_header.u.h_lockspace = rc_in->rc_header.u.h_lockspace;
-	rc->rc_header.h_nodeid = dlm_our_nodeid();
-	rc->rc_header.h_length = mb_len;
+	rc->rc_header.h_nodeid = cpu_to_le32(dlm_our_nodeid());
+	rc->rc_header.h_length = cpu_to_le16(mb_len);
 	rc->rc_header.h_cmd = DLM_RCOM;
 
 	rc->rc_type = DLM_RCOM_STATUS_REPLY;
@@ -631,7 +635,7 @@ void dlm_receive_rcom(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
 		break;
 
 	case DLM_RCOM_LOCK:
-		if (rc->rc_header.h_length < lock_size)
+		if (le16_to_cpu(rc->rc_header.h_length) < lock_size)
 			goto Eshort;
 		receive_rcom_lock(ls, rc);
 		break;
@@ -649,7 +653,7 @@ void dlm_receive_rcom(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
 		break;
 
 	case DLM_RCOM_LOCK_REPLY:
-		if (rc->rc_header.h_length < lock_size)
+		if (le16_to_cpu(rc->rc_header.h_length) < lock_size)
 			goto Eshort;
 		dlm_recover_process_copy(ls, rc);
 		break;

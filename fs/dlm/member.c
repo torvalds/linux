@@ -20,7 +20,7 @@
 
 int dlm_slots_version(struct dlm_header *h)
 {
-	if ((h->h_version & 0x0000FFFF) < DLM_HEADER_SLOTS)
+	if ((le32_to_cpu(h->h_version) & 0x0000FFFF) < DLM_HEADER_SLOTS)
 		return 0;
 	return 1;
 }

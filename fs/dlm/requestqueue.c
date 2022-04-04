@@ -32,7 +32,8 @@ struct rq_entry {
 void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_message *ms)
 {
 	struct rq_entry *e;
-	int length = ms->m_header.h_length - sizeof(struct dlm_message);
+	int length = le16_to_cpu(ms->m_header.h_length) -
+		sizeof(struct dlm_message);
 
 	e = kmalloc(sizeof(struct rq_entry) + length, GFP_NOFS);
 	if (!e) {
@@ -42,7 +43,7 @@ void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_message *ms)
 
 	e->recover_seq = ls->ls_recover_seq & 0xFFFFFFFF;
 	e->nodeid = nodeid;
-	memcpy(&e->request, ms, ms->m_header.h_length);
+	memcpy(&e->request, ms, le16_to_cpu(ms->m_header.h_length));
 
 	atomic_inc(&ls->ls_requestqueue_cnt);
 	mutex_lock(&ls->ls_requestqueue_mutex);
@@ -82,7 +83,7 @@ int dlm_process_requestqueue(struct dlm_ls *ls)
 
 		log_limit(ls, "dlm_process_requestqueue msg %d from %d "
 			  "lkid %x remid %x result %d seq %u",
-			  ms->m_type, ms->m_header.h_nodeid,
+			  ms->m_type, le32_to_cpu(ms->m_header.h_nodeid),
 			  ms->m_lkid, ms->m_remid, ms->m_result,
 			  e->recover_seq);
 

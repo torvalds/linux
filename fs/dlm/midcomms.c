@@ -380,13 +380,12 @@ static int dlm_send_ack(int nodeid, uint32_t seq)
 
 	m_header = (struct dlm_header *)ppc;
 
-	m_header->h_version = (DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
-	m_header->h_nodeid = dlm_our_nodeid();
-	m_header->h_length = mb_len;
+	m_header->h_version = cpu_to_le32(DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
+	m_header->h_nodeid = cpu_to_le32(dlm_our_nodeid());
+	m_header->h_length = cpu_to_le16(mb_len);
 	m_header->h_cmd = DLM_ACK;
-	m_header->u.h_seq = seq;
+	m_header->u.h_seq = cpu_to_le32(seq);
 
-	header_out(m_header);
 	dlm_lowcomms_commit_msg(msg);
 	dlm_lowcomms_put_msg(msg);
 
@@ -409,12 +408,10 @@ static int dlm_send_fin(struct midcomms_node *node,
 
 	m_header = (struct dlm_header *)ppc;
 
-	m_header->h_version = (DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
-	m_header->h_nodeid = dlm_our_nodeid();
-	m_header->h_length = mb_len;
+	m_header->h_version = cpu_to_le32(DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
+	m_header->h_nodeid = cpu_to_le32(dlm_our_nodeid());
+	m_header->h_length = cpu_to_le16(mb_len);
 	m_header->h_cmd = DLM_FIN;
-
-	header_out(m_header);
 
 	pr_debug("sending fin msg to node %d\n", node->nodeid);
 	dlm_midcomms_commit_mhandle(mh);
@@ -1020,11 +1017,10 @@ static void dlm_fill_opts_header(struct dlm_opts *opts, uint16_t inner_len,
 				 uint32_t seq)
 {
 	opts->o_header.h_cmd = DLM_OPTS;
-	opts->o_header.h_version = (DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
-	opts->o_header.h_nodeid = dlm_our_nodeid();
-	opts->o_header.h_length = DLM_MIDCOMMS_OPT_LEN + inner_len;
-	opts->o_header.u.h_seq = seq;
-	header_out(&opts->o_header);
+	opts->o_header.h_version = cpu_to_le32(DLM_HEADER_MAJOR | DLM_HEADER_MINOR);
+	opts->o_header.h_nodeid = cpu_to_le32(dlm_our_nodeid());
+	opts->o_header.h_length = cpu_to_le16(DLM_MIDCOMMS_OPT_LEN + inner_len);
+	opts->o_header.u.h_seq = cpu_to_le32(seq);
 }
 
 static void midcomms_new_msg_cb(void *data)
@@ -1465,7 +1461,7 @@ static void midcomms_new_rawmsg_cb(void *data)
 		switch (h->h_cmd) {
 		case DLM_OPTS:
 			if (!h->u.h_seq)
-				h->u.h_seq = rd->node->seq_send++;
+				h->u.h_seq = cpu_to_le32(rd->node->seq_send++);
 			break;
 		default:
 			break;

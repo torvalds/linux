@@ -379,15 +379,15 @@ static inline int rsb_flag(struct dlm_rsb *r, enum rsb_flags flag)
 #define DLM_FIN			5
 
 struct dlm_header {
-	uint32_t		h_version;
+	__le32			h_version;
 	union {
 		/* for DLM_MSG and DLM_RCOM */
-		uint32_t	h_lockspace;
+		__le32		h_lockspace;
 		/* for DLM_ACK and DLM_OPTS */
-		uint32_t	h_seq;
+		__le32		h_seq;
 	} u;
-	uint32_t		h_nodeid;	/* nodeid of sender */
-	uint16_t		h_length;
+	__le32			h_nodeid;	/* nodeid of sender */
+	__le16			h_length;
 	uint8_t			h_cmd;		/* DLM_MSG, DLM_RCOM */
 	uint8_t			h_pad;
 };
