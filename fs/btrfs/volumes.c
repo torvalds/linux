@@ -6824,12 +6824,13 @@ blk_status_t btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 			continue;
 		}
 
-		if (dev_nr < total_devs - 1)
-			bio = btrfs_bio_clone(first_bio);
-		else
+		if (dev_nr < total_devs - 1) {
+			bio = btrfs_bio_clone(dev->bdev, first_bio);
+		} else {
 			bio = first_bio;
+			bio_set_dev(bio, dev->bdev);
+		}
 
-		bio_set_dev(bio, dev->bdev);
 		submit_stripe_bio(bioc, bio, bioc->stripes[dev_nr].physical, dev);
 	}
 	btrfs_bio_counter_dec(fs_info);
