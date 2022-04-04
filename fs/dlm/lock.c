@@ -5062,8 +5062,7 @@ void dlm_receive_buffer(union dlm_packet *p, int nodeid)
 		type = p->message.m_type;
 		break;
 	case DLM_RCOM:
-		dlm_rcom_in(&p->rcom);
-		type = p->rcom.rc_type;
+		type = le32_to_cpu(p->rcom.rc_type);
 		break;
 	default:
 		log_print("invalid h_cmd %d from %u", hd->h_cmd, nodeid);

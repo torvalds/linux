@@ -108,21 +108,3 @@ void dlm_message_in(struct dlm_message *ms)
 	ms->m_asts		= le32_to_cpu(ms->m_asts);
 	ms->m_result		= from_dlm_errno(le32_to_cpu(ms->m_result));
 }
-
-void dlm_rcom_out(struct dlm_rcom *rc)
-{
-	rc->rc_type		= cpu_to_le32(rc->rc_type);
-	rc->rc_result		= cpu_to_le32(rc->rc_result);
-	rc->rc_id		= cpu_to_le64(rc->rc_id);
-	rc->rc_seq		= cpu_to_le64(rc->rc_seq);
-	rc->rc_seq_reply	= cpu_to_le64(rc->rc_seq_reply);
-}
-
-void dlm_rcom_in(struct dlm_rcom *rc)
-{
-	rc->rc_type		= le32_to_cpu(rc->rc_type);
-	rc->rc_result		= le32_to_cpu(rc->rc_result);
-	rc->rc_id		= le64_to_cpu(rc->rc_id);
-	rc->rc_seq		= le64_to_cpu(rc->rc_seq);
-	rc->rc_seq_reply	= le64_to_cpu(rc->rc_seq_reply);
-}

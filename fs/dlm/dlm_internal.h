@@ -451,11 +451,11 @@ struct dlm_message {
 
 struct dlm_rcom {
 	struct dlm_header	rc_header;
-	uint32_t		rc_type;	/* DLM_RCOM_ */
-	int			rc_result;	/* multi-purpose */
-	uint64_t		rc_id;		/* match reply with request */
-	uint64_t		rc_seq;		/* sender's ls_recover_seq */
-	uint64_t		rc_seq_reply;	/* remote ls_recover_seq */
+	__le32			rc_type;	/* DLM_RCOM_ */
+	__le32			rc_result;	/* multi-purpose */
+	__le64			rc_id;		/* match reply with request */
+	__le64			rc_seq;		/* sender's ls_recover_seq */
+	__le64			rc_seq_reply;	/* remote ls_recover_seq */
 	char			rc_buf[];
 };
 

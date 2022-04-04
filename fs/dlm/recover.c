@@ -114,7 +114,7 @@ static int wait_status_all(struct dlm_ls *ls, uint32_t wait_status,
 			if (save_slots)
 				dlm_slot_save(ls, rc, memb);
 
-			if (rc->rc_result & wait_status)
+			if (le32_to_cpu(rc->rc_result) & wait_status)
 				break;
 			if (delay < 1000)
 				delay += 20;
@@ -141,7 +141,7 @@ static int wait_status_low(struct dlm_ls *ls, uint32_t wait_status,
 		if (error)
 			break;
 
-		if (rc->rc_result & wait_status)
+		if (le32_to_cpu(rc->rc_result) & wait_status)
 			break;
 		if (delay < 1000)
 			delay += 20;
@@ -568,14 +568,14 @@ int dlm_recover_master_reply(struct dlm_ls *ls, struct dlm_rcom *rc)
 	struct dlm_rsb *r;
 	int ret_nodeid, new_master;
 
-	r = recover_idr_find(ls, rc->rc_id);
+	r = recover_idr_find(ls, le64_to_cpu(rc->rc_id));
 	if (!r) {
 		log_error(ls, "dlm_recover_master_reply no id %llx",
-			  (unsigned long long)rc->rc_id);
+			  (unsigned long long)le64_to_cpu(rc->rc_id));
 		goto out;
 	}
 
-	ret_nodeid = rc->rc_result;
+	ret_nodeid = le32_to_cpu(rc->rc_result);
 
 	if (ret_nodeid == dlm_our_nodeid())
 		new_master = 0;
