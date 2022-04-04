@@ -177,9 +177,9 @@ static int __cxl_pci_mbox_send_cmd(struct cxl_dev_state *cxlds,
 	mbox_cmd->return_code =
 		FIELD_GET(CXLDEV_MBOX_STATUS_RET_CODE_MASK, status_reg);
 
-	if (mbox_cmd->return_code != 0) {
+	if (mbox_cmd->return_code != CXL_MBOX_SUCCESS) {
 		dev_dbg(dev, "Mailbox operation had an error\n");
-		return 0;
+		return 0; /* completed but caller must check return_code */
 	}
 
 	/* #7 */
