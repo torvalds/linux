@@ -625,12 +625,6 @@ int _netdev_open(struct net_device *pnetdev)
 {
 	uint status;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
-	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
-
-	if (pwrctrlpriv->ps_flag) {
-		padapter->net_closed = false;
-		goto netdev_open_normal_process;
-	}
 
 	if (!padapter->bup) {
 		padapter->bDriverStopped = false;
@@ -674,7 +668,6 @@ int _netdev_open(struct net_device *pnetdev)
 
 	netdev_br_init(pnetdev);
 
-netdev_open_normal_process:
 	return 0;
 
 netdev_open_error:

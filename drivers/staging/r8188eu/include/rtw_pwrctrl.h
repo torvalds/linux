@@ -70,8 +70,6 @@ struct pwrctrl_priv {
 	struct timer_list pwr_state_check_timer;
 	int		pwr_state_check_interval;
 
-	int		ps_flag;
-
 	enum rt_rf_power_state	rf_pwrstate;/* cur power state */
 	enum rt_rf_power_state	change_rfpwrstate;
 
