@@ -2305,12 +2305,13 @@ static int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 			     u64 length, u64 logical, struct page *page,
 			     unsigned int pg_offset, int mirror_num)
 {
-	struct bio *bio;
 	struct btrfs_device *dev;
+	struct bio_vec bvec;
+	struct bio bio;
 	u64 map_length = 0;
 	u64 sector;
 	struct btrfs_io_context *bioc = NULL;
-	int ret;
+	int ret = 0;
 
 	ASSERT(!(fs_info->sb->s_flags & SB_RDONLY));
 	BUG_ON(!mirror_num);
@@ -2318,8 +2319,6 @@ static int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 	if (btrfs_repair_one_zone(fs_info, logical))
 		return 0;
 
-	bio = btrfs_bio_alloc(1);
-	bio->bi_iter.bi_size = 0;
 	map_length = length;
 
 	/*
@@ -2337,53 +2336,50 @@ static int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 		 */
 		ret = btrfs_map_block(fs_info, BTRFS_MAP_READ, logical,
 				      &map_length, &bioc, 0);
-		if (ret) {
-			btrfs_bio_counter_dec(fs_info);
-			bio_put(bio);
-			return -EIO;
-		}
+		if (ret)
+			goto out_counter_dec;
 		ASSERT(bioc->mirror_num == 1);
 	} else {
 		ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, logical,
 				      &map_length, &bioc, mirror_num);
-		if (ret) {
-			btrfs_bio_counter_dec(fs_info);
-			bio_put(bio);
-			return -EIO;
-		}
+		if (ret)
+			goto out_counter_dec;
 		BUG_ON(mirror_num != bioc->mirror_num);
 	}
 
 	sector = bioc->stripes[bioc->mirror_num - 1].physical >> 9;
-	bio->bi_iter.bi_sector = sector;
 	dev = bioc->stripes[bioc->mirror_num - 1].dev;
 	btrfs_put_bioc(bioc);
+
 	if (!dev || !dev->bdev ||
 	    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state)) {
-		btrfs_bio_counter_dec(fs_info);
-		bio_put(bio);
-		return -EIO;
+		ret = -EIO;
+		goto out_counter_dec;
 	}
-	bio_set_dev(bio, dev->bdev);
-	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC;
-	bio_add_page(bio, page, length, pg_offset);
 
-	btrfsic_check_bio(bio);
-	if (submit_bio_wait(bio)) {
+	bio_init(&bio, dev->bdev, &bvec, 1, REQ_OP_WRITE | REQ_SYNC);
+	bio.bi_iter.bi_sector = sector;
+	__bio_add_page(&bio, page, length, pg_offset);
+
+	btrfsic_check_bio(&bio);
+	ret = submit_bio_wait(&bio);
+	if (ret) {
 		/* try to remap that extent elsewhere? */
-		btrfs_bio_counter_dec(fs_info);
-		bio_put(bio);
 		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_WRITE_ERRS);
-		return -EIO;
+		goto out_bio_uninit;
 	}
 
 	btrfs_info_rl_in_rcu(fs_info,
 		"read error corrected: ino %llu off %llu (dev %s sector %llu)",
 				  ino, start,
 				  rcu_str_deref(dev->name), sector);
+	ret = 0;
+
+out_bio_uninit:
+	bio_uninit(&bio);
+out_counter_dec:
 	btrfs_bio_counter_dec(fs_info);
-	bio_put(bio);
-	return 0;
+	return ret;
 }
 
 int btrfs_repair_eb_io_failure(const struct extent_buffer *eb, int mirror_num)
