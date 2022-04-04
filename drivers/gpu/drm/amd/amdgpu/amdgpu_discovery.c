@@ -56,6 +56,7 @@
 #include "nv.h"
 #include "soc21.h"
 #include "navi10_ih.h"
+#include "ih_v6_0.h"
 #include "gfx_v10_0.h"
 #include "sdma_v5_0.h"
 #include "sdma_v5_2.h"
@@ -1541,6 +1542,9 @@ static int amdgpu_discovery_set_ih_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(5, 2, 0):
 	case IP_VERSION(5, 2, 1):
 		amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
+		break;
+	case IP_VERSION(6, 0, 0):
+		amdgpu_device_ip_block_add(adev, &ih_v6_0_ip_block);
 		break;
 	default:
 		dev_err(adev->dev,
