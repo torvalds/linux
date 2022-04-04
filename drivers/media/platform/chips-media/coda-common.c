@@ -1269,9 +1269,6 @@ static int coda_enum_framesizes(struct file *file, void *fh,
 	struct coda_q_data *q_data_dst;
 	const struct coda_codec *codec;
 
-	if (ctx->inst_type != CODA_INST_ENCODER)
-		return -ENOTTY;
-
 	if (fsize->index)
 		return -EINVAL;
 
@@ -2885,6 +2882,10 @@ static int coda_register_device(struct coda_dev *dev, int i)
 	} else {
 		v4l2_disable_ioctl(vfd, VIDIOC_ENCODER_CMD);
 		v4l2_disable_ioctl(vfd, VIDIOC_TRY_ENCODER_CMD);
+		v4l2_disable_ioctl(vfd, VIDIOC_ENUM_FRAMESIZES);
+		v4l2_disable_ioctl(vfd, VIDIOC_ENUM_FRAMEINTERVALS);
+		v4l2_disable_ioctl(vfd, VIDIOC_G_PARM);
+		v4l2_disable_ioctl(vfd, VIDIOC_S_PARM);
 	}
 
 	ret = video_register_device(vfd, VFL_TYPE_VIDEO, 0);
