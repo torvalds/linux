@@ -489,7 +489,7 @@ static int rk817_platform_probe(struct platform_device *pdev)
 
 	rk817_codec_parse_dt_property(&pdev->dev, rk817_codec_data);
 
-	rk817_codec_data->mclk = clk_get(pdev->dev.parent, "mclk");
+	rk817_codec_data->mclk = devm_clk_get(pdev->dev.parent, "mclk");
 	if (IS_ERR(rk817_codec_data->mclk)) {
 		dev_dbg(&pdev->dev, "Unable to get mclk\n");
 		ret = -ENXIO;
