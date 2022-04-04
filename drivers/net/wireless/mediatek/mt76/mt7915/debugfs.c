@@ -1017,8 +1017,8 @@ static ssize_t mt7915_sta_fixed_rate_set(struct file *file,
 
 	phy.ldpc = (phy.bw || phy.ldpc) * GENMASK(2, 0);
 	for (i = 0; i <= phy.bw; i++) {
-		phy.sgi |= gi << (i << sta->he_cap.has_he);
-		phy.he_ltf |= he_ltf << (i << sta->he_cap.has_he);
+		phy.sgi |= gi << (i << sta->deflink.he_cap.has_he);
+		phy.he_ltf |= he_ltf << (i << sta->deflink.he_cap.has_he);
 	}
 	field = RATE_PARAM_FIXED;
 

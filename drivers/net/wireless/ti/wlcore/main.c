@@ -4439,15 +4439,15 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		rcu_read_lock();
 		sta = ieee80211_find_sta(vif, bss_conf->bssid);
 		if (sta) {
-			u8 *rx_mask = sta->ht_cap.mcs.rx_mask;
+			u8 *rx_mask = sta->deflink.ht_cap.mcs.rx_mask;
 
 			/* save the supp_rates of the ap */
-			sta_rate_set = sta->supp_rates[wlvif->band];
-			if (sta->ht_cap.ht_supported)
+			sta_rate_set = sta->deflink.supp_rates[wlvif->band];
+			if (sta->deflink.ht_cap.ht_supported)
 				sta_rate_set |=
 					(rx_mask[0] << HW_HT_RATES_OFFSET) |
 					(rx_mask[1] << HW_MIMO_RATES_OFFSET);
-			sta_ht_cap = sta->ht_cap;
+			sta_ht_cap = sta->deflink.ht_cap;
 			sta_exists = true;
 		}
 
@@ -5225,7 +5225,8 @@ static int wl12xx_update_sta_state(struct wl1271 *wl,
 		if (ret < 0)
 			return ret;
 
-		ret = wl1271_acx_set_ht_capabilities(wl, &sta->ht_cap, true,
+		ret = wl1271_acx_set_ht_capabilities(wl, &sta->deflink.ht_cap,
+						     true,
 						     wl_sta->hlid);
 		if (ret)
 			return ret;
@@ -5786,8 +5787,9 @@ static void wlcore_op_sta_rc_update(struct ieee80211_hw *hw,
 		return;
 
 	/* this callback is atomic, so schedule a new work */
-	wlvif->rc_update_bw = sta->bandwidth;
-	memcpy(&wlvif->rc_ht_cap, &sta->ht_cap, sizeof(sta->ht_cap));
+	wlvif->rc_update_bw = sta->deflink.bandwidth;
+	memcpy(&wlvif->rc_ht_cap, &sta->deflink.ht_cap,
+	       sizeof(sta->deflink.ht_cap));
 	ieee80211_queue_work(hw, &wlvif->rc_update_work);
 }
 

@@ -1357,10 +1357,10 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 		is_ht = common->vif_info[0].is_ht;
 		is_sgi = common->vif_info[0].sgi;
 	} else {
-		rate_bitmap = sta->supp_rates[band];
-		is_ht = sta->ht_cap.ht_supported;
-		if ((sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ||
-		    (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40))
+		rate_bitmap = sta->deflink.supp_rates[band];
+		is_ht = sta->deflink.ht_cap.ht_supported;
+		if ((sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ||
+		    (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40))
 			is_sgi = true;
 	}
 

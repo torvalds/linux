@@ -76,10 +76,10 @@ static u64 get_mcs_ra_mask(u16 mcs_map, u8 highest_mcs, u8 gap)
 
 static u64 get_he_ra_mask(struct ieee80211_sta *sta)
 {
-	struct ieee80211_sta_he_cap cap = sta->he_cap;
+	struct ieee80211_sta_he_cap cap = sta->deflink.he_cap;
 	u16 mcs_map;
 
-	switch (sta->bandwidth) {
+	switch (sta->deflink.bandwidth) {
 	case IEEE80211_STA_RX_BW_160:
 		if (cap.he_cap_elem.phy_cap_info[0] &
 		    IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G)
@@ -172,17 +172,17 @@ static u64 rtw89_phy_ra_mask_cfg(struct rtw89_dev *rtwdev, struct rtw89_sta *rtw
 		return -1;
 	}
 
-	if (sta->he_cap.has_he) {
+	if (sta->deflink.he_cap.has_he) {
 		cfg_mask |= u64_encode_bits(mask->control[band].he_mcs[0],
 					    RA_MASK_HE_1SS_RATES);
 		cfg_mask |= u64_encode_bits(mask->control[band].he_mcs[1],
 					    RA_MASK_HE_2SS_RATES);
-	} else if (sta->vht_cap.vht_supported) {
+	} else if (sta->deflink.vht_cap.vht_supported) {
 		cfg_mask |= u64_encode_bits(mask->control[band].vht_mcs[0],
 					    RA_MASK_VHT_1SS_RATES);
 		cfg_mask |= u64_encode_bits(mask->control[band].vht_mcs[1],
 					    RA_MASK_VHT_2SS_RATES);
-	} else if (sta->ht_cap.ht_supported) {
+	} else if (sta->deflink.ht_cap.ht_supported) {
 		cfg_mask |= u64_encode_bits(mask->control[band].ht_mcs[0],
 					    RA_MASK_HT_1SS_RATES);
 		cfg_mask |= u64_encode_bits(mask->control[band].ht_mcs[1],
@@ -223,57 +223,57 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 
 	memset(ra, 0, sizeof(*ra));
 	/* Set the ra mask from sta's capability */
-	if (sta->he_cap.has_he) {
+	if (sta->deflink.he_cap.has_he) {
 		mode |= RTW89_RA_MODE_HE;
 		csi_mode = RTW89_RA_RPT_MODE_HE;
 		ra_mask |= get_he_ra_mask(sta);
 		high_rate_masks = rtw89_ra_mask_he_rates;
-		if (sta->he_cap.he_cap_elem.phy_cap_info[2] &
+		if (sta->deflink.he_cap.he_cap_elem.phy_cap_info[2] &
 		    IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ)
 			stbc_en = 1;
-		if (sta->he_cap.he_cap_elem.phy_cap_info[1] &
+		if (sta->deflink.he_cap.he_cap_elem.phy_cap_info[1] &
 		    IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD)
 			ldpc_en = 1;
-	} else if (sta->vht_cap.vht_supported) {
-		u16 mcs_map = le16_to_cpu(sta->vht_cap.vht_mcs.rx_mcs_map);
+	} else if (sta->deflink.vht_cap.vht_supported) {
+		u16 mcs_map = le16_to_cpu(sta->deflink.vht_cap.vht_mcs.rx_mcs_map);
 
 		mode |= RTW89_RA_MODE_VHT;
 		csi_mode = RTW89_RA_RPT_MODE_VHT;
 		/* MCS9, MCS8, MCS7 */
 		ra_mask |= get_mcs_ra_mask(mcs_map, 9, 1);
 		high_rate_masks = rtw89_ra_mask_vht_rates;
-		if (sta->vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_MASK)
+		if (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_MASK)
 			stbc_en = 1;
-		if (sta->vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC)
+		if (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC)
 			ldpc_en = 1;
-	} else if (sta->ht_cap.ht_supported) {
+	} else if (sta->deflink.ht_cap.ht_supported) {
 		mode |= RTW89_RA_MODE_HT;
 		csi_mode = RTW89_RA_RPT_MODE_HT;
-		ra_mask |= ((u64)sta->ht_cap.mcs.rx_mask[3] << 48) |
-			   ((u64)sta->ht_cap.mcs.rx_mask[2] << 36) |
-			   (sta->ht_cap.mcs.rx_mask[1] << 24) |
-			   (sta->ht_cap.mcs.rx_mask[0] << 12);
+		ra_mask |= ((u64)sta->deflink.ht_cap.mcs.rx_mask[3] << 48) |
+			   ((u64)sta->deflink.ht_cap.mcs.rx_mask[2] << 36) |
+			   (sta->deflink.ht_cap.mcs.rx_mask[1] << 24) |
+			   (sta->deflink.ht_cap.mcs.rx_mask[0] << 12);
 		high_rate_masks = rtw89_ra_mask_ht_rates;
-		if (sta->ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
+		if (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
 			stbc_en = 1;
-		if (sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING)
+		if (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING)
 			ldpc_en = 1;
 	}
 
 	switch (rtwdev->hal.current_band_type) {
 	case RTW89_BAND_2G:
-		ra_mask |= sta->supp_rates[NL80211_BAND_2GHZ];
-		if (sta->supp_rates[NL80211_BAND_2GHZ] <= 0xf)
+		ra_mask |= sta->deflink.supp_rates[NL80211_BAND_2GHZ];
+		if (sta->deflink.supp_rates[NL80211_BAND_2GHZ] <= 0xf)
 			mode |= RTW89_RA_MODE_CCK;
 		else
 			mode |= RTW89_RA_MODE_CCK | RTW89_RA_MODE_OFDM;
 		break;
 	case RTW89_BAND_5G:
-		ra_mask |= (u64)sta->supp_rates[NL80211_BAND_5GHZ] << 4;
+		ra_mask |= (u64)sta->deflink.supp_rates[NL80211_BAND_5GHZ] << 4;
 		mode |= RTW89_RA_MODE_OFDM;
 		break;
 	case RTW89_BAND_6G:
-		ra_mask |= (u64)sta->supp_rates[NL80211_BAND_6GHZ] << 4;
+		ra_mask |= (u64)sta->deflink.supp_rates[NL80211_BAND_6GHZ] << 4;
 		mode |= RTW89_RA_MODE_OFDM;
 		break;
 	default:
@@ -302,30 +302,30 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	ra_mask = rtw89_phy_ra_mask_recover(ra_mask, ra_mask_bak);
 	ra_mask &= rtw89_phy_ra_mask_cfg(rtwdev, rtwsta);
 
-	switch (sta->bandwidth) {
+	switch (sta->deflink.bandwidth) {
 	case IEEE80211_STA_RX_BW_160:
 		bw_mode = RTW89_CHANNEL_WIDTH_160;
-		sgi = sta->vht_cap.vht_supported &&
-		      (sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_160);
+		sgi = sta->deflink.vht_cap.vht_supported &&
+		      (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_160);
 		break;
 	case IEEE80211_STA_RX_BW_80:
 		bw_mode = RTW89_CHANNEL_WIDTH_80;
-		sgi = sta->vht_cap.vht_supported &&
-		      (sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80);
+		sgi = sta->deflink.vht_cap.vht_supported &&
+		      (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80);
 		break;
 	case IEEE80211_STA_RX_BW_40:
 		bw_mode = RTW89_CHANNEL_WIDTH_40;
-		sgi = sta->ht_cap.ht_supported &&
-		      (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
+		sgi = sta->deflink.ht_cap.ht_supported &&
+		      (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
 		break;
 	default:
 		bw_mode = RTW89_CHANNEL_WIDTH_20;
-		sgi = sta->ht_cap.ht_supported &&
-		      (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
+		sgi = sta->deflink.ht_cap.ht_supported &&
+		      (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
 		break;
 	}
 
-	if (sta->he_cap.he_cap_elem.phy_cap_info[3] &
+	if (sta->deflink.he_cap.he_cap_elem.phy_cap_info[3] &
 	    IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_16_QAM)
 		ra->dcm_cap = 1;
 
@@ -340,7 +340,7 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	ra->macid = rtwsta->mac_id;
 	ra->stbc_cap = stbc_en;
 	ra->ldpc_cap = ldpc_en;
-	ra->ss_num = min(sta->rx_nss, rtwdev->hal.tx_nss) - 1;
+	ra->ss_num = min(sta->deflink.rx_nss, rtwdev->hal.tx_nss) - 1;
 	ra->en_sgi = sgi;
 	ra->ra_mask = ra_mask;
 

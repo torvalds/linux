@@ -1907,10 +1907,10 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 			if (info->bssid && !info->ibss_joined)
 				sta = ieee80211_find_sta(vif, info->bssid);
 			if (sta) {
-				priv->ht_info.ht_cap = sta->ht_cap;
+				priv->ht_info.ht_cap = sta->deflink.ht_cap;
 				priv->bss_params.operational_rate_set =
 					cw1200_rate_mask_to_wsm(priv,
-								sta->supp_rates[priv->channel->band]);
+						sta->deflink.supp_rates[priv->channel->band]);
 				priv->ht_info.channel_type = cfg80211_get_chandef_type(&dev->conf.chandef);
 				priv->ht_info.operation_mode = info->ht_operation_mode;
 			} else {

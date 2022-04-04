@@ -3601,10 +3601,12 @@ static inline u8 *get_hdr_bssid(struct ieee80211_hdr *hdr)
 
 static inline bool rtw89_sta_has_beamformer_cap(struct ieee80211_sta *sta)
 {
-	if ((sta->vht_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE) ||
-	    (sta->vht_cap.cap & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE) ||
-	    (sta->he_cap.he_cap_elem.phy_cap_info[3] & IEEE80211_HE_PHY_CAP3_SU_BEAMFORMER) ||
-	    (sta->he_cap.he_cap_elem.phy_cap_info[4] & IEEE80211_HE_PHY_CAP4_MU_BEAMFORMER))
+	if ((sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE) ||
+	    (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE) ||
+	    (sta->deflink.he_cap.he_cap_elem.phy_cap_info[3] &
+			IEEE80211_HE_PHY_CAP3_SU_BEAMFORMER) ||
+	    (sta->deflink.he_cap.he_cap_elem.phy_cap_info[4] &
+			IEEE80211_HE_PHY_CAP4_MU_BEAMFORMER))
 		return true;
 	return false;
 }

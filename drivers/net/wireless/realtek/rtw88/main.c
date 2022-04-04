@@ -904,7 +904,7 @@ static void rtw_hw_config_rf_ant_num(struct rtw_dev *rtwdev, u8 hw_ant_num)
 static u64 get_vht_ra_mask(struct ieee80211_sta *sta)
 {
 	u64 ra_mask = 0;
-	u16 mcs_map = le16_to_cpu(sta->vht_cap.vht_mcs.rx_mcs_map);
+	u16 mcs_map = le16_to_cpu(sta->deflink.vht_cap.vht_mcs.rx_mcs_map);
 	u8 vht_mcs_cap;
 	int i, nss;
 
@@ -1123,19 +1123,19 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 	bool is_vht_enable = false;
 	bool is_support_sgi = false;
 
-	if (sta->vht_cap.vht_supported) {
+	if (sta->deflink.vht_cap.vht_supported) {
 		is_vht_enable = true;
 		ra_mask |= get_vht_ra_mask(sta);
-		if (sta->vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_MASK)
+		if (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_MASK)
 			stbc_en = VHT_STBC_EN;
-		if (sta->vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC)
+		if (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC)
 			ldpc_en = VHT_LDPC_EN;
-	} else if (sta->ht_cap.ht_supported) {
-		ra_mask |= (sta->ht_cap.mcs.rx_mask[1] << 20) |
-			   (sta->ht_cap.mcs.rx_mask[0] << 12);
-		if (sta->ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
+	} else if (sta->deflink.ht_cap.ht_supported) {
+		ra_mask |= (sta->deflink.ht_cap.mcs.rx_mask[1] << 20) |
+			   (sta->deflink.ht_cap.mcs.rx_mask[0] << 12);
+		if (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
 			stbc_en = HT_STBC_EN;
-		if (sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING)
+		if (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING)
 			ldpc_en = HT_LDPC_EN;
 	}
 
@@ -1143,12 +1143,12 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 		ra_mask &= RA_MASK_VHT_RATES_1SS | RA_MASK_HT_RATES_1SS;
 
 	if (hal->current_band_type == RTW_BAND_5G) {
-		ra_mask |= (u64)sta->supp_rates[NL80211_BAND_5GHZ] << 4;
+		ra_mask |= (u64)sta->deflink.supp_rates[NL80211_BAND_5GHZ] << 4;
 		ra_mask_bak = ra_mask;
-		if (sta->vht_cap.vht_supported) {
+		if (sta->deflink.vht_cap.vht_supported) {
 			ra_mask &= RA_MASK_VHT_RATES | RA_MASK_OFDM_IN_VHT;
 			wireless_set = WIRELESS_OFDM | WIRELESS_VHT;
-		} else if (sta->ht_cap.ht_supported) {
+		} else if (sta->deflink.ht_cap.ht_supported) {
 			ra_mask &= RA_MASK_HT_RATES | RA_MASK_OFDM_IN_HT_5G;
 			wireless_set = WIRELESS_OFDM | WIRELESS_HT;
 		} else {
@@ -1156,19 +1156,19 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 		}
 		dm_info->rrsr_val_init = RRSR_INIT_5G;
 	} else if (hal->current_band_type == RTW_BAND_2G) {
-		ra_mask |= sta->supp_rates[NL80211_BAND_2GHZ];
+		ra_mask |= sta->deflink.supp_rates[NL80211_BAND_2GHZ];
 		ra_mask_bak = ra_mask;
-		if (sta->vht_cap.vht_supported) {
+		if (sta->deflink.vht_cap.vht_supported) {
 			ra_mask &= RA_MASK_VHT_RATES | RA_MASK_CCK_IN_VHT |
 				   RA_MASK_OFDM_IN_VHT;
 			wireless_set = WIRELESS_CCK | WIRELESS_OFDM |
 				       WIRELESS_HT | WIRELESS_VHT;
-		} else if (sta->ht_cap.ht_supported) {
+		} else if (sta->deflink.ht_cap.ht_supported) {
 			ra_mask &= RA_MASK_HT_RATES | RA_MASK_CCK_IN_HT |
 				   RA_MASK_OFDM_IN_HT_2G;
 			wireless_set = WIRELESS_CCK | WIRELESS_OFDM |
 				       WIRELESS_HT;
-		} else if (sta->supp_rates[0] <= 0xf) {
+		} else if (sta->deflink.supp_rates[0] <= 0xf) {
 			wireless_set = WIRELESS_CCK;
 		} else {
 			ra_mask &= RA_MASK_OFDM_RATES | RA_MASK_CCK_IN_BG;
@@ -1181,28 +1181,28 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 		wireless_set = 0;
 	}
 
-	switch (sta->bandwidth) {
+	switch (sta->deflink.bandwidth) {
 	case IEEE80211_STA_RX_BW_80:
 		bw_mode = RTW_CHANNEL_WIDTH_80;
-		is_support_sgi = sta->vht_cap.vht_supported &&
-				 (sta->vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80);
+		is_support_sgi = sta->deflink.vht_cap.vht_supported &&
+				 (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SHORT_GI_80);
 		break;
 	case IEEE80211_STA_RX_BW_40:
 		bw_mode = RTW_CHANNEL_WIDTH_40;
-		is_support_sgi = sta->ht_cap.ht_supported &&
-				 (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
+		is_support_sgi = sta->deflink.ht_cap.ht_supported &&
+				 (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
 		break;
 	default:
 		bw_mode = RTW_CHANNEL_WIDTH_20;
-		is_support_sgi = sta->ht_cap.ht_supported &&
-				 (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
+		is_support_sgi = sta->deflink.ht_cap.ht_supported &&
+				 (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
 		break;
 	}
 
-	if (sta->vht_cap.vht_supported && ra_mask & 0xffc00000) {
+	if (sta->deflink.vht_cap.vht_supported && ra_mask & 0xffc00000) {
 		tx_num = 2;
 		rf_type = RF_2T2R;
-	} else if (sta->ht_cap.ht_supported && ra_mask & 0xfff00000) {
+	} else if (sta->deflink.ht_cap.ht_supported && ra_mask & 0xfff00000) {
 		tx_num = 2;
 		rf_type = RF_2T2R;
 	}

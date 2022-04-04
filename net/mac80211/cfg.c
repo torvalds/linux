@@ -570,7 +570,8 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 		if (pairwise)
 			key = key_mtx_dereference(local, sta->ptk[key_idx]);
 		else
-			key = key_mtx_dereference(local, sta->gtk[key_idx]);
+			key = key_mtx_dereference(local,
+						  sta->deflink.gtk[key_idx]);
 	} else
 		key = key_mtx_dereference(local, sdata->keys[key_idx]);
 
@@ -620,7 +621,7 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 		else if (!pairwise &&
 			 key_idx < NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS +
 			 NUM_DEFAULT_BEACON_KEYS)
-			key = rcu_dereference(sta->gtk[key_idx]);
+			key = rcu_dereference(sta->deflink.gtk[key_idx]);
 	} else
 		key = rcu_dereference(sdata->keys[key_idx]);
 
@@ -1728,9 +1729,9 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		sta->listen_interval = params->listen_interval;
 
 	if (params->sta_modify_mask & STATION_PARAM_APPLY_STA_TXPOWER) {
-		sta->sta.txpwr.type = params->txpwr.type;
+		sta->sta.deflink.txpwr.type = params->txpwr.type;
 		if (params->txpwr.type == NL80211_TX_POWER_LIMITED)
-			sta->sta.txpwr.power = params->txpwr.power;
+			sta->sta.deflink.txpwr.power = params->txpwr.power;
 		ret = drv_sta_set_txpwr(local, sdata, sta);
 		if (ret)
 			return ret;
@@ -1740,7 +1741,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		ieee80211_parse_bitrates(&sdata->vif.bss_conf.chandef,
 					 sband, params->supported_rates,
 					 params->supported_rates_len,
-					 &sta->sta.supp_rates[sband->band]);
+					 &sta->sta.deflink.supp_rates[sband->band]);
 	}
 
 	if (params->ht_capa)

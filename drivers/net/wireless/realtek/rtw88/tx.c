@@ -72,7 +72,7 @@ EXPORT_SYMBOL(rtw_tx_fill_tx_desc);
 
 static u8 get_tx_ampdu_factor(struct ieee80211_sta *sta)
 {
-	u8 exp = sta->ht_cap.ampdu_factor;
+	u8 exp = sta->deflink.ht_cap.ampdu_factor;
 
 	/* the least ampdu factor is 8K, and the value in the tx desc is the
 	 * max aggregation num, which represents val * 2 packets can be
@@ -83,7 +83,7 @@ static u8 get_tx_ampdu_factor(struct ieee80211_sta *sta)
 
 static u8 get_tx_ampdu_density(struct ieee80211_sta *sta)
 {
-	return sta->ht_cap.ampdu_density;
+	return sta->deflink.ht_cap.ampdu_density;
 }
 
 static u8 get_highest_ht_tx_rate(struct rtw_dev *rtwdev,
@@ -91,7 +91,7 @@ static u8 get_highest_ht_tx_rate(struct rtw_dev *rtwdev,
 {
 	u8 rate;
 
-	if (rtwdev->hal.rf_type == RF_2T2R && sta->ht_cap.mcs.rx_mask[1] != 0)
+	if (rtwdev->hal.rf_type == RF_2T2R && sta->deflink.ht_cap.mcs.rx_mask[1] != 0)
 		rate = DESC_RATEMCS15;
 	else
 		rate = DESC_RATEMCS7;
@@ -106,7 +106,7 @@ static u8 get_highest_vht_tx_rate(struct rtw_dev *rtwdev,
 	u8 rate;
 	u16 tx_mcs_map;
 
-	tx_mcs_map = le16_to_cpu(sta->vht_cap.vht_mcs.tx_mcs_map);
+	tx_mcs_map = le16_to_cpu(sta->deflink.vht_cap.vht_mcs.tx_mcs_map);
 	if (efuse->hw_cap.nss == 1) {
 		switch (tx_mcs_map & 0x3) {
 		case IEEE80211_VHT_MCS_SUPPORT_0_7:
@@ -340,11 +340,11 @@ static void rtw_tx_data_pkt_info_update(struct rtw_dev *rtwdev,
 	if (info->control.use_rts || skb->len > hw->wiphy->rts_threshold)
 		pkt_info->rts = true;
 
-	if (sta->vht_cap.vht_supported)
+	if (sta->deflink.vht_cap.vht_supported)
 		rate = get_highest_vht_tx_rate(rtwdev, sta);
-	else if (sta->ht_cap.ht_supported)
+	else if (sta->deflink.ht_cap.ht_supported)
 		rate = get_highest_ht_tx_rate(rtwdev, sta);
-	else if (sta->supp_rates[0] <= 0xf)
+	else if (sta->deflink.supp_rates[0] <= 0xf)
 		rate = DESC_RATE11M;
 	else
 		rate = DESC_RATE54M;

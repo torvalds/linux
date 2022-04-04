@@ -3342,7 +3342,7 @@ static bool ieee80211_twt_req_supported(const struct sta_info *sta,
 	if (!(elems->ext_capab[9] & WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT))
 		return false;
 
-	return sta->sta.he_cap.he_cap_elem.mac_cap_info[0] &
+	return sta->sta.deflink.he_cap.he_cap_elem.mac_cap_info[0] &
 		IEEE80211_HE_MAC_CAP0_TWT_RES;
 }
 
@@ -3369,7 +3369,7 @@ static bool ieee80211_twt_bcast_support(struct ieee80211_sub_if_data *sdata,
 					    ieee80211_vif_type_p2p(&sdata->vif));
 
 	return bss_conf->he_support &&
-		(sta->sta.he_cap.he_cap_elem.mac_cap_info[2] &
+		(sta->sta.deflink.he_cap.he_cap_elem.mac_cap_info[2] &
 			IEEE80211_HE_MAC_CAP2_BCAST_TWT) &&
 		own_he_cap &&
 		(own_he_cap->he_cap_elem.mac_cap_info[2] &
@@ -3587,7 +3587,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 						  elems->he_6ghz_capa,
 						  sta);
 
-		bss_conf->he_support = sta->sta.he_cap.has_he;
+		bss_conf->he_support = sta->sta.deflink.he_cap.has_he;
 		if (elems->rsnx && elems->rsnx_len &&
 		    (elems->rsnx[0] & WLAN_RSNX_CAPA_PROTECTED_TWT) &&
 		    wiphy_ext_feature_isset(local->hw.wiphy,
@@ -3607,7 +3607,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 							    elems->eht_cap_len,
 							    sta);
 
-			bss_conf->eht_support = sta->sta.eht_cap.has_eht;
+			bss_conf->eht_support = sta->sta.deflink.eht_cap.has_eht;
 		} else {
 			bss_conf->eht_support = false;
 		}
@@ -3678,7 +3678,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		nss = *elems->opmode_notif & IEEE80211_OPMODE_NOTIF_RX_NSS_MASK;
 		nss >>= IEEE80211_OPMODE_NOTIF_RX_NSS_SHIFT;
 		nss += 1;
-		sta->sta.rx_nss = nss;
+		sta->sta.deflink.rx_nss = nss;
 	}
 
 	rate_control_rate_init(sta);
@@ -4836,9 +4836,9 @@ static void ieee80211_sta_conn_mon_timer(struct timer_list *t)
 	if (!sta)
 		return;
 
-	timeout = sta->status_stats.last_ack;
-	if (time_before(sta->status_stats.last_ack, sta->rx_stats.last_rx))
-		timeout = sta->rx_stats.last_rx;
+	timeout = sta->deflink.status_stats.last_ack;
+	if (time_before(sta->deflink.status_stats.last_ack, sta->deflink.rx_stats.last_rx))
+		timeout = sta->deflink.rx_stats.last_rx;
 	timeout += IEEE80211_CONNECTION_IDLE_TIME;
 
 	/* If timeout is after now, then update timer to fire at
@@ -5638,7 +5638,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if (rates)
-			new_sta->sta.supp_rates[cbss->channel->band] = rates;
+			new_sta->sta.deflink.supp_rates[cbss->channel->band] = rates;
 		else
 			sdata_info(sdata,
 				   "No rates found, keeping mandatory only\n");

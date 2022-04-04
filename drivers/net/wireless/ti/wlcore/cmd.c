@@ -1558,11 +1558,11 @@ int wl12xx_cmd_add_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 					WL1271_PSD_LEGACY;
 
 
-	sta_rates = sta->supp_rates[wlvif->band];
-	if (sta->ht_cap.ht_supported)
+	sta_rates = sta->deflink.supp_rates[wlvif->band];
+	if (sta->deflink.ht_cap.ht_supported)
 		sta_rates |=
-			(sta->ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET) |
-			(sta->ht_cap.mcs.rx_mask[1] << HW_MIMO_RATES_OFFSET);
+			(sta->deflink.ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET) |
+			(sta->deflink.ht_cap.mcs.rx_mask[1] << HW_MIMO_RATES_OFFSET);
 
 	cmd->supported_rates =
 		cpu_to_le32(wl1271_tx_enabled_rates_get(wl, sta_rates,

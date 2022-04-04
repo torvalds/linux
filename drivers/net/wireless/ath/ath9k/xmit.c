@@ -1574,10 +1574,10 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 	 * in HT IBSS when a beacon with HT-info is received after the station
 	 * has already been added.
 	 */
-	if (sta->ht_cap.ht_supported) {
+	if (sta->deflink.ht_cap.ht_supported) {
 		an->maxampdu = (1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
-				      sta->ht_cap.ampdu_factor)) - 1;
-		density = ath9k_parse_mpdudensity(sta->ht_cap.ampdu_density);
+				      sta->deflink.ht_cap.ampdu_factor)) - 1;
+		density = ath9k_parse_mpdudensity(sta->deflink.ht_cap.ampdu_density);
 		an->mpdudensity = density;
 	}
 

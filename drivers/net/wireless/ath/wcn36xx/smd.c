@@ -208,9 +208,9 @@ static void wcn36xx_smd_set_bss_nw_type(struct wcn36xx *wcn,
 {
 	if (NL80211_BAND_5GHZ == WCN36XX_BAND(wcn))
 		bss_params->nw_type = WCN36XX_HAL_11A_NW_TYPE;
-	else if (sta && sta->ht_cap.ht_supported)
+	else if (sta && sta->deflink.ht_cap.ht_supported)
 		bss_params->nw_type = WCN36XX_HAL_11N_NW_TYPE;
-	else if (sta && (sta->supp_rates[NL80211_BAND_2GHZ] & 0x7f))
+	else if (sta && (sta->deflink.supp_rates[NL80211_BAND_2GHZ] & 0x7f))
 		bss_params->nw_type = WCN36XX_HAL_11G_NW_TYPE;
 	else
 		bss_params->nw_type = WCN36XX_HAL_11B_NW_TYPE;
@@ -225,9 +225,10 @@ static void wcn36xx_smd_set_bss_ht_params(struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta,
 		struct wcn36xx_hal_config_bss_params *bss_params)
 {
-	if (sta && sta->ht_cap.ht_supported) {
-		unsigned long caps = sta->ht_cap.cap;
-		bss_params->ht = sta->ht_cap.ht_supported;
+	if (sta && sta->deflink.ht_cap.ht_supported) {
+		unsigned long caps = sta->deflink.ht_cap.cap;
+
+		bss_params->ht = sta->deflink.ht_cap.ht_supported;
 		bss_params->tx_channel_width_set = is_cap_supported(caps,
 			IEEE80211_HT_CAP_SUP_WIDTH_20_40);
 		bss_params->lsig_tx_op_protection_full_support =
@@ -250,23 +251,24 @@ wcn36xx_smd_set_bss_vht_params(struct ieee80211_vif *vif,
 			       struct ieee80211_sta *sta,
 			       struct wcn36xx_hal_config_bss_params_v1 *bss)
 {
-	if (sta && sta->vht_cap.vht_supported)
+	if (sta && sta->deflink.vht_cap.vht_supported)
 		bss->vht_capable = 1;
 }
 
 static void wcn36xx_smd_set_sta_ht_params(struct ieee80211_sta *sta,
 		struct wcn36xx_hal_config_sta_params *sta_params)
 {
-	if (sta->ht_cap.ht_supported) {
-		unsigned long caps = sta->ht_cap.cap;
-		sta_params->ht_capable = sta->ht_cap.ht_supported;
+	if (sta->deflink.ht_cap.ht_supported) {
+		unsigned long caps = sta->deflink.ht_cap.cap;
+
+		sta_params->ht_capable = sta->deflink.ht_cap.ht_supported;
 		sta_params->tx_channel_width_set = is_cap_supported(caps,
 			IEEE80211_HT_CAP_SUP_WIDTH_20_40);
 		sta_params->lsig_txop_protection = is_cap_supported(caps,
 			IEEE80211_HT_CAP_LSIG_TXOP_PROT);
 
-		sta_params->max_ampdu_size = sta->ht_cap.ampdu_factor;
-		sta_params->max_ampdu_density = sta->ht_cap.ampdu_density;
+		sta_params->max_ampdu_size = sta->deflink.ht_cap.ampdu_factor;
+		sta_params->max_ampdu_density = sta->deflink.ht_cap.ampdu_density;
 		/* max_amsdu_size: 1 : 3839 bytes, 0 : 7935 bytes (max) */
 		sta_params->max_amsdu_size = !is_cap_supported(caps,
 			IEEE80211_HT_CAP_MAX_AMSDU);
@@ -287,10 +289,10 @@ static void wcn36xx_smd_set_sta_vht_params(struct wcn36xx *wcn,
 		struct ieee80211_sta *sta,
 		struct wcn36xx_hal_config_sta_params_v1 *sta_params)
 {
-	if (sta->vht_cap.vht_supported) {
-		unsigned long caps = sta->vht_cap.cap;
+	if (sta->deflink.vht_cap.vht_supported) {
+		unsigned long caps = sta->deflink.vht_cap.cap;
 
-		sta_params->vht_capable = sta->vht_cap.vht_supported;
+		sta_params->vht_capable = sta->deflink.vht_cap.vht_supported;
 		sta_params->vht_ldpc_enabled =
 			is_cap_supported(caps, IEEE80211_VHT_CAP_RXLDPC);
 		if (get_feat_caps(wcn->fw_feat_caps, MU_MIMO)) {
@@ -308,9 +310,10 @@ static void wcn36xx_smd_set_sta_vht_params(struct wcn36xx *wcn,
 static void wcn36xx_smd_set_sta_ht_ldpc_params(struct ieee80211_sta *sta,
 		struct wcn36xx_hal_config_sta_params_v1 *sta_params)
 {
-	if (sta->ht_cap.ht_supported) {
+	if (sta->deflink.ht_cap.ht_supported) {
 		sta_params->ht_ldpc_enabled =
-			is_cap_supported(sta->ht_cap.cap, IEEE80211_HT_CAP_LDPC_CODING);
+			is_cap_supported(sta->deflink.ht_cap.cap,
+					 IEEE80211_HT_CAP_LDPC_CODING);
 	}
 }
 

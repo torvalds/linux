@@ -476,7 +476,7 @@ static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 			    !(new->conf.flags & IEEE80211_KEY_FLAG_NO_AUTO_TX))
 				_ieee80211_set_tx_key(new, true);
 		} else {
-			rcu_assign_pointer(sta->gtk[idx], new);
+			rcu_assign_pointer(sta->deflink.gtk[idx], new);
 		}
 		/* Only needed for transition from no key -> key.
 		 * Still triggers unnecessary when using Extended Key ID
@@ -826,7 +826,8 @@ int ieee80211_key_link(struct ieee80211_key *key,
 		    (old_key && old_key->conf.cipher != key->conf.cipher))
 			goto out;
 	} else if (sta) {
-		old_key = key_mtx_dereference(sdata->local, sta->gtk[idx]);
+		old_key = key_mtx_dereference(sdata->local,
+					      sta->deflink.gtk[idx]);
 	} else {
 		old_key = key_mtx_dereference(sdata->local, sdata->keys[idx]);
 	}
@@ -1076,8 +1077,8 @@ void ieee80211_free_sta_keys(struct ieee80211_local *local,
 	int i;
 
 	mutex_lock(&local->key_mtx);
-	for (i = 0; i < ARRAY_SIZE(sta->gtk); i++) {
-		key = key_mtx_dereference(local, sta->gtk[i]);
+	for (i = 0; i < ARRAY_SIZE(sta->deflink.gtk); i++) {
+		key = key_mtx_dereference(local, sta->deflink.gtk[i]);
 		if (!key)
 			continue;
 		ieee80211_key_replace(key->sdata, key->sta,

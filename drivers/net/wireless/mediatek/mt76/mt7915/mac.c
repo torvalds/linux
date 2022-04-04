@@ -1354,7 +1354,7 @@ mt7915_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 	u16 fc, tid;
 	u32 val;
 
-	if (!sta || !(sta->ht_cap.ht_supported || sta->he_cap.has_he))
+	if (!sta || !(sta->deflink.ht_cap.ht_supported || sta->deflink.he_cap.has_he))
 		return;
 
 	tid = le32_get_bits(txwi[1], MT_TXD1_TID);

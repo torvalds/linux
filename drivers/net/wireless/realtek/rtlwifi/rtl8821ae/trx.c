@@ -761,7 +761,7 @@ void rtl8821ae_tx_fill_desc(struct ieee80211_hw *hw,
 		set_tx_desc_linip(pdesc, 0);
 		set_tx_desc_pkt_size(pdesc, (u16)skb_len);
 		if (sta) {
-			u8 ampdu_density = sta->ht_cap.ampdu_density;
+			u8 ampdu_density = sta->deflink.ht_cap.ampdu_density;
 
 			set_tx_desc_ampdu_density(pdesc, ampdu_density);
 		}

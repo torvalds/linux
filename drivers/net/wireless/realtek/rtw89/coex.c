@@ -4179,14 +4179,14 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif
 
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], STA support HE=%d VHT=%d HT=%d\n",
-			    sta->he_cap.has_he,
-			    sta->vht_cap.vht_supported,
-			    sta->ht_cap.ht_supported);
-		if (sta->he_cap.has_he)
+			    sta->deflink.he_cap.has_he,
+			    sta->deflink.vht_cap.vht_supported,
+			    sta->deflink.ht_cap.ht_supported);
+		if (sta->deflink.he_cap.has_he)
 			mode |= BIT(BTC_WL_MODE_HE);
-		if (sta->vht_cap.vht_supported)
+		if (sta->deflink.vht_cap.vht_supported)
 			mode |= BIT(BTC_WL_MODE_VHT);
-		if (sta->ht_cap.ht_supported)
+		if (sta->deflink.ht_cap.ht_supported)
 			mode |= BIT(BTC_WL_MODE_HT);
 
 		r.mode = mode;

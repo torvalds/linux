@@ -831,23 +831,23 @@ static void __get_sta_he_pkt_padding(struct rtw89_dev *rtwdev,
 {
 	bool ppe_th;
 	u8 ppe16, ppe8;
-	u8 nss = min(sta->rx_nss, rtwdev->hal.tx_nss) - 1;
-	u8 ppe_thres_hdr = sta->he_cap.ppe_thres[0];
+	u8 nss = min(sta->deflink.rx_nss, rtwdev->hal.tx_nss) - 1;
+	u8 ppe_thres_hdr = sta->deflink.he_cap.ppe_thres[0];
 	u8 ru_bitmap;
 	u8 n, idx, sh;
 	u16 ppe;
 	int i;
 
-	if (!sta->he_cap.has_he)
+	if (!sta->deflink.he_cap.has_he)
 		return;
 
 	ppe_th = FIELD_GET(IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT,
-			   sta->he_cap.he_cap_elem.phy_cap_info[6]);
+			   sta->deflink.he_cap.he_cap_elem.phy_cap_info[6]);
 	if (!ppe_th) {
 		u8 pad;
 
 		pad = FIELD_GET(IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK,
-				sta->he_cap.he_cap_elem.phy_cap_info[9]);
+				sta->deflink.he_cap.he_cap_elem.phy_cap_info[9]);
 
 		for (i = 0; i < RTW89_PPE_BW_NUM; i++)
 			pads[i] = pad;
@@ -867,7 +867,7 @@ static void __get_sta_he_pkt_padding(struct rtw89_dev *rtwdev,
 		sh = n & 7;
 		n += IEEE80211_PPE_THRES_INFO_PPET_SIZE * 2;
 
-		ppe = le16_to_cpu(*((__le16 *)&sta->he_cap.ppe_thres[idx]));
+		ppe = le16_to_cpu(*((__le16 *)&sta->deflink.he_cap.ppe_thres[idx]));
 		ppe16 = (ppe >> sh) & IEEE80211_PPE_THRES_NSS_MASK;
 		sh += IEEE80211_PPE_THRES_INFO_PPET_SIZE;
 		ppe8 = (ppe >> sh) & IEEE80211_PPE_THRES_NSS_MASK;
@@ -921,7 +921,8 @@ int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 	SET_CMC_TBL_NOMINAL_PKT_PADDING40(skb->data, pads[RTW89_CHANNEL_WIDTH_40]);
 	SET_CMC_TBL_NOMINAL_PKT_PADDING80(skb->data, pads[RTW89_CHANNEL_WIDTH_80]);
 	if (sta)
-		SET_CMC_TBL_BSR_QUEUE_SIZE_FORMAT(skb->data, sta->he_cap.has_he);
+		SET_CMC_TBL_BSR_QUEUE_SIZE_FORMAT(skb->data,
+						  sta->deflink.he_cap.has_he);
 	if (rtwvif->net_type == RTW89_NET_TYPE_AP_MODE)
 		SET_CMC_TBL_DATA_DCM(skb->data, 0);
 

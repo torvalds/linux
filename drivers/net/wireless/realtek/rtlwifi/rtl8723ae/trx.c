@@ -376,7 +376,7 @@ void rtl8723e_tx_fill_desc(struct ieee80211_hw *hw,
 	} else if (mac->opmode == NL80211_IFTYPE_AP ||
 		mac->opmode == NL80211_IFTYPE_ADHOC) {
 		if (sta)
-			bw_40 = sta->ht_cap.cap &
+			bw_40 = sta->deflink.ht_cap.cap &
 				IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 	}
 
@@ -442,7 +442,7 @@ void rtl8723e_tx_fill_desc(struct ieee80211_hw *hw,
 		set_tx_desc_pkt_size(pdesc, (u16)skb->len);
 
 		if (sta) {
-			u8 ampdu_density = sta->ht_cap.ampdu_density;
+			u8 ampdu_density = sta->deflink.ht_cap.ampdu_density;
 			set_tx_desc_ampdu_density(pdesc, ampdu_density);
 		}
 

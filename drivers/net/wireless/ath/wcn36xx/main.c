@@ -792,7 +792,7 @@ static void wcn36xx_update_allowed_rates(struct ieee80211_sta *sta,
 	int i, size;
 	u16 *rates_table;
 	struct wcn36xx_sta *sta_priv = wcn36xx_sta_to_priv(sta);
-	u32 rates = sta->supp_rates[band];
+	u32 rates = sta->deflink.supp_rates[band];
 
 	memset(&sta_priv->supported_rates, 0,
 		sizeof(sta_priv->supported_rates));
@@ -818,20 +818,20 @@ static void wcn36xx_update_allowed_rates(struct ieee80211_sta *sta,
 		}
 	}
 
-	if (sta->ht_cap.ht_supported) {
-		BUILD_BUG_ON(sizeof(sta->ht_cap.mcs.rx_mask) >
-			sizeof(sta_priv->supported_rates.supported_mcs_set));
+	if (sta->deflink.ht_cap.ht_supported) {
+		BUILD_BUG_ON(sizeof(sta->deflink.ht_cap.mcs.rx_mask) >
+			     sizeof(sta_priv->supported_rates.supported_mcs_set));
 		memcpy(sta_priv->supported_rates.supported_mcs_set,
-		       sta->ht_cap.mcs.rx_mask,
-		       sizeof(sta->ht_cap.mcs.rx_mask));
+		       sta->deflink.ht_cap.mcs.rx_mask,
+		       sizeof(sta->deflink.ht_cap.mcs.rx_mask));
 	}
 
-	if (sta->vht_cap.vht_supported) {
+	if (sta->deflink.vht_cap.vht_supported) {
 		sta_priv->supported_rates.op_rate_mode = STA_11ac;
 		sta_priv->supported_rates.vht_rx_mcs_map =
-				sta->vht_cap.vht_mcs.rx_mcs_map;
+				sta->deflink.vht_cap.vht_mcs.rx_mcs_map;
 		sta_priv->supported_rates.vht_tx_mcs_map =
-				sta->vht_cap.vht_mcs.tx_mcs_map;
+				sta->deflink.vht_cap.vht_mcs.tx_mcs_map;
 	}
 }
 
