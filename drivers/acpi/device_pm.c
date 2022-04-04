@@ -174,8 +174,8 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 
 	/* There is a special case for D0 addressed below. */
 	if (state > ACPI_STATE_D0 && state == device->power.state) {
-		dev_dbg(&device->dev, "Device already in %s\n",
-			acpi_power_state_string(state));
+		acpi_handle_debug(device->handle, "Already in %s\n",
+				  acpi_power_state_string(state));
 		return 0;
 	}
 
@@ -189,17 +189,17 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 		if (!device->power.states[ACPI_STATE_D3_COLD].flags.valid)
 			target_state = state;
 	} else if (!device->power.states[state].flags.valid) {
-		dev_warn(&device->dev, "Power state %s not supported\n",
-			 acpi_power_state_string(state));
+		acpi_handle_debug(device->handle, "Power state %s not supported\n",
+				  acpi_power_state_string(state));
 		return -ENODEV;
 	}
 
-	if (!device->power.flags.ignore_parent &&
-	    device->parent && (state < device->parent->power.state)) {
-		dev_warn(&device->dev,
-			 "Cannot transition to power state %s for parent in %s\n",
-			 acpi_power_state_string(state),
-			 acpi_power_state_string(device->parent->power.state));
+	if (!device->power.flags.ignore_parent && device->parent &&
+	    state < device->parent->power.state) {
+		acpi_handle_debug(device->handle,
+				  "Cannot transition to %s for parent in %s\n",
+				  acpi_power_state_string(state),
+				  acpi_power_state_string(device->parent->power.state));
 		return -ENODEV;
 	}
 
@@ -216,9 +216,10 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 		 * (deeper) states to higher-power (shallower) states.
 		 */
 		if (state < device->power.state) {
-			dev_warn(&device->dev, "Cannot transition from %s to %s\n",
-				 acpi_power_state_string(device->power.state),
-				 acpi_power_state_string(state));
+			acpi_handle_debug(device->handle,
+					  "Cannot transition from %s to %s\n",
+					  acpi_power_state_string(device->power.state),
+					  acpi_power_state_string(state));
 			return -ENODEV;
 		}
 
@@ -271,12 +272,13 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 
  end:
 	if (result) {
-		dev_warn(&device->dev, "Failed to change power state to %s\n",
-			 acpi_power_state_string(target_state));
+		acpi_handle_debug(device->handle,
+				  "Failed to change power state to %s\n",
+				  acpi_power_state_string(target_state));
 	} else {
 		device->power.state = target_state;
-		dev_dbg(&device->dev, "Power state changed to %s\n",
-			acpi_power_state_string(target_state));
+		acpi_handle_debug(device->handle, "Power state changed to %s\n",
+				  acpi_power_state_string(target_state));
 	}
 
 	return result;
