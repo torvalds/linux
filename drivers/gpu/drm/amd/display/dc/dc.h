@@ -810,6 +810,7 @@ struct dc {
 	struct vm_helper *vm_helper;
 
 	uint32_t *dcn_reg_offsets;
+	uint32_t *nbio_reg_offsets;
 };
 
 enum frame_buffer_mode {
@@ -857,6 +858,7 @@ struct dc_init_data {
 	 * before them.
 	 */
 	uint32_t *dcn_reg_offsets;
+	uint32_t *nbio_reg_offsets;
 };
 
 struct dc_callback_init {

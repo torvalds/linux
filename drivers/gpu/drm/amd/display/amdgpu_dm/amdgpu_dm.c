@@ -1565,6 +1565,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	init_data.flags.enable_mipi_converter_optimization = true;
 
 	init_data.dcn_reg_offsets = adev->reg_offset[DCE_HWIP][0];
+	init_data.nbio_reg_offsets = adev->reg_offset[NBIO_HWIP][0];
 
 	INIT_LIST_HEAD(&adev->dm.da_list);
 
