@@ -613,7 +613,7 @@ static void drm_fb_gray8_to_mono_line(u8 *dst, const u8 *src, unsigned int pixel
  * drm_fb_xrgb8888_to_mono - Convert XRGB8888 to monochrome
  * @dst: monochrome destination buffer (0=black, 1=white)
  * @dst_pitch: Number of bytes between two consecutive scanlines within dst
- * @src: XRGB8888 source buffer
+ * @vaddr: XRGB8888 source buffer
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
  *
