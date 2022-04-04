@@ -67,7 +67,6 @@ static void dlm_release_plock_op(struct plock_op *op)
 static void send_op(struct plock_op *op)
 {
 	set_version(&op->info);
-	INIT_LIST_HEAD(&op->list);
 	spin_lock(&ops_lock);
 	list_add_tail(&op->list, &send_list);
 	spin_unlock(&ops_lock);
