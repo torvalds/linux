@@ -68,6 +68,8 @@
 #include "jpeg_v2_0.h"
 #include "vcn_v3_0.h"
 #include "jpeg_v3_0.h"
+#include "vcn_v4_0.h"
+#include "jpeg_v4_0.h"
 #include "amdgpu_vkms.h"
 #include "mes_v10_1.h"
 #include "mes_v11_0.h"
@@ -1852,6 +1854,10 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 			break;
 		case IP_VERSION(3, 0, 33):
 			amdgpu_device_ip_block_add(adev, &vcn_v3_0_ip_block);
+			break;
+		case IP_VERSION(4, 0, 0):
+			amdgpu_device_ip_block_add(adev, &vcn_v4_0_ip_block);
+			amdgpu_device_ip_block_add(adev, &jpeg_v4_0_ip_block);
 			break;
 		default:
 			dev_err(adev->dev,
