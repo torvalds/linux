@@ -261,18 +261,18 @@
 #define TFTCTL_TSFCNTREN    0x01
 
 /* Bits in the EnhanceCFG register */
-#define EnCFG_BarkerPream   0x00020000
-#define EnCFG_NXTBTTCFPSTR  0x00010000
-#define EnCFG_BcnSusClr     0x00000200
-#define EnCFG_BcnSusInd     0x00000100
-#define EnCFG_CFP_ProtectEn 0x00000040
-#define EnCFG_ProtectMd     0x00000020
-#define EnCFG_HwParCFP      0x00000010
-#define EnCFG_CFNULRSP      0x00000004
-#define EnCFG_BBType_MASK   0x00000003
-#define EnCFG_BBType_g      0x00000002
-#define EnCFG_BBType_b      0x00000001
-#define EnCFG_BBType_a      0x00000000
+#define ENCFG_BARKERPREAM   0x00020000
+#define ENCFG_NXTBTTCFPSTR  0x00010000
+#define ENCFG_BCNSUSCLR     0x00000200
+#define ENCFG_BCNSUSIND     0x00000100
+#define ENCFG_CFP_PROTECTEN 0x00000040
+#define ENCFG_PROTECTMD     0x00000020
+#define ENCFG_HWPARCFP      0x00000010
+#define ENCFG_CFNULRSP      0x00000004
+#define ENCFG_BBTYPE_MASK   0x00000003
+#define ENCFG_BBTYPE_G      0x00000002
+#define ENCFG_BBTYPE_B      0x00000001
+#define ENCFG_BBTYPE_A      0x00000000
 
 /* Bits in the Page1Sel register */
 #define PAGE1_SEL           0x01
@@ -497,7 +497,7 @@
 #define MAC_LB_INTERNAL     0x01
 #define MAC_LB_NONE         0x00
 
-#define Default_BI              0x200
+#define DEFAULT_BI          0x200
 
 /* MiscFIFO Offset */
 #define MISCFIFO_KEYETRY0       32
@@ -698,7 +698,7 @@ do {									\
 do {									\
 	unsigned long dwOrgValue;					\
 	VNSvInPortD(iobase + MAC_REG_ENCFG, &dwOrgValue);		\
-	dwOrgValue = dwOrgValue | EnCFG_ProtectMd;			\
+	dwOrgValue = dwOrgValue | ENCFG_PROTECTMD;			\
 	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
 } while (0)
 
@@ -706,7 +706,7 @@ do {									\
 do {									\
 	unsigned long dwOrgValue;					\
 	VNSvInPortD(iobase + MAC_REG_ENCFG, &dwOrgValue);		\
-	dwOrgValue = dwOrgValue & ~EnCFG_ProtectMd;			\
+	dwOrgValue = dwOrgValue & ~ENCFG_PROTECTMD;			\
 	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
 } while (0)
 
@@ -714,7 +714,7 @@ do {									\
 do {									\
 	unsigned long dwOrgValue;					\
 	VNSvInPortD(iobase + MAC_REG_ENCFG, &dwOrgValue);		\
-	dwOrgValue = dwOrgValue | EnCFG_BarkerPream;			\
+	dwOrgValue = dwOrgValue | ENCFG_BARKERPREAM;			\
 	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
 } while (0)
 
@@ -722,7 +722,7 @@ do {									\
 do {									\
 	unsigned long dwOrgValue;					\
 	VNSvInPortD(iobase + MAC_REG_ENCFG, &dwOrgValue);		\
-	dwOrgValue = dwOrgValue & ~EnCFG_BarkerPream;			\
+	dwOrgValue = dwOrgValue & ~ENCFG_BARKERPREAM;			\
 	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
 } while (0)
 
@@ -730,7 +730,7 @@ do {									\
 do {									\
 	unsigned long dwOrgValue;					\
 	VNSvInPortD(iobase + MAC_REG_ENCFG, &dwOrgValue);		\
-	dwOrgValue = dwOrgValue & ~EnCFG_BBType_MASK;			\
+	dwOrgValue = dwOrgValue & ~ENCFG_BBTYPE_MASK;			\
 	dwOrgValue = dwOrgValue | (unsigned long)byTyp;			\
 	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
 } while (0)
