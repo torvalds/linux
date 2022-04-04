@@ -135,6 +135,7 @@
 #include <net/tcp.h>
 
 #include "dlm_internal.h"
+#include "lockspace.h"
 #include "lowcomms.h"
 #include "config.h"
 #include "memory.h"
@@ -1411,6 +1412,8 @@ int dlm_midcomms_close(int nodeid)
 
 	if (nodeid == dlm_our_nodeid())
 		return 0;
+
+	dlm_stop_lockspaces_check();
 
 	idx = srcu_read_lock(&nodes_srcu);
 	/* Abort pending close/remove operation */
