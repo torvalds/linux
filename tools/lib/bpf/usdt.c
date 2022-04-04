@@ -239,6 +239,10 @@ struct usdt_manager {
 	struct bpf_map *specs_map;
 	struct bpf_map *ip_to_spec_id_map;
 
+	int *free_spec_ids;
+	size_t free_spec_cnt;
+	size_t next_free_spec_id;
+
 	bool has_bpf_cookie;
 	bool has_sema_refcnt;
 };
@@ -283,6 +287,7 @@ void usdt_manager_free(struct usdt_manager *man)
 	if (IS_ERR_OR_NULL(man))
 		return;
 
+	free(man->free_spec_ids);
 	free(man);
 }
 
@@ -789,6 +794,9 @@ struct bpf_link_usdt {
 
 	struct usdt_manager *usdt_man;
 
+	size_t spec_cnt;
+	int *spec_ids;
+
 	size_t uprobe_cnt;
 	struct {
 		long abs_ip;
@@ -799,11 +807,52 @@ struct bpf_link_usdt {
 static int bpf_link_usdt_detach(struct bpf_link *link)
 {
 	struct bpf_link_usdt *usdt_link = container_of(link, struct bpf_link_usdt, link);
+	struct usdt_manager *man = usdt_link->usdt_man;
 	int i;
 
 	for (i = 0; i < usdt_link->uprobe_cnt; i++) {
 		/* detach underlying uprobe link */
 		bpf_link__destroy(usdt_link->uprobes[i].link);
+		/* there is no need to update specs map because it will be
+		 * unconditionally overwritten on subsequent USDT attaches,
+		 * but if BPF cookies are not used we need to remove entry
+		 * from ip_to_spec_id map, otherwise we'll run into false
+		 * conflicting IP errors
+		 */
+		if (!man->has_bpf_cookie) {
+			/* not much we can do about errors here */
+			(void)bpf_map_delete_elem(bpf_map__fd(man->ip_to_spec_id_map),
+						  &usdt_link->uprobes[i].abs_ip);
+		}
+	}
+
+	/* try to return the list of previously used spec IDs to usdt_manager
+	 * for future reuse for subsequent USDT attaches
+	 */
+	if (!man->free_spec_ids) {
+		/* if there were no free spec IDs yet, just transfer our IDs */
+		man->free_spec_ids = usdt_link->spec_ids;
+		man->free_spec_cnt = usdt_link->spec_cnt;
+		usdt_link->spec_ids = NULL;
+	} else {
+		/* otherwise concat IDs */
+		size_t new_cnt = man->free_spec_cnt + usdt_link->spec_cnt;
+		int *new_free_ids;
+
+		new_free_ids = libbpf_reallocarray(man->free_spec_ids, new_cnt,
+						   sizeof(*new_free_ids));
+		/* If we couldn't resize free_spec_ids, we'll just leak
+		 * a bunch of free IDs; this is very unlikely to happen and if
+		 * system is so exausted on memory, it's the least of user's
+		 * concerns, probably.
+		 * So just do our best here to return those IDs to usdt_manager.
+		 */
+		if (new_free_ids) {
+			memcpy(new_free_ids + man->free_spec_cnt, usdt_link->spec_ids,
+			       usdt_link->spec_cnt * sizeof(*usdt_link->spec_ids));
+			man->free_spec_ids = new_free_ids;
+			man->free_spec_cnt = new_cnt;
+		}
 	}
 
 	return 0;
@@ -813,8 +862,78 @@ static void bpf_link_usdt_dealloc(struct bpf_link *link)
 {
 	struct bpf_link_usdt *usdt_link = container_of(link, struct bpf_link_usdt, link);
 
+	free(usdt_link->spec_ids);
 	free(usdt_link->uprobes);
 	free(usdt_link);
+}
+
+static size_t specs_hash_fn(const void *key, void *ctx)
+{
+	const char *s = key;
+
+	return str_hash(s);
+}
+
+static bool specs_equal_fn(const void *key1, const void *key2, void *ctx)
+{
+	const char *s1 = key1;
+	const char *s2 = key2;
+
+	return strcmp(s1, s2) == 0;
+}
+
+static int allocate_spec_id(struct usdt_manager *man, struct hashmap *specs_hash,
+			    struct bpf_link_usdt *link, struct usdt_target *target,
+			    int *spec_id, bool *is_new)
+{
+	void *tmp;
+	int err;
+
+	/* check if we already allocated spec ID for this spec string */
+	if (hashmap__find(specs_hash, target->spec_str, &tmp)) {
+		*spec_id = (long)tmp;
+		*is_new = false;
+		return 0;
+	}
+
+	/* otherwise it's a new ID that needs to be set up in specs map and
+	 * returned back to usdt_manager when USDT link is detached
+	 */
+	tmp = libbpf_reallocarray(link->spec_ids, link->spec_cnt + 1, sizeof(*link->spec_ids));
+	if (!tmp)
+		return -ENOMEM;
+	link->spec_ids = tmp;
+
+	/* get next free spec ID, giving preference to free list, if not empty */
+	if (man->free_spec_cnt) {
+		*spec_id = man->free_spec_ids[man->free_spec_cnt - 1];
+
+		/* cache spec ID for current spec string for future lookups */
+		err = hashmap__add(specs_hash, target->spec_str, (void *)(long)*spec_id);
+		if (err)
+			 return err;
+
+		man->free_spec_cnt--;
+	} else {
+		/* don't allocate spec ID bigger than what fits in specs map */
+		if (man->next_free_spec_id >= bpf_map__max_entries(man->specs_map))
+			return -E2BIG;
+
+		*spec_id = man->next_free_spec_id;
+
+		/* cache spec ID for current spec string for future lookups */
+		err = hashmap__add(specs_hash, target->spec_str, (void *)(long)*spec_id);
+		if (err)
+			 return err;
+
+		man->next_free_spec_id++;
+	}
+
+	/* remember new spec ID in the link for later return back to free list on detach */
+	link->spec_ids[link->spec_cnt] = *spec_id;
+	link->spec_cnt++;
+	*is_new = true;
+	return 0;
 }
 
 struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct bpf_program *prog,
@@ -822,12 +941,16 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 					  const char *usdt_provider, const char *usdt_name,
 					  long usdt_cookie)
 {
+	int i, fd, err, spec_map_fd, ip_map_fd;
 	LIBBPF_OPTS(bpf_uprobe_opts, opts);
+	struct hashmap *specs_hash = NULL;
 	struct bpf_link_usdt *link = NULL;
 	struct usdt_target *targets = NULL;
 	size_t target_cnt;
-	int i, fd, err;
 	Elf *elf;
+
+	spec_map_fd = bpf_map__fd(man->specs_map);
+	ip_map_fd = bpf_map__fd(man->ip_to_spec_id_map);
 
 	/* TODO: perform path resolution similar to uprobe's */
 	fd = open(path, O_RDONLY);
@@ -864,6 +987,12 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 		goto err_out;
 	}
 
+	specs_hash = hashmap__new(specs_hash_fn, specs_equal_fn, NULL);
+	if (IS_ERR(specs_hash)) {
+		err = PTR_ERR(specs_hash);
+		goto err_out;
+	}
+
 	link = calloc(1, sizeof(*link));
 	if (!link) {
 		err = -ENOMEM;
@@ -883,8 +1012,43 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 	for (i = 0; i < target_cnt; i++) {
 		struct usdt_target *target = &targets[i];
 		struct bpf_link *uprobe_link;
+		bool is_new;
+		int spec_id;
+
+		/* Spec ID can be either reused or newly allocated. If it is
+		 * newly allocated, we'll need to fill out spec map, otherwise
+		 * entire spec should be valid and can be just used by a new
+		 * uprobe. We reuse spec when USDT arg spec is identical. We
+		 * also never share specs between two different USDT
+		 * attachments ("links"), so all the reused specs already
+		 * share USDT cookie value implicitly.
+		 */
+		err = allocate_spec_id(man, specs_hash, link, target, &spec_id, &is_new);
+		if (err)
+			goto err_out;
+
+		if (is_new && bpf_map_update_elem(spec_map_fd, &spec_id, &target->spec, BPF_ANY)) {
+			err = -errno;
+			pr_warn("usdt: failed to set USDT spec #%d for '%s:%s' in '%s': %d\n",
+				spec_id, usdt_provider, usdt_name, path, err);
+			goto err_out;
+		}
+		if (!man->has_bpf_cookie &&
+		    bpf_map_update_elem(ip_map_fd, &target->abs_ip, &spec_id, BPF_NOEXIST)) {
+			err = -errno;
+			if (err == -EEXIST) {
+				pr_warn("usdt: IP collision detected for spec #%d for '%s:%s' in '%s'\n",
+				        spec_id, usdt_provider, usdt_name, path);
+			} else {
+				pr_warn("usdt: failed to map IP 0x%lx to spec #%d for '%s:%s' in '%s': %d\n",
+					target->abs_ip, spec_id, usdt_provider, usdt_name,
+					path, err);
+			}
+			goto err_out;
+		}
 
 		opts.ref_ctr_offset = target->sema_off;
+		opts.bpf_cookie = man->has_bpf_cookie ? spec_id : 0;
 		uprobe_link = bpf_program__attach_uprobe_opts(prog, pid, path,
 							      target->rel_ip, &opts);
 		err = libbpf_get_error(uprobe_link);
@@ -900,6 +1064,7 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 	}
 
 	free(targets);
+	hashmap__free(specs_hash);
 	elf_end(elf);
 	close(fd);
 
@@ -909,6 +1074,7 @@ err_out:
 	bpf_link__destroy(&link->link);
 
 	free(targets);
+	hashmap__free(specs_hash);
 	if (elf)
 		elf_end(elf);
 	close(fd);
