@@ -502,7 +502,7 @@ static inline unsigned calc_index(unsigned long expires, unsigned lvl,
 	 *
 	 * Round up with level granularity to prevent this.
 	 */
-	expires = (expires + LVL_GRAN(lvl)) >> LVL_SHIFT(lvl);
+	expires = (expires >> LVL_SHIFT(lvl)) + 1;
 	*bucket_expiry = expires << LVL_SHIFT(lvl);
 	return LVL_OFFS(lvl) + (expires & LVL_MASK);
 }
