@@ -566,6 +566,9 @@ static int arkfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	int rv, mem, step;
 
+	if (!var->pixclock)
+		return -EINVAL;
+
 	/* Find appropriate format */
 	rv = svga_match_format (arkfb_formats, var, NULL);
 	if (rv < 0)
