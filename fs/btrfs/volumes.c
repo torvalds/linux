@@ -6742,7 +6742,8 @@ static void submit_stripe_bio(struct btrfs_io_context *bioc, struct bio *bio,
 
 	btrfs_bio_counter_inc_noblocked(fs_info);
 
-	btrfsic_submit_bio(bio);
+	btrfsic_check_bio(bio);
+	submit_bio(bio);
 }
 
 static void bioc_error(struct btrfs_io_context *bioc, struct bio *bio, u64 logical)

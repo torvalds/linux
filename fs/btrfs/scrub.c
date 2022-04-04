@@ -1475,7 +1475,8 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 		bio->bi_iter.bi_sector = sector->physical >> 9;
 		bio->bi_opf = REQ_OP_READ;
 
-		if (btrfsic_submit_bio_wait(bio)) {
+		btrfsic_check_bio(bio);
+		if (submit_bio_wait(bio)) {
 			sector->io_error = 1;
 			sblock->no_io_error_seen = 0;
 		}
@@ -1559,7 +1560,8 @@ static int scrub_repair_sector_from_good_copy(struct scrub_block *sblock_bad,
 			return -EIO;
 		}
 
-		if (btrfsic_submit_bio_wait(bio)) {
+		btrfsic_check_bio(bio);
+		if (submit_bio_wait(bio)) {
 			btrfs_dev_stat_inc_and_print(sector_bad->dev,
 				BTRFS_DEV_STAT_WRITE_ERRS);
 			atomic64_inc(&fs_info->dev_replace.num_write_errors);
@@ -1715,7 +1717,8 @@ static void scrub_wr_submit(struct scrub_ctx *sctx)
 	 * orders the requests before sending them to the driver which
 	 * doubled the write performance on spinning disks when measured
 	 * with Linux 3.5 */
-	btrfsic_submit_bio(sbio->bio);
+	btrfsic_check_bio(sbio->bio);
+	submit_bio(sbio->bio);
 
 	if (btrfs_is_zoned(sctx->fs_info))
 		sctx->write_pointer = sbio->physical + sbio->sector_count *
@@ -2049,7 +2052,8 @@ static void scrub_submit(struct scrub_ctx *sctx)
 	sbio = sctx->bios[sctx->curr];
 	sctx->curr = -1;
 	scrub_pending_bio_inc(sctx);
-	btrfsic_submit_bio(sbio->bio);
+	btrfsic_check_bio(sbio->bio);
+	submit_bio(sbio->bio);
 }
 
 static int scrub_add_sector_to_rd_bio(struct scrub_ctx *sctx,

@@ -2700,7 +2700,7 @@ static void btrfsic_check_flush_bio(struct bio *bio, struct btrfsic_dev_state *d
 	}
 }
 
-static void __btrfsic_submit_bio(struct bio *bio)
+void btrfsic_check_bio(struct bio *bio)
 {
 	struct btrfsic_dev_state *dev_state;
 
@@ -2720,18 +2720,6 @@ static void __btrfsic_submit_bio(struct bio *bio)
 			btrfsic_check_flush_bio(bio, dev_state);
 	}
 	mutex_unlock(&btrfsic_mutex);
-}
-
-void btrfsic_submit_bio(struct bio *bio)
-{
-	__btrfsic_submit_bio(bio);
-	submit_bio(bio);
-}
-
-int btrfsic_submit_bio_wait(struct bio *bio)
-{
-	__btrfsic_submit_bio(bio);
-	return submit_bio_wait(bio);
 }
 
 int btrfsic_mount(struct btrfs_fs_info *fs_info,
