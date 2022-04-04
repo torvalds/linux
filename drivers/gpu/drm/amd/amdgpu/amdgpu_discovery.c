@@ -50,6 +50,7 @@
 #include "gfxhub_v2_0.h"
 #include "mmhub_v2_0.h"
 #include "nbio_v2_3.h"
+#include "nbio_v4_3.h"
 #include "nbio_v7_2.h"
 #include "hdp_v5_0.h"
 #include "nv.h"
@@ -2143,6 +2144,10 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(3, 3, 3):
 		adev->nbio.funcs = &nbio_v2_3_funcs;
 		adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg_sc;
+		break;
+	case IP_VERSION(4, 3, 0):
+		adev->nbio.funcs = &nbio_v4_3_funcs;
+		adev->nbio.hdp_flush_reg = &nbio_v4_3_hdp_flush_reg;
 		break;
 	default:
 		break;
