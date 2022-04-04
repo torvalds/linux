@@ -179,7 +179,7 @@ static int ap_qci_available(void)
  * ap_apft_available(): Test if AP facilities test (APFT)
  * facility is available.
  *
- * Returns 1 if APFT is is available.
+ * Returns 1 if APFT is available.
  */
 static int ap_apft_available(void)
 {
@@ -722,7 +722,7 @@ struct __ap_calc_ctrs {
 
 static int __ap_calc_helper(struct device *dev, void *arg)
 {
-	struct __ap_calc_ctrs *pctrs = (struct __ap_calc_ctrs *) arg;
+	struct __ap_calc_ctrs *pctrs = (struct __ap_calc_ctrs *)arg;
 
 	if (is_queue_dev(dev)) {
 		pctrs->apqns++;
@@ -738,7 +738,7 @@ static void ap_calc_bound_apqns(unsigned int *apqns, unsigned int *bound)
 	struct __ap_calc_ctrs ctrs;
 
 	memset(&ctrs, 0, sizeof(ctrs));
-	bus_for_each_dev(&ap_bus_type, NULL, (void *) &ctrs, __ap_calc_helper);
+	bus_for_each_dev(&ap_bus_type, NULL, (void *)&ctrs, __ap_calc_helper);
 
 	*apqns = ctrs.apqns;
 	*bound = ctrs.bound;
@@ -799,7 +799,7 @@ EXPORT_SYMBOL(ap_wait_init_apqn_bindings_complete);
 static int __ap_queue_devices_with_id_unregister(struct device *dev, void *data)
 {
 	if (is_queue_dev(dev) &&
-	    AP_QID_CARD(to_ap_queue(dev)->qid) == (int)(long) data)
+	    AP_QID_CARD(to_ap_queue(dev)->qid) == (int)(long)data)
 		device_unregister(dev);
 	return 0;
 }
@@ -812,8 +812,8 @@ static int __ap_revise_reserved(struct device *dev, void *dummy)
 		card = AP_QID_CARD(to_ap_queue(dev)->qid);
 		queue = AP_QID_QUEUE(to_ap_queue(dev)->qid);
 		mutex_lock(&ap_perms_mutex);
-		devres = test_bit_inv(card, ap_perms.apm)
-			&& test_bit_inv(queue, ap_perms.aqm);
+		devres = test_bit_inv(card, ap_perms.apm) &&
+			test_bit_inv(queue, ap_perms.aqm);
 		mutex_unlock(&ap_perms_mutex);
 		drvres = to_ap_drv(dev->driver)->flags
 			& AP_DRIVER_FLAG_DEFAULT;
@@ -844,8 +844,8 @@ int ap_owned_by_def_drv(int card, int queue)
 
 	mutex_lock(&ap_perms_mutex);
 
-	if (test_bit_inv(card, ap_perms.apm)
-	    && test_bit_inv(queue, ap_perms.aqm))
+	if (test_bit_inv(card, ap_perms.apm) &&
+	    test_bit_inv(queue, ap_perms.aqm))
 		rc = 1;
 
 	mutex_unlock(&ap_perms_mutex);
@@ -894,8 +894,8 @@ static int ap_device_probe(struct device *dev)
 		card = AP_QID_CARD(to_ap_queue(dev)->qid);
 		queue = AP_QID_QUEUE(to_ap_queue(dev)->qid);
 		mutex_lock(&ap_perms_mutex);
-		devres = test_bit_inv(card, ap_perms.apm)
-			&& test_bit_inv(queue, ap_perms.aqm);
+		devres = test_bit_inv(card, ap_perms.apm) &&
+			test_bit_inv(queue, ap_perms.aqm);
 		mutex_unlock(&ap_perms_mutex);
 		drvres = ap_drv->flags & AP_DRIVER_FLAG_DEFAULT;
 		if (!!devres != !!drvres)
@@ -916,8 +916,9 @@ static int ap_device_probe(struct device *dev)
 		if (is_queue_dev(dev))
 			hash_del(&to_ap_queue(dev)->hnode);
 		spin_unlock_bh(&ap_queues_lock);
-	} else
+	} else {
 		ap_check_bindings_complete();
+	}
 
 out:
 	if (rc)
@@ -998,8 +999,8 @@ void ap_bus_force_rescan(void)
 EXPORT_SYMBOL(ap_bus_force_rescan);
 
 /*
-* A config change has happened, force an ap bus rescan.
-*/
+ * A config change has happened, force an ap bus rescan.
+ */
 void ap_bus_cfg_chg(void)
 {
 	AP_DBF_DBG("%s config change, forcing bus rescan\n", __func__);
@@ -1123,7 +1124,7 @@ int ap_parse_mask_str(const char *str,
 	if (bits & 0x07)
 		return -EINVAL;
 
-	size = BITS_TO_LONGS(bits)*sizeof(unsigned long);
+	size = BITS_TO_LONGS(bits) * sizeof(unsigned long);
 	newmap = kmalloc(size, GFP_KERNEL);
 	if (!newmap)
 		return -ENOMEM;
@@ -1259,8 +1260,9 @@ static ssize_t poll_thread_store(struct bus_type *bus,
 		rc = ap_poll_thread_start();
 		if (rc)
 			count = rc;
-	} else
+	} else {
 		ap_poll_thread_stop();
+	}
 	return count;
 }
 
@@ -1633,9 +1635,9 @@ static int ap_get_compatible_type(ap_qid_t qid, int rawtype, unsigned int func)
 		apinfo.mode = (func >> 26) & 0x07;
 		apinfo.cat = AP_DEVICE_TYPE_CEX8;
 		status = ap_qact(qid, 0, &apinfo);
-		if (status.response_code == AP_RESPONSE_NORMAL
-		    && apinfo.cat >= AP_DEVICE_TYPE_CEX2A
-		    && apinfo.cat <= AP_DEVICE_TYPE_CEX8)
+		if (status.response_code == AP_RESPONSE_NORMAL &&
+		    apinfo.cat >= AP_DEVICE_TYPE_CEX2A &&
+		    apinfo.cat <= AP_DEVICE_TYPE_CEX8)
 			comp_type = apinfo.cat;
 	}
 	if (!comp_type)
@@ -1655,7 +1657,7 @@ static int ap_get_compatible_type(ap_qid_t qid, int rawtype, unsigned int func)
  */
 static int __match_card_device_with_id(struct device *dev, const void *data)
 {
-	return is_card_dev(dev) && to_ap_card(dev)->id == (int)(long)(void *) data;
+	return is_card_dev(dev) && to_ap_card(dev)->id == (int)(long)(void *)data;
 }
 
 /*
@@ -1664,7 +1666,7 @@ static int __match_card_device_with_id(struct device *dev, const void *data)
  */
 static int __match_queue_device_with_qid(struct device *dev, const void *data)
 {
-	return is_queue_dev(dev) && to_ap_queue(dev)->qid == (int)(long) data;
+	return is_queue_dev(dev) && to_ap_queue(dev)->qid == (int)(long)data;
 }
 
 /*
@@ -1673,8 +1675,8 @@ static int __match_queue_device_with_qid(struct device *dev, const void *data)
  */
 static int __match_queue_device_with_queue_id(struct device *dev, const void *data)
 {
-	return is_queue_dev(dev)
-		&& AP_QID_QUEUE(to_ap_queue(dev)->qid) == (int)(long) data;
+	return is_queue_dev(dev) &&
+		AP_QID_QUEUE(to_ap_queue(dev)->qid) == (int)(long)data;
 }
 
 /* Helper function for notify_config_changed */
@@ -1727,7 +1729,7 @@ static inline void notify_scan_complete(void)
 static inline void ap_scan_rm_card_dev_and_queue_devs(struct ap_card *ac)
 {
 	bus_for_each_dev(&ap_bus_type, NULL,
-			 (void *)(long) ac->id,
+			 (void *)(long)ac->id,
 			 __ap_queue_devices_with_id_unregister);
 	device_unregister(&ac->ap_dev.device);
 }
@@ -1755,7 +1757,7 @@ static inline void ap_scan_domains(struct ap_card *ac)
 	for (dom = 0; dom <= ap_max_domain_id; dom++) {
 		qid = AP_MKQID(ac->id, dom);
 		dev = bus_find_device(&ap_bus_type, NULL,
-				      (void *)(long) qid,
+				      (void *)(long)qid,
 				      __match_queue_device_with_qid);
 		aq = dev ? to_ap_queue(dev) : NULL;
 		if (!ap_test_config_usage_domain(dom)) {
@@ -1901,7 +1903,7 @@ static inline void ap_scan_adapter(int ap)
 
 	/* Is there currently a card device for this adapter ? */
 	dev = bus_find_device(&ap_bus_type, NULL,
-			      (void *)(long) ap,
+			      (void *)(long)ap,
 			      __match_card_device_with_id);
 	ac = dev ? to_ap_card(dev) : NULL;
 
@@ -2102,7 +2104,7 @@ static void ap_scan_bus(struct work_struct *unused)
 	if (ap_domain_index >= 0) {
 		struct device *dev =
 			bus_find_device(&ap_bus_type, NULL,
-					(void *)(long) ap_domain_index,
+					(void *)(long)ap_domain_index,
 					__match_queue_device_with_queue_id);
 		if (dev)
 			put_device(dev);
@@ -2137,7 +2139,7 @@ static int __init ap_debug_init(void)
 
 static void __init ap_perms_init(void)
 {
-	/* all resources useable if no kernel parameter string given */
+	/* all resources usable if no kernel parameter string given */
 	memset(&ap_perms.ioctlm, 0xFF, sizeof(ap_perms.ioctlm));
 	memset(&ap_perms.apm, 0xFF, sizeof(ap_perms.apm));
 	memset(&ap_perms.aqm, 0xFF, sizeof(ap_perms.aqm));

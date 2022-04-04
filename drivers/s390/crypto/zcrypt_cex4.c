@@ -33,7 +33,7 @@
  * But the maximum time limit managed by the stomper code is set to 60sec.
  * Hence we have to wait at least that time period.
  */
-#define CEX4_CLEANUP_TIME	(900*HZ)
+#define CEX4_CLEANUP_TIME	(900 * HZ)
 
 MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("CEX[45678] Cryptographic Card device driver, " \
@@ -364,8 +364,9 @@ static ssize_t ep11_mkvps_show(struct device *dev,
 		bin2hex(buf + n, di.cur_wkvp, sizeof(di.cur_wkvp));
 		n += 2 * sizeof(di.cur_wkvp);
 		n += scnprintf(buf + n, PAGE_SIZE - n, "\n");
-	} else
+	} else {
 		n = scnprintf(buf, PAGE_SIZE, "WK CUR: - -\n");
+	}
 
 	if (di.new_wk_state == '0') {
 		n += scnprintf(buf + n, PAGE_SIZE - n, "WK NEW: %s -\n",
@@ -376,8 +377,9 @@ static ssize_t ep11_mkvps_show(struct device *dev,
 		bin2hex(buf + n, di.new_wkvp, sizeof(di.new_wkvp));
 		n += 2 * sizeof(di.new_wkvp);
 		n += scnprintf(buf + n, PAGE_SIZE - n, "\n");
-	} else
+	} else {
 		n += scnprintf(buf + n, PAGE_SIZE - n, "WK NEW: - -\n");
+	}
 
 	return n;
 }
