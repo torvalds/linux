@@ -72,58 +72,97 @@ static int journal_key_cmp(const struct journal_key *l, const struct journal_key
 	return __journal_key_cmp(l->btree_id, l->level, l->k->k.p, r);
 }
 
-size_t bch2_journal_key_search(struct journal_keys *journal_keys,
+static inline size_t idx_to_pos(struct journal_keys *keys, size_t idx)
+{
+	size_t gap_size = keys->size - keys->nr;
+
+	if (idx >= keys->gap)
+		idx += gap_size;
+	return idx;
+}
+
+static inline struct journal_key *idx_to_key(struct journal_keys *keys, size_t idx)
+{
+	return keys->d + idx_to_pos(keys, idx);
+}
+
+size_t bch2_journal_key_search(struct journal_keys *keys,
 			       enum btree_id id, unsigned level,
 			       struct bpos pos)
 {
-	size_t l = 0, r = journal_keys->nr, m;
+	size_t l = 0, r = keys->nr, m;
 
 	while (l < r) {
 		m = l + ((r - l) >> 1);
-		if (__journal_key_cmp(id, level, pos, &journal_keys->d[m]) > 0)
+		if (__journal_key_cmp(id, level, pos, idx_to_key(keys, m)) > 0)
 			l = m + 1;
 		else
 			r = m;
 	}
 
-	BUG_ON(l < journal_keys->nr &&
-	       __journal_key_cmp(id, level, pos, &journal_keys->d[l]) > 0);
+	BUG_ON(l < keys->nr &&
+	       __journal_key_cmp(id, level, pos, idx_to_key(keys, l)) > 0);
 
 	BUG_ON(l &&
-	       __journal_key_cmp(id, level, pos, &journal_keys->d[l - 1]) <= 0);
+	       __journal_key_cmp(id, level, pos, idx_to_key(keys, l - 1)) <= 0);
 
-	return l;
+	return idx_to_pos(keys, l);
 }
 
 struct bkey_i *bch2_journal_keys_peek(struct bch_fs *c, enum btree_id btree_id,
 				      unsigned level, struct bpos pos)
 {
 	struct journal_keys *keys = &c->journal_keys;
-	struct journal_key *end = keys->d + keys->nr;
-	struct journal_key *k = keys->d +
-		bch2_journal_key_search(keys, btree_id, level, pos);
+	size_t idx = bch2_journal_key_search(keys, btree_id, level, pos);
 
-	while (k < end && k->overwritten)
-		k++;
+	while (idx < keys->size &&
+	       keys->d[idx].overwritten) {
+		idx++;
+		if (idx == keys->gap)
+			idx += keys->size - keys->nr;
+	}
 
-	if (k < end &&
-	    k->btree_id	== btree_id &&
-	    k->level	== level)
-		return k->k;
+	if (idx < keys->size &&
+	    keys->d[idx].btree_id == btree_id &&
+	    keys->d[idx].level == level)
+		return keys->d[idx].k;
 	return NULL;
 }
 
-static void journal_iter_fix(struct bch_fs *c, struct journal_iter *iter, unsigned idx)
+static void journal_iters_fix(struct bch_fs *c)
 {
-	struct bkey_i *n = iter->keys->d[idx].k;
-	struct btree_and_journal_iter *biter =
-		container_of(iter, struct btree_and_journal_iter, journal);
+	struct journal_keys *keys = &c->journal_keys;
+	/* The key we just inserted is immediately before the gap: */
+	struct journal_key *n = &keys->d[keys->gap - 1];
+	size_t gap_end = keys->gap + (keys->size - keys->nr);
+	struct btree_and_journal_iter *iter;
 
-	if (iter->idx > idx ||
-	    (iter->idx == idx &&
-	     biter->last &&
-	     bpos_cmp(n->k.p, biter->unpacked.p) <= 0))
-		iter->idx++;
+	/*
+	 * If an iterator points one after the key we just inserted,
+	 * and the key we just inserted compares >= the iterator's position,
+	 * decrement the iterator so it points at the key we just inserted:
+	 */
+	list_for_each_entry(iter, &c->journal_iters, journal.list)
+		if (iter->journal.idx == gap_end &&
+		    iter->last &&
+		    iter->b->c.btree_id == n->btree_id &&
+		    iter->b->c.level	== n->level &&
+		    bpos_cmp(n->k->k.p, iter->unpacked.p) >= 0)
+			iter->journal.idx = keys->gap - 1;
+}
+
+static void journal_iters_move_gap(struct bch_fs *c, size_t old_gap, size_t new_gap)
+{
+	struct journal_keys *keys = &c->journal_keys;
+	struct journal_iter *iter;
+	size_t gap_size = keys->size - keys->nr;
+
+	list_for_each_entry(iter, &c->journal_iters, list) {
+		if (iter->idx > old_gap)
+			iter->idx -= gap_size;
+		if (iter->idx >= new_gap)
+			iter->idx += gap_size;
+	}
 }
 
 int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
@@ -141,18 +180,20 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 		.journal_seq	= U32_MAX,
 	};
 	struct journal_keys *keys = &c->journal_keys;
-	struct journal_iter *iter;
 	size_t idx = bch2_journal_key_search(keys, id, level, k->k.p);
 
 	BUG_ON(test_bit(BCH_FS_RW, &c->flags));
 
-	if (idx < keys->nr &&
+	if (idx < keys->size &&
 	    journal_key_cmp(&n, &keys->d[idx]) == 0) {
 		if (keys->d[idx].allocated)
 			kfree(keys->d[idx].k);
 		keys->d[idx] = n;
 		return 0;
 	}
+
+	if (idx > keys->gap)
+		idx -= keys->size - keys->nr;
 
 	if (keys->nr == keys->size) {
 		struct journal_keys new_keys = {
@@ -168,15 +209,24 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 			return -ENOMEM;
 		}
 
+		/* Since @keys was full, there was no gap: */
 		memcpy(new_keys.d, keys->d, sizeof(keys->d[0]) * keys->nr);
 		kvfree(keys->d);
 		*keys = new_keys;
+
+		/* And now the gap is at the end: */
+		keys->gap = keys->nr;
 	}
 
-	array_insert_item(keys->d, keys->nr, idx, n);
+	journal_iters_move_gap(c, keys->gap, idx);
 
-	list_for_each_entry(iter, &c->journal_iters, list)
-		journal_iter_fix(c, iter, idx);
+	move_gap(keys->d, keys->nr, keys->size, keys->gap, idx);
+	keys->gap = idx;
+
+	keys->nr++;
+	keys->d[keys->gap++] = n;
+
+	journal_iters_fix(c);
 
 	return 0;
 }
@@ -220,34 +270,37 @@ void bch2_journal_key_overwritten(struct bch_fs *c, enum btree_id btree,
 	struct journal_keys *keys = &c->journal_keys;
 	size_t idx = bch2_journal_key_search(keys, btree, level, pos);
 
-	if (idx < keys->nr &&
+	if (idx < keys->size &&
 	    keys->d[idx].btree_id	== btree &&
 	    keys->d[idx].level		== level &&
 	    !bpos_cmp(keys->d[idx].k->k.p, pos))
 		keys->d[idx].overwritten = true;
 }
 
-static struct bkey_i *bch2_journal_iter_peek(struct journal_iter *iter)
+static void bch2_journal_iter_advance(struct journal_iter *iter)
+{
+	if (iter->idx < iter->keys->size) {
+		iter->idx++;
+		if (iter->idx == iter->keys->gap)
+			iter->idx += iter->keys->size - iter->keys->nr;
+	}
+}
+
+struct bkey_i *bch2_journal_iter_peek(struct journal_iter *iter)
 {
 	struct journal_key *k = iter->keys->d + iter->idx;
 
-	while (k < iter->keys->d + iter->keys->nr &&
+	while (k < iter->keys->d + iter->keys->size &&
 	       k->btree_id	== iter->btree_id &&
 	       k->level		== iter->level) {
 		if (!k->overwritten)
 			return k->k;
 
-		iter->idx++;
+		bch2_journal_iter_advance(iter);
 		k = iter->keys->d + iter->idx;
 	}
 
 	return NULL;
-}
-
-static void bch2_journal_iter_advance(struct journal_iter *iter)
-{
-	if (iter->idx < iter->keys->nr)
-		iter->idx++;
 }
 
 static void bch2_journal_iter_exit(struct journal_iter *iter)
@@ -409,13 +462,16 @@ void bch2_journal_keys_free(struct journal_keys *keys)
 {
 	struct journal_key *i;
 
+	move_gap(keys->d, keys->nr, keys->size, keys->gap, keys->nr);
+	keys->gap = keys->nr;
+
 	for (i = keys->d; i < keys->d + keys->nr; i++)
 		if (i->allocated)
 			kfree(i->k);
 
 	kvfree(keys->d);
 	keys->d = NULL;
-	keys->nr = 0;
+	keys->nr = keys->gap = keys->size = 0;
 }
 
 static struct journal_keys journal_keys_sort(struct list_head *journal_entries)
@@ -478,6 +534,7 @@ static struct journal_keys journal_keys_sort(struct list_head *journal_entries)
 	}
 
 	keys.nr = dst - keys.d;
+	keys.gap = keys.nr;
 err:
 	return keys;
 }
@@ -537,6 +594,9 @@ static int bch2_journal_replay(struct bch_fs *c)
 	struct journal *j = &c->journal;
 	size_t i;
 	int ret;
+
+	move_gap(keys->d, keys->nr, keys->size, keys->gap, keys->nr);
+	keys->gap = keys->nr;
 
 	keys_sorted = kvmalloc_array(sizeof(*keys_sorted), keys->nr, GFP_KERNEL);
 	if (!keys_sorted)

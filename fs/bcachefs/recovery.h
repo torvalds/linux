@@ -2,9 +2,6 @@
 #ifndef _BCACHEFS_RECOVERY_H
 #define _BCACHEFS_RECOVERY_H
 
-#define for_each_journal_key(keys, i)				\
-	for (i = (keys).d; i < (keys).d + (keys).nr; (i)++)
-
 struct journal_iter {
 	struct list_head	list;
 	enum btree_id		btree_id;

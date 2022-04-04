@@ -826,6 +826,31 @@ do {									\
 #define array_remove_item(_array, _nr, _pos)				\
 	array_remove_items(_array, _nr, _pos, 1)
 
+static inline void __move_gap(void *array, size_t element_size,
+			      size_t nr, size_t size,
+			      size_t old_gap, size_t new_gap)
+{
+	size_t gap_end = old_gap + size - nr;
+
+	if (new_gap < old_gap) {
+		size_t move = old_gap - new_gap;
+
+		memmove(array + element_size * (gap_end - move),
+			array + element_size * (old_gap - move),
+				element_size * move);
+	} else if (new_gap > old_gap) {
+		size_t move = new_gap - old_gap;
+
+		memmove(array + element_size * old_gap,
+			array + element_size * gap_end,
+				element_size * move);
+	}
+}
+
+/* Move the gap in a gap buffer: */
+#define move_gap(_array, _nr, _size, _old_gap, _new_gap)	\
+	__move_gap(_array, sizeof(_array[0]), _nr, _size, _old_gap, _new_gap)
+
 #define bubble_sort(_base, _nr, _cmp)					\
 do {									\
 	ssize_t _i, _end;						\
