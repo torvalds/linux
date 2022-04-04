@@ -174,14 +174,14 @@ static void mt7915_init_bitrate_mask(struct ieee80211_vif *vif)
 
 	for (i = 0; i < ARRAY_SIZE(mvif->bitrate_mask.control); i++) {
 		mvif->bitrate_mask.control[i].gi = NL80211_TXRATE_DEFAULT_GI;
-		mvif->bitrate_mask.control[i].he_gi = GENMASK(7, 0);
-		mvif->bitrate_mask.control[i].he_ltf = GENMASK(7, 0);
+		mvif->bitrate_mask.control[i].he_gi = 0xff;
+		mvif->bitrate_mask.control[i].he_ltf = 0xff;
 		mvif->bitrate_mask.control[i].legacy = GENMASK(31, 0);
-		memset(mvif->bitrate_mask.control[i].ht_mcs, GENMASK(7, 0),
+		memset(mvif->bitrate_mask.control[i].ht_mcs, 0xff,
 		       sizeof(mvif->bitrate_mask.control[i].ht_mcs));
-		memset(mvif->bitrate_mask.control[i].vht_mcs, GENMASK(15, 0),
+		memset(mvif->bitrate_mask.control[i].vht_mcs, 0xff,
 		       sizeof(mvif->bitrate_mask.control[i].vht_mcs));
-		memset(mvif->bitrate_mask.control[i].he_mcs, GENMASK(15, 0),
+		memset(mvif->bitrate_mask.control[i].he_mcs, 0xff,
 		       sizeof(mvif->bitrate_mask.control[i].he_mcs));
 	}
 }
