@@ -95,6 +95,39 @@ void __rtnl_unlock(void)
 
 	defer_kfree_skb_list = NULL;
 
+	/* Ensure that we didn't actually add any TODO item when __rtnl_unlock()
+	 * is used. In some places, e.g. in cfg80211, we have code that will do
+	 * something like
+	 *   rtnl_lock()
+	 *   wiphy_lock()
+	 *   ...
+	 *   rtnl_unlock()
+	 *
+	 * and because netdev_run_todo() acquires the RTNL for items on the list
+	 * we could cause a situation such as this:
+	 * Thread 1			Thread 2
+	 *				  rtnl_lock()
+	 *				  unregister_netdevice()
+	 *				  __rtnl_unlock()
+	 * rtnl_lock()
+	 * wiphy_lock()
+	 * rtnl_unlock()
+	 *   netdev_run_todo()
+	 *     __rtnl_unlock()
+	 *
+	 *     // list not empty now
+	 *     // because of thread 2
+	 *				  rtnl_lock()
+	 *     while (!list_empty(...))
+	 *       rtnl_lock()
+	 *				  wiphy_lock()
+	 * **** DEADLOCK ****
+	 *
+	 * However, usage of __rtnl_unlock() is rare, and so we can ensure that
+	 * it's not used in cases where something is added to do the list.
+	 */
+	WARN_ON(!list_empty(&net_todo_list));
+
 	mutex_unlock(&rtnl_mutex);
 
 	while (head) {
