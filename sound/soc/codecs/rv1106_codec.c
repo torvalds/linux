@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_gpio.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -42,6 +43,28 @@
 #define ACODEC_EN			(1 << 6)
 #define ACODEC_DIS			(0 << 6)
 
+#define LR(b, x, v)			(((1 << b) & x) ? v : 0)
+#define L(x, v)				LR(0, x, v)
+#define R(x, v)				LR(1, x, v)
+
+#define ADCL				(1 << 0)
+#define ADCR				(1 << 1)
+
+enum soc_id_e {
+	SOC_RV1103 = 0x1103,
+	SOC_RV1106 = 0x1106,
+};
+
+enum adc_mode_e {
+	DIFF_ADCL = 0,		/* Differential ADCL, the ADCR is not used */
+	SING_ADCL,		/* Single-end ADCL, the ADCR is not used */
+	DIFF_ADCR,		/* Differential ADCR, the ADCL is not used */
+	SING_ADCR,		/* Single-end ADCR, the ADCL is not used */
+	SING_ADCLR,		/* Single-end ADCL and ADCR */
+	DIFF_ADCLR,		/* Differential ADCL and ADCR (Not supported on rv1103 codec) */
+	ADC_MODE_NUM,
+};
+
 struct rv1106_codec_priv {
 	const struct device *plat_dev;
 	struct device dev;
@@ -53,6 +76,9 @@ struct rv1106_codec_priv {
 	struct clk *mclk_cpu;
 	struct gpio_desc *pa_ctl_gpio;
 	struct snd_soc_component *component;
+
+	enum adc_mode_e adc_mode;
+	enum soc_id_e soc_id;
 
 	u32 pa_ctl_delay_ms;
 	u32 micbias_volt;
@@ -104,6 +130,9 @@ static const DECLARE_TLV_DB_RANGE(rv1106_codec_adc_mic_gain_tlv,
 
 static int check_micbias(int volt);
 
+static int rv1106_codec_adc_enable(struct rv1106_codec_priv *rv1106);
+static int rv1106_codec_adc_disable(struct rv1106_codec_priv *rv1106);
+
 static int rv1106_codec_micbias_enable(struct rv1106_codec_priv *rv1106,
 				       int micbias_volt);
 static int rv1106_codec_lineout_get_tlv(struct snd_kcontrol *kcontrol,
@@ -115,6 +144,10 @@ static int rv1106_codec_hpf_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol);
 static int rv1106_codec_hpf_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol);
+static int rv1106_codec_adc_mode_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol);
+static int rv1106_codec_adc_mode_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol);
 static int rv1106_codec_agc_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol);
 static int rv1106_codec_agc_put(struct snd_kcontrol *kcontrol,
@@ -171,6 +204,19 @@ static const char *micbias_volts_enum_array[MICBIAS_VOLT_NUM] = {
 	[MICBIAS_VREFx0_925] = "VREFx0_925",
 	[MICBIAS_VREFx0_95] = "VREFx0_95",
 	[MICBIAS_VREFx0_975] = "VREFx0_975",
+};
+
+static const char *adc_mode_enum_array[ADC_MODE_NUM] = {
+	[DIFF_ADCL] = "DiffadcL",
+	[SING_ADCL] = "SingadcL",
+	[DIFF_ADCR] = "DiffadcR",
+	[SING_ADCR] = "SingadcR",
+	[SING_ADCLR] = "SingadcLR",
+	[DIFF_ADCLR] = "DiffadcLR",
+};
+
+static const struct soc_enum rv1106_adc_mode_enum_array[] = {
+	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(adc_mode_enum_array), adc_mode_enum_array),
 };
 
 static const struct soc_enum rv1106_micbias_volts_enum_array[] = {
@@ -301,6 +347,10 @@ static const struct snd_kcontrol_new rv1106_codec_dapm_controls[] = {
 	SOC_ENUM_EXT("AGC Right Approximate Sample Rate", rv1106_agc_asr_enum_array[1],
 		     rv1106_codec_agc_asr_get, rv1106_codec_agc_asr_put),
 
+	/* ADC Mode */
+	SOC_ENUM_EXT("ADC Mode", rv1106_adc_mode_enum_array[0],
+		     rv1106_codec_adc_mode_get, rv1106_codec_adc_mode_put),
+
 	/* ADC MICBIAS Voltage */
 	SOC_ENUM_EXT("ADC MICBIAS Voltage", rv1106_micbias_volts_enum_array[0],
 		     rv1106_codec_micbias_volts_get, rv1106_codec_micbias_volts_put),
@@ -355,6 +405,71 @@ static const struct snd_kcontrol_new rv1106_codec_dapm_controls[] = {
 			     ACODEC_DAC_HPMIX_GAIN_MAX,
 			     0, rv1106_codec_dac_hpmix_gain_tlv),
 };
+
+static unsigned int using_adc_lr(enum adc_mode_e adc_mode)
+{
+	if (adc_mode >= SING_ADCLR && adc_mode <= DIFF_ADCLR)
+		return (ADCL | ADCR);
+	else if (adc_mode >= DIFF_ADCR && adc_mode <= SING_ADCR)
+		return ADCR;
+	else
+		return ADCL;
+}
+
+static bool using_adc_diff(enum adc_mode_e adc_mode)
+{
+	if (adc_mode == DIFF_ADCL ||
+	    adc_mode == DIFF_ADCR ||
+	    adc_mode == DIFF_ADCLR)
+		return true;
+	else
+		return false;
+}
+
+static int check_adc_mode(struct rv1106_codec_priv *rv1106)
+{
+	if (rv1106->soc_id == SOC_RV1103 &&
+	    (rv1106->adc_mode == DIFF_ADCLR ||
+	     rv1106->adc_mode == DIFF_ADCR)) {
+		dev_err(rv1106->plat_dev,
+			"%s: Differential mode rv1103 only supports 'DiffadcL'\n", __func__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rv1106_codec_adc_mode_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rv1106_codec_priv *rv1106 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = rv1106->adc_mode;
+
+	return 0;
+}
+
+static int rv1106_codec_adc_mode_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rv1106_codec_priv *rv1106 = snd_soc_component_get_drvdata(component);
+	unsigned int last_mode = rv1106->adc_mode;
+
+	rv1106->adc_mode = ucontrol->value.integer.value[0];
+	if (check_adc_mode(rv1106)) {
+		dev_err(rv1106->plat_dev,
+			"%s - something error checking ADC mode\n", __func__);
+		rv1106->adc_mode = last_mode;
+		return 0;
+	}
+
+	rv1106_codec_adc_disable(rv1106);
+	rv1106_codec_adc_enable(rv1106);
+
+	return 0;
+}
 
 static int rv1106_codec_agc_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -1242,30 +1357,59 @@ static int rv1106_codec_lineout_put_tlv(struct snd_kcontrol *kcontrol,
 	return snd_soc_put_volsw_range(kcontrol, ucontrol);
 }
 
-static int rv1106_codec_adc_ana_enable(struct rv1106_codec_priv *rv1106)
+static int rv1106_codec_adc_enable(struct rv1106_codec_priv *rv1106)
 {
+	unsigned int lr = using_adc_lr(rv1106->adc_mode);
+	bool is_diff = using_adc_diff(rv1106->adc_mode);
 	unsigned int agc_func_en;
+	int ret;
+
+	dev_dbg(rv1106->plat_dev, "%s: soc_id: 0x%x lr: %d is_diff: %d\n",
+		__func__, rv1106->soc_id, lr, is_diff);
+
+	ret = check_adc_mode(rv1106);
+	if (ret < 0) {
+		dev_err(rv1106->plat_dev,
+			"%s - something error checking ADC mode: %d\n",
+			__func__, ret);
+		return ret;
+	}
 
 	/* vendor step 1 */
-	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
-			   ACODEC_ADC_L_MODE_SEL_MSK |
-			   ACODEC_ADC_R_MODE_SEL_MSK,
-			   ACODEC_ADC_L_FULL_DIFFER |
-			   ACODEC_ADC_R_FULL_DIFFER);
+	if (rv1106->soc_id == SOC_RV1103 && rv1106->adc_mode == DIFF_ADCL) {
+		/* The ADCL is differential mode on rv1103 */
+		regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
+				   ACODEC_ADC_L_MODE_SEL_MSK,
+				   ACODEC_ADC_L_FULL_DIFFER2);
+	} else if (rv1106->soc_id == SOC_RV1106 && is_diff) {
+		/* The differential mode on rv1106 */
+		regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
+				   L(lr, ACODEC_ADC_L_MODE_SEL_MSK) |
+				   R(lr, ACODEC_ADC_R_MODE_SEL_MSK),
+				   L(lr, ACODEC_ADC_L_FULL_DIFFER) |
+				   R(lr, ACODEC_ADC_R_FULL_DIFFER));
+	} else {
+		/* The single-end mode */
+		regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
+				   L(lr, ACODEC_ADC_L_MODE_SEL_MSK) |
+				   R(lr, ACODEC_ADC_R_MODE_SEL_MSK),
+				   L(lr, ACODEC_ADC_L_SINGLE_END) |
+				   R(lr, ACODEC_ADC_R_SINGLE_END));
+	}
 
 	regmap_update_bits(rv1106->regmap,
 			   ACODEC_ADC_ANA_CTL3,
-			   ACODEC_MIC_L_MSK |
-			   ACODEC_MIC_R_MSK,
-			   ACODEC_MIC_L_EN |
-			   ACODEC_MIC_R_EN);
+			   L(lr, ACODEC_MIC_L_MSK) |
+			   R(lr, ACODEC_MIC_R_MSK),
+			   L(lr, ACODEC_MIC_L_EN) |
+			   R(lr, ACODEC_MIC_R_EN));
 
 	/* vendor step 2 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL1,
-			   ACODEC_ADC_L_MIC_MSK |
-			   ACODEC_ADC_R_MIC_MSK,
-			   ACODEC_ADC_L_MIC_WORK |
-			   ACODEC_ADC_R_MIC_WORK);
+			   L(lr, ACODEC_ADC_L_MIC_MSK) |
+			   R(lr, ACODEC_ADC_R_MIC_MSK),
+			   L(lr, ACODEC_ADC_L_MIC_WORK) |
+			   R(lr, ACODEC_ADC_R_MIC_WORK));
 
 	/* vendor step 3 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL0,
@@ -1274,59 +1418,59 @@ static int rv1106_codec_adc_ana_enable(struct rv1106_codec_priv *rv1106)
 
 	/* vendor step 4*/
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL1,
-			   ACODEC_ADC_L_REF_VOL_BUF_MSK |
-			   ACODEC_ADC_R_REF_VOL_BUF_MSK,
-			   ACODEC_ADC_L_REF_VOL_BUF_EN |
-			   ACODEC_ADC_R_REF_VOL_BUF_EN);
+			   L(lr, ACODEC_ADC_L_REF_VOL_BUF_MSK) |
+			   R(lr, ACODEC_ADC_R_REF_VOL_BUF_MSK),
+			   L(lr, ACODEC_ADC_L_REF_VOL_BUF_EN) |
+			   R(lr, ACODEC_ADC_R_REF_VOL_BUF_EN));
 
 	/* vendor step 5 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
-			   ACODEC_MIC_L_MSK |
-			   ACODEC_MIC_R_MSK,
-			   ACODEC_MIC_L_EN |
-			   ACODEC_MIC_R_EN);
+			   L(lr, ACODEC_MIC_L_MSK) |
+			   R(lr, ACODEC_MIC_R_MSK),
+			   L(lr, ACODEC_MIC_L_EN) |
+			   R(lr, ACODEC_MIC_R_EN));
 
 	/* vendor step 6 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
-			   ACODEC_ADC_L_MSK |
-			   ACODEC_ADC_R_MSK,
-			   ACODEC_ADC_L_EN |
-			   ACODEC_ADC_R_EN);
+			   L(lr, ACODEC_ADC_L_MSK) |
+			   R(lr, ACODEC_ADC_R_MSK),
+			   L(lr, ACODEC_ADC_L_EN) |
+			   R(lr, ACODEC_ADC_R_EN));
 
 	/* vendor step 7 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL6,
-			   ACODEC_ADC_L_CLK_MSK |
-			   ACODEC_ADC_R_CLK_MSK,
-			   ACODEC_ADC_L_CLK_WORK |
-			   ACODEC_ADC_R_CLK_WORK);
+			   L(lr, ACODEC_ADC_L_CLK_MSK) |
+			   R(lr, ACODEC_ADC_R_CLK_MSK),
+			   L(lr, ACODEC_ADC_L_CLK_WORK) |
+			   R(lr, ACODEC_ADC_R_CLK_WORK));
 
 	/* vendor step 8 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL6,
-			   ACODEC_ADC_L_WORK |
-			   ACODEC_ADC_R_WORK,
-			   ACODEC_ADC_L_WORK |
-			   ACODEC_ADC_L_WORK);
+			   L(lr, ACODEC_ADC_L_WORK) |
+			   R(lr, ACODEC_ADC_R_WORK),
+			   L(lr, ACODEC_ADC_L_WORK) |
+			   R(lr, ACODEC_ADC_L_WORK));
 
 	/* vendor step 9 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL6,
-			   ACODEC_ADC_L_SIGNAL_EN |
-			   ACODEC_ADC_R_SIGNAL_EN,
-			   ACODEC_ADC_L_SIGNAL_EN |
-			   ACODEC_ADC_R_SIGNAL_EN);
+			   L(lr, ACODEC_ADC_L_SIGNAL_EN) |
+			   R(lr, ACODEC_ADC_R_SIGNAL_EN),
+			   L(lr, ACODEC_ADC_L_SIGNAL_EN) |
+			   R(lr, ACODEC_ADC_R_SIGNAL_EN));
 
 	/* vendor step 10 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL6,
-			   ACODEC_ADC_L_ALC_MSK |
-			   ACODEC_ADC_R_ALC_MSK,
-			   ACODEC_ADC_L_ALC_WORK |
-			   ACODEC_ADC_R_ALC_WORK);
+			   L(lr, ACODEC_ADC_L_ALC_MSK) |
+			   R(lr, ACODEC_ADC_R_ALC_MSK),
+			   L(lr, ACODEC_ADC_L_ALC_WORK) |
+			   R(lr, ACODEC_ADC_R_ALC_WORK));
 
 	/* vendor step 11 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL1,
-			   ACODEC_ADC_L_MIC_SIGNAL_MSK |
-			   ACODEC_ADC_R_MIC_SIGNAL_MSK,
-			   ACODEC_ADC_L_MIC_SIGNAL_WORK |
-			   ACODEC_ADC_R_MIC_SIGNAL_WORK);
+			   L(lr, ACODEC_ADC_L_MIC_SIGNAL_MSK) |
+			   R(lr, ACODEC_ADC_R_MIC_SIGNAL_MSK),
+			   L(lr, ACODEC_ADC_L_MIC_SIGNAL_WORK) |
+			   R(lr, ACODEC_ADC_R_MIC_SIGNAL_WORK));
 
 	/* vendor step 12 */
 
@@ -1337,10 +1481,10 @@ static int rv1106_codec_adc_ana_enable(struct rv1106_codec_priv *rv1106)
 	if (agc_func_en & ACODEC_AGC_FUNC_SEL_EN) {
 		regmap_update_bits(rv1106->regmap,
 				   ACODEC_ADC_ANA_CTL1,
-				   ACODEC_ADC_L_ZERO_CROSS_DET_MSK |
-				   ACODEC_ADC_R_ZERO_CROSS_DET_MSK,
-				   ACODEC_ADC_L_ZERO_CROSS_DET_EN |
-				   ACODEC_ADC_R_ZERO_CROSS_DET_EN);
+				   L(lr, ACODEC_ADC_L_ZERO_CROSS_DET_MSK) |
+				   R(lr, ACODEC_ADC_R_ZERO_CROSS_DET_MSK),
+				   L(lr, ACODEC_ADC_L_ZERO_CROSS_DET_EN) |
+				   R(lr, ACODEC_ADC_R_ZERO_CROSS_DET_EN));
 	}
 
 	rv1106->adc_enable = true;
@@ -1348,7 +1492,7 @@ static int rv1106_codec_adc_ana_enable(struct rv1106_codec_priv *rv1106)
 	return 0;
 }
 
-static int rv1106_codec_adc_ana_disable(struct rv1106_codec_priv *rv1106)
+static int rv1106_codec_adc_disable(struct rv1106_codec_priv *rv1106)
 {
 	/* vendor step 1 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL1,
@@ -1425,14 +1569,14 @@ static int rv1106_codec_adc_ana_disable(struct rv1106_codec_priv *rv1106)
 
 static int rv1106_codec_open_capture(struct rv1106_codec_priv *rv1106)
 {
-	rv1106_codec_adc_ana_enable(rv1106);
+	rv1106_codec_adc_enable(rv1106);
 
 	return 0;
 }
 
 static int rv1106_codec_close_capture(struct rv1106_codec_priv *rv1106)
 {
-	rv1106_codec_adc_ana_disable(rv1106);
+	rv1106_codec_adc_disable(rv1106);
 	return 0;
 }
 
@@ -1628,6 +1772,7 @@ static int rv1106_codec_check_micbias(struct rv1106_codec_priv *rv1106,
 
 static int rv1106_codec_dapm_controls_prepare(struct rv1106_codec_priv *rv1106)
 {
+	rv1106->adc_mode = DIFF_ADCL;
 	rv1106->hpf_cutoff = 0;
 	rv1106->agc_l = 0;
 	rv1106->agc_r = 0;
@@ -1913,8 +2058,16 @@ static const struct file_operations rv1106_codec_reg_debugfs_fops = {
 };
 #endif /* CONFIG_DEBUG_FS */
 
+static const struct of_device_id rv1106_codec_of_match[] = {
+	{ .compatible = "rockchip,rv1103-codec", .data = (void *)SOC_RV1103},
+	{ .compatible = "rockchip,rv1106-codec", .data = (void *)SOC_RV1106},
+	{},
+};
+MODULE_DEVICE_TABLE(of, rv1106_codec_of_match);
+
 static int rv1106_platform_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id;
 	struct device_node *np = pdev->dev.of_node;
 	struct rv1106_codec_priv *rv1106;
 	struct resource *res;
@@ -1924,6 +2077,11 @@ static int rv1106_platform_probe(struct platform_device *pdev)
 	rv1106 = devm_kzalloc(&pdev->dev, sizeof(*rv1106), GFP_KERNEL);
 	if (!rv1106)
 		return -ENOMEM;
+
+	of_id = of_match_device(rv1106_codec_of_match, &pdev->dev);
+	if (of_id)
+		rv1106->soc_id = (enum soc_id_e)of_id->data;
+	dev_info(&pdev->dev, "current soc_id: rv%x\n", rv1106->soc_id);
 
 	rv1106->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(rv1106->grf))
@@ -2070,12 +2228,6 @@ static int rv1106_platform_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id rv1106_codec_of_match[] = {
-	{ .compatible = "rockchip,rv1106-codec", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, rv1106_codec_of_match);
 
 static struct platform_driver rv1106_codec_driver = {
 	.driver = {
