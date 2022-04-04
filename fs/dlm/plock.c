@@ -13,11 +13,11 @@
 #include "dlm_internal.h"
 #include "lockspace.h"
 
-static spinlock_t ops_lock;
-static struct list_head send_list;
-static struct list_head recv_list;
-static wait_queue_head_t send_wq;
-static wait_queue_head_t recv_wq;
+static DEFINE_SPINLOCK(ops_lock);
+static LIST_HEAD(send_list);
+static LIST_HEAD(recv_list);
+static DECLARE_WAIT_QUEUE_HEAD(send_wq);
+static DECLARE_WAIT_QUEUE_HEAD(recv_wq);
 
 struct plock_async_data {
 	void *fl;
@@ -479,12 +479,6 @@ static struct miscdevice plock_dev_misc = {
 int dlm_plock_init(void)
 {
 	int rv;
-
-	spin_lock_init(&ops_lock);
-	INIT_LIST_HEAD(&send_list);
-	INIT_LIST_HEAD(&recv_list);
-	init_waitqueue_head(&send_wq);
-	init_waitqueue_head(&recv_wq);
 
 	rv = misc_register(&plock_dev_misc);
 	if (rv)
