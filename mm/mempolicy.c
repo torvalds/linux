@@ -2227,6 +2227,19 @@ out:
 }
 EXPORT_SYMBOL(alloc_pages_vma);
 
+struct folio *vma_alloc_folio(gfp_t gfp, int order, struct vm_area_struct *vma,
+		unsigned long addr, bool hugepage)
+{
+	struct folio *folio;
+
+	folio = (struct folio *)alloc_pages_vma(gfp, order, vma, addr,
+			hugepage);
+	if (folio && order > 1)
+		prep_transhuge_page(&folio->page);
+
+	return folio;
+}
+
 /**
  * alloc_pages - Allocate pages.
  * @gfp: GFP flags.
