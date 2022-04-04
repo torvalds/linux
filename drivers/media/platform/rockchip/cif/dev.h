@@ -437,6 +437,14 @@ enum rkcif_dma_en_mode {
 	RKCIF_DMAEN_BY_ISP = 0x2,
 };
 
+struct rkcif_skip_info {
+	u8 cap_m;
+	u8 skip_n;
+	bool skip_en;
+	bool skip_to_en;
+	bool skip_to_dis;
+};
+
 /*
  * struct rkcif_stream - Stream states TODO
  *
@@ -491,6 +499,7 @@ struct rkcif_stream {
 	int				buf_num_toisp;
 	u64				line_int_cnt;
 	int				lack_buf_cnt;
+	struct rkcif_skip_info		skip_info;
 	bool				is_stop_dma;
 	bool				stopping;
 	bool				crop_enable;
@@ -722,6 +731,7 @@ struct rkcif_device {
 };
 
 extern struct platform_driver rkcif_plat_drv;
+void rkcif_set_fps(struct rkcif_stream *stream, struct rkcif_fps *fps);
 int rkcif_do_start_stream(struct rkcif_stream *stream,
 				enum rkcif_stream_mode mode);
 void rkcif_do_stop_stream(struct rkcif_stream *stream,

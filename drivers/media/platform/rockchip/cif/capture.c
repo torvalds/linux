@@ -1368,6 +1368,28 @@ static void rkcif_s_rx_buffer(struct rkcif_device *dev, struct rkisp_rx_buf *dbu
 	v4l2_subdev_call(sd, video, s_rx_buffer, dbufs, NULL);
 }
 
+static void rkcif_enable_skip_frame(struct rkcif_stream *stream, int cap_m, int skip_n)
+{
+	struct rkcif_device *dev = stream->cifdev;
+	u32 val = 0;
+
+	val = rkcif_read_register(dev, CIF_REG_MIPI_LVDS_CTRL);
+	val &= 0xc00fffff;
+	val |= cap_m << RKCIF_CAP_SHIFT | skip_n << RKCIF_SKIP_SHIFT | RKCIF_SKIP_EN(stream->id);
+	rkcif_write_register(dev, CIF_REG_MIPI_LVDS_CTRL, val);
+	stream->skip_info.skip_en = true;
+}
+
+static void rkcif_disable_skip_frame(struct rkcif_stream *stream)
+{	struct rkcif_device *dev = stream->cifdev;
+	u32 val = 0;
+
+	val = rkcif_read_register(dev, CIF_REG_MIPI_LVDS_CTRL);
+	val &= ~(RKCIF_SKIP_EN(stream->id));
+	rkcif_write_register(dev, CIF_REG_MIPI_LVDS_CTRL, val);
+	stream->skip_info.skip_en = false;
+}
+
 static void rkcif_assign_new_buffer_init_toisp(struct rkcif_stream *stream,
 					 int channel_id)
 {
@@ -2440,6 +2462,19 @@ static int rkcif_lvds_get_output_type_mask(struct rkcif_stream *stream)
 	return mask;
 }
 
+static void rkcif_modify_frame_skip_config(struct rkcif_stream *stream)
+{
+	if (stream->skip_info.skip_to_en) {
+		rkcif_disable_skip_frame(stream);
+		rkcif_enable_skip_frame(stream,
+					stream->skip_info.cap_m,
+					stream->skip_info.skip_n);
+		stream->skip_info.skip_to_en = false;
+	} else if (stream->skip_info.skip_to_dis) {
+		rkcif_disable_skip_frame(stream);
+	}
+}
+
 /*config reg for rk3588*/
 static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 				       struct csi_channel_info *channel,
@@ -2576,7 +2611,8 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 			val |= BIT(12);
 		rkcif_write_register(dev, get_reg_index_of_lvds_id_ctrl0(channel->id), val);
 	}
-
+	if (dev->chip_id == CHIP_RV1106_CIF)
+		rkcif_modify_frame_skip_config(stream);
 	stream->cifdev->id_use_cnt++;
 	return 0;
 }
@@ -3242,6 +3278,10 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 
 		dev->is_start_hdr = false;
 		stream->is_dvp_yuv_addr_init = false;
+		if (stream->skip_info.skip_en) {
+			stream->skip_info.skip_en = false;
+			stream->skip_info.skip_to_en = true;
+		}
 	} else if (mode == RKCIF_STREAM_MODE_CAPTURE) {
 		//only stop dma
 		stream->to_stop_dma = RKCIF_DMAEN_BY_VICAP;
@@ -3708,6 +3748,14 @@ int rkcif_update_sensor_info(struct rkcif_stream *stream)
 		if (ret && ret != -ENOIOCTLCMD) {
 			v4l2_err(&stream->cifdev->v4l2_dev,
 				 "%s: get terminal %s mbus failed!\n",
+				 __func__, terminal_sensor->sd->name);
+			return ret;
+		}
+		ret = v4l2_subdev_call(terminal_sensor->sd, video,
+				       g_frame_interval, &terminal_sensor->fi);
+		if (ret) {
+			v4l2_err(&stream->cifdev->v4l2_dev,
+				 "%s: get terminal %s g_frame_interval failed!\n",
 				 __func__, terminal_sensor->sd->name);
 			return ret;
 		}
@@ -5070,6 +5118,122 @@ err:
 	return -EINVAL;
 }
 
+static int rkcif_get_max_common_div(int a, int b)
+{
+	int remainder = a % b;
+
+	while (remainder != 0) {
+		a = b;
+		b = remainder;
+		remainder = a % b;
+	}
+	return b;
+}
+
+void rkcif_set_fps(struct rkcif_stream *stream, struct rkcif_fps *fps)
+{
+	struct rkcif_sensor_info *sensor = &stream->cifdev->terminal_sensor;
+	struct rkcif_device *cif_dev = stream->cifdev;
+	struct rkcif_stream *tmp_stream = NULL;
+	struct v4l2_ctrl_handler *hdl = NULL;
+	struct v4l2_ctrl *ctrl = NULL;
+	u32 numerator, denominator;
+	u32 def_fps = 0;
+	u32 cur_fps = 0;
+	int cap_m, skip_n;
+	int i = 0;
+	int max_common_div;
+	bool skip_en = false;
+	bool is_get_vblank = false;
+	int ret = 0;
+
+	if (!stream->cifdev->terminal_sensor.sd) {
+		ret = rkcif_update_sensor_info(stream);
+		if (ret) {
+			v4l2_err(&stream->cifdev->v4l2_dev,
+				 "%s update sensor info fail\n",
+				 __func__);
+			return;
+		}
+
+	}
+	if (!stream->cifdev->terminal_sensor.sd)
+		return;
+	hdl = stream->cifdev->terminal_sensor.sd->ctrl_handler;
+	numerator = sensor->fi.interval.numerator;
+	denominator = sensor->fi.interval.denominator;
+	def_fps = denominator / numerator;
+
+	if (!list_empty(&hdl->ctrls)) {
+		list_for_each_entry(ctrl, &hdl->ctrls, node) {
+			if (ctrl->id == V4L2_CID_VBLANK) {
+				is_get_vblank = true;
+				break;
+			}
+		}
+	}
+	if (is_get_vblank)
+		cur_fps = def_fps * (u32)(ctrl->default_value + stream->pixm.height) /
+				 (u32)(ctrl->val + stream->pixm.height);
+	else
+		cur_fps = def_fps;
+
+	if (fps->fps == 0 || fps->fps > cur_fps) {
+		v4l2_err(&stream->cifdev->v4l2_dev,
+			"set fps %d fps failed, current fps %d fps\n",
+			fps->fps, cur_fps);
+		return;
+	}
+	cap_m = fps->fps;
+	skip_n = cur_fps - fps->fps;
+	max_common_div = rkcif_get_max_common_div(cap_m, skip_n);
+	cap_m /= max_common_div;
+	skip_n /= max_common_div;
+	if (cap_m > 64) {
+		skip_n = skip_n / (cap_m / 64);
+		if (skip_n == 0)
+			skip_n = 1;
+		cap_m = 64;
+	}
+	if (skip_n > 7) {
+		cap_m = cap_m / (skip_n / 7);
+		if (cap_m == 0)
+			cap_m = 1;
+		skip_n = 7;
+	}
+
+	if (fps->fps == cur_fps)
+		skip_en = false;
+	else
+		skip_en = true;
+
+	if (fps->ch_num > 1 && fps->ch_num < 4) {
+		for (i = 0; i < fps->ch_num; i++) {
+			tmp_stream = &cif_dev->stream[i];
+			if (skip_en) {
+				tmp_stream->skip_info.skip_to_en = true;
+				tmp_stream->skip_info.cap_m = cap_m;
+				tmp_stream->skip_info.skip_n = skip_n;
+			} else {
+				tmp_stream->skip_info.skip_to_dis = true;
+			}
+		}
+	} else {
+		if (skip_en) {
+			stream->skip_info.skip_to_en = true;
+			stream->skip_info.cap_m = cap_m;
+			stream->skip_info.skip_n = skip_n;
+		} else {
+			stream->skip_info.skip_to_dis = true;
+		}
+	}
+	v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+		    "skip_to_en %d, cap_m %d, skip_n %d\n",
+			stream->skip_info.skip_to_en,
+			cap_m,
+			skip_n);
+}
+
 static long rkcif_ioctl_default(struct file *file, void *fh,
 				    bool valid_prio, unsigned int cmd, void *arg)
 {
@@ -5078,6 +5242,7 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 	const struct cif_input_fmt *in_fmt;
 	struct v4l2_rect rect;
 	struct csi_channel_info csi_info;
+	struct rkcif_fps fps;
 
 	switch (cmd) {
 	case RKCIF_CMD_GET_CSI_MEMORY_MODE:
@@ -5118,6 +5283,10 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 			stream->is_compact = false;
 			stream->is_high_align = false;
 		}
+		break;
+	case RKCIF_CMD_SET_FPS:
+		fps = *(struct rkcif_fps *)arg;
+		rkcif_set_fps(stream, &fps);
 		break;
 	default:
 		return -EINVAL;
@@ -7722,6 +7891,8 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					is_update = rkcif_check_buffer_prepare(cif_dev);
 				if (is_update)
 					rkcif_update_stream(cif_dev, stream, mipi_id);
+				if (cif_dev->chip_id == CHIP_RV1106_CIF)
+					rkcif_modify_frame_skip_config(stream);
 			} else if (stream->dma_en & RKCIF_DMAEN_BY_ISP) {
 				rkcif_update_stream_toisp(cif_dev, stream, mipi_id);
 			}

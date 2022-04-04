@@ -513,6 +513,60 @@ static ssize_t rkcif_store_scale_ch3_blc(struct device *dev,
 static DEVICE_ATTR(scale_ch3_blc, S_IWUSR | S_IRUSR,
 		   rkcif_show_scale_ch3_blc, rkcif_store_scale_ch3_blc);
 
+static ssize_t rkcif_store_capture_fps(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t len)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	struct rkcif_stream *stream = NULL;
+	int i = 0, index = 0;
+	unsigned int val[4] = {0};
+	unsigned int temp = 0;
+	int ret = 0;
+	int j = 0;
+	char cha[2] = {0};
+	struct rkcif_fps fps = {0};
+
+	if (buf) {
+		index = 0;
+		for (i = 0; i < len; i++) {
+			if (((buf[i] == ' ') || (buf[i] == '\n')) && j) {
+				index++;
+				j = 0;
+				if (index == 4)
+					break;
+				continue;
+			} else {
+				if (buf[i] < '0' || buf[i] > '9')
+					continue;
+				cha[0] = buf[i];
+				cha[1] = '\0';
+				ret = kstrtoint(cha, 0, &temp);
+				if (!ret) {
+					if (j)
+						val[index] *= 10;
+					val[index] += temp;
+					j++;
+				}
+			}
+		}
+
+		for (i = 0; i < index; i++) {
+			if ((val[i] - '0' != 0) && cif_dev->chip_id == CHIP_RV1106_CIF) {
+				stream = &cif_dev->stream[i];
+				fps.fps = val[i];
+				rkcif_set_fps(stream, &fps);
+			}
+		}
+		dev_info(cif_dev->dev,
+			 "set fps id0: %d, id1: %d, id2: %d, id3: %d\n",
+			 val[0], val[1], val[2], val[3]);
+	}
+
+	return len;
+}
+static DEVICE_ATTR(fps, 0200, NULL, rkcif_store_capture_fps);
+
 static struct attribute *dev_attrs[] = {
 	&dev_attr_compact_test.attr,
 	&dev_attr_wait_line.attr,
@@ -522,6 +576,7 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_scale_ch1_blc.attr,
 	&dev_attr_scale_ch2_blc.attr,
 	&dev_attr_scale_ch3_blc.attr,
+	&dev_attr_fps.attr,
 	NULL,
 };
 

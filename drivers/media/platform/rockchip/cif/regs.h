@@ -1003,6 +1003,11 @@ enum cif_reg_index {
 #define SW_FRM_END_ID2(x)	(((x) & CSI_FRAME_END_ID2) >> 12)
 #define SW_FRM_END_ID3(x)	(((x) & CSI_FRAME_END_ID3) >> 14)
 
+/*RV1106 SKIP FUNC*/
+#define RKCIF_CAP_SHIFT		0x18
+#define RKCIF_SKIP_SHIFT	0X15
+#define RKCIF_SKIP_EN(x)	(0x1 << (8 + x))
+
 /* CIF LVDS SAV EAV Define */
 #define SW_LVDS_EAV_ACT(code)	(((code) & 0xfff) << 16)
 #define SW_LVDS_SAV_ACT(code)	(((code) & 0xfff) << 0)
