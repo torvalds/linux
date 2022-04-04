@@ -235,6 +235,7 @@ static const struct renesas_sdhi_of_data_with_quirks of_r8a77965_compatible = {
 
 static const struct renesas_sdhi_of_data_with_quirks of_r8a77970_compatible = {
 	.of_data = &of_data_rcar_gen3_no_sdh_fallback,
+	.quirks = &sdhi_quirks_nohs400,
 };
 
 static const struct renesas_sdhi_of_data_with_quirks of_r8a77990_compatible = {
