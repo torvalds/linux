@@ -133,7 +133,6 @@ static void dma_resv_list_free(struct dma_resv_list *list)
 void dma_resv_init(struct dma_resv *obj)
 {
 	ww_mutex_init(&obj->lock, &reservation_ww_class);
-	seqcount_ww_mutex_init(&obj->seq, &obj->lock);
 
 	RCU_INIT_POINTER(obj->fences, NULL);
 }
@@ -292,28 +291,24 @@ void dma_resv_add_fence(struct dma_resv *obj, struct dma_fence *fence,
 	fobj = dma_resv_fences_list(obj);
 	count = fobj->num_fences;
 
-	write_seqcount_begin(&obj->seq);
-
 	for (i = 0; i < count; ++i) {
 		enum dma_resv_usage old_usage;
 
 		dma_resv_list_entry(fobj, i, obj, &old, &old_usage);
 		if ((old->context == fence->context && old_usage >= usage) ||
-		    dma_fence_is_signaled(old))
-			goto replace;
+		    dma_fence_is_signaled(old)) {
+			dma_resv_list_set(fobj, i, fence, usage);
+			dma_fence_put(old);
+			return;
+		}
 	}
 
 	BUG_ON(fobj->num_fences >= fobj->max_fences);
-	old = NULL;
 	count++;
 
-replace:
 	dma_resv_list_set(fobj, i, fence, usage);
 	/* pointer update must be visible before we extend the num_fences */
 	smp_store_mb(fobj->num_fences, count);
-
-	write_seqcount_end(&obj->seq);
-	dma_fence_put(old);
 }
 EXPORT_SYMBOL(dma_resv_add_fence);
 
@@ -341,7 +336,6 @@ void dma_resv_replace_fences(struct dma_resv *obj, uint64_t context,
 	dma_resv_assert_held(obj);
 
 	list = dma_resv_fences_list(obj);
-	write_seqcount_begin(&obj->seq);
 	for (i = 0; list && i < list->num_fences; ++i) {
 		struct dma_fence *old;
 
@@ -352,14 +346,12 @@ void dma_resv_replace_fences(struct dma_resv *obj, uint64_t context,
 		dma_resv_list_set(list, i, replacement, usage);
 		dma_fence_put(old);
 	}
-	write_seqcount_end(&obj->seq);
 }
 EXPORT_SYMBOL(dma_resv_replace_fences);
 
 /* Restart the unlocked iteration by initializing the cursor object. */
 static void dma_resv_iter_restart_unlocked(struct dma_resv_iter *cursor)
 {
-	cursor->seq = read_seqcount_begin(&cursor->obj->seq);
 	cursor->index = 0;
 	cursor->num_fences = 0;
 	cursor->fences = dma_resv_fences_list(cursor->obj);
@@ -388,8 +380,10 @@ static void dma_resv_iter_walk_unlocked(struct dma_resv_iter *cursor)
 				    cursor->obj, &cursor->fence,
 				    &cursor->fence_usage);
 		cursor->fence = dma_fence_get_rcu(cursor->fence);
-		if (!cursor->fence)
-			break;
+		if (!cursor->fence) {
+			dma_resv_iter_restart_unlocked(cursor);
+			continue;
+		}
 
 		if (!dma_fence_is_signaled(cursor->fence) &&
 		    cursor->usage >= cursor->fence_usage)
@@ -415,7 +409,7 @@ struct dma_fence *dma_resv_iter_first_unlocked(struct dma_resv_iter *cursor)
 	do {
 		dma_resv_iter_restart_unlocked(cursor);
 		dma_resv_iter_walk_unlocked(cursor);
-	} while (read_seqcount_retry(&cursor->obj->seq, cursor->seq));
+	} while (dma_resv_fences_list(cursor->obj) != cursor->fences);
 	rcu_read_unlock();
 
 	return cursor->fence;
@@ -438,13 +432,13 @@ struct dma_fence *dma_resv_iter_next_unlocked(struct dma_resv_iter *cursor)
 
 	rcu_read_lock();
 	cursor->is_restarted = false;
-	restart = read_seqcount_retry(&cursor->obj->seq, cursor->seq);
+	restart = dma_resv_fences_list(cursor->obj) != cursor->fences;
 	do {
 		if (restart)
 			dma_resv_iter_restart_unlocked(cursor);
 		dma_resv_iter_walk_unlocked(cursor);
 		restart = true;
-	} while (read_seqcount_retry(&cursor->obj->seq, cursor->seq));
+	} while (dma_resv_fences_list(cursor->obj) != cursor->fences);
 	rcu_read_unlock();
 
 	return cursor->fence;
@@ -540,10 +534,7 @@ int dma_resv_copy_fences(struct dma_resv *dst, struct dma_resv *src)
 	}
 	dma_resv_iter_end(&cursor);
 
-	write_seqcount_begin(&dst->seq);
 	list = rcu_replace_pointer(dst->fences, list, dma_resv_held(dst));
-	write_seqcount_end(&dst->seq);
-
 	dma_resv_list_free(list);
 	return 0;
 }

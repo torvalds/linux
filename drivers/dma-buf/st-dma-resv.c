@@ -217,7 +217,7 @@ static int test_for_each_unlocked(void *arg)
 		if (r == -ENOENT) {
 			r = -EINVAL;
 			/* That should trigger an restart */
-			cursor.seq--;
+			cursor.fences = (void*)~0;
 		} else if (r == -EINVAL) {
 			r = 0;
 		}

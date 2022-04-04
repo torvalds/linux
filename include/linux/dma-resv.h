@@ -156,15 +156,6 @@ struct dma_resv {
 	struct ww_mutex lock;
 
 	/**
-	 * @seq:
-	 *
-	 * Sequence count for managing RCU read-side synchronization, allows
-	 * read-only access to @fences while ensuring we take a consistent
-	 * snapshot.
-	 */
-	seqcount_ww_mutex_t seq;
-
-	/**
 	 * @fences:
 	 *
 	 * Array of fences which where added to the dma_resv object
@@ -201,9 +192,6 @@ struct dma_resv_iter {
 
 	/** @fence_usage: the usage of the current fence */
 	enum dma_resv_usage fence_usage;
-
-	/** @seq: sequence number to check for modifications */
-	unsigned int seq;
 
 	/** @index: index into the shared fences */
 	unsigned int index;
