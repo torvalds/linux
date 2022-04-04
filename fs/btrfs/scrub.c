@@ -1411,8 +1411,7 @@ static void scrub_recheck_block_on_raid56(struct btrfs_fs_info *fs_info,
 	if (!first_sector->dev->bdev)
 		goto out;
 
-	bio = btrfs_bio_alloc(BIO_MAX_VECS);
-	bio_set_dev(bio, first_sector->dev->bdev);
+	bio = bio_alloc(first_sector->dev->bdev, BIO_MAX_VECS, REQ_OP_READ, GFP_NOFS);
 
 	for (i = 0; i < sblock->sector_count; i++) {
 		struct scrub_sector *sector = sblock->sectors[i];
@@ -1642,8 +1641,6 @@ again:
 	}
 	sbio = sctx->wr_curr_bio;
 	if (sbio->sector_count == 0) {
-		struct bio *bio;
-
 		ret = fill_writer_pointer_gap(sctx, sector->physical_for_dev_replace);
 		if (ret) {
 			mutex_unlock(&sctx->wr_lock);
@@ -1653,17 +1650,13 @@ again:
 		sbio->physical = sector->physical_for_dev_replace;
 		sbio->logical = sector->logical;
 		sbio->dev = sctx->wr_tgtdev;
-		bio = sbio->bio;
-		if (!bio) {
-			bio = btrfs_bio_alloc(sctx->sectors_per_bio);
-			sbio->bio = bio;
+		if (!sbio->bio) {
+			sbio->bio = bio_alloc(sbio->dev->bdev, sctx->sectors_per_bio,
+					      REQ_OP_WRITE, GFP_NOFS);
 		}
-
-		bio->bi_private = sbio;
-		bio->bi_end_io = scrub_wr_bio_end_io;
-		bio_set_dev(bio, sbio->dev->bdev);
-		bio->bi_iter.bi_sector = sbio->physical >> 9;
-		bio->bi_opf = REQ_OP_WRITE;
+		sbio->bio->bi_private = sbio;
+		sbio->bio->bi_end_io = scrub_wr_bio_end_io;
+		sbio->bio->bi_iter.bi_sector = sbio->physical >> 9;
 		sbio->status = 0;
 	} else if (sbio->physical + sbio->sector_count * sectorsize !=
 		   sector->physical_for_dev_replace ||
@@ -1704,7 +1697,6 @@ static void scrub_wr_submit(struct scrub_ctx *sctx)
 
 	sbio = sctx->wr_curr_bio;
 	sctx->wr_curr_bio = NULL;
-	WARN_ON(!sbio->bio->bi_bdev);
 	scrub_pending_bio_inc(sctx);
 	/* process all writes in a single worker thread. Then the block layer
 	 * orders the requests before sending them to the driver which
@@ -2076,22 +2068,16 @@ again:
 	}
 	sbio = sctx->bios[sctx->curr];
 	if (sbio->sector_count == 0) {
-		struct bio *bio;
-
 		sbio->physical = sector->physical;
 		sbio->logical = sector->logical;
 		sbio->dev = sector->dev;
-		bio = sbio->bio;
-		if (!bio) {
-			bio = btrfs_bio_alloc(sctx->sectors_per_bio);
-			sbio->bio = bio;
+		if (!sbio->bio) {
+			sbio->bio = bio_alloc(sbio->dev->bdev, sctx->sectors_per_bio,
+					      REQ_OP_READ, GFP_NOFS);
 		}
-
-		bio->bi_private = sbio;
-		bio->bi_end_io = scrub_bio_end_io;
-		bio_set_dev(bio, sbio->dev->bdev);
-		bio->bi_iter.bi_sector = sbio->physical >> 9;
-		bio->bi_opf = REQ_OP_READ;
+		sbio->bio->bi_private = sbio;
+		sbio->bio->bi_end_io = scrub_bio_end_io;
+		sbio->bio->bi_iter.bi_sector = sbio->physical >> 9;
 		sbio->status = 0;
 	} else if (sbio->physical + sbio->sector_count * sectorsize !=
 		   sector->physical ||
@@ -2207,7 +2193,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 		goto bioc_out;
 	}
 
-	bio = btrfs_bio_alloc(BIO_MAX_VECS);
+	bio = bio_alloc(NULL, BIO_MAX_VECS, REQ_OP_READ, GFP_NOFS);
 	bio->bi_iter.bi_sector = logical >> 9;
 	bio->bi_private = sblock;
 	bio->bi_end_io = scrub_missing_raid56_end_io;
@@ -2823,7 +2809,7 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 	if (ret || !bioc || !bioc->raid_map)
 		goto bioc_out;
 
-	bio = btrfs_bio_alloc(BIO_MAX_VECS);
+	bio = bio_alloc(NULL, BIO_MAX_VECS, REQ_OP_READ, GFP_NOFS);
 	bio->bi_iter.bi_sector = sparity->logic_start >> 9;
 	bio->bi_private = sparity;
 	bio->bi_end_io = scrub_parity_bio_endio;
