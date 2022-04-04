@@ -728,7 +728,7 @@ void crash_fadump(struct pt_regs *regs, const char *str)
 	else
 		ppc_save_regs(&fdh->regs);
 
-	fdh->online_mask = *cpu_online_mask;
+	fdh->cpu_mask = *cpu_online_mask;
 
 	/*
 	 * If we came in via system reset, wait a while for the secondary
@@ -1164,6 +1164,11 @@ static unsigned long init_fadump_header(unsigned long addr)
 	fdh->elfcorehdr_addr = addr;
 	/* We will set the crashing cpu id in crash_fadump() during crash. */
 	fdh->crashing_cpu = FADUMP_CPU_UNKNOWN;
+	/*
+	 * When LPAR is terminated by PYHP, ensure all possible CPUs'
+	 * register data is processed while exporting the vmcore.
+	 */
+	fdh->cpu_mask = *cpu_possible_mask;
 
 	return addr;
 }

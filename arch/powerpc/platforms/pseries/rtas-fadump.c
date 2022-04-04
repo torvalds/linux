@@ -351,7 +351,7 @@ static int __init rtas_fadump_build_cpu_notes(struct fw_dump *fadump_conf)
 		/* Lower 4 bytes of reg_value contains logical cpu id */
 		cpu = (be64_to_cpu(reg_entry->reg_value) &
 		       RTAS_FADUMP_CPU_ID_MASK);
-		if (fdh && !cpumask_test_cpu(cpu, &fdh->online_mask)) {
+		if (fdh && !cpumask_test_cpu(cpu, &fdh->cpu_mask)) {
 			RTAS_FADUMP_SKIP_TO_NEXT_CPU(reg_entry);
 			continue;
 		}
