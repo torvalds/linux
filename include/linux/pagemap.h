@@ -908,9 +908,6 @@ static inline void folio_lock(struct folio *folio)
 		__folio_lock(folio);
 }
 
-/*
- * lock_page may only be called if we have the page's inode pinned.
- */
 static inline void lock_page(struct page *page)
 {
 	struct folio *folio;
