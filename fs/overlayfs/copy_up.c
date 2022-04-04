@@ -44,9 +44,9 @@ static bool ovl_must_copy_xattr(const char *name)
 	       !strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN);
 }
 
-int ovl_copy_xattr(struct super_block *sb, struct dentry *old,
-		   struct dentry *new)
+int ovl_copy_xattr(struct super_block *sb, struct path *oldpath, struct dentry *new)
 {
+	struct dentry *old = oldpath->dentry;
 	ssize_t list_size, size, value_size = 0;
 	char *buf, *name, *value = NULL;
 	int error = 0;
@@ -94,9 +94,9 @@ int ovl_copy_xattr(struct super_block *sb, struct dentry *old,
 			continue; /* Discard */
 		}
 retry:
-		size = vfs_getxattr(&init_user_ns, old, name, value, value_size);
+		size = ovl_do_getxattr(oldpath, name, value, value_size);
 		if (size == -ERANGE)
-			size = vfs_getxattr(&init_user_ns, old, name, NULL, 0);
+			size = ovl_do_getxattr(oldpath, name, NULL, 0);
 
 		if (size < 0) {
 			error = size;
@@ -582,7 +582,7 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 			return err;
 	}
 
-	err = ovl_copy_xattr(c->dentry->d_sb, c->lowerpath.dentry, temp);
+	err = ovl_copy_xattr(c->dentry->d_sb, &c->lowerpath, temp);
 	if (err)
 		return err;
 
@@ -873,13 +873,12 @@ static bool ovl_need_meta_copy_up(struct dentry *dentry, umode_t mode,
 	return true;
 }
 
-static ssize_t ovl_getxattr_value(struct ovl_fs *ofs, struct dentry *dentry,
-				  char *name, char **value)
+static ssize_t ovl_getxattr_value(struct path *path, char *name, char **value)
 {
 	ssize_t res;
 	char *buf;
 
-	res = ovl_do_getxattr(ofs, dentry, name, NULL, 0);
+	res = ovl_do_getxattr(path, name, NULL, 0);
 	if (res == -ENODATA || res == -EOPNOTSUPP)
 		res = 0;
 
@@ -888,7 +887,7 @@ static ssize_t ovl_getxattr_value(struct ovl_fs *ofs, struct dentry *dentry,
 		if (!buf)
 			return -ENOMEM;
 
-		res = ovl_do_getxattr(ofs, dentry, name, buf, res);
+		res = ovl_do_getxattr(path, name, buf, res);
 		if (res < 0)
 			kfree(buf);
 		else
@@ -915,8 +914,8 @@ static int ovl_copy_up_meta_inode_data(struct ovl_copy_up_ctx *c)
 		return -EIO;
 
 	if (c->stat.size) {
-		err = cap_size = ovl_getxattr_value(ofs, upperpath.dentry,
-						    XATTR_NAME_CAPS, &capability);
+		err = cap_size = ovl_getxattr_value(&upperpath, XATTR_NAME_CAPS,
+						    &capability);
 		if (cap_size < 0)
 			goto out;
 	}
