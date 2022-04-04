@@ -21,7 +21,7 @@
 
 #include <asm/exception.h>
 
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #include "generic.h"
 #include "pxa-regs.h"

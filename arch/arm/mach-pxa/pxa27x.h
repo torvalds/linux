@@ -4,9 +4,9 @@
 
 #include <linux/suspend.h>
 #include "addr-map.h"
-#include <mach/pxa2xx-regs.h>
+#include "pxa2xx-regs.h"
 #include "mfp-pxa27x.h"
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #define ARB_CNTRL	__REG(0x48000048)  /* Arbiter Control Register */
 

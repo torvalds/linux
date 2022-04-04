@@ -19,7 +19,7 @@
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 
-#include <mach/pxa2xx-regs.h>
+#include "pxa2xx-regs.h"
 #include "trizeps4.h"
 
 #include <pcmcia/soc_common.h>

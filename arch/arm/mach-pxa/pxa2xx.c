@@ -12,11 +12,11 @@
 #include <linux/device.h>
 #include <linux/io.h>
 
-#include <mach/pxa2xx-regs.h>
+#include "pxa2xx-regs.h"
 #include "mfp-pxa25x.h"
 #include "generic.h"
-#include <mach/reset.h>
-#include <mach/smemc.h>
+#include "reset.h"
+#include "smemc.h"
 #include <linux/soc/pxa/smemc.h>
 #include <linux/platform_data/irda-pxaficp.h>
 

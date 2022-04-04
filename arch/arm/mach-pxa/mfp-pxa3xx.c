@@ -17,7 +17,7 @@
 #include <linux/syscore_ops.h>
 
 #include "mfp-pxa3xx.h"
-#include <mach/pxa3xx-regs.h>
+#include "pxa3xx-regs.h"
 
 #ifdef CONFIG_PM
 /*

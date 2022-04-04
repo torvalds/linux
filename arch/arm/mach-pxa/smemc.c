@@ -10,7 +10,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/soc/pxa/cpu.h>
 
-#include <mach/smemc.h>
+#include "smemc.h"
 #include <linux/soc/pxa/smemc.h>
 
 #ifdef CONFIG_PM

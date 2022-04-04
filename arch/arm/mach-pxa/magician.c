@@ -35,7 +35,7 @@
 
 #include "pxa27x.h"
 #include "addr-map.h"
-#include <mach/magician.h>
+#include "magician.h"
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/irda-pxaficp.h>

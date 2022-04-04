@@ -30,12 +30,12 @@
 
 #include <asm/mach/map.h>
 #include <asm/suspend.h>
-#include <mach/irqs.h>
+#include "irqs.h"
 #include "pxa25x.h"
-#include <mach/reset.h>
+#include "reset.h"
 #include "pm.h"
 #include "addr-map.h"
-#include <mach/smemc.h>
+#include "smemc.h"
 
 #include "generic.h"
 #include "devices.h"

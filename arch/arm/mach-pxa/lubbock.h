@@ -5,7 +5,7 @@
  *  Copyright:	MontaVista Software Inc.
  */
 
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #define LUBBOCK_ETH_PHYS	PXA_CS3_PHYS
 

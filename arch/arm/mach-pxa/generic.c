@@ -25,10 +25,10 @@
 #include <asm/mach-types.h>
 
 #include "addr-map.h"
-#include <mach/irqs.h>
-#include <mach/reset.h>
-#include <mach/smemc.h>
-#include <mach/pxa3xx-regs.h>
+#include "irqs.h"
+#include "reset.h"
+#include "smemc.h"
+#include "pxa3xx-regs.h"
 
 #include "generic.h"
 #include <clocksource/pxa.h>

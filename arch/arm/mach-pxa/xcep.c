@@ -26,7 +26,7 @@
 
 #include "pxa25x.h"
 #include "addr-map.h"
-#include <mach/smemc.h>
+#include "smemc.h"
 
 #include "generic.h"
 #include "devices.h"

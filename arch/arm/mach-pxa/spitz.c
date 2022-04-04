@@ -39,14 +39,14 @@
 
 #include "pxa27x.h"
 #include "pxa27x-udc.h"
-#include <mach/reset.h>
+#include "reset.h"
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/video-pxafb.h>
 #include "spitz.h"
 #include "sharpsl_pm.h"
-#include <mach/smemc.h>
+#include "smemc.h"
 
 #include "generic.h"
 #include "devices.h"

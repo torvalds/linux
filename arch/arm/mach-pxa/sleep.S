@@ -13,8 +13,8 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <mach/smemc.h>
-#include <mach/pxa2xx-regs.h>
+#include "smemc.h"
+#include "pxa2xx-regs.h"
 
 #define MDREFR_KDIV	0x200a4000	// all banks
 #define CCCR_SLEEP	0x00000107	// L=7 2N=2 A=0 PPDIS=0 CPDIS=0

@@ -32,7 +32,7 @@
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/keypad-pxa27x.h>
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
-#include <mach/mfp.h>
+#include "mfp.h"
 
 #include "devices.h"
 #include "generic.h"

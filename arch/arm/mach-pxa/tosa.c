@@ -40,16 +40,16 @@
 #include <asm/mach-types.h>
 
 #include "pxa25x.h"
-#include <mach/reset.h>
+#include "reset.h"
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include "udc.h"
 #include "tosa_bt.h"
 #include <linux/platform_data/asoc-pxa.h>
-#include <mach/smemc.h>
+#include "smemc.h"
 
 #include <asm/mach/arch.h>
-#include <mach/tosa.h>
+#include "tosa.h"
 
 #include <asm/hardware/scoop.h>
 #include <asm/mach/sharpsl_param.h>

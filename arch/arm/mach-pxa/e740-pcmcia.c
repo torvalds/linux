@@ -13,7 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
-#include <mach/eseries-gpio.h>
+#include "eseries-gpio.h"
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>

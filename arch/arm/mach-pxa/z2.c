@@ -34,7 +34,7 @@
 
 #include "pxa27x.h"
 #include "mfp-pxa27x.h"
-#include <mach/z2.h>
+#include "z2.h"
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/keypad-pxa27x.h>

@@ -8,7 +8,7 @@
 #ifndef ASM_ARCH_MAINSTONE_H
 #define ASM_ARCH_MAINSTONE_H
 
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #define MST_ETH_PHYS		PXA_CS4_PHYS
 

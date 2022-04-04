@@ -21,7 +21,7 @@
 #include <asm/mach-types.h>
 
 #include "corgi.h"
-#include <mach/pxa2xx-regs.h>
+#include "pxa2xx-regs.h"
 #include "sharpsl_pm.h"
 
 #include "generic.h"

@@ -49,7 +49,7 @@
 #include <linux/platform_data/asoc-pxa.h>
 #include "viper-pcmcia.h"
 #include "zeus.h"
-#include <mach/smemc.h>
+#include "smemc.h"
 
 #include "generic.h"
 

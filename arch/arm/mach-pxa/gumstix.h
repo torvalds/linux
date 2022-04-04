@@ -3,7 +3,7 @@
  *  arch/arm/mach-pxa/include/mach/gumstix.h
  */
 
-#include <mach/irqs.h> /* PXA_GPIO_TO_IRQ */
+#include "irqs.h" /* PXA_GPIO_TO_IRQ */
 
 /* BTRESET - Reset line to Bluetooth module, active low signal. */
 #define GPIO_GUMSTIX_BTRESET          7

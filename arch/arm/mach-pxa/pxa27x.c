@@ -28,13 +28,13 @@
 #include <asm/mach/map.h>
 #include <asm/irq.h>
 #include <asm/suspend.h>
-#include <mach/irqs.h>
+#include "irqs.h"
 #include "pxa27x.h"
-#include <mach/reset.h>
+#include "reset.h"
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include "pm.h"
 #include "addr-map.h"
-#include <mach/smemc.h>
+#include "smemc.h"
 
 #include "generic.h"
 #include "devices.h"

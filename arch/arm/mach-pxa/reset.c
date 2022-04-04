@@ -7,9 +7,9 @@
 #include <asm/proc-fns.h>
 #include <asm/system_misc.h>
 
-#include <mach/regs-ost.h>
-#include <mach/reset.h>
-#include <mach/smemc.h>
+#include "regs-ost.h"
+#include "reset.h"
+#include "smemc.h"
 
 static void do_hw_reset(void);
 

@@ -16,7 +16,7 @@
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/irda-pxaficp.h>
-#include <mach/irqs.h>
+#include "irqs.h"
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/keypad-pxa27x.h>
 #include <linux/platform_data/media/camera-pxa.h>
@@ -24,8 +24,8 @@
 #include <linux/platform_data/mmp_dma.h>
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 
-#include <mach/regs-ost.h>
-#include <mach/reset.h>
+#include "regs-ost.h"
+#include "reset.h"
 #include "devices.h"
 #include "generic.h"
 

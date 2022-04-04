@@ -17,7 +17,7 @@
 #include <asm/system_info.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
-#include <mach/pxa3xx-regs.h>
+#include "pxa3xx-regs.h"
 #include "mfp-pxa300.h"
 #include "colibri.h"
 #include <linux/platform_data/mmc-pxamci.h>

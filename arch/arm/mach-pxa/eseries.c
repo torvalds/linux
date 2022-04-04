@@ -33,7 +33,7 @@
 #include <asm/mach-types.h>
 
 #include "pxa25x.h"
-#include <mach/eseries-gpio.h>
+#include "eseries-gpio.h"
 #include "eseries-irq.h"
 #include <linux/platform_data/asoc-pxa.h>
 #include <linux/platform_data/video-pxafb.h>
