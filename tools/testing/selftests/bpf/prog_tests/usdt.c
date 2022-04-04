@@ -6,6 +6,7 @@
 #include "../sdt.h"
 
 #include "test_usdt.skel.h"
+#include "test_urandom_usdt.skel.h"
 
 int lets_test_this(int);
 
@@ -304,10 +305,117 @@ cleanup:
 	test_usdt__destroy(skel);
 }
 
+static FILE *urand_spawn(int *pid)
+{
+	FILE *f;
+
+	/* urandom_read's stdout is wired into f */
+	f = popen("./urandom_read 1 report-pid", "r");
+	if (!f)
+		return NULL;
+
+	if (fscanf(f, "%d", pid) != 1) {
+		pclose(f);
+		return NULL;
+	}
+
+	return f;
+}
+
+static int urand_trigger(FILE **urand_pipe)
+{
+	int exit_code;
+
+	/* pclose() waits for child process to exit and returns their exit code */
+	exit_code = pclose(*urand_pipe);
+	*urand_pipe = NULL;
+
+	return exit_code;
+}
+
+static void subtest_urandom_usdt(bool auto_attach)
+{
+	struct test_urandom_usdt *skel;
+	struct test_urandom_usdt__bss *bss;
+	struct bpf_link *l;
+	FILE *urand_pipe = NULL;
+	int err, urand_pid = 0;
+
+	skel = test_urandom_usdt__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
+		return;
+
+	urand_pipe = urand_spawn(&urand_pid);
+	if (!ASSERT_OK_PTR(urand_pipe, "urand_spawn"))
+		goto cleanup;
+
+	bss = skel->bss;
+	bss->urand_pid = urand_pid;
+
+	if (auto_attach) {
+		err = test_urandom_usdt__attach(skel);
+		if (!ASSERT_OK(err, "skel_auto_attach"))
+			goto cleanup;
+	} else {
+		l = bpf_program__attach_usdt(skel->progs.urand_read_without_sema,
+					     urand_pid, "./urandom_read",
+					     "urand", "read_without_sema", NULL);
+		if (!ASSERT_OK_PTR(l, "urand_without_sema_attach"))
+			goto cleanup;
+		skel->links.urand_read_without_sema = l;
+
+		l = bpf_program__attach_usdt(skel->progs.urand_read_with_sema,
+					     urand_pid, "./urandom_read",
+					     "urand", "read_with_sema", NULL);
+		if (!ASSERT_OK_PTR(l, "urand_with_sema_attach"))
+			goto cleanup;
+		skel->links.urand_read_with_sema = l;
+
+		l = bpf_program__attach_usdt(skel->progs.urandlib_read_without_sema,
+					     urand_pid, "./liburandom_read.so",
+					     "urandlib", "read_without_sema", NULL);
+		if (!ASSERT_OK_PTR(l, "urandlib_without_sema_attach"))
+			goto cleanup;
+		skel->links.urandlib_read_without_sema = l;
+
+		l = bpf_program__attach_usdt(skel->progs.urandlib_read_with_sema,
+					     urand_pid, "./liburandom_read.so",
+					     "urandlib", "read_with_sema", NULL);
+		if (!ASSERT_OK_PTR(l, "urandlib_with_sema_attach"))
+			goto cleanup;
+		skel->links.urandlib_read_with_sema = l;
+
+	}
+
+	/* trigger urandom_read USDTs */
+	ASSERT_OK(urand_trigger(&urand_pipe), "urand_exit_code");
+
+	ASSERT_EQ(bss->urand_read_without_sema_call_cnt, 1, "urand_wo_sema_cnt");
+	ASSERT_EQ(bss->urand_read_without_sema_buf_sz_sum, 256, "urand_wo_sema_sum");
+
+	ASSERT_EQ(bss->urand_read_with_sema_call_cnt, 1, "urand_w_sema_cnt");
+	ASSERT_EQ(bss->urand_read_with_sema_buf_sz_sum, 256, "urand_w_sema_sum");
+
+	ASSERT_EQ(bss->urandlib_read_without_sema_call_cnt, 1, "urandlib_wo_sema_cnt");
+	ASSERT_EQ(bss->urandlib_read_without_sema_buf_sz_sum, 256, "urandlib_wo_sema_sum");
+
+	ASSERT_EQ(bss->urandlib_read_with_sema_call_cnt, 1, "urandlib_w_sema_cnt");
+	ASSERT_EQ(bss->urandlib_read_with_sema_buf_sz_sum, 256, "urandlib_w_sema_sum");
+
+cleanup:
+	if (urand_pipe)
+		pclose(urand_pipe);
+	test_urandom_usdt__destroy(skel);
+}
+
 void test_usdt(void)
 {
 	if (test__start_subtest("basic"))
 		subtest_basic_usdt();
 	if (test__start_subtest("multispec"))
 		subtest_multispec_usdt();
+	if (test__start_subtest("urand_auto_attach"))
+		subtest_urandom_usdt(true /* auto_attach */);
+	if (test__start_subtest("urand_pid_attach"))
+		subtest_urandom_usdt(false /* auto_attach */);
 }

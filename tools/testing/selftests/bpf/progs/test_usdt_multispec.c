@@ -26,8 +26,6 @@ int BPF_USDT(usdt_100, int x)
 	__sync_fetch_and_add(&usdt_100_called, 1);
 	__sync_fetch_and_add(&usdt_100_sum, x);
 
-	bpf_printk("X is %d, sum is %d", x, usdt_100_sum);
-
 	return 0;
 }
 
