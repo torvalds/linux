@@ -95,7 +95,7 @@ mt7915_muru_debug_set(void *data, u64 val)
 	struct mt7915_dev *dev = data;
 
 	dev->muru_debug = val;
-	mt7915_mcu_muru_debug_set(dev, data);
+	mt7915_mcu_muru_debug_set(dev, dev->muru_debug);
 
 	return 0;
 }
