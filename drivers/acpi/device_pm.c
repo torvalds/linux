@@ -10,7 +10,7 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#define pr_fmt(fmt) "ACPI: PM: " fmt
+#define pr_fmt(fmt) "PM: " fmt
 
 #include <linux/acpi.h>
 #include <linux/export.h>
