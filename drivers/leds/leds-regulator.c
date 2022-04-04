@@ -123,28 +123,29 @@ static int regulator_led_probe(struct platform_device *pdev)
 {
 	struct led_regulator_platform_data *pdata =
 			dev_get_platdata(&pdev->dev);
+	struct device *dev = &pdev->dev;
 	struct regulator_led *led;
 	struct regulator *vcc;
 	int ret = 0;
 
 	if (pdata == NULL) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(dev, "no platform data\n");
 		return -ENODEV;
 	}
 
-	vcc = devm_regulator_get_exclusive(&pdev->dev, "vled");
+	vcc = devm_regulator_get_exclusive(dev, "vled");
 	if (IS_ERR(vcc)) {
-		dev_err(&pdev->dev, "Cannot get vcc for %s\n", pdata->name);
+		dev_err(dev, "Cannot get vcc for %s\n", pdata->name);
 		return PTR_ERR(vcc);
 	}
 
-	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
 	if (led == NULL)
 		return -ENOMEM;
 
 	led->cdev.max_brightness = led_regulator_get_max_brightness(vcc);
 	if (pdata->brightness > led->cdev.max_brightness) {
-		dev_err(&pdev->dev, "Invalid default brightness %d\n",
+		dev_err(dev, "Invalid default brightness %d\n",
 				pdata->brightness);
 		return -EINVAL;
 	}
@@ -162,7 +163,7 @@ static int regulator_led_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, led);
 
-	ret = led_classdev_register(&pdev->dev, &led->cdev);
+	ret = led_classdev_register(dev, &led->cdev);
 	if (ret < 0)
 		return ret;
 
