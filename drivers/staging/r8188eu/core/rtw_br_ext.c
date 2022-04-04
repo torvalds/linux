@@ -313,6 +313,7 @@ void nat25_db_cleanup(struct adapter *priv)
 
 	for (i = 0; i < NAT25_HASH_SIZE; i++) {
 		struct nat25_network_db_entry *f;
+
 		f = priv->nethash[i];
 		while (f) {
 			struct nat25_network_db_entry *g;
@@ -339,12 +340,12 @@ void nat25_db_expire(struct adapter *priv)
 
 	for (i = 0; i < NAT25_HASH_SIZE; i++) {
 		struct nat25_network_db_entry *f;
-		f = priv->nethash[i];
 
+		f = priv->nethash[i];
 		while (f) {
 			struct nat25_network_db_entry *g;
-			g = f->next_hash;
 
+			g = f->next_hash;
 			if (__nat25_has_expired(f)) {
 				if (atomic_dec_and_test(&f->use_count)) {
 					if (priv->scdb_entry == f) {
