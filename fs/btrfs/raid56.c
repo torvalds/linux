@@ -1048,7 +1048,8 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 			    struct page *page,
 			    int stripe_nr,
 			    unsigned long page_index,
-			    unsigned long bio_max_len)
+			    unsigned long bio_max_len,
+			    unsigned int opf)
 {
 	struct bio *last = bio_list->tail;
 	int ret;
@@ -1085,7 +1086,9 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 	btrfs_bio(bio)->device = stripe->dev;
 	bio->bi_iter.bi_size = 0;
 	bio_set_dev(bio, stripe->dev->bdev);
+	bio->bi_opf = opf;
 	bio->bi_iter.bi_sector = disk_start >> 9;
+	bio->bi_private = rbio;
 
 	bio_add_page(bio, page, PAGE_SIZE, 0);
 	bio_list_add(bio_list, bio);
@@ -1254,7 +1257,8 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 			}
 
 			ret = rbio_add_io_page(rbio, &bio_list,
-				       page, stripe, pagenr, rbio->stripe_len);
+				       page, stripe, pagenr, rbio->stripe_len,
+				       REQ_OP_WRITE);
 			if (ret)
 				goto cleanup;
 		}
@@ -1279,7 +1283,8 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 
 			ret = rbio_add_io_page(rbio, &bio_list, page,
 					       rbio->bioc->tgtdev_map[stripe],
-					       pagenr, rbio->stripe_len);
+					       pagenr, rbio->stripe_len,
+					       REQ_OP_WRITE);
 			if (ret)
 				goto cleanup;
 		}
@@ -1290,9 +1295,7 @@ write_data:
 	BUG_ON(atomic_read(&rbio->stripes_pending) == 0);
 
 	while ((bio = bio_list_pop(&bio_list))) {
-		bio->bi_private = rbio;
 		bio->bi_end_io = raid_write_end_io;
-		bio->bi_opf = REQ_OP_WRITE;
 
 		submit_bio(bio);
 	}
@@ -1496,7 +1499,8 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 				continue;
 
 			ret = rbio_add_io_page(rbio, &bio_list, page,
-				       stripe, pagenr, rbio->stripe_len);
+				       stripe, pagenr, rbio->stripe_len,
+				       REQ_OP_READ);
 			if (ret)
 				goto cleanup;
 		}
@@ -1519,9 +1523,7 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 	 */
 	atomic_set(&rbio->stripes_pending, bios_to_read);
 	while ((bio = bio_list_pop(&bio_list))) {
-		bio->bi_private = rbio;
 		bio->bi_end_io = raid_rmw_end_io;
-		bio->bi_opf = REQ_OP_READ;
 
 		btrfs_bio_wq_end_io(rbio->bioc->fs_info, bio, BTRFS_WQ_ENDIO_RAID56);
 
@@ -2038,7 +2040,8 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 
 			ret = rbio_add_io_page(rbio, &bio_list,
 				       rbio_stripe_page(rbio, stripe, pagenr),
-				       stripe, pagenr, rbio->stripe_len);
+				       stripe, pagenr, rbio->stripe_len,
+				       REQ_OP_READ);
 			if (ret < 0)
 				goto cleanup;
 		}
@@ -2065,9 +2068,7 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 	 */
 	atomic_set(&rbio->stripes_pending, bios_to_read);
 	while ((bio = bio_list_pop(&bio_list))) {
-		bio->bi_private = rbio;
 		bio->bi_end_io = raid_recover_end_io;
-		bio->bi_opf = REQ_OP_READ;
 
 		btrfs_bio_wq_end_io(rbio->bioc->fs_info, bio, BTRFS_WQ_ENDIO_RAID56);
 
@@ -2398,8 +2399,8 @@ writeback:
 		struct page *page;
 
 		page = rbio_stripe_page(rbio, rbio->scrubp, pagenr);
-		ret = rbio_add_io_page(rbio, &bio_list,
-			       page, rbio->scrubp, pagenr, rbio->stripe_len);
+		ret = rbio_add_io_page(rbio, &bio_list, page, rbio->scrubp,
+				       pagenr, rbio->stripe_len, REQ_OP_WRITE);
 		if (ret)
 			goto cleanup;
 	}
@@ -2413,7 +2414,7 @@ writeback:
 		page = rbio_stripe_page(rbio, rbio->scrubp, pagenr);
 		ret = rbio_add_io_page(rbio, &bio_list, page,
 				       bioc->tgtdev_map[rbio->scrubp],
-				       pagenr, rbio->stripe_len);
+				       pagenr, rbio->stripe_len, REQ_OP_WRITE);
 		if (ret)
 			goto cleanup;
 	}
@@ -2429,9 +2430,7 @@ submit_write:
 	atomic_set(&rbio->stripes_pending, nr_data);
 
 	while ((bio = bio_list_pop(&bio_list))) {
-		bio->bi_private = rbio;
 		bio->bi_end_io = raid_write_end_io;
-		bio->bi_opf = REQ_OP_WRITE;
 
 		submit_bio(bio);
 	}
@@ -2583,8 +2582,8 @@ static void raid56_parity_scrub_stripe(struct btrfs_raid_bio *rbio)
 			if (PageUptodate(page))
 				continue;
 
-			ret = rbio_add_io_page(rbio, &bio_list, page,
-				       stripe, pagenr, rbio->stripe_len);
+			ret = rbio_add_io_page(rbio, &bio_list, page, stripe,
+					       pagenr, rbio->stripe_len, REQ_OP_READ);
 			if (ret)
 				goto cleanup;
 		}
@@ -2607,9 +2606,7 @@ static void raid56_parity_scrub_stripe(struct btrfs_raid_bio *rbio)
 	 */
 	atomic_set(&rbio->stripes_pending, bios_to_read);
 	while ((bio = bio_list_pop(&bio_list))) {
-		bio->bi_private = rbio;
 		bio->bi_end_io = raid56_parity_scrub_end_io;
-		bio->bi_opf = REQ_OP_READ;
 
 		btrfs_bio_wq_end_io(rbio->bioc->fs_info, bio, BTRFS_WQ_ENDIO_RAID56);
 
