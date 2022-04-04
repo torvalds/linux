@@ -54,7 +54,6 @@ enum {
 
 enum {
 	MLX5_FPGA_CAP_SANDBOX_PRODUCT_ID_IPSEC    = 0x2,
-	MLX5_FPGA_CAP_SANDBOX_PRODUCT_ID_TLS      = 0x3,
 };
 
 struct mlx5_ifc_fpga_shell_caps_bits {
@@ -387,27 +386,6 @@ struct mlx5_ifc_fpga_destroy_qp_out_bits {
 	u8         reserved_at_40[0x40];
 };
 
-struct mlx5_ifc_tls_extended_cap_bits {
-	u8         aes_gcm_128[0x1];
-	u8         aes_gcm_256[0x1];
-	u8         reserved_at_2[0x1e];
-	u8         reserved_at_20[0x20];
-	u8         context_capacity_total[0x20];
-	u8         context_capacity_rx[0x20];
-	u8         context_capacity_tx[0x20];
-	u8         reserved_at_a0[0x10];
-	u8         tls_counter_size[0x10];
-	u8         tls_counters_addr_low[0x20];
-	u8         tls_counters_addr_high[0x20];
-	u8         rx[0x1];
-	u8         tx[0x1];
-	u8         tls_v12[0x1];
-	u8         tls_v13[0x1];
-	u8         lro[0x1];
-	u8         ipv6[0x1];
-	u8         reserved_at_106[0x1a];
-};
-
 struct mlx5_ifc_ipsec_extended_cap_bits {
 	u8         encapsulation[0x20];
 
@@ -572,45 +550,4 @@ struct mlx5_ifc_fpga_ipsec_sa {
 	__be16 vid;	/* only 12 bits, rest is reserved */
 	__be16 reserved2;
 } __packed;
-
-enum fpga_tls_cmds {
-	CMD_SETUP_STREAM		= 0x1001,
-	CMD_TEARDOWN_STREAM		= 0x1002,
-	CMD_RESYNC_RX			= 0x1003,
-};
-
-#define MLX5_TLS_1_2 (0)
-
-#define MLX5_TLS_ALG_AES_GCM_128 (0)
-#define MLX5_TLS_ALG_AES_GCM_256 (1)
-
-struct mlx5_ifc_tls_cmd_bits {
-	u8         command_type[0x20];
-	u8         ipv6[0x1];
-	u8         direction_sx[0x1];
-	u8         tls_version[0x2];
-	u8         reserved[0x1c];
-	u8         swid[0x20];
-	u8         src_port[0x10];
-	u8         dst_port[0x10];
-	union mlx5_ifc_ipv6_layout_ipv4_layout_auto_bits src_ipv4_src_ipv6;
-	union mlx5_ifc_ipv6_layout_ipv4_layout_auto_bits dst_ipv4_dst_ipv6;
-	u8         tls_rcd_sn[0x40];
-	u8         tcp_sn[0x20];
-	u8         tls_implicit_iv[0x20];
-	u8         tls_xor_iv[0x40];
-	u8         encryption_key[0x100];
-	u8         alg[4];
-	u8         reserved2[0x1c];
-	u8         reserved3[0x4a0];
-};
-
-struct mlx5_ifc_tls_resp_bits {
-	u8         syndrome[0x20];
-	u8         stream_id[0x20];
-	u8         reserved[0x40];
-};
-
-#define MLX5_TLS_COMMAND_SIZE (0x100)
-
 #endif /* MLX5_IFC_FPGA_H */

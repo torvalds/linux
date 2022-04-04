@@ -60,18 +60,12 @@ mlx5e_tls_handle_tx_wqe(struct mlx5_wqe_ctrl_seg *cseg,
 	cseg->tis_tir_num = cpu_to_be32(state->tls_tisn << 8);
 }
 
-void mlx5e_tls_handle_rx_skb_metadata(struct mlx5e_rq *rq, struct sk_buff *skb,
-				      u32 *cqe_bcnt);
-
 static inline void
 mlx5e_tls_handle_rx_skb(struct mlx5e_rq *rq, struct sk_buff *skb,
 			struct mlx5_cqe64 *cqe, u32 *cqe_bcnt)
 {
 	if (unlikely(get_cqe_tls_offload(cqe))) /* cqe bit indicates a TLS device */
-		return mlx5e_ktls_handle_rx_skb(rq, skb, cqe, cqe_bcnt);
-
-	if (unlikely(test_bit(MLX5E_RQ_STATE_FPGA_TLS, &rq->state) && is_metadata_hdr_valid(skb)))
-		return mlx5e_tls_handle_rx_skb_metadata(rq, skb, cqe_bcnt);
+		mlx5e_ktls_handle_rx_skb(rq, skb, cqe, cqe_bcnt);
 }
 
 #else

@@ -177,20 +177,6 @@ config MLX5_EN_IPSEC
 	  Note: Support for hardware with this capability needs to be selected
 	  for this option to become available.
 
-config MLX5_FPGA_TLS
-	bool "Mellanox Technologies TLS Innova support"
-	depends on TLS_DEVICE
-	depends on TLS=y || MLX5_CORE=m
-	depends on MLX5_CORE_EN
-	depends on MLX5_FPGA
-	select MLX5_EN_TLS
-	help
-	Build TLS support for the Innova family of network cards by Mellanox
-	Technologies. Innova network cards are comprised of a ConnectX chip
-	and an FPGA chip on one board. If you select this option, the
-	mlx5_core driver will include the Innova FPGA core and allow building
-	sandbox-specific client drivers.
-
 config MLX5_TLS
 	bool "Mellanox Technologies TLS Connect-X support"
 	depends on TLS_DEVICE

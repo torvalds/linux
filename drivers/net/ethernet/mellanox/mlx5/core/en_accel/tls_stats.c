@@ -38,13 +38,6 @@
 #include "fpga/sdk.h"
 #include "en_accel/tls.h"
 
-static const struct counter_desc mlx5e_tls_sw_stats_desc[] = {
-	{ MLX5E_DECLARE_STAT(struct mlx5e_tls_sw_stats, tx_tls_drop_metadata) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_tls_sw_stats, tx_tls_drop_resync_alloc) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_tls_sw_stats, tx_tls_drop_no_sync_data) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_tls_sw_stats, tx_tls_drop_bypass_required) },
-};
-
 static const struct counter_desc mlx5e_ktls_sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_tls_sw_stats, tx_tls_ctx) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_tls_sw_stats, tx_tls_del) },
@@ -59,18 +52,16 @@ static const struct counter_desc *get_tls_atomic_stats(struct mlx5e_priv *priv)
 {
 	if (!priv->tls)
 		return NULL;
-	if (mlx5e_accel_is_ktls_device(priv->mdev))
-		return mlx5e_ktls_sw_stats_desc;
-	return mlx5e_tls_sw_stats_desc;
+
+	return mlx5e_ktls_sw_stats_desc;
 }
 
 int mlx5e_tls_get_count(struct mlx5e_priv *priv)
 {
 	if (!priv->tls)
 		return 0;
-	if (mlx5e_accel_is_ktls_device(priv->mdev))
-		return ARRAY_SIZE(mlx5e_ktls_sw_stats_desc);
-	return ARRAY_SIZE(mlx5e_tls_sw_stats_desc);
+
+	return ARRAY_SIZE(mlx5e_ktls_sw_stats_desc);
 }
 
 int mlx5e_tls_get_strings(struct mlx5e_priv *priv, uint8_t *data)
