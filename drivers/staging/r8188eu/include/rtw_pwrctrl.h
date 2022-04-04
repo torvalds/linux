@@ -64,7 +64,6 @@ struct pwrctrl_priv {
 	u8	power_mgnt;
 	u8	bFwCurrentInPSMode;
 	u32	DelayLPSLastTimeStamp;
-	u8		pnp_bstop_trx;
 
 	u8		bInSuspend;
 	u8		bSupportRemoteWakeup;

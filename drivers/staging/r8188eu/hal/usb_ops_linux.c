@@ -16,7 +16,7 @@ static int usb_read(struct intf_hdl *intf, u16 value, void *data, u8 size)
 	int status;
 	u8 io_buf[4];
 
-	if (adapt->bSurpriseRemoved || adapt->pwrctrlpriv.pnp_bstop_trx)
+	if (adapt->bSurpriseRemoved)
 		return -EPERM;
 
 	status = usb_control_msg_recv(udev, 0, REALTEK_USB_VENQT_CMD_REQ,
@@ -59,7 +59,7 @@ static int usb_write(struct intf_hdl *intf, u16 value, void *data, u8 size)
 	int status;
 	u8 io_buf[VENDOR_CMD_MAX_DATA_LEN];
 
-	if (adapt->bSurpriseRemoved || adapt->pwrctrlpriv.pnp_bstop_trx)
+	if (adapt->bSurpriseRemoved)
 		return -EPERM;
 
 	memcpy(io_buf, data, size);
@@ -414,8 +414,7 @@ u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
 	size_t alignment = 0;
 	u32 ret = _SUCCESS;
 
-	if (adapter->bDriverStopped || adapter->bSurpriseRemoved ||
-	    adapter->pwrctrlpriv.pnp_bstop_trx)
+	if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
 		return _FAIL;
 
 	if (!precvbuf)
