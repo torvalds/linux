@@ -108,31 +108,7 @@ patternProperties:
   "i2c@[0-9a-f]+$":
     type: object
     description: GENI serial engine based I2C controller.
-    $ref: /schemas/i2c/i2c-controller.yaml#
-
-    properties:
-      compatible:
-        enum:
-          - qcom,geni-i2c
-
-      interrupts:
-        maxItems: 1
-
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
-
-      clock-frequency:
-        description: Desired I2C bus clock frequency in Hz.
-        default: 100000
-
-    required:
-      - compatible
-      - interrupts
-      - "#address-cells"
-      - "#size-cells"
+    $ref: /schemas/i2c/qcom,i2c-geni-qcom.yaml#
 
   "serial@[0-9a-f]+$":
     type: object
