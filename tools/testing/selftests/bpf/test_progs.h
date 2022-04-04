@@ -332,6 +332,8 @@ int trigger_module_test_write(int write_sz);
 #define SYS_NANOSLEEP_KPROBE_NAME "__x64_sys_nanosleep"
 #elif defined(__s390x__)
 #define SYS_NANOSLEEP_KPROBE_NAME "__s390x_sys_nanosleep"
+#elif defined(__aarch64__)
+#define SYS_NANOSLEEP_KPROBE_NAME "__arm64_sys_nanosleep"
 #else
 #define SYS_NANOSLEEP_KPROBE_NAME "sys_nanosleep"
 #endif
