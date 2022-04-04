@@ -23,6 +23,9 @@
 #define RKCIF_CMD_SET_SCALE_BLC \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 3, struct bayer_blc)
 
+#define RKCIF_CMD_SET_FPS \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 4, struct rkcif_fps)
+
 /* cif memory mode
  * 0: raw12/raw10/raw8 8bit memory compact
  * 1: raw12/raw10 16bit memory one pixel
@@ -54,4 +57,10 @@ struct bayer_blc {
 	u8 pattern02;
 	u8 pattern03;
 };
+
+struct rkcif_fps {
+	int ch_num;
+	int fps;
+};
+
 #endif
