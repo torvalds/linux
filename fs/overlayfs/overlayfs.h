@@ -183,10 +183,9 @@ static inline int ovl_do_symlink(struct inode *dir, struct dentry *dentry,
 }
 
 static inline ssize_t ovl_do_getxattr(struct ovl_fs *ofs, struct dentry *dentry,
-				      enum ovl_xattr ox, void *value,
+				      const char *name, void *value,
 				      size_t size)
 {
-	const char *name = ovl_xattr(ofs, ox);
 	int err = vfs_getxattr(&init_user_ns, dentry, name, value, size);
 	int len = (value && err > 0) ? err : 0;
 
@@ -195,24 +194,43 @@ static inline ssize_t ovl_do_getxattr(struct ovl_fs *ofs, struct dentry *dentry,
 	return err;
 }
 
-static inline int ovl_do_setxattr(struct ovl_fs *ofs, struct dentry *dentry,
-				  enum ovl_xattr ox, const void *value,
-				  size_t size)
+static inline ssize_t ovl_getxattr(struct ovl_fs *ofs, struct dentry *dentry,
+				   enum ovl_xattr ox, void *value,
+				   size_t size)
 {
-	const char *name = ovl_xattr(ofs, ox);
-	int err = vfs_setxattr(&init_user_ns, dentry, name, value, size, 0);
-	pr_debug("setxattr(%pd2, \"%s\", \"%*pE\", %zu, 0) = %i\n",
-		 dentry, name, min((int)size, 48), value, size, err);
+	return ovl_do_getxattr(ofs, dentry, ovl_xattr(ofs, ox), value, size);
+}
+
+static inline int ovl_do_setxattr(struct ovl_fs *ofs, struct dentry *dentry,
+				  const char *name, const void *value,
+				  size_t size, int flags)
+{
+	int err = vfs_setxattr(&init_user_ns, dentry, name, value, size, flags);
+
+	pr_debug("setxattr(%pd2, \"%s\", \"%*pE\", %zu, %d) = %i\n",
+		 dentry, name, min((int)size, 48), value, size, flags, err);
 	return err;
 }
 
-static inline int ovl_do_removexattr(struct ovl_fs *ofs, struct dentry *dentry,
-				     enum ovl_xattr ox)
+static inline int ovl_setxattr(struct ovl_fs *ofs, struct dentry *dentry,
+			       enum ovl_xattr ox, const void *value,
+			       size_t size)
 {
-	const char *name = ovl_xattr(ofs, ox);
+	return ovl_do_setxattr(ofs, dentry, ovl_xattr(ofs, ox), value, size, 0);
+}
+
+static inline int ovl_do_removexattr(struct ovl_fs *ofs, struct dentry *dentry,
+				     const char *name)
+{
 	int err = vfs_removexattr(&init_user_ns, dentry, name);
 	pr_debug("removexattr(%pd2, \"%s\") = %i\n", dentry, name, err);
 	return err;
+}
+
+static inline int ovl_removexattr(struct ovl_fs *ofs, struct dentry *dentry,
+				  enum ovl_xattr ox)
+{
+	return ovl_do_removexattr(ofs, dentry, ovl_xattr(ofs, ox));
 }
 
 static inline int ovl_do_rename(struct inode *olddir, struct dentry *olddentry,

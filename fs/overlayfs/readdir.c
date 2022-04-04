@@ -623,8 +623,8 @@ static struct ovl_dir_cache *ovl_cache_get_impure(struct path *path)
 		 * Removing the "impure" xattr is best effort.
 		 */
 		if (!ovl_want_write(dentry)) {
-			ovl_do_removexattr(ofs, ovl_dentry_upper(dentry),
-					   OVL_XATTR_IMPURE);
+			ovl_removexattr(ofs, ovl_dentry_upper(dentry),
+					OVL_XATTR_IMPURE);
 			ovl_drop_write(dentry);
 		}
 		ovl_clear_flag(OVL_IMPURE, d_inode(dentry));

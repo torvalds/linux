@@ -342,6 +342,7 @@ int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
 		  const void *value, size_t size, int flags)
 {
 	int err;
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	struct dentry *upperdentry = ovl_i_dentry_upper(inode);
 	struct dentry *realdentry = upperdentry ?: ovl_dentry_lower(dentry);
 	const struct cred *old_cred;
@@ -367,12 +368,12 @@ int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
 	}
 
 	old_cred = ovl_override_creds(dentry->d_sb);
-	if (value)
-		err = vfs_setxattr(&init_user_ns, realdentry, name, value, size,
-				   flags);
-	else {
+	if (value) {
+		err = ovl_do_setxattr(ofs, realdentry, name, value, size,
+				      flags);
+	} else {
 		WARN_ON(flags != XATTR_REPLACE);
-		err = vfs_removexattr(&init_user_ns, realdentry, name);
+		err = ovl_do_removexattr(ofs, realdentry, name);
 	}
 	revert_creds(old_cred);
 
@@ -871,8 +872,8 @@ static int ovl_set_nlink_common(struct dentry *dentry,
 	if (WARN_ON(len >= sizeof(buf)))
 		return -EIO;
 
-	return ovl_do_setxattr(OVL_FS(inode->i_sb), ovl_dentry_upper(dentry),
-			       OVL_XATTR_NLINK, buf, len);
+	return ovl_setxattr(OVL_FS(inode->i_sb), ovl_dentry_upper(dentry),
+			    OVL_XATTR_NLINK, buf, len);
 }
 
 int ovl_set_nlink_upper(struct dentry *dentry)
@@ -897,7 +898,7 @@ unsigned int ovl_get_nlink(struct ovl_fs *ofs, struct dentry *lowerdentry,
 	if (!lowerdentry || !upperdentry || d_inode(lowerdentry)->i_nlink == 1)
 		return fallback;
 
-	err = ovl_do_getxattr(ofs, upperdentry, OVL_XATTR_NLINK,
+	err = ovl_getxattr(ofs, upperdentry, OVL_XATTR_NLINK,
 			      &buf, sizeof(buf) - 1);
 	if (err < 0)
 		goto fail;

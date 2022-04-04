@@ -432,8 +432,8 @@ out:
 	return ERR_PTR(err);
 }
 
-static int ovl_set_upper_acl(struct dentry *upperdentry, const char *name,
-			     const struct posix_acl *acl)
+static int ovl_set_upper_acl(struct ovl_fs *ofs, struct dentry *upperdentry,
+			     const char *name, const struct posix_acl *acl)
 {
 	void *buffer;
 	size_t size;
@@ -451,7 +451,7 @@ static int ovl_set_upper_acl(struct dentry *upperdentry, const char *name,
 	if (err < 0)
 		goto out_free;
 
-	err = vfs_setxattr(&init_user_ns, upperdentry, name, buffer, size, XATTR_CREATE);
+	err = ovl_do_setxattr(ofs, upperdentry, name, buffer, size, XATTR_CREATE);
 out_free:
 	kfree(buffer);
 	return err;
@@ -460,6 +460,7 @@ out_free:
 static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 				    struct ovl_cattr *cattr)
 {
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	struct dentry *workdir = ovl_workdir(dentry);
 	struct inode *wdir = workdir->d_inode;
 	struct dentry *upperdir = ovl_dentry_upper(dentry->d_parent);
@@ -516,13 +517,13 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 			goto out_cleanup;
 	}
 	if (!hardlink) {
-		err = ovl_set_upper_acl(newdentry, XATTR_NAME_POSIX_ACL_ACCESS,
-					acl);
+		err = ovl_set_upper_acl(ofs, newdentry,
+					XATTR_NAME_POSIX_ACL_ACCESS, acl);
 		if (err)
 			goto out_cleanup;
 
-		err = ovl_set_upper_acl(newdentry, XATTR_NAME_POSIX_ACL_DEFAULT,
-					default_acl);
+		err = ovl_set_upper_acl(ofs, newdentry,
+					XATTR_NAME_POSIX_ACL_DEFAULT, default_acl);
 		if (err)
 			goto out_cleanup;
 	}
