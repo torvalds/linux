@@ -996,6 +996,9 @@ static int tridentfb_check_var(struct fb_var_screeninfo *var,
 	int ramdac = 230000; /* 230MHz for most 3D chips */
 	debug("enter\n");
 
+	if (!var->pixclock)
+		return -EINVAL;
+
 	/* check color depth */
 	if (bpp == 24)
 		bpp = var->bits_per_pixel = 32;
