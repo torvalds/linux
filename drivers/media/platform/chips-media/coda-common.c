@@ -1091,17 +1091,6 @@ static int coda_s_selection(struct file *file, void *fh,
 	}
 }
 
-static int coda_try_encoder_cmd(struct file *file, void *fh,
-				struct v4l2_encoder_cmd *ec)
-{
-	struct coda_ctx *ctx = fh_to_ctx(fh);
-
-	if (ctx->inst_type != CODA_INST_ENCODER)
-		return -ENOTTY;
-
-	return v4l2_m2m_ioctl_try_encoder_cmd(file, fh, ec);
-}
-
 static void coda_wake_up_capture_queue(struct coda_ctx *ctx)
 {
 	struct vb2_queue *dst_vq;
@@ -1120,7 +1109,7 @@ static int coda_encoder_cmd(struct file *file, void *fh,
 	struct vb2_v4l2_buffer *buf;
 	int ret;
 
-	ret = coda_try_encoder_cmd(file, fh, ec);
+	ret = v4l2_m2m_ioctl_try_encoder_cmd(file, fh, ec);
 	if (ret < 0)
 		return ret;
 
@@ -1147,17 +1136,6 @@ static int coda_encoder_cmd(struct file *file, void *fh,
 	mutex_unlock(&ctx->wakeup_mutex);
 
 	return 0;
-}
-
-static int coda_try_decoder_cmd(struct file *file, void *fh,
-				struct v4l2_decoder_cmd *dc)
-{
-	struct coda_ctx *ctx = fh_to_ctx(fh);
-
-	if (ctx->inst_type != CODA_INST_DECODER)
-		return -ENOTTY;
-
-	return v4l2_m2m_ioctl_try_decoder_cmd(file, fh, dc);
 }
 
 static bool coda_mark_last_meta(struct coda_ctx *ctx)
@@ -1216,7 +1194,7 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 	bool wakeup;
 	int ret;
 
-	ret = coda_try_decoder_cmd(file, fh, dc);
+	ret = v4l2_m2m_ioctl_try_decoder_cmd(file, fh, dc);
 	if (ret < 0)
 		return ret;
 
@@ -1498,9 +1476,9 @@ static const struct v4l2_ioctl_ops coda_ioctl_ops = {
 	.vidioc_g_selection	= coda_g_selection,
 	.vidioc_s_selection	= coda_s_selection,
 
-	.vidioc_try_encoder_cmd	= coda_try_encoder_cmd,
+	.vidioc_try_encoder_cmd	= v4l2_m2m_ioctl_try_encoder_cmd,
 	.vidioc_encoder_cmd	= coda_encoder_cmd,
-	.vidioc_try_decoder_cmd	= coda_try_decoder_cmd,
+	.vidioc_try_decoder_cmd	= v4l2_m2m_ioctl_try_decoder_cmd,
 	.vidioc_decoder_cmd	= coda_decoder_cmd,
 
 	.vidioc_g_parm		= coda_g_parm,
@@ -2900,6 +2878,14 @@ static int coda_register_device(struct coda_dev *dev, int i)
 	v4l2_disable_ioctl(vfd, VIDIOC_CROPCAP);
 	v4l2_disable_ioctl(vfd, VIDIOC_G_CROP);
 	v4l2_disable_ioctl(vfd, VIDIOC_S_CROP);
+
+	if (dev->devtype->vdevs[i]->type == CODA_INST_ENCODER) {
+		v4l2_disable_ioctl(vfd, VIDIOC_DECODER_CMD);
+		v4l2_disable_ioctl(vfd, VIDIOC_TRY_DECODER_CMD);
+	} else {
+		v4l2_disable_ioctl(vfd, VIDIOC_ENCODER_CMD);
+		v4l2_disable_ioctl(vfd, VIDIOC_TRY_ENCODER_CMD);
+	}
 
 	ret = video_register_device(vfd, VFL_TYPE_VIDEO, 0);
 	if (!ret)
