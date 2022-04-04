@@ -19,7 +19,6 @@
 #include <trace/hooks/cpufreq.h>
 #include <trace/hooks/topology.h>
 #include <trace/events/power.h>
-
 #include "walt.h"
 #include "trace.h"
 
@@ -4175,14 +4174,25 @@ static void android_rvh_try_to_wake_up_success(void *unused, struct task_struct 
 	raw_spin_unlock_irqrestore(&cpu_rq(cpu)->__lock, flags);
 }
 
+u64 tick_sched_clock;
+static DECLARE_COMPLETION(tick_sched_clock_completion);
+
 static void android_rvh_tick_entry(void *unused, struct rq *rq)
 {
 	u64 wallclock;
 
+	if (!tick_sched_clock) {
+		/*
+		 * Let the window begin 20us prior to the tick,
+		 * that way we are guaranteed a rollover when the tick occurs.
+		 */
+		tick_sched_clock = rq_clock(rq) - 20000;
+		complete_all(&tick_sched_clock_completion);
+	}
+
 	lockdep_assert_held(&rq->__lock);
 	if (unlikely(walt_disabled))
 		return;
-
 	set_window_start(rq);
 	wallclock = walt_rq_clock(rq);
 
@@ -4329,7 +4339,6 @@ static int walt_init_stop_handler(void *data)
 {
 	int cpu;
 	struct task_struct *g, *p;
-	u64 window_start_ns, nr_windows;
 	struct walt_rq *wrq;
 
 	read_lock(&tasklist_lock);
@@ -4341,10 +4350,6 @@ static int walt_init_stop_handler(void *data)
 		init_existing_task_load(p);
 	} while_each_thread(g, p);
 
-	window_start_ns = walt_sched_clock();
-	nr_windows = div64_u64(window_start_ns, sched_ravg_window);
-	window_start_ns = (u64)nr_windows * (u64)sched_ravg_window;
-
 	for_each_possible_cpu(cpu) {
 		struct rq *rq = cpu_rq(cpu);
 
@@ -4354,10 +4359,10 @@ static int walt_init_stop_handler(void *data)
 		walt_sched_init_rq(rq);
 
 		wrq = (struct walt_rq *) rq->android_vendor_data1;
-		wrq->window_start = window_start_ns;
+		wrq->window_start = tick_sched_clock;
 	}
 
-	atomic64_set(&walt_irq_work_lastq_ws, window_start_ns);
+	atomic64_set(&walt_irq_work_lastq_ws, tick_sched_clock);
 
 	create_default_coloc_group();
 
@@ -4408,7 +4413,7 @@ static void walt_init(struct work_struct *work)
 	walt_rt_init();
 	walt_cfs_init();
 	walt_halt_init();
-
+	wait_for_completion(&tick_sched_clock_completion);
 	stop_machine(walt_init_stop_handler, NULL, NULL);
 
 	hdr = register_sysctl_table(walt_base_table);
