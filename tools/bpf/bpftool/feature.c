@@ -567,7 +567,7 @@ probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types,
 
 		res = probe_prog_type_ifindex(prog_type, ifindex);
 	} else {
-		res = libbpf_probe_bpf_prog_type(prog_type, NULL);
+		res = libbpf_probe_bpf_prog_type(prog_type, NULL) > 0;
 	}
 
 #ifdef USE_LIBCAP
