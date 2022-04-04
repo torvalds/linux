@@ -391,9 +391,6 @@ static void flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 		if (vcpu_get_flag(host_vcpu, PKVM_HOST_STATE_DIRTY))
 			__flush_hyp_vcpu(hyp_vcpu);
 
-		hyp_vcpu->vcpu.arch.sve_state = kern_hyp_va(host_vcpu->arch.sve_state);
-		hyp_vcpu->vcpu.arch.sve_max_vl = host_vcpu->arch.sve_max_vl;
-
 		hyp_vcpu->vcpu.arch.hcr_el2 = HCR_GUEST_FLAGS & ~(HCR_RW | HCR_TWI | HCR_TWE);
 		hyp_vcpu->vcpu.arch.hcr_el2 |= READ_ONCE(host_vcpu->arch.hcr_el2);
 
@@ -463,7 +460,11 @@ static void sync_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu, u32 exit_reason)
 		BUG();
 	}
 
-	vcpu_clear_flag(host_vcpu, PC_UPDATE_REQ);
+	if (pkvm_hyp_vcpu_is_protected(hyp_vcpu))
+		vcpu_clear_flag(host_vcpu, PC_UPDATE_REQ);
+	else
+		host_vcpu->arch.iflags = hyp_vcpu->vcpu.arch.iflags;
+
 	hyp_vcpu->exit_code = exit_reason;
 }
 
