@@ -147,7 +147,7 @@ static const char *cxl_mem_opcode_to_name(u16 opcode)
  * @out: Caller allocated buffer for the output.
  * @out_size: Expected size of output.
  *
- * Context: Any context. Will acquire and release mbox_mutex.
+ * Context: Any context.
  * Return:
  *  * %>=0	- Number of bytes returned in @out.
  *  * %-E2BIG	- Payload is too large for hardware.
