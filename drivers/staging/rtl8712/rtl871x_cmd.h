@@ -316,7 +316,6 @@ enum _RT_CHANNEL_DOMAIN {
 	RT_CHANNEL_DOMAIN_MAX,
 };
 
-
 struct SetChannelPlan_param {
 	enum _RT_CHANNEL_DOMAIN ChannelPlan;
 };
@@ -337,7 +336,6 @@ struct getdatarate_parm {
 struct getdatarate_rsp {
 	u8 datarates[NumRates];
 };
-
 
 /*
  *	Caller Mode: Any
