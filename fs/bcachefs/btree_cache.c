@@ -280,7 +280,7 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b, *t;
 	unsigned long nr = sc->nr_to_scan;
-	unsigned long can_free;
+	unsigned long can_free = 0;
 	unsigned long touched = 0;
 	unsigned long freed = 0;
 	unsigned i, flags;
@@ -304,7 +304,6 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 	 * succeed, so that inserting keys into the btree can always succeed and
 	 * IO can always make forward progress:
 	 */
-	nr /= btree_pages(c);
 	can_free = btree_cache_can_free(bc);
 	nr = min_t(unsigned long, nr, can_free);
 
@@ -374,13 +373,10 @@ touched:
 
 	mutex_unlock(&bc->lock);
 out:
-	ret = (unsigned long) freed * btree_pages(c);
+	ret = freed;
 	memalloc_nofs_restore(flags);
 out_norestore:
-	trace_btree_cache_scan(sc->nr_to_scan,
-			       sc->nr_to_scan / btree_pages(c),
-			       btree_cache_can_free(bc),
-			       ret);
+	trace_btree_cache_scan(sc->nr_to_scan, can_free, ret);
 	return ret;
 }
 
@@ -394,7 +390,7 @@ static unsigned long bch2_btree_cache_count(struct shrinker *shrink,
 	if (bch2_btree_shrinker_disabled)
 		return 0;
 
-	return btree_cache_can_free(bc) * btree_pages(c);
+	return btree_cache_can_free(bc);
 }
 
 void bch2_fs_btree_cache_exit(struct bch_fs *c)
@@ -481,7 +477,6 @@ int bch2_fs_btree_cache_init(struct bch_fs *c)
 	bc->shrink.count_objects	= bch2_btree_cache_count;
 	bc->shrink.scan_objects		= bch2_btree_cache_scan;
 	bc->shrink.seeks		= 4;
-	bc->shrink.batch		= btree_pages(c) * 2;
 	ret = register_shrinker(&bc->shrink, "%s/btree_cache", c->name);
 out:
 	pr_verbose_init(c->opts, "ret %i", ret);
