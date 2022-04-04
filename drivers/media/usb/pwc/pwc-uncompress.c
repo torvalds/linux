@@ -41,7 +41,7 @@ int pwc_decompress(struct pwc_device *pdev, struct pwc_frame_buf *fbuf)
 		memcpy(raw_frame->cmd, pdev->cmd_buf, 4);
 		memcpy(raw_frame+1, yuv, pdev->frame_size);
 		vb2_set_plane_payload(&fbuf->vb.vb2_buf, 0,
-			pdev->frame_size + sizeof(struct pwc_raw_frame));
+			struct_size(raw_frame, rawframe, pdev->frame_size));
 		return 0;
 	}
 

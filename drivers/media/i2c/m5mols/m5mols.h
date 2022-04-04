@@ -13,6 +13,7 @@
 #define M5MOLS_H
 
 #include <linux/sizes.h>
+#include <linux/gpio/consumer.h>
 #include <media/v4l2-subdev.h>
 #include "m5mols_reg.h"
 
@@ -181,6 +182,7 @@ struct m5mols_version {
  * @stabilization: image stabilization control
  * @jpeg_quality: JPEG compression quality control
  * @set_power: optional power callback to the board code
+ * @reset: GPIO driving the reset pin of M-5MOLS
  * @lock: mutex protecting the structure fields below
  * @ffmt: current fmt according to resolution type
  * @res_type: current resolution type
@@ -224,6 +226,7 @@ struct m5mols_info {
 	struct v4l2_ctrl *jpeg_quality;
 
 	int (*set_power)(struct device *dev, int on);
+	struct gpio_desc *reset;
 
 	struct mutex lock;
 

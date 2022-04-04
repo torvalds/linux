@@ -794,7 +794,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		n = (sof - data) - (footer_length + sizeof pac_sof_marker);
 		if (n < 0) {
 			gspca_dev->image_len += n;
-			n = 0;
 		} else {
 			gspca_frame_add(gspca_dev, INTER_PACKET, data, n);
 		}
