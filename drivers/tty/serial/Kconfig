@@ -654,7 +654,7 @@ config SERIAL_IP22_ZILOG_CONSOLE
 
 config SERIAL_SH_SCI
 	tristate "SuperH SCI(F) serial port support"
-	depends on SUPERH || ARCH_RENESAS || H8300 || COMPILE_TEST
+	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
 
@@ -663,7 +663,6 @@ config SERIAL_SH_SCI_NR_UARTS
 	range 1 64 if 64BIT
 	range 1 32 if !64BIT
 	depends on SERIAL_SH_SCI
-	default "3" if H8300
 	default "10" if SUPERH
 	default "18" if ARCH_RENESAS
 	default "2"
@@ -679,7 +678,7 @@ config SERIAL_SH_SCI_EARLYCON
 	depends on SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
-	default ARCH_RENESAS || H8300
+	default ARCH_RENESAS
 
 config SERIAL_SH_SCI_DMA
 	bool "DMA support" if EXPERT
