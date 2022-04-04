@@ -2912,7 +2912,8 @@ static int validate_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 		if (lkb->lkb_status != DLM_LKSTS_GRANTED)
 			goto out;
 
-		if (lkb->lkb_wait_type)
+		/* lock not allowed if there's any op in progress */
+		if (lkb->lkb_wait_type || lkb->lkb_wait_count)
 			goto out;
 
 		if (is_overlap(lkb))
