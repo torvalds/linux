@@ -130,8 +130,8 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 	*state = result;
 
  out:
-	dev_dbg(&device->dev, "Device power state is %s\n",
-		acpi_power_state_string(*state));
+	acpi_handle_debug(device->handle, "Power state: %s\n",
+			  acpi_power_state_string(*state));
 
 	return 0;
 }
