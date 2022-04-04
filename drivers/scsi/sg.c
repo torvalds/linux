@@ -224,11 +224,6 @@ static int sg_check_file_access(struct file *filp, const char *caller)
 			caller, task_tgid_vnr(current), current->comm);
 		return -EPERM;
 	}
-	if (uaccess_kernel()) {
-		pr_err_once("%s: process %d (%s) called from kernel context, this is not allowed.\n",
-			caller, task_tgid_vnr(current), current->comm);
-		return -EACCES;
-	}
 	return 0;
 }
 

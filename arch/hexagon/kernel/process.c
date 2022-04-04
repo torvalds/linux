@@ -105,7 +105,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
 	/*
 	 * Parent sees new pid -- not necessary, not even possible at
 	 * this point in the fork process
-	 * Might also want to set things like ti->addr_limit
 	 */
 
 	return 0;

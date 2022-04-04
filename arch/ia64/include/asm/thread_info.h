@@ -27,7 +27,6 @@ struct thread_info {
 	__u32 cpu;			/* current CPU */
 	__u32 last_cpu;			/* Last CPU thread ran on */
 	__u32 status;			/* Thread synchronous flags */
-	mm_segment_t addr_limit;	/* user-level address space limit */
 	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	__u64 utime;
@@ -48,7 +47,6 @@ struct thread_info {
 	.task		= &tsk,			\
 	.flags		= 0,			\
 	.cpu		= 0,			\
-	.addr_limit	= KERNEL_DS,		\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 }
 

@@ -272,10 +272,6 @@
 	status = "okay";
 };
 
-&vpu {
-	status = "okay";
-};
-
 /* Attention: wdog reset forcing POR needs baseboard support */
 &wdog1 {
 	status = "okay";

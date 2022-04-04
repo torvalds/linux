@@ -11,15 +11,9 @@
 #include <linux/bug.h>
 #include <linux/string.h>
 
-/*
- * Note that since kernel addresses are in a separate address space on
- * parisc, we don't need to do anything for access_ok().
- * We just let the page fault handler do the right thing. This also means
- * that put_user is the same as __put_user, etc.
- */
-
-#define access_ok(uaddr, size)	\
-	( (uaddr) == (uaddr) )
+#define TASK_SIZE_MAX DEFAULT_TASK_SIZE
+#include <asm/pgtable.h>
+#include <asm-generic/access_ok.h>
 
 #define put_user __put_user
 #define get_user __get_user
@@ -95,7 +89,6 @@ struct exception_table_entry {
 	(val) = (__force __typeof__(*(ptr))) __gu_val;	\
 }
 
-#define HAVE_GET_KERNEL_NOFAULT
 #define __get_kernel_nofault(dst, src, type, err_label)	\
 {							\
 	type __z;					\

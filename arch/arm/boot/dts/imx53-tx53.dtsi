@@ -241,7 +241,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	rtc1: ds1339@68 {
+	rtc1: rtc@68 {
 		compatible = "dallas,ds1339";
 		reg = <0x68>;
 		pinctrl-names = "default";

@@ -29,17 +29,26 @@ static void intstr_write(u32 val)
 	asm volatile("mcr p6, 0, %0, c4, c0, 0" : : "r" (val));
 }
 
+static u32 iintsrc_read(void)
+{
+	int irq;
+
+	asm volatile("mrc p6, 0, %0, c8, c0, 0" : "=r" (irq));
+
+	return irq;
+}
+
 static void
 iop32x_irq_mask(struct irq_data *d)
 {
-	iop32x_mask &= ~(1 << d->irq);
+	iop32x_mask &= ~(1 << (d->irq - 1));
 	intctl_write(iop32x_mask);
 }
 
 static void
 iop32x_irq_unmask(struct irq_data *d)
 {
-	iop32x_mask |= 1 << d->irq;
+	iop32x_mask |= 1 << (d->irq - 1);
 	intctl_write(iop32x_mask);
 }
 
@@ -50,11 +59,25 @@ struct irq_chip ext_chip = {
 	.irq_unmask	= iop32x_irq_unmask,
 };
 
+static void iop_handle_irq(struct pt_regs *regs)
+{
+	u32 mask;
+
+	iop_enable_cp6();
+
+	do {
+		mask = iintsrc_read();
+		if (mask)
+			generic_handle_irq(fls(mask));
+	} while (mask);
+}
+
 void __init iop32x_init_irq(void)
 {
 	int i;
 
 	iop_init_cp6_handler();
+	set_handle_irq(iop_handle_irq);
 
 	intctl_write(0);
 	intstr_write(0);
@@ -65,7 +88,7 @@ void __init iop32x_init_irq(void)
 	    machine_is_em7210())
 		*IOP3XX_PCIIRSR = 0x0f;
 
-	for (i = 0; i < NR_IRQS; i++) {
+	for (i = 1; i < NR_IRQS; i++) {
 		irq_set_chip_and_handler(i, &ext_chip, handle_level_irq);
 		irq_clear_status_flags(i, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}

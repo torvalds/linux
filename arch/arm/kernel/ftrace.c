@@ -22,12 +22,24 @@
 #include <asm/ftrace.h>
 #include <asm/insn.h>
 #include <asm/set_memory.h>
+#include <asm/stacktrace.h>
 #include <asm/patch.h>
 
+/*
+ * The compiler emitted profiling hook consists of
+ *
+ *   PUSH    {LR}
+ *   BL	     __gnu_mcount_nc
+ *
+ * To turn this combined sequence into a NOP, we need to restore the value of
+ * SP before the PUSH. Let's use an ADD rather than a POP into LR, as LR is not
+ * modified anyway, and reloading LR from memory is highly likely to be less
+ * efficient.
+ */
 #ifdef CONFIG_THUMB2_KERNEL
-#define	NOP		0xf85deb04	/* pop.w {lr} */
+#define	NOP		0xf10d0d04	/* add.w sp, sp, #4 */
 #else
-#define	NOP		0xe8bd4000	/* pop {lr} */
+#define	NOP		0xe28dd004	/* add   sp, sp, #4 */
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -51,9 +63,20 @@ static unsigned long ftrace_nop_replace(struct dyn_ftrace *rec)
 	return NOP;
 }
 
-static unsigned long adjust_address(struct dyn_ftrace *rec, unsigned long addr)
+void ftrace_caller_from_init(void);
+void ftrace_regs_caller_from_init(void);
+
+static unsigned long __ref adjust_address(struct dyn_ftrace *rec,
+					  unsigned long addr)
 {
-	return addr;
+	if (!IS_ENABLED(CONFIG_DYNAMIC_FTRACE) ||
+	    system_state >= SYSTEM_FREEING_INITMEM ||
+	    likely(!is_kernel_inittext(rec->ip)))
+		return addr;
+	if (!IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS) ||
+	    addr == (unsigned long)&ftrace_caller)
+		return (unsigned long)&ftrace_caller_from_init;
+	return (unsigned long)&ftrace_regs_caller_from_init;
 }
 
 int ftrace_arch_code_modify_prepare(void)
@@ -189,21 +212,46 @@ int ftrace_make_nop(struct module *mod,
 #endif
 
 	new = ftrace_nop_replace(rec);
-	ret = ftrace_modify_code(ip, old, new, true);
+	/*
+	 * Locations in .init.text may call __gnu_mcount_mc via a linker
+	 * emitted veneer if they are too far away from its implementation, and
+	 * so validation may fail spuriously in such cases. Let's work around
+	 * this by omitting those from validation.
+	 */
+	ret = ftrace_modify_code(ip, old, new, !is_kernel_inittext(ip));
 
 	return ret;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+asmlinkage
 void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
-			   unsigned long frame_pointer)
+			   unsigned long frame_pointer,
+			   unsigned long stack_pointer)
 {
 	unsigned long return_hooker = (unsigned long) &return_to_handler;
 	unsigned long old;
 
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
+
+	if (IS_ENABLED(CONFIG_UNWINDER_FRAME_POINTER)) {
+		/* FP points one word below parent's top of stack */
+		frame_pointer += 4;
+	} else {
+		struct stackframe frame = {
+			.fp = frame_pointer,
+			.sp = stack_pointer,
+			.lr = self_addr,
+			.pc = self_addr,
+		};
+		if (unwind_frame(&frame) < 0)
+			return;
+		if (frame.lr != self_addr)
+			parent = frame.lr_addr;
+		frame_pointer = frame.sp;
+	}
 
 	old = *parent;
 	*parent = return_hooker;
@@ -225,7 +273,7 @@ static int __ftrace_modify_caller(unsigned long *callsite,
 	unsigned long caller_fn = (unsigned long) func;
 	unsigned long pc = (unsigned long) callsite;
 	unsigned long branch = arm_gen_branch(pc, caller_fn);
-	unsigned long nop = 0xe1a00000;	/* mov r0, r0 */
+	unsigned long nop = arm_gen_nop();
 	unsigned long old = enable ? nop : branch;
 	unsigned long new = enable ? branch : nop;
 

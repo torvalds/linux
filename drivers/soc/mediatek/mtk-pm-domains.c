@@ -19,7 +19,9 @@
 #include "mt8167-pm-domains.h"
 #include "mt8173-pm-domains.h"
 #include "mt8183-pm-domains.h"
+#include "mt8186-pm-domains.h"
 #include "mt8192-pm-domains.h"
+#include "mt8195-pm-domains.h"
 
 #define MTK_POLL_DELAY_US		10
 #define MTK_POLL_TIMEOUT		USEC_PER_SEC
@@ -60,10 +62,10 @@ static bool scpsys_domain_is_on(struct scpsys_domain *pd)
 	struct scpsys *scpsys = pd->scpsys;
 	u32 status, status2;
 
-	regmap_read(scpsys->base, scpsys->soc_data->pwr_sta_offs, &status);
+	regmap_read(scpsys->base, pd->data->pwr_sta_offs, &status);
 	status &= pd->data->sta_mask;
 
-	regmap_read(scpsys->base, scpsys->soc_data->pwr_sta2nd_offs, &status2);
+	regmap_read(scpsys->base, pd->data->pwr_sta2nd_offs, &status2);
 	status2 &= pd->data->sta_mask;
 
 	/* A domain is on when both status bits are set. */
@@ -443,6 +445,9 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 	pd->genpd.power_off = scpsys_power_off;
 	pd->genpd.power_on = scpsys_power_on;
 
+	if (MTK_SCPD_CAPS(pd, MTK_SCPD_ACTIVE_WAKEUP))
+		pd->genpd.flags |= GENPD_FLAG_ACTIVE_WAKEUP;
+
 	if (MTK_SCPD_CAPS(pd, MTK_SCPD_KEEP_DEFAULT_OFF))
 		pm_genpd_init(&pd->genpd, NULL, true);
 	else
@@ -563,8 +568,16 @@ static const struct of_device_id scpsys_of_match[] = {
 		.data = &mt8183_scpsys_data,
 	},
 	{
+		.compatible = "mediatek,mt8186-power-controller",
+		.data = &mt8186_scpsys_data,
+	},
+	{
 		.compatible = "mediatek,mt8192-power-controller",
 		.data = &mt8192_scpsys_data,
+	},
+	{
+		.compatible = "mediatek,mt8195-power-controller",
+		.data = &mt8195_scpsys_data,
 	},
 	{ }
 };

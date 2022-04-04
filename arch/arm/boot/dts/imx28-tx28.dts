@@ -338,7 +338,7 @@
 	};
 
 	ds1339: rtc@68 {
-		compatible = "mxim,ds1339";
+		compatible = "dallas,ds1339";
 		reg = <0x68>;
 		trickle-resistor-ohms = <250>;
 		trickle-diode-disable;

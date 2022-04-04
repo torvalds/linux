@@ -131,6 +131,8 @@
 &usart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&usart3_pins_a>;
+	/delete-property/dmas;
+	/delete-property/dma-names;
 	status = "okay";
 };
 
@@ -144,6 +146,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart8_pins_a>;
 	rts-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;
+	/delete-property/dmas;
+	/delete-property/dma-names;
 	status = "okay";
 };
 
