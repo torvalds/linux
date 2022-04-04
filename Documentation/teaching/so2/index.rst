@@ -41,6 +41,7 @@ Operating Systems 2
    :caption: Assignments
    :maxdepth: 1
 
+   assign-collaboration.rst
    assign0-kernel-api.rst
    assign1-kprobe-based-tracer.rst
    assign2-driver-uart.rst
