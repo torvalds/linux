@@ -85,8 +85,59 @@ struct cxl_mbox_cmd {
 	size_t size_in;
 	size_t size_out;
 	u16 return_code;
-#define CXL_MBOX_SUCCESS 0
 };
+
+/*
+ * Per CXL 2.0 Section 8.2.8.4.5.1
+ */
+#define CMD_CMD_RC_TABLE							\
+	C(SUCCESS, 0, NULL),							\
+	C(BACKGROUND, -ENXIO, "background cmd started successfully"),           \
+	C(INPUT, -ENXIO, "cmd input was invalid"),				\
+	C(UNSUPPORTED, -ENXIO, "cmd is not supported"),				\
+	C(INTERNAL, -ENXIO, "internal device error"),				\
+	C(RETRY, -ENXIO, "temporary error, retry once"),			\
+	C(BUSY, -ENXIO, "ongoing background operation"),			\
+	C(MEDIADISABLED, -ENXIO, "media access is disabled"),			\
+	C(FWINPROGRESS, -ENXIO,	"one FW package can be transferred at a time"), \
+	C(FWOOO, -ENXIO, "FW package content was transferred out of order"),    \
+	C(FWAUTH, -ENXIO, "FW package authentication failed"),			\
+	C(FWSLOT, -ENXIO, "FW slot is not supported for requested operation"),  \
+	C(FWROLLBACK, -ENXIO, "rolled back to the previous active FW"),         \
+	C(FWRESET, -ENXIO, "FW failed to activate, needs cold reset"),		\
+	C(HANDLE, -ENXIO, "one or more Event Record Handles were invalid"),     \
+	C(PADDR, -ENXIO, "physical address specified is invalid"),		\
+	C(POISONLMT, -ENXIO, "poison injection limit has been reached"),        \
+	C(MEDIAFAILURE, -ENXIO, "permanent issue with the media"),		\
+	C(ABORT, -ENXIO, "background cmd was aborted by device"),               \
+	C(SECURITY, -ENXIO, "not valid in the current security state"),         \
+	C(PASSPHRASE, -ENXIO, "phrase doesn't match current set passphrase"),   \
+	C(MBUNSUPPORTED, -ENXIO, "unsupported on the mailbox it was issued on"),\
+	C(PAYLOADLEN, -ENXIO, "invalid payload length")
+
+#undef C
+#define C(a, b, c) CXL_MBOX_CMD_RC_##a
+enum  { CMD_CMD_RC_TABLE };
+#undef C
+#define C(a, b, c) { b, c }
+struct cxl_mbox_cmd_rc {
+	int err;
+	const char *desc;
+};
+
+static const
+struct cxl_mbox_cmd_rc cxl_mbox_cmd_rctable[] ={ CMD_CMD_RC_TABLE };
+#undef C
+
+static inline const char *cxl_mbox_cmd_rc2str(struct cxl_mbox_cmd *mbox_cmd)
+{
+	return cxl_mbox_cmd_rctable[mbox_cmd->return_code].desc;
+}
+
+static inline int cxl_mbox_cmd_rc2errno(struct cxl_mbox_cmd *mbox_cmd)
+{
+	return cxl_mbox_cmd_rctable[mbox_cmd->return_code].err;
+}
 
 /*
  * CXL 2.0 - Memory capacity multiplier
