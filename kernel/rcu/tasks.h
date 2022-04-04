@@ -273,7 +273,9 @@ static void call_rcu_tasks_iw_wakeup(struct irq_work *iwp)
 static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 				   struct rcu_tasks *rtp)
 {
+	int chosen_cpu;
 	unsigned long flags;
+	int ideal_cpu;
 	unsigned long j;
 	bool needadjust = false;
 	bool needwake;
@@ -283,8 +285,9 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 	rhp->func = func;
 	local_irq_save(flags);
 	rcu_read_lock();
-	rtpcp = per_cpu_ptr(rtp->rtpcpu,
-			    smp_processor_id() >> READ_ONCE(rtp->percpu_enqueue_shift));
+	ideal_cpu = smp_processor_id() >> READ_ONCE(rtp->percpu_enqueue_shift);
+	chosen_cpu = cpumask_next(ideal_cpu - 1, cpu_possible_mask);
+	rtpcp = per_cpu_ptr(rtp->rtpcpu, chosen_cpu);
 	if (!raw_spin_trylock_rcu_node(rtpcp)) { // irqs already disabled.
 		raw_spin_lock_rcu_node(rtpcp); // irqs already disabled.
 		j = jiffies;
