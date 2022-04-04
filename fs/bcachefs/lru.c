@@ -9,7 +9,7 @@
 #include "recovery.h"
 
 int bch2_lru_invalid(const struct bch_fs *c, struct bkey_s_c k,
-		     struct printbuf *err)
+		     int rw, struct printbuf *err)
 {
 	const struct bch_lru *lru = bkey_s_c_to_lru(k).v;
 

@@ -250,7 +250,7 @@ static int journal_validate_key(struct bch_fs *c, const char *where,
 				 write, NULL, bkey_to_packed(k));
 
 	if (bch2_bkey_invalid(c, bkey_i_to_s_c(k),
-			      __btree_node_type(level, btree_id), &buf)) {
+			      __btree_node_type(level, btree_id), write, &buf)) {
 		printbuf_reset(&buf);
 		pr_buf(&buf, "invalid %s in %s entry offset %zi/%u:",
 		       type, where,
@@ -262,7 +262,7 @@ static int journal_validate_key(struct bch_fs *c, const char *where,
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(k));
 		pr_newline(&buf);
 		bch2_bkey_invalid(c, bkey_i_to_s_c(k),
-				  __btree_node_type(level, btree_id), &buf);
+				  __btree_node_type(level, btree_id), write, &buf);
 
 		mustfix_fsck_err(c, "%s", buf.buf);
 

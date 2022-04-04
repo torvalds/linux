@@ -58,7 +58,7 @@ const struct bch_sb_field_ops bch_sb_field_ops_quota = {
 };
 
 int bch2_quota_invalid(const struct bch_fs *c, struct bkey_s_c k,
-		       struct printbuf *err)
+		       int rw, struct printbuf *err)
 {
 	if (k.k->p.inode >= QTYP_NR) {
 		pr_buf(err, "invalid quota type (%llu >= %u)",

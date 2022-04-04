@@ -2,7 +2,7 @@
 #ifndef _BCACHEFS_LRU_H
 #define _BCACHEFS_LRU_H
 
-int bch2_lru_invalid(const struct bch_fs *, struct bkey_s_c, struct printbuf *);
+int bch2_lru_invalid(const struct bch_fs *, struct bkey_s_c, int, struct printbuf *);
 void bch2_lru_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_lru (struct bkey_ops) {	\

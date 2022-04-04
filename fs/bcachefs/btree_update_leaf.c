@@ -866,7 +866,8 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	int ret, u64s_delta = 0;
 
 	trans_for_each_update(trans, i) {
-		if (bch2_bkey_invalid(c, bkey_i_to_s_c(i->k), i->bkey_type, &buf)) {
+		if (bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
+				      i->bkey_type, WRITE, &buf)) {
 			printbuf_reset(&buf);
 			pr_buf(&buf, "invalid bkey on insert from %s -> %ps",
 			       trans->fn, (void *) i->ip_allocated);
@@ -876,7 +877,8 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(i->k));
 			pr_newline(&buf);
 
-			bch2_bkey_invalid(c, bkey_i_to_s_c(i->k), i->bkey_type, &buf);
+			bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
+					  i->bkey_type, WRITE, &buf);
 
 			bch2_fs_fatal_error(c, "%s", buf.buf);
 			printbuf_exit(&buf);

@@ -302,7 +302,8 @@ static unsigned bch_alloc_v1_val_u64s(const struct bch_alloc *a)
 	return DIV_ROUND_UP(bytes, sizeof(u64));
 }
 
-int bch2_alloc_v1_invalid(const struct bch_fs *c, struct bkey_s_c k, struct printbuf *err)
+int bch2_alloc_v1_invalid(const struct bch_fs *c, struct bkey_s_c k,
+			  int rw, struct printbuf *err)
 {
 	struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
 
@@ -316,7 +317,8 @@ int bch2_alloc_v1_invalid(const struct bch_fs *c, struct bkey_s_c k, struct prin
 	return 0;
 }
 
-int bch2_alloc_v2_invalid(const struct bch_fs *c, struct bkey_s_c k, struct printbuf *err)
+int bch2_alloc_v2_invalid(const struct bch_fs *c, struct bkey_s_c k,
+			  int rw, struct printbuf *err)
 {
 	struct bkey_alloc_unpacked u;
 
@@ -328,7 +330,8 @@ int bch2_alloc_v2_invalid(const struct bch_fs *c, struct bkey_s_c k, struct prin
 	return 0;
 }
 
-int bch2_alloc_v3_invalid(const struct bch_fs *c, struct bkey_s_c k, struct printbuf *err)
+int bch2_alloc_v3_invalid(const struct bch_fs *c, struct bkey_s_c k,
+			  int rw, struct printbuf *err)
 {
 	struct bkey_alloc_unpacked u;
 
@@ -340,7 +343,8 @@ int bch2_alloc_v3_invalid(const struct bch_fs *c, struct bkey_s_c k, struct prin
 	return 0;
 }
 
-int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k, struct printbuf *err)
+int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
+			  int rw, struct printbuf *err)
 {
 	if (bkey_val_bytes(k.k) != sizeof(struct bch_alloc_v4)) {
 		pr_buf(err, "bad val size (%zu != %zu)",

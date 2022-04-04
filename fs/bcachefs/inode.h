@@ -6,8 +6,8 @@
 
 extern const char * const bch2_inode_opts[];
 
-int bch2_inode_invalid(const struct bch_fs *, struct bkey_s_c, struct printbuf *);
-int bch2_inode_v2_invalid(const struct bch_fs *, struct bkey_s_c, struct printbuf *);
+int bch2_inode_invalid(const struct bch_fs *, struct bkey_s_c, int, struct printbuf *);
+int bch2_inode_v2_invalid(const struct bch_fs *, struct bkey_s_c, int, struct printbuf *);
 void bch2_inode_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_inode (struct bkey_ops) {		\
@@ -30,7 +30,8 @@ static inline bool bkey_is_inode(const struct bkey *k)
 		k->type == KEY_TYPE_inode_v2;
 }
 
-int bch2_inode_generation_invalid(const struct bch_fs *, struct bkey_s_c, struct printbuf *);
+int bch2_inode_generation_invalid(const struct bch_fs *, struct bkey_s_c,
+				  int, struct printbuf *);
 void bch2_inode_generation_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_inode_generation (struct bkey_ops) {	\
