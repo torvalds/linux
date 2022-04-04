@@ -954,18 +954,18 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, char *name, int len,
 		hold_rsb(r);
 		spin_unlock(&ls->ls_rsbtbl[b].lock);
 		lock_rsb(r);
-		goto found;
+	} else {
+		error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
+		if (error)
+			goto not_found;
+
+		/* because the rsb is inactive (on toss list), it's not refcounted
+		 * and lock_rsb is not used, but is protected by the rsbtbl lock
+		 */
+
+		toss_list = 1;
 	}
 
-	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
-	if (error)
-		goto not_found;
-
-	/* because the rsb is inactive (on toss list), it's not refcounted
-	   and lock_rsb is not used, but is protected by the rsbtbl lock */
-
-	toss_list = 1;
- found:
 	if (r->res_dir_nodeid != our_nodeid) {
 		/* should not happen, but may as well fix it and carry on */
 		log_error(ls, "dlm_master_lookup res_dir %d our %d %s",
