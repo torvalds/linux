@@ -47,16 +47,10 @@ struct pwrctrl_priv {
 	u8	smart_ps;
 	u8	bcn_ant_mode;
 
-	u32	alives;
-	struct work_struct cpwm_event;
 	bool	bpower_saving;
 
 	u8	reg_rfoff;
-	u8	reg_pdnmode; /* powerdown mode */
 
-	/* RF OFF Level */
-	u32	cur_ps_level;
-	u32	reg_rfps_level;
 	uint	ips_enter_cnts;
 	uint	ips_leave_cnts;
 
@@ -72,7 +66,6 @@ struct pwrctrl_priv {
 	u8	power_mgnt;
 	u8	bFwCurrentInPSMode;
 	u32	DelayLPSLastTimeStamp;
-	s32		pnp_current_pwr_state;
 	u8		pnp_bstop_trx;
 
 	u8		bInSuspend;
@@ -86,7 +79,6 @@ struct pwrctrl_priv {
 	enum rt_rf_power_state	rf_pwrstate;/* cur power state */
 	enum rt_rf_power_state	change_rfpwrstate;
 
-	u8		wepkeymask;
 	u8		bkeepfwalive;
 };
 
