@@ -359,6 +359,12 @@ enum dc_psr_power_opts {
 	psr_power_opt_ds_disable_allow = 0x100,
 };
 
+enum dml_hostvm_override_opts {
+	DML_HOSTVM_NO_OVERRIDE = 0x0,
+	DML_HOSTVM_OVERRIDE_FALSE = 0x1,
+	DML_HOSTVM_OVERRIDE_TRUE = 0x2,
+};
+
 enum dcc_option {
 	DCC_ENABLE = 0,
 	DCC_DISABLE = 1,
@@ -733,6 +739,7 @@ struct dc_debug_options {
 	bool extended_blank_optimization;
 	union aux_wake_wa_options aux_wake_wa;
 	uint8_t psr_power_use_phy_fsm;
+	enum dml_hostvm_override_opts dml_hostvm_override;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;

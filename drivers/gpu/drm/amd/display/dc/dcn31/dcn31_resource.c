@@ -890,6 +890,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.enable_sw_cntl_psr = true,
 	.apply_vendor_specific_lttpr_wa = true,
 	.enable_z9_disable_interface = true, /* Allow support for the PMFW interface for disable Z9*/
+	.dml_hostvm_override = DML_HOSTVM_OVERRIDE_FALSE,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -1666,7 +1667,6 @@ int dcn31_populate_dml_pipes_from_context(
 		 * intermittently experienced depending on peak b/w requirements.
 		 */
 		pipes[pipe_cnt].pipe.src.immediate_flip = true;
-
 		pipes[pipe_cnt].pipe.src.unbounded_req_mode = false;
 		pipes[pipe_cnt].pipe.src.gpuvm = true;
 		pipes[pipe_cnt].pipe.src.dcc_fraction_of_zs_req_luma = 0;
@@ -1674,6 +1674,13 @@ int dcn31_populate_dml_pipes_from_context(
 		pipes[pipe_cnt].pipe.dest.vfront_porch = timing->v_front_porch;
 		pipes[pipe_cnt].pipe.src.dcc_rate = 3;
 		pipes[pipe_cnt].dout.dsc_input_bpc = 0;
+
+		if (dc->debug.dml_hostvm_override == DML_HOSTVM_NO_OVERRIDE)
+			pipes[pipe_cnt].pipe.src.hostvm = dc->res_pool->hubbub->riommu_active;
+		else if (dc->debug.dml_hostvm_override == DML_HOSTVM_OVERRIDE_FALSE)
+			pipes[pipe_cnt].pipe.src.hostvm = false;
+		else if (dc->debug.dml_hostvm_override == DML_HOSTVM_OVERRIDE_TRUE)
+			pipes[pipe_cnt].pipe.src.hostvm = true;
 
 		if (pipes[pipe_cnt].dout.dsc_enable) {
 			switch (timing->display_color_depth) {
