@@ -44,6 +44,7 @@ struct rockchip_crtc_state {
  */
 struct rockchip_drm_private {
 	struct iommu_domain *domain;
+	struct device *iommu_dev;
 	struct mutex mm_lock;
 	struct drm_mm mm;
 };
@@ -52,6 +53,8 @@ int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 				   struct device *dev);
 void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 				    struct device *dev);
+void rockchip_drm_dma_init_device(struct drm_device *drm_dev,
+				  struct device *dev);
 int rockchip_drm_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout);
 
 int rockchip_drm_endpoint_is_subdriver(struct device_node *ep);

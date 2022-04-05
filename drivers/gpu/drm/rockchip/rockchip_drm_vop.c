@@ -2175,6 +2175,8 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 		}
 	}
 
+	rockchip_drm_dma_init_device(drm_dev, dev);
+
 	return 0;
 
 err_disable_pm_runtime:
