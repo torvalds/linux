@@ -80,7 +80,7 @@ struct usnic_uiom_chunk {
 	struct scatterlist		page_list[];
 };
 
-struct usnic_uiom_pd *usnic_uiom_alloc_pd(void);
+struct usnic_uiom_pd *usnic_uiom_alloc_pd(struct device *dev);
 void usnic_uiom_dealloc_pd(struct usnic_uiom_pd *pd);
 int usnic_uiom_attach_dev_to_pd(struct usnic_uiom_pd *pd, struct device *dev);
 void usnic_uiom_detach_dev_from_pd(struct usnic_uiom_pd *pd,
