@@ -487,6 +487,8 @@ int snd_soc_calc_frame_size(int sample_size, int channels, int tdm_slots);
 int snd_soc_params_to_frame_size(struct snd_pcm_hw_params *params);
 int snd_soc_calc_bclk(int fs, int sample_size, int channels, int tdm_slots);
 int snd_soc_params_to_bclk(struct snd_pcm_hw_params *parms);
+int snd_soc_tdm_params_to_bclk(struct snd_pcm_hw_params *params,
+			       int tdm_width, int tdm_slots, int slot_multiple);
 
 /* set runtime hw params */
 int snd_soc_set_runtime_hwparams(struct snd_pcm_substream *substream,
