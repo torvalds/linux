@@ -78,6 +78,7 @@ struct mhi_ep_db_info {
  * @state_work: State transition worker
  * @reset_work: Worker for MHI Endpoint reset
  * @cmd_ring_work: Worker for processing command rings
+ * @ch_ring_work: Worker for processing channel rings
  * @raise_irq: CB function for raising IRQ to the host
  * @alloc_map: CB function for allocating memory in endpoint for storing host context and mapping it
  * @unmap_free: CB function to unmap and free the allocated memory in endpoint for storing host context
@@ -126,6 +127,7 @@ struct mhi_ep_cntrl {
 	struct work_struct state_work;
 	struct work_struct reset_work;
 	struct work_struct cmd_ring_work;
+	struct work_struct ch_ring_work;
 
 	void (*raise_irq)(struct mhi_ep_cntrl *mhi_cntrl, u32 vector);
 	int (*alloc_map)(struct mhi_ep_cntrl *mhi_cntrl, u64 pci_addr, phys_addr_t *phys_ptr,
