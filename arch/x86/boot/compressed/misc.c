@@ -48,6 +48,8 @@ void *memmove(void *dest, const void *src, size_t n);
  */
 struct boot_params *boot_params;
 
+struct port_io_ops pio_ops;
+
 memptr free_mem_ptr;
 memptr free_mem_end_ptr;
 
@@ -370,6 +372,8 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 
 	lines = boot_params->screen_info.orig_video_lines;
 	cols = boot_params->screen_info.orig_video_cols;
+
+	init_default_io_ops();
 
 	/*
 	 * Detect TDX guest environment.
