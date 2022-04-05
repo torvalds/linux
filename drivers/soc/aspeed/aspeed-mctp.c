@@ -320,8 +320,18 @@ struct mctp_type_handler {
 	struct list_head link;
 };
 
+union aspeed_mctp_eid_data_info {
+	struct aspeed_mctp_eid_info eid_info;
+	struct aspeed_mctp_eid_ext_info eid_ext_info;
+};
+
+enum mctp_address_type {
+	ASPEED_MCTP_GENERIC_ADDR_FORMAT = 0,
+	ASPEED_MCTP_EXTENDED_ADDR_FORMAT = 1
+};
+
 struct aspeed_mctp_endpoint {
-	struct aspeed_mctp_eid_info data;
+	union  aspeed_mctp_eid_data_info data;
 	struct list_head link;
 };
 
@@ -1382,8 +1392,8 @@ int aspeed_mctp_get_eid_bdf(struct mctp_client *client, u8 eid, u16 *bdf)
 
 	mutex_lock(&client->priv->endpoints_lock);
 	list_for_each_entry(endpoint, &client->priv->endpoints, link) {
-		if (endpoint->data.eid == eid) {
-			*bdf = endpoint->data.bdf;
+		if (endpoint->data.eid_info.eid == eid) {
+			*bdf = endpoint->data.eid_info.bdf;
 			ret = 0;
 			break;
 		}
@@ -1395,13 +1405,14 @@ int aspeed_mctp_get_eid_bdf(struct mctp_client *client, u8 eid, u16 *bdf)
 EXPORT_SYMBOL_GPL(aspeed_mctp_get_eid_bdf);
 
 static int
-aspeed_mctp_get_eid_info(struct aspeed_mctp *priv, void __user *userbuf)
+aspeed_mctp_get_eid_info(struct aspeed_mctp *priv, void __user *userbuf,
+			 enum mctp_address_type addr_format)
 {
 	int count = 0;
 	int ret = 0;
 	struct aspeed_mctp_get_eid_info get_eid;
 	struct aspeed_mctp_endpoint *endpoint;
-	struct aspeed_mctp_eid_info *user_ptr;
+	void *user_ptr;
 	size_t count_to_copy;
 
 	if (copy_from_user(&get_eid, userbuf, sizeof(get_eid))) {
@@ -1420,11 +1431,23 @@ aspeed_mctp_get_eid_info(struct aspeed_mctp *priv, void __user *userbuf)
 	count_to_copy = get_eid.count > priv->endpoints_count ?
 					priv->endpoints_count : get_eid.count;
 	list_for_each_entry(endpoint, &priv->endpoints, link) {
-		if (endpoint->data.eid < get_eid.start_eid)
+		if (endpoint->data.eid_info.eid < get_eid.start_eid)
 			continue;
 		if (count >= count_to_copy)
 			break;
-		if (copy_to_user(&user_ptr[count], &endpoint->data, sizeof(*user_ptr))) {
+
+		if (addr_format == ASPEED_MCTP_EXTENDED_ADDR_FORMAT)
+			ret = copy_to_user(&(((struct aspeed_mctp_eid_ext_info *)
+								user_ptr)[count]),
+							&endpoint->data,
+							sizeof(struct aspeed_mctp_eid_ext_info));
+		else
+			ret = copy_to_user(&(((struct aspeed_mctp_eid_info *)
+								user_ptr)[count]),
+							&endpoint->data,
+							sizeof(struct aspeed_mctp_eid_info));
+
+		if (ret) {
 			dev_err(priv->dev, "copy to user failed\n");
 			ret = -EFAULT;
 			goto out_unlock;
@@ -1455,9 +1478,9 @@ eid_info_cmp(void *priv, const struct list_head *a, const struct list_head *b)
 	endpoint_a = list_entry(a, typeof(*endpoint_a), link);
 	endpoint_b = list_entry(b, typeof(*endpoint_b), link);
 
-	if (endpoint_a->data.eid < endpoint_b->data.eid)
+	if (endpoint_a->data.eid_info.eid < endpoint_b->data.eid_info.eid)
 		return -1;
-	else if (endpoint_a->data.eid > endpoint_b->data.eid)
+	else if (endpoint_a->data.eid_info.eid > endpoint_b->data.eid_info.eid)
 		return 1;
 
 	return 0;
@@ -1486,7 +1509,7 @@ aspeed_mctp_eid_info_list_valid(struct list_head *list)
 			break;
 
 		/* duplicted eids */
-		if (next->data.eid == endpoint->data.eid)
+		if (next->data.eid_info.eid == endpoint->data.eid_info.eid)
 			return false;
 	}
 
@@ -1494,11 +1517,12 @@ aspeed_mctp_eid_info_list_valid(struct list_head *list)
 }
 
 static int
-aspeed_mctp_set_eid_info(struct aspeed_mctp *priv, void __user *userbuf)
+aspeed_mctp_set_eid_info(struct aspeed_mctp *priv, void __user *userbuf,
+			 enum mctp_address_type addr_format)
 {
 	struct list_head list = LIST_HEAD_INIT(list);
 	struct aspeed_mctp_set_eid_info set_eid;
-	struct aspeed_mctp_eid_info *user_ptr;
+	void *user_ptr;
 	struct aspeed_mctp_endpoint *endpoint;
 	int ret = 0;
 	u8 eid = 0;
@@ -1519,9 +1543,20 @@ aspeed_mctp_set_eid_info(struct aspeed_mctp *priv, void __user *userbuf)
 			ret = -ENOMEM;
 			goto out;
 		}
+		memset(endpoint, 0, sizeof(*endpoint));
 
-		if (copy_from_user(&endpoint->data, &user_ptr[i],
-				   sizeof(*user_ptr))) {
+		if (addr_format == ASPEED_MCTP_EXTENDED_ADDR_FORMAT)
+			ret = copy_from_user(&endpoint->data,
+					     &(((struct aspeed_mctp_eid_ext_info *)
+								user_ptr)[i]),
+					     sizeof(struct aspeed_mctp_eid_ext_info));
+		else
+			ret = copy_from_user(&endpoint->data,
+					     &(((struct aspeed_mctp_eid_info *)
+								user_ptr)[i]),
+						 sizeof(struct aspeed_mctp_eid_info));
+
+		if (ret) {
 			dev_err(priv->dev, "copy from user failed\n");
 			kfree(endpoint);
 			ret = -EFAULT;
@@ -1529,17 +1564,17 @@ aspeed_mctp_set_eid_info(struct aspeed_mctp *priv, void __user *userbuf)
 		}
 
 		/* Detect self EID */
-		if (_get_bdf(priv) == endpoint->data.bdf) {
+		if (_get_bdf(priv) == endpoint->data.eid_info.bdf) {
 			/*
 			 * XXX Use smallest EID with matching BDF.
 			 * On some platforms there could be multiple endpoints
 			 * with same BDF in routing table.
 			 */
-			if (eid == 0 || endpoint->data.eid < eid)
-				eid = endpoint->data.eid;
+			if (eid == 0 || endpoint->data.eid_info.eid < eid)
+				eid = endpoint->data.eid_info.eid;
 		}
 
-		list_add_tail(&endpoint->link, &list);
+	list_add_tail(&endpoint->link, &list);
 	}
 
 	list_sort(NULL, &list, eid_info_cmp);
@@ -1599,11 +1634,19 @@ aspeed_mctp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	break;
 
 	case ASPEED_MCTP_IOCTL_GET_EID_INFO:
-		ret = aspeed_mctp_get_eid_info(priv, userbuf);
+		ret = aspeed_mctp_get_eid_info(priv, userbuf, ASPEED_MCTP_GENERIC_ADDR_FORMAT);
+	break;
+
+	case ASPEED_MCTP_IOCTL_GET_EID_EXT_INFO:
+		ret = aspeed_mctp_get_eid_info(priv, userbuf, ASPEED_MCTP_EXTENDED_ADDR_FORMAT);
 	break;
 
 	case ASPEED_MCTP_IOCTL_SET_EID_INFO:
-		ret = aspeed_mctp_set_eid_info(priv, userbuf);
+		ret = aspeed_mctp_set_eid_info(priv, userbuf, ASPEED_MCTP_GENERIC_ADDR_FORMAT);
+	break;
+
+	case ASPEED_MCTP_IOCTL_SET_EID_EXT_INFO:
+		ret = aspeed_mctp_set_eid_info(priv, userbuf, ASPEED_MCTP_EXTENDED_ADDR_FORMAT);
 	break;
 
 	default:
