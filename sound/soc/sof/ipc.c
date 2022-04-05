@@ -1043,6 +1043,7 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_ipc *ipc;
 	struct snd_sof_ipc_msg *msg;
+	const struct sof_ipc_ops *ops;
 
 	ipc = devm_kzalloc(sdev->dev, sizeof(*ipc), GFP_KERNEL);
 	if (!ipc)
@@ -1062,11 +1063,16 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 	 * versions, this will need to be modified to use the selected version at runtime.
 	 */
 	ipc->ops = &ipc3_ops;
+	ops = ipc->ops;
 
 	/* check for mandatory ops */
-	if (!ipc->ops->pcm || !ipc->ops->tplg || !ipc->ops->tplg->widget ||
-	    !ipc->ops->tplg->control) {
-		dev_err(sdev->dev, "Invalid IPC ops\n");
+	if (!ops->pcm) {
+		dev_err(sdev->dev, "Missing IPC PCM ops\n");
+		return NULL;
+	}
+
+	if (!ops->tplg || !ops->tplg->widget || !ops->tplg->control) {
+		dev_err(sdev->dev, "Missing IPC topology ops\n");
 		return NULL;
 	}
 
