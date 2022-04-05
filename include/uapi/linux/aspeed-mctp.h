@@ -82,6 +82,12 @@ struct aspeed_mctp_eid_info {
 	__u16 bdf;
 };
 
+struct aspeed_mctp_eid_ext_info {
+	__u8 eid;
+	__u16 bdf;
+	__u8 domain_id;
+};
+
 struct aspeed_mctp_get_eid_info {
 	__u64 ptr;
 	__u16 count;
@@ -113,5 +119,10 @@ struct aspeed_mctp_set_eid_info {
 	_IOWR(ASPEED_MCTP_IOCTL_BASE, 8, struct aspeed_mctp_get_eid_info)
 #define ASPEED_MCTP_IOCTL_SET_EID_INFO \
 	_IOW(ASPEED_MCTP_IOCTL_BASE, 9, struct aspeed_mctp_set_eid_info)
+#define ASPEED_MCTP_IOCTL_GET_EID_EXT_INFO \
+	_IOW(ASPEED_MCTP_IOCTL_BASE, 10, struct aspeed_mctp_get_eid_info)
+#define ASPEED_MCTP_IOCTL_SET_EID_EXT_INFO \
+	_IOW(ASPEED_MCTP_IOCTL_BASE, 11, struct aspeed_mctp_set_eid_info)
+
 
 #endif /* _UAPI_LINUX_ASPEED_MCTP_H */
