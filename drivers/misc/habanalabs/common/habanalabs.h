@@ -1100,6 +1100,8 @@ enum div_select_defs {
 };
 
 enum debugfs_access_type {
+	DEBUGFS_READ8,
+	DEBUGFS_WRITE8,
 	DEBUGFS_READ32,
 	DEBUGFS_WRITE32,
 	DEBUGFS_READ64,

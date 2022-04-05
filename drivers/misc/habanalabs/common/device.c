@@ -53,6 +53,14 @@ static int hl_access_sram_dram_region(struct hl_device *hdev, u64 addr, u64 *val
 	}
 
 	switch (acc_type) {
+	case DEBUGFS_READ8:
+		*val = readb(hdev->pcie_bar[region->bar_id] +
+			addr - region->region_base + region->offset_in_bar);
+		break;
+	case DEBUGFS_WRITE8:
+		writeb(*val, hdev->pcie_bar[region->bar_id] +
+			addr - region->region_base + region->offset_in_bar);
+		break;
 	case DEBUGFS_READ32:
 		*val = readl(hdev->pcie_bar[region->bar_id] +
 			addr - region->region_base + region->offset_in_bar);
@@ -148,7 +156,11 @@ int hl_access_cfg_region(struct hl_device *hdev, u64 addr, u64 *val,
 		WREG32(addr - cfg_region->region_base, lower_32_bits(*val));
 		WREG32(addr + sizeof(u32) - cfg_region->region_base, upper_32_bits(*val));
 		break;
+	default:
+		dev_err(hdev->dev, "access type %d is not supported\n", acc_type);
+		return -EOPNOTSUPP;
 	}
+
 	return 0;
 }
 

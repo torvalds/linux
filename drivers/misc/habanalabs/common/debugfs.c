@@ -688,6 +688,9 @@ static void hl_access_host_mem(struct hl_device *hdev, u64 addr, u64 *val,
 	case DEBUGFS_WRITE64:
 		*(u64 *) phys_to_virt(addr - offset) = *val;
 		break;
+	default:
+		dev_err(hdev->dev, "hostmem access-type %d id not supported\n", acc_type);
+		break;
 	}
 }
 
