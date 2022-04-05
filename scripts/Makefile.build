@@ -276,7 +276,8 @@ define rule_as_o_S
 	$(call cmd_and_fixdep,as_o_S)
 	$(call cmd,gen_ksymdeps)
 	$(call cmd,gen_objtooldep)
-	$(call cmd,modversions_S)
+	$(call cmd,gen_symversions_S)
+	$(call cmd,modversions)
 endef
 
 # Built-in and composite module parts
@@ -363,16 +364,8 @@ ifdef CONFIG_ASM_MODVERSIONS
 # versioning matches the C process described above, with difference that
 # we parse asm-prototypes.h C header to get function definitions.
 
-cmd_modversions_S =								\
-	if $(OBJDUMP) -h $@ | grep -q __ksymtab; then				\
-		$(call cmd_gensymtypes_S,$(KBUILD_SYMTYPES),$(@:.o=.symtypes))	\
-		    > $(@D)/.tmp_$(@F:.o=.ver);					\
-										\
-		$(LD) $(KBUILD_LDFLAGS) -r -o $(@D)/.tmp_$(@F) $@ 		\
-			-T $(@D)/.tmp_$(@F:.o=.ver);				\
-		mv -f $(@D)/.tmp_$(@F) $@;					\
-		rm -f $(@D)/.tmp_$(@F:.o=.ver);					\
-	fi
+cmd_gen_symversions_S = $(call gen_symversions,S)
+
 endif
 
 $(obj)/%.o: $(src)/%.S FORCE
