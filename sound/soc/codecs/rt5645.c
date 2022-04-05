@@ -3855,8 +3855,7 @@ static int rt5645_parse_dt(struct rt5645_priv *rt5645, struct device *dev)
 	return 0;
 }
 
-static int rt5645_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt5645_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5645_platform_data *pdata = NULL;
 	const struct dmi_system_id *dmi_data;
@@ -4183,7 +4182,7 @@ static struct i2c_driver rt5645_i2c_driver = {
 		.of_match_table = of_match_ptr(rt5645_of_match),
 		.acpi_match_table = ACPI_PTR(rt5645_acpi_match),
 	},
-	.probe = rt5645_i2c_probe,
+	.probe_new = rt5645_i2c_probe,
 	.remove = rt5645_i2c_remove,
 	.shutdown = rt5645_i2c_shutdown,
 	.id_table = rt5645_i2c_id,

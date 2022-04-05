@@ -558,8 +558,7 @@ static const struct acpi_device_id rt1019_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt1019_acpi_match);
 #endif
 
-static int rt1019_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int rt1019_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt1019_priv *rt1019;
 	int ret;
@@ -599,7 +598,7 @@ static struct i2c_driver rt1019_i2c_driver = {
 		.of_match_table = of_match_ptr(rt1019_of_match),
 		.acpi_match_table = ACPI_PTR(rt1019_acpi_match),
 	},
-	.probe = rt1019_i2c_probe,
+	.probe_new = rt1019_i2c_probe,
 	.id_table = rt1019_i2c_id,
 };
 module_i2c_driver(rt1019_i2c_driver);

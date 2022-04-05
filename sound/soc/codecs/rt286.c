@@ -1134,8 +1134,7 @@ static const struct dmi_system_id dmi_dell[] = {
 	{ }
 };
 
-static int rt286_i2c_probe(struct i2c_client *i2c,
-			   const struct i2c_device_id *id)
+static int rt286_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt286_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt286_priv *rt286;
@@ -1271,7 +1270,7 @@ static struct i2c_driver rt286_i2c_driver = {
 		   .name = "rt286",
 		   .acpi_match_table = ACPI_PTR(rt286_acpi_match),
 		   },
-	.probe = rt286_i2c_probe,
+	.probe_new = rt286_i2c_probe,
 	.remove = rt286_i2c_remove,
 	.id_table = rt286_i2c_id,
 };
