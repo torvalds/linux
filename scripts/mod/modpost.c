@@ -684,13 +684,7 @@ static void handle_modversion(const struct module *mod,
 static void handle_symbol(struct module *mod, struct elf_info *info,
 			  const Elf_Sym *sym, const char *symname)
 {
-	enum export export;
 	const char *name;
-
-	if (strstarts(symname, "__ksymtab"))
-		export = export_from_secname(info, get_secindex(info, sym));
-	else
-		export = export_unknown;
 
 	switch (sym->st_shndx) {
 	case SHN_COMMON:
@@ -726,7 +720,11 @@ static void handle_symbol(struct module *mod, struct elf_info *info,
 	default:
 		/* All exported symbols */
 		if (strstarts(symname, "__ksymtab_")) {
+			enum export export;
+
 			name = symname + strlen("__ksymtab_");
+			export = export_from_secname(info,
+						     get_secindex(info, sym));
 			sym_add_exported(name, mod, export);
 		}
 		if (strcmp(symname, "init_module") == 0)
