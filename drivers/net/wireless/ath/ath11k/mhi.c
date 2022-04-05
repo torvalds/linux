@@ -489,16 +489,34 @@ void ath11k_mhi_stop(struct ath11k_pci *ab_pci)
 	mhi_unprepare_after_power_down(ab_pci->mhi_ctrl);
 }
 
-void ath11k_mhi_suspend(struct ath11k_pci *ab_pci)
+int ath11k_mhi_suspend(struct ath11k_pci *ab_pci)
 {
-	mhi_pm_suspend(ab_pci->mhi_ctrl);
+	struct ath11k_base *ab = ab_pci->ab;
+	int ret;
+
+	ret = mhi_pm_suspend(ab_pci->mhi_ctrl);
+	if (ret) {
+		ath11k_warn(ab, "failed to suspend mhi: %d", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
-void ath11k_mhi_resume(struct ath11k_pci *ab_pci)
+int ath11k_mhi_resume(struct ath11k_pci *ab_pci)
 {
+	struct ath11k_base *ab = ab_pci->ab;
+	int ret;
+
 	/* Do force MHI resume as some devices like QCA6390, WCN6855
 	 * are not in M3 state but they are functional. So just ignore
 	 * the MHI state while resuming.
 	 */
-	mhi_pm_resume_force(ab_pci->mhi_ctrl);
+	ret = mhi_pm_resume_force(ab_pci->mhi_ctrl);
+	if (ret) {
+		ath11k_warn(ab, "failed to resume mhi: %d", ret);
+		return ret;
+	}
+
+	return 0;
 }

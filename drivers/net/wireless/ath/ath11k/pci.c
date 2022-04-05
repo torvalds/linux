@@ -619,18 +619,14 @@ static int ath11k_pci_hif_suspend(struct ath11k_base *ab)
 {
 	struct ath11k_pci *ar_pci = ath11k_pci_priv(ab);
 
-	ath11k_mhi_suspend(ar_pci);
-
-	return 0;
+	return ath11k_mhi_suspend(ar_pci);
 }
 
 static int ath11k_pci_hif_resume(struct ath11k_base *ab)
 {
 	struct ath11k_pci *ar_pci = ath11k_pci_priv(ab);
 
-	ath11k_mhi_resume(ar_pci);
-
-	return 0;
+	return ath11k_mhi_resume(ar_pci);
 }
 
 static void ath11k_pci_hif_ce_irq_enable(struct ath11k_base *ab)
