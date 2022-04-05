@@ -143,7 +143,8 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 
 		if (blktype != GFS2_BLKST_UNLINKED)
 			gfs2_cancel_delete_work(io_gl);
-		error = gfs2_glock_nq_init(io_gl, LM_ST_SHARED, GL_EXACT,
+		error = gfs2_glock_nq_init(io_gl, LM_ST_SHARED,
+					   GL_EXACT | GL_NOPID,
 					   &ip->i_iopen_gh);
 		gfs2_glock_put(io_gl);
 		if (unlikely(error))
@@ -720,7 +721,8 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	error = insert_inode_locked4(inode, ip->i_no_addr, iget_test, &ip->i_no_addr);
 	BUG_ON(error);
 
-	error = gfs2_glock_nq_init(io_gl, LM_ST_SHARED, GL_EXACT, &ip->i_iopen_gh);
+	error = gfs2_glock_nq_init(io_gl, LM_ST_SHARED, GL_EXACT | GL_NOPID,
+				   &ip->i_iopen_gh);
 	if (error)
 		goto fail_gunlock2;
 
