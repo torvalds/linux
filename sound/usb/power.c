@@ -104,3 +104,4 @@ int snd_usb_power_domain_set(struct snd_usb_audio *chip,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(snd_usb_power_domain_set);
