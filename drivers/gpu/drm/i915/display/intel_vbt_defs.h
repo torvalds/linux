@@ -737,6 +737,7 @@ struct lvds_lfp_data_ptr {
 struct bdb_lvds_lfp_data_ptrs {
 	u8 lvds_entries; /* followed by one or more lvds_data_ptr structs */
 	struct lvds_lfp_data_ptr ptr[16];
+	struct lvds_lfp_data_ptr_table panel_name; /* 156-163? */
 } __packed;
 
 /*
@@ -776,6 +777,10 @@ struct lvds_lfp_data_entry {
 
 struct bdb_lvds_lfp_data {
 	struct lvds_lfp_data_entry data[16];
+} __packed;
+
+struct lvds_lfp_panel_name {
+	u8 name[13];
 } __packed;
 
 /*

@@ -206,7 +206,7 @@ static const struct {
 static bool validate_lfp_data_ptrs(const void *bdb,
 				   const struct bdb_lvds_lfp_data_ptrs *ptrs)
 {
-	int fp_timing_size, dvo_timing_size, panel_pnp_id_size;
+	int fp_timing_size, dvo_timing_size, panel_pnp_id_size, panel_name_size;
 	int data_block_size, lfp_data_size;
 	int i;
 
@@ -221,11 +221,17 @@ static bool validate_lfp_data_ptrs(const void *bdb,
 	fp_timing_size = ptrs->ptr[0].fp_timing.table_size;
 	dvo_timing_size = ptrs->ptr[0].dvo_timing.table_size;
 	panel_pnp_id_size = ptrs->ptr[0].panel_pnp_id.table_size;
+	panel_name_size = ptrs->panel_name.table_size;
 
 	/* fp_timing has variable size */
 	if (fp_timing_size < 32 ||
 	    dvo_timing_size != sizeof(struct lvds_dvo_timing) ||
 	    panel_pnp_id_size != sizeof(struct lvds_pnp_id))
+		return false;
+
+	/* panel_name is not present in old VBTs */
+	if (panel_name_size != 0 &&
+	    panel_name_size != sizeof(struct lvds_lfp_panel_name))
 		return false;
 
 	lfp_data_size = ptrs->ptr[1].fp_timing.offset - ptrs->ptr[0].fp_timing.offset;
@@ -268,6 +274,9 @@ static bool validate_lfp_data_ptrs(const void *bdb,
 			return false;
 	}
 
+	if (ptrs->panel_name.offset + 16 * panel_name_size > data_block_size)
+		return false;
+
 	return true;
 }
 
@@ -289,6 +298,13 @@ static bool fixup_lfp_data_ptrs(const void *bdb, void *ptrs_block)
 		ptrs->ptr[i].fp_timing.offset -= offset;
 		ptrs->ptr[i].dvo_timing.offset -= offset;
 		ptrs->ptr[i].panel_pnp_id.offset -= offset;
+	}
+
+	if (ptrs->panel_name.table_size) {
+		if (ptrs->panel_name.offset < offset)
+			return false;
+
+		ptrs->panel_name.offset -= offset;
 	}
 
 	return validate_lfp_data_ptrs(bdb, ptrs);
