@@ -410,45 +410,42 @@ static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
 
 	switch (adev->asic_type) {
 	case CHIP_ARCTURUS:
-		if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) {
-			if (bo_adev == adev)
-				mapping_flags |= coherent ?
-					AMDGPU_VM_MTYPE_CC : AMDGPU_VM_MTYPE_RW;
-			else
-				mapping_flags |= coherent ?
-					AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
-		} else {
-			mapping_flags |= coherent ?
-				AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
-		}
-		break;
 	case CHIP_ALDEBARAN:
-		if (coherent && uncached) {
-			if (adev->gmc.xgmi.connected_to_cpu ||
-				!(mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM))
-				snoop = true;
-			mapping_flags |= AMDGPU_VM_MTYPE_UC;
-		} else if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) {
+		if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) {
 			if (bo_adev == adev) {
-				mapping_flags |= coherent ?
-					AMDGPU_VM_MTYPE_CC : AMDGPU_VM_MTYPE_RW;
-				if (adev->gmc.xgmi.connected_to_cpu)
+				if (uncached)
+					mapping_flags |= AMDGPU_VM_MTYPE_UC;
+				else if (coherent)
+					mapping_flags |= AMDGPU_VM_MTYPE_CC;
+				else
+					mapping_flags |= AMDGPU_VM_MTYPE_RW;
+				if (adev->asic_type == CHIP_ALDEBARAN &&
+				    adev->gmc.xgmi.connected_to_cpu)
 					snoop = true;
 			} else {
-				mapping_flags |= coherent ?
-					AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
+				if (uncached || coherent)
+					mapping_flags |= AMDGPU_VM_MTYPE_UC;
+				else
+					mapping_flags |= AMDGPU_VM_MTYPE_NC;
 				if (amdgpu_xgmi_same_hive(adev, bo_adev))
 					snoop = true;
 			}
 		} else {
+			if (uncached || coherent)
+				mapping_flags |= AMDGPU_VM_MTYPE_UC;
+			else
+				mapping_flags |= AMDGPU_VM_MTYPE_NC;
 			snoop = true;
-			mapping_flags |= coherent ?
-				AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
 		}
 		break;
 	default:
-		mapping_flags |= coherent ?
-			AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
+		if (uncached || coherent)
+			mapping_flags |= AMDGPU_VM_MTYPE_UC;
+		else
+			mapping_flags |= AMDGPU_VM_MTYPE_NC;
+
+		if (!(mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM))
+			snoop = true;
 	}
 
 	pte_flags = amdgpu_gem_va_map_flags(adev, mapping_flags);
