@@ -465,22 +465,24 @@ void ath11k_mhi_unregister(struct ath11k_pci *ab_pci)
 
 int ath11k_mhi_start(struct ath11k_pci *ab_pci)
 {
+	struct ath11k_base *ab = ab_pci->ab;
 	int ret;
 
 	ab_pci->mhi_ctrl->timeout_ms = MHI_TIMEOUT_DEFAULT_MS;
 
 	ret = mhi_prepare_for_power_up(ab_pci->mhi_ctrl);
-	if (ret)
-		goto out;
+	if (ret) {
+		ath11k_warn(ab, "failed to prepare mhi: %d", ret);
+		return ret;
+	}
 
 	ret = mhi_sync_power_up(ab_pci->mhi_ctrl);
-	if (ret)
-		goto out;
+	if (ret) {
+		ath11k_warn(ab, "failed to power up mhi: %d", ret);
+		return ret;
+	}
 
 	return 0;
-
-out:
-	return ret;
 }
 
 void ath11k_mhi_stop(struct ath11k_pci *ab_pci)
