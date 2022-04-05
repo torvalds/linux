@@ -10,8 +10,11 @@
 #include <sound/sof/stream.h>
 #include <sound/sof/control.h>
 #include "sof-priv.h"
+#include "sof-audio.h"
 #include "ipc3-ops.h"
 #include "ops.h"
+
+typedef void (*ipc3_rx_callback)(struct snd_sof_dev *sdev, void *msg_buf);
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_VERBOSE_IPC)
 static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
@@ -472,6 +475,214 @@ static int sof_ipc3_set_get_data(struct snd_sof_dev *sdev, void *data, size_t da
 	return ret;
 }
 
+/* IPC stream position. */
+static void ipc3_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
+{
+	struct snd_soc_component *scomp = sdev->component;
+	struct snd_sof_pcm_stream *stream;
+	struct sof_ipc_stream_posn posn;
+	struct snd_sof_pcm *spcm;
+	int direction, ret;
+
+	spcm = snd_sof_find_spcm_comp(scomp, msg_id, &direction);
+	if (!spcm) {
+		dev_err(sdev->dev, "period elapsed for unknown stream, msg_id %d\n",
+			msg_id);
+		return;
+	}
+
+	stream = &spcm->stream[direction];
+	ret = snd_sof_ipc_msg_data(sdev, stream->substream, &posn, sizeof(posn));
+	if (ret < 0) {
+		dev_warn(sdev->dev, "failed to read stream position: %d\n", ret);
+		return;
+	}
+
+	dev_vdbg(sdev->dev, "posn : host 0x%llx dai 0x%llx wall 0x%llx\n",
+		 posn.host_posn, posn.dai_posn, posn.wallclock);
+
+	memcpy(&stream->posn, &posn, sizeof(posn));
+
+	if (spcm->pcm.compress)
+		snd_sof_compr_fragment_elapsed(stream->cstream);
+	else if (stream->substream->runtime &&
+		 !stream->substream->runtime->no_period_wakeup)
+		/* only inform ALSA for period_wakeup mode */
+		snd_sof_pcm_period_elapsed(stream->substream);
+}
+
+/* DSP notifies host of an XRUN within FW */
+static void ipc3_xrun(struct snd_sof_dev *sdev, u32 msg_id)
+{
+	struct snd_soc_component *scomp = sdev->component;
+	struct snd_sof_pcm_stream *stream;
+	struct sof_ipc_stream_posn posn;
+	struct snd_sof_pcm *spcm;
+	int direction, ret;
+
+	spcm = snd_sof_find_spcm_comp(scomp, msg_id, &direction);
+	if (!spcm) {
+		dev_err(sdev->dev, "XRUN for unknown stream, msg_id %d\n",
+			msg_id);
+		return;
+	}
+
+	stream = &spcm->stream[direction];
+	ret = snd_sof_ipc_msg_data(sdev, stream->substream, &posn, sizeof(posn));
+	if (ret < 0) {
+		dev_warn(sdev->dev, "failed to read overrun position: %d\n", ret);
+		return;
+	}
+
+	dev_dbg(sdev->dev,  "posn XRUN: host %llx comp %d size %d\n",
+		posn.host_posn, posn.xrun_comp_id, posn.xrun_size);
+
+#if defined(CONFIG_SND_SOC_SOF_DEBUG_XRUN_STOP)
+	/* stop PCM on XRUN - used for pipeline debug */
+	memcpy(&stream->posn, &posn, sizeof(posn));
+	snd_pcm_stop_xrun(stream->substream);
+#endif
+}
+
+/* stream notifications from firmware */
+static void ipc3_stream_message(struct snd_sof_dev *sdev, void *msg_buf)
+{
+	struct sof_ipc_cmd_hdr *hdr = msg_buf;
+	u32 msg_type = hdr->cmd & SOF_CMD_TYPE_MASK;
+	u32 msg_id = SOF_IPC_MESSAGE_ID(hdr->cmd);
+
+	switch (msg_type) {
+	case SOF_IPC_STREAM_POSITION:
+		ipc3_period_elapsed(sdev, msg_id);
+		break;
+	case SOF_IPC_STREAM_TRIG_XRUN:
+		ipc3_xrun(sdev, msg_id);
+		break;
+	default:
+		dev_err(sdev->dev, "unhandled stream message %#x\n",
+			msg_id);
+		break;
+	}
+}
+
+/* component notifications from firmware */
+static void ipc3_comp_notification(struct snd_sof_dev *sdev, void *msg_buf)
+{
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
+	struct sof_ipc_cmd_hdr *hdr = msg_buf;
+	u32 msg_type = hdr->cmd & SOF_CMD_TYPE_MASK;
+
+	switch (msg_type) {
+	case SOF_IPC_COMP_GET_VALUE:
+	case SOF_IPC_COMP_GET_DATA:
+		break;
+	default:
+		dev_err(sdev->dev, "unhandled component message %#x\n", msg_type);
+		return;
+	}
+
+	if (tplg_ops->control->update)
+		tplg_ops->control->update(sdev, msg_buf);
+}
+
+static void ipc3_trace_message(struct snd_sof_dev *sdev, void *msg_buf)
+{
+	struct sof_ipc_cmd_hdr *hdr = msg_buf;
+	u32 msg_type = hdr->cmd & SOF_CMD_TYPE_MASK;
+
+	switch (msg_type) {
+	case SOF_IPC_TRACE_DMA_POSITION:
+		snd_sof_trace_update_pos(sdev, msg_buf);
+		break;
+	default:
+		dev_err(sdev->dev, "unhandled trace message %#x\n", msg_type);
+		break;
+	}
+}
+
+/* DSP firmware has sent host a message  */
+static void sof_ipc3_rx_msg(struct snd_sof_dev *sdev)
+{
+	ipc3_rx_callback rx_callback = NULL;
+	struct sof_ipc_cmd_hdr hdr;
+	void *msg_buf;
+	u32 cmd;
+	int err;
+
+	/* read back header */
+	err = snd_sof_ipc_msg_data(sdev, NULL, &hdr, sizeof(hdr));
+	if (err < 0) {
+		dev_warn(sdev->dev, "failed to read IPC header: %d\n", err);
+		return;
+	}
+
+	if (hdr.size < sizeof(hdr)) {
+		dev_err(sdev->dev, "The received message size is invalid\n");
+		return;
+	}
+
+	ipc3_log_header(sdev->dev, "ipc rx", hdr.cmd);
+
+	cmd = hdr.cmd & SOF_GLB_TYPE_MASK;
+
+	/* check message type */
+	switch (cmd) {
+	case SOF_IPC_GLB_REPLY:
+		dev_err(sdev->dev, "ipc reply unknown\n");
+		break;
+	case SOF_IPC_FW_READY:
+		/* check for FW boot completion */
+		if (sdev->fw_state == SOF_FW_BOOT_IN_PROGRESS) {
+			err = sof_ops(sdev)->fw_ready(sdev, cmd);
+			if (err < 0)
+				sof_set_fw_state(sdev, SOF_FW_BOOT_READY_FAILED);
+			else
+				sof_set_fw_state(sdev, SOF_FW_BOOT_READY_OK);
+
+			/* wake up firmware loader */
+			wake_up(&sdev->boot_wait);
+		}
+		break;
+	case SOF_IPC_GLB_COMPOUND:
+	case SOF_IPC_GLB_TPLG_MSG:
+	case SOF_IPC_GLB_PM_MSG:
+		break;
+	case SOF_IPC_GLB_COMP_MSG:
+		rx_callback = ipc3_comp_notification;
+		break;
+	case SOF_IPC_GLB_STREAM_MSG:
+		rx_callback = ipc3_stream_message;
+		break;
+	case SOF_IPC_GLB_TRACE_MSG:
+		rx_callback = ipc3_trace_message;
+		break;
+	default:
+		dev_err(sdev->dev, "%s: Unknown DSP message: 0x%x\n", __func__, cmd);
+		break;
+	}
+
+	/* read the full message */
+	msg_buf = kmalloc(hdr.size, GFP_KERNEL);
+	if (!msg_buf)
+		return;
+
+	err = snd_sof_ipc_msg_data(sdev, NULL, msg_buf, hdr.size);
+	if (err < 0) {
+		dev_err(sdev->dev, "%s: Failed to read message: %d\n", __func__, err);
+	} else {
+		/* Call local handler for the message */
+		if (rx_callback)
+			rx_callback(sdev, msg_buf);
+
+		/* Notify registered clients */
+		sof_client_ipc_rx_dispatcher(sdev, msg_buf);
+	}
+
+	kfree(msg_buf);
+
+	ipc3_log_header(sdev->dev, "ipc rx done", hdr.cmd);
+}
+
 static int sof_ipc3_ctx_ipc(struct snd_sof_dev *sdev, int cmd)
 {
 	struct sof_ipc_pm_ctx pm_ctx = {
@@ -506,6 +717,7 @@ const struct sof_ipc_ops ipc3_ops = {
 	.pcm = &ipc3_pcm_ops,
 
 	.tx_msg = sof_ipc3_tx_msg,
+	.rx_msg = sof_ipc3_rx_msg,
 	.set_get_data = sof_ipc3_set_get_data,
 	.get_reply = sof_ipc3_get_reply,
 };
