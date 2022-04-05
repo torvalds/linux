@@ -3317,9 +3317,14 @@ bool dc_link_setup_psr(struct dc_link *link,
 	 */
 	psr_context->frame_delay = 0;
 
-	if (psr)
+	if (psr) {
 		link->psr_settings.psr_feature_enabled = psr->funcs->psr_copy_settings(psr,
 			link, psr_context, panel_inst);
+		if (link->psr_settings.psr_feature_enabled) {
+			link->psr_settings.psr_power_opt = 0;
+			link->psr_settings.psr_allow_active = 0;
+		}
+	}
 	else
 		link->psr_settings.psr_feature_enabled = dmcu->funcs->setup_psr(dmcu, link, psr_context);
 
