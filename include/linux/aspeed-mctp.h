@@ -135,6 +135,20 @@ void aspeed_mctp_flush_rx_queue(struct mctp_client *client);
  */
 int aspeed_mctp_get_eid_bdf(struct mctp_client *client, u8 eid, u16 *bdf);
 
+/**
+ * aspeed_mctp_get_eid() - return EID for requested BDF and domainId.
+ * @client: pointer to existing mctp_client context
+ * @bdf: requested BDF value
+ * @domain_id: requested domainId
+ * @eid: pointer to store EID value
+ *
+ * Return:
+ * * 0 - success,
+ * * -ENOENT - there is no record for requested bdf/domainId.
+ */
+int aspeed_mctp_get_eid(struct mctp_client *client, u16 bdf,
+			u8 domain_id, u8 *eid);
+
 void *aspeed_mctp_packet_alloc(gfp_t flags);
 void aspeed_mctp_packet_free(void *packet);
 

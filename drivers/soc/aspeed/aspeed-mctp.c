@@ -1404,6 +1404,28 @@ int aspeed_mctp_get_eid_bdf(struct mctp_client *client, u8 eid, u16 *bdf)
 }
 EXPORT_SYMBOL_GPL(aspeed_mctp_get_eid_bdf);
 
+int aspeed_mctp_get_eid(struct mctp_client *client, u16 bdf,
+			u8 domain_id, u8 *eid)
+{
+	struct aspeed_mctp_endpoint *endpoint;
+	int ret = -ENOENT;
+
+	mutex_lock(&client->priv->endpoints_lock);
+
+	list_for_each_entry(endpoint, &client->priv->endpoints, link) {
+		if (endpoint->data.eid_ext_info.domain_id == domain_id &&
+		    endpoint->data.eid_ext_info.bdf == bdf) {
+			*eid = endpoint->data.eid_ext_info.eid;
+			ret = 0;
+			break;
+		}
+	}
+
+	mutex_unlock(&client->priv->endpoints_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(aspeed_mctp_get_eid);
+
 static int
 aspeed_mctp_get_eid_info(struct aspeed_mctp *priv, void __user *userbuf,
 			 enum mctp_address_type addr_format)
