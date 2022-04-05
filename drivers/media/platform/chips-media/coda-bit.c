@@ -326,6 +326,8 @@ void coda_fill_bitstream(struct coda_ctx *ctx, struct list_head *buffer_list)
 	struct coda_buffer_meta *meta;
 	u32 start;
 
+	lockdep_assert_held(&ctx->bitstream_mutex);
+
 	if (ctx->bit_stream_param & CODA_BIT_STREAM_END_FLAG)
 		return;
 
