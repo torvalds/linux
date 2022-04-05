@@ -1626,8 +1626,7 @@ static int __maybe_unused cx2072x_runtime_resume(struct device *dev)
 	return clk_prepare_enable(cx2072x->mclk);
 }
 
-static int cx2072x_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int cx2072x_i2c_probe(struct i2c_client *i2c)
 {
 	struct cx2072x_priv *cx2072x;
 	unsigned int ven_id, rev_id;
@@ -1710,7 +1709,7 @@ static struct i2c_driver cx2072x_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(cx2072x_acpi_match),
 		.pm = &cx2072x_runtime_pm,
 	},
-	.probe = cx2072x_i2c_probe,
+	.probe_new = cx2072x_i2c_probe,
 	.remove = cx2072x_i2c_remove,
 	.id_table = cx2072x_i2c_id,
 };
