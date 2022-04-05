@@ -14,11 +14,17 @@
 
 #include "pinctrl-intel.h"
 
-#define ADL_PAD_OWN	0x0a0
-#define ADL_PADCFGLOCK	0x110
-#define ADL_HOSTSW_OWN	0x150
-#define ADL_GPI_IS	0x200
-#define ADL_GPI_IE	0x220
+#define ADL_N_PAD_OWN		0x020
+#define ADL_N_PADCFGLOCK	0x080
+#define ADL_N_HOSTSW_OWN	0x0b0
+#define ADL_N_GPI_IS		0x100
+#define ADL_N_GPI_IE		0x120
+
+#define ADL_S_PAD_OWN		0x0a0
+#define ADL_S_PADCFGLOCK	0x110
+#define ADL_S_HOSTSW_OWN	0x150
+#define ADL_S_GPI_IS		0x200
+#define ADL_S_GPI_IE		0x220
 
 #define ADL_GPP(r, s, e, g)				\
 	{						\
@@ -28,14 +34,28 @@
 		.gpio_base = (g),			\
 	}
 
-#define ADL_COMMUNITY(b, s, e, g)			\
+#define ADL_N_COMMUNITY(b, s, e, g)			\
 	{						\
 		.barno = (b),				\
-		.padown_offset = ADL_PAD_OWN,		\
-		.padcfglock_offset = ADL_PADCFGLOCK,	\
-		.hostown_offset = ADL_HOSTSW_OWN,	\
-		.is_offset = ADL_GPI_IS,		\
-		.ie_offset = ADL_GPI_IE,		\
+		.padown_offset = ADL_N_PAD_OWN,		\
+		.padcfglock_offset = ADL_N_PADCFGLOCK,	\
+		.hostown_offset = ADL_N_HOSTSW_OWN,	\
+		.is_offset = ADL_N_GPI_IS,		\
+		.ie_offset = ADL_N_GPI_IE,		\
+		.pin_base = (s),			\
+		.npins = ((e) - (s) + 1),		\
+		.gpps = (g),				\
+		.ngpps = ARRAY_SIZE(g),			\
+	}
+
+#define ADL_S_COMMUNITY(b, s, e, g)			\
+	{						\
+		.barno = (b),				\
+		.padown_offset = ADL_S_PAD_OWN,		\
+		.padcfglock_offset = ADL_S_PADCFGLOCK,	\
+		.hostown_offset = ADL_S_HOSTSW_OWN,	\
+		.is_offset = ADL_S_GPI_IS,		\
+		.ie_offset = ADL_S_GPI_IE,		\
 		.pin_base = (s),			\
 		.npins = ((e) - (s) + 1),		\
 		.gpps = (g),				\
@@ -342,10 +362,10 @@ static const struct intel_padgroup adln_community5_gpps[] = {
 };
 
 static const struct intel_community adln_communities[] = {
-	ADL_COMMUNITY(0, 0, 66, adln_community0_gpps),
-	ADL_COMMUNITY(1, 67, 168, adln_community1_gpps),
-	ADL_COMMUNITY(2, 169, 248, adln_community4_gpps),
-	ADL_COMMUNITY(3, 249, 256, adln_community5_gpps),
+	ADL_N_COMMUNITY(0, 0, 66, adln_community0_gpps),
+	ADL_N_COMMUNITY(1, 67, 168, adln_community1_gpps),
+	ADL_N_COMMUNITY(2, 169, 248, adln_community4_gpps),
+	ADL_N_COMMUNITY(3, 249, 256, adln_community5_gpps),
 };
 
 static const struct intel_pinctrl_soc_data adln_soc_data = {
@@ -713,11 +733,11 @@ static const struct intel_padgroup adls_community5_gpps[] = {
 };
 
 static const struct intel_community adls_communities[] = {
-	ADL_COMMUNITY(0, 0, 94, adls_community0_gpps),
-	ADL_COMMUNITY(1, 95, 150, adls_community1_gpps),
-	ADL_COMMUNITY(2, 151, 199, adls_community3_gpps),
-	ADL_COMMUNITY(3, 200, 269, adls_community4_gpps),
-	ADL_COMMUNITY(4, 270, 303, adls_community5_gpps),
+	ADL_S_COMMUNITY(0, 0, 94, adls_community0_gpps),
+	ADL_S_COMMUNITY(1, 95, 150, adls_community1_gpps),
+	ADL_S_COMMUNITY(2, 151, 199, adls_community3_gpps),
+	ADL_S_COMMUNITY(3, 200, 269, adls_community4_gpps),
+	ADL_S_COMMUNITY(4, 270, 303, adls_community5_gpps),
 };
 
 static const struct intel_pinctrl_soc_data adls_soc_data = {
