@@ -313,6 +313,7 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 	struct hdac_ext_stream *iccmax_stream;
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct firmware stripped_firmware;
+	struct snd_dma_buffer dmab_bdl;
 	int ret, ret1;
 	u8 original_gb;
 
@@ -328,7 +329,7 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 
 	/* prepare capture stream for ICCMAX */
 	iccmax_stream = cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
-					  &sdev->dmab_bdl, SNDRV_PCM_STREAM_CAPTURE);
+					  &dmab_bdl, SNDRV_PCM_STREAM_CAPTURE);
 	if (IS_ERR(iccmax_stream)) {
 		dev_err(sdev->dev, "error: dma prepare for ICCMAX stream failed\n");
 		return PTR_ERR(iccmax_stream);
@@ -340,7 +341,7 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 	 * Perform iccmax stream cleanup. This should be done even if firmware loading fails.
 	 * If the cleanup also fails, we return the initial error
 	 */
-	ret1 = cl_cleanup(sdev, &sdev->dmab_bdl, iccmax_stream);
+	ret1 = cl_cleanup(sdev, &dmab_bdl, iccmax_stream);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "error: ICCMAX stream cleanup failed\n");
 
@@ -395,6 +396,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	const struct sof_intel_dsp_desc *chip_info;
 	struct hdac_ext_stream *hext_stream;
 	struct firmware stripped_firmware;
+	struct snd_dma_buffer dmab;
 	int ret, ret1, i;
 
 	if ((sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT) &&
@@ -419,13 +421,13 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 
 	/* prepare DMA for code loader stream */
 	hext_stream = cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
-					&sdev->dmab, SNDRV_PCM_STREAM_PLAYBACK);
+					&dmab, SNDRV_PCM_STREAM_PLAYBACK);
 	if (IS_ERR(hext_stream)) {
 		dev_err(sdev->dev, "error: dma prepare for fw loading failed\n");
 		return PTR_ERR(hext_stream);
 	}
 
-	memcpy(sdev->dmab.area, stripped_firmware.data,
+	memcpy(dmab.area, stripped_firmware.data,
 	       stripped_firmware.size);
 
 	/* try ROM init a few times before giving up */
@@ -486,7 +488,7 @@ cleanup:
 	 * This should be done even if firmware loading fails.
 	 * If the cleanup also fails, we return the initial error
 	 */
-	ret1 = cl_cleanup(sdev, &sdev->dmab, hext_stream);
+	ret1 = cl_cleanup(sdev, &dmab, hext_stream);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "error: Code loader DSP cleanup failed\n");
 

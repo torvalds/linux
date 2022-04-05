@@ -247,7 +247,7 @@ int sof_client_ipc_tx_message(struct sof_client_dev *cdev, void *ipc_msg,
 {
 	struct sof_ipc_cmd_hdr *hdr = ipc_msg;
 
-	return sof_ipc_tx_message(cdev->sdev->ipc, hdr->cmd, ipc_msg, hdr->size,
+	return sof_ipc_tx_message(cdev->sdev->ipc, ipc_msg, hdr->size,
 				  reply_data, reply_bytes);
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_ipc_tx_message, SND_SOC_SOF_CLIENT);

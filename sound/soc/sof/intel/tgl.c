@@ -35,8 +35,7 @@ static int tgl_dsp_core_get(struct snd_sof_dev *sdev, int core)
 		return hda_dsp_enable_core(sdev, BIT(core));
 
 	/* notify DSP for secondary cores */
-	return sof_ipc_tx_message(sdev->ipc, pm_core_config.hdr.cmd,
-				 &pm_core_config, sizeof(pm_core_config),
+	return sof_ipc_tx_message(sdev->ipc, &pm_core_config, sizeof(pm_core_config),
 				 &pm_core_config, sizeof(pm_core_config));
 }
 
@@ -55,8 +54,7 @@ static int tgl_dsp_core_put(struct snd_sof_dev *sdev, int core)
 		return hda_dsp_core_reset_power_down(sdev, BIT(core));
 
 	/* notify DSP for secondary cores */
-	return sof_ipc_tx_message(sdev->ipc, pm_core_config.hdr.cmd,
-				 &pm_core_config, sizeof(pm_core_config),
+	return sof_ipc_tx_message(sdev->ipc, &pm_core_config, sizeof(pm_core_config),
 				 &pm_core_config, sizeof(pm_core_config));
 }
 

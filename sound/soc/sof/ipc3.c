@@ -19,8 +19,8 @@ static int sof_ipc3_ctx_ipc(struct snd_sof_dev *sdev, int cmd)
 	struct sof_ipc_reply reply;
 
 	/* send ctx save ipc to dsp */
-	return sof_ipc_tx_message(sdev->ipc, pm_ctx.hdr.cmd, &pm_ctx,
-				  sizeof(pm_ctx), &reply, sizeof(reply));
+	return sof_ipc_tx_message(sdev->ipc, &pm_ctx, sizeof(pm_ctx),
+				  &reply, sizeof(reply));
 }
 
 static int sof_ipc3_ctx_save(struct snd_sof_dev *sdev)

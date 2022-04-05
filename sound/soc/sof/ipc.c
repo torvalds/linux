@@ -341,9 +341,8 @@ static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc,
 }
 
 /* send IPC message from host to DSP */
-int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
-		       void *msg_data, size_t msg_bytes, void *reply_data,
-		       size_t reply_bytes)
+int sof_ipc_tx_message(struct snd_sof_ipc *ipc, void *msg_data, size_t msg_bytes,
+		       void *reply_data, size_t reply_bytes)
 {
 	const struct sof_dsp_power_state target_state = {
 		.state = SOF_DSP_PM_D0,
@@ -357,7 +356,7 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 		return ret;
 	}
 
-	return sof_ipc_tx_message_no_pm(ipc, header, msg_data, msg_bytes,
+	return sof_ipc_tx_message_no_pm(ipc, msg_data, msg_bytes,
 					reply_data, reply_bytes);
 }
 EXPORT_SYMBOL(sof_ipc_tx_message);
@@ -367,14 +366,13 @@ EXPORT_SYMBOL(sof_ipc_tx_message);
  * This will be used for IPC's that can be handled by the DSP
  * even in a low-power D0 substate.
  */
-int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, u32 header,
-			     void *msg_data, size_t msg_bytes,
+int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, void *msg_data, size_t msg_bytes,
 			     void *reply_data, size_t reply_bytes)
 {
 	int ret;
 
-	if (msg_bytes > SOF_IPC_MSG_MAX_SIZE ||
-	    reply_bytes > SOF_IPC_MSG_MAX_SIZE)
+	if (msg_bytes > ipc->max_payload_size ||
+	    reply_bytes > ipc->max_payload_size)
 		return -ENOBUFS;
 
 	/* Serialise IPC TX */
@@ -393,7 +391,7 @@ EXPORT_SYMBOL(sof_ipc_tx_message_no_pm);
 void snd_sof_ipc_get_reply(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_ipc_msg *msg = sdev->msg;
-	struct sof_ipc_reply reply;
+	struct sof_ipc_reply *reply;
 	int ret = 0;
 
 	/*
@@ -407,13 +405,12 @@ void snd_sof_ipc_get_reply(struct snd_sof_dev *sdev)
 	}
 
 	/* get the generic reply */
-	snd_sof_dsp_mailbox_read(sdev, sdev->host_box.offset, &reply,
-				 sizeof(reply));
+	reply = msg->reply_data;
+	snd_sof_dsp_mailbox_read(sdev, sdev->host_box.offset, reply, sizeof(*reply));
 
-	if (reply.error < 0) {
-		memcpy(msg->reply_data, &reply, sizeof(reply));
-		ret = reply.error;
-	} else if (!reply.hdr.size) {
+	if (reply->error < 0) {
+		ret = reply->error;
+	} else if (!reply->hdr.size) {
 		/* Reply should always be >= sizeof(struct sof_ipc_reply) */
 		if (msg->reply_size)
 			dev_err(sdev->dev,
@@ -424,24 +421,27 @@ void snd_sof_ipc_get_reply(struct snd_sof_dev *sdev)
 
 		ret = -EINVAL;
 	} else if (msg->reply_size > 0) {
-		if (reply.hdr.size == msg->reply_size) {
+		if (reply->hdr.size == msg->reply_size) {
 			ret = 0;
-		} else if (reply.hdr.size < msg->reply_size) {
+		} else if (reply->hdr.size < msg->reply_size) {
 			dev_dbg(sdev->dev,
 				"reply size (%u) is less than expected (%zu)\n",
-				reply.hdr.size, msg->reply_size);
+				reply->hdr.size, msg->reply_size);
 
-			msg->reply_size = reply.hdr.size;
+			msg->reply_size = reply->hdr.size;
 			ret = 0;
 		} else {
 			dev_err(sdev->dev,
 				"reply size (%u) exceeds the buffer size (%zu)\n",
-				reply.hdr.size, msg->reply_size);
+				reply->hdr.size, msg->reply_size);
 			ret = -EINVAL;
 		}
 
-		/* get the full message if reply.hdr.size <= msg->reply_size */
-		if (!ret)
+		/*
+		 * get the full message if reply->hdr.size <= msg->reply_size
+		 * and the reply->hdr.size > sizeof(struct sof_ipc_reply)
+		 */
+		if (!ret && msg->reply_size > sizeof(*reply))
 			snd_sof_dsp_mailbox_read(sdev, sdev->host_box.offset,
 						 msg->reply_data, msg->reply_size);
 	}
@@ -699,8 +699,7 @@ int snd_sof_ipc_stream_posn(struct snd_soc_component *scomp,
 	stream.comp_id = spcm->stream[direction].comp_id;
 
 	/* send IPC to the DSP */
-	err = sof_ipc_tx_message(sdev->ipc,
-				 stream.hdr.cmd, &stream, sizeof(stream), posn,
+	err = sof_ipc_tx_message(sdev->ipc, &stream, sizeof(stream), posn,
 				 sizeof(*posn));
 	if (err < 0) {
 		dev_err(sdev->dev, "error: failed to get stream %d position\n",
@@ -823,7 +822,6 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol, bool set)
 	enum sof_ipc_ctrl_type ctrl_type;
 	struct snd_sof_widget *swidget;
 	bool widget_found = false;
-	size_t send_bytes;
 	u32 ipc_cmd;
 	int err;
 
@@ -846,27 +844,6 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol, bool set)
 	 */
 	if (!swidget->use_count)
 		return 0;
-
-	/* read or write firmware volume */
-	if (scontrol->readback_offset != 0) {
-		/* write/read value header via mmaped region */
-		send_bytes = sizeof(struct sof_ipc_ctrl_value_chan) *
-		cdata->num_elems;
-		if (set)
-			err = snd_sof_dsp_block_write(sdev, SOF_FW_BLK_TYPE_IRAM,
-						      scontrol->readback_offset,
-						      cdata->chanv, send_bytes);
-
-		else
-			err = snd_sof_dsp_block_read(sdev, SOF_FW_BLK_TYPE_IRAM,
-						     scontrol->readback_offset,
-						     cdata->chanv, send_bytes);
-
-		if (err)
-			dev_err_once(sdev->dev, "error: %s TYPE_IRAM failed\n",
-				     set ? "write to" :  "read from");
-		return err;
-	}
 
 	/*
 	 * Select the IPC cmd and the ctrl_type based on the ctrl_cmd and the
@@ -913,9 +890,8 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol, bool set)
 
 	/* send normal size ipc in one part */
 	if (cdata->rhdr.hdr.size <= SOF_IPC_MSG_MAX_SIZE) {
-		err = sof_ipc_tx_message(sdev->ipc, cdata->rhdr.hdr.cmd, cdata,
-					 cdata->rhdr.hdr.size, cdata,
-					 cdata->rhdr.hdr.size);
+		err = sof_ipc_tx_message(sdev->ipc, cdata, cdata->rhdr.hdr.size,
+					 cdata, cdata->rhdr.hdr.size);
 
 		if (err < 0)
 			dev_err(sdev->dev, "error: set/get ctrl ipc comp %d\n",
@@ -1004,6 +980,8 @@ int sof_ipc_init_msg_memory(struct snd_sof_dev *sdev)
 	msg->reply_data = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
 	if (!msg->reply_data)
 		return -ENOMEM;
+
+	sdev->ipc->max_payload_size = SOF_IPC_MSG_MAX_SIZE;
 
 	return 0;
 }

@@ -247,7 +247,6 @@ struct snd_sof_control {
 	int max_volume_step; /* max volume step for volume_table */
 	int num_channels;
 	unsigned int access;
-	u32 readback_offset; /* offset to mmapped data if used */
 	int info_type;
 	int index; /* pipeline ID */
 	void *priv; /* private data copied from topology */
