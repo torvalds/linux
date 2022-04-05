@@ -169,3 +169,13 @@ havoc if they lock crucial files. The way around it is to change the file
 permissions (remove the setgid bit) before trying to read or write to it.
 Of course, that might be a bit tricky if the system is hung :-(
 
+7. The "mand" mount option
+--------------------------
+Mandatory locking is disabled on all filesystems by default, and must be
+administratively enabled by mounting with "-o mand". That mount option
+is only allowed if the mounting task has the CAP_SYS_ADMIN capability.
+
+Since kernel v4.5, it is possible to disable mandatory locking
+altogether by setting CONFIG_MANDATORY_FILE_LOCKING to "n". A kernel
+with this disabled will reject attempts to mount filesystems with the
+"mand" mount option with the error status EPERM.

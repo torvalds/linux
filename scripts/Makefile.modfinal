@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# ===========================================================================
+# Module final link
+# ===========================================================================
+
+PHONY := __modfinal
+__modfinal:
+
+include $(srctree)/scripts/Kbuild.include
+
+# for c_flags
+include $(srctree)/scripts/Makefile.lib
+
+# find all modules listed in modules.order
+modules := $(sort $(shell cat $(MODORDER)))
+
+__modfinal: $(modules)
+	@:
+
+# modname and part-of-module are set to make c_flags define proper module flags
+modname = $(notdir $(@:.mod.o=))
+part-of-module = y
+
+quiet_cmd_cc_o_c = CC [M]  $@
+      cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $<
+
+%.mod.o: %.mod.c FORCE
+	$(call if_changed_dep,cc_o_c)
+
+ARCH_POSTLINK := $(wildcard $(srctree)/arch/$(SRCARCH)/Makefile.postlink)
+
+quiet_cmd_ld_ko_o = LD [M]  $@
+      cmd_ld_ko_o =                                                     \
+	$(LD) -r $(KBUILD_LDFLAGS)					\
+		$(KBUILD_LDFLAGS_MODULE) $(LDFLAGS_MODULE)		\
+		$(addprefix -T , $(KBUILD_LDS_MODULE))			\
+		-o $@ $(filter %.o, $^);				\
+	$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) $@, true)
+
+$(modules): %.ko: %.o %.mod.o $(KBUILD_LDS_MODULE) FORCE
+	+$(call if_changed,ld_ko_o)
+
+targets += $(modules) $(modules:.ko=.mod.o)
+
+# Add FORCE to the prequisites of a target to force it to be always rebuilt.
+# ---------------------------------------------------------------------------
+
+PHONY += FORCE
+FORCE:
+
+# Read all saved command lines and dependencies for the $(targets) we
+# may be building above, using $(if_changed{,_dep}). As an
+# optimization, we don't need to read them if the target does not
+# exist, we will rebuild anyway in that case.
+
+existing-targets := $(wildcard $(sort $(targets)))
+
+-include $(foreach f,$(existing-targets),$(dir $(f)).$(notdir $(f)).cmd)
+
+.PHONY: $(PHONY)

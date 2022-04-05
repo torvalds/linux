@@ -146,6 +146,7 @@ static bool tcf_sample_dev_ok_push(struct net_device *dev)
 	case ARPHRD_TUNNEL6:
 	case ARPHRD_SIT:
 	case ARPHRD_IPGRE:
+	case ARPHRD_IP6GRE:
 	case ARPHRD_VOID:
 	case ARPHRD_NONE:
 		return false;
@@ -252,6 +253,32 @@ static int tcf_sample_search(struct net *net, struct tc_action **a, u32 index)
 	return tcf_idr_search(tn, a, index);
 }
 
+static void tcf_psample_group_put(void *priv)
+{
+	struct psample_group *group = priv;
+
+	psample_group_put(group);
+}
+
+static struct psample_group *
+tcf_sample_get_group(const struct tc_action *a,
+		     tc_action_priv_destructor *destructor)
+{
+	struct tcf_sample *s = to_sample(a);
+	struct psample_group *group;
+
+	spin_lock_bh(&s->tcf_lock);
+	group = rcu_dereference_protected(s->psample_group,
+					  lockdep_is_held(&s->tcf_lock));
+	if (group) {
+		psample_group_take(group);
+		*destructor = tcf_psample_group_put;
+	}
+	spin_unlock_bh(&s->tcf_lock);
+
+	return group;
+}
+
 static struct tc_action_ops act_sample_ops = {
 	.kind	  = "sample",
 	.id	  = TCA_ID_SAMPLE,
@@ -262,6 +289,7 @@ static struct tc_action_ops act_sample_ops = {
 	.cleanup  = tcf_sample_cleanup,
 	.walk	  = tcf_sample_walker,
 	.lookup	  = tcf_sample_search,
+	.get_psample_group = tcf_sample_get_group,
 	.size	  = sizeof(struct tcf_sample),
 };
 

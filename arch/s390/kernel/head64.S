@@ -34,11 +34,9 @@ ENTRY(startup_continue)
 	larl	%r14,init_task
 	stg	%r14,__LC_CURRENT
 	larl	%r15,init_thread_union+THREAD_SIZE-STACK_FRAME_OVERHEAD
-#
-# Early setup functions that may not rely on an initialized bss section,
-# like moving the initrd. Returns with an initialized bss section.
-#
-	brasl	%r14,startup_init_nobss
+#ifdef CONFIG_KASAN
+	brasl	%r14,kasan_early_init
+#endif
 #
 # Early machine initialization and detection functions.
 #

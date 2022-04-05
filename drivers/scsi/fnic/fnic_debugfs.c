@@ -52,7 +52,6 @@ static struct fc_trace_flag_type *fc_trc_flag;
  */
 int fnic_debugfs_init(void)
 {
-	int rc = -1;
 	fnic_trace_debugfs_root = debugfs_create_dir("fnic", NULL);
 
 	fnic_stats_debugfs_root = debugfs_create_dir("statistics",
@@ -70,8 +69,7 @@ int fnic_debugfs_init(void)
 		fc_trc_flag->fc_clear = 4;
 	}
 
-	rc = 0;
-	return rc;
+	return 0;
 }
 
 /*

@@ -120,6 +120,19 @@ config CAN_JANZ_ICAN3
 	  This driver can also be built as a module. If so, the module will be
 	  called janz-ican3.ko.
 
+config CAN_KVASER_PCIEFD
+	depends on PCI
+	tristate "Kvaser PCIe FD cards"
+	  help
+	  This is a driver for the Kvaser PCI Express CAN FD family.
+
+	  Supported devices:
+	    Kvaser PCIEcan 4xHS
+	    Kvaser PCIEcan 2xHS v2
+	    Kvaser PCIEcan HS v2
+	    Kvaser Mini PCI Express HS v2
+	    Kvaser Mini PCI Express 2xHS v2
+
 config CAN_SUN4I
 	tristate "Allwinner A10 CAN controller"
 	depends on MACH_SUN4I || MACH_SUN7I || COMPILE_TEST

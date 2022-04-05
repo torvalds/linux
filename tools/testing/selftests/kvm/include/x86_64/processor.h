@@ -325,6 +325,9 @@ uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index);
 void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
 	  	  uint64_t msr_value);
 
+uint32_t kvm_get_cpuid_max(void);
+void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits);
+
 /*
  * Basic CPU control in CR0
  */
@@ -1079,6 +1082,9 @@ void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
 #define VMX_BASIC_MEM_TYPE_MASK	0x003c000000000000LLU
 #define VMX_BASIC_MEM_TYPE_WB	6LLU
 #define VMX_BASIC_INOUT		0x0040000000000000LLU
+
+/* VMX_EPT_VPID_CAP bits */
+#define VMX_EPT_VPID_CAP_AD_BITS	(1ULL << 21)
 
 /* MSR_IA32_VMX_MISC bits */
 #define MSR_IA32_VMX_MISC_VMWRITE_SHADOW_RO_FIELDS (1ULL << 29)

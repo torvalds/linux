@@ -21,6 +21,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 					 struct netlink_ext_ack *extack)
 {
 	const struct flow_action_entry *act;
+	int mirror_act_count = 0;
 	int err, i;
 
 	if (!flow_action_has_entries(flow_action))
@@ -78,6 +79,16 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			struct mlxsw_sp_fid *fid;
 			u16 fid_index;
 
+			if (mlxsw_sp_acl_block_is_egress_bound(block)) {
+				NL_SET_ERR_MSG_MOD(extack, "Redirect action is not supported on egress");
+				return -EOPNOTSUPP;
+			}
+
+			/* Forbid block with this rulei to be bound
+			 * to egress in future.
+			 */
+			rulei->egress_bind_blocker = 1;
+
 			fid = mlxsw_sp_acl_dummy_fid(mlxsw_sp);
 			fid_index = mlxsw_sp_fid_index(fid);
 			err = mlxsw_sp_acl_rulei_act_fid_set(mlxsw_sp, rulei,
@@ -94,6 +105,11 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			break;
 		case FLOW_ACTION_MIRRED: {
 			struct net_device *out_dev = act->dev;
+
+			if (mirror_act_count++) {
+				NL_SET_ERR_MSG_MOD(extack, "Multiple mirror actions per rule are not supported");
+				return -EOPNOTSUPP;
+			}
 
 			err = mlxsw_sp_acl_rulei_act_mirror(mlxsw_sp, rulei,
 							    block, out_dev,
@@ -257,6 +273,12 @@ static int mlxsw_sp_flower_parse_tcp(struct mlxsw_sp *mlxsw_sp,
 
 	flow_rule_match_tcp(rule, &match);
 
+	if (match.mask->flags & htons(0x0E00)) {
+		NL_SET_ERR_MSG_MOD(f->common.extack, "TCP flags match not supported on reserved bits");
+		dev_err(mlxsw_sp->bus_info->dev, "TCP flags match not supported on reserved bits\n");
+		return -EINVAL;
+	}
+
 	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_TCP_FLAGS,
 				       ntohs(match.key->flags),
 				       ntohs(match.mask->flags));
@@ -390,6 +412,12 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 			NL_SET_ERR_MSG_MOD(f->common.extack, "vlan_id key is not supported on egress");
 			return -EOPNOTSUPP;
 		}
+
+		/* Forbid block with this rulei to be bound
+		 * to egress in future.
+		 */
+		rulei->egress_bind_blocker = 1;
+
 		if (match.mask->vlan_id != 0)
 			mlxsw_sp_acl_rulei_keymask_u32(rulei,
 						       MLXSW_AFK_ELEMENT_VID,

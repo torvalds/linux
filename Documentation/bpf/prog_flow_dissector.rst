@@ -26,6 +26,7 @@ The inputs are:
   * ``nhoff`` - initial offset of the networking header
   * ``thoff`` - initial offset of the transport header, initialized to nhoff
   * ``n_proto`` - L3 protocol type, parsed out of L2 header
+  * ``flags`` - optional flags
 
 Flow dissector BPF program should fill out the rest of the ``struct
 bpf_flow_keys`` fields. Input arguments ``nhoff/thoff/n_proto`` should be
@@ -99,6 +100,23 @@ the optional VLAN header and should gracefully handle both cases: when single
 or double VLAN is present and when it is not present. The same program
 can be called for both cases and would have to be written carefully to
 handle both cases.
+
+
+Flags
+=====
+
+``flow_keys->flags`` might contain optional input flags that work as follows:
+
+* ``BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG`` - tells BPF flow dissector to
+  continue parsing first fragment; the default expected behavior is that
+  flow dissector returns as soon as it finds out that the packet is fragmented;
+  used by ``eth_get_headlen`` to estimate length of all headers for GRO.
+* ``BPF_FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL`` - tells BPF flow dissector to
+  stop parsing as soon as it reaches IPv6 flow label; used by
+  ``___skb_get_hash`` and ``__skb_get_hash_symmetric`` to get flow hash.
+* ``BPF_FLOW_DISSECTOR_F_STOP_AT_ENCAP`` - tells BPF flow dissector to stop
+  parsing as soon as it reaches encapsulated headers; used by routing
+  infrastructure.
 
 
 Reference Implementation

@@ -21,7 +21,14 @@
 	 MLX5_ST_SZ_BYTES(tls_progress_params))
 #define MLX5E_KTLS_PROGRESS_WQEBBS \
 	(DIV_ROUND_UP(MLX5E_KTLS_PROGRESS_WQE_SZ, MLX5_SEND_WQE_BB))
-#define MLX5E_KTLS_MAX_DUMP_WQEBBS 2
+
+struct mlx5e_dump_wqe {
+	struct mlx5_wqe_ctrl_seg ctrl;
+	struct mlx5_wqe_data_seg data;
+};
+
+#define MLX5E_KTLS_DUMP_WQEBBS \
+	(DIV_ROUND_UP(sizeof(struct mlx5e_dump_wqe), MLX5_SEND_WQE_BB))
 
 enum {
 	MLX5E_TLS_PROGRESS_PARAMS_AUTH_STATE_NO_OFFLOAD     = 0,
@@ -37,7 +44,7 @@ enum {
 
 struct mlx5e_ktls_offload_context_tx {
 	struct tls_offload_context_tx *tx_ctx;
-	struct tls_crypto_info *crypto_info;
+	struct tls12_crypto_info_aes_gcm_128 crypto_info;
 	u32 expected_seq;
 	u32 tisn;
 	u32 key_id;
@@ -86,13 +93,27 @@ struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
 					 struct mlx5e_tx_wqe **wqe, u16 *pi);
 void mlx5e_ktls_tx_handle_resync_dump_comp(struct mlx5e_txqsq *sq,
 					   struct mlx5e_tx_wqe_info *wi,
-					   struct mlx5e_sq_dma *dma);
-
+					   u32 *dma_fifo_cc);
+static inline u8
+mlx5e_ktls_dumps_num_wqebbs(struct mlx5e_txqsq *sq, unsigned int nfrags,
+			    unsigned int sync_len)
+{
+	/* Given the MTU and sync_len, calculates an upper bound for the
+	 * number of WQEBBs needed for the TX resync DUMP WQEs of a record.
+	 */
+	return MLX5E_KTLS_DUMP_WQEBBS *
+		(nfrags + DIV_ROUND_UP(sync_len, sq->hw_mtu));
+}
 #else
 
 static inline void mlx5e_ktls_build_netdev(struct mlx5e_priv *priv)
 {
 }
+
+static inline void
+mlx5e_ktls_tx_handle_resync_dump_comp(struct mlx5e_txqsq *sq,
+				      struct mlx5e_tx_wqe_info *wi,
+				      u32 *dma_fifo_cc) {}
 
 #endif
 

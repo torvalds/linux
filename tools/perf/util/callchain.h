@@ -4,11 +4,15 @@
 
 #include <linux/list.h>
 #include <linux/rbtree.h>
-#include "event.h"
 #include "map_symbol.h"
 #include "branch.h"
 
+struct addr_location;
+struct evsel;
+struct ip_callchain;
 struct map;
+struct perf_sample;
+struct thread;
 
 #define HELP_PAD "\t\t\t\t"
 
@@ -236,7 +240,7 @@ int record_opts__parse_callchain(struct record_opts *record,
 
 int sample__resolve_callchain(struct perf_sample *sample,
 			      struct callchain_cursor *cursor, struct symbol **parent,
-			      struct perf_evsel *evsel, struct addr_location *al,
+			      struct evsel *evsel, struct addr_location *al,
 			      int max_stack);
 int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *sample);
 int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *node,

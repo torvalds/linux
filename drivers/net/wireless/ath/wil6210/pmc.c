@@ -18,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/seq_file.h>
 #include "wmi.h"
 #include "wil6210.h"
 #include "txrx.h"
@@ -430,4 +431,29 @@ out:
 	mutex_unlock(&pmc->lock);
 
 	return newpos;
+}
+
+int wil_pmcring_read(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+	struct pmc_ctx *pmc = &wil->pmc;
+	size_t pmc_ring_size =
+		sizeof(struct vring_rx_desc) * pmc->num_descriptors;
+
+	mutex_lock(&pmc->lock);
+
+	if (!wil_is_pmc_allocated(pmc)) {
+		wil_err(wil, "error, pmc is not allocated!\n");
+		pmc->last_cmd_status = -EPERM;
+		mutex_unlock(&pmc->lock);
+		return -EPERM;
+	}
+
+	wil_dbg_misc(wil, "pmcring_read: size %zu\n", pmc_ring_size);
+
+	seq_write(s, pmc->pring_va, pmc_ring_size);
+
+	mutex_unlock(&pmc->lock);
+
+	return 0;
 }

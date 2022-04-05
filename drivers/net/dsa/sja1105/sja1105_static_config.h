@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: BSD-3-Clause
- * Copyright (c) 2016-2018, NXP Semiconductors
+/* SPDX-License-Identifier: BSD-3-Clause */
+/* Copyright (c) 2016-2018, NXP Semiconductors
  * Copyright (c) 2018-2019, Vladimir Oltean <olteanv@gmail.com>
  */
 #ifndef _SJA1105_STATIC_CONFIG_H
@@ -11,11 +11,15 @@
 
 #define SJA1105_SIZE_DEVICE_ID				4
 #define SJA1105_SIZE_TABLE_HEADER			12
+#define SJA1105_SIZE_SCHEDULE_ENTRY			8
+#define SJA1105_SIZE_SCHEDULE_ENTRY_POINTS_ENTRY	4
 #define SJA1105_SIZE_L2_POLICING_ENTRY			8
 #define SJA1105_SIZE_VLAN_LOOKUP_ENTRY			8
 #define SJA1105_SIZE_L2_FORWARDING_ENTRY		8
 #define SJA1105_SIZE_L2_FORWARDING_PARAMS_ENTRY		12
 #define SJA1105_SIZE_XMII_PARAMS_ENTRY			4
+#define SJA1105_SIZE_SCHEDULE_PARAMS_ENTRY		12
+#define SJA1105_SIZE_SCHEDULE_ENTRY_POINTS_PARAMS_ENTRY	4
 #define SJA1105ET_SIZE_L2_LOOKUP_ENTRY			12
 #define SJA1105ET_SIZE_MAC_CONFIG_ENTRY			28
 #define SJA1105ET_SIZE_L2_LOOKUP_PARAMS_ENTRY		4
@@ -29,11 +33,15 @@
 
 /* UM10944.pdf Page 11, Table 2. Configuration Blocks */
 enum {
+	BLKID_SCHEDULE					= 0x00,
+	BLKID_SCHEDULE_ENTRY_POINTS			= 0x01,
 	BLKID_L2_LOOKUP					= 0x05,
 	BLKID_L2_POLICING				= 0x06,
 	BLKID_VLAN_LOOKUP				= 0x07,
 	BLKID_L2_FORWARDING				= 0x08,
 	BLKID_MAC_CONFIG				= 0x09,
+	BLKID_SCHEDULE_PARAMS				= 0x0A,
+	BLKID_SCHEDULE_ENTRY_POINTS_PARAMS		= 0x0B,
 	BLKID_L2_LOOKUP_PARAMS				= 0x0D,
 	BLKID_L2_FORWARDING_PARAMS			= 0x0E,
 	BLKID_AVB_PARAMS				= 0x10,
@@ -42,11 +50,15 @@ enum {
 };
 
 enum sja1105_blk_idx {
-	BLK_IDX_L2_LOOKUP = 0,
+	BLK_IDX_SCHEDULE = 0,
+	BLK_IDX_SCHEDULE_ENTRY_POINTS,
+	BLK_IDX_L2_LOOKUP,
 	BLK_IDX_L2_POLICING,
 	BLK_IDX_VLAN_LOOKUP,
 	BLK_IDX_L2_FORWARDING,
 	BLK_IDX_MAC_CONFIG,
+	BLK_IDX_SCHEDULE_PARAMS,
+	BLK_IDX_SCHEDULE_ENTRY_POINTS_PARAMS,
 	BLK_IDX_L2_LOOKUP_PARAMS,
 	BLK_IDX_L2_FORWARDING_PARAMS,
 	BLK_IDX_AVB_PARAMS,
@@ -59,11 +71,15 @@ enum sja1105_blk_idx {
 	BLK_IDX_INVAL = -1,
 };
 
+#define SJA1105_MAX_SCHEDULE_COUNT			1024
+#define SJA1105_MAX_SCHEDULE_ENTRY_POINTS_COUNT		2048
 #define SJA1105_MAX_L2_LOOKUP_COUNT			1024
 #define SJA1105_MAX_L2_POLICING_COUNT			45
 #define SJA1105_MAX_VLAN_LOOKUP_COUNT			4096
 #define SJA1105_MAX_L2_FORWARDING_COUNT			13
 #define SJA1105_MAX_MAC_CONFIG_COUNT			5
+#define SJA1105_MAX_SCHEDULE_PARAMS_COUNT		1
+#define SJA1105_MAX_SCHEDULE_ENTRY_POINTS_PARAMS_COUNT	1
 #define SJA1105_MAX_L2_LOOKUP_PARAMS_COUNT		1
 #define SJA1105_MAX_L2_FORWARDING_PARAMS_COUNT		1
 #define SJA1105_MAX_GENERAL_PARAMS_COUNT		1
@@ -82,6 +98,23 @@ enum sja1105_blk_idx {
 #define SJA1105Q_PART_NO				0x9A85
 #define SJA1105R_PART_NO				0x9A86
 #define SJA1105S_PART_NO				0x9A87
+
+struct sja1105_schedule_entry {
+	u64 winstindex;
+	u64 winend;
+	u64 winst;
+	u64 destports;
+	u64 setvalid;
+	u64 txen;
+	u64 resmedia_en;
+	u64 resmedia;
+	u64 vlindex;
+	u64 delta;
+};
+
+struct sja1105_schedule_params_entry {
+	u64 subscheind[8];
+};
 
 struct sja1105_general_params_entry {
 	u64 vllupformat;
@@ -110,6 +143,17 @@ struct sja1105_general_params_entry {
 	u64 egrmirrpcp;
 	u64 egrmirrdei;
 	u64 replay_port;
+};
+
+struct sja1105_schedule_entry_points_entry {
+	u64 subschindx;
+	u64 delta;
+	u64 address;
+};
+
+struct sja1105_schedule_entry_points_params_entry {
+	u64 clksrc;
+	u64 actsubsch;
 };
 
 struct sja1105_vlan_lookup_entry {
@@ -256,6 +300,8 @@ sja1105_static_config_get_length(const struct sja1105_static_config *config);
 
 typedef enum {
 	SJA1105_CONFIG_OK = 0,
+	SJA1105_TTETHERNET_NOT_SUPPORTED,
+	SJA1105_INCORRECT_TTETHERNET_CONFIGURATION,
 	SJA1105_MISSING_L2_POLICING_TABLE,
 	SJA1105_MISSING_L2_FORWARDING_TABLE,
 	SJA1105_MISSING_L2_FORWARDING_PARAMS_TABLE,

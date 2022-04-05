@@ -5,7 +5,6 @@ config MIPS
 	select ARCH_32BIT_OFF_T if !64BIT
 	select ARCH_BINFMT_ELF_STATE if MIPS_FP_SUPPORT
 	select ARCH_CLOCKSOURCE_DATA
-	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_SUPPORTS_UPROBES
@@ -13,6 +12,7 @@ config MIPS
 	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
+	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT if MMU
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
@@ -22,6 +22,7 @@ config MIPS
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_CPU_AUTOPROBE
+	select GENERIC_GETTIMEOFDAY
 	select GENERIC_IOMAP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -43,7 +44,8 @@ config MIPS
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if MMU && COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES && 64BIT
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES
+	select HAVE_ASM_MODVERSIONS
 	select HAVE_EBPF_JIT if (!CPU_MICROMIPS)
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_COPY_THREAD_TLS
@@ -74,6 +76,7 @@ config MIPS
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN if 64BIT || !SMP
+	select HAVE_GENERIC_VDSO
 	select IRQ_FORCED_THREADING
 	select ISA if EISA
 	select MODULES_USE_ELF_RELA if MODULES && 64BIT
@@ -82,6 +85,7 @@ config MIPS
 	select RTC_LIB
 	select SYSCTL_EXCEPTION_TRACE
 	select VIRT_TO_BUS
+	select ARCH_HAS_PTE_SPECIAL if !(32BIT && CPU_HAS_RIXI)
 
 menu "Machine selection"
 
@@ -384,6 +388,7 @@ config MACH_INGENIC
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT_UART16550
+	select CPU_SUPPORTS_HUGEPAGES
 	select DMA_NONCOHERENT
 	select IRQ_MIPS_CPU
 	select PINCTRL
@@ -1119,7 +1124,14 @@ config DMA_PERDEV_COHERENT
 
 config DMA_NONCOHERENT
 	bool
-	select ARCH_HAS_DMA_MMAP_PGPROT
+	#
+	# MIPS allows mixing "slightly different" Cacheability and Coherency
+	# Attribute bits.  It is believed that the uncached access through
+	# KSEG1 and the implementation specific "uncached accelerated" used
+	# by pgprot_writcombine can be mixed, and the latter sometimes provides
+	# significant advantages.
+	#
+	select ARCH_HAS_DMA_WRITE_COMBINE
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_HAS_UNCACHED_SEGMENT
 	select NEED_DMA_MAP_STATE
@@ -1223,7 +1235,7 @@ config SYS_SUPPORTS_LITTLE_ENDIAN
 
 config SYS_SUPPORTS_HUGETLBFS
 	bool
-	depends on CPU_SUPPORTS_HUGEPAGES && 64BIT
+	depends on CPU_SUPPORTS_HUGEPAGES
 	default y
 
 config MIPS_HUGE_TLB_SUPPORT
@@ -1571,6 +1583,7 @@ config CPU_R3000
 	depends on SYS_HAS_CPU_R3000
 	select CPU_HAS_WB
 	select CPU_HAS_LOAD_STORE_LR
+	select CPU_R3K_TLB
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	help
@@ -1586,6 +1599,7 @@ config CPU_TX39XX
 	depends on SYS_HAS_CPU_TX39XX
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_HAS_LOAD_STORE_LR
+	select CPU_R3K_TLB
 
 config CPU_VR41XX
 	bool "R41xx"
@@ -1598,15 +1612,6 @@ config CPU_VR41XX
 	  Only choose this option if you have one of these processors as a
 	  kernel built with this option will not run on any other type of
 	  processor or vice versa.
-
-config CPU_R4300
-	bool "R4300"
-	depends on SYS_HAS_CPU_R4300
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select CPU_SUPPORTS_64BIT_KERNEL
-	select CPU_HAS_LOAD_STORE_LR
-	help
-	  MIPS Technologies R4300-series processors.
 
 config CPU_R4X00
 	bool "R4x00"
@@ -1638,14 +1643,6 @@ config CPU_R5000
 	help
 	  MIPS Technologies R5000-series processors other than the Nevada.
 
-config CPU_R5432
-	bool "R5432"
-	depends on SYS_HAS_CPU_R5432
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select CPU_SUPPORTS_64BIT_KERNEL
-	select CPU_SUPPORTS_HUGEPAGES
-	select CPU_HAS_LOAD_STORE_LR
-
 config CPU_R5500
 	bool "R5500"
 	depends on SYS_HAS_CPU_R5500
@@ -1666,16 +1663,6 @@ config CPU_NEVADA
 	select CPU_HAS_LOAD_STORE_LR
 	help
 	  QED / PMC-Sierra RM52xx-series ("Nevada") processors.
-
-config CPU_R8000
-	bool "R8000"
-	depends on SYS_HAS_CPU_R8000
-	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
-	select CPU_SUPPORTS_64BIT_KERNEL
-	help
-	  MIPS Technologies R8000 processors.  Note these processors are
-	  uncommon and the support for them is incomplete.
 
 config CPU_R10000
 	bool "R10000"
@@ -1969,9 +1956,6 @@ config SYS_HAS_CPU_TX39XX
 config SYS_HAS_CPU_VR41XX
 	bool
 
-config SYS_HAS_CPU_R4300
-	bool
-
 config SYS_HAS_CPU_R4X00
 	bool
 
@@ -1981,16 +1965,10 @@ config SYS_HAS_CPU_TX49XX
 config SYS_HAS_CPU_R5000
 	bool
 
-config SYS_HAS_CPU_R5432
-	bool
-
 config SYS_HAS_CPU_R5500
 	bool
 
 config SYS_HAS_CPU_NEVADA
-	bool
-
-config SYS_HAS_CPU_R8000
 	bool
 
 config SYS_HAS_CPU_R10000
@@ -2110,6 +2088,7 @@ config CPU_SUPPORTS_ADDRWINCFG
 	bool
 config CPU_SUPPORTS_HUGEPAGES
 	bool
+	depends on !(32BIT && (ARCH_PHYS_ADDR_T_64BIT || EVA))
 config CPU_SUPPORTS_UNCACHED_ACCELERATED
 	bool
 config MIPS_PGD_C0_CONTEXT
@@ -2192,13 +2171,13 @@ config PAGE_SIZE_4KB
 
 config PAGE_SIZE_8KB
 	bool "8kB"
-	depends on CPU_R8000 || CPU_CAVIUM_OCTEON
+	depends on CPU_CAVIUM_OCTEON
 	depends on !MIPS_VA_BITS_48
 	help
 	  Using 8kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available
-	  only on R8000 and cnMIPS processors.  Note that you will need a
-	  suitable Linux distribution to support this.
+	  only on cnMIPS processors.  Note that you will need a suitable Linux
+	  distribution to support this.
 
 config PAGE_SIZE_16KB
 	bool "16kB"
@@ -2289,7 +2268,7 @@ config CPU_HAS_PREFETCH
 
 config CPU_GENERIC_DUMP_TLB
 	bool
-	default y if !(CPU_R3000 || CPU_R8000 || CPU_TX39XX)
+	default y if !(CPU_R3000 || CPU_TX39XX)
 
 config MIPS_FP_SUPPORT
 	bool "Floating Point support" if EXPERT
@@ -2311,6 +2290,9 @@ config CPU_R2300_FPU
 	depends on MIPS_FP_SUPPORT
 	default y if CPU_R3000 || CPU_TX39XX
 
+config CPU_R3K_TLB
+	bool
+
 config CPU_R4K_FPU
 	bool
 	depends on MIPS_FP_SUPPORT
@@ -2318,7 +2300,7 @@ config CPU_R4K_FPU
 
 config CPU_R4K_CACHE_TLB
 	bool
-	default y if !(CPU_R3000 || CPU_R8000 || CPU_SB1 || CPU_TX39XX || CPU_CAVIUM_OCTEON)
+	default y if !(CPU_R3K_TLB || CPU_SB1 || CPU_CAVIUM_OCTEON)
 
 config MIPS_MT_SMP
 	bool "MIPS MT SMP support (1 TC on each available VPE)"
@@ -2575,7 +2557,6 @@ config CPU_R4400_WORKAROUNDS
 config MIPS_ASID_SHIFT
 	int
 	default 6 if CPU_R3000 || CPU_TX39XX
-	default 4 if CPU_R8000
 	default 0
 
 config MIPS_ASID_BITS
@@ -3066,10 +3047,6 @@ config LOCKDEP_SUPPORT
 	default y
 
 config STACKTRACE_SUPPORT
-	bool
-	default y
-
-config HAVE_LATENCYTOP_SUPPORT
 	bool
 	default y
 

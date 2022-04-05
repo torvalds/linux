@@ -23,6 +23,8 @@
 #ifndef __MMHUB_V1_0_H__
 #define __MMHUB_V1_0_H__
 
+extern const struct amdgpu_mmhub_funcs mmhub_v1_0_funcs;
+
 u64 mmhub_v1_0_get_fb_location(struct amdgpu_device *adev);
 int mmhub_v1_0_gart_enable(struct amdgpu_device *adev);
 void mmhub_v1_0_gart_disable(struct amdgpu_device *adev);

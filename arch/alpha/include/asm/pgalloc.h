@@ -53,6 +53,4 @@ pmd_free(struct mm_struct *mm, pmd_t *pmd)
 	free_page((unsigned long)pmd);
 }
 
-#define check_pgt_cache()	do { } while (0)
-
 #endif /* _ALPHA_PGALLOC_H */

@@ -1,0 +1,24 @@
+Boe Himax8279d 1200x1920 TFT LCD panel
+
+Required properties:
+- compatible: should be "boe,himax8279d8p" and one of: "boe,himax8279d10p"
+- reg: DSI virtual channel of the peripheral
+- enable-gpios: panel enable gpio
+- pp33-gpios: a GPIO phandle for the 3.3v pin that provides the supply voltage
+- pp18-gpios: a GPIO phandle for the 1.8v pin that provides the supply voltage
+
+Optional properties:
+- backlight: phandle of the backlight device attached to the panel
+
+Example:
+
+	&mipi_dsi {
+		panel {
+			compatible = "boe,himax8279d8p", "boe,himax8279d10p";
+			reg = <0>;
+			backlight = <&backlight>;
+			enable-gpios = <&gpio 45 GPIO_ACTIVE_HIGH>;
+			pp33-gpios = <&gpio 35 GPIO_ACTIVE_HIGH>;
+			pp18-gpios = <&gpio 36 GPIO_ACTIVE_HIGH>;
+		};
+	};

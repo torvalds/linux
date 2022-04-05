@@ -9,12 +9,13 @@
 #ifndef __MALIDP_DRV_H__
 #define __MALIDP_DRV_H__
 
-#include <drm/drm_writeback.h>
-#include <drm/drm_encoder.h>
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/spinlock.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_writeback.h>
+#include <drm/drm_encoder.h>
+
 #include "malidp_hw.h"
 
 #define MALIDP_CONFIG_VALID_INIT	0

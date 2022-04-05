@@ -1797,30 +1797,12 @@ static int applespi_probe(struct spi_device *spi)
 
 	/* set up debugfs entries for touchpad dimensions logging */
 	applespi->debugfs_root = debugfs_create_dir("applespi", NULL);
-	if (IS_ERR(applespi->debugfs_root)) {
-		if (PTR_ERR(applespi->debugfs_root) != -ENODEV)
-			dev_warn(&applespi->spi->dev,
-				 "Error creating debugfs root entry (%ld)\n",
-				 PTR_ERR(applespi->debugfs_root));
-	} else {
-		struct dentry *ret;
 
-		ret = debugfs_create_bool("enable_tp_dim", 0600,
-					  applespi->debugfs_root,
-					  &applespi->debug_tp_dim);
-		if (IS_ERR(ret))
-			dev_dbg(&applespi->spi->dev,
-				"Error creating debugfs entry enable_tp_dim (%ld)\n",
-				PTR_ERR(ret));
+	debugfs_create_bool("enable_tp_dim", 0600, applespi->debugfs_root,
+			    &applespi->debug_tp_dim);
 
-		ret = debugfs_create_file("tp_dim", 0400,
-					  applespi->debugfs_root, applespi,
-					  &applespi_tp_dim_fops);
-		if (IS_ERR(ret))
-			dev_dbg(&applespi->spi->dev,
-				"Error creating debugfs entry tp_dim (%ld)\n",
-				PTR_ERR(ret));
-	}
+	debugfs_create_file("tp_dim", 0400, applespi->debugfs_root, applespi,
+			    &applespi_tp_dim_fops);
 
 	return 0;
 }

@@ -93,7 +93,7 @@ static int configure_memory(const unsigned char *buf,
 			res->start = mem_parent->start + get_24(buf+len+2);
 			res->end = res->start + get_16(buf+len+5)*1024;
 			res->flags = IORESOURCE_MEM;
-			printk("memory %lx-%lx ", (unsigned long)res->start, (unsigned long)res->end);
+			pr_cont("memory %pR ", res);
 			result = request_resource(mem_parent, res);
 			if (result < 0) {
 				printk(KERN_ERR "EISA Enumerator: failed to claim EISA Bus address space!\n");
@@ -123,7 +123,7 @@ static int configure_irq(const unsigned char *buf)
 	for (i=0;i<HPEE_IRQ_MAX_ENT;i++) {
 		c = get_8(buf+len);
 		
-		printk("IRQ %d ", c & HPEE_IRQ_CHANNEL_MASK);
+		pr_cont("IRQ %d ", c & HPEE_IRQ_CHANNEL_MASK);
 		if (c & HPEE_IRQ_TRIG_LEVEL) {
 			eisa_make_irq_level(c & HPEE_IRQ_CHANNEL_MASK);
 		} else {
@@ -153,7 +153,7 @@ static int configure_dma(const unsigned char *buf)
 	
 	for (i=0;i<HPEE_DMA_MAX_ENT;i++) {
 		c = get_8(buf+len);
-		printk("DMA %d ", c&HPEE_DMA_CHANNEL_MASK);
+		pr_cont("DMA %d ", c&HPEE_DMA_CHANNEL_MASK);
 		/* fixme: maybe initialize the dma channel withthe timing ? */
 		len+=2;      
 		if (!(c & HPEE_DMA_MORE)) {
@@ -183,7 +183,7 @@ static int configure_port(const unsigned char *buf, struct resource *io_parent,
 			res->start = get_16(buf+len+1);
 			res->end = get_16(buf+len+1)+(c&HPEE_PORT_SIZE_MASK)+1;
 			res->flags = IORESOURCE_IO;
-			printk("ioports %lx-%lx ", (unsigned long)res->start, (unsigned long)res->end);
+			pr_cont("ioports %pR ", res);
 			result = request_resource(io_parent, res);
 			if (result < 0) {
 				printk(KERN_ERR "EISA Enumerator: failed to claim EISA Bus address space!\n");
@@ -401,7 +401,7 @@ static int parse_slot_config(int slot,
 		}
 		pos = p0 + function_len;
 	}
-	printk("\n");
+	pr_cont("\n");
 	if (!id_string_used) {
 		kfree(board);
 	}

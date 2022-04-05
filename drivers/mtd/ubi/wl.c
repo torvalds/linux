@@ -710,6 +710,12 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 		if (!e2)
 			goto out_cancel;
 
+		/*
+		 * Anchor move within the anchor area is useless.
+		 */
+		if (e2->pnum < UBI_FM_MAX_START)
+			goto out_cancel;
+
 		self_check_in_wl_tree(ubi, e1, &ubi->used);
 		rb_erase(&e1->u.rb, &ubi->used);
 		dbg_wl("anchor-move PEB %d to PEB %d", e1->pnum, e2->pnum);

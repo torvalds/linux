@@ -421,6 +421,10 @@ bool is_software_node(const struct fwnode_handle *fwnode);
 const struct software_node *to_software_node(struct fwnode_handle *fwnode);
 struct fwnode_handle *software_node_fwnode(const struct software_node *node);
 
+const struct software_node *
+software_node_find_by_name(const struct software_node *parent,
+			   const char *name);
+
 int software_node_register_nodes(const struct software_node *nodes);
 void software_node_unregister_nodes(const struct software_node *nodes);
 

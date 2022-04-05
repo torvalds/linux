@@ -24,7 +24,8 @@ static char r4kwar[] __initdata =
 static char daddiwar[] __initdata =
 	"Enable CPU_DADDI_WORKAROUNDS to rectify.";
 
-static inline void align_mod(const int align, const int mod)
+static __always_inline __init
+void align_mod(const int align, const int mod)
 {
 	asm volatile(
 		".set	push\n\t"
@@ -38,8 +39,9 @@ static inline void align_mod(const int align, const int mod)
 		: "n"(align), "n"(mod));
 }
 
-static __always_inline void mult_sh_align_mod(long *v1, long *v2, long *w,
-					      const int align, const int mod)
+static __always_inline __init
+void mult_sh_align_mod(long *v1, long *v2, long *w,
+		       const int align, const int mod)
 {
 	unsigned long flags;
 	int m1, m2;
@@ -113,7 +115,7 @@ static __always_inline void mult_sh_align_mod(long *v1, long *v2, long *w,
 	*w = lw;
 }
 
-static inline void check_mult_sh(void)
+static __always_inline __init void check_mult_sh(void)
 {
 	long v1[8], v2[8], w[8];
 	int bug, fix, i;
@@ -176,7 +178,7 @@ asmlinkage void __init do_daddi_ov(struct pt_regs *regs)
 	exception_exit(prev_state);
 }
 
-static inline void check_daddi(void)
+static __init void check_daddi(void)
 {
 	extern asmlinkage void handle_daddi_ov(void);
 	unsigned long flags;
@@ -242,7 +244,7 @@ static inline void check_daddi(void)
 
 int daddiu_bug	= IS_ENABLED(CONFIG_CPU_MIPSR6) ? 0 : -1;
 
-static inline void check_daddiu(void)
+static __init void check_daddiu(void)
 {
 	long v, w, tmp;
 

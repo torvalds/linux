@@ -96,7 +96,7 @@ void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 
 	fastopenq = &inet_csk(lsk)->icsk_accept_queue.fastopenq;
 
-	tcp_sk(sk)->fastopen_rsk = NULL;
+	RCU_INIT_POINTER(tcp_sk(sk)->fastopen_rsk, NULL);
 	spin_lock_bh(&fastopenq->lock);
 	fastopenq->qlen--;
 	tcp_rsk(req)->tfo_listener = false;

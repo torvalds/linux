@@ -321,6 +321,11 @@
 			};
 		};
 
+		console@8340020 {
+			compatible = "fsl,dpaa2-console";
+			reg = <0x00000000 0x08340020 0 0x2>;
+		};
+
 		ptp-timer@8b95000 {
 			compatible = "fsl,dpaa2-ptp";
 			reg = <0x0 0x8b95000 0x0 0x100>;
@@ -634,7 +639,6 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			dma-coherent;
-			num-lanes = <4>;
 			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
 			msi-parent = <&its>;
@@ -656,7 +660,6 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			dma-coherent;
-			num-lanes = <4>;
 			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
 			msi-parent = <&its>;
@@ -678,7 +681,6 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			dma-coherent;
-			num-lanes = <8>;
 			num-viewport = <256>;
 			bus-range = <0x0 0xff>;
 			msi-parent = <&its>;
@@ -700,7 +702,6 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			dma-coherent;
-			num-lanes = <4>;
 			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
 			msi-parent = <&its>;

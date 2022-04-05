@@ -545,18 +545,6 @@ static const DECLARE_TLV_DB_SCALE(out_tlv, -5700, 100, 0);
 static const DECLARE_TLV_DB_SCALE(sidetone_tlv, -3600, 300, 0);
 static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 
-static const char *input_mode_text[] = {
-	"Single-Ended", "Differential Line", "Differential Mic"
-};
-
-static SOC_ENUM_SINGLE_DECL(lin_mode,
-			    WM8904_ANALOGUE_LEFT_INPUT_1, 0,
-			    input_mode_text);
-
-static SOC_ENUM_SINGLE_DECL(rin_mode,
-			    WM8904_ANALOGUE_RIGHT_INPUT_1, 0,
-			    input_mode_text);
-
 static const char *hpf_mode_text[] = {
 	"Hi-fi", "Voice 1", "Voice 2", "Voice 3"
 };
@@ -590,9 +578,6 @@ static int wm8904_adc_osr_put(struct snd_kcontrol *kcontrol,
 static const struct snd_kcontrol_new wm8904_adc_snd_controls[] = {
 SOC_DOUBLE_R_TLV("Digital Capture Volume", WM8904_ADC_DIGITAL_VOLUME_LEFT,
 		 WM8904_ADC_DIGITAL_VOLUME_RIGHT, 1, 119, 0, digital_tlv),
-
-SOC_ENUM("Left Capture Mode", lin_mode),
-SOC_ENUM("Right Capture Mode", rin_mode),
 
 /* No TLV since it depends on mode */
 SOC_DOUBLE_R("Capture Volume", WM8904_ANALOGUE_LEFT_INPUT_0,
@@ -852,6 +837,10 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static const char *input_mode_text[] = {
+	"Single-Ended", "Differential Line", "Differential Mic"
+};
+
 static const char *lin_text[] = {
 	"IN1L", "IN2L", "IN3L"
 };
@@ -866,7 +855,14 @@ static SOC_ENUM_SINGLE_DECL(lin_inv_enum, WM8904_ANALOGUE_LEFT_INPUT_1, 4,
 			    lin_text);
 
 static const struct snd_kcontrol_new lin_inv_mux =
-	SOC_DAPM_ENUM("Left Capture Inveting Mux", lin_inv_enum);
+	SOC_DAPM_ENUM("Left Capture Inverting Mux", lin_inv_enum);
+
+static SOC_ENUM_SINGLE_DECL(lin_mode_enum,
+			    WM8904_ANALOGUE_LEFT_INPUT_1, 0,
+			    input_mode_text);
+
+static const struct snd_kcontrol_new lin_mode =
+	SOC_DAPM_ENUM("Left Capture Mode", lin_mode_enum);
 
 static const char *rin_text[] = {
 	"IN1R", "IN2R", "IN3R"
@@ -882,7 +878,14 @@ static SOC_ENUM_SINGLE_DECL(rin_inv_enum, WM8904_ANALOGUE_RIGHT_INPUT_1, 4,
 			    rin_text);
 
 static const struct snd_kcontrol_new rin_inv_mux =
-	SOC_DAPM_ENUM("Right Capture Inveting Mux", rin_inv_enum);
+	SOC_DAPM_ENUM("Right Capture Inverting Mux", rin_inv_enum);
+
+static SOC_ENUM_SINGLE_DECL(rin_mode_enum,
+			    WM8904_ANALOGUE_RIGHT_INPUT_1, 0,
+			    input_mode_text);
+
+static const struct snd_kcontrol_new rin_mode =
+	SOC_DAPM_ENUM("Right Capture Mode", rin_mode_enum);
 
 static const char *aif_text[] = {
 	"Left", "Right"
@@ -932,9 +935,11 @@ SND_SOC_DAPM_SUPPLY("MICBIAS", WM8904_MIC_BIAS_CONTROL_0, 0, 0, NULL, 0),
 SND_SOC_DAPM_MUX("Left Capture Mux", SND_SOC_NOPM, 0, 0, &lin_mux),
 SND_SOC_DAPM_MUX("Left Capture Inverting Mux", SND_SOC_NOPM, 0, 0,
 		 &lin_inv_mux),
+SND_SOC_DAPM_MUX("Left Capture Mode", SND_SOC_NOPM, 0, 0, &lin_mode),
 SND_SOC_DAPM_MUX("Right Capture Mux", SND_SOC_NOPM, 0, 0, &rin_mux),
 SND_SOC_DAPM_MUX("Right Capture Inverting Mux", SND_SOC_NOPM, 0, 0,
 		 &rin_inv_mux),
+SND_SOC_DAPM_MUX("Right Capture Mode", SND_SOC_NOPM, 0, 0, &rin_mode),
 
 SND_SOC_DAPM_PGA("Left Capture PGA", WM8904_POWER_MANAGEMENT_0, 1, 0,
 		 NULL, 0),
@@ -1057,6 +1062,12 @@ static const struct snd_soc_dapm_route adc_intercon[] = {
 	{ "Left Capture Inverting Mux", "IN2L", "IN2L" },
 	{ "Left Capture Inverting Mux", "IN3L", "IN3L" },
 
+	{ "Left Capture Mode", "Single-Ended", "Left Capture Inverting Mux" },
+	{ "Left Capture Mode", "Differential Line", "Left Capture Mux" },
+	{ "Left Capture Mode", "Differential Line", "Left Capture Inverting Mux" },
+	{ "Left Capture Mode", "Differential Mic", "Left Capture Mux" },
+	{ "Left Capture Mode", "Differential Mic", "Left Capture Inverting Mux" },
+
 	{ "Right Capture Mux", "IN1R", "IN1R" },
 	{ "Right Capture Mux", "IN2R", "IN2R" },
 	{ "Right Capture Mux", "IN3R", "IN3R" },
@@ -1065,11 +1076,14 @@ static const struct snd_soc_dapm_route adc_intercon[] = {
 	{ "Right Capture Inverting Mux", "IN2R", "IN2R" },
 	{ "Right Capture Inverting Mux", "IN3R", "IN3R" },
 
-	{ "Left Capture PGA", NULL, "Left Capture Mux" },
-	{ "Left Capture PGA", NULL, "Left Capture Inverting Mux" },
+	{ "Right Capture Mode", "Single-Ended", "Right Capture Inverting Mux" },
+	{ "Right Capture Mode", "Differential Line", "Right Capture Mux" },
+	{ "Right Capture Mode", "Differential Line", "Right Capture Inverting Mux" },
+	{ "Right Capture Mode", "Differential Mic", "Right Capture Mux" },
+	{ "Right Capture Mode", "Differential Mic", "Right Capture Inverting Mux" },
 
-	{ "Right Capture PGA", NULL, "Right Capture Mux" },
-	{ "Right Capture PGA", NULL, "Right Capture Inverting Mux" },
+	{ "Left Capture PGA", NULL, "Left Capture Mode" },
+	{ "Right Capture PGA", NULL, "Right Capture Mode" },
 
 	{ "AIFOUTL Mux", "Left", "ADCL" },
 	{ "AIFOUTL Mux", "Right", "ADCR" },

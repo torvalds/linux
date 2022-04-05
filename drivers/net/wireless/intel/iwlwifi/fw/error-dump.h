@@ -288,6 +288,28 @@ struct iwl_fw_error_dump_mem {
 #define IWL_INI_DUMP_INFO_TYPE BIT(31)
 
 /**
+ * struct iwl_fw_ini_dump_entry
+ * @list: list of dump entries
+ * @size: size of the data
+ * @data: entry data
+ */
+struct iwl_fw_ini_dump_entry {
+	struct list_head list;
+	u32 size;
+	u8 data[];
+} __packed;
+
+/**
+ * struct iwl_fw_error_dump_file - header of dump file
+ * @barker: must be %IWL_FW_INI_ERROR_DUMP_BARKER
+ * @file_len: the length of all the file including the header
+ */
+struct iwl_fw_ini_dump_file_hdr {
+	__le32 barker;
+	__le32 file_len;
+} __packed;
+
+/**
  * struct iwl_fw_ini_fifo_hdr - fifo range header
  * @fifo_num: the fifo number. In case of umac rx fifo, set BIT(31) to
  *	distinguish between lmac and umac rx fifos
@@ -301,10 +323,10 @@ struct iwl_fw_ini_fifo_hdr {
 /**
  * struct iwl_fw_ini_error_dump_range - range of memory
  * @range_data_size: the size of this range, in bytes
- * @internal_base_addr - base address of internal memory range
- * @dram_base_addr - base address of dram monitor range
- * @page_num - page number of memory range
- * @fifo_hdr - fifo header of memory range
+ * @internal_base_addr: base address of internal memory range
+ * @dram_base_addr: base address of dram monitor range
+ * @page_num: page number of memory range
+ * @fifo_hdr: fifo header of memory range
  * @data: the actual memory
  */
 struct iwl_fw_ini_error_dump_range {
@@ -432,10 +454,10 @@ struct iwl_fw_error_dump_rb {
 
 /**
  * struct iwl_fw_ini_monitor_dump - ini monitor dump
- * @header - header of the region
- * @write_ptr - write pointer position in the buffer
- * @cycle_cnt - cycles count
- * @ranges - the memory ranges of this this region
+ * @header: header of the region
+ * @write_ptr: write pointer position in the buffer
+ * @cycle_cnt: cycles count
+ * @ranges: the memory ranges of this this region
  */
 struct iwl_fw_ini_monitor_dump {
 	struct iwl_fw_ini_error_dump_header header;

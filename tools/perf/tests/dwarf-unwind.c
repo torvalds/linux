@@ -3,6 +3,7 @@
 #include <linux/types.h>
 #include <linux/zalloc.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <unistd.h>
 #include "tests.h"
 #include "debug.h"
@@ -14,6 +15,7 @@
 #include "symbol.h"
 #include "thread.h"
 #include "callchain.h"
+#include "util/synthetic-events.h"
 
 #if defined (__x86_64__) || defined (__i386__) || defined (__powerpc__)
 #include "arch-tests.h"

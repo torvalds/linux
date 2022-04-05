@@ -9,6 +9,8 @@
 #ifndef _ASM_S390_GMAP_H
 #define _ASM_S390_GMAP_H
 
+#include <linux/refcount.h>
+
 /* Generic bits for GMAP notification on DAT table entry changes. */
 #define GMAP_NOTIFY_SHADOW	0x2
 #define GMAP_NOTIFY_MPROT	0x1
@@ -46,7 +48,7 @@ struct gmap {
 	struct radix_tree_root guest_to_host;
 	struct radix_tree_root host_to_guest;
 	spinlock_t guest_table_lock;
-	atomic_t ref_count;
+	refcount_t ref_count;
 	unsigned long *table;
 	unsigned long asce;
 	unsigned long asce_end;

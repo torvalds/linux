@@ -110,7 +110,6 @@ static void ux500_restart(enum reboot_mode mode, const char *cmd)
 static const struct of_device_id u8500_local_bus_nodes[] = {
 	/* only create devices below soc node */
 	{ .compatible = "stericsson,db8500", },
-	{ .compatible = "stericsson,db8500-prcmu", },
 	{ .compatible = "simple-bus"},
 	{ },
 };

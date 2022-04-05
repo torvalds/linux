@@ -3,6 +3,7 @@
  */
 #include <linux/fs.h>
 #include <linux/fcntl.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 
 #include <asm/bootinfo.h>
@@ -64,24 +65,22 @@ void __init prom_init_memory(void)
 		node_id = loongson_memmap->map[i].node_id;
 		mem_type = loongson_memmap->map[i].mem_type;
 
-		if (node_id == 0) {
-			switch (mem_type) {
-			case SYSTEM_RAM_LOW:
-				add_memory_region(loongson_memmap->map[i].mem_start,
-					(u64)loongson_memmap->map[i].mem_size << 20,
-					BOOT_MEM_RAM);
-				break;
-			case SYSTEM_RAM_HIGH:
-				add_memory_region(loongson_memmap->map[i].mem_start,
-					(u64)loongson_memmap->map[i].mem_size << 20,
-					BOOT_MEM_RAM);
-				break;
-			case SYSTEM_RAM_RESERVED:
-				add_memory_region(loongson_memmap->map[i].mem_start,
-					(u64)loongson_memmap->map[i].mem_size << 20,
-					BOOT_MEM_RESERVED);
-				break;
-			}
+		if (node_id != 0)
+			continue;
+
+		switch (mem_type) {
+		case SYSTEM_RAM_LOW:
+			memblock_add(loongson_memmap->map[i].mem_start,
+				(u64)loongson_memmap->map[i].mem_size << 20);
+			break;
+		case SYSTEM_RAM_HIGH:
+			memblock_add(loongson_memmap->map[i].mem_start,
+				(u64)loongson_memmap->map[i].mem_size << 20);
+			break;
+		case SYSTEM_RAM_RESERVED:
+			memblock_reserve(loongson_memmap->map[i].mem_start,
+				(u64)loongson_memmap->map[i].mem_size << 20);
+			break;
 		}
 	}
 }

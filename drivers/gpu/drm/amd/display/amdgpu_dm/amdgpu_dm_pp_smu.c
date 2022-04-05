@@ -151,18 +151,31 @@ static void get_default_clock_levels(
 static enum smu_clk_type dc_to_smu_clock_type(
 		enum dm_pp_clock_type dm_pp_clk_type)
 {
-#define DCCLK_MAP_SMUCLK(dcclk, smuclk) \
-	[dcclk] = smuclk
+	enum smu_clk_type smu_clk_type = SMU_CLK_COUNT;
 
-	static int dc_clk_type_map[] = {
-		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_DISPLAY_CLK,	SMU_DISPCLK),
-		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_ENGINE_CLK,	SMU_GFXCLK),
-		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_MEMORY_CLK,	SMU_MCLK),
-		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_DCEFCLK,	SMU_DCEFCLK),
-		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_SOCCLK,	SMU_SOCCLK),
-	};
+	switch (dm_pp_clk_type) {
+	case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
+		smu_clk_type = SMU_DISPCLK;
+		break;
+	case DM_PP_CLOCK_TYPE_ENGINE_CLK:
+		smu_clk_type = SMU_GFXCLK;
+		break;
+	case DM_PP_CLOCK_TYPE_MEMORY_CLK:
+		smu_clk_type = SMU_MCLK;
+		break;
+	case DM_PP_CLOCK_TYPE_DCEFCLK:
+		smu_clk_type = SMU_DCEFCLK;
+		break;
+	case DM_PP_CLOCK_TYPE_SOCCLK:
+		smu_clk_type = SMU_SOCCLK;
+		break;
+	default:
+		DRM_ERROR("DM_PPLIB: invalid clock type: %d!\n",
+			  dm_pp_clk_type);
+		break;
+	}
 
-	return dc_clk_type_map[dm_pp_clk_type];
+	return smu_clk_type;
 }
 
 static enum amd_pp_clock_type dc_to_pp_clock_type(
@@ -334,7 +347,7 @@ bool dm_pp_get_clock_levels_by_type(
 		}
 	} else if (adev->smu.funcs && adev->smu.funcs->get_clock_by_type) {
 		if (smu_get_clock_by_type(&adev->smu,
-					  dc_to_smu_clock_type(clk_type),
+					  dc_to_pp_clock_type(clk_type),
 					  &pp_clks)) {
 			get_default_clock_levels(clk_type, dc_clks);
 			return true;
@@ -419,7 +432,7 @@ bool dm_pp_get_clock_levels_by_type_with_latency(
 			return false;
 	} else if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->get_clock_by_type_with_latency) {
 		if (smu_get_clock_by_type_with_latency(&adev->smu,
-						       dc_to_pp_clock_type(clk_type),
+						       dc_to_smu_clock_type(clk_type),
 						       &pp_clks))
 			return false;
 	}
@@ -801,6 +814,19 @@ enum pp_smu_status pp_nv_set_hard_min_uclk_by_freq(struct pp_smu *pp, int mhz)
 	return PP_SMU_RESULT_OK;
 }
 
+enum pp_smu_status pp_nv_set_pstate_handshake_support(
+	struct pp_smu *pp, BOOLEAN pstate_handshake_supported)
+{
+	const struct dc_context *ctx = pp->dm;
+	struct amdgpu_device *adev = ctx->driver_context;
+	struct smu_context *smu = &adev->smu;
+
+	if (smu_display_disable_memory_clock_switch(smu, !pstate_handshake_supported))
+		return PP_SMU_RESULT_FAIL;
+
+	return PP_SMU_RESULT_OK;
+}
+
 enum pp_smu_status pp_nv_set_voltage_by_freq(struct pp_smu *pp,
 		enum pp_smu_nv_clock_id clock_id, int mhz)
 {
@@ -916,6 +942,7 @@ void dm_pp_get_funcs(
 		funcs->nv_funcs.get_maximum_sustainable_clocks = pp_nv_get_maximum_sustainable_clocks;
 		/*todo  compare data with window driver */
 		funcs->nv_funcs.get_uclk_dpm_states = pp_nv_get_uclk_dpm_states;
+		funcs->nv_funcs.set_pstate_handshake_support = pp_nv_set_pstate_handshake_support;
 		break;
 #endif
 	default:

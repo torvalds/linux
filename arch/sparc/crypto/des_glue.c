@@ -12,7 +12,7 @@
 #include <linux/mm.h>
 #include <linux/types.h>
 #include <crypto/algapi.h>
-#include <crypto/des.h>
+#include <crypto/internal/des.h>
 
 #include <asm/fpumacro.h>
 #include <asm/pstate.h>
@@ -45,19 +45,15 @@ static int des_set_key(struct crypto_tfm *tfm, const u8 *key,
 		       unsigned int keylen)
 {
 	struct des_sparc64_ctx *dctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
-	u32 tmp[DES_EXPKEY_WORDS];
-	int ret;
+	int err;
 
 	/* Even though we have special instructions for key expansion,
-	 * we call des_ekey() so that we don't have to write our own
+	 * we call des_verify_key() so that we don't have to write our own
 	 * weak key detection code.
 	 */
-	ret = des_ekey(tmp, key);
-	if (unlikely(ret == 0) && (*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
-		*flags |= CRYPTO_TFM_RES_WEAK_KEY;
-		return -EINVAL;
-	}
+	err = crypto_des_verify_key(tfm, key);
+	if (err)
+		return err;
 
 	des_sparc64_key_expand((const u32 *) key, &dctx->encrypt_expkey[0]);
 	encrypt_to_decrypt(&dctx->decrypt_expkey[0], &dctx->encrypt_expkey[0]);
@@ -68,7 +64,7 @@ static int des_set_key(struct crypto_tfm *tfm, const u8 *key,
 extern void des_sparc64_crypt(const u64 *key, const u64 *input,
 			      u64 *output);
 
-static void des_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
+static void sparc_des_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	struct des_sparc64_ctx *ctx = crypto_tfm_ctx(tfm);
 	const u64 *K = ctx->encrypt_expkey;
@@ -76,7 +72,7 @@ static void des_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 	des_sparc64_crypt(K, (const u64 *) src, (u64 *) dst);
 }
 
-static void des_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
+static void sparc_des_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	struct des_sparc64_ctx *ctx = crypto_tfm_ctx(tfm);
 	const u64 *K = ctx->decrypt_expkey;
@@ -202,14 +198,13 @@ static int des3_ede_set_key(struct crypto_tfm *tfm, const u8 *key,
 			    unsigned int keylen)
 {
 	struct des3_ede_sparc64_ctx *dctx = crypto_tfm_ctx(tfm);
-	u32 *flags = &tfm->crt_flags;
 	u64 k1[DES_EXPKEY_WORDS / 2];
 	u64 k2[DES_EXPKEY_WORDS / 2];
 	u64 k3[DES_EXPKEY_WORDS / 2];
 	int err;
 
-	err = __des3_verify_key(flags, key);
-	if (unlikely(err))
+	err = crypto_des3_ede_verify_key(tfm, key);
+	if (err)
 		return err;
 
 	des_sparc64_key_expand((const u32 *)key, k1);
@@ -235,7 +230,7 @@ static int des3_ede_set_key(struct crypto_tfm *tfm, const u8 *key,
 extern void des3_ede_sparc64_crypt(const u64 *key, const u64 *input,
 				   u64 *output);
 
-static void des3_ede_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
+static void sparc_des3_ede_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	struct des3_ede_sparc64_ctx *ctx = crypto_tfm_ctx(tfm);
 	const u64 *K = ctx->encrypt_expkey;
@@ -243,7 +238,7 @@ static void des3_ede_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 	des3_ede_sparc64_crypt(K, (const u64 *) src, (u64 *) dst);
 }
 
-static void des3_ede_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
+static void sparc_des3_ede_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	struct des3_ede_sparc64_ctx *ctx = crypto_tfm_ctx(tfm);
 	const u64 *K = ctx->decrypt_expkey;
@@ -390,8 +385,8 @@ static struct crypto_alg algs[] = { {
 			.cia_min_keysize	= DES_KEY_SIZE,
 			.cia_max_keysize	= DES_KEY_SIZE,
 			.cia_setkey		= des_set_key,
-			.cia_encrypt		= des_encrypt,
-			.cia_decrypt		= des_decrypt
+			.cia_encrypt		= sparc_des_encrypt,
+			.cia_decrypt		= sparc_des_decrypt
 		}
 	}
 }, {
@@ -447,8 +442,8 @@ static struct crypto_alg algs[] = { {
 			.cia_min_keysize	= DES3_EDE_KEY_SIZE,
 			.cia_max_keysize	= DES3_EDE_KEY_SIZE,
 			.cia_setkey		= des3_ede_set_key,
-			.cia_encrypt		= des3_ede_encrypt,
-			.cia_decrypt		= des3_ede_decrypt
+			.cia_encrypt		= sparc_des3_ede_encrypt,
+			.cia_decrypt		= sparc_des3_ede_decrypt
 		}
 	}
 }, {

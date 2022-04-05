@@ -297,6 +297,32 @@ out:
 	return 1;
 }
 
+static int __init do_kmem_cache_size_bulk(int size, int *total_failures)
+{
+	struct kmem_cache *c;
+	int i, iter, maxiter = 1024;
+	int num, bytes;
+	bool fail = false;
+	void *objects[10];
+
+	c = kmem_cache_create("test_cache", size, size, 0, NULL);
+	for (iter = 0; (iter < maxiter) && !fail; iter++) {
+		num = kmem_cache_alloc_bulk(c, GFP_KERNEL, ARRAY_SIZE(objects),
+					    objects);
+		for (i = 0; i < num; i++) {
+			bytes = count_nonzero_bytes(objects[i], size);
+			if (bytes)
+				fail = true;
+			fill_with_garbage(objects[i], size);
+		}
+
+		if (num)
+			kmem_cache_free_bulk(c, num, objects);
+	}
+	*total_failures += fail;
+	return 1;
+}
+
 /*
  * Test kmem_cache allocation by creating caches of different sizes, with and
  * without constructors, with and without SLAB_TYPESAFE_BY_RCU.
@@ -318,6 +344,7 @@ static int __init test_kmemcache(int *total_failures)
 			num_tests += do_kmem_cache_size(size, ctor, rcu, zero,
 							&failures);
 		}
+		num_tests += do_kmem_cache_size_bulk(size, &failures);
 	}
 	REPORT_FAILURES_IN_FN();
 	*total_failures += failures;

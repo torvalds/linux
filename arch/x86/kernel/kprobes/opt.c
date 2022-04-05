@@ -403,7 +403,7 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op,
 			   (u8 *)op->kp.addr + op->optinsn.size);
 	len += RELATIVEJUMP_SIZE;
 
-	/* We have to use text_poke for instuction buffer because it is RO */
+	/* We have to use text_poke() for instruction buffer because it is RO */
 	text_poke(slot, buf, len);
 	ret = 0;
 out:

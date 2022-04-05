@@ -2855,8 +2855,8 @@ static void *ath6kl_htc_mbox_create(struct ath6kl *ar)
 	target->dev = kzalloc(sizeof(*target->dev), GFP_KERNEL);
 	if (!target->dev) {
 		ath6kl_err("unable to allocate memory\n");
-		status = -ENOMEM;
-		goto err_htc_cleanup;
+		kfree(target);
+		return NULL;
 	}
 
 	spin_lock_init(&target->htc_lock);

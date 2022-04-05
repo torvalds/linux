@@ -152,20 +152,9 @@ static const struct file_operations vd_fops = {
 
 /* function prototypes */
 
-static int mtty_trigger_interrupt(const guid_t *uuid);
+static int mtty_trigger_interrupt(struct mdev_state *mdev_state);
 
 /* Helper functions */
-static struct mdev_state *find_mdev_state_by_uuid(const guid_t *uuid)
-{
-	struct mdev_state *mds;
-
-	list_for_each_entry(mds, &mdev_devices_list, next) {
-		if (guid_equal(mdev_uuid(mds->mdev), uuid))
-			return mds;
-	}
-
-	return NULL;
-}
 
 static void dump_buffer(u8 *buf, uint32_t count)
 {
@@ -337,8 +326,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 				pr_err("Serial port %d: Fifo level trigger\n",
 					index);
 #endif
-				mtty_trigger_interrupt(
-						mdev_uuid(mdev_state->mdev));
+				mtty_trigger_interrupt(mdev_state);
 			}
 		} else {
 #if defined(DEBUG_INTR)
@@ -352,8 +340,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 			 */
 			if (mdev_state->s[index].uart_reg[UART_IER] &
 								UART_IER_RLSI)
-				mtty_trigger_interrupt(
-						mdev_uuid(mdev_state->mdev));
+				mtty_trigger_interrupt(mdev_state);
 		}
 		mutex_unlock(&mdev_state->rxtx_lock);
 		break;
@@ -372,8 +359,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 				pr_err("Serial port %d: IER_THRI write\n",
 					index);
 #endif
-				mtty_trigger_interrupt(
-						mdev_uuid(mdev_state->mdev));
+				mtty_trigger_interrupt(mdev_state);
 			}
 
 			mutex_unlock(&mdev_state->rxtx_lock);
@@ -444,7 +430,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 #if defined(DEBUG_INTR)
 			pr_err("Serial port %d: MCR_OUT2 write\n", index);
 #endif
-			mtty_trigger_interrupt(mdev_uuid(mdev_state->mdev));
+			mtty_trigger_interrupt(mdev_state);
 		}
 
 		if ((mdev_state->s[index].uart_reg[UART_IER] & UART_IER_MSI) &&
@@ -452,7 +438,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 #if defined(DEBUG_INTR)
 			pr_err("Serial port %d: MCR RTS/DTR write\n", index);
 #endif
-			mtty_trigger_interrupt(mdev_uuid(mdev_state->mdev));
+			mtty_trigger_interrupt(mdev_state);
 		}
 		break;
 
@@ -503,8 +489,7 @@ static void handle_bar_read(unsigned int index, struct mdev_state *mdev_state,
 #endif
 			if (mdev_state->s[index].uart_reg[UART_IER] &
 							 UART_IER_THRI)
-				mtty_trigger_interrupt(
-					mdev_uuid(mdev_state->mdev));
+				mtty_trigger_interrupt(mdev_state);
 		}
 		mutex_unlock(&mdev_state->rxtx_lock);
 
@@ -1028,17 +1013,9 @@ static int mtty_set_irqs(struct mdev_device *mdev, uint32_t flags,
 	return ret;
 }
 
-static int mtty_trigger_interrupt(const guid_t *uuid)
+static int mtty_trigger_interrupt(struct mdev_state *mdev_state)
 {
 	int ret = -1;
-	struct mdev_state *mdev_state;
-
-	mdev_state = find_mdev_state_by_uuid(uuid);
-
-	if (!mdev_state) {
-		pr_info("%s: mdev not found\n", __func__);
-		return -EINVAL;
-	}
 
 	if ((mdev_state->irq_index == VFIO_PCI_MSI_IRQ_INDEX) &&
 	    (!mdev_state->msi_evtfd))

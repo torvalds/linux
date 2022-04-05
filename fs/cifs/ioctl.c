@@ -164,6 +164,7 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 {
 	struct inode *inode = file_inode(filep);
+	struct smb3_key_debug_info pkey_inf;
 	int rc = -ENOTTY; /* strange error - but the precedent */
 	unsigned int xid;
 	struct cifsFileInfo *pSMBFile = filep->private_data;
@@ -269,6 +270,34 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 						pSMBFile, (void __user *)arg);
 			else
 				rc = -EOPNOTSUPP;
+			break;
+		case CIFS_DUMP_KEY:
+			if (pSMBFile == NULL)
+				break;
+			if (!capable(CAP_SYS_ADMIN)) {
+				rc = -EACCES;
+				break;
+			}
+
+			tcon = tlink_tcon(pSMBFile->tlink);
+			if (!smb3_encryption_required(tcon)) {
+				rc = -EOPNOTSUPP;
+				break;
+			}
+			pkey_inf.cipher_type =
+				le16_to_cpu(tcon->ses->server->cipher_type);
+			pkey_inf.Suid = tcon->ses->Suid;
+			memcpy(pkey_inf.auth_key, tcon->ses->auth_key.response,
+					16 /* SMB2_NTLMV2_SESSKEY_SIZE */);
+			memcpy(pkey_inf.smb3decryptionkey,
+			      tcon->ses->smb3decryptionkey, SMB3_SIGN_KEY_SIZE);
+			memcpy(pkey_inf.smb3encryptionkey,
+			      tcon->ses->smb3encryptionkey, SMB3_SIGN_KEY_SIZE);
+			if (copy_to_user((void __user *)arg, &pkey_inf,
+					sizeof(struct smb3_key_debug_info)))
+				rc = -EFAULT;
+			else
+				rc = 0;
 			break;
 		default:
 			cifs_dbg(FYI, "unsupported ioctl\n");

@@ -253,7 +253,7 @@ int go7007_snd_init(struct go7007 *go)
 		return ret;
 	}
 	strscpy(gosnd->card->driver, "go7007", sizeof(gosnd->card->driver));
-	strscpy(gosnd->card->shortname, go->name, sizeof(gosnd->card->driver));
+	strscpy(gosnd->card->shortname, go->name, sizeof(gosnd->card->shortname));
 	strscpy(gosnd->card->longname, gosnd->card->shortname,
 		sizeof(gosnd->card->longname));
 

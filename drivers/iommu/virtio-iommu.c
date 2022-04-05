@@ -751,7 +751,7 @@ static int viommu_map(struct iommu_domain *domain, unsigned long iova,
 }
 
 static size_t viommu_unmap(struct iommu_domain *domain, unsigned long iova,
-			   size_t size)
+			   size_t size, struct iommu_iotlb_gather *gather)
 {
 	int ret = 0;
 	size_t unmapped;
@@ -797,7 +797,8 @@ static phys_addr_t viommu_iova_to_phys(struct iommu_domain *domain,
 	return paddr;
 }
 
-static void viommu_iotlb_sync(struct iommu_domain *domain)
+static void viommu_iotlb_sync(struct iommu_domain *domain,
+			      struct iommu_iotlb_gather *gather)
 {
 	struct viommu_domain *vdomain = to_viommu_domain(domain);
 

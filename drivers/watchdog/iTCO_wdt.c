@@ -48,6 +48,7 @@
 
 /* Includes */
 #include <linux/acpi.h>			/* For ACPI support */
+#include <linux/bits.h>			/* For BIT() */
 #include <linux/module.h>		/* For module specific items */
 #include <linux/moduleparam.h>		/* For new moduleparam's */
 #include <linux/types.h>		/* For standard types (like size_t) */
@@ -215,6 +216,23 @@ static int update_no_reboot_bit_mem(void *priv, bool set)
 	return 0;
 }
 
+static int update_no_reboot_bit_cnt(void *priv, bool set)
+{
+	struct iTCO_wdt_private *p = priv;
+	u16 val, newval;
+
+	val = inw(TCO1_CNT(p));
+	if (set)
+		val |= BIT(0);
+	else
+		val &= ~BIT(0);
+	outw(val, TCO1_CNT(p));
+	newval = inw(TCO1_CNT(p));
+
+	/* make sure the update is successful */
+	return val != newval ? -EIO : 0;
+}
+
 static void iTCO_wdt_no_reboot_bit_setup(struct iTCO_wdt_private *p,
 		struct itco_wdt_platform_data *pdata)
 {
@@ -224,7 +242,9 @@ static void iTCO_wdt_no_reboot_bit_setup(struct iTCO_wdt_private *p,
 		return;
 	}
 
-	if (p->iTCO_version >= 2)
+	if (p->iTCO_version >= 6)
+		p->update_no_reboot_bit = update_no_reboot_bit_cnt;
+	else if (p->iTCO_version >= 2)
 		p->update_no_reboot_bit = update_no_reboot_bit_mem;
 	else if (p->iTCO_version == 1)
 		p->update_no_reboot_bit = update_no_reboot_bit_pci;
@@ -452,7 +472,8 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 	 * Get the Memory-Mapped GCS or PMC register, we need it for the
 	 * NO_REBOOT flag (TCO v2 and v3).
 	 */
-	if (p->iTCO_version >= 2 && !pdata->update_no_reboot_bit) {
+	if (p->iTCO_version >= 2 && p->iTCO_version < 6 &&
+	    !pdata->update_no_reboot_bit) {
 		p->gcs_pmc_res = platform_get_resource(pdev,
 						       IORESOURCE_MEM,
 						       ICH_RES_MEM_GCS_PMC);
@@ -502,6 +523,7 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 
 	/* Clear out the (probably old) status */
 	switch (p->iTCO_version) {
+	case 6:
 	case 5:
 	case 4:
 		outw(0x0008, TCO1_STS(p)); /* Clear the Time Out Status bit */

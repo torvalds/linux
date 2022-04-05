@@ -144,10 +144,13 @@ VERSION
 		__kernel_datapage_offset;
 
 		__kernel_get_syscall_map;
+#ifndef CONFIG_PPC_BOOK3S_601
 		__kernel_gettimeofday;
 		__kernel_clock_gettime;
 		__kernel_clock_getres;
+		__kernel_time;
 		__kernel_get_tbfreq;
+#endif
 		__kernel_sync_dicache;
 		__kernel_sync_dicache_p5;
 		__kernel_sigtramp32;
@@ -155,7 +158,6 @@ VERSION
 #ifdef CONFIG_PPC64
 		__kernel_getcpu;
 #endif
-		__kernel_time;
 
 	local: *;
 	};

@@ -8,6 +8,7 @@
 #ifndef _IO_WORKAROUNDS_H
 #define _IO_WORKAROUNDS_H
 
+#ifdef CONFIG_PPC_IO_WORKAROUNDS
 #include <linux/io.h>
 #include <asm/pci-bridge.h>
 
@@ -31,5 +32,24 @@ extern int spiderpci_iowa_init(struct iowa_bus *, void *);
 #define SPIDER_PCI_VCI_CNTL_STAT	0x0110
 #define SPIDER_PCI_DUMMY_READ		0x0810
 #define SPIDER_PCI_DUMMY_READ_BASE	0x0814
+
+#endif
+
+#if defined(CONFIG_PPC_IO_WORKAROUNDS) && defined(CONFIG_PPC_INDIRECT_MMIO)
+extern bool io_workaround_inited;
+
+static inline bool iowa_is_active(void)
+{
+	return unlikely(io_workaround_inited);
+}
+#else
+static inline bool iowa_is_active(void)
+{
+	return false;
+}
+#endif
+
+void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
+			   pgprot_t prot, void *caller);
 
 #endif /* _IO_WORKAROUNDS_H */

@@ -26,7 +26,7 @@ scaled by 1000, i.e. the value for 31.5 degrees celsius is 31500.
 
 The device communicates with the I2C protocol. Sensors can have the I2C
 addresses 0x44 or 0x45, depending on the wiring. See
-Documentation/i2c/instantiating-devices for methods to instantiate the device.
+Documentation/i2c/instantiating-devices.rst for methods to instantiate the device.
 
 There are two options configurable by means of sht3x_platform_data:
 

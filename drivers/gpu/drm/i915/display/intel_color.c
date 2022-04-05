@@ -23,7 +23,7 @@
  */
 
 #include "intel_color.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 
 #define CTM_COEFF_SIGN	(1ULL << 63)
 
@@ -990,6 +990,55 @@ void intel_color_commit(const struct intel_crtc_state *crtc_state)
 	dev_priv->display.color_commit(crtc_state);
 }
 
+static bool intel_can_preload_luts(const struct intel_crtc_state *new_crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(new_crtc_state->base.state);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+
+	return !old_crtc_state->base.gamma_lut &&
+		!old_crtc_state->base.degamma_lut;
+}
+
+static bool chv_can_preload_luts(const struct intel_crtc_state *new_crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(new_crtc_state->base.state);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+
+	/*
+	 * CGM_PIPE_MODE is itself single buffered. We'd have to
+	 * somehow split it out from chv_load_luts() if we wanted
+	 * the ability to preload the CGM LUTs/CSC without tearing.
+	 */
+	if (old_crtc_state->cgm_mode || new_crtc_state->cgm_mode)
+		return false;
+
+	return !old_crtc_state->base.gamma_lut;
+}
+
+static bool glk_can_preload_luts(const struct intel_crtc_state *new_crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(new_crtc_state->base.state);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+
+	/*
+	 * The hardware degamma is active whenever the pipe
+	 * CSC is active. Thus even if the old state has no
+	 * software degamma we need to avoid clobbering the
+	 * linear hardware degamma mid scanout.
+	 */
+	return !old_crtc_state->csc_enable &&
+		!old_crtc_state->base.gamma_lut;
+}
+
 int intel_color_check(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
@@ -1133,6 +1182,8 @@ static int i9xx_color_check(struct intel_crtc_state *crtc_state)
 	if (ret)
 		return ret;
 
+	crtc_state->preload_luts = intel_can_preload_luts(crtc_state);
+
 	return 0;
 }
 
@@ -1185,6 +1236,8 @@ static int chv_color_check(struct intel_crtc_state *crtc_state)
 	if (ret)
 		return ret;
 
+	crtc_state->preload_luts = chv_can_preload_luts(crtc_state);
+
 	return 0;
 }
 
@@ -1223,6 +1276,8 @@ static int ilk_color_check(struct intel_crtc_state *crtc_state)
 	ret = intel_color_add_affected_planes(crtc_state);
 	if (ret)
 		return ret;
+
+	crtc_state->preload_luts = intel_can_preload_luts(crtc_state);
 
 	return 0;
 }
@@ -1281,6 +1336,8 @@ static int ivb_color_check(struct intel_crtc_state *crtc_state)
 	if (ret)
 		return ret;
 
+	crtc_state->preload_luts = intel_can_preload_luts(crtc_state);
+
 	return 0;
 }
 
@@ -1318,6 +1375,8 @@ static int glk_color_check(struct intel_crtc_state *crtc_state)
 	ret = intel_color_add_affected_planes(crtc_state);
 	if (ret)
 		return ret;
+
+	crtc_state->preload_luts = glk_can_preload_luts(crtc_state);
 
 	return 0;
 }
@@ -1367,6 +1426,8 @@ static int icl_color_check(struct intel_crtc_state *crtc_state)
 	crtc_state->gamma_mode = icl_gamma_mode(crtc_state);
 
 	crtc_state->csc_mode = icl_csc_mode(crtc_state);
+
+	crtc_state->preload_luts = intel_can_preload_luts(crtc_state);
 
 	return 0;
 }

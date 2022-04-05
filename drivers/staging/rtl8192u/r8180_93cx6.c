@@ -39,7 +39,6 @@ static void eprom_cs(struct net_device *dev, short bit)
 	udelay(EPROM_DELAY);
 }
 
-
 static void eprom_ck_cycle(struct net_device *dev)
 {
 	u8 cmdreg;
@@ -58,7 +57,6 @@ static void eprom_ck_cycle(struct net_device *dev)
 	udelay(EPROM_DELAY);
 }
 
-
 static void eprom_w(struct net_device *dev, short bit)
 {
 	u8 cmdreg;
@@ -75,7 +73,6 @@ static void eprom_w(struct net_device *dev, short bit)
 	force_pci_posting(dev);
 	udelay(EPROM_DELAY);
 }
-
 
 static short eprom_r(struct net_device *dev)
 {
@@ -94,7 +91,6 @@ static short eprom_r(struct net_device *dev)
 	return 0;
 }
 
-
 static void eprom_send_bits_string(struct net_device *dev, short b[], int len)
 {
 	int i;
@@ -104,7 +100,6 @@ static void eprom_send_bits_string(struct net_device *dev, short b[], int len)
 		eprom_ck_cycle(dev);
 	}
 }
-
 
 int eprom_read(struct net_device *dev, u32 addr)
 {
@@ -119,7 +114,7 @@ int eprom_read(struct net_device *dev, u32 addr)
 	ret = 0;
 	/* enable EPROM programming */
 	write_nic_byte_E(dev, EPROM_CMD,
-		       (EPROM_CMD_PROGRAM<<EPROM_CMD_OPERATING_MODE_SHIFT));
+		       (EPROM_CMD_PROGRAM << EPROM_CMD_OPERATING_MODE_SHIFT));
 	force_pci_posting(dev);
 	udelay(EPROM_DELAY);
 
@@ -162,7 +157,7 @@ int eprom_read(struct net_device *dev, u32 addr)
 		if (err < 0)
 			return err;
 
-		ret |= err<<(15-i);
+		ret |= err << (15 - i);
 	}
 
 	eprom_cs(dev, 0);
@@ -170,6 +165,6 @@ int eprom_read(struct net_device *dev, u32 addr)
 
 	/* disable EPROM programming */
 	write_nic_byte_E(dev, EPROM_CMD,
-		       (EPROM_CMD_NORMAL<<EPROM_CMD_OPERATING_MODE_SHIFT));
+		       (EPROM_CMD_NORMAL << EPROM_CMD_OPERATING_MODE_SHIFT));
 	return ret;
 }

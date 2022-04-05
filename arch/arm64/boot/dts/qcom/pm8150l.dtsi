@@ -1,0 +1,80 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019, Linaro Limited
+ */
+
+#include <dt-bindings/iio/qcom,spmi-vadc.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/spmi/spmi.h>
+
+&spmi_bus {
+	pmic@4 {
+		compatible = "qcom,pm8150l", "qcom,spmi-pmic";
+		reg = <0x4 SPMI_USID>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		power-on@800 {
+			compatible = "qcom,pm8916-pon";
+			reg = <0x0800>;
+
+			status = "disabled";
+		};
+
+		adc@3100 {
+			compatible = "qcom,spmi-adc5";
+			reg = <0x3100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#io-channel-cells = <1>;
+			interrupts = <0x4 0x31 0x0 IRQ_TYPE_EDGE_RISING>;
+
+			status = "disabled";
+
+			ref-gnd@0 {
+				reg = <ADC5_REF_GND>;
+				qcom,pre-scaling = <1 1>;
+				label = "ref_gnd";
+			};
+
+			vref-1p25@1 {
+				reg = <ADC5_1P25VREF>;
+				qcom,pre-scaling = <1 1>;
+				label = "vref_1p25";
+			};
+
+			die-temp@6 {
+				reg = <ADC5_DIE_TEMP>;
+				qcom,pre-scaling = <1 1>;
+				label = "die_temp";
+			};
+		};
+
+		pm8150l_gpios: gpio@c000 {
+			compatible = "qcom,pm8150l-gpio";
+			reg = <0xc000>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupts = <0x4 0xc0 0x0 IRQ_TYPE_NONE>,
+				     <0x4 0xc1 0x0 IRQ_TYPE_NONE>,
+				     <0x4 0xc2 0x0 IRQ_TYPE_NONE>,
+				     <0x4 0xc3 0x0 IRQ_TYPE_NONE>,
+				     <0x4 0xc4 0x0 IRQ_TYPE_NONE>,
+				     <0x4 0xc5 0x0 IRQ_TYPE_NONE>,
+				     <0x4 0xc6 0x0 IRQ_TYPE_NONE>,
+				     <0x4 0xc7 0x0 IRQ_TYPE_NONE>,
+				     <0x4 0xc8 0x0 IRQ_TYPE_NONE>,
+				     <0x4 0xc9 0x0 IRQ_TYPE_NONE>,
+				     <0x4 0xca 0x0 IRQ_TYPE_NONE>,
+				     <0x4 0xcb 0x0 IRQ_TYPE_NONE>;
+		};
+	};
+
+	pmic@5 {
+		compatible = "qcom,pm8150l", "qcom,spmi-pmic";
+		reg = <0x5 SPMI_USID>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+};

@@ -87,6 +87,28 @@
 		};
 	};
 
+	hdmi0-out {
+		compatible = "hdmi-connector";
+		label = "HDMI0 OUT";
+		type = "a";
+
+		port {
+			hdmi0_con: endpoint {
+			};
+		};
+	};
+
+	hdmi1-out {
+		compatible = "hdmi-connector";
+		label = "HDMI1 OUT";
+		type = "a";
+
+		port {
+			hdmi1_con: endpoint {
+			};
+		};
+	};
+
 	keys {
 		compatible = "gpio-keys";
 
@@ -236,28 +258,6 @@
 		gpios-states = <1>;
 		states = <3300000 1
 			  1800000 0>;
-	};
-
-	hdmi0-out {
-		compatible = "hdmi-connector";
-		label = "HDMI0 OUT";
-		type = "a";
-
-		port {
-			hdmi0_con: endpoint {
-			};
-		};
-	};
-
-	hdmi1-out {
-		compatible = "hdmi-connector";
-		label = "HDMI1 OUT";
-		type = "a";
-
-		port {
-			hdmi1_con: endpoint {
-			};
-		};
 	};
 
 	vga {
@@ -462,20 +462,6 @@
 		#gpio-cells = <2>;
 	};
 
-	csa_vdd: adc@7c {
-		compatible = "maxim,max9611";
-		reg = <0x7c>;
-
-		shunt-resistor-micro-ohms = <5000>;
-	};
-
-	csa_dvfs: adc@7f {
-		compatible = "maxim,max9611";
-		reg = <0x7f>;
-
-		shunt-resistor-micro-ohms = <5000>;
-	};
-
 	video-receiver@70 {
 		compatible = "adi,adv7482";
 		reg = <0x70 0x71 0x72 0x73 0x74 0x75
@@ -526,6 +512,20 @@
 				remote-endpoint = <&csi20_in>;
 			};
 		};
+	};
+
+	csa_vdd: adc@7c {
+		compatible = "maxim,max9611";
+		reg = <0x7c>;
+
+		shunt-resistor-micro-ohms = <5000>;
+	};
+
+	csa_dvfs: adc@7f {
+		compatible = "maxim,max9611";
+		reg = <0x7f>;
+
+		shunt-resistor-micro-ohms = <5000>;
 	};
 };
 

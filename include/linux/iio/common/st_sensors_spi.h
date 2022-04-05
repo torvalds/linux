@@ -13,7 +13,7 @@
 #include <linux/spi/spi.h>
 #include <linux/iio/common/st_sensors.h>
 
-void st_sensors_spi_configure(struct iio_dev *indio_dev,
-			struct spi_device *spi, struct st_sensor_data *sdata);
+int st_sensors_spi_configure(struct iio_dev *indio_dev,
+			     struct spi_device *spi);
 
 #endif /* ST_SENSORS_SPI_H */

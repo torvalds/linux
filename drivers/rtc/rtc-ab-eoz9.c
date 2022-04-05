@@ -390,35 +390,31 @@ static int abeoz9_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
 				     I2C_FUNC_SMBUS_BYTE_DATA |
-				     I2C_FUNC_SMBUS_I2C_BLOCK)) {
-		ret = -ENODEV;
-		goto err;
-	}
+				     I2C_FUNC_SMBUS_I2C_BLOCK))
+		return -ENODEV;
 
 	regmap = devm_regmap_init_i2c(client, &abeoz9_rtc_regmap_config);
 	if (IS_ERR(regmap)) {
 		ret = PTR_ERR(regmap);
 		dev_err(dev, "regmap allocation failed: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!data)
+		return -ENOMEM;
 
 	data->regmap = regmap;
 	dev_set_drvdata(dev, data);
 
 	ret = abeoz9_rtc_setup(dev, client->dev.of_node);
 	if (ret)
-		goto err;
+		return ret;
 
 	data->rtc = devm_rtc_allocate_device(dev);
 	ret = PTR_ERR_OR_ZERO(data->rtc);
 	if (ret)
-		goto err;
+		return ret;
 
 	data->rtc->ops = &rtc_ops;
 	data->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
@@ -426,14 +422,10 @@ static int abeoz9_probe(struct i2c_client *client,
 
 	ret = rtc_register_device(data->rtc);
 	if (ret)
-		goto err;
+		return ret;
 
 	abeoz9_hwmon_register(dev, data);
 	return 0;
-
-err:
-	dev_err(dev, "unable to register RTC device (%d)\n", ret);
-	return ret;
 }
 
 #ifdef CONFIG_OF

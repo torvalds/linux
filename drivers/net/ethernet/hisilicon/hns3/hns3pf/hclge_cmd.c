@@ -103,14 +103,17 @@ static void hclge_cmd_config_regs(struct hclge_cmq_ring *ring)
 	dma_addr_t dma = ring->desc_dma_addr;
 	struct hclge_dev *hdev = ring->dev;
 	struct hclge_hw *hw = &hdev->hw;
+	u32 reg_val;
 
 	if (ring->ring_type == HCLGE_TYPE_CSQ) {
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_BASEADDR_L_REG,
 				lower_32_bits(dma));
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_BASEADDR_H_REG,
 				upper_32_bits(dma));
-		hclge_write_dev(hw, HCLGE_NIC_CSQ_DEPTH_REG,
-				ring->desc_num >> HCLGE_NIC_CMQ_DESC_NUM_S);
+		reg_val = hclge_read_dev(hw, HCLGE_NIC_CSQ_DEPTH_REG);
+		reg_val &= HCLGE_NIC_SW_RST_RDY;
+		reg_val |= ring->desc_num >> HCLGE_NIC_CMQ_DESC_NUM_S;
+		hclge_write_dev(hw, HCLGE_NIC_CSQ_DEPTH_REG, reg_val);
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_HEAD_REG, 0);
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_TAIL_REG, 0);
 	} else {
@@ -383,6 +386,23 @@ err_csq:
 	return ret;
 }
 
+static int hclge_firmware_compat_config(struct hclge_dev *hdev)
+{
+	struct hclge_firmware_compat_cmd *req;
+	struct hclge_desc desc;
+	u32 compat = 0;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_M7_COMPAT_CFG, false);
+
+	req = (struct hclge_firmware_compat_cmd *)desc.data;
+
+	hnae3_set_bit(compat, HCLGE_LINK_EVENT_REPORT_EN_B, 1);
+	hnae3_set_bit(compat, HCLGE_NCSI_ERROR_REPORT_EN_B, 1);
+	req->compat = cpu_to_le32(compat);
+
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
+}
+
 int hclge_cmd_init(struct hclge_dev *hdev)
 {
 	u32 version;
@@ -419,7 +439,24 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 	}
 	hdev->fw_version = version;
 
-	dev_info(&hdev->pdev->dev, "The firmware version is %08x\n", version);
+	dev_info(&hdev->pdev->dev, "The firmware version is %lu.%lu.%lu.%lu\n",
+		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE3_MASK,
+				 HNAE3_FW_VERSION_BYTE3_SHIFT),
+		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE2_MASK,
+				 HNAE3_FW_VERSION_BYTE2_SHIFT),
+		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE1_MASK,
+				 HNAE3_FW_VERSION_BYTE1_SHIFT),
+		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE0_MASK,
+				 HNAE3_FW_VERSION_BYTE0_SHIFT));
+
+	/* ask the firmware to enable some features, driver can work without
+	 * it.
+	 */
+	ret = hclge_firmware_compat_config(hdev);
+	if (ret)
+		dev_warn(&hdev->pdev->dev,
+			 "Firmware compatible features not enabled(%d).\n",
+			 ret);
 
 	return 0;
 

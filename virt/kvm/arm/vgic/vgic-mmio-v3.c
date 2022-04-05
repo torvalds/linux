@@ -192,8 +192,10 @@ static void vgic_mmio_write_v3r_ctlr(struct kvm_vcpu *vcpu,
 
 	vgic_cpu->lpis_enabled = val & GICR_CTLR_ENABLE_LPIS;
 
-	if (was_enabled && !vgic_cpu->lpis_enabled)
+	if (was_enabled && !vgic_cpu->lpis_enabled) {
 		vgic_flush_pending_lpis(vcpu);
+		vgic_its_invalidate_cache(vcpu->kvm);
+	}
 
 	if (!was_enabled && vgic_cpu->lpis_enabled)
 		vgic_enable_lpis(vcpu);
@@ -515,7 +517,8 @@ static const struct vgic_register_region vgic_v3_dist_registers[] = {
 		VGIC_ACCESS_32bit),
 };
 
-static const struct vgic_register_region vgic_v3_rdbase_registers[] = {
+static const struct vgic_register_region vgic_v3_rd_registers[] = {
+	/* RD_base registers */
 	REGISTER_DESC_WITH_LENGTH(GICR_CTLR,
 		vgic_mmio_read_v3r_ctlr, vgic_mmio_write_v3r_ctlr, 4,
 		VGIC_ACCESS_32bit),
@@ -540,44 +543,42 @@ static const struct vgic_register_region vgic_v3_rdbase_registers[] = {
 	REGISTER_DESC_WITH_LENGTH(GICR_IDREGS,
 		vgic_mmio_read_v3_idregs, vgic_mmio_write_wi, 48,
 		VGIC_ACCESS_32bit),
-};
-
-static const struct vgic_register_region vgic_v3_sgibase_registers[] = {
-	REGISTER_DESC_WITH_LENGTH(GICR_IGROUPR0,
+	/* SGI_base registers */
+	REGISTER_DESC_WITH_LENGTH(SZ_64K + GICR_IGROUPR0,
 		vgic_mmio_read_group, vgic_mmio_write_group, 4,
 		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_LENGTH(GICR_ISENABLER0,
+	REGISTER_DESC_WITH_LENGTH(SZ_64K + GICR_ISENABLER0,
 		vgic_mmio_read_enable, vgic_mmio_write_senable, 4,
 		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_LENGTH(GICR_ICENABLER0,
+	REGISTER_DESC_WITH_LENGTH(SZ_64K + GICR_ICENABLER0,
 		vgic_mmio_read_enable, vgic_mmio_write_cenable, 4,
 		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_LENGTH_UACCESS(GICR_ISPENDR0,
+	REGISTER_DESC_WITH_LENGTH_UACCESS(SZ_64K + GICR_ISPENDR0,
 		vgic_mmio_read_pending, vgic_mmio_write_spending,
 		vgic_v3_uaccess_read_pending, vgic_v3_uaccess_write_pending, 4,
 		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_LENGTH_UACCESS(GICR_ICPENDR0,
+	REGISTER_DESC_WITH_LENGTH_UACCESS(SZ_64K + GICR_ICPENDR0,
 		vgic_mmio_read_pending, vgic_mmio_write_cpending,
 		vgic_mmio_read_raz, vgic_mmio_uaccess_write_wi, 4,
 		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_LENGTH_UACCESS(GICR_ISACTIVER0,
+	REGISTER_DESC_WITH_LENGTH_UACCESS(SZ_64K + GICR_ISACTIVER0,
 		vgic_mmio_read_active, vgic_mmio_write_sactive,
 		NULL, vgic_mmio_uaccess_write_sactive,
 		4, VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_LENGTH_UACCESS(GICR_ICACTIVER0,
+	REGISTER_DESC_WITH_LENGTH_UACCESS(SZ_64K + GICR_ICACTIVER0,
 		vgic_mmio_read_active, vgic_mmio_write_cactive,
 		NULL, vgic_mmio_uaccess_write_cactive,
 		4, VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_LENGTH(GICR_IPRIORITYR0,
+	REGISTER_DESC_WITH_LENGTH(SZ_64K + GICR_IPRIORITYR0,
 		vgic_mmio_read_priority, vgic_mmio_write_priority, 32,
 		VGIC_ACCESS_32bit | VGIC_ACCESS_8bit),
-	REGISTER_DESC_WITH_LENGTH(GICR_ICFGR0,
+	REGISTER_DESC_WITH_LENGTH(SZ_64K + GICR_ICFGR0,
 		vgic_mmio_read_config, vgic_mmio_write_config, 8,
 		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_LENGTH(GICR_IGRPMODR0,
+	REGISTER_DESC_WITH_LENGTH(SZ_64K + GICR_IGRPMODR0,
 		vgic_mmio_read_raz, vgic_mmio_write_wi, 4,
 		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_LENGTH(GICR_NSACR,
+	REGISTER_DESC_WITH_LENGTH(SZ_64K + GICR_NSACR,
 		vgic_mmio_read_raz, vgic_mmio_write_wi, 4,
 		VGIC_ACCESS_32bit),
 };
@@ -607,9 +608,8 @@ int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
 	struct vgic_dist *vgic = &kvm->arch.vgic;
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_io_device *rd_dev = &vcpu->arch.vgic_cpu.rd_iodev;
-	struct vgic_io_device *sgi_dev = &vcpu->arch.vgic_cpu.sgi_iodev;
 	struct vgic_redist_region *rdreg;
-	gpa_t rd_base, sgi_base;
+	gpa_t rd_base;
 	int ret;
 
 	if (!IS_VGIC_ADDR_UNDEF(vgic_cpu->rd_iodev.base_addr))
@@ -631,52 +631,31 @@ int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
 	vgic_cpu->rdreg = rdreg;
 
 	rd_base = rdreg->base + rdreg->free_index * KVM_VGIC_V3_REDIST_SIZE;
-	sgi_base = rd_base + SZ_64K;
 
 	kvm_iodevice_init(&rd_dev->dev, &kvm_io_gic_ops);
 	rd_dev->base_addr = rd_base;
 	rd_dev->iodev_type = IODEV_REDIST;
-	rd_dev->regions = vgic_v3_rdbase_registers;
-	rd_dev->nr_regions = ARRAY_SIZE(vgic_v3_rdbase_registers);
+	rd_dev->regions = vgic_v3_rd_registers;
+	rd_dev->nr_regions = ARRAY_SIZE(vgic_v3_rd_registers);
 	rd_dev->redist_vcpu = vcpu;
 
 	mutex_lock(&kvm->slots_lock);
 	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, rd_base,
-				      SZ_64K, &rd_dev->dev);
+				      2 * SZ_64K, &rd_dev->dev);
 	mutex_unlock(&kvm->slots_lock);
 
 	if (ret)
 		return ret;
 
-	kvm_iodevice_init(&sgi_dev->dev, &kvm_io_gic_ops);
-	sgi_dev->base_addr = sgi_base;
-	sgi_dev->iodev_type = IODEV_REDIST;
-	sgi_dev->regions = vgic_v3_sgibase_registers;
-	sgi_dev->nr_regions = ARRAY_SIZE(vgic_v3_sgibase_registers);
-	sgi_dev->redist_vcpu = vcpu;
-
-	mutex_lock(&kvm->slots_lock);
-	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, sgi_base,
-				      SZ_64K, &sgi_dev->dev);
-	if (ret) {
-		kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS,
-					  &rd_dev->dev);
-		goto out;
-	}
-
 	rdreg->free_index++;
-out:
-	mutex_unlock(&kvm->slots_lock);
-	return ret;
+	return 0;
 }
 
 static void vgic_unregister_redist_iodev(struct kvm_vcpu *vcpu)
 {
 	struct vgic_io_device *rd_dev = &vcpu->arch.vgic_cpu.rd_iodev;
-	struct vgic_io_device *sgi_dev = &vcpu->arch.vgic_cpu.sgi_iodev;
 
 	kvm_io_bus_unregister_dev(vcpu->kvm, KVM_MMIO_BUS, &rd_dev->dev);
-	kvm_io_bus_unregister_dev(vcpu->kvm, KVM_MMIO_BUS, &sgi_dev->dev);
 }
 
 static int vgic_register_all_redist_iodevs(struct kvm *kvm)
@@ -826,8 +805,8 @@ int vgic_v3_has_attr_regs(struct kvm_device *dev, struct kvm_device_attr *attr)
 		iodev.base_addr = 0;
 		break;
 	case KVM_DEV_ARM_VGIC_GRP_REDIST_REGS:{
-		iodev.regions = vgic_v3_rdbase_registers;
-		iodev.nr_regions = ARRAY_SIZE(vgic_v3_rdbase_registers);
+		iodev.regions = vgic_v3_rd_registers;
+		iodev.nr_regions = ARRAY_SIZE(vgic_v3_rd_registers);
 		iodev.base_addr = 0;
 		break;
 	}
@@ -985,21 +964,11 @@ int vgic_v3_redist_uaccess(struct kvm_vcpu *vcpu, bool is_write,
 			   int offset, u32 *val)
 {
 	struct vgic_io_device rd_dev = {
-		.regions = vgic_v3_rdbase_registers,
-		.nr_regions = ARRAY_SIZE(vgic_v3_rdbase_registers),
+		.regions = vgic_v3_rd_registers,
+		.nr_regions = ARRAY_SIZE(vgic_v3_rd_registers),
 	};
 
-	struct vgic_io_device sgi_dev = {
-		.regions = vgic_v3_sgibase_registers,
-		.nr_regions = ARRAY_SIZE(vgic_v3_sgibase_registers),
-	};
-
-	/* SGI_base is the next 64K frame after RD_base */
-	if (offset >= SZ_64K)
-		return vgic_uaccess(vcpu, &sgi_dev, is_write, offset - SZ_64K,
-				    val);
-	else
-		return vgic_uaccess(vcpu, &rd_dev, is_write, offset, val);
+	return vgic_uaccess(vcpu, &rd_dev, is_write, offset, val);
 }
 
 int vgic_v3_line_level_info_uaccess(struct kvm_vcpu *vcpu, bool is_write,

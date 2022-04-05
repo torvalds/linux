@@ -47,6 +47,7 @@
 #define MADERA_CLK_SYSCLK_3		6
 #define MADERA_CLK_ASYNCCLK_2		7
 #define MADERA_CLK_DSPCLK		8
+#define MADERA_CLK_OUTCLK		9
 
 #define MADERA_CLK_SRC_MCLK1		0x0
 #define MADERA_CLK_SRC_MCLK2		0x1
@@ -60,6 +61,12 @@
 #define MADERA_CLK_SRC_AIF3BCLK		0xA
 #define MADERA_CLK_SRC_AIF4BCLK		0xB
 #define MADERA_CLK_SRC_FLLAO		0xF
+
+#define MADERA_OUTCLK_SYSCLK		0
+#define MADERA_OUTCLK_ASYNCCLK		1
+#define MADERA_OUTCLK_MCLK1		4
+#define MADERA_OUTCLK_MCLK2		5
+#define MADERA_OUTCLK_MCLK3		6
 
 #define MADERA_MIXER_VOL_MASK		0x00FE
 #define MADERA_MIXER_VOL_SHIFT		1
@@ -326,6 +333,7 @@ extern const struct soc_enum madera_sample_rate[];
 extern const struct soc_enum madera_isrc_fsl[];
 extern const struct soc_enum madera_isrc_fsh[];
 extern const struct soc_enum madera_asrc1_rate[];
+extern const struct soc_enum madera_asrc1_bidir_rate[];
 extern const struct soc_enum madera_asrc2_rate[];
 extern const struct soc_enum madera_dfc_width[];
 extern const struct soc_enum madera_dfc_type[];
@@ -403,6 +411,8 @@ int madera_set_fll_syncclk(struct madera_fll *fll, int source,
 			   unsigned int fref, unsigned int fout);
 int madera_set_fll_ao_refclk(struct madera_fll *fll, int source,
 			     unsigned int fin, unsigned int fout);
+int madera_fllhj_set_refclk(struct madera_fll *fll, int source,
+			    unsigned int fin, unsigned int fout);
 
 int madera_core_init(struct madera_priv *priv);
 int madera_core_free(struct madera_priv *priv);

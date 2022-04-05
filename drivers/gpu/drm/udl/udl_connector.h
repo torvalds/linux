@@ -3,6 +3,8 @@
 
 #include <drm/drm_crtc.h>
 
+struct edid;
+
 struct udl_drm_connector {
 	struct drm_connector connector;
 	/* last udl_detect edid */

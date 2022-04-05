@@ -53,7 +53,7 @@ static DEFINE_MUTEX(cx231xx_devlist_mutex);
 /*
  * cx231xx_realease_resources()
  * unregisters the v4l2,i2c and usb devices
- * called when the device gets disconected or at module unload
+ * called when the device gets disconnected or at module unload
 */
 void cx231xx_remove_from_devlist(struct cx231xx *dev)
 {

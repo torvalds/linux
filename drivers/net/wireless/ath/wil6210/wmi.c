@@ -878,6 +878,12 @@ static void wmi_evt_rx_mgmt(struct wil6210_vif *vif, int id, void *d, int len)
 
 	if (ieee80211_is_beacon(fc) || ieee80211_is_probe_resp(fc)) {
 		struct cfg80211_bss *bss;
+		struct cfg80211_inform_bss bss_data = {
+			.chan = channel,
+			.scan_width = NL80211_BSS_CHAN_WIDTH_20,
+			.signal = signal,
+			.boottime_ns = ktime_to_ns(ktime_get_boottime()),
+		};
 		u64 tsf = le64_to_cpu(rx_mgmt_frame->u.beacon.timestamp);
 		u16 cap = le16_to_cpu(rx_mgmt_frame->u.beacon.capab_info);
 		u16 bi = le16_to_cpu(rx_mgmt_frame->u.beacon.beacon_int);
@@ -892,8 +898,9 @@ static void wmi_evt_rx_mgmt(struct wil6210_vif *vif, int id, void *d, int len)
 
 		wil_dbg_wmi(wil, "Capability info : 0x%04x\n", cap);
 
-		bss = cfg80211_inform_bss_frame(wiphy, channel, rx_mgmt_frame,
-						d_len, signal, GFP_KERNEL);
+		bss = cfg80211_inform_bss_frame_data(wiphy, &bss_data,
+						     rx_mgmt_frame,
+						     d_len, GFP_KERNEL);
 		if (bss) {
 			wil_dbg_wmi(wil, "Added BSS %pM\n",
 				    rx_mgmt_frame->bssid);
@@ -1332,6 +1339,12 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		cid = evt->cid;
 		tid = evt->tid;
 	}
+
+	if (!wil_cid_valid(wil, cid)) {
+		wil_err(wil, "DELBA: Invalid CID %d\n", cid);
+		return;
+	}
+
 	wil_dbg_wmi(wil, "DELBA MID %d CID %d TID %d from %s reason %d\n",
 		    vif->mid, cid, tid,
 		    evt->from_initiator ? "originator" : "recipient",
@@ -1385,6 +1398,10 @@ wmi_evt_sched_scan_result(struct wil6210_vif *vif, int id, void *d, int len)
 	__le16 fc;
 	u32 d_len;
 	struct cfg80211_bss *bss;
+	struct cfg80211_inform_bss bss_data = {
+		.scan_width = NL80211_BSS_CHAN_WIDTH_20,
+		.boottime_ns = ktime_to_ns(ktime_get_boottime()),
+	};
 
 	if (flen < 0) {
 		wil_err(wil, "sched scan result event too short, len %d\n",
@@ -1427,8 +1444,10 @@ wmi_evt_sched_scan_result(struct wil6210_vif *vif, int id, void *d, int len)
 		return;
 	}
 
-	bss = cfg80211_inform_bss_frame(wiphy, channel, rx_mgmt_frame,
-					d_len, signal, GFP_KERNEL);
+	bss_data.signal = signal;
+	bss_data.chan = channel;
+	bss = cfg80211_inform_bss_frame_data(wiphy, &bss_data, rx_mgmt_frame,
+					     d_len, GFP_KERNEL);
 	if (bss) {
 		wil_dbg_wmi(wil, "Added BSS %pM\n", rx_mgmt_frame->bssid);
 		cfg80211_put_bss(wiphy, bss);
@@ -2163,8 +2182,8 @@ int wmi_rbufcap_cfg(struct wil6210_priv *wil, bool enable, u16 threshold)
 	return rc;
 }
 
-int wmi_pcp_start(struct wil6210_vif *vif,
-		  int bi, u8 wmi_nettype, u8 chan, u8 hidden_ssid, u8 is_go)
+int wmi_pcp_start(struct wil6210_vif *vif, int bi, u8 wmi_nettype,
+		  u8 chan, u8 wmi_edmg_chan, u8 hidden_ssid, u8 is_go)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
 	int rc;
@@ -2174,6 +2193,7 @@ int wmi_pcp_start(struct wil6210_vif *vif,
 		.network_type = wmi_nettype,
 		.disable_sec_offload = 1,
 		.channel = chan - 1,
+		.edmg_channel = wmi_edmg_chan,
 		.pcp_max_assoc_sta = wil->max_assoc_sta,
 		.hidden_ssid = hidden_ssid,
 		.is_go = is_go,
@@ -2437,10 +2457,17 @@ int wmi_add_cipher_key(struct wil6210_vif *vif, u8 key_index,
 		.key_len = key_len,
 	};
 
-	if (!key || (key_len > sizeof(cmd.key)))
+	if (key_len > sizeof(cmd.key))
 		return -EINVAL;
 
-	memcpy(cmd.key, key, key_len);
+	/* key len = 0 is allowed only for usage of WMI_KEY_USE_APPLY */
+	if ((key_len == 0 || !key) &&
+	    key_usage != WMI_KEY_USE_APPLY_PTK)
+		return -EINVAL;
+
+	if (key)
+		memcpy(cmd.key, key, key_len);
+
 	if (mac_addr)
 		memcpy(cmd.mac, mac_addr, WMI_MAC_LEN);
 

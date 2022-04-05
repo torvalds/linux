@@ -112,7 +112,7 @@ int iwpm_register_pid(struct iwpm_dev_data *pm_msg, u8 nl_client)
 	pr_debug("%s: Multicasting a nlmsg (dev = %s ifname = %s iwpm = %s)\n",
 		__func__, pm_msg->dev_name, pm_msg->if_name, iwpm_ulib_name);
 
-	ret = rdma_nl_multicast(skb, RDMA_NL_GROUP_IWPM, GFP_KERNEL);
+	ret = rdma_nl_multicast(&init_net, skb, RDMA_NL_GROUP_IWPM, GFP_KERNEL);
 	if (ret) {
 		skb = NULL; /* skb is freed in the netlink send-op handling */
 		iwpm_user_pid = IWPM_PID_UNAVAILABLE;
@@ -124,8 +124,7 @@ int iwpm_register_pid(struct iwpm_dev_data *pm_msg, u8 nl_client)
 	return ret;
 pid_query_error:
 	pr_info("%s: %s (client = %d)\n", __func__, err_str, nl_client);
-	if (skb)
-		dev_kfree_skb(skb);
+	dev_kfree_skb(skb);
 	if (nlmsg_request)
 		iwpm_free_nlmsg_request(&nlmsg_request->kref);
 	return ret;
@@ -202,7 +201,7 @@ int iwpm_add_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 	nlmsg_end(skb, nlh);
 	nlmsg_request->req_buffer = pm_msg;
 
-	ret = rdma_nl_unicast_wait(skb, iwpm_user_pid);
+	ret = rdma_nl_unicast_wait(&init_net, skb, iwpm_user_pid);
 	if (ret) {
 		skb = NULL; /* skb is freed in the netlink send-op handling */
 		iwpm_user_pid = IWPM_PID_UNDEFINED;
@@ -214,8 +213,7 @@ int iwpm_add_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 add_mapping_error:
 	pr_info("%s: %s (client = %d)\n", __func__, err_str, nl_client);
 add_mapping_error_nowarn:
-	if (skb)
-		dev_kfree_skb(skb);
+	dev_kfree_skb(skb);
 	if (nlmsg_request)
 		iwpm_free_nlmsg_request(&nlmsg_request->kref);
 	return ret;
@@ -297,7 +295,7 @@ int iwpm_add_and_query_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 	nlmsg_end(skb, nlh);
 	nlmsg_request->req_buffer = pm_msg;
 
-	ret = rdma_nl_unicast_wait(skb, iwpm_user_pid);
+	ret = rdma_nl_unicast_wait(&init_net, skb, iwpm_user_pid);
 	if (ret) {
 		skb = NULL; /* skb is freed in the netlink send-op handling */
 		err_str = "Unable to send a nlmsg";
@@ -308,8 +306,7 @@ int iwpm_add_and_query_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 query_mapping_error:
 	pr_info("%s: %s (client = %d)\n", __func__, err_str, nl_client);
 query_mapping_error_nowarn:
-	if (skb)
-		dev_kfree_skb(skb);
+	dev_kfree_skb(skb);
 	if (nlmsg_request)
 		iwpm_free_nlmsg_request(&nlmsg_request->kref);
 	return ret;
@@ -364,7 +361,7 @@ int iwpm_remove_mapping(struct sockaddr_storage *local_addr, u8 nl_client)
 
 	nlmsg_end(skb, nlh);
 
-	ret = rdma_nl_unicast_wait(skb, iwpm_user_pid);
+	ret = rdma_nl_unicast_wait(&init_net, skb, iwpm_user_pid);
 	if (ret) {
 		skb = NULL; /* skb is freed in the netlink send-op handling */
 		iwpm_user_pid = IWPM_PID_UNDEFINED;

@@ -165,6 +165,7 @@ struct amdgpu_gfx_config {
 	uint32_t num_sc_per_sh;
 	uint32_t num_packer_per_sc;
 	uint32_t pa_sc_tile_steering_override;
+	uint64_t tcc_disabled_mask;
 };
 
 struct amdgpu_cu_info {
@@ -196,6 +197,8 @@ struct amdgpu_gfx_funcs {
 				uint32_t *dst);
 	void (*select_me_pipe_q)(struct amdgpu_device *adev, u32 me, u32 pipe,
 				 u32 queue, u32 vmid);
+	int (*ras_error_inject)(struct amdgpu_device *adev, void *inject_if);
+	int (*query_ras_error_count) (struct amdgpu_device *adev, void *ras_error_status);
 };
 
 struct amdgpu_ngg_buf {
@@ -286,6 +289,7 @@ struct amdgpu_gfx {
 	uint32_t			mec2_feature_version;
 	bool				mec_fw_write_wait;
 	bool				me_fw_write_wait;
+	bool				cp_fw_write_wait;
 	struct amdgpu_ring		gfx_ring[AMDGPU_MAX_GFX_RINGS];
 	unsigned			num_gfx_rings;
 	struct amdgpu_ring		compute_ring[AMDGPU_MAX_COMPUTE_RINGS];

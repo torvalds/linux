@@ -20,6 +20,15 @@ config FSL_ENETC_VF
 
 	  If compiled as module (M), the module name is fsl-enetc-vf.
 
+config FSL_ENETC_MDIO
+	tristate "ENETC MDIO driver"
+	depends on PCI && (ARCH_LAYERSCAPE || COMPILE_TEST)
+	help
+	  This driver supports NXP ENETC Central MDIO controller as a PCIe
+	  physical function (PF) device.
+
+	  If compiled as module (M), the module name is fsl-enetc-mdio.
+
 config FSL_ENETC_PTP_CLOCK
 	tristate "ENETC PTP clock driver"
 	depends on PTP_1588_CLOCK_QORIQ && (FSL_ENETC || FSL_ENETC_VF)

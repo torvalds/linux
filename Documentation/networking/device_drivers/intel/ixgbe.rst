@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
-=============================================================================
-Linux* Base Driver for the Intel(R) Ethernet 10 Gigabit PCI Express Adapters
-=============================================================================
+===========================================================================
+Linux Base Driver for the Intel(R) Ethernet 10 Gigabit PCI Express Adapters
+===========================================================================
 
 Intel 10 Gigabit Linux driver.
 Copyright(c) 1999-2018 Intel Corporation.
@@ -519,8 +519,8 @@ The offload is also supported for ixgbe's VFs, but the VF must be set as
 Known Issues/Troubleshooting
 ============================
 
-Enabling SR-IOV in a 64-bit Microsoft* Windows Server* 2012/R2 guest OS
------------------------------------------------------------------------
+Enabling SR-IOV in a 64-bit Microsoft Windows Server 2012/R2 guest OS
+---------------------------------------------------------------------
 Linux KVM Hypervisor/VMM supports direct assignment of a PCIe device to a VM.
 This includes traditional PCIe devices, as well as SR-IOV-capable devices based
 on the Intel Ethernet Controller XL710.

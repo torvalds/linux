@@ -180,15 +180,17 @@ replace define V4L2_PIX_FMT_FLAG_PREMUL_ALPHA reserved-formats
 # V4L2 format flags
 replace define V4L2_FMT_FLAG_COMPRESSED fmtdesc-flags
 replace define V4L2_FMT_FLAG_EMULATED fmtdesc-flags
+replace define V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM fmtdesc-flags
+replace define V4L2_FMT_FLAG_DYN_RESOLUTION fmtdesc-flags
 
-# V4L2 tymecode types
+# V4L2 timecode types
 replace define V4L2_TC_TYPE_24FPS timecode-type
 replace define V4L2_TC_TYPE_25FPS timecode-type
 replace define V4L2_TC_TYPE_30FPS timecode-type
 replace define V4L2_TC_TYPE_50FPS timecode-type
 replace define V4L2_TC_TYPE_60FPS timecode-type
 
-# V4L2 tymecode flags
+# V4L2 timecode flags
 replace define V4L2_TC_FLAG_DROPFRAME timecode-flags
 replace define V4L2_TC_FLAG_COLORFRAME timecode-flags
 replace define V4L2_TC_USERBITS_field timecode-flags

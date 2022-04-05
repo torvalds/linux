@@ -25,6 +25,7 @@
 #include "changk104.h"
 
 #include <core/gpuobj.h>
+#include <subdev/fault.h>
 
 #include <nvif/class.h>
 
@@ -67,8 +68,33 @@ gm107_fifo_fault_engine[] = {
 	{}
 };
 
+void
+gm107_fifo_intr_fault(struct nvkm_fifo *fifo, int unit)
+{
+	struct nvkm_device *device = fifo->engine.subdev.device;
+	u32 inst = nvkm_rd32(device, 0x002800 + (unit * 0x10));
+	u32 valo = nvkm_rd32(device, 0x002804 + (unit * 0x10));
+	u32 vahi = nvkm_rd32(device, 0x002808 + (unit * 0x10));
+	u32 type = nvkm_rd32(device, 0x00280c + (unit * 0x10));
+	struct nvkm_fault_data info;
+
+	info.inst   =  (u64)inst << 12;
+	info.addr   = ((u64)vahi << 32) | valo;
+	info.time   = 0;
+	info.engine = unit;
+	info.valid  = 1;
+	info.gpc    = (type & 0x1f000000) >> 24;
+	info.client = (type & 0x00003f00) >> 8;
+	info.access = (type & 0x00000080) >> 7;
+	info.hub    = (type & 0x00000040) >> 6;
+	info.reason = (type & 0x0000000f);
+
+	nvkm_fifo_fault(fifo, &info);
+}
+
 static const struct gk104_fifo_func
 gm107_fifo = {
+	.intr.fault = gm107_fifo_intr_fault,
 	.pbdma = &gk208_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gm107_fifo_fault_engine,

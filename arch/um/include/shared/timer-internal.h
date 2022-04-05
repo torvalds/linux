@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2012 - 2014 Cisco Systems
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #ifndef __TIMER_INTERNAL_H__
@@ -43,6 +43,11 @@ static inline void time_travel_set_timer_expiry(unsigned long long expiry)
 {
 	time_travel_timer_expiry = expiry;
 }
+
+static inline void time_travel_set_timer_interval(unsigned long long interval)
+{
+	time_travel_timer_interval = interval;
+}
 #else
 #define time_travel_mode TT_MODE_OFF
 #define time_travel_time 0
@@ -58,6 +63,10 @@ static inline void time_travel_set_timer_mode(enum time_travel_timer_mode mode)
 }
 
 static inline void time_travel_set_timer_expiry(unsigned long long expiry)
+{
+}
+
+static inline void time_travel_set_timer_interval(unsigned long long interval)
 {
 }
 

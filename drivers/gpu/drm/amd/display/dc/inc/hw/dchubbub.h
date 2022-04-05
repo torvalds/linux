@@ -80,6 +80,8 @@ struct dcn_hubbub_phys_addr_config {
 		uint64_t page_table_end_addr;
 		uint64_t page_table_base_addr;
 	} gart_config;
+
+	uint64_t page_table_default_page_addr;
 };
 
 struct dcn_hubbub_virt_addr_config {
@@ -141,6 +143,10 @@ struct hubbub_funcs {
 			struct dcn_watermark_set *watermarks,
 			unsigned int refclk_mhz,
 			bool safe_to_lower);
+
+	bool (*is_allow_self_refresh_enabled)(struct hubbub *hubbub);
+	void (*allow_self_refresh_control)(struct hubbub *hubbub, bool allow);
+
 };
 
 struct hubbub {

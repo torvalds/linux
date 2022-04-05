@@ -348,7 +348,7 @@ struct	sta_priv {
 };
 
 
-__inline static u32 wifi_mac_hash(u8 *mac)
+static inline u32 wifi_mac_hash(u8 *mac)
 {
         u32 x;
 

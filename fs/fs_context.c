@@ -279,10 +279,8 @@ static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
 		fc->user_ns = get_user_ns(reference->d_sb->s_user_ns);
 		break;
 	case FS_CONTEXT_FOR_RECONFIGURE:
-		/* We don't pin any namespaces as the superblock's
-		 * subscriptions cannot be changed at this point.
-		 */
 		atomic_inc(&reference->d_sb->s_active);
+		fc->user_ns = get_user_ns(reference->d_sb->s_user_ns);
 		fc->root = dget(reference);
 		break;
 	}
@@ -506,7 +504,6 @@ void put_fs_context(struct fs_context *fc)
 	put_net(fc->net_ns);
 	put_user_ns(fc->user_ns);
 	put_cred(fc->cred);
-	kfree(fc->subtype);
 	put_fc_log(fc);
 	put_filesystem(fc->fs_type);
 	kfree(fc->source);
@@ -569,17 +566,6 @@ static int legacy_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		if (fc->source)
 			return invalf(fc, "VFS: Legacy: Multiple sources");
 		fc->source = param->string;
-		param->string = NULL;
-		return 0;
-	}
-
-	if ((fc->fs_type->fs_flags & FS_HAS_SUBTYPE) &&
-	    strcmp(param->key, "subtype") == 0) {
-		if (param->type != fs_value_is_string)
-			return invalf(fc, "VFS: Legacy: Non-string subtype");
-		if (fc->subtype)
-			return invalf(fc, "VFS: Legacy: Multiple subtype");
-		fc->subtype = param->string;
 		param->string = NULL;
 		return 0;
 	}
@@ -740,8 +726,6 @@ void vfs_clean_context(struct fs_context *fc)
 	fc->s_fs_info = NULL;
 	fc->sb_flags = 0;
 	security_free_mnt_opts(&fc->security);
-	kfree(fc->subtype);
-	fc->subtype = NULL;
 	kfree(fc->source);
 	fc->source = NULL;
 

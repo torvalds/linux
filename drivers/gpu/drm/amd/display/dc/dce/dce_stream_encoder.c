@@ -1038,6 +1038,24 @@ static void dce110_stream_encoder_set_avmute(
 }
 
 
+static void dce110_reset_hdmi_stream_attribute(
+	struct stream_encoder *enc)
+{
+	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
+	if (enc110->se_mask->HDMI_DATA_SCRAMBLE_EN)
+		REG_UPDATE_5(HDMI_CONTROL,
+			HDMI_PACKET_GEN_VERSION, 1,
+			HDMI_KEEPOUT_MODE, 1,
+			HDMI_DEEP_COLOR_ENABLE, 0,
+			HDMI_DATA_SCRAMBLE_EN, 0,
+			HDMI_CLOCK_CHANNEL_RATE, 0);
+	else
+		REG_UPDATE_3(HDMI_CONTROL,
+			HDMI_PACKET_GEN_VERSION, 1,
+			HDMI_KEEPOUT_MODE, 1,
+			HDMI_DEEP_COLOR_ENABLE, 0);
+}
+
 #define DP_SEC_AUD_N__DP_SEC_AUD_N__DEFAULT 0x8000
 #define DP_SEC_TIMESTAMP__DP_SEC_TIMESTAMP_MODE__AUTO_CALC 1
 
@@ -1251,13 +1269,13 @@ static uint32_t calc_max_audio_packets_per_line(
 
 static void get_audio_clock_info(
 	enum dc_color_depth color_depth,
-	uint32_t crtc_pixel_clock_in_khz,
-	uint32_t actual_pixel_clock_in_khz,
+	uint32_t crtc_pixel_clock_100Hz,
+	uint32_t actual_pixel_clock_100Hz,
 	struct audio_clock_info *audio_clock_info)
 {
 	const struct audio_clock_info *clock_info;
 	uint32_t index;
-	uint32_t crtc_pixel_clock_in_10khz = crtc_pixel_clock_in_khz / 10;
+	uint32_t crtc_pixel_clock_in_10khz = crtc_pixel_clock_100Hz / 100;
 	uint32_t audio_array_size;
 
 	switch (color_depth) {
@@ -1294,16 +1312,16 @@ static void get_audio_clock_info(
 	}
 
 	/* not found */
-	if (actual_pixel_clock_in_khz == 0)
-		actual_pixel_clock_in_khz = crtc_pixel_clock_in_khz;
+	if (actual_pixel_clock_100Hz == 0)
+		actual_pixel_clock_100Hz = crtc_pixel_clock_100Hz;
 
 	/* See HDMI spec  the table entry under
 	 *  pixel clock of "Other". */
 	audio_clock_info->pixel_clock_in_10khz =
-			actual_pixel_clock_in_khz / 10;
-	audio_clock_info->cts_32khz = actual_pixel_clock_in_khz;
-	audio_clock_info->cts_44khz = actual_pixel_clock_in_khz;
-	audio_clock_info->cts_48khz = actual_pixel_clock_in_khz;
+			actual_pixel_clock_100Hz / 100;
+	audio_clock_info->cts_32khz = actual_pixel_clock_100Hz / 10;
+	audio_clock_info->cts_44khz = actual_pixel_clock_100Hz / 10;
+	audio_clock_info->cts_48khz = actual_pixel_clock_100Hz / 10;
 
 	audio_clock_info->n_32khz = 4096;
 	audio_clock_info->n_44khz = 6272;
@@ -1369,14 +1387,14 @@ static void dce110_se_setup_hdmi_audio(
 
 	/* Program audio clock sample/regeneration parameters */
 	get_audio_clock_info(crtc_info->color_depth,
-			     crtc_info->requested_pixel_clock,
-			     crtc_info->calculated_pixel_clock,
+			     crtc_info->requested_pixel_clock_100Hz,
+			     crtc_info->calculated_pixel_clock_100Hz,
 			     &audio_clock_info);
 	DC_LOG_HW_AUDIO(
-			"\n%s:Input::requested_pixel_clock = %d"	\
-			"calculated_pixel_clock = %d \n", __func__,	\
-			crtc_info->requested_pixel_clock,		\
-			crtc_info->calculated_pixel_clock);
+			"\n%s:Input::requested_pixel_clock_100Hz = %d"	\
+			"calculated_pixel_clock_100Hz = %d \n", __func__,	\
+			crtc_info->requested_pixel_clock_100Hz,		\
+			crtc_info->calculated_pixel_clock_100Hz);
 
 	/* HDMI_ACR_32_0__HDMI_ACR_CTS_32_MASK */
 	REG_UPDATE(HDMI_ACR_32_0, HDMI_ACR_CTS_32, audio_clock_info.cts_32khz);
@@ -1584,6 +1602,17 @@ static void dig_connect_to_otg(
 	REG_UPDATE(DIG_FE_CNTL, DIG_SOURCE_SELECT, tg_inst);
 }
 
+static unsigned int dig_source_otg(
+	struct stream_encoder *enc)
+{
+	uint32_t tg_inst = 0;
+	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
+
+	REG_GET(DIG_FE_CNTL, DIG_SOURCE_SELECT, &tg_inst);
+
+	return tg_inst;
+}
+
 static const struct stream_encoder_funcs dce110_str_enc_funcs = {
 	.dp_set_stream_attribute =
 		dce110_stream_encoder_dp_set_stream_attribute,
@@ -1618,6 +1647,8 @@ static const struct stream_encoder_funcs dce110_str_enc_funcs = {
 	.setup_stereo_sync  = setup_stereo_sync,
 	.set_avmute = dce110_stream_encoder_set_avmute,
 	.dig_connect_to_otg  = dig_connect_to_otg,
+	.hdmi_reset_stream_attribute = dce110_reset_hdmi_stream_attribute,
+	.dig_source_otg = dig_source_otg,
 };
 
 void dce110_stream_encoder_construct(

@@ -30,14 +30,14 @@
 #include <linux/dma-mapping.h>
 #include <linux/hdmi.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_scdc_helper.h>
-#include <drm/drm_edid.h>
+#include <drm/drm_vblank.h>
 
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
@@ -1603,7 +1603,8 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 			nv_encoder->aux = aux;
 		}
 
-		if ((data = nvbios_dp_table(bios, &ver, &hdr, &cnt, &len)) &&
+		if (nv_connector->type != DCB_CONNECTOR_eDP &&
+		    (data = nvbios_dp_table(bios, &ver, &hdr, &cnt, &len)) &&
 		    ver >= 0x40 && (nvbios_rd08(bios, data + 0x08) & 0x04)) {
 			ret = nv50_mstm_new(nv_encoder, &nv_connector->aux, 16,
 					    nv_connector->base.base.id,
@@ -1830,8 +1831,11 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 
 		NV_ATOMIC(drm, "%s: clr %04x (set %04x)\n", crtc->name,
 			  asyh->clr.mask, asyh->set.mask);
-		if (old_crtc_state->active && !new_crtc_state->active)
+
+		if (old_crtc_state->active && !new_crtc_state->active) {
+			pm_runtime_put_noidle(dev->dev);
 			drm_crtc_vblank_off(crtc);
+		}
 
 		if (asyh->clr.mask) {
 			nv50_head_flush_clr(head, asyh, atom->flush_disable);
@@ -1917,8 +1921,10 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		}
 
 		if (new_crtc_state->active) {
-			if (!old_crtc_state->active)
+			if (!old_crtc_state->active) {
 				drm_crtc_vblank_on(crtc);
+				pm_runtime_get_noresume(dev->dev);
+			}
 			if (new_crtc_state->event)
 				drm_crtc_vblank_get(crtc);
 		}
@@ -1983,6 +1989,10 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	drm_atomic_helper_cleanup_planes(dev, state);
 	drm_atomic_helper_commit_cleanup_done(state);
 	drm_atomic_state_put(state);
+
+	/* Drop the RPM ref we got from nv50_disp_atomic_commit() */
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
 }
 
 static void
@@ -1997,11 +2007,8 @@ static int
 nv50_disp_atomic_commit(struct drm_device *dev,
 			struct drm_atomic_state *state, bool nonblock)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_plane_state *new_plane_state;
 	struct drm_plane *plane;
-	struct drm_crtc *crtc;
-	bool active = false;
 	int ret, i;
 
 	ret = pm_runtime_get_sync(dev->dev);
@@ -2038,26 +2045,16 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 
 	drm_atomic_state_get(state);
 
+	/*
+	 * Grab another RPM ref for the commit tail, which will release the
+	 * ref when it's finished
+	 */
+	pm_runtime_get_noresume(dev->dev);
+
 	if (nonblock)
 		queue_work(system_unbound_wq, &state->commit_work);
 	else
 		nv50_disp_atomic_commit_tail(state);
-
-	drm_for_each_crtc(crtc, dev) {
-		if (crtc->state->active) {
-			if (!drm->have_disp_power_ref) {
-				drm->have_disp_power_ref = true;
-				return 0;
-			}
-			active = true;
-			break;
-		}
-	}
-
-	if (!active && drm->have_disp_power_ref) {
-		pm_runtime_put_autosuspend(dev->dev);
-		drm->have_disp_power_ref = false;
-	}
 
 err_cleanup:
 	if (ret)
@@ -2320,6 +2317,7 @@ nv50_display_create(struct drm_device *dev)
 	disp->disp = &nouveau_display(dev)->disp;
 	dev->mode_config.funcs = &nv50_disp_func;
 	dev->mode_config.quirk_addfb_prefer_xbgr_30bpp = true;
+	dev->mode_config.normalize_zpos = true;
 
 	/* small shared memory area we use for notifiers and semaphores */
 	ret = nouveau_bo_new(&drm->client, 4096, 0x1000, TTM_PL_FLAG_VRAM,

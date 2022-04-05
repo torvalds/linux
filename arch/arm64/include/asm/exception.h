@@ -30,4 +30,6 @@ static inline u32 disr_to_esr(u64 disr)
 	return esr;
 }
 
+asmlinkage void enter_from_user_mode(void);
+
 #endif	/* __ASM_EXCEPTION_H */

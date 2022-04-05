@@ -898,6 +898,114 @@ TEST_F(tls, nonblocking)
 	}
 }
 
+static void
+test_mutliproc(struct __test_metadata *_metadata, struct _test_data_tls *self,
+	       bool sendpg, unsigned int n_readers, unsigned int n_writers)
+{
+	const unsigned int n_children = n_readers + n_writers;
+	const size_t data = 6 * 1000 * 1000;
+	const size_t file_sz = data / 100;
+	size_t read_bias, write_bias;
+	int i, fd, child_id;
+	char buf[file_sz];
+	pid_t pid;
+
+	/* Only allow multiples for simplicity */
+	ASSERT_EQ(!(n_readers % n_writers) || !(n_writers % n_readers), true);
+	read_bias = n_writers / n_readers ?: 1;
+	write_bias = n_readers / n_writers ?: 1;
+
+	/* prep a file to send */
+	fd = open("/tmp/", O_TMPFILE | O_RDWR, 0600);
+	ASSERT_GE(fd, 0);
+
+	memset(buf, 0xac, file_sz);
+	ASSERT_EQ(write(fd, buf, file_sz), file_sz);
+
+	/* spawn children */
+	for (child_id = 0; child_id < n_children; child_id++) {
+		pid = fork();
+		ASSERT_NE(pid, -1);
+		if (!pid)
+			break;
+	}
+
+	/* parent waits for all children */
+	if (pid) {
+		for (i = 0; i < n_children; i++) {
+			int status;
+
+			wait(&status);
+			EXPECT_EQ(status, 0);
+		}
+
+		return;
+	}
+
+	/* Split threads for reading and writing */
+	if (child_id < n_readers) {
+		size_t left = data * read_bias;
+		char rb[8001];
+
+		while (left) {
+			int res;
+
+			res = recv(self->cfd, rb,
+				   left > sizeof(rb) ? sizeof(rb) : left, 0);
+
+			EXPECT_GE(res, 0);
+			left -= res;
+		}
+	} else {
+		size_t left = data * write_bias;
+
+		while (left) {
+			int res;
+
+			ASSERT_EQ(lseek(fd, 0, SEEK_SET), 0);
+			if (sendpg)
+				res = sendfile(self->fd, fd, NULL,
+					       left > file_sz ? file_sz : left);
+			else
+				res = send(self->fd, buf,
+					   left > file_sz ? file_sz : left, 0);
+
+			EXPECT_GE(res, 0);
+			left -= res;
+		}
+	}
+}
+
+TEST_F(tls, mutliproc_even)
+{
+	test_mutliproc(_metadata, self, false, 6, 6);
+}
+
+TEST_F(tls, mutliproc_readers)
+{
+	test_mutliproc(_metadata, self, false, 4, 12);
+}
+
+TEST_F(tls, mutliproc_writers)
+{
+	test_mutliproc(_metadata, self, false, 10, 2);
+}
+
+TEST_F(tls, mutliproc_sendpage_even)
+{
+	test_mutliproc(_metadata, self, true, 6, 6);
+}
+
+TEST_F(tls, mutliproc_sendpage_readers)
+{
+	test_mutliproc(_metadata, self, true, 4, 12);
+}
+
+TEST_F(tls, mutliproc_sendpage_writers)
+{
+	test_mutliproc(_metadata, self, true, 10, 2);
+}
+
 TEST_F(tls, control_msg)
 {
 	if (self->notls)

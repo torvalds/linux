@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
-==============================================================
-Linux* Base Driver for Intel(R) Ethernet Multi-host Controller
-==============================================================
+=============================================================
+Linux Base Driver for Intel(R) Ethernet Multi-host Controller
+=============================================================
 
 August 20, 2018
 Copyright(c) 2015-2018 Intel Corporation.
@@ -120,8 +120,8 @@ rx-flow-hash tcp4|udp4|ah4|esp4|sctp4|tcp6|udp6|ah6|esp6|sctp6 m|v|t|s|d|f|n|r
 Known Issues/Troubleshooting
 ============================
 
-Enabling SR-IOV in a 64-bit Microsoft* Windows Server* 2012/R2 guest OS under Linux KVM
----------------------------------------------------------------------------------------
+Enabling SR-IOV in a 64-bit Microsoft Windows Server 2012/R2 guest OS under Linux KVM
+-------------------------------------------------------------------------------------
 KVM Hypervisor/VMM supports direct assignment of a PCIe device to a VM. This
 includes traditional PCIe devices, as well as SR-IOV-capable devices based on
 the Intel Ethernet Controller XL710.

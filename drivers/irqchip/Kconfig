@@ -315,6 +315,18 @@ config INGENIC_IRQ
 	depends on MACH_INGENIC
 	default y
 
+config INGENIC_TCU_IRQ
+	bool "Ingenic JZ47xx TCU interrupt controller"
+	default MACH_INGENIC
+	depends on MIPS || COMPILE_TEST
+	select MFD_SYSCON
+	select GENERIC_IRQ_CHIP
+	help
+	  Support for interrupts in the Timer/Counter Unit (TCU) of the Ingenic
+	  JZ47xx SoCs.
+
+	  If unsure, say N.
+
 config RENESAS_H8300H_INTC
         bool
 	select IRQ_DOMAIN

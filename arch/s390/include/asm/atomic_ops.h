@@ -41,7 +41,7 @@ __ATOMIC_OPS(__atomic64_xor, long, "laxg")
 #undef __ATOMIC_OP
 
 #define __ATOMIC_CONST_OP(op_name, op_type, op_string, op_barrier)	\
-static inline void op_name(op_type val, op_type *ptr)			\
+static __always_inline void op_name(op_type val, op_type *ptr)		\
 {									\
 	asm volatile(							\
 		op_string "	%[ptr],%[val]\n"			\

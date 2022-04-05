@@ -17,6 +17,12 @@
 #define PTE_INDX_SHIFT  10
 #define _PGDIR_SHIFT    22
 
+.macro	zero_fp
+#ifdef CONFIG_STACKTRACE
+	movi	r8, 0
+#endif
+.endm
+
 .macro tlbop_begin name, val0, val1, val2
 ENTRY(csky_\name)
 	mtcr    a3, ss2
@@ -96,6 +102,7 @@ ENTRY(csky_\name)
 	SAVE_ALL 0
 .endm
 .macro tlbop_end is_write
+	zero_fp
 	RD_MEH	a2
 	psrset  ee, ie
 	mov     a0, sp
@@ -120,6 +127,7 @@ tlbop_end 1
 
 ENTRY(csky_systemcall)
 	SAVE_ALL TRAP0_SIZE
+	zero_fp
 
 	psrset  ee, ie
 
@@ -136,9 +144,9 @@ ENTRY(csky_systemcall)
 	mov     r9, sp
 	bmaski  r10, THREAD_SHIFT
 	andn    r9, r10
-	ldw     r8, (r9, TINFO_FLAGS)
-	ANDI_R3	r8, (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_SYSCALL_AUDIT)
-	cmpnei	r8, 0
+	ldw     r12, (r9, TINFO_FLAGS)
+	ANDI_R3	r12, (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_SYSCALL_AUDIT)
+	cmpnei	r12, 0
 	bt      csky_syscall_trace
 #if defined(__CSKYABIV2__)
 	subi    sp, 8
@@ -180,7 +188,7 @@ csky_syscall_trace:
 
 ENTRY(ret_from_kernel_thread)
 	jbsr	schedule_tail
-	mov	a0, r8
+	mov	a0, r10
 	jsr	r9
 	jbsr	ret_from_exception
 
@@ -189,9 +197,9 @@ ENTRY(ret_from_fork)
 	mov	r9, sp
 	bmaski	r10, THREAD_SHIFT
 	andn	r9, r10
-	ldw	r8, (r9, TINFO_FLAGS)
-	ANDI_R3	r8, (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_SYSCALL_AUDIT)
-	cmpnei	r8, 0
+	ldw	r12, (r9, TINFO_FLAGS)
+	ANDI_R3	r12, (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_SYSCALL_AUDIT)
+	cmpnei	r12, 0
 	bf	ret_from_exception
 	mov	a0, sp			/* sp = pt_regs pointer */
 	jbsr	syscall_trace_exit
@@ -209,9 +217,9 @@ ret_from_exception:
 	bmaski	r10, THREAD_SHIFT
 	andn	r9, r10
 
-	ldw	r8, (r9, TINFO_FLAGS)
-	andi	r8, (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED)
-	cmpnei	r8, 0
+	ldw	r12, (r9, TINFO_FLAGS)
+	andi	r12, (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED)
+	cmpnei	r12, 0
 	bt	exit_work
 1:
 	RESTORE_ALL
@@ -220,11 +228,11 @@ exit_work:
 	lrw	syscallid, ret_from_exception
 	mov	lr, syscallid
 
-	btsti	r8, TIF_NEED_RESCHED
+	btsti	r12, TIF_NEED_RESCHED
 	bt	work_resched
 
 	mov	a0, sp
-	mov	a1, r8
+	mov	a1, r12
 	jmpi	do_notify_resume
 
 work_resched:
@@ -232,6 +240,7 @@ work_resched:
 
 ENTRY(csky_trap)
 	SAVE_ALL 0
+	zero_fp
 	psrset	ee
 	mov	a0, sp                 /* Push Stack pointer arg */
 	jbsr	trap_c                 /* Call C-level trap handler */
@@ -265,6 +274,7 @@ ENTRY(csky_get_tls)
 
 ENTRY(csky_irq)
 	SAVE_ALL 0
+	zero_fp
 	psrset	ee
 
 #ifdef CONFIG_PREEMPT
@@ -276,27 +286,23 @@ ENTRY(csky_irq)
 	 * Get task_struct->stack.preempt_count for current,
 	 * and increase 1.
 	 */
-	ldw	r8, (r9, TINFO_PREEMPT)
-	addi	r8, 1
-	stw	r8, (r9, TINFO_PREEMPT)
+	ldw	r12, (r9, TINFO_PREEMPT)
+	addi	r12, 1
+	stw	r12, (r9, TINFO_PREEMPT)
 #endif
 
 	mov	a0, sp
 	jbsr	csky_do_IRQ
 
 #ifdef CONFIG_PREEMPT
-	subi	r8, 1
-	stw	r8, (r9, TINFO_PREEMPT)
-	cmpnei	r8, 0
+	subi	r12, 1
+	stw	r12, (r9, TINFO_PREEMPT)
+	cmpnei	r12, 0
 	bt	2f
-	ldw	r8, (r9, TINFO_FLAGS)
-	btsti	r8, TIF_NEED_RESCHED
+	ldw	r12, (r9, TINFO_FLAGS)
+	btsti	r12, TIF_NEED_RESCHED
 	bf	2f
-1:
 	jbsr	preempt_schedule_irq	/* irq en/disable is done inside */
-	ldw	r7, (r9, TINFO_FLAGS)	/* get new tasks TI_FLAGS */
-	btsti	r7, TIF_NEED_RESCHED
-	bt	1b			/* go again */
 #endif
 2:
 	jmpi	ret_from_exception

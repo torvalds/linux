@@ -13,32 +13,29 @@
 / {
 	model = "Atmel AT91SAM9X35-EK";
 	compatible = "atmel,at91sam9x35ek", "atmel,at91sam9x5ek", "atmel,at91sam9x5", "atmel,at91sam9";
+};
 
-	ahb {
-		apb {
-			macb0: ethernet@f802c000 {
-				phy-mode = "rmii";
-				status = "okay";
-			};
-			hlcdc: hlcdc@f8038000 {
-				status = "okay";
-			};
-		};
-	};
+&backlight {
+	status = "okay";
+};
 
-	backlight: backlight {
-		status = "okay";
-	};
+&bl_reg {
+	status = "okay";
+};
 
-	bl_reg: backlight_regulator {
-		status = "okay";
-	};
+&hlcdc {
+	status = "okay";
+};
 
-	panel: panel {
-		status = "okay";
-	};
+&macb0 {
+	phy-mode = "rmii";
+	status = "okay";
+};
 
-	panel_reg: panel_regulator {
-		status = "okay";
-	};
+&panel {
+	status = "okay";
+};
+
+&panel_reg {
+	status = "okay";
 };

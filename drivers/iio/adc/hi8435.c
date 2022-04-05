@@ -456,6 +456,11 @@ err_read:
 	return IRQ_HANDLED;
 }
 
+static void hi8435_triggered_event_cleanup(void *data)
+{
+	iio_triggered_event_cleanup(data);
+}
+
 static int hi8435_probe(struct spi_device *spi)
 {
 	struct iio_dev *idev;
@@ -477,7 +482,7 @@ static int hi8435_probe(struct spi_device *spi)
 		hi8435_writeb(priv, HI8435_CTRL_REG, 0);
 	} else {
 		udelay(5);
-		gpiod_set_value(reset_gpio, 1);
+		gpiod_set_value_cansleep(reset_gpio, 1);
 	}
 
 	spi_set_drvdata(spi, idev);
@@ -513,27 +518,13 @@ static int hi8435_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = iio_device_register(idev);
-	if (ret < 0) {
-		dev_err(&spi->dev, "unable to register device\n");
-		goto unregister_triggered_event;
-	}
+	ret = devm_add_action_or_reset(&spi->dev,
+				       hi8435_triggered_event_cleanup,
+				       idev);
+	if (ret)
+		return ret;
 
-	return 0;
-
-unregister_triggered_event:
-	iio_triggered_event_cleanup(idev);
-	return ret;
-}
-
-static int hi8435_remove(struct spi_device *spi)
-{
-	struct iio_dev *idev = spi_get_drvdata(spi);
-
-	iio_device_unregister(idev);
-	iio_triggered_event_cleanup(idev);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, idev);
 }
 
 static const struct of_device_id hi8435_dt_ids[] = {
@@ -554,7 +545,6 @@ static struct spi_driver hi8435_driver = {
 		.of_match_table	= of_match_ptr(hi8435_dt_ids),
 	},
 	.probe		= hi8435_probe,
-	.remove		= hi8435_remove,
 	.id_table	= hi8435_id,
 };
 module_spi_driver(hi8435_driver);

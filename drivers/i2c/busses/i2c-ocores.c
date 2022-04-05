@@ -703,8 +703,9 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 	}
 
 	if (ocores_algorithm.master_xfer != ocores_xfer_polling) {
-		ret = devm_request_irq(&pdev->dev, irq, ocores_isr, 0,
-				       pdev->name, i2c);
+		ret = devm_request_any_context_irq(&pdev->dev, irq,
+						   ocores_isr, 0,
+						   pdev->name, i2c);
 		if (ret) {
 			dev_err(&pdev->dev, "Cannot claim IRQ\n");
 			goto err_clk;

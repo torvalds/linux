@@ -169,9 +169,9 @@ struct cb_desc {
 #define MGN_MCS14               0x8e
 #define MGN_MCS15               0x8f
 
-#define aSifsTime ((priv->ieee80211->current_network.mode == IEEE_A || \
+#define aSifsTime ((priv->ieee80211->current_network.mode == IEEE_A ||     \
 		    priv->ieee80211->current_network.mode == IEEE_N_24G || \
-		    priv->ieee80211->current_network.mode == IEEE_N_5G) ? \
+		    priv->ieee80211->current_network.mode == IEEE_N_5G) ?  \
 		   16 : 10)
 
 #define MGMT_QUEUE_NUM 5
@@ -387,7 +387,7 @@ struct ieee_param {
 #define IEEE80211_STYPE_ACK		0x00D0
 #define IEEE80211_STYPE_CFEND		0x00E0
 #define IEEE80211_STYPE_CFENDACK	0x00F0
-#define IEEE80211_STYPE_BLOCKACK   0x0094
+#define IEEE80211_STYPE_BLOCKACK	0x0094
 
 /* data */
 #define IEEE80211_STYPE_DATA		0x0000
@@ -452,23 +452,23 @@ do { if (ieee80211_debug_level & (level)) \
   printk(KERN_DEBUG "ieee80211: " fmt, ## args); } while (0)
 //wb added to debug out data buf
 //if you want print DATA buffer related BA, please set ieee80211_debug_level to DATA|BA
-#define IEEE80211_DEBUG_DATA(level, data, datalen)	\
-	do { if ((ieee80211_debug_level & (level)) == (level))	\
-		{	\
-			int i;					\
-			u8 *pdata = (u8 *) data;			\
-			printk(KERN_DEBUG "ieee80211: %s()\n", __func__);	\
-			for (i = 0; i < (int)(datalen); i++)			\
-			{						\
-				printk("%2x ", pdata[i]);		\
-				if ((i + 1) % 16 == 0) printk("\n");	\
-			}				\
-			printk("\n");			\
-		}					\
+#define IEEE80211_DEBUG_DATA(level, data, datalen)                             \
+	do { if ((ieee80211_debug_level & (level)) == (level))                 \
+		{                                                              \
+			int i;                                                 \
+			u8 *pdata = (u8 *)data;                                \
+			printk(KERN_DEBUG "ieee80211: %s()\n", __func__);      \
+			for (i = 0; i < (int)(datalen); i++) {                 \
+				printk("%2x ", pdata[i]);                      \
+				if ((i + 1) % 16 == 0)                         \
+					printk("\n");                          \
+			}                                                      \
+			printk("\n");                                          \
+		}                                                              \
 	} while (0)
 #else
 #define IEEE80211_DEBUG (level, fmt, args...) do {} while (0)
-#define IEEE80211_DEBUG_DATA (level, data, datalen) do {} while(0)
+#define IEEE80211_DEBUG_DATA (level, data, datalen) do {} while (0)
 #endif	/* CONFIG_IEEE80211_DEBUG */
 
 /* debug macros not dependent on CONFIG_IEEE80211_DEBUG */
@@ -1649,10 +1649,8 @@ struct ieee80211_device {
 	struct list_head		Rx_TS_Pending_List;
 	struct list_head		Rx_TS_Unused_List;
 	struct rx_ts_record		RxTsRecord[TOTAL_TS_NUM];
-//#ifdef TO_DO_LIST
 	struct rx_reorder_entry	RxReorderEntry[128];
 	struct list_head		RxReorder_Unused_List;
-//#endif
 	// Qos related. Added by Annie, 2005-11-01.
 //	PSTA_QOS			pStaQos;
 	u8				ForcedPriority;		// Force per-packet priority 1~7. (default: 0, not to force it.)
@@ -2015,8 +2013,8 @@ struct ieee80211_device {
 #define IEEE_A            (1<<0)
 #define IEEE_B            (1<<1)
 #define IEEE_G            (1<<2)
-#define IEEE_N_24G		  (1<<4)
-#define	IEEE_N_5G		  (1<<5)
+#define IEEE_N_24G        (1<<4)
+#define IEEE_N_5G         (1<<5)
 #define IEEE_MODE_MASK    (IEEE_A | IEEE_B | IEEE_G)
 
 /* Generate a 802.11 header */
@@ -2426,7 +2424,7 @@ static inline const char *escape_essid(const char *essid, u8 essid_len)
 		return escaped;
 	}
 
-	snprintf(escaped, sizeof(escaped), "%*pEn", essid_len, essid);
+	snprintf(escaped, sizeof(escaped), "%*pE", essid_len, essid);
 	return escaped;
 }
 

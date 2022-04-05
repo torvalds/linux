@@ -1,6 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
 # 
 # Copyright (C) 2000, 2002 Jeff Dike (jdike@karaya.com)
-# Licensed under the GPL
 #
 
 ethertap-objs := ethertap_kern.o ethertap_user.o

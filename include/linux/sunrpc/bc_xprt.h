@@ -64,6 +64,11 @@ static inline int xprt_setup_backchannel(struct rpc_xprt *xprt,
 	return 0;
 }
 
+static inline void xprt_destroy_backchannel(struct rpc_xprt *xprt,
+					    unsigned int max_reqs)
+{
+}
+
 static inline bool svc_is_backchannel(const struct svc_rqst *rqstp)
 {
 	return false;

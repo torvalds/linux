@@ -34,7 +34,7 @@
  * available (on page 4) here:
  *  http://www.national.com/appinfo/tempsensors/files/LM70LLPEVALmanual.pdf
  *
- * Also see Documentation/spi/spi-lm70llp.  The SPI<->parport code here is
+ * Also see Documentation/spi/spi-lm70llp.rst.  The SPI<->parport code here is
  * (heavily) based on spi-butterfly by David Brownell.
  *
  * The LM70 LLP connects to the PC parallel port in the following manner:

@@ -128,7 +128,7 @@
 	};
 
 	rtc@51 {
-		compatible = "nxp,rtc8564";
+		compatible = "epson,rtc8564";
 		reg = <0x51>;
 	};
 

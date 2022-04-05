@@ -377,8 +377,7 @@ static int lm3630a_parse_led_sources(struct fwnode_handle *node,
 	u32 sources[LM3630A_NUM_SINKS];
 	int ret, num_sources, i;
 
-	num_sources = fwnode_property_read_u32_array(node, "led-sources", NULL,
-						     0);
+	num_sources = fwnode_property_count_u32(node, "led-sources");
 	if (num_sources < 0)
 		return default_led_sources;
 	else if (num_sources > ARRAY_SIZE(sources))

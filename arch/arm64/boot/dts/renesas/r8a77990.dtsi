@@ -1326,6 +1326,17 @@
 				      "ssi.1", "ssi.0";
 			status = "disabled";
 
+			rcar_sound,ctu {
+				ctu00: ctu-0 { };
+				ctu01: ctu-1 { };
+				ctu02: ctu-2 { };
+				ctu03: ctu-3 { };
+				ctu10: ctu-4 { };
+				ctu11: ctu-5 { };
+				ctu12: ctu-6 { };
+				ctu13: ctu-7 { };
+			};
+
 			rcar_sound,dvc {
 				dvc0: dvc-0 {
 					dmas = <&audma0 0xbc>;
@@ -1340,17 +1351,6 @@
 			rcar_sound,mix {
 				mix0: mix-0 { };
 				mix1: mix-1 { };
-			};
-
-			rcar_sound,ctu {
-				ctu00: ctu-0 { };
-				ctu01: ctu-1 { };
-				ctu02: ctu-2 { };
-				ctu03: ctu-3 { };
-				ctu10: ctu-4 { };
-				ctu11: ctu-5 { };
-				ctu12: ctu-6 { };
-				ctu13: ctu-7 { };
 			};
 
 			rcar_sound,src {
@@ -1766,7 +1766,9 @@
 			clocks = <&cpg CPG_MOD 724>,
 				 <&cpg CPG_MOD 723>;
 			clock-names = "du.0", "du.1";
-			vsps = <&vspd0 0 &vspd1 0>;
+			resets = <&cpg 724>;
+			reset-names = "du.0";
+			vsps = <&vspd0 0>, <&vspd1 0>;
 			status = "disabled";
 
 			ports {
@@ -1864,25 +1866,25 @@
 			thermal-sensors = <&thermal 0>;
 			sustainable-power = <717>;
 
-			trips {
-				target: trip-point1 {
-					temperature = <100000>;
-					hysteresis = <2000>;
-					type = "passive";
-				};
-
-				sensor1_crit: sensor1-crit {
-					temperature = <120000>;
-					hysteresis = <2000>;
-					type = "critical";
-				};
-			};
-
 			cooling-maps {
 				map0 {
 					trip = <&target>;
 					cooling-device = <&a53_0 0 2>;
 					contribution = <1024>;
+				};
+			};
+
+			trips {
+				sensor1_crit: sensor1-crit {
+					temperature = <120000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+
+				target: trip-point1 {
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "passive";
 				};
 			};
 		};

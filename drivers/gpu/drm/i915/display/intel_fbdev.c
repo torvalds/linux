@@ -43,17 +43,18 @@
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_fbdev.h"
 #include "intel_frontbuffer.h"
 
+static struct intel_frontbuffer *to_frontbuffer(struct intel_fbdev *ifbdev)
+{
+	return ifbdev->fb->frontbuffer;
+}
+
 static void intel_fbdev_invalidate(struct intel_fbdev *ifbdev)
 {
-	struct drm_i915_gem_object *obj = intel_fb_obj(&ifbdev->fb->base);
-	unsigned int origin =
-		ifbdev->vma_flags & PLANE_HAS_FENCE ? ORIGIN_GTT : ORIGIN_CPU;
-
-	intel_fb_obj_invalidate(obj, origin);
+	intel_frontbuffer_invalidate(to_frontbuffer(ifbdev), ORIGIN_CPU);
 }
 
 static int intel_fbdev_set_par(struct fb_info *info)
@@ -120,7 +121,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_i915_gem_object *obj;
-	int size, ret;
+	int size;
 
 	/* we don't do packed 24bpp */
 	if (sizes->surface_bpp == 24)
@@ -147,24 +148,16 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 		obj = i915_gem_object_create_shmem(dev_priv, size);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("failed to allocate framebuffer\n");
-		ret = PTR_ERR(obj);
-		goto err;
+		return PTR_ERR(obj);
 	}
 
 	fb = intel_framebuffer_create(obj, &mode_cmd);
-	if (IS_ERR(fb)) {
-		ret = PTR_ERR(fb);
-		goto err_obj;
-	}
+	i915_gem_object_put(obj);
+	if (IS_ERR(fb))
+		return PTR_ERR(fb);
 
 	ifbdev->fb = to_intel_framebuffer(fb);
-
 	return 0;
-
-err_obj:
-	i915_gem_object_put(obj);
-err:
-	return ret;
 }
 
 static int intelfb_create(struct drm_fb_helper *helper,
@@ -180,7 +173,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	const struct i915_ggtt_view view = {
 		.type = I915_GGTT_VIEW_NORMAL,
 	};
-	struct drm_framebuffer *fb;
 	intel_wakeref_t wakeref;
 	struct fb_info *info;
 	struct i915_vma *vma;
@@ -226,8 +218,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		goto out_unlock;
 	}
 
-	fb = &ifbdev->fb->base;
-	intel_fb_obj_flush(intel_fb_obj(fb), ORIGIN_DIRTYFB);
+	intel_frontbuffer_flush(to_frontbuffer(ifbdev), ORIGIN_DIRTYFB);
 
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
@@ -236,15 +227,17 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		goto out_unpin;
 	}
 
-	ifbdev->helper.fb = fb;
+	ifbdev->helper.fb = &ifbdev->fb->base;
 
 	info->fbops = &intelfb_ops;
 
 	/* setup aperture base/size for vesafb takeover */
-	info->apertures->ranges[0].base = dev->mode_config.fb_base;
+	info->apertures->ranges[0].base = ggtt->gmadr.start;
 	info->apertures->ranges[0].size = ggtt->mappable_end;
 
-	info->fix.smem_start = dev->mode_config.fb_base + i915_ggtt_offset(vma);
+	/* Our framebuffer is the entirety of fbdev's system memory */
+	info->fix.smem_start =
+		(unsigned long)(ggtt->gmadr.start + vma->node.start);
 	info->fix.smem_len = vma->node.size;
 
 	vaddr = i915_vma_pin_iomap(vma);
@@ -262,13 +255,14 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * If the object is stolen however, it will be full of whatever
 	 * garbage was left in there.
 	 */
-	if (intel_fb_obj(fb)->stolen && !prealloc)
+	if (vma->obj->stolen && !prealloc)
 		memset_io(info->screen_base, 0, info->screen_size);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
 	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08x\n",
-		      fb->width, fb->height, i915_ggtt_offset(vma));
+		      ifbdev->fb->base.width, ifbdev->fb->base.height,
+		      i915_ggtt_offset(vma));
 	ifbdev->vma = vma;
 	ifbdev->vma_flags = flags;
 

@@ -8,6 +8,7 @@
 #define ALT_COND_NO_ICACHE	0x04	/* if system has no i-cache  */
 #define ALT_COND_NO_SPLIT_TLB	0x08	/* if split_tlb == 0  */
 #define ALT_COND_NO_IOC_FDC	0x10	/* if I/O cache does not need flushes */
+#define ALT_COND_RUN_ON_QEMU	0x20	/* if running on QEMU */
 
 #define INSN_PxTLB	0x02		/* modify pdtlb, pitlb */
 #define INSN_NOP	0x08000240	/* nop */
@@ -21,7 +22,7 @@
 
 struct alt_instr {
 	s32 orig_offset;	/* offset to original instructions */
-	u32 len;		/* end of original instructions */
+	s32 len;		/* end of original instructions */
 	u32 cond;		/* see ALT_COND_XXX */
 	u32 replacement;	/* replacement instruction or code */
 };
@@ -40,10 +41,18 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end,
 
 #else
 
+/* to replace one single instructions by a new instruction */
 #define ALTERNATIVE(from, to, cond, replacement)\
 	.section .altinstructions, "aw"	!	\
 	.word (from - .), (to - from)/4	!	\
 	.word cond, replacement		!	\
+	.previous
+
+/* to replace multiple instructions by new code */
+#define ALTERNATIVE_CODE(from, num_instructions, cond, new_instr_ptr)\
+	.section .altinstructions, "aw"	!	\
+	.word (from - .), -num_instructions !	\
+	.word cond, (new_instr_ptr - .)	!	\
 	.previous
 
 #endif  /*  __ASSEMBLY__  */

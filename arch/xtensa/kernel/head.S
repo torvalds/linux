@@ -193,7 +193,7 @@ ENTRY(_startup)
 	movi	a1, start_info
 	l32i	a1, a1, 0
 
-	movi	a2, (1 << PS_WOE_BIT) | LOCKLEVEL
+	movi	a2, PS_WOE_MASK | LOCKLEVEL
 					# WOE=1, INTLEVEL=LOCKLEVEL, UM=0
 	wsr	a2, ps			# (enable reg-windows; progmode stack)
 	rsync

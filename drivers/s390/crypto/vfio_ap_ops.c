@@ -1143,7 +1143,7 @@ int vfio_ap_mdev_reset_queue(unsigned int apid, unsigned int apqi,
 				msleep(20);
 				status = ap_tapq(apqn, NULL);
 			}
-			WARN_ON_ONCE(retry <= 0);
+			WARN_ON_ONCE(retry2 <= 0);
 			return 0;
 		case AP_RESPONSE_RESET_IN_PROGRESS:
 		case AP_RESPONSE_BUSY:

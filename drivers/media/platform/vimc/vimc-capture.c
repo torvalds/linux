@@ -18,32 +18,6 @@
 
 #define VIMC_CAP_DRV_NAME "vimc-capture"
 
-static const u32 vimc_cap_supported_pixfmt[] = {
-	V4L2_PIX_FMT_BGR24,
-	V4L2_PIX_FMT_RGB24,
-	V4L2_PIX_FMT_ARGB32,
-	V4L2_PIX_FMT_SBGGR8,
-	V4L2_PIX_FMT_SGBRG8,
-	V4L2_PIX_FMT_SGRBG8,
-	V4L2_PIX_FMT_SRGGB8,
-	V4L2_PIX_FMT_SBGGR10,
-	V4L2_PIX_FMT_SGBRG10,
-	V4L2_PIX_FMT_SGRBG10,
-	V4L2_PIX_FMT_SRGGB10,
-	V4L2_PIX_FMT_SBGGR10ALAW8,
-	V4L2_PIX_FMT_SGBRG10ALAW8,
-	V4L2_PIX_FMT_SGRBG10ALAW8,
-	V4L2_PIX_FMT_SRGGB10ALAW8,
-	V4L2_PIX_FMT_SBGGR10DPCM8,
-	V4L2_PIX_FMT_SGBRG10DPCM8,
-	V4L2_PIX_FMT_SGRBG10DPCM8,
-	V4L2_PIX_FMT_SRGGB10DPCM8,
-	V4L2_PIX_FMT_SBGGR12,
-	V4L2_PIX_FMT_SGBRG12,
-	V4L2_PIX_FMT_SGRBG12,
-	V4L2_PIX_FMT_SRGGB12,
-};
-
 struct vimc_cap_device {
 	struct vimc_ent_device ved;
 	struct video_device vdev;
@@ -117,25 +91,29 @@ static int vimc_cap_try_fmt_vid_cap(struct file *file, void *priv,
 				    struct v4l2_format *f)
 {
 	struct v4l2_pix_format *format = &f->fmt.pix;
+	const struct vimc_pix_map *vpix;
 
 	format->width = clamp_t(u32, format->width, VIMC_FRAME_MIN_WIDTH,
 				VIMC_FRAME_MAX_WIDTH) & ~1;
 	format->height = clamp_t(u32, format->height, VIMC_FRAME_MIN_HEIGHT,
 				 VIMC_FRAME_MAX_HEIGHT) & ~1;
 
-	vimc_colorimetry_clamp(format);
+	/* Don't accept a pixelformat that is not on the table */
+	vpix = vimc_pix_map_by_pixelformat(format->pixelformat);
+	if (!vpix) {
+		format->pixelformat = fmt_default.pixelformat;
+		vpix = vimc_pix_map_by_pixelformat(format->pixelformat);
+	}
+	/* TODO: Add support for custom bytesperline values */
+	format->bytesperline = format->width * vpix->bpp;
+	format->sizeimage = format->bytesperline * format->height;
 
 	if (format->field == V4L2_FIELD_ANY)
 		format->field = fmt_default.field;
 
-	/* TODO: Add support for custom bytesperline values */
+	vimc_colorimetry_clamp(format);
 
-	/* Don't accept a pixelformat that is not on the table */
-	if (!v4l2_format_info(format->pixelformat))
-		format->pixelformat = fmt_default.pixelformat;
-
-	return v4l2_fill_pixfmt(format, format->pixelformat,
-				format->width, format->height);
+	return 0;
 }
 
 static int vimc_cap_s_fmt_vid_cap(struct file *file, void *priv,
@@ -174,31 +152,27 @@ static int vimc_cap_s_fmt_vid_cap(struct file *file, void *priv,
 static int vimc_cap_enum_fmt_vid_cap(struct file *file, void *priv,
 				     struct v4l2_fmtdesc *f)
 {
-	if (f->index >= ARRAY_SIZE(vimc_cap_supported_pixfmt))
+	const struct vimc_pix_map *vpix = vimc_pix_map_by_index(f->index);
+
+	if (!vpix)
 		return -EINVAL;
 
-	f->pixelformat = vimc_cap_supported_pixfmt[f->index];
+	f->pixelformat = vpix->pixelformat;
 
 	return 0;
-}
-
-static bool vimc_cap_is_pixfmt_supported(u32 pixelformat)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(vimc_cap_supported_pixfmt); i++)
-		if (vimc_cap_supported_pixfmt[i] == pixelformat)
-			return true;
-	return false;
 }
 
 static int vimc_cap_enum_framesizes(struct file *file, void *fh,
 				    struct v4l2_frmsizeenum *fsize)
 {
+	const struct vimc_pix_map *vpix;
+
 	if (fsize->index)
 		return -EINVAL;
 
-	if (!vimc_cap_is_pixfmt_supported(fsize->pixel_format))
+	/* Only accept code in the pix map table */
+	vpix = vimc_pix_map_by_code(fsize->pixel_format);
+	if (!vpix)
 		return -EINVAL;
 
 	fsize->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
@@ -272,7 +246,6 @@ static int vimc_cap_start_streaming(struct vb2_queue *vq, unsigned int count)
 		return ret;
 	}
 
-	vcap->stream.producer_pixfmt = vcap->format.pixelformat;
 	ret = vimc_streamer_s_stream(&vcap->stream, &vcap->ved, 1);
 	if (ret) {
 		media_pipeline_stop(entity);
@@ -423,6 +396,7 @@ static int vimc_cap_comp_bind(struct device *comp, struct device *master,
 {
 	struct v4l2_device *v4l2_dev = master_data;
 	struct vimc_platform_data *pdata = comp->platform_data;
+	const struct vimc_pix_map *vpix;
 	struct vimc_cap_device *vcap;
 	struct video_device *vdev;
 	struct vb2_queue *q;
@@ -477,8 +451,10 @@ static int vimc_cap_comp_bind(struct device *comp, struct device *master,
 
 	/* Set default frame format */
 	vcap->format = fmt_default;
-	v4l2_fill_pixfmt(&vcap->format, vcap->format.pixelformat,
-			 vcap->format.width, vcap->format.height);
+	vpix = vimc_pix_map_by_pixelformat(vcap->format.pixelformat);
+	vcap->format.bytesperline = vcap->format.width * vpix->bpp;
+	vcap->format.sizeimage = vcap->format.bytesperline *
+				 vcap->format.height;
 
 	/* Fill the vimc_ent_device struct */
 	vcap->ved.ent = &vcap->vdev.entity;

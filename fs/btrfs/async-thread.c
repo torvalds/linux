@@ -12,9 +12,11 @@
 #include "async-thread.h"
 #include "ctree.h"
 
-#define WORK_DONE_BIT 0
-#define WORK_ORDER_DONE_BIT 1
-#define WORK_HIGH_PRIO_BIT 2
+enum {
+	WORK_DONE_BIT,
+	WORK_ORDER_DONE_BIT,
+	WORK_HIGH_PRIO_BIT,
+};
 
 #define NO_THRESHOLD (-1)
 #define DFT_THRESHOLD (32)

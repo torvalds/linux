@@ -482,11 +482,6 @@ struct pblk_line {
 #define PBLK_DATA_LINES 4
 
 enum {
-	PBLK_KMALLOC_META = 1,
-	PBLK_VMALLOC_META = 2,
-};
-
-enum {
 	PBLK_EMETA_TYPE_HEADER = 1,	/* struct line_emeta first sector */
 	PBLK_EMETA_TYPE_LLBA = 2,	/* lba list - type: __le64 */
 	PBLK_EMETA_TYPE_VSC = 3,	/* vsc list - type: __le32 */
@@ -520,9 +515,6 @@ struct pblk_line_mgmt {
 	struct list_head emeta_list;	/* Lines queued to schedule emeta */
 
 	__le32 *vsc_list;		/* Valid sector counts for all lines */
-
-	/* Metadata allocation type: VMALLOC | KMALLOC */
-	int emeta_alloc_type;
 
 	/* Pre-allocated metadata for data lines */
 	struct pblk_smeta *sline_meta[PBLK_DATA_LINES];
@@ -783,14 +775,10 @@ struct nvm_chk_meta *pblk_chunk_get_off(struct pblk *pblk,
 					      struct ppa_addr ppa);
 void pblk_log_write_err(struct pblk *pblk, struct nvm_rq *rqd);
 void pblk_log_read_err(struct pblk *pblk, struct nvm_rq *rqd);
-int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd);
-int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd);
-int pblk_submit_io_sync_sem(struct pblk *pblk, struct nvm_rq *rqd);
+int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd, void *buf);
+int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd, void *buf);
 int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line);
 void pblk_check_chunk_state_update(struct pblk *pblk, struct nvm_rq *rqd);
-struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
-			      unsigned int nr_secs, unsigned int len,
-			      int alloc_type, gfp_t gfp_mask);
 struct pblk_line *pblk_line_get(struct pblk *pblk);
 struct pblk_line *pblk_line_get_first_data(struct pblk *pblk);
 struct pblk_line *pblk_line_replace_data(struct pblk *pblk);
@@ -937,21 +925,6 @@ void pblk_rl_werr_line_out(struct pblk_rl *rl);
  */
 int pblk_sysfs_init(struct gendisk *tdisk);
 void pblk_sysfs_exit(struct gendisk *tdisk);
-
-static inline void *pblk_malloc(size_t size, int type, gfp_t flags)
-{
-	if (type == PBLK_KMALLOC_META)
-		return kmalloc(size, flags);
-	return vmalloc(size);
-}
-
-static inline void pblk_mfree(void *ptr, int type)
-{
-	if (type == PBLK_KMALLOC_META)
-		kfree(ptr);
-	else
-		vfree(ptr);
-}
 
 static inline struct nvm_rq *nvm_rq_from_c_ctx(void *c_ctx)
 {

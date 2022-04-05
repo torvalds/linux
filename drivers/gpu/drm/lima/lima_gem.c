@@ -24,7 +24,7 @@ int lima_gem_create_handle(struct drm_device *dev, struct drm_file *file,
 	struct lima_bo *bo;
 	struct lima_device *ldev = to_lima_dev(dev);
 
-	bo = lima_bo_create(ldev, size, flags, NULL, NULL);
+	bo = lima_bo_create(ldev, size, flags, NULL);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
@@ -136,7 +136,7 @@ static int lima_gem_sync_bo(struct lima_sched_task *task, struct lima_bo *bo,
 	int err = 0;
 
 	if (!write) {
-		err = reservation_object_reserve_shared(bo->gem.resv, 1);
+		err = dma_resv_reserve_shared(bo->gem.resv, 1);
 		if (err)
 			return err;
 	}
@@ -296,9 +296,9 @@ int lima_gem_submit(struct drm_file *file, struct lima_submit *submit)
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		if (submit->bos[i].flags & LIMA_SUBMIT_BO_WRITE)
-			reservation_object_add_excl_fence(bos[i]->gem.resv, fence);
+			dma_resv_add_excl_fence(bos[i]->gem.resv, fence);
 		else
-			reservation_object_add_shared_fence(bos[i]->gem.resv, fence);
+			dma_resv_add_shared_fence(bos[i]->gem.resv, fence);
 	}
 
 	lima_gem_unlock_bos(bos, submit->nr_bos, &ctx);
@@ -341,7 +341,7 @@ int lima_gem_wait(struct drm_file *file, u32 handle, u32 op, s64 timeout_ns)
 
 	timeout = drm_timeout_abs_to_jiffies(timeout_ns);
 
-	ret = drm_gem_reservation_object_wait(file, handle, write, timeout);
+	ret = drm_gem_dma_resv_wait(file, handle, write, timeout);
 	if (ret == -ETIME)
 		ret = timeout ? -ETIMEDOUT : -EBUSY;
 

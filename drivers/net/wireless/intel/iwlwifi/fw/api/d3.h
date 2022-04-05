@@ -396,6 +396,7 @@ enum iwl_wowlan_flags {
  * @is_11n_connection: indicates HT connection
  * @offloading_tid: TID reserved for firmware use
  * @flags: extra flags, see &enum iwl_wowlan_flags
+ * @sta_id: station ID for wowlan.
  * @reserved: reserved
  */
 struct iwl_wowlan_config_cmd {
@@ -406,8 +407,9 @@ struct iwl_wowlan_config_cmd {
 	u8 is_11n_connection;
 	u8 offloading_tid;
 	u8 flags;
-	u8 reserved[2];
-} __packed; /* WOWLAN_CONFIG_API_S_VER_4 */
+	u8 sta_id;
+	u8 reserved;
+} __packed; /* WOWLAN_CONFIG_API_S_VER_5 */
 
 /*
  * WOWLAN_TSC_RSC_PARAMS

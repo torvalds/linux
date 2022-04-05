@@ -478,6 +478,10 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_maxbytes = 0xffffffff;
 
+	sb->s_time_gran = NSEC_PER_MSEC;
+	sb->s_time_min = 0;
+	sb->s_time_max = U64_MAX / MSEC_PER_SEC;
+
 	sb_set_blocksize(sb, 0x200);
 
 	bh = sb_bread(sb, 0);

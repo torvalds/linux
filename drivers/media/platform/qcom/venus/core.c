@@ -198,7 +198,7 @@ static int venus_enumerate_codecs(struct venus_core *core, u32 type)
 		goto err;
 
 	for (i = 0; i < MAX_CODEC_NUM; i++) {
-		codec = (1 << i) & codecs;
+		codec = (1UL << i) & codecs;
 		if (!codec)
 			continue;
 

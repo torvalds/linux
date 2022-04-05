@@ -240,7 +240,7 @@ static inline int compute_score(struct sock *sk, struct net *net,
 			return -1;
 
 		score = sk->sk_family == PF_INET ? 2 : 1;
-		if (sk->sk_incoming_cpu == raw_smp_processor_id())
+		if (READ_ONCE(sk->sk_incoming_cpu) == raw_smp_processor_id())
 			score++;
 	}
 	return score;

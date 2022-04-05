@@ -324,7 +324,7 @@ static inline struct key *request_key(struct key_type *type,
 }
 
 #ifdef CONFIG_NET
-/*
+/**
  * request_key_net - Request a key for a net namespace and wait for construction
  * @type: Type of key.
  * @description: The searchable description of the key.
@@ -341,6 +341,18 @@ static inline struct key *request_key(struct key_type *type,
  */
 #define request_key_net(type, description, net, callout_info) \
 	request_key_tag(type, description, net->key_domain, callout_info);
+
+/**
+ * request_key_net_rcu - Request a key for a net namespace under RCU conditions
+ * @type: Type of key.
+ * @description: The searchable description of the key.
+ * @net: The network namespace that is the key's domain of operation.
+ *
+ * As for request_key_rcu() except that only keys that operate the specified
+ * network namespace are used.
+ */
+#define request_key_net_rcu(type, description, net) \
+	request_key_rcu(type, description, net->key_domain);
 #endif /* CONFIG_NET */
 
 extern int wait_for_key_construction(struct key *key, bool intr);

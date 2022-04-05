@@ -8,7 +8,6 @@ config NET_VENDOR_BROADCOM
 	default y
 	depends on (SSB_POSSIBLE && HAS_DMA) || PCI || BCM63XX || \
 		   SIBYTE_SB1xxx_SOC
-	select DIMLIB
 	---help---
 	  If you have a network (Ethernet) chipset belonging to this class,
 	  say Y.
@@ -69,6 +68,7 @@ config BCMGENET
 	select FIXED_PHY
 	select BCM7XXX_PHY
 	select MDIO_BCM_UNIMAC
+	select DIMLIB
 	help
 	  This driver supports the built-in Ethernet MACs found in the
 	  Broadcom BCM7xxx Set Top Box family chipset.
@@ -188,6 +188,7 @@ config SYSTEMPORT
 	select MII
 	select PHYLIB
 	select FIXED_PHY
+	select DIMLIB
 	help
 	  This driver supports the built-in Ethernet MACs found in the
 	  Broadcom BCM7xxx Set Top Box family chipset using an internal
@@ -200,6 +201,7 @@ config BNXT
 	select LIBCRC32C
 	select NET_DEVLINK
 	select PAGE_POOL
+	select DIMLIB
 	---help---
 	  This driver supports Broadcom NetXtreme-C/E 10/25/40/50 gigabit
 	  Ethernet cards.  To compile this driver as a module, choose M here:

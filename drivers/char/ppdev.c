@@ -737,7 +737,7 @@ static int pp_release(struct inode *inode, struct file *file)
 			"negotiated back to compatibility mode because user-space forgot\n");
 	}
 
-	if (pp->flags & PP_CLAIMED) {
+	if ((pp->flags & PP_CLAIMED) && pp->pdev) {
 		struct ieee1284_info *info;
 
 		info = &pp->pdev->port->ieee1284;

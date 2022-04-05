@@ -2573,17 +2573,13 @@ SD_UNLOCK_ENTRY:
 			retval = sd_sdr_tuning(chip);
 
 		if (retval != STATUS_SUCCESS) {
-			if (sd20_mode) {
+			retval = sd_init_power(chip);
+			if (retval != STATUS_SUCCESS)
 				goto status_fail;
-			} else {
-				retval = sd_init_power(chip);
-				if (retval != STATUS_SUCCESS)
-					goto status_fail;
 
-				try_sdio = false;
-				sd20_mode = true;
-				goto switch_fail;
-			}
+			try_sdio = false;
+			sd20_mode = true;
+			goto switch_fail;
 		}
 
 		sd_send_cmd_get_rsp(chip, SEND_STATUS, sd_card->sd_addr,
@@ -2598,17 +2594,13 @@ SD_UNLOCK_ENTRY:
 		if (read_lba0) {
 			retval = sd_read_lba0(chip);
 			if (retval != STATUS_SUCCESS) {
-				if (sd20_mode) {
+				retval = sd_init_power(chip);
+				if (retval != STATUS_SUCCESS)
 					goto status_fail;
-				} else {
-					retval = sd_init_power(chip);
-					if (retval != STATUS_SUCCESS)
-						goto status_fail;
 
-					try_sdio = false;
-					sd20_mode = true;
-					goto switch_fail;
-				}
+				try_sdio = false;
+				sd20_mode = true;
+				goto switch_fail;
 			}
 		}
 	}

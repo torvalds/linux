@@ -39,14 +39,6 @@ static int fb_notifier_callback(struct notifier_block *self,
 		if (event == FB_EVENT_BLANK) {
 			if (ld->ops->set_power)
 				ld->ops->set_power(ld, *(int *)evdata->data);
-		} else if (event == FB_EARLY_EVENT_BLANK) {
-			if (ld->ops->early_set_power)
-				ld->ops->early_set_power(ld,
-						*(int *)evdata->data);
-		} else if (event == FB_R_EARLY_EVENT_BLANK) {
-			if (ld->ops->r_early_set_power)
-				ld->ops->r_early_set_power(ld,
-						*(int *)evdata->data);
 		} else {
 			if (ld->ops->set_mode)
 				ld->ops->set_mode(ld, evdata->data);

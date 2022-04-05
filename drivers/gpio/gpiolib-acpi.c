@@ -19,6 +19,7 @@
 #include <linux/pinctrl/pinctrl.h>
 
 #include "gpiolib.h"
+#include "gpiolib-acpi.h"
 
 static int run_edge_events_on_boot = -1;
 module_param(run_edge_events_on_boot, int, 0444);
@@ -391,6 +392,13 @@ int acpi_dev_add_driver_gpios(struct acpi_device *adev,
 }
 EXPORT_SYMBOL_GPL(acpi_dev_add_driver_gpios);
 
+void acpi_dev_remove_driver_gpios(struct acpi_device *adev)
+{
+	if (adev)
+		adev->driver_gpios = NULL;
+}
+EXPORT_SYMBOL_GPL(acpi_dev_remove_driver_gpios);
+
 static void devm_acpi_dev_release_driver_gpios(struct device *dev, void *res)
 {
 	acpi_dev_remove_driver_gpios(ACPI_COMPANION(dev));
@@ -727,6 +735,16 @@ static struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 
 	ret = acpi_gpio_resource_lookup(&lookup, info);
 	return ret ? ERR_PTR(ret) : lookup.desc;
+}
+
+static bool acpi_can_fallback_to_crs(struct acpi_device *adev,
+				     const char *con_id)
+{
+	/* Never allow fallback if the device has properties */
+	if (acpi_dev_has_props(adev) || adev->driver_gpios)
+		return false;
+
+	return con_id == NULL;
 }
 
 struct gpio_desc *acpi_find_gpio(struct device *dev,
@@ -1265,15 +1283,6 @@ int acpi_gpio_count(struct device *dev, const char *con_id)
 	return count ? count : -ENOENT;
 }
 
-bool acpi_can_fallback_to_crs(struct acpi_device *adev, const char *con_id)
-{
-	/* Never allow fallback if the device has properties */
-	if (acpi_dev_has_props(adev) || adev->driver_gpios)
-		return false;
-
-	return con_id == NULL;
-}
-
 /* Run deferred acpi_gpiochip_request_irqs() */
 static int acpi_gpio_handle_deferred_request_irqs(void)
 {
@@ -1295,9 +1304,26 @@ late_initcall_sync(acpi_gpio_handle_deferred_request_irqs);
 
 static const struct dmi_system_id run_edge_events_on_boot_blacklist[] = {
 	{
+		/*
+		 * The Minix Neo Z83-4 has a micro-USB-B id-pin handler for
+		 * a non existing micro-USB-B connector which puts the HDMI
+		 * DDC pins in GPIO mode, breaking HDMI support.
+		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MINIX"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
+		}
+	},
+	{
+		/*
+		 * The Terra Pad 1061 has a micro-USB-B id-pin handler, which
+		 * instead of controlling the actual micro-USB-B turns the 5V
+		 * boost for its USB-A connector off. The actual micro-USB-B
+		 * connector is wired for charging only.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Wortmann_AG"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TERRA_PAD_1061"),
 		}
 	},
 	{} /* Terminating entry */

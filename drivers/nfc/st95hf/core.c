@@ -661,7 +661,7 @@ static int st95hf_error_handling(struct st95hf_context *stcontext,
 			result = -ETIMEDOUT;
 		else
 			result = -EIO;
-	return  result;
+		return result;
 	}
 
 	/* Check for CRC err only if CRC is present in the tag response */

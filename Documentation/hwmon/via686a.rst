@@ -40,7 +40,7 @@ all as a 686A.
 
 The Via 686a southbridge has integrated hardware monitor functionality.
 It also has an I2C bus, but this driver only supports the hardware monitor.
-For the I2C bus driver, see <file:Documentation/i2c/busses/i2c-viapro>
+For the I2C bus driver, see <file:Documentation/i2c/busses/i2c-viapro.rst>
 
 The Via 686a implements three temperature sensors, two fan rotation speed
 sensors, five voltage sensors and alarms.

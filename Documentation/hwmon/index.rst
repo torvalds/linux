@@ -7,6 +7,7 @@ Linux Hardware Monitoring
 
    hwmon-kernel-api
    pmbus-core
+   inspur-ipsps1
    submitting-patches
    sysfs-interface
    userspace-tools
@@ -30,7 +31,6 @@ Hardware Monitoring Kernel Drivers
    adm1031
    adm1275
    adm9240
-   ads1015
    ads7828
    adt7410
    adt7411
@@ -130,6 +130,7 @@ Hardware Monitoring Kernel Drivers
    pcf8591
    pmbus
    powr1220
+   pxe1610
    pwm-fan
    raspberrypi-hwmon
    sch5627

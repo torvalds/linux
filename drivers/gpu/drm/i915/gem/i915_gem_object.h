@@ -81,7 +81,7 @@ i915_gem_object_lookup(struct drm_file *file, u32 handle)
 }
 
 __deprecated
-extern struct drm_gem_object *
+struct drm_gem_object *
 drm_gem_object_lookup(struct drm_file *file, u32 handle);
 
 __attribute__((nonnull))
@@ -99,22 +99,22 @@ i915_gem_object_put(struct drm_i915_gem_object *obj)
 	__drm_gem_object_put(&obj->base);
 }
 
-#define assert_object_held(obj) reservation_object_assert_held((obj)->base.resv)
+#define assert_object_held(obj) dma_resv_assert_held((obj)->base.resv)
 
 static inline void i915_gem_object_lock(struct drm_i915_gem_object *obj)
 {
-	reservation_object_lock(obj->base.resv, NULL);
+	dma_resv_lock(obj->base.resv, NULL);
 }
 
 static inline int
 i915_gem_object_lock_interruptible(struct drm_i915_gem_object *obj)
 {
-	return reservation_object_lock_interruptible(obj->base.resv, NULL);
+	return dma_resv_lock_interruptible(obj->base.resv, NULL);
 }
 
 static inline void i915_gem_object_unlock(struct drm_i915_gem_object *obj)
 {
-	reservation_object_unlock(obj->base.resv);
+	dma_resv_unlock(obj->base.resv);
 }
 
 struct dma_fence *
@@ -153,21 +153,21 @@ i915_gem_object_is_proxy(const struct drm_i915_gem_object *obj)
 }
 
 static inline bool
+i915_gem_object_never_bind_ggtt(const struct drm_i915_gem_object *obj)
+{
+	return obj->ops->flags & I915_GEM_OBJECT_NO_GGTT;
+}
+
+static inline bool
 i915_gem_object_needs_async_cancel(const struct drm_i915_gem_object *obj)
 {
 	return obj->ops->flags & I915_GEM_OBJECT_ASYNC_CANCEL;
 }
 
 static inline bool
-i915_gem_object_is_active(const struct drm_i915_gem_object *obj)
-{
-	return READ_ONCE(obj->active_count);
-}
-
-static inline bool
 i915_gem_object_is_framebuffer(const struct drm_i915_gem_object *obj)
 {
-	return READ_ONCE(obj->framebuffer_references);
+	return READ_ONCE(obj->frontbuffer);
 }
 
 static inline unsigned int
@@ -373,7 +373,7 @@ i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
 	struct dma_fence *fence;
 
 	rcu_read_lock();
-	fence = reservation_object_get_excl_rcu(obj->base.resv);
+	fence = dma_resv_get_excl_rcu(obj->base.resv);
 	rcu_read_unlock();
 
 	if (fence && dma_fence_is_i915(fence) && !dma_fence_is_signaled(fence))
@@ -399,6 +399,10 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     const struct i915_ggtt_view *view,
 				     unsigned int flags);
 void i915_gem_object_unpin_from_display_plane(struct i915_vma *vma);
+
+void i915_gem_object_make_unshrinkable(struct drm_i915_gem_object *obj);
+void i915_gem_object_make_shrinkable(struct drm_i915_gem_object *obj);
+void i915_gem_object_make_purgeable(struct drm_i915_gem_object *obj);
 
 static inline bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 {

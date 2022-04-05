@@ -12,7 +12,6 @@
 #include <linux/types.h>
 #include <linux/profile.h>
 
-#include <asm/machvec.h>
 #include <asm/ptrace.h>
 #include <asm/smp.h>
 
@@ -56,7 +55,7 @@ typedef u8 ia64_vector;
 extern int ia64_first_device_vector;
 extern int ia64_last_device_vector;
 
-#if defined(CONFIG_SMP) && (defined(CONFIG_IA64_GENERIC) || defined (CONFIG_IA64_DIG))
+#ifdef CONFIG_SMP
 /* Reserve the lower priority vector than device vectors for "move IRQ" IPI */
 #define IA64_IRQ_MOVE_VECTOR		0x30	/* "move IRQ" IPI */
 #define IA64_DEF_FIRST_DEVICE_VECTOR	0x31
@@ -127,7 +126,7 @@ extern void ia64_send_ipi (int cpu, int vector, int delivery_mode, int redirect)
 extern void ia64_native_register_percpu_irq (ia64_vector vec, struct irqaction *action);
 extern void destroy_and_reserve_irq (unsigned int irq);
 
-#if defined(CONFIG_SMP) && (defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_DIG))
+#ifdef CONFIG_SMP
 extern int irq_prepare_move(int irq, int cpu);
 extern void irq_complete_move(unsigned int irq);
 #else
@@ -137,24 +136,8 @@ static inline void irq_complete_move(unsigned int irq) {}
 
 static inline void ia64_native_resend_irq(unsigned int vector)
 {
-	platform_send_ipi(smp_processor_id(), vector, IA64_IPI_DM_INT, 0);
+	ia64_send_ipi(smp_processor_id(), vector, IA64_IPI_DM_INT, 0);
 }
-
-/*
- * Default implementations for the irq-descriptor API:
- */
-#ifndef CONFIG_IA64_GENERIC
-static inline ia64_vector __ia64_irq_to_vector(int irq)
-{
-	return irq_cfg[irq].vector;
-}
-
-static inline unsigned int
-__ia64_local_vector_to_irq (ia64_vector vec)
-{
-	return __this_cpu_read(vector_irq[vec]);
-}
-#endif
 
 /*
  * Next follows the irq descriptor interface.  On IA-64, each CPU supports 256 interrupt
@@ -170,7 +153,7 @@ __ia64_local_vector_to_irq (ia64_vector vec)
 static inline ia64_vector
 irq_to_vector (int irq)
 {
-	return platform_irq_to_vector(irq);
+	return irq_cfg[irq].vector;
 }
 
 /*
@@ -181,7 +164,7 @@ irq_to_vector (int irq)
 static inline unsigned int
 local_vector_to_irq (ia64_vector vec)
 {
-	return platform_local_vector_to_irq(vec);
+	return __this_cpu_read(vector_irq[vec]);
 }
 
 #endif /* _ASM_IA64_HW_IRQ_H */

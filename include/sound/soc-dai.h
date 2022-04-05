@@ -145,6 +145,31 @@ int snd_soc_dai_get_channel_map(struct snd_soc_dai *dai,
 
 int snd_soc_dai_is_dummy(struct snd_soc_dai *dai);
 
+int snd_soc_dai_hw_params(struct snd_soc_dai *dai,
+			  struct snd_pcm_substream *substream,
+			  struct snd_pcm_hw_params *params);
+void snd_soc_dai_hw_free(struct snd_soc_dai *dai,
+			 struct snd_pcm_substream *substream);
+int snd_soc_dai_startup(struct snd_soc_dai *dai,
+			struct snd_pcm_substream *substream);
+void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
+			  struct snd_pcm_substream *substream);
+int snd_soc_dai_prepare(struct snd_soc_dai *dai,
+			struct snd_pcm_substream *substream);
+int snd_soc_dai_trigger(struct snd_soc_dai *dai,
+			struct snd_pcm_substream *substream, int cmd);
+int snd_soc_dai_bespoke_trigger(struct snd_soc_dai *dai,
+			struct snd_pcm_substream *substream, int cmd);
+snd_pcm_sframes_t snd_soc_dai_delay(struct snd_soc_dai *dai,
+				    struct snd_pcm_substream *substream);
+void snd_soc_dai_suspend(struct snd_soc_dai *dai);
+void snd_soc_dai_resume(struct snd_soc_dai *dai);
+int snd_soc_dai_probe(struct snd_soc_dai *dai);
+int snd_soc_dai_remove(struct snd_soc_dai *dai);
+int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
+			     struct snd_soc_pcm_runtime *rtd, int num);
+bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int stream);
+
 struct snd_soc_dai_ops {
 	/*
 	 * DAI clocking configuration, all optional.
@@ -268,8 +293,6 @@ struct snd_soc_dai_driver {
 	/* Optional Callback used at pcm creation*/
 	int (*pcm_new)(struct snd_soc_pcm_runtime *rtd,
 		       struct snd_soc_dai *dai);
-	/* DAI is also used for the control bus */
-	bool bus_control;
 
 	/* ops */
 	const struct snd_soc_dai_ops *ops;
@@ -281,6 +304,7 @@ struct snd_soc_dai_driver {
 	unsigned int symmetric_rates:1;
 	unsigned int symmetric_channels:1;
 	unsigned int symmetric_samplebits:1;
+	unsigned int bus_control:1; /* DAI is also used for the control bus */
 
 	/* probe ordering - for components with runtime dependencies */
 	int probe_order;

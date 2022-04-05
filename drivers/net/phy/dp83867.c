@@ -37,6 +37,7 @@
 #define DP83867_STRAP_STS2	0x006f
 #define DP83867_RGMIIDCTL	0x0086
 #define DP83867_IO_MUX_CFG	0x0170
+#define DP83867_SGMIICTL	0x00D3
 #define DP83867_10M_SGMII_CFG   0x016F
 #define DP83867_10M_SGMII_RATE_ADAPT_MASK BIT(7)
 
@@ -60,6 +61,9 @@
 /* RGMIICTL bits */
 #define DP83867_RGMII_TX_CLK_DELAY_EN		BIT(1)
 #define DP83867_RGMII_RX_CLK_DELAY_EN		BIT(0)
+
+/* SGMIICTL bits */
+#define DP83867_SGMII_TYPE		BIT(14)
 
 /* STRAP_STS1 bits */
 #define DP83867_STRAP_STS1_RESERVED		BIT(11)
@@ -109,6 +113,7 @@ struct dp83867_private {
 	bool rxctrl_strap_quirk;
 	bool set_clk_output;
 	u32 clk_output_sel;
+	bool sgmii_ref_clk_en;
 };
 
 static int dp83867_ack_interrupt(struct phy_device *phydev)
@@ -196,6 +201,9 @@ static int dp83867_of_init(struct phy_device *phydev)
 
 	dp83867->rxctrl_strap_quirk = of_property_read_bool(of_node,
 					"ti,dp83867-rxctrl-strap-quirk");
+
+	dp83867->sgmii_ref_clk_en = of_property_read_bool(of_node,
+					"ti,sgmii-ref-clock-output-enable");
 
 	/* Existing behavior was to use default pin strapping delay in rgmii
 	 * mode, but rgmii should have meant no delay.  Warn existing users.
@@ -389,6 +397,17 @@ static int dp83867_config_init(struct phy_device *phydev)
 
 		if (ret)
 			return ret;
+
+		val = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_SGMIICTL);
+		/* SGMII type is set to 4-wire mode by default.
+		 * If we place appropriate property in dts (see above)
+		 * switch on 6-wire mode.
+		 */
+		if (dp83867->sgmii_ref_clk_en)
+			val |= DP83867_SGMII_TYPE;
+		else
+			val &= ~DP83867_SGMII_TYPE;
+		phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_SGMIICTL, val);
 	}
 
 	/* Enable Interrupt output INT_OE in CFG3 register */

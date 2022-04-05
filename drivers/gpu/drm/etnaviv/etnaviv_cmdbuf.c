@@ -3,26 +3,25 @@
  * Copyright (C) 2017-2018 Etnaviv Project
  */
 
+#include <linux/dma-mapping.h>
+
 #include <drm/drm_mm.h>
 
 #include "etnaviv_cmdbuf.h"
+#include "etnaviv_gem.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_mmu.h"
 #include "etnaviv_perfmon.h"
 
-#define SUBALLOC_SIZE		SZ_256K
+#define SUBALLOC_SIZE		SZ_512K
 #define SUBALLOC_GRANULE	SZ_4K
 #define SUBALLOC_GRANULES	(SUBALLOC_SIZE / SUBALLOC_GRANULE)
 
 struct etnaviv_cmdbuf_suballoc {
 	/* suballocated dma buffer properties */
-	struct etnaviv_gpu *gpu;
+	struct device *dev;
 	void *vaddr;
 	dma_addr_t paddr;
-
-	/* GPU mapping */
-	u32 iova;
-	struct drm_mm_node vram_node; /* only used on MMUv2 */
 
 	/* allocation management */
 	struct mutex lock;
@@ -32,7 +31,7 @@ struct etnaviv_cmdbuf_suballoc {
 };
 
 struct etnaviv_cmdbuf_suballoc *
-etnaviv_cmdbuf_suballoc_new(struct etnaviv_gpu * gpu)
+etnaviv_cmdbuf_suballoc_new(struct device *dev)
 {
 	struct etnaviv_cmdbuf_suballoc *suballoc;
 	int ret;
@@ -41,36 +40,44 @@ etnaviv_cmdbuf_suballoc_new(struct etnaviv_gpu * gpu)
 	if (!suballoc)
 		return ERR_PTR(-ENOMEM);
 
-	suballoc->gpu = gpu;
+	suballoc->dev = dev;
 	mutex_init(&suballoc->lock);
 	init_waitqueue_head(&suballoc->free_event);
 
-	suballoc->vaddr = dma_alloc_wc(gpu->dev, SUBALLOC_SIZE,
+	BUILD_BUG_ON(ETNAVIV_SOFTPIN_START_ADDRESS < SUBALLOC_SIZE);
+	suballoc->vaddr = dma_alloc_wc(dev, SUBALLOC_SIZE,
 				       &suballoc->paddr, GFP_KERNEL);
-	if (!suballoc->vaddr)
+	if (!suballoc->vaddr) {
+		ret = -ENOMEM;
 		goto free_suballoc;
-
-	ret = etnaviv_iommu_get_suballoc_va(gpu, suballoc->paddr,
-					    &suballoc->vram_node, SUBALLOC_SIZE,
-					    &suballoc->iova);
-	if (ret)
-		goto free_dma;
+	}
 
 	return suballoc;
 
-free_dma:
-	dma_free_wc(gpu->dev, SUBALLOC_SIZE, suballoc->vaddr, suballoc->paddr);
 free_suballoc:
 	kfree(suballoc);
 
-	return NULL;
+	return ERR_PTR(ret);
+}
+
+int etnaviv_cmdbuf_suballoc_map(struct etnaviv_cmdbuf_suballoc *suballoc,
+				struct etnaviv_iommu_context *context,
+				struct etnaviv_vram_mapping *mapping,
+				u32 memory_base)
+{
+	return etnaviv_iommu_get_suballoc_va(context, mapping, memory_base,
+					     suballoc->paddr, SUBALLOC_SIZE);
+}
+
+void etnaviv_cmdbuf_suballoc_unmap(struct etnaviv_iommu_context *context,
+				   struct etnaviv_vram_mapping *mapping)
+{
+	etnaviv_iommu_put_suballoc_va(context, mapping);
 }
 
 void etnaviv_cmdbuf_suballoc_destroy(struct etnaviv_cmdbuf_suballoc *suballoc)
 {
-	etnaviv_iommu_put_suballoc_va(suballoc->gpu, &suballoc->vram_node,
-				      SUBALLOC_SIZE, suballoc->iova);
-	dma_free_wc(suballoc->gpu->dev, SUBALLOC_SIZE, suballoc->vaddr,
+	dma_free_wc(suballoc->dev, SUBALLOC_SIZE, suballoc->vaddr,
 		    suballoc->paddr);
 	kfree(suballoc);
 }
@@ -95,7 +102,7 @@ retry:
 						       suballoc->free_space,
 						       msecs_to_jiffies(10 * 1000));
 		if (!ret) {
-			dev_err(suballoc->gpu->dev,
+			dev_err(suballoc->dev,
 				"Timeout waiting for cmdbuf space\n");
 			return -ETIMEDOUT;
 		}
@@ -123,9 +130,10 @@ void etnaviv_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf)
 	wake_up_all(&suballoc->free_event);
 }
 
-u32 etnaviv_cmdbuf_get_va(struct etnaviv_cmdbuf *buf)
+u32 etnaviv_cmdbuf_get_va(struct etnaviv_cmdbuf *buf,
+			  struct etnaviv_vram_mapping *mapping)
 {
-	return buf->suballoc->iova + buf->suballoc_offset;
+	return mapping->iova + buf->suballoc_offset;
 }
 
 dma_addr_t etnaviv_cmdbuf_get_pa(struct etnaviv_cmdbuf *buf)

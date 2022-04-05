@@ -51,6 +51,22 @@ and "FIXME" where the interface could be cleaned up.
 
 Also read the :ref:`guidelines for the kernel documentation at large <doc_guide>`.
 
+Documentation Requirements for kAPI
+-----------------------------------
+
+All kernel APIs exported to other modules must be documented, including their
+datastructures and at least a short introductory section explaining the overall
+concepts. Documentation should be put into the code itself as kerneldoc comments
+as much as reasonable.
+
+Do not blindly document everything, but document only what's relevant for driver
+authors: Internal functions of drm.ko and definitely static functions should not
+have formal kerneldoc comments. Use normal C comments if you feel like a comment
+is warranted. You may use kerneldoc syntax in the comment, but it shall not
+start with a /** kerneldoc marker. Similar for data structures, annotate
+anything entirely private with ``/* private: */`` comments as per the
+documentation guide.
+
 Getting Started
 ===============
 

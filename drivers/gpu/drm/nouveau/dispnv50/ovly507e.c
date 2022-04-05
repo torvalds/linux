@@ -23,6 +23,7 @@
 #include "atom.h"
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 
 #include <nvif/cl507e.h>
@@ -160,9 +161,7 @@ ovly507e_format[] = {
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB1555,
-	DRM_FORMAT_ARGB1555,
 	0
 };
 

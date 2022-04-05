@@ -202,7 +202,7 @@ _iwl_fw_dbg_trigger_on(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_dbg_trigger_tlv *trig;
 
-	if (fwrt->trans->dbg.ini_valid)
+	if (iwl_trans_dbg_ini_valid(fwrt->trans))
 		return NULL;
 
 	if (!iwl_fw_dbg_trigger_enabled(fwrt->fw, id))
@@ -229,8 +229,9 @@ iwl_fw_ini_trigger_on(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_trigger *trig;
 	u32 usec;
 
-	if (!fwrt->trans->dbg.ini_valid || id == IWL_FW_TRIGGER_ID_INVALID ||
-	    id >= IWL_FW_TRIGGER_ID_NUM || !fwrt->dump.active_trigs[id].active)
+	if (!iwl_trans_dbg_ini_valid(fwrt->trans) ||
+	    id == IWL_FW_TRIGGER_ID_INVALID || id >= IWL_FW_TRIGGER_ID_NUM ||
+	    !fwrt->dump.active_trigs[id].active)
 		return false;
 
 	trig = fwrt->dump.active_trigs[id].trig;
@@ -262,69 +263,9 @@ _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 	_iwl_fw_dbg_trigger_simple_stop((fwrt), (wdev),		\
 					iwl_fw_dbg_get_trigger((fwrt)->fw,\
 							       (trig)))
-
-static inline void
-_iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
-			   struct iwl_fw_dbg_params *params)
-{
-	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
-		return;
-	}
-
-	if (params) {
-		params->in_sample = iwl_read_umac_prph(trans, DBGC_IN_SAMPLE);
-		params->out_ctrl = iwl_read_umac_prph(trans, DBGC_OUT_CTRL);
-	}
-
-	iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, 0);
-	/* wait for the DBGC to finish writing the internal buffer to DRAM to
-	 * avoid halting the HW while writing
-	 */
-	usleep_range(700, 1000);
-	iwl_write_umac_prph(trans, DBGC_OUT_CTRL, 0);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	trans->dbg.rec_on = false;
-#endif
-}
-
-static inline void
-iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
-			  struct iwl_fw_dbg_params *params)
-{
-	/* if the FW crashed or not debug monitor cfg was given, there is
-	 * no point in stopping
-	 */
-	if (test_bit(STATUS_FW_ERROR, &trans->status) ||
-	    (!trans->dbg.dest_tlv &&
-	     trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID))
-		return;
-
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
-		IWL_ERR(trans,
-			"WRT: unsupported device family %d for debug stop recording\n",
-			trans->cfg->device_family);
-		return;
-	}
-	_iwl_fw_dbg_stop_recording(trans, params);
-}
-
-static inline void
-_iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
-			      struct iwl_fw_dbg_params *params)
-{
-	if (WARN_ON(!params))
-		return;
-
-	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
-		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
-		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
-	} else {
-		iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, params->in_sample);
-		iwl_write_umac_prph(trans, DBGC_OUT_CTRL, params->out_ctrl);
-	}
-}
+int iwl_fw_dbg_stop_restart_recording(struct iwl_fw_runtime *fwrt,
+				      struct iwl_fw_dbg_params *params,
+				      bool stop);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 static inline void iwl_fw_set_dbg_rec_on(struct iwl_fw_runtime *fwrt)
@@ -335,30 +276,6 @@ static inline void iwl_fw_set_dbg_rec_on(struct iwl_fw_runtime *fwrt)
 		fwrt->trans->dbg.rec_on = true;
 }
 #endif
-
-static inline void
-iwl_fw_dbg_restart_recording(struct iwl_fw_runtime *fwrt,
-			     struct iwl_fw_dbg_params *params)
-{
-	/* if the FW crashed or not debug monitor cfg was given, there is
-	 * no point in restarting
-	 */
-	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status) ||
-	    (!fwrt->trans->dbg.dest_tlv &&
-	     fwrt->trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID))
-		return;
-
-	if (fwrt->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
-		IWL_ERR(fwrt,
-			"WRT: unsupported device family %d for debug restart recording\n",
-			fwrt->trans->cfg->device_family);
-		return;
-	}
-	_iwl_fw_dbg_restart_recording(fwrt->trans, params);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	iwl_fw_set_dbg_rec_on(fwrt);
-#endif
-}
 
 static inline void iwl_fw_dump_conf_clear(struct iwl_fw_runtime *fwrt)
 {
@@ -385,7 +302,7 @@ static inline bool iwl_fw_dbg_is_d3_debug_enabled(struct iwl_fw_runtime *fwrt)
 static inline bool iwl_fw_dbg_is_paging_enabled(struct iwl_fw_runtime *fwrt)
 {
 	return iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_PAGING) &&
-		!fwrt->trans->cfg->gen2 &&
+		!fwrt->trans->trans_cfg->gen2 &&
 		fwrt->cur_fw_img < IWL_UCODE_TYPE_MAX &&
 		fwrt->fw->img[fwrt->cur_fw_img].paging_mem_size &&
 		fwrt->fw_paging_db[0].fw_paging_block;
@@ -397,20 +314,9 @@ static inline void iwl_fw_flush_dumps(struct iwl_fw_runtime *fwrt)
 {
 	int i;
 
-	del_timer(&fwrt->dump.periodic_trig);
+	iwl_dbg_tlv_del_timers(fwrt->trans);
 	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++) {
 		flush_delayed_work(&fwrt->dump.wks[i].wk);
-		fwrt->dump.wks[i].ini_trig_id = IWL_FW_TRIGGER_ID_INVALID;
-	}
-}
-
-static inline void iwl_fw_cancel_dumps(struct iwl_fw_runtime *fwrt)
-{
-	int i;
-
-	del_timer(&fwrt->dump.periodic_trig);
-	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++) {
-		cancel_delayed_work_sync(&fwrt->dump.wks[i].wk);
 		fwrt->dump.wks[i].ini_trig_id = IWL_FW_TRIGGER_ID_INVALID;
 	}
 }
@@ -451,10 +357,7 @@ static inline void iwl_fw_resume_timestamp(struct iwl_fw_runtime *fwrt) {}
 
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
-void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
-			    enum iwl_fw_ini_apply_point apply_point);
-
-void iwl_fwrt_stop_device(struct iwl_fw_runtime *fwrt);
+void iwl_fw_dbg_stop_sync(struct iwl_fw_runtime *fwrt);
 
 static inline void iwl_fw_lmac1_set_alive_err_table(struct iwl_trans *trans,
 						    u32 lmac_error_event_table)
@@ -478,15 +381,13 @@ static inline void iwl_fw_umac_set_alive_err_table(struct iwl_trans *trans,
 
 static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt)
 {
-	if (fwrt->trans->dbg.ini_valid && fwrt->trans->dbg.hw_error) {
+	if (iwl_trans_dbg_ini_valid(fwrt->trans) && fwrt->trans->dbg.hw_error) {
 		_iwl_fw_dbg_ini_collect(fwrt, IWL_FW_TRIGGER_ID_FW_HW_ERROR);
 		fwrt->trans->dbg.hw_error = false;
 	} else {
 		iwl_fw_dbg_collect_desc(fwrt, &iwl_dump_desc_assert, false, 0);
 	}
 }
-
-void iwl_fw_dbg_periodic_trig_handler(struct timer_list *t);
 
 void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt);
 

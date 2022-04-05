@@ -116,7 +116,7 @@ static void xlgmac_prep_tx_pkt(struct xlgmac_pdata *pdata,
 			       struct sk_buff *skb,
 			       struct xlgmac_pkt_info *pkt_info)
 {
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	unsigned int context_desc;
 	unsigned int len;
 	unsigned int i;

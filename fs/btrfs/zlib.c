@@ -418,14 +418,6 @@ next:
 	return ret;
 }
 
-static unsigned int zlib_set_level(unsigned int level)
-{
-	if (!level)
-		return BTRFS_ZLIB_DEFAULT_LEVEL;
-
-	return min_t(unsigned int, level, 9);
-}
-
 const struct btrfs_compress_op btrfs_zlib_compress = {
 	.init_workspace_manager	= zlib_init_workspace_manager,
 	.cleanup_workspace_manager = zlib_cleanup_workspace_manager,
@@ -436,5 +428,6 @@ const struct btrfs_compress_op btrfs_zlib_compress = {
 	.compress_pages		= zlib_compress_pages,
 	.decompress_bio		= zlib_decompress_bio,
 	.decompress		= zlib_decompress,
-	.set_level              = zlib_set_level,
+	.max_level		= 9,
+	.default_level		= BTRFS_ZLIB_DEFAULT_LEVEL,
 };

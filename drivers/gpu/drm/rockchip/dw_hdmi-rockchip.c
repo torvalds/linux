@@ -10,11 +10,10 @@
 #include <linux/phy/phy.h>
 #include <linux/regmap.h>
 
-#include <drm/drm_of.h>
-#include <drm/drmP.h>
-#include <drm/drm_edid.h>
-#include <drm/drm_probe_helper.h>
 #include <drm/bridge/dw_hdmi.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_of.h>
+#include <drm/drm_probe_helper.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"

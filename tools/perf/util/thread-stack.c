@@ -10,6 +10,7 @@
 #include <linux/zalloc.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include "thread.h"
 #include "event.h"
 #include "machine.h"

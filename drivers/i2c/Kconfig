@@ -54,7 +54,7 @@ config I2C_CHARDEV
 	  Say Y here to use i2c-* device files, usually found in the /dev
 	  directory on your system.  They make it possible to have user-space
 	  programs use the I2C bus.  Information on how to do this is
-	  contained in the file <file:Documentation/i2c/dev-interface>.
+	  contained in the file <file:Documentation/i2c/dev-interface.rst>.
 
 	  This support is also available as a module.  If so, the module 
 	  will be called i2c-dev.
@@ -107,7 +107,7 @@ config I2C_STUB
 	  especially for certain kinds of sensor chips.
 
 	  If you do build this module, be sure to read the notes and warnings
-	  in <file:Documentation/i2c/i2c-stub>.
+	  in <file:Documentation/i2c/i2c-stub.rst>.
 
 	  If you don't know what to do here, definitely say N.
 

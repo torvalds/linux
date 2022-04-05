@@ -3842,7 +3842,7 @@ int mg_set_leaf_id(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 int mg_get_local_EKB(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	int retval = STATUS_FAIL;
+	int retval;
 	int bufflen;
 	unsigned int lun = SCSI_LUN(srb);
 	u8 *buf = NULL;

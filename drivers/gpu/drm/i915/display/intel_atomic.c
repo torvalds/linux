@@ -35,7 +35,7 @@
 #include <drm/drm_plane_helper.h>
 
 #include "intel_atomic.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_hdcp.h"
 #include "intel_sprite.h"
 
@@ -201,6 +201,7 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->update_wm_post = false;
 	crtc_state->fb_changed = false;
 	crtc_state->fifo_changed = false;
+	crtc_state->preload_luts = false;
 	crtc_state->wm.need_postvbl_update = false;
 	crtc_state->fb_bits = 0;
 	crtc_state->update_planes = 0;

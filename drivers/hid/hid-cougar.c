@@ -207,7 +207,7 @@ static int cougar_probe(struct hid_device *hdev,
 	error = hid_parse(hdev);
 	if (error) {
 		hid_err(hdev, "parse failed\n");
-		goto fail;
+		return error;
 	}
 
 	if (hdev->collection->usage == COUGAR_VENDOR_USAGE) {
@@ -219,7 +219,7 @@ static int cougar_probe(struct hid_device *hdev,
 	error = hid_hw_start(hdev, connect_mask);
 	if (error) {
 		hid_err(hdev, "hw start failed\n");
-		goto fail;
+		return error;
 	}
 
 	error = cougar_bind_shared_data(hdev, cougar);
@@ -249,8 +249,6 @@ static int cougar_probe(struct hid_device *hdev,
 
 fail_stop_and_cleanup:
 	hid_hw_stop(hdev);
-fail:
-	hid_set_drvdata(hdev, NULL);
 	return error;
 }
 

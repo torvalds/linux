@@ -30,7 +30,7 @@
 #include <linux/seq_file.h>
 
 #include "intel_atomic.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_pipe_crc.h"
 
 static const char * const pipe_crc_sources[] = {
@@ -667,5 +667,5 @@ void intel_crtc_disable_pipe_crc(struct intel_crtc *intel_crtc)
 
 	I915_WRITE(PIPE_CRC_CTL(crtc->index), 0);
 	POSTING_READ(PIPE_CRC_CTL(crtc->index));
-	synchronize_irq(dev_priv->drm.irq);
+	intel_synchronize_irq(dev_priv);
 }

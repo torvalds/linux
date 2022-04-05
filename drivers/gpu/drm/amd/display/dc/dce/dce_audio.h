@@ -101,7 +101,7 @@ struct dce_audio_shift {
 	uint32_t DCCG_AUDIO_DTO1_USE_512FBR_DTO;
 };
 
-struct dce_aduio_mask {
+struct dce_audio_mask {
 	uint32_t AZALIA_ENDPOINT_REG_INDEX;
 	uint32_t AZALIA_ENDPOINT_REG_DATA;
 
@@ -125,7 +125,7 @@ struct dce_audio {
 	struct audio base;
 	const struct dce_audio_registers *regs;
 	const struct dce_audio_shift *shifts;
-	const struct dce_aduio_mask *masks;
+	const struct dce_audio_mask *masks;
 };
 
 struct audio *dce_audio_create(
@@ -133,7 +133,7 @@ struct audio *dce_audio_create(
 		unsigned int inst,
 		const struct dce_audio_registers *reg,
 		const struct dce_audio_shift *shifts,
-		const struct dce_aduio_mask *masks);
+		const struct dce_audio_mask *masks);
 
 void dce_aud_destroy(struct audio **audio);
 

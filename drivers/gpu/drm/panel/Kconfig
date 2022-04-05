@@ -103,6 +103,14 @@ config DRM_PANEL_SAMSUNG_LD9040
 	depends on OF && SPI
 	select VIDEOMODE_HELPERS
 
+config DRM_PANEL_LG_LB035Q02
+	tristate "LG LB035Q024573 RGB panel"
+	depends on GPIOLIB && OF && SPI
+	help
+	  Say Y here if you want to enable support for the LB035Q02 RGB panel
+	  (found on the Gumstix Overo Palo35 board). To compile this driver as
+	  a module, choose M here.
+
 config DRM_PANEL_LG_LG4573
 	tristate "LG4573 RGB/SPI panel"
 	depends on OF && SPI
@@ -110,6 +118,23 @@ config DRM_PANEL_LG_LG4573
 	help
 	  Say Y here if you want to enable support for LG4573 RGB panel.
 	  To compile this driver as a module, choose M here.
+
+config DRM_PANEL_NEC_NL8048HL11
+	tristate "NEC NL8048HL11 RGB panel"
+	depends on GPIOLIB && OF && SPI
+	help
+	  Say Y here if you want to enable support for the NEC NL8048HL11 RGB
+	  panel (found on the Zoom2/3/3630 SDP boards). To compile this driver
+	  as a module, choose M here.
+
+config DRM_PANEL_NOVATEK_NT39016
+	tristate "Novatek NT39016 RGB/SPI panel"
+	depends on OF && SPI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select REGMAP_SPI
+	help
+	  Say Y here if you want to enable support for the panels built
+	  around the Novatek NT39016 display controller.
 
 config DRM_PANEL_OLIMEX_LCD_OLINUXINO
 	tristate "Olimex LCD-OLinuXino panel"
@@ -158,6 +183,15 @@ config DRM_PANEL_RASPBERRYPI_TOUCHSCREEN
 	  Say Y here if you want to enable support for the Raspberry
 	  Pi 7" Touchscreen.  To compile this driver as a module,
 	  choose M here.
+
+config DRM_PANEL_RAYDIUM_RM67191
+	tristate "Raydium RM67191 FHD 1080x1920 DSI video mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Raydium RM67191 FHD
+	  (1080x1920) DSI panel.
 
 config DRM_PANEL_RAYDIUM_RM68200
 	tristate "Raydium RM68200 720x1280 DSI video mode panel"
@@ -248,6 +282,13 @@ config DRM_PANEL_SHARP_LQ101R1SX01
 	  To compile this driver as a module, choose M here: the module
 	  will be called panel-sharp-lq101r1sx01.
 
+config DRM_PANEL_SHARP_LS037V7DW01
+	tristate "Sharp LS037V7DW01 VGA LCD panel"
+	depends on GPIOLIB && OF && REGULATOR
+	help
+	  Say Y here if you want to enable support for Sharp LS037V7DW01 VGA
+	  (480x640) LCD panel (found on the TI SDP3430 board).
+
 config DRM_PANEL_SHARP_LS043T1LE01
 	tristate "Sharp LS043T1LE01 qHD video mode panel"
 	depends on OF
@@ -274,6 +315,29 @@ config DRM_PANEL_SITRONIX_ST7789V
 	help
 	  Say Y here if you want to enable support for the Sitronix
 	  ST7789V controller for 240x320 LCD panels
+
+config DRM_PANEL_SONY_ACX565AKM
+	tristate "Sony ACX565AKM panel"
+	depends on GPIOLIB && OF && SPI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the Sony ACX565AKM
+	  800x600 3.5" panel (found on the Nokia N900).
+
+config DRM_PANEL_TPO_TD028TTEC1
+	tristate "Toppoly (TPO) TD028TTEC1 panel driver"
+	depends on OF && SPI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for TPO TD028TTEC1 480x640
+	  2.8" panel (found on the OpenMoko Neo FreeRunner and Neo 1973).
+
+config DRM_PANEL_TPO_TD043MTEA1
+	tristate "Toppoly (TPO) TD043MTEA1 panel driver"
+	depends on GPIOLIB && OF && REGULATOR && SPI
+	help
+	  Say Y here if you want to enable support for TPO TD043MTEA1 800x480
+	  4.3" panel (found on the OMAP3 Pandora board).
 
 config DRM_PANEL_TPO_TPG110
 	tristate "TPO TPG 800x400 panel"

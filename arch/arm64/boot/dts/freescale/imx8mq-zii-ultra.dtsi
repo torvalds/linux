@@ -68,18 +68,6 @@
 		regulator-always-on;
 	};
 
-	reg_5p0_user_usb: regulator-5p0-user-usb {
-		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_reg_user_usb>;
-		vin-supply = <&reg_5p0_main>;
-		regulator-name = "5V_USER_USB";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		gpio = <&gpio3 12 GPIO_ACTIVE_LOW>;
-		startup-delay-us = <1000>;
-	};
-
 	reg_usdhc2_vmmc: regulator-vsd-3v3 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_reg_usdhc2>;
@@ -100,9 +88,9 @@
 		regulator-name = "0V9_ARM";
 		regulator-min-microvolt = <900000>;
 		regulator-max-microvolt = <1000000>;
-		gpios = <&gpio3 19 GPIO_ACTIVE_HIGH>;
-		states = <1000000 0x0
-		           900000 0x1>;
+		gpios = <&gpio3 16 GPIO_ACTIVE_HIGH>;
+		states = <1000000 0x1
+		           900000 0x0>;
 		regulator-always-on;
 	};
 };
@@ -244,6 +232,13 @@
 		line-name = "usb-mode1";
 	};
 
+	usb-pwr {
+		gpio-hog;
+		gpios = <12 GPIO_ACTIVE_LOW>;
+		output-high;
+		line-name = "usb-pwr-ctrl-en-n";
+	};
+
 	usb-mode2 {
 		gpio-hog;
 		gpios = <13 GPIO_ACTIVE_HIGH>;
@@ -257,6 +252,17 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
+
+	ucs1002: charger@32 {
+		compatible = "microchip,ucs1002";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ucs1002>;
+		reg = <0x32>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <17 IRQ_TYPE_EDGE_BOTH>,
+		             <18 IRQ_TYPE_EDGE_BOTH>;
+		interrupt-names = "a_det", "alert";
+	};
 };
 
 &i2c2 {
@@ -428,7 +434,7 @@
 };
 
 &usb3_phy0 {
-	vbus-supply = <&reg_5p0_user_usb>;
+	vbus-supply = <&ucs1002>;
 	status = "okay";
 };
 
@@ -532,6 +538,7 @@
 		fsl,pins = <
 			MX8MQ_IOMUXC_NAND_DATA04_GPIO3_IO10		0x6
 			MX8MQ_IOMUXC_NAND_DATA05_GPIO3_IO11		0x6
+			MX8MQ_IOMUXC_NAND_DATA06_GPIO3_IO12		0x6
 			MX8MQ_IOMUXC_NAND_DATA07_GPIO3_IO13		0x6
 		>;
 	};
@@ -597,12 +604,6 @@
 		>;
 	};
 
-	pinctrl_reg_user_usb: reguserusbgrp {
-		fsl,pins = <
-			MX8MQ_IOMUXC_NAND_DATA06_GPIO3_IO12		0x6
-		>;
-	};
-
 	pinctrl_switch_irq: switchgrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_GPIO1_IO15_GPIO1_IO15		0x41
@@ -627,6 +628,13 @@
 		fsl,pins = <
 			MX8MQ_IOMUXC_UART2_RXD_UART2_DCE_RX		0x49
 			MX8MQ_IOMUXC_UART2_TXD_UART2_DCE_TX		0x49
+		>;
+	};
+
+	pinctrl_ucs1002: ucs1002grp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_NAND_WE_B_GPIO3_IO17		0x41
+			MX8MQ_IOMUXC_NAND_WP_B_GPIO3_IO18		0x41
 		>;
 	};
 

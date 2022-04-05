@@ -132,14 +132,12 @@ static __le64 *get_lba_list_from_emeta(struct pblk *pblk,
 				       struct pblk_line *line)
 {
 	struct line_emeta *emeta_buf;
-	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
 	unsigned int lba_list_size = lm->emeta_len[2];
 	__le64 *lba_list;
 	int ret;
 
-	emeta_buf = pblk_malloc(lm->emeta_len[0],
-				l_mg->emeta_alloc_type, GFP_KERNEL);
+	emeta_buf = kvmalloc(lm->emeta_len[0], GFP_KERNEL);
 	if (!emeta_buf)
 		return NULL;
 
@@ -147,7 +145,7 @@ static __le64 *get_lba_list_from_emeta(struct pblk *pblk,
 	if (ret) {
 		pblk_err(pblk, "line %d read emeta failed (%d)\n",
 				line->id, ret);
-		pblk_mfree(emeta_buf, l_mg->emeta_alloc_type);
+		kvfree(emeta_buf);
 		return NULL;
 	}
 
@@ -161,16 +159,16 @@ static __le64 *get_lba_list_from_emeta(struct pblk *pblk,
 	if (ret) {
 		pblk_err(pblk, "inconsistent emeta (line %d)\n",
 				line->id);
-		pblk_mfree(emeta_buf, l_mg->emeta_alloc_type);
+		kvfree(emeta_buf);
 		return NULL;
 	}
 
-	lba_list = pblk_malloc(lba_list_size,
-			       l_mg->emeta_alloc_type, GFP_KERNEL);
+	lba_list = kvmalloc(lba_list_size, GFP_KERNEL);
+
 	if (lba_list)
 		memcpy(lba_list, emeta_to_lbas(pblk, emeta_buf), lba_list_size);
 
-	pblk_mfree(emeta_buf, l_mg->emeta_alloc_type);
+	kvfree(emeta_buf);
 
 	return lba_list;
 }
@@ -181,7 +179,6 @@ static void pblk_gc_line_prepare_ws(struct work_struct *work)
 									ws);
 	struct pblk *pblk = line_ws->pblk;
 	struct pblk_line *line = line_ws->line;
-	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
@@ -272,7 +269,7 @@ next_rq:
 		goto next_rq;
 
 out:
-	pblk_mfree(lba_list, l_mg->emeta_alloc_type);
+	kvfree(lba_list);
 	kfree(line_ws);
 	kfree(invalid_bitmap);
 
@@ -286,7 +283,7 @@ fail_free_gc_data:
 fail_free_gc_rq:
 	kfree(gc_rq);
 fail_free_lba_list:
-	pblk_mfree(lba_list, l_mg->emeta_alloc_type);
+	kvfree(lba_list);
 fail_free_invalid_bitmap:
 	kfree(invalid_bitmap);
 fail_free_ws:

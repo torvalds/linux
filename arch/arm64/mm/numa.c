@@ -29,7 +29,7 @@ static __init int numa_parse_early_param(char *opt)
 {
 	if (!opt)
 		return -EINVAL;
-	if (!strncmp(opt, "off", 3))
+	if (str_has_prefix(opt, "off"))
 		numa_off = true;
 
 	return 0;

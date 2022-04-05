@@ -636,7 +636,7 @@ static void tegra_dvc_init(struct tegra_i2c_dev *i2c_dev)
 	dvc_writel(i2c_dev, val, DVC_CTRL_REG1);
 }
 
-static int tegra_i2c_runtime_resume(struct device *dev)
+static int __maybe_unused tegra_i2c_runtime_resume(struct device *dev)
 {
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 	int ret;
@@ -665,7 +665,7 @@ static int tegra_i2c_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int tegra_i2c_runtime_suspend(struct device *dev)
+static int __maybe_unused tegra_i2c_runtime_suspend(struct device *dev)
 {
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 
@@ -712,12 +712,6 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev, bool clk_reinit)
 	u32 clk_divisor, clk_multiplier;
 	u32 tsu_thd;
 	u8 tlow, thigh;
-
-	err = pm_runtime_get_sync(i2c_dev->dev);
-	if (err < 0) {
-		dev_err(i2c_dev->dev, "runtime resume failed %d\n", err);
-		return err;
-	}
 
 	reset_control_assert(i2c_dev->rst);
 	udelay(2);
@@ -772,7 +766,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev, bool clk_reinit)
 		if (err) {
 			dev_err(i2c_dev->dev,
 				"failed changing clock rate: %d\n", err);
-			goto err;
+			return err;
 		}
 	}
 
@@ -787,23 +781,21 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev, bool clk_reinit)
 
 	err = tegra_i2c_flush_fifos(i2c_dev);
 	if (err)
-		goto err;
+		return err;
 
 	if (i2c_dev->is_multimaster_mode && i2c_dev->hw->has_slcg_override_reg)
 		i2c_writel(i2c_dev, I2C_MST_CORE_CLKEN_OVR, I2C_CLKEN_OVERRIDE);
 
 	err = tegra_i2c_wait_for_config_load(i2c_dev);
 	if (err)
-		goto err;
+		return err;
 
 	if (i2c_dev->irq_disabled) {
 		i2c_dev->irq_disabled = false;
 		enable_irq(i2c_dev->irq);
 	}
 
-err:
-	pm_runtime_put(i2c_dev->dev);
-	return err;
+	return 0;
 }
 
 static int tegra_i2c_disable_packet_mode(struct tegra_i2c_dev *i2c_dev)
@@ -1616,12 +1608,14 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
-	if (!pm_runtime_enabled(&pdev->dev)) {
+	if (!pm_runtime_enabled(&pdev->dev))
 		ret = tegra_i2c_runtime_resume(&pdev->dev);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "runtime resume failed\n");
-			goto unprepare_div_clk;
-		}
+	else
+		ret = pm_runtime_get_sync(i2c_dev->dev);
+
+	if (ret < 0) {
+		dev_err(&pdev->dev, "runtime resume failed\n");
+		goto unprepare_div_clk;
 	}
 
 	if (i2c_dev->is_multimaster_mode) {
@@ -1665,6 +1659,8 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	ret = i2c_add_numbered_adapter(&i2c_dev->adapter);
 	if (ret)
 		goto release_dma;
+
+	pm_runtime_put(&pdev->dev);
 
 	return 0;
 
@@ -1711,8 +1707,7 @@ static int tegra_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int tegra_i2c_suspend(struct device *dev)
+static int __maybe_unused tegra_i2c_suspend(struct device *dev)
 {
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 
@@ -1721,12 +1716,20 @@ static int tegra_i2c_suspend(struct device *dev)
 	return 0;
 }
 
-static int tegra_i2c_resume(struct device *dev)
+static int __maybe_unused tegra_i2c_resume(struct device *dev)
 {
 	struct tegra_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 	int err;
 
+	err = tegra_i2c_runtime_resume(dev);
+	if (err)
+		return err;
+
 	err = tegra_i2c_init(i2c_dev, false);
+	if (err)
+		return err;
+
+	err = tegra_i2c_runtime_suspend(dev);
 	if (err)
 		return err;
 
@@ -1736,15 +1739,10 @@ static int tegra_i2c_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops tegra_i2c_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(tegra_i2c_suspend, tegra_i2c_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(tegra_i2c_suspend, tegra_i2c_resume)
 	SET_RUNTIME_PM_OPS(tegra_i2c_runtime_suspend, tegra_i2c_runtime_resume,
 			   NULL)
 };
-
-#define TEGRA_I2C_PM	(&tegra_i2c_pm)
-#else
-#define TEGRA_I2C_PM	NULL
-#endif
 
 static struct platform_driver tegra_i2c_driver = {
 	.probe   = tegra_i2c_probe,
@@ -1752,7 +1750,7 @@ static struct platform_driver tegra_i2c_driver = {
 	.driver  = {
 		.name  = "tegra-i2c",
 		.of_match_table = tegra_i2c_of_match,
-		.pm    = TEGRA_I2C_PM,
+		.pm    = &tegra_i2c_pm,
 	},
 };
 

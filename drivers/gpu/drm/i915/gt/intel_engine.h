@@ -9,12 +9,11 @@
 #include <linux/random.h>
 #include <linux/seqlock.h>
 
-#include "i915_gem_batch_pool.h"
 #include "i915_pmu.h"
 #include "i915_reg.h"
 #include "i915_request.h"
 #include "i915_selftest.h"
-#include "i915_timeline.h"
+#include "gt/intel_timeline.h"
 #include "intel_engine_types.h"
 #include "intel_gpu_commands.h"
 #include "intel_workarounds.h"
@@ -51,7 +50,7 @@ struct drm_printer;
 #define ENGINE_READ16(...)	__ENGINE_READ_OP(read16, __VA_ARGS__)
 #define ENGINE_READ(...)	__ENGINE_READ_OP(read, __VA_ARGS__)
 #define ENGINE_READ_FW(...)	__ENGINE_READ_OP(read_fw, __VA_ARGS__)
-#define ENGINE_POSTING_READ(...) __ENGINE_READ_OP(posting_read, __VA_ARGS__)
+#define ENGINE_POSTING_READ(...) __ENGINE_READ_OP(posting_read_fw, __VA_ARGS__)
 #define ENGINE_POSTING_READ16(...) __ENGINE_READ_OP(posting_read16, __VA_ARGS__)
 
 #define ENGINE_READ64(engine__, lower_reg__, upper_reg__) \
@@ -123,72 +122,36 @@ hangcheck_action_to_str(const enum intel_engine_hangcheck_action a)
 	return "unknown";
 }
 
-void intel_engines_set_scheduler_caps(struct drm_i915_private *i915);
-
-static inline void
-execlists_set_active(struct intel_engine_execlists *execlists,
-		     unsigned int bit)
-{
-	__set_bit(bit, (unsigned long *)&execlists->active);
-}
-
-static inline bool
-execlists_set_active_once(struct intel_engine_execlists *execlists,
-			  unsigned int bit)
-{
-	return !__test_and_set_bit(bit, (unsigned long *)&execlists->active);
-}
-
-static inline void
-execlists_clear_active(struct intel_engine_execlists *execlists,
-		       unsigned int bit)
-{
-	__clear_bit(bit, (unsigned long *)&execlists->active);
-}
-
-static inline void
-execlists_clear_all_active(struct intel_engine_execlists *execlists)
-{
-	execlists->active = 0;
-}
-
-static inline bool
-execlists_is_active(const struct intel_engine_execlists *execlists,
-		    unsigned int bit)
-{
-	return test_bit(bit, (unsigned long *)&execlists->active);
-}
-
-void execlists_user_begin(struct intel_engine_execlists *execlists,
-			  const struct execlist_port *port);
-void execlists_user_end(struct intel_engine_execlists *execlists);
-
-void
-execlists_cancel_port_requests(struct intel_engine_execlists * const execlists);
-
-struct i915_request *
-execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists);
-
 static inline unsigned int
 execlists_num_ports(const struct intel_engine_execlists * const execlists)
 {
 	return execlists->port_mask + 1;
 }
 
-static inline struct execlist_port *
-execlists_port_complete(struct intel_engine_execlists * const execlists,
-			struct execlist_port * const port)
+static inline struct i915_request *
+execlists_active(const struct intel_engine_execlists *execlists)
 {
-	const unsigned int m = execlists->port_mask;
-
-	GEM_BUG_ON(port_index(port, execlists) != 0);
-	GEM_BUG_ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_USER));
-
-	memmove(port, port + 1, m * sizeof(struct execlist_port));
-	memset(port + m, 0, sizeof(struct execlist_port));
-
-	return port;
+	GEM_BUG_ON(execlists->active - execlists->inflight >
+		   execlists_num_ports(execlists));
+	return READ_ONCE(*execlists->active);
 }
+
+static inline void
+execlists_active_lock_bh(struct intel_engine_execlists *execlists)
+{
+	local_bh_disable(); /* prevent local softirq and lock recursion */
+	tasklet_lock(&execlists->tasklet);
+}
+
+static inline void
+execlists_active_unlock_bh(struct intel_engine_execlists *execlists)
+{
+	tasklet_unlock(&execlists->tasklet);
+	local_bh_enable(); /* restore softirq, and kick ksoftirqd! */
+}
+
+struct i915_request *
+execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists);
 
 static inline u32
 intel_read_status_page(const struct intel_engine_cs *engine, int reg)
@@ -244,9 +207,7 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 #define CNL_HWS_CSB_WRITE_INDEX		0x2f
 
 struct intel_ring *
-intel_engine_create_ring(struct intel_engine_cs *engine,
-			 struct i915_timeline *timeline,
-			 int size);
+intel_engine_create_ring(struct intel_engine_cs *engine, int size);
 int intel_ring_pin(struct intel_ring *ring);
 void intel_ring_reset(struct intel_ring *ring, u32 tail);
 unsigned int intel_ring_update_space(struct intel_ring *ring);
@@ -388,9 +349,6 @@ void intel_engine_init_execlists(struct intel_engine_cs *engine);
 void intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
 
-void intel_engine_pin_breadcrumbs_irq(struct intel_engine_cs *engine);
-void intel_engine_unpin_breadcrumbs_irq(struct intel_engine_cs *engine);
-
 void intel_engine_signal_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
 
@@ -456,8 +414,8 @@ gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
 	return cs;
 }
 
-static inline void intel_engine_reset(struct intel_engine_cs *engine,
-				      bool stalled)
+static inline void __intel_engine_reset(struct intel_engine_cs *engine,
+					bool stalled)
 {
 	if (engine->reset.reset)
 		engine->reset.reset(engine, stalled);
@@ -465,10 +423,9 @@ static inline void intel_engine_reset(struct intel_engine_cs *engine,
 }
 
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
-bool intel_engines_are_idle(struct drm_i915_private *dev_priv);
+bool intel_engines_are_idle(struct intel_gt *gt);
 
-void intel_engines_reset_default_submission(struct drm_i915_private *i915);
-unsigned int intel_engines_has_context_isolation(struct drm_i915_private *i915);
+void intel_engines_reset_default_submission(struct intel_gt *gt);
 
 bool intel_engine_can_store_dword(struct intel_engine_cs *engine);
 
@@ -476,9 +433,6 @@ __printf(3, 4)
 void intel_engine_dump(struct intel_engine_cs *engine,
 		       struct drm_printer *m,
 		       const char *header, ...);
-
-struct intel_engine_cs *
-intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance);
 
 static inline void intel_engine_context_in(struct intel_engine_cs *engine)
 {
