@@ -456,8 +456,7 @@ static int _mt6660_read_chip_revision(struct mt6660_chip *chip)
 	return 0;
 }
 
-static int mt6660_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int mt6660_i2c_probe(struct i2c_client *client)
 {
 	struct mt6660_chip *chip = NULL;
 	int ret;
@@ -567,7 +566,7 @@ static struct i2c_driver mt6660_i2c_driver = {
 		.of_match_table = of_match_ptr(mt6660_of_id),
 		.pm = &mt6660_dev_pm_ops,
 	},
-	.probe = mt6660_i2c_probe,
+	.probe_new = mt6660_i2c_probe,
 	.remove = mt6660_i2c_remove,
 	.id_table = mt6660_i2c_id,
 };
