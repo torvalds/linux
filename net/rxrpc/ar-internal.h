@@ -29,6 +29,7 @@ struct rxrpc_crypt {
 
 struct key_preparsed_payload;
 struct rxrpc_connection;
+struct rxrpc_txbuf;
 
 /*
  * Mark applied to socket buffers in skb->mark.  skb->priority is used
@@ -759,6 +760,48 @@ struct rxrpc_send_params {
 	bool			upgrade;	/* If the connection is upgradeable */
 };
 
+/*
+ * Buffer of data to be output as a packet.
+ */
+struct rxrpc_txbuf {
+	struct rcu_head		rcu;
+	struct list_head	call_link;	/* Link in call->tx_queue */
+	struct list_head	tx_link;	/* Link in live Enc queue or Tx queue */
+	struct rxrpc_call	*call;		/* Call to which belongs */
+	ktime_t			last_sent;	/* Time at which last transmitted */
+	refcount_t		ref;
+	rxrpc_seq_t		seq;		/* Sequence number of this packet */
+	unsigned int		call_debug_id;
+	unsigned int		debug_id;
+	unsigned int		len;		/* Amount of data in buffer */
+	unsigned int		space;		/* Remaining data space */
+	unsigned int		offset;		/* Offset of fill point */
+	unsigned long		flags;
+#define RXRPC_TXBUF_ACKED	0		/* Set if ACK'd */
+#define RXRPC_TXBUF_NACKED	1		/* Set if NAK'd */
+#define RXRPC_TXBUF_LAST	2		/* Set if last packet in Tx phase */
+#define RXRPC_TXBUF_RESENT	3		/* Set if has been resent */
+#define RXRPC_TXBUF_RETRANS	4		/* Set if should be retransmitted */
+	struct {
+		/* The packet for encrypting and DMA'ing.  We align it such
+		 * that data[] aligns correctly for any crypto blocksize.
+		 */
+		u8		pad[64 - sizeof(struct rxrpc_wire_header)];
+		struct rxrpc_wire_header wire;	/* Network-ready header */
+		u8		data[RXRPC_JUMBO_DATALEN]; /* Data packet */
+	} __aligned(64);
+};
+
+static inline bool rxrpc_sending_to_server(const struct rxrpc_txbuf *txb)
+{
+	return txb->wire.flags & RXRPC_CLIENT_INITIATED;
+}
+
+static inline bool rxrpc_sending_to_client(const struct rxrpc_txbuf *txb)
+{
+	return !rxrpc_sending_to_server(txb);
+}
+
 #include <trace/events/rxrpc.h>
 
 /*
@@ -1124,6 +1167,16 @@ extern void rxrpc_sysctl_exit(void);
 static inline int __init rxrpc_sysctl_init(void) { return 0; }
 static inline void rxrpc_sysctl_exit(void) {}
 #endif
+
+/*
+ * txbuf.c
+ */
+extern atomic_t rxrpc_nr_txbuf;
+struct rxrpc_txbuf *rxrpc_alloc_txbuf(struct rxrpc_call *call, u8 packet_type,
+				      gfp_t gfp);
+void rxrpc_get_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);
+void rxrpc_see_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);
+void rxrpc_put_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);
 
 /*
  * utils.c

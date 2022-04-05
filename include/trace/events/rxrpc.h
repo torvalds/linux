@@ -252,6 +252,18 @@
 	E_(rxrpc_reqack_small_txwin,		"SMALL-TXWN")
 /* ---- Must update size of stat_why_req_ack[] if more are added! */
 
+#define rxrpc_txbuf_traces \
+	EM(rxrpc_txbuf_alloc_ack,		"ALLOC ACK  ")	\
+	EM(rxrpc_txbuf_alloc_data,		"ALLOC DATA ")	\
+	EM(rxrpc_txbuf_free,			"FREE       ")	\
+	EM(rxrpc_txbuf_get_trans,		"GET TRANS  ")	\
+	EM(rxrpc_txbuf_get_retrans,		"GET RETRANS")	\
+	EM(rxrpc_txbuf_put_cleaned,		"PUT CLEANED")	\
+	EM(rxrpc_txbuf_put_rotated,		"PUT ROTATED")	\
+	EM(rxrpc_txbuf_put_send_aborted,	"PUT SEND-X ")	\
+	EM(rxrpc_txbuf_see_send_more,		"SEE SEND+  ")	\
+	E_(rxrpc_txbuf_see_unacked,		"SEE UNACKED")
+
 /*
  * Generate enums for tracing information.
  */
@@ -280,6 +292,7 @@ enum rxrpc_skb_trace		{ rxrpc_skb_traces } __mode(byte);
 enum rxrpc_timer_trace		{ rxrpc_timer_traces } __mode(byte);
 enum rxrpc_transmit_trace	{ rxrpc_transmit_traces } __mode(byte);
 enum rxrpc_tx_point		{ rxrpc_tx_points } __mode(byte);
+enum rxrpc_txbuf_trace		{ rxrpc_txbuf_traces } __mode(byte);
 
 #endif /* end __RXRPC_DECLARE_TRACE_ENUMS_ONCE_ONLY */
 
@@ -308,6 +321,7 @@ rxrpc_skb_traces;
 rxrpc_timer_traces;
 rxrpc_transmit_traces;
 rxrpc_tx_points;
+rxrpc_txbuf_traces;
 
 /*
  * Now redefine the EM() and E_() macros to map the enums to the strings that
@@ -1467,6 +1481,37 @@ TRACE_EVENT(rxrpc_req_ack,
 		      __entry->call_debug_id,
 		      __entry->seq,
 		      __print_symbolic(__entry->why, rxrpc_req_ack_traces))
+	    );
+
+TRACE_EVENT(rxrpc_txbuf,
+	    TP_PROTO(unsigned int debug_id,
+		     unsigned int call_debug_id, rxrpc_seq_t seq,
+		     int ref, enum rxrpc_txbuf_trace what),
+
+	    TP_ARGS(debug_id, call_debug_id, seq, ref, what),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		debug_id	)
+		    __field(unsigned int,		call_debug_id	)
+		    __field(rxrpc_seq_t,		seq		)
+		    __field(int,			ref		)
+		    __field(enum rxrpc_txbuf_trace,	what		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->debug_id = debug_id;
+		    __entry->call_debug_id = call_debug_id;
+		    __entry->seq = seq;
+		    __entry->ref = ref;
+		    __entry->what = what;
+			   ),
+
+	    TP_printk("B=%08x c=%08x q=%08x %s r=%d",
+		      __entry->debug_id,
+		      __entry->call_debug_id,
+		      __entry->seq,
+		      __print_symbolic(__entry->what, rxrpc_txbuf_traces),
+		      __entry->ref)
 	    );
 
 #undef EM
