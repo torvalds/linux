@@ -11,6 +11,18 @@
 /* How out of date a pointer gen is allowed to be: */
 #define BUCKET_GC_GEN_MAX	96U
 
+static inline bool bch2_dev_bucket_exists(struct bch_fs *c, struct bpos pos)
+{
+	struct bch_dev *ca;
+
+	if (!bch2_dev_exists2(c, pos.inode))
+		return false;
+
+	ca = bch_dev_bkey_exists(c, pos.inode);
+	return pos.offset >= ca->mi.first_bucket &&
+		pos.offset < ca->mi.nbuckets;
+}
+
 static inline u8 alloc_gc_gen(struct bch_alloc_v4 a)
 {
 	return a.gen - a.oldest_gen;
@@ -113,7 +125,7 @@ int bch2_alloc_read(struct bch_fs *);
 
 int bch2_trans_mark_alloc(struct btree_trans *, struct bkey_s_c,
 			  struct bkey_i *, unsigned);
-int bch2_check_alloc_info(struct bch_fs *, bool);
+int bch2_check_alloc_info(struct bch_fs *);
 int bch2_check_alloc_to_lru_refs(struct bch_fs *);
 void bch2_do_discards(struct bch_fs *);
 

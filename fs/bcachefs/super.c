@@ -1474,15 +1474,6 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 		goto err;
 	}
 
-	/*
-	 * must flush all existing journal entries, they might have
-	 * (overwritten) keys that point to the device we're removing:
-	 */
-	bch2_journal_flush_all_pins(&c->journal);
-	/*
-	 * hack to ensure bch2_replicas_gc2() clears out entries to this device
-	 */
-	bch2_journal_meta(&c->journal);
 	ret = bch2_journal_error(&c->journal);
 	if (ret) {
 		bch_err(ca, "Remove failed, journal error");

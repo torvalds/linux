@@ -306,11 +306,6 @@ int bch2_alloc_v1_invalid(const struct bch_fs *c, struct bkey_s_c k, struct prin
 {
 	struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
 
-	if (!bch2_dev_exists2(c, k.k->p.inode)) {
-		pr_buf(err, "invalid device (%llu)", k.k->p.inode);
-		return -EINVAL;
-	}
-
 	/* allow for unknown fields */
 	if (bkey_val_u64s(a.k) < bch_alloc_v1_val_u64s(a.v)) {
 		pr_buf(err, "incorrect value size (%zu < %u)",
@@ -325,11 +320,6 @@ int bch2_alloc_v2_invalid(const struct bch_fs *c, struct bkey_s_c k, struct prin
 {
 	struct bkey_alloc_unpacked u;
 
-	if (!bch2_dev_exists2(c, k.k->p.inode)) {
-		pr_buf(err, "invalid device (%llu)", k.k->p.inode);
-		return -EINVAL;
-	}
-
 	if (bch2_alloc_unpack_v2(&u, k)) {
 		pr_buf(err, "unpack error");
 		return -EINVAL;
@@ -341,20 +331,6 @@ int bch2_alloc_v2_invalid(const struct bch_fs *c, struct bkey_s_c k, struct prin
 int bch2_alloc_v3_invalid(const struct bch_fs *c, struct bkey_s_c k, struct printbuf *err)
 {
 	struct bkey_alloc_unpacked u;
-	struct bch_dev *ca;
-
-	if (!bch2_dev_exists2(c, k.k->p.inode)) {
-		pr_buf(err, "invalid device (%llu)", k.k->p.inode);
-		return -EINVAL;
-	}
-
-	ca = bch_dev_bkey_exists(c, k.k->p.inode);
-
-	if (k.k->p.offset < ca->mi.first_bucket ||
-	    k.k->p.offset >= ca->mi.nbuckets) {
-		pr_buf(err, "invalid bucket");
-		return -EINVAL;
-	}
 
 	if (bch2_alloc_unpack_v3(&u, k)) {
 		pr_buf(err, "unpack error");
@@ -366,18 +342,9 @@ int bch2_alloc_v3_invalid(const struct bch_fs *c, struct bkey_s_c k, struct prin
 
 int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k, struct printbuf *err)
 {
-	struct bch_dev *ca;
-
-	if (!bch2_dev_exists2(c, k.k->p.inode)) {
-		pr_buf(err, "invalid device (%llu)", k.k->p.inode);
-		return -EINVAL;
-	}
-
-	ca = bch_dev_bkey_exists(c, k.k->p.inode);
-
-	if (k.k->p.offset < ca->mi.first_bucket ||
-	    k.k->p.offset >= ca->mi.nbuckets) {
-		pr_buf(err, "invalid bucket");
+	if (bkey_val_bytes(k.k) != sizeof(struct bch_alloc_v4)) {
+		pr_buf(err, "bad val size (%zu != %zu)",
+		       bkey_val_bytes(k.k), sizeof(struct bch_alloc_v4));
 		return -EINVAL;
 	}
 
@@ -577,6 +544,7 @@ static int bch2_check_alloc_key(struct btree_trans *trans,
 				struct btree_iter *alloc_iter)
 {
 	struct bch_fs *c = trans->c;
+	struct bch_dev *ca;
 	struct btree_iter discard_iter, freespace_iter;
 	struct bch_alloc_v4 a;
 	unsigned discard_key_type, freespace_key_type;
@@ -593,7 +561,16 @@ static int bch2_check_alloc_key(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
+	if (fsck_err_on(!bch2_dev_bucket_exists(c, alloc_k.k->p), c,
+			"alloc key for invalid device or bucket"))
+		return bch2_btree_delete_at(trans, alloc_iter, 0);
+
+	ca = bch_dev_bkey_exists(c, alloc_k.k->p.inode);
+	if (!ca->mi.freespace_initialized)
+		return 0;
+
 	bch2_alloc_to_v4(alloc_k, &a);
+
 	discard_key_type = bucket_state(a) == BUCKET_need_discard
 		? KEY_TYPE_set : 0;
 	freespace_key_type = bucket_state(a) == BUCKET_free
@@ -668,21 +645,8 @@ fsck_err:
 	return ret;
 }
 
-static inline bool bch2_dev_bucket_exists(struct bch_fs *c, struct bpos pos)
-{
-	struct bch_dev *ca;
-
-	if (pos.inode >= c->sb.nr_devices || !c->devs[pos.inode])
-		return false;
-
-	ca = bch_dev_bkey_exists(c, pos.inode);
-	return pos.offset >= ca->mi.first_bucket &&
-		pos.offset < ca->mi.nbuckets;
-}
-
-static int bch2_check_freespace_key(struct btree_trans *trans,
-				    struct btree_iter *freespace_iter,
-				    bool initial)
+static int bch2_check_discard_freespace_key(struct btree_trans *trans,
+					    struct btree_iter *iter)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter alloc_iter;
@@ -691,10 +655,13 @@ static int bch2_check_freespace_key(struct btree_trans *trans,
 	u64 genbits;
 	struct bpos pos;
 	struct bkey_i *update;
+	enum bucket_state state = iter->btree_id == BTREE_ID_need_discard
+		? BUCKET_need_discard
+		: BUCKET_free;
 	struct printbuf buf = PRINTBUF;
 	int ret;
 
-	freespace_k = bch2_btree_iter_peek(freespace_iter);
+	freespace_k = bch2_btree_iter_peek(iter);
 	if (!freespace_k.k)
 		return 1;
 
@@ -702,15 +669,16 @@ static int bch2_check_freespace_key(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	pos = freespace_iter->pos;
+	pos = iter->pos;
 	pos.offset &= ~(~0ULL << 56);
-	genbits = freespace_iter->pos.offset & (~0ULL << 56);
+	genbits = iter->pos.offset & (~0ULL << 56);
 
 	bch2_trans_iter_init(trans, &alloc_iter, BTREE_ID_alloc, pos, 0);
 
 	if (fsck_err_on(!bch2_dev_bucket_exists(c, pos), c,
-			"%llu:%llu set in freespace btree but device or bucket does not exist",
-			pos.inode, pos.offset))
+			"%llu:%llu set in %s btree but device or bucket does not exist",
+			pos.inode, pos.offset,
+			bch2_btree_ids[iter->btree_id]))
 		goto delete;
 
 	k = bch2_btree_iter_peek_slot(&alloc_iter);
@@ -720,11 +688,13 @@ static int bch2_check_freespace_key(struct btree_trans *trans,
 
 	bch2_alloc_to_v4(k, &a);
 
-	if (fsck_err_on(bucket_state(a) != BUCKET_free ||
-			genbits != alloc_freespace_genbits(a), c,
-			"%s\n  incorrectly set in freespace index (free %u, genbits %llu should be %llu)",
+	if (fsck_err_on(bucket_state(a) != state ||
+			(state == BUCKET_free &&
+			 genbits != alloc_freespace_genbits(a)), c,
+			"%s\n  incorrectly set in %s index (free %u, genbits %llu should be %llu)",
 			(bch2_bkey_val_to_text(&buf, c, k), buf.buf),
-			bucket_state(a) == BUCKET_free,
+			bch2_btree_ids[iter->btree_id],
+			bucket_state(a) == state,
 			genbits >> 56, alloc_freespace_genbits(a) >> 56))
 		goto delete;
 out:
@@ -734,42 +704,35 @@ fsck_err:
 	printbuf_exit(&buf);
 	return ret;
 delete:
-	update = bch2_trans_kmalloc(trans, sizeof(*update));
-	ret = PTR_ERR_OR_ZERO(update);
-	if (ret)
-		goto err;
+	if (iter->btree_id == BTREE_ID_freespace) {
+		/* should probably add a helper for deleting extents */
+		update = bch2_trans_kmalloc(trans, sizeof(*update));
+		ret = PTR_ERR_OR_ZERO(update);
+		if (ret)
+			goto err;
 
-	bkey_init(&update->k);
-	update->k.p = freespace_iter->pos;
-	bch2_key_resize(&update->k, 1);
+		bkey_init(&update->k);
+		update->k.p = iter->pos;
+		bch2_key_resize(&update->k, 1);
 
-	ret   = bch2_trans_update(trans, freespace_iter, update, 0) ?:
-		bch2_trans_commit(trans, NULL, NULL, 0);
+		ret = bch2_trans_update(trans, iter, update, 0);
+	} else {
+		ret = bch2_btree_delete_at(trans, iter, 0);
+	}
 	goto out;
 }
 
-int bch2_check_alloc_info(struct bch_fs *c, bool initial)
+int bch2_check_alloc_info(struct bch_fs *c)
 {
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	int ret = 0, last_dev = -1;
+	int ret = 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
 			   BTREE_ITER_PREFETCH, k, ret) {
-		if (k.k->p.inode != last_dev) {
-			struct bch_dev *ca = bch_dev_bkey_exists(c, k.k->p.inode);
-
-			if (!ca->mi.freespace_initialized) {
-				bch2_btree_iter_set_pos(&iter, POS(k.k->p.inode + 1, 0));
-				continue;
-			}
-
-			last_dev = k.k->p.inode;
-		}
-
 		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
 			bch2_check_alloc_key(&trans, &iter));
 		if (ret)
@@ -780,11 +743,26 @@ int bch2_check_alloc_info(struct bch_fs *c, bool initial)
 	if (ret)
 		goto err;
 
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_need_discard, POS_MIN,
+			     BTREE_ITER_PREFETCH);
+	while (1) {
+		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+			bch2_check_discard_freespace_key(&trans, &iter));
+		if (ret)
+			break;
+
+		bch2_btree_iter_set_pos(&iter, bpos_nosnap_successor(iter.pos));
+	}
+	bch2_trans_iter_exit(&trans, &iter);
+
+	if (ret)
+		goto err;
+
 	bch2_trans_iter_init(&trans, &iter, BTREE_ID_freespace, POS_MIN,
 			     BTREE_ITER_PREFETCH);
 	while (1) {
 		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
-			bch2_check_freespace_key(&trans, &iter, initial));
+			bch2_check_discard_freespace_key(&trans, &iter));
 		if (ret)
 			break;
 

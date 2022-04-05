@@ -511,13 +511,8 @@ int bch2_mark_alloc(struct btree_trans *trans,
 	u64 journal_seq = trans->journal_res.seq;
 	struct bch_fs *c = trans->c;
 	struct bch_alloc_v4 old_a, new_a;
-	struct bch_dev *ca = bch_dev_bkey_exists(c, new.k->p.inode);
+	struct bch_dev *ca;
 	int ret = 0;
-
-	if (bch2_trans_inconsistent_on(new.k->p.offset < ca->mi.first_bucket ||
-				       new.k->p.offset >= ca->mi.nbuckets, trans,
-				       "alloc key outside range of device's buckets"))
-		return -EIO;
 
 	/*
 	 * alloc btree is read in by bch2_alloc_read, not gc:
@@ -525,6 +520,12 @@ int bch2_mark_alloc(struct btree_trans *trans,
 	if ((flags & BTREE_TRIGGER_GC) &&
 	    !(flags & BTREE_TRIGGER_BUCKET_INVALIDATE))
 		return 0;
+
+	if (bch2_trans_inconsistent_on(!bch2_dev_bucket_exists(c, new.k->p), trans,
+				       "alloc key for invalid device or bucket"))
+		return -EIO;
+
+	ca = bch_dev_bkey_exists(c, new.k->p.inode);
 
 	bch2_alloc_to_v4(old, &old_a);
 	bch2_alloc_to_v4(new, &new_a);

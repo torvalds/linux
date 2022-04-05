@@ -1237,7 +1237,7 @@ use_clean:
 	if (c->opts.fsck) {
 		bch_info(c, "checking need_discard and freespace btrees");
 		err = "error checking need_discard and freespace btrees";
-		ret = bch2_check_alloc_info(c, true);
+		ret = bch2_check_alloc_info(c);
 		if (ret)
 			goto err;
 
