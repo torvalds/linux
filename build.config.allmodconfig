@@ -5,7 +5,6 @@ function update_config() {
     ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
          -e UNWINDER_FRAME_POINTER \
          -d WERROR \
-         -d PINCTRL_THUNDERBAY \
          -d SAMPLES \
          -d BPFILTER \
 
