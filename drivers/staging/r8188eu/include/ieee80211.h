@@ -123,24 +123,6 @@ enum NETWORK_TYPE {
 	WIRELESS_11BG_24N = (WIRELESS_11B | WIRELESS_11G | WIRELESS_11_24N),
 };
 
-#define SUPPORTED_24G_NETTYPE_MSK				\
-	 (WIRELESS_11B | WIRELESS_11G | WIRELESS_11_24N)
-
-#define IsSupported24G(NetType)					\
-	((NetType) & SUPPORTED_24G_NETTYPE_MSK ? true : false)
-
-#define IsEnableHWCCK(NetType)					\
-	IsSupported24G(NetType)
-
-#define IsSupportedRxCCK(NetType) IsEnableHWCCK(NetType)
-
-#define IsSupportedTxCCK(NetType)				\
-	((NetType) & (WIRELESS_11B) ? true : false)
-#define IsSupportedTxOFDM(NetType)				\
-	((NetType) & (WIRELESS_11G) ? true : false)
-#define IsSupportedTxMCS(NetType)				\
-	((NetType) & (WIRELESS_11_24N) ? true : false)
-
 struct ieee_param {
 	u32 cmd;
 	u8 sta_addr[ETH_ALEN];
