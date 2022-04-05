@@ -144,7 +144,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 			container_of(itr, struct arm_spe_recording, itr);
 	struct perf_pmu *arm_spe_pmu = sper->arm_spe_pmu;
 	struct evsel *evsel, *arm_spe_evsel = NULL;
-	struct perf_cpu_map *cpus = evlist->core.cpus;
+	struct perf_cpu_map *cpus = evlist->core.user_requested_cpus;
 	bool privileged = perf_event_paranoid_check(-1);
 	struct evsel *tracking_evsel;
 	int err;
@@ -158,7 +158,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 				return -EINVAL;
 			}
 			evsel->core.attr.freq = 0;
-			evsel->core.attr.sample_period = 1;
+			evsel->core.attr.sample_period = arm_spe_pmu->default_config->sample_period;
 			arm_spe_evsel = evsel;
 			opts->full_auxtrace = true;
 		}

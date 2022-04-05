@@ -1,0 +1,126 @@
+# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/panel-mipi-dbi-spi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MIPI DBI SPI Panel
+
+maintainers:
+  - Noralf Trønnes <noralf@tronnes.org>
+
+description: |
+  This binding is for display panels using a MIPI DBI compatible controller
+  in SPI mode.
+
+  The MIPI Alliance Standard for Display Bus Interface defines the electrical
+  and logical interfaces for display controllers historically used in mobile
+  phones. The standard defines 4 display architecture types and this binding is
+  for type 1 which has full frame memory. There are 3 interface types in the
+  standard and type C is the serial interface.
+
+  The standard defines the following interface signals for type C:
+  - Power:
+    - Vdd: Power supply for display module
+    - Vddi: Logic level supply for interface signals
+    Combined into one in this binding called: power-supply
+  - Interface:
+    - CSx: Chip select
+    - SCL: Serial clock
+    - Dout: Serial out
+    - Din: Serial in
+    - SDA: Bidrectional in/out
+    - D/CX: Data/command selection, high=data, low=command
+      Called dc-gpios in this binding.
+    - RESX: Reset when low
+      Called reset-gpios in this binding.
+
+  The type C interface has 3 options:
+
+    - Option 1: 9-bit mode and D/CX as the 9th bit
+      |              Command              |  the next command or following data  |
+      |<0><D7><D6><D5><D4><D3><D2><D1><D0>|<D/CX><D7><D6><D5><D4><D3><D2><D1><D0>|
+
+    - Option 2: 16-bit mode and D/CX as a 9th bit
+      |              Command or data                              |
+      |<X><X><X><X><X><X><X><D/CX><D7><D6><D5><D4><D3><D2><D1><D0>|
+
+    - Option 3: 8-bit mode and D/CX as a separate interface line
+      |        Command or data         |
+      |<D7><D6><D5><D4><D3><D2><D1><D0>|
+
+  The panel resolution is specified using the panel-timing node properties
+  hactive (width) and vactive (height). The other mandatory panel-timing
+  properties should be set to zero except clock-frequency which can be
+  optionally set to inform about the actual pixel clock frequency.
+
+  If the panel is wired to the controller at an offset specify this using
+  hback-porch (x-offset) and vback-porch (y-offset).
+
+allOf:
+  - $ref: panel-common.yaml#
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - sainsmart18
+      - const: panel-mipi-dbi-spi
+
+  write-only:
+    type: boolean
+    description:
+      Controller is not readable (ie. Din (MISO on the SPI interface) is not
+      wired up).
+
+  dc-gpios:
+    maxItems: 1
+    description: |
+      Controller data/command selection (D/CX) in 4-line SPI mode.
+      If not set, the controller is in 3-line SPI mode.
+
+required:
+  - compatible
+  - reg
+  - panel-timing
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        display@0{
+            compatible = "sainsmart18", "panel-mipi-dbi-spi";
+            reg = <0>;
+            spi-max-frequency = <40000000>;
+
+            dc-gpios = <&gpio 24 GPIO_ACTIVE_HIGH>;
+            reset-gpios = <&gpio 25 GPIO_ACTIVE_HIGH>;
+            write-only;
+
+            backlight = <&backlight>;
+
+            width-mm = <35>;
+            height-mm = <28>;
+
+            panel-timing {
+                hactive = <160>;
+                vactive = <128>;
+                hback-porch = <0>;
+                vback-porch = <0>;
+                clock-frequency = <0>;
+                hfront-porch = <0>;
+                hsync-len = <0>;
+                vfront-porch = <0>;
+                vsync-len = <0>;
+            };
+        };
+    };
+
+...

@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/v4l2-subdev.h>
 #include <media/media-entity.h>
+#include <media/mipi-csi2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
@@ -115,23 +116,6 @@
 #define XCSI_DEFAULT_WIDTH	1920
 #define XCSI_DEFAULT_HEIGHT	1080
 
-/* MIPI CSI-2 Data Types from spec */
-#define XCSI_DT_YUV4228B	0x1e
-#define XCSI_DT_YUV42210B	0x1f
-#define XCSI_DT_RGB444		0x20
-#define XCSI_DT_RGB555		0x21
-#define XCSI_DT_RGB565		0x22
-#define XCSI_DT_RGB666		0x23
-#define XCSI_DT_RGB888		0x24
-#define XCSI_DT_RAW6		0x28
-#define XCSI_DT_RAW7		0x29
-#define XCSI_DT_RAW8		0x2a
-#define XCSI_DT_RAW10		0x2b
-#define XCSI_DT_RAW12		0x2c
-#define XCSI_DT_RAW14		0x2d
-#define XCSI_DT_RAW16		0x2e
-#define XCSI_DT_RAW20		0x2f
-
 #define XCSI_VCX_START		4
 #define XCSI_MAX_VC		4
 #define XCSI_MAX_VCX		16
@@ -183,32 +167,32 @@ static const struct xcsi2rxss_event xcsi2rxss_events[] = {
  * and media bus formats
  */
 static const u32 xcsi2dt_mbus_lut[][2] = {
-	{ XCSI_DT_YUV4228B, MEDIA_BUS_FMT_UYVY8_1X16 },
-	{ XCSI_DT_YUV42210B, MEDIA_BUS_FMT_UYVY10_1X20 },
-	{ XCSI_DT_RGB444, 0 },
-	{ XCSI_DT_RGB555, 0 },
-	{ XCSI_DT_RGB565, 0 },
-	{ XCSI_DT_RGB666, 0 },
-	{ XCSI_DT_RGB888, MEDIA_BUS_FMT_RBG888_1X24 },
-	{ XCSI_DT_RAW6, 0 },
-	{ XCSI_DT_RAW7, 0 },
-	{ XCSI_DT_RAW8, MEDIA_BUS_FMT_SRGGB8_1X8 },
-	{ XCSI_DT_RAW8, MEDIA_BUS_FMT_SBGGR8_1X8 },
-	{ XCSI_DT_RAW8, MEDIA_BUS_FMT_SGBRG8_1X8 },
-	{ XCSI_DT_RAW8, MEDIA_BUS_FMT_SGRBG8_1X8 },
-	{ XCSI_DT_RAW10, MEDIA_BUS_FMT_SRGGB10_1X10 },
-	{ XCSI_DT_RAW10, MEDIA_BUS_FMT_SBGGR10_1X10 },
-	{ XCSI_DT_RAW10, MEDIA_BUS_FMT_SGBRG10_1X10 },
-	{ XCSI_DT_RAW10, MEDIA_BUS_FMT_SGRBG10_1X10 },
-	{ XCSI_DT_RAW12, MEDIA_BUS_FMT_SRGGB12_1X12 },
-	{ XCSI_DT_RAW12, MEDIA_BUS_FMT_SBGGR12_1X12 },
-	{ XCSI_DT_RAW12, MEDIA_BUS_FMT_SGBRG12_1X12 },
-	{ XCSI_DT_RAW12, MEDIA_BUS_FMT_SGRBG12_1X12 },
-	{ XCSI_DT_RAW16, MEDIA_BUS_FMT_SRGGB16_1X16 },
-	{ XCSI_DT_RAW16, MEDIA_BUS_FMT_SBGGR16_1X16 },
-	{ XCSI_DT_RAW16, MEDIA_BUS_FMT_SGBRG16_1X16 },
-	{ XCSI_DT_RAW16, MEDIA_BUS_FMT_SGRBG16_1X16 },
-	{ XCSI_DT_RAW20, 0 },
+	{ MIPI_CSI2_DT_YUV422_8B, MEDIA_BUS_FMT_UYVY8_1X16 },
+	{ MIPI_CSI2_DT_YUV422_10B, MEDIA_BUS_FMT_UYVY10_1X20 },
+	{ MIPI_CSI2_DT_RGB444, 0 },
+	{ MIPI_CSI2_DT_RGB555, 0 },
+	{ MIPI_CSI2_DT_RGB565, 0 },
+	{ MIPI_CSI2_DT_RGB666, 0 },
+	{ MIPI_CSI2_DT_RGB888, MEDIA_BUS_FMT_RBG888_1X24 },
+	{ MIPI_CSI2_DT_RAW6, 0 },
+	{ MIPI_CSI2_DT_RAW7, 0 },
+	{ MIPI_CSI2_DT_RAW8, MEDIA_BUS_FMT_SRGGB8_1X8 },
+	{ MIPI_CSI2_DT_RAW8, MEDIA_BUS_FMT_SBGGR8_1X8 },
+	{ MIPI_CSI2_DT_RAW8, MEDIA_BUS_FMT_SGBRG8_1X8 },
+	{ MIPI_CSI2_DT_RAW8, MEDIA_BUS_FMT_SGRBG8_1X8 },
+	{ MIPI_CSI2_DT_RAW10, MEDIA_BUS_FMT_SRGGB10_1X10 },
+	{ MIPI_CSI2_DT_RAW10, MEDIA_BUS_FMT_SBGGR10_1X10 },
+	{ MIPI_CSI2_DT_RAW10, MEDIA_BUS_FMT_SGBRG10_1X10 },
+	{ MIPI_CSI2_DT_RAW10, MEDIA_BUS_FMT_SGRBG10_1X10 },
+	{ MIPI_CSI2_DT_RAW12, MEDIA_BUS_FMT_SRGGB12_1X12 },
+	{ MIPI_CSI2_DT_RAW12, MEDIA_BUS_FMT_SBGGR12_1X12 },
+	{ MIPI_CSI2_DT_RAW12, MEDIA_BUS_FMT_SGBRG12_1X12 },
+	{ MIPI_CSI2_DT_RAW12, MEDIA_BUS_FMT_SGRBG12_1X12 },
+	{ MIPI_CSI2_DT_RAW16, MEDIA_BUS_FMT_SRGGB16_1X16 },
+	{ MIPI_CSI2_DT_RAW16, MEDIA_BUS_FMT_SBGGR16_1X16 },
+	{ MIPI_CSI2_DT_RAW16, MEDIA_BUS_FMT_SGBRG16_1X16 },
+	{ MIPI_CSI2_DT_RAW16, MEDIA_BUS_FMT_SGRBG16_1X16 },
+	{ MIPI_CSI2_DT_RAW20, 0 },
 };
 
 /**
@@ -791,7 +775,7 @@ static int xcsi2rxss_set_format(struct v4l2_subdev *sd,
 	 * other RAW, YUV422 8/10 or RGB888, set appropriate media bus format.
 	 */
 	dt = xcsi2rxss_get_dt(fmt->format.code);
-	if (dt != xcsi2rxss->datatype && dt != XCSI_DT_RAW8) {
+	if (dt != xcsi2rxss->datatype && dt != MIPI_CSI2_DT_RAW8) {
 		dev_dbg(xcsi2rxss->dev, "Unsupported media bus format");
 		/* set the default format for the data type */
 		fmt->format.code = xcsi2rxss_get_nth_mbus(xcsi2rxss->datatype,
@@ -823,8 +807,8 @@ static int xcsi2rxss_enum_mbus_code(struct v4l2_subdev *sd,
 	/* RAW8 dt packets are available in all DT configurations */
 	if (code->index < 4) {
 		n = code->index;
-		dt = XCSI_DT_RAW8;
-	} else if (state->datatype != XCSI_DT_RAW8) {
+		dt = MIPI_CSI2_DT_RAW8;
+	} else if (state->datatype != MIPI_CSI2_DT_RAW8) {
 		n = code->index - 4;
 		dt = state->datatype;
 	} else {
@@ -895,22 +879,22 @@ static int xcsi2rxss_parse_of(struct xcsi2rxss_state *xcsi2rxss)
 	}
 
 	switch (xcsi2rxss->datatype) {
-	case XCSI_DT_YUV4228B:
-	case XCSI_DT_RGB444:
-	case XCSI_DT_RGB555:
-	case XCSI_DT_RGB565:
-	case XCSI_DT_RGB666:
-	case XCSI_DT_RGB888:
-	case XCSI_DT_RAW6:
-	case XCSI_DT_RAW7:
-	case XCSI_DT_RAW8:
-	case XCSI_DT_RAW10:
-	case XCSI_DT_RAW12:
-	case XCSI_DT_RAW14:
+	case MIPI_CSI2_DT_YUV422_8B:
+	case MIPI_CSI2_DT_RGB444:
+	case MIPI_CSI2_DT_RGB555:
+	case MIPI_CSI2_DT_RGB565:
+	case MIPI_CSI2_DT_RGB666:
+	case MIPI_CSI2_DT_RGB888:
+	case MIPI_CSI2_DT_RAW6:
+	case MIPI_CSI2_DT_RAW7:
+	case MIPI_CSI2_DT_RAW8:
+	case MIPI_CSI2_DT_RAW10:
+	case MIPI_CSI2_DT_RAW12:
+	case MIPI_CSI2_DT_RAW14:
 		break;
-	case XCSI_DT_YUV42210B:
-	case XCSI_DT_RAW16:
-	case XCSI_DT_RAW20:
+	case MIPI_CSI2_DT_YUV422_10B:
+	case MIPI_CSI2_DT_RAW16:
+	case MIPI_CSI2_DT_RAW20:
 		if (!en_csi_v20) {
 			ret = -EINVAL;
 			dev_dbg(dev, "enable csi v2 for this pixel format");

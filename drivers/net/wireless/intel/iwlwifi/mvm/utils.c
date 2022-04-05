@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -169,8 +169,7 @@ int iwl_mvm_legacy_rate_to_mac80211_idx(u32 rate_n_flags,
 
 u8 iwl_mvm_mac80211_idx_to_hwrate(const struct iwl_fw *fw, int rate_idx)
 {
-	if (iwl_fw_lookup_cmd_ver(fw, LONG_GROUP,
-				  TX_CMD, 0) > 8)
+	if (iwl_fw_lookup_cmd_ver(fw, TX_CMD, 0) > 8)
 		/* In the new rate legacy rates are indexed:
 		 * 0 - 3 for CCK and 0 - 7 for OFDM.
 		 */
@@ -239,38 +238,6 @@ u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx)
 
 	WARN_ONCE(1, "Failed to toggle between antennas 0x%x", valid);
 	return last_idx;
-}
-
-int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,
-			 int tid, int frame_limit, u16 ssn)
-{
-	struct iwl_scd_txq_cfg_cmd cmd = {
-		.scd_queue = queue,
-		.action = SCD_CFG_ENABLE_QUEUE,
-		.window = frame_limit,
-		.sta_id = sta_id,
-		.ssn = cpu_to_le16(ssn),
-		.tx_fifo = fifo,
-		.aggregate = (queue >= IWL_MVM_DQA_MIN_DATA_QUEUE ||
-			      queue == IWL_MVM_DQA_BSS_CLIENT_QUEUE),
-		.tid = tid,
-	};
-	int ret;
-
-	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
-		return -EINVAL;
-
-	if (WARN(mvm->queue_info[queue].tid_bitmap == 0,
-		 "Trying to reconfig unallocated queue %d\n", queue))
-		return -ENXIO;
-
-	IWL_DEBUG_TX_QUEUES(mvm, "Reconfig SCD for TXQ #%d\n", queue);
-
-	ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd), &cmd);
-	WARN_ONCE(ret, "Failed to re-configure queue %d on FIFO %d, ret=%d\n",
-		  queue, fifo, ret);
-
-	return ret;
 }
 
 /**
@@ -480,8 +447,7 @@ void iwl_mvm_send_low_latency_cmd(struct iwl_mvm *mvm,
 		cmd.low_latency_tx = 1;
 	}
 
-	if (iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(LOW_LATENCY_CMD,
-						 MAC_CONF_GROUP, 0),
+	if (iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(MAC_CONF_GROUP, LOW_LATENCY_CMD),
 				 0, sizeof(cmd), &cmd))
 		IWL_ERR(mvm, "Failed to send low latency command\n");
 }

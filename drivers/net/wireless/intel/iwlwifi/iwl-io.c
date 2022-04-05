@@ -65,14 +65,14 @@ IWL_EXPORT_SYMBOL(iwl_poll_bit);
 
 u32 iwl_read_direct32(struct iwl_trans *trans, u32 reg)
 {
-	u32 value = 0x5a5a5a5a;
-
 	if (iwl_trans_grab_nic_access(trans)) {
-		value = iwl_read32(trans, reg);
+		u32 value = iwl_read32(trans, reg);
+
 		iwl_trans_release_nic_access(trans);
+		return value;
 	}
 
-	return value;
+	return 0x5a5a5a5a;
 }
 IWL_EXPORT_SYMBOL(iwl_read_direct32);
 
@@ -135,13 +135,15 @@ IWL_EXPORT_SYMBOL(iwl_write_prph64_no_grab);
 
 u32 iwl_read_prph(struct iwl_trans *trans, u32 ofs)
 {
-	u32 val = 0x5a5a5a5a;
-
 	if (iwl_trans_grab_nic_access(trans)) {
-		val = iwl_read_prph_no_grab(trans, ofs);
+		u32 val = iwl_read_prph_no_grab(trans, ofs);
+
 		iwl_trans_release_nic_access(trans);
+
+		return val;
 	}
-	return val;
+
+	return 0x5a5a5a5a;
 }
 IWL_EXPORT_SYMBOL(iwl_read_prph);
 

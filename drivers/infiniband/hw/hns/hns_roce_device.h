@@ -561,6 +561,15 @@ struct hns_roce_cmd_mailbox {
 	dma_addr_t		dma;
 };
 
+struct hns_roce_mbox_msg {
+	u64 in_param;
+	u64 out_param;
+	u8 cmd;
+	u32 tag;
+	u16 token;
+	u8 event_en;
+};
+
 struct hns_roce_dev;
 
 struct hns_roce_rinl_sge {
@@ -624,6 +633,7 @@ struct hns_roce_qp {
 	u32			next_sge;
 	enum ib_mtu		path_mtu;
 	u32			max_inline_data;
+	u8			free_mr_en;
 
 	/* 0: flush needed, 1: unneeded */
 	unsigned long		flush_flag;
@@ -851,11 +861,9 @@ struct hns_roce_hw {
 	int (*hw_profile)(struct hns_roce_dev *hr_dev);
 	int (*hw_init)(struct hns_roce_dev *hr_dev);
 	void (*hw_exit)(struct hns_roce_dev *hr_dev);
-	int (*post_mbox)(struct hns_roce_dev *hr_dev, u64 in_param,
-			 u64 out_param, u32 in_modifier, u8 op_modifier, u16 op,
-			 u16 token, int event);
-	int (*poll_mbox_done)(struct hns_roce_dev *hr_dev,
-			      unsigned int timeout);
+	int (*post_mbox)(struct hns_roce_dev *hr_dev,
+			 struct hns_roce_mbox_msg *mbox_msg);
+	int (*poll_mbox_done)(struct hns_roce_dev *hr_dev);
 	bool (*chk_mbox_avail)(struct hns_roce_dev *hr_dev, bool *is_busy);
 	int (*set_gid)(struct hns_roce_dev *hr_dev, int gid_index,
 		       const union ib_gid *gid, const struct ib_gid_attr *attr);
@@ -873,15 +881,16 @@ struct hns_roce_hw {
 			  struct hns_roce_cq *hr_cq, void *mb_buf, u64 *mtts,
 			  dma_addr_t dma_handle);
 	int (*set_hem)(struct hns_roce_dev *hr_dev,
-		       struct hns_roce_hem_table *table, int obj, int step_idx);
+		       struct hns_roce_hem_table *table, int obj, u32 step_idx);
 	int (*clear_hem)(struct hns_roce_dev *hr_dev,
 			 struct hns_roce_hem_table *table, int obj,
-			 int step_idx);
+			 u32 step_idx);
 	int (*modify_qp)(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			 int attr_mask, enum ib_qp_state cur_state,
 			 enum ib_qp_state new_state);
 	int (*qp_flow_control_init)(struct hns_roce_dev *hr_dev,
 			 struct hns_roce_qp *hr_qp);
+	void (*dereg_mr)(struct hns_roce_dev *hr_dev);
 	int (*init_eq)(struct hns_roce_dev *hr_dev);
 	void (*cleanup_eq)(struct hns_roce_dev *hr_dev);
 	int (*write_srqc)(struct hns_roce_srq *srq, void *mb_buf);
@@ -1145,9 +1154,6 @@ struct ib_mr *hns_roce_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 int hns_roce_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		       unsigned int *sg_offset);
 int hns_roce_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
-int hns_roce_hw_destroy_mpt(struct hns_roce_dev *hr_dev,
-			    struct hns_roce_cmd_mailbox *mailbox,
-			    unsigned long mpt_index);
 unsigned long key_to_hw_index(u32 key);
 
 int hns_roce_alloc_mw(struct ib_mw *mw, struct ib_udata *udata);

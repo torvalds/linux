@@ -96,8 +96,7 @@ patternProperties:
 
       rockchip,boot-ecc-strength:
         enum: [16, 24, 40, 60, 70]
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
+        $ref: /schemas/types.yaml#/definitions/uint32
         description: |
           If specified it indicates that a different BCH/ECC setting is
           supported by the boot ROM.

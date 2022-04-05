@@ -185,9 +185,9 @@ static const struct address_space_operations zonefs_file_aops = {
 	.readahead		= zonefs_readahead,
 	.writepage		= zonefs_writepage,
 	.writepages		= zonefs_writepages,
-	.set_page_dirty		= __set_page_dirty_nobuffers,
+	.dirty_folio		= filemap_dirty_folio,
 	.releasepage		= iomap_releasepage,
-	.invalidatepage		= iomap_invalidatepage,
+	.invalidate_folio	= iomap_invalidate_folio,
 	.migratepage		= iomap_migrate_page,
 	.is_partially_uptodate	= iomap_is_partially_uptodate,
 	.error_remove_page	= generic_error_remove_page,
@@ -692,12 +692,10 @@ static ssize_t zonefs_file_dio_append(struct kiocb *iocb, struct iov_iter *from)
 	if (!nr_pages)
 		return 0;
 
-	bio = bio_alloc(GFP_NOFS, nr_pages);
-	bio_set_dev(bio, bdev);
+	bio = bio_alloc(bdev, nr_pages,
+			REQ_OP_ZONE_APPEND | REQ_SYNC | REQ_IDLE, GFP_NOFS);
 	bio->bi_iter.bi_sector = zi->i_zsector;
-	bio->bi_write_hint = iocb->ki_hint;
 	bio->bi_ioprio = iocb->ki_ioprio;
-	bio->bi_opf = REQ_OP_ZONE_APPEND | REQ_SYNC | REQ_IDLE;
 	if (iocb->ki_flags & IOCB_DSYNC)
 		bio->bi_opf |= REQ_FUA;
 
@@ -1137,7 +1135,7 @@ static struct inode *zonefs_alloc_inode(struct super_block *sb)
 {
 	struct zonefs_inode_info *zi;
 
-	zi = kmem_cache_alloc(zonefs_inode_cachep, GFP_KERNEL);
+	zi = alloc_inode_sb(sb, zonefs_inode_cachep, GFP_KERNEL);
 	if (!zi)
 		return NULL;
 
@@ -1541,10 +1539,8 @@ static int zonefs_read_super(struct super_block *sb)
 	if (!page)
 		return -ENOMEM;
 
-	bio_init(&bio, &bio_vec, 1);
+	bio_init(&bio, sb->s_bdev, &bio_vec, 1, REQ_OP_READ);
 	bio.bi_iter.bi_sector = 0;
-	bio.bi_opf = REQ_OP_READ;
-	bio_set_dev(&bio, sb->s_bdev);
 	bio_add_page(&bio, page, PAGE_SIZE, 0);
 
 	ret = submit_bio_wait(&bio);

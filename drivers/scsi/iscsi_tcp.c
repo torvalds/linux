@@ -1007,6 +1007,7 @@ static struct scsi_host_template iscsi_sw_tcp_sht = {
 	.proc_name		= "iscsi_tcp",
 	.this_id		= -1,
 	.track_queue_depth	= 1,
+	.cmd_size		= sizeof(struct iscsi_cmd),
 };
 
 static struct iscsi_transport iscsi_sw_tcp_transport = {

@@ -196,7 +196,7 @@ static void ldisc_receive(struct tty_struct *tty, const u8 *data,
 	skb_reset_mac_header(skb);
 	debugfs_rx(ser, data, count);
 	/* Push received packet up the stack. */
-	ret = netif_rx_ni(skb);
+	ret = netif_rx(skb);
 	if (!ret) {
 		ser->dev->stats.rx_packets++;
 		ser->dev->stats.rx_bytes += count;

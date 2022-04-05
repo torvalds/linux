@@ -108,7 +108,7 @@
 		reg = <0x00 0x42110000 0x00 0x100>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		interrupt-parent = <&main_gpio_intr>;
+		interrupt-parent = <&wkup_gpio_intr>;
 		interrupts = <103>, <104>, <105>, <106>, <107>, <108>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
@@ -124,7 +124,7 @@
 		reg = <0x00 0x42100000 0x00 0x100>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		interrupt-parent = <&main_gpio_intr>;
+		interrupt-parent = <&wkup_gpio_intr>;
 		interrupts = <112>, <113>, <114>, <115>, <116>, <117>;
 		interrupt-controller;
 		#interrupt-cells = <2>;

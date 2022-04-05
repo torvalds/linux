@@ -15,6 +15,7 @@
 #include <linux/of_mdio.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 
 #define MSCC_MIIM_REG_STATUS		0x0
@@ -36,11 +37,19 @@
 #define		PHY_CFG_PHY_RESET	(BIT(5) | BIT(6) | BIT(7) | BIT(8))
 #define MSCC_PHY_REG_PHY_STATUS	0x4
 
+#define LAN966X_CUPHY_COMMON_CFG	0x0
+#define		CUPHY_COMMON_CFG_RESET_N	BIT(0)
+
+struct mscc_miim_info {
+	unsigned int phy_reset_offset;
+	unsigned int phy_reset_bits;
+};
+
 struct mscc_miim_dev {
 	struct regmap *regs;
 	int mii_status_offset;
 	struct regmap *phy_regs;
-	int phy_reset_offset;
+	const struct mscc_miim_info *info;
 };
 
 /* When high resolution timers aren't built-in: we can't use usleep_range() as
@@ -157,26 +166,28 @@ out:
 static int mscc_miim_reset(struct mii_bus *bus)
 {
 	struct mscc_miim_dev *miim = bus->priv;
-	int offset = miim->phy_reset_offset;
+	unsigned int offset, bits;
 	int ret;
 
-	if (miim->phy_regs) {
-		ret = regmap_write(miim->phy_regs,
-				   MSCC_PHY_REG_PHY_CFG + offset, 0);
-		if (ret < 0) {
-			WARN_ONCE(1, "mscc reset set error %d\n", ret);
-			return ret;
-		}
+	if (!miim->phy_regs)
+		return 0;
 
-		ret = regmap_write(miim->phy_regs,
-				   MSCC_PHY_REG_PHY_CFG + offset, 0x1ff);
-		if (ret < 0) {
-			WARN_ONCE(1, "mscc reset clear error %d\n", ret);
-			return ret;
-		}
+	offset = miim->info->phy_reset_offset;
+	bits = miim->info->phy_reset_bits;
 
-		mdelay(500);
+	ret = regmap_update_bits(miim->phy_regs, offset, bits, 0);
+	if (ret < 0) {
+		WARN_ONCE(1, "mscc reset set error %d\n", ret);
+		return ret;
 	}
+
+	ret = regmap_update_bits(miim->phy_regs, offset, bits, bits);
+	if (ret < 0) {
+		WARN_ONCE(1, "mscc reset clear error %d\n", ret);
+		return ret;
+	}
+
+	mdelay(500);
 
 	return 0;
 }
@@ -185,6 +196,13 @@ static const struct regmap_config mscc_miim_regmap_config = {
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,
+};
+
+static const struct regmap_config mscc_miim_phy_regmap_config = {
+	.reg_bits	= 32,
+	.val_bits	= 32,
+	.reg_stride	= 4,
+	.name		= "phy",
 };
 
 int mscc_miim_setup(struct device *dev, struct mii_bus **pbus, const char *name,
@@ -250,7 +268,7 @@ static int mscc_miim_probe(struct platform_device *pdev)
 		}
 
 		phy_regmap = devm_regmap_init_mmio(&pdev->dev, phy_regs,
-						   &mscc_miim_regmap_config);
+						   &mscc_miim_phy_regmap_config);
 		if (IS_ERR(phy_regmap)) {
 			dev_err(&pdev->dev, "Unable to create phy register regmap\n");
 			return PTR_ERR(phy_regmap);
@@ -265,7 +283,10 @@ static int mscc_miim_probe(struct platform_device *pdev)
 
 	miim = bus->priv;
 	miim->phy_regs = phy_regmap;
-	miim->phy_reset_offset = 0;
+
+	miim->info = device_get_match_data(&pdev->dev);
+	if (!miim->info)
+		return -EINVAL;
 
 	ret = of_mdiobus_register(bus, pdev->dev.of_node);
 	if (ret < 0) {
@@ -287,8 +308,25 @@ static int mscc_miim_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct mscc_miim_info mscc_ocelot_miim_info = {
+	.phy_reset_offset = MSCC_PHY_REG_PHY_CFG,
+	.phy_reset_bits = PHY_CFG_PHY_ENA | PHY_CFG_PHY_COMMON_RESET |
+			  PHY_CFG_PHY_RESET,
+};
+
+static const struct mscc_miim_info microchip_lan966x_miim_info = {
+	.phy_reset_offset = LAN966X_CUPHY_COMMON_CFG,
+	.phy_reset_bits = CUPHY_COMMON_CFG_RESET_N,
+};
+
 static const struct of_device_id mscc_miim_match[] = {
-	{ .compatible = "mscc,ocelot-miim" },
+	{
+		.compatible = "mscc,ocelot-miim",
+		.data = &mscc_ocelot_miim_info
+	}, {
+		.compatible = "microchip,lan966x-miim",
+		.data = &microchip_lan966x_miim_info
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mscc_miim_match);

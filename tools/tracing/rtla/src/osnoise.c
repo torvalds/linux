@@ -656,6 +656,85 @@ void osnoise_put_print_stack(struct osnoise_context *context)
 }
 
 /*
+ * osnoise_get_tracing_thresh - read and save the original "tracing_thresh"
+ */
+static long long
+osnoise_get_tracing_thresh(struct osnoise_context *context)
+{
+	long long tracing_thresh;
+
+	if (context->tracing_thresh != OSNOISE_OPTION_INIT_VAL)
+		return context->tracing_thresh;
+
+	if (context->orig_tracing_thresh != OSNOISE_OPTION_INIT_VAL)
+		return context->orig_tracing_thresh;
+
+	tracing_thresh = osnoise_read_ll_config("tracing_thresh");
+	if (tracing_thresh < 0)
+		goto out_err;
+
+	context->orig_tracing_thresh = tracing_thresh;
+	return tracing_thresh;
+
+out_err:
+	return OSNOISE_OPTION_INIT_VAL;
+}
+
+/*
+ * osnoise_set_tracing_thresh - set "tracing_thresh"
+ */
+int osnoise_set_tracing_thresh(struct osnoise_context *context, long long tracing_thresh)
+{
+	long long curr_tracing_thresh = osnoise_get_tracing_thresh(context);
+	int retval;
+
+	if (curr_tracing_thresh == OSNOISE_OPTION_INIT_VAL)
+		return -1;
+
+	retval = osnoise_write_ll_config("tracing_thresh", tracing_thresh);
+	if (retval < 0)
+		return -1;
+
+	context->tracing_thresh = tracing_thresh;
+
+	return 0;
+}
+
+/*
+ * osnoise_restore_tracing_thresh - restore the original "tracing_thresh"
+ */
+void osnoise_restore_tracing_thresh(struct osnoise_context *context)
+{
+	int retval;
+
+	if (context->orig_tracing_thresh == OSNOISE_OPTION_INIT_VAL)
+		return;
+
+	if (context->orig_tracing_thresh == context->tracing_thresh)
+		goto out_done;
+
+	retval = osnoise_write_ll_config("tracing_thresh", context->orig_tracing_thresh);
+	if (retval < 0)
+		err_msg("Could not restore original tracing_thresh\n");
+
+out_done:
+	context->tracing_thresh = OSNOISE_OPTION_INIT_VAL;
+}
+
+/*
+ * osnoise_put_tracing_thresh - restore original values and cleanup data
+ */
+void osnoise_put_tracing_thresh(struct osnoise_context *context)
+{
+	osnoise_restore_tracing_thresh(context);
+
+	if (context->orig_tracing_thresh == OSNOISE_OPTION_INIT_VAL)
+		return;
+
+	context->orig_tracing_thresh = OSNOISE_OPTION_INIT_VAL;
+}
+
+/*
  * enable_osnoise - enable osnoise tracer in the trace_instance
  */
 int enable_osnoise(struct trace_instance *trace)
@@ -716,6 +795,9 @@ struct osnoise_context *osnoise_context_alloc(void)
 	context->orig_print_stack	= OSNOISE_OPTION_INIT_VAL;
 	context->print_stack		= OSNOISE_OPTION_INIT_VAL;
 
+	context->orig_tracing_thresh	= OSNOISE_OPTION_INIT_VAL;
+	context->tracing_thresh		= OSNOISE_OPTION_INIT_VAL;
+
 	osnoise_get_context(context);
 
 	return context;
@@ -741,6 +823,7 @@ void osnoise_put_context(struct osnoise_context *context)
 	osnoise_put_stop_total_us(context);
 	osnoise_put_timerlat_period_us(context);
 	osnoise_put_print_stack(context);
+	osnoise_put_tracing_thresh(context);
 
 	free(context);
 }

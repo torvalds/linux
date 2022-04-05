@@ -136,11 +136,6 @@ static inline int between48(const u64 seq1, const u64 seq2, const u64 seq3)
 	return (seq3 << 16) - (seq2 << 16) >= (seq1 << 16) - (seq2 << 16);
 }
 
-static inline u64 max48(const u64 seq1, const u64 seq2)
-{
-	return after48(seq1, seq2) ? seq1 : seq2;
-}
-
 /**
  * dccp_loss_count - Approximate the number of lost data packets in a burst loss
  * @s1:  last known sequence number before the loss ('hole')

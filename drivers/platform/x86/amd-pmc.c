@@ -21,7 +21,6 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
-#include <linux/pm_qos.h>
 #include <linux/rtc.h>
 #include <linux/suspend.h>
 #include <linux/seq_file.h>
@@ -41,6 +40,16 @@
 #define AMD_PMC_STB_INDEX_DATA		0xFC
 #define AMD_PMC_STB_PMI_0		0x03E30600
 #define AMD_PMC_STB_PREDEF		0xC6000001
+
+/* STB S2D(Spill to DRAM) has different message port offset */
+#define STB_SPILL_TO_DRAM		0xBE
+#define AMD_S2D_REGISTER_MESSAGE	0xA20
+#define AMD_S2D_REGISTER_RESPONSE	0xA80
+#define AMD_S2D_REGISTER_ARGUMENT	0xA88
+
+/* STB Spill to DRAM Parameters */
+#define S2D_TELEMETRY_BYTES_MAX		0x100000
+#define S2D_TELEMETRY_DRAMBYTES_MAX	0x1000000
 
 /* Base address of SMU for mapping physical address to virtual address */
 #define AMD_PMC_SMU_INDEX_ADDRESS	0xB8
@@ -86,9 +95,6 @@
 #define PMC_MSG_DELAY_MIN_US		50
 #define RESPONSE_REGISTER_LOOP_MAX	20000
 
-/* QoS request for letting CPUs in idle states, but not the deepest */
-#define AMD_PMC_MAX_IDLE_STATE_LATENCY	3
-
 #define SOC_SUBSYSTEM_IP_MAX	12
 #define DELAY_MIN_US		2000
 #define DELAY_MAX_US		3000
@@ -97,6 +103,12 @@ enum amd_pmc_def {
 	MSG_TEST = 0x01,
 	MSG_OS_HINT_PCO,
 	MSG_OS_HINT_RN,
+};
+
+enum s2d_arg {
+	S2D_TELEMETRY_SIZE = 0x01,
+	S2D_PHYS_ADDR_LOW,
+	S2D_PHYS_ADDR_HIGH,
 };
 
 struct amd_pmc_bit_map {
@@ -123,7 +135,9 @@ static const struct amd_pmc_bit_map soc15_ip_blk[] = {
 struct amd_pmc_dev {
 	void __iomem *regbase;
 	void __iomem *smu_virt_addr;
+	void __iomem *stb_virt_addr;
 	void __iomem *fch_virt_addr;
+	bool msg_port;
 	u32 base_addr;
 	u32 cpu_id;
 	u32 active_ips;
@@ -135,7 +149,6 @@ struct amd_pmc_dev {
 	struct device *dev;
 	struct pci_dev *rdev;
 	struct mutex lock; /* generic mutex lock */
-	struct pm_qos_request amd_pmc_pm_qos_req;
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dentry *dbgfs_dir;
 #endif /* CONFIG_DEBUG_FS */
@@ -241,6 +254,44 @@ static const struct file_operations amd_pmc_stb_debugfs_fops = {
 	.release = amd_pmc_stb_debugfs_release,
 };
 
+static int amd_pmc_stb_debugfs_open_v2(struct inode *inode, struct file *filp)
+{
+	struct amd_pmc_dev *dev = filp->f_inode->i_private;
+	u32 *buf;
+
+	buf = kzalloc(S2D_TELEMETRY_BYTES_MAX, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	memcpy_fromio(buf, dev->stb_virt_addr, S2D_TELEMETRY_BYTES_MAX);
+	filp->private_data = buf;
+
+	return 0;
+}
+
+static ssize_t amd_pmc_stb_debugfs_read_v2(struct file *filp, char __user *buf, size_t size,
+					   loff_t *pos)
+{
+	if (!filp->private_data)
+		return -EINVAL;
+
+	return simple_read_from_buffer(buf, size, pos, filp->private_data,
+					S2D_TELEMETRY_BYTES_MAX);
+}
+
+static int amd_pmc_stb_debugfs_release_v2(struct inode *inode, struct file *filp)
+{
+	kfree(filp->private_data);
+	return 0;
+}
+
+static const struct file_operations amd_pmc_stb_debugfs_fops_v2 = {
+	.owner = THIS_MODULE,
+	.open = amd_pmc_stb_debugfs_open_v2,
+	.read = amd_pmc_stb_debugfs_read_v2,
+	.release = amd_pmc_stb_debugfs_release_v2,
+};
+
 static int amd_pmc_idlemask_read(struct amd_pmc_dev *pdev, struct device *dev,
 				 struct seq_file *s)
 {
@@ -266,6 +317,28 @@ static int amd_pmc_idlemask_read(struct amd_pmc_dev *pdev, struct device *dev,
 	return 0;
 }
 
+static int get_metrics_table(struct amd_pmc_dev *pdev, struct smu_metrics *table)
+{
+	if (pdev->cpu_id == AMD_CPU_ID_PCO)
+		return -ENODEV;
+	memcpy_fromio(table, pdev->smu_virt_addr, sizeof(struct smu_metrics));
+	return 0;
+}
+
+static void amd_pmc_validate_deepest(struct amd_pmc_dev *pdev)
+{
+	struct smu_metrics table;
+
+	if (get_metrics_table(pdev, &table))
+		return;
+
+	if (!table.s0i3_last_entry_status)
+		dev_warn(pdev->dev, "Last suspend didn't reach deepest state\n");
+	else
+		dev_dbg(pdev->dev, "Last suspend in deepest state for %lluus\n",
+			 table.timein_s0i3_lastcapture);
+}
+
 #ifdef CONFIG_DEBUG_FS
 static int smu_fw_info_show(struct seq_file *s, void *unused)
 {
@@ -273,10 +346,8 @@ static int smu_fw_info_show(struct seq_file *s, void *unused)
 	struct smu_metrics table;
 	int idx;
 
-	if (dev->cpu_id == AMD_CPU_ID_PCO)
+	if (get_metrics_table(dev, &table))
 		return -EINVAL;
-
-	memcpy_fromio(&table, dev->smu_virt_addr, sizeof(struct smu_metrics));
 
 	seq_puts(s, "\n=== SMU Statistics ===\n");
 	seq_printf(s, "Table Version: %d\n", table.table_version);
@@ -355,9 +426,14 @@ static void amd_pmc_dbgfs_register(struct amd_pmc_dev *dev)
 	debugfs_create_file("amd_pmc_idlemask", 0644, dev->dbgfs_dir, dev,
 			    &amd_pmc_idlemask_fops);
 	/* Enable STB only when the module_param is set */
-	if (enable_stb)
-		debugfs_create_file("stb_read", 0644, dev->dbgfs_dir, dev,
-				    &amd_pmc_stb_debugfs_fops);
+	if (enable_stb) {
+		if (dev->cpu_id == AMD_CPU_ID_YC)
+			debugfs_create_file("stb_read", 0644, dev->dbgfs_dir, dev,
+					    &amd_pmc_stb_debugfs_fops_v2);
+		else
+			debugfs_create_file("stb_read", 0644, dev->dbgfs_dir, dev,
+					    &amd_pmc_stb_debugfs_fops);
+	}
 }
 #else
 static inline void amd_pmc_dbgfs_register(struct amd_pmc_dev *dev)
@@ -397,26 +473,47 @@ static int amd_pmc_setup_smu_logging(struct amd_pmc_dev *dev)
 
 static void amd_pmc_dump_registers(struct amd_pmc_dev *dev)
 {
-	u32 value;
+	u32 value, message, argument, response;
 
-	value = amd_pmc_reg_read(dev, AMD_PMC_REGISTER_RESPONSE);
+	if (dev->msg_port) {
+		message = AMD_S2D_REGISTER_MESSAGE;
+		argument = AMD_S2D_REGISTER_ARGUMENT;
+		response = AMD_S2D_REGISTER_RESPONSE;
+	} else {
+		message = AMD_PMC_REGISTER_MESSAGE;
+		argument = AMD_PMC_REGISTER_ARGUMENT;
+		response = AMD_PMC_REGISTER_RESPONSE;
+	}
+
+	value = amd_pmc_reg_read(dev, response);
 	dev_dbg(dev->dev, "AMD_PMC_REGISTER_RESPONSE:%x\n", value);
 
-	value = amd_pmc_reg_read(dev, AMD_PMC_REGISTER_ARGUMENT);
+	value = amd_pmc_reg_read(dev, argument);
 	dev_dbg(dev->dev, "AMD_PMC_REGISTER_ARGUMENT:%x\n", value);
 
-	value = amd_pmc_reg_read(dev, AMD_PMC_REGISTER_MESSAGE);
+	value = amd_pmc_reg_read(dev, message);
 	dev_dbg(dev->dev, "AMD_PMC_REGISTER_MESSAGE:%x\n", value);
 }
 
 static int amd_pmc_send_cmd(struct amd_pmc_dev *dev, u32 arg, u32 *data, u8 msg, bool ret)
 {
 	int rc;
-	u32 val;
+	u32 val, message, argument, response;
 
 	mutex_lock(&dev->lock);
+
+	if (dev->msg_port) {
+		message = AMD_S2D_REGISTER_MESSAGE;
+		argument = AMD_S2D_REGISTER_ARGUMENT;
+		response = AMD_S2D_REGISTER_RESPONSE;
+	} else {
+		message = AMD_PMC_REGISTER_MESSAGE;
+		argument = AMD_PMC_REGISTER_ARGUMENT;
+		response = AMD_PMC_REGISTER_RESPONSE;
+	}
+
 	/* Wait until we get a valid response */
-	rc = readx_poll_timeout(ioread32, dev->regbase + AMD_PMC_REGISTER_RESPONSE,
+	rc = readx_poll_timeout(ioread32, dev->regbase + response,
 				val, val != 0, PMC_MSG_DELAY_MIN_US,
 				PMC_MSG_DELAY_MIN_US * RESPONSE_REGISTER_LOOP_MAX);
 	if (rc) {
@@ -425,16 +522,16 @@ static int amd_pmc_send_cmd(struct amd_pmc_dev *dev, u32 arg, u32 *data, u8 msg,
 	}
 
 	/* Write zero to response register */
-	amd_pmc_reg_write(dev, AMD_PMC_REGISTER_RESPONSE, 0);
+	amd_pmc_reg_write(dev, response, 0);
 
 	/* Write argument into response register */
-	amd_pmc_reg_write(dev, AMD_PMC_REGISTER_ARGUMENT, arg);
+	amd_pmc_reg_write(dev, argument, arg);
 
 	/* Write message ID to message ID register */
-	amd_pmc_reg_write(dev, AMD_PMC_REGISTER_MESSAGE, msg);
+	amd_pmc_reg_write(dev, message, msg);
 
 	/* Wait until we get a valid response */
-	rc = readx_poll_timeout(ioread32, dev->regbase + AMD_PMC_REGISTER_RESPONSE,
+	rc = readx_poll_timeout(ioread32, dev->regbase + response,
 				val, val != 0, PMC_MSG_DELAY_MIN_US,
 				PMC_MSG_DELAY_MIN_US * RESPONSE_REGISTER_LOOP_MAX);
 	if (rc) {
@@ -447,7 +544,7 @@ static int amd_pmc_send_cmd(struct amd_pmc_dev *dev, u32 arg, u32 *data, u8 msg,
 		if (ret) {
 			/* PMFW may take longer time to return back the data */
 			usleep_range(DELAY_MIN_US, 10 * DELAY_MAX_US);
-			*data = amd_pmc_reg_read(dev, AMD_PMC_REGISTER_ARGUMENT);
+			*data = amd_pmc_reg_read(dev, argument);
 		}
 		break;
 	case AMD_PMC_RESULT_CMD_REJECT_BUSY:
@@ -526,20 +623,12 @@ static int amd_pmc_verify_czn_rtc(struct amd_pmc_dev *pdev, u32 *arg)
 	rc = rtc_alarm_irq_enable(rtc_device, 0);
 	dev_dbg(pdev->dev, "wakeup timer programmed for %lld seconds\n", duration);
 
-	/*
-	 * Prevent CPUs from getting into deep idle states while sending OS_HINT
-	 * which is otherwise generally safe to send when at least one of the CPUs
-	 * is not in deep idle states.
-	 */
-	cpu_latency_qos_update_request(&pdev->amd_pmc_pm_qos_req, AMD_PMC_MAX_IDLE_STATE_LATENCY);
-	wake_up_all_idle_cpus();
-
 	return rc;
 }
 
-static int __maybe_unused amd_pmc_suspend(struct device *dev)
+static void amd_pmc_s2idle_prepare(void)
 {
-	struct amd_pmc_dev *pdev = dev_get_drvdata(dev);
+	struct amd_pmc_dev *pdev = &pmc;
 	int rc;
 	u8 msg;
 	u32 arg = 1;
@@ -551,68 +640,59 @@ static int __maybe_unused amd_pmc_suspend(struct device *dev)
 	/* Activate CZN specific RTC functionality */
 	if (pdev->cpu_id == AMD_CPU_ID_CZN) {
 		rc = amd_pmc_verify_czn_rtc(pdev, &arg);
-		if (rc)
-			goto fail;
+		if (rc) {
+			dev_err(pdev->dev, "failed to set RTC: %d\n", rc);
+			return;
+		}
 	}
 
 	/* Dump the IdleMask before we send hint to SMU */
-	amd_pmc_idlemask_read(pdev, dev, NULL);
+	amd_pmc_idlemask_read(pdev, pdev->dev, NULL);
 	msg = amd_pmc_get_os_hint(pdev);
 	rc = amd_pmc_send_cmd(pdev, arg, NULL, msg, 0);
 	if (rc) {
-		dev_err(pdev->dev, "suspend failed\n");
-		goto fail;
+		dev_err(pdev->dev, "suspend failed: %d\n", rc);
+		return;
 	}
 
-	if (enable_stb)
+	if (enable_stb) {
 		rc = amd_pmc_write_stb(pdev, AMD_PMC_STB_PREDEF);
-	if (rc) {
-		dev_err(pdev->dev, "error writing to STB\n");
-		goto fail;
+		if (rc)
+			dev_err(pdev->dev, "error writing to STB: %d\n", rc);
 	}
-
-	return 0;
-fail:
-	if (pdev->cpu_id == AMD_CPU_ID_CZN)
-		cpu_latency_qos_update_request(&pdev->amd_pmc_pm_qos_req,
-						PM_QOS_DEFAULT_VALUE);
-	return rc;
 }
 
-static int __maybe_unused amd_pmc_resume(struct device *dev)
+static void amd_pmc_s2idle_restore(void)
 {
-	struct amd_pmc_dev *pdev = dev_get_drvdata(dev);
+	struct amd_pmc_dev *pdev = &pmc;
 	int rc;
 	u8 msg;
 
 	msg = amd_pmc_get_os_hint(pdev);
 	rc = amd_pmc_send_cmd(pdev, 0, NULL, msg, 0);
 	if (rc)
-		dev_err(pdev->dev, "resume failed\n");
+		dev_err(pdev->dev, "resume failed: %d\n", rc);
 
 	/* Let SMU know that we are looking for stats */
 	amd_pmc_send_cmd(pdev, 0, NULL, SMU_MSG_LOG_DUMP_DATA, 0);
 
 	/* Dump the IdleMask to see the blockers */
-	amd_pmc_idlemask_read(pdev, dev, NULL);
+	amd_pmc_idlemask_read(pdev, pdev->dev, NULL);
 
 	/* Write data incremented by 1 to distinguish in stb_read */
-	if (enable_stb)
+	if (enable_stb) {
 		rc = amd_pmc_write_stb(pdev, AMD_PMC_STB_PREDEF + 1);
-	if (rc)
-		dev_err(pdev->dev, "error writing to STB\n");
+		if (rc)
+			dev_err(pdev->dev, "error writing to STB: %d\n", rc);
+	}
 
-	/* Restore the QoS request back to defaults if it was set */
-	if (pdev->cpu_id == AMD_CPU_ID_CZN)
-		cpu_latency_qos_update_request(&pdev->amd_pmc_pm_qos_req,
-						PM_QOS_DEFAULT_VALUE);
-
-	return rc;
+	/* Notify on failed entry */
+	amd_pmc_validate_deepest(pdev);
 }
 
-static const struct dev_pm_ops amd_pmc_pm_ops = {
-	.suspend_noirq = amd_pmc_suspend,
-	.resume_noirq = amd_pmc_resume,
+static struct acpi_s2idle_dev_ops amd_pmc_s2idle_dev_ops = {
+	.prepare = amd_pmc_s2idle_prepare,
+	.restore = amd_pmc_s2idle_restore,
 };
 
 static const struct pci_device_id pmc_pci_ids[] = {
@@ -623,6 +703,35 @@ static const struct pci_device_id pmc_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, AMD_CPU_ID_RV) },
 	{ }
 };
+
+static int amd_pmc_s2d_init(struct amd_pmc_dev *dev)
+{
+	u32 phys_addr_low, phys_addr_hi;
+	u64 stb_phys_addr;
+	u32 size = 0;
+
+	/* Spill to DRAM feature uses separate SMU message port */
+	dev->msg_port = 1;
+
+	amd_pmc_send_cmd(dev, S2D_TELEMETRY_SIZE, &size, STB_SPILL_TO_DRAM, 1);
+	if (size != S2D_TELEMETRY_BYTES_MAX)
+		return -EIO;
+
+	/* Get STB DRAM address */
+	amd_pmc_send_cmd(dev, S2D_PHYS_ADDR_LOW, &phys_addr_low, STB_SPILL_TO_DRAM, 1);
+	amd_pmc_send_cmd(dev, S2D_PHYS_ADDR_HIGH, &phys_addr_hi, STB_SPILL_TO_DRAM, 1);
+
+	stb_phys_addr = ((u64)phys_addr_hi << 32 | phys_addr_low);
+
+	/* Clear msg_port for other SMU operation */
+	dev->msg_port = 0;
+
+	dev->stb_virt_addr = devm_ioremap(dev->dev, stb_phys_addr, S2D_TELEMETRY_DRAMBYTES_MAX);
+	if (!dev->stb_virt_addr)
+		return -ENOMEM;
+
+	return 0;
+}
 
 static int amd_pmc_write_stb(struct amd_pmc_dev *dev, u32 data)
 {
@@ -742,10 +851,19 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	if (err)
 		dev_err(dev->dev, "SMU debugging info not supported on this platform\n");
 
+	if (enable_stb && dev->cpu_id == AMD_CPU_ID_YC) {
+		err = amd_pmc_s2d_init(dev);
+		if (err)
+			return err;
+	}
+
 	amd_pmc_get_smu_version(dev);
 	platform_set_drvdata(pdev, dev);
+	err = acpi_register_lps0_dev(&amd_pmc_s2idle_dev_ops);
+	if (err)
+		dev_warn(dev->dev, "failed to register LPS0 sleep handler, expect increased power consumption\n");
+
 	amd_pmc_dbgfs_register(dev);
-	cpu_latency_qos_add_request(&dev->amd_pmc_pm_qos_req, PM_QOS_DEFAULT_VALUE);
 	return 0;
 
 err_pci_dev_put:
@@ -757,6 +875,7 @@ static int amd_pmc_remove(struct platform_device *pdev)
 {
 	struct amd_pmc_dev *dev = platform_get_drvdata(pdev);
 
+	acpi_unregister_lps0_dev(&amd_pmc_s2idle_dev_ops);
 	amd_pmc_dbgfs_unregister(dev);
 	pci_dev_put(dev->rdev);
 	mutex_destroy(&dev->lock);
@@ -777,7 +896,6 @@ static struct platform_driver amd_pmc_driver = {
 	.driver = {
 		.name = "amd_pmc",
 		.acpi_match_table = amd_pmc_acpi_ids,
-		.pm = &amd_pmc_pm_ops,
 	},
 	.probe = amd_pmc_probe,
 	.remove = amd_pmc_remove,

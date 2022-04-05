@@ -340,21 +340,21 @@ allOf:
           description:
             Programmable Burst Length (tx and rx)
           $ref: /schemas/types.yaml#/definitions/uint32
-          enum: [2, 4, 8]
+          enum: [1, 2, 4, 8, 16, 32]
 
         snps,txpbl:
           description:
             Tx Programmable Burst Length. If set, DMA tx will use this
             value rather than snps,pbl.
           $ref: /schemas/types.yaml#/definitions/uint32
-          enum: [2, 4, 8]
+          enum: [1, 2, 4, 8, 16, 32]
 
         snps,rxpbl:
           description:
             Rx Programmable Burst Length. If set, DMA rx will use this
             value rather than snps,pbl.
           $ref: /schemas/types.yaml#/definitions/uint32
-          enum: [2, 4, 8]
+          enum: [1, 2, 4, 8, 16, 32]
 
         snps,no-pbl-x8:
           $ref: /schemas/types.yaml#/definitions/flag

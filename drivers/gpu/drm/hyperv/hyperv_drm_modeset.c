@@ -19,7 +19,7 @@
 #include "hyperv_drm.h"
 
 static int hyperv_blit_to_vram_rect(struct drm_framebuffer *fb,
-				    const struct dma_buf_map *map,
+				    const struct iosys_map *map,
 				    struct drm_rect *rect)
 {
 	struct hyperv_drm_device *hv = to_hv(fb->dev);
@@ -38,7 +38,8 @@ static int hyperv_blit_to_vram_rect(struct drm_framebuffer *fb,
 	return 0;
 }
 
-static int hyperv_blit_to_vram_fullscreen(struct drm_framebuffer *fb, const struct dma_buf_map *map)
+static int hyperv_blit_to_vram_fullscreen(struct drm_framebuffer *fb,
+					  const struct iosys_map *map)
 {
 	struct drm_rect fullscreen = {
 		.x1 = 0,

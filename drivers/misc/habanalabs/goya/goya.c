@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2021 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -430,6 +430,9 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 	prop->dmmu.page_size = PAGE_SIZE_2MB;
 	prop->dmmu.num_hops = MMU_ARCH_5_HOPS;
 	prop->dmmu.last_mask = LAST_MASK;
+	/* TODO: will be duplicated until implementing per-MMU props */
+	prop->dmmu.hop_table_size = prop->mmu_hop_table_size;
+	prop->dmmu.hop0_tables_total_size = prop->mmu_hop0_tables_total_size;
 
 	/* shifts and masks are the same in PMMU and DMMU */
 	memcpy(&prop->pmmu, &prop->dmmu, sizeof(prop->dmmu));
@@ -438,6 +441,9 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 	prop->pmmu.page_size = PAGE_SIZE_4KB;
 	prop->pmmu.num_hops = MMU_ARCH_5_HOPS;
 	prop->pmmu.last_mask = LAST_MASK;
+	/* TODO: will be duplicated until implementing per-MMU props */
+	prop->pmmu.hop_table_size = prop->mmu_hop_table_size;
+	prop->pmmu.hop0_tables_total_size = prop->mmu_hop0_tables_total_size;
 
 	/* PMMU and HPMMU are the same except of page size */
 	memcpy(&prop->pmmu_huge, &prop->pmmu, sizeof(prop->pmmu));
@@ -476,6 +482,10 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 	prop->clk_pll_index = HL_GOYA_MME_PLL;
 
 	prop->use_get_power_for_reset_history = true;
+
+	prop->configurable_stop_on_err = true;
+
+	prop->set_max_power_on_device_init = true;
 
 	return 0;
 }
@@ -893,7 +903,7 @@ int goya_late_init(struct hl_device *hdev)
 
 	goya->pm_mng_profile = PM_AUTO;
 
-	hdev->asic_funcs->set_pll_profile(hdev, PLL_LOW);
+	goya_set_pll_profile(hdev, PLL_LOW);
 
 	schedule_delayed_work(&goya->goya_work->work_freq,
 		usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
@@ -2700,8 +2710,7 @@ int goya_mmu_init(struct hl_device *hdev)
 	WREG32_AND(mmSTLB_STLB_FEATURE_EN,
 			(~STLB_STLB_FEATURE_EN_FOLLOWER_EN_MASK));
 
-	hdev->asic_funcs->mmu_invalidate_cache(hdev, true,
-					MMU_OP_USERPTR | MMU_OP_PHYS_PACK);
+	hl_mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR | MMU_OP_PHYS_PACK);
 
 	WREG32(mmMMU_MMU_ENABLE, 1);
 	WREG32(mmMMU_SPI_MASK, 0xF);
@@ -5341,7 +5350,7 @@ static int goya_mmu_invalidate_cache_range(struct hl_device *hdev,
 	/* Treat as invalidate all because there is no range invalidation
 	 * in Goya
 	 */
-	return hdev->asic_funcs->mmu_invalidate_cache(hdev, is_hard, flags);
+	return hl_mmu_invalidate_cache(hdev, is_hard, flags);
 }
 
 int goya_send_heartbeat(struct hl_device *hdev)
@@ -5389,16 +5398,6 @@ int goya_cpucp_info_get(struct hl_device *hdev)
 				CARD_NAME_MAX_LEN);
 
 	return 0;
-}
-
-static void goya_set_clock_gating(struct hl_device *hdev)
-{
-	/* clock gating not supported in Goya */
-}
-
-static void goya_disable_clock_gating(struct hl_device *hdev)
-{
-	/* clock gating not supported in Goya */
 }
 
 static bool goya_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
@@ -5564,16 +5563,7 @@ static void goya_reset_sob_group(struct hl_device *hdev, u16 sob_group)
 
 static void goya_set_dma_mask_from_fw(struct hl_device *hdev)
 {
-	if (RREG32(mmPSOC_GLOBAL_CONF_NON_RST_FLOPS_0) ==
-							HL_POWER9_HOST_MAGIC) {
-		dev_dbg(hdev->dev, "Working in 64-bit DMA mode\n");
-		hdev->power9_64bit_dma_enable = 1;
-		hdev->dma_mask = 64;
-	} else {
-		dev_dbg(hdev->dev, "Working in 48-bit DMA mode\n");
-		hdev->power9_64bit_dma_enable = 0;
-		hdev->dma_mask = 48;
-	}
+	hdev->dma_mask = 48;
 }
 
 u64 goya_get_device_time(struct hl_device *hdev)
@@ -5727,15 +5717,12 @@ static const struct hl_asic_funcs goya_funcs = {
 	.debugfs_read_dma = goya_debugfs_read_dma,
 	.add_device_attr = goya_add_device_attr,
 	.handle_eqe = goya_handle_eqe,
-	.set_pll_profile = goya_set_pll_profile,
 	.get_events_stat = goya_get_events_stat,
 	.read_pte = goya_read_pte,
 	.write_pte = goya_write_pte,
 	.mmu_invalidate_cache = goya_mmu_invalidate_cache,
 	.mmu_invalidate_cache_range = goya_mmu_invalidate_cache_range,
 	.send_heartbeat = goya_send_heartbeat,
-	.set_clock_gating = goya_set_clock_gating,
-	.disable_clock_gating = goya_disable_clock_gating,
 	.debug_coresight = goya_debug_coresight,
 	.is_device_idle = goya_is_device_idle,
 	.non_hard_reset_late_init = goya_non_hard_reset_late_init,
@@ -5751,7 +5738,6 @@ static const struct hl_asic_funcs goya_funcs = {
 	.halt_coresight = goya_halt_coresight,
 	.ctx_init = goya_ctx_init,
 	.ctx_fini = goya_ctx_fini,
-	.get_clk_rate = hl_get_clk_rate,
 	.get_queue_id_for_cq = goya_get_queue_id_for_cq,
 	.load_firmware_to_device = goya_load_firmware_to_device,
 	.load_boot_fit_to_device = goya_load_boot_fit_to_device,
@@ -5778,6 +5764,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.get_sob_addr = &goya_get_sob_addr,
 	.set_pci_memory_regions = goya_set_pci_memory_regions,
 	.get_stream_master_qid_arr = goya_get_stream_master_qid_arr,
+	.is_valid_dram_page_size = NULL
 };
 
 /*

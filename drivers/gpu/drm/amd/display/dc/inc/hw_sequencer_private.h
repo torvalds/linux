@@ -41,9 +41,8 @@ struct dce_hwseq_wa {
 	bool DEGVIDCN10_254;
 	bool DEGVIDCN21;
 	bool disallow_self_refresh_during_multi_plane_transition;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool dp_hpo_and_otg_sequence;
-#endif
+	bool wait_hubpret_read_start_during_mpo_transition;
 };
 
 struct hwseq_wa_state {

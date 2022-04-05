@@ -417,7 +417,7 @@ static ssize_t show_thresh_either_en(struct device *dev,
 		enable = 0;
 	}
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", enable);
+	return sysfs_emit(buf, "%u\n", enable);
 }
 
 static ssize_t store_thresh_either_en(struct device *dev,
@@ -474,7 +474,7 @@ static ssize_t show_zone(struct device *dev,
 	if (ret)
 		return ret;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", zone);
+	return sysfs_emit(buf, "%u\n", zone);
 }
 
 enum lm3533_als_attribute_type {
@@ -530,7 +530,7 @@ static ssize_t show_als_attr(struct device *dev,
 	if (ret)
 		return ret;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static ssize_t store_als_attr(struct device *dev,

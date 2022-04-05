@@ -937,7 +937,8 @@ static int arasan_cf_suspend(struct device *dev)
 		dmaengine_terminate_all(acdev->dma_chan);
 
 	cf_exit(acdev);
-	return ata_host_suspend(host, PMSG_SUSPEND);
+	ata_host_suspend(host, PMSG_SUSPEND);
+	return 0;
 }
 
 static int arasan_cf_resume(struct device *dev)

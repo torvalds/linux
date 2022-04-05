@@ -1309,46 +1309,50 @@ void b53_port_event(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL(b53_port_event);
 
-void b53_phylink_validate(struct dsa_switch *ds, int port,
-			  unsigned long *supported,
-			  struct phylink_link_state *state)
+static void b53_phylink_get_caps(struct dsa_switch *ds, int port,
+				 struct phylink_config *config)
 {
 	struct b53_device *dev = ds->priv;
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
-	if (dev->ops->serdes_phylink_validate)
-		dev->ops->serdes_phylink_validate(dev, port, mask, state);
+	/* Internal ports need GMII for PHYLIB */
+	__set_bit(PHY_INTERFACE_MODE_GMII, config->supported_interfaces);
 
-	/* Allow all the expected bits */
-	phylink_set(mask, Autoneg);
-	phylink_set_port_modes(mask);
-	phylink_set(mask, Pause);
-	phylink_set(mask, Asym_Pause);
-
-	/* With the exclusion of 5325/5365, MII, Reverse MII and 802.3z, we
-	 * support Gigabit, including Half duplex.
+	/* These switches appear to support MII and RevMII too, but beyond
+	 * this, the code gives very few clues. FIXME: We probably need more
+	 * interface modes here.
+	 *
+	 * According to b53_srab_mux_init(), ports 3..5 can support:
+	 *  SGMII, MII, GMII, RGMII or INTERNAL depending on the MUX setting.
+	 * However, the interface mode read from the MUX configuration is
+	 * not passed back to DSA, so phylink uses NA.
+	 * DT can specify RGMII for ports 0, 1.
+	 * For MDIO, port 8 can be RGMII_TXID.
 	 */
-	if (state->interface != PHY_INTERFACE_MODE_MII &&
-	    state->interface != PHY_INTERFACE_MODE_REVMII &&
-	    !phy_interface_mode_is_8023z(state->interface) &&
-	    !(is5325(dev) || is5365(dev))) {
-		phylink_set(mask, 1000baseT_Full);
-		phylink_set(mask, 1000baseT_Half);
-	}
+	__set_bit(PHY_INTERFACE_MODE_MII, config->supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_REVMII, config->supported_interfaces);
 
-	if (!phy_interface_mode_is_8023z(state->interface)) {
-		phylink_set(mask, 10baseT_Half);
-		phylink_set(mask, 10baseT_Full);
-		phylink_set(mask, 100baseT_Half);
-		phylink_set(mask, 100baseT_Full);
-	}
+	config->mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+		MAC_10 | MAC_100;
 
-	linkmode_and(supported, supported, mask);
-	linkmode_and(state->advertising, state->advertising, mask);
+	/* 5325/5365 are not capable of gigabit speeds, everything else is.
+	 * Note: the original code also exclulded Gigagbit for MII, RevMII
+	 * and 802.3z modes. MII and RevMII are not able to work above 100M,
+	 * so will be excluded by the generic validator implementation.
+	 * However, the exclusion of Gigabit for 802.3z just seems wrong.
+	 */
+	if (!(is5325(dev) || is5365(dev)))
+		config->mac_capabilities |= MAC_1000;
 
-	phylink_helper_basex_speed(state);
+	/* Get the implementation specific capabilities */
+	if (dev->ops->phylink_get_caps)
+		dev->ops->phylink_get_caps(dev, port, config);
+
+	/* This driver does not make use of the speed, duplex, pause or the
+	 * advertisement in its mac_config, so it is safe to mark this driver
+	 * as non-legacy.
+	 */
+	config->legacy_pre_march2020 = false;
 }
-EXPORT_SYMBOL(b53_phylink_validate);
 
 int b53_phylink_mac_link_state(struct dsa_switch *ds, int port,
 			       struct phylink_link_state *state)
@@ -1704,7 +1708,8 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 }
 
 int b53_fdb_add(struct dsa_switch *ds, int port,
-		const unsigned char *addr, u16 vid)
+		const unsigned char *addr, u16 vid,
+		struct dsa_db db)
 {
 	struct b53_device *priv = ds->priv;
 	int ret;
@@ -1724,7 +1729,8 @@ int b53_fdb_add(struct dsa_switch *ds, int port,
 EXPORT_SYMBOL(b53_fdb_add);
 
 int b53_fdb_del(struct dsa_switch *ds, int port,
-		const unsigned char *addr, u16 vid)
+		const unsigned char *addr, u16 vid,
+		struct dsa_db db)
 {
 	struct b53_device *priv = ds->priv;
 	int ret;
@@ -1825,7 +1831,8 @@ int b53_fdb_dump(struct dsa_switch *ds, int port,
 EXPORT_SYMBOL(b53_fdb_dump);
 
 int b53_mdb_add(struct dsa_switch *ds, int port,
-		const struct switchdev_obj_port_mdb *mdb)
+		const struct switchdev_obj_port_mdb *mdb,
+		struct dsa_db db)
 {
 	struct b53_device *priv = ds->priv;
 	int ret;
@@ -1845,7 +1852,8 @@ int b53_mdb_add(struct dsa_switch *ds, int port,
 EXPORT_SYMBOL(b53_mdb_add);
 
 int b53_mdb_del(struct dsa_switch *ds, int port,
-		const struct switchdev_obj_port_mdb *mdb)
+		const struct switchdev_obj_port_mdb *mdb,
+		struct dsa_db db)
 {
 	struct b53_device *priv = ds->priv;
 	int ret;
@@ -1861,7 +1869,7 @@ int b53_mdb_del(struct dsa_switch *ds, int port,
 EXPORT_SYMBOL(b53_mdb_del);
 
 int b53_br_join(struct dsa_switch *ds, int port, struct dsa_bridge bridge,
-		bool *tx_fwd_offload)
+		bool *tx_fwd_offload, struct netlink_ext_ack *extack)
 {
 	struct b53_device *dev = ds->priv;
 	s8 cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
@@ -2102,7 +2110,8 @@ out:
 EXPORT_SYMBOL(b53_get_tag_protocol);
 
 int b53_mirror_add(struct dsa_switch *ds, int port,
-		   struct dsa_mall_mirror_tc_entry *mirror, bool ingress)
+		   struct dsa_mall_mirror_tc_entry *mirror, bool ingress,
+		   struct netlink_ext_ack *extack)
 {
 	struct b53_device *dev = ds->priv;
 	u16 reg, loc;
@@ -2186,7 +2195,7 @@ int b53_eee_init(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	int ret;
 
-	ret = phy_init_eee(phy, 0);
+	ret = phy_init_eee(phy, false);
 	if (ret)
 		return 0;
 
@@ -2259,7 +2268,7 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.phy_read		= b53_phy_read16,
 	.phy_write		= b53_phy_write16,
 	.adjust_link		= b53_adjust_link,
-	.phylink_validate	= b53_phylink_validate,
+	.phylink_get_caps	= b53_phylink_get_caps,
 	.phylink_mac_link_state	= b53_phylink_mac_link_state,
 	.phylink_mac_config	= b53_phylink_mac_config,
 	.phylink_mac_an_restart	= b53_phylink_mac_an_restart,

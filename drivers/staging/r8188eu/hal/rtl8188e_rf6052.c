@@ -50,12 +50,12 @@ void rtl8188e_PHY_RF6052SetBandwidth(struct adapter *Adapter,
 
 	switch (Bandwidth) {
 	case HT_CHANNEL_WIDTH_20:
-		pHalData->RfRegChnlVal[0] = ((pHalData->RfRegChnlVal[0] & 0xfffff3ff) | BIT(10) | BIT(11));
-		rtl8188e_PHY_SetRFReg(Adapter, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask, pHalData->RfRegChnlVal[0]);
+		pHalData->RfRegChnlVal = ((pHalData->RfRegChnlVal & 0xfffff3ff) | BIT(10) | BIT(11));
+		rtl8188e_PHY_SetRFReg(Adapter, RF_CHNLBW, bRFRegOffsetMask, pHalData->RfRegChnlVal);
 		break;
 	case HT_CHANNEL_WIDTH_40:
-		pHalData->RfRegChnlVal[0] = ((pHalData->RfRegChnlVal[0] & 0xfffff3ff) | BIT(10));
-		rtl8188e_PHY_SetRFReg(Adapter, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask, pHalData->RfRegChnlVal[0]);
+		pHalData->RfRegChnlVal = ((pHalData->RfRegChnlVal & 0xfffff3ff) | BIT(10));
+		rtl8188e_PHY_SetRFReg(Adapter, RF_CHNLBW, bRFRegOffsetMask, pHalData->RfRegChnlVal);
 		break;
 	default:
 		break;
@@ -99,9 +99,6 @@ rtl8188e_PHY_RF6052SetCckTxPower(
 			TxAGC[idx1] =
 				pPowerlevel[idx1] | (pPowerlevel[idx1] << 8) |
 				(pPowerlevel[idx1] << 16) | (pPowerlevel[idx1] << 24);
-			/*  2010/10/18 MH For external PA module. We need to limit power index to be less than 0x20. */
-			if (TxAGC[idx1] > 0x20 && pHalData->ExternalPA)
-				TxAGC[idx1] = 0x20;
 		}
 	} else {
 		for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
@@ -203,7 +200,7 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 			/*  increase power diff defined by Realtek for regulatory */
 			if (pHalData->pwrGroupCnt == 1)
 				chnlGroup = 0;
-			if (pHalData->pwrGroupCnt >= pHalData->PGMaxGroup) {
+			if (pHalData->pwrGroupCnt >= MAX_PG_GROUP) {
 				if (Channel < 3)			/*  Channel 1-2 */
 					chnlGroup = 0;
 				else if (Channel < 6)		/*  Channel 3-5 */
@@ -374,12 +371,11 @@ static int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 	struct bb_reg_def *pPhyReg;
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u32 u4RegValue = 0;
-	u8 eRFPath = 0;
 	int rtStatus = _SUCCESS;
 
 	/* Initialize RF */
 
-	pPhyReg = &pHalData->PHYRegDef[eRFPath];
+	pPhyReg = &pHalData->PHYRegDef;
 
 	/*----Store original RFENV control type----*/
 	u4RegValue = rtl8188e_PHY_QueryBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV);
@@ -400,18 +396,12 @@ static int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 	udelay(1);/* PlatformStallExecution(1); */
 
 	/*----Initialize RF fom connfiguration file----*/
-	if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, (enum rf_radio_path)eRFPath, (enum rf_radio_path)eRFPath))
+	if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv))
 		rtStatus = _FAIL;
 
 	/*----Restore RFENV control type----*/;
 	rtl8188e_PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV, u4RegValue);
 
-	if (rtStatus != _SUCCESS)
-		goto phy_RF6052_Config_ParaFile_Fail;
-
-	return rtStatus;
-
-phy_RF6052_Config_ParaFile_Fail:
 	return rtStatus;
 }
 

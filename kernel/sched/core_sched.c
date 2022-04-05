@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include <linux/prctl.h>
-#include "sched.h"
-
 /*
  * A simple wrapper around refcount. An allocated sched_core_cookie's
  * address is used to compute the cookie of the task.

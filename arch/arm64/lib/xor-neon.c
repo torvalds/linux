@@ -10,8 +10,8 @@
 #include <linux/module.h>
 #include <asm/neon-intrinsics.h>
 
-void xor_arm64_neon_2(unsigned long bytes, unsigned long *p1,
-	unsigned long *p2)
+void xor_arm64_neon_2(unsigned long bytes, unsigned long * __restrict p1,
+	const unsigned long * __restrict p2)
 {
 	uint64_t *dp1 = (uint64_t *)p1;
 	uint64_t *dp2 = (uint64_t *)p2;
@@ -37,8 +37,9 @@ void xor_arm64_neon_2(unsigned long bytes, unsigned long *p1,
 	} while (--lines > 0);
 }
 
-void xor_arm64_neon_3(unsigned long bytes, unsigned long *p1,
-	unsigned long *p2, unsigned long *p3)
+void xor_arm64_neon_3(unsigned long bytes, unsigned long * __restrict p1,
+	const unsigned long * __restrict p2,
+	const unsigned long * __restrict p3)
 {
 	uint64_t *dp1 = (uint64_t *)p1;
 	uint64_t *dp2 = (uint64_t *)p2;
@@ -72,8 +73,10 @@ void xor_arm64_neon_3(unsigned long bytes, unsigned long *p1,
 	} while (--lines > 0);
 }
 
-void xor_arm64_neon_4(unsigned long bytes, unsigned long *p1,
-	unsigned long *p2, unsigned long *p3, unsigned long *p4)
+void xor_arm64_neon_4(unsigned long bytes, unsigned long * __restrict p1,
+	const unsigned long * __restrict p2,
+	const unsigned long * __restrict p3,
+	const unsigned long * __restrict p4)
 {
 	uint64_t *dp1 = (uint64_t *)p1;
 	uint64_t *dp2 = (uint64_t *)p2;
@@ -115,9 +118,11 @@ void xor_arm64_neon_4(unsigned long bytes, unsigned long *p1,
 	} while (--lines > 0);
 }
 
-void xor_arm64_neon_5(unsigned long bytes, unsigned long *p1,
-	unsigned long *p2, unsigned long *p3,
-	unsigned long *p4, unsigned long *p5)
+void xor_arm64_neon_5(unsigned long bytes, unsigned long * __restrict p1,
+	const unsigned long * __restrict p2,
+	const unsigned long * __restrict p3,
+	const unsigned long * __restrict p4,
+	const unsigned long * __restrict p5)
 {
 	uint64_t *dp1 = (uint64_t *)p1;
 	uint64_t *dp2 = (uint64_t *)p2;
@@ -186,8 +191,10 @@ static inline uint64x2_t eor3(uint64x2_t p, uint64x2_t q, uint64x2_t r)
 	return res;
 }
 
-static void xor_arm64_eor3_3(unsigned long bytes, unsigned long *p1,
-			     unsigned long *p2, unsigned long *p3)
+static void xor_arm64_eor3_3(unsigned long bytes,
+	unsigned long * __restrict p1,
+	const unsigned long * __restrict p2,
+	const unsigned long * __restrict p3)
 {
 	uint64_t *dp1 = (uint64_t *)p1;
 	uint64_t *dp2 = (uint64_t *)p2;
@@ -219,9 +226,11 @@ static void xor_arm64_eor3_3(unsigned long bytes, unsigned long *p1,
 	} while (--lines > 0);
 }
 
-static void xor_arm64_eor3_4(unsigned long bytes, unsigned long *p1,
-			     unsigned long *p2, unsigned long *p3,
-			     unsigned long *p4)
+static void xor_arm64_eor3_4(unsigned long bytes,
+	unsigned long * __restrict p1,
+	const unsigned long * __restrict p2,
+	const unsigned long * __restrict p3,
+	const unsigned long * __restrict p4)
 {
 	uint64_t *dp1 = (uint64_t *)p1;
 	uint64_t *dp2 = (uint64_t *)p2;
@@ -261,9 +270,12 @@ static void xor_arm64_eor3_4(unsigned long bytes, unsigned long *p1,
 	} while (--lines > 0);
 }
 
-static void xor_arm64_eor3_5(unsigned long bytes, unsigned long *p1,
-			     unsigned long *p2, unsigned long *p3,
-			     unsigned long *p4, unsigned long *p5)
+static void xor_arm64_eor3_5(unsigned long bytes,
+	unsigned long * __restrict p1,
+	const unsigned long * __restrict p2,
+	const unsigned long * __restrict p3,
+	const unsigned long * __restrict p4,
+	const unsigned long * __restrict p5)
 {
 	uint64_t *dp1 = (uint64_t *)p1;
 	uint64_t *dp2 = (uint64_t *)p2;

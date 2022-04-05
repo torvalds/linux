@@ -10,7 +10,7 @@
 #include <linux/serial_core.h>
 #include <asm/sbi.h>
 
-static void sbi_putc(struct uart_port *port, int c)
+static void sbi_putc(struct uart_port *port, unsigned char c)
 {
 	sbi_console_putchar(c);
 }

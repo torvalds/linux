@@ -58,7 +58,7 @@ static struct nf_hook_entries *allocate_hook_entries_size(u16 num)
 	if (num == 0)
 		return NULL;
 
-	e = kvzalloc(alloc, GFP_KERNEL);
+	e = kvzalloc(alloc, GFP_KERNEL_ACCOUNT);
 	if (e)
 		e->num_hook_entries = num;
 	return e;
@@ -622,7 +622,8 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 		case NF_ACCEPT:
 			break;
 		case NF_DROP:
-			kfree_skb(skb);
+			kfree_skb_reason(skb,
+					 SKB_DROP_REASON_NETFILTER_DROP);
 			ret = NF_DROP_GETERR(verdict);
 			if (ret == 0)
 				ret = -EPERM;

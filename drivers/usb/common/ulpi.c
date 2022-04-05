@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/debugfs.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/clk/clk-conf.h>
@@ -232,9 +233,64 @@ err:
 	return 0;
 }
 
+static int ulpi_regs_read(struct seq_file *seq, void *data)
+{
+	struct ulpi *ulpi = seq->private;
+
+#define ulpi_print(name, reg) do { \
+	int ret = ulpi_read(ulpi, reg); \
+	if (ret < 0) \
+		return ret; \
+	seq_printf(seq, name " %.02x\n", ret); \
+} while (0)
+
+	ulpi_print("Vendor ID Low               ", ULPI_VENDOR_ID_LOW);
+	ulpi_print("Vendor ID High              ", ULPI_VENDOR_ID_HIGH);
+	ulpi_print("Product ID Low              ", ULPI_PRODUCT_ID_LOW);
+	ulpi_print("Product ID High             ", ULPI_PRODUCT_ID_HIGH);
+	ulpi_print("Function Control            ", ULPI_FUNC_CTRL);
+	ulpi_print("Interface Control           ", ULPI_IFC_CTRL);
+	ulpi_print("OTG Control                 ", ULPI_OTG_CTRL);
+	ulpi_print("USB Interrupt Enable Rising ", ULPI_USB_INT_EN_RISE);
+	ulpi_print("USB Interrupt Enable Falling", ULPI_USB_INT_EN_FALL);
+	ulpi_print("USB Interrupt Status        ", ULPI_USB_INT_STS);
+	ulpi_print("USB Interrupt Latch         ", ULPI_USB_INT_LATCH);
+	ulpi_print("Debug                       ", ULPI_DEBUG);
+	ulpi_print("Scratch Register            ", ULPI_SCRATCH);
+	ulpi_print("Carkit Control              ", ULPI_CARKIT_CTRL);
+	ulpi_print("Carkit Interrupt Delay      ", ULPI_CARKIT_INT_DELAY);
+	ulpi_print("Carkit Interrupt Enable     ", ULPI_CARKIT_INT_EN);
+	ulpi_print("Carkit Interrupt Status     ", ULPI_CARKIT_INT_STS);
+	ulpi_print("Carkit Interrupt Latch      ", ULPI_CARKIT_INT_LATCH);
+	ulpi_print("Carkit Pulse Control        ", ULPI_CARKIT_PLS_CTRL);
+	ulpi_print("Transmit Positive Width     ", ULPI_TX_POS_WIDTH);
+	ulpi_print("Transmit Negative Width     ", ULPI_TX_NEG_WIDTH);
+	ulpi_print("Receive Polarity Recovery   ", ULPI_POLARITY_RECOVERY);
+
+	return 0;
+}
+
+static int ulpi_regs_open(struct inode *inode, struct file *f)
+{
+	struct ulpi *ulpi = inode->i_private;
+
+	return single_open(f, ulpi_regs_read, ulpi);
+}
+
+static const struct file_operations ulpi_regs_ops = {
+	.owner = THIS_MODULE,
+	.open = ulpi_regs_open,
+	.release = single_release,
+	.read = seq_read,
+	.llseek = seq_lseek
+};
+
+#define ULPI_ROOT debugfs_lookup(KBUILD_MODNAME, NULL)
+
 static int ulpi_register(struct device *dev, struct ulpi *ulpi)
 {
 	int ret;
+	struct dentry *root;
 
 	ulpi->dev.parent = dev; /* needed early for ops */
 	ulpi->dev.bus = &ulpi_bus;
@@ -258,6 +314,9 @@ static int ulpi_register(struct device *dev, struct ulpi *ulpi)
 		put_device(&ulpi->dev);
 		return ret;
 	}
+
+	root = debugfs_create_dir(dev_name(dev), ULPI_ROOT);
+	debugfs_create_file("regs", 0444, root, ulpi, &ulpi_regs_ops);
 
 	dev_dbg(&ulpi->dev, "registered ULPI PHY: vendor %04x, product %04x\n",
 		ulpi->id.vendor, ulpi->id.product);
@@ -304,6 +363,8 @@ EXPORT_SYMBOL_GPL(ulpi_register_interface);
  */
 void ulpi_unregister_interface(struct ulpi *ulpi)
 {
+	debugfs_remove_recursive(debugfs_lookup(dev_name(&ulpi->dev),
+						ULPI_ROOT));
 	device_unregister(&ulpi->dev);
 }
 EXPORT_SYMBOL_GPL(ulpi_unregister_interface);
@@ -312,13 +373,21 @@ EXPORT_SYMBOL_GPL(ulpi_unregister_interface);
 
 static int __init ulpi_init(void)
 {
-	return bus_register(&ulpi_bus);
+	int ret;
+	struct dentry *root;
+
+	root = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	ret = bus_register(&ulpi_bus);
+	if (ret)
+		debugfs_remove(root);
+	return ret;
 }
 subsys_initcall(ulpi_init);
 
 static void __exit ulpi_exit(void)
 {
 	bus_unregister(&ulpi_bus);
+	debugfs_remove_recursive(ULPI_ROOT);
 }
 module_exit(ulpi_exit);
 

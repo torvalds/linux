@@ -29,17 +29,22 @@ properties:
 
   st,syscfg-holdboot:
     description: remote processor reset hold boot
-      - Phandle of syscon block.
-      - The offset of the hold boot setting register.
-      - The field mask of the hold boot.
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
-    maxItems: 1
+    items:
+      - items:
+          - description: Phandle of syscon block
+          - description: The offset of the hold boot setting register
+          - description: The field mask of the hold boot
 
   st,syscfg-tz:
     description:
       Reference to the system configuration which holds the RCC trust zone mode
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
-    maxItems: 1
+    items:
+      - items:
+          - description: Phandle of syscon block
+          - description: FIXME
+          - description: FIXME
 
   interrupts:
     description: Should contain the WWDG1 watchdog reset interrupt
@@ -93,20 +98,32 @@ properties:
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
     description: |
       Reference to the system configuration which holds the remote
-    maxItems: 1
+    items:
+      - items:
+          - description: Phandle of syscon block
+          - description: FIXME
+          - description: FIXME
 
   st,syscfg-m4-state:
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
     description: |
       Reference to the tamp register which exposes the Cortex-M4 state.
-    maxItems: 1
+    items:
+      - items:
+          - description: Phandle of syscon block with the tamp register
+          - description: FIXME
+          - description: FIXME
 
   st,syscfg-rsc-tbl:
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
     description: |
       Reference to the tamp register which references the Cortex-M4
       resource table address.
-    maxItems: 1
+    items:
+      - items:
+          - description: Phandle of syscon block with the tamp register
+          - description: FIXME
+          - description: FIXME
 
   st,auto-boot:
     $ref: /schemas/types.yaml#/definitions/flag

@@ -63,7 +63,7 @@ properties:
     maxItems: 1
 
   connector:
-    $ref: /connector/usb-connector.yaml#
+    $ref: /schemas/connector/usb-connector.yaml#
     description: Connector for dual role switch
     type: object
 

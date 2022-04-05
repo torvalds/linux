@@ -183,32 +183,11 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 	unsigned char bySlot = 0;
 	unsigned char bySIFS = 0;
 	unsigned char byDIFS = 0;
-	unsigned char data;
 	int i;
 
 	/* Set SIFS, DIFS, EIFS, SlotTime, CwMin */
 	if (bb_type == BB_TYPE_11A) {
-		if (priv->byRFType == RF_AIROHA7230) {
-			/* AL7230 use single PAPE and connect to PAPE_2.4G */
-			MACvSetBBType(priv->port_offset, BB_TYPE_11G);
-			priv->abyBBVGA[0] = 0x20;
-			priv->abyBBVGA[2] = 0x10;
-			priv->abyBBVGA[3] = 0x10;
-			bb_read_embedded(priv, 0xE7, &data);
-			if (data == 0x1C)
-				bb_write_embedded(priv, 0xE7, priv->abyBBVGA[0]);
-
-		} else if (priv->byRFType == RF_UW2452) {
-			MACvSetBBType(priv->port_offset, BB_TYPE_11A);
-			priv->abyBBVGA[0] = 0x18;
-			bb_read_embedded(priv, 0xE7, &data);
-			if (data == 0x14) {
-				bb_write_embedded(priv, 0xE7, priv->abyBBVGA[0]);
-				bb_write_embedded(priv, 0xE1, 0x57);
-			}
-		} else {
-			MACvSetBBType(priv->port_offset, BB_TYPE_11A);
-		}
+		MACvSetBBType(priv->port_offset, BB_TYPE_11A);
 		bb_write_embedded(priv, 0x88, 0x03);
 		bySlot = C_SLOT_SHORT;
 		bySIFS = C_SIFS_A;
@@ -216,22 +195,6 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		byCWMaxMin = 0xA4;
 	} else if (bb_type == BB_TYPE_11B) {
 		MACvSetBBType(priv->port_offset, BB_TYPE_11B);
-		if (priv->byRFType == RF_AIROHA7230) {
-			priv->abyBBVGA[0] = 0x1C;
-			priv->abyBBVGA[2] = 0x00;
-			priv->abyBBVGA[3] = 0x00;
-			bb_read_embedded(priv, 0xE7, &data);
-			if (data == 0x20)
-				bb_write_embedded(priv, 0xE7, priv->abyBBVGA[0]);
-
-		} else if (priv->byRFType == RF_UW2452) {
-			priv->abyBBVGA[0] = 0x14;
-			bb_read_embedded(priv, 0xE7, &data);
-			if (data == 0x18) {
-				bb_write_embedded(priv, 0xE7, priv->abyBBVGA[0]);
-				bb_write_embedded(priv, 0xE1, 0xD3);
-			}
-		}
 		bb_write_embedded(priv, 0x88, 0x02);
 		bySlot = C_SLOT_LONG;
 		bySIFS = C_SIFS_BG;
@@ -239,22 +202,6 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		byCWMaxMin = 0xA5;
 	} else { /* PK_TYPE_11GA & PK_TYPE_11GB */
 		MACvSetBBType(priv->port_offset, BB_TYPE_11G);
-		if (priv->byRFType == RF_AIROHA7230) {
-			priv->abyBBVGA[0] = 0x1C;
-			priv->abyBBVGA[2] = 0x00;
-			priv->abyBBVGA[3] = 0x00;
-			bb_read_embedded(priv, 0xE7, &data);
-			if (data == 0x20)
-				bb_write_embedded(priv, 0xE7, priv->abyBBVGA[0]);
-
-		} else if (priv->byRFType == RF_UW2452) {
-			priv->abyBBVGA[0] = 0x14;
-			bb_read_embedded(priv, 0xE7, &data);
-			if (data == 0x18) {
-				bb_write_embedded(priv, 0xE7, priv->abyBBVGA[0]);
-				bb_write_embedded(priv, 0xE1, 0xD3);
-			}
-		}
 		bb_write_embedded(priv, 0x88, 0x08);
 		bySIFS = C_SIFS_BG;
 
@@ -417,7 +364,6 @@ void CARDbRadioPowerOff(struct vnt_private *priv)
 
 	case RF_AIROHA:
 	case RF_AL2230S:
-	case RF_AIROHA7230:
 		MACvWordRegBitsOff(priv->port_offset, MAC_REG_SOFTPWRCTL,
 				   SOFTPWRCTL_SWPE2);
 		MACvWordRegBitsOff(priv->port_offset, MAC_REG_SOFTPWRCTL,

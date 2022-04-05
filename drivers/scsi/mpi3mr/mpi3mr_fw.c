@@ -2,7 +2,7 @@
 /*
  * Driver for Broadcom MPI3 Storage Controllers
  *
- * Copyright (C) 2017-2021 Broadcom Inc.
+ * Copyright (C) 2017-2022 Broadcom Inc.
  *  (mailto: mpi3mr-linuxdrv.pdl@broadcom.com)
  *
  */
@@ -183,9 +183,6 @@ static void mpi3mr_print_event_data(struct mpi3mr_ioc *mrioc,
 		break;
 	case MPI3_EVENT_GPIO_INTERRUPT:
 		desc = "GPIO Interrupt";
-		break;
-	case MPI3_EVENT_TEMP_THRESHOLD:
-		desc = "Temperature Threshold";
 		break;
 	case MPI3_EVENT_CABLE_MGMT:
 		desc = "Cable Management";
@@ -1520,7 +1517,7 @@ static void mpi3mr_free_op_req_q_segments(struct mpi3mr_ioc *mrioc, u16 q_idx)
 			    MPI3MR_MAX_SEG_LIST_SIZE,
 			    mrioc->req_qinfo[q_idx].q_segment_list,
 			    mrioc->req_qinfo[q_idx].q_segment_list_dma);
-			mrioc->op_reply_qinfo[q_idx].q_segment_list = NULL;
+			mrioc->req_qinfo[q_idx].q_segment_list = NULL;
 		}
 	} else
 		size = mrioc->req_qinfo[q_idx].segment_qd *
@@ -2739,7 +2736,7 @@ static void mpi3mr_process_factsdata(struct mpi3mr_ioc *mrioc,
 	    MPI3_IOCFACTS_FLAGS_DMA_ADDRESS_WIDTH_SHIFT;
 	mrioc->facts.protocol_flags = facts_data->protocol_flags;
 	mrioc->facts.mpi_version = le32_to_cpu(facts_data->mpi_version.word);
-	mrioc->facts.max_reqs = le16_to_cpu(facts_data->max_outstanding_request);
+	mrioc->facts.max_reqs = le16_to_cpu(facts_data->max_outstanding_requests);
 	mrioc->facts.product_id = le16_to_cpu(facts_data->product_id);
 	mrioc->facts.reply_sz = le16_to_cpu(facts_data->reply_frame_size) * 4;
 	mrioc->facts.exceptions = le16_to_cpu(facts_data->ioc_exceptions);
@@ -3621,7 +3618,6 @@ static int mpi3mr_enable_events(struct mpi3mr_ioc *mrioc)
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_PREPARE_FOR_RESET);
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_CABLE_MGMT);
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_ENERGY_PACK_CHANGE);
-	mpi3mr_unmask_events(mrioc, MPI3_EVENT_TEMP_THRESHOLD);
 
 	retval = mpi3mr_issue_event_notification(mrioc);
 	if (retval)
@@ -4353,8 +4349,8 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 	memset(mrioc->devrem_bitmap, 0, mrioc->devrem_bitmap_sz);
 	memset(mrioc->removepend_bitmap, 0, mrioc->dev_handle_bitmap_sz);
 	memset(mrioc->evtack_cmds_bitmap, 0, mrioc->evtack_cmds_bitmap_sz);
-	mpi3mr_cleanup_fwevt_list(mrioc);
 	mpi3mr_flush_host_io(mrioc);
+	mpi3mr_cleanup_fwevt_list(mrioc);
 	mpi3mr_invalidate_devhandles(mrioc);
 	if (mrioc->prepare_for_reset) {
 		mrioc->prepare_for_reset = 0;

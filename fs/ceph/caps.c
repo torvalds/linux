@@ -1915,6 +1915,13 @@ void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 		ceph_get_mds_session(session);
 
 	spin_lock(&ci->i_ceph_lock);
+	if (ci->i_ceph_flags & CEPH_I_ASYNC_CREATE) {
+		/* Don't send messages until we get async create reply */
+		spin_unlock(&ci->i_ceph_lock);
+		ceph_put_mds_session(session);
+		return;
+	}
+
 	if (ci->i_ceph_flags & CEPH_I_FLUSH)
 		flags |= CHECK_CAPS_FLUSH;
 retry:
@@ -2409,6 +2416,9 @@ int ceph_write_inode(struct inode *inode, struct writeback_control *wbc)
 	dout("write_inode %p wait=%d\n", inode, wait);
 	ceph_fscache_unpin_writeback(inode, wbc);
 	if (wait) {
+		err = ceph_wait_on_async_create(inode);
+		if (err)
+			return err;
 		dirty = try_flush_caps(inode, &flush_tid);
 		if (dirty)
 			err = wait_event_interruptible(ci->i_cap_wq,
@@ -2438,6 +2448,10 @@ static void __kick_flushing_caps(struct ceph_mds_client *mdsc,
 	int ret;
 	u64 first_tid = 0;
 	u64 last_snap_flush = 0;
+
+	/* Don't do anything until create reply comes in */
+	if (ci->i_ceph_flags & CEPH_I_ASYNC_CREATE)
+		return;
 
 	ci->i_ceph_flags &= ~CEPH_I_KICK_FLUSH;
 
@@ -4152,7 +4166,6 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 
 	/* lookup ino */
 	inode = ceph_find_inode(mdsc->fsc->sb, vino);
-	ci = ceph_inode(inode);
 	dout(" op %s ino %llx.%llx inode %p\n", ceph_cap_op_name(op), vino.ino,
 	     vino.snap, inode);
 
@@ -4178,6 +4191,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		}
 		goto flush_cap_releases;
 	}
+	ci = ceph_inode(inode);
 
 	/* these will work even if we don't have a cap yet */
 	switch (op) {

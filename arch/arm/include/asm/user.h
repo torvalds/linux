@@ -77,10 +77,6 @@ struct user{
   struct user_fp_struct * u_fp0;/* Used by gdb to help find the values for */
   				/* the FP registers. */
 };
-#define NBPG PAGE_SIZE
-#define UPAGES 1
-#define HOST_TEXT_START_ADDR (u.start_code)
-#define HOST_STACK_END_ADDR (u.start_stack + u.u_ssize * NBPG)
 
 /*
  * User specific VFP registers. If only VFPv2 is present, registers 16 to 31

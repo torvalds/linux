@@ -2,8 +2,6 @@
 /*
  * Copyright (C) 2018 - 2021 Intel Corporation
  */
-#ifndef __PMSR_H
-#define __PMSR_H
 #include <net/cfg80211.h>
 #include "core.h"
 #include "nl80211.h"
@@ -661,5 +659,3 @@ void cfg80211_release_pmsr(struct wireless_dev *wdev, u32 portid)
 	}
 	spin_unlock_bh(&wdev->pmsr_lock);
 }
-
-#endif /* __PMSR_H */

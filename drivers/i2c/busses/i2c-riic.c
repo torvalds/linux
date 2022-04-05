@@ -88,11 +88,6 @@
 
 #define RIIC_INIT_MSG	-1
 
-enum riic_type {
-	RIIC_RZ_A,
-	RIIC_RZ_G2L,
-};
-
 struct riic_dev {
 	void __iomem *base;
 	u8 *buf;
@@ -396,6 +391,11 @@ static struct riic_irq_desc riic_irqs[] = {
 	{ .res_num = 5, .isr = riic_tend_isr, .name = "riic-nack" },
 };
 
+static void riic_reset_control_assert(void *data)
+{
+	reset_control_assert(data);
+}
+
 static int riic_i2c_probe(struct platform_device *pdev)
 {
 	struct riic_dev *riic;
@@ -404,7 +404,6 @@ static int riic_i2c_probe(struct platform_device *pdev)
 	struct i2c_timings i2c_t;
 	struct reset_control *rstc;
 	int i, ret;
-	enum riic_type type;
 
 	riic = devm_kzalloc(&pdev->dev, sizeof(*riic), GFP_KERNEL);
 	if (!riic)
@@ -421,16 +420,18 @@ static int riic_i2c_probe(struct platform_device *pdev)
 		return PTR_ERR(riic->clk);
 	}
 
-	type = (enum riic_type)of_device_get_match_data(&pdev->dev);
-	if (type == RIIC_RZ_G2L) {
-		rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-		if (IS_ERR(rstc)) {
-			dev_err(&pdev->dev, "Error: missing reset ctrl\n");
-			return PTR_ERR(rstc);
-		}
+	rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
+	if (IS_ERR(rstc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rstc),
+				     "Error: missing reset ctrl\n");
 
-		reset_control_deassert(rstc);
-	}
+	ret = reset_control_deassert(rstc);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&pdev->dev, riic_reset_control_assert, rstc);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(riic_irqs); i++) {
 		ret = platform_get_irq(pdev, riic_irqs[i].res_num);
@@ -492,8 +493,7 @@ static int riic_i2c_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id riic_i2c_dt_ids[] = {
-	{ .compatible = "renesas,riic-r9a07g044", .data = (void *)RIIC_RZ_G2L },
-	{ .compatible = "renesas,riic-rz", .data = (void *)RIIC_RZ_A },
+	{ .compatible = "renesas,riic-rz", },
 	{ /* Sentinel */ },
 };
 

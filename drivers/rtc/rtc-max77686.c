@@ -19,6 +19,7 @@
 
 #define MAX77686_I2C_ADDR_RTC		(0x0C >> 1)
 #define MAX77620_I2C_ADDR_RTC		0x68
+#define MAX77714_I2C_ADDR_RTC		0x48
 #define MAX77686_INVALID_I2C_ADDR	(-1)
 
 /* Define non existing register */
@@ -34,9 +35,6 @@
 #define RTC_UDR_MASK			BIT(RTC_UDR_SHIFT)
 #define RTC_RBUDR_SHIFT			4
 #define RTC_RBUDR_MASK			BIT(RTC_RBUDR_SHIFT)
-/* RTC Hour register */
-#define HOUR_PM_SHIFT			6
-#define HOUR_PM_MASK			BIT(HOUR_PM_SHIFT)
 /* RTC Alarm Enable */
 #define ALARM_ENABLE_SHIFT		7
 #define ALARM_ENABLE_MASK		BIT(ALARM_ENABLE_SHIFT)
@@ -57,28 +55,31 @@ enum {
 	RTC_WEEKDAY,
 	RTC_MONTH,
 	RTC_YEAR,
-	RTC_DATE,
+	RTC_MONTHDAY,
 	RTC_NR_TIME
 };
 
+/**
+ * struct max77686_rtc_driver_data - model-specific configuration
+ * @delay: Minimum usecs needed for a RTC update
+ * @mask: Mask used to read RTC registers value
+ * @map: Registers offset to I2C addresses map
+ * @alarm_enable_reg: Has a separate alarm enable register?
+ * @rtc_i2c_addr: I2C address for RTC block
+ * @rtc_irq_from_platform: RTC interrupt via platform resource
+ * @alarm_pending_status_reg: Pending alarm status register
+ * @rtc_irq_chip: RTC IRQ CHIP for regmap
+ * @regmap_config: regmap configuration for the chip
+ */
 struct max77686_rtc_driver_data {
-	/* Minimum usecs needed for a RTC update */
 	unsigned long		delay;
-	/* Mask used to read RTC registers value */
 	u8			mask;
-	/* Registers offset to I2C addresses map */
 	const unsigned int	*map;
-	/* Has a separate alarm enable register? */
 	bool			alarm_enable_reg;
-	/* I2C address for RTC block */
 	int			rtc_i2c_addr;
-	/* RTC interrupt via platform resource */
 	bool			rtc_irq_from_platform;
-	/* Pending alarm status register */
 	int			alarm_pending_status_reg;
-	/* RTC IRQ CHIP for regmap */
 	const struct regmap_irq_chip *rtc_irq_chip;
-	/* regmap configuration for the chip */
 	const struct regmap_config *regmap_config;
 };
 
@@ -96,7 +97,6 @@ struct max77686_rtc_info {
 
 	int rtc_irq;
 	int virq;
-	int rtc_24hr_mode;
 };
 
 enum MAX77686_RTC_OP {
@@ -116,7 +116,7 @@ enum max77686_rtc_reg_offset {
 	REG_RTC_WEEKDAY,
 	REG_RTC_MONTH,
 	REG_RTC_YEAR,
-	REG_RTC_DATE,
+	REG_RTC_MONTHDAY,
 	REG_ALARM1_SEC,
 	REG_ALARM1_MIN,
 	REG_ALARM1_HOUR,
@@ -147,7 +147,7 @@ static const unsigned int max77686_map[REG_RTC_END] = {
 	[REG_RTC_WEEKDAY]    = MAX77686_RTC_WEEKDAY,
 	[REG_RTC_MONTH]      = MAX77686_RTC_MONTH,
 	[REG_RTC_YEAR]       = MAX77686_RTC_YEAR,
-	[REG_RTC_DATE]       = MAX77686_RTC_DATE,
+	[REG_RTC_MONTHDAY]   = MAX77686_RTC_MONTHDAY,
 	[REG_ALARM1_SEC]     = MAX77686_ALARM1_SEC,
 	[REG_ALARM1_MIN]     = MAX77686_ALARM1_MIN,
 	[REG_ALARM1_HOUR]    = MAX77686_ALARM1_HOUR,
@@ -201,6 +201,28 @@ static const struct max77686_rtc_driver_data max77686_drv_data = {
 	.regmap_config = &max77686_rtc_regmap_config,
 };
 
+static const struct regmap_irq_chip max77714_rtc_irq_chip = {
+	.name		= "max77714-rtc",
+	.status_base	= MAX77686_RTC_INT,
+	.mask_base	= MAX77686_RTC_INTM,
+	.num_regs	= 1,
+	.irqs		= max77686_rtc_irqs,
+	.num_irqs	= ARRAY_SIZE(max77686_rtc_irqs) - 1, /* no WTSR on 77714 */
+};
+
+static const struct max77686_rtc_driver_data max77714_drv_data = {
+	.delay = 16000,
+	.mask  = 0x7f,
+	.map   = max77686_map,
+	.alarm_enable_reg = false,
+	.rtc_irq_from_platform = false,
+	/* On MAX77714 RTCA1 is BIT 1 of RTCINT (0x00). Not supported by this driver. */
+	.alarm_pending_status_reg = MAX77686_INVALID_REG,
+	.rtc_i2c_addr = MAX77714_I2C_ADDR_RTC,
+	.rtc_irq_chip = &max77714_rtc_irq_chip,
+	.regmap_config = &max77686_rtc_regmap_config,
+};
+
 static const struct regmap_config max77620_rtc_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -230,7 +252,7 @@ static const unsigned int max77802_map[REG_RTC_END] = {
 	[REG_RTC_WEEKDAY]    = MAX77802_RTC_WEEKDAY,
 	[REG_RTC_MONTH]      = MAX77802_RTC_MONTH,
 	[REG_RTC_YEAR]       = MAX77802_RTC_YEAR,
-	[REG_RTC_DATE]       = MAX77802_RTC_DATE,
+	[REG_RTC_MONTHDAY]   = MAX77802_RTC_MONTHDAY,
 	[REG_ALARM1_SEC]     = MAX77802_ALARM1_SEC,
 	[REG_ALARM1_MIN]     = MAX77802_ALARM1_MIN,
 	[REG_ALARM1_HOUR]    = MAX77802_ALARM1_HOUR,
@@ -275,17 +297,11 @@ static void max77686_rtc_data_to_tm(u8 *data, struct rtc_time *tm,
 
 	tm->tm_sec = data[RTC_SEC] & mask;
 	tm->tm_min = data[RTC_MIN] & mask;
-	if (info->rtc_24hr_mode) {
-		tm->tm_hour = data[RTC_HOUR] & 0x1f;
-	} else {
-		tm->tm_hour = data[RTC_HOUR] & 0x0f;
-		if (data[RTC_HOUR] & HOUR_PM_MASK)
-			tm->tm_hour += 12;
-	}
+	tm->tm_hour = data[RTC_HOUR] & 0x1f;
 
 	/* Only a single bit is set in data[], so fls() would be equivalent */
 	tm->tm_wday = ffs(data[RTC_WEEKDAY] & mask) - 1;
-	tm->tm_mday = data[RTC_DATE] & 0x1f;
+	tm->tm_mday = data[RTC_MONTHDAY] & 0x1f;
 	tm->tm_mon = (data[RTC_MONTH] & 0x0f) - 1;
 	tm->tm_year = data[RTC_YEAR] & mask;
 	tm->tm_yday = 0;
@@ -306,7 +322,7 @@ static int max77686_rtc_tm_to_data(struct rtc_time *tm, u8 *data,
 	data[RTC_MIN] = tm->tm_min;
 	data[RTC_HOUR] = tm->tm_hour;
 	data[RTC_WEEKDAY] = 1 << tm->tm_wday;
-	data[RTC_DATE] = tm->tm_mday;
+	data[RTC_MONTHDAY] = tm->tm_mday;
 	data[RTC_MONTH] = tm->tm_mon + 1;
 
 	if (info->drv_data->alarm_enable_reg) {
@@ -562,8 +578,8 @@ static int max77686_rtc_start_alarm(struct max77686_rtc_info *info)
 			data[RTC_MONTH] |= (1 << ALARM_ENABLE_SHIFT);
 		if (data[RTC_YEAR] & info->drv_data->mask)
 			data[RTC_YEAR] |= (1 << ALARM_ENABLE_SHIFT);
-		if (data[RTC_DATE] & 0x1f)
-			data[RTC_DATE] |= (1 << ALARM_ENABLE_SHIFT);
+		if (data[RTC_MONTHDAY] & 0x1f)
+			data[RTC_MONTHDAY] |= (1 << ALARM_ENABLE_SHIFT);
 
 		ret = regmap_bulk_write(info->rtc_regmap, map[REG_ALARM1_SEC],
 					data, ARRAY_SIZE(data));
@@ -658,8 +674,6 @@ static int max77686_rtc_init_reg(struct max77686_rtc_info *info)
 	/* Set RTC control register : Binary mode, 24hour mdoe */
 	data[0] = (1 << BCD_EN_SHIFT) | (1 << MODEL24_SHIFT);
 	data[1] = (0 << BCD_EN_SHIFT) | (1 << MODEL24_SHIFT);
-
-	info->rtc_24hr_mode = 1;
 
 	ret = regmap_bulk_write(info->rtc_regmap,
 				info->drv_data->map[REG_RTC_CONTROLM],
@@ -852,6 +866,7 @@ static const struct platform_device_id rtc_id[] = {
 	{ "max77686-rtc", .driver_data = (kernel_ulong_t)&max77686_drv_data, },
 	{ "max77802-rtc", .driver_data = (kernel_ulong_t)&max77802_drv_data, },
 	{ "max77620-rtc", .driver_data = (kernel_ulong_t)&max77620_drv_data, },
+	{ "max77714-rtc", .driver_data = (kernel_ulong_t)&max77714_drv_data, },
 	{},
 };
 MODULE_DEVICE_TABLE(platform, rtc_id);

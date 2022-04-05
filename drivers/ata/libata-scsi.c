@@ -680,7 +680,7 @@ static void ata_qc_set_pc_nbytes(struct ata_queued_cmd *qc)
  */
 static void ata_dump_status(struct ata_port *ap, struct ata_taskfile *tf)
 {
-	u8 stat = tf->command, err = tf->feature;
+	u8 stat = tf->status, err = tf->error;
 
 	if (stat & ATA_BUSY) {
 		ata_port_warn(ap, "status=0x%02x {Busy} ", stat);
@@ -871,8 +871,8 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
 	 * onto sense key, asc & ascq.
 	 */
 	if (qc->err_mask ||
-	    tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
-		ata_to_sense_error(qc->ap->print_id, tf->command, tf->feature,
+	    tf->status & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
+		ata_to_sense_error(qc->ap->print_id, tf->status, tf->error,
 				   &sense_key, &asc, &ascq, verbose);
 		ata_scsi_set_sense(qc->dev, cmd, sense_key, asc, ascq);
 	} else {
@@ -901,13 +901,13 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
 		 * Copy registers into sense buffer.
 		 */
 		desc[2] = 0x00;
-		desc[3] = tf->feature;	/* == error reg */
+		desc[3] = tf->error;
 		desc[5] = tf->nsect;
 		desc[7] = tf->lbal;
 		desc[9] = tf->lbam;
 		desc[11] = tf->lbah;
 		desc[12] = tf->device;
-		desc[13] = tf->command; /* == status reg */
+		desc[13] = tf->status;
 
 		/*
 		 * Fill in Extend bit, and the high order bytes
@@ -922,8 +922,8 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
 		}
 	} else {
 		/* Fixed sense format */
-		desc[0] = tf->feature;
-		desc[1] = tf->command; /* status */
+		desc[0] = tf->error;
+		desc[1] = tf->status;
 		desc[2] = tf->device;
 		desc[3] = tf->nsect;
 		desc[7] = 0;
@@ -972,14 +972,14 @@ static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 	 * onto sense key, asc & ascq.
 	 */
 	if (qc->err_mask ||
-	    tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
-		ata_to_sense_error(qc->ap->print_id, tf->command, tf->feature,
+	    tf->status & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
+		ata_to_sense_error(qc->ap->print_id, tf->status, tf->error,
 				   &sense_key, &asc, &ascq, verbose);
 		ata_scsi_set_sense(dev, cmd, sense_key, asc, ascq);
 	} else {
 		/* Could not decode error */
 		ata_dev_warn(dev, "could not decode error status 0x%x err_mask 0x%x\n",
-			     tf->command, qc->err_mask);
+			     tf->status, qc->err_mask);
 		ata_scsi_set_sense(dev, cmd, ABORTED_COMMAND, 0, 0);
 		return;
 	}
@@ -1022,7 +1022,9 @@ void ata_scsi_sdev_config(struct scsi_device *sdev)
  */
 bool ata_scsi_dma_need_drain(struct request *rq)
 {
-	return atapi_cmd_type(scsi_req(rq)->cmd[0]) == ATAPI_MISC;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+
+	return atapi_cmd_type(scmd->cmnd[0]) == ATAPI_MISC;
 }
 EXPORT_SYMBOL_GPL(ata_scsi_dma_need_drain);
 
@@ -1314,21 +1316,10 @@ static void scsi_6_lba_len(const u8 *cdb, u64 *plba, u32 *plen)
  *	@plba: the LBA
  *	@plen: the transfer length
  */
-static void scsi_10_lba_len(const u8 *cdb, u64 *plba, u32 *plen)
+static inline void scsi_10_lba_len(const u8 *cdb, u64 *plba, u32 *plen)
 {
-	u64 lba = 0;
-	u32 len = 0;
-
-	lba |= ((u64)cdb[2]) << 24;
-	lba |= ((u64)cdb[3]) << 16;
-	lba |= ((u64)cdb[4]) << 8;
-	lba |= ((u64)cdb[5]);
-
-	len |= ((u32)cdb[7]) << 8;
-	len |= ((u32)cdb[8]);
-
-	*plba = lba;
-	*plen = len;
+	*plba = get_unaligned_be32(&cdb[2]);
+	*plen = get_unaligned_be16(&cdb[7]);
 }
 
 /**
@@ -1341,27 +1332,10 @@ static void scsi_10_lba_len(const u8 *cdb, u64 *plba, u32 *plen)
  *	@plba: the LBA
  *	@plen: the transfer length
  */
-static void scsi_16_lba_len(const u8 *cdb, u64 *plba, u32 *plen)
+static inline void scsi_16_lba_len(const u8 *cdb, u64 *plba, u32 *plen)
 {
-	u64 lba = 0;
-	u32 len = 0;
-
-	lba |= ((u64)cdb[2]) << 56;
-	lba |= ((u64)cdb[3]) << 48;
-	lba |= ((u64)cdb[4]) << 40;
-	lba |= ((u64)cdb[5]) << 32;
-	lba |= ((u64)cdb[6]) << 24;
-	lba |= ((u64)cdb[7]) << 16;
-	lba |= ((u64)cdb[8]) << 8;
-	lba |= ((u64)cdb[9]);
-
-	len |= ((u32)cdb[10]) << 24;
-	len |= ((u32)cdb[11]) << 16;
-	len |= ((u32)cdb[12]) << 8;
-	len |= ((u32)cdb[13]);
-
-	*plba = lba;
-	*plen = len;
+	*plba = get_unaligned_be64(&cdb[2]);
+	*plen = get_unaligned_be32(&cdb[10]);
 }
 
 /**
@@ -1390,19 +1364,22 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc)
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf->protocol = ATA_PROT_NODATA;
 
-	if (cdb[0] == VERIFY) {
+	switch (cdb[0]) {
+	case VERIFY:
 		if (scmd->cmd_len < 10) {
 			fp = 9;
 			goto invalid_fld;
 		}
 		scsi_10_lba_len(cdb, &block, &n_block);
-	} else if (cdb[0] == VERIFY_16) {
+		break;
+	case VERIFY_16:
 		if (scmd->cmd_len < 16) {
 			fp = 15;
 			goto invalid_fld;
 		}
 		scsi_16_lba_len(cdb, &block, &n_block);
-	} else {
+		break;
+	default:
 		fp = 0;
 		goto invalid_fld;
 	}
@@ -1534,8 +1511,13 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 	int rc;
 	u16 fp = 0;
 
-	if (cdb[0] == WRITE_10 || cdb[0] == WRITE_6 || cdb[0] == WRITE_16)
+	switch (cdb[0]) {
+	case WRITE_6:
+	case WRITE_10:
+	case WRITE_16:
 		tf_flags |= ATA_TFLAG_WRITE;
+		break;
+	}
 
 	/* Calculate the SCSI LBA, transfer length and FUA. */
 	switch (cdb[0]) {
@@ -2493,7 +2475,7 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 
 	/* fill these in, for the case where they are -not- overwritten */
 	cmd->sense_buffer[0] = 0x70;
-	cmd->sense_buffer[2] = qc->tf.feature >> 4;
+	cmd->sense_buffer[2] = qc->tf.error >> 4;
 
 	ata_qc_reinit(qc);
 
@@ -2845,7 +2827,8 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	 * 12 and 16 byte CDBs use different offsets to
 	 * provide the various register values.
 	 */
-	if (cdb[0] == ATA_16) {
+	switch (cdb[0]) {
+	case ATA_16:
 		/*
 		 * 16-byte CDB - may contain extended commands.
 		 *
@@ -2871,7 +2854,8 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		tf->lbah = cdb[12];
 		tf->device = cdb[13];
 		tf->command = cdb[14];
-	} else if (cdb[0] == ATA_12) {
+		break;
+	case ATA_12:
 		/*
 		 * 12-byte CDB - incapable of extended commands.
 		 */
@@ -2884,7 +2868,8 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		tf->lbah = cdb[7];
 		tf->device = cdb[8];
 		tf->command = cdb[9];
-	} else {
+		break;
+	default:
 		/*
 		 * 32-byte CDB - may contain extended command fields.
 		 *
@@ -2908,6 +2893,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		tf->device = cdb[24];
 		tf->command = cdb[25];
 		tf->auxiliary = get_unaligned_be32(&cdb[28]);
+		break;
 	}
 
 	/* For NCQ commands copy the tag value */
@@ -3672,7 +3658,7 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 			goto invalid_fld;
 		}
 
-		len = (cdb[7] << 8) + cdb[8];
+		len = get_unaligned_be16(&cdb[7]);
 		hdr_len = 8;
 	}
 
@@ -3698,7 +3684,7 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	if (six_byte)
 		bd_len = p[3];
 	else
-		bd_len = (p[6] << 8) + p[7];
+		bd_len = get_unaligned_be16(&p[6]);
 
 	len -= hdr_len;
 	p += hdr_len;
@@ -3722,7 +3708,7 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 			goto invalid_param_len;
 
 		spg = p[1];
-		pg_len = (p[2] << 8) | p[3];
+		pg_len = get_unaligned_be16(&p[2]);
 		p += 4;
 		len -= 4;
 	} else {
@@ -3933,7 +3919,6 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 	case MODE_SELECT:
 	case MODE_SELECT_10:
 		return ata_scsi_mode_select_xlat;
-		break;
 
 	case ZBC_IN:
 		return ata_scsi_zbc_in_xlat;

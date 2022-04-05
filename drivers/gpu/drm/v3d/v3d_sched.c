@@ -391,63 +391,49 @@ v3d_sched_init(struct v3d_dev *v3d)
 			     &v3d_bin_sched_ops,
 			     hw_jobs_limit, job_hang_limit,
 			     msecs_to_jiffies(hang_limit_ms), NULL,
-			     NULL, "v3d_bin");
-	if (ret) {
-		dev_err(v3d->drm.dev, "Failed to create bin scheduler: %d.", ret);
+			     NULL, "v3d_bin", v3d->drm.dev);
+	if (ret)
 		return ret;
-	}
 
 	ret = drm_sched_init(&v3d->queue[V3D_RENDER].sched,
 			     &v3d_render_sched_ops,
 			     hw_jobs_limit, job_hang_limit,
 			     msecs_to_jiffies(hang_limit_ms), NULL,
-			     NULL, "v3d_render");
-	if (ret) {
-		dev_err(v3d->drm.dev, "Failed to create render scheduler: %d.",
-			ret);
-		v3d_sched_fini(v3d);
-		return ret;
-	}
+			     NULL, "v3d_render", v3d->drm.dev);
+	if (ret)
+		goto fail;
 
 	ret = drm_sched_init(&v3d->queue[V3D_TFU].sched,
 			     &v3d_tfu_sched_ops,
 			     hw_jobs_limit, job_hang_limit,
 			     msecs_to_jiffies(hang_limit_ms), NULL,
-			     NULL, "v3d_tfu");
-	if (ret) {
-		dev_err(v3d->drm.dev, "Failed to create TFU scheduler: %d.",
-			ret);
-		v3d_sched_fini(v3d);
-		return ret;
-	}
+			     NULL, "v3d_tfu", v3d->drm.dev);
+	if (ret)
+		goto fail;
 
 	if (v3d_has_csd(v3d)) {
 		ret = drm_sched_init(&v3d->queue[V3D_CSD].sched,
 				     &v3d_csd_sched_ops,
 				     hw_jobs_limit, job_hang_limit,
 				     msecs_to_jiffies(hang_limit_ms), NULL,
-				     NULL, "v3d_csd");
-		if (ret) {
-			dev_err(v3d->drm.dev, "Failed to create CSD scheduler: %d.",
-				ret);
-			v3d_sched_fini(v3d);
-			return ret;
-		}
+				     NULL, "v3d_csd", v3d->drm.dev);
+		if (ret)
+			goto fail;
 
 		ret = drm_sched_init(&v3d->queue[V3D_CACHE_CLEAN].sched,
 				     &v3d_cache_clean_sched_ops,
 				     hw_jobs_limit, job_hang_limit,
 				     msecs_to_jiffies(hang_limit_ms), NULL,
-				     NULL, "v3d_cache_clean");
-		if (ret) {
-			dev_err(v3d->drm.dev, "Failed to create CACHE_CLEAN scheduler: %d.",
-				ret);
-			v3d_sched_fini(v3d);
-			return ret;
-		}
+				     NULL, "v3d_cache_clean", v3d->drm.dev);
+		if (ret)
+			goto fail;
 	}
 
 	return 0;
+
+fail:
+	v3d_sched_fini(v3d);
+	return ret;
 }
 
 void

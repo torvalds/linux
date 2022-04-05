@@ -255,13 +255,12 @@ static void __net_exit ip6mr_rules_exit(struct net *net)
 {
 	struct mr_table *mrt, *next;
 
-	rtnl_lock();
+	ASSERT_RTNL();
 	list_for_each_entry_safe(mrt, next, &net->ipv6.mr6_tables, list) {
 		list_del(&mrt->list);
 		ip6mr_free_table(mrt);
 	}
 	fib_rules_unregister(net->ipv6.mr6_rules_ops);
-	rtnl_unlock();
 }
 
 static int ip6mr_rules_dump(struct net *net, struct notifier_block *nb,
@@ -318,10 +317,9 @@ static int __net_init ip6mr_rules_init(struct net *net)
 
 static void __net_exit ip6mr_rules_exit(struct net *net)
 {
-	rtnl_lock();
+	ASSERT_RTNL();
 	ip6mr_free_table(net->ipv6.mrt6);
 	net->ipv6.mrt6 = NULL;
-	rtnl_unlock();
 }
 
 static int ip6mr_rules_dump(struct net *net, struct notifier_block *nb,
@@ -734,7 +732,7 @@ static int mif6_delete(struct mr_table *mrt, int vifi, int notify,
 
 	in6_dev = __in6_dev_get(dev);
 	if (in6_dev) {
-		in6_dev->cnf.mc_forwarding--;
+		atomic_dec(&in6_dev->cnf.mc_forwarding);
 		inet6_netconf_notify_devconf(dev_net(dev), RTM_NEWNETCONF,
 					     NETCONFA_MC_FORWARDING,
 					     dev->ifindex, &in6_dev->cnf);
@@ -902,7 +900,7 @@ static int mif6_add(struct net *net, struct mr_table *mrt,
 
 	in6_dev = __in6_dev_get(dev);
 	if (in6_dev) {
-		in6_dev->cnf.mc_forwarding++;
+		atomic_inc(&in6_dev->cnf.mc_forwarding);
 		inet6_netconf_notify_devconf(dev_net(dev), RTM_NEWNETCONF,
 					     NETCONFA_MC_FORWARDING,
 					     dev->ifindex, &in6_dev->cnf);
@@ -1042,7 +1040,7 @@ static int ip6mr_cache_report(struct mr_table *mrt, struct sk_buff *pkt,
 	int ret;
 
 #ifdef CONFIG_IPV6_PIMSM_V2
-	if (assert == MRT6MSG_WHOLEPKT)
+	if (assert == MRT6MSG_WHOLEPKT || assert == MRT6MSG_WRMIFWHOLE)
 		skb = skb_realloc_headroom(pkt, -skb_network_offset(pkt)
 						+sizeof(*msg));
 	else
@@ -1058,7 +1056,7 @@ static int ip6mr_cache_report(struct mr_table *mrt, struct sk_buff *pkt,
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 #ifdef CONFIG_IPV6_PIMSM_V2
-	if (assert == MRT6MSG_WHOLEPKT) {
+	if (assert == MRT6MSG_WHOLEPKT || assert == MRT6MSG_WRMIFWHOLE) {
 		/* Ugly, but we have no choice with this interface.
 		   Duplicate old header, fix length etc.
 		   And all this only to mangle msg->im6_msgtype and
@@ -1070,8 +1068,11 @@ static int ip6mr_cache_report(struct mr_table *mrt, struct sk_buff *pkt,
 		skb_reset_transport_header(skb);
 		msg = (struct mrt6msg *)skb_transport_header(skb);
 		msg->im6_mbz = 0;
-		msg->im6_msgtype = MRT6MSG_WHOLEPKT;
-		msg->im6_mif = mrt->mroute_reg_vif_num;
+		msg->im6_msgtype = assert;
+		if (assert == MRT6MSG_WRMIFWHOLE)
+			msg->im6_mif = mifi;
+		else
+			msg->im6_mif = mrt->mroute_reg_vif_num;
 		msg->im6_pad = 0;
 		msg->im6_src = ipv6_hdr(pkt)->saddr;
 		msg->im6_dst = ipv6_hdr(pkt)->daddr;
@@ -1325,7 +1326,9 @@ static int __net_init ip6mr_net_init(struct net *net)
 proc_cache_fail:
 	remove_proc_entry("ip6_mr_vif", net->proc_net);
 proc_vif_fail:
+	rtnl_lock();
 	ip6mr_rules_exit(net);
+	rtnl_unlock();
 #endif
 ip6mr_rules_fail:
 	ip6mr_notifier_exit(net);
@@ -1338,13 +1341,23 @@ static void __net_exit ip6mr_net_exit(struct net *net)
 	remove_proc_entry("ip6_mr_cache", net->proc_net);
 	remove_proc_entry("ip6_mr_vif", net->proc_net);
 #endif
-	ip6mr_rules_exit(net);
 	ip6mr_notifier_exit(net);
+}
+
+static void __net_exit ip6mr_net_exit_batch(struct list_head *net_list)
+{
+	struct net *net;
+
+	rtnl_lock();
+	list_for_each_entry(net, net_list, exit_list)
+		ip6mr_rules_exit(net);
+	rtnl_unlock();
 }
 
 static struct pernet_operations ip6mr_net_ops = {
 	.init = ip6mr_net_init,
 	.exit = ip6mr_net_exit,
+	.exit_batch = ip6mr_net_exit_batch,
 };
 
 int __init ip6_mr_init(void)
@@ -1553,7 +1566,7 @@ static int ip6mr_sk_init(struct mr_table *mrt, struct sock *sk)
 	} else {
 		rcu_assign_pointer(mrt->mroute_sk, sk);
 		sock_set_flag(sk, SOCK_RCU_FREE);
-		net->ipv6.devconf_all->mc_forwarding++;
+		atomic_inc(&net->ipv6.devconf_all->mc_forwarding);
 	}
 	write_unlock_bh(&mrt_lock);
 
@@ -1569,12 +1582,17 @@ static int ip6mr_sk_init(struct mr_table *mrt, struct sock *sk)
 
 int ip6mr_sk_done(struct sock *sk)
 {
-	int err = -EACCES;
 	struct net *net = sock_net(sk);
+	struct ipv6_devconf *devconf;
 	struct mr_table *mrt;
+	int err = -EACCES;
 
 	if (sk->sk_type != SOCK_RAW ||
 	    inet_sk(sk)->inet_num != IPPROTO_ICMPV6)
+		return err;
+
+	devconf = net->ipv6.devconf_all;
+	if (!devconf || !atomic_read(&devconf->mc_forwarding))
 		return err;
 
 	rtnl_lock();
@@ -1586,7 +1604,7 @@ int ip6mr_sk_done(struct sock *sk)
 			 * so the RCU grace period before sk freeing
 			 * is guaranteed by sk_destruct()
 			 */
-			net->ipv6.devconf_all->mc_forwarding--;
+			atomic_dec(&devconf->mc_forwarding);
 			write_unlock_bh(&mrt_lock);
 			inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
 						     NETCONFA_MC_FORWARDING,
@@ -1635,6 +1653,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, sockptr_t optval,
 	mifi_t mifi;
 	struct net *net = sock_net(sk);
 	struct mr_table *mrt;
+	bool do_wrmifwhole;
 
 	if (sk->sk_type != SOCK_RAW ||
 	    inet_sk(sk)->inet_num != IPPROTO_ICMPV6)
@@ -1748,12 +1767,15 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, sockptr_t optval,
 			return -EINVAL;
 		if (copy_from_sockptr(&v, optval, sizeof(v)))
 			return -EFAULT;
+
+		do_wrmifwhole = (v == MRT6MSG_WRMIFWHOLE);
 		v = !!v;
 		rtnl_lock();
 		ret = 0;
 		if (v != mrt->mroute_do_pim) {
 			mrt->mroute_do_pim = v;
 			mrt->mroute_do_assert = v;
+			mrt->mroute_do_wrvifwhole = do_wrmifwhole;
 		}
 		rtnl_unlock();
 		return ret;
@@ -2129,6 +2151,9 @@ static void ip6_mr_forward(struct net *net, struct mr_table *mrt,
 			       MFC_ASSERT_THRESH)) {
 			c->_c.mfc_un.res.last_assert = jiffies;
 			ip6mr_cache_report(mrt, skb, true_vifi, MRT6MSG_WRONGMIF);
+			if (mrt->mroute_do_wrvifwhole)
+				ip6mr_cache_report(mrt, skb, true_vifi,
+						   MRT6MSG_WRMIFWHOLE);
 		}
 		goto dont_forward;
 	}

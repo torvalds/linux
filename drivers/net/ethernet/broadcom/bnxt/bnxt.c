@@ -233,6 +233,7 @@ static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_ECHO_REQUEST,
 	ASYNC_EVENT_CMPL_EVENT_ID_PPS_TIMESTAMP,
 	ASYNC_EVENT_CMPL_EVENT_ID_ERROR_REPORT,
+	ASYNC_EVENT_CMPL_EVENT_ID_PHC_UPDATE,
 };
 
 static struct workqueue_struct *bnxt_pf_wq;
@@ -369,7 +370,7 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	i = skb_get_queue_mapping(skb);
 	if (unlikely(i >= bp->tx_nr_rings)) {
 		dev_kfree_skb_any(skb);
-		atomic_long_inc(&dev->tx_dropped);
+		dev_core_stats_tx_dropped_inc(dev);
 		return NETDEV_TX_OK;
 	}
 
@@ -645,7 +646,7 @@ tx_kick_pending:
 	if (txr->kick_pending)
 		bnxt_txr_db_kick(bp, txr, txr->tx_prod);
 	txr->tx_buf_ring[txr->tx_prod].skb = NULL;
-	atomic_long_inc(&dev->tx_dropped);
+	dev_core_stats_tx_dropped_inc(dev);
 	return NETDEV_TX_OK;
 }
 
@@ -2079,6 +2080,16 @@ static void bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
 	(BNXT_EVENT_RING_TYPE(data2) ==	\
 	 ASYNC_EVENT_CMPL_RING_MONITOR_MSG_EVENT_DATA2_DISABLE_RING_TYPE_RX)
 
+#define BNXT_EVENT_PHC_EVENT_TYPE(data1)	\
+	(((data1) & ASYNC_EVENT_CMPL_PHC_UPDATE_EVENT_DATA1_FLAGS_MASK) >>\
+	 ASYNC_EVENT_CMPL_PHC_UPDATE_EVENT_DATA1_FLAGS_SFT)
+
+#define BNXT_EVENT_PHC_RTC_UPDATE(data1)	\
+	(((data1) & ASYNC_EVENT_CMPL_PHC_UPDATE_EVENT_DATA1_PHC_TIME_MSB_MASK) >>\
+	 ASYNC_EVENT_CMPL_PHC_UPDATE_EVENT_DATA1_PHC_TIME_MSB_SFT)
+
+#define BNXT_PHC_BITS	48
+
 static int bnxt_async_event_process(struct bnxt *bp,
 				    struct hwrm_async_event_cmpl *cmpl)
 {
@@ -2256,6 +2267,24 @@ static int bnxt_async_event_process(struct bnxt *bp,
 	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_ERROR_REPORT: {
 		bnxt_event_error_report(bp, data1, data2);
+		goto async_event_process_exit;
+	}
+	case ASYNC_EVENT_CMPL_EVENT_ID_PHC_UPDATE: {
+		switch (BNXT_EVENT_PHC_EVENT_TYPE(data1)) {
+		case ASYNC_EVENT_CMPL_PHC_UPDATE_EVENT_DATA1_FLAGS_PHC_RTC_UPDATE:
+			if (bp->fw_cap & BNXT_FW_CAP_PTP_RTC) {
+				struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+				u64 ns;
+
+				spin_lock_bh(&ptp->ptp_lock);
+				bnxt_ptp_update_current_time(bp);
+				ns = (((u64)BNXT_EVENT_PHC_RTC_UPDATE(data1) <<
+				       BNXT_PHC_BITS) | ptp->current_time);
+				bnxt_ptp_rtc_timecounter_init(ptp, ns);
+				spin_unlock_bh(&ptp->ptp_lock);
+			}
+			break;
+		}
 		goto async_event_process_exit;
 	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_DEFERRED_RESPONSE: {
@@ -7416,6 +7445,7 @@ static int __bnxt_hwrm_ptp_qcfg(struct bnxt *bp)
 	struct hwrm_port_mac_ptp_qcfg_output *resp;
 	struct hwrm_port_mac_ptp_qcfg_input *req;
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+	bool phc_cfg;
 	u8 flags;
 	int rc;
 
@@ -7458,7 +7488,8 @@ static int __bnxt_hwrm_ptp_qcfg(struct bnxt *bp)
 		rc = -ENODEV;
 		goto exit;
 	}
-	rc = bnxt_ptp_init(bp);
+	phc_cfg = (flags & PORT_MAC_PTP_QCFG_RESP_FLAGS_RTC_CONFIGURED) != 0;
+	rc = bnxt_ptp_init(bp, phc_cfg);
 	if (rc)
 		netdev_warn(bp->dev, "PTP initialization failed.\n");
 exit:
@@ -7516,6 +7547,8 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		bp->fw_cap |= BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED;
 	if (BNXT_PF(bp) && (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_PTP_PPS_SUPPORTED))
 		bp->fw_cap |= BNXT_FW_CAP_PTP_PPS;
+	if (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_PTP_64BIT_RTC_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_PTP_RTC;
 	if (BNXT_PF(bp) && (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_HOT_RESET_IF_SUPPORT))
 		bp->fw_cap |= BNXT_FW_CAP_HOT_RESET_IF;
 	if (BNXT_PF(bp) && (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_FW_LIVEPATCH_SUPPORTED))
@@ -9267,7 +9300,7 @@ void bnxt_tx_enable(struct bnxt *bp)
 	/* Make sure napi polls see @dev_state change */
 	synchronize_net();
 	netif_tx_wake_all_queues(bp->dev);
-	if (bp->link_info.link_up)
+	if (BNXT_LINK_IS_UP(bp))
 		netif_carrier_on(bp->dev);
 }
 
@@ -9297,7 +9330,7 @@ static char *bnxt_report_fec(struct bnxt_link_info *link_info)
 
 void bnxt_report_link(struct bnxt *bp)
 {
-	if (bp->link_info.link_up) {
+	if (BNXT_LINK_IS_UP(bp)) {
 		const char *signal = "";
 		const char *flow_ctrl;
 		const char *duplex;
@@ -9383,7 +9416,7 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 	if (rc)
 		goto hwrm_phy_qcaps_exit;
 
-	bp->phy_flags = resp->flags;
+	bp->phy_flags = resp->flags | (le16_to_cpu(resp->flags2) << 8);
 	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_EEE_SUPPORTED) {
 		struct ethtool_eee *eee = &bp->eee;
 		u16 fw_speeds = le16_to_cpu(resp->supported_speeds_eee_mode);
@@ -9433,7 +9466,7 @@ int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	struct bnxt_link_info *link_info = &bp->link_info;
 	struct hwrm_port_phy_qcfg_output *resp;
 	struct hwrm_port_phy_qcfg_input *req;
-	u8 link_up = link_info->link_up;
+	u8 link_state = link_info->link_state;
 	bool support_changed = false;
 	int rc;
 
@@ -9534,14 +9567,14 @@ int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	/* TODO: need to add more logic to report VF link */
 	if (chng_link_state) {
 		if (link_info->phy_link_status == BNXT_LINK_LINK)
-			link_info->link_up = 1;
+			link_info->link_state = BNXT_LINK_STATE_UP;
 		else
-			link_info->link_up = 0;
-		if (link_up != link_info->link_up)
+			link_info->link_state = BNXT_LINK_STATE_DOWN;
+		if (link_state != link_info->link_state)
 			bnxt_report_link(bp);
 	} else {
-		/* alwasy link down if not require to update link state */
-		link_info->link_up = 0;
+		/* always link down if not require to update link state */
+		link_info->link_state = BNXT_LINK_STATE_DOWN;
 	}
 	hwrm_req_drop(bp, req);
 
@@ -9741,7 +9774,18 @@ static int bnxt_hwrm_shutdown_link(struct bnxt *bp)
 		return rc;
 
 	req->flags = cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_FORCE_LINK_DWN);
-	return hwrm_req_send(bp, req);
+	rc = hwrm_req_send(bp, req);
+	if (!rc) {
+		mutex_lock(&bp->link_lock);
+		/* Device is not obliged link down in certain scenarios, even
+		 * when forced. Setting the state unknown is consistent with
+		 * driver startup and will force link state to be reported
+		 * during subsequent open based on PORT_PHY_QCFG.
+		 */
+		bp->link_info.link_state = BNXT_LINK_STATE_UNKNOWN;
+		mutex_unlock(&bp->link_lock);
+	}
+	return rc;
 }
 
 static int bnxt_fw_reset_via_optee(struct bnxt *bp)
@@ -10172,7 +10216,7 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 	/* The last close may have shutdown the link, so need to call
 	 * PHY_CFG to bring it back up.
 	 */
-	if (!bp->link_info.link_up)
+	if (!BNXT_LINK_IS_UP(bp))
 		update_link = true;
 
 	if (!bnxt_eee_config_ok(bp))
@@ -10307,6 +10351,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	/* VF-reps may need to be re-opened after the PF is re-opened */
 	if (BNXT_PF(bp))
 		bnxt_vf_reps_open(bp);
+	bnxt_ptp_init_rtc(bp, true);
 	return 0;
 
 open_err_irq:
@@ -11403,7 +11448,7 @@ static void bnxt_timer(struct timer_list *t)
 	if (bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY)
 		bnxt_fw_health_check(bp);
 
-	if (bp->link_info.link_up && bp->stats_coal_ticks) {
+	if (BNXT_LINK_IS_UP(bp) && bp->stats_coal_ticks) {
 		set_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event);
 		bnxt_queue_sp_work(bp);
 	}
@@ -12104,11 +12149,6 @@ int bnxt_fw_init_one(struct bnxt *bp)
 	if (rc)
 		return rc;
 
-	/* In case fw capabilities have changed, destroy the unneeded
-	 * reporters and create newly capable ones.
-	 */
-	bnxt_dl_fw_reporters_destroy(bp, false);
-	bnxt_dl_fw_reporters_create(bp);
 	bnxt_fw_init_one_p3(bp);
 	return 0;
 }
@@ -12937,7 +12977,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	cancel_delayed_work_sync(&bp->fw_reset_task);
 	bp->sp_event = 0;
 
-	bnxt_dl_fw_reporters_destroy(bp, true);
+	bnxt_dl_fw_reporters_destroy(bp);
 	bnxt_dl_unregister(bp);
 	bnxt_shutdown_tc(bp);
 
@@ -13430,7 +13470,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 #ifdef CONFIG_BNXT_SRIOV
 	init_waitqueue_head(&bp->sriov_cfg_wait);
-	mutex_init(&bp->sriov_lock);
 #endif
 	if (BNXT_SUPPORTS_TPA(bp)) {
 		bp->gro_func = bnxt_gro_func_5730x;

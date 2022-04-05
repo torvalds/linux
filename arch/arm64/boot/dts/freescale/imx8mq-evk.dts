@@ -27,6 +27,17 @@
 		clock-frequency = <100000000>;
 	};
 
+	reg_pcie1: regulator-pcie {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pcie1_reg>;
+		regulator-name = "MPCIE_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio5 10 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	reg_usdhc2_vmmc: regulator-vsd-3v3 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_reg_usdhc2>;
@@ -123,6 +134,7 @@
 
 &ddrc {
 	operating-points-v2 = <&ddrc_opp_table>;
+	status = "okay";
 
 	ddrc_opp_table: opp-table {
 		compatible = "operating-points-v2";
@@ -327,6 +339,20 @@
 	status = "okay";
 };
 
+&pcie1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie1>;
+	reset-gpio = <&gpio5 12 GPIO_ACTIVE_LOW>;
+	clocks = <&clk IMX8MQ_CLK_PCIE2_ROOT>,
+		 <&clk IMX8MQ_CLK_PCIE2_AUX>,
+		 <&clk IMX8MQ_CLK_PCIE2_PHY>,
+		 <&pcie0_refclk>;
+	clock-names = "pcie", "pcie_aux", "pcie_phy", "pcie_bus";
+	vpcie-supply = <&reg_pcie1>;
+	vph-supply = <&vgen5_reg>;
+	status = "okay";
+};
+
 &pgc_gpu {
 	power-supply = <&sw1a_reg>;
 };
@@ -479,6 +505,19 @@
 		fsl,pins = <
 			MX8MQ_IOMUXC_I2C4_SCL_PCIE1_CLKREQ_B		0x76
 			MX8MQ_IOMUXC_UART4_RXD_GPIO5_IO28		0x16
+		>;
+	};
+
+	pinctrl_pcie1: pcie1grp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_I2C4_SDA_PCIE2_CLKREQ_B		0x76
+			MX8MQ_IOMUXC_ECSPI2_MISO_GPIO5_IO12		0x16
+		>;
+	};
+
+	pinctrl_pcie1_reg: pcie1reggrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_ECSPI2_SCLK_GPIO5_IO10		0x16
 		>;
 	};
 

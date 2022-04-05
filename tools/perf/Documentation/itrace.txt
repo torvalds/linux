@@ -7,6 +7,8 @@
 		p	synthesize power events (incl. PSB events for Intel PT)
 		o	synthesize other events recorded due to the use
 			of aux-output (refer to perf record)
+		I	synthesize interrupt or similar (asynchronous) events
+			(e.g. Intel PT Event Trace)
 		e	synthesize error events
 		d	create a debug log
 		f	synthesize first level cache events

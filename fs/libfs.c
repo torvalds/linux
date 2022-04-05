@@ -631,7 +631,7 @@ const struct address_space_operations ram_aops = {
 	.readpage	= simple_readpage,
 	.write_begin	= simple_write_begin,
 	.write_end	= simple_write_end,
-	.set_page_dirty	= __set_page_dirty_no_writeback,
+	.dirty_folio	= noop_dirty_folio,
 };
 EXPORT_SYMBOL(ram_aops);
 
@@ -1198,17 +1198,6 @@ int noop_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 }
 EXPORT_SYMBOL(noop_fsync);
 
-void noop_invalidatepage(struct page *page, unsigned int offset,
-		unsigned int length)
-{
-	/*
-	 * There is no page cache to invalidate in the dax case, however
-	 * we need this callback defined to prevent falling back to
-	 * block_invalidatepage() in do_invalidatepage().
-	 */
-}
-EXPORT_SYMBOL_GPL(noop_invalidatepage);
-
 ssize_t noop_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	/*
@@ -1231,7 +1220,7 @@ EXPORT_SYMBOL(kfree_link);
 struct inode *alloc_anon_inode(struct super_block *s)
 {
 	static const struct address_space_operations anon_aops = {
-		.set_page_dirty = __set_page_dirty_no_writeback,
+		.dirty_folio	= noop_dirty_folio,
 	};
 	struct inode *inode = new_inode_pseudo(s);
 

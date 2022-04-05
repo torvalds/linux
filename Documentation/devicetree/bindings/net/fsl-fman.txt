@@ -388,14 +388,24 @@ PROPERTIES
 		Value type: <prop-encoded-array>
 		Definition: A standard property.
 
-- bus-frequency
+- clocks
+		Usage: optional
+		Value type: <phandle>
+		Definition: A reference to the input clock of the controller
+		from which the MDC frequency is derived.
+
+- clock-frequency
 		Usage: optional
 		Value type: <u32>
-		Definition: Specifies the external MDIO bus clock speed to
-		be used, if different from the standard 2.5 MHz.
-		This may be due to the standard speed being unsupported (e.g.
-		due to a hardware problem), or to advertise that all relevant
-		components in the system support a faster speed.
+		Definition: Specifies the external MDC frequency, in Hertz, to
+		be used. Requires that the input clock is specified in the
+		"clocks" property. See also: mdio.yaml.
+
+- suppress-preamble
+		Usage: optional
+		Value type: <boolean>
+		Definition: Disable generation of preamble bits. See also:
+		mdio.yaml.
 
 - interrupts
 		Usage: required for external MDIO

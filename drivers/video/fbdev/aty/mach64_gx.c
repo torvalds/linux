@@ -352,10 +352,8 @@ static int aty_var_to_pll_18818(const struct fb_info *info, u32 vclk_per,
 	post_divider = 1;
 
 	if (MHz100 > MAX_FREQ_2595) {
-		MHz100 = MAX_FREQ_2595;
 		return -EINVAL;
 	} else if (MHz100 < ABS_MIN_FREQ_2595) {
-		program_bits = 0;	/* MHz100 = 257 */
 		return -EINVAL;
 	} else {
 		while (MHz100 < MIN_FREQ_2595) {

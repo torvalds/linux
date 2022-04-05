@@ -67,7 +67,8 @@ struct bp_hardening_data {
 
 DECLARE_PER_CPU_READ_MOSTLY(struct bp_hardening_data, bp_hardening_data);
 
-static inline void arm64_apply_bp_hardening(void)
+/* Called during entry so must be __always_inline */
+static __always_inline void arm64_apply_bp_hardening(void)
 {
 	struct bp_hardening_data *d;
 

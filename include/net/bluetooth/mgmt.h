@@ -696,7 +696,7 @@ struct mgmt_cp_set_blocked_keys {
 #define MGMT_READ_CONTROLLER_CAP_SIZE	0
 struct mgmt_rp_read_controller_cap {
 	__le16   cap_len;
-	__u8     cap[0];
+	__u8     cap[];
 } __packed;
 
 #define MGMT_OP_READ_EXP_FEATURES_INFO	0x0049
@@ -1104,3 +1104,19 @@ struct mgmt_ev_controller_resume {
 #define MGMT_WAKE_REASON_NON_BT_WAKE		0x0
 #define MGMT_WAKE_REASON_UNEXPECTED		0x1
 #define MGMT_WAKE_REASON_REMOTE_WAKE		0x2
+
+#define MGMT_EV_ADV_MONITOR_DEVICE_FOUND	0x002f
+struct mgmt_ev_adv_monitor_device_found {
+	__le16 monitor_handle;
+	struct mgmt_addr_info addr;
+	__s8   rssi;
+	__le32 flags;
+	__le16 eir_len;
+	__u8   eir[];
+} __packed;
+
+#define MGMT_EV_ADV_MONITOR_DEVICE_LOST		0x0030
+struct mgmt_ev_adv_monitor_device_lost {
+	__le16 monitor_handle;
+	struct mgmt_addr_info addr;
+} __packed;

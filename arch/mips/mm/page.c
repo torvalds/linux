@@ -25,7 +25,6 @@
 #include <asm/mipsregs.h>
 #include <asm/mmu_context.h>
 #include <asm/cpu.h>
-#include <asm/war.h>
 
 #ifdef CONFIG_SIBYTE_DMA_PAGEOPS
 #include <asm/sibyte/sb1250.h>
@@ -103,7 +102,9 @@ static int cache_line_size;
 static inline void
 pg_addiu(u32 **buf, unsigned int reg1, unsigned int reg2, unsigned int off)
 {
-	if (cpu_has_64bit_gp_regs && DADDI_WAR && r4k_daddiu_bug()) {
+	if (cpu_has_64bit_gp_regs &&
+	    IS_ENABLED(CONFIG_CPU_DADDI_WORKAROUNDS) &&
+	    r4k_daddiu_bug()) {
 		if (off > 0x7fff) {
 			uasm_i_lui(buf, T9, uasm_rel_hi(off));
 			uasm_i_addiu(buf, T9, T9, uasm_rel_lo(off));

@@ -3,7 +3,6 @@
 #include "osdep.h"
 #include "type.h"
 #include "i40iw_hw.h"
-#include "status.h"
 #include "protos.h"
 
 static u32 i40iw_regs[IRDMA_MAX_REGS] = {

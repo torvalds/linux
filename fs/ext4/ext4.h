@@ -1046,6 +1046,8 @@ struct ext4_inode_info {
 
 	/* Fast commit related info */
 
+	/* For tracking dentry create updates */
+	struct list_head i_fc_dilist;
 	struct list_head i_fc_list;	/*
 					 * inodes that need fast commit
 					 * protected by sbi->s_fc_lock.
@@ -1279,7 +1281,7 @@ struct ext4_inode_info {
 #define ext4_find_next_zero_bit		find_next_zero_bit_le
 #define ext4_find_next_bit		find_next_bit_le
 
-extern void ext4_set_bits(void *bm, int cur, int len);
+extern void mb_set_bits(void *bm, int cur, int len);
 
 /*
  * Maximal mount counts between two filesystem checks
@@ -3707,6 +3709,9 @@ extern int ext4_inode_block_valid(struct inode *inode,
 				  unsigned int count);
 extern int ext4_check_blockref(const char *, unsigned int,
 			       struct inode *, __le32 *, unsigned int);
+extern int ext4_sb_block_valid(struct super_block *sb, struct inode *inode,
+				ext4_fsblk_t start_blk, unsigned int count);
+
 
 /* extents.c */
 struct ext4_ext_path;

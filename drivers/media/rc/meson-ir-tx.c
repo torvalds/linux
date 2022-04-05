@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * meson-ir-tx.c - Amlogic Meson IR TX driver
  *
  * Copyright (c) 2021, SberDevices. All Rights Reserved.

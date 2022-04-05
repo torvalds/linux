@@ -2,8 +2,6 @@
 /*
  * Copyright IBM Corp. 2008, 2009
  *
- *   Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,
- *
  */
 
 #include <linux/linkage.h>
@@ -12,6 +10,18 @@
 #include <asm/nospec-insn.h>
 #include <asm/ptrace.h>
 #include <asm/export.h>
+
+
+#define STACK_FRAME_SIZE	(STACK_FRAME_OVERHEAD + __PT_SIZE)
+#define STACK_PTREGS		(STACK_FRAME_OVERHEAD)
+#define STACK_PTREGS_GPRS	(STACK_PTREGS + __PT_GPRS)
+#define STACK_PTREGS_PSW	(STACK_PTREGS + __PT_PSW)
+#define STACK_PTREGS_ORIG_GPR2	(STACK_PTREGS + __PT_ORIG_GPR2)
+#define STACK_PTREGS_FLAGS	(STACK_PTREGS + __PT_FLAGS)
+/* packed stack: allocate just enough for r14, r15 and backchain */
+#define TRACED_FUNC_FRAME_SIZE	24
+
+#ifdef CONFIG_FUNCTION_TRACER
 
 	GEN_BR_THUNK %r1
 	GEN_BR_THUNK %r14
@@ -22,26 +32,14 @@ ENTRY(ftrace_stub)
 	BR_EX	%r14
 ENDPROC(ftrace_stub)
 
-#define STACK_FRAME_SIZE	(STACK_FRAME_OVERHEAD + __PT_SIZE)
-#define STACK_PTREGS		(STACK_FRAME_OVERHEAD)
-#define STACK_PTREGS_GPRS	(STACK_PTREGS + __PT_GPRS)
-#define STACK_PTREGS_PSW	(STACK_PTREGS + __PT_PSW)
-#define STACK_PTREGS_ORIG_GPR2	(STACK_PTREGS + __PT_ORIG_GPR2)
-#define STACK_PTREGS_FLAGS	(STACK_PTREGS + __PT_FLAGS)
-#ifdef __PACK_STACK
-/* allocate just enough for r14, r15 and backchain */
-#define TRACED_FUNC_FRAME_SIZE	24
-#else
-#define TRACED_FUNC_FRAME_SIZE	STACK_FRAME_OVERHEAD
-#endif
-
 	.macro	ftrace_regs_entry, allregs=0
 	stg	%r14,(__SF_GPRS+8*8)(%r15)	# save traced function caller
 
 	.if \allregs == 1
-	lghi	%r14,0				# save condition code
-	ipm	%r14				# don't put any instructions
-	sllg	%r14,%r14,16			# clobbering CC before this point
+	# save psw mask
+	# don't put any instructions clobbering CC before this point
+	epsw	%r1,%r14
+	risbg	%r14,%r1,0,31,32
 	.endif
 
 	lgr	%r1,%r15
@@ -57,13 +55,7 @@ ENDPROC(ftrace_stub)
 
 	.if \allregs == 1
 	stg	%r14,(STACK_PTREGS_PSW)(%r15)
-	stosm	(STACK_PTREGS_PSW)(%r15),0
-#ifdef CONFIG_HAVE_MARCH_Z10_FEATURES
 	mvghi	STACK_PTREGS_FLAGS(%r15),_PIF_FTRACE_FULL_REGS
-#else
-	lghi	%r14,_PIF_FTRACE_FULL_REGS
-	stg	%r14,STACK_PTREGS_FLAGS(%r15)
-#endif
 	.else
 	xc	STACK_PTREGS_FLAGS(8,%r15),STACK_PTREGS_FLAGS(%r15)
 	.endif
@@ -141,3 +133,35 @@ SYM_FUNC_START(return_to_handler)
 SYM_FUNC_END(return_to_handler)
 
 #endif
+#endif /* CONFIG_FUNCTION_TRACER */
+
+#ifdef CONFIG_KPROBES
+
+SYM_FUNC_START(__kretprobe_trampoline)
+
+	stg	%r14,(__SF_GPRS+8*8)(%r15)
+	lay	%r15,-STACK_FRAME_SIZE(%r15)
+	stmg	%r0,%r14,STACK_PTREGS_GPRS(%r15)
+
+	# store original stack pointer in backchain and pt_regs
+	lay	%r7,STACK_FRAME_SIZE(%r15)
+	stg	%r7,__SF_BACKCHAIN(%r15)
+	stg	%r7,STACK_PTREGS_GPRS+(15*8)(%r15)
+
+	# store full psw
+	epsw	%r2,%r3
+	risbg	%r3,%r2,0,31,32
+	stg	%r3,STACK_PTREGS_PSW(%r15)
+	larl	%r1,__kretprobe_trampoline
+	stg	%r1,STACK_PTREGS_PSW+8(%r15)
+
+	lay	%r2,STACK_PTREGS(%r15)
+	brasl	%r14,trampoline_probe_handler
+
+	mvc	__SF_EMPTY(16,%r7),STACK_PTREGS_PSW(%r15)
+	lmg	%r0,%r15,STACK_PTREGS_GPRS(%r15)
+	lpswe	__SF_EMPTY(%r15)
+
+SYM_FUNC_END(__kretprobe_trampoline)
+
+#endif /* CONFIG_KPROBES */

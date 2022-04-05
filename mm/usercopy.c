@@ -29,7 +29,7 @@
  * Returns:
  *	NOT_STACK: not at all on the stack
  *	GOOD_FRAME: fully within a valid stack frame
- *	GOOD_STACK: fully on the stack (when can't do frame-checking)
+ *	GOOD_STACK: within the current stack (when can't frame-check exactly)
  *	BAD_STACK: error condition (invalid stack position or bad stack frame)
  */
 static noinline int check_stack_object(const void *obj, unsigned long len)
@@ -55,6 +55,17 @@ static noinline int check_stack_object(const void *obj, unsigned long len)
 	if (ret)
 		return ret;
 
+	/* Finally, check stack depth if possible. */
+#ifdef CONFIG_ARCH_HAS_CURRENT_STACK_POINTER
+	if (IS_ENABLED(CONFIG_STACK_GROWSUP)) {
+		if ((void *)current_stack_pointer < obj + len)
+			return BAD_STACK;
+	} else {
+		if (obj < (void *)current_stack_pointer)
+			return BAD_STACK;
+	}
+#endif
+
 	return GOOD_STACK;
 }
 
@@ -70,17 +81,6 @@ static noinline int check_stack_object(const void *obj, unsigned long len)
  * kmem_cache_create_usercopy() function to create the cache (and
  * carefully audit the whitelist range).
  */
-void usercopy_warn(const char *name, const char *detail, bool to_user,
-		   unsigned long offset, unsigned long len)
-{
-	WARN_ONCE(1, "Bad or missing usercopy whitelist? Kernel memory %s attempt detected %s %s%s%s%s (offset %lu, size %lu)!\n",
-		 to_user ? "exposure" : "overwrite",
-		 to_user ? "from" : "to",
-		 name ? : "unknown?!",
-		 detail ? " '" : "", detail ? : "", detail ? "'" : "",
-		 offset, len);
-}
-
 void __noreturn usercopy_abort(const char *name, const char *detail,
 			       bool to_user, unsigned long offset,
 			       unsigned long len)
@@ -280,7 +280,15 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 		 */
 		return;
 	default:
-		usercopy_abort("process stack", NULL, to_user, 0, n);
+		usercopy_abort("process stack", NULL, to_user,
+#ifdef CONFIG_ARCH_HAS_CURRENT_STACK_POINTER
+			IS_ENABLED(CONFIG_STACK_GROWSUP) ?
+				ptr - (void *)current_stack_pointer :
+				(void *)current_stack_pointer - ptr,
+#else
+			0,
+#endif
+			n);
 	}
 
 	/* Check for bad heap object. */
@@ -295,7 +303,10 @@ static bool enable_checks __initdata = true;
 
 static int __init parse_hardened_usercopy(char *str)
 {
-	return strtobool(str, &enable_checks);
+	if (strtobool(str, &enable_checks))
+		pr_warn("Invalid option string for hardened_usercopy: '%s'\n",
+			str);
+	return 1;
 }
 
 __setup("hardened_usercopy=", parse_hardened_usercopy);

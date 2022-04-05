@@ -240,7 +240,7 @@ free:
 	return ret;
 }
 
-static int wilc_bus_remove(struct spi_device *spi)
+static void wilc_bus_remove(struct spi_device *spi)
 {
 	struct wilc *wilc = spi_get_drvdata(spi);
 	struct wilc_spi *spi_priv = wilc->bus_data;
@@ -248,8 +248,6 @@ static int wilc_bus_remove(struct spi_device *spi)
 	clk_disable_unprepare(wilc->rtc_clk);
 	wilc_netdev_cleanup(wilc);
 	kfree(spi_priv);
-
-	return 0;
 }
 
 static const struct of_device_id wilc_of_match[] = {
@@ -727,10 +725,7 @@ static int wilc_spi_dma_rw(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz)
 		int nbytes;
 		u8 rsp;
 
-		if (sz <= DATA_PKT_SZ)
-			nbytes = sz;
-		else
-			nbytes = DATA_PKT_SZ;
+		nbytes = min_t(u32, sz, DATA_PKT_SZ);
 
 		/*
 		 * Data Response header

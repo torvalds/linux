@@ -71,17 +71,6 @@ static inline void fscache_see_cookie(struct fscache_cookie *cookie,
 }
 
 /*
- * io.c
- */
-static inline void fscache_end_operation(struct netfs_cache_resources *cres)
-{
-	const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
-
-	if (ops)
-		ops->end_operation(cres);
-}
-
-/*
  * main.c
  */
 extern unsigned fscache_debug;

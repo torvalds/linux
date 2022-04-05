@@ -19,6 +19,7 @@
 #include <linux/refcount.h>
 #include <scsi/iscsi_proto.h>
 #include <scsi/iscsi_if.h>
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_transport_iscsi.h>
 
 struct scsi_transport_template;
@@ -150,6 +151,17 @@ static inline bool iscsi_task_is_completed(struct iscsi_task *task)
 	return task->state == ISCSI_TASK_COMPLETED ||
 	       task->state == ISCSI_TASK_ABRT_TMF ||
 	       task->state == ISCSI_TASK_ABRT_SESS_RECOV;
+}
+
+/* Private data associated with struct scsi_cmnd. */
+struct iscsi_cmd {
+	struct iscsi_task	*task;
+	int			age;
+};
+
+static inline struct iscsi_cmd *iscsi_cmd(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
 }
 
 /* Connection's states */
@@ -371,7 +383,6 @@ struct iscsi_host {
 	int			state;
 
 	struct workqueue_struct	*workq;
-	char			workq_name[20];
 };
 
 /*

@@ -28,6 +28,7 @@ struct wm_adsp {
 	struct cs_dsp cs_dsp;
 	const char *part;
 	const char *fwf_name;
+	const char *system_name;
 	struct snd_soc_component *component;
 
 	unsigned int sys_config_size;

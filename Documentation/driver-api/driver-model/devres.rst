@@ -368,6 +368,7 @@ MUX
   devm_mux_chip_alloc()
   devm_mux_chip_register()
   devm_mux_control_get()
+  devm_mux_state_get()
 
 NET
   devm_alloc_etherdev()

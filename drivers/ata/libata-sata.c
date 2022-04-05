@@ -191,8 +191,8 @@ EXPORT_SYMBOL_GPL(ata_tf_to_fis);
 
 void ata_tf_from_fis(const u8 *fis, struct ata_taskfile *tf)
 {
-	tf->command	= fis[2];	/* status */
-	tf->feature	= fis[3];	/* error */
+	tf->status	= fis[2];
+	tf->error	= fis[3];
 
 	tf->lbal	= fis[4];
 	tf->lbam	= fis[5];
@@ -1406,8 +1406,8 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
 
 	*tag = buf[0] & 0x1f;
 
-	tf->command = buf[2];
-	tf->feature = buf[3];
+	tf->status = buf[2];
+	tf->error = buf[3];
 	tf->lbal = buf[4];
 	tf->lbam = buf[5];
 	tf->lbah = buf[6];
@@ -1482,7 +1482,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 	qc->result_tf.flags = ATA_TFLAG_ISADDR | ATA_TFLAG_LBA | ATA_TFLAG_LBA48;
 	qc->err_mask |= AC_ERR_DEV | AC_ERR_NCQ;
 	if (dev->class == ATA_DEV_ZAC &&
-	    ((qc->result_tf.command & ATA_SENSE) || qc->result_tf.auxiliary)) {
+	    ((qc->result_tf.status & ATA_SENSE) || qc->result_tf.auxiliary)) {
 		char sense_key, asc, ascq;
 
 		sense_key = (qc->result_tf.auxiliary >> 16) & 0xff;

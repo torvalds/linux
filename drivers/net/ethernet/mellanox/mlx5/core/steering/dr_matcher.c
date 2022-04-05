@@ -47,6 +47,11 @@ static bool dr_mask_is_ttl_set(struct mlx5dr_match_spec *spec)
 	return spec->ttl_hoplimit;
 }
 
+static bool dr_mask_is_ipv4_ihl_set(struct mlx5dr_match_spec *spec)
+{
+	return spec->ipv4_ihl;
+}
+
 #define DR_MASK_IS_L2_DST(_spec, _misc, _inner_outer) (_spec.first_vid || \
 	(_spec).first_cfi || (_spec).first_prio || (_spec).cvlan_tag || \
 	(_spec).svlan_tag || (_spec).dmac_47_16 || (_spec).dmac_15_0 || \
@@ -103,7 +108,7 @@ dr_mask_is_vxlan_gpe_set(struct mlx5dr_match_misc3 *misc3)
 static bool
 dr_matcher_supp_vxlan_gpe(struct mlx5dr_cmd_caps *caps)
 {
-	return (caps->sw_format_ver == MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
+	return (caps->sw_format_ver >= MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
 	       (caps->flex_protocols & MLX5_FLEX_PARSER_VXLAN_GPE_ENABLED);
 }
 
@@ -144,7 +149,7 @@ static bool dr_mask_is_tnl_geneve_tlv_opt_exist_set(struct mlx5dr_match_misc *mi
 static bool
 dr_matcher_supp_tnl_geneve(struct mlx5dr_cmd_caps *caps)
 {
-	return (caps->sw_format_ver == MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
+	return (caps->sw_format_ver >= MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
 	       (caps->flex_protocols & MLX5_FLEX_PARSER_GENEVE_ENABLED);
 }
 
@@ -261,13 +266,13 @@ static bool dr_mask_is_tnl_gtpu_any(struct mlx5dr_match_param *mask,
 
 static int dr_matcher_supp_icmp_v4(struct mlx5dr_cmd_caps *caps)
 {
-	return (caps->sw_format_ver == MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
+	return (caps->sw_format_ver >= MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
 	       (caps->flex_protocols & MLX5_FLEX_PARSER_ICMP_V4_ENABLED);
 }
 
 static int dr_matcher_supp_icmp_v6(struct mlx5dr_cmd_caps *caps)
 {
-	return (caps->sw_format_ver == MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
+	return (caps->sw_format_ver >= MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
 	       (caps->flex_protocols & MLX5_FLEX_PARSER_ICMP_V6_ENABLED);
 }
 
@@ -507,7 +512,8 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 				mlx5dr_ste_build_eth_l3_ipv4_5_tuple(ste_ctx, &sb[idx++],
 								     &mask, inner, rx);
 
-			if (dr_mask_is_ttl_set(&mask.outer))
+			if (dr_mask_is_ttl_set(&mask.outer) ||
+			    dr_mask_is_ipv4_ihl_set(&mask.outer))
 				mlx5dr_ste_build_eth_l3_ipv4_misc(ste_ctx, &sb[idx++],
 								  &mask, inner, rx);
 		}
@@ -614,7 +620,8 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 				mlx5dr_ste_build_eth_l3_ipv4_5_tuple(ste_ctx, &sb[idx++],
 								     &mask, inner, rx);
 
-			if (dr_mask_is_ttl_set(&mask.inner))
+			if (dr_mask_is_ttl_set(&mask.inner) ||
+			    dr_mask_is_ipv4_ihl_set(&mask.inner))
 				mlx5dr_ste_build_eth_l3_ipv4_misc(ste_ctx, &sb[idx++],
 								  &mask, inner, rx);
 		}
@@ -698,7 +705,7 @@ static int dr_nic_matcher_connect(struct mlx5dr_domain *dmn,
 
 	/* Connect start hash table to end anchor */
 	info.type = CONNECT_MISS;
-	info.miss_icm_addr = curr_nic_matcher->e_anchor->chunk->icm_addr;
+	info.miss_icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(curr_nic_matcher->e_anchor->chunk);
 	ret = mlx5dr_ste_htbl_init_and_postsend(dmn, nic_dmn,
 						curr_nic_matcher->s_htbl,
 						&info, false);
@@ -719,12 +726,14 @@ static int dr_nic_matcher_connect(struct mlx5dr_domain *dmn,
 		return ret;
 
 	/* Update the pointing ste and next hash table */
-	curr_nic_matcher->s_htbl->pointing_ste = prev_htbl->ste_arr;
-	prev_htbl->ste_arr[0].next_htbl = curr_nic_matcher->s_htbl;
+	curr_nic_matcher->s_htbl->pointing_ste = prev_htbl->chunk->ste_arr;
+	prev_htbl->chunk->ste_arr[0].next_htbl = curr_nic_matcher->s_htbl;
 
 	if (next_nic_matcher) {
-		next_nic_matcher->s_htbl->pointing_ste = curr_nic_matcher->e_anchor->ste_arr;
-		curr_nic_matcher->e_anchor->ste_arr[0].next_htbl = next_nic_matcher->s_htbl;
+		next_nic_matcher->s_htbl->pointing_ste =
+			curr_nic_matcher->e_anchor->chunk->ste_arr;
+		curr_nic_matcher->e_anchor->chunk->ste_arr[0].next_htbl =
+			next_nic_matcher->s_htbl;
 	}
 
 	return 0;
@@ -1036,12 +1045,12 @@ static int dr_matcher_disconnect_nic(struct mlx5dr_domain *dmn,
 	if (next_nic_matcher) {
 		info.type = CONNECT_HIT;
 		info.hit_next_htbl = next_nic_matcher->s_htbl;
-		next_nic_matcher->s_htbl->pointing_ste = prev_anchor->ste_arr;
-		prev_anchor->ste_arr[0].next_htbl = next_nic_matcher->s_htbl;
+		next_nic_matcher->s_htbl->pointing_ste = prev_anchor->chunk->ste_arr;
+		prev_anchor->chunk->ste_arr[0].next_htbl = next_nic_matcher->s_htbl;
 	} else {
 		info.type = CONNECT_MISS;
 		info.miss_icm_addr = nic_tbl->default_icm_addr;
-		prev_anchor->ste_arr[0].next_htbl = NULL;
+		prev_anchor->chunk->ste_arr[0].next_htbl = NULL;
 	}
 
 	return mlx5dr_ste_htbl_init_and_postsend(dmn, nic_dmn, prev_anchor,

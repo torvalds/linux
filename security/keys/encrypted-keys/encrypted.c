@@ -78,6 +78,11 @@ static const match_table_t key_tokens = {
 	{Opt_err, NULL}
 };
 
+static bool user_decrypted_data = IS_ENABLED(CONFIG_USER_DECRYPTED_DATA);
+module_param(user_decrypted_data, bool, 0);
+MODULE_PARM_DESC(user_decrypted_data,
+	"Allow instantiation of encrypted keys using provided decrypted data");
+
 static int aes_get_sizes(void)
 {
 	struct crypto_skcipher *tfm;
@@ -158,7 +163,7 @@ static int valid_master_desc(const char *new_desc, const char *orig_desc)
  * datablob_parse - parse the keyctl data
  *
  * datablob format:
- * new [<format>] <master-key name> <decrypted data length>
+ * new [<format>] <master-key name> <decrypted data length> [<decrypted data>]
  * load [<format>] <master-key name> <decrypted data length>
  *     <encrypted iv + data>
  * update <new-master-key name>
@@ -170,7 +175,7 @@ static int valid_master_desc(const char *new_desc, const char *orig_desc)
  */
 static int datablob_parse(char *datablob, const char **format,
 			  char **master_desc, char **decrypted_datalen,
-			  char **hex_encoded_iv)
+			  char **hex_encoded_iv, char **decrypted_data)
 {
 	substring_t args[MAX_OPT_ARGS];
 	int ret = -EINVAL;
@@ -231,6 +236,7 @@ static int datablob_parse(char *datablob, const char **format,
 				"when called from .update method\n", keyword);
 			break;
 		}
+		*decrypted_data = strsep(&datablob, " \t");
 		ret = 0;
 		break;
 	case Opt_load:
@@ -595,7 +601,8 @@ out:
 static struct encrypted_key_payload *encrypted_key_alloc(struct key *key,
 							 const char *format,
 							 const char *master_desc,
-							 const char *datalen)
+							 const char *datalen,
+							 const char *decrypted_data)
 {
 	struct encrypted_key_payload *epayload = NULL;
 	unsigned short datablob_len;
@@ -604,6 +611,7 @@ static struct encrypted_key_payload *encrypted_key_alloc(struct key *key,
 	unsigned int encrypted_datalen;
 	unsigned int format_len;
 	long dlen;
+	int i;
 	int ret;
 
 	ret = kstrtol(datalen, 10, &dlen);
@@ -613,6 +621,24 @@ static struct encrypted_key_payload *encrypted_key_alloc(struct key *key,
 	format_len = (!format) ? strlen(key_format_default) : strlen(format);
 	decrypted_datalen = dlen;
 	payload_datalen = decrypted_datalen;
+
+	if (decrypted_data) {
+		if (!user_decrypted_data) {
+			pr_err("encrypted key: instantiation of keys using provided decrypted data is disabled since CONFIG_USER_DECRYPTED_DATA is set to false\n");
+			return ERR_PTR(-EINVAL);
+		}
+		if (strlen(decrypted_data) != decrypted_datalen) {
+			pr_err("encrypted key: decrypted data provided does not match decrypted data length provided\n");
+			return ERR_PTR(-EINVAL);
+		}
+		for (i = 0; i < strlen(decrypted_data); i++) {
+			if (!isxdigit(decrypted_data[i])) {
+				pr_err("encrypted key: decrypted data provided must contain only hexadecimal characters\n");
+				return ERR_PTR(-EINVAL);
+			}
+		}
+	}
+
 	if (format) {
 		if (!strcmp(format, key_format_ecryptfs)) {
 			if (dlen != ECRYPTFS_MAX_KEY_BYTES) {
@@ -740,13 +766,14 @@ static void __ekey_init(struct encrypted_key_payload *epayload,
 /*
  * encrypted_init - initialize an encrypted key
  *
- * For a new key, use a random number for both the iv and data
- * itself.  For an old key, decrypt the hex encoded data.
+ * For a new key, use either a random number or user-provided decrypted data in
+ * case it is provided. A random number is used for the iv in both cases. For
+ * an old key, decrypt the hex encoded data.
  */
 static int encrypted_init(struct encrypted_key_payload *epayload,
 			  const char *key_desc, const char *format,
 			  const char *master_desc, const char *datalen,
-			  const char *hex_encoded_iv)
+			  const char *hex_encoded_iv, const char *decrypted_data)
 {
 	int ret = 0;
 
@@ -760,21 +787,26 @@ static int encrypted_init(struct encrypted_key_payload *epayload,
 	}
 
 	__ekey_init(epayload, format, master_desc, datalen);
-	if (!hex_encoded_iv) {
-		get_random_bytes(epayload->iv, ivsize);
-
-		get_random_bytes(epayload->decrypted_data,
-				 epayload->decrypted_datalen);
-	} else
+	if (hex_encoded_iv) {
 		ret = encrypted_key_decrypt(epayload, format, hex_encoded_iv);
+	} else if (decrypted_data) {
+		get_random_bytes(epayload->iv, ivsize);
+		memcpy(epayload->decrypted_data, decrypted_data,
+				   epayload->decrypted_datalen);
+	} else {
+		get_random_bytes(epayload->iv, ivsize);
+		get_random_bytes(epayload->decrypted_data, epayload->decrypted_datalen);
+	}
 	return ret;
 }
 
 /*
  * encrypted_instantiate - instantiate an encrypted key
  *
- * Decrypt an existing encrypted datablob or create a new encrypted key
- * based on a kernel random number.
+ * Instantiates the key:
+ * - by decrypting an existing encrypted datablob, or
+ * - by creating a new encrypted key based on a kernel random number, or
+ * - using provided decrypted data.
  *
  * On success, return 0. Otherwise return errno.
  */
@@ -787,6 +819,7 @@ static int encrypted_instantiate(struct key *key,
 	char *master_desc = NULL;
 	char *decrypted_datalen = NULL;
 	char *hex_encoded_iv = NULL;
+	char *decrypted_data = NULL;
 	size_t datalen = prep->datalen;
 	int ret;
 
@@ -799,18 +832,18 @@ static int encrypted_instantiate(struct key *key,
 	datablob[datalen] = 0;
 	memcpy(datablob, prep->data, datalen);
 	ret = datablob_parse(datablob, &format, &master_desc,
-			     &decrypted_datalen, &hex_encoded_iv);
+			     &decrypted_datalen, &hex_encoded_iv, &decrypted_data);
 	if (ret < 0)
 		goto out;
 
 	epayload = encrypted_key_alloc(key, format, master_desc,
-				       decrypted_datalen);
+				       decrypted_datalen, decrypted_data);
 	if (IS_ERR(epayload)) {
 		ret = PTR_ERR(epayload);
 		goto out;
 	}
 	ret = encrypted_init(epayload, key->description, format, master_desc,
-			     decrypted_datalen, hex_encoded_iv);
+			     decrypted_datalen, hex_encoded_iv, decrypted_data);
 	if (ret < 0) {
 		kfree_sensitive(epayload);
 		goto out;
@@ -860,7 +893,7 @@ static int encrypted_update(struct key *key, struct key_preparsed_payload *prep)
 
 	buf[datalen] = 0;
 	memcpy(buf, prep->data, datalen);
-	ret = datablob_parse(buf, &format, &new_master_desc, NULL, NULL);
+	ret = datablob_parse(buf, &format, &new_master_desc, NULL, NULL, NULL);
 	if (ret < 0)
 		goto out;
 
@@ -869,7 +902,7 @@ static int encrypted_update(struct key *key, struct key_preparsed_payload *prep)
 		goto out;
 
 	new_epayload = encrypted_key_alloc(key, epayload->format,
-					   new_master_desc, epayload->datalen);
+					   new_master_desc, epayload->datalen, NULL);
 	if (IS_ERR(new_epayload)) {
 		ret = PTR_ERR(new_epayload);
 		goto out;

@@ -210,22 +210,11 @@ struct sta_info {
 	+ sta->sta_stats.rx_ctrl_pkts \
 	+ sta->sta_stats.rx_data_pkts)
 
-#define sta_last_rx_pkts(sta) \
-	(sta->sta_stats.last_rx_mgnt_pkts \
-	+ sta->sta_stats.last_rx_ctrl_pkts \
-	+ sta->sta_stats.last_rx_data_pkts)
-
 #define sta_rx_data_pkts(sta) \
 	(sta->sta_stats.rx_data_pkts)
 
 #define sta_last_rx_data_pkts(sta) \
 	(sta->sta_stats.last_rx_data_pkts)
-
-#define sta_rx_mgnt_pkts(sta) \
-	(sta->sta_stats.rx_mgnt_pkts)
-
-#define sta_last_rx_mgnt_pkts(sta) \
-	(sta->sta_stats.last_rx_mgnt_pkts)
 
 #define sta_rx_beacon_pkts(sta) \
 	(sta->sta_stats.rx_beacon_pkts)
@@ -233,29 +222,11 @@ struct sta_info {
 #define sta_last_rx_beacon_pkts(sta) \
 	(sta->sta_stats.last_rx_beacon_pkts)
 
-#define sta_rx_probereq_pkts(sta) \
-	(sta->sta_stats.rx_probereq_pkts)
-
-#define sta_last_rx_probereq_pkts(sta) \
-	(sta->sta_stats.last_rx_probereq_pkts)
-
 #define sta_rx_probersp_pkts(sta) \
 	(sta->sta_stats.rx_probersp_pkts)
 
 #define sta_last_rx_probersp_pkts(sta) \
 	(sta->sta_stats.last_rx_probersp_pkts)
-
-#define sta_rx_probersp_bm_pkts(sta) \
-	(sta->sta_stats.rx_probersp_bm_pkts)
-
-#define sta_last_rx_probersp_bm_pkts(sta) \
-	(sta->sta_stats.last_rx_probersp_bm_pkts)
-
-#define sta_rx_probersp_uo_pkts(sta) \
-	(sta->sta_stats.rx_probersp_uo_pkts)
-
-#define sta_last_rx_probersp_uo_pkts(sta) \
-	(sta->sta_stats.last_rx_probersp_uo_pkts)
 
 #define sta_update_last_rx_pkts(sta) \
 do { \
@@ -268,23 +239,6 @@ do { \
 	sta->sta_stats.last_rx_ctrl_pkts = sta->sta_stats.rx_ctrl_pkts; \
 	sta->sta_stats.last_rx_data_pkts = sta->sta_stats.rx_data_pkts; \
 } while (0)
-
-#define STA_RX_PKTS_ARG(sta) \
-	sta->sta_stats.rx_mgnt_pkts \
-	, sta->sta_stats.rx_ctrl_pkts \
-	, sta->sta_stats.rx_data_pkts
-
-#define STA_LAST_RX_PKTS_ARG(sta) \
-	sta->sta_stats.last_rx_mgnt_pkts \
-	, sta->sta_stats.last_rx_ctrl_pkts \
-	, sta->sta_stats.last_rx_data_pkts
-
-#define STA_RX_PKTS_DIFF_ARG(sta) \
-	sta->sta_stats.rx_mgnt_pkts - sta->sta_stats.last_rx_mgnt_pkts \
-	, sta->sta_stats.rx_ctrl_pkts - sta->sta_stats.last_rx_ctrl_pkts \
-	, sta->sta_stats.rx_data_pkts - sta->sta_stats.last_rx_data_pkts
-
-#define STA_PKTS_FMT "(m:%llu, c:%llu, d:%llu)"
 
 struct	sta_priv {
 	u8 *pallocated_stainfo_buf;
@@ -344,7 +298,7 @@ static inline u32 wifi_mac_hash(u8 *mac)
 }
 
 extern u32	_rtw_init_sta_priv(struct sta_priv *pstapriv);
-extern u32	_rtw_free_sta_priv(struct sta_priv *pstapriv);
+extern void _rtw_free_sta_priv(struct sta_priv *pstapriv);
 
 #define stainfo_offset_valid(offset) (offset < NUM_STA && offset >= 0)
 int rtw_stainfo_offset(struct sta_priv *stapriv, struct sta_info *sta);

@@ -85,7 +85,16 @@ struct page {
 			 * lruvec->lru_lock.  Sometimes used as a generic list
 			 * by the page owner.
 			 */
-			struct list_head lru;
+			union {
+				struct list_head lru;
+				/* Or, for the Unevictable "LRU list" slot */
+				struct {
+					/* Always even, to negate PageTail */
+					void *__filler;
+					/* Count page's or folio's mlocks */
+					unsigned int mlock_count;
+				};
+			};
 			/* See page-flags.h for PAGE_MAPPING_FLAGS */
 			struct address_space *mapping;
 			pgoff_t index;		/* Our offset within mapping. */
@@ -126,11 +135,14 @@ struct page {
 			unsigned char compound_dtor;
 			unsigned char compound_order;
 			atomic_t compound_mapcount;
+			atomic_t compound_pincount;
+#ifdef CONFIG_64BIT
 			unsigned int compound_nr; /* 1 << compound_order */
+#endif
 		};
 		struct {	/* Second tail page of compound page */
 			unsigned long _compound_pad_1;	/* compound_head */
-			atomic_t hpage_pinned_refcount;
+			unsigned long _compound_pad_2;
 			/* For both global and memcg */
 			struct list_head deferred_list;
 		};
@@ -241,7 +253,13 @@ struct folio {
 		struct {
 	/* public: */
 			unsigned long flags;
-			struct list_head lru;
+			union {
+				struct list_head lru;
+				struct {
+					void *__filler;
+					unsigned int mlock_count;
+				};
+			};
 			struct address_space *mapping;
 			pgoff_t index;
 			void *private;
@@ -285,7 +303,7 @@ static inline atomic_t *compound_mapcount_ptr(struct page *page)
 
 static inline atomic_t *compound_pincount_ptr(struct page *page)
 {
-	return &page[2].hpage_pinned_refcount;
+	return &page[1].compound_pincount;
 }
 
 /*
@@ -634,7 +652,7 @@ struct mm_struct {
 #endif
 		struct work_struct async_put_work;
 
-#ifdef CONFIG_IOMMU_SUPPORT
+#ifdef CONFIG_IOMMU_SVA
 		u32 pasid;
 #endif
 	} __randomize_layout;

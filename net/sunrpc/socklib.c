@@ -15,6 +15,7 @@
 #include <linux/pagemap.h>
 #include <linux/udp.h>
 #include <linux/sunrpc/msg_prot.h>
+#include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/export.h>
 
@@ -222,7 +223,7 @@ static int xprt_send_pagedata(struct socket *sock, struct msghdr *msg,
 {
 	int err;
 
-	err = xdr_alloc_bvec(xdr, GFP_KERNEL);
+	err = xdr_alloc_bvec(xdr, rpc_task_gfp_mask());
 	if (err < 0)
 		return err;
 

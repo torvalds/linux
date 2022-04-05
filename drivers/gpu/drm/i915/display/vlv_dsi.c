@@ -44,6 +44,7 @@
 #include "skl_scaler.h"
 #include "vlv_dsi.h"
 #include "vlv_dsi_pll.h"
+#include "vlv_dsi_regs.h"
 #include "vlv_sideband.h"
 
 /* return pixels in terms of txbyteclkhs */
@@ -1492,7 +1493,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 		 */
 
 		if (is_vid_mode(intel_dsi) &&
-			intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
+			intel_dsi->video_mode == BURST_MODE) {
 			intel_de_write(dev_priv, MIPI_HS_TX_TIMEOUT(port),
 				       txbyteclkhs(adjusted_mode->crtc_htotal, bpp, intel_dsi->lane_count, intel_dsi->burst_mode_ratio) + 1);
 		} else {
@@ -1568,12 +1569,33 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 		intel_de_write(dev_priv, MIPI_CLK_LANE_SWITCH_TIME_CNT(port),
 			       intel_dsi->clk_lp_to_hs_count << LP_HS_SSW_CNT_SHIFT | intel_dsi->clk_hs_to_lp_count << HS_LP_PWR_SW_CNT_SHIFT);
 
-		if (is_vid_mode(intel_dsi))
-			/* Some panels might have resolution which is not a
+		if (is_vid_mode(intel_dsi)) {
+			u32 fmt = intel_dsi->video_frmt_cfg_bits | IP_TG_CONFIG;
+
+			/*
+			 * Some panels might have resolution which is not a
 			 * multiple of 64 like 1366 x 768. Enable RANDOM
-			 * resolution support for such panels by default */
-			intel_de_write(dev_priv, MIPI_VIDEO_MODE_FORMAT(port),
-				       intel_dsi->video_frmt_cfg_bits | intel_dsi->video_mode_format | IP_TG_CONFIG | RANDOM_DPI_DISPLAY_RESOLUTION);
+			 * resolution support for such panels by default.
+			 */
+			fmt |= RANDOM_DPI_DISPLAY_RESOLUTION;
+
+			switch (intel_dsi->video_mode) {
+			default:
+				MISSING_CASE(intel_dsi->video_mode);
+				fallthrough;
+			case NON_BURST_SYNC_EVENTS:
+				fmt |= VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS;
+				break;
+			case NON_BURST_SYNC_PULSE:
+				fmt |= VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE;
+				break;
+			case BURST_MODE:
+				fmt |= VIDEO_MODE_BURST;
+				break;
+			}
+
+			intel_de_write(dev_priv, MIPI_VIDEO_MODE_FORMAT(port), fmt);
+		}
 	}
 }
 

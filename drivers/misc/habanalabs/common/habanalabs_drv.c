@@ -140,6 +140,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	hl_cb_mgr_init(&hpriv->cb_mgr);
 	hl_ctx_mgr_init(&hpriv->ctx_mgr);
+	hl_ts_mgr_init(&hpriv->ts_mem_mgr);
 
 	hpriv->taskpid = get_task_pid(current, PIDTYPE_PID);
 
@@ -184,6 +185,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 out_err:
 	mutex_unlock(&hdev->fpriv_list_lock);
 	hl_cb_mgr_fini(hpriv->hdev, &hpriv->cb_mgr);
+	hl_ts_mgr_fini(hpriv->hdev, &hpriv->ts_mem_mgr);
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
 	filp->private_data = NULL;
 	mutex_destroy(&hpriv->restore_phase_mutex);
@@ -256,7 +258,6 @@ static void set_driver_behavior_per_device(struct hl_device *hdev)
 	hdev->cpu_queues_enable = 1;
 	hdev->heartbeat = 1;
 	hdev->mmu_enable = 1;
-	hdev->clock_gating_mask = ULONG_MAX;
 	hdev->sram_scrambler_enable = 1;
 	hdev->dram_scrambler_enable = 1;
 	hdev->bmc_enable = 1;

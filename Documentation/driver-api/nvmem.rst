@@ -26,9 +26,7 @@ was a rather big abstraction leak.
 
 This framework aims at solve these problems. It also introduces DT
 representation for consumer devices to go get the data they require (MAC
-Addresses, SoC/Revision ID, part numbers, and so on) from the NVMEMs. This
-framework is based on regmap, so that most of the abstraction available in
-regmap can be reused, across multiple types of buses.
+Addresses, SoC/Revision ID, part numbers, and so on) from the NVMEMs.
 
 NVMEM Providers
 +++++++++++++++
@@ -45,23 +43,21 @@ nvmem_device pointer.
 
 nvmem_unregister(nvmem) is used to unregister a previously registered provider.
 
-For example, a simple qfprom case::
+For example, a simple nvram case::
 
-  static struct nvmem_config econfig = {
-	.name = "qfprom",
-	.owner = THIS_MODULE,
-  };
-
-  static int qfprom_probe(struct platform_device *pdev)
+  static int brcm_nvram_probe(struct platform_device *pdev)
   {
+	struct nvmem_config config = {
+		.name = "brcm-nvram",
+		.reg_read = brcm_nvram_read,
+	};
 	...
-	econfig.dev = &pdev->dev;
-	nvmem = nvmem_register(&econfig);
-	...
-  }
+	config.dev = &pdev->dev;
+	config.priv = priv;
+	config.size = resource_size(res);
 
-It is mandatory that the NVMEM provider has a regmap associated with its
-struct device. Failure to do would return error code from nvmem_register().
+	devm_nvmem_register(&config);
+  }
 
 Users of board files can define and register nvmem cells using the
 nvmem_cell_table struct::

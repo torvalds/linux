@@ -1030,15 +1030,9 @@ static void __net_exit dccp_v4_exit_net(struct net *net)
 	inet_ctl_sock_destroy(pn->v4_ctl_sk);
 }
 
-static void __net_exit dccp_v4_exit_batch(struct list_head *net_exit_list)
-{
-	inet_twsk_purge(&dccp_hashinfo, AF_INET);
-}
-
 static struct pernet_operations dccp_v4_ops = {
 	.init	= dccp_v4_init_net,
 	.exit	= dccp_v4_exit_net,
-	.exit_batch = dccp_v4_exit_batch,
 	.id	= &dccp_v4_pernet_id,
 	.size   = sizeof(struct dccp_v4_pernet),
 };

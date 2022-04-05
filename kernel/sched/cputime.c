@@ -2,7 +2,6 @@
 /*
  * Simple CPU accounting cgroup controller
  */
-#include "sched.h"
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 

@@ -155,7 +155,7 @@ static int pkey_skey2pkey(const u8 *key, struct pkey_protkey *pkey)
 	/*
 	 * The cca_xxx2protkey call may fail when a card has been
 	 * addressed where the master key was changed after last fetch
-	 * of the mkvp into the cache. Try 3 times: First witout verify
+	 * of the mkvp into the cache. Try 3 times: First without verify
 	 * then with verify and last round with verify and old master
 	 * key verification pattern match not ignored.
 	 */

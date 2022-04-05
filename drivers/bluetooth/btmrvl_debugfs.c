@@ -1,4 +1,4 @@
-/**
+/*
  * Marvell Bluetooth driver: debugfs related functions
  *
  * Copyright (C) 2009, Marvell International Ltd.

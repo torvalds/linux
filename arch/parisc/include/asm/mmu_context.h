@@ -20,7 +20,7 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 	BUG_ON(atomic_read(&mm->mm_users) != 1);
 
-	mm->context = alloc_sid();
+	mm->context.space_id = alloc_sid();
 	return 0;
 }
 
@@ -28,22 +28,22 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 static inline void
 destroy_context(struct mm_struct *mm)
 {
-	free_sid(mm->context);
-	mm->context = 0;
+	free_sid(mm->context.space_id);
+	mm->context.space_id = 0;
 }
 
 static inline unsigned long __space_to_prot(mm_context_t context)
 {
 #if SPACEID_SHIFT == 0
-	return context << 1;
+	return context.space_id << 1;
 #else
-	return context >> (SPACEID_SHIFT - 1);
+	return context.space_id >> (SPACEID_SHIFT - 1);
 #endif
 }
 
 static inline void load_context(mm_context_t context)
 {
-	mtsp(context, 3);
+	mtsp(context.space_id, SR_USER);
 	mtctl(__space_to_prot(context), 8);
 }
 
@@ -89,8 +89,8 @@ static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
 
 	BUG_ON(next == &init_mm); /* Should never happen */
 
-	if (next->context == 0)
-	    next->context = alloc_sid();
+	if (next->context.space_id == 0)
+		next->context.space_id = alloc_sid();
 
 	switch_mm(prev,next,current);
 }

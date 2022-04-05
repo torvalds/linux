@@ -221,7 +221,7 @@ static void slc_bump(struct slcan *sl)
 	if (!(cf.can_id & CAN_RTR_FLAG))
 		sl->dev->stats.rx_bytes += cf.len;
 
-	netif_rx_ni(skb);
+	netif_rx(skb);
 }
 
 /* parse tty input stream */

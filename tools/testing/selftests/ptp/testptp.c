@@ -133,6 +133,7 @@ static void usage(char *progname)
 		"            0 - none\n"
 		"            1 - external time stamp\n"
 		"            2 - periodic output\n"
+		" -n val     shift the ptp clock time by 'val' nanoseconds\n"
 		" -p val     enable output with a period of 'val' nanoseconds\n"
 		" -H val     set output phase to 'val' nanoseconds (requires -p)\n"
 		" -w val     set output pulse width to 'val' nanoseconds (requires -p)\n"
@@ -165,6 +166,7 @@ int main(int argc, char *argv[])
 	clockid_t clkid;
 	int adjfreq = 0x7fffffff;
 	int adjtime = 0;
+	int adjns = 0;
 	int capabilities = 0;
 	int extts = 0;
 	int flagtest = 0;
@@ -186,7 +188,7 @@ int main(int argc, char *argv[])
 
 	progname = strrchr(argv[0], '/');
 	progname = progname ? 1+progname : argv[0];
-	while (EOF != (c = getopt(argc, argv, "cd:e:f:ghH:i:k:lL:p:P:sSt:T:w:z"))) {
+	while (EOF != (c = getopt(argc, argv, "cd:e:f:ghH:i:k:lL:n:p:P:sSt:T:w:z"))) {
 		switch (c) {
 		case 'c':
 			capabilities = 1;
@@ -222,6 +224,9 @@ int main(int argc, char *argv[])
 				usage(progname);
 				return -1;
 			}
+			break;
+		case 'n':
+			adjns = atoi(optarg);
 			break;
 		case 'p':
 			perout = atoll(optarg);
@@ -305,11 +310,16 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (adjtime) {
+	if (adjtime || adjns) {
 		memset(&tx, 0, sizeof(tx));
-		tx.modes = ADJ_SETOFFSET;
+		tx.modes = ADJ_SETOFFSET | ADJ_NANO;
 		tx.time.tv_sec = adjtime;
-		tx.time.tv_usec = 0;
+		tx.time.tv_usec = adjns;
+		while (tx.time.tv_usec < 0) {
+			tx.time.tv_sec  -= 1;
+			tx.time.tv_usec += 1000000000;
+		}
+
 		if (clock_adjtime(clkid, &tx) < 0) {
 			perror("clock_adjtime");
 		} else {

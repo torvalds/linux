@@ -23,6 +23,16 @@
 
 void __check_vmalloc_seq(struct mm_struct *mm);
 
+#ifdef CONFIG_MMU
+static inline void check_vmalloc_seq(struct mm_struct *mm)
+{
+	if (!IS_ENABLED(CONFIG_ARM_LPAE) &&
+	    unlikely(atomic_read(&mm->context.vmalloc_seq) !=
+		     atomic_read(&init_mm.context.vmalloc_seq)))
+		__check_vmalloc_seq(mm);
+}
+#endif
+
 #ifdef CONFIG_CPU_HAS_ASID
 
 void check_and_switch_context(struct mm_struct *mm, struct task_struct *tsk);
@@ -52,8 +62,7 @@ static inline void a15_erratum_get_cpumask(int this_cpu, struct mm_struct *mm,
 static inline void check_and_switch_context(struct mm_struct *mm,
 					    struct task_struct *tsk)
 {
-	if (unlikely(mm->context.vmalloc_seq != init_mm.context.vmalloc_seq))
-		__check_vmalloc_seq(mm);
+	check_vmalloc_seq(mm);
 
 	if (irqs_disabled())
 		/*
@@ -128,6 +137,15 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	}
 #endif
 }
+
+#ifdef CONFIG_VMAP_STACK
+static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
+{
+	if (mm != &init_mm)
+		check_vmalloc_seq(mm);
+}
+#define enter_lazy_tlb enter_lazy_tlb
+#endif
 
 #include <asm-generic/mmu_context.h>
 

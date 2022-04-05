@@ -480,6 +480,7 @@ vduse_domain_create(unsigned long iova_limit, size_t bounce_size)
 	struct file *file;
 	struct vduse_bounce_map *map;
 	unsigned long pfn, bounce_pfns;
+	int ret;
 
 	bounce_pfns = PAGE_ALIGN(bounce_size) >> PAGE_SHIFT;
 	if (iova_limit <= bounce_size)
@@ -513,10 +514,20 @@ vduse_domain_create(unsigned long iova_limit, size_t bounce_size)
 	spin_lock_init(&domain->iotlb_lock);
 	init_iova_domain(&domain->stream_iovad,
 			PAGE_SIZE, IOVA_START_PFN);
+	ret = iova_domain_init_rcaches(&domain->stream_iovad);
+	if (ret)
+		goto err_iovad_stream;
 	init_iova_domain(&domain->consistent_iovad,
 			PAGE_SIZE, bounce_pfns);
+	ret = iova_domain_init_rcaches(&domain->consistent_iovad);
+	if (ret)
+		goto err_iovad_consistent;
 
 	return domain;
+err_iovad_consistent:
+	put_iova_domain(&domain->stream_iovad);
+err_iovad_stream:
+	fput(file);
 err_file:
 	vfree(domain->bounce_maps);
 err_map:

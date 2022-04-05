@@ -71,16 +71,19 @@
 			pcie@1,0 {
 				/* Port 0, Lane 0 */
 				status = "okay";
+				slot-power-limit-milliwatt = <10000>;
 			};
 
 			pcie@2,0 {
 				/* Port 1, Lane 0 */
 				status = "okay";
+				slot-power-limit-milliwatt = <10000>;
 			};
 
 			pcie@3,0 {
 				/* Port 2, Lane 0 */
 				status = "okay";
+				slot-power-limit-milliwatt = <10000>;
 			};
 		};
 	};

@@ -84,11 +84,6 @@ void __init plat_mem_setup(void)
 	__dt_setup_arch(dtb);
 }
 
-void __init device_tree_init(void)
-{
-	unflatten_and_copy_device_tree();
-}
-
 void __init prom_init(void)
 {
 	/* call the soc specific detetcion code and get it to fill soc_info */

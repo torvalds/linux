@@ -467,9 +467,9 @@ int platform_get_irq_byname(struct platform_device *dev, const char *name)
 	int ret;
 
 	ret = __platform_get_irq_byname(dev, name);
-	if (ret < 0 && ret != -EPROBE_DEFER)
-		dev_err(&dev->dev, "IRQ %s not found\n", name);
-
+	if (ret < 0)
+		return dev_err_probe(&dev->dev, ret, "IRQ %s not found\n",
+				     name);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(platform_get_irq_byname);

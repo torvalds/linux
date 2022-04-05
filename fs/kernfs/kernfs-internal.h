@@ -31,6 +31,24 @@ struct kernfs_iattrs {
 	atomic_t		user_xattr_size;
 };
 
+struct kernfs_root {
+	/* published fields */
+	struct kernfs_node	*kn;
+	unsigned int		flags;	/* KERNFS_ROOT_* flags */
+
+	/* private fields, do not use outside kernfs proper */
+	struct idr		ino_idr;
+	u32			last_id_lowbits;
+	u32			id_highbits;
+	struct kernfs_syscall_ops *syscall_ops;
+
+	/* list of kernfs_super_info of this root, protected by kernfs_rwsem */
+	struct list_head	supers;
+
+	wait_queue_head_t	deactivate_waitq;
+	struct rw_semaphore	kernfs_rwsem;
+};
+
 /* +1 to avoid triggering overflow warning when negating it */
 #define KN_DEACTIVATED_BIAS		(INT_MIN + 1)
 
@@ -122,7 +140,6 @@ int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr);
 /*
  * dir.c
  */
-extern struct rw_semaphore kernfs_rwsem;
 extern const struct dentry_operations kernfs_dops;
 extern const struct file_operations kernfs_dir_fops;
 extern const struct inode_operations kernfs_dir_iops;

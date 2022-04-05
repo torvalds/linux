@@ -35,6 +35,10 @@ KBUILD_CFLAGS += -ffreestanding -D__linux__
 KBUILD_CFLAGS += -pipe -mlongcalls -mtext-section-literals
 KBUILD_CFLAGS += $(call cc-option,-mforce-no-pic,)
 KBUILD_CFLAGS += $(call cc-option,-mno-serialize-volatile,)
+ifneq ($(CONFIG_KERNEL_ABI_CALL0),)
+KBUILD_CFLAGS += -mabi=call0
+KBUILD_AFLAGS += -mabi=call0
+endif
 
 KBUILD_AFLAGS += -mlongcalls -mtext-section-literals
 
@@ -51,13 +55,9 @@ KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(vardirs) $(plfdirs))
 
 KBUILD_DEFCONFIG := iss_defconfig
 
-# Find libgcc.a
-
-LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
-
 head-y		:= arch/xtensa/kernel/head.o
 
-libs-y		+= arch/xtensa/lib/ $(LIBGCC)
+libs-y		+= arch/xtensa/lib/
 
 boot		:= arch/xtensa/boot
 

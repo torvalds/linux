@@ -19,8 +19,8 @@ then
 	exit 1
 fi
 
-KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
-PATH=${KVM}/bin:$PATH; export PATH
+RCUTORTURE="`pwd`/tools/testing/selftests/rcutorture"; export RCUTORTURE
+PATH=${RCUTORTURE}/bin:$PATH; export PATH
 . functions.sh
 
 starttime="`get_starttime`"
@@ -108,8 +108,8 @@ else
 		cat $T/kvm-again.sh.out | tee -a "$oldrun/remote-log"
 		exit 2
 	fi
-	cp -a "$rundir" "$KVM/res/"
-	oldrun="$KVM/res/$ds"
+	cp -a "$rundir" "$RCUTORTURE/res/"
+	oldrun="$RCUTORTURE/res/$ds"
 fi
 echo | tee -a "$oldrun/remote-log"
 echo " ----" kvm-again.sh output: "(`date`)" | tee -a "$oldrun/remote-log"
@@ -155,18 +155,23 @@ do
 	echo Downloading tarball to $i `date` | tee -a "$oldrun/remote-log"
 	cat $T/binres.tgz | ssh $i "cd /tmp; tar -xzf -"
 	ret=$?
-	if test "$ret" -ne 0
-	then
-		echo Unable to download $T/binres.tgz to system $i, waiting and then retrying. | tee -a "$oldrun/remote-log"
+	tries=0
+	while test "$ret" -ne 0
+	do
+		echo Unable to download $T/binres.tgz to system $i, waiting and then retrying.  $tries prior retries. | tee -a "$oldrun/remote-log"
 		sleep 60
 		cat $T/binres.tgz | ssh $i "cd /tmp; tar -xzf -"
 		ret=$?
 		if test "$ret" -ne 0
 		then
-			echo Unable to download $T/binres.tgz to system $i, giving up. | tee -a "$oldrun/remote-log"
-			exit 10
+			if test "$tries" > 5
+			then
+				echo Unable to download $T/binres.tgz to system $i, giving up. | tee -a "$oldrun/remote-log"
+				exit 10
+			fi
 		fi
-	fi
+		tries=$((tries+1))
+	done
 done
 
 # Function to check for presence of a file on the specified system.

@@ -84,7 +84,7 @@ void iwl_drv_stop(struct iwl_drv *drv);
  * everything is built-in, then we can avoid that.
  */
 #ifdef CONFIG_IWLWIFI_OPMODE_MODULAR
-#define IWL_EXPORT_SYMBOL(sym)	EXPORT_SYMBOL_GPL(sym)
+#define IWL_EXPORT_SYMBOL(sym)	EXPORT_SYMBOL_NS_GPL(sym, IWLWIFI)
 #else
 #define IWL_EXPORT_SYMBOL(sym)
 #endif

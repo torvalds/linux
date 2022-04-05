@@ -292,7 +292,7 @@ static int nt39016_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int nt39016_remove(struct spi_device *spi)
+static void nt39016_remove(struct spi_device *spi)
 {
 	struct nt39016 *panel = spi_get_drvdata(spi);
 
@@ -300,8 +300,6 @@ static int nt39016_remove(struct spi_device *spi)
 
 	nt39016_disable(&panel->drm_panel);
 	nt39016_unprepare(&panel->drm_panel);
-
-	return 0;
 }
 
 static const struct drm_display_mode kd035g6_display_modes[] = {

@@ -853,12 +853,57 @@ drm_syncobj_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 					&args->handle);
 }
 
+
+/*
+ * Try to flatten a dma_fence_chain into a dma_fence_array so that it can be
+ * added as timeline fence to a chain again.
+ */
+static int drm_syncobj_flatten_chain(struct dma_fence **f)
+{
+	struct dma_fence_chain *chain = to_dma_fence_chain(*f);
+	struct dma_fence *tmp, **fences;
+	struct dma_fence_array *array;
+	unsigned int count;
+
+	if (!chain)
+		return 0;
+
+	count = 0;
+	dma_fence_chain_for_each(tmp, &chain->base)
+		++count;
+
+	fences = kmalloc_array(count, sizeof(*fences), GFP_KERNEL);
+	if (!fences)
+		return -ENOMEM;
+
+	count = 0;
+	dma_fence_chain_for_each(tmp, &chain->base)
+		fences[count++] = dma_fence_get(tmp);
+
+	array = dma_fence_array_create(count, fences,
+				       dma_fence_context_alloc(1),
+				       1, false);
+	if (!array)
+		goto free_fences;
+
+	dma_fence_put(*f);
+	*f = &array->base;
+	return 0;
+
+free_fences:
+	while (count--)
+		dma_fence_put(fences[count]);
+
+	kfree(fences);
+	return -ENOMEM;
+}
+
 static int drm_syncobj_transfer_to_timeline(struct drm_file *file_private,
 					    struct drm_syncobj_transfer *args)
 {
 	struct drm_syncobj *timeline_syncobj = NULL;
-	struct dma_fence *fence;
 	struct dma_fence_chain *chain;
+	struct dma_fence *fence;
 	int ret;
 
 	timeline_syncobj = drm_syncobj_find(file_private, args->dst_handle);
@@ -869,16 +914,22 @@ static int drm_syncobj_transfer_to_timeline(struct drm_file *file_private,
 				     args->src_point, args->flags,
 				     &fence);
 	if (ret)
-		goto err;
+		goto err_put_timeline;
+
+	ret = drm_syncobj_flatten_chain(&fence);
+	if (ret)
+		goto err_free_fence;
+
 	chain = dma_fence_chain_alloc();
 	if (!chain) {
 		ret = -ENOMEM;
-		goto err1;
+		goto err_free_fence;
 	}
+
 	drm_syncobj_add_point(timeline_syncobj, chain, fence, args->dst_point);
-err1:
+err_free_fence:
 	dma_fence_put(fence);
-err:
+err_put_timeline:
 	drm_syncobj_put(timeline_syncobj);
 
 	return ret;

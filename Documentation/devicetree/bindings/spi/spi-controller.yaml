@@ -93,9 +93,7 @@ properties:
 patternProperties:
   "^.*@[0-9a-f]+$":
     type: object
-
-    allOf:
-      - $ref: spi-peripheral-props.yaml
+    $ref: spi-peripheral-props.yaml
 
     required:
       - compatible
@@ -138,5 +136,12 @@ examples:
             compatible = "bosch,bme680";
             spi-max-frequency = <100000>;
             reg = <1>;
+        };
+
+        flash@2 {
+          compatible = "jedec,spi-nor";
+          spi-max-frequency = <50000000>;
+          reg = <2>, <3>;
+          stacked-memories = /bits/ 64 <0x10000000 0x10000000>;
         };
     };

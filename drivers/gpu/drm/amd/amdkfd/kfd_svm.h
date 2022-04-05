@@ -183,6 +183,16 @@ void svm_range_dma_unmap(struct device *dev, dma_addr_t *dma_addr,
 void svm_range_free_dma_mappings(struct svm_range *prange);
 void svm_range_prefault(struct svm_range *prange, struct mm_struct *mm,
 			void *owner);
+int svm_range_get_info(struct kfd_process *p, uint32_t *num_svm_ranges,
+		       uint64_t *svm_priv_data_size);
+int kfd_criu_checkpoint_svm(struct kfd_process *p,
+			    uint8_t __user *user_priv_data,
+			    uint64_t *priv_offset);
+int kfd_criu_restore_svm(struct kfd_process *p,
+			 uint8_t __user *user_priv_ptr,
+			 uint64_t *priv_data_offset,
+			 uint64_t max_priv_data_size);
+int kfd_criu_resume_svm(struct kfd_process *p);
 struct kfd_process_device *
 svm_range_get_pdd_by_adev(struct svm_range *prange, struct amdgpu_device *adev);
 void svm_range_list_lock_and_flush_work(struct svm_range_list *svms, struct mm_struct *mm);
@@ -218,6 +228,35 @@ static inline int svm_range_schedule_evict_svm_bo(
 {
 	WARN_ONCE(1, "SVM eviction fence triggered, but SVM is disabled");
 	return -EINVAL;
+}
+
+static inline int svm_range_get_info(struct kfd_process *p,
+				     uint32_t *num_svm_ranges,
+				     uint64_t *svm_priv_data_size)
+{
+	*num_svm_ranges = 0;
+	*svm_priv_data_size = 0;
+	return 0;
+}
+
+static inline int kfd_criu_checkpoint_svm(struct kfd_process *p,
+					  uint8_t __user *user_priv_data,
+					  uint64_t *priv_offset)
+{
+	return 0;
+}
+
+static inline int kfd_criu_restore_svm(struct kfd_process *p,
+				       uint8_t __user *user_priv_ptr,
+				       uint64_t *priv_data_offset,
+				       uint64_t max_priv_data_size)
+{
+	return -EINVAL;
+}
+
+static inline int kfd_criu_resume_svm(struct kfd_process *p)
+{
+	return 0;
 }
 
 #define KFD_IS_SVM_API_SUPPORTED(dev) false

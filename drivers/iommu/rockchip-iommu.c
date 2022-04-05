@@ -1187,17 +1187,19 @@ static int rk_iommu_of_xlate(struct device *dev,
 
 static const struct iommu_ops rk_iommu_ops = {
 	.domain_alloc = rk_iommu_domain_alloc,
-	.domain_free = rk_iommu_domain_free,
-	.attach_dev = rk_iommu_attach_device,
-	.detach_dev = rk_iommu_detach_device,
-	.map = rk_iommu_map,
-	.unmap = rk_iommu_unmap,
 	.probe_device = rk_iommu_probe_device,
 	.release_device = rk_iommu_release_device,
-	.iova_to_phys = rk_iommu_iova_to_phys,
 	.device_group = rk_iommu_device_group,
 	.pgsize_bitmap = RK_IOMMU_PGSIZE_BITMAP,
 	.of_xlate = rk_iommu_of_xlate,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev	= rk_iommu_attach_device,
+		.detach_dev	= rk_iommu_detach_device,
+		.map		= rk_iommu_map,
+		.unmap		= rk_iommu_unmap,
+		.iova_to_phys	= rk_iommu_iova_to_phys,
+		.free		= rk_iommu_domain_free,
+	}
 };
 
 static int rk_iommu_probe(struct platform_device *pdev)
@@ -1407,9 +1409,4 @@ static struct platform_driver rk_iommu_driver = {
 		   .suppress_bind_attrs = true,
 	},
 };
-
-static int __init rk_iommu_init(void)
-{
-	return platform_driver_register(&rk_iommu_driver);
-}
-subsys_initcall(rk_iommu_init);
+builtin_platform_driver(rk_iommu_driver);

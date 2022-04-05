@@ -1059,6 +1059,7 @@ static const struct fb_ops broadsheetfb_ops = {
 
 static struct fb_deferred_io broadsheetfb_defio = {
 	.delay		= HZ/4,
+	.sort_pagelist	= true,
 	.deferred_io	= broadsheetfb_dpy_deferred_io,
 };
 

@@ -93,6 +93,8 @@ enum TXDESC_SC {
 #define SGI			BIT(6)
 #define USB_TXAGG_NUM_SHT	24
 
+#define USB_TXAGG_DESC_NUM	0x6
+
 #define txdesc_set_ccx_sw_88e(txdesc, value) \
 	do { \
 		((struct txdesc_88e *)(txdesc))->sw1 = (((value)>>8) & 0x0f); \
@@ -141,7 +143,7 @@ s32 rtl8188eu_mgnt_xmit(struct adapter *padapter, struct xmit_frame *frame);
 s32 rtl8188eu_xmit_buf_handler(struct adapter *padapter);
 #define hal_xmit_handler rtl8188eu_xmit_buf_handler
 void rtl8188eu_xmit_tasklet(unsigned long priv);
-s32 rtl8188eu_xmitframe_complete(struct adapter *padapter,
+bool rtl8188eu_xmitframe_complete(struct adapter *padapter,
 				 struct xmit_priv *pxmitpriv,
 				 struct xmit_buf *pxmitbuf);
 
