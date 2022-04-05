@@ -155,13 +155,27 @@ static int vgic_mmio_uaccess_write_v3_misc(struct kvm_vcpu *vcpu,
 					   unsigned long val)
 {
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+	u32 reg;
 
 	switch (addr & 0x0c) {
 	case GICD_TYPER2:
-	case GICD_IIDR:
 		if (val != vgic_mmio_read_v3_misc(vcpu, addr, len))
 			return -EINVAL;
 		return 0;
+	case GICD_IIDR:
+		reg = vgic_mmio_read_v3_misc(vcpu, addr, len);
+		if ((reg ^ val) & ~GICD_IIDR_REVISION_MASK)
+			return -EINVAL;
+
+		reg = FIELD_GET(GICD_IIDR_REVISION_MASK, reg);
+		switch (reg) {
+		case KVM_VGIC_IMP_REV_2:
+		case KVM_VGIC_IMP_REV_3:
+			dist->implementation_rev = reg;
+			return 0;
+		default:
+			return -EINVAL;
+		}
 	case GICD_CTLR:
 		/* Not a GICv4.1? No HW SGIs */
 		if (!kvm_vgic_global_state.has_gicv4_1)
@@ -232,8 +246,13 @@ static unsigned long vgic_mmio_read_v3r_ctlr(struct kvm_vcpu *vcpu,
 					     gpa_t addr, unsigned int len)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+	unsigned long val;
 
-	return vgic_cpu->lpis_enabled ? GICR_CTLR_ENABLE_LPIS : 0;
+	val = atomic_read(&vgic_cpu->ctlr);
+	if (vgic_get_implementation_rev(vcpu) >= KVM_VGIC_IMP_REV_3)
+		val |= GICR_CTLR_IR | GICR_CTLR_CES;
+
+	return val;
 }
 
 static void vgic_mmio_write_v3r_ctlr(struct kvm_vcpu *vcpu,

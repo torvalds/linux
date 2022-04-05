@@ -231,6 +231,9 @@ struct vgic_dist {
 
 	/* Implementation revision as reported in the GICD_IIDR */
 	u32			implementation_rev;
+#define KVM_VGIC_IMP_REV_2	2 /* GICv2 restorable groups */
+#define KVM_VGIC_IMP_REV_3	3 /* GICv3 GICR_CTLR.{IW,CES,RWP} */
+#define KVM_VGIC_IMP_REV_LATEST	KVM_VGIC_IMP_REV_3
 
 	/* Userspace can write to GICv2 IGROUPR */
 	bool			v2_groups_user_writable;

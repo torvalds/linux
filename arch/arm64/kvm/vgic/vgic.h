@@ -98,6 +98,11 @@
 #define DEBUG_SPINLOCK_BUG_ON(p)
 #endif
 
+static inline u32 vgic_get_implementation_rev(struct kvm_vcpu *vcpu)
+{
+	return vcpu->kvm->arch.vgic.implementation_rev;
+}
+
 /* Requires the irq_lock to be held by the caller. */
 static inline bool irq_is_pending(struct vgic_irq *irq)
 {
