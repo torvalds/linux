@@ -12,51 +12,6 @@
 #include "sof-audio.h"
 #include "ops.h"
 
-static int sof_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
-{
-	int ret;
-
-	ret = snd_sof_ipc_set_get_comp_data(scontrol, true);
-	if (ret < 0)
-		dev_err(sdev->dev, "error: failed kcontrol value set for widget: %d\n",
-			scontrol->comp_id);
-
-	return ret;
-}
-
-static int sof_widget_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
-{
-	struct snd_sof_control *scontrol;
-	int ret;
-
-	/* set up all controls for the widget */
-	list_for_each_entry(scontrol, &sdev->kcontrol_list, list)
-		if (scontrol->comp_id == swidget->comp_id) {
-			/* set kcontrol data in DSP */
-			ret = sof_kcontrol_setup(sdev, scontrol);
-			if (ret < 0) {
-				dev_err(sdev->dev, "error: fail to set up kcontrols for widget %s\n",
-					swidget->widget->name);
-				return ret;
-			}
-
-			/*
-			 * Read back the data from the DSP for static widgets. This is particularly
-			 * useful for binary kcontrols associated with static pipeline widgets to
-			 * initialize the data size to match that in the DSP.
-			 */
-			if (swidget->dynamic_pipeline_widget)
-				continue;
-
-			ret = snd_sof_ipc_set_get_comp_data(scontrol, false);
-			if (ret < 0)
-				dev_warn(sdev->dev, "Failed kcontrol get for control in widget %s\n",
-					 swidget->widget->name);
-		}
-
-	return 0;
-}
-
 static void sof_reset_route_setup_status(struct snd_sof_dev *sdev, struct snd_sof_widget *widget)
 {
 	struct snd_sof_route *sroute;
@@ -176,11 +131,10 @@ int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	}
 
 	/* restore kcontrols for widget */
-	ret = sof_widget_kcontrol_setup(sdev, swidget);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to restore kcontrols for widget %s\n",
-			swidget->widget->name);
-		goto widget_free;
+	if (tplg_ops->control->widget_kcontrol_setup) {
+		ret = tplg_ops->control->widget_kcontrol_setup(sdev, swidget);
+		if (ret < 0)
+			goto widget_free;
 	}
 
 	dev_dbg(sdev->dev, "widget %s setup complete\n", swidget->widget->name);
