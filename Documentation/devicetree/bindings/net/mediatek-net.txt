@@ -48,6 +48,8 @@ Optional properties:
 	various clocks and reset to the system.
 - mediatek,wed: a list of phandles to wireless ethernet dispatch nodes for
 	MT7622 SoC.
+- mediatek,pcie-mirror: phandle to the mediatek pcie-mirror controller for
+	MT7622 SoC.
 
 * Ethernet MAC node
 
