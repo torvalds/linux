@@ -86,7 +86,7 @@ struct ak4613_interface {
 
 struct ak4613_priv {
 	struct mutex lock;
-	struct snd_pcm_hw_constraint_list constraint;
+	struct snd_pcm_hw_constraint_list constraint_rates;
 	struct work_struct dummy_write_work;
 	struct snd_soc_component *component;
 	unsigned int rate;
@@ -272,10 +272,11 @@ static void ak4613_hw_constraints(struct ak4613_priv *priv,
 		176400,
 		192000,
 	};
-	struct snd_pcm_hw_constraint_list *constraint = &priv->constraint;
+	struct snd_pcm_hw_constraint_list *constraint;
 	unsigned int fs;
 	int i;
 
+	constraint		= &priv->constraint_rates;
 	constraint->list	= ak4613_rates;
 	constraint->mask	= 0;
 	constraint->count	= 0;
