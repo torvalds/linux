@@ -7,6 +7,8 @@
 //
 //
 
+#include <sound/sof/stream.h>
+#include <sound/sof/control.h>
 #include "sof-priv.h"
 #include "ipc3-ops.h"
 #include "ops.h"
@@ -316,6 +318,106 @@ static int sof_ipc3_tx_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_
 	return ret;
 }
 
+static int sof_ipc3_set_get_data(struct snd_sof_dev *sdev, void *data, size_t data_bytes,
+				 bool set)
+{
+	size_t msg_bytes, hdr_bytes, payload_size, send_bytes;
+	struct sof_ipc_ctrl_data *cdata = data;
+	struct sof_ipc_ctrl_data *cdata_chunk;
+	struct snd_sof_ipc *ipc = sdev->ipc;
+	size_t offset = 0;
+	u8 *src, *dst;
+	u32 num_msg;
+	int ret = 0;
+	int i;
+
+	if (!cdata || data_bytes < sizeof(*cdata))
+		return -EINVAL;
+
+	if ((cdata->rhdr.hdr.cmd & SOF_GLB_TYPE_MASK) != SOF_IPC_GLB_COMP_MSG) {
+		dev_err(sdev->dev, "%s: Not supported message type of %#x\n",
+			__func__, cdata->rhdr.hdr.cmd);
+		return -EINVAL;
+	}
+
+	/* send normal size ipc in one part */
+	if (cdata->rhdr.hdr.size <= ipc->max_payload_size)
+		return sof_ipc3_tx_msg(sdev, cdata, cdata->rhdr.hdr.size,
+				       cdata, cdata->rhdr.hdr.size, false);
+
+	cdata_chunk = kzalloc(ipc->max_payload_size, GFP_KERNEL);
+	if (!cdata_chunk)
+		return -ENOMEM;
+
+	switch (cdata->type) {
+	case SOF_CTRL_TYPE_VALUE_CHAN_GET:
+	case SOF_CTRL_TYPE_VALUE_CHAN_SET:
+		hdr_bytes = sizeof(struct sof_ipc_ctrl_data);
+		if (set) {
+			src = (u8 *)cdata->chanv;
+			dst = (u8 *)cdata_chunk->chanv;
+		} else {
+			src = (u8 *)cdata_chunk->chanv;
+			dst = (u8 *)cdata->chanv;
+		}
+		break;
+	case SOF_CTRL_TYPE_DATA_GET:
+	case SOF_CTRL_TYPE_DATA_SET:
+		hdr_bytes = sizeof(struct sof_ipc_ctrl_data) + sizeof(struct sof_abi_hdr);
+		if (set) {
+			src = (u8 *)cdata->data->data;
+			dst = (u8 *)cdata_chunk->data->data;
+		} else {
+			src = (u8 *)cdata_chunk->data->data;
+			dst = (u8 *)cdata->data->data;
+		}
+		break;
+	default:
+		kfree(cdata_chunk);
+		return -EINVAL;
+	}
+
+	msg_bytes = cdata->rhdr.hdr.size - hdr_bytes;
+	payload_size = ipc->max_payload_size - hdr_bytes;
+	num_msg = DIV_ROUND_UP(msg_bytes, payload_size);
+
+	/* copy the header data */
+	memcpy(cdata_chunk, cdata, hdr_bytes);
+
+	/* Serialise IPC TX */
+	mutex_lock(&sdev->ipc->tx_mutex);
+
+	/* copy the payload data in a loop */
+	for (i = 0; i < num_msg; i++) {
+		send_bytes = min(msg_bytes, payload_size);
+		cdata_chunk->num_elems = send_bytes;
+		cdata_chunk->rhdr.hdr.size = hdr_bytes + send_bytes;
+		cdata_chunk->msg_index = i;
+		msg_bytes -= send_bytes;
+		cdata_chunk->elems_remaining = msg_bytes;
+
+		if (set)
+			memcpy(dst, src + offset, send_bytes);
+
+		ret = ipc3_tx_msg_unlocked(sdev->ipc,
+					   cdata_chunk, cdata_chunk->rhdr.hdr.size,
+					   cdata_chunk, cdata_chunk->rhdr.hdr.size);
+		if (ret < 0)
+			break;
+
+		if (!set)
+			memcpy(dst + offset, src, send_bytes);
+
+		offset += payload_size;
+	}
+
+	mutex_unlock(&sdev->ipc->tx_mutex);
+
+	kfree(cdata_chunk);
+
+	return ret;
+}
+
 static int sof_ipc3_ctx_ipc(struct snd_sof_dev *sdev, int cmd)
 {
 	struct sof_ipc_pm_ctx pm_ctx = {
@@ -350,4 +452,5 @@ const struct sof_ipc_ops ipc3_ops = {
 	.pcm = &ipc3_pcm_ops,
 
 	.tx_msg = sof_ipc3_tx_msg,
+	.set_get_data = sof_ipc3_set_get_data,
 };
