@@ -1548,9 +1548,18 @@ void intel_psr2_program_plane_sel_fetch(struct intel_plane *plane,
 void intel_psr2_program_trans_man_trk_ctl(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
+	struct intel_encoder *encoder;
 
 	if (!crtc_state->enable_psr2_sel_fetch)
 		return;
+
+	for_each_intel_encoder_mask_with_psr(&dev_priv->drm, encoder,
+					     crtc_state->uapi.encoder_mask) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		lockdep_assert_held(&intel_dp->psr.lock);
+		break;
+	}
 
 	intel_de_write(dev_priv, PSR2_MAN_TRK_CTL(crtc_state->cpu_transcoder),
 		       crtc_state->psr2_man_track_ctl);
@@ -1919,13 +1928,13 @@ static int _psr1_ready_for_pipe_update_locked(struct intel_dp *intel_dp)
 }
 
 /**
- * intel_psr_wait_for_idle - wait for PSR be ready for a pipe update
+ * intel_psr_wait_for_idle_locked - wait for PSR be ready for a pipe update
  * @new_crtc_state: new CRTC state
  *
  * This function is expected to be called from pipe_update_start() where it is
  * not expected to race with PSR enable or disable.
  */
-void intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state)
+void intel_psr_wait_for_idle_locked(const struct intel_crtc_state *new_crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(new_crtc_state->uapi.crtc->dev);
 	struct intel_encoder *encoder;
@@ -1938,12 +1947,10 @@ void intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state)
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 		int ret;
 
-		mutex_lock(&intel_dp->psr.lock);
+		lockdep_assert_held(&intel_dp->psr.lock);
 
-		if (!intel_dp->psr.enabled) {
-			mutex_unlock(&intel_dp->psr.lock);
+		if (!intel_dp->psr.enabled)
 			continue;
-		}
 
 		if (intel_dp->psr.psr2_enabled)
 			ret = _psr2_ready_for_pipe_update_locked(intel_dp);
@@ -1952,8 +1959,6 @@ void intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state)
 
 		if (ret)
 			drm_err(&dev_priv->drm, "PSR wait timed out, atomic update may fail\n");
-
-		mutex_unlock(&intel_dp->psr.lock);
 	}
 }
 
@@ -2443,4 +2448,52 @@ bool intel_psr_enabled(struct intel_dp *intel_dp)
 	mutex_unlock(&intel_dp->psr.lock);
 
 	return ret;
+}
+
+/**
+ * intel_psr_lock - grab PSR lock
+ * @crtc_state: the crtc state
+ *
+ * This is initially meant to be used by around CRTC update, when
+ * vblank sensitive registers are updated and we need grab the lock
+ * before it to avoid vblank evasion.
+ */
+void intel_psr_lock(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	struct intel_encoder *encoder;
+
+	if (!crtc_state->has_psr)
+		return;
+
+	for_each_intel_encoder_mask_with_psr(&i915->drm, encoder,
+					     crtc_state->uapi.encoder_mask) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		mutex_lock(&intel_dp->psr.lock);
+		break;
+	}
+}
+
+/**
+ * intel_psr_unlock - release PSR lock
+ * @crtc_state: the crtc state
+ *
+ * Release the PSR lock that was held during pipe update.
+ */
+void intel_psr_unlock(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	struct intel_encoder *encoder;
+
+	if (!crtc_state->has_psr)
+		return;
+
+	for_each_intel_encoder_mask_with_psr(&i915->drm, encoder,
+					     crtc_state->uapi.encoder_mask) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+		mutex_unlock(&intel_dp->psr.lock);
+		break;
+	}
 }

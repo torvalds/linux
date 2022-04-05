@@ -507,6 +507,8 @@ void intel_pipe_update_start(struct intel_crtc_state *new_crtc_state)
 						      VBLANK_EVASION_TIME_US);
 	max = vblank_start - 1;
 
+	intel_psr_lock(new_crtc_state);
+
 	if (min <= 0 || max <= 0)
 		goto irq_disable;
 
@@ -518,7 +520,7 @@ void intel_pipe_update_start(struct intel_crtc_state *new_crtc_state)
 	 * VBL interrupts will start the PSR exit and prevent a PSR
 	 * re-entry as well.
 	 */
-	intel_psr_wait_for_idle(new_crtc_state);
+	intel_psr_wait_for_idle_locked(new_crtc_state);
 
 	local_irq_disable();
 
@@ -682,6 +684,8 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 	intel_vrr_send_push(new_crtc_state);
 
 	local_irq_enable();
+
+	intel_psr_unlock(new_crtc_state);
 
 	if (intel_vgpu_active(dev_priv))
 		return;
