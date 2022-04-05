@@ -76,6 +76,9 @@ static int mscc_miim_read(struct mii_bus *bus, int mii_id, int regnum)
 	u32 val;
 	int ret;
 
+	if (regnum & MII_ADDR_C45)
+		return -EOPNOTSUPP;
+
 	ret = mscc_miim_wait_pending(bus);
 	if (ret)
 		goto out;
@@ -104,6 +107,9 @@ static int mscc_miim_write(struct mii_bus *bus, int mii_id,
 {
 	struct mscc_miim_dev *miim = bus->priv;
 	int ret;
+
+	if (regnum & MII_ADDR_C45)
+		return -EOPNOTSUPP;
 
 	ret = mscc_miim_wait_pending(bus);
 	if (ret < 0)
