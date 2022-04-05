@@ -84,13 +84,6 @@ static u32 mtk_ppe_hash_entry(struct mtk_foe_entry *e)
 	u32 hash;
 
 	switch (FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, e->ib1)) {
-		case MTK_PPE_PKT_TYPE_BRIDGE:
-			hv1 = e->bridge.src_mac_lo;
-			hv1 ^= ((e->bridge.src_mac_hi & 0xffff) << 16);
-			hv2 = e->bridge.src_mac_hi >> 16;
-			hv2 ^= e->bridge.dest_mac_lo;
-			hv3 = e->bridge.dest_mac_hi;
-			break;
 		case MTK_PPE_PKT_TYPE_IPV4_ROUTE:
 		case MTK_PPE_PKT_TYPE_IPV4_HNAPT:
 			hv1 = e->ipv4.orig.ports;
@@ -572,7 +565,6 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
 	      MTK_PPE_FLOW_CFG_IP4_NAT |
 	      MTK_PPE_FLOW_CFG_IP4_NAPT |
 	      MTK_PPE_FLOW_CFG_IP4_DSLITE |
-	      MTK_PPE_FLOW_CFG_L2_BRIDGE |
 	      MTK_PPE_FLOW_CFG_IP4_NAT_FRAG;
 	ppe_w32(ppe, MTK_PPE_FLOW_CFG, val);
 
