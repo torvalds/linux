@@ -613,18 +613,51 @@ out_ce:
 	return err;
 }
 
-static int emit_clear(struct i915_request *rq, u32 offset, int size, u32 value)
+static int emit_clear(struct i915_request *rq, u32 offset, int size,
+		      u32 value, bool is_lmem)
 {
-	const int ver = GRAPHICS_VER(rq->engine->i915);
+	struct drm_i915_private *i915 = rq->engine->i915;
+	int mocs = rq->engine->gt->mocs.uc_index << 1;
+	const int ver = GRAPHICS_VER(i915);
+	int ring_sz;
 	u32 *cs;
 
 	GEM_BUG_ON(size >> PAGE_SHIFT > S16_MAX);
 
-	cs = intel_ring_begin(rq, ver >= 8 ? 8 : 6);
+	if (HAS_FLAT_CCS(i915) && ver >= 12)
+		ring_sz = XY_FAST_COLOR_BLT_DW;
+	else if (ver >= 8)
+		ring_sz = 8;
+	else
+		ring_sz = 6;
+
+	cs = intel_ring_begin(rq, ring_sz);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	if (ver >= 8) {
+	if (HAS_FLAT_CCS(i915) && ver >= 12) {
+		*cs++ = XY_FAST_COLOR_BLT_CMD | XY_FAST_COLOR_BLT_DEPTH_32 |
+			(XY_FAST_COLOR_BLT_DW - 2);
+		*cs++ = FIELD_PREP(XY_FAST_COLOR_BLT_MOCS_MASK, mocs) |
+			(PAGE_SIZE - 1);
+		*cs++ = 0;
+		*cs++ = size >> PAGE_SHIFT << 16 | PAGE_SIZE / 4;
+		*cs++ = offset;
+		*cs++ = rq->engine->instance;
+		*cs++ = !is_lmem << XY_FAST_COLOR_BLT_MEM_TYPE_SHIFT;
+		/* BG7 */
+		*cs++ = value;
+		*cs++ = 0;
+		*cs++ = 0;
+		*cs++ = 0;
+		/* BG11 */
+		*cs++ = 0;
+		*cs++ = 0;
+		/* BG13 */
+		*cs++ = 0;
+		*cs++ = 0;
+		*cs++ = 0;
+	} else if (ver >= 8) {
 		*cs++ = XY_COLOR_BLT_CMD | BLT_WRITE_RGBA | (7 - 2);
 		*cs++ = BLT_DEPTH_32 | BLT_ROP_COLOR_COPY | PAGE_SIZE;
 		*cs++ = 0;
@@ -707,7 +740,7 @@ intel_context_migrate_clear(struct intel_context *ce,
 		if (err)
 			goto out_rq;
 
-		err = emit_clear(rq, offset, len, value);
+		err = emit_clear(rq, offset, len, value, is_lmem);
 
 		/* Arbitration is re-enabled between requests. */
 out_rq:
