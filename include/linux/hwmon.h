@@ -461,6 +461,9 @@ void devm_hwmon_device_unregister(struct device *dev);
 int hwmon_notify_event(struct device *dev, enum hwmon_sensor_types type,
 		       u32 attr, int channel);
 
+char *hwmon_sanitize_name(const char *name);
+char *devm_hwmon_sanitize_name(struct device *dev, const char *name);
+
 /**
  * hwmon_is_bad_char - Is the char invalid in a hwmon name
  * @ch: the char to be considered
