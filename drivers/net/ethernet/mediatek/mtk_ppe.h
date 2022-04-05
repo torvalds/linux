@@ -48,9 +48,9 @@ enum {
 #define MTK_FOE_IB2_DEST_PORT		GENMASK(7, 5)
 #define MTK_FOE_IB2_MULTICAST		BIT(8)
 
-#define MTK_FOE_IB2_WHNAT_QID2		GENMASK(13, 12)
-#define MTK_FOE_IB2_WHNAT_DEVIDX	BIT(16)
-#define MTK_FOE_IB2_WHNAT_NAT		BIT(17)
+#define MTK_FOE_IB2_WDMA_QID2		GENMASK(13, 12)
+#define MTK_FOE_IB2_WDMA_DEVIDX		BIT(16)
+#define MTK_FOE_IB2_WDMA_WINFO		BIT(17)
 
 #define MTK_FOE_IB2_PORT_MG		GENMASK(17, 12)
 
@@ -58,9 +58,9 @@ enum {
 
 #define MTK_FOE_IB2_DSCP		GENMASK(31, 24)
 
-#define MTK_FOE_VLAN2_WHNAT_BSS		GEMMASK(5, 0)
-#define MTK_FOE_VLAN2_WHNAT_WCID	GENMASK(13, 6)
-#define MTK_FOE_VLAN2_WHNAT_RING	GENMASK(15, 14)
+#define MTK_FOE_VLAN2_WINFO_BSS		GENMASK(5, 0)
+#define MTK_FOE_VLAN2_WINFO_WCID	GENMASK(13, 6)
+#define MTK_FOE_VLAN2_WINFO_RING	GENMASK(15, 14)
 
 enum {
 	MTK_FOE_STATE_INVALID,
@@ -281,6 +281,8 @@ int mtk_foe_entry_set_ipv6_tuple(struct mtk_foe_entry *entry,
 int mtk_foe_entry_set_dsa(struct mtk_foe_entry *entry, int port);
 int mtk_foe_entry_set_vlan(struct mtk_foe_entry *entry, int vid);
 int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid);
+int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
+			   int bss, int wcid);
 int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
 			 u16 timestamp);
 int mtk_ppe_debugfs_init(struct mtk_ppe *ppe);

@@ -329,6 +329,24 @@ int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid)
 	return 0;
 }
 
+int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
+			   int bss, int wcid)
+{
+	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(entry);
+	u32 *ib2 = mtk_foe_entry_ib2(entry);
+
+	*ib2 &= ~MTK_FOE_IB2_PORT_MG;
+	*ib2 |= MTK_FOE_IB2_WDMA_WINFO;
+	if (wdma_idx)
+		*ib2 |= MTK_FOE_IB2_WDMA_DEVIDX;
+
+	l2->vlan2 = FIELD_PREP(MTK_FOE_VLAN2_WINFO_BSS, bss) |
+		    FIELD_PREP(MTK_FOE_VLAN2_WINFO_WCID, wcid) |
+		    FIELD_PREP(MTK_FOE_VLAN2_WINFO_RING, txq);
+
+	return 0;
+}
+
 static inline bool mtk_foe_entry_usable(struct mtk_foe_entry *entry)
 {
 	return !(entry->ib1 & MTK_FOE_IB1_STATIC) &&

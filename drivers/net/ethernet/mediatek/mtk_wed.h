@@ -7,6 +7,7 @@
 #include <linux/soc/mediatek/mtk_wed.h>
 #include <linux/debugfs.h>
 #include <linux/regmap.h>
+#include <linux/netdevice.h>
 
 struct mtk_eth;
 
@@ -27,6 +28,12 @@ struct mtk_wed_hw {
 	int index;
 };
 
+struct mtk_wdma_info {
+	u8 wdma_idx;
+	u8 queue;
+	u16 wcid;
+	u8 bss;
+};
 
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 static inline void
