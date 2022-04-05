@@ -1200,6 +1200,24 @@ static ssize_t amdgpu_gfx_get_current_compute_partition(struct device *dev,
 	return sysfs_emit(buf, "%s\n", partition_mode);
 }
 
+static ssize_t amdgpu_gfx_get_current_memory_partition(struct device *dev,
+						struct device_attribute *addr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	enum amdgpu_memory_partition mode;
+	static const char *partition_modes[] = {
+		"UNKNOWN", "NPS1", "NPS2", "NPS4", "NPS8"
+	};
+	BUILD_BUG_ON(ARRAY_SIZE(partition_modes) <= AMDGPU_NPS8_PARTITION_MODE);
+
+	mode = min((int)adev->gfx.funcs->query_mem_partition_mode(adev),
+		AMDGPU_NPS8_PARTITION_MODE);
+
+	return sysfs_emit(buf, "%s\n", partition_modes[mode]);
+}
+
 static ssize_t amdgpu_gfx_set_compute_partition(struct device *dev,
 						struct device_attribute *addr,
 						const char *buf, size_t count)
@@ -1307,6 +1325,9 @@ static DEVICE_ATTR(current_compute_partition, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(available_compute_partition, S_IRUGO,
 		   amdgpu_gfx_get_available_compute_partition, NULL);
 
+static DEVICE_ATTR(current_memory_partition, S_IRUGO,
+		   amdgpu_gfx_get_current_memory_partition, NULL);
+
 int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev)
 {
 	int r;
@@ -1316,6 +1337,10 @@ int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev)
 		return r;
 
 	r = device_create_file(adev->dev, &dev_attr_available_compute_partition);
+	if (r)
+		return r;
+
+	r = device_create_file(adev->dev, &dev_attr_current_memory_partition);
 	if (r)
 		return r;
 

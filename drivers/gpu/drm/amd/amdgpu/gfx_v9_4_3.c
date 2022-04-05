@@ -606,6 +606,16 @@ static void gfx_v9_4_3_select_me_pipe_q(struct amdgpu_device *adev,
 {
 	soc15_grbm_select(adev, me, pipe, q, vm, GET_INST(GC, xcc_id));
 }
+static enum amdgpu_memory_partition
+gfx_v9_4_3_query_memory_partition(struct amdgpu_device *adev)
+{
+	enum amdgpu_memory_partition mode = UNKNOWN_MEMORY_PARTITION_MODE;
+
+	if (adev->nbio.funcs->get_memory_partition_mode)
+		mode = adev->nbio.funcs->get_memory_partition_mode(adev);
+
+	return mode;
+}
 
 static enum amdgpu_gfx_partition
 gfx_v9_4_3_query_compute_partition(struct amdgpu_device *adev)
@@ -675,6 +685,7 @@ static const struct amdgpu_gfx_funcs gfx_v9_4_3_gfx_funcs = {
 	.select_me_pipe_q = &gfx_v9_4_3_select_me_pipe_q,
 	.query_partition_mode = &gfx_v9_4_3_query_compute_partition,
 	.switch_partition_mode = &gfx_v9_4_3_switch_compute_partition,
+	.query_mem_partition_mode = &gfx_v9_4_3_query_memory_partition,
 };
 
 static int gfx_v9_4_3_gpu_early_init(struct amdgpu_device *adev)
