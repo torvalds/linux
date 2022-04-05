@@ -290,10 +290,10 @@ static int bch2_copygc(struct bch_fs *c)
 			     writepoint_ptr(&c->copygc_write_point),
 			     copygc_pred, NULL,
 			     &move_stats);
-	if (ret) {
+	if (ret < 0)
 		bch_err(c, "error %i from bch2_move_data() in copygc", ret);
+	if (ret)
 		return ret;
-	}
 
 	ret = check_copygc_was_done(c, &sectors_not_moved, &buckets_not_moved);
 	if (ret) {
