@@ -755,7 +755,7 @@ static int rsnd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 
 	/* set clock master for audio interface */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
 	case SND_SOC_DAIFMT_CBP_CFP:
 		rdai->clk_master = 0;
 		break;
