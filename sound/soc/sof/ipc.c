@@ -340,6 +340,59 @@ static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc,
 	return tx_wait_done(ipc, msg, reply_data);
 }
 
+/**
+ * sof_ipc_send_msg - generic function to prepare and send one IPC message
+ * @sdev:		pointer to SOF core device struct
+ * @msg_data:		pointer to a message to send
+ * @msg_bytes:		number of bytes in the message
+ * @reply_bytes:	number of bytes available for the reply.
+ *			The buffer for the reply data is not passed to this
+ *			function, the available size is an information for the
+ *			reply handling functions.
+ *
+ * On success the function returns 0, otherwise negative error number.
+ *
+ * Note: higher level sdev->ipc->tx_mutex must be held to make sure that
+ *	 transfers are synchronized.
+ */
+int sof_ipc_send_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
+		     size_t reply_bytes)
+{
+	struct snd_sof_ipc *ipc = sdev->ipc;
+	struct snd_sof_ipc_msg *msg;
+	int ret;
+
+	if (ipc->disable_ipc_tx || sdev->fw_state != SOF_FW_BOOT_COMPLETE)
+		return -ENODEV;
+
+	/*
+	 * The spin-lock is needed to protect message objects against other
+	 * atomic contexts.
+	 */
+	spin_lock_irq(&sdev->ipc_lock);
+
+	/* initialise the message */
+	msg = &ipc->msg;
+
+	/* attach message data */
+	msg->msg_data = msg_data;
+	msg->msg_size = msg_bytes;
+
+	msg->reply_size = reply_bytes;
+	msg->reply_error = 0;
+
+	sdev->msg = msg;
+
+	ret = snd_sof_dsp_send_msg(sdev, msg);
+	/* Next reply that we receive will be related to this message */
+	if (!ret)
+		msg->ipc_complete = false;
+
+	spin_unlock_irq(&sdev->ipc_lock);
+
+	return ret;
+}
+
 /* send IPC message from host to DSP */
 int sof_ipc_tx_message(struct snd_sof_ipc *ipc, void *msg_data, size_t msg_bytes,
 		       void *reply_data, size_t reply_bytes)
