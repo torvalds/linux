@@ -372,7 +372,7 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 			continue;
 		if (ratio == 1 && !support_1_1_ratio)
 			continue;
-		else if (ratio & 1)
+		if ((ratio & 1) && ratio > 1)
 			continue;
 
 		diff = abs((long)clk_rate - ratio * freq);
