@@ -1018,7 +1018,7 @@ static void binder_restore_priority_hook(void *data,
  * they can preempt long running rtg prio tasks but binders loose their
  * powers with in 3 msec where as rtg prio tasks can run more than that.
  */
-static inline int walt_get_mvp_task_prio(struct task_struct *p)
+int walt_get_mvp_task_prio(struct task_struct *p)
 {
 	if (per_task_boost(p) == TASK_BOOST_STRICT_MAX)
 		return WALT_TASK_BOOST_MVP;
@@ -1065,7 +1065,7 @@ static void walt_cfs_insert_mvp_task(struct walt_rq *wrq, struct walt_task_struc
 	list_add(&wts->mvp_list, pos->prev);
 }
 
-static void walt_cfs_deactivate_mvp_task(struct task_struct *p)
+void walt_cfs_deactivate_mvp_task(struct task_struct *p)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
@@ -1130,16 +1130,6 @@ static void walt_cfs_account_mvp_runtime(struct rq *rq, struct task_struct *curr
 	/* slice expired. re-queue the task */
 	list_del(&wts->mvp_list);
 	walt_cfs_insert_mvp_task(wrq, wts, false);
-}
-
-static void walt_cfs_mvp_do_sched_yield(void *unused, struct rq *rq)
-{
-	struct task_struct *curr = rq->curr;
-	int mvp_prio = walt_get_mvp_task_prio(curr);
-
-	lockdep_assert_held(&rq->__lock);
-	if (mvp_prio != WALT_NOT_MVP)
-		walt_cfs_deactivate_mvp_task(curr);
 }
 
 void walt_cfs_enqueue_task(struct rq *rq, struct task_struct *p)
@@ -1349,6 +1339,4 @@ void walt_cfs_init(void)
 
 	register_trace_android_rvh_check_preempt_wakeup(walt_cfs_check_preempt_wakeup, NULL);
 	register_trace_android_rvh_replace_next_task_fair(walt_cfs_replace_next_task_fair, NULL);
-
-	register_trace_android_rvh_do_sched_yield(walt_cfs_mvp_do_sched_yield, NULL);
 }

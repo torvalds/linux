@@ -4315,6 +4315,19 @@ static void android_rvh_build_perf_domains(void *unused, bool *eas_check)
 	*eas_check = true;
 }
 
+static void walt_do_sched_yield(void *unused, struct rq *rq)
+{
+	struct task_struct *curr = rq->curr;
+	int mvp_prio = walt_get_mvp_task_prio(curr);
+
+	lockdep_assert_held(&rq->__lock);
+	if (mvp_prio != WALT_NOT_MVP)
+		walt_cfs_deactivate_mvp_task(curr);
+
+	if (rt_task(curr))
+		per_cpu(rt_task_arrival_time, cpu_of(rq)) = 0;
+}
+
 static void register_walt_hooks(void)
 {
 	register_trace_android_rvh_wake_up_new_task(android_rvh_wake_up_new_task, NULL);
@@ -4342,6 +4355,7 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_sched_exec(android_rvh_sched_exec, NULL);
 	register_trace_android_rvh_build_perf_domains(android_rvh_build_perf_domains, NULL);
 	register_trace_cpu_frequency_limits(walt_cpu_frequency_limits, NULL);
+	register_trace_android_rvh_do_sched_yield(walt_do_sched_yield, NULL);
 }
 
 atomic64_t walt_irq_work_lastq_ws;

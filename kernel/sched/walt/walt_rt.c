@@ -12,7 +12,7 @@
 #define MSEC_TO_NSEC (1000 * 1000)
 
 static DEFINE_PER_CPU(cpumask_var_t, walt_local_cpu_mask);
-static DEFINE_PER_CPU(u64, rt_task_arrival_time);
+DEFINE_PER_CPU(u64, rt_task_arrival_time);
 static bool long_running_rt_task_trace_rgstrd;
 
 void rt_task_arrival_marker(void *unused, bool preempt,
