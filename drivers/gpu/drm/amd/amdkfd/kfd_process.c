@@ -1165,8 +1165,18 @@ static void kfd_process_free_notifier(struct mmu_notifier *mn)
 
 static void kfd_process_notifier_release_internal(struct kfd_process *p)
 {
+	int i;
+
 	cancel_delayed_work_sync(&p->eviction_work);
 	cancel_delayed_work_sync(&p->restore_work);
+
+	for (i = 0; i < p->n_pdds; i++) {
+		struct kfd_process_device *pdd = p->pdds[i];
+
+		/* re-enable GFX OFF since runtime enable with ttmp setup disabled it. */
+		if (!kfd_dbg_is_rlc_restore_supported(pdd->dev) && p->runtime_info.ttmp_setup)
+			amdgpu_gfx_off_ctrl(pdd->dev->adev, true);
+	}
 
 	/* Indicate to other users that MM is no longer valid */
 	p->mm = NULL;

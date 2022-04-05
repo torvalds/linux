@@ -34,4 +34,33 @@ static inline bool kfd_dbg_is_per_vmid_supported(struct kfd_node *dev)
 	return KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2);
 }
 
+/*
+ * If GFX off is enabled, chips that do not support RLC restore for the debug
+ * registers will disable GFX off temporarily for the entire debug session.
+ * See disable_on_trap_action_entry and enable_on_trap_action_exit for details.
+ */
+static inline bool kfd_dbg_is_rlc_restore_supported(struct kfd_node *dev)
+{
+	return !(KFD_GC_VERSION(dev) == IP_VERSION(10, 1, 10) ||
+		 KFD_GC_VERSION(dev) == IP_VERSION(10, 1, 1));
+}
+
+static inline bool kfd_dbg_has_gws_support(struct kfd_node *dev)
+{
+	if ((KFD_GC_VERSION(dev) == IP_VERSION(9, 0, 1)
+			&& dev->kfd->mec2_fw_version < 0x81b6) ||
+		(KFD_GC_VERSION(dev) >= IP_VERSION(9, 1, 0)
+			&& KFD_GC_VERSION(dev) <= IP_VERSION(9, 2, 2)
+			&& dev->kfd->mec2_fw_version < 0x1b6) ||
+		(KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 0)
+			&& dev->kfd->mec2_fw_version < 0x1b6) ||
+		(KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 1)
+			&& dev->kfd->mec2_fw_version < 0x30) ||
+		(KFD_GC_VERSION(dev) >= IP_VERSION(11, 0, 0) &&
+			KFD_GC_VERSION(dev) < IP_VERSION(12, 0, 0)))
+		return false;
+
+	/* Assume debugging and cooperative launch supported otherwise. */
+	return true;
+}
 #endif
