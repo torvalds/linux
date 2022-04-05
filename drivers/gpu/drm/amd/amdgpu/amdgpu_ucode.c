@@ -649,6 +649,7 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	const struct dmcub_firmware_header_v1_0 *dmcub_hdr = NULL;
 	const struct mes_firmware_header_v1_0 *mes_hdr = NULL;
 	const struct sdma_firmware_header_v2_0 *sdma_hdr = NULL;
+	const struct imu_firmware_header_v1_0 *imu_hdr = NULL;
 	u8 *ucode_addr;
 
 	if (NULL == ucode->fw)
@@ -666,6 +667,7 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	dmcub_hdr = (const struct dmcub_firmware_header_v1_0 *)ucode->fw->data;
 	mes_hdr = (const struct mes_firmware_header_v1_0 *)ucode->fw->data;
 	sdma_hdr = (const struct sdma_firmware_header_v2_0 *)ucode->fw->data;
+	imu_hdr = (const struct imu_firmware_header_v1_0 *)ucode->fw->data;
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		switch (ucode->ucode_id) {
@@ -761,6 +763,17 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 		case AMDGPU_UCODE_ID_PPTABLE:
 			ucode->ucode_size = ucode->fw->size;
 			ucode_addr = (u8 *)ucode->fw->data;
+			break;
+		case AMDGPU_UCODE_ID_IMU_I:
+			ucode->ucode_size = le32_to_cpu(imu_hdr->imu_iram_ucode_size_bytes);
+			ucode_addr = (u8 *)ucode->fw->data +
+				le32_to_cpu(imu_hdr->header.ucode_array_offset_bytes);
+			break;
+		case AMDGPU_UCODE_ID_IMU_D:
+			ucode->ucode_size = le32_to_cpu(imu_hdr->imu_dram_ucode_size_bytes);
+			ucode_addr = (u8 *)ucode->fw->data +
+				le32_to_cpu(imu_hdr->header.ucode_array_offset_bytes) +
+				le32_to_cpu(imu_hdr->imu_iram_ucode_size_bytes);
 			break;
 		default:
 			ucode->ucode_size = le32_to_cpu(header->ucode_size_bytes);
