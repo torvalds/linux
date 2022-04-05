@@ -9,17 +9,25 @@
 #define compat_mode_t	compat_mode_t
 typedef u16		compat_mode_t;
 
-#include <asm-generic/compat.h>
-
-#define COMPAT_USER_HZ		100
-#define COMPAT_UTS_MACHINE	"sparc\0\0"
-
+#define __compat_uid_t	__compat_uid_t
 typedef u16		__compat_uid_t;
 typedef u16		__compat_gid_t;
+
+#define compat_dev_t	compat_dev_t
 typedef u16		compat_dev_t;
+
+#define compat_ipc_pid_t compat_ipc_pid_t
+typedef u16		 compat_ipc_pid_t;
+
+#define compat_ipc64_perm compat_ipc64_perm
+
+#define COMPAT_RLIM_INFINITY 0x7fffffff
+
+#include <asm-generic/compat.h>
+
+#define COMPAT_UTS_MACHINE	"sparc\0\0"
+
 typedef s16		compat_nlink_t;
-typedef u16		compat_ipc_pid_t;
-typedef __kernel_fsid_t	compat_fsid_t;
 
 struct compat_stat {
 	compat_dev_t	st_dev;
@@ -76,25 +84,6 @@ struct compat_stat64 {
 };
 
 #define __ARCH_COMPAT_FLOCK_PAD		short __unused;
-
-struct compat_statfs {
-	int		f_type;
-	int		f_bsize;
-	int		f_blocks;
-	int		f_bfree;
-	int		f_bavail;
-	int		f_files;
-	int		f_ffree;
-	compat_fsid_t	f_fsid;
-	int		f_namelen;	/* SunOS ignores this field. */
-	int		f_frsize;
-	int		f_flags;
-	int		f_spare[4];
-};
-
-#define COMPAT_RLIM_INFINITY 0x7fffffff
-
-#define COMPAT_OFF_T_MAX	0x7fffffff
 
 struct compat_ipc64_perm {
 	compat_key_t key;
