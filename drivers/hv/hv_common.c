@@ -79,8 +79,10 @@ int __init hv_common_init(void)
 	 * calling crash enlightment interface before running kdump
 	 * kernel.
 	 */
-	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE)
+	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
 		crash_kexec_post_notifiers = true;
+		pr_info("Hyper-V: enabling crash_kexec_post_notifiers\n");
+	}
 
 	/*
 	 * Allocate the per-CPU state for the hypercall input arg.
