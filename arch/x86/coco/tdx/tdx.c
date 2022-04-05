@@ -10,6 +10,7 @@
 
 /* TDX module Call Leaf IDs */
 #define TDX_GET_INFO			1
+#define TDX_GET_VEINFO			3
 
 /*
  * Wrapper for standard use of __tdx_hypercall with no output aside from
@@ -71,6 +72,43 @@ static u64 get_cc_mask(void)
 	 * Set it for shared pages and clear it for private pages.
 	 */
 	return BIT_ULL(gpa_width - 1);
+}
+
+void tdx_get_ve_info(struct ve_info *ve)
+{
+	struct tdx_module_output out;
+
+	/*
+	 * Called during #VE handling to retrieve the #VE info from the
+	 * TDX module.
+	 *
+	 * This has to be called early in #VE handling.  A "nested" #VE which
+	 * occurs before this will raise a #DF and is not recoverable.
+	 *
+	 * The call retrieves the #VE info from the TDX module, which also
+	 * clears the "#VE valid" flag. This must be done before anything else
+	 * because any #VE that occurs while the valid flag is set will lead to
+	 * #DF.
+	 *
+	 * Note, the TDX module treats virtual NMIs as inhibited if the #VE
+	 * valid flag is set. It means that NMI=>#VE will not result in a #DF.
+	 */
+	tdx_module_call(TDX_GET_VEINFO, 0, 0, 0, 0, &out);
+
+	/* Transfer the output parameters */
+	ve->exit_reason = out.rcx;
+	ve->exit_qual   = out.rdx;
+	ve->gla         = out.r8;
+	ve->gpa         = out.r9;
+	ve->instr_len   = lower_32_bits(out.r10);
+	ve->instr_info  = upper_32_bits(out.r10);
+}
+
+bool tdx_handle_virt_exception(struct pt_regs *regs, struct ve_info *ve)
+{
+	pr_warn("Unexpected #VE: %lld\n", ve->exit_reason);
+
+	return false;
 }
 
 void __init tdx_early_init(void)
