@@ -5114,22 +5114,17 @@ void survey_timer_hdl(struct timer_list *t)
 
 		ph2c = rtw_zmalloc(sizeof(struct cmd_obj));
 		if (!ph2c)
-			goto exit_survey_timer_hdl;
+			return;
 
 		psurveyPara = rtw_zmalloc(sizeof(struct sitesurvey_parm));
 		if (!psurveyPara) {
 			kfree(ph2c);
-			goto exit_survey_timer_hdl;
+			return;
 		}
 
 		init_h2fwcmd_w_parm_no_rsp(ph2c, psurveyPara, GEN_CMD_CODE(_SiteSurvey));
 		rtw_enqueue_cmd(pcmdpriv, ph2c);
 	}
-
-
-exit_survey_timer_hdl:
-
-	return;
 }
 
 void link_timer_hdl(struct timer_list *t)
