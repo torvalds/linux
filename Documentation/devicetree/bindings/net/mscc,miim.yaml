@@ -33,6 +33,11 @@ properties:
   interrupts:
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
+  clock-frequency: true
+
 required:
   - compatible
   - reg
