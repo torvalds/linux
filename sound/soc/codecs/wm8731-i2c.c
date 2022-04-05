@@ -23,8 +23,7 @@ static const struct of_device_id wm8731_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, wm8731_of_match);
 
-static int wm8731_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8731_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8731_priv *wm8731;
 	int ret;
@@ -58,7 +57,7 @@ static struct i2c_driver wm8731_i2c_driver = {
 		.name = "wm8731",
 		.of_match_table = wm8731_of_match,
 	},
-	.probe =    wm8731_i2c_probe,
+	.probe_new = wm8731_i2c_probe,
 	.id_table = wm8731_i2c_id,
 };
 
