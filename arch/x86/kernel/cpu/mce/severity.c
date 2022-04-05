@@ -304,6 +304,7 @@ static noinstr int error_context(struct mce *m, struct pt_regs *regs)
 /* See AMD PPR(s) section Machine Check Error Handling. */
 static noinstr int mce_severity_amd(struct mce *m, struct pt_regs *regs, char **msg, bool is_excp)
 {
+	char *panic_msg = NULL;
 	int ret;
 
 	/*
@@ -314,6 +315,7 @@ static noinstr int mce_severity_amd(struct mce *m, struct pt_regs *regs, char **
 
 	/* Processor Context Corrupt, no need to fumble too much, die! */
 	if (m->status & MCI_STATUS_PCC) {
+		panic_msg = "Processor Context Corrupt";
 		ret = MCE_PANIC_SEVERITY;
 		goto out;
 	}
@@ -337,19 +339,26 @@ static noinstr int mce_severity_amd(struct mce *m, struct pt_regs *regs, char **
 	 * system will not be able to recover, panic.
 	 */
 	if ((m->status & MCI_STATUS_OVER) && !mce_flags.overflow_recov) {
+		panic_msg = "Overflowed uncorrected error without MCA Overflow Recovery";
 		ret = MCE_PANIC_SEVERITY;
 		goto out;
 	}
 
 	if (!mce_flags.succor) {
+		panic_msg = "Uncorrected error without MCA Recovery";
 		ret = MCE_PANIC_SEVERITY;
 		goto out;
 	}
 
-	if (error_context(m, regs) == IN_KERNEL)
+	if (error_context(m, regs) == IN_KERNEL) {
+		panic_msg = "Uncorrected unrecoverable error in kernel context";
 		ret = MCE_PANIC_SEVERITY;
+	}
 
 out:
+	if (msg && panic_msg)
+		*msg = panic_msg;
+
 	return ret;
 }
 
