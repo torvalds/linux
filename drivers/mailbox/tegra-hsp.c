@@ -804,7 +804,7 @@ static int __maybe_unused tegra_hsp_resume(struct device *dev)
 	struct tegra_hsp_doorbell *db;
 
 	list_for_each_entry(db, &hsp->doorbells, list) {
-		if (db && db->channel.chan)
+		if (db->channel.chan)
 			tegra_hsp_doorbell_startup(db->channel.chan);
 	}
 
