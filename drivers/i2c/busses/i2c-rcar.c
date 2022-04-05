@@ -105,6 +105,7 @@
 #define ID_DONE		(1 << 2)
 #define ID_ARBLOST	(1 << 3)
 #define ID_NACK		(1 << 4)
+#define ID_EPROTO	(1 << 5)
 /* persistent flags */
 #define ID_P_HOST_NOTIFY	BIT(28)
 #define ID_P_REP_AFTER_RD	BIT(29)
@@ -522,6 +523,7 @@ static void rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
 static void rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 {
 	struct i2c_msg *msg = priv->msg;
+	bool recv_len_init = priv->pos == 0 && msg->flags & I2C_M_RECV_LEN;
 
 	/* FIXME: sometimes, unknown interrupt happened. Do nothing */
 	if (!(msr & MDR))
@@ -535,12 +537,29 @@ static void rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 		rcar_i2c_dma(priv);
 	} else if (priv->pos < msg->len) {
 		/* get received data */
-		msg->buf[priv->pos] = rcar_i2c_read(priv, ICRXTX);
+		u8 data = rcar_i2c_read(priv, ICRXTX);
+
+		msg->buf[priv->pos] = data;
+		if (recv_len_init) {
+			if (data == 0 || data > I2C_SMBUS_BLOCK_MAX) {
+				priv->flags |= ID_DONE | ID_EPROTO;
+				return;
+			}
+			msg->len += msg->buf[0];
+			/* Enough data for DMA? */
+			if (rcar_i2c_dma(priv))
+				return;
+			/* new length after RECV_LEN now properly initialized */
+			recv_len_init = false;
+		}
 		priv->pos++;
 	}
 
-	/* If next received data is the _LAST_, go to new phase. */
-	if (priv->pos + 1 == msg->len) {
+	/*
+	 * If next received data is the _LAST_ and we are not waiting for a new
+	 * length because of RECV_LEN, then go to a new phase.
+	 */
+	if (priv->pos + 1 == msg->len && !recv_len_init) {
 		if (priv->flags & ID_LAST_MSG) {
 			rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_STOP);
 		} else {
@@ -847,6 +866,8 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 		ret = -ENXIO;
 	} else if (priv->flags & ID_ARBLOST) {
 		ret = -EAGAIN;
+	} else if (priv->flags & ID_EPROTO) {
+		ret = -EPROTO;
 	} else {
 		ret = num - priv->msgs_left; /* The number of transfer */
 	}
@@ -909,6 +930,8 @@ static int rcar_i2c_master_xfer_atomic(struct i2c_adapter *adap,
 		ret = -ENXIO;
 	} else if (priv->flags & ID_ARBLOST) {
 		ret = -EAGAIN;
+	} else if (priv->flags & ID_EPROTO) {
+		ret = -EPROTO;
 	} else {
 		ret = num - priv->msgs_left; /* The number of transfer */
 	}
@@ -975,7 +998,7 @@ static u32 rcar_i2c_func(struct i2c_adapter *adap)
 	 * I2C_M_IGNORE_NAK (automatically sends STOP after NAK)
 	 */
 	u32 func = I2C_FUNC_I2C | I2C_FUNC_SLAVE |
-		   (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK);
+		   (I2C_FUNC_SMBUS_EMUL_ALL & ~I2C_FUNC_SMBUS_QUICK);
 
 	if (priv->flags & ID_P_HOST_NOTIFY)
 		func |= I2C_FUNC_SMBUS_HOST_NOTIFY;
