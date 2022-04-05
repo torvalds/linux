@@ -18,7 +18,17 @@
 #include <linux/slab.h>
 #include <uapi/linux/fscrypt.h>
 
-#define FS_CRYPTO_BLOCK_SIZE		16
+/*
+ * The lengths of all file contents blocks must be divisible by this value.
+ * This is needed to ensure that all contents encryption modes will work, as
+ * some of the supported modes don't support arbitrarily byte-aligned messages.
+ *
+ * Since the needed alignment is 16 bytes, most filesystems will meet this
+ * requirement naturally, as typical block sizes are powers of 2.  However, if a
+ * filesystem can generate arbitrarily byte-aligned block lengths (e.g., via
+ * compression), then it will need to pad to this alignment before encryption.
+ */
+#define FSCRYPT_CONTENTS_ALIGNMENT 16
 
 union fscrypt_policy;
 struct fscrypt_info;
