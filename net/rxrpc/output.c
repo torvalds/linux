@@ -350,6 +350,7 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 			   bool retrans)
 {
+	enum rxrpc_req_ack_trace why;
 	struct rxrpc_connection *conn = call->conn;
 	struct rxrpc_wire_header whdr;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
@@ -405,16 +406,29 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	 * service call, lest OpenAFS incorrectly send us an ACK with some
 	 * soft-ACKs in it and then never follow up with a proper hard ACK.
 	 */
-	if ((!(sp->hdr.flags & RXRPC_LAST_PACKET) ||
-	     rxrpc_to_server(sp)
-	     ) &&
-	    (test_and_clear_bit(RXRPC_CALL_EV_ACK_LOST, &call->events) ||
-	     retrans ||
-	     call->cong_mode == RXRPC_CALL_SLOW_START ||
-	     (call->peer->rtt_count < 3 && sp->hdr.seq & 1) ||
-	     ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
-			  ktime_get_real())))
+	if (whdr.flags & RXRPC_REQUEST_ACK)
+		why = rxrpc_reqack_already_on;
+	else if ((whdr.flags & RXRPC_LAST_PACKET) && rxrpc_to_client(sp))
+		why = rxrpc_reqack_no_srv_last;
+	else if (test_and_clear_bit(RXRPC_CALL_EV_ACK_LOST, &call->events))
+		why = rxrpc_reqack_ack_lost;
+	else if (retrans)
+		why = rxrpc_reqack_retrans;
+	else if (call->cong_mode == RXRPC_CALL_SLOW_START && call->cong_cwnd <= 2)
+		why = rxrpc_reqack_slow_start;
+	else if (call->tx_winsize <= 2)
+		why = rxrpc_reqack_small_txwin;
+	else if (call->peer->rtt_count < 3 && sp->hdr.seq & 1)
+		why = rxrpc_reqack_more_rtt;
+	else if (ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000), ktime_get_real()))
+		why = rxrpc_reqack_old_rtt;
+	else
+		goto dont_set_request_ack;
+
+	trace_rxrpc_req_ack(call->debug_id, sp->hdr.seq, why);
+	if (why != rxrpc_reqack_no_srv_last)
 		whdr.flags |= RXRPC_REQUEST_ACK;
+dont_set_request_ack:
 
 	if (IS_ENABLED(CONFIG_AF_RXRPC_INJECT_LOSS)) {
 		static int lose;
