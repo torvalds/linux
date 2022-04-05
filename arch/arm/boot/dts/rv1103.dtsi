@@ -8,3 +8,7 @@
 / {
 	compatible = "rockchip,rv1103";
 };
+
+&acodec {
+	compatible = "rockchip,rv1103-codec";
+};
