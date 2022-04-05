@@ -24,6 +24,7 @@
 #include <net/dsa.h>
 
 #include "mtk_eth_soc.h"
+#include "mtk_wed.h"
 
 static int mtk_msg_level = -1;
 module_param_named(msg_level, mtk_msg_level, int, 0);
@@ -3168,6 +3169,22 @@ static int mtk_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "no pctl regmap found\n");
 			return PTR_ERR(eth->pctl);
 		}
+	}
+
+	for (i = 0;; i++) {
+		struct device_node *np = of_parse_phandle(pdev->dev.of_node,
+							  "mediatek,wed", i);
+		static const u32 wdma_regs[] = {
+			MTK_WDMA0_BASE,
+			MTK_WDMA1_BASE
+		};
+		void __iomem *wdma;
+
+		if (!np || i >= ARRAY_SIZE(wdma_regs))
+			break;
+
+		wdma = eth->base + wdma_regs[i];
+		mtk_wed_add_hw(np, eth, wdma, i);
 	}
 
 	for (i = 0; i < 3; i++) {

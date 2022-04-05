@@ -295,6 +295,9 @@
 #define MTK_GDM1_TX_GPCNT	0x2438
 #define MTK_STAT_OFFSET		0x40
 
+#define MTK_WDMA0_BASE		0x2800
+#define MTK_WDMA1_BASE		0x2c00
+
 /* QDMA descriptor txd4 */
 #define TX_DMA_CHKSUM		(0x7 << 29)
 #define TX_DMA_TSO		BIT(28)
