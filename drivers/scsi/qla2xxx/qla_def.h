@@ -5410,7 +5410,7 @@ struct ql_vnd_stat_entry {
 struct ql_vnd_stats {
 	u64 entry_count; /* Num of entries */
 	u64 rservd;
-	struct ql_vnd_stat_entry entry[0]; /* Place holder of entries */
+	struct ql_vnd_stat_entry entry[]; /* Place holder of entries */
 } __packed;
 
 struct ql_vnd_host_stats_resp {

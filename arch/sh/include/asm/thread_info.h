@@ -32,7 +32,7 @@ struct thread_info {
 	int			preempt_count; /* 0 => preemptable, <0 => BUG */
 	unsigned long		previous_sp;	/* sp of previous stack in case
 						   of nested IRQ stacks */
-	__u8			supervisor_stack[0];
+	__u8			supervisor_stack[];
 };
 
 #endif

@@ -540,19 +540,19 @@ struct cpucp_packet {
 struct cpucp_unmask_irq_arr_packet {
 	struct cpucp_packet cpucp_pkt;
 	__le32 length;
-	__le32 irqs[0];
+	__le32 irqs[];
 };
 
 struct cpucp_nic_status_packet {
 	struct cpucp_packet cpucp_pkt;
 	__le32 length;
-	__le32 data[0];
+	__le32 data[];
 };
 
 struct cpucp_array_data_packet {
 	struct cpucp_packet cpucp_pkt;
 	__le32 length;
-	__le32 data[0];
+	__le32 data[];
 };
 
 enum cpucp_packet_rc {
