@@ -577,7 +577,11 @@ intel_context_migrate_copy(struct intel_context *ce,
 
 		len = emit_pte(rq, &it_src, src_cache_level, src_is_lmem,
 			       src_offset, CHUNK_SZ);
-		if (len <= 0) {
+		if (!len) {
+			err = -EINVAL;
+			goto out_rq;
+		}
+		if (len < 0) {
 			err = len;
 			goto out_rq;
 		}
