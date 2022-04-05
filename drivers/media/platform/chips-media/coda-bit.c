@@ -2176,7 +2176,6 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 	    (!(ctx->bit_stream_param & CODA_BIT_STREAM_END_FLAG))) {
 		coda_dbg(1, ctx, "bitstream payload: %d, skipping\n",
 			 coda_get_bitstream_payload(ctx));
-		v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
 		return -EAGAIN;
 	}
 
@@ -2186,7 +2185,6 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 
 		if (ret < 0) {
 			v4l2_err(&dev->v4l2_dev, "failed to start decoding\n");
-			v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
 			return -EAGAIN;
 		} else {
 			ctx->initialized = 1;

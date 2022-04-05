@@ -1340,10 +1340,8 @@ static int coda9_jpeg_prepare_decode(struct coda_ctx *ctx)
 				      vb2_plane_size(&src_buf->vb2_buf, 0));
 
 	chroma_format = coda9_jpeg_chroma_format(q_data_dst->fourcc);
-	if (chroma_format < 0) {
-		v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
+	if (chroma_format < 0)
 		return chroma_format;
-	}
 
 	ret = coda_jpeg_decode_header(ctx, &src_buf->vb2_buf);
 	if (ret < 0) {
@@ -1355,7 +1353,6 @@ static int coda9_jpeg_prepare_decode(struct coda_ctx *ctx)
 		v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
 		v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
 
-		v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
 		return ret;
 	}
 
@@ -1396,7 +1393,6 @@ static int coda9_jpeg_prepare_decode(struct coda_ctx *ctx)
 		if (ret < 0) {
 			v4l2_err(&dev->v4l2_dev,
 				 "failed to set up Huffman tables: %d\n", ret);
-			v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
 			return ret;
 		}
 	}

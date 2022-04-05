@@ -1510,12 +1510,8 @@ static void coda_pic_run_work(struct work_struct *work)
 	mutex_lock(&dev->coda_mutex);
 
 	ret = ctx->ops->prepare_run(ctx);
-	if (ret < 0 && ctx->inst_type == CODA_INST_DECODER) {
-		mutex_unlock(&dev->coda_mutex);
-		mutex_unlock(&ctx->buffer_mutex);
-		/* job_finish scheduled by prepare_decode */
-		return;
-	}
+	if (ret < 0 && ctx->inst_type == CODA_INST_DECODER)
+		goto out;
 
 	if (!wait_for_completion_timeout(&ctx->completion,
 					 msecs_to_jiffies(1000))) {
@@ -1537,6 +1533,7 @@ static void coda_pic_run_work(struct work_struct *work)
 	    ctx->ops->seq_end_work)
 		queue_work(dev->workqueue, &ctx->seq_end_work);
 
+out:
 	mutex_unlock(&dev->coda_mutex);
 	mutex_unlock(&ctx->buffer_mutex);
 
