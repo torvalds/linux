@@ -471,9 +471,10 @@
 				<0x6 0x10004000 0x7fc000>,
 				<0x6 0x11010000 0xaf0000>;
 			reg-names = "cpu", "dev", "gcb";
-			interrupt-names = "xtr", "fdma";
+			interrupt-names = "xtr", "fdma", "ptp";
 			interrupts =	<GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+					<GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&reset 0>;
 			reset-names = "switch";
 		};

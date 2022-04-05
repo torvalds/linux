@@ -67,77 +67,12 @@ struct mt7921_fw_region {
 #define MT_STA_BFER			BIT(0)
 #define MT_STA_BFEE			BIT(1)
 
-#define FW_FEATURE_SET_ENCRYPT		BIT(0)
-#define FW_FEATURE_SET_KEY_IDX		GENMASK(2, 1)
-#define FW_FEATURE_ENCRY_MODE		BIT(4)
-#define FW_FEATURE_OVERRIDE_ADDR	BIT(5)
-
-#define DL_MODE_ENCRYPT			BIT(0)
-#define DL_MODE_KEY_IDX			GENMASK(2, 1)
-#define DL_MODE_RESET_SEC_IV		BIT(3)
-#define DL_MODE_WORKING_PDA_CR4		BIT(4)
-#define DL_CONFIG_ENCRY_MODE_SEL	BIT(6)
-#define DL_MODE_NEED_RSP		BIT(31)
-
-#define FW_START_OVERRIDE		BIT(0)
-#define FW_START_WORKING_PDA_CR4	BIT(2)
-
-#define PATCH_SEC_NOT_SUPPORT		GENMASK(31, 0)
-#define PATCH_SEC_TYPE_MASK		GENMASK(15, 0)
-#define PATCH_SEC_TYPE_INFO		0x2
-
 #define PATCH_SEC_ENC_TYPE_MASK		GENMASK(31, 24)
 #define PATCH_SEC_ENC_TYPE_PLAIN		0x00
 #define PATCH_SEC_ENC_TYPE_AES			0x01
 #define PATCH_SEC_ENC_TYPE_SCRAMBLE		0x02
 #define PATCH_SEC_ENC_SCRAMBLE_INFO_MASK	GENMASK(15, 0)
 #define PATCH_SEC_ENC_AES_KEY_MASK		GENMASK(7, 0)
-
-static enum mcu_cipher_type
-mt7921_mcu_get_cipher(int cipher)
-{
-	switch (cipher) {
-	case WLAN_CIPHER_SUITE_WEP40:
-		return MCU_CIPHER_WEP40;
-	case WLAN_CIPHER_SUITE_WEP104:
-		return MCU_CIPHER_WEP104;
-	case WLAN_CIPHER_SUITE_TKIP:
-		return MCU_CIPHER_TKIP;
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-		return MCU_CIPHER_BIP_CMAC_128;
-	case WLAN_CIPHER_SUITE_CCMP:
-		return MCU_CIPHER_AES_CCMP;
-	case WLAN_CIPHER_SUITE_CCMP_256:
-		return MCU_CIPHER_CCMP_256;
-	case WLAN_CIPHER_SUITE_GCMP:
-		return MCU_CIPHER_GCMP;
-	case WLAN_CIPHER_SUITE_GCMP_256:
-		return MCU_CIPHER_GCMP_256;
-	case WLAN_CIPHER_SUITE_SMS4:
-		return MCU_CIPHER_WAPI;
-	default:
-		return MCU_CIPHER_NONE;
-	}
-}
-
-static u8 mt7921_mcu_chan_bw(struct cfg80211_chan_def *chandef)
-{
-	static const u8 width_to_bw[] = {
-		[NL80211_CHAN_WIDTH_40] = CMD_CBW_40MHZ,
-		[NL80211_CHAN_WIDTH_80] = CMD_CBW_80MHZ,
-		[NL80211_CHAN_WIDTH_80P80] = CMD_CBW_8080MHZ,
-		[NL80211_CHAN_WIDTH_160] = CMD_CBW_160MHZ,
-		[NL80211_CHAN_WIDTH_5] = CMD_CBW_5MHZ,
-		[NL80211_CHAN_WIDTH_10] = CMD_CBW_10MHZ,
-		[NL80211_CHAN_WIDTH_20] = CMD_CBW_20MHZ,
-		[NL80211_CHAN_WIDTH_20_NOHT] = CMD_CBW_20MHZ,
-	};
-
-	if (chandef->width >= ARRAY_SIZE(width_to_bw))
-		return 0;
-
-	return width_to_bw[chandef->width];
-}
 
 static int
 mt7921_mcu_parse_eeprom(struct mt76_dev *dev, struct sk_buff *skb)
@@ -465,95 +400,6 @@ void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb)
 }
 
 /** starec & wtbl **/
-static int
-mt7921_mcu_sta_key_tlv(struct mt7921_sta *msta, struct sk_buff *skb,
-		       struct ieee80211_key_conf *key, enum set_key_cmd cmd)
-{
-	struct mt7921_sta_key_conf *bip = &msta->bip;
-	struct sta_rec_sec *sec;
-	struct tlv *tlv;
-	u32 len = sizeof(*sec);
-
-	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_KEY_V2, sizeof(*sec));
-
-	sec = (struct sta_rec_sec *)tlv;
-	sec->add = cmd;
-
-	if (cmd == SET_KEY) {
-		struct sec_key *sec_key;
-		u8 cipher;
-
-		cipher = mt7921_mcu_get_cipher(key->cipher);
-		if (cipher == MCU_CIPHER_NONE)
-			return -EOPNOTSUPP;
-
-		sec_key = &sec->key[0];
-		sec_key->cipher_len = sizeof(*sec_key);
-
-		if (cipher == MCU_CIPHER_BIP_CMAC_128) {
-			sec_key->cipher_id = MCU_CIPHER_AES_CCMP;
-			sec_key->key_id = bip->keyidx;
-			sec_key->key_len = 16;
-			memcpy(sec_key->key, bip->key, 16);
-
-			sec_key = &sec->key[1];
-			sec_key->cipher_id = MCU_CIPHER_BIP_CMAC_128;
-			sec_key->cipher_len = sizeof(*sec_key);
-			sec_key->key_len = 16;
-			memcpy(sec_key->key, key->key, 16);
-
-			sec->n_cipher = 2;
-		} else {
-			sec_key->cipher_id = cipher;
-			sec_key->key_id = key->keyidx;
-			sec_key->key_len = key->keylen;
-			memcpy(sec_key->key, key->key, key->keylen);
-
-			if (cipher == MCU_CIPHER_TKIP) {
-				/* Rx/Tx MIC keys are swapped */
-				memcpy(sec_key->key + 16, key->key + 24, 8);
-				memcpy(sec_key->key + 24, key->key + 16, 8);
-			}
-
-			/* store key_conf for BIP batch update */
-			if (cipher == MCU_CIPHER_AES_CCMP) {
-				memcpy(bip->key, key->key, key->keylen);
-				bip->keyidx = key->keyidx;
-			}
-
-			len -= sizeof(*sec_key);
-			sec->n_cipher = 1;
-		}
-	} else {
-		len -= sizeof(sec->key);
-		sec->n_cipher = 0;
-	}
-	sec->len = cpu_to_le16(len);
-
-	return 0;
-}
-
-int mt7921_mcu_add_key(struct mt7921_dev *dev, struct ieee80211_vif *vif,
-		       struct mt7921_sta *msta, struct ieee80211_key_conf *key,
-		       enum set_key_cmd cmd)
-{
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
-	struct sk_buff *skb;
-	int ret;
-
-	skb = mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->mt76,
-					    &msta->wcid);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	ret = mt7921_mcu_sta_key_tlv(msta, skb, key, cmd);
-	if (ret)
-		return ret;
-
-	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
-				     MCU_UNI_CMD(STA_REC_UPDATE), true);
-}
-
 int mt7921_mcu_uni_tx_ba(struct mt7921_dev *dev,
 			 struct ieee80211_ampdu_params *params,
 			 bool enable)
@@ -564,6 +410,7 @@ int mt7921_mcu_uni_tx_ba(struct mt7921_dev *dev,
 		msta->wcid.amsdu = false;
 
 	return mt76_connac_mcu_sta_ba(&dev->mt76, &msta->vif->mt76, params,
+				      MCU_UNI_CMD(STA_REC_UPDATE),
 				      enable, true);
 }
 
@@ -574,22 +421,9 @@ int mt7921_mcu_uni_rx_ba(struct mt7921_dev *dev,
 	struct mt7921_sta *msta = (struct mt7921_sta *)params->sta->drv_priv;
 
 	return mt76_connac_mcu_sta_ba(&dev->mt76, &msta->vif->mt76, params,
+				      MCU_UNI_CMD(STA_REC_UPDATE),
 				      enable, false);
 }
-
-int mt7921_mcu_restart(struct mt76_dev *dev)
-{
-	struct {
-		u8 power_mode;
-		u8 rsv[3];
-	} req = {
-		.power_mode = 1,
-	};
-
-	return mt76_mcu_send_msg(dev, MCU_CMD(NIC_POWER_CTRL), &req,
-				 sizeof(req), false);
-}
-EXPORT_SYMBOL_GPL(mt7921_mcu_restart);
 
 static u32 mt7921_get_data_mode(struct mt7921_dev *dev, u32 info)
 {
@@ -707,12 +541,8 @@ static int mt7921_load_patch(struct mt7921_dev *dev)
 	if (mt76_is_sdio(&dev->mt76)) {
 		/* activate again */
 		ret = __mt7921_mcu_fw_pmctrl(dev);
-		if (ret)
-			return ret;
-
-		ret = __mt7921_mcu_drv_pmctrl(dev);
-		if (ret)
-			return ret;
+		if (!ret)
+			ret = __mt7921_mcu_drv_pmctrl(dev);
 	}
 
 out:
@@ -726,22 +556,6 @@ out:
 		break;
 	}
 	release_firmware(fw);
-
-	return ret;
-}
-
-static u32 mt7921_mcu_gen_dl_mode(u8 feature_set, bool is_wa)
-{
-	u32 ret = 0;
-
-	ret |= (feature_set & FW_FEATURE_SET_ENCRYPT) ?
-	       (DL_MODE_ENCRYPT | DL_MODE_RESET_SEC_IV) : 0;
-	ret |= (feature_set & FW_FEATURE_ENCRY_MODE) ?
-	       DL_CONFIG_ENCRY_MODE_SEL : 0;
-	ret |= FIELD_PREP(DL_MODE_KEY_IDX,
-			  FIELD_GET(FW_FEATURE_SET_KEY_IDX, feature_set));
-	ret |= DL_MODE_NEED_RSP;
-	ret |= is_wa ? DL_MODE_WORKING_PDA_CR4 : 0;
 
 	return ret;
 }
@@ -763,7 +577,8 @@ mt7921_mcu_send_ram_firmware(struct mt7921_dev *dev,
 
 		region = (const struct mt7921_fw_region *)((const u8 *)hdr -
 			 (hdr->n_region - i) * sizeof(*region));
-		mode = mt7921_mcu_gen_dl_mode(region->feature_set, is_wa);
+		mode = mt76_connac_mcu_gen_dl_mode(&dev->mt76,
+						   region->feature_set, is_wa);
 		len = le32_to_cpu(region->len);
 		addr = le32_to_cpu(region->addr);
 
@@ -920,33 +735,26 @@ EXPORT_SYMBOL_GPL(mt7921_mcu_exit);
 
 int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 {
-#define WMM_AIFS_SET		BIT(0)
-#define WMM_CW_MIN_SET		BIT(1)
-#define WMM_CW_MAX_SET		BIT(2)
-#define WMM_TXOP_SET		BIT(3)
-#define WMM_PARAM_SET		GENMASK(3, 0)
-#define TX_CMD_MODE		1
+	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
 	struct edca {
-		u8 queue;
-		u8 set;
-		u8 aifs;
-		u8 cw_min;
+		__le16 cw_min;
 		__le16 cw_max;
 		__le16 txop;
-	};
+		__le16 aifs;
+		u8 guardtime;
+		u8 acm;
+	} __packed;
 	struct mt7921_mcu_tx {
-		u8 total;
-		u8 action;
-		u8 valid;
-		u8 mode;
-
 		struct edca edca[IEEE80211_NUM_ACS];
+		u8 bss_idx;
+		u8 qos;
+		u8 wmm_idx;
+		u8 pad;
 	} __packed req = {
-		.valid = true,
-		.mode = TX_CMD_MODE,
-		.total = IEEE80211_NUM_ACS,
+		.bss_idx = mvif->mt76.idx,
+		.qos = vif->bss_conf.qos,
+		.wmm_idx = mvif->mt76.wmm_idx,
 	};
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
 	struct mu_edca {
 		u8 cw_min;
 		u8 cw_max;
@@ -970,30 +778,29 @@ int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 		.qos = vif->bss_conf.qos,
 		.wmm_idx = mvif->mt76.wmm_idx,
 	};
+	static const int to_aci[] = { 1, 0, 2, 3 };
 	int ac, ret;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		struct ieee80211_tx_queue_params *q = &mvif->queue_params[ac];
-		struct edca *e = &req.edca[ac];
+		struct edca *e = &req.edca[to_aci[ac]];
 
-		e->set = WMM_PARAM_SET;
-		e->queue = ac + mvif->mt76.wmm_idx * MT7921_MAX_WMM_SETS;
-		e->aifs = q->aifs;
+		e->aifs = cpu_to_le16(q->aifs);
 		e->txop = cpu_to_le16(q->txop);
 
 		if (q->cw_min)
-			e->cw_min = fls(q->cw_min);
+			e->cw_min = cpu_to_le16(q->cw_min);
 		else
-			e->cw_min = 5;
+			e->cw_min = cpu_to_le16(5);
 
 		if (q->cw_max)
-			e->cw_max = cpu_to_le16(fls(q->cw_max));
+			e->cw_max = cpu_to_le16(q->cw_max);
 		else
 			e->cw_max = cpu_to_le16(10);
 	}
 
-	ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(EDCA_UPDATE),
-				&req, sizeof(req), true);
+	ret = mt76_mcu_send_msg(&dev->mt76, MCU_CE_CMD(SET_EDCA_PARMS), &req,
+				sizeof(req), false);
 	if (ret)
 		return ret;
 
@@ -1003,7 +810,6 @@ int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		struct ieee80211_he_mu_edca_param_ac_rec *q;
 		struct mu_edca *e;
-		int to_aci[] = {1, 0, 2, 3};
 
 		if (!mvif->queue_params[ac].mu_edca)
 			break;
@@ -1046,7 +852,7 @@ int mt7921_mcu_set_chan_info(struct mt7921_phy *phy, int cmd)
 	} __packed req = {
 		.control_ch = chandef->chan->hw_value,
 		.center_ch = ieee80211_frequency_to_channel(freq1),
-		.bw = mt7921_mcu_chan_bw(chandef),
+		.bw = mt76_connac_chan_bw(chandef),
 		.tx_streams_num = hweight8(phy->mt76->antenna_mask),
 		.rx_streams = phy->mt76->antenna_mask,
 		.band_idx = phy != &dev->phy,
@@ -1057,10 +863,13 @@ int mt7921_mcu_set_chan_info(struct mt7921_phy *phy, int cmd)
 	else
 		req.channel_band = chandef->chan->band;
 
-	if (dev->mt76.hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
+	if (cmd == MCU_EXT_CMD(SET_RX_PATH) ||
+	    dev->mt76.hw->conf.flags & IEEE80211_CONF_MONITOR)
+		req.switch_reason = CH_SWITCH_NORMAL;
+	else if (dev->mt76.hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
-	else if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
-		 chandef->chan->dfs_state != NL80211_DFS_AVAILABLE)
+	else if (!cfg80211_reg_can_beacon(dev->mt76.hw->wiphy, chandef,
+					  NL80211_IFTYPE_AP))
 		req.switch_reason = CH_SWITCH_DFS;
 	else
 		req.switch_reason = CH_SWITCH_NORMAL;
@@ -1092,30 +901,6 @@ int mt7921_mcu_set_eeprom(struct mt7921_dev *dev)
 				 &req, sizeof(req), true);
 }
 EXPORT_SYMBOL_GPL(mt7921_mcu_set_eeprom);
-
-int mt7921_mcu_get_eeprom(struct mt7921_dev *dev, u32 offset)
-{
-	struct mt7921_mcu_eeprom_info req = {
-		.addr = cpu_to_le32(round_down(offset, 16)),
-	};
-	struct mt7921_mcu_eeprom_info *res;
-	struct sk_buff *skb;
-	int ret;
-	u8 *buf;
-
-	ret = mt76_mcu_send_and_get_msg(&dev->mt76,
-					MCU_EXT_QUERY(EFUSE_ACCESS),
-					&req, sizeof(req), true, &skb);
-	if (ret)
-		return ret;
-
-	res = (struct mt7921_mcu_eeprom_info *)skb->data;
-	buf = dev->mt76.eeprom.data + le32_to_cpu(res->addr);
-	memcpy(buf, res->data, 16);
-	dev_kfree_skb(skb);
-
-	return 0;
-}
 
 int mt7921_mcu_uni_bss_ps(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 {
@@ -1350,4 +1135,34 @@ int mt7921_get_txpwr_info(struct mt7921_dev *dev, struct mt7921_txpwr *txpwr)
 	dev_kfree_skb(skb);
 
 	return 0;
+}
+
+int mt7921_mcu_set_sniffer(struct mt7921_dev *dev, struct ieee80211_vif *vif,
+			   bool enable)
+{
+	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+	struct {
+		struct {
+			u8 band_idx;
+			u8 pad[3];
+		} __packed hdr;
+		struct sniffer_enable_tlv {
+			__le16 tag;
+			__le16 len;
+			u8 enable;
+			u8 pad[3];
+		} __packed enable;
+	} req = {
+		.hdr = {
+			.band_idx = mvif->band_idx,
+		},
+		.enable = {
+			.tag = cpu_to_le16(0),
+			.len = cpu_to_le16(sizeof(struct sniffer_enable_tlv)),
+			.enable = enable,
+		},
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD(SNIFFER), &req, sizeof(req),
+				 true);
 }

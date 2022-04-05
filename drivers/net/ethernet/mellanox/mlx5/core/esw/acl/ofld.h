@@ -6,6 +6,7 @@
 
 #include "eswitch.h"
 
+#ifdef CONFIG_MLX5_ESWITCH
 /* Eswitch acl egress external APIs */
 int esw_acl_egress_ofld_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport);
 void esw_acl_egress_ofld_cleanup(struct mlx5_vport *vport);
@@ -25,5 +26,19 @@ int esw_acl_ingress_ofld_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vpor
 void esw_acl_ingress_ofld_cleanup(struct mlx5_eswitch *esw, struct mlx5_vport *vport);
 int mlx5_esw_acl_ingress_vport_bond_update(struct mlx5_eswitch *esw, u16 vport_num,
 					   u32 metadata);
+void mlx5_esw_acl_ingress_vport_drop_rule_destroy(struct mlx5_eswitch *esw, u16 vport_num);
+int mlx5_esw_acl_ingress_vport_drop_rule_create(struct mlx5_eswitch *esw, u16 vport_num);
 
+#else /* CONFIG_MLX5_ESWITCH */
+static void
+mlx5_esw_acl_ingress_vport_drop_rule_destroy(struct mlx5_eswitch *esw,
+					     u16 vport_num)
+{}
+
+static int mlx5_esw_acl_ingress_vport_drop_rule_create(struct mlx5_eswitch *esw,
+						       u16 vport_num)
+{
+	return 0;
+}
+#endif /* CONFIG_MLX5_ESWITCH */
 #endif /* __MLX5_ESWITCH_ACL_OFLD_H__ */

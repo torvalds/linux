@@ -397,7 +397,7 @@
 	.fixup_map_array_48b = { 1 },
 	.result = ACCEPT,
 	.result_unpriv = REJECT,
-	.errstr_unpriv = "R0 invalid mem access 'inv'",
+	.errstr_unpriv = "R0 invalid mem access 'scalar'",
 	.retval = 0,
 },
 {
@@ -1074,7 +1074,7 @@
 	},
 	.fixup_map_array_48b = { 3 },
 	.result = REJECT,
-	.errstr = "R0 invalid mem access 'inv'",
+	.errstr = "R0 invalid mem access 'scalar'",
 	.errstr_unpriv = "R0 pointer -= pointer prohibited",
 },
 {

@@ -15,39 +15,31 @@ static void run_test(__u32 input_retval, __u16 want_side_effect, __s16 want_ret)
 {
 	struct modify_return *skel = NULL;
 	int err, prog_fd;
-	__u32 duration = 0, retval;
 	__u16 side_effect;
 	__s16 ret;
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
 	skel = modify_return__open_and_load();
-	if (CHECK(!skel, "skel_load", "modify_return skeleton failed\n"))
+	if (!ASSERT_OK_PTR(skel, "skel_load"))
 		goto cleanup;
 
 	err = modify_return__attach(skel);
-	if (CHECK(err, "modify_return", "attach failed: %d\n", err))
+	if (!ASSERT_OK(err, "modify_return__attach failed"))
 		goto cleanup;
 
 	skel->bss->input_retval = input_retval;
 	prog_fd = bpf_program__fd(skel->progs.fmod_ret_test);
-	err = bpf_prog_test_run(prog_fd, 1, NULL, 0, NULL, 0,
-				&retval, &duration);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "test_run");
 
-	CHECK(err, "test_run", "err %d errno %d\n", err, errno);
+	side_effect = UPPER(topts.retval);
+	ret = LOWER(topts.retval);
 
-	side_effect = UPPER(retval);
-	ret  = LOWER(retval);
-
-	CHECK(ret != want_ret, "test_run",
-	      "unexpected ret: %d, expected: %d\n", ret, want_ret);
-	CHECK(side_effect != want_side_effect, "modify_return",
-	      "unexpected side_effect: %d\n", side_effect);
-
-	CHECK(skel->bss->fentry_result != 1, "modify_return",
-	      "fentry failed\n");
-	CHECK(skel->bss->fexit_result != 1, "modify_return",
-	      "fexit failed\n");
-	CHECK(skel->bss->fmod_ret_result != 1, "modify_return",
-	      "fmod_ret failed\n");
+	ASSERT_EQ(ret, want_ret, "test_run ret");
+	ASSERT_EQ(side_effect, want_side_effect, "modify_return side_effect");
+	ASSERT_EQ(skel->bss->fentry_result, 1, "modify_return fentry_result");
+	ASSERT_EQ(skel->bss->fexit_result, 1, "modify_return fexit_result");
+	ASSERT_EQ(skel->bss->fmod_ret_result, 1, "modify_return fmod_ret_result");
 
 cleanup:
 	modify_return__destroy(skel);
@@ -63,4 +55,3 @@ void serial_test_modify_return(void)
 		 0 /* want_side_effect */,
 		 -EINVAL /* want_ret */);
 }
-

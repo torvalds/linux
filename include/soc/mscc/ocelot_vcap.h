@@ -8,6 +8,20 @@
 
 #include <soc/mscc/ocelot.h>
 
+/* Cookie definitions for private VCAP filters installed by the driver.
+ * Must be unique per VCAP block.
+ */
+#define OCELOT_VCAP_ES0_TAG_8021Q_RXVLAN(ocelot, port)		(port)
+#define OCELOT_VCAP_IS1_TAG_8021Q_TXVLAN(ocelot, port)		(port)
+#define OCELOT_VCAP_IS2_TAG_8021Q_TXVLAN(ocelot, port)		(port)
+#define OCELOT_VCAP_IS2_MRP_REDIRECT(ocelot, port)		((ocelot)->num_phys_ports + (port))
+#define OCELOT_VCAP_IS2_MRP_TRAP(ocelot)			((ocelot)->num_phys_ports * 2)
+#define OCELOT_VCAP_IS2_L2_PTP_TRAP(ocelot)			((ocelot)->num_phys_ports * 2 + 1)
+#define OCELOT_VCAP_IS2_IPV4_GEN_PTP_TRAP(ocelot)		((ocelot)->num_phys_ports * 2 + 2)
+#define OCELOT_VCAP_IS2_IPV4_EV_PTP_TRAP(ocelot)		((ocelot)->num_phys_ports * 2 + 3)
+#define OCELOT_VCAP_IS2_IPV6_GEN_PTP_TRAP(ocelot)		((ocelot)->num_phys_ports * 2 + 4)
+#define OCELOT_VCAP_IS2_IPV6_EV_PTP_TRAP(ocelot)		((ocelot)->num_phys_ports * 2 + 5)
+
 /* =================================================================
  *  VCAP Common
  * =================================================================
@@ -640,6 +654,7 @@ struct ocelot_vcap_action {
 			enum ocelot_mask_mode mask_mode;
 			unsigned long port_mask;
 			bool police_ena;
+			bool mirror_ena;
 			struct ocelot_policer pol;
 			u32 pol_ix;
 		};
@@ -666,6 +681,7 @@ struct ocelot_vcap_id {
 
 struct ocelot_vcap_filter {
 	struct list_head list;
+	struct list_head trap_list;
 
 	enum ocelot_vcap_filter_type type;
 	int block_id;
@@ -678,9 +694,11 @@ struct ocelot_vcap_filter {
 	struct ocelot_vcap_action action;
 	struct ocelot_vcap_stats stats;
 	/* For VCAP IS1 and IS2 */
+	bool take_ts;
 	unsigned long ingress_port_mask;
 	/* For VCAP ES0 */
 	struct ocelot_vcap_port ingress_port;
+	/* For VCAP IS2 mirrors and ES0 */
 	struct ocelot_vcap_port egress_port;
 
 	enum ocelot_vcap_bit dmac_mc;

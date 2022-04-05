@@ -1636,7 +1636,7 @@ __htab_map_lookup_and_delete_batch(struct bpf_map *map,
 		value_size = size * num_possible_cpus();
 	total = 0;
 	/* while experimenting with hash tables with sizes ranging from 10 to
-	 * 1000, it was observed that a bucket can have upto 5 entries.
+	 * 1000, it was observed that a bucket can have up to 5 entries.
 	 */
 	bucket_size = 5;
 

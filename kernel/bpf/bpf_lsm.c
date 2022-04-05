@@ -99,6 +99,24 @@ static const struct bpf_func_proto bpf_ima_inode_hash_proto = {
 	.allowed	= bpf_ima_inode_hash_allowed,
 };
 
+BPF_CALL_3(bpf_ima_file_hash, struct file *, file, void *, dst, u32, size)
+{
+	return ima_file_hash(file, dst, size);
+}
+
+BTF_ID_LIST_SINGLE(bpf_ima_file_hash_btf_ids, struct, file)
+
+static const struct bpf_func_proto bpf_ima_file_hash_proto = {
+	.func		= bpf_ima_file_hash,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_BTF_ID,
+	.arg1_btf_id	= &bpf_ima_file_hash_btf_ids[0],
+	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg3_type	= ARG_CONST_SIZE,
+	.allowed	= bpf_ima_inode_hash_allowed,
+};
+
 static const struct bpf_func_proto *
 bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
@@ -121,6 +139,8 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_bprm_opts_set_proto;
 	case BPF_FUNC_ima_inode_hash:
 		return prog->aux->sleepable ? &bpf_ima_inode_hash_proto : NULL;
+	case BPF_FUNC_ima_file_hash:
+		return prog->aux->sleepable ? &bpf_ima_file_hash_proto : NULL;
 	default:
 		return tracing_prog_func_proto(func_id, prog);
 	}
@@ -167,6 +187,7 @@ BTF_ID(func, bpf_lsm_inode_setxattr)
 BTF_ID(func, bpf_lsm_inode_symlink)
 BTF_ID(func, bpf_lsm_inode_unlink)
 BTF_ID(func, bpf_lsm_kernel_module_request)
+BTF_ID(func, bpf_lsm_kernel_read_file)
 BTF_ID(func, bpf_lsm_kernfs_init_security)
 
 #ifdef CONFIG_KEYS

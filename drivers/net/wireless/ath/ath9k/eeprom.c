@@ -670,8 +670,6 @@ void ath9k_hw_get_gain_boundaries_pdadcs(struct ath_hw *ah,
 
 int ath9k_hw_eeprom_init(struct ath_hw *ah)
 {
-	int status;
-
 	if (AR_SREV_9300_20_OR_LATER(ah))
 		ah->eep_ops = &eep_ar9300_ops;
 	else if (AR_SREV_9287(ah)) {
@@ -685,7 +683,5 @@ int ath9k_hw_eeprom_init(struct ath_hw *ah)
 	if (!ah->eep_ops->fill_eeprom(ah))
 		return -EIO;
 
-	status = ah->eep_ops->check_eeprom(ah);
-
-	return status;
+	return ah->eep_ops->check_eeprom(ah);
 }

@@ -4,11 +4,13 @@
 #include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
 #include <linux/iopoll.h>
+#include <linux/ip.h>
 #include <linux/of_platform.h>
 #include <linux/of_net.h>
 #include <linux/packing.h>
 #include <linux/phy/phy.h>
 #include <linux/reset.h>
+#include <net/addrconf.h>
 
 #include "lan966x_main.h"
 
@@ -44,6 +46,7 @@ static const struct lan966x_main_io_resource lan966x_main_iomap[] =  {
 	{ TARGET_ORG,                         0, 1 }, /* 0xe2000000 */
 	{ TARGET_GCB,                    0x4000, 1 }, /* 0xe2004000 */
 	{ TARGET_QS,                     0x8000, 1 }, /* 0xe2008000 */
+	{ TARGET_PTP,                    0xc000, 1 }, /* 0xe200c000 */
 	{ TARGET_CHIP_TOP,              0x10000, 1 }, /* 0xe2010000 */
 	{ TARGET_REW,                   0x14000, 1 }, /* 0xe2014000 */
 	{ TARGET_SYS,                   0x28000, 1 }, /* 0xe2028000 */
@@ -182,6 +185,9 @@ static int lan966x_port_inj_ready(struct lan966x *lan966x, u8 grp)
 {
 	u32 val;
 
+	if (lan_rd(lan966x, QS_INJ_STATUS) & QS_INJ_STATUS_FIFO_RDY_SET(BIT(grp)))
+		return 0;
+
 	return readx_poll_timeout_atomic(lan966x_port_inj_status, lan966x, val,
 					 QS_INJ_STATUS_FIFO_RDY_GET(val) & BIT(grp),
 					 READL_SLEEP_US, READL_TIMEOUT_US);
@@ -201,7 +207,7 @@ static int lan966x_port_ifh_xmit(struct sk_buff *skb,
 	val = lan_rd(lan966x, QS_INJ_STATUS);
 	if (!(QS_INJ_STATUS_FIFO_RDY_GET(val) & BIT(grp)) ||
 	    (QS_INJ_STATUS_WMARK_REACHED_GET(val) & BIT(grp)))
-		return NETDEV_TX_BUSY;
+		goto err;
 
 	/* Write start of frame */
 	lan_wr(QS_INJ_CTRL_GAP_SIZE_SET(1) |
@@ -213,7 +219,7 @@ static int lan966x_port_ifh_xmit(struct sk_buff *skb,
 		/* Wait until the fifo is ready */
 		err = lan966x_port_inj_ready(lan966x, grp);
 		if (err)
-			return NETDEV_TX_BUSY;
+			goto err;
 
 		lan_wr((__force u32)ifh[i], lan966x, QS_INJ_WR(grp));
 	}
@@ -225,7 +231,7 @@ static int lan966x_port_ifh_xmit(struct sk_buff *skb,
 		/* Wait until the fifo is ready */
 		err = lan966x_port_inj_ready(lan966x, grp);
 		if (err)
-			return NETDEV_TX_BUSY;
+			goto err;
 
 		lan_wr(((u32 *)skb->data)[i], lan966x, QS_INJ_WR(grp));
 	}
@@ -235,7 +241,7 @@ static int lan966x_port_ifh_xmit(struct sk_buff *skb,
 		/* Wait until the fifo is ready */
 		err = lan966x_port_inj_ready(lan966x, grp);
 		if (err)
-			return NETDEV_TX_BUSY;
+			goto err;
 
 		lan_wr(0, lan966x, QS_INJ_WR(grp));
 		++i;
@@ -255,8 +261,19 @@ static int lan966x_port_ifh_xmit(struct sk_buff *skb,
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
+	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
+	    LAN966X_SKB_CB(skb)->rew_op == IFH_REW_OP_TWO_STEP_PTP)
+		return NETDEV_TX_OK;
+
 	dev_consume_skb_any(skb);
 	return NETDEV_TX_OK;
+
+err:
+	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
+	    LAN966X_SKB_CB(skb)->rew_op == IFH_REW_OP_TWO_STEP_PTP)
+		lan966x_ptp_txtstamp_release(port, skb);
+
+	return NETDEV_TX_BUSY;
 }
 
 static void lan966x_ifh_set_bypass(void *ifh, u64 bypass)
@@ -289,10 +306,24 @@ static void lan966x_ifh_set_vid(void *ifh, u64 vid)
 		IFH_POS_TCI, IFH_LEN * 4, PACK, 0);
 }
 
+static void lan966x_ifh_set_rew_op(void *ifh, u64 rew_op)
+{
+	packing(ifh, &rew_op, IFH_POS_REW_CMD + IFH_WID_REW_CMD - 1,
+		IFH_POS_REW_CMD, IFH_LEN * 4, PACK, 0);
+}
+
+static void lan966x_ifh_set_timestamp(void *ifh, u64 timestamp)
+{
+	packing(ifh, &timestamp, IFH_POS_TIMESTAMP + IFH_WID_TIMESTAMP - 1,
+		IFH_POS_TIMESTAMP, IFH_LEN * 4, PACK, 0);
+}
+
 static int lan966x_port_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct lan966x_port *port = netdev_priv(dev);
+	struct lan966x *lan966x = port->lan966x;
 	__be32 ifh[IFH_LEN];
+	int err;
 
 	memset(ifh, 0x0, sizeof(__be32) * IFH_LEN);
 
@@ -302,7 +333,20 @@ static int lan966x_port_xmit(struct sk_buff *skb, struct net_device *dev)
 	lan966x_ifh_set_ipv(ifh, skb->priority >= 7 ? 0x7 : skb->priority);
 	lan966x_ifh_set_vid(ifh, skb_vlan_tag_get(skb));
 
-	return lan966x_port_ifh_xmit(skb, ifh, dev);
+	if (port->lan966x->ptp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
+		err = lan966x_ptp_txtstamp_request(port, skb);
+		if (err)
+			return err;
+
+		lan966x_ifh_set_rew_op(ifh, LAN966X_SKB_CB(skb)->rew_op);
+		lan966x_ifh_set_timestamp(ifh, LAN966X_SKB_CB(skb)->ts_id);
+	}
+
+	spin_lock(&lan966x->tx_lock);
+	err = lan966x_port_ifh_xmit(skb, ifh, dev);
+	spin_unlock(&lan966x->tx_lock);
+
+	return err;
 }
 
 static int lan966x_port_change_mtu(struct net_device *dev, int new_mtu)
@@ -350,6 +394,23 @@ static int lan966x_port_get_parent_id(struct net_device *dev,
 	return 0;
 }
 
+static int lan966x_port_ioctl(struct net_device *dev, struct ifreq *ifr,
+			      int cmd)
+{
+	struct lan966x_port *port = netdev_priv(dev);
+
+	if (!phy_has_hwtstamp(dev->phydev) && port->lan966x->ptp) {
+		switch (cmd) {
+		case SIOCSHWTSTAMP:
+			return lan966x_ptp_hwtstamp_set(port, ifr);
+		case SIOCGHWTSTAMP:
+			return lan966x_ptp_hwtstamp_get(port, ifr);
+		}
+	}
+
+	return phy_mii_ioctl(dev->phydev, ifr, cmd);
+}
+
 static const struct net_device_ops lan966x_port_netdev_ops = {
 	.ndo_open			= lan966x_port_open,
 	.ndo_stop			= lan966x_port_stop,
@@ -360,11 +421,39 @@ static const struct net_device_ops lan966x_port_netdev_ops = {
 	.ndo_get_stats64		= lan966x_stats_get,
 	.ndo_set_mac_address		= lan966x_port_set_mac_address,
 	.ndo_get_port_parent_id		= lan966x_port_get_parent_id,
+	.ndo_eth_ioctl			= lan966x_port_ioctl,
 };
 
 bool lan966x_netdevice_check(const struct net_device *dev)
 {
 	return dev->netdev_ops == &lan966x_port_netdev_ops;
+}
+
+static bool lan966x_hw_offload(struct lan966x *lan966x, u32 port,
+			       struct sk_buff *skb)
+{
+	u32 val;
+
+	/* The IGMP and MLD frames are not forward by the HW if
+	 * multicast snooping is enabled, therefor don't mark as
+	 * offload to allow the SW to forward the frames accordingly.
+	 */
+	val = lan_rd(lan966x, ANA_CPU_FWD_CFG(port));
+	if (!(val & (ANA_CPU_FWD_CFG_IGMP_REDIR_ENA |
+		     ANA_CPU_FWD_CFG_MLD_REDIR_ENA)))
+		return true;
+
+	if (skb->protocol == htons(ETH_P_IP) &&
+	    ip_hdr(skb)->protocol == IPPROTO_IGMP)
+		return false;
+
+	if (IS_ENABLED(CONFIG_IPV6) &&
+	    skb->protocol == htons(ETH_P_IPV6) &&
+	    ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr) &&
+	    !ipv6_mc_check_mld(skb))
+		return false;
+
+	return true;
 }
 
 static int lan966x_port_xtr_status(struct lan966x *lan966x, u8 grp)
@@ -434,6 +523,12 @@ static void lan966x_ifh_get_len(void *ifh, u64 *len)
 		IFH_POS_LEN, IFH_LEN * 4, UNPACK, 0);
 }
 
+static void lan966x_ifh_get_timestamp(void *ifh, u64 *timestamp)
+{
+	packing(ifh, timestamp, IFH_POS_TIMESTAMP + IFH_WID_TIMESTAMP - 1,
+		IFH_POS_TIMESTAMP, IFH_LEN * 4, UNPACK, 0);
+}
+
 static irqreturn_t lan966x_xtr_irq_handler(int irq, void *args)
 {
 	struct lan966x *lan966x = args;
@@ -443,10 +538,10 @@ static irqreturn_t lan966x_xtr_irq_handler(int irq, void *args)
 		return IRQ_NONE;
 
 	do {
+		u64 src_port, len, timestamp;
 		struct net_device *dev;
 		struct sk_buff *skb;
 		int sz = 0, buf_len;
-		u64 src_port, len;
 		u32 ifh[IFH_LEN];
 		u32 *buf;
 		u32 val;
@@ -461,6 +556,7 @@ static irqreturn_t lan966x_xtr_irq_handler(int irq, void *args)
 
 		lan966x_ifh_get_src_port(ifh, &src_port);
 		lan966x_ifh_get_len(ifh, &len);
+		lan966x_ifh_get_timestamp(ifh, &timestamp);
 
 		WARN_ON(src_port >= lan966x->num_phys_ports);
 
@@ -501,12 +597,20 @@ static irqreturn_t lan966x_xtr_irq_handler(int irq, void *args)
 			*buf = val;
 		}
 
+		lan966x_ptp_rxtstamp(lan966x, skb, timestamp);
 		skb->protocol = eth_type_trans(skb, dev);
 
-		if (lan966x->bridge_mask & BIT(src_port))
+		if (lan966x->bridge_mask & BIT(src_port)) {
 			skb->offload_fwd_mark = 1;
 
-		netif_rx_ni(skb);
+			skb_reset_network_header(skb);
+			if (!lan966x_hw_offload(lan966x, src_port, skb))
+				skb->offload_fwd_mark = 0;
+		}
+
+		if (!skb_defer_rx_timestamp(skb))
+			netif_rx(skb);
+
 		dev->stats.rx_bytes += len;
 		dev->stats.rx_packets++;
 
@@ -628,7 +732,6 @@ static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
 	}
 
 	port->phylink = phylink;
-	phylink_set_pcs(phylink, &port->phylink_pcs);
 
 	err = register_netdev(dev);
 	if (err) {
@@ -708,7 +811,7 @@ static void lan966x_init(struct lan966x *lan966x)
 	/* Setup flooding PGIDs */
 	lan_wr(ANA_FLOODING_IPMC_FLD_MC4_DATA_SET(PGID_MCIPV4) |
 	       ANA_FLOODING_IPMC_FLD_MC4_CTRL_SET(PGID_MC) |
-	       ANA_FLOODING_IPMC_FLD_MC6_DATA_SET(PGID_MC) |
+	       ANA_FLOODING_IPMC_FLD_MC6_DATA_SET(PGID_MCIPV6) |
 	       ANA_FLOODING_IPMC_FLD_MC6_CTRL_SET(PGID_MC),
 	       lan966x, ANA_FLOODING_IPMC);
 
@@ -770,6 +873,10 @@ static void lan966x_init(struct lan966x *lan966x)
 		ANA_PGID_PGID,
 		lan966x, ANA_PGID(PGID_MCIPV4));
 
+	lan_rmw(GENMASK(lan966x->num_phys_ports - 1, 0),
+		ANA_PGID_PGID,
+		lan966x, ANA_PGID(PGID_MCIPV6));
+
 	/* Unicast to all other ports */
 	lan_rmw(GENMASK(lan966x->num_phys_ports - 1, 0),
 		ANA_PGID_PGID,
@@ -786,6 +893,8 @@ static void lan966x_init(struct lan966x *lan966x)
 	lan_rmw(ANA_ANAINTR_INTR_ENA_SET(1),
 		ANA_ANAINTR_INTR_ENA,
 		lan966x, ANA_ANAINTR);
+
+	spin_lock_init(&lan966x->tx_lock);
 }
 
 static int lan966x_ram_init(struct lan966x *lan966x)
@@ -897,6 +1006,17 @@ static int lan966x_probe(struct platform_device *pdev)
 			return dev_err_probe(&pdev->dev, err, "Unable to use ana irq");
 	}
 
+	lan966x->ptp_irq = platform_get_irq_byname(pdev, "ptp");
+	if (lan966x->ptp_irq > 0) {
+		err = devm_request_threaded_irq(&pdev->dev, lan966x->ptp_irq, NULL,
+						lan966x_ptp_irq_handler, IRQF_ONESHOT,
+						"ptp irq", lan966x);
+		if (err)
+			return dev_err_probe(&pdev->dev, err, "Unable to use ptp irq");
+
+		lan966x->ptp = 1;
+	}
+
 	/* init switch */
 	lan966x_init(lan966x);
 	lan966x_stats_init(lan966x);
@@ -931,7 +1051,14 @@ static int lan966x_probe(struct platform_device *pdev)
 	if (err)
 		goto cleanup_ports;
 
+	err = lan966x_ptp_init(lan966x);
+	if (err)
+		goto cleanup_fdb;
+
 	return 0;
+
+cleanup_fdb:
+	lan966x_fdb_deinit(lan966x);
 
 cleanup_ports:
 	fwnode_handle_put(portnp);
@@ -958,6 +1085,7 @@ static int lan966x_remove(struct platform_device *pdev)
 	lan966x_mac_purge_entries(lan966x);
 	lan966x_mdb_deinit(lan966x);
 	lan966x_fdb_deinit(lan966x);
+	lan966x_ptp_deinit(lan966x);
 
 	return 0;
 }

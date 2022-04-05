@@ -369,9 +369,8 @@ struct rt6_statistics {
 	__u32		fib_rt_cache;		/* cached rt entries in exception table */
 	__u32		fib_discarded_routes;	/* total number of routes delete */
 
-	/* The following stats are not protected by any lock */
+	/* The following stat is not protected by any lock */
 	atomic_t	fib_rt_alloc;		/* total number of routes alloced */
-	atomic_t	fib_rt_uncache;		/* rt entries in uncached list */
 };
 
 #define RTN_TL_ROOT	0x0001

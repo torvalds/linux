@@ -3068,6 +3068,11 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
 	struct hci_ev_conn_complete *ev = data;
 	struct hci_conn *conn;
 
+	if (__le16_to_cpu(ev->handle) > HCI_CONN_HANDLE_MAX) {
+		bt_dev_err(hdev, "Ignoring HCI_Connection_Complete for invalid handle");
+		return;
+	}
+
 	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
 
 	hci_dev_lock(hdev);
@@ -3104,6 +3109,17 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
 
 			conn->type = SCO_LINK;
 		}
+	}
+
+	/* The HCI_Connection_Complete event is only sent once per connection.
+	 * Processing it more than once per connection can corrupt kernel memory.
+	 *
+	 * As the connection handle is set here for the first time, it indicates
+	 * whether the connection is already set up.
+	 */
+	if (conn->handle != HCI_CONN_HANDLE_UNSET) {
+		bt_dev_err(hdev, "Ignoring HCI_Connection_Complete for existing connection");
+		goto unlock;
 	}
 
 	if (!ev->status) {
@@ -4534,7 +4550,7 @@ static void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, void *edata,
 			if (!info) {
 				bt_dev_err(hdev, "Malformed HCI Event: 0x%2.2x",
 					   HCI_EV_INQUIRY_RESULT_WITH_RSSI);
-				return;
+				goto unlock;
 			}
 
 			bacpy(&data.bdaddr, &info->bdaddr);
@@ -4565,7 +4581,7 @@ static void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, void *edata,
 			if (!info) {
 				bt_dev_err(hdev, "Malformed HCI Event: 0x%2.2x",
 					   HCI_EV_INQUIRY_RESULT_WITH_RSSI);
-				return;
+				goto unlock;
 			}
 
 			bacpy(&data.bdaddr, &info->bdaddr);
@@ -4587,7 +4603,7 @@ static void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, void *edata,
 		bt_dev_err(hdev, "Malformed HCI Event: 0x%2.2x",
 			   HCI_EV_INQUIRY_RESULT_WITH_RSSI);
 	}
-
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -4661,6 +4677,24 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev, void *data,
 	struct hci_ev_sync_conn_complete *ev = data;
 	struct hci_conn *conn;
 
+	switch (ev->link_type) {
+	case SCO_LINK:
+	case ESCO_LINK:
+		break;
+	default:
+		/* As per Core 5.3 Vol 4 Part E 7.7.35 (p.2219), Link_Type
+		 * for HCI_Synchronous_Connection_Complete is limited to
+		 * either SCO or eSCO
+		 */
+		bt_dev_err(hdev, "Ignoring connect complete event for invalid link type");
+		return;
+	}
+
+	if (__le16_to_cpu(ev->handle) > HCI_CONN_HANDLE_MAX) {
+		bt_dev_err(hdev, "Ignoring HCI_Sync_Conn_Complete for invalid handle");
+		return;
+	}
+
 	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
 
 	hci_dev_lock(hdev);
@@ -4684,23 +4718,19 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev, void *data,
 			goto unlock;
 	}
 
+	/* The HCI_Synchronous_Connection_Complete event is only sent once per connection.
+	 * Processing it more than once per connection can corrupt kernel memory.
+	 *
+	 * As the connection handle is set here for the first time, it indicates
+	 * whether the connection is already set up.
+	 */
+	if (conn->handle != HCI_CONN_HANDLE_UNSET) {
+		bt_dev_err(hdev, "Ignoring HCI_Sync_Conn_Complete event for existing connection");
+		goto unlock;
+	}
+
 	switch (ev->status) {
 	case 0x00:
-		/* The synchronous connection complete event should only be
-		 * sent once per new connection. Receiving a successful
-		 * complete event when the connection status is already
-		 * BT_CONNECTED means that the device is misbehaving and sent
-		 * multiple complete event packets for the same new connection.
-		 *
-		 * Registering the device more than once can corrupt kernel
-		 * memory, hence upon detecting this invalid event, we report
-		 * an error and ignore the packet.
-		 */
-		if (conn->state == BT_CONNECTED) {
-			bt_dev_err(hdev, "Ignoring connect complete event for existing connection");
-			goto unlock;
-		}
-
 		conn->handle = __le16_to_cpu(ev->handle);
 		conn->state  = BT_CONNECTED;
 		conn->type   = ev->link_type;
@@ -5423,8 +5453,9 @@ static void hci_disconn_phylink_complete_evt(struct hci_dev *hdev, void *data,
 	hci_dev_lock(hdev);
 
 	hcon = hci_conn_hash_lookup_handle(hdev, ev->phy_handle);
-	if (hcon) {
+	if (hcon && hcon->type == AMP_LINK) {
 		hcon->state = BT_CLOSED;
+		hci_disconn_cfm(hcon, ev->reason);
 		hci_conn_del(hcon);
 	}
 
@@ -5496,6 +5527,11 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 	struct smp_irk *irk;
 	u8 addr_type;
 
+	if (handle > HCI_CONN_HANDLE_MAX) {
+		bt_dev_err(hdev, "Ignoring HCI_LE_Connection_Complete for invalid handle");
+		return;
+	}
+
 	hci_dev_lock(hdev);
 
 	/* All controllers implicitly stop advertising in the event of a
@@ -5535,6 +5571,17 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 		}
 	} else {
 		cancel_delayed_work(&conn->le_conn_timeout);
+	}
+
+	/* The HCI_LE_Connection_Complete event is only sent once per connection.
+	 * Processing it more than once per connection can corrupt kernel memory.
+	 *
+	 * As the connection handle is set here for the first time, it indicates
+	 * whether the connection is already set up.
+	 */
+	if (conn->handle != HCI_CONN_HANDLE_UNSET) {
+		bt_dev_err(hdev, "Ignoring HCI_Connection_Complete for existing connection");
+		goto unlock;
 	}
 
 	le_conn_update_addr(conn, bdaddr, bdaddr_type, local_rpa);
@@ -5670,8 +5717,6 @@ static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, void *data,
 
 	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
 
-	adv = hci_find_adv_instance(hdev, ev->handle);
-
 	/* The Bluetooth Core 5.3 specification clearly states that this event
 	 * shall not be sent when the Host disables the advertising set. So in
 	 * case of HCI_ERROR_CANCELLED_BY_HOST, just ignore the event.
@@ -5684,9 +5729,13 @@ static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, void *data,
 		return;
 	}
 
+	hci_dev_lock(hdev);
+
+	adv = hci_find_adv_instance(hdev, ev->handle);
+
 	if (ev->status) {
 		if (!adv)
-			return;
+			goto unlock;
 
 		/* Remove advertising as it has been terminated */
 		hci_remove_adv_instance(hdev, ev->handle);
@@ -5694,12 +5743,12 @@ static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, void *data,
 
 		list_for_each_entry_safe(adv, n, &hdev->adv_instances, list) {
 			if (adv->enabled)
-				return;
+				goto unlock;
 		}
 
 		/* We are no longer advertising, clear HCI_LE_ADV */
 		hci_dev_clear_flag(hdev, HCI_LE_ADV);
-		return;
+		goto unlock;
 	}
 
 	if (adv)
@@ -5714,16 +5763,19 @@ static void hci_le_ext_adv_term_evt(struct hci_dev *hdev, void *data,
 
 		if (hdev->adv_addr_type != ADDR_LE_DEV_RANDOM ||
 		    bacmp(&conn->resp_addr, BDADDR_ANY))
-			return;
+			goto unlock;
 
 		if (!ev->handle) {
 			bacpy(&conn->resp_addr, &hdev->random_addr);
-			return;
+			goto unlock;
 		}
 
 		if (adv)
 			bacpy(&conn->resp_addr, &adv->random_addr);
 	}
+
+unlock:
+	hci_dev_unlock(hdev);
 }
 
 static void hci_le_conn_update_complete_evt(struct hci_dev *hdev, void *data,
@@ -6798,7 +6850,7 @@ static const struct hci_ev {
 	HCI_EV(HCI_EV_NUM_COMP_BLOCKS, hci_num_comp_blocks_evt,
 	       sizeof(struct hci_ev_num_comp_blocks)),
 	/* [0xff = HCI_EV_VENDOR] */
-	HCI_EV(HCI_EV_VENDOR, msft_vendor_evt, 0),
+	HCI_EV_VL(HCI_EV_VENDOR, msft_vendor_evt, 0, HCI_MAX_EVENT_SIZE),
 };
 
 static void hci_event_func(struct hci_dev *hdev, u8 event, struct sk_buff *skb,
@@ -6823,8 +6875,9 @@ static void hci_event_func(struct hci_dev *hdev, u8 event, struct sk_buff *skb,
 	 * decide if that is acceptable.
 	 */
 	if (skb->len > ev->max_len)
-		bt_dev_warn(hdev, "unexpected event 0x%2.2x length: %u > %u",
-			    event, skb->len, ev->max_len);
+		bt_dev_warn_ratelimited(hdev,
+					"unexpected event 0x%2.2x length: %u > %u",
+					event, skb->len, ev->max_len);
 
 	data = hci_ev_skb_pull(hdev, skb, event, ev->min_len);
 	if (!data)

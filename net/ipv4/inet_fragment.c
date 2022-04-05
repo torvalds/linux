@@ -572,6 +572,7 @@ void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
 	skb_mark_not_on_list(head);
 	head->prev = NULL;
 	head->tstamp = q->stamp;
+	head->mono_delivery_time = q->mono_delivery_time;
 }
 EXPORT_SYMBOL(inet_frag_reasm_finish);
 

@@ -169,6 +169,14 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_VECTOR0_ALL_MSIX_ERR_B	6U
 #define HCLGE_TRIGGER_IMP_RESET_B	7U
 
+#define HCLGE_TQP_MEM_SIZE		0x10000
+#define HCLGE_MEM_BAR			4
+/* in the bar4, the first half is for roce, and the second half is for nic */
+#define HCLGE_NIC_MEM_OFFSET(hdev)	\
+	(pci_resource_len((hdev)->pdev, HCLGE_MEM_BAR) >> 1)
+#define HCLGE_TQP_MEM_OFFSET(hdev, i)	\
+	(HCLGE_NIC_MEM_OFFSET(hdev) + HCLGE_TQP_MEM_SIZE * (i))
+
 #define HCLGE_MAC_DEFAULT_FRAME \
 	(ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN + ETH_DATA_LEN)
 #define HCLGE_MAC_MIN_FRAME		64
@@ -1058,11 +1066,6 @@ static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 			container_of(queue, struct hclge_comm_tqp, q);
 
 	return tqp->index;
-}
-
-static inline bool hclge_is_reset_pending(struct hclge_dev *hdev)
-{
-	return !!hdev->reset_pending;
 }
 
 int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport);

@@ -1175,7 +1175,11 @@ struct bnxt_link_info {
 #define BNXT_PHY_STATE_ENABLED		0
 #define BNXT_PHY_STATE_DISABLED		1
 
-	u8			link_up;
+	u8			link_state;
+#define BNXT_LINK_STATE_UNKNOWN	0
+#define BNXT_LINK_STATE_DOWN	1
+#define BNXT_LINK_STATE_UP	2
+#define BNXT_LINK_IS_UP(bp)	((bp)->link_info.link_state == BNXT_LINK_STATE_UP)
 	u8			duplex;
 #define BNXT_LINK_DUPLEX_HALF	PORT_PHY_QCFG_RESP_DUPLEX_STATE_HALF
 #define BNXT_LINK_DUPLEX_FULL	PORT_PHY_QCFG_RESP_DUPLEX_STATE_FULL
@@ -1958,6 +1962,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_EXT_STATS_SUPPORTED		0x00040000
 	#define BNXT_FW_CAP_ERR_RECOVER_RELOAD		0x00100000
 	#define BNXT_FW_CAP_HOT_RESET			0x00200000
+	#define BNXT_FW_CAP_PTP_RTC			0x00400000
 	#define BNXT_FW_CAP_VLAN_RX_STRIP		0x01000000
 	#define BNXT_FW_CAP_VLAN_TX_INSERT		0x02000000
 	#define BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED	0x04000000
@@ -2067,12 +2072,6 @@ struct bnxt {
 	wait_queue_head_t	sriov_cfg_wait;
 	bool			sriov_cfg;
 #define BNXT_SRIOV_CFG_WAIT_TMO	msecs_to_jiffies(10000)
-
-	/* lock to protect VF-rep creation/cleanup via
-	 * multiple paths such as ->sriov_configure() and
-	 * devlink ->eswitch_mode_set()
-	 */
-	struct mutex		sriov_lock;
 #endif
 
 #if BITS_PER_LONG == 32
@@ -2099,8 +2098,8 @@ struct bnxt {
 	u32			lpi_tmr_lo;
 	u32			lpi_tmr_hi;
 
-	/* copied from flags in hwrm_port_phy_qcaps_output */
-	u8			phy_flags;
+	/* copied from flags and flags2 in hwrm_port_phy_qcaps_output */
+	u32			phy_flags;
 #define BNXT_PHY_FL_EEE_CAP		PORT_PHY_QCAPS_RESP_FLAGS_EEE_SUPPORTED
 #define BNXT_PHY_FL_EXT_LPBK		PORT_PHY_QCAPS_RESP_FLAGS_EXTERNAL_LPBK_SUPPORTED
 #define BNXT_PHY_FL_AN_PHY_LPBK		PORT_PHY_QCAPS_RESP_FLAGS_AUTONEG_LPBK_SUPPORTED
@@ -2109,6 +2108,8 @@ struct bnxt {
 #define BNXT_PHY_FL_NO_PHY_LPBK		PORT_PHY_QCAPS_RESP_FLAGS_LOCAL_LPBK_NOT_SUPPORTED
 #define BNXT_PHY_FL_FW_MANAGED_LKDN	PORT_PHY_QCAPS_RESP_FLAGS_FW_MANAGED_LINK_DOWN
 #define BNXT_PHY_FL_NO_FCS		PORT_PHY_QCAPS_RESP_FLAGS_NO_FCS
+#define BNXT_PHY_FL_NO_PAUSE		(PORT_PHY_QCAPS_RESP_FLAGS2_PAUSE_UNSUPPORTED << 8)
+#define BNXT_PHY_FL_NO_PFC		(PORT_PHY_QCAPS_RESP_FLAGS2_PFC_UNSUPPORTED << 8)
 
 	u8			num_tests;
 	struct bnxt_test_info	*test_info;

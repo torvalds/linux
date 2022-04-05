@@ -738,7 +738,7 @@ static void test_sockmap(unsigned int tasks, void *data)
 			    sizeof(key), sizeof(value),
 			    6, NULL);
 	if (fd < 0) {
-		if (!bpf_probe_map_type(BPF_MAP_TYPE_SOCKMAP, 0)) {
+		if (!libbpf_probe_bpf_map_type(BPF_MAP_TYPE_SOCKMAP, NULL)) {
 			printf("%s SKIP (unsupported map type BPF_MAP_TYPE_SOCKMAP)\n",
 			       __func__);
 			skips++;

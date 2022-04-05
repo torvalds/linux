@@ -10,6 +10,7 @@ static int dr_table_set_miss_action_nic(struct mlx5dr_domain *dmn,
 	struct mlx5dr_matcher_rx_tx *last_nic_matcher = NULL;
 	struct mlx5dr_htbl_connect_info info;
 	struct mlx5dr_ste_htbl *last_htbl;
+	struct mlx5dr_icm_chunk *chunk;
 	int ret;
 
 	if (!list_empty(&nic_tbl->nic_matcher_list))
@@ -22,13 +23,14 @@ static int dr_table_set_miss_action_nic(struct mlx5dr_domain *dmn,
 	else
 		last_htbl = nic_tbl->s_anchor;
 
-	if (action)
-		nic_tbl->default_icm_addr =
-			nic_tbl->nic_dmn->type == DR_DOMAIN_NIC_TYPE_RX ?
-				action->dest_tbl->tbl->rx.s_anchor->chunk->icm_addr :
-				action->dest_tbl->tbl->tx.s_anchor->chunk->icm_addr;
-	else
+	if (action) {
+		chunk = nic_tbl->nic_dmn->type == DR_DOMAIN_NIC_TYPE_RX ?
+			action->dest_tbl->tbl->rx.s_anchor->chunk :
+			action->dest_tbl->tbl->tx.s_anchor->chunk;
+		nic_tbl->default_icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(chunk);
+	} else {
 		nic_tbl->default_icm_addr = nic_tbl->nic_dmn->default_icm_addr;
+	}
 
 	info.type = CONNECT_MISS;
 	info.miss_icm_addr = nic_tbl->default_icm_addr;
@@ -222,10 +224,10 @@ static int dr_table_create_sw_owned_tbl(struct mlx5dr_table *tbl)
 	int ret;
 
 	if (tbl->rx.s_anchor)
-		icm_addr_rx = tbl->rx.s_anchor->chunk->icm_addr;
+		icm_addr_rx = mlx5dr_icm_pool_get_chunk_icm_addr(tbl->rx.s_anchor->chunk);
 
 	if (tbl->tx.s_anchor)
-		icm_addr_tx = tbl->tx.s_anchor->chunk->icm_addr;
+		icm_addr_tx = mlx5dr_icm_pool_get_chunk_icm_addr(tbl->tx.s_anchor->chunk);
 
 	ft_attr.table_type = tbl->table_type;
 	ft_attr.icm_addr_rx = icm_addr_rx;
@@ -304,4 +306,9 @@ int mlx5dr_table_destroy(struct mlx5dr_table *tbl)
 u32 mlx5dr_table_get_id(struct mlx5dr_table *tbl)
 {
 	return tbl->table_id;
+}
+
+struct mlx5dr_table *mlx5dr_table_get_from_fs_ft(struct mlx5_flow_table *ft)
+{
+	return ft->fs_dr_table.dr_table;
 }

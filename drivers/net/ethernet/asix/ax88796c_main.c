@@ -433,7 +433,7 @@ ax88796c_skb_return(struct ax88796c_device *ax_local,
 	netif_info(ax_local, rx_status, ndev, "< rx, len %zu, type 0x%x\n",
 		   skb->len + sizeof(struct ethhdr), skb->protocol);
 
-	status = netif_rx_ni(skb);
+	status = netif_rx(skb);
 	if (status != NET_RX_SUCCESS && net_ratelimit())
 		netif_info(ax_local, rx_err, ndev,
 			   "netif_rx status %d\n", status);

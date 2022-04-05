@@ -214,7 +214,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.result = REJECT,
-	.errstr = "R1 type=inv expected=ctx",
+	.errstr = "R1 type=scalar expected=ctx",
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
 {
@@ -420,7 +420,7 @@
 	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_7, 0),
 	BPF_EXIT_INSN(),
 	},
-	.errstr_unpriv = "R7 invalid mem access 'inv'",
+	.errstr_unpriv = "R7 invalid mem access 'scalar'",
 	.result_unpriv = REJECT,
 	.result = ACCEPT,
 	.retval = 0,

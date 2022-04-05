@@ -330,6 +330,8 @@ union bpf_iter_link_info {
  *			*ctx_out*, *data_in* and *data_out* must be NULL.
  *			*repeat* must be zero.
  *
+ *		BPF_PROG_RUN is an alias for BPF_PROG_TEST_RUN.
+ *
  *	Return
  *		Returns zero on success. On error, -1 is returned and *errno*
  *		is set appropriately.
@@ -995,6 +997,7 @@ enum bpf_attach_type {
 	BPF_SK_REUSEPORT_SELECT,
 	BPF_SK_REUSEPORT_SELECT_OR_MIGRATE,
 	BPF_PERF_EVENT,
+	BPF_TRACE_KPROBE_MULTI,
 	__MAX_BPF_ATTACH_TYPE
 };
 
@@ -1009,6 +1012,7 @@ enum bpf_link_type {
 	BPF_LINK_TYPE_NETNS = 5,
 	BPF_LINK_TYPE_XDP = 6,
 	BPF_LINK_TYPE_PERF_EVENT = 7,
+	BPF_LINK_TYPE_KPROBE_MULTI = 8,
 
 	MAX_BPF_LINK_TYPE,
 };
@@ -1110,6 +1114,16 @@ enum bpf_link_type {
  * bpf_copy_from_user().
  */
 #define BPF_F_SLEEPABLE		(1U << 4)
+
+/* If BPF_F_XDP_HAS_FRAGS is used in BPF_PROG_LOAD command, the loaded program
+ * fully support xdp frags.
+ */
+#define BPF_F_XDP_HAS_FRAGS	(1U << 5)
+
+/* link_create.kprobe_multi.flags used in LINK_CREATE command for
+ * BPF_TRACE_KPROBE_MULTI attach type to create return probe.
+ */
+#define BPF_F_KPROBE_MULTI_RETURN	(1U << 0)
 
 /* When BPF ldimm64's insn[0].src_reg != 0 then this can have
  * the following extensions:
@@ -1225,6 +1239,8 @@ enum {
 
 /* If set, run the test on the cpu specified by bpf_attr.test.cpu */
 #define BPF_F_TEST_RUN_ON_CPU	(1U << 0)
+/* If set, XDP frames will be transmitted after processing */
+#define BPF_F_TEST_XDP_LIVE_FRAMES	(1U << 1)
 
 /* type for BPF_ENABLE_STATS */
 enum bpf_stats_type {
@@ -1386,6 +1402,7 @@ union bpf_attr {
 		__aligned_u64	ctx_out;
 		__u32		flags;
 		__u32		cpu;
+		__u32		batch_size;
 	} test;
 
 	struct { /* anonymous struct used by BPF_*_GET_*_ID */
@@ -1465,6 +1482,13 @@ union bpf_attr {
 				 */
 				__u64		bpf_cookie;
 			} perf_event;
+			struct {
+				__u32		flags;
+				__u32		cnt;
+				__aligned_u64	syms;
+				__aligned_u64	addrs;
+				__aligned_u64	cookies;
+			} kprobe_multi;
 		};
 	} link_create;
 
@@ -1775,6 +1799,8 @@ union bpf_attr {
  * 		0 on success, or a negative error in case of failure.
  *
  * u64 bpf_get_current_pid_tgid(void)
+ * 	Description
+ * 		Get the current pid and tgid.
  * 	Return
  * 		A 64-bit integer containing the current tgid and pid, and
  * 		created as such:
@@ -1782,6 +1808,8 @@ union bpf_attr {
  * 		*current_task*\ **->pid**.
  *
  * u64 bpf_get_current_uid_gid(void)
+ * 	Description
+ * 		Get the current uid and gid.
  * 	Return
  * 		A 64-bit integer containing the current GID and UID, and
  * 		created as such: *current_gid* **<< 32 \|** *current_uid*.
@@ -2256,6 +2284,8 @@ union bpf_attr {
  * 		The 32-bit hash.
  *
  * u64 bpf_get_current_task(void)
+ * 	Description
+ * 		Get the current task.
  * 	Return
  * 		A pointer to the current task struct.
  *
@@ -2286,8 +2316,8 @@ union bpf_attr {
  * 	Return
  * 		The return value depends on the result of the test, and can be:
  *
- *		* 0, if current task belongs to the cgroup2.
- *		* 1, if current task does not belong to the cgroup2.
+ *		* 1, if current task belongs to the cgroup2.
+ *		* 0, if current task does not belong to the cgroup2.
  * 		* A negative error code, if an error occurred.
  *
  * long bpf_skb_change_tail(struct sk_buff *skb, u32 len, u64 flags)
@@ -2369,6 +2399,8 @@ union bpf_attr {
  * 		indicate that the hash is outdated and to trigger a
  * 		recalculation the next time the kernel tries to access this
  * 		hash or when the **bpf_get_hash_recalc**\ () helper is called.
+ * 	Return
+ * 		void.
  *
  * long bpf_get_numa_node_id(void)
  * 	Description
@@ -2466,6 +2498,8 @@ union bpf_attr {
  * 		A 8-byte long unique number or 0 if *sk* is NULL.
  *
  * u32 bpf_get_socket_uid(struct sk_buff *skb)
+ * 	Description
+ * 		Get the owner UID of the socked associated to *skb*.
  * 	Return
  * 		The owner UID of the socket associated to *skb*. If the socket
  * 		is **NULL**, or if it is not a full socket (i.e. if it is a
@@ -3240,6 +3274,9 @@ union bpf_attr {
  * 		The id is returned or 0 in case the id could not be retrieved.
  *
  * u64 bpf_get_current_cgroup_id(void)
+ * 	Description
+ * 		Get the current cgroup id based on the cgroup within which
+ * 		the current task is running.
  * 	Return
  * 		A 64-bit integer containing the current cgroup id based
  * 		on the cgroup within which the current task is running.
@@ -5018,6 +5055,94 @@ union bpf_attr {
  *
  *	Return
  *		The number of arguments of the traced function.
+ *
+ * int bpf_get_retval(void)
+ *	Description
+ *		Get the syscall's return value that will be returned to userspace.
+ *
+ *		This helper is currently supported by cgroup programs only.
+ *	Return
+ *		The syscall's return value.
+ *
+ * int bpf_set_retval(int retval)
+ *	Description
+ *		Set the syscall's return value that will be returned to userspace.
+ *
+ *		This helper is currently supported by cgroup programs only.
+ *	Return
+ *		0 on success, or a negative error in case of failure.
+ *
+ * u64 bpf_xdp_get_buff_len(struct xdp_buff *xdp_md)
+ *	Description
+ *		Get the total size of a given xdp buff (linear and paged area)
+ *	Return
+ *		The total size of a given xdp buffer.
+ *
+ * long bpf_xdp_load_bytes(struct xdp_buff *xdp_md, u32 offset, void *buf, u32 len)
+ *	Description
+ *		This helper is provided as an easy way to load data from a
+ *		xdp buffer. It can be used to load *len* bytes from *offset* from
+ *		the frame associated to *xdp_md*, into the buffer pointed by
+ *		*buf*.
+ *	Return
+ *		0 on success, or a negative error in case of failure.
+ *
+ * long bpf_xdp_store_bytes(struct xdp_buff *xdp_md, u32 offset, void *buf, u32 len)
+ *	Description
+ *		Store *len* bytes from buffer *buf* into the frame
+ *		associated to *xdp_md*, at *offset*.
+ *	Return
+ *		0 on success, or a negative error in case of failure.
+ *
+ * long bpf_copy_from_user_task(void *dst, u32 size, const void *user_ptr, struct task_struct *tsk, u64 flags)
+ *	Description
+ *		Read *size* bytes from user space address *user_ptr* in *tsk*'s
+ *		address space, and stores the data in *dst*. *flags* is not
+ *		used yet and is provided for future extensibility. This helper
+ *		can only be used by sleepable programs.
+ *	Return
+ *		0 on success, or a negative error in case of failure. On error
+ *		*dst* buffer is zeroed out.
+ *
+ * long bpf_skb_set_tstamp(struct sk_buff *skb, u64 tstamp, u32 tstamp_type)
+ *	Description
+ *		Change the __sk_buff->tstamp_type to *tstamp_type*
+ *		and set *tstamp* to the __sk_buff->tstamp together.
+ *
+ *		If there is no need to change the __sk_buff->tstamp_type,
+ *		the tstamp value can be directly written to __sk_buff->tstamp
+ *		instead.
+ *
+ *		BPF_SKB_TSTAMP_DELIVERY_MONO is the only tstamp that
+ *		will be kept during bpf_redirect_*().  A non zero
+ *		*tstamp* must be used with the BPF_SKB_TSTAMP_DELIVERY_MONO
+ *		*tstamp_type*.
+ *
+ *		A BPF_SKB_TSTAMP_UNSPEC *tstamp_type* can only be used
+ *		with a zero *tstamp*.
+ *
+ *		Only IPv4 and IPv6 skb->protocol are supported.
+ *
+ *		This function is most useful when it needs to set a
+ *		mono delivery time to __sk_buff->tstamp and then
+ *		bpf_redirect_*() to the egress of an iface.  For example,
+ *		changing the (rcv) timestamp in __sk_buff->tstamp at
+ *		ingress to a mono delivery time and then bpf_redirect_*()
+ *		to sch_fq@phy-dev.
+ *	Return
+ *		0 on success.
+ *		**-EINVAL** for invalid input
+ *		**-EOPNOTSUPP** for unsupported protocol
+ *
+ * long bpf_ima_file_hash(struct file *file, void *dst, u32 size)
+ *	Description
+ *		Returns a calculated IMA hash of the *file*.
+ *		If the hash is larger than *size*, then only *size*
+ *		bytes will be copied to *dst*
+ *	Return
+ *		The **hash_algo** is returned on success,
+ *		**-EOPNOTSUP** if the hash calculation failed or **-EINVAL** if
+ *		invalid arguments are passed.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -5206,6 +5331,14 @@ union bpf_attr {
 	FN(get_func_arg),		\
 	FN(get_func_ret),		\
 	FN(get_func_arg_cnt),		\
+	FN(get_retval),			\
+	FN(set_retval),			\
+	FN(xdp_get_buff_len),		\
+	FN(xdp_load_bytes),		\
+	FN(xdp_store_bytes),		\
+	FN(copy_from_user_task),	\
+	FN(skb_set_tstamp),		\
+	FN(ima_file_hash),		\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
@@ -5395,6 +5528,15 @@ union {					\
 	__u64 :64;			\
 } __attribute__((aligned(8)))
 
+enum {
+	BPF_SKB_TSTAMP_UNSPEC,
+	BPF_SKB_TSTAMP_DELIVERY_MONO,	/* tstamp has mono delivery time */
+	/* For any BPF_SKB_TSTAMP_* that the bpf prog cannot handle,
+	 * the bpf prog should handle it like BPF_SKB_TSTAMP_UNSPEC
+	 * and try to deduce it by ingress, egress or skb->sk->sk_clockid.
+	 */
+};
+
 /* user accessible mirror of in-kernel sk_buff.
  * new fields can only be added to the end of this structure
  */
@@ -5435,7 +5577,8 @@ struct __sk_buff {
 	__u32 gso_segs;
 	__bpf_md_ptr(struct bpf_sock *, sk);
 	__u32 gso_size;
-	__u32 :32;		/* Padding, future use. */
+	__u8  tstamp_type;
+	__u32 :24;		/* Padding, future use. */
 	__u64 hwtstamp;
 };
 
@@ -5500,7 +5643,8 @@ struct bpf_sock {
 	__u32 src_ip4;
 	__u32 src_ip6[4];
 	__u32 src_port;		/* host byte order */
-	__u32 dst_port;		/* network byte order */
+	__be16 dst_port;	/* network byte order */
+	__u16 :16;		/* zero padding */
 	__u32 dst_ip4;
 	__u32 dst_ip6[4];
 	__u32 state;
@@ -6378,7 +6522,8 @@ struct bpf_sk_lookup {
 	__u32 protocol;		/* IP protocol (IPPROTO_TCP, IPPROTO_UDP) */
 	__u32 remote_ip4;	/* Network byte order */
 	__u32 remote_ip6[4];	/* Network byte order */
-	__u32 remote_port;	/* Network byte order */
+	__be16 remote_port;	/* Network byte order */
+	__u16 :16;		/* Zero padding */
 	__u32 local_ip4;	/* Network byte order */
 	__u32 local_ip6[4];	/* Network byte order */
 	__u32 local_port;	/* Host byte order */

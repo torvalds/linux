@@ -1111,7 +1111,8 @@ static void lan9303_port_disable(struct dsa_switch *ds, int port)
 
 static int lan9303_port_bridge_join(struct dsa_switch *ds, int port,
 				    struct dsa_bridge bridge,
-				    bool *tx_fwd_offload)
+				    bool *tx_fwd_offload,
+				    struct netlink_ext_ack *extack)
 {
 	struct lan9303 *chip = ds->priv;
 
@@ -1188,7 +1189,8 @@ static void lan9303_port_fast_age(struct dsa_switch *ds, int port)
 }
 
 static int lan9303_port_fdb_add(struct dsa_switch *ds, int port,
-				const unsigned char *addr, u16 vid)
+				const unsigned char *addr, u16 vid,
+				struct dsa_db db)
 {
 	struct lan9303 *chip = ds->priv;
 
@@ -1200,8 +1202,8 @@ static int lan9303_port_fdb_add(struct dsa_switch *ds, int port,
 }
 
 static int lan9303_port_fdb_del(struct dsa_switch *ds, int port,
-				const unsigned char *addr, u16 vid)
-
+				const unsigned char *addr, u16 vid,
+				struct dsa_db db)
 {
 	struct lan9303 *chip = ds->priv;
 
@@ -1245,7 +1247,8 @@ static int lan9303_port_mdb_prepare(struct dsa_switch *ds, int port,
 }
 
 static int lan9303_port_mdb_add(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_mdb *mdb)
+				const struct switchdev_obj_port_mdb *mdb,
+				struct dsa_db db)
 {
 	struct lan9303 *chip = ds->priv;
 	int err;
@@ -1260,7 +1263,8 @@ static int lan9303_port_mdb_add(struct dsa_switch *ds, int port,
 }
 
 static int lan9303_port_mdb_del(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_mdb *mdb)
+				const struct switchdev_obj_port_mdb *mdb,
+				struct dsa_db db)
 {
 	struct lan9303 *chip = ds->priv;
 
