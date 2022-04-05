@@ -1534,6 +1534,13 @@ static ssize_t urandom_read(struct file *file, char __user *buf, size_t nbytes,
 {
 	static int maxwarn = 10;
 
+	/*
+	 * Opportunistically attempt to initialize the RNG on platforms that
+	 * have fast cycle counters, but don't (for now) require it to succeed.
+	 */
+	if (!crng_ready())
+		try_to_generate_entropy();
+
 	if (!crng_ready() && maxwarn > 0) {
 		maxwarn--;
 		if (__ratelimit(&urandom_warning))
