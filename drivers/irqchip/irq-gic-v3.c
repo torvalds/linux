@@ -352,28 +352,27 @@ static int gic_peek_irq(struct irq_data *d, u32 offset)
 
 static void gic_poke_irq(struct irq_data *d, u32 offset)
 {
-	void (*rwp_wait)(void);
 	void __iomem *base;
 	u32 index, mask;
 
 	offset = convert_offset_index(d, offset, &index);
 	mask = 1 << (index % 32);
 
-	if (gic_irq_in_rdist(d)) {
+	if (gic_irq_in_rdist(d))
 		base = gic_data_rdist_sgi_base();
-		rwp_wait = gic_redist_wait_for_rwp;
-	} else {
+	else
 		base = gic_data.dist_base;
-		rwp_wait = gic_dist_wait_for_rwp;
-	}
 
 	writel_relaxed(mask, base + offset + (index / 32) * 4);
-	rwp_wait();
 }
 
 static void gic_mask_irq(struct irq_data *d)
 {
 	gic_poke_irq(d, GICD_ICENABLER);
+	if (gic_irq_in_rdist(d))
+		gic_redist_wait_for_rwp();
+	else
+		gic_dist_wait_for_rwp();
 }
 
 static void gic_eoimode1_mask_irq(struct irq_data *d)
@@ -420,7 +419,11 @@ static int gic_irq_set_irqchip_state(struct irq_data *d,
 		break;
 
 	case IRQCHIP_STATE_MASKED:
-		reg = val ? GICD_ICENABLER : GICD_ISENABLER;
+		if (val) {
+			gic_mask_irq(d);
+			return 0;
+		}
+		reg = GICD_ISENABLER;
 		break;
 
 	default:
@@ -574,7 +577,6 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 {
 	enum gic_intid_range range;
 	unsigned int irq = gic_irq(d);
-	void (*rwp_wait)(void);
 	void __iomem *base;
 	u32 offset, index;
 	int ret;
@@ -590,17 +592,14 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 	    type != IRQ_TYPE_LEVEL_HIGH && type != IRQ_TYPE_EDGE_RISING)
 		return -EINVAL;
 
-	if (gic_irq_in_rdist(d)) {
+	if (gic_irq_in_rdist(d))
 		base = gic_data_rdist_sgi_base();
-		rwp_wait = gic_redist_wait_for_rwp;
-	} else {
+	else
 		base = gic_data.dist_base;
-		rwp_wait = gic_dist_wait_for_rwp;
-	}
 
 	offset = convert_offset_index(d, GICD_ICFGR, &index);
 
-	ret = gic_configure_irq(index, type, base + offset, rwp_wait);
+	ret = gic_configure_irq(index, type, base + offset, NULL);
 	if (ret && (range == PPI_RANGE || range == EPPI_RANGE)) {
 		/* Misconfigured PPIs are usually not fatal */
 		pr_warn("GIC: PPI INTID%d is secure or misconfigured\n", irq);
@@ -807,8 +806,8 @@ static void __init gic_dist_init(void)
 	for (i = 0; i < GIC_ESPI_NR; i += 4)
 		writel_relaxed(GICD_INT_DEF_PRI_X4, base + GICD_IPRIORITYRnE + i);
 
-	/* Now do the common stuff, and wait for the distributor to drain */
-	gic_dist_config(base, GIC_LINE_NR, gic_dist_wait_for_rwp);
+	/* Now do the common stuff */
+	gic_dist_config(base, GIC_LINE_NR, NULL);
 
 	val = GICD_CTLR_ARE_NS | GICD_CTLR_ENABLE_G1A | GICD_CTLR_ENABLE_G1;
 	if (gic_data.rdists.gicd_typer2 & GICD_TYPER2_nASSGIcap) {
@@ -816,8 +815,9 @@ static void __init gic_dist_init(void)
 		val |= GICD_CTLR_nASSGIreq;
 	}
 
-	/* Enable distributor with ARE, Group1 */
+	/* Enable distributor with ARE, Group1, and wait for it to drain */
 	writel_relaxed(val, base + GICD_CTLR);
+	gic_dist_wait_for_rwp();
 
 	/*
 	 * Set all global interrupts to the boot CPU only. ARE must be
@@ -1298,8 +1298,6 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	 */
 	if (enabled)
 		gic_unmask_irq(d);
-	else
-		gic_dist_wait_for_rwp();
 
 	irq_data_update_effective_affinity(d, cpumask_of(cpu));
 
