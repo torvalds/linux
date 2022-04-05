@@ -3400,8 +3400,7 @@ static struct snd_soc_dai_driver tscs454_dais[] = {
 static char const * const src_names[] = {
 	"xtal", "mclk1", "mclk2", "bclk"};
 
-static int tscs454_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int tscs454_i2c_probe(struct i2c_client *i2c)
 {
 	struct tscs454 *tscs454;
 	int src;
@@ -3474,7 +3473,7 @@ static struct i2c_driver tscs454_i2c_driver = {
 		.name = "tscs454",
 		.of_match_table = tscs454_of_match,
 	},
-	.probe =    tscs454_i2c_probe,
+	.probe_new = tscs454_i2c_probe,
 	.id_table = tscs454_i2c_id,
 };
 
