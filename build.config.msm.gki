@@ -15,10 +15,15 @@ KMI_ENFORCED=1
 
 MAKE_GOALS="modules dtbs"
 GKI_BUILD_CONFIG=common/build.config.gki.aarch64
-GKI_TRIM_NONLISTED_KMI=0
-GKI_KMI_SYMBOL_LIST_STRICT_MODE=0
 GKI_SKIP_IF_VERSION_MATCHES=1
 GKI_SKIP_CP_KERNEL_HDR=1
+
+GKI_KMI_SYMBOL_LIST=../msm-kernel/android/abi_gki_aarch64_qcom
+KMI_SYMBOL_LIST=android/abi_gki_aarch64_qcom
+GKI_TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI:-1}
+TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI:-1}
+GKI_KMI_ENFORCED=1
+KMI_ENFORCED=1
 
 function build_defconfig_fragments() {
 	if [[ "${VARIANT}" =~ ^(gki|consolidate)$ ]]; then
