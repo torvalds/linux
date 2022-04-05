@@ -2388,9 +2388,11 @@ int mlx5e_open_channels(struct mlx5e_priv *priv,
 			goto err_close_channels;
 	}
 
-	err = mlx5e_qos_open_queues(priv, chs);
-	if (err)
-		goto err_close_ptp;
+	if (priv->htb) {
+		err = mlx5e_qos_open_queues(priv, chs);
+		if (err)
+			goto err_close_ptp;
+	}
 
 	mlx5e_health_channels_update(priv);
 	kvfree(cparam);
@@ -2576,7 +2578,7 @@ int mlx5e_update_tx_netdev_queues(struct mlx5e_priv *priv)
 	int qos_queues = 0;
 
 	if (priv->htb)
-		qos_queues = mlx5e_qos_cur_leaf_nodes(priv);
+		qos_queues = mlx5e_qos_cur_leaf_nodes(priv->htb);
 
 	nch = priv->channels.params.num_channels;
 	ntc = mlx5e_get_dcb_num_tc(&priv->channels.params);
@@ -2724,7 +2726,8 @@ void mlx5e_activate_priv_channels(struct mlx5e_priv *priv)
 {
 	mlx5e_build_txq_maps(priv);
 	mlx5e_activate_channels(&priv->channels);
-	mlx5e_qos_activate_queues(priv);
+	if (priv->htb)
+		mlx5e_qos_activate_queues(priv);
 	mlx5e_xdp_tx_enable(priv);
 
 	/* dev_watchdog() wants all TX queues to be started when the carrier is

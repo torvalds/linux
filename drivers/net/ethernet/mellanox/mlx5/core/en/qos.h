@@ -9,16 +9,17 @@
 #define MLX5E_QOS_MAX_LEAF_NODES 256
 
 struct mlx5e_priv;
+struct mlx5e_htb;
 struct mlx5e_channels;
 struct mlx5e_channel;
 struct tc_htb_qopt_offload;
 
 int mlx5e_qos_bytes_rate_check(struct mlx5_core_dev *mdev, u64 nbytes);
 int mlx5e_qos_max_leaf_nodes(struct mlx5_core_dev *mdev);
-int mlx5e_qos_cur_leaf_nodes(struct mlx5e_priv *priv);
+int mlx5e_qos_cur_leaf_nodes(struct mlx5e_htb *htb);
 
 /* TX datapath API */
-int mlx5e_get_txq_by_classid(struct mlx5e_priv *priv, u16 classid);
+int mlx5e_get_txq_by_classid(struct mlx5e_htb *htb, u16 classid);
 
 /* SQ lifecycle */
 int mlx5e_qos_open_queues(struct mlx5e_priv *priv, struct mlx5e_channels *chs);

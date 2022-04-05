@@ -184,7 +184,7 @@ static int mlx5e_select_htb_queue(struct mlx5e_priv *priv, struct sk_buff *skb,
 	if (!classid)
 		return 0;
 
-	return mlx5e_get_txq_by_classid(priv, classid);
+	return mlx5e_get_txq_by_classid(priv->htb, classid);
 }
 
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
