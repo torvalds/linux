@@ -1270,8 +1270,8 @@ static void svm_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	 */
 	vmsave(__sme_page_pa(sd->save_area));
 	if (sev_es_guest(vcpu->kvm)) {
-		struct vmcb_save_area *hostsa;
-		hostsa = (struct vmcb_save_area *)(page_address(sd->save_area) + 0x400);
+		struct sev_es_save_area *hostsa;
+		hostsa = (struct sev_es_save_area *)(page_address(sd->save_area) + 0x400);
 
 		sev_es_prepare_switch_to_guest(hostsa);
 	}
