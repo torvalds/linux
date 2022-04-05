@@ -10,11 +10,97 @@
 // Based on ak4535.c by Richard Purdie
 // Based on wm8753.c by Liam Girdwood
 
+/*
+ *		+-------+
+ *		|AK4613	|
+ *	SDTO1 <-|	|
+ *		|	|
+ *	SDTI1 ->|	|
+ *	SDTI2 ->|	|
+ *	SDTI3 ->|	|
+ *		+-------+
+ *
+ *	  +---+
+ * clk	  |   |___________________________________________...
+ *
+ * [TDM512]
+ * SDTO1  [L1][R1][L2][R2]
+ * SDTI1  [L1][R1][L2][R2][L3][R3][L4][R4][L5][R5][L6][R6]
+ *
+ * [TDM256]
+ * SDTO1  [L1][R1][L2][R2]
+ * SDTI1  [L1][R1][L2][R2][L3][R3][L4][R4]
+ * SDTI2  [L5][R5][L6][R6]
+ *
+ * [TDM128]
+ * SDTO1  [L1][R1][L2][R2]
+ * SDTI1  [L1][R1][L2][R2]
+ * SDTI2  [L3][R3][L4][R4]
+ * SDTI3  [L5][R5][L6][R6]
+ *
+ * [STEREO]
+ *	Playback  2ch : SDTI1
+ *	Capture   2ch : SDTO1
+ *
+ * [TDM512]
+ *	Playback 12ch : SDTI1
+ *	Capture   4ch : SDTO1
+ *
+ * [TDM256]
+ *	Playback 12ch : SDTI1 + SDTI2
+ *	Playback  8ch : SDTI1
+ *	Capture   4ch : SDTO1
+ *
+ * [TDM128]
+ *	Playback 12ch : SDTI1 + SDTI2 + SDTI3
+ *	Playback  8ch : SDTI1 + SDTI2
+ *	Playback  4ch : SDTI1
+ *	Capture   4ch : SDTO1
+ *
+ *
+ * !!! NOTE !!!
+ *
+ * Renesas is the only user of ak4613 on upstream so far,
+ * but the chip connection is like below.
+ * Thus, Renesas can't test all connection case.
+ * Tested TDM is very limited.
+ *
+ * +-----+	+-----------+
+ * | SoC |	|  AK4613   |
+ * |     |<-----|SDTO1	 IN1|<-- Mic
+ * |     |	|	 IN2|
+ * |     |	|	    |
+ * |     |----->|SDTI1	OUT1|--> Headphone
+ * +-----+	|SDTI2	OUT2|
+ *		|SDTI3	OUT3|
+ *		|	OUT4|
+ *		|	OUT5|
+ *		|	OUT6|
+ *		+-----------+
+ *
+ * Renesas SoC can handle [2,  6,8]    channels.
+ * Ak4613      can handle [2,4,  8,12] channels.
+ *
+ * Because of above HW connection and available channels number,
+ * Renesas could test are ...
+ *
+ *	[STEREO] Playback  2ch : SDTI1
+ *		 Capture   2ch : SDTO1
+ *	[TDM256] Playback  8ch : SDTI1 (*)
+ *
+ * (*) it used 8ch data between SoC <-> AK4613 on TDM256 mode,
+ *     but could confirm is only first 2ch because only 1
+ *     Headphone is connected.
+ *
+ * see
+ *	AK4613_ENABLE_TDM_TEST
+ */
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/of_device.h>
+#include <linux/of_graph.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <sound/soc.h>
@@ -78,6 +164,53 @@
 /* OCTRL */
 #define OCTRL_MASK	(0x3F)
 
+/*
+ * configs
+ *
+ * 0x000000BA
+ *
+ * B : AK4613_CONFIG_SDTI_x
+ * A : AK4613_CONFIG_MODE_x
+ */
+#define AK4613_CONFIG_SET(priv, x)	 priv->configs |= AK4613_CONFIG_##x
+#define AK4613_CONFIG_GET(priv, x)	(priv->configs &  AK4613_CONFIG_##x##_MASK)
+
+/*
+ * AK4613_CONFIG_SDTI_x
+ *
+ * It indicates how many SDTIx is connected.
+ */
+#define AK4613_CONFIG_SDTI_MASK		(0xF << 4)
+#define AK4613_CONFIG_SDTI(x)		(((x) & 0xF) << 4)
+#define AK4613_CONFIG_SDTI_set(priv, x)	  AK4613_CONFIG_SET(priv, SDTI(x))
+#define AK4613_CONFIG_SDTI_get(priv)	((AK4613_CONFIG_GET(priv, SDTI) >> 4) & 0xF)
+
+/*
+ * AK4613_CONFIG_MODE_x
+ *
+ * Same as Ctrl1 :: TDM1/TDM0
+ * No shift is requested
+ * see
+ *	AK4613_CTRL1_TO_MODE()
+ *	Table 11/12/13/14
+ */
+#define AK4613_CONFIG_MODE_MASK		(0xF)
+#define AK4613_CONFIG_MODE_STEREO	(0x0)
+#define AK4613_CONFIG_MODE_TDM512	(0x1)
+#define AK4613_CONFIG_MODE_TDM256	(0x2)
+#define AK4613_CONFIG_MODE_TDM128	(0x3)
+
+/*
+ * !!!! FIXME !!!!
+ *
+ * Because of testable HW limitation, TDM256 8ch TDM was only tested.
+ * This driver uses AK4613_ENABLE_TDM_TEST instead of new DT property so far.
+ * Don't hesitate to update driver, you don't need to care compatible
+ * with Renesas.
+ *
+ * #define AK4613_ENABLE_TDM_TEST
+ */
+
 struct ak4613_interface {
 	unsigned int width;
 	unsigned int fmt;
@@ -87,12 +220,14 @@ struct ak4613_interface {
 struct ak4613_priv {
 	struct mutex lock;
 	struct snd_pcm_hw_constraint_list constraint_rates;
+	struct snd_pcm_hw_constraint_list constraint_channels;
 	struct work_struct dummy_write_work;
 	struct snd_soc_component *component;
 	unsigned int rate;
 	unsigned int sysclk;
 
 	unsigned int fmt;
+	unsigned int configs;
 	int cnt;
 	u8 ctrl1;
 	u8 oc;
@@ -150,6 +285,7 @@ static const struct ak4613_interface ak4613_iface[] = {
 	AUDIO_IFACE(0x03, 24, LEFT_J),
 	AUDIO_IFACE(0x04, 24, I2S),
 };
+#define AK4613_CTRL1_TO_MODE(priv)	((priv)->ctrl1 >> 6) /* AK4613_CONFIG_MODE_x */
 
 static const struct regmap_config ak4613_regmap_cfg = {
 	.reg_bits		= 8,
@@ -260,8 +396,9 @@ static void ak4613_dai_shutdown(struct snd_pcm_substream *substream,
 }
 
 static void ak4613_hw_constraints(struct ak4613_priv *priv,
-				  struct snd_pcm_runtime *runtime)
+				  struct snd_pcm_substream *substream)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	static const unsigned int ak4613_rates[] = {
 		 32000,
 		 44100,
@@ -272,8 +409,33 @@ static void ak4613_hw_constraints(struct ak4613_priv *priv,
 		176400,
 		192000,
 	};
+#define AK4613_CHANNEL_2	 0
+#define AK4613_CHANNEL_4	 1
+#define AK4613_CHANNEL_8	 2
+#define AK4613_CHANNEL_12	 3
+#define AK4613_CHANNEL_NONE	-1
+	static const unsigned int ak4613_channels[] = {
+		[AK4613_CHANNEL_2]  =  2,
+		[AK4613_CHANNEL_4]  =  4,
+		[AK4613_CHANNEL_8]  =  8,
+		[AK4613_CHANNEL_12] = 12,
+	};
+#define MODE_MAX 4
+#define SDTx_MAX 4
+#define MASK(x) (1 << AK4613_CHANNEL_##x)
+	static const int mask_list[MODE_MAX][SDTx_MAX] = {
+		/* 				SDTO	 SDTIx1    SDTIx2		SDTIx3 */
+		[AK4613_CONFIG_MODE_STEREO] = { MASK(2), MASK(2),  MASK(2),		MASK(2)},
+		[AK4613_CONFIG_MODE_TDM512] = { MASK(4), MASK(12), MASK(12),		MASK(12)},
+		[AK4613_CONFIG_MODE_TDM256] = { MASK(4), MASK(8),  MASK(8)|MASK(12),	MASK(8)|MASK(12)},
+		[AK4613_CONFIG_MODE_TDM128] = { MASK(4), MASK(4),  MASK(4)|MASK(8),	MASK(4)|MASK(8)|MASK(12)},
+	};
 	struct snd_pcm_hw_constraint_list *constraint;
+	unsigned int mask;
+	unsigned int mode;
 	unsigned int fs;
+	int is_play = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	int sdti_num;
 	int i;
 
 	constraint		= &priv->constraint_rates;
@@ -302,6 +464,41 @@ static void ak4613_hw_constraints(struct ak4613_priv *priv,
 
 	snd_pcm_hw_constraint_list(runtime, 0,
 				SNDRV_PCM_HW_PARAM_RATE, constraint);
+
+
+	sdti_num = AK4613_CONFIG_SDTI_get(priv);
+	if (WARN_ON(sdti_num >= SDTx_MAX))
+		return;
+
+	if (priv->cnt) {
+		/*
+		 * If it was already working,
+		 * the constraint is same as working mode.
+		 */
+		mode = AK4613_CTRL1_TO_MODE(priv);
+		mask = 0; /* no default */
+	} else {
+		/*
+		 * It is not yet working,
+		 * the constraint is based on board configs.
+		 * STEREO mask is default
+		 */
+		mode = AK4613_CONFIG_GET(priv, MODE);
+		mask = mask_list[AK4613_CONFIG_MODE_STEREO][is_play * sdti_num];
+	}
+
+	if (WARN_ON(mode >= MODE_MAX))
+		return;
+
+	/* add each mode mask */
+	mask |= mask_list[mode][is_play * sdti_num];
+
+	constraint		= &priv->constraint_channels;
+	constraint->list	= ak4613_channels;
+	constraint->mask	= mask;
+	constraint->count	= sizeof(ak4613_channels);
+	snd_pcm_hw_constraint_list(runtime, 0,
+				   SNDRV_PCM_HW_PARAM_CHANNELS, constraint);
 }
 
 static int ak4613_dai_startup(struct snd_pcm_substream *substream,
@@ -311,10 +508,9 @@ static int ak4613_dai_startup(struct snd_pcm_substream *substream,
 	struct ak4613_priv *priv = snd_soc_component_get_drvdata(component);
 
 	mutex_lock(&priv->lock);
+	ak4613_hw_constraints(priv, substream);
 	priv->cnt++;
 	mutex_unlock(&priv->lock);
-
-	ak4613_hw_constraints(priv, substream->runtime);
 
 	return 0;
 }
@@ -399,7 +595,7 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 	/*
 	 * FIXME
 	 *
-	 * It doesn't support TDM at this point
+	 * It doesn't have full TDM suppert yet
 	 */
 	ret = -EINVAL;
 
@@ -413,6 +609,15 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 		/*
 		 * It is not yet working,
 		 */
+		unsigned int channel = params_channels(params);
+		u8 tdm;
+
+		/* STEREO or TDM */
+		if (channel == 2)
+			tdm = AK4613_CONFIG_MODE_STEREO;
+		else
+			tdm = AK4613_CONFIG_GET(priv, MODE);
+
 		for (i = ARRAY_SIZE(ak4613_iface) - 1; i >= 0; i--) {
 			const struct ak4613_interface *iface = ak4613_iface + i;
 
@@ -421,9 +626,9 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 				 * Ctrl1
 				 * | D7 | D6 | D5 | D4 | D3 | D2 | D1 | D0  |
 				 * |TDM1|TDM0|DIF2|DIF1|DIF0|ATS1|ATS0|SMUTE|
-				 *            < iface->dif >
+				 *  <  tdm  > < iface->dif >
 				 */
-				priv->ctrl1 = (iface->dif << 3);
+				priv->ctrl1 = (tdm << 6) | (iface->dif << 3);
 				ret = 0;
 				break;
 			}
@@ -578,14 +783,14 @@ static struct snd_soc_dai_driver ak4613_dai = {
 	.playback = {
 		.stream_name	= "Playback",
 		.channels_min	= 2,
-		.channels_max	= 2,
+		.channels_max	= 12,
 		.rates		= AK4613_PCM_RATE,
 		.formats	= AK4613_PCM_FMTBIT,
 	},
 	.capture = {
 		.stream_name	= "Capture",
 		.channels_min	= 2,
-		.channels_max	= 2,
+		.channels_max	= 4,
 		.rates		= AK4613_PCM_RATE,
 		.formats	= AK4613_PCM_FMTBIT,
 	},
@@ -630,6 +835,7 @@ static void ak4613_parse_of(struct ak4613_priv *priv,
 {
 	struct device_node *np = dev->of_node;
 	char prop[32];
+	int sdti_num;
 	int i;
 
 	/* Input 1 - 2 */
@@ -645,6 +851,29 @@ static void ak4613_parse_of(struct ak4613_priv *priv,
 		if (!of_get_property(np, prop, NULL))
 			priv->oc |= 1 << i;
 	}
+
+	/*
+	 * enable TDM256 test
+	 *
+	 * !!! FIXME !!!
+	 *
+	 * It should be configured by DT or other way
+	 * if it was full supported.
+	 * But it is using ifdef style for now for test
+	 * purpose.
+	 */
+#if defined(AK4613_ENABLE_TDM_TEST)
+	AK4613_CONFIG_SET(priv, MODE_TDM256);
+#endif
+
+	/*
+	 * connected STDI
+	 */
+	sdti_num = of_graph_get_endpoint_count(np);
+	if (WARN_ON((sdti_num > 3) || (sdti_num < 1)))
+		return;
+
+	AK4613_CONFIG_SDTI_set(priv, sdti_num);
 }
 
 static int ak4613_i2c_probe(struct i2c_client *i2c,
