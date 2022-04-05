@@ -42,25 +42,12 @@ struct mtk_flow_data {
 	} pppoe;
 };
 
-struct mtk_flow_entry {
-	struct rhash_head node;
-	unsigned long cookie;
-	u16 hash;
-	s8 wed_index;
-};
-
 static const struct rhashtable_params mtk_flow_ht_params = {
 	.head_offset = offsetof(struct mtk_flow_entry, node),
 	.key_offset = offsetof(struct mtk_flow_entry, cookie),
 	.key_len = sizeof(unsigned long),
 	.automatic_shrinking = true,
 };
-
-static u32
-mtk_eth_timestamp(struct mtk_eth *eth)
-{
-	return mtk_r32(eth, 0x0010) & MTK_FOE_IB1_BIND_TIMESTAMP;
-}
 
 static int
 mtk_flow_set_ipv4_addr(struct mtk_foe_entry *foe, struct mtk_flow_data *data,
@@ -237,10 +224,8 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
 	int offload_type = 0;
 	int wed_index = -1;
 	u16 addr_type = 0;
-	u32 timestamp;
 	u8 l4proto = 0;
 	int err = 0;
-	int hash;
 	int i;
 
 	if (rhashtable_lookup(&eth->flow_table, &f->cookie, mtk_flow_ht_params))
@@ -410,23 +395,21 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
 		return -ENOMEM;
 
 	entry->cookie = f->cookie;
-	timestamp = mtk_eth_timestamp(eth);
-	hash = mtk_foe_entry_commit(eth->ppe, &foe, timestamp);
-	if (hash < 0) {
-		err = hash;
-		goto free;
-	}
-
-	entry->hash = hash;
+	memcpy(&entry->data, &foe, sizeof(entry->data));
 	entry->wed_index = wed_index;
+
+	if (mtk_foe_entry_commit(eth->ppe, entry) < 0)
+		goto free;
+
 	err = rhashtable_insert_fast(&eth->flow_table, &entry->node,
 				     mtk_flow_ht_params);
 	if (err < 0)
-		goto clear_flow;
+		goto clear;
 
 	return 0;
-clear_flow:
-	mtk_foe_entry_clear(eth->ppe, hash);
+
+clear:
+	mtk_foe_entry_clear(eth->ppe, entry);
 free:
 	kfree(entry);
 	if (wed_index >= 0)
@@ -444,7 +427,7 @@ mtk_flow_offload_destroy(struct mtk_eth *eth, struct flow_cls_offload *f)
 	if (!entry)
 		return -ENOENT;
 
-	mtk_foe_entry_clear(eth->ppe, entry->hash);
+	mtk_foe_entry_clear(eth->ppe, entry);
 	rhashtable_remove_fast(&eth->flow_table, &entry->node,
 			       mtk_flow_ht_params);
 	if (entry->wed_index >= 0)
@@ -458,7 +441,6 @@ static int
 mtk_flow_offload_stats(struct mtk_eth *eth, struct flow_cls_offload *f)
 {
 	struct mtk_flow_entry *entry;
-	int timestamp;
 	u32 idle;
 
 	entry = rhashtable_lookup(&eth->flow_table, &f->cookie,
@@ -466,11 +448,7 @@ mtk_flow_offload_stats(struct mtk_eth *eth, struct flow_cls_offload *f)
 	if (!entry)
 		return -ENOENT;
 
-	timestamp = mtk_foe_entry_timestamp(eth->ppe, entry->hash);
-	if (timestamp < 0)
-		return -ETIMEDOUT;
-
-	idle = mtk_eth_timestamp(eth) - timestamp;
+	idle = mtk_foe_entry_idle_time(eth->ppe, entry);
 	f->stats.lastused = jiffies - idle * HZ;
 
 	return 0;

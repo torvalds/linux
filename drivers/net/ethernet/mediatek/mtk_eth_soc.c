@@ -21,6 +21,7 @@
 #include <linux/pinctrl/devinfo.h>
 #include <linux/phylink.h>
 #include <linux/jhash.h>
+#include <linux/bitfield.h>
 #include <net/dsa.h>
 
 #include "mtk_eth_soc.h"
@@ -1239,7 +1240,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		struct net_device *netdev;
 		unsigned int pktlen;
 		dma_addr_t dma_addr;
-		u32 hash;
+		u32 hash, reason;
 		int mac;
 
 		ring = mtk_get_rx_ring(eth);
@@ -1314,6 +1315,11 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 			hash = jhash_1word(hash, 0);
 			skb_set_hash(skb, hash, PKT_HASH_TYPE_L4);
 		}
+
+		reason = FIELD_GET(MTK_RXD4_PPE_CPU_REASON, trxd.rxd4);
+		if (reason == MTK_PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED)
+			mtk_ppe_check_skb(eth->ppe, skb,
+					  trxd.rxd4 & MTK_RXD4_FOE_ENTRY);
 
 		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX &&
 		    (trxd.rxd2 & RX_DMA_VTAG))
@@ -3262,7 +3268,7 @@ static int mtk_probe(struct platform_device *pdev)
 	}
 
 	if (eth->soc->offload_version) {
-		eth->ppe = mtk_ppe_init(eth->dev, eth->base + MTK_ETH_PPE_BASE, 2);
+		eth->ppe = mtk_ppe_init(eth, eth->base + MTK_ETH_PPE_BASE, 2);
 		if (!eth->ppe) {
 			err = -ENOMEM;
 			goto err_free_dev;

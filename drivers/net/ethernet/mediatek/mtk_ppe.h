@@ -235,7 +235,17 @@ enum {
 	MTK_PPE_CPU_REASON_INVALID			= 0x1f,
 };
 
+struct mtk_flow_entry {
+	struct rhash_head node;
+	struct hlist_node list;
+	unsigned long cookie;
+	struct mtk_foe_entry data;
+	u16 hash;
+	s8 wed_index;
+};
+
 struct mtk_ppe {
+	struct mtk_eth *eth;
 	struct device *dev;
 	void __iomem *base;
 	int version;
@@ -243,18 +253,33 @@ struct mtk_ppe {
 	struct mtk_foe_entry *foe_table;
 	dma_addr_t foe_phys;
 
+	u16 foe_check_time[MTK_PPE_ENTRIES];
+	struct hlist_head foe_flow[MTK_PPE_ENTRIES / 2];
+
 	void *acct_table;
 };
 
-struct mtk_ppe *mtk_ppe_init(struct device *dev, void __iomem *base, int version);
+struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int version);
 int mtk_ppe_start(struct mtk_ppe *ppe);
 int mtk_ppe_stop(struct mtk_ppe *ppe);
 
+void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash);
+
 static inline void
-mtk_foe_entry_clear(struct mtk_ppe *ppe, u16 hash)
+mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
 {
-	ppe->foe_table[hash].ib1 = 0;
-	dma_wmb();
+	u16 now, diff;
+
+	if (!ppe)
+		return;
+
+	now = (u16)jiffies;
+	diff = now - ppe->foe_check_time[hash];
+	if (diff < HZ / 10)
+		return;
+
+	ppe->foe_check_time[hash] = now;
+	__mtk_ppe_check_skb(ppe, skb, hash);
 }
 
 static inline int
@@ -282,8 +307,9 @@ int mtk_foe_entry_set_vlan(struct mtk_foe_entry *entry, int vid);
 int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid);
 int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
 			   int bss, int wcid);
-int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
-			 u16 timestamp);
+int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
+void mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
+int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
 int mtk_ppe_debugfs_init(struct mtk_ppe *ppe);
 
 #endif

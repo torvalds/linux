@@ -6,8 +6,11 @@
 #include <linux/iopoll.h>
 #include <linux/etherdevice.h>
 #include <linux/platform_device.h>
+#include "mtk_eth_soc.h"
 #include "mtk_ppe.h"
 #include "mtk_ppe_regs.h"
+
+static DEFINE_SPINLOCK(ppe_lock);
 
 static void ppe_w32(struct mtk_ppe *ppe, u32 reg, u32 val)
 {
@@ -39,6 +42,11 @@ static u32 ppe_set(struct mtk_ppe *ppe, u32 reg, u32 val)
 static u32 ppe_clear(struct mtk_ppe *ppe, u32 reg, u32 val)
 {
 	return ppe_m32(ppe, reg, val, 0);
+}
+
+static u32 mtk_eth_timestamp(struct mtk_eth *eth)
+{
+	return mtk_r32(eth, 0x0010) & MTK_FOE_IB1_BIND_TIMESTAMP;
 }
 
 static int mtk_ppe_wait_busy(struct mtk_ppe *ppe)
@@ -353,26 +361,59 @@ static inline bool mtk_foe_entry_usable(struct mtk_foe_entry *entry)
 	       FIELD_GET(MTK_FOE_IB1_STATE, entry->ib1) != MTK_FOE_STATE_BIND;
 }
 
-int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
-			 u16 timestamp)
+static bool
+mtk_flow_entry_match(struct mtk_flow_entry *entry, struct mtk_foe_entry *data)
+{
+	int type, len;
+
+	if ((data->ib1 ^ entry->data.ib1) & MTK_FOE_IB1_UDP)
+		return false;
+
+	type = FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, entry->data.ib1);
+	if (type > MTK_PPE_PKT_TYPE_IPV4_DSLITE)
+		len = offsetof(struct mtk_foe_entry, ipv6._rsv);
+	else
+		len = offsetof(struct mtk_foe_entry, ipv4.ib2);
+
+	return !memcmp(&entry->data.data, &data->data, len - 4);
+}
+
+static void
+mtk_flow_entry_update(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 {
 	struct mtk_foe_entry *hwe;
-	u32 hash;
+	struct mtk_foe_entry foe;
 
+	spin_lock_bh(&ppe_lock);
+	if (entry->hash == 0xffff)
+		goto out;
+
+	hwe = &ppe->foe_table[entry->hash];
+	memcpy(&foe, hwe, sizeof(foe));
+	if (!mtk_flow_entry_match(entry, &foe)) {
+		entry->hash = 0xffff;
+		goto out;
+	}
+
+	entry->data.ib1 = foe.ib1;
+
+out:
+	spin_unlock_bh(&ppe_lock);
+}
+
+static void
+__mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
+		       u16 hash)
+{
+	struct mtk_foe_entry *hwe;
+	u16 timestamp;
+
+	timestamp = mtk_eth_timestamp(ppe->eth);
 	timestamp &= MTK_FOE_IB1_BIND_TIMESTAMP;
 	entry->ib1 &= ~MTK_FOE_IB1_BIND_TIMESTAMP;
 	entry->ib1 |= FIELD_PREP(MTK_FOE_IB1_BIND_TIMESTAMP, timestamp);
 
-	hash = mtk_ppe_hash_entry(entry);
 	hwe = &ppe->foe_table[hash];
-	if (!mtk_foe_entry_usable(hwe)) {
-		hwe++;
-		hash++;
-
-		if (!mtk_foe_entry_usable(hwe))
-			return -ENOSPC;
-	}
-
 	memcpy(&hwe->data, &entry->data, sizeof(hwe->data));
 	wmb();
 	hwe->ib1 = entry->ib1;
@@ -380,13 +421,77 @@ int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
 	dma_wmb();
 
 	mtk_ppe_cache_clear(ppe);
-
-	return hash;
 }
 
-struct mtk_ppe *mtk_ppe_init(struct device *dev, void __iomem *base,
+void mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
+{
+	spin_lock_bh(&ppe_lock);
+	hlist_del_init(&entry->list);
+	if (entry->hash != 0xffff) {
+		ppe->foe_table[entry->hash].ib1 &= ~MTK_FOE_IB1_STATE;
+		ppe->foe_table[entry->hash].ib1 |= FIELD_PREP(MTK_FOE_IB1_STATE,
+							      MTK_FOE_STATE_BIND);
+		dma_wmb();
+	}
+	entry->hash = 0xffff;
+	spin_unlock_bh(&ppe_lock);
+}
+
+int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
+{
+	u32 hash = mtk_ppe_hash_entry(&entry->data);
+
+	entry->hash = 0xffff;
+	spin_lock_bh(&ppe_lock);
+	hlist_add_head(&entry->list, &ppe->foe_flow[hash / 2]);
+	spin_unlock_bh(&ppe_lock);
+
+	return 0;
+}
+
+void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
+{
+	struct hlist_head *head = &ppe->foe_flow[hash / 2];
+	struct mtk_flow_entry *entry;
+	struct mtk_foe_entry *hwe = &ppe->foe_table[hash];
+	bool found = false;
+
+	if (hlist_empty(head))
+		return;
+
+	spin_lock_bh(&ppe_lock);
+	hlist_for_each_entry(entry, head, list) {
+		if (found || !mtk_flow_entry_match(entry, hwe)) {
+			if (entry->hash != 0xffff)
+				entry->hash = 0xffff;
+			continue;
+		}
+
+		entry->hash = hash;
+		__mtk_foe_entry_commit(ppe, &entry->data, hash);
+		found = true;
+	}
+	spin_unlock_bh(&ppe_lock);
+}
+
+int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
+{
+	u16 now = mtk_eth_timestamp(ppe->eth) & MTK_FOE_IB1_BIND_TIMESTAMP;
+	u16 timestamp;
+
+	mtk_flow_entry_update(ppe, entry);
+	timestamp = entry->data.ib1 & MTK_FOE_IB1_BIND_TIMESTAMP;
+
+	if (timestamp > now)
+		return MTK_FOE_IB1_BIND_TIMESTAMP + 1 - timestamp + now;
+	else
+		return now - timestamp;
+}
+
+struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
 		 int version)
 {
+	struct device *dev = eth->dev;
 	struct mtk_foe_entry *foe;
 	struct mtk_ppe *ppe;
 
@@ -398,6 +503,7 @@ struct mtk_ppe *mtk_ppe_init(struct device *dev, void __iomem *base,
 	 * not coherent.
 	 */
 	ppe->base = base;
+	ppe->eth = eth;
 	ppe->dev = dev;
 	ppe->version = version;
 
