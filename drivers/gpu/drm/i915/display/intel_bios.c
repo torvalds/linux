@@ -191,6 +191,29 @@ static const struct {
 	  .min_size = sizeof(struct bdb_generic_dtd), },
 };
 
+/* make the data table offsets relative to the data block */
+static bool fixup_lfp_data_ptrs(const void *bdb, void *ptrs_block)
+{
+	struct bdb_lvds_lfp_data_ptrs *ptrs = ptrs_block;
+	u32 offset;
+	int i;
+
+	offset = block_offset(bdb, BDB_LVDS_LFP_DATA);
+
+	for (i = 0; i < 16; i++) {
+		if (ptrs->ptr[i].fp_timing.offset < offset ||
+		    ptrs->ptr[i].dvo_timing.offset < offset ||
+		    ptrs->ptr[i].panel_pnp_id.offset < offset)
+			return false;
+
+		ptrs->ptr[i].fp_timing.offset -= offset;
+		ptrs->ptr[i].dvo_timing.offset -= offset;
+		ptrs->ptr[i].panel_pnp_id.offset -= offset;
+	}
+
+	return true;
+}
+
 static void
 init_bdb_block(struct drm_i915_private *i915,
 	       const void *bdb, enum bdb_block_id section_id,
@@ -219,6 +242,13 @@ init_bdb_block(struct drm_i915_private *i915,
 
 	drm_dbg_kms(&i915->drm, "Found BDB block %d (size %zu, min size %zu)\n",
 		    section_id, block_size, min_size);
+
+	if (section_id == BDB_LVDS_LFP_DATA_PTRS &&
+	    !fixup_lfp_data_ptrs(bdb, entry->data + 3)) {
+		drm_err(&i915->drm, "VBT has malformed LFP data table pointers\n");
+		kfree(entry);
+		return;
+	}
 
 	list_add_tail(&entry->node, &i915->vbt.bdb_blocks);
 }
@@ -312,22 +342,19 @@ get_lvds_dvo_timing(const struct bdb_lvds_lfp_data *lvds_lfp_data,
  * this function may return NULL if the corresponding entry is invalid
  */
 static const struct lvds_fp_timing *
-get_lvds_fp_timing(const struct bdb_header *bdb,
-		   const struct bdb_lvds_lfp_data *data,
+get_lvds_fp_timing(const struct bdb_lvds_lfp_data *data,
 		   const struct bdb_lvds_lfp_data_ptrs *ptrs,
 		   int index)
 {
-	size_t data_ofs = block_offset(bdb, BDB_LVDS_LFP_DATA);
 	u16 data_size = ((const u16 *)data)[-1]; /* stored in header */
 	size_t ofs;
 
 	if (index >= ARRAY_SIZE(ptrs->ptr))
 		return NULL;
 	ofs = ptrs->ptr[index].fp_timing.offset;
-	if (ofs < data_ofs ||
-	    ofs + sizeof(struct lvds_fp_timing) > data_ofs + data_size)
+	if (ofs + sizeof(struct lvds_fp_timing) > data_size)
 		return NULL;
-	return (const struct lvds_fp_timing *)((const u8 *)bdb + ofs);
+	return (const struct lvds_fp_timing *)((const u8 *)data + ofs);
 }
 
 /* Parse general panel options */
@@ -426,7 +453,7 @@ parse_lfp_panel_dtd(struct drm_i915_private *i915,
 		    "Found panel mode in BIOS VBT legacy lfp table: " DRM_MODE_FMT "\n",
 		    DRM_MODE_ARG(panel_fixed_mode));
 
-	fp_timing = get_lvds_fp_timing(bdb, lvds_lfp_data,
+	fp_timing = get_lvds_fp_timing(lvds_lfp_data,
 				       lvds_lfp_data_ptrs,
 				       panel_type);
 	if (fp_timing) {
