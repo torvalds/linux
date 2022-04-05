@@ -89,5 +89,13 @@ void __init tdx_early_init(void)
 	cc_mask = get_cc_mask();
 	cc_set_mask(cc_mask);
 
+	/*
+	 * All bits above GPA width are reserved and kernel treats shared bit
+	 * as flag, not as part of physical address.
+	 *
+	 * Adjust physical mask to only cover valid GPA bits.
+	 */
+	physical_mask &= cc_mask - 1;
+
 	pr_info("Guest detected\n");
 }
