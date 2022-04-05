@@ -240,10 +240,7 @@ enum WIFI_REG_DOMAIN {
 
 static inline bool IS_MCAST(unsigned char *da)
 {
-	if ((*da) & 0x01)
-		return true;
-	else
-		return false;
+	return (*da) & 0x01;
 }
 
 static inline unsigned char *get_da(unsigned char *pframe)
