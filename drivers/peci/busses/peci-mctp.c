@@ -68,13 +68,15 @@ static const struct mctp_peci_vdm_hdr peci_hdr_template = {
 struct node_cfg {
 	u8 eid;
 	u16 bdf;
+	u8 domain_id;
 };
 
 struct mctp_peci {
 	struct peci_adapter *adapter;
 	struct device *dev;
 	struct mctp_client *peci_client;
-	struct node_cfg cpus[PECI_OFFSET_MAX];
+	struct node_cfg cpus[PECI_OFFSET_MAX][DOMAIN_OFFSET_MAX];
+	bool is_discovery_done;
 	u8 tag;
 };
 
@@ -241,7 +243,8 @@ static void mctp_peci_cpu_discovery(struct peci_adapter *adapter)
 	u8 tx_buf[PECI_RDENDPTCFG_PCI_WRITE_LEN];
 	struct mctp_pcie_packet *rx_packet;
 	struct node_cfg cpu;
-	int i, node_id, ret;
+	int i, domain_id, node_id, ret;
+	bool is_discovery_done = false;
 	u8 *rx_buf;
 	u32 addr;
 
@@ -264,29 +267,50 @@ static void mctp_peci_cpu_discovery(struct peci_adapter *adapter)
 	tx_buf[11] = (u8)(addr >> 24);
 
 	for (i = 0; i < PECI_OFFSET_MAX; i++) {
+		memset(&cpu, 0, sizeof(cpu));
 		cpu.eid = eids[i];
-
 		ret = aspeed_mctp_get_eid_bdf(priv->peci_client, cpu.eid, &cpu.bdf);
 		if (ret)
 			continue;
 
-		rx_packet = mctp_peci_send_receive(adapter, &cpu,
-						   PECI_RDENDPTCFG_PCI_WRITE_LEN,
-						   PECI_RDENDPTCFG_READ_LEN_BASE + 4,
-						   tx_buf);
-		if (IS_ERR(rx_packet))
-			continue;
+		for (domain_id = 0; domain_id < DOMAIN_OFFSET_MAX; domain_id++) {
+			ret = aspeed_mctp_get_eid(priv->peci_client,
+						  cpu.bdf, domain_id,
+						  &cpu.eid);
 
-		rx_buf = (u8 *)(rx_packet->data.payload) + sizeof(struct mctp_peci_vdm_hdr);
-		node_id = rx_buf[1] & CPUNODEID_CFG_LCLNODEID_MASK;
+			/* No entries for specific BDF/domain_Id. */
+			if (ret)
+				continue;
 
-		priv->cpus[node_id] = cpu;
-		aspeed_mctp_packet_free(rx_packet);
+			rx_packet = mctp_peci_send_receive(adapter, &cpu,
+							   PECI_RDENDPTCFG_PCI_WRITE_LEN,
+							   PECI_RDENDPTCFG_READ_LEN_BASE + 4,
+							   tx_buf);
+
+			if (IS_ERR(rx_packet)) {
+				dev_warn(priv->dev, "Device EID=%d DomainId=%d not discovered\n",
+					 cpu.eid, cpu.domain_id);
+				continue;
+			}
+
+			rx_buf = (u8 *)(rx_packet->data.payload) + sizeof(struct mctp_peci_vdm_hdr);
+			node_id = rx_buf[1] & CPUNODEID_CFG_LCLNODEID_MASK;
+			if (node_id < PECI_OFFSET_MAX) {
+				is_discovery_done = true;
+				priv->cpus[node_id][domain_id] = cpu;
+			} else {
+				dev_warn(priv->dev, "Incorrect node_id=%d (EID=%d DomainId=%d)\n",
+					 node_id, cpu.eid, cpu.domain_id);
+			}
+			aspeed_mctp_packet_free(rx_packet);
+		}
 	}
+	priv->is_discovery_done = is_discovery_done;
 }
 
 static int
-mctp_peci_get_address(struct peci_adapter *adapter, u8 peci_addr, struct node_cfg *cpu)
+mctp_peci_get_address(struct peci_adapter *adapter, u8 peci_addr, u8 domain_id,
+		      struct node_cfg *cpu)
 {
 	struct mctp_peci *priv = peci_get_adapdata(adapter);
 	int node_id = peci_addr - 0x30;
@@ -295,15 +319,16 @@ mctp_peci_get_address(struct peci_adapter *adapter, u8 peci_addr, struct node_cf
 	 * XXX: Is it possible we're able to communicate with CPU 0 before other
 	 * CPUs are up? Make sure we're always discovering all CPUs.
 	 */
-	if (!priv->cpus[0].eid)
+	if (!priv->is_discovery_done)
 		mctp_peci_cpu_discovery(adapter);
 
-	if (!priv->cpus[node_id].eid)
-		return -EINVAL;
+	if (node_id < PECI_OFFSET_MAX && domain_id < DOMAIN_OFFSET_MAX &&
+	    priv->is_discovery_done && priv->cpus[node_id][domain_id].eid) {
+		*cpu = priv->cpus[node_id][domain_id];
+		return 0;
+	}
 
-	*cpu = priv->cpus[node_id];
-
-	return 0;
+	return -EINVAL;
 }
 
 static int
@@ -313,12 +338,16 @@ mctp_peci_xfer(struct peci_adapter *adapter, struct peci_xfer_msg *msg)
 		PCIE_VDM_HDR_SIZE - sizeof(struct mctp_peci_vdm_hdr);
 	struct mctp_pcie_packet *rx_packet;
 	struct node_cfg cpu;
+	u8 domain_id = 0;
 	int ret;
 
 	if (msg->tx_len > max_len || msg->rx_len > max_len)
 		return -EINVAL;
 
-	ret = mctp_peci_get_address(adapter, msg->addr, &cpu);
+	if (msg->tx_len > 2)
+		domain_id = (msg->tx_buf[1]  >> 1);
+
+	ret = mctp_peci_get_address(adapter, msg->addr, domain_id, &cpu);
 	if (ret)
 		return ret;
 

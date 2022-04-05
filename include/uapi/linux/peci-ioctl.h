@@ -13,6 +13,9 @@
 /* Max number of CPU clients */
 #define PECI_OFFSET_MAX					8
 
+/* Max number of domains per CPU */
+#define DOMAIN_OFFSET_MAX				16
+
 /* PECI read/write data buffer size max */
 #define PECI_BUFFER_SIZE				255
 
