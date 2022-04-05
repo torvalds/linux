@@ -117,6 +117,9 @@
  *  VERSION     : 01-00-45
  *  05 Apr 2022 : 1. Disable MSI and flush phy work queue during driver release.
  *  VERSION     : 01-00-47
+ *  06 Apr 2022 : 1. Dynamic MTU change supported. Max MTU supported is 2000 bytes.
+ *		  2. Constant buffer size of 2K used, so that during MTU change there is no buffer reconfiguration.
+ *  VERSION     : 01-00-48
 */
 
 #include <linux/clk.h>
@@ -4994,6 +4997,11 @@ static int tc956xmac_open(struct net_device *dev)
 		if (bfsize < BUF_SIZE_16KiB)
 			bfsize = tc956xmac_set_bfsize(dev->mtu, priv->dma_buf_sz);
 
+		/* Overwrite buff size allocated to 2K, to accomodate max mtu supported of 2000 bytes,
+		 * so that no buffer reconfiguration required during MTU change 
+		 */
+		bfsize = BUF_SIZE_2KiB;
+
 		priv->dma_buf_sz = bfsize;
 		buf_sz = bfsize;
 
@@ -6507,18 +6515,20 @@ static int tc956xmac_change_mtu(struct net_device *dev, int new_mtu)
 
 	txfifosz /= priv->plat->tx_queues_to_use;
 
-	if (netif_running(dev)) {
+	/* Dynamic MTU change is supported, so below condition is commented */
+	/*if (netif_running(dev)) {
 		netdev_err(priv->dev, "must be stopped to change its MTU\n");
 		return -EBUSY;
-	}
+	}*/
 
-	new_mtu = TC956XMAC_ALIGN(new_mtu);
+	/* Alignment of MTU reported to upper layers is not required */
+	/*new_mtu = TC956XMAC_ALIGN(new_mtu);*/
 #ifdef TC956X
 	/* Supported frame sizes */
-	if ((new_mtu < MIN_SUPPORTED_MTU) || (new_mtu > JUMBO_LEN)) {
+	if ((new_mtu < MIN_SUPPORTED_MTU) || (new_mtu > MAX_SUPPORTED_MTU)) {
 		NMSGPR_ALERT(priv->device,
 		       "%s: invalid MTU, min %d and max %d MTU are supported\n",
-		       dev->name, MIN_SUPPORTED_MTU, JUMBO_LEN);
+		       dev->name, MIN_SUPPORTED_MTU, MAX_SUPPORTED_MTU);
 		return -EINVAL;
 	}
 
@@ -11360,7 +11370,7 @@ int tc956xmac_dvr_probe(struct device *device,
 	/* MTU range: 46 - hw-specific max */
 	ndev->min_mtu = ETH_ZLEN - ETH_HLEN;
 	if (priv->plat->has_xgmac)
-		ndev->max_mtu = XGMAC_JUMBO_LEN;
+		ndev->max_mtu = MAX_SUPPORTED_MTU/*XGMAC_JUMBO_LEN*/;
 	else if ((priv->plat->enh_desc) || (priv->synopsys_id >= DWMAC_CORE_4_00))
 		ndev->max_mtu = JUMBO_LEN;
 	else

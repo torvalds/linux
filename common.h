@@ -79,7 +79,9 @@
  *  VERSION     : 01-00-41
  *  14 Feb 2021 : 1. Reset assert and clock disable support during Link Down.
  *  VERSION     : 01-00-42
- */
+ *  06 Apr 2022 : 1.Max MTU supported is 2000 bytes.
+ *  VERSION     : 01-00-48
+*/
 
 #ifndef __COMMON_H__
 #define __COMMON_H__
@@ -1191,7 +1193,8 @@ entry delay = n * 256 ns */
 #define TC956X_HOST_PHYSICAL_ADRS_MASK	(0x10) /* bit no 37: (1<<36) */
 
 #define ETHNORMAL_LEN		1500
-#define MAX_SUPPORTED_MTU	(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
+/*Max supported MTU limited to 2000, not 'ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN' */
+#define MAX_SUPPORTED_MTU	2000 /*(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)*/
 #define MIN_SUPPORTED_MTU	(ETH_ZLEN + ETH_FCS_LEN + VLAN_HLEN)
 
 #define HOST_MAC_ADDR_OFFSET 2
