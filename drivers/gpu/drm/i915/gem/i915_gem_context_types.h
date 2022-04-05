@@ -296,7 +296,7 @@ struct i915_gem_context {
 	/** @client: struct i915_drm_client */
 	struct i915_drm_client *client;
 
-	/** link: &drm_client.context_list */
+	/** @client_link: for linking onto &i915_drm_client.ctx_list */
 	struct list_head client_link;
 
 	/**
