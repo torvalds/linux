@@ -122,6 +122,20 @@ do { \
 #define ADF_WQM_CSR_RPRESETSTS_STATUS	BIT(0)
 #define ADF_WQM_CSR_RPRESETSTS(bank)	(ADF_WQM_CSR_RPRESETCTL(bank) + 4)
 
+/* Error source registers */
+#define ADF_GEN4_ERRSOU0	(0x41A200)
+#define ADF_GEN4_ERRSOU1	(0x41A204)
+#define ADF_GEN4_ERRSOU2	(0x41A208)
+#define ADF_GEN4_ERRSOU3	(0x41A20C)
+
+/* Error source mask registers */
+#define ADF_GEN4_ERRMSK0	(0x41A210)
+#define ADF_GEN4_ERRMSK1	(0x41A214)
+#define ADF_GEN4_ERRMSK2	(0x41A218)
+#define ADF_GEN4_ERRMSK3	(0x41A21C)
+
+#define ADF_GEN4_VFLNOTIFY	BIT(7)
+
 void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
 void adf_gen4_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops);
 int adf_gen4_ring_pair_reset(struct adf_accel_dev *accel_dev, u32 bank_number);

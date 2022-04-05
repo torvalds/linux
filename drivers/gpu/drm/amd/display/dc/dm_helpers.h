@@ -113,7 +113,7 @@ bool dm_helpers_dp_mst_start_top_mgr(
 		const struct dc_link *link,
 		bool boot);
 
-void dm_helpers_dp_mst_stop_top_mgr(
+bool dm_helpers_dp_mst_stop_top_mgr(
 		struct dc_context *ctx,
 		struct dc_link *link);
 /**
@@ -170,9 +170,9 @@ bool dm_helpers_dmub_outbox_interrupt_control(struct dc_context *ctx, bool enabl
 
 void dm_helpers_smu_timeout(struct dc_context *ctx, unsigned int msg_id, unsigned int param, unsigned int timeout_us);
 
-// 0x1 = Result_OK, 0xFE = Result_UnkmownCmd
+// 0x1 = Result_OK, 0xFE = Result_UnkmownCmd, 0x0 = Status_Busy
 #define IS_SMU_TIMEOUT(result) \
-	(!(result == 0x1 || result == 0xFE))
+	(result == 0x0)
 
 int dm_helper_dmub_aux_transfer_sync(
 		struct dc_context *ctx,
@@ -184,4 +184,7 @@ int dm_helpers_dmub_set_config_sync(struct dc_context *ctx,
 		const struct dc_link *link,
 		struct set_config_cmd_payload *payload,
 		enum set_config_status *operation_result);
+
+enum dc_edid_status dm_helpers_get_sbios_edid(struct dc_link *link, struct dc_edid *edid);
+
 #endif /* __DM_HELPERS__ */

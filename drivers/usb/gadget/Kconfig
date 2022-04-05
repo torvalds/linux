@@ -448,7 +448,7 @@ config USB_CONFIGFS_F_HID
 config USB_CONFIGFS_F_UVC
 	bool "USB Webcam function"
 	depends on USB_CONFIGFS
-	depends on VIDEO_V4L2
+	depends on VIDEO_DEV
 	depends on VIDEO_DEV
 	select VIDEOBUF2_DMA_SG
 	select VIDEOBUF2_VMALLOC

@@ -41,7 +41,7 @@ static int ir_sharp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u32 msg, echo, address, command, scancode;
 
 	if (!is_timing_event(ev)) {
-		if (ev.reset)
+		if (ev.overflow)
 			data->state = STATE_INACTIVE;
 		return 0;
 	}

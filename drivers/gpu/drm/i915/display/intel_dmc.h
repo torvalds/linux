@@ -6,7 +6,7 @@
 #ifndef __INTEL_DMC_H__
 #define __INTEL_DMC_H__
 
-#include "i915_reg.h"
+#include "i915_reg_defs.h"
 #include "intel_wakeref.h"
 #include <linux/workqueue.h>
 

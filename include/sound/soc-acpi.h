@@ -60,9 +60,11 @@ static inline struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg)
  * @acpi_ipc_irq_index: used for BYT-CR detection
  * @platform: string used for HDAudio codec support
  * @codec_mask: used for HDAudio support
+ * @dmic_num: number of SoC- or chipset-attached PDM digital microphones
  * @common_hdmi_codec_drv: use commom HDAudio HDMI codec driver
- * @link_mask: links enabled on the board
- * @links: array of link _ADR descriptors, null terminated
+ * @link_mask: SoundWire links enabled on the board
+ * @links: array of SoundWire link _ADR descriptors, null terminated
+ * @i2s_link_mask: I2S/TDM links enabled on the board
  * @num_dai_drivers: number of elements in @dai_drivers
  * @dai_drivers: pointer to dai_drivers, used e.g. in nocodec mode
  */
@@ -74,6 +76,7 @@ struct snd_soc_acpi_mach_params {
 	bool common_hdmi_codec_drv;
 	u32 link_mask;
 	const struct snd_soc_acpi_link_adr *links;
+	u32 i2s_link_mask;
 	u32 num_dai_drivers;
 	struct snd_soc_dai_driver *dai_drivers;
 };
@@ -122,6 +125,24 @@ struct snd_soc_acpi_link_adr {
 	const struct snd_soc_acpi_adr_device *adr_d;
 };
 
+/*
+ * when set the topology uses the -ssp<N> suffix, where N is determined based on
+ * BIOS or DMI information
+ */
+#define SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER BIT(0)
+
+/*
+ * when more than one SSP is reported in the link mask, use the most significant.
+ * This choice was found to be valid on platforms with ES8336 codecs.
+ */
+#define SND_SOC_ACPI_TPLG_INTEL_SSP_MSB BIT(1)
+
+/*
+ * when set the topology uses the -dmic<N>ch suffix, where N is determined based on
+ * BIOS or DMI information
+ */
+#define SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER BIT(2)
+
 /**
  * snd_soc_acpi_mach: ACPI-based machine descriptor. Most of the fields are
  * related to the hardware, except for the firmware and topology file names.
@@ -142,8 +163,8 @@ struct snd_soc_acpi_link_adr {
  * audio codecs whose presence if checked with ACPI
  * @pdata: intended for platform data or machine specific-ops. This structure
  *  is not constant since this field may be updated at run-time
- * @sof_fw_filename: Sound Open Firmware file name, if enabled
  * @sof_tplg_filename: Sound Open Firmware topology file name, if enabled
+ * @tplg_quirk_mask: quirks to select different topology files dynamically
  */
 /* Descriptor for SST ASoC machine driver */
 struct snd_soc_acpi_mach {
@@ -158,8 +179,8 @@ struct snd_soc_acpi_mach {
 	const void *quirk_data;
 	void *pdata;
 	struct snd_soc_acpi_mach_params mach_params;
-	const char *sof_fw_filename;
 	const char *sof_tplg_filename;
+	const u32 tplg_quirk_mask;
 };
 
 #define SND_SOC_ACPI_MAX_CODECS 3

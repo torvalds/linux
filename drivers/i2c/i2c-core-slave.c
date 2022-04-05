@@ -14,6 +14,9 @@
 
 #include "i2c-core.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/i2c_slave.h>
+
 int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb)
 {
 	int ret;
@@ -78,6 +81,18 @@ int i2c_slave_unregister(struct i2c_client *client)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(i2c_slave_unregister);
+
+int i2c_slave_event(struct i2c_client *client,
+		    enum i2c_slave_event event, u8 *val)
+{
+	int ret = client->slave_cb(client, event, val);
+
+	if (trace_i2c_slave_enabled())
+		trace_i2c_slave(client, event, val, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i2c_slave_event);
 
 /**
  * i2c_detect_slave_mode - detect operation mode

@@ -3,12 +3,15 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include <drm/drm_fourcc.h>
+
 #include "gem/i915_gem_ioctls.h"
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 #include "pxp/intel_pxp.h"
 
 #include "i915_drv.h"
+#include "i915_gem_create.h"
 #include "i915_trace.h"
 #include "i915_user_extensions.h"
 

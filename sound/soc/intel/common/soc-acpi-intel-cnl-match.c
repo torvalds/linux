@@ -11,6 +11,11 @@
 #include "../skylake/skl.h"
 #include "soc-acpi-intel-sdw-mockup-match.h"
 
+static const struct snd_soc_acpi_codecs essx_83x6 = {
+	.num_codecs = 3,
+	.codecs = { "ESSX8316", "ESSX8326", "ESSX8336"},
+};
+
 static struct skl_machine_pdata cnl_pdata = {
 	.use_tplg_pcm = true,
 };
@@ -21,8 +26,16 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cnl_machines[] = {
 		.drv_name = "cnl_rt274",
 		.fw_filename = "intel/dsp_fw_cnl.bin",
 		.pdata = &cnl_pdata,
-		.sof_fw_filename = "sof-cnl.ri",
 		.sof_tplg_filename = "sof-cnl-rt274.tplg",
+	},
+	{
+		.comp_ids = &essx_83x6,
+		.drv_name = "sof-essx8336",
+		/* cnl and cml are identical */
+		.sof_tplg_filename = "sof-cml-es8336", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER |
+					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB |
+					SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER,
 	},
 	{},
 };
@@ -58,21 +71,18 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cnl_sdw_machines[] = {
 		.link_mask = BIT(2),
 		.links = up_extreme_rt5682_2,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-cnl.ri",
 		.sof_tplg_filename = "sof-cnl-rt5682-sdw2.tplg"
 	},
 	{
 		.link_mask = GENMASK(3, 0),
 		.links = sdw_mockup_headset_2amps_mic,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-cnl.ri",
 		.sof_tplg_filename = "sof-cml-rt711-rt1308-rt715.tplg",
 	},
 	{
 		.link_mask = BIT(0) | BIT(1) | BIT(3),
 		.links = sdw_mockup_headset_1amp_mic,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-cnl.ri",
 		.sof_tplg_filename = "sof-cml-rt711-rt1308-mono-rt715.tplg",
 	},
 	{}

@@ -956,12 +956,11 @@ TRACE_EVENT(f2fs_direct_IO_enter,
 		__entry->rw	= rw;
 	),
 
-	TP_printk("dev = (%d,%d), ino = %lu pos = %lld len = %lu ki_flags = %x ki_hint = %x ki_ioprio = %x rw = %d",
+	TP_printk("dev = (%d,%d), ino = %lu pos = %lld len = %lu ki_flags = %x ki_ioprio = %x rw = %d",
 		show_dev_ino(__entry),
 		__entry->iocb->ki_pos,
 		__entry->len,
 		__entry->iocb->ki_flags,
-		__entry->iocb->ki_hint,
 		__entry->iocb->ki_ioprio,
 		__entry->rw)
 );

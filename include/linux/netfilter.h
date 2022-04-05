@@ -379,6 +379,7 @@ struct nf_nat_hook {
 	unsigned int (*manip_pkt)(struct sk_buff *skb, struct nf_conn *ct,
 				  enum nf_nat_manip_type mtype,
 				  enum ip_conntrack_dir dir);
+	void (*remove_nat_bysrc)(struct nf_conn *ct);
 };
 
 extern const struct nf_nat_hook __rcu *nf_nat_hook;

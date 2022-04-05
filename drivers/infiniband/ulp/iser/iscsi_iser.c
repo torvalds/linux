@@ -971,6 +971,7 @@ static struct scsi_host_template iscsi_iser_sht = {
 	.proc_name              = "iscsi_iser",
 	.this_id                = -1,
 	.track_queue_depth	= 1,
+	.cmd_size		= sizeof(struct iscsi_cmd),
 };
 
 static struct iscsi_transport iscsi_iser_transport = {

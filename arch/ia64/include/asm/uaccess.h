@@ -42,30 +42,20 @@
 #include <asm/extable.h>
 
 /*
- * For historical reasons, the following macros are grossly misnamed:
- */
-#define KERNEL_DS	((mm_segment_t) { ~0UL })		/* cf. access_ok() */
-#define USER_DS		((mm_segment_t) { TASK_SIZE-1 })	/* cf. access_ok() */
-
-#define get_fs()  (current_thread_info()->addr_limit)
-#define set_fs(x) (current_thread_info()->addr_limit = (x))
-
-#define uaccess_kernel()	(get_fs().seg == KERNEL_DS.seg)
-
-/*
- * When accessing user memory, we need to make sure the entire area really is in
- * user-level space.  In order to do this efficiently, we make sure that the page at
- * address TASK_SIZE is never valid.  We also need to make sure that the address doesn't
+ * When accessing user memory, we need to make sure the entire area really is
+ * in user-level space.  We also need to make sure that the address doesn't
  * point inside the virtually mapped linear page table.
  */
 static inline int __access_ok(const void __user *p, unsigned long size)
 {
+	unsigned long limit = TASK_SIZE;
 	unsigned long addr = (unsigned long)p;
-	unsigned long seg = get_fs().seg;
-	return likely(addr <= seg) &&
-	 (seg == KERNEL_DS.seg || likely(REGION_OFFSET(addr) < RGN_MAP_LIMIT));
+
+	return likely((size <= limit) && (addr <= (limit - size)) &&
+		 likely(REGION_OFFSET(addr) < RGN_MAP_LIMIT));
 }
-#define access_ok(addr, size)	__access_ok((addr), (size))
+#define __access_ok __access_ok
+#include <asm-generic/access_ok.h>
 
 /*
  * These are the main single-value transfer routines.  They automatically

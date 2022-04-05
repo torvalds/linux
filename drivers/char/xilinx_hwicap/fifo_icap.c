@@ -111,7 +111,7 @@ static inline u32 fifo_icap_fifo_read(struct hwicap_drvdata *drvdata)
 }
 
 /**
- * fifo_icap_set_read_size - Set the the size register.
+ * fifo_icap_set_read_size - Set the size register.
  * @drvdata: a pointer to the drvdata.
  * @data: the size of the following read transaction, in words.
  **/

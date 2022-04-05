@@ -282,7 +282,7 @@ static int set_core_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 			break;
 
 		/*
-		 * Otherwide, this is a priviledged mode, and *all* the
+		 * Otherwise, this is a privileged mode, and *all* the
 		 * registers must be narrowed to 32bit.
 		 */
 		default:

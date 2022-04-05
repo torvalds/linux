@@ -87,16 +87,16 @@ static struct da9121_range da9121_3A_1phase_current = {
 };
 
 static struct da9121_range da914x_40A_4phase_current = {
-	.val_min = 14000000,
-	.val_max = 80000000,
-	.val_stp =  2000000,
+	.val_min = 26000000,
+	.val_max = 78000000,
+	.val_stp =  4000000,
 	.reg_min = 1,
 	.reg_max = 14,
 };
 
 static struct da9121_range da914x_20A_2phase_current = {
-	.val_min =  7000000,
-	.val_max = 40000000,
+	.val_min = 13000000,
+	.val_max = 39000000,
 	.val_stp =  2000000,
 	.reg_min = 1,
 	.reg_max = 14,
@@ -561,7 +561,7 @@ static const struct regulator_desc da9217_reg = {
 };
 
 #define DA914X_MIN_MV		500
-#define DA914X_MAX_MV		1000
+#define DA914X_MAX_MV		1300
 #define DA914X_STEP_MV		10
 #define DA914X_MIN_SEL		(DA914X_MIN_MV / DA914X_STEP_MV)
 #define DA914X_N_VOLTAGES	(((DA914X_MAX_MV - DA914X_MIN_MV) / DA914X_STEP_MV) \
@@ -585,10 +585,6 @@ static const struct regulator_desc da9141_reg = {
 	.vsel_mask = DA9121_MASK_BUCK_BUCKx_5_CHx_A_VOUT,
 	.enable_reg = DA9121_REG_BUCK_BUCK1_0,
 	.enable_mask = DA9121_MASK_BUCK_BUCKx_0_CHx_EN,
-	/* Default value of BUCK_BUCK1_0.CH1_SRC_DVC_UP */
-	.ramp_delay = 20000,
-	/* tBUCK_EN */
-	.enable_time = 20,
 };
 
 static const struct regulator_desc da9142_reg = {

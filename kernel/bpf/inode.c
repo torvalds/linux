@@ -710,11 +710,10 @@ static DEFINE_MUTEX(bpf_preload_lock);
 static int populate_bpffs(struct dentry *parent)
 {
 	struct bpf_preload_info objs[BPF_PRELOAD_LINKS] = {};
-	struct bpf_link *links[BPF_PRELOAD_LINKS] = {};
 	int err = 0, i;
 
 	/* grab the mutex to make sure the kernel interactions with bpf_preload
-	 * UMD are serialized
+	 * are serialized
 	 */
 	mutex_lock(&bpf_preload_lock);
 
@@ -722,40 +721,22 @@ static int populate_bpffs(struct dentry *parent)
 	if (!bpf_preload_mod_get())
 		goto out;
 
-	if (!bpf_preload_ops->info.tgid) {
-		/* preload() will start UMD that will load BPF iterator programs */
-		err = bpf_preload_ops->preload(objs);
-		if (err)
+	err = bpf_preload_ops->preload(objs);
+	if (err)
+		goto out_put;
+	for (i = 0; i < BPF_PRELOAD_LINKS; i++) {
+		bpf_link_inc(objs[i].link);
+		err = bpf_iter_link_pin_kernel(parent,
+					       objs[i].link_name, objs[i].link);
+		if (err) {
+			bpf_link_put(objs[i].link);
 			goto out_put;
-		for (i = 0; i < BPF_PRELOAD_LINKS; i++) {
-			links[i] = bpf_link_by_id(objs[i].link_id);
-			if (IS_ERR(links[i])) {
-				err = PTR_ERR(links[i]);
-				goto out_put;
-			}
 		}
-		for (i = 0; i < BPF_PRELOAD_LINKS; i++) {
-			err = bpf_iter_link_pin_kernel(parent,
-						       objs[i].link_name, links[i]);
-			if (err)
-				goto out_put;
-			/* do not unlink successfully pinned links even
-			 * if later link fails to pin
-			 */
-			links[i] = NULL;
-		}
-		/* finish() will tell UMD process to exit */
-		err = bpf_preload_ops->finish();
-		if (err)
-			goto out_put;
 	}
 out_put:
 	bpf_preload_mod_put();
 out:
 	mutex_unlock(&bpf_preload_lock);
-	for (i = 0; i < BPF_PRELOAD_LINKS && err; i++)
-		if (!IS_ERR_OR_NULL(links[i]))
-			bpf_link_put(links[i]);
 	return err;
 }
 

@@ -652,10 +652,12 @@ static int ov9640_get_mbus_config(struct v4l2_subdev *sd,
 				  unsigned int pad,
 				  struct v4l2_mbus_config *cfg)
 {
-	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_MASTER |
-		V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_HIGH |
-		V4L2_MBUS_DATA_ACTIVE_HIGH;
 	cfg->type = V4L2_MBUS_PARALLEL;
+	cfg->bus.parallel.flags = V4L2_MBUS_PCLK_SAMPLE_RISING |
+				  V4L2_MBUS_MASTER |
+				  V4L2_MBUS_VSYNC_ACTIVE_HIGH |
+				  V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+				  V4L2_MBUS_DATA_ACTIVE_HIGH;
 
 	return 0;
 }

@@ -27,7 +27,9 @@ properties:
           - nvidia,tegra210-admaif
           - nvidia,tegra186-admaif
       - items:
-          - const: nvidia,tegra194-admaif
+          - enum:
+              - nvidia,tegra234-admaif
+              - nvidia,tegra194-admaif
           - const: nvidia,tegra186-admaif
 
   reg:

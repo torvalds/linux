@@ -622,20 +622,6 @@ bool kgd_gfx_v9_get_atc_vmid_pasid_mapping_info(struct amdgpu_device *adev,
 	return !!(value & ATC_VMID0_PASID_MAPPING__VALID_MASK);
 }
 
-int kgd_gfx_v9_address_watch_disable(struct amdgpu_device *adev)
-{
-	return 0;
-}
-
-int kgd_gfx_v9_address_watch_execute(struct amdgpu_device *adev,
-					unsigned int watch_point_id,
-					uint32_t cntl_val,
-					uint32_t addr_hi,
-					uint32_t addr_lo)
-{
-	return 0;
-}
-
 int kgd_gfx_v9_wave_control_execute(struct amdgpu_device *adev,
 					uint32_t gfx_index_val,
 					uint32_t sq_cmd)
@@ -657,13 +643,6 @@ int kgd_gfx_v9_wave_control_execute(struct amdgpu_device *adev,
 	WREG32_SOC15_RLC_SHADOW(GC, 0, mmGRBM_GFX_INDEX, data);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
-	return 0;
-}
-
-uint32_t kgd_gfx_v9_address_watch_get_offset(struct amdgpu_device *adev,
-					unsigned int watch_point_id,
-					unsigned int reg_offset)
-{
 	return 0;
 }
 
@@ -736,7 +715,7 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
  * process whose pasid is provided as a parameter. The process could have ZERO
  * or more queues running and submitting waves to compute units.
  *
- * @kgd: Handle of device from which to get number of waves in flight
+ * @adev: Handle of device from which to get number of waves in flight
  * @pasid: Identifies the process for which this query call is invoked
  * @pasid_wave_cnt: Output parameter updated with number of waves in flight that
  * belong to process with given pasid
@@ -745,7 +724,7 @@ static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
  *
  * Note: It's possible that the device has too many queues (oversubscription)
  * in which case a VMID could be remapped to a different PASID. This could lead
- * to an iaccurate wave count. Following is a high-level sequence:
+ * to an inaccurate wave count. Following is a high-level sequence:
  *    Time T1: vmid = getVmid(); vmid is associated with Pasid P1
  *    Time T2: passId = getPasId(vmid); vmid is associated with Pasid P2
  * In the sequence above wave count obtained from time T1 will be incorrectly
@@ -888,10 +867,7 @@ const struct kfd2kgd_calls gfx_v9_kfd2kgd = {
 	.hqd_sdma_is_occupied = kgd_hqd_sdma_is_occupied,
 	.hqd_destroy = kgd_gfx_v9_hqd_destroy,
 	.hqd_sdma_destroy = kgd_hqd_sdma_destroy,
-	.address_watch_disable = kgd_gfx_v9_address_watch_disable,
-	.address_watch_execute = kgd_gfx_v9_address_watch_execute,
 	.wave_control_execute = kgd_gfx_v9_wave_control_execute,
-	.address_watch_get_offset = kgd_gfx_v9_address_watch_get_offset,
 	.get_atc_vmid_pasid_mapping_info =
 			kgd_gfx_v9_get_atc_vmid_pasid_mapping_info,
 	.set_vm_context_page_table_base = kgd_gfx_v9_set_vm_context_page_table_base,

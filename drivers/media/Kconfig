@@ -160,6 +160,9 @@ menu "Media core support"
 config VIDEO_DEV
 	tristate "Video4Linux core"
 	default MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_RADIO_SUPPORT || MEDIA_SDR_SUPPORT || MEDIA_PLATFORM_SUPPORT || MEDIA_TEST_SUPPORT
+	depends on (I2C || I2C=n)
+	select RATIONAL
+	select VIDEOBUF2_V4L2 if VIDEOBUF2_CORE
 	help
 	  Enables the V4L2 API, used by cameras, analog TV, video grabbers,
 	  radio devices and by some input devices.
@@ -216,12 +219,11 @@ menu "Media drivers"
 comment "Drivers filtered as selected at 'Filter media drivers'"
 	depends on MEDIA_SUPPORT_FILTER
 
+comment "Media drivers"
+
 source "drivers/media/usb/Kconfig"
 source "drivers/media/pci/Kconfig"
 source "drivers/media/radio/Kconfig"
-
-# Common driver options
-source "drivers/media/common/Kconfig"
 
 if MEDIA_PLATFORM_SUPPORT
 source "drivers/media/platform/Kconfig"
@@ -233,6 +235,9 @@ source "drivers/media/test-drivers/Kconfig"
 endif
 
 source "drivers/media/firewire/Kconfig"
+
+# Common driver options
+source "drivers/media/common/Kconfig"
 
 endmenu
 

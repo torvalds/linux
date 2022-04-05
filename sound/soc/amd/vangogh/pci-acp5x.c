@@ -92,12 +92,14 @@ static int acp5x_init(void __iomem *acp5x_base)
 		pr_err("ACP5x power on failed\n");
 		return ret;
 	}
+	acp_writel(0x01, acp5x_base + ACP_CONTROL);
 	/* Reset */
 	ret = acp5x_reset(acp5x_base);
 	if (ret) {
 		pr_err("ACP5x reset failed\n");
 		return ret;
 	}
+	acp_writel(0x03, acp5x_base + ACP_CLKMUX_SEL);
 	acp5x_enable_interrupts(acp5x_base);
 	return 0;
 }
@@ -113,6 +115,8 @@ static int acp5x_deinit(void __iomem *acp5x_base)
 		pr_err("ACP5x reset failed\n");
 		return ret;
 	}
+	acp_writel(0x00, acp5x_base + ACP_CLKMUX_SEL);
+	acp_writel(0x00, acp5x_base + ACP_CONTROL);
 	return 0;
 }
 

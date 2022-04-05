@@ -56,6 +56,7 @@ enum cachefiles_coherency_trace {
 	cachefiles_coherency_set_ok,
 	cachefiles_coherency_vol_check_cmp,
 	cachefiles_coherency_vol_check_ok,
+	cachefiles_coherency_vol_check_resv,
 	cachefiles_coherency_vol_check_xattr,
 	cachefiles_coherency_vol_set_fail,
 	cachefiles_coherency_vol_set_ok,
@@ -139,6 +140,7 @@ enum cachefiles_error_trace {
 	EM(cachefiles_coherency_set_ok,		"SET ok  ")		\
 	EM(cachefiles_coherency_vol_check_cmp,	"VOL BAD cmp ")		\
 	EM(cachefiles_coherency_vol_check_ok,	"VOL OK      ")		\
+	EM(cachefiles_coherency_vol_check_resv,	"VOL BAD resv")	\
 	EM(cachefiles_coherency_vol_check_xattr,"VOL BAD xatt")		\
 	EM(cachefiles_coherency_vol_set_fail,	"VOL SET fail")		\
 	E_(cachefiles_coherency_vol_set_ok,	"VOL SET ok  ")
@@ -424,8 +426,8 @@ TRACE_EVENT(cachefiles_vol_coherency,
 	    );
 
 TRACE_EVENT(cachefiles_prep_read,
-	    TP_PROTO(struct netfs_read_subrequest *sreq,
-		     enum netfs_read_source source,
+	    TP_PROTO(struct netfs_io_subrequest *sreq,
+		     enum netfs_io_source source,
 		     enum cachefiles_prepare_read_trace why,
 		     ino_t cache_inode),
 
@@ -435,7 +437,7 @@ TRACE_EVENT(cachefiles_prep_read,
 		    __field(unsigned int,		rreq		)
 		    __field(unsigned short,		index		)
 		    __field(unsigned short,		flags		)
-		    __field(enum netfs_read_source,	source		)
+		    __field(enum netfs_io_source,	source		)
 		    __field(enum cachefiles_prepare_read_trace,	why	)
 		    __field(size_t,			len		)
 		    __field(loff_t,			start		)

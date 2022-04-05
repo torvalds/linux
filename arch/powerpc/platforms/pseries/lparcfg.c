@@ -311,6 +311,92 @@ static void parse_mpp_x_data(struct seq_file *m)
 		seq_printf(m, "coalesce_pool_spurr=%ld\n", mpp_x_data.pool_spurr_cycles);
 }
 
+/*
+ * PAPR defines, in section "7.3.16 System Parameters Option", the token 55 to
+ * read the LPAR name, and the largest output data to 4000 + 2 bytes length.
+ */
+#define SPLPAR_LPAR_NAME_TOKEN	55
+#define GET_SYS_PARM_BUF_SIZE	4002
+#if GET_SYS_PARM_BUF_SIZE > RTAS_DATA_BUF_SIZE
+#error "GET_SYS_PARM_BUF_SIZE is larger than RTAS_DATA_BUF_SIZE"
+#endif
+
+/*
+ * Read the lpar name using the RTAS ibm,get-system-parameter call.
+ *
+ * The name read through this call is updated if changes are made by the end
+ * user on the hypervisor side.
+ *
+ * Some hypervisor (like Qemu) may not provide this value. In that case, a non
+ * null value is returned.
+ */
+static int read_rtas_lpar_name(struct seq_file *m)
+{
+	int rc, len, token;
+	union {
+		char raw_buffer[GET_SYS_PARM_BUF_SIZE];
+		struct {
+			__be16 len;
+			char name[GET_SYS_PARM_BUF_SIZE-2];
+		};
+	} *local_buffer;
+
+	token = rtas_token("ibm,get-system-parameter");
+	if (token == RTAS_UNKNOWN_SERVICE)
+		return -EINVAL;
+
+	local_buffer = kmalloc(sizeof(*local_buffer), GFP_KERNEL);
+	if (!local_buffer)
+		return -ENOMEM;
+
+	do {
+		spin_lock(&rtas_data_buf_lock);
+		memset(rtas_data_buf, 0, sizeof(*local_buffer));
+		rc = rtas_call(token, 3, 1, NULL, SPLPAR_LPAR_NAME_TOKEN,
+			       __pa(rtas_data_buf), sizeof(*local_buffer));
+		if (!rc)
+			memcpy(local_buffer->raw_buffer, rtas_data_buf,
+			       sizeof(local_buffer->raw_buffer));
+		spin_unlock(&rtas_data_buf_lock);
+	} while (rtas_busy_delay(rc));
+
+	if (!rc) {
+		/* Force end of string */
+		len = min((int) be16_to_cpu(local_buffer->len),
+			  (int) sizeof(local_buffer->name)-1);
+		local_buffer->name[len] = '\0';
+
+		seq_printf(m, "partition_name=%s\n", local_buffer->name);
+	} else
+		rc = -ENODATA;
+
+	kfree(local_buffer);
+	return rc;
+}
+
+/*
+ * Read the LPAR name from the Device Tree.
+ *
+ * The value read in the DT is not updated if the end-user is touching the LPAR
+ * name on the hypervisor side.
+ */
+static int read_dt_lpar_name(struct seq_file *m)
+{
+	const char *name;
+
+	if (of_property_read_string(of_root, "ibm,partition-name", &name))
+		return -ENOENT;
+
+	seq_printf(m, "partition_name=%s\n", name);
+	return 0;
+}
+
+static void read_lpar_name(struct seq_file *m)
+{
+	if (read_rtas_lpar_name(m) && read_dt_lpar_name(m))
+		pr_err_once("Error can't get the LPAR name");
+}
+
 #define SPLPAR_CHARACTERISTICS_TOKEN 20
 #define SPLPAR_MAXLENGTH 1026*(sizeof(char))
 
@@ -496,6 +582,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		/* this call handles the ibm,get-system-parameter contents */
+		read_lpar_name(m);
 		parse_system_parameter_string(m);
 		parse_ppp_data(m);
 		parse_mpp_data(m);

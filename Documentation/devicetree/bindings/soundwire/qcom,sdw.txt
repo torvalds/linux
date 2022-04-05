@@ -22,7 +22,19 @@ board specific bus parameters.
 - interrupts:
 	Usage: required
 	Value type: <prop-encoded-array>
-	Definition: should specify the SoundWire Controller IRQ
+	Definition: should specify the SoundWire Controller core and optional
+		    wake IRQ
+
+- interrupt-names:
+	Usage: Optional
+	Value type: boolean
+	Value type: <stringlist>
+	Definition: should be "core" for core and "wakeup" for wake interrupt.
+
+- wakeup-source:
+	Usage: Optional
+	Value type: boolean
+	Definition: should specify if SoundWire Controller is wake up capable.
 
 - clock-names:
 	Usage: required

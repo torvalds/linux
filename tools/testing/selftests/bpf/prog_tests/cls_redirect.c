@@ -161,7 +161,7 @@ static socklen_t prepare_addr(struct sockaddr_storage *addr, int family)
 	}
 }
 
-static bool was_decapsulated(struct bpf_prog_test_run_attr *tattr)
+static bool was_decapsulated(struct bpf_test_run_opts *tattr)
 {
 	return tattr->data_size_out < tattr->data_size_in;
 }
@@ -367,12 +367,12 @@ static void close_fds(int *fds, int n)
 
 static void test_cls_redirect_common(struct bpf_program *prog)
 {
-	struct bpf_prog_test_run_attr tattr = {};
+	LIBBPF_OPTS(bpf_test_run_opts, tattr);
 	int families[] = { AF_INET, AF_INET6 };
 	struct sockaddr_storage ss;
 	struct sockaddr *addr;
 	socklen_t slen;
-	int i, j, err;
+	int i, j, err, prog_fd;
 	int servers[__NR_KIND][ARRAY_SIZE(families)] = {};
 	int conns[__NR_KIND][ARRAY_SIZE(families)] = {};
 	struct tuple tuples[__NR_KIND][ARRAY_SIZE(families)];
@@ -394,7 +394,7 @@ static void test_cls_redirect_common(struct bpf_program *prog)
 			goto cleanup;
 	}
 
-	tattr.prog_fd = bpf_program__fd(prog);
+	prog_fd = bpf_program__fd(prog);
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		struct test_cfg *test = &tests[i];
 
@@ -415,7 +415,7 @@ static void test_cls_redirect_common(struct bpf_program *prog)
 			if (CHECK_FAIL(!tattr.data_size_in))
 				continue;
 
-			err = bpf_prog_test_run_xattr(&tattr);
+			err = bpf_prog_test_run_opts(prog_fd, &tattr);
 			if (CHECK_FAIL(err))
 				continue;
 

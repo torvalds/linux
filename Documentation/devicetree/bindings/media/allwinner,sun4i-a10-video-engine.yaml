@@ -48,6 +48,10 @@ properties:
 
   allwinner,sram:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to SRAM
+          - description: register value for device
     description: Phandle to the device SRAM
 
   iommus:

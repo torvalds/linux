@@ -232,10 +232,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp_thread_fn,
 		p->thread.ra = MAKE_RA_FOR_CALL(
 				(unsigned long)ret_from_fork, 0x1);
 
-		/* This does not copy all the regs.
-		 * In a bout of brilliance or madness,
-		 * ARs beyond a0-a15 exist past the end of the struct.
-		 */
 		*childregs = *regs;
 		childregs->areg[1] = usp;
 		childregs->areg[2] = 0;
@@ -265,13 +261,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp_thread_fn,
 			childregs->wmask = 1;
 			childregs->windowstart = 1;
 			childregs->windowbase = 0;
-		} else {
-			int len = childregs->wmask & ~0xf;
-			memcpy(&childregs->areg[XCHAL_NUM_AREGS - len/4],
-			       &regs->areg[XCHAL_NUM_AREGS - len/4], len);
 		}
-
-		childregs->syscall = regs->syscall;
 
 		if (clone_flags & CLONE_SETTLS)
 			childregs->threadptr = tls;

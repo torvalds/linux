@@ -269,7 +269,7 @@ out:
 	return err ? err : 0;
 }
 
-/**
+/*
  * Swap memory between @a and @b for @len bytes.
  *
  * @a:          pointer to first memory area
@@ -290,7 +290,7 @@ static void memswap(void *a, void *b, size_t len)
 	}
 }
 
-/**
+/*
  * Swap i_data and associated attributes between @inode1 and @inode2.
  * This function is used for the primary swap between inode1 and inode2
  * and also to revert this primary swap in case of errors.
@@ -344,7 +344,7 @@ void ext4_reset_inode_seed(struct inode *inode)
 	ei->i_csum_seed = ext4_chksum(sbi, csum, (__u8 *)&gen, sizeof(gen));
 }
 
-/**
+/*
  * Swap the information from the given @inode and the inode
  * EXT4_BOOT_LOADER_INO. It will basically swap i_data and all other
  * important fields of the inodes.
@@ -411,7 +411,7 @@ static long swap_inode_boot_loader(struct super_block *sb,
 		err = -EINVAL;
 		goto err_out;
 	}
-	ext4_fc_mark_ineligible(sb, EXT4_FC_REASON_SWAP_BOOT);
+	ext4_fc_mark_ineligible(sb, EXT4_FC_REASON_SWAP_BOOT, handle);
 
 	/* Protect extent tree against block allocations via delalloc */
 	ext4_double_down_write_data_sem(inode, inode_bl);
@@ -1373,7 +1373,7 @@ mext_out:
 
 		err = ext4_resize_fs(sb, n_blocks_count);
 		if (EXT4_SB(sb)->s_journal) {
-			ext4_fc_mark_ineligible(sb, EXT4_FC_REASON_RESIZE);
+			ext4_fc_mark_ineligible(sb, EXT4_FC_REASON_RESIZE, NULL);
 			jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
 			err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal, 0);
 			jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);

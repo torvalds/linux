@@ -228,6 +228,14 @@ int handle_exit(struct kvm_vcpu *vcpu, int exception_index)
 {
 	struct kvm_run *run = vcpu->run;
 
+	if (ARM_SERROR_PENDING(exception_index)) {
+		/*
+		 * The SError is handled by handle_exit_early(). If the guest
+		 * survives it will re-execute the original instruction.
+		 */
+		return 1;
+	}
+
 	exception_index = ARM_EXCEPTION_CODE(exception_index);
 
 	switch (exception_index) {
@@ -240,7 +248,7 @@ int handle_exit(struct kvm_vcpu *vcpu, int exception_index)
 	case ARM_EXCEPTION_HYP_GONE:
 		/*
 		 * EL2 has been reset to the hyp-stub. This happens when a guest
-		 * is pre-empted by kvm_reboot()'s shutdown call.
+		 * is pre-emptied by kvm_reboot()'s shutdown call.
 		 */
 		run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 		return 0;

@@ -773,63 +773,42 @@ static int thunderbay_build_groups(struct thunderbay_pinctrl *tpc)
 
 static int thunderbay_add_functions(struct thunderbay_pinctrl *tpc, struct function_desc *funcs)
 {
-	struct function_desc *function = funcs;
 	int i;
 
 	/* Assign the groups for each function */
-	for (i = 0; i < tpc->soc->npins; i++) {
-		const struct pinctrl_pin_desc *pin_info = thunderbay_pins + i;
-		struct thunderbay_mux_desc *pin_mux = pin_info->drv_data;
+	for (i = 0; i < tpc->nfuncs; i++) {
+		struct function_desc *func = &funcs[i];
+		const char **group_names;
+		unsigned int grp_idx = 0;
+		int j;
 
-		while (pin_mux->name) {
-			const char **grp;
-			int j, grp_num, match = 0;
-			size_t grp_size;
-			struct function_desc *func;
+		group_names = devm_kcalloc(tpc->dev, func->num_group_names,
+					   sizeof(*group_names), GFP_KERNEL);
+		if (!group_names)
+			return -ENOMEM;
 
-			for (j = 0; j < tpc->nfuncs; j++) {
-				if (!strcmp(pin_mux->name, function[j].name)) {
-					match = 1;
-					break;
-				}
+		for (j = 0; j < tpc->soc->npins; j++) {
+			const struct pinctrl_pin_desc *pin_info = &thunderbay_pins[j];
+			struct thunderbay_mux_desc *pin_mux;
+
+			for (pin_mux = pin_info->drv_data; pin_mux->name; pin_mux++) {
+				if (!strcmp(pin_mux->name, func->name))
+					group_names[grp_idx++] = pin_info->name;
 			}
-
-			if (!match)
-				return -EINVAL;
-
-			func = function + j;
-			grp_num = func->num_group_names;
-			grp_size = sizeof(*func->group_names);
-
-			if (!func->group_names) {
-				func->group_names = devm_kcalloc(tpc->dev,
-								 grp_num,
-								 grp_size,
-								 GFP_KERNEL);
-				if (!func->group_names) {
-					kfree(func);
-					return -ENOMEM;
-				}
-			}
-
-			grp = func->group_names;
-			while (*grp)
-				grp++;
-
-			*grp = pin_info->name;
-			pin_mux++;
 		}
+
+		func->group_names = group_names;
 	}
 
 	/* Add all functions */
 	for (i = 0; i < tpc->nfuncs; i++) {
 		pinmux_generic_add_function(tpc->pctrl,
-					    function[i].name,
-					    function[i].group_names,
-					    function[i].num_group_names,
-					    function[i].data);
+					    funcs[i].name,
+					    funcs[i].group_names,
+					    funcs[i].num_group_names,
+					    funcs[i].data);
 	}
-	kfree(function);
+	kfree(funcs);
 	return 0;
 }
 
@@ -839,27 +818,30 @@ static int thunderbay_build_functions(struct thunderbay_pinctrl *tpc)
 	void *ptr;
 	int pin;
 
-	/* Total number of functions is unknown at this point. Allocate first. */
+	/*
+	 * Allocate maximum possible number of functions. Assume every pin
+	 * being part of 8 (hw maximum) globally unique muxes.
+	 */
 	tpc->nfuncs = 0;
 	thunderbay_funcs = kcalloc(tpc->soc->npins * 8,
 				   sizeof(*thunderbay_funcs), GFP_KERNEL);
 	if (!thunderbay_funcs)
 		return -ENOMEM;
 
-	/* Find total number of functions and each's properties */
+	/* Setup 1 function for each unique mux */
 	for (pin = 0; pin < tpc->soc->npins; pin++) {
 		const struct pinctrl_pin_desc *pin_info = thunderbay_pins + pin;
-		struct thunderbay_mux_desc *pin_mux = pin_info->drv_data;
+		struct thunderbay_mux_desc *pin_mux;
 
-		while (pin_mux->name) {
-			struct function_desc *func = thunderbay_funcs;
+		for (pin_mux = pin_info->drv_data; pin_mux->name; pin_mux++) {
+			struct function_desc *func;
 
-			while (func->name) {
+			/* Check if we already have function for this mux */
+			for (func = thunderbay_funcs; func->name; func++) {
 				if (!strcmp(pin_mux->name, func->name)) {
 					func->num_group_names++;
 					break;
 				}
-				func++;
 			}
 
 			if (!func->name) {
@@ -868,8 +850,6 @@ static int thunderbay_build_functions(struct thunderbay_pinctrl *tpc)
 				func->data = (int *)&pin_mux->mode;
 				tpc->nfuncs++;
 			}
-
-			pin_mux++;
 		}
 	}
 

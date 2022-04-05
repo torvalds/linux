@@ -9,6 +9,7 @@
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_object.h"
 #include "i915_active.h"
+#include "i915_driver.h"
 #include "i915_params.h"
 #include "i915_pci.h"
 #include "i915_perf.h"
@@ -16,6 +17,7 @@
 #include "i915_scheduler.h"
 #include "i915_selftest.h"
 #include "i915_vma.h"
+#include "i915_vma_resource.h"
 
 static int i915_check_nomodeset(void)
 {
@@ -61,6 +63,8 @@ static const struct {
 	  .exit = i915_scheduler_module_exit },
 	{ .init = i915_vma_module_init,
 	  .exit = i915_vma_module_exit },
+	{ .init = i915_vma_resource_module_init,
+	  .exit = i915_vma_resource_module_exit },
 	{ .init = i915_mock_selftests },
 	{ .init = i915_pmu_init,
 	  .exit = i915_pmu_exit },

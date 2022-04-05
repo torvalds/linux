@@ -7,6 +7,7 @@
 #include <linux/topology.h>
 #include <linux/nodemask.h>
 #include <linux/percpu.h>
+#include <asm/ibt.h>
 
 #ifdef CONFIG_SMP
 
@@ -72,4 +73,7 @@ void init_ia32_feat_ctl(struct cpuinfo_x86 *c);
 #else
 static inline void init_ia32_feat_ctl(struct cpuinfo_x86 *c) {}
 #endif
+
+extern __noendbr void cet_disable(void);
+
 #endif /* _ASM_X86_CPU_H */

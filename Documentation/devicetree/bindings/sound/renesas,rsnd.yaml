@@ -123,9 +123,7 @@ properties:
     $ref: audio-graph-port.yaml#
     unevaluatedProperties: false
 
-# use patternProperties to avoid naming "xxx,yyy" issue
-patternProperties:
-  "^rcar_sound,dvc$":
+  rcar_sound,dvc:
     description: DVC subnode.
     type: object
     patternProperties:
@@ -141,7 +139,7 @@ patternProperties:
           - dma-names
     additionalProperties: false
 
-  "^rcar_sound,mix$":
+  rcar_sound,mix:
     description: MIX subnode.
     type: object
     patternProperties:
@@ -150,7 +148,7 @@ patternProperties:
         # no properties
     additionalProperties: false
 
-  "^rcar_sound,ctu$":
+  rcar_sound,ctu:
     description: CTU subnode.
     type: object
     patternProperties:
@@ -159,7 +157,7 @@ patternProperties:
         # no properties
     additionalProperties: false
 
-  "^rcar_sound,src$":
+  rcar_sound,src:
     description: SRC subnode.
     type: object
     patternProperties:
@@ -182,7 +180,7 @@ patternProperties:
           - dma-names
     additionalProperties: false
 
-  "^rcar_sound,ssiu$":
+  rcar_sound,ssiu:
     description: SSIU subnode.
     type: object
     patternProperties:
@@ -202,7 +200,7 @@ patternProperties:
           - dma-names
     additionalProperties: false
 
-  "^rcar_sound,ssi$":
+  rcar_sound,ssi:
     description: SSI subnode.
     type: object
     patternProperties:
@@ -239,7 +237,7 @@ patternProperties:
     additionalProperties: false
 
   # For DAI base
-  "^rcar_sound,dai$":
+  rcar_sound,dai:
     description: DAI subnode.
     type: object
     patternProperties:

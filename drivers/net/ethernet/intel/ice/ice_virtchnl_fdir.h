@@ -6,6 +6,7 @@
 
 struct ice_vf;
 struct ice_pf;
+struct ice_vsi;
 
 enum ice_fdir_ctx_stat {
 	ICE_FDIR_CTX_READY,

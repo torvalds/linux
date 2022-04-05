@@ -138,14 +138,8 @@
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0 &LITTLE_CPU_SLEEP_1>;
 			next-level-cache = <&L2_0>;
 			L2_0: l2-cache {
-				compatible = "arm,arch-cache";
+				compatible = "cache";
 				cache-level = <2>;
-			};
-			L1_I_0: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_0: l1-dcache {
-				compatible = "arm,arch-cache";
 			};
 		};
 
@@ -157,12 +151,6 @@
 			capacity-dmips-mhz = <1024>;
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0 &LITTLE_CPU_SLEEP_1>;
 			next-level-cache = <&L2_0>;
-			L1_I_1: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_1: l1-dcache {
-				compatible = "arm,arch-cache";
-			};
 		};
 
 		CPU2: cpu@2 {
@@ -173,12 +161,6 @@
 			capacity-dmips-mhz = <1024>;
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0 &LITTLE_CPU_SLEEP_1>;
 			next-level-cache = <&L2_0>;
-			L1_I_2: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_2: l1-dcache {
-				compatible = "arm,arch-cache";
-			};
 		};
 
 		CPU3: cpu@3 {
@@ -189,12 +171,6 @@
 			capacity-dmips-mhz = <1024>;
 			cpu-idle-states = <&LITTLE_CPU_SLEEP_0 &LITTLE_CPU_SLEEP_1>;
 			next-level-cache = <&L2_0>;
-			L1_I_3: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_3: l1-dcache {
-				compatible = "arm,arch-cache";
-			};
 		};
 
 		CPU4: cpu@100 {
@@ -206,14 +182,8 @@
 			cpu-idle-states = <&BIG_CPU_SLEEP_0 &BIG_CPU_SLEEP_1>;
 			next-level-cache = <&L2_1>;
 			L2_1: l2-cache {
-				compatible = "arm,arch-cache";
+				compatible = "cache";
 				cache-level = <2>;
-			};
-			L1_I_100: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_100: l1-dcache {
-				compatible = "arm,arch-cache";
 			};
 		};
 
@@ -225,12 +195,6 @@
 			capacity-dmips-mhz = <1536>;
 			cpu-idle-states = <&BIG_CPU_SLEEP_0 &BIG_CPU_SLEEP_1>;
 			next-level-cache = <&L2_1>;
-			L1_I_101: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_101: l1-dcache {
-				compatible = "arm,arch-cache";
-			};
 		};
 
 		CPU6: cpu@102 {
@@ -241,12 +205,6 @@
 			capacity-dmips-mhz = <1536>;
 			cpu-idle-states = <&BIG_CPU_SLEEP_0 &BIG_CPU_SLEEP_1>;
 			next-level-cache = <&L2_1>;
-			L1_I_102: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_102: l1-dcache {
-				compatible = "arm,arch-cache";
-			};
 		};
 
 		CPU7: cpu@103 {
@@ -257,12 +215,6 @@
 			capacity-dmips-mhz = <1536>;
 			cpu-idle-states = <&BIG_CPU_SLEEP_0 &BIG_CPU_SLEEP_1>;
 			next-level-cache = <&L2_1>;
-			L1_I_103: l1-icache {
-				compatible = "arm,arch-cache";
-			};
-			L1_D_103: l1-dcache {
-				compatible = "arm,arch-cache";
-			};
 		};
 
 		cpu-map {
@@ -674,7 +626,7 @@
 			};
 		};
 
-		gpu-thermal-bottom {
+		gpu-bottom-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -689,7 +641,7 @@
 			};
 		};
 
-		gpu-thermal-top {
+		gpu-top-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 

@@ -91,6 +91,10 @@ struct amdgpu_mman {
 	u64		fw_vram_usage_size;
 	struct amdgpu_bo	*fw_vram_usage_reserved_bo;
 	void		*fw_vram_usage_va;
+
+	/* PAGE_SIZE'd BO for process memory r/w over SDMA. */
+	struct amdgpu_bo	*sdma_access_bo;
+	void			*sdma_access_ptr;
 };
 
 struct amdgpu_copy_mem {
@@ -107,7 +111,7 @@ int amdgpu_vram_mgr_init(struct amdgpu_device *adev);
 void amdgpu_vram_mgr_fini(struct amdgpu_device *adev);
 
 bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_resource *mem);
-int amdgpu_gtt_mgr_recover(struct amdgpu_gtt_mgr *mgr);
+void amdgpu_gtt_mgr_recover(struct amdgpu_gtt_mgr *mgr);
 
 uint64_t amdgpu_preempt_mgr_usage(struct ttm_resource_manager *man);
 
@@ -149,7 +153,7 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 			struct dma_fence **fence);
 
 int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo);
-int amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo);
+void amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo);
 uint64_t amdgpu_ttm_domain_start(struct amdgpu_device *adev, uint32_t type);
 
 #if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
@@ -168,6 +172,8 @@ static inline bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm)
 #endif
 
 void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct page **pages);
+int amdgpu_ttm_tt_get_userptr(const struct ttm_buffer_object *tbo,
+			      uint64_t *user_addr);
 int amdgpu_ttm_tt_set_userptr(struct ttm_buffer_object *bo,
 			      uint64_t addr, uint32_t flags);
 bool amdgpu_ttm_tt_has_userptr(struct ttm_tt *ttm);

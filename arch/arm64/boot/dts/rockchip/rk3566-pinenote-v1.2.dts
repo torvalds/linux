@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+/dts-v1/;
+
+#include "rk3566-pinenote.dtsi"
+
+/ {
+	model = "Pine64 PineNote v1.2";
+	compatible = "pine64,pinenote-v1.2", "pine64,pinenote", "rockchip,rk3566";
+};
+
+&pmu_io_domains {
+	vccio7-supply = <&vcc_3v3>;
+};
+
+&spk_amp {
+	VCC-supply = <&vcc_bat>;
+};

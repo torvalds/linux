@@ -1145,14 +1145,12 @@ struct drm_crtc {
 	 */
 	spinlock_t commit_lock;
 
-#ifdef CONFIG_DEBUG_FS
 	/**
 	 * @debugfs_entry:
 	 *
 	 * Debugfs directory for this CRTC.
 	 */
 	struct dentry *debugfs_entry;
-#endif
 
 	/**
 	 * @crc:

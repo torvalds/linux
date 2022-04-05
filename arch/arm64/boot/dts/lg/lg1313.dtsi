@@ -182,12 +182,13 @@
 			clocks = <&clk_bus>;
 			clock-names = "apb_pclk";
 		};
-		dmac0: dma@c1128000 {
+		dmac0: dma-controller@c1128000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x0 0xc1128000 0x1000>;
 			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_bus>;
 			clock-names = "apb_pclk";
+			#dma-cells = <1>;
 		};
 		gpio0: gpio@fd400000 {
 			#gpio-cells = <2>;

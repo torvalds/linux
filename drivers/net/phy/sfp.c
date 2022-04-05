@@ -471,8 +471,8 @@ static unsigned int sfp_soft_get_state(struct sfp *sfp)
 			state |= SFP_F_TX_FAULT;
 	} else {
 		dev_err_ratelimited(sfp->dev,
-				    "failed to read SFP soft status: %d\n",
-				    ret);
+				    "failed to read SFP soft status: %pe\n",
+				    ERR_PTR(ret));
 		/* Preserve the current state */
 		state = sfp->state;
 	}
@@ -1311,7 +1311,8 @@ static void sfp_hwmon_probe(struct work_struct *work)
 			mod_delayed_work(system_wq, &sfp->hwmon_probe,
 					 T_PROBE_RETRY_SLOW);
 		} else {
-			dev_warn(sfp->dev, "hwmon probe failed: %d\n", err);
+			dev_warn(sfp->dev, "hwmon probe failed: %pe\n",
+				 ERR_PTR(err));
 		}
 		return;
 	}
@@ -1516,14 +1517,15 @@ static int sfp_sm_probe_phy(struct sfp *sfp, bool is_c45)
 	if (phy == ERR_PTR(-ENODEV))
 		return PTR_ERR(phy);
 	if (IS_ERR(phy)) {
-		dev_err(sfp->dev, "mdiobus scan returned %ld\n", PTR_ERR(phy));
+		dev_err(sfp->dev, "mdiobus scan returned %pe\n", phy);
 		return PTR_ERR(phy);
 	}
 
 	err = phy_device_register(phy);
 	if (err) {
 		phy_device_free(phy);
-		dev_err(sfp->dev, "phy_device_register failed: %d\n", err);
+		dev_err(sfp->dev, "phy_device_register failed: %pe\n",
+			ERR_PTR(err));
 		return err;
 	}
 
@@ -1531,7 +1533,7 @@ static int sfp_sm_probe_phy(struct sfp *sfp, bool is_c45)
 	if (err) {
 		phy_device_remove(phy);
 		phy_device_free(phy);
-		dev_err(sfp->dev, "sfp_add_phy failed: %d\n", err);
+		dev_err(sfp->dev, "sfp_add_phy failed: %pe\n", ERR_PTR(err));
 		return err;
 	}
 
@@ -1708,7 +1710,7 @@ static int sfp_sm_mod_hpower(struct sfp *sfp, bool enable)
 
 	err = sfp_read(sfp, true, SFP_EXT_STATUS, &val, sizeof(val));
 	if (err != sizeof(val)) {
-		dev_err(sfp->dev, "Failed to read EEPROM: %d\n", err);
+		dev_err(sfp->dev, "Failed to read EEPROM: %pe\n", ERR_PTR(err));
 		return -EAGAIN;
 	}
 
@@ -1726,7 +1728,8 @@ static int sfp_sm_mod_hpower(struct sfp *sfp, bool enable)
 
 	err = sfp_write(sfp, true, SFP_EXT_STATUS, &val, sizeof(val));
 	if (err != sizeof(val)) {
-		dev_err(sfp->dev, "Failed to write EEPROM: %d\n", err);
+		dev_err(sfp->dev, "Failed to write EEPROM: %pe\n",
+			ERR_PTR(err));
 		return -EAGAIN;
 	}
 
@@ -1778,7 +1781,9 @@ static int sfp_cotsworks_fixup_check(struct sfp *sfp, struct sfp_eeprom_id *id)
 		id->base.connector = SFF8024_CONNECTOR_LC;
 		err = sfp_write(sfp, false, SFP_PHYS_ID, &id->base, 3);
 		if (err != 3) {
-			dev_err(sfp->dev, "Failed to rewrite module EEPROM: %d\n", err);
+			dev_err(sfp->dev,
+				"Failed to rewrite module EEPROM: %pe\n",
+				ERR_PTR(err));
 			return err;
 		}
 
@@ -1789,7 +1794,9 @@ static int sfp_cotsworks_fixup_check(struct sfp *sfp, struct sfp_eeprom_id *id)
 		check = sfp_check(&id->base, sizeof(id->base) - 1);
 		err = sfp_write(sfp, false, SFP_CC_BASE, &check, 1);
 		if (err != 1) {
-			dev_err(sfp->dev, "Failed to update base structure checksum in fiber module EEPROM: %d\n", err);
+			dev_err(sfp->dev,
+				"Failed to update base structure checksum in fiber module EEPROM: %pe\n",
+				ERR_PTR(err));
 			return err;
 		}
 	}
@@ -1814,12 +1821,13 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	ret = sfp_read(sfp, false, 0, &id.base, sizeof(id.base));
 	if (ret < 0) {
 		if (report)
-			dev_err(sfp->dev, "failed to read EEPROM: %d\n", ret);
+			dev_err(sfp->dev, "failed to read EEPROM: %pe\n",
+				ERR_PTR(ret));
 		return -EAGAIN;
 	}
 
 	if (ret != sizeof(id.base)) {
-		dev_err(sfp->dev, "EEPROM short read: %d\n", ret);
+		dev_err(sfp->dev, "EEPROM short read: %pe\n", ERR_PTR(ret));
 		return -EAGAIN;
 	}
 
@@ -1839,13 +1847,15 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 		ret = sfp_read(sfp, false, 0, &id.base, sizeof(id.base));
 		if (ret < 0) {
 			if (report)
-				dev_err(sfp->dev, "failed to read EEPROM: %d\n",
-					ret);
+				dev_err(sfp->dev,
+					"failed to read EEPROM: %pe\n",
+					ERR_PTR(ret));
 			return -EAGAIN;
 		}
 
 		if (ret != sizeof(id.base)) {
-			dev_err(sfp->dev, "EEPROM short read: %d\n", ret);
+			dev_err(sfp->dev, "EEPROM short read: %pe\n",
+				ERR_PTR(ret));
 			return -EAGAIN;
 		}
 	}
@@ -1887,12 +1897,13 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	ret = sfp_read(sfp, false, SFP_CC_BASE + 1, &id.ext, sizeof(id.ext));
 	if (ret < 0) {
 		if (report)
-			dev_err(sfp->dev, "failed to read EEPROM: %d\n", ret);
+			dev_err(sfp->dev, "failed to read EEPROM: %pe\n",
+				ERR_PTR(ret));
 		return -EAGAIN;
 	}
 
 	if (ret != sizeof(id.ext)) {
-		dev_err(sfp->dev, "EEPROM short read: %d\n", ret);
+		dev_err(sfp->dev, "EEPROM short read: %pe\n", ERR_PTR(ret));
 		return -EAGAIN;
 	}
 
@@ -2046,7 +2057,8 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 
 		err = sfp_hwmon_insert(sfp);
 		if (err)
-			dev_warn(sfp->dev, "hwmon probe failed: %d\n", err);
+			dev_warn(sfp->dev, "hwmon probe failed: %pe\n",
+				 ERR_PTR(err));
 
 		sfp_sm_mod_next(sfp, SFP_MOD_WAITDEV, 0);
 		fallthrough;

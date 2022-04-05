@@ -253,7 +253,6 @@
 		port@0 {
 			reg = <0>;
 			csiphy0_ep: endpoint {
-				clock-lanes = <1>;
 				data-lanes = <0 2>;
 				remote-endpoint = <&ov5640_ep>;
 				status = "okay";
@@ -289,7 +288,6 @@
 
 		port {
 			ov5640_ep: endpoint {
-				clock-lanes = <1>;
 				data-lanes = <0 2>;
 				remote-endpoint = <&csiphy0_ep>;
 			};
@@ -351,12 +349,12 @@
 	pinctrl-0 = <&cdc_pdm_lines_act &ext_sec_tlmm_lines_act &ext_mclk_tlmm_lines_act>;
 	pinctrl-1 = <&cdc_pdm_lines_sus &ext_sec_tlmm_lines_sus &ext_mclk_tlmm_lines_sus>;
 	pinctrl-names = "default", "sleep";
-	qcom,model = "DB410c";
-	qcom,audio-routing =
+	model = "DB410c";
+	audio-routing =
 		"AMIC2", "MIC BIAS Internal2",
 		"AMIC3", "MIC BIAS External1";
 
-	external-dai-link@0 {
+	quaternary-dai-link {
 		link-name = "ADV7533";
 		cpu {
 			sound-dai = <&lpass MI2S_QUATERNARY>;
@@ -366,7 +364,7 @@
 		};
 	};
 
-	internal-codec-playback-dai-link@0 {
+	primary-dai-link {
 		link-name = "WCD";
 		cpu {
 			sound-dai = <&lpass MI2S_PRIMARY>;
@@ -376,7 +374,7 @@
 		};
 	};
 
-	internal-codec-capture-dai-link@0 {
+	tertiary-dai-link {
 		link-name = "WCD-Capture";
 		cpu {
 			sound-dai = <&lpass MI2S_TERTIARY>;

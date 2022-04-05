@@ -8,6 +8,7 @@
 #include <asm/processor.h>
 #include <asm/sections.h>
 #include <asm/alternative.h>
+#include <asm/cacheflush.h>
 
 #include <linux/module.h>
 
@@ -106,6 +107,15 @@ void __init apply_alternatives_all(void)
 
 	apply_alternatives((struct alt_instr *) &__alt_instructions,
 		(struct alt_instr *) &__alt_instructions_end, NULL);
+
+	if (cache_info.dc_size == 0 && cache_info.ic_size == 0) {
+		pr_info("alternatives: optimizing cache-flushes.\n");
+		static_branch_disable(&parisc_has_cache);
+	}
+	if (cache_info.dc_size == 0)
+		static_branch_disable(&parisc_has_dcache);
+	if (cache_info.ic_size == 0)
+		static_branch_disable(&parisc_has_icache);
 
 	set_kernel_text_rw(0);
 }

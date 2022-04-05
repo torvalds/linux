@@ -328,7 +328,7 @@ static inline unsigned long get_kuap(void)
 	return mfspr(SPRN_AMR);
 }
 
-static inline void set_kuap(unsigned long value)
+static __always_inline void set_kuap(unsigned long value)
 {
 	if (!mmu_has_feature(MMU_FTR_BOOK3S_KUAP))
 		return;
@@ -398,7 +398,7 @@ static __always_inline void allow_user_access(void __user *to, const void __user
 
 #endif /* !CONFIG_PPC_KUAP */
 
-static inline void prevent_user_access(unsigned long dir)
+static __always_inline void prevent_user_access(unsigned long dir)
 {
 	set_kuap(AMR_KUAP_BLOCKED);
 	if (static_branch_unlikely(&uaccess_flush_key))

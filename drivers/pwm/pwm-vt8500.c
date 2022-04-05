@@ -235,7 +235,7 @@ MODULE_DEVICE_TABLE(of, vt8500_pwm_dt_ids);
 
 static int vt8500_pwm_probe(struct platform_device *pdev)
 {
-	struct vt8500_chip *chip;
+	struct vt8500_chip *vt8500;
 	struct device_node *np = pdev->dev.of_node;
 	int ret;
 
@@ -244,48 +244,48 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL)
+	vt8500 = devm_kzalloc(&pdev->dev, sizeof(*vt8500), GFP_KERNEL);
+	if (vt8500 == NULL)
 		return -ENOMEM;
 
-	chip->chip.dev = &pdev->dev;
-	chip->chip.ops = &vt8500_pwm_ops;
-	chip->chip.npwm = VT8500_NR_PWMS;
+	vt8500->chip.dev = &pdev->dev;
+	vt8500->chip.ops = &vt8500_pwm_ops;
+	vt8500->chip.npwm = VT8500_NR_PWMS;
 
-	chip->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(chip->clk)) {
+	vt8500->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(vt8500->clk)) {
 		dev_err(&pdev->dev, "clock source not specified\n");
-		return PTR_ERR(chip->clk);
+		return PTR_ERR(vt8500->clk);
 	}
 
-	chip->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(chip->base))
-		return PTR_ERR(chip->base);
+	vt8500->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(vt8500->base))
+		return PTR_ERR(vt8500->base);
 
-	ret = clk_prepare(chip->clk);
+	ret = clk_prepare(vt8500->clk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to prepare clock\n");
 		return ret;
 	}
 
-	ret = pwmchip_add(&chip->chip);
+	ret = pwmchip_add(&vt8500->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add PWM chip\n");
-		clk_unprepare(chip->clk);
+		clk_unprepare(vt8500->clk);
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, chip);
+	platform_set_drvdata(pdev, vt8500);
 	return ret;
 }
 
 static int vt8500_pwm_remove(struct platform_device *pdev)
 {
-	struct vt8500_chip *chip = platform_get_drvdata(pdev);
+	struct vt8500_chip *vt8500 = platform_get_drvdata(pdev);
 
-	pwmchip_remove(&chip->chip);
+	pwmchip_remove(&vt8500->chip);
 
-	clk_unprepare(chip->clk);
+	clk_unprepare(vt8500->clk);
 
 	return 0;
 }

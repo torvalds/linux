@@ -273,6 +273,23 @@ static inline void iov_iter_reexpand(struct iov_iter *i, size_t count)
 	i->count = count;
 }
 
+static inline int
+iov_iter_npages_cap(struct iov_iter *i, int maxpages, size_t max_bytes)
+{
+	size_t shorted = 0;
+	int npages;
+
+	if (iov_iter_count(i) > max_bytes) {
+		shorted = iov_iter_count(i) - max_bytes;
+		iov_iter_truncate(i, max_bytes);
+	}
+	npages = iov_iter_npages(i, INT_MAX);
+	if (shorted)
+		iov_iter_reexpand(i, iov_iter_count(i) + shorted);
+
+	return npages;
+}
+
 struct csum_state {
 	__wsum csum;
 	size_t off;

@@ -70,6 +70,13 @@ struct memory_block {
 	unsigned long state;		/* serialized by the dev->lock */
 	int online_type;		/* for passing data to online routine */
 	int nid;			/* NID for this memory block */
+	/*
+	 * The single zone of this memory block if all PFNs of this memory block
+	 * that are System RAM (not a memory hole, not ZONE_DEVICE ranges) are
+	 * managed by a single zone. NULL if multiple zones (including nodes)
+	 * apply.
+	 */
+	struct zone *zone;
 	struct device dev;
 	/*
 	 * Number of vmemmap pages. These pages
@@ -161,6 +168,11 @@ int walk_dynamic_memory_groups(int nid, walk_memory_groups_func_t func,
 })
 #define register_hotmemory_notifier(nb)		register_memory_notifier(nb)
 #define unregister_hotmemory_notifier(nb) 	unregister_memory_notifier(nb)
+
+#ifdef CONFIG_NUMA
+void memory_block_add_nid(struct memory_block *mem, int nid,
+			  enum meminit_context context);
+#endif /* CONFIG_NUMA */
 #endif	/* CONFIG_MEMORY_HOTPLUG */
 
 /*

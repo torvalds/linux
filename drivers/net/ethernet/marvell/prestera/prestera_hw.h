@@ -249,6 +249,12 @@ int prestera_hw_rif_delete(struct prestera_switch *sw, u16 rif_id,
 int prestera_hw_vr_create(struct prestera_switch *sw, u16 *vr_id);
 int prestera_hw_vr_delete(struct prestera_switch *sw, u16 vr_id);
 
+/* LPM PI */
+int prestera_hw_lpm_add(struct prestera_switch *sw, u16 vr_id,
+			__be32 dst, u32 dst_len, u32 grp_id);
+int prestera_hw_lpm_del(struct prestera_switch *sw, u16 vr_id,
+			__be32 dst, u32 dst_len);
+
 /* Event handlers */
 int prestera_hw_event_handler_register(struct prestera_switch *sw,
 				       enum prestera_event_type type,

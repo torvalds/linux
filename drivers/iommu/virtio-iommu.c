@@ -1008,12 +1008,6 @@ static int viommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 
 static struct iommu_ops viommu_ops = {
 	.domain_alloc		= viommu_domain_alloc,
-	.domain_free		= viommu_domain_free,
-	.attach_dev		= viommu_attach_dev,
-	.map			= viommu_map,
-	.unmap			= viommu_unmap,
-	.iova_to_phys		= viommu_iova_to_phys,
-	.iotlb_sync		= viommu_iotlb_sync,
 	.probe_device		= viommu_probe_device,
 	.probe_finalize		= viommu_probe_finalize,
 	.release_device		= viommu_release_device,
@@ -1022,6 +1016,14 @@ static struct iommu_ops viommu_ops = {
 	.put_resv_regions	= generic_iommu_put_resv_regions,
 	.of_xlate		= viommu_of_xlate,
 	.owner			= THIS_MODULE,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev		= viommu_attach_dev,
+		.map			= viommu_map,
+		.unmap			= viommu_unmap,
+		.iova_to_phys		= viommu_iova_to_phys,
+		.iotlb_sync		= viommu_iotlb_sync,
+		.free			= viommu_domain_free,
+	}
 };
 
 static int viommu_init_vqs(struct viommu_dev *viommu)

@@ -19,7 +19,8 @@ struct mpi3_nvme_encapsulated_request {
 	__le16                     dev_handle;
 	__le16                     encapsulated_command_length;
 	__le16                     flags;
-	__le32                     reserved10[4];
+	__le32                     data_length;
+	__le32                     reserved14[3];
 	__le32                     command[MPI3_NVME_ENCAP_CMD_MAX];
 };
 

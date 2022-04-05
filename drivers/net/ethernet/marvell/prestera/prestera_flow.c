@@ -29,9 +29,6 @@ static int prestera_flow_block_mall_cb(struct prestera_flow_block *block,
 static int prestera_flow_block_flower_cb(struct prestera_flow_block *block,
 					 struct flow_cls_offload *f)
 {
-	if (f->common.chain_index != 0)
-		return -EOPNOTSUPP;
-
 	switch (f->command) {
 	case FLOW_CLS_REPLACE:
 		return prestera_flower_replace(block, f);
@@ -71,6 +68,7 @@ static void prestera_flow_block_destroy(void *cb_priv)
 
 	prestera_flower_template_cleanup(block);
 
+	WARN_ON(!list_empty(&block->template_list));
 	WARN_ON(!list_empty(&block->binding_list));
 
 	kfree(block);
@@ -86,6 +84,7 @@ prestera_flow_block_create(struct prestera_switch *sw, struct net *net)
 		return NULL;
 
 	INIT_LIST_HEAD(&block->binding_list);
+	INIT_LIST_HEAD(&block->template_list);
 	block->net = net;
 	block->sw = sw;
 

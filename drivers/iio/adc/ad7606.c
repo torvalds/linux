@@ -693,7 +693,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_GPL(ad7606_probe);
+EXPORT_SYMBOL_NS_GPL(ad7606_probe, IIO_AD7606);
 
 #ifdef CONFIG_PM_SLEEP
 
@@ -725,7 +725,7 @@ static int ad7606_resume(struct device *dev)
 }
 
 SIMPLE_DEV_PM_OPS(ad7606_pm_ops, ad7606_suspend, ad7606_resume);
-EXPORT_SYMBOL_GPL(ad7606_pm_ops);
+EXPORT_SYMBOL_NS_GPL(ad7606_pm_ops, IIO_AD7606);
 
 #endif
 

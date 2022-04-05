@@ -224,6 +224,7 @@ static int imx8m_probe(struct snd_sof_dev *sdev)
 	}
 
 	ret = of_address_to_resource(res_node, 0, &res);
+	of_node_put(res_node);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get reserved region address\n");
 		goto exit_pdev_unregister;
@@ -434,7 +435,7 @@ static const struct snd_sof_dsp_ops sof_imx8m_ops = {
 	.get_window_offset	= imx8m_get_window_offset,
 
 	.ipc_msg_data	= sof_ipc_msg_data,
-	.ipc_pcm_params	= sof_ipc_pcm_params,
+	.set_stream_data_offset = sof_set_stream_data_offset,
 
 	/* module loading */
 	.load_module	= snd_sof_parse_module_memcpy,

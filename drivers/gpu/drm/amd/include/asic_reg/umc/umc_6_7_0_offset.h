@@ -31,6 +31,12 @@
 #define regMCA_UMC_UMC0_MCUMC_STATUST0_BASE_IDX                                                         0
 #define regMCA_UMC_UMC0_MCUMC_ADDRT0                                                                    0x03c4
 #define regMCA_UMC_UMC0_MCUMC_ADDRT0_BASE_IDX                                                           0
+#define regMCA_UMC_UMC0_MCUMC_MISC0T0                                                                   0x03c6
+#define regMCA_UMC_UMC0_MCUMC_MISC0T0_BASE_IDX                                                          0
+#define regMCA_UMC_UMC0_MCUMC_IPIDT0                                                                    0x03ca
+#define regMCA_UMC_UMC0_MCUMC_IPIDT0_BASE_IDX                                                           0
+#define regMCA_UMC_UMC0_MCUMC_SYNDT0                                                                    0x03cc
+#define regMCA_UMC_UMC0_MCUMC_SYNDT0_BASE_IDX                                                           0
 
 
 // addressBlock: umc_w_phy_umc0_umcch0_umcchdec

@@ -17,6 +17,7 @@
 
 #define IQS620_TEMP_SCALE			1000
 #define IQS620_TEMP_OFFSET			(-100)
+#define IQS620_TEMP_OFFSET_V3			(-40)
 
 static int iqs620_temp_read_raw(struct iio_dev *indio_dev,
 				struct iio_chan_spec const *chan,
@@ -41,7 +42,8 @@ static int iqs620_temp_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_OFFSET:
-		*val = IQS620_TEMP_OFFSET;
+		*val = iqs62x->hw_num < IQS620_HW_NUM_V3 ? IQS620_TEMP_OFFSET
+							 : IQS620_TEMP_OFFSET_V3;
 		return IIO_VAL_INT;
 
 	default:

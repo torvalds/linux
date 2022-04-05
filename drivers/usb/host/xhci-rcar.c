@@ -82,7 +82,7 @@ static const struct soc_device_attribute rcar_quirks_match[]  = {
 		.soc_id = "r8a7795", .revision = "ES1.*",
 		.data = (void *)RCAR_XHCI_FIRMWARE_V2,
 	},
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 
 static void xhci_rcar_start_gen2(struct usb_hcd *hcd)

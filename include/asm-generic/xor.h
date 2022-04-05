@@ -8,7 +8,8 @@
 #include <linux/prefetch.h>
 
 static void
-xor_8regs_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
+xor_8regs_2(unsigned long bytes, unsigned long * __restrict p1,
+	    const unsigned long * __restrict p2)
 {
 	long lines = bytes / (sizeof (long)) / 8;
 
@@ -27,8 +28,9 @@ xor_8regs_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
 }
 
 static void
-xor_8regs_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	    unsigned long *p3)
+xor_8regs_3(unsigned long bytes, unsigned long * __restrict p1,
+	    const unsigned long * __restrict p2,
+	    const unsigned long * __restrict p3)
 {
 	long lines = bytes / (sizeof (long)) / 8;
 
@@ -48,8 +50,10 @@ xor_8regs_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_8regs_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	    unsigned long *p3, unsigned long *p4)
+xor_8regs_4(unsigned long bytes, unsigned long * __restrict p1,
+	    const unsigned long * __restrict p2,
+	    const unsigned long * __restrict p3,
+	    const unsigned long * __restrict p4)
 {
 	long lines = bytes / (sizeof (long)) / 8;
 
@@ -70,8 +74,11 @@ xor_8regs_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_8regs_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	    unsigned long *p3, unsigned long *p4, unsigned long *p5)
+xor_8regs_5(unsigned long bytes, unsigned long * __restrict p1,
+	    const unsigned long * __restrict p2,
+	    const unsigned long * __restrict p3,
+	    const unsigned long * __restrict p4,
+	    const unsigned long * __restrict p5)
 {
 	long lines = bytes / (sizeof (long)) / 8;
 
@@ -93,7 +100,8 @@ xor_8regs_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_32regs_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
+xor_32regs_2(unsigned long bytes, unsigned long * __restrict p1,
+	     const unsigned long * __restrict p2)
 {
 	long lines = bytes / (sizeof (long)) / 8;
 
@@ -129,8 +137,9 @@ xor_32regs_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
 }
 
 static void
-xor_32regs_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	    unsigned long *p3)
+xor_32regs_3(unsigned long bytes, unsigned long * __restrict p1,
+	     const unsigned long * __restrict p2,
+	     const unsigned long * __restrict p3)
 {
 	long lines = bytes / (sizeof (long)) / 8;
 
@@ -175,8 +184,10 @@ xor_32regs_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_32regs_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	    unsigned long *p3, unsigned long *p4)
+xor_32regs_4(unsigned long bytes, unsigned long * __restrict p1,
+	     const unsigned long * __restrict p2,
+	     const unsigned long * __restrict p3,
+	     const unsigned long * __restrict p4)
 {
 	long lines = bytes / (sizeof (long)) / 8;
 
@@ -230,8 +241,11 @@ xor_32regs_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_32regs_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	    unsigned long *p3, unsigned long *p4, unsigned long *p5)
+xor_32regs_5(unsigned long bytes, unsigned long * __restrict p1,
+	     const unsigned long * __restrict p2,
+	     const unsigned long * __restrict p3,
+	     const unsigned long * __restrict p4,
+	     const unsigned long * __restrict p5)
 {
 	long lines = bytes / (sizeof (long)) / 8;
 
@@ -294,7 +308,8 @@ xor_32regs_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_8regs_p_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
+xor_8regs_p_2(unsigned long bytes, unsigned long * __restrict p1,
+	      const unsigned long * __restrict p2)
 {
 	long lines = bytes / (sizeof (long)) / 8 - 1;
 	prefetchw(p1);
@@ -320,8 +335,9 @@ xor_8regs_p_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
 }
 
 static void
-xor_8regs_p_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	    unsigned long *p3)
+xor_8regs_p_3(unsigned long bytes, unsigned long * __restrict p1,
+	      const unsigned long * __restrict p2,
+	      const unsigned long * __restrict p3)
 {
 	long lines = bytes / (sizeof (long)) / 8 - 1;
 	prefetchw(p1);
@@ -350,8 +366,10 @@ xor_8regs_p_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_8regs_p_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	    unsigned long *p3, unsigned long *p4)
+xor_8regs_p_4(unsigned long bytes, unsigned long * __restrict p1,
+	      const unsigned long * __restrict p2,
+	      const unsigned long * __restrict p3,
+	      const unsigned long * __restrict p4)
 {
 	long lines = bytes / (sizeof (long)) / 8 - 1;
 
@@ -384,8 +402,11 @@ xor_8regs_p_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_8regs_p_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	    unsigned long *p3, unsigned long *p4, unsigned long *p5)
+xor_8regs_p_5(unsigned long bytes, unsigned long * __restrict p1,
+	      const unsigned long * __restrict p2,
+	      const unsigned long * __restrict p3,
+	      const unsigned long * __restrict p4,
+	      const unsigned long * __restrict p5)
 {
 	long lines = bytes / (sizeof (long)) / 8 - 1;
 
@@ -421,7 +442,8 @@ xor_8regs_p_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_32regs_p_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
+xor_32regs_p_2(unsigned long bytes, unsigned long * __restrict p1,
+	       const unsigned long * __restrict p2)
 {
 	long lines = bytes / (sizeof (long)) / 8 - 1;
 
@@ -466,8 +488,9 @@ xor_32regs_p_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
 }
 
 static void
-xor_32regs_p_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	    unsigned long *p3)
+xor_32regs_p_3(unsigned long bytes, unsigned long * __restrict p1,
+	       const unsigned long * __restrict p2,
+	       const unsigned long * __restrict p3)
 {
 	long lines = bytes / (sizeof (long)) / 8 - 1;
 
@@ -523,8 +546,10 @@ xor_32regs_p_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_32regs_p_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	    unsigned long *p3, unsigned long *p4)
+xor_32regs_p_4(unsigned long bytes, unsigned long * __restrict p1,
+	       const unsigned long * __restrict p2,
+	       const unsigned long * __restrict p3,
+	       const unsigned long * __restrict p4)
 {
 	long lines = bytes / (sizeof (long)) / 8 - 1;
 
@@ -591,8 +616,11 @@ xor_32regs_p_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_32regs_p_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	    unsigned long *p3, unsigned long *p4, unsigned long *p5)
+xor_32regs_p_5(unsigned long bytes, unsigned long * __restrict p1,
+	       const unsigned long * __restrict p2,
+	       const unsigned long * __restrict p3,
+	       const unsigned long * __restrict p4,
+	       const unsigned long * __restrict p5)
 {
 	long lines = bytes / (sizeof (long)) / 8 - 1;
 

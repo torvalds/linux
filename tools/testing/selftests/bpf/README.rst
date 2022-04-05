@@ -32,11 +32,19 @@ For more information on about using the script, run:
 
   $ tools/testing/selftests/bpf/vmtest.sh -h
 
+In case of linker errors when running selftests, try using static linking:
+
+.. code-block:: console
+
+  $ LDLIBS=-static vmtest.sh
+
+.. note:: Some distros may not support static linking.
+
 .. note:: The script uses pahole and clang based on host environment setting.
           If you want to change pahole and llvm, you can change `PATH` environment
           variable in the beginning of script.
 
-.. note:: The script currently only supports x86_64.
+.. note:: The script currently only supports x86_64 and s390x architectures.
 
 Additional information about selftest failures are
 documented here.
@@ -206,6 +214,8 @@ btf_tag test and Clang version
 
 The btf_tag selftest requires LLVM support to recognize the btf_decl_tag and
 btf_type_tag attributes. They are introduced in `Clang 14` [0_, 1_].
+The subtests ``btf_type_tag_user_{mod1, mod2, vmlinux}`` also requires
+pahole version ``1.23``.
 
 Without them, the btf_tag selftest will be skipped and you will observe:
 

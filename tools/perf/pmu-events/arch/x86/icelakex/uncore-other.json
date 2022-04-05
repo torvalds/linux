@@ -60,7 +60,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Clockticks of the uncore caching &amp;amp; home agent (CHA)",
+        "BriefDescription": "Clockticks of the uncore caching and home agent (CHA)",
         "Counter": "0,1,2,3",
         "CounterType": "PGMABLE",
         "EventName": "UNC_CHA_CLOCKTICKS",
@@ -2472,5 +2472,64 @@
         "PerPkg": "1",
         "UMask": "0x27",
         "Unit": "UPI LL"
+    },
+    {
+        "BriefDescription": "TOR Inserts : ItoMCacheNears, indicating a partial write request, from IO Devices to locally HOMed memory",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IO_ITOMCACHENEAR_LOCAL",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Inserts : ItoMCacheNears, indicating a partial write request, from IO Devices : Counts the number of entries successfuly inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "UMask": "0xCD42FF04",
+        "UMaskExt": "0xCD42FF",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts : ItoMCacheNears, indicating a partial write request, from IO Devices to remotely HOMed memory",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IO_ITOMCACHENEAR_REMOTE",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Inserts : ItoMCacheNears, indicating a partial write request, from IO Devices : Counts the number of entries successfuly inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "UMask": "0xCD437F04",
+        "UMaskExt": "0xCD437F",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts : ItoMs issued by IO Devices to locally HOMed memory",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IO_ITOM_LOCAL",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Inserts : ItoMs issued by IO Devices : Counts the number of entries successfuly inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "UMask": "0xCC42FF04",
+        "UMaskExt": "0xCC42FF",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts : ItoMs issued by IO Devices to remotely HOMed memory",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IO_ITOM_REMOTE",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Inserts : ItoMs issued by IO Devices : Counts the number of entries successfuly inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "UMask": "0xCC437F04",
+        "UMaskExt": "0xCC437F",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Multi-socket cacheline Directory Updates : From/to any state. Note: event counts are incorrect in 2LM mode.",
+        "Counter": "0,1,2,3",
+        "CounterType": "PGMABLE",
+        "EventCode": "0x2e",
+        "EventName": "UNC_M2M_DIRECTORY_UPDATE.ANY",
+        "PerPkg": "1",
+        "PublicDescription": "Multi-socket cacheline Directory Updates : From/to any state. Note: event counts are incorrect in 2LM mode.",
+        "UMask": "0x01",
+        "Unit": "M2M"
     }
 ]

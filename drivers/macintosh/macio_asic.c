@@ -756,7 +756,7 @@ MODULE_DEVICE_TABLE (pci, pci_ids);
 
 /* pci driver glue; this is a "new style" PCI driver module */
 static struct pci_driver macio_pci_driver = {
-	.name		= (char *) "macio",
+	.name		= "macio",
 	.id_table	= pci_ids,
 
 	.probe		= macio_pci_probe,

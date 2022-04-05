@@ -2148,6 +2148,7 @@ void mei_cl_all_disconnect(struct mei_device *dev)
 	list_for_each_entry(cl, &dev->file_list, link)
 		mei_cl_set_disconnected(cl);
 }
+EXPORT_SYMBOL_GPL(mei_cl_all_disconnect);
 
 static struct mei_cl *mei_cl_dma_map_find(struct mei_device *dev, u8 buffer_id)
 {

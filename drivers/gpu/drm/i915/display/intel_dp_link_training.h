@@ -29,6 +29,10 @@ void intel_dp_start_link_train(struct intel_dp *intel_dp,
 void intel_dp_stop_link_train(struct intel_dp *intel_dp,
 			      const struct intel_crtc_state *crtc_state);
 
+void
+intel_dp_dump_link_status(struct intel_dp *intel_dp, enum drm_dp_phy dp_phy,
+			  const u8 link_status[DP_LINK_STATUS_SIZE]);
+
 /* Get the TPSx symbol type of the value programmed to DP_TRAINING_PATTERN_SET */
 static inline u8 intel_dp_training_pattern_symbol(u8 pattern)
 {

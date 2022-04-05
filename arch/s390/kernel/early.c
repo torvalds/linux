@@ -2,7 +2,6 @@
 /*
  *    Copyright IBM Corp. 2007, 2009
  *    Author(s): Hongjie Yang <hongjie@us.ibm.com>,
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #define KMSG_COMPONENT "setup"
@@ -18,6 +17,7 @@
 #include <linux/pfn.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
+#include <asm/asm-extable.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
 #include <asm/ipl.h>
@@ -149,22 +149,10 @@ static __init void setup_topology(void)
 	topology_max_mnest = max_mnest;
 }
 
-static void early_pgm_check_handler(void)
+static void early_pgm_check_handler(struct pt_regs *regs)
 {
-	const struct exception_table_entry *fixup;
-	unsigned long cr0, cr0_new;
-	unsigned long addr;
-
-	addr = S390_lowcore.program_old_psw.addr;
-	fixup = s390_search_extables(addr);
-	if (!fixup)
+	if (!fixup_exception(regs))
 		disabled_wait();
-	/* Disable low address protection before storing into lowcore. */
-	__ctl_store(cr0, 0, 0);
-	cr0_new = cr0 & ~(1UL << 28);
-	__ctl_load(cr0_new, 0, 0);
-	S390_lowcore.program_old_psw.addr = extable_fixup(fixup);
-	__ctl_load(cr0, 0, 0);
 }
 
 static noinline __init void setup_lowcore_early(void)
@@ -294,6 +282,11 @@ static void __init check_image_bootable(void)
 	disabled_wait();
 }
 
+static void __init sort_amode31_extable(void)
+{
+	sort_extable(__start_amode31_ex_table, __stop_amode31_ex_table);
+}
+
 void __init startup_init(void)
 {
 	sclp_early_adjust_va();
@@ -302,6 +295,7 @@ void __init startup_init(void)
 	time_early_init();
 	init_kernel_storage_key();
 	lockdep_off();
+	sort_amode31_extable();
 	setup_lowcore_early();
 	setup_facility_list();
 	detect_machine_type();

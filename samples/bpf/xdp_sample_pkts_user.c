@@ -30,7 +30,7 @@ static int do_attach(int idx, int fd, const char *name)
 	__u32 info_len = sizeof(info);
 	int err;
 
-	err = bpf_set_link_xdp_fd(idx, fd, xdp_flags);
+	err = bpf_xdp_attach(idx, fd, xdp_flags, NULL);
 	if (err < 0) {
 		printf("ERROR: failed to attach program to %s\n", name);
 		return err;
@@ -51,13 +51,13 @@ static int do_detach(int idx, const char *name)
 	__u32 curr_prog_id = 0;
 	int err = 0;
 
-	err = bpf_get_link_xdp_id(idx, &curr_prog_id, xdp_flags);
+	err = bpf_xdp_query_id(idx, xdp_flags, &curr_prog_id);
 	if (err) {
-		printf("bpf_get_link_xdp_id failed\n");
+		printf("bpf_xdp_query_id failed\n");
 		return err;
 	}
 	if (prog_id == curr_prog_id) {
-		err = bpf_set_link_xdp_fd(idx, -1, xdp_flags);
+		err = bpf_xdp_detach(idx, xdp_flags, NULL);
 		if (err < 0)
 			printf("ERROR: failed to detach prog from %s\n", name);
 	} else if (!curr_prog_id) {

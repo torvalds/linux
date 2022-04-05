@@ -55,8 +55,9 @@ Description:	Controls the in-place-update policy.
 		0x04  F2FS_IPU_UTIL
 		0x08  F2FS_IPU_SSR_UTIL
 		0x10  F2FS_IPU_FSYNC
-		0x20  F2FS_IPU_ASYNC,
+		0x20  F2FS_IPU_ASYNC
 		0x40  F2FS_IPU_NOCACHE
+		0x80  F2FS_IPU_HONOR_OPU_WRITE
 		====  =================
 
 		Refer segment.h for details.
@@ -97,6 +98,33 @@ Description:	Controls the issue rate of discard commands that consist of small
 		blocks less than 2MB. The candidates to be discarded are cached until
 		checkpoint is triggered, and issued during the checkpoint.
 		By default, it is disabled with 0.
+
+What:		/sys/fs/f2fs/<disk>/max_discard_request
+Date:		December 2021
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:	Controls the number of discards a thread will issue at a time.
+		Higher number will allow the discard thread to finish its work
+		faster, at the cost of higher latency for incomming I/O.
+
+What:		/sys/fs/f2fs/<disk>/min_discard_issue_time
+Date:		December 2021
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:	Controls the interval the discard thread will wait between
+		issuing discard requests when there are discards to be issued and
+		no I/O aware interruptions occur.
+
+What:		/sys/fs/f2fs/<disk>/mid_discard_issue_time
+Date:		December 2021
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:	Controls the interval the discard thread will wait between
+		issuing discard requests when there are discards to be issued and
+		an I/O aware interruption occurs.
+
+What:		/sys/fs/f2fs/<disk>/max_discard_issue_time
+Date:		December 2021
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:	Controls the interval the discard thread will wait when there are
+		no discard operations to be issued.
 
 What:		/sys/fs/f2fs/<disk>/discard_granularity
 Date:		July 2017
@@ -269,11 +297,16 @@ Description:	Shows current reserved blocks in system, it may be temporarily
 What:		/sys/fs/f2fs/<disk>/gc_urgent
 Date:		August 2017
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
-Description:	Do background GC aggressively when set. When gc_urgent = 1,
-		background thread starts to do GC by given gc_urgent_sleep_time
-		interval. When gc_urgent = 2, F2FS will lower the bar of
-		checking idle in order to process outstanding discard commands
-		and GC a little bit aggressively. It is set to 0 by default.
+Description:	Do background GC aggressively when set. Set to 0 by default.
+		gc urgent high(1): does GC forcibly in a period of given
+		gc_urgent_sleep_time and ignores I/O idling check. uses greedy
+		GC approach and turns SSR mode on.
+		gc urgent low(2): lowers the bar of checking I/O idling in
+		order to process outstanding discard commands and GC a
+		little bit aggressively. uses cost benefit GC approach.
+		gc urgent mid(3): does GC forcibly in a period of given
+		gc_urgent_sleep_time and executes a mid level of I/O idling check.
+		uses cost benefit GC approach.
 
 What:		/sys/fs/f2fs/<disk>/gc_urgent_sleep_time
 Date:		August 2017
@@ -430,6 +463,7 @@ Description:	Show status of f2fs superblock in real time.
 		0x800  SBI_QUOTA_SKIP_FLUSH  skip flushing quota in current CP
 		0x1000 SBI_QUOTA_NEED_REPAIR quota file may be corrupted
 		0x2000 SBI_IS_RESIZEFS       resizefs is in process
+		0x4000 SBI_IS_FREEZING       freefs is in process
 		====== ===================== =================================
 
 What:		/sys/fs/f2fs/<disk>/ckpt_thread_ioprio
@@ -503,7 +537,7 @@ Date:		July 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
 Description:	Show how many segments have been reclaimed by GC during a specific
 		GC mode (0: GC normal, 1: GC idle CB, 2: GC idle greedy,
-		3: GC idle AT, 4: GC urgent high, 5: GC urgent low)
+		3: GC idle AT, 4: GC urgent high, 5: GC urgent low 6: GC urgent mid)
 		You can re-initialize this value to "0".
 
 What:		/sys/fs/f2fs/<disk>/gc_segment_mode
@@ -540,3 +574,9 @@ Contact:	"Daeho Jeong" <daehojeong@google.com>
 Description:	You can set the trial count limit for GC urgent high mode with this value.
 		If GC thread gets to the limit, the mode will turn back to GC normal mode.
 		By default, the value is zero, which means there is no limit like before.
+
+What:		/sys/fs/f2fs/<disk>/max_roll_forward_node_blocks
+Date:		January 2022
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:	Controls max # of node block writes to be used for roll forward
+		recovery. This can limit the roll forward recovery time.

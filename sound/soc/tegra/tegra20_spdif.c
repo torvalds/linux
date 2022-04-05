@@ -186,7 +186,7 @@ static int tegra20_spdif_filter_rates(struct snd_pcm_hw_params *params,
 	struct snd_soc_dai *dai = rule->private;
 	struct tegra20_spdif *spdif = dev_get_drvdata(dai->dev);
 	struct clk *parent = clk_get_parent(spdif->clk_spdif_out);
-	const unsigned int rates[] = { 32000, 44100, 48000 };
+	static const unsigned int rates[] = { 32000, 44100, 48000 };
 	long i, parent_rate, valid_rates = 0;
 
 	parent_rate = clk_get_rate(parent);

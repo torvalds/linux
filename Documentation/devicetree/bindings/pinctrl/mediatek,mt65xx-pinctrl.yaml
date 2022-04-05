@@ -44,6 +44,8 @@ properties:
 
   mediatek,pctl-regmap:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     minItems: 1
     maxItems: 2
     description: |

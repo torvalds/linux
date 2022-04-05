@@ -6,7 +6,7 @@
 / {
 
 	model = "Enclustra Mercury AA1";
-	compatible = "altr,socfpga-arria10", "altr,socfpga";
+	compatible = "enclustra,mercury-aa1", "altr,socfpga-arria10", "altr,socfpga";
 
 	aliases {
 		ethernet0 = &gmac0;

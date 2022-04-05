@@ -29,7 +29,9 @@
 #include <linux/refcount.h>
 #include <linux/nospec.h>
 #include <linux/notifier.h>
+#include <linux/ftrace.h>
 #include <linux/hashtable.h>
+#include <linux/instrumentation.h>
 #include <linux/interval_tree.h>
 #include <linux/rbtree.h>
 #include <linux/xarray.h>
@@ -146,17 +148,26 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQUEST_MASK           GENMASK(7,0)
 #define KVM_REQUEST_NO_WAKEUP      BIT(8)
 #define KVM_REQUEST_WAIT           BIT(9)
+#define KVM_REQUEST_NO_ACTION      BIT(10)
 /*
  * Architecture-independent vcpu->requests bit members
  * Bits 4-7 are reserved for more arch-independent bits.
  */
 #define KVM_REQ_TLB_FLUSH         (0 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
-#define KVM_REQ_MMU_RELOAD        (1 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
+#define KVM_REQ_VM_DEAD           (1 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQ_UNBLOCK           2
 #define KVM_REQ_UNHALT            3
-#define KVM_REQ_VM_DEAD           (4 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
-#define KVM_REQ_GPC_INVALIDATE    (5 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQUEST_ARCH_BASE     8
+
+/*
+ * KVM_REQ_OUTSIDE_GUEST_MODE exists is purely as way to force the vCPU to
+ * OUTSIDE_GUEST_MODE.  KVM_REQ_OUTSIDE_GUEST_MODE differs from a vCPU "kick"
+ * in that it ensures the vCPU has reached OUTSIDE_GUEST_MODE before continuing
+ * on.  A kick only guarantees that the vCPU is on its way out, e.g. a previous
+ * kick may have set vcpu->mode to EXITING_GUEST_MODE, and so there's no
+ * guarantee the vCPU received an IPI and has actually exited guest mode.
+ */
+#define KVM_REQ_OUTSIDE_GUEST_MODE	(KVM_REQUEST_NO_ACTION | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 
 #define KVM_ARCH_REQ_FLAGS(nr, flags) ({ \
 	BUILD_BUG_ON((unsigned)(nr) >= (sizeof_field(struct kvm_vcpu, requests) * 8) - KVM_REQUEST_ARCH_BASE); \
@@ -368,8 +379,11 @@ struct kvm_vcpu {
 	u64 last_used_slot_gen;
 };
 
-/* must be called with irqs disabled */
-static __always_inline void guest_enter_irqoff(void)
+/*
+ * Start accounting time towards a guest.
+ * Must be called before entering guest context.
+ */
+static __always_inline void guest_timing_enter_irqoff(void)
 {
 	/*
 	 * This is running in ioctl context so its safe to assume that it's the
@@ -378,7 +392,18 @@ static __always_inline void guest_enter_irqoff(void)
 	instrumentation_begin();
 	vtime_account_guest_enter();
 	instrumentation_end();
+}
 
+/*
+ * Enter guest context and enter an RCU extended quiescent state.
+ *
+ * Between guest_context_enter_irqoff() and guest_context_exit_irqoff() it is
+ * unsafe to use any code which may directly or indirectly use RCU, tracing
+ * (including IRQ flag tracing), or lockdep. All code in this period must be
+ * non-instrumentable.
+ */
+static __always_inline void guest_context_enter_irqoff(void)
+{
 	/*
 	 * KVM does not hold any references to rcu protected data when it
 	 * switches CPU into a guest mode. In fact switching to a guest mode
@@ -394,14 +419,77 @@ static __always_inline void guest_enter_irqoff(void)
 	}
 }
 
-static __always_inline void guest_exit_irqoff(void)
+/*
+ * Deprecated. Architectures should move to guest_timing_enter_irqoff() and
+ * guest_state_enter_irqoff().
+ */
+static __always_inline void guest_enter_irqoff(void)
+{
+	guest_timing_enter_irqoff();
+	guest_context_enter_irqoff();
+}
+
+/**
+ * guest_state_enter_irqoff - Fixup state when entering a guest
+ *
+ * Entry to a guest will enable interrupts, but the kernel state is interrupts
+ * disabled when this is invoked. Also tell RCU about it.
+ *
+ * 1) Trace interrupts on state
+ * 2) Invoke context tracking if enabled to adjust RCU state
+ * 3) Tell lockdep that interrupts are enabled
+ *
+ * Invoked from architecture specific code before entering a guest.
+ * Must be called with interrupts disabled and the caller must be
+ * non-instrumentable.
+ * The caller has to invoke guest_timing_enter_irqoff() before this.
+ *
+ * Note: this is analogous to exit_to_user_mode().
+ */
+static __always_inline void guest_state_enter_irqoff(void)
+{
+	instrumentation_begin();
+	trace_hardirqs_on_prepare();
+	lockdep_hardirqs_on_prepare(CALLER_ADDR0);
+	instrumentation_end();
+
+	guest_context_enter_irqoff();
+	lockdep_hardirqs_on(CALLER_ADDR0);
+}
+
+/*
+ * Exit guest context and exit an RCU extended quiescent state.
+ *
+ * Between guest_context_enter_irqoff() and guest_context_exit_irqoff() it is
+ * unsafe to use any code which may directly or indirectly use RCU, tracing
+ * (including IRQ flag tracing), or lockdep. All code in this period must be
+ * non-instrumentable.
+ */
+static __always_inline void guest_context_exit_irqoff(void)
 {
 	context_tracking_guest_exit();
+}
 
+/*
+ * Stop accounting time towards a guest.
+ * Must be called after exiting guest context.
+ */
+static __always_inline void guest_timing_exit_irqoff(void)
+{
 	instrumentation_begin();
 	/* Flush the guest cputime we spent on the guest */
 	vtime_account_guest_exit();
 	instrumentation_end();
+}
+
+/*
+ * Deprecated. Architectures should move to guest_state_exit_irqoff() and
+ * guest_timing_exit_irqoff().
+ */
+static __always_inline void guest_exit_irqoff(void)
+{
+	guest_context_exit_irqoff();
+	guest_timing_exit_irqoff();
 }
 
 static inline void guest_exit(void)
@@ -411,6 +499,33 @@ static inline void guest_exit(void)
 	local_irq_save(flags);
 	guest_exit_irqoff();
 	local_irq_restore(flags);
+}
+
+/**
+ * guest_state_exit_irqoff - Establish state when returning from guest mode
+ *
+ * Entry from a guest disables interrupts, but guest mode is traced as
+ * interrupts enabled. Also with NO_HZ_FULL RCU might be idle.
+ *
+ * 1) Tell lockdep that interrupts are disabled
+ * 2) Invoke context tracking if enabled to reactivate RCU
+ * 3) Trace interrupts off state
+ *
+ * Invoked from architecture specific code after exiting a guest.
+ * Must be invoked with interrupts disabled and the caller must be
+ * non-instrumentable.
+ * The caller has to invoke guest_timing_exit_irqoff() after this.
+ *
+ * Note: this is analogous to enter_from_user_mode().
+ */
+static __always_inline void guest_state_exit_irqoff(void)
+{
+	lockdep_hardirqs_off(CALLER_ADDR0);
+	guest_context_exit_irqoff();
+
+	instrumentation_begin();
+	trace_hardirqs_off_finish();
+	instrumentation_end();
 }
 
 static inline int kvm_vcpu_exiting_guest_mode(struct kvm_vcpu *vcpu)
@@ -1116,27 +1231,27 @@ void kvm_vcpu_mark_page_dirty(struct kvm_vcpu *vcpu, gfn_t gfn);
  * @gpc:	   struct gfn_to_pfn_cache object.
  * @vcpu:	   vCPU to be used for marking pages dirty and to be woken on
  *		   invalidation.
- * @guest_uses_pa: indicates that the resulting host physical PFN is used while
- *		   @vcpu is IN_GUEST_MODE so invalidations should wake it.
- * @kernel_map:    requests a kernel virtual mapping (kmap / memremap).
+ * @usage:	   indicates if the resulting host physical PFN is used while
+ *		   the @vcpu is IN_GUEST_MODE (in which case invalidation of 
+ *		   the cache from MMU notifiers---but not for KVM memslot
+ *		   changes!---will also force @vcpu to exit the guest and
+ *		   refresh the cache); and/or if the PFN used directly
+ *		   by KVM (and thus needs a kernel virtual mapping).
  * @gpa:	   guest physical address to map.
  * @len:	   sanity check; the range being access must fit a single page.
- * @dirty:         mark the cache dirty immediately.
  *
  * @return:	   0 for success.
  *		   -EINVAL for a mapping which would cross a page boundary.
  *                 -EFAULT for an untranslatable guest physical address.
  *
  * This primes a gfn_to_pfn_cache and links it into the @kvm's list for
- * invalidations to be processed. Invalidation callbacks to @vcpu using
- * %KVM_REQ_GPC_INVALIDATE will occur only for MMU notifiers, not for KVM
- * memslot changes. Callers are required to use kvm_gfn_to_pfn_cache_check()
- * to ensure that the cache is valid before accessing the target page.
+ * invalidations to be processed.  Callers are required to use
+ * kvm_gfn_to_pfn_cache_check() to ensure that the cache is valid before
+ * accessing the target page.
  */
 int kvm_gfn_to_pfn_cache_init(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
-			      struct kvm_vcpu *vcpu, bool guest_uses_pa,
-			      bool kernel_map, gpa_t gpa, unsigned long len,
-			      bool dirty);
+			      struct kvm_vcpu *vcpu, enum pfn_cache_usage usage,
+			      gpa_t gpa, unsigned long len);
 
 /**
  * kvm_gfn_to_pfn_cache_check - check validity of a gfn_to_pfn_cache.
@@ -1145,7 +1260,6 @@ int kvm_gfn_to_pfn_cache_init(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
  * @gpc:	   struct gfn_to_pfn_cache object.
  * @gpa:	   current guest physical address to map.
  * @len:	   sanity check; the range being access must fit a single page.
- * @dirty:         mark the cache dirty immediately.
  *
  * @return:	   %true if the cache is still valid and the address matches.
  *		   %false if the cache is not valid.
@@ -1167,7 +1281,6 @@ bool kvm_gfn_to_pfn_cache_check(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
  * @gpc:	   struct gfn_to_pfn_cache object.
  * @gpa:	   updated guest physical address to map.
  * @len:	   sanity check; the range being access must fit a single page.
- * @dirty:         mark the cache dirty immediately.
  *
  * @return:	   0 for success.
  *		   -EINVAL for a mapping which would cross a page boundary.
@@ -1180,7 +1293,7 @@ bool kvm_gfn_to_pfn_cache_check(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
  * with the lock still held to permit access.
  */
 int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
-				 gpa_t gpa, unsigned long len, bool dirty);
+				 gpa_t gpa, unsigned long len);
 
 /**
  * kvm_gfn_to_pfn_cache_unmap - temporarily unmap a gfn_to_pfn_cache.
@@ -1188,10 +1301,9 @@ int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
  * @kvm:	   pointer to kvm instance.
  * @gpc:	   struct gfn_to_pfn_cache object.
  *
- * This unmaps the referenced page and marks it dirty, if appropriate. The
- * cache is left in the invalid state but at least the mapping from GPA to
- * userspace HVA will remain cached and can be reused on a subsequent
- * refresh.
+ * This unmaps the referenced page. The cache is left in the invalid state
+ * but at least the mapping from GPA to userspace HVA will remain cached
+ * and can be reused on a subsequent refresh.
  */
 void kvm_gfn_to_pfn_cache_unmap(struct kvm *kvm, struct gfn_to_pfn_cache *gpc);
 
@@ -1219,7 +1331,6 @@ int kvm_vcpu_yield_to(struct kvm_vcpu *target);
 void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu, bool usermode_vcpu_not_eligible);
 
 void kvm_flush_remote_tlbs(struct kvm *kvm);
-void kvm_reload_remote_mmus(struct kvm *kvm);
 
 #ifdef KVM_ARCH_NR_OBJS_PER_MEMORY_CACHE
 int kvm_mmu_topup_memory_cache(struct kvm_mmu_memory_cache *mc, int min);
@@ -1880,7 +1991,7 @@ static inline int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 
 void kvm_arch_irq_routing_update(struct kvm *kvm);
 
-static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
+static inline void __kvm_make_request(int req, struct kvm_vcpu *vcpu)
 {
 	/*
 	 * Ensure the rest of the request is published to kvm_check_request's
@@ -1888,6 +1999,19 @@ static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
 	 */
 	smp_wmb();
 	set_bit(req & KVM_REQUEST_MASK, (void *)&vcpu->requests);
+}
+
+static __always_inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Request that don't require vCPU action should never be logged in
+	 * vcpu->requests.  The vCPU won't clear the request, so it will stay
+	 * logged indefinitely and prevent the vCPU from entering the guest.
+	 */
+	BUILD_BUG_ON(!__builtin_constant_p(req) ||
+		     (req & KVM_REQUEST_NO_ACTION));
+
+	__kvm_make_request(req, vcpu);
 }
 
 static inline bool kvm_request_pending(struct kvm_vcpu *vcpu)

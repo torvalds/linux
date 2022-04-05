@@ -4,7 +4,6 @@
  *
  *    Copyright IBM Corp. 2005, 2012
  *    Author(s): Michael Holzheu <holzheu@de.ibm.com>
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  *		 Volker Sameske <sameske@de.ibm.com>
  */
 
@@ -20,6 +19,7 @@
 #include <linux/gfp.h>
 #include <linux/crash_dump.h>
 #include <linux/debug_locks.h>
+#include <asm/asm-extable.h>
 #include <asm/diag.h>
 #include <asm/ipl.h>
 #include <asm/smp.h>
@@ -1646,8 +1646,8 @@ static void dump_reipl_run(struct shutdown_trigger *trigger)
 
 	csum = (__force unsigned int)
 	       csum_partial(reipl_block_actual, reipl_block_actual->hdr.len, 0);
-	mem_assign_absolute(S390_lowcore.ipib, ipib);
-	mem_assign_absolute(S390_lowcore.ipib_checksum, csum);
+	put_abs_lowcore(ipib, ipib);
+	put_abs_lowcore(ipib_checksum, csum);
 	dump_run(trigger);
 }
 

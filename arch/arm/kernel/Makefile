@@ -10,6 +10,7 @@ ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_ftrace.o = -pg
 CFLAGS_REMOVE_insn.o = -pg
 CFLAGS_REMOVE_patch.o = -pg
+CFLAGS_REMOVE_unwind.o = -pg
 endif
 
 CFLAGS_REMOVE_return_address.o = -pg
@@ -105,5 +106,7 @@ obj-$(CONFIG_SMP)		+= psci_smp.o
 endif
 
 obj-$(CONFIG_HAVE_ARM_SMCCC)	+= smccc-call.o
+
+obj-$(CONFIG_GENERIC_CPU_VULNERABILITIES) += spectre.o
 
 extra-y := $(head-y) vmlinux.lds

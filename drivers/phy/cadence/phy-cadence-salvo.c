@@ -263,14 +263,9 @@ static int cdns_salvo_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct device *dev = &pdev->dev;
 	struct cdns_salvo_phy *salvo_phy;
-	const struct of_device_id *match;
 	struct cdns_salvo_data *data;
 
-	match = of_match_device(cdns_salvo_phy_of_match, dev);
-	if (!match)
-		return -EINVAL;
-
-	data = (struct cdns_salvo_data *)match->data;
+	data = (struct cdns_salvo_data *)of_device_get_match_data(dev);
 	salvo_phy = devm_kzalloc(dev, sizeof(*salvo_phy), GFP_KERNEL);
 	if (!salvo_phy)
 		return -ENOMEM;

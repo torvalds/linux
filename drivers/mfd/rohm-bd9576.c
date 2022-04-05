@@ -23,7 +23,7 @@ enum {
 };
 
 /*
- * Due to the BD9576MUF nasty IRQ behaiour we don't always populate IRQs.
+ * Due to the BD9576MUF nasty IRQ behaviour we don't always populate IRQs.
  * These will be added to regulator resources only if IRQ information for the
  * PMIC is populated in device-tree.
  */

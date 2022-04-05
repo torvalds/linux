@@ -26,10 +26,6 @@
 
 #ifndef __ASSEMBLY__
 
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
-
 /*
  * low level task data that entry.S needs immediate access to
  * - this struct should fit entirely inside of one cache line
@@ -42,10 +38,6 @@ struct thread_info {
 	unsigned long		flags;		/* low level flags */
 	__u32			cpu;		/* current CPU */
 	int			preempt_count;	/* 0 => preemptable,<0 => BUG */
-	mm_segment_t		addr_limit;	/* thread address space:
-						  0-0x7FFFFFFF for user-thead
-						  0-0xFFFFFFFF for kernel-thread
-						*/
 	struct pt_regs		*regs;
 };
 
@@ -60,7 +52,6 @@ struct thread_info {
 	.flags		= 0,			\
 	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
-	.addr_limit	= KERNEL_DS,		\
 }
 
 /* how to get the thread information struct from C */

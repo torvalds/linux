@@ -505,14 +505,6 @@ int mlxsw_sp_acl_rulei_act_priority(struct mlxsw_sp *mlxsw_sp,
 						      extack);
 }
 
-enum mlxsw_sp_acl_mangle_field {
-	MLXSW_SP_ACL_MANGLE_FIELD_IP_DSFIELD,
-	MLXSW_SP_ACL_MANGLE_FIELD_IP_DSCP,
-	MLXSW_SP_ACL_MANGLE_FIELD_IP_ECN,
-	MLXSW_SP_ACL_MANGLE_FIELD_IP_SPORT,
-	MLXSW_SP_ACL_MANGLE_FIELD_IP_DPORT,
-};
-
 struct mlxsw_sp_acl_mangle_action {
 	enum flow_action_mangle_base htype;
 	/* Offset is u32-aligned. */
@@ -561,6 +553,18 @@ static struct mlxsw_sp_acl_mangle_action mlxsw_sp_acl_mangle_actions[] = {
 
 	MLXSW_SP_ACL_MANGLE_ACTION_UDP(0, 0x0000ffff, 16, IP_SPORT),
 	MLXSW_SP_ACL_MANGLE_ACTION_UDP(0, 0xffff0000, 0,  IP_DPORT),
+
+	MLXSW_SP_ACL_MANGLE_ACTION_IP4(12, 0x00000000, 0, IP4_SIP),
+	MLXSW_SP_ACL_MANGLE_ACTION_IP4(16, 0x00000000, 0, IP4_DIP),
+
+	MLXSW_SP_ACL_MANGLE_ACTION_IP6(8, 0x00000000, 0, IP6_SIP_1),
+	MLXSW_SP_ACL_MANGLE_ACTION_IP6(12, 0x00000000, 0, IP6_SIP_2),
+	MLXSW_SP_ACL_MANGLE_ACTION_IP6(16, 0x00000000, 0, IP6_SIP_3),
+	MLXSW_SP_ACL_MANGLE_ACTION_IP6(20, 0x00000000, 0, IP6_SIP_4),
+	MLXSW_SP_ACL_MANGLE_ACTION_IP6(24, 0x00000000, 0, IP6_DIP_1),
+	MLXSW_SP_ACL_MANGLE_ACTION_IP6(28, 0x00000000, 0, IP6_DIP_2),
+	MLXSW_SP_ACL_MANGLE_ACTION_IP6(32, 0x00000000, 0, IP6_DIP_3),
+	MLXSW_SP_ACL_MANGLE_ACTION_IP6(36, 0x00000000, 0, IP6_DIP_4),
 };
 
 static int
@@ -599,6 +603,22 @@ static int mlxsw_sp1_acl_rulei_act_mangle_field(struct mlxsw_sp *mlxsw_sp,
 	return err;
 }
 
+static int
+mlxsw_sp2_acl_rulei_act_mangle_field_ip_odd(struct mlxsw_sp_acl_rule_info *rulei,
+					    enum mlxsw_sp_acl_mangle_field field,
+					    u32 val, struct netlink_ext_ack *extack)
+{
+	if (!rulei->ipv6_valid) {
+		rulei->ipv6.prev_val = val;
+		rulei->ipv6_valid = true;
+		rulei->ipv6.prev_field = field;
+		return 0;
+	}
+
+	NL_SET_ERR_MSG_MOD(extack, "Unsupported mangle field order");
+	return -EOPNOTSUPP;
+}
+
 static int mlxsw_sp2_acl_rulei_act_mangle_field(struct mlxsw_sp *mlxsw_sp,
 						struct mlxsw_sp_acl_rule_info *rulei,
 						struct mlxsw_sp_acl_mangle_action *mact,
@@ -615,6 +635,61 @@ static int mlxsw_sp2_acl_rulei_act_mangle_field(struct mlxsw_sp *mlxsw_sp,
 		return mlxsw_afa_block_append_l4port(rulei->act_block, false, val, extack);
 	case MLXSW_SP_ACL_MANGLE_FIELD_IP_DPORT:
 		return mlxsw_afa_block_append_l4port(rulei->act_block, true, val, extack);
+	/* IPv4 fields */
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP4_SIP:
+		return mlxsw_afa_block_append_ip(rulei->act_block, false,
+						 true, val, 0, extack);
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP4_DIP:
+		return mlxsw_afa_block_append_ip(rulei->act_block, true,
+						 true, val, 0, extack);
+	/* IPv6 fields */
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP6_SIP_1:
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP6_SIP_3:
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP6_DIP_1:
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP6_DIP_3:
+		return mlxsw_sp2_acl_rulei_act_mangle_field_ip_odd(rulei,
+								   mact->field,
+								   val, extack);
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP6_SIP_2:
+		if (rulei->ipv6_valid &&
+		    rulei->ipv6.prev_field == MLXSW_SP_ACL_MANGLE_FIELD_IP6_SIP_1) {
+			rulei->ipv6_valid = false;
+			return mlxsw_afa_block_append_ip(rulei->act_block,
+							 false, false, val,
+							 rulei->ipv6.prev_val,
+							 extack);
+		}
+		break;
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP6_SIP_4:
+		if (rulei->ipv6_valid &&
+		    rulei->ipv6.prev_field == MLXSW_SP_ACL_MANGLE_FIELD_IP6_SIP_3) {
+			rulei->ipv6_valid = false;
+			return mlxsw_afa_block_append_ip(rulei->act_block,
+							 false, true, val,
+							 rulei->ipv6.prev_val,
+							 extack);
+		}
+		break;
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP6_DIP_2:
+		if (rulei->ipv6_valid &&
+		    rulei->ipv6.prev_field == MLXSW_SP_ACL_MANGLE_FIELD_IP6_DIP_1) {
+			rulei->ipv6_valid = false;
+			return mlxsw_afa_block_append_ip(rulei->act_block,
+							 true, false, val,
+							 rulei->ipv6.prev_val,
+							 extack);
+		}
+		break;
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP6_DIP_4:
+		if (rulei->ipv6_valid &&
+		    rulei->ipv6.prev_field == MLXSW_SP_ACL_MANGLE_FIELD_IP6_DIP_3) {
+			rulei->ipv6_valid = false;
+			return mlxsw_afa_block_append_ip(rulei->act_block,
+							 true, true, val,
+							 rulei->ipv6.prev_val,
+							 extack);
+		}
+		break;
 	default:
 		break;
 	}

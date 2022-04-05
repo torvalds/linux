@@ -148,7 +148,6 @@ int usb_wwan_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	dev_dbg(&port->dev, "%s: write (%d chars)\n", __func__, count);
 
-	i = 0;
 	left = count;
 	for (i = 0; left > 0 && i < N_OUT_URB; i++) {
 		todo = left;

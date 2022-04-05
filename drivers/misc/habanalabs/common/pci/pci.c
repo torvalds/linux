@@ -338,10 +338,7 @@ int hl_pci_set_outbound_region(struct hl_device *hdev,
 				lower_32_bits(outbound_region_end_address));
 	rc |= hl_pci_iatu_write(hdev, 0x014, 0);
 
-	if ((hdev->power9_64bit_dma_enable) && (hdev->dma_mask == 64))
-		rc |= hl_pci_iatu_write(hdev, 0x018, 0x08000000);
-	else
-		rc |= hl_pci_iatu_write(hdev, 0x018, 0);
+	rc |= hl_pci_iatu_write(hdev, 0x018, 0);
 
 	rc |= hl_pci_iatu_write(hdev, 0x020,
 				upper_32_bits(outbound_region_end_address));
@@ -411,13 +408,13 @@ int hl_pci_init(struct hl_device *hdev)
 
 	rc = hdev->asic_funcs->pci_bars_map(hdev);
 	if (rc) {
-		dev_err(hdev->dev, "Failed to initialize PCI BARs\n");
+		dev_err(hdev->dev, "Failed to map PCI BAR addresses\n");
 		goto disable_device;
 	}
 
 	rc = hdev->asic_funcs->init_iatu(hdev);
 	if (rc) {
-		dev_err(hdev->dev, "Failed to initialize iATU\n");
+		dev_err(hdev->dev, "PCI controller was not initialized successfully\n");
 		goto unmap_pci_bars;
 	}
 

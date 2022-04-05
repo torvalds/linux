@@ -2223,7 +2223,7 @@ static int fan_curve_check_present(struct asus_wmi *asus, bool *available,
 
 	err = fan_curve_get_factory_default(asus, fan_dev);
 	if (err) {
-		if (err == -ENODEV)
+		if (err == -ENODEV || err == -ENODATA)
 			return 0;
 		return err;
 	}

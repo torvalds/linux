@@ -481,16 +481,15 @@ static void __init setup_lowcore_dat_off(void)
 	lc->mcck_stack = mcck_stack + STACK_INIT_OFFSET;
 
 	/* Setup absolute zero lowcore */
-	mem_assign_absolute(S390_lowcore.restart_stack, lc->restart_stack);
-	mem_assign_absolute(S390_lowcore.restart_fn, lc->restart_fn);
-	mem_assign_absolute(S390_lowcore.restart_data, lc->restart_data);
-	mem_assign_absolute(S390_lowcore.restart_source, lc->restart_source);
-	mem_assign_absolute(S390_lowcore.restart_psw, lc->restart_psw);
+	put_abs_lowcore(restart_stack, lc->restart_stack);
+	put_abs_lowcore(restart_fn, lc->restart_fn);
+	put_abs_lowcore(restart_data, lc->restart_data);
+	put_abs_lowcore(restart_source, lc->restart_source);
+	put_abs_lowcore(restart_psw, lc->restart_psw);
 
 	lc->spinlock_lockval = arch_spin_lockval(0);
 	lc->spinlock_index = 0;
 	arch_spin_lock_setup(0);
-	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
 	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 	lc->preempt_count = PREEMPT_DISABLED;
@@ -502,6 +501,7 @@ static void __init setup_lowcore_dat_off(void)
 static void __init setup_lowcore_dat_on(void)
 {
 	struct lowcore *lc = lowcore_ptr[0];
+	int cr;
 
 	__ctl_clear_bit(0, 28);
 	S390_lowcore.external_new_psw.mask |= PSW_MASK_DAT;
@@ -510,10 +510,10 @@ static void __init setup_lowcore_dat_on(void)
 	S390_lowcore.io_new_psw.mask |= PSW_MASK_DAT;
 	__ctl_store(S390_lowcore.cregs_save_area, 0, 15);
 	__ctl_set_bit(0, 28);
-	mem_assign_absolute(S390_lowcore.restart_flags, RESTART_FLAG_CTLREGS);
-	mem_assign_absolute(S390_lowcore.program_new_psw, lc->program_new_psw);
-	memcpy_absolute(&S390_lowcore.cregs_save_area, lc->cregs_save_area,
-			sizeof(S390_lowcore.cregs_save_area));
+	put_abs_lowcore(restart_flags, RESTART_FLAG_CTLREGS);
+	put_abs_lowcore(program_new_psw, lc->program_new_psw);
+	for (cr = 0; cr < ARRAY_SIZE(lc->cregs_save_area); cr++)
+		put_abs_lowcore(cregs_save_area[cr], lc->cregs_save_area[cr]);
 }
 
 static struct resource code_resource = {
@@ -800,6 +800,8 @@ static void __init check_initrd(void)
 static void __init reserve_kernel(void)
 {
 	memblock_reserve(0, STARTUP_NORMAL_OFFSET);
+	memblock_reserve(OLDMEM_BASE, sizeof(unsigned long));
+	memblock_reserve(OLDMEM_SIZE, sizeof(unsigned long));
 	memblock_reserve(__amode31_base, __eamode31 - __samode31);
 	memblock_reserve(__pa(sclp_early_sccb), EXT_SCCB_READ_SCP);
 	memblock_reserve(__pa(_stext), _end - _stext);

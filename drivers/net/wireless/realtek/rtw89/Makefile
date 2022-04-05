@@ -6,10 +6,6 @@ rtw89_core-y += core.o \
 		mac.o \
 		phy.o \
 		fw.o \
-		rtw8852a.o \
-		rtw8852a_table.o \
-		rtw8852a_rfk.o \
-		rtw8852a_rfk_table.o \
 		cam.o \
 		efuse.o \
 		regd.o \
@@ -17,6 +13,15 @@ rtw89_core-y += core.o \
 		coex.o \
 		ps.o \
 		ser.o
+
+obj-$(CONFIG_RTW89_8852A) += rtw89_8852a.o
+rtw89_8852a-objs := rtw8852a.o \
+		    rtw8852a_table.o \
+		    rtw8852a_rfk.o \
+		    rtw8852a_rfk_table.o
+
+obj-$(CONFIG_RTW89_8852AE) += rtw89_8852ae.o
+rtw89_8852ae-objs := rtw8852ae.o
 
 rtw89_core-$(CONFIG_RTW89_DEBUG) += debug.o
 

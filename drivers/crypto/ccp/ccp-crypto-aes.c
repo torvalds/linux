@@ -69,7 +69,6 @@ static int ccp_aes_crypt(struct skcipher_request *req, bool encrypt)
 	struct ccp_aes_req_ctx *rctx = skcipher_request_ctx(req);
 	struct scatterlist *iv_sg = NULL;
 	unsigned int iv_len = 0;
-	int ret;
 
 	if (!ctx->u.aes.key_len)
 		return -EINVAL;
@@ -104,9 +103,7 @@ static int ccp_aes_crypt(struct skcipher_request *req, bool encrypt)
 	rctx->cmd.u.aes.src_len = req->cryptlen;
 	rctx->cmd.u.aes.dst = req->dst;
 
-	ret = ccp_crypto_enqueue_request(&req->base, &rctx->cmd);
-
-	return ret;
+	return ccp_crypto_enqueue_request(&req->base, &rctx->cmd);
 }
 
 static int ccp_aes_encrypt(struct skcipher_request *req)

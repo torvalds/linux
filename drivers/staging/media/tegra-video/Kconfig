@@ -2,7 +2,7 @@
 config VIDEO_TEGRA
 	tristate "NVIDIA Tegra VI driver"
 	depends on TEGRA_HOST1X
-	depends on VIDEO_V4L2
+	depends on VIDEO_DEV
 	select MEDIA_CONTROLLER
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_FWNODE

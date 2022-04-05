@@ -14,8 +14,9 @@ allOf:
 
 properties:
   compatible:
-    items:
-      - const: qcom,mdss-dsi-ctrl
+    enum:
+      - qcom,mdss-dsi-ctrl
+      - qcom,dsi-ctrl-6g-qcm2290
 
   reg:
     maxItems: 1

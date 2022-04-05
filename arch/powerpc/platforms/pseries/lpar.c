@@ -40,7 +40,6 @@
 #include <asm/plpar_wrappers.h>
 #include <asm/kexec.h>
 #include <asm/fadump.h>
-#include <asm/asm-prototypes.h>
 #include <asm/dtl.h>
 
 #include "pseries.h"

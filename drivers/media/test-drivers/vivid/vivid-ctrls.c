@@ -1084,7 +1084,6 @@ static const struct v4l2_ctrl_config vivid_ctrl_display_present = {
 static int vivid_streaming_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_streaming);
-	u64 rem;
 
 	switch (ctrl->id) {
 	case VIVID_CID_DQBUF_ERROR:
@@ -1122,20 +1121,10 @@ static int vivid_streaming_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case VIVID_CID_TIME_WRAP:
 		dev->time_wrap = ctrl->val;
-		if (ctrl->val == 0) {
-			dev->time_wrap_offset = 0;
-			break;
-		}
-		/*
-		 * We want to set the time 16 seconds before the 32 bit tv_sec
-		 * value of struct timeval would wrap around. So first we
-		 * calculate ktime_get_ns() % ((1 << 32) * NSEC_PER_SEC), and
-		 * then we set the offset to ((1 << 32) - 16) * NSEC_PER_SEC).
-		 */
-		div64_u64_rem(ktime_get_ns(),
-			0x100000000ULL * NSEC_PER_SEC, &rem);
-		dev->time_wrap_offset =
-			(0x100000000ULL - 16) * NSEC_PER_SEC - rem;
+		if (dev->time_wrap == 1)
+			dev->time_wrap = (1ULL << 63) - NSEC_PER_SEC * 16ULL;
+		else if (dev->time_wrap == 2)
+			dev->time_wrap = ((1ULL << 31) - 16) * NSEC_PER_SEC;
 		break;
 	}
 	return 0;
@@ -1208,13 +1197,20 @@ static const struct v4l2_ctrl_config vivid_ctrl_seq_wrap = {
 	.step = 1,
 };
 
+static const char * const vivid_ctrl_time_wrap_strings[] = {
+	"None",
+	"64 Bit",
+	"32 Bit",
+	NULL,
+};
+
 static const struct v4l2_ctrl_config vivid_ctrl_time_wrap = {
 	.ops = &vivid_streaming_ctrl_ops,
 	.id = VIVID_CID_TIME_WRAP,
 	.name = "Wrap Timestamp",
-	.type = V4L2_CTRL_TYPE_BOOLEAN,
-	.max = 1,
-	.step = 1,
+	.type = V4L2_CTRL_TYPE_MENU,
+	.max = ARRAY_SIZE(vivid_ctrl_time_wrap_strings) - 2,
+	.qmenu = vivid_ctrl_time_wrap_strings,
 };
 
 

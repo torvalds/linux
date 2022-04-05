@@ -176,7 +176,7 @@ static SIMPLE_DEV_PM_OPS(ahci_dm816_pm_ops,
 
 static const struct of_device_id ahci_dm816_of_match[] = {
 	{ .compatible = "ti,dm816-ahci", },
-	{ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ahci_dm816_of_match);
 
