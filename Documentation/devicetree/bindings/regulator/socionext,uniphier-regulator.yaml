@@ -77,7 +77,7 @@ allOf:
         reset-names:
           const: link
 
-additionalProperties: false
+unevaluatedProperties: false
 
 required:
   - compatible
