@@ -3675,22 +3675,16 @@ static int rtw_dbg_port(struct net_device *dev,
 			break;
 		case 0xee:/* turn on/off dynamic funcs */
 			{
-				u32 odm_flag;
-
-				if (0xf == extra_arg) {
-					GetHalDefVar8188EUsb(padapter, HAL_DEF_DBG_DM_FUNC, &odm_flag);
-				} else {
+				if (extra_arg != 0xf) {
 					/*	extra_arg = 0  - disable all dynamic func
 						extra_arg = 1  - disable DIG
 						extra_arg = 2  - disable tx power tracking
 						extra_arg = 3  - turn on all dynamic func
 					*/
 					SetHalDefVar8188EUsb(padapter, HAL_DEF_DBG_DM_FUNC, &extra_arg);
-					GetHalDefVar8188EUsb(padapter, HAL_DEF_DBG_DM_FUNC, &odm_flag);
 				}
 			}
 			break;
-
 		case 0xfd:
 			rtw_write8(padapter, 0xc50, arg);
 			rtw_write8(padapter, 0xc58, arg);
