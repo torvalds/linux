@@ -369,13 +369,6 @@ static enum export export_from_secname(struct elf_info *elf, unsigned int sec)
 		return export_unknown;
 }
 
-static const char *namespace_from_kstrtabns(const struct elf_info *info,
-					    const Elf_Sym *sym)
-{
-	const char *value = sym_get_data(info, sym);
-	return value[0] ? value : NULL;
-}
-
 static void sym_update_namespace(const char *symname, const char *namespace)
 {
 	struct symbol *s = find_symbol(symname);
@@ -391,8 +384,7 @@ static void sym_update_namespace(const char *symname, const char *namespace)
 	}
 
 	free(s->namespace);
-	s->namespace =
-		namespace && namespace[0] ? NOFAIL(strdup(namespace)) : NULL;
+	s->namespace = namespace[0] ? NOFAIL(strdup(namespace)) : NULL;
 }
 
 /**
@@ -2049,9 +2041,7 @@ static void read_symbols(const char *modname)
 		/* Apply symbol namespaces from __kstrtabns_<symbol> entries. */
 		if (strstarts(symname, "__kstrtabns_"))
 			sym_update_namespace(symname + strlen("__kstrtabns_"),
-					     namespace_from_kstrtabns(&info,
-								      sym));
-
+					     sym_get_data(&info, sym));
 		if (strstarts(symname, "__crc_"))
 			handle_modversion(mod, &info, sym,
 					  symname + strlen("__crc_"));
