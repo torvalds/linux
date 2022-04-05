@@ -369,16 +369,6 @@ static enum export export_from_secname(struct elf_info *elf, unsigned int sec)
 		return export_unknown;
 }
 
-static enum export export_from_sec(struct elf_info *elf, unsigned int sec)
-{
-	if (sec == elf->export_sec)
-		return export_plain;
-	else if (sec == elf->export_gpl_sec)
-		return export_gpl;
-	else
-		return export_unknown;
-}
-
 static const char *namespace_from_kstrtabns(const struct elf_info *info,
 					    const Elf_Sym *sym)
 {
@@ -576,10 +566,7 @@ static int parse_elf(struct elf_info *info, const char *filename)
 				fatal("%s has NOBITS .modinfo\n", filename);
 			info->modinfo = (void *)hdr + sechdrs[i].sh_offset;
 			info->modinfo_len = sechdrs[i].sh_size;
-		} else if (strcmp(secname, "__ksymtab") == 0)
-			info->export_sec = i;
-		else if (strcmp(secname, "__ksymtab_gpl") == 0)
-			info->export_gpl_sec = i;
+		}
 
 		if (sechdrs[i].sh_type == SHT_SYMTAB) {
 			unsigned int sh_link_idx;
@@ -703,7 +690,7 @@ static void handle_symbol(struct module *mod, struct elf_info *info,
 	if (strstarts(symname, "__ksymtab"))
 		export = export_from_secname(info, get_secindex(info, sym));
 	else
-		export = export_from_sec(info, get_secindex(info, sym));
+		export = export_unknown;
 
 	switch (sym->st_shndx) {
 	case SHN_COMMON:
