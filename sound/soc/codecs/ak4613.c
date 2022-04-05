@@ -78,14 +78,10 @@
 /* OCTRL */
 #define OCTRL_MASK	(0x3F)
 
-struct ak4613_formats {
+struct ak4613_interface {
 	unsigned int width;
 	unsigned int fmt;
-};
-
-struct ak4613_interface {
-	struct ak4613_formats capture;
-	struct ak4613_formats playback;
+	u8 dif;
 };
 
 struct ak4613_priv {
@@ -137,13 +133,22 @@ static const struct reg_default ak4613_reg[] = {
 	{ 0x14, 0x00 }, { 0x15, 0x00 }, { 0x16, 0x00 },
 };
 
-#define AUDIO_IFACE_TO_VAL(fmts) ((fmts - ak4613_iface) << 3)
-#define AUDIO_IFACE(b, fmt) { b, SND_SOC_DAIFMT_##fmt }
+/*
+ * CTRL1 register
+ * see
+ *	Table 11/12/13/14
+ */
+#define AUDIO_IFACE(_val, _width, _fmt) \
+	{					\
+		.dif	= (_val << 3),		\
+		.width	= _width,		\
+		.fmt	= SND_SOC_DAIFMT_##_fmt,\
+	}
 static const struct ak4613_interface ak4613_iface[] = {
-	/* capture */				/* playback */
-	/* [0] - [2] are not supported */
-	[3] = {	AUDIO_IFACE(24, LEFT_J),	AUDIO_IFACE(24, LEFT_J) },
-	[4] = {	AUDIO_IFACE(24, I2S),		AUDIO_IFACE(24, I2S) },
+	/* It doesn't support asymmetric format */
+
+	AUDIO_IFACE(0x03, 24, LEFT_J),
+	AUDIO_IFACE(0x04, 24, I2S),
 };
 
 static const struct regmap_config ak4613_regmap_cfg = {
@@ -344,20 +349,13 @@ static int ak4613_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 }
 
 static bool ak4613_dai_fmt_matching(const struct ak4613_interface *iface,
-				    int is_play,
 				    unsigned int fmt, unsigned int width)
 {
-	const struct ak4613_formats *fmts;
+	if ((iface->fmt		== fmt) &&
+	    (iface->width	== width))
+		return true;
 
-	fmts = (is_play) ? &iface->playback : &iface->capture;
-
-	if (fmts->fmt != fmt)
-		return false;
-
-	if (fmts->width != width)
-		return false;
-
-	return true;
+	return false;
 }
 
 static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
@@ -371,9 +369,8 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 	unsigned int width = params_width(params);
 	unsigned int fmt = priv->fmt;
 	unsigned int rate;
-	int is_play = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	int i, ret;
-	u8 fmt_ctrl, ctrl2;
+	u8 ctrl2;
 
 	rate = params_rate(params);
 	switch (rate) {
@@ -401,18 +398,16 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 	 *
 	 * It doesn't support TDM at this point
 	 */
-	fmt_ctrl = NO_FMT;
 	ret = -EINVAL;
 	iface = NULL;
 
 	mutex_lock(&priv->lock);
 	if (priv->iface) {
-		if (ak4613_dai_fmt_matching(priv->iface, is_play, fmt, width))
+		if (ak4613_dai_fmt_matching(priv->iface, fmt, width))
 			iface = priv->iface;
 	} else {
 		for (i = ARRAY_SIZE(ak4613_iface) - 1; i >= 0; i--) {
 			if (!ak4613_dai_fmt_matching(ak4613_iface + i,
-						     is_play,
 						     fmt, width))
 				continue;
 			iface = ak4613_iface + i;
@@ -430,9 +425,7 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		goto hw_params_end;
 
-	fmt_ctrl = AUDIO_IFACE_TO_VAL(iface);
-
-	snd_soc_component_update_bits(component, CTRL1, FMT_MASK, fmt_ctrl);
+	snd_soc_component_update_bits(component, CTRL1, FMT_MASK, iface->dif);
 	snd_soc_component_update_bits(component, CTRL2, DFS_MASK, ctrl2);
 
 	snd_soc_component_update_bits(component, ICTRL, ICTRL_MASK, priv->ic);
