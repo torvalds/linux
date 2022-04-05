@@ -1378,7 +1378,7 @@ static void ve_raise_fault(struct pt_regs *regs, long error_code)
  *
  * In the settings that Linux will run in, virtualization exceptions are
  * never generated on accesses to normal, TD-private memory that has been
- * accepted.
+ * accepted (by BIOS or with tdx_enc_status_changed()).
  *
  * Syscall entry code has a critical window where the kernel stack is not
  * yet set up. Any exception in this window leads to hard to debug issues
