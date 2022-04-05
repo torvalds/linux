@@ -485,6 +485,7 @@ struct extcon_nb {
 struct dwc3_msm {
 	struct device *dev;
 	void __iomem *base;
+	void __iomem *tcsr_dyn_en_dis;
 	void __iomem *ahb2phy_base;
 	phys_addr_t reg_phys;
 	struct platform_device	*dwc3;
@@ -3498,7 +3499,6 @@ static void dwc3_dis_sleep_mode(struct dwc3_msm *mdwc)
 	dwc3_msm_write_reg(mdwc->base, DWC3_GUCTL1, reg);
 }
 
-
 /* Force Gen1 speed on Gen2 controller if required */
 static void dwc3_force_gen1(struct dwc3_msm *mdwc)
 {
@@ -3508,15 +3508,33 @@ static void dwc3_force_gen1(struct dwc3_msm *mdwc)
 		dwc3_msm_write_reg_field(mdwc->base, DWC3_LLUCTL, DWC3_LLUCTL_FORCE_GEN1, 1);
 }
 
-static void dwc3_msm_power_collapse_por(struct dwc3_msm *mdwc)
+static int dwc3_msm_power_collapse_por(struct dwc3_msm *mdwc)
 {
 	struct dwc3 *dwc = NULL;
 	u32 val;
 
 	if (!mdwc->dwc3)
-		return;
+		return 0;
 
 	dwc = platform_get_drvdata(mdwc->dwc3);
+
+	/*
+	 * Reading a value on the TCSR_USB_INT_DYN_EN_DIS register deviating
+	 * from 0xF means that TZ caused TCSR to disable USB Interface
+	 */
+	if (mdwc->tcsr_dyn_en_dis) {
+		val = dwc3_msm_read_reg(mdwc->tcsr_dyn_en_dis, 0);
+		if (val != 0xF)
+			return -EINVAL;
+	}
+
+	/*
+	 * Reading from GSNPSID (known read-only register) which is expected
+	 * to show a non-zero value if controller was turned on properly.
+	 */
+	val = dwc3_msm_read_reg(mdwc->base, DWC3_GSNPSID);
+	if (DWC3_GSNPS_ID(val) == 0)
+		return -EINVAL;
 
 	/* Get initial P3 status and enable IN_P3 event */
 	if (mdwc->ip == DWC31_IP)
@@ -3543,6 +3561,7 @@ static void dwc3_msm_power_collapse_por(struct dwc3_msm *mdwc)
 	}
 
 	dwc3_force_gen1(mdwc);
+	return 0;
 }
 
 static int dwc3_msm_prepare_suspend(struct dwc3_msm *mdwc, bool ignore_p3_state)
@@ -4224,7 +4243,15 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 	if (mdwc->lpm_flags & MDWC3_POWER_COLLAPSE) {
 		dev_dbg(mdwc->dev, "%s: exit power collapse\n", __func__);
 
-		dwc3_msm_power_collapse_por(mdwc);
+		ret = dwc3_msm_power_collapse_por(mdwc);
+		if (ret < 0) {
+			dev_err(mdwc->dev, "%s: Controller was not turned on properly\n",
+						__func__);
+			dwc3_clk_enable_disable(mdwc, false,
+				mdwc->lpm_flags & MDWC3_POWER_COLLAPSE);
+			dwc3_msm_config_gdsc(mdwc, 0);
+			goto error;
+		}
 
 		mdwc->lpm_flags &= ~MDWC3_POWER_COLLAPSE;
 	}
@@ -5833,6 +5860,17 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENODEV;
 		goto err;
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "tcsr_dyn_en_dis");
+	if (res) {
+		mdwc->tcsr_dyn_en_dis = devm_ioremap(&pdev->dev, res->start,
+			resource_size(res));
+		if (!mdwc->tcsr_dyn_en_dis) {
+			dev_err(&pdev->dev, "ioremap for tcsr_dyn_en_dis failed\n");
+			ret = -ENODEV;
+			goto err;
+		}
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
