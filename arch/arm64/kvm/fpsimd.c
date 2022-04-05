@@ -84,6 +84,11 @@ void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu)
 		vcpu->arch.flags |= KVM_ARM64_HOST_SVE_ENABLED;
 }
 
+/*
+ * Called just before entering the guest once we are no longer
+ * preemptable. Syncs the host's TIF_FOREIGN_FPSTATE with the KVM
+ * mirror of the flag used by the hypervisor.
+ */
 void kvm_arch_vcpu_ctxflush_fp(struct kvm_vcpu *vcpu)
 {
 	if (test_thread_flag(TIF_FOREIGN_FPSTATE))
@@ -93,10 +98,11 @@ void kvm_arch_vcpu_ctxflush_fp(struct kvm_vcpu *vcpu)
 }
 
 /*
- * If the guest FPSIMD state was loaded, update the host's context
- * tracking data mark the CPU FPSIMD regs as dirty and belonging to vcpu
- * so that they will be written back if the kernel clobbers them due to
- * kernel-mode NEON before re-entry into the guest.
+ * Called just after exiting the guest. If the guest FPSIMD state
+ * was loaded, update the host's context tracking data mark the CPU
+ * FPSIMD regs as dirty and belonging to vcpu so that they will be
+ * written back if the kernel clobbers them due to kernel-mode NEON
+ * before re-entry into the guest.
  */
 void kvm_arch_vcpu_ctxsync_fp(struct kvm_vcpu *vcpu)
 {

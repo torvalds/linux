@@ -79,7 +79,8 @@ struct kvm_sev_info {
 	struct list_head regions_list;  /* List of registered regions */
 	u64 ap_jump_table;	/* SEV-ES AP Jump Table address */
 	struct kvm *enc_context_owner; /* Owner of copied encryption context */
-	unsigned long num_mirrored_vms; /* Number of VMs sharing this ASID */
+	struct list_head mirror_vms; /* List of VMs mirroring */
+	struct list_head mirror_entry; /* Use as a list entry of mirrors */
 	struct misc_cg *misc_cg; /* For misc cgroup accounting */
 	atomic_t migration_in_progress;
 };
@@ -137,6 +138,8 @@ struct vmcb_ctrl_area_cached {
 	u32 event_inj_err;
 	u64 nested_cr3;
 	u64 virt_ext;
+	u32 clean;
+	u8 reserved_sw[32];
 };
 
 struct svm_nested_state {
@@ -163,6 +166,15 @@ struct svm_nested_state {
 	struct vmcb_save_area_cached save;
 
 	bool initialized;
+
+	/*
+	 * Indicates whether MSR bitmap for L2 needs to be rebuilt due to
+	 * changes in MSR bitmap for L1 or switching to a different L2. Note,
+	 * this flag can only be used reliably in conjunction with a paravirt L1
+	 * which informs L0 whether any changes to MSR bitmap for L2 were done
+	 * on its side.
+	 */
+	bool force_msr_bitmap_recalc;
 };
 
 struct vcpu_sev_es_state {
@@ -321,7 +333,7 @@ static __always_inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 
 /*
  * Only the PDPTRs are loaded on demand into the shadow MMU.  All other
- * fields are synchronized in handle_exit, because accessing the VMCB is cheap.
+ * fields are synchronized on VM-Exit, because accessing the VMCB is cheap.
  *
  * CR3 might be out of date in the VMCB but it is not marked dirty; instead,
  * KVM_REQ_LOAD_MMU_PGD is always requested when the cached vcpu->arch.cr3
@@ -480,7 +492,6 @@ void svm_vcpu_free_msrpm(u32 *msrpm);
 int svm_set_efer(struct kvm_vcpu *vcpu, u64 efer);
 void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 void svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
-void svm_flush_tlb(struct kvm_vcpu *vcpu);
 void disable_nmi_singlestep(struct vcpu_svm *svm);
 bool svm_smi_blocked(struct kvm_vcpu *vcpu);
 bool svm_nmi_blocked(struct kvm_vcpu *vcpu);
@@ -558,6 +569,17 @@ extern struct kvm_x86_nested_ops svm_nested_ops;
 
 /* avic.c */
 
+#define AVIC_LOGICAL_ID_ENTRY_GUEST_PHYSICAL_ID_MASK	(0xFF)
+#define AVIC_LOGICAL_ID_ENTRY_VALID_BIT			31
+#define AVIC_LOGICAL_ID_ENTRY_VALID_MASK		(1 << 31)
+
+#define AVIC_PHYSICAL_ID_ENTRY_HOST_PHYSICAL_ID_MASK	GENMASK_ULL(11, 0)
+#define AVIC_PHYSICAL_ID_ENTRY_BACKING_PAGE_MASK	(0xFFFFFFFFFFULL << 12)
+#define AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK		(1ULL << 62)
+#define AVIC_PHYSICAL_ID_ENTRY_VALID_MASK		(1ULL << 63)
+
+#define VMCB_AVIC_APIC_BAR_MASK		0xFFFFFFFFFF000ULL
+
 int avic_ga_log_notifier(u32 ga_tag);
 void avic_vm_destroy(struct kvm *kvm);
 int avic_vm_init(struct kvm *kvm);
@@ -565,18 +587,17 @@ void avic_init_vmcb(struct vcpu_svm *svm);
 int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu);
 int avic_unaccelerated_access_interception(struct kvm_vcpu *vcpu);
 int avic_init_vcpu(struct vcpu_svm *svm);
-void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
-void avic_vcpu_put(struct kvm_vcpu *vcpu);
-void avic_post_state_restore(struct kvm_vcpu *vcpu);
-void svm_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
-void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu);
-bool svm_check_apicv_inhibit_reasons(ulong bit);
-void svm_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap);
-void svm_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr);
-void svm_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr);
-bool svm_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu);
-int svm_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
-		       uint32_t guest_irq, bool set);
+void __avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
+void __avic_vcpu_put(struct kvm_vcpu *vcpu);
+void avic_apicv_post_state_restore(struct kvm_vcpu *vcpu);
+void avic_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
+void avic_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu);
+bool avic_check_apicv_inhibit_reasons(ulong bit);
+void avic_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr);
+void avic_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr);
+bool avic_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu);
+int avic_pi_update_irte(struct kvm *kvm, unsigned int host_irq,
+			uint32_t guest_irq, bool set);
 void avic_vcpu_blocking(struct kvm_vcpu *vcpu);
 void avic_vcpu_unblocking(struct kvm_vcpu *vcpu);
 void avic_ring_doorbell(struct kvm_vcpu *vcpu);
@@ -590,17 +611,17 @@ void avic_ring_doorbell(struct kvm_vcpu *vcpu);
 extern unsigned int max_sev_asid;
 
 void sev_vm_destroy(struct kvm *kvm);
-int svm_mem_enc_op(struct kvm *kvm, void __user *argp);
-int svm_register_enc_region(struct kvm *kvm,
-			    struct kvm_enc_region *range);
-int svm_unregister_enc_region(struct kvm *kvm,
-			      struct kvm_enc_region *range);
-int svm_vm_copy_asid_from(struct kvm *kvm, unsigned int source_fd);
-int svm_vm_migrate_from(struct kvm *kvm, unsigned int source_fd);
+int sev_mem_enc_ioctl(struct kvm *kvm, void __user *argp);
+int sev_mem_enc_register_region(struct kvm *kvm,
+				struct kvm_enc_region *range);
+int sev_mem_enc_unregister_region(struct kvm *kvm,
+				  struct kvm_enc_region *range);
+int sev_vm_copy_enc_context_from(struct kvm *kvm, unsigned int source_fd);
+int sev_vm_move_enc_context_from(struct kvm *kvm, unsigned int source_fd);
 void pre_sev_run(struct vcpu_svm *svm, int cpu);
 void __init sev_set_cpu_caps(void);
 void __init sev_hardware_setup(void);
-void sev_hardware_teardown(void);
+void sev_hardware_unsetup(void);
 int sev_cpu_init(struct svm_cpu_data *sd);
 void sev_free_vcpu(struct kvm_vcpu *vcpu);
 int sev_handle_vmgexit(struct kvm_vcpu *vcpu);
@@ -608,7 +629,7 @@ int sev_es_string_io(struct vcpu_svm *svm, int size, unsigned int port, int in);
 void sev_es_init_vmcb(struct vcpu_svm *svm);
 void sev_es_vcpu_reset(struct vcpu_svm *svm);
 void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector);
-void sev_es_prepare_guest_switch(struct vcpu_svm *svm, unsigned int cpu);
+void sev_es_prepare_switch_to_guest(struct vmcb_save_area *hostsa);
 void sev_es_unmap_ghcb(struct vcpu_svm *svm);
 
 /* vmenter.S */

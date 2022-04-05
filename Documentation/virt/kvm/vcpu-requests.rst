@@ -112,11 +112,10 @@ KVM_REQ_TLB_FLUSH
   choose to use the common kvm_flush_remote_tlbs() implementation will
   need to handle this VCPU request.
 
-KVM_REQ_MMU_RELOAD
+KVM_REQ_VM_DEAD
 
-  When shadow page tables are used and memory slots are removed it's
-  necessary to inform each VCPU to completely refresh the tables.  This
-  request is used for that.
+  This request informs all VCPUs that the VM is dead and unusable, e.g. due to
+  fatal error or because the VM's state has been intentionally destroyed.
 
 KVM_REQ_UNBLOCK
 
