@@ -111,7 +111,7 @@ required:
   - reset-names
   - mdio
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
