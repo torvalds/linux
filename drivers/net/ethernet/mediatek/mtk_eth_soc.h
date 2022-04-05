@@ -465,6 +465,12 @@
 #define RSTCTRL_FE		BIT(6)
 #define RSTCTRL_PPE		BIT(31)
 
+/* ethernet dma channel agent map */
+#define ETHSYS_DMA_AG_MAP	0x408
+#define ETHSYS_DMA_AG_MAP_PDMA	BIT(0)
+#define ETHSYS_DMA_AG_MAP_QDMA	BIT(1)
+#define ETHSYS_DMA_AG_MAP_PPE	BIT(2)
+
 /* SGMII subsystem config registers */
 /* Register to auto-negotiation restart */
 #define SGMSYS_PCS_CONTROL_1	0x0
@@ -882,6 +888,7 @@ struct mtk_sgmii {
 /* struct mtk_eth -	This is the main datasructure for holding the state
  *			of the driver
  * @dev:		The device pointer
+ * @dev:		The device pointer used for dma mapping/alloc
  * @base:		The mapped register i/o base
  * @page_lock:		Make sure that register operations are atomic
  * @tx_irq__lock:	Make sure that IRQ register operations are atomic
@@ -925,6 +932,7 @@ struct mtk_sgmii {
 
 struct mtk_eth {
 	struct device			*dev;
+	struct device			*dma_dev;
 	void __iomem			*base;
 	spinlock_t			page_lock;
 	spinlock_t			tx_irq_lock;
@@ -1023,6 +1031,7 @@ int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_eth_offload_init(struct mtk_eth *eth);
 int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
 		     void *type_data);
+void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
 
 
 #endif /* MTK_ETH_H */

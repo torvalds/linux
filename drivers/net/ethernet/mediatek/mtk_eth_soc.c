@@ -9,6 +9,7 @@
 #include <linux/of_device.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
+#include <linux/of_address.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/clk.h>
@@ -786,7 +787,7 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	dma_addr_t dma_addr;
 	int i;
 
-	eth->scratch_ring = dma_alloc_coherent(eth->dev,
+	eth->scratch_ring = dma_alloc_coherent(eth->dma_dev,
 					       cnt * sizeof(struct mtk_tx_dma),
 					       &eth->phy_scratch_ring,
 					       GFP_ATOMIC);
@@ -798,10 +799,10 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	if (unlikely(!eth->scratch_head))
 		return -ENOMEM;
 
-	dma_addr = dma_map_single(eth->dev,
+	dma_addr = dma_map_single(eth->dma_dev,
 				  eth->scratch_head, cnt * MTK_QDMA_PAGE_SIZE,
 				  DMA_FROM_DEVICE);
-	if (unlikely(dma_mapping_error(eth->dev, dma_addr)))
+	if (unlikely(dma_mapping_error(eth->dma_dev, dma_addr)))
 		return -ENOMEM;
 
 	phy_ring_tail = eth->phy_scratch_ring +
@@ -855,26 +856,26 @@ static void mtk_tx_unmap(struct mtk_eth *eth, struct mtk_tx_buf *tx_buf,
 {
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
 		if (tx_buf->flags & MTK_TX_FLAGS_SINGLE0) {
-			dma_unmap_single(eth->dev,
+			dma_unmap_single(eth->dma_dev,
 					 dma_unmap_addr(tx_buf, dma_addr0),
 					 dma_unmap_len(tx_buf, dma_len0),
 					 DMA_TO_DEVICE);
 		} else if (tx_buf->flags & MTK_TX_FLAGS_PAGE0) {
-			dma_unmap_page(eth->dev,
+			dma_unmap_page(eth->dma_dev,
 				       dma_unmap_addr(tx_buf, dma_addr0),
 				       dma_unmap_len(tx_buf, dma_len0),
 				       DMA_TO_DEVICE);
 		}
 	} else {
 		if (dma_unmap_len(tx_buf, dma_len0)) {
-			dma_unmap_page(eth->dev,
+			dma_unmap_page(eth->dma_dev,
 				       dma_unmap_addr(tx_buf, dma_addr0),
 				       dma_unmap_len(tx_buf, dma_len0),
 				       DMA_TO_DEVICE);
 		}
 
 		if (dma_unmap_len(tx_buf, dma_len1)) {
-			dma_unmap_page(eth->dev,
+			dma_unmap_page(eth->dma_dev,
 				       dma_unmap_addr(tx_buf, dma_addr1),
 				       dma_unmap_len(tx_buf, dma_len1),
 				       DMA_TO_DEVICE);
@@ -952,9 +953,9 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	if (skb_vlan_tag_present(skb))
 		txd4 |= TX_DMA_INS_VLAN | skb_vlan_tag_get(skb);
 
-	mapped_addr = dma_map_single(eth->dev, skb->data,
+	mapped_addr = dma_map_single(eth->dma_dev, skb->data,
 				     skb_headlen(skb), DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(eth->dev, mapped_addr)))
+	if (unlikely(dma_mapping_error(eth->dma_dev, mapped_addr)))
 		return -ENOMEM;
 
 	WRITE_ONCE(itxd->txd1, mapped_addr);
@@ -993,10 +994,10 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 
 
 			frag_map_size = min(frag_size, MTK_TX_DMA_BUF_LEN);
-			mapped_addr = skb_frag_dma_map(eth->dev, frag, offset,
+			mapped_addr = skb_frag_dma_map(eth->dma_dev, frag, offset,
 						       frag_map_size,
 						       DMA_TO_DEVICE);
-			if (unlikely(dma_mapping_error(eth->dev, mapped_addr)))
+			if (unlikely(dma_mapping_error(eth->dma_dev, mapped_addr)))
 				goto err_dma;
 
 			if (i == nr_frags - 1 &&
@@ -1274,18 +1275,18 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 			netdev->stats.rx_dropped++;
 			goto release_desc;
 		}
-		dma_addr = dma_map_single(eth->dev,
+		dma_addr = dma_map_single(eth->dma_dev,
 					  new_data + NET_SKB_PAD +
 					  eth->ip_align,
 					  ring->buf_size,
 					  DMA_FROM_DEVICE);
-		if (unlikely(dma_mapping_error(eth->dev, dma_addr))) {
+		if (unlikely(dma_mapping_error(eth->dma_dev, dma_addr))) {
 			skb_free_frag(new_data);
 			netdev->stats.rx_dropped++;
 			goto release_desc;
 		}
 
-		dma_unmap_single(eth->dev, trxd.rxd1,
+		dma_unmap_single(eth->dma_dev, trxd.rxd1,
 				 ring->buf_size, DMA_FROM_DEVICE);
 
 		/* receive data */
@@ -1558,7 +1559,7 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 	if (!ring->buf)
 		goto no_tx_mem;
 
-	ring->dma = dma_alloc_coherent(eth->dev, MTK_DMA_SIZE * sz,
+	ring->dma = dma_alloc_coherent(eth->dma_dev, MTK_DMA_SIZE * sz,
 				       &ring->phys, GFP_ATOMIC);
 	if (!ring->dma)
 		goto no_tx_mem;
@@ -1576,7 +1577,7 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 	 * descriptors in ring->dma_pdma.
 	 */
 	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
-		ring->dma_pdma = dma_alloc_coherent(eth->dev, MTK_DMA_SIZE * sz,
+		ring->dma_pdma = dma_alloc_coherent(eth->dma_dev, MTK_DMA_SIZE * sz,
 						    &ring->phys_pdma,
 						    GFP_ATOMIC);
 		if (!ring->dma_pdma)
@@ -1635,7 +1636,7 @@ static void mtk_tx_clean(struct mtk_eth *eth)
 	}
 
 	if (ring->dma) {
-		dma_free_coherent(eth->dev,
+		dma_free_coherent(eth->dma_dev,
 				  MTK_DMA_SIZE * sizeof(*ring->dma),
 				  ring->dma,
 				  ring->phys);
@@ -1643,7 +1644,7 @@ static void mtk_tx_clean(struct mtk_eth *eth)
 	}
 
 	if (ring->dma_pdma) {
-		dma_free_coherent(eth->dev,
+		dma_free_coherent(eth->dma_dev,
 				  MTK_DMA_SIZE * sizeof(*ring->dma_pdma),
 				  ring->dma_pdma,
 				  ring->phys_pdma);
@@ -1688,18 +1689,18 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 			return -ENOMEM;
 	}
 
-	ring->dma = dma_alloc_coherent(eth->dev,
+	ring->dma = dma_alloc_coherent(eth->dma_dev,
 				       rx_dma_size * sizeof(*ring->dma),
 				       &ring->phys, GFP_ATOMIC);
 	if (!ring->dma)
 		return -ENOMEM;
 
 	for (i = 0; i < rx_dma_size; i++) {
-		dma_addr_t dma_addr = dma_map_single(eth->dev,
+		dma_addr_t dma_addr = dma_map_single(eth->dma_dev,
 				ring->data[i] + NET_SKB_PAD + eth->ip_align,
 				ring->buf_size,
 				DMA_FROM_DEVICE);
-		if (unlikely(dma_mapping_error(eth->dev, dma_addr)))
+		if (unlikely(dma_mapping_error(eth->dma_dev, dma_addr)))
 			return -ENOMEM;
 		ring->dma[i].rxd1 = (unsigned int)dma_addr;
 
@@ -1735,7 +1736,7 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 				continue;
 			if (!ring->dma[i].rxd1)
 				continue;
-			dma_unmap_single(eth->dev,
+			dma_unmap_single(eth->dma_dev,
 					 ring->dma[i].rxd1,
 					 ring->buf_size,
 					 DMA_FROM_DEVICE);
@@ -1746,7 +1747,7 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 	}
 
 	if (ring->dma) {
-		dma_free_coherent(eth->dev,
+		dma_free_coherent(eth->dma_dev,
 				  ring->dma_size * sizeof(*ring->dma),
 				  ring->dma,
 				  ring->phys);
@@ -2099,7 +2100,7 @@ static void mtk_dma_free(struct mtk_eth *eth)
 		if (eth->netdev[i])
 			netdev_reset_queue(eth->netdev[i]);
 	if (eth->scratch_ring) {
-		dma_free_coherent(eth->dev,
+		dma_free_coherent(eth->dma_dev,
 				  MTK_DMA_SIZE * sizeof(struct mtk_tx_dma),
 				  eth->scratch_ring,
 				  eth->phy_scratch_ring);
@@ -2448,6 +2449,8 @@ static void mtk_dim_tx(struct work_struct *work)
 
 static int mtk_hw_init(struct mtk_eth *eth)
 {
+	u32 dma_mask = ETHSYS_DMA_AG_MAP_PDMA | ETHSYS_DMA_AG_MAP_QDMA |
+		       ETHSYS_DMA_AG_MAP_PPE;
 	int i, val, ret;
 
 	if (test_and_set_bit(MTK_HW_INIT, &eth->state))
@@ -2459,6 +2462,10 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	ret = mtk_clk_enable(eth);
 	if (ret)
 		goto err_disable_pm;
+
+	if (eth->ethsys)
+		regmap_update_bits(eth->ethsys, ETHSYS_DMA_AG_MAP, dma_mask,
+				   of_dma_is_coherent(eth->dma_dev->of_node) * dma_mask);
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628)) {
 		ret = device_reset(eth->dev);
@@ -3040,6 +3047,35 @@ free_netdev:
 	return err;
 }
 
+void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev)
+{
+	struct net_device *dev, *tmp;
+	LIST_HEAD(dev_list);
+	int i;
+
+	rtnl_lock();
+
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		dev = eth->netdev[i];
+
+		if (!dev || !(dev->flags & IFF_UP))
+			continue;
+
+		list_add_tail(&dev->close_list, &dev_list);
+	}
+
+	dev_close_many(&dev_list, false);
+
+	eth->dma_dev = dma_dev;
+
+	list_for_each_entry_safe(dev, tmp, &dev_list, close_list) {
+		list_del_init(&dev->close_list);
+		dev_open(dev, NULL);
+	}
+
+	rtnl_unlock();
+}
+
 static int mtk_probe(struct platform_device *pdev)
 {
 	struct device_node *mac_np;
@@ -3053,6 +3089,7 @@ static int mtk_probe(struct platform_device *pdev)
 	eth->soc = of_device_get_match_data(&pdev->dev);
 
 	eth->dev = &pdev->dev;
+	eth->dma_dev = &pdev->dev;
 	eth->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(eth->base))
 		return PTR_ERR(eth->base);
@@ -3099,6 +3136,16 @@ static int mtk_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "no infracfg regmap found\n");
 			return PTR_ERR(eth->infra);
 		}
+	}
+
+	if (of_dma_is_coherent(pdev->dev.of_node)) {
+		struct regmap *cci;
+
+		cci = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+						      "mediatek,cci-control");
+		/* enable CPU/bus coherency */
+		if (!IS_ERR(cci))
+			regmap_write(cci, 0, 3);
 	}
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SGMII)) {
