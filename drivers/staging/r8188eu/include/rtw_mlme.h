@@ -598,4 +598,6 @@ void rtw_set_max_rpt_macid(struct adapter *adapter, u8 macid);
 void rtw_sta_media_status_rpt(struct adapter *adapter, struct sta_info *psta,
 			      u32 mstatus);
 
+u8 rtw_current_antenna(struct adapter *adapter);
+
 #endif /* __RTL871X_MLME_H_ */
