@@ -3,7 +3,6 @@
 #include <linux/workqueue.h>
 #include <linux/pci.h>
 #include <linux/device.h>
-#include <linux/iommu.h>
 #include "adf_common_drv.h"
 #include "adf_cfg.h"
 #include "adf_pfvf_pf_msg.h"
@@ -176,7 +175,7 @@ int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 		return -EFAULT;
 	}
 
-	if (!iommu_present(&pci_bus_type))
+	if (!device_iommu_mapped(&pdev->dev))
 		dev_warn(&pdev->dev, "IOMMU should be enabled for SR-IOV to work correctly\n");
 
 	if (accel_dev->pf.vf_info) {
