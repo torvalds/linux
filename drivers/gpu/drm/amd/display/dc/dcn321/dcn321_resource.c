@@ -994,7 +994,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 			.dscl = false,
 			.cm = false,
 			.mpc = false,
-			.optc = false,
+			.optc = true,
 		}
 	},
 	.use_max_lb = true,
