@@ -397,44 +397,19 @@ fill_detail_timing_data(struct drm_display_mode *panel_fixed_mode,
 }
 
 static const struct lvds_dvo_timing *
-get_lvds_dvo_timing(const struct bdb_lvds_lfp_data *lvds_lfp_data,
-		    const struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs,
+get_lvds_dvo_timing(const struct bdb_lvds_lfp_data *data,
+		    const struct bdb_lvds_lfp_data_ptrs *ptrs,
 		    int index)
 {
-	/*
-	 * the size of fp_timing varies on the different platform.
-	 * So calculate the DVO timing relative offset in LVDS data
-	 * entry to get the DVO timing entry
-	 */
-
-	int lfp_data_size =
-		lvds_lfp_data_ptrs->ptr[1].dvo_timing.offset -
-		lvds_lfp_data_ptrs->ptr[0].dvo_timing.offset;
-	int dvo_timing_offset =
-		lvds_lfp_data_ptrs->ptr[0].dvo_timing.offset -
-		lvds_lfp_data_ptrs->ptr[0].fp_timing.offset;
-	char *entry = (char *)lvds_lfp_data->data + lfp_data_size * index;
-
-	return (struct lvds_dvo_timing *)(entry + dvo_timing_offset);
+	return (const void *)data + ptrs->ptr[index].dvo_timing.offset;
 }
 
-/* get lvds_fp_timing entry
- * this function may return NULL if the corresponding entry is invalid
- */
 static const struct lvds_fp_timing *
 get_lvds_fp_timing(const struct bdb_lvds_lfp_data *data,
 		   const struct bdb_lvds_lfp_data_ptrs *ptrs,
 		   int index)
 {
-	u16 data_size = ((const u16 *)data)[-1]; /* stored in header */
-	size_t ofs;
-
-	if (index >= ARRAY_SIZE(ptrs->ptr))
-		return NULL;
-	ofs = ptrs->ptr[index].fp_timing.offset;
-	if (ofs + sizeof(struct lvds_fp_timing) > data_size)
-		return NULL;
-	return (const struct lvds_fp_timing *)((const u8 *)data + ofs);
+	return (const void *)data + ptrs->ptr[index].fp_timing.offset;
 }
 
 /* Parse general panel options */
@@ -499,8 +474,7 @@ parse_panel_options(struct drm_i915_private *i915)
 
 /* Try to find integrated panel timing data */
 static void
-parse_lfp_panel_dtd(struct drm_i915_private *i915,
-		    const struct bdb_header *bdb)
+parse_lfp_panel_dtd(struct drm_i915_private *i915)
 {
 	const struct bdb_lvds_lfp_data *lvds_lfp_data;
 	const struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs;
@@ -536,15 +510,14 @@ parse_lfp_panel_dtd(struct drm_i915_private *i915,
 	fp_timing = get_lvds_fp_timing(lvds_lfp_data,
 				       lvds_lfp_data_ptrs,
 				       panel_type);
-	if (fp_timing) {
-		/* check the resolution, just to be sure */
-		if (fp_timing->x_res == panel_fixed_mode->hdisplay &&
-		    fp_timing->y_res == panel_fixed_mode->vdisplay) {
-			i915->vbt.bios_lvds_val = fp_timing->lvds_reg_val;
-			drm_dbg_kms(&i915->drm,
-				    "VBT initial LVDS value %x\n",
-				    i915->vbt.bios_lvds_val);
-		}
+
+	/* check the resolution, just to be sure */
+	if (fp_timing->x_res == panel_fixed_mode->hdisplay &&
+	    fp_timing->y_res == panel_fixed_mode->vdisplay) {
+		i915->vbt.bios_lvds_val = fp_timing->lvds_reg_val;
+		drm_dbg_kms(&i915->drm,
+			    "VBT initial LVDS value %x\n",
+			    i915->vbt.bios_lvds_val);
 	}
 }
 
@@ -627,8 +600,7 @@ parse_generic_dtd(struct drm_i915_private *i915)
 }
 
 static void
-parse_panel_dtd(struct drm_i915_private *i915,
-		const struct bdb_header *bdb)
+parse_panel_dtd(struct drm_i915_private *i915)
 {
 	/*
 	 * Older VBTs provided provided DTD information for internal displays
@@ -641,7 +613,7 @@ parse_panel_dtd(struct drm_i915_private *i915,
 	if (i915->vbt.version >= 229)
 		parse_generic_dtd(i915);
 	if (!i915->vbt.lfp_lvds_vbt_mode)
-		parse_lfp_panel_dtd(i915, bdb);
+		parse_lfp_panel_dtd(i915);
 }
 
 static void
@@ -2720,7 +2692,7 @@ void intel_bios_init(struct drm_i915_private *i915)
 	parse_general_features(i915);
 	parse_general_definitions(i915);
 	parse_panel_options(i915);
-	parse_panel_dtd(i915, bdb);
+	parse_panel_dtd(i915);
 	parse_lfp_backlight(i915);
 	parse_sdvo_panel_data(i915);
 	parse_driver_features(i915);
