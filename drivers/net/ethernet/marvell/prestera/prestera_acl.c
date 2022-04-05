@@ -421,13 +421,6 @@ int prestera_acl_rule_add(struct prestera_switch *sw,
 	rule->re_arg.vtcam_id = ruleset->vtcam_id;
 	rule->re_key.prio = rule->priority;
 
-	/* setup counter */
-	rule->re_arg.count.valid = true;
-	err = prestera_acl_chain_to_client(ruleset->ht_key.chain_index,
-					   &rule->re_arg.count.client);
-	if (err)
-		goto err_rule_add;
-
 	rule->re = prestera_acl_rule_entry_find(sw->acl, &rule->re_key);
 	err = WARN_ON(rule->re) ? -EEXIST : 0;
 	if (err)
