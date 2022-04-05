@@ -41,6 +41,12 @@ Required properties:
 - mediatek,pctl: phandle to the syscon node that handles the ports slew rate
 	and driver current: only for MT2701 and MT7623 SoC
 
+Optional properties:
+- dma-coherent: present if dma operations are coherent
+- mediatek,cci-control: phandle to the cache coherent interconnect node
+- mediatek,hifsys: phandle to the mediatek hifsys controller used to provide
+	various clocks and reset to the system.
+
 * Ethernet MAC node
 
 Required properties:
