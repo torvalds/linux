@@ -4116,9 +4116,10 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 				goto err_3dnr;
 			}
 			dma_addr = priv_val->buf_3dnr_cur.dma_addr;
+			priv_val->is_sram = false;
 		} else {
 			dma_addr = dev->hw_dev->sram.dma_addr;
-			dev_info(dev->dev, "bay3d cur write to sram\n");
+			priv_val->is_sram = true;
 		}
 		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_CUR_WR_SIZE);
 		isp3_param_write(params_vdev, val, ISP32_MI_BAY3D_CUR_RD_SIZE);

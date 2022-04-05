@@ -197,6 +197,7 @@ struct rkisp_isp_params_val_v32 {
 	bool bay3d_en;
 	bool is_bigmode;
 	bool is_lo8x8;
+	bool is_sram;
 };
 
 #if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V32)
