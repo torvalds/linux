@@ -6,6 +6,7 @@
 
 #include <linux/kernel.h>
 #include <linux/bitfield.h>
+#include <linux/rhashtable.h>
 
 #define MTK_ETH_PPE_BASE		0xc00
 
@@ -84,19 +85,16 @@ struct mtk_foe_mac_info {
 	u16 src_mac_lo;
 };
 
+/* software-only entry type */
 struct mtk_foe_bridge {
-	u32 dest_mac_hi;
+	u8 dest_mac[ETH_ALEN];
+	u8 src_mac[ETH_ALEN];
+	u16 vlan;
 
-	u16 src_mac_lo;
-	u16 dest_mac_lo;
-
-	u32 src_mac_hi;
+	struct {} key_end;
 
 	u32 ib2;
 
-	u32 _rsv[5];
-
-	u32 udf_tsid;
 	struct mtk_foe_mac_info l2;
 };
 
@@ -235,13 +233,33 @@ enum {
 	MTK_PPE_CPU_REASON_INVALID			= 0x1f,
 };
 
+enum {
+	MTK_FLOW_TYPE_L4,
+	MTK_FLOW_TYPE_L2,
+	MTK_FLOW_TYPE_L2_SUBFLOW,
+};
+
 struct mtk_flow_entry {
-	struct rhash_head node;
-	struct hlist_node list;
-	unsigned long cookie;
-	struct mtk_foe_entry data;
-	u16 hash;
+	union {
+		struct hlist_node list;
+		struct {
+			struct rhash_head l2_node;
+			struct hlist_head l2_flows;
+		};
+	};
+	u8 type;
 	s8 wed_index;
+	u16 hash;
+	union {
+		struct mtk_foe_entry data;
+		struct {
+			struct mtk_flow_entry *base_flow;
+			struct hlist_node list;
+			struct {} end;
+		} l2_data;
+	};
+	struct rhash_head node;
+	unsigned long cookie;
 };
 
 struct mtk_ppe {
@@ -255,6 +273,8 @@ struct mtk_ppe {
 
 	u16 foe_check_time[MTK_PPE_ENTRIES];
 	struct hlist_head foe_flow[MTK_PPE_ENTRIES / 2];
+
+	struct rhashtable l2_flows;
 
 	void *acct_table;
 };

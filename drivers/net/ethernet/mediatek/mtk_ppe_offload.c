@@ -31,6 +31,8 @@ struct mtk_flow_data {
 	__be16 src_port;
 	__be16 dst_port;
 
+	u16 vlan_in;
+
 	struct {
 		u16 id;
 		__be16 proto;
@@ -257,9 +259,45 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
 		return -EOPNOTSUPP;
 	}
 
+	switch (addr_type) {
+	case 0:
+		offload_type = MTK_PPE_PKT_TYPE_BRIDGE;
+		if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+			struct flow_match_eth_addrs match;
+
+			flow_rule_match_eth_addrs(rule, &match);
+			memcpy(data.eth.h_dest, match.key->dst, ETH_ALEN);
+			memcpy(data.eth.h_source, match.key->src, ETH_ALEN);
+		} else {
+			return -EOPNOTSUPP;
+		}
+
+		if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+			struct flow_match_vlan match;
+
+			flow_rule_match_vlan(rule, &match);
+
+			if (match.key->vlan_tpid != cpu_to_be16(ETH_P_8021Q))
+				return -EOPNOTSUPP;
+
+			data.vlan_in = match.key->vlan_id;
+		}
+		break;
+	case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
+		offload_type = MTK_PPE_PKT_TYPE_IPV4_HNAPT;
+		break;
+	case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
+		offload_type = MTK_PPE_PKT_TYPE_IPV6_ROUTE_5T;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
 	flow_action_for_each(i, act, &rule->action) {
 		switch (act->id) {
 		case FLOW_ACTION_MANGLE:
+			if (offload_type == MTK_PPE_PKT_TYPE_BRIDGE)
+				return -EOPNOTSUPP;
 			if (act->mangle.htype == FLOW_ACT_MANGLE_HDR_TYPE_ETH)
 				mtk_flow_offload_mangle_eth(act, &data.eth);
 			break;
@@ -291,17 +329,6 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
 		}
 	}
 
-	switch (addr_type) {
-	case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
-		offload_type = MTK_PPE_PKT_TYPE_IPV4_HNAPT;
-		break;
-	case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
-		offload_type = MTK_PPE_PKT_TYPE_IPV6_ROUTE_5T;
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
 	if (!is_valid_ether_addr(data.eth.h_source) ||
 	    !is_valid_ether_addr(data.eth.h_dest))
 		return -EINVAL;
@@ -315,10 +342,13 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS)) {
 		struct flow_match_ports ports;
 
+		if (offload_type == MTK_PPE_PKT_TYPE_BRIDGE)
+			return -EOPNOTSUPP;
+
 		flow_rule_match_ports(rule, &ports);
 		data.src_port = ports.key->src;
 		data.dst_port = ports.key->dst;
-	} else {
+	} else if (offload_type != MTK_PPE_PKT_TYPE_BRIDGE) {
 		return -EOPNOTSUPP;
 	}
 
@@ -348,6 +378,9 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
 		if (act->id != FLOW_ACTION_MANGLE)
 			continue;
 
+		if (offload_type == MTK_PPE_PKT_TYPE_BRIDGE)
+			return -EOPNOTSUPP;
+
 		switch (act->mangle.htype) {
 		case FLOW_ACT_MANGLE_HDR_TYPE_TCP:
 		case FLOW_ACT_MANGLE_HDR_TYPE_UDP:
@@ -372,6 +405,9 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
 		if (err)
 			return err;
 	}
+
+	if (offload_type == MTK_PPE_PKT_TYPE_BRIDGE)
+		foe.bridge.vlan = data.vlan_in;
 
 	if (data.vlan.num == 1) {
 		if (data.vlan.proto != htons(ETH_P_8021Q))
