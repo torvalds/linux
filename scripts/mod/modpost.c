@@ -23,15 +23,15 @@
 #include "../../include/linux/license.h"
 
 /* Are we using CONFIG_MODVERSIONS? */
-static int modversions = 0;
+static int modversions;
 /* Is CONFIG_MODULE_SRCVERSION_ALL set? */
-static int all_versions = 0;
+static int all_versions;
 /* If we are modposting external module set to 1 */
-static int external_module = 0;
+static int external_module;
 /* Only warn about unresolved symbols */
-static int warn_unresolved = 0;
+static int warn_unresolved;
 /* How a symbol is exported */
-static int sec_mismatch_count = 0;
+static int sec_mismatch_count;
 static int sec_mismatch_warn_only = true;
 /* ignore missing files */
 static int ignore_missing_files;
