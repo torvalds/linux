@@ -556,13 +556,3 @@ void usnic_uiom_free_dev_list(struct device **devs)
 {
 	kfree(devs);
 }
-
-int usnic_uiom_init(char *drv_name)
-{
-	if (!iommu_present(&pci_bus_type)) {
-		usnic_err("IOMMU required but not present or enabled.  USNIC QPs will not function w/o enabling IOMMU\n");
-		return -EPERM;
-	}
-
-	return 0;
-}
