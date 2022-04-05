@@ -443,63 +443,17 @@ EXPORT_SYMBOL(sof_ipc_tx_message_no_pm);
 /* Generic helper function to retrieve the reply */
 void snd_sof_ipc_get_reply(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_ipc_msg *msg = sdev->msg;
-	struct sof_ipc_reply *reply;
-	int ret = 0;
-
 	/*
 	 * Sometimes, there is unexpected reply ipc arriving. The reply
 	 * ipc belongs to none of the ipcs sent from driver.
 	 * In this case, the driver must ignore the ipc.
 	 */
-	if (!msg) {
+	if (!sdev->msg) {
 		dev_warn(sdev->dev, "unexpected ipc interrupt raised!\n");
 		return;
 	}
 
-	/* get the generic reply */
-	reply = msg->reply_data;
-	snd_sof_dsp_mailbox_read(sdev, sdev->host_box.offset, reply, sizeof(*reply));
-
-	if (reply->error < 0) {
-		ret = reply->error;
-	} else if (!reply->hdr.size) {
-		/* Reply should always be >= sizeof(struct sof_ipc_reply) */
-		if (msg->reply_size)
-			dev_err(sdev->dev,
-				"empty reply received, expected %zu bytes\n",
-				msg->reply_size);
-		else
-			dev_err(sdev->dev, "empty reply received\n");
-
-		ret = -EINVAL;
-	} else if (msg->reply_size > 0) {
-		if (reply->hdr.size == msg->reply_size) {
-			ret = 0;
-		} else if (reply->hdr.size < msg->reply_size) {
-			dev_dbg(sdev->dev,
-				"reply size (%u) is less than expected (%zu)\n",
-				reply->hdr.size, msg->reply_size);
-
-			msg->reply_size = reply->hdr.size;
-			ret = 0;
-		} else {
-			dev_err(sdev->dev,
-				"reply size (%u) exceeds the buffer size (%zu)\n",
-				reply->hdr.size, msg->reply_size);
-			ret = -EINVAL;
-		}
-
-		/*
-		 * get the full message if reply->hdr.size <= msg->reply_size
-		 * and the reply->hdr.size > sizeof(struct sof_ipc_reply)
-		 */
-		if (!ret && msg->reply_size > sizeof(*reply))
-			snd_sof_dsp_mailbox_read(sdev, sdev->host_box.offset,
-						 msg->reply_data, msg->reply_size);
-	}
-
-	msg->reply_error = ret;
+	sdev->msg->reply_error = sdev->ipc->ops->get_reply(sdev);
 }
 EXPORT_SYMBOL(snd_sof_ipc_get_reply);
 
