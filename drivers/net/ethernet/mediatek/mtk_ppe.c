@@ -384,10 +384,15 @@ int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
 	return hash;
 }
 
-int mtk_ppe_init(struct mtk_ppe *ppe, struct device *dev, void __iomem *base,
+struct mtk_ppe *mtk_ppe_init(struct device *dev, void __iomem *base,
 		 int version)
 {
 	struct mtk_foe_entry *foe;
+	struct mtk_ppe *ppe;
+
+	ppe = devm_kzalloc(dev, sizeof(*ppe), GFP_KERNEL);
+	if (!ppe)
+		return NULL;
 
 	/* need to allocate a separate device, since it PPE DMA access is
 	 * not coherent.
@@ -399,13 +404,13 @@ int mtk_ppe_init(struct mtk_ppe *ppe, struct device *dev, void __iomem *base,
 	foe = dmam_alloc_coherent(ppe->dev, MTK_PPE_ENTRIES * sizeof(*foe),
 				  &ppe->foe_phys, GFP_KERNEL);
 	if (!foe)
-		return -ENOMEM;
+		return NULL;
 
 	ppe->foe_table = foe;
 
 	mtk_ppe_debugfs_init(ppe);
 
-	return 0;
+	return ppe;
 }
 
 static void mtk_ppe_init_foe_table(struct mtk_ppe *ppe)

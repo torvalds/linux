@@ -246,8 +246,7 @@ struct mtk_ppe {
 	void *acct_table;
 };
 
-int mtk_ppe_init(struct mtk_ppe *ppe, struct device *dev, void __iomem *base,
-		 int version);
+struct mtk_ppe *mtk_ppe_init(struct device *dev, void __iomem *base, int version);
 int mtk_ppe_start(struct mtk_ppe *ppe);
 int mtk_ppe_stop(struct mtk_ppe *ppe);
 
