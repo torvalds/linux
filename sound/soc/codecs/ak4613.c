@@ -304,7 +304,9 @@ static int ak4613_dai_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct ak4613_priv *priv = snd_soc_component_get_drvdata(component);
 
+	mutex_lock(&priv->lock);
 	priv->cnt++;
+	mutex_unlock(&priv->lock);
 
 	ak4613_hw_constraints(priv, substream->runtime);
 
