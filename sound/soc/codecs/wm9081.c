@@ -1299,8 +1299,7 @@ static const struct regmap_config wm9081_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int wm9081_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm9081_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm9081_priv *wm9081;
 	unsigned int reg;
@@ -1373,7 +1372,7 @@ static struct i2c_driver wm9081_i2c_driver = {
 	.driver = {
 		.name = "wm9081",
 	},
-	.probe =    wm9081_i2c_probe,
+	.probe_new = wm9081_i2c_probe,
 	.remove =   wm9081_i2c_remove,
 	.id_table = wm9081_i2c_id,
 };

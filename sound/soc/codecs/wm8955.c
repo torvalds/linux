@@ -968,8 +968,7 @@ static const struct regmap_config wm8955_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(wm8955_reg_defaults),
 };
 
-static int wm8955_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8955_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8955_priv *wm8955;
 	int ret;
@@ -1005,7 +1004,7 @@ static struct i2c_driver wm8955_i2c_driver = {
 	.driver = {
 		.name = "wm8955",
 	},
-	.probe =    wm8955_i2c_probe,
+	.probe_new = wm8955_i2c_probe,
 	.id_table = wm8955_i2c_id,
 };
 
