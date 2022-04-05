@@ -1066,6 +1066,11 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 	ops = ipc->ops;
 
 	/* check for mandatory ops */
+	if (!ops->tx_msg || !ops->rx_msg || !ops->set_get_data || !ops->get_reply) {
+		dev_err(sdev->dev, "Missing IPC message handling ops\n");
+		return NULL;
+	}
+
 	if (!ops->pcm) {
 		dev_err(sdev->dev, "Missing IPC PCM ops\n");
 		return NULL;
