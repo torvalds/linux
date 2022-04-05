@@ -115,6 +115,8 @@
  *  09 Mar 2022 : 1. Handling of Non S/W path DMA channel abnormal interrupts in Driver and only TI & RI interrupts handled in FW.
  *		  2. Reading MSI status for checking interrupt status of SW MSI.
  *  VERSION     : 01-00-45
+ *  05 Apr 2022 : 1. Disable MSI and flush phy work queue during driver release.
+ *  VERSION     : 01-00-47
 */
 
 #include <linux/clk.h>
@@ -5225,6 +5227,9 @@ dma_desc_error:
 static int tc956xmac_release(struct net_device *dev)
 {
 	struct tc956xmac_priv *priv = netdev_priv(dev);
+	struct phy_device *phydev;
+	int addr = priv->plat->phy_addr;
+
 #ifdef ENABLE_TX_TIMER
 	u32 chan;
 #endif
@@ -5242,6 +5247,10 @@ static int tc956xmac_release(struct net_device *dev)
 	tc956xmac_stop_all_queues(priv);
 
 	tc956xmac_disable_all_queues(priv);
+
+	/* MSI_OUT_EN: Disable all MSI*/
+	writel(0x00000000, priv->ioaddr + TC956X_MSI_OUT_EN_OFFSET(priv->port_num));
+
 #ifdef ENABLE_TX_TIMER
 	for (chan = 0; chan < priv->plat->tx_queues_to_use; chan++) {
 		if (priv->plat->tx_dma_ch_owner[chan] == USE_IN_TC956X_SW)
@@ -5259,6 +5268,15 @@ static int tc956xmac_release(struct net_device *dev)
 			free_irq(priv->lpi_irq, dev);
 #endif
 	}
+	phydev = mdiobus_get_phy(priv->mii, addr);
+
+	if(phydev->drv != NULL) {
+		if ((true == priv->plat->phy_interrupt_mode) && (phydev->drv->config_intr)) {
+			DBGPR_FUNC((priv->device), "-->%s Flush work queue\n", __func__);
+			flush_work(&priv->emac_phy_work);
+		}
+	}
+
 	/* Stop TX/RX DMA and clear the descriptors */
 	tc956xmac_stop_all_dma(priv);
 
