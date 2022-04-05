@@ -276,7 +276,7 @@ static void bbr_init_pacing_rate_from_rtt(struct sock *sk)
 	} else {			 /* no RTT sample yet */
 		rtt_us = USEC_PER_MSEC;	 /* use nominal default RTT */
 	}
-	bw = (u64)tp->snd_cwnd * BW_UNIT;
+	bw = (u64)tcp_snd_cwnd(tp) * BW_UNIT;
 	do_div(bw, rtt_us);
 	sk->sk_pacing_rate = bbr_bw_to_pacing_rate(sk, bw, bbr_high_gain);
 }
@@ -323,9 +323,9 @@ static void bbr_save_cwnd(struct sock *sk)
 	struct bbr *bbr = inet_csk_ca(sk);
 
 	if (bbr->prev_ca_state < TCP_CA_Recovery && bbr->mode != BBR_PROBE_RTT)
-		bbr->prior_cwnd = tp->snd_cwnd;  /* this cwnd is good enough */
+		bbr->prior_cwnd = tcp_snd_cwnd(tp);  /* this cwnd is good enough */
 	else  /* loss recovery or BBR_PROBE_RTT have temporarily cut cwnd */
-		bbr->prior_cwnd = max(bbr->prior_cwnd, tp->snd_cwnd);
+		bbr->prior_cwnd = max(bbr->prior_cwnd, tcp_snd_cwnd(tp));
 }
 
 static void bbr_cwnd_event(struct sock *sk, enum tcp_ca_event event)
@@ -482,7 +482,7 @@ static bool bbr_set_cwnd_to_recover_or_restore(
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct bbr *bbr = inet_csk_ca(sk);
 	u8 prev_state = bbr->prev_ca_state, state = inet_csk(sk)->icsk_ca_state;
-	u32 cwnd = tp->snd_cwnd;
+	u32 cwnd = tcp_snd_cwnd(tp);
 
 	/* An ACK for P pkts should release at most 2*P packets. We do this
 	 * in two steps. First, here we deduct the number of lost packets.
@@ -520,7 +520,7 @@ static void bbr_set_cwnd(struct sock *sk, const struct rate_sample *rs,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct bbr *bbr = inet_csk_ca(sk);
-	u32 cwnd = tp->snd_cwnd, target_cwnd = 0;
+	u32 cwnd = tcp_snd_cwnd(tp), target_cwnd = 0;
 
 	if (!acked)
 		goto done;  /* no packet fully ACKed; just apply caps */
@@ -544,9 +544,9 @@ static void bbr_set_cwnd(struct sock *sk, const struct rate_sample *rs,
 	cwnd = max(cwnd, bbr_cwnd_min_target);
 
 done:
-	tp->snd_cwnd = min(cwnd, tp->snd_cwnd_clamp);	/* apply global cap */
+	tcp_snd_cwnd_set(tp, min(cwnd, tp->snd_cwnd_clamp));	/* apply global cap */
 	if (bbr->mode == BBR_PROBE_RTT)  /* drain queue, refresh min_rtt */
-		tp->snd_cwnd = min(tp->snd_cwnd, bbr_cwnd_min_target);
+		tcp_snd_cwnd_set(tp, min(tcp_snd_cwnd(tp), bbr_cwnd_min_target));
 }
 
 /* End cycle phase if it's time and/or we hit the phase's in-flight target. */
@@ -856,7 +856,7 @@ static void bbr_update_ack_aggregation(struct sock *sk,
 	bbr->ack_epoch_acked = min_t(u32, 0xFFFFF,
 				     bbr->ack_epoch_acked + rs->acked_sacked);
 	extra_acked = bbr->ack_epoch_acked - expected_acked;
-	extra_acked = min(extra_acked, tp->snd_cwnd);
+	extra_acked = min(extra_acked, tcp_snd_cwnd(tp));
 	if (extra_acked > bbr->extra_acked[bbr->extra_acked_win_idx])
 		bbr->extra_acked[bbr->extra_acked_win_idx] = extra_acked;
 }
@@ -914,7 +914,7 @@ static void bbr_check_probe_rtt_done(struct sock *sk)
 		return;
 
 	bbr->min_rtt_stamp = tcp_jiffies32;  /* wait a while until PROBE_RTT */
-	tp->snd_cwnd = max(tp->snd_cwnd, bbr->prior_cwnd);
+	tcp_snd_cwnd_set(tp, max(tcp_snd_cwnd(tp), bbr->prior_cwnd));
 	bbr_reset_mode(sk);
 }
 
@@ -1093,7 +1093,7 @@ static u32 bbr_undo_cwnd(struct sock *sk)
 	bbr->full_bw = 0;   /* spurious slow-down; reset full pipe detection */
 	bbr->full_bw_cnt = 0;
 	bbr_reset_lt_bw_sampling(sk);
-	return tcp_sk(sk)->snd_cwnd;
+	return tcp_snd_cwnd(tcp_sk(sk));
 }
 
 /* Entering loss recovery, so save cwnd for when we exit or undo recovery. */
