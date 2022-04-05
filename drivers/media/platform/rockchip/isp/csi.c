@@ -339,9 +339,13 @@ static int csi_config(struct rkisp_csi_device *csi)
 			Y_STAT_AFIFOX3_OVERFLOW;
 		rkisp_write(dev, CSI2RX_MASK_OVERFLOW, val, true);
 		val = RAW0_WR_FRAME | RAW1_WR_FRAME | RAW2_WR_FRAME |
-			MIPI_DROP_FRM | RAW_WR_SIZE_ERR | MIPI_LINECNT |
+			RAW_WR_SIZE_ERR | MIPI_LINECNT |
 			RAW_RD_SIZE_ERR | RAW0_Y_STATE |
 			RAW1_Y_STATE | RAW2_Y_STATE;
+		if (dev->isp_ver == ISP_V20)
+			val |= MIPI_DROP_FRM;
+		else
+			val |= ISP21_MIPI_DROP_FRM;
 		rkisp_write(dev, CSI2RX_MASK_STAT, val, true);
 
 		/* hdr merge */
@@ -642,8 +646,10 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		}
 		rkisp_unite_write(dev, ISP_HDRMGE_BASE, val, false, dev->hw_dev->is_unite);
 
-		rkisp_unite_set_bits(dev, CSI2RX_MASK_STAT, 0, RAW_RD_SIZE_ERR,
-				     true, dev->hw_dev->is_unite);
+		val = RAW_RD_SIZE_ERR;
+		if (!IS_HDR_RDBK(dev->hdr.op_mode))
+			val |= ISP21_MIPI_DROP_FRM;
+		rkisp_unite_set_bits(dev, CSI2RX_MASK_STAT, 0, val, true, dev->hw_dev->is_unite);
 	}
 
 	if (IS_HDR_RDBK(dev->hdr.op_mode))

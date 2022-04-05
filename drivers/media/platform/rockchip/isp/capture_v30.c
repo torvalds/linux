@@ -1512,4 +1512,6 @@ void rkisp_mipi_v30_isr(unsigned int phy, unsigned int packet,
 {
 	if (state & GENMASK(19, 17))
 		v4l2_warn(&dev->v4l2_dev, "RD_SIZE_ERR:0x%08x\n", state);
+	if (state & ISP21_MIPI_DROP_FRM)
+		v4l2_warn(&dev->v4l2_dev, "MIPI drop frame\n");
 }
