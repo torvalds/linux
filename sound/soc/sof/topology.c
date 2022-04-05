@@ -952,11 +952,13 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 	default:
 		dev_warn(scomp->dev, "control type not supported %d:%d:%d\n",
 			 hdr->ops.get, hdr->ops.put, hdr->ops.info);
+		kfree(scontrol->name);
 		kfree(scontrol);
 		return 0;
 	}
 
 	if (ret < 0) {
+		kfree(scontrol->name);
 		kfree(scontrol);
 		return ret;
 	}
@@ -1391,6 +1393,7 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 		}
 		kfree(scontrol->ipc_control_data);
 		list_del(&scontrol->list);
+		kfree(scontrol->name);
 		kfree(scontrol);
 	}
 
