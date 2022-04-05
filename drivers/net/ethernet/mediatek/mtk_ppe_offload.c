@@ -563,10 +563,13 @@ mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f)
 int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
 		     void *type_data)
 {
-	if (type == TC_SETUP_FT)
+	switch (type) {
+	case TC_SETUP_BLOCK:
+	case TC_SETUP_FT:
 		return mtk_eth_setup_tc_block(dev, type_data);
-
-	return -EOPNOTSUPP;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 int mtk_eth_offload_init(struct mtk_eth *eth)
