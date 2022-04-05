@@ -25,6 +25,7 @@
 #include <sys/resource.h>
 #include <libgen.h>
 #include <getopt.h>
+#include <pthread.h>
 #include "xdp_sample_user.h"
 #include "xdp_router_ipv4.skel.h"
 
@@ -37,6 +38,9 @@ static int lpm_map_fd;
 static int arp_table_map_fd;
 static int exact_match_map_fd;
 static int tx_port_map_fd;
+
+static bool routes_thread_exit;
+static int interval = 5;
 
 static int mask = SAMPLE_RX_CNT | SAMPLE_REDIRECT_ERR_MAP_CNT |
 		  SAMPLE_DEVMAP_XMIT_CNT_MULTI | SAMPLE_EXCEPTION_CNT;
@@ -445,7 +449,7 @@ cleanup:
 /* Function to keep track and update changes in route and arp table
  * Give regular statistics of packets forwarded
  */
-static void monitor_route(void *ctx)
+static void *monitor_routes_thread(void *arg)
 {
 	struct pollfd fds_route, fds_arp;
 	struct sockaddr_nl la, lr;
@@ -455,7 +459,7 @@ static void monitor_route(void *ctx)
 	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (sock < 0) {
 		fprintf(stderr, "open netlink socket: %s\n", strerror(errno));
-		return;
+		return NULL;
 	}
 
 	fcntl(sock, F_SETFL, O_NONBLOCK);
@@ -465,7 +469,7 @@ static void monitor_route(void *ctx)
 	if (bind(sock, (struct sockaddr *)&lr, sizeof(lr)) < 0) {
 		fprintf(stderr, "bind netlink socket: %s\n", strerror(errno));
 		close(sock);
-		return;
+		return NULL;
 	}
 
 	fds_route.fd = sock;
@@ -475,7 +479,7 @@ static void monitor_route(void *ctx)
 	if (sock_arp < 0) {
 		fprintf(stderr, "open netlink socket: %s\n", strerror(errno));
 		close(sock);
-		return;
+		return NULL;
 	}
 
 	fcntl(sock_arp, F_SETFL, O_NONBLOCK);
@@ -490,35 +494,51 @@ static void monitor_route(void *ctx)
 	fds_arp.fd = sock_arp;
 	fds_arp.events = POLL_IN;
 
-	memset(buf, 0, sizeof(buf));
-	if (poll(&fds_route, 1, 3) == POLL_IN) {
-		nll = recv_msg(lr, sock);
-		if (nll < 0) {
-			fprintf(stderr, "recv from netlink: %s\n",
-				strerror(nll));
-			goto cleanup;
-		}
-
-		nh = (struct nlmsghdr *)buf;
-		read_route(nh, nll);
+	/* dump route and arp tables */
+	if (get_arp_table(AF_INET) < 0) {
+		fprintf(stderr, "Failed reading arp table\n");
+		goto cleanup;
 	}
 
-	memset(buf, 0, sizeof(buf));
-	if (poll(&fds_arp, 1, 3) == POLL_IN) {
-		nll = recv_msg(la, sock_arp);
-		if (nll < 0) {
-			fprintf(stderr, "recv from netlink: %s\n",
-				strerror(nll));
-			goto cleanup;
+	if (get_route_table(AF_INET) < 0) {
+		fprintf(stderr, "Failed reading route table\n");
+		goto cleanup;
+	}
+
+	while (!routes_thread_exit) {
+		memset(buf, 0, sizeof(buf));
+		if (poll(&fds_route, 1, 3) == POLL_IN) {
+			nll = recv_msg(lr, sock);
+			if (nll < 0) {
+				fprintf(stderr, "recv from netlink: %s\n",
+					strerror(nll));
+				goto cleanup;
+			}
+
+			nh = (struct nlmsghdr *)buf;
+			read_route(nh, nll);
 		}
 
-		nh = (struct nlmsghdr *)buf;
-		read_arp(nh, nll);
+		memset(buf, 0, sizeof(buf));
+		if (poll(&fds_arp, 1, 3) == POLL_IN) {
+			nll = recv_msg(la, sock_arp);
+			if (nll < 0) {
+				fprintf(stderr, "recv from netlink: %s\n",
+					strerror(nll));
+				goto cleanup;
+			}
+
+			nh = (struct nlmsghdr *)buf;
+			read_arp(nh, nll);
+		}
+
+		sleep(interval);
 	}
 
 cleanup:
 	close(sock_arp);
 	close(sock);
+	return NULL;
 }
 
 static void usage(char *argv[], const struct option *long_options,
@@ -531,10 +551,11 @@ static void usage(char *argv[], const struct option *long_options,
 int main(int argc, char **argv)
 {
 	bool error = true, generic = false, force = false;
-	int opt, interval = 5, ret = EXIT_FAIL_BPF;
+	int opt, ret = EXIT_FAIL_BPF;
 	struct xdp_router_ipv4 *skel;
 	int i, total_ifindex = argc - 1;
 	char **ifname_list = argv + 1;
+	pthread_t routes_thread;
 	int longindex = 0;
 
 	if (libbpf_set_strict_mode(LIBBPF_STRICT_ALL) < 0) {
@@ -653,24 +674,25 @@ int main(int argc, char **argv)
 			goto end_destroy;
 	}
 
-	if (get_route_table(AF_INET) < 0) {
-		fprintf(stderr, "Failed reading routing table\n");
-		goto end_destroy;
-	}
-
-	if (get_arp_table(AF_INET) < 0) {
-		fprintf(stderr, "Failed reading arptable\n");
-		goto end_destroy;
-	}
-
-	ret = sample_run(interval, monitor_route, NULL);
-	if (ret < 0) {
-		fprintf(stderr, "Failed during sample run: %s\n", strerror(-ret));
+	ret = pthread_create(&routes_thread, NULL, monitor_routes_thread, NULL);
+	if (ret) {
+		fprintf(stderr, "Failed creating routes_thread: %s\n", strerror(-ret));
 		ret = EXIT_FAIL;
 		goto end_destroy;
 	}
+
+	ret = sample_run(interval, NULL, NULL);
+	routes_thread_exit = true;
+
+	if (ret < 0) {
+		fprintf(stderr, "Failed during sample run: %s\n", strerror(-ret));
+		ret = EXIT_FAIL;
+		goto end_thread_wait;
+	}
 	ret = EXIT_OK;
 
+end_thread_wait:
+	pthread_join(routes_thread, NULL);
 end_destroy:
 	xdp_router_ipv4__destroy(skel);
 end:
