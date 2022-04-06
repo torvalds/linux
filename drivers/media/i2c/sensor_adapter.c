@@ -5,7 +5,7 @@
  * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  *
  */
-
+//#define DEBUG
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -976,19 +976,25 @@ static int sensor_get_selection(struct v4l2_subdev *sd,
 {
 	struct sensor *sensor = to_sensor(sd);
 
-	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS &&
-	    sensor->crop.is_enable &&
-	    (sensor->crop.left + sensor->crop.width) <= sensor->cur_mode->width &&
-	    (sensor->crop.top + sensor->crop.height) <= sensor->cur_mode->height) {
-		sel->r.left = sensor->crop.left;
-		sel->r.width = sensor->crop.width;
-		sel->r.top = sensor->crop.top;
-		sel->r.height = sensor->crop.height;
-		dev_info(&sensor->client->dev,
-			 "%s left %d, width %d, top %d, height %d\n",
-			 __func__,
-			 sensor->crop.left, sensor->crop.width,
-			 sensor->crop.top, sensor->crop.height);
+	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
+		if (sensor->crop.is_enable &&
+		    (sensor->crop.left + sensor->crop.width) <= sensor->cur_mode->width &&
+		    (sensor->crop.top + sensor->crop.height) <= sensor->cur_mode->height) {
+			sel->r.left = sensor->crop.left;
+			sel->r.width = sensor->crop.width;
+			sel->r.top = sensor->crop.top;
+			sel->r.height = sensor->crop.height;
+			dev_dbg(&sensor->client->dev,
+				"%s left %d, width %d, top %d, height %d\n",
+				__func__,
+				sensor->crop.left, sensor->crop.width,
+				sensor->crop.top, sensor->crop.height);
+		} else {
+			sel->r.left = 0;
+			sel->r.width = 0;
+			sel->r.top = sensor->cur_mode->width;
+			sel->r.height = sensor->cur_mode->height;
+		}
 		return 0;
 	}
 	dev_err(&sensor->client->dev,
