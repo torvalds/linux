@@ -112,6 +112,13 @@
 #define SLAB_KASAN		0
 #endif
 
+/*
+ * Ignore user specified debugging flags.
+ * Intended for caches created for self-tests so they have only flags
+ * specified in the code and other flags are ignored.
+ */
+#define SLAB_NO_USER_FLAGS	((slab_flags_t __force)0x10000000U)
+
 /* The following flags affect the page allocator grouping pages by mobility */
 /* Objects are reclaimable */
 #define SLAB_RECLAIM_ACCOUNT	((slab_flags_t __force)0x00020000U)
