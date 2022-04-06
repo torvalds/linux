@@ -7,7 +7,6 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
-#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <asm/cpm1.h>
 
@@ -43,7 +42,7 @@ static struct irq_chip cpm_pic = {
 	.irq_eoi = cpm_end_irq,
 };
 
-int cpm_get_irq(void)
+static int cpm_get_irq(void)
 {
 	int cpm_vec;
 
@@ -58,11 +57,14 @@ int cpm_get_irq(void)
 	return irq_linear_revmap(cpm_pic_host, cpm_vec);
 }
 
+static void cpm_cascade(struct irq_desc *desc)
+{
+	generic_handle_irq(cpm_get_irq());
+}
+
 static int cpm_pic_host_map(struct irq_domain *h, unsigned int virq,
 			    irq_hw_number_t hw)
 {
-	pr_debug("cpm_pic_host_map(%d, 0x%lx)\n", virq, hw);
-
 	irq_set_status_flags(virq, IRQ_LEVEL);
 	irq_set_chip_and_handler(virq, &cpm_pic, handle_fasteoi_irq);
 	return 0;
@@ -72,56 +74,64 @@ static const struct irq_domain_ops cpm_pic_host_ops = {
 	.map = cpm_pic_host_map,
 };
 
-unsigned int __init cpm_pic_init(void)
+static int cpm_pic_probe(struct platform_device *pdev)
 {
-	struct device_node *np = NULL;
-	struct resource res;
-	unsigned int sirq = 0, hwirq;
-	int ret;
+	struct device *dev = &pdev->dev;
+	struct resource *res;
+	int irq;
 
-	pr_debug("cpm_pic_init\n");
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENODEV;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,cpm1-pic");
-	if (np == NULL)
-		np = of_find_compatible_node(NULL, "cpm-pic", "CPM");
-	if (np == NULL) {
-		printk(KERN_ERR "CPM PIC init: can not find cpm-pic node\n");
-		return sirq;
-	}
+	cpic_reg = devm_ioremap(dev, res->start, resource_size(res));
+	if (!cpic_reg)
+		return -ENODEV;
 
-	ret = of_address_to_resource(np, 0, &res);
-	if (ret)
-		goto end;
-
-	cpic_reg = ioremap(res.start, resource_size(&res));
-	if (cpic_reg == NULL)
-		goto end;
-
-	sirq = irq_of_parse_and_map(np, 0);
-	if (!sirq)
-		goto end;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	/* Initialize the CPM interrupt controller. */
-	hwirq = (unsigned int)virq_to_hw(sirq);
 	out_be32(&cpic_reg->cpic_cicr,
-	    (CICR_SCD_SCC4 | CICR_SCC_SCC3 | CICR_SCB_SCC2 | CICR_SCA_SCC1) |
-		((hwirq/2) << 13) | CICR_HP_MASK);
+		 (CICR_SCD_SCC4 | CICR_SCC_SCC3 | CICR_SCB_SCC2 | CICR_SCA_SCC1) |
+		 ((virq_to_hw(irq) / 2) << 13) | CICR_HP_MASK);
 
 	out_be32(&cpic_reg->cpic_cimr, 0);
 
-	cpm_pic_host = irq_domain_add_linear(np, 64, &cpm_pic_host_ops, NULL);
-	if (cpm_pic_host == NULL) {
-		printk(KERN_ERR "CPM2 PIC: failed to allocate irq host!\n");
-		sirq = 0;
-		goto end;
-	}
+	cpm_pic_host = irq_domain_add_linear(dev->of_node, 64, &cpm_pic_host_ops, NULL);
+	if (!cpm_pic_host)
+		return -ENODEV;
+
+	irq_set_chained_handler(irq, cpm_cascade);
 
 	setbits32(&cpic_reg->cpic_cicr, CICR_IEN);
 
-end:
-	of_node_put(np);
-	return sirq;
+	return 0;
 }
+
+static const struct of_device_id cpm_pic_match[] = {
+	{
+		.compatible = "fsl,cpm1-pic",
+	}, {
+		.type = "cpm-pic",
+		.compatible = "CPM",
+	}, {},
+};
+
+static struct platform_driver cpm_pic_driver = {
+	.driver	= {
+		.name		= "cpm-pic",
+		.of_match_table	= cpm_pic_match,
+	},
+	.probe	= cpm_pic_probe,
+};
+
+static int __init cpm_pic_init(void)
+{
+	return platform_driver_register(&cpm_pic_driver);
+}
+arch_initcall(cpm_pic_init);
 
 /*
  * The CPM can generate the error interrupt when there is a race condition

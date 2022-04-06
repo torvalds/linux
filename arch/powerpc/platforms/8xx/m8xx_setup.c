@@ -29,9 +29,6 @@
 
 #include "mpc8xx.h"
 
-extern int cpm_pic_init(void);
-extern int cpm_get_irq(void);
-
 /* A place holder for time base interrupts, if they are ever enabled. */
 static irqreturn_t timebase_interrupt(int irq, void *dev)
 {
@@ -209,11 +206,6 @@ void __noreturn mpc8xx_restart(char *cmd)
 	panic("Restart failed\n");
 }
 
-static void cpm_cascade(struct irq_desc *desc)
-{
-	generic_handle_irq(cpm_get_irq());
-}
-
 /* Initialize the internal interrupt controllers.  The number of
  * interrupts supported can vary with the processor type, and the
  * 82xx family can have up to 64.
@@ -222,14 +214,8 @@ static void cpm_cascade(struct irq_desc *desc)
  */
 void __init mpc8xx_pics_init(void)
 {
-	int irq;
-
 	if (mpc8xx_pic_init()) {
 		printk(KERN_ERR "Failed interrupt 8xx controller  initialization\n");
 		return;
 	}
-
-	irq = cpm_pic_init();
-	if (irq)
-		irq_set_chained_handler(irq, cpm_cascade);
 }

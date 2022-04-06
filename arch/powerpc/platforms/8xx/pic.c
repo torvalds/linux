@@ -15,8 +15,6 @@
 
 #define PIC_VEC_SPURRIOUS      15
 
-extern int cpm_get_irq(struct pt_regs *regs);
-
 static struct irq_domain *mpc8xx_pic_host;
 static unsigned long mpc8xx_cached_irq_mask;
 static sysconf8xx_t __iomem *siu_reg;
