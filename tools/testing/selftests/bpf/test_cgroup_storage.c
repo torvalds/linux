@@ -7,6 +7,7 @@
 #include <sys/sysinfo.h>
 
 #include "bpf_rlimit.h"
+#include "bpf_util.h"
 #include "cgroup_helpers.h"
 #include "testing_helpers.h"
 
@@ -44,7 +45,7 @@ int main(int argc, char **argv)
 	unsigned long long *percpu_value;
 	int cpu, nproc;
 
-	nproc = get_nprocs_conf();
+	nproc = bpf_num_possible_cpus();
 	percpu_value = malloc(sizeof(*percpu_value) * nproc);
 	if (!percpu_value) {
 		printf("Not enough memory for per-cpu area (%d cpus)\n", nproc);
