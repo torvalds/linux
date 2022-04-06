@@ -17,6 +17,6 @@ package(
     ],
 )
 
-load("//build/kleaf:common_kernels.bzl", "define_common_kernels")
+load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels")
 
 define_common_kernels()

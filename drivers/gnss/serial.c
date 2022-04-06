@@ -165,7 +165,7 @@ void gnss_serial_free(struct gnss_serial *gserial)
 {
 	gnss_put_device(gserial->gdev);
 	kfree(gserial);
-};
+}
 EXPORT_SYMBOL_GPL(gnss_serial_free);
 
 int gnss_serial_register(struct gnss_serial *gserial)

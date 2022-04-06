@@ -3,7 +3,6 @@
 #define _SCSI_PRIV_H
 
 #include <linux/device.h>
-#include <linux/async.h>
 #include <scsi/scsi_device.h>
 #include <linux/sbitmap.h>
 
@@ -144,7 +143,7 @@ extern struct scsi_transport_template blank_transport_template;
 extern void __scsi_remove_device(struct scsi_device *);
 
 extern struct bus_type scsi_bus_type;
-extern const struct attribute_group scsi_shost_attr_group;
+extern const struct attribute_group *scsi_shost_groups[];
 
 /* scsi_netlink.c */
 #ifdef CONFIG_SCSI_NETLINK

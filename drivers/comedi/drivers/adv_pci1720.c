@@ -42,8 +42,7 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
-
-#include "../comedi_pci.h"
+#include <linux/comedi/comedi_pci.h>
 
 /*
  * PCI BAR2 Register map (dev->iobase)

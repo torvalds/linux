@@ -433,7 +433,7 @@ static void msg_conf(void *priv, int errno)
 	schedule_work(&iu->work);
 }
 
-static int send_usr_msg(struct rtrs_clt *rtrs, int dir,
+static int send_usr_msg(struct rtrs_clt_sess *rtrs, int dir,
 			struct rnbd_iu *iu, struct kvec *vec,
 			size_t len, struct scatterlist *sg, unsigned int sg_len,
 			void (*conf)(struct work_struct *work),
@@ -1010,7 +1010,7 @@ static int rnbd_client_xfer_request(struct rnbd_clt_dev *dev,
 				     struct request *rq,
 				     struct rnbd_iu *iu)
 {
-	struct rtrs_clt *rtrs = dev->sess->rtrs;
+	struct rtrs_clt_sess *rtrs = dev->sess->rtrs;
 	struct rtrs_permit *permit = iu->permit;
 	struct rnbd_msg_io msg;
 	struct rtrs_clt_req_ops req_ops;

@@ -73,8 +73,7 @@
 #include <linux/input.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
-
-#include "../comedi_usb.h"
+#include <linux/comedi/comedi_usb.h>
 
 /* constants for firmware upload and download */
 #define USBDUX_FIRMWARE		"usbdux_firmware.bin"

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* netfs cookie management
  *
- * Copyright (C) 2004-2007 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2021 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * See Documentation/filesystems/caching/netfs-api.rst for more information on
@@ -15,68 +15,256 @@
 
 struct kmem_cache *fscache_cookie_jar;
 
-static atomic_t fscache_object_debug_id = ATOMIC_INIT(0);
+static void fscache_cookie_lru_timed_out(struct timer_list *timer);
+static void fscache_cookie_lru_worker(struct work_struct *work);
+static void fscache_cookie_worker(struct work_struct *work);
+static void fscache_unhash_cookie(struct fscache_cookie *cookie);
+static void fscache_perform_invalidation(struct fscache_cookie *cookie);
 
 #define fscache_cookie_hash_shift 15
 static struct hlist_bl_head fscache_cookie_hash[1 << fscache_cookie_hash_shift];
 static LIST_HEAD(fscache_cookies);
 static DEFINE_RWLOCK(fscache_cookies_lock);
+static LIST_HEAD(fscache_cookie_lru);
+static DEFINE_SPINLOCK(fscache_cookie_lru_lock);
+DEFINE_TIMER(fscache_cookie_lru_timer, fscache_cookie_lru_timed_out);
+static DECLARE_WORK(fscache_cookie_lru_work, fscache_cookie_lru_worker);
+static const char fscache_cookie_states[FSCACHE_COOKIE_STATE__NR] = "-LCAIFUWRD";
+unsigned int fscache_lru_cookie_timeout = 10 * HZ;
 
-static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie,
-					    loff_t object_size);
-static int fscache_alloc_object(struct fscache_cache *cache,
-				struct fscache_cookie *cookie);
-static int fscache_attach_object(struct fscache_cookie *cookie,
-				 struct fscache_object *object);
-
-static void fscache_print_cookie(struct fscache_cookie *cookie, char prefix)
+void fscache_print_cookie(struct fscache_cookie *cookie, char prefix)
 {
-	struct fscache_object *object;
-	struct hlist_node *o;
 	const u8 *k;
-	unsigned loop;
 
-	pr_err("%c-cookie c=%08x [p=%08x fl=%lx nc=%u na=%u]\n",
+	pr_err("%c-cookie c=%08x [fl=%lx na=%u nA=%u s=%c]\n",
 	       prefix,
 	       cookie->debug_id,
-	       cookie->parent ? cookie->parent->debug_id : 0,
 	       cookie->flags,
-	       atomic_read(&cookie->n_children),
-	       atomic_read(&cookie->n_active));
-	pr_err("%c-cookie d=%p{%s} n=%p\n",
+	       atomic_read(&cookie->n_active),
+	       atomic_read(&cookie->n_accesses),
+	       fscache_cookie_states[cookie->state]);
+	pr_err("%c-cookie V=%08x [%s]\n",
 	       prefix,
-	       cookie->def,
-	       cookie->def ? cookie->def->name : "?",
-	       cookie->netfs_data);
+	       cookie->volume->debug_id,
+	       cookie->volume->key);
 
-	o = READ_ONCE(cookie->backing_objects.first);
-	if (o) {
-		object = hlist_entry(o, struct fscache_object, cookie_link);
-		pr_err("%c-cookie o=%u\n", prefix, object->debug_id);
-	}
-
-	pr_err("%c-key=[%u] '", prefix, cookie->key_len);
 	k = (cookie->key_len <= sizeof(cookie->inline_key)) ?
 		cookie->inline_key : cookie->key;
-	for (loop = 0; loop < cookie->key_len; loop++)
-		pr_cont("%02x", k[loop]);
-	pr_cont("'\n");
+	pr_err("%c-key=[%u] '%*phN'\n", prefix, cookie->key_len, cookie->key_len, k);
 }
 
-void fscache_free_cookie(struct fscache_cookie *cookie)
+static void fscache_free_cookie(struct fscache_cookie *cookie)
 {
-	if (cookie) {
-		BUG_ON(!hlist_empty(&cookie->backing_objects));
-		write_lock(&fscache_cookies_lock);
-		list_del(&cookie->proc_link);
-		write_unlock(&fscache_cookies_lock);
-		if (cookie->aux_len > sizeof(cookie->inline_aux))
-			kfree(cookie->aux);
-		if (cookie->key_len > sizeof(cookie->inline_key))
-			kfree(cookie->key);
-		kmem_cache_free(fscache_cookie_jar, cookie);
+	if (WARN_ON_ONCE(!list_empty(&cookie->commit_link))) {
+		spin_lock(&fscache_cookie_lru_lock);
+		list_del_init(&cookie->commit_link);
+		spin_unlock(&fscache_cookie_lru_lock);
+		fscache_stat_d(&fscache_n_cookies_lru);
+		fscache_stat(&fscache_n_cookies_lru_removed);
 	}
+
+	if (WARN_ON_ONCE(test_bit(FSCACHE_COOKIE_IS_HASHED, &cookie->flags))) {
+		fscache_print_cookie(cookie, 'F');
+		return;
+	}
+
+	write_lock(&fscache_cookies_lock);
+	list_del(&cookie->proc_link);
+	write_unlock(&fscache_cookies_lock);
+	if (cookie->aux_len > sizeof(cookie->inline_aux))
+		kfree(cookie->aux);
+	if (cookie->key_len > sizeof(cookie->inline_key))
+		kfree(cookie->key);
+	fscache_stat_d(&fscache_n_cookies);
+	kmem_cache_free(fscache_cookie_jar, cookie);
 }
+
+static void __fscache_queue_cookie(struct fscache_cookie *cookie)
+{
+	if (!queue_work(fscache_wq, &cookie->work))
+		fscache_put_cookie(cookie, fscache_cookie_put_over_queued);
+}
+
+static void fscache_queue_cookie(struct fscache_cookie *cookie,
+				 enum fscache_cookie_trace where)
+{
+	fscache_get_cookie(cookie, where);
+	__fscache_queue_cookie(cookie);
+}
+
+/*
+ * Initialise the access gate on a cookie by setting a flag to prevent the
+ * state machine from being queued when the access counter transitions to 0.
+ * We're only interested in this when we withdraw caching services from the
+ * cookie.
+ */
+static void fscache_init_access_gate(struct fscache_cookie *cookie)
+{
+	int n_accesses;
+
+	n_accesses = atomic_read(&cookie->n_accesses);
+	trace_fscache_access(cookie->debug_id, refcount_read(&cookie->ref),
+			     n_accesses, fscache_access_cache_pin);
+	set_bit(FSCACHE_COOKIE_NO_ACCESS_WAKE, &cookie->flags);
+}
+
+/**
+ * fscache_end_cookie_access - Unpin a cache at the end of an access.
+ * @cookie: A data file cookie
+ * @why: An indication of the circumstances of the access for tracing
+ *
+ * Unpin a cache cookie after we've accessed it and bring a deferred
+ * relinquishment or withdrawal state into effect.
+ *
+ * The @why indicator is provided for tracing purposes.
+ */
+void fscache_end_cookie_access(struct fscache_cookie *cookie,
+			       enum fscache_access_trace why)
+{
+	int n_accesses;
+
+	smp_mb__before_atomic();
+	n_accesses = atomic_dec_return(&cookie->n_accesses);
+	trace_fscache_access(cookie->debug_id, refcount_read(&cookie->ref),
+			     n_accesses, why);
+	if (n_accesses == 0 &&
+	    !test_bit(FSCACHE_COOKIE_NO_ACCESS_WAKE, &cookie->flags))
+		fscache_queue_cookie(cookie, fscache_cookie_get_end_access);
+}
+EXPORT_SYMBOL(fscache_end_cookie_access);
+
+/*
+ * Pin the cache behind a cookie so that we can access it.
+ */
+static void __fscache_begin_cookie_access(struct fscache_cookie *cookie,
+					  enum fscache_access_trace why)
+{
+	int n_accesses;
+
+	n_accesses = atomic_inc_return(&cookie->n_accesses);
+	smp_mb__after_atomic(); /* (Future) read state after is-caching.
+				 * Reread n_accesses after is-caching
+				 */
+	trace_fscache_access(cookie->debug_id, refcount_read(&cookie->ref),
+			     n_accesses, why);
+}
+
+/**
+ * fscache_begin_cookie_access - Pin a cache so data can be accessed
+ * @cookie: A data file cookie
+ * @why: An indication of the circumstances of the access for tracing
+ *
+ * Attempt to pin the cache to prevent it from going away whilst we're
+ * accessing data and returns true if successful.  This works as follows:
+ *
+ *  (1) If the cookie is not being cached (ie. FSCACHE_COOKIE_IS_CACHING is not
+ *      set), we return false to indicate access was not permitted.
+ *
+ *  (2) If the cookie is being cached, we increment its n_accesses count and
+ *      then recheck the IS_CACHING flag, ending the access if it got cleared.
+ *
+ *  (3) When we end the access, we decrement the cookie's n_accesses and wake
+ *      up the any waiters if it reaches 0.
+ *
+ *  (4) Whilst the cookie is actively being cached, its n_accesses is kept
+ *      artificially incremented to prevent wakeups from happening.
+ *
+ *  (5) When the cache is taken offline or if the cookie is culled, the flag is
+ *      cleared to prevent new accesses, the cookie's n_accesses is decremented
+ *      and we wait for it to become 0.
+ *
+ * The @why indicator are merely provided for tracing purposes.
+ */
+bool fscache_begin_cookie_access(struct fscache_cookie *cookie,
+				 enum fscache_access_trace why)
+{
+	if (!test_bit(FSCACHE_COOKIE_IS_CACHING, &cookie->flags))
+		return false;
+	__fscache_begin_cookie_access(cookie, why);
+	if (!test_bit(FSCACHE_COOKIE_IS_CACHING, &cookie->flags) ||
+	    !fscache_cache_is_live(cookie->volume->cache)) {
+		fscache_end_cookie_access(cookie, fscache_access_unlive);
+		return false;
+	}
+	return true;
+}
+
+static inline void wake_up_cookie_state(struct fscache_cookie *cookie)
+{
+	/* Use a barrier to ensure that waiters see the state variable
+	 * change, as spin_unlock doesn't guarantee a barrier.
+	 *
+	 * See comments over wake_up_bit() and waitqueue_active().
+	 */
+	smp_mb();
+	wake_up_var(&cookie->state);
+}
+
+/*
+ * Change the state a cookie is at and wake up anyone waiting for that.  Impose
+ * an ordering between the stuff stored in the cookie and the state member.
+ * Paired with fscache_cookie_state().
+ */
+static void __fscache_set_cookie_state(struct fscache_cookie *cookie,
+				       enum fscache_cookie_state state)
+{
+	smp_store_release(&cookie->state, state);
+}
+
+static void fscache_set_cookie_state(struct fscache_cookie *cookie,
+				     enum fscache_cookie_state state)
+{
+	spin_lock(&cookie->lock);
+	__fscache_set_cookie_state(cookie, state);
+	spin_unlock(&cookie->lock);
+	wake_up_cookie_state(cookie);
+}
+
+/**
+ * fscache_cookie_lookup_negative - Note negative lookup
+ * @cookie: The cookie that was being looked up
+ *
+ * Note that some part of the metadata path in the cache doesn't exist and so
+ * we can release any waiting readers in the certain knowledge that there's
+ * nothing for them to actually read.
+ *
+ * This function uses no locking and must only be called from the state machine.
+ */
+void fscache_cookie_lookup_negative(struct fscache_cookie *cookie)
+{
+	set_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags);
+	fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_CREATING);
+}
+EXPORT_SYMBOL(fscache_cookie_lookup_negative);
+
+/**
+ * fscache_resume_after_invalidation - Allow I/O to resume after invalidation
+ * @cookie: The cookie that was invalidated
+ *
+ * Tell fscache that invalidation is sufficiently complete that I/O can be
+ * allowed again.
+ */
+void fscache_resume_after_invalidation(struct fscache_cookie *cookie)
+{
+	fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_ACTIVE);
+}
+EXPORT_SYMBOL(fscache_resume_after_invalidation);
+
+/**
+ * fscache_caching_failed - Report that a failure stopped caching on a cookie
+ * @cookie: The cookie that was affected
+ *
+ * Tell fscache that caching on a cookie needs to be stopped due to some sort
+ * of failure.
+ *
+ * This function uses no locking and must only be called from the state machine.
+ */
+void fscache_caching_failed(struct fscache_cookie *cookie)
+{
+	clear_bit(FSCACHE_COOKIE_IS_CACHING, &cookie->flags);
+	fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_FAILED);
+}
+EXPORT_SYMBOL(fscache_caching_failed);
 
 /*
  * Set the index key in a cookie.  The cookie struct has space for a 16-byte
@@ -87,38 +275,35 @@ void fscache_free_cookie(struct fscache_cookie *cookie)
 static int fscache_set_key(struct fscache_cookie *cookie,
 			   const void *index_key, size_t index_key_len)
 {
-	u32 *buf;
-	int bufs;
+	void *buf;
+	size_t buf_size;
 
-	bufs = DIV_ROUND_UP(index_key_len, sizeof(*buf));
+	buf_size = round_up(index_key_len, sizeof(__le32));
 
 	if (index_key_len > sizeof(cookie->inline_key)) {
-		buf = kcalloc(bufs, sizeof(*buf), GFP_KERNEL);
+		buf = kzalloc(buf_size, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
 		cookie->key = buf;
 	} else {
-		buf = (u32 *)cookie->inline_key;
+		buf = cookie->inline_key;
 	}
 
 	memcpy(buf, index_key, index_key_len);
-	cookie->key_hash = fscache_hash(0, buf, bufs);
+	cookie->key_hash = fscache_hash(cookie->volume->key_hash,
+					buf, buf_size);
 	return 0;
 }
 
-static long fscache_compare_cookie(const struct fscache_cookie *a,
-				   const struct fscache_cookie *b)
+static bool fscache_cookie_same(const struct fscache_cookie *a,
+				const struct fscache_cookie *b)
 {
 	const void *ka, *kb;
 
-	if (a->key_hash != b->key_hash)
-		return (long)a->key_hash - (long)b->key_hash;
-	if (a->parent != b->parent)
-		return (long)a->parent - (long)b->parent;
-	if (a->key_len != b->key_len)
-		return (long)a->key_len - (long)b->key_len;
-	if (a->type != b->type)
-		return (long)a->type - (long)b->type;
+	if (a->key_hash	!= b->key_hash ||
+	    a->volume	!= b->volume ||
+	    a->key_len	!= b->key_len)
+		return false;
 
 	if (a->key_len <= sizeof(a->inline_key)) {
 		ka = &a->inline_key;
@@ -127,7 +312,7 @@ static long fscache_compare_cookie(const struct fscache_cookie *a,
 		ka = a->key;
 		kb = b->key;
 	}
-	return memcmp(ka, kb, a->key_len);
+	return memcmp(ka, kb, a->key_len) == 0;
 }
 
 static atomic_t fscache_cookie_debug_id = ATOMIC_INIT(1);
@@ -135,12 +320,11 @@ static atomic_t fscache_cookie_debug_id = ATOMIC_INIT(1);
 /*
  * Allocate a cookie.
  */
-struct fscache_cookie *fscache_alloc_cookie(
-	struct fscache_cookie *parent,
-	const struct fscache_cookie_def *def,
+static struct fscache_cookie *fscache_alloc_cookie(
+	struct fscache_volume *volume,
+	u8 advice,
 	const void *index_key, size_t index_key_len,
 	const void *aux_data, size_t aux_data_len,
-	void *netfs_data,
 	loff_t object_size)
 {
 	struct fscache_cookie *cookie;
@@ -149,9 +333,15 @@ struct fscache_cookie *fscache_alloc_cookie(
 	cookie = kmem_cache_zalloc(fscache_cookie_jar, GFP_KERNEL);
 	if (!cookie)
 		return NULL;
+	fscache_stat(&fscache_n_cookies);
 
-	cookie->key_len = index_key_len;
-	cookie->aux_len = aux_data_len;
+	cookie->volume		= volume;
+	cookie->advice		= advice;
+	cookie->key_len		= index_key_len;
+	cookie->aux_len		= aux_data_len;
+	cookie->object_size	= object_size;
+	if (object_size == 0)
+		__set_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags);
 
 	if (fscache_set_key(cookie, index_key, index_key_len) < 0)
 		goto nomem;
@@ -165,30 +355,16 @@ struct fscache_cookie *fscache_alloc_cookie(
 	}
 
 	refcount_set(&cookie->ref, 1);
-	atomic_set(&cookie->n_children, 0);
 	cookie->debug_id = atomic_inc_return(&fscache_cookie_debug_id);
-
-	/* We keep the active count elevated until relinquishment to prevent an
-	 * attempt to wake up every time the object operations queue quiesces.
-	 */
-	atomic_set(&cookie->n_active, 1);
-
-	cookie->def		= def;
-	cookie->parent		= parent;
-	cookie->netfs_data	= netfs_data;
-	cookie->flags		= (1 << FSCACHE_COOKIE_NO_DATA_YET);
-	cookie->type		= def->type;
 	spin_lock_init(&cookie->lock);
-	spin_lock_init(&cookie->stores_lock);
-	INIT_HLIST_HEAD(&cookie->backing_objects);
-
-	/* radix tree insertion won't use the preallocation pool unless it's
-	 * told it may not wait */
-	INIT_RADIX_TREE(&cookie->stores, GFP_NOFS & ~__GFP_DIRECT_RECLAIM);
+	INIT_LIST_HEAD(&cookie->commit_link);
+	INIT_WORK(&cookie->work, fscache_cookie_worker);
+	__fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_QUIESCENT);
 
 	write_lock(&fscache_cookies_lock);
 	list_add_tail(&cookie->proc_link, &fscache_cookies);
 	write_unlock(&fscache_cookies_lock);
+	fscache_see_cookie(cookie, fscache_cookie_new_acquire);
 	return cookie;
 
 nomem:
@@ -196,13 +372,28 @@ nomem:
 	return NULL;
 }
 
+static void fscache_wait_on_collision(struct fscache_cookie *candidate,
+				      struct fscache_cookie *wait_for)
+{
+	enum fscache_cookie_state *statep = &wait_for->state;
+
+	wait_var_event_timeout(statep, READ_ONCE(*statep) == FSCACHE_COOKIE_STATE_DROPPED,
+			       20 * HZ);
+	if (READ_ONCE(*statep) != FSCACHE_COOKIE_STATE_DROPPED) {
+		pr_notice("Potential collision c=%08x old: c=%08x",
+			  candidate->debug_id, wait_for->debug_id);
+		wait_var_event(statep, READ_ONCE(*statep) == FSCACHE_COOKIE_STATE_DROPPED);
+	}
+}
+
 /*
  * Attempt to insert the new cookie into the hash.  If there's a collision, we
- * return the old cookie if it's not in use and an error otherwise.
+ * wait for the old cookie to complete if it's being relinquished and an error
+ * otherwise.
  */
-struct fscache_cookie *fscache_hash_cookie(struct fscache_cookie *candidate)
+static bool fscache_hash_cookie(struct fscache_cookie *candidate)
 {
-	struct fscache_cookie *cursor;
+	struct fscache_cookie *cursor, *wait_for = NULL;
 	struct hlist_bl_head *h;
 	struct hlist_bl_node *p;
 	unsigned int bucket;
@@ -212,64 +403,53 @@ struct fscache_cookie *fscache_hash_cookie(struct fscache_cookie *candidate)
 
 	hlist_bl_lock(h);
 	hlist_bl_for_each_entry(cursor, p, h, hash_link) {
-		if (fscache_compare_cookie(candidate, cursor) == 0)
-			goto collision;
+		if (fscache_cookie_same(candidate, cursor)) {
+			if (!test_bit(FSCACHE_COOKIE_RELINQUISHED, &cursor->flags))
+				goto collision;
+			wait_for = fscache_get_cookie(cursor,
+						      fscache_cookie_get_hash_collision);
+			break;
+		}
 	}
 
-	__set_bit(FSCACHE_COOKIE_ACQUIRED, &candidate->flags);
-	fscache_cookie_get(candidate->parent, fscache_cookie_get_acquire_parent);
-	atomic_inc(&candidate->parent->n_children);
+	fscache_get_volume(candidate->volume, fscache_volume_get_cookie);
+	atomic_inc(&candidate->volume->n_cookies);
 	hlist_bl_add_head(&candidate->hash_link, h);
+	set_bit(FSCACHE_COOKIE_IS_HASHED, &candidate->flags);
 	hlist_bl_unlock(h);
-	return candidate;
+
+	if (wait_for) {
+		fscache_wait_on_collision(candidate, wait_for);
+		fscache_put_cookie(wait_for, fscache_cookie_put_hash_collision);
+	}
+	return true;
 
 collision:
-	if (test_and_set_bit(FSCACHE_COOKIE_ACQUIRED, &cursor->flags)) {
-		trace_fscache_cookie(cursor->debug_id, refcount_read(&cursor->ref),
-				     fscache_cookie_collision);
-		pr_err("Duplicate cookie detected\n");
-		fscache_print_cookie(cursor, 'O');
-		fscache_print_cookie(candidate, 'N');
-		hlist_bl_unlock(h);
-		return NULL;
-	}
-
-	fscache_cookie_get(cursor, fscache_cookie_get_reacquire);
+	trace_fscache_cookie(cursor->debug_id, refcount_read(&cursor->ref),
+			     fscache_cookie_collision);
+	pr_err("Duplicate cookie detected\n");
+	fscache_print_cookie(cursor, 'O');
+	fscache_print_cookie(candidate, 'N');
 	hlist_bl_unlock(h);
-	return cursor;
+	return false;
 }
 
 /*
- * request a cookie to represent an object (index, datafile, xattr, etc)
- * - parent specifies the parent object
- *   - the top level index cookie for each netfs is stored in the fscache_netfs
- *     struct upon registration
- * - def points to the definition
- * - the netfs_data will be passed to the functions pointed to in *def
- * - all attached caches will be searched to see if they contain this object
- * - index objects aren't stored on disk until there's a dependent file that
- *   needs storing
- * - other objects are stored in a selected cache immediately, and all the
- *   indices forming the path to it are instantiated if necessary
- * - we never let on to the netfs about errors
- *   - we may set a negative cookie pointer, but that's okay
+ * Request a cookie to represent a data storage object within a volume.
+ *
+ * We never let on to the netfs about errors.  We may set a negative cookie
+ * pointer, but that's okay
  */
 struct fscache_cookie *__fscache_acquire_cookie(
-	struct fscache_cookie *parent,
-	const struct fscache_cookie_def *def,
+	struct fscache_volume *volume,
+	u8 advice,
 	const void *index_key, size_t index_key_len,
 	const void *aux_data, size_t aux_data_len,
-	void *netfs_data,
-	loff_t object_size,
-	bool enable)
+	loff_t object_size)
 {
-	struct fscache_cookie *candidate, *cookie;
+	struct fscache_cookie *cookie;
 
-	BUG_ON(!def);
-
-	_enter("{%s},{%s},%p,%u",
-	       parent ? (char *) parent->def->name : "<no-parent>",
-	       def->name, netfs_data, enable);
+	_enter("V=%x", volume->debug_id);
 
 	if (!index_key || !index_key_len || index_key_len > 255 || aux_data_len > 255)
 		return NULL;
@@ -280,563 +460,440 @@ struct fscache_cookie *__fscache_acquire_cookie(
 
 	fscache_stat(&fscache_n_acquires);
 
-	/* if there's no parent cookie, then we don't create one here either */
-	if (!parent) {
-		fscache_stat(&fscache_n_acquires_null);
-		_leave(" [no parent]");
-		return NULL;
-	}
-
-	/* validate the definition */
-	BUG_ON(!def->name[0]);
-
-	BUG_ON(def->type == FSCACHE_COOKIE_TYPE_INDEX &&
-	       parent->type != FSCACHE_COOKIE_TYPE_INDEX);
-
-	candidate = fscache_alloc_cookie(parent, def,
-					 index_key, index_key_len,
-					 aux_data, aux_data_len,
-					 netfs_data, object_size);
-	if (!candidate) {
-		fscache_stat(&fscache_n_acquires_oom);
-		_leave(" [ENOMEM]");
-		return NULL;
-	}
-
-	cookie = fscache_hash_cookie(candidate);
+	cookie = fscache_alloc_cookie(volume, advice,
+				      index_key, index_key_len,
+				      aux_data, aux_data_len,
+				      object_size);
 	if (!cookie) {
-		trace_fscache_cookie(candidate->debug_id, 1,
-				     fscache_cookie_discard);
-		goto out;
+		fscache_stat(&fscache_n_acquires_oom);
+		return NULL;
 	}
 
-	if (cookie == candidate)
-		candidate = NULL;
-
-	switch (cookie->type) {
-	case FSCACHE_COOKIE_TYPE_INDEX:
-		fscache_stat(&fscache_n_cookie_index);
-		break;
-	case FSCACHE_COOKIE_TYPE_DATAFILE:
-		fscache_stat(&fscache_n_cookie_data);
-		break;
-	default:
-		fscache_stat(&fscache_n_cookie_special);
-		break;
+	if (!fscache_hash_cookie(cookie)) {
+		fscache_see_cookie(cookie, fscache_cookie_discard);
+		fscache_free_cookie(cookie);
+		return NULL;
 	}
 
 	trace_fscache_acquire(cookie);
-
-	if (enable) {
-		/* if the object is an index then we need do nothing more here
-		 * - we create indices on disk when we need them as an index
-		 * may exist in multiple caches */
-		if (cookie->type != FSCACHE_COOKIE_TYPE_INDEX) {
-			if (fscache_acquire_non_index_cookie(cookie, object_size) == 0) {
-				set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
-			} else {
-				atomic_dec(&parent->n_children);
-				fscache_cookie_put(cookie,
-						   fscache_cookie_put_acquire_nobufs);
-				fscache_stat(&fscache_n_acquires_nobufs);
-				_leave(" = NULL");
-				return NULL;
-			}
-		} else {
-			set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
-		}
-	}
-
 	fscache_stat(&fscache_n_acquires_ok);
-
-out:
-	fscache_free_cookie(candidate);
+	_leave(" = c=%08x", cookie->debug_id);
 	return cookie;
 }
 EXPORT_SYMBOL(__fscache_acquire_cookie);
 
 /*
- * Enable a cookie to permit it to accept new operations.
+ * Prepare a cache object to be written to.
  */
-void __fscache_enable_cookie(struct fscache_cookie *cookie,
-			     const void *aux_data,
-			     loff_t object_size,
-			     bool (*can_enable)(void *data),
-			     void *data)
+static void fscache_prepare_to_write(struct fscache_cookie *cookie)
 {
-	_enter("%x", cookie->debug_id);
-
-	trace_fscache_enable(cookie);
-
-	wait_on_bit_lock(&cookie->flags, FSCACHE_COOKIE_ENABLEMENT_LOCK,
-			 TASK_UNINTERRUPTIBLE);
-
-	fscache_update_aux(cookie, aux_data);
-
-	if (test_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags))
-		goto out_unlock;
-
-	if (can_enable && !can_enable(data)) {
-		/* The netfs decided it didn't want to enable after all */
-	} else if (cookie->type != FSCACHE_COOKIE_TYPE_INDEX) {
-		/* Wait for outstanding disablement to complete */
-		__fscache_wait_on_invalidate(cookie);
-
-		if (fscache_acquire_non_index_cookie(cookie, object_size) == 0)
-			set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
-	} else {
-		set_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags);
-	}
-
-out_unlock:
-	clear_bit_unlock(FSCACHE_COOKIE_ENABLEMENT_LOCK, &cookie->flags);
-	wake_up_bit(&cookie->flags, FSCACHE_COOKIE_ENABLEMENT_LOCK);
+	cookie->volume->cache->ops->prepare_to_write(cookie);
 }
-EXPORT_SYMBOL(__fscache_enable_cookie);
 
 /*
- * acquire a non-index cookie
- * - this must make sure the index chain is instantiated and instantiate the
- *   object representation too
+ * Look up a cookie in the cache.
  */
-static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie,
-					    loff_t object_size)
+static void fscache_perform_lookup(struct fscache_cookie *cookie)
 {
-	struct fscache_object *object;
-	struct fscache_cache *cache;
-	int ret;
+	enum fscache_access_trace trace = fscache_access_lookup_cookie_end_failed;
+	bool need_withdraw = false;
 
 	_enter("");
 
-	set_bit(FSCACHE_COOKIE_UNAVAILABLE, &cookie->flags);
-
-	/* now we need to see whether the backing objects for this cookie yet
-	 * exist, if not there'll be nothing to search */
-	down_read(&fscache_addremove_sem);
-
-	if (list_empty(&fscache_cache_list)) {
-		up_read(&fscache_addremove_sem);
-		_leave(" = 0 [no caches]");
-		return 0;
-	}
-
-	/* select a cache in which to store the object */
-	cache = fscache_select_cache_for_object(cookie->parent);
-	if (!cache) {
-		up_read(&fscache_addremove_sem);
-		fscache_stat(&fscache_n_acquires_no_cache);
-		_leave(" = -ENOMEDIUM [no cache]");
-		return -ENOMEDIUM;
-	}
-
-	_debug("cache %s", cache->tag->name);
-
-	set_bit(FSCACHE_COOKIE_LOOKING_UP, &cookie->flags);
-
-	/* ask the cache to allocate objects for this cookie and its parent
-	 * chain */
-	ret = fscache_alloc_object(cache, cookie);
-	if (ret < 0) {
-		up_read(&fscache_addremove_sem);
-		_leave(" = %d", ret);
-		return ret;
-	}
-
-	spin_lock(&cookie->lock);
-	if (hlist_empty(&cookie->backing_objects)) {
-		spin_unlock(&cookie->lock);
-		goto unavailable;
-	}
-
-	object = hlist_entry(cookie->backing_objects.first,
-			     struct fscache_object, cookie_link);
-
-	fscache_set_store_limit(object, object_size);
-
-	/* initiate the process of looking up all the objects in the chain
-	 * (done by fscache_initialise_object()) */
-	fscache_raise_event(object, FSCACHE_OBJECT_EV_NEW_CHILD);
-
-	spin_unlock(&cookie->lock);
-
-	/* we may be required to wait for lookup to complete at this point */
-	if (!fscache_defer_lookup) {
-		wait_on_bit(&cookie->flags, FSCACHE_COOKIE_LOOKING_UP,
-			    TASK_UNINTERRUPTIBLE);
-		if (test_bit(FSCACHE_COOKIE_UNAVAILABLE, &cookie->flags))
-			goto unavailable;
-	}
-
-	up_read(&fscache_addremove_sem);
-	_leave(" = 0 [deferred]");
-	return 0;
-
-unavailable:
-	up_read(&fscache_addremove_sem);
-	_leave(" = -ENOBUFS");
-	return -ENOBUFS;
-}
-
-/*
- * recursively allocate cache object records for a cookie/cache combination
- * - caller must be holding the addremove sem
- */
-static int fscache_alloc_object(struct fscache_cache *cache,
-				struct fscache_cookie *cookie)
-{
-	struct fscache_object *object;
-	int ret;
-
-	_enter("%s,%x{%s}", cache->tag->name, cookie->debug_id, cookie->def->name);
-
-	spin_lock(&cookie->lock);
-	hlist_for_each_entry(object, &cookie->backing_objects,
-			     cookie_link) {
-		if (object->cache == cache)
-			goto object_already_extant;
-	}
-	spin_unlock(&cookie->lock);
-
-	/* ask the cache to allocate an object (we may end up with duplicate
-	 * objects at this stage, but we sort that out later) */
-	fscache_stat(&fscache_n_cop_alloc_object);
-	object = cache->ops->alloc_object(cache, cookie);
-	fscache_stat_d(&fscache_n_cop_alloc_object);
-	if (IS_ERR(object)) {
-		fscache_stat(&fscache_n_object_no_alloc);
-		ret = PTR_ERR(object);
-		goto error;
-	}
-
-	ASSERTCMP(object->cookie, ==, cookie);
-	fscache_stat(&fscache_n_object_alloc);
-
-	object->debug_id = atomic_inc_return(&fscache_object_debug_id);
-
-	_debug("ALLOC OBJ%x: %s {%lx}",
-	       object->debug_id, cookie->def->name, object->events);
-
-	ret = fscache_alloc_object(cache, cookie->parent);
-	if (ret < 0)
-		goto error_put;
-
-	/* only attach if we managed to allocate all we needed, otherwise
-	 * discard the object we just allocated and instead use the one
-	 * attached to the cookie */
-	if (fscache_attach_object(cookie, object) < 0) {
-		fscache_stat(&fscache_n_cop_put_object);
-		cache->ops->put_object(object, fscache_obj_put_attach_fail);
-		fscache_stat_d(&fscache_n_cop_put_object);
-	}
-
-	_leave(" = 0");
-	return 0;
-
-object_already_extant:
-	ret = -ENOBUFS;
-	if (fscache_object_is_dying(object) ||
-	    fscache_cache_is_broken(object)) {
-		spin_unlock(&cookie->lock);
-		goto error;
-	}
-	spin_unlock(&cookie->lock);
-	_leave(" = 0 [found]");
-	return 0;
-
-error_put:
-	fscache_stat(&fscache_n_cop_put_object);
-	cache->ops->put_object(object, fscache_obj_put_alloc_fail);
-	fscache_stat_d(&fscache_n_cop_put_object);
-error:
-	_leave(" = %d", ret);
-	return ret;
-}
-
-/*
- * attach a cache object to a cookie
- */
-static int fscache_attach_object(struct fscache_cookie *cookie,
-				 struct fscache_object *object)
-{
-	struct fscache_object *p;
-	struct fscache_cache *cache = object->cache;
-	int ret;
-
-	_enter("{%s},{OBJ%x}", cookie->def->name, object->debug_id);
-
-	ASSERTCMP(object->cookie, ==, cookie);
-
-	spin_lock(&cookie->lock);
-
-	/* there may be multiple initial creations of this object, but we only
-	 * want one */
-	ret = -EEXIST;
-	hlist_for_each_entry(p, &cookie->backing_objects, cookie_link) {
-		if (p->cache == object->cache) {
-			if (fscache_object_is_dying(p))
-				ret = -ENOBUFS;
-			goto cant_attach_object;
+	if (!cookie->volume->cache_priv) {
+		fscache_create_volume(cookie->volume, true);
+		if (!cookie->volume->cache_priv) {
+			fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_QUIESCENT);
+			goto out;
 		}
 	}
 
-	/* pin the parent object */
-	spin_lock_nested(&cookie->parent->lock, 1);
-	hlist_for_each_entry(p, &cookie->parent->backing_objects,
-			     cookie_link) {
-		if (p->cache == object->cache) {
-			if (fscache_object_is_dying(p)) {
-				ret = -ENOBUFS;
-				spin_unlock(&cookie->parent->lock);
-				goto cant_attach_object;
-			}
-			object->parent = p;
-			spin_lock(&p->lock);
-			p->n_children++;
-			spin_unlock(&p->lock);
+	if (!cookie->volume->cache->ops->lookup_cookie(cookie)) {
+		if (cookie->state != FSCACHE_COOKIE_STATE_FAILED)
+			fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_QUIESCENT);
+		need_withdraw = true;
+		_leave(" [fail]");
+		goto out;
+	}
+
+	fscache_see_cookie(cookie, fscache_cookie_see_active);
+	fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_ACTIVE);
+	trace = fscache_access_lookup_cookie_end;
+
+out:
+	fscache_end_cookie_access(cookie, trace);
+	if (need_withdraw)
+		fscache_withdraw_cookie(cookie);
+	fscache_end_volume_access(cookie->volume, cookie, trace);
+}
+
+/*
+ * Begin the process of looking up a cookie.  We offload the actual process to
+ * a worker thread.
+ */
+static bool fscache_begin_lookup(struct fscache_cookie *cookie, bool will_modify)
+{
+	if (will_modify) {
+		set_bit(FSCACHE_COOKIE_LOCAL_WRITE, &cookie->flags);
+		set_bit(FSCACHE_COOKIE_DO_PREP_TO_WRITE, &cookie->flags);
+	}
+	if (!fscache_begin_volume_access(cookie->volume, cookie,
+					 fscache_access_lookup_cookie))
+		return false;
+
+	__fscache_begin_cookie_access(cookie, fscache_access_lookup_cookie);
+	__fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_LOOKING_UP);
+	set_bit(FSCACHE_COOKIE_IS_CACHING, &cookie->flags);
+	set_bit(FSCACHE_COOKIE_HAS_BEEN_CACHED, &cookie->flags);
+	return true;
+}
+
+/*
+ * Start using the cookie for I/O.  This prevents the backing object from being
+ * reaped by VM pressure.
+ */
+void __fscache_use_cookie(struct fscache_cookie *cookie, bool will_modify)
+{
+	enum fscache_cookie_state state;
+	bool queue = false;
+	int n_active;
+
+	_enter("c=%08x", cookie->debug_id);
+
+	if (WARN(test_bit(FSCACHE_COOKIE_RELINQUISHED, &cookie->flags),
+		 "Trying to use relinquished cookie\n"))
+		return;
+
+	spin_lock(&cookie->lock);
+
+	n_active = atomic_inc_return(&cookie->n_active);
+	trace_fscache_active(cookie->debug_id, refcount_read(&cookie->ref),
+			     n_active, atomic_read(&cookie->n_accesses),
+			     will_modify ?
+			     fscache_active_use_modify : fscache_active_use);
+
+again:
+	state = fscache_cookie_state(cookie);
+	switch (state) {
+	case FSCACHE_COOKIE_STATE_QUIESCENT:
+		queue = fscache_begin_lookup(cookie, will_modify);
+		break;
+
+	case FSCACHE_COOKIE_STATE_LOOKING_UP:
+	case FSCACHE_COOKIE_STATE_CREATING:
+		if (will_modify)
+			set_bit(FSCACHE_COOKIE_LOCAL_WRITE, &cookie->flags);
+		break;
+	case FSCACHE_COOKIE_STATE_ACTIVE:
+	case FSCACHE_COOKIE_STATE_INVALIDATING:
+		if (will_modify &&
+		    !test_and_set_bit(FSCACHE_COOKIE_LOCAL_WRITE, &cookie->flags)) {
+			set_bit(FSCACHE_COOKIE_DO_PREP_TO_WRITE, &cookie->flags);
+			queue = true;
+		}
+		break;
+
+	case FSCACHE_COOKIE_STATE_FAILED:
+	case FSCACHE_COOKIE_STATE_WITHDRAWING:
+		break;
+
+	case FSCACHE_COOKIE_STATE_LRU_DISCARDING:
+		spin_unlock(&cookie->lock);
+		wait_var_event(&cookie->state,
+			       fscache_cookie_state(cookie) !=
+			       FSCACHE_COOKIE_STATE_LRU_DISCARDING);
+		spin_lock(&cookie->lock);
+		goto again;
+
+	case FSCACHE_COOKIE_STATE_DROPPED:
+	case FSCACHE_COOKIE_STATE_RELINQUISHING:
+		WARN(1, "Can't use cookie in state %u\n", state);
+		break;
+	}
+
+	spin_unlock(&cookie->lock);
+	if (queue)
+		fscache_queue_cookie(cookie, fscache_cookie_get_use_work);
+	_leave("");
+}
+EXPORT_SYMBOL(__fscache_use_cookie);
+
+static void fscache_unuse_cookie_locked(struct fscache_cookie *cookie)
+{
+	clear_bit(FSCACHE_COOKIE_DISABLED, &cookie->flags);
+	if (!test_bit(FSCACHE_COOKIE_IS_CACHING, &cookie->flags))
+		return;
+
+	cookie->unused_at = jiffies;
+	spin_lock(&fscache_cookie_lru_lock);
+	if (list_empty(&cookie->commit_link)) {
+		fscache_get_cookie(cookie, fscache_cookie_get_lru);
+		fscache_stat(&fscache_n_cookies_lru);
+	}
+	list_move_tail(&cookie->commit_link, &fscache_cookie_lru);
+
+	spin_unlock(&fscache_cookie_lru_lock);
+	timer_reduce(&fscache_cookie_lru_timer,
+		     jiffies + fscache_lru_cookie_timeout);
+}
+
+/*
+ * Stop using the cookie for I/O.
+ */
+void __fscache_unuse_cookie(struct fscache_cookie *cookie,
+			    const void *aux_data, const loff_t *object_size)
+{
+	unsigned int debug_id = cookie->debug_id;
+	unsigned int r = refcount_read(&cookie->ref);
+	unsigned int a = atomic_read(&cookie->n_accesses);
+	unsigned int c;
+
+	if (aux_data || object_size)
+		__fscache_update_cookie(cookie, aux_data, object_size);
+
+	/* Subtract 1 from counter unless that drops it to 0 (ie. it was 1) */
+	c = atomic_fetch_add_unless(&cookie->n_active, -1, 1);
+	if (c != 1) {
+		trace_fscache_active(debug_id, r, c - 1, a, fscache_active_unuse);
+		return;
+	}
+
+	spin_lock(&cookie->lock);
+	r = refcount_read(&cookie->ref);
+	a = atomic_read(&cookie->n_accesses);
+	c = atomic_dec_return(&cookie->n_active);
+	trace_fscache_active(debug_id, r, c, a, fscache_active_unuse);
+	if (c == 0)
+		fscache_unuse_cookie_locked(cookie);
+	spin_unlock(&cookie->lock);
+}
+EXPORT_SYMBOL(__fscache_unuse_cookie);
+
+/*
+ * Perform work upon the cookie, such as committing its cache state,
+ * relinquishing it or withdrawing the backing cache.  We're protected from the
+ * cache going away under us as object withdrawal must come through this
+ * non-reentrant work item.
+ */
+static void fscache_cookie_state_machine(struct fscache_cookie *cookie)
+{
+	enum fscache_cookie_state state;
+	bool wake = false;
+
+	_enter("c=%x", cookie->debug_id);
+
+again:
+	spin_lock(&cookie->lock);
+again_locked:
+	state = cookie->state;
+	switch (state) {
+	case FSCACHE_COOKIE_STATE_QUIESCENT:
+		/* The QUIESCENT state is jumped to the LOOKING_UP state by
+		 * fscache_use_cookie().
+		 */
+
+		if (atomic_read(&cookie->n_accesses) == 0 &&
+		    test_bit(FSCACHE_COOKIE_DO_RELINQUISH, &cookie->flags)) {
+			__fscache_set_cookie_state(cookie,
+						   FSCACHE_COOKIE_STATE_RELINQUISHING);
+			wake = true;
+			goto again_locked;
+		}
+		break;
+
+	case FSCACHE_COOKIE_STATE_LOOKING_UP:
+		spin_unlock(&cookie->lock);
+		fscache_init_access_gate(cookie);
+		fscache_perform_lookup(cookie);
+		goto again;
+
+	case FSCACHE_COOKIE_STATE_INVALIDATING:
+		spin_unlock(&cookie->lock);
+		fscache_perform_invalidation(cookie);
+		goto again;
+
+	case FSCACHE_COOKIE_STATE_ACTIVE:
+		if (test_and_clear_bit(FSCACHE_COOKIE_DO_PREP_TO_WRITE, &cookie->flags)) {
+			spin_unlock(&cookie->lock);
+			fscache_prepare_to_write(cookie);
+			spin_lock(&cookie->lock);
+		}
+		if (test_bit(FSCACHE_COOKIE_DO_LRU_DISCARD, &cookie->flags)) {
+			__fscache_set_cookie_state(cookie,
+						   FSCACHE_COOKIE_STATE_LRU_DISCARDING);
+			wake = true;
+			goto again_locked;
+		}
+		fallthrough;
+
+	case FSCACHE_COOKIE_STATE_FAILED:
+		if (atomic_read(&cookie->n_accesses) != 0)
+			break;
+		if (test_bit(FSCACHE_COOKIE_DO_RELINQUISH, &cookie->flags)) {
+			__fscache_set_cookie_state(cookie,
+						   FSCACHE_COOKIE_STATE_RELINQUISHING);
+			wake = true;
+			goto again_locked;
+		}
+		if (test_bit(FSCACHE_COOKIE_DO_WITHDRAW, &cookie->flags)) {
+			__fscache_set_cookie_state(cookie,
+						   FSCACHE_COOKIE_STATE_WITHDRAWING);
+			wake = true;
+			goto again_locked;
+		}
+		break;
+
+	case FSCACHE_COOKIE_STATE_LRU_DISCARDING:
+	case FSCACHE_COOKIE_STATE_RELINQUISHING:
+	case FSCACHE_COOKIE_STATE_WITHDRAWING:
+		if (cookie->cache_priv) {
+			spin_unlock(&cookie->lock);
+			cookie->volume->cache->ops->withdraw_cookie(cookie);
+			spin_lock(&cookie->lock);
+		}
+
+		switch (state) {
+		case FSCACHE_COOKIE_STATE_RELINQUISHING:
+			fscache_see_cookie(cookie, fscache_cookie_see_relinquish);
+			fscache_unhash_cookie(cookie);
+			__fscache_set_cookie_state(cookie,
+						   FSCACHE_COOKIE_STATE_DROPPED);
+			wake = true;
+			goto out;
+		case FSCACHE_COOKIE_STATE_LRU_DISCARDING:
+			fscache_see_cookie(cookie, fscache_cookie_see_lru_discard);
+			break;
+		case FSCACHE_COOKIE_STATE_WITHDRAWING:
+			fscache_see_cookie(cookie, fscache_cookie_see_withdraw);
+			break;
+		default:
+			BUG();
+		}
+
+		clear_bit(FSCACHE_COOKIE_NEEDS_UPDATE, &cookie->flags);
+		clear_bit(FSCACHE_COOKIE_DO_WITHDRAW, &cookie->flags);
+		clear_bit(FSCACHE_COOKIE_DO_LRU_DISCARD, &cookie->flags);
+		clear_bit(FSCACHE_COOKIE_DO_PREP_TO_WRITE, &cookie->flags);
+		set_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags);
+		__fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_QUIESCENT);
+		wake = true;
+		goto again_locked;
+
+	case FSCACHE_COOKIE_STATE_DROPPED:
+		break;
+
+	default:
+		WARN_ONCE(1, "Cookie %x in unexpected state %u\n",
+			  cookie->debug_id, state);
+		break;
+	}
+
+out:
+	spin_unlock(&cookie->lock);
+	if (wake)
+		wake_up_cookie_state(cookie);
+	_leave("");
+}
+
+static void fscache_cookie_worker(struct work_struct *work)
+{
+	struct fscache_cookie *cookie = container_of(work, struct fscache_cookie, work);
+
+	fscache_see_cookie(cookie, fscache_cookie_see_work);
+	fscache_cookie_state_machine(cookie);
+	fscache_put_cookie(cookie, fscache_cookie_put_work);
+}
+
+/*
+ * Wait for the object to become inactive.  The cookie's work item will be
+ * scheduled when someone transitions n_accesses to 0 - but if someone's
+ * already done that, schedule it anyway.
+ */
+static void __fscache_withdraw_cookie(struct fscache_cookie *cookie)
+{
+	int n_accesses;
+	bool unpinned;
+
+	unpinned = test_and_clear_bit(FSCACHE_COOKIE_NO_ACCESS_WAKE, &cookie->flags);
+
+	/* Need to read the access count after unpinning */
+	n_accesses = atomic_read(&cookie->n_accesses);
+	if (unpinned)
+		trace_fscache_access(cookie->debug_id, refcount_read(&cookie->ref),
+				     n_accesses, fscache_access_cache_unpin);
+	if (n_accesses == 0)
+		fscache_queue_cookie(cookie, fscache_cookie_get_end_access);
+}
+
+static void fscache_cookie_lru_do_one(struct fscache_cookie *cookie)
+{
+	fscache_see_cookie(cookie, fscache_cookie_see_lru_do_one);
+
+	spin_lock(&cookie->lock);
+	if (cookie->state != FSCACHE_COOKIE_STATE_ACTIVE ||
+	    time_before(jiffies, cookie->unused_at + fscache_lru_cookie_timeout) ||
+	    atomic_read(&cookie->n_active) > 0) {
+		spin_unlock(&cookie->lock);
+		fscache_stat(&fscache_n_cookies_lru_removed);
+	} else {
+		set_bit(FSCACHE_COOKIE_DO_LRU_DISCARD, &cookie->flags);
+		spin_unlock(&cookie->lock);
+		fscache_stat(&fscache_n_cookies_lru_expired);
+		_debug("lru c=%x", cookie->debug_id);
+		__fscache_withdraw_cookie(cookie);
+	}
+
+	fscache_put_cookie(cookie, fscache_cookie_put_lru);
+}
+
+static void fscache_cookie_lru_worker(struct work_struct *work)
+{
+	struct fscache_cookie *cookie;
+	unsigned long unused_at;
+
+	spin_lock(&fscache_cookie_lru_lock);
+
+	while (!list_empty(&fscache_cookie_lru)) {
+		cookie = list_first_entry(&fscache_cookie_lru,
+					  struct fscache_cookie, commit_link);
+		unused_at = cookie->unused_at + fscache_lru_cookie_timeout;
+		if (time_before(jiffies, unused_at)) {
+			timer_reduce(&fscache_cookie_lru_timer, unused_at);
 			break;
 		}
-	}
-	spin_unlock(&cookie->parent->lock);
 
-	/* attach to the cache's object list */
-	if (list_empty(&object->cache_link)) {
-		spin_lock(&cache->object_list_lock);
-		list_add(&object->cache_link, &cache->object_list);
-		spin_unlock(&cache->object_list_lock);
+		list_del_init(&cookie->commit_link);
+		fscache_stat_d(&fscache_n_cookies_lru);
+		spin_unlock(&fscache_cookie_lru_lock);
+		fscache_cookie_lru_do_one(cookie);
+		spin_lock(&fscache_cookie_lru_lock);
 	}
 
-	/* Attach to the cookie.  The object already has a ref on it. */
-	hlist_add_head(&object->cookie_link, &cookie->backing_objects);
-	ret = 0;
-
-cant_attach_object:
-	spin_unlock(&cookie->lock);
-	_leave(" = %d", ret);
-	return ret;
+	spin_unlock(&fscache_cookie_lru_lock);
 }
 
-/*
- * Invalidate an object.  Callable with spinlocks held.
- */
-void __fscache_invalidate(struct fscache_cookie *cookie)
+static void fscache_cookie_lru_timed_out(struct timer_list *timer)
 {
-	struct fscache_object *object;
+	queue_work(fscache_wq, &fscache_cookie_lru_work);
+}
 
-	_enter("{%s}", cookie->def->name);
+static void fscache_cookie_drop_from_lru(struct fscache_cookie *cookie)
+{
+	bool need_put = false;
 
-	fscache_stat(&fscache_n_invalidates);
-
-	/* Only permit invalidation of data files.  Invalidating an index will
-	 * require the caller to release all its attachments to the tree rooted
-	 * there, and if it's doing that, it may as well just retire the
-	 * cookie.
-	 */
-	ASSERTCMP(cookie->type, ==, FSCACHE_COOKIE_TYPE_DATAFILE);
-
-	/* If there's an object, we tell the object state machine to handle the
-	 * invalidation on our behalf, otherwise there's nothing to do.
-	 */
-	if (!hlist_empty(&cookie->backing_objects)) {
-		spin_lock(&cookie->lock);
-
-		if (fscache_cookie_enabled(cookie) &&
-		    !hlist_empty(&cookie->backing_objects) &&
-		    !test_and_set_bit(FSCACHE_COOKIE_INVALIDATING,
-				      &cookie->flags)) {
-			object = hlist_entry(cookie->backing_objects.first,
-					     struct fscache_object,
-					     cookie_link);
-			if (fscache_object_is_live(object))
-				fscache_raise_event(
-					object, FSCACHE_OBJECT_EV_INVALIDATE);
+	if (!list_empty(&cookie->commit_link)) {
+		spin_lock(&fscache_cookie_lru_lock);
+		if (!list_empty(&cookie->commit_link)) {
+			list_del_init(&cookie->commit_link);
+			fscache_stat_d(&fscache_n_cookies_lru);
+			fscache_stat(&fscache_n_cookies_lru_dropped);
+			need_put = true;
 		}
-
-		spin_unlock(&cookie->lock);
+		spin_unlock(&fscache_cookie_lru_lock);
+		if (need_put)
+			fscache_put_cookie(cookie, fscache_cookie_put_lru);
 	}
-
-	_leave("");
 }
-EXPORT_SYMBOL(__fscache_invalidate);
-
-/*
- * Wait for object invalidation to complete.
- */
-void __fscache_wait_on_invalidate(struct fscache_cookie *cookie)
-{
-	_enter("%x", cookie->debug_id);
-
-	wait_on_bit(&cookie->flags, FSCACHE_COOKIE_INVALIDATING,
-		    TASK_UNINTERRUPTIBLE);
-
-	_leave("");
-}
-EXPORT_SYMBOL(__fscache_wait_on_invalidate);
-
-/*
- * update the index entries backing a cookie
- */
-void __fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data)
-{
-	struct fscache_object *object;
-
-	fscache_stat(&fscache_n_updates);
-
-	if (!cookie) {
-		fscache_stat(&fscache_n_updates_null);
-		_leave(" [no cookie]");
-		return;
-	}
-
-	_enter("{%s}", cookie->def->name);
-
-	spin_lock(&cookie->lock);
-
-	fscache_update_aux(cookie, aux_data);
-
-	if (fscache_cookie_enabled(cookie)) {
-		/* update the index entry on disk in each cache backing this
-		 * cookie.
-		 */
-		hlist_for_each_entry(object,
-				     &cookie->backing_objects, cookie_link) {
-			fscache_raise_event(object, FSCACHE_OBJECT_EV_UPDATE);
-		}
-	}
-
-	spin_unlock(&cookie->lock);
-	_leave("");
-}
-EXPORT_SYMBOL(__fscache_update_cookie);
-
-/*
- * Disable a cookie to stop it from accepting new requests from the netfs.
- */
-void __fscache_disable_cookie(struct fscache_cookie *cookie,
-			      const void *aux_data,
-			      bool invalidate)
-{
-	struct fscache_object *object;
-	bool awaken = false;
-
-	_enter("%x,%u", cookie->debug_id, invalidate);
-
-	trace_fscache_disable(cookie);
-
-	ASSERTCMP(atomic_read(&cookie->n_active), >, 0);
-
-	if (atomic_read(&cookie->n_children) != 0) {
-		pr_err("Cookie '%s' still has children\n",
-		       cookie->def->name);
-		BUG();
-	}
-
-	wait_on_bit_lock(&cookie->flags, FSCACHE_COOKIE_ENABLEMENT_LOCK,
-			 TASK_UNINTERRUPTIBLE);
-
-	fscache_update_aux(cookie, aux_data);
-
-	if (!test_and_clear_bit(FSCACHE_COOKIE_ENABLED, &cookie->flags))
-		goto out_unlock_enable;
-
-	/* If the cookie is being invalidated, wait for that to complete first
-	 * so that we can reuse the flag.
-	 */
-	__fscache_wait_on_invalidate(cookie);
-
-	/* Dispose of the backing objects */
-	set_bit(FSCACHE_COOKIE_INVALIDATING, &cookie->flags);
-
-	spin_lock(&cookie->lock);
-	if (!hlist_empty(&cookie->backing_objects)) {
-		hlist_for_each_entry(object, &cookie->backing_objects, cookie_link) {
-			if (invalidate)
-				set_bit(FSCACHE_OBJECT_RETIRED, &object->flags);
-			clear_bit(FSCACHE_OBJECT_PENDING_WRITE, &object->flags);
-			fscache_raise_event(object, FSCACHE_OBJECT_EV_KILL);
-		}
-	} else {
-		if (test_and_clear_bit(FSCACHE_COOKIE_INVALIDATING, &cookie->flags))
-			awaken = true;
-	}
-	spin_unlock(&cookie->lock);
-	if (awaken)
-		wake_up_bit(&cookie->flags, FSCACHE_COOKIE_INVALIDATING);
-
-	/* Wait for cessation of activity requiring access to the netfs (when
-	 * n_active reaches 0).  This makes sure outstanding reads and writes
-	 * have completed.
-	 */
-	if (!atomic_dec_and_test(&cookie->n_active)) {
-		wait_var_event(&cookie->n_active,
-			       !atomic_read(&cookie->n_active));
-	}
-
-	/* Make sure any pending writes are cancelled. */
-	if (cookie->type != FSCACHE_COOKIE_TYPE_INDEX)
-		fscache_invalidate_writes(cookie);
-
-	/* Reset the cookie state if it wasn't relinquished */
-	if (!test_bit(FSCACHE_COOKIE_RELINQUISHED, &cookie->flags)) {
-		atomic_inc(&cookie->n_active);
-		set_bit(FSCACHE_COOKIE_NO_DATA_YET, &cookie->flags);
-	}
-
-out_unlock_enable:
-	clear_bit_unlock(FSCACHE_COOKIE_ENABLEMENT_LOCK, &cookie->flags);
-	wake_up_bit(&cookie->flags, FSCACHE_COOKIE_ENABLEMENT_LOCK);
-	_leave("");
-}
-EXPORT_SYMBOL(__fscache_disable_cookie);
-
-/*
- * release a cookie back to the cache
- * - the object will be marked as recyclable on disk if retire is true
- * - all dependents of this cookie must have already been unregistered
- *   (indices/files/pages)
- */
-void __fscache_relinquish_cookie(struct fscache_cookie *cookie,
-				 const void *aux_data,
-				 bool retire)
-{
-	fscache_stat(&fscache_n_relinquishes);
-	if (retire)
-		fscache_stat(&fscache_n_relinquishes_retire);
-
-	if (!cookie) {
-		fscache_stat(&fscache_n_relinquishes_null);
-		_leave(" [no cookie]");
-		return;
-	}
-
-	_enter("%x{%s,%d},%d",
-	       cookie->debug_id, cookie->def->name,
-	       atomic_read(&cookie->n_active), retire);
-
-	trace_fscache_relinquish(cookie, retire);
-
-	/* No further netfs-accessing operations on this cookie permitted */
-	if (test_and_set_bit(FSCACHE_COOKIE_RELINQUISHED, &cookie->flags))
-		BUG();
-
-	__fscache_disable_cookie(cookie, aux_data, retire);
-
-	/* Clear pointers back to the netfs */
-	cookie->netfs_data	= NULL;
-	cookie->def		= NULL;
-	BUG_ON(!radix_tree_empty(&cookie->stores));
-
-	if (cookie->parent) {
-		ASSERTCMP(refcount_read(&cookie->parent->ref), >, 0);
-		ASSERTCMP(atomic_read(&cookie->parent->n_children), >, 0);
-		atomic_dec(&cookie->parent->n_children);
-	}
-
-	/* Dispose of the netfs's link to the cookie */
-	fscache_cookie_put(cookie, fscache_cookie_put_relinquish);
-
-	_leave("");
-}
-EXPORT_SYMBOL(__fscache_relinquish_cookie);
 
 /*
  * Remove a cookie from the hash table.
@@ -851,43 +908,91 @@ static void fscache_unhash_cookie(struct fscache_cookie *cookie)
 
 	hlist_bl_lock(h);
 	hlist_bl_del(&cookie->hash_link);
+	clear_bit(FSCACHE_COOKIE_IS_HASHED, &cookie->flags);
 	hlist_bl_unlock(h);
+	fscache_stat(&fscache_n_relinquishes_dropped);
 }
+
+static void fscache_drop_withdraw_cookie(struct fscache_cookie *cookie)
+{
+	fscache_cookie_drop_from_lru(cookie);
+	__fscache_withdraw_cookie(cookie);
+}
+
+/**
+ * fscache_withdraw_cookie - Mark a cookie for withdrawal
+ * @cookie: The cookie to be withdrawn.
+ *
+ * Allow the cache backend to withdraw the backing for a cookie for its own
+ * reasons, even if that cookie is in active use.
+ */
+void fscache_withdraw_cookie(struct fscache_cookie *cookie)
+{
+	set_bit(FSCACHE_COOKIE_DO_WITHDRAW, &cookie->flags);
+	fscache_drop_withdraw_cookie(cookie);
+}
+EXPORT_SYMBOL(fscache_withdraw_cookie);
+
+/*
+ * Allow the netfs to release a cookie back to the cache.
+ * - the object will be marked as recyclable on disk if retire is true
+ */
+void __fscache_relinquish_cookie(struct fscache_cookie *cookie, bool retire)
+{
+	fscache_stat(&fscache_n_relinquishes);
+	if (retire)
+		fscache_stat(&fscache_n_relinquishes_retire);
+
+	_enter("c=%08x{%d},%d",
+	       cookie->debug_id, atomic_read(&cookie->n_active), retire);
+
+	if (WARN(test_and_set_bit(FSCACHE_COOKIE_RELINQUISHED, &cookie->flags),
+		 "Cookie c=%x already relinquished\n", cookie->debug_id))
+		return;
+
+	if (retire)
+		set_bit(FSCACHE_COOKIE_RETIRED, &cookie->flags);
+	trace_fscache_relinquish(cookie, retire);
+
+	ASSERTCMP(atomic_read(&cookie->n_active), ==, 0);
+	ASSERTCMP(atomic_read(&cookie->volume->n_cookies), >, 0);
+	atomic_dec(&cookie->volume->n_cookies);
+
+	if (test_bit(FSCACHE_COOKIE_HAS_BEEN_CACHED, &cookie->flags)) {
+		set_bit(FSCACHE_COOKIE_DO_RELINQUISH, &cookie->flags);
+		fscache_drop_withdraw_cookie(cookie);
+	} else {
+		fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_DROPPED);
+		fscache_unhash_cookie(cookie);
+	}
+	fscache_put_cookie(cookie, fscache_cookie_put_relinquish);
+}
+EXPORT_SYMBOL(__fscache_relinquish_cookie);
 
 /*
  * Drop a reference to a cookie.
  */
-void fscache_cookie_put(struct fscache_cookie *cookie,
+void fscache_put_cookie(struct fscache_cookie *cookie,
 			enum fscache_cookie_trace where)
 {
-	struct fscache_cookie *parent;
+	struct fscache_volume *volume = cookie->volume;
+	unsigned int cookie_debug_id = cookie->debug_id;
+	bool zero;
 	int ref;
 
-	_enter("%x", cookie->debug_id);
-
-	do {
-		unsigned int cookie_debug_id = cookie->debug_id;
-		bool zero = __refcount_dec_and_test(&cookie->ref, &ref);
-
-		trace_fscache_cookie(cookie_debug_id, ref - 1, where);
-		if (!zero)
-			return;
-
-		parent = cookie->parent;
-		fscache_unhash_cookie(cookie);
+	zero = __refcount_dec_and_test(&cookie->ref, &ref);
+	trace_fscache_cookie(cookie_debug_id, ref - 1, where);
+	if (zero) {
 		fscache_free_cookie(cookie);
-
-		cookie = parent;
-		where = fscache_cookie_put_parent;
-	} while (cookie);
-
-	_leave("");
+		fscache_put_volume(volume, fscache_volume_put_cookie);
+	}
 }
+EXPORT_SYMBOL(fscache_put_cookie);
 
 /*
  * Get a reference to a cookie.
  */
-struct fscache_cookie *fscache_cookie_get(struct fscache_cookie *cookie,
+struct fscache_cookie *fscache_get_cookie(struct fscache_cookie *cookie,
 					  enum fscache_cookie_trace where)
 {
 	int ref;
@@ -896,85 +1001,73 @@ struct fscache_cookie *fscache_cookie_get(struct fscache_cookie *cookie,
 	trace_fscache_cookie(cookie->debug_id, ref + 1, where);
 	return cookie;
 }
+EXPORT_SYMBOL(fscache_get_cookie);
 
 /*
- * check the consistency between the netfs inode and the backing cache
- *
- * NOTE: it only serves no-index type
+ * Ask the cache to effect invalidation of a cookie.
  */
-int __fscache_check_consistency(struct fscache_cookie *cookie,
-				const void *aux_data)
+static void fscache_perform_invalidation(struct fscache_cookie *cookie)
 {
-	struct fscache_operation *op;
-	struct fscache_object *object;
-	bool wake_cookie = false;
-	int ret;
+	if (!cookie->volume->cache->ops->invalidate_cookie(cookie))
+		fscache_caching_failed(cookie);
+	fscache_end_cookie_access(cookie, fscache_access_invalidate_cookie_end);
+}
 
-	_enter("%p,", cookie);
+/*
+ * Invalidate an object.
+ */
+void __fscache_invalidate(struct fscache_cookie *cookie,
+			  const void *aux_data, loff_t new_size,
+			  unsigned int flags)
+{
+	bool is_caching;
 
-	ASSERTCMP(cookie->type, ==, FSCACHE_COOKIE_TYPE_DATAFILE);
+	_enter("c=%x", cookie->debug_id);
 
-	if (fscache_wait_for_deferred_lookup(cookie) < 0)
-		return -ERESTARTSYS;
+	fscache_stat(&fscache_n_invalidates);
 
-	if (hlist_empty(&cookie->backing_objects))
-		return 0;
+	if (WARN(test_bit(FSCACHE_COOKIE_RELINQUISHED, &cookie->flags),
+		 "Trying to invalidate relinquished cookie\n"))
+		return;
 
-	op = kzalloc(sizeof(*op), GFP_NOIO | __GFP_NOMEMALLOC | __GFP_NORETRY);
-	if (!op)
-		return -ENOMEM;
-
-	fscache_operation_init(cookie, op, NULL, NULL, NULL);
-	op->flags = FSCACHE_OP_MYTHREAD |
-		(1 << FSCACHE_OP_WAITING) |
-		(1 << FSCACHE_OP_UNUSE_COOKIE);
-	trace_fscache_page_op(cookie, NULL, op, fscache_page_op_check_consistency);
+	if ((flags & FSCACHE_INVAL_DIO_WRITE) &&
+	    test_and_set_bit(FSCACHE_COOKIE_DISABLED, &cookie->flags))
+		return;
 
 	spin_lock(&cookie->lock);
+	set_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags);
+	fscache_update_aux(cookie, aux_data, &new_size);
+	cookie->inval_counter++;
+	trace_fscache_invalidate(cookie, new_size);
 
-	fscache_update_aux(cookie, aux_data);
+	switch (cookie->state) {
+	case FSCACHE_COOKIE_STATE_INVALIDATING: /* is_still_valid will catch it */
+	default:
+		spin_unlock(&cookie->lock);
+		_leave(" [no %u]", cookie->state);
+		return;
 
-	if (!fscache_cookie_enabled(cookie) ||
-	    hlist_empty(&cookie->backing_objects))
-		goto inconsistent;
-	object = hlist_entry(cookie->backing_objects.first,
-			     struct fscache_object, cookie_link);
-	if (test_bit(FSCACHE_IOERROR, &object->cache->flags))
-		goto inconsistent;
+	case FSCACHE_COOKIE_STATE_LOOKING_UP:
+	case FSCACHE_COOKIE_STATE_CREATING:
+		spin_unlock(&cookie->lock);
+		_leave(" [look %x]", cookie->inval_counter);
+		return;
 
-	op->debug_id = atomic_inc_return(&fscache_op_debug_id);
+	case FSCACHE_COOKIE_STATE_ACTIVE:
+		is_caching = fscache_begin_cookie_access(
+			cookie, fscache_access_invalidate_cookie);
+		if (is_caching)
+			__fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_INVALIDATING);
+		spin_unlock(&cookie->lock);
+		wake_up_cookie_state(cookie);
 
-	__fscache_use_cookie(cookie);
-	if (fscache_submit_op(object, op) < 0)
-		goto submit_failed;
-
-	/* the work queue now carries its own ref on the object */
-	spin_unlock(&cookie->lock);
-
-	ret = fscache_wait_for_operation_activation(object, op, NULL, NULL);
-	if (ret == 0) {
-		/* ask the cache to honour the operation */
-		ret = object->cache->ops->check_consistency(op);
-		fscache_op_complete(op, false);
-	} else if (ret == -ENOBUFS) {
-		ret = 0;
+		if (is_caching)
+			fscache_queue_cookie(cookie, fscache_cookie_get_inval_work);
+		_leave(" [inv]");
+		return;
 	}
-
-	fscache_put_operation(op);
-	_leave(" = %d", ret);
-	return ret;
-
-submit_failed:
-	wake_cookie = __fscache_unuse_cookie(cookie);
-inconsistent:
-	spin_unlock(&cookie->lock);
-	if (wake_cookie)
-		__fscache_wake_unused_cookie(cookie);
-	kfree(op);
-	_leave(" = -ESTALE");
-	return -ESTALE;
 }
-EXPORT_SYMBOL(__fscache_check_consistency);
+EXPORT_SYMBOL(__fscache_invalidate);
 
 /*
  * Generate a list of extant cookies in /proc/fs/fscache/cookies
@@ -983,44 +1076,27 @@ static int fscache_cookies_seq_show(struct seq_file *m, void *v)
 {
 	struct fscache_cookie *cookie;
 	unsigned int keylen = 0, auxlen = 0;
-	char _type[3], *type;
 	u8 *p;
 
 	if (v == &fscache_cookies) {
 		seq_puts(m,
-			 "COOKIE   PARENT   USAGE CHILD ACT TY FL  DEF              NETFS_DATA\n"
-			 "======== ======== ===== ===== === == === ================ ==========\n"
+			 "COOKIE   VOLUME   REF ACT ACC S FL DEF             \n"
+			 "======== ======== === === === = == ================\n"
 			 );
 		return 0;
 	}
 
 	cookie = list_entry(v, struct fscache_cookie, proc_link);
 
-	switch (cookie->type) {
-	case 0:
-		type = "IX";
-		break;
-	case 1:
-		type = "DT";
-		break;
-	default:
-		snprintf(_type, sizeof(_type), "%02u",
-			 cookie->type);
-		type = _type;
-		break;
-	}
-
 	seq_printf(m,
-		   "%08x %08x %5u %5u %3u %s %03lx %-16s %px",
+		   "%08x %08x %3d %3d %3d %c %02lx",
 		   cookie->debug_id,
-		   cookie->parent ? cookie->parent->debug_id : 0,
+		   cookie->volume->debug_id,
 		   refcount_read(&cookie->ref),
-		   atomic_read(&cookie->n_children),
 		   atomic_read(&cookie->n_active),
-		   type,
-		   cookie->flags,
-		   cookie->def->name,
-		   cookie->netfs_data);
+		   atomic_read(&cookie->n_accesses),
+		   fscache_cookie_states[cookie->state],
+		   cookie->flags);
 
 	keylen = cookie->key_len;
 	auxlen = cookie->aux_len;

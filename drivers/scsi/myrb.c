@@ -1674,7 +1674,7 @@ static int myrb_pdev_slave_alloc(struct scsi_device *sdev)
 	if (sdev->id > MYRB_MAX_TARGETS)
 		return -ENXIO;
 
-	pdev_info = kzalloc(sizeof(*pdev_info), GFP_KERNEL|GFP_DMA);
+	pdev_info = kzalloc(sizeof(*pdev_info), GFP_KERNEL);
 	if (!pdev_info)
 		return -ENOMEM;
 

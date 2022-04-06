@@ -889,14 +889,6 @@ static ssize_t pm8001_show_update_fw(struct device *cdev,
 static DEVICE_ATTR(update_fw, S_IRUGO|S_IWUSR|S_IWGRP,
 	pm8001_show_update_fw, pm8001_store_update_fw);
 
-/**
- * ctl_mpi_state_show - controller MPI state check
- * @cdev: pointer to embedded class device
- * @buf: the buffer returned
- *
- * A sysfs 'read-only' shost attribute.
- */
-
 static const char *const mpiStateText[] = {
 	"MPI is not initialized",
 	"MPI is successfully initialized",
@@ -904,6 +896,14 @@ static const char *const mpiStateText[] = {
 	"MPI initialization failed with error in [31:16]"
 };
 
+/**
+ * ctl_mpi_state_show - controller MPI state check
+ * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
 static ssize_t ctl_mpi_state_show(struct device *cdev,
 		struct device_attribute *attr, char *buf)
 {
@@ -920,11 +920,11 @@ static DEVICE_ATTR_RO(ctl_mpi_state);
 /**
  * ctl_hmi_error_show - controller MPI initialization fails
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
  */
-
 static ssize_t ctl_hmi_error_show(struct device *cdev,
 		struct device_attribute *attr, char *buf)
 {
@@ -941,11 +941,11 @@ static DEVICE_ATTR_RO(ctl_hmi_error);
 /**
  * ctl_raae_count_show - controller raae count check
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
  */
-
 static ssize_t ctl_raae_count_show(struct device *cdev,
 		struct device_attribute *attr, char *buf)
 {
@@ -962,11 +962,11 @@ static DEVICE_ATTR_RO(ctl_raae_count);
 /**
  * ctl_iop0_count_show - controller iop0 count check
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
  */
-
 static ssize_t ctl_iop0_count_show(struct device *cdev,
 		struct device_attribute *attr, char *buf)
 {
@@ -983,11 +983,11 @@ static DEVICE_ATTR_RO(ctl_iop0_count);
 /**
  * ctl_iop1_count_show - controller iop1 count check
  * @cdev: pointer to embedded class device
+ * @attr: device attribute (unused)
  * @buf: the buffer returned
  *
  * A sysfs 'read-only' shost attribute.
  */
-
 static ssize_t ctl_iop1_count_show(struct device *cdev,
 		struct device_attribute *attr, char *buf)
 {

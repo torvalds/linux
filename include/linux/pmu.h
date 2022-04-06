@@ -13,7 +13,7 @@
 #include <uapi/linux/pmu.h>
 
 
-extern int find_via_pmu(void);
+extern int __init find_via_pmu(void);
 
 extern int pmu_request(struct adb_request *req,
 		void (*done)(struct adb_request *), int nbytes, ...);

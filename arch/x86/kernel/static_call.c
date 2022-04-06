@@ -17,6 +17,8 @@ enum insn_type {
  */
 static const u8 xor5rax[] = { 0x66, 0x66, 0x48, 0x31, 0xc0 };
 
+static const u8 retinsn[] = { RET_INSN_OPCODE, 0xcc, 0xcc, 0xcc, 0xcc };
+
 static void __ref __static_call_transform(void *insn, enum insn_type type, void *func)
 {
 	const void *emulate = NULL;
@@ -42,8 +44,7 @@ static void __ref __static_call_transform(void *insn, enum insn_type type, void 
 		break;
 
 	case RET:
-		code = text_gen_insn(RET_INSN_OPCODE, insn, func);
-		size = RET_INSN_SIZE;
+		code = &retinsn;
 		break;
 	}
 

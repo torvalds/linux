@@ -1,0 +1,18 @@
+#
+# Filter drivers
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Filters"
+
+config ADMV8818
+	tristate "Analog Devices ADMV8818 High-Pass and Low-Pass Filter"
+	depends on SPI && COMMON_CLK && 64BIT
+	help
+	  Say yes here to build support for Analog Devices ADMV8818
+	  2 GHz to 18 GHz, Digitally Tunable, High-Pass and Low-Pass Filter.
+
+	  To compile this driver as a module, choose M here: the
+	  modiule will be called admv8818.
+
+endmenu

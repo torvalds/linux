@@ -52,6 +52,18 @@ xrep_superblock(
 	xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
 	xfs_sb_to_disk(bp->b_addr, &mp->m_sb);
 
+	/*
+	 * Don't write out a secondary super with NEEDSREPAIR or log incompat
+	 * features set, since both are ignored when set on a secondary.
+	 */
+	if (xfs_has_crc(mp)) {
+		struct xfs_dsb		*sb = bp->b_addr;
+
+		sb->sb_features_incompat &=
+				~cpu_to_be32(XFS_SB_FEAT_INCOMPAT_NEEDSREPAIR);
+		sb->sb_features_log_incompat = 0;
+	}
+
 	/* Write this to disk. */
 	xfs_trans_buf_set_type(sc->tp, bp, XFS_BLFT_SB_BUF);
 	xfs_trans_log_buf(sc->tp, bp, 0, BBTOB(bp->b_length) - 1);

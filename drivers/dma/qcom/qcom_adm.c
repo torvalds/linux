@@ -8,6 +8,7 @@
 #include <linux/device.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma/qcom_adm.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -140,6 +141,8 @@ struct adm_chan {
 
 	struct adm_async_desc *curr_txd;
 	struct dma_slave_config slave;
+	u32 crci;
+	u32 mux;
 	struct list_head node;
 
 	int error;
@@ -379,8 +382,8 @@ static struct dma_async_tx_descriptor *adm_prep_slave_sg(struct dma_chan *chan,
 			return ERR_PTR(-EINVAL);
 		}
 
-		crci = achan->slave.slave_id & 0xf;
-		if (!crci || achan->slave.slave_id > 0x1f) {
+		crci = achan->crci & 0xf;
+		if (!crci || achan->crci > 0x1f) {
 			dev_err(adev->dev, "invalid crci value\n");
 			return ERR_PTR(-EINVAL);
 		}
@@ -403,9 +406,7 @@ static struct dma_async_tx_descriptor *adm_prep_slave_sg(struct dma_chan *chan,
 	if (!async_desc)
 		return ERR_PTR(-ENOMEM);
 
-	if (crci)
-		async_desc->mux = achan->slave.slave_id & ADM_CRCI_MUX_SEL ?
-					ADM_CRCI_CTL_MUX_SEL : 0;
+	async_desc->mux = achan->mux ? ADM_CRCI_CTL_MUX_SEL : 0;
 	async_desc->crci = crci;
 	async_desc->blk_size = blk_size;
 	async_desc->dma_len = single_count * sizeof(struct adm_desc_hw_single) +
@@ -488,10 +489,13 @@ static int adm_terminate_all(struct dma_chan *chan)
 static int adm_slave_config(struct dma_chan *chan, struct dma_slave_config *cfg)
 {
 	struct adm_chan *achan = to_adm_chan(chan);
+	struct qcom_adm_peripheral_config *config = cfg->peripheral_config;
 	unsigned long flag;
 
 	spin_lock_irqsave(&achan->vc.lock, flag);
 	memcpy(&achan->slave, cfg, sizeof(struct dma_slave_config));
+	if (cfg->peripheral_size == sizeof(config))
+		achan->crci = config->crci;
 	spin_unlock_irqrestore(&achan->vc.lock, flag);
 
 	return 0;
@@ -694,6 +698,45 @@ static void adm_channel_init(struct adm_device *adev, struct adm_chan *achan,
 	achan->vc.desc_free = adm_dma_free_desc;
 }
 
+/**
+ * adm_dma_xlate
+ * @dma_spec:	pointer to DMA specifier as found in the device tree
+ * @ofdma:	pointer to DMA controller data
+ *
+ * This can use either 1-cell or 2-cell formats, the first cell
+ * identifies the slave device, while the optional second cell
+ * contains the crci value.
+ *
+ * Returns pointer to appropriate dma channel on success or NULL on error.
+ */
+static struct dma_chan *adm_dma_xlate(struct of_phandle_args *dma_spec,
+			       struct of_dma *ofdma)
+{
+	struct dma_device *dev = ofdma->of_dma_data;
+	struct dma_chan *chan, *candidate = NULL;
+	struct adm_chan *achan;
+
+	if (!dev || dma_spec->args_count > 2)
+		return NULL;
+
+	list_for_each_entry(chan, &dev->channels, device_node)
+		if (chan->chan_id == dma_spec->args[0]) {
+			candidate = chan;
+			break;
+		}
+
+	if (!candidate)
+		return NULL;
+
+	achan = to_adm_chan(candidate);
+	if (dma_spec->args_count == 2)
+		achan->crci = dma_spec->args[1];
+	else
+		achan->crci = 0;
+
+	return dma_get_slave_channel(candidate);
+}
+
 static int adm_dma_probe(struct platform_device *pdev)
 {
 	struct adm_device *adev;
@@ -838,8 +881,7 @@ static int adm_dma_probe(struct platform_device *pdev)
 		goto err_disable_clks;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
-					 of_dma_xlate_by_chan_id,
+	ret = of_dma_controller_register(pdev->dev.of_node, adm_dma_xlate,
 					 &adev->common);
 	if (ret)
 		goto err_unregister_dma;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * drivers/extcon/extcon-usb-gpio.c - USB GPIO extcon driver
  *
  * Copyright (C) 2015 Texas Instruments Incorporated - https://www.ti.com

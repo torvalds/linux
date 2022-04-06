@@ -584,4 +584,34 @@
 			};
 		};
 	};
+
+	pcie_0: pcie@8b20000 {
+		status = "disabled";
+		compatible = "brcm,bcm7425-pcie";
+
+		ranges = <0x02000000 0x0 0xd0000000 0xd0000000 0x0 0x08000000
+			  0x02000000 0x0 0xd8000000 0xd8000000 0x0 0x08000000
+			  0x02000000 0x0 0xe0000000 0xe0000000 0x0 0x08000000
+			  0x02000000 0x0 0xe8000000 0xe8000000 0x0 0x08000000>;
+
+		reg = <0x10410000 0x19310>;
+		aspm-no-l0s;
+		device_type = "pci";
+		msi-controller;
+		msi-parent = <&pcie_0>;
+		#address-cells = <0x3>;
+		#size-cells = <0x2>;
+		bus-range = <0x0 0xff>;
+		interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+		linux,pci-domain = <0x0>;
+
+		interrupt-parent = <&periph_intc>;
+		interrupts = <37>, <37>;
+		interrupt-names = "pcie", "msi";
+		#interrupt-cells = <0x1>;
+		interrupt-map = <0 0 0 1 &periph_intc 0x21
+				 0 0 0 1 &periph_intc 0x22
+				 0 0 0 1 &periph_intc 0x23
+				 0 0 0 1 &periph_intc 0x24>;
+	};
 };

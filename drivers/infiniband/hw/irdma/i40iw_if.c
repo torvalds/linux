@@ -198,7 +198,7 @@ static void i40iw_remove(struct auxiliary_device *aux_dev)
 							       aux_dev);
 	struct i40e_info *cdev_info = i40e_adev->ldev;
 
-	return i40e_client_device_unregister(cdev_info);
+	i40e_client_device_unregister(cdev_info);
 }
 
 static const struct auxiliary_device_id i40iw_auxiliary_id_table[] = {

@@ -453,18 +453,6 @@ void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
 	soc_dai_mark_pop(dai, substream, startup);
 }
 
-snd_pcm_sframes_t snd_soc_dai_delay(struct snd_soc_dai *dai,
-				    struct snd_pcm_substream *substream)
-{
-	int delay = 0;
-
-	if (dai->driver->ops &&
-	    dai->driver->ops->delay)
-		delay = dai->driver->ops->delay(substream, dai);
-
-	return delay;
-}
-
 int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
 			     struct snd_soc_pcm_runtime *rtd, int num)
 {
@@ -691,6 +679,34 @@ int snd_soc_pcm_dai_bespoke_trigger(struct snd_pcm_substream *substream,
 	}
 
 	return 0;
+}
+
+void snd_soc_pcm_dai_delay(struct snd_pcm_substream *substream,
+			   snd_pcm_sframes_t *cpu_delay,
+			   snd_pcm_sframes_t *codec_delay)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *dai;
+	int i;
+
+	/*
+	 * We're looking for the delay through the full audio path so it needs to
+	 * be the maximum of the DAIs doing transmit and the maximum of the DAIs
+	 * doing receive (ie, all CPUs and all CODECs) rather than just the maximum
+	 * of all DAIs.
+	 */
+
+	/* for CPU */
+	for_each_rtd_cpu_dais(rtd, i, dai)
+		if (dai->driver->ops &&
+		    dai->driver->ops->delay)
+			*cpu_delay = max(*cpu_delay, dai->driver->ops->delay(substream, dai));
+
+	/* for Codec */
+	for_each_rtd_codec_dais(rtd, i, dai)
+		if (dai->driver->ops &&
+		    dai->driver->ops->delay)
+			*codec_delay = max(*codec_delay, dai->driver->ops->delay(substream, dai));
 }
 
 int snd_soc_dai_compr_startup(struct snd_soc_dai *dai,

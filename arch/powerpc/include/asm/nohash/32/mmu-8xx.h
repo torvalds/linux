@@ -39,12 +39,10 @@
  * 0 => Kernel => 11 (all accesses performed according as user iaw page definition)
  * 1 => Kernel+Accessed => 01 (all accesses performed according to page definition)
  * 2 => User => 11 (all accesses performed according as user iaw page definition)
- * 3 => User+Accessed => 00 (all accesses performed as supervisor iaw page definition) for INIT
- *                    => 10 (all accesses performed according to swaped page definition) for KUEP
+ * 3 => User+Accessed => 10 (all accesses performed according to swaped page definition) for KUEP
  * 4-15 => Not Used
  */
-#define MI_APG_INIT	0xdc000000
-#define MI_APG_KUEP	0xde000000
+#define MI_APG_INIT	0xde000000
 
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MI_RPN is written, bits in

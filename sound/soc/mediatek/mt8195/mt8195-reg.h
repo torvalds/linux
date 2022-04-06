@@ -2550,6 +2550,7 @@
 #define PCM_INTF_CON1_PCM_FMT(x)       (((x) & 0x3) << 1)
 #define PCM_INTF_CON1_PCM_FMT_MASK     (0x3 << 1)
 #define PCM_INTF_CON1_PCM_EN           BIT(0)
+#define PCM_INTF_CON1_PCM_EN_SHIFT     0
 
 /* PCM_INTF_CON2 */
 #define PCM_INTF_CON2_CLK_DOMAIN_SEL(x)   (((x) & 0x3) << 23)

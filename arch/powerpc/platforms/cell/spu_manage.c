@@ -186,7 +186,7 @@ err:
 	return -EINVAL;
 }
 
-static int spu_map_resource(struct spu *spu, int nr,
+static int __init spu_map_resource(struct spu *spu, int nr,
 			    void __iomem** virt, unsigned long *phys)
 {
 	struct device_node *np = spu->devnode;
@@ -361,7 +361,7 @@ static void disable_spu_by_master_run(struct spu_context *ctx)
 static int qs20_reg_idxs[QS20_SPES_PER_BE] =   { 0, 2, 4, 6, 7, 5, 3, 1 };
 static int qs20_reg_memory[QS20_SPES_PER_BE] = { 1, 1, 0, 0, 0, 0, 0, 0 };
 
-static struct spu *spu_lookup_reg(int node, u32 reg)
+static struct spu *__init spu_lookup_reg(int node, u32 reg)
 {
 	struct spu *spu;
 	const u32 *spu_reg;
@@ -374,7 +374,7 @@ static struct spu *spu_lookup_reg(int node, u32 reg)
 	return NULL;
 }
 
-static void init_affinity_qs20_harcoded(void)
+static void __init init_affinity_qs20_harcoded(void)
 {
 	int node, i;
 	struct spu *last_spu, *spu;
@@ -396,7 +396,7 @@ static void init_affinity_qs20_harcoded(void)
 	}
 }
 
-static int of_has_vicinity(void)
+static int __init of_has_vicinity(void)
 {
 	struct device_node *dn;
 
@@ -409,7 +409,7 @@ static int of_has_vicinity(void)
 	return 0;
 }
 
-static struct spu *devnode_spu(int cbe, struct device_node *dn)
+static struct spu *__init devnode_spu(int cbe, struct device_node *dn)
 {
 	struct spu *spu;
 
@@ -419,7 +419,7 @@ static struct spu *devnode_spu(int cbe, struct device_node *dn)
 	return NULL;
 }
 
-static struct spu *
+static struct spu * __init
 neighbour_spu(int cbe, struct device_node *target, struct device_node *avoid)
 {
 	struct spu *spu;
@@ -440,7 +440,7 @@ neighbour_spu(int cbe, struct device_node *target, struct device_node *avoid)
 	return NULL;
 }
 
-static void init_affinity_node(int cbe)
+static void __init init_affinity_node(int cbe)
 {
 	struct spu *spu, *last_spu;
 	struct device_node *vic_dn, *last_spu_dn;
@@ -494,7 +494,7 @@ static void init_affinity_node(int cbe)
 	}
 }
 
-static void init_affinity_fw(void)
+static void __init init_affinity_fw(void)
 {
 	int cbe;
 

@@ -126,7 +126,7 @@ __secondary_hold_acknowledge:
 	. = 0x5c
 	.globl	__run_at_load
 __run_at_load:
-DEFINE_FIXED_SYMBOL(__run_at_load)
+DEFINE_FIXED_SYMBOL(__run_at_load, first_256B)
 	.long	RUN_AT_LOAD_DEFAULT
 #endif
 
@@ -156,7 +156,7 @@ __secondary_hold:
 	/* Tell the master cpu we're here */
 	/* Relocation is off & we are located at an address less */
 	/* than 0x100, so only need to grab low order offset.    */
-	std	r24,(ABS_ADDR(__secondary_hold_acknowledge))(0)
+	std	r24,(ABS_ADDR(__secondary_hold_acknowledge, first_256B))(0)
 	sync
 
 	li	r26,0
@@ -164,7 +164,7 @@ __secondary_hold:
 	tovirt(r26,r26)
 #endif
 	/* All secondary cpus wait here until told to start. */
-100:	ld	r12,(ABS_ADDR(__secondary_hold_spinloop))(r26)
+100:	ld	r12,(ABS_ADDR(__secondary_hold_spinloop, first_256B))(r26)
 	cmpdi	0,r12,0
 	beq	100b
 
@@ -649,15 +649,15 @@ __after_prom_start:
 3:
 #endif
 	/* # bytes of memory to copy */
-	lis	r5,(ABS_ADDR(copy_to_here))@ha
-	addi	r5,r5,(ABS_ADDR(copy_to_here))@l
+	lis	r5,(ABS_ADDR(copy_to_here, text))@ha
+	addi	r5,r5,(ABS_ADDR(copy_to_here, text))@l
 
 	bl	copy_and_flush		/* copy the first n bytes	 */
 					/* this includes the code being	 */
 					/* executed here.		 */
 	/* Jump to the copy of this code that we just made */
-	addis	r8,r3,(ABS_ADDR(4f))@ha
-	addi	r12,r8,(ABS_ADDR(4f))@l
+	addis	r8,r3,(ABS_ADDR(4f, text))@ha
+	addi	r12,r8,(ABS_ADDR(4f, text))@l
 	mtctr	r12
 	bctr
 
@@ -669,8 +669,8 @@ p_end: .8byte _end - copy_to_here
 	 * Now copy the rest of the kernel up to _end, add
 	 * _end - copy_to_here to the copy limit and run again.
 	 */
-	addis   r8,r26,(ABS_ADDR(p_end))@ha
-	ld      r8,(ABS_ADDR(p_end))@l(r8)
+	addis   r8,r26,(ABS_ADDR(p_end, text))@ha
+	ld      r8,(ABS_ADDR(p_end, text))@l(r8)
 	add	r5,r5,r8
 5:	bl	copy_and_flush		/* copy the rest */
 
@@ -904,7 +904,7 @@ _GLOBAL(relative_toc)
 	blr
 
 .balign 8
-p_toc:	.8byte	__toc_start + 0x8000 - 0b
+p_toc:	.8byte	.TOC. - 0b
 
 /*
  * This is where the main kernel code starts.

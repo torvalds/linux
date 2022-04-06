@@ -38,7 +38,7 @@ int icache_44x_need_flush;
 
 unsigned long tlb_47x_boltmap[1024/8];
 
-static void ppc44x_update_tlb_hwater(void)
+static void __init ppc44x_update_tlb_hwater(void)
 {
 	/* The TLB miss handlers hard codes the watermark in a cmpli
 	 * instruction to improve performances rather than loading it
@@ -122,7 +122,7 @@ static void __init ppc47x_update_boltmap(void)
 /*
  * "Pins" a 256MB TLB entry in AS0 for kernel lowmem for 47x type MMU
  */
-static void ppc47x_pin_tlb(unsigned int virt, unsigned int phys)
+static void __init ppc47x_pin_tlb(unsigned int virt, unsigned int phys)
 {
 	unsigned int rA;
 	int bolted;
@@ -240,19 +240,3 @@ void __init mmu_init_secondary(int cpu)
 	}
 }
 #endif /* CONFIG_SMP */
-
-#ifdef CONFIG_PPC_KUEP
-void setup_kuep(bool disabled)
-{
-	if (smp_processor_id() != boot_cpuid)
-		return;
-
-	if (disabled)
-		patch_instruction_site(&patch__tlb_44x_kuep, ppc_inst(PPC_RAW_NOP()));
-	else
-		pr_info("Activating Kernel Userspace Execution Prevention\n");
-
-	if (IS_ENABLED(CONFIG_PPC_47x) && disabled)
-		patch_instruction_site(&patch__tlb_47x_kuep, ppc_inst(PPC_RAW_NOP()));
-}
-#endif

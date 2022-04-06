@@ -938,7 +938,7 @@ static int rt715_sdca_pcm_hw_free(struct snd_pcm_substream *substream,
 static const struct snd_soc_dai_ops rt715_sdca_ops = {
 	.hw_params	= rt715_sdca_pcm_hw_params,
 	.hw_free	= rt715_sdca_pcm_hw_free,
-	.set_sdw_stream	= rt715_sdca_set_sdw_stream,
+	.set_stream	= rt715_sdca_set_sdw_stream,
 	.shutdown	= rt715_sdca_shutdown,
 };
 

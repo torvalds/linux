@@ -10,5 +10,5 @@ obj-$(CONFIG_PPC_BOOK3S_64)	+= book3s64.o
 
 ifdef CONFIG_PTDUMP_DEBUGFS
 obj-$(CONFIG_PPC_BOOK3S_32)	+= bats.o segment_regs.o
-obj-$(CONFIG_PPC_BOOK3S_64)	+= hashpagetable.o
+obj-$(CONFIG_PPC_64S_HASH_MMU)	+= hashpagetable.o
 endif

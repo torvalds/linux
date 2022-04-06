@@ -261,7 +261,7 @@ efct_firmware_write(struct efct *efct, const u8 *buf, size_t buf_len,
 
 	dma.size = FW_WRITE_BUFSIZE;
 	dma.virt = dma_alloc_coherent(&efct->pci->dev,
-				      dma.size, &dma.phys, GFP_DMA);
+				      dma.size, &dma.phys, GFP_KERNEL);
 	if (!dma.virt)
 		return -ENOMEM;
 
