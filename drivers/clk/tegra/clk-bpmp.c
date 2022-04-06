@@ -448,15 +448,29 @@ static int tegra_bpmp_probe_clocks(struct tegra_bpmp *bpmp,
 	return count;
 }
 
+static unsigned int
+tegra_bpmp_clk_id_to_index(const struct tegra_bpmp_clk_info *clocks,
+			   unsigned int num_clocks, unsigned int id)
+{
+	unsigned int i;
+
+	for (i = 0; i < num_clocks; i++)
+		if (clocks[i].id == id)
+			return i;
+
+	return UINT_MAX;
+}
+
 static const struct tegra_bpmp_clk_info *
 tegra_bpmp_clk_find(const struct tegra_bpmp_clk_info *clocks,
 		    unsigned int num_clocks, unsigned int id)
 {
 	unsigned int i;
 
-	for (i = 0; i < num_clocks; i++)
-		if (clocks[i].id == id)
-			return &clocks[i];
+	i = tegra_bpmp_clk_id_to_index(clocks, num_clocks, id);
+
+	if (i < num_clocks)
+		return &clocks[i];
 
 	return NULL;
 }
@@ -539,31 +553,57 @@ tegra_bpmp_clk_register(struct tegra_bpmp *bpmp,
 	return clk;
 }
 
+static void tegra_bpmp_register_clocks_one(struct tegra_bpmp *bpmp,
+					   struct tegra_bpmp_clk_info *infos,
+					   unsigned int i,
+					   unsigned int count)
+{
+	unsigned int j;
+	struct tegra_bpmp_clk_info *info;
+	struct tegra_bpmp_clk *clk;
+
+	if (bpmp->clocks[i]) {
+		/* already registered */
+		return;
+	}
+
+	info = &infos[i];
+	for (j = 0; j < info->num_parents; ++j) {
+		unsigned int p_id = info->parents[j];
+		unsigned int p_i = tegra_bpmp_clk_id_to_index(infos, count,
+							      p_id);
+		if (p_i < count)
+			tegra_bpmp_register_clocks_one(bpmp, infos, p_i, count);
+	}
+
+	clk = tegra_bpmp_clk_register(bpmp, info, infos, count);
+	if (IS_ERR(clk)) {
+		dev_err(bpmp->dev,
+			"failed to register clock %u (%s): %ld\n",
+			info->id, info->name, PTR_ERR(clk));
+		/* intentionally store the error pointer to
+		 * bpmp->clocks[i] to avoid re-attempting the
+		 * registration later
+		 */
+	}
+
+	bpmp->clocks[i] = clk;
+}
+
 static int tegra_bpmp_register_clocks(struct tegra_bpmp *bpmp,
 				      struct tegra_bpmp_clk_info *infos,
 				      unsigned int count)
 {
-	struct tegra_bpmp_clk *clk;
 	unsigned int i;
 
 	bpmp->num_clocks = count;
 
-	bpmp->clocks = devm_kcalloc(bpmp->dev, count, sizeof(clk), GFP_KERNEL);
+	bpmp->clocks = devm_kcalloc(bpmp->dev, count, sizeof(struct tegra_bpmp_clk), GFP_KERNEL);
 	if (!bpmp->clocks)
 		return -ENOMEM;
 
 	for (i = 0; i < count; i++) {
-		struct tegra_bpmp_clk_info *info = &infos[i];
-
-		clk = tegra_bpmp_clk_register(bpmp, info, infos, count);
-		if (IS_ERR(clk)) {
-			dev_err(bpmp->dev,
-				"failed to register clock %u (%s): %ld\n",
-				info->id, info->name, PTR_ERR(clk));
-			continue;
-		}
-
-		bpmp->clocks[i] = clk;
+		tegra_bpmp_register_clocks_one(bpmp, infos, i, count);
 	}
 
 	return 0;
