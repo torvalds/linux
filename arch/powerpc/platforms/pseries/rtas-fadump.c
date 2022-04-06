@@ -468,10 +468,10 @@ static void rtas_fadump_region_show(struct fw_dump *fadump_conf,
 		   be64_to_cpu(fdm_ptr->rmr_region.source_len),
 		   be64_to_cpu(fdm_ptr->rmr_region.bytes_dumped));
 
-	/* Dump is active. Show reserved area start address. */
+	/* Dump is active. Show preserved area start address. */
 	if (fdm_active) {
-		seq_printf(m, "\nMemory above %#016lx is reserved for saving crash dump\n",
-			   fadump_conf->reserve_dump_area_start);
+		seq_printf(m, "\nMemory above %#016llx is reserved for saving crash dump\n",
+			   fadump_conf->boot_mem_top);
 	}
 }
 
