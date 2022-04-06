@@ -40,7 +40,7 @@
 #include <net/xfrm.h>
 #include <linux/idr.h>
 
-#include "accel/ipsec.h"
+#include "accel/ipsec_offload.h"
 
 #define MLX5E_IPSEC_SADB_RX_BITS 10
 #define MLX5E_IPSEC_ESN_SCOPE_MID 0x80000000L

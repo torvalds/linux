@@ -35,7 +35,7 @@
 #include <net/sock.h>
 
 #include "en.h"
-#include "accel/ipsec.h"
+#include "accel/ipsec_offload.h"
 #include "fpga/sdk.h"
 #include "en_accel/ipsec.h"
 
