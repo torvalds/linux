@@ -213,6 +213,13 @@ config ROCKCHIP_NPOR_POWERGOOD
 # Rockchip Procfs drivers
 #
 
+config RK_CMA_PROCFS
+	tristate "CMA procfs interface"
+	depends on CMA && PROC_FS
+	help
+	  Turns on the ProcFS interface for CMA, shows the bitmap in hex
+	  format.
+
 config RK_MEMBLOCK_PROCFS
 	bool "Memblock procfs for reserved memory"
 	depends on PROC_FS && ARCH_KEEP_MEMBLOCK
