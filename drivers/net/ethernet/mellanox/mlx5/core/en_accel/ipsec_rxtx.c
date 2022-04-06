@@ -202,16 +202,14 @@ static int mlx5e_ipsec_set_state(struct mlx5e_priv *priv,
 
 	ipsec_st->x = x;
 	ipsec_st->xo = xo;
-	if (mlx5_is_ipsec_device(priv->mdev)) {
-		aead = x->data;
-		alen = crypto_aead_authsize(aead);
-		blksize = ALIGN(crypto_aead_blocksize(aead), 4);
-		clen = ALIGN(skb->len + 2, blksize);
-		plen = max_t(u32, clen - skb->len, 4);
-		tailen = plen + alen;
-		ipsec_st->plen = plen;
-		ipsec_st->tailen = tailen;
-	}
+	aead = x->data;
+	alen = crypto_aead_authsize(aead);
+	blksize = ALIGN(crypto_aead_blocksize(aead), 4);
+	clen = ALIGN(skb->len + 2, blksize);
+	plen = max_t(u32, clen - skb->len, 4);
+	tailen = plen + alen;
+	ipsec_st->plen = plen;
+	ipsec_st->tailen = tailen;
 
 	return 0;
 }
@@ -244,19 +242,17 @@ void mlx5e_ipsec_tx_build_eseg(struct mlx5e_priv *priv, struct sk_buff *skb,
 		   ((struct iphdr *)skb_network_header(skb))->protocol :
 		   ((struct ipv6hdr *)skb_network_header(skb))->nexthdr;
 
-	if (mlx5_is_ipsec_device(priv->mdev)) {
-		eseg->flow_table_metadata |= cpu_to_be32(MLX5_ETH_WQE_FT_META_IPSEC);
-		eseg->trailer |= cpu_to_be32(MLX5_ETH_WQE_INSERT_TRAILER);
-		encap = x->encap;
-		if (!encap) {
-			eseg->trailer |= (l3_proto == IPPROTO_ESP) ?
-				cpu_to_be32(MLX5_ETH_WQE_TRAILER_HDR_OUTER_IP_ASSOC) :
-				cpu_to_be32(MLX5_ETH_WQE_TRAILER_HDR_OUTER_L4_ASSOC);
-		} else if (encap->encap_type == UDP_ENCAP_ESPINUDP) {
-			eseg->trailer |= (l3_proto == IPPROTO_ESP) ?
-				cpu_to_be32(MLX5_ETH_WQE_TRAILER_HDR_INNER_IP_ASSOC) :
-				cpu_to_be32(MLX5_ETH_WQE_TRAILER_HDR_INNER_L4_ASSOC);
-		}
+	eseg->flow_table_metadata |= cpu_to_be32(MLX5_ETH_WQE_FT_META_IPSEC);
+	eseg->trailer |= cpu_to_be32(MLX5_ETH_WQE_INSERT_TRAILER);
+	encap = x->encap;
+	if (!encap) {
+		eseg->trailer |= (l3_proto == IPPROTO_ESP) ?
+			cpu_to_be32(MLX5_ETH_WQE_TRAILER_HDR_OUTER_IP_ASSOC) :
+			cpu_to_be32(MLX5_ETH_WQE_TRAILER_HDR_OUTER_L4_ASSOC);
+	} else if (encap->encap_type == UDP_ENCAP_ESPINUDP) {
+		eseg->trailer |= (l3_proto == IPPROTO_ESP) ?
+			cpu_to_be32(MLX5_ETH_WQE_TRAILER_HDR_INNER_IP_ASSOC) :
+			cpu_to_be32(MLX5_ETH_WQE_TRAILER_HDR_INNER_L4_ASSOC);
 	}
 }
 

@@ -286,9 +286,6 @@ static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
 static int mlx5e_xfrm_fs_add_rule(struct mlx5e_priv *priv,
 				  struct mlx5e_ipsec_sa_entry *sa_entry)
 {
-	if (!mlx5_is_ipsec_device(priv->mdev))
-		return 0;
-
 	return mlx5e_accel_ipsec_fs_add_rule(priv, &sa_entry->xfrm->attrs,
 					     sa_entry->ipsec_obj_id,
 					     &sa_entry->ipsec_rule);
@@ -297,9 +294,6 @@ static int mlx5e_xfrm_fs_add_rule(struct mlx5e_priv *priv,
 static void mlx5e_xfrm_fs_del_rule(struct mlx5e_priv *priv,
 				   struct mlx5e_ipsec_sa_entry *sa_entry)
 {
-	if (!mlx5_is_ipsec_device(priv->mdev))
-		return;
-
 	mlx5e_accel_ipsec_fs_del_rule(priv, &sa_entry->xfrm->attrs,
 				      &sa_entry->ipsec_rule);
 }
@@ -550,9 +544,7 @@ void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 		return;
 	}
 
-	if (mlx5_is_ipsec_device(mdev))
-		netdev->gso_partial_features |= NETIF_F_GSO_ESP;
-
+	netdev->gso_partial_features |= NETIF_F_GSO_ESP;
 	mlx5_core_dbg(mdev, "mlx5e: ESP GSO capability turned on\n");
 	netdev->features |= NETIF_F_GSO_ESP;
 	netdev->hw_features |= NETIF_F_GSO_ESP;
