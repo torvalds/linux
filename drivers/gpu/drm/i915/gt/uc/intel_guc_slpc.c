@@ -581,16 +581,12 @@ static int slpc_use_fused_rp0(struct intel_guc_slpc *slpc)
 static void slpc_get_rp_values(struct intel_guc_slpc *slpc)
 {
 	struct intel_rps *rps = &slpc_to_gt(slpc)->rps;
-	u32 rp_state_cap;
+	struct intel_rps_freq_caps caps;
 
-	rp_state_cap = intel_rps_read_state_cap(rps);
-
-	slpc->rp0_freq = REG_FIELD_GET(RP0_CAP_MASK, rp_state_cap) *
-					GT_FREQUENCY_MULTIPLIER;
-	slpc->rp1_freq = REG_FIELD_GET(RP1_CAP_MASK, rp_state_cap) *
-					GT_FREQUENCY_MULTIPLIER;
-	slpc->min_freq = REG_FIELD_GET(RPN_CAP_MASK, rp_state_cap) *
-					GT_FREQUENCY_MULTIPLIER;
+	gen6_rps_get_freq_caps(rps, &caps);
+	slpc->rp0_freq = intel_gpu_freq(rps, caps.rp0_freq);
+	slpc->rp1_freq = intel_gpu_freq(rps, caps.rp1_freq);
+	slpc->min_freq = intel_gpu_freq(rps, caps.min_freq);
 
 	if (!slpc->boost_freq)
 		slpc->boost_freq = slpc->rp0_freq;
