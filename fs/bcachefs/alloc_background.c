@@ -346,10 +346,21 @@ int bch2_alloc_v3_invalid(const struct bch_fs *c, struct bkey_s_c k,
 int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			  int rw, struct printbuf *err)
 {
+	struct bkey_s_c_alloc_v4 a = bkey_s_c_to_alloc_v4(k);
+
 	if (bkey_val_bytes(k.k) != sizeof(struct bch_alloc_v4)) {
 		pr_buf(err, "bad val size (%zu != %zu)",
 		       bkey_val_bytes(k.k), sizeof(struct bch_alloc_v4));
 		return -EINVAL;
+	}
+
+	if (rw == WRITE) {
+		if (a.v->cached_sectors &&
+		    !a.v->dirty_sectors &&
+		    !a.v->io_time[READ]) {
+			pr_buf(err, "cached bucket with read_time == 0");
+			return -EINVAL;
+		}
 	}
 
 	return 0;
