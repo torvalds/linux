@@ -293,4 +293,75 @@ config QCOM_CPU_VENDOR_HOOKS
           having scope to upstream.
           If unsure, say N.
 
+config QCOM_MINIDUMP
+	tristate "QCOM Minidump Support"
+	depends on QCOM_SMEM
+	help
+	  This enables minidump feature. It allows various clients to
+	  register to dump their state at system bad state (panic/WDT,etc.,).
+	  Minidump would dump all registered entries, only when DLOAD mode
+	  is enabled.
+
+config QCOM_VA_MINIDUMP
+	tristate "QCOM VA Minidump Support"
+	depends on QCOM_MINIDUMP
+	help
+	  This enables minidump feature for registering dynamic
+	  data structures. It supports VA based registration
+	  with minidump, which is made into an ELF. The region
+	  for ELF is registered with legacy minidump.
+
+config QCOM_DYN_MINIDUMP_STACK
+	bool "QTI Dynamic Minidump Stack Registration Support"
+	depends on QCOM_MINIDUMP
+	help
+	  This enables minidump dynamic current stack registration feature.
+	  It allows current task stack to be available in minidump, for cases
+	  where CPU is unable to register it from IPI_CPU_STOP. The stack data
+	  can be used to unwind stack frames.
+
+config QCOM_MINIDUMP_FTRACE
+	bool "QCOM Minidump Support"
+	depends on QCOM_MINIDUMP
+	help
+	  This enables ftrace buffer registration in minidump table.
+	  On oops, ftrace content will be copied to that buffer.
+	  This way ftrace buffer content becomes a part of minidump dump
+	  collection.
+
+config QCOM_MINIDUMP_PANIC_DUMP
+	bool "QCOM Minidump Panic dumps Support"
+	depends on QCOM_MINIDUMP
+	help
+	  This enables collection of debug information like runqueue
+	  statistics etc. on panic in minidump. It dumps current, CFS,
+	  and RT runqueue tasks running on each cpu. This help in
+	  knowing the tasks running, pending, hogging on cpu during
+	  panic.
+
+config QCOM_MINIDUMP_PANIC_CPU_CONTEXT
+	bool "QCOM Minidump Panic dumps Support"
+	depends on ARM64 && QCOM_MINIDUMP_PANIC_DUMP
+	help
+	  This enables cpu context collection in minidump table,
+	  on panic.
+
+config QCOM_MINIDUMP_PSTORE
+	bool "QCOM Minidump Pstore dumps Support"
+	depends on ARM64 && QCOM_MINIDUMP
+	help
+	  This enables pstore registration in minidump table.
+	  Here, pstore framework dump logs like pmsg, dmesg,
+	  console ftrace etc. in the given carve-out memory
+	  (non-volatile memory) and during warm reboot these
+	  dump will be copied outside the system on panic.
+
+config MINIDUMP_MAX_ENTRIES
+	int "Minidump Maximum num of entries"
+	default 200
+	depends on QCOM_MINIDUMP
+	help
+	  This defines maximum number of entries to be allocated for application
+	  subsytem in Minidump table.
+
 endmenu
