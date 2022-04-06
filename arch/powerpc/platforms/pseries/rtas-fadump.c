@@ -108,6 +108,12 @@ static u64 rtas_fadump_init_mem_struct(struct fw_dump *fadump_conf)
 	fdm.hpte_region.destination_address = cpu_to_be64(addr);
 	addr += fadump_conf->hpte_region_size;
 
+	/*
+	 * Align boot memory area destination address to page boundary to
+	 * be able to mmap read this area in the vmcore.
+	 */
+	addr = PAGE_ALIGN(addr);
+
 	/* RMA region section */
 	fdm.rmr_region.request_flag = cpu_to_be32(RTAS_FADUMP_REQUEST_FLAG);
 	fdm.rmr_region.source_data_type =

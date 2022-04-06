@@ -365,6 +365,11 @@ static unsigned long __init get_fadump_area_size(void)
 
 	size += fw_dump.cpu_state_data_size;
 	size += fw_dump.hpte_region_size;
+	/*
+	 * Account for pagesize alignment of boot memory area destination address.
+	 * This faciliates in mmap reading of first kernel's memory.
+	 */
+	size = PAGE_ALIGN(size);
 	size += fw_dump.boot_memory_size;
 	size += sizeof(struct fadump_crash_info_header);
 	size += sizeof(struct elfhdr); /* ELF core header.*/
