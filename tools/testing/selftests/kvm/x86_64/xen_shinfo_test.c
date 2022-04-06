@@ -702,7 +702,7 @@ int main(int argc, char *argv[])
 
 			case 14:
 				memset(&tmr, 0, sizeof(tmr));
-				tmr.type = KVM_XEN_VCPU_ATTR_TYPE_TIMER,
+				tmr.type = KVM_XEN_VCPU_ATTR_TYPE_TIMER;
 				vcpu_ioctl(vm, VCPU_ID, KVM_XEN_VCPU_GET_ATTR, &tmr);
 				TEST_ASSERT(tmr.u.timer.port == EVTCHN_TIMER,
 					    "Timer port not returned");
