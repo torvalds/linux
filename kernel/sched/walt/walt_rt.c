@@ -234,6 +234,7 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 	bool sync = !!(wake_flags & WF_SYNC);
 	int ret, target = -1, this_cpu;
 	struct cpumask *lowest_mask;
+	int packing_cpu;
 
 	if (unlikely(walt_disabled))
 		return;
@@ -288,6 +289,13 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 	ret = cpupri_find_fitness(&task_rq(task)->rd->cpupri, task,
 				lowest_mask, walt_rt_task_fits_capacity);
 
+	/* create a fastpath for finding a packing cpu */
+	packing_cpu = walt_find_cluster_packing_cpu(task_cpu(task));
+	if (walt_choose_packing_cpu(packing_cpu, task)) {
+		*new_cpu = packing_cpu;
+		goto unlock;
+	}
+
 	walt_rt_energy_aware_wake_cpu(task, lowest_mask, ret, &target);
 
 	/*
@@ -310,7 +318,7 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 		if (target < nr_cpu_ids)
 			*new_cpu = target;
 	}
-
+unlock:
 	rcu_read_unlock();
 }
 
@@ -319,6 +327,15 @@ static void walt_rt_find_lowest_rq(void *unused, struct task_struct *task,
 				   struct cpumask *lowest_mask, int ret, int *best_cpu)
 
 {
+	int packing_cpu;
+
+	/* create a fastpath for finding a packing cpu */
+	packing_cpu = walt_find_cluster_packing_cpu(task_cpu(task));
+	if (walt_choose_packing_cpu(packing_cpu, task)) {
+		*best_cpu = packing_cpu;
+		return;
+	}
+
 	walt_rt_energy_aware_wake_cpu(task, lowest_mask, ret, best_cpu);
 
 	/*

@@ -219,6 +219,7 @@ enum fastpaths {
 	NONE = 0,
 	SYNC_WAKEUP,
 	PREV_CPU_FASTPATH,
+	CLUSTER_PACKING_FASTPATH,
 };
 
 static inline bool is_complex_sibling_idle(int cpu)
@@ -251,6 +252,7 @@ static void walt_find_best_target(struct sched_domain *sd,
 	bool rtg_high_prio_task = task_rtg_high_prio(p);
 	cpumask_t visit_cpus;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+	int packing_cpu;
 	struct walt_rq *prev_wrq = (struct walt_rq *) cpu_rq(prev_cpu)->android_vendor_data1;
 	struct walt_rq *start_wrq;
 
@@ -270,6 +272,14 @@ static void walt_find_best_target(struct sched_domain *sd,
 	if (fbt_env->strict_max) {
 		stop_index = 0;
 		most_spare_wake_cap = LONG_MIN;
+	}
+
+	/* fast path for packing_cpu */
+	packing_cpu = walt_find_cluster_packing_cpu(start_cpu);
+	if (walt_choose_packing_cpu(packing_cpu, p)) {
+		fbt_env->fastpath = CLUSTER_PACKING_FASTPATH;
+		cpumask_set_cpu(packing_cpu, candidates);
+			goto out;
 	}
 
 	/* fast path for prev_cpu */
@@ -842,6 +852,12 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 		goto unlock;
 
 	first_cpu = cpumask_first(candidates);
+
+	if (fbt_env.fastpath == CLUSTER_PACKING_FASTPATH) {
+		best_energy_cpu = first_cpu;
+		goto unlock;
+	}
+
 	if (weight == 1) {
 		if (available_idle_cpu(first_cpu) || first_cpu == prev_cpu) {
 			best_energy_cpu = first_cpu;
