@@ -15,6 +15,8 @@ struct pkvm_iommu_ops {
 	 * Driver-specific arguments are passed in a buffer shared by the host.
 	 * The buffer memory has been pinned in EL2 but host retains R/W access.
 	 * Extra care must be taken when reading from it to avoid TOCTOU bugs.
+	 * If the driver maintains its own page tables, it is expected to
+	 * initialize them to all memory owned by the host.
 	 * Driver initialization lock held during callback.
 	 */
 	int (*init)(void *data, size_t size);

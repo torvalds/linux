@@ -181,16 +181,16 @@ static int __snapshot_host_stage2(u64 start, u64 pa_max, u32 level,
 {
 	struct pkvm_iommu_driver * const drv = arg;
 	u64 end = start + kvm_granule_size(level);
-	enum kvm_pgtable_prot prot;
 	kvm_pte_t pte = *ptep;
 
 	/*
 	 * Valid stage-2 entries are created lazily, invalid ones eagerly.
 	 * Note: In the future we may need to check if [start,end) is MMIO.
+	 * Note: Drivers initialize their PTs to all memory owned by the host,
+	 * so we only call the driver on regions where that is not the case.
 	 */
-	prot = (!pte || kvm_pte_valid(pte)) ? PKVM_HOST_MEM_PROT : 0;
-
-	drv->ops->host_stage2_idmap_prepare(start, end, prot);
+	if (pte && !kvm_pte_valid(pte))
+		drv->ops->host_stage2_idmap_prepare(start, end, /*prot*/ 0);
 	return 0;
 }
 
