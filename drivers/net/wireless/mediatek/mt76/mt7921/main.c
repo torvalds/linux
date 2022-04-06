@@ -53,6 +53,7 @@ mt7921_init_he_caps(struct mt7921_phy *phy, enum nl80211_band band,
 
 		switch (i) {
 		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_AP:
 			break;
 		default:
 			continue;
@@ -86,6 +87,23 @@ mt7921_init_he_caps(struct mt7921_phy *phy, enum nl80211_band band,
 			IEEE80211_HE_PHY_CAP2_UL_MU_PARTIAL_MU_MIMO;
 
 		switch (i) {
+		case NL80211_IFTYPE_AP:
+			he_cap_elem->mac_cap_info[2] |=
+				IEEE80211_HE_MAC_CAP2_BSR;
+			he_cap_elem->mac_cap_info[4] |=
+				IEEE80211_HE_MAC_CAP4_BQR;
+			he_cap_elem->mac_cap_info[5] |=
+				IEEE80211_HE_MAC_CAP5_OM_CTRL_UL_MU_DATA_DIS_RX;
+			he_cap_elem->phy_cap_info[3] |=
+				IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_QPSK |
+				IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_QPSK;
+			he_cap_elem->phy_cap_info[6] |=
+				IEEE80211_HE_PHY_CAP6_PARTIAL_BW_EXT_RANGE |
+				IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT;
+			he_cap_elem->phy_cap_info[9] |=
+				IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU |
+				IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU;
+			break;
 		case NL80211_IFTYPE_STATION:
 			he_cap_elem->mac_cap_info[1] |=
 				IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_16US;
@@ -633,6 +651,20 @@ static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 			mt7921_mac_set_timing(phy);
 		}
 	}
+
+	if (changed & BSS_CHANGED_BEACON_ENABLED && info->enable_beacon) {
+		struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+
+		mt76_connac_mcu_uni_add_bss(phy->mt76, vif, &mvif->sta.wcid,
+					    true);
+		mt7921_mcu_sta_update(dev, NULL, vif, true,
+				      MT76_STA_INFO_STATE_NONE);
+	}
+
+	if (changed & (BSS_CHANGED_BEACON |
+		       BSS_CHANGED_BEACON_ENABLED))
+		mt7921_mcu_uni_add_beacon_offload(dev, hw, vif,
+						  info->enable_beacon);
 
 	/* ensure that enable txcmd_mode after bss_info */
 	if (changed & (BSS_CHANGED_QOS | BSS_CHANGED_BEACON_ENABLED))
@@ -1394,6 +1426,18 @@ out:
 	return err;
 }
 
+static void
+mt7921_channel_switch_beacon(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct cfg80211_chan_def *chandef)
+{
+	struct mt7921_dev *dev = mt7921_hw_dev(hw);
+
+	mt7921_mutex_acquire(dev);
+	mt7921_mcu_uni_add_beacon_offload(dev, hw, vif, true);
+	mt7921_mutex_release(dev);
+}
+
 const struct ieee80211_ops mt7921_ops = {
 	.tx = mt7921_tx,
 	.start = mt7921_start,
@@ -1412,6 +1456,7 @@ const struct ieee80211_ops mt7921_ops = {
 	.set_rts_threshold = mt7921_set_rts_threshold,
 	.wake_tx_queue = mt76_wake_tx_queue,
 	.release_buffered_frames = mt76_release_buffered_frames,
+	.channel_switch_beacon = mt7921_channel_switch_beacon,
 	.get_txpower = mt76_get_txpower,
 	.get_stats = mt7921_get_stats,
 	.get_et_sset_count = mt7921_get_et_sset_count,

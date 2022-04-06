@@ -469,4 +469,8 @@ int mt7921u_wfsys_reset(struct mt7921_dev *dev);
 int mt7921u_dma_init(struct mt7921_dev *dev, bool resume);
 int mt7921u_init_reset(struct mt7921_dev *dev);
 int mt7921u_mac_reset(struct mt7921_dev *dev);
+int mt7921_mcu_uni_add_beacon_offload(struct mt7921_dev *dev,
+				      struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      bool enable);
 #endif
