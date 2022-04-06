@@ -221,7 +221,7 @@ unsigned long vdso_size(void)
 
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
-	return map_vdso(0, vdso_size());
+	return map_vdso(VDSO_BASE, vdso_size());
 }
 
 static struct page ** __init vdso_setup_pages(void *start, void *end)

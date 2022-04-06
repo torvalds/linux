@@ -95,9 +95,10 @@ unsigned long vdso_size(void);
 					(_REGION3_SIZE >> 1) : (_REGION2_SIZE >> 1))
 #define TASK_SIZE_MAX		(-PAGE_SIZE)
 
-#define STACK_TOP		(test_thread_flag(TIF_31BIT) ? \
-					_REGION3_SIZE : _REGION2_SIZE)
-#define STACK_TOP_MAX		_REGION2_SIZE
+#define VDSO_BASE		(STACK_TOP + PAGE_SIZE)
+#define VDSO_LIMIT		(test_thread_flag(TIF_31BIT) ? _REGION3_SIZE : _REGION2_SIZE)
+#define STACK_TOP		(VDSO_LIMIT - vdso_size() - PAGE_SIZE)
+#define STACK_TOP_MAX		(_REGION2_SIZE - vdso_size() - PAGE_SIZE)
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
