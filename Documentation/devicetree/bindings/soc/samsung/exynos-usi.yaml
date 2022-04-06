@@ -77,7 +77,7 @@ patternProperties:
     description: Child node describing underlying UART/serial
 
   "^spi@[0-9a-f]+$":
-    type: object
+    $ref: /schemas/spi/samsung,spi.yaml
     description: Child node describing underlying SPI
 
 required:
