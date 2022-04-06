@@ -621,13 +621,15 @@ static int perf_copy_blt(void *arg)
 
 	for (i = 0; i < ARRAY_SIZE(sizes); i++) {
 		struct drm_i915_gem_object *src, *dst;
+		size_t sz;
 		int err;
 
 		src = create_init_lmem_internal(gt, sizes[i], true);
 		if (IS_ERR(src))
 			return PTR_ERR(src);
 
-		dst = create_init_lmem_internal(gt, sizes[i], false);
+		sz = src->base.size;
+		dst = create_init_lmem_internal(gt, sz, false);
 		if (IS_ERR(dst)) {
 			err = PTR_ERR(dst);
 			goto err_src;
@@ -640,7 +642,7 @@ static int perf_copy_blt(void *arg)
 				      dst->mm.pages->sgl,
 				      I915_CACHE_NONE,
 				      i915_gem_object_is_lmem(dst),
-				      sizes[i]);
+				      sz);
 
 		i915_gem_object_unlock(dst);
 		i915_gem_object_put(dst);
