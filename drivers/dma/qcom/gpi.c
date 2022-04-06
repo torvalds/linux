@@ -2152,6 +2152,7 @@ static int gpi_probe(struct platform_device *pdev)
 {
 	struct gpi_dev *gpi_dev;
 	unsigned int i;
+	u32 ee_offset;
 	int ret;
 
 	gpi_dev = devm_kzalloc(&pdev->dev, sizeof(*gpi_dev), GFP_KERNEL);
@@ -2178,6 +2179,9 @@ static int gpi_probe(struct platform_device *pdev)
 		dev_err(gpi_dev->dev, "missing 'gpii-mask' DT node\n");
 		return ret;
 	}
+
+	ee_offset = (uintptr_t)device_get_match_data(gpi_dev->dev);
+	gpi_dev->ee_base = gpi_dev->ee_base - ee_offset;
 
 	gpi_dev->ev_factor = EV_FACTOR;
 
@@ -2282,9 +2286,10 @@ static int gpi_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id gpi_of_match[] = {
-	{ .compatible = "qcom,sdm845-gpi-dma" },
-	{ .compatible = "qcom,sm8150-gpi-dma" },
-	{ .compatible = "qcom,sm8250-gpi-dma" },
+	{ .compatible = "qcom,sdm845-gpi-dma", .data = (void *)0x0 },
+	{ .compatible = "qcom,sm8150-gpi-dma", .data = (void *)0x0 },
+	{ .compatible = "qcom,sm8250-gpi-dma", .data = (void *)0x0 },
+	{ .compatible = "qcom,sm8450-gpi-dma", .data = (void *)0x10000 },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, gpi_of_match);
