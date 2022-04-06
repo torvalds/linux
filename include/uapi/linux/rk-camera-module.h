@@ -55,6 +55,8 @@
 							 RKMODULE_CAMERA_BT656_CHANNEL_2 | \
 							 RKMODULE_CAMERA_BT656_CHANNEL_3)
 
+#define DPHY_MAX_LANE					4
+
 #define RKMODULE_GET_MODULE_INFO	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct rkmodule_inf)
 
@@ -147,6 +149,12 @@
 
 #define RKMODULE_SET_DEV_INFO       \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 30, struct rkmodule_dev_info)
+
+#define RKMODULE_SET_CSI_DPHY_PARAM       \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 31, struct rkmodule_csi_dphy_param)
+
+#define RKMODULE_GET_CSI_DPHY_PARAM       \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 32, struct rkmodule_csi_dphy_param)
 
 struct rkmodule_i2cdev_info {
 	u8 slave_addr;
@@ -654,6 +662,63 @@ struct rkmodule_mclk_data {
 	u32 mclk_index;
 	u32 mclk_rate;
 	u32 reserved[8];
+};
+
+/*
+ * csi dphy param
+ * lp_vol_ref -> Reference voltage-645mV for LP  Function control pin
+ * for rk3588 dcphy
+ * 3'b000 : 605mV
+ * 3'b001 : 625mV
+ * 3'b010 : 635mV
+ * 3'b011 : 645mV
+ * 3'b100 : 655mV
+ * 3'b101 : 665mV
+ * 3'b110 : 685mV
+ * 3'b111 : 725mV
+ *
+ * lp_hys_sw -> LP-RX Hysteresis Level Control
+ * for rk3588 dcphy
+ * 2'b00=45mV
+ * 2'b01=65mV
+ * 2'b10=85mV
+ * 2'b11=100mV
+ *
+ * lp_escclk_pol_sel -> LP ESCCLK Polarity sel
+ * for rk3588 dcphy
+ * 1'b0: normal
+ * 1'b1: swap ,Increase 1ns delay
+ *
+ * skew_data_cal_clk -> Skew Calibration Manual Data Fine Delay Control Register
+ * for rk3588 dcphy
+ * BIT[4:0] 30ps a step
+ *
+ * clk_hs_term_sel/data_hs_term_sel -> HS-RX Termination Impedance Control
+ * for rk3588 dcphy
+ * 3b'000 : 102Ω
+ * 3b'001 : 99.1Ω
+ * 3b'010 : 96.6Ω (default)
+ * 3b'011 : 94.1Ω
+ * 3b'100 : 113Ω
+ * 3b'101 : 110Ω
+ * 3b'110 : 107Ω
+ * 3b'111 : 104Ω
+ */
+
+enum csi2_dphy_vendor {
+	PHY_VENDOR_INNO = 0x0,
+	PHY_VENDOR_SAMSUNG = 0x01,
+};
+
+struct rkmodule_csi_dphy_param {
+	u32 vendor;
+	u32 lp_vol_ref;
+	u32 lp_hys_sw[DPHY_MAX_LANE];
+	u32 lp_escclk_pol_sel[DPHY_MAX_LANE];
+	u32 skew_data_cal_clk[DPHY_MAX_LANE];
+	u32 clk_hs_term_sel;
+	u32 data_hs_term_sel[DPHY_MAX_LANE];
+	u32 reserved[32];
 };
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
