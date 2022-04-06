@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/time_namespace.h>
+#include <linux/random.h>
 #include <vdso/datapage.h>
 #include <asm/vdso.h>
 
@@ -208,6 +209,31 @@ out:
 	return rc;
 }
 
+static unsigned long vdso_addr(unsigned long start, unsigned long len)
+{
+	unsigned long addr, end, offset;
+
+	/*
+	 * Round up the start address. It can start out unaligned as a result
+	 * of stack start randomization.
+	 */
+	start = PAGE_ALIGN(start);
+
+	/* Round the lowest possible end address up to a PMD boundary. */
+	end = (start + len + PMD_SIZE - 1) & PMD_MASK;
+	if (end >= VDSO_BASE)
+		end = VDSO_BASE;
+	end -= len;
+
+	if (end > start) {
+		offset = get_random_int() % (((end - start) >> PAGE_SHIFT) + 1);
+		addr = start + (offset << PAGE_SHIFT);
+	} else {
+		addr = start;
+	}
+	return addr;
+}
+
 unsigned long vdso_size(void)
 {
 	unsigned long size = VVAR_NR_PAGES * PAGE_SIZE;
@@ -221,7 +247,12 @@ unsigned long vdso_size(void)
 
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
-	return map_vdso(VDSO_BASE, vdso_size());
+	unsigned long addr = VDSO_BASE;
+	unsigned long size = vdso_size();
+
+	if (current->flags & PF_RANDOMIZE)
+		addr = vdso_addr(current->mm->start_stack + PAGE_SIZE, size);
+	return map_vdso(addr, size);
 }
 
 static struct page ** __init vdso_setup_pages(void *start, void *end)
