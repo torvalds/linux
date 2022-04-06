@@ -85,7 +85,8 @@ ifdef need-builtin
 targets-for-builtin += $(obj)/built-in.a
 endif
 
-targets-for-modules := $(patsubst %.o, %.mod, $(filter %.o, $(obj-m)))
+targets-for-modules := $(foreach x, mod $(if $(CONFIG_TRIM_UNUSED_KSYMS), usyms), \
+				$(patsubst %.o, %.$x, $(filter %.o, $(obj-m))))
 
 ifneq ($(CONFIG_LTO_CLANG)$(CONFIG_X86_KERNEL_IBT),)
 targets-for-modules += $(patsubst %.o, %.prelink.o, $(filter %.o, $(obj-m)))
@@ -256,9 +257,6 @@ endif
 ifdef CONFIG_TRIM_UNUSED_KSYMS
 cmd_gen_ksymdeps = \
 	$(CONFIG_SHELL) $(srctree)/scripts/gen_ksymdeps.sh $@ >> $(dot-target).cmd
-
-# List module undefined symbols
-undefined_syms = $(NM) $< | $(AWK) '$$1 == "U" { printf("%s%s", x++ ? " " : "", $$2) }';
 endif
 
 define rule_cc_o_c
@@ -305,13 +303,16 @@ $(obj)/%.prelink.o: $(obj)/%.o FORCE
 	$(call if_changed,cc_prelink_modules)
 endif
 
-cmd_mod = { \
-	echo $(addprefix $(obj)/, $(call real-search, $*.o, .o, -objs -y -m)); \
-	$(undefined_syms) echo; \
-	} > $@
+cmd_mod = echo $(addprefix $(obj)/, $(call real-search, $*.o, .o, -objs -y -m)) > $@
 
 $(obj)/%.mod: $(obj)/%$(mod-prelink-ext).o FORCE
 	$(call if_changed,mod)
+
+# List module undefined symbols
+cmd_undefined_syms = $(NM) $< | sed -n 's/^  *U //p' > $@
+
+$(obj)/%.usyms: $(obj)/%$(mod-prelink-ext).o FORCE
+	$(call if_changed,undefined_syms)
 
 quiet_cmd_cc_lst_c = MKLST   $@
       cmd_cc_lst_c = $(CC) $(c_flags) -g -c -o $*.o $< && \
