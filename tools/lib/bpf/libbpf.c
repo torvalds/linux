@@ -10913,60 +10913,45 @@ err_out:
 static int attach_uprobe(const struct bpf_program *prog, long cookie, struct bpf_link **link)
 {
 	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, opts);
-	char *func, *probe_name, *func_end;
-	char *func_name, binary_path[512];
-	unsigned long long raw_offset;
-	size_t offset = 0;
-	int n;
+	char *probe_type = NULL, *binary_path = NULL, *func_name = NULL;
+	int n, ret = -EINVAL;
+	long offset = 0;
 
 	*link = NULL;
 
-	opts.retprobe = str_has_pfx(prog->sec_name, "uretprobe");
-	if (opts.retprobe)
-		probe_name = prog->sec_name + sizeof("uretprobe") - 1;
-	else
-		probe_name = prog->sec_name + sizeof("uprobe") - 1;
-	if (probe_name[0] == '/')
-		probe_name++;
-
-	/* handle SEC("u[ret]probe") - format is valid, but auto-attach is impossible. */
-	if (strlen(probe_name) == 0)
-		return 0;
-
-	snprintf(binary_path, sizeof(binary_path), "%s", probe_name);
-	/* ':' should be prior to function+offset */
-	func_name = strrchr(binary_path, ':');
-	if (!func_name) {
-		pr_warn("section '%s' missing ':function[+offset]' specification\n",
+	n = sscanf(prog->sec_name, "%m[^/]/%m[^:]:%m[a-zA-Z0-9_.]+%li",
+		   &probe_type, &binary_path, &func_name, &offset);
+	switch (n) {
+	case 1:
+		/* handle SEC("u[ret]probe") - format is valid, but auto-attach is impossible. */
+		ret = 0;
+		break;
+	case 2:
+		pr_warn("prog '%s': section '%s' missing ':function[+offset]' specification\n",
+			prog->name, prog->sec_name);
+		break;
+	case 3:
+	case 4:
+		opts.retprobe = strcmp(probe_type, "uretprobe") == 0;
+		if (opts.retprobe && offset != 0) {
+			pr_warn("prog '%s': uretprobes do not support offset specification\n",
+				prog->name);
+			break;
+		}
+		opts.func_name = func_name;
+		*link = bpf_program__attach_uprobe_opts(prog, -1, binary_path, offset, &opts);
+		ret = libbpf_get_error(*link);
+		break;
+	default:
+		pr_warn("prog '%s': invalid format of section definition '%s'\n", prog->name,
 			prog->sec_name);
-		return -EINVAL;
+		break;
 	}
-	func_name[0] = '\0';
-	func_name++;
-	n = sscanf(func_name, "%m[a-zA-Z0-9_.]+%li", &func, &offset);
-	if (n < 1) {
-		pr_warn("uprobe name '%s' is invalid\n", func_name);
-		return -EINVAL;
-	}
-	if (opts.retprobe && offset != 0) {
-		free(func);
-		pr_warn("uretprobes do not support offset specification\n");
-		return -EINVAL;
-	}
+	free(probe_type);
+	free(binary_path);
+	free(func_name);
 
-	/* Is func a raw address? */
-	errno = 0;
-	raw_offset = strtoull(func, &func_end, 0);
-	if (!errno && !*func_end) {
-		free(func);
-		func = NULL;
-		offset = (size_t)raw_offset;
-	}
-	opts.func_name = func;
-
-	*link = bpf_program__attach_uprobe_opts(prog, -1, binary_path, offset, &opts);
-	free(func);
-	return libbpf_get_error(*link);
+	return ret;
 }
 
 struct bpf_link *bpf_program__attach_uprobe(const struct bpf_program *prog,
