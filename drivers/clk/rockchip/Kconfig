@@ -166,12 +166,6 @@ config ROCKCHIP_CLK_PVTM
 	help
 	  Say y here to enable clk pvtm.
 
-config ROCKCHIP_DCLK_DIV
-	bool "Rockchip Dclk Divider"
-	default y if !CPU_RV1126 && !CPU_RV1106
-	help
-	  Say y here to enable dclk divider.
-
 config ROCKCHIP_DDRCLK_SCPI
 	bool "Rockchip DDR Clk SCPI"
 	default y if RK3368_SCPI_PROTOCOL

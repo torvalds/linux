@@ -15,7 +15,6 @@ clk-rockchip-y += clk-muxgrf.o
 clk-rockchip-y += clk-ddr.o
 clk-rockchip-$(CONFIG_ROCKCHIP_CLK_INV)  += clk-inverter.o
 clk-rockchip-$(CONFIG_ROCKCHIP_CLK_PVTM) += clk-pvtm.o
-clk-rockchip-$(CONFIG_ROCKCHIP_DCLK_DIV) += clk-dclk-divider.o
 clk-rockchip-$(CONFIG_RESET_CONTROLLER) += softrst.o
 
 obj-$(CONFIG_ROCKCHIP_CLK_LINK)	+= clk-link.o

@@ -18,7 +18,7 @@ static unsigned long clk_dclk_recalc_rate(struct clk_hw *hw,
 	struct clk_divider *divider = to_clk_divider(hw);
 	unsigned int val;
 
-	val = readl(divider->reg) >> divider->shift;
+	val = clk_readl(divider->reg) >> divider->shift;
 	val &= div_mask(divider->width);
 
 	return DIV_ROUND_UP_ULL(((u64)parent_rate), val + 1);
@@ -57,11 +57,11 @@ static int clk_dclk_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (divider->flags & CLK_DIVIDER_HIWORD_MASK) {
 		val = div_mask(divider->width) << (divider->shift + 16);
 	} else {
-		val = readl(divider->reg);
+		val = clk_readl(divider->reg);
 		val &= ~(div_mask(divider->width) << divider->shift);
 	}
 	val |= value << divider->shift;
-	writel(val, divider->reg);
+	clk_writel(val, divider->reg);
 
 	if (divider->lock)
 		spin_unlock_irqrestore(divider->lock, flags);
