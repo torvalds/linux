@@ -236,6 +236,7 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 	}
 	clk_prepare_enable(acry_dev->rsaclk);
 
+	aspeed_acry_write(acry_dev, ACRY_CMD_DMA_SRAM_AHB_CPU, ASPEED_ACRY_DMA_CMD);
 
 	acry_dev->acry_sram = of_iomap(pdev->dev.of_node, 1);
 	if (!(acry_dev->acry_sram)) {

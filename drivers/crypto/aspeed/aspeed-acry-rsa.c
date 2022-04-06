@@ -196,7 +196,6 @@ static int aspeed_acry_rsa_transfer(struct aspeed_acry_dev *acry_dev)
 	} else {
 		printk("RSA engine error!\n");
 	}
-	aspeed_acry_write(acry_dev, ACRY_CMD_DMA_SRAM_AHB_ENGINE, ASPEED_ACRY_DMA_CMD);
 
 	memzero_explicit(acry_dev->buf_addr, ASPEED_ACRY_BUFF_SIZE);
 
