@@ -94,6 +94,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.credit_size_workaround = false,
 		.tx_stats_over_pktlog = true,
 		.dynamic_sar_support = false,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = QCA988X_HW_2_0_VERSION,
@@ -131,6 +132,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.credit_size_workaround = false,
 		.tx_stats_over_pktlog = true,
 		.dynamic_sar_support = false,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = QCA9887_HW_1_0_VERSION,
@@ -169,6 +171,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.credit_size_workaround = false,
 		.tx_stats_over_pktlog = false,
 		.dynamic_sar_support = false,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = QCA6174_HW_3_2_VERSION,
@@ -202,6 +205,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.bmi_large_size_download = true,
 		.supports_peer_stats_info = true,
 		.dynamic_sar_support = true,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -239,6 +243,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.credit_size_workaround = false,
 		.tx_stats_over_pktlog = false,
 		.dynamic_sar_support = false,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -276,6 +281,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.credit_size_workaround = false,
 		.tx_stats_over_pktlog = false,
 		.dynamic_sar_support = false,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = QCA6174_HW_3_0_VERSION,
@@ -313,6 +319,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.credit_size_workaround = false,
 		.tx_stats_over_pktlog = false,
 		.dynamic_sar_support = false,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = QCA6174_HW_3_2_VERSION,
@@ -354,6 +361,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.tx_stats_over_pktlog = false,
 		.supports_peer_stats_info = true,
 		.dynamic_sar_support = true,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = QCA99X0_HW_2_0_DEV_VERSION,
@@ -397,6 +405,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.credit_size_workaround = false,
 		.tx_stats_over_pktlog = false,
 		.dynamic_sar_support = false,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = QCA9984_HW_1_0_DEV_VERSION,
@@ -447,6 +456,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.credit_size_workaround = false,
 		.tx_stats_over_pktlog = false,
 		.dynamic_sar_support = false,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = QCA9888_HW_2_0_DEV_VERSION,
@@ -494,6 +504,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.credit_size_workaround = false,
 		.tx_stats_over_pktlog = false,
 		.dynamic_sar_support = false,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = QCA9377_HW_1_0_DEV_VERSION,
@@ -531,6 +542,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.credit_size_workaround = false,
 		.tx_stats_over_pktlog = false,
 		.dynamic_sar_support = false,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = QCA9377_HW_1_1_DEV_VERSION,
@@ -570,6 +582,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.credit_size_workaround = false,
 		.tx_stats_over_pktlog = false,
 		.dynamic_sar_support = false,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = QCA9377_HW_1_1_DEV_VERSION,
@@ -600,6 +613,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.uart_pin_workaround = true,
 		.credit_size_workaround = true,
 		.dynamic_sar_support = false,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = QCA4019_HW_1_0_DEV_VERSION,
@@ -644,6 +658,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.credit_size_workaround = false,
 		.tx_stats_over_pktlog = false,
 		.dynamic_sar_support = false,
+		.hw_restart_disconnect = false,
 	},
 	{
 		.id = WCN3990_HW_1_0_DEV_VERSION,
@@ -674,6 +689,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.credit_size_workaround = false,
 		.tx_stats_over_pktlog = false,
 		.dynamic_sar_support = true,
+		.hw_restart_disconnect = true,
 	},
 };
 
@@ -2442,6 +2458,7 @@ EXPORT_SYMBOL(ath10k_core_napi_sync_disable);
 static void ath10k_core_restart(struct work_struct *work)
 {
 	struct ath10k *ar = container_of(work, struct ath10k, restart_work);
+	struct ath10k_vif *arvif;
 	int ret;
 
 	set_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags);
@@ -2480,6 +2497,14 @@ static void ath10k_core_restart(struct work_struct *work)
 		ar->state = ATH10K_STATE_RESTARTING;
 		ath10k_halt(ar);
 		ath10k_scan_finish(ar);
+		if (ar->hw_params.hw_restart_disconnect) {
+			list_for_each_entry(arvif, &ar->arvifs, list) {
+				if (arvif->is_up &&
+				    arvif->vdev_type == WMI_VDEV_TYPE_STA)
+					ieee80211_hw_restart_disconnect(arvif->vif);
+			}
+		}
+
 		ieee80211_restart_hw(ar->hw);
 		break;
 	case ATH10K_STATE_OFF:

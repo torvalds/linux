@@ -15,6 +15,9 @@
 
 #define SLEEP_CLOCK_SELECT_INTERNAL_BIT	0x02
 #define HOST_CSTATE_BIT			0x04
+#define PLATFORM_CAP_PCIE_GLOBAL_RESET	0x08
+
+#define FW_BUILD_ID_MASK "QC_IMAGE_VERSION_STRING="
 
 bool ath11k_cold_boot_cal = 1;
 EXPORT_SYMBOL(ath11k_cold_boot_cal);
@@ -1674,6 +1677,9 @@ static int ath11k_qmi_host_cap_send(struct ath11k_base *ab)
 		req.nm_modem |= SLEEP_CLOCK_SELECT_INTERNAL_BIT;
 	}
 
+	if (ab->hw_params.global_reset)
+		req.nm_modem |= PLATFORM_CAP_PCIE_GLOBAL_RESET;
+
 	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi host cap request\n");
 
 	ret = qmi_txn_init(&ab->qmi.handle, &txn,
@@ -2008,6 +2014,8 @@ static int ath11k_qmi_request_target_cap(struct ath11k_base *ab)
 	struct qmi_txn txn;
 	int ret = 0;
 	int r;
+	char *fw_build_id;
+	int fw_build_id_mask_len;
 
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
@@ -2073,6 +2081,11 @@ static int ath11k_qmi_request_target_cap(struct ath11k_base *ab)
 		ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi cal data supported from eeprom\n");
 	}
 
+	fw_build_id = ab->qmi.target.fw_build_id;
+	fw_build_id_mask_len = strlen(FW_BUILD_ID_MASK);
+	if (!strncmp(fw_build_id, FW_BUILD_ID_MASK, fw_build_id_mask_len))
+		fw_build_id = fw_build_id + fw_build_id_mask_len;
+
 	ath11k_info(ab, "chip_id 0x%x chip_family 0x%x board_id 0x%x soc_id 0x%x\n",
 		    ab->qmi.target.chip_id, ab->qmi.target.chip_family,
 		    ab->qmi.target.board_id, ab->qmi.target.soc_id);
@@ -2080,7 +2093,11 @@ static int ath11k_qmi_request_target_cap(struct ath11k_base *ab)
 	ath11k_info(ab, "fw_version 0x%x fw_build_timestamp %s fw_build_id %s",
 		    ab->qmi.target.fw_version,
 		    ab->qmi.target.fw_build_timestamp,
-		    ab->qmi.target.fw_build_id);
+		    fw_build_id);
+
+	r = ath11k_core_check_smbios(ab);
+	if (r)
+		ath11k_dbg(ab, ATH11K_DBG_QMI, "SMBIOS bdf variant name not set.\n");
 
 	r = ath11k_core_check_dt(ab);
 	if (r)

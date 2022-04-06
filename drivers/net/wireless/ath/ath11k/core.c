@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -9,6 +9,7 @@
 #include <linux/remoteproc.h>
 #include <linux/firmware.h>
 #include <linux/of.h>
+
 #include "core.h"
 #include "dp_tx.h"
 #include "dp_rx.h"
@@ -95,11 +96,11 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.hal_params = &ath11k_hw_hal_params_ipq8074,
 		.supports_dynamic_smps_6ghz = false,
 		.alloc_cacheable_memory = true,
-		.wakeup_mhi = false,
 		.supports_rssi_stats = false,
 		.fw_wmi_diag_event = false,
 		.current_cc_support = false,
 		.dbr_debug_support = true,
+		.global_reset = false,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
@@ -161,11 +162,11 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.hal_params = &ath11k_hw_hal_params_ipq8074,
 		.supports_dynamic_smps_6ghz = false,
 		.alloc_cacheable_memory = true,
-		.wakeup_mhi = false,
 		.supports_rssi_stats = false,
 		.fw_wmi_diag_event = false,
 		.current_cc_support = false,
 		.dbr_debug_support = true,
+		.global_reset = false,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -219,18 +220,18 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.num_peers = 512,
 		.supports_suspend = true,
 		.hal_desc_sz = sizeof(struct hal_rx_desc_ipq8074),
-		.supports_regdb = true,
+		.supports_regdb = false,
 		.fix_l1ss = true,
 		.credit_flow = true,
 		.max_tx_ring = DP_TCL_NUM_RING_MAX_QCA6390,
 		.hal_params = &ath11k_hw_hal_params_qca6390,
 		.supports_dynamic_smps_6ghz = false,
 		.alloc_cacheable_memory = false,
-		.wakeup_mhi = true,
 		.supports_rssi_stats = true,
 		.fw_wmi_diag_event = true,
 		.current_cc_support = true,
 		.dbr_debug_support = false,
+		.global_reset = true,
 	},
 	{
 		.name = "qcn9074 hw1.0",
@@ -291,11 +292,11 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.hal_params = &ath11k_hw_hal_params_ipq8074,
 		.supports_dynamic_smps_6ghz = true,
 		.alloc_cacheable_memory = true,
-		.wakeup_mhi = false,
 		.supports_rssi_stats = false,
 		.fw_wmi_diag_event = false,
 		.current_cc_support = false,
 		.dbr_debug_support = true,
+		.global_reset = false,
 	},
 	{
 		.name = "wcn6855 hw2.0",
@@ -356,11 +357,11 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.hal_params = &ath11k_hw_hal_params_qca6390,
 		.supports_dynamic_smps_6ghz = false,
 		.alloc_cacheable_memory = false,
-		.wakeup_mhi = true,
 		.supports_rssi_stats = true,
 		.fw_wmi_diag_event = true,
 		.current_cc_support = true,
 		.dbr_debug_support = false,
+		.global_reset = true,
 	},
 	{
 		.name = "wcn6855 hw2.1",
@@ -420,30 +421,48 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.hal_params = &ath11k_hw_hal_params_qca6390,
 		.supports_dynamic_smps_6ghz = false,
 		.alloc_cacheable_memory = false,
-		.wakeup_mhi = true,
 		.supports_rssi_stats = true,
 		.fw_wmi_diag_event = true,
 		.current_cc_support = true,
 		.dbr_debug_support = false,
+		.global_reset = true,
 	},
 };
+
+static inline struct ath11k_pdev *ath11k_core_get_single_pdev(struct ath11k_base *ab)
+{
+	WARN_ON(!ab->hw_params.single_pdev_only);
+
+	return &ab->pdevs[0];
+}
 
 int ath11k_core_suspend(struct ath11k_base *ab)
 {
 	int ret;
+	struct ath11k_pdev *pdev;
+	struct ath11k *ar;
 
 	if (!ab->hw_params.supports_suspend)
 		return -EOPNOTSUPP;
 
-	/* TODO: there can frames in queues so for now add delay as a hack.
-	 * Need to implement to handle and remove this delay.
+	/* so far single_pdev_only chips have supports_suspend as true
+	 * and only the first pdev is valid.
 	 */
-	msleep(500);
+	pdev = ath11k_core_get_single_pdev(ab);
+	ar = pdev->ar;
+	if (!ar || ar->state != ATH11K_STATE_OFF)
+		return 0;
 
 	ret = ath11k_dp_rx_pktlog_stop(ab, true);
 	if (ret) {
 		ath11k_warn(ab, "failed to stop dp rx (and timer) pktlog during suspend: %d\n",
 			    ret);
+		return ret;
+	}
+
+	ret = ath11k_mac_wait_tx_complete(ar);
+	if (ret) {
+		ath11k_warn(ab, "failed to wait tx complete: %d\n", ret);
 		return ret;
 	}
 
@@ -479,9 +498,19 @@ EXPORT_SYMBOL(ath11k_core_suspend);
 int ath11k_core_resume(struct ath11k_base *ab)
 {
 	int ret;
+	struct ath11k_pdev *pdev;
+	struct ath11k *ar;
 
 	if (!ab->hw_params.supports_suspend)
 		return -EOPNOTSUPP;
+
+	/* so far signle_pdev_only chips have supports_suspend as true
+	 * and only the first pdev is valid.
+	 */
+	pdev = ath11k_core_get_single_pdev(ab);
+	ar = pdev->ar;
+	if (!ar || ar->state != ATH11K_STATE_OFF)
+		return 0;
 
 	ret = ath11k_hif_resume(ab);
 	if (ret) {
@@ -509,6 +538,75 @@ int ath11k_core_resume(struct ath11k_base *ab)
 }
 EXPORT_SYMBOL(ath11k_core_resume);
 
+static void ath11k_core_check_bdfext(const struct dmi_header *hdr, void *data)
+{
+	struct ath11k_base *ab = data;
+	const char *magic = ATH11K_SMBIOS_BDF_EXT_MAGIC;
+	struct ath11k_smbios_bdf *smbios = (struct ath11k_smbios_bdf *)hdr;
+	ssize_t copied;
+	size_t len;
+	int i;
+
+	if (ab->qmi.target.bdf_ext[0] != '\0')
+		return;
+
+	if (hdr->type != ATH11K_SMBIOS_BDF_EXT_TYPE)
+		return;
+
+	if (hdr->length != ATH11K_SMBIOS_BDF_EXT_LENGTH) {
+		ath11k_dbg(ab, ATH11K_DBG_BOOT,
+			   "wrong smbios bdf ext type length (%d).\n",
+			   hdr->length);
+		return;
+	}
+
+	if (!smbios->bdf_enabled) {
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "bdf variant name not found.\n");
+		return;
+	}
+
+	/* Only one string exists (per spec) */
+	if (memcmp(smbios->bdf_ext, magic, strlen(magic)) != 0) {
+		ath11k_dbg(ab, ATH11K_DBG_BOOT,
+			   "bdf variant magic does not match.\n");
+		return;
+	}
+
+	len = min_t(size_t,
+		    strlen(smbios->bdf_ext), sizeof(ab->qmi.target.bdf_ext));
+	for (i = 0; i < len; i++) {
+		if (!isascii(smbios->bdf_ext[i]) || !isprint(smbios->bdf_ext[i])) {
+			ath11k_dbg(ab, ATH11K_DBG_BOOT,
+				   "bdf variant name contains non ascii chars.\n");
+			return;
+		}
+	}
+
+	/* Copy extension name without magic prefix */
+	copied = strscpy(ab->qmi.target.bdf_ext, smbios->bdf_ext + strlen(magic),
+			 sizeof(ab->qmi.target.bdf_ext));
+	if (copied < 0) {
+		ath11k_dbg(ab, ATH11K_DBG_BOOT,
+			   "bdf variant string is longer than the buffer can accommodate\n");
+		return;
+	}
+
+	ath11k_dbg(ab, ATH11K_DBG_BOOT,
+		   "found and validated bdf variant smbios_type 0x%x bdf %s\n",
+		   ATH11K_SMBIOS_BDF_EXT_TYPE, ab->qmi.target.bdf_ext);
+}
+
+int ath11k_core_check_smbios(struct ath11k_base *ab)
+{
+	ab->qmi.target.bdf_ext[0] = '\0';
+	dmi_walk(ath11k_core_check_bdfext, ab);
+
+	if (ab->qmi.target.bdf_ext[0] == '\0')
+		return -ENODATA;
+
+	return 0;
+}
+
 int ath11k_core_check_dt(struct ath11k_base *ab)
 {
 	size_t max_len = sizeof(ab->qmi.target.bdf_ext);
@@ -532,13 +630,13 @@ int ath11k_core_check_dt(struct ath11k_base *ab)
 	return 0;
 }
 
-static int ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
-					 size_t name_len)
+static int __ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
+					   size_t name_len, bool with_variant)
 {
 	/* strlen(',variant=') + strlen(ab->qmi.target.bdf_ext) */
 	char variant[9 + ATH11K_QMI_BDF_EXT_STR_LENGTH] = { 0 };
 
-	if (ab->qmi.target.bdf_ext[0] != '\0')
+	if (with_variant && ab->qmi.target.bdf_ext[0] != '\0')
 		scnprintf(variant, sizeof(variant), ",variant=%s",
 			  ab->qmi.target.bdf_ext);
 
@@ -566,6 +664,18 @@ static int ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot using board name '%s'\n", name);
 
 	return 0;
+}
+
+static int ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
+					 size_t name_len)
+{
+	return __ath11k_core_create_board_name(ab, name, name_len, true);
+}
+
+static int ath11k_core_create_fallback_board_name(struct ath11k_base *ab, char *name,
+						  size_t name_len)
+{
+	return __ath11k_core_create_board_name(ab, name, name_len, false);
 }
 
 const struct firmware *ath11k_core_firmware_request(struct ath11k_base *ab,
@@ -602,7 +712,9 @@ static int ath11k_core_parse_bd_ie_board(struct ath11k_base *ab,
 					 struct ath11k_board_data *bd,
 					 const void *buf, size_t buf_len,
 					 const char *boardname,
-					 int bd_ie_type)
+					 int ie_id,
+					 int name_id,
+					 int data_id)
 {
 	const struct ath11k_fw_ie *hdr;
 	bool name_match_found;
@@ -612,7 +724,7 @@ static int ath11k_core_parse_bd_ie_board(struct ath11k_base *ab,
 
 	name_match_found = false;
 
-	/* go through ATH11K_BD_IE_BOARD_ elements */
+	/* go through ATH11K_BD_IE_BOARD_/ATH11K_BD_IE_REGDB_ elements */
 	while (buf_len > sizeof(struct ath11k_fw_ie)) {
 		hdr = buf;
 		board_ie_id = le32_to_cpu(hdr->id);
@@ -623,48 +735,50 @@ static int ath11k_core_parse_bd_ie_board(struct ath11k_base *ab,
 		buf += sizeof(*hdr);
 
 		if (buf_len < ALIGN(board_ie_len, 4)) {
-			ath11k_err(ab, "invalid ATH11K_BD_IE_BOARD length: %zu < %zu\n",
+			ath11k_err(ab, "invalid %s length: %zu < %zu\n",
+				   ath11k_bd_ie_type_str(ie_id),
 				   buf_len, ALIGN(board_ie_len, 4));
 			ret = -EINVAL;
 			goto out;
 		}
 
-		switch (board_ie_id) {
-		case ATH11K_BD_IE_BOARD_NAME:
+		if (board_ie_id == name_id) {
 			ath11k_dbg_dump(ab, ATH11K_DBG_BOOT, "board name", "",
 					board_ie_data, board_ie_len);
 
 			if (board_ie_len != strlen(boardname))
-				break;
+				goto next;
 
 			ret = memcmp(board_ie_data, boardname, strlen(boardname));
 			if (ret)
-				break;
+				goto next;
 
 			name_match_found = true;
 			ath11k_dbg(ab, ATH11K_DBG_BOOT,
-				   "boot found match for name '%s'",
+				   "boot found match %s for name '%s'",
+				   ath11k_bd_ie_type_str(ie_id),
 				   boardname);
-			break;
-		case ATH11K_BD_IE_BOARD_DATA:
+		} else if (board_ie_id == data_id) {
 			if (!name_match_found)
 				/* no match found */
-				break;
+				goto next;
 
 			ath11k_dbg(ab, ATH11K_DBG_BOOT,
-				   "boot found board data for '%s'", boardname);
+				   "boot found %s for '%s'",
+				   ath11k_bd_ie_type_str(ie_id),
+				   boardname);
 
 			bd->data = board_ie_data;
 			bd->len = board_ie_len;
 
 			ret = 0;
 			goto out;
-		default:
-			ath11k_warn(ab, "unknown ATH11K_BD_IE_BOARD found: %d\n",
+		} else {
+			ath11k_warn(ab, "unknown %s id found: %d\n",
+				    ath11k_bd_ie_type_str(ie_id),
 				    board_ie_id);
-			break;
 		}
-
+next:
 		/* jump over the padding */
 		board_ie_len = ALIGN(board_ie_len, 4);
 
@@ -681,7 +795,10 @@ out:
 
 static int ath11k_core_fetch_board_data_api_n(struct ath11k_base *ab,
 					      struct ath11k_board_data *bd,
-					      const char *boardname)
+					      const char *boardname,
+					      int ie_id_match,
+					      int name_id,
+					      int data_id)
 {
 	size_t len, magic_len;
 	const u8 *data;
@@ -746,22 +863,23 @@ static int ath11k_core_fetch_board_data_api_n(struct ath11k_base *ab,
 			goto err;
 		}
 
-		switch (ie_id) {
-		case ATH11K_BD_IE_BOARD:
+		if (ie_id == ie_id_match) {
 			ret = ath11k_core_parse_bd_ie_board(ab, bd, data,
 							    ie_len,
 							    boardname,
-							    ATH11K_BD_IE_BOARD);
+							    ie_id_match,
+							    name_id,
+							    data_id);
 			if (ret == -ENOENT)
 				/* no match found, continue */
-				break;
+				goto next;
 			else if (ret)
 				/* there was an error, bail out */
 				goto err;
 			/* either found or error, so stop searching */
 			goto out;
 		}
-
+next:
 		/* jump over the padding */
 		ie_len = ALIGN(ie_len, 4);
 
@@ -771,8 +889,9 @@ static int ath11k_core_fetch_board_data_api_n(struct ath11k_base *ab,
 
 out:
 	if (!bd->data || !bd->len) {
-		ath11k_err(ab,
-			   "failed to fetch board data for %s from %s\n",
+		ath11k_dbg(ab, ATH11K_DBG_BOOT,
+			   "failed to fetch %s for %s from %s\n",
+			   ath11k_bd_ie_type_str(ie_id_match),
 			   boardname, filepath);
 		ret = -ENODATA;
 		goto err;
@@ -803,24 +922,52 @@ int ath11k_core_fetch_board_data_api_1(struct ath11k_base *ab,
 #define BOARD_NAME_SIZE 200
 int ath11k_core_fetch_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd)
 {
-	char boardname[BOARD_NAME_SIZE];
+	char boardname[BOARD_NAME_SIZE], fallback_boardname[BOARD_NAME_SIZE];
+	char *filename, filepath[100];
 	int ret;
 
-	ret = ath11k_core_create_board_name(ab, boardname, BOARD_NAME_SIZE);
+	filename = ATH11K_BOARD_API2_FILE;
+
+	ret = ath11k_core_create_board_name(ab, boardname, sizeof(boardname));
 	if (ret) {
 		ath11k_err(ab, "failed to create board name: %d", ret);
 		return ret;
 	}
 
 	ab->bd_api = 2;
-	ret = ath11k_core_fetch_board_data_api_n(ab, bd, boardname);
+	ret = ath11k_core_fetch_board_data_api_n(ab, bd, boardname,
+						 ATH11K_BD_IE_BOARD,
+						 ATH11K_BD_IE_BOARD_NAME,
+						 ATH11K_BD_IE_BOARD_DATA);
+	if (!ret)
+		goto success;
+
+	ret = ath11k_core_create_fallback_board_name(ab, fallback_boardname,
+						     sizeof(fallback_boardname));
+	if (ret) {
+		ath11k_err(ab, "failed to create fallback board name: %d", ret);
+		return ret;
+	}
+
+	ret = ath11k_core_fetch_board_data_api_n(ab, bd, fallback_boardname,
+						 ATH11K_BD_IE_BOARD,
+						 ATH11K_BD_IE_BOARD_NAME,
+						 ATH11K_BD_IE_BOARD_DATA);
 	if (!ret)
 		goto success;
 
 	ab->bd_api = 1;
 	ret = ath11k_core_fetch_board_data_api_1(ab, bd, ATH11K_DEFAULT_BOARD_FILE);
 	if (ret) {
-		ath11k_err(ab, "failed to fetch board-2.bin or board.bin from %s\n",
+		ath11k_core_create_firmware_path(ab, filename,
+						 filepath, sizeof(filepath));
+		ath11k_err(ab, "failed to fetch board data for %s from %s\n",
+			   boardname, filepath);
+		if (memcmp(boardname, fallback_boardname, strlen(boardname)))
+			ath11k_err(ab, "failed to fetch board data for %s from %s\n",
+				   fallback_boardname, filepath);
+
+		ath11k_err(ab, "failed to fetch board.bin from %s\n",
 			   ab->hw_params.fw.dir);
 		return ret;
 	}
@@ -832,12 +979,31 @@ success:
 
 int ath11k_core_fetch_regdb(struct ath11k_base *ab, struct ath11k_board_data *bd)
 {
+	char boardname[BOARD_NAME_SIZE];
 	int ret;
+
+	ret = ath11k_core_create_board_name(ab, boardname, BOARD_NAME_SIZE);
+	if (ret) {
+		ath11k_dbg(ab, ATH11K_DBG_BOOT,
+			   "failed to create board name for regdb: %d", ret);
+		goto exit;
+	}
+
+	ret = ath11k_core_fetch_board_data_api_n(ab, bd, boardname,
+						 ATH11K_BD_IE_REGDB,
+						 ATH11K_BD_IE_REGDB_NAME,
+						 ATH11K_BD_IE_REGDB_DATA);
+	if (!ret)
+		goto exit;
 
 	ret = ath11k_core_fetch_board_data_api_1(ab, bd, ATH11K_REGDB_FILE_NAME);
 	if (ret)
 		ath11k_dbg(ab, ATH11K_DBG_BOOT, "failed to fetch %s from %s\n",
 			   ATH11K_REGDB_FILE_NAME, ab->hw_params.fw.dir);
+
+exit:
+	if (!ret)
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "fetched regdb\n");
 
 	return ret;
 }
@@ -1261,6 +1427,7 @@ static void ath11k_update_11d(struct work_struct *work)
 		pdev = &ab->pdevs[i];
 		ar = pdev->ar;
 
+		memcpy(&ar->alpha2, &set_current_param.alpha2, 2);
 		ret = ath11k_wmi_send_set_current_country_cmd(ar, &set_current_param);
 		if (ret)
 			ath11k_warn(ar->ab,
@@ -1269,12 +1436,11 @@ static void ath11k_update_11d(struct work_struct *work)
 	}
 }
 
-static void ath11k_core_restart(struct work_struct *work)
+static void ath11k_core_pre_reconfigure_recovery(struct ath11k_base *ab)
 {
-	struct ath11k_base *ab = container_of(work, struct ath11k_base, restart_work);
 	struct ath11k *ar;
 	struct ath11k_pdev *pdev;
-	int i, ret = 0;
+	int i;
 
 	spin_lock_bh(&ab->base_lock);
 	ab->stats.fw_crash_counter++;
@@ -1288,6 +1454,7 @@ static void ath11k_core_restart(struct work_struct *work)
 
 		ieee80211_stop_queues(ar->hw);
 		ath11k_mac_drain_tx(ar);
+		complete(&ar->completed_11d_scan);
 		complete(&ar->scan.started);
 		complete(&ar->scan.completed);
 		complete(&ar->peer_assoc_done);
@@ -1307,12 +1474,13 @@ static void ath11k_core_restart(struct work_struct *work)
 
 	wake_up(&ab->wmi_ab.tx_credits_wq);
 	wake_up(&ab->peer_mapping_wq);
+}
 
-	ret = ath11k_core_reconfigure_on_crash(ab);
-	if (ret) {
-		ath11k_err(ab, "failed to reconfigure driver on crash recovery\n");
-		return;
-	}
+static void ath11k_core_post_reconfigure_recovery(struct ath11k_base *ab)
+{
+	struct ath11k *ar;
+	struct ath11k_pdev *pdev;
+	int i;
 
 	for (i = 0; i < ab->num_radios; i++) {
 		pdev = &ab->pdevs[i];
@@ -1346,6 +1514,98 @@ static void ath11k_core_restart(struct work_struct *work)
 		mutex_unlock(&ar->conf_mutex);
 	}
 	complete(&ab->driver_recovery);
+}
+
+static void ath11k_core_restart(struct work_struct *work)
+{
+	struct ath11k_base *ab = container_of(work, struct ath11k_base, restart_work);
+	int ret;
+
+	if (!ab->is_reset)
+		ath11k_core_pre_reconfigure_recovery(ab);
+
+	ret = ath11k_core_reconfigure_on_crash(ab);
+	if (ret) {
+		ath11k_err(ab, "failed to reconfigure driver on crash recovery\n");
+		return;
+	}
+
+	if (ab->is_reset)
+		complete_all(&ab->reconfigure_complete);
+
+	if (!ab->is_reset)
+		ath11k_core_post_reconfigure_recovery(ab);
+}
+
+static void ath11k_core_reset(struct work_struct *work)
+{
+	struct ath11k_base *ab = container_of(work, struct ath11k_base, reset_work);
+	int reset_count, fail_cont_count;
+	long time_left;
+
+	if (!(test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))) {
+		ath11k_warn(ab, "ignore reset dev flags 0x%lx\n", ab->dev_flags);
+		return;
+	}
+
+	/* Sometimes the recovery will fail and then the next all recovery fail,
+	 * this is to avoid infinite recovery since it can not recovery success.
+	 */
+	fail_cont_count = atomic_read(&ab->fail_cont_count);
+
+	if (fail_cont_count >= ATH11K_RESET_MAX_FAIL_COUNT_FINAL)
+		return;
+
+	if (fail_cont_count >= ATH11K_RESET_MAX_FAIL_COUNT_FIRST &&
+	    time_before(jiffies, ab->reset_fail_timeout))
+		return;
+
+	reset_count = atomic_inc_return(&ab->reset_count);
+
+	if (reset_count > 1) {
+		/* Sometimes it happened another reset worker before the previous one
+		 * completed, then the second reset worker will destroy the previous one,
+		 * thus below is to avoid that.
+		 */
+		ath11k_warn(ab, "already reseting count %d\n", reset_count);
+
+		reinit_completion(&ab->reset_complete);
+		time_left = wait_for_completion_timeout(&ab->reset_complete,
+							ATH11K_RESET_TIMEOUT_HZ);
+
+		if (time_left) {
+			ath11k_dbg(ab, ATH11K_DBG_BOOT, "to skip reset\n");
+			atomic_dec(&ab->reset_count);
+			return;
+		}
+
+		ab->reset_fail_timeout = jiffies + ATH11K_RESET_FAIL_TIMEOUT_HZ;
+		/* Record the continuous recovery fail count when recovery failed*/
+		atomic_inc(&ab->fail_cont_count);
+	}
+
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "reset starting\n");
+
+	ab->is_reset = true;
+	atomic_set(&ab->recovery_count, 0);
+	reinit_completion(&ab->recovery_start);
+	atomic_set(&ab->recovery_start_count, 0);
+
+	ath11k_core_pre_reconfigure_recovery(ab);
+
+	reinit_completion(&ab->reconfigure_complete);
+	ath11k_core_post_reconfigure_recovery(ab);
+
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "waiting recovery start...\n");
+
+	time_left = wait_for_completion_timeout(&ab->recovery_start,
+						ATH11K_RECOVER_START_TIMEOUT_HZ);
+
+	ath11k_hif_power_down(ab);
+	ath11k_qmi_free_resource(ab);
+	ath11k_hif_power_up(ab);
+
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "reset started\n");
 }
 
 static int ath11k_init_hw_params(struct ath11k_base *ab)
@@ -1417,6 +1677,7 @@ EXPORT_SYMBOL(ath11k_core_deinit);
 
 void ath11k_core_free(struct ath11k_base *ab)
 {
+	destroy_workqueue(ab->workqueue_aux);
 	destroy_workqueue(ab->workqueue);
 
 	kfree(ab);
@@ -1439,9 +1700,17 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
 	if (!ab->workqueue)
 		goto err_sc_free;
 
+	ab->workqueue_aux = create_singlethread_workqueue("ath11k_aux_wq");
+	if (!ab->workqueue_aux)
+		goto err_free_wq;
+
 	mutex_init(&ab->core_lock);
+	mutex_init(&ab->tbl_mtx_lock);
 	spin_lock_init(&ab->base_lock);
 	mutex_init(&ab->vdev_id_11d_lock);
+	init_completion(&ab->reset_complete);
+	init_completion(&ab->reconfigure_complete);
+	init_completion(&ab->recovery_start);
 
 	INIT_LIST_HEAD(&ab->peers);
 	init_waitqueue_head(&ab->peer_mapping_wq);
@@ -1450,6 +1719,7 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
 	INIT_WORK(&ab->restart_work, ath11k_core_restart);
 	INIT_WORK(&ab->update_11d_work, ath11k_update_11d);
 	INIT_WORK(&ab->rfkill_work, ath11k_rfkill_work);
+	INIT_WORK(&ab->reset_work, ath11k_core_reset);
 	timer_setup(&ab->rx_replenish_retry, ath11k_ce_rx_replenish_retry, 0);
 	init_completion(&ab->htc_suspend);
 	init_completion(&ab->wow.wakeup_completed);
@@ -1460,6 +1730,8 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
 
 	return ab;
 
+err_free_wq:
+	destroy_workqueue(ab->workqueue);
 err_sc_free:
 	kfree(ab);
 	return NULL;

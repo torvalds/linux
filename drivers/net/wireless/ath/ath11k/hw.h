@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_HW_H
@@ -189,11 +190,11 @@ struct ath11k_hw_params {
 	const struct ath11k_hw_hal_params *hal_params;
 	bool supports_dynamic_smps_6ghz;
 	bool alloc_cacheable_memory;
-	bool wakeup_mhi;
 	bool supports_rssi_stats;
 	bool fw_wmi_diag_event;
 	bool current_cc_support;
 	bool dbr_debug_support;
+	bool global_reset;
 };
 
 struct ath11k_hw_ops {
@@ -290,10 +291,16 @@ enum ath11k_bd_ie_board_type {
 	ATH11K_BD_IE_BOARD_DATA = 1,
 };
 
+enum ath11k_bd_ie_regdb_type {
+	ATH11K_BD_IE_REGDB_NAME = 0,
+	ATH11K_BD_IE_REGDB_DATA = 1,
+};
+
 enum ath11k_bd_ie_type {
 	/* contains sub IEs of enum ath11k_bd_ie_board_type */
 	ATH11K_BD_IE_BOARD = 0,
-	ATH11K_BD_IE_BOARD_EXT = 1,
+	/* contains sub IEs of enum ath11k_bd_ie_regdb_type */
+	ATH11K_BD_IE_REGDB = 1,
 };
 
 struct ath11k_hw_regs {
@@ -360,5 +367,17 @@ extern const struct ath11k_hw_regs ipq8074_regs;
 extern const struct ath11k_hw_regs qca6390_regs;
 extern const struct ath11k_hw_regs qcn9074_regs;
 extern const struct ath11k_hw_regs wcn6855_regs;
+
+static inline const char *ath11k_bd_ie_type_str(enum ath11k_bd_ie_type type)
+{
+	switch (type) {
+	case ATH11K_BD_IE_BOARD:
+		return "board data";
+	case ATH11K_BD_IE_REGDB:
+		return "regdb data";
+	}
+
+	return "unknown";
+}
 
 #endif

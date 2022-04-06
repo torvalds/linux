@@ -2627,6 +2627,62 @@ out:
 	return ret;
 }
 
+int wcn36xx_smd_get_stats(struct wcn36xx *wcn, u8 sta_index, u32 stats_mask,
+			  struct station_info *sinfo)
+{
+	struct wcn36xx_hal_stats_req_msg msg_body;
+	struct wcn36xx_hal_stats_rsp_msg *rsp;
+	void *rsp_body;
+	int ret;
+
+	if (stats_mask & ~HAL_GLOBAL_CLASS_A_STATS_INFO) {
+		wcn36xx_err("stats_mask 0x%x contains unimplemented types\n",
+			    stats_mask);
+		return -EINVAL;
+	}
+
+	mutex_lock(&wcn->hal_mutex);
+	INIT_HAL_MSG(msg_body, WCN36XX_HAL_GET_STATS_REQ);
+
+	msg_body.sta_id = sta_index;
+	msg_body.stats_mask = stats_mask;
+
+	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
+
+	ret = wcn36xx_smd_send_and_wait(wcn, msg_body.header.len);
+	if (ret) {
+		wcn36xx_err("sending hal_get_stats failed\n");
+		goto out;
+	}
+
+	ret = wcn36xx_smd_rsp_status_check(wcn->hal_buf, wcn->hal_rsp_len);
+	if (ret) {
+		wcn36xx_err("hal_get_stats response failed err=%d\n", ret);
+		goto out;
+	}
+
+	rsp = (struct wcn36xx_hal_stats_rsp_msg *)wcn->hal_buf;
+	rsp_body = (wcn->hal_buf + sizeof(struct wcn36xx_hal_stats_rsp_msg));
+
+	if (rsp->stats_mask != stats_mask) {
+		wcn36xx_err("stats_mask 0x%x differs from requested 0x%x\n",
+			    rsp->stats_mask, stats_mask);
+		goto out;
+	}
+
+	if (rsp->stats_mask & HAL_GLOBAL_CLASS_A_STATS_INFO) {
+		struct ani_global_class_a_stats_info *stats_info = rsp_body;
+
+		wcn36xx_process_tx_rate(stats_info, &sinfo->txrate);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
+		rsp_body += sizeof(struct ani_global_class_a_stats_info);
+	}
+out:
+	mutex_unlock(&wcn->hal_mutex);
+
+	return ret;
+}
+
 static int wcn36xx_smd_trigger_ba_rsp(void *buf, int len, struct add_ba_info *ba_info)
 {
 	struct wcn36xx_hal_trigger_ba_rsp_candidate *candidate;
@@ -3316,6 +3372,7 @@ int wcn36xx_smd_rsp_process(struct rpmsg_device *rpdev,
 	case WCN36XX_HAL_ADD_BA_SESSION_RSP:
 	case WCN36XX_HAL_ADD_BA_RSP:
 	case WCN36XX_HAL_DEL_BA_RSP:
+	case WCN36XX_HAL_GET_STATS_RSP:
 	case WCN36XX_HAL_TRIGGER_BA_RSP:
 	case WCN36XX_HAL_UPDATE_CFG_RSP:
 	case WCN36XX_HAL_JOIN_RSP:
