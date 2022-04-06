@@ -175,7 +175,7 @@ static noinline int do_fw_call_hvc(u64 arg0, u64 arg1, u64 arg2,
 	return zynqmp_pm_ret_code((enum pm_ret_status)res.a0);
 }
 
-static int do_feature_check_call(const u32 api_id, u32 *ret_payload)
+static int __do_feature_check_call(const u32 api_id, u32 *ret_payload)
 {
 	int ret;
 	u64 smc_arg[2];
@@ -192,21 +192,11 @@ static int do_feature_check_call(const u32 api_id, u32 *ret_payload)
 	return ret;
 }
 
-/**
- * zynqmp_pm_feature() - Check whether given feature is supported or not and
- *			 store supported IOCTL/QUERY ID mask
- * @api_id:		API ID to check
- *
- * Return: Returns status, either success or error+reason
- */
-int zynqmp_pm_feature(const u32 api_id)
+static int do_feature_check_call(const u32 api_id)
 {
 	int ret;
 	u32 ret_payload[PAYLOAD_ARG_CNT];
 	struct pm_api_feature_data *feature_data;
-
-	if (!feature_check_enabled)
-		return 0;
 
 	/* Check for existing entry in hash table for given api */
 	hash_for_each_possible(pm_api_features_map, feature_data, hentry,
@@ -221,7 +211,7 @@ int zynqmp_pm_feature(const u32 api_id)
 		return -ENOMEM;
 
 	feature_data->pm_api_id = api_id;
-	ret = do_feature_check_call(api_id, ret_payload);
+	ret = __do_feature_check_call(api_id, ret_payload);
 
 	feature_data->feature_status = ret;
 	hash_add(pm_api_features_map, &feature_data->hentry, api_id);
@@ -236,6 +226,25 @@ int zynqmp_pm_feature(const u32 api_id)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(zynqmp_pm_feature);
+
+/**
+ * zynqmp_pm_feature() - Check whether given feature is supported or not and
+ *			 store supported IOCTL/QUERY ID mask
+ * @api_id:		API ID to check
+ *
+ * Return: Returns status, either success or error+reason
+ */
+int zynqmp_pm_feature(const u32 api_id)
+{
+	int ret;
+
+	if (!feature_check_enabled)
+		return 0;
+
+	ret = do_feature_check_call(api_id);
+
+	return ret;
+}
 
 /**
  * zynqmp_pm_is_function_supported() - Check whether given IOCTL/QUERY function
@@ -255,7 +264,7 @@ int zynqmp_pm_is_function_supported(const u32 api_id, const u32 id)
 		return -EINVAL;
 
 	/* Check feature check API version */
-	ret = zynqmp_pm_feature(PM_FEATURE_CHECK);
+	ret = do_feature_check_call(PM_FEATURE_CHECK);
 	if (ret < 0)
 		return ret;
 
@@ -265,7 +274,7 @@ int zynqmp_pm_is_function_supported(const u32 api_id, const u32 id)
 		 * Call feature check for IOCTL/QUERY API to get IOCTL ID or
 		 * QUERY ID feature status.
 		 */
-		ret = zynqmp_pm_feature(api_id);
+		ret = do_feature_check_call(api_id);
 		if (ret < 0)
 			return ret;
 
