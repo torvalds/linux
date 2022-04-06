@@ -347,8 +347,6 @@ void mlx5e_ipsec_offload_handle_rx_skb(struct net_device *netdev,
 	switch (MLX5_IPSEC_METADATA_SYNDROM(ipsec_meta_data)) {
 	case MLX5E_IPSEC_OFFLOAD_RX_SYNDROME_DECRYPTED:
 		xo->status = CRYPTO_SUCCESS;
-		if (WARN_ON_ONCE(priv->ipsec->no_trailer))
-			xo->flags |= XFRM_ESP_NO_TRAILER;
 		break;
 	case MLX5E_IPSEC_OFFLOAD_RX_SYNDROME_AUTH_FAILED:
 		xo->status = CRYPTO_TUNNEL_ESP_AUTH_FAILED;
