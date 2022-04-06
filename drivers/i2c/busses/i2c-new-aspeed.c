@@ -1407,7 +1407,6 @@ static void aspeed_new_i2c_init(struct aspeed_new_i2c_bus *i2c_bus)
 {
 	struct platform_device *pdev = to_platform_device(i2c_bus->dev);
 	u32 fun_ctrl = AST_I2CC_BUS_AUTO_RELEASE | AST_I2CC_MASTER_EN;
-	u8 i2c_count = (((u32)(i2c_bus->reg_base) & 0xFFF)/0x80);
 
 	/* I2C Reset */
 	writel(0, i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
@@ -1416,10 +1415,6 @@ static void aspeed_new_i2c_init(struct aspeed_new_i2c_bus *i2c_bus)
 		i2c_bus->multi_master = true;
 	else
 		fun_ctrl |= AST_I2CC_MULTI_MASTER_DIS;
-
-	/* AST2600 i2c10 need to overcome sda glich with is flag. */
-	if (i2c_count == 0xA)
-		fun_ctrl |= AST_I2CC_SDA_DRIVE_1T_EN;
 
 	/* Enable Master Mode */
 	writel(fun_ctrl, i2c_bus->reg_base + AST_I2CC_FUN_CTRL);
