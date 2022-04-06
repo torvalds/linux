@@ -450,22 +450,18 @@ quiet_cmd_ar_lib = AR      $@
 $(obj)/lib.a: $(lib-y) FORCE
 	$(call if_changed,ar_lib)
 
-# NOTE:
-# Do not replace $(filter %.o,^) with $(real-prereqs). When a single object
-# module is turned into a multi object module, $^ will contain header file
-# dependencies recorded in the .*.cmd file.
 ifneq ($(CONFIG_LTO_CLANG)$(CONFIG_X86_KERNEL_IBT),)
 quiet_cmd_link_multi-m = AR [M]  $@
 cmd_link_multi-m =						\
 	$(cmd_update_lto_symversions);				\
 	rm -f $@; 						\
-	$(AR) cDPrsT $@ $(filter %.o,$^)
+	$(AR) cDPrsT $@ @$(patsubst %.o,%.mod,$@)
 else
 quiet_cmd_link_multi-m = LD [M]  $@
-      cmd_link_multi-m = $(LD) $(ld_flags) -r -o $@ $(filter %.o,$^)
+      cmd_link_multi-m = $(LD) $(ld_flags) -r -o $@ @$(patsubst %.o,%.mod,$@)
 endif
 
-$(multi-obj-m): FORCE
+$(multi-obj-m): %.o: %.mod FORCE
 	$(call if_changed,link_multi-m)
 $(call multi_depend, $(multi-obj-m), .o, -objs -y -m)
 
