@@ -27,7 +27,10 @@ static struct class *hl_class;
 static DEFINE_IDR(hl_devs_idr);
 static DEFINE_MUTEX(hl_devs_idr_lock);
 
-static int timeout_locked = 30;
+#define HL_DEFAULT_TIMEOUT_LOCKED	30	/* 30 seconds */
+#define GAUDI_DEFAULT_TIMEOUT_LOCKED	600	/* 10 minutes */
+
+static int timeout_locked = HL_DEFAULT_TIMEOUT_LOCKED;
 static int reset_on_lockup = 1;
 static int memory_scrub;
 static ulong boot_error_status_mask = ULONG_MAX;
@@ -314,12 +317,22 @@ static void copy_kernel_module_params_to_device(struct hl_device *hdev)
 	hdev->boot_error_status_mask = boot_error_status_mask;
 }
 
-static void fixup_device_params_per_asic(struct hl_device *hdev)
+static void fixup_device_params_per_asic(struct hl_device *hdev, int timeout)
 {
 	switch (hdev->asic_type) {
-	case ASIC_GOYA:
 	case ASIC_GAUDI:
 	case ASIC_GAUDI_SEC:
+		/* If user didn't request a different timeout than the default one, we have
+		 * a different default timeout for Gaudi
+		 */
+		if (timeout == HL_DEFAULT_TIMEOUT_LOCKED)
+			hdev->timeout_jiffies = msecs_to_jiffies(GAUDI_DEFAULT_TIMEOUT_LOCKED *
+										MSEC_PER_SEC);
+
+		hdev->reset_upon_device_release = 0;
+		break;
+
+	case ASIC_GOYA:
 		hdev->reset_upon_device_release = 0;
 		break;
 
@@ -339,7 +352,7 @@ static int fixup_device_params(struct hl_device *hdev)
 	hdev->fw_comms_poll_interval_usec = HL_FW_STATUS_POLL_INTERVAL_USEC;
 
 	if (tmp_timeout)
-		hdev->timeout_jiffies = msecs_to_jiffies(tmp_timeout * 1000);
+		hdev->timeout_jiffies = msecs_to_jiffies(tmp_timeout * MSEC_PER_SEC);
 	else
 		hdev->timeout_jiffies = MAX_SCHEDULE_TIMEOUT;
 
@@ -360,7 +373,7 @@ static int fixup_device_params(struct hl_device *hdev)
 	if (!hdev->cpu_queues_enable)
 		hdev->heartbeat = 0;
 
-	fixup_device_params_per_asic(hdev);
+	fixup_device_params_per_asic(hdev, tmp_timeout);
 
 	return 0;
 }
