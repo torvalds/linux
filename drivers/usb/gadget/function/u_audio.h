@@ -62,6 +62,11 @@ enum usb_state_index {
 	SET_INTERFACE_IN,
 	SET_SAMPLE_RATE_OUT,
 	SET_SAMPLE_RATE_IN,
+	SET_VOLUME_OUT,
+	SET_VOLUME_IN,
+	SET_MUTE_OUT,
+	SET_MUTE_IN,
+	SET_USB_STATE_MAX,
 };
 
 enum stream_state_index {
@@ -71,7 +76,7 @@ enum stream_state_index {
 
 struct g_audio {
 	struct device *device;
-	bool usb_state[4];
+	bool usb_state[SET_USB_STATE_MAX];
 	bool stream_state[2];
 	struct work_struct work;
 

@@ -845,9 +845,16 @@ int u_audio_set_volume(struct g_audio *audio_dev, int playback, s16 val)
 	}
 	spin_unlock_irqrestore(&prm->lock, flags);
 
-	if (change)
+	if (change) {
+		if (playback)
+			audio_dev->usb_state[SET_VOLUME_IN] = true;
+		else
+			audio_dev->usb_state[SET_VOLUME_OUT] = true;
+		schedule_work(&audio_dev->work);
+
 		snd_ctl_notify(uac->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&prm->snd_kctl_volume->id);
+	}
 
 	return 0;
 }
@@ -894,9 +901,16 @@ int u_audio_set_mute(struct g_audio *audio_dev, int playback, int val)
 	}
 	spin_unlock_irqrestore(&prm->lock, flags);
 
-	if (change)
+	if (change) {
+		if (playback)
+			audio_dev->usb_state[SET_MUTE_IN] = true;
+		else
+			audio_dev->usb_state[SET_MUTE_OUT] = true;
+		schedule_work(&audio_dev->work);
+
 		snd_ctl_notify(uac->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &prm->snd_kctl_mute->id);
+	}
 
 	return 0;
 }
@@ -1200,10 +1214,10 @@ static void g_audio_work(struct work_struct *data)
 	struct uac_rtd_params *prm;
 	struct device *dev = &gadget->dev;
 	char *uac_event[4]  = { NULL, NULL, NULL, NULL };
-	char srate_str[19];
+	char str[19];
 	int i;
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < SET_USB_STATE_MAX; i++) {
 		if (!audio->usb_state[i])
 			continue;
 
@@ -1224,17 +1238,45 @@ static void g_audio_work(struct work_struct *data)
 			uac_event[0] = "USB_STATE=SET_SAMPLE_RATE";
 			uac_event[1] = "STREAM_DIRECTION=OUT";
 			prm = &uac->c_prm;
-			snprintf(srate_str, sizeof(srate_str), "SAMPLE_RATE=%d",
+			snprintf(str, sizeof(str), "SAMPLE_RATE=%d",
 				 prm->srate);
-			uac_event[2] = srate_str;
+			uac_event[2] = str;
 			break;
 		case SET_SAMPLE_RATE_IN:
 			uac_event[0] = "USB_STATE=SET_SAMPLE_RATE";
 			uac_event[1] = "STREAM_DIRECTION=IN";
 			prm = &uac->p_prm;
-			snprintf(srate_str, sizeof(srate_str), "SAMPLE_RATE=%d",
+			snprintf(str, sizeof(str), "SAMPLE_RATE=%d",
 				 prm->srate);
-			uac_event[2] = srate_str;
+			uac_event[2] = str;
+			break;
+		case SET_MUTE_OUT:
+			uac_event[0] = "USB_STATE=SET_MUTE";
+			uac_event[1] = "STREAM_DIRECTION=OUT";
+			prm = &uac->c_prm;
+			snprintf(str, sizeof(str), "MUTE=%d", prm->mute);
+			uac_event[2] = str;
+			break;
+		case SET_MUTE_IN:
+			uac_event[0] = "USB_STATE=SET_MUTE";
+			uac_event[1] = "STREAM_DIRECTION=IN";
+			prm = &uac->p_prm;
+			snprintf(str, sizeof(str), "MUTE=%d", prm->mute);
+			uac_event[2] = str;
+			break;
+		case SET_VOLUME_OUT:
+			uac_event[0] = "USB_STATE=SET_VOLUME";
+			uac_event[1] = "STREAM_DIRECTION=OUT";
+			prm = &uac->c_prm;
+			snprintf(str, sizeof(str), "VOLUME=0x%hx", prm->volume);
+			uac_event[2] = str;
+			break;
+		case SET_VOLUME_IN:
+			uac_event[0] = "USB_STATE=SET_VOLUME";
+			uac_event[1] = "STREAM_DIRECTION=IN";
+			prm = &uac->p_prm;
+			snprintf(str, sizeof(str), "VOLUME=0x%hx", prm->volume);
+			uac_event[2] = str;
 			break;
 		default:
 			break;
