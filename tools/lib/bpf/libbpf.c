@@ -10766,7 +10766,7 @@ static int resolve_full_path(const char *file, char *result, size_t result_sz)
 	const char *search_paths[3] = {};
 	int i;
 
-	if (strstr(file, ".so")) {
+	if (str_has_sfx(file, ".so") || strstr(file, ".so.")) {
 		search_paths[0] = getenv("LD_LIBRARY_PATH");
 		search_paths[1] = "/usr/lib64:/usr/lib";
 		search_paths[2] = arch_specific_lib_paths();

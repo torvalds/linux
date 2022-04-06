@@ -103,6 +103,17 @@
 #define str_has_pfx(str, pfx) \
 	(strncmp(str, pfx, __builtin_constant_p(pfx) ? sizeof(pfx) - 1 : strlen(pfx)) == 0)
 
+/* suffix check */
+static inline bool str_has_sfx(const char *str, const char *sfx)
+{
+	size_t str_len = strlen(str);
+	size_t sfx_len = strlen(sfx);
+
+	if (sfx_len <= str_len)
+		return strcmp(str + str_len - sfx_len, sfx);
+	return false;
+}
+
 /* Symbol versioning is different between static and shared library.
  * Properly versioned symbols are needed for shared library, but
  * only the symbol of the new version is needed for static library.
