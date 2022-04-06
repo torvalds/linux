@@ -16,9 +16,6 @@ config MLX5_CORE
 	  Core driver for low level functionality of the ConnectX-4 and
 	  Connect-IB cards by Mellanox Technologies.
 
-config MLX5_ACCEL
-	bool
-
 config MLX5_FPGA
 	bool "Mellanox Technologies Innova support"
 	depends on MLX5_CORE
@@ -147,7 +144,6 @@ config MLX5_EN_IPSEC
 	depends on MLX5_CORE_EN
 	depends on XFRM_OFFLOAD
 	depends on INET_ESP_OFFLOAD || INET6_ESP_OFFLOAD
-	select MLX5_ACCEL
 	help
 	  Build support for IPsec cryptography-offload acceleration in the NIC.
 
@@ -156,7 +152,6 @@ config MLX5_EN_TLS
 	depends on TLS_DEVICE
 	depends on TLS=y || MLX5_CORE=m
 	depends on MLX5_CORE_EN
-	select MLX5_ACCEL
 	help
 	Build support for TLS cryptography-offload acceleration in the NIC.
 
