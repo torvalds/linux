@@ -53,6 +53,13 @@ static void ssd130x_i2c_shutdown(struct i2c_client *client)
 	ssd130x_shutdown(ssd130x);
 }
 
+static struct ssd130x_deviceinfo ssd130x_sh1106_deviceinfo = {
+	.default_vcomh = 0x40,
+	.default_dclk_div = 1,
+	.default_dclk_frq = 5,
+	.page_mode_only = 1,
+};
+
 static struct ssd130x_deviceinfo ssd130x_ssd1305_deviceinfo = {
 	.default_vcomh = 0x34,
 	.default_dclk_div = 1,
@@ -80,6 +87,10 @@ static struct ssd130x_deviceinfo ssd130x_ssd1309_deviceinfo = {
 };
 
 static const struct of_device_id ssd130x_of_match[] = {
+	{
+		.compatible = "sinowealth,sh1106-i2c",
+		.data = &ssd130x_sh1106_deviceinfo,
+	},
 	{
 		.compatible = "solomon,ssd1305fb-i2c",
 		.data = &ssd130x_ssd1305_deviceinfo,
