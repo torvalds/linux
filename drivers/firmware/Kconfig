@@ -217,6 +217,17 @@ config QCOM_SCM_DOWNLOAD_MODE_DEFAULT
 
 	  Say Y here to enable "download mode" by default.
 
+config QTEE_SHM_BRIDGE
+	bool "QTI TEE shared memory bridge"
+	depends on QCOM_SCM
+	default y if QCOM_SCM
+	help
+	  QTEE shared memory bridge driver provides kernel APIs to share
+	  memory between trustzone & other VMs through shared memory bridge.
+	  It allows kernel clients to create bridge, delete bridge, and do
+	  memory sub-allocation and free from the default kernel bridge
+	  created by bridge driver.
+
 config SYSFB
 	bool
 	default y
