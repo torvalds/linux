@@ -145,15 +145,17 @@ static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
 	 * Allocate bios.
 	 */
 	for (j = nalloc ; j-- ; ) {
-		bio = bio_kmalloc(gfp_flags, RESYNC_PAGES);
+		bio = bio_kmalloc(RESYNC_PAGES, gfp_flags);
 		if (!bio)
 			goto out_free_bio;
+		bio_init(bio, NULL, bio->bi_inline_vecs, RESYNC_PAGES, 0);
 		r10_bio->devs[j].bio = bio;
 		if (!conf->have_replacement)
 			continue;
-		bio = bio_kmalloc(gfp_flags, RESYNC_PAGES);
+		bio = bio_kmalloc(RESYNC_PAGES, gfp_flags);
 		if (!bio)
 			goto out_free_bio;
+		bio_init(bio, NULL, bio->bi_inline_vecs, RESYNC_PAGES, 0);
 		r10_bio->devs[j].repl_bio = bio;
 	}
 	/*
@@ -197,9 +199,11 @@ out_free_pages:
 out_free_bio:
 	for ( ; j < nalloc; j++) {
 		if (r10_bio->devs[j].bio)
-			bio_put(r10_bio->devs[j].bio);
+			bio_uninit(r10_bio->devs[j].bio);
+		kfree(r10_bio->devs[j].bio);
 		if (r10_bio->devs[j].repl_bio)
-			bio_put(r10_bio->devs[j].repl_bio);
+			bio_uninit(r10_bio->devs[j].repl_bio);
+		kfree(r10_bio->devs[j].repl_bio);
 	}
 	kfree(rps);
 out_free_r10bio:
@@ -220,12 +224,15 @@ static void r10buf_pool_free(void *__r10_bio, void *data)
 		if (bio) {
 			rp = get_resync_pages(bio);
 			resync_free_pages(rp);
-			bio_put(bio);
+			bio_uninit(bio);
+			kfree(bio);
 		}
 
 		bio = r10bio->devs[j].repl_bio;
-		if (bio)
-			bio_put(bio);
+		if (bio) {
+			bio_uninit(bio);
+			kfree(bio);
+		}
 	}
 
 	/* resync pages array stored in the 1st bio's .bi_private */

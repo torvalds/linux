@@ -522,9 +522,10 @@ static struct packet_data *pkt_alloc_packet_data(int frames)
 		goto no_pkt;
 
 	pkt->frames = frames;
-	pkt->w_bio = bio_kmalloc(GFP_KERNEL, frames);
+	pkt->w_bio = bio_kmalloc(frames, GFP_KERNEL);
 	if (!pkt->w_bio)
 		goto no_bio;
+	bio_init(pkt->w_bio, NULL, pkt->w_bio->bi_inline_vecs, frames, 0);
 
 	for (i = 0; i < frames / FRAMES_PER_PAGE; i++) {
 		pkt->pages[i] = alloc_page(GFP_KERNEL|__GFP_ZERO);
@@ -536,10 +537,10 @@ static struct packet_data *pkt_alloc_packet_data(int frames)
 	bio_list_init(&pkt->orig_bios);
 
 	for (i = 0; i < frames; i++) {
-		struct bio *bio = bio_kmalloc(GFP_KERNEL, 1);
+		struct bio *bio = bio_kmalloc(1, GFP_KERNEL);
 		if (!bio)
 			goto no_rd_bio;
-
+		bio_init(bio, NULL, bio->bi_inline_vecs, 1, 0);
 		pkt->r_bios[i] = bio;
 	}
 
@@ -547,16 +548,16 @@ static struct packet_data *pkt_alloc_packet_data(int frames)
 
 no_rd_bio:
 	for (i = 0; i < frames; i++) {
-		struct bio *bio = pkt->r_bios[i];
-		if (bio)
-			bio_put(bio);
+		if (pkt->r_bios[i])
+			bio_uninit(pkt->r_bios[i]);
+		kfree(pkt->r_bios[i]);
 	}
-
 no_page:
 	for (i = 0; i < frames / FRAMES_PER_PAGE; i++)
 		if (pkt->pages[i])
 			__free_page(pkt->pages[i]);
-	bio_put(pkt->w_bio);
+	bio_uninit(pkt->w_bio);
+	kfree(pkt->w_bio);
 no_bio:
 	kfree(pkt);
 no_pkt:
@@ -571,13 +572,13 @@ static void pkt_free_packet_data(struct packet_data *pkt)
 	int i;
 
 	for (i = 0; i < pkt->frames; i++) {
-		struct bio *bio = pkt->r_bios[i];
-		if (bio)
-			bio_put(bio);
+		bio_uninit(pkt->r_bios[i]);
+		kfree(pkt->r_bios[i]);
 	}
 	for (i = 0; i < pkt->frames / FRAMES_PER_PAGE; i++)
 		__free_page(pkt->pages[i]);
-	bio_put(pkt->w_bio);
+	bio_uninit(pkt->w_bio);
+	kfree(pkt->w_bio);
 	kfree(pkt);
 }
 

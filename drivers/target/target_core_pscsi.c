@@ -818,7 +818,8 @@ static ssize_t pscsi_show_configfs_dev_params(struct se_device *dev, char *b)
 
 static void pscsi_bi_endio(struct bio *bio)
 {
-	bio_put(bio);
+	bio_uninit(bio);
+	kfree(bio);
 }
 
 static sense_reason_t
@@ -861,13 +862,12 @@ pscsi_map_sg(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 			if (!bio) {
 new_bio:
 				nr_vecs = bio_max_segs(nr_pages);
-				bio = bio_kmalloc(GFP_KERNEL, nr_vecs);
+				bio = bio_kmalloc(nr_vecs, GFP_KERNEL);
 				if (!bio)
 					goto fail;
+				bio_init(bio, NULL, bio->bi_inline_vecs, nr_vecs,
+					 rw ? REQ_OP_WRITE : REQ_OP_READ);
 				bio->bi_end_io = pscsi_bi_endio;
-
-				if (rw)
-					bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 				pr_debug("PSCSI: Allocated bio: %p,"
 					" dir: %s nr_vecs: %d\n", bio,

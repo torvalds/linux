@@ -405,7 +405,7 @@ extern int bioset_init_from_src(struct bio_set *bs, struct bio_set *src);
 struct bio *bio_alloc_bioset(struct block_device *bdev, unsigned short nr_vecs,
 			     unsigned int opf, gfp_t gfp_mask,
 			     struct bio_set *bs);
-struct bio *bio_kmalloc(gfp_t gfp_mask, unsigned short nr_iovecs);
+struct bio *bio_kmalloc(unsigned short nr_vecs, gfp_t gfp_mask);
 extern void bio_put(struct bio *);
 
 struct bio *bio_alloc_clone(struct block_device *bdev, struct bio *bio_src,
