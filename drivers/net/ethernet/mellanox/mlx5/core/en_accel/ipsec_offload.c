@@ -51,10 +51,8 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 	    MLX5_CAP_IPSEC(mdev, ipsec_crypto_esp_aes_gcm_128_decrypt))
 		caps |= MLX5_ACCEL_IPSEC_CAP_ESP;
 
-	if (MLX5_CAP_IPSEC(mdev, ipsec_esn)) {
+	if (MLX5_CAP_IPSEC(mdev, ipsec_esn))
 		caps |= MLX5_ACCEL_IPSEC_CAP_ESN;
-		caps |= MLX5_ACCEL_IPSEC_CAP_TX_IV_IS_ESN;
-	}
 
 	/* We can accommodate up to 2^24 different IPsec objects
 	 * because we use up to 24 bit in flow table metadata
