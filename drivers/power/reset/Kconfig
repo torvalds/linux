@@ -134,6 +134,15 @@ config POWER_RESET_QCOM_PON
 	  power-on and reboot reason, Say Y.
 	  If unsure, Say N.
 
+config POWER_RESET_QCOM_REBOOT_REASON
+        tristate "MSM reboot mode driver"
+        depends on ARCH_QCOM
+        help
+          Support for setting reboot reason on MSM boards.
+          This feature supports commands such as "reboot bootloader"
+          to boot the MSM board to fastboot mode.
+          If unsure, say Y.
+
 config POWER_RESET_OCELOT_RESET
 	bool "Microsemi Ocelot reset driver"
 	depends on MSCC_OCELOT || ARCH_SPARX5 || COMPILE_TEST
