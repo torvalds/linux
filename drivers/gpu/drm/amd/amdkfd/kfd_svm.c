@@ -2685,11 +2685,6 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 		pr_debug("kfd process not founded pasid 0x%x\n", pasid);
 		return 0;
 	}
-	if (!p->xnack_enabled) {
-		pr_debug("XNACK not enabled for pasid 0x%x\n", pasid);
-		r = -EFAULT;
-		goto out;
-	}
 	svms = &p->svms;
 
 	pr_debug("restoring svms 0x%p fault address 0x%llx\n", svms, addr);
@@ -2697,6 +2692,12 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 	if (atomic_read(&svms->drain_pagefaults)) {
 		pr_debug("draining retry fault, drop fault 0x%llx\n", addr);
 		r = 0;
+		goto out;
+	}
+
+	if (!p->xnack_enabled) {
+		pr_debug("XNACK not enabled for pasid 0x%x\n", pasid);
+		r = -EFAULT;
 		goto out;
 	}
 
