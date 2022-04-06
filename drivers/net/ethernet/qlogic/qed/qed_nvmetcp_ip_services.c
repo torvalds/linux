@@ -161,11 +161,11 @@ EXPORT_SYMBOL(qed_vlan_get_ndev);
 
 struct pci_dev *qed_validate_ndev(struct net_device *ndev)
 {
-	struct pci_dev *pdev = NULL;
 	struct net_device *upper;
+	struct pci_dev *pdev;
 
 	for_each_pci_dev(pdev) {
-		if (pdev && pdev->driver &&
+		if (pdev->driver &&
 		    !strcmp(pdev->driver->name, "qede")) {
 			upper = pci_get_drvdata(pdev);
 			if (upper->ifindex == ndev->ifindex)
