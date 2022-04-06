@@ -8,6 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
 #include <asm/cpm1.h>
 
 static cpic8xx_t __iomem *cpic_reg;
@@ -67,17 +68,6 @@ static int cpm_pic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-/*
- * The CPM can generate the error interrupt when there is a race condition
- * between generating and masking interrupts.  All we have to do is ACK it
- * and return.  This is a no-op function so we don't need any special
- * tests in the interrupt handler.
- */
-static irqreturn_t cpm_error_interrupt(int irq, void *dev)
-{
-	return IRQ_HANDLED;
-}
-
 static const struct irq_domain_ops cpm_pic_host_ops = {
 	.map = cpm_pic_host_map,
 };
@@ -86,7 +76,7 @@ unsigned int __init cpm_pic_init(void)
 {
 	struct device_node *np = NULL;
 	struct resource res;
-	unsigned int sirq = 0, hwirq, eirq;
+	unsigned int sirq = 0, hwirq;
 	int ret;
 
 	pr_debug("cpm_pic_init\n");
@@ -126,26 +116,51 @@ unsigned int __init cpm_pic_init(void)
 		goto end;
 	}
 
-	/* Install our own error handler. */
-	np = of_find_compatible_node(NULL, NULL, "fsl,cpm1");
-	if (np == NULL)
-		np = of_find_node_by_type(NULL, "cpm");
-	if (np == NULL) {
-		printk(KERN_ERR "CPM PIC init: can not find cpm node\n");
-		goto end;
-	}
-
-	eirq = irq_of_parse_and_map(np, 0);
-	if (!eirq)
-		goto end;
-
-	if (request_irq(eirq, cpm_error_interrupt, IRQF_NO_THREAD, "error",
-			NULL))
-		printk(KERN_ERR "Could not allocate CPM error IRQ!");
-
 	setbits32(&cpic_reg->cpic_cicr, CICR_IEN);
 
 end:
 	of_node_put(np);
 	return sirq;
 }
+
+/*
+ * The CPM can generate the error interrupt when there is a race condition
+ * between generating and masking interrupts.  All we have to do is ACK it
+ * and return.  This is a no-op function so we don't need any special
+ * tests in the interrupt handler.
+ */
+static irqreturn_t cpm_error_interrupt(int irq, void *dev)
+{
+	return IRQ_HANDLED;
+}
+
+static int cpm_error_probe(struct platform_device *pdev)
+{
+	int irq;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	return request_irq(irq, cpm_error_interrupt, IRQF_NO_THREAD, "error", NULL);
+}
+
+static const struct of_device_id cpm_error_ids[] = {
+	{ .compatible = "fsl,cpm1" },
+	{ .type = "cpm" },
+	{},
+};
+
+static struct platform_driver cpm_error_driver = {
+	.driver	= {
+		.name		= "cpm-error",
+		.of_match_table	= cpm_error_ids,
+	},
+	.probe	= cpm_error_probe,
+};
+
+static int __init cpm_error_init(void)
+{
+	return platform_driver_register(&cpm_error_driver);
+}
+subsys_initcall(cpm_error_init);
