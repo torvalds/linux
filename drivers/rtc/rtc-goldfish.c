@@ -11,18 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 #include <linux/goldfish.h>
-
-#define TIMER_TIME_LOW		0x00	/* get low bits of current time  */
-					/*   and update TIMER_TIME_HIGH  */
-#define TIMER_TIME_HIGH	0x04	/* get high bits of time at last */
-					/*   TIMER_TIME_LOW read         */
-#define TIMER_ALARM_LOW	0x08	/* set low bits of alarm and     */
-					/*   activate it                 */
-#define TIMER_ALARM_HIGH	0x0c	/* set high bits of next alarm   */
-#define TIMER_IRQ_ENABLED	0x10
-#define TIMER_CLEAR_ALARM	0x14
-#define TIMER_ALARM_STATUS	0x18
-#define TIMER_CLEAR_INTERRUPT	0x1c
+#include <clocksource/timer-goldfish.h>
 
 struct goldfish_rtc {
 	void __iomem *base;
