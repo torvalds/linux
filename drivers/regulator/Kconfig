@@ -1509,4 +1509,13 @@ config REGULATOR_STUB
 	  Consumers can use stub regulator device with proper constraint
 	  checking while the real regulator driver is being developed.
 
+config REGULATOR_QTI_OCP_NOTIFIER
+	tristate "Qualcomm Technologies, Inc. Regulator OCP Notifier Driver"
+	help
+	  This driver provides support for logging and notifying consumers about
+	  regulator over-current (OCP) events on certain Qualcomm Technologies,
+	  Inc. PMIC devices.  This is useful for debugging as well as for
+	  providing a more graceful recovery mechanism than resetting the entire
+	  system.
+
 endif
