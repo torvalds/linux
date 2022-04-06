@@ -321,6 +321,7 @@ enum smu_table_id
 	SMU_TABLE_I2C_COMMANDS,
 	SMU_TABLE_PACE,
 	SMU_TABLE_ECCINFO,
+	SMU_TABLE_COMBO_PPTABLE,
 	SMU_TABLE_COUNT,
 };
 
@@ -336,7 +337,8 @@ struct smu_table_context
 
 	void				*max_sustainable_clocks;
 	struct smu_bios_boot_up_values	boot_values;
-	void                            *driver_pptable;
+	void				*driver_pptable;
+	void				*combo_pptable;
 	void                            *ecc_table;
 	void				*driver_smu_config_table;
 	struct smu_table		tables[SMU_TABLE_COUNT];

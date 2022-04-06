@@ -971,6 +971,17 @@ int smu_cmn_get_metrics_table(struct smu_context *smu,
 	return 0;
 }
 
+int smu_cmn_get_combo_pptable(struct smu_context *smu)
+{
+	void *pptable = smu->smu_table.combo_pptable;
+
+	return smu_cmn_update_table(smu,
+				    SMU_TABLE_COMBO_PPTABLE,
+				    0,
+				    pptable,
+				    false);
+}
+
 void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
 {
 	struct metrics_table_header *header = (struct metrics_table_header *)table;
