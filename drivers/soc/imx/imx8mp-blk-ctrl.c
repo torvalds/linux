@@ -174,6 +174,196 @@ static const struct imx8mp_blk_ctrl_data imx8mp_hsio_blk_ctl_dev_data = {
 	.num_domains = ARRAY_SIZE(imx8mp_hsio_domain_data),
 };
 
+#define HDMI_RTX_RESET_CTL0	0x20
+#define HDMI_RTX_CLK_CTL0	0x40
+#define HDMI_RTX_CLK_CTL1	0x50
+#define HDMI_RTX_CLK_CTL2	0x60
+#define HDMI_RTX_CLK_CTL3	0x70
+#define HDMI_RTX_CLK_CTL4	0x80
+#define HDMI_TX_CONTROL0	0x200
+
+static void imx8mp_hdmi_blk_ctrl_power_on(struct imx8mp_blk_ctrl *bc,
+					  struct imx8mp_blk_ctrl_domain *domain)
+{
+	switch (domain->id) {
+	case IMX8MP_HDMIBLK_PD_IRQSTEER:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL0, BIT(9));
+		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(16));
+		break;
+	case IMX8MP_HDMIBLK_PD_LCDIF:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL0,
+				BIT(7) | BIT(16) | BIT(17) | BIT(18) |
+				BIT(19) | BIT(20));
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(11));
+		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0,
+				BIT(4) | BIT(5) | BIT(6));
+		break;
+	case IMX8MP_HDMIBLK_PD_PAI:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(17));
+		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(18));
+		break;
+	case IMX8MP_HDMIBLK_PD_PVI:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(28));
+		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(22));
+		break;
+	case IMX8MP_HDMIBLK_PD_TRNG:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(27) | BIT(30));
+		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(20));
+		break;
+	case IMX8MP_HDMIBLK_PD_HDMI_TX:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL0,
+				BIT(2) | BIT(4) | BIT(5));
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1,
+				BIT(12) | BIT(13) | BIT(14) | BIT(15) | BIT(16) |
+				BIT(18) | BIT(19) | BIT(20) | BIT(21));
+		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0,
+				BIT(7) | BIT(10) | BIT(11));
+		regmap_set_bits(bc->regmap, HDMI_TX_CONTROL0, BIT(1));
+		break;
+	case IMX8MP_HDMIBLK_PD_HDMI_TX_PHY:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(22) | BIT(24));
+		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(12));
+		regmap_clear_bits(bc->regmap, HDMI_TX_CONTROL0, BIT(3));
+		break;
+	default:
+		break;
+	}
+}
+
+static void imx8mp_hdmi_blk_ctrl_power_off(struct imx8mp_blk_ctrl *bc,
+					   struct imx8mp_blk_ctrl_domain *domain)
+{
+	switch (domain->id) {
+	case IMX8MP_HDMIBLK_PD_IRQSTEER:
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL0, BIT(9));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(16));
+		break;
+	case IMX8MP_HDMIBLK_PD_LCDIF:
+		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0,
+				  BIT(4) | BIT(5) | BIT(6));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(11));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL0,
+				  BIT(7) | BIT(16) | BIT(17) | BIT(18) |
+				  BIT(19) | BIT(20));
+		break;
+	case IMX8MP_HDMIBLK_PD_PAI:
+		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(18));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(17));
+		break;
+	case IMX8MP_HDMIBLK_PD_PVI:
+		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(22));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(28));
+		break;
+	case IMX8MP_HDMIBLK_PD_TRNG:
+		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(20));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(27) | BIT(30));
+		break;
+	case IMX8MP_HDMIBLK_PD_HDMI_TX:
+		regmap_clear_bits(bc->regmap, HDMI_TX_CONTROL0, BIT(1));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0,
+				  BIT(7) | BIT(10) | BIT(11));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL1,
+				  BIT(12) | BIT(13) | BIT(14) | BIT(15) | BIT(16) |
+				  BIT(18) | BIT(19) | BIT(20) | BIT(21));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL0,
+				  BIT(2) | BIT(4) | BIT(5));
+		break;
+	case IMX8MP_HDMIBLK_PD_HDMI_TX_PHY:
+		regmap_set_bits(bc->regmap, HDMI_TX_CONTROL0, BIT(3));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(12));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(22) | BIT(24));
+		break;
+	default:
+		break;
+	}
+}
+
+static int imx8mp_hdmi_power_notifier(struct notifier_block *nb,
+				      unsigned long action, void *data)
+{
+	struct imx8mp_blk_ctrl *bc = container_of(nb, struct imx8mp_blk_ctrl,
+						 power_nb);
+
+	if (action != GENPD_NOTIFY_ON)
+		return NOTIFY_OK;
+
+	/*
+	 * Contrary to other blk-ctrls the reset and clock don't clear when the
+	 * power domain is powered down. To ensure the proper reset pulsing,
+	 * first clear them all to asserted state, then enable the bus clocks
+	 * and then release the ADB reset.
+	 */
+	regmap_write(bc->regmap, HDMI_RTX_RESET_CTL0, 0x0);
+	regmap_write(bc->regmap, HDMI_RTX_CLK_CTL0, 0x0);
+	regmap_write(bc->regmap, HDMI_RTX_CLK_CTL1, 0x0);
+	regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL0,
+			BIT(0) | BIT(1) | BIT(10));
+	regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(0));
+
+	/*
+	 * On power up we have no software backchannel to the GPC to
+	 * wait for the ADB handshake to happen, so we just delay for a
+	 * bit. On power down the GPC driver waits for the handshake.
+	 */
+	udelay(5);
+
+	return NOTIFY_OK;
+}
+
+static const struct imx8mp_blk_ctrl_domain_data imx8mp_hdmi_domain_data[] = {
+	[IMX8MP_HDMIBLK_PD_IRQSTEER] = {
+		.name = "hdmiblk-irqsteer",
+		.clk_names = (const char *[]){ "apb" },
+		.num_clks = 1,
+		.gpc_name = "irqsteer",
+	},
+	[IMX8MP_HDMIBLK_PD_LCDIF] = {
+		.name = "hdmiblk-lcdif",
+		.clk_names = (const char *[]){ "axi", "apb" },
+		.num_clks = 2,
+		.gpc_name = "lcdif",
+	},
+	[IMX8MP_HDMIBLK_PD_PAI] = {
+		.name = "hdmiblk-pai",
+		.clk_names = (const char *[]){ "apb" },
+		.num_clks = 1,
+		.gpc_name = "pai",
+	},
+	[IMX8MP_HDMIBLK_PD_PVI] = {
+		.name = "hdmiblk-pvi",
+		.clk_names = (const char *[]){ "apb" },
+		.num_clks = 1,
+		.gpc_name = "pvi",
+	},
+	[IMX8MP_HDMIBLK_PD_TRNG] = {
+		.name = "hdmiblk-trng",
+		.clk_names = (const char *[]){ "apb" },
+		.num_clks = 1,
+		.gpc_name = "trng",
+	},
+	[IMX8MP_HDMIBLK_PD_HDMI_TX] = {
+		.name = "hdmiblk-hdmi-tx",
+		.clk_names = (const char *[]){ "apb", "ref_266m" },
+		.num_clks = 2,
+		.gpc_name = "hdmi-tx",
+	},
+	[IMX8MP_HDMIBLK_PD_HDMI_TX_PHY] = {
+		.name = "hdmiblk-hdmi-tx-phy",
+		.clk_names = (const char *[]){ "apb", "ref_24m" },
+		.num_clks = 2,
+		.gpc_name = "hdmi-tx-phy",
+	},
+};
+
+static const struct imx8mp_blk_ctrl_data imx8mp_hdmi_blk_ctl_dev_data = {
+	.max_reg = 0x23c,
+	.power_on = imx8mp_hdmi_blk_ctrl_power_on,
+	.power_off = imx8mp_hdmi_blk_ctrl_power_off,
+	.power_notifier_fn = imx8mp_hdmi_power_notifier,
+	.domains = imx8mp_hdmi_domain_data,
+	.num_domains = ARRAY_SIZE(imx8mp_hdmi_domain_data),
+};
+
 static int imx8mp_blk_ctrl_power_on(struct generic_pm_domain *genpd)
 {
 	struct imx8mp_blk_ctrl_domain *domain = to_imx8mp_blk_ctrl_domain(genpd);
@@ -485,6 +675,9 @@ static const struct of_device_id imx8mp_blk_ctrl_of_match[] = {
 	{
 		.compatible = "fsl,imx8mp-hsio-blk-ctrl",
 		.data = &imx8mp_hsio_blk_ctl_dev_data,
+	}, {
+		.compatible = "fsl,imx8mp-hdmi-blk-ctrl",
+		.data = &imx8mp_hdmi_blk_ctl_dev_data,
 	}, {
 		/* Sentinel */
 	}
