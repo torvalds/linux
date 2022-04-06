@@ -15,6 +15,7 @@
 #include "rk_crypto_v3.h"
 #include "rk_crypto_v3_reg.h"
 #include "rk_crypto_ahash_utils.h"
+#include "rk_crypto_utils.h"
 
 #define RK_HASH_CTX_MAGIC	0x1A1A1A1A
 #define RK_POLL_PERIOD_US	100
@@ -141,14 +142,14 @@ static int rk_crypto_irq_handle(int irq, void *dev_id)
 	interrupt_status &= CRYPTO_LOCKSTEP_MASK;
 
 	if (interrupt_status != CRYPTO_SRC_ITEM_DONE_INT_ST) {
-		dev_err(rk_dev->dev, "DMA desc = %p\n", hw_info->desc);
+		dev_err(rk_dev->dev, "DMA desc = %p\n", hw_info->hw_desc.lli_head);
 		dev_err(rk_dev->dev, "DMA addr_in = %08x\n",
 			(u32)alg_ctx->addr_in);
 		dev_err(rk_dev->dev, "DMA addr_out = %08x\n",
 			(u32)alg_ctx->addr_out);
 		dev_err(rk_dev->dev, "DMA count = %08x\n", alg_ctx->count);
 		dev_err(rk_dev->dev, "DMA desc_dma = %08x\n",
-			(u32)hw_info->desc_dma);
+			(u32)hw_info->hw_desc.lli_head_dma);
 		dev_err(rk_dev->dev, "DMA Error status = %08x\n",
 			interrupt_status);
 		dev_err(rk_dev->dev, "DMA CRYPTO_DMA_LLI_ADDR status = %08x\n",
@@ -177,7 +178,7 @@ static void rk_ahash_crypto_complete(struct crypto_async_request *base, int err)
 	struct rk_alg_ctx *alg_ctx = rk_ahash_alg_ctx(ctx->rk_dev);
 
 	struct rk_hw_crypto_v3_info *hw_info = ctx->rk_dev->hw_info;
-	struct crypto_lli_desc *lli_desc = hw_info->desc;
+	struct crypto_lli_desc *lli_desc = hw_info->hw_desc.lli_head;
 
 	if (err) {
 		rk_hash_reset(ctx->rk_dev);
@@ -284,8 +285,10 @@ static int rk_ahash_dma_start(struct rk_crypto_dev *rk_dev, uint32_t flag)
 			(struct rk_hw_crypto_v3_info *)rk_dev->hw_info;
 	struct rk_alg_ctx *alg_ctx = rk_ahash_alg_ctx(rk_dev);
 	struct rk_ahash_ctx *ctx = rk_ahash_ctx_cast(rk_dev);
+	struct crypto_lli_desc *lli_head, *lli_tail;
 	u32 dma_ctl = CRYPTO_DMA_RESTART;
 	bool is_final = flag & RK_FLAG_FINAL;
+	int ret;
 
 	CRYPTO_TRACE("ctx->calc_cnt = %u, count %u Byte, is_final = %d",
 		     ctx->calc_cnt, alg_ctx->count, is_final);
@@ -305,32 +308,40 @@ static int rk_ahash_dma_start(struct rk_crypto_dev *rk_dev, uint32_t flag)
 	if (alg_ctx->total == alg_ctx->left_bytes + alg_ctx->count)
 		rk_hash_mid_data_restore(rk_dev, (struct rk_hash_mid_data *)ctx->priv);
 
-	memset(hw_info->desc, 0x00, sizeof(*hw_info->desc));
+	if (alg_ctx->aligned)
+		ret = rk_crypto_hw_desc_init(&hw_info->hw_desc,
+					     alg_ctx->sg_src, NULL, alg_ctx->count);
+	else
+		ret = rk_crypto_hw_desc_init(&hw_info->hw_desc,
+					     &alg_ctx->sg_tmp, NULL, alg_ctx->count);
+	if (ret)
+		return ret;
 
-	hw_info->desc->src_addr  = alg_ctx->addr_in;
-	hw_info->desc->src_len   = alg_ctx->count;
-	hw_info->desc->next_addr = hw_info->desc_dma;
+	lli_head = hw_info->hw_desc.lli_head;
+	lli_tail = hw_info->hw_desc.lli_tail;
 
-	hw_info->desc->dma_ctrl  = is_final ? LLI_DMA_CTRL_LAST : LLI_DMA_CTRL_PAUSE;
-	hw_info->desc->dma_ctrl |= LLI_DMA_CTRL_SRC_DONE;
+	lli_tail->dma_ctrl  = is_final ? LLI_DMA_CTRL_LAST : LLI_DMA_CTRL_PAUSE;
+	lli_tail->dma_ctrl |= LLI_DMA_CTRL_SRC_DONE;
 
 	if (ctx->calc_cnt == 0) {
 		dma_ctl = CRYPTO_DMA_START;
 
-		hw_info->desc->user_define |= LLI_USER_CIPHER_START;
-		hw_info->desc->user_define |= LLI_USER_STRING_START;
+		lli_head->user_define |= LLI_USER_CIPHER_START;
+		lli_head->user_define |= LLI_USER_STRING_START;
 
-		CRYPTO_WRITE(rk_dev, CRYPTO_DMA_LLI_ADDR, hw_info->desc_dma);
+		CRYPTO_WRITE(rk_dev, CRYPTO_DMA_LLI_ADDR, hw_info->hw_desc.lli_head_dma);
 		CRYPTO_WRITE(rk_dev, CRYPTO_HASH_CTL,
 			     (CRYPTO_HASH_ENABLE << CRYPTO_WRITE_MASK_SHIFT) |
 			     CRYPTO_HASH_ENABLE);
 	}
 
 	if (is_final && alg_ctx->left_bytes == 0)
-		hw_info->desc->user_define |= LLI_USER_STRING_LAST;
+		lli_tail->user_define |= LLI_USER_STRING_LAST;
 
 	CRYPTO_TRACE("dma_ctrl = %08x, user_define = %08x, len = %u",
-		     hw_info->desc->dma_ctrl, hw_info->desc->user_define, alg_ctx->count);
+		     lli_head->dma_ctrl, lli_head->user_define, alg_ctx->count);
+
+	rk_crypto_dump_hw_desc(&hw_info->hw_desc);
 
 	dma_wmb();
 

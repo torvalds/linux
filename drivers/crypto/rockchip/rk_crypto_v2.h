@@ -7,20 +7,10 @@
 
 #include <linux/platform_device.h>
 
-struct crypto_lli_desc {
-	u32 src_addr;
-	u32 src_len;
-	u32 dst_addr;
-	u32 dst_len;
-	u32 user_define;
-	u32 reserve;
-	u32 dma_ctrl;
-	u32 next_addr;
-};
+#include "rk_crypto_utils.h"
 
 struct rk_hw_crypto_v2_info {
-	struct crypto_lli_desc		*desc;
-	dma_addr_t			desc_dma;
+	struct rk_hw_desc		hw_desc;
 };
 
 #define RK_CRYPTO_V2_SOC_DATA_INIT(names, soft_aes_192) {\
@@ -35,6 +25,7 @@ struct rk_hw_crypto_v2_info {
 	.hw_is_algo_valid	= rk_hw_crypto_v2_algo_valid,\
 	.hw_info_size		= sizeof(struct rk_hw_crypto_v2_info),\
 	.default_pka_offset	= 0x0480,\
+	.use_lli_chain          = true,\
 }
 
 #if IS_ENABLED(CONFIG_CRYPTO_DEV_ROCKCHIP_V2)

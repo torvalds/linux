@@ -128,12 +128,14 @@ static uint32_t rk_get_new_iv(struct rk_cipher_ctx *ctx, u32 mode, bool is_enc, 
 	case CIPHER_MODE_CBC:
 	case CIPHER_MODE_CFB:
 		if (is_enc)
-			sg_pcopy_to_buffer(sg_dst, 1, iv, ivsize, alg_ctx->count - ivsize);
+			sg_pcopy_to_buffer(sg_dst, alg_ctx->map_nents,
+					   iv, ivsize, alg_ctx->count - ivsize);
 		else
 			memcpy(iv, ctx->lastc, ivsize);
 		break;
 	case CIPHER_MODE_OFB:
-		sg_pcopy_to_buffer(sg_dst, 1, iv, ivsize, alg_ctx->count - ivsize);
+		sg_pcopy_to_buffer(sg_dst, alg_ctx->map_nents,
+				   iv, ivsize, alg_ctx->count - ivsize);
 		crypto_xor(iv, ctx->lastc, ivsize);
 		break;
 	default:
@@ -189,7 +191,8 @@ static int rk_set_data_start(struct rk_crypto_dev *rk_dev)
 
 		ivsize = alg_ctx->count > ivsize ? ivsize : alg_ctx->count;
 
-		sg_pcopy_to_buffer(src_sg, 1, ctx->lastc, ivsize, alg_ctx->count - ivsize);
+		sg_pcopy_to_buffer(src_sg, alg_ctx->map_nents,
+				   ctx->lastc, ivsize, alg_ctx->count - ivsize);
 
 		alg_ctx->ops.hw_dma_start(rk_dev, true);
 	}

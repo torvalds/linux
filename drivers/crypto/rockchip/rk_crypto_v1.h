@@ -23,6 +23,7 @@ struct rk_hw_crypto_v1_info {
 	.hw_is_algo_valid	= rk_hw_crypto_v1_algo_valid,\
 	.hw_info_size		= sizeof(struct rk_hw_crypto_v1_info),\
 	.default_pka_offset	= 0,\
+	.use_lli_chain          = false,\
 }
 
 #if IS_ENABLED(CONFIG_CRYPTO_DEV_ROCKCHIP_V1)

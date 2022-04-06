@@ -88,6 +88,8 @@ struct rk_crypto_soc_data {
 	unsigned int			hw_info_size;
 	bool				use_soft_aes192;
 	int				default_pka_offset;
+	bool				use_lli_chain;
+
 	int (*hw_init)(struct device *dev, void *hw_info);
 	void (*hw_deinit)(struct device *dev, void *hw_info);
 	const char * const *(*hw_get_rsts)(uint32_t *num);
@@ -118,6 +120,7 @@ struct rk_alg_ctx {
 	struct scatterlist		*req_dst;
 	size_t				src_nents;
 	size_t				dst_nents;
+	size_t				map_nents;
 
 	unsigned int			total;
 	unsigned int			count;
