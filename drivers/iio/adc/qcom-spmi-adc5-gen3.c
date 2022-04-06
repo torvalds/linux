@@ -1362,7 +1362,7 @@ static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 						SCALE_HW_CALIB_CUR)
 	[ADC5_GEN3_IIN_SMB]		= ADC5_CHAN_CUR("iin_smb", 10,
 						SCALE_HW_CALIB_CUR)
-	[ADC5_GEN3_ICHG_FB]		= ADC5_CHAN_CUR("ichg_fb", 14,
+	[ADC5_GEN3_ICHG_FB]		= ADC5_CHAN_CUR("ichg_fb", 16,
 						SCALE_HW_CALIB_CUR_RAW)
 	[ADC5_GEN3_DIE_TEMP]		= ADC5_CHAN_TEMP("die_temp", 0,
 						SCALE_HW_CALIB_PMIC_THERM_PM7)
