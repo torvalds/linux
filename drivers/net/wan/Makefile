@@ -19,8 +19,6 @@ obj-$(CONFIG_SEALEVEL_4021)	+= z85230.o	sealevel.o
 obj-$(CONFIG_COSA)		+= cosa.o
 obj-$(CONFIG_FARSYNC)		+= farsync.o
 
-obj-$(CONFIG_LANMEDIA)		+= lmc/
-
 obj-$(CONFIG_LAPBETHER)		+= lapbether.o
 obj-$(CONFIG_N2)		+= n2.o
 obj-$(CONFIG_C101)		+= c101.o
