@@ -7,7 +7,6 @@ fore_200e-y	:= fore200e.o
 
 obj-$(CONFIG_ATM_ZATM)		+= zatm.o uPD98402.o
 obj-$(CONFIG_ATM_NICSTAR)	+= nicstar.o
-obj-$(CONFIG_ATM_AMBASSADOR)	+= ambassador.o
 obj-$(CONFIG_ATM_HORIZON)	+= horizon.o
 obj-$(CONFIG_ATM_IA)		+= iphase.o suni.o
 obj-$(CONFIG_ATM_FORE200E)	+= fore_200e.o

@@ -244,31 +244,6 @@ config ATM_IDT77252_USE_SUNI
 	depends on ATM_IDT77252
 	default y
 
-config ATM_AMBASSADOR
-	tristate "Madge Ambassador (Collage PCI 155 Server)"
-	depends on PCI && VIRT_TO_BUS
-	select BITREVERSE
-	help
-	  This is a driver for ATMizer based ATM card produced by Madge
-	  Networks Ltd. Say Y (or M to compile as a module named ambassador)
-	  here if you have one of these cards.
-
-config ATM_AMBASSADOR_DEBUG
-	bool "Enable debugging messages"
-	depends on ATM_AMBASSADOR
-	help
-	  Somewhat useful debugging messages are available. The choice of
-	  messages is controlled by a bitmap.  This may be specified as a
-	  module argument (kernel command line argument as well?), changed
-	  dynamically using an ioctl (not yet) or changed by sending the
-	  string "Dxxxx" to VCI 1023 (where x is a hex digit).  See the file
-	  <file:drivers/atm/ambassador.h> for the meanings of the bits in the
-	  mask.
-
-	  When active, these messages can have a significant impact on the
-	  speed of the driver, and the size of your syslog files! When
-	  inactive, they will have only a modest impact on performance.
-
 config ATM_HORIZON
 	tristate "Madge Horizon [Ultra] (Collage PCI 25 and Collage PCI 155 Client)"
 	depends on PCI && VIRT_TO_BUS
