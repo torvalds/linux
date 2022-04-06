@@ -1527,8 +1527,7 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 	}
 
 	/* interrupt mask */
-	irq_mask |= CIF_ISP_FRAME | CIF_ISP_V_START | CIF_ISP_PIC_SIZE_ERROR |
-		    CIF_ISP_FRAME_IN;
+	irq_mask |= CIF_ISP_FRAME | CIF_ISP_V_START | CIF_ISP_PIC_SIZE_ERROR;
 	if (dev->cap_dev.wrap_line) {
 		irq_mask |= ISP3X_OUT_FRM_QUARTER | ISP3X_OUT_FRM_HALF |
 			    ISP3X_OUT_FRM_END;
@@ -1967,7 +1966,7 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 	dev->isp_err_cnt = 0;
 	dev->isp_isr_cnt = 0;
 	dev->isp_state = ISP_START | ISP_FRAME_END;
-	dev->irq_ends_mask |= ISP_FRAME_END | ISP_FRAME_IN;
+	dev->irq_ends_mask |= ISP_FRAME_END;
 	dev->irq_ends = 0;
 
 	/* XXX: Is the 1000us too long?
@@ -3682,9 +3681,6 @@ vs_skip:
 		if (isp_mis_tmp & CIF_ISP_FRAME_IN)
 			v4l2_err(&dev->v4l2_dev, "isp icr frame_in err: 0x%x\n",
 				 isp_mis_tmp);
-
-		dev->isp_err_cnt = 0;
-		dev->isp_state &= ~ISP_ERROR;
 	}
 
 	/* frame was completely put out */
@@ -3700,6 +3696,9 @@ vs_skip:
 				 "isp icr frame end err: 0x%x\n", isp_mis_tmp);
 		rkisp_dmarx_get_frame(dev, &dev->isp_sdev.dbg.id, NULL, NULL, true);
 		rkisp_isp_read_add_fifo_data(dev);
+
+		dev->isp_err_cnt = 0;
+		dev->isp_state &= ~ISP_ERROR;
 	}
 
 	if ((isp_mis & (CIF_ISP_FRAME | si3a_isr_mask)) ||
@@ -3756,8 +3755,6 @@ vs_skip:
 		rkisp_dvbm_event(dev, ISP3X_OUT_FRM_END);
 	}
 
-	if (isp_mis & CIF_ISP_FRAME_IN)
-		rkisp_check_idle(dev, ISP_FRAME_IN);
 	if (isp_mis & CIF_ISP_FRAME)
 		rkisp_check_idle(dev, ISP_FRAME_END);
 }
