@@ -203,6 +203,7 @@ struct net_device_core_stats {
 	local_t		rx_dropped;
 	local_t		tx_dropped;
 	local_t		rx_nohandler;
+	local_t		rx_otherhost_dropped;
 } __aligned(4 * sizeof(local_t));
 
 #include <linux/cache.h>
@@ -3837,6 +3838,7 @@ static inline void dev_core_stats_##FIELD##_inc(struct net_device *dev)		\
 DEV_CORE_STATS_INC(rx_dropped)
 DEV_CORE_STATS_INC(tx_dropped)
 DEV_CORE_STATS_INC(rx_nohandler)
+DEV_CORE_STATS_INC(rx_otherhost_dropped)
 
 static __always_inline int ____dev_forward_skb(struct net_device *dev,
 					       struct sk_buff *skb,

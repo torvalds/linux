@@ -150,6 +150,7 @@ static struct sk_buff *ip6_rcv_core(struct sk_buff *skb, struct net_device *dev,
 	struct inet6_dev *idev;
 
 	if (skb->pkt_type == PACKET_OTHERHOST) {
+		dev_core_stats_rx_otherhost_dropped_inc(skb->dev);
 		kfree_skb(skb);
 		return NULL;
 	}

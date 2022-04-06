@@ -10358,6 +10358,7 @@ struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev,
 			storage->rx_dropped += local_read(&core_stats->rx_dropped);
 			storage->tx_dropped += local_read(&core_stats->tx_dropped);
 			storage->rx_nohandler += local_read(&core_stats->rx_nohandler);
+			storage->rx_otherhost_dropped += local_read(&core_stats->rx_otherhost_dropped);
 		}
 	}
 	return storage;
