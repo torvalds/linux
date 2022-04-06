@@ -137,7 +137,6 @@ int netvsc_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 int netvsc_vf_setxdp(struct net_device *vf_netdev, struct bpf_prog *prog)
 {
 	struct netdev_bpf xdp;
-	bpf_op_t ndo_bpf;
 	int ret;
 
 	ASSERT_RTNL();
@@ -145,8 +144,7 @@ int netvsc_vf_setxdp(struct net_device *vf_netdev, struct bpf_prog *prog)
 	if (!vf_netdev)
 		return 0;
 
-	ndo_bpf = vf_netdev->netdev_ops->ndo_bpf;
-	if (!ndo_bpf)
+	if (!vf_netdev->netdev_ops->ndo_bpf)
 		return 0;
 
 	memset(&xdp, 0, sizeof(xdp));
@@ -157,7 +155,7 @@ int netvsc_vf_setxdp(struct net_device *vf_netdev, struct bpf_prog *prog)
 	xdp.command = XDP_SETUP_PROG;
 	xdp.prog = prog;
 
-	ret = ndo_bpf(vf_netdev, &xdp);
+	ret = vf_netdev->netdev_ops->ndo_bpf(vf_netdev, &xdp);
 
 	if (ret && prog)
 		bpf_prog_put(prog);
