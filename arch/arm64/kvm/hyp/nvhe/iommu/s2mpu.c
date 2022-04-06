@@ -466,7 +466,7 @@ static int s2mpu_init(void *data, size_t size)
 		host_mpt.fmpt[gb] = (struct fmpt){
 			.smpt = smpt,
 			.gran_1g = true,
-			.prot = MPT_PROT_NONE,
+			.prot = MPT_PROT_RW,
 		};
 	}
 
