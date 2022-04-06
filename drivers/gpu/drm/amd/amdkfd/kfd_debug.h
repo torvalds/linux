@@ -25,6 +25,11 @@
 
 #include "kfd_priv.h"
 
+bool kfd_dbg_ev_raise(uint64_t event_mask,
+			struct kfd_process *process, struct kfd_node *dev,
+			unsigned int source_id, bool use_worker,
+			void *exception_data,
+			size_t exception_data_size);
 int kfd_dbg_trap_disable(struct kfd_process *target);
 int kfd_dbg_trap_enable(struct kfd_process *target, uint32_t fd,
 			void __user *runtime_info,
@@ -34,6 +39,8 @@ static inline bool kfd_dbg_is_per_vmid_supported(struct kfd_node *dev)
 	return KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2) ||
 	       KFD_GC_VERSION(dev) >= IP_VERSION(11, 0, 0);
 }
+
+void debug_event_write_work_handler(struct work_struct *work);
 
 /*
  * If GFX off is enabled, chips that do not support RLC restore for the debug
