@@ -8,7 +8,6 @@
 
 #include "x86.h"
 #include "xen.h"
-#include "lapic.h"
 #include "hyperv.h"
 #include "lapic.h"
 
