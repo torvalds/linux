@@ -425,7 +425,6 @@ int mlx5e_ipsec_init(struct mlx5e_priv *priv)
 
 	hash_init(ipsec->sadb_rx);
 	spin_lock_init(&ipsec->sadb_rx_lock);
-	ida_init(&ipsec->halloc);
 	ipsec->en_priv = priv;
 	ipsec->no_trailer = !!(mlx5_accel_ipsec_device_caps(priv->mdev) &
 			       MLX5_ACCEL_IPSEC_CAP_RX_NO_TRAILER);
@@ -452,7 +451,6 @@ void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv)
 	mlx5e_accel_ipsec_fs_cleanup(priv);
 	destroy_workqueue(ipsec->wq);
 
-	ida_destroy(&ipsec->halloc);
 	kfree(ipsec);
 	priv->ipsec = NULL;
 }
