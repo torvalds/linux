@@ -27,6 +27,7 @@
 #include "dm_pp_interface.h"
 #include "dm_pp_smu.h"
 #include "smu_types.h"
+#include "linux/firmware.h"
 
 #define SMU_THERMAL_MINIMUM_ALERT_TEMP		0
 #define SMU_THERMAL_MAXIMUM_ALERT_TEMP		255
@@ -557,6 +558,8 @@ struct smu_context
 	struct smu_user_dpm_profile user_dpm_profile;
 
 	struct stb_context stb_context;
+
+	struct firmware pptable_firmware;
 };
 
 struct i2c_adapter;
@@ -1298,6 +1301,11 @@ struct pptable_funcs {
 	 *										of SMUBUS table.
 	 */
 	int (*send_hbm_bad_channel_flag)(struct smu_context *smu, uint32_t size);
+
+	/**
+	 * @init_pptable_microcode: Prepare the pptable microcode to upload via PSP
+	 */
+	int (*init_pptable_microcode)(struct smu_context *smu);
 };
 
 typedef enum {

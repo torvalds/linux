@@ -543,6 +543,8 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 		return "STORAGE";
 	case AMDGPU_UCODE_ID_SMC:
 		return "SMC";
+	case AMDGPU_UCODE_ID_PPTABLE:
+		return "PPTABLE";
 	case AMDGPU_UCODE_ID_UVD:
 		return "UVD";
 	case AMDGPU_UCODE_ID_UVD1:
@@ -719,6 +721,10 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 			ucode->ucode_size = le32_to_cpu(dmcub_hdr->inst_const_bytes);
 			ucode_addr = (u8 *)ucode->fw->data +
 				le32_to_cpu(header->ucode_array_offset_bytes);
+			break;
+		case AMDGPU_UCODE_ID_PPTABLE:
+			ucode->ucode_size = ucode->fw->size;
+			ucode_addr = (u8 *)ucode->fw->data;
 			break;
 		default:
 			ucode->ucode_size = le32_to_cpu(header->ucode_size_bytes);

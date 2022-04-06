@@ -1027,6 +1027,12 @@ static int smu_sw_init(void *handle)
 		return ret;
 	}
 
+	ret = smu_init_pptable_microcode(smu);
+	if (ret) {
+		dev_err(adev->dev, "Failed to setup pptable firmware!\n");
+		return ret;
+	}
+
 	ret = smu_register_irq_handler(smu);
 	if (ret) {
 		dev_err(adev->dev, "Failed to register smc irq handler!\n");
