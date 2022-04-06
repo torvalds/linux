@@ -29,7 +29,6 @@
 #include "dc.h"
 #include "mod_freesync.h"
 #include "core_types.h"
-#include "dm_services.h"
 
 #define MOD_FREESYNC_MAX_CONCURRENT_STREAMS  32
 
