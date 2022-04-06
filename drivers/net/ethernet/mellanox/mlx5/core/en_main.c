@@ -5693,7 +5693,6 @@ int mlx5e_init(void)
 {
 	int ret;
 
-	mlx5e_ipsec_build_inverse_table();
 	mlx5e_build_ptys2ethtool_map();
 	ret = auxiliary_driver_register(&mlx5e_driver);
 	if (ret)
