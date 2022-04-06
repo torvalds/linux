@@ -7,7 +7,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/accel.h>
 
-#ifdef CONFIG_MLX5_IPSEC
+#ifdef CONFIG_MLX5_EN_IPSEC
 
 unsigned int mlx5_accel_ipsec_counters_count(struct mlx5_core_dev *mdev);
 int mlx5_accel_ipsec_counters_read(struct mlx5_core_dev *mdev, u64 *counters,
@@ -42,22 +42,8 @@ struct mlx5_accel_ipsec_ops {
 };
 
 #else
-
-static inline void *
-mlx5_accel_esp_create_hw_context(struct mlx5_core_dev *mdev,
-				 struct mlx5_accel_esp_xfrm *xfrm,
-				 u32 *sa_handle)
-{
-	return NULL;
-}
-
-static inline void mlx5_accel_esp_free_hw_context(struct mlx5_core_dev *mdev,
-						  void *context)
-{
-}
-
 static inline void mlx5_accel_ipsec_init(struct mlx5_core_dev *mdev) {}
 
 static inline void mlx5_accel_ipsec_cleanup(struct mlx5_core_dev *mdev) {}
-#endif /* CONFIG_MLX5_IPSEC */
+#endif /* CONFIG_MLX5_EN_IPSEC */
 #endif /* __MLX5_IPSEC_OFFLOAD_H__ */

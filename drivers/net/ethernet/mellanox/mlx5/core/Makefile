@@ -88,13 +88,13 @@ mlx5_core-$(CONFIG_MLX5_CORE_IPOIB) += ipoib/ipoib.o ipoib/ethtool.o ipoib/ipoib
 #
 # Accelerations & FPGA
 #
-mlx5_core-$(CONFIG_MLX5_IPSEC) += accel/ipsec_offload.o
 mlx5_core-$(CONFIG_MLX5_ACCEL) += lib/crypto.o
 
 mlx5_core-$(CONFIG_MLX5_FPGA) += fpga/cmd.o fpga/core.o fpga/conn.o fpga/sdk.o
 
 mlx5_core-$(CONFIG_MLX5_EN_IPSEC) += en_accel/ipsec.o en_accel/ipsec_rxtx.o \
-				     en_accel/ipsec_stats.o en_accel/ipsec_fs.o
+				     en_accel/ipsec_stats.o en_accel/ipsec_fs.o \
+				     accel/ipsec_offload.o
 
 mlx5_core-$(CONFIG_MLX5_EN_TLS) += en_accel/ktls_stats.o \
 				   en_accel/fs_tcp.o en_accel/ktls.o en_accel/ktls_txrx.o \

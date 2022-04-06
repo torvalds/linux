@@ -778,7 +778,7 @@ struct mlx5_core_dev {
 #ifdef CONFIG_MLX5_FPGA
 	struct mlx5_fpga_device *fpga;
 #endif
-#ifdef CONFIG_MLX5_ACCEL
+#ifdef CONFIG_MLX5_EN_IPSEC
 	const struct mlx5_accel_ipsec_ops *ipsec_ops;
 #endif
 	struct mlx5_clock        clock;
