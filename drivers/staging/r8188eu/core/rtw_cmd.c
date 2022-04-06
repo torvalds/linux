@@ -11,8 +11,7 @@
 #include "../include/rtw_mlme_ext.h"
 #include "../include/rtl8188e_dm.h"
 
-/*
- * Caller and the rtw_cmd_thread can protect cmd_q by spin_lock.
+/* Caller and the rtw_cmd_thread can protect cmd_q by spin_lock.
  * No irqsave is necessary.
  */
 
@@ -96,8 +95,7 @@ static void _rtw_free_cmd_priv(struct cmd_priv *pcmdpriv)
 	}
 }
 
-/*
- * Calling Context:
+/* Calling Context:
  *
  * rtw_enqueue_cmd can only be called between kernel thread,
  * since only spin_lock is used.
@@ -317,8 +315,7 @@ post_process:
 	return 0;
 }
 
-/*
- * rtw_sitesurvey_cmd(~)
+/* rtw_sitesurvey_cmd(~)
  *	### NOTE:#### (!!!!)
  *	MUST TAKE CARE THAT BEFORE CALLING THIS FUNC, YOU SHOULD HAVE LOCKED pmlmepriv->lock
  */
