@@ -30,6 +30,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_dsc.h>
 #include <drm/msm_drm.h>
 #include <drm/drm_gem.h>
 
@@ -104,6 +105,11 @@ struct msm_drm_thread {
 	struct drm_device *dev;
 	unsigned int crtc_id;
 	struct kthread_worker *worker;
+};
+
+/* DSC config */
+struct msm_display_dsc_config {
+	struct drm_dsc_config *drm;
 };
 
 struct msm_drm_private {
