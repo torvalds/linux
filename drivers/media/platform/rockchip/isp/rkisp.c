@@ -2851,6 +2851,18 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 		} else {
 			dev->isp_inp &= ~INP_RAWRD2;
 		}
+	} else if (!strcmp(remote->entity->name, FBC_VDEV_NAME)) {
+		stream = &dev->cap_dev.stream[RKISP_STREAM_FBC];
+	} else if (!strcmp(remote->entity->name, BP_VDEV_NAME)) {
+		stream = &dev->cap_dev.stream[RKISP_STREAM_BP];
+	} else if (!strcmp(remote->entity->name, MPDS_VDEV_NAME)) {
+		stream = &dev->cap_dev.stream[RKISP_STREAM_MPDS];
+	} else if (!strcmp(remote->entity->name, BPDS_VDEV_NAME)) {
+		stream = &dev->cap_dev.stream[RKISP_STREAM_BPDS];
+	} else if (!strcmp(remote->entity->name, LUMA_VDEV_NAME)) {
+		stream = &dev->cap_dev.stream[RKISP_STREAM_LUMA];
+	} else if (!strcmp(remote->entity->name, VIR_VDEV_NAME)) {
+		stream = &dev->cap_dev.stream[RKISP_STREAM_VIR];
 	} else if (!strcmp(remote->entity->name, SP_VDEV_NAME)) {
 		stream = &dev->cap_dev.stream[RKISP_STREAM_SP];
 	} else if (!strcmp(remote->entity->name, MP_VDEV_NAME)) {
