@@ -8,6 +8,19 @@
 		bootargs = "earlycon=uart8250,mmio32,0xff4c0000 console=ttyFIQ0 rootwait snd_soc_core.prealloc_buffer_size_kbytes=16";
 	};
 
+	acodec_sound: acodec-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rv-acodec";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&acodec>;
+		};
+	};
+
 	cam_ircut0: cam_ircut {
 		status = "okay";
 		compatible = "rockchip,ircut";
@@ -34,6 +47,12 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+};
+
+&acodec {
+	#sound-dai-cells = <0>;
+	pa-ctl-gpios = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
 };
 
 &csi2_dphy_hw {
@@ -153,6 +172,11 @@
 			};
 		};
 	};
+};
+
+&i2s0_8ch {
+	#sound-dai-cells = <0>;
+	status = "okay";
 };
 
 &mipi0_csi2 {
