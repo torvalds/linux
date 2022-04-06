@@ -202,16 +202,17 @@ void vmx_vcpu_pi_put(struct kvm_vcpu *vcpu)
 void pi_wakeup_handler(void)
 {
 	int cpu = smp_processor_id();
+	struct list_head *wakeup_list = &per_cpu(wakeup_vcpus_on_cpu, cpu);
+	raw_spinlock_t *spinlock = &per_cpu(wakeup_vcpus_on_cpu_lock, cpu);
 	struct vcpu_vmx *vmx;
 
-	raw_spin_lock(&per_cpu(wakeup_vcpus_on_cpu_lock, cpu));
-	list_for_each_entry(vmx, &per_cpu(wakeup_vcpus_on_cpu, cpu),
-			    pi_wakeup_list) {
+	raw_spin_lock(spinlock);
+	list_for_each_entry(vmx, wakeup_list, pi_wakeup_list) {
 
 		if (pi_test_on(&vmx->pi_desc))
 			kvm_vcpu_wake_up(&vmx->vcpu);
 	}
-	raw_spin_unlock(&per_cpu(wakeup_vcpus_on_cpu_lock, cpu));
+	raw_spin_unlock(spinlock);
 }
 
 void __init pi_init_cpu(int cpu)
