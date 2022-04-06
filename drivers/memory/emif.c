@@ -1025,10 +1025,8 @@ static struct emif_data *__init_or_module get_device_details(
 	temp	= devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
 	dev_info = devm_kzalloc(dev, sizeof(*dev_info), GFP_KERNEL);
 
-	if (!emif || !temp || !dev_info) {
-		dev_err(dev, "%s:%d: allocation error\n", __func__, __LINE__);
+	if (!emif || !temp || !dev_info)
 		goto error;
-	}
 
 	memcpy(temp, pd, sizeof(*pd));
 	pd = temp;
@@ -1067,9 +1065,6 @@ static struct emif_data *__init_or_module get_device_details(
 		temp = devm_kzalloc(dev, sizeof(*cust_cfgs), GFP_KERNEL);
 		if (temp)
 			memcpy(temp, cust_cfgs, sizeof(*cust_cfgs));
-		else
-			dev_warn(dev, "%s:%d: allocation error\n", __func__,
-				__LINE__);
 		pd->custom_configs = temp;
 	}
 
@@ -1084,8 +1079,6 @@ static struct emif_data *__init_or_module get_device_details(
 			memcpy(temp, pd->timings, size);
 			pd->timings = temp;
 		} else {
-			dev_warn(dev, "%s:%d: allocation error\n", __func__,
-				__LINE__);
 			get_default_timings(emif);
 		}
 	} else {
@@ -1098,8 +1091,6 @@ static struct emif_data *__init_or_module get_device_details(
 			memcpy(temp, pd->min_tck, sizeof(*pd->min_tck));
 			pd->min_tck = temp;
 		} else {
-			dev_warn(dev, "%s:%d: allocation error\n", __func__,
-				__LINE__);
 			pd->min_tck = &lpddr2_jedec_min_tck;
 		}
 	} else {
