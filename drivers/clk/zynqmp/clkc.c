@@ -220,18 +220,22 @@ static int zynqmp_pm_clock_get_num_clocks(u32 *nclocks)
  * This function is used to get name of clock specified by given
  * clock ID.
  *
- * Return: Returns 0
+ * Return: 0 on success else error+reason
  */
 static int zynqmp_pm_clock_get_name(u32 clock_id,
 				    struct name_resp *response)
 {
 	struct zynqmp_pm_query_data qdata = {0};
 	u32 ret_payload[PAYLOAD_ARG_CNT];
+	int ret;
 
 	qdata.qid = PM_QID_CLOCK_GET_NAME;
 	qdata.arg1 = clock_id;
 
-	zynqmp_pm_query_data(qdata, ret_payload);
+	ret = zynqmp_pm_query_data(qdata, ret_payload);
+	if (ret)
+		return ret;
+
 	memcpy(response, ret_payload, sizeof(*response));
 
 	return 0;
