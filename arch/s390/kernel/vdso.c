@@ -160,10 +160,9 @@ int vdso_getcpu_init(void)
 }
 early_initcall(vdso_getcpu_init); /* Must be called before SMP init */
 
-int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+static int map_vdso(unsigned long addr, unsigned long vdso_mapping_len)
 {
-	unsigned long vdso_text_len, vdso_mapping_len;
-	unsigned long vvar_start, vdso_text_start;
+	unsigned long vvar_start, vdso_text_start, vdso_text_len;
 	struct vm_special_mapping *vdso_mapping;
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
@@ -180,8 +179,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		vdso_text_len = vdso64_end - vdso64_start;
 		vdso_mapping = &vdso64_mapping;
 	}
-	vdso_mapping_len = vdso_text_len + VVAR_NR_PAGES * PAGE_SIZE;
-	vvar_start = get_unmapped_area(NULL, 0, vdso_mapping_len, 0, 0);
+	vvar_start = get_unmapped_area(NULL, addr, vdso_mapping_len, 0, 0);
 	rc = vvar_start;
 	if (IS_ERR_VALUE(vvar_start))
 		goto out;
@@ -208,6 +206,22 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 out:
 	mmap_write_unlock(mm);
 	return rc;
+}
+
+unsigned long vdso_size(void)
+{
+	unsigned long size = VVAR_NR_PAGES * PAGE_SIZE;
+
+	if (is_compat_task())
+		size += vdso32_end - vdso32_start;
+	else
+		size += vdso64_end - vdso64_start;
+	return PAGE_ALIGN(size);
+}
+
+int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+{
+	return map_vdso(0, vdso_size());
 }
 
 static struct page ** __init vdso_setup_pages(void *start, void *end)
