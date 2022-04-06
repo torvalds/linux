@@ -9,11 +9,30 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/regmap.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/rv1106-cru.h>
 #include "clk.h"
 
 #define RV1106_GRF_SOC_STATUS0		0x10
+#define CPU_PVTPLL_CON0_L		0x40000
+#define CPU_PVTPLL_CON0_H		0x40004
+#define CPU_PVTPLL_CON1_L		0x40008
+#define CPU_PVTPLL_CON1_H		0x4000c
+#define CPU_PVTPLL_CON2_L		0x40010
+#define CPU_PVTPLL_CON2_H		0x40014
+#define CPU_PVTPLL_CON3_L		0x40018
+#define CPU_PVTPLL_CON3_H		0x4001c
+
+#define PVTPLL_RING_SEL_MASK		0x7
+#define PVTPLL_RING_SEL_SHIFT		8
+#define PVTPLL_EN_MASK			0x3
+#define PVTPLL_EN_SHIFT			0
+#define PVTPLL_LENGTH_SEL_MASK		0x7f
+#define PVTPLL_LENGTH_SEL_SHIFT		0
+
+#define CPU_CLK_PATH_BASE		(0x18300)
+#define CPU_PVTPLL_PATH_CORE		((1 << 12) | (1 << 28))
 
 #define RV1106_FRAC_MAX_PRATE		1200000000
 
@@ -77,6 +96,10 @@ static struct rockchip_pll_rate_table rv1106_pll_rates[] = {
 #define RV1106_DIV_ACLK_CORE_SHIFT	7
 #define RV1106_DIV_PCLK_DBG_MASK	0x1f
 #define RV1106_DIV_PCLK_DBG_SHIFT	0
+#define RV1106_CORE_SEL_MASK		0x3
+#define RV1106_CORE_SEL_SHIFT		5
+#define RV1106_ALT_DIV_MASK		0x1f
+#define RV1106_ALT_DIV_SHIFT		0
 
 #define RV1106_CLKSEL0(_aclk_core)					\
 {									\
@@ -92,46 +115,67 @@ static struct rockchip_pll_rate_table rv1106_pll_rates[] = {
 			     RV1106_DIV_PCLK_DBG_SHIFT),		\
 }
 
+#define RV1106_CLKSEL2(_is_pvtpll)					\
+{									\
+	.reg = RV1106_CORECLKSEL_CON(0),				\
+	.val = HIWORD_UPDATE(_is_pvtpll, RV1106_CORE_SEL_MASK,		\
+			     RV1106_CORE_SEL_SHIFT),			\
+}
 
-#define RV1106_CPUCLK_RATE(_prate, _aclk_core, _pclk_dbg)		\
+#define RV1106_CLKSEL3(_alt_div)					\
+{									\
+	.reg = RV1106_CORECLKSEL_CON(0),				\
+	.val = HIWORD_UPDATE(_alt_div, RV1106_ALT_DIV_MASK,		\
+			     RV1106_ALT_DIV_SHIFT),			\
+}
+
+#define RV1106_CPUCLK_RATE(_prate, _aclk_core, _pclk_dbg, _is_pvtpll)	\
 {									\
 	.prate = _prate,						\
 	.divs = {							\
 		RV1106_CLKSEL0(_aclk_core),				\
 		RV1106_CLKSEL1(_pclk_dbg),				\
 	},								\
+	.pre_muxs = {							\
+		RV1106_CLKSEL3(1),					\
+		RV1106_CLKSEL2(2),					\
+	},								\
+	.post_muxs = {							\
+		RV1106_CLKSEL2(_is_pvtpll),				\
+		RV1106_CLKSEL3(0),					\
+	},								\
 }
 
 static struct rockchip_cpuclk_rate_table rv1106_cpuclk_rates[] __initdata = {
-	RV1106_CPUCLK_RATE(1608000000, 3, 7),
-	RV1106_CPUCLK_RATE(1584000000, 3, 7),
-	RV1106_CPUCLK_RATE(1560000000, 3, 7),
-	RV1106_CPUCLK_RATE(1536000000, 3, 7),
-	RV1106_CPUCLK_RATE(1512000000, 3, 7),
-	RV1106_CPUCLK_RATE(1488000000, 2, 5),
-	RV1106_CPUCLK_RATE(1464000000, 2, 5),
-	RV1106_CPUCLK_RATE(1440000000, 2, 5),
-	RV1106_CPUCLK_RATE(1416000000, 2, 5),
-	RV1106_CPUCLK_RATE(1392000000, 2, 5),
-	RV1106_CPUCLK_RATE(1368000000, 2, 5),
-	RV1106_CPUCLK_RATE(1344000000, 2, 5),
-	RV1106_CPUCLK_RATE(1320000000, 2, 5),
-	RV1106_CPUCLK_RATE(1296000000, 2, 5),
-	RV1106_CPUCLK_RATE(1272000000, 2, 5),
-	RV1106_CPUCLK_RATE(1248000000, 2, 5),
-	RV1106_CPUCLK_RATE(1224000000, 2, 5),
-	RV1106_CPUCLK_RATE(1200000000, 2, 5),
-	RV1106_CPUCLK_RATE(1104000000, 2, 5),
-	RV1106_CPUCLK_RATE(1096000000, 2, 5),
-	RV1106_CPUCLK_RATE(1008000000, 1, 5),
-	RV1106_CPUCLK_RATE(912000000, 1, 5),
-	RV1106_CPUCLK_RATE(816000000, 1, 3),
-	RV1106_CPUCLK_RATE(696000000, 1, 3),
-	RV1106_CPUCLK_RATE(600000000, 1, 3),
-	RV1106_CPUCLK_RATE(408000000, 1, 1),
-	RV1106_CPUCLK_RATE(312000000, 1, 1),
-	RV1106_CPUCLK_RATE(216000000,  1, 1),
-	RV1106_CPUCLK_RATE(96000000, 1, 1),
+	RV1106_CPUCLK_RATE(1608000000, 3, 7, 1),
+	RV1106_CPUCLK_RATE(1584000000, 3, 7, 1),
+	RV1106_CPUCLK_RATE(1560000000, 3, 7, 1),
+	RV1106_CPUCLK_RATE(1536000000, 3, 7, 1),
+	RV1106_CPUCLK_RATE(1512000000, 3, 7, 1),
+	RV1106_CPUCLK_RATE(1488000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1464000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1440000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1416000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1392000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1368000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1344000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1320000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1296000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1272000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1248000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1224000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1200000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1104000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1096000000, 2, 5, 1),
+	RV1106_CPUCLK_RATE(1008000000, 1, 5, 1),
+	RV1106_CPUCLK_RATE(912000000, 1, 5, 1),
+	RV1106_CPUCLK_RATE(816000000, 1, 3, 0),
+	RV1106_CPUCLK_RATE(696000000, 1, 3, 0),
+	RV1106_CPUCLK_RATE(600000000, 1, 3, 0),
+	RV1106_CPUCLK_RATE(408000000, 1, 1, 0),
+	RV1106_CPUCLK_RATE(312000000, 1, 1, 0),
+	RV1106_CPUCLK_RATE(216000000,  1, 1, 0),
+	RV1106_CPUCLK_RATE(96000000, 1, 1, 0),
 };
 
 static const struct rockchip_cpuclk_reg_data rv1106_cpuclk_data = {
@@ -140,7 +184,7 @@ static const struct rockchip_cpuclk_reg_data rv1106_cpuclk_data = {
 	.div_core_mask[0] = 0x1f,
 	.num_cores = 1,
 	.mux_core_alt = 2,
-	.mux_core_main = 0,
+	.mux_core_main = 2,
 	.mux_core_shift = 5,
 	.mux_core_mask = 0x3,
 };
@@ -921,6 +965,19 @@ void rv1106_dump_cru(void)
 }
 EXPORT_SYMBOL_GPL(rv1106_dump_cru);
 
+void rockchip_rv1106_pvtpll_init(struct rockchip_clk_provider *ctx)
+{
+	/* set pvtpll ref clk mux */
+	writel_relaxed(CPU_PVTPLL_PATH_CORE, ctx->reg_base + CPU_CLK_PATH_BASE);
+
+	regmap_write(ctx->grf, CPU_PVTPLL_CON0_H, HIWORD_UPDATE(0x6, PVTPLL_LENGTH_SEL_MASK,
+		     PVTPLL_LENGTH_SEL_SHIFT));
+	regmap_write(ctx->grf, CPU_PVTPLL_CON0_L, HIWORD_UPDATE(0x1, PVTPLL_RING_SEL_MASK,
+		     PVTPLL_RING_SEL_SHIFT));
+	regmap_write(ctx->grf, CPU_PVTPLL_CON0_L, HIWORD_UPDATE(0x3, PVTPLL_EN_MASK,
+		     PVTPLL_EN_SHIFT));
+}
+
 static int rv1106_clk_panic(struct notifier_block *this,
 			    unsigned long ev, void *ptr)
 {
@@ -952,6 +1009,9 @@ static void __init rv1106_clk_init(struct device_node *np)
 		iounmap(reg_base);
 		return;
 	}
+
+	rockchip_rv1106_pvtpll_init(ctx);
+
 	cru_clks = ctx->clk_data.clks;
 
 	rockchip_clk_register_plls(ctx, rv1106_pll_clks,
