@@ -1989,7 +1989,7 @@
 			    "p2u-5", "p2u-6", "p2u-7";
 	};
 
-	fan: fan {
+	fan: pwm-fan {
 		compatible = "pwm-fan";
 		pwms = <&pwm4 0 45334>;
 
