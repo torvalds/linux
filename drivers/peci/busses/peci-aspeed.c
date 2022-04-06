@@ -399,6 +399,7 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 	u32 msg_timing, addr_timing, rd_sampling_point;
 	u32 clk_freq, clk_div_val = 0;
 	u32 msg_timing_idx, clk_div_val_idx, min_clk_div;
+	u32 div_base, div_base_temp;
 	int delta_value, delta_tmp, clk_divisor, clk_divisor_tmp;
 	int ret;
 	unsigned long bus_clk_rate;
@@ -429,7 +430,10 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 	}
 	/*
 	 * PECI bus clock = (Bus clk rate) / (1 << PECI00[10:8])
-	 * PECI operation clock = (PECI bus clock)/ 4*(PECI04[15:8]*4+1)
+	 * if (PECI bus clock >= 100 MHz) div_base = 3;
+	 * else if (PECI bus clock >= 50 MHz) div_base = 2;
+	 * else div_base = 1;
+	 * PECI operation clock = (PECI bus clock)/ 4*(PECI04[15:8]*4+div_base)
 	 * (1 << PECI00[10:8]) * (PECI04[15:8]*4+1) =
 	 * (Bus clk rate) / (4 * PECI operation clock)
 	 */
@@ -438,15 +442,23 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 	/* Find the closest divisor for clock-frequency */
 	for (clk_div_val_idx = min_clk_div; clk_div_val_idx < 7;
 	     clk_div_val_idx++) {
+		if (bus_clk_rate >> clk_div_val_idx >= 100000000)
+			div_base_temp = 3;
+		else if (bus_clk_rate >> clk_div_val_idx >= 50000000)
+			div_base_temp = 2;
+		else
+			div_base_temp = 1;
+
 		for (msg_timing_idx = 1; msg_timing_idx <= 255;
 		     msg_timing_idx++) {
 			clk_divisor_tmp = (1 << clk_div_val_idx) *
-					(msg_timing_idx * 4 + 1);
+					  (msg_timing_idx * 4 + div_base_temp);
 			delta_tmp = abs(clk_divisor - clk_divisor_tmp);
 			if (delta_tmp < delta_value) {
 				delta_value = delta_tmp;
 				msg_timing = msg_timing_idx;
 				clk_div_val = clk_div_val_idx;
+				div_base = div_base_temp;
 			}
 		}
 	}
@@ -454,7 +466,7 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 	dev_dbg(priv->dev, "Expect frequency: %d Real frequency is about: %lu",
 		clk_freq,
 		bus_clk_rate /
-		(4 * (1 << clk_div_val) * (msg_timing * 4 + 1)));
+		(4 * (1 << clk_div_val) * (msg_timing * 4 + div_base)));
 	priv->clk_div_val = clk_div_val;
 	priv->msg_timing = msg_timing;
 	priv->addr_timing = addr_timing;
