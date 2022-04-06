@@ -622,7 +622,6 @@ struct clk *rockchip_clk_register_muxgrf(const char *name,
 
 enum rockchip_clk_branch_type {
 	branch_composite,
-	branch_composite_brother,
 	branch_mux,
 	branch_muxgrf,
 	branch_muxpmugrf,
@@ -678,28 +677,6 @@ struct rockchip_clk_branch {
 		.gate_offset	= go,				\
 		.gate_shift	= gs,				\
 		.gate_flags	= gf,				\
-	}
-
-#define COMPOSITE_BROTHER(_id, cname, pnames, f, mo, ms, mw, mf,\
-			  ds, dw, df, go, gs, gf, bro)		\
-	{							\
-		.id		= _id,				\
-		.branch_type	= branch_composite_brother,	\
-		.name		= cname,			\
-		.parent_names	= pnames,			\
-		.num_parents	= ARRAY_SIZE(pnames),		\
-		.flags		= f,				\
-		.muxdiv_offset	= mo,				\
-		.mux_shift	= ms,				\
-		.mux_width	= mw,				\
-		.mux_flags	= mf,				\
-		.div_shift	= ds,				\
-		.div_width	= dw,				\
-		.div_flags	= df,				\
-		.gate_offset	= go,				\
-		.gate_shift	= gs,				\
-		.gate_flags	= gf,				\
-		.child		= bro,				\
 	}
 
 #define COMPOSITE_MUXTBL(_id, cname, pnames, f, mo, ms, mw, mf,	\
@@ -818,26 +795,6 @@ struct rockchip_clk_branch {
 		.div_width	= dw,				\
 		.div_flags	= df,				\
 		.gate_offset	= -1,				\
-	}
-
-#define COMPOSITE_BROTHER_NOGATE(_id, cname, pnames, f, mo, ms, \
-				 mw, mf, ds, dw, df, bro)	\
-	{							\
-		.id		= _id,				\
-		.branch_type	= branch_composite_brother,	\
-		.name		= cname,			\
-		.parent_names	= pnames,			\
-		.num_parents	= ARRAY_SIZE(pnames),		\
-		.flags		= f,				\
-		.muxdiv_offset	= mo,				\
-		.mux_shift	= ms,				\
-		.mux_width	= mw,				\
-		.mux_flags	= mf,				\
-		.div_shift	= ds,				\
-		.div_width	= dw,				\
-		.div_flags	= df,				\
-		.gate_offset	= -1,				\
-		.child		= bro,				\
 	}
 
 #define COMPOSITE_NOGATE_DIVTBL(_id, cname, pnames, f, mo, ms,	\
