@@ -1321,13 +1321,17 @@ static inline void unhold_lkb(struct dlm_lkb *lkb)
 static void lkb_add_ordered(struct list_head *new, struct list_head *head,
 			    int mode)
 {
-	struct dlm_lkb *lkb = NULL;
+	struct dlm_lkb *lkb = NULL, *iter;
 
-	list_for_each_entry(lkb, head, lkb_statequeue)
-		if (lkb->lkb_rqmode < mode)
+	list_for_each_entry(iter, head, lkb_statequeue)
+		if (iter->lkb_rqmode < mode) {
+			lkb = iter;
+			list_add_tail(new, &iter->lkb_statequeue);
 			break;
+		}
 
-	__list_add(new, lkb->lkb_statequeue.prev, &lkb->lkb_statequeue);
+	if (!lkb)
+		list_add_tail(new, head);
 }
 
 /* add/remove lkb to rsb's grant/convert/wait queue */
