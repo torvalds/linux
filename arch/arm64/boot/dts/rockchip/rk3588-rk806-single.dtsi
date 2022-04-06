@@ -381,8 +381,12 @@
 				};
 			};
 
-			nldo5_s0: NLDO_REG5 {
-				regulator-name = "nldo5_s0";
+			vdd_0v75_s0: NLDO_REG5 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-min-microvolt = <750000>;
+				regulator-max-microvolt = <750000>;
+				regulator-name = "vdd_0v75_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};

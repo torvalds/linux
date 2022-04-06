@@ -726,14 +726,3 @@
 &usbhost_dwc3_0 {
 	status = "disabled";
 };
-
-&nldo5_s0 {
-	regulator-always-on;
-	regulator-boot-on;
-	regulator-min-microvolt = <750000>;
-	regulator-max-microvolt = <750000>;
-	rregulator-name = "nldo5_s0";
-	regulator-state-mem {
-		regulator-off-in-suspend;
-	};
-};

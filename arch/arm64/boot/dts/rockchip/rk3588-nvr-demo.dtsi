@@ -49,7 +49,7 @@
 		regulator-always-on;
 		regulator-min-microvolt = <750000>;
 		regulator-max-microvolt = <750000>;
-		vin-supply = <&nldo5_s0>;
+		vin-supply = <&vdd_0v75_s0>;
 	};
 
 	pcie30_avdd1v8: pcie30-avdd1v8 {
@@ -412,17 +412,6 @@
 	rgmii_phy1: phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0x1>;
-	};
-};
-
-&nldo5_s0 {
-	regulator-always-on;
-	regulator-boot-on;
-	regulator-min-microvolt = <750000>;
-	regulator-max-microvolt = <750000>;
-	rregulator-name = "nldo5_s0";
-	regulator-state-mem {
-		regulator-off-in-suspend;
 	};
 };
 
