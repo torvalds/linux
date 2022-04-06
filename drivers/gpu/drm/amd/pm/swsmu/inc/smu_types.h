@@ -366,6 +366,8 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(THM_CG),				\
        __SMU_DUMMY_MAP(CLK_CG),				\
        __SMU_DUMMY_MAP(DATA_CALCULATION),				\
+       __SMU_DUMMY_MAP(DPM_VCLK),			\
+       __SMU_DUMMY_MAP(DPM_DCLK),			\
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(feature)	SMU_FEATURE_##feature##_BIT

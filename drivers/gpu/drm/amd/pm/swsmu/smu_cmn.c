@@ -581,6 +581,17 @@ bool smu_cmn_clk_dpm_is_enabled(struct smu_context *smu,
 	case SMU_SOCCLK:
 		feature_id = SMU_FEATURE_DPM_SOCCLK_BIT;
 		break;
+	case SMU_VCLK:
+	case SMU_VCLK1:
+		feature_id = SMU_FEATURE_DPM_VCLK_BIT;
+		break;
+	case SMU_DCLK:
+	case SMU_DCLK1:
+		feature_id = SMU_FEATURE_DPM_DCLK_BIT;
+		break;
+	case SMU_FCLK:
+		feature_id = SMU_FEATURE_DPM_FCLK_BIT;
+		break;
 	default:
 		return true;
 	}

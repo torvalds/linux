@@ -28,9 +28,10 @@
 #define SMU13_DRIVER_IF_VERSION_INV 0xFFFFFFFF
 #define SMU13_DRIVER_IF_VERSION_YELLOW_CARP 0x04
 #define SMU13_DRIVER_IF_VERSION_ALDE 0x08
+#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_5 0x04
+#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_0 0x27
 
 #define SMU13_MODE1_RESET_WAIT_TIME_IN_MS 500  //500ms
-#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_5 0x04
 
 /* MP Apertures */
 #define MP0_Public			0x03800000
@@ -49,7 +50,7 @@
 #define SMU13_TOOL_SIZE			0x19000
 
 #define MAX_DPM_LEVELS 16
-#define MAX_PCIE_CONF 2
+#define MAX_PCIE_CONF 3
 
 #define CTF_OFFSET_EDGE			5
 #define CTF_OFFSET_HOTSPOT		5
@@ -73,12 +74,15 @@ struct smu_13_0_dpm_table {
 	uint32_t			min;        /* MHz */
 	uint32_t			max;        /* MHz */
 	uint32_t			count;
+	bool				is_fine_grained;
 	struct smu_13_0_dpm_clk_level	dpm_levels[MAX_DPM_LEVELS];
 };
 
 struct smu_13_0_pcie_table {
 	uint8_t  pcie_gen[MAX_PCIE_CONF];
 	uint8_t  pcie_lane[MAX_PCIE_CONF];
+	uint16_t clk_freq[MAX_PCIE_CONF];
+	uint32_t num_of_link_levels;
 };
 
 struct smu_13_0_dpm_tables {
@@ -192,8 +196,8 @@ int
 smu_v13_0_set_fan_control_mode(struct smu_context *smu,
 			       uint32_t mode);
 
-int
-smu_v13_0_set_fan_speed_percent(struct smu_context *smu, uint32_t speed);
+int smu_v13_0_set_fan_speed_pwm(struct smu_context *smu,
+				uint32_t speed);
 
 int smu_v13_0_set_fan_speed_rpm(struct smu_context *smu,
 				uint32_t speed);
@@ -238,15 +242,6 @@ int smu_v13_0_set_performance_level(struct smu_context *smu,
 int smu_v13_0_set_power_source(struct smu_context *smu,
 			       enum smu_power_src_type power_src);
 
-int smu_v13_0_get_dpm_freq_by_index(struct smu_context *smu,
-				    enum smu_clk_type clk_type,
-				    uint16_t level,
-				    uint32_t *value);
-
-int smu_v13_0_get_dpm_level_count(struct smu_context *smu,
-				  enum smu_clk_type clk_type,
-				  uint32_t *value);
-
 int smu_v13_0_set_single_dpm_table(struct smu_context *smu,
 				   enum smu_clk_type clk_type,
 				   struct smu_13_0_dpm_table *single_dpm_table);
@@ -269,6 +264,14 @@ int smu_v13_0_gfx_ulv_control(struct smu_context *smu,
 
 int smu_v13_0_wait_for_event(struct smu_context *smu, enum smu_event_type event,
 			     uint64_t event_arg);
+
+int smu_v13_0_set_vcn_enable(struct smu_context *smu,
+			     bool enable);
+
+int smu_v13_0_set_jpeg_enable(struct smu_context *smu,
+			      bool enable);
+
+int smu_v13_0_init_pptable_microcode(struct smu_context *smu);
 
 #endif
 #endif

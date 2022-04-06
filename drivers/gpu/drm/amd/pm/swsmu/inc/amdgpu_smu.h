@@ -454,6 +454,7 @@ struct smu_umd_pstate_table {
 	struct pstates_clk_freq		uclk_pstate;
 	struct pstates_clk_freq		vclk_pstate;
 	struct pstates_clk_freq		dclk_pstate;
+	struct pstates_clk_freq		fclk_pstate;
 };
 
 struct cmn2asic_msg_mapping {
@@ -1327,6 +1328,8 @@ typedef enum {
 	METRICS_AVERAGE_UCLK,
 	METRICS_AVERAGE_VCLK,
 	METRICS_AVERAGE_DCLK,
+	METRICS_AVERAGE_VCLK1,
+	METRICS_AVERAGE_DCLK1,
 	METRICS_AVERAGE_GFXACTIVITY,
 	METRICS_AVERAGE_MEMACTIVITY,
 	METRICS_AVERAGE_VCNACTIVITY,
@@ -1345,6 +1348,9 @@ typedef enum {
 	METRICS_SS_DGPU_SHARE,
 	METRICS_UNIQUE_ID_UPPER32,
 	METRICS_UNIQUE_ID_LOWER32,
+	METRICS_PCIE_RATE,
+	METRICS_PCIE_WIDTH,
+	METRICS_CURR_FANPWM,
 } MetricsMember_t;
 
 enum smu_cmn2asic_mapping_type {

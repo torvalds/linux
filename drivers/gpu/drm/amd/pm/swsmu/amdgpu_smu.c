@@ -37,6 +37,7 @@
 #include "aldebaran_ppt.h"
 #include "yellow_carp_ppt.h"
 #include "cyan_skillfish_ppt.h"
+#include "smu_v13_0_0_ppt.h"
 #include "smu_v13_0_5_ppt.h"
 #include "amd_pcie.h"
 
@@ -564,6 +565,9 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		aldebaran_set_ppt_funcs(smu);
 		/* Enable pp_od_clk_voltage node */
 		smu->od_enabled = true;
+		break;
+	case IP_VERSION(13, 0, 0):
+		smu_v13_0_0_set_ppt_funcs(smu);
 		break;
 	default:
 		return -EINVAL;
