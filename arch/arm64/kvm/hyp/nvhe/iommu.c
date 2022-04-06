@@ -174,12 +174,13 @@ static bool is_mmio_range(phys_addr_t base, size_t size)
 	return true;
 }
 
-static int __snapshot_host_stage2(u64 start, u64 end, u32 level,
+static int __snapshot_host_stage2(u64 start, u64 pa_max, u32 level,
 				  kvm_pte_t *ptep,
 				  enum kvm_pgtable_walk_flags flags,
 				  void * const arg)
 {
 	struct pkvm_iommu_driver * const drv = arg;
+	u64 end = start + kvm_granule_size(level);
 	enum kvm_pgtable_prot prot;
 	kvm_pte_t pte = *ptep;
 
