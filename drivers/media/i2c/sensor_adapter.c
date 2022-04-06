@@ -110,6 +110,17 @@ static const char * const mipi_clks[] = {
 	"clk_mipi4",
 };
 
+static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
+	.vendor = PHY_VENDOR_SAMSUNG,
+	.lp_vol_ref = 3,
+	.lp_hys_sw = {3, 0, 0, 0},
+	.lp_escclk_pol_sel = {1, 0, 0, 0},
+	.skew_data_cal_clk = {0, 3, 3, 3},
+	.clk_hs_term_sel = 2,
+	.data_hs_term_sel = {2, 2, 2, 2},
+	.reserved = {0},
+};
+
 #define to_sensor(sd) container_of(sd, struct sensor, subdev)
 
 /*
@@ -475,6 +486,7 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	u32 *sync_mode = NULL;
 	struct rkmodule_mclk_data *mclk;
 	struct rkmodule_dev_info *dev_info;
+	struct rkmodule_csi_dphy_param *dphy_param;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -657,7 +669,20 @@ end_set_reg:
 			 "sensor set dev info ,slave addr 0x%x\n",
 			 dev_info->i2c_dev.slave_addr);
 		break;
-
+	case RKMODULE_SET_CSI_DPHY_PARAM:
+		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
+		if (dphy_param->vendor == rk3588_dcphy_param.vendor)
+			rk3588_dcphy_param = *dphy_param;
+		dev_dbg(&sensor->client->dev,
+			"sensor set dphy param\n");
+		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
+		if (dphy_param->vendor == rk3588_dcphy_param.vendor)
+			*dphy_param = rk3588_dcphy_param;
+		dev_dbg(&sensor->client->dev,
+			"sensor get dphy param\n");
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -683,6 +708,7 @@ static long sensor_compat_ioctl32(struct v4l2_subdev *sd,
 	u32 *sync_mode = NULL;
 	struct rkmodule_mclk_data *mclk;
 	struct rkmodule_dev_info *dev_info;
+	struct rkmodule_csi_dphy_param *dphy_param;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -848,7 +874,35 @@ static long sensor_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = -EFAULT;
 		kfree(dev_info);
 		break;
+	case RKMODULE_SET_CSI_DPHY_PARAM:
+		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
+		if (!dphy_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
 
+		ret = copy_from_user(dphy_param, up, sizeof(*dphy_param));
+		if (!ret)
+			ret = sensor_ioctl(sd, cmd, dphy_param);
+		else
+			ret = -EFAULT;
+		kfree(dphy_param);
+		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
+		if (!dphy_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = sensor_ioctl(sd, cmd, dphy_param);
+		if (!ret) {
+			ret = copy_to_user(up, dphy_param, sizeof(*dphy_param));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(dphy_param);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
