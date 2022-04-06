@@ -655,7 +655,7 @@
 			 <PIN_PB21__QSPI0_INT>;
 		bias-disable;
 		slew-rate = <0>;
-		atmel,drive-strength = <ATMEL_PIO_DRVSTR_HI>;
+		atmel,drive-strength = <ATMEL_PIO_DRVSTR_ME>;
 	};
 
 	pinctrl_sdmmc0_default: sdmmc0_default {
