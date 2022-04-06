@@ -55,24 +55,6 @@ struct mlx5e_ipsec_sw_stats {
 	atomic64_t ipsec_tx_drop_no_state;
 	atomic64_t ipsec_tx_drop_not_ip;
 	atomic64_t ipsec_tx_drop_trailer;
-	atomic64_t ipsec_tx_drop_metadata;
-};
-
-struct mlx5e_ipsec_stats {
-	u64 ipsec_dec_in_packets;
-	u64 ipsec_dec_out_packets;
-	u64 ipsec_dec_bypass_packets;
-	u64 ipsec_enc_in_packets;
-	u64 ipsec_enc_out_packets;
-	u64 ipsec_enc_bypass_packets;
-	u64 ipsec_dec_drop_packets;
-	u64 ipsec_dec_auth_fail_packets;
-	u64 ipsec_enc_drop_packets;
-	u64 ipsec_add_sa_success;
-	u64 ipsec_add_sa_fail;
-	u64 ipsec_del_sa_success;
-	u64 ipsec_del_sa_fail;
-	u64 ipsec_cmd_drop;
 };
 
 struct mlx5e_accel_fs_esp;
@@ -83,7 +65,6 @@ struct mlx5e_ipsec {
 	DECLARE_HASHTABLE(sadb_rx, MLX5E_IPSEC_SADB_RX_BITS);
 	spinlock_t sadb_rx_lock; /* Protects sadb_rx */
 	struct mlx5e_ipsec_sw_stats sw_stats;
-	struct mlx5e_ipsec_stats stats;
 	struct workqueue_struct *wq;
 	struct mlx5e_accel_fs_esp *rx_fs;
 	struct mlx5e_ipsec_tx *tx_fs;
