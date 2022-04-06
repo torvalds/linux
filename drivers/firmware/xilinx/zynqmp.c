@@ -36,8 +36,16 @@
 /* BOOT_PIN_CTRL_MASK- out_val[11:8], out_en[3:0] */
 #define CRL_APB_BOOTPIN_CTRL_MASK	0xF0FU
 
+/* IOCTL/QUERY feature payload size */
+#define FEATURE_PAYLOAD_SIZE		2
+
+/* Firmware feature check version mask */
+#define FIRMWARE_VERSION_MASK		GENMASK(15, 0)
+
 static bool feature_check_enabled;
 static DEFINE_HASHTABLE(pm_api_features_map, PM_API_FEATURE_CHECK_MAX_ORDER);
+static u32 ioctl_features[FEATURE_PAYLOAD_SIZE];
+static u32 query_features[FEATURE_PAYLOAD_SIZE];
 
 static struct platform_device *em_dev;
 
@@ -168,7 +176,8 @@ static noinline int do_fw_call_hvc(u64 arg0, u64 arg1, u64 arg2,
 }
 
 /**
- * zynqmp_pm_feature() - Check weather given feature is supported or not
+ * zynqmp_pm_feature() - Check whether given feature is supported or not and
+ *			 store supported IOCTL/QUERY ID mask
  * @api_id:		API ID to check
  *
  * Return: Returns status, either success or error+reason
@@ -208,9 +217,60 @@ int zynqmp_pm_feature(const u32 api_id)
 	feature_data->feature_status = ret;
 	hash_add(pm_api_features_map, &feature_data->hentry, api_id);
 
+	if (api_id == PM_IOCTL)
+		/* Store supported IOCTL IDs mask */
+		memcpy(ioctl_features, &ret_payload[2], FEATURE_PAYLOAD_SIZE * 4);
+	else if (api_id == PM_QUERY_DATA)
+		/* Store supported QUERY IDs mask */
+		memcpy(query_features, &ret_payload[2], FEATURE_PAYLOAD_SIZE * 4);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(zynqmp_pm_feature);
+
+/**
+ * zynqmp_pm_is_function_supported() - Check whether given IOCTL/QUERY function
+ *				       is supported or not
+ * @api_id:		PM_IOCTL or PM_QUERY_DATA
+ * @id:			IOCTL or QUERY function IDs
+ *
+ * Return: Returns status, either success or error+reason
+ */
+int zynqmp_pm_is_function_supported(const u32 api_id, const u32 id)
+{
+	int ret;
+	u32 *bit_mask;
+
+	/* Input arguments validation */
+	if (id >= 64 || (api_id != PM_IOCTL && api_id != PM_QUERY_DATA))
+		return -EINVAL;
+
+	/* Check feature check API version */
+	ret = zynqmp_pm_feature(PM_FEATURE_CHECK);
+	if (ret < 0)
+		return ret;
+
+	/* Check if feature check version 2 is supported or not */
+	if ((ret & FIRMWARE_VERSION_MASK) == PM_API_VERSION_2) {
+		/*
+		 * Call feature check for IOCTL/QUERY API to get IOCTL ID or
+		 * QUERY ID feature status.
+		 */
+		ret = zynqmp_pm_feature(api_id);
+		if (ret < 0)
+			return ret;
+
+		bit_mask = (api_id == PM_IOCTL) ? ioctl_features : query_features;
+
+		if ((bit_mask[(id / 32)] & BIT((id % 32))) == 0U)
+			return -EOPNOTSUPP;
+	} else {
+		return -ENODATA;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(zynqmp_pm_is_function_supported);
 
 /**
  * zynqmp_pm_invoke_fn() - Invoke the system-level platform management layer
