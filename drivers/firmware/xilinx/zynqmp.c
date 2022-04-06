@@ -175,6 +175,23 @@ static noinline int do_fw_call_hvc(u64 arg0, u64 arg1, u64 arg2,
 	return zynqmp_pm_ret_code((enum pm_ret_status)res.a0);
 }
 
+static int do_feature_check_call(const u32 api_id, u32 *ret_payload)
+{
+	int ret;
+	u64 smc_arg[2];
+
+	smc_arg[0] = PM_SIP_SVC | PM_FEATURE_CHECK;
+	smc_arg[1] = api_id;
+
+	ret = do_fw_call(smc_arg[0], smc_arg[1], 0, ret_payload);
+	if (ret)
+		ret = -EOPNOTSUPP;
+	else
+		ret = ret_payload[1];
+
+	return ret;
+}
+
 /**
  * zynqmp_pm_feature() - Check whether given feature is supported or not and
  *			 store supported IOCTL/QUERY ID mask
@@ -186,7 +203,6 @@ int zynqmp_pm_feature(const u32 api_id)
 {
 	int ret;
 	u32 ret_payload[PAYLOAD_ARG_CNT];
-	u64 smc_arg[2];
 	struct pm_api_feature_data *feature_data;
 
 	if (!feature_check_enabled)
@@ -205,14 +221,7 @@ int zynqmp_pm_feature(const u32 api_id)
 		return -ENOMEM;
 
 	feature_data->pm_api_id = api_id;
-	smc_arg[0] = PM_SIP_SVC | PM_FEATURE_CHECK;
-	smc_arg[1] = api_id;
-
-	ret = do_fw_call(smc_arg[0], smc_arg[1], 0, ret_payload);
-	if (ret)
-		ret = -EOPNOTSUPP;
-	else
-		ret = ret_payload[1];
+	ret = do_feature_check_call(api_id, ret_payload);
 
 	feature_data->feature_status = ret;
 	hash_add(pm_api_features_map, &feature_data->hentry, api_id);
