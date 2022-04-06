@@ -9,7 +9,6 @@
 #include "ipsec_offload.h"
 #include "en/fs.h"
 
-#ifdef CONFIG_MLX5_EN_IPSEC
 void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_priv *priv);
 int mlx5e_accel_ipsec_fs_init(struct mlx5e_priv *priv);
 int mlx5e_accel_ipsec_fs_add_rule(struct mlx5e_priv *priv,
@@ -19,8 +18,4 @@ int mlx5e_accel_ipsec_fs_add_rule(struct mlx5e_priv *priv,
 void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_priv *priv,
 				   struct mlx5_accel_esp_xfrm_attrs *attrs,
 				   struct mlx5e_ipsec_rule *ipsec_rule);
-#else
-static inline void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_priv *priv) {}
-static inline int mlx5e_accel_ipsec_fs_init(struct mlx5e_priv *priv) { return 0; }
-#endif
 #endif /* __MLX5_IPSEC_STEERING_H__ */

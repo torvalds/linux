@@ -106,8 +106,7 @@ mlx5_ipsec_offload_esp_validate_xfrm_attrs(struct mlx5_core_dev *mdev,
 
 static struct mlx5_accel_esp_xfrm *
 mlx5_ipsec_offload_esp_create_xfrm(struct mlx5_core_dev *mdev,
-				   const struct mlx5_accel_esp_xfrm_attrs *attrs,
-				   u32 flags)
+				   const struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
 	struct mlx5_ipsec_esp_xfrm *mxfrm;
 	int err = 0;
@@ -286,11 +285,6 @@ static void mlx5_ipsec_offload_delete_sa_ctx(void *context)
 	mutex_unlock(&mxfrm->lock);
 }
 
-static int mlx5_ipsec_offload_init(struct mlx5_core_dev *mdev)
-{
-	return 0;
-}
-
 static int mlx5_modify_ipsec_obj(struct mlx5_core_dev *mdev,
 				 struct mlx5_ipsec_obj_attrs *attrs,
 				 u32 ipsec_id)
@@ -378,85 +372,11 @@ change_sw_xfrm_attrs:
 	return err;
 }
 
-static const struct mlx5_accel_ipsec_ops ipsec_offload_ops = {
-	.create_hw_context = mlx5_ipsec_offload_create_sa_ctx,
-	.free_hw_context = mlx5_ipsec_offload_delete_sa_ctx,
-	.init = mlx5_ipsec_offload_init,
-	.esp_create_xfrm = mlx5_ipsec_offload_esp_create_xfrm,
-	.esp_destroy_xfrm = mlx5_ipsec_offload_esp_destroy_xfrm,
-	.esp_modify_xfrm = mlx5_ipsec_offload_esp_modify_xfrm,
-};
-
-static const struct mlx5_accel_ipsec_ops *
-mlx5_ipsec_offload_ops(struct mlx5_core_dev *mdev)
-{
-	if (!mlx5_ipsec_device_caps(mdev))
-		return NULL;
-
-	return &ipsec_offload_ops;
-}
-
-void mlx5_accel_ipsec_init(struct mlx5_core_dev *mdev)
-{
-	const struct mlx5_accel_ipsec_ops *ipsec_ops;
-	int err = 0;
-
-	ipsec_ops = mlx5_ipsec_offload_ops(mdev);
-	if (!ipsec_ops || !ipsec_ops->init) {
-		mlx5_core_dbg(mdev, "IPsec ops is not supported\n");
-		return;
-	}
-
-	err = ipsec_ops->init(mdev);
-	if (err) {
-		mlx5_core_warn_once(
-			mdev, "Failed to start IPsec device, err = %d\n", err);
-		return;
-	}
-
-	mdev->ipsec_ops = ipsec_ops;
-}
-
-void mlx5_accel_ipsec_cleanup(struct mlx5_core_dev *mdev)
-{
-	const struct mlx5_accel_ipsec_ops *ipsec_ops = mdev->ipsec_ops;
-
-	if (!ipsec_ops || !ipsec_ops->cleanup)
-		return;
-
-	ipsec_ops->cleanup(mdev);
-}
-
-unsigned int mlx5_accel_ipsec_counters_count(struct mlx5_core_dev *mdev)
-{
-	const struct mlx5_accel_ipsec_ops *ipsec_ops = mdev->ipsec_ops;
-
-	if (!ipsec_ops || !ipsec_ops->counters_count)
-		return -EOPNOTSUPP;
-
-	return ipsec_ops->counters_count(mdev);
-}
-
-int mlx5_accel_ipsec_counters_read(struct mlx5_core_dev *mdev, u64 *counters,
-				   unsigned int count)
-{
-	const struct mlx5_accel_ipsec_ops *ipsec_ops = mdev->ipsec_ops;
-
-	if (!ipsec_ops || !ipsec_ops->counters_read)
-		return -EOPNOTSUPP;
-
-	return ipsec_ops->counters_read(mdev, counters, count);
-}
-
 void *mlx5_accel_esp_create_hw_context(struct mlx5_core_dev *mdev,
 				       struct mlx5_accel_esp_xfrm *xfrm,
 				       u32 *sa_handle)
 {
-	const struct mlx5_accel_ipsec_ops *ipsec_ops = mdev->ipsec_ops;
 	__be32 saddr[4] = {}, daddr[4] = {};
-
-	if (!ipsec_ops || !ipsec_ops->create_hw_context)
-		return  ERR_PTR(-EOPNOTSUPP);
 
 	if (!xfrm->attrs.is_ipv6) {
 		saddr[3] = xfrm->attrs.saddr.a4;
@@ -466,59 +386,37 @@ void *mlx5_accel_esp_create_hw_context(struct mlx5_core_dev *mdev,
 		memcpy(daddr, xfrm->attrs.daddr.a6, sizeof(daddr));
 	}
 
-	return ipsec_ops->create_hw_context(mdev, xfrm, saddr, daddr,
-					    xfrm->attrs.spi,
-					    xfrm->attrs.is_ipv6, sa_handle);
+	return mlx5_ipsec_offload_create_sa_ctx(mdev, xfrm, saddr, daddr,
+						xfrm->attrs.spi,
+						xfrm->attrs.is_ipv6, sa_handle);
 }
 
 void mlx5_accel_esp_free_hw_context(struct mlx5_core_dev *mdev, void *context)
 {
-	const struct mlx5_accel_ipsec_ops *ipsec_ops = mdev->ipsec_ops;
-
-	if (!ipsec_ops || !ipsec_ops->free_hw_context)
-		return;
-
-	ipsec_ops->free_hw_context(context);
+	mlx5_ipsec_offload_delete_sa_ctx(context);
 }
 
 struct mlx5_accel_esp_xfrm *
 mlx5_accel_esp_create_xfrm(struct mlx5_core_dev *mdev,
 			   const struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
-	const struct mlx5_accel_ipsec_ops *ipsec_ops = mdev->ipsec_ops;
 	struct mlx5_accel_esp_xfrm *xfrm;
 
-	if (!ipsec_ops || !ipsec_ops->esp_create_xfrm)
-		return ERR_PTR(-EOPNOTSUPP);
-
-	xfrm = ipsec_ops->esp_create_xfrm(mdev, attrs, 0);
+	xfrm = mlx5_ipsec_offload_esp_create_xfrm(mdev, attrs);
 	if (IS_ERR(xfrm))
 		return xfrm;
 
 	xfrm->mdev = mdev;
 	return xfrm;
 }
-EXPORT_SYMBOL_GPL(mlx5_accel_esp_create_xfrm);
 
 void mlx5_accel_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm)
 {
-	const struct mlx5_accel_ipsec_ops *ipsec_ops = xfrm->mdev->ipsec_ops;
-
-	if (!ipsec_ops || !ipsec_ops->esp_destroy_xfrm)
-		return;
-
-	ipsec_ops->esp_destroy_xfrm(xfrm);
+	mlx5_ipsec_offload_esp_destroy_xfrm(xfrm);
 }
-EXPORT_SYMBOL_GPL(mlx5_accel_esp_destroy_xfrm);
 
 int mlx5_accel_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
 			       const struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
-	const struct mlx5_accel_ipsec_ops *ipsec_ops = xfrm->mdev->ipsec_ops;
-
-	if (!ipsec_ops || !ipsec_ops->esp_modify_xfrm)
-		return -EOPNOTSUPP;
-
-	return ipsec_ops->esp_modify_xfrm(xfrm, attrs);
+	return mlx5_ipsec_offload_esp_modify_xfrm(xfrm, attrs);
 }
-EXPORT_SYMBOL_GPL(mlx5_accel_esp_modify_xfrm);
