@@ -95,4 +95,10 @@ int sof_of_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL(sof_of_remove);
 
+void sof_of_shutdown(struct platform_device *pdev)
+{
+	snd_sof_device_shutdown(&pdev->dev);
+}
+EXPORT_SYMBOL(sof_of_shutdown);
+
 MODULE_LICENSE("Dual BSD/GPL");
