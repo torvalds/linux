@@ -83,6 +83,7 @@ struct mem_info {
 #define MACH_SUN3X		11
 #define MACH_M54XX		12
 #define MACH_M5441X		13
+#define MACH_VIRT		14
 
 
     /*

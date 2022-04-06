@@ -262,6 +262,7 @@
 #include <asm/bootinfo-hp300.h>
 #include <asm/bootinfo-mac.h>
 #include <asm/bootinfo-q40.h>
+#include <asm/bootinfo-virt.h>
 #include <asm/bootinfo-vme.h>
 #include <asm/setup.h>
 #include <asm/entry.h>
@@ -534,6 +535,7 @@ func_define	putn,1
 #define is_not_apollo(lab) cmpl &MACH_APOLLO,%pc@(m68k_machtype); jne lab
 #define is_not_q40(lab) cmpl &MACH_Q40,%pc@(m68k_machtype); jne lab
 #define is_not_sun3x(lab) cmpl &MACH_SUN3X,%pc@(m68k_machtype); jne lab
+#define is_not_virt(lab) cmpl &MACH_VIRT,%pc@(m68k_machtype); jne lab
 
 #define hasnt_leds(lab) cmpl &MACH_HP300,%pc@(m68k_machtype); \
 			jeq 42f; \
@@ -647,6 +649,14 @@ ENTRY(__start)
 L(test_notmac):
 #endif /* CONFIG_MAC */
 
+#ifdef CONFIG_VIRT
+	is_not_virt(L(test_notvirt))
+
+	get_bi_record BI_VIRT_GF_TTY_BASE
+	lea	%pc@(L(virt_gf_tty_base)),%a1
+	movel	%a0@,%a1@
+L(test_notvirt):
+#endif /* CONFIG_VIRT */
 
 /*
  * There are ultimately two pieces of information we want for all kinds of
@@ -1235,6 +1245,13 @@ L(mmu_init_not_mac):
 	jbra	L(mmu_init_done)
 
 L(notsun3x):
+#endif
+
+#ifdef CONFIG_VIRT
+	is_not_virt(L(novirt))
+	mmu_map_tt	#1,#0xFF000000,#0x01000000,#_PAGE_NOCACHE_S
+	jbra    L(mmu_init_done)
+L(novirt):
 #endif
 
 #ifdef CONFIG_APOLLO
@@ -3186,6 +3203,14 @@ func_start	serial_putc,%d0/%d1/%a0/%a1
 3:
 #endif
 
+#ifdef CONFIG_VIRT
+	is_not_virt(1f)
+
+	movel L(virt_gf_tty_base),%a1
+	movel %d0,%a1@(GF_PUT_CHAR)
+1:
+#endif
+
 L(serial_putc_done):
 func_return	serial_putc
 
@@ -3865,3 +3890,9 @@ q40_mem_cptr:
 L(q40_do_debug):
 	.long	0
 #endif
+
+#if defined(CONFIG_VIRT)
+GF_PUT_CHAR = 0x00
+L(virt_gf_tty_base):
+	.long 0
+#endif /* CONFIG_VIRT */
