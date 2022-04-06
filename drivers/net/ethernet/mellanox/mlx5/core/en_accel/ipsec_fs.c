@@ -2,7 +2,7 @@
 /* Copyright (c) 2020, Mellanox Technologies inc. All rights reserved. */
 
 #include <linux/netdevice.h>
-#include "accel/ipsec_offload.h"
+#include "ipsec_offload.h"
 #include "ipsec_fs.h"
 #include "fs_core.h"
 

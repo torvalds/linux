@@ -6,7 +6,7 @@
 
 #include "en.h"
 #include "ipsec.h"
-#include "accel/ipsec_offload.h"
+#include "ipsec_offload.h"
 #include "en/fs.h"
 
 #ifdef CONFIG_MLX5_EN_IPSEC

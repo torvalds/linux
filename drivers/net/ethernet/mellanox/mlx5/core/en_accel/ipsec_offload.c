@@ -2,7 +2,7 @@
 /* Copyright (c) 2017, Mellanox Technologies inc. All rights reserved. */
 
 #include "mlx5_core.h"
-#include "accel/ipsec_offload.h"
+#include "ipsec_offload.h"
 #include "lib/mlx5.h"
 #include "en_accel/ipsec_fs.h"
 

@@ -34,7 +34,7 @@
 #include <crypto/aead.h>
 #include <net/xfrm.h>
 #include <net/esp.h>
-#include "accel/ipsec_offload.h"
+#include "ipsec_offload.h"
 #include "en_accel/ipsec_rxtx.h"
 #include "en_accel/ipsec.h"
 #include "en.h"
