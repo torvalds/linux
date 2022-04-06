@@ -72,8 +72,8 @@
 			st,settling = <2>;
 			st,fraction-z = <7>;
 			st,i-drive = <1>;
-			touchscreen-inverted-x = <1>;
-			touchscreen-inverted-y = <1>;
+			touchscreen-inverted-x;
+			touchscreen-inverted-y;
 		};
 	};
 };
