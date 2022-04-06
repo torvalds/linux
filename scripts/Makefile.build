@@ -306,7 +306,7 @@ $(obj)/%.prelink.o: $(obj)/%.o FORCE
 endif
 
 cmd_mod = { \
-	echo $(if $($*-objs)$($*-y)$($*-m), $(addprefix $(obj)/, $($*-objs) $($*-y) $($*-m)), $(@:.mod=.o)); \
+	echo $(addprefix $(obj)/, $(call real-search, $*.o, .o, -objs -y -m)); \
 	$(undefined_syms) echo; \
 	} > $@
 
