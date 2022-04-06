@@ -398,7 +398,7 @@ void get_src_version(const char *modname, char sum[], unsigned sumlen)
 	buf = read_text_file(filelist);
 
 	md4_init(&md);
-	while ((fname = strsep(&buf, " \n"))) {
+	while ((fname = strsep(&buf, "\n"))) {
 		if (!*fname)
 			continue;
 		if (!(is_static_library(fname)) &&
