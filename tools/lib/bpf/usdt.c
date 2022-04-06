@@ -687,7 +687,7 @@ static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *
 			 * to shared libraries with no PID filter.
 			 */
 			if (pid < 0) {
-				pr_warn("usdt: attaching to shared libaries without specific PID is not supported on current kernel\n");
+				pr_warn("usdt: attaching to shared libraries without specific PID is not supported on current kernel\n");
 				err = -ENOTSUP;
 				goto err_out;
 			}
