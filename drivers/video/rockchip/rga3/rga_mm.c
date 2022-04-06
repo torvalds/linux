@@ -387,7 +387,12 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 					goto FREE_RGA_DMA_BUF;
 				}
 
-				break;
+				/*
+				 * Since RGA3 currently does not support physical addresses,
+				 * it is necessary to continue to map sgt.
+				 */
+				if (rga_drvdata->scheduler[i]->core == RGA2_SCHEDULER_CORE0)
+					break;
 			}
 		}
 	}
