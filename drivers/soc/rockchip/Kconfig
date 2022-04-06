@@ -220,6 +220,16 @@ config RK_CMA_PROCFS
 	  Turns on the ProcFS interface for CMA, shows the bitmap in hex
 	  format.
 
+config RK_DMABUF_PROCFS
+	tristate "DMABUF procfs support"
+	depends on DMA_SHARED_BUFFER
+	depends on PROC_FS
+	help
+	  Turns on this to create a procfs debug interface for dma-buf, support
+	  get information from db_list by get_each_dmabuf.
+
+	  If unsure, say "N".
+
 config RK_MEMBLOCK_PROCFS
 	bool "Memblock procfs for reserved memory"
 	depends on PROC_FS && ARCH_KEEP_MEMBLOCK
