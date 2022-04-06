@@ -23,6 +23,8 @@
 #include <net/busy_poll.h>
 #include <net/pkt_sched.h>
 
+#include "dev.h"
+
 static int two = 2;
 static int three = 3;
 static int int_3600 = 3600;
