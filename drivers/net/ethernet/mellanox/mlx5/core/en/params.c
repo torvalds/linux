@@ -689,8 +689,8 @@ void mlx5e_build_sq_param(struct mlx5_core_dev *mdev,
 	void *wq = MLX5_ADDR_OF(sqc, sqc, wq);
 	bool allow_swp;
 
-	allow_swp = mlx5_geneve_tx_allowed(mdev) ||
-		    !!MLX5_IPSEC_DEV(mdev);
+	allow_swp =
+		mlx5_geneve_tx_allowed(mdev) || !!mlx5_ipsec_device_caps(mdev);
 	mlx5e_build_sq_param_common(mdev, param);
 	MLX5_SET(wq, wq, log_wq_sz, params->log_sq_size);
 	MLX5_SET(sqc, sqc, allow_swp, allow_swp);

@@ -124,7 +124,7 @@ enum mlx5_accel_ipsec_cap {
 
 #ifdef CONFIG_MLX5_ACCEL
 
-u32 mlx5_accel_ipsec_device_caps(struct mlx5_core_dev *mdev);
+u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev);
 
 struct mlx5_accel_esp_xfrm *
 mlx5_accel_esp_create_xfrm(struct mlx5_core_dev *mdev,
@@ -135,7 +135,10 @@ int mlx5_accel_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
 
 #else
 
-static inline u32 mlx5_accel_ipsec_device_caps(struct mlx5_core_dev *mdev) { return 0; }
+static inline u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
+{
+	return 0;
+}
 
 static inline struct mlx5_accel_esp_xfrm *
 mlx5_accel_esp_create_xfrm(struct mlx5_core_dev *mdev,

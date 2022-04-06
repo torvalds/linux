@@ -6,9 +6,6 @@
 #include "lib/mlx5.h"
 #include "en_accel/ipsec_fs.h"
 
-#define MLX5_IPSEC_DEV_BASIC_CAPS (MLX5_ACCEL_IPSEC_CAP_DEVICE | MLX5_ACCEL_IPSEC_CAP_IPV6 | \
-				   MLX5_ACCEL_IPSEC_CAP_LSO)
-
 struct mlx5_ipsec_sa_ctx {
 	struct rhash_head hash;
 	u32 enc_key_id;
@@ -25,16 +22,30 @@ struct mlx5_ipsec_esp_xfrm {
 	struct mlx5_accel_esp_xfrm accel_xfrm;
 };
 
-static u32 mlx5_ipsec_offload_device_caps(struct mlx5_core_dev *mdev)
+u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 {
-	u32 caps = MLX5_IPSEC_DEV_BASIC_CAPS;
+	u32 caps;
 
-	if (!mlx5_is_ipsec_device(mdev))
+	if (!MLX5_CAP_GEN(mdev, ipsec_offload))
+		return 0;
+
+	if (!MLX5_CAP_GEN(mdev, log_max_dek))
+		return 0;
+
+	if (!(MLX5_CAP_GEN_64(mdev, general_obj_types) &
+	    MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_IPSEC))
+		return 0;
+
+	if (!MLX5_CAP_IPSEC(mdev, ipsec_crypto_offload) ||
+	    !MLX5_CAP_ETH(mdev, insert_trailer))
 		return 0;
 
 	if (!MLX5_CAP_FLOWTABLE_NIC_TX(mdev, ipsec_encrypt) ||
 	    !MLX5_CAP_FLOWTABLE_NIC_RX(mdev, ipsec_decrypt))
 		return 0;
+
+	caps = MLX5_ACCEL_IPSEC_CAP_DEVICE | MLX5_ACCEL_IPSEC_CAP_IPV6 |
+	       MLX5_ACCEL_IPSEC_CAP_LSO;
 
 	if (MLX5_CAP_IPSEC(mdev, ipsec_crypto_esp_aes_gcm_128_encrypt) &&
 	    MLX5_CAP_IPSEC(mdev, ipsec_crypto_esp_aes_gcm_128_decrypt))
@@ -52,6 +63,7 @@ static u32 mlx5_ipsec_offload_device_caps(struct mlx5_core_dev *mdev)
 	WARN_ON_ONCE(MLX5_CAP_IPSEC(mdev, log_max_ipsec_offload) > 24);
 	return caps;
 }
+EXPORT_SYMBOL_GPL(mlx5_ipsec_device_caps);
 
 static int
 mlx5_ipsec_offload_esp_validate_xfrm_attrs(struct mlx5_core_dev *mdev,
@@ -367,7 +379,6 @@ change_sw_xfrm_attrs:
 }
 
 static const struct mlx5_accel_ipsec_ops ipsec_offload_ops = {
-	.device_caps = mlx5_ipsec_offload_device_caps,
 	.create_hw_context = mlx5_ipsec_offload_create_sa_ctx,
 	.free_hw_context = mlx5_ipsec_offload_delete_sa_ctx,
 	.init = mlx5_ipsec_offload_init,
@@ -379,7 +390,7 @@ static const struct mlx5_accel_ipsec_ops ipsec_offload_ops = {
 static const struct mlx5_accel_ipsec_ops *
 mlx5_ipsec_offload_ops(struct mlx5_core_dev *mdev)
 {
-	if (!mlx5_ipsec_offload_device_caps(mdev))
+	if (!mlx5_ipsec_device_caps(mdev))
 		return NULL;
 
 	return &ipsec_offload_ops;
@@ -415,17 +426,6 @@ void mlx5_accel_ipsec_cleanup(struct mlx5_core_dev *mdev)
 
 	ipsec_ops->cleanup(mdev);
 }
-
-u32 mlx5_accel_ipsec_device_caps(struct mlx5_core_dev *mdev)
-{
-	const struct mlx5_accel_ipsec_ops *ipsec_ops = mdev->ipsec_ops;
-
-	if (!ipsec_ops || !ipsec_ops->device_caps)
-		return 0;
-
-	return ipsec_ops->device_caps(mdev);
-}
-EXPORT_SYMBOL_GPL(mlx5_accel_ipsec_device_caps);
 
 unsigned int mlx5_accel_ipsec_counters_count(struct mlx5_core_dev *mdev)
 {
