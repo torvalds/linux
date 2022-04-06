@@ -1328,12 +1328,16 @@ static int coda9_jpeg_prepare_decode(struct coda_ctx *ctx)
 	struct coda_q_data *q_data_src, *q_data_dst;
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 	int chroma_interleave;
+	int scl_hor_mode, scl_ver_mode;
 
 	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 	dst_fourcc = q_data_dst->fourcc;
+
+	scl_hor_mode = coda_jpeg_scale(q_data_src->width, q_data_dst->width);
+	scl_ver_mode = coda_jpeg_scale(q_data_src->height, q_data_dst->height);
 
 	if (vb2_get_plane_payload(&src_buf->vb2_buf, 0) == 0)
 		vb2_set_plane_payload(&src_buf->vb2_buf, 0,
@@ -1383,7 +1387,11 @@ static int coda9_jpeg_prepare_decode(struct coda_ctx *ctx)
 	coda_write(dev, 0, CODA9_REG_JPEG_ROT_INFO);
 	coda_write(dev, bus_req_num[chroma_format], CODA9_REG_JPEG_OP_INFO);
 	coda_write(dev, mcu_info[chroma_format], CODA9_REG_JPEG_MCU_INFO);
-	coda_write(dev, 0, CODA9_REG_JPEG_SCL_INFO);
+	if (scl_hor_mode || scl_ver_mode)
+		val = CODA9_JPEG_SCL_ENABLE | (scl_hor_mode << 2) | scl_ver_mode;
+	else
+		val = 0;
+	coda_write(dev, val, CODA9_REG_JPEG_SCL_INFO);
 	coda_write(dev, chroma_interleave, CODA9_REG_JPEG_DPB_CONFIG);
 	coda_write(dev, ctx->params.jpeg_restart_interval,
 			CODA9_REG_JPEG_RST_INTVAL);

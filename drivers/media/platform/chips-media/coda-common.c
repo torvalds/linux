@@ -657,6 +657,8 @@ static int coda_try_fmt_vid_cap(struct file *file, void *priv,
 	const struct coda_q_data *q_data_src;
 	const struct coda_codec *codec;
 	struct vb2_queue *src_vq;
+	int hscale = 0;
+	int vscale = 0;
 	int ret;
 	bool use_vdoa;
 
@@ -673,8 +675,13 @@ static int coda_try_fmt_vid_cap(struct file *file, void *priv,
 	 */
 	src_vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	if (vb2_is_streaming(src_vq)) {
-		f->fmt.pix.width = q_data_src->width;
-		f->fmt.pix.height = q_data_src->height;
+		if (q_data_src->fourcc == V4L2_PIX_FMT_JPEG &&
+		    ctx->dev->devtype->product == CODA_960) {
+			hscale = coda_jpeg_scale(q_data_src->width, f->fmt.pix.width);
+			vscale = coda_jpeg_scale(q_data_src->height, f->fmt.pix.height);
+		}
+		f->fmt.pix.width = q_data_src->width >> hscale;
+		f->fmt.pix.height = q_data_src->height >> vscale;
 
 		if (q_data_src->fourcc == V4L2_PIX_FMT_JPEG) {
 			if (ctx->params.jpeg_chroma_subsampling ==
@@ -704,8 +711,8 @@ static int coda_try_fmt_vid_cap(struct file *file, void *priv,
 
 	/* The decoders always write complete macroblocks or MCUs */
 	if (ctx->inst_type == CODA_INST_DECODER) {
-		f->fmt.pix.bytesperline = round_up(f->fmt.pix.width, 16);
-		f->fmt.pix.height = round_up(f->fmt.pix.height, 16);
+		f->fmt.pix.bytesperline = round_up(f->fmt.pix.width, 16 >> hscale);
+		f->fmt.pix.height = round_up(f->fmt.pix.height, 16 >> vscale);
 		if (codec->src_fourcc == V4L2_PIX_FMT_JPEG &&
 		    f->fmt.pix.pixelformat == V4L2_PIX_FMT_YUV422P) {
 			f->fmt.pix.sizeimage = f->fmt.pix.bytesperline *
@@ -850,17 +857,26 @@ static int coda_s_fmt_vid_cap(struct file *file, void *priv,
 	struct coda_q_data *q_data_src;
 	const struct coda_codec *codec;
 	struct v4l2_rect r;
+	int hscale = 0;
+	int vscale = 0;
 	int ret;
+
+	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
+
+	if (q_data_src->fourcc == V4L2_PIX_FMT_JPEG &&
+	    ctx->dev->devtype->product == CODA_960) {
+		hscale = coda_jpeg_scale(q_data_src->width, f->fmt.pix.width);
+		vscale = coda_jpeg_scale(q_data_src->height, f->fmt.pix.height);
+	}
 
 	ret = coda_try_fmt_vid_cap(file, priv, f);
 	if (ret)
 		return ret;
 
-	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	r.left = 0;
 	r.top = 0;
-	r.width = q_data_src->width;
-	r.height = q_data_src->height;
+	r.width = q_data_src->width >> hscale;
+	r.height = q_data_src->height >> vscale;
 
 	ret = coda_s_fmt(ctx, f, &r);
 	if (ret)
