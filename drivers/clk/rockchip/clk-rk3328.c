@@ -18,9 +18,6 @@
 #define RK3328_GRF_SOC_STATUS0		0x480
 #define RK3328_GRF_MAC_CON1		0x904
 #define RK3328_GRF_MAC_CON2		0x908
-#define RK3328_I2S_FRAC_MAX_PRATE       600000000
-#define RK3328_UART_FRAC_MAX_PRATE	600000000
-#define RK3328_SPDIF_FRAC_MAX_PRATE	600000000
 
 enum rk3328_plls {
 	apll, dpll, cpll, gpll, npll,
@@ -378,7 +375,7 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_i2s0_frac", "clk_i2s0_div", CLK_SET_RATE_PARENT,
 			RK3328_CLKSEL_CON(7), 0,
 			RK3328_CLKGATE_CON(1), 2, GFLAGS,
-			&rk3328_i2s0_fracmux, RK3328_I2S_FRAC_MAX_PRATE),
+			&rk3328_i2s0_fracmux),
 	GATE(SCLK_I2S0, "clk_i2s0", "i2s0_pre", CLK_SET_RATE_PARENT,
 			RK3328_CLKGATE_CON(1), 3, GFLAGS),
 
@@ -388,7 +385,7 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_i2s1_frac", "clk_i2s1_div", CLK_SET_RATE_PARENT,
 			RK3328_CLKSEL_CON(9), 0,
 			RK3328_CLKGATE_CON(1), 5, GFLAGS,
-			&rk3328_i2s1_fracmux, RK3328_I2S_FRAC_MAX_PRATE),
+			&rk3328_i2s1_fracmux),
 	GATE(SCLK_I2S1, "clk_i2s1", "i2s1_pre", CLK_SET_RATE_PARENT,
 			RK3328_CLKGATE_CON(1), 6, GFLAGS),
 	COMPOSITE_NODIV(SCLK_I2S1_OUT, "i2s1_out", mux_i2s1out_p, 0,
@@ -401,7 +398,7 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_i2s2_frac", "clk_i2s2_div", CLK_SET_RATE_PARENT,
 			RK3328_CLKSEL_CON(11), 0,
 			RK3328_CLKGATE_CON(1), 9, GFLAGS,
-			&rk3328_i2s2_fracmux, RK3328_I2S_FRAC_MAX_PRATE),
+			&rk3328_i2s2_fracmux),
 	GATE(SCLK_I2S2, "clk_i2s2", "i2s2_pre", CLK_SET_RATE_PARENT,
 			RK3328_CLKGATE_CON(1), 10, GFLAGS),
 	COMPOSITE_NODIV(SCLK_I2S2_OUT, "i2s2_out", mux_i2s2out_p, 0,
@@ -414,7 +411,7 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_spdif_frac", "clk_spdif_div", CLK_SET_RATE_PARENT,
 			RK3328_CLKSEL_CON(13), 0,
 			RK3328_CLKGATE_CON(1), 13, GFLAGS,
-			&rk3328_spdif_fracmux, RK3328_SPDIF_FRAC_MAX_PRATE),
+			&rk3328_spdif_fracmux),
 
 	/* PD_UART */
 	COMPOSITE(0, "clk_uart0_div", mux_2plls_u480m_p, 0,
@@ -429,15 +426,15 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "clk_uart0_frac", "clk_uart0_div", CLK_SET_RATE_PARENT,
 			RK3328_CLKSEL_CON(15), 0,
 			RK3328_CLKGATE_CON(1), 15, GFLAGS,
-			&rk3328_uart0_fracmux, RK3328_UART_FRAC_MAX_PRATE),
+			&rk3328_uart0_fracmux),
 	COMPOSITE_FRACMUX(0, "clk_uart1_frac", "clk_uart1_div", CLK_SET_RATE_PARENT,
 			RK3328_CLKSEL_CON(17), 0,
 			RK3328_CLKGATE_CON(2), 1, GFLAGS,
-			&rk3328_uart1_fracmux, RK3328_UART_FRAC_MAX_PRATE),
+			&rk3328_uart1_fracmux),
 	COMPOSITE_FRACMUX(0, "clk_uart2_frac", "clk_uart2_div", CLK_SET_RATE_PARENT,
 			RK3328_CLKSEL_CON(19), 0,
 			RK3328_CLKGATE_CON(2), 3, GFLAGS,
-			&rk3328_uart2_fracmux, RK3328_UART_FRAC_MAX_PRATE),
+			&rk3328_uart2_fracmux),
 
 	/*
 	 * Clock-Architecture Diagram 4

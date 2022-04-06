@@ -16,8 +16,6 @@
 #include "clk.h"
 
 #define RV1108_GRF_SOC_STATUS0	0x480
-#define RV1108_I2S_FRAC_MAX_RATE	600000000
-#define RV1108_UART_FRAC_MAX_RATE	600000000
 
 enum rv1108_plls {
 	apll, dpll, gpll,
@@ -507,7 +505,7 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "i2s0_frac", "i2s0_src", CLK_SET_RATE_PARENT,
 			RV1108_CLKSEL_CON(8), 0,
 			RV1108_CLKGATE_CON(2), 1, GFLAGS,
-			&rv1108_i2s0_fracmux, RV1108_I2S_FRAC_MAX_RATE),
+			&rv1108_i2s0_fracmux),
 	GATE(SCLK_I2S0, "sclk_i2s0", "i2s0_pre", CLK_SET_RATE_PARENT,
 			RV1108_CLKGATE_CON(2), 2, GFLAGS),
 	COMPOSITE_NODIV(0, "i2s_out", mux_i2s_out_p, 0,
@@ -520,7 +518,7 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "i2s1_frac", "i2s1_src", CLK_SET_RATE_PARENT,
 			RK2928_CLKSEL_CON(9), 0,
 			RK2928_CLKGATE_CON(2), 5, GFLAGS,
-			&rv1108_i2s1_fracmux, RV1108_I2S_FRAC_MAX_RATE),
+			&rv1108_i2s1_fracmux),
 	GATE(SCLK_I2S1, "sclk_i2s1", "i2s1_pre", CLK_SET_RATE_PARENT,
 			RV1108_CLKGATE_CON(2), 6, GFLAGS),
 
@@ -530,7 +528,7 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "i2s2_frac", "i2s2_src", CLK_SET_RATE_PARENT,
 			RV1108_CLKSEL_CON(10), 0,
 			RV1108_CLKGATE_CON(2), 9, GFLAGS,
-			&rv1108_i2s2_fracmux, RV1108_I2S_FRAC_MAX_RATE),
+			&rv1108_i2s2_fracmux),
 	GATE(SCLK_I2S2, "sclk_i2s2", "i2s2_pre", CLK_SET_RATE_PARENT,
 			RV1108_CLKGATE_CON(2), 10, GFLAGS),
 
@@ -596,15 +594,15 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "uart0_frac", "uart0_src", CLK_SET_RATE_PARENT,
 			RV1108_CLKSEL_CON(16), 0,
 			RV1108_CLKGATE_CON(3), 2, GFLAGS,
-			&rv1108_uart0_fracmux, RV1108_UART_FRAC_MAX_RATE),
+			&rv1108_uart0_fracmux),
 	COMPOSITE_FRACMUX(0, "uart1_frac", "uart1_src", CLK_SET_RATE_PARENT,
 			RV1108_CLKSEL_CON(17), 0,
 			RV1108_CLKGATE_CON(3), 4, GFLAGS,
-			&rv1108_uart1_fracmux, RV1108_UART_FRAC_MAX_RATE),
+			&rv1108_uart1_fracmux),
 	COMPOSITE_FRACMUX(0, "uart2_frac", "uart2_src", CLK_SET_RATE_PARENT,
 			RV1108_CLKSEL_CON(18), 0,
 			RV1108_CLKGATE_CON(3), 6, GFLAGS,
-			&rv1108_uart2_fracmux, RV1108_UART_FRAC_MAX_RATE),
+			&rv1108_uart2_fracmux),
 	GATE(PCLK_UART0, "pclk_uart0", "pclk_bus_pre", 0,
 			RV1108_CLKGATE_CON(13), 10, GFLAGS),
 	GATE(PCLK_UART1, "pclk_uart1", "pclk_bus_pre", 0,

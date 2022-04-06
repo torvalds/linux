@@ -16,9 +16,6 @@
 #include "clk.h"
 
 #define RK3128_GRF_SOC_STATUS0	0x14c
-#define RK3128_UART_FRAC_MAX_PRATE	600000000
-#define RK3128_I2S_FRAC_MAX_PRATE	600000000
-#define RK3128_SPDIF_FRAC_MAX_PRATE	600000000
 
 enum rk3128_plls {
 	apll, dpll, cpll, gpll,
@@ -364,7 +361,7 @@ static struct rockchip_clk_branch common_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "i2s0_frac", "i2s0_src", CLK_SET_RATE_PARENT,
 			RK2928_CLKSEL_CON(8), 0,
 			RK2928_CLKGATE_CON(4), 5, GFLAGS,
-			&rk3128_i2s0_fracmux, RK3128_I2S_FRAC_MAX_PRATE),
+			&rk3128_i2s0_fracmux),
 	GATE(SCLK_I2S0, "sclk_i2s0", "i2s0_pre", CLK_SET_RATE_PARENT,
 			RK2928_CLKGATE_CON(4), 6, GFLAGS),
 
@@ -374,7 +371,7 @@ static struct rockchip_clk_branch common_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "i2s1_frac", "i2s1_src", CLK_SET_RATE_PARENT,
 			RK2928_CLKSEL_CON(7), 0,
 			RK2928_CLKGATE_CON(0), 10, GFLAGS,
-			&rk3128_i2s1_fracmux, RK3128_I2S_FRAC_MAX_PRATE),
+			&rk3128_i2s1_fracmux),
 	GATE(SCLK_I2S1, "sclk_i2s1", "i2s1_pre", CLK_SET_RATE_PARENT,
 			RK2928_CLKGATE_CON(0), 14, GFLAGS),
 	COMPOSITE_NODIV(SCLK_I2S_OUT, "i2s_out", mux_i2s_out_p, 0,
@@ -387,7 +384,7 @@ static struct rockchip_clk_branch common_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "spdif_frac", "sclk_spdif_src", CLK_SET_RATE_PARENT,
 			RK2928_CLKSEL_CON(20), 0,
 			RK2928_CLKGATE_CON(2), 12, GFLAGS,
-			&rk3128_spdif_fracmux, RK3128_SPDIF_FRAC_MAX_PRATE),
+			&rk3128_spdif_fracmux),
 
 	GATE(0, "jtag", "ext_jtag", CLK_IGNORE_UNUSED,
 			RK2928_CLKGATE_CON(1), 3, GFLAGS),
@@ -424,15 +421,15 @@ static struct rockchip_clk_branch common_clk_branches[] __initdata = {
 	COMPOSITE_FRACMUX(0, "uart0_frac", "uart0_src", CLK_SET_RATE_PARENT,
 			RK2928_CLKSEL_CON(17), 0,
 			RK2928_CLKGATE_CON(1), 9, GFLAGS,
-			&rk3128_uart0_fracmux, RK3128_UART_FRAC_MAX_PRATE),
+			&rk3128_uart0_fracmux),
 	COMPOSITE_FRACMUX(0, "uart1_frac", "uart1_src", CLK_SET_RATE_PARENT,
 			RK2928_CLKSEL_CON(18), 0,
 			RK2928_CLKGATE_CON(1), 11, GFLAGS,
-			&rk3128_uart1_fracmux, RK3128_UART_FRAC_MAX_PRATE),
+			&rk3128_uart1_fracmux),
 	COMPOSITE_FRACMUX(0, "uart2_frac", "uart2_src", CLK_SET_RATE_PARENT,
 			RK2928_CLKSEL_CON(19), 0,
 			RK2928_CLKGATE_CON(1), 13, GFLAGS,
-			&rk3128_uart2_fracmux, RK3128_UART_FRAC_MAX_PRATE),
+			&rk3128_uart2_fracmux),
 
 	COMPOSITE(SCLK_MAC_SRC, "sclk_gmac_src", mux_pll_src_3plls_p, 0,
 			RK2928_CLKSEL_CON(5), 6, 2, MFLAGS, 0, 5, DFLAGS,
