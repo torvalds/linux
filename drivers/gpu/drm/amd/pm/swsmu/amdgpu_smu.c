@@ -488,8 +488,20 @@ static int smu_sys_set_pp_table(void *handle,
 static int smu_get_driver_allowed_feature_mask(struct smu_context *smu)
 {
 	struct smu_feature *feature = &smu->smu_feature;
-	int ret = 0;
 	uint32_t allowed_feature_mask[SMU_FEATURE_MAX/32];
+	int ret = 0;
+
+	/*
+	 * With SCPM enabled, the allowed featuremasks setting(via
+	 * PPSMC_MSG_SetAllowedFeaturesMaskLow/High) is not permitted.
+	 * That means there is no way to let PMFW knows the settings below.
+	 * Thus, we just assume all the features are allowed under
+	 * such scenario.
+	 */
+	if (smu->adev->scpm_enabled) {
+		bitmap_fill(feature->allowed, SMU_FEATURE_MAX);
+		return 0;
+	}
 
 	bitmap_zero(feature->allowed, SMU_FEATURE_MAX);
 
@@ -1156,13 +1168,19 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	/* smu_dump_pptable(smu); */
 
 	/*
-	 * Copy pptable bo in the vram to smc with SMU MSGs such as
-	 * SetDriverDramAddr and TransferTableDram2Smu.
+	 * With SCPM enabled, PSP is responsible for the PPTable transferring
+	 * (to SMU). Driver involvement is not needed and permitted.
 	 */
-	ret = smu_write_pptable(smu);
-	if (ret) {
-		dev_err(adev->dev, "Failed to transfer pptable to SMC!\n");
-		return ret;
+	if (!adev->scpm_enabled) {
+		/*
+		 * Copy pptable bo in the vram to smc with SMU MSGs such as
+		 * SetDriverDramAddr and TransferTableDram2Smu.
+		 */
+		ret = smu_write_pptable(smu);
+		if (ret) {
+			dev_err(adev->dev, "Failed to transfer pptable to SMC!\n");
+			return ret;
+		}
 	}
 
 	/* issue Run*Btc msg */
@@ -1170,10 +1188,16 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	ret = smu_feature_set_allowed_mask(smu);
-	if (ret) {
-		dev_err(adev->dev, "Failed to set driver allowed features mask!\n");
-		return ret;
+	/*
+	 * With SCPM enabled, these actions(and relevant messages) are
+	 * not needed and permitted.
+	 */
+	if (!adev->scpm_enabled) {
+		ret = smu_feature_set_allowed_mask(smu);
+		if (ret) {
+			dev_err(adev->dev, "Failed to set driver allowed features mask!\n");
+			return ret;
+		}
 	}
 
 	ret = smu_system_features_control(smu, true);
@@ -1422,9 +1446,12 @@ static int smu_disable_dpms(struct smu_context *smu)
 		if (ret)
 			dev_err(adev->dev, "Failed to disable smu features except BACO.\n");
 	} else {
-		ret = smu_system_features_control(smu, false);
-		if (ret)
-			dev_err(adev->dev, "Failed to disable smu features.\n");
+		/* DisableAllSmuFeatures message is not permitted with SCPM enabled */
+		if (!adev->scpm_enabled) {
+			ret = smu_system_features_control(smu, false);
+			if (ret)
+				dev_err(adev->dev, "Failed to disable smu features.\n");
+		}
 	}
 
 	if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(9, 4, 2) &&
