@@ -260,15 +260,50 @@ int kvm_guest_prepare_stage2(struct pkvm_hyp_vm *vm, void *pgd)
 	return 0;
 }
 
+static int reclaim_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
+			  enum kvm_pgtable_walk_flags flag, void * const arg)
+{
+	kvm_pte_t pte = *ptep;
+	struct hyp_page *page;
+
+	if (!kvm_pte_valid(pte))
+		return 0;
+
+	page = hyp_phys_to_page(kvm_pte_to_phys(pte));
+	switch (pkvm_getstate(kvm_pgtable_stage2_pte_prot(pte))) {
+	case PKVM_PAGE_OWNED:
+		page->flags |= HOST_PAGE_NEED_POISONING;
+		fallthrough;
+	case PKVM_PAGE_SHARED_BORROWED:
+	case PKVM_PAGE_SHARED_OWNED:
+		page->flags |= HOST_PAGE_PENDING_RECLAIM;
+		break;
+	default:
+		return -EPERM;
+	}
+
+	return 0;
+}
+
 void reclaim_guest_pages(struct pkvm_hyp_vm *vm, struct kvm_hyp_memcache *mc)
 {
+
+	struct kvm_pgtable_walker walker = {
+		.cb     = reclaim_walker,
+		.flags  = KVM_PGTABLE_WALK_LEAF
+	};
 	void *addr;
 
-	/* Dump all pgtable pages in the hyp_pool */
+	host_lock_component();
 	guest_lock_component(vm);
+
+	/* Reclaim all guest pages and dump all pgtable pages in the hyp_pool */
+	BUG_ON(kvm_pgtable_walk(&vm->pgt, 0, BIT(vm->pgt.ia_bits), &walker));
 	kvm_pgtable_stage2_destroy(&vm->pgt);
 	vm->kvm.arch.mmu.pgd_phys = 0ULL;
+
 	guest_unlock_component(vm);
+	host_unlock_component();
 
 	/* Drain the hyp_pool into the memcache */
 	addr = hyp_alloc_pages(&vm->pool, 0);
@@ -1224,4 +1259,66 @@ void hyp_unpin_shared_mem(void *from, void *to)
 
 	hyp_unlock_component();
 	host_unlock_component();
+}
+
+static int hyp_zero_page(phys_addr_t phys)
+{
+	void *addr;
+
+	addr = hyp_fixmap_map(phys);
+	if (!addr)
+		return -EINVAL;
+
+	memset(addr, 0, PAGE_SIZE);
+
+	/*
+	 * Prefer kvm_flush_dcache_to_poc() over __clean_dcache_guest_page()
+	 * here as the latter may elide the CMO under the assumption that FWB
+	 * will be enabled on CPUs that support it. This is incorrect for the
+	 * host stage-2 and would otherwise lead to a malicious host potentially
+	 * being able to read the contents of newly reclaimed guest pages.
+	 */
+	kvm_flush_dcache_to_poc(addr, PAGE_SIZE);
+	hyp_fixmap_unmap();
+	return 0;
+}
+
+int __pkvm_host_reclaim_page(u64 pfn)
+{
+	u64 addr = hyp_pfn_to_phys(pfn);
+	struct hyp_page *page;
+	kvm_pte_t pte;
+	int ret;
+
+	host_lock_component();
+
+	ret = kvm_pgtable_get_leaf(&host_mmu.pgt, addr, &pte, NULL);
+	if (ret)
+		goto unlock;
+
+	if (host_get_page_state(pte) == PKVM_PAGE_OWNED)
+		goto unlock;
+
+	page = hyp_phys_to_page(addr);
+	if (!(page->flags & HOST_PAGE_PENDING_RECLAIM)) {
+		ret = -EPERM;
+		goto unlock;
+	}
+
+	if (page->flags & HOST_PAGE_NEED_POISONING) {
+		ret = hyp_zero_page(addr);
+		if (ret)
+			goto unlock;
+		page->flags &= ~HOST_PAGE_NEED_POISONING;
+	}
+
+	ret = host_stage2_set_owner_locked(addr, PAGE_SIZE, PKVM_ID_HOST);
+	if (ret)
+		goto unlock;
+	page->flags &= ~HOST_PAGE_PENDING_RECLAIM;
+
+unlock:
+	host_unlock_component();
+
+	return ret;
 }
