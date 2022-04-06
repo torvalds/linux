@@ -1223,6 +1223,18 @@ struct sock *io_uring_get_socket(struct file *file)
 }
 EXPORT_SYMBOL(io_uring_get_socket);
 
+#if defined(CONFIG_UNIX)
+static inline bool io_file_need_scm(struct file *filp)
+{
+	return !!unix_get_socket(filp);
+}
+#else
+static inline bool io_file_need_scm(struct file *filp)
+{
+	return 0;
+}
+#endif
+
 static void io_ring_submit_unlock(struct io_ring_ctx *ctx, unsigned issue_flags)
 {
 	lockdep_assert_held(&ctx->uring_lock);
@@ -8426,6 +8438,17 @@ static void io_free_file_tables(struct io_file_table *table)
 
 static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 {
+	int i;
+
+	for (i = 0; i < ctx->nr_user_files; i++) {
+		struct file *file = io_file_from_index(ctx, i);
+
+		if (!file || io_file_need_scm(file))
+			continue;
+		io_fixed_file_slot(&ctx->file_table, i)->file_ptr = 0;
+		fput(file);
+	}
+
 #if defined(CONFIG_UNIX)
 	if (ctx->ring_sock) {
 		struct sock *sock = ctx->ring_sock->sk;
@@ -8433,16 +8456,6 @@ static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 
 		while ((skb = skb_dequeue(&sock->sk_receive_queue)) != NULL)
 			kfree_skb(skb);
-	}
-#else
-	int i;
-
-	for (i = 0; i < ctx->nr_user_files; i++) {
-		struct file *file;
-
-		file = io_file_from_index(ctx, i);
-		if (file)
-			fput(file);
 	}
 #endif
 	io_free_file_tables(&ctx->file_table);
@@ -8592,7 +8605,9 @@ static struct io_sq_data *io_get_sq_data(struct io_uring_params *p,
 /*
  * Ensure the UNIX gc is aware of our file set, so we are certain that
  * the io_uring can be safely unregistered on process exit, even if we have
- * loops in the file referencing.
+ * loops in the file referencing. We account only files that can hold other
+ * files because otherwise they can't form a loop and so are not interesting
+ * for GC.
  */
 static int __io_sqe_files_scm(struct io_ring_ctx *ctx, int nr, int offset)
 {
@@ -8618,8 +8633,9 @@ static int __io_sqe_files_scm(struct io_ring_ctx *ctx, int nr, int offset)
 	for (i = 0; i < nr; i++) {
 		struct file *file = io_file_from_index(ctx, i + offset);
 
-		if (!file)
+		if (!file || !io_file_need_scm(file))
 			continue;
+
 		fpl->fp[nr_files] = get_file(file);
 		unix_inflight(fpl->user, fpl->fp[nr_files]);
 		nr_files++;
@@ -8636,7 +8652,7 @@ static int __io_sqe_files_scm(struct io_ring_ctx *ctx, int nr, int offset)
 		for (i = 0; i < nr; i++) {
 			struct file *file = io_file_from_index(ctx, i + offset);
 
-			if (file)
+			if (file && io_file_need_scm(file))
 				fput(file);
 		}
 	} else {
@@ -8678,6 +8694,7 @@ static int io_sqe_files_scm(struct io_ring_ctx *ctx)
 
 		if (file)
 			fput(file);
+		io_fixed_file_slot(&ctx->file_table, total)->file_ptr = 0;
 		total++;
 	}
 
@@ -8698,6 +8715,11 @@ static void io_rsrc_file_put(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc)
 	struct sk_buff_head list, *head = &sock->sk_receive_queue;
 	struct sk_buff *skb;
 	int i;
+
+	if (!io_file_need_scm(file)) {
+		fput(file);
+		return;
+	}
 
 	__skb_queue_head_init(&list);
 
@@ -8892,6 +8914,9 @@ static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file,
 	struct sock *sock = ctx->ring_sock->sk;
 	struct sk_buff_head *head = &sock->sk_receive_queue;
 	struct sk_buff *skb;
+
+	if (!io_file_need_scm(file))
+		return 0;
 
 	/*
 	 * See if we can merge this file into an existing skb SCM_RIGHTS
