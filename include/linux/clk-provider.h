@@ -1034,9 +1034,6 @@ extern const struct clk_ops clk_multiplier_ops;
  * @mux_hw:	handle between composite and hardware-specific mux clock
  * @rate_hw:	handle between composite and hardware-specific rate clock
  * @gate_hw:	handle between composite and hardware-specific gate clock
- * @brother_hw: a member of clk_composite who has the common parent clocks
- *              with another clk_composite, and it's also a handle between
- *              common and hardware-specific interfaces
  * @mux_ops:	clock ops for mux
  * @rate_ops:	clock ops for rate
  * @gate_ops:	clock ops for gate
@@ -1048,7 +1045,6 @@ struct clk_composite {
 	struct clk_hw	*mux_hw;
 	struct clk_hw	*rate_hw;
 	struct clk_hw	*gate_hw;
-	struct clk_hw	*brother_hw;
 
 	const struct clk_ops	*mux_ops;
 	const struct clk_ops	*rate_ops;
