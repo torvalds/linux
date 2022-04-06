@@ -10,29 +10,33 @@
 #include <linux/platform_device.h>
 #include <asm/cpm1.h>
 
-static cpic8xx_t __iomem *cpic_reg;
-
-static struct irq_domain *cpm_pic_host;
+struct cpm_pic_data {
+	cpic8xx_t __iomem *reg;
+	struct irq_domain *host;
+};
 
 static void cpm_mask_irq(struct irq_data *d)
 {
+	struct cpm_pic_data *data = irq_data_get_irq_chip_data(d);
 	unsigned int cpm_vec = (unsigned int)irqd_to_hwirq(d);
 
-	clrbits32(&cpic_reg->cpic_cimr, (1 << cpm_vec));
+	clrbits32(&data->reg->cpic_cimr, (1 << cpm_vec));
 }
 
 static void cpm_unmask_irq(struct irq_data *d)
 {
+	struct cpm_pic_data *data = irq_data_get_irq_chip_data(d);
 	unsigned int cpm_vec = (unsigned int)irqd_to_hwirq(d);
 
-	setbits32(&cpic_reg->cpic_cimr, (1 << cpm_vec));
+	setbits32(&data->reg->cpic_cimr, (1 << cpm_vec));
 }
 
 static void cpm_end_irq(struct irq_data *d)
 {
+	struct cpm_pic_data *data = irq_data_get_irq_chip_data(d);
 	unsigned int cpm_vec = (unsigned int)irqd_to_hwirq(d);
 
-	out_be32(&cpic_reg->cpic_cisr, (1 << cpm_vec));
+	out_be32(&data->reg->cpic_cisr, (1 << cpm_vec));
 }
 
 static struct irq_chip cpm_pic = {
@@ -42,29 +46,31 @@ static struct irq_chip cpm_pic = {
 	.irq_eoi = cpm_end_irq,
 };
 
-static int cpm_get_irq(void)
+static int cpm_get_irq(struct irq_desc *desc)
 {
+	struct cpm_pic_data *data = irq_desc_get_handler_data(desc);
 	int cpm_vec;
 
 	/*
 	 * Get the vector by setting the ACK bit and then reading
 	 * the register.
 	 */
-	out_be16(&cpic_reg->cpic_civr, 1);
-	cpm_vec = in_be16(&cpic_reg->cpic_civr);
+	out_be16(&data->reg->cpic_civr, 1);
+	cpm_vec = in_be16(&data->reg->cpic_civr);
 	cpm_vec >>= 11;
 
-	return irq_linear_revmap(cpm_pic_host, cpm_vec);
+	return irq_linear_revmap(data->host, cpm_vec);
 }
 
 static void cpm_cascade(struct irq_desc *desc)
 {
-	generic_handle_irq(cpm_get_irq());
+	generic_handle_irq(cpm_get_irq(desc));
 }
 
 static int cpm_pic_host_map(struct irq_domain *h, unsigned int virq,
 			    irq_hw_number_t hw)
 {
+	irq_set_chip_data(virq, h->host_data);
 	irq_set_status_flags(virq, IRQ_LEVEL);
 	irq_set_chip_and_handler(virq, &cpm_pic, handle_fasteoi_irq);
 	return 0;
@@ -79,13 +85,18 @@ static int cpm_pic_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	int irq;
+	struct cpm_pic_data *data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENODEV;
 
-	cpic_reg = devm_ioremap(dev, res->start, resource_size(res));
-	if (!cpic_reg)
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->reg = devm_ioremap(dev, res->start, resource_size(res));
+	if (!data->reg)
 		return -ENODEV;
 
 	irq = platform_get_irq(pdev, 0);
@@ -93,19 +104,20 @@ static int cpm_pic_probe(struct platform_device *pdev)
 		return irq;
 
 	/* Initialize the CPM interrupt controller. */
-	out_be32(&cpic_reg->cpic_cicr,
+	out_be32(&data->reg->cpic_cicr,
 		 (CICR_SCD_SCC4 | CICR_SCC_SCC3 | CICR_SCB_SCC2 | CICR_SCA_SCC1) |
 		 ((virq_to_hw(irq) / 2) << 13) | CICR_HP_MASK);
 
-	out_be32(&cpic_reg->cpic_cimr, 0);
+	out_be32(&data->reg->cpic_cimr, 0);
 
-	cpm_pic_host = irq_domain_add_linear(dev->of_node, 64, &cpm_pic_host_ops, NULL);
-	if (!cpm_pic_host)
+	data->host = irq_domain_add_linear(dev->of_node, 64, &cpm_pic_host_ops, data);
+	if (!data->host)
 		return -ENODEV;
 
+	irq_set_handler_data(irq, data);
 	irq_set_chained_handler(irq, cpm_cascade);
 
-	setbits32(&cpic_reg->cpic_cicr, CICR_IEN);
+	setbits32(&data->reg->cpic_cicr, CICR_IEN);
 
 	return 0;
 }
