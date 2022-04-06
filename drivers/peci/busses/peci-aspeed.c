@@ -156,6 +156,7 @@
 
 struct aspeed_peci_match_data {
 	bool support_64byte_mode;
+	u32 max_src_clk;
 };
 struct aspeed_peci {
 	struct peci_adapter	*adapter;
@@ -397,7 +398,7 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 {
 	u32 msg_timing, addr_timing, rd_sampling_point;
 	u32 clk_freq, clk_div_val = 0;
-	u32 msg_timing_idx, clk_div_val_idx;
+	u32 msg_timing_idx, clk_div_val_idx, min_clk_div;
 	int delta_value, delta_tmp, clk_divisor, clk_divisor_tmp;
 	int ret;
 	unsigned long bus_clk_rate;
@@ -410,6 +411,11 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 	else
 		bus_clk_rate = clk_get_rate(priv->clk);
 	dev_dbg(priv->dev, "Bus source clock: %lu", bus_clk_rate);
+
+	min_clk_div = (bus_clk_rate > match_data->max_src_clk) ?
+				  ilog2(DIV_ROUND_UP(bus_clk_rate,
+						     match_data->max_src_clk)) :
+					0;
 
 	ret = device_property_read_u32(priv->dev, "clock-frequency", &clk_freq);
 	if (ret ||
@@ -430,9 +436,10 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 	clk_divisor = bus_clk_rate / (4 * clk_freq);
 	delta_value = clk_divisor;
 	/* Find the closest divisor for clock-frequency */
-	for (msg_timing_idx = 1; msg_timing_idx <= 255; msg_timing_idx++)
-		for (clk_div_val_idx = 0; clk_div_val_idx < 7;
-			clk_div_val_idx++) {
+	for (clk_div_val_idx = min_clk_div; clk_div_val_idx < 7;
+	     clk_div_val_idx++) {
+		for (msg_timing_idx = 1; msg_timing_idx <= 255;
+		     msg_timing_idx++) {
 			clk_divisor_tmp = (1 << clk_div_val_idx) *
 					(msg_timing_idx * 4 + 1);
 			delta_tmp = abs(clk_divisor - clk_divisor_tmp);
@@ -442,6 +449,7 @@ static int aspeed_peci_init_ctrl(struct aspeed_peci *priv)
 				clk_div_val = clk_div_val_idx;
 			}
 		}
+	}
 	addr_timing = msg_timing;
 	dev_dbg(priv->dev, "Expect frequency: %d Real frequency is about: %lu",
 		clk_freq,
@@ -592,14 +600,17 @@ static int aspeed_peci_remove(struct platform_device *pdev)
 
 static const struct aspeed_peci_match_data ast2400_peci_match_data = {
 	.support_64byte_mode = false,
+	.max_src_clk = 50000000,
 };
 
 static const struct aspeed_peci_match_data ast2500_peci_match_data = {
 	.support_64byte_mode = false,
+	.max_src_clk = 50000000,
 };
 
 static const struct aspeed_peci_match_data ast2600_peci_match_data = {
 	.support_64byte_mode = true,
+	.max_src_clk = 100000000,
 };
 
 static const struct of_device_id aspeed_peci_of_table[] = {
