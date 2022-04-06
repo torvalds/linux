@@ -9,17 +9,6 @@ config DMABUF_CACHE
 	  This option support to store attachments in a list and destroy them by
 	  set to a callback list in the dtor of dma-buf.
 
-config DMABUF_PROCFS
-	tristate "DMABUF procfs support"
-	depends on DMA_SHARED_BUFFER
-	depends on PROC_FS
-	depends on NO_GKI
-	help
-	  Turns on this to create a procfs debug interface for dma-buf, support
-	  get information from db_list by get_each_dmabuf.
-
-	  If unsure, say "N".
-
 config SYNC_FILE
 	bool "Explicit Synchronization Framework"
 	default n

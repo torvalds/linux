@@ -10,7 +10,6 @@ obj-$(CONFIG_SW_SYNC_DEBUG)	+= sync_debug.o
 obj-$(CONFIG_UDMABUF)		+= udmabuf.o
 obj-$(CONFIG_DMABUF_SYSFS_STATS) += dma-buf-sysfs-stats.o
 obj-$(CONFIG_DMABUF_HEAPS_ROCKCHIP) += rk_heaps/
-obj-$(CONFIG_DMABUF_PROCFS)	+= dmabuf_procfs.o
 
 dmabuf_selftests-y := \
 	selftest.o \
