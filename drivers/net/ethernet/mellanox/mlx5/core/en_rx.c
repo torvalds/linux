@@ -49,7 +49,6 @@
 #include "en/rep/tc.h"
 #include "ipoib/ipoib.h"
 #include "accel/ipsec.h"
-#include "fpga/ipsec.h"
 #include "en_accel/ipsec_rxtx.h"
 #include "en_accel/ktls_txrx.h"
 #include "en/xdp.h"
@@ -2384,46 +2383,6 @@ const struct mlx5e_rx_handlers mlx5i_rx_handlers = {
 };
 #endif /* CONFIG_MLX5_CORE_IPOIB */
 
-#ifdef CONFIG_MLX5_EN_IPSEC
-
-static void mlx5e_ipsec_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
-{
-	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
-	struct mlx5e_wqe_frag_info *wi;
-	struct sk_buff *skb;
-	u32 cqe_bcnt;
-	u16 ci;
-
-	ci       = mlx5_wq_cyc_ctr2ix(wq, be16_to_cpu(cqe->wqe_counter));
-	wi       = get_frag(rq, ci);
-	cqe_bcnt = be32_to_cpu(cqe->byte_cnt);
-
-	if (unlikely(MLX5E_RX_ERR_CQE(cqe))) {
-		rq->stats->wqe_err++;
-		goto wq_free_wqe;
-	}
-
-	skb = INDIRECT_CALL_2(rq->wqe.skb_from_cqe,
-			      mlx5e_skb_from_cqe_linear,
-			      mlx5e_skb_from_cqe_nonlinear,
-			      rq, cqe, wi, cqe_bcnt);
-	if (unlikely(!skb)) /* a DROP, save the page-reuse checks */
-		goto wq_free_wqe;
-
-	skb = mlx5e_ipsec_handle_rx_skb(rq->netdev, skb, &cqe_bcnt);
-	if (unlikely(!skb))
-		goto wq_free_wqe;
-
-	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
-	napi_gro_receive(rq->cq.napi, skb);
-
-wq_free_wqe:
-	mlx5e_free_rx_wqe(rq, wi, true);
-	mlx5_wq_cyc_pop(wq);
-}
-
-#endif /* CONFIG_MLX5_EN_IPSEC */
-
 int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool xsk)
 {
 	struct net_device *netdev = rq->netdev;
@@ -2440,10 +2399,6 @@ int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool
 		rq->post_wqes = mlx5e_post_rx_mpwqes;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
 
-		if (mlx5_fpga_is_ipsec_device(mdev)) {
-			netdev_err(netdev, "MPWQE RQ with Innova IPSec offload not supported\n");
-			return -EINVAL;
-		}
 		if (params->packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO) {
 			rq->handle_rx_cqe = priv->profile->rx_handlers->handle_rx_cqe_mpwqe_shampo;
 			if (!rq->handle_rx_cqe) {
@@ -2467,14 +2422,7 @@ int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool
 				mlx5e_skb_from_cqe_nonlinear;
 		rq->post_wqes = mlx5e_post_rx_wqes;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_wqe;
-
-#ifdef CONFIG_MLX5_EN_IPSEC
-		if ((mlx5_fpga_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_CAP_DEVICE) &&
-		    priv->ipsec)
-			rq->handle_rx_cqe = mlx5e_ipsec_handle_rx_cqe;
-		else
-#endif
-			rq->handle_rx_cqe = priv->profile->rx_handlers->handle_rx_cqe;
+		rq->handle_rx_cqe = priv->profile->rx_handlers->handle_rx_cqe;
 		if (!rq->handle_rx_cqe) {
 			netdev_err(netdev, "RX handler of RQ is not set\n");
 			return -EINVAL;

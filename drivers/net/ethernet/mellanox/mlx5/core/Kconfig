@@ -22,7 +22,6 @@ config MLX5_ACCEL
 config MLX5_FPGA
 	bool "Mellanox Technologies Innova support"
 	depends on MLX5_CORE
-	select MLX5_ACCEL
 	help
 	  Build support for the Innova family of network cards by Mellanox
 	  Technologies. Innova network cards are comprised of a ConnectX chip
@@ -143,17 +142,6 @@ config MLX5_CORE_IPOIB
 	help
 	  MLX5 IPoIB offloads & acceleration support.
 
-config MLX5_FPGA_IPSEC
-	bool "Mellanox Technologies IPsec Innova support"
-	depends on MLX5_CORE
-	depends on MLX5_FPGA
-	help
-	Build IPsec support for the Innova family of network cards by Mellanox
-	Technologies. Innova network cards are comprised of a ConnectX chip
-	and an FPGA chip on one board. If you select this option, the
-	mlx5_core driver will include the Innova FPGA core and allow building
-	sandbox-specific client drivers.
-
 config MLX5_IPSEC
 	bool "Mellanox Technologies IPsec Connect-X support"
 	depends on MLX5_CORE_EN
@@ -171,7 +159,7 @@ config MLX5_EN_IPSEC
 	depends on MLX5_CORE_EN
 	depends on XFRM_OFFLOAD
 	depends on INET_ESP_OFFLOAD || INET6_ESP_OFFLOAD
-	depends on MLX5_FPGA_IPSEC || MLX5_IPSEC
+	depends on MLX5_IPSEC
 	help
 	  Build support for IPsec cryptography-offload acceleration in the NIC.
 	  Note: Support for hardware with this capability needs to be selected

@@ -38,7 +38,6 @@
 #include "accel/ipsec.h"
 #include "fpga/sdk.h"
 #include "en_accel/ipsec.h"
-#include "fpga/ipsec.h"
 
 static const struct counter_desc mlx5e_ipsec_hw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_ipsec_stats, ipsec_dec_in_packets) },
@@ -105,7 +104,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(ipsec_sw)
 
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(ipsec_hw)
 {
-	return (priv->ipsec && mlx5_fpga_ipsec_device_caps(priv->mdev)) ? NUM_IPSEC_HW_COUNTERS : 0;
+	return 0;
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(ipsec_hw)
@@ -121,25 +120,11 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(ipsec_hw)
 
 static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(ipsec_hw)
 {
-	unsigned int i;
-
-	if (priv->ipsec && mlx5_fpga_ipsec_device_caps(priv->mdev))
-		for (i = 0; i < NUM_IPSEC_HW_COUNTERS; i++)
-			strcpy(data + (idx++) * ETH_GSTRING_LEN,
-			       mlx5e_ipsec_hw_stats_desc[i].format);
-
 	return idx;
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(ipsec_hw)
 {
-	int i;
-
-	if (priv->ipsec && mlx5_fpga_ipsec_device_caps(priv->mdev))
-		for (i = 0; i < NUM_IPSEC_HW_COUNTERS; i++)
-			data[idx++] = MLX5E_READ_CTR64_CPU(&priv->ipsec->stats,
-							   mlx5e_ipsec_hw_stats_desc,
-							   i);
 	return idx;
 }
 
