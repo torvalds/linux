@@ -562,6 +562,16 @@ struct dpu_merge_3d_cfg  {
 };
 
 /**
+ * struct dpu_dsc_cfg - information of DSC blocks
+ * @id                 enum identifying this block
+ * @base               register offset of this block
+ * @features           bit mask identifying sub-blocks/features
+ */
+struct dpu_dsc_cfg {
+	DPU_HW_BLK_INFO;
+};
+
+/**
  * struct dpu_intf_cfg - information of timing engine blocks
  * @id                 enum identifying this block
  * @base               register offset of this block
@@ -756,6 +766,9 @@ struct dpu_mdss_cfg {
 
 	u32 merge_3d_count;
 	const struct dpu_merge_3d_cfg *merge_3d;
+
+	u32 dsc_count;
+	struct dpu_dsc_cfg *dsc;
 
 	u32 intf_count;
 	const struct dpu_intf_cfg *intf;
