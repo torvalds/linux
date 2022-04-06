@@ -25,7 +25,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/msi.h>
-
+#include <linux/reset.h>
+#include <linux/clk.h>
 
 
 #define PCIE_BASIC_STATUS		0x018
@@ -106,6 +107,9 @@ struct plda_pcie {
 	struct irq_domain	*legacy_irq_domain;
 	struct pci_host_bridge  *bridge;
 	struct plda_msi		msi;
+	struct reset_control *resets;
+	struct clk_bulk_data *clks;
+	int num_clks;
 };
 
 static inline void plda_writel(struct plda_pcie *pcie, const u32 value,
@@ -623,6 +627,43 @@ static int plda_pcie_setup_windows(struct plda_pcie *pcie)
 	return 0;
 }
 
+static int plda_clk_rst_init(struct plda_pcie *pcie)
+{
+	int ret;
+	struct device *dev = &pcie->pdev->dev;
+
+	pcie->num_clks = devm_clk_bulk_get_all(dev, &pcie->clks);
+	if (pcie->num_clks < 0) {
+		dev_err(dev, "failed to get pcie clocks\n");
+		ret = -ENODEV;
+		goto exit;
+	}
+	ret = clk_bulk_prepare_enable(pcie->num_clks, pcie->clks);
+	if (ret) {
+		dev_err(&pcie->pdev->dev, "failed to enable clocks\n");
+		goto exit;
+	}
+
+	pcie->resets = devm_reset_control_array_get_exclusive(dev);
+	if (IS_ERR(pcie->resets)) {
+		ret = PTR_ERR(pcie->resets);
+		dev_err(dev, "failed to get pcie resets");
+		goto err_clk_init;
+	}
+	ret = reset_control_deassert(pcie->resets);
+	goto exit;
+
+err_clk_init:
+	clk_bulk_disable_unprepare(pcie->num_clks, pcie->clks);
+exit:
+	return ret;
+}
+
+static void plda_clk_rst_deinit(struct plda_pcie *pcie)
+{
+	reset_control_assert(pcie->resets);
+	clk_bulk_disable_unprepare(pcie->num_clks, pcie->clks);
+}
 
 void plda_pcie_hw_init(struct plda_pcie *pcie)
 {
@@ -659,6 +700,12 @@ static int plda_pcie_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, pcie);
+
+	ret = plda_clk_rst_init(pcie);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to init pcie clk reset: %d\n", ret);
+		return ret;
+	}
 
 	ret = plda_pcie_init_irq_domain(pcie);
 	if (ret) {
@@ -701,6 +748,7 @@ static int plda_pcie_remove(struct platform_device *pdev)
 	struct plda_pcie *pcie = platform_get_drvdata(pdev);
 
 	plda_pcie_free_irq_domain(pcie);
+	plda_clk_rst_deinit(pcie);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }

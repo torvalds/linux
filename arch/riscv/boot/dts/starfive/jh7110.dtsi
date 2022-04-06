@@ -885,7 +885,7 @@
 		pcie0: pcie0@2B000000 {
 			compatible = "plda,pci-xpressrich3-axi";
 			reg = <0x0 0x2B000000 0x0 0x1000000
-					0x9 0x40000000 0x0 0x10000000>;
+			       0x9 0x40000000 0x0 0x10000000>;
 			reg-names = "reg", "config";
 			interrupts = <56>;
 			interrupt-controller;
@@ -895,6 +895,18 @@
 					<0x0 0x0 0x0 0x2 &plic 0x2>,
 					<0x0 0x0 0x0 0x3 &plic 0x3>,
 					<0x0 0x0 0x0 0x4 &plic 0x4>;
+			resets = <&rstgen RSTN_U0_PLDA_PCIE_AXI_MST0>,
+				 <&rstgen RSTN_U0_PLDA_PCIE_AXI_SLV0>,
+				 <&rstgen RSTN_U0_PLDA_PCIE_AXI_SLV>,
+				 <&rstgen RSTN_U0_PLDA_PCIE_BRG>,
+				 <&rstgen RSTN_U0_PLDA_PCIE_CORE>,
+				 <&rstgen RSTN_U0_PLDA_PCIE_APB>;
+			reset-names = "rst_mst0", "rst_slv0", "rst_slv",
+				      "rst_brg", "rst_core", "rst_apb";
+			clocks = <&clkgen JH7110_PCIE0_CLK_TL>,
+				 <&clkgen JH7110_PCIE0_CLK_AXI_MST0>,
+				 <&clkgen JH7110_PCIE0_CLK_APB>;
+			clock-names =  "tl", "axi_mst0", "apb";
 			#interrupt-cells = <1>;
 			device_type = "pci";
 			bus-range = <0x0 0xff>;
@@ -908,7 +920,7 @@
 		pcie1:pcie1@2C000000 {
 			compatible = "plda,pci-xpressrich3-axi";
 			reg = <0x0 0x2C000000 0x0 0x1000000
-					0x9 0xc0000000 0x0 0x10000000>;
+			       0x9 0xc0000000 0x0 0x10000000>;
 			reg-names = "reg", "config";
 			device_type = "pci";
 			bus-range = <0x0 0xff>;
@@ -926,6 +938,18 @@
 					<0x0 0x0 0x0 0x2 &plic 0x2>,
 					<0x0 0x0 0x0 0x3 &plic 0x3>,
 					<0x0 0x0 0x0 0x4 &plic 0x4>;
+			resets = <&rstgen RSTN_U1_PLDA_PCIE_AXI_MST0>,
+				 <&rstgen RSTN_U1_PLDA_PCIE_AXI_SLV0>,
+				 <&rstgen RSTN_U1_PLDA_PCIE_AXI_SLV>,
+				 <&rstgen RSTN_U1_PLDA_PCIE_BRG>,
+				 <&rstgen RSTN_U1_PLDA_PCIE_CORE>,
+				 <&rstgen RSTN_U1_PLDA_PCIE_APB>;
+			reset-names = "rst_mst0", "rst_slv0", "rst_slv",
+				      "rst_brg", "rst_core", "rst_apb";
+			clocks = <&clkgen JH7110_PCIE1_CLK_TL>,
+				 <&clkgen JH7110_PCIE1_CLK_AXI_MST0>,
+				 <&clkgen JH7110_PCIE1_CLK_APB>;
+			clock-names =  "tl", "axi_mst0", "apb";
 			status = "disabled";
 		};
 
