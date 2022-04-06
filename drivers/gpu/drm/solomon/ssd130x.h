@@ -24,6 +24,7 @@ struct ssd130x_deviceinfo {
 	u32 default_dclk_frq;
 	int need_pwm;
 	int need_chargepump;
+	bool page_mode_only;
 };
 
 struct ssd130x_device {
@@ -38,6 +39,7 @@ struct ssd130x_device {
 
 	const struct ssd130x_deviceinfo *device_info;
 
+	unsigned page_address_mode : 1;
 	unsigned area_color_enable : 1;
 	unsigned com_invdir : 1;
 	unsigned com_lrremap : 1;

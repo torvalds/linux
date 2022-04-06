@@ -42,6 +42,8 @@
 #define SSD130X_DATA				0x40
 #define SSD130X_COMMAND				0x80
 
+#define SSD130X_PAGE_COL_START_LOW		0x00
+#define SSD130X_PAGE_COL_START_HIGH		0x10
 #define SSD130X_SET_ADDRESS_MODE		0x20
 #define SSD130X_SET_COL_RANGE			0x21
 #define SSD130X_SET_PAGE_RANGE			0x22
@@ -61,6 +63,11 @@
 #define SSD130X_SET_COM_PINS_CONFIG		0xda
 #define SSD130X_SET_VCOMH			0xdb
 
+#define SSD130X_PAGE_COL_START_MASK		GENMASK(3, 0)
+#define SSD130X_PAGE_COL_START_HIGH_SET(val)	FIELD_PREP(SSD130X_PAGE_COL_START_MASK, (val) >> 4)
+#define SSD130X_PAGE_COL_START_LOW_SET(val)	FIELD_PREP(SSD130X_PAGE_COL_START_MASK, (val))
+#define SSD130X_START_PAGE_ADDRESS_MASK		GENMASK(2, 0)
+#define SSD130X_START_PAGE_ADDRESS_SET(val)	FIELD_PREP(SSD130X_START_PAGE_ADDRESS_MASK, (val))
 #define SSD130X_SET_SEG_REMAP_MASK		GENMASK(0, 0)
 #define SSD130X_SET_SEG_REMAP_SET(val)		FIELD_PREP(SSD130X_SET_SEG_REMAP_MASK, (val))
 #define SSD130X_SET_COM_SCAN_DIR_MASK		GENMASK(3, 3)
@@ -130,6 +137,7 @@ out_end:
 	return ret;
 }
 
+/* Set address range for horizontal/vertical addressing modes */
 static int ssd130x_set_col_range(struct ssd130x_device *ssd130x,
 				 u8 col_start, u8 cols)
 {
@@ -163,6 +171,26 @@ static int ssd130x_set_page_range(struct ssd130x_device *ssd130x,
 
 	ssd130x->page_start = page_start;
 	ssd130x->page_end = page_end;
+	return 0;
+}
+
+/* Set page and column start address for page addressing mode */
+static int ssd130x_set_page_pos(struct ssd130x_device *ssd130x,
+				u8 page_start, u8 col_start)
+{
+	int ret;
+	u32 page, col_low, col_high;
+
+	page = SSD130X_START_PAGE_ADDRESS |
+	       SSD130X_START_PAGE_ADDRESS_SET(page_start);
+	col_low = SSD130X_PAGE_COL_START_LOW |
+		  SSD130X_PAGE_COL_START_LOW_SET(col_start);
+	col_high = SSD130X_PAGE_COL_START_HIGH |
+		   SSD130X_PAGE_COL_START_HIGH_SET(col_start);
+	ret = ssd130x_write_cmd(ssd130x, 3, page, col_low, col_high);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 
@@ -342,6 +370,11 @@ static int ssd130x_init(struct ssd130x_device *ssd130x)
 		}
 	}
 
+	/* Switch to page addressing mode */
+	if (ssd130x->page_address_mode)
+		return ssd130x_write_cmd(ssd130x, 2, SSD130X_SET_ADDRESS_MODE,
+					 SSD130X_SET_ADDRESS_MODE_PAGE);
+
 	/* Switch to horizontal addressing mode */
 	return ssd130x_write_cmd(ssd130x, 2, SSD130X_SET_ADDRESS_MODE,
 				 SSD130X_SET_ADDRESS_MODE_HORIZONTAL);
@@ -396,13 +429,16 @@ static int ssd130x_update_rect(struct ssd130x_device *ssd130x, u8 *buf,
 	 *  (5) A4 B4 C4 D4 E4 F4 G4 H4
 	 */
 
-	ret = ssd130x_set_col_range(ssd130x, ssd130x->col_offset + x, width);
-	if (ret < 0)
-		goto out_free;
+	if (!ssd130x->page_address_mode) {
+		/* Set address range for horizontal addressing mode */
+		ret = ssd130x_set_col_range(ssd130x, ssd130x->col_offset + x, width);
+		if (ret < 0)
+			goto out_free;
 
-	ret = ssd130x_set_page_range(ssd130x, ssd130x->page_offset + y / 8, pages);
-	if (ret < 0)
-		goto out_free;
+		ret = ssd130x_set_page_range(ssd130x, ssd130x->page_offset + y / 8, pages);
+		if (ret < 0)
+			goto out_free;
+	}
 
 	for (i = 0; i < pages; i++) {
 		int m = 8;
@@ -421,9 +457,29 @@ static int ssd130x_update_rect(struct ssd130x_device *ssd130x, u8 *buf,
 			}
 			data_array[array_idx++] = data;
 		}
+
+		/*
+		 * In page addressing mode, the start address needs to be reset,
+		 * and each page then needs to be written out separately.
+		 */
+		if (ssd130x->page_address_mode) {
+			ret = ssd130x_set_page_pos(ssd130x,
+						   ssd130x->page_offset + i,
+						   ssd130x->col_offset + x);
+			if (ret < 0)
+				goto out_free;
+
+			ret = ssd130x_write_data(ssd130x, data_array, width);
+			if (ret < 0)
+				goto out_free;
+
+			array_idx = 0;
+		}
 	}
 
-	ret = ssd130x_write_data(ssd130x, data_array, width * pages);
+	/* Write out update in one go if we aren't using page addressing mode */
+	if (!ssd130x->page_address_mode)
+		ret = ssd130x_write_data(ssd130x, data_array, width * pages);
 
 out_free:
 	kfree(data_array);
@@ -805,6 +861,9 @@ struct ssd130x_device *ssd130x_probe(struct device *dev, struct regmap *regmap)
 	ssd130x->dev = dev;
 	ssd130x->regmap = regmap;
 	ssd130x->device_info = device_get_match_data(dev);
+
+	if (ssd130x->device_info->page_mode_only)
+		ssd130x->page_address_mode = 1;
 
 	ssd130x_parse_properties(ssd130x);
 
