@@ -60,7 +60,7 @@ int parse_num_list(const char *s, bool **num_set, int *num_set_len)
 			set[i] = true;
 	}
 
-	if (!set)
+	if (!set || parsing_end)
 		return -EINVAL;
 
 	*num_set = set;
