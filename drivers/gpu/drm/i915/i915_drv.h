@@ -379,6 +379,7 @@ struct intel_vbt_data {
 	int crt_ddc_pin;
 
 	struct list_head display_devices;
+	struct list_head bdb_blocks;
 
 	struct intel_bios_encoder_data *ports[I915_MAX_PORTS]; /* Non-NULL if port present. */
 	struct sdvo_device_mapping sdvo_mappings[2];
