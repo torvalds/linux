@@ -133,8 +133,7 @@ void mlx5_accel_esp_free_hw_context(struct mlx5_core_dev *mdev, void *context)
 
 struct mlx5_accel_esp_xfrm *
 mlx5_accel_esp_create_xfrm(struct mlx5_core_dev *mdev,
-			   const struct mlx5_accel_esp_xfrm_attrs *attrs,
-			   u32 flags)
+			   const struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
 	const struct mlx5_accel_ipsec_ops *ipsec_ops = mdev->ipsec_ops;
 	struct mlx5_accel_esp_xfrm *xfrm;
@@ -142,7 +141,7 @@ mlx5_accel_esp_create_xfrm(struct mlx5_core_dev *mdev,
 	if (!ipsec_ops || !ipsec_ops->esp_create_xfrm)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	xfrm = ipsec_ops->esp_create_xfrm(mdev, attrs, flags);
+	xfrm = ipsec_ops->esp_create_xfrm(mdev, attrs, 0);
 	if (IS_ERR(xfrm))
 		return xfrm;
 

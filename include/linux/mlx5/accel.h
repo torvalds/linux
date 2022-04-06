@@ -111,10 +111,6 @@ struct mlx5_accel_esp_xfrm {
 	struct mlx5_accel_esp_xfrm_attrs attrs;
 };
 
-enum {
-	MLX5_ACCEL_XFRM_FLAG_REQUIRE_METADATA = 1UL << 0,
-};
-
 enum mlx5_accel_ipsec_cap {
 	MLX5_ACCEL_IPSEC_CAP_DEVICE		= 1 << 0,
 	MLX5_ACCEL_IPSEC_CAP_REQUIRED_METADATA	= 1 << 1,
@@ -132,8 +128,7 @@ u32 mlx5_accel_ipsec_device_caps(struct mlx5_core_dev *mdev);
 
 struct mlx5_accel_esp_xfrm *
 mlx5_accel_esp_create_xfrm(struct mlx5_core_dev *mdev,
-			   const struct mlx5_accel_esp_xfrm_attrs *attrs,
-			   u32 flags);
+			   const struct mlx5_accel_esp_xfrm_attrs *attrs);
 void mlx5_accel_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm);
 int mlx5_accel_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
 			       const struct mlx5_accel_esp_xfrm_attrs *attrs);
@@ -144,8 +139,10 @@ static inline u32 mlx5_accel_ipsec_device_caps(struct mlx5_core_dev *mdev) { ret
 
 static inline struct mlx5_accel_esp_xfrm *
 mlx5_accel_esp_create_xfrm(struct mlx5_core_dev *mdev,
-			   const struct mlx5_accel_esp_xfrm_attrs *attrs,
-			   u32 flags) { return ERR_PTR(-EOPNOTSUPP); }
+			   const struct mlx5_accel_esp_xfrm_attrs *attrs)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
 static inline void
 mlx5_accel_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm) {}
 static inline int

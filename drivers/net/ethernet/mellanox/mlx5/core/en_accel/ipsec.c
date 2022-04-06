@@ -333,9 +333,7 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 
 	/* create xfrm */
 	mlx5e_ipsec_build_accel_xfrm_attrs(sa_entry, &attrs);
-	sa_entry->xfrm =
-		mlx5_accel_esp_create_xfrm(priv->mdev, &attrs,
-					   MLX5_ACCEL_XFRM_FLAG_REQUIRE_METADATA);
+	sa_entry->xfrm = mlx5_accel_esp_create_xfrm(priv->mdev, &attrs);
 	if (IS_ERR(sa_entry->xfrm)) {
 		err = PTR_ERR(sa_entry->xfrm);
 		goto err_sa_entry;
