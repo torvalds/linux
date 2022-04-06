@@ -30,6 +30,10 @@ properties:
               - mediatek,mt8192-disp-aal
               - mediatek,mt8195-disp-aal
           - const: mediatek,mt8173-disp-aal
+      - items:
+          - enum:
+              - mediatek,mt8186-disp-aal
+          - const: mediatek,mt8183-disp-aal
 
   reg:
     maxItems: 1

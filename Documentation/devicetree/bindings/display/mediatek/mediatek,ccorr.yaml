@@ -29,6 +29,10 @@ properties:
           - enum:
               - mediatek,mt8195-disp-ccorr
           - const: mediatek,mt8192-disp-ccorr
+      - items:
+          - enum:
+              - mediatek,mt8186-disp-ccorr
+          - const: mediatek,mt8183-disp-ccorr
 
   reg:
     maxItems: 1
