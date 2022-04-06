@@ -335,8 +335,10 @@ struct amdgpu_gfx {
 	DECLARE_BITMAP			(pipe_reserve_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 
 	/*ras */
-	struct ras_common_if			*ras_if;
-	struct amdgpu_gfx_ras	*ras;
+	struct ras_common_if		*ras_if;
+	struct amdgpu_gfx_ras		*ras;
+
+	bool				is_poweron;
 };
 
 #define amdgpu_gfx_get_gpu_clock_counter(adev) (adev)->gfx.funcs->get_gpu_clock_counter((adev))
