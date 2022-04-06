@@ -1999,9 +1999,13 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 		 */
 		if (q_data_src->fourcc == V4L2_PIX_FMT_JPEG) {
 			buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
-			ret = coda_jpeg_decode_header(ctx, &buf->vb2_buf);
-			if (ret < 0)
-				goto err;
+			coda_jpeg_decode_header(ctx, &buf->vb2_buf);
+			/*
+			 * We have to start streaming even if the first buffer
+			 * does not contain a valid JPEG image. The error will
+			 * be caught during device run and will be signalled
+			 * via the capture buffer error flag.
+			 */
 
 			q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 			q_data_dst->width = round_up(q_data_src->width, 16);
