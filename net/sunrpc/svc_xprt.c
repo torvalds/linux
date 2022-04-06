@@ -1230,7 +1230,6 @@ static struct cache_deferred_req *svc_defer(struct cache_req *req)
 		dr->addrlen = rqstp->rq_addrlen;
 		dr->daddr = rqstp->rq_daddr;
 		dr->argslen = rqstp->rq_arg.len >> 2;
-		dr->xprt_hlen = rqstp->rq_xprt_hlen;
 		dr->xprt_ctxt = rqstp->rq_xprt_ctxt;
 		rqstp->rq_xprt_ctxt = NULL;
 
@@ -1258,22 +1257,21 @@ static noinline int svc_deferred_recv(struct svc_rqst *rqstp)
 	trace_svc_defer_recv(dr);
 
 	/* setup iov_base past transport header */
-	rqstp->rq_arg.head[0].iov_base = dr->args + (dr->xprt_hlen>>2);
+	rqstp->rq_arg.head[0].iov_base = dr->args;
 	/* The iov_len does not include the transport header bytes */
-	rqstp->rq_arg.head[0].iov_len = (dr->argslen<<2) - dr->xprt_hlen;
+	rqstp->rq_arg.head[0].iov_len = dr->argslen << 2;
 	rqstp->rq_arg.page_len = 0;
 	/* The rq_arg.len includes the transport header bytes */
-	rqstp->rq_arg.len     = dr->argslen<<2;
+	rqstp->rq_arg.len     = dr->argslen << 2;
 	rqstp->rq_prot        = dr->prot;
 	memcpy(&rqstp->rq_addr, &dr->addr, dr->addrlen);
 	rqstp->rq_addrlen     = dr->addrlen;
 	/* Save off transport header len in case we get deferred again */
-	rqstp->rq_xprt_hlen   = dr->xprt_hlen;
 	rqstp->rq_daddr       = dr->daddr;
 	rqstp->rq_respages    = rqstp->rq_pages;
 	rqstp->rq_xprt_ctxt   = dr->xprt_ctxt;
 	svc_xprt_received(rqstp->rq_xprt);
-	return (dr->argslen<<2) - dr->xprt_hlen;
+	return dr->argslen << 2;
 }
 
 
