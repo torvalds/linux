@@ -17,6 +17,7 @@
 #include <asm/udbg.h>
 
 #include "mpc8xx.h"
+#include "pic.h"
 
 struct cpm_pin {
 	int port, pin, flags;
@@ -103,7 +104,7 @@ define_machine(adder875) {
 	.name = "Adder MPC875",
 	.probe = adder875_probe,
 	.setup_arch = adder875_setup,
-	.init_IRQ = mpc8xx_pics_init,
+	.init_IRQ = mpc8xx_pic_init,
 	.get_irq = mpc8xx_get_irq,
 	.restart = mpc8xx_restart,
 	.calibrate_decr = generic_calibrate_decr,

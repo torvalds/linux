@@ -205,17 +205,3 @@ void __noreturn mpc8xx_restart(char *cmd)
 	in_8(&clk_r->res[0]);
 	panic("Restart failed\n");
 }
-
-/* Initialize the internal interrupt controllers.  The number of
- * interrupts supported can vary with the processor type, and the
- * 82xx family can have up to 64.
- * External interrupts can be either edge or level triggered, and
- * need to be initialized by the appropriate driver.
- */
-void __init mpc8xx_pics_init(void)
-{
-	if (mpc8xx_pic_init()) {
-		printk(KERN_ERR "Failed interrupt 8xx controller  initialization\n");
-		return;
-	}
-}
