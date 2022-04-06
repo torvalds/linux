@@ -1146,7 +1146,7 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 	struct inode_walker_entry *i;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
-
+peek:
 	k = bch2_btree_iter_peek(iter);
 	if (!k.k)
 		goto out;
@@ -1172,6 +1172,15 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 		ret = check_i_sectors(trans, inode);
 		if (ret)
 			goto err;
+	}
+
+	if (!iter->path->should_be_locked) {
+		/*
+		 * hack: check_i_sectors may have handled a transaction restart,
+		 * it shouldn't be but we need to fix the new i_sectors check
+		 * code and delete the old bch2_count_inode_sectors() first
+		 */
+		goto peek;
 	}
 #if 0
 	if (bkey_cmp(prev.k->k.p, bkey_start_pos(k.k)) > 0) {
@@ -1464,7 +1473,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 	struct inode_walker_entry *i;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
-
+peek:
 	k = bch2_btree_iter_peek(iter);
 	if (!k.k)
 		goto out;
@@ -1490,6 +1499,11 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 		ret = check_subdir_count(trans, dir);
 		if (ret)
 			goto err;
+	}
+
+	if (!iter->path->should_be_locked) {
+		/* hack: see check_extent() */
+		goto peek;
 	}
 
 	ret = __walk_inode(trans, dir, k.k->p);
