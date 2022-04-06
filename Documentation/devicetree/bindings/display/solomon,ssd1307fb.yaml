@@ -13,6 +13,7 @@ maintainers:
 properties:
   compatible:
     enum:
+      - sinowealth,sh1106-i2c
       - solomon,ssd1305fb-i2c
       - solomon,ssd1306fb-i2c
       - solomon,ssd1307fb-i2c
@@ -131,6 +132,18 @@ required:
   - reg
 
 allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: sinowealth,sh1106-i2c
+    then:
+      properties:
+        solomon,dclk-div:
+          default: 1
+        solomon,dclk-frq:
+          default: 5
+
   - if:
       properties:
         compatible:
