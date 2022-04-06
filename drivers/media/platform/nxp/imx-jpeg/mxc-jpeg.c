@@ -2209,9 +2209,33 @@ static int mxc_jpeg_runtime_suspend(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_PM_SLEEP
+static int mxc_jpeg_suspend(struct device *dev)
+{
+	struct mxc_jpeg_dev *jpeg = dev_get_drvdata(dev);
+
+	v4l2_m2m_suspend(jpeg->m2m_dev);
+	return pm_runtime_force_suspend(dev);
+}
+
+static int mxc_jpeg_resume(struct device *dev)
+{
+	struct mxc_jpeg_dev *jpeg = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret < 0)
+		return ret;
+
+	v4l2_m2m_resume(jpeg->m2m_dev);
+	return ret;
+}
+#endif
+
 static const struct dev_pm_ops	mxc_jpeg_pm_ops = {
 	SET_RUNTIME_PM_OPS(mxc_jpeg_runtime_suspend,
 			   mxc_jpeg_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(mxc_jpeg_suspend, mxc_jpeg_resume)
 };
 
 static int mxc_jpeg_remove(struct platform_device *pdev)
