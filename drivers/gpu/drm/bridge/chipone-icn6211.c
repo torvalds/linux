@@ -677,7 +677,7 @@ static int __init chipone_init(void)
 }
 module_init(chipone_init);
 
-static void __init chipone_exit(void)
+static void __exit chipone_exit(void)
 {
 	i2c_del_driver(&chipone_i2c_driver);
 
