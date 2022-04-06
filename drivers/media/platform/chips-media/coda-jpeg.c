@@ -283,7 +283,8 @@ int coda_jpeg_decode_header(struct coda_ctx *ctx, struct vb2_buffer *vb)
 
 	ret = v4l2_jpeg_parse_header(buf, len, &header);
 	if (ret < 0) {
-		v4l2_err(&dev->v4l2_dev, "failed to parse header\n");
+		v4l2_err(&dev->v4l2_dev, "failed to parse JPEG header: %pe\n",
+			 ERR_PTR(ret));
 		return ret;
 	}
 
@@ -1349,9 +1350,6 @@ static int coda9_jpeg_prepare_decode(struct coda_ctx *ctx)
 
 	ret = coda_jpeg_decode_header(ctx, &src_buf->vb2_buf);
 	if (ret < 0) {
-		v4l2_err(&dev->v4l2_dev, "failed to decode JPEG header: %d\n",
-			 ret);
-
 		src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 		dst_buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 		v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
