@@ -24,3 +24,4 @@ obj-$(CONFIG_ROCKCHIP_THUNDER_BOOT_MMC) += rockchip_thunderboot_mmc.o
 obj-$(CONFIG_ROCKCHIP_THUNDER_BOOT_SFC) += rockchip_thunderboot_sfc.o
 obj-$(CONFIG_ROCKCHIP_DEBUG) += rockchip_debug.o
 obj-$(CONFIG_ROCKCHIP_NPOR_POWERGOOD) += rockchip_npor_powergood.o
+obj-$(CONFIG_RK_MEMBLOCK_PROCFS) += rk_memblock_procfs.o

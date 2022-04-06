@@ -209,4 +209,15 @@ config ROCKCHIP_NPOR_POWERGOOD
 	help
 	  Say y if SOC integrate ROCKCHIP NPOR Powergood.
 
+#
+# Rockchip Procfs drivers
+#
+
+config RK_MEMBLOCK_PROCFS
+	bool "Memblock procfs for reserved memory"
+	depends on PROC_FS && ARCH_KEEP_MEMBLOCK
+	help
+	  Extend memblock procfs to show size of each memblock, and shows the
+	  result of total size by KiB format.
+
 endif
