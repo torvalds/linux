@@ -1355,7 +1355,7 @@ static int coda9_jpeg_prepare_decode(struct coda_ctx *ctx)
 		src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 		dst_buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 		v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
-		v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
+		v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_ERROR);
 
 		return ret;
 	}
