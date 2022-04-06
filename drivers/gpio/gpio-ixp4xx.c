@@ -17,8 +17,6 @@
 /* Include that go away with DT transition */
 #include <linux/irqchip/irq-ixp4xx.h>
 
-#include <asm/mach-types.h>
-
 #define IXP4XX_REG_GPOUT	0x00
 #define IXP4XX_REG_GPOE		0x04
 #define IXP4XX_REG_GPIN		0x08
@@ -240,7 +238,8 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	 * Make sure GPIO 14 and 15 are NOT used as clocks but GPIO on
 	 * specific machines.
 	 */
-	if (machine_is_dsmg600() || machine_is_nas100d())
+	if (of_machine_is_compatible("dlink,dsm-g600-a") ||
+	    of_machine_is_compatible("iom,nas-100d"))
 		__raw_writel(0x0, g->base + IXP4XX_REG_GPCLK);
 
 	/*
