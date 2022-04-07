@@ -767,31 +767,29 @@ static int lock_node_check_fn(struct six_lock *lock, void *p)
 
 static noinline void btree_bad_header(struct bch_fs *c, struct btree *b)
 {
-	struct printbuf buf1 = PRINTBUF;
-	struct printbuf buf2 = PRINTBUF;
-	struct printbuf buf3 = PRINTBUF;
+	struct printbuf buf = PRINTBUF;
 
 	if (!test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags))
 		return;
 
-	bch2_bkey_val_to_text(&buf1, c, bkey_i_to_s_c(&b->key));
-	bch2_bpos_to_text(&buf2, b->data->min_key);
-	bch2_bpos_to_text(&buf3, b->data->max_key);
+	pr_buf(&buf,
+	       "btree node header doesn't match ptr\n"
+	       "btree %s level %u\n"
+	       "ptr: ",
+	       bch2_btree_ids[b->c.btree_id], b->c.level);
+	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
-	bch2_fs_inconsistent(c, "btree node header doesn't match ptr\n"
-			     "btree %s level %u\n"
-			     "ptr: %s\n"
-			     "header: btree %s level %llu\n"
-			     "min %s max %s\n",
-			     bch2_btree_ids[b->c.btree_id], b->c.level,
-			     buf1.buf,
-			     bch2_btree_ids[BTREE_NODE_ID(b->data)],
-			     BTREE_NODE_LEVEL(b->data),
-			     buf2.buf, buf3.buf);
+	pr_buf(&buf, "\nheader: btree %s level %llu\n"
+	       "min ",
+	       bch2_btree_ids[BTREE_NODE_ID(b->data)],
+	       BTREE_NODE_LEVEL(b->data));
+	bch2_bpos_to_text(&buf, b->data->min_key);
 
-	printbuf_exit(&buf3);
-	printbuf_exit(&buf2);
-	printbuf_exit(&buf1);
+	pr_buf(&buf, "\nmax ");
+	bch2_bpos_to_text(&buf, b->data->max_key);
+
+	bch2_fs_inconsistent(c, "%s", buf.buf);
+	printbuf_exit(&buf);
 }
 
 static inline void btree_check_header(struct bch_fs *c, struct btree *b)
