@@ -9,6 +9,7 @@
 #include <linux/fs.h>
 #include <linux/ratelimit.h>
 #include <linux/nls.h>
+#include <linux/blkdev.h>
 
 #define EXFAT_ROOT_INO		1
 
@@ -41,6 +42,14 @@ enum {
 #define ES_2_ENTRIES		2
 #define ES_ALL_ENTRIES		0
 
+#define ES_IDX_FILE		0
+#define ES_IDX_STREAM		1
+#define ES_IDX_FIRST_FILENAME	2
+#define EXFAT_FILENAME_ENTRY_NUM(name_len) \
+	DIV_ROUND_UP(name_len, EXFAT_FILE_NAME_LEN)
+#define ES_IDX_LAST_FILENAME(name_len)	\
+	(ES_IDX_FIRST_FILENAME + EXFAT_FILENAME_ENTRY_NUM(name_len) - 1)
+
 #define DIR_DELETED		0xFFFF0321
 
 /* type values */
@@ -67,9 +76,6 @@ enum {
 #define MAX_CHARSET_SIZE	6 /* max size of multi-byte character */
 #define MAX_NAME_LENGTH		255 /* max len of file name excluding NULL */
 #define MAX_VFSNAME_BUF_SIZE	((MAX_NAME_LENGTH + 1) * MAX_CHARSET_SIZE)
-
-/* Enough size to hold 256 dentry (even 512 Byte sector) */
-#define DIR_CACHE_SIZE		(256*sizeof(struct exfat_dentry)/512+1)
 
 #define EXFAT_HINT_NONE		-1
 #define EXFAT_MIN_SUBDIR	2
@@ -125,6 +131,17 @@ enum {
 #define BITS_PER_BYTE_MASK	0x7
 #define IGNORED_BITS_REMAINED(clu, clu_base) ((1 << ((clu) - (clu_base))) - 1)
 
+#define ES_ENTRY_NUM(name_len)	(ES_IDX_LAST_FILENAME(name_len) + 1)
+/* 19 entries = 1 file entry + 1 stream entry + 17 filename entries */
+#define ES_MAX_ENTRY_NUM	ES_ENTRY_NUM(MAX_NAME_LENGTH)
+
+/*
+ * 19 entries x 32 bytes/entry = 608 bytes.
+ * The 608 bytes are in 3 sectors at most (even 512 Byte sector).
+ */
+#define DIR_CACHE_SIZE		\
+	(DIV_ROUND_UP(EXFAT_DEN_TO_B(ES_MAX_ENTRY_NUM), SECTOR_SIZE) + 1)
+
 struct exfat_dentry_namebuf {
 	char *lfn;
 	int lfnbuf_len; /* usually MAX_UNINAME_BUF_SIZE */
@@ -166,11 +183,11 @@ struct exfat_hint {
 
 struct exfat_entry_set_cache {
 	struct super_block *sb;
-	bool modified;
 	unsigned int start_off;
 	int num_bh;
 	struct buffer_head *bh[DIR_CACHE_SIZE];
 	unsigned int num_entries;
+	bool modified;
 };
 
 struct exfat_dir_entry {
