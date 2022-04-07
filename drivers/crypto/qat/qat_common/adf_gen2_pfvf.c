@@ -51,8 +51,7 @@ static u32 adf_gen2_vf_get_pfvf_offset(u32 i)
 	return ADF_GEN2_VF_PF2VF_OFFSET;
 }
 
-static void adf_gen2_enable_vf2pf_interrupts(void __iomem *pmisc_addr,
-					     u32 vf_mask)
+static void adf_gen2_enable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask)
 {
 	/* Enable VF2PF Messaging Ints - VFs 0 through 15 per vf_mask[15:0] */
 	if (vf_mask & ADF_GEN2_VF_MSK) {

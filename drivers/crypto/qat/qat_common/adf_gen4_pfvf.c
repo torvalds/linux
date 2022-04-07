@@ -37,8 +37,7 @@ static u32 adf_gen4_pf_get_vf2pf_offset(u32 i)
 	return ADF_4XXX_VM2PF_OFFSET(i);
 }
 
-static void adf_gen4_enable_vf2pf_interrupts(void __iomem *pmisc_addr,
-					     u32 vf_mask)
+static void adf_gen4_enable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask)
 {
 	u32 val;
 
