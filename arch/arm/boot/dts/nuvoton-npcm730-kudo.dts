@@ -380,7 +380,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0cs1_pins>;
 	status = "okay";
-	spi-nor@0 {
+	flash@0 {
 		compatible = "jedec,spi-nor";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -415,7 +415,7 @@
 			};
 		};
 	};
-	spi-nor@1 {
+	flash@1 {
 		compatible = "jedec,spi-nor";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -440,7 +440,7 @@
 
 &fiu3 {
 	pinctrl-0 = <&spi3_pins>;
-	spi-nor@0 {
+	flash@0 {
 		compatible = "jedec,spi-nor";
 		#address-cells = <1>;
 		#size-cells = <1>;
