@@ -2648,6 +2648,16 @@ static void shrink_stripes(struct r5conf *conf)
 	conf->slab_cache = NULL;
 }
 
+/*
+ * This helper wraps rcu_dereference_protected() and can be used when
+ * it is known that the nr_pending of the rdev is elevated.
+ */
+static struct md_rdev *rdev_pend_deref(struct md_rdev __rcu *rdev)
+{
+	return rcu_dereference_protected(rdev,
+			atomic_read(&rcu_access_pointer(rdev)->nr_pending));
+}
+
 static void raid5_end_read_request(struct bio * bi)
 {
 	struct stripe_head *sh = bi->bi_private;
@@ -2674,9 +2684,9 @@ static void raid5_end_read_request(struct bio * bi)
 		 * In that case it moved down to 'rdev'.
 		 * rdev is not removed until all requests are finished.
 		 */
-		rdev = conf->disks[i].replacement;
+		rdev = rdev_pend_deref(conf->disks[i].replacement);
 	if (!rdev)
-		rdev = conf->disks[i].rdev;
+		rdev = rdev_pend_deref(conf->disks[i].rdev);
 
 	if (use_new_offset(conf, sh))
 		s = sh->sector + rdev->new_data_offset;
@@ -2790,11 +2800,11 @@ static void raid5_end_write_request(struct bio *bi)
 
 	for (i = 0 ; i < disks; i++) {
 		if (bi == &sh->dev[i].req) {
-			rdev = conf->disks[i].rdev;
+			rdev = rdev_pend_deref(conf->disks[i].rdev);
 			break;
 		}
 		if (bi == &sh->dev[i].rreq) {
-			rdev = conf->disks[i].replacement;
+			rdev = rdev_pend_deref(conf->disks[i].replacement);
 			if (rdev)
 				replacement = 1;
 			else
@@ -2802,7 +2812,7 @@ static void raid5_end_write_request(struct bio *bi)
 				 * replaced it.  rdev is not removed
 				 * until all requests are finished.
 				 */
-				rdev = conf->disks[i].rdev;
+				rdev = rdev_pend_deref(conf->disks[i].rdev);
 			break;
 		}
 	}
@@ -5210,23 +5220,23 @@ finish:
 			struct r5dev *dev = &sh->dev[i];
 			if (test_and_clear_bit(R5_WriteError, &dev->flags)) {
 				/* We own a safe reference to the rdev */
-				rdev = conf->disks[i].rdev;
+				rdev = rdev_pend_deref(conf->disks[i].rdev);
 				if (!rdev_set_badblocks(rdev, sh->sector,
 							RAID5_STRIPE_SECTORS(conf), 0))
 					md_error(conf->mddev, rdev);
 				rdev_dec_pending(rdev, conf->mddev);
 			}
 			if (test_and_clear_bit(R5_MadeGood, &dev->flags)) {
-				rdev = conf->disks[i].rdev;
+				rdev = rdev_pend_deref(conf->disks[i].rdev);
 				rdev_clear_badblocks(rdev, sh->sector,
 						     RAID5_STRIPE_SECTORS(conf), 0);
 				rdev_dec_pending(rdev, conf->mddev);
 			}
 			if (test_and_clear_bit(R5_MadeGoodRepl, &dev->flags)) {
-				rdev = conf->disks[i].replacement;
+				rdev = rdev_pend_deref(conf->disks[i].replacement);
 				if (!rdev)
 					/* rdev have been moved down */
-					rdev = conf->disks[i].rdev;
+					rdev = rdev_pend_deref(conf->disks[i].rdev);
 				rdev_clear_badblocks(rdev, sh->sector,
 						     RAID5_STRIPE_SECTORS(conf), 0);
 				rdev_dec_pending(rdev, conf->mddev);
