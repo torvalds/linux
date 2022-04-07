@@ -444,8 +444,11 @@ struct kvm_run {
 #define KVM_SYSTEM_EVENT_SHUTDOWN       1
 #define KVM_SYSTEM_EVENT_RESET          2
 #define KVM_SYSTEM_EVENT_CRASH          3
+#define KVM_SYSTEM_EVENT_SEV_TERM       4
+#define KVM_SYSTEM_EVENT_NDATA_VALID    (1u << 31)
 			__u32 type;
-			__u64 flags;
+			__u32 ndata;
+			__u64 data[16];
 		} system_event;
 		/* KVM_EXIT_S390_STSI */
 		struct {
