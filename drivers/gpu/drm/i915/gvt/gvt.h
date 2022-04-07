@@ -36,6 +36,7 @@
 #include <uapi/linux/pci_regs.h>
 
 #include "i915_drv.h"
+#include "intel_gvt.h"
 
 #include "debug.h"
 #include "hypercall.h"
@@ -272,7 +273,7 @@ struct intel_gvt_mmio {
 /* Value of command write of this reg needs to be patched */
 #define F_CMD_WRITE_PATCH	(1 << 8)
 
-	const struct gvt_mmio_block *mmio_block;
+	struct gvt_mmio_block *mmio_block;
 	unsigned int num_mmio_block;
 
 	DECLARE_HASHTABLE(mmio_info_table, INTEL_GVT_MMIO_HASH_BITS);
