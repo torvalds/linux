@@ -373,7 +373,6 @@ struct rxe_port {
 	spinlock_t		port_lock; /* guard port */
 	unsigned int		mtu_cap;
 	/* special QPs */
-	u32			qp_smi_index;
 	u32			qp_gsi_index;
 };
 

@@ -308,7 +308,6 @@ static int next_opcode(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 	case IB_QPT_UC:
 		return next_opcode_uc(qp, opcode, fits);
 
-	case IB_QPT_SMI:
 	case IB_QPT_UD:
 	case IB_QPT_GSI:
 		switch (opcode) {

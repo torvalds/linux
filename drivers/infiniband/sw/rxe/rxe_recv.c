@@ -34,7 +34,6 @@ static int check_type_state(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		}
 		break;
 	case IB_QPT_UD:
-	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 		if (unlikely(pkt_type != IB_OPCODE_UD)) {
 			pr_warn_ratelimited("bad qp type\n");

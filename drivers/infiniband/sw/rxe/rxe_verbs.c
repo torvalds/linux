@@ -536,7 +536,6 @@ static void init_send_wr(struct rxe_qp *qp, struct rxe_send_wr *wr,
 	wr->send_flags = ibwr->send_flags;
 
 	if (qp_type(qp) == IB_QPT_UD ||
-	    qp_type(qp) == IB_QPT_SMI ||
 	    qp_type(qp) == IB_QPT_GSI) {
 		struct ib_ah *ibah = ud_wr(ibwr)->ah;
 

@@ -63,7 +63,6 @@ int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init)
 	int port_num = init->port_num;
 
 	switch (init->qp_type) {
-	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 	case IB_QPT_RC:
 	case IB_QPT_UC:
@@ -81,18 +80,13 @@ int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init)
 	if (rxe_qp_chk_cap(rxe, cap, !!init->srq))
 		goto err1;
 
-	if (init->qp_type == IB_QPT_SMI || init->qp_type == IB_QPT_GSI) {
+	if (init->qp_type == IB_QPT_GSI) {
 		if (!rdma_is_port_valid(&rxe->ib_dev, port_num)) {
 			pr_warn("invalid port = %d\n", port_num);
 			goto err1;
 		}
 
 		port = &rxe->port;
-
-		if (init->qp_type == IB_QPT_SMI && port->qp_smi_index) {
-			pr_warn("SMI QP exists for port %d\n", port_num);
-			goto err1;
-		}
 
 		if (init->qp_type == IB_QPT_GSI && port->qp_gsi_index) {
 			pr_warn("GSI QP exists for port %d\n", port_num);
@@ -167,12 +161,6 @@ static void rxe_qp_init_misc(struct rxe_dev *rxe, struct rxe_qp *qp,
 	port			= &rxe->port;
 
 	switch (init->qp_type) {
-	case IB_QPT_SMI:
-		qp->ibqp.qp_num		= 0;
-		port->qp_smi_index	= qpn;
-		qp->attr.port_num	= init->port_num;
-		break;
-
 	case IB_QPT_GSI:
 		qp->ibqp.qp_num		= 1;
 		port->qp_gsi_index	= qpn;
