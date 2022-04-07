@@ -168,6 +168,10 @@ int ufs_qcom_ice_enable(struct ufs_qcom_host *host)
 	return ufs_qcom_ice_resume(host);
 }
 
+void ufs_qcom_ice_disable(struct ufs_qcom_host *host)
+{
+}
+
 /* Poll until all BIST bits are reset */
 static int qcom_ice_wait_bist_status(struct ufs_qcom_host *host)
 {
