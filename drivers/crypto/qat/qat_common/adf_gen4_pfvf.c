@@ -96,10 +96,16 @@ static struct pfvf_message adf_gen4_pfvf_recv(struct adf_accel_dev *accel_dev,
 					      u32 pfvf_offset, u8 compat_ver)
 {
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
+	struct pfvf_message msg = { 0 };
 	u32 csr_val;
 
 	/* Read message from the CSR */
 	csr_val = ADF_CSR_RD(pmisc_addr, pfvf_offset);
+	if (!(csr_val & ADF_PFVF_INT)) {
+		dev_info(&GET_DEV(accel_dev),
+			 "Spurious PFVF interrupt, msg 0x%.8x. Ignored\n", csr_val);
+		return msg;
+	}
 
 	/* We can now acknowledge the message reception by clearing the
 	 * interrupt bit
