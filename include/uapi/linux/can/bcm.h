@@ -71,7 +71,7 @@ struct bcm_msg_head {
 	struct bcm_timeval ival1, ival2;
 	canid_t can_id;
 	__u32 nframes;
-	struct can_frame frames[0];
+	struct can_frame frames[];
 };
 
 enum {

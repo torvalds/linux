@@ -109,7 +109,7 @@ struct arpt_entry
 	struct xt_counters counters;
 
 	/* The matches (if any), then the target. */
-	unsigned char elems[0];
+	unsigned char elems[];
 };
 
 /*
@@ -181,7 +181,7 @@ struct arpt_replace {
 	struct xt_counters __user *counters;
 
 	/* The entries (hang off end: not really an array). */
-	struct arpt_entry entries[0];
+	struct arpt_entry entries[];
 };
 
 /* The argument to ARPT_SO_GET_ENTRIES. */
@@ -193,7 +193,7 @@ struct arpt_get_entries {
 	unsigned int size;
 
 	/* The entries. */
-	struct arpt_entry entrytable[0];
+	struct arpt_entry entrytable[];
 };
 
 /* Helper functions */

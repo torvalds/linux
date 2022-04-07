@@ -30,25 +30,25 @@ struct nd_cmd_get_config_data_hdr {
 	__u32 in_offset;
 	__u32 in_length;
 	__u32 status;
-	__u8 out_buf[0];
+	__u8 out_buf[];
 } __packed;
 
 struct nd_cmd_set_config_hdr {
 	__u32 in_offset;
 	__u32 in_length;
-	__u8 in_buf[0];
+	__u8 in_buf[];
 } __packed;
 
 struct nd_cmd_vendor_hdr {
 	__u32 opcode;
 	__u32 in_length;
-	__u8 in_buf[0];
+	__u8 in_buf[];
 } __packed;
 
 struct nd_cmd_vendor_tail {
 	__u32 status;
 	__u32 out_length;
-	__u8 out_buf[0];
+	__u8 out_buf[];
 } __packed;
 
 struct nd_cmd_ars_cap {
@@ -86,7 +86,7 @@ struct nd_cmd_ars_status {
 		__u32 reserved;
 		__u64 err_address;
 		__u64 length;
-	} __packed records[0];
+	} __packed records[];
 } __packed;
 
 struct nd_cmd_clear_error {
