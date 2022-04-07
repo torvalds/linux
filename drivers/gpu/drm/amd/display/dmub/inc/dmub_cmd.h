@@ -350,8 +350,9 @@ union dmub_fw_boot_options {
 		uint32_t power_optimization: 1;
 		uint32_t diag_env: 1; /* 1 if diagnostic environment */
 		uint32_t gpint_scratch8: 1; /* 1 if GPINT is in scratch8*/
+		uint32_t usb4_cm_version: 1; /**< USB4 CM Version */
 
-		uint32_t reserved : 18; /**< reserved */
+		uint32_t reserved : 17; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
