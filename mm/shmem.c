@@ -4311,7 +4311,6 @@ int reclaim_shmem_address_space(struct address_space *mapping)
 	pgoff_t start = 0;
 	struct page *page;
 	LIST_HEAD(page_list);
-	int reclaimed;
 	XA_STATE(xas, &mapping->i_pages, start);
 
 	if (!shmem_mapping(mapping))
@@ -4329,8 +4328,6 @@ int reclaim_shmem_address_space(struct address_space *mapping)
 			continue;
 
 		list_add(&page->lru, &page_list);
-		inc_node_page_state(page, NR_ISOLATED_ANON +
-				page_is_file_lru(page));
 
 		if (need_resched()) {
 			xas_pause(&xas);
@@ -4338,9 +4335,8 @@ int reclaim_shmem_address_space(struct address_space *mapping)
 		}
 	}
 	rcu_read_unlock();
-	reclaimed = reclaim_pages_from_list(&page_list);
 
-	return reclaimed;
+	return reclaim_pages(&page_list);
 #else
 	return 0;
 #endif

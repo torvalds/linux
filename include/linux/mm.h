@@ -3362,7 +3362,6 @@ unsigned long wp_shared_mapping_range(struct address_space *mapping,
 extern int sysctl_nr_trim_pages;
 extern bool pte_map_lock_addr(struct vm_fault *vmf, unsigned long addr);
 extern int reclaim_shmem_address_space(struct address_space *mapping);
-extern int reclaim_pages_from_list(struct list_head *page_list);
 
 /**
  * seal_check_future_write - Check for F_SEAL_FUTURE_WRITE flag and handle it
