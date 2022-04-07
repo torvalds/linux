@@ -1,0 +1,118 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/i2c-mt65xx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek I2C controller
+
+description:
+  This driver interfaces with the native I2C controller present in
+  various MediaTek SoCs.
+
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
+
+maintainers:
+  - Qii Wang <qii.wang@mediatek.com>
+
+properties:
+  compatible:
+    oneOf:
+      - const: mediatek,mt2712-i2c
+      - const: mediatek,mt6577-i2c
+      - const: mediatek,mt6589-i2c
+      - const: mediatek,mt7622-i2c
+      - const: mediatek,mt8168-i2c
+      - const: mediatek,mt8173-i2c
+      - const: mediatek,mt8183-i2c
+      - const: mediatek,mt8186-i2c
+      - const: mediatek,mt8192-i2c
+      - items:
+          - enum:
+              - mediatek,mt7629-i2c
+              - mediatek,mt8516-i2c
+          - const: mediatek,mt2712-i2c
+      - items:
+          - enum:
+              - mediatek,mt2701-i2c
+              - mediatek,mt6797-i2c
+              - mediatek,mt7623-i2c
+          - const: mediatek,mt6577-i2c
+      - items:
+          - enum:
+              - mediatek,mt8195-i2c
+          - const: mediatek,mt8192-i2c
+
+  reg:
+    items:
+      - description: Physical base address
+      - description: DMA base address
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 2
+    items:
+      - description: Main clock for I2C bus
+      - description: Clock for I2C via DMA
+      - description: Bus arbitrator clock
+      - description: Clock for I2C from PMIC
+
+  clock-names:
+    minItems: 2
+    items:
+      - const: main
+      - const: dma
+      - const: arb
+      - const: pmic
+
+  clock-div:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Frequency divider of clock source in I2C module
+
+  clock-frequency:
+    default: 100000
+    description:
+      SCL frequency to use (in Hz). If omitted, 100kHz is used.
+
+  mediatek,have-pmic:
+    description: Platform controls I2C from PMIC side
+    type: boolean
+
+  mediatek,use-push-pull:
+    description: Use push-pull mode I/O config
+    type: boolean
+
+  vbus-supply:
+    description: Phandle to the regulator providing power to SCL/SDA
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - clock-div
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c0: i2c@1100d000 {
+      compatible = "mediatek,mt6577-i2c";
+      reg = <0x1100d000 0x70>, <0x11000300 0x80>;
+      interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_LOW>;
+      clocks = <&i2c0_ck>, <&ap_dma_ck>;
+      clock-names = "main", "dma";
+      clock-div = <16>;
+      clock-frequency = <400000>;
+      mediatek,have-pmic;
+
+      #address-cells = <1>;
+      #size-cells = <0>;
+    };
