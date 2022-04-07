@@ -172,7 +172,7 @@ properties:
               - karo,tx53                     # Ka-Ro electronics TX53 module
               - kiebackpeter,imx53-ddc        # K+P imx53 DDC
               - kiebackpeter,imx53-hsc        # K+P imx53 HSC
-              - menlo,m53menlo
+              - menlo,m53menlo                # i.MX53 Menlo board
               - voipac,imx53-dmm-668          # Voipac i.MX53 X53-DMM-668
           - const: fsl,imx53
 
