@@ -172,6 +172,7 @@ struct rtw_rsvd_page {
 	struct sk_buff *skb;
 	enum rtw_rsvd_packet_type type;
 	u8 page;
+	u16 tim_offset;
 	bool add_txdesc;
 	struct cfg80211_ssid *ssid;
 	u16 probe_req_size;

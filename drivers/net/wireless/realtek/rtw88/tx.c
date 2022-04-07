@@ -67,6 +67,10 @@ void rtw_tx_fill_tx_desc(struct rtw_tx_pkt_info *pkt_info, struct sk_buff *skb)
 	SET_TX_DESC_HW_SSN_SEL(txdesc, pkt_info->hw_ssn_sel);
 	SET_TX_DESC_NAVUSEHDR(txdesc, pkt_info->nav_use_hdr);
 	SET_TX_DESC_BT_NULL(txdesc, pkt_info->bt_null);
+	if (pkt_info->tim_offset) {
+		SET_TX_DESC_TIM_EN(txdesc, 1);
+		SET_TX_DESC_TIM_OFFSET(txdesc, pkt_info->tim_offset);
+	}
 }
 EXPORT_SYMBOL(rtw_tx_fill_tx_desc);
 
@@ -447,6 +451,19 @@ void rtw_tx_rsvd_page_pkt_info_update(struct rtw_dev *rtwdev,
 	}
 	if (type == RSVD_QOS_NULL)
 		pkt_info->bt_null = true;
+
+	if (type == RSVD_BEACON) {
+		struct rtw_rsvd_page *rsvd_pkt;
+		int hdr_len;
+
+		rsvd_pkt = list_first_entry_or_null(&rtwdev->rsvd_page_list,
+						    struct rtw_rsvd_page,
+						    build_list);
+		if (rsvd_pkt && rsvd_pkt->tim_offset != 0) {
+			hdr_len = sizeof(struct ieee80211_hdr_3addr);
+			pkt_info->tim_offset = rsvd_pkt->tim_offset - hdr_len;
+		}
+	}
 
 	rtw_tx_pkt_info_update_sec(rtwdev, pkt_info, skb);
 
