@@ -5375,13 +5375,11 @@ check_vlan_id:
 		*ppt_prev = pt_prev;
 	} else {
 drop:
-		if (!deliver_exact) {
+		if (!deliver_exact)
 			dev_core_stats_rx_dropped_inc(skb->dev);
-			kfree_skb_reason(skb, SKB_DROP_REASON_PTYPE_ABSENT);
-		} else {
+		else
 			dev_core_stats_rx_nohandler_inc(skb->dev);
-			kfree_skb(skb);
-		}
+		kfree_skb_reason(skb, SKB_DROP_REASON_UNHANDLED_PROTO);
 		/* Jamal, now you will not able to escape explaining
 		 * me how you were going to use this. :-)
 		 */
