@@ -2658,6 +2658,18 @@ static struct md_rdev *rdev_pend_deref(struct md_rdev __rcu *rdev)
 			atomic_read(&rcu_access_pointer(rdev)->nr_pending));
 }
 
+/*
+ * This helper wraps rcu_dereference_protected() and should be used
+ * when it is known that the mddev_lock() is held. This is safe
+ * seeing raid5_remove_disk() has the same lock held.
+ */
+static struct md_rdev *rdev_mdlock_deref(struct mddev *mddev,
+					 struct md_rdev __rcu *rdev)
+{
+	return rcu_dereference_protected(rdev,
+			lockdep_is_held(&mddev->reconfig_mutex));
+}
+
 static void raid5_end_read_request(struct bio * bi)
 {
 	struct stripe_head *sh = bi->bi_private;
@@ -7632,10 +7644,11 @@ static int raid5_run(struct mddev *mddev)
 
 	for (i = 0; i < conf->raid_disks && conf->previous_raid_disks;
 	     i++) {
-		rdev = conf->disks[i].rdev;
+		rdev = rdev_mdlock_deref(mddev, conf->disks[i].rdev);
 		if (!rdev && conf->disks[i].replacement) {
 			/* The replacement is all we have yet */
-			rdev = conf->disks[i].replacement;
+			rdev = rdev_mdlock_deref(mddev,
+						 conf->disks[i].replacement);
 			conf->disks[i].replacement = NULL;
 			clear_bit(Replacement, &rdev->flags);
 			rcu_assign_pointer(conf->disks[i].rdev, rdev);
@@ -7867,36 +7880,38 @@ static int raid5_spare_active(struct mddev *mddev)
 {
 	int i;
 	struct r5conf *conf = mddev->private;
-	struct disk_info *tmp;
+	struct md_rdev *rdev, *replacement;
 	int count = 0;
 	unsigned long flags;
 
 	for (i = 0; i < conf->raid_disks; i++) {
-		tmp = conf->disks + i;
-		if (tmp->replacement
-		    && tmp->replacement->recovery_offset == MaxSector
-		    && !test_bit(Faulty, &tmp->replacement->flags)
-		    && !test_and_set_bit(In_sync, &tmp->replacement->flags)) {
+		rdev = rdev_mdlock_deref(mddev, conf->disks[i].rdev);
+		replacement = rdev_mdlock_deref(mddev,
+						conf->disks[i].replacement);
+		if (replacement
+		    && replacement->recovery_offset == MaxSector
+		    && !test_bit(Faulty, &replacement->flags)
+		    && !test_and_set_bit(In_sync, &replacement->flags)) {
 			/* Replacement has just become active. */
-			if (!tmp->rdev
-			    || !test_and_clear_bit(In_sync, &tmp->rdev->flags))
+			if (!rdev
+			    || !test_and_clear_bit(In_sync, &rdev->flags))
 				count++;
-			if (tmp->rdev) {
+			if (rdev) {
 				/* Replaced device not technically faulty,
 				 * but we need to be sure it gets removed
 				 * and never re-added.
 				 */
-				set_bit(Faulty, &tmp->rdev->flags);
+				set_bit(Faulty, &rdev->flags);
 				sysfs_notify_dirent_safe(
-					tmp->rdev->sysfs_state);
+					rdev->sysfs_state);
 			}
-			sysfs_notify_dirent_safe(tmp->replacement->sysfs_state);
-		} else if (tmp->rdev
-		    && tmp->rdev->recovery_offset == MaxSector
-		    && !test_bit(Faulty, &tmp->rdev->flags)
-		    && !test_and_set_bit(In_sync, &tmp->rdev->flags)) {
+			sysfs_notify_dirent_safe(replacement->sysfs_state);
+		} else if (rdev
+		    && rdev->recovery_offset == MaxSector
+		    && !test_bit(Faulty, &rdev->flags)
+		    && !test_and_set_bit(In_sync, &rdev->flags)) {
 			count++;
-			sysfs_notify_dirent_safe(tmp->rdev->sysfs_state);
+			sysfs_notify_dirent_safe(rdev->sysfs_state);
 		}
 	}
 	spin_lock_irqsave(&conf->device_lock, flags);
@@ -7961,6 +7976,7 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	}
 	*rdevp = NULL;
 	if (!test_bit(RemoveSynchronized, &rdev->flags)) {
+		lockdep_assert_held(&mddev->reconfig_mutex);
 		synchronize_rcu();
 		if (atomic_read(&rdev->nr_pending)) {
 			/* lost the race, try later */
@@ -8001,6 +8017,7 @@ static int raid5_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	int ret, err = -EEXIST;
 	int disk;
 	struct disk_info *p;
+	struct md_rdev *tmp;
 	int first = 0;
 	int last = conf->raid_disks - 1;
 
@@ -8058,7 +8075,8 @@ static int raid5_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	}
 	for (disk = first; disk <= last; disk++) {
 		p = conf->disks + disk;
-		if (test_bit(WantReplacement, &p->rdev->flags) &&
+		tmp = rdev_mdlock_deref(mddev, p->rdev);
+		if (test_bit(WantReplacement, &tmp->flags) &&
 		    p->replacement == NULL) {
 			clear_bit(In_sync, &rdev->flags);
 			set_bit(Replacement, &rdev->flags);
@@ -8349,6 +8367,7 @@ static void end_reshape(struct r5conf *conf)
 static void raid5_finish_reshape(struct mddev *mddev)
 {
 	struct r5conf *conf = mddev->private;
+	struct md_rdev *rdev;
 
 	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
 
@@ -8360,10 +8379,12 @@ static void raid5_finish_reshape(struct mddev *mddev)
 			for (d = conf->raid_disks ;
 			     d < conf->raid_disks - mddev->delta_disks;
 			     d++) {
-				struct md_rdev *rdev = conf->disks[d].rdev;
+				rdev = rdev_mdlock_deref(mddev,
+							 conf->disks[d].rdev);
 				if (rdev)
 					clear_bit(In_sync, &rdev->flags);
-				rdev = conf->disks[d].replacement;
+				rdev = rdev_mdlock_deref(mddev,
+						conf->disks[d].replacement);
 				if (rdev)
 					clear_bit(In_sync, &rdev->flags);
 			}
