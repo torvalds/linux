@@ -346,8 +346,7 @@ at86rf230_async_error_recover_complete(void *context)
 
 	if (lp->was_tx) {
 		lp->was_tx = 0;
-		dev_kfree_skb_any(lp->tx_skb);
-		ieee802154_wake_queue(lp->hw);
+		ieee802154_xmit_hw_error(lp->hw, lp->tx_skb);
 	}
 }
 
