@@ -8601,7 +8601,6 @@ static struct io_sq_data *io_get_sq_data(struct io_uring_params *p,
 	return sqd;
 }
 
-#if defined(CONFIG_UNIX)
 /*
  * Ensure the UNIX gc is aware of our file set, so we are certain that
  * the io_uring can be safely unregistered on process exit, even if we have
@@ -8609,38 +8608,59 @@ static struct io_sq_data *io_get_sq_data(struct io_uring_params *p,
  * files because otherwise they can't form a loop and so are not interesting
  * for GC.
  */
-static int __io_sqe_files_scm(struct io_ring_ctx *ctx, struct file *file)
+static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file)
 {
+#if defined(CONFIG_UNIX)
 	struct sock *sk = ctx->ring_sock->sk;
+	struct sk_buff_head *head = &sk->sk_receive_queue;
 	struct scm_fp_list *fpl;
 	struct sk_buff *skb;
 
-	fpl = kzalloc(sizeof(*fpl), GFP_KERNEL);
-	if (!fpl)
-		return -ENOMEM;
+	if (likely(!io_file_need_scm(file)))
+		return 0;
 
-	skb = alloc_skb(0, GFP_KERNEL);
+	/*
+	 * See if we can merge this file into an existing skb SCM_RIGHTS
+	 * file set. If there's no room, fall back to allocating a new skb
+	 * and filling it in.
+	 */
+	spin_lock_irq(&head->lock);
+	skb = skb_peek(head);
+	if (skb && UNIXCB(skb).fp->count < SCM_MAX_FD)
+		__skb_unlink(skb, head);
+	else
+		skb = NULL;
+	spin_unlock_irq(&head->lock);
+
 	if (!skb) {
-		kfree(fpl);
-		return -ENOMEM;
+		fpl = kzalloc(sizeof(*fpl), GFP_KERNEL);
+		if (!fpl)
+			return -ENOMEM;
+
+		skb = alloc_skb(0, GFP_KERNEL);
+		if (!skb) {
+			kfree(fpl);
+			return -ENOMEM;
+		}
+
+		fpl->user = get_uid(current_user());
+		fpl->max = SCM_MAX_FD;
+		fpl->count = 0;
+
+		UNIXCB(skb).fp = fpl;
+		skb->sk = sk;
+		skb->destructor = unix_destruct_scm;
+		refcount_add(skb->truesize, &sk->sk_wmem_alloc);
 	}
 
-	skb->sk = sk;
-
-	fpl->user = get_uid(current_user());
-	fpl->fp[0] = get_file(file);
+	fpl = UNIXCB(skb).fp;
+	fpl->fp[fpl->count++] = get_file(file);
 	unix_inflight(fpl->user, file);
-
-	fpl->max = SCM_MAX_FD;
-	fpl->count = 1;
-	UNIXCB(skb).fp = fpl;
-	skb->destructor = unix_destruct_scm;
-	refcount_add(skb->truesize, &sk->sk_wmem_alloc);
-	skb_queue_head(&sk->sk_receive_queue, skb);
+	skb_queue_head(head, skb);
 	fput(file);
+#endif
 	return 0;
 }
-#endif
 
 static void io_rsrc_file_put(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc)
 {
@@ -8760,8 +8780,6 @@ static void io_rsrc_put_work(struct work_struct *work)
 	}
 }
 
-static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file);
-
 static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 				 unsigned nr_args, u64 __user *tags)
 {
@@ -8837,51 +8855,6 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 fail:
 	__io_sqe_files_unregister(ctx);
 	return ret;
-}
-
-static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file)
-{
-#if defined(CONFIG_UNIX)
-	struct sock *sock = ctx->ring_sock->sk;
-	struct sk_buff_head *head = &sock->sk_receive_queue;
-	struct sk_buff *skb;
-
-	if (!io_file_need_scm(file))
-		return 0;
-
-	/*
-	 * See if we can merge this file into an existing skb SCM_RIGHTS
-	 * file set. If there's no room, fall back to allocating a new skb
-	 * and filling it in.
-	 */
-	spin_lock_irq(&head->lock);
-	skb = skb_peek(head);
-	if (skb) {
-		struct scm_fp_list *fpl = UNIXCB(skb).fp;
-
-		if (fpl->count < SCM_MAX_FD) {
-			__skb_unlink(skb, head);
-			spin_unlock_irq(&head->lock);
-			fpl->fp[fpl->count] = get_file(file);
-			unix_inflight(fpl->user, fpl->fp[fpl->count]);
-			fpl->count++;
-			spin_lock_irq(&head->lock);
-			__skb_queue_head(head, skb);
-		} else {
-			skb = NULL;
-		}
-	}
-	spin_unlock_irq(&head->lock);
-
-	if (skb) {
-		fput(file);
-		return 0;
-	}
-
-	return __io_sqe_files_scm(ctx, file);
-#else
-	return 0;
-#endif
 }
 
 static int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
