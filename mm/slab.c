@@ -781,7 +781,7 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 	int slab_node = slab_nid(virt_to_slab(objp));
 	int node = numa_mem_id();
 	/*
-	 * Make sure we are not freeing a object from another node to the array
+	 * Make sure we are not freeing an object from another node to the array
 	 * cache on this cpu.
 	 */
 	if (likely(node == slab_node))
@@ -832,7 +832,7 @@ static int init_cache_node(struct kmem_cache *cachep, int node, gfp_t gfp)
 
 	/*
 	 * The kmem_cache_nodes don't come and go as CPUs
-	 * come and go.  slab_mutex is sufficient
+	 * come and go.  slab_mutex provides sufficient
 	 * protection here.
 	 */
 	cachep->node[node] = n;
@@ -845,7 +845,7 @@ static int init_cache_node(struct kmem_cache *cachep, int node, gfp_t gfp)
  * Allocates and initializes node for a node on each slab cache, used for
  * either memory or cpu hotplug.  If memory is being hot-added, the kmem_cache_node
  * will be allocated off-node since memory is not yet online for the new node.
- * When hotplugging memory or a cpu, existing node are not replaced if
+ * When hotplugging memory or a cpu, existing nodes are not replaced if
  * already in use.
  *
  * Must hold slab_mutex.
@@ -1046,7 +1046,7 @@ int slab_prepare_cpu(unsigned int cpu)
  * offline.
  *
  * Even if all the cpus of a node are down, we don't free the
- * kmem_cache_node of any cache. This to avoid a race between cpu_down, and
+ * kmem_cache_node of any cache. This is to avoid a race between cpu_down, and
  * a kmalloc allocation from another cpu for memory from the node of
  * the cpu going down.  The kmem_cache_node structure is usually allocated from
  * kmem_cache_create() and gets destroyed at kmem_cache_destroy().
@@ -1890,7 +1890,7 @@ static bool set_on_slab_cache(struct kmem_cache *cachep,
  * @flags: SLAB flags
  *
  * Returns a ptr to the cache on success, NULL on failure.
- * Cannot be called within a int, but can be interrupted.
+ * Cannot be called within an int, but can be interrupted.
  * The @ctor is run when new pages are allocated by the cache.
  *
  * The flags are
@@ -3138,7 +3138,7 @@ retry:
 }
 
 /*
- * A interface to enable slab creation on nodeid
+ * An interface to enable slab creation on nodeid
  */
 static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
 				int nodeid)
