@@ -350,8 +350,8 @@
 			status = "okay";
 		};
 		gpio: gpio@13040000 {
-			compatible = "starfive,gpio7110";
-			/*compatible = "starfive_jh7110-sys-pinctrl";*/
+			/*compatible = "starfive,gpio7110";*/
+			compatible = "starfive_jh7110-sys-pinctrl";
 			interrupt-parent = <&plic>;
 			interrupts = <91>;
 			reg = <0x0 0x13040000 0x0 0x10000>;
@@ -1010,5 +1010,5 @@
 	};
 };
 
-/*#include "starfive_jh7110_pinctrl.dtsi"*/
+#include "starfive_jh7110_pinctrl.dtsi"
 #include "starfive_jh7110_audio.dtsi"

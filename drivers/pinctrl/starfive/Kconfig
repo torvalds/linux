@@ -17,7 +17,7 @@ config PINCTRL_STARFIVE
 	  and interrupts on input changes.
 	  
 config PINCTRL_STARFIVE_JH7110
-	bool "Pinctrl and GPIO driver for the StarFive jh7100 SoC"
+	bool "Pinctrl and GPIO driver for the StarFive jh7110 SoC"
 	depends on SOC_STARFIVE_JH7110 || PINCTRL_STARFIVE
 	help
 	  This selects the pinctrl driver for jh7100 starfive.
