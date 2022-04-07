@@ -108,7 +108,7 @@
  * code through spec map. This allows BPF applications to quickly fetch the
  * actual value at runtime using a simple BPF-side code.
  *
- * With basics out of the way, let's go over less immeditately obvious aspects
+ * With basics out of the way, let's go over less immediately obvious aspects
  * of supporting USDTs.
  *
  * First, there is no special USDT BPF program type. It is actually just
@@ -189,14 +189,14 @@
 #define USDT_NOTE_TYPE 3
 #define USDT_NOTE_NAME "stapsdt"
 
-/* should match exactly enum __bpf_usdt_arg_type from bpf_usdt.bpf.h */
+/* should match exactly enum __bpf_usdt_arg_type from usdt.bpf.h */
 enum usdt_arg_type {
 	USDT_ARG_CONST,
 	USDT_ARG_REG,
 	USDT_ARG_REG_DEREF,
 };
 
-/* should match exactly struct __bpf_usdt_arg_spec from bpf_usdt.bpf.h */
+/* should match exactly struct __bpf_usdt_arg_spec from usdt.bpf.h */
 struct usdt_arg_spec {
 	__u64 val_off;
 	enum usdt_arg_type arg_type;
@@ -328,9 +328,9 @@ static int sanity_check_usdt_elf(Elf *elf, const char *path)
 		return -EBADF;
 	}
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	endianness = ELFDATA2LSB;
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	endianness = ELFDATA2MSB;
 #else
 # error "Unrecognized __BYTE_ORDER__"
@@ -843,7 +843,7 @@ static int bpf_link_usdt_detach(struct bpf_link *link)
 						   sizeof(*new_free_ids));
 		/* If we couldn't resize free_spec_ids, we'll just leak
 		 * a bunch of free IDs; this is very unlikely to happen and if
-		 * system is so exausted on memory, it's the least of user's
+		 * system is so exhausted on memory, it's the least of user's
 		 * concerns, probably.
 		 * So just do our best here to return those IDs to usdt_manager.
 		 */

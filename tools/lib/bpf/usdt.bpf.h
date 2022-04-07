@@ -166,7 +166,7 @@ int bpf_usdt_arg(struct pt_regs *ctx, __u64 arg_num, long *res)
 	case BPF_USDT_ARG_REG_DEREF:
 		/* Arg is in memory addressed by register, plus some offset
 		 * (e.g., "-4@-1204(%rbp)" in USDT arg spec). Register is
-		 * identified lik with BPF_USDT_ARG_REG case, and the offset
+		 * identified like with BPF_USDT_ARG_REG case, and the offset
 		 * is in arg_spec->val_off. We first fetch register contents
 		 * from pt_regs, then do another user-space probe read to
 		 * fetch argument value itself.
@@ -198,7 +198,7 @@ int bpf_usdt_arg(struct pt_regs *ctx, __u64 arg_num, long *res)
 /* Retrieve user-specified cookie value provided during attach as
  * bpf_usdt_opts.usdt_cookie. This serves the same purpose as BPF cookie
  * returned by bpf_get_attach_cookie(). Libbpf's support for USDT is itself
- * utilizaing BPF cookies internally, so user can't use BPF cookie directly
+ * utilizing BPF cookies internally, so user can't use BPF cookie directly
  * for USDT programs and has to use bpf_usdt_cookie() API instead.
  */
 static inline __noinline
