@@ -265,7 +265,7 @@ static int cxl_mbox_cmd_ctor(struct cxl_mbox_cmd *mbox,
 	if (in_size) {
 		mbox->payload_in = vmemdup_user(u64_to_user_ptr(in_payload),
 						in_size);
-		if (!mbox->payload_in)
+		if (IS_ERR(mbox->payload_in))
 			return PTR_ERR(mbox->payload_in);
 
 		if (!cxl_payload_from_user_allowed(opcode, mbox->payload_in)) {
