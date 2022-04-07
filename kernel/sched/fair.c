@@ -9210,6 +9210,7 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
 	case group_has_spare:
 #ifdef CONFIG_NUMA
 		if (sd->flags & SD_NUMA) {
+			int imb_numa_nr = sd->imb_numa_nr;
 #ifdef CONFIG_NUMA_BALANCING
 			int idlest_cpu;
 			/*
@@ -9227,13 +9228,22 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
 			 * Otherwise, keep the task close to the wakeup source
 			 * and improve locality if the number of running tasks
 			 * would remain below threshold where an imbalance is
-			 * allowed. If there is a real need of migration,
-			 * periodic load balance will take care of it.
+			 * allowed while accounting for the possibility the
+			 * task is pinned to a subset of CPUs. If there is a
+			 * real need of migration, periodic load balance will
+			 * take care of it.
 			 */
+			if (p->nr_cpus_allowed != NR_CPUS) {
+				struct cpumask *cpus = this_cpu_cpumask_var_ptr(select_idle_mask);
+
+				cpumask_and(cpus, sched_group_span(local), p->cpus_ptr);
+				imb_numa_nr = min(cpumask_weight(cpus), sd->imb_numa_nr);
+			}
+
 			imbalance = abs(local_sgs.idle_cpus - idlest_sgs.idle_cpus);
 			if (!adjust_numa_imbalance(imbalance,
 						   local_sgs.sum_nr_running + 1,
-						   sd->imb_numa_nr)) {
+						   imb_numa_nr)) {
 				return NULL;
 			}
 		}
