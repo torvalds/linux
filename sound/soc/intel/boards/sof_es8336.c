@@ -31,6 +31,7 @@
 #define SOF_ES8336_ENABLE_DMIC			BIT(5)
 #define SOF_ES8336_JD_INVERTED			BIT(6)
 #define SOF_ES8336_HEADPHONE_GPIO		BIT(7)
+#define SOC_ES8336_HEADSET_MIC1			BIT(8)
 
 static unsigned long quirk;
 
@@ -90,6 +91,8 @@ static void log_quirks(struct device *dev)
 		dev_info(dev, "quirk headphone GPIO enabled\n");
 	if (quirk & SOF_ES8336_JD_INVERTED)
 		dev_info(dev, "quirk JD inverted enabled\n");
+	if (quirk & SOC_ES8336_HEADSET_MIC1)
+		dev_info(dev, "quirk headset at mic1 port enabled\n");
 }
 
 static int sof_es8316_speaker_power_event(struct snd_soc_dapm_widget *w,
@@ -147,9 +150,14 @@ static const struct snd_soc_dapm_route sof_es8316_audio_map[] = {
 	{"Speaker", NULL, "Speaker Power"},
 };
 
-static const struct snd_soc_dapm_route sof_es8316_intmic_in1_map[] = {
+static const struct snd_soc_dapm_route sof_es8316_headset_mic2_map[] = {
 	{"MIC1", NULL, "Internal Mic"},
 	{"MIC2", NULL, "Headset Mic"},
+};
+
+static const struct snd_soc_dapm_route sof_es8316_headset_mic1_map[] = {
+	{"MIC2", NULL, "Internal Mic"},
+	{"MIC1", NULL, "Headset Mic"},
 };
 
 static const struct snd_soc_dapm_route dmic_map[] = {
@@ -225,8 +233,13 @@ static int sof_es8316_init(struct snd_soc_pcm_runtime *runtime)
 
 	card->dapm.idle_bias_off = true;
 
-	custom_map = sof_es8316_intmic_in1_map;
-	num_routes = ARRAY_SIZE(sof_es8316_intmic_in1_map);
+	if (quirk & SOC_ES8336_HEADSET_MIC1) {
+		custom_map = sof_es8316_headset_mic1_map;
+		num_routes = ARRAY_SIZE(sof_es8316_headset_mic1_map);
+	} else {
+		custom_map = sof_es8316_headset_mic2_map;
+		num_routes = ARRAY_SIZE(sof_es8316_headset_mic2_map);
+	}
 
 	ret = snd_soc_dapm_add_routes(&card->dapm, custom_map, num_routes);
 	if (ret)
