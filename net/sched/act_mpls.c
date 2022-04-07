@@ -411,7 +411,14 @@ static int tcf_mpls_offload_act_setup(struct tc_action *act, void *entry_data,
 			entry->mpls_mangle.bos = tcf_mpls_bos(act);
 			entry->mpls_mangle.ttl = tcf_mpls_ttl(act);
 			break;
+		case TCA_MPLS_ACT_DEC_TTL:
+			NL_SET_ERR_MSG_MOD(extack, "Offload not supported when \"dec_ttl\" option is used");
+			return -EOPNOTSUPP;
+		case TCA_MPLS_ACT_MAC_PUSH:
+			NL_SET_ERR_MSG_MOD(extack, "Offload not supported when \"mac_push\" option is used");
+			return -EOPNOTSUPP;
 		default:
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported MPLS mode offload");
 			return -EOPNOTSUPP;
 		}
 		*index_inc = 1;
