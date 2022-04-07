@@ -217,6 +217,8 @@ properties:
           - memsic,mxc6255
             # MEMSIC 3-axis accelerometer
           - memsic,mxc6655
+            # Menlo on-board CPLD trivial SPI device
+          - menlo,m53cpld
             # Microchip differential I2C ADC, 1 Channel, 18 bit
           - microchip,mcp3421
             # Microchip differential I2C ADC, 2 Channel, 18 bit
