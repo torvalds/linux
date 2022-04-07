@@ -27,7 +27,7 @@
 #define SOF_ES8336_SSP_CODEC(quirk)		((quirk) & GENMASK(3, 0))
 #define SOF_ES8336_SSP_CODEC_MASK		(GENMASK(3, 0))
 
-#define SOF_ES8336_TGL_GPIO_QUIRK		BIT(4)
+#define SOF_ES8336_SPEAKERS_EN_GPIO1_QUIRK	BIT(4)
 #define SOF_ES8336_ENABLE_DMIC			BIT(5)
 #define SOF_ES8336_JD_INVERTED			BIT(6)
 
@@ -39,7 +39,7 @@ MODULE_PARM_DESC(quirk, "Board-specific quirk override");
 
 struct sof_es8336_private {
 	struct device *codec_dev;
-	struct gpio_desc *gpio_pa;
+	struct gpio_desc *gpio_speakers;
 	struct snd_soc_jack jack;
 	struct list_head hdmi_pcm_list;
 	bool speaker_en;
@@ -51,19 +51,19 @@ struct sof_hdmi_pcm {
 	int device;
 };
 
-static const struct acpi_gpio_params pa_enable_gpio = { 0, 0, true };
-static const struct acpi_gpio_mapping acpi_es8336_gpios[] = {
-	{ "pa-enable-gpios", &pa_enable_gpio, 1 },
+static const struct acpi_gpio_params speakers_enable_gpio0 = { 0, 0, true };
+static const struct acpi_gpio_mapping acpi_speakers_enable_gpio0[] = {
+	{ "speakers-enable-gpios", &speakers_enable_gpio0, 1 },
 	{ }
 };
 
-static const struct acpi_gpio_params quirk_pa_enable_gpio = { 1, 0, true };
-static const struct acpi_gpio_mapping quirk_acpi_es8336_gpios[] = {
-	{ "pa-enable-gpios", &quirk_pa_enable_gpio, 1 },
+static const struct acpi_gpio_params speakers_enable_gpio1 = { 1, 0, true };
+static const struct acpi_gpio_mapping acpi_speakers_enable_gpio1[] = {
+	{ "speakers-enable-gpios", &speakers_enable_gpio1, 1 },
 	{ }
 };
 
-static const struct acpi_gpio_mapping *gpio_mapping = acpi_es8336_gpios;
+static const struct acpi_gpio_mapping *gpio_mapping = acpi_speakers_enable_gpio0;
 
 static void log_quirks(struct device *dev)
 {
@@ -71,8 +71,8 @@ static void log_quirks(struct device *dev)
 	dev_info(dev, "quirk SSP%ld\n",  SOF_ES8336_SSP_CODEC(quirk));
 	if (quirk & SOF_ES8336_ENABLE_DMIC)
 		dev_info(dev, "quirk DMIC enabled\n");
-	if (quirk & SOF_ES8336_TGL_GPIO_QUIRK)
-		dev_info(dev, "quirk TGL GPIO enabled\n");
+	if (quirk & SOF_ES8336_SPEAKERS_EN_GPIO1_QUIRK)
+		dev_info(dev, "Speakers GPIO1 quirk enabled\n");
 	if (quirk & SOF_ES8336_JD_INVERTED)
 		dev_info(dev, "quirk JD inverted enabled\n");
 }
@@ -88,7 +88,7 @@ static int sof_es8316_speaker_power_event(struct snd_soc_dapm_widget *w,
 	else
 		priv->speaker_en = true;
 
-	gpiod_set_value_cansleep(priv->gpio_pa, priv->speaker_en);
+	gpiod_set_value_cansleep(priv->gpio_speakers, priv->speaker_en);
 
 	return 0;
 }
@@ -233,8 +233,8 @@ static int sof_es8336_quirk_cb(const struct dmi_system_id *id)
 {
 	quirk = (unsigned long)id->driver_data;
 
-	if (quirk & SOF_ES8336_TGL_GPIO_QUIRK)
-		gpio_mapping = quirk_acpi_es8336_gpios;
+	if (quirk & SOF_ES8336_SPEAKERS_EN_GPIO1_QUIRK)
+		gpio_mapping = acpi_speakers_enable_gpio1;
 
 	return 1;
 }
@@ -257,7 +257,7 @@ static const struct dmi_system_id sof_es8336_quirk_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "IP3 tech"),
 			DMI_MATCH(DMI_BOARD_NAME, "WN1"),
 		},
-		.driver_data = (void *)(SOF_ES8336_TGL_GPIO_QUIRK)
+		.driver_data = (void *)(SOF_ES8336_SPEAKERS_EN_GPIO1_QUIRK)
 	},
 	{}
 };
@@ -585,10 +585,10 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	if (ret)
 		dev_warn(codec_dev, "unable to add GPIO mapping table\n");
 
-	priv->gpio_pa = gpiod_get_optional(codec_dev, "pa-enable", GPIOD_OUT_LOW);
-	if (IS_ERR(priv->gpio_pa)) {
-		ret = dev_err_probe(dev, PTR_ERR(priv->gpio_pa),
-				    "could not get pa-enable GPIO\n");
+	priv->gpio_speakers = gpiod_get_optional(codec_dev, "speakers-enable", GPIOD_OUT_LOW);
+	if (IS_ERR(priv->gpio_speakers)) {
+		ret = dev_err_probe(dev, PTR_ERR(priv->gpio_speakers),
+				    "could not get speakers-enable GPIO\n");
 		goto err_put_codec;
 	}
 
@@ -604,7 +604,7 @@ static int sof_es8336_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret) {
-		gpiod_put(priv->gpio_pa);
+		gpiod_put(priv->gpio_speakers);
 		dev_err(dev, "snd_soc_register_card failed: %d\n", ret);
 		goto err_put_codec;
 	}
@@ -622,7 +622,7 @@ static int sof_es8336_remove(struct platform_device *pdev)
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct sof_es8336_private *priv = snd_soc_card_get_drvdata(card);
 
-	gpiod_put(priv->gpio_pa);
+	gpiod_put(priv->gpio_speakers);
 	device_remove_software_node(priv->codec_dev);
 	put_device(priv->codec_dev);
 
