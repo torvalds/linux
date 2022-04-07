@@ -154,7 +154,7 @@ static struct pfvf_message handle_blkmsg_req(struct adf_accel_vf_info *vf_info,
 	if (FIELD_GET(ADF_VF2PF_BLOCK_CRC_REQ_MASK, req.data)) {
 		dev_dbg(&GET_DEV(vf_info->accel_dev),
 			"BlockMsg of type %d for CRC over %d bytes received from VF%d\n",
-			blk_type, blk_byte, vf_info->vf_nr);
+			blk_type, blk_byte + 1, vf_info->vf_nr);
 
 		if (!adf_pf2vf_blkmsg_get_data(vf_info, blk_type, blk_byte,
 					       byte_max, &resp_data,
