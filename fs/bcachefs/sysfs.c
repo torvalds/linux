@@ -150,6 +150,7 @@ do {									\
 } while (0)
 
 write_attribute(trigger_gc);
+write_attribute(trigger_discards);
 write_attribute(prune_cache);
 rw_attribute(btree_gc_periodic);
 rw_attribute(gc_gens_pos);
@@ -505,6 +506,9 @@ STORE(bch2_fs)
 #endif
 	}
 
+	if (attr == &sysfs_trigger_discards)
+		bch2_do_discards(c);
+
 #ifdef CONFIG_BCACHEFS_TESTS
 	if (attr == &sysfs_perf_test) {
 		char *tmp = kstrdup(buf, GFP_KERNEL), *p = tmp;
@@ -573,6 +577,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_io_timers_write,
 
 	&sysfs_trigger_gc,
+	&sysfs_trigger_discards,
 	&sysfs_prune_cache,
 
 	&sysfs_read_realloc_races,
