@@ -824,6 +824,7 @@ static int tcf_tunnel_key_offload_act_setup(struct tc_action *act,
 		} else if (is_tcf_tunnel_release(act)) {
 			entry->id = FLOW_ACTION_TUNNEL_DECAP;
 		} else {
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported tunnel key mode offload");
 			return -EOPNOTSUPP;
 		}
 		*index_inc = 1;
