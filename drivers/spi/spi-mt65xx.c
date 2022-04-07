@@ -1224,22 +1224,18 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		clk_disable_unprepare(mdata->spi_hclk);
 	}
 
-	pm_runtime_enable(dev);
-
 	if (mdata->dev_comp->need_pad_sel) {
 		if (mdata->pad_num != master->num_chipselect) {
 			dev_err(dev,
 				"pad_num does not match num_chipselect(%d != %d)\n",
 				mdata->pad_num, master->num_chipselect);
-			ret = -EINVAL;
-			goto err_disable_runtime_pm;
+			return -EINVAL;
 		}
 
 		if (!master->cs_gpiods && master->num_chipselect > 1) {
 			dev_err(dev,
 				"cs_gpios not specified and num_chipselect > 1\n");
-			ret = -EINVAL;
-			goto err_disable_runtime_pm;
+			return -EINVAL;
 		}
 	}
 
@@ -1252,18 +1248,16 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		dev_notice(dev, "SPI dma_set_mask(%d) failed, ret:%d\n",
 			   addr_bits, ret);
 
+	pm_runtime_enable(dev);
+
 	ret = devm_spi_register_master(dev, master);
 	if (ret) {
+		pm_runtime_disable(dev);
 		dev_err(dev, "failed to register master (%d)\n", ret);
-		goto err_disable_runtime_pm;
+		return ret;
 	}
 
 	return 0;
-
-err_disable_runtime_pm:
-	pm_runtime_disable(dev);
-
-	return ret;
 }
 
 static int mtk_spi_remove(struct platform_device *pdev)
