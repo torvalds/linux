@@ -1221,14 +1221,14 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 void rockchip_clk_register_plls(struct rockchip_clk_provider *ctx,
 				struct rockchip_pll_clock *pll_list,
 				unsigned int nr_pll, int grf_lock_offset);
-void __init rockchip_clk_register_armclk(struct rockchip_clk_provider *ctx,
-					 unsigned int lookup_id,
-					 const char *name,
-					 u8 num_parents,
-					 struct clk *parent, struct clk *alt_parent,
-					 const struct rockchip_cpuclk_reg_data *reg_data,
-					 const struct rockchip_cpuclk_rate_table *rates,
-					 int nrates);
+void rockchip_clk_register_armclk(struct rockchip_clk_provider *ctx,
+				  unsigned int lookup_id,
+				  const char *name,
+				  u8 num_parents,
+				  struct clk *parent, struct clk *alt_parent,
+				  const struct rockchip_cpuclk_reg_data *reg_data,
+				  const struct rockchip_cpuclk_rate_table *rates,
+				  int nrates);
 int rockchip_pll_clk_rate_to_scale(struct clk *clk, unsigned long rate);
 int rockchip_pll_clk_scale_to_rate(struct clk *clk, unsigned int scale);
 int rockchip_pll_clk_adaptive_scaling(struct clk *clk, int sel);
