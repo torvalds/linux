@@ -188,6 +188,7 @@ struct dc_caps {
 	bool psp_setup_panel_mode;
 	bool extended_aux_timeout_support;
 	bool dmcub_support;
+	bool zstate_support;
 	uint32_t num_of_internal_disp;
 	enum dp_protocol_version max_dp_protocol_version;
 	unsigned int mall_size_per_mem_channel;
@@ -703,13 +704,14 @@ struct dc_debug_options {
 	bool enable_driver_sequence_debug;
 	enum det_size crb_alloc_policy;
 	int crb_alloc_policy_min_disp_count;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool disable_z10;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool enable_z9_disable_interface;
 	bool enable_sw_cntl_psr;
 	union dpia_debug_options dpia_debug;
 #endif
 	bool apply_vendor_specific_lttpr_wa;
+	bool extended_blank_optimization;
 	bool ignore_dpref_ss;
 	uint8_t psr_power_use_phy_fsm;
 };
@@ -1368,6 +1370,8 @@ struct dc_sink_init_data {
 	uint32_t dongle_max_pix_clk;
 	bool converter_disable_audio;
 };
+
+bool dc_extended_blank_supported(struct dc *dc);
 
 struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params);
 
