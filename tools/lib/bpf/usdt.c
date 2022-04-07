@@ -1178,7 +1178,7 @@ static int calc_pt_regs_off(const char *reg_name)
 		const char *names[4];
 		size_t pt_regs_off;
 	} reg_map[] = {
-#if __x86_64__
+#ifdef __x86_64__
 #define reg_off(reg64, reg32) offsetof(struct pt_regs, reg64)
 #else
 #define reg_off(reg64, reg32) offsetof(struct pt_regs, reg32)
@@ -1193,7 +1193,7 @@ static int calc_pt_regs_off(const char *reg_name)
 		{ {"rbp", "ebp", "bp", "bpl"}, reg_off(rbp, ebp) },
 		{ {"rsp", "esp", "sp", "spl"}, reg_off(rsp, esp) },
 #undef reg_off
-#if __x86_64__
+#ifdef __x86_64__
 		{ {"r8", "r8d", "r8w", "r8b"}, offsetof(struct pt_regs, r8) },
 		{ {"r9", "r9d", "r9w", "r9b"}, offsetof(struct pt_regs, r9) },
 		{ {"r10", "r10d", "r10w", "r10b"}, offsetof(struct pt_regs, r10) },
