@@ -86,7 +86,7 @@ struct ftrace_ops ftrace_list_end __read_mostly = {
 
 /* ftrace_enabled is a method to turn ftrace on or off */
 int ftrace_enabled __read_mostly;
-static int last_ftrace_enabled;
+static int __maybe_unused last_ftrace_enabled;
 
 /* Current function tracing op */
 struct ftrace_ops *function_trace_op __read_mostly = &ftrace_list_end;
@@ -7909,6 +7909,7 @@ int unregister_ftrace_function(struct ftrace_ops *ops)
 }
 EXPORT_SYMBOL_GPL(unregister_ftrace_function);
 
+#ifdef CONFIG_SYSCTL
 static bool is_permanent_ops_registered(void)
 {
 	struct ftrace_ops *op;
@@ -7921,7 +7922,6 @@ static bool is_permanent_ops_registered(void)
 	return false;
 }
 
-#ifdef CONFIG_SYSCTL
 static int
 ftrace_enable_sysctl(struct ctl_table *table, int write,
 		     void *buffer, size_t *lenp, loff_t *ppos)
