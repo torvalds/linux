@@ -398,7 +398,7 @@
 	#size-cells = <0>;
 	status = "okay";
 
-	flash0: is25lp016d@0 {
+	flash0: flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <133000000>;
