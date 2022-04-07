@@ -394,7 +394,6 @@ struct rxe_dev {
 	struct rxe_pool		cq_pool;
 	struct rxe_pool		mr_pool;
 	struct rxe_pool		mw_pool;
-	struct rxe_pool		mc_grp_pool;
 
 	/* multicast support */
 	spinlock_t		mcg_lock;
