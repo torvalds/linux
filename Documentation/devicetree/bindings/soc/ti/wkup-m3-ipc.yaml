@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/ti/wkup-m3-ipc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Wakeup M3 IPC device
+
+maintainers:
+  - Dave Gerlach <d-gerlach@ti.com>
+  - Drew Fustini <dfustini@baylibre.com>
+
+description: |+
+  The TI AM33xx and AM43xx family of devices use a small Cortex M3 co-processor
+  (commonly referred to as Wakeup M3 or CM3) to help with various low power tasks
+  that cannot be controlled from the MPU, like suspend/resume and certain deep
+  C-states for CPU Idle. Once the wkup_m3_ipc driver uses the wkup_m3_rproc driver
+  to boot the wkup_m3, it handles communication with the CM3 using IPC registers
+  present in the SoC's control module and a mailbox. The wkup_m3_ipc exposes an
+  API to allow the SoC PM code to execute specific PM tasks.
+
+  Wkup M3 Device Node
+  ====================
+  A wkup_m3_ipc device node is used to represent the IPC registers within an
+  SoC.
+
+properties:
+  compatible:
+    enum:
+      - ti,am3352-wkup-m3-ipc # for AM33xx SoCs
+      - ti,am4372-wkup-m3-ipc # for AM43xx SoCs
+
+  reg:
+    description:
+      The IPC register address space to communicate with the Wakeup M3 processor
+    maxItems: 1
+
+  interrupts:
+    description: wkup_m3 interrupt that signals the MPU
+    maxItems: 1
+
+  ti,rproc:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      phandle to the wkup_m3 rproc node so the IPC driver can boot it
+
+  mboxes:
+    description:
+      phandles used by IPC framework to get correct mbox
+      channel for communication. Must point to appropriate
+      mbox_wkupm3 child node.
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - ti,rproc
+  - mboxes
+
+additionalProperties: false
+
+examples:
+  - |
+    soc {
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        mailbox: mailbox {
+            #mbox-cells = <1>;
+        };
+
+        wkup_m3_ipc: wkup_m3_ipc@1324 {
+           compatible = "ti,am3352-wkup-m3-ipc";
+           reg = <0x1324 0x24>;
+           interrupts = <78>;
+           ti,rproc = <&wkup_m3>;
+           mboxes = <&mailbox &mbox_wkupm3>;
+        };
+    };
+...
