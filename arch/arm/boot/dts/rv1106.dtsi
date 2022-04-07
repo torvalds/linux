@@ -1111,6 +1111,8 @@
 		snps,mixed-burst;
 		snps,tso;
 
+		dma-size = <256>;
+
 		snps,axi-config = <&stmmac_axi_setup>;
 		snps,mtl-rx-config = <&mtl_rx_setup>;
 		snps,mtl-tx-config = <&mtl_tx_setup>;
