@@ -79,7 +79,7 @@ enum {
 	CSI_SENSOR,
 };
 
-#define ISP_AWB_OECF_SKIP_FRAME  1
+#define ISP_AWB_OECF_SKIP_FRAME  0
 // 0x0BC [31:30] SEL - sc0 input mux for sc awb
 // 00 : after DEC, 01 : after OBC, 10 : after OECF, 11 : after AWB
 enum scd_type {
