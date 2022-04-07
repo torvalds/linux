@@ -36,6 +36,8 @@
 #define VEPU2_REG_HW_ID_INDEX		-1 /* INVALID */
 #define VEPU2_REG_START_INDEX			0
 #define VEPU2_REG_END_INDEX			183
+#define VEPU2_REG_OUT_INDEX			(77)
+#define VEPU2_REG_STRM_INDEX			(53)
 
 #define VEPU2_REG_ENC_EN			0x19c
 #define VEPU2_REG_ENC_EN_INDEX			(103)
@@ -97,6 +99,8 @@ struct vepu_task {
 	u32 width;
 	u32 height;
 	u32 pixels;
+	struct dma_buf *dmabuf_bs;
+	u32 offset_bs;
 };
 
 struct vepu_session_priv {
@@ -179,7 +183,13 @@ static int vepu_process_reg_fd(struct mpp_session *session,
 			       struct mpp_task_msgs *msgs)
 {
 	int ret;
+	int fd_bs;
 	int fmt = VEPU2_GET_FORMAT(task->reg[VEPU2_REG_ENC_EN_INDEX]);
+
+	if (session->msg_flags & MPP_FLAGS_REG_NO_OFFSET)
+		fd_bs = task->reg[VEPU2_REG_OUT_INDEX];
+	else
+		fd_bs = task->reg[VEPU2_REG_OUT_INDEX] & 0x3ff;
 
 	ret = mpp_translate_reg_address(session, &task->mpp_task,
 					fmt, task->reg, &task->off_inf);
@@ -188,6 +198,19 @@ static int vepu_process_reg_fd(struct mpp_session *session,
 
 	mpp_translate_reg_offset_info(&task->mpp_task,
 				      &task->off_inf, task->reg);
+
+	if (fmt == VEPU2_FMT_JPEGE) {
+		task->offset_bs = mpp_query_reg_offset_info(&task->off_inf, VEPU2_REG_OUT_INDEX);
+
+		if (task->offset_bs > 0)
+			task->dmabuf_bs = dma_buf_get(fd_bs);
+
+		if (IS_ERR_OR_NULL(task->dmabuf_bs))
+			task->dmabuf_bs = NULL;
+		else
+			dma_buf_end_cpu_access_partial(task->dmabuf_bs, DMA_TO_DEVICE, 0,
+						       task->offset_bs);
+	}
 
 	return 0;
 }
@@ -458,6 +481,11 @@ static int vepu_result(struct mpp_dev *mpp,
 		}
 	}
 
+	if (task->dmabuf_bs)
+		dma_buf_begin_cpu_access_partial(task->dmabuf_bs, DMA_FROM_DEVICE, 0,
+						 task->reg[VEPU2_REG_STRM_INDEX] / 8 +
+						 task->offset_bs);
+
 	return 0;
 }
 
@@ -465,6 +493,12 @@ static int vepu_free_task(struct mpp_session *session,
 			  struct mpp_task *mpp_task)
 {
 	struct vepu_task *task = to_vepu_task(mpp_task);
+
+	if (task->dmabuf_bs) {
+		dma_buf_put(task->dmabuf_bs);
+		task->dmabuf_bs = NULL;
+		task->offset_bs = 0;
+	}
 
 	mpp_task_finalize(session, mpp_task);
 	kfree(task);
