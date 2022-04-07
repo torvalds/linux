@@ -4567,10 +4567,15 @@ static int walt_init_stop_handler(void *data)
 	int cpu;
 	struct task_struct *g, *p;
 	struct walt_rq *wrq;
+	int level = 0;
 
 	read_lock(&tasklist_lock);
 	for_each_possible_cpu(cpu) {
-		raw_spin_lock(&cpu_rq(cpu)->__lock);
+		if (level == 0)
+			raw_spin_lock(&cpu_rq(cpu)->__lock);
+		else
+			raw_spin_lock_nested(&cpu_rq(cpu)->__lock, level);
+		level++;
 	}
 
 	do_each_thread(g, p) {
