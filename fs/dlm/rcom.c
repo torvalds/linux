@@ -454,7 +454,7 @@ int dlm_send_rcom_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 	rl = (struct rcom_lock *) rc->rc_buf;
 	pack_rcom_lock(r, lkb, rl);
-	rc->rc_id = cpu_to_le64(r);
+	rc->rc_id = cpu_to_le64((uintptr_t)r);
 
 	send_rcom(mh, rc);
  out:
