@@ -79,18 +79,21 @@ static inline int stripe_hash_locks_hash(struct r5conf *conf, sector_t sect)
 }
 
 static inline void lock_device_hash_lock(struct r5conf *conf, int hash)
+	__acquires(&conf->device_lock)
 {
 	spin_lock_irq(conf->hash_locks + hash);
 	spin_lock(&conf->device_lock);
 }
 
 static inline void unlock_device_hash_lock(struct r5conf *conf, int hash)
+	__releases(&conf->device_lock)
 {
 	spin_unlock(&conf->device_lock);
 	spin_unlock_irq(conf->hash_locks + hash);
 }
 
 static inline void lock_all_device_hash_locks_irq(struct r5conf *conf)
+	__acquires(&conf->device_lock)
 {
 	int i;
 	spin_lock_irq(conf->hash_locks);
@@ -100,6 +103,7 @@ static inline void lock_all_device_hash_locks_irq(struct r5conf *conf)
 }
 
 static inline void unlock_all_device_hash_locks_irq(struct r5conf *conf)
+	__releases(&conf->device_lock)
 {
 	int i;
 	spin_unlock(&conf->device_lock);
@@ -164,6 +168,7 @@ static bool stripe_is_lowprio(struct stripe_head *sh)
 }
 
 static void raid5_wakeup_stripe_thread(struct stripe_head *sh)
+	__must_hold(&sh->raid_conf->device_lock)
 {
 	struct r5conf *conf = sh->raid_conf;
 	struct r5worker_group *group;
@@ -211,6 +216,7 @@ static void raid5_wakeup_stripe_thread(struct stripe_head *sh)
 
 static void do_release_stripe(struct r5conf *conf, struct stripe_head *sh,
 			      struct list_head *temp_inactive_list)
+	__must_hold(&conf->device_lock)
 {
 	int i;
 	int injournal = 0;	/* number of date pages with R5_InJournal */
@@ -296,6 +302,7 @@ static void do_release_stripe(struct r5conf *conf, struct stripe_head *sh,
 
 static void __release_stripe(struct r5conf *conf, struct stripe_head *sh,
 			     struct list_head *temp_inactive_list)
+	__must_hold(&conf->device_lock)
 {
 	if (atomic_dec_and_test(&sh->count))
 		do_release_stripe(conf, sh, temp_inactive_list);
@@ -350,9 +357,9 @@ static void release_inactive_stripe_list(struct r5conf *conf,
 	}
 }
 
-/* should hold conf->device_lock already */
 static int release_stripe_list(struct r5conf *conf,
 			       struct list_head *temp_inactive_list)
+	__must_hold(&conf->device_lock)
 {
 	struct stripe_head *sh, *t;
 	int count = 0;
@@ -629,6 +636,10 @@ static struct stripe_head *__find_stripe(struct r5conf *conf, sector_t sector,
  * This is because some failed devices may only affect one
  * of the two sections, and some non-in_sync devices may
  * be insync in the section most affected by failed devices.
+ *
+ * Most calls to this function hold &conf->device_lock. Calls
+ * in raid5_run() do not require the lock as no other threads
+ * have been started yet.
  */
 int raid5_calc_degraded(struct r5conf *conf)
 {
@@ -5275,6 +5286,7 @@ finish:
 }
 
 static void raid5_activate_delayed(struct r5conf *conf)
+	__must_hold(&conf->device_lock)
 {
 	if (atomic_read(&conf->preread_active_stripes) < IO_THRESHOLD) {
 		while (!list_empty(&conf->delayed_list)) {
@@ -5292,9 +5304,9 @@ static void raid5_activate_delayed(struct r5conf *conf)
 }
 
 static void activate_bit_delay(struct r5conf *conf,
-	struct list_head *temp_inactive_list)
+		struct list_head *temp_inactive_list)
+	__must_hold(&conf->device_lock)
 {
-	/* device_lock is held */
 	struct list_head head;
 	list_add(&head, &conf->bitmap_list);
 	list_del_init(&conf->bitmap_list);
@@ -5519,6 +5531,7 @@ static struct bio *chunk_aligned_read(struct mddev *mddev, struct bio *raid_bio)
  * handle_list.
  */
 static struct stripe_head *__get_priority_stripe(struct r5conf *conf, int group)
+	__must_hold(&conf->device_lock)
 {
 	struct stripe_head *sh, *tmp;
 	struct list_head *handle_list = NULL;
@@ -6390,8 +6403,7 @@ static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio,
 static int handle_active_stripes(struct r5conf *conf, int group,
 				 struct r5worker *worker,
 				 struct list_head *temp_inactive_list)
-		__releases(&conf->device_lock)
-		__acquires(&conf->device_lock)
+		__must_hold(&conf->device_lock)
 {
 	struct stripe_head *batch[MAX_STRIPE_BATCH], *sh;
 	int i, batch_size = 0, hash;
