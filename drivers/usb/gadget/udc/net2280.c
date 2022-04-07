@@ -932,19 +932,11 @@ static void start_dma(struct net2280_ep *ep, struct net2280_request *req)
 static inline void
 queue_dma(struct net2280_ep *ep, struct net2280_request *req, int valid)
 {
-	struct net2280_dma	*end;
-	dma_addr_t		tmp;
-
 	/* swap new dummy for old, link; fill and maybe activate */
-	end = ep->dummy;
-	ep->dummy = req->td;
-	req->td = end;
+	swap(ep->dummy, req->td);
+	swap(ep->td_dma, req->td_dma);
 
-	tmp = ep->td_dma;
-	ep->td_dma = req->td_dma;
-	req->td_dma = tmp;
-
-	end->dmadesc = cpu_to_le32 (ep->td_dma);
+	req->td->dmadesc = cpu_to_le32 (ep->td_dma);
 
 	fill_dma_desc(ep, req, valid);
 }
