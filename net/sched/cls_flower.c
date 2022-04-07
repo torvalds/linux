@@ -468,8 +468,6 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 				      cls_flower.common.extack);
 	if (err) {
 		kfree(cls_flower.rule);
-		NL_SET_ERR_MSG_MOD(cls_flower.common.extack,
-				   "Failed to setup flow action");
 
 		return skip_sw ? err : 0;
 	}
@@ -2358,8 +2356,6 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,
 					      cls_flower.common.extack);
 		if (err) {
 			kfree(cls_flower.rule);
-			NL_SET_ERR_MSG_MOD(cls_flower.common.extack,
-					   "Failed to setup flow action");
 			if (tc_skip_sw(f->flags)) {
 				__fl_put(f);
 				return err;
