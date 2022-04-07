@@ -3306,13 +3306,14 @@ static int ieee80211_set_after_csa_beacon(struct ieee80211_sub_if_data *sdata,
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
+		if (!sdata->u.ap.next_beacon)
+			return -EINVAL;
+
 		err = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon,
 					      NULL, NULL);
-		if (sdata->u.ap.next_beacon) {
-			kfree(sdata->u.ap.next_beacon->mbssid_ies);
-			kfree(sdata->u.ap.next_beacon);
-			sdata->u.ap.next_beacon = NULL;
-		}
+		kfree(sdata->u.ap.next_beacon->mbssid_ies);
+		kfree(sdata->u.ap.next_beacon);
+		sdata->u.ap.next_beacon = NULL;
 
 		if (err < 0)
 			return err;
@@ -4314,13 +4315,14 @@ ieee80211_set_after_color_change_beacon(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_AP: {
 		int ret;
 
+		if (!sdata->u.ap.next_beacon)
+			return -EINVAL;
+
 		ret = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon,
 					      NULL, NULL);
-		if (sdata->u.ap.next_beacon) {
-			kfree(sdata->u.ap.next_beacon->mbssid_ies);
-			kfree(sdata->u.ap.next_beacon);
-			sdata->u.ap.next_beacon = NULL;
-		}
+		kfree(sdata->u.ap.next_beacon->mbssid_ies);
+		kfree(sdata->u.ap.next_beacon);
+		sdata->u.ap.next_beacon = NULL;
 
 		if (ret < 0)
 			return ret;
