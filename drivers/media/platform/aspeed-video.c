@@ -1431,44 +1431,9 @@ static void aspeed_video_init_regs(struct aspeed_video *video)
 	aspeed_video_write(video, VE_BCD_CTRL, 0);
 }
 
-/*
- * Decide video's input.
- * Check if bmc's gfx enabled to decide vga or gfx.
- *
- * @v: the struct of aspeed_video
- */
-static void aspeed_video_decide_input(struct aspeed_video *v)
-{
-	u32 val;
-
-	if (IS_ERR(v->scu)) {
-		v4l2_dbg(1, debug, &v->v4l2_dev, "%s: scu isn't ready for input-control\n", __func__);
-		return;
-	}
-
-	if (IS_ERR(v->gfx)) {
-		v4l2_dbg(1, debug, &v->v4l2_dev, "%s: gfx isn't ready for input-control\n", __func__);
-		return;
-	}
-
-	regmap_read(v->gfx, GFX_CTRL, &val);
-	if (val & GFX_CTRL_ENABLE)
-		v->input = VIDEO_INPUT_GFX;
-	else
-		v->input = VIDEO_INPUT_VGA;
-
-	// modify dpll source per current input
-	if (v->input == VIDEO_INPUT_VGA)
-		regmap_update_bits(v->scu, SCU_MISC_CTRL, SCU_DPLL_SOURCE, 0);
-	else
-		regmap_update_bits(v->scu, SCU_MISC_CTRL, SCU_DPLL_SOURCE, SCU_DPLL_SOURCE);
-}
-
 static void aspeed_video_start(struct aspeed_video *video)
 {
 	aspeed_video_on(video);
-
-	aspeed_video_decide_input(video);
 
 	aspeed_video_init_regs(video);
 
