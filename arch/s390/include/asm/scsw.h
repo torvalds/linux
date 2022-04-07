@@ -508,9 +508,21 @@ static inline int scsw_cmd_is_valid_zcc(union scsw *scsw)
  */
 static inline int scsw_cmd_is_valid_ectl(union scsw *scsw)
 {
-	return (scsw->cmd.stctl & SCSW_STCTL_STATUS_PEND) &&
-	       !(scsw->cmd.stctl & SCSW_STCTL_INTER_STATUS) &&
-	       (scsw->cmd.stctl & SCSW_STCTL_ALERT_STATUS);
+	/* Must be status pending. */
+	if (!(scsw->cmd.stctl & SCSW_STCTL_STATUS_PEND))
+		return 0;
+
+	/* Must have alert status. */
+	if (!(scsw->cmd.stctl & SCSW_STCTL_ALERT_STATUS))
+		return 0;
+
+	/* Must be alone or together with primary, secondary or both,
+	 * => no intermediate status.
+	 */
+	if (scsw->cmd.stctl & SCSW_STCTL_INTER_STATUS)
+		return 0;
+
+	return 1;
 }
 
 /**
@@ -522,10 +534,25 @@ static inline int scsw_cmd_is_valid_ectl(union scsw *scsw)
  */
 static inline int scsw_cmd_is_valid_pno(union scsw *scsw)
 {
-	return (scsw->cmd.fctl != 0) &&
-	       (scsw->cmd.stctl & SCSW_STCTL_STATUS_PEND) &&
-	       (!(scsw->cmd.stctl & SCSW_STCTL_INTER_STATUS) ||
-		  (scsw->cmd.actl & SCSW_ACTL_SUSPENDED));
+	/* Must indicate at least one I/O function. */
+	if (!scsw->cmd.fctl)
+		return 0;
+
+	/* Must be status pending. */
+	if (!(scsw->cmd.stctl & SCSW_STCTL_STATUS_PEND))
+		return 0;
+
+	/* Can be status pending alone, or with any combination of primary,
+	 * secondary and alert => no intermediate status.
+	 */
+	if (!(scsw->cmd.stctl & SCSW_STCTL_INTER_STATUS))
+		return 1;
+
+	/* If intermediate, must be suspended. */
+	if (scsw->cmd.actl & SCSW_ACTL_SUSPENDED)
+		return 1;
+
+	return 0;
 }
 
 /**
@@ -675,9 +702,21 @@ static inline int scsw_tm_is_valid_q(union scsw *scsw)
  */
 static inline int scsw_tm_is_valid_ectl(union scsw *scsw)
 {
-	return (scsw->tm.stctl & SCSW_STCTL_STATUS_PEND) &&
-	       !(scsw->tm.stctl & SCSW_STCTL_INTER_STATUS) &&
-	       (scsw->tm.stctl & SCSW_STCTL_ALERT_STATUS);
+	/* Must be status pending. */
+	if (!(scsw->tm.stctl & SCSW_STCTL_STATUS_PEND))
+		return 0;
+
+	/* Must have alert status. */
+	if (!(scsw->tm.stctl & SCSW_STCTL_ALERT_STATUS))
+		return 0;
+
+	/* Must be alone or together with primary, secondary or both,
+	 * => no intermediate status.
+	 */
+	if (scsw->tm.stctl & SCSW_STCTL_INTER_STATUS)
+		return 0;
+
+	return 1;
 }
 
 /**
@@ -689,11 +728,25 @@ static inline int scsw_tm_is_valid_ectl(union scsw *scsw)
  */
 static inline int scsw_tm_is_valid_pno(union scsw *scsw)
 {
-	return (scsw->tm.fctl != 0) &&
-	       (scsw->tm.stctl & SCSW_STCTL_STATUS_PEND) &&
-	       (!(scsw->tm.stctl & SCSW_STCTL_INTER_STATUS) ||
-		 ((scsw->tm.stctl & SCSW_STCTL_INTER_STATUS) &&
-		  (scsw->tm.actl & SCSW_ACTL_SUSPENDED)));
+	/* Must indicate at least one I/O function. */
+	if (!scsw->tm.fctl)
+		return 0;
+
+	/* Must be status pending. */
+	if (!(scsw->tm.stctl & SCSW_STCTL_STATUS_PEND))
+		return 0;
+
+	/* Can be status pending alone, or with any combination of primary,
+	 * secondary and alert => no intermediate status.
+	 */
+	if (!(scsw->tm.stctl & SCSW_STCTL_INTER_STATUS))
+		return 1;
+
+	/* If intermediate, must be suspended. */
+	if (scsw->tm.actl & SCSW_ACTL_SUSPENDED)
+		return 1;
+
+	return 0;
 }
 
 /**
