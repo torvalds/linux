@@ -395,6 +395,11 @@ static void chipone_atomic_enable(struct drm_bridge *bridge,
 	/* dsi specific sequence */
 	chipone_writeb(icn, SYNC_EVENT_DLY, 0x80);
 	chipone_writeb(icn, HFP_MIN, hfp & 0xff);
+
+	/* DSI data lane count */
+	chipone_writeb(icn, DSI_CTRL,
+		       DSI_CTRL_UNKNOWN | DSI_CTRL_DSI_LANES(icn->dsi->lanes - 1));
+
 	chipone_writeb(icn, MIPI_PD_CK_LANE, 0xa0);
 	chipone_writeb(icn, PLL_CTRL(12), 0xff);
 	chipone_writeb(icn, MIPI_PN_SWAP, 0x00);
@@ -480,9 +485,23 @@ static void chipone_mode_set(struct drm_bridge *bridge,
 static int chipone_dsi_attach(struct chipone *icn)
 {
 	struct mipi_dsi_device *dsi = icn->dsi;
-	int ret;
+	struct device *dev = icn->dev;
+	struct device_node *endpoint;
+	int dsi_lanes, ret;
 
-	dsi->lanes = 4;
+	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, 0);
+	dsi_lanes = of_property_count_u32_elems(endpoint, "data-lanes");
+	of_node_put(endpoint);
+
+	/*
+	 * If the 'data-lanes' property does not exist in DT or is invalid,
+	 * default to previously hard-coded behavior, which was 4 data lanes.
+	 */
+	if (dsi_lanes >= 1 && dsi_lanes <= 4)
+		icn->dsi->lanes = dsi_lanes;
+	else
+		icn->dsi->lanes = 4;
+
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 			  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET;
