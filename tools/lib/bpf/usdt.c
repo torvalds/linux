@@ -456,7 +456,7 @@ static int parse_lib_segs(int pid, const char *lib_path, struct elf_seg **segs, 
 	if (!realpath(lib_path, path)) {
 		pr_warn("usdt: failed to get absolute path of '%s' (err %d), using path as is...\n",
 			lib_path, -errno);
-		strcpy(path, lib_path);
+		libbpf_strlcpy(path, lib_path, sizeof(path));
 	}
 
 proceed:
