@@ -3,6 +3,14 @@
  * Copyright (c) 2020 Hewlett Packard Enterprise, Inc. All rights reserved.
  */
 
+/*
+ * The rdma_rxe driver supports type 1 or type 2B memory windows.
+ * Type 1 MWs are created by ibv_alloc_mw() verbs calls and bound by
+ * ibv_bind_mw() calls. Type 2 MWs are also created by ibv_alloc_mw()
+ * but bound by bind_mw work requests. The ibv_bind_mw() call is converted
+ * by libibverbs to a bind_mw work request.
+ */
+
 #include "rxe.h"
 
 int rxe_alloc_mw(struct ib_mw *ibmw, struct ib_udata *udata)
