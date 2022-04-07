@@ -792,9 +792,9 @@ static void netvsc_send_tx_complete(struct net_device *ndev,
 	int queue_sends;
 	u64 cmd_rqst;
 
-	cmd_rqst = channel->request_addr_callback(channel, (u64)desc->trans_id);
+	cmd_rqst = channel->request_addr_callback(channel, desc->trans_id);
 	if (cmd_rqst == VMBUS_RQST_ERROR) {
-		netdev_err(ndev, "Incorrect transaction id\n");
+		netdev_err(ndev, "Invalid transaction ID %llx\n", desc->trans_id);
 		return;
 	}
 
@@ -854,9 +854,9 @@ static void netvsc_send_completion(struct net_device *ndev,
 	/* First check if this is a VMBUS completion without data payload */
 	if (!msglen) {
 		cmd_rqst = incoming_channel->request_addr_callback(incoming_channel,
-								   (u64)desc->trans_id);
+								   desc->trans_id);
 		if (cmd_rqst == VMBUS_RQST_ERROR) {
-			netdev_err(ndev, "Invalid transaction id\n");
+			netdev_err(ndev, "Invalid transaction ID %llx\n", desc->trans_id);
 			return;
 		}
 
