@@ -964,38 +964,55 @@ static const struct rkcif_hw_match_data rv1106_cif_match_data = {
 };
 
 static const struct of_device_id rkcif_plat_of_match[] = {
+#ifdef CONFIG_CPU_PX30
 	{
 		.compatible = "rockchip,px30-cif",
 		.data = &px30_cif_match_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK1808
 	{
 		.compatible = "rockchip,rk1808-cif",
 		.data = &rk1808_cif_match_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK312X
 	{
 		.compatible = "rockchip,rk3128-cif",
 		.data = &rk3128_cif_match_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3288
 	{
 		.compatible = "rockchip,rk3288-cif",
 		.data = &rk3288_cif_match_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3328
 	{
 		.compatible = "rockchip,rk3328-cif",
 		.data = &rk3328_cif_match_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3368
 	{
 		.compatible = "rockchip,rk3368-cif",
 		.data = &rk3368_cif_match_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3568
 	{
 		.compatible = "rockchip,rk3568-cif",
 		.data = &rk3568_cif_match_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3588
 	{
 		.compatible = "rockchip,rk3588-cif",
 		.data = &rk3588_cif_match_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RV1126
 	{
 		.compatible = "rockchip,rv1126-cif",
 		.data = &rv1126_cif_match_data,
@@ -1004,10 +1021,13 @@ static const struct of_device_id rkcif_plat_of_match[] = {
 		.compatible = "rockchip,rv1126-cif-lite",
 		.data = &rv1126_cif_lite_match_data,
 	},
+#endif
+#ifdef CONFIG_CPU_RV1106
 	{
 		.compatible = "rockchip,rv1106-cif",
 		.data = &rv1106_cif_match_data,
 	},
+#endif
 	{},
 };
 
