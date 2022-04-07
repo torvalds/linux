@@ -467,7 +467,7 @@ EXPORT_SYMBOL_GPL(phy_reset);
  * runtime, which are otherwise lost after host controller reset and cannot
  * be applied in phy_init() or phy_power_on().
  *
- * Returns: 0 if successful, an negative error code otherwise
+ * Return: %0 if successful, a negative error code otherwise
  */
 int phy_calibrate(struct phy *phy)
 {
@@ -493,7 +493,7 @@ EXPORT_SYMBOL_GPL(phy_calibrate);
  * on the phy. The configuration will be applied on the current phy
  * mode, that can be changed using phy_set_mode().
  *
- * Returns: 0 if successful, an negative error code otherwise
+ * Return: %0 if successful, a negative error code otherwise
  */
 int phy_configure(struct phy *phy, union phy_configure_opts *opts)
 {
@@ -527,7 +527,7 @@ EXPORT_SYMBOL_GPL(phy_configure);
  * PHY, so calling it as many times as deemed fit will have no side
  * effect.
  *
- * Returns: 0 if successful, an negative error code otherwise
+ * Return: %0 if successful, a negative error code otherwise
  */
 int phy_validate(struct phy *phy, enum phy_mode mode, int submode,
 		 union phy_configure_opts *opts)
