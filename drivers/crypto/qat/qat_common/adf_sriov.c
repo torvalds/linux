@@ -106,7 +106,7 @@ void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 	pci_disable_sriov(accel_to_pci_dev(accel_dev));
 
 	/* Disable VF to PF interrupts */
-	adf_disable_vf2pf_interrupts(accel_dev, GENMASK(31, 0));
+	adf_disable_all_vf2pf_interrupts(accel_dev);
 
 	/* Clear Valid bits in AE Thread to PCIe Function Mapping */
 	if (hw_data->configure_iov_threads)

@@ -62,15 +62,12 @@ static void adf_gen2_enable_vf2pf_interrupts(void __iomem *pmisc_addr,
 	}
 }
 
-static void adf_gen2_disable_vf2pf_interrupts(void __iomem *pmisc_addr,
-					      u32 vf_mask)
+static void adf_gen2_disable_all_vf2pf_interrupts(void __iomem *pmisc_addr)
 {
 	/* Disable VF2PF interrupts for VFs 0 through 15 per vf_mask[15:0] */
-	if (vf_mask & ADF_GEN2_VF_MSK) {
-		u32 val = ADF_CSR_RD(pmisc_addr, ADF_GEN2_ERRMSK3)
-			  | ADF_GEN2_ERR_MSK_VF2PF(vf_mask);
-		ADF_CSR_WR(pmisc_addr, ADF_GEN2_ERRMSK3, val);
-	}
+	u32 val = ADF_CSR_RD(pmisc_addr, ADF_GEN2_ERRMSK3)
+		  | ADF_GEN2_ERR_MSK_VF2PF(ADF_GEN2_VF_MSK);
+	ADF_CSR_WR(pmisc_addr, ADF_GEN2_ERRMSK3, val);
 }
 
 static u32 adf_gen2_disable_pending_vf2pf_interrupts(void __iomem *pmisc_addr)
@@ -385,7 +382,7 @@ void adf_gen2_init_pf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
 	pfvf_ops->get_pf2vf_offset = adf_gen2_pf_get_pfvf_offset;
 	pfvf_ops->get_vf2pf_offset = adf_gen2_pf_get_pfvf_offset;
 	pfvf_ops->enable_vf2pf_interrupts = adf_gen2_enable_vf2pf_interrupts;
-	pfvf_ops->disable_vf2pf_interrupts = adf_gen2_disable_vf2pf_interrupts;
+	pfvf_ops->disable_all_vf2pf_interrupts = adf_gen2_disable_all_vf2pf_interrupts;
 	pfvf_ops->disable_pending_vf2pf_interrupts = adf_gen2_disable_pending_vf2pf_interrupts;
 	pfvf_ops->send_msg = adf_gen2_pf2vf_send;
 	pfvf_ops->recv_msg = adf_gen2_vf2pf_recv;
