@@ -141,6 +141,25 @@ static void event_interrupt_poison_consumption(struct kfd_dev *dev,
 	}
 }
 
+static bool context_id_expected(struct kfd_dev *dev)
+{
+	switch (KFD_GC_VERSION(dev)) {
+	case IP_VERSION(9, 0, 1):
+		return dev->mec_fw_version >= 0x817a;
+	case IP_VERSION(9, 1, 0):
+	case IP_VERSION(9, 2, 1):
+	case IP_VERSION(9, 2, 2):
+	case IP_VERSION(9, 3, 0):
+	case IP_VERSION(9, 4, 0):
+		return dev->mec_fw_version >= 0x17a;
+	default:
+		/* Other GFXv9 and later GPUs always sent valid context IDs
+		 * on legitimate events
+		 */
+		return KFD_GC_VERSION(dev) >= IP_VERSION(9, 4, 1);
+	}
+}
+
 static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 					const uint32_t *ih_ring_entry,
 					uint32_t *patched_ihre,
@@ -205,6 +224,20 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 	/* If there is no valid PASID, it's likely a bug */
 	if (WARN_ONCE(pasid == 0, "Bug: No PASID in KFD interrupt"))
 		return false;
+
+	/* Workaround CP firmware sending bogus signals with 0 context_id.
+	 * Those can be safely ignored on hardware and firmware versions that
+	 * include a valid context_id on legitimate signals. This avoids the
+	 * slow path in kfd_signal_event_interrupt that scans all event slots
+	 * for signaled events.
+	 */
+	if (source_id == SOC15_INTSRC_CP_END_OF_PIPE) {
+		uint32_t context_id =
+			SOC15_CONTEXT_ID0_FROM_IH_ENTRY(ih_ring_entry);
+
+		if (context_id == 0 && context_id_expected(dev))
+			return false;
+	}
 
 	/* Interrupt types we care about: various signals and faults.
 	 * They will be forwarded to a work queue (see below).
