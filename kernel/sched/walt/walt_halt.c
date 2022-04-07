@@ -519,12 +519,33 @@ static void android_rvh_rto_next_cpu(void *unused, int rto_cpu, struct cpumask *
 	}
 }
 
-static void android_rvh_is_cpu_allowed(void *unused, int cpu, bool *allowed)
+/**
+ * android_rvh_is_cpu_allowed: disallow cpus that are halted
+ *
+ * Caveat: For 32 bit tasks that are being directed to a halted cpu, allow the halted cpu
+ *         in a particular case (32 bit task, in execve, moving to a 32 bit cpu)
+ *         This is to handle the call to is_cpu_allowed() from __migrate_task, in the
+ *         event that a 32bit task is being execve'd.
+ */
+static void android_rvh_is_cpu_allowed(void *unused, struct task_struct *p, int cpu, bool *allowed)
 {
 	if (unlikely(walt_disabled))
 		return;
 
-	*allowed = !cpumask_test_cpu(cpu, cpu_halt_mask);
+	if (cpumask_test_cpu(cpu, cpu_halt_mask)) {
+
+		/* default reject for any halted cpu */
+		*allowed = false;
+
+		if (is_compat_thread(task_thread_info(p)) &&
+		    p->in_execve) {
+			/*
+			 * the task is 32 bit capable and
+			 * the context is execve. allow this cpu.
+			 */
+			*allowed = true;
+		}
+	}
 }
 
 void walt_halt_init(void)
