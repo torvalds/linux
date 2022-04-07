@@ -102,8 +102,6 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 	if (err) {
 		kfree(cls_mall.rule);
 		mall_destroy_hw_filter(tp, head, cookie, NULL);
-		NL_SET_ERR_MSG_MOD(cls_mall.common.extack,
-				   "Failed to setup flow action");
 
 		return skip_sw ? err : 0;
 	}
@@ -305,8 +303,6 @@ static int mall_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,
 				      cls_mall.common.extack);
 	if (err) {
 		kfree(cls_mall.rule);
-		NL_SET_ERR_MSG_MOD(cls_mall.common.extack,
-				   "Failed to setup flow action");
 
 		return add && tc_skip_sw(head->flags) ? err : 0;
 	}
