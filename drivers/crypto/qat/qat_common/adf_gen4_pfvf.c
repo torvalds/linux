@@ -15,6 +15,7 @@
 /* VF2PF interrupt source registers */
 #define ADF_4XXX_VM2PF_SOU		0x41A180
 #define ADF_4XXX_VM2PF_MSK		0x41A1C0
+#define ADF_GEN4_VF_MSK			0xFFFF
 
 #define ADF_PFVF_GEN4_MSGTYPE_SHIFT	2
 #define ADF_PFVF_GEN4_MSGTYPE_MASK	0x3F
@@ -36,16 +37,6 @@ static u32 adf_gen4_pf_get_vf2pf_offset(u32 i)
 	return ADF_4XXX_VM2PF_OFFSET(i);
 }
 
-static u32 adf_gen4_get_vf2pf_sources(void __iomem *pmisc_addr)
-{
-	u32 sou, mask;
-
-	sou = ADF_CSR_RD(pmisc_addr, ADF_4XXX_VM2PF_SOU);
-	mask = ADF_CSR_RD(pmisc_addr, ADF_4XXX_VM2PF_MSK);
-
-	return sou & ~mask;
-}
-
 static void adf_gen4_enable_vf2pf_interrupts(void __iomem *pmisc_addr,
 					     u32 vf_mask)
 {
@@ -62,6 +53,37 @@ static void adf_gen4_disable_vf2pf_interrupts(void __iomem *pmisc_addr,
 
 	val = ADF_CSR_RD(pmisc_addr, ADF_4XXX_VM2PF_MSK) | vf_mask;
 	ADF_CSR_WR(pmisc_addr, ADF_4XXX_VM2PF_MSK, val);
+}
+
+static u32 adf_gen4_disable_pending_vf2pf_interrupts(void __iomem *pmisc_addr)
+{
+	u32 sources, disabled, pending;
+
+	/* Get the interrupt sources triggered by VFs */
+	sources = ADF_CSR_RD(pmisc_addr, ADF_4XXX_VM2PF_SOU);
+	if (!sources)
+		return 0;
+
+	/* Get the already disabled interrupts */
+	disabled = ADF_CSR_RD(pmisc_addr, ADF_4XXX_VM2PF_MSK);
+
+	pending = sources & ~disabled;
+	if (!pending)
+		return 0;
+
+	/* Due to HW limitations, when disabling the interrupts, we can't
+	 * just disable the requested sources, as this would lead to missed
+	 * interrupts if VM2PF_SOU changes just before writing to VM2PF_MSK.
+	 * To work around it, disable all and re-enable only the sources that
+	 * are not in vf_mask and were not already disabled. Re-enabling will
+	 * trigger a new interrupt for the sources that have changed in the
+	 * meantime, if any.
+	 */
+	ADF_CSR_WR(pmisc_addr, ADF_4XXX_VM2PF_MSK, ADF_GEN4_VF_MSK);
+	ADF_CSR_WR(pmisc_addr, ADF_4XXX_VM2PF_MSK, disabled | sources);
+
+	/* Return the sources of the (new) interrupt(s) */
+	return pending;
 }
 
 static int adf_gen4_pfvf_send(struct adf_accel_dev *accel_dev,
@@ -121,9 +143,9 @@ void adf_gen4_init_pf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
 	pfvf_ops->enable_comms = adf_enable_pf2vf_comms;
 	pfvf_ops->get_pf2vf_offset = adf_gen4_pf_get_pf2vf_offset;
 	pfvf_ops->get_vf2pf_offset = adf_gen4_pf_get_vf2pf_offset;
-	pfvf_ops->get_vf2pf_sources = adf_gen4_get_vf2pf_sources;
 	pfvf_ops->enable_vf2pf_interrupts = adf_gen4_enable_vf2pf_interrupts;
 	pfvf_ops->disable_vf2pf_interrupts = adf_gen4_disable_vf2pf_interrupts;
+	pfvf_ops->disable_pending_vf2pf_interrupts = adf_gen4_disable_pending_vf2pf_interrupts;
 	pfvf_ops->send_msg = adf_gen4_pfvf_send;
 	pfvf_ops->recv_msg = adf_gen4_pfvf_recv;
 }
