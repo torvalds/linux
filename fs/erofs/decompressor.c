@@ -46,8 +46,6 @@ int z_erofs_load_lz4_config(struct super_block *sb,
 			erofs_err(sb, "too large lz4 pclusterblks %u",
 				  sbi->lz4.max_pclusterblks);
 			return -EINVAL;
-		} else if (sbi->lz4.max_pclusterblks >= 2) {
-			erofs_info(sb, "EXPERIMENTAL big pcluster feature in use. Use at your own risk!");
 		}
 	} else {
 		distance = le16_to_cpu(dsb->u1.lz4_max_distance);
