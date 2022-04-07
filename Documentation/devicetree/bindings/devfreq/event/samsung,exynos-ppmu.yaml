@@ -8,7 +8,7 @@ title: Samsung Exynos SoC PPMU (Platform Performance Monitoring Unit)
 
 maintainers:
   - Chanwoo Choi <cw00.choi@samsung.com>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 description: |
   The Samsung Exynos SoC has PPMU (Platform Performance Monitoring Unit) for
