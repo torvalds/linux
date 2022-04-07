@@ -25,7 +25,6 @@ struct HAL_VERSION {
 	enum HAL_CHIP_TYPE	ChipType;
 	enum HAL_CUT_VERSION	CUTVersion;
 	enum HAL_VENDOR		VendorType;
-	u8			ROMVer;
 };
 
 /*  Get element */
