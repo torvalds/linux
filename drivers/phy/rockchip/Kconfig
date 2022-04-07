@@ -8,6 +8,7 @@ config PHY_ROCKCHIP_CSI2_DPHY
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on ARCH_ROCKCHIP && OF
 	select GENERIC_PHY
+	select V4L2_FWNODE
 	help
 	  Enable this to support the Rockchip CSI2 DPHY.
 
