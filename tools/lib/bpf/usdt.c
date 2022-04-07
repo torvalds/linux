@@ -1071,8 +1071,8 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 	return &link->link;
 
 err_out:
-	bpf_link__destroy(&link->link);
-
+	if (link)
+		bpf_link__destroy(&link->link);
 	free(targets);
 	hashmap__free(specs_hash);
 	if (elf)
