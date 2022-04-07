@@ -671,7 +671,7 @@ static int sc500ai_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int sc500ai_g_mbus_config(struct v4l2_subdev *sd,
+static int sc500ai_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
                                  struct v4l2_mbus_config *config)
 {
 	struct sc500ai *sc500ai = to_sc500ai(sd);
@@ -685,7 +685,7 @@ static int sc500ai_g_mbus_config(struct v4l2_subdev *sd,
 	if (mode->hdr_mode == HDR_X3)
 		val |= V4L2_MBUS_CSI2_CHANNEL_2;
 
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -1341,7 +1341,6 @@ static const struct v4l2_subdev_core_ops sc500ai_core_ops = {
 static const struct v4l2_subdev_video_ops sc500ai_video_ops = {
 	.s_stream = sc500ai_s_stream,
 	.g_frame_interval = sc500ai_g_frame_interval,
-	.g_mbus_config = sc500ai_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops sc500ai_pad_ops = {
@@ -1351,6 +1350,7 @@ static const struct v4l2_subdev_pad_ops sc500ai_pad_ops = {
 	.get_fmt = sc500ai_get_fmt,
 	.set_fmt = sc500ai_set_fmt,
 	.get_selection = sc500ai_get_selection,
+	.get_mbus_config = sc500ai_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops sc500ai_subdev_ops = {
