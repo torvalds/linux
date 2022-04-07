@@ -880,7 +880,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 			bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
 					  i->bkey_type, WRITE, &buf);
 
-			bch2_fs_fatal_error(c, "%s", buf.buf);
+			bch2_trans_inconsistent(trans, "%s", buf.buf);
 			printbuf_exit(&buf);
 			return -EINVAL;
 		}
