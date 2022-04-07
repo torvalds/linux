@@ -70,6 +70,7 @@ static void adf_dev_stop_async(struct work_struct *work)
 		container_of(work, struct adf_vf_stop_data, work);
 	struct adf_accel_dev *accel_dev = stop_data->accel_dev;
 
+	adf_dev_restarting_notify(accel_dev);
 	adf_dev_stop(accel_dev);
 	adf_dev_shutdown(accel_dev);
 
