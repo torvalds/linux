@@ -40,6 +40,10 @@ DECLARE_HOOK(android_vh_thermal_unregister,
 	TP_PROTO(struct cpufreq_policy *policy),
 	TP_ARGS(policy));
 
+DECLARE_HOOK(android_vh_get_thermal_zone_device,
+	TP_PROTO(struct thermal_zone_device *tz),
+	TP_ARGS(tz));
+
 #endif /* _TRACE_HOOK_THERMAL_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
