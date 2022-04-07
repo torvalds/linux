@@ -659,7 +659,7 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 #define hwc_debug(fmt, args...) do { } while(0)
 #endif
 
-#define MAX_BUFFER_BYTES	(1024 * 1024)
+#define MAX_BUFFER_BYTES	(4 * 1024 * 1024)
 #define MAX_PERIOD_BYTES	(512 * 1024)
 
 static const struct snd_pcm_hardware snd_usb_hardware =
