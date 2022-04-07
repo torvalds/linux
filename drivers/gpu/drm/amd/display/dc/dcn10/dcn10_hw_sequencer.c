@@ -1497,15 +1497,11 @@ void dcn10_init_hw(struct dc *dc)
 			link->link_status.link_active = true;
 	}
 
-	/* Power gate DSCs */
-	if (!is_optimized_init_done) {
-		for (i = 0; i < res_pool->res_cap->num_dsc; i++)
-			if (hws->funcs.dsc_pg_control != NULL)
-				hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
-	}
-
 	/* we want to turn off all dp displays before doing detection */
 	dc_link_blank_all_dp_displays(dc);
+
+	if (hws->funcs.enable_power_gating_plane)
+		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	/* If taking control over from VBIOS, we may want to optimize our first
 	 * mode set, so we need to skip powering down pipes until we know which
@@ -1559,8 +1555,6 @@ void dcn10_init_hw(struct dc *dc)
 
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
-	if (hws->funcs.enable_power_gating_plane)
-		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	if (dc->clk_mgr->funcs->notify_wm_ranges)
 		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
