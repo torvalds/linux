@@ -75,7 +75,7 @@ cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 
 	/* only send once per connect */
 	spin_lock(&cifs_tcp_ses_lock);
-	if ((tcon->ses->status != CifsGood) || (tcon->status != TID_NEED_RECON)) {
+	if ((tcon->ses->ses_status != SES_GOOD) || (tcon->status != TID_NEED_RECON)) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		return;
 	}

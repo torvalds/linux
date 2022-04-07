@@ -780,7 +780,7 @@ smb2_get_mid_entry(struct cifs_ses *ses, struct TCP_Server_Info *server,
 		return -EAGAIN;
 	}
 
-	if (ses->status == CifsNew) {
+	if (ses->ses_status == SES_NEW) {
 		if ((shdr->Command != SMB2_SESSION_SETUP) &&
 		    (shdr->Command != SMB2_NEGOTIATE)) {
 			spin_unlock(&cifs_tcp_ses_lock);
@@ -789,7 +789,7 @@ smb2_get_mid_entry(struct cifs_ses *ses, struct TCP_Server_Info *server,
 		/* else ok - we are setting up session */
 	}
 
-	if (ses->status == CifsExiting) {
+	if (ses->ses_status == SES_EXITING) {
 		if (shdr->Command != SMB2_LOGOFF) {
 			spin_unlock(&cifs_tcp_ses_lock);
 			return -EAGAIN;

@@ -179,7 +179,7 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
-	if ((!tcon->ses) || (tcon->ses->status == CifsExiting) ||
+	if ((!tcon->ses) || (tcon->ses->ses_status == SES_EXITING) ||
 	    (!tcon->ses->server) || !server)
 		return -EIO;
 
