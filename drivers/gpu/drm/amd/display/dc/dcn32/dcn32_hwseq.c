@@ -555,10 +555,13 @@ void dcn32_program_mall_pipe_config(struct dc *dc, struct dc_state *context)
 		struct hubp *hubp = pipe->plane_res.hubp;
 
 		if (pipe->stream && hubp && hubp->funcs->hubp_prepare_subvp_buffering) {
+			/* TODO - remove setting CURSOR_REQ_MODE to 0 for legacy cases
+			 *      - need to investigate single pipe MPO + SubVP case to
+			 *        see if CURSOR_REQ_MODE will be back to 1 for SubVP
+			 *        when it should be 0 for MPO
+			 */
 			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 				hubp->funcs->hubp_prepare_subvp_buffering(hubp, true);
-			} else {
-				hubp->funcs->hubp_prepare_subvp_buffering(hubp, false);
 			}
 		}
 	}
