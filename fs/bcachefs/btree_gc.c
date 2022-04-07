@@ -214,7 +214,7 @@ static int set_node_min(struct bch_fs *c, struct btree *b, struct bpos new_min)
 	}
 
 	bch2_btree_node_drop_keys_outside_node(b);
-
+	bkey_copy(&b->key, &new->k_i);
 	return 0;
 }
 
@@ -359,7 +359,7 @@ static int bch2_btree_repair_topology_recurse(struct bch_fs *c, struct btree *b)
 	struct bkey_buf prev_k, cur_k;
 	struct btree *prev = NULL, *cur = NULL;
 	bool have_child, dropped_children = false;
-	struct printbuf buf;
+	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	if (!b->c.level)
@@ -387,7 +387,7 @@ again:
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(cur_k.k));
 
 		if (mustfix_fsck_err_on(ret == -EIO, c,
-				"Unreadable btree node at btree %s level %u:\n"
+				"Topology repair: unreadable btree node at btree %s level %u:\n"
 				"  %s",
 				bch2_btree_ids[b->c.btree_id],
 				b->c.level - 1,
@@ -1498,6 +1498,7 @@ static void bch2_gc_alloc_reset(struct bch_fs *c, bool metadata_only)
 			     g->data_type == BCH_DATA_cached ||
 			     g->data_type == BCH_DATA_parity))
 				continue;
+			g->data_type = 0;
 			g->dirty_sectors = 0;
 			g->cached_sectors = 0;
 		}
@@ -1735,11 +1736,11 @@ again:
 	if (BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb) &&
 	    !test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags) &&
 	    c->opts.fix_errors != FSCK_OPT_NO) {
-		bch_info(c, "starting topology repair pass");
+		bch_info(c, "Starting topology repair pass");
 		ret = bch2_repair_topology(c);
 		if (ret)
 			goto out;
-		bch_info(c, "topology repair pass done");
+		bch_info(c, "Topology repair pass done");
 
 		set_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags);
 	}
@@ -1750,6 +1751,7 @@ again:
 	    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags) &&
 	    !test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags)) {
 		set_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags);
+		SET_BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb, true);
 		ret = 0;
 	}
 
