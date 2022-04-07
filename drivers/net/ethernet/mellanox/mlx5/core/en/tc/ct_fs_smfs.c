@@ -330,7 +330,7 @@ mlx5_ct_fs_smfs_ct_rule_add(struct mlx5_ct_fs *fs, struct mlx5_flow_spec *spec,
 	}
 
 	rule = mlx5_smfs_rule_create(smfs_matcher->dr_matcher, spec, num_actions, actions,
-				     MLX5_FLOW_CONTEXT_FLOW_SOURCE_ANY_VPORT);
+				     spec->flow_context.flow_source);
 	if (!rule) {
 		err = -EINVAL;
 		goto err_create;
