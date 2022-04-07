@@ -107,20 +107,6 @@ static const u32 *adf_get_arbiter_mapping(void)
 	return thrd_to_arb_map;
 }
 
-static void adf_enable_ints(struct adf_accel_dev *accel_dev)
-{
-	void __iomem *addr;
-
-	addr = (&GET_BARS(accel_dev)[ADF_DH895XCC_PMISC_BAR])->virt_addr;
-
-	/* Enable bundle and misc interrupts */
-	ADF_CSR_WR(addr, ADF_DH895XCC_SMIAPF0_MASK_OFFSET,
-		   accel_dev->pf.vf_info ? 0 :
-			BIT_ULL(GET_MAX_BANKS(accel_dev)) - 1);
-	ADF_CSR_WR(addr, ADF_DH895XCC_SMIAPF1_MASK_OFFSET,
-		   ADF_DH895XCC_SMIA1_MASK);
-}
-
 static u32 get_vf2pf_sources(void __iomem *pmisc_bar)
 {
 	u32 errsou3, errmsk3, errsou5, errmsk5, vf_int_mask;
@@ -222,7 +208,7 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->init_arb = adf_init_arb;
 	hw_data->exit_arb = adf_exit_arb;
 	hw_data->get_arb_mapping = adf_get_arbiter_mapping;
-	hw_data->enable_ints = adf_enable_ints;
+	hw_data->enable_ints = adf_gen2_enable_ints;
 	hw_data->reset_device = adf_reset_sbr;
 	hw_data->disable_iov = adf_disable_sriov;
 

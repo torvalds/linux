@@ -78,19 +78,6 @@ static const u32 *adf_get_arbiter_mapping(void)
 	return thrd_to_arb_map;
 }
 
-static void adf_enable_ints(struct adf_accel_dev *accel_dev)
-{
-	void __iomem *addr;
-
-	addr = (&GET_BARS(accel_dev)[ADF_C3XXX_PMISC_BAR])->virt_addr;
-
-	/* Enable bundle and misc interrupts */
-	ADF_CSR_WR(addr, ADF_C3XXX_SMIAPF0_MASK_OFFSET,
-		   ADF_C3XXX_SMIA0_MASK);
-	ADF_CSR_WR(addr, ADF_C3XXX_SMIAPF1_MASK_OFFSET,
-		   ADF_C3XXX_SMIA1_MASK);
-}
-
 static void configure_iov_threads(struct adf_accel_dev *accel_dev, bool enable)
 {
 	adf_gen2_cfg_iov_thds(accel_dev, enable,
@@ -133,7 +120,7 @@ void adf_init_hw_data_c3xxx(struct adf_hw_device_data *hw_data)
 	hw_data->init_arb = adf_init_arb;
 	hw_data->exit_arb = adf_exit_arb;
 	hw_data->get_arb_mapping = adf_get_arbiter_mapping;
-	hw_data->enable_ints = adf_enable_ints;
+	hw_data->enable_ints = adf_gen2_enable_ints;
 	hw_data->reset_device = adf_reset_flr;
 	hw_data->set_ssm_wdtimer = adf_gen2_set_ssm_wdtimer;
 	hw_data->disable_iov = adf_disable_sriov;
