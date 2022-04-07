@@ -2948,8 +2948,8 @@ struct rtw89_ser {
 
 	struct work_struct ser_hdl_work;
 	struct delayed_work ser_alarm_work;
-	struct state_ent *st_tbl;
-	struct event_ent *ev_tbl;
+	const struct state_ent *st_tbl;
+	const struct event_ent *ev_tbl;
 	struct list_head msg_q;
 	spinlock_t msg_q_lock; /* lock when read/write ser msg */
 	DECLARE_BITMAP(flags, RTW89_NUM_OF_SER_FLAGS);
