@@ -40,7 +40,7 @@ static u32 adf_gen4_pf_get_vf2pf_offset(u32 i)
 static void adf_gen4_enable_vf2pf_interrupts(void __iomem *pmisc_addr,
 					     u32 vf_mask)
 {
-	unsigned int val;
+	u32 val;
 
 	val = ADF_CSR_RD(pmisc_addr, ADF_4XXX_VM2PF_MSK) & ~vf_mask;
 	ADF_CSR_WR(pmisc_addr, ADF_4XXX_VM2PF_MSK, val);
