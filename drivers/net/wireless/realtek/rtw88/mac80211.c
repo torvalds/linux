@@ -694,7 +694,7 @@ static void rtw_ra_mask_info_update_iter(void *data, struct ieee80211_sta *sta)
 	}
 
 	si->use_cfg_mask = true;
-	rtw_update_sta_info(br_data->rtwdev, si);
+	rtw_update_sta_info(br_data->rtwdev, si, true);
 }
 
 static void rtw_ra_mask_info_update(struct rtw_dev *rtwdev,
@@ -850,6 +850,17 @@ static int rtw_ops_set_sar_specs(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static void rtw_ops_sta_rc_update(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_sta *sta, u32 changed)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
+
+	if (changed & IEEE80211_RC_BW_CHANGED)
+		rtw_update_sta_info(rtwdev, si, true);
+}
+
 const struct ieee80211_ops rtw_ops = {
 	.tx			= rtw_ops_tx,
 	.wake_tx_queue		= rtw_ops_wake_tx_queue,
@@ -879,6 +890,7 @@ const struct ieee80211_ops rtw_ops = {
 	.reconfig_complete	= rtw_reconfig_complete,
 	.hw_scan		= rtw_ops_hw_scan,
 	.cancel_hw_scan		= rtw_ops_cancel_hw_scan,
+	.sta_rc_update		= rtw_ops_sta_rc_update,
 	.set_sar_specs          = rtw_ops_set_sar_specs,
 #ifdef CONFIG_PM
 	.suspend		= rtw_ops_suspend,
