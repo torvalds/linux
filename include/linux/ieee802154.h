@@ -136,16 +136,16 @@ enum {
 	IEEE802154_SUCCESS = 0x0,
 
 	/* The beacon was lost following a synchronization request. */
-	IEEE802154_BEACON_LOSS = 0xe0,
+	IEEE802154_BEACON_LOST = 0xe0,
 	/*
 	 * A transmission could not take place due to activity on the
 	 * channel, i.e., the CSMA-CA mechanism has failed.
 	 */
-	IEEE802154_CHNL_ACCESS_FAIL = 0xe1,
+	IEEE802154_CHANNEL_ACCESS_FAILURE = 0xe1,
 	/* The GTS request has been denied by the PAN coordinator. */
-	IEEE802154_DENINED = 0xe2,
+	IEEE802154_DENIED = 0xe2,
 	/* The attempt to disable the transceiver has failed. */
-	IEEE802154_DISABLE_TRX_FAIL = 0xe3,
+	IEEE802154_DISABLE_TRX_FAILURE = 0xe3,
 	/*
 	 * The received frame induces a failed security check according to
 	 * the security suite.
@@ -185,9 +185,9 @@ enum {
 	 * A PAN identifier conflict has been detected and communicated to the
 	 * PAN coordinator.
 	 */
-	IEEE802154_PANID_CONFLICT = 0xee,
+	IEEE802154_PAN_ID_CONFLICT = 0xee,
 	/* A coordinator realignment command has been received. */
-	IEEE802154_REALIGMENT = 0xef,
+	IEEE802154_REALIGNMENT = 0xef,
 	/* The transaction has expired and its information discarded. */
 	IEEE802154_TRANSACTION_EXPIRED = 0xf0,
 	/* There is no capacity to store the transaction. */
@@ -203,7 +203,7 @@ enum {
 	 * A SET/GET request was issued with the identifier of a PIB attribute
 	 * that is not supported.
 	 */
-	IEEE802154_UNSUPPORTED_ATTR = 0xf4,
+	IEEE802154_UNSUPPORTED_ATTRIBUTE = 0xf4,
 	/*
 	 * A request to perform a scan operation failed because the MLME was
 	 * in the process of performing a previously initiated scan operation.
