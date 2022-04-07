@@ -61,7 +61,7 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 	char file_name[100];
 	int width;
 	size_t size, uv_size = 0;
-	void *kvaddr;
+	void *kvaddr, *kvaddr_origin;
 	struct file *file;
 	loff_t pos = 0;
 	struct drm_format_name_buf format_name;
@@ -75,7 +75,7 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 		u8 hsub = dump_info->format->hsub;
 		u8 vsub = dump_info->format->vsub;
 
-		width = dump_info->pitches;
+		width = dump_info->pitches * 8 / bpp;
 		flags = O_RDWR | O_CREAT | O_APPEND;
 		uv_size = (width * dump_info->height * bpp >> 3) * 2 / hsub / vsub;
 		snprintf(file_name, 100, "%s/video%d_%d_%s.%s", DUMP_BUF_PATH,
@@ -92,6 +92,7 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 	}
 	kvaddr = vmap(dump_info->pages, dump_info->num_pages, VM_MAP,
 		      pgprot_writecombine(PAGE_KERNEL));
+	kvaddr_origin = kvaddr;
 	if (!kvaddr)
 		DRM_ERROR("failed to vmap() buffer\n");
 	else
@@ -111,7 +112,7 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 	} else {
 		DRM_INFO("open %s failed\n", ptr);
 	}
-	vunmap(kvaddr);
+	vunmap(kvaddr_origin);
 
 	return 0;
 }
