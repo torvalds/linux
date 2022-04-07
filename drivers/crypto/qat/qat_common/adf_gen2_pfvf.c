@@ -15,7 +15,7 @@
  /* VF2PF interrupts */
 #define ADF_GEN2_VF_MSK			0xFFFF
 #define ADF_GEN2_ERR_REG_VF2PF(vf_src)	(((vf_src) & 0x01FFFE00) >> 9)
-#define ADF_GEN2_ERR_MSK_VF2PF(vf_mask)	(((vf_mask) & 0xFFFF) << 9)
+#define ADF_GEN2_ERR_MSK_VF2PF(vf_mask)	(((vf_mask) & ADF_GEN2_VF_MSK) << 9)
 
 #define ADF_GEN2_PF_PF2VF_OFFSET(i)	(0x3A000 + 0x280 + ((i) * 0x04))
 #define ADF_GEN2_VF_PF2VF_OFFSET	0x200
@@ -55,7 +55,7 @@ static void adf_gen2_enable_vf2pf_interrupts(void __iomem *pmisc_addr,
 					     u32 vf_mask)
 {
 	/* Enable VF2PF Messaging Ints - VFs 0 through 15 per vf_mask[15:0] */
-	if (vf_mask & 0xFFFF) {
+	if (vf_mask & ADF_GEN2_VF_MSK) {
 		u32 val = ADF_CSR_RD(pmisc_addr, ADF_GEN2_ERRMSK3)
 			  & ~ADF_GEN2_ERR_MSK_VF2PF(vf_mask);
 		ADF_CSR_WR(pmisc_addr, ADF_GEN2_ERRMSK3, val);
@@ -66,7 +66,7 @@ static void adf_gen2_disable_vf2pf_interrupts(void __iomem *pmisc_addr,
 					      u32 vf_mask)
 {
 	/* Disable VF2PF interrupts for VFs 0 through 15 per vf_mask[15:0] */
-	if (vf_mask & 0xFFFF) {
+	if (vf_mask & ADF_GEN2_VF_MSK) {
 		u32 val = ADF_CSR_RD(pmisc_addr, ADF_GEN2_ERRMSK3)
 			  | ADF_GEN2_ERR_MSK_VF2PF(vf_mask);
 		ADF_CSR_WR(pmisc_addr, ADF_GEN2_ERRMSK3, val);
