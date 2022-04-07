@@ -69,6 +69,8 @@
 
 #define smnMP1_FIRMWARE_FLAGS_SMU_13_0_7   0x3b10028
 
+#define MP0_MP1_DATA_REGION_SIZE_COMBOPPTABLE	0x4000
+
 static struct cmn2asic_msg_mapping smu_v13_0_7_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			PPSMC_MSG_TestMessage,                 1),
 	MSG_MAP(GetSmuVersion,			PPSMC_MSG_GetSmuVersion,               1),
@@ -128,6 +130,7 @@ static struct cmn2asic_mapping smu_v13_0_7_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(SMU_METRICS),
 	TAB_MAP(DRIVER_SMU_CONFIG),
 	TAB_MAP(ACTIVITY_MONITOR_COEFF),
+	[SMU_TABLE_COMBO_PPTABLE] = {1, TABLE_COMBO_PPTABLE},
 };
 
 static struct cmn2asic_mapping smu_v13_0_7_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
@@ -286,19 +289,42 @@ static int smu_v13_0_7_append_powerplay_table(struct smu_context *smu)
 
 static int smu_v13_0_7_setup_pptable(struct smu_context *smu)
 {
+	struct smu_table_context *smu_table = &smu->smu_table;
+	void *combo_pptable = smu_table->combo_pptable;
+	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
-	ret = smu_v13_0_setup_pptable(smu);
-	if (ret)
-		return ret;
+	/*
+	 * With SCPM enabled, the pptable used will be signed. It cannot
+	 * be used directly by driver. To get the raw pptable, we need to
+	 * rely on the combo pptable(and its revelant SMU message).
+	 */
+	if (adev->scpm_enabled) {
+		ret = smu_cmn_get_combo_pptable(smu);
+		if (ret)
+			return ret;
+
+		smu->smu_table.power_play_table = combo_pptable;
+		smu->smu_table.power_play_table_size = sizeof(struct smu_13_0_7_powerplay_table);
+	} else {
+		ret = smu_v13_0_setup_pptable(smu);
+		if (ret)
+			return ret;
+	}
 
 	ret = smu_v13_0_7_store_powerplay_table(smu);
 	if (ret)
 		return ret;
 
-	ret = smu_v13_0_7_append_powerplay_table(smu);
-	if (ret)
-		return ret;
+	/*
+	 * With SCPM enabled, the operation below will be handled
+	 * by PSP. Driver involvment is unnecessary and useless.
+	 */
+	if (!adev->scpm_enabled) {
+		ret = smu_v13_0_7_append_powerplay_table(smu);
+		if (ret)
+			return ret;
+	}
 
 	ret = smu_v13_0_7_check_powerplay_table(smu);
 	if (ret)
@@ -329,6 +355,8 @@ static int smu_v13_0_7_tables_init(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_ACTIVITY_MONITOR_COEFF,
 		       sizeof(DpmActivityMonitorCoeffIntExternal_t), PAGE_SIZE,
 	               AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, SMU_TABLE_COMBO_PPTABLE, MP0_MP1_DATA_REGION_SIZE_COMBOPPTABLE,
+			PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
 	smu_table->metrics_table = kzalloc(sizeof(SmuMetricsExternal_t), GFP_KERNEL);
 	if (!smu_table->metrics_table)
@@ -493,6 +521,7 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.get_enabled_mask = smu_cmn_get_enabled_mask,
 	.dpm_set_vcn_enable = smu_v13_0_set_vcn_enable,
 	.dpm_set_jpeg_enable = smu_v13_0_set_jpeg_enable,
+	.init_pptable_microcode = smu_v13_0_init_pptable_microcode,
 };
 
 void smu_v13_0_7_set_ppt_funcs(struct smu_context *smu)

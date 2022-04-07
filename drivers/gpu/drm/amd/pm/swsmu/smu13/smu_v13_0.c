@@ -445,6 +445,9 @@ int smu_v13_0_setup_pptable(struct smu_context *smu)
 		 */
 		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 0))
 			pptable_id = 9999;
+
+		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 7))
+			pptable_id = 8888;
 	}
 
 	/* force using vbios pptable in sriov mode */
