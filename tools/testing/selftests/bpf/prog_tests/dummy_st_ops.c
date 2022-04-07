@@ -2,6 +2,7 @@
 /* Copyright (C) 2021. Huawei Technologies Co., Ltd */
 #include <test_progs.h>
 #include "dummy_st_ops.skel.h"
+#include "trace_dummy_st_ops.skel.h"
 
 /* Need to keep consistent with definition in include/linux/bpf.h */
 struct bpf_dummy_ops_state {
@@ -56,6 +57,7 @@ static void test_dummy_init_ptr_arg(void)
 		.ctx_in = args,
 		.ctx_size_in = sizeof(args),
 	);
+	struct trace_dummy_st_ops *trace_skel;
 	struct dummy_st_ops *skel;
 	int fd, err;
 
@@ -64,12 +66,33 @@ static void test_dummy_init_ptr_arg(void)
 		return;
 
 	fd = bpf_program__fd(skel->progs.test_1);
+
+	trace_skel = trace_dummy_st_ops__open();
+	if (!ASSERT_OK_PTR(trace_skel, "trace_dummy_st_ops__open"))
+		goto done;
+
+	err = bpf_program__set_attach_target(trace_skel->progs.fentry_test_1,
+					     fd, "test_1");
+	if (!ASSERT_OK(err, "set_attach_target(fentry_test_1)"))
+		goto done;
+
+	err = trace_dummy_st_ops__load(trace_skel);
+	if (!ASSERT_OK(err, "load(trace_skel)"))
+		goto done;
+
+	err = trace_dummy_st_ops__attach(trace_skel);
+	if (!ASSERT_OK(err, "attach(trace_skel)"))
+		goto done;
+
 	err = bpf_prog_test_run_opts(fd, &attr);
 	ASSERT_OK(err, "test_run");
 	ASSERT_EQ(in_state.val, 0x5a, "test_ptr_ret");
 	ASSERT_EQ(attr.retval, exp_retval, "test_ret");
+	ASSERT_EQ(trace_skel->bss->val, exp_retval, "fentry_val");
 
+done:
 	dummy_st_ops__destroy(skel);
+	trace_dummy_st_ops__destroy(trace_skel);
 }
 
 static void test_dummy_multiple_args(void)
