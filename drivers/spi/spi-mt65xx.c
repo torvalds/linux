@@ -1088,10 +1088,8 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	int i, irq, ret, addr_bits;
 
 	master = devm_spi_alloc_master(dev, sizeof(*mdata));
-	if (!master) {
-		dev_err(dev, "failed to alloc spi master\n");
-		return -ENOMEM;
-	}
+	if (!master)
+		return dev_err_probe(dev, -ENOMEM, "failed to alloc spi master\n");
 
 	master->auto_runtime_pm = true;
 	master->dev.of_node = dev->of_node;
@@ -1125,11 +1123,9 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	if (mdata->dev_comp->need_pad_sel) {
 		mdata->pad_num = of_property_count_u32_elems(dev->of_node,
 			"mediatek,pad-select");
-		if (mdata->pad_num < 0) {
-			dev_err(dev,
+		if (mdata->pad_num < 0)
+			return dev_err_probe(dev, -EINVAL,
 				"No 'mediatek,pad-select' property\n");
-			return -EINVAL;
-		}
 
 		mdata->pad_sel = devm_kmalloc_array(dev, mdata->pad_num,
 						    sizeof(u32), GFP_KERNEL);
@@ -1140,11 +1136,10 @@ static int mtk_spi_probe(struct platform_device *pdev)
 			of_property_read_u32_index(dev->of_node,
 						   "mediatek,pad-select",
 						   i, &mdata->pad_sel[i]);
-			if (mdata->pad_sel[i] > MT8173_SPI_MAX_PAD_SEL) {
-				dev_err(dev, "wrong pad-sel[%d]: %u\n",
-					i, mdata->pad_sel[i]);
-				return -EINVAL;
-			}
+			if (mdata->pad_sel[i] > MT8173_SPI_MAX_PAD_SEL)
+				return dev_err_probe(dev, -EINVAL,
+						     "wrong pad-sel[%d]: %u\n",
+						     i, mdata->pad_sel[i]);
 		}
 	}
 
@@ -1162,56 +1157,38 @@ static int mtk_spi_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(dev, irq, mtk_spi_interrupt,
 			       IRQF_TRIGGER_NONE, dev_name(dev), master);
-	if (ret) {
-		dev_err(dev, "failed to register irq (%d)\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to register irq\n");
 
 	mdata->parent_clk = devm_clk_get(dev, "parent-clk");
-	if (IS_ERR(mdata->parent_clk)) {
-		ret = PTR_ERR(mdata->parent_clk);
-		dev_err(dev, "failed to get parent-clk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(mdata->parent_clk))
+		return dev_err_probe(dev, PTR_ERR(mdata->parent_clk),
+				     "failed to get parent-clk\n");
 
 	mdata->sel_clk = devm_clk_get(dev, "sel-clk");
-	if (IS_ERR(mdata->sel_clk)) {
-		ret = PTR_ERR(mdata->sel_clk);
-		dev_err(dev, "failed to get sel-clk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(mdata->sel_clk))
+		return dev_err_probe(dev, PTR_ERR(mdata->sel_clk), "failed to get sel-clk\n");
 
 	mdata->spi_clk = devm_clk_get(dev, "spi-clk");
-	if (IS_ERR(mdata->spi_clk)) {
-		ret = PTR_ERR(mdata->spi_clk);
-		dev_err(dev, "failed to get spi-clk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(mdata->spi_clk))
+		return dev_err_probe(dev, PTR_ERR(mdata->spi_clk), "failed to get spi-clk\n");
 
 	mdata->spi_hclk = devm_clk_get_optional(dev, "hclk");
-	if (IS_ERR(mdata->spi_hclk)) {
-		ret = PTR_ERR(mdata->spi_hclk);
-		dev_err(dev, "failed to get hclk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(mdata->spi_hclk))
+		return dev_err_probe(dev, PTR_ERR(mdata->spi_hclk), "failed to get hclk\n");
 
 	ret = clk_set_parent(mdata->sel_clk, mdata->parent_clk);
-	if (ret < 0) {
-		dev_err(dev, "failed to clk_set_parent (%d)\n", ret);
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to clk_set_parent\n");
 
 	ret = clk_prepare_enable(mdata->spi_hclk);
-	if (ret < 0) {
-		dev_err(dev, "failed to enable hclk (%d)\n", ret);
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to enable hclk\n");
 
 	ret = clk_prepare_enable(mdata->spi_clk);
 	if (ret < 0) {
-		dev_err(dev, "failed to enable spi_clk (%d)\n", ret);
 		clk_disable_unprepare(mdata->spi_hclk);
-		return ret;
+		return dev_err_probe(dev, ret, "failed to enable spi_clk\n");
 	}
 
 	mdata->spi_clk_hz = clk_get_rate(mdata->spi_clk);
@@ -1225,18 +1202,14 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	}
 
 	if (mdata->dev_comp->need_pad_sel) {
-		if (mdata->pad_num != master->num_chipselect) {
-			dev_err(dev,
+		if (mdata->pad_num != master->num_chipselect)
+			return dev_err_probe(dev, -EINVAL,
 				"pad_num does not match num_chipselect(%d != %d)\n",
 				mdata->pad_num, master->num_chipselect);
-			return -EINVAL;
-		}
 
-		if (!master->cs_gpiods && master->num_chipselect > 1) {
-			dev_err(dev,
+		if (!master->cs_gpiods && master->num_chipselect > 1)
+			return dev_err_probe(dev, -EINVAL,
 				"cs_gpios not specified and num_chipselect > 1\n");
-			return -EINVAL;
-		}
 	}
 
 	if (mdata->dev_comp->dma_ext)
@@ -1253,8 +1226,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	ret = devm_spi_register_master(dev, master);
 	if (ret) {
 		pm_runtime_disable(dev);
-		dev_err(dev, "failed to register master (%d)\n", ret);
-		return ret;
+		return dev_err_probe(dev, ret, "failed to register master\n");
 	}
 
 	return 0;
