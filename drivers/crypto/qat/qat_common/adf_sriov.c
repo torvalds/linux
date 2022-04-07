@@ -116,9 +116,8 @@ void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 	if (hw_data->configure_iov_threads)
 		hw_data->configure_iov_threads(accel_dev, false);
 
-	for (i = 0, vf = accel_dev->pf.vf_info; i < totalvfs; i++, vf++) {
+	for (i = 0, vf = accel_dev->pf.vf_info; i < totalvfs; i++, vf++)
 		mutex_destroy(&vf->pf2vf_lock);
-	}
 
 	kfree(accel_dev->pf.vf_info);
 	accel_dev->pf.vf_info = NULL;
