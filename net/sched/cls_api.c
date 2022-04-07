@@ -3517,11 +3517,13 @@ static int tc_setup_offload_act(struct tc_action *act,
 				struct netlink_ext_ack *extack)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	if (act->ops->offload_act_setup)
+	if (act->ops->offload_act_setup) {
 		return act->ops->offload_act_setup(act, entry, index_inc, true,
 						   extack);
-	else
+	} else {
+		NL_SET_ERR_MSG(extack, "Action does not support offload");
 		return -EOPNOTSUPP;
+	}
 #else
 	return 0;
 #endif
