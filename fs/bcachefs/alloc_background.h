@@ -44,7 +44,6 @@ static inline enum bucket_state bucket_state(struct bch_alloc_v4 a)
 		return BUCKET_dirty;
 	if (a.cached_sectors)
 		return BUCKET_cached;
-	BUG_ON(a.data_type);
 	if (BCH_ALLOC_V4_NEED_DISCARD(&a))
 		return BUCKET_need_discard;
 	if (alloc_gc_gen(a) >= BUCKET_GC_GEN_MAX)

@@ -361,6 +361,14 @@ int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			pr_buf(err, "cached bucket with read_time == 0");
 			return -EINVAL;
 		}
+
+		if (!a.v->dirty_sectors &&
+		    !a.v->cached_sectors &&
+		    !a.v->stripe &&
+		    a.v->data_type) {
+			pr_buf(err, "empty, but data_type nonzero");
+			return -EINVAL;
+		}
 	}
 
 	return 0;
