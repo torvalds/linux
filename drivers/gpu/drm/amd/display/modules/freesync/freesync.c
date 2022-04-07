@@ -1239,7 +1239,7 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 	if (in_out_vrr->supported == false)
 		return;
 
-	cur_timestamp_in_us = dm_get_timestamp(core_freesync->dc->ctx)/10;
+	cur_timestamp_in_us = div_u64(dm_get_timestamp(core_freesync->dc->ctx), 10);
 
 	in_out_vrr->flip_interval.vsyncs_between_flip++;
 	in_out_vrr->flip_interval.v_update_timestamp_in_us = cur_timestamp_in_us;
