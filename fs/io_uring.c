@@ -8609,12 +8609,12 @@ static struct io_sq_data *io_get_sq_data(struct io_uring_params *p,
  * files because otherwise they can't form a loop and so are not interesting
  * for GC.
  */
-static int __io_sqe_files_scm(struct io_ring_ctx *ctx, int nr, int offset)
+static int __io_sqe_files_scm(struct io_ring_ctx *ctx, int offset)
 {
+	struct file *file = io_file_from_index(ctx, offset);
 	struct sock *sk = ctx->ring_sock->sk;
 	struct scm_fp_list *fpl;
 	struct sk_buff *skb;
-	int i, nr_files;
 
 	fpl = kzalloc(sizeof(*fpl), GFP_KERNEL);
 	if (!fpl)
@@ -8628,39 +8628,17 @@ static int __io_sqe_files_scm(struct io_ring_ctx *ctx, int nr, int offset)
 
 	skb->sk = sk;
 
-	nr_files = 0;
 	fpl->user = get_uid(current_user());
-	for (i = 0; i < nr; i++) {
-		struct file *file = io_file_from_index(ctx, i + offset);
+	fpl->fp[0] = get_file(file);
+	unix_inflight(fpl->user, file);
 
-		if (!file || !io_file_need_scm(file))
-			continue;
-
-		fpl->fp[nr_files] = get_file(file);
-		unix_inflight(fpl->user, fpl->fp[nr_files]);
-		nr_files++;
-	}
-
-	if (nr_files) {
-		fpl->max = SCM_MAX_FD;
-		fpl->count = nr_files;
-		UNIXCB(skb).fp = fpl;
-		skb->destructor = unix_destruct_scm;
-		refcount_add(skb->truesize, &sk->sk_wmem_alloc);
-		skb_queue_head(&sk->sk_receive_queue, skb);
-
-		for (i = 0; i < nr; i++) {
-			struct file *file = io_file_from_index(ctx, i + offset);
-
-			if (file && io_file_need_scm(file))
-				fput(file);
-		}
-	} else {
-		kfree_skb(skb);
-		free_uid(fpl->user);
-		kfree(fpl);
-	}
-
+	fpl->max = SCM_MAX_FD;
+	fpl->count = 1;
+	UNIXCB(skb).fp = fpl;
+	skb->destructor = unix_destruct_scm;
+	refcount_add(skb->truesize, &sk->sk_wmem_alloc);
+	skb_queue_head(&sk->sk_receive_queue, skb);
+	fput(file);
 	return 0;
 }
 #endif
@@ -8904,7 +8882,7 @@ static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file,
 		return 0;
 	}
 
-	return __io_sqe_files_scm(ctx, 1, index);
+	return __io_sqe_files_scm(ctx, index);
 #else
 	return 0;
 #endif
