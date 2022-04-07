@@ -1087,7 +1087,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	int i, irq, ret, addr_bits;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(*mdata));
+	master = devm_spi_alloc_master(&pdev->dev, sizeof(*mdata));
 	if (!master) {
 		dev_err(&pdev->dev, "failed to alloc spi master\n");
 		return -ENOMEM;
@@ -1108,8 +1108,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	of_id = of_match_node(mtk_spi_of_match, pdev->dev.of_node);
 	if (!of_id) {
 		dev_err(&pdev->dev, "failed to probe of_node\n");
-		ret = -EINVAL;
-		goto err_put_master;
+		return -EINVAL;
 	}
 
 	mdata = spi_master_get_devdata(master);
@@ -1136,16 +1135,13 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		if (mdata->pad_num < 0) {
 			dev_err(&pdev->dev,
 				"No 'mediatek,pad-select' property\n");
-			ret = -EINVAL;
-			goto err_put_master;
+			return -EINVAL;
 		}
 
 		mdata->pad_sel = devm_kmalloc_array(&pdev->dev, mdata->pad_num,
 						    sizeof(u32), GFP_KERNEL);
-		if (!mdata->pad_sel) {
-			ret = -ENOMEM;
-			goto err_put_master;
-		}
+		if (!mdata->pad_sel)
+			return -ENOMEM;
 
 		for (i = 0; i < mdata->pad_num; i++) {
 			of_property_read_u32_index(pdev->dev.of_node,
@@ -1154,24 +1150,19 @@ static int mtk_spi_probe(struct platform_device *pdev)
 			if (mdata->pad_sel[i] > MT8173_SPI_MAX_PAD_SEL) {
 				dev_err(&pdev->dev, "wrong pad-sel[%d]: %u\n",
 					i, mdata->pad_sel[i]);
-				ret = -EINVAL;
-				goto err_put_master;
+				return -EINVAL;
 			}
 		}
 	}
 
 	platform_set_drvdata(pdev, master);
 	mdata->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(mdata->base)) {
-		ret = PTR_ERR(mdata->base);
-		goto err_put_master;
-	}
+	if (IS_ERR(mdata->base))
+		return PTR_ERR(mdata->base);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		ret = irq;
-		goto err_put_master;
-	}
+	if (irq < 0)
+		return irq;
 
 	if (!pdev->dev.dma_mask)
 		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
@@ -1180,41 +1171,41 @@ static int mtk_spi_probe(struct platform_device *pdev)
 			       IRQF_TRIGGER_NONE, dev_name(&pdev->dev), master);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register irq (%d)\n", ret);
-		goto err_put_master;
+		return ret;
 	}
 
 	mdata->parent_clk = devm_clk_get(&pdev->dev, "parent-clk");
 	if (IS_ERR(mdata->parent_clk)) {
 		ret = PTR_ERR(mdata->parent_clk);
 		dev_err(&pdev->dev, "failed to get parent-clk: %d\n", ret);
-		goto err_put_master;
+		return ret;
 	}
 
 	mdata->sel_clk = devm_clk_get(&pdev->dev, "sel-clk");
 	if (IS_ERR(mdata->sel_clk)) {
 		ret = PTR_ERR(mdata->sel_clk);
 		dev_err(&pdev->dev, "failed to get sel-clk: %d\n", ret);
-		goto err_put_master;
+		return ret;
 	}
 
 	mdata->spi_clk = devm_clk_get(&pdev->dev, "spi-clk");
 	if (IS_ERR(mdata->spi_clk)) {
 		ret = PTR_ERR(mdata->spi_clk);
 		dev_err(&pdev->dev, "failed to get spi-clk: %d\n", ret);
-		goto err_put_master;
+		return ret;
 	}
 
 	mdata->spi_hclk = devm_clk_get_optional(&pdev->dev, "hclk");
 	if (IS_ERR(mdata->spi_hclk)) {
 		ret = PTR_ERR(mdata->spi_hclk);
 		dev_err(&pdev->dev, "failed to get hclk: %d\n", ret);
-		goto err_put_master;
+		return ret;
 	}
 
 	ret = clk_prepare_enable(mdata->spi_hclk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to enable hclk (%d)\n", ret);
-		goto err_put_master;
+		return ret;
 	}
 
 	ret = clk_prepare_enable(mdata->spi_clk);
@@ -1281,8 +1272,6 @@ err_disable_spi_clk:
 	clk_disable_unprepare(mdata->spi_clk);
 err_disable_spi_hclk:
 	clk_disable_unprepare(mdata->spi_hclk);
-err_put_master:
-	spi_master_put(master);
 
 	return ret;
 }
