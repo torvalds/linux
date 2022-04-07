@@ -177,6 +177,9 @@ int bpf_usdt_arg(struct pt_regs *ctx, __u64 arg_num, long *res)
 		err = bpf_probe_read_user(&val, sizeof(val), (void *)val + arg_spec->val_off);
 		if (err)
 			return err;
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+		val >>= arg_spec->arg_bitshift;
+#endif
 		break;
 	default:
 		return -EINVAL;
