@@ -8609,9 +8609,8 @@ static struct io_sq_data *io_get_sq_data(struct io_uring_params *p,
  * files because otherwise they can't form a loop and so are not interesting
  * for GC.
  */
-static int __io_sqe_files_scm(struct io_ring_ctx *ctx, int offset)
+static int __io_sqe_files_scm(struct io_ring_ctx *ctx, struct file *file)
 {
-	struct file *file = io_file_from_index(ctx, offset);
 	struct sock *sk = ctx->ring_sock->sk;
 	struct scm_fp_list *fpl;
 	struct sk_buff *skb;
@@ -8761,8 +8760,7 @@ static void io_rsrc_put_work(struct work_struct *work)
 	}
 }
 
-static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file,
-				int index);
+static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file);
 
 static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 				 unsigned nr_args, u64 __user *tags)
@@ -8825,14 +8823,13 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			fput(file);
 			goto fail;
 		}
-		file_slot = io_fixed_file_slot(&ctx->file_table, i);
-		io_fixed_file_set(file_slot, file);
-		ret = io_sqe_file_register(ctx, file, i);
+		ret = io_sqe_file_register(ctx, file);
 		if (ret) {
-			file_slot->file_ptr = 0;
 			fput(file);
 			goto fail;
 		}
+		file_slot = io_fixed_file_slot(&ctx->file_table, i);
+		io_fixed_file_set(file_slot, file);
 	}
 
 	io_rsrc_node_switch(ctx, NULL);
@@ -8842,8 +8839,7 @@ fail:
 	return ret;
 }
 
-static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file,
-				int index)
+static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file)
 {
 #if defined(CONFIG_UNIX)
 	struct sock *sock = ctx->ring_sock->sk;
@@ -8882,7 +8878,7 @@ static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file,
 		return 0;
 	}
 
-	return __io_sqe_files_scm(ctx, index);
+	return __io_sqe_files_scm(ctx, file);
 #else
 	return 0;
 #endif
@@ -8942,15 +8938,11 @@ static int io_install_fixed_file(struct io_kiocb *req, struct file *file,
 		needs_switch = true;
 	}
 
-	*io_get_tag_slot(ctx->file_data, slot_index) = 0;
-	io_fixed_file_set(file_slot, file);
-	ret = io_sqe_file_register(ctx, file, slot_index);
-	if (ret) {
-		file_slot->file_ptr = 0;
-		goto err;
+	ret = io_sqe_file_register(ctx, file);
+	if (!ret) {
+		*io_get_tag_slot(ctx->file_data, slot_index) = 0;
+		io_fixed_file_set(file_slot, file);
 	}
-
-	ret = 0;
 err:
 	if (needs_switch)
 		io_rsrc_node_switch(ctx, ctx->file_data);
@@ -9061,14 +9053,13 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				err = -EBADF;
 				break;
 			}
-			*io_get_tag_slot(data, i) = tag;
-			io_fixed_file_set(file_slot, file);
-			err = io_sqe_file_register(ctx, file, i);
+			err = io_sqe_file_register(ctx, file);
 			if (err) {
-				file_slot->file_ptr = 0;
 				fput(file);
 				break;
 			}
+			*io_get_tag_slot(data, i) = tag;
+			io_fixed_file_set(file_slot, file);
 		}
 	}
 
