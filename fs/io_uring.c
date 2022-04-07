@@ -8663,48 +8663,6 @@ static int __io_sqe_files_scm(struct io_ring_ctx *ctx, int nr, int offset)
 
 	return 0;
 }
-
-/*
- * If UNIX sockets are enabled, fd passing can cause a reference cycle which
- * causes regular reference counting to break down. We rely on the UNIX
- * garbage collection to take care of this problem for us.
- */
-static int io_sqe_files_scm(struct io_ring_ctx *ctx)
-{
-	unsigned left, total;
-	int ret = 0;
-
-	total = 0;
-	left = ctx->nr_user_files;
-	while (left) {
-		unsigned this_files = min_t(unsigned, left, SCM_MAX_FD);
-
-		ret = __io_sqe_files_scm(ctx, this_files, total);
-		if (ret)
-			break;
-		left -= this_files;
-		total += this_files;
-	}
-
-	if (!ret)
-		return 0;
-
-	while (total < ctx->nr_user_files) {
-		struct file *file = io_file_from_index(ctx, total);
-
-		if (file)
-			fput(file);
-		io_fixed_file_slot(&ctx->file_table, total)->file_ptr = 0;
-		total++;
-	}
-
-	return ret;
-}
-#else
-static int io_sqe_files_scm(struct io_ring_ctx *ctx)
-{
-	return 0;
-}
 #endif
 
 static void io_rsrc_file_put(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc)
@@ -8825,6 +8783,9 @@ static void io_rsrc_put_work(struct work_struct *work)
 	}
 }
 
+static int io_sqe_file_register(struct io_ring_ctx *ctx, struct file *file,
+				int index);
+
 static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 				 unsigned nr_args, u64 __user *tags)
 {
@@ -8849,27 +8810,31 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	if (ret)
 		return ret;
 
-	ret = -ENOMEM;
-	if (!io_alloc_file_tables(&ctx->file_table, nr_args))
-		goto out_free;
+	if (!io_alloc_file_tables(&ctx->file_table, nr_args)) {
+		io_rsrc_data_free(ctx->file_data);
+		ctx->file_data = NULL;
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_files++) {
+		struct io_fixed_file *file_slot;
+
 		if (copy_from_user(&fd, &fds[i], sizeof(fd))) {
 			ret = -EFAULT;
-			goto out_fput;
+			goto fail;
 		}
 		/* allow sparse sets */
 		if (fd == -1) {
 			ret = -EINVAL;
 			if (unlikely(*io_get_tag_slot(ctx->file_data, i)))
-				goto out_fput;
+				goto fail;
 			continue;
 		}
 
 		file = fget(fd);
 		ret = -EBADF;
 		if (unlikely(!file))
-			goto out_fput;
+			goto fail;
 
 		/*
 		 * Don't allow io_uring instances to be registered. If UNIX
@@ -8880,30 +8845,22 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		 */
 		if (file->f_op == &io_uring_fops) {
 			fput(file);
-			goto out_fput;
+			goto fail;
 		}
-		io_fixed_file_set(io_fixed_file_slot(&ctx->file_table, i), file);
-	}
-
-	ret = io_sqe_files_scm(ctx);
-	if (ret) {
-		__io_sqe_files_unregister(ctx);
-		return ret;
+		file_slot = io_fixed_file_slot(&ctx->file_table, i);
+		io_fixed_file_set(file_slot, file);
+		ret = io_sqe_file_register(ctx, file, i);
+		if (ret) {
+			file_slot->file_ptr = 0;
+			fput(file);
+			goto fail;
+		}
 	}
 
 	io_rsrc_node_switch(ctx, NULL);
-	return ret;
-out_fput:
-	for (i = 0; i < ctx->nr_user_files; i++) {
-		file = io_file_from_index(ctx, i);
-		if (file)
-			fput(file);
-	}
-	io_free_file_tables(&ctx->file_table);
-	ctx->nr_user_files = 0;
-out_free:
-	io_rsrc_data_free(ctx->file_data);
-	ctx->file_data = NULL;
+	return 0;
+fail:
+	__io_sqe_files_unregister(ctx);
 	return ret;
 }
 
