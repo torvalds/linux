@@ -102,6 +102,12 @@ void ieee802154_xmit_error(struct ieee802154_hw *hw, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(ieee802154_xmit_error);
 
+void ieee802154_xmit_hw_error(struct ieee802154_hw *hw, struct sk_buff *skb)
+{
+	ieee802154_xmit_error(hw, skb, IEEE802154_SYSTEM_ERROR);
+}
+EXPORT_SYMBOL(ieee802154_xmit_hw_error);
+
 void ieee802154_stop_device(struct ieee802154_local *local)
 {
 	flush_workqueue(local->workqueue);
