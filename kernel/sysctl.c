@@ -64,7 +64,6 @@
 #include <linux/kexec.h>
 #include <linux/mount.h>
 #include <linux/userfaultfd_k.h>
-#include <linux/latencytop.h>
 #include <linux/pid.h>
 
 #include "../lib/kstrtox.h"
@@ -1622,15 +1621,6 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_NEG_ONE,
 		.extra2		= SYSCTL_ONE,
-	},
-#endif
-#ifdef CONFIG_LATENCYTOP
-	{
-		.procname	= "latencytop",
-		.data		= &latencytop_enabled,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= sysctl_latencytop,
 	},
 #endif
 	{
