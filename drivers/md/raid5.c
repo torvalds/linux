@@ -6285,7 +6285,7 @@ static inline sector_t raid5_sync_request(struct mddev *mddev, sector_t sector_n
 	 */
 	rcu_read_lock();
 	for (i = 0; i < conf->raid_disks; i++) {
-		struct md_rdev *rdev = READ_ONCE(conf->disks[i].rdev);
+		struct md_rdev *rdev = rcu_dereference(conf->disks[i].rdev);
 
 		if (rdev == NULL || test_bit(Faulty, &rdev->flags))
 			still_degraded = 1;
@@ -7317,11 +7317,11 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 		if (test_bit(Replacement, &rdev->flags)) {
 			if (disk->replacement)
 				goto abort;
-			disk->replacement = rdev;
+			RCU_INIT_POINTER(disk->replacement, rdev);
 		} else {
 			if (disk->rdev)
 				goto abort;
-			disk->rdev = rdev;
+			RCU_INIT_POINTER(disk->rdev, rdev);
 		}
 
 		if (test_bit(In_sync, &rdev->flags)) {
@@ -7628,11 +7628,11 @@ static int raid5_run(struct mddev *mddev)
 			rdev = conf->disks[i].replacement;
 			conf->disks[i].replacement = NULL;
 			clear_bit(Replacement, &rdev->flags);
-			conf->disks[i].rdev = rdev;
+			rcu_assign_pointer(conf->disks[i].rdev, rdev);
 		}
 		if (!rdev)
 			continue;
-		if (conf->disks[i].replacement &&
+		if (rcu_access_pointer(conf->disks[i].replacement) &&
 		    conf->reshape_progress != MaxSector) {
 			/* replacements and reshape simply do not mix. */
 			pr_warn("md: cannot handle concurrent replacement and reshape.\n");
@@ -7829,8 +7829,8 @@ static void raid5_status(struct seq_file *seq, struct mddev *mddev)
 
 static void print_raid5_conf (struct r5conf *conf)
 {
+	struct md_rdev *rdev;
 	int i;
-	struct disk_info *tmp;
 
 	pr_debug("RAID conf printout:\n");
 	if (!conf) {
@@ -7841,14 +7841,16 @@ static void print_raid5_conf (struct r5conf *conf)
 	       conf->raid_disks,
 	       conf->raid_disks - conf->mddev->degraded);
 
+	rcu_read_lock();
 	for (i = 0; i < conf->raid_disks; i++) {
 		char b[BDEVNAME_SIZE];
-		tmp = conf->disks + i;
-		if (tmp->rdev)
+		rdev = rcu_dereference(conf->disks[i].rdev);
+		if (rdev)
 			pr_debug(" disk %d, o:%d, dev:%s\n",
-			       i, !test_bit(Faulty, &tmp->rdev->flags),
-			       bdevname(tmp->rdev->bdev, b));
+			       i, !test_bit(Faulty, &rdev->flags),
+			       bdevname(rdev->bdev, b));
 	}
+	rcu_read_unlock();
 }
 
 static int raid5_spare_active(struct mddev *mddev)
@@ -7899,8 +7901,9 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	struct r5conf *conf = mddev->private;
 	int err = 0;
 	int number = rdev->raid_disk;
-	struct md_rdev **rdevp;
+	struct md_rdev __rcu **rdevp;
 	struct disk_info *p = conf->disks + number;
+	struct md_rdev *tmp;
 
 	print_raid5_conf(conf);
 	if (test_bit(Journal, &rdev->flags) && conf->log) {
@@ -7918,9 +7921,9 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 		log_exit(conf);
 		return 0;
 	}
-	if (rdev == p->rdev)
+	if (rdev == rcu_access_pointer(p->rdev))
 		rdevp = &p->rdev;
-	else if (rdev == p->replacement)
+	else if (rdev == rcu_access_pointer(p->replacement))
 		rdevp = &p->replacement;
 	else
 		return 0;
@@ -7940,7 +7943,8 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	if (!test_bit(Faulty, &rdev->flags) &&
 	    mddev->recovery_disabled != conf->recovery_disabled &&
 	    !has_failed(conf) &&
-	    (!p->replacement || p->replacement == rdev) &&
+	    (!rcu_access_pointer(p->replacement) ||
+	     rcu_access_pointer(p->replacement) == rdev) &&
 	    number < conf->raid_disks) {
 		err = -EBUSY;
 		goto abort;
@@ -7951,7 +7955,7 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 		if (atomic_read(&rdev->nr_pending)) {
 			/* lost the race, try later */
 			err = -EBUSY;
-			*rdevp = rdev;
+			rcu_assign_pointer(*rdevp, rdev);
 		}
 	}
 	if (!err) {
@@ -7959,17 +7963,19 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 		if (err)
 			goto abort;
 	}
-	if (p->replacement) {
+
+	tmp = rcu_access_pointer(p->replacement);
+	if (tmp) {
 		/* We must have just cleared 'rdev' */
-		p->rdev = p->replacement;
-		clear_bit(Replacement, &p->replacement->flags);
+		rcu_assign_pointer(p->rdev, tmp);
+		clear_bit(Replacement, &tmp->flags);
 		smp_mb(); /* Make sure other CPUs may see both as identical
 			   * but will never see neither - if they are careful
 			   */
-		p->replacement = NULL;
+		rcu_assign_pointer(p->replacement, NULL);
 
 		if (!err)
-			err = log_modify(conf, p->rdev, true);
+			err = log_modify(conf, tmp, true);
 	}
 
 	clear_bit(WantReplacement, &rdev->flags);
