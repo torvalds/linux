@@ -1567,7 +1567,7 @@ static void ath11k_core_reset(struct work_struct *work)
 		 * completed, then the second reset worker will destroy the previous one,
 		 * thus below is to avoid that.
 		 */
-		ath11k_warn(ab, "already reseting count %d\n", reset_count);
+		ath11k_warn(ab, "already resetting count %d\n", reset_count);
 
 		reinit_completion(&ab->reset_complete);
 		time_left = wait_for_completion_timeout(&ab->reset_complete,
