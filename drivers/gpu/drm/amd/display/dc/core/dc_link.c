@@ -3966,8 +3966,12 @@ static void update_psp_stream_config(struct pipe_ctx *pipe_ctx, bool dpms_off)
 	if (is_dp_128b_132b_signal(pipe_ctx))
 		config.link_enc_idx = pipe_ctx->link_res.hpo_dp_link_enc->inst;
 
-	/* dio output index */
-	config.dio_output_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+	/* dio output index is dpia index for DPIA endpoint & dcio index by default */
+	if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+		config.dio_output_idx = pipe_ctx->stream->link->link_id.enum_id - ENUM_ID_1;
+	else
+		config.dio_output_idx = link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+
 
 	/* phy index */
 	config.phy_idx = resource_transmitter_to_phy_idx(
