@@ -619,7 +619,8 @@ static int tcf_gate_get_entries(struct flow_action_entry *entry,
 }
 
 static int tcf_gate_offload_act_setup(struct tc_action *act, void *entry_data,
-				      u32 *index_inc, bool bind)
+				      u32 *index_inc, bool bind,
+				      struct netlink_ext_ack *extack)
 {
 	int err;
 

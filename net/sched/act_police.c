@@ -442,7 +442,8 @@ static int tcf_police_act_to_flow_act(int tc_act, u32 *extval)
 }
 
 static int tcf_police_offload_act_setup(struct tc_action *act, void *entry_data,
-					u32 *index_inc, bool bind)
+					u32 *index_inc, bool bind,
+					struct netlink_ext_ack *extack)
 {
 	if (bind) {
 		struct flow_action_entry *entry = entry_data;

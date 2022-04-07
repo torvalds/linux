@@ -328,7 +328,8 @@ static size_t tcf_skbedit_get_fill_size(const struct tc_action *act)
 }
 
 static int tcf_skbedit_offload_act_setup(struct tc_action *act, void *entry_data,
-					 u32 *index_inc, bool bind)
+					 u32 *index_inc, bool bind,
+					 struct netlink_ext_ack *extack)
 {
 	if (bind) {
 		struct flow_action_entry *entry = entry_data;
