@@ -1269,6 +1269,61 @@ static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec
 	return len;
 }
 
+#elif defined(__s390x__)
+
+/* Do not support __s390__ for now, since user_pt_regs is broken with -m31. */
+
+static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec *arg)
+{
+	unsigned int reg;
+	int arg_sz, len;
+	long off;
+
+	if (sscanf(arg_str, " %d @ %ld ( %%r%u ) %n", &arg_sz, &off, &reg, &len) == 3) {
+		/* Memory dereference case, e.g., -2@-28(%r15) */
+		arg->arg_type = USDT_ARG_REG_DEREF;
+		arg->val_off = off;
+		if (reg > 15) {
+			pr_warn("usdt: unrecognized register '%%r%u'\n", reg);
+			return -EINVAL;
+		}
+		arg->reg_off = offsetof(user_pt_regs, gprs[reg]);
+	} else if (sscanf(arg_str, " %d @ %%r%u %n", &arg_sz, &reg, &len) == 2) {
+		/* Register read case, e.g., -8@%r0 */
+		arg->arg_type = USDT_ARG_REG;
+		arg->val_off = 0;
+		if (reg > 15) {
+			pr_warn("usdt: unrecognized register '%%r%u'\n", reg);
+			return -EINVAL;
+		}
+		arg->reg_off = offsetof(user_pt_regs, gprs[reg]);
+	} else if (sscanf(arg_str, " %d @ %ld %n", &arg_sz, &off, &len) == 2) {
+		/* Constant value case, e.g., 4@71 */
+		arg->arg_type = USDT_ARG_CONST;
+		arg->val_off = off;
+		arg->reg_off = 0;
+	} else {
+		pr_warn("usdt: unrecognized arg #%d spec '%s'\n", arg_num, arg_str);
+		return -EINVAL;
+	}
+
+	arg->arg_signed = arg_sz < 0;
+	if (arg_sz < 0)
+		arg_sz = -arg_sz;
+
+	switch (arg_sz) {
+	case 1: case 2: case 4: case 8:
+		arg->arg_bitshift = 64 - arg_sz * 8;
+		break;
+	default:
+		pr_warn("usdt: unsupported arg #%d (spec '%s') size: %d\n",
+			arg_num, arg_str, arg_sz);
+		return -EINVAL;
+	}
+
+	return len;
+}
+
 #else
 
 static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec *arg)
