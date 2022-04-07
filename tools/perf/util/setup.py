@@ -23,6 +23,8 @@ if cc_is_clang:
             vars[var] = sub("-fstack-protector-strong", "", vars[var])
         if not clang_has_option("-fno-semantic-interposition"):
             vars[var] = sub("-fno-semantic-interposition", "", vars[var])
+        if not clang_has_option("-ffat-lto-objects"):
+            vars[var] = sub("-ffat-lto-objects", "", vars[var])
 
 from distutils.core import setup, Extension
 
