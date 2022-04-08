@@ -2293,6 +2293,34 @@ struct rtw89_page_regs {
 	u32 wp_page_info1;
 };
 
+struct rtw89_imr_info {
+	u32 wdrls_imr_set;
+	u32 wsec_imr_reg;
+	u32 wsec_imr_set;
+	u32 mpdu_tx_imr_set;
+	u32 mpdu_rx_imr_set;
+	u32 sta_sch_imr_set;
+	u32 txpktctl_imr_b0_reg;
+	u32 txpktctl_imr_b0_clr;
+	u32 txpktctl_imr_b0_set;
+	u32 txpktctl_imr_b1_reg;
+	u32 txpktctl_imr_b1_clr;
+	u32 txpktctl_imr_b1_set;
+	u32 wde_imr_clr;
+	u32 wde_imr_set;
+	u32 ple_imr_clr;
+	u32 ple_imr_set;
+	u32 host_disp_imr_clr;
+	u32 host_disp_imr_set;
+	u32 cpu_disp_imr_clr;
+	u32 cpu_disp_imr_set;
+	u32 other_disp_imr_clr;
+	u32 other_disp_imr_set;
+	u32 bbrpt_chinfo_err_imr_reg;
+	u32 bbrpt_err_imr_set;
+	u32 bbrpt_dfs_err_imr_reg;
+};
+
 struct rtw89_chip_info {
 	enum rtw89_core_chip_id chip_id;
 	const struct rtw89_chip_ops *ops;
@@ -2378,6 +2406,7 @@ struct rtw89_chip_info {
 	const struct rtw89_page_regs *page_regs;
 	const struct rtw89_reg_def *dcfo_comp;
 	u8 dcfo_comp_sft;
+	const struct rtw89_imr_info *imr_info;
 };
 
 union rtw89_bus_info {

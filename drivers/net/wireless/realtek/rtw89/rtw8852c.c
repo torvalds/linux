@@ -51,6 +51,34 @@ static const struct rtw89_reg_def rtw8852c_dcfo_comp = {
 	R_DCFO_COMP_S0_V1, B_DCFO_COMP_S0_V1_MSK
 };
 
+static const struct rtw89_imr_info rtw8852c_imr_info = {
+	.wdrls_imr_set		= B_AX_WDRLS_IMR_SET_V1,
+	.wsec_imr_reg		= R_AX_SEC_ERROR_FLAG_IMR,
+	.wsec_imr_set		= B_AX_TX_HANG_IMR | B_AX_RX_HANG_IMR,
+	.mpdu_tx_imr_set	= B_AX_MPDU_TX_IMR_SET_V1,
+	.mpdu_rx_imr_set	= B_AX_MPDU_RX_IMR_SET_V1,
+	.sta_sch_imr_set	= B_AX_STA_SCHEDULER_IMR_SET,
+	.txpktctl_imr_b0_reg	= R_AX_TXPKTCTL_B0_ERRFLAG_IMR,
+	.txpktctl_imr_b0_clr	= B_AX_TXPKTCTL_IMR_B0_CLR_V1,
+	.txpktctl_imr_b0_set	= B_AX_TXPKTCTL_IMR_B0_SET_V1,
+	.txpktctl_imr_b1_reg	= R_AX_TXPKTCTL_B1_ERRFLAG_IMR,
+	.txpktctl_imr_b1_clr	= B_AX_TXPKTCTL_IMR_B1_CLR_V1,
+	.txpktctl_imr_b1_set	= B_AX_TXPKTCTL_IMR_B1_SET_V1,
+	.wde_imr_clr		= B_AX_WDE_IMR_CLR_V1,
+	.wde_imr_set		= B_AX_WDE_IMR_SET_V1,
+	.ple_imr_clr		= B_AX_PLE_IMR_CLR_V1,
+	.ple_imr_set		= B_AX_PLE_IMR_SET_V1,
+	.host_disp_imr_clr	= B_AX_HOST_DISP_IMR_CLR_V1,
+	.host_disp_imr_set	= B_AX_HOST_DISP_IMR_SET_V1,
+	.cpu_disp_imr_clr	= B_AX_CPU_DISP_IMR_CLR_V1,
+	.cpu_disp_imr_set	= B_AX_CPU_DISP_IMR_SET_V1,
+	.other_disp_imr_clr	= B_AX_OTHER_DISP_IMR_CLR_V1,
+	.other_disp_imr_set	= B_AX_OTHER_DISP_IMR_SET_V1,
+	.bbrpt_chinfo_err_imr_reg = R_AX_BBRPT_CHINFO_ERR_IMR,
+	.bbrpt_err_imr_set	= R_AX_BBRPT_CHINFO_IMR_SET_V1,
+	.bbrpt_dfs_err_imr_reg	= R_AX_BBRPT_DFS_ERR_IMR,
+};
+
 static int rtw8852c_pwr_on_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
@@ -572,6 +600,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.page_regs		= &rtw8852c_page_regs,
 	.dcfo_comp		= &rtw8852c_dcfo_comp,
 	.dcfo_comp_sft		= 5,
+	.imr_info		= &rtw8852c_imr_info
 };
 EXPORT_SYMBOL(rtw8852c_chip_info);
 

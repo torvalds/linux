@@ -2607,6 +2607,136 @@ static int band1_enable(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static void rtw89_wdrls_imr_enable(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
+
+	rtw89_write32_clr(rtwdev, R_AX_WDRLS_ERR_IMR, B_AX_WDRLS_IMR_EN_CLR);
+	rtw89_write32_set(rtwdev, R_AX_WDRLS_ERR_IMR, imr->wdrls_imr_set);
+}
+
+static void rtw89_wsec_imr_enable(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
+
+	rtw89_write32_set(rtwdev, imr->wsec_imr_reg, imr->wsec_imr_set);
+}
+
+static void rtw89_mpdu_trx_imr_enable(struct rtw89_dev *rtwdev)
+{
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
+
+	rtw89_write32_clr(rtwdev, R_AX_MPDU_TX_ERR_IMR,
+			  B_AX_TX_GET_ERRPKTID_INT_EN |
+			  B_AX_TX_NXT_ERRPKTID_INT_EN |
+			  B_AX_TX_MPDU_SIZE_ZERO_INT_EN |
+			  B_AX_TX_OFFSET_ERR_INT_EN |
+			  B_AX_TX_HDR3_SIZE_ERR_INT_EN);
+	if (chip_id == RTL8852C)
+		rtw89_write32_clr(rtwdev, R_AX_MPDU_TX_ERR_IMR,
+				  B_AX_TX_ETH_TYPE_ERR_EN |
+				  B_AX_TX_LLC_PRE_ERR_EN |
+				  B_AX_TX_NW_TYPE_ERR_EN |
+				  B_AX_TX_KSRCH_ERR_EN);
+	rtw89_write32_set(rtwdev, R_AX_MPDU_TX_ERR_IMR,
+			  imr->mpdu_tx_imr_set);
+
+	rtw89_write32_clr(rtwdev, R_AX_MPDU_RX_ERR_IMR,
+			  B_AX_GETPKTID_ERR_INT_EN |
+			  B_AX_MHDRLEN_ERR_INT_EN |
+			  B_AX_RPT_ERR_INT_EN);
+	rtw89_write32_set(rtwdev, R_AX_MPDU_RX_ERR_IMR,
+			  imr->mpdu_rx_imr_set);
+}
+
+static void rtw89_sta_sch_imr_enable(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
+
+	rtw89_write32_clr(rtwdev, R_AX_STA_SCHEDULER_ERR_IMR,
+			  B_AX_SEARCH_HANG_TIMEOUT_INT_EN |
+			  B_AX_RPT_HANG_TIMEOUT_INT_EN |
+			  B_AX_PLE_B_PKTID_ERR_INT_EN);
+	rtw89_write32_set(rtwdev, R_AX_STA_SCHEDULER_ERR_IMR,
+			  imr->sta_sch_imr_set);
+}
+
+static void rtw89_txpktctl_imr_enable(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
+
+	rtw89_write32_clr(rtwdev, imr->txpktctl_imr_b0_reg,
+			  imr->txpktctl_imr_b0_clr);
+	rtw89_write32_set(rtwdev, imr->txpktctl_imr_b0_reg,
+			  imr->txpktctl_imr_b0_set);
+	rtw89_write32_clr(rtwdev, imr->txpktctl_imr_b1_reg,
+			  imr->txpktctl_imr_b1_clr);
+	rtw89_write32_set(rtwdev, imr->txpktctl_imr_b1_reg,
+			  imr->txpktctl_imr_b1_set);
+}
+
+static void rtw89_wde_imr_enable(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
+
+	rtw89_write32_clr(rtwdev, R_AX_WDE_ERR_IMR, imr->wde_imr_clr);
+	rtw89_write32_set(rtwdev, R_AX_WDE_ERR_IMR, imr->wde_imr_set);
+}
+
+static void rtw89_ple_imr_enable(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
+
+	rtw89_write32_clr(rtwdev, R_AX_PLE_ERR_IMR, imr->ple_imr_clr);
+	rtw89_write32_set(rtwdev, R_AX_PLE_ERR_IMR, imr->ple_imr_set);
+}
+
+static void rtw89_pktin_imr_enable(struct rtw89_dev *rtwdev)
+{
+	rtw89_write32_set(rtwdev, R_AX_PKTIN_ERR_IMR,
+			  B_AX_PKTIN_GETPKTID_ERR_INT_EN);
+}
+
+static void rtw89_dispatcher_imr_enable(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
+
+	rtw89_write32_clr(rtwdev, R_AX_HOST_DISPATCHER_ERR_IMR,
+			  imr->host_disp_imr_clr);
+	rtw89_write32_set(rtwdev, R_AX_HOST_DISPATCHER_ERR_IMR,
+			  imr->host_disp_imr_set);
+	rtw89_write32_clr(rtwdev, R_AX_CPU_DISPATCHER_ERR_IMR,
+			  imr->cpu_disp_imr_clr);
+	rtw89_write32_set(rtwdev, R_AX_CPU_DISPATCHER_ERR_IMR,
+			  imr->cpu_disp_imr_set);
+	rtw89_write32_clr(rtwdev, R_AX_OTHER_DISPATCHER_ERR_IMR,
+			  imr->other_disp_imr_clr);
+	rtw89_write32_set(rtwdev, R_AX_OTHER_DISPATCHER_ERR_IMR,
+			  imr->other_disp_imr_set);
+}
+
+static void rtw89_cpuio_imr_enable(struct rtw89_dev *rtwdev)
+{
+	rtw89_write32_clr(rtwdev, R_AX_CPUIO_ERR_IMR, B_AX_CPUIO_IMR_CLR);
+	rtw89_write32_set(rtwdev, R_AX_CPUIO_ERR_IMR, B_AX_CPUIO_IMR_SET);
+}
+
+static void rtw89_bbrpt_imr_enable(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
+
+	rtw89_write32_set(rtwdev, R_AX_BBRPT_COM_ERR_IMR,
+			  B_AX_BBRPT_COM_NULL_PLPKTID_ERR_INT_EN);
+	rtw89_write32_clr(rtwdev, imr->bbrpt_chinfo_err_imr_reg,
+			  B_AX_BBRPT_CHINFO_IMR_CLR);
+	rtw89_write32_set(rtwdev, imr->bbrpt_chinfo_err_imr_reg,
+			  imr->bbrpt_err_imr_set);
+	rtw89_write32_set(rtwdev, imr->bbrpt_dfs_err_imr_reg,
+			  B_AX_BBRPT_DFS_TO_ERR_INT_EN);
+	rtw89_write32_set(rtwdev, R_AX_LA_ERRFLAG, B_AX_LA_IMR_DATA_LOSS_ERR);
+}
+
 static int rtw89_mac_enable_imr(struct rtw89_dev *rtwdev, u8 mac_idx,
 				enum rtw89_mac_hwmod_sel sel)
 {
@@ -2621,25 +2751,17 @@ static int rtw89_mac_enable_imr(struct rtw89_dev *rtwdev, u8 mac_idx,
 	}
 
 	if (sel == RTW89_DMAC_SEL) {
-		rtw89_write32_clr(rtwdev, R_AX_TXPKTCTL_ERR_IMR_ISR,
-				  B_AX_TXPKTCTL_USRCTL_RLSBMPLEN_ERR_INT_EN |
-				  B_AX_TXPKTCTL_USRCTL_RDNRLSCMD_ERR_INT_EN |
-				  B_AX_TXPKTCTL_CMDPSR_FRZTO_ERR_INT_EN);
-		rtw89_write32_clr(rtwdev, R_AX_TXPKTCTL_ERR_IMR_ISR_B1,
-				  B_AX_TXPKTCTL_USRCTL_RLSBMPLEN_ERR_INT_EN |
-				  B_AX_TXPKTCTL_USRCTL_RDNRLSCMD_ERR_INT_EN);
-		rtw89_write32_clr(rtwdev, R_AX_HOST_DISPATCHER_ERR_IMR,
-				  B_AX_HDT_PKT_FAIL_DBG_INT_EN |
-				  B_AX_HDT_OFFSET_UNMATCH_INT_EN);
-		rtw89_write32_clr(rtwdev, R_AX_CPU_DISPATCHER_ERR_IMR,
-				  B_AX_CPU_SHIFT_EN_ERR_INT_EN);
-		rtw89_write32_clr(rtwdev, R_AX_PLE_ERR_IMR,
-				  B_AX_PLE_GETNPG_STRPG_ERR_INT_EN);
-		rtw89_write32_clr(rtwdev, R_AX_WDRLS_ERR_IMR,
-				  B_AX_WDRLS_PLEBREQ_TO_ERR_INT_EN);
-		rtw89_write32_set(rtwdev, R_AX_HD0IMR, B_AX_WDT_PTFM_INT_EN);
-		rtw89_write32_clr(rtwdev, R_AX_TXPKTCTL_ERR_IMR_ISR,
-				  B_AX_TXPKTCTL_USRCTL_NOINIT_ERR_INT_EN);
+		rtw89_wdrls_imr_enable(rtwdev);
+		rtw89_wsec_imr_enable(rtwdev);
+		rtw89_mpdu_trx_imr_enable(rtwdev);
+		rtw89_sta_sch_imr_enable(rtwdev);
+		rtw89_txpktctl_imr_enable(rtwdev);
+		rtw89_wde_imr_enable(rtwdev);
+		rtw89_ple_imr_enable(rtwdev);
+		rtw89_pktin_imr_enable(rtwdev);
+		rtw89_dispatcher_imr_enable(rtwdev);
+		rtw89_cpuio_imr_enable(rtwdev);
+		rtw89_bbrpt_imr_enable(rtwdev);
 	} else if (sel == RTW89_CMAC_SEL) {
 		reg = rtw89_mac_reg_by_idx(R_AX_SCHEDULE_ERR_IMR, mac_idx);
 		rtw89_write32_clr(rtwdev, reg,
