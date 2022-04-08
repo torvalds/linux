@@ -341,7 +341,10 @@ static int lan966x_port_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	spin_lock(&lan966x->tx_lock);
-	err = lan966x_port_ifh_xmit(skb, ifh, dev);
+	if (port->lan966x->fdma)
+		err = lan966x_fdma_xmit(skb, ifh, dev);
+	else
+		err = lan966x_port_ifh_xmit(skb, ifh, dev);
 	spin_unlock(&lan966x->tx_lock);
 
 	return err;
@@ -643,6 +646,9 @@ static void lan966x_cleanup_ports(struct lan966x *lan966x)
 		if (port->dev)
 			unregister_netdev(port->dev);
 
+		if (lan966x->fdma && lan966x->fdma_ndev == port->dev)
+			lan966x_fdma_netdev_deinit(lan966x, port->dev);
+
 		if (port->phylink) {
 			rtnl_lock();
 			lan966x_port_stop(port->dev);
@@ -662,6 +668,9 @@ static void lan966x_cleanup_ports(struct lan966x *lan966x)
 		disable_irq(lan966x->ana_irq);
 		lan966x->ana_irq = -ENXIO;
 	}
+
+	if (lan966x->fdma)
+		devm_free_irq(lan966x->dev, lan966x->fdma_irq, lan966x);
 }
 
 static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
@@ -790,12 +799,12 @@ static void lan966x_init(struct lan966x *lan966x)
 	/* Do byte-swap and expect status after last data word
 	 * Extraction: Mode: manual extraction) | Byte_swap
 	 */
-	lan_wr(QS_XTR_GRP_CFG_MODE_SET(1) |
+	lan_wr(QS_XTR_GRP_CFG_MODE_SET(lan966x->fdma ? 2 : 1) |
 	       QS_XTR_GRP_CFG_BYTE_SWAP_SET(1),
 	       lan966x, QS_XTR_GRP_CFG(0));
 
 	/* Injection: Mode: manual injection | Byte_swap */
-	lan_wr(QS_INJ_GRP_CFG_MODE_SET(1) |
+	lan_wr(QS_INJ_GRP_CFG_MODE_SET(lan966x->fdma ? 2 : 1) |
 	       QS_INJ_GRP_CFG_BYTE_SWAP_SET(1),
 	       lan966x, QS_INJ_GRP_CFG(0));
 
@@ -1017,6 +1026,17 @@ static int lan966x_probe(struct platform_device *pdev)
 		lan966x->ptp = 1;
 	}
 
+	lan966x->fdma_irq = platform_get_irq_byname(pdev, "fdma");
+	if (lan966x->fdma_irq > 0) {
+		err = devm_request_irq(&pdev->dev, lan966x->fdma_irq,
+				       lan966x_fdma_irq_handler, 0,
+				       "fdma irq", lan966x);
+		if (err)
+			return dev_err_probe(&pdev->dev, err, "Unable to use fdma irq");
+
+		lan966x->fdma = true;
+	}
+
 	/* init switch */
 	lan966x_init(lan966x);
 	lan966x_stats_init(lan966x);
@@ -1055,7 +1075,14 @@ static int lan966x_probe(struct platform_device *pdev)
 	if (err)
 		goto cleanup_fdb;
 
+	err = lan966x_fdma_init(lan966x);
+	if (err)
+		goto cleanup_ptp;
+
 	return 0;
+
+cleanup_ptp:
+	lan966x_ptp_deinit(lan966x);
 
 cleanup_fdb:
 	lan966x_fdb_deinit(lan966x);
@@ -1076,6 +1103,7 @@ static int lan966x_remove(struct platform_device *pdev)
 {
 	struct lan966x *lan966x = platform_get_drvdata(pdev);
 
+	lan966x_fdma_deinit(lan966x);
 	lan966x_cleanup_ports(lan966x);
 
 	cancel_delayed_work_sync(&lan966x->stats_work);
