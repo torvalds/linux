@@ -38,9 +38,6 @@
 #define ISS_NET_TIMER_VALUE (HZ / 10)
 
 
-static DEFINE_SPINLOCK(opened_lock);
-static LIST_HEAD(opened);
-
 static DEFINE_SPINLOCK(devices_lock);
 static LIST_HEAD(devices);
 
@@ -63,7 +60,6 @@ struct tuntap_info {
 
 struct iss_net_private {
 	struct list_head device_list;
-	struct list_head opened_list;
 
 	spinlock_t lock;
 	struct net_device *dev;
@@ -311,38 +307,28 @@ static int iss_net_rx(struct net_device *dev)
 	return pkt_len;
 }
 
-static int iss_net_poll(void)
+static int iss_net_poll(struct iss_net_private *lp)
 {
-	struct list_head *ele;
 	int err, ret = 0;
 
-	spin_lock(&opened_lock);
+	if (!netif_running(lp->dev))
+		return 0;
 
-	list_for_each(ele, &opened) {
-		struct iss_net_private *lp;
+	spin_lock(&lp->lock);
 
-		lp = list_entry(ele, struct iss_net_private, opened_list);
+	while ((err = iss_net_rx(lp->dev)) > 0)
+		ret++;
 
-		if (!netif_running(lp->dev))
-			break;
+	spin_unlock(&lp->lock);
 
-		spin_lock(&lp->lock);
-
-		while ((err = iss_net_rx(lp->dev)) > 0)
-			ret++;
-
-		spin_unlock(&lp->lock);
-
-		if (err < 0) {
-			pr_err("Device '%s' read returned %d, shutting it down\n",
-			       lp->dev->name, err);
-			dev_close(lp->dev);
-		} else {
-			/* FIXME reactivate_fd(lp->fd, ISS_ETH_IRQ); */
-		}
+	if (err < 0) {
+		pr_err("Device '%s' read returned %d, shutting it down\n",
+		       lp->dev->name, err);
+		dev_close(lp->dev);
+	} else {
+		/* FIXME reactivate_fd(lp->fd, ISS_ETH_IRQ); */
 	}
 
-	spin_unlock(&opened_lock);
 	return ret;
 }
 
@@ -351,7 +337,7 @@ static void iss_net_timer(struct timer_list *t)
 {
 	struct iss_net_private *lp = from_timer(lp, t, timer);
 
-	iss_net_poll();
+	iss_net_poll(lp);
 	spin_lock(&lp->lock);
 	mod_timer(&lp->timer, jiffies + lp->timer_val);
 	spin_unlock(&lp->lock);
@@ -378,12 +364,6 @@ static int iss_net_open(struct net_device *dev)
 	while ((err = iss_net_rx(dev)) > 0)
 		;
 
-	spin_unlock_bh(&lp->lock);
-	spin_lock_bh(&opened_lock);
-	list_add(&lp->opened_list, &opened);
-	spin_unlock_bh(&opened_lock);
-	spin_lock_bh(&lp->lock);
-
 	timer_setup(&lp->timer, iss_net_timer, 0);
 	lp->timer_val = ISS_NET_TIMER_VALUE;
 	mod_timer(&lp->timer, jiffies + lp->timer_val);
@@ -398,10 +378,6 @@ static int iss_net_close(struct net_device *dev)
 	struct iss_net_private *lp = netdev_priv(dev);
 	netif_stop_queue(dev);
 	spin_lock_bh(&lp->lock);
-
-	spin_lock(&opened_lock);
-	list_del(&opened);
-	spin_unlock(&opened_lock);
 
 	del_timer_sync(&lp->timer);
 
@@ -520,7 +496,6 @@ static int iss_net_configure(int index, char *init)
 	lp = netdev_priv(dev);
 	*lp = (struct iss_net_private) {
 		.device_list		= LIST_HEAD_INIT(lp->device_list),
-		.opened_list		= LIST_HEAD_INIT(lp->opened_list),
 		.dev			= dev,
 		.index			= index,
 	};
