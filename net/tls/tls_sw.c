@@ -1564,46 +1564,46 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 	struct tls_prot_info *prot = &tls_ctx->prot_info;
 	struct strp_msg *rxm = strp_msg(skb);
 	struct tls_msg *tlm = tls_msg(skb);
-	int pad, err = 0;
+	int pad, err;
 
-	if (!tlm->decrypted) {
-		if (tls_ctx->rx_conf == TLS_HW) {
-			err = tls_device_decrypted(sk, tls_ctx, skb, rxm);
-			if (err < 0)
-				return err;
-		}
-
-		/* Still not decrypted after tls_device */
-		if (!tlm->decrypted) {
-			err = decrypt_internal(sk, skb, dest, NULL, chunk, zc,
-					       async);
-			if (err < 0) {
-				if (err == -EINPROGRESS)
-					tls_advance_record_sn(sk, prot,
-							      &tls_ctx->rx);
-				else if (err == -EBADMSG)
-					TLS_INC_STATS(sock_net(sk),
-						      LINUX_MIB_TLSDECRYPTERROR);
-				return err;
-			}
-		} else {
-			*zc = false;
-		}
-
-		pad = padding_length(prot, skb);
-		if (pad < 0)
-			return pad;
-
-		rxm->full_len -= pad;
-		rxm->offset += prot->prepend_size;
-		rxm->full_len -= prot->overhead_size;
-		tls_advance_record_sn(sk, prot, &tls_ctx->rx);
-		tlm->decrypted = 1;
-	} else {
+	if (tlm->decrypted) {
 		*zc = false;
+		return 0;
 	}
 
-	return err;
+	if (tls_ctx->rx_conf == TLS_HW) {
+		err = tls_device_decrypted(sk, tls_ctx, skb, rxm);
+		if (err < 0)
+			return err;
+
+		/* skip SW decryption if NIC handled it already */
+		if (tlm->decrypted) {
+			*zc = false;
+			goto decrypt_done;
+		}
+	}
+
+	err = decrypt_internal(sk, skb, dest, NULL, chunk, zc, async);
+	if (err < 0) {
+		if (err == -EINPROGRESS)
+			tls_advance_record_sn(sk, prot, &tls_ctx->rx);
+		else if (err == -EBADMSG)
+			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSDECRYPTERROR);
+		return err;
+	}
+
+decrypt_done:
+	pad = padding_length(prot, skb);
+	if (pad < 0)
+		return pad;
+
+	rxm->full_len -= pad;
+	rxm->offset += prot->prepend_size;
+	rxm->full_len -= prot->overhead_size;
+	tls_advance_record_sn(sk, prot, &tls_ctx->rx);
+	tlm->decrypted = 1;
+
+	return 0;
 }
 
 int decrypt_skb(struct sock *sk, struct sk_buff *skb,
