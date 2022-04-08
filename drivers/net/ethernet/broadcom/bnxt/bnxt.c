@@ -1038,10 +1038,10 @@ static struct sk_buff *bnxt_rx_skb(struct bnxt *bp,
 	return skb;
 }
 
-static u32 __bnxt_rx_pages(struct bnxt *bp,
-			   struct bnxt_cp_ring_info *cpr,
-			   struct skb_shared_info *shinfo,
-			   u16 idx, u32 agg_bufs, bool tpa)
+static u32 __bnxt_rx_agg_pages(struct bnxt *bp,
+			       struct bnxt_cp_ring_info *cpr,
+			       struct skb_shared_info *shinfo,
+			       u16 idx, u32 agg_bufs, bool tpa)
 {
 	struct bnxt_napi *bnapi = cpr->bnapi;
 	struct pci_dev *pdev = bp->pdev;
@@ -1110,15 +1110,15 @@ static u32 __bnxt_rx_pages(struct bnxt *bp,
 	return total_frag_len;
 }
 
-static struct sk_buff *bnxt_rx_pages(struct bnxt *bp,
-				     struct bnxt_cp_ring_info *cpr,
-				     struct sk_buff *skb, u16 idx,
-				     u32 agg_bufs, bool tpa)
+static struct sk_buff *bnxt_rx_agg_pages_skb(struct bnxt *bp,
+					     struct bnxt_cp_ring_info *cpr,
+					     struct sk_buff *skb, u16 idx,
+					     u32 agg_bufs, bool tpa)
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 	u32 total_frag_len = 0;
 
-	total_frag_len = __bnxt_rx_pages(bp, cpr, shinfo, idx, agg_bufs, tpa);
+	total_frag_len = __bnxt_rx_agg_pages(bp, cpr, shinfo, idx, agg_bufs, tpa);
 
 	if (!total_frag_len) {
 		dev_kfree_skb(skb);
@@ -1660,7 +1660,7 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 	}
 
 	if (agg_bufs) {
-		skb = bnxt_rx_pages(bp, cpr, skb, idx, agg_bufs, true);
+		skb = bnxt_rx_agg_pages_skb(bp, cpr, skb, idx, agg_bufs, true);
 		if (!skb) {
 			/* Page reuse already handled by bnxt_rx_pages(). */
 			cpr->sw_stats.rx.rx_oom_discards += 1;
@@ -1898,7 +1898,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	}
 
 	if (agg_bufs) {
-		skb = bnxt_rx_pages(bp, cpr, skb, cp_cons, agg_bufs, false);
+		skb = bnxt_rx_agg_pages_skb(bp, cpr, skb, cp_cons, agg_bufs, false);
 		if (!skb) {
 			cpr->sw_stats.rx.rx_oom_discards += 1;
 			rc = -ENOMEM;
