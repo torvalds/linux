@@ -2319,6 +2319,23 @@ struct rtw89_imr_info {
 	u32 bbrpt_chinfo_err_imr_reg;
 	u32 bbrpt_err_imr_set;
 	u32 bbrpt_dfs_err_imr_reg;
+	u32 ptcl_imr_clr;
+	u32 ptcl_imr_set;
+	u32 cdma_imr_0_reg;
+	u32 cdma_imr_0_clr;
+	u32 cdma_imr_0_set;
+	u32 cdma_imr_1_reg;
+	u32 cdma_imr_1_clr;
+	u32 cdma_imr_1_set;
+	u32 phy_intf_imr_reg;
+	u32 phy_intf_imr_clr;
+	u32 phy_intf_imr_set;
+	u32 rmac_imr_reg;
+	u32 rmac_imr_clr;
+	u32 rmac_imr_set;
+	u32 tmac_imr_reg;
+	u32 tmac_imr_clr;
+	u32 tmac_imr_set;
 };
 
 struct rtw89_chip_info {

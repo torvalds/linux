@@ -77,6 +77,23 @@ static const struct rtw89_imr_info rtw8852c_imr_info = {
 	.bbrpt_chinfo_err_imr_reg = R_AX_BBRPT_CHINFO_ERR_IMR,
 	.bbrpt_err_imr_set	= R_AX_BBRPT_CHINFO_IMR_SET_V1,
 	.bbrpt_dfs_err_imr_reg	= R_AX_BBRPT_DFS_ERR_IMR,
+	.ptcl_imr_clr		= B_AX_PTCL_IMR_CLR_V1,
+	.ptcl_imr_set		= B_AX_PTCL_IMR_SET_V1,
+	.cdma_imr_0_reg		= R_AX_RX_ERR_FLAG_IMR,
+	.cdma_imr_0_clr		= B_AX_RX_ERR_IMR_CLR_V1,
+	.cdma_imr_0_set		= B_AX_RX_ERR_IMR_SET_V1,
+	.cdma_imr_1_reg		= R_AX_TX_ERR_FLAG_IMR,
+	.cdma_imr_1_clr		= B_AX_TX_ERR_IMR_CLR_V1,
+	.cdma_imr_1_set		= B_AX_TX_ERR_IMR_SET_V1,
+	.phy_intf_imr_reg	= R_AX_PHYINFO_ERR_IMR_V1,
+	.phy_intf_imr_clr	= B_AX_PHYINFO_IMR_CLR_V1,
+	.phy_intf_imr_set	= B_AX_PHYINFO_IMR_SET_V1,
+	.rmac_imr_reg		= R_AX_RX_ERR_IMR,
+	.rmac_imr_clr		= B_AX_RMAC_IMR_CLR_V1,
+	.rmac_imr_set		= B_AX_RMAC_IMR_SET_V1,
+	.tmac_imr_reg		= R_AX_TRXPTCL_ERROR_INDICA_MASK,
+	.tmac_imr_clr		= B_AX_TMAC_IMR_CLR_V1,
+	.tmac_imr_set		= B_AX_TMAC_IMR_SET_V1,
 };
 
 static int rtw8852c_pwr_on_func(struct rtw89_dev *rtwdev)

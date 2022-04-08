@@ -2737,10 +2737,76 @@ static void rtw89_bbrpt_imr_enable(struct rtw89_dev *rtwdev)
 	rtw89_write32_set(rtwdev, R_AX_LA_ERRFLAG, B_AX_LA_IMR_DATA_LOSS_ERR);
 }
 
+static void rtw89_scheduler_imr_enable(struct rtw89_dev *rtwdev, u8 mac_idx)
+{
+	u32 reg;
+
+	reg = rtw89_mac_reg_by_idx(R_AX_SCHEDULE_ERR_IMR, mac_idx);
+	rtw89_write32_clr(rtwdev, reg, B_AX_SORT_NON_IDLE_ERR_INT_EN |
+				       B_AX_FSM_TIMEOUT_ERR_INT_EN);
+	rtw89_write32_set(rtwdev, reg, B_AX_FSM_TIMEOUT_ERR_INT_EN);
+}
+
+static void rtw89_ptcl_imr_enable(struct rtw89_dev *rtwdev, u8 mac_idx)
+{
+	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
+	u32 reg;
+
+	reg = rtw89_mac_reg_by_idx(R_AX_PTCL_IMR0, mac_idx);
+	rtw89_write32_clr(rtwdev, reg, imr->ptcl_imr_clr);
+	rtw89_write32_set(rtwdev, reg, imr->ptcl_imr_set);
+}
+
+static void rtw89_cdma_imr_enable(struct rtw89_dev *rtwdev, u8 mac_idx)
+{
+	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	u32 reg;
+
+	reg = rtw89_mac_reg_by_idx(imr->cdma_imr_0_reg, mac_idx);
+	rtw89_write32_clr(rtwdev, reg, imr->cdma_imr_0_clr);
+	rtw89_write32_set(rtwdev, reg, imr->cdma_imr_0_set);
+
+	if (chip_id == RTL8852C) {
+		reg = rtw89_mac_reg_by_idx(imr->cdma_imr_1_reg, mac_idx);
+		rtw89_write32_clr(rtwdev, reg, imr->cdma_imr_1_clr);
+		rtw89_write32_set(rtwdev, reg, imr->cdma_imr_1_set);
+	}
+}
+
+static void rtw89_phy_intf_imr_enable(struct rtw89_dev *rtwdev, u8 mac_idx)
+{
+	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
+	u32 reg;
+
+	reg = rtw89_mac_reg_by_idx(imr->phy_intf_imr_reg, mac_idx);
+	rtw89_write32_clr(rtwdev, reg, imr->phy_intf_imr_clr);
+	rtw89_write32_set(rtwdev, reg, imr->phy_intf_imr_set);
+}
+
+static void rtw89_rmac_imr_enable(struct rtw89_dev *rtwdev, u8 mac_idx)
+{
+	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
+	u32 reg;
+
+	reg = rtw89_mac_reg_by_idx(imr->rmac_imr_reg, mac_idx);
+	rtw89_write32_clr(rtwdev, reg, imr->rmac_imr_clr);
+	rtw89_write32_set(rtwdev, reg, imr->rmac_imr_set);
+}
+
+static void rtw89_tmac_imr_enable(struct rtw89_dev *rtwdev, u8 mac_idx)
+{
+	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
+	u32 reg;
+
+	reg = rtw89_mac_reg_by_idx(imr->tmac_imr_reg, mac_idx);
+	rtw89_write32_clr(rtwdev, reg, imr->tmac_imr_clr);
+	rtw89_write32_set(rtwdev, reg, imr->tmac_imr_set);
+}
+
 static int rtw89_mac_enable_imr(struct rtw89_dev *rtwdev, u8 mac_idx,
 				enum rtw89_mac_hwmod_sel sel)
 {
-	u32 reg, val;
 	int ret;
 
 	ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, sel);
@@ -2763,40 +2829,12 @@ static int rtw89_mac_enable_imr(struct rtw89_dev *rtwdev, u8 mac_idx,
 		rtw89_cpuio_imr_enable(rtwdev);
 		rtw89_bbrpt_imr_enable(rtwdev);
 	} else if (sel == RTW89_CMAC_SEL) {
-		reg = rtw89_mac_reg_by_idx(R_AX_SCHEDULE_ERR_IMR, mac_idx);
-		rtw89_write32_clr(rtwdev, reg,
-				  B_AX_SORT_NON_IDLE_ERR_INT_EN);
-
-		reg = rtw89_mac_reg_by_idx(R_AX_DLE_CTRL, mac_idx);
-		rtw89_write32_clr(rtwdev, reg,
-				  B_AX_NO_RESERVE_PAGE_ERR_IMR |
-				  B_AX_RXDATA_FSM_HANG_ERROR_IMR);
-
-		reg = rtw89_mac_reg_by_idx(R_AX_PTCL_IMR0, mac_idx);
-		val = B_AX_F2PCMD_USER_ALLC_ERR_INT_EN |
-		      B_AX_TX_RECORD_PKTID_ERR_INT_EN |
-		      B_AX_FSM_TIMEOUT_ERR_INT_EN;
-		rtw89_write32(rtwdev, reg, val);
-
-		reg = rtw89_mac_reg_by_idx(R_AX_PHYINFO_ERR_IMR, mac_idx);
-		rtw89_write32_set(rtwdev, reg,
-				  B_AX_PHY_TXON_TIMEOUT_INT_EN |
-				  B_AX_CCK_CCA_TIMEOUT_INT_EN |
-				  B_AX_OFDM_CCA_TIMEOUT_INT_EN |
-				  B_AX_DATA_ON_TIMEOUT_INT_EN |
-				  B_AX_STS_ON_TIMEOUT_INT_EN |
-				  B_AX_CSI_ON_TIMEOUT_INT_EN);
-
-		reg = rtw89_mac_reg_by_idx(R_AX_RMAC_ERR_ISR, mac_idx);
-		val = rtw89_read32(rtwdev, reg);
-		val |= (B_AX_RMAC_RX_CSI_TIMEOUT_INT_EN |
-			B_AX_RMAC_RX_TIMEOUT_INT_EN |
-			B_AX_RMAC_CSI_TIMEOUT_INT_EN);
-		val &= ~(B_AX_RMAC_CCA_TO_IDLE_TIMEOUT_INT_EN |
-			 B_AX_RMAC_DATA_ON_TO_IDLE_TIMEOUT_INT_EN |
-			 B_AX_RMAC_CCA_TIMEOUT_INT_EN |
-			 B_AX_RMAC_DATA_ON_TIMEOUT_INT_EN);
-		rtw89_write32(rtwdev, reg, val);
+		rtw89_scheduler_imr_enable(rtwdev, mac_idx);
+		rtw89_ptcl_imr_enable(rtwdev, mac_idx);
+		rtw89_cdma_imr_enable(rtwdev, mac_idx);
+		rtw89_phy_intf_imr_enable(rtwdev, mac_idx);
+		rtw89_rmac_imr_enable(rtwdev, mac_idx);
+		rtw89_tmac_imr_enable(rtwdev, mac_idx);
 	} else {
 		return -EINVAL;
 	}
