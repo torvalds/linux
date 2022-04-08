@@ -470,7 +470,9 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 		return 0;
 	}
 	len = crypt->ops->get_key(keybuf, SCM_KEY_LEN, NULL, crypt->priv);
-	erq->length = (len >= 0 ? len : 0);
+	if (len < 0)
+		len = 0;
+	erq->length = len;
 
 	erq->flags |= IW_ENCODE_ENABLED;
 
