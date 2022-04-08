@@ -295,7 +295,7 @@ static int load_and_flush_by_kmap(ia_css_ptr virt, void *data,
 		idx = (virt - bo->start) >> PAGE_SHIFT;
 		offset = (virt - bo->start) - (idx << PAGE_SHIFT);
 
-		src = (char *)kmap(bo->pages[idx]) + offset;
+		src = (char *)kmap_local_page(bo->pages[idx]) + offset;
 
 		if ((bytes + offset) >= PAGE_SIZE) {
 			len = PAGE_SIZE - offset;
@@ -314,7 +314,7 @@ static int load_and_flush_by_kmap(ia_css_ptr virt, void *data,
 
 		clflush_cache_range(src, len);
 
-		kunmap(bo->pages[idx]);
+		kunmap_local(src);
 	}
 
 	return 0;
