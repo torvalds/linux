@@ -2636,6 +2636,17 @@ int imgu_css_cfg_acc(struct imgu_css *css, unsigned int pipe,
 	    acc->stripe.down_scaled_stripes[1].offset + min_overlap) {
 		/* Enable only for rightmost stripe, disable left */
 		acc->awb.stripes[0].rgbs_thr_b &= ~IPU3_UAPI_AWB_RGBS_THR_B_EN;
+
+		acc->awb.stripes[1].grid.x_start =
+			(acc->awb.stripes[1].grid.x_start -
+			 acc->stripe.down_scaled_stripes[1].offset) &
+			IPU3_UAPI_GRID_START_MASK;
+
+		b_w_log2 = acc->awb.stripes[1].grid.block_width_log2;
+		acc->awb.stripes[1].grid.x_end =
+			imgu_css_grid_end(acc->awb.stripes[1].grid.x_start,
+					  acc->awb.stripes[1].grid.width,
+					  b_w_log2);
 	} else if (acc->awb.config.grid.x_end <=
 		   acc->stripe.bds_out_stripes[0].width - min_overlap) {
 		/* Enable only for leftmost stripe, disable right */
