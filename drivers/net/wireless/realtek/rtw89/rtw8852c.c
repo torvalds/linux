@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2022  Realtek Corporation
  */
 
+#include "coex.h"
 #include "debug.h"
 #include "fw.h"
 #include "mac.h"
@@ -528,6 +529,62 @@ void rtw8852c_set_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
 	}
 }
 
+static
+void rtw8852c_set_trx_mask(struct rtw89_dev *rtwdev, u8 path, u8 group, u32 val)
+{
+	rtw89_write_rf(rtwdev, path, RR_LUTWE, RFREG_MASK, 0x20000);
+	rtw89_write_rf(rtwdev, path, RR_LUTWA, RFREG_MASK, group);
+	rtw89_write_rf(rtwdev, path, RR_LUTWD0, RFREG_MASK, val);
+	rtw89_write_rf(rtwdev, path, RR_LUTWE, RFREG_MASK, 0x0);
+}
+
+static void rtw8852c_btc_init_cfg(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_module *module = &btc->mdinfo;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_mac_ax_coex coex_params = {
+		.pta_mode = RTW89_MAC_AX_COEX_RTK_MODE,
+		.direction = RTW89_MAC_AX_COEX_INNER,
+	};
+
+	/* PTA init  */
+	rtw89_mac_coex_init_v1(rtwdev, &coex_params);
+
+	/* set WL Tx response = Hi-Pri */
+	chip->ops->btc_set_wl_pri(rtwdev, BTC_PRI_MASK_TX_RESP, true);
+	chip->ops->btc_set_wl_pri(rtwdev, BTC_PRI_MASK_BEACON, true);
+
+	/* set rf gnt debug off */
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_WLSEL, RFREG_MASK, 0x0);
+	rtw89_write_rf(rtwdev, RF_PATH_B, RR_WLSEL, RFREG_MASK, 0x0);
+
+	/* set WL Tx thru in TRX mask table if GNT_WL = 0 && BT_S1 = ss group */
+	if (module->ant.type == BTC_ANT_SHARED) {
+		rtw8852c_set_trx_mask(rtwdev,
+				      RF_PATH_A, BTC_BT_SS_GROUP, 0x5ff);
+		rtw8852c_set_trx_mask(rtwdev,
+				      RF_PATH_B, BTC_BT_SS_GROUP, 0x5ff);
+		/* set path-A(S0) Tx/Rx no-mask if GNT_WL=0 && BT_S1=tx group */
+		rtw8852c_set_trx_mask(rtwdev,
+				      RF_PATH_A, BTC_BT_TX_GROUP, 0x5ff);
+	} else { /* set WL Tx stb if GNT_WL = 0 && BT_S1 = ss group for 3-ant */
+		rtw8852c_set_trx_mask(rtwdev,
+				      RF_PATH_A, BTC_BT_SS_GROUP, 0x5df);
+		rtw8852c_set_trx_mask(rtwdev,
+				      RF_PATH_B, BTC_BT_SS_GROUP, 0x5df);
+	}
+
+	/* set PTA break table */
+	rtw89_write32(rtwdev, R_AX_BT_BREAK_TABLE, BTC_BREAK_PARAM);
+
+	 /* enable BT counter 0xda10[1:0] = 2b'11 */
+	rtw89_write32_set(rtwdev,
+			  R_AX_BT_CNT_CFG, B_AX_BT_CNT_EN |
+			  B_AX_BT_CNT_RST_V1);
+	btc->cx.wl.status.map.init_ok = true;
+}
+
 static int rtw8852c_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
 {
 	int ret;
@@ -588,6 +645,8 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.mac_cfg_gnt		= rtw89_mac_cfg_gnt_v1,
 	.stop_sch_tx		= rtw89_mac_stop_sch_tx_v1,
 	.resume_sch_tx		= rtw89_mac_resume_sch_tx_v1,
+
+	.btc_init_cfg		= rtw8852c_btc_init_cfg,
 };
 
 const struct rtw89_chip_info rtw8852c_chip_info = {
