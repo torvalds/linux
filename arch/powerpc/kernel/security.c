@@ -747,7 +747,19 @@ static int count_cache_flush_get(void *data, u64 *val)
 	return 0;
 }
 
+static int link_stack_flush_get(void *data, u64 *val)
+{
+	if (link_stack_flush_type == BRANCH_CACHE_FLUSH_NONE)
+		*val = 0;
+	else
+		*val = 1;
+
+	return 0;
+}
+
 DEFINE_DEBUGFS_ATTRIBUTE(fops_count_cache_flush, count_cache_flush_get,
+			 count_cache_flush_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_link_stack_flush, link_stack_flush_get,
 			 count_cache_flush_set, "%llu\n");
 
 static __init int count_cache_flush_debugfs_init(void)
@@ -755,6 +767,9 @@ static __init int count_cache_flush_debugfs_init(void)
 	debugfs_create_file_unsafe("count_cache_flush", 0600,
 				   arch_debugfs_dir, NULL,
 				   &fops_count_cache_flush);
+	debugfs_create_file_unsafe("link_stack_flush", 0600,
+				   arch_debugfs_dir, NULL,
+				   &fops_link_stack_flush);
 	return 0;
 }
 device_initcall(count_cache_flush_debugfs_init);

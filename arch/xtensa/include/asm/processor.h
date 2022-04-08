@@ -18,11 +18,7 @@
 #include <asm/types.h>
 #include <asm/regs.h>
 
-/* Xtensa ABI requires stack alignment to be at least 16 */
-
-#define STACK_ALIGN (XCHAL_DATA_WIDTH > 16 ? XCHAL_DATA_WIDTH : 16)
-
-#define ARCH_SLAB_MINALIGN STACK_ALIGN
+#define ARCH_SLAB_MINALIGN XTENSA_STACK_ALIGNMENT
 
 /*
  * User space process size: 1 GB.
@@ -239,8 +235,8 @@ extern unsigned long __get_wchan(struct task_struct *p);
 
 #define xtensa_set_sr(x, sr) \
 	({ \
-	 unsigned int v = (unsigned int)(x); \
-	 __asm__ __volatile__ ("wsr %0, "__stringify(sr) :: "a"(v)); \
+	 __asm__ __volatile__ ("wsr %0, "__stringify(sr) :: \
+			       "a"((unsigned int)(x))); \
 	 })
 
 #define xtensa_get_sr(sr) \

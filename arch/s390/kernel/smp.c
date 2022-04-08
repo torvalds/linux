@@ -5,7 +5,6 @@
  *    Copyright IBM Corp. 1999, 2012
  *    Author(s): Denis Joseph Barrow,
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>,
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>,
  *
  *  based on other smp stuff by
  *    (c) 1995 Alan Cox, CymruNET Ltd  <alan@cymru.net>
@@ -208,7 +207,6 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc->cpu_nr = cpu;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
 	lc->spinlock_index = 0;
-	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
 	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 	lc->preempt_count = PREEMPT_DISABLED;
@@ -671,7 +669,7 @@ static __init void smp_save_cpu_regs(struct save_area *sa, u16 addr,
 				     bool is_boot_cpu, void *regs)
 {
 	if (is_boot_cpu)
-		copy_oldmem_kernel(regs, (void *) __LC_FPREGS_SAVE_AREA, 512);
+		copy_oldmem_kernel(regs, __LC_FPREGS_SAVE_AREA, 512);
 	else
 		__pcpu_sigp_relax(addr, SIGP_STORE_STATUS_AT_ADDRESS, __pa(regs));
 	save_area_add_regs(sa, regs);
@@ -1253,7 +1251,7 @@ static __always_inline void set_new_lowcore(struct lowcore *lc)
 	src.odd  = sizeof(S390_lowcore);
 	dst.even = (unsigned long) lc;
 	dst.odd  = sizeof(*lc);
-	pfx = (unsigned long) lc;
+	pfx = __pa(lc);
 
 	asm volatile(
 		"	mvcl	%[dst],%[src]\n"
@@ -1293,8 +1291,8 @@ static int __init smp_reinit_ipl_cpu(void)
 	local_irq_restore(flags);
 
 	free_pages(lc_ipl->async_stack - STACK_INIT_OFFSET, THREAD_SIZE_ORDER);
-	memblock_free_late(lc_ipl->mcck_stack - STACK_INIT_OFFSET, THREAD_SIZE);
-	memblock_free_late((unsigned long) lc_ipl, sizeof(*lc_ipl));
+	memblock_free_late(__pa(lc_ipl->mcck_stack - STACK_INIT_OFFSET), THREAD_SIZE);
+	memblock_free_late(__pa(lc_ipl), sizeof(*lc_ipl));
 
 	return 0;
 }

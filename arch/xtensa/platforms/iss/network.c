@@ -174,7 +174,7 @@ static int tuntap_open(struct iss_net_private *lp)
 
 	memset(&ifr, 0, sizeof(ifr));
 	ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-	strlcpy(ifr.ifr_name, dev_name, sizeof(ifr.ifr_name));
+	strscpy(ifr.ifr_name, dev_name, sizeof(ifr.ifr_name));
 
 	err = simc_ioctl(fd, TUNSETIFF, &ifr);
 	if (err < 0) {
@@ -249,7 +249,7 @@ static int tuntap_probe(struct iss_net_private *lp, int index, char *init)
 		return 0;
 	}
 
-	strlcpy(lp->tp.info.tuntap.dev_name, dev_name,
+	strscpy(lp->tp.info.tuntap.dev_name, dev_name,
 		sizeof(lp->tp.info.tuntap.dev_name));
 
 	setup_etheraddr(dev, mac_str);

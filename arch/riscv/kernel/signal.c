@@ -258,6 +258,8 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		}
 	}
 
+	rseq_signal_deliver(ksig, regs);
+
 	/* Set up the stack frame */
 	ret = setup_rt_frame(ksig, oldset, regs);
 

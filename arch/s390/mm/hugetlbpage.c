@@ -73,8 +73,8 @@ static inline unsigned long __pte_to_rste(pte_t pte)
 
 static inline pte_t __rste_to_pte(unsigned long rste)
 {
+	unsigned long pteval;
 	int present;
-	pte_t pte;
 
 	if ((rste & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
 		present = pud_present(__pud(rste));
@@ -102,29 +102,21 @@ static inline pte_t __rste_to_pte(unsigned long rste)
 	 *	    u unused, l large
 	 */
 	if (present) {
-		pte_val(pte) = rste & _SEGMENT_ENTRY_ORIGIN_LARGE;
-		pte_val(pte) |= _PAGE_LARGE | _PAGE_PRESENT;
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_READ,
-					     _PAGE_READ);
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_WRITE,
-					     _PAGE_WRITE);
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_INVALID,
-					     _PAGE_INVALID);
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_PROTECT,
-					     _PAGE_PROTECT);
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_DIRTY,
-					     _PAGE_DIRTY);
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_YOUNG,
-					     _PAGE_YOUNG);
+		pteval = rste & _SEGMENT_ENTRY_ORIGIN_LARGE;
+		pteval |= _PAGE_LARGE | _PAGE_PRESENT;
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_READ, _PAGE_READ);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_WRITE, _PAGE_WRITE);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_INVALID, _PAGE_INVALID);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_PROTECT, _PAGE_PROTECT);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_DIRTY, _PAGE_DIRTY);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_YOUNG, _PAGE_YOUNG);
 #ifdef CONFIG_MEM_SOFT_DIRTY
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_SOFT_DIRTY,
-					     _PAGE_SOFT_DIRTY);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_SOFT_DIRTY, _PAGE_SOFT_DIRTY);
 #endif
-		pte_val(pte) |= move_set_bit(rste, _SEGMENT_ENTRY_NOEXEC,
-					     _PAGE_NOEXEC);
+		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_NOEXEC, _PAGE_NOEXEC);
 	} else
-		pte_val(pte) = _PAGE_INVALID;
-	return pte;
+		pteval = _PAGE_INVALID;
+	return __pte(pteval);
 }
 
 static void clear_huge_pte_skeys(struct mm_struct *mm, unsigned long rste)
@@ -168,7 +160,7 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		rste |= _SEGMENT_ENTRY_LARGE;
 
 	clear_huge_pte_skeys(mm, rste);
-	pte_val(*ptep) = rste;
+	set_pte(ptep, __pte(rste));
 }
 
 pte_t huge_ptep_get(pte_t *ptep)

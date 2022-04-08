@@ -50,16 +50,13 @@
 	mtspr	SPRN_DBAT##n##L,RB
 
 	__HEAD
-	.stabs	"arch/powerpc/kernel/",N_SO,0,0,0f
-	.stabs	"head_book3s_32.S",N_SO,0,0,0f
-0:
-_ENTRY(_stext);
+_GLOBAL(_stext);
 
 /*
  * _start is defined this way because the XCOFF loader in the OpenFirmware
  * on the powermac expects the entry point to be a procedure descriptor.
  */
-_ENTRY(_start);
+_GLOBAL(_start);
 	/*
 	 * These are here for legacy reasons, the kernel used to
 	 * need to look like a coff function entry for the pmac
@@ -504,14 +501,12 @@ DataLoadTLBMiss:
 	lwz	r0,0(r2)		/* get linux-style pte */
 	andc.	r1,r1,r0		/* check access & ~permission */
 	bne-	DataAddressInvalid	/* return if access not permitted */
-	/*
-	 * NOTE! We are assuming this is not an SMP system, otherwise
-	 * we would need to update the pte atomically with lwarx/stwcx.
-	 */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
 	rlwinm	r1,r0,32-9,30,30	/* _PAGE_RW -> PP msb */
 	rlwimi	r0,r0,32-1,30,30	/* _PAGE_USER -> PP msb */
+	rlwimi	r1,r0,32-3,24,24	/* _PAGE_RW -> _PAGE_DIRTY */
 	rlwimi	r0,r0,32-1,31,31	/* _PAGE_USER -> PP lsb */
+	xori	r1,r1,_PAGE_DIRTY	/* clear dirty when not rw */
 	ori	r1,r1,0xe04		/* clear out reserved bits */
 	andc	r1,r0,r1		/* PP = user? rw? 1: 3: 0 */
 BEGIN_FTR_SECTION
@@ -586,10 +581,6 @@ DataStoreTLBMiss:
 	lwz	r0,0(r2)		/* get linux-style pte */
 	andc.	r1,r1,r0		/* check access & ~permission */
 	bne-	DataAddressInvalid	/* return if access not permitted */
-	/*
-	 * NOTE! We are assuming this is not an SMP system, otherwise
-	 * we would need to update the pte atomically with lwarx/stwcx.
-	 */
 	/* Convert linux-style PTE to low word of PPC-style PTE */
 	rlwimi	r0,r0,32-2,31,31	/* _PAGE_USER -> PP lsb */
 	li	r1,0xe06		/* clear out reserved bits & PP msb */
@@ -784,7 +775,7 @@ relocate_kernel:
  * r3 = dest addr, r4 = source addr, r5 = copy limit, r6 = start offset
  * on exit, r3, r4, r5 are unchanged, r6 is updated to be >= r5.
  */
-_ENTRY(copy_and_flush)
+_GLOBAL(copy_and_flush)
 	addi	r5,r5,-4
 	addi	r6,r6,-4
 4:	li	r0,L1_CACHE_BYTES/4
@@ -1082,7 +1073,7 @@ BEGIN_MMU_FTR_SECTION
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	blr
 
-_ENTRY(update_bats)
+_GLOBAL(update_bats)
 	lis	r4, 1f@h
 	ori	r4, r4, 1f@l
 	tophys(r4, r4)

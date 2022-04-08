@@ -21,6 +21,7 @@
 #ifdef CONFIG_PPC
 #include <asm/prom.h>
 #include <asm/machdep.h>
+#include <asm/pmac_feature.h>
 #else
 #include <asm/macintosh.h>
 #include <asm/macints.h>
