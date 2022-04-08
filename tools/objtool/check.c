@@ -184,6 +184,7 @@ static bool __dead_end_function(struct objtool_file *file, struct symbol *func,
 		"do_group_exit",
 		"stop_this_cpu",
 		"__invalid_creds",
+               "cpu_startup_entry",
 	};
 
 	if (!func)
