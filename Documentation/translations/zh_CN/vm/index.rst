@@ -29,6 +29,7 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
    ksm
    frontswap
    hwpoison
+   hugetlbfs_reserv
    memory-model
    mmu_notifier
    overcommit-accounting
