@@ -4,6 +4,7 @@
 #include <linux/platform_device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/sizes.h>
 #include <linux/bits.h>
 #include <cxlmem.h>
@@ -236,9 +237,23 @@ static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *
 	return rc;
 }
 
+static int cxl_mock_wait_media_ready(struct cxl_dev_state *cxlds)
+{
+	msleep(100);
+	return 0;
+}
+
 static void label_area_release(void *lsa)
 {
 	vfree(lsa);
+}
+
+static void mock_validate_dvsec_ranges(struct cxl_dev_state *cxlds)
+{
+	struct cxl_endpoint_dvsec_info *info;
+
+	info = &cxlds->info;
+	info->mem_enabled = true;
 }
 
 static int cxl_mock_mem_probe(struct platform_device *pdev)
@@ -261,7 +276,9 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	if (IS_ERR(cxlds))
 		return PTR_ERR(cxlds);
 
+	cxlds->serial = pdev->id;
 	cxlds->mbox_send = cxl_mock_mbox_send;
+	cxlds->wait_media_ready = cxl_mock_wait_media_ready;
 	cxlds->payload_size = SZ_4K;
 
 	rc = cxl_enumerate_cmds(cxlds);
@@ -275,6 +292,8 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	rc = cxl_mem_create_range_info(cxlds);
 	if (rc)
 		return rc;
+
+	mock_validate_dvsec_ranges(cxlds);
 
 	cxlmd = devm_cxl_add_memdev(cxlds);
 	if (IS_ERR(cxlmd))

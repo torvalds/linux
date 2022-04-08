@@ -31,7 +31,6 @@
  */
 
 #include <linux/etherdevice.h>
-#include <linux/module.h>
 #include <rdma/ib_umem.h>
 #include <rdma/ib_cache.h>
 #include <rdma/ib_user_verbs.h>
@@ -615,7 +614,8 @@ enum {
 
 static int max_bfregs(struct mlx5_ib_dev *dev, struct mlx5_bfreg_info *bfregi)
 {
-	return get_num_static_uars(dev, bfregi) * MLX5_NON_FP_BFREGS_PER_UAR;
+	return get_uars_per_sys_page(dev, bfregi->lib_uar_4k) *
+	       bfregi->num_static_sys_pages * MLX5_NON_FP_BFREGS_PER_UAR;
 }
 
 static int num_med_bfreg(struct mlx5_ib_dev *dev,
