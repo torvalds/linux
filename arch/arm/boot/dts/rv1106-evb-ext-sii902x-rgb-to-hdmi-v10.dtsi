@@ -70,6 +70,17 @@
 	status = "okay";
 };
 
+/*
+ * The pins of sdmmc1 and lcd are multiplexed
+ */
+&sdio {
+	status = "disabled";
+};
+
+&sdio_pwrseq {
+	status = "disabled";
+};
+
 &vop {
 	status = "okay";
 };
