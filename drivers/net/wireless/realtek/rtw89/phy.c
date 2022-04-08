@@ -2930,6 +2930,9 @@ static void rtw89_phy_dig_update_gain_para(struct rtw89_dev *rtwdev)
 	u32 tmp;
 	u8 i;
 
+	if (!rtwdev->hal.support_igi)
+		return;
+
 	tmp = rtw89_phy_read32_mask(rtwdev, R_PATH0_IB_PKPW,
 				    B_PATH0_IB_PKPW_MSK);
 	dig->ib_pkpwr = sign_extend32(tmp >> DIG_GAIN_SHIFT, U8_MAX_BIT);
@@ -3184,6 +3187,9 @@ static void rtw89_phy_dig_config_igi(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_dig_info *dig = &rtwdev->dig;
 
+	if (!rtwdev->hal.support_igi)
+		return;
+
 	if (dig->force_gaincode_idx_en) {
 		rtw89_phy_dig_set_igi_cr(rtwdev, dig->force_gaincode);
 		rtw89_debug(rtwdev, RTW89_DBG_DIG,
@@ -3309,8 +3315,7 @@ void rtw89_phy_dig(struct rtw89_dev *rtwdev)
 		    dig->igi_rssi, dig->dyn_igi_max, dig->dyn_igi_min,
 		    dig->igi_fa_rssi);
 
-	if (rtwdev->hal.support_igi)
-		rtw89_phy_dig_config_igi(rtwdev);
+	rtw89_phy_dig_config_igi(rtwdev);
 
 	rtw89_phy_dig_dyn_pd_th(rtwdev, dig->igi_fa_rssi, dig->dyn_pd_th_en);
 
