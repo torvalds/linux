@@ -2842,6 +2842,19 @@ static int rtw89_mac_enable_imr(struct rtw89_dev *rtwdev, u8 mac_idx,
 	return 0;
 }
 
+static void rtw89_mac_err_imr_ctrl(struct rtw89_dev *rtwdev, bool en)
+{
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+
+	rtw89_write32(rtwdev, R_AX_DMAC_ERR_IMR,
+		      en ? DMAC_ERR_IMR_EN : DMAC_ERR_IMR_DIS);
+	rtw89_write32(rtwdev, R_AX_CMAC_ERR_IMR,
+		      en ? CMAC0_ERR_IMR_EN : CMAC0_ERR_IMR_DIS);
+	if (chip_id != RTL8852B && rtwdev->mac.dle_info.c1_rx_qta)
+		rtw89_write32(rtwdev, R_AX_CMAC_ERR_IMR_C1,
+			      en ? CMAC1_ERR_IMR_EN : CMAC1_ERR_IMR_DIS);
+}
+
 static int rtw89_mac_dbcc_enable(struct rtw89_dev *rtwdev, bool enable)
 {
 	int ret = 0;
@@ -2922,6 +2935,8 @@ static int rtw89_mac_trx_init(struct rtw89_dev *rtwdev)
 		rtw89_err(rtwdev, "[ERR] to enable CMAC0 IMR %d\n", ret);
 		return ret;
 	}
+
+	rtw89_mac_err_imr_ctrl(rtwdev, true);
 
 	ret = set_host_rpr(rtwdev);
 	if (ret) {
