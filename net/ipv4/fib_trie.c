@@ -1032,8 +1032,8 @@ fib_find_matching_alias(struct net *net, const struct fib_rt_info *fri)
 
 	hlist_for_each_entry_rcu(fa, &l->leaf, fa_list) {
 		if (fa->fa_slen == slen && fa->tb_id == fri->tb_id &&
-		    fa->fa_dscp == inet_dsfield_to_dscp(fri->tos) &&
-		    fa->fa_info == fri->fi && fa->fa_type == fri->type)
+		    fa->fa_dscp == fri->dscp && fa->fa_info == fri->fi &&
+		    fa->fa_type == fri->type)
 			return fa;
 	}
 
@@ -2305,7 +2305,7 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 				fri.tb_id = tb->tb_id;
 				fri.dst = xkey;
 				fri.dst_len = KEYLENGTH - fa->fa_slen;
-				fri.tos = inet_dscp_to_dsfield(fa->fa_dscp);
+				fri.dscp = fa->fa_dscp;
 				fri.type = fa->fa_type;
 				fri.offload = READ_ONCE(fa->offload);
 				fri.trap = READ_ONCE(fa->trap);

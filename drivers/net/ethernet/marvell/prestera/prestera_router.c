@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/inetdevice.h>
+#include <net/inet_dscp.h>
 #include <net/switchdev.h>
 #include <linux/rhashtable.h>
 
@@ -132,7 +133,7 @@ __prestera_k_arb_fib_lpm_offload_set(struct prestera_switch *sw,
 	fri.tb_id = fc->key.kern_tb_id;
 	fri.dst = fc->key.addr.u.ipv4;
 	fri.dst_len = fc->key.prefix_len;
-	fri.tos = fc->kern_tos;
+	fri.dscp = inet_dsfield_to_dscp(fc->kern_tos);
 	fri.type = fc->kern_type;
 	/* flags begin */
 	fri.offload = offload;

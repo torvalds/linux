@@ -21,6 +21,7 @@
 #include <net/netevent.h>
 #include <net/neighbour.h>
 #include <net/arp.h>
+#include <net/inet_dscp.h>
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
 #include <net/nexthop.h>
@@ -5620,7 +5621,7 @@ mlxsw_sp_fib4_offload_failed_flag_set(struct mlxsw_sp *mlxsw_sp,
 	fri.tb_id = fen_info->tb_id;
 	fri.dst = cpu_to_be32(*p_dst);
 	fri.dst_len = fen_info->dst_len;
-	fri.tos = fen_info->tos;
+	fri.dscp = inet_dsfield_to_dscp(fen_info->tos);
 	fri.type = fen_info->type;
 	fri.offload = false;
 	fri.trap = false;
@@ -5645,7 +5646,7 @@ mlxsw_sp_fib4_entry_hw_flags_set(struct mlxsw_sp *mlxsw_sp,
 	fri.tb_id = fib4_entry->tb_id;
 	fri.dst = cpu_to_be32(*p_dst);
 	fri.dst_len = dst_len;
-	fri.tos = fib4_entry->tos;
+	fri.dscp = inet_dsfield_to_dscp(fib4_entry->tos);
 	fri.type = fib4_entry->type;
 	fri.offload = should_offload;
 	fri.trap = !should_offload;
@@ -5668,7 +5669,7 @@ mlxsw_sp_fib4_entry_hw_flags_clear(struct mlxsw_sp *mlxsw_sp,
 	fri.tb_id = fib4_entry->tb_id;
 	fri.dst = cpu_to_be32(*p_dst);
 	fri.dst_len = dst_len;
-	fri.tos = fib4_entry->tos;
+	fri.dscp = inet_dsfield_to_dscp(fib4_entry->tos);
 	fri.type = fib4_entry->type;
 	fri.offload = false;
 	fri.trap = false;

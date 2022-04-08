@@ -212,7 +212,7 @@ struct fib_rt_info {
 	u32			tb_id;
 	__be32			dst;
 	int			dst_len;
-	u8			tos;
+	dscp_t			dscp;
 	u8			type;
 	u8			offload:1,
 				trap:1,
