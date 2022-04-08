@@ -295,9 +295,12 @@ ia64_load_extra (struct task_struct *task)
  * so there is nothing to worry about.
  */
 int
-copy_thread(unsigned long clone_flags, unsigned long user_stack_base,
-	    unsigned long user_stack_size, struct task_struct *p, unsigned long tls)
+copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long user_stack_base = args->stack;
+	unsigned long user_stack_size = args->stack_size;
+	unsigned long tls = args->tls;
 	extern char ia64_ret_from_clone;
 	struct switch_stack *child_stack, *stack;
 	unsigned long rbs, child_rbs, rbs_size;

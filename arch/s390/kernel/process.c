@@ -94,9 +94,12 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	return 0;
 }
 
-int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
-		unsigned long arg, struct task_struct *p, unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long new_stackp = args->stack;
+	unsigned long arg = args->stack_size;
+	unsigned long tls = args->tls;
 	struct fake_frame
 	{
 		struct stack_frame sf;

@@ -233,10 +233,12 @@ release_thread(struct task_struct *dead_task)
 /*
  * Copy architecture-specific thread state
  */
-int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long kthread_arg, struct task_struct *p,
-		unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long usp = args->stack;
+	unsigned long kthread_arg = args->stack_size;
+	unsigned long tls = args->tls;
 	extern void ret_from_fork(void);
 	extern void ret_from_kernel_thread(void);
 

@@ -154,9 +154,12 @@ void fork_handler(void)
 	userspace(&current->thread.regs.regs, current_thread_info()->aux_fp_regs);
 }
 
-int copy_thread(unsigned long clone_flags, unsigned long sp,
-		unsigned long arg, struct task_struct * p, unsigned long tls)
+int copy_thread(struct task_struct * p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long sp = args->stack;
+	unsigned long arg = args->stack_size;
+	unsigned long tls = args->tls;
 	void (*handler)(void);
 	int kthread = current->flags & (PF_KTHREAD | PF_IO_WORKER);
 	int ret = 0;

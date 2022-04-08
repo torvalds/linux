@@ -1979,7 +1979,7 @@ static __latent_entropy struct task_struct *copy_process(
 	struct task_struct *p;
 	struct multiprocess_signals delayed;
 	struct file *pidfile = NULL;
-	u64 clone_flags = args->flags;
+	const u64 clone_flags = args->flags;
 	struct nsproxy *nsp = current->nsproxy;
 
 	/*
@@ -2240,7 +2240,7 @@ static __latent_entropy struct task_struct *copy_process(
 	retval = copy_io(clone_flags, p);
 	if (retval)
 		goto bad_fork_cleanup_namespaces;
-	retval = copy_thread(clone_flags, args->stack, args->stack_size, p, args->tls);
+	retval = copy_thread(p, args);
 	if (retval)
 		goto bad_fork_cleanup_io;
 
