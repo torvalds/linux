@@ -65,7 +65,7 @@ struct iss_net_private {
 	struct net_device *dev;
 	struct platform_device pdev;
 	struct timer_list tl;
-	struct net_device_stats stats;
+	struct rtnl_link_stats64 stats;
 
 	struct timer_list timer;
 	unsigned int timer_val;
@@ -281,7 +281,9 @@ static int iss_net_rx(struct net_device *dev)
 
 	skb = dev_alloc_skb(dev->mtu + 2 + ETH_HEADER_OTHER);
 	if (skb == NULL) {
+		spin_lock_bh(&lp->lock);
 		lp->stats.rx_dropped++;
+		spin_unlock_bh(&lp->lock);
 		return 0;
 	}
 
@@ -298,8 +300,10 @@ static int iss_net_rx(struct net_device *dev)
 		skb_trim(skb, pkt_len);
 		skb->protocol = lp->tp.protocol(skb);
 
+		spin_lock_bh(&lp->lock);
 		lp->stats.rx_bytes += skb->len;
 		lp->stats.rx_packets++;
+		spin_unlock_bh(&lp->lock);
 		netif_rx(skb);
 		return pkt_len;
 	}
@@ -314,12 +318,8 @@ static int iss_net_poll(struct iss_net_private *lp)
 	if (!netif_running(lp->dev))
 		return 0;
 
-	spin_lock(&lp->lock);
-
 	while ((err = iss_net_rx(lp->dev)) > 0)
 		ret++;
-
-	spin_unlock(&lp->lock);
 
 	if (err < 0) {
 		pr_err("Device '%s' read returned %d, shutting it down\n",
@@ -338,9 +338,7 @@ static void iss_net_timer(struct timer_list *t)
 	struct iss_net_private *lp = from_timer(lp, t, timer);
 
 	iss_net_poll(lp);
-	spin_lock(&lp->lock);
 	mod_timer(&lp->timer, jiffies + lp->timer_val);
-	spin_unlock(&lp->lock);
 }
 
 
@@ -349,11 +347,9 @@ static int iss_net_open(struct net_device *dev)
 	struct iss_net_private *lp = netdev_priv(dev);
 	int err;
 
-	spin_lock_bh(&lp->lock);
-
 	err = lp->tp.open(lp);
 	if (err < 0)
-		goto out;
+		return err;
 
 	netif_start_queue(dev);
 
@@ -368,22 +364,17 @@ static int iss_net_open(struct net_device *dev)
 	lp->timer_val = ISS_NET_TIMER_VALUE;
 	mod_timer(&lp->timer, jiffies + lp->timer_val);
 
-out:
-	spin_unlock_bh(&lp->lock);
 	return err;
 }
 
 static int iss_net_close(struct net_device *dev)
 {
 	struct iss_net_private *lp = netdev_priv(dev);
+
 	netif_stop_queue(dev);
-	spin_lock_bh(&lp->lock);
-
 	del_timer_sync(&lp->timer);
-
 	lp->tp.close(lp);
 
-	spin_unlock_bh(&lp->lock);
 	return 0;
 }
 
@@ -393,13 +384,14 @@ static int iss_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int len;
 
 	netif_stop_queue(dev);
-	spin_lock_bh(&lp->lock);
 
 	len = lp->tp.write(lp, &skb);
 
 	if (len == skb->len) {
+		spin_lock_bh(&lp->lock);
 		lp->stats.tx_packets++;
 		lp->stats.tx_bytes += skb->len;
+		spin_unlock_bh(&lp->lock);
 		netif_trans_update(dev);
 		netif_start_queue(dev);
 
@@ -408,24 +400,29 @@ static int iss_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	} else if (len == 0) {
 		netif_start_queue(dev);
+		spin_lock_bh(&lp->lock);
 		lp->stats.tx_dropped++;
+		spin_unlock_bh(&lp->lock);
 
 	} else {
 		netif_start_queue(dev);
 		pr_err("%s: %s failed(%d)\n", dev->name, __func__, len);
 	}
 
-	spin_unlock_bh(&lp->lock);
 
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
 
-static struct net_device_stats *iss_net_get_stats(struct net_device *dev)
+static void iss_net_get_stats64(struct net_device *dev,
+				struct rtnl_link_stats64 *stats)
 {
 	struct iss_net_private *lp = netdev_priv(dev);
-	return &lp->stats;
+
+	spin_lock_bh(&lp->lock);
+	*stats = lp->stats;
+	spin_unlock_bh(&lp->lock);
 }
 
 static void iss_net_set_multicast_list(struct net_device *dev)
@@ -457,7 +454,7 @@ static int driver_registered;
 static const struct net_device_ops iss_netdev_ops = {
 	.ndo_open		= iss_net_open,
 	.ndo_stop		= iss_net_close,
-	.ndo_get_stats		= iss_net_get_stats,
+	.ndo_get_stats64	= iss_net_get_stats64,
 	.ndo_start_xmit		= iss_net_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= iss_net_change_mtu,
