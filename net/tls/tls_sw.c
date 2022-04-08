@@ -1345,15 +1345,14 @@ static struct sk_buff *tls_wait_data(struct sock *sk, struct sk_psock *psock,
 	return skb;
 }
 
-static int tls_setup_from_iter(struct sock *sk, struct iov_iter *from,
+static int tls_setup_from_iter(struct iov_iter *from,
 			       int length, int *pages_used,
-			       unsigned int *size_used,
 			       struct scatterlist *to,
 			       int to_max_pages)
 {
 	int rc = 0, i = 0, num_elem = *pages_used, maxpages;
 	struct page *pages[MAX_SKB_FRAGS];
-	unsigned int size = *size_used;
+	unsigned int size = 0;
 	ssize_t copied, use;
 	size_t offset;
 
@@ -1396,8 +1395,7 @@ static int tls_setup_from_iter(struct sock *sk, struct iov_iter *from,
 		sg_mark_end(&to[num_elem - 1]);
 out:
 	if (rc)
-		iov_iter_revert(from, size - *size_used);
-	*size_used = size;
+		iov_iter_revert(from, size);
 	*pages_used = num_elem;
 
 	return rc;
@@ -1523,12 +1521,12 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 			sg_init_table(sgout, n_sgout);
 			sg_set_buf(&sgout[0], aad, prot->aad_size);
 
-			*chunk = 0;
-			err = tls_setup_from_iter(sk, out_iov, data_len,
-						  &pages, chunk, &sgout[1],
+			err = tls_setup_from_iter(out_iov, data_len,
+						  &pages, &sgout[1],
 						  (n_sgout - 1));
 			if (err < 0)
 				goto fallback_to_reg_recv;
+			*chunk = data_len;
 		} else if (out_sg) {
 			memcpy(sgout, out_sg, n_sgout * sizeof(*sgout));
 		} else {
