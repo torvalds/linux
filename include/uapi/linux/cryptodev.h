@@ -194,8 +194,9 @@ struct crypt_auth_op {
 	 * encrypted in-place (src==dst). */
 	__u8	__user *src;	/* data to be encrypted and authenticated */
 	__u8	__user *dst;	/* pointer to output data. Must have
-	                         * space for tag. For TLS this should be at least 
-	                         * len + tag_size + block_size for padding */
+				 * space for tag. For TLS this should be at least
+				 * len + tag_size + block_size for padding
+				 */
 
 	__u8    __user *tag;    /* where the tag will be copied to. TLS mode
                                  * doesn't use that as tag is copied to dst.
@@ -223,7 +224,7 @@ struct crypt_auth_op {
  * copies the tag just after data.
  */
 
-/* In TLS mode (used for CBC ciphers that required padding) 
+/* In TLS mode (used for CBC ciphers that required padding)
  * the following are required:
  *  flags   : COP_FLAG_AEAD_TLS_TYPE
  *  iv      : the initialization vector
@@ -244,7 +245,7 @@ struct crypt_auth_op {
  *  iv      : the initialization vector
  *  auth_len: the length of the data to be authenticated. This must
  *            include the SRTP header + SRTP payload (data to be encrypted) + rest
- *            
+ *
  *  len     : length of data to be encrypted
  *  auth_src: pointer the data to be authenticated. Should point at the same buffer as src.
  *  src     : pointer to the data to be encrypted.
@@ -262,13 +263,16 @@ struct crypt_auth_op {
 #define COP_FLAG_FINAL		(1 << 1) /* multi-update final hash mode */
 #define COP_FLAG_WRITE_IV	(1 << 2) /* update the IV during operation */
 #define COP_FLAG_NO_ZC		(1 << 3) /* do not zero-copy */
-#define COP_FLAG_AEAD_TLS_TYPE  (1 << 4) /* authenticate and encrypt using the 
+#define COP_FLAG_AEAD_TLS_TYPE  (1 << 4) /* authenticate and encrypt using the
                                           * TLS protocol rules */
-#define COP_FLAG_AEAD_SRTP_TYPE  (1 << 5) /* authenticate and encrypt using the 
+#define COP_FLAG_AEAD_SRTP_TYPE  (1 << 5) /* authenticate and encrypt using the
                                            * SRTP protocol rules */
 #define COP_FLAG_RESET		(1 << 6) /* multi-update reset the state.
                                           * should be used in combination
                                           * with COP_FLAG_UPDATE */
+#define COP_FLAG_AEAD_RK_TYPE	(1 << 11) /* authenticate and encrypt using the
+					   * rock-chips define rules
+					   */
 
 
 /* Stuff for bignum arithmetic and public key

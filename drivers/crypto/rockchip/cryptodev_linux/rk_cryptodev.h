@@ -55,6 +55,17 @@ struct kernel_crypt_fd_op {
 	struct mm_struct *mm;
 };
 
+struct kernel_crypt_auth_fd_op {
+	struct crypt_auth_fd_op caop;
+
+	int dst_len; /* based on src_len */
+	__u8 iv[EALG_MAX_BLOCK_LEN];
+	int ivlen;
+
+	struct task_struct *task;
+	struct mm_struct *mm;
+};
+
 /* kernel-internal extension to struct crypt_fd_map_op */
 struct kernel_crypt_fd_map_op {
 	struct crypt_fd_map_op mop;

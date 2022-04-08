@@ -27,6 +27,24 @@ struct crypt_fd_op {
 	__u8	__user *iv;
 };
 
+/* input of RIOCAUTHCRYPT_FD */
+struct crypt_auth_fd_op {
+	__u32	ses;			/* session identifier */
+	__u16	op;			/* COP_ENCRYPT or COP_DECRYPT */
+	__u16	flags;			/* see COP_FLAG_AEAD_* */
+	__u32	len;			/* length of source data */
+	__u32	auth_len;		/* length of auth data */
+	int	auth_fd;		/* authenticated-only data */
+	int	src_fd;			/* source data */
+	int	dst_fd;			/* pointer to output data */
+	__u64	tag;
+	__u32	tag_len;		/* the length of the tag. Use zero for digest size or max
+					 * tag.
+					 */
+	__u64	iv;			/* initialization vector for encryption operations */
+	__u32   iv_len;
+};
+
 /* input of RIOCCRYPT_FD_MAP/RIOCCRYPT_FD_UNMAP */
 struct crypt_fd_map_op {
 	int	dma_fd;		/* session identifier */
@@ -62,5 +80,6 @@ struct crypt_rsa_op {
 #define RIOCCRYPT_CPU_ACCESS	_IOW('r',  107, struct crypt_fd_map_op)
 #define RIOCCRYPT_DEV_ACCESS	_IOW('r',  108, struct crypt_fd_map_op)
 #define RIOCCRYPT_RSA_CRYPT	_IOWR('r', 109, struct crypt_rsa_op)
+#define RIOCAUTHCRYPT_FD	_IOWR('r', 110, struct crypt_auth_fd_op)
 
 #endif

@@ -76,11 +76,42 @@ struct compat_crypt_op {
 	compat_uptr_t	iv;/* initialization vector for encryption operations */
 };
 
+/* input of COMPAT_CIOCAUTHCRYPT */
+struct compat_crypt_auth_op {
+	uint32_t	ses;		/* session identifier */
+	uint16_t	op;		/* COP_ENCRYPT or COP_DECRYPT */
+	uint16_t	flags;		/* see COP_FLAG_AEAD_* */
+	uint32_t	len;		/* length of source data */
+	uint32_t	auth_len;	/* length of auth data */
+	compat_uptr_t	auth_src;	/* authenticated-only data */
+
+	/* The current implementation is more efficient if data are
+	 * encrypted in-place (src== dst).
+	 */
+	compat_uptr_t	src;	/* data to be encrypted and authenticated */
+	compat_uptr_t	dst;	/* pointer to output data. Must have
+				 * space for tag. For TLS this should be at least
+				 * len + tag_size + block_size for padding
+				 */
+
+	compat_uptr_t	tag;    /* where the tag will be copied to. TLS mode
+				 * doesn't use that as tag is copied to dst.
+				 * SRTP mode copies tag there.
+				 */
+	uint32_t	tag_len; /* the length of the tag. Use zero for digest size or max tag. */
+
+	/* initialization vector for encryption operations */
+	compat_uptr_t	iv;
+	uint32_t	iv_len;
+};
+
 /* compat ioctls, defined for the above structs */
 #define COMPAT_CIOCGSESSION    _IOWR('c', 102, struct compat_session_op)
 #define COMPAT_CIOCCRYPT       _IOWR('c', 104, struct compat_crypt_op)
 #define COMPAT_CIOCASYNCCRYPT  _IOW('c', 107, struct compat_crypt_op)
 #define COMPAT_CIOCASYNCFETCH  _IOR('c', 108, struct compat_crypt_op)
+
+#define COMPAT_CIOCAUTHCRYPT   _IOWR('c', 109, struct compat_crypt_auth_op)
 
 #endif /* CONFIG_COMPAT */
 
@@ -110,7 +141,12 @@ struct kernel_crypt_auth_op {
 };
 
 /* auth */
-
+#ifdef CONFIG_COMPAT
+int compat_kcaop_to_user(struct kernel_crypt_auth_op *kcaop,
+			 struct fcrypt *fcr, void __user *arg);
+int compat_kcaop_from_user(struct kernel_crypt_auth_op *kcaop,
+			   struct fcrypt *fcr, void __user *arg);
+#endif /* CONFIG_COMPAT */
 int cryptodev_kcaop_from_user(struct kernel_crypt_auth_op *kcop,
 			struct fcrypt *fcr, void __user *arg);
 int cryptodev_kcaop_to_user(struct kernel_crypt_auth_op *kcaop,

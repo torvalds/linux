@@ -197,7 +197,7 @@ int cryptodev_cipher_init(struct cipher_data *out, const char *alg_name,
 		out->async.as = crypto_alloc_aead(alg_name, 0, 0);
 		if (unlikely(IS_ERR(out->async.as))) {
 			ddebug(1, "Failed to load cipher %s", alg_name);
-			return -EINVAL;
+			return PTR_ERR(out->async.as);
 		}
 
 		out->blocksize = crypto_aead_blocksize(out->async.as);
