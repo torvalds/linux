@@ -467,6 +467,8 @@ int rk_dvbm_ctrl(struct dvbm_port *port, enum dvbm_cmd cmd, void *arg)
 
 		ctx->isp_frm_quater_cnt++;
 		line_cnt = ctx->isp_frm_quater_cnt * ctx->isp_max_lcnt / 4;
+		line_cnt = ALIGN(line_cnt, 32);
+
 		rk_dvbm_update_isp_frm_info(ctx, line_cnt);
 	} break;
 	case DVBM_VEPU_GET_ADR: {
