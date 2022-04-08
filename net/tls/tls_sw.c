@@ -1561,7 +1561,6 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 			      bool async)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
-	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
 	struct tls_prot_info *prot = &tls_ctx->prot_info;
 	struct strp_msg *rxm = strp_msg(skb);
 	struct tls_msg *tlm = tls_msg(skb);
@@ -1600,7 +1599,6 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 		rxm->full_len -= prot->overhead_size;
 		tls_advance_record_sn(sk, prot, &tls_ctx->rx);
 		tlm->decrypted = 1;
-		ctx->saved_data_ready(sk);
 	} else {
 		*zc = false;
 	}
