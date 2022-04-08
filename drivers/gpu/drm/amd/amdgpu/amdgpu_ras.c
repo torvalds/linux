@@ -1515,12 +1515,45 @@ static int amdgpu_ras_fs_fini(struct amdgpu_device *adev)
 /* ras fs end */
 
 /* ih begin */
+static void amdgpu_ras_interrupt_poison_creation_handler(struct ras_manager *obj,
+				struct amdgpu_iv_entry *entry)
+{
+	dev_info(obj->adev->dev,
+		"Poison is created, no user action is needed.\n");
+}
+
+static void amdgpu_ras_interrupt_umc_handler(struct ras_manager *obj,
+				struct amdgpu_iv_entry *entry)
+{
+	struct ras_ih_data *data = &obj->ih_data;
+	struct ras_err_data err_data = {0, 0, 0, NULL};
+	int ret;
+
+	if (!data->cb)
+		return;
+
+	/* Let IP handle its data, maybe we need get the output
+	 * from the callback to update the error type/count, etc
+	 */
+	ret = data->cb(obj->adev, &err_data, entry);
+	/* ue will trigger an interrupt, and in that case
+	 * we need do a reset to recovery the whole system.
+	 * But leave IP do that recovery, here we just dispatch
+	 * the error.
+	 */
+	if (ret == AMDGPU_RAS_SUCCESS) {
+		/* these counts could be left as 0 if
+		 * some blocks do not count error number
+		 */
+		obj->err_data.ue_count += err_data.ue_count;
+		obj->err_data.ce_count += err_data.ce_count;
+	}
+}
+
 static void amdgpu_ras_interrupt_handler(struct ras_manager *obj)
 {
 	struct ras_ih_data *data = &obj->ih_data;
 	struct amdgpu_iv_entry entry;
-	int ret;
-	struct ras_err_data err_data = {0, 0, 0, NULL};
 
 	while (data->rptr != data->wptr) {
 		rmb();
@@ -1531,30 +1564,15 @@ static void amdgpu_ras_interrupt_handler(struct ras_manager *obj)
 		data->rptr = (data->aligned_element_size +
 				data->rptr) % data->ring_size;
 
-		if (data->cb) {
-			if (amdgpu_ras_is_poison_mode_supported(obj->adev) &&
-			    obj->head.block == AMDGPU_RAS_BLOCK__UMC)
-				dev_info(obj->adev->dev,
-						"Poison is created, no user action is needed.\n");
-			else {
-				/* Let IP handle its data, maybe we need get the output
-				 * from the callback to udpate the error type/count, etc
-				 */
-				memset(&err_data, 0, sizeof(err_data));
-				ret = data->cb(obj->adev, &err_data, &entry);
-				/* ue will trigger an interrupt, and in that case
-				 * we need do a reset to recovery the whole system.
-				 * But leave IP do that recovery, here we just dispatch
-				 * the error.
-				 */
-				if (ret == AMDGPU_RAS_SUCCESS) {
-					/* these counts could be left as 0 if
-					 * some blocks do not count error number
-					 */
-					obj->err_data.ue_count += err_data.ue_count;
-					obj->err_data.ce_count += err_data.ce_count;
-				}
-			}
+		if (amdgpu_ras_is_poison_mode_supported(obj->adev)) {
+			if (obj->head.block == AMDGPU_RAS_BLOCK__UMC)
+				amdgpu_ras_interrupt_poison_creation_handler(obj, &entry);
+		} else {
+			if (obj->head.block == AMDGPU_RAS_BLOCK__UMC)
+				amdgpu_ras_interrupt_umc_handler(obj, &entry);
+			else
+				dev_warn(obj->adev->dev,
+					"No RAS interrupt handler for non-UMC block with poison disabled.\n");
 		}
 	}
 }
