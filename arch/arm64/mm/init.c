@@ -73,7 +73,7 @@ EXPORT_SYMBOL(memstart_addr);
  * In this scheme a comparatively quicker boot is observed.
  *
  * If ZONE_DMA configs are defined, crash kernel memory reservation
- * is delayed until DMA zone memory range size initilazation performed in
+ * is delayed until DMA zone memory range size initialization performed in
  * zone_sizes_init().  The defer is necessary to steer clear of DMA zone
  * memory range to avoid overlap allocation.  So crash kernel memory boundaries
  * are not known when mapping all bank memory ranges, which otherwise means
@@ -81,7 +81,7 @@ EXPORT_SYMBOL(memstart_addr);
  * so page-granularity mappings are created for the entire memory range.
  * Hence a slightly slower boot is observed.
  *
- * Note: Page-granularity mapppings are necessary for crash kernel memory
+ * Note: Page-granularity mappings are necessary for crash kernel memory
  * range for shrinking its size via /sys/kernel/kexec_crash_size interface.
  */
 #if IS_ENABLED(CONFIG_ZONE_DMA) || IS_ENABLED(CONFIG_ZONE_DMA32)
