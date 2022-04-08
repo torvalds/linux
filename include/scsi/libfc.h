@@ -352,6 +352,15 @@ struct fc_fcp_pkt {
 } ____cacheline_aligned_in_smp;
 
 /*
+ * @fsp should be tested and set under the scsi_pkt_queue lock
+ */
+struct libfc_cmd_priv {
+	struct fc_fcp_pkt *fsp;
+	u32 resid_len;
+	u8 status;
+};
+
+/*
  * Structure and function definitions for managing Fibre Channel Exchanges
  * and Sequences
  *

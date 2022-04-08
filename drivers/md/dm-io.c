@@ -304,7 +304,6 @@ static void do_region(int op, int op_flags, unsigned region,
 	unsigned num_bvecs;
 	sector_t remaining = where->count;
 	struct request_queue *q = bdev_get_queue(where->bdev);
-	unsigned short logical_block_size = queue_logical_block_size(q);
 	sector_t num_sectors;
 	unsigned int special_cmd_max_sectors;
 
@@ -315,10 +314,8 @@ static void do_region(int op, int op_flags, unsigned region,
 		special_cmd_max_sectors = q->limits.max_discard_sectors;
 	else if (op == REQ_OP_WRITE_ZEROES)
 		special_cmd_max_sectors = q->limits.max_write_zeroes_sectors;
-	else if (op == REQ_OP_WRITE_SAME)
-		special_cmd_max_sectors = q->limits.max_write_same_sectors;
-	if ((op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES ||
-	     op == REQ_OP_WRITE_SAME) && special_cmd_max_sectors == 0) {
+	if ((op == REQ_OP_DISCARD || op == REQ_OP_WRITE_ZEROES) &&
+	    special_cmd_max_sectors == 0) {
 		atomic_inc(&io->count);
 		dec_count(io, region, BLK_STS_NOTSUPP);
 		return;
@@ -337,9 +334,6 @@ static void do_region(int op, int op_flags, unsigned region,
 		case REQ_OP_WRITE_ZEROES:
 			num_bvecs = 0;
 			break;
-		case REQ_OP_WRITE_SAME:
-			num_bvecs = 1;
-			break;
 		default:
 			num_bvecs = bio_max_segs(dm_sector_div_up(remaining,
 						(PAGE_SIZE >> SECTOR_SHIFT)));
@@ -355,18 +349,6 @@ static void do_region(int op, int op_flags, unsigned region,
 			num_sectors = min_t(sector_t, special_cmd_max_sectors, remaining);
 			bio->bi_iter.bi_size = num_sectors << SECTOR_SHIFT;
 			remaining -= num_sectors;
-		} else if (op == REQ_OP_WRITE_SAME) {
-			/*
-			 * WRITE SAME only uses a single page.
-			 */
-			dp->get_page(dp, &page, &len, &offset);
-			bio_add_page(bio, page, logical_block_size, offset);
-			num_sectors = min_t(sector_t, special_cmd_max_sectors, remaining);
-			bio->bi_iter.bi_size = num_sectors << SECTOR_SHIFT;
-
-			offset = 0;
-			remaining -= num_sectors;
-			dp->next_page(dp);
 		} else while (remaining) {
 			/*
 			 * Try and add as many pages as possible.

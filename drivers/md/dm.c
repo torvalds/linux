@@ -952,14 +952,6 @@ void disable_discard(struct mapped_device *md)
 	blk_queue_flag_clear(QUEUE_FLAG_DISCARD, md->queue);
 }
 
-void disable_write_same(struct mapped_device *md)
-{
-	struct queue_limits *limits = dm_get_queue_limits(md);
-
-	/* device doesn't really support WRITE SAME, disable it */
-	limits->max_write_same_sectors = 0;
-}
-
 void disable_write_zeroes(struct mapped_device *md)
 {
 	struct queue_limits *limits = dm_get_queue_limits(md);
@@ -986,9 +978,6 @@ static void clone_endio(struct bio *bio)
 		if (bio_op(bio) == REQ_OP_DISCARD &&
 		    !q->limits.max_discard_sectors)
 			disable_discard(md);
-		else if (bio_op(bio) == REQ_OP_WRITE_SAME &&
-			 !q->limits.max_write_same_sectors)
-			disable_write_same(md);
 		else if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
 			 !q->limits.max_write_zeroes_sectors)
 			disable_write_zeroes(md);
@@ -1429,7 +1418,6 @@ static bool is_abnormal_io(struct bio *bio)
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
 	case REQ_OP_SECURE_ERASE:
-	case REQ_OP_WRITE_SAME:
 	case REQ_OP_WRITE_ZEROES:
 		r = true;
 		break;
@@ -1449,9 +1437,6 @@ static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
 		break;
 	case REQ_OP_SECURE_ERASE:
 		num_bios = ti->num_secure_erase_bios;
-		break;
-	case REQ_OP_WRITE_SAME:
-		num_bios = ti->num_write_same_bios;
 		break;
 	case REQ_OP_WRITE_ZEROES:
 		num_bios = ti->num_write_zeroes_bios;

@@ -1997,7 +1997,6 @@ static bool kcryptd_crypt_write_inline(struct crypt_config *cc,
 	 */
 	switch (bio_op(ctx->bio_in)) {
 	case REQ_OP_WRITE:
-	case REQ_OP_WRITE_SAME:
 	case REQ_OP_WRITE_ZEROES:
 		return true;
 	default:
