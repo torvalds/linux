@@ -56,6 +56,17 @@ struct tuntap_info {
 /* ------------------------------------------------------------------------- */
 
 
+struct iss_net_private;
+
+struct iss_net_ops {
+	int (*open)(struct iss_net_private *lp);
+	void (*close)(struct iss_net_private *lp);
+	int (*read)(struct iss_net_private *lp, struct sk_buff **skb);
+	int (*write)(struct iss_net_private *lp, struct sk_buff **skb);
+	unsigned short (*protocol)(struct sk_buff *skb);
+	int (*poll)(struct iss_net_private *lp);
+};
+
 /* This structure contains out private information for the driver. */
 
 struct iss_net_private {
@@ -78,12 +89,7 @@ struct iss_net_private {
 			struct tuntap_info tuntap;
 		} info;
 
-		int (*open)(struct iss_net_private *lp);
-		void (*close)(struct iss_net_private *lp);
-		int (*read)(struct iss_net_private *lp, struct sk_buff **skb);
-		int (*write)(struct iss_net_private *lp, struct sk_buff **skb);
-		unsigned short (*protocol)(struct sk_buff *skb);
-		int (*poll)(struct iss_net_private *lp);
+		const struct iss_net_ops *net_ops;
 	} tp;
 
 };
@@ -211,6 +217,15 @@ static int tuntap_poll(struct iss_net_private *lp)
 	return simc_poll(lp->tp.info.tuntap.fd);
 }
 
+static const struct iss_net_ops tuntap_ops = {
+	.open		= tuntap_open,
+	.close		= tuntap_close,
+	.read		= tuntap_read,
+	.write		= tuntap_write,
+	.protocol	= tuntap_protocol,
+	.poll		= tuntap_poll,
+};
+
 /*
  * ethX=tuntap,[mac address],device name
  */
@@ -253,13 +268,7 @@ static int tuntap_probe(struct iss_net_private *lp, int index, char *init)
 	lp->mtu = TRANSPORT_TUNTAP_MTU;
 
 	lp->tp.info.tuntap.fd = -1;
-
-	lp->tp.open = tuntap_open;
-	lp->tp.close = tuntap_close;
-	lp->tp.read = tuntap_read;
-	lp->tp.write = tuntap_write;
-	lp->tp.protocol = tuntap_protocol;
-	lp->tp.poll = tuntap_poll;
+	lp->tp.net_ops = &tuntap_ops;
 
 	return 1;
 }
@@ -274,7 +283,7 @@ static int iss_net_rx(struct net_device *dev)
 
 	/* Check if there is any new data. */
 
-	if (lp->tp.poll(lp) == 0)
+	if (lp->tp.net_ops->poll(lp) == 0)
 		return 0;
 
 	/* Try to allocate memory, if it fails, try again next round. */
@@ -293,12 +302,12 @@ static int iss_net_rx(struct net_device *dev)
 
 	skb->dev = dev;
 	skb_reset_mac_header(skb);
-	pkt_len = lp->tp.read(lp, &skb);
+	pkt_len = lp->tp.net_ops->read(lp, &skb);
 	skb_put(skb, pkt_len);
 
 	if (pkt_len > 0) {
 		skb_trim(skb, pkt_len);
-		skb->protocol = lp->tp.protocol(skb);
+		skb->protocol = lp->tp.net_ops->protocol(skb);
 
 		spin_lock_bh(&lp->lock);
 		lp->stats.rx_bytes += skb->len;
@@ -347,7 +356,7 @@ static int iss_net_open(struct net_device *dev)
 	struct iss_net_private *lp = netdev_priv(dev);
 	int err;
 
-	err = lp->tp.open(lp);
+	err = lp->tp.net_ops->open(lp);
 	if (err < 0)
 		return err;
 
@@ -373,7 +382,7 @@ static int iss_net_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 	del_timer_sync(&lp->timer);
-	lp->tp.close(lp);
+	lp->tp.net_ops->close(lp);
 
 	return 0;
 }
@@ -385,7 +394,7 @@ static int iss_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	len = lp->tp.write(lp, &skb);
+	len = lp->tp.net_ops->write(lp, &skb);
 
 	if (len == skb->len) {
 		spin_lock_bh(&lp->lock);
