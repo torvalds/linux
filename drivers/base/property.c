@@ -656,28 +656,26 @@ struct fwnode_handle *fwnode_get_nth_parent(struct fwnode_handle *fwnode,
 EXPORT_SYMBOL_GPL(fwnode_get_nth_parent);
 
 /**
- * fwnode_is_ancestor_of - Test if @test_ancestor is ancestor of @test_child
- * @test_ancestor: Firmware which is tested for being an ancestor
- * @test_child: Firmware which is tested for being the child
+ * fwnode_is_ancestor_of - Test if @ancestor is ancestor of @child
+ * @ancestor: Firmware which is tested for being an ancestor
+ * @child: Firmware which is tested for being the child
  *
  * A node is considered an ancestor of itself too.
  *
- * Returns true if @test_ancestor is an ancestor of @test_child.
- * Otherwise, returns false.
+ * Returns true if @ancestor is an ancestor of @child. Otherwise, returns false.
  */
-bool fwnode_is_ancestor_of(struct fwnode_handle *test_ancestor,
-				  struct fwnode_handle *test_child)
+bool fwnode_is_ancestor_of(struct fwnode_handle *ancestor, struct fwnode_handle *child)
 {
 	struct fwnode_handle *parent;
 
-	if (IS_ERR_OR_NULL(test_ancestor))
+	if (IS_ERR_OR_NULL(ancestor))
 		return false;
 
-	if (test_child == test_ancestor)
+	if (child == ancestor)
 		return true;
 
-	fwnode_for_each_parent_node(test_child, parent) {
-		if (parent == test_ancestor) {
+	fwnode_for_each_parent_node(child, parent) {
+		if (parent == ancestor) {
 			fwnode_handle_put(parent);
 			return true;
 		}
