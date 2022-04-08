@@ -25,7 +25,9 @@
  */
 
 #include <linux/io-64-nonatomic-lo-hi.h>
+#ifdef CONFIG_X86
 #include <asm/hypervisor.h>
+#endif
 
 #include "amdgpu.h"
 #include "amdgpu_gmc.h"
@@ -650,10 +652,12 @@ void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev)
 		/*
 		 * VEGA10 SRIOV VF with MS_HYPERV host needs some firmware reserved area.
 		 */
+#ifdef CONFIG_X86
 		if (amdgpu_sriov_vf(adev) && hypervisor_is_type(X86_HYPER_MS_HYPERV)) {
 			adev->mman.stolen_reserved_offset = 0x500000;
 			adev->mman.stolen_reserved_size = 0x200000;
 		}
+#endif
 		break;
 	case CHIP_RAVEN:
 	case CHIP_RENOIR:
