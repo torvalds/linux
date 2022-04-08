@@ -107,11 +107,17 @@ __mock bool cxl_hdm_decode_init(struct cxl_dev_state *cxlds)
 	global_ctrl = readl(crb + cmap->hdm_decoder.offset +
 			    CXL_HDM_DECODER_CTRL_OFFSET);
 	global_enable = global_ctrl & CXL_HDM_DECODER_ENABLE;
-	if (!global_enable && info->ranges) {
-		dev_dbg(cxlds->dev,
-			"DVSEC ranges already programmed and HDM decoders not enabled.\n");
+
+	/*
+	 * Per CXL 2.0 Section 8.1.3.8.3 and 8.1.3.8.4 DVSEC CXL Range 1 Base
+	 * [High,Low] when HDM operation is enabled the range register values
+	 * are ignored by the device, but the spec also recommends matching the
+	 * DVSEC Range 1,2 to HDM Decoder Range 0,1. So, non-zero info->ranges
+	 * are expected even though Linux does not require or maintain that
+	 * match.
+	 */
+	if (!global_enable && info->ranges)
 		goto out;
-	}
 
 	retval = true;
 
