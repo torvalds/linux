@@ -3632,16 +3632,19 @@ static inline void irq_work_restrict_to_mig_clusters(cpumask_t *lock_cpus)
 	int cpu;
 
 	for_each_sched_cluster(cluster) {
+		bool keep = false;
 		for_each_cpu(cpu, &cluster->cpus) {
 			rq = cpu_rq(cpu);
 			wrq = (struct walt_rq *)rq->android_vendor_data1;
 
 			/* remove this cluster if it's not being notified */
 			if (!wrq->notif_pending) {
-				cpumask_andnot(lock_cpus, lock_cpus, &cluster->cpus);
+				keep = true;
 				break;
 			}
 		}
+		if (!keep)
+			cpumask_andnot(lock_cpus, lock_cpus, &cluster->cpus);
 	}
 }
 
