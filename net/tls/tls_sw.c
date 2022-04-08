@@ -1826,6 +1826,10 @@ int tls_sw_recvmsg(struct sock *sk,
 		if (err <= 0)
 			goto recv_end;
 
+		ctx->recv_pkt = NULL;
+		__strp_unpause(&ctx->strp);
+		skb_queue_tail(&ctx->rx_list, skb);
+
 		if (async) {
 			/* TLS 1.2-only, to_decrypt must be text length */
 			chunk = min_t(int, to_decrypt, len);
@@ -1840,10 +1844,9 @@ int tls_sw_recvmsg(struct sock *sk,
 				if (err != __SK_PASS) {
 					rxm->offset = rxm->offset + rxm->full_len;
 					rxm->full_len = 0;
+					skb_unlink(skb, &ctx->rx_list);
 					if (err == __SK_DROP)
 						consume_skb(skb);
-					ctx->recv_pkt = NULL;
-					__strp_unpause(&ctx->strp);
 					continue;
 				}
 			}
@@ -1869,14 +1872,9 @@ pick_next_record:
 		len -= chunk;
 
 		/* For async or peek case, queue the current skb */
-		if (async || is_peek || retain_skb) {
-			skb_queue_tail(&ctx->rx_list, skb);
-			ctx->recv_pkt = NULL;
-			__strp_unpause(&ctx->strp);
-		} else {
+		if (!(async || is_peek || retain_skb)) {
+			skb_unlink(skb, &ctx->rx_list);
 			consume_skb(skb);
-			ctx->recv_pkt = NULL;
-			__strp_unpause(&ctx->strp);
 
 			/* Return full control message to
 			 * userspace before trying to parse
