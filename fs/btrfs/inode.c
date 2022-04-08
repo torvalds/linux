@@ -6207,43 +6207,6 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	if (args->subvol) {
-		struct inode *parent;
-
-		/*
-		 * Subvolumes inherit properties from their parent subvolume,
-		 * not the directory they were created in.
-		 */
-		parent = btrfs_iget(fs_info->sb, BTRFS_FIRST_FREE_OBJECTID,
-				    BTRFS_I(dir)->root);
-		if (IS_ERR(parent)) {
-			ret = PTR_ERR(parent);
-		} else {
-			ret = btrfs_inode_inherit_props(trans, inode, parent);
-			iput(parent);
-		}
-	} else {
-		ret = btrfs_inode_inherit_props(trans, inode, dir);
-	}
-	if (ret) {
-		btrfs_err(fs_info,
-			  "error inheriting props for ino %llu (root %llu): %d",
-			  btrfs_ino(BTRFS_I(inode)), root->root_key.objectid,
-			  ret);
-	}
-
-	/*
-	 * Subvolumes don't inherit ACLs or get passed to the LSM. This is
-	 * probably a bug.
-	 */
-	if (!args->subvol) {
-		ret = btrfs_init_inode_security(trans, args);
-		if (ret) {
-			btrfs_abort_transaction(trans, ret);
-			goto discard;
-		}
-	}
-
 	/*
 	 * We could have gotten an inode number from somebody who was fsynced
 	 * and then removed in this same transaction, so let's just set full
@@ -6320,6 +6283,43 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 	btrfs_release_path(path);
+
+	if (args->subvol) {
+		struct inode *parent;
+
+		/*
+		 * Subvolumes inherit properties from their parent subvolume,
+		 * not the directory they were created in.
+		 */
+		parent = btrfs_iget(fs_info->sb, BTRFS_FIRST_FREE_OBJECTID,
+				    BTRFS_I(dir)->root);
+		if (IS_ERR(parent)) {
+			ret = PTR_ERR(parent);
+		} else {
+			ret = btrfs_inode_inherit_props(trans, inode, parent);
+			iput(parent);
+		}
+	} else {
+		ret = btrfs_inode_inherit_props(trans, inode, dir);
+	}
+	if (ret) {
+		btrfs_err(fs_info,
+			  "error inheriting props for ino %llu (root %llu): %d",
+			  btrfs_ino(BTRFS_I(inode)), root->root_key.objectid,
+			  ret);
+	}
+
+	/*
+	 * Subvolumes don't inherit ACLs or get passed to the LSM. This is
+	 * probably a bug.
+	 */
+	if (!args->subvol) {
+		ret = btrfs_init_inode_security(trans, args);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto discard;
+		}
+	}
 
 	inode_tree_add(inode);
 
