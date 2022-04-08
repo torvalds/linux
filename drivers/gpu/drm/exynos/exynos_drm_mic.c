@@ -434,9 +434,9 @@ static int exynos_mic_probe(struct platform_device *pdev)
 
 	remote = of_graph_get_remote_node(dev->of_node, 1, 0);
 	mic->next_bridge = of_drm_find_bridge(remote);
-	if (IS_ERR(mic->next_bridge)) {
+	if (!mic->next_bridge) {
 		DRM_DEV_ERROR(dev, "mic: Failed to find next bridge\n");
-		ret = PTR_ERR(mic->next_bridge);
+		ret = -EPROBE_DEFER;
 		goto err;
 	}
 
