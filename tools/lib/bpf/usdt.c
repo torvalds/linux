@@ -108,7 +108,7 @@
  * code through spec map. This allows BPF applications to quickly fetch the
  * actual value at runtime using a simple BPF-side code.
  *
- * With basics out of the way, let's go over less immeditately obvious aspects
+ * With basics out of the way, let's go over less immediately obvious aspects
  * of supporting USDTs.
  *
  * First, there is no special USDT BPF program type. It is actually just
@@ -189,14 +189,14 @@
 #define USDT_NOTE_TYPE 3
 #define USDT_NOTE_NAME "stapsdt"
 
-/* should match exactly enum __bpf_usdt_arg_type from bpf_usdt.bpf.h */
+/* should match exactly enum __bpf_usdt_arg_type from usdt.bpf.h */
 enum usdt_arg_type {
 	USDT_ARG_CONST,
 	USDT_ARG_REG,
 	USDT_ARG_REG_DEREF,
 };
 
-/* should match exactly struct __bpf_usdt_arg_spec from bpf_usdt.bpf.h */
+/* should match exactly struct __bpf_usdt_arg_spec from usdt.bpf.h */
 struct usdt_arg_spec {
 	__u64 val_off;
 	enum usdt_arg_type arg_type;
@@ -328,9 +328,9 @@ static int sanity_check_usdt_elf(Elf *elf, const char *path)
 		return -EBADF;
 	}
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	endianness = ELFDATA2LSB;
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	endianness = ELFDATA2MSB;
 #else
 # error "Unrecognized __BYTE_ORDER__"
@@ -843,7 +843,7 @@ static int bpf_link_usdt_detach(struct bpf_link *link)
 						   sizeof(*new_free_ids));
 		/* If we couldn't resize free_spec_ids, we'll just leak
 		 * a bunch of free IDs; this is very unlikely to happen and if
-		 * system is so exausted on memory, it's the least of user's
+		 * system is so exhausted on memory, it's the least of user's
 		 * concerns, probably.
 		 * So just do our best here to return those IDs to usdt_manager.
 		 */
@@ -1244,6 +1244,61 @@ static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec
 		arg->reg_off = reg_off;
 	} else if (sscanf(arg_str, " %d @ $%ld %n", &arg_sz, &off, &len) == 2) {
 		/* Constant value case, e.g., 4@$71 */
+		arg->arg_type = USDT_ARG_CONST;
+		arg->val_off = off;
+		arg->reg_off = 0;
+	} else {
+		pr_warn("usdt: unrecognized arg #%d spec '%s'\n", arg_num, arg_str);
+		return -EINVAL;
+	}
+
+	arg->arg_signed = arg_sz < 0;
+	if (arg_sz < 0)
+		arg_sz = -arg_sz;
+
+	switch (arg_sz) {
+	case 1: case 2: case 4: case 8:
+		arg->arg_bitshift = 64 - arg_sz * 8;
+		break;
+	default:
+		pr_warn("usdt: unsupported arg #%d (spec '%s') size: %d\n",
+			arg_num, arg_str, arg_sz);
+		return -EINVAL;
+	}
+
+	return len;
+}
+
+#elif defined(__s390x__)
+
+/* Do not support __s390__ for now, since user_pt_regs is broken with -m31. */
+
+static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec *arg)
+{
+	unsigned int reg;
+	int arg_sz, len;
+	long off;
+
+	if (sscanf(arg_str, " %d @ %ld ( %%r%u ) %n", &arg_sz, &off, &reg, &len) == 3) {
+		/* Memory dereference case, e.g., -2@-28(%r15) */
+		arg->arg_type = USDT_ARG_REG_DEREF;
+		arg->val_off = off;
+		if (reg > 15) {
+			pr_warn("usdt: unrecognized register '%%r%u'\n", reg);
+			return -EINVAL;
+		}
+		arg->reg_off = offsetof(user_pt_regs, gprs[reg]);
+	} else if (sscanf(arg_str, " %d @ %%r%u %n", &arg_sz, &reg, &len) == 2) {
+		/* Register read case, e.g., -8@%r0 */
+		arg->arg_type = USDT_ARG_REG;
+		arg->val_off = 0;
+		if (reg > 15) {
+			pr_warn("usdt: unrecognized register '%%r%u'\n", reg);
+			return -EINVAL;
+		}
+		arg->reg_off = offsetof(user_pt_regs, gprs[reg]);
+	} else if (sscanf(arg_str, " %d @ %ld %n", &arg_sz, &off, &len) == 2) {
+		/* Constant value case, e.g., 4@71 */
 		arg->arg_type = USDT_ARG_CONST;
 		arg->val_off = off;
 		arg->reg_off = 0;
