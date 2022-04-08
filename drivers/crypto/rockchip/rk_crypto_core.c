@@ -73,26 +73,6 @@ static int check_scatter_align(struct scatterlist *sg_src,
 	return (align && (sg_src->length == sg_dst->length));
 }
 
-static bool check_from_dmafd(struct crypto_async_request *async_req)
-{
-	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(async_req);
-	bool in, out;
-
-	in = alg_ctx->src_nents == 1 &&
-	     sg_virt(alg_ctx->req_src) &&
-	     sg_dma_address(alg_ctx->req_src);
-
-	if (!alg_ctx->req_dst)
-		return in;
-
-	out = alg_ctx->dst_nents == 1 &&
-	      sg_virt(alg_ctx->req_dst) &&
-	      sg_dma_address(alg_ctx->req_dst) &&
-	      sg_dma_len(alg_ctx->req_src) == sg_dma_len(alg_ctx->req_dst);
-
-	return in && out;
-}
-
 static bool check_scatterlist_align(struct crypto_async_request *async_req,
 				    int align_mask)
 {
@@ -138,11 +118,8 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 	if (alg_ctx->total == 0)
 		return 0;
 
-	if (alg_ctx->left_bytes == alg_ctx->total) {
-		alg_ctx->is_dma = check_from_dmafd(rk_dev->async_req);
-		alg_ctx->aligned = check_scatterlist_align(rk_dev->async_req,
-							   alg_ctx->align_size) | alg_ctx->is_dma;
-	}
+	if (alg_ctx->left_bytes == alg_ctx->total)
+		alg_ctx->aligned = check_scatterlist_align(rk_dev->async_req, alg_ctx->align_size);
 
 	CRYPTO_TRACE("aligned = %d, total = %u, left_bytes = %u\n",
 		     alg_ctx->aligned, alg_ctx->total, alg_ctx->left_bytes);
@@ -152,7 +129,7 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 			     sg_src->length);
 		alg_ctx->left_bytes -= count;
 
-		if (!alg_ctx->is_dma && !dma_map_sg(dev, sg_src, 1, DMA_TO_DEVICE)) {
+		if (!dma_map_sg(dev, sg_src, 1, DMA_TO_DEVICE)) {
 			dev_err(dev, "[%s:%d] dma_map_sg(src)  error\n",
 				__func__, __LINE__);
 			ret = -EINVAL;
@@ -161,7 +138,7 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 		alg_ctx->addr_in = sg_dma_address(sg_src);
 
 		if (sg_dst) {
-			if (!alg_ctx->is_dma && !dma_map_sg(dev, sg_dst, 1, DMA_FROM_DEVICE)) {
+			if (!dma_map_sg(dev, sg_dst, 1, DMA_FROM_DEVICE)) {
 				dev_err(dev,
 					"[%s:%d] dma_map_sg(dst)  error\n",
 					__func__, __LINE__);
@@ -229,13 +206,11 @@ static int rk_unload_data(struct rk_crypto_dev *rk_dev)
 		return 0;
 
 	sg_in = alg_ctx->aligned ? alg_ctx->sg_src : &alg_ctx->sg_tmp;
-	if (!alg_ctx->is_dma)
-		dma_unmap_sg(rk_dev->dev, sg_in, 1, DMA_TO_DEVICE);
+	dma_unmap_sg(rk_dev->dev, sg_in, 1, DMA_TO_DEVICE);
 
 	if (alg_ctx->sg_dst) {
 		sg_out = alg_ctx->aligned ? alg_ctx->sg_dst : &alg_ctx->sg_tmp;
-		if (!alg_ctx->is_dma)
-			dma_unmap_sg(rk_dev->dev, sg_out, 1, DMA_FROM_DEVICE);
+		dma_unmap_sg(rk_dev->dev, sg_out, 1, DMA_FROM_DEVICE);
 	}
 
 	if (!alg_ctx->aligned && alg_ctx->req_dst) {

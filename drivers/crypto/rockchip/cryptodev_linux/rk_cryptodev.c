@@ -539,6 +539,7 @@ error:
 static int dma_fd_unmap_for_user(struct fcrypt *fcr, struct kernel_crypt_fd_map_op *kmop)
 {
 	struct dma_fd_map_node *tmp, *map_node;
+	bool is_found = false;
 	int ret = 0;
 
 	mutex_lock(&fcr->sem);
@@ -552,11 +553,12 @@ static int dma_fd_unmap_for_user(struct fcrypt *fcr, struct kernel_crypt_fd_map_
 			list_del(&map_node->list);
 			kfree(map_node);
 			kmop->mop.phys_addr = 0;
+			is_found = true;
 			break;
 		}
 	}
 
-	if (unlikely(!map_node)) {
+	if (unlikely(!is_found)) {
 		derr(1, "dmafd =0x%08X not found!", kmop->mop.dma_fd);
 		ret = -ENOENT;
 		mutex_unlock(&fcr->sem);
