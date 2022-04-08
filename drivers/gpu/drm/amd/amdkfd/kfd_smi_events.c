@@ -38,6 +38,7 @@ struct kfd_smi_client {
 	uint64_t events;
 	struct kfd_dev *dev;
 	spinlock_t lock;
+	struct rcu_head rcu;
 	pid_t pid;
 	bool suser;
 };
@@ -137,6 +138,14 @@ static ssize_t kfd_smi_ev_write(struct file *filep, const char __user *user,
 	return sizeof(events);
 }
 
+static void kfd_smi_ev_client_free(struct rcu_head *p)
+{
+	struct kfd_smi_client *ev = container_of(p, struct kfd_smi_client, rcu);
+
+	kfifo_free(&ev->fifo);
+	kfree(ev);
+}
+
 static int kfd_smi_ev_release(struct inode *inode, struct file *filep)
 {
 	struct kfd_smi_client *client = filep->private_data;
@@ -146,10 +155,7 @@ static int kfd_smi_ev_release(struct inode *inode, struct file *filep)
 	list_del_rcu(&client->list);
 	spin_unlock(&dev->smi_lock);
 
-	synchronize_rcu();
-	kfifo_free(&client->fifo);
-	kfree(client);
-
+	call_rcu(&client->rcu, kfd_smi_ev_client_free);
 	return 0;
 }
 
