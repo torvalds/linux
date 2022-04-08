@@ -76,7 +76,7 @@ config ANDROID_VENDOR_HOOKS
 
 config ANDROID_STRUCT_PADDING
 	bool "Android Struct Padding"
-	default y
+	default y if !NO_GKI
 	help
 	  This option enables the padding that the Android GKI kernel adds
 	  to many different kernel structures to support an in-kernel stable ABI
