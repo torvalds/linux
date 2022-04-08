@@ -148,7 +148,6 @@ struct tls_sw_context_rx {
 
 	struct sk_buff *recv_pkt;
 	u8 async_capable:1;
-	u8 decrypted:1;
 	atomic_t decrypt_pending;
 	/* protect crypto_wait with decrypt_pending*/
 	spinlock_t decrypt_compl_lock;

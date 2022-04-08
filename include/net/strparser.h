@@ -72,6 +72,7 @@ struct sk_skb_cb {
 	u64 temp_reg;
 	struct tls_msg {
 		u8 control;
+		u8 decrypted;
 	} tls;
 };
 
