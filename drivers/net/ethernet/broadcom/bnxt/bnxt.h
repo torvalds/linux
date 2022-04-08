@@ -701,13 +701,12 @@ struct bnxt_sw_tx_bd {
 	};
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	DEFINE_DMA_UNMAP_LEN(len);
+	struct page		*page;
 	u8			is_gso;
 	u8			is_push;
 	u8			action;
-	union {
-		unsigned short		nr_frags;
-		u16			rx_prod;
-	};
+	unsigned short		nr_frags;
+	u16			rx_prod;
 };
 
 struct bnxt_sw_rx_bd {

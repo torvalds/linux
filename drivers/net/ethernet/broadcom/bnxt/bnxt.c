@@ -1951,9 +1951,13 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		skb = bnxt_copy_skb(bnapi, data_ptr, len, dma_addr);
 		bnxt_reuse_rx_data(rxr, cons, data);
 		if (!skb) {
-			if (agg_bufs)
-				bnxt_reuse_rx_agg_bufs(cpr, cp_cons, 0,
-						       agg_bufs, false);
+			if (agg_bufs) {
+				if (!xdp_active)
+					bnxt_reuse_rx_agg_bufs(cpr, cp_cons, 0,
+							       agg_bufs, false);
+				else
+					bnxt_xdp_buff_frags_free(rxr, &xdp);
+			}
 			cpr->sw_stats.rx.rx_oom_discards += 1;
 			rc = -ENOMEM;
 			goto next_rx;
@@ -1986,6 +1990,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 			skb = bnxt_xdp_build_skb(bp, skb, agg_bufs, rxr->page_pool, &xdp, rxcmp1);
 			if (!skb) {
 				/* we should be able to free the old skb here */
+				bnxt_xdp_buff_frags_free(rxr, &xdp);
 				cpr->sw_stats.rx.rx_oom_discards += 1;
 				rc = -ENOMEM;
 				goto next_rx;
@@ -2605,9 +2610,12 @@ static void __bnxt_poll_work_done(struct bnxt *bp, struct bnxt_napi *bnapi)
 	if ((bnapi->events & BNXT_RX_EVENT) && !(bnapi->in_reset)) {
 		struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
 
-		if (bnapi->events & BNXT_AGG_EVENT)
-			bnxt_db_write(bp, &rxr->rx_agg_db, rxr->rx_agg_prod);
 		bnxt_db_write(bp, &rxr->rx_db, rxr->rx_prod);
+	}
+	if (bnapi->events & BNXT_AGG_EVENT) {
+		struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
+
+		bnxt_db_write(bp, &rxr->rx_agg_db, rxr->rx_agg_prod);
 	}
 	bnapi->events = 0;
 }

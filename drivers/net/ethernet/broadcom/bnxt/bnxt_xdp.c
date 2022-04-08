@@ -24,36 +24,91 @@ DEFINE_STATIC_KEY_FALSE(bnxt_xdp_locking_key);
 
 struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 				   struct bnxt_tx_ring_info *txr,
-				   dma_addr_t mapping, u32 len)
+				   dma_addr_t mapping, u32 len,
+				   struct xdp_buff *xdp)
 {
-	struct bnxt_sw_tx_bd *tx_buf;
+	struct skb_shared_info *sinfo;
+	struct bnxt_sw_tx_bd *tx_buf, *first_buf;
 	struct tx_bd *txbd;
+	int num_frags = 0;
 	u32 flags;
 	u16 prod;
+	int i;
 
+	if (xdp && xdp_buff_has_frags(xdp)) {
+		sinfo = xdp_get_shared_info_from_buff(xdp);
+		num_frags = sinfo->nr_frags;
+	}
+
+	/* fill up the first buffer */
 	prod = txr->tx_prod;
 	tx_buf = &txr->tx_buf_ring[prod];
+	first_buf = tx_buf;
+	tx_buf->nr_frags = num_frags;
+	if (xdp)
+		tx_buf->page = virt_to_head_page(xdp->data);
 
 	txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
-	flags = (len << TX_BD_LEN_SHIFT) | (1 << TX_BD_FLAGS_BD_CNT_SHIFT) |
-		TX_BD_FLAGS_PACKET_END | bnxt_lhint_arr[len >> 9];
+	flags = ((len) << TX_BD_LEN_SHIFT) | ((num_frags + 1) << TX_BD_FLAGS_BD_CNT_SHIFT);
 	txbd->tx_bd_len_flags_type = cpu_to_le32(flags);
 	txbd->tx_bd_opaque = prod;
 	txbd->tx_bd_haddr = cpu_to_le64(mapping);
 
+	/* now let us fill up the frags into the next buffers */
+	for (i = 0; i < num_frags ; i++) {
+		skb_frag_t *frag = &sinfo->frags[i];
+		struct bnxt_sw_tx_bd *frag_tx_buf;
+		struct pci_dev *pdev = bp->pdev;
+		dma_addr_t frag_mapping;
+		int frag_len;
+
+		prod = NEXT_TX(prod);
+		txr->tx_prod = prod;
+
+		/* first fill up the first buffer */
+		frag_tx_buf = &txr->tx_buf_ring[prod];
+		frag_tx_buf->page = skb_frag_page(frag);
+
+		txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
+
+		frag_len = skb_frag_size(frag);
+		frag_mapping = skb_frag_dma_map(&pdev->dev, frag, 0,
+						frag_len, DMA_TO_DEVICE);
+
+		if (unlikely(dma_mapping_error(&pdev->dev, frag_mapping)))
+			return NULL;
+
+		dma_unmap_addr_set(frag_tx_buf, mapping, frag_mapping);
+
+		flags = frag_len << TX_BD_LEN_SHIFT;
+		txbd->tx_bd_len_flags_type = cpu_to_le32(flags);
+		txbd->tx_bd_opaque = prod;
+		txbd->tx_bd_haddr = cpu_to_le64(frag_mapping);
+
+		len = frag_len;
+	}
+
+	flags &= ~TX_BD_LEN;
+	txbd->tx_bd_len_flags_type = cpu_to_le32(((len) << TX_BD_LEN_SHIFT) | flags |
+			TX_BD_FLAGS_PACKET_END);
+	/* Sync TX BD */
+	wmb();
 	prod = NEXT_TX(prod);
 	txr->tx_prod = prod;
-	return tx_buf;
+
+	return first_buf;
 }
 
 static void __bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
-			    dma_addr_t mapping, u32 len, u16 rx_prod)
+			    dma_addr_t mapping, u32 len, u16 rx_prod,
+			    struct xdp_buff *xdp)
 {
 	struct bnxt_sw_tx_bd *tx_buf;
 
-	tx_buf = bnxt_xmit_bd(bp, txr, mapping, len);
+	tx_buf = bnxt_xmit_bd(bp, txr, mapping, len, xdp);
 	tx_buf->rx_prod = rx_prod;
 	tx_buf->action = XDP_TX;
+
 }
 
 static void __bnxt_xmit_xdp_redirect(struct bnxt *bp,
@@ -63,7 +118,7 @@ static void __bnxt_xmit_xdp_redirect(struct bnxt *bp,
 {
 	struct bnxt_sw_tx_bd *tx_buf;
 
-	tx_buf = bnxt_xmit_bd(bp, txr, mapping, len);
+	tx_buf = bnxt_xmit_bd(bp, txr, mapping, len, NULL);
 	tx_buf->action = XDP_REDIRECT;
 	tx_buf->xdpf = xdpf;
 	dma_unmap_addr_set(tx_buf, mapping, mapping);
@@ -78,7 +133,7 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts)
 	struct bnxt_sw_tx_bd *tx_buf;
 	u16 tx_cons = txr->tx_cons;
 	u16 last_tx_cons = tx_cons;
-	int i;
+	int i, j, frags;
 
 	for (i = 0; i < nr_pkts; i++) {
 		tx_buf = &txr->tx_buf_ring[tx_cons];
@@ -96,6 +151,13 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts)
 		} else if (tx_buf->action == XDP_TX) {
 			rx_doorbell_needed = true;
 			last_tx_cons = tx_cons;
+
+			frags = tx_buf->nr_frags;
+			for (j = 0; j < frags; j++) {
+				tx_cons = NEXT_TX(tx_cons);
+				tx_buf = &txr->tx_buf_ring[tx_cons];
+				page_pool_recycle_direct(rxr->page_pool, tx_buf->page);
+			}
 		}
 		tx_cons = NEXT_TX(tx_cons);
 	}
@@ -103,6 +165,7 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts)
 	if (rx_doorbell_needed) {
 		tx_buf = &txr->tx_buf_ring[last_tx_cons];
 		bnxt_db_write(bp, &rxr->rx_db, tx_buf->rx_prod);
+
 	}
 }
 
@@ -133,6 +196,23 @@ void bnxt_xdp_buff_init(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	xdp_prepare_buff(xdp, *data_ptr - offset, offset, *len, false);
 }
 
+void bnxt_xdp_buff_frags_free(struct bnxt_rx_ring_info *rxr,
+			      struct xdp_buff *xdp)
+{
+	struct skb_shared_info *shinfo;
+	int i;
+
+	if (!xdp || !xdp_buff_has_frags(xdp))
+		return;
+	shinfo = xdp_get_shared_info_from_buff(xdp);
+	for (i = 0; i < shinfo->nr_frags; i++) {
+		struct page *page = skb_frag_page(&shinfo->frags[i]);
+
+		page_pool_recycle_direct(rxr->page_pool, page);
+	}
+	shinfo->nr_frags = 0;
+}
+
 /* returns the following:
  * true    - packet consumed by XDP and new buffer is allocated.
  * false   - packet should be passed to the stack.
@@ -145,6 +225,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 	struct bnxt_sw_rx_bd *rx_buf;
 	struct pci_dev *pdev;
 	dma_addr_t mapping;
+	u32 tx_needed = 1;
 	void *orig_data;
 	u32 tx_avail;
 	u32 offset;
@@ -180,18 +261,28 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 	case XDP_TX:
 		rx_buf = &rxr->rx_buf_ring[cons];
 		mapping = rx_buf->mapping - bp->rx_dma_offset;
+		*event = 0;
 
-		if (tx_avail < 1) {
+		if (unlikely(xdp_buff_has_frags(&xdp))) {
+			struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(&xdp);
+
+			tx_needed += sinfo->nr_frags;
+			*event = BNXT_AGG_EVENT;
+		}
+
+		if (tx_avail < tx_needed) {
 			trace_xdp_exception(bp->dev, xdp_prog, act);
+			bnxt_xdp_buff_frags_free(rxr, &xdp);
 			bnxt_reuse_rx_data(rxr, cons, page);
 			return true;
 		}
 
-		*event = BNXT_TX_EVENT;
 		dma_sync_single_for_device(&pdev->dev, mapping + offset, *len,
 					   bp->rx_dir);
+
+		*event |= BNXT_TX_EVENT;
 		__bnxt_xmit_xdp(bp, txr, mapping + offset, *len,
-				NEXT_RX(rxr->rx_prod));
+				NEXT_RX(rxr->rx_prod), &xdp);
 		bnxt_reuse_rx_data(rxr, cons, page);
 		return true;
 	case XDP_REDIRECT:
@@ -208,6 +299,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 		/* if we are unable to allocate a new buffer, abort and reuse */
 		if (bnxt_alloc_rx_data(bp, rxr, rxr->rx_prod, GFP_ATOMIC)) {
 			trace_xdp_exception(bp->dev, xdp_prog, act);
+			bnxt_xdp_buff_frags_free(rxr, &xdp);
 			bnxt_reuse_rx_data(rxr, cons, page);
 			return true;
 		}
@@ -227,6 +319,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 		trace_xdp_exception(bp->dev, xdp_prog, act);
 		fallthrough;
 	case XDP_DROP:
+		bnxt_xdp_buff_frags_free(rxr, &xdp);
 		bnxt_reuse_rx_data(rxr, cons, page);
 		break;
 	}
