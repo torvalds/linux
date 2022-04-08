@@ -61,7 +61,7 @@ struct atmel_tcb_pwm_chip {
 	struct atmel_tcb_channel bkup;
 };
 
-const u8 atmel_tcb_divisors[] = { 2, 8, 32, 128, 0, };
+static const u8 atmel_tcb_divisors[] = { 2, 8, 32, 128, 0, };
 
 static inline struct atmel_tcb_pwm_chip *to_tcb_chip(struct pwm_chip *chip)
 {
