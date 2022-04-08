@@ -1575,9 +1575,8 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 		err = tls_device_decrypted(sk, tls_ctx, skb, rxm);
 		if (err < 0)
 			return err;
-
-		/* skip SW decryption if NIC handled it already */
-		if (tlm->decrypted) {
+		if (err > 0) {
+			tlm->decrypted = 1;
 			*zc = false;
 			goto decrypt_done;
 		}
