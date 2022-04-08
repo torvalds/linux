@@ -136,7 +136,7 @@ static bool skl_pcode_try_request(struct drm_i915_private *i915, u32 mbox,
 {
 	*status = __snb_pcode_rw(i915, mbox, &request, NULL, 500, 0, true);
 
-	return *status || ((request & reply_mask) == reply);
+	return (*status == 0) && ((request & reply_mask) == reply);
 }
 
 /**
