@@ -771,9 +771,16 @@ int i915_gem_object_get_moving_fence(struct drm_i915_gem_object *obj,
 int i915_gem_object_wait_moving_fence(struct drm_i915_gem_object *obj,
 				      bool intr)
 {
+	long ret;
+
 	assert_object_held(obj);
-	return dma_resv_wait_timeout(obj->base. resv, DMA_RESV_USAGE_KERNEL,
-				     intr, MAX_SCHEDULE_TIMEOUT);
+
+	ret = dma_resv_wait_timeout(obj->base. resv, DMA_RESV_USAGE_KERNEL,
+				    intr, MAX_SCHEDULE_TIMEOUT);
+	if (!ret)
+		ret = -ETIME;
+
+	return ret < 0 ? ret : 0;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
