@@ -2101,10 +2101,10 @@ static int tls_read_size(struct strparser *strp, struct sk_buff *skb)
 
 	/* Linearize header to local buffer */
 	ret = skb_copy_bits(skb, rxm->offset, header, prot->prepend_size);
-
 	if (ret < 0)
 		goto read_failure;
 
+	tlm->decrypted = 0;
 	tlm->control = header[0];
 
 	data_len = ((header[4] & 0xFF) | (header[3] << 8));
@@ -2145,9 +2145,6 @@ static void tls_queue(struct strparser *strp, struct sk_buff *skb)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(strp->sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
-	struct tls_msg *tlm = tls_msg(skb);
-
-	tlm->decrypted = 0;
 
 	ctx->recv_pkt = skb;
 	strp_pause(strp);
