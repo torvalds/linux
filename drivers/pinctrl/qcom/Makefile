@@ -57,3 +57,4 @@ obj-$(CONFIG_PINCTRL_LPASS_LPI) += pinctrl-lpass-lpi.o
 obj-$(CONFIG_PINCTRL_LEMANS) += pinctrl-lemans.o
 obj-$(CONFIG_PINCTRL_DIREWOLF) += pinctrl-direwolf.o
 obj-$(CONFIG_PINCTRL_MONACO_AUTO) += pinctrl-monaco_auto.o
+obj-$(CONFIG_PINCTRL_SM6150) 	+= pinctrl-sm6150.o
