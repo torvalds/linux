@@ -136,22 +136,21 @@ static int padding_length(struct tls_prot_info *prot, struct sk_buff *skb)
 
 	/* Determine zero-padding length */
 	if (prot->version == TLS_1_3_VERSION) {
-		int back = TLS_TAG_SIZE + 1;
+		int offset = rxm->full_len - TLS_TAG_SIZE - 1;
 		char content_type = 0;
 		int err;
 
 		while (content_type == 0) {
-			if (back > rxm->full_len - prot->prepend_size)
+			if (offset < prot->prepend_size)
 				return -EBADMSG;
-			err = skb_copy_bits(skb,
-					    rxm->offset + rxm->full_len - back,
+			err = skb_copy_bits(skb, rxm->offset + offset,
 					    &content_type, 1);
 			if (err)
 				return err;
 			if (content_type)
 				break;
 			sub++;
-			back++;
+			offset--;
 		}
 		tlm->control = content_type;
 	}
