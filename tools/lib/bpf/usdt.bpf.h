@@ -103,7 +103,7 @@ int __bpf_usdt_spec_id(struct pt_regs *ctx)
 }
 
 /* Return number of USDT arguments defined for currently traced USDT. */
-static inline __noinline
+__weak __hidden
 int bpf_usdt_arg_cnt(struct pt_regs *ctx)
 {
 	struct __bpf_usdt_spec *spec;
@@ -124,7 +124,7 @@ int bpf_usdt_arg_cnt(struct pt_regs *ctx)
  * Returns 0 on success; negative error, otherwise.
  * On error *res is guaranteed to be set to zero.
  */
-static inline __noinline
+__weak __hidden
 int bpf_usdt_arg(struct pt_regs *ctx, __u64 arg_num, long *res)
 {
 	struct __bpf_usdt_spec *spec;
@@ -204,7 +204,7 @@ int bpf_usdt_arg(struct pt_regs *ctx, __u64 arg_num, long *res)
  * utilizing BPF cookies internally, so user can't use BPF cookie directly
  * for USDT programs and has to use bpf_usdt_cookie() API instead.
  */
-static inline __noinline
+__weak __hidden
 long bpf_usdt_cookie(struct pt_regs *ctx)
 {
 	struct __bpf_usdt_spec *spec;
