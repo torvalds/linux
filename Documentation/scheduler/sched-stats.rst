@@ -56,9 +56,9 @@ Next two are try_to_wake_up() statistics:
 
 Next three are statistics describing scheduling latency:
 
-     7) sum of all time spent running by tasks on this processor (in jiffies)
+     7) sum of all time spent running by tasks on this processor (in nanoseconds)
      8) sum of all time spent waiting to run by tasks on this processor (in
-        jiffies)
+        nanoseconds)
      9) # of timeslices run on this cpu
 
 
