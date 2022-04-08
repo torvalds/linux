@@ -20,21 +20,56 @@
 #include <string.h>
 #include <regex.h>
 #include <errno.h>
+#include <linux/types.h>
+#include <getopt.h>
+
+#define bool int
+#define true 1
+#define false 0
+#define TASK_COMM_LEN 16
 
 struct block_list {
 	char *txt;
+	char *comm; // task command name
+	char *stacktrace;
+	__u64 ts_nsec;
+	__u64 free_ts_nsec;
 	int len;
 	int num;
 	int page_num;
+	pid_t pid;
+	pid_t tgid;
 };
-
-static int sort_by_memory;
+enum FILTER_BIT {
+	FILTER_UNRELEASE = 1<<1,
+	FILTER_PID = 1<<2,
+	FILTER_TGID = 1<<3,
+	FILTER_COMM = 1<<4
+};
+enum CULL_BIT {
+	CULL_UNRELEASE = 1<<1,
+	CULL_PID = 1<<2,
+	CULL_TGID = 1<<3,
+	CULL_COMM = 1<<4,
+	CULL_STACKTRACE = 1<<5
+};
+struct filter_condition {
+	pid_t tgid;
+	pid_t pid;
+	char comm[TASK_COMM_LEN];
+};
+static struct filter_condition fc;
 static regex_t order_pattern;
+static regex_t pid_pattern;
+static regex_t tgid_pattern;
+static regex_t comm_pattern;
+static regex_t ts_nsec_pattern;
+static regex_t free_ts_nsec_pattern;
 static struct block_list *list;
 static int list_size;
 static int max_size;
-
-struct block_list *block_head;
+static int cull;
+static int filter;
 
 int read_block(char *buf, int buf_size, FILE *fin)
 {
@@ -58,6 +93,13 @@ static int compare_txt(const void *p1, const void *p2)
 	return strcmp(l1->txt, l2->txt);
 }
 
+static int compare_stacktrace(const void *p1, const void *p2)
+{
+	const struct block_list *l1 = p1, *l2 = p2;
+
+	return strcmp(l1->stacktrace, l2->stacktrace);
+}
+
 static int compare_num(const void *p1, const void *p2)
 {
 	const struct block_list *l1 = p1, *l2 = p2;
@@ -72,41 +114,260 @@ static int compare_page_num(const void *p1, const void *p2)
 	return l2->page_num - l1->page_num;
 }
 
-static int get_page_num(char *buf)
+static int compare_pid(const void *p1, const void *p2)
 {
-	int err, val_len, order_val;
-	char order_str[4] = {0};
-	char *endptr;
+	const struct block_list *l1 = p1, *l2 = p2;
+
+	return l1->pid - l2->pid;
+}
+
+static int compare_tgid(const void *p1, const void *p2)
+{
+	const struct block_list *l1 = p1, *l2 = p2;
+
+	return l1->tgid - l2->tgid;
+}
+
+static int compare_comm(const void *p1, const void *p2)
+{
+	const struct block_list *l1 = p1, *l2 = p2;
+
+	return strcmp(l1->comm, l2->comm);
+}
+
+static int compare_ts(const void *p1, const void *p2)
+{
+	const struct block_list *l1 = p1, *l2 = p2;
+
+	return l1->ts_nsec < l2->ts_nsec ? -1 : 1;
+}
+
+static int compare_free_ts(const void *p1, const void *p2)
+{
+	const struct block_list *l1 = p1, *l2 = p2;
+
+	return l1->free_ts_nsec < l2->free_ts_nsec ? -1 : 1;
+}
+
+
+static int compare_release(const void *p1, const void *p2)
+{
+	const struct block_list *l1 = p1, *l2 = p2;
+
+	if (!l1->free_ts_nsec && !l2->free_ts_nsec)
+		return 0;
+	if (l1->free_ts_nsec && l2->free_ts_nsec)
+		return 0;
+	return l1->free_ts_nsec ? 1 : -1;
+}
+
+
+static int compare_cull_condition(const void *p1, const void *p2)
+{
+	if (cull == 0)
+		return compare_txt(p1, p2);
+	if ((cull & CULL_STACKTRACE) && compare_stacktrace(p1, p2))
+		return compare_stacktrace(p1, p2);
+	if ((cull & CULL_PID) && compare_pid(p1, p2))
+		return compare_pid(p1, p2);
+	if ((cull & CULL_TGID) && compare_tgid(p1, p2))
+		return compare_tgid(p1, p2);
+	if ((cull & CULL_COMM) && compare_comm(p1, p2))
+		return compare_comm(p1, p2);
+	if ((cull & CULL_UNRELEASE) && compare_release(p1, p2))
+		return compare_release(p1, p2);
+	return 0;
+}
+
+static int search_pattern(regex_t *pattern, char *pattern_str, char *buf)
+{
+	int err, val_len;
 	regmatch_t pmatch[2];
 
-	err = regexec(&order_pattern, buf, 2, pmatch, REG_NOTBOL);
+	err = regexec(pattern, buf, 2, pmatch, REG_NOTBOL);
 	if (err != 0 || pmatch[1].rm_so == -1) {
-		printf("no order pattern in %s\n", buf);
-		return 0;
+		printf("no matching pattern in %s\n", buf);
+		return -1;
 	}
 	val_len = pmatch[1].rm_eo - pmatch[1].rm_so;
-	if (val_len > 2) /* max_order should not exceed 2 digits */
-		goto wrong_order;
 
-	memcpy(order_str, buf + pmatch[1].rm_so, val_len);
+	memcpy(pattern_str, buf + pmatch[1].rm_so, val_len);
 
+	return 0;
+}
+
+static void check_regcomp(regex_t *pattern, const char *regex)
+{
+	int err;
+
+	err = regcomp(pattern, regex, REG_EXTENDED | REG_NEWLINE);
+	if (err != 0 || pattern->re_nsub != 1) {
+		printf("Invalid pattern %s code %d\n", regex, err);
+		exit(1);
+	}
+}
+
+static char **explode(char sep, const char *str, int *size)
+{
+	int count = 0, len = strlen(str);
+	int lastindex = -1, j = 0;
+
+	for (int i = 0; i < len; i++)
+		if (str[i] == sep)
+			count++;
+	char **ret = calloc(++count, sizeof(char *));
+
+	for (int i = 0; i < len; i++) {
+		if (str[i] == sep) {
+			ret[j] = calloc(i - lastindex, sizeof(char));
+			memcpy(ret[j++], str + lastindex + 1, i - lastindex - 1);
+			lastindex = i;
+		}
+	}
+	if (lastindex <= len - 1) {
+		ret[j] = calloc(len - lastindex, sizeof(char));
+		memcpy(ret[j++], str + lastindex + 1, strlen(str) - 1 - lastindex);
+	}
+	*size = j;
+	return ret;
+}
+
+static void free_explode(char **arr, int size)
+{
+	for (int i = 0; i < size; i++)
+		free(arr[i]);
+	free(arr);
+}
+
+# define FIELD_BUFF 25
+
+static int get_page_num(char *buf)
+{
+	int order_val;
+	char order_str[FIELD_BUFF] = {0};
+	char *endptr;
+
+	search_pattern(&order_pattern, order_str, buf);
 	errno = 0;
 	order_val = strtol(order_str, &endptr, 10);
-	if (errno != 0 || endptr == order_str || *endptr != '\0')
-		goto wrong_order;
+	if (order_val > 64 || errno != 0 || endptr == order_str || *endptr != '\0') {
+		printf("wrong order in follow buf:\n%s\n", buf);
+		return 0;
+	}
 
 	return 1 << order_val;
+}
 
-wrong_order:
-	printf("wrong order in follow buf:\n%s\n", buf);
-	return 0;
+static pid_t get_pid(char *buf)
+{
+	pid_t pid;
+	char pid_str[FIELD_BUFF] = {0};
+	char *endptr;
+
+	search_pattern(&pid_pattern, pid_str, buf);
+	errno = 0;
+	pid = strtol(pid_str, &endptr, 10);
+	if (errno != 0 || endptr == pid_str || *endptr != '\0') {
+		printf("wrong/invalid pid in follow buf:\n%s\n", buf);
+		return -1;
+	}
+
+	return pid;
+
+}
+
+static pid_t get_tgid(char *buf)
+{
+	pid_t tgid;
+	char tgid_str[FIELD_BUFF] = {0};
+	char *endptr;
+
+	search_pattern(&tgid_pattern, tgid_str, buf);
+	errno = 0;
+	tgid = strtol(tgid_str, &endptr, 10);
+	if (errno != 0 || endptr == tgid_str || *endptr != '\0') {
+		printf("wrong/invalid tgid in follow buf:\n%s\n", buf);
+		return -1;
+	}
+
+	return tgid;
+
+}
+
+static __u64 get_ts_nsec(char *buf)
+{
+	__u64 ts_nsec;
+	char ts_nsec_str[FIELD_BUFF] = {0};
+	char *endptr;
+
+	search_pattern(&ts_nsec_pattern, ts_nsec_str, buf);
+	errno = 0;
+	ts_nsec = strtoull(ts_nsec_str, &endptr, 10);
+	if (errno != 0 || endptr == ts_nsec_str || *endptr != '\0') {
+		printf("wrong ts_nsec in follow buf:\n%s\n", buf);
+		return -1;
+	}
+
+	return ts_nsec;
+}
+
+static __u64 get_free_ts_nsec(char *buf)
+{
+	__u64 free_ts_nsec;
+	char free_ts_nsec_str[FIELD_BUFF] = {0};
+	char *endptr;
+
+	search_pattern(&free_ts_nsec_pattern, free_ts_nsec_str, buf);
+	errno = 0;
+	free_ts_nsec = strtoull(free_ts_nsec_str, &endptr, 10);
+	if (errno != 0 || endptr == free_ts_nsec_str || *endptr != '\0') {
+		printf("wrong free_ts_nsec in follow buf:\n%s\n", buf);
+		return -1;
+	}
+
+	return free_ts_nsec;
+}
+
+static char *get_comm(char *buf)
+{
+	char *comm_str = malloc(TASK_COMM_LEN);
+
+	memset(comm_str, 0, TASK_COMM_LEN);
+
+	search_pattern(&comm_pattern, comm_str, buf);
+	errno = 0;
+	if (errno != 0) {
+		printf("wrong comm in follow buf:\n%s\n", buf);
+		return NULL;
+	}
+
+	return comm_str;
+}
+
+static bool is_need(char *buf)
+{
+		if ((filter & FILTER_UNRELEASE) && get_free_ts_nsec(buf) != 0)
+			return false;
+		if ((filter & FILTER_PID) && get_pid(buf) != fc.pid)
+			return false;
+		if ((filter & FILTER_TGID) && get_tgid(buf) != fc.tgid)
+			return false;
+
+		char *comm = get_comm(buf);
+
+		if ((filter & FILTER_COMM) &&
+		strncmp(comm, fc.comm, TASK_COMM_LEN) != 0) {
+			free(comm);
+			return false;
+		}
+		return true;
 }
 
 static void add_list(char *buf, int len)
 {
 	if (list_size != 0 &&
-	    len == list[list_size-1].len &&
-	    memcmp(buf, list[list_size-1].txt, len) == 0) {
+		len == list[list_size-1].len &&
+		memcmp(buf, list[list_size-1].txt, len) == 0) {
 		list[list_size-1].num++;
 		list[list_size-1].page_num += get_page_num(buf);
 		return;
@@ -115,12 +376,27 @@ static void add_list(char *buf, int len)
 		printf("max_size too small??\n");
 		exit(1);
 	}
+	if (!is_need(buf))
+		return;
+	list[list_size].pid = get_pid(buf);
+	list[list_size].tgid = get_tgid(buf);
+	list[list_size].comm = get_comm(buf);
 	list[list_size].txt = malloc(len+1);
+	if (!list[list_size].txt) {
+		printf("Out of memory\n");
+		exit(1);
+	}
+	memcpy(list[list_size].txt, buf, len);
+	list[list_size].txt[len] = 0;
 	list[list_size].len = len;
 	list[list_size].num = 1;
 	list[list_size].page_num = get_page_num(buf);
-	memcpy(list[list_size].txt, buf, len);
-	list[list_size].txt[len] = 0;
+
+	list[list_size].stacktrace = strchr(list[list_size].txt, '\n') ?: "";
+	if (*list[list_size].stacktrace == '\n')
+		list[list_size].stacktrace++;
+	list[list_size].ts_nsec = get_ts_nsec(buf);
+	list[list_size].free_ts_nsec = get_free_ts_nsec(buf);
 	list_size++;
 	if (list_size % 1000 == 0) {
 		printf("loaded %d\r", list_size);
@@ -128,29 +404,129 @@ static void add_list(char *buf, int len)
 	}
 }
 
+static bool parse_cull_args(const char *arg_str)
+{
+	int size = 0;
+	char **args = explode(',', arg_str, &size);
+
+	for (int i = 0; i < size; ++i)
+		if (!strcmp(args[i], "pid") || !strcmp(args[i], "p"))
+			cull |= CULL_PID;
+		else if (!strcmp(args[i], "tgid") || !strcmp(args[i], "tg"))
+			cull |= CULL_TGID;
+		else if (!strcmp(args[i], "name") || !strcmp(args[i], "n"))
+			cull |= CULL_COMM;
+		else if (!strcmp(args[i], "stacktrace") || !strcmp(args[i], "st"))
+			cull |= CULL_STACKTRACE;
+		else if (!strcmp(args[i], "free") || !strcmp(args[i], "f"))
+			cull |= CULL_UNRELEASE;
+		else {
+			free_explode(args, size);
+			return false;
+		}
+	free_explode(args, size);
+	return true;
+}
+
 #define BUF_SIZE	(128 * 1024)
 
 static void usage(void)
 {
-	printf("Usage: ./page_owner_sort [-m] <input> <output>\n"
-		"-m	Sort by total memory. If this option is unset, sort by times\n"
+	printf("Usage: ./page_owner_sort [OPTIONS] <input> <output>\n"
+		"-m\t\tSort by total memory.\n"
+		"-s\t\tSort by the stack trace.\n"
+		"-t\t\tSort by times (default).\n"
+		"-p\t\tSort by pid.\n"
+		"-P\t\tSort by tgid.\n"
+		"-n\t\tSort by task command name.\n"
+		"-a\t\tSort by memory allocate time.\n"
+		"-r\t\tSort by memory release time.\n"
+		"-c\t\tCull by comparing stacktrace instead of total block.\n"
+		"-f\t\tFilter out the information of blocks whose memory has been released.\n"
+		"--pid <PID>\tSelect by pid. This selects the information of blocks whose process ID number equals to <PID>.\n"
+		"--tgid <TGID>\tSelect by tgid. This selects the information of blocks whose Thread Group ID number equals to <TGID>.\n"
+		"--name <command>\n\t\tSelect by command name. This selects the information of blocks whose command name identical to <command>.\n"
+		"--cull <rules>\tCull by user-defined rules. <rules> is a single argument in the form of a comma-separated list with some common fields predefined\n"
 	);
 }
 
 int main(int argc, char **argv)
 {
+	int (*cmp)(const void *, const void *) = compare_num;
 	FILE *fin, *fout;
-	char *buf;
+	char *buf, *endptr;
 	int ret, i, count;
-	struct block_list *list2;
 	struct stat st;
-	int err;
 	int opt;
+	struct option longopts[] = {
+		{ "pid", required_argument, NULL, 1 },
+		{ "tgid", required_argument, NULL, 2 },
+		{ "name", required_argument, NULL, 3 },
+		{ "cull",  required_argument, NULL, 4 },
+		{ 0, 0, 0, 0},
+	};
 
-	while ((opt = getopt(argc, argv, "m")) != -1)
+	while ((opt = getopt_long(argc, argv, "acfmnprstP", longopts, NULL)) != -1)
 		switch (opt) {
+		case 'a':
+			cmp = compare_ts;
+			break;
+		case 'c':
+			cull = cull | CULL_STACKTRACE;
+			break;
+		case 'f':
+			filter = filter | FILTER_UNRELEASE;
+			break;
 		case 'm':
-			sort_by_memory = 1;
+			cmp = compare_page_num;
+			break;
+		case 'p':
+			cmp = compare_pid;
+			break;
+		case 'r':
+			cmp = compare_free_ts;
+			break;
+		case 's':
+			cmp = compare_stacktrace;
+			break;
+		case 't':
+			cmp = compare_num;
+			break;
+		case 'P':
+			cmp = compare_tgid;
+			break;
+		case 'n':
+			cmp = compare_comm;
+			break;
+		case 1:
+			filter = filter | FILTER_PID;
+			errno = 0;
+			fc.pid = strtol(optarg, &endptr, 10);
+			if (errno != 0 || endptr == optarg || *endptr != '\0') {
+				printf("wrong/invalid pid in from the command line:%s\n", optarg);
+				exit(1);
+			}
+			break;
+		case 2:
+			filter = filter | FILTER_TGID;
+			errno = 0;
+			fc.tgid = strtol(optarg, &endptr, 10);
+			if (errno != 0 || endptr == optarg || *endptr != '\0') {
+				printf("wrong/invalid tgid in from the command line:%s\n", optarg);
+				exit(1);
+			}
+			break;
+		case 3:
+			filter = filter | FILTER_COMM;
+			strncpy(fc.comm, optarg, TASK_COMM_LEN);
+			fc.comm[TASK_COMM_LEN-1] = '\0';
+			break;
+		case 4:
+			if (!parse_cull_args(optarg)) {
+				printf("wrong argument after --cull in from the command line:%s\n",
+						optarg);
+				exit(1);
+			}
 			break;
 		default:
 			usage();
@@ -170,13 +546,12 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	err = regcomp(&order_pattern, "order\\s*([0-9]*),", REG_EXTENDED|REG_NEWLINE);
-	if (err != 0 || order_pattern.re_nsub != 1) {
-		printf("%s: Invalid pattern 'order\\s*([0-9]*),' code %d\n",
-			argv[0], err);
-		exit(1);
-	}
-
+	check_regcomp(&order_pattern, "order\\s*([0-9]*),");
+	check_regcomp(&pid_pattern, "pid\\s*([0-9]*),");
+	check_regcomp(&tgid_pattern, "tgid\\s*([0-9]*) ");
+	check_regcomp(&comm_pattern, "tgid\\s*[0-9]*\\s*\\((.*)\\),\\s*ts");
+	check_regcomp(&ts_nsec_pattern, "ts\\s*([0-9]*)\\s*ns,");
+	check_regcomp(&free_ts_nsec_pattern, "free_ts\\s*([0-9]*)\\s*ns");
 	fstat(fileno(fin), &st);
 	max_size = st.st_size / 100; /* hack ... */
 
@@ -199,35 +574,48 @@ int main(int argc, char **argv)
 
 	printf("sorting ....\n");
 
-	qsort(list, list_size, sizeof(list[0]), compare_txt);
-
-	list2 = malloc(sizeof(*list) * list_size);
-	if (!list2) {
-		printf("Out of memory\n");
-		exit(1);
-	}
+	qsort(list, list_size, sizeof(list[0]), compare_cull_condition);
 
 	printf("culling\n");
 
 	for (i = count = 0; i < list_size; i++) {
 		if (count == 0 ||
-		    strcmp(list2[count-1].txt, list[i].txt) != 0) {
-			list2[count++] = list[i];
+		    compare_cull_condition((void *)(&list[count-1]), (void *)(&list[i])) != 0) {
+			list[count++] = list[i];
 		} else {
-			list2[count-1].num += list[i].num;
-			list2[count-1].page_num += list[i].page_num;
+			list[count-1].num += list[i].num;
+			list[count-1].page_num += list[i].page_num;
 		}
 	}
 
-	if (sort_by_memory)
-		qsort(list2, count, sizeof(list[0]), compare_page_num);
-	else
-		qsort(list2, count, sizeof(list[0]), compare_num);
+	qsort(list, count, sizeof(list[0]), cmp);
 
-	for (i = 0; i < count; i++)
-		fprintf(fout, "%d times, %d pages:\n%s\n",
-				list2[i].num, list2[i].page_num, list2[i].txt);
-
+	for (i = 0; i < count; i++) {
+		if (cull == 0)
+			fprintf(fout, "%d times, %d pages:\n%s\n",
+					list[i].num, list[i].page_num, list[i].txt);
+		else {
+			fprintf(fout, "%d times, %d pages",
+					list[i].num, list[i].page_num);
+			if (cull & CULL_PID || filter & FILTER_PID)
+				fprintf(fout, ", PID %d", list[i].pid);
+			if (cull & CULL_TGID || filter & FILTER_TGID)
+				fprintf(fout, ", TGID %d", list[i].pid);
+			if (cull & CULL_COMM || filter & FILTER_COMM)
+				fprintf(fout, ", task_comm_name: %s", list[i].comm);
+			if (cull & CULL_UNRELEASE)
+				fprintf(fout, " (%s)",
+						list[i].free_ts_nsec ? "UNRELEASED" : "RELEASED");
+			if (cull & CULL_STACKTRACE)
+				fprintf(fout, ":\n%s", list[i].stacktrace);
+			fprintf(fout, "\n");
+		}
+	}
 	regfree(&order_pattern);
+	regfree(&pid_pattern);
+	regfree(&tgid_pattern);
+	regfree(&comm_pattern);
+	regfree(&ts_nsec_pattern);
+	regfree(&free_ts_nsec_pattern);
 	return 0;
 }
