@@ -1131,6 +1131,27 @@ static struct sk_buff *bnxt_rx_agg_pages_skb(struct bnxt *bp,
 	return skb;
 }
 
+static u32 bnxt_rx_agg_pages_xdp(struct bnxt *bp,
+				 struct bnxt_cp_ring_info *cpr,
+				 struct xdp_buff *xdp, u16 idx,
+				 u32 agg_bufs, bool tpa)
+{
+	struct skb_shared_info *shinfo = xdp_get_shared_info_from_buff(xdp);
+	u32 total_frag_len = 0;
+
+	if (!xdp_buff_has_frags(xdp))
+		shinfo->nr_frags = 0;
+
+	total_frag_len = __bnxt_rx_agg_pages(bp, cpr, shinfo, idx, agg_bufs, tpa);
+
+	if (total_frag_len) {
+		xdp_buff_set_frags_flag(xdp);
+		shinfo->nr_frags = agg_bufs;
+		shinfo->xdp_frags_size = total_frag_len;
+	}
+	return total_frag_len;
+}
+
 static int bnxt_agg_bufs_valid(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 			       u8 agg_bufs, u32 *raw_cons)
 {
@@ -1859,6 +1880,16 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 
 	if (bnxt_xdp_attached(bp, rxr)) {
 		bnxt_xdp_buff_init(bp, rxr, cons, &data_ptr, &len, &xdp);
+		if (agg_bufs) {
+			u32 frag_len = bnxt_rx_agg_pages_xdp(bp, cpr, &xdp,
+							     cp_cons, agg_bufs,
+							     false);
+			if (!frag_len) {
+				cpr->sw_stats.rx.rx_oom_discards += 1;
+				rc = -ENOMEM;
+				goto next_rx;
+			}
+		}
 		xdp_active = true;
 	}
 
