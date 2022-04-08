@@ -1041,7 +1041,8 @@ static struct sk_buff *bnxt_rx_skb(struct bnxt *bp,
 static u32 __bnxt_rx_agg_pages(struct bnxt *bp,
 			       struct bnxt_cp_ring_info *cpr,
 			       struct skb_shared_info *shinfo,
-			       u16 idx, u32 agg_bufs, bool tpa)
+			       u16 idx, u32 agg_bufs, bool tpa,
+			       struct xdp_buff *xdp)
 {
 	struct bnxt_napi *bnapi = cpr->bnapi;
 	struct pci_dev *pdev = bp->pdev;
@@ -1084,6 +1085,9 @@ static u32 __bnxt_rx_agg_pages(struct bnxt *bp,
 		page = cons_rx_buf->page;
 		cons_rx_buf->page = NULL;
 
+		if (xdp && page_is_pfmemalloc(page))
+			xdp_buff_set_frag_pfmemalloc(xdp);
+
 		if (bnxt_alloc_rx_page(bp, rxr, prod, GFP_ATOMIC) != 0) {
 			unsigned int nr_frags;
 
@@ -1118,8 +1122,8 @@ static struct sk_buff *bnxt_rx_agg_pages_skb(struct bnxt *bp,
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 	u32 total_frag_len = 0;
 
-	total_frag_len = __bnxt_rx_agg_pages(bp, cpr, shinfo, idx, agg_bufs, tpa);
-
+	total_frag_len = __bnxt_rx_agg_pages(bp, cpr, shinfo, idx,
+					     agg_bufs, tpa, NULL);
 	if (!total_frag_len) {
 		dev_kfree_skb(skb);
 		return NULL;
@@ -1142,8 +1146,8 @@ static u32 bnxt_rx_agg_pages_xdp(struct bnxt *bp,
 	if (!xdp_buff_has_frags(xdp))
 		shinfo->nr_frags = 0;
 
-	total_frag_len = __bnxt_rx_agg_pages(bp, cpr, shinfo, idx, agg_bufs, tpa);
-
+	total_frag_len = __bnxt_rx_agg_pages(bp, cpr, shinfo,
+					     idx, agg_bufs, tpa, xdp);
 	if (total_frag_len) {
 		xdp_buff_set_frags_flag(xdp);
 		shinfo->nr_frags = agg_bufs;
