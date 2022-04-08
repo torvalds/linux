@@ -2267,7 +2267,11 @@ static void iscsi_if_disconnect_bound_ep(struct iscsi_cls_conn *conn,
 		mutex_unlock(&conn->ep_mutex);
 
 		flush_work(&conn->cleanup_work);
-
+		/*
+		 * Userspace is now done with the EP so we can release the ref
+		 * iscsi_cleanup_conn_work_fn took.
+		 */
+		iscsi_put_endpoint(ep);
 		mutex_lock(&conn->ep_mutex);
 	}
 }
@@ -2342,6 +2346,12 @@ static void iscsi_cleanup_conn_work_fn(struct work_struct *work)
 		return;
 	}
 
+	/*
+	 * Get a ref to the ep, so we don't release its ID until after
+	 * userspace is done referencing it in iscsi_if_disconnect_bound_ep.
+	 */
+	if (conn->ep)
+		get_device(&conn->ep->dev);
 	iscsi_ep_disconnect(conn, false);
 
 	if (system_state != SYSTEM_RUNNING) {
