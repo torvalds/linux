@@ -4,6 +4,7 @@
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
 
 /* weak and shared between two files */
 const volatile int my_tid __weak;
@@ -44,6 +45,13 @@ void set_output_ctx1(__u64 *ctx)
 /* this weak instance should win because it's the first one */
 __weak int set_output_weak(int x)
 {
+	static volatile int whatever;
+
+	/* make sure we use CO-RE relocations in a weak function, this used to
+	 * cause problems for BPF static linker
+	 */
+	whatever = bpf_core_type_size(struct task_struct);
+
 	output_weak1 = x;
 	return x;
 }
