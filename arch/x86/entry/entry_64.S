@@ -337,6 +337,9 @@ SYM_CODE_END(ret_from_fork)
 
 	call	\cfunc
 
+	/* For some configurations \cfunc ends up being a noreturn. */
+	REACHABLE
+
 	jmp	error_return
 .endm
 
