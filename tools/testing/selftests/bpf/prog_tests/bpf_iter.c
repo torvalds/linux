@@ -1192,8 +1192,6 @@ static void str_strip_first_line(char *str)
 	*dst = '\0';
 }
 
-#define min(a, b) ((a) < (b) ? (a) : (b))
-
 static void test_task_vma(void)
 {
 	int err, iter_fd = -1, proc_maps_fd = -1;
@@ -1229,7 +1227,7 @@ static void test_task_vma(void)
 	len = 0;
 	while (len < CMP_BUFFER_SIZE) {
 		err = read_fd_into_buffer(iter_fd, task_vma_output + len,
-					  min(read_size, CMP_BUFFER_SIZE - len));
+					  MIN(read_size, CMP_BUFFER_SIZE - len));
 		if (!err)
 			break;
 		if (CHECK(err < 0, "read_iter_fd", "read_iter_fd failed\n"))
