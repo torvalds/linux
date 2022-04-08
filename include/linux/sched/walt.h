@@ -131,6 +131,8 @@ struct walt_task_struct {
 	u64				total_exec;
 	int				mvp_prio;
 	int				cidx;
+	int				load_boost;
+	int64_t				boosted_task_load;
 };
 
 #define wts_to_ts(wts) ({ \

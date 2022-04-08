@@ -1074,6 +1074,7 @@ TRACE_EVENT(sched_task_util,
 		__field(int,		task_boost)
 		__field(bool,		low_latency)
 		__field(bool,		iowaited)
+		__field(int,		load_boost)
 	),
 
 	TP_fast_assign(
@@ -1099,16 +1100,18 @@ TRACE_EVENT(sched_task_util,
 		__entry->low_latency		= walt_low_latency_task(p);
 		__entry->iowaited		=
 			((struct walt_task_struct *) p->android_vendor_data1)->iowaited;
+		__entry->load_boost		=
+			((struct walt_task_struct *) p->android_vendor_data1)->load_boost;
 	),
 
-	TP_printk("pid=%d comm=%s util=%lu prev_cpu=%d candidates=%#lx best_energy_cpu=%d sync=%d need_idle=%d fastpath=%d placement_boost=%d latency=%llu stune_boosted=%d is_rtg=%d rtg_skip_min=%d start_cpu=%d unfilter=%u affinity=%lx task_boost=%d low_latency=%d iowaited=%d",
+	TP_printk("pid=%d comm=%s util=%lu prev_cpu=%d candidates=%#lx best_energy_cpu=%d sync=%d need_idle=%d fastpath=%d placement_boost=%d latency=%llu stune_boosted=%d is_rtg=%d rtg_skip_min=%d start_cpu=%d unfilter=%u affinity=%lx task_boost=%d low_latency=%d iowaited=%d load_boost=%d",
 		__entry->pid, __entry->comm, __entry->util, __entry->prev_cpu,
 		__entry->candidates, __entry->best_energy_cpu, __entry->sync,
 		__entry->need_idle, __entry->fastpath, __entry->placement_boost,
 		__entry->latency, __entry->uclamp_boosted,
 		__entry->is_rtg, __entry->rtg_skip_min, __entry->start_cpu,
 		__entry->unfilter, __entry->cpus_allowed, __entry->task_boost,
-		__entry->low_latency, __entry->iowaited)
+		__entry->low_latency, __entry->iowaited, __entry->load_boost)
 );
 
 /*
@@ -1384,6 +1387,44 @@ TRACE_EVENT(halt_cpus,
 	    TP_printk("req_cpus=0x%x halt_cpus=0x%x time=%u us halt=%d success=%d",
 		      __entry->cpus, __entry->halted_cpus,
 		      __entry->time, __entry->halt, __entry->success)
+);
+
+TRACE_EVENT(sched_task_handler,
+	TP_PROTO(struct task_struct *p, int param, int val, unsigned long c0,
+		unsigned long c1, unsigned long c2, unsigned long c3,
+		unsigned long c4, unsigned long c5),
+
+	TP_ARGS(p, param, val, c0, c1, c2, c3, c4, c5),
+
+	TP_STRUCT__entry(
+		__array(char,		comm,	TASK_COMM_LEN)
+		__field(pid_t,		pid)
+		__field(int,		param)
+		__field(int,		val)
+		__field(unsigned long,	c0)
+		__field(unsigned long,	c1)
+		__field(unsigned long,	c2)
+		__field(unsigned long,	c3)
+		__field(unsigned long,	c4)
+		__field(unsigned long,	c5)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+		__entry->pid	= p->pid;
+		__entry->param	= param;
+		__entry->val	= val;
+		__entry->c0	= c0;
+		__entry->c1	= c1;
+		__entry->c2	= c2;
+		__entry->c3	= c3;
+		__entry->c4	= c4;
+		__entry->c5	= c5;
+	),
+
+	TP_printk("comm=%s pid=%d param=%d val=%d callers=%ps <- %ps <- %ps <- %ps <- %ps <- %ps",
+		__entry->comm, __entry->pid, __entry->param, __entry->val, __entry->c0,
+		__entry->c1, __entry->c2, __entry->c3, __entry->c4, __entry->c5)
 );
 
 TRACE_EVENT(update_cpu_capacity,

@@ -1510,11 +1510,16 @@ static int account_busy_for_cpu_time(struct rq *rq, struct task_struct *p,
 
 #define DIV64_U64_ROUNDUP(X, Y) div64_u64((X) + (Y - 1), Y)
 
-static inline u64 scale_exec_time(u64 delta, struct rq *rq)
+static inline u64 scale_exec_time(u64 delta, struct rq *rq, struct walt_task_struct *wts)
 {
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 
-	return (delta * wrq->task_exec_scale) >> SCHED_CAPACITY_SHIFT;
+	delta = (delta * wrq->task_exec_scale) >> SCHED_CAPACITY_SHIFT;
+
+	if (wts->load_boost && wts->grp && wts->grp->skip_min)
+		delta = (delta * (1024 + wts->boosted_task_load) >> 10);
+
+	return delta;
 }
 
 /* Convert busy time to frequency equivalent
@@ -1679,7 +1684,7 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 			delta = wallclock - mark_start;
 		else
 			delta = irqtime;
-		delta = scale_exec_time(delta, rq);
+		delta = scale_exec_time(delta, rq, wts);
 		*curr_runnable_sum += delta;
 		if (new_task)
 			*nt_curr_runnable_sum += delta;
@@ -1721,7 +1726,7 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 			 * A full window hasn't elapsed, account partial
 			 * contribution to previous completed window.
 			 */
-			delta = scale_exec_time(window_start - mark_start, rq);
+			delta = scale_exec_time(window_start - mark_start, rq, wts);
 			wts->prev_window += delta;
 			wts->prev_window_cpu[cpu] += delta;
 		} else {
@@ -1730,7 +1735,7 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 			 * the contribution to the previous window is the
 			 * full window (window_size).
 			 */
-			delta = scale_exec_time(window_size, rq);
+			delta = scale_exec_time(window_size, rq, wts);
 			wts->prev_window = delta;
 			wts->prev_window_cpu[cpu] = delta;
 		}
@@ -1740,7 +1745,7 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 			*nt_prev_runnable_sum += delta;
 
 		/* Account piece of busy time in the current window. */
-		delta = scale_exec_time(wallclock - window_start, rq);
+		delta = scale_exec_time(wallclock - window_start, rq, wts);
 		*curr_runnable_sum += delta;
 		if (new_task)
 			*nt_curr_runnable_sum += delta;
@@ -1770,7 +1775,7 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 			 * A full window hasn't elapsed, account partial
 			 * contribution to previous completed window.
 			 */
-			delta = scale_exec_time(window_start - mark_start, rq);
+			delta = scale_exec_time(window_start - mark_start, rq, wts);
 			if (!is_idle_task(p)) {
 				wts->prev_window += delta;
 				wts->prev_window_cpu[cpu] += delta;
@@ -1781,7 +1786,7 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 			 * the contribution to the previous window is the
 			 * full window (window_size).
 			 */
-			delta = scale_exec_time(window_size, rq);
+			delta = scale_exec_time(window_size, rq, wts);
 			if (!is_idle_task(p)) {
 				wts->prev_window = delta;
 				wts->prev_window_cpu[cpu] = delta;
@@ -1793,7 +1798,7 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 			*nt_prev_runnable_sum += delta;
 
 		/* Account piece of busy time in the current window. */
-		delta = scale_exec_time(wallclock - window_start, rq);
+		delta = scale_exec_time(wallclock - window_start, rq, wts);
 		*curr_runnable_sum += delta;
 		if (new_task)
 			*nt_curr_runnable_sum += delta;
@@ -1828,7 +1833,7 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 		 * window then that is all that need be accounted.
 		 */
 		if (mark_start > window_start) {
-			*curr_runnable_sum += scale_exec_time(irqtime, rq);
+			*curr_runnable_sum += scale_exec_time(irqtime, rq, wts);
 			return;
 		}
 
@@ -1839,12 +1844,12 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 		delta = window_start - mark_start;
 		if (delta > window_size)
 			delta = window_size;
-		delta = scale_exec_time(delta, rq);
+		delta = scale_exec_time(delta, rq, wts);
 		*prev_runnable_sum += delta;
 
 		/* Process the remaining IRQ busy time in the current window. */
 		delta = wallclock - window_start;
-		wrq->curr_runnable_sum += scale_exec_time(delta, rq);
+		wrq->curr_runnable_sum += scale_exec_time(delta, rq, wts);
 
 		return;
 	}
@@ -1995,7 +2000,7 @@ static u64 add_to_task_demand(struct rq *rq, struct task_struct *p, u64 delta)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
-	delta = scale_exec_time(delta, rq);
+	delta = scale_exec_time(delta, rq, wts);
 	wts->sum += delta;
 	if (unlikely(wts->sum > sched_ravg_window))
 		wts->sum = sched_ravg_window;
@@ -2101,7 +2106,7 @@ static u64 update_task_demand(struct task_struct *p, struct rq *rq,
 	/* Push new sample(s) into task's demand history */
 	update_history(rq, p, wts->sum, 1, event);
 	if (nr_full_windows) {
-		u64 scaled_window = scale_exec_time(window_size, rq);
+		u64 scaled_window = scale_exec_time(window_size, rq, wts);
 
 		update_history(rq, p, scaled_window, nr_full_windows, event);
 		runtime += nr_full_windows * scaled_window;
@@ -2262,6 +2267,8 @@ static inline void __sched_fork_init(struct task_struct *p)
 	wts->boost_period	= false;
 	wts->low_latency	= false;
 	wts->iowaited		= false;
+	wts->load_boost		= 0;
+	wts->boosted_task_load	= 0;
 }
 
 static void init_new_task_load(struct task_struct *p)
