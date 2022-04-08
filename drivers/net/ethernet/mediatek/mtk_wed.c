@@ -813,7 +813,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
 		return;
 
 	regs = syscon_regmap_lookup_by_phandle(np, NULL);
-	if (!regs)
+	if (IS_ERR(regs))
 		return;
 
 	rcu_assign_pointer(mtk_soc_wed_ops, &wed_ops);
