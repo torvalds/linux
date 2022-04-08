@@ -369,6 +369,31 @@ static inline bool property_enabled(struct regmap *base,
 	return tmp == reg->enable;
 }
 
+static inline void phy_clear_bits(void __iomem *reg, u32 bits)
+{
+	u32 tmp = readl(reg);
+
+	tmp &= ~bits;
+	writel(tmp, reg);
+}
+
+static inline void phy_set_bits(void __iomem *reg, u32 bits)
+{
+	u32 tmp = readl(reg);
+
+	tmp |= bits;
+	writel(tmp, reg);
+}
+
+static inline void phy_update_bits(void __iomem *reg, u32 mask, u32 val)
+{
+	u32 tmp = readl(reg);
+
+	tmp &= ~mask;
+	tmp |= val & mask;
+	writel(tmp, reg);
+}
+
 static int rockchip_usb2phy_reset(struct rockchip_usb2phy *rphy)
 {
 	int ret;
@@ -2517,31 +2542,20 @@ static int rk3399_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 
 static int rk3568_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 {
-	u32 reg;
 	int ret = 0;
 
-	reg = readl(rphy->phy_base + 0x30);
-	/* turn off differential reciver in suspend mode */
-	writel(reg & ~BIT(2), rphy->phy_base + 0x30);
+	/* Turn off differential receiver by default to save power */
+	phy_clear_bits(rphy->phy_base + 0x30, BIT(2));
 
-	reg = readl(rphy->phy_base);
 	/* Enable otg port pre-emphasis during non-chirp phase */
-	reg &= ~(0x07 << 0);
-	reg |= (0x04 << 0);
-	writel(reg, rphy->phy_base);
+	phy_update_bits(rphy->phy_base, GENMASK(2, 0), 0x04);
 
-	reg = readl(rphy->phy_base + 0x0400);
 	/* Enable host port pre-emphasis during non-chirp phase */
-	reg &= ~(0x07 << 0);
-	reg |= (0x04 << 0);
-	writel(reg, rphy->phy_base + 0x0400);
+	phy_update_bits(rphy->phy_base + 0x0400, GENMASK(2, 0), 0x04);
 
 	if (rphy->phy_cfg->reg == 0xfe8a0000) {
 		/* Set otg port HS eye height to 437.5mv(default is 400mv) */
-		reg = readl(rphy->phy_base + 0x30);
-		reg &= ~(0x07 << 4);
-		reg |= (0x06 << 4);
-		writel(reg, rphy->phy_base + 0x30);
+		phy_update_bits(rphy->phy_base + 0x30, GENMASK(6, 4), (0x06 << 4));
 
 		/*
 		 * Set the bvalid filter time to 10ms
@@ -2561,16 +2575,12 @@ static int rk3568_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 
 static int rk3568_vbus_detect_control(struct rockchip_usb2phy *rphy, bool en)
 {
-	u32 reg;
-
 	if (en) {
-		reg = readl(rphy->phy_base + 0x3c);
 		/* Enable vbus voltage level detection function */
-		writel(reg & ~BIT(7), rphy->phy_base + 0x3c);
+		phy_clear_bits(rphy->phy_base + 0x3c, BIT(7));
 	} else {
-		reg = readl(rphy->phy_base + 0x3c);
 		/* Disable vbus voltage level detection function */
-		writel(reg | BIT(7), rphy->phy_base + 0x3c);
+		phy_set_bits(rphy->phy_base + 0x3c, BIT(7));
 	}
 
 	return 0;
