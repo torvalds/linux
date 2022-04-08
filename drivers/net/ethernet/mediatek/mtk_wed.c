@@ -144,16 +144,17 @@ mtk_wed_buffer_alloc(struct mtk_wed_device *dev)
 
 		for (s = 0; s < MTK_WED_BUF_PER_PAGE; s++) {
 			u32 txd_size;
+			u32 ctrl;
 
 			txd_size = dev->wlan.init_buf(buf, buf_phys, token++);
 
-			desc->buf0 = buf_phys;
-			desc->buf1 = buf_phys + txd_size;
-			desc->ctrl = FIELD_PREP(MTK_WDMA_DESC_CTRL_LEN0,
-						txd_size) |
-				     FIELD_PREP(MTK_WDMA_DESC_CTRL_LEN1,
-						MTK_WED_BUF_SIZE - txd_size) |
-				     MTK_WDMA_DESC_CTRL_LAST_SEG1;
+			desc->buf0 = cpu_to_le32(buf_phys);
+			desc->buf1 = cpu_to_le32(buf_phys + txd_size);
+			ctrl = FIELD_PREP(MTK_WDMA_DESC_CTRL_LEN0, txd_size) |
+			       FIELD_PREP(MTK_WDMA_DESC_CTRL_LEN1,
+					  MTK_WED_BUF_SIZE - txd_size) |
+			       MTK_WDMA_DESC_CTRL_LAST_SEG1;
+			desc->ctrl = cpu_to_le32(ctrl);
 			desc->info = 0;
 			desc++;
 
@@ -184,12 +185,14 @@ mtk_wed_free_buffer(struct mtk_wed_device *dev)
 
 	for (i = 0, page_idx = 0; i < dev->buf_ring.size; i += MTK_WED_BUF_PER_PAGE) {
 		void *page = page_list[page_idx++];
+		dma_addr_t buf_addr;
 
 		if (!page)
 			break;
 
-		dma_unmap_page(dev->hw->dev, desc[i].buf0,
-			       PAGE_SIZE, DMA_BIDIRECTIONAL);
+		buf_addr = le32_to_cpu(desc[i].buf0);
+		dma_unmap_page(dev->hw->dev, buf_addr, PAGE_SIZE,
+			       DMA_BIDIRECTIONAL);
 		__free_page(page);
 	}
 
