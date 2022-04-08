@@ -591,10 +591,12 @@ struct nqe_cn {
 #define BNXT_RX_PAGE_SIZE (1 << BNXT_RX_PAGE_SHIFT)
 
 #define BNXT_MAX_MTU		9500
-#define BNXT_MAX_PAGE_MODE_MTU	\
+#define BNXT_PAGE_MODE_BUF_SIZE \
 	((unsigned int)PAGE_SIZE - VLAN_ETH_HLEN - NET_IP_ALIGN -	\
-	 XDP_PACKET_HEADROOM - \
-	 SKB_DATA_ALIGN((unsigned int)sizeof(struct skb_shared_info)))
+	 XDP_PACKET_HEADROOM)
+#define BNXT_MAX_PAGE_MODE_MTU	\
+	BNXT_PAGE_MODE_BUF_SIZE - \
+	SKB_DATA_ALIGN((unsigned int)sizeof(struct skb_shared_info))
 
 #define BNXT_MIN_PKT_SIZE	52
 
