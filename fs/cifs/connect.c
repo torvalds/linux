@@ -3995,16 +3995,26 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 	int rc = -ENOSYS;
 	bool is_binding = false;
 
-	/* only send once per connect */
-	spin_lock(&ses->chan_lock);
-	is_binding = !CIFS_ALL_CHANS_NEED_RECONNECT(ses);
-	spin_unlock(&ses->chan_lock);
 
 	spin_lock(&cifs_tcp_ses_lock);
-	if (ses->ses_status == SES_EXITING) {
+	if (ses->ses_status != SES_GOOD &&
+	    ses->ses_status != SES_NEW &&
+	    ses->ses_status != SES_NEED_RECON) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		return 0;
 	}
+
+	/* only send once per connect */
+	spin_lock(&ses->chan_lock);
+	if (CIFS_ALL_CHANS_GOOD(ses) ||
+	    cifs_chan_in_reconnect(ses, server)) {
+		spin_unlock(&ses->chan_lock);
+		spin_unlock(&cifs_tcp_ses_lock);
+		return 0;
+	}
+	is_binding = !CIFS_ALL_CHANS_NEED_RECONNECT(ses);
+	cifs_chan_set_in_reconnect(ses, server);
+	spin_unlock(&ses->chan_lock);
 
 	if (!is_binding)
 		ses->ses_status = SES_IN_SETUP;
@@ -4035,16 +4045,19 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 		spin_lock(&cifs_tcp_ses_lock);
 		if (ses->ses_status == SES_IN_SETUP)
 			ses->ses_status = SES_NEED_RECON;
+		spin_lock(&ses->chan_lock);
+		cifs_chan_clear_in_reconnect(ses, server);
+		spin_unlock(&ses->chan_lock);
 		spin_unlock(&cifs_tcp_ses_lock);
 	} else {
 		spin_lock(&cifs_tcp_ses_lock);
 		if (ses->ses_status == SES_IN_SETUP)
 			ses->ses_status = SES_GOOD;
-		spin_unlock(&cifs_tcp_ses_lock);
-
 		spin_lock(&ses->chan_lock);
+		cifs_chan_clear_in_reconnect(ses, server);
 		cifs_chan_clear_need_reconnect(ses, server);
 		spin_unlock(&ses->chan_lock);
+		spin_unlock(&cifs_tcp_ses_lock);
 	}
 
 	return rc;

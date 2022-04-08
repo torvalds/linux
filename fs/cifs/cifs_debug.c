@@ -419,6 +419,8 @@ skip_rdma:
 			spin_lock(&ses->chan_lock);
 			if (CIFS_CHAN_NEEDS_RECONNECT(ses, 0))
 				seq_puts(m, "\tPrimary channel: DISCONNECTED ");
+			if (CIFS_CHAN_IN_RECONNECT(ses, 0))
+				seq_puts(m, "\t[RECONNECTING] ");
 
 			if (ses->chan_count > 1) {
 				seq_printf(m, "\n\n\tExtra Channels: %zu ",
@@ -427,6 +429,8 @@ skip_rdma:
 					cifs_dump_channel(m, j, &ses->chans[j]);
 					if (CIFS_CHAN_NEEDS_RECONNECT(ses, j))
 						seq_puts(m, "\tDISCONNECTED ");
+					if (CIFS_CHAN_IN_RECONNECT(ses, j))
+						seq_puts(m, "\t[RECONNECTING] ");
 				}
 			}
 			spin_unlock(&ses->chan_lock);

@@ -922,6 +922,7 @@ struct cifs_server_iface {
 };
 
 struct cifs_chan {
+	unsigned int in_reconnect : 1; /* if session setup in progress for this channel */
 	struct TCP_Server_Info *server;
 	__u8 signkey[SMB3_SIGN_KEY_SIZE];
 };
@@ -984,12 +985,16 @@ struct cifs_ses {
 #define CIFS_MAX_CHANNELS 16
 #define CIFS_ALL_CHANNELS_SET(ses)	\
 	((1UL << (ses)->chan_count) - 1)
+#define CIFS_ALL_CHANS_GOOD(ses)		\
+	(!(ses)->chans_need_reconnect)
 #define CIFS_ALL_CHANS_NEED_RECONNECT(ses)	\
 	((ses)->chans_need_reconnect == CIFS_ALL_CHANNELS_SET(ses))
 #define CIFS_SET_ALL_CHANS_NEED_RECONNECT(ses)	\
 	((ses)->chans_need_reconnect = CIFS_ALL_CHANNELS_SET(ses))
 #define CIFS_CHAN_NEEDS_RECONNECT(ses, index)	\
 	test_bit((index), &(ses)->chans_need_reconnect)
+#define CIFS_CHAN_IN_RECONNECT(ses, index)	\
+	((ses)->chans[(index)].in_reconnect)
 
 	struct cifs_chan chans[CIFS_MAX_CHANNELS];
 	size_t chan_count;
