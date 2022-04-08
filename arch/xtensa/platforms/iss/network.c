@@ -436,19 +436,6 @@ static void iss_net_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 }
 
-static int iss_net_set_mac(struct net_device *dev, void *addr)
-{
-	struct iss_net_private *lp = netdev_priv(dev);
-	struct sockaddr *hwaddr = addr;
-
-	if (!is_valid_ether_addr(hwaddr->sa_data))
-		return -EADDRNOTAVAIL;
-	spin_lock_bh(&lp->lock);
-	eth_hw_addr_set(dev, hwaddr->sa_data);
-	spin_unlock_bh(&lp->lock);
-	return 0;
-}
-
 static int iss_net_change_mtu(struct net_device *dev, int new_mtu)
 {
 	return -EINVAL;
@@ -474,7 +461,7 @@ static const struct net_device_ops iss_netdev_ops = {
 	.ndo_start_xmit		= iss_net_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= iss_net_change_mtu,
-	.ndo_set_mac_address	= iss_net_set_mac,
+	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_tx_timeout		= iss_net_tx_timeout,
 	.ndo_set_rx_mode	= iss_net_set_multicast_list,
 };
