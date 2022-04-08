@@ -71,6 +71,43 @@ chk_msk_remote_key_nr()
 		__chk_nr "grep -c remote_key" $*
 }
 
+__chk_listen()
+{
+	local filter="$1"
+	local expected=$2
+
+	shift 2
+	msg=$*
+
+	nr=$(ss -N $ns -Ml "$filter" | grep -c LISTEN)
+	printf "%-50s" "$msg"
+
+	if [ $nr != $expected ]; then
+		echo "[ fail ] expected $expected found $nr"
+		ret=$test_cnt
+	else
+		echo "[  ok  ]"
+	fi
+}
+
+chk_msk_listen()
+{
+	lport=$1
+	local msg="check for listen socket"
+
+	# destination port search should always return empty list
+	__chk_listen "dport $lport" 0 "listen match for dport $lport"
+
+	# should return 'our' mptcp listen socket
+	__chk_listen "sport $lport" 1 "listen match for sport $lport"
+
+	__chk_listen "src inet:0.0.0.0:$lport" 1 "listen match for saddr and sport"
+
+	__chk_listen "" 1 "all listen sockets"
+
+	nr=$(ss -Ml $filter | wc -l)
+}
+
 # $1: ns, $2: port
 wait_local_port_listen()
 {
@@ -113,6 +150,7 @@ echo "a" | \
 				0.0.0.0 >/dev/null &
 wait_local_port_listen $ns 10000
 chk_msk_nr 0 "no msk on netns creation"
+chk_msk_listen 10000
 
 echo "b" | \
 	timeout ${timeout_test} \
