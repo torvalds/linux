@@ -94,4 +94,16 @@ static inline u32 tcf_skbedit_priority(const struct tc_action *a)
 	return priority;
 }
 
+/* Return true iff action is queue_mapping */
+static inline bool is_tcf_skbedit_queue_mapping(const struct tc_action *a)
+{
+	return is_tcf_skbedit_with_flag(a, SKBEDIT_F_QUEUE_MAPPING);
+}
+
+/* Return true iff action is inheritdsfield */
+static inline bool is_tcf_skbedit_inheritdsfield(const struct tc_action *a)
+{
+	return is_tcf_skbedit_with_flag(a, SKBEDIT_F_INHERITDSFIELD);
+}
+
 #endif /* __NET_TC_SKBEDIT_H */

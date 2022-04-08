@@ -328,7 +328,8 @@ static size_t tcf_skbedit_get_fill_size(const struct tc_action *act)
 }
 
 static int tcf_skbedit_offload_act_setup(struct tc_action *act, void *entry_data,
-					 u32 *index_inc, bool bind)
+					 u32 *index_inc, bool bind,
+					 struct netlink_ext_ack *extack)
 {
 	if (bind) {
 		struct flow_action_entry *entry = entry_data;
@@ -342,7 +343,14 @@ static int tcf_skbedit_offload_act_setup(struct tc_action *act, void *entry_data
 		} else if (is_tcf_skbedit_priority(act)) {
 			entry->id = FLOW_ACTION_PRIORITY;
 			entry->priority = tcf_skbedit_priority(act);
+		} else if (is_tcf_skbedit_queue_mapping(act)) {
+			NL_SET_ERR_MSG_MOD(extack, "Offload not supported when \"queue_mapping\" option is used");
+			return -EOPNOTSUPP;
+		} else if (is_tcf_skbedit_inheritdsfield(act)) {
+			NL_SET_ERR_MSG_MOD(extack, "Offload not supported when \"inheritdsfield\" option is used");
+			return -EOPNOTSUPP;
 		} else {
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported skbedit option offload");
 			return -EOPNOTSUPP;
 		}
 		*index_inc = 1;
