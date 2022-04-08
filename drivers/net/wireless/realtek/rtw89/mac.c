@@ -1964,6 +1964,21 @@ static int trxptcl_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 	return 0;
 }
 
+static void rst_bacam(struct rtw89_dev *rtwdev)
+{
+	u32 val32;
+	int ret;
+
+	rtw89_write32_mask(rtwdev, R_AX_RESPBA_CAM_CTRL, B_AX_BACAM_RST_MASK,
+			   S_AX_BACAM_RST_ALL);
+
+	ret = read_poll_timeout_atomic(rtw89_read32_mask, val32, val32 == 0,
+				       1, 1000, false,
+				       rtwdev, R_AX_RESPBA_CAM_CTRL, B_AX_BACAM_RST_MASK);
+	if (ret)
+		rtw89_warn(rtwdev, "failed to reset BA CAM\n");
+}
+
 static int rmac_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
 #define TRXCFG_RMAC_CCA_TO	32
@@ -1977,6 +1992,9 @@ static int rmac_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 	ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
 	if (ret)
 		return ret;
+
+	if (mac_idx == RTW89_MAC_0)
+		rst_bacam(rtwdev);
 
 	reg = rtw89_mac_reg_by_idx(R_AX_RESPBA_CAM_CTRL, mac_idx);
 	rtw89_write8_set(rtwdev, reg, B_AX_SSN_SEL);
