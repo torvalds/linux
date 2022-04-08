@@ -3389,6 +3389,34 @@ static void rf_reg_dump(struct adapter *padapter)
 	}
 }
 
+static void rtw_set_dynamic_functions(struct adapter *adapter, u8 dm_func)
+{
+	struct hal_data_8188e *haldata = &adapter->haldata;
+	struct odm_dm_struct *odmpriv = &haldata->odmpriv;
+
+	switch (dm_func) {
+	case 0:
+		/* disable all dynamic func */
+		odmpriv->SupportAbility = DYNAMIC_FUNC_DISABLE;
+		break;
+	case 1:
+		/* disable DIG */
+		odmpriv->SupportAbility &= (~DYNAMIC_BB_DIG);
+		break;
+	case 6:
+		/* turn on all dynamic func */
+		if (!(odmpriv->SupportAbility & DYNAMIC_BB_DIG)) {
+			struct rtw_dig *digtable = &odmpriv->DM_DigTable;
+
+			digtable->CurIGValue = rtw_read8(adapter, 0xc50);
+		}
+		odmpriv->SupportAbility = DYNAMIC_ALL_FUNC_ENABLE;
+		break;
+	default:
+		break;
+	}
+}
+
 static int rtw_dbg_port(struct net_device *dev,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
@@ -3674,15 +3702,12 @@ static int rtw_dbg_port(struct net_device *dev,
 				rf_reg_dump(padapter);
 			break;
 		case 0xee:/* turn on/off dynamic funcs */
-			{
-				if (extra_arg != 0xf) {
-					/*	extra_arg = 0  - disable all dynamic func
-						extra_arg = 1  - disable DIG
-						extra_arg = 2  - disable tx power tracking
-						extra_arg = 3  - turn on all dynamic func
-					*/
-					SetHalDefVar8188EUsb(padapter, HAL_DEF_DBG_DM_FUNC, &extra_arg);
-				}
+			if (extra_arg != 0xf) {
+				/* extra_arg = 0  - disable all dynamic func
+				 * extra_arg = 1  - disable DIG
+				 * extra_arg = 6  - turn on all dynamic func
+				 */
+				rtw_set_dynamic_functions(padapter, extra_arg);
 			}
 			break;
 		case 0xfd:
