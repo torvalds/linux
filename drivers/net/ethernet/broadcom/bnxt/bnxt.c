@@ -739,7 +739,6 @@ static struct page *__bnxt_alloc_rx_page(struct bnxt *bp, dma_addr_t *mapping,
 		page_pool_recycle_direct(rxr->page_pool, page);
 		return NULL;
 	}
-	*mapping += bp->rx_dma_offset;
 	return page;
 }
 
@@ -781,6 +780,7 @@ int bnxt_alloc_rx_data(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 		if (!page)
 			return -ENOMEM;
 
+		mapping += bp->rx_dma_offset;
 		rx_buf->data = page;
 		rx_buf->data_ptr = page_address(page) + bp->rx_offset;
 	} else {
@@ -841,33 +841,41 @@ static inline int bnxt_alloc_rx_page(struct bnxt *bp,
 	u16 sw_prod = rxr->rx_sw_agg_prod;
 	unsigned int offset = 0;
 
-	if (PAGE_SIZE > BNXT_RX_PAGE_SIZE) {
-		page = rxr->rx_page;
-		if (!page) {
+	if (BNXT_RX_PAGE_MODE(bp)) {
+		page = __bnxt_alloc_rx_page(bp, &mapping, rxr, gfp);
+
+		if (!page)
+			return -ENOMEM;
+
+	} else {
+		if (PAGE_SIZE > BNXT_RX_PAGE_SIZE) {
+			page = rxr->rx_page;
+			if (!page) {
+				page = alloc_page(gfp);
+				if (!page)
+					return -ENOMEM;
+				rxr->rx_page = page;
+				rxr->rx_page_offset = 0;
+			}
+			offset = rxr->rx_page_offset;
+			rxr->rx_page_offset += BNXT_RX_PAGE_SIZE;
+			if (rxr->rx_page_offset == PAGE_SIZE)
+				rxr->rx_page = NULL;
+			else
+				get_page(page);
+		} else {
 			page = alloc_page(gfp);
 			if (!page)
 				return -ENOMEM;
-			rxr->rx_page = page;
-			rxr->rx_page_offset = 0;
 		}
-		offset = rxr->rx_page_offset;
-		rxr->rx_page_offset += BNXT_RX_PAGE_SIZE;
-		if (rxr->rx_page_offset == PAGE_SIZE)
-			rxr->rx_page = NULL;
-		else
-			get_page(page);
-	} else {
-		page = alloc_page(gfp);
-		if (!page)
-			return -ENOMEM;
-	}
 
-	mapping = dma_map_page_attrs(&pdev->dev, page, offset,
-				     BNXT_RX_PAGE_SIZE, DMA_FROM_DEVICE,
-				     DMA_ATTR_WEAK_ORDERING);
-	if (dma_mapping_error(&pdev->dev, mapping)) {
-		__free_page(page);
-		return -EIO;
+		mapping = dma_map_page_attrs(&pdev->dev, page, offset,
+					     BNXT_RX_PAGE_SIZE, DMA_FROM_DEVICE,
+					     DMA_ATTR_WEAK_ORDERING);
+		if (dma_mapping_error(&pdev->dev, mapping)) {
+			__free_page(page);
+			return -EIO;
+		}
 	}
 
 	if (unlikely(test_bit(sw_prod, rxr->rx_agg_bmap)))
@@ -1105,7 +1113,7 @@ static u32 __bnxt_rx_agg_pages(struct bnxt *bp,
 		}
 
 		dma_unmap_page_attrs(&pdev->dev, mapping, BNXT_RX_PAGE_SIZE,
-				     DMA_FROM_DEVICE,
+				     bp->rx_dir,
 				     DMA_ATTR_WEAK_ORDERING);
 
 		total_frag_len += frag_len;
@@ -2936,14 +2944,23 @@ skip_rx_buf_free:
 		if (!page)
 			continue;
 
-		dma_unmap_page_attrs(&pdev->dev, rx_agg_buf->mapping,
-				     BNXT_RX_PAGE_SIZE, DMA_FROM_DEVICE,
-				     DMA_ATTR_WEAK_ORDERING);
+		if (BNXT_RX_PAGE_MODE(bp)) {
+			dma_unmap_page_attrs(&pdev->dev, rx_agg_buf->mapping,
+					     BNXT_RX_PAGE_SIZE, bp->rx_dir,
+					     DMA_ATTR_WEAK_ORDERING);
+			rx_agg_buf->page = NULL;
+			__clear_bit(i, rxr->rx_agg_bmap);
 
-		rx_agg_buf->page = NULL;
-		__clear_bit(i, rxr->rx_agg_bmap);
+			page_pool_recycle_direct(rxr->page_pool, page);
+		} else {
+			dma_unmap_page_attrs(&pdev->dev, rx_agg_buf->mapping,
+					     BNXT_RX_PAGE_SIZE, DMA_FROM_DEVICE,
+					     DMA_ATTR_WEAK_ORDERING);
+			rx_agg_buf->page = NULL;
+			__clear_bit(i, rxr->rx_agg_bmap);
 
-		__free_page(page);
+			__free_page(page);
+		}
 	}
 
 skip_rx_agg_free:
