@@ -1729,6 +1729,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	struct bnxt_sw_rx_bd *rx_buf;
 	unsigned int len;
 	u8 *data_ptr, agg_bufs, cmp_type;
+	bool xdp_active = false;
 	dma_addr_t dma_addr;
 	struct sk_buff *skb;
 	struct xdp_buff xdp;
@@ -1842,11 +1843,17 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 
 	if (bnxt_xdp_attached(bp, rxr)) {
 		bnxt_xdp_buff_init(bp, rxr, cons, &data_ptr, &len, &xdp);
+		xdp_active = true;
+	}
+
+	/* skip running XDP prog if there are aggregation bufs */
+	if (!agg_bufs && xdp_active) {
 		if (bnxt_rx_xdp(bp, rxr, cons, xdp, data, &len, event)) {
 			rc = 1;
 			goto next_rx;
 		}
 	}
+
 	if (len <= bp->rx_copy_thresh) {
 		skb = bnxt_copy_skb(bnapi, data_ptr, len, dma_addr);
 		bnxt_reuse_rx_data(rxr, cons, data);
