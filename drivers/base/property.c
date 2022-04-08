@@ -596,17 +596,17 @@ EXPORT_SYMBOL_GPL(fwnode_get_next_parent);
  */
 struct device *fwnode_get_next_parent_dev(struct fwnode_handle *fwnode)
 {
+	struct fwnode_handle *parent;
 	struct device *dev;
 
-	fwnode_handle_get(fwnode);
-	do {
-		fwnode = fwnode_get_next_parent(fwnode);
-		if (!fwnode)
-			return NULL;
+	fwnode_for_each_parent_node(fwnode, parent) {
 		dev = get_dev_from_fwnode(fwnode);
-	} while (!dev);
-	fwnode_handle_put(fwnode);
-	return dev;
+		if (dev) {
+			fwnode_handle_put(parent);
+			return dev;
+		}
+	}
+	return NULL;
 }
 
 /**
@@ -617,13 +617,11 @@ struct device *fwnode_get_next_parent_dev(struct fwnode_handle *fwnode)
  */
 unsigned int fwnode_count_parents(const struct fwnode_handle *fwnode)
 {
-	struct fwnode_handle *__fwnode;
-	unsigned int count;
+	struct fwnode_handle *parent;
+	unsigned int count = 0;
 
-	__fwnode = fwnode_get_parent(fwnode);
-
-	for (count = 0; __fwnode; count++)
-		__fwnode = fwnode_get_next_parent(__fwnode);
+	fwnode_for_each_parent_node(fwnode, parent)
+		count++;
 
 	return count;
 }
@@ -644,15 +642,16 @@ EXPORT_SYMBOL_GPL(fwnode_count_parents);
 struct fwnode_handle *fwnode_get_nth_parent(struct fwnode_handle *fwnode,
 					    unsigned int depth)
 {
-	fwnode_handle_get(fwnode);
+	struct fwnode_handle *parent;
 
-	do {
-		if (depth-- == 0)
-			break;
-		fwnode = fwnode_get_next_parent(fwnode);
-	} while (fwnode);
+	if (depth == 0)
+		return fwnode_handle_get(fwnode);
 
-	return fwnode;
+	fwnode_for_each_parent_node(fwnode, parent) {
+		if (--depth == 0)
+			return parent;
+	}
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(fwnode_get_nth_parent);
 
@@ -669,17 +668,20 @@ EXPORT_SYMBOL_GPL(fwnode_get_nth_parent);
 bool fwnode_is_ancestor_of(struct fwnode_handle *test_ancestor,
 				  struct fwnode_handle *test_child)
 {
+	struct fwnode_handle *parent;
+
 	if (IS_ERR_OR_NULL(test_ancestor))
 		return false;
 
-	fwnode_handle_get(test_child);
-	do {
-		if (test_child == test_ancestor) {
-			fwnode_handle_put(test_child);
+	if (test_child == test_ancestor)
+		return true;
+
+	fwnode_for_each_parent_node(test_child, parent) {
+		if (parent == test_ancestor) {
+			fwnode_handle_put(parent);
 			return true;
 		}
-		test_child = fwnode_get_next_parent(test_child);
-	} while (test_child);
+	}
 	return false;
 }
 
