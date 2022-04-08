@@ -24,9 +24,6 @@
 #define XTR_NOT_READY			0x07000080U
 #define XTR_VALID_BYTES(x)		(4 - (((x) >> 24) & 3))
 
-#define READL_SLEEP_US			10
-#define READL_TIMEOUT_US		100000000
-
 #define IO_RANGES 2
 
 static const struct of_device_id lan966x_match[] = {
@@ -433,8 +430,7 @@ bool lan966x_netdevice_check(const struct net_device *dev)
 	return dev->netdev_ops == &lan966x_port_netdev_ops;
 }
 
-static bool lan966x_hw_offload(struct lan966x *lan966x, u32 port,
-			       struct sk_buff *skb)
+bool lan966x_hw_offload(struct lan966x *lan966x, u32 port, struct sk_buff *skb)
 {
 	u32 val;
 
@@ -515,7 +511,7 @@ static int lan966x_rx_frame_word(struct lan966x *lan966x, u8 grp, u32 *rval)
 	}
 }
 
-static void lan966x_ifh_get_src_port(void *ifh, u64 *src_port)
+void lan966x_ifh_get_src_port(void *ifh, u64 *src_port)
 {
 	packing(ifh, src_port, IFH_POS_SRCPORT + IFH_WID_SRCPORT - 1,
 		IFH_POS_SRCPORT, IFH_LEN * 4, UNPACK, 0);
@@ -527,7 +523,7 @@ static void lan966x_ifh_get_len(void *ifh, u64 *len)
 		IFH_POS_LEN, IFH_LEN * 4, UNPACK, 0);
 }
 
-static void lan966x_ifh_get_timestamp(void *ifh, u64 *timestamp)
+void lan966x_ifh_get_timestamp(void *ifh, u64 *timestamp)
 {
 	packing(ifh, timestamp, IFH_POS_TIMESTAMP + IFH_WID_TIMESTAMP - 1,
 		IFH_POS_TIMESTAMP, IFH_LEN * 4, UNPACK, 0);

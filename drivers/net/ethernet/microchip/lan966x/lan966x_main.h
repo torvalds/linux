@@ -17,6 +17,9 @@
 #define TABLE_UPDATE_SLEEP_US		10
 #define TABLE_UPDATE_TIMEOUT_US		100000
 
+#define READL_SLEEP_US			10
+#define READL_TIMEOUT_US		100000000
+
 #define LAN966X_BUFFER_CELL_SZ		64
 #define LAN966X_BUFFER_MEMORY		(160 * 1024)
 #define LAN966X_BUFFER_MIN_SZ		60
@@ -194,6 +197,11 @@ bool lan966x_netdevice_check(const struct net_device *dev);
 
 void lan966x_register_notifier_blocks(void);
 void lan966x_unregister_notifier_blocks(void);
+
+bool lan966x_hw_offload(struct lan966x *lan966x, u32 port, struct sk_buff *skb);
+
+void lan966x_ifh_get_src_port(void *ifh, u64 *src_port);
+void lan966x_ifh_get_timestamp(void *ifh, u64 *timestamp);
 
 void lan966x_stats_get(struct net_device *dev,
 		       struct rtnl_link_stats64 *stats);
