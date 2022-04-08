@@ -1094,7 +1094,7 @@ TRACE_EVENT(sched_task_util,
 		__entry->start_cpu		= start_cpu;
 		__entry->unfilter		=
 			((struct walt_task_struct *) p->android_vendor_data1)->unfilter;
-		__entry->cpus_allowed		= cpumask_bits(&p->cpus_mask)[0];
+		__entry->cpus_allowed		= cpumask_bits(p->cpus_ptr)[0];
 		__entry->task_boost		= per_task_boost(p);
 		__entry->low_latency		= walt_low_latency_task(p);
 		__entry->iowaited		=

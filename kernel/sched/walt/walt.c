@@ -4059,7 +4059,7 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 
 	if (!double_enqueue)
 		walt_inc_cumulative_runnable_avg(rq, p);
-	trace_sched_enq_deq_task(p, 1, cpumask_bits(&p->cpus_mask)[0], is_mvp(wts));
+	trace_sched_enq_deq_task(p, 1, cpumask_bits(p->cpus_ptr)[0], is_mvp(wts));
 }
 
 static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_struct *p)
@@ -4107,7 +4107,7 @@ static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_st
 	if (!double_dequeue)
 		walt_dec_cumulative_runnable_avg(rq, p);
 
-	trace_sched_enq_deq_task(p, 0, cpumask_bits(&p->cpus_mask)[0], is_mvp(wts));
+	trace_sched_enq_deq_task(p, 0, cpumask_bits(p->cpus_ptr)[0], is_mvp(wts));
 }
 
 static void android_rvh_update_misfit_status(void *unused, struct task_struct *p,

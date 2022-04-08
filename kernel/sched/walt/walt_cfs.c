@@ -63,7 +63,7 @@ unsigned int sched_capacity_margin_down[WALT_NR_CPUS] = {
 static inline bool
 bias_to_this_cpu(struct task_struct *p, int cpu, int start_cpu)
 {
-	bool base_test = cpumask_test_cpu(cpu, &p->cpus_mask) &&
+	bool base_test = cpumask_test_cpu(cpu, p->cpus_ptr) &&
 						cpu_active(cpu);
 
 	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
@@ -295,7 +295,7 @@ static void walt_find_best_target(struct sched_domain *sd,
 		min_exit_latency = INT_MAX;
 		best_idle_cuml_util = ULONG_MAX;
 
-		cpumask_and(&visit_cpus, &p->cpus_mask,
+		cpumask_and(&visit_cpus, p->cpus_ptr,
 				&cpu_array[order_index][cluster]);
 		for_each_cpu(i, &visit_cpus) {
 			unsigned long capacity_orig = capacity_orig_of(i);
@@ -785,7 +785,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	struct walt_rq *start_wrq;
 
 	if (walt_is_many_wakeup(sibling_count_hint) && prev_cpu != cpu &&
-			cpumask_test_cpu(prev_cpu, &p->cpus_mask))
+			cpumask_test_cpu(prev_cpu, p->cpus_ptr))
 		return prev_cpu;
 
 	if (unlikely(!cpu_array))
@@ -867,7 +867,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	if (READ_ONCE(p->__state) == TASK_WAKING)
 		delta = task_util(p);
 
-	if (cpumask_test_cpu(prev_cpu, &p->cpus_mask) && !__cpu_overutilized(prev_cpu, delta)) {
+	if (cpumask_test_cpu(prev_cpu, p->cpus_ptr) && !__cpu_overutilized(prev_cpu, delta)) {
 		if (trace_sched_compute_energy_enabled()) {
 			memset(&output, 0, sizeof(output));
 			prev_energy = walt_compute_energy(p, prev_cpu, pd, candidates, fbt_env.prs,
