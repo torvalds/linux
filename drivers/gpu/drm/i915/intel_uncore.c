@@ -1518,13 +1518,11 @@ __unclaimed_previous_reg_debug(struct intel_uncore *uncore,
 			       const i915_reg_t reg,
 			       const bool read)
 {
-	if (drm_WARN(&uncore->i915->drm,
-		     check_for_unclaimed_mmio(uncore),
-		     "Unclaimed access detected before %s register 0x%x\n",
-		     read ? "read from" : "write to",
-		     i915_mmio_reg_offset(reg)))
-		/* Only report the first N failures */
-		uncore->i915->params.mmio_debug--;
+	if (check_for_unclaimed_mmio(uncore))
+		drm_dbg(&uncore->i915->drm,
+			"Unclaimed access detected before %s register 0x%x\n",
+			read ? "read from" : "write to",
+			i915_mmio_reg_offset(reg));
 }
 
 static inline void
