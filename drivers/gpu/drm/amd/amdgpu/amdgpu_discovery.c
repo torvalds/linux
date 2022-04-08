@@ -430,7 +430,7 @@ static void amdgpu_discovery_read_harvest_bit_per_ip(struct amdgpu_device *adev,
                                 }
                         }
 next_ip:
-			ip_offset += sizeof(*ip) + 4 * (ip->num_base_address - 1);
+			ip_offset += struct_size(ip, base_address, ip->num_base_address);
 		}
 	}
 }
@@ -798,7 +798,7 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 			res = kobject_add(&ip_hw_instance->kobj, NULL,
 					  "%d", ip_hw_instance->num_instance);
 next_ip:
-			ip_offset += sizeof(*ip) + 4 * (ip->num_base_address - 1);
+			ip_offset += struct_size(ip, base_address, ip->num_base_address);
 		}
 	}
 
@@ -1063,7 +1063,7 @@ int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 			}
 
 next_ip:
-			ip_offset += sizeof(*ip) + 4 * (ip->num_base_address - 1);
+			ip_offset += struct_size(ip, base_address, ip->num_base_address);
 		}
 	}
 
@@ -1113,7 +1113,7 @@ int amdgpu_discovery_get_ip_version(struct amdgpu_device *adev, int hw_id, int n
 					*revision = ip->revision;
 				return 0;
 			}
-			ip_offset += sizeof(*ip) + 4 * (ip->num_base_address - 1);
+			ip_offset += struct_size(ip, base_address, ip->num_base_address);
 		}
 	}
 

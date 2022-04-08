@@ -93,7 +93,7 @@ typedef struct ip
 	uint8_t harvest : 4;      /* Harvest */
 	uint8_t reserved : 4;     /* Placeholder field */
 #endif
-	uint32_t base_address[1]; /* variable number of Addresses */
+	uint32_t base_address[]; /* variable number of Addresses */
 } ip;
 
 typedef struct die_header
