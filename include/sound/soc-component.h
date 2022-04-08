@@ -179,6 +179,10 @@ struct snd_soc_component_driver {
 				  struct snd_pcm_hw_params *params);
 	bool use_dai_pcm_id;	/* use DAI link PCM ID as PCM device number */
 	int be_pcm_base;	/* base device ID for all BE PCMs */
+
+#ifdef CONFIG_DEBUG_FS
+	const char *debugfs_prefix;
+#endif
 };
 
 struct snd_soc_component {
