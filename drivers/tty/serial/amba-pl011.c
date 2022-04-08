@@ -1288,13 +1288,18 @@ static inline bool pl011_dma_rx_running(struct uart_amba_port *uap)
 
 static void pl011_rs485_tx_stop(struct uart_amba_port *uap)
 {
+	/*
+	 * To be on the safe side only time out after twice as many iterations
+	 * as fifo size.
+	 */
+	const int MAX_TX_DRAIN_ITERS = uap->port.fifosize * 2;
 	struct uart_port *port = &uap->port;
 	int i = 0;
 	u32 cr;
 
 	/* Wait until hardware tx queue is empty */
 	while (!pl011_tx_empty(port)) {
-		if (i == port->fifosize) {
+		if (i > MAX_TX_DRAIN_ITERS) {
 			dev_warn(port->dev,
 				 "timeout while draining hardware tx queue\n");
 			break;
@@ -2099,7 +2104,7 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * with the given baud rate. We use this as the poll interval when we
 	 * wait for the tx queue to empty.
 	 */
-	uap->rs485_tx_drain_interval = (bits * 1000 * 1000) / baud;
+	uap->rs485_tx_drain_interval = DIV_ROUND_UP(bits * 1000 * 1000, baud);
 
 	pl011_setup_status_masks(port, termios);
 
