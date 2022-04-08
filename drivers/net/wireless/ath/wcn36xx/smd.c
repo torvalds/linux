@@ -3148,9 +3148,9 @@ static int wcn36xx_smd_gtk_offload_get_info_rsp(struct wcn36xx *wcn,
 			cpu_to_le64(rsp->key_replay_counter);
 		ieee80211_gtk_rekey_notify(vif, vif->bss_conf.bssid,
 					   (void *)&replay_ctr, GFP_KERNEL);
-		 wcn36xx_dbg(WCN36XX_DBG_HAL,
-			     "GTK replay counter increment %llu\n",
-			     rsp->key_replay_counter);
+		wcn36xx_dbg(WCN36XX_DBG_HAL,
+			    "GTK replay counter increment %llu\n",
+			    rsp->key_replay_counter);
 	}
 
 	wcn36xx_dbg(WCN36XX_DBG_HAL,
