@@ -1055,13 +1055,6 @@ static int rv1106_codec_dac_enable(struct rv1106_codec_priv *rv1106)
 	/* Waiting the stable reference voltage */
 	mdelay(1);
 
-	/* vendor step 3 */
-	regmap_update_bits(rv1106->regmap, ACODEC_DAC_ANA_CTL0,
-			   ACODEC_DAC_L_REF_POP_SOUND_MSK,
-			   ACODEC_DAC_L_REF_POP_SOUND_WORK);
-
-	udelay(20);
-
 	/* vendor step 7 */
 	regmap_update_bits(rv1106->regmap, ACODEC_DAC_ANA_CTL1,
 			   ACODEC_DAC_L_LINEOUT_MSK,
@@ -1157,11 +1150,6 @@ static int rv1106_codec_dac_disable(struct rv1106_codec_priv *rv1106)
 			   ACODEC_DAC_L_REF_VOL_MSK,
 			   ACODEC_DAC_L_REF_VOL_DIS);
 
-	/* Step 09 */
-	regmap_update_bits(rv1106->regmap, ACODEC_DAC_ANA_CTL0,
-			   ACODEC_DAC_L_REF_POP_SOUND_MSK,
-			   ACODEC_DAC_L_REF_POP_SOUND_INIT);
-
 	/* Step 10 */
 	regmap_update_bits(rv1106->regmap, ACODEC_DAC_ANA_CTL0,
 			   ACODEC_DAC_L_REF_VOL_BUF_MSK,
@@ -1193,7 +1181,7 @@ static int rv1106_codec_power_on(struct rv1106_codec_priv *rv1106)
 	/* vendor step 1 */
 	regmap_update_bits(rv1106->regmap, ACODEC_DAC_ANA_CTL0,
 			   ACODEC_DAC_L_REF_POP_SOUND_MSK,
-			   ACODEC_DAC_L_REF_POP_SOUND_INIT);
+			   ACODEC_DAC_L_REF_POP_SOUND_DIS);
 
 	/* vendor step 2 */
 	regmap_update_bits(rv1106->regmap, ACODEC_CURRENT_CHARGE_CTL,

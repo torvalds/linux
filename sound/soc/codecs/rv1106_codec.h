@@ -450,6 +450,7 @@
 #define ACODEC_DAC_L_REF_POP_SOUND_MSK		(0x3 << 4)
 #define ACODEC_DAC_L_REF_POP_SOUND_WORK		(0x2 << 4)
 #define ACODEC_DAC_L_REF_POP_SOUND_INIT		(0x1 << 4)
+#define ACODEC_DAC_L_REF_POP_SOUND_DIS		(0x0 << 4)
 #define ACODEC_DAC_L_REF_VOL_MSK		(0x1 << 3)
 #define ACODEC_DAC_L_REF_VOL_EN			(0x1 << 3)
 #define ACODEC_DAC_L_REF_VOL_DIS		(0x0 << 3)
