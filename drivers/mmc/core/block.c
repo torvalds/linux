@@ -993,7 +993,7 @@ static int mmc_blk_reset(struct mmc_blk_data *md, struct mmc_host *host,
 		return -EEXIST;
 
 	md->reset_done |= type;
-	err = mmc_hw_reset(host);
+	err = mmc_hw_reset(host->card);
 	/* Ensure we switch back to the correct partition */
 	if (err) {
 		struct mmc_blk_data *main_md =
