@@ -27,7 +27,7 @@ struct prestera_kern_fib_cache {
 	/* Indicate if route is not overlapped by another table */
 	struct rhash_head ht_node; /* node of prestera_router */
 	struct fib_info *fi;
-	u8 kern_tos;
+	dscp_t kern_dscp;
 	u8 kern_type;
 	bool reachable;
 };
@@ -101,7 +101,7 @@ prestera_kern_fib_cache_create(struct prestera_switch *sw,
 	memcpy(&fib_cache->key, key, sizeof(*key));
 	fib_info_hold(fi);
 	fib_cache->fi = fi;
-	fib_cache->kern_tos = inet_dscp_to_dsfield(dscp);
+	fib_cache->kern_dscp = dscp;
 	fib_cache->kern_type = type;
 
 	err = rhashtable_insert_fast(&sw->router->kern_fib_cache_ht,
@@ -133,7 +133,7 @@ __prestera_k_arb_fib_lpm_offload_set(struct prestera_switch *sw,
 	fri.tb_id = fc->key.kern_tb_id;
 	fri.dst = fc->key.addr.u.ipv4;
 	fri.dst_len = fc->key.prefix_len;
-	fri.dscp = inet_dsfield_to_dscp(fc->kern_tos);
+	fri.dscp = fc->kern_dscp;
 	fri.type = fc->kern_type;
 	/* flags begin */
 	fri.offload = offload;
