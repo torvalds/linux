@@ -383,6 +383,20 @@ config KEXEC
 
 	  The name comes from the similarity to the exec system call.
 
+config KEXEC_FILE
+	bool "kexec file based systmem call"
+	select KEXEC_CORE
+	select KEXEC_ELF
+	select HAVE_IMA_KEXEC if IMA
+	depends on 64BIT
+	help
+	  This is new version of kexec system call. This system call is
+	  file based and takes file descriptors as system call argument
+	  for kernel and initramfs as opposed to list of segments as
+	  accepted by previous system call.
+
+	  If you don't know what to do here, say Y.
+
 config CRASH_DUMP
 	bool "Build kdump crash kernel"
 	help

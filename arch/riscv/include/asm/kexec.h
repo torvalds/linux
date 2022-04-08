@@ -53,4 +53,8 @@ typedef void (*riscv_kexec_method)(unsigned long first_ind_entry,
 
 extern riscv_kexec_method riscv_kexec_norelocate;
 
+#ifdef CONFIG_KEXEC_FILE
+extern const struct kexec_file_ops elf_kexec_ops;
+#endif
+
 #endif
