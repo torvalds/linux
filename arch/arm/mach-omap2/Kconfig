@@ -105,6 +105,7 @@ config ARCH_OMAP2PLUS
 	select MACH_OMAP_GENERIC
 	select MEMORY
 	select MFD_SYSCON
+	select OMAP_DM_SYSTIMER
 	select OMAP_DM_TIMER
 	select OMAP_GPMC
 	select PINCTRL
@@ -160,6 +161,7 @@ config SOC_OMAP2420
 	bool "OMAP2420 support"
 	depends on ARCH_OMAP2
 	default y
+	select OMAP_DM_SYSTIMER
 	select OMAP_DM_TIMER
 	select SOC_HAS_OMAP2_SDRC
 
