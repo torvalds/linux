@@ -4119,9 +4119,8 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
 static void gpiochip_free_hogs(struct gpio_chip *gc)
 {
 	struct gpio_desc *desc;
-	int id;
 
-	for_each_gpio_desc_with_flag(id, gc, desc, FLAG_IS_HOGGED)
+	for_each_gpio_desc_with_flag(gc, desc, FLAG_IS_HOGGED)
 		gpiochip_free_own_desc(desc);
 }
 

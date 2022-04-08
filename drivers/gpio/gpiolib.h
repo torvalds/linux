@@ -100,10 +100,10 @@ struct gpio_array {
 
 struct gpio_desc *gpiochip_get_desc(struct gpio_chip *gc, unsigned int hwnum);
 
-#define for_each_gpio_desc_with_flag(i, gc, desc, flag)		\
-	for (i = 0, desc = gpiochip_get_desc(gc, i);		\
-	     i < gc->ngpio;					\
-	     i++, desc = gpiochip_get_desc(gc, i))		\
+#define for_each_gpio_desc_with_flag(gc, desc, flag)			\
+	for (unsigned int __i = 0;					\
+	     __i < gc->ngpio && (desc = gpiochip_get_desc(gc, __i));	\
+	     __i++)							\
 		if (!test_bit(flag, &desc->flags)) {} else
 
 int gpiod_get_array_value_complex(bool raw, bool can_sleep,
