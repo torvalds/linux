@@ -2114,6 +2114,9 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 
 static void dw_dp_reset(struct dw_dp *dp)
 {
+	int val;
+
+	disable_irq(dp->irq);
 	regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL, CONTROLLER_RESET,
 			   FIELD_PREP(CONTROLLER_RESET, 1));
 	udelay(10);
@@ -2121,6 +2124,12 @@ static void dw_dp_reset(struct dw_dp *dp)
 			   FIELD_PREP(CONTROLLER_RESET, 0));
 
 	dw_dp_init(dp);
+	if (!dp->hpd_gpio) {
+		regmap_read_poll_timeout(dp->regmap, DPTX_HPD_STATUS, val,
+					 FIELD_GET(HPD_HOT_PLUG, val), 200, 200000);
+		regmap_write(dp->regmap, DPTX_HPD_STATUS, HPD_HOT_PLUG);
+	}
+	enable_irq(dp->irq);
 }
 
 static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
