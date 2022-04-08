@@ -10,7 +10,7 @@
 #include "reg.h"
 #include "util.h"
 
-const u32 rtw89_mac_mem_base_addrs[RTW89_MAC_MEM_MAX] = {
+const u32 rtw89_mac_mem_base_addrs[RTW89_MAC_MEM_NUM] = {
 	[RTW89_MAC_MEM_AXIDMA]	        = AXIDMA_BASE_ADDR,
 	[RTW89_MAC_MEM_SHARED_BUF]	= SHARED_BUF_BASE_ADDR,
 	[RTW89_MAC_MEM_DMAC_TBL]	= DMAC_TBL_BASE_ADDR,
@@ -28,7 +28,26 @@ const u32 rtw89_mac_mem_base_addrs[RTW89_MAC_MEM_MAX] = {
 	[RTW89_MAC_MEM_TXD_FIFO_1]	= TXD_FIFO_1_BASE_ADDR,
 	[RTW89_MAC_MEM_TXDATA_FIFO_0]	= TXDATA_FIFO_0_BASE_ADDR,
 	[RTW89_MAC_MEM_TXDATA_FIFO_1]	= TXDATA_FIFO_1_BASE_ADDR,
+	[RTW89_MAC_MEM_CPU_LOCAL]	= CPU_LOCAL_BASE_ADDR,
 };
+
+static void rtw89_mac_mem_write(struct rtw89_dev *rtwdev, u32 offset,
+				u32 val, enum rtw89_mac_mem_sel sel)
+{
+	u32 addr = rtw89_mac_mem_base_addrs[sel] + offset;
+
+	rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, addr);
+	rtw89_write32(rtwdev, R_AX_INDIR_ACCESS_ENTRY, val);
+}
+
+static u32 rtw89_mac_mem_read(struct rtw89_dev *rtwdev, u32 offset,
+			      enum rtw89_mac_mem_sel sel)
+{
+	u32 addr = rtw89_mac_mem_base_addrs[sel] + offset;
+
+	rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, addr);
+	return rtw89_read32(rtwdev, R_AX_INDIR_ACCESS_ENTRY);
+}
 
 int rtw89_mac_check_mac_en(struct rtw89_dev *rtwdev, u8 mac_idx,
 			   enum rtw89_mac_hwmod_sel sel)
@@ -2965,6 +2984,19 @@ static int rtw89_mac_trx_init(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static void rtw89_disable_fw_watchdog(struct rtw89_dev *rtwdev)
+{
+	u32 val32;
+
+	rtw89_mac_mem_write(rtwdev, R_AX_WDT_CTRL,
+			    WDT_CTRL_ALL_DIS, RTW89_MAC_MEM_CPU_LOCAL);
+
+	val32 = rtw89_mac_mem_read(rtwdev, R_AX_WDT_STATUS, RTW89_MAC_MEM_CPU_LOCAL);
+	val32 |= B_AX_FS_WDT_INT;
+	val32 &= ~B_AX_FS_WDT_INT_MSK;
+	rtw89_mac_mem_write(rtwdev, R_AX_WDT_STATUS, val32, RTW89_MAC_MEM_CPU_LOCAL);
+}
+
 static void rtw89_mac_disable_cpu(struct rtw89_dev *rtwdev)
 {
 	clear_bit(RTW89_FLAG_FW_RDY, rtwdev->flags);
@@ -2973,6 +3005,9 @@ static void rtw89_mac_disable_cpu(struct rtw89_dev *rtwdev)
 	rtw89_write32_clr(rtwdev, R_AX_WCPU_FW_CTRL, B_AX_WCPU_FWDL_EN |
 			  B_AX_H2C_PATH_RDY | B_AX_FWDL_PATH_RDY);
 	rtw89_write32_clr(rtwdev, R_AX_SYS_CLK_CTRL, B_AX_CPU_CLK_EN);
+
+	rtw89_disable_fw_watchdog(rtwdev);
+
 	rtw89_write32_clr(rtwdev, R_AX_PLATFORM_ENABLE, B_AX_PLATFORM_EN);
 	rtw89_write32_set(rtwdev, R_AX_PLATFORM_ENABLE, B_AX_PLATFORM_EN);
 }
