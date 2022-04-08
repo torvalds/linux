@@ -86,7 +86,7 @@ static void query_rxphystatus(struct ieee80211_hw *hw,
 		cck_agc_rpt = p_phystrpt->cfosho[0];
 
 		/* (1)Hardware does not provide RSSI for CCK
-		 * (2)PWDB, Average PWDB cacluated by
+		 * (2)PWDB, Average PWDB calculated by
 		 * hardware (for rate adaptive)
 		 */
 		cck_highpwr = (u8)rtlphy->cck_high_power;
@@ -215,7 +215,7 @@ static void query_rxphystatus(struct ieee80211_hw *hw,
 			pstatus->rx_mimo_signalstrength[i] = (u8)rssi;
 		}
 
-		/* (2)PWDB, Average PWDB cacluated by
+		/* (2)PWDB, Average PWDB calculated by
 		 * hardware (for rate adaptive)
 		 */
 		rx_pwr_all = ((p_drvinfo->pwdb_all >> 1) & 0x7f) - 110;

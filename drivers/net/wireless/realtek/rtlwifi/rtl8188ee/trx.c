@@ -58,7 +58,7 @@ static void _rtl88ee_query_rxphystatus(struct ieee80211_hw *hw,
 		cck_agc_rpt = cck_buf->cck_agc_rpt;
 
 		/* (1)Hardware does not provide RSSI for CCK
-		 * (2)PWDB, Average PWDB cacluated by
+		 * (2)PWDB, Average PWDB calculated by
 		 * hardware (for rate adaptive)
 		 */
 		if (ppsc->rfpwr_state == ERFON)
@@ -187,7 +187,7 @@ static void _rtl88ee_query_rxphystatus(struct ieee80211_hw *hw,
 				pstatus->rx_mimo_signalstrength[i] = (u8)rssi;
 		}
 
-		/* (2)PWDB, Average PWDB cacluated by
+		/* (2)PWDB, Average PWDB calculated by
 		 * hardware (for rate adaptive)
 		 */
 		rx_pwr_all = ((p_drvinfo->pwdb_all >> 1) & 0x7f) - 110;
