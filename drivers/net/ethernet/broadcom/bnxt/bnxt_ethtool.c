@@ -3491,7 +3491,7 @@ static int bnxt_run_loopback(struct bnxt *bp)
 		dev_kfree_skb(skb);
 		return -EIO;
 	}
-	bnxt_xmit_bd(bp, txr, map, pkt_size);
+	bnxt_xmit_bd(bp, txr, map, pkt_size, NULL);
 
 	/* Sync BD data before updating doorbell */
 	wmb();

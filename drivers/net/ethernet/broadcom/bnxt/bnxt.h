@@ -591,10 +591,12 @@ struct nqe_cn {
 #define BNXT_RX_PAGE_SIZE (1 << BNXT_RX_PAGE_SHIFT)
 
 #define BNXT_MAX_MTU		9500
-#define BNXT_MAX_PAGE_MODE_MTU	\
+#define BNXT_PAGE_MODE_BUF_SIZE \
 	((unsigned int)PAGE_SIZE - VLAN_ETH_HLEN - NET_IP_ALIGN -	\
-	 XDP_PACKET_HEADROOM - \
-	 SKB_DATA_ALIGN((unsigned int)sizeof(struct skb_shared_info)))
+	 XDP_PACKET_HEADROOM)
+#define BNXT_MAX_PAGE_MODE_MTU	\
+	BNXT_PAGE_MODE_BUF_SIZE - \
+	SKB_DATA_ALIGN((unsigned int)sizeof(struct skb_shared_info))
 
 #define BNXT_MIN_PKT_SIZE	52
 
@@ -699,13 +701,12 @@ struct bnxt_sw_tx_bd {
 	};
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	DEFINE_DMA_UNMAP_LEN(len);
+	struct page		*page;
 	u8			is_gso;
 	u8			is_push;
 	u8			action;
-	union {
-		unsigned short		nr_frags;
-		u16			rx_prod;
-	};
+	unsigned short		nr_frags;
+	u16			rx_prod;
 };
 
 struct bnxt_sw_rx_bd {
@@ -1817,6 +1818,7 @@ struct bnxt {
 #define BNXT_SUPPORTS_TPA(bp)	(!BNXT_CHIP_TYPE_NITRO_A0(bp) &&	\
 				 (!((bp)->flags & BNXT_FLAG_CHIP_P5) ||	\
 				  (bp)->max_tpa_v2) && !is_kdump_kernel())
+#define BNXT_RX_JUMBO_MODE(bp)	((bp)->flags & BNXT_FLAG_JUMBO)
 
 #define BNXT_CHIP_SR2(bp)			\
 	((bp)->chip_num == CHIP_NUM_58818)
