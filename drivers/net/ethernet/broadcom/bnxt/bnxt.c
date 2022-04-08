@@ -1939,8 +1939,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		xdp_active = true;
 	}
 
-	/* skip running XDP prog if there are aggregation bufs */
-	if (!agg_bufs && xdp_active) {
+	if (xdp_active) {
 		if (bnxt_rx_xdp(bp, rxr, cons, xdp, data, &len, event)) {
 			rc = 1;
 			goto next_rx;

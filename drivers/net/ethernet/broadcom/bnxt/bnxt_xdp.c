@@ -387,8 +387,9 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	int tx_xdp = 0, rc, tc;
 	struct bpf_prog *old;
 
-	if (prog && bp->dev->mtu > BNXT_MAX_PAGE_MODE_MTU) {
-		netdev_warn(dev, "MTU %d larger than largest XDP supported MTU %d.\n",
+	if (prog && !prog->aux->xdp_has_frags &&
+	    bp->dev->mtu > BNXT_MAX_PAGE_MODE_MTU) {
+		netdev_warn(dev, "MTU %d larger than %d without XDP frag support.\n",
 			    bp->dev->mtu, BNXT_MAX_PAGE_MODE_MTU);
 		return -EOPNOTSUPP;
 	}
