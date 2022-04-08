@@ -79,7 +79,7 @@ struct nsim_fib_rt {
 struct nsim_fib4_rt {
 	struct nsim_fib_rt common;
 	struct fib_info *fi;
-	u8 tos;
+	dscp_t dscp;
 	u8 type;
 };
 
@@ -284,7 +284,7 @@ nsim_fib4_rt_create(struct nsim_fib_data *data,
 
 	fib4_rt->fi = fen_info->fi;
 	fib_info_hold(fib4_rt->fi);
-	fib4_rt->tos = inet_dscp_to_dsfield(fen_info->dscp);
+	fib4_rt->dscp = fen_info->dscp;
 	fib4_rt->type = fen_info->type;
 
 	return fib4_rt;
@@ -343,7 +343,7 @@ static void nsim_fib4_rt_hw_flags_set(struct net *net,
 	fri.tb_id = fib4_rt->common.key.tb_id;
 	fri.dst = cpu_to_be32(*p_dst);
 	fri.dst_len = dst_len;
-	fri.dscp = inet_dsfield_to_dscp(fib4_rt->tos);
+	fri.dscp = fib4_rt->dscp;
 	fri.type = fib4_rt->type;
 	fri.offload = false;
 	fri.trap = trap;
