@@ -394,6 +394,7 @@ void lan966x_ptp_txtstamp_release(struct lan966x_port *port,
 irqreturn_t lan966x_ptp_irq_handler(int irq, void *args);
 
 int lan966x_fdma_xmit(struct sk_buff *skb, __be32 *ifh, struct net_device *dev);
+int lan966x_fdma_change_mtu(struct lan966x *lan966x);
 void lan966x_fdma_netdev_init(struct lan966x *lan966x, struct net_device *dev);
 void lan966x_fdma_netdev_deinit(struct lan966x *lan966x, struct net_device *dev);
 int lan966x_fdma_init(struct lan966x *lan966x);

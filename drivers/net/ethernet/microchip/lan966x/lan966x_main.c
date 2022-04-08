@@ -354,12 +354,24 @@ static int lan966x_port_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct lan966x_port *port = netdev_priv(dev);
 	struct lan966x *lan966x = port->lan966x;
+	int old_mtu = dev->mtu;
+	int err;
 
 	lan_wr(DEV_MAC_MAXLEN_CFG_MAX_LEN_SET(new_mtu),
 	       lan966x, DEV_MAC_MAXLEN_CFG(port->chip_port));
 	dev->mtu = new_mtu;
 
-	return 0;
+	if (!lan966x->fdma)
+		return 0;
+
+	err = lan966x_fdma_change_mtu(lan966x);
+	if (err) {
+		lan_wr(DEV_MAC_MAXLEN_CFG_MAX_LEN_SET(old_mtu),
+		       lan966x, DEV_MAC_MAXLEN_CFG(port->chip_port));
+		dev->mtu = old_mtu;
+	}
+
+	return err;
 }
 
 static int lan966x_mc_unsync(struct net_device *dev, const unsigned char *addr)

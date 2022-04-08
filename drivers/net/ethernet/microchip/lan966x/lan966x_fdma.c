@@ -336,6 +336,20 @@ static void lan966x_fdma_wakeup_netdev(struct lan966x *lan966x)
 	}
 }
 
+static void lan966x_fdma_stop_netdev(struct lan966x *lan966x)
+{
+	struct lan966x_port *port;
+	int i;
+
+	for (i = 0; i < lan966x->num_phys_ports; ++i) {
+		port = lan966x->ports[i];
+		if (!port)
+			continue;
+
+		netif_stop_queue(port->dev);
+	}
+}
+
 static void lan966x_fdma_tx_clear_buf(struct lan966x *lan966x, int weight)
 {
 	struct lan966x_tx *tx = &lan966x->tx;
@@ -641,6 +655,126 @@ release:
 		lan966x_ptp_txtstamp_release(port, skb);
 
 	dev_kfree_skb_any(skb);
+	return err;
+}
+
+static int lan966x_fdma_get_max_mtu(struct lan966x *lan966x)
+{
+	int max_mtu = 0;
+	int i;
+
+	for (i = 0; i < lan966x->num_phys_ports; ++i) {
+		int mtu;
+
+		if (!lan966x->ports[i])
+			continue;
+
+		mtu = lan966x->ports[i]->dev->mtu;
+		if (mtu > max_mtu)
+			max_mtu = mtu;
+	}
+
+	return max_mtu;
+}
+
+static int lan966x_qsys_sw_status(struct lan966x *lan966x)
+{
+	return lan_rd(lan966x, QSYS_SW_STATUS(CPU_PORT));
+}
+
+static int lan966x_fdma_reload(struct lan966x *lan966x, int new_mtu)
+{
+	void *rx_dcbs, *tx_dcbs, *tx_dcbs_buf;
+	dma_addr_t rx_dma, tx_dma;
+	u32 size;
+	int err;
+
+	/* Store these for later to free them */
+	rx_dma = lan966x->rx.dma;
+	tx_dma = lan966x->tx.dma;
+	rx_dcbs = lan966x->rx.dcbs;
+	tx_dcbs = lan966x->tx.dcbs;
+	tx_dcbs_buf = lan966x->tx.dcbs_buf;
+
+	napi_synchronize(&lan966x->napi);
+	napi_disable(&lan966x->napi);
+	lan966x_fdma_stop_netdev(lan966x);
+
+	lan966x_fdma_rx_disable(&lan966x->rx);
+	lan966x_fdma_rx_free_pages(&lan966x->rx);
+	lan966x->rx.page_order = round_up(new_mtu, PAGE_SIZE) / PAGE_SIZE - 1;
+	err = lan966x_fdma_rx_alloc(&lan966x->rx);
+	if (err)
+		goto restore;
+	lan966x_fdma_rx_start(&lan966x->rx);
+
+	size = sizeof(struct lan966x_rx_dcb) * FDMA_DCB_MAX;
+	size = ALIGN(size, PAGE_SIZE);
+	dma_free_coherent(lan966x->dev, size, rx_dcbs, rx_dma);
+
+	lan966x_fdma_tx_disable(&lan966x->tx);
+	err = lan966x_fdma_tx_alloc(&lan966x->tx);
+	if (err)
+		goto restore_tx;
+
+	size = sizeof(struct lan966x_tx_dcb) * FDMA_DCB_MAX;
+	size = ALIGN(size, PAGE_SIZE);
+	dma_free_coherent(lan966x->dev, size, tx_dcbs, tx_dma);
+
+	kfree(tx_dcbs_buf);
+
+	lan966x_fdma_wakeup_netdev(lan966x);
+	napi_enable(&lan966x->napi);
+
+	return err;
+restore:
+	lan966x->rx.dma = rx_dma;
+	lan966x->tx.dma = tx_dma;
+	lan966x_fdma_rx_start(&lan966x->rx);
+
+restore_tx:
+	lan966x->rx.dcbs = rx_dcbs;
+	lan966x->tx.dcbs = tx_dcbs;
+	lan966x->tx.dcbs_buf = tx_dcbs_buf;
+
+	return err;
+}
+
+int lan966x_fdma_change_mtu(struct lan966x *lan966x)
+{
+	int max_mtu;
+	int err;
+	u32 val;
+
+	max_mtu = lan966x_fdma_get_max_mtu(lan966x);
+	max_mtu += IFH_LEN * sizeof(u32);
+
+	if (round_up(max_mtu, PAGE_SIZE) / PAGE_SIZE - 1 ==
+	    lan966x->rx.page_order)
+		return 0;
+
+	/* Disable the CPU port */
+	lan_rmw(QSYS_SW_PORT_MODE_PORT_ENA_SET(0),
+		QSYS_SW_PORT_MODE_PORT_ENA,
+		lan966x, QSYS_SW_PORT_MODE(CPU_PORT));
+
+	/* Flush the CPU queues */
+	readx_poll_timeout(lan966x_qsys_sw_status, lan966x,
+			   val, !(QSYS_SW_STATUS_EQ_AVAIL_GET(val)),
+			   READL_SLEEP_US, READL_TIMEOUT_US);
+
+	/* Add a sleep in case there are frames between the queues and the CPU
+	 * port
+	 */
+	usleep_range(1000, 2000);
+
+	err = lan966x_fdma_reload(lan966x, max_mtu);
+
+	/* Enable back the CPU port */
+	lan_rmw(QSYS_SW_PORT_MODE_PORT_ENA_SET(1),
+		QSYS_SW_PORT_MODE_PORT_ENA,
+		lan966x,  QSYS_SW_PORT_MODE(CPU_PORT));
+
 	return err;
 }
 
