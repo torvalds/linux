@@ -27,6 +27,9 @@
 #elif defined(__TARGET_ARCH_riscv)
 	#define bpf_target_riscv
 	#define bpf_target_defined
+#elif defined(__TARGET_ARCH_arc)
+	#define bpf_target_arc
+	#define bpf_target_defined
 #else
 
 /* Fall back to what the compiler says */
@@ -53,6 +56,9 @@
 	#define bpf_target_defined
 #elif defined(__riscv) && __riscv_xlen == 64
 	#define bpf_target_riscv
+	#define bpf_target_defined
+#elif defined(__arc__)
+	#define bpf_target_arc
 	#define bpf_target_defined
 #endif /* no compiler target */
 
@@ -231,6 +237,23 @@ struct pt_regs___arm64 {
 #define __PT_SP_REG sp
 #define __PT_IP_REG pc
 /* riscv does not select ARCH_HAS_SYSCALL_WRAPPER. */
+#define PT_REGS_SYSCALL_REGS(ctx) ctx
+
+#elif defined(bpf_target_arc)
+
+/* arc provides struct user_pt_regs instead of struct pt_regs to userspace */
+#define __PT_REGS_CAST(x) ((const struct user_regs_struct *)(x))
+#define __PT_PARM1_REG scratch.r0
+#define __PT_PARM2_REG scratch.r1
+#define __PT_PARM3_REG scratch.r2
+#define __PT_PARM4_REG scratch.r3
+#define __PT_PARM5_REG scratch.r4
+#define __PT_RET_REG scratch.blink
+#define __PT_FP_REG __unsupported__
+#define __PT_RC_REG scratch.r0
+#define __PT_SP_REG scratch.sp
+#define __PT_IP_REG scratch.ret
+/* arc does not select ARCH_HAS_SYSCALL_WRAPPER. */
 #define PT_REGS_SYSCALL_REGS(ctx) ctx
 
 #endif
