@@ -1763,6 +1763,7 @@ int tls_sw_recvmsg(struct sock *sk,
 	bool is_kvec = iov_iter_is_kvec(&msg->msg_iter);
 	bool is_peek = flags & MSG_PEEK;
 	bool bpf_strp_enabled;
+	bool zc_capable;
 
 	flags |= nonblock;
 
@@ -1788,6 +1789,8 @@ int tls_sw_recvmsg(struct sock *sk,
 	len = len - copied;
 	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 
+	zc_capable = !bpf_strp_enabled && !is_kvec && !is_peek &&
+		     prot->version != TLS_1_3_VERSION;
 	decrypted = 0;
 	while (len && (decrypted + copied < target || ctx->recv_pkt)) {
 		struct tls_decrypt_arg darg = {};
@@ -1814,10 +1817,8 @@ int tls_sw_recvmsg(struct sock *sk,
 
 		to_decrypt = rxm->full_len - prot->overhead_size;
 
-		if (to_decrypt <= len && !is_kvec && !is_peek &&
-		    tlm->control == TLS_RECORD_TYPE_DATA &&
-		    prot->version != TLS_1_3_VERSION &&
-		    !bpf_strp_enabled)
+		if (zc_capable && to_decrypt <= len &&
+		    tlm->control == TLS_RECORD_TYPE_DATA)
 			darg.zc = true;
 
 		/* Do not use async mode if record is non-data */
