@@ -285,7 +285,7 @@ static int littlemill_late_probe(struct snd_soc_card *card)
 				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 				    SND_JACK_BTN_2 | SND_JACK_BTN_3 |
 				    SND_JACK_BTN_4 | SND_JACK_BTN_5,
-				    &littlemill_headset, NULL, 0);
+				    &littlemill_headset);
 	if (ret)
 		return ret;
 

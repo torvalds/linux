@@ -118,8 +118,7 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 		snprintf(jack_name, sizeof(jack_name),
 			 "HDMI/DP, pcm=%d Jack", pcm->device);
 		err = snd_soc_card_jack_new(card, jack_name,
-					    SND_JACK_AVOUT, &pcm->sof_hdmi,
-					    NULL, 0);
+					    SND_JACK_AVOUT, &pcm->sof_hdmi);
 
 		if (err)
 			return err;

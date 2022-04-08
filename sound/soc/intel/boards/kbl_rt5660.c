@@ -173,9 +173,9 @@ static int kabylake_rt5660_codec_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* Create and initialize headphone jack, this jack is not mandatory, don't return if fails */
-	ret = snd_soc_card_jack_new(rtd->card, "Lineout Jack",
-				    SND_JACK_LINEOUT, &lineout_jack,
-				    &lineout_jack_pin, 1);
+	ret = snd_soc_card_jack_new_pins(rtd->card, "Lineout Jack",
+					 SND_JACK_LINEOUT, &lineout_jack,
+					 &lineout_jack_pin, 1);
 	if (ret)
 		dev_warn(component->dev, "Can't create Lineout jack\n");
 	else {
@@ -187,9 +187,9 @@ static int kabylake_rt5660_codec_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* Create and initialize mic jack, this jack is not mandatory, don't return if fails */
-	ret = snd_soc_card_jack_new(rtd->card, "Mic Jack",
-				    SND_JACK_MICROPHONE, &mic_jack,
-				    &mic_jack_pin, 1);
+	ret = snd_soc_card_jack_new_pins(rtd->card, "Mic Jack",
+					 SND_JACK_MICROPHONE, &mic_jack,
+					 &mic_jack_pin, 1);
 	if (ret)
 		dev_warn(component->dev, "Can't create mic jack\n");
 	else {
@@ -485,8 +485,7 @@ static int kabylake_card_late_probe(struct snd_soc_card *card)
 		snprintf(jack_name, sizeof(jack_name),
 			"HDMI/DP, pcm=%d Jack", pcm->device);
 		err = snd_soc_card_jack_new(card, jack_name,
-					SND_JACK_AVOUT, &skylake_hdmi[i],
-					NULL, 0);
+					SND_JACK_AVOUT, &skylake_hdmi[i]);
 
 		if (err)
 			return err;

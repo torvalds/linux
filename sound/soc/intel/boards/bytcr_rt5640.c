@@ -1300,10 +1300,10 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	}
 
 	if (BYT_RT5640_JDSRC(byt_rt5640_quirk)) {
-		ret = snd_soc_card_jack_new(card, "Headset",
-					    SND_JACK_HEADSET | SND_JACK_BTN_0,
-					    &priv->jack, rt5640_pins,
-					    ARRAY_SIZE(rt5640_pins));
+		ret = snd_soc_card_jack_new_pins(card, "Headset",
+						 SND_JACK_HEADSET | SND_JACK_BTN_0,
+						 &priv->jack, rt5640_pins,
+						 ARRAY_SIZE(rt5640_pins));
 		if (ret) {
 			dev_err(card->dev, "Jack creation failed %d\n", ret);
 			return ret;
@@ -1321,17 +1321,17 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	}
 
 	if (byt_rt5640_quirk & BYT_RT5640_JD_HP_ELITEP_1000G2) {
-		ret = snd_soc_card_jack_new(card, "Headset",
-					    SND_JACK_HEADSET,
-					    &priv->jack, rt5640_pins,
-					    ARRAY_SIZE(rt5640_pins));
+		ret = snd_soc_card_jack_new_pins(card, "Headset",
+						 SND_JACK_HEADSET,
+						 &priv->jack, rt5640_pins,
+						 ARRAY_SIZE(rt5640_pins));
 		if (ret)
 			return ret;
 
-		ret = snd_soc_card_jack_new(card, "Headset 2",
-					    SND_JACK_HEADSET,
-					    &priv->jack2, rt5640_pins2,
-					    ARRAY_SIZE(rt5640_pins2));
+		ret = snd_soc_card_jack_new_pins(card, "Headset 2",
+						 SND_JACK_HEADSET,
+						 &priv->jack2, rt5640_pins2,
+						 ARRAY_SIZE(rt5640_pins2));
 		if (ret)
 			return ret;
 

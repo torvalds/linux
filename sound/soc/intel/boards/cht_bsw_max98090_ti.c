@@ -201,9 +201,10 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 
 	jack_type = SND_JACK_HEADPHONE | SND_JACK_MICROPHONE;
 
-	ret = snd_soc_card_jack_new(runtime->card, "Headset Jack",
-				    jack_type, jack,
-				    hs_jack_pins, ARRAY_SIZE(hs_jack_pins));
+	ret = snd_soc_card_jack_new_pins(runtime->card, "Headset Jack",
+					 jack_type, jack,
+					 hs_jack_pins,
+					 ARRAY_SIZE(hs_jack_pins));
 	if (ret) {
 		dev_err(runtime->dev, "Headset Jack creation failed %d\n", ret);
 		return ret;
@@ -306,8 +307,7 @@ static int cht_max98090_headset_init(struct snd_soc_component *component)
 		    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 		    SND_JACK_BTN_2 | SND_JACK_BTN_3;
 
-	ret = snd_soc_card_jack_new(card, "Headset Jack", jack_type,
-				    jack, NULL, 0);
+	ret = snd_soc_card_jack_new(card, "Headset Jack", jack_type, jack);
 	if (ret) {
 		dev_err(card->dev, "Headset Jack creation failed %d\n", ret);
 		return ret;

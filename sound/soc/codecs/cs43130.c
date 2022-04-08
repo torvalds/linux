@@ -2303,7 +2303,7 @@ static int cs43130_probe(struct snd_soc_component *component)
 	}
 
 	ret = snd_soc_card_jack_new(card, "Headphone", CS43130_JACK_MASK,
-				    &cs43130->jack, NULL, 0);
+				    &cs43130->jack);
 	if (ret < 0) {
 		dev_err(component->dev, "Cannot create jack\n");
 		return ret;

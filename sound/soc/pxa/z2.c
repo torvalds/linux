@@ -132,9 +132,10 @@ static int z2_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 	int ret;
 
 	/* Jack detection API stuff */
-	ret = snd_soc_card_jack_new(rtd->card, "Headset Jack", SND_JACK_HEADSET,
-				    &hs_jack, hs_jack_pins,
-				    ARRAY_SIZE(hs_jack_pins));
+	ret = snd_soc_card_jack_new_pins(rtd->card, "Headset Jack",
+					 SND_JACK_HEADSET, &hs_jack,
+					 hs_jack_pins,
+					 ARRAY_SIZE(hs_jack_pins));
 	if (ret)
 		goto err;
 

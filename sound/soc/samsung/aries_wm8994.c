@@ -343,7 +343,7 @@ static int aries_late_probe(struct snd_soc_card *card)
 	struct aries_wm8994_data *priv = snd_soc_card_get_drvdata(card);
 	int ret, irq;
 
-	ret = snd_soc_card_jack_new(card, "Dock", SND_JACK_LINEOUT,
+	ret = snd_soc_card_jack_new_pins(card, "Dock", SND_JACK_LINEOUT,
 			&aries_dock, dock_pins, ARRAY_SIZE(dock_pins));
 	if (ret)
 		return ret;
@@ -361,7 +361,7 @@ static int aries_late_probe(struct snd_soc_card *card)
 	else
 		snd_soc_jack_report(&aries_dock, 0, SND_JACK_LINEOUT);
 
-	ret = snd_soc_card_jack_new(card, "Headset",
+	ret = snd_soc_card_jack_new_pins(card, "Headset",
 			SND_JACK_HEADSET | SND_JACK_BTN_0,
 			&aries_headset,
 			jack_pins, ARRAY_SIZE(jack_pins));
