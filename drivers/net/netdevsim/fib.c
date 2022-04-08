@@ -284,7 +284,7 @@ nsim_fib4_rt_create(struct nsim_fib_data *data,
 
 	fib4_rt->fi = fen_info->fi;
 	fib_info_hold(fib4_rt->fi);
-	fib4_rt->tos = fen_info->tos;
+	fib4_rt->tos = inet_dscp_to_dsfield(fen_info->dscp);
 	fib4_rt->type = fen_info->type;
 
 	return fib4_rt;
@@ -323,7 +323,7 @@ nsim_fib4_rt_offload_failed_flag_set(struct net *net,
 	fri.tb_id = fen_info->tb_id;
 	fri.dst = cpu_to_be32(*p_dst);
 	fri.dst_len = fen_info->dst_len;
-	fri.dscp = inet_dsfield_to_dscp(fen_info->tos);
+	fri.dscp = fen_info->dscp;
 	fri.type = fen_info->type;
 	fri.offload = false;
 	fri.trap = false;

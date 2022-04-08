@@ -89,7 +89,7 @@ prestera_kern_fib_cache_destroy(struct prestera_switch *sw,
 static struct prestera_kern_fib_cache *
 prestera_kern_fib_cache_create(struct prestera_switch *sw,
 			       struct prestera_kern_fib_cache_key *key,
-			       struct fib_info *fi, u8 tos, u8 type)
+			       struct fib_info *fi, dscp_t dscp, u8 type)
 {
 	struct prestera_kern_fib_cache *fib_cache;
 	int err;
@@ -101,7 +101,7 @@ prestera_kern_fib_cache_create(struct prestera_switch *sw,
 	memcpy(&fib_cache->key, key, sizeof(*key));
 	fib_info_hold(fi);
 	fib_cache->fi = fi;
-	fib_cache->kern_tos = tos;
+	fib_cache->kern_tos = inet_dscp_to_dsfield(dscp);
 	fib_cache->kern_type = type;
 
 	err = rhashtable_insert_fast(&sw->router->kern_fib_cache_ht,
@@ -306,7 +306,7 @@ prestera_k_arb_fib_evt(struct prestera_switch *sw,
 	if (replace) {
 		fib_cache = prestera_kern_fib_cache_create(sw, &fc_key,
 							   fen_info->fi,
-							   fen_info->tos,
+							   fen_info->dscp,
 							   fen_info->type);
 		if (!fib_cache) {
 			dev_err(sw->dev->dev, "fib_cache == NULL");
