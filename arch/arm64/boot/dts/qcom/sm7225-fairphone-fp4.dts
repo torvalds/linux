@@ -23,7 +23,7 @@
 	qcom,board-id = <8 32>;
 
 	aliases {
-		serial0 = &uart2;
+		serial0 = &uart9;
 	};
 
 	chosen {
@@ -332,7 +332,7 @@
 	gpio-reserved-ranges = <13 4>, <56 2>;
 };
 
-&uart2 {
+&uart9 {
 	status = "okay";
 };
 
