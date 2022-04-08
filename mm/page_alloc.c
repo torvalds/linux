@@ -3590,12 +3590,13 @@ void free_unref_page(struct page *page, unsigned int order)
 	 * excessively into the page allocator
 	 */
 	migratetype = get_pcppage_migratetype(page);
-	if (unlikely(migratetype >= MIGRATE_PCPTYPES)) {
+	if (unlikely(migratetype > MIGRATE_RECLAIMABLE)) {
 		if (unlikely(is_migrate_isolate(migratetype))) {
 			free_one_page(page_zone(page), page, pfn, order, migratetype, FPI_NONE);
 			return;
 		}
-		migratetype = MIGRATE_MOVABLE;
+		if (migratetype == MIGRATE_HIGHATOMIC)
+			migratetype = MIGRATE_MOVABLE;
 	}
 
 	zone = page_zone(page);
