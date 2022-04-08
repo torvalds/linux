@@ -2335,7 +2335,7 @@ static bool nf_conntrack_get_tuple_skb(struct nf_conntrack_tuple *dst_tuple,
 /* Bring out ya dead! */
 static struct nf_conn *
 get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
-		void *data, unsigned int *bucket)
+		const struct nf_ct_iter_data *iter_data, unsigned int *bucket)
 {
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
@@ -2366,7 +2366,12 @@ get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
 			 * tuple while iterating.
 			 */
 			ct = nf_ct_tuplehash_to_ctrack(h);
-			if (iter(ct, data))
+
+			if (iter_data->net &&
+			    !net_eq(iter_data->net, nf_ct_net(ct)))
+				continue;
+
+			if (iter(ct, iter_data->data))
 				goto found;
 		}
 		spin_unlock(lockp);
@@ -2383,7 +2388,7 @@ found:
 }
 
 static void nf_ct_iterate_cleanup(int (*iter)(struct nf_conn *i, void *data),
-				  void *data, u32 portid, int report)
+				  const struct nf_ct_iter_data *iter_data)
 {
 	unsigned int bucket = 0;
 	struct nf_conn *ct;
@@ -2391,49 +2396,28 @@ static void nf_ct_iterate_cleanup(int (*iter)(struct nf_conn *i, void *data),
 	might_sleep();
 
 	mutex_lock(&nf_conntrack_mutex);
-	while ((ct = get_next_corpse(iter, data, &bucket)) != NULL) {
+	while ((ct = get_next_corpse(iter, iter_data, &bucket)) != NULL) {
 		/* Time to push up daises... */
 
-		nf_ct_delete(ct, portid, report);
+		nf_ct_delete(ct, iter_data->portid, iter_data->report);
 		nf_ct_put(ct);
 		cond_resched();
 	}
 	mutex_unlock(&nf_conntrack_mutex);
 }
 
-struct iter_data {
-	int (*iter)(struct nf_conn *i, void *data);
-	void *data;
-	struct net *net;
-};
-
-static int iter_net_only(struct nf_conn *i, void *data)
+void nf_ct_iterate_cleanup_net(int (*iter)(struct nf_conn *i, void *data),
+			       const struct nf_ct_iter_data *iter_data)
 {
-	struct iter_data *d = data;
-
-	if (!net_eq(d->net, nf_ct_net(i)))
-		return 0;
-
-	return d->iter(i, d->data);
-}
-
-void nf_ct_iterate_cleanup_net(struct net *net,
-			       int (*iter)(struct nf_conn *i, void *data),
-			       void *data, u32 portid, int report)
-{
+	struct net *net = iter_data->net;
 	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
-	struct iter_data d;
 
 	might_sleep();
 
 	if (atomic_read(&cnet->count) == 0)
 		return;
 
-	d.iter = iter;
-	d.data = data;
-	d.net = net;
-
-	nf_ct_iterate_cleanup(iter_net_only, &d, portid, report);
+	nf_ct_iterate_cleanup(iter, iter_data);
 }
 EXPORT_SYMBOL_GPL(nf_ct_iterate_cleanup_net);
 
@@ -2451,6 +2435,7 @@ EXPORT_SYMBOL_GPL(nf_ct_iterate_cleanup_net);
 void
 nf_ct_iterate_destroy(int (*iter)(struct nf_conn *i, void *data), void *data)
 {
+	struct nf_ct_iter_data iter_data = {};
 	struct net *net;
 
 	down_read(&net_rwsem);
@@ -2478,7 +2463,8 @@ nf_ct_iterate_destroy(int (*iter)(struct nf_conn *i, void *data), void *data)
 	synchronize_net();
 
 	nf_ct_ext_bump_genid();
-	nf_ct_iterate_cleanup(iter, data, 0, 0);
+	iter_data.data = data;
+	nf_ct_iterate_cleanup(iter, &iter_data);
 
 	/* Another cpu might be in a rcu read section with
 	 * rcu protected pointer cleared in iter callback
@@ -2492,7 +2478,7 @@ EXPORT_SYMBOL_GPL(nf_ct_iterate_destroy);
 
 static int kill_all(struct nf_conn *i, void *data)
 {
-	return net_eq(nf_ct_net(i), data);
+	return 1;
 }
 
 void nf_conntrack_cleanup_start(void)
@@ -2527,8 +2513,9 @@ void nf_conntrack_cleanup_net(struct net *net)
 
 void nf_conntrack_cleanup_net_list(struct list_head *net_exit_list)
 {
-	int busy;
+	struct nf_ct_iter_data iter_data = {};
 	struct net *net;
+	int busy;
 
 	/*
 	 * This makes sure all current packets have passed through
@@ -2541,7 +2528,8 @@ i_see_dead_people:
 	list_for_each_entry(net, net_exit_list, exit_list) {
 		struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 
-		nf_ct_iterate_cleanup(kill_all, net, 0, 0);
+		iter_data.net = net;
+		nf_ct_iterate_cleanup_net(kill_all, &iter_data);
 		if (atomic_read(&cnet->count) != 0)
 			busy = 1;
 	}
