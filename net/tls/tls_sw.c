@@ -136,9 +136,9 @@ static int padding_length(struct tls_prot_info *prot, struct sk_buff *skb)
 
 	/* Determine zero-padding length */
 	if (prot->version == TLS_1_3_VERSION) {
+		int back = TLS_TAG_SIZE + 1;
 		char content_type = 0;
 		int err;
-		int back = 17;
 
 		while (content_type == 0) {
 			if (back > rxm->full_len - prot->prepend_size)
@@ -2496,7 +2496,7 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 
 	/* Sanity-check the sizes for stack allocations. */
 	if (iv_size > MAX_IV_SIZE || nonce_size > MAX_IV_SIZE ||
-	    rec_seq_size > TLS_MAX_REC_SEQ_SIZE) {
+	    rec_seq_size > TLS_MAX_REC_SEQ_SIZE || tag_size != TLS_TAG_SIZE) {
 		rc = -EINVAL;
 		goto free_priv;
 	}
