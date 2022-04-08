@@ -877,9 +877,7 @@ static int hash_dma_final(struct ahash_request *req)
 				__func__);
 			goto out;
 		}
-	}
-
-	if (!req_ctx->updated) {
+	} else {
 		ret = hash_setconfiguration(device_data, &ctx->config);
 		if (ret) {
 			dev_err(device_data->dev,
