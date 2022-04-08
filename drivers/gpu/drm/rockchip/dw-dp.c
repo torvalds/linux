@@ -1940,8 +1940,14 @@ static int dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
 	struct drm_display_mode m;
 	u32 min_bpp;
 
+	drm_mode_copy(&m, mode);
+
+	if (dp->split_mode)
+		drm_mode_convert_to_origin_mode(&m);
+
 	if (info->color_formats & DRM_COLOR_FORMAT_YCRCB420 &&
-	    link->vsc_sdp_extension_for_colorimetry_supported)
+	    link->vsc_sdp_extension_for_colorimetry_supported &&
+	    (drm_mode_is_420_only(info, &m) || drm_mode_is_420_also(info, &m)))
 		min_bpp = 12;
 	else if (info->color_formats & DRM_COLOR_FORMAT_YCRCB422)
 		min_bpp = 16;
@@ -1950,10 +1956,9 @@ static int dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
 	else
 		min_bpp = 24;
 
-	drm_mode_copy(&m, mode);
-
-	if (dp->split_mode)
-		drm_mode_convert_to_origin_mode(&m);
+	if (!link->vsc_sdp_extension_for_colorimetry_supported &&
+	    drm_mode_is_420_only(info, &m))
+		return MODE_NO_420;
 
 	if (m.hsync_end - m.hsync_start < 32)
 		return MODE_HSYNC_NARROW;
