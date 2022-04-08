@@ -411,7 +411,6 @@ struct __aligned(sizeof(long)) cpsw_meta_xdp {
 
 /* The buf includes headroom compatible with both skb and xdpf */
 #define CPSW_HEADROOM_NA (max(XDP_PACKET_HEADROOM, NET_SKB_PAD) + NET_IP_ALIGN)
-#define CPSW_HEADROOM  ALIGN(CPSW_HEADROOM_NA, sizeof(long))
 
 static inline int cpsw_is_xdpf_handle(void *handle)
 {

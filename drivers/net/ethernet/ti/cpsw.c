@@ -335,7 +335,7 @@ static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 
 static unsigned int cpsw_rxbuf_total_len(unsigned int len)
 {
-	len += CPSW_HEADROOM;
+	len += CPSW_HEADROOM_NA;
 	len += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	return SKB_DATA_ALIGN(len);
