@@ -1616,17 +1616,14 @@ static bool tls_sw_advance_skb(struct sock *sk, struct sk_buff *skb,
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
+	struct strp_msg *rxm = strp_msg(skb);
 
-	if (skb) {
-		struct strp_msg *rxm = strp_msg(skb);
-
-		if (len < rxm->full_len) {
-			rxm->offset += len;
-			rxm->full_len -= len;
-			return false;
-		}
-		consume_skb(skb);
+	if (len < rxm->full_len) {
+		rxm->offset += len;
+		rxm->full_len -= len;
+		return false;
 	}
+	consume_skb(skb);
 
 	/* Finished with message */
 	ctx->recv_pkt = NULL;
@@ -1898,10 +1895,9 @@ pick_next_record:
 		/* For async or peek case, queue the current skb */
 		if (async || is_peek || retain_skb) {
 			skb_queue_tail(&ctx->rx_list, skb);
-			skb = NULL;
-		}
-
-		if (tls_sw_advance_skb(sk, skb, chunk)) {
+			ctx->recv_pkt = NULL;
+			__strp_unpause(&ctx->strp);
+		} else if (tls_sw_advance_skb(sk, skb, chunk)) {
 			/* Return full control message to
 			 * userspace before trying to parse
 			 * another message type
