@@ -2573,6 +2573,29 @@ static int rk3568_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 	return ret;
 }
 
+static int rv1106_usb2phy_tuning(struct rockchip_usb2phy *rphy)
+{
+	/* Enable pre-emphasis during SOF and EOP, non-chirp state */
+	phy_update_bits(rphy->phy_base + 0x30, GENMASK(2, 0), 0x05);
+
+	/* Set Tx HS pre_emphasize strength to 3'b011 */
+	phy_update_bits(rphy->phy_base + 0x40, GENMASK(5, 3), (0x03 << 3));
+
+	/* Set RX Squelch trigger point configure to 4'b0000(112.5 mV) */
+	phy_update_bits(rphy->phy_base + 0x64, GENMASK(6, 3), (0x00 << 3));
+
+	/* Turn off differential receiver by default to save power */
+	phy_clear_bits(rphy->phy_base + 0x100, BIT(6));
+
+	/* Set 45ohm HS ODT value to 5'b11101 to increase driver strength */
+	phy_update_bits(rphy->phy_base + 0x11c, GENMASK(4, 0), 0x1d);
+
+	/* Set Tx HS eye height tuning to 3'b011(437.5 mV)*/
+	phy_update_bits(rphy->phy_base + 0x124, GENMASK(4, 2), (0x03 << 2));
+
+	return 0;
+}
+
 static int rk3568_vbus_detect_control(struct rockchip_usb2phy *rphy, bool en)
 {
 	if (en) {
@@ -3511,6 +3534,7 @@ static const struct rockchip_usb2phy_cfg rv1106_phy_cfgs[] = {
 	{
 		.reg = 0xff3e0000,
 		.num_ports	= 1,
+		.phy_tuning	= rv1106_usb2phy_tuning,
 		.clkout_ctl	= { 0x0058, 4, 4, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
