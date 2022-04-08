@@ -1036,6 +1036,10 @@ static const struct dmtimer_platform_data omap3plus_pdata = {
 	.timer_ops = &dmtimer_ops,
 };
 
+static const struct dmtimer_platform_data am6_pdata = {
+	.timer_ops = &dmtimer_ops,
+};
+
 static const struct of_device_id omap_timer_match[] = {
 	{
 		.compatible = "ti,omap2420-timer",
@@ -1063,6 +1067,10 @@ static const struct of_device_id omap_timer_match[] = {
 	{
 		.compatible = "ti,dm816-timer",
 		.data = &omap3plus_pdata,
+	},
+	{
+		.compatible = "ti,am654-timer",
+		.data = &am6_pdata,
 	},
 	{},
 };
