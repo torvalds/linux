@@ -70,6 +70,8 @@ struct kfd_event {
 		struct kfd_hsa_memory_exception_data memory_exception_data;
 		struct kfd_hsa_hw_exception_data hw_exception_data;
 	};
+
+	struct rcu_head rcu; /* for asynchronous kfree_rcu */
 };
 
 #define KFD_EVENT_TIMEOUT_IMMEDIATE 0

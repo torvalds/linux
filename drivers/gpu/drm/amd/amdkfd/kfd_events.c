@@ -262,8 +262,7 @@ static void destroy_event(struct kfd_process *p, struct kfd_event *ev)
 		p->signal_event_count--;
 
 	idr_remove(&p->event_idr, ev->event_id);
-	synchronize_rcu();
-	kfree(ev);
+	kfree_rcu(ev, rcu);
 }
 
 static void destroy_events(struct kfd_process *p)
