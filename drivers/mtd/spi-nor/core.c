@@ -3254,8 +3254,8 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	if (ret)
 		return ret;
 
-	dev_info(dev, "%s (%lld Kbytes)\n", info->name,
-			(long long)mtd->size >> 10);
+	dev_info(dev, "%s (%lld Kbytes) read_data x%d\n", info->name,
+			(long long)mtd->size >> 10, spi_nor_get_protocol_data_nbits(nor->read_proto));
 
 	dev_dbg(dev,
 		"mtd .name = %s, .size = 0x%llx (%lldMiB), "
