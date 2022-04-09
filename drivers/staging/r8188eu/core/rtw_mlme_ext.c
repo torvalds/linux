@@ -5763,9 +5763,7 @@ unsigned int send_beacon(struct adapter *padapter)
 		} while ((poll % 10) != 0 && !bxmitok && !padapter->bSurpriseRemoved && !padapter->bDriverStopped);
 	} while (!bxmitok && issue < 100 && !padapter->bSurpriseRemoved && !padapter->bDriverStopped);
 
-	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
-		return _FAIL;
-	if (!bxmitok)
+	if (padapter->bSurpriseRemoved || padapter->bDriverStopped || !bxmitok)
 		return _FAIL;
 
 	return _SUCCESS;
