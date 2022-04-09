@@ -1296,7 +1296,8 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	} while (++timeout < priv->cmq.tx_timeout);
 
 	if (hns_roce_cmq_csq_done(hr_dev)) {
-		for (ret = 0, i = 0; i < num; i++) {
+		ret = 0;
+		for (i = 0; i < num; i++) {
 			/* check the result of hardware write back */
 			desc[i] = csq->desc[tail++];
 			if (tail == csq->desc_num)
