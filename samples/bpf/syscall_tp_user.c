@@ -8,7 +8,6 @@
 #include <string.h>
 #include <linux/perf_event.h>
 #include <errno.h>
-#include <sys/resource.h>
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 
