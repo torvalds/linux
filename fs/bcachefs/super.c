@@ -1423,11 +1423,17 @@ static int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
 	struct bpos end		= POS(ca->dev_idx, U64_MAX);
 	int ret;
 
-	ret =   bch2_btree_delete_range(c, BTREE_ID_alloc, start, end,
+	/*
+	 * We clear the LRU and need_discard btrees first so that we don't race
+	 * with bch2_do_invalidates() and bch2_do_discards()
+	 */
+	ret =   bch2_btree_delete_range(c, BTREE_ID_lru, start, end,
+					BTREE_TRIGGER_NORUN, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_need_discard, start, end,
 					BTREE_TRIGGER_NORUN, NULL) ?:
 		bch2_btree_delete_range(c, BTREE_ID_freespace, start, end,
 					BTREE_TRIGGER_NORUN, NULL) ?:
-		bch2_btree_delete_range(c, BTREE_ID_need_discard, start, end,
+		bch2_btree_delete_range(c, BTREE_ID_alloc, start, end,
 					BTREE_TRIGGER_NORUN, NULL);
 	if (ret)
 		bch_err(c, "error %i removing dev alloc info", ret);
@@ -1462,19 +1468,19 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 		goto err;
 	}
 
-	ret = bch2_journal_flush_device_pins(&c->journal, ca->dev_idx);
-	if (ret) {
-		bch_err(ca, "Remove failed: error %i flushing journal", ret);
-		goto err;
-	}
-
 	ret = bch2_dev_remove_alloc(c, ca);
 	if (ret) {
 		bch_err(ca, "Remove failed, error deleting alloc info");
 		goto err;
 	}
 
-	ret = bch2_journal_error(&c->journal);
+	ret = bch2_journal_flush_device_pins(&c->journal, ca->dev_idx);
+	if (ret) {
+		bch_err(ca, "Remove failed: error %i flushing journal", ret);
+		goto err;
+	}
+
+	ret = bch2_journal_flush(&c->journal);
 	if (ret) {
 		bch_err(ca, "Remove failed, journal error");
 		goto err;

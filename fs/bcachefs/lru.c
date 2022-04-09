@@ -133,7 +133,7 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 	struct bch_alloc_v4 a;
 	struct printbuf buf1 = PRINTBUF;
 	struct printbuf buf2 = PRINTBUF;
-	u64 idx;
+	struct bpos alloc_pos;
 	int ret;
 
 	lru_k = bch2_btree_iter_peek(lru_iter);
@@ -144,10 +144,15 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	idx = le64_to_cpu(bkey_s_c_to_lru(lru_k).v->idx);
+	alloc_pos = POS(lru_k.k->p.inode,
+			le64_to_cpu(bkey_s_c_to_lru(lru_k).v->idx));
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
-			     POS(lru_k.k->p.inode, idx), 0);
+	if (fsck_err_on(!bch2_dev_bucket_exists(c, alloc_pos), c,
+			"lru key points to nonexistent device:bucket %llu:%llu",
+			alloc_pos.inode, alloc_pos.offset))
+		return bch2_btree_delete_at(trans, lru_iter, 0);
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc, alloc_pos, 0);
 	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)

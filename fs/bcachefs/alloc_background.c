@@ -446,6 +446,13 @@ int bch2_alloc_read(struct bch_fs *c)
 
 	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
 			   BTREE_ITER_PREFETCH, k, ret) {
+		/*
+		 * Not a fsck error because this is checked/repaired by
+		 * bch2_check_alloc_key() which runs later:
+		 */
+		if (!bch2_dev_bucket_exists(c, k.k->p))
+			continue;
+
 		ca = bch_dev_bkey_exists(c, k.k->p.inode);
 		bch2_alloc_to_v4(k, &a);
 
@@ -614,7 +621,8 @@ static int bch2_check_alloc_key(struct btree_trans *trans,
 		return ret;
 
 	if (fsck_err_on(!bch2_dev_bucket_exists(c, alloc_k.k->p), c,
-			"alloc key for invalid device or bucket"))
+			"alloc key for invalid device:bucket %llu:%llu",
+			alloc_k.k->p.inode, alloc_k.k->p.offset))
 		return bch2_btree_delete_at(trans, alloc_iter, 0);
 
 	ca = bch_dev_bkey_exists(c, alloc_k.k->p.inode);
@@ -727,9 +735,8 @@ static int bch2_check_discard_freespace_key(struct btree_trans *trans,
 	bch2_trans_iter_init(trans, &alloc_iter, BTREE_ID_alloc, pos, 0);
 
 	if (fsck_err_on(!bch2_dev_bucket_exists(c, pos), c,
-			"%llu:%llu set in %s btree but device or bucket does not exist",
-			pos.inode, pos.offset,
-			bch2_btree_ids[iter->btree_id]))
+			"entry in %s btree for nonexistant dev:bucket %llu:%llu",
+			bch2_btree_ids[iter->btree_id], pos.inode, pos.offset))
 		goto delete;
 
 	k = bch2_btree_iter_peek_slot(&alloc_iter);
