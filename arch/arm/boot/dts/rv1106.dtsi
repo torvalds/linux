@@ -645,6 +645,12 @@
 		log_leakage: log-leakage@1b {
 			reg = <0x1b 0x1>;
 		};
+		macphy_bgs: macphy-bgs@2d {
+			reg = <0x2d 0x1>;
+		};
+		macphy_txlevel: macphy-txlevel@2e {
+			reg = <0x2e 0x2>;
+		};
 	};
 
 	u2phy: usb2-phy@ff3e0000 {
@@ -1194,6 +1200,9 @@
 		phy-mode = "rmii";
 		clock_in_out = "input";
 		phy-handle = <&rmii_phy>;
+
+		nvmem-cells = <&macphy_bgs>;
+		nvmem-cell-names = "bgs";
 		status = "disabled";
 
 		mdio: mdio {
@@ -1206,6 +1215,8 @@
 				clocks = <&cru CLK_MACPHY>;
 				resets = <&cru SRST_MACPHY>;
 				phy-is-integrated;
+				nvmem-cells = <&macphy_txlevel>;
+				nvmem-cell-names = "txlevel";
 			};
 		};
 
