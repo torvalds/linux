@@ -74,26 +74,26 @@ struct vas_sysfs_entry {
 
 /*
  * Create sysfs interface:
- * /sys/devices/vas/vas0/gzip/default_capabilities
+ * /sys/devices/virtual/misc/vas/vas0/gzip/default_capabilities
  *	This directory contains the following VAS GZIP capabilities
  *	for the default credit type.
- * /sys/devices/vas/vas0/gzip/default_capabilities/nr_total_credits
+ * /sys/devices/virtual/misc/vas/vas0/gzip/default_capabilities/nr_total_credits
  *	Total number of default credits assigned to the LPAR which
  *	can be changed with DLPAR operation.
- * /sys/devices/vas/vas0/gzip/default_capabilities/nr_used_credits
+ * /sys/devices/virtual/misc/vas/vas0/gzip/default_capabilities/nr_used_credits
  *	Number of credits used by the user space. One credit will
  *	be assigned for each window open.
  *
- * /sys/devices/vas/vas0/gzip/qos_capabilities
+ * /sys/devices/virtual/misc/vas/vas0/gzip/qos_capabilities
  *	This directory contains the following VAS GZIP capabilities
  *	for the Quality of Service (QoS) credit type.
- * /sys/devices/vas/vas0/gzip/qos_capabilities/nr_total_credits
+ * /sys/devices/virtual/misc/vas/vas0/gzip/qos_capabilities/nr_total_credits
  *	Total number of QoS credits assigned to the LPAR. The user
  *	has to define this value using HMC interface. It can be
  *	changed dynamically by the user.
- * /sys/devices/vas/vas0/gzip/qos_capabilities/nr_used_credits
+ * /sys/devices/virtual/misc/vas/vas0/gzip/qos_capabilities/nr_used_credits
  *	Number of credits used by the user space.
- * /sys/devices/vas/vas0/gzip/qos_capabilities/update_total_credits
+ * /sys/devices/virtual/misc/vas/vas0/gzip/qos_capabilities/update_total_credits
  *	Update total QoS credits dynamically
  */
 
