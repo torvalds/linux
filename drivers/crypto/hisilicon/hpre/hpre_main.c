@@ -107,6 +107,15 @@
 #define HPRE_SQE_MASK_OFFSET		8
 #define HPRE_SQE_MASK_LEN		24
 
+#define HPRE_DFX_BASE		0x301000
+#define HPRE_DFX_COMMON1		0x301400
+#define HPRE_DFX_COMMON2		0x301A00
+#define HPRE_DFX_CORE		0x302000
+#define HPRE_DFX_BASE_LEN		0x55
+#define HPRE_DFX_COMMON1_LEN		0x41
+#define HPRE_DFX_COMMON2_LEN		0xE
+#define HPRE_DFX_CORE_LEN		0x43
+
 static const char hpre_name[] = "hisi_hpre";
 static struct dentry *hpre_debugfs_root;
 static const struct pci_device_id hpre_dev_ids[] = {
@@ -225,6 +234,53 @@ static const char *hpre_dfx_files[HPRE_DFX_FILE_NUM] = {
 	"overtime_thrhld",
 	"invalid_req_cnt"
 };
+
+/* define the HPRE's dfx regs region and region length */
+static struct dfx_diff_registers hpre_diff_regs[] = {
+	{
+		.reg_offset = HPRE_DFX_BASE,
+		.reg_len = HPRE_DFX_BASE_LEN,
+	}, {
+		.reg_offset = HPRE_DFX_COMMON1,
+		.reg_len = HPRE_DFX_COMMON1_LEN,
+	}, {
+		.reg_offset = HPRE_DFX_COMMON2,
+		.reg_len = HPRE_DFX_COMMON2_LEN,
+	}, {
+		.reg_offset = HPRE_DFX_CORE,
+		.reg_len = HPRE_DFX_CORE_LEN,
+	},
+};
+
+static int hpre_diff_regs_show(struct seq_file *s, void *unused)
+{
+	struct hisi_qm *qm = s->private;
+
+	hisi_qm_acc_diff_regs_dump(qm, s, qm->debug.acc_diff_regs,
+					ARRAY_SIZE(hpre_diff_regs));
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(hpre_diff_regs);
+
+static int hpre_com_regs_show(struct seq_file *s, void *unused)
+{
+	hisi_qm_regs_dump(s, s->private);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(hpre_com_regs);
+
+static int hpre_cluster_regs_show(struct seq_file *s, void *unused)
+{
+	hisi_qm_regs_dump(s, s->private);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(hpre_cluster_regs);
 
 static const struct kernel_param_ops hpre_uacce_mode_ops = {
 	.set = uacce_mode_set,
@@ -779,24 +835,6 @@ static int hpre_debugfs_atomic64_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(hpre_atomic64_ops, hpre_debugfs_atomic64_get,
 			 hpre_debugfs_atomic64_set, "%llu\n");
 
-static int hpre_com_regs_show(struct seq_file *s, void *unused)
-{
-	hisi_qm_regs_dump(s, s->private);
-
-	return 0;
-}
-
-DEFINE_SHOW_ATTRIBUTE(hpre_com_regs);
-
-static int hpre_cluster_regs_show(struct seq_file *s, void *unused)
-{
-	hisi_qm_regs_dump(s, s->private);
-
-	return 0;
-}
-
-DEFINE_SHOW_ATTRIBUTE(hpre_cluster_regs);
-
 static int hpre_create_debugfs_file(struct hisi_qm *qm, struct dentry *dir,
 				    enum hpre_ctrl_dbgfs_file type, int indx)
 {
@@ -895,6 +933,7 @@ static int hpre_ctrl_debug_init(struct hisi_qm *qm)
 
 static void hpre_dfx_debug_init(struct hisi_qm *qm)
 {
+	struct dfx_diff_registers *hpre_regs = qm->debug.acc_diff_regs;
 	struct hpre *hpre = container_of(qm, struct hpre, qm);
 	struct hpre_dfx *dfx = hpre->debug.dfx;
 	struct dentry *parent;
@@ -906,6 +945,10 @@ static void hpre_dfx_debug_init(struct hisi_qm *qm)
 		debugfs_create_file(hpre_dfx_files[i], 0644, parent, &dfx[i],
 				    &hpre_atomic64_ops);
 	}
+
+	if (qm->fun_type == QM_HW_PF && hpre_regs)
+		debugfs_create_file("diff_regs", 0444, parent,
+				      qm, &hpre_diff_regs_fops);
 }
 
 static int hpre_debugfs_init(struct hisi_qm *qm)
@@ -918,6 +961,13 @@ static int hpre_debugfs_init(struct hisi_qm *qm)
 
 	qm->debug.sqe_mask_offset = HPRE_SQE_MASK_OFFSET;
 	qm->debug.sqe_mask_len = HPRE_SQE_MASK_LEN;
+	ret = hisi_qm_diff_regs_init(qm, hpre_diff_regs,
+				ARRAY_SIZE(hpre_diff_regs));
+	if (ret) {
+		dev_warn(dev, "Failed to init HPRE diff regs!\n");
+		goto debugfs_remove;
+	}
+
 	hisi_qm_debug_init(qm);
 
 	if (qm->pdev->device == PCI_DEVICE_ID_HUAWEI_HPRE_PF) {
@@ -931,12 +981,16 @@ static int hpre_debugfs_init(struct hisi_qm *qm)
 	return 0;
 
 failed_to_create:
+	hisi_qm_diff_regs_uninit(qm, ARRAY_SIZE(hpre_diff_regs));
+debugfs_remove:
 	debugfs_remove_recursive(qm->debug.debug_root);
 	return ret;
 }
 
 static void hpre_debugfs_exit(struct hisi_qm *qm)
 {
+	hisi_qm_diff_regs_uninit(qm, ARRAY_SIZE(hpre_diff_regs));
+
 	debugfs_remove_recursive(qm->debug.debug_root);
 }
 
