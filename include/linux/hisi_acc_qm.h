@@ -168,6 +168,12 @@ enum qm_vf_state {
 	QM_NOT_READY,
 };
 
+struct dfx_diff_registers {
+	u32 *regs;
+	u32 reg_offset;
+	u32 reg_len;
+};
+
 struct qm_dfx {
 	atomic64_t err_irq_cnt;
 	atomic64_t aeq_irq_cnt;
@@ -190,6 +196,8 @@ struct qm_debug {
 	struct dentry *debug_root;
 	struct dentry *qm_d;
 	struct debugfs_file files[DEBUG_FILE_NUM];
+	struct dfx_diff_registers *qm_diff_regs;
+	struct dfx_diff_registers *acc_diff_regs;
 };
 
 struct qm_shaper_factor {
@@ -448,6 +456,12 @@ int hisi_qm_sriov_disable(struct pci_dev *pdev, bool is_frozen);
 int hisi_qm_sriov_configure(struct pci_dev *pdev, int num_vfs);
 void hisi_qm_dev_err_init(struct hisi_qm *qm);
 void hisi_qm_dev_err_uninit(struct hisi_qm *qm);
+int hisi_qm_diff_regs_init(struct hisi_qm *qm,
+		struct dfx_diff_registers *dregs, int reg_len);
+void hisi_qm_diff_regs_uninit(struct hisi_qm *qm, int reg_len);
+void hisi_qm_acc_diff_regs_dump(struct hisi_qm *qm, struct seq_file *s,
+		struct dfx_diff_registers *dregs, int regs_len);
+
 pci_ers_result_t hisi_qm_dev_err_detected(struct pci_dev *pdev,
 					  pci_channel_state_t state);
 pci_ers_result_t hisi_qm_dev_slot_reset(struct pci_dev *pdev);
