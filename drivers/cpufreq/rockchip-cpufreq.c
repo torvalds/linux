@@ -489,10 +489,6 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 	rockchip_get_scale_volt_sel(dev, "cpu_leakage", reg_name, bin, process,
 				    &cluster->scale, &volt_sel);
 	pname_table = rockchip_set_opp_prop_name(dev, process, volt_sel);
-	if (IS_ERR(pname_table)) {
-		ret = PTR_ERR(pname_table);
-		goto np_err;
-	}
 
 	if (of_find_property(dev->of_node, "cpu-supply", NULL) &&
 	    of_find_property(dev->of_node, "mem-supply", NULL)) {
@@ -518,7 +514,7 @@ reg_opp_table:
 	if (reg_table)
 		dev_pm_opp_put_regulators(reg_table);
 pname_opp_table:
-	if (pname_table)
+	if (!IS_ERR_OR_NULL(pname_table))
 		dev_pm_opp_put_prop_name(pname_table);
 np_err:
 	of_node_put(np);
