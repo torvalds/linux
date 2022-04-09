@@ -861,6 +861,53 @@ static void sec_debugfs_exit(struct hisi_qm *qm)
 	debugfs_remove_recursive(qm->debug.debug_root);
 }
 
+static int sec_show_last_regs_init(struct hisi_qm *qm)
+{
+	struct qm_debug *debug = &qm->debug;
+	int i;
+
+	debug->last_words = kcalloc(ARRAY_SIZE(sec_dfx_regs),
+					sizeof(unsigned int), GFP_KERNEL);
+	if (!debug->last_words)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(sec_dfx_regs); i++)
+		debug->last_words[i] = readl_relaxed(qm->io_base +
+							sec_dfx_regs[i].offset);
+
+	return 0;
+}
+
+static void sec_show_last_regs_uninit(struct hisi_qm *qm)
+{
+	struct qm_debug *debug = &qm->debug;
+
+	if (qm->fun_type == QM_HW_VF || !debug->last_words)
+		return;
+
+	kfree(debug->last_words);
+	debug->last_words = NULL;
+}
+
+static void sec_show_last_dfx_regs(struct hisi_qm *qm)
+{
+	struct qm_debug *debug = &qm->debug;
+	struct pci_dev *pdev = qm->pdev;
+	u32 val;
+	int i;
+
+	if (qm->fun_type == QM_HW_VF || !debug->last_words)
+		return;
+
+	/* dumps last word of the debugging registers during controller reset */
+	for (i = 0; i < ARRAY_SIZE(sec_dfx_regs); i++) {
+		val = readl_relaxed(qm->io_base + sec_dfx_regs[i].offset);
+		if (val != debug->last_words[i])
+			pci_info(pdev, "%s \t= 0x%08x => 0x%08x\n",
+				sec_dfx_regs[i].name, debug->last_words[i], val);
+	}
+}
+
 static void sec_log_hw_error(struct hisi_qm *qm, u32 err_sts)
 {
 	const struct sec_hw_error *errs = sec_hw_errors;
@@ -927,6 +974,7 @@ static const struct hisi_qm_err_ini sec_err_ini = {
 	.open_axi_master_ooo	= sec_open_axi_master_ooo,
 	.open_sva_prefetch	= sec_open_sva_prefetch,
 	.close_sva_prefetch	= sec_close_sva_prefetch,
+	.show_last_dfx_regs	= sec_show_last_dfx_regs,
 	.err_info_init		= sec_err_info_init,
 };
 
@@ -945,8 +993,11 @@ static int sec_pf_probe_init(struct sec_dev *sec)
 	sec_open_sva_prefetch(qm);
 	hisi_qm_dev_err_init(qm);
 	sec_debug_regs_clear(qm);
+	ret = sec_show_last_regs_init(qm);
+	if (ret)
+		pci_err(qm->pdev, "Failed to init last word regs!\n");
 
-	return 0;
+	return ret;
 }
 
 static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
@@ -1120,6 +1171,7 @@ err_qm_stop:
 	sec_debugfs_exit(qm);
 	hisi_qm_stop(qm, QM_NORMAL);
 err_probe_uninit:
+	sec_show_last_regs_uninit(qm);
 	sec_probe_uninit(qm);
 err_qm_uninit:
 	sec_qm_uninit(qm);
@@ -1144,6 +1196,7 @@ static void sec_remove(struct pci_dev *pdev)
 
 	if (qm->fun_type == QM_HW_PF)
 		sec_debug_regs_clear(qm);
+	sec_show_last_regs_uninit(qm);
 
 	sec_probe_uninit(qm);
 
