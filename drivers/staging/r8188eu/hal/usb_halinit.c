@@ -1036,36 +1036,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR) | RCR_CBSSID_BCN);
 		}
 		break;
-	case HW_VAR_MLME_JOIN:
-		{
-			u8 RetryLimit = 0x30;
-			u8 type = *((u8 *)val);
-			struct mlme_priv	*pmlmepriv = &Adapter->mlmepriv;
-
-			if (type == 0) { /*  prepare to join */
-				/* enable to rx data frame.Accept all data frame */
-				rtw_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
-
-				rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR) | RCR_CBSSID_DATA | RCR_CBSSID_BCN);
-
-				if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
-					RetryLimit = 48;
-				else /*  Ad-hoc Mode */
-					RetryLimit = 0x7;
-			} else if (type == 1) {
-				/* joinbss_event call back when join res < 0 */
-				rtw_write16(Adapter, REG_RXFLTMAP2, 0x00);
-			} else if (type == 2) {
-				/* sta add event call back */
-				/* enable update TSF */
-				rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL) & (~BIT(4)));
-
-				if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE))
-					RetryLimit = 0x7;
-			}
-			rtw_write16(Adapter, REG_RL, RetryLimit << RETRY_LIMIT_SHORT_SHIFT | RetryLimit << RETRY_LIMIT_LONG_SHIFT);
-		}
-		break;
 	case HW_VAR_SLOT_TIME:
 		{
 			u8 u1bAIFS, aSifsTime;

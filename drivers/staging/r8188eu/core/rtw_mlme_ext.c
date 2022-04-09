@@ -6110,10 +6110,50 @@ static void rtw_set_bssid(struct adapter *adapter, u8 *bssid)
 		rtw_write8(adapter, REG_BSSID + i, bssid[i]);
 }
 
+static void mlme_join(struct adapter *adapter, int type)
+{
+	struct mlme_priv *mlmepriv = &adapter->mlmepriv;
+	u8 retry_limit = 0x30;
+
+	switch (type) {
+	case 0:
+		/* prepare to join */
+		/* enable to rx data frame, accept all data frame */
+		rtw_write16(adapter, REG_RXFLTMAP2, 0xFFFF);
+
+		rtw_write32(adapter, REG_RCR,
+			    rtw_read32(adapter, REG_RCR) | RCR_CBSSID_DATA | RCR_CBSSID_BCN);
+
+		if (check_fwstate(mlmepriv, WIFI_STATION_STATE)) {
+			retry_limit = 48;
+		} else {
+			/* ad-hoc mode */
+			retry_limit = 0x7;
+		}
+		break;
+	case 1:
+		/* joinbss_event call back when join res < 0 */
+		rtw_write16(adapter, REG_RXFLTMAP2, 0x00);
+		break;
+	case 2:
+		/* sta add event call back */
+		/* enable update TSF */
+		rtw_write8(adapter, REG_BCN_CTRL, rtw_read8(adapter, REG_BCN_CTRL) & (~BIT(4)));
+
+		if (check_fwstate(mlmepriv, WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE))
+			retry_limit = 0x7;
+		break;
+	default:
+		break;
+	}
+
+	rtw_write16(adapter, REG_RL,
+		    retry_limit << RETRY_LIMIT_SHORT_SHIFT | retry_limit << RETRY_LIMIT_LONG_SHIFT);
+}
+
 void start_create_ibss(struct adapter *padapter)
 {
 	unsigned short	caps;
-	u8 join_type;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = (struct wlan_bssid_ex *)(&pmlmeinfo->network);
@@ -6145,8 +6185,7 @@ void start_create_ibss(struct adapter *padapter)
 			pmlmeinfo->state = WIFI_FW_NULL_STATE;
 		} else {
 			rtw_set_bssid(padapter, padapter->registrypriv.dev_network.MacAddress);
-			join_type = 0;
-			SetHwReg8188EU(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
+			mlme_join(padapter, 0);
 
 			report_join_res(padapter, 1);
 			pmlmeinfo->state |= WIFI_FW_ASSOC_SUCCESS;
@@ -6719,12 +6758,10 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
 	struct sta_priv		*pstapriv = &padapter->stapriv;
-	u8 join_type;
 	u16 media_status;
 
 	if (join_res < 0) {
-		join_type = 1;
-		SetHwReg8188EU(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
+		mlme_join(padapter, 1);
 		rtw_set_bssid(padapter, null_addr);
 
 		/* restore to initial setting. */
@@ -6779,8 +6816,7 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 		SetHwReg8188EU(padapter, HW_VAR_H2C_MEDIA_STATUS_RPT, (u8 *)&media_status);
 	}
 
-	join_type = 2;
-	SetHwReg8188EU(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
+	mlme_join(padapter, 2);
 
 	if ((pmlmeinfo->state & 0x03) == WIFI_FW_STATION_STATE) {
 		/*  correcting TSF */
@@ -6793,7 +6829,6 @@ void mlmeext_sta_add_event_callback(struct adapter *padapter, struct sta_info *p
 {
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
-	u8 join_type;
 
 	if ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) {
 		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) {/* adhoc master or sta_count>1 */
@@ -6810,9 +6845,7 @@ void mlmeext_sta_add_event_callback(struct adapter *padapter, struct sta_info *p
 			}
 			pmlmeinfo->state |= WIFI_FW_ASSOC_SUCCESS;
 		}
-
-		join_type = 2;
-		SetHwReg8188EU(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
+		mlme_join(padapter, 2);
 	}
 
 	pmlmeinfo->FW_sta_info[psta->mac_id].psta = psta;
@@ -7183,7 +7216,6 @@ u8 createbss_hdl(struct adapter *padapter, u8 *pbuf)
 
 u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 {
-	u8 join_type;
 	struct ndis_802_11_var_ie *pIE;
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
@@ -7281,8 +7313,7 @@ u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 	/* config the initial gain under linking, need to write the BB registers */
 
 	rtw_set_bssid(padapter, pmlmeinfo->network.MacAddress);
-	join_type = 0;
-	SetHwReg8188EU(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
+	mlme_join(padapter, 0);
 
 	/* cancel link timer */
 	_cancel_timer_ex(&pmlmeext->link_timer);
