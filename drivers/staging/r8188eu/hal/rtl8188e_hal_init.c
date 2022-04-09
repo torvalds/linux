@@ -186,8 +186,8 @@ static void efuse_read_phymap_from_txpktbuf(
 	u16 *size	/* for efuse content: the max byte to read. will update to byte read */
 	)
 {
+	unsigned long timeout;
 	u16 dbg_addr = 0;
-	u32 start  = 0, passing_time = 0;
 	__le32 lo32 = 0, hi32 = 0;
 	u16 len = 0, count = 0;
 	int i = 0;
@@ -206,9 +206,8 @@ static void efuse_read_phymap_from_txpktbuf(
 		rtw_write16(adapter, REG_PKTBUF_DBG_ADDR, dbg_addr + i);
 
 		rtw_write8(adapter, REG_TXPKTBUF_DBG, 0);
-		start = jiffies;
-		while (!rtw_read8(adapter, REG_TXPKTBUF_DBG) &&
-		       (passing_time = rtw_get_passing_time_ms(start)) < 1000)
+		timeout = jiffies + msecs_to_jiffies(1000);
+		while (!rtw_read8(adapter, REG_TXPKTBUF_DBG) && time_before(jiffies, timeout))
 			rtw_usleep_os(100);
 
 		/* data from EEPROM needs to be in LE */
