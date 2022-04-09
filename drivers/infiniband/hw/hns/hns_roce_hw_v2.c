@@ -1510,7 +1510,7 @@ out:
 	hns_roce_func_clr_rst_proc(hr_dev, ret, fclr_write_fail_flag);
 }
 
-static void hns_roce_free_vf_resource(struct hns_roce_dev *hr_dev, int vf_id)
+static int hns_roce_free_vf_resource(struct hns_roce_dev *hr_dev, int vf_id)
 {
 	enum hns_roce_opcode_type opcode = HNS_ROCE_OPC_ALLOC_VF_RES;
 	struct hns_roce_cmq_desc desc[2];
@@ -1521,17 +1521,26 @@ static void hns_roce_free_vf_resource(struct hns_roce_dev *hr_dev, int vf_id)
 	desc[0].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
 	hns_roce_cmq_setup_basic_desc(&desc[1], opcode, false);
 	hr_reg_write(req_a, FUNC_RES_A_VF_ID, vf_id);
-	hns_roce_cmq_send(hr_dev, desc, 2);
+
+	return hns_roce_cmq_send(hr_dev, desc, 2);
 }
 
 static void hns_roce_function_clear(struct hns_roce_dev *hr_dev)
 {
+	int ret;
 	int i;
 
 	for (i = hr_dev->func_num - 1; i >= 0; i--) {
 		__hns_roce_function_clear(hr_dev, i);
-		if (i != 0)
-			hns_roce_free_vf_resource(hr_dev, i);
+
+		if (i == 0)
+			continue;
+
+		ret = hns_roce_free_vf_resource(hr_dev, i);
+		if (ret)
+			ibdev_err(&hr_dev->ib_dev,
+				  "failed to free vf resource, vf_id = %d, ret = %d.\n",
+				  i, ret);
 	}
 }
 
