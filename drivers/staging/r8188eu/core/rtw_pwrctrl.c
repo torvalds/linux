@@ -248,7 +248,7 @@ static bool lps_rf_on(struct adapter *adapter)
  *	-1:	Timeout
  *	-2:	Other error
  */
-s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
+static s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 {
 	u32 start_time;
 	s32 err = 0;
