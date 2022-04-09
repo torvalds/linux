@@ -663,6 +663,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	bch2_fs_allocator_foreground_init(c);
 	bch2_fs_rebalance_init(c);
 	bch2_fs_quota_init(c);
+	bch2_fs_ec_init_early(c);
 
 	INIT_LIST_HEAD(&c->list);
 

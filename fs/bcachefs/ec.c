@@ -1682,11 +1682,14 @@ void bch2_fs_ec_exit(struct bch_fs *c)
 	bioset_exit(&c->ec_bioset);
 }
 
-int bch2_fs_ec_init(struct bch_fs *c)
+void bch2_fs_ec_init_early(struct bch_fs *c)
 {
 	INIT_WORK(&c->ec_stripe_create_work, ec_stripe_create_work);
 	INIT_WORK(&c->ec_stripe_delete_work, ec_stripe_delete_work);
+}
 
+int bch2_fs_ec_init(struct bch_fs *c)
+{
 	return bioset_init(&c->ec_bioset, 1, offsetof(struct ec_bio, bio),
 			   BIOSET_NEED_BVECS);
 }
