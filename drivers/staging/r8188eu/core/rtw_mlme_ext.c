@@ -5751,8 +5751,6 @@ unsigned int send_beacon(struct adapter *padapter)
 	int	issue = 0;
 	int poll = 0;
 
-	u32 start = jiffies;
-
 	clear_beacon_valid_bit(padapter);
 
 	do {
@@ -5770,7 +5768,6 @@ unsigned int send_beacon(struct adapter *padapter)
 	if (!bxmitok)
 		return _FAIL;
 
-	rtw_get_passing_time_ms(start);
 	return _SUCCESS;
 }
 
