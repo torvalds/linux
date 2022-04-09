@@ -25,6 +25,7 @@ x86-specific Documentation
    intel-iommu
    intel_txt
    amd-memory-encryption
+   amd_hsmp
    pti
    mds
    microcode
