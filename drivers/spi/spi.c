@@ -2410,7 +2410,8 @@ static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 			} else {
 				struct acpi_device *adev;
 
-				if (acpi_bus_get_device(parent_handle, &adev))
+				adev = acpi_fetch_acpi_dev(parent_handle);
+				if (!adev)
 					return -ENODEV;
 
 				ctlr = acpi_spi_find_controller_by_adev(adev);
