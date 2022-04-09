@@ -1419,6 +1419,7 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv
 {
 	int updated = false;
 	struct adapter *adapter = container_of(pmlmepriv, struct adapter, mlmepriv);
+	unsigned long scan_res_expire;
 
 	/* check bssid, if needed */
 	if (pmlmepriv->assoc_by_bssid) {
@@ -1436,8 +1437,9 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv
 	if (!rtw_is_desired_network(adapter, competitor))
 		goto exit;
 
+	scan_res_expire = competitor->last_scanned + msecs_to_jiffies(RTW_SCAN_RESULT_EXPIRE);
 	if (rtw_to_roaming(adapter) > 0) {
-		if (rtw_get_passing_time_ms((u32)competitor->last_scanned) >= RTW_SCAN_RESULT_EXPIRE ||
+		if (time_after(jiffies, scan_res_expire) ||
 		    !is_same_ess(&competitor->network, &pmlmepriv->cur_network.network))
 			goto exit;
 	}
