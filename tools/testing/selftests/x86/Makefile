@@ -92,6 +92,10 @@ warn_32bit_failure:
 	echo "If you are using a Fedora-like distribution, try:";	\
 	echo "";							\
 	echo "  yum install glibc-devel.*i686";				\
+	echo "";							\
+	echo "If you are using a SUSE-like distribution, try:";		\
+	echo "";							\
+	echo "  zypper install gcc-32bit glibc-devel-static-32bit";	\
 	exit 0;
 endif
 
