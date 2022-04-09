@@ -2910,7 +2910,6 @@ redo:
 		 */
 		if (!node_isset(node, slab_nodes)) {
 			node = NUMA_NO_NODE;
-			goto redo;
 		} else {
 			stat(s, ALLOC_NODE_MISMATCH);
 			goto deactivate_slab;
