@@ -25,14 +25,11 @@ static int ksym_cmp(const void *p1, const void *p2)
 
 int load_kallsyms(void)
 {
-	FILE *f = fopen("/proc/kallsyms", "r");
+	FILE *f;
 	char func[256], buf[256];
 	char symbol;
 	void *addr;
 	int i = 0;
-
-	if (!f)
-		return -ENOENT;
 
 	/*
 	 * This is called/used from multiplace places,
@@ -40,6 +37,10 @@ int load_kallsyms(void)
 	 */
 	if (sym_cnt)
 		return 0;
+
+	f = fopen("/proc/kallsyms", "r");
+	if (!f)
+		return -ENOENT;
 
 	while (fgets(buf, sizeof(buf), f)) {
 		if (sscanf(buf, "%p %c %s", &addr, &symbol, func) != 3)

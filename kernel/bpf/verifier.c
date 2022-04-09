@@ -4861,6 +4861,11 @@ static int check_helper_mem_access(struct bpf_verifier_env *env, int regno,
 		return check_packet_access(env, regno, reg->off, access_size,
 					   zero_size_allowed);
 	case PTR_TO_MAP_KEY:
+		if (meta && meta->raw_mode) {
+			verbose(env, "R%d cannot write into %s\n", regno,
+				reg_type_str(env, reg->type));
+			return -EACCES;
+		}
 		return check_mem_region_access(env, regno, reg->off, access_size,
 					       reg->map_ptr->key_size, false);
 	case PTR_TO_MAP_VALUE:
@@ -4871,13 +4876,23 @@ static int check_helper_mem_access(struct bpf_verifier_env *env, int regno,
 		return check_map_access(env, regno, reg->off, access_size,
 					zero_size_allowed);
 	case PTR_TO_MEM:
+		if (type_is_rdonly_mem(reg->type)) {
+			if (meta && meta->raw_mode) {
+				verbose(env, "R%d cannot write into %s\n", regno,
+					reg_type_str(env, reg->type));
+				return -EACCES;
+			}
+		}
 		return check_mem_region_access(env, regno, reg->off,
 					       access_size, reg->mem_size,
 					       zero_size_allowed);
 	case PTR_TO_BUF:
 		if (type_is_rdonly_mem(reg->type)) {
-			if (meta && meta->raw_mode)
+			if (meta && meta->raw_mode) {
+				verbose(env, "R%d cannot write into %s\n", regno,
+					reg_type_str(env, reg->type));
 				return -EACCES;
+			}
 
 			max_access = &env->prog->aux->max_rdonly_access;
 		} else {
@@ -4919,8 +4934,7 @@ static int check_mem_size_reg(struct bpf_verifier_env *env,
 	 * out. Only upper bounds can be learned because retval is an
 	 * int type and negative retvals are allowed.
 	 */
-	if (meta)
-		meta->msize_max_value = reg->umax_value;
+	meta->msize_max_value = reg->umax_value;
 
 	/* The register is SCALAR_VALUE; the access check
 	 * happens using its boundaries.
@@ -4963,24 +4977,33 @@ static int check_mem_size_reg(struct bpf_verifier_env *env,
 int check_mem_reg(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
 		   u32 regno, u32 mem_size)
 {
+	bool may_be_null = type_may_be_null(reg->type);
+	struct bpf_reg_state saved_reg;
+	struct bpf_call_arg_meta meta;
+	int err;
+
 	if (register_is_null(reg))
 		return 0;
 
-	if (type_may_be_null(reg->type)) {
-		/* Assuming that the register contains a value check if the memory
-		 * access is safe. Temporarily save and restore the register's state as
-		 * the conversion shouldn't be visible to a caller.
-		 */
-		const struct bpf_reg_state saved_reg = *reg;
-		int rv;
-
+	memset(&meta, 0, sizeof(meta));
+	/* Assuming that the register contains a value check if the memory
+	 * access is safe. Temporarily save and restore the register's state as
+	 * the conversion shouldn't be visible to a caller.
+	 */
+	if (may_be_null) {
+		saved_reg = *reg;
 		mark_ptr_not_null_reg(reg);
-		rv = check_helper_mem_access(env, regno, mem_size, true, NULL);
-		*reg = saved_reg;
-		return rv;
 	}
 
-	return check_helper_mem_access(env, regno, mem_size, true, NULL);
+	err = check_helper_mem_access(env, regno, mem_size, true, &meta);
+	/* Check access for BPF_WRITE */
+	meta.raw_mode = true;
+	err = err ?: check_helper_mem_access(env, regno, mem_size, true, &meta);
+
+	if (may_be_null)
+		*reg = saved_reg;
+
+	return err;
 }
 
 int check_kfunc_mem_size_reg(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
@@ -4989,16 +5012,22 @@ int check_kfunc_mem_size_reg(struct bpf_verifier_env *env, struct bpf_reg_state 
 	struct bpf_reg_state *mem_reg = &cur_regs(env)[regno - 1];
 	bool may_be_null = type_may_be_null(mem_reg->type);
 	struct bpf_reg_state saved_reg;
+	struct bpf_call_arg_meta meta;
 	int err;
 
 	WARN_ON_ONCE(regno < BPF_REG_2 || regno > BPF_REG_5);
+
+	memset(&meta, 0, sizeof(meta));
 
 	if (may_be_null) {
 		saved_reg = *mem_reg;
 		mark_ptr_not_null_reg(mem_reg);
 	}
 
-	err = check_mem_size_reg(env, reg, regno, true, NULL);
+	err = check_mem_size_reg(env, reg, regno, true, &meta);
+	/* Check access for BPF_WRITE */
+	meta.raw_mode = true;
+	err = err ?: check_mem_size_reg(env, reg, regno, true, &meta);
 
 	if (may_be_null)
 		*mem_reg = saved_reg;

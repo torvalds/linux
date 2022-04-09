@@ -483,6 +483,8 @@ struct elf_state {
 	int st_ops_shndx;
 };
 
+struct usdt_manager;
+
 struct bpf_object {
 	char name[BPF_OBJ_NAME_LEN];
 	char license[64];
@@ -544,6 +546,8 @@ struct bpf_object {
 	int *fd_array;
 	size_t fd_array_cap;
 	size_t fd_array_cnt;
+
+	struct usdt_manager *usdt_man;
 
 	char path[];
 };
@@ -1397,8 +1401,11 @@ static int find_elf_var_offset(const struct bpf_object *obj, const char *name, _
 	for (si = 0; si < symbols->d_size / sizeof(Elf64_Sym); si++) {
 		Elf64_Sym *sym = elf_sym_by_idx(obj, si);
 
-		if (ELF64_ST_BIND(sym->st_info) != STB_GLOBAL ||
-		    ELF64_ST_TYPE(sym->st_info) != STT_OBJECT)
+		if (ELF64_ST_TYPE(sym->st_info) != STT_OBJECT)
+			continue;
+
+		if (ELF64_ST_BIND(sym->st_info) != STB_GLOBAL &&
+		    ELF64_ST_BIND(sym->st_info) != STB_WEAK)
 			continue;
 
 		sname = elf_sym_str(obj, sym->st_name);
@@ -4678,6 +4685,18 @@ static int probe_perf_link(void)
 	return link_fd < 0 && err == -EBADF;
 }
 
+static int probe_kern_bpf_cookie(void)
+{
+	struct bpf_insn insns[] = {
+		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_attach_cookie),
+		BPF_EXIT_INSN(),
+	};
+	int ret, insn_cnt = ARRAY_SIZE(insns);
+
+	ret = bpf_prog_load(BPF_PROG_TYPE_KPROBE, NULL, "GPL", insns, insn_cnt, NULL);
+	return probe_fd(ret);
+}
+
 enum kern_feature_result {
 	FEAT_UNKNOWN = 0,
 	FEAT_SUPPORTED = 1,
@@ -4739,6 +4758,9 @@ static struct kern_feature_desc {
 	},
 	[FEAT_MEMCG_ACCOUNT] = {
 		"memcg-based memory accounting", probe_memcg_account,
+	},
+	[FEAT_BPF_COOKIE] = {
+		"BPF cookie support", probe_kern_bpf_cookie,
 	},
 };
 
@@ -5665,10 +5687,17 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 			insn_idx = rec->insn_off / BPF_INSN_SZ;
 			prog = find_prog_by_sec_insn(obj, sec_idx, insn_idx);
 			if (!prog) {
-				pr_warn("sec '%s': failed to find program at insn #%d for CO-RE offset relocation #%d\n",
-					sec_name, insn_idx, i);
-				err = -EINVAL;
-				goto out;
+				/* When __weak subprog is "overridden" by another instance
+				 * of the subprog from a different object file, linker still
+				 * appends all the .BTF.ext info that used to belong to that
+				 * eliminated subprogram.
+				 * This is similar to what x86-64 linker does for relocations.
+				 * So just ignore such relocations just like we ignore
+				 * subprog instructions when discovering subprograms.
+				 */
+				pr_debug("sec '%s': skipping CO-RE relocation #%d for insn #%d belonging to eliminated weak subprogram\n",
+					 sec_name, i, insn_idx);
+				continue;
 			}
 			/* no need to apply CO-RE relocation if the program is
 			 * not going to be loaded
@@ -8200,6 +8229,9 @@ void bpf_object__close(struct bpf_object *obj)
 	if (obj->clear_priv)
 		obj->clear_priv(obj, obj->priv);
 
+	usdt_manager_free(obj->usdt_man);
+	obj->usdt_man = NULL;
+
 	bpf_gen__free(obj->gen_loader);
 	bpf_object__elf_finish(obj);
 	bpf_object_unload(obj);
@@ -8630,6 +8662,8 @@ int bpf_program__set_log_buf(struct bpf_program *prog, char *log_buf, size_t log
 }
 
 static int attach_kprobe(const struct bpf_program *prog, long cookie, struct bpf_link **link);
+static int attach_uprobe(const struct bpf_program *prog, long cookie, struct bpf_link **link);
+static int attach_usdt(const struct bpf_program *prog, long cookie, struct bpf_link **link);
 static int attach_tp(const struct bpf_program *prog, long cookie, struct bpf_link **link);
 static int attach_raw_tp(const struct bpf_program *prog, long cookie, struct bpf_link **link);
 static int attach_trace(const struct bpf_program *prog, long cookie, struct bpf_link **link);
@@ -8642,11 +8676,12 @@ static const struct bpf_sec_def section_defs[] = {
 	SEC_DEF("sk_reuseport/migrate",	SK_REUSEPORT, BPF_SK_REUSEPORT_SELECT_OR_MIGRATE, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
 	SEC_DEF("sk_reuseport",		SK_REUSEPORT, BPF_SK_REUSEPORT_SELECT, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
 	SEC_DEF("kprobe/",		KPROBE,	0, SEC_NONE, attach_kprobe),
-	SEC_DEF("uprobe/",		KPROBE,	0, SEC_NONE),
+	SEC_DEF("uprobe+",		KPROBE,	0, SEC_NONE, attach_uprobe),
 	SEC_DEF("kretprobe/",		KPROBE, 0, SEC_NONE, attach_kprobe),
-	SEC_DEF("uretprobe/",		KPROBE, 0, SEC_NONE),
+	SEC_DEF("uretprobe+",		KPROBE, 0, SEC_NONE, attach_uprobe),
 	SEC_DEF("kprobe.multi/",	KPROBE,	BPF_TRACE_KPROBE_MULTI, SEC_NONE, attach_kprobe_multi),
 	SEC_DEF("kretprobe.multi/",	KPROBE,	BPF_TRACE_KPROBE_MULTI, SEC_NONE, attach_kprobe_multi),
+	SEC_DEF("usdt+",		KPROBE,	0, SEC_NONE, attach_usdt),
 	SEC_DEF("tc",			SCHED_CLS, 0, SEC_NONE),
 	SEC_DEF("classifier",		SCHED_CLS, 0, SEC_NONE | SEC_SLOPPY_PFX | SEC_DEPRECATED),
 	SEC_DEF("action",		SCHED_ACT, 0, SEC_NONE | SEC_SLOPPY_PFX),
@@ -9692,14 +9727,6 @@ int bpf_prog_load_deprecated(const char *file, enum bpf_prog_type type,
 	return bpf_prog_load_xattr2(&attr, pobj, prog_fd);
 }
 
-struct bpf_link {
-	int (*detach)(struct bpf_link *link);
-	void (*dealloc)(struct bpf_link *link);
-	char *pin_path;		/* NULL, if not pinned */
-	int fd;			/* hook FD, -1 if not applicable */
-	bool disconnected;
-};
-
 /* Replace link's underlying BPF program with the new one */
 int bpf_link__update_program(struct bpf_link *link, struct bpf_program *prog)
 {
@@ -10517,6 +10544,273 @@ static int perf_event_uprobe_open_legacy(const char *probe_name, bool retprobe,
 	return pfd;
 }
 
+/* uprobes deal in relative offsets; subtract the base address associated with
+ * the mapped binary.  See Documentation/trace/uprobetracer.rst for more
+ * details.
+ */
+static long elf_find_relative_offset(const char *filename, Elf *elf, long addr)
+{
+	size_t n;
+	int i;
+
+	if (elf_getphdrnum(elf, &n)) {
+		pr_warn("elf: failed to find program headers for '%s': %s\n", filename,
+			elf_errmsg(-1));
+		return -ENOENT;
+	}
+
+	for (i = 0; i < n; i++) {
+		int seg_start, seg_end, seg_offset;
+		GElf_Phdr phdr;
+
+		if (!gelf_getphdr(elf, i, &phdr)) {
+			pr_warn("elf: failed to get program header %d from '%s': %s\n", i, filename,
+				elf_errmsg(-1));
+			return -ENOENT;
+		}
+		if (phdr.p_type != PT_LOAD || !(phdr.p_flags & PF_X))
+			continue;
+
+		seg_start = phdr.p_vaddr;
+		seg_end = seg_start + phdr.p_memsz;
+		seg_offset = phdr.p_offset;
+		if (addr >= seg_start && addr < seg_end)
+			return addr - seg_start + seg_offset;
+	}
+	pr_warn("elf: failed to find prog header containing 0x%lx in '%s'\n", addr, filename);
+	return -ENOENT;
+}
+
+/* Return next ELF section of sh_type after scn, or first of that type if scn is NULL. */
+static Elf_Scn *elf_find_next_scn_by_type(Elf *elf, int sh_type, Elf_Scn *scn)
+{
+	while ((scn = elf_nextscn(elf, scn)) != NULL) {
+		GElf_Shdr sh;
+
+		if (!gelf_getshdr(scn, &sh))
+			continue;
+		if (sh.sh_type == sh_type)
+			return scn;
+	}
+	return NULL;
+}
+
+/* Find offset of function name in object specified by path.  "name" matches
+ * symbol name or name@@LIB for library functions.
+ */
+static long elf_find_func_offset(const char *binary_path, const char *name)
+{
+	int fd, i, sh_types[2] = { SHT_DYNSYM, SHT_SYMTAB };
+	bool is_shared_lib, is_name_qualified;
+	char errmsg[STRERR_BUFSIZE];
+	long ret = -ENOENT;
+	size_t name_len;
+	GElf_Ehdr ehdr;
+	Elf *elf;
+
+	fd = open(binary_path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0) {
+		ret = -errno;
+		pr_warn("failed to open %s: %s\n", binary_path,
+			libbpf_strerror_r(ret, errmsg, sizeof(errmsg)));
+		return ret;
+	}
+	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
+	if (!elf) {
+		pr_warn("elf: could not read elf from %s: %s\n", binary_path, elf_errmsg(-1));
+		close(fd);
+		return -LIBBPF_ERRNO__FORMAT;
+	}
+	if (!gelf_getehdr(elf, &ehdr)) {
+		pr_warn("elf: failed to get ehdr from %s: %s\n", binary_path, elf_errmsg(-1));
+		ret = -LIBBPF_ERRNO__FORMAT;
+		goto out;
+	}
+	/* for shared lib case, we do not need to calculate relative offset */
+	is_shared_lib = ehdr.e_type == ET_DYN;
+
+	name_len = strlen(name);
+	/* Does name specify "@@LIB"? */
+	is_name_qualified = strstr(name, "@@") != NULL;
+
+	/* Search SHT_DYNSYM, SHT_SYMTAB for symbol.  This search order is used because if
+	 * a binary is stripped, it may only have SHT_DYNSYM, and a fully-statically
+	 * linked binary may not have SHT_DYMSYM, so absence of a section should not be
+	 * reported as a warning/error.
+	 */
+	for (i = 0; i < ARRAY_SIZE(sh_types); i++) {
+		size_t nr_syms, strtabidx, idx;
+		Elf_Data *symbols = NULL;
+		Elf_Scn *scn = NULL;
+		int last_bind = -1;
+		const char *sname;
+		GElf_Shdr sh;
+
+		scn = elf_find_next_scn_by_type(elf, sh_types[i], NULL);
+		if (!scn) {
+			pr_debug("elf: failed to find symbol table ELF sections in '%s'\n",
+				 binary_path);
+			continue;
+		}
+		if (!gelf_getshdr(scn, &sh))
+			continue;
+		strtabidx = sh.sh_link;
+		symbols = elf_getdata(scn, 0);
+		if (!symbols) {
+			pr_warn("elf: failed to get symbols for symtab section in '%s': %s\n",
+				binary_path, elf_errmsg(-1));
+			ret = -LIBBPF_ERRNO__FORMAT;
+			goto out;
+		}
+		nr_syms = symbols->d_size / sh.sh_entsize;
+
+		for (idx = 0; idx < nr_syms; idx++) {
+			int curr_bind;
+			GElf_Sym sym;
+
+			if (!gelf_getsym(symbols, idx, &sym))
+				continue;
+
+			if (GELF_ST_TYPE(sym.st_info) != STT_FUNC)
+				continue;
+
+			sname = elf_strptr(elf, strtabidx, sym.st_name);
+			if (!sname)
+				continue;
+
+			curr_bind = GELF_ST_BIND(sym.st_info);
+
+			/* User can specify func, func@@LIB or func@@LIB_VERSION. */
+			if (strncmp(sname, name, name_len) != 0)
+				continue;
+			/* ...but we don't want a search for "foo" to match 'foo2" also, so any
+			 * additional characters in sname should be of the form "@@LIB".
+			 */
+			if (!is_name_qualified && sname[name_len] != '\0' && sname[name_len] != '@')
+				continue;
+
+			if (ret >= 0) {
+				/* handle multiple matches */
+				if (last_bind != STB_WEAK && curr_bind != STB_WEAK) {
+					/* Only accept one non-weak bind. */
+					pr_warn("elf: ambiguous match for '%s', '%s' in '%s'\n",
+						sname, name, binary_path);
+					ret = -LIBBPF_ERRNO__FORMAT;
+					goto out;
+				} else if (curr_bind == STB_WEAK) {
+					/* already have a non-weak bind, and
+					 * this is a weak bind, so ignore.
+					 */
+					continue;
+				}
+			}
+			ret = sym.st_value;
+			last_bind = curr_bind;
+		}
+		/* For binaries that are not shared libraries, we need relative offset */
+		if (ret > 0 && !is_shared_lib)
+			ret = elf_find_relative_offset(binary_path, elf, ret);
+		if (ret > 0)
+			break;
+	}
+
+	if (ret > 0) {
+		pr_debug("elf: symbol address match for '%s' in '%s': 0x%lx\n", name, binary_path,
+			 ret);
+	} else {
+		if (ret == 0) {
+			pr_warn("elf: '%s' is 0 in symtab for '%s': %s\n", name, binary_path,
+				is_shared_lib ? "should not be 0 in a shared library" :
+						"try using shared library path instead");
+			ret = -ENOENT;
+		} else {
+			pr_warn("elf: failed to find symbol '%s' in '%s'\n", name, binary_path);
+		}
+	}
+out:
+	elf_end(elf);
+	close(fd);
+	return ret;
+}
+
+static const char *arch_specific_lib_paths(void)
+{
+	/*
+	 * Based on https://packages.debian.org/sid/libc6.
+	 *
+	 * Assume that the traced program is built for the same architecture
+	 * as libbpf, which should cover the vast majority of cases.
+	 */
+#if defined(__x86_64__)
+	return "/lib/x86_64-linux-gnu";
+#elif defined(__i386__)
+	return "/lib/i386-linux-gnu";
+#elif defined(__s390x__)
+	return "/lib/s390x-linux-gnu";
+#elif defined(__s390__)
+	return "/lib/s390-linux-gnu";
+#elif defined(__arm__) && defined(__SOFTFP__)
+	return "/lib/arm-linux-gnueabi";
+#elif defined(__arm__) && !defined(__SOFTFP__)
+	return "/lib/arm-linux-gnueabihf";
+#elif defined(__aarch64__)
+	return "/lib/aarch64-linux-gnu";
+#elif defined(__mips__) && defined(__MIPSEL__) && _MIPS_SZLONG == 64
+	return "/lib/mips64el-linux-gnuabi64";
+#elif defined(__mips__) && defined(__MIPSEL__) && _MIPS_SZLONG == 32
+	return "/lib/mipsel-linux-gnu";
+#elif defined(__powerpc64__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	return "/lib/powerpc64le-linux-gnu";
+#elif defined(__sparc__) && defined(__arch64__)
+	return "/lib/sparc64-linux-gnu";
+#elif defined(__riscv) && __riscv_xlen == 64
+	return "/lib/riscv64-linux-gnu";
+#else
+	return NULL;
+#endif
+}
+
+/* Get full path to program/shared library. */
+static int resolve_full_path(const char *file, char *result, size_t result_sz)
+{
+	const char *search_paths[3] = {};
+	int i;
+
+	if (str_has_sfx(file, ".so") || strstr(file, ".so.")) {
+		search_paths[0] = getenv("LD_LIBRARY_PATH");
+		search_paths[1] = "/usr/lib64:/usr/lib";
+		search_paths[2] = arch_specific_lib_paths();
+	} else {
+		search_paths[0] = getenv("PATH");
+		search_paths[1] = "/usr/bin:/usr/sbin";
+	}
+
+	for (i = 0; i < ARRAY_SIZE(search_paths); i++) {
+		const char *s;
+
+		if (!search_paths[i])
+			continue;
+		for (s = search_paths[i]; s != NULL; s = strchr(s, ':')) {
+			char *next_path;
+			int seg_len;
+
+			if (s[0] == ':')
+				s++;
+			next_path = strchr(s, ':');
+			seg_len = next_path ? next_path - s : strlen(s);
+			if (!seg_len)
+				continue;
+			snprintf(result, result_sz, "%.*s/%s", seg_len, s, file);
+			/* ensure it is an executable file/link */
+			if (access(result, R_OK | X_OK) < 0)
+				continue;
+			pr_debug("resolved '%s' to '%s'\n", file, result);
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
 LIBBPF_API struct bpf_link *
 bpf_program__attach_uprobe_opts(const struct bpf_program *prog, pid_t pid,
 				const char *binary_path, size_t func_offset,
@@ -10524,10 +10818,12 @@ bpf_program__attach_uprobe_opts(const struct bpf_program *prog, pid_t pid,
 {
 	DECLARE_LIBBPF_OPTS(bpf_perf_event_opts, pe_opts);
 	char errmsg[STRERR_BUFSIZE], *legacy_probe = NULL;
+	char full_binary_path[PATH_MAX];
 	struct bpf_link *link;
 	size_t ref_ctr_off;
 	int pfd, err;
 	bool retprobe, legacy;
+	const char *func_name;
 
 	if (!OPTS_VALID(opts, bpf_uprobe_opts))
 		return libbpf_err_ptr(-EINVAL);
@@ -10536,12 +10832,37 @@ bpf_program__attach_uprobe_opts(const struct bpf_program *prog, pid_t pid,
 	ref_ctr_off = OPTS_GET(opts, ref_ctr_offset, 0);
 	pe_opts.bpf_cookie = OPTS_GET(opts, bpf_cookie, 0);
 
+	if (binary_path && !strchr(binary_path, '/')) {
+		err = resolve_full_path(binary_path, full_binary_path,
+					sizeof(full_binary_path));
+		if (err) {
+			pr_warn("prog '%s': failed to resolve full path for '%s': %d\n",
+				prog->name, binary_path, err);
+			return libbpf_err_ptr(err);
+		}
+		binary_path = full_binary_path;
+	}
+	func_name = OPTS_GET(opts, func_name, NULL);
+	if (func_name) {
+		long sym_off;
+
+		if (!binary_path) {
+			pr_warn("prog '%s': name-based attach requires binary_path\n",
+				prog->name);
+			return libbpf_err_ptr(-EINVAL);
+		}
+		sym_off = elf_find_func_offset(binary_path, func_name);
+		if (sym_off < 0)
+			return libbpf_err_ptr(sym_off);
+		func_offset += sym_off;
+	}
+
 	legacy = determine_uprobe_perf_type() < 0;
 	if (!legacy) {
 		pfd = perf_event_open_probe(true /* uprobe */, retprobe, binary_path,
 					    func_offset, pid, ref_ctr_off);
 	} else {
-		char probe_name[512];
+		char probe_name[PATH_MAX + 64];
 
 		if (ref_ctr_off)
 			return libbpf_err_ptr(-EINVAL);
@@ -10589,6 +10910,60 @@ err_out:
 
 }
 
+/* Format of u[ret]probe section definition supporting auto-attach:
+ * u[ret]probe/binary:function[+offset]
+ *
+ * binary can be an absolute/relative path or a filename; the latter is resolved to a
+ * full binary path via bpf_program__attach_uprobe_opts.
+ *
+ * Specifying uprobe+ ensures we carry out strict matching; either "uprobe" must be
+ * specified (and auto-attach is not possible) or the above format is specified for
+ * auto-attach.
+ */
+static int attach_uprobe(const struct bpf_program *prog, long cookie, struct bpf_link **link)
+{
+	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, opts);
+	char *probe_type = NULL, *binary_path = NULL, *func_name = NULL;
+	int n, ret = -EINVAL;
+	long offset = 0;
+
+	*link = NULL;
+
+	n = sscanf(prog->sec_name, "%m[^/]/%m[^:]:%m[a-zA-Z0-9_.]+%li",
+		   &probe_type, &binary_path, &func_name, &offset);
+	switch (n) {
+	case 1:
+		/* handle SEC("u[ret]probe") - format is valid, but auto-attach is impossible. */
+		ret = 0;
+		break;
+	case 2:
+		pr_warn("prog '%s': section '%s' missing ':function[+offset]' specification\n",
+			prog->name, prog->sec_name);
+		break;
+	case 3:
+	case 4:
+		opts.retprobe = strcmp(probe_type, "uretprobe") == 0;
+		if (opts.retprobe && offset != 0) {
+			pr_warn("prog '%s': uretprobes do not support offset specification\n",
+				prog->name);
+			break;
+		}
+		opts.func_name = func_name;
+		*link = bpf_program__attach_uprobe_opts(prog, -1, binary_path, offset, &opts);
+		ret = libbpf_get_error(*link);
+		break;
+	default:
+		pr_warn("prog '%s': invalid format of section definition '%s'\n", prog->name,
+			prog->sec_name);
+		break;
+	}
+	free(probe_type);
+	free(binary_path);
+	free(func_name);
+
+	return ret;
+}
+
 struct bpf_link *bpf_program__attach_uprobe(const struct bpf_program *prog,
 					    bool retprobe, pid_t pid,
 					    const char *binary_path,
@@ -10597,6 +10972,85 @@ struct bpf_link *bpf_program__attach_uprobe(const struct bpf_program *prog,
 	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, opts, .retprobe = retprobe);
 
 	return bpf_program__attach_uprobe_opts(prog, pid, binary_path, func_offset, &opts);
+}
+
+struct bpf_link *bpf_program__attach_usdt(const struct bpf_program *prog,
+					  pid_t pid, const char *binary_path,
+					  const char *usdt_provider, const char *usdt_name,
+					  const struct bpf_usdt_opts *opts)
+{
+	char resolved_path[512];
+	struct bpf_object *obj = prog->obj;
+	struct bpf_link *link;
+	long usdt_cookie;
+	int err;
+
+	if (!OPTS_VALID(opts, bpf_uprobe_opts))
+		return libbpf_err_ptr(-EINVAL);
+
+	if (bpf_program__fd(prog) < 0) {
+		pr_warn("prog '%s': can't attach BPF program w/o FD (did you load it?)\n",
+			prog->name);
+		return libbpf_err_ptr(-EINVAL);
+	}
+
+	if (!strchr(binary_path, '/')) {
+		err = resolve_full_path(binary_path, resolved_path, sizeof(resolved_path));
+		if (err) {
+			pr_warn("prog '%s': failed to resolve full path for '%s': %d\n",
+				prog->name, binary_path, err);
+			return libbpf_err_ptr(err);
+		}
+		binary_path = resolved_path;
+	}
+
+	/* USDT manager is instantiated lazily on first USDT attach. It will
+	 * be destroyed together with BPF object in bpf_object__close().
+	 */
+	if (IS_ERR(obj->usdt_man))
+		return libbpf_ptr(obj->usdt_man);
+	if (!obj->usdt_man) {
+		obj->usdt_man = usdt_manager_new(obj);
+		if (IS_ERR(obj->usdt_man))
+			return libbpf_ptr(obj->usdt_man);
+	}
+
+	usdt_cookie = OPTS_GET(opts, usdt_cookie, 0);
+	link = usdt_manager_attach_usdt(obj->usdt_man, prog, pid, binary_path,
+				        usdt_provider, usdt_name, usdt_cookie);
+	err = libbpf_get_error(link);
+	if (err)
+		return libbpf_err_ptr(err);
+	return link;
+}
+
+static int attach_usdt(const struct bpf_program *prog, long cookie, struct bpf_link **link)
+{
+	char *path = NULL, *provider = NULL, *name = NULL;
+	const char *sec_name;
+	int n, err;
+
+	sec_name = bpf_program__section_name(prog);
+	if (strcmp(sec_name, "usdt") == 0) {
+		/* no auto-attach for just SEC("usdt") */
+		*link = NULL;
+		return 0;
+	}
+
+	n = sscanf(sec_name, "usdt/%m[^:]:%m[^:]:%m[^:]", &path, &provider, &name);
+	if (n != 3) {
+		pr_warn("invalid section '%s', expected SEC(\"usdt/<path>:<provider>:<name>\")\n",
+			sec_name);
+		err = -EINVAL;
+	} else {
+		*link = bpf_program__attach_usdt(prog, -1 /* any process */, path,
+						 provider, name, NULL);
+		err = libbpf_get_error(*link);
+	}
+	free(path);
+	free(provider);
+	free(name);
+	return err;
 }
 
 static int determine_tracepoint_id(const char *tp_category,

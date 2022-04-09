@@ -459,9 +459,17 @@ struct bpf_uprobe_opts {
 	__u64 bpf_cookie;
 	/* uprobe is return probe, invoked at function return time */
 	bool retprobe;
+	/* Function name to attach to.  Could be an unqualified ("abc") or library-qualified
+	 * "abc@LIBXYZ" name.  To specify function entry, func_name should be set while
+	 * func_offset argument to bpf_prog__attach_uprobe_opts() should be 0.  To trace an
+	 * offset within a function, specify func_name and use func_offset argument to specify
+	 * offset within the function.  Shared library functions must specify the shared library
+	 * binary_path.
+	 */
+	const char *func_name;
 	size_t :0;
 };
-#define bpf_uprobe_opts__last_field retprobe
+#define bpf_uprobe_opts__last_field func_name
 
 /**
  * @brief **bpf_program__attach_uprobe()** attaches a BPF program
@@ -502,6 +510,37 @@ LIBBPF_API struct bpf_link *
 bpf_program__attach_uprobe_opts(const struct bpf_program *prog, pid_t pid,
 				const char *binary_path, size_t func_offset,
 				const struct bpf_uprobe_opts *opts);
+
+struct bpf_usdt_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+	/* custom user-provided value accessible through usdt_cookie() */
+	__u64 usdt_cookie;
+	size_t :0;
+};
+#define bpf_usdt_opts__last_field usdt_cookie
+
+/**
+ * @brief **bpf_program__attach_usdt()** is just like
+ * bpf_program__attach_uprobe_opts() except it covers USDT (User-space
+ * Statically Defined Tracepoint) attachment, instead of attaching to
+ * user-space function entry or exit.
+ *
+ * @param prog BPF program to attach
+ * @param pid Process ID to attach the uprobe to, 0 for self (own process),
+ * -1 for all processes
+ * @param binary_path Path to binary that contains provided USDT probe
+ * @param usdt_provider USDT provider name
+ * @param usdt_name USDT probe name
+ * @param opts Options for altering program attachment
+ * @return Reference to the newly created BPF link; or NULL is returned on error,
+ * error code is stored in errno
+ */
+LIBBPF_API struct bpf_link *
+bpf_program__attach_usdt(const struct bpf_program *prog,
+			 pid_t pid, const char *binary_path,
+			 const char *usdt_provider, const char *usdt_name,
+			 const struct bpf_usdt_opts *opts);
 
 struct bpf_tracepoint_opts {
 	/* size of this struct, for forward/backward compatiblity */
