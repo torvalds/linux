@@ -3257,7 +3257,6 @@ static int hns_roce_v2_write_mtpt(struct hns_roce_dev *hr_dev,
 				  void *mb_buf, struct hns_roce_mr *mr)
 {
 	struct hns_roce_v2_mpt_entry *mpt_entry;
-	int ret;
 
 	mpt_entry = mb_buf;
 	memset(mpt_entry, 0, sizeof(*mpt_entry));
@@ -3296,9 +3295,7 @@ static int hns_roce_v2_write_mtpt(struct hns_roce_dev *hr_dev,
 		     to_hr_hw_page_shift(mr->pbl_mtr.hem_cfg.ba_pg_shift));
 	hr_reg_enable(mpt_entry, MPT_INNER_PA_VLD);
 
-	ret = set_mtpt_pbl(hr_dev, mpt_entry, mr);
-
-	return ret;
+	return set_mtpt_pbl(hr_dev, mpt_entry, mr);
 }
 
 static int hns_roce_v2_rereg_write_mtpt(struct hns_roce_dev *hr_dev,
