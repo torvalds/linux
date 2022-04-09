@@ -250,10 +250,9 @@ static bool lps_rf_on(struct adapter *adapter)
  */
 static s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 {
-	u32 start_time;
+	unsigned long timeout = jiffies + msecs_to_jiffies(delay_ms);
 	s32 err = 0;
 
-	start_time = jiffies;
 	while (1) {
 		if (lps_rf_on(padapter))
 			break;
@@ -263,7 +262,7 @@ static s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 			break;
 		}
 
-		if (rtw_get_passing_time_ms(start_time) > delay_ms) {
+		if (time_after(jiffies, timeout)) {
 			err = -1;
 			break;
 		}
