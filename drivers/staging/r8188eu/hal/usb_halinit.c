@@ -1116,32 +1116,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			rtl8188e_set_FwPwrMode_cmd(Adapter, psmode);
 		}
 		break;
-	case HW_VAR_FIFO_CLEARN_UP:
-		{
-			struct pwrctrl_priv *pwrpriv = &Adapter->pwrctrlpriv;
-			u8 trycnt = 100;
-
-			/* pause tx */
-			rtw_write8(Adapter, REG_TXPAUSE, 0xff);
-
-			/* keep sn */
-			Adapter->xmitpriv.nqos_ssn = rtw_read16(Adapter, REG_NQOS_SEQ);
-
-			if (!pwrpriv->bkeepfwalive) {
-				/* RX DMA stop */
-				rtw_write32(Adapter, REG_RXPKT_NUM, (rtw_read32(Adapter, REG_RXPKT_NUM) | RW_RELEASE_EN));
-				do {
-					if (!(rtw_read32(Adapter, REG_RXPKT_NUM) & RXDMA_IDLE))
-						break;
-				} while (trycnt--);
-
-				/* RQPN Load 0 */
-				rtw_write16(Adapter, REG_RQPN_NPQ, 0x0);
-				rtw_write32(Adapter, REG_RQPN, 0x80000000);
-				mdelay(10);
-			}
-		}
-		break;
 	case HW_VAR_H2C_MEDIA_STATUS_RPT:
 		rtl8188e_set_FwMediaStatus_cmd(Adapter, (*(__le16 *)val));
 		break;

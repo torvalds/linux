@@ -736,9 +736,36 @@ void rtw_ips_pwr_down(struct adapter *padapter)
 	padapter->bCardDisableWOHSM = false;
 }
 
+static void rtw_fifo_cleanup(struct adapter *adapter)
+{
+	struct pwrctrl_priv *pwrpriv = &adapter->pwrctrlpriv;
+	u8 trycnt = 100;
+
+	/* pause tx */
+	rtw_write8(adapter, REG_TXPAUSE, 0xff);
+
+	/* keep sn */
+	adapter->xmitpriv.nqos_ssn = rtw_read16(adapter, REG_NQOS_SEQ);
+
+	if (!pwrpriv->bkeepfwalive) {
+		/* RX DMA stop */
+		rtw_write32(adapter, REG_RXPKT_NUM,
+			    (rtw_read32(adapter, REG_RXPKT_NUM) | RW_RELEASE_EN));
+		do {
+			if (!(rtw_read32(adapter, REG_RXPKT_NUM) & RXDMA_IDLE))
+				break;
+		} while (trycnt--);
+
+		/* RQPN Load 0 */
+		rtw_write16(adapter, REG_RQPN_NPQ, 0x0);
+		rtw_write32(adapter, REG_RQPN, 0x80000000);
+		mdelay(10);
+	}
+}
+
 void rtw_ips_dev_unload(struct adapter *padapter)
 {
-	SetHwReg8188EU(padapter, HW_VAR_FIFO_CLEARN_UP, NULL);
+	rtw_fifo_cleanup(padapter);
 
 	if (padapter->intf_stop)
 		padapter->intf_stop(padapter);
