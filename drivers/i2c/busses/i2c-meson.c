@@ -65,10 +65,6 @@ enum {
 	STATE_WRITE,
 };
 
-struct meson_i2c_data {
-	unsigned char div_factor;
-};
-
 /**
  * struct meson_i2c - Meson I2C device private data
  *
@@ -109,6 +105,10 @@ struct meson_i2c {
 	const struct meson_i2c_data *data;
 };
 
+struct meson_i2c_data {
+	void (*set_clk_div)(struct meson_i2c *i2c, unsigned int freq);
+};
+
 static void meson_i2c_set_mask(struct meson_i2c *i2c, int reg, u32 mask,
 			       u32 val)
 {
@@ -137,14 +137,62 @@ static void meson_i2c_add_token(struct meson_i2c *i2c, int token)
 	i2c->num_tokens++;
 }
 
-static void meson_i2c_set_clk_div(struct meson_i2c *i2c, unsigned int freq)
+static void meson_gxbb_axg_i2c_set_clk_div(struct meson_i2c *i2c, unsigned int freq)
+{
+	unsigned long clk_rate = clk_get_rate(i2c->clk);
+	unsigned int div_h, div_l;
+
+	/* According to I2C-BUS Spec 2.1, in FAST-MODE, the minimum LOW period is 1.3uS, and
+	 * minimum HIGH is least 0.6us.
+	 * For 400000 freq, the period is 2.5us. To keep within the specs, give 40% of period to
+	 * HIGH and 60% to LOW. This means HIGH at 1.0us and LOW 1.5us.
+	 * The same applies for Fast-mode plus, where LOW is 0.5us and HIGH is 0.26us.
+	 * Duty = H/(H + L) = 2/5
+	 */
+	if (freq <= I2C_MAX_STANDARD_MODE_FREQ) {
+		div_h = DIV_ROUND_UP(clk_rate, freq);
+		div_l = DIV_ROUND_UP(div_h, 4);
+		div_h = DIV_ROUND_UP(div_h, 2) - FILTER_DELAY;
+	} else {
+		div_h = DIV_ROUND_UP(clk_rate * 2, freq * 5) - FILTER_DELAY;
+		div_l = DIV_ROUND_UP(clk_rate * 3, freq * 5 * 2);
+	}
+
+	/* clock divider has 12 bits */
+	if (div_h > GENMASK(11, 0)) {
+		dev_err(i2c->dev, "requested bus frequency too low\n");
+		div_h = GENMASK(11, 0);
+	}
+	if (div_l > GENMASK(11, 0)) {
+		dev_err(i2c->dev, "requested bus frequency too low\n");
+		div_l = GENMASK(11, 0);
+	}
+
+	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_CLKDIV_MASK,
+			   FIELD_PREP(REG_CTRL_CLKDIV_MASK, div_h & GENMASK(9, 0)));
+
+	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_CLKDIVEXT_MASK,
+			   FIELD_PREP(REG_CTRL_CLKDIVEXT_MASK, div_h >> 10));
+
+	/* set SCL low delay */
+	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR, REG_SLV_SCL_LOW_MASK,
+			   FIELD_PREP(REG_SLV_SCL_LOW_MASK, div_l));
+
+	/* Enable HIGH/LOW mode */
+	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR, REG_SLV_SCL_LOW_EN, REG_SLV_SCL_LOW_EN);
+
+	dev_dbg(i2c->dev, "%s: clk %lu, freq %u, divh %u, divl %u\n", __func__,
+		clk_rate, freq, div_h, div_l);
+}
+
+static void meson6_i2c_set_clk_div(struct meson_i2c *i2c, unsigned int freq)
 {
 	unsigned long clk_rate = clk_get_rate(i2c->clk);
 	unsigned int div;
 
 	div = DIV_ROUND_UP(clk_rate, freq);
 	div -= FILTER_DELAY;
-	div = DIV_ROUND_UP(div, i2c->data->div_factor);
+	div = DIV_ROUND_UP(div, 4);
 
 	/* clock divider has 12 bits */
 	if (div > GENMASK(11, 0)) {
@@ -472,7 +520,9 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR,
 			   REG_SLV_SDA_FILTER_MASK | REG_SLV_SCL_FILTER_MASK, 0);
 
-	meson_i2c_set_clk_div(i2c, timings.bus_freq_hz);
+	if (!i2c->data->set_clk_div)
+		return -EINVAL;
+	i2c->data->set_clk_div(i2c, timings.bus_freq_hz);
 
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0) {
@@ -494,15 +544,15 @@ static int meson_i2c_remove(struct platform_device *pdev)
 }
 
 static const struct meson_i2c_data i2c_meson6_data = {
-	.div_factor = 4,
+	.set_clk_div = meson6_i2c_set_clk_div,
 };
 
 static const struct meson_i2c_data i2c_gxbb_data = {
-	.div_factor = 4,
+	.set_clk_div = meson_gxbb_axg_i2c_set_clk_div,
 };
 
 static const struct meson_i2c_data i2c_axg_data = {
-	.div_factor = 3,
+	.set_clk_div = meson_gxbb_axg_i2c_set_clk_div,
 };
 
 static const struct of_device_id meson_i2c_match[] = {
