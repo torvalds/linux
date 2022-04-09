@@ -58,6 +58,8 @@ struct realtek_gpio_ctrl {
 	raw_spinlock_t lock;
 	u16 intr_mask[REALTEK_GPIO_PORTS_PER_BANK];
 	u16 intr_type[REALTEK_GPIO_PORTS_PER_BANK];
+	unsigned int (*port_offset_u8)(unsigned int port);
+	unsigned int (*port_offset_u16)(unsigned int port);
 };
 
 /* Expand with more flags as devices with other quirks are added */
@@ -69,6 +71,11 @@ enum realtek_gpio_flags {
 	 * line the IRQ handler was assigned to, causing uncaught interrupts.
 	 */
 	GPIO_INTERRUPTS_DISABLED = BIT(0),
+	/*
+	 * Port order is reversed, meaning DCBA register layout for 1-bit
+	 * fields, and [BA, DC] for 2-bit fields.
+	 */
+	GPIO_PORTS_REVERSED = BIT(1),
 };
 
 static struct realtek_gpio_ctrl *irq_data_to_ctrl(struct irq_data *data)
@@ -86,21 +93,50 @@ static struct realtek_gpio_ctrl *irq_data_to_ctrl(struct irq_data *data)
  * port. The two interrupt mask registers store two bits per GPIO, so use u16
  * values.
  */
+static unsigned int realtek_gpio_port_offset_u8(unsigned int port)
+{
+	return port;
+}
+
+static unsigned int realtek_gpio_port_offset_u16(unsigned int port)
+{
+	return 2 * port;
+}
+
+/*
+ * Reversed port order register access
+ *
+ * For registers with one bit per GPIO, all ports are stored as u8-s in one
+ * register in reversed order. The two interrupt mask registers store two bits
+ * per GPIO, so use u16 values. The first register contains ports 1 and 0, the
+ * second ports 3 and 2.
+ */
+static unsigned int realtek_gpio_port_offset_u8_rev(unsigned int port)
+{
+	return 3 - port;
+}
+
+static unsigned int realtek_gpio_port_offset_u16_rev(unsigned int port)
+{
+	return 2 * (port ^ 1);
+}
+
 static void realtek_gpio_write_imr(struct realtek_gpio_ctrl *ctrl,
 	unsigned int port, u16 irq_type, u16 irq_mask)
 {
-	iowrite16(irq_type & irq_mask, ctrl->base + REALTEK_GPIO_REG_IMR + 2 * port);
+	iowrite16(irq_type & irq_mask,
+		ctrl->base + REALTEK_GPIO_REG_IMR + ctrl->port_offset_u16(port));
 }
 
 static void realtek_gpio_clear_isr(struct realtek_gpio_ctrl *ctrl,
 	unsigned int port, u8 mask)
 {
-	iowrite8(mask, ctrl->base + REALTEK_GPIO_REG_ISR + port);
+	iowrite8(mask, ctrl->base + REALTEK_GPIO_REG_ISR + ctrl->port_offset_u8(port));
 }
 
 static u8 realtek_gpio_read_isr(struct realtek_gpio_ctrl *ctrl, unsigned int port)
 {
-	return ioread8(ctrl->base + REALTEK_GPIO_REG_ISR + port);
+	return ioread8(ctrl->base + REALTEK_GPIO_REG_ISR + ctrl->port_offset_u8(port));
 }
 
 /* Set the rising and falling edge mask bits for a GPIO port pin */
@@ -250,6 +286,7 @@ MODULE_DEVICE_TABLE(of, realtek_gpio_of_match);
 static int realtek_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	unsigned long bgpio_flags;
 	unsigned int dev_flags;
 	struct gpio_irq_chip *girq;
 	struct realtek_gpio_ctrl *ctrl;
@@ -277,10 +314,20 @@ static int realtek_gpio_probe(struct platform_device *pdev)
 
 	raw_spin_lock_init(&ctrl->lock);
 
+	if (dev_flags & GPIO_PORTS_REVERSED) {
+		bgpio_flags = 0;
+		ctrl->port_offset_u8 = realtek_gpio_port_offset_u8_rev;
+		ctrl->port_offset_u16 = realtek_gpio_port_offset_u16_rev;
+	} else {
+		bgpio_flags = BGPIOF_BIG_ENDIAN_BYTE_ORDER;
+		ctrl->port_offset_u8 = realtek_gpio_port_offset_u8;
+		ctrl->port_offset_u16 = realtek_gpio_port_offset_u16;
+	}
+
 	err = bgpio_init(&ctrl->gc, dev, 4,
 		ctrl->base + REALTEK_GPIO_REG_DATA, NULL, NULL,
 		ctrl->base + REALTEK_GPIO_REG_DIR, NULL,
-		BGPIOF_BIG_ENDIAN_BYTE_ORDER);
+		bgpio_flags);
 	if (err) {
 		dev_err(dev, "unable to init generic GPIO");
 		return err;
