@@ -49,14 +49,18 @@
 
 #define HZIP_QM_IDEL_STATUS		0x3040e4
 
-#define HZIP_CORE_DEBUG_COMP_0		0x302000
-#define HZIP_CORE_DEBUG_COMP_1		0x303000
-#define HZIP_CORE_DEBUG_DECOMP_0	0x304000
-#define HZIP_CORE_DEBUG_DECOMP_1	0x305000
-#define HZIP_CORE_DEBUG_DECOMP_2	0x306000
-#define HZIP_CORE_DEBUG_DECOMP_3	0x307000
-#define HZIP_CORE_DEBUG_DECOMP_4	0x308000
-#define HZIP_CORE_DEBUG_DECOMP_5	0x309000
+#define HZIP_CORE_DFX_BASE		0x301000
+#define HZIP_CLOCK_GATED_CONTL		0X301004
+#define HZIP_CORE_DFX_COMP_0		0x302000
+#define HZIP_CORE_DFX_COMP_1		0x303000
+#define HZIP_CORE_DFX_DECOMP_0		0x304000
+#define HZIP_CORE_DFX_DECOMP_1		0x305000
+#define HZIP_CORE_DFX_DECOMP_2		0x306000
+#define HZIP_CORE_DFX_DECOMP_3		0x307000
+#define HZIP_CORE_DFX_DECOMP_4		0x308000
+#define HZIP_CORE_DFX_DECOMP_5		0x309000
+#define HZIP_CORE_REGS_BASE_LEN		0xB0
+#define HZIP_CORE_REGS_DFX_LEN		0x28
 
 #define HZIP_CORE_INT_SOURCE		0x3010A0
 #define HZIP_CORE_INT_MASK_REG		0x3010A4
@@ -230,6 +234,48 @@ static const struct debugfs_reg32 hzip_dfx_regs[] = {
 	{"HZIP_DECOMP_LZ77_CURR_ST       ",  0x9cull},
 };
 
+/* define the ZIP's dfx regs region and region length */
+static struct dfx_diff_registers hzip_diff_regs[] = {
+	{
+		.reg_offset = HZIP_CORE_DFX_BASE,
+		.reg_len = HZIP_CORE_REGS_BASE_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_COMP_0,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_COMP_1,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_DECOMP_0,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_DECOMP_1,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_DECOMP_2,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_DECOMP_3,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_DECOMP_4,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_DECOMP_5,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	},
+};
+
+static int hzip_diff_regs_show(struct seq_file *s, void *unused)
+{
+	struct hisi_qm *qm = s->private;
+
+	hisi_qm_acc_diff_regs_dump(qm, s, qm->debug.acc_diff_regs,
+					ARRAY_SIZE(hzip_diff_regs));
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(hzip_diff_regs);
 static const struct kernel_param_ops zip_uacce_mode_ops = {
 	.set = uacce_mode_set,
 	.get = param_get_int,
@@ -621,6 +667,7 @@ static int hisi_zip_core_debug_init(struct hisi_qm *qm)
 
 static void hisi_zip_dfx_debug_init(struct hisi_qm *qm)
 {
+	struct dfx_diff_registers *hzip_regs = qm->debug.acc_diff_regs;
 	struct hisi_zip *zip = container_of(qm, struct hisi_zip, qm);
 	struct hisi_zip_dfx *dfx = &zip->dfx;
 	struct dentry *tmp_dir;
@@ -634,6 +681,10 @@ static void hisi_zip_dfx_debug_init(struct hisi_qm *qm)
 				    0644, tmp_dir, data,
 				    &zip_atomic64_ops);
 	}
+
+	if (qm->fun_type == QM_HW_PF && hzip_regs)
+		debugfs_create_file("diff_regs", 0444, tmp_dir,
+				      qm, &hzip_diff_regs_fops);
 }
 
 static int hisi_zip_ctrl_debug_init(struct hisi_qm *qm)
@@ -666,6 +717,13 @@ static int hisi_zip_debugfs_init(struct hisi_qm *qm)
 	qm->debug.sqe_mask_offset = HZIP_SQE_MASK_OFFSET;
 	qm->debug.sqe_mask_len = HZIP_SQE_MASK_LEN;
 	qm->debug.debug_root = dev_d;
+	ret = hisi_qm_diff_regs_init(qm, hzip_diff_regs,
+				ARRAY_SIZE(hzip_diff_regs));
+	if (ret) {
+		dev_warn(dev, "Failed to init ZIP diff regs!\n");
+		goto debugfs_remove;
+	}
+
 	hisi_qm_debug_init(qm);
 
 	if (qm->fun_type == QM_HW_PF) {
@@ -679,6 +737,8 @@ static int hisi_zip_debugfs_init(struct hisi_qm *qm)
 	return 0;
 
 failed_to_create:
+	hisi_qm_diff_regs_uninit(qm, ARRAY_SIZE(hzip_diff_regs));
+debugfs_remove:
 	debugfs_remove_recursive(hzip_debugfs_root);
 	return ret;
 }
@@ -703,6 +763,8 @@ static void hisi_zip_debug_regs_clear(struct hisi_qm *qm)
 
 static void hisi_zip_debugfs_exit(struct hisi_qm *qm)
 {
+	hisi_qm_diff_regs_uninit(qm, ARRAY_SIZE(hzip_diff_regs));
+
 	debugfs_remove_recursive(qm->debug.debug_root);
 
 	if (qm->fun_type == QM_HW_PF) {
