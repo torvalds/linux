@@ -110,6 +110,15 @@
 #define SEC_SQE_MASK_LEN		48
 #define SEC_SHAPER_TYPE_RATE		400
 
+#define SEC_DFX_BASE		0x301000
+#define SEC_DFX_CORE		0x302100
+#define SEC_DFX_COMMON1		0x301600
+#define SEC_DFX_COMMON2		0x301C00
+#define SEC_DFX_BASE_LEN		0x9D
+#define SEC_DFX_CORE_LEN		0x32B
+#define SEC_DFX_COMMON1_LEN		0x45
+#define SEC_DFX_COMMON2_LEN		0xBA
+
 struct sec_hw_error {
 	u32 int_msk;
 	const char *msg;
@@ -225,6 +234,34 @@ static const struct debugfs_reg32 sec_dfx_regs[] = {
 	{"SEC_BD_SAA7                   ",  0x301C3C},
 	{"SEC_BD_SAA8                   ",  0x301C40},
 };
+
+/* define the SEC's dfx regs region and region length */
+static struct dfx_diff_registers sec_diff_regs[] = {
+	{
+		.reg_offset = SEC_DFX_BASE,
+		.reg_len = SEC_DFX_BASE_LEN,
+	}, {
+		.reg_offset = SEC_DFX_COMMON1,
+		.reg_len = SEC_DFX_COMMON1_LEN,
+	}, {
+		.reg_offset = SEC_DFX_COMMON2,
+		.reg_len = SEC_DFX_COMMON2_LEN,
+	}, {
+		.reg_offset = SEC_DFX_CORE,
+		.reg_len = SEC_DFX_CORE_LEN,
+	},
+};
+
+static int sec_diff_regs_show(struct seq_file *s, void *unused)
+{
+	struct hisi_qm *qm = s->private;
+
+	hisi_qm_acc_diff_regs_dump(qm, s, qm->debug.acc_diff_regs,
+					ARRAY_SIZE(sec_diff_regs));
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(sec_diff_regs);
 
 static int sec_pf_q_num_set(const char *val, const struct kernel_param *kp)
 {
@@ -729,6 +766,7 @@ DEFINE_SHOW_ATTRIBUTE(sec_regs);
 
 static int sec_core_debug_init(struct hisi_qm *qm)
 {
+	struct dfx_diff_registers *sec_regs = qm->debug.acc_diff_regs;
 	struct sec_dev *sec = container_of(qm, struct sec_dev, qm);
 	struct device *dev = &qm->pdev->dev;
 	struct sec_dfx *dfx = &sec->debug.dfx;
@@ -749,6 +787,9 @@ static int sec_core_debug_init(struct hisi_qm *qm)
 
 	if (qm->pdev->device == PCI_DEVICE_ID_HUAWEI_SEC_PF)
 		debugfs_create_file("regs", 0444, tmp_d, regset, &sec_regs_fops);
+	if (qm->fun_type == QM_HW_PF && sec_regs)
+		debugfs_create_file("diff_regs", 0444, tmp_d,
+				      qm, &sec_diff_regs_fops);
 
 	for (i = 0; i < ARRAY_SIZE(sec_dfx_labels); i++) {
 		atomic64_t *data = (atomic64_t *)((uintptr_t)dfx +
@@ -790,6 +831,14 @@ static int sec_debugfs_init(struct hisi_qm *qm)
 						  sec_debugfs_root);
 	qm->debug.sqe_mask_offset = SEC_SQE_MASK_OFFSET;
 	qm->debug.sqe_mask_len = SEC_SQE_MASK_LEN;
+
+	ret = hisi_qm_diff_regs_init(qm, sec_diff_regs,
+				ARRAY_SIZE(sec_diff_regs));
+	if (ret) {
+		dev_warn(dev, "Failed to init SEC diff regs!\n");
+		goto debugfs_remove;
+	}
+
 	hisi_qm_debug_init(qm);
 
 	ret = sec_debug_init(qm);
@@ -799,12 +848,16 @@ static int sec_debugfs_init(struct hisi_qm *qm)
 	return 0;
 
 failed_to_create:
+	hisi_qm_diff_regs_uninit(qm, ARRAY_SIZE(sec_diff_regs));
+debugfs_remove:
 	debugfs_remove_recursive(sec_debugfs_root);
 	return ret;
 }
 
 static void sec_debugfs_exit(struct hisi_qm *qm)
 {
+	hisi_qm_diff_regs_uninit(qm, ARRAY_SIZE(sec_diff_regs));
+
 	debugfs_remove_recursive(qm->debug.debug_root);
 }
 
