@@ -196,6 +196,9 @@ struct qm_debug {
 	struct dentry *debug_root;
 	struct dentry *qm_d;
 	struct debugfs_file files[DEBUG_FILE_NUM];
+	unsigned int *qm_last_words;
+	/* ACC engines recoreding last regs */
+	unsigned int *last_words;
 	struct dfx_diff_registers *qm_diff_regs;
 	struct dfx_diff_registers *acc_diff_regs;
 };
@@ -251,6 +254,7 @@ struct hisi_qm_err_ini {
 	void (*open_sva_prefetch)(struct hisi_qm *qm);
 	void (*close_sva_prefetch)(struct hisi_qm *qm);
 	void (*log_dev_hw_err)(struct hisi_qm *qm, u32 err_sts);
+	void (*show_last_dfx_regs)(struct hisi_qm *qm);
 	void (*err_info_init)(struct hisi_qm *qm);
 };
 
