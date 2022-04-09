@@ -247,7 +247,7 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 {
 	int ret = _SUCCESS;
 	u8 write_fw_retry = 0;
-	u32 fwdl_start_time;
+	unsigned long fwdl_timeout;
 	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
 	struct device *device = dvobj_to_dev(dvobj);
 	struct rt_firmware_hdr *fwhdr = NULL;
@@ -290,7 +290,7 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 	}
 
 	fw_download_enable(padapter, true);
-	fwdl_start_time = jiffies;
+	fwdl_timeout = jiffies + msecs_to_jiffies(500);
 	while (1) {
 		/* reset the FWDL chksum */
 		rtw_write8(padapter, REG_MCUFWDL, rtw_read8(padapter, REG_MCUFWDL) | FWDL_CHKSUM_RPT);
@@ -298,7 +298,7 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 		ret = write_fw(padapter, fw_data, fw_size);
 
 		if (ret == _SUCCESS ||
-		    (rtw_get_passing_time_ms(fwdl_start_time) > 500 && write_fw_retry++ >= 3))
+		    (time_after(jiffies, fwdl_timeout) && write_fw_retry++ >= 3))
 			break;
 	}
 	fw_download_enable(padapter, false);
