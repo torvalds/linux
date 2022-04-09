@@ -5794,13 +5794,27 @@ Following are some utitity fuctions for WiFi MLME
 
 *****************************************************************************/
 
+static void rtw_set_initial_gain(struct adapter *adapter, u8 gain)
+{
+	struct hal_data_8188e *haldata = &adapter->haldata;
+	struct odm_dm_struct *odmpriv = &haldata->odmpriv;
+	struct rtw_dig *digtable = &odmpriv->DM_DigTable;
+
+	if (gain == 0xff) {
+		/* restore rx gain */
+		ODM_Write_DIG(odmpriv, digtable->BackupIGValue);
+	} else {
+		digtable->BackupIGValue = digtable->CurIGValue;
+		ODM_Write_DIG(odmpriv, gain);
+	}
+}
+
 void site_survey(struct adapter *padapter)
 {
 	unsigned char		survey_channel = 0, val8;
 	enum rt_scan_type ScanType = SCAN_PASSIVE;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
-	u32 initialgain = 0;
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
 
 	if ((pwdinfo->rx_invitereq_info.scan_op_ch_only) || (pwdinfo->p2p_info.scan_op_ch_only)) {
@@ -5878,8 +5892,8 @@ void site_survey(struct adapter *padapter)
 			rtw_p2p_set_state(pwdinfo, P2P_STATE_FIND_PHASE_LISTEN);
 			pmlmeext->sitesurvey_res.state = SCAN_DISABLE;
 
-			initialgain = 0xff; /* restore RX GAIN */
-			SetHwReg8188EU(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));
+			/* restore RX GAIN */
+			rtw_set_initial_gain(padapter, 0xff);
 			/* turn on dynamic functions */
 			Restore_DM_Func_Flag(padapter);
 			/* Switch_DM_Func(padapter, DYNAMIC_FUNC_DIG|DYNAMIC_FUNC_HP|DYNAMIC_FUNC_SS, true); */
@@ -5912,8 +5926,8 @@ void site_survey(struct adapter *padapter)
 			/* config MSR */
 			Set_MSR(padapter, (pmlmeinfo->state & 0x3));
 
-			initialgain = 0xff; /* restore RX GAIN */
-			SetHwReg8188EU(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));
+			/* restore RX GAIN */
+			rtw_set_initial_gain(padapter, 0xff);
 			/* turn on dynamic functions */
 			Restore_DM_Func_Flag(padapter);
 			/* Switch_DM_Func(padapter, DYNAMIC_ALL_FUNC_ENABLE, true); */
@@ -7369,7 +7383,6 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 	struct sitesurvey_parm	*pparm = (struct sitesurvey_parm *)pbuf;
 	u8 bdelayscan = false;
 	u8 val8;
-	u32	initialgain;
 	u32	i;
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
 
@@ -7418,11 +7431,10 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 
 		/* config the initial gain under scanning, need to write the BB registers */
 		if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE))
-			initialgain = 0x1E;
+			rtw_set_initial_gain(padapter, 0x1e);
 		else
-			initialgain = 0x28;
+			rtw_set_initial_gain(padapter, 0x28);
 
-		SetHwReg8188EU(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));
 
 		/* set MSR to no link state */
 		Set_MSR(padapter, _HW_STATE_NOLINK_);

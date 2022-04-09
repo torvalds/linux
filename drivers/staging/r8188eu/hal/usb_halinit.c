@@ -1146,19 +1146,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			rtl8188e_set_FwPwrMode_cmd(Adapter, psmode);
 		}
 		break;
-	case HW_VAR_INITIAL_GAIN:
-		{
-			struct rtw_dig *pDigTable = &podmpriv->DM_DigTable;
-			u32 rx_gain = ((u32 *)(val))[0];
-
-			if (rx_gain == 0xff) {/* restore rx gain */
-				ODM_Write_DIG(podmpriv, pDigTable->BackupIGValue);
-			} else {
-				pDigTable->BackupIGValue = pDigTable->CurIGValue;
-				ODM_Write_DIG(podmpriv, rx_gain);
-			}
-		}
-		break;
 	case HW_VAR_FIFO_CLEARN_UP:
 		{
 			struct pwrctrl_priv *pwrpriv = &Adapter->pwrctrlpriv;
