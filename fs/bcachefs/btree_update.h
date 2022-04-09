@@ -51,6 +51,8 @@ enum btree_insert_flags {
 #define BCH_HASH_SET_MUST_CREATE	(1 << __BCH_HASH_SET_MUST_CREATE)
 #define BCH_HASH_SET_MUST_REPLACE	(1 << __BCH_HASH_SET_MUST_REPLACE)
 
+int bch2_btree_delete_extent_at(struct btree_trans *, struct btree_iter *,
+				unsigned, unsigned);
 int bch2_btree_delete_at(struct btree_trans *, struct btree_iter *, unsigned);
 
 int __bch2_btree_insert(struct btree_trans *, enum btree_id, struct bkey_i *);

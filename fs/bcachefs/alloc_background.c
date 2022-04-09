@@ -706,7 +706,6 @@ static int bch2_check_discard_freespace_key(struct btree_trans *trans,
 	struct bch_alloc_v4 a;
 	u64 genbits;
 	struct bpos pos;
-	struct bkey_i *update;
 	enum bch_data_type state = iter->btree_id == BTREE_ID_need_discard
 		? BCH_DATA_need_discard
 		: BCH_DATA_free;
@@ -756,21 +755,8 @@ fsck_err:
 	printbuf_exit(&buf);
 	return ret;
 delete:
-	if (iter->btree_id == BTREE_ID_freespace) {
-		/* should probably add a helper for deleting extents */
-		update = bch2_trans_kmalloc(trans, sizeof(*update));
-		ret = PTR_ERR_OR_ZERO(update);
-		if (ret)
-			goto err;
-
-		bkey_init(&update->k);
-		update->k.p = iter->pos;
-		bch2_key_resize(&update->k, 1);
-
-		ret = bch2_trans_update(trans, iter, update, 0);
-	} else {
-		ret = bch2_btree_delete_at(trans, iter, 0);
-	}
+	ret = bch2_btree_delete_extent_at(trans, iter,
+			iter->btree_id == BTREE_ID_freespace ? 1 : 0, 0);
 	goto out;
 }
 
