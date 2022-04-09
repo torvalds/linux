@@ -7519,11 +7519,12 @@ static int sdebug_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
 	struct sdebug_defer *sd_dp;
 
 	sqp = sdebug_q_arr + queue_num;
-	qc_idx = find_first_bit(sqp->in_use_bm, sdebug_max_queue);
-	if (qc_idx >= sdebug_max_queue)
-		return 0;
 
 	spin_lock_irqsave(&sqp->qc_lock, iflags);
+
+	qc_idx = find_first_bit(sqp->in_use_bm, sdebug_max_queue);
+	if (qc_idx >= sdebug_max_queue)
+		goto unlock;
 
 	for (first = true; first || qc_idx + 1 < sdebug_max_queue; )   {
 		if (first) {
@@ -7589,6 +7590,7 @@ static int sdebug_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
 			break;
 	}
 
+unlock:
 	spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 
 	if (num_entries > 0)
