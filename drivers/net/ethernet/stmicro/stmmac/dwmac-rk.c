@@ -15,6 +15,7 @@
 #include <linux/of_net.h>
 #include <linux/gpio.h>
 #include <linux/module.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -75,6 +76,8 @@ struct rk_priv_data {
 	struct regmap *grf;
 	struct regmap *php_grf;
 	struct regmap *xpcs;
+
+	unsigned char otp_data[4];
 };
 
 /* XPCS */
@@ -1609,7 +1612,7 @@ static const struct rk_gmac_ops rk3588_ops = {
 
 #define RV1106_VOGRF_MACPHY_CON1		0X6002C
 
-#define RV1106_VOGRF_MACPHY_BGS			HIWORD_UPDATE(0xd, 0xf, 0)
+#define RV1106_VOGRF_MACPHY_BGS			HIWORD_UPDATE(0x0, 0xf, 0)
 
 static void rv1106_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
@@ -1657,6 +1660,8 @@ static void rv1106_integrated_sphy_power(struct rk_priv_data *priv, bool up)
 	}
 
 	if (up) {
+		unsigned int bgs = RV1106_VOGRF_MACPHY_BGS;
+
 		reset_control_assert(priv->phy_reset);
 		udelay(20);
 		regmap_write(priv->grf, RV1106_VOGRF_MACPHY_CON0,
@@ -1664,8 +1669,11 @@ static void rv1106_integrated_sphy_power(struct rk_priv_data *priv, bool up)
 			     RV1106_VOGRF_MACPHY_INTERNAL_RMII_SEL |
 			     RV1106_VOGRF_MACPHY_24M_CLK_SEL |
 			     RV1106_VOGRF_MACPHY_PHY_ID);
-		regmap_write(priv->grf, RV1106_VOGRF_MACPHY_CON1,
-			     RV1106_VOGRF_MACPHY_BGS);
+
+		if (priv->otp_data[0] > 0)
+			bgs = HIWORD_UPDATE(priv->otp_data[0], 0xf, 0);
+
+		regmap_write(priv->grf, RV1106_VOGRF_MACPHY_CON1, bgs);
 		usleep_range(10 * 1000, 12 * 1000);
 		reset_control_deassert(priv->phy_reset);
 		usleep_range(50 * 1000, 60 * 1000);
@@ -2123,10 +2131,31 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 		bsp_priv->integrated_phy = of_property_read_bool(plat->phy_node,
 								 "phy-is-integrated");
 		if (bsp_priv->integrated_phy) {
+			unsigned char *efuse_buf;
+			struct nvmem_cell *cell;
+			size_t len;
+
 			bsp_priv->phy_reset = of_reset_control_get(plat->phy_node, NULL);
 			if (IS_ERR(bsp_priv->phy_reset)) {
 				dev_err(&pdev->dev, "No PHY reset control found.\n");
 				bsp_priv->phy_reset = NULL;
+			}
+
+			/* Read bgs from OTP if it exists */
+			cell = nvmem_cell_get(dev, "bgs");
+			if (IS_ERR(cell)) {
+				dev_info(dev, "failed to get bgs cell: %ld, use default\n",
+					 PTR_ERR(cell));
+			} else {
+				efuse_buf = nvmem_cell_read(cell, &len);
+				nvmem_cell_put(cell);
+				if (!IS_ERR(efuse_buf)) {
+					if (len == 1)
+						bsp_priv->otp_data[0] = efuse_buf[0];
+					kfree(efuse_buf);
+				} else {
+					dev_err(dev, "failed to get efuse buf, use default\n");
+				}
 			}
 		}
 	}
