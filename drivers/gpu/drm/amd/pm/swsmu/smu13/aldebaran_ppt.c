@@ -736,25 +736,23 @@ static int aldebaran_get_current_clk_freq_by_table(struct smu_context *smu,
 					      value);
 }
 
-static int aldebaran_print_clk_levels(struct smu_context *smu,
-				      enum smu_clk_type type, char *buf)
+static int aldebaran_emit_clk_levels(struct smu_context *smu,
+				     enum smu_clk_type type, char *buf, int *offset)
 {
-	int i, now, size = 0;
 	int ret = 0;
 	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
 	struct pp_clock_levels_with_latency clocks;
 	struct smu_13_0_dpm_table *single_dpm_table;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_13_0_dpm_context *dpm_context = NULL;
+	uint32_t i;
 	int display_levels;
 	uint32_t freq_values[3] = {0};
-	uint32_t min_clk, max_clk;
-
-	smu_cmn_get_sysfs_buf(&buf, &size);
+	uint32_t min_clk, max_clk, cur_value = 0;
 
 	if (amdgpu_ras_intr_triggered()) {
-		size += sysfs_emit_at(buf, size, "unavailable\n");
-		return size;
+		*offset += sysfs_emit_at(buf, *offset, "unavailable\n");
+		return -EBUSY;
 	}
 
 	dpm_context = smu_dpm->dpm_context;
@@ -762,10 +760,10 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 	switch (type) {
 
 	case SMU_OD_SCLK:
-		size += sysfs_emit_at(buf, size, "%s:\n", "GFXCLK");
+		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "GFXCLK");
 		fallthrough;
 	case SMU_SCLK:
-		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_GFXCLK, &now);
+		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_GFXCLK, &cur_value);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current gfx clk Failed!");
 			return ret;
@@ -787,29 +785,29 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		freq_values[1] = max_clk;
 
 		/* fine-grained dpm has only 2 levels */
-		if (now > min_clk && now < max_clk) {
+		if (cur_value > min_clk && cur_value < max_clk) {
 			display_levels++;
 			freq_values[2] = max_clk;
-			freq_values[1] = now;
+			freq_values[1] = cur_value;
 		}
 
 		for (i = 0; i < display_levels; i++)
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i,
+			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n", i,
 				freq_values[i],
 				(display_levels == 1) ?
 					"*" :
 					(aldebaran_freqs_in_same_level(
-						 freq_values[i], now) ?
+						 freq_values[i], cur_value) ?
 						 "*" :
 						 ""));
 
 		break;
 
 	case SMU_OD_MCLK:
-		size += sysfs_emit_at(buf, size, "%s:\n", "MCLK");
+		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "MCLK");
 		fallthrough;
 	case SMU_MCLK:
-		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_UCLK, &now);
+		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_UCLK, &cur_value);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current mclk Failed!");
 			return ret;
@@ -823,16 +821,16 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < clocks.num_levels; i++)
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
+			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
 					i, clocks.data[i].clocks_in_khz / 1000,
 					(clocks.num_levels == 1) ? "*" :
 					(aldebaran_freqs_in_same_level(
 								       clocks.data[i].clocks_in_khz / 1000,
-								       now) ? "*" : ""));
+								       cur_value) ? "*" : ""));
 		break;
 
 	case SMU_SOCCLK:
-		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_SOCCLK, &now);
+		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_SOCCLK, &cur_value);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current socclk Failed!");
 			return ret;
@@ -846,16 +844,16 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < clocks.num_levels; i++)
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
+			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
 					i, clocks.data[i].clocks_in_khz / 1000,
 					(clocks.num_levels == 1) ? "*" :
 					(aldebaran_freqs_in_same_level(
 								       clocks.data[i].clocks_in_khz / 1000,
-								       now) ? "*" : ""));
+								       cur_value) ? "*" : ""));
 		break;
 
 	case SMU_FCLK:
-		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_FCLK, &now);
+		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_FCLK, &cur_value);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current fclk Failed!");
 			return ret;
@@ -869,16 +867,16 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < single_dpm_table->count; i++)
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
+			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
 					i, single_dpm_table->dpm_levels[i].value,
 					(clocks.num_levels == 1) ? "*" :
 					(aldebaran_freqs_in_same_level(
 								       clocks.data[i].clocks_in_khz / 1000,
-								       now) ? "*" : ""));
+								       cur_value) ? "*" : ""));
 		break;
 
 	case SMU_VCLK:
-		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_VCLK, &now);
+		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_VCLK, &cur_value);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current vclk Failed!");
 			return ret;
@@ -892,16 +890,16 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < single_dpm_table->count; i++)
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
+			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
 					i, single_dpm_table->dpm_levels[i].value,
 					(clocks.num_levels == 1) ? "*" :
 					(aldebaran_freqs_in_same_level(
 								       clocks.data[i].clocks_in_khz / 1000,
-								       now) ? "*" : ""));
+								       cur_value) ? "*" : ""));
 		break;
 
 	case SMU_DCLK:
-		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_DCLK, &now);
+		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_DCLK, &cur_value);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current dclk Failed!");
 			return ret;
@@ -915,19 +913,20 @@ static int aldebaran_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < single_dpm_table->count; i++)
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
+			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
 					i, single_dpm_table->dpm_levels[i].value,
 					(clocks.num_levels == 1) ? "*" :
 					(aldebaran_freqs_in_same_level(
 								       clocks.data[i].clocks_in_khz / 1000,
-								       now) ? "*" : ""));
+								       cur_value) ? "*" : ""));
 		break;
 
 	default:
+		return -EINVAL;
 		break;
 	}
 
-	return size;
+	return 0;
 }
 
 static int aldebaran_upload_dpm_level(struct smu_context *smu,
@@ -2071,7 +2070,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.set_default_dpm_table = aldebaran_set_default_dpm_table,
 	.populate_umd_state_clk = aldebaran_populate_umd_state_clk,
 	.get_thermal_temperature_range = aldebaran_get_thermal_temperature_range,
-	.print_clk_levels = aldebaran_print_clk_levels,
+	.emit_clk_levels = aldebaran_emit_clk_levels,
 	.force_clk_levels = aldebaran_force_clk_levels,
 	.read_sensor = aldebaran_read_sensor,
 	.set_performance_level = aldebaran_set_performance_level,
