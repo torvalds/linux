@@ -95,6 +95,7 @@ struct pwrctrl_priv {
 
 void rtw_init_pwrctrl_priv(struct adapter *adapter);
 
+void rtw_set_firmware_ps_mode(struct adapter *adapter, u8 mode);
 void rtw_set_ps_mode(struct adapter *adapter, u8 ps_mode, u8 smart_ps,
 		     u8 bcn_ant_mode);
 void LeaveAllPowerSaveMode(struct adapter *adapter);

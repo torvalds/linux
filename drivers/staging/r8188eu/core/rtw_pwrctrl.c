@@ -176,6 +176,19 @@ static bool PS_RDY_CHECK(struct adapter *padapter)
 	return true;
 }
 
+void rtw_set_firmware_ps_mode(struct adapter *adapter, u8 mode)
+{
+	struct hal_data_8188e *haldata = &adapter->haldata;
+	struct odm_dm_struct *odmpriv = &haldata->odmpriv;
+
+	/* Force leave RF low power mode for 1T1R to prevent
+	 * conflicting setting in firmware power saving sequence.
+	 */
+	if (mode != PS_MODE_ACTIVE)
+		ODM_RF_Saving(odmpriv, true);
+	rtl8188e_set_FwPwrMode_cmd(adapter, mode);
+}
+
 void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_ant_mode)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
@@ -193,11 +206,10 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 			return;
 	}
 
-	/* if (pwrpriv->pwr_mode == PS_MODE_ACTIVE) */
 	if (ps_mode == PS_MODE_ACTIVE) {
 		if (pwdinfo->opp_ps == 0) {
 			pwrpriv->pwr_mode = ps_mode;
-			SetHwReg8188EU(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
+			rtw_set_firmware_ps_mode(padapter, ps_mode);
 			pwrpriv->bFwCurrentInPSMode = false;
 		}
 	} else {
@@ -206,14 +218,13 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 			pwrpriv->pwr_mode = ps_mode;
 			pwrpriv->smart_ps = smart_ps;
 			pwrpriv->bcn_ant_mode = bcn_ant_mode;
-			SetHwReg8188EU(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
+			rtw_set_firmware_ps_mode(padapter, ps_mode);
 
 			/*  Set CTWindow after LPS */
 			if (pwdinfo->opp_ps == 1)
 				p2p_ps_wk_cmd(padapter, P2P_PS_ENABLE, 0);
 		}
 	}
-
 }
 
 static bool lps_rf_on(struct adapter *adapter)
