@@ -24,6 +24,14 @@ description: |+
   A wkup_m3_ipc device node is used to represent the IPC registers within an
   SoC.
 
+  Support for VTT Toggle
+  ==================================
+  On some boards like the AM335x EVM-SK and the AM437x GP EVM, a GPIO pin is
+  connected to the enable pin on the DDR VTT regulator. This allows the
+  regulator to be disabled upon suspend and enabled upon resume. Please note
+  that the GPIO pin must be part of the GPIO0 module as only this GPIO module
+  is in the wakeup power domain.
+
 properties:
   compatible:
     enum:
@@ -51,6 +59,10 @@ properties:
       mbox_wkupm3 child node.
     maxItems: 1
 
+  ti,vtt-gpio-pin:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: GPIO pin connected to enable pin on VTT regulator
+
 required:
   - compatible
   - reg
@@ -76,6 +88,7 @@ examples:
            interrupts = <78>;
            ti,rproc = <&wkup_m3>;
            mboxes = <&mailbox &mbox_wkupm3>;
+           ti,vtt-gpio-pin = <7>;
         };
     };
 ...
