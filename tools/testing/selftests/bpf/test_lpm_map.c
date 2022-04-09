@@ -26,7 +26,6 @@
 #include <bpf/bpf.h>
 
 #include "bpf_util.h"
-#include "bpf_rlimit.h"
 
 struct tlpm_node {
 	struct tlpm_node *next;
@@ -790,6 +789,9 @@ int main(void)
 
 	/* we want predictable, pseudo random tests */
 	srand(0xf00ba1);
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	test_lpm_basic();
 	test_lpm_order();

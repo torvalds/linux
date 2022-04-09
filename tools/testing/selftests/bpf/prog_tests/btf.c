@@ -8,7 +8,6 @@
 #include <linux/filter.h>
 #include <linux/unistd.h>
 #include <bpf/bpf.h>
-#include <sys/resource.h>
 #include <libelf.h>
 #include <gelf.h>
 #include <string.h>

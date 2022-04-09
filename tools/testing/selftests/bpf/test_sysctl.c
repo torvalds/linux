@@ -14,7 +14,6 @@
 #include <bpf/libbpf.h>
 
 #include <bpf/bpf_endian.h>
-#include "bpf_rlimit.h"
 #include "bpf_util.h"
 #include "cgroup_helpers.h"
 #include "testing_helpers.h"
@@ -1617,6 +1616,9 @@ int main(int argc, char **argv)
 	cgfd = cgroup_setup_and_join(CG_PATH);
 	if (cgfd < 0)
 		goto err;
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	if (run_tests(cgfd))
 		goto err;
