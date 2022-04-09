@@ -412,7 +412,7 @@ static ssize_t cros_ec_sensors_calibrate(struct iio_dev *indio_dev,
 	int ret, i;
 	bool calibrate;
 
-	ret = strtobool(buf, &calibrate);
+	ret = kstrtobool(buf, &calibrate);
 	if (ret < 0)
 		return ret;
 	if (!calibrate)

@@ -510,7 +510,7 @@ static ssize_t iio_scan_el_store(struct device *dev,
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_buffer *buffer = this_attr->buffer;
 
-	ret = strtobool(buf, &state);
+	ret = kstrtobool(buf, &state);
 	if (ret < 0)
 		return ret;
 	mutex_lock(&indio_dev->mlock);
@@ -557,7 +557,7 @@ static ssize_t iio_scan_el_ts_store(struct device *dev,
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 	bool state;
 
-	ret = strtobool(buf, &state);
+	ret = kstrtobool(buf, &state);
 	if (ret < 0)
 		return ret;
 
@@ -1303,7 +1303,7 @@ static ssize_t iio_buffer_store_enable(struct device *dev,
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 	bool inlist;
 
-	ret = strtobool(buf, &requested_state);
+	ret = kstrtobool(buf, &requested_state);
 	if (ret < 0)
 		return ret;
 

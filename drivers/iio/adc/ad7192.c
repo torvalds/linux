@@ -226,7 +226,7 @@ static ssize_t ad7192_write_syscalib(struct iio_dev *indio_dev,
 	bool sys_calib;
 	int ret, temp;
 
-	ret = strtobool(buf, &sys_calib);
+	ret = kstrtobool(buf, &sys_calib);
 	if (ret)
 		return ret;
 
@@ -497,7 +497,7 @@ static ssize_t ad7192_set(struct device *dev,
 	int ret;
 	bool val;
 
-	ret = strtobool(buf, &val);
+	ret = kstrtobool(buf, &val);
 	if (ret < 0)
 		return ret;
 

@@ -149,7 +149,7 @@ static ssize_t ltc2632_write_dac_powerdown(struct iio_dev *indio_dev,
 	int ret;
 	struct ltc2632_state *st = iio_priv(indio_dev);
 
-	ret = strtobool(buf, &pwr_down);
+	ret = kstrtobool(buf, &pwr_down);
 	if (ret)
 		return ret;
 
