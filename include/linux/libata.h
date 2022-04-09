@@ -1110,7 +1110,7 @@ extern void ata_unpack_xfermask(unsigned long xfer_mask,
 			unsigned long *udma_mask);
 extern u8 ata_xfer_mask2mode(unsigned long xfer_mask);
 extern unsigned long ata_xfer_mode2mask(u8 xfer_mode);
-extern int ata_xfer_mode2shift(unsigned long xfer_mode);
+extern int ata_xfer_mode2shift(u8 xfer_mode);
 extern const char *ata_mode_string(unsigned long xfer_mask);
 extern unsigned long ata_id_xfermask(const u16 *id);
 extern int ata_std_qc_defer(struct ata_queued_cmd *qc);

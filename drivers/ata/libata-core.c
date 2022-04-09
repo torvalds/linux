@@ -898,7 +898,7 @@ EXPORT_SYMBOL_GPL(ata_xfer_mode2mask);
  *	RETURNS:
  *	Matching xfer_shift, -1 if no match found.
  */
-int ata_xfer_mode2shift(unsigned long xfer_mode)
+int ata_xfer_mode2shift(u8 xfer_mode)
 {
 	const struct ata_xfer_ent *ent;
 
