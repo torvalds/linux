@@ -3,6 +3,7 @@
  */
 #define _GNU_SOURCE
 #include "test_progs.h"
+#include "testing_helpers.h"
 #include "cgroup_helpers.h"
 #include <argp.h>
 #include <pthread.h>
@@ -84,12 +85,13 @@ static bool should_run(struct test_selector *sel, int num, const char *name)
 	int i;
 
 	for (i = 0; i < sel->blacklist.cnt; i++) {
-		if (glob_match(name, sel->blacklist.strs[i]))
+		if (glob_match(name, sel->blacklist.tests[i].name) &&
+		    !sel->blacklist.tests[i].subtest_cnt)
 			return false;
 	}
 
 	for (i = 0; i < sel->whitelist.cnt; i++) {
-		if (glob_match(name, sel->whitelist.strs[i]))
+		if (glob_match(name, sel->whitelist.tests[i].name))
 			return true;
 	}
 
@@ -97,6 +99,46 @@ static bool should_run(struct test_selector *sel, int num, const char *name)
 		return true;
 
 	return num < sel->num_set_len && sel->num_set[num];
+}
+
+static bool should_run_subtest(struct test_selector *sel,
+			       struct test_selector *subtest_sel,
+			       int subtest_num,
+			       const char *test_name,
+			       const char *subtest_name)
+{
+	int i, j;
+
+	for (i = 0; i < sel->blacklist.cnt; i++) {
+		if (glob_match(test_name, sel->blacklist.tests[i].name)) {
+			if (!sel->blacklist.tests[i].subtest_cnt)
+				return false;
+
+			for (j = 0; j < sel->blacklist.tests[i].subtest_cnt; j++) {
+				if (glob_match(subtest_name,
+					       sel->blacklist.tests[i].subtests[j]))
+					return false;
+			}
+		}
+	}
+
+	for (i = 0; i < sel->whitelist.cnt; i++) {
+		if (glob_match(test_name, sel->whitelist.tests[i].name)) {
+			if (!sel->whitelist.tests[i].subtest_cnt)
+				return true;
+
+			for (j = 0; j < sel->whitelist.tests[i].subtest_cnt; j++) {
+				if (glob_match(subtest_name,
+					       sel->whitelist.tests[i].subtests[j]))
+					return true;
+			}
+		}
+	}
+
+	if (!sel->whitelist.cnt && !subtest_sel->num_set)
+		return true;
+
+	return subtest_num < subtest_sel->num_set_len && subtest_sel->num_set[subtest_num];
 }
 
 static void dump_test_log(const struct prog_test_def *test, bool failed)
@@ -135,7 +177,6 @@ static void stdio_restore(void);
  */
 static void reset_affinity(void)
 {
-
 	cpu_set_t cpuset;
 	int i, err;
 
@@ -196,7 +237,7 @@ void test__end_subtest(void)
 	test->subtest_name = NULL;
 }
 
-bool test__start_subtest(const char *name)
+bool test__start_subtest(const char *subtest_name)
 {
 	struct prog_test_def *test = env.test;
 
@@ -205,17 +246,21 @@ bool test__start_subtest(const char *name)
 
 	test->subtest_num++;
 
-	if (!name || !name[0]) {
+	if (!subtest_name || !subtest_name[0]) {
 		fprintf(env.stderr,
 			"Subtest #%d didn't provide sub-test name!\n",
 			test->subtest_num);
 		return false;
 	}
 
-	if (!should_run(&env.subtest_selector, test->subtest_num, name))
+	if (!should_run_subtest(&env.test_selector,
+				&env.subtest_selector,
+				test->subtest_num,
+				test->test_name,
+				subtest_name))
 		return false;
 
-	test->subtest_name = strdup(name);
+	test->subtest_name = strdup(subtest_name);
 	if (!test->subtest_name) {
 		fprintf(env.stderr,
 			"Subtest #%d: failed to copy subtest name!\n",
@@ -527,63 +572,29 @@ static int libbpf_print_fn(enum libbpf_print_level level,
 	return 0;
 }
 
-static void free_str_set(const struct str_set *set)
+static void free_test_filter_set(const struct test_filter_set *set)
 {
-	int i;
+	int i, j;
 
 	if (!set)
 		return;
 
-	for (i = 0; i < set->cnt; i++)
-		free((void *)set->strs[i]);
-	free(set->strs);
-}
+	for (i = 0; i < set->cnt; i++) {
+		free((void *)set->tests[i].name);
+		for (j = 0; j < set->tests[i].subtest_cnt; j++)
+			free((void *)set->tests[i].subtests[j]);
 
-static int parse_str_list(const char *s, struct str_set *set, bool is_glob_pattern)
-{
-	char *input, *state = NULL, *next, **tmp, **strs = NULL;
-	int i, cnt = 0;
-
-	input = strdup(s);
-	if (!input)
-		return -ENOMEM;
-
-	while ((next = strtok_r(state ? NULL : input, ",", &state))) {
-		tmp = realloc(strs, sizeof(*strs) * (cnt + 1));
-		if (!tmp)
-			goto err;
-		strs = tmp;
-
-		if (is_glob_pattern) {
-			strs[cnt] = strdup(next);
-			if (!strs[cnt])
-				goto err;
-		} else {
-			strs[cnt] = malloc(strlen(next) + 2 + 1);
-			if (!strs[cnt])
-				goto err;
-			sprintf(strs[cnt], "*%s*", next);
-		}
-
-		cnt++;
+		free((void *)set->tests[i].subtests);
 	}
 
-	tmp = realloc(set->strs, sizeof(*strs) * (cnt + set->cnt));
-	if (!tmp)
-		goto err;
-	memcpy(tmp + set->cnt, strs, sizeof(*strs) * cnt);
-	set->strs = (const char **)tmp;
-	set->cnt += cnt;
+	free((void *)set->tests);
+}
 
-	free(input);
-	free(strs);
-	return 0;
-err:
-	for (i = 0; i < cnt; i++)
-		free(strs[i]);
-	free(strs);
-	free(input);
-	return -ENOMEM;
+static void free_test_selector(struct test_selector *test_selector)
+{
+	free_test_filter_set(&test_selector->blacklist);
+	free_test_filter_set(&test_selector->whitelist);
+	free(test_selector->num_set);
 }
 
 extern int extra_prog_load_log_flags;
@@ -615,33 +626,17 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	}
 	case ARG_TEST_NAME_GLOB_ALLOWLIST:
 	case ARG_TEST_NAME: {
-		char *subtest_str = strchr(arg, '/');
-
-		if (subtest_str) {
-			*subtest_str = '\0';
-			if (parse_str_list(subtest_str + 1,
-					   &env->subtest_selector.whitelist,
-					   key == ARG_TEST_NAME_GLOB_ALLOWLIST))
-				return -ENOMEM;
-		}
-		if (parse_str_list(arg, &env->test_selector.whitelist,
-				   key == ARG_TEST_NAME_GLOB_ALLOWLIST))
+		if (parse_test_list(arg,
+				    &env->test_selector.whitelist,
+				    key == ARG_TEST_NAME_GLOB_ALLOWLIST))
 			return -ENOMEM;
 		break;
 	}
 	case ARG_TEST_NAME_GLOB_DENYLIST:
 	case ARG_TEST_NAME_BLACKLIST: {
-		char *subtest_str = strchr(arg, '/');
-
-		if (subtest_str) {
-			*subtest_str = '\0';
-			if (parse_str_list(subtest_str + 1,
-					   &env->subtest_selector.blacklist,
-					   key == ARG_TEST_NAME_GLOB_DENYLIST))
-				return -ENOMEM;
-		}
-		if (parse_str_list(arg, &env->test_selector.blacklist,
-				   key == ARG_TEST_NAME_GLOB_DENYLIST))
+		if (parse_test_list(arg,
+				    &env->test_selector.blacklist,
+				    key == ARG_TEST_NAME_GLOB_DENYLIST))
 			return -ENOMEM;
 		break;
 	}
@@ -1493,12 +1488,8 @@ int main(int argc, char **argv)
 out:
 	if (!env.list_test_names && env.has_testmod)
 		unload_bpf_testmod();
-	free_str_set(&env.test_selector.blacklist);
-	free_str_set(&env.test_selector.whitelist);
-	free(env.test_selector.num_set);
-	free_str_set(&env.subtest_selector.blacklist);
-	free_str_set(&env.subtest_selector.whitelist);
-	free(env.subtest_selector.num_set);
+
+	free_test_selector(&env.test_selector);
 
 	if (env.succ_cnt + env.fail_cnt + env.skip_cnt == 0)
 		return EXIT_NO_TEST;
