@@ -2894,13 +2894,7 @@ reassemble:
 
 		next_pos = insert ? bkey_start_pos(&delete.k) : delete.k.p;
 
-		if (copy.k->k.size == k.k->size) {
-			/*
-			 * If we're moving the entire extent, we can skip
-			 * running triggers:
-			 */
-			trigger_flags |= BTREE_TRIGGER_NORUN;
-		} else {
+		if (copy.k->k.size != k.k->size) {
 			/* We might end up splitting compressed extents: */
 			unsigned nr_ptrs =
 				bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(copy.k));
