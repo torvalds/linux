@@ -4966,9 +4966,7 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 		if (ret)
 			return ret;
 
-		if (gid_attr)
-			is_udp = (gid_attr->gid_type ==
-				 IB_GID_TYPE_ROCE_UDP_ENCAP);
+		is_udp = (gid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP);
 	}
 
 	/* Only HIP08 needs to set the vlan_en bits in QPC */
