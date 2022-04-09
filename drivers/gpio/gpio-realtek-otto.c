@@ -335,6 +335,10 @@ static const struct of_device_id realtek_gpio_of_match[] = {
 	{
 		.compatible = "realtek,rtl8390-gpio",
 	},
+	{
+		.compatible = "realtek,rtl9300-gpio",
+		.data = (void *)(GPIO_PORTS_REVERSED | GPIO_INTERRUPTS_PER_CPU)
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, realtek_gpio_of_match);
