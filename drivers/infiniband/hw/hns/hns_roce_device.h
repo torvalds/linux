@@ -106,16 +106,6 @@ enum {
 	SERV_TYPE_XRC = 5,
 };
 
-enum hns_roce_qp_state {
-	HNS_ROCE_QP_STATE_RST,
-	HNS_ROCE_QP_STATE_INIT,
-	HNS_ROCE_QP_STATE_RTR,
-	HNS_ROCE_QP_STATE_RTS,
-	HNS_ROCE_QP_STATE_SQD,
-	HNS_ROCE_QP_STATE_ERR,
-	HNS_ROCE_QP_NUM_STATE,
-};
-
 enum hns_roce_event {
 	HNS_ROCE_EVENT_TYPE_PATH_MIG                  = 0x01,
 	HNS_ROCE_EVENT_TYPE_PATH_MIG_FAILED           = 0x02,
@@ -1191,7 +1181,6 @@ void *hns_roce_get_send_wqe(struct hns_roce_qp *hr_qp, unsigned int n);
 void *hns_roce_get_extend_sge(struct hns_roce_qp *hr_qp, unsigned int n);
 bool hns_roce_wq_overflow(struct hns_roce_wq *hr_wq, u32 nreq,
 			  struct ib_cq *ib_cq);
-enum hns_roce_qp_state to_hns_roce_state(enum ib_qp_state state);
 void hns_roce_lock_cqs(struct hns_roce_cq *send_cq,
 		       struct hns_roce_cq *recv_cq);
 void hns_roce_unlock_cqs(struct hns_roce_cq *send_cq,
