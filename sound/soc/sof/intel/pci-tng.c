@@ -75,7 +75,11 @@ static int tangier_pci_probe(struct snd_sof_dev *sdev)
 
 	/* LPE base */
 	base = pci_resource_start(pci, desc->resindex_lpe_base) - IRAM_OFFSET;
-	size = PCI_BAR_SIZE;
+	size = pci_resource_len(pci, desc->resindex_lpe_base);
+	if (size < PCI_BAR_SIZE) {
+		dev_err(sdev->dev, "error: I/O region is too small.\n");
+		return -ENODEV;
+	}
 
 	dev_dbg(sdev->dev, "LPE PHY base at 0x%x size 0x%x", base, size);
 	sdev->bar[DSP_BAR] = devm_ioremap(sdev->dev, base, size);
