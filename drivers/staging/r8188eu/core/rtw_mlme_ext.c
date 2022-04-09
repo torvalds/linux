@@ -5767,13 +5767,11 @@ unsigned int send_beacon(struct adapter *padapter)
 
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		return _FAIL;
-	if (!bxmitok) {
+	if (!bxmitok)
 		return _FAIL;
-	} else {
-		rtw_get_passing_time_ms(start);
 
-		return _SUCCESS;
-	}
+	rtw_get_passing_time_ms(start);
+	return _SUCCESS;
 }
 
 bool get_beacon_valid_bit(struct adapter *adapter)
