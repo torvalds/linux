@@ -59,6 +59,14 @@ properties:
           - st,stm32mp1-rcc
       - const: syscon
 
+  clocks:
+    description:
+      Specifies the external RX clock for ethernet MAC.
+    maxItems: 1
+
+  clock-names:
+    const: ETH_RX_CLK/ETH_REF_CLK
+
   reg:
     maxItems: 1
 
