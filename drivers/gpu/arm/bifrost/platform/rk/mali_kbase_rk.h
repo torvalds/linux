@@ -33,6 +33,8 @@ struct rk_context {
 	 */
 	bool is_powered;
 
+	bool is_regulator_on;
+
 	struct kbase_device *kbdev;
 
 	struct workqueue_struct *power_off_wq;

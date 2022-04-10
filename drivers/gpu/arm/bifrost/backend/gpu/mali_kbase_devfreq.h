@@ -25,7 +25,6 @@
 int kbase_devfreq_init(struct kbase_device *kbdev);
 
 void kbase_devfreq_term(struct kbase_device *kbdev);
-int kbase_platform_rk_init_opp_table(struct kbase_device *kbdev);
 int kbase_devfreq_opp_helper(struct dev_pm_set_opp_data *data);
 
 /**

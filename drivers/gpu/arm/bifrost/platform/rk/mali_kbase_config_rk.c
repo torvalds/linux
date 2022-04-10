@@ -34,6 +34,7 @@
 #include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
 
+#include "mali_kbase_config_platform.h"
 #include "mali_kbase_rk.h"
 
 #define POWER_DOWN_FREQ	200000000
@@ -105,6 +106,7 @@ static void rk_pm_power_off_delay_work(struct work_struct *work)
 	rk_pm_disable_clk(kbdev);
 
 	rk_pm_disable_regulator(kbdev);
+	platform->is_regulator_on = false;
 
 	platform->is_powered = false;
 	wake_unlock(&platform->wake_lock);
@@ -243,11 +245,14 @@ static int rk_pm_callback_power_on(struct kbase_device *kbdev)
 	}
 
 	/* we must enable vdd_gpu before pd_gpu_in_chip. */
-	err = rk_pm_enable_regulator(kbdev);
-	if (err) {
-		E("fail to enable regulator, err : %d.", err);
-		ret = err;
-		goto out;
+	if (!platform->is_regulator_on) {
+		err = rk_pm_enable_regulator(kbdev);
+		if (err) {
+			E("fail to enable regulator, err : %d.", err);
+			ret = err;
+			goto out;
+		}
+		platform->is_regulator_on = true;
 	}
 
 	err = rk_pm_enable_clk(kbdev);
@@ -552,6 +557,23 @@ int kbase_platform_rk_init_opp_table(struct kbase_device *kbdev)
 
 	return rockchip_init_opp_table(kbdev->dev, &kbdev->opp_info,
 				       "gpu_leakage", "mali");
+}
+
+int kbase_platform_rk_enable_regulator(struct kbase_device *kbdev)
+{
+	struct rk_context *platform = get_rk_context(kbdev);
+	int err = 0;
+
+	if (!platform->is_regulator_on) {
+		err = rk_pm_enable_regulator(kbdev);
+		if (err) {
+			E("fail to enable regulator, err : %d.", err);
+			return err;
+		}
+		platform->is_regulator_on = true;
+	}
+
+	return 0;
 }
 
 /*---------------------------------------------------------------------------*/
