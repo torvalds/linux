@@ -21,14 +21,17 @@
 #include <linux/errno.h>
 #include <linux/hwmon.h>
 #include <linux/init.h>
+#include <linux/kconfig.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/smp.h>
+#include <linux/string.h>
+#include <linux/thermal.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 
@@ -78,6 +81,11 @@ struct dell_smm_data {
 	bool fan[DELL_SMM_NO_FANS];
 	int fan_type[DELL_SMM_NO_FANS];
 	int *fan_nominal_speed[DELL_SMM_NO_FANS];
+};
+
+struct dell_smm_cooling_data {
+	u8 fan_num;
+	struct dell_smm_data *data;
 };
 
 MODULE_AUTHOR("Massimo Dal Zotto (dz@debian.org)");
@@ -638,9 +646,50 @@ static void __init i8k_init_procfs(struct device *dev)
 
 #endif
 
-/*
- * Hwmon interface
- */
+static int dell_smm_get_max_state(struct thermal_cooling_device *dev, unsigned long *state)
+{
+	struct dell_smm_cooling_data *cdata = dev->devdata;
+
+	*state = cdata->data->i8k_fan_max;
+
+	return 0;
+}
+
+static int dell_smm_get_cur_state(struct thermal_cooling_device *dev, unsigned long *state)
+{
+	struct dell_smm_cooling_data *cdata = dev->devdata;
+	int ret;
+
+	ret = i8k_get_fan_status(cdata->data, cdata->fan_num);
+	if (ret < 0)
+		return ret;
+
+	*state = ret;
+
+	return 0;
+}
+
+static int dell_smm_set_cur_state(struct thermal_cooling_device *dev, unsigned long state)
+{
+	struct dell_smm_cooling_data *cdata = dev->devdata;
+	struct dell_smm_data *data = cdata->data;
+	int ret;
+
+	if (state > data->i8k_fan_max)
+		return -EINVAL;
+
+	mutex_lock(&data->i8k_mutex);
+	ret = i8k_set_fan(data, cdata->fan_num, (int)state);
+	mutex_unlock(&data->i8k_mutex);
+
+	return ret;
+}
+
+static const struct thermal_cooling_device_ops dell_smm_cooling_ops = {
+	.get_max_state = dell_smm_get_max_state,
+	.get_cur_state = dell_smm_get_cur_state,
+	.set_cur_state = dell_smm_set_cur_state,
+};
 
 static umode_t dell_smm_is_visible(const void *drvdata, enum hwmon_sensor_types type, u32 attr,
 				   int channel)
@@ -941,6 +990,37 @@ static const struct hwmon_chip_info dell_smm_chip_info = {
 	.info = dell_smm_info,
 };
 
+static int __init dell_smm_init_cdev(struct device *dev, u8 fan_num)
+{
+	struct dell_smm_data *data = dev_get_drvdata(dev);
+	struct thermal_cooling_device *cdev;
+	struct dell_smm_cooling_data *cdata;
+	int ret = 0;
+	char *name;
+
+	name = kasprintf(GFP_KERNEL, "dell-smm-fan%u", fan_num + 1);
+	if (!name)
+		return -ENOMEM;
+
+	cdata = devm_kmalloc(dev, sizeof(*cdata), GFP_KERNEL);
+	if (cdata) {
+		cdata->fan_num = fan_num;
+		cdata->data = data;
+		cdev = devm_thermal_of_cooling_device_register(dev, NULL, name, cdata,
+							       &dell_smm_cooling_ops);
+		if (IS_ERR(cdev)) {
+			devm_kfree(dev, cdata);
+			ret = PTR_ERR(cdev);
+		}
+	} else {
+		ret = -ENOMEM;
+	}
+
+	kfree(name);
+
+	return ret;
+}
+
 static int __init dell_smm_init_hwmon(struct device *dev)
 {
 	struct dell_smm_data *data = dev_get_drvdata(dev);
@@ -967,6 +1047,15 @@ static int __init dell_smm_init_hwmon(struct device *dev)
 			continue;
 
 		data->fan[i] = true;
+
+		/* the cooling device is not critical, ignore failures */
+		if (IS_REACHABLE(CONFIG_THERMAL)) {
+			err = dell_smm_init_cdev(dev, i);
+			if (err < 0)
+				dev_warn(dev, "Failed to register cooling device for fan %u\n",
+					 i + 1);
+		}
+
 		data->fan_nominal_speed[i] = devm_kmalloc_array(dev, data->i8k_fan_max + 1,
 								sizeof(*data->fan_nominal_speed[i]),
 								GFP_KERNEL);

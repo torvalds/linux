@@ -500,6 +500,7 @@ config SENSORS_DS1621
 config SENSORS_DELL_SMM
 	tristate "Dell laptop SMM BIOS hwmon driver"
 	depends on X86
+	imply THERMAL
 	help
 	  This hwmon driver adds support for reporting temperature of different
 	  sensors and controls the fans on Dell laptops via System Management
