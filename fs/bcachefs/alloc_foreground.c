@@ -1381,14 +1381,14 @@ void bch2_open_buckets_to_text(struct printbuf *out, struct bch_fs *c)
 	     ob++) {
 		spin_lock(&ob->lock);
 		if (ob->valid && !ob->on_partial_list) {
-			pr_buf(out, "%zu ref %u type %s\n",
+			pr_buf(out, "%zu ref %u type %s %u:%llu:%u\n",
 			       ob - c->open_buckets,
 			       atomic_read(&ob->pin),
-			       bch2_data_types[ob->data_type]);
+			       bch2_data_types[ob->data_type],
+			       ob->dev, ob->bucket, ob->gen);
 		}
 		spin_unlock(&ob->lock);
 	}
-
 }
 
 static const char * const bch2_write_point_states[] = {
