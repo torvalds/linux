@@ -232,7 +232,6 @@
 			reg = <8>;
 			ethernet = <&gmac2>;
 			label = "cpu";
-			status = "disabled";
 
 			fixed-link {
 				speed = <1000>;
@@ -240,6 +239,10 @@
 			};
 		};
 	};
+};
+
+&gmac0 {
+	status = "disabled";
 };
 
 &gmac1 {
