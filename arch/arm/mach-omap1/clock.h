@@ -53,7 +53,6 @@ struct omap_clk {
 struct clkops {
 	int			(*enable)(struct clk *);
 	void			(*disable)(struct clk *);
-	void			(*allow_idle)(struct clk *);
 };
 
 /*
@@ -64,7 +63,6 @@ struct clkops {
 #define ENABLE_REG_32BIT	(1 << 0)	/* Use 32-bit access */
 #define CLOCK_IDLE_CONTROL	(1 << 1)
 #define CLOCK_NO_IDLE_PARENT	(1 << 2)
-#define ENABLE_ON_INIT		(1 << 3)	/* Enable upon framework init */
 
 /**
  * struct clk - OMAP struct clk
@@ -135,7 +133,6 @@ extern void clk_unregister(struct clk *clk);
 extern void propagate_rate(struct clk *clk);
 extern unsigned long followparent_recalc(struct clk *clk);
 unsigned long omap_fixed_divisor_recalc(struct clk *clk);
-extern int omap_clk_enable_autoidle_all(void);
 
 extern const struct clkops clkops_null;
 
