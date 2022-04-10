@@ -740,7 +740,7 @@ static int i740fb_set_par(struct fb_info *info)
 	if (i)
 		return i;
 
-	memset(info->screen_base, 0, info->screen_size);
+	memset_io(info->screen_base, 0, info->screen_size);
 
 	vga_protect(par);
 
