@@ -583,6 +583,11 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 			return ret;
 	}
 
+	if (new_a->data_type == BCH_DATA_cached &&
+	    !new_a->io_time[READ])
+		new_a->io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
+
+
 	old_lru = alloc_lru_idx(old_a);
 	new_lru = alloc_lru_idx(*new_a);
 
@@ -592,7 +597,7 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 		if (ret)
 			return ret;
 
-		if (new_lru && new_a->io_time[READ] != new_lru)
+		if (new_a->data_type == BCH_DATA_cached)
 			new_a->io_time[READ] = new_lru;
 	}
 
@@ -869,10 +874,10 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 		if (!a.io_time[READ])
 			a.io_time[READ] = atomic64_read(&c->io_clock[READ].now);
 
-		ret = bch2_lru_change(trans,
-				      alloc_k.k->p.inode,
-				      alloc_k.k->p.offset,
-				      0, &a.io_time[READ]);
+		ret = bch2_lru_set(trans,
+				   alloc_k.k->p.inode,
+				   alloc_k.k->p.offset,
+				   &a.io_time[READ]);
 		if (ret)
 			goto err;
 

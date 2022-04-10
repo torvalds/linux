@@ -30,7 +30,7 @@ void bch2_lru_to_text(struct printbuf *out, struct bch_fs *c,
 	pr_buf(out, "idx %llu", le64_to_cpu(lru->idx));
 }
 
-static int lru_delete(struct btree_trans *trans, u64 id, u64 idx, u64 time)
+int bch2_lru_delete(struct btree_trans *trans, u64 id, u64 idx, u64 time)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -72,7 +72,7 @@ err:
 	return ret;
 }
 
-static int lru_set(struct btree_trans *trans, u64 lru_id, u64 idx, u64 *time)
+int bch2_lru_set(struct btree_trans *trans, u64 lru_id, u64 idx, u64 *time)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -119,8 +119,8 @@ int bch2_lru_change(struct btree_trans *trans, u64 id, u64 idx,
 	if (old_time == *new_time)
 		return 0;
 
-	return  lru_delete(trans, id, idx, old_time) ?:
-		lru_set(trans, id, idx, new_time);
+	return  bch2_lru_delete(trans, id, idx, old_time) ?:
+		bch2_lru_set(trans, id, idx, new_time);
 }
 
 static int bch2_check_lru_key(struct btree_trans *trans,

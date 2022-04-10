@@ -1405,6 +1405,13 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 
 	a->v = new;
 
+	/*
+	 * The trigger normally makes sure this is set, but we're not running
+	 * triggers:
+	 */
+	if (a->v.data_type == BCH_DATA_cached && !a->v.io_time[READ])
+		a->v.io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
+
 	ret = bch2_trans_update(trans, iter, &a->k_i, BTREE_TRIGGER_NORUN);
 fsck_err:
 	return ret;
