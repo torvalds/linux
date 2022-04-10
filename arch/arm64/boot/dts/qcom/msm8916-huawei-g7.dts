@@ -11,15 +11,10 @@
 
 /*
  * Note: The original firmware from Huawei can only boot 32-bit kernels.
- * To boot arm64 kernels it is necessary to flash 64-bit TZ/HYP firmware
- * with EDL, e.g. taken from the DragonBoard 410c. This works because Huawei
- * forgot to set up (firmware) secure boot for some reason.
- *
- * Also note that Huawei no longer provides bootloader unlock codes.
- * This can be bypassed by patching the bootloader from a custom HYP firmware,
- * making it think the bootloader is unlocked.
- *
- * See: https://wiki.postmarketos.org/wiki/Huawei_Ascend_G7_(huawei-g7)
+ * To boot this device tree using arm64 it is necessary to flash 64-bit TZ/HYP
+ * firmware (e.g. taken from the DragonBoard 410c).
+ * See https://wiki.postmarketos.org/wiki/Huawei_Ascend_G7_(huawei-g7)
+ * for suggested installation instructions.
  */
 
 / {
