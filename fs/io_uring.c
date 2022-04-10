@@ -11178,7 +11178,8 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 			IORING_FEAT_CUR_PERSONALITY | IORING_FEAT_FAST_POLL |
 			IORING_FEAT_POLL_32BITS | IORING_FEAT_SQPOLL_NONFIXED |
 			IORING_FEAT_EXT_ARG | IORING_FEAT_NATIVE_WORKERS |
-			IORING_FEAT_RSRC_TAGS | IORING_FEAT_CQE_SKIP;
+			IORING_FEAT_RSRC_TAGS | IORING_FEAT_CQE_SKIP |
+			IORING_FEAT_LINKED_FILE;
 
 	if (copy_to_user(params, p, sizeof(*p))) {
 		ret = -EFAULT;
