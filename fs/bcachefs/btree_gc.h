@@ -105,7 +105,8 @@ static inline bool gc_visited(struct bch_fs *c, struct gc_pos pos)
 static inline void bch2_do_gc_gens(struct bch_fs *c)
 {
 	atomic_inc(&c->kick_gc);
-	wake_up_process(c->gc_thread);
+	if (c->gc_thread)
+		wake_up_process(c->gc_thread);
 }
 
 #endif /* _BCACHEFS_BTREE_GC_H */
