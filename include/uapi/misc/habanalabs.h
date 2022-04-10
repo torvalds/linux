@@ -1134,6 +1134,7 @@ union hl_wait_cs_args {
 #define HL_MEM_SHARED		0x2
 #define HL_MEM_USERPTR		0x4
 #define HL_MEM_FORCE_HINT	0x8
+#define HL_MEM_PREFETCH		0x40
 
 /**
  * structure hl_mem_in - structure that handle input args for memory IOCTL

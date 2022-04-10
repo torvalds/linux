@@ -1250,11 +1250,12 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	if (rc)
 		goto map_err;
 
-	/* already prefetch the relevant translations to the cache */
-	rc = hl_mmu_prefetch_cache_range(hdev, *vm_type, ctx->asid, ret_vaddr,
-						phys_pg_pack->total_size);
-	if (rc)
-		goto map_err;
+	if (args->flags & HL_MEM_PREFETCH) {
+		rc = hl_mmu_prefetch_cache_range(hdev, *vm_type, ctx->asid, ret_vaddr,
+							phys_pg_pack->total_size);
+		if (rc)
+			goto map_err;
+	}
 
 	mutex_unlock(&ctx->mmu_lock);
 
