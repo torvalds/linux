@@ -767,9 +767,9 @@ static int bset_key_invalid(struct bch_fs *c, struct btree *b,
 			    bool updated_range, int rw,
 			    struct printbuf *err)
 {
-	return __bch2_bkey_invalid(c, k, btree_node_type(b), rw, err) ?:
+	return __bch2_bkey_invalid(c, k, btree_node_type(b), READ, err) ?:
 		(!updated_range ? bch2_bkey_in_btree_node(b, k, err) : 0) ?:
-		(rw == WRITE ? bch2_bkey_val_invalid(c, k, rw, err) : 0);
+		(rw == WRITE ? bch2_bkey_val_invalid(c, k, READ, err) : 0);
 }
 
 static int validate_bset_keys(struct bch_fs *c, struct btree *b,

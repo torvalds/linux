@@ -864,10 +864,11 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	struct btree_insert_entry *i;
 	struct printbuf buf = PRINTBUF;
 	int ret, u64s_delta = 0;
+	int rw = (trans->flags & BTREE_INSERT_JOURNAL_REPLAY) ? READ : WRITE;
 
 	trans_for_each_update(trans, i) {
 		if (bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
-				      i->bkey_type, WRITE, &buf)) {
+				      i->bkey_type, rw, &buf)) {
 			printbuf_reset(&buf);
 			pr_buf(&buf, "invalid bkey on insert from %s -> %ps",
 			       trans->fn, (void *) i->ip_allocated);
@@ -878,7 +879,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 			pr_newline(&buf);
 
 			bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
-					  i->bkey_type, WRITE, &buf);
+					  i->bkey_type, rw, &buf);
 
 			bch2_trans_inconsistent(trans, "%s", buf.buf);
 			printbuf_exit(&buf);
