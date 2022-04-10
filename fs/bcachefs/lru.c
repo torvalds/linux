@@ -32,7 +32,6 @@ void bch2_lru_to_text(struct printbuf *out, struct bch_fs *c,
 
 static int lru_delete(struct btree_trans *trans, u64 id, u64 idx, u64 time)
 {
-	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	u64 existing_idx;
@@ -51,7 +50,7 @@ static int lru_delete(struct btree_trans *trans, u64 id, u64 idx, u64 time)
 		goto err;
 
 	if (k.k->type != KEY_TYPE_lru) {
-		bch2_fs_inconsistent(c,
+		bch2_trans_inconsistent(trans,
 			"pointer to nonexistent lru %llu:%llu",
 			id, time);
 		ret = -EIO;
@@ -60,7 +59,7 @@ static int lru_delete(struct btree_trans *trans, u64 id, u64 idx, u64 time)
 
 	existing_idx = le64_to_cpu(bkey_s_c_to_lru(k).v->idx);
 	if (existing_idx != idx) {
-		bch2_fs_inconsistent(c,
+		bch2_trans_inconsistent(trans,
 			"lru %llu:%llu with wrong backpointer: got %llu, should be %llu",
 			id, time, existing_idx, idx);
 		ret = -EIO;
