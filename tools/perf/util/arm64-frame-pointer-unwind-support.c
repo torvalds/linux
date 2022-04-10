@@ -53,7 +53,7 @@ u64 get_leaf_frame_caller_aarch64(struct perf_sample *sample, struct thread *thr
 		sample->user_regs.cache_regs[PERF_REG_ARM64_SP] = 0;
 	}
 
-	ret = unwind__get_entries(add_entry, &entries, thread, sample, 2);
+	ret = unwind__get_entries(add_entry, &entries, thread, sample, 2, true);
 	sample->user_regs = old_regs;
 
 	if (ret || entries.length != 2)
