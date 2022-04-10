@@ -662,7 +662,7 @@ void kvm_inc_notifier_count(struct kvm *kvm, unsigned long start,
 		kvm->mmu_notifier_range_end = end;
 	} else {
 		/*
-		 * Fully tracking multiple concurrent ranges has dimishing
+		 * Fully tracking multiple concurrent ranges has diminishing
 		 * returns. Keep things simple and just find the minimal range
 		 * which includes the current and new ranges. As there won't be
 		 * enough information to subtract a range after its invalidate
@@ -1799,7 +1799,7 @@ static int kvm_set_memslot(struct kvm *kvm,
 
 	/*
 	 * No need to refresh new->arch, changes after dropping slots_arch_lock
-	 * will directly hit the final, active memsot.  Architectures are
+	 * will directly hit the final, active memslot.  Architectures are
 	 * responsible for knowing that new->arch may be stale.
 	 */
 	kvm_commit_memory_region(kvm, old, new, change);
