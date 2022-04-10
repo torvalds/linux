@@ -16,17 +16,17 @@
 #include "replicas.h"
 #include "trace.h"
 
-static inline u32 journal_entry_radix_idx(struct bch_fs *c,
-					  struct jset *j)
+static inline u32 journal_entry_radix_idx(struct bch_fs *c, u64 seq)
 {
-	return (le64_to_cpu(j->seq) - c->journal_entries_base_seq) & (~0U >> 1);
+	return (seq - c->journal_entries_base_seq) & (~0U >> 1);
 }
 
 static void __journal_replay_free(struct bch_fs *c,
 				  struct journal_replay *i)
 {
 	struct journal_replay **p =
-		genradix_ptr(&c->journal_entries, journal_entry_radix_idx(c, &i->j));
+		genradix_ptr(&c->journal_entries,
+			     journal_entry_radix_idx(c, le64_to_cpu(i->j.seq)));
 
 	BUG_ON(*p != i);
 	*p = NULL;
@@ -44,6 +44,7 @@ static void journal_replay_free(struct bch_fs *c, struct journal_replay *i)
 
 struct journal_list {
 	struct closure		cl;
+	u64			last_seq;
 	struct mutex		lock;
 	int			ret;
 };
@@ -64,55 +65,50 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 	struct journal_replay **_i, *i, *dup;
 	struct journal_ptr *ptr;
 	size_t bytes = vstruct_bytes(j);
-	u64 last_seq = 0;
+	u64 last_seq = !JSET_NO_FLUSH(j) ? le64_to_cpu(j->last_seq) : 0;
 	int ret = JOURNAL_ENTRY_ADD_OK;
 
+	/* Is this entry older than the range we need? */
+	if (!c->opts.read_entire_journal &&
+	    le64_to_cpu(j->seq) < jlist->last_seq)
+		return JOURNAL_ENTRY_ADD_OUT_OF_RANGE;
+
 	/*
-	 * Xarrays are indexed by a ulong, not a u64, so we can't index them by
-	 * sequence number directly:
-	 * Assume instead that they will all fall within the range of +-2billion
-	 * of the filrst one we find.
+	 * genradixes are indexed by a ulong, not a u64, so we can't index them
+	 * by sequence number directly: Assume instead that they will all fall
+	 * within the range of +-2billion of the filrst one we find.
 	 */
 	if (!c->journal_entries_base_seq)
 		c->journal_entries_base_seq = max_t(s64, 1, le64_to_cpu(j->seq) - S32_MAX);
 
-#if 0
-	list_for_each_entry_reverse(i, jlist->head, list) {
-		if (!JSET_NO_FLUSH(&i->j)) {
-			last_seq = le64_to_cpu(i->j.last_seq);
-			break;
-		}
-	}
-#endif
-
-	/* Is this entry older than the range we need? */
-	if (!c->opts.read_entire_journal &&
-	    le64_to_cpu(j->seq) < last_seq) {
-		ret = JOURNAL_ENTRY_ADD_OUT_OF_RANGE;
-		goto out;
-	}
-
 	/* Drop entries we don't need anymore */
-	if (!JSET_NO_FLUSH(j) && !c->opts.read_entire_journal) {
-		genradix_for_each(&c->journal_entries, iter, _i) {
+	if (last_seq > jlist->last_seq && !c->opts.read_entire_journal) {
+		genradix_for_each_from(&c->journal_entries, iter, _i,
+				       journal_entry_radix_idx(c, jlist->last_seq)) {
 			i = *_i;
 
-			if (!i)
+			if (!i || i->ignore)
 				continue;
 
-			if (le64_to_cpu(i->j.seq) >= le64_to_cpu(j->last_seq))
+			if (le64_to_cpu(i->j.seq) >= last_seq)
 				break;
 			journal_replay_free(c, i);
 		}
 	}
 
-	_i = genradix_ptr(&c->journal_entries, journal_entry_radix_idx(c, j));
-	dup = _i ? *_i : NULL;
+	jlist->last_seq = max(jlist->last_seq, last_seq);
+
+	_i = genradix_ptr_alloc(&c->journal_entries,
+				journal_entry_radix_idx(c, le64_to_cpu(j->seq)),
+				GFP_KERNEL);
+	if (!_i)
+		return -ENOMEM;
 
 	/*
 	 * Duplicate journal entries? If so we want the one that didn't have a
 	 * checksum error:
 	 */
+	dup = *_i;
 	if (dup) {
 		if (dup->bad) {
 			/* we'll replace @dup: */
@@ -130,10 +126,8 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 	}
 
 	i = kvpmalloc(offsetof(struct journal_replay, j) + bytes, GFP_KERNEL);
-	if (!i) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!i)
+		return -ENOMEM;
 
 	i->nr_ptrs	 = 0;
 	i->bad		= bad;
@@ -146,14 +140,6 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 		__journal_replay_free(c, dup);
 	}
 
-	_i = genradix_ptr_alloc(&c->journal_entries,
-				journal_entry_radix_idx(c, &i->j),
-				GFP_KERNEL);
-	if (!_i) {
-		bch_err(c, "failed to allocate c->journal_entries entry");
-		ret = -ENOMEM;
-		goto out;
-	}
 
 	*_i = i;
 found:
@@ -1064,6 +1050,7 @@ int bch2_journal_read(struct bch_fs *c, u64 *blacklist_seq, u64 *start_seq)
 
 	closure_init_stack(&jlist.cl);
 	mutex_init(&jlist.lock);
+	jlist.last_seq = 0;
 	jlist.ret = 0;
 
 	for_each_member_device(ca, c, iter) {
