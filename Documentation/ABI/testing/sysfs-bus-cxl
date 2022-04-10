@@ -241,3 +241,30 @@ Description:
 		allocations are enforced to occur in increasing 'decoderX.Y/id'
 		order and frees are enforced to occur in decreasing
 		'decoderX.Y/id' order.
+
+
+What:		/sys/bus/cxl/devices/decoderX.Y/interleave_ways
+Date:		May, 2022
+KernelVersion:	v5.20
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) The number of targets across which this decoder's host
+		physical address (HPA) memory range is interleaved. The device
+		maps every Nth block of HPA (of size ==
+		'interleave_granularity') to consecutive DPA addresses. The
+		decoder's position in the interleave is determined by the
+		device's (endpoint or switch) switch ancestry. For root
+		decoders their interleave is specified by platform firmware and
+		they only specify a downstream target order for host bridges.
+
+
+What:		/sys/bus/cxl/devices/decoderX.Y/interleave_granularity
+Date:		May, 2022
+KernelVersion:	v5.20
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) The number of consecutive bytes of host physical address
+		space this decoder claims at address N before the decode rotates
+		to the next target in the interleave at address N +
+		interleave_granularity (assuming N is aligned to
+		interleave_granularity).
