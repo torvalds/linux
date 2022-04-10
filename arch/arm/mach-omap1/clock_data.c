@@ -766,11 +766,11 @@ int __init omap1_clk_init(void)
 	u32 reg;
 
 #ifdef CONFIG_DEBUG_LL
-	/*
-	 * Resets some clocks that may be left on from bootloader,
-	 * but leaves serial clocks on.
-	 */
-	omap_writel(0x3 << 29, MOD_CONF_CTRL_0);
+	/* Make sure UART clocks are enabled early */
+	if (cpu_is_omap16xx())
+		omap_writel(omap_readl(MOD_CONF_CTRL_0) |
+			    CONF_MOD_UART1_CLK_MODE_R |
+			    CONF_MOD_UART3_CLK_MODE_R, MOD_CONF_CTRL_0);
 #endif
 
 	/* USB_REQ_EN will be disabled later if necessary (usb_dc_ck) */
