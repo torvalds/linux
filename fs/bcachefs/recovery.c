@@ -198,7 +198,7 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 	if (keys->nr == keys->size) {
 		struct journal_keys new_keys = {
 			.nr			= keys->nr,
-			.size			= max(keys->size, 8UL) * 2,
+			.size			= max_t(size_t, keys->size, 8) * 2,
 			.journal_seq_base	= keys->journal_seq_base,
 		};
 

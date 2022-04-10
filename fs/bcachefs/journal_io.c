@@ -987,7 +987,7 @@ static void bch2_journal_read_device(struct closure *cl)
 		for (i = 0; i < r->nr_ptrs; i++) {
 			if (r->ptrs[i].dev == ca->dev_idx &&
 			    sector_to_bucket(ca, r->ptrs[i].sector) == ja->buckets[ja->cur_idx]) {
-				unsigned wrote = (r->ptrs[i].sector % ca->mi.bucket_size) +
+				unsigned wrote = bucket_remainder(ca, r->ptrs[i].sector) +
 					vstruct_sectors(&r->j, c->block_bits);
 
 				ja->sectors_free = min(ja->sectors_free,

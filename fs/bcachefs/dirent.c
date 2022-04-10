@@ -108,7 +108,7 @@ int bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	}
 
 	if (len > BCH_NAME_MAX) {
-		pr_buf(err, "dirent name too big (%u > %lu)",
+		pr_buf(err, "dirent name too big (%u > %u)",
 		       len, BCH_NAME_MAX);
 		return -EINVAL;
 	}

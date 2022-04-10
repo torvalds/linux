@@ -851,10 +851,9 @@ struct bch_dirent {
 #define DT_SUBVOL	16
 #define BCH_DT_MAX	17
 
-#define BCH_NAME_MAX	(U8_MAX * sizeof(u64) -				\
+#define BCH_NAME_MAX	((unsigned) (U8_MAX * sizeof(u64) -		\
 			 sizeof(struct bkey) -				\
-			 offsetof(struct bch_dirent, d_name))
-
+			 offsetof(struct bch_dirent, d_name)))
 
 /* Xattrs */
 
