@@ -93,17 +93,15 @@
 	};
 };
 
-&ethernet {
-	gmac1: mac@1 {
-		status = "okay";
-		phy-handle = <&ethphy7>;
-	};
+&gmac1 {
+	status = "okay";
+	phy-handle = <&ethphy7>;
+};
 
-	mdio-bus {
-		ethphy7: ethernet-phy@7 {
-			reg = <7>;
-			phy-mode = "rgmii-rxid";
-		};
+&mdio {
+	ethphy7: ethernet-phy@7 {
+		reg = <7>;
+		phy-mode = "rgmii-rxid";
 	};
 };
 
