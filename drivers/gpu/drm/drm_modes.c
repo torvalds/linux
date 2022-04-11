@@ -735,8 +735,8 @@ EXPORT_SYMBOL_GPL(of_get_drm_display_mode);
  * @dmode: will be set to the return value
  * @bus_flags: information about pixelclk, sync and DE polarity
  *
- * The Device Tree properties width-mm and height-mm will be read and set on
- * the display mode if they are present.
+ * The mandatory Device Tree properties width-mm and height-mm
+ * are read and set on the display mode.
  *
  * Returns:
  * Zero on success, negative error code on failure.
@@ -761,11 +761,11 @@ int of_get_drm_panel_display_mode(struct device_node *np,
 		drm_bus_flags_from_videomode(&vm, bus_flags);
 
 	ret = of_property_read_u32(np, "width-mm", &width_mm);
-	if (ret && ret != -EINVAL)
+	if (ret)
 		return ret;
 
 	ret = of_property_read_u32(np, "height-mm", &height_mm);
-	if (ret && ret != -EINVAL)
+	if (ret)
 		return ret;
 
 	dmode->width_mm = width_mm;
