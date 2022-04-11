@@ -2053,6 +2053,7 @@ struct drm_dp_aux {
 	bool is_remote;
 };
 
+int drm_dp_dpcd_probe(struct drm_dp_aux *aux, unsigned int offset);
 ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 			 void *buffer, size_t size);
 ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
