@@ -919,16 +919,6 @@ rmmutex:
 	return ret;
 }
 
-static void csi2_shutdown(struct platform_device *pdev)
-{
-	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
-	struct csi2_dev *csi2 = sd_to_dev(sd);
-
-	csi2_disable(csi2);
-	disable_irq(csi2->irq1);
-	disable_irq(csi2->irq2);
-}
-
 static int csi2_remove(struct platform_device *pdev)
 {
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
@@ -948,7 +938,6 @@ static struct platform_driver csi2_driver = {
 	},
 	.probe = csi2_probe,
 	.remove = csi2_remove,
-	.shutdown = csi2_shutdown,
 };
 
 int __init rkcif_csi2_plat_drv_init(void)

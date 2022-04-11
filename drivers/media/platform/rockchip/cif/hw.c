@@ -1296,6 +1296,9 @@ static void rkcif_hw_shutdown(struct platform_device *pdev)
 	struct rkcif_device *cif_dev = NULL;
 	int i = 0;
 
+	if (pm_runtime_get_if_in_use(&pdev->dev) <= 0)
+		return;
+
 	if (cif_hw->chip_id == CHIP_RK3588_CIF ||
 	    cif_hw->chip_id == CHIP_RV1106_CIF) {
 		write_cif_reg(cif_hw->base_addr, 0, 0);
@@ -1314,7 +1317,9 @@ static void rkcif_hw_shutdown(struct platform_device *pdev)
 			}
 		}
 	}
-	disable_irq(cif_hw->irq);
+	if (cif_hw->irq > 0)
+		disable_irq(cif_hw->irq);
+	pm_runtime_put(&pdev->dev);
 }
 
 static int __maybe_unused rkcif_runtime_suspend(struct device *dev)
