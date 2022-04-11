@@ -36,6 +36,12 @@
 		this_cpu_inc(s->__stat);						\
 	} while (0)
 
+#define recycle_stat_add(pool, __stat, val)						\
+	do {										\
+		struct page_pool_recycle_stats __percpu *s = pool->recycle_stats;	\
+		this_cpu_add(s->__stat, val);						\
+	} while (0)
+
 bool page_pool_get_stats(struct page_pool *pool,
 			 struct page_pool_stats *stats)
 {
@@ -63,6 +69,7 @@ EXPORT_SYMBOL(page_pool_get_stats);
 #else
 #define alloc_stat_inc(pool, __stat)
 #define recycle_stat_inc(pool, __stat)
+#define recycle_stat_add(pool, __stat, val)
 #endif
 
 static int page_pool_init(struct page_pool *pool,
@@ -566,9 +573,13 @@ void page_pool_put_page_bulk(struct page_pool *pool, void **data,
 	/* Bulk producer into ptr_ring page_pool cache */
 	page_pool_ring_lock(pool);
 	for (i = 0; i < bulk_len; i++) {
-		if (__ptr_ring_produce(&pool->ring, data[i]))
-			break; /* ring full */
+		if (__ptr_ring_produce(&pool->ring, data[i])) {
+			/* ring full */
+			recycle_stat_inc(pool, ring_full);
+			break;
+		}
 	}
+	recycle_stat_add(pool, ring, i);
 	page_pool_ring_unlock(pool);
 
 	/* Hopefully all pages was return into ptr_ring */
