@@ -1284,6 +1284,43 @@ xfs_rtmount_init(
 	return 0;
 }
 
+static int
+xfs_rtalloc_count_frextent(
+	struct xfs_mount		*mp,
+	struct xfs_trans		*tp,
+	const struct xfs_rtalloc_rec	*rec,
+	void				*priv)
+{
+	uint64_t			*valp = priv;
+
+	*valp += rec->ar_extcount;
+	return 0;
+}
+
+/*
+ * Reinitialize the number of free realtime extents from the realtime bitmap.
+ * Callers must ensure that there is no other activity in the filesystem.
+ */
+int
+xfs_rtalloc_reinit_frextents(
+	struct xfs_mount	*mp)
+{
+	uint64_t		val = 0;
+	int			error;
+
+	xfs_ilock(mp->m_rbmip, XFS_ILOCK_EXCL);
+	error = xfs_rtalloc_query_all(mp, NULL, xfs_rtalloc_count_frextent,
+			&val);
+	xfs_iunlock(mp->m_rbmip, XFS_ILOCK_EXCL);
+	if (error)
+		return error;
+
+	spin_lock(&mp->m_sb_lock);
+	mp->m_sb.sb_frextents = val;
+	spin_unlock(&mp->m_sb_lock);
+	return 0;
+}
+
 /*
  * Get the bitmap and summary inodes and the summary cache into the mount
  * structure at mount time.

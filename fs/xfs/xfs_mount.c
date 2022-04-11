@@ -468,6 +468,8 @@ STATIC int
 xfs_check_summary_counts(
 	struct xfs_mount	*mp)
 {
+	int			error = 0;
+
 	/*
 	 * The AG0 superblock verifier rejects in-progress filesystems,
 	 * so we should never see the flag set this far into mounting.
@@ -506,11 +508,32 @@ xfs_check_summary_counts(
 	 * superblock to be correct and we don't need to do anything here.
 	 * Otherwise, recalculate the summary counters.
 	 */
-	if ((!xfs_has_lazysbcount(mp) || xfs_is_clean(mp)) &&
-	    !xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS))
-		return 0;
+	if ((xfs_has_lazysbcount(mp) && !xfs_is_clean(mp)) ||
+	    xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS)) {
+		error = xfs_initialize_perag_data(mp, mp->m_sb.sb_agcount);
+		if (error)
+			return error;
+	}
 
-	return xfs_initialize_perag_data(mp, mp->m_sb.sb_agcount);
+	/*
+	 * Older kernels misused sb_frextents to reflect both incore
+	 * reservations made by running transactions and the actual count of
+	 * free rt extents in the ondisk metadata.  Transactions committed
+	 * during runtime can therefore contain a superblock update that
+	 * undercounts the number of free rt extents tracked in the rt bitmap.
+	 * A clean unmount record will have the correct frextents value since
+	 * there can be no other transactions running at that point.
+	 *
+	 * If we're mounting the rt volume after recovering the log, recompute
+	 * frextents from the rtbitmap file to fix the inconsistency.
+	 */
+	if (xfs_has_realtime(mp) && !xfs_is_clean(mp)) {
+		error = xfs_rtalloc_reinit_frextents(mp);
+		if (error)
+			return error;
+	}
+
+	return 0;
 }
 
 /*
@@ -784,11 +807,6 @@ xfs_mountfs(
 		goto out_inodegc_shrinker;
 	}
 
-	/* Make sure the summary counts are ok. */
-	error = xfs_check_summary_counts(mp);
-	if (error)
-		goto out_log_dealloc;
-
 	/* Enable background inode inactivation workers. */
 	xfs_inodegc_start(mp);
 	xfs_blockgc_start(mp);
@@ -843,6 +861,11 @@ xfs_mountfs(
 		xfs_warn(mp, "failed to read RT inodes");
 		goto out_rele_rip;
 	}
+
+	/* Make sure the summary counts are ok. */
+	error = xfs_check_summary_counts(mp);
+	if (error)
+		goto out_rtunmount;
 
 	/*
 	 * If this is a read-only mount defer the superblock updates until
