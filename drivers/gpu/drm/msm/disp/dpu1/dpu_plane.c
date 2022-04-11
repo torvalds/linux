@@ -1411,13 +1411,9 @@ static bool dpu_plane_format_mod_supported(struct drm_plane *plane,
 	if (modifier == DRM_FORMAT_MOD_LINEAR)
 		return true;
 
-	if (modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED) {
-		int i;
-		for (i = 0; i < ARRAY_SIZE(qcom_compressed_supported_formats); i++) {
-			if (format == qcom_compressed_supported_formats[i])
-				return true;
-		}
-	}
+	if (modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED)
+		return dpu_find_format(format, qcom_compressed_supported_formats,
+				ARRAY_SIZE(qcom_compressed_supported_formats));
 
 	return false;
 }
