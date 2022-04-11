@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * Crypto driver for the Aspeed SoC
- *
- * Copyright (C) ASPEED Technology Inc.
- * Ryan Chen <ryan_chen@aspeedtech.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
+ * Copyright 2021 Aspeed Technology Inc.
  */
-
+#include <linux/regmap.h>
 #include "aspeed-acry.h"
 
 // #define ASPEED_RSA_DEBUG
@@ -171,6 +159,10 @@ static int aspeed_acry_rsa_transfer(struct aspeed_acry_dev *acry_dev)
 	RSA_DBG("\n");
 
 	aspeed_acry_write(acry_dev, ACRY_CMD_DMA_SRAM_AHB_CPU, ASPEED_ACRY_DMA_CMD);
+
+	/* Disable ACRY SRAM protection */
+	regmap_update_bits(acry_dev->ahbc, AHBC_REGION_PROT,
+			   REGION_ACRYM, 0);
 	udelay(1);
 	// printk("sram result:\n");
 	// print_dram(sram_buffer, ASPEED_ACRY_RSA_MAX_LEN * 3);
@@ -262,6 +254,10 @@ int aspeed_acry_rsa_trigger(struct aspeed_acry_dev *acry_dev)
 	aspeed_acry_write(acry_dev, (ne << 16) + nm, ASPEED_ACRY_RSA_KEY_LEN);
 	aspeed_acry_write(acry_dev, DMA_DEST_LEN(0x1800), ASPEED_ACRY_DMA_DEST); //TODO check length
 	acry_dev->resume = aspeed_acry_rsa_transfer;
+
+	/* Enable ACRY SRAM protection */
+	regmap_update_bits(acry_dev->ahbc, AHBC_REGION_PROT,
+			   REGION_ACRYM, REGION_ACRYM);
 
 	aspeed_acry_write(acry_dev, ACRY_RSA_ISR, ASPEED_ACRY_INT_MASK);
 	aspeed_acry_write(acry_dev, ACRY_CMD_DMA_SRAM_MODE_RSA |

@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * Crypto driver for the Aspeed SoC G6
- *
- * Copyright (C) ASPEED Technology Inc.
- * Ryan Chen <ryan_chen@aspeedtech.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
+ * Copyright 2021 Aspeed Technology Inc.
  */
 #include <linux/platform_device.h>
 #include <linux/module.h>
@@ -22,6 +10,7 @@
 #include <linux/of_irq.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/mfd/syscon.h>
 
 #include "aspeed-acry.h"
 
@@ -234,6 +223,13 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no rsaclk clock defined\n");
 		return -ENODEV;
 	}
+
+	acry_dev->ahbc = syscon_regmap_lookup_by_phandle(dev->of_node, "aspeed,ahbc");
+	if (IS_ERR(acry_dev->ahbc)) {
+		dev_err(dev, "cannot to find AHBC regmap\n");
+		return -ENODEV;
+	}
+
 	clk_prepare_enable(acry_dev->rsaclk);
 
 	aspeed_acry_write(acry_dev, ACRY_CMD_DMA_SRAM_AHB_CPU, ASPEED_ACRY_DMA_CMD);

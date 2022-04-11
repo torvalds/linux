@@ -74,6 +74,9 @@
 #define ASPEED_EC_P			0x150
 #define ASPEED_EC_A			0x180
 
+/* AHBC */
+#define AHBC_REGION_PROT		0x240
+#define REGION_ACRYM			BIT(23)
 
 extern int exp_dw_mapping[512];
 extern int mod_dw_mapping[512];
@@ -137,6 +140,7 @@ struct aspeed_acry_dev {
 	int 				irq;
 	struct clk			*rsaclk;
 	unsigned long			version;
+	struct regmap			*ahbc;
 
 	struct crypto_queue		queue;
 	struct tasklet_struct		done_task;
