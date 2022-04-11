@@ -1832,8 +1832,7 @@ static int saa7134_overlay(struct file *file, void *priv, unsigned int on)
 		spin_lock_irqsave(&dev->slock, flags);
 		start_preview(dev);
 		spin_unlock_irqrestore(&dev->slock, flags);
-	}
-	if (!on) {
+	} else {
 		if (priv != dev->overlay_owner)
 			return -EINVAL;
 		spin_lock_irqsave(&dev->slock, flags);
