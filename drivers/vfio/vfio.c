@@ -815,6 +815,13 @@ static int __vfio_register_dev(struct vfio_device *device,
 
 int vfio_register_group_dev(struct vfio_device *device)
 {
+	/*
+	 * VFIO always sets IOMMU_CACHE because we offer no way for userspace to
+	 * restore cache coherency.
+	 */
+	if (!iommu_capable(device->dev->bus, IOMMU_CAP_CACHE_COHERENCY))
+		return -EINVAL;
+
 	return __vfio_register_dev(device,
 		vfio_group_find_or_alloc(device->dev));
 }
