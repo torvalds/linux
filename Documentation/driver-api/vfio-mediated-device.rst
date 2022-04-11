@@ -138,9 +138,6 @@ The structures in the mdev_parent_ops structure are as follows:
 * supported_config: attributes to define supported configurations
 * device_driver: device driver to bind for mediated device instances
 
-The mdev_parent_ops also still has various functions pointers.  Theses exist
-for historical reasons only and shall not be used for new drivers.
-
 When a driver wants to add the GUID creation sysfs to an existing device it has
 probe'd to then it should call::
 
