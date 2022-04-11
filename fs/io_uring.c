@@ -916,8 +916,12 @@ struct io_kiocb {
 	/* store used ubuf, so we can prevent reloading */
 	struct io_mapped_ubuf		*imu;
 
-	/* used by request caches, completion batching and iopoll */
-	struct io_wq_work_node		comp_list;
+	union {
+		/* used by request caches, completion batching and iopoll */
+		struct io_wq_work_node	comp_list;
+		/* cache ->apoll->events */
+		int apoll_events;
+	};
 	atomic_t			refs;
 	atomic_t			poll_refs;
 	struct io_task_work		io_task_work;
@@ -5833,7 +5837,6 @@ static void io_poll_remove_entries(struct io_kiocb *req)
 static int io_poll_check_events(struct io_kiocb *req, bool locked)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_poll_iocb *poll = io_poll_get_single(req);
 	int v;
 
 	/* req->task == current here, checking PF_EXITING is safe */
@@ -5850,17 +5853,17 @@ static int io_poll_check_events(struct io_kiocb *req, bool locked)
 			return -ECANCELED;
 
 		if (!req->result) {
-			struct poll_table_struct pt = { ._key = req->cflags };
+			struct poll_table_struct pt = { ._key = req->apoll_events };
 
 			if (unlikely(!io_assign_file(req, IO_URING_F_UNLOCKED)))
 				req->result = -EBADF;
 			else
-				req->result = vfs_poll(req->file, &pt) & req->cflags;
+				req->result = vfs_poll(req->file, &pt) & req->apoll_events;
 		}
 
 		/* multishot, just fill an CQE and proceed */
-		if (req->result && !(req->cflags & EPOLLONESHOT)) {
-			__poll_t mask = mangle_poll(req->result & poll->events);
+		if (req->result && !(req->apoll_events & EPOLLONESHOT)) {
+			__poll_t mask = mangle_poll(req->result & req->apoll_events);
 			bool filled;
 
 			spin_lock(&ctx->completion_lock);
@@ -5938,7 +5941,7 @@ static void __io_poll_execute(struct io_kiocb *req, int mask, int events)
 	 * CPU. We want to avoid pulling in req->apoll->events for that
 	 * case.
 	 */
-	req->cflags = events;
+	req->apoll_events = events;
 	if (req->opcode == IORING_OP_POLL_ADD)
 		req->io_task_work.func = io_poll_task_func;
 	else
@@ -6330,7 +6333,7 @@ static int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 		return -EINVAL;
 
 	io_req_set_refcount(req);
-	req->cflags = poll->events = io_poll_parse_events(sqe, flags);
+	req->apoll_events = poll->events = io_poll_parse_events(sqe, flags);
 	return 0;
 }
 
