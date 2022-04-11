@@ -292,6 +292,10 @@ struct aspeed_mctp {
 	bool rc_f;
 	/* Use the flag to identify the support of MCTP interrupt */
 	bool miss_mctp_int;
+	/* Rx hardware buffer size */
+	u32 rx_packet_count;
+	/* Rx pointer ring size */
+	u32 rx_ring_count;
 };
 
 struct mctp_client {
@@ -424,7 +428,7 @@ static void aspeed_mctp_rx_trigger(struct mctp_channel *rx)
 
 	/* After re-enabling RX we need to restart WA logic */
 	if (priv->rx_runaway_wa.enable)
-		priv->rx.buffer_count = RX_PACKET_COUNT;
+		priv->rx.buffer_count = priv->rx_packet_count;
 	/*
 	 * When Rx warmup MCTP controller may store first packet into the 0th to the
 	 * 3rd cmd. In ast2600 A3, If the packet isn't stored in the 0th cmd we need
@@ -526,7 +530,7 @@ static struct mctp_client *aspeed_mctp_client_alloc(struct aspeed_mctp *priv)
 	kref_init(&client->ref);
 	client->priv = priv;
 	ptr_ring_init(&client->tx_queue, TX_RING_COUNT, GFP_KERNEL);
-	ptr_ring_init(&client->rx_queue, RX_RING_COUNT, GFP_ATOMIC);
+	ptr_ring_init(&client->rx_queue, priv->rx_ring_count, GFP_ATOMIC);
 
 out:
 	return client;
@@ -751,7 +755,7 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 			 * received packet driver has to scan all RX data buffers.
 			 */
 			do {
-				tmp_wr_ptr = (tmp_wr_ptr + 1) % RX_PACKET_COUNT;
+				tmp_wr_ptr = (tmp_wr_ptr + 1) % priv->rx_packet_count;
 
 				hdr = (u32 *)&rx_buf[tmp_wr_ptr];
 			} while (!*hdr && tmp_wr_ptr != rx->wr_ptr);
@@ -769,7 +773,7 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 			priv->rx_warmup = false;
 		}
 
-		if (priv->rx_runaway_wa.packet_counter > RX_PACKET_COUNT &&
+		if (priv->rx_runaway_wa.packet_counter > priv->rx_packet_count &&
 		    priv->rx_runaway_wa.first_loop) {
 			if (priv->rx_runaway_wa.enable)
 				/*
@@ -783,7 +787,7 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 				 * fairly common that rx_tasklet is executed while RX buffer
 				 * ring is empty.
 				 */
-				rx->buffer_count = RX_PACKET_COUNT - 4;
+				rx->buffer_count = priv->rx_packet_count - 4;
 			else
 				/*
 				 * Once we receive RX_PACKET_COUNT packets, we need to restore the
@@ -871,26 +875,26 @@ static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
 	struct aspeed_mctp_rx_cmd *rx_cmd_64 =
 		(struct aspeed_mctp_rx_cmd *)rx->cmd.vaddr;
 	u32 data_size = priv->match_data->packet_unit_size;
-	u32 hw_rx_count = RX_PACKET_COUNT;
+	u32 hw_rx_count = priv->rx_packet_count;
 	int i;
 
 	if (priv->match_data->vdm_hdr_direct_xfer) {
-		for (i = 0; i < RX_PACKET_COUNT; i++) {
+		for (i = 0; i < priv->rx_packet_count; i++) {
 			*rx_cmd = RX_DATA_ADDR(rx->data.dma_handle + data_size * i);
 			*rx_cmd |= RX_INTERRUPT_AFTER_CMD;
 			rx_cmd++;
 		}
 	} else {
-		for (i = 0; i < RX_PACKET_COUNT; i++) {
+		for (i = 0; i < priv->rx_packet_count; i++) {
 			rx_cmd_64->rx_hi = RX_DATA_ADDR_2500(rx->data.dma_handle + data_size * i);
 			rx_cmd_64->rx_lo = 0;
-			if (i == RX_PACKET_COUNT - 1)
+			if (i == priv->rx_packet_count - 1)
 				rx_cmd_64->rx_hi |= RX_LAST_CMD;
 			rx_cmd_64++;
 		}
 	}
 	rx->wr_ptr = 0;
-	rx->buffer_count = RX_PACKET_COUNT;
+	rx->buffer_count = priv->rx_packet_count;
 	if (priv->match_data->fifo_auto_surround) {
 		/*
 		 * TODO: Once read pointer runaway bug is fixed in some future AST2x00
@@ -905,7 +909,7 @@ static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
 		 * correctly - we have to set number of buffers to n/4 -1
 		 */
 		if (priv->rx_runaway_wa.enable)
-			hw_rx_count = (RX_PACKET_COUNT / 4 - 1);
+			hw_rx_count = (priv->rx_packet_count / 4 - 1);
 
 		regmap_write(priv->map, ASPEED_MCTP_RX_BUF_SIZE, hw_rx_count);
 	}
@@ -1883,7 +1887,7 @@ static int aspeed_mctp_dma_init(struct aspeed_mctp *priv)
 
 	rx->cmd.vaddr = dma_alloc_coherent(
 		priv->dev,
-		PAGE_ALIGN(RX_PACKET_COUNT * priv->match_data->rx_cmd_size),
+		PAGE_ALIGN(priv->rx_packet_count * priv->match_data->rx_cmd_size),
 		&rx->cmd.dma_handle, GFP_KERNEL);
 
 	if (!rx->cmd.vaddr)
@@ -1891,7 +1895,7 @@ static int aspeed_mctp_dma_init(struct aspeed_mctp *priv)
 
 	rx->data.vaddr = dma_alloc_coherent(
 		priv->dev,
-		PAGE_ALIGN(RX_PACKET_COUNT * priv->match_data->packet_unit_size),
+		PAGE_ALIGN(priv->rx_packet_count * priv->match_data->packet_unit_size),
 		&rx->data.dma_handle, GFP_KERNEL);
 
 	if (!rx->data.vaddr)
@@ -1901,7 +1905,7 @@ static int aspeed_mctp_dma_init(struct aspeed_mctp *priv)
 out_rx_data:
 	dma_free_coherent(
 		priv->dev,
-		PAGE_ALIGN(RX_PACKET_COUNT * priv->match_data->rx_cmd_size),
+		PAGE_ALIGN(priv->rx_packet_count * priv->match_data->rx_cmd_size),
 		rx->cmd.vaddr, rx->cmd.dma_handle);
 
 out_tx_cmd:
@@ -1926,7 +1930,7 @@ static void aspeed_mctp_dma_fini(struct aspeed_mctp *priv)
 
 	dma_free_coherent(
 		priv->dev,
-		PAGE_ALIGN(RX_PACKET_COUNT * priv->match_data->rx_cmd_size),
+		PAGE_ALIGN(priv->rx_packet_count * priv->match_data->rx_cmd_size),
 		rx->cmd.vaddr, rx->cmd.dma_handle);
 
 	dma_free_coherent(priv->dev,
@@ -1935,7 +1939,7 @@ static void aspeed_mctp_dma_fini(struct aspeed_mctp *priv)
 			  tx->data.vaddr, tx->data.dma_handle);
 
 	dma_free_coherent(priv->dev,
-			  PAGE_ALIGN(RX_PACKET_COUNT *
+			  PAGE_ALIGN(priv->rx_packet_count *
 				     priv->match_data->packet_unit_size),
 			  rx->data.vaddr, rx->data.dma_handle);
 }
@@ -2017,6 +2021,24 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	priv->rc_f =
 		of_find_property(priv->dev->of_node, "pcie_rc", NULL) ? 1 : 0;
 	priv->match_data = of_device_get_match_data(priv->dev);
+
+	ret = device_property_read_u32(priv->dev, "aspeed,rx-packet-count",
+				       &priv->rx_packet_count);
+	if (ret) {
+		priv->rx_packet_count = RX_PACKET_COUNT;
+	} else if (priv->rx_packet_count % 4 ||
+		   priv->rx_packet_count >= RX_MAX_PACKET_COUNT) {
+		dev_err(priv->dev,
+			"The aspeed,rx-packet-count:%d should be 4-aligned and less than %ld",
+			priv->rx_packet_count, RX_MAX_PACKET_COUNT);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = device_property_read_u32(priv->dev, "aspeed,rx-ring-count",
+				       &priv->rx_ring_count);
+	if (ret)
+		priv->rx_ring_count = RX_RING_COUNT;
 
 	aspeed_mctp_drv_init(priv);
 
