@@ -434,6 +434,7 @@ struct i915_virtual_gpu {
 	u32 caps;
 	u32 *initial_mmio;
 	u8 *initial_cfg_space;
+	struct list_head entry;
 };
 
 struct i915_selftest_stash {

@@ -326,7 +326,7 @@ i915-$(CONFIG_DRM_I915_GVT) += \
 include $(src)/gvt/Makefile
 
 obj-$(CONFIG_DRM_I915) += i915.o
-obj-$(CONFIG_DRM_I915_GVT_KVMGT) += gvt/kvmgt.o
+obj-$(CONFIG_DRM_I915_GVT_KVMGT) += kvmgt.o
 
 # header test
 

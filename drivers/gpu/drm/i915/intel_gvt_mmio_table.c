@@ -1288,3 +1288,4 @@ int intel_gvt_iterate_mmio_table(struct intel_gvt_mmio_table_iter *iter)
 err:
 	return ret;
 }
+EXPORT_SYMBOL_NS_GPL(intel_gvt_iterate_mmio_table, I915_GVT);

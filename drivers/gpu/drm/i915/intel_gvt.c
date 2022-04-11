@@ -24,7 +24,10 @@
 #include "i915_drv.h"
 #include "i915_vgpu.h"
 #include "intel_gvt.h"
-#include "gvt/gvt.h"
+#include "gem/i915_gem_dmabuf.h"
+#include "gt/intel_context.h"
+#include "gt/intel_ring.h"
+#include "gt/shmem_utils.h"
 
 /**
  * DOC: Intel GVT-g host support
@@ -40,6 +43,10 @@
  * and be virtualized within GVT-g device module. More architectural design
  * doc is available on https://01.org/group/2230/documentation-list.
  */
+
+static LIST_HEAD(intel_gvt_devices);
+static const struct intel_vgpu_ops *intel_gvt_ops;
+static DEFINE_MUTEX(intel_gvt_mutex);
 
 static bool is_supported_device(struct drm_i915_private *dev_priv)
 {
@@ -57,33 +64,6 @@ static bool is_supported_device(struct drm_i915_private *dev_priv)
 		return true;
 
 	return false;
-}
-
-/**
- * intel_gvt_sanitize_options - sanitize GVT related options
- * @dev_priv: drm i915 private data
- *
- * This function is called at the i915 options sanitize stage.
- */
-void intel_gvt_sanitize_options(struct drm_i915_private *dev_priv)
-{
-	if (!dev_priv->params.enable_gvt)
-		return;
-
-	if (intel_vgpu_active(dev_priv)) {
-		drm_info(&dev_priv->drm, "GVT-g is disabled for guest\n");
-		goto bail;
-	}
-
-	if (!is_supported_device(dev_priv)) {
-		drm_info(&dev_priv->drm,
-			 "Unsupported device. GVT-g is disabled\n");
-		goto bail;
-	}
-
-	return;
-bail:
-	dev_priv->params.enable_gvt = 0;
 }
 
 static void free_initial_hw_state(struct drm_i915_private *dev_priv)
@@ -165,6 +145,84 @@ err_mmio:
 	return ret;
 }
 
+static void intel_gvt_init_device(struct drm_i915_private *dev_priv)
+{
+	if (!dev_priv->params.enable_gvt) {
+		drm_dbg(&dev_priv->drm,
+			"GVT-g is disabled by kernel params\n");
+		return;
+	}
+
+	if (intel_vgpu_active(dev_priv)) {
+		drm_info(&dev_priv->drm, "GVT-g is disabled for guest\n");
+		return;
+	}
+
+	if (!is_supported_device(dev_priv)) {
+		drm_info(&dev_priv->drm,
+			 "Unsupported device. GVT-g is disabled\n");
+		return;
+	}
+
+	if (intel_uc_wants_guc_submission(&to_gt(dev_priv)->uc)) {
+		drm_err(&dev_priv->drm,
+			"Graphics virtualization is not yet supported with GuC submission\n");
+		return;
+	}
+
+	if (save_initial_hw_state(dev_priv)) {
+		drm_dbg(&dev_priv->drm, "Failed to save initial HW state\n");
+		return;
+	}
+
+	if (intel_gvt_ops->init_device(dev_priv))
+		drm_dbg(&dev_priv->drm, "Fail to init GVT device\n");
+}
+
+static void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
+{
+	if (dev_priv->gvt)
+		intel_gvt_ops->clean_device(dev_priv);
+	free_initial_hw_state(dev_priv);
+}
+
+int intel_gvt_set_ops(const struct intel_vgpu_ops *ops)
+{
+	struct drm_i915_private *dev_priv;
+
+	mutex_lock(&intel_gvt_mutex);
+	if (intel_gvt_ops) {
+		mutex_unlock(&intel_gvt_mutex);
+		return -EINVAL;
+	}
+	intel_gvt_ops = ops;
+
+	list_for_each_entry(dev_priv, &intel_gvt_devices, vgpu.entry)
+		intel_gvt_init_device(dev_priv);
+	mutex_unlock(&intel_gvt_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(intel_gvt_set_ops, I915_GVT);
+
+void intel_gvt_clear_ops(const struct intel_vgpu_ops *ops)
+{
+	struct drm_i915_private *dev_priv;
+
+	mutex_lock(&intel_gvt_mutex);
+	if (intel_gvt_ops != ops) {
+		mutex_unlock(&intel_gvt_mutex);
+		return;
+	}
+
+	list_for_each_entry(dev_priv, &intel_gvt_devices, vgpu.entry)
+		intel_gvt_clean_device(dev_priv);
+
+	intel_gvt_ops = NULL;
+	mutex_unlock(&intel_gvt_mutex);
+}
+EXPORT_SYMBOL_NS_GPL(intel_gvt_clear_ops, I915_GVT);
+
 /**
  * intel_gvt_init - initialize GVT components
  * @dev_priv: drm i915 private data
@@ -177,47 +235,16 @@ err_mmio:
  */
 int intel_gvt_init(struct drm_i915_private *dev_priv)
 {
-	int ret;
-
 	if (i915_inject_probe_failure(dev_priv))
 		return -ENODEV;
 
-	if (!dev_priv->params.enable_gvt) {
-		drm_dbg(&dev_priv->drm,
-			"GVT-g is disabled by kernel params\n");
-		return 0;
-	}
-
-	if (intel_uc_wants_guc_submission(&to_gt(dev_priv)->uc)) {
-		drm_err(&dev_priv->drm,
-			"i915 GVT-g loading failed due to Graphics virtualization is not yet supported with GuC submission\n");
-		return -EIO;
-	}
-
-	ret = save_initial_hw_state(dev_priv);
-	if (ret) {
-		drm_dbg(&dev_priv->drm, "Fail to save initial HW state\n");
-		goto err_save_hw_state;
-	}
-
-	ret = intel_gvt_init_device(dev_priv);
-	if (ret) {
-		drm_dbg(&dev_priv->drm, "Fail to init GVT device\n");
-		goto err_init_device;
-	}
+	mutex_lock(&intel_gvt_mutex);
+	list_add_tail(&dev_priv->vgpu.entry, &intel_gvt_devices);
+	if (intel_gvt_ops)
+		intel_gvt_init_device(dev_priv);
+	mutex_unlock(&intel_gvt_mutex);
 
 	return 0;
-
-err_init_device:
-	free_initial_hw_state(dev_priv);
-err_save_hw_state:
-	dev_priv->params.enable_gvt = 0;
-	return 0;
-}
-
-static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
-{
-	return dev_priv->gvt;
 }
 
 /**
@@ -230,11 +257,10 @@ static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
  */
 void intel_gvt_driver_remove(struct drm_i915_private *dev_priv)
 {
-	if (!intel_gvt_active(dev_priv))
-		return;
-
+	mutex_lock(&intel_gvt_mutex);
 	intel_gvt_clean_device(dev_priv);
-	free_initial_hw_state(dev_priv);
+	list_del(&dev_priv->vgpu.entry);
+	mutex_unlock(&intel_gvt_mutex);
 }
 
 /**
@@ -247,6 +273,46 @@ void intel_gvt_driver_remove(struct drm_i915_private *dev_priv)
  */
 void intel_gvt_resume(struct drm_i915_private *dev_priv)
 {
-	if (intel_gvt_active(dev_priv))
-		intel_gvt_pm_resume(dev_priv->gvt);
+	mutex_lock(&intel_gvt_mutex);
+	if (dev_priv->gvt)
+		intel_gvt_ops->pm_resume(dev_priv);
+	mutex_unlock(&intel_gvt_mutex);
 }
+
+/*
+ * Exported here so that the exports only get created when GVT support is
+ * actually enabled.
+ */
+EXPORT_SYMBOL_NS_GPL(i915_gem_object_alloc, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_gem_object_create_shmem, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_gem_object_init, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_gem_object_ggtt_pin_ww, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_gem_object_pin_map, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_gem_object_set_to_cpu_domain, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(__i915_gem_object_flush_map, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(__i915_gem_object_set_pages, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_gem_gtt_insert, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_gem_prime_export, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_gem_ww_ctx_init, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_gem_ww_ctx_backoff, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_gem_ww_ctx_fini, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_ppgtt_create, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_request_add, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_request_create, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_request_wait, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_reserve_fence, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_unreserve_fence, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(i915_vm_release, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(_i915_vma_move_to_active, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(intel_context_create, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(__intel_context_do_pin, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(__intel_context_do_unpin, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(intel_ring_begin, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(intel_runtime_pm_get, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(intel_runtime_pm_put_unchecked, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(intel_uncore_forcewake_for_reg, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(intel_uncore_forcewake_get, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(intel_uncore_forcewake_put, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(shmem_pin_map, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(shmem_unpin_map, I915_GVT);
+EXPORT_SYMBOL_NS_GPL(__px_dma, I915_GVT);

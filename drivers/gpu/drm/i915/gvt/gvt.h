@@ -58,8 +58,6 @@
 #define GVT_MAX_VGPU 8
 
 struct intel_gvt_host {
-	struct device *dev;
-	bool initialized;
 	const struct intel_gvt_mpt *mpt;
 };
 
@@ -728,9 +726,9 @@ void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_debugfs_init(struct intel_gvt *gvt);
 void intel_gvt_debugfs_clean(struct intel_gvt *gvt);
 
-int intel_gvt_pm_resume(struct intel_gvt *gvt);
-
 #include "trace.h"
 #include "mpt.h"
+
+extern const struct intel_vgpu_ops intel_gvt_vgpu_ops;
 
 #endif

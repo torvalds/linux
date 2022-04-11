@@ -49,7 +49,11 @@
 #include <drm/drm_edid.h>
 
 #include "i915_drv.h"
+#include "intel_gvt.h"
 #include "gvt.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS(I915_GVT);
 
 static const struct intel_gvt_ops *intel_gvt_ops;
 
@@ -2242,16 +2246,18 @@ static const struct intel_gvt_mpt kvmgt_mpt = {
 	.is_valid_gfn = kvmgt_is_valid_gfn,
 };
 
+struct intel_gvt_host intel_gvt_host = {
+	.mpt		= &kvmgt_mpt,
+};
+
 static int __init kvmgt_init(void)
 {
-	if (intel_gvt_register_hypervisor(&kvmgt_mpt) < 0)
-		return -ENODEV;
-	return 0;
+	return intel_gvt_set_ops(&intel_gvt_vgpu_ops);
 }
 
 static void __exit kvmgt_exit(void)
 {
-	intel_gvt_unregister_hypervisor();
+	intel_gvt_clear_ops(&intel_gvt_vgpu_ops);
 }
 
 module_init(kvmgt_init);

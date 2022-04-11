@@ -468,11 +468,6 @@ static void i915_driver_mmio_release(struct drm_i915_private *dev_priv)
 	pci_dev_put(dev_priv->bridge_dev);
 }
 
-static void intel_sanitize_options(struct drm_i915_private *dev_priv)
-{
-	intel_gvt_sanitize_options(dev_priv);
-}
-
 /**
  * i915_set_dma_info - set all relevant PCI dma info as configured for the
  * platform
@@ -565,8 +560,6 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 			return -ENXIO;
 		}
 	}
-
-	intel_sanitize_options(dev_priv);
 
 	/* needs to be done before ggtt probe */
 	intel_dram_edram_detect(dev_priv);

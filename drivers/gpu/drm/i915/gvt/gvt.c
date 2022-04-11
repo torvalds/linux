@@ -39,8 +39,6 @@
 #include <linux/vfio.h>
 #include <linux/mdev.h>
 
-struct intel_gvt_host intel_gvt_host;
-
 static const struct intel_gvt_ops intel_gvt_ops = {
 	.emulate_cfg_read = intel_vgpu_emulate_cfg_read,
 	.emulate_cfg_write = intel_vgpu_emulate_cfg_write,
@@ -147,13 +145,14 @@ static int init_service_thread(struct intel_gvt *gvt)
  * resources owned by a GVT device.
  *
  */
-void intel_gvt_clean_device(struct drm_i915_private *i915)
+static void intel_gvt_clean_device(struct drm_i915_private *i915)
 {
 	struct intel_gvt *gvt = fetch_and_zero(&i915->gvt);
 
 	if (drm_WARN_ON(&i915->drm, !gvt))
 		return;
 
+	intel_gvt_hypervisor_host_exit(i915->drm.dev, gvt);
 	intel_gvt_destroy_idle_vgpu(gvt->idle_vgpu);
 	intel_gvt_clean_vgpu_types(gvt);
 
@@ -181,7 +180,7 @@ void intel_gvt_clean_device(struct drm_i915_private *i915)
  * Zero on success, negative error code if failed.
  *
  */
-int intel_gvt_init_device(struct drm_i915_private *i915)
+static int intel_gvt_init_device(struct drm_i915_private *i915)
 {
 	struct intel_gvt *gvt;
 	struct intel_vgpu *vgpu;
@@ -253,11 +252,17 @@ int intel_gvt_init_device(struct drm_i915_private *i915)
 
 	intel_gvt_debugfs_init(gvt);
 
+	ret = intel_gvt_hypervisor_host_init(i915->drm.dev, gvt,
+					     &intel_gvt_ops);
+	if (ret)
+		goto out_destroy_idle_vgpu;
+
 	gvt_dbg_core("gvt device initialization is done\n");
-	intel_gvt_host.dev = i915->drm.dev;
-	intel_gvt_host.initialized = true;
 	return 0;
 
+out_destroy_idle_vgpu:
+	intel_gvt_destroy_idle_vgpu(gvt->idle_vgpu);
+	intel_gvt_debugfs_clean(gvt);
 out_clean_types:
 	intel_gvt_clean_vgpu_types(gvt);
 out_clean_thread:
@@ -281,39 +286,17 @@ out_clean_idr:
 	return ret;
 }
 
-int
-intel_gvt_pm_resume(struct intel_gvt *gvt)
+static void intel_gvt_pm_resume(struct drm_i915_private *i915)
 {
+	struct intel_gvt *gvt = i915->gvt;
+
 	intel_gvt_restore_fence(gvt);
 	intel_gvt_restore_mmio(gvt);
 	intel_gvt_restore_ggtt(gvt);
-	return 0;
 }
 
-int
-intel_gvt_register_hypervisor(const struct intel_gvt_mpt *m)
-{
-	int ret;
-	void *gvt;
-
-	if (!intel_gvt_host.initialized)
-		return -ENODEV;
-
-	intel_gvt_host.mpt = m;
-	gvt = (void *)kdev_to_i915(intel_gvt_host.dev)->gvt;
-
-	ret = intel_gvt_hypervisor_host_init(intel_gvt_host.dev, gvt,
-					     &intel_gvt_ops);
-	if (ret < 0)
-		return -ENODEV;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(intel_gvt_register_hypervisor);
-
-void
-intel_gvt_unregister_hypervisor(void)
-{
-	void *gvt = (void *)kdev_to_i915(intel_gvt_host.dev)->gvt;
-	intel_gvt_hypervisor_host_exit(intel_gvt_host.dev, gvt);
-}
-EXPORT_SYMBOL_GPL(intel_gvt_unregister_hypervisor);
+const struct intel_vgpu_ops intel_gvt_vgpu_ops = {
+	.init_device	= intel_gvt_init_device,
+	.clean_device	= intel_gvt_clean_device,
+	.pm_resume	= intel_gvt_pm_resume,
+};
