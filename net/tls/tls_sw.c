@@ -1650,7 +1650,7 @@ static int process_rx_list(struct tls_sw_context_rx *ctx,
 
 		err = tls_record_content_type(msg, tlm, control);
 		if (err <= 0)
-			return err;
+			goto out;
 
 		if (skip < rxm->full_len)
 			break;
@@ -1668,13 +1668,13 @@ static int process_rx_list(struct tls_sw_context_rx *ctx,
 
 		err = tls_record_content_type(msg, tlm, control);
 		if (err <= 0)
-			return err;
+			goto out;
 
 		if (!zc || (rxm->full_len - skip) > len) {
 			err = skb_copy_datagram_msg(skb, rxm->offset + skip,
 						    msg, chunk);
 			if (err < 0)
-				return err;
+				goto out;
 		}
 
 		len = len - chunk;
@@ -1707,8 +1707,10 @@ static int process_rx_list(struct tls_sw_context_rx *ctx,
 
 		skb = next_skb;
 	}
+	err = 0;
 
-	return copied;
+out:
+	return copied ? : err;
 }
 
 int tls_sw_recvmsg(struct sock *sk,
@@ -1744,10 +1746,8 @@ int tls_sw_recvmsg(struct sock *sk,
 
 	/* Process pending decrypted records. It must be non-zero-copy */
 	err = process_rx_list(ctx, msg, &control, 0, len, false, is_peek);
-	if (err < 0) {
-		tls_err_abort(sk, err);
+	if (err < 0)
 		goto end;
-	}
 
 	copied = err;
 	if (len <= copied)
@@ -1899,11 +1899,7 @@ recv_end:
 		else
 			err = process_rx_list(ctx, msg, &control, 0,
 					      decrypted, true, is_peek);
-		if (err < 0) {
-			tls_err_abort(sk, err);
-			copied = 0;
-			goto end;
-		}
+		decrypted = max(err, 0);
 	}
 
 	copied += decrypted;
