@@ -153,38 +153,6 @@ static inline int intel_gvt_hypervisor_disable_page_track(
 }
 
 /**
- * intel_gvt_hypervisor_read_gpa - copy data from GPA to host data buffer
- * @vgpu: a vGPU
- * @gpa: guest physical address
- * @buf: host data buffer
- * @len: data length
- *
- * Returns:
- * Zero on success, negative error code if failed.
- */
-static inline int intel_gvt_hypervisor_read_gpa(struct intel_vgpu *vgpu,
-		unsigned long gpa, void *buf, unsigned long len)
-{
-	return intel_gvt_host.mpt->read_gpa(vgpu, gpa, buf, len);
-}
-
-/**
- * intel_gvt_hypervisor_write_gpa - copy data from host data buffer to GPA
- * @vgpu: a vGPU
- * @gpa: guest physical address
- * @buf: host data buffer
- * @len: data length
- *
- * Returns:
- * Zero on success, negative error code if failed.
- */
-static inline int intel_gvt_hypervisor_write_gpa(struct intel_vgpu *vgpu,
-		unsigned long gpa, void *buf, unsigned long len)
-{
-	return intel_gvt_host.mpt->write_gpa(vgpu, gpa, buf, len);
-}
-
-/**
  * intel_gvt_hypervisor_gfn_to_mfn - translate a GFN to MFN
  * @vgpu: a vGPU
  * @gpfn: guest pfn

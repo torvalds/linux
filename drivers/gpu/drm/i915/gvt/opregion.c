@@ -421,14 +421,14 @@ int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci)
 				INTEL_GVT_OPREGION_SCIC;
 	parm_pa = (vgpu_opregion(vgpu)->gfn[0] << PAGE_SHIFT) +
 				INTEL_GVT_OPREGION_PARM;
-	ret = intel_gvt_hypervisor_read_gpa(vgpu, scic_pa, &scic, sizeof(scic));
+	ret = intel_gvt_read_gpa(vgpu, scic_pa, &scic, sizeof(scic));
 	if (ret) {
 		gvt_vgpu_err("guest opregion read error %d, gpa 0x%llx, len %lu\n",
 			ret, scic_pa, sizeof(scic));
 		return ret;
 	}
 
-	ret = intel_gvt_hypervisor_read_gpa(vgpu, parm_pa, &parm, sizeof(parm));
+	ret = intel_gvt_read_gpa(vgpu, parm_pa, &parm, sizeof(parm));
 	if (ret) {
 		gvt_vgpu_err("guest opregion read error %d, gpa 0x%llx, len %lu\n",
 			ret, scic_pa, sizeof(scic));
@@ -465,16 +465,14 @@ int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci)
 	parm = 0;
 
 out:
-	ret = intel_gvt_hypervisor_write_gpa(vgpu, scic_pa, &scic,
-					     sizeof(scic));
+	ret = intel_gvt_write_gpa(vgpu, scic_pa, &scic, sizeof(scic));
 	if (ret) {
 		gvt_vgpu_err("guest opregion write error %d, gpa 0x%llx, len %lu\n",
 			ret, scic_pa, sizeof(scic));
 		return ret;
 	}
 
-	ret = intel_gvt_hypervisor_write_gpa(vgpu, parm_pa, &parm,
-					     sizeof(parm));
+	ret = intel_gvt_write_gpa(vgpu, parm_pa, &parm, sizeof(parm));
 	if (ret) {
 		gvt_vgpu_err("guest opregion write error %d, gpa 0x%llx, len %lu\n",
 			ret, scic_pa, sizeof(scic));

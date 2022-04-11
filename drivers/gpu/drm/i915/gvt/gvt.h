@@ -35,6 +35,7 @@
 
 #include <uapi/linux/pci_regs.h>
 #include <linux/kvm_host.h>
+#include <linux/vfio.h>
 
 #include "i915_drv.h"
 #include "intel_gvt.h"
@@ -718,6 +719,42 @@ static inline bool intel_gvt_mmio_is_cmd_write_patch(
 			struct intel_gvt *gvt, unsigned int offset)
 {
 	return gvt->mmio.mmio_attribute[offset >> 2] & F_CMD_WRITE_PATCH;
+}
+
+/**
+ * intel_gvt_read_gpa - copy data from GPA to host data buffer
+ * @vgpu: a vGPU
+ * @gpa: guest physical address
+ * @buf: host data buffer
+ * @len: data length
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+static inline int intel_gvt_read_gpa(struct intel_vgpu *vgpu, unsigned long gpa,
+		void *buf, unsigned long len)
+{
+	if (!vgpu->attached)
+		return -ESRCH;
+	return vfio_dma_rw(vgpu->vfio_group, gpa, buf, len, false);
+}
+
+/**
+ * intel_gvt_write_gpa - copy data from host data buffer to GPA
+ * @vgpu: a vGPU
+ * @gpa: guest physical address
+ * @buf: host data buffer
+ * @len: data length
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+static inline int intel_gvt_write_gpa(struct intel_vgpu *vgpu,
+		unsigned long gpa, void *buf, unsigned long len)
+{
+	if (!vgpu->attached)
+		return -ESRCH;
+	return vfio_dma_rw(vgpu->vfio_group, gpa, buf, len, true);
 }
 
 void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu);

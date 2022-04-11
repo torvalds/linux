@@ -39,7 +39,6 @@
 #include <linux/spinlock.h>
 #include <linux/eventfd.h>
 #include <linux/uuid.h>
-#include <linux/vfio.h>
 #include <linux/mdev.h>
 #include <linux/debugfs.h>
 
@@ -2024,26 +2023,6 @@ static void kvmgt_dma_unmap_guest_page(struct intel_vgpu *vgpu,
 	mutex_unlock(&vgpu->cache_lock);
 }
 
-static int kvmgt_rw_gpa(struct intel_vgpu *vgpu, unsigned long gpa,
-			void *buf, unsigned long len, bool write)
-{
-	if (!vgpu->attached)
-		return -ESRCH;
-	return vfio_dma_rw(vgpu->vfio_group, gpa, buf, len, write);
-}
-
-static int kvmgt_read_gpa(struct intel_vgpu *vgpu, unsigned long gpa,
-			void *buf, unsigned long len)
-{
-	return kvmgt_rw_gpa(vgpu, gpa, buf, len, false);
-}
-
-static int kvmgt_write_gpa(struct intel_vgpu *vgpu, unsigned long gpa,
-			void *buf, unsigned long len)
-{
-	return kvmgt_rw_gpa(vgpu, gpa, buf, len, true);
-}
-
 static bool kvmgt_is_valid_gfn(struct intel_vgpu *vgpu, unsigned long gfn)
 {
 	struct kvm *kvm = vgpu->kvm;
@@ -2067,8 +2046,6 @@ static const struct intel_gvt_mpt kvmgt_mpt = {
 	.inject_msi = kvmgt_inject_msi,
 	.enable_page_track = kvmgt_page_track_add,
 	.disable_page_track = kvmgt_page_track_remove,
-	.read_gpa = kvmgt_read_gpa,
-	.write_gpa = kvmgt_write_gpa,
 	.gfn_to_mfn = kvmgt_gfn_to_pfn,
 	.dma_map_guest_page = kvmgt_dma_map_guest_page,
 	.dma_unmap_guest_page = kvmgt_dma_unmap_guest_page,

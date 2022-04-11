@@ -49,10 +49,6 @@ struct intel_gvt_mpt {
 	int (*inject_msi)(struct intel_vgpu *vgpu, u32 addr, u16 data);
 	int (*enable_page_track)(struct intel_vgpu *vgpu, u64 gfn);
 	int (*disable_page_track)(struct intel_vgpu *vgpu, u64 gfn);
-	int (*read_gpa)(struct intel_vgpu *vgpu, unsigned long gpa, void *buf,
-			unsigned long len);
-	int (*write_gpa)(struct intel_vgpu *vgpu, unsigned long gpa, void *buf,
-			 unsigned long len);
 	unsigned long (*gfn_to_mfn)(struct intel_vgpu *vgpu, unsigned long gfn);
 
 	int (*dma_map_guest_page)(struct intel_vgpu *vgpu, unsigned long gfn,

@@ -314,7 +314,7 @@ static inline int gtt_get_entry64(void *pt,
 		return -EINVAL;
 
 	if (hypervisor_access) {
-		ret = intel_gvt_hypervisor_read_gpa(vgpu, gpa +
+		ret = intel_gvt_read_gpa(vgpu, gpa +
 				(index << info->gtt_entry_size_shift),
 				&e->val64, 8);
 		if (WARN_ON(ret))
@@ -339,7 +339,7 @@ static inline int gtt_set_entry64(void *pt,
 		return -EINVAL;
 
 	if (hypervisor_access) {
-		ret = intel_gvt_hypervisor_write_gpa(vgpu, gpa +
+		ret = intel_gvt_write_gpa(vgpu, gpa +
 				(index << info->gtt_entry_size_shift),
 				&e->val64, 8);
 		if (WARN_ON(ret))
@@ -1497,7 +1497,7 @@ static int attach_oos_page(struct intel_vgpu_oos_page *oos_page,
 	struct intel_gvt *gvt = spt->vgpu->gvt;
 	int ret;
 
-	ret = intel_gvt_hypervisor_read_gpa(spt->vgpu,
+	ret = intel_gvt_read_gpa(spt->vgpu,
 			spt->guest_page.gfn << I915_GTT_PAGE_SHIFT,
 			oos_page->mem, I915_GTT_PAGE_SIZE);
 	if (ret)
