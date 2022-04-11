@@ -45,9 +45,6 @@ MODULE_PARM_DESC(fcnt, "Num of frames per sub-buffer for sync channels as a powe
 
 static DEFINE_SPINLOCK(dim_lock);
 
-static void dim2_tasklet_fn(unsigned long data);
-static DECLARE_TASKLET_OLD(dim2_tasklet, dim2_tasklet_fn);
-
 /**
  * struct hdm_channel - private structure to keep channel specific data
  * @name: channel name
@@ -361,15 +358,9 @@ static irqreturn_t dim2_mlb_isr(int irq, void *_dev)
 	return IRQ_HANDLED;
 }
 
-/**
- * dim2_tasklet_fn - tasklet function
- * @data: private data
- *
- * Service each initialized channel, if needed
- */
-static void dim2_tasklet_fn(unsigned long data)
+static irqreturn_t dim2_task_irq(int irq, void *_dev)
 {
-	struct dim2_hdm *dev = (struct dim2_hdm *)data;
+	struct dim2_hdm *dev = _dev;
 	unsigned long flags;
 	int ch_idx;
 
@@ -385,6 +376,8 @@ static void dim2_tasklet_fn(unsigned long data)
 		while (!try_start_dim_transfer(dev->hch + ch_idx))
 			continue;
 	}
+
+	return IRQ_HANDLED;
 }
 
 /**
@@ -392,8 +385,8 @@ static void dim2_tasklet_fn(unsigned long data)
  * @irq: irq number
  * @_dev: private data
  *
- * Acknowledge the interrupt and schedule a tasklet to service channels.
- * Return IRQ_HANDLED.
+ * Acknowledge the interrupt and service each initialized channel,
+ * if needed, in task context.
  */
 static irqreturn_t dim2_ahb_isr(int irq, void *_dev)
 {
@@ -405,9 +398,7 @@ static irqreturn_t dim2_ahb_isr(int irq, void *_dev)
 	dim_service_ahb_int_irq(get_active_channels(dev, buffer));
 	spin_unlock_irqrestore(&dim_lock, flags);
 
-	dim2_tasklet.data = (unsigned long)dev;
-	tasklet_schedule(&dim2_tasklet);
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
 /**
@@ -654,14 +645,12 @@ static int poison_channel(struct most_interface *most_iface, int ch_idx)
 	if (!hdm_ch->is_initialized)
 		return -EPERM;
 
-	tasklet_disable(&dim2_tasklet);
 	spin_lock_irqsave(&dim_lock, flags);
 	hal_ret = dim_destroy_channel(&hdm_ch->ch);
 	hdm_ch->is_initialized = false;
 	if (ch_idx == dev->atx_idx)
 		dev->atx_idx = -1;
 	spin_unlock_irqrestore(&dim_lock, flags);
-	tasklet_enable(&dim2_tasklet);
 	if (hal_ret != DIM_NO_ERROR) {
 		pr_err("HAL Failed to close channel %s\n", hdm_ch->name);
 		ret = -EFAULT;
@@ -821,8 +810,8 @@ static int dim2_probe(struct platform_device *pdev)
 		goto err_shutdown_dim;
 	}
 
-	ret = devm_request_irq(&pdev->dev, irq, dim2_ahb_isr, 0,
-			       "dim2_ahb0_int", dev);
+	ret = devm_request_threaded_irq(&pdev->dev, irq, dim2_ahb_isr,
+					dim2_task_irq, 0, "dim2_ahb0_int", dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request ahb0_int irq %d\n", irq);
 		goto err_shutdown_dim;
