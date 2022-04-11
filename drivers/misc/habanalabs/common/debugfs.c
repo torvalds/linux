@@ -722,7 +722,7 @@ static int hl_access_mem(struct hl_device *hdev, u64 addr, u64 *val,
 	if (found)
 		return 0;
 
-	if (!user_address || iommu_present(&pci_bus_type)) {
+	if (!user_address || device_iommu_mapped(&hdev->pdev->dev)) {
 		rc = -EINVAL;
 		goto err;
 	}
