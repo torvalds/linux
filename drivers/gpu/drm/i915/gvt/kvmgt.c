@@ -101,11 +101,6 @@ struct gvt_dma {
 	struct kref ref;
 };
 
-static inline bool handle_valid(unsigned long handle)
-{
-	return !!(handle & ~0xff);
-}
-
 static ssize_t available_instances_show(struct mdev_type *mtype,
 					struct mdev_type_attribute *attr,
 					char *buf)
@@ -668,10 +663,8 @@ static int intel_vgpu_register_reg(struct intel_vgpu *vgpu,
 	return 0;
 }
 
-static int kvmgt_get_vfio_device(void *p_vgpu)
+static int kvmgt_get_vfio_device(struct intel_vgpu *vgpu)
 {
-	struct intel_vgpu *vgpu = (struct intel_vgpu *)p_vgpu;
-
 	vgpu->vfio_device = vfio_device_get_from_dev(
 		mdev_dev(vgpu->mdev));
 	if (!vgpu->vfio_device) {
@@ -682,9 +675,8 @@ static int kvmgt_get_vfio_device(void *p_vgpu)
 }
 
 
-static int kvmgt_set_opregion(void *p_vgpu)
+static int kvmgt_set_opregion(struct intel_vgpu *vgpu)
 {
-	struct intel_vgpu *vgpu = (struct intel_vgpu *)p_vgpu;
 	void *base;
 	int ret;
 
@@ -710,9 +702,8 @@ static int kvmgt_set_opregion(void *p_vgpu)
 	return ret;
 }
 
-static int kvmgt_set_edid(void *p_vgpu, int port_num)
+static int kvmgt_set_edid(struct intel_vgpu *vgpu, int port_num)
 {
-	struct intel_vgpu *vgpu = (struct intel_vgpu *)p_vgpu;
 	struct intel_vgpu_port *port = intel_vgpu_port(vgpu, port_num);
 	struct vfio_edid_region *base;
 	int ret;
@@ -740,10 +731,8 @@ static int kvmgt_set_edid(void *p_vgpu, int port_num)
 	return ret;
 }
 
-static void kvmgt_put_vfio_device(void *data)
+static void kvmgt_put_vfio_device(struct intel_vgpu *vgpu)
 {
-	struct intel_vgpu *vgpu = data;
-
 	if (WARN_ON(!vgpu->vfio_device))
 		return;
 
@@ -791,7 +780,7 @@ static int intel_vgpu_remove(struct mdev_device *mdev)
 {
 	struct intel_vgpu *vgpu = mdev_get_drvdata(mdev);
 
-	if (handle_valid(vgpu->handle))
+	if (vgpu->attached)
 		return -EBUSY;
 
 	intel_gvt_destroy_vgpu(vgpu);
@@ -929,7 +918,7 @@ static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 	struct drm_i915_private *i915 = vgpu->gvt->gt->i915;
 	int ret;
 
-	if (!handle_valid(vgpu->handle))
+	if (!vgpu->attached)
 		return;
 
 	if (atomic_cmpxchg(&vgpu->released, 0, 1))
@@ -956,7 +945,7 @@ static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 	vfio_group_put_external_user(vgpu->vfio_group);
 
 	vgpu->kvm = NULL;
-	vgpu->handle = 0;
+	vgpu->attached = false;
 }
 
 static void intel_vgpu_close_device(struct mdev_device *mdev)
@@ -1734,18 +1723,14 @@ static void kvmgt_host_exit(struct device *dev, void *gvt)
 	intel_gvt_cleanup_vgpu_type_groups((struct intel_gvt *)gvt);
 }
 
-static int kvmgt_page_track_add(unsigned long handle, u64 gfn)
+static int kvmgt_page_track_add(struct intel_vgpu *info, u64 gfn)
 {
-	struct intel_vgpu *info;
-	struct kvm *kvm;
+	struct kvm *kvm = info->kvm;
 	struct kvm_memory_slot *slot;
 	int idx;
 
-	if (!handle_valid(handle))
+	if (!info->attached)
 		return -ESRCH;
-
-	info = (struct intel_vgpu *)handle;
-	kvm = info->kvm;
 
 	idx = srcu_read_lock(&kvm->srcu);
 	slot = gfn_to_memslot(kvm, gfn);
@@ -1768,18 +1753,14 @@ out:
 	return 0;
 }
 
-static int kvmgt_page_track_remove(unsigned long handle, u64 gfn)
+static int kvmgt_page_track_remove(struct intel_vgpu *info, u64 gfn)
 {
-	struct intel_vgpu *info;
-	struct kvm *kvm;
+	struct kvm *kvm = info->kvm;
 	struct kvm_memory_slot *slot;
 	int idx;
 
-	if (!handle_valid(handle))
+	if (!info->attached)
 		return 0;
-
-	info = (struct intel_vgpu *)handle;
-	kvm = info->kvm;
 
 	idx = srcu_read_lock(&kvm->srcu);
 	slot = gfn_to_memslot(kvm, gfn);
@@ -1843,7 +1824,7 @@ static bool __kvmgt_vgpu_exist(struct intel_vgpu *vgpu, struct kvm *kvm)
 
 	mutex_lock(&vgpu->gvt->lock);
 	for_each_active_vgpu(vgpu->gvt, itr, id) {
-		if (!handle_valid(itr->handle))
+		if (!itr->attached)
 			continue;
 
 		if (kvm && kvm == itr->kvm) {
@@ -1858,14 +1839,12 @@ out:
 
 static int kvmgt_guest_init(struct mdev_device *mdev)
 {
-	struct intel_vgpu *vgpu;
-	struct kvm *kvm;
+	struct intel_vgpu *vgpu = mdev_get_drvdata(mdev);
+	struct kvm *kvm = vgpu->kvm;
 
-	vgpu = mdev_get_drvdata(mdev);
-	if (handle_valid(vgpu->handle))
+	if (vgpu->attached)
 		return -EEXIST;
 
-	kvm = vgpu->kvm;
 	if (!kvm || kvm->mm != current->mm) {
 		gvt_vgpu_err("KVM is required to use Intel vGPU\n");
 		return -ESRCH;
@@ -1874,7 +1853,7 @@ static int kvmgt_guest_init(struct mdev_device *mdev)
 	if (__kvmgt_vgpu_exist(vgpu, kvm))
 		return -EEXIST;
 
-	vgpu->handle = (unsigned long)vgpu;
+	vgpu->attached = true;
 	kvm_get_kvm(vgpu->kvm);
 
 	kvmgt_protect_table_init(vgpu);
@@ -1900,10 +1879,9 @@ static bool kvmgt_guest_exit(struct intel_vgpu *info)
 	return true;
 }
 
-static void kvmgt_detach_vgpu(void *p_vgpu)
+static void kvmgt_detach_vgpu(struct intel_vgpu *vgpu)
 {
 	int i;
-	struct intel_vgpu *vgpu = (struct intel_vgpu *)p_vgpu;
 
 	if (!vgpu->region)
 		return;
@@ -1917,14 +1895,10 @@ static void kvmgt_detach_vgpu(void *p_vgpu)
 	vgpu->region = NULL;
 }
 
-static int kvmgt_inject_msi(unsigned long handle, u32 addr, u16 data)
+static int kvmgt_inject_msi(struct intel_vgpu *vgpu, u32 addr, u16 data)
 {
-	struct intel_vgpu *vgpu;
-
-	if (!handle_valid(handle))
+	if (!vgpu->attached)
 		return -ESRCH;
-
-	vgpu = (struct intel_vgpu *)handle;
 
 	/*
 	 * When guest is poweroff, msi_trigger is set to NULL, but vgpu's
@@ -1944,15 +1918,13 @@ static int kvmgt_inject_msi(unsigned long handle, u32 addr, u16 data)
 	return -EFAULT;
 }
 
-static unsigned long kvmgt_gfn_to_pfn(unsigned long handle, unsigned long gfn)
+static unsigned long kvmgt_gfn_to_pfn(struct intel_vgpu *vgpu,
+		unsigned long gfn)
 {
-	struct intel_vgpu *vgpu;
 	kvm_pfn_t pfn;
 
-	if (!handle_valid(handle))
+	if (!vgpu->attached)
 		return INTEL_GVT_INVALID_ADDR;
-
-	vgpu = (struct intel_vgpu *)handle;
 
 	pfn = gfn_to_pfn(vgpu->kvm, gfn);
 	if (is_error_noslot_pfn(pfn))
@@ -1961,17 +1933,14 @@ static unsigned long kvmgt_gfn_to_pfn(unsigned long handle, unsigned long gfn)
 	return pfn;
 }
 
-static int kvmgt_dma_map_guest_page(unsigned long handle, unsigned long gfn,
+static int kvmgt_dma_map_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 		unsigned long size, dma_addr_t *dma_addr)
 {
-	struct intel_vgpu *vgpu;
 	struct gvt_dma *entry;
 	int ret;
 
-	if (!handle_valid(handle))
+	if (!vgpu->attached)
 		return -EINVAL;
-
-	vgpu = (struct intel_vgpu *)handle;
 
 	mutex_lock(&vgpu->cache_lock);
 
@@ -2011,16 +1980,14 @@ err_unlock:
 	return ret;
 }
 
-static int kvmgt_dma_pin_guest_page(unsigned long handle, dma_addr_t dma_addr)
+static int kvmgt_dma_pin_guest_page(struct intel_vgpu *vgpu,
+		dma_addr_t dma_addr)
 {
-	struct intel_vgpu *vgpu;
 	struct gvt_dma *entry;
 	int ret = 0;
 
-	if (!handle_valid(handle))
+	if (!vgpu->attached)
 		return -ENODEV;
-
-	vgpu = (struct intel_vgpu *)handle;
 
 	mutex_lock(&vgpu->cache_lock);
 	entry = __gvt_cache_find_dma_addr(vgpu, dma_addr);
@@ -2042,15 +2009,13 @@ static void __gvt_dma_release(struct kref *ref)
 	__gvt_cache_remove_entry(entry->vgpu, entry);
 }
 
-static void kvmgt_dma_unmap_guest_page(unsigned long handle, dma_addr_t dma_addr)
+static void kvmgt_dma_unmap_guest_page(struct intel_vgpu *vgpu,
+		dma_addr_t dma_addr)
 {
-	struct intel_vgpu *vgpu;
 	struct gvt_dma *entry;
 
-	if (!handle_valid(handle))
+	if (!vgpu->attached)
 		return;
-
-	vgpu = (struct intel_vgpu *)handle;
 
 	mutex_lock(&vgpu->cache_lock);
 	entry = __gvt_cache_find_dma_addr(vgpu, dma_addr);
@@ -2059,43 +2024,34 @@ static void kvmgt_dma_unmap_guest_page(unsigned long handle, dma_addr_t dma_addr
 	mutex_unlock(&vgpu->cache_lock);
 }
 
-static int kvmgt_rw_gpa(unsigned long handle, unsigned long gpa,
+static int kvmgt_rw_gpa(struct intel_vgpu *vgpu, unsigned long gpa,
 			void *buf, unsigned long len, bool write)
 {
-	struct intel_vgpu *vgpu;
-
-	if (!handle_valid(handle))
+	if (!vgpu->attached)
 		return -ESRCH;
-
-	vgpu = (struct intel_vgpu *)handle;
-
 	return vfio_dma_rw(vgpu->vfio_group, gpa, buf, len, write);
 }
 
-static int kvmgt_read_gpa(unsigned long handle, unsigned long gpa,
+static int kvmgt_read_gpa(struct intel_vgpu *vgpu, unsigned long gpa,
 			void *buf, unsigned long len)
 {
-	return kvmgt_rw_gpa(handle, gpa, buf, len, false);
+	return kvmgt_rw_gpa(vgpu, gpa, buf, len, false);
 }
 
-static int kvmgt_write_gpa(unsigned long handle, unsigned long gpa,
+static int kvmgt_write_gpa(struct intel_vgpu *vgpu, unsigned long gpa,
 			void *buf, unsigned long len)
 {
-	return kvmgt_rw_gpa(handle, gpa, buf, len, true);
+	return kvmgt_rw_gpa(vgpu, gpa, buf, len, true);
 }
 
-static bool kvmgt_is_valid_gfn(unsigned long handle, unsigned long gfn)
+static bool kvmgt_is_valid_gfn(struct intel_vgpu *vgpu, unsigned long gfn)
 {
-	struct intel_vgpu *vgpu;
-	struct kvm *kvm;
+	struct kvm *kvm = vgpu->kvm;
 	int idx;
 	bool ret;
 
-	if (!handle_valid(handle))
+	if (!vgpu->attached)
 		return false;
-
-	vgpu = (struct intel_vgpu *)handle;
-	kvm = vgpu->kvm;
 
 	idx = srcu_read_lock(&kvm->srcu);
 	ret = kvm_is_visible_gfn(kvm, gfn);

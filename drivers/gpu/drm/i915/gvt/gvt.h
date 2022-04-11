@@ -181,8 +181,8 @@ struct intel_vgpu {
 	struct intel_gvt *gvt;
 	struct mutex vgpu_lock;
 	int id;
-	unsigned long handle; /* vGPU handle used by hypervisor MPT modules */
 	bool active;
+	bool attached;
 	bool pv_notified;
 	bool failsafe;
 	unsigned int resetting_eng;
@@ -449,7 +449,6 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt);
 #define RING_CTX_SIZE 320
 
 struct intel_vgpu_creation_params {
-	__u64 handle;
 	__u64 low_gm_sz;  /* in MB */
 	__u64 high_gm_sz; /* in MB */
 	__u64 fence_sz;

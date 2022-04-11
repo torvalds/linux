@@ -118,7 +118,7 @@ static inline int intel_gvt_hypervisor_inject_msi(struct intel_vgpu *vgpu)
 
 	trace_inject_msi(vgpu->id, addr, data);
 
-	ret = intel_gvt_host.mpt->inject_msi(vgpu->handle, addr, data);
+	ret = intel_gvt_host.mpt->inject_msi(vgpu, addr, data);
 	if (ret)
 		return ret;
 	return 0;
@@ -135,7 +135,7 @@ static inline int intel_gvt_hypervisor_inject_msi(struct intel_vgpu *vgpu)
 static inline int intel_gvt_hypervisor_enable_page_track(
 		struct intel_vgpu *vgpu, unsigned long gfn)
 {
-	return intel_gvt_host.mpt->enable_page_track(vgpu->handle, gfn);
+	return intel_gvt_host.mpt->enable_page_track(vgpu, gfn);
 }
 
 /**
@@ -149,7 +149,7 @@ static inline int intel_gvt_hypervisor_enable_page_track(
 static inline int intel_gvt_hypervisor_disable_page_track(
 		struct intel_vgpu *vgpu, unsigned long gfn)
 {
-	return intel_gvt_host.mpt->disable_page_track(vgpu->handle, gfn);
+	return intel_gvt_host.mpt->disable_page_track(vgpu, gfn);
 }
 
 /**
@@ -165,7 +165,7 @@ static inline int intel_gvt_hypervisor_disable_page_track(
 static inline int intel_gvt_hypervisor_read_gpa(struct intel_vgpu *vgpu,
 		unsigned long gpa, void *buf, unsigned long len)
 {
-	return intel_gvt_host.mpt->read_gpa(vgpu->handle, gpa, buf, len);
+	return intel_gvt_host.mpt->read_gpa(vgpu, gpa, buf, len);
 }
 
 /**
@@ -181,7 +181,7 @@ static inline int intel_gvt_hypervisor_read_gpa(struct intel_vgpu *vgpu,
 static inline int intel_gvt_hypervisor_write_gpa(struct intel_vgpu *vgpu,
 		unsigned long gpa, void *buf, unsigned long len)
 {
-	return intel_gvt_host.mpt->write_gpa(vgpu->handle, gpa, buf, len);
+	return intel_gvt_host.mpt->write_gpa(vgpu, gpa, buf, len);
 }
 
 /**
@@ -195,7 +195,7 @@ static inline int intel_gvt_hypervisor_write_gpa(struct intel_vgpu *vgpu,
 static inline unsigned long intel_gvt_hypervisor_gfn_to_mfn(
 		struct intel_vgpu *vgpu, unsigned long gfn)
 {
-	return intel_gvt_host.mpt->gfn_to_mfn(vgpu->handle, gfn);
+	return intel_gvt_host.mpt->gfn_to_mfn(vgpu, gfn);
 }
 
 /**
@@ -212,7 +212,7 @@ static inline int intel_gvt_hypervisor_dma_map_guest_page(
 		struct intel_vgpu *vgpu, unsigned long gfn, unsigned long size,
 		dma_addr_t *dma_addr)
 {
-	return intel_gvt_host.mpt->dma_map_guest_page(vgpu->handle, gfn, size,
+	return intel_gvt_host.mpt->dma_map_guest_page(vgpu, gfn, size,
 						      dma_addr);
 }
 
@@ -224,7 +224,7 @@ static inline int intel_gvt_hypervisor_dma_map_guest_page(
 static inline void intel_gvt_hypervisor_dma_unmap_guest_page(
 		struct intel_vgpu *vgpu, dma_addr_t dma_addr)
 {
-	intel_gvt_host.mpt->dma_unmap_guest_page(vgpu->handle, dma_addr);
+	intel_gvt_host.mpt->dma_unmap_guest_page(vgpu, dma_addr);
 }
 
 /**
@@ -239,7 +239,7 @@ static inline int
 intel_gvt_hypervisor_dma_pin_guest_page(struct intel_vgpu *vgpu,
 					dma_addr_t dma_addr)
 {
-	return intel_gvt_host.mpt->dma_pin_guest_page(vgpu->handle, dma_addr);
+	return intel_gvt_host.mpt->dma_pin_guest_page(vgpu, dma_addr);
 }
 
 /**
@@ -318,7 +318,7 @@ static inline bool intel_gvt_hypervisor_is_valid_gfn(
 	if (!intel_gvt_host.mpt->is_valid_gfn)
 		return true;
 
-	return intel_gvt_host.mpt->is_valid_gfn(vgpu->handle, gfn);
+	return intel_gvt_host.mpt->is_valid_gfn(vgpu, gfn);
 }
 
 #endif /* _GVT_MPT_H_ */

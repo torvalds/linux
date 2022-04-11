@@ -36,6 +36,7 @@
 #include <linux/types.h>
 
 struct device;
+struct intel_vgpu;
 
 /*
  * Specific GVT-g MPT modules function collections. Currently GVT-g supports
@@ -44,27 +45,28 @@ struct device;
 struct intel_gvt_mpt {
 	int (*host_init)(struct device *dev, void *gvt);
 	void (*host_exit)(struct device *dev, void *gvt);
-	void (*detach_vgpu)(void *vgpu);
-	int (*inject_msi)(unsigned long handle, u32 addr, u16 data);
-	int (*enable_page_track)(unsigned long handle, u64 gfn);
-	int (*disable_page_track)(unsigned long handle, u64 gfn);
-	int (*read_gpa)(unsigned long handle, unsigned long gpa, void *buf,
+	void (*detach_vgpu)(struct intel_vgpu *vgpu);
+	int (*inject_msi)(struct intel_vgpu *vgpu, u32 addr, u16 data);
+	int (*enable_page_track)(struct intel_vgpu *vgpu, u64 gfn);
+	int (*disable_page_track)(struct intel_vgpu *vgpu, u64 gfn);
+	int (*read_gpa)(struct intel_vgpu *vgpu, unsigned long gpa, void *buf,
 			unsigned long len);
-	int (*write_gpa)(unsigned long handle, unsigned long gpa, void *buf,
+	int (*write_gpa)(struct intel_vgpu *vgpu, unsigned long gpa, void *buf,
 			 unsigned long len);
-	unsigned long (*gfn_to_mfn)(unsigned long handle, unsigned long gfn);
+	unsigned long (*gfn_to_mfn)(struct intel_vgpu *vgpu, unsigned long gfn);
 
-	int (*dma_map_guest_page)(unsigned long handle, unsigned long gfn,
+	int (*dma_map_guest_page)(struct intel_vgpu *vgpu, unsigned long gfn,
 				  unsigned long size, dma_addr_t *dma_addr);
-	void (*dma_unmap_guest_page)(unsigned long handle, dma_addr_t dma_addr);
+	void (*dma_unmap_guest_page)(struct intel_vgpu *vgpu,
+				dma_addr_t dma_addr);
 
-	int (*dma_pin_guest_page)(unsigned long handle, dma_addr_t dma_addr);
+	int (*dma_pin_guest_page)(struct intel_vgpu *vgpu, dma_addr_t dma_addr);
 
-	int (*set_opregion)(void *vgpu);
-	int (*set_edid)(void *vgpu, int port_num);
-	int (*get_vfio_device)(void *vgpu);
-	void (*put_vfio_device)(void *vgpu);
-	bool (*is_valid_gfn)(unsigned long handle, unsigned long gfn);
+	int (*set_opregion)(struct intel_vgpu *vgpu);
+	int (*set_edid)(struct intel_vgpu *vgpu, int port_num);
+	int (*get_vfio_device)(struct intel_vgpu *vgpu);
+	void (*put_vfio_device)(struct intel_vgpu *vgpu);
+	bool (*is_valid_gfn)(struct intel_vgpu *vgpu, unsigned long gfn);
 };
 
 #endif /* _GVT_HYPERCALL_H_ */
