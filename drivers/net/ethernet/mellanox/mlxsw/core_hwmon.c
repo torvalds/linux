@@ -271,8 +271,8 @@ static ssize_t mlxsw_hwmon_module_temp_fault_show(struct device *dev,
 	int err;
 
 	module = mlxsw_hwmon_attr->type_index - mlxsw_hwmon->sensor_count;
-	mlxsw_reg_mtbr_pack(mtbr_pl, MLXSW_REG_MTBR_BASE_MODULE_INDEX + module,
-			    1);
+	mlxsw_reg_mtbr_pack(mtbr_pl, 0,
+			    MLXSW_REG_MTBR_BASE_MODULE_INDEX + module, 1);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtbr), mtbr_pl);
 	if (err) {
 		dev_err(dev, "Failed to query module temperature sensor\n");
