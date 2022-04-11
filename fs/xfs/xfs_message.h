@@ -6,32 +6,33 @@
 
 struct xfs_mount;
 
-extern __printf(2, 3)
-void xfs_emerg(const struct xfs_mount *mp, const char *fmt, ...);
-extern __printf(2, 3)
-void xfs_alert(const struct xfs_mount *mp, const char *fmt, ...);
+extern __printf(3, 4)
+void xfs_printk_level(const char *kern_level, const struct xfs_mount *mp,
+			const char *fmt, ...);
+
+#define xfs_emerg(mp, fmt, ...) \
+	xfs_printk_level(KERN_EMERG, mp, fmt, ##__VA_ARGS__)
+#define xfs_alert(mp, fmt, ...) \
+	xfs_printk_level(KERN_ALERT, mp, fmt, ##__VA_ARGS__)
+#define xfs_crit(mp, fmt, ...) \
+	xfs_printk_level(KERN_CRIT, mp, fmt, ##__VA_ARGS__)
+#define xfs_err(mp, fmt, ...) \
+	xfs_printk_level(KERN_ERR, mp, fmt, ##__VA_ARGS__)
+#define xfs_warn(mp, fmt, ...) \
+	xfs_printk_level(KERN_WARNING, mp, fmt, ##__VA_ARGS__)
+#define xfs_notice(mp, fmt, ...) \
+	xfs_printk_level(KERN_NOTICE, mp, fmt, ##__VA_ARGS__)
+#define xfs_info(mp, fmt, ...) \
+	xfs_printk_level(KERN_INFO, mp, fmt, ##__VA_ARGS__)
+#ifdef DEBUG
+#define xfs_debug(mp, fmt, ...) \
+	xfs_printk_level(KERN_DEBUG, mp, fmt, ##__VA_ARGS__)
+#else
+#define xfs_debug(mp, fmt, ...) do {} while (0)
+#endif
+
 extern __printf(3, 4)
 void xfs_alert_tag(const struct xfs_mount *mp, int tag, const char *fmt, ...);
-extern __printf(2, 3)
-void xfs_crit(const struct xfs_mount *mp, const char *fmt, ...);
-extern __printf(2, 3)
-void xfs_err(const struct xfs_mount *mp, const char *fmt, ...);
-extern __printf(2, 3)
-void xfs_warn(const struct xfs_mount *mp, const char *fmt, ...);
-extern __printf(2, 3)
-void xfs_notice(const struct xfs_mount *mp, const char *fmt, ...);
-extern __printf(2, 3)
-void xfs_info(const struct xfs_mount *mp, const char *fmt, ...);
-
-#ifdef DEBUG
-extern __printf(2, 3)
-void xfs_debug(const struct xfs_mount *mp, const char *fmt, ...);
-#else
-static inline __printf(2, 3)
-void xfs_debug(const struct xfs_mount *mp, const char *fmt, ...)
-{
-}
-#endif
 
 #define xfs_printk_ratelimited(func, dev, fmt, ...)			\
 do {									\
