@@ -557,7 +557,7 @@ static long compat_i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned lo
 				.addr = umsg.addr,
 				.flags = umsg.flags,
 				.len = umsg.len,
-				.buf = compat_ptr(umsg.buf)
+				.buf = (__force __u8 *)compat_ptr(umsg.buf),
 			};
 		}
 
