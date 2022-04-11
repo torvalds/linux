@@ -1220,21 +1220,28 @@ n_tty_receive_signal_char(struct tty_struct *tty, int signal, unsigned char c)
 		process_echoes(tty);
 }
 
+/* Returns true if c is consumed as flow-control character */
+static bool n_tty_receive_char_flow_ctrl(struct tty_struct *tty, unsigned char c)
+{
+	if (c == START_CHAR(tty)) {
+		start_tty(tty);
+		process_echoes(tty);
+		return true;
+	}
+	if (c == STOP_CHAR(tty)) {
+		stop_tty(tty);
+		return true;
+	}
+
+	return false;
+}
+
 static void n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
-	if (I_IXON(tty)) {
-		if (c == START_CHAR(tty)) {
-			start_tty(tty);
-			process_echoes(tty);
-			return;
-		}
-		if (c == STOP_CHAR(tty)) {
-			stop_tty(tty);
-			return;
-		}
-	}
+	if (I_IXON(tty) && n_tty_receive_char_flow_ctrl(tty, c))
+		return;
 
 	if (L_ISIG(tty)) {
 		if (c == INTR_CHAR(tty)) {
