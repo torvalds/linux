@@ -27,6 +27,8 @@
 
 #define NF_CT_EXT_PREALLOC	128u /* conntrack events are on by default */
 
+atomic_t nf_conntrack_ext_genid __read_mostly = ATOMIC_INIT(1);
+
 static const u8 nf_ct_ext_type_len[NF_CT_EXT_NUM] = {
 	[NF_CT_EXT_HELPER] = sizeof(struct nf_conn_help),
 #if IS_ENABLED(CONFIG_NF_NAT)
@@ -116,8 +118,10 @@ void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 	if (!new)
 		return NULL;
 
-	if (!ct->ext)
+	if (!ct->ext) {
 		memset(new->offset, 0, sizeof(new->offset));
+		new->gen_id = atomic_read(&nf_conntrack_ext_genid);
+	}
 
 	new->offset[id] = newoff;
 	new->len = newlen;
@@ -127,3 +131,29 @@ void *nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 	return (void *)new + newoff;
 }
 EXPORT_SYMBOL(nf_ct_ext_add);
+
+/* Use nf_ct_ext_find wrapper. This is only useful for unconfirmed entries. */
+void *__nf_ct_ext_find(const struct nf_ct_ext *ext, u8 id)
+{
+	unsigned int gen_id = atomic_read(&nf_conntrack_ext_genid);
+	unsigned int this_id = READ_ONCE(ext->gen_id);
+
+	if (!__nf_ct_ext_exist(ext, id))
+		return NULL;
+
+	if (this_id == 0 || ext->gen_id == gen_id)
+		return (void *)ext + ext->offset[id];
+
+	return NULL;
+}
+EXPORT_SYMBOL(__nf_ct_ext_find);
+
+void nf_ct_ext_bump_genid(void)
+{
+	unsigned int value = atomic_inc_return(&nf_conntrack_ext_genid);
+
+	if (value == UINT_MAX)
+		atomic_set(&nf_conntrack_ext_genid, 1);
+
+	msleep(HZ);
+}

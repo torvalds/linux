@@ -876,6 +876,33 @@ static void __nf_conntrack_hash_insert(struct nf_conn *ct,
 			   &nf_conntrack_hash[reply_hash]);
 }
 
+static bool nf_ct_ext_valid_pre(const struct nf_ct_ext *ext)
+{
+	/* if ext->gen_id is not equal to nf_conntrack_ext_genid, some extensions
+	 * may contain stale pointers to e.g. helper that has been removed.
+	 *
+	 * The helper can't clear this because the nf_conn object isn't in
+	 * any hash and synchronize_rcu() isn't enough because associated skb
+	 * might sit in a queue.
+	 */
+	return !ext || ext->gen_id == atomic_read(&nf_conntrack_ext_genid);
+}
+
+static bool nf_ct_ext_valid_post(struct nf_ct_ext *ext)
+{
+	if (!ext)
+		return true;
+
+	if (ext->gen_id != atomic_read(&nf_conntrack_ext_genid))
+		return false;
+
+	/* inserted into conntrack table, nf_ct_iterate_cleanup()
+	 * will find it.  Disable nf_ct_ext_find() id check.
+	 */
+	WRITE_ONCE(ext->gen_id, 0);
+	return true;
+}
+
 int
 nf_conntrack_hash_check_insert(struct nf_conn *ct)
 {
@@ -890,6 +917,11 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	int err = -EEXIST;
 
 	zone = nf_ct_zone(ct);
+
+	if (!nf_ct_ext_valid_pre(ct->ext)) {
+		NF_CT_STAT_INC(net, insert_failed);
+		return -ETIMEDOUT;
+	}
 
 	local_bh_disable();
 	do {
@@ -931,6 +963,13 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	nf_conntrack_double_unlock(hash, reply_hash);
 	NF_CT_STAT_INC(net, insert);
 	local_bh_enable();
+
+	if (!nf_ct_ext_valid_post(ct->ext)) {
+		nf_ct_kill(ct);
+		NF_CT_STAT_INC(net, drop);
+		return -ETIMEDOUT;
+	}
+
 	return 0;
 chaintoolong:
 	NF_CT_STAT_INC(net, chaintoolong);
@@ -1198,6 +1237,11 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 		return NF_DROP;
 	}
 
+	if (!nf_ct_ext_valid_pre(ct->ext)) {
+		NF_CT_STAT_INC(net, insert_failed);
+		goto dying;
+	}
+
 	pr_debug("Confirming conntrack %p\n", ct);
 	/* We have to check the DYING flag after unlink to prevent
 	 * a race against nf_ct_get_next_corpse() possibly called from
@@ -1253,6 +1297,16 @@ chaintoolong:
 	__nf_conntrack_hash_insert(ct, hash, reply_hash);
 	nf_conntrack_double_unlock(hash, reply_hash);
 	local_bh_enable();
+
+	/* ext area is still valid (rcu read lock is held,
+	 * but will go out of scope soon, we need to remove
+	 * this conntrack again.
+	 */
+	if (!nf_ct_ext_valid_post(ct->ext)) {
+		nf_ct_kill(ct);
+		NF_CT_STAT_INC(net, drop);
+		return NF_DROP;
+	}
 
 	help = nfct_help(ct);
 	if (help && help->helper)
@@ -2491,6 +2545,7 @@ nf_ct_iterate_destroy(int (*iter)(struct nf_conn *i, void *data), void *data)
 	 */
 	synchronize_net();
 
+	nf_ct_ext_bump_genid();
 	nf_ct_iterate_cleanup(iter, data, 0, 0);
 }
 EXPORT_SYMBOL_GPL(nf_ct_iterate_destroy);
