@@ -34,6 +34,7 @@
 #define _GVT_H_
 
 #include <uapi/linux/pci_regs.h>
+#include <linux/kvm_host.h>
 
 #include "i915_drv.h"
 #include "intel_gvt.h"
@@ -174,6 +175,8 @@ struct intel_vgpu_submission {
 	} last_ctx[I915_NUM_ENGINES];
 };
 
+#define KVMGT_DEBUGFS_FILENAME		"kvmgt_nr_cache_entries"
+
 struct intel_vgpu {
 	struct intel_gvt *gvt;
 	struct mutex vgpu_lock;
@@ -236,6 +239,11 @@ struct intel_vgpu {
 	atomic_t released;
 	struct vfio_device *vfio_device;
 	struct vfio_group *vfio_group;
+
+	struct kvm_page_track_notifier_node track_node;
+#define NR_BKT (1 << 18)
+	struct hlist_head ptable[NR_BKT];
+#undef NR_BKT
 };
 
 /* validating GM healthy status*/
