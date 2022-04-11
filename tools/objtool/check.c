@@ -1277,6 +1277,13 @@ static int add_jump_destinations(struct objtool_file *file)
 	unsigned long dest_off;
 
 	for_each_insn(file, insn) {
+		if (insn->jump_dest) {
+			/*
+			 * handle_group_alt() may have previously set
+			 * 'jump_dest' for some alternatives.
+			 */
+			continue;
+		}
 		if (!is_static_jump(insn))
 			continue;
 
@@ -1308,15 +1315,6 @@ static int add_jump_destinations(struct objtool_file *file)
 
 		jump_dest = find_insn(file, dest_sec, dest_off);
 		if (!jump_dest) {
-
-			/*
-			 * This is a special case where an alt instruction
-			 * jumps past the end of the section.  These are
-			 * handled later in handle_group_alt().
-			 */
-			if (!strcmp(insn->sec->name, ".altinstr_replacement"))
-				continue;
-
 			WARN_FUNC("can't find jump dest instruction at %s+0x%lx",
 				  insn->sec, insn->offset, dest_sec->name,
 				  dest_off);
@@ -1549,13 +1547,13 @@ static int handle_group_alt(struct objtool_file *file,
 			continue;
 
 		dest_off = arch_jump_destination(insn);
-		if (dest_off == special_alt->new_off + special_alt->new_len)
+		if (dest_off == special_alt->new_off + special_alt->new_len) {
 			insn->jump_dest = next_insn_same_sec(file, last_orig_insn);
-
-		if (!insn->jump_dest) {
-			WARN_FUNC("can't find alternative jump destination",
-				  insn->sec, insn->offset);
-			return -1;
+			if (!insn->jump_dest) {
+				WARN_FUNC("can't find alternative jump destination",
+					  insn->sec, insn->offset);
+				return -1;
+			}
 		}
 	}
 
@@ -2254,14 +2252,14 @@ static int decode_sections(struct objtool_file *file)
 		return ret;
 
 	/*
-	 * Must be before add_special_section_alts() as that depends on
-	 * jump_dest being set.
+	 * Must be before add_jump_destinations(), which depends on 'func'
+	 * being set for alternatives, to enable proper sibling call detection.
 	 */
-	ret = add_jump_destinations(file);
+	ret = add_special_section_alts(file);
 	if (ret)
 		return ret;
 
-	ret = add_special_section_alts(file);
+	ret = add_jump_destinations(file);
 	if (ret)
 		return ret;
 
