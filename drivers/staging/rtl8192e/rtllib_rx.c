@@ -2721,7 +2721,7 @@ static void rtllib_rx_mgt(struct rtllib_device *ieee,
 		if (ieee->sta_sleep || (ieee->ps != RTLLIB_PS_DISABLED &&
 		    ieee->iw_mode == IW_MODE_INFRA &&
 		    ieee->state == RTLLIB_LINKED))
-			tasklet_schedule(&ieee->ps_task);
+			schedule_work(&ieee->ps_task);
 
 		break;
 

@@ -1687,13 +1687,16 @@ static short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h,
 	return 1;
 }
 
-static inline void ieee80211_sta_ps(struct tasklet_struct *t)
+static inline void ieee80211_sta_ps(struct work_struct *work)
 {
-	struct ieee80211_device *ieee = from_tasklet(ieee, t, ps_task);
+	struct ieee80211_device *ieee;
 	u32 th, tl;
 	short sleep;
-
 	unsigned long flags, flags2;
+
+	ieee = container_of(work, struct ieee80211_device, ps_task);
+	if (!ieee)
+		return;
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -1897,7 +1900,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 	if (ieee->sta_sleep || (ieee->ps != IEEE80211_PS_DISABLED &&
 				ieee->iw_mode == IW_MODE_INFRA &&
 				ieee->state == IEEE80211_LINKED))
-		tasklet_schedule(&ieee->ps_task);
+		schedule_work(&ieee->ps_task);
 
 	if (WLAN_FC_GET_STYPE(header->frame_ctl) != IEEE80211_STYPE_PROBE_RESP &&
 	    WLAN_FC_GET_STYPE(header->frame_ctl) != IEEE80211_STYPE_BEACON)
@@ -2602,7 +2605,7 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 	spin_lock_init(&ieee->mgmt_tx_lock);
 	spin_lock_init(&ieee->beacon_lock);
 
-	tasklet_setup(&ieee->ps_task, ieee80211_sta_ps);
+	INIT_WORK(&ieee->ps_task, ieee80211_sta_ps);
 }
 
 void ieee80211_softmac_free(struct ieee80211_device *ieee)
@@ -2613,7 +2616,7 @@ void ieee80211_softmac_free(struct ieee80211_device *ieee)
 	del_timer_sync(&ieee->associate_timer);
 
 	cancel_delayed_work(&ieee->associate_retry_wq);
-
+	cancel_work_sync(&ieee->ps_task);
 	mutex_unlock(&ieee->wx_mutex);
 }
 

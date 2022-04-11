@@ -2042,12 +2042,16 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 
 }
 
-static inline void rtllib_sta_ps(struct tasklet_struct *t)
+static inline void rtllib_sta_ps(struct work_struct *work)
 {
-	struct rtllib_device *ieee = from_tasklet(ieee, t, ps_task);
+	struct rtllib_device *ieee;
 	u64 time;
 	short sleep;
 	unsigned long flags, flags2;
+
+	ieee = container_of(work, struct rtllib_device, ps_task);
+	if (!ieee)
+		return;
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -3028,7 +3032,7 @@ int rtllib_softmac_init(struct rtllib_device *ieee)
 	spin_lock_init(&ieee->mgmt_tx_lock);
 	spin_lock_init(&ieee->beacon_lock);
 
-	tasklet_setup(&ieee->ps_task, rtllib_sta_ps);
+	INIT_WORK(&ieee->ps_task, rtllib_sta_ps);
 
 	return 0;
 }
@@ -3050,8 +3054,8 @@ void rtllib_softmac_free(struct rtllib_device *ieee)
 	cancel_work_sync(&ieee->associate_complete_wq);
 	cancel_work_sync(&ieee->ips_leave_wq);
 	cancel_work_sync(&ieee->wx_sync_scan_wq);
+	cancel_work_sync(&ieee->ps_task);
 	mutex_unlock(&ieee->wx_mutex);
-	tasklet_kill(&ieee->ps_task);
 }
 
 static inline struct sk_buff *
