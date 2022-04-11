@@ -43,11 +43,10 @@ Writing TTY Driver
 ==================
 
 Before one starts writing a TTY driver, they must consider
-:doc:`Serial <../driver-api/serial/driver>` and :doc:`USB Serial
-<../usb/usb-serial>` layers
-first. Drivers for serial devices can often use one of these specific layers to
-implement a serial driver. Only special devices should be handled directly by
-the TTY Layer. If you are about to write such a driver, read on.
+:doc:`Serial <../serial/driver>` and :doc:`USB Serial <../../usb/usb-serial>`
+layers first. Drivers for serial devices can often use one of these specific
+layers to implement a serial driver. Only special devices should be handled
+directly by the TTY Layer. If you are about to write such a driver, read on.
 
 A *typical* sequence a TTY driver performs is as follows:
 
