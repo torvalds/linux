@@ -241,6 +241,7 @@ static struct clk_init_data rtc_32k_init_data = {
 	.ops		= &ccu_mux_ops,
 	.parent_hws	= rtc_32k_parents,
 	.num_parents	= ARRAY_SIZE(rtc_32k_parents), /* updated during probe */
+	.flags		= CLK_IS_CRITICAL,
 };
 
 static struct ccu_mux rtc_32k_clk = {
