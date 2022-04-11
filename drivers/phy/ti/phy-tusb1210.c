@@ -155,7 +155,7 @@ static int tusb1210_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 }
 
 #ifdef CONFIG_POWER_SUPPLY
-const char * const tusb1210_chg_det_states[] = {
+static const char * const tusb1210_chg_det_states[] = {
 	"CHG_DET_CONNECTING",
 	"CHG_DET_START_DET",
 	"CHG_DET_READ_DET",
