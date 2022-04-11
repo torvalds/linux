@@ -10,29 +10,40 @@ extern __printf(3, 4)
 void xfs_printk_level(const char *kern_level, const struct xfs_mount *mp,
 			const char *fmt, ...);
 
+#define xfs_printk_index_wrap(kern_level, mp, fmt, ...)		\
+({								\
+	printk_index_subsys_emit("%sXFS%s: ", kern_level, fmt);	\
+	xfs_printk_level(kern_level, mp, fmt, ##__VA_ARGS__);	\
+})
 #define xfs_emerg(mp, fmt, ...) \
-	xfs_printk_level(KERN_EMERG, mp, fmt, ##__VA_ARGS__)
+	xfs_printk_index_wrap(KERN_EMERG, mp, fmt, ##__VA_ARGS__)
 #define xfs_alert(mp, fmt, ...) \
-	xfs_printk_level(KERN_ALERT, mp, fmt, ##__VA_ARGS__)
+	xfs_printk_index_wrap(KERN_ALERT, mp, fmt, ##__VA_ARGS__)
 #define xfs_crit(mp, fmt, ...) \
-	xfs_printk_level(KERN_CRIT, mp, fmt, ##__VA_ARGS__)
+	xfs_printk_index_wrap(KERN_CRIT, mp, fmt, ##__VA_ARGS__)
 #define xfs_err(mp, fmt, ...) \
-	xfs_printk_level(KERN_ERR, mp, fmt, ##__VA_ARGS__)
+	xfs_printk_index_wrap(KERN_ERR, mp, fmt, ##__VA_ARGS__)
 #define xfs_warn(mp, fmt, ...) \
-	xfs_printk_level(KERN_WARNING, mp, fmt, ##__VA_ARGS__)
+	xfs_printk_index_wrap(KERN_WARNING, mp, fmt, ##__VA_ARGS__)
 #define xfs_notice(mp, fmt, ...) \
-	xfs_printk_level(KERN_NOTICE, mp, fmt, ##__VA_ARGS__)
+	xfs_printk_index_wrap(KERN_NOTICE, mp, fmt, ##__VA_ARGS__)
 #define xfs_info(mp, fmt, ...) \
-	xfs_printk_level(KERN_INFO, mp, fmt, ##__VA_ARGS__)
+	xfs_printk_index_wrap(KERN_INFO, mp, fmt, ##__VA_ARGS__)
 #ifdef DEBUG
 #define xfs_debug(mp, fmt, ...) \
-	xfs_printk_level(KERN_DEBUG, mp, fmt, ##__VA_ARGS__)
+	xfs_printk_index_wrap(KERN_DEBUG, mp, fmt, ##__VA_ARGS__)
 #else
 #define xfs_debug(mp, fmt, ...) do {} while (0)
 #endif
 
+#define xfs_alert_tag(mp, tag, fmt, ...)			\
+({								\
+	printk_index_subsys_emit("%sXFS%s: ", KERN_ALERT, fmt);	\
+	_xfs_alert_tag(mp, tag, fmt, ##__VA_ARGS__);		\
+})
+
 extern __printf(3, 4)
-void xfs_alert_tag(const struct xfs_mount *mp, int tag, const char *fmt, ...);
+void _xfs_alert_tag(const struct xfs_mount *mp, int tag, const char *fmt, ...);
 
 #define xfs_printk_ratelimited(func, dev, fmt, ...)			\
 do {									\
