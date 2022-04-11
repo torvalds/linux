@@ -66,7 +66,7 @@ static ssize_t mlxsw_hwmon_temp_show(struct device *dev,
 
 	index = mlxsw_hwmon_get_attr_index(mlxsw_hwmon_attr->type_index,
 					   mlxsw_hwmon->module_sensor_max);
-	mlxsw_reg_mtmp_pack(mtmp_pl, index, false, false);
+	mlxsw_reg_mtmp_pack(mtmp_pl, 0, index, false, false);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err) {
 		dev_err(mlxsw_hwmon->bus_info->dev, "Failed to query temp sensor\n");
@@ -89,7 +89,7 @@ static ssize_t mlxsw_hwmon_temp_max_show(struct device *dev,
 
 	index = mlxsw_hwmon_get_attr_index(mlxsw_hwmon_attr->type_index,
 					   mlxsw_hwmon->module_sensor_max);
-	mlxsw_reg_mtmp_pack(mtmp_pl, index, false, false);
+	mlxsw_reg_mtmp_pack(mtmp_pl, 0, index, false, false);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err) {
 		dev_err(mlxsw_hwmon->bus_info->dev, "Failed to query temp sensor\n");
@@ -232,8 +232,9 @@ static int mlxsw_hwmon_module_temp_get(struct device *dev,
 	int err;
 
 	module = mlxsw_hwmon_attr->type_index - mlxsw_hwmon->sensor_count;
-	mlxsw_reg_mtmp_pack(mtmp_pl, MLXSW_REG_MTMP_MODULE_INDEX_MIN + module,
-			    false, false);
+	mlxsw_reg_mtmp_pack(mtmp_pl, 0,
+			    MLXSW_REG_MTMP_MODULE_INDEX_MIN + module, false,
+			    false);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err) {
 		dev_err(dev, "Failed to query module temperature\n");
@@ -721,7 +722,7 @@ static int mlxsw_hwmon_gearbox_init(struct mlxsw_hwmon *mlxsw_hwmon)
 	while (index < max_index) {
 		sensor_index = index % mlxsw_hwmon->module_sensor_max +
 			       MLXSW_REG_MTMP_GBOX_INDEX_MIN;
-		mlxsw_reg_mtmp_pack(mtmp_pl, sensor_index, true, true);
+		mlxsw_reg_mtmp_pack(mtmp_pl, 0, sensor_index, true, true);
 		err = mlxsw_reg_write(mlxsw_hwmon->core,
 				      MLXSW_REG(mtmp), mtmp_pl);
 		if (err) {

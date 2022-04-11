@@ -9721,6 +9721,12 @@ MLXSW_ITEM32(reg, mtcap, sensor_count, 0x00, 0, 7);
 
 MLXSW_REG_DEFINE(mtmp, MLXSW_REG_MTMP_ID, MLXSW_REG_MTMP_LEN);
 
+/* reg_mtmp_slot_index
+ * Slot index (0: Main board).
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mtmp, slot_index, 0x00, 16, 4);
+
 #define MLXSW_REG_MTMP_MODULE_INDEX_MIN 64
 #define MLXSW_REG_MTMP_GBOX_INDEX_MIN 256
 /* reg_mtmp_sensor_index
@@ -9810,11 +9816,12 @@ MLXSW_ITEM32(reg, mtmp, temperature_threshold_lo, 0x10, 0, 16);
  */
 MLXSW_ITEM_BUF(reg, mtmp, sensor_name, 0x18, MLXSW_REG_MTMP_SENSOR_NAME_SIZE);
 
-static inline void mlxsw_reg_mtmp_pack(char *payload, u16 sensor_index,
-				       bool max_temp_enable,
+static inline void mlxsw_reg_mtmp_pack(char *payload, u8 slot_index,
+				       u16 sensor_index, bool max_temp_enable,
 				       bool max_temp_reset)
 {
 	MLXSW_REG_ZERO(mtmp, payload);
+	mlxsw_reg_mtmp_slot_index_set(payload, slot_index);
 	mlxsw_reg_mtmp_sensor_index_set(payload, sensor_index);
 	mlxsw_reg_mtmp_mte_set(payload, max_temp_enable);
 	mlxsw_reg_mtmp_mtr_set(payload, max_temp_reset);

@@ -177,7 +177,7 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 	int page;
 	int err;
 
-	mlxsw_reg_mtmp_pack(mtmp_pl, MLXSW_REG_MTMP_MODULE_INDEX_MIN + module,
+	mlxsw_reg_mtmp_pack(mtmp_pl, 0, MLXSW_REG_MTMP_MODULE_INDEX_MIN + module,
 			    false, false);
 	err = mlxsw_reg_query(core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err)
