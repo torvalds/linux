@@ -713,6 +713,53 @@ int spi_nor_wait_till_ready(struct spi_nor *nor)
 }
 
 /**
+ * spi_nor_wait_till_ready_with_timeout_and_msleep() - Service routine to read the
+ * Status Register until ready with msleep, or timeout occurs.
+ * @nor:		pointer to "struct spi_nor".
+ * @timeout_jiffies:	jiffies to wait until timeout.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int spi_nor_wait_till_ready_with_timeout_and_msleep(struct spi_nor *nor,
+							   unsigned long timeout_jiffies)
+{
+	unsigned long deadline;
+	int timeout = 0, ret;
+
+	deadline = jiffies + timeout_jiffies;
+
+	while (!timeout) {
+		if (time_after_eq(jiffies, deadline))
+			timeout = 1;
+
+		ret = spi_nor_ready(nor);
+		if (ret < 0)
+			return ret;
+		if (ret)
+			return 0;
+
+		msleep(10);
+	}
+
+	dev_dbg(nor->dev, "flash operation timed out\n");
+
+	return -ETIMEDOUT;
+}
+
+/**
+ * spi_nor_wait_till_ready_with_msleep() - Wait for a predefined amount of time for the
+ * flash to be ready with msleep, or timeout occurs.
+ * @nor:	pointer to "struct spi_nor".
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+int spi_nor_wait_till_ready_with_msleep(struct spi_nor *nor)
+{
+	return spi_nor_wait_till_ready_with_timeout_and_msleep(nor,
+							       DEFAULT_READY_WAIT_JIFFIES);
+}
+
+/**
  * spi_nor_write_sr() - Write the Status Register.
  * @nor:	pointer to 'struct spi_nor'.
  * @sr:		pointer to DMA-able buffer to write to the Status Register.
@@ -1432,7 +1479,7 @@ static int spi_nor_erase_multi_sectors(struct spi_nor *nor, u64 addr, u32 len)
 			addr += cmd->size;
 			cmd->count--;
 
-			ret = spi_nor_wait_till_ready(nor);
+			ret = spi_nor_wait_till_ready_with_msleep(nor);
 			if (ret)
 				goto destroy_erase_cmd_list;
 		}
@@ -1518,7 +1565,7 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 			addr += mtd->erasesize;
 			len -= mtd->erasesize;
 
-			ret = spi_nor_wait_till_ready(nor);
+			ret = spi_nor_wait_till_ready_with_msleep(nor);
 			if (ret)
 				goto erase_err;
 		}
