@@ -563,7 +563,7 @@ static int mlxsw_env_module_low_power_set(struct mlxsw_core *mlxsw_core,
 	u16 eeprom_override_mask, eeprom_override;
 	char pmmp_pl[MLXSW_REG_PMMP_LEN];
 
-	mlxsw_reg_pmmp_pack(pmmp_pl, module);
+	mlxsw_reg_pmmp_pack(pmmp_pl, 0, module);
 	mlxsw_reg_pmmp_sticky_set(pmmp_pl, true);
 	/* Mask all the bits except low power mode. */
 	eeprom_override_mask = ~MLXSW_REG_PMMP_EEPROM_OVERRIDE_LOW_POWER_MASK;

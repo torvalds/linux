@@ -5984,6 +5984,12 @@ MLXSW_REG_DEFINE(pmmp, MLXSW_REG_PMMP_ID, MLXSW_REG_PMMP_LEN);
  */
 MLXSW_ITEM32(reg, pmmp, module, 0x00, 16, 8);
 
+/* reg_pmmp_slot_index
+ * Slot index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pmmp, slot_index, 0x00, 24, 4);
+
 /* reg_pmmp_sticky
  * When set, will keep eeprom_override values after plug-out event.
  * Access: OP
@@ -6011,9 +6017,10 @@ enum {
  */
 MLXSW_ITEM32(reg, pmmp, eeprom_override, 0x04, 0, 16);
 
-static inline void mlxsw_reg_pmmp_pack(char *payload, u8 module)
+static inline void mlxsw_reg_pmmp_pack(char *payload, u8 slot_index, u8 module)
 {
 	MLXSW_REG_ZERO(pmmp, payload);
+	mlxsw_reg_pmmp_slot_index_set(payload, slot_index);
 	mlxsw_reg_pmmp_module_set(payload, module);
 }
 
