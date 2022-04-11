@@ -138,6 +138,10 @@
 	status = "disabled";
 };
 
+&clks {
+	fsl,pmic-stby-poweroff;
+};
+
 /* Colibri SSP */
 &ecspi4 {
 	cs-gpios = <&gpio5 2 GPIO_ACTIVE_LOW>;
@@ -403,6 +407,7 @@
 
 	pmic: pfuze100@8 {
 		compatible = "fsl,pfuze100";
+		fsl,pmic-stby-poweroff;
 		reg = <0x08>;
 
 		regulators {
