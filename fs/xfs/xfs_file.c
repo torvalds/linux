@@ -1167,12 +1167,10 @@ xfs_file_open(
 	struct inode	*inode,
 	struct file	*file)
 {
-	if (!(file->f_flags & O_LARGEFILE) && i_size_read(inode) > MAX_NON_LFS)
-		return -EFBIG;
 	if (xfs_is_shutdown(XFS_M(inode->i_sb)))
 		return -EIO;
 	file->f_mode |= FMODE_NOWAIT | FMODE_BUF_RASYNC;
-	return 0;
+	return generic_file_open(inode, file);
 }
 
 STATIC int
