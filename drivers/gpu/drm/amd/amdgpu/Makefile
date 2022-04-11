@@ -144,6 +144,7 @@ amdgpu-y += \
 
 # add MES block
 amdgpu-y += \
+	amdgpu_mes.o \
 	mes_v10_1.o
 
 # add UVD block
