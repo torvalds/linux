@@ -1082,6 +1082,7 @@ static int invalidate_one_bucket(struct btree_trans *trans, struct bch_dev *ca)
 	struct bkey_s_c k;
 	struct bkey_i_alloc_v4 *a;
 	u64 bucket, idx;
+	struct printbuf buf = PRINTBUF;
 	int ret;
 
 	bch2_trans_iter_init(trans, &lru_iter, BTREE_ID_lru,
@@ -1107,10 +1108,16 @@ static int invalidate_one_bucket(struct btree_trans *trans, struct bch_dev *ca)
 	if (ret)
 		goto out;
 
-	if (bch2_trans_inconsistent_on(idx != alloc_lru_idx(a->v), trans,
-			"invalidating bucket with wrong lru idx (got %llu should be %llu",
-			idx, alloc_lru_idx(a->v)))
+	if (idx != alloc_lru_idx(a->v)) {
+		pr_buf(&buf, "alloc key does not point back to lru entry when invalidating bucket:\n  ");
+
+		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&a->k_i));
+		pr_buf(&buf, "\n  ");
+		bch2_bkey_val_to_text(&buf, c, k);
+		bch2_trans_inconsistent(trans, "%s", buf.buf);
+		ret = -EINVAL;
 		goto out;
+	}
 
 	SET_BCH_ALLOC_V4_NEED_INC_GEN(&a->v, false);
 	a->v.gen++;
@@ -1125,6 +1132,7 @@ static int invalidate_one_bucket(struct btree_trans *trans, struct bch_dev *ca)
 out:
 	bch2_trans_iter_exit(trans, &alloc_iter);
 	bch2_trans_iter_exit(trans, &lru_iter);
+	printbuf_exit(&buf);
 	return ret;
 }
 
