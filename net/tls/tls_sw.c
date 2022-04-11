@@ -268,9 +268,6 @@ static int tls_do_decryption(struct sock *sk,
 	if (ret == -EBADMSG)
 		TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSDECRYPTERROR);
 
-	if (async)
-		atomic_dec(&ctx->decrypt_pending);
-
 	return ret;
 }
 
