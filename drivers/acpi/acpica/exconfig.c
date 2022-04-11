@@ -87,10 +87,20 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 	struct acpi_namespace_node *parent_node;
 	struct acpi_namespace_node *start_node;
 	struct acpi_namespace_node *parameter_node = NULL;
+	union acpi_operand_object *return_obj;
 	union acpi_operand_object *ddb_handle;
 	u32 table_index;
 
 	ACPI_FUNCTION_TRACE(ex_load_table_op);
+
+	/* Create the return object */
+
+	return_obj = acpi_ut_create_integer_object((u64)0);
+	if (!return_obj) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
+
+	*return_desc = return_obj;
 
 	/* Find the ACPI table in the RSDT/XSDT */
 
@@ -106,12 +116,6 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 		/* Table not found, return an Integer=0 and AE_OK */
 
-		ddb_handle = acpi_ut_create_integer_object((u64) 0);
-		if (!ddb_handle) {
-			return_ACPI_STATUS(AE_NO_MEMORY);
-		}
-
-		*return_desc = ddb_handle;
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -198,7 +202,13 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 		}
 	}
 
-	*return_desc = ddb_handle;
+	/* Remove the reference to ddb_handle created by acpi_ex_add_table above */
+
+	acpi_ut_remove_reference(ddb_handle);
+
+	/* Return -1 (non-zero) indicates success */
+
+	return_obj->integer.value = 0xFFFFFFFFFFFFFFFF;
 	return_ACPI_STATUS(status);
 }
 
