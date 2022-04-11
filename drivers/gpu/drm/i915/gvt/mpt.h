@@ -71,19 +71,4 @@ static inline void intel_gvt_hypervisor_host_exit(struct device *dev, void *gvt)
 	intel_gvt_host.mpt->host_exit(dev, gvt);
 }
 
-/**
- * intel_gvt_hypervisor_dma_pin_guest_page - pin guest dma buf
- * @vgpu: a vGPU
- * @dma_addr: guest dma addr
- *
- * Returns:
- * 0 on success, negative error code if failed.
- */
-static inline int
-intel_gvt_hypervisor_dma_pin_guest_page(struct intel_vgpu *vgpu,
-					dma_addr_t dma_addr)
-{
-	return intel_gvt_host.mpt->dma_pin_guest_page(vgpu, dma_addr);
-}
-
 #endif /* _GVT_MPT_H_ */

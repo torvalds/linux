@@ -1921,8 +1921,7 @@ err_unlock:
 	return ret;
 }
 
-static int kvmgt_dma_pin_guest_page(struct intel_vgpu *vgpu,
-		dma_addr_t dma_addr)
+int intel_gvt_dma_pin_guest_page(struct intel_vgpu *vgpu, dma_addr_t dma_addr)
 {
 	struct gvt_dma *entry;
 	int ret = 0;
@@ -1968,7 +1967,6 @@ void intel_gvt_dma_unmap_guest_page(struct intel_vgpu *vgpu,
 static const struct intel_gvt_mpt kvmgt_mpt = {
 	.host_init = kvmgt_host_init,
 	.host_exit = kvmgt_host_exit,
-	.dma_pin_guest_page = kvmgt_dma_pin_guest_page,
 };
 
 struct intel_gvt_host intel_gvt_host = {
