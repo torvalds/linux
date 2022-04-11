@@ -1685,10 +1685,6 @@ struct acpi_nhlt_linux_specific_data {
 	u8 device_port_id;
 };
 
-struct acpi_nhlt_linux_specific_data_b {
-	u8 specific_data[18];
-};
-
 /*******************************************************************************
  *
  * PCCT - Platform Communications Channel Table (ACPI 5.0)
