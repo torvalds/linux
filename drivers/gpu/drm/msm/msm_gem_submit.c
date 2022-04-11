@@ -21,12 +21,6 @@
  * Cmdstream submission:
  */
 
-/* make sure these don't conflict w/ MSM_SUBMIT_BO_x */
-#define BO_VALID    0x8000   /* is current addr in cmdstream correct/valid? */
-#define BO_LOCKED   0x4000   /* obj lock is held */
-#define BO_ACTIVE   0x2000   /* active refcnt is held */
-#define BO_PINNED   0x1000   /* obj is pinned and on active list */
-
 static struct msm_gem_submit *submit_create(struct drm_device *dev,
 		struct msm_gpu *gpu,
 		struct msm_gpu_submitqueue *queue, uint32_t nr_bos,
@@ -231,6 +225,13 @@ static void submit_cleanup_bo(struct msm_gem_submit *submit, int i,
 	struct drm_gem_object *obj = &submit->bos[i].obj->base;
 	unsigned flags = submit->bos[i].flags & cleanup_flags;
 
+	/*
+	 * Clear flags bit before dropping lock, so that the msm_job_run()
+	 * path isn't racing with submit_cleanup() (ie. the read/modify/
+	 * write is protected by the obj lock in all paths)
+	 */
+	submit->bos[i].flags &= ~cleanup_flags;
+
 	if (flags & BO_PINNED)
 		msm_gem_unpin_vma_locked(obj, submit->bos[i].vma);
 
@@ -239,8 +240,6 @@ static void submit_cleanup_bo(struct msm_gem_submit *submit, int i,
 
 	if (flags & BO_LOCKED)
 		dma_resv_unlock(obj->resv);
-
-	submit->bos[i].flags &= ~cleanup_flags;
 }
 
 static void submit_unlock_unpin_bo(struct msm_gem_submit *submit, int i)
