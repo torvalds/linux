@@ -667,7 +667,7 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(cs35l45_probe);
+EXPORT_SYMBOL_NS_GPL(cs35l45_probe, SND_SOC_CS35L45);
 
 int cs35l45_remove(struct cs35l45_private *cs35l45)
 {
@@ -680,14 +680,15 @@ int cs35l45_remove(struct cs35l45_private *cs35l45)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cs35l45_remove);
+EXPORT_SYMBOL_NS_GPL(cs35l45_remove, SND_SOC_CS35L45);
 
 const struct dev_pm_ops cs35l45_pm_ops = {
 	SET_RUNTIME_PM_OPS(cs35l45_runtime_suspend, cs35l45_runtime_resume, NULL)
 };
-EXPORT_SYMBOL_GPL(cs35l45_pm_ops);
+EXPORT_SYMBOL_NS_GPL(cs35l45_pm_ops, SND_SOC_CS35L45);
 
 MODULE_DESCRIPTION("ASoC CS35L45 driver");
 MODULE_AUTHOR("James Schulman, Cirrus Logic Inc, <james.schulman@cirrus.com>");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_IMPORT_NS(SND_SOC_CS35L45_TABLES);
