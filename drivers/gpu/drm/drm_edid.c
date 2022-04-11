@@ -1632,9 +1632,9 @@ static int edid_block_tag(const void *_block)
 	return block[0];
 }
 
-static bool edid_is_zero(const void *edid, int length)
+static bool edid_block_is_zero(const void *edid)
 {
-	return !memchr_inv(edid, 0, length);
+	return !memchr_inv(edid, 0, EDID_LENGTH);
 }
 
 /**
@@ -1785,7 +1785,7 @@ bool drm_edid_block_valid(u8 *_block, int block_num, bool print_bad_edid,
 	}
 
 	if (!valid && print_bad_edid) {
-		if (edid_is_zero(block, EDID_LENGTH)) {
+		if (edid_block_is_zero(block)) {
 			pr_notice("EDID block is all zeroes\n");
 		} else {
 			pr_notice("Raw EDID:\n");
@@ -1942,7 +1942,7 @@ static void connector_bad_edid(struct drm_connector *connector,
 		u8 *block = edid + i * EDID_LENGTH;
 		char prefix[20];
 
-		if (edid_is_zero(block, EDID_LENGTH))
+		if (edid_block_is_zero(block))
 			sprintf(prefix, "\t[%02x] ZERO ", i);
 		else if (!drm_edid_block_valid(block, i, false, NULL))
 			sprintf(prefix, "\t[%02x] BAD  ", i);
@@ -2019,7 +2019,7 @@ static struct edid *drm_do_get_edid_base_block(struct drm_connector *connector,
 			goto out;
 		if (drm_edid_block_valid(edid, 0, false, edid_corrupt))
 			break;
-		if (try == 0 && edid_is_zero(edid, EDID_LENGTH)) {
+		if (try == 0 && edid_block_is_zero(edid)) {
 			if (null_edid_counter)
 				(*null_edid_counter)++;
 			goto carp;
