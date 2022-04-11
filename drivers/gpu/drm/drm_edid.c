@@ -1773,6 +1773,23 @@ static void edid_block_status_print(enum edid_block_status status,
 	}
 }
 
+static void edid_block_dump(const char *level, const void *block, int block_num)
+{
+	enum edid_block_status status;
+	char prefix[20];
+
+	status = edid_block_check(block, block_num == 0);
+	if (status == EDID_BLOCK_ZERO)
+		sprintf(prefix, "\t[%02x] ZERO ", block_num);
+	else if (!edid_block_status_valid(status, edid_block_tag(block)))
+		sprintf(prefix, "\t[%02x] BAD  ", block_num);
+	else
+		sprintf(prefix, "\t[%02x] GOOD ", block_num);
+
+	print_hex_dump(level, prefix, DUMP_PREFIX_NONE, 16, 1,
+		       block, EDID_LENGTH, false);
+}
+
 /**
  * drm_edid_block_valid - Sanity check the EDID block (base or extension)
  * @raw_edid: pointer to raw EDID block
@@ -1826,9 +1843,7 @@ bool drm_edid_block_valid(u8 *_block, int block_num, bool print_bad_edid,
 
 	if (!valid && print_bad_edid && status != EDID_BLOCK_ZERO) {
 		pr_notice("Raw EDID:\n");
-		print_hex_dump(KERN_NOTICE,
-			       " \t", DUMP_PREFIX_NONE, 16, 1,
-			       block, EDID_LENGTH, false);
+		edid_block_dump(KERN_NOTICE, block, block_num);
 	}
 
 	return valid;
@@ -1976,18 +1991,8 @@ static void connector_bad_edid(struct drm_connector *connector,
 	drm_dbg_kms(connector->dev, "%s: EDID is invalid:\n", connector->name);
 	for (i = 0; i < num_blocks; i++) {
 		u8 *block = edid + i * EDID_LENGTH;
-		char prefix[20];
 
-		if (edid_block_is_zero(block))
-			sprintf(prefix, "\t[%02x] ZERO ", i);
-		else if (!drm_edid_block_valid(block, i, false, NULL))
-			sprintf(prefix, "\t[%02x] BAD  ", i);
-		else
-			sprintf(prefix, "\t[%02x] GOOD ", i);
-
-		print_hex_dump(KERN_DEBUG,
-			       prefix, DUMP_PREFIX_NONE, 16, 1,
-			       block, EDID_LENGTH, false);
+		edid_block_dump(KERN_DEBUG, block, i);
 	}
 }
 
