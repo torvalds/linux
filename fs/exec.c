@@ -1308,8 +1308,6 @@ int begin_new_exec(struct linux_binprm * bprm)
 	if (retval)
 		goto out_unlock;
 
-	if (me->flags & PF_KTHREAD)
-		free_kthread_struct(me);
 	me->flags &= ~(PF_RANDOMIZE | PF_FORKNOEXEC | PF_KTHREAD |
 					PF_NOFREEZE | PF_NO_SETAFFINITY);
 	flush_thread();
@@ -1954,6 +1952,10 @@ int kernel_execve(const char *kernel_filename,
 	struct linux_binprm *bprm;
 	int fd = AT_FDCWD;
 	int retval;
+
+	if (WARN_ON_ONCE((current->flags & PF_KTHREAD) &&
+			(current->worker_private)))
+		return -EINVAL;
 
 	filename = getname_kernel(kernel_filename);
 	if (IS_ERR(filename))
