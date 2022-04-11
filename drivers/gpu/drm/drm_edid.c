@@ -2143,17 +2143,16 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 
 	for (j = 1; j <= edid->extensions; j++) {
 		void *block = edid + j;
-		int try;
 
-		for (try = 0; try < 4; try++) {
-			if (read_block(context, block, j, EDID_LENGTH))
+		status = edid_block_read(block, j, read_block, context);
+
+		edid_block_status_print(status, block, j);
+
+		if (!edid_block_status_valid(status, edid_block_tag(block))) {
+			if (status == EDID_BLOCK_READ_FAIL)
 				goto out;
-			if (drm_edid_block_valid(block, j, false, NULL))
-				break;
-		}
-
-		if (try == 4)
 			invalid_blocks++;
+		}
 	}
 
 	if (invalid_blocks) {
