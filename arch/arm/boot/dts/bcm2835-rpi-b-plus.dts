@@ -82,7 +82,7 @@
 			  "CAM_GPIO0", /* GPIO41 */
 			  "", /* GPIO42 */
 			  "", /* GPIO43 */
-			  "ETHCLK", /* GPIO44 */
+			  "ETH_CLK", /* GPIO44 */
 			  "PWM1_OUT", /* GPIO45 */
 			  "HDMI_HPD_N",
 			  "STATUS_LED",

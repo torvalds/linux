@@ -109,7 +109,7 @@
 			  "SD1_DATA3",
 			  "PWM0_OUT",
 			  "PWM1_OUT",
-			  "ETHCLK",
+			  "ETH_CLK",
 			  "WIFI_CLK",
 			  "SDA0",
 			  "SCL0",
