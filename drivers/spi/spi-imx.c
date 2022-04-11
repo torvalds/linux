@@ -108,6 +108,7 @@ struct spi_imx_data {
 	const void *tx_buf;
 	unsigned int txfifo; /* number of words pushed in tx FIFO */
 	unsigned int dynamic_burst;
+	bool rx_only;
 
 	/* Slave mode */
 	bool slave_mode;
@@ -554,11 +555,6 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 	else
 		cfg |= MX51_ECSPI_CONFIG_SBBCTRL(spi->chip_select);
 
-	if (spi->mode & SPI_CPHA)
-		cfg |= MX51_ECSPI_CONFIG_SCLKPHA(spi->chip_select);
-	else
-		cfg &= ~MX51_ECSPI_CONFIG_SCLKPHA(spi->chip_select);
-
 	if (spi->mode & SPI_CPOL) {
 		cfg |= MX51_ECSPI_CONFIG_SCLKPOL(spi->chip_select);
 		cfg |= MX51_ECSPI_CONFIG_SCLKCTL(spi->chip_select);
@@ -606,6 +602,24 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 	return 0;
 }
 
+static void mx51_configure_cpha(struct spi_imx_data *spi_imx,
+				struct spi_device *spi)
+{
+	bool cpha = (spi->mode & SPI_CPHA);
+	bool flip_cpha = (spi->mode & SPI_RX_CPHA_FLIP) && spi_imx->rx_only;
+	u32 cfg = readl(spi_imx->base + MX51_ECSPI_CONFIG);
+
+	/* Flip cpha logical value iff flip_cpha */
+	cpha ^= flip_cpha;
+
+	if (cpha)
+		cfg |= MX51_ECSPI_CONFIG_SCLKPHA(spi->chip_select);
+	else
+		cfg &= ~MX51_ECSPI_CONFIG_SCLKPHA(spi->chip_select);
+
+	writel(cfg, spi_imx->base + MX51_ECSPI_CONFIG);
+}
+
 static int mx51_ecspi_prepare_transfer(struct spi_imx_data *spi_imx,
 				       struct spi_device *spi)
 {
@@ -626,6 +640,8 @@ static int mx51_ecspi_prepare_transfer(struct spi_imx_data *spi_imx,
 		  0xf << MX51_ECSPI_CTRL_PREDIV_OFFSET);
 	ctrl |= mx51_ecspi_clkdiv(spi_imx, spi_imx->spi_bus_clk, &clk);
 	spi_imx->spi_bus_clk = clk;
+
+	mx51_configure_cpha(spi_imx, spi);
 
 	/*
 	 * ERR009165: work in XHC mode instead of SMC as PIO on the chips
@@ -1251,6 +1267,9 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 	else
 		spi_imx->usedma = false;
 
+	spi_imx->rx_only = ((t->tx_buf == NULL)
+			|| (t->tx_buf == spi->controller->dummy_tx));
+
 	if (is_imx53_ecspi(spi_imx) && spi_imx->slave_mode) {
 		spi_imx->rx = mx53_ecspi_rx_slave;
 		spi_imx->tx = mx53_ecspi_tx_slave;
@@ -1654,6 +1673,9 @@ static int spi_imx_probe(struct platform_device *pdev)
 	if (is_imx35_cspi(spi_imx) || is_imx51_ecspi(spi_imx) ||
 	    is_imx53_ecspi(spi_imx))
 		spi_imx->bitbang.master->mode_bits |= SPI_LOOP | SPI_READY;
+
+	if (is_imx51_ecspi(spi_imx) || is_imx53_ecspi(spi_imx))
+		spi_imx->bitbang.master->mode_bits |= SPI_RX_CPHA_FLIP;
 
 	if (is_imx51_ecspi(spi_imx) &&
 	    device_property_read_u32(&pdev->dev, "cs-gpios", NULL))
