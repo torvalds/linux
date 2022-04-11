@@ -25,6 +25,7 @@
 #include <linux/mm.h>
 #include <linux/mount.h>
 #include <linux/pseudo_fs.h>
+#include <linux/sched/task.h>
 
 #include <uapi/linux/dma-buf.h>
 #include <uapi/linux/magic.h>
@@ -568,6 +569,17 @@ err_alloc_file:
 	return file;
 }
 
+static void dma_buf_set_default_name(struct dma_buf *dmabuf)
+{
+	char task_comm[TASK_COMM_LEN];
+	char *name;
+
+	get_task_comm(task_comm, current->group_leader);
+	name = kasprintf(GFP_KERNEL, "%d-%s", current->tgid, task_comm);
+	dma_buf_set_name(dmabuf, name);
+	kfree(name);
+}
+
 /**
  * DOC: dma buf device access
  *
@@ -689,6 +701,9 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	mutex_lock(&db_list.lock);
 	list_add(&dmabuf->list_node, &db_list.head);
 	mutex_unlock(&db_list.lock);
+
+	if (IS_ENABLED(CONFIG_DMABUF_DEBUG))
+		dma_buf_set_default_name(dmabuf);
 
 	return dmabuf;
 

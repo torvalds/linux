@@ -9,6 +9,14 @@ config DMABUF_CACHE
 	  This option support to store attachments in a list and destroy them by
 	  set to a callback list in the dtor of dma-buf.
 
+config DMABUF_DEBUG
+	bool "DMABUF debug option"
+	depends on NO_GKI
+	select RK_DMABUF_PROCFS
+	help
+	  This option support to debug all the dmabuf on db_list, allows to set
+	  a name for dmabuf. If not sure, say N
+
 config SYNC_FILE
 	bool "Explicit Synchronization Framework"
 	default n
