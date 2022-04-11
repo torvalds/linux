@@ -270,6 +270,8 @@ static int tls_do_decryption(struct sock *sk,
 
 		ret = crypto_wait_req(ret, &ctx->async_wait);
 	}
+	if (ret == -EBADMSG)
+		TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSDECRYPTERROR);
 
 	if (async)
 		atomic_dec(&ctx->decrypt_pending);
@@ -1584,8 +1586,6 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 	if (err < 0) {
 		if (err == -EINPROGRESS)
 			tls_advance_record_sn(sk, prot, &tls_ctx->rx);
-		else if (err == -EBADMSG)
-			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSDECRYPTERROR);
 		return err;
 	}
 
