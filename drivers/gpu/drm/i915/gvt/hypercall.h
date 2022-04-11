@@ -47,7 +47,6 @@ struct intel_gvt_mpt {
 	int (*attach_vgpu)(void *vgpu, unsigned long *handle);
 	void (*detach_vgpu)(void *vgpu);
 	int (*inject_msi)(unsigned long handle, u32 addr, u16 data);
-	unsigned long (*from_virt_to_mfn)(void *p);
 	int (*enable_page_track)(unsigned long handle, u64 gfn);
 	int (*disable_page_track)(unsigned long handle, u64 gfn);
 	int (*read_gpa)(unsigned long handle, unsigned long gpa, void *buf,

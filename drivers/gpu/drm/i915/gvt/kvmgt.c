@@ -2192,11 +2192,6 @@ static int kvmgt_write_gpa(unsigned long handle, unsigned long gpa,
 	return kvmgt_rw_gpa(handle, gpa, buf, len, true);
 }
 
-static unsigned long kvmgt_virt_to_pfn(void *addr)
-{
-	return PFN_DOWN(__pa(addr));
-}
-
 static bool kvmgt_is_valid_gfn(unsigned long handle, unsigned long gfn)
 {
 	struct kvmgt_guest_info *info;
@@ -2223,7 +2218,6 @@ static const struct intel_gvt_mpt kvmgt_mpt = {
 	.attach_vgpu = kvmgt_attach_vgpu,
 	.detach_vgpu = kvmgt_detach_vgpu,
 	.inject_msi = kvmgt_inject_msi,
-	.from_virt_to_mfn = kvmgt_virt_to_pfn,
 	.enable_page_track = kvmgt_page_track_add,
 	.disable_page_track = kvmgt_page_track_remove,
 	.read_gpa = kvmgt_read_gpa,

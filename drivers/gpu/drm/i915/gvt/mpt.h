@@ -141,18 +141,6 @@ static inline int intel_gvt_hypervisor_inject_msi(struct intel_vgpu *vgpu)
 }
 
 /**
- * intel_gvt_hypervisor_set_wp_page - translate a host VA into MFN
- * @p: host kernel virtual address
- *
- * Returns:
- * MFN on success, INTEL_GVT_INVALID_ADDR if failed.
- */
-static inline unsigned long intel_gvt_hypervisor_virt_to_mfn(void *p)
-{
-	return intel_gvt_host.mpt->from_virt_to_mfn(p);
-}
-
-/**
  * intel_gvt_hypervisor_enable_page_track - track a guest page
  * @vgpu: a vGPU
  * @gfn: the gfn of guest
