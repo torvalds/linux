@@ -83,6 +83,17 @@ config DRM_LVDS_CODEC
 	  Support for transparent LVDS encoders and decoders that don't
 	  require any configuration.
 
+config DRM_MAXIM_MAX96752F
+	tristate "Maxim max96752F GMSL2 Deserializer"
+	depends on OF
+	select MFD_MAX96752F
+	select PINCTRL_MAX96752F
+	select GPIO_MAX96752F
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	help
+	  Driver for Maxim MAX96752F GMSL2 Deserializer with Dual LVDS Output.
+
 config DRM_MEGACHIPS_STDPXXXX_GE_B850V3_FW
 	tristate "MegaChips stdp4028-ge-b850v3-fw and stdp2690-ge-b850v3-fw"
 	depends on OF
