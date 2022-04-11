@@ -45,7 +45,7 @@ static inline struct csi2_dev *sd_to_dev(struct v4l2_subdev *sdev)
 	return container_of(sdev, struct csi2_dev, sd);
 }
 
-static struct csi2_sensor *sd_to_sensor(struct csi2_dev *csi2,
+static struct csi2_sensor_info *sd_to_sensor(struct csi2_dev *csi2,
 					struct v4l2_subdev *sd)
 {
 	int i;
@@ -106,8 +106,8 @@ static void get_remote_terminal_sensor(struct v4l2_subdev *sd,
 
 static void csi2_update_sensor_info(struct csi2_dev *csi2)
 {
-	struct csi2_sensor *sensor = &csi2->sensors[0];
 	struct v4l2_subdev *terminal_sensor_sd = NULL;
+	struct csi2_sensor_info *sensor = &csi2->sensors[0];
 	struct v4l2_mbus_config mbus;
 	int ret = 0;
 
@@ -659,7 +659,7 @@ csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 	struct csi2_dev *csi2 = container_of(notifier,
 			struct csi2_dev,
 			notifier);
-	struct csi2_sensor *sensor;
+	struct csi2_sensor_info *sensor;
 	struct media_link *link;
 	unsigned int pad, ret;
 
@@ -715,7 +715,7 @@ static void csi2_notifier_unbind(struct v4l2_async_notifier *notifier,
 	struct csi2_dev *csi2 = container_of(notifier,
 						  struct csi2_dev,
 						  notifier);
-	struct csi2_sensor *sensor = sd_to_sensor(csi2, sd);
+	struct csi2_sensor_info *sensor = sd_to_sensor(csi2, sd);
 
 	sensor->sd = NULL;
 

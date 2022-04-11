@@ -27,6 +27,7 @@
 #include "dev.h"
 #include "procfs.h"
 #include <linux/kthread.h>
+#include "../../../../phy/rockchip/phy-rockchip-csi2-dphy-common.h"
 
 #define RKCIF_VERNO_LEN		10
 
@@ -770,6 +771,12 @@ void rkcif_enable_dvp_clk_dual_edge(struct rkcif_device *dev, bool on)
 			else
 				val = RK3588_CIF_PCLK_SINGLE_EDGE;
 			rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
+		} else if (dev->chip_id == CHIP_RV1106_CIF) {
+			if (on)
+				val = RV1106_CIF_PCLK_DUAL_EDGE;
+			else
+				val = RV1106_CIF_PCLK_SINGLE_EDGE;
+			rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
 		}
 	}
 
@@ -804,7 +811,35 @@ void rkcif_config_dvp_clk_sampling_edge(struct rkcif_device *dev,
 			else
 				val = RK3588_CIF_PCLK_SAMPLING_EDGE_FALLING;
 		}
+		if (dev->chip_id == CHIP_RV1106_CIF) {
+			if (dev->dphy_hw) {
+				if (edge == RKCIF_CLK_RISING)
+					val = RV1106_CIF_PCLK_EDGE_RISING_M0;
+				else
+					val = RV1106_CIF_PCLK_EDGE_FALLING_M0;
+			} else {
+				if (edge == RKCIF_CLK_RISING)
+					val = RV1106_CIF_PCLK_EDGE_RISING_M1;
+				else
+					val = RV1106_CIF_PCLK_EDGE_FALLING_M1;
+				rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_VENC, val);
+				return;
+			}
+		}
 		rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
+	}
+}
+
+void rkcif_config_dvp_pin(struct rkcif_device *dev, bool on)
+{
+	if (dev->dphy_hw && dev->dphy_hw->ttl_mode_enable && dev->dphy_hw->ttl_mode_disable) {
+		rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, RV1106_CIF_GRF_SEL_M0);
+		if (on)
+			dev->dphy_hw->ttl_mode_enable(dev->dphy_hw);
+		else
+			dev->dphy_hw->ttl_mode_disable(dev->dphy_hw);
+	} else {
+		rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, RV1106_CIF_GRF_SEL_M1);
 	}
 }
 
@@ -1624,6 +1659,37 @@ static irqreturn_t rkcif_irq_lite_handler(int irq, struct rkcif_device *cif_dev)
 	return IRQ_HANDLED;
 }
 
+static void rkcif_attach_dphy_hw(struct rkcif_device *cif_dev)
+{
+	struct platform_device *plat_dev;
+	struct device *dev = cif_dev->dev;
+	struct device_node *np;
+	struct csi2_dphy_hw *dphy_hw;
+
+	np = of_parse_phandle(dev->of_node, "rockchip,dphy_hw", 0);
+	if (!np || !of_device_is_available(np)) {
+		dev_err(dev,
+			"failed to get dphy hw node\n");
+		return;
+	}
+
+	plat_dev = of_find_device_by_node(np);
+	of_node_put(np);
+	if (!plat_dev) {
+		dev_err(dev,
+			"failed to get dphy hw from node\n");
+		return;
+	}
+
+	dphy_hw = platform_get_drvdata(plat_dev);
+	if (!dphy_hw) {
+		dev_err(dev,
+			"failed attach dphy hw\n");
+		return;
+	}
+	cif_dev->dphy_hw = dphy_hw;
+}
+
 int rkcif_attach_hw(struct rkcif_device *cif_dev)
 {
 	struct device_node *np;
@@ -1658,6 +1724,8 @@ int rkcif_attach_hw(struct rkcif_device *cif_dev)
 	cif_dev->hw_dev = hw;
 	cif_dev->chip_id = hw->chip_id;
 	dev_info(cif_dev->dev, "attach to cif hw node\n");
+	if (IS_ENABLED(CONFIG_CPU_RV1106))
+		rkcif_attach_dphy_hw(cif_dev);
 
 	return 0;
 }

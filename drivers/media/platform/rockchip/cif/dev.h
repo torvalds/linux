@@ -803,6 +803,7 @@ struct rkcif_device {
 	unsigned int			wait_line_cache;
 	struct rkcif_dummy_buffer	dummy_buf;
 	struct completion		cmpl_ntf;
+	struct csi2_dphy_hw		*dphy_hw;
 	bool				is_start_hdr;
 	bool				reset_work_cancel;
 	bool				iommu_en;
@@ -882,5 +883,7 @@ void rkcif_enable_dma_capture(struct rkcif_stream *stream, bool is_only_enable);
 void rkcif_do_soft_reset(struct rkcif_device *dev);
 
 u32 rkcif_mbus_pixelcode_to_v4l2(u32 pixelcode);
+
+void rkcif_config_dvp_pin(struct rkcif_device *dev, bool on);
 
 #endif

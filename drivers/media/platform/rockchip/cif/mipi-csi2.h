@@ -117,7 +117,7 @@ struct csi2_match_data {
 	int num_pads;
 };
 
-struct csi2_sensor {
+struct csi2_sensor_info {
 	struct v4l2_subdev *sd;
 	struct v4l2_mbus_config mbus;
 	int lanes;
@@ -147,8 +147,8 @@ struct csi2_dev {
 	int			stream_count;
 	struct v4l2_subdev	*src_sd;
 	bool			sink_linked[CSI2_NUM_SRC_PADS];
-	struct csi2_sensor	sensors[MAX_CSI2_SENSORS];
 	bool			is_check_sot_sync;
+	struct csi2_sensor_info	sensors[MAX_CSI2_SENSORS];
 	const struct csi2_match_data	*match_data;
 	int			num_sensors;
 	atomic_t		frm_sync_seq;

@@ -862,6 +862,8 @@ static const struct cif_reg rv1106_cif_regs[] = {
 	[CIF_REG_TOISP0_CTRL] = CIF_REG(TOISP0_CH_CTRL),
 	[CIF_REG_TOISP0_SIZE] = CIF_REG(TOISP0_CROP_SIZE),
 	[CIF_REG_TOISP0_CROP] = CIF_REG(TOISP0_CROP),
+	[CIF_REG_GRF_CIFIO_CON] = CIF_REG(RV1106_CIF_GRF_VI_CON),
+	[CIF_REG_GRF_CIFIO_VENC] = CIF_REG(RV1106_CIF_GRF_VENC_WRAPPER),
 };
 
 static const struct rkcif_hw_match_data px30_cif_match_data = {

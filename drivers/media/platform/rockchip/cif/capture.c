@@ -2917,6 +2917,8 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 			rkcif_write_register(cif_dev, CIF_REG_DVP_INTEN, 0x0);
 			rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT, 0x3ff);
 			rkcif_write_register(cif_dev, CIF_REG_DVP_FRAME_STATUS, 0x0);
+			if (IS_ENABLED(CONFIG_CPU_RV1106))
+				rkcif_config_dvp_pin(cif_dev, false);
 		}
 	}
 	stream->cifdev->id_use_cnt--;
@@ -4182,6 +4184,9 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 			BT1120_CLOCK_SINGLE_EDGES : BT1120_CLOCK_SINGLE_EDGES_RK3588;
 		rkcif_enable_dvp_clk_dual_edge(dev, false);
 	}
+
+	if (IS_ENABLED(CONFIG_CPU_RV1106))
+		rkcif_config_dvp_pin(dev, true);
 
 	if (mbus_flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
 		rkcif_config_dvp_clk_sampling_edge(dev, RKCIF_CLK_RISING);
