@@ -41,7 +41,6 @@
 #include "intel_gvt.h"
 
 #include "debug.h"
-#include "hypercall.h"
 #include "mmio.h"
 #include "reg.h"
 #include "interrupt.h"
@@ -58,12 +57,6 @@
 #include "page_track.h"
 
 #define GVT_MAX_VGPU 8
-
-struct intel_gvt_host {
-	const struct intel_gvt_mpt *mpt;
-};
-
-extern struct intel_gvt_host intel_gvt_host;
 
 /* Describe per-platform limitations. */
 struct intel_gvt_device_info {
@@ -773,9 +766,12 @@ int intel_gvt_dma_map_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 void intel_gvt_dma_unmap_guest_page(struct intel_vgpu *vgpu,
 		dma_addr_t dma_addr);
 
+int intel_gvt_init_vgpu_type_groups(struct intel_gvt *gvt);
+void intel_gvt_cleanup_vgpu_type_groups(struct intel_gvt *gvt);
+
 #include "trace.h"
-#include "mpt.h"
 
 extern const struct intel_vgpu_ops intel_gvt_vgpu_ops;
+extern const struct mdev_parent_ops intel_vgpu_mdev_ops;
 
 #endif

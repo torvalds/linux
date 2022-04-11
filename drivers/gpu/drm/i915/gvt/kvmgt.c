@@ -172,7 +172,7 @@ static struct attribute_group *gvt_vgpu_type_groups[] = {
 	[0 ... NR_MAX_INTEL_VGPU_TYPES - 1] = NULL,
 };
 
-static int intel_gvt_init_vgpu_type_groups(struct intel_gvt *gvt)
+int intel_gvt_init_vgpu_type_groups(struct intel_gvt *gvt)
 {
 	int i, j;
 	struct intel_vgpu_type *type;
@@ -201,7 +201,7 @@ unwind:
 	return -ENOMEM;
 }
 
-static void intel_gvt_cleanup_vgpu_type_groups(struct intel_gvt *gvt)
+void intel_gvt_cleanup_vgpu_type_groups(struct intel_gvt *gvt)
 {
 	int i;
 	struct attribute_group *group;
@@ -1665,8 +1665,9 @@ static const struct attribute_group *intel_vgpu_groups[] = {
 	NULL,
 };
 
-static struct mdev_parent_ops intel_vgpu_mdev_ops = {
+const struct mdev_parent_ops intel_vgpu_mdev_ops = {
 	.mdev_attr_groups       = intel_vgpu_groups,
+	.supported_type_groups	= gvt_vgpu_type_groups,
 	.create			= intel_vgpu_create,
 	.remove			= intel_vgpu_remove,
 
@@ -1678,29 +1679,6 @@ static struct mdev_parent_ops intel_vgpu_mdev_ops = {
 	.mmap			= intel_vgpu_mmap,
 	.ioctl			= intel_vgpu_ioctl,
 };
-
-static int kvmgt_host_init(struct device *dev, void *gvt)
-{
-	int ret;
-
-	ret = intel_gvt_init_vgpu_type_groups((struct intel_gvt *)gvt);
-	if (ret)
-		return ret;
-
-	intel_vgpu_mdev_ops.supported_type_groups = gvt_vgpu_type_groups;
-
-	ret = mdev_register_device(dev, &intel_vgpu_mdev_ops);
-	if (ret)
-		intel_gvt_cleanup_vgpu_type_groups((struct intel_gvt *)gvt);
-
-	return ret;
-}
-
-static void kvmgt_host_exit(struct device *dev, void *gvt)
-{
-	mdev_unregister_device(dev);
-	intel_gvt_cleanup_vgpu_type_groups((struct intel_gvt *)gvt);
-}
 
 int intel_gvt_page_track_add(struct intel_vgpu *info, u64 gfn)
 {
@@ -1963,15 +1941,6 @@ void intel_gvt_dma_unmap_guest_page(struct intel_vgpu *vgpu,
 		kref_put(&entry->ref, __gvt_dma_release);
 	mutex_unlock(&vgpu->cache_lock);
 }
-
-static const struct intel_gvt_mpt kvmgt_mpt = {
-	.host_init = kvmgt_host_init,
-	.host_exit = kvmgt_host_exit,
-};
-
-struct intel_gvt_host intel_gvt_host = {
-	.mpt		= &kvmgt_mpt,
-};
 
 static int __init kvmgt_init(void)
 {
