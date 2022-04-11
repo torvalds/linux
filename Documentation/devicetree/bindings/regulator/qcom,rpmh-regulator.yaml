@@ -78,7 +78,7 @@ properties:
         RPMh resource name suffix used for the regulators found
         on this PMIC.
     $ref: /schemas/types.yaml#/definitions/string
-    enum: [a, b, c, d, e, f]
+    enum: [a, b, c, d, e, f, h, k]
 
   qcom,always-wait-for-ack:
     description: |
