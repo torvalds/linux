@@ -2,6 +2,8 @@
 GSM 0710 tty multiplexor HOWTO
 ==============================
 
+.. contents:: :local:
+
 This line discipline implements the GSM 07.10 multiplexing protocol
 detailed in the following 3GPP document:
 
@@ -11,79 +13,81 @@ This document give some hints on how to use this driver with GPRS and 3G
 modems connected to a physical serial port.
 
 How to use it
--------------
-1. config initiator
-^^^^^^^^^^^^^^^^^^^^^
+=============
 
-1.1 initialize the modem in 0710 mux mode (usually AT+CMUX= command) through
-    its serial port. Depending on the modem used, you can pass more or less
-    parameters to this command.
+Config Initiator
+----------------
 
-1.2 switch the serial line to using the n_gsm line discipline by using
-    TIOCSETD ioctl.
+#. Initialize the modem in 0710 mux mode (usually ``AT+CMUX=`` command) through
+   its serial port. Depending on the modem used, you can pass more or less
+   parameters to this command.
 
-1.3 configure the mux using GSMIOC_GETCONF / GSMIOC_SETCONF ioctl.
+#. Switch the serial line to using the n_gsm line discipline by using
+   ``TIOCSETD`` ioctl.
 
-1.4 obtain base gsmtty number for the used serial port.
+#. Configure the mux using ``GSMIOC_GETCONF``/``GSMIOC_SETCONF`` ioctl.
 
-Major parts of the initialization program :
-(a good starting point is util-linux-ng/sys-utils/ldattach.c)::
+#. Obtain base gsmtty number for the used serial port.
 
-  #include <stdio.h>
-  #include <stdint.h>
-  #include <linux/gsmmux.h>
-  #include <linux/tty.h>
-  #define DEFAULT_SPEED	B115200
-  #define SERIAL_PORT	/dev/ttyS0
+   Major parts of the initialization program
+   (a good starting point is util-linux-ng/sys-utils/ldattach.c)::
 
-	int ldisc = N_GSM0710;
-	struct gsm_config c;
-	struct termios configuration;
-	uint32_t first;
+      #include <stdio.h>
+      #include <stdint.h>
+      #include <linux/gsmmux.h>
+      #include <linux/tty.h>
 
-	/* open the serial port connected to the modem */
-	fd = open(SERIAL_PORT, O_RDWR | O_NOCTTY | O_NDELAY);
+      #define DEFAULT_SPEED	B115200
+      #define SERIAL_PORT	/dev/ttyS0
 
-	/* configure the serial port : speed, flow control ... */
+      int ldisc = N_GSM0710;
+      struct gsm_config c;
+      struct termios configuration;
+      uint32_t first;
 
-	/* send the AT commands to switch the modem to CMUX mode
-	   and check that it's successful (should return OK) */
-	write(fd, "AT+CMUX=0\r", 10);
+      /* open the serial port connected to the modem */
+      fd = open(SERIAL_PORT, O_RDWR | O_NOCTTY | O_NDELAY);
 
-	/* experience showed that some modems need some time before
-	   being able to answer to the first MUX packet so a delay
-	   may be needed here in some case */
-	sleep(3);
+      /* configure the serial port : speed, flow control ... */
 
-	/* use n_gsm line discipline */
-	ioctl(fd, TIOCSETD, &ldisc);
+      /* send the AT commands to switch the modem to CMUX mode
+         and check that it's successful (should return OK) */
+      write(fd, "AT+CMUX=0\r", 10);
 
-	/* get n_gsm configuration */
-	ioctl(fd, GSMIOC_GETCONF, &c);
-	/* we are initiator and need encoding 0 (basic) */
-	c.initiator = 1;
-	c.encapsulation = 0;
-	/* our modem defaults to a maximum size of 127 bytes */
-	c.mru = 127;
-	c.mtu = 127;
-	/* set the new configuration */
-	ioctl(fd, GSMIOC_SETCONF, &c);
-	/* get first gsmtty device node */
-	ioctl(fd, GSMIOC_GETFIRST, &first);
-	printf("first muxed line: /dev/gsmtty%i\n", first);
+      /* experience showed that some modems need some time before
+         being able to answer to the first MUX packet so a delay
+         may be needed here in some case */
+      sleep(3);
 
-	/* and wait for ever to keep the line discipline enabled */
-	daemon(0,0);
-	pause();
+      /* use n_gsm line discipline */
+      ioctl(fd, TIOCSETD, &ldisc);
 
-1.5 use these devices as plain serial ports.
+      /* get n_gsm configuration */
+      ioctl(fd, GSMIOC_GETCONF, &c);
+      /* we are initiator and need encoding 0 (basic) */
+      c.initiator = 1;
+      c.encapsulation = 0;
+      /* our modem defaults to a maximum size of 127 bytes */
+      c.mru = 127;
+      c.mtu = 127;
+      /* set the new configuration */
+      ioctl(fd, GSMIOC_SETCONF, &c);
+      /* get first gsmtty device node */
+      ioctl(fd, GSMIOC_GETFIRST, &first);
+      printf("first muxed line: /dev/gsmtty%i\n", first);
 
-   for example, it's possible:
+      /* and wait for ever to keep the line discipline enabled */
+      daemon(0,0);
+      pause();
 
-   - and to use gnokii to send / receive SMS on ttygsm1
-   - to use ppp to establish a datalink on ttygsm2
+#. Use these devices as plain serial ports.
 
-1.6 first close all virtual ports before closing the physical port.
+   For example, it's possible:
+
+   - to use *gnokii* to send / receive SMS on ``ttygsm1``
+   - to use *ppp* to establish a datalink on ``ttygsm2``
+
+#. First close all virtual ports before closing the physical port.
 
    Note that after closing the physical port the modem is still in multiplexing
    mode. This may prevent a successful re-opening of the port later. To avoid
@@ -91,27 +95,27 @@ Major parts of the initialization program :
    a disconnect command frame manually before initializing the multiplexing mode
    for the second time. The byte sequence for the disconnect command frame is::
 
-      0xf9, 0x03, 0xef, 0x03, 0xc3, 0x16, 0xf9.
+      0xf9, 0x03, 0xef, 0x03, 0xc3, 0x16, 0xf9
 
-2. config requester
-^^^^^^^^^^^^^^^^^^^^^
+Config Requester
+----------------
 
-2.1 receive string "AT+CMUX= command" through its serial port,initialize
-    mux mode config
+#. Receive ``AT+CMUX=`` command through its serial port, initialize mux mode
+   config.
 
-2.2 switch the serial line to using the n_gsm line discipline by using
-    TIOCSETD ioctl.
+#. Switch the serial line to using the *n_gsm* line discipline by using
+   ``TIOCSETD`` ioctl.
 
-2.3 configure the mux using GSMIOC_GETCONF / GSMIOC_SETCONF ioctl.
+#. Configure the mux using ``GSMIOC_GETCONF``/``GSMIOC_SETCONF`` ioctl.
 
-2.4 obtain base gsmtty number for the used serial port::
+#. Obtain base gsmtty number for the used serial port::
 
-  #include <stdio.h>
-  #include <stdint.h>
-  #include <linux/gsmmux.h>
-  #include <linux/tty.h>
-  #define DEFAULT_SPEED	B115200
-  #define SERIAL_PORT	/dev/ttyS0
+        #include <stdio.h>
+        #include <stdint.h>
+        #include <linux/gsmmux.h>
+        #include <linux/tty.h>
+        #define DEFAULT_SPEED	B115200
+        #define SERIAL_PORT	/dev/ttyS0
 
 	int ldisc = N_GSM0710;
 	struct gsm_config c;
