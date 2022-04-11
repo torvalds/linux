@@ -16,7 +16,6 @@ Serial drivers
 .. toctree::
     :maxdepth: 1
 
-    moxa-smartio
     serial-iso7816
     serial-rs485
 

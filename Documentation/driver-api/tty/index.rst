@@ -68,5 +68,6 @@ Miscellaneous documentation can be further found in these documents:
 .. toctree::
    :maxdepth: 2
 
+   moxa-smartio
    n_gsm
    n_tty
