@@ -81,18 +81,6 @@
 	status = "okay";
 };
 
-&pinctrl {
-	pinctrl-names = "default";
-	pinctrl-0 = <&state_default>;
-
-	state_default: state-default {
-		gpio-pinmux {
-			groups = "wdt";
-			function = "gpio";
-		};
-	};
-};
-
 &gmac1 {
 	status = "okay";
 	phy-handle = <&ethphy7>;
