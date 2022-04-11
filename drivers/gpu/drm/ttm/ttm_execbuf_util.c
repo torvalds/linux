@@ -101,7 +101,7 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 			continue;
 		}
 
-		num_fences = min(entry->num_shared, 1u);
+		num_fences = max(entry->num_shared, 1u);
 		if (!ret) {
 			ret = dma_resv_reserve_fences(bo->base.resv,
 						      num_fences);
