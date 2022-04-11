@@ -182,7 +182,7 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 		usb_kill_urb(&hw->ctlx_urb);
 
 		tasklet_kill(&hw->completion_bh);
-		tasklet_kill(&hw->reaper_bh);
+		cancel_work_sync(&hw->reaper_bh);
 
 		cancel_work_sync(&hw->link_bh);
 		cancel_work_sync(&hw->commsqual_bh);

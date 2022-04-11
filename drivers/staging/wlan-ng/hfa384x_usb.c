@@ -193,7 +193,7 @@ static void hfa384x_usb_throttlefn(struct timer_list *t);
 
 static void hfa384x_usbctlx_completion_task(struct tasklet_struct *t);
 
-static void hfa384x_usbctlx_reaper_task(struct tasklet_struct *t);
+static void hfa384x_usbctlx_reaper_task(struct work_struct *work);
 
 static int hfa384x_usbctlx_submit(struct hfa384x *hw,
 				  struct hfa384x_usbctlx *ctlx);
@@ -539,7 +539,7 @@ void hfa384x_create(struct hfa384x *hw, struct usb_device *usb)
 	/* Initialize the authentication queue */
 	skb_queue_head_init(&hw->authq);
 
-	tasklet_setup(&hw->reaper_bh, hfa384x_usbctlx_reaper_task);
+	INIT_WORK(&hw->reaper_bh, hfa384x_usbctlx_reaper_task);
 	tasklet_setup(&hw->completion_bh, hfa384x_usbctlx_completion_task);
 	INIT_WORK(&hw->link_bh, prism2sta_processing_defer);
 	INIT_WORK(&hw->usb_work, hfa384x_usb_defer);
@@ -2585,7 +2585,7 @@ void hfa384x_tx_timeout(struct wlandevice *wlandev)
 /*----------------------------------------------------------------
  * hfa384x_usbctlx_reaper_task
  *
- * Tasklet to delete dead CTLX objects
+ * Deferred work to delete dead CTLX objects
  *
  * Arguments:
  *	data	ptr to a struct hfa384x
@@ -2593,12 +2593,12 @@ void hfa384x_tx_timeout(struct wlandevice *wlandev)
  * Returns:
  *
  * Call context:
- *	Interrupt
+ *      Task
  *----------------------------------------------------------------
  */
-static void hfa384x_usbctlx_reaper_task(struct tasklet_struct *t)
+static void hfa384x_usbctlx_reaper_task(struct work_struct *work)
 {
-	struct hfa384x *hw = from_tasklet(hw, t, reaper_bh);
+	struct hfa384x *hw = container_of(work, struct hfa384x, reaper_bh);
 	struct hfa384x_usbctlx *ctlx, *temp;
 	unsigned long flags;
 
@@ -2686,7 +2686,7 @@ static void hfa384x_usbctlx_completion_task(struct tasklet_struct *t)
 	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
 
 	if (reap)
-		tasklet_schedule(&hw->reaper_bh);
+		schedule_work(&hw->reaper_bh);
 }
 
 /*----------------------------------------------------------------
