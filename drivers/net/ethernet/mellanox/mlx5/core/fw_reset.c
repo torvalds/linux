@@ -134,14 +134,19 @@ static void mlx5_stop_sync_reset_poll(struct mlx5_core_dev *dev)
 	del_timer_sync(&fw_reset->timer);
 }
 
-static void mlx5_sync_reset_clear_reset_requested(struct mlx5_core_dev *dev, bool poll_health)
+static int mlx5_sync_reset_clear_reset_requested(struct mlx5_core_dev *dev, bool poll_health)
 {
 	struct mlx5_fw_reset *fw_reset = dev->priv.fw_reset;
 
+	if (!test_and_clear_bit(MLX5_FW_RESET_FLAGS_RESET_REQUESTED, &fw_reset->reset_flags)) {
+		mlx5_core_warn(dev, "Reset request was already cleared\n");
+		return -EALREADY;
+	}
+
 	mlx5_stop_sync_reset_poll(dev);
-	clear_bit(MLX5_FW_RESET_FLAGS_RESET_REQUESTED, &fw_reset->reset_flags);
 	if (poll_health)
 		mlx5_start_health_poll(dev);
+	return 0;
 }
 
 #define MLX5_RESET_POLL_INTERVAL	(HZ / 10)
@@ -185,13 +190,17 @@ static int mlx5_fw_reset_set_reset_sync_nack(struct mlx5_core_dev *dev)
 	return mlx5_reg_mfrl_set(dev, MLX5_MFRL_REG_RESET_LEVEL3, 0, 2, false);
 }
 
-static void mlx5_sync_reset_set_reset_requested(struct mlx5_core_dev *dev)
+static int mlx5_sync_reset_set_reset_requested(struct mlx5_core_dev *dev)
 {
 	struct mlx5_fw_reset *fw_reset = dev->priv.fw_reset;
 
+	if (test_and_set_bit(MLX5_FW_RESET_FLAGS_RESET_REQUESTED, &fw_reset->reset_flags)) {
+		mlx5_core_warn(dev, "Reset request was already set\n");
+		return -EALREADY;
+	}
 	mlx5_stop_health_poll(dev, true);
-	set_bit(MLX5_FW_RESET_FLAGS_RESET_REQUESTED, &fw_reset->reset_flags);
 	mlx5_start_sync_reset_poll(dev);
+	return 0;
 }
 
 static void mlx5_fw_live_patch_event(struct work_struct *work)
@@ -220,7 +229,9 @@ static void mlx5_sync_reset_request_event(struct work_struct *work)
 			       err ? "Failed" : "Sent");
 		return;
 	}
-	mlx5_sync_reset_set_reset_requested(dev);
+	if (mlx5_sync_reset_set_reset_requested(dev))
+		return;
+
 	err = mlx5_fw_reset_set_reset_sync_ack(dev);
 	if (err)
 		mlx5_core_warn(dev, "PCI Sync FW Update Reset Ack Failed. Error code: %d\n", err);
@@ -320,7 +331,8 @@ static void mlx5_sync_reset_now_event(struct work_struct *work)
 	struct mlx5_core_dev *dev = fw_reset->dev;
 	int err;
 
-	mlx5_sync_reset_clear_reset_requested(dev, false);
+	if (mlx5_sync_reset_clear_reset_requested(dev, false))
+		return;
 
 	mlx5_core_warn(dev, "Sync Reset now. Device is going to reset.\n");
 
@@ -349,10 +361,8 @@ static void mlx5_sync_reset_abort_event(struct work_struct *work)
 						      reset_abort_work);
 	struct mlx5_core_dev *dev = fw_reset->dev;
 
-	if (!test_bit(MLX5_FW_RESET_FLAGS_RESET_REQUESTED, &fw_reset->reset_flags))
+	if (mlx5_sync_reset_clear_reset_requested(dev, true))
 		return;
-
-	mlx5_sync_reset_clear_reset_requested(dev, true);
 	mlx5_core_warn(dev, "PCI Sync FW Update Reset Aborted.\n");
 }
 
