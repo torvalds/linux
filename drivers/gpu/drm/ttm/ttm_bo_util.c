@@ -572,6 +572,21 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_bo_move_accel_cleanup);
 
+void ttm_bo_move_sync_cleanup(struct ttm_buffer_object *bo,
+			      struct ttm_resource *new_mem)
+{
+	struct ttm_device *bdev = bo->bdev;
+	struct ttm_resource_manager *man = ttm_manager_type(bdev, new_mem->mem_type);
+	int ret;
+
+	ret = ttm_bo_wait_free_node(bo, man->use_tt);
+	if (WARN_ON(ret))
+		return;
+
+	ttm_bo_assign_mem(bo, new_mem);
+}
+EXPORT_SYMBOL(ttm_bo_move_sync_cleanup);
+
 /**
  * ttm_bo_pipeline_gutting - purge the contents of a bo
  * @bo: The buffer object
