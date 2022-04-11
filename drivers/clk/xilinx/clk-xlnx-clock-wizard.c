@@ -621,6 +621,8 @@ static int clk_wzrd_remove(struct platform_device *pdev)
 
 static const struct of_device_id clk_wzrd_ids[] = {
 	{ .compatible = "xlnx,clocking-wizard" },
+	{ .compatible = "xlnx,clocking-wizard-v5.2" },
+	{ .compatible = "xlnx,clocking-wizard-v6.0" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, clk_wzrd_ids);
