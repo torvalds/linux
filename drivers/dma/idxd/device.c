@@ -1031,6 +1031,9 @@ static int idxd_wq_load_config(struct idxd_wq *wq)
 
 	wq->priority = wq->wqcfg->priority;
 
+	wq->max_xfer_bytes = 1ULL << wq->wqcfg->max_xfer_shift;
+	wq->max_batch_size = 1ULL << wq->wqcfg->max_batch_shift;
+
 	for (i = 0; i < WQCFG_STRIDES(idxd); i++) {
 		wqcfg_offset = WQCFG_OFFSET(idxd, wq->id, i);
 		dev_dbg(dev, "WQ[%d][%d][%#x]: %#x\n", wq->id, i, wqcfg_offset, wq->wqcfg->bits[i]);
