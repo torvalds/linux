@@ -198,6 +198,7 @@ int rkisp_align_sensor_resolution(struct rkisp_device *dev,
 	if (!crop)
 		return -EINVAL;
 
+	memset(&sel, 0, sizeof(sel));
 	switch (dev->isp_ver) {
 	case ISP_V12:
 		w = clamp_t(u32, src_w,

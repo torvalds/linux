@@ -394,6 +394,8 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev)
 	struct v4l2_subdev_selection sel;
 	u32 i, width, height, code;
 
+	memset(&sel, 0, sizeof(sel));
+	memset(&fmt, 0, sizeof(fmt));
 	isp = &dev->isp_sdev.sd;
 
 	if (dev->active_sensor)
