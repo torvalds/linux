@@ -10521,6 +10521,12 @@ MLXSW_REG_DEFINE(mcion, MLXSW_REG_MCION_ID, MLXSW_REG_MCION_LEN);
  */
 MLXSW_ITEM32(reg, mcion, module, 0x00, 16, 8);
 
+/* reg_mcion_slot_index
+ * Slot index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mcion, slot_index, 0x00, 12, 4);
+
 enum {
 	MLXSW_REG_MCION_MODULE_STATUS_BITS_PRESENT_MASK = BIT(0),
 	MLXSW_REG_MCION_MODULE_STATUS_BITS_LOW_POWER_MASK = BIT(8),
@@ -10532,9 +10538,10 @@ enum {
  */
 MLXSW_ITEM32(reg, mcion, module_status_bits, 0x04, 0, 16);
 
-static inline void mlxsw_reg_mcion_pack(char *payload, u8 module)
+static inline void mlxsw_reg_mcion_pack(char *payload, u8 slot_index, u8 module)
 {
 	MLXSW_REG_ZERO(mcion, payload);
+	mlxsw_reg_mcion_slot_index_set(payload, slot_index);
 	mlxsw_reg_mcion_module_set(payload, module);
 }
 

@@ -520,7 +520,7 @@ mlxsw_env_get_module_power_mode(struct mlxsw_core *mlxsw_core, u8 module,
 
 	params->policy = mlxsw_env->module_info[module].power_mode_policy;
 
-	mlxsw_reg_mcion_pack(mcion_pl, module);
+	mlxsw_reg_mcion_pack(mcion_pl, 0, module);
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mcion), mcion_pl);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to retrieve module's power mode");
