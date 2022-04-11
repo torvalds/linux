@@ -1102,21 +1102,24 @@ static int get_paddr_from_handle(struct hl_ctx *ctx, struct hl_mem_in *args,
  *   map a device virtual block to this pages and return the start address of
  *   this block.
  */
-static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
-		u64 *device_addr)
+static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args, u64 *device_addr)
 {
-	struct hl_device *hdev = ctx->hdev;
-	struct hl_vm *vm = &hdev->vm;
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
-	struct hl_userptr *userptr = NULL;
-	struct hl_vm_hash_node *hnode;
-	struct hl_va_range *va_range;
-	enum vm_type *vm_type;
-	u64 ret_vaddr, hint_addr;
-	u32 handle = 0, va_block_align;
-	int rc;
-	bool is_userptr = args->flags & HL_MEM_USERPTR;
 	enum hl_va_range_type va_range_type = 0;
+	struct hl_device *hdev = ctx->hdev;
+	struct hl_userptr *userptr = NULL;
+	u32 handle = 0, va_block_align;
+	struct hl_vm_hash_node *hnode;
+	struct hl_vm *vm = &hdev->vm;
+	struct hl_va_range *va_range;
+	bool is_userptr, do_prefetch;
+	u64 ret_vaddr, hint_addr;
+	enum vm_type *vm_type;
+	int rc;
+
+	/* set map flags */
+	is_userptr = args->flags & HL_MEM_USERPTR;
+	do_prefetch = hdev->supports_mmu_prefetch && (args->flags & HL_MEM_PREFETCH);
 
 	/* Assume failure */
 	*device_addr = 0;
@@ -1250,14 +1253,18 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	if (rc)
 		goto map_err;
 
-	if (args->flags & HL_MEM_PREFETCH) {
-		rc = hl_mmu_prefetch_cache_range(hdev, *vm_type, ctx->asid, ret_vaddr,
+	mutex_unlock(&ctx->mmu_lock);
+
+	/*
+	 * prefetch is done upon user's request. it is performed in WQ as and so can
+	 * be outside the MMU lock. the operation itself is already protected by the mmu lock
+	 */
+	if (do_prefetch) {
+		rc = hl_mmu_prefetch_cache_range(ctx, *vm_type, ctx->asid, ret_vaddr,
 							phys_pg_pack->total_size);
 		if (rc)
 			goto map_err;
 	}
-
-	mutex_unlock(&ctx->mmu_lock);
 
 	ret_vaddr += phys_pg_pack->offset;
 

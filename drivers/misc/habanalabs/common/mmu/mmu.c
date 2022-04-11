@@ -665,15 +665,53 @@ int hl_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_hard,
 	return rc;
 }
 
-int hl_mmu_prefetch_cache_range(struct hl_device *hdev, u32 flags, u32 asid, u64 va, u64 size)
+static void hl_mmu_prefetch_work_function(struct work_struct *work)
 {
-	int rc;
+	struct hl_prefetch_work *pfw = container_of(work, struct hl_prefetch_work, pf_work);
+	struct hl_ctx *ctx = pfw->ctx;
 
-	rc = hdev->asic_funcs->mmu_prefetch_cache_range(hdev, flags, asid, va, size);
-	if (rc)
-		dev_err_ratelimited(hdev->dev, "MMU cache range prefetch failed\n");
+	if (!hl_device_operational(ctx->hdev, NULL))
+		goto put_ctx;
 
-	return rc;
+	mutex_lock(&ctx->mmu_lock);
+
+	ctx->hdev->asic_funcs->mmu_prefetch_cache_range(ctx, pfw->flags, pfw->asid,
+								pfw->va, pfw->size);
+
+	mutex_unlock(&ctx->mmu_lock);
+
+put_ctx:
+	/*
+	 * context was taken in the common mmu prefetch function- see comment there about
+	 * context handling.
+	 */
+	hl_ctx_put(ctx);
+	kfree(pfw);
+}
+
+int hl_mmu_prefetch_cache_range(struct hl_ctx *ctx, u32 flags, u32 asid, u64 va, u64 size)
+{
+	struct hl_prefetch_work *handle_pf_work;
+
+	handle_pf_work = kmalloc(sizeof(*handle_pf_work), GFP_KERNEL);
+	if (!handle_pf_work)
+		return -ENOMEM;
+
+	INIT_WORK(&handle_pf_work->pf_work, hl_mmu_prefetch_work_function);
+	handle_pf_work->ctx = ctx;
+	handle_pf_work->va = va;
+	handle_pf_work->size = size;
+	handle_pf_work->flags = flags;
+	handle_pf_work->asid = asid;
+
+	/*
+	 * as actual prefetch is done in a WQ we must get the context (and put it
+	 * at the end of the work function)
+	 */
+	hl_ctx_get(ctx->hdev, ctx);
+	queue_work(ctx->hdev->pf_wq, &handle_pf_work->pf_work);
+
+	return 0;
 }
 
 u64 hl_mmu_get_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte)

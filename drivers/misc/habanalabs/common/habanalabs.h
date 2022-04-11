@@ -1402,8 +1402,7 @@ struct hl_asic_funcs {
 					u32 flags);
 	int (*mmu_invalidate_cache_range)(struct hl_device *hdev, bool is_hard,
 				u32 flags, u32 asid, u64 va, u64 size);
-	int (*mmu_prefetch_cache_range)(struct hl_device *hdev, u32 flags, u32 asid, u64 va,
-				u64 size);
+	int (*mmu_prefetch_cache_range)(struct hl_ctx *ctx, u32 flags, u32 asid, u64 va, u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);
 	int (*debug_coresight)(struct hl_device *hdev, struct hl_ctx *ctx, void *data);
 	bool (*is_device_idle)(struct hl_device *hdev, u64 *mask_arr,
@@ -2476,6 +2475,24 @@ struct hl_mmu_funcs {
 };
 
 /**
+ * struct hl_prefetch_work - prefetch work structure handler
+ * @pf_work: actual work struct.
+ * @ctx: compute context.
+ * @va: virtual address to pre-fetch.
+ * @size: pre-fetch size.
+ * @flags: operation flags.
+ * @asid: ASID for maintenance operation.
+ */
+struct hl_prefetch_work {
+	struct work_struct	pf_work;
+	struct hl_ctx		*ctx;
+	u64			va;
+	u64			size;
+	u32			flags;
+	u32			asid;
+};
+
+/*
  * number of user contexts allowed to call wait_for_multi_cs ioctl in
  * parallel
  */
@@ -2648,6 +2665,7 @@ struct hl_reset_info {
  *         context.
  * @eq_wq: work queue of event queue for executing work in process context.
  * @ts_free_obj_wq: work queue for timestamp registration objects release.
+ * @pf_wq: work queue for MMU pre-fetch operations.
  * @kernel_ctx: Kernel driver context structure.
  * @kernel_queues: array of hl_hw_queue.
  * @cs_mirror_list: CS mirror list for TDR.
@@ -2760,6 +2778,7 @@ struct hl_reset_info {
  * @supports_wait_for_multi_cs: true if wait for multi CS is supported
  * @is_compute_ctx_active: Whether there is an active compute context executing.
  * @compute_ctx_in_release: true if the current compute context is being released.
+ * @supports_mmu_prefetch: true if prefetch is supported, otherwise false.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -2781,6 +2800,7 @@ struct hl_device {
 	struct workqueue_struct		**cq_wq;
 	struct workqueue_struct		*eq_wq;
 	struct workqueue_struct		*ts_free_obj_wq;
+	struct workqueue_struct		*pf_wq;
 	struct hl_ctx			*kernel_ctx;
 	struct hl_hw_queue		*kernel_queues;
 	struct list_head		cs_mirror_list;
@@ -2882,6 +2902,7 @@ struct hl_device {
 	u8				stream_master_qid_arr_size;
 	u8				is_compute_ctx_active;
 	u8				compute_ctx_in_release;
+	u8				supports_mmu_prefetch;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;
@@ -3163,7 +3184,7 @@ int hl_mmu_unmap_contiguous(struct hl_ctx *ctx, u64 virt_addr, u32 size);
 int hl_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard, u32 flags);
 int hl_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_hard,
 					u32 flags, u32 asid, u64 va, u64 size);
-int hl_mmu_prefetch_cache_range(struct hl_device *hdev, u32 flags, u32 asid, u64 va, u64 size);
+int hl_mmu_prefetch_cache_range(struct hl_ctx *ctx, u32 flags, u32 asid, u64 va, u64 size);
 u64 hl_mmu_get_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte);
 u64 hl_mmu_get_hop_pte_phys_addr(struct hl_ctx *ctx, struct hl_mmu_properties *mmu_prop,
 					u8 hop_idx, u64 hop_addr, u64 virt_addr);
