@@ -1723,12 +1723,7 @@ static struct mdev_driver intel_vgpu_mdev_driver = {
 	},
 	.probe		= intel_vgpu_probe,
 	.remove		= intel_vgpu_remove,
-};
-
-static const struct mdev_parent_ops intel_vgpu_mdev_ops = {
-	.owner			= THIS_MODULE,
 	.supported_type_groups	= gvt_vgpu_type_groups,
-	.device_driver		= &intel_vgpu_mdev_driver,
 };
 
 int intel_gvt_page_track_add(struct intel_vgpu *info, u64 gfn)
@@ -2131,7 +2126,7 @@ static int intel_gvt_init_device(struct drm_i915_private *i915)
 	if (ret)
 		goto out_destroy_idle_vgpu;
 
-	ret = mdev_register_device(i915->drm.dev, &intel_vgpu_mdev_ops);
+	ret = mdev_register_device(i915->drm.dev, &intel_vgpu_mdev_driver);
 	if (ret)
 		goto out_cleanup_vgpu_type_groups;
 

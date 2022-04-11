@@ -97,7 +97,7 @@ static struct mdev_type *add_mdev_supported_type(struct mdev_parent *parent,
 {
 	struct mdev_type *type;
 	struct attribute_group *group =
-		parent->ops->supported_type_groups[type_group_id];
+		parent->mdev_driver->supported_type_groups[type_group_id];
 	int ret;
 
 	if (!group->name) {
@@ -154,7 +154,7 @@ attr_create_failed:
 static void remove_mdev_supported_type(struct mdev_type *type)
 {
 	struct attribute_group *group =
-		type->parent->ops->supported_type_groups[type->type_group_id];
+		type->parent->mdev_driver->supported_type_groups[type->type_group_id];
 
 	sysfs_remove_files(&type->kobj,
 			   (const struct attribute **)group->attrs);
@@ -168,7 +168,7 @@ static int add_mdev_supported_type_groups(struct mdev_parent *parent)
 {
 	int i;
 
-	for (i = 0; parent->ops->supported_type_groups[i]; i++) {
+	for (i = 0; parent->mdev_driver->supported_type_groups[i]; i++) {
 		struct mdev_type *type;
 
 		type = add_mdev_supported_type(parent, i);

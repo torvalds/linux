@@ -30,26 +30,6 @@ unsigned int mdev_get_type_group_id(struct mdev_device *mdev);
 unsigned int mtype_get_type_group_id(struct mdev_type *mtype);
 struct device *mtype_get_parent_dev(struct mdev_type *mtype);
 
-/**
- * struct mdev_parent_ops - Structure to be registered for each parent device to
- * register the device to mdev module.
- *
- * @owner:		The module owner.
- * @device_driver:	Which device driver to probe() on newly created devices
- * @mdev_attr_groups:	Attributes of the mediated device.
- * @supported_type_groups: Attributes to define supported types. It is mandatory
- *			to provide supported types.
- *
- * Parent device that support mediated device should be registered with mdev
- * module with mdev_parent_ops structure.
- **/
-struct mdev_parent_ops {
-	struct module   *owner;
-	struct mdev_driver *device_driver;
-	const struct attribute_group **mdev_attr_groups;
-	struct attribute_group **supported_type_groups;
-};
-
 /* interface for exporting mdev supported type attributes */
 struct mdev_type_attribute {
 	struct attribute attr;
@@ -74,12 +54,15 @@ struct mdev_type_attribute mdev_type_attr_##_name =		\
  * struct mdev_driver - Mediated device driver
  * @probe: called when new device created
  * @remove: called when device removed
+ * @supported_type_groups: Attributes to define supported types. It is mandatory
+ *			to provide supported types.
  * @driver: device driver structure
  *
  **/
 struct mdev_driver {
 	int (*probe)(struct mdev_device *dev);
 	void (*remove)(struct mdev_device *dev);
+	struct attribute_group **supported_type_groups;
 	struct device_driver driver;
 };
 
@@ -98,7 +81,7 @@ static inline const guid_t *mdev_uuid(struct mdev_device *mdev)
 
 extern struct bus_type mdev_bus_type;
 
-int mdev_register_device(struct device *dev, const struct mdev_parent_ops *ops);
+int mdev_register_device(struct device *dev, struct mdev_driver *mdev_driver);
 void mdev_unregister_device(struct device *dev);
 
 int mdev_register_driver(struct mdev_driver *drv);

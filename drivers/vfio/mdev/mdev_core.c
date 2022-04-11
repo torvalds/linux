@@ -109,12 +109,12 @@ static int mdev_device_remove_cb(struct device *dev, void *data)
 /*
  * mdev_register_device : Register a device
  * @dev: device structure representing parent device.
- * @ops: Parent device operation structure to be registered.
+ * @mdev_driver: Device driver to bind to the newly created mdev
  *
  * Add device to list of registered parent devices.
  * Returns a negative value on error, otherwise 0.
  */
-int mdev_register_device(struct device *dev, const struct mdev_parent_ops *ops)
+int mdev_register_device(struct device *dev, struct mdev_driver *mdev_driver)
 {
 	int ret;
 	struct mdev_parent *parent;
@@ -122,9 +122,7 @@ int mdev_register_device(struct device *dev, const struct mdev_parent_ops *ops)
 	char *envp[] = { env_string, NULL };
 
 	/* check for mandatory ops */
-	if (!ops || !ops->supported_type_groups)
-		return -EINVAL;
-	if (!ops->device_driver)
+	if (!mdev_driver->supported_type_groups)
 		return -EINVAL;
 
 	dev = get_device(dev);
@@ -151,7 +149,7 @@ int mdev_register_device(struct device *dev, const struct mdev_parent_ops *ops)
 	init_rwsem(&parent->unreg_sem);
 
 	parent->dev = dev;
-	parent->ops = ops;
+	parent->mdev_driver = mdev_driver;
 
 	if (!mdev_bus_compat_class) {
 		mdev_bus_compat_class = class_compat_register("mdev_bus");
@@ -249,7 +247,7 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 	int ret;
 	struct mdev_device *mdev, *tmp;
 	struct mdev_parent *parent = type->parent;
-	struct mdev_driver *drv = parent->ops->device_driver;
+	struct mdev_driver *drv = parent->mdev_driver;
 
 	mutex_lock(&mdev_list_lock);
 
@@ -271,7 +269,6 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 	mdev->dev.parent  = parent->dev;
 	mdev->dev.bus = &mdev_bus_type;
 	mdev->dev.release = mdev_device_release;
-	mdev->dev.groups = parent->ops->mdev_attr_groups;
 	mdev->type = type;
 	/* Pairs with the put in mdev_device_release() */
 	kobject_get(&type->kobj);
