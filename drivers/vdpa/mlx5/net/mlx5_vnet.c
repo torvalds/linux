@@ -157,7 +157,6 @@ struct mlx5_vdpa_net {
 	 */
 	struct rw_semaphore reslock;
 	struct mlx5_flow_table *rxft;
-	struct mlx5_fc *rx_counter;
 	struct mlx5_flow_handle *rx_rule_ucast;
 	struct mlx5_flow_handle *rx_rule_mcast;
 	bool setup;
@@ -1406,7 +1405,7 @@ static void destroy_tir(struct mlx5_vdpa_net *ndev)
 
 static int add_fwd_to_tir(struct mlx5_vdpa_net *ndev)
 {
-	struct mlx5_flow_destination dest[2] = {};
+	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_act flow_act = {};
 	struct mlx5_flow_namespace *ns;
@@ -1438,12 +1437,6 @@ static int add_fwd_to_tir(struct mlx5_vdpa_net *ndev)
 		goto err_ns;
 	}
 
-	ndev->rx_counter = mlx5_fc_create(ndev->mvdev.mdev, false);
-	if (IS_ERR(ndev->rx_counter)) {
-		err = PTR_ERR(ndev->rx_counter);
-		goto err_fc;
-	}
-
 	headers_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, outer_headers);
 	dmac_c = MLX5_ADDR_OF(fte_match_param, headers_c, outer_headers.dmac_47_16);
 	memset(dmac_c, 0xff, ETH_ALEN);
@@ -1451,12 +1444,10 @@ static int add_fwd_to_tir(struct mlx5_vdpa_net *ndev)
 	dmac_v = MLX5_ADDR_OF(fte_match_param, headers_v, outer_headers.dmac_47_16);
 	ether_addr_copy(dmac_v, ndev->config.mac);
 
-	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST | MLX5_FLOW_CONTEXT_ACTION_COUNT;
-	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_TIR;
-	dest[0].tir_num = ndev->res.tirn;
-	dest[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-	dest[1].counter_id = mlx5_fc_id(ndev->rx_counter);
-	ndev->rx_rule_ucast = mlx5_add_flow_rules(ndev->rxft, spec, &flow_act, dest, 2);
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
+	dest.tir_num = ndev->res.tirn;
+	ndev->rx_rule_ucast = mlx5_add_flow_rules(ndev->rxft, spec, &flow_act, &dest, 1);
 
 	if (IS_ERR(ndev->rx_rule_ucast)) {
 		err = PTR_ERR(ndev->rx_rule_ucast);
@@ -1469,7 +1460,7 @@ static int add_fwd_to_tir(struct mlx5_vdpa_net *ndev)
 	dmac_c[0] = 1;
 	dmac_v[0] = 1;
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	ndev->rx_rule_mcast = mlx5_add_flow_rules(ndev->rxft, spec, &flow_act, dest, 1);
+	ndev->rx_rule_mcast = mlx5_add_flow_rules(ndev->rxft, spec, &flow_act, &dest, 1);
 	if (IS_ERR(ndev->rx_rule_mcast)) {
 		err = PTR_ERR(ndev->rx_rule_mcast);
 		ndev->rx_rule_mcast = NULL;
@@ -1483,8 +1474,6 @@ err_rule_mcast:
 	mlx5_del_flow_rules(ndev->rx_rule_ucast);
 	ndev->rx_rule_ucast = NULL;
 err_rule_ucast:
-	mlx5_fc_destroy(ndev->mvdev.mdev, ndev->rx_counter);
-err_fc:
 	mlx5_destroy_flow_table(ndev->rxft);
 err_ns:
 	kvfree(spec);
@@ -1500,7 +1489,6 @@ static void remove_fwd_to_tir(struct mlx5_vdpa_net *ndev)
 	ndev->rx_rule_mcast = NULL;
 	mlx5_del_flow_rules(ndev->rx_rule_ucast);
 	ndev->rx_rule_ucast = NULL;
-	mlx5_fc_destroy(ndev->mvdev.mdev, ndev->rx_counter);
 	mlx5_destroy_flow_table(ndev->rxft);
 }
 
