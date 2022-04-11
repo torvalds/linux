@@ -342,7 +342,7 @@ copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	ia64_drop_fpu(p);	/* don't pick up stale state from a CPU's fph */
 
 	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
-		if (unlikely(!user_stack_base)) {
+		if (unlikely(args->idle)) {
 			/* fork_idle() called us */
 			return 0;
 		}

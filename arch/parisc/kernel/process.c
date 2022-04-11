@@ -224,7 +224,7 @@ copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
 		/* kernel thread */
 		memset(cregs, 0, sizeof(struct pt_regs));
-		if (!usp) /* idle thread */
+		if (args->idle) /* idle thread */
 			return 0;
 		/* Must exit via ret_from_kernel_thread in order
 		 * to call schedule_tail()
