@@ -1044,7 +1044,7 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 				  "rx failed to build skb\n");
 			break;
 		}
-		page_pool_release_page(dring->page_pool, page);
+		skb_mark_for_recycle(skb);
 
 		skb_reserve(skb, xdp.data - xdp.data_hard_start);
 		skb_put(skb, xdp.data_end - xdp.data);

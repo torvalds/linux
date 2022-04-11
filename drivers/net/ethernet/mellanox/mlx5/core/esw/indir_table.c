@@ -86,7 +86,7 @@ mlx5_esw_indir_table_needed(struct mlx5_eswitch *esw,
 		mlx5_eswitch_is_vf_vport(esw, vport_num) &&
 		esw->dev == dest_mdev &&
 		attr->ip_version &&
-		attr->flags & MLX5_ESW_ATTR_FLAG_SRC_REWRITE;
+		attr->flags & MLX5_ATTR_FLAG_SRC_REWRITE;
 }
 
 u16

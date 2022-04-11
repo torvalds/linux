@@ -1995,10 +1995,6 @@ static int sdma_v4_0_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i;
 
-	if (adev->sdma.ras && adev->sdma.ras->ras_block.hw_ops &&
-		adev->sdma.ras->ras_block.ras_fini)
-		adev->sdma.ras->ras_block.ras_fini(adev);
-
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
 		if (adev->sdma.has_page_queue)
@@ -2418,6 +2414,7 @@ static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs = {
 	.align_mask = 0xf,
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
+	.secure_submission_supported = true,
 	.vmhub = AMDGPU_MMHUB_0,
 	.get_rptr = sdma_v4_0_ring_get_rptr,
 	.get_wptr = sdma_v4_0_ring_get_wptr,
@@ -2454,6 +2451,7 @@ static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs_2nd_mmhub = {
 	.align_mask = 0xf,
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
+	.secure_submission_supported = true,
 	.vmhub = AMDGPU_MMHUB_1,
 	.get_rptr = sdma_v4_0_ring_get_rptr,
 	.get_wptr = sdma_v4_0_ring_get_wptr,
@@ -2486,6 +2484,7 @@ static const struct amdgpu_ring_funcs sdma_v4_0_page_ring_funcs = {
 	.align_mask = 0xf,
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
+	.secure_submission_supported = true,
 	.vmhub = AMDGPU_MMHUB_0,
 	.get_rptr = sdma_v4_0_ring_get_rptr,
 	.get_wptr = sdma_v4_0_page_ring_get_wptr,
@@ -2518,6 +2517,7 @@ static const struct amdgpu_ring_funcs sdma_v4_0_page_ring_funcs_2nd_mmhub = {
 	.align_mask = 0xf,
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
+	.secure_submission_supported = true,
 	.vmhub = AMDGPU_MMHUB_1,
 	.get_rptr = sdma_v4_0_ring_get_rptr,
 	.get_wptr = sdma_v4_0_page_ring_get_wptr,
@@ -2825,10 +2825,6 @@ static void sdma_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 		/* If don't define special ras_late_init function, use default ras_late_init */
 		if (!adev->sdma.ras->ras_block.ras_late_init)
 			adev->sdma.ras->ras_block.ras_late_init = amdgpu_sdma_ras_late_init;
-
-		/* If don't define special ras_fini function, use default ras_fini */
-		if (!adev->sdma.ras->ras_block.ras_fini)
-			adev->sdma.ras->ras_block.ras_fini = amdgpu_sdma_ras_fini;
 
 		/* If not defined special ras_cb function, use default ras_cb */
 		if (!adev->sdma.ras->ras_block.ras_cb)

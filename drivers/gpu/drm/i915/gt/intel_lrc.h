@@ -6,6 +6,9 @@
 #ifndef __INTEL_LRC_H__
 #define __INTEL_LRC_H__
 
+#include "i915_priolist_types.h"
+
+#include <linux/bitfield.h>
 #include <linux/types.h>
 
 struct drm_i915_gem_object;
@@ -68,5 +71,53 @@ void lrc_check_regs(const struct intel_context *ce,
 		    const char *when);
 
 void lrc_update_runtime(struct intel_context *ce);
+
+enum {
+	INTEL_ADVANCED_CONTEXT = 0,
+	INTEL_LEGACY_32B_CONTEXT,
+	INTEL_ADVANCED_AD_CONTEXT,
+	INTEL_LEGACY_64B_CONTEXT
+};
+
+enum {
+	FAULT_AND_HANG = 0,
+	FAULT_AND_HALT, /* Debug only */
+	FAULT_AND_STREAM,
+	FAULT_AND_CONTINUE /* Unsupported */
+};
+
+#define CTX_GTT_ADDRESS_MASK			GENMASK(31, 12)
+#define GEN8_CTX_VALID				(1 << 0)
+#define GEN8_CTX_FORCE_PD_RESTORE		(1 << 1)
+#define GEN8_CTX_FORCE_RESTORE			(1 << 2)
+#define GEN8_CTX_L3LLC_COHERENT			(1 << 5)
+#define GEN8_CTX_PRIVILEGE			(1 << 8)
+#define GEN8_CTX_ADDRESSING_MODE_SHIFT		3
+#define GEN12_CTX_PRIORITY_MASK			GENMASK(10, 9)
+#define GEN12_CTX_PRIORITY_HIGH			FIELD_PREP(GEN12_CTX_PRIORITY_MASK, 2)
+#define GEN12_CTX_PRIORITY_NORMAL		FIELD_PREP(GEN12_CTX_PRIORITY_MASK, 1)
+#define GEN12_CTX_PRIORITY_LOW			FIELD_PREP(GEN12_CTX_PRIORITY_MASK, 0)
+#define GEN8_CTX_ID_SHIFT			32
+#define GEN8_CTX_ID_WIDTH			21
+#define GEN11_SW_CTX_ID_SHIFT			37
+#define GEN11_SW_CTX_ID_WIDTH			11
+#define GEN11_ENGINE_CLASS_SHIFT		61
+#define GEN11_ENGINE_CLASS_WIDTH		3
+#define GEN11_ENGINE_INSTANCE_SHIFT		48
+#define GEN11_ENGINE_INSTANCE_WIDTH		6
+#define XEHP_SW_CTX_ID_SHIFT			39
+#define XEHP_SW_CTX_ID_WIDTH			16
+#define XEHP_SW_COUNTER_SHIFT			58
+#define XEHP_SW_COUNTER_WIDTH			6
+
+static inline u32 lrc_desc_priority(int prio)
+{
+	if (prio > I915_PRIORITY_NORMAL)
+		return GEN12_CTX_PRIORITY_HIGH;
+	else if (prio < I915_PRIORITY_NORMAL)
+		return GEN12_CTX_PRIORITY_LOW;
+	else
+		return GEN12_CTX_PRIORITY_NORMAL;
+}
 
 #endif /* __INTEL_LRC_H__ */

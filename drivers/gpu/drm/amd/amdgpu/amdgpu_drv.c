@@ -100,9 +100,10 @@
  * - 3.43.0 - Add device hot plug/unplug support
  * - 3.44.0 - DCN3 supports DCC independent block settings: !64B && 128B, 64B && 128B
  * - 3.45.0 - Add context ioctl stable pstate interface
+ * * 3.46.0 - To enable hot plug amdgpu tests in libdrm
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	45
+#define KMS_DRIVER_MINOR	46
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit;
@@ -177,6 +178,7 @@ int amdgpu_reset_method = -1; /* auto */
 int amdgpu_num_kcq = -1;
 int amdgpu_smartshift_bias;
 int amdgpu_use_xgmi_p2p = 1;
+int amdgpu_vcnfw_log;
 
 static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work);
 
@@ -853,6 +855,13 @@ module_param_named(bad_page_threshold, amdgpu_bad_page_threshold, int, 0444);
 
 MODULE_PARM_DESC(num_kcq, "number of kernel compute queue user want to setup (8 if set to greater than 8 or less than 0, only affect gfx 8+)");
 module_param_named(num_kcq, amdgpu_num_kcq, int, 0444);
+
+/**
+ * DOC: vcnfw_log (int)
+ * Enable vcnfw log output for debugging, the default is disabled.
+ */
+MODULE_PARM_DESC(vcnfw_log, "Enable vcnfw log(0 = disable (default value), 1 = enable)");
+module_param_named(vcnfw_log, amdgpu_vcnfw_log, int, 0444);
 
 /**
  * DOC: smu_pptable_id (int)

@@ -15,8 +15,7 @@
 #include <linux/iio/trigger.h>
 #include <linux/iio/imu/adis.h>
 
-static int adis_data_rdy_trigger_set_state(struct iio_trigger *trig,
-						bool state)
+static int adis_data_rdy_trigger_set_state(struct iio_trigger *trig, bool state)
 {
 	struct adis *adis = iio_trigger_get_drvdata(trig);
 
@@ -88,5 +87,5 @@ int devm_adis_probe_trigger(struct adis *adis, struct iio_dev *indio_dev)
 
 	return devm_iio_trigger_register(&adis->spi->dev, adis->trig);
 }
-EXPORT_SYMBOL_GPL(devm_adis_probe_trigger);
+EXPORT_SYMBOL_NS_GPL(devm_adis_probe_trigger, IIO_ADISLIB);
 

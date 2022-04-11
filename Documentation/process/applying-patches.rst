@@ -249,6 +249,10 @@ The 5.x.y (-stable) and 5.x patches live at
 
 	https://www.kernel.org/pub/linux/kernel/v5.x/
 
+The 5.x.y incremental patches live at
+
+	https://www.kernel.org/pub/linux/kernel/v5.x/incr/
+
 The -rc patches are not stored on the webserver but are generated on
 demand from git tags such as
 
@@ -308,12 +312,11 @@ versions.
 If no 5.x.y kernel is available, then the highest numbered 5.x kernel is
 the current stable kernel.
 
-.. note::
+The -stable team provides normal as well as incremental patches. Below is
+how to apply these patches.
 
- The -stable team usually do make incremental patches available as well
- as patches against the latest mainline release, but I only cover the
- non-incremental ones below. The incremental ones can be found at
- https://www.kernel.org/pub/linux/kernel/v5.x/incr/
+Normal patches
+~~~~~~~~~~~~~~
 
 These patches are not incremental, meaning that for example the 5.7.3
 patch does not apply on top of the 5.7.2 kernel source, but rather on top
@@ -330,6 +333,21 @@ Here's a small example::
 	$ patch -p1 < ../patch-5.7.3	# apply the new 5.7.3 patch
 	$ cd ..
 	$ mv linux-5.7.2 linux-5.7.3	# rename the kernel source dir
+
+Incremental patches
+~~~~~~~~~~~~~~~~~~~
+
+Incremental patches are different: instead of being applied on top
+of base 5.x kernel, they are applied on top of previous stable kernel
+(5.x.y-1).
+
+Here's the example to apply these::
+
+	$ cd ~/linux-5.7.2		# change to the kernel source dir
+	$ patch -p1 < ../patch-5.7.2-3	# apply the new 5.7.3 patch
+	$ cd ..
+	$ mv linux-5.7.2 linux-5.7.3	# rename the kernel source dir
+
 
 The -rc kernels
 ===============

@@ -23,6 +23,10 @@ properties:
     description: GPIO spec for reset line to use
     maxItems: 1
 
+  us-euro-gpios:
+    description: GPIO spec for swapping gnd and mic segments
+    maxItems: 1
+
   vdd-buck-supply:
     description: A reference to the 1.8V buck supply
 

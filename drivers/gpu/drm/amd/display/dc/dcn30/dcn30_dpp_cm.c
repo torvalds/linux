@@ -408,6 +408,6 @@ void dpp3_cm_set_gamut_remap(
 			gamut_mode = 1;
 
 		//follow dcn2 approach for now - using only coefficient set A
-		program_gamut_remap(dpp, arr_reg_val, GAMUT_REMAP_COEFF);
+		program_gamut_remap(dpp, arr_reg_val, gamut_mode);
 	}
 }

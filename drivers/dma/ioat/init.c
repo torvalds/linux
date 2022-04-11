@@ -1365,8 +1365,6 @@ static int ioat_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err)
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-	if (err)
 		return err;
 
 	device = alloc_ioatdma(pdev, iomap[IOAT_MMIO_BAR]);

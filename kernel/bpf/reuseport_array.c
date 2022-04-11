@@ -143,7 +143,7 @@ static void reuseport_array_free(struct bpf_map *map)
 
 	/*
 	 * Once reaching here, all sk->sk_user_data is not
-	 * referenceing this "array".  "array" can be freed now.
+	 * referencing this "array". "array" can be freed now.
 	 */
 	bpf_map_area_free(array);
 }

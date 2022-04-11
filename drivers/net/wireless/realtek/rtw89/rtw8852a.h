@@ -93,6 +93,8 @@ struct rtw8852a_bb_pmac_info {
 	u8 duty_cycle;
 };
 
+extern const struct rtw89_chip_info rtw8852a_chip_info;
+
 void rtw8852a_bb_set_plcp_tx(struct rtw89_dev *rtwdev);
 void rtw8852a_bb_set_pmac_tx(struct rtw89_dev *rtwdev,
 			     struct rtw8852a_bb_pmac_info *tx_info,

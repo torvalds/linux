@@ -26,10 +26,10 @@ static void test_dummy_st_ops_attach(void)
 static void test_dummy_init_ret_value(void)
 {
 	__u64 args[1] = {0};
-	struct bpf_prog_test_run_attr attr = {
-		.ctx_size_in = sizeof(args),
+	LIBBPF_OPTS(bpf_test_run_opts, attr,
 		.ctx_in = args,
-	};
+		.ctx_size_in = sizeof(args),
+	);
 	struct dummy_st_ops *skel;
 	int fd, err;
 
@@ -38,8 +38,7 @@ static void test_dummy_init_ret_value(void)
 		return;
 
 	fd = bpf_program__fd(skel->progs.test_1);
-	attr.prog_fd = fd;
-	err = bpf_prog_test_run_xattr(&attr);
+	err = bpf_prog_test_run_opts(fd, &attr);
 	ASSERT_OK(err, "test_run");
 	ASSERT_EQ(attr.retval, 0xf2f3f4f5, "test_ret");
 
@@ -53,10 +52,10 @@ static void test_dummy_init_ptr_arg(void)
 		.val = exp_retval,
 	};
 	__u64 args[1] = {(unsigned long)&in_state};
-	struct bpf_prog_test_run_attr attr = {
-		.ctx_size_in = sizeof(args),
+	LIBBPF_OPTS(bpf_test_run_opts, attr,
 		.ctx_in = args,
-	};
+		.ctx_size_in = sizeof(args),
+	);
 	struct dummy_st_ops *skel;
 	int fd, err;
 
@@ -65,8 +64,7 @@ static void test_dummy_init_ptr_arg(void)
 		return;
 
 	fd = bpf_program__fd(skel->progs.test_1);
-	attr.prog_fd = fd;
-	err = bpf_prog_test_run_xattr(&attr);
+	err = bpf_prog_test_run_opts(fd, &attr);
 	ASSERT_OK(err, "test_run");
 	ASSERT_EQ(in_state.val, 0x5a, "test_ptr_ret");
 	ASSERT_EQ(attr.retval, exp_retval, "test_ret");
@@ -77,10 +75,10 @@ static void test_dummy_init_ptr_arg(void)
 static void test_dummy_multiple_args(void)
 {
 	__u64 args[5] = {0, -100, 0x8a5f, 'c', 0x1234567887654321ULL};
-	struct bpf_prog_test_run_attr attr = {
-		.ctx_size_in = sizeof(args),
+	LIBBPF_OPTS(bpf_test_run_opts, attr,
 		.ctx_in = args,
-	};
+		.ctx_size_in = sizeof(args),
+	);
 	struct dummy_st_ops *skel;
 	int fd, err;
 	size_t i;
@@ -91,8 +89,7 @@ static void test_dummy_multiple_args(void)
 		return;
 
 	fd = bpf_program__fd(skel->progs.test_2);
-	attr.prog_fd = fd;
-	err = bpf_prog_test_run_xattr(&attr);
+	err = bpf_prog_test_run_opts(fd, &attr);
 	ASSERT_OK(err, "test_run");
 	for (i = 0; i < ARRAY_SIZE(args); i++) {
 		snprintf(name, sizeof(name), "arg %zu", i);

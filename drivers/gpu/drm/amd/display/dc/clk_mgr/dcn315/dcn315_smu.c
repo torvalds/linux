@@ -312,3 +312,27 @@ void dcn315_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr)
 			VBIOSSMC_MSG_TransferTableDram2Smu, TABLE_WATERMARKS);
 }
 
+int dcn315_smu_get_dpref_clk(struct clk_mgr_internal *clk_mgr)
+{
+	int dprefclk_get_mhz = -1;
+	if (clk_mgr->smu_present) {
+		dprefclk_get_mhz = dcn315_smu_send_msg_with_param(
+			clk_mgr,
+			VBIOSSMC_MSG_GetDprefclkFreq,
+			0);
+	}
+	return (dprefclk_get_mhz * 1000);
+}
+
+int dcn315_smu_get_smu_fclk(struct clk_mgr_internal *clk_mgr)
+{
+	int fclk_get_mhz = -1;
+
+	if (clk_mgr->smu_present) {
+		fclk_get_mhz = dcn315_smu_send_msg_with_param(
+			clk_mgr,
+			VBIOSSMC_MSG_GetFclkFrequency,
+			0);
+	}
+	return (fclk_get_mhz * 1000);
+}

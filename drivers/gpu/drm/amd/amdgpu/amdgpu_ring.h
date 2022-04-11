@@ -28,6 +28,13 @@
 #include <drm/gpu_scheduler.h>
 #include <drm/drm_print.h>
 
+struct amdgpu_device;
+struct amdgpu_ring;
+struct amdgpu_ib;
+struct amdgpu_cs_parser;
+struct amdgpu_job;
+struct amdgpu_vm;
+
 /* max number of rings */
 #define AMDGPU_MAX_RINGS		28
 #define AMDGPU_MAX_HWIP_RINGS		8
@@ -82,11 +89,13 @@ enum amdgpu_ib_pool_type {
 	AMDGPU_IB_POOL_MAX
 };
 
-struct amdgpu_device;
-struct amdgpu_ring;
-struct amdgpu_ib;
-struct amdgpu_cs_parser;
-struct amdgpu_job;
+struct amdgpu_ib {
+	struct amdgpu_sa_bo		*sa_bo;
+	uint32_t			length_dw;
+	uint64_t			gpu_addr;
+	uint32_t			*ptr;
+	uint32_t			flags;
+};
 
 struct amdgpu_sched {
 	u32				num_scheds;
@@ -110,6 +119,8 @@ struct amdgpu_fence_driver {
 	spinlock_t			lock;
 	struct dma_fence		**fences;
 };
+
+extern const struct drm_sched_backend_ops amdgpu_sched_ops;
 
 void amdgpu_fence_driver_clear_job_fences(struct amdgpu_ring *ring);
 void amdgpu_fence_driver_force_completion(struct amdgpu_ring *ring);
@@ -144,6 +155,7 @@ struct amdgpu_ring_funcs {
 	u32			nop;
 	bool			support_64bit_ptrs;
 	bool			no_user_fence;
+	bool			secure_submission_supported;
 	unsigned		vmhub;
 	unsigned		extra_dw;
 
@@ -152,8 +164,12 @@ struct amdgpu_ring_funcs {
 	u64 (*get_wptr)(struct amdgpu_ring *ring);
 	void (*set_wptr)(struct amdgpu_ring *ring);
 	/* validating and patching of IBs */
-	int (*parse_cs)(struct amdgpu_cs_parser *p, uint32_t ib_idx);
-	int (*patch_cs_in_place)(struct amdgpu_cs_parser *p, uint32_t ib_idx);
+	int (*parse_cs)(struct amdgpu_cs_parser *p,
+			struct amdgpu_job *job,
+			struct amdgpu_ib *ib);
+	int (*patch_cs_in_place)(struct amdgpu_cs_parser *p,
+				 struct amdgpu_job *job,
+				 struct amdgpu_ib *ib);
 	/* constants to calculate how many DW are needed for an emit */
 	unsigned emit_frame_size;
 	unsigned emit_ib_size;
@@ -253,8 +269,8 @@ struct amdgpu_ring {
 	atomic_t		*sched_score;
 };
 
-#define amdgpu_ring_parse_cs(r, p, ib) ((r)->funcs->parse_cs((p), (ib)))
-#define amdgpu_ring_patch_cs_in_place(r, p, ib) ((r)->funcs->patch_cs_in_place((p), (ib)))
+#define amdgpu_ring_parse_cs(r, p, job, ib) ((r)->funcs->parse_cs((p), (job), (ib)))
+#define amdgpu_ring_patch_cs_in_place(r, p, job, ib) ((r)->funcs->patch_cs_in_place((p), (job), (ib)))
 #define amdgpu_ring_test_ring(r) (r)->funcs->test_ring((r))
 #define amdgpu_ring_test_ib(r, t) (r)->funcs->test_ib((r), (t))
 #define amdgpu_ring_get_rptr(r) (r)->funcs->get_rptr((r))
@@ -352,4 +368,29 @@ int amdgpu_ring_test_helper(struct amdgpu_ring *ring);
 
 void amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 			      struct amdgpu_ring *ring);
+
+static inline u32 amdgpu_ib_get_value(struct amdgpu_ib *ib, int idx)
+{
+	return ib->ptr[idx];
+}
+
+static inline void amdgpu_ib_set_value(struct amdgpu_ib *ib, int idx,
+				       uint32_t value)
+{
+	ib->ptr[idx] = value;
+}
+
+int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+		  unsigned size,
+		  enum amdgpu_ib_pool_type pool,
+		  struct amdgpu_ib *ib);
+void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib,
+		    struct dma_fence *f);
+int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
+		       struct amdgpu_ib *ibs, struct amdgpu_job *job,
+		       struct dma_fence **f);
+int amdgpu_ib_pool_init(struct amdgpu_device *adev);
+void amdgpu_ib_pool_fini(struct amdgpu_device *adev);
+int amdgpu_ib_ring_tests(struct amdgpu_device *adev);
+
 #endif

@@ -44,15 +44,6 @@ properties:
       This property should point to the respective IOMMU block with master port as argument,
       see Documentation/devicetree/bindings/iommu/mediatek,iommu.yaml for details.
 
-  mediatek,larb:
-    description:
-      This property should contain a phandle pointing to the local arbiter devices defined in
-      Documentation/devicetree/bindings/memory-controllers/mediatek,smi-larb.yaml.
-      It must sort according to the local arbiter index, like larb0, larb1, larb2...
-    $ref: /schemas/types.yaml#/definitions/phandle-array
-    minItems: 1
-    maxItems: 32
-
   mediatek,gce-client-reg:
     description: The register of client driver can be configured by gce with
       4 arguments defined in this property, such as phandle of gce, subsys id,
@@ -73,14 +64,23 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/mt8173-clk.h>
+    #include <dt-bindings/power/mt8173-power.h>
+    #include <dt-bindings/gce/mt8173-gce.h>
+    #include <dt-bindings/memory/mt8173-larb-port.h>
 
-    wdma0: wdma@14011000 {
-        compatible = "mediatek,mt8173-disp-wdma";
-        reg = <0 0x14011000 0 0x1000>;
-        interrupts = <GIC_SPI 185 IRQ_TYPE_LEVEL_LOW>;
-        power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
-        clocks = <&mmsys CLK_MM_DISP_WDMA0>;
-        iommus = <&iommu M4U_PORT_DISP_WDMA0>;
-        mediatek,larb = <&larb0>;
-        mediatek,gce-client-reg = <&gce SUBSYS_1401XXXX 0x1000 0x1000>;
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        wdma0: wdma@14011000 {
+            compatible = "mediatek,mt8173-disp-wdma";
+            reg = <0 0x14011000 0 0x1000>;
+            interrupts = <GIC_SPI 185 IRQ_TYPE_LEVEL_LOW>;
+            power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+            clocks = <&mmsys CLK_MM_DISP_WDMA0>;
+            iommus = <&iommu M4U_PORT_DISP_WDMA0>;
+            mediatek,gce-client-reg = <&gce SUBSYS_1401XXXX 0x1000 0x1000>;
+        };
     };

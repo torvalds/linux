@@ -212,4 +212,15 @@ struct mac53c94_regs {
 #define CF4_TEST	0x02
 #define CF4_BBTE	0x01
 
+struct mac53c94_cmd_priv {
+	int this_residual;
+	int status;
+	int message;
+};
+
+static inline struct mac53c94_cmd_priv *mac53c94_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
+
 #endif /* _MAC53C94_H */

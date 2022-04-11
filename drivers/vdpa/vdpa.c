@@ -232,7 +232,7 @@ static int vdpa_name_match(struct device *dev, const void *data)
 	return (strcmp(dev_name(&vdev->dev), data) == 0);
 }
 
-static int __vdpa_register_device(struct vdpa_device *vdev, int nvqs)
+static int __vdpa_register_device(struct vdpa_device *vdev, u32 nvqs)
 {
 	struct device *dev;
 
@@ -257,7 +257,7 @@ static int __vdpa_register_device(struct vdpa_device *vdev, int nvqs)
  *
  * Return: Returns an error when fail to add device to vDPA bus
  */
-int _vdpa_register_device(struct vdpa_device *vdev, int nvqs)
+int _vdpa_register_device(struct vdpa_device *vdev, u32 nvqs)
 {
 	if (!vdev->mdev)
 		return -EINVAL;
@@ -274,7 +274,7 @@ EXPORT_SYMBOL_GPL(_vdpa_register_device);
  *
  * Return: Returns an error when fail to add to vDPA bus
  */
-int vdpa_register_device(struct vdpa_device *vdev, int nvqs)
+int vdpa_register_device(struct vdpa_device *vdev, u32 nvqs)
 {
 	int err;
 
@@ -393,7 +393,7 @@ static void vdpa_get_config_unlocked(struct vdpa_device *vdev,
 	 * If it does happen we assume a legacy guest.
 	 */
 	if (!vdev->features_valid)
-		vdpa_set_features(vdev, 0, true);
+		vdpa_set_features_unlocked(vdev, 0);
 	ops->get_config(vdev, offset, buf, len);
 }
 

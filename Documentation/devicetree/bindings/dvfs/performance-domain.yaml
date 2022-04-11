@@ -43,7 +43,6 @@ properties:
 
   performance-domains:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
-    maxItems: 1
     description:
       A phandle and performance domain specifier as defined by bindings of the
       performance controller/provider specified by phandle.
@@ -52,10 +51,16 @@ additionalProperties: true
 
 examples:
   - |
-    performance: performance-controller@12340000 {
-        compatible = "qcom,cpufreq-hw";
-        reg = <0x12340000 0x1000>;
-        #performance-domain-cells = <1>;
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        performance: performance-controller@11bc00 {
+            compatible = "mediatek,cpufreq-hw";
+            reg = <0 0x0011bc10 0 0x120>, <0 0x0011bd30 0 0x120>;
+
+            #performance-domain-cells = <1>;
+        };
     };
 
     // The node above defines a performance controller that is a performance

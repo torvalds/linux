@@ -39,8 +39,8 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 	}
 
 	do {
-		ret = kvm_gfn_to_pfn_cache_init(kvm, gpc, NULL, false, true,
-						gpa, PAGE_SIZE, false);
+		ret = kvm_gfn_to_pfn_cache_init(kvm, gpc, NULL, KVM_HOST_USES_PFN,
+						gpa, PAGE_SIZE);
 		if (ret)
 			goto out;
 
@@ -732,7 +732,7 @@ int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 		instructions[0] = 0xb8;
 
 		/* vmcall / vmmcall */
-		kvm_x86_ops.patch_hypercall(vcpu, instructions + 5);
+		static_call(kvm_x86_patch_hypercall)(vcpu, instructions + 5);
 
 		/* ret */
 		instructions[8] = 0xc3;
@@ -867,7 +867,7 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 	vcpu->run->exit_reason = KVM_EXIT_XEN;
 	vcpu->run->xen.type = KVM_EXIT_XEN_HCALL;
 	vcpu->run->xen.u.hcall.longmode = longmode;
-	vcpu->run->xen.u.hcall.cpl = kvm_x86_ops.get_cpl(vcpu);
+	vcpu->run->xen.u.hcall.cpl = static_call(kvm_x86_get_cpl)(vcpu);
 	vcpu->run->xen.u.hcall.input = input;
 	vcpu->run->xen.u.hcall.params[0] = params[0];
 	vcpu->run->xen.u.hcall.params[1] = params[1];
@@ -1025,8 +1025,7 @@ static int evtchn_set_fn(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm
 			break;
 
 		idx = srcu_read_lock(&kvm->srcu);
-		rc = kvm_gfn_to_pfn_cache_refresh(kvm, gpc, gpc->gpa,
-						  PAGE_SIZE, false);
+		rc = kvm_gfn_to_pfn_cache_refresh(kvm, gpc, gpc->gpa, PAGE_SIZE);
 		srcu_read_unlock(&kvm->srcu, idx);
 	} while(!rc);
 

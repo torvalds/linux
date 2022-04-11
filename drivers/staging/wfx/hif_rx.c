@@ -16,8 +16,8 @@
 #include "data_rx.h"
 #include "hif_api_cmd.h"
 
-static int hif_generic_confirm(struct wfx_dev *wdev,
-			       const struct hif_msg *hif, const void *buf)
+static int wfx_hif_generic_confirm(struct wfx_dev *wdev,
+				   const struct wfx_hif_msg *hif, const void *buf)
 {
 	/* All confirm messages start with status */
 	int status = le32_to_cpup((__le32 *)buf);
@@ -32,8 +32,7 @@ static int hif_generic_confirm(struct wfx_dev *wdev,
 	}
 
 	if (cmd != wdev->hif_cmd.buf_send->id) {
-		dev_warn(wdev->dev,
-			 "chip response mismatch request: 0x%.2x vs 0x%.2x\n",
+		dev_warn(wdev->dev, "chip response mismatch request: 0x%.2x vs 0x%.2x\n",
 			 cmd, wdev->hif_cmd.buf_send->id);
 		return -EINVAL;
 	}
@@ -50,19 +49,19 @@ static int hif_generic_confirm(struct wfx_dev *wdev,
 	return status;
 }
 
-static int hif_tx_confirm(struct wfx_dev *wdev,
-			  const struct hif_msg *hif, const void *buf)
+static int wfx_hif_tx_confirm(struct wfx_dev *wdev,
+			      const struct wfx_hif_msg *hif, const void *buf)
 {
-	const struct hif_cnf_tx *body = buf;
+	const struct wfx_hif_cnf_tx *body = buf;
 
 	wfx_tx_confirm_cb(wdev, body);
 	return 0;
 }
 
-static int hif_multi_tx_confirm(struct wfx_dev *wdev,
-				const struct hif_msg *hif, const void *buf)
+static int wfx_hif_multi_tx_confirm(struct wfx_dev *wdev,
+				    const struct wfx_hif_msg *hif, const void *buf)
 {
-	const struct hif_cnf_multi_transmit *body = buf;
+	const struct wfx_hif_cnf_multi_transmit *body = buf;
 	int i;
 
 	WARN(body->num_tx_confs <= 0, "corrupted message");
@@ -71,59 +70,51 @@ static int hif_multi_tx_confirm(struct wfx_dev *wdev,
 	return 0;
 }
 
-static int hif_startup_indication(struct wfx_dev *wdev,
-				  const struct hif_msg *hif, const void *buf)
+static int wfx_hif_startup_indication(struct wfx_dev *wdev,
+				      const struct wfx_hif_msg *hif, const void *buf)
 {
-	const struct hif_ind_startup *body = buf;
+	const struct wfx_hif_ind_startup *body = buf;
 
 	if (body->status || body->firmware_type > 4) {
 		dev_err(wdev->dev, "received invalid startup indication");
 		return -EINVAL;
 	}
-	memcpy(&wdev->hw_caps, body, sizeof(struct hif_ind_startup));
-	le16_to_cpus((__le16 *)&wdev->hw_caps.hardware_id);
-	le16_to_cpus((__le16 *)&wdev->hw_caps.num_inp_ch_bufs);
-	le16_to_cpus((__le16 *)&wdev->hw_caps.size_inp_ch_buf);
-	le32_to_cpus((__le32 *)&wdev->hw_caps.supported_rate_mask);
-
+	memcpy(&wdev->hw_caps, body, sizeof(struct wfx_hif_ind_startup));
 	complete(&wdev->firmware_ready);
 	return 0;
 }
 
-static int hif_wakeup_indication(struct wfx_dev *wdev,
-				 const struct hif_msg *hif, const void *buf)
+static int wfx_hif_wakeup_indication(struct wfx_dev *wdev,
+				     const struct wfx_hif_msg *hif, const void *buf)
 {
-	if (!wdev->pdata.gpio_wakeup ||
-	    gpiod_get_value(wdev->pdata.gpio_wakeup) == 0) {
+	if (!wdev->pdata.gpio_wakeup || gpiod_get_value(wdev->pdata.gpio_wakeup) == 0) {
 		dev_warn(wdev->dev, "unexpected wake-up indication\n");
 		return -EIO;
 	}
 	return 0;
 }
 
-static int hif_receive_indication(struct wfx_dev *wdev,
-				  const struct hif_msg *hif,
-				  const void *buf, struct sk_buff *skb)
+static int wfx_hif_receive_indication(struct wfx_dev *wdev, const struct wfx_hif_msg *hif,
+				      const void *buf, struct sk_buff *skb)
 {
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
-	const struct hif_ind_rx *body = buf;
+	const struct wfx_hif_ind_rx *body = buf;
 
 	if (!wvif) {
-		dev_warn(wdev->dev, "%s: ignore rx data for non-existent vif %d\n",
-			 __func__, hif->interface);
+		dev_warn(wdev->dev, "%s: received event for non-existent vif\n", __func__);
 		return -EIO;
 	}
-	skb_pull(skb, sizeof(struct hif_msg) + sizeof(struct hif_ind_rx));
+	skb_pull(skb, sizeof(struct wfx_hif_msg) + sizeof(struct wfx_hif_ind_rx));
 	wfx_rx_cb(wvif, body, skb);
 
 	return 0;
 }
 
-static int hif_event_indication(struct wfx_dev *wdev,
-				const struct hif_msg *hif, const void *buf)
+static int wfx_hif_event_indication(struct wfx_dev *wdev,
+				    const struct wfx_hif_msg *hif, const void *buf)
 {
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
-	const struct hif_ind_event *body = buf;
+	const struct wfx_hif_ind_event *body = buf;
 	int type = le32_to_cpu(body->event_id);
 
 	if (!wvif) {
@@ -147,16 +138,14 @@ static int hif_event_indication(struct wfx_dev *wdev,
 			 le32_to_cpu(body->event_data.ps_mode_error));
 		break;
 	default:
-		dev_warn(wdev->dev, "unhandled event indication: %.2x\n",
-			 type);
+		dev_warn(wdev->dev, "unhandled event indication: %.2x\n", type);
 		break;
 	}
 	return 0;
 }
 
-static int hif_pm_mode_complete_indication(struct wfx_dev *wdev,
-					   const struct hif_msg *hif,
-					   const void *buf)
+static int wfx_hif_pm_mode_complete_indication(struct wfx_dev *wdev,
+					       const struct wfx_hif_msg *hif, const void *buf)
 {
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
 
@@ -169,12 +158,11 @@ static int hif_pm_mode_complete_indication(struct wfx_dev *wdev,
 	return 0;
 }
 
-static int hif_scan_complete_indication(struct wfx_dev *wdev,
-					const struct hif_msg *hif,
-					const void *buf)
+static int wfx_hif_scan_complete_indication(struct wfx_dev *wdev,
+					    const struct wfx_hif_msg *hif, const void *buf)
 {
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
-	const struct hif_ind_scan_cmpl *body = buf;
+	const struct wfx_hif_ind_scan_cmpl *body = buf;
 
 	if (!wvif) {
 		dev_warn(wdev->dev, "%s: received event for non-existent vif\n", __func__);
@@ -186,9 +174,8 @@ static int hif_scan_complete_indication(struct wfx_dev *wdev,
 	return 0;
 }
 
-static int hif_join_complete_indication(struct wfx_dev *wdev,
-					const struct hif_msg *hif,
-					const void *buf)
+static int wfx_hif_join_complete_indication(struct wfx_dev *wdev,
+					    const struct wfx_hif_msg *hif, const void *buf)
 {
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
 
@@ -201,11 +188,10 @@ static int hif_join_complete_indication(struct wfx_dev *wdev,
 	return 0;
 }
 
-static int hif_suspend_resume_indication(struct wfx_dev *wdev,
-					 const struct hif_msg *hif,
-					 const void *buf)
+static int wfx_hif_suspend_resume_indication(struct wfx_dev *wdev,
+					     const struct wfx_hif_msg *hif, const void *buf)
 {
-	const struct hif_ind_suspend_resume_tx *body = buf;
+	const struct wfx_hif_ind_suspend_resume_tx *body = buf;
 	struct wfx_vif *wvif;
 
 	if (body->bc_mc_only) {
@@ -230,10 +216,10 @@ static int hif_suspend_resume_indication(struct wfx_dev *wdev,
 	return 0;
 }
 
-static int hif_generic_indication(struct wfx_dev *wdev,
-				  const struct hif_msg *hif, const void *buf)
+static int wfx_hif_generic_indication(struct wfx_dev *wdev,
+				      const struct wfx_hif_msg *hif, const void *buf)
 {
-	const struct hif_ind_generic *body = buf;
+	const struct wfx_hif_ind_generic *body = buf;
 	int type = le32_to_cpu(body->type);
 
 	switch (type) {
@@ -248,20 +234,17 @@ static int hif_generic_indication(struct wfx_dev *wdev,
 		if (!wfx_api_older_than(wdev, 1, 4))
 			dev_info(wdev->dev, "Rx test ongoing. Temperature: %d degrees C\n",
 				 body->data.rx_stats.current_temp);
-		memcpy(&wdev->rx_stats, &body->data.rx_stats,
-		       sizeof(wdev->rx_stats));
+		memcpy(&wdev->rx_stats, &body->data.rx_stats, sizeof(wdev->rx_stats));
 		mutex_unlock(&wdev->rx_stats_lock);
 		return 0;
 	case HIF_GENERIC_INDICATION_TYPE_TX_POWER_LOOP_INFO:
 		mutex_lock(&wdev->tx_power_loop_info_lock);
-		memcpy(&wdev->tx_power_loop_info,
-		       &body->data.tx_power_loop_info,
+		memcpy(&wdev->tx_power_loop_info, &body->data.tx_power_loop_info,
 		       sizeof(wdev->tx_power_loop_info));
 		mutex_unlock(&wdev->tx_power_loop_info_lock);
 		return 0;
 	default:
-		dev_err(wdev->dev, "generic_indication: unknown indication type: %#.8x\n",
-			type);
+		dev_err(wdev->dev, "generic_indication: unknown indication type: %#.8x\n", type);
 		return -EIO;
 	}
 }
@@ -310,10 +293,10 @@ static const struct {
 		"secure link params (nonce or tag) mismatch" },
 };
 
-static int hif_error_indication(struct wfx_dev *wdev,
-				const struct hif_msg *hif, const void *buf)
+static int wfx_hif_error_indication(struct wfx_dev *wdev,
+				    const struct wfx_hif_msg *hif, const void *buf)
 {
-	const struct hif_ind_error *body = buf;
+	const struct wfx_hif_ind_error *body = buf;
 	int type = le32_to_cpu(body->type);
 	int param = (s8)body->data[0];
 	int i;
@@ -326,8 +309,7 @@ static int hif_error_indication(struct wfx_dev *wdev,
 			dev_err(wdev->dev, "asynchronous error: %s: %d\n",
 				hif_errors[i].str, param);
 		else
-			dev_err(wdev->dev, "asynchronous error: %s\n",
-				hif_errors[i].str);
+			dev_err(wdev->dev, "asynchronous error: %s\n", hif_errors[i].str);
 	else
 		dev_err(wdev->dev, "asynchronous error: unknown: %08x\n", type);
 	print_hex_dump(KERN_INFO, "hif: ", DUMP_PREFIX_OFFSET,
@@ -337,15 +319,14 @@ static int hif_error_indication(struct wfx_dev *wdev,
 	return 0;
 };
 
-static int hif_exception_indication(struct wfx_dev *wdev,
-				    const struct hif_msg *hif, const void *buf)
+static int wfx_hif_exception_indication(struct wfx_dev *wdev,
+					const struct wfx_hif_msg *hif, const void *buf)
 {
-	const struct hif_ind_exception *body = buf;
+	const struct wfx_hif_ind_exception *body = buf;
 	int type = le32_to_cpu(body->type);
 
 	if (type == 4)
-		dev_err(wdev->dev, "firmware assert %d\n",
-			le32_to_cpup((__le32 *)body->data));
+		dev_err(wdev->dev, "firmware assert %d\n", le32_to_cpup((__le32 *)body->data));
 	else
 		dev_err(wdev->dev, "firmware exception\n");
 	print_hex_dump(KERN_INFO, "hif: ", DUMP_PREFIX_OFFSET,
@@ -357,45 +338,41 @@ static int hif_exception_indication(struct wfx_dev *wdev,
 
 static const struct {
 	int msg_id;
-	int (*handler)(struct wfx_dev *wdev,
-		       const struct hif_msg *hif, const void *buf);
+	int (*handler)(struct wfx_dev *wdev, const struct wfx_hif_msg *hif, const void *buf);
 } hif_handlers[] = {
 	/* Confirmations */
-	{ HIF_CNF_ID_TX,                   hif_tx_confirm },
-	{ HIF_CNF_ID_MULTI_TRANSMIT,       hif_multi_tx_confirm },
+	{ HIF_CNF_ID_TX,                wfx_hif_tx_confirm },
+	{ HIF_CNF_ID_MULTI_TRANSMIT,    wfx_hif_multi_tx_confirm },
 	/* Indications */
-	{ HIF_IND_ID_STARTUP,              hif_startup_indication },
-	{ HIF_IND_ID_WAKEUP,               hif_wakeup_indication },
-	{ HIF_IND_ID_JOIN_COMPLETE,        hif_join_complete_indication },
-	{ HIF_IND_ID_SET_PM_MODE_CMPL,     hif_pm_mode_complete_indication },
-	{ HIF_IND_ID_SCAN_CMPL,            hif_scan_complete_indication },
-	{ HIF_IND_ID_SUSPEND_RESUME_TX,    hif_suspend_resume_indication },
-	{ HIF_IND_ID_EVENT,                hif_event_indication },
-	{ HIF_IND_ID_GENERIC,              hif_generic_indication },
-	{ HIF_IND_ID_ERROR,                hif_error_indication },
-	{ HIF_IND_ID_EXCEPTION,            hif_exception_indication },
-	/* FIXME: allocate skb_p from hif_receive_indication and make it generic */
-	//{ HIF_IND_ID_RX,                 hif_receive_indication },
+	{ HIF_IND_ID_STARTUP,           wfx_hif_startup_indication },
+	{ HIF_IND_ID_WAKEUP,            wfx_hif_wakeup_indication },
+	{ HIF_IND_ID_JOIN_COMPLETE,     wfx_hif_join_complete_indication },
+	{ HIF_IND_ID_SET_PM_MODE_CMPL,  wfx_hif_pm_mode_complete_indication },
+	{ HIF_IND_ID_SCAN_CMPL,         wfx_hif_scan_complete_indication },
+	{ HIF_IND_ID_SUSPEND_RESUME_TX, wfx_hif_suspend_resume_indication },
+	{ HIF_IND_ID_EVENT,             wfx_hif_event_indication },
+	{ HIF_IND_ID_GENERIC,           wfx_hif_generic_indication },
+	{ HIF_IND_ID_ERROR,             wfx_hif_error_indication },
+	{ HIF_IND_ID_EXCEPTION,         wfx_hif_exception_indication },
+	/* FIXME: allocate skb_p from wfx_hif_receive_indication and make it generic */
+	//{ HIF_IND_ID_RX,              wfx_hif_receive_indication },
 };
 
 void wfx_handle_rx(struct wfx_dev *wdev, struct sk_buff *skb)
 {
 	int i;
-	const struct hif_msg *hif = (const struct hif_msg *)skb->data;
+	const struct wfx_hif_msg *hif = (const struct wfx_hif_msg *)skb->data;
 	int hif_id = hif->id;
 
 	if (hif_id == HIF_IND_ID_RX) {
-		/* hif_receive_indication take care of skb lifetime */
-		hif_receive_indication(wdev, hif, hif->body, skb);
+		/* wfx_hif_receive_indication take care of skb lifetime */
+		wfx_hif_receive_indication(wdev, hif, hif->body, skb);
 		return;
 	}
-	/* Note: mutex_is_lock cause an implicit memory barrier that protect
-	 * buf_send
-	 */
+	/* Note: mutex_is_lock cause an implicit memory barrier that protect buf_send */
 	if (mutex_is_locked(&wdev->hif_cmd.lock) &&
-	    wdev->hif_cmd.buf_send &&
-	    wdev->hif_cmd.buf_send->id == hif_id) {
-		hif_generic_confirm(wdev, hif, hif->body);
+	    wdev->hif_cmd.buf_send && wdev->hif_cmd.buf_send->id == hif_id) {
+		wfx_hif_generic_confirm(wdev, hif, hif->body);
 		goto free;
 	}
 	for (i = 0; i < ARRAY_SIZE(hif_handlers); i++) {
@@ -405,12 +382,10 @@ void wfx_handle_rx(struct wfx_dev *wdev, struct sk_buff *skb)
 			goto free;
 		}
 	}
-	if (hif_id & 0x80)
-		dev_err(wdev->dev, "unsupported HIF indication: ID %02x\n",
-			hif_id);
+	if (hif_id & HIF_ID_IS_INDICATION)
+		dev_err(wdev->dev, "unsupported HIF indication: ID %02x\n", hif_id);
 	else
-		dev_err(wdev->dev, "unexpected HIF confirmation: ID %02x\n",
-			hif_id);
+		dev_err(wdev->dev, "unexpected HIF confirmation: ID %02x\n", hif_id);
 free:
 	dev_kfree_skb(skb);
 }

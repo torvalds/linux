@@ -312,7 +312,7 @@ static ssize_t iwl_mei_write_cyclic_buf(struct mei_cl_device *cldev,
 		memcpy(q_head + wr, hdr, tx_sz);
 	} else {
 		memcpy(q_head + wr, hdr, q_sz - wr);
-		memcpy(q_head, (u8 *)hdr + q_sz - wr, tx_sz - (q_sz - wr));
+		memcpy(q_head, (const u8 *)hdr + q_sz - wr, tx_sz - (q_sz - wr));
 	}
 
 	WRITE_ONCE(notif_q->wr_ptr, cpu_to_le32((wr + tx_sz) % q_sz));
@@ -432,7 +432,7 @@ void iwl_mei_add_data_to_ring(struct sk_buff *skb, bool cb_tx)
 	u32 q_sz;
 	u32 rd;
 	u32 wr;
-	void *q_head;
+	u8 *q_head;
 
 	if (!iwl_mei_global_cldev)
 		return;
@@ -2003,7 +2003,11 @@ static void iwl_mei_remove(struct mei_cl_device *cldev)
 }
 
 static const struct mei_cl_device_id iwl_mei_tbl[] = {
-	{ KBUILD_MODNAME, MEI_WLAN_UUID, MEI_CL_VERSION_ANY},
+	{
+		.name = KBUILD_MODNAME,
+		.uuid = MEI_WLAN_UUID,
+		.version = MEI_CL_VERSION_ANY,
+	},
 
 	/* required last entry */
 	{ }

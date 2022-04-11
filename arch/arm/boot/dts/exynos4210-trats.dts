@@ -464,19 +464,19 @@
 };
 
 &pinctrl_1 {
-	bt_shutdown: bt-shutdown {
+	bt_shutdown: bt-shutdown-pins {
 		samsung,pins = "gpl1-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	bt_host_wakeup: bt-host-wakeup {
+	bt_host_wakeup: bt-host-wakeup-pins {
 		samsung,pins = "gpx2-6";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	bt_device_wakeup: bt-device-wakeup {
+	bt_device_wakeup: bt-device-wakeup-pins {
 		samsung,pins = "gpx3-1";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;

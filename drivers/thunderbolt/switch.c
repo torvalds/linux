@@ -1528,7 +1528,13 @@ static int tb_plug_events_active(struct tb_switch *sw, bool active)
 		case PCI_DEVICE_ID_INTEL_PORT_RIDGE:
 			break;
 		default:
-			data |= 4;
+			/*
+			 * Skip Alpine Ridge, it needs to have vendor
+			 * specific USB hotplug event enabled for the
+			 * internal xHCI to work.
+			 */
+			if (!tb_switch_is_alpine_ridge(sw))
+				data |= TB_PLUG_EVENTS_USB_DISABLE;
 		}
 	} else {
 		data = data | 0x7c;
@@ -2778,10 +2784,8 @@ int tb_switch_add(struct tb_switch *sw)
 
 		/* read drom */
 		ret = tb_drom_read(sw);
-		if (ret) {
-			dev_err(&sw->dev, "reading DROM failed\n");
-			return ret;
-		}
+		if (ret)
+			dev_warn(&sw->dev, "reading DROM failed: %d\n", ret);
 		tb_sw_dbg(sw, "uid: %#llx\n", sw->uid);
 
 		tb_check_quirks(sw);
@@ -2973,6 +2977,10 @@ int tb_switch_resume(struct tb_switch *sw)
 			tb_sw_info(sw, "switch not present anymore\n");
 			return err;
 		}
+
+		/* We don't have any way to confirm this was the same device */
+		if (!sw->uid)
+			return -ENODEV;
 
 		if (tb_switch_is_usb4(sw))
 			err = usb4_switch_read_uid(sw, &uid);
@@ -3688,4 +3696,67 @@ int tb_switch_pcie_l1_enable(struct tb_switch *sw)
 
 	/* Write to Upstream PCIe bridge #0 aka Up0 */
 	return tb_switch_pcie_bridge_write(sw, 0, 0x143, 0x0c5806b1);
+}
+
+/**
+ * tb_switch_xhci_connect() - Connect internal xHCI
+ * @sw: Router whose xHCI to connect
+ *
+ * Can be called to any router. For Alpine Ridge and Titan Ridge
+ * performs special flows that bring the xHCI functional for any device
+ * connected to the type-C port. Call only after PCIe tunnel has been
+ * established. The function only does the connect if not done already
+ * so can be called several times for the same router.
+ */
+int tb_switch_xhci_connect(struct tb_switch *sw)
+{
+	bool usb_port1, usb_port3, xhci_port1, xhci_port3;
+	struct tb_port *port1, *port3;
+	int ret;
+
+	port1 = &sw->ports[1];
+	port3 = &sw->ports[3];
+
+	if (tb_switch_is_alpine_ridge(sw)) {
+		usb_port1 = tb_lc_is_usb_plugged(port1);
+		usb_port3 = tb_lc_is_usb_plugged(port3);
+		xhci_port1 = tb_lc_is_xhci_connected(port1);
+		xhci_port3 = tb_lc_is_xhci_connected(port3);
+
+		/* Figure out correct USB port to connect */
+		if (usb_port1 && !xhci_port1) {
+			ret = tb_lc_xhci_connect(port1);
+			if (ret)
+				return ret;
+		}
+		if (usb_port3 && !xhci_port3)
+			return tb_lc_xhci_connect(port3);
+	} else if (tb_switch_is_titan_ridge(sw)) {
+		ret = tb_lc_xhci_connect(port1);
+		if (ret)
+			return ret;
+		return tb_lc_xhci_connect(port3);
+	}
+
+	return 0;
+}
+
+/**
+ * tb_switch_xhci_disconnect() - Disconnect internal xHCI
+ * @sw: Router whose xHCI to disconnect
+ *
+ * The opposite of tb_switch_xhci_connect(). Disconnects xHCI on both
+ * ports.
+ */
+void tb_switch_xhci_disconnect(struct tb_switch *sw)
+{
+	if (sw->generation == 3) {
+		struct tb_port *port1 = &sw->ports[1];
+		struct tb_port *port3 = &sw->ports[3];
+
+		tb_lc_xhci_disconnect(port1);
+		tb_port_dbg(port1, "disconnected xHCI\n");
+		tb_lc_xhci_disconnect(port3);
+		tb_port_dbg(port3, "disconnected xHCI\n");
+	}
 }

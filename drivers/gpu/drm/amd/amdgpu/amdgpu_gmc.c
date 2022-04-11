@@ -454,17 +454,7 @@ int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
 
 void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
 {
-	if (adev->umc.ras && adev->umc.ras->ras_block.ras_fini)
-		adev->umc.ras->ras_block.ras_fini(adev);
 
-	if (adev->mmhub.ras && adev->mmhub.ras->ras_block.ras_fini)
-		adev->mmhub.ras->ras_block.ras_fini(adev);
-
-	if (adev->gmc.xgmi.ras && adev->gmc.xgmi.ras->ras_block.ras_fini)
-		adev->gmc.xgmi.ras->ras_block.ras_fini(adev);
-
-	if (adev->hdp.ras && adev->hdp.ras->ras_block.ras_fini)
-		adev->hdp.ras->ras_block.ras_fini(adev);
 }
 
 	/*
@@ -569,11 +559,11 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 {
 	struct amdgpu_gmc *gmc = &adev->gmc;
 
-	switch (adev->asic_type) {
-	case CHIP_VEGA10:
-	case CHIP_VEGA20:
-	case CHIP_ARCTURUS:
-	case CHIP_ALDEBARAN:
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(9, 0, 1):
+	case IP_VERSION(9, 4, 0):
+	case IP_VERSION(9, 4, 1):
+	case IP_VERSION(9, 4, 2):
 		/*
 		 * noretry = 0 will cause kfd page fault tests fail
 		 * for some ASICs, so set default to 1 for these ASICs.
@@ -583,7 +573,6 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 		else
 			gmc->noretry = amdgpu_noretry;
 		break;
-	case CHIP_RAVEN:
 	default:
 		/* Raven currently has issues with noretry
 		 * regardless of what we decide for other
@@ -634,6 +623,13 @@ void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev)
 	unsigned size;
 
 	/*
+	 * Some ASICs need to reserve a region of video memory to avoid access
+	 * from driver
+	 */
+	adev->mman.stolen_reserved_offset = 0;
+	adev->mman.stolen_reserved_size = 0;
+
+	/*
 	 * TODO:
 	 * Currently there is a bug where some memory client outside
 	 * of the driver writes to first 8M of VRAM on S3 resume,
@@ -643,9 +639,24 @@ void amdgpu_gmc_get_vbios_allocations(struct amdgpu_device *adev)
 	 */
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+		adev->mman.keep_stolen_vga_memory = true;
+		/*
+		 * VEGA10 SRIOV VF needs some firmware reserved area.
+		 */
+		if (amdgpu_sriov_vf(adev)) {
+			adev->mman.stolen_reserved_offset = 0x100000;
+			adev->mman.stolen_reserved_size = 0x600000;
+		}
+		break;
 	case CHIP_RAVEN:
 	case CHIP_RENOIR:
 		adev->mman.keep_stolen_vga_memory = true;
+		break;
+	case CHIP_YELLOW_CARP:
+		if (amdgpu_discovery == 0) {
+			adev->mman.stolen_reserved_offset = 0x1ffb0000;
+			adev->mman.stolen_reserved_size = 64 * PAGE_SIZE;
+		}
 		break;
 	default:
 		adev->mman.keep_stolen_vga_memory = false;
@@ -765,25 +776,6 @@ uint64_t amdgpu_gmc_vram_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo)
 uint64_t amdgpu_gmc_vram_cpu_pa(struct amdgpu_device *adev, struct amdgpu_bo *bo)
 {
 	return amdgpu_bo_gpu_offset(bo) - adev->gmc.vram_start + adev->gmc.aper_base;
-}
-
-void amdgpu_gmc_get_reserved_allocation(struct amdgpu_device *adev)
-{
-	/* Some ASICs need to reserve a region of video memory to avoid access
-	 * from driver */
-	adev->mman.stolen_reserved_offset = 0;
-	adev->mman.stolen_reserved_size = 0;
-
-	switch (adev->asic_type) {
-	case CHIP_YELLOW_CARP:
-		if (amdgpu_discovery == 0) {
-			adev->mman.stolen_reserved_offset = 0x1ffb0000;
-			adev->mman.stolen_reserved_size = 64 * PAGE_SIZE;
-		}
-		break;
-	default:
-		break;
-	}
 }
 
 int amdgpu_gmc_vram_checking(struct amdgpu_device *adev)

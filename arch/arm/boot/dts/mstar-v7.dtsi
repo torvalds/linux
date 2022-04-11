@@ -21,6 +21,8 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x0>;
+			clocks = <&cpupll>;
+			clock-names = "cpuclk";
 		};
 	};
 
@@ -153,6 +155,13 @@
 				#clock-cells = <1>;
 				reg = <0x206000 0x200>;
 				clocks = <&xtal>;
+			};
+
+			cpupll: cpupll@206400 {
+				compatible = "mstar,msc313-cpupll";
+				reg = <0x206400 0x200>;
+				#clock-cells = <0>;
+				clocks = <&mpll MSTAR_MSC313_MPLL_DIV2>;
 			};
 
 			gpio: gpio@207800 {

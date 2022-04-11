@@ -11,7 +11,6 @@
 #include <linux/writeback.h>
 #include <linux/xattr.h>
 #include <linux/falloc.h>
-#include <linux/genhd.h>
 #include <linux/fsnotify.h>
 #include <linux/dcache.h>
 #include <linux/slab.h>

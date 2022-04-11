@@ -53,12 +53,14 @@ properties:
     items:
       - description: register based extraction
       - description: frame dma based extraction
+      - description: ptp interrupt
 
   interrupt-names:
     minItems: 1
     items:
       - const: xtr
       - const: fdma
+      - const: ptp
 
   resets:
     items:

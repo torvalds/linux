@@ -493,6 +493,7 @@ void dal_ddc_service_i2c_query_dp_dual_mode_adaptor(
 			sink_cap->max_hdmi_pixel_clock =
 				max_tmds_clk * 1000;
 		}
+		sink_cap->is_dongle_type_one = false;
 
 	} else {
 		if (is_valid_hdmi_signature == true) {
@@ -510,6 +511,7 @@ void dal_ddc_service_i2c_query_dp_dual_mode_adaptor(
 					"Type 1 DP-HDMI passive dongle (no signature) %dMhz: ",
 					sink_cap->max_hdmi_pixel_clock / 1000);
 		}
+		sink_cap->is_dongle_type_one = true;
 	}
 
 	return;

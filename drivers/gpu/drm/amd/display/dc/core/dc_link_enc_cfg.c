@@ -272,6 +272,13 @@ void link_enc_cfg_init(
 	state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_STEADY;
 }
 
+void link_enc_cfg_copy(const struct dc_state *src_ctx, struct dc_state *dst_ctx)
+{
+	memcpy(&dst_ctx->res_ctx.link_enc_cfg_ctx,
+	       &src_ctx->res_ctx.link_enc_cfg_ctx,
+	       sizeof(dst_ctx->res_ctx.link_enc_cfg_ctx));
+}
+
 void link_enc_cfg_link_encs_assign(
 		struct dc *dc,
 		struct dc_state *state,

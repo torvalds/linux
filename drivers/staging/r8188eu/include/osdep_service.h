@@ -54,25 +54,10 @@ static inline struct list_head *get_list_head(struct __queue *queue)
 	return (&(queue->queue));
 }
 
-static inline void rtw_list_delete(struct list_head *plist)
-{
-	list_del_init(plist);
-}
-
 static inline void _set_timer(struct timer_list *ptimer,u32 delay_time)
 {
-	mod_timer(ptimer , (jiffies+(delay_time*HZ/1000)));
+	mod_timer(ptimer, jiffies + msecs_to_jiffies(delay_time));
 }
-
-static inline void _cancel_timer(struct timer_list *ptimer,u8 *bcancelled)
-{
-	del_timer_sync(ptimer);
-	*bcancelled=  true;/* true ==1; false==0 */
-}
-
-#define RTW_TIMER_HDL_ARGS void *FunctionContext
-#define RTW_TIMER_HDL_NAME(name) rtw_##name##_timer_hdl
-#define RTW_DECLARE_TIMER_HDL(name) void RTW_TIMER_HDL_NAME(name)(RTW_TIMER_HDL_ARGS)
 
 static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 {
@@ -82,28 +67,7 @@ static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 3));
 }
 
-static inline void rtw_netif_wake_queue(struct net_device *pnetdev)
-{
-	netif_tx_wake_all_queues(pnetdev);
-}
-
-static inline void rtw_netif_start_queue(struct net_device *pnetdev)
-{
-	netif_tx_start_all_queues(pnetdev);
-}
-
-static inline void rtw_netif_stop_queue(struct net_device *pnetdev)
-{
-	netif_tx_stop_all_queues(pnetdev);
-}
-
 extern int RTW_STATUS_CODE(int error_code);
-
-extern unsigned char MCS_rate_2R[16];
-extern unsigned char MCS_rate_1R[16];
-extern unsigned char RTW_WPA_OUI[];
-extern unsigned char WPA_TKIP_CIPHER[4];
-extern unsigned char RSN_TKIP_CIPHER[4];
 
 void *rtw_malloc2d(int h, int w, int size);
 
@@ -172,18 +136,6 @@ static inline u32 _RND512(u32 sz)
 	val = ((sz >> 9) + ((sz & 511) ? 1: 0)) << 9;
 	return val;
 }
-
-static inline u32 bitshift(u32 bitmask)
-{
-	u32 i;
-
-	for (i = 0; i <= 31; i++)
-		if (((bitmask>>i) &  0x1) == 1) break;
-	return i;
-}
-
-/*  limitation of path length */
-#define PATH_LENGTH_MAX PATH_MAX
 
 struct rtw_netdev_priv_indicator {
 	void *priv;

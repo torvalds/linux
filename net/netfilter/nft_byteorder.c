@@ -172,8 +172,7 @@ static bool nft_byteorder_reduce(struct nft_regs_track *track,
 {
 	struct nft_byteorder *priv = nft_expr_priv(expr);
 
-	track->regs[priv->dreg].selector = NULL;
-	track->regs[priv->dreg].bitwise = NULL;
+	nft_reg_track_cancel(track, priv->dreg, priv->len);
 
 	return false;
 }

@@ -265,7 +265,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		struct intel_memory_region *mem = obj->mm.region;
 
 		info->apertures->ranges[0].base = mem->io_start;
-		info->apertures->ranges[0].size = mem->total;
+		info->apertures->ranges[0].size = mem->io_size;
 
 		/* Use fbdev's framebuffer from lmem for discrete */
 		info->fix.smem_start =

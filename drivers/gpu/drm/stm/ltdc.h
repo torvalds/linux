@@ -27,6 +27,7 @@ struct ltdc_caps {
 	bool ycbcr_input;	/* ycbcr input converter supported */
 	bool ycbcr_output;	/* ycbcr output converter supported */
 	bool plane_reg_shadow;	/* plane shadow registers ability */
+	bool crc;		/* cyclic redundancy check supported */
 };
 
 #define LTDC_MAX_LAYER	4
@@ -46,6 +47,8 @@ struct ltdc_device {
 	u32 irq_status;
 	struct fps_info plane_fpsi[LTDC_MAX_LAYER];
 	struct drm_atomic_state *suspend_state;
+	int crc_skip_count;
+	bool crc_active;
 };
 
 int ltdc_load(struct drm_device *ddev);

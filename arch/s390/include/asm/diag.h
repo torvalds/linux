@@ -11,6 +11,7 @@
 
 #include <linux/if_ether.h>
 #include <linux/percpu.h>
+#include <asm/asm-extable.h>
 
 enum diag_stat_enum {
 	DIAG_STAT_X008,

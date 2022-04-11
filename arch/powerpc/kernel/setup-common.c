@@ -456,8 +456,8 @@ void __init smp_setup_cpu_maps(void)
 		intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s",
 				&len);
 		if (intserv) {
-			DBG("    ibm,ppc-interrupt-server#s -> %d threads\n",
-			    nthreads);
+			DBG("    ibm,ppc-interrupt-server#s -> %lu threads\n",
+			    (len / sizeof(int)));
 		} else {
 			DBG("    no ibm,ppc-interrupt-server#s -> 1 thread\n");
 			intserv = of_get_property(dn, "reg", &len);

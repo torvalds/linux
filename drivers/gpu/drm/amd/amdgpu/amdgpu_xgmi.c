@@ -34,7 +34,6 @@
 
 #include "amdgpu_reset.h"
 
-#define smnPCS_XGMI23_PCS_ERROR_STATUS   0x11a01210
 #define smnPCS_XGMI3X16_PCS_ERROR_STATUS 0x11a0020c
 #define smnPCS_GOPX1_PCS_ERROR_STATUS    0x12200210
 
@@ -67,17 +66,6 @@ static const int xgmi_pcs_err_status_reg_arct[] = {
 static const int wafl_pcs_err_status_reg_arct[] = {
 	smnPCS_GOPX1_0_PCS_GOPX1_PCS_ERROR_STATUS,
 	smnPCS_GOPX1_0_PCS_GOPX1_PCS_ERROR_STATUS + 0x100000,
-};
-
-static const int xgmi23_pcs_err_status_reg_aldebaran[] = {
-	smnPCS_XGMI23_PCS_ERROR_STATUS,
-	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x100000,
-	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x200000,
-	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x300000,
-	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x400000,
-	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x500000,
-	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x600000,
-	smnPCS_XGMI23_PCS_ERROR_STATUS + 0x700000
 };
 
 static const int xgmi3x16_pcs_err_status_reg_aldebaran[] = {
@@ -768,13 +756,6 @@ static int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev, struct ras_comm
 	return amdgpu_ras_block_late_init(adev, ras_block);
 }
 
-static void amdgpu_xgmi_ras_fini(struct amdgpu_device *adev)
-{
-	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__XGMI_WAFL) &&
-			adev->gmc.xgmi.ras_if)
-		amdgpu_ras_block_late_fini(adev, adev->gmc.xgmi.ras_if);
-}
-
 uint64_t amdgpu_xgmi_get_relative_phy_addr(struct amdgpu_device *adev,
 					   uint64_t addr)
 {
@@ -804,9 +785,6 @@ static void amdgpu_xgmi_reset_ras_error_count(struct amdgpu_device *adev)
 					 xgmi_pcs_err_status_reg_vg20[i]);
 		break;
 	case CHIP_ALDEBARAN:
-		for (i = 0; i < ARRAY_SIZE(xgmi23_pcs_err_status_reg_aldebaran); i++)
-			pcs_clear_status(adev,
-					 xgmi23_pcs_err_status_reg_aldebaran[i]);
 		for (i = 0; i < ARRAY_SIZE(xgmi3x16_pcs_err_status_reg_aldebaran); i++)
 			pcs_clear_status(adev,
 					 xgmi3x16_pcs_err_status_reg_aldebaran[i]);
@@ -907,13 +885,6 @@ static void amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 		}
 		break;
 	case CHIP_ALDEBARAN:
-		/* check xgmi23 pcs error */
-		for (i = 0; i < ARRAY_SIZE(xgmi23_pcs_err_status_reg_aldebaran); i++) {
-			data = RREG32_PCIE(xgmi23_pcs_err_status_reg_aldebaran[i]);
-			if (data)
-				amdgpu_xgmi_query_pcs_error_status(adev,
-						data, &ue_cnt, &ce_cnt, true);
-		}
 		/* check xgmi3x16 pcs error */
 		for (i = 0; i < ARRAY_SIZE(xgmi3x16_pcs_err_status_reg_aldebaran); i++) {
 			data = RREG32_PCIE(xgmi3x16_pcs_err_status_reg_aldebaran[i]);
@@ -982,6 +953,5 @@ struct amdgpu_xgmi_ras xgmi_ras = {
 		},
 		.hw_ops = &xgmi_ras_hw_ops,
 		.ras_late_init = amdgpu_xgmi_ras_late_init,
-		.ras_fini = amdgpu_xgmi_ras_fini,
 	},
 };

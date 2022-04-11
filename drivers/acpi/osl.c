@@ -642,22 +642,24 @@ u64 acpi_os_get_timer(void)
 		(ACPI_100NSEC_PER_SEC / HZ);
 }
 
-acpi_status acpi_os_read_port(acpi_io_address port, u32 * value, u32 width)
+acpi_status acpi_os_read_port(acpi_io_address port, u32 *value, u32 width)
 {
 	u32 dummy;
 
-	if (!value)
+	if (value)
+		*value = 0;
+	else
 		value = &dummy;
 
-	*value = 0;
 	if (width <= 8) {
-		*(u8 *) value = inb(port);
+		*value = inb(port);
 	} else if (width <= 16) {
-		*(u16 *) value = inw(port);
+		*value = inw(port);
 	} else if (width <= 32) {
-		*(u32 *) value = inl(port);
+		*value = inl(port);
 	} else {
-		BUG();
+		pr_debug("%s: Access width %d not supported\n", __func__, width);
+		return AE_BAD_PARAMETER;
 	}
 
 	return AE_OK;
@@ -674,7 +676,8 @@ acpi_status acpi_os_write_port(acpi_io_address port, u32 value, u32 width)
 	} else if (width <= 32) {
 		outl(value, port);
 	} else {
-		BUG();
+		pr_debug("%s: Access width %d not supported\n", __func__, width);
+		return AE_BAD_PARAMETER;
 	}
 
 	return AE_OK;

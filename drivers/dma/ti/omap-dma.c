@@ -1442,7 +1442,7 @@ static int omap_dma_pause(struct dma_chan *chan)
 	 * A source-synchronised channel is one where the fetching of data is
 	 * under control of the device. In other words, a device-to-memory
 	 * transfer. So, a destination-synchronised channel (which would be a
-	 * memory-to-device transfer) undergoes an abort if the the CCR_ENABLE
+	 * memory-to-device transfer) undergoes an abort if the CCR_ENABLE
 	 * bit is cleared.
 	 * From 16.1.4.20.4.6.2 Abort: "If an abort trigger occurs, the channel
 	 * aborts immediately after completion of current read/write

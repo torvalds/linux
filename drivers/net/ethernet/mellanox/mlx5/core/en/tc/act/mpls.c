@@ -8,7 +8,8 @@
 static bool
 tc_act_can_offload_mpls_push(struct mlx5e_tc_act_parse_state *parse_state,
 			     const struct flow_action_entry *act,
-			     int act_index)
+			     int act_index,
+			     struct mlx5_flow_attr *attr)
 {
 	struct netlink_ext_ack *extack = parse_state->extack;
 	struct mlx5e_priv *priv = parse_state->flow->priv;
@@ -47,21 +48,22 @@ tc_act_parse_mpls_push(struct mlx5e_tc_act_parse_state *parse_state,
 static bool
 tc_act_can_offload_mpls_pop(struct mlx5e_tc_act_parse_state *parse_state,
 			    const struct flow_action_entry *act,
-			    int act_index)
+			    int act_index,
+			    struct mlx5_flow_attr *attr)
 {
 	struct netlink_ext_ack *extack = parse_state->extack;
-	struct mlx5e_tc_flow *flow = parse_state->flow;
 	struct net_device *filter_dev;
 
-	filter_dev = flow->attr->parse_attr->filter_dev;
+	filter_dev = attr->parse_attr->filter_dev;
 
 	/* we only support mpls pop if it is the first action
+	 * or it is second action after tunnel key unset
 	 * and the filter net device is bareudp. Subsequent
 	 * actions can be pedit and the last can be mirred
 	 * egress redirect.
 	 */
-	if (act_index) {
-		NL_SET_ERR_MSG_MOD(extack, "mpls pop supported only as first action");
+	if ((act_index == 1 && !parse_state->decap) || act_index > 1) {
+		NL_SET_ERR_MSG_MOD(extack, "mpls pop supported only as first action or with decap");
 		return false;
 	}
 
@@ -79,7 +81,7 @@ tc_act_parse_mpls_pop(struct mlx5e_tc_act_parse_state *parse_state,
 		      struct mlx5e_priv *priv,
 		      struct mlx5_flow_attr *attr)
 {
-	attr->parse_attr->eth.h_proto = act->mpls_pop.proto;
+	attr->esw_attr->eth.h_proto = act->mpls_pop.proto;
 	attr->action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
 	flow_flag_set(parse_state->flow, L3_TO_L2_DECAP);
 

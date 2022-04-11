@@ -48,6 +48,15 @@ definitions:
       It is useful for some aCPUs with fixed clocks.
     $ref: /schemas/types.yaml#/definitions/flag
 
+  system-clock-fixed:
+    description: |
+      Specifies that the clock frequency should not be modified.
+      Implied when system-clock-frequency is specified, but can be used when
+      a clock is mapped to the device whose frequency cannot or should not be
+      changed. When mclk-fs is also specified, this restricts the device to a
+      single fixed sampling rate.
+    $ref: /schemas/types.yaml#/definitions/flag
+
   mclk-fs:
     description: |
       Multiplication factor between stream rate and codec mclk.
@@ -134,6 +143,8 @@ definitions:
         $ref: "#/definitions/system-clock-frequency"
       system-clock-direction-out:
         $ref: "#/definitions/system-clock-direction-out"
+      system-clock-fixed:
+        $ref: "#/definitions/system-clock-fixed"
     required:
       - sound-dai
 
@@ -156,44 +167,44 @@ properties:
     description: User specified audio sound card name.
     $ref: /schemas/types.yaml#/definitions/string
 
-# use patternProperties to avoid naming "xxx,yyy" issue
-patternProperties:
-  "^simple-audio-card,widgets$":
+  simple-audio-card,widgets:
     $ref: "#/definitions/widgets"
-  "^simple-audio-card,routing$":
+  simple-audio-card,routing:
     $ref: "#/definitions/routing"
-  "^simple-audio-card,cpu(@[0-9a-f]+)?":
-    $ref: "#/definitions/dai"
-  "^simple-audio-card,codec(@[0-9a-f]+)?":
-    $ref: "#/definitions/dai"
 
   # common properties
-  "^simple-audio-card,frame-master$":
+  simple-audio-card,frame-master:
     $ref: "#/definitions/frame-master"
-  "^simple-audio-card,bitclock-master$":
+  simple-audio-card,bitclock-master:
     $ref: "#/definitions/bitclock-master"
-  "^simple-audio-card,frame-inversion$":
+  simple-audio-card,frame-inversion:
     $ref: "#/definitions/frame-inversion"
-  "^simple-audio-card,bitclock-inversion$":
+  simple-audio-card,bitclock-inversion:
     $ref: "#/definitions/bitclock-inversion"
-  "^simple-audio-card,format$":
+  simple-audio-card,format:
     $ref: "#/definitions/format"
-  "^simple-audio-card,mclk-fs$":
+  simple-audio-card,mclk-fs:
     $ref: "#/definitions/mclk-fs"
-  "^simple-audio-card,aux-devs$":
+  simple-audio-card,aux-devs:
     $ref: "#/definitions/aux-devs"
-  "^simple-audio-card,convert-rate$":
+  simple-audio-card,convert-rate:
     $ref: "#/definitions/convert-rate"
-  "^simple-audio-card,convert-channels$":
+  simple-audio-card,convert-channels:
     $ref: "#/definitions/convert-channels"
-  "^simple-audio-card,prefix$":
+  simple-audio-card,prefix:
     $ref: "#/definitions/prefix"
-  "^simple-audio-card,pin-switches$":
+  simple-audio-card,pin-switches:
     $ref: "#/definitions/pin-switches"
-  "^simple-audio-card,hp-det-gpio$":
+  simple-audio-card,hp-det-gpio:
     maxItems: 1
-  "^simple-audio-card,mic-det-gpio$":
+  simple-audio-card,mic-det-gpio:
     maxItems: 1
+
+patternProperties:
+  "^simple-audio-card,cpu(@[0-9a-f]+)?$":
+    $ref: "#/definitions/dai"
+  "^simple-audio-card,codec(@[0-9a-f]+)?$":
+    $ref: "#/definitions/dai"
 
   "^simple-audio-card,dai-link(@[0-9a-f]+)?$":
     description: |

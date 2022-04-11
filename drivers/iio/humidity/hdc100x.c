@@ -417,10 +417,17 @@ static const struct of_device_id hdc100x_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, hdc100x_dt_ids);
 
+static const struct acpi_device_id hdc100x_acpi_match[] = {
+	{ "TXNW1010" },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, hdc100x_acpi_match);
+
 static struct i2c_driver hdc100x_driver = {
 	.driver = {
 		.name	= "hdc100x",
 		.of_match_table = hdc100x_dt_ids,
+		.acpi_match_table = hdc100x_acpi_match,
 	},
 	.probe = hdc100x_probe,
 	.id_table = hdc100x_id,

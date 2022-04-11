@@ -7,7 +7,7 @@
 
 /**
  * ice_test_staterr - tests bits in Rx descriptor status and error fields
- * @rx_desc: pointer to receive descriptor (in le64 format)
+ * @status_err_n: Rx descriptor status_error0 or status_error1 bits
  * @stat_err_bits: value to mask
  *
  * This function does some fast chicanery in order to return the
@@ -16,9 +16,9 @@
  * at offset zero.
  */
 static inline bool
-ice_test_staterr(union ice_32b_rx_flex_desc *rx_desc, const u16 stat_err_bits)
+ice_test_staterr(__le16 status_err_n, const u16 stat_err_bits)
 {
-	return !!(rx_desc->wb.status_error0 & cpu_to_le16(stat_err_bits));
+	return !!(status_err_n & cpu_to_le16(stat_err_bits));
 }
 
 static inline __le64
@@ -29,6 +29,30 @@ ice_build_ctob(u64 td_cmd, u64 td_offset, unsigned int size, u64 td_tag)
 			   (td_offset << ICE_TXD_QW1_OFFSET_S) |
 			   ((u64)size << ICE_TXD_QW1_TX_BUF_SZ_S) |
 			   (td_tag    << ICE_TXD_QW1_L2TAG1_S));
+}
+
+/**
+ * ice_get_vlan_tag_from_rx_desc - get VLAN from Rx flex descriptor
+ * @rx_desc: Rx 32b flex descriptor with RXDID=2
+ *
+ * The OS and current PF implementation only support stripping a single VLAN tag
+ * at a time, so there should only ever be 0 or 1 tags in the l2tag* fields. If
+ * one is found return the tag, else return 0 to mean no VLAN tag was found.
+ */
+static inline u16
+ice_get_vlan_tag_from_rx_desc(union ice_32b_rx_flex_desc *rx_desc)
+{
+	u16 stat_err_bits;
+
+	stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS0_L2TAG1P_S);
+	if (ice_test_staterr(rx_desc->wb.status_error0, stat_err_bits))
+		return le16_to_cpu(rx_desc->wb.l2tag1);
+
+	stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS1_L2TAG2P_S);
+	if (ice_test_staterr(rx_desc->wb.status_error1, stat_err_bits))
+		return le16_to_cpu(rx_desc->wb.l2tag2_2nd);
+
+	return 0;
 }
 
 /**

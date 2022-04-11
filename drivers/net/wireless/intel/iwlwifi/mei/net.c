@@ -102,8 +102,8 @@ static bool iwl_mei_rx_filter_arp(struct sk_buff *skb,
 	 * src IP address    - 4 bytes
 	 * target MAC addess - 6 bytes
 	 */
-	target_ip = (void *)((u8 *)(arp + 1) +
-			     ETH_ALEN + sizeof(__be32) + ETH_ALEN);
+	target_ip = (const void *)((const u8 *)(arp + 1) +
+				   ETH_ALEN + sizeof(__be32) + ETH_ALEN);
 
 	/*
 	 * ARP request is forwarded to ME only if IP address match in the

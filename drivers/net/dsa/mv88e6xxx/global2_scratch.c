@@ -289,3 +289,31 @@ int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
 
 	return mv88e6xxx_g2_scratch_write(chip, misc_cfg, val);
 }
+
+/**
+ * mv88e6352_g2_scratch_port_has_serdes - indicate if a port can have a serdes
+ * @chip: chip private data
+ * @port: port number to check for serdes
+ *
+ * Indicates whether the port may have a serdes attached according to the
+ * pin strapping. Returns negative error number, 0 if the port is not
+ * configured to have a serdes, and 1 if the port is configured to have a
+ * serdes attached.
+ */
+int mv88e6352_g2_scratch_port_has_serdes(struct mv88e6xxx_chip *chip, int port)
+{
+	u8 config3, p;
+	int err;
+
+	err = mv88e6xxx_g2_scratch_read(chip, MV88E6352_G2_SCRATCH_CONFIG_DATA3,
+					&config3);
+	if (err)
+		return err;
+
+	if (config3 & MV88E6352_G2_SCRATCH_CONFIG_DATA3_S_SEL)
+		p = 5;
+	else
+		p = 4;
+
+	return port == p;
+}

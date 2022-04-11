@@ -29,6 +29,27 @@
 		#clock-cells = <0>;
 	};
 
+	ioclk_pcm: clock-pcm-ext {
+		compatible = "fixed-clock";
+		clock-frequency = <2048000>;
+		clock-output-names = "ioclk_pcm_extclk";
+		#clock-cells = <0>;
+	};
+
+	ioclk_i2s: clock-i2s-cd {
+		compatible = "fixed-clock";
+		clock-frequency = <147456000>;
+		clock-output-names = "ioclk_i2s_cdclk";
+		#clock-cells = <0>;
+	};
+
+	ioclk_spdif: clock-spdif-ext {
+		compatible = "fixed-clock";
+		clock-frequency = <49152000>;
+		clock-output-names = "ioclk_spdif_extclk";
+		#clock-cells = <0>;
+	};
+
 	xrtcxti: xrtcxti {
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
@@ -38,7 +59,7 @@
 };
 
 &pinctrl_0 {
-	hdmi_hpd_irq: hdmi-hpd-irq {
+	hdmi_hpd_irq: hdmi-hpd-irq-pins {
 		samsung,pins = "gpx3-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;

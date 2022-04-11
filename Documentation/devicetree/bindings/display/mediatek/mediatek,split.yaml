@@ -49,10 +49,17 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/mt8173-clk.h>
+    #include <dt-bindings/power/mt8173-power.h>
 
-    split0: split@14018000 {
-        compatible = "mediatek,mt8173-disp-split";
-        reg = <0 0x14018000 0 0x1000>;
-        power-domains = <&spm MT8173_POWER_DOMAIN_MM>;
-        clocks = <&mmsys CLK_MM_DISP_SPLIT0>;
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        split0: split@14018000 {
+            compatible = "mediatek,mt8173-disp-split";
+            reg = <0 0x14018000 0 0x1000>;
+            power-domains = <&spm MT8173_POWER_DOMAIN_MM>;
+            clocks = <&mmsys CLK_MM_DISP_SPLIT0>;
+        };
     };

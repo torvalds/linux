@@ -861,16 +861,26 @@ static int gb_svc_hello(struct gb_operation *op)
 	ret = gb_svc_watchdog_create(svc);
 	if (ret) {
 		dev_err(&svc->dev, "failed to create watchdog: %d\n", ret);
-		goto err_unregister_device;
+		goto err_deregister_svc;
 	}
+
+	/*
+	 * FIXME: This is a temporary hack to reconfigure the link at HELLO
+	 * (which abuses the deferred request processing mechanism).
+	 */
+	ret = gb_svc_queue_deferred_request(op);
+	if (ret)
+		goto err_destroy_watchdog;
 
 	gb_svc_debugfs_init(svc);
 
-	return gb_svc_queue_deferred_request(op);
+	return 0;
 
-err_unregister_device:
+err_destroy_watchdog:
 	gb_svc_watchdog_destroy(svc);
+err_deregister_svc:
 	device_del(&svc->dev);
+
 	return ret;
 }
 

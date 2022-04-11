@@ -9,7 +9,7 @@
 	soc {
 		bus@c4000000 {
 			compatible = "intel,ixp42x-expansion-bus-controller", "syscon";
-			reg = <0xc4000000 0x28>;
+			reg = <0xc4000000 0x30>;
 		};
 
 		pci@c0000000 {

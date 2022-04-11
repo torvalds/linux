@@ -478,7 +478,7 @@ static long nxp_c45_do_aux_work(struct ptp_clock_info *ptp)
 		shhwtstamps_rx = skb_hwtstamps(skb);
 		shhwtstamps_rx->hwtstamp = ns_to_ktime(timespec64_to_ns(&ts));
 		NXP_C45_SKB_CB(skb)->header->reserved2 = 0;
-		netif_rx_ni(skb);
+		netif_rx(skb);
 	}
 
 	if (priv->extts) {

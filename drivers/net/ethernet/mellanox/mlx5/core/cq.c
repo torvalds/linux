@@ -31,7 +31,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/hardirq.h>
 #include <linux/mlx5/driver.h>
 #include <rdma/ib_verbs.h>
@@ -86,8 +85,9 @@ static void mlx5_add_cq_to_tasklet(struct mlx5_core_cq *cq,
 	spin_unlock_irqrestore(&tasklet_ctx->lock, flags);
 }
 
-int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			u32 *in, int inlen, u32 *out, int outlen)
+/* Callers must verify outbox status in case of err */
+int mlx5_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
+		   u32 *in, int inlen, u32 *out, int outlen)
 {
 	int eqn = MLX5_GET(cqc, MLX5_ADDR_OF(create_cq_in, in, cq_context),
 			   c_eqn_or_apu_element);
@@ -101,7 +101,7 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 
 	memset(out, 0, outlen);
 	MLX5_SET(create_cq_in, in, opcode, MLX5_CMD_OP_CREATE_CQ);
-	err = mlx5_cmd_exec(dev, in, inlen, out, outlen);
+	err = mlx5_cmd_do(dev, in, inlen, out, outlen);
 	if (err)
 		return err;
 
@@ -147,6 +147,16 @@ err_cmd:
 	MLX5_SET(destroy_cq_in, din, uid, cq->uid);
 	mlx5_cmd_exec_in(dev, destroy_cq, din);
 	return err;
+}
+EXPORT_SYMBOL(mlx5_create_cq);
+
+/* oubox is checked and err val is normalized */
+int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
+			u32 *in, int inlen, u32 *out, int outlen)
+{
+	int err = mlx5_create_cq(dev, cq, in, inlen, out, outlen);
+
+	return mlx5_cmd_check(dev, err, in, out);
 }
 EXPORT_SYMBOL(mlx5_core_create_cq);
 

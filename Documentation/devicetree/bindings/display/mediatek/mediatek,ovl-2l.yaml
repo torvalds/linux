@@ -46,15 +46,6 @@ properties:
       This property should point to the respective IOMMU block with master port as argument,
       see Documentation/devicetree/bindings/iommu/mediatek,iommu.yaml for details.
 
-  mediatek,larb:
-    description:
-      This property should contain a phandle pointing to the local arbiter devices defined in
-      Documentation/devicetree/bindings/memory-controllers/mediatek,smi-larb.yaml.
-      It must sort according to the local arbiter index, like larb0, larb1, larb2...
-    $ref: /schemas/types.yaml#/definitions/phandle-array
-    minItems: 1
-    maxItems: 32
-
   mediatek,gce-client-reg:
     description: The register of client driver can be configured by gce with
       4 arguments defined in this property, such as phandle of gce, subsys id,
@@ -75,14 +66,23 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/mt8183-clk.h>
+    #include <dt-bindings/power/mt8183-power.h>
+    #include <dt-bindings/gce/mt8183-gce.h>
+    #include <dt-bindings/memory/mt8183-larb-port.h>
 
-    ovl_2l0: ovl@14009000 {
-        compatible = "mediatek,mt8183-disp-ovl-2l";
-        reg = <0 0x14009000 0 0x1000>;
-        interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_LOW>;
-        power-domains = <&spm MT8183_POWER_DOMAIN_DISP>;
-        clocks = <&mmsys CLK_MM_DISP_OVL0_2L>;
-        iommus = <&iommu M4U_PORT_DISP_2L_OVL0_LARB0>;
-        mediatek,larb = <&larb0>;
-        mediatek,gce-client-reg = <&gce SUBSYS_1400XXXX 0x9000 0x1000>;
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        ovl_2l0: ovl@14009000 {
+            compatible = "mediatek,mt8183-disp-ovl-2l";
+            reg = <0 0x14009000 0 0x1000>;
+            interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_LOW>;
+            power-domains = <&spm MT8183_POWER_DOMAIN_DISP>;
+            clocks = <&mmsys CLK_MM_DISP_OVL0_2L>;
+            iommus = <&iommu M4U_PORT_DISP_2L_OVL0_LARB0>;
+            mediatek,gce-client-reg = <&gce SUBSYS_1400XXXX 0x9000 0x1000>;
+        };
     };

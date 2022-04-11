@@ -16,12 +16,7 @@
 #define IO_START		INTEGRATOR_HDR_BASE        // PA of IO
 
 /* macro to get at IO space when running virtually */
-#ifdef CONFIG_MMU
 #define IO_ADDRESS(x)	(((x) & 0x000fffff) | (((x) >> 4) & 0x0ff00000) | IO_BASE)
-#else
-#define IO_ADDRESS(x)	(x)
-#endif
-
 #define __io_address(n)		((void __iomem *)IO_ADDRESS(n))
 
 /*

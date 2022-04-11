@@ -507,6 +507,18 @@ int amdgpu_dpm_send_hbm_bad_pages_num(struct amdgpu_device *adev, uint32_t size)
 	return ret;
 }
 
+int amdgpu_dpm_send_hbm_bad_channel_flag(struct amdgpu_device *adev, uint32_t size)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret = 0;
+
+	mutex_lock(&adev->pm.mutex);
+	ret = smu_send_hbm_bad_channel_flag(smu, size);
+	mutex_unlock(&adev->pm.mutex);
+
+	return ret;
+}
+
 int amdgpu_dpm_get_dpm_freq_range(struct amdgpu_device *adev,
 				  enum pp_clock_type type,
 				  uint32_t *min,
@@ -631,11 +643,16 @@ int amdgpu_dpm_get_ecc_info(struct amdgpu_device *adev,
 			    void *umc_ecc)
 {
 	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret = 0;
 
 	if (!is_support_sw_smu(adev))
 		return -EOPNOTSUPP;
 
-	return smu_get_ecc_info(smu, umc_ecc);
+	mutex_lock(&adev->pm.mutex);
+	ret = smu_get_ecc_info(smu, umc_ecc);
+	mutex_unlock(&adev->pm.mutex);
+
+	return ret;
 }
 
 struct amd_vce_state *amdgpu_dpm_get_vce_clock_state(struct amdgpu_device *adev,

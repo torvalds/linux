@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
+bpftool
 bpf-helpers*
 bpf-syscall*
 test_verifier
@@ -30,6 +31,7 @@ test_tcp_check_syncookie_user
 test_sysctl
 xdping
 test_cpp
+*.subskel.h
 *.skel.h
 *.lskel.h
 /no_alu32

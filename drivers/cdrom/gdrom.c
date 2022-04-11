@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/cdrom.h>
-#include <linux/genhd.h>
 #include <linux/bio.h>
 #include <linux/blk-mq.h>
 #include <linux/interrupt.h>

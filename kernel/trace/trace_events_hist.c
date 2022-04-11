@@ -727,11 +727,16 @@ static struct track_data *track_data_alloc(unsigned int key_len,
 	return data;
 }
 
-static char last_cmd[MAX_FILTER_STR_VAL];
+#define HIST_PREFIX "hist:"
+
+static char *last_cmd;
 static char last_cmd_loc[MAX_FILTER_STR_VAL];
 
 static int errpos(char *str)
 {
+	if (!str || !last_cmd)
+		return 0;
+
 	return err_pos(last_cmd, str);
 }
 
@@ -739,12 +744,22 @@ static void last_cmd_set(struct trace_event_file *file, char *str)
 {
 	const char *system = NULL, *name = NULL;
 	struct trace_event_call *call;
+	int len;
 
 	if (!str)
 		return;
 
-	strcpy(last_cmd, "hist:");
-	strncat(last_cmd, str, MAX_FILTER_STR_VAL - 1 - sizeof("hist:"));
+	/* sizeof() contains the nul byte */
+	len = sizeof(HIST_PREFIX) + strlen(str);
+	kfree(last_cmd);
+	last_cmd = kzalloc(len, GFP_KERNEL);
+	if (!last_cmd)
+		return;
+
+	strcpy(last_cmd, HIST_PREFIX);
+	/* Again, sizeof() contains the nul byte */
+	len -= sizeof(HIST_PREFIX);
+	strncat(last_cmd, str, len);
 
 	if (file) {
 		call = file->event_call;
@@ -757,18 +772,22 @@ static void last_cmd_set(struct trace_event_file *file, char *str)
 	}
 
 	if (system)
-		snprintf(last_cmd_loc, MAX_FILTER_STR_VAL, "hist:%s:%s", system, name);
+		snprintf(last_cmd_loc, MAX_FILTER_STR_VAL, HIST_PREFIX "%s:%s", system, name);
 }
 
-static void hist_err(struct trace_array *tr, u8 err_type, u8 err_pos)
+static void hist_err(struct trace_array *tr, u8 err_type, u16 err_pos)
 {
+	if (!last_cmd)
+		return;
+
 	tracing_log_err(tr, last_cmd_loc, last_cmd, err_text,
 			err_type, err_pos);
 }
 
 static void hist_err_clear(void)
 {
-	last_cmd[0] = '\0';
+	if (last_cmd)
+		last_cmd[0] = '\0';
 	last_cmd_loc[0] = '\0';
 }
 
@@ -2289,9 +2308,9 @@ parse_field(struct hist_trigger_data *hist_data, struct trace_event_file *file,
 			/*
 			 * For backward compatibility, if field_name
 			 * was "cpu", then we treat this the same as
-			 * common_cpu.
+			 * common_cpu. This also works for "CPU".
 			 */
-			if (strcmp(field_name, "cpu") == 0) {
+			if (field && field->filter_type == FILTER_CPU) {
 				*flags |= HIST_FIELD_FL_CPU;
 			} else {
 				hist_err(tr, HIST_ERR_FIELD_NOT_FOUND,
@@ -4832,7 +4851,7 @@ static int create_tracing_map_fields(struct hist_trigger_data *hist_data)
 
 			if (hist_field->flags & HIST_FIELD_FL_STACKTRACE)
 				cmp_fn = tracing_map_cmp_none;
-			else if (!field)
+			else if (!field || hist_field->flags & HIST_FIELD_FL_CPU)
 				cmp_fn = tracing_map_cmp_num(hist_field->size,
 							     hist_field->is_signed);
 			else if (is_string_field(field))
@@ -5610,7 +5629,7 @@ static int event_hist_trigger_print(struct seq_file *m,
 	bool have_var = false;
 	unsigned int i;
 
-	seq_puts(m, "hist:");
+	seq_puts(m, HIST_PREFIX);
 
 	if (data->name)
 		seq_printf(m, "%s:", data->name);

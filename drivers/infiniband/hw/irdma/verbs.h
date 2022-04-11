@@ -25,14 +25,16 @@ struct irdma_pd {
 	struct irdma_sc_pd sc_pd;
 };
 
+union irdma_sockaddr {
+	struct sockaddr_in saddr_in;
+	struct sockaddr_in6 saddr_in6;
+};
+
 struct irdma_av {
 	u8 macaddr[16];
 	struct rdma_ah_attr attrs;
-	union {
-		struct sockaddr saddr;
-		struct sockaddr_in saddr_in;
-		struct sockaddr_in6 saddr_in6;
-	} sgid_addr, dgid_addr;
+	union irdma_sockaddr sgid_addr;
+	union irdma_sockaddr dgid_addr;
 	u8 net_type;
 };
 
@@ -43,6 +45,9 @@ struct irdma_ah {
 	struct irdma_av av;
 	u8 sgid_index;
 	union ib_gid dgid;
+	struct hlist_node list;
+	refcount_t refcnt;
+	struct irdma_ah *parent_ah; /* AH from cached list */
 };
 
 struct irdma_hmc_pble {

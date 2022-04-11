@@ -40,6 +40,15 @@ static struct acp_card_drvdata sof_rt5682_max_data = {
 	.gpio_spkr_en = EN_SPKR_GPIO_NONE,
 };
 
+static struct acp_card_drvdata sof_rt5682s_rt1019_data = {
+	.hs_cpu_id = I2S_SP,
+	.amp_cpu_id = I2S_SP,
+	.dmic_cpu_id = DMIC,
+	.hs_codec_id = RT5682S,
+	.amp_codec_id = RT1019,
+	.dmic_codec_id = DMIC,
+};
+
 static struct acp_card_drvdata sof_rt5682s_max_data = {
 	.hs_cpu_id = I2S_SP,
 	.amp_cpu_id = I2S_SP,
@@ -126,6 +135,10 @@ static const struct platform_device_id board_ids[] = {
 		.name = "rt5682s-max",
 		.driver_data = (kernel_ulong_t)&sof_rt5682s_max_data
 	},
+	{
+		.name = "rt5682s-rt1019",
+		.driver_data = (kernel_ulong_t)&sof_rt5682s_rt1019_data
+	},
 	{ }
 };
 static struct platform_driver acp_asoc_audio = {
@@ -143,4 +156,5 @@ MODULE_DESCRIPTION("ACP chrome SOF audio support");
 MODULE_ALIAS("platform:rt5682-rt1019");
 MODULE_ALIAS("platform:rt5682-max");
 MODULE_ALIAS("platform:rt5682s-max");
+MODULE_ALIAS("platform:rt5682s-rt1019");
 MODULE_LICENSE("GPL v2");

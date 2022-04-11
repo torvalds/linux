@@ -23,6 +23,7 @@ struct osnoise_top_params {
 	char			*trace_output;
 	unsigned long long	runtime;
 	unsigned long long	period;
+	long long		threshold;
 	long long		stop_us;
 	long long		stop_total_us;
 	int			sleep_time;
@@ -30,6 +31,7 @@ struct osnoise_top_params {
 	int			quiet;
 	int			set_sched;
 	struct sched_attr	sched_param;
+	struct trace_events	*events;
 };
 
 struct osnoise_top_cpu {
@@ -244,18 +246,24 @@ void osnoise_top_usage(char *usage)
 	int i;
 
 	static const char * const msg[] = {
-		"  usage: rtla osnoise [top] [-h] [-q] [-D] [-d s] [-p us] [-r us] [-s us] [-S us] [-t[=file]] \\",
+		"  usage: rtla osnoise [top] [-h] [-q] [-D] [-d s] [-a us] [-p us] [-r us] [-s us] [-S us] \\",
+		"	  [-T us] [-t[=file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] \\",
 		"	  [-c cpu-list] [-P priority]",
 		"",
 		"	  -h/--help: print this menu",
+		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us sample is hit",
 		"	  -p/--period us: osnoise period in us",
 		"	  -r/--runtime us: osnoise runtime in us",
 		"	  -s/--stop us: stop trace if a single sample is higher than the argument in us",
 		"	  -S/--stop-total us: stop trace if the total sample is higher than the argument in us",
+		"	  -T/--threshold us: the minimum delta to be considered a noise",
 		"	  -c/--cpus cpu-list: list of cpus to run osnoise threads",
 		"	  -d/--duration time[s|m|h|d]: duration of the session",
 		"	  -D/--debug: print debug info",
 		"	  -t/--trace[=file]: save the stopped trace to [file|osnoise_trace.txt]",
+		"	  -e/--event <sys:event>: enable the <sys:event> in the trace instance, multiple -e are allowed",
+		"	     --filter <filter>: enable a trace event filter to the previous -e event",
+		"	     --trigger <trigger>: enable a trace event trigger to the previous -e event",
 		"	  -q/--quiet print only a summary at the end",
 		"	  -P/--priority o:prio|r:prio|f:prio|d:runtime:period : set scheduling parameters",
 		"		o:prio - use SCHED_OTHER with prio",
@@ -283,6 +291,7 @@ void osnoise_top_usage(char *usage)
 struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 {
 	struct osnoise_top_params *params;
+	struct trace_events *tevent;
 	int retval;
 	int c;
 
@@ -292,9 +301,11 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 
 	while (1) {
 		static struct option long_options[] = {
+			{"auto",		required_argument,	0, 'a'},
 			{"cpus",		required_argument,	0, 'c'},
 			{"debug",		no_argument,		0, 'D'},
 			{"duration",		required_argument,	0, 'd'},
+			{"event",		required_argument,	0, 'e'},
 			{"help",		no_argument,		0, 'h'},
 			{"period",		required_argument,	0, 'p'},
 			{"priority",		required_argument,	0, 'P'},
@@ -302,14 +313,17 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 			{"runtime",		required_argument,	0, 'r'},
 			{"stop",		required_argument,	0, 's'},
 			{"stop-total",		required_argument,	0, 'S'},
+			{"threshold",		required_argument,	0, 'T'},
 			{"trace",		optional_argument,	0, 't'},
+			{"trigger",		required_argument,	0, '0'},
+			{"filter",		required_argument,	0, '1'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "c:d:Dhp:P:qr:s:S:t::",
+		c = getopt_long(argc, argv, "a:c:d:De:hp:P:qr:s:S:t::T:0:1:",
 				 long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -317,6 +331,17 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 			break;
 
 		switch (c) {
+		case 'a':
+			/* set sample stop to auto_thresh */
+			params->stop_us = get_llong_from_str(optarg);
+
+			/* set sample threshold to 1 */
+			params->threshold = 1;
+
+			/* set trace */
+			params->trace_output = "osnoise_trace.txt";
+
+			break;
 		case 'c':
 			retval = parse_cpu_list(optarg, &params->monitored_cpus);
 			if (retval)
@@ -330,6 +355,18 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 			params->duration = parse_seconds_duration(optarg);
 			if (!params->duration)
 				osnoise_top_usage("Invalid -D duration\n");
+			break;
+		case 'e':
+			tevent = trace_event_alloc(optarg);
+			if (!tevent) {
+				err_msg("Error alloc trace event");
+				exit(EXIT_FAILURE);
+			}
+
+			if (params->events)
+				tevent->next = params->events;
+			params->events = tevent;
+
 			break;
 		case 'h':
 		case '?':
@@ -366,6 +403,31 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 				params->trace_output = &optarg[1];
 			else
 				params->trace_output = "osnoise_trace.txt";
+			break;
+		case 'T':
+			params->threshold = get_llong_from_str(optarg);
+			break;
+		case '0': /* trigger */
+			if (params->events) {
+				retval = trace_event_add_trigger(params->events, optarg);
+				if (retval) {
+					err_msg("Error adding trigger %s\n", optarg);
+					exit(EXIT_FAILURE);
+				}
+			} else {
+				osnoise_top_usage("--trigger requires a previous -e\n");
+			}
+			break;
+		case '1': /* filter */
+			if (params->events) {
+				retval = trace_event_add_filter(params->events, optarg);
+				if (retval) {
+					err_msg("Error adding filter %s\n", optarg);
+					exit(EXIT_FAILURE);
+				}
+			} else {
+				osnoise_top_usage("--filter requires a previous -e\n");
+			}
 			break;
 		default:
 			osnoise_top_usage("Invalid option");
@@ -421,6 +483,14 @@ osnoise_top_apply_config(struct osnoise_tool *tool, struct osnoise_top_params *p
 		retval = osnoise_set_stop_total_us(tool->context, params->stop_total_us);
 		if (retval) {
 			err_msg("Failed to set stop total us\n");
+			goto out_err;
+		}
+	}
+
+	if (params->threshold) {
+		retval = osnoise_set_tracing_thresh(tool->context, params->threshold);
+		if (retval) {
+			err_msg("Failed to set tracing_thresh\n");
 			goto out_err;
 		}
 	}
@@ -529,13 +599,20 @@ int osnoise_top_main(int argc, char **argv)
 			err_msg("Failed to enable the trace instance\n");
 			goto out_top;
 		}
+
+		if (params->events) {
+			retval = trace_events_enable(&record->trace, params->events);
+			if (retval)
+				goto out_top;
+		}
+
 		trace_instance_start(&record->trace);
 	}
 
 	tool->start_time = time(NULL);
 	osnoise_top_set_signals(params);
 
-	do {
+	while (!stop_tracing) {
 		sleep(params->sleep_time);
 
 		retval = tracefs_iterate_raw_events(trace->tep,
@@ -552,16 +629,16 @@ int osnoise_top_main(int argc, char **argv)
 		if (!params->quiet)
 			osnoise_print_stats(params, tool);
 
-		if (!tracefs_trace_is_on(trace->inst))
+		if (trace_is_off(&tool->trace, &record->trace))
 			break;
 
-	} while (!stop_tracing);
+	}
 
 	osnoise_print_stats(params, tool);
 
 	return_value = 0;
 
-	if (!tracefs_trace_is_on(trace->inst)) {
+	if (trace_is_off(&tool->trace, &record->trace)) {
 		printf("osnoise hit stop tracing\n");
 		if (params->trace_output) {
 			printf("  Saving trace to %s\n", params->trace_output);
@@ -570,6 +647,8 @@ int osnoise_top_main(int argc, char **argv)
 	}
 
 out_top:
+	trace_events_destroy(&record->trace, params->events);
+	params->events = NULL;
 	osnoise_free_top(tool->data);
 	osnoise_destroy_tool(record);
 	osnoise_destroy_tool(tool);

@@ -547,7 +547,7 @@ struct gpio_sim_bank {
 	 *
 	 * So we need to store the pointer to the parent struct here. We can
 	 * dereference it anywhere we need with no checks and no locking as
-	 * it's guaranteed to survive the childred and protected by configfs
+	 * it's guaranteed to survive the children and protected by configfs
 	 * locks.
 	 *
 	 * Same for other structures.
@@ -1322,7 +1322,7 @@ static void gpio_sim_hog_config_item_release(struct config_item *item)
 	kfree(hog);
 }
 
-struct configfs_item_operations gpio_sim_hog_config_item_ops = {
+static struct configfs_item_operations gpio_sim_hog_config_item_ops = {
 	.release	= gpio_sim_hog_config_item_release,
 };
 

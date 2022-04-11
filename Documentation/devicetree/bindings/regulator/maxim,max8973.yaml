@@ -113,7 +113,7 @@ examples:
     };
 
   - |
-    #include <dt-bindings/gpio/tegra-gpio.h>
+    #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
     i2c {
@@ -123,8 +123,7 @@ examples:
         regulator@1b {
             compatible = "maxim,max77621";
             reg = <0x1b>;
-            interrupt-parent = <&gpio>;
-            interrupts = <TEGRA_GPIO(Y, 1) IRQ_TYPE_LEVEL_LOW>;
+            interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
 
             regulator-always-on;
             regulator-boot-on;

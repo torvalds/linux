@@ -177,7 +177,6 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 		 * but reading register selected in srb->cmnd[4]
 		 */
 		srb->cmd_len = 16;
-		srb->cmnd = ses.cmnd;
 		srb->cmnd[2] = 1;
 
 		usb_stor_transparent_scsi_command(srb, us);

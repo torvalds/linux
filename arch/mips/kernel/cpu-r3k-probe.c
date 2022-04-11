@@ -118,28 +118,6 @@ void cpu_probe(void)
 			c->options |= MIPS_CPU_FPU;
 		c->tlbsize = 64;
 		break;
-	case PRID_COMP_LEGACY | PRID_IMP_TX39:
-		c->options = MIPS_CPU_TLB | MIPS_CPU_TX39_CACHE;
-
-		if ((c->processor_id & 0xf0) == (PRID_REV_TX3927 & 0xf0)) {
-			c->cputype = CPU_TX3927;
-			__cpu_name[cpu] = "TX3927";
-			c->tlbsize = 64;
-		} else {
-			switch (c->processor_id & PRID_REV_MASK) {
-			case PRID_REV_TX3912:
-				c->cputype = CPU_TX3912;
-				__cpu_name[cpu] = "TX3912";
-				c->tlbsize = 32;
-				break;
-			case PRID_REV_TX3922:
-				c->cputype = CPU_TX3922;
-				__cpu_name[cpu] = "TX3922";
-				c->tlbsize = 64;
-				break;
-			}
-		}
-		break;
 	}
 
 	BUG_ON(!__cpu_name[cpu]);

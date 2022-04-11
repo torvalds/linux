@@ -1075,6 +1075,7 @@ static const struct tegra_gpio_soc tegra241_main_soc = {
 	.ports = tegra241_main_ports,
 	.name = "tegra241-gpio",
 	.instance = 0,
+	.num_irqs_per_bank = 8,
 };
 
 #define TEGRA241_AON_GPIO_PORT(_name, _bank, _port, _pins)	\
@@ -1095,6 +1096,7 @@ static const struct tegra_gpio_soc tegra241_aon_soc = {
 	.ports = tegra241_aon_ports,
 	.name = "tegra241-gpio-aon",
 	.instance = 1,
+	.num_irqs_per_bank = 8,
 };
 
 static const struct of_device_id tegra186_gpio_of_match[] = {

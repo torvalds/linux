@@ -160,15 +160,21 @@ static void __smu_cmn_reg_print_error(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 	const char *message = smu_get_message_name(smu, msg);
+	u32 msg_idx, prm;
 
 	switch (reg_c2pmsg_90) {
 	case SMU_RESP_NONE: {
-		u32 msg_idx = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66);
-		u32 prm     = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
+		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5)) {
+			msg_idx = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_2);
+			prm     = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_34);
+		} else {
+			msg_idx = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66);
+			prm     = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
+		}
 		dev_err_ratelimited(adev->dev,
 				    "SMU: I'm not done with your previous command: SMN_C2PMSG_66:0x%08X SMN_C2PMSG_82:0x%08X",
 				    msg_idx, prm);
-	}
+		}
 		break;
 	case SMU_RESP_OK:
 		/* The SMU executed the command. It completed with a
@@ -297,7 +303,6 @@ int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
 	reg = __smu_cmn_poll_stat(smu);
 	res = __smu_cmn_reg2errno(smu, reg);
 	if (reg == SMU_RESP_NONE ||
-	    reg == SMU_RESP_BUSY_OTHER ||
 	    res == -EREMOTEIO)
 		goto Out;
 	__smu_cmn_send_msg(smu, msg_index, param);
@@ -391,7 +396,6 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 	reg = __smu_cmn_poll_stat(smu);
 	res = __smu_cmn_reg2errno(smu, reg);
 	if (reg == SMU_RESP_NONE ||
-	    reg == SMU_RESP_BUSY_OTHER ||
 	    res == -EREMOTEIO) {
 		__smu_cmn_reg_print_error(smu, reg, index, param, msg);
 		goto Out;

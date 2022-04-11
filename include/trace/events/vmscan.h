@@ -327,11 +327,11 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
 		__print_symbolic(__entry->lru, LRU_NAMES))
 );
 
-TRACE_EVENT(mm_vmscan_writepage,
+TRACE_EVENT(mm_vmscan_write_folio,
 
-	TP_PROTO(struct page *page),
+	TP_PROTO(struct folio *folio),
 
-	TP_ARGS(page),
+	TP_ARGS(folio),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, pfn)
@@ -339,9 +339,9 @@ TRACE_EVENT(mm_vmscan_writepage,
 	),
 
 	TP_fast_assign(
-		__entry->pfn = page_to_pfn(page);
+		__entry->pfn = folio_pfn(folio);
 		__entry->reclaim_flags = trace_reclaim_flags(
-						page_is_file_lru(page));
+						folio_is_file_lru(folio));
 	),
 
 	TP_printk("page=%p pfn=0x%lx flags=%s",

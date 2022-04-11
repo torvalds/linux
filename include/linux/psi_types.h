@@ -141,6 +141,9 @@ struct psi_trigger {
 	 * events to one per window
 	 */
 	u64 last_event_time;
+
+	/* Deferred event(s) from previous ratelimit window */
+	bool pending_event;
 };
 
 struct psi_group {

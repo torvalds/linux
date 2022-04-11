@@ -1371,11 +1371,6 @@ static int ingenic_drm_bind_with_components(struct device *dev)
 	return ingenic_drm_bind(dev, true);
 }
 
-static int compare_of(struct device *dev, void *data)
-{
-	return dev->of_node == data;
-}
-
 static void ingenic_drm_unbind(struct device *dev)
 {
 	struct ingenic_drm *priv = dev_get_drvdata(dev);
@@ -1409,7 +1404,7 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 	if (!np)
 		return ingenic_drm_bind(dev, false);
 
-	drm_of_component_match_add(dev, &match, compare_of, np);
+	drm_of_component_match_add(dev, &match, component_compare_of, np);
 	of_node_put(np);
 
 	return component_master_add_with_match(dev, &ingenic_master_ops, match);

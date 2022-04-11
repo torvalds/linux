@@ -1696,6 +1696,7 @@ static void free_match_list(struct match_list *head, bool ft_locked)
 static int build_match_list(struct match_list *match_head,
 			    struct mlx5_flow_table *ft,
 			    const struct mlx5_flow_spec *spec,
+			    struct mlx5_flow_group *fg,
 			    bool ft_locked)
 {
 	struct rhlist_head *tmp, *list;
@@ -1709,6 +1710,9 @@ static int build_match_list(struct match_list *match_head,
 	/* RCU is atomic, we can't execute FW commands here */
 	rhl_for_each_entry_rcu(g, tmp, list, hash) {
 		struct match_list *curr_match;
+
+		if (fg && fg != g)
+			continue;
 
 		if (unlikely(!tree_get_node(&g->node)))
 			continue;
@@ -1889,6 +1893,9 @@ _mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 	if (!check_valid_spec(spec))
 		return ERR_PTR(-EINVAL);
 
+	if (flow_act->fg && ft->autogroup.active)
+		return ERR_PTR(-EINVAL);
+
 	for (i = 0; i < dest_num; i++) {
 		if (!dest_is_valid(&dest[i], flow_act, ft))
 			return ERR_PTR(-EINVAL);
@@ -1898,7 +1905,7 @@ search_again_locked:
 	version = atomic_read(&ft->node.version);
 
 	/* Collect all fgs which has a matching match_criteria */
-	err = build_match_list(&match_head, ft, spec, take_write);
+	err = build_match_list(&match_head, ft, spec, flow_act->fg, take_write);
 	if (err) {
 		if (take_write)
 			up_write_ref_node(&ft->node, false);
@@ -3040,6 +3047,22 @@ void mlx5_fs_ingress_acls_cleanup(struct mlx5_core_dev *dev)
 
 	kfree(steering->esw_ingress_root_ns);
 	steering->esw_ingress_root_ns = NULL;
+}
+
+u32 mlx5_fs_get_capabilities(struct mlx5_core_dev *dev, enum mlx5_flow_namespace_type type)
+{
+	struct mlx5_flow_root_namespace *root;
+	struct mlx5_flow_namespace *ns;
+
+	ns = mlx5_get_flow_namespace(dev, type);
+	if (!ns)
+		return 0;
+
+	root = find_root(&ns->node);
+	if (!root)
+		return 0;
+
+	return root->cmds->get_capabilities(root, root->table_type);
 }
 
 static int init_egress_root_ns(struct mlx5_flow_steering *steering)

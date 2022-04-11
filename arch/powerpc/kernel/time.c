@@ -69,7 +69,7 @@
 #include <asm/smp.h>
 #include <asm/vdso_datapage.h>
 #include <asm/firmware.h>
-#include <asm/asm-prototypes.h>
+#include <asm/mce.h>
 
 /* powerpc clocksource/clockevent code */
 
@@ -107,7 +107,12 @@ struct clock_event_device decrementer_clockevent = {
 };
 EXPORT_SYMBOL(decrementer_clockevent);
 
-DEFINE_PER_CPU(u64, decrementers_next_tb);
+/*
+ * This always puts next_tb beyond now, so the clock event will never fire
+ * with the usual comparison, no need for a separate test for stopped.
+ */
+#define DEC_CLOCKEVENT_STOPPED ~0ULL
+DEFINE_PER_CPU(u64, decrementers_next_tb) = DEC_CLOCKEVENT_STOPPED;
 EXPORT_SYMBOL_GPL(decrementers_next_tb);
 static DEFINE_PER_CPU(struct clock_event_device, decrementers);
 
@@ -582,8 +587,9 @@ void timer_rearm_host_dec(u64 now)
 		local_paca->irq_happened |= PACA_IRQ_DEC;
 	} else {
 		now = *next_tb - now;
-		if (now <= decrementer_max)
-			set_dec_or_work(now);
+		if (now > decrementer_max)
+			now = decrementer_max;
+		set_dec_or_work(now);
 	}
 }
 EXPORT_SYMBOL_GPL(timer_rearm_host_dec);
@@ -638,14 +644,13 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(timer_interrupt)
 
 	if (test_irq_work_pending()) {
 		clear_irq_work_pending();
+		mce_run_irq_context_handlers();
 		irq_work_run();
 	}
 
 	now = get_tb();
 	if (now >= *next_tb) {
-		*next_tb = ~(u64)0;
-		if (evt->event_handler)
-			evt->event_handler(evt);
+		evt->event_handler(evt);
 		__this_cpu_inc(irq_stat.timer_irqs_event);
 	} else {
 		now = *next_tb - now;
@@ -664,9 +669,6 @@ EXPORT_SYMBOL(timer_interrupt);
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 void timer_broadcast_interrupt(void)
 {
-	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
-
-	*next_tb = ~(u64)0;
 	tick_receive_broadcast();
 	__this_cpu_inc(irq_stat.broadcast_irqs_event);
 }
@@ -892,7 +894,9 @@ static int decrementer_set_next_event(unsigned long evt,
 
 static int decrementer_shutdown(struct clock_event_device *dev)
 {
-	decrementer_set_next_event(decrementer_max, dev);
+	__this_cpu_write(decrementers_next_tb, DEC_CLOCKEVENT_STOPPED);
+	set_dec_or_work(decrementer_max);
+
 	return 0;
 }
 

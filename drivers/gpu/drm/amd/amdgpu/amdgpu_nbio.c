@@ -43,10 +43,3 @@ late_fini:
 	amdgpu_ras_block_late_fini(adev, ras_block);
 	return r;
 }
-
-void amdgpu_nbio_ras_fini(struct amdgpu_device *adev)
-{
-	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__PCIE_BIF) &&
-			adev->nbio.ras_if)
-		amdgpu_ras_block_late_fini(adev, adev->nbio.ras_if);
-}

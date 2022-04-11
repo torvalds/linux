@@ -2255,7 +2255,7 @@ static struct uart_amba_port *amba_ports[UART_NR];
 
 #ifdef CONFIG_SERIAL_AMBA_PL011_CONSOLE
 
-static void pl011_console_putchar(struct uart_port *port, int ch)
+static void pl011_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct uart_amba_port *uap =
 	    container_of(port, struct uart_amba_port, port);
@@ -2471,7 +2471,7 @@ static struct console amba_console = {
 
 #define AMBA_CONSOLE	(&amba_console)
 
-static void qdf2400_e44_putc(struct uart_port *port, int c)
+static void qdf2400_e44_putc(struct uart_port *port, unsigned char c)
 {
 	while (readl(port->membase + UART01x_FR) & UART01x_FR_TXFF)
 		cpu_relax();
@@ -2487,7 +2487,7 @@ static void qdf2400_e44_early_write(struct console *con, const char *s, unsigned
 	uart_console_write(&dev->port, s, n, qdf2400_e44_putc);
 }
 
-static void pl011_putc(struct uart_port *port, int c)
+static void pl011_putc(struct uart_port *port, unsigned char c)
 {
 	while (readl(port->membase + UART01x_FR) & UART01x_FR_TXFF)
 		cpu_relax();

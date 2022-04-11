@@ -20,6 +20,8 @@
 
 #define NUM_UIE 3
 #define ALARM_DELTA 3
+#define READ_LOOP_DURATION_SEC 30
+#define READ_LOOP_SLEEP_MS 11
 
 static char *rtc_file = "/dev/rtc0";
 
@@ -47,6 +49,70 @@ TEST_F(rtc, date_read) {
 	TH_LOG("Current RTC date/time is %02d/%02d/%02d %02d:%02d:%02d.",
 	       rtc_tm.tm_mday, rtc_tm.tm_mon + 1, rtc_tm.tm_year + 1900,
 	       rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
+}
+
+static time_t rtc_time_to_timestamp(struct rtc_time *rtc_time)
+{
+	struct tm tm_time = {
+	       .tm_sec = rtc_time->tm_sec,
+	       .tm_min = rtc_time->tm_min,
+	       .tm_hour = rtc_time->tm_hour,
+	       .tm_mday = rtc_time->tm_mday,
+	       .tm_mon = rtc_time->tm_mon,
+	       .tm_year = rtc_time->tm_year,
+	};
+
+	return mktime(&tm_time);
+}
+
+static void nanosleep_with_retries(long ns)
+{
+	struct timespec req = {
+		.tv_sec = 0,
+		.tv_nsec = ns,
+	};
+	struct timespec rem;
+
+	while (nanosleep(&req, &rem) != 0) {
+		req.tv_sec = rem.tv_sec;
+		req.tv_nsec = rem.tv_nsec;
+	}
+}
+
+TEST_F_TIMEOUT(rtc, date_read_loop, READ_LOOP_DURATION_SEC + 2) {
+	int rc;
+	long iter_count = 0;
+	struct rtc_time rtc_tm;
+	time_t start_rtc_read, prev_rtc_read;
+
+	TH_LOG("Continuously reading RTC time for %ds (with %dms breaks after every read).",
+	       READ_LOOP_DURATION_SEC, READ_LOOP_SLEEP_MS);
+
+	rc = ioctl(self->fd, RTC_RD_TIME, &rtc_tm);
+	ASSERT_NE(-1, rc);
+	start_rtc_read = rtc_time_to_timestamp(&rtc_tm);
+	prev_rtc_read = start_rtc_read;
+
+	do  {
+		time_t rtc_read;
+
+		rc = ioctl(self->fd, RTC_RD_TIME, &rtc_tm);
+		ASSERT_NE(-1, rc);
+
+		rtc_read = rtc_time_to_timestamp(&rtc_tm);
+		/* Time should not go backwards */
+		ASSERT_LE(prev_rtc_read, rtc_read);
+		/* Time should not increase more then 1s at a time */
+		ASSERT_GE(prev_rtc_read + 1, rtc_read);
+
+		/* Sleep 11ms to avoid killing / overheating the RTC */
+		nanosleep_with_retries(READ_LOOP_SLEEP_MS * 1000000);
+
+		prev_rtc_read = rtc_read;
+		iter_count++;
+	} while (prev_rtc_read <= start_rtc_read + READ_LOOP_DURATION_SEC);
+
+	TH_LOG("Performed %ld RTC time reads.", iter_count);
 }
 
 TEST_F_TIMEOUT(rtc, uie_read, NUM_UIE + 2) {

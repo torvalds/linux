@@ -2204,10 +2204,6 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 		if (!adev->gfx.ras->ras_block.ras_late_init)
 			adev->gfx.ras->ras_block.ras_late_init = amdgpu_gfx_ras_late_init;
 
-		/* If not define special ras_fini function, use gfx default ras_fini */
-		if (!adev->gfx.ras->ras_block.ras_fini)
-			adev->gfx.ras->ras_block.ras_fini = amdgpu_gfx_ras_fini;
-
 		/* If not defined special ras_cb function, use default ras_cb */
 		if (!adev->gfx.ras->ras_block.ras_cb)
 			adev->gfx.ras->ras_block.ras_cb = amdgpu_gfx_process_ras_data_cb;
@@ -2431,9 +2427,6 @@ static int gfx_v9_0_sw_fini(void *handle)
 {
 	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (adev->gfx.ras && adev->gfx.ras->ras_block.ras_fini)
-		adev->gfx.ras->ras_block.ras_fini(adev);
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.gfx_ring[i]);
@@ -6872,6 +6865,7 @@ static const struct amdgpu_ring_funcs gfx_v9_0_ring_funcs_gfx = {
 	.align_mask = 0xff,
 	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
 	.support_64bit_ptrs = true,
+	.secure_submission_supported = true,
 	.vmhub = AMDGPU_GFXHUB_0,
 	.get_rptr = gfx_v9_0_ring_get_rptr_gfx,
 	.get_wptr = gfx_v9_0_ring_get_wptr_gfx,

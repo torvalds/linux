@@ -38,18 +38,16 @@ properties:
       Documentation/devicetree/bindings/power/power-domain.yaml for details.
 
   clocks:
+    minItems: 1
     maxItems: 2
-    items:
-      - description: MERGE Clock
-      - description: MERGE Async Clock
-          Controlling the synchronous process between MERGE and other display
-          function blocks cross clock domain.
 
   clock-names:
-    maxItems: 2
-    items:
-      - const: merge
-      - const: merge_async
+    oneOf:
+      - items:
+          - const: merge
+      - items:
+          - const: merge
+          - const: merge_async
 
   mediatek,merge-fifo-en:
     description:
@@ -88,23 +86,20 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/mt8173-clk.h>
+    #include <dt-bindings/power/mt8173-power.h>
 
-    merge@14017000 {
-        compatible = "mediatek,mt8173-disp-merge";
-        reg = <0 0x14017000 0 0x1000>;
-        power-domains = <&spm MT8173_POWER_DOMAIN_MM>;
-        clocks = <&mmsys CLK_MM_DISP_MERGE>;
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        merge@14017000 {
+            compatible = "mediatek,mt8173-disp-merge";
+            reg = <0 0x14017000 0 0x1000>;
+            power-domains = <&spm MT8173_POWER_DOMAIN_MM>;
+            clocks = <&mmsys CLK_MM_DISP_MERGE>;
+            clock-names = "merge";
+        };
     };
 
-    merge5: disp_vpp_merge5@1c110000 {
-        compatible = "mediatek,mt8195-disp-merge";
-        reg = <0 0x1c110000 0 0x1000>;
-        interrupts = <GIC_SPI 507 IRQ_TYPE_LEVEL_HIGH 0>;
-        clocks = <&vdosys1 CLK_VDO1_VPP_MERGE4>,
-                 <&vdosys1 CLK_VDO1_MERGE4_DL_ASYNC>;
-        clock-names = "merge","merge_async";
-        power-domains = <&spm MT8195_POWER_DOMAIN_VDOSYS1>;
-        mediatek,gce-client-reg = <&gce1 SUBSYS_1c11XXXX 0x0000 0x1000>;
-        mediatek,merge-fifo-en = <1>;
-        resets = <&vdosys1 MT8195_VDOSYS1_SW0_RST_B_MERGE4_DL_ASYNC>;
-    };

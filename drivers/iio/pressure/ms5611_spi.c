@@ -107,11 +107,9 @@ static int ms5611_spi_probe(struct spi_device *spi)
 			    spi_get_device_id(spi)->driver_data);
 }
 
-static int ms5611_spi_remove(struct spi_device *spi)
+static void ms5611_spi_remove(struct spi_device *spi)
 {
 	ms5611_remove(spi_get_drvdata(spi));
-
-	return 0;
 }
 
 static const struct of_device_id ms5611_spi_matches[] = {
@@ -142,3 +140,4 @@ module_spi_driver(ms5611_driver);
 MODULE_AUTHOR("Tomasz Duszynski <tduszyns@gmail.com>");
 MODULE_DESCRIPTION("MS5611 spi driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_MS5611);

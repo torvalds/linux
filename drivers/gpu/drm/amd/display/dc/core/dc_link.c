@@ -50,6 +50,7 @@
 #include "inc/hw/panel_cntl.h"
 #include "inc/link_enc_cfg.h"
 #include "inc/link_dpcd.h"
+#include "link/link_dp_trace.h"
 
 #include "dc/dcn30/dcn30_vpg.h"
 
@@ -730,6 +731,7 @@ static bool detect_dp(struct dc_link *link,
 								sink_caps,
 								audio_support);
 		link->dpcd_caps.dongle_type = sink_caps->dongle_type;
+		link->dpcd_caps.is_dongle_type_one = sink_caps->is_dongle_type_one;
 		link->dpcd_caps.dpcd_rev.raw = 0;
 	}
 
@@ -981,7 +983,8 @@ static bool should_verify_link_capability_destructively(struct dc_link *link,
 				destrictive = false;
 			}
 		}
-	}
+	} else if (dc_is_hdmi_signal(link->local_sink->sink_signal))
+		destrictive = true;
 
 	return destrictive;
 }
@@ -1180,6 +1183,9 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		case EDID_BAD_CHECKSUM:
 			DC_LOG_ERROR("EDID checksum invalid.\n");
 			break;
+		case EDID_PARTIAL_VALID:
+			DC_LOG_ERROR("Partial EDID valid, abandon invalid blocks.\n");
+			break;
 		case EDID_NO_RESPONSE:
 			DC_LOG_ERROR("No EDID read.\n");
 			/*
@@ -1254,6 +1260,9 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		    !sink->edid_caps.edid_hdmi)
 			sink->sink_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
 
+		if (link->local_sink && dc_is_dp_signal(sink_caps.signal))
+			dp_trace_init(link);
+
 		/* Connectivity log: detection */
 		for (i = 0; i < sink->dc_edid.length / DC_EDID_BLOCK_SIZE; i++) {
 			CONN_DATA_DETECT(link,
@@ -1306,6 +1315,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		link->dongle_max_pix_clk = 0;
 
 		dc_link_clear_dprx_states(link);
+		dp_trace_reset(link);
 	}
 
 	LINK_INFO("link=%d, dc_sink_in=%p is now %s prev_sink=%p edid same=%d\n",
@@ -2798,6 +2808,17 @@ static bool dp_active_dongle_validate_timing(
 		case COLOR_DEPTH_161616:
 		default:
 			/* These color depths are currently not supported */
+			return false;
+		}
+
+		/* Check 3D format */
+		switch (timing->timing_3d_format) {
+		case TIMING_3D_FORMAT_NONE:
+		case TIMING_3D_FORMAT_FRAME_ALTERNATE:
+			/*Only frame alternate 3D is supported on active dongle*/
+			break;
+		default:
+			/*other 3D formats are not supported due to bad infoframe translation */
 			return false;
 		}
 

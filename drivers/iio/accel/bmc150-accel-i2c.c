@@ -280,3 +280,4 @@ module_i2c_driver(bmc150_accel_driver);
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("BMC150 I2C accelerometer driver");
+MODULE_IMPORT_NS(IIO_BMC150);

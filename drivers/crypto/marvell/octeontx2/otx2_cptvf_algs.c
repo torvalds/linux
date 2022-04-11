@@ -1634,16 +1634,13 @@ static inline int cpt_register_algs(void)
 {
 	int i, err = 0;
 
-	if (!IS_ENABLED(CONFIG_DM_CRYPT)) {
-		for (i = 0; i < ARRAY_SIZE(otx2_cpt_skciphers); i++)
-			otx2_cpt_skciphers[i].base.cra_flags &=
-							~CRYPTO_ALG_DEAD;
+	for (i = 0; i < ARRAY_SIZE(otx2_cpt_skciphers); i++)
+		otx2_cpt_skciphers[i].base.cra_flags &= ~CRYPTO_ALG_DEAD;
 
-		err = crypto_register_skciphers(otx2_cpt_skciphers,
-						ARRAY_SIZE(otx2_cpt_skciphers));
-		if (err)
-			return err;
-	}
+	err = crypto_register_skciphers(otx2_cpt_skciphers,
+					ARRAY_SIZE(otx2_cpt_skciphers));
+	if (err)
+		return err;
 
 	for (i = 0; i < ARRAY_SIZE(otx2_cpt_aeads); i++)
 		otx2_cpt_aeads[i].base.cra_flags &= ~CRYPTO_ALG_DEAD;

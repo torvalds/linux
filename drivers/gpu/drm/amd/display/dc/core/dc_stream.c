@@ -718,6 +718,20 @@ enum dc_status dc_stream_add_dsc_to_resource(struct dc *dc,
 	}
 }
 
+struct pipe_ctx *dc_stream_get_pipe_ctx(struct dc_stream_state *stream)
+{
+	int i = 0;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe = &stream->ctx->dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream == stream)
+			return pipe;
+	}
+
+	return NULL;
+}
+
 void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 {
 	DC_LOG_DC(

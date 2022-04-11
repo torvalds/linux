@@ -1759,7 +1759,7 @@ static struct clock_source *dcn31_clock_source_create(
 	if (!clk_src)
 		return NULL;
 
-	if (dcn3_clk_src_construct(clk_src, ctx, bios, id,
+	if (dcn31_clk_src_construct(clk_src, ctx, bios, id,
 			regs, &cs_shift, &cs_mask)) {
 		clk_src->base.dp_clk_src = dp_clk_src;
 		return &clk_src->base;
@@ -1786,7 +1786,9 @@ static int dcn316_populate_dml_pipes_from_context(
 	struct pipe_ctx *pipe;
 	const int max_usable_det = context->bw_ctx.dml.ip.config_return_buffer_size_in_kbytes - DCN3_16_MIN_COMPBUF_SIZE_KB;
 
+	DC_FP_START();
 	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
+	DC_FP_END();
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 		struct dc_crtc_timing *timing;
@@ -1964,29 +1966,6 @@ static struct resource_funcs dcn316_res_pool_funcs = {
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 };
 
-static struct clock_source *dcn30_clock_source_create(
-		struct dc_context *ctx,
-		struct dc_bios *bios,
-		enum clock_source_id id,
-		const struct dce110_clk_src_regs *regs,
-		bool dp_clk_src)
-{
-	struct dce110_clk_src *clk_src =
-		kzalloc(sizeof(struct dce110_clk_src), GFP_KERNEL);
-
-	if (!clk_src)
-		return NULL;
-
-	if (dcn3_clk_src_construct(clk_src, ctx, bios, id,
-			regs, &cs_shift, &cs_mask)) {
-		clk_src->base.dp_clk_src = dp_clk_src;
-		return &clk_src->base;
-	}
-
-	BREAK_TO_DEBUGGER();
-	return NULL;
-}
-
 static bool dcn316_resource_construct(
 	uint8_t num_virtual_links,
 	struct dc *dc,
@@ -2092,23 +2071,23 @@ static bool dcn316_resource_construct(
 
 	/* Clock Sources for Pixel Clock*/
 	pool->base.clock_sources[DCN31_CLK_SRC_PLL0] =
-			dcn30_clock_source_create(ctx, ctx->dc_bios,
+			dcn31_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_COMBO_PHY_PLL0,
 				&clk_src_regs[0], false);
 	pool->base.clock_sources[DCN31_CLK_SRC_PLL1] =
-			dcn30_clock_source_create(ctx, ctx->dc_bios,
+			dcn31_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_COMBO_PHY_PLL1,
 				&clk_src_regs[1], false);
 	pool->base.clock_sources[DCN31_CLK_SRC_PLL2] =
-			dcn30_clock_source_create(ctx, ctx->dc_bios,
+			dcn31_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_COMBO_PHY_PLL2,
 				&clk_src_regs[2], false);
 	pool->base.clock_sources[DCN31_CLK_SRC_PLL3] =
-			dcn30_clock_source_create(ctx, ctx->dc_bios,
+			dcn31_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_COMBO_PHY_PLL3,
 				&clk_src_regs[3], false);
 	pool->base.clock_sources[DCN31_CLK_SRC_PLL4] =
-			dcn30_clock_source_create(ctx, ctx->dc_bios,
+			dcn31_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_COMBO_PHY_PLL4,
 				&clk_src_regs[4], false);
 

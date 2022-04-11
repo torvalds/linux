@@ -1243,10 +1243,6 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 		if (!adev->umc.ras->ras_block.ras_late_init)
 				adev->umc.ras->ras_block.ras_late_init = amdgpu_umc_ras_late_init;
 
-		/* If don't define special ras_fini function, use default ras_fini */
-		if (!adev->umc.ras->ras_block.ras_fini)
-				adev->umc.ras->ras_block.ras_fini = amdgpu_umc_ras_fini;
-
 		/* If not defined special ras_cb function, use default ras_cb */
 		if (!adev->umc.ras->ras_block.ras_cb)
 			adev->umc.ras->ras_block.ras_cb = amdgpu_umc_process_ras_data_cb;
@@ -1292,10 +1288,6 @@ static void gmc_v9_0_set_mmhub_ras_funcs(struct amdgpu_device *adev)
 		adev->mmhub.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__MMHUB;
 		adev->mmhub.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
 		adev->mmhub.ras_if = &adev->mmhub.ras->ras_block.ras_comm;
-
-		/* If don't define special ras_fini function, use default ras_fini */
-		if (!adev->mmhub.ras->ras_block.ras_fini)
-			adev->mmhub.ras->ras_block.ras_fini = amdgpu_mmhub_ras_fini;
 	}
 }
 
@@ -1561,7 +1553,7 @@ static void gmc_v9_0_save_registers(struct amdgpu_device *adev)
 
 static int gmc_v9_0_sw_init(void *handle)
 {
-	int r, vram_width = 0, vram_type = 0, vram_vendor = 0;
+	int r, vram_width = 0, vram_type = 0, vram_vendor = 0, dma_addr_bits;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->gfxhub.funcs->init(adev);
@@ -1677,12 +1669,13 @@ static int gmc_v9_0_sw_init(void *handle)
 	 */
 	adev->gmc.mc_mask = 0xffffffffffffULL; /* 48 bit MC */
 
-	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(44));
+	dma_addr_bits = adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2) ? 48:44;
+	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(dma_addr_bits));
 	if (r) {
 		printk(KERN_WARNING "amdgpu: No suitable DMA available.\n");
 		return r;
 	}
-	adev->need_swiotlb = drm_need_swiotlb(44);
+	adev->need_swiotlb = drm_need_swiotlb(dma_addr_bits);
 
 	r = gmc_v9_0_mc_init(adev);
 	if (r)

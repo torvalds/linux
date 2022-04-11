@@ -37,6 +37,7 @@
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_uvd.h"
+#include "amdgpu_cs.h"
 #include "cikd.h"
 #include "uvd/uvd_4_2_d.h"
 
@@ -98,7 +99,7 @@ struct amdgpu_uvd_cs_ctx {
 	unsigned reg, count;
 	unsigned data0, data1;
 	unsigned idx;
-	unsigned ib_idx;
+	struct amdgpu_ib *ib;
 
 	/* does the IB has a msg command */
 	bool has_msg_cmd;
@@ -557,8 +558,8 @@ static u64 amdgpu_uvd_get_addr_from_ctx(struct amdgpu_uvd_cs_ctx *ctx)
 	uint32_t lo, hi;
 	uint64_t addr;
 
-	lo = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->data0);
-	hi = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->data1);
+	lo = amdgpu_ib_get_value(ctx->ib, ctx->data0);
+	hi = amdgpu_ib_get_value(ctx->ib, ctx->data1);
 	addr = ((uint64_t)lo) | (((uint64_t)hi) << 32);
 
 	return addr;
@@ -589,7 +590,7 @@ static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
 
 	if (!ctx->parser->adev->uvd.address_64_bit) {
 		/* check if it's a message or feedback command */
-		cmd = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->idx) >> 1;
+		cmd = amdgpu_ib_get_value(ctx->ib, ctx->idx) >> 1;
 		if (cmd == 0x0 || cmd == 0x3) {
 			/* yes, force it into VRAM */
 			uint32_t domain = AMDGPU_GEM_DOMAIN_VRAM;
@@ -927,12 +928,10 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 	addr -= mapping->start * AMDGPU_GPU_PAGE_SIZE;
 	start += addr;
 
-	amdgpu_set_ib_value(ctx->parser, ctx->ib_idx, ctx->data0,
-			    lower_32_bits(start));
-	amdgpu_set_ib_value(ctx->parser, ctx->ib_idx, ctx->data1,
-			    upper_32_bits(start));
+	amdgpu_ib_set_value(ctx->ib, ctx->data0, lower_32_bits(start));
+	amdgpu_ib_set_value(ctx->ib, ctx->data1, upper_32_bits(start));
 
-	cmd = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->idx) >> 1;
+	cmd = amdgpu_ib_get_value(ctx->ib, ctx->idx) >> 1;
 	if (cmd < 0x4) {
 		if ((end - start) < ctx->buf_sizes[cmd]) {
 			DRM_ERROR("buffer (%d) to small (%d / %d)!\n", cmd,
@@ -992,14 +991,13 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 static int amdgpu_uvd_cs_reg(struct amdgpu_uvd_cs_ctx *ctx,
 			     int (*cb)(struct amdgpu_uvd_cs_ctx *ctx))
 {
-	struct amdgpu_ib *ib = &ctx->parser->job->ibs[ctx->ib_idx];
 	int i, r;
 
 	ctx->idx++;
 	for (i = 0; i <= ctx->count; ++i) {
 		unsigned reg = ctx->reg + i;
 
-		if (ctx->idx >= ib->length_dw) {
+		if (ctx->idx >= ctx->ib->length_dw) {
 			DRM_ERROR("Register command after end of CS!\n");
 			return -EINVAL;
 		}
@@ -1039,11 +1037,10 @@ static int amdgpu_uvd_cs_reg(struct amdgpu_uvd_cs_ctx *ctx,
 static int amdgpu_uvd_cs_packets(struct amdgpu_uvd_cs_ctx *ctx,
 				 int (*cb)(struct amdgpu_uvd_cs_ctx *ctx))
 {
-	struct amdgpu_ib *ib = &ctx->parser->job->ibs[ctx->ib_idx];
 	int r;
 
-	for (ctx->idx = 0 ; ctx->idx < ib->length_dw; ) {
-		uint32_t cmd = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->idx);
+	for (ctx->idx = 0 ; ctx->idx < ctx->ib->length_dw; ) {
+		uint32_t cmd = amdgpu_ib_get_value(ctx->ib, ctx->idx);
 		unsigned type = CP_PACKET_GET_TYPE(cmd);
 		switch (type) {
 		case PACKET_TYPE0:
@@ -1068,11 +1065,14 @@ static int amdgpu_uvd_cs_packets(struct amdgpu_uvd_cs_ctx *ctx,
  * amdgpu_uvd_ring_parse_cs - UVD command submission parser
  *
  * @parser: Command submission parser context
- * @ib_idx: Which indirect buffer to use
+ * @job: the job to parse
+ * @ib: the IB to patch
  *
  * Parse the command stream, patch in addresses as necessary.
  */
-int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
+int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser,
+			     struct amdgpu_job *job,
+			     struct amdgpu_ib *ib)
 {
 	struct amdgpu_uvd_cs_ctx ctx = {};
 	unsigned buf_sizes[] = {
@@ -1082,10 +1082,9 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 		[0x00000003]	=	2048,
 		[0x00000004]	=	0xFFFFFFFF,
 	};
-	struct amdgpu_ib *ib = &parser->job->ibs[ib_idx];
 	int r;
 
-	parser->job->vm = NULL;
+	job->vm = NULL;
 	ib->gpu_addr = amdgpu_sa_bo_gpu_addr(ib->sa_bo);
 
 	if (ib->length_dw % 16) {
@@ -1096,7 +1095,7 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 
 	ctx.parser = parser;
 	ctx.buf_sizes = buf_sizes;
-	ctx.ib_idx = ib_idx;
+	ctx.ib = ib;
 
 	/* first round only required on chips without UVD 64 bit address support */
 	if (!parser->adev->uvd.address_64_bit) {

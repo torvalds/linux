@@ -974,8 +974,8 @@ static void remove_xdp_program(void)
 	int i;
 
 	for (i = 0 ; i < n_ports; i++)
-		bpf_set_link_xdp_fd(if_nametoindex(port_params[i].iface), -1,
-				    port_params[i].xsk_cfg.xdp_flags);
+		bpf_xdp_detach(if_nametoindex(port_params[i].iface),
+			       port_params[i].xsk_cfg.xdp_flags, NULL);
 }
 
 int main(int argc, char **argv)

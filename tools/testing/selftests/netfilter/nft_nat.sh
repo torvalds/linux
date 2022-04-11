@@ -880,9 +880,8 @@ EOF
 		return $ksft_skip
 	fi
 
-	# test default behaviour. Packet from ns1 to ns0 is not redirected
-	# due to automatic port translation.
-	test_port_shadow "default" "ROUTER"
+	# test default behaviour. Packet from ns1 to ns0 is redirected to ns2.
+	test_port_shadow "default" "CLIENT"
 
 	# test packet filter based mitigation: prevent forwarding of
 	# packets claiming to come from the service port.

@@ -42,6 +42,7 @@ struct dce_hwseq_wa {
 	bool DEGVIDCN21;
 	bool disallow_self_refresh_during_multi_plane_transition;
 	bool dp_hpo_and_otg_sequence;
+	bool wait_hubpret_read_start_during_mpo_transition;
 };
 
 struct hwseq_wa_state {

@@ -33,6 +33,8 @@ static __always_inline struct task_struct *get_current(void)
 
 #define current get_current()
 
+register unsigned long current_stack_pointer __asm__("sp");
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_RISCV_CURRENT_H */

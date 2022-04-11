@@ -37,6 +37,7 @@ struct unix_domain {
 
 extern struct auth_ops svcauth_null;
 extern struct auth_ops svcauth_unix;
+extern struct auth_ops svcauth_tls;
 
 static void svcauth_unix_domain_release_rcu(struct rcu_head *head)
 {
@@ -783,6 +784,65 @@ struct auth_ops svcauth_null = {
 	.owner		= THIS_MODULE,
 	.flavour	= RPC_AUTH_NULL,
 	.accept 	= svcauth_null_accept,
+	.release	= svcauth_null_release,
+	.set_client	= svcauth_unix_set_client,
+};
+
+
+static int
+svcauth_tls_accept(struct svc_rqst *rqstp)
+{
+	struct svc_cred	*cred = &rqstp->rq_cred;
+	struct kvec *argv = rqstp->rq_arg.head;
+	struct kvec *resv = rqstp->rq_res.head;
+
+	if (argv->iov_len < XDR_UNIT * 3)
+		return SVC_GARBAGE;
+
+	/* Call's cred length */
+	if (svc_getu32(argv) != xdr_zero) {
+		rqstp->rq_auth_stat = rpc_autherr_badcred;
+		return SVC_DENIED;
+	}
+
+	/* Call's verifier flavor and its length */
+	if (svc_getu32(argv) != rpc_auth_null ||
+	    svc_getu32(argv) != xdr_zero) {
+		rqstp->rq_auth_stat = rpc_autherr_badverf;
+		return SVC_DENIED;
+	}
+
+	/* AUTH_TLS is not valid on non-NULL procedures */
+	if (rqstp->rq_proc != 0) {
+		rqstp->rq_auth_stat = rpc_autherr_badcred;
+		return SVC_DENIED;
+	}
+
+	/* Mapping to nobody uid/gid is required */
+	cred->cr_uid = INVALID_UID;
+	cred->cr_gid = INVALID_GID;
+	cred->cr_group_info = groups_alloc(0);
+	if (cred->cr_group_info == NULL)
+		return SVC_CLOSE; /* kmalloc failure - client must retry */
+
+	/* Reply's verifier */
+	svc_putnl(resv, RPC_AUTH_NULL);
+	if (rqstp->rq_xprt->xpt_ops->xpo_start_tls) {
+		svc_putnl(resv, 8);
+		memcpy(resv->iov_base + resv->iov_len, "STARTTLS", 8);
+		resv->iov_len += 8;
+	} else
+		svc_putnl(resv, 0);
+
+	rqstp->rq_cred.cr_flavor = RPC_AUTH_TLS;
+	return SVC_OK;
+}
+
+struct auth_ops svcauth_tls = {
+	.name		= "tls",
+	.owner		= THIS_MODULE,
+	.flavour	= RPC_AUTH_TLS,
+	.accept 	= svcauth_tls_accept,
 	.release	= svcauth_null_release,
 	.set_client	= svcauth_unix_set_client,
 };

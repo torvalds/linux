@@ -32,6 +32,7 @@
 
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_syncobj.h>
+#include "amdgpu_cs.h"
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 #include "amdgpu_gmc.h"
@@ -339,7 +340,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	if (free_vram >= 128 * 1024 * 1024 || free_vram >= total_vram / 8) {
 		s64 min_us;
 
-		/* Be more aggresive on dGPUs. Try to fill a portion of free
+		/* Be more aggressive on dGPUs. Try to fill a portion of free
 		 * VRAM now.
 		 */
 		if (!(adev->flags & AMD_IS_APU))
@@ -782,12 +783,12 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 				memcpy(ib->ptr, kptr, chunk_ib->ib_bytes);
 				amdgpu_bo_kunmap(aobj);
 
-				r = amdgpu_ring_parse_cs(ring, p, j);
+				r = amdgpu_ring_parse_cs(ring, p, p->job, ib);
 				if (r)
 					return r;
 			} else {
 				ib->ptr = (uint32_t *)kptr;
-				r = amdgpu_ring_patch_cs_in_place(ring, p, j);
+				r = amdgpu_ring_patch_cs_in_place(ring, p, p->job, ib);
 				amdgpu_bo_kunmap(aobj);
 				if (r)
 					return r;
@@ -1279,7 +1280,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 			continue;
 
 		/*
-		 * Work around dma_resv shortcommings by wrapping up the
+		 * Work around dma_resv shortcomings by wrapping up the
 		 * submission in a dma_fence_chain and add it as exclusive
 		 * fence.
 		 */

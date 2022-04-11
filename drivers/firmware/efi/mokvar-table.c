@@ -359,4 +359,4 @@ static int __init efi_mokvar_sysfs_init(void)
 	}
 	return err;
 }
-device_initcall(efi_mokvar_sysfs_init);
+fs_initcall(efi_mokvar_sysfs_init);

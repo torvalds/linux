@@ -185,23 +185,7 @@ struct kernfs_syscall_ops {
 			 struct kernfs_root *root);
 };
 
-struct kernfs_root {
-	/* published fields */
-	struct kernfs_node	*kn;
-	unsigned int		flags;	/* KERNFS_ROOT_* flags */
-
-	/* private fields, do not use outside kernfs proper */
-	struct idr		ino_idr;
-	u32			last_id_lowbits;
-	u32			id_highbits;
-	struct kernfs_syscall_ops *syscall_ops;
-
-	/* list of kernfs_super_info of this root, protected by kernfs_rwsem */
-	struct list_head	supers;
-
-	wait_queue_head_t	deactivate_waitq;
-	struct rw_semaphore	kernfs_rwsem;
-};
+struct kernfs_node *kernfs_root_to_node(struct kernfs_root *root);
 
 struct kernfs_open_file {
 	/* published fields */

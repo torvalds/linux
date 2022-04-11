@@ -1678,7 +1678,7 @@ static ssize_t amdgpu_reset_dump_register_list_write(struct file *f,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
 	char reg_offset[11];
-	uint32_t *tmp;
+	uint32_t *new, *tmp = NULL;
 	int ret, i = 0, len = 0;
 
 	do {
@@ -1689,7 +1689,12 @@ static ssize_t amdgpu_reset_dump_register_list_write(struct file *f,
 			goto error_free;
 		}
 
-		tmp = krealloc_array(tmp, i + 1, sizeof(uint32_t), GFP_KERNEL);
+		new = krealloc_array(tmp, i + 1, sizeof(uint32_t), GFP_KERNEL);
+		if (!new) {
+			ret = -ENOMEM;
+			goto error_free;
+		}
+		tmp = new;
 		if (sscanf(reg_offset, "%X %n", &tmp[i], &ret) != 1) {
 			ret = -EINVAL;
 			goto error_free;
@@ -1771,6 +1776,16 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 			continue;
 
 		amdgpu_debugfs_ring_init(adev, ring);
+	}
+
+	for ( i = 0; i < adev->vcn.num_vcn_inst; i++) {
+		if (!amdgpu_vcnfw_log)
+			break;
+
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
+
+		amdgpu_debugfs_vcn_fwlog_init(adev, i, &adev->vcn.inst[i]);
 	}
 
 	amdgpu_ras_debugfs_create_all(adev);

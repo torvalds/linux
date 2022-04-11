@@ -55,18 +55,18 @@ flags the caller provides. The caller is required to pass in a non-null struct
 pages* array, and the function then pins pages by incrementing each by a special
 value: GUP_PIN_COUNTING_BIAS.
 
-For huge pages (and in fact, any compound page of more than 2 pages), the
-GUP_PIN_COUNTING_BIAS scheme is not used. Instead, an exact form of pin counting
-is achieved, by using the 3rd struct page in the compound page. A new struct
-page field, hpage_pinned_refcount, has been added in order to support this.
+For compound pages, the GUP_PIN_COUNTING_BIAS scheme is not used. Instead,
+an exact form of pin counting is achieved, by using the 2nd struct page
+in the compound page. A new struct page field, compound_pincount, has
+been added in order to support this.
 
 This approach for compound pages avoids the counting upper limit problems that
 are discussed below. Those limitations would have been aggravated severely by
 huge pages, because each tail page adds a refcount to the head page. And in
-fact, testing revealed that, without a separate hpage_pinned_refcount field,
+fact, testing revealed that, without a separate compound_pincount field,
 page overflows were seen in some huge page stress tests.
 
-This also means that huge pages and compound pages (of order > 1) do not suffer
+This also means that huge pages and compound pages do not suffer
 from the false positives problem that is mentioned below.::
 
  Function
@@ -264,9 +264,9 @@ place.)
 Other diagnostics
 =================
 
-dump_page() has been enhanced slightly, to handle these new counting fields, and
-to better report on compound pages in general. Specifically, for compound pages
-with order > 1, the exact (hpage_pinned_refcount) pincount is reported.
+dump_page() has been enhanced slightly, to handle these new counting
+fields, and to better report on compound pages in general. Specifically,
+for compound pages, the exact (compound_pincount) pincount is reported.
 
 References
 ==========

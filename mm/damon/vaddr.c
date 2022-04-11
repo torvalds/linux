@@ -15,7 +15,7 @@
 #include <linux/pagewalk.h>
 #include <linux/sched/mm.h>
 
-#include "prmtv-common.h"
+#include "ops-common.h"
 
 #ifdef CONFIG_DAMON_VADDR_KUNIT_TEST
 #undef DAMON_MIN_REGION
@@ -23,12 +23,12 @@
 #endif
 
 /*
- * 't->id' should be the pointer to the relevant 'struct pid' having reference
+ * 't->pid' should be the pointer to the relevant 'struct pid' having reference
  * count.  Caller must put the returned task, unless it is NULL.
  */
 static inline struct task_struct *damon_get_task_struct(struct damon_target *t)
 {
-	return get_pid_task((struct pid *)t->id, PIDTYPE_PID);
+	return get_pid_task(t->pid, PIDTYPE_PID);
 }
 
 /*
@@ -402,9 +402,6 @@ static void damon_hugetlb_mkold(pte_t *pte, struct mm_struct *mm,
 	pte_t entry = huge_ptep_get(pte);
 	struct page *page = pte_page(entry);
 
-	if (!page)
-		return;
-
 	get_page(page);
 
 	if (pte_young(entry)) {
@@ -564,9 +561,6 @@ static int damon_young_hugetlb_entry(pte_t *pte, unsigned long hmask,
 		goto out;
 
 	page = pte_page(entry);
-	if (!page)
-		goto out;
-
 	get_page(page);
 
 	if (pte_young(entry) || !page_is_idle(page) ||
@@ -659,7 +653,7 @@ static unsigned int damon_va_check_accesses(struct damon_ctx *ctx)
  * Functions for the target validity check and cleanup
  */
 
-bool damon_va_target_valid(void *target)
+static bool damon_va_target_valid(void *target)
 {
 	struct damon_target *t = target;
 	struct task_struct *task;
@@ -745,17 +739,24 @@ static int damon_va_scheme_score(struct damon_ctx *context,
 	return DAMOS_MAX_SCORE;
 }
 
-void damon_va_set_primitives(struct damon_ctx *ctx)
+static int __init damon_va_initcall(void)
 {
-	ctx->primitive.init = damon_va_init;
-	ctx->primitive.update = damon_va_update;
-	ctx->primitive.prepare_access_checks = damon_va_prepare_access_checks;
-	ctx->primitive.check_accesses = damon_va_check_accesses;
-	ctx->primitive.reset_aggregated = NULL;
-	ctx->primitive.target_valid = damon_va_target_valid;
-	ctx->primitive.cleanup = NULL;
-	ctx->primitive.apply_scheme = damon_va_apply_scheme;
-	ctx->primitive.get_scheme_score = damon_va_scheme_score;
-}
+	struct damon_operations ops = {
+		.id = DAMON_OPS_VADDR,
+		.init = damon_va_init,
+		.update = damon_va_update,
+		.prepare_access_checks = damon_va_prepare_access_checks,
+		.check_accesses = damon_va_check_accesses,
+		.reset_aggregated = NULL,
+		.target_valid = damon_va_target_valid,
+		.cleanup = NULL,
+		.apply_scheme = damon_va_apply_scheme,
+		.get_scheme_score = damon_va_scheme_score,
+	};
+
+	return damon_register_ops(&ops);
+};
+
+subsys_initcall(damon_va_initcall);
 
 #include "vaddr-test.h"

@@ -15,6 +15,10 @@ Supported chips:
 
     Information: https://www.ti.com/product/tmp122
 
+  * Texas Instruments TMP125
+
+    Information: https://www.ti.com/product/tmp125
+
   * National Semiconductor LM71
 
     Datasheet: https://www.ti.com/product/LM71
@@ -52,6 +56,9 @@ The LM74 and TMP121/TMP122/TMP123/TMP124 are very similar; main difference is
 13-bit temperature data (0.0625 degrees celsius resolution).
 
 The TMP122/TMP124 also feature configurable temperature thresholds.
+
+The TMP125 is less accurate and provides 10-bit temperature data
+with 0.25 degrees Celsius resolution.
 
 The LM71 is also very similar; main difference is 14-bit temperature
 data (0.03125 degrees celsius resolution).

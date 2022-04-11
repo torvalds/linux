@@ -524,7 +524,7 @@ extern struct vchiq_service *
 find_service_by_handle(unsigned int handle);
 
 extern struct vchiq_service *
-find_service_by_port(struct vchiq_state *state, int localport);
+find_service_by_port(struct vchiq_state *state, unsigned int localport);
 
 extern struct vchiq_service *
 find_service_for_instance(struct vchiq_instance *instance, unsigned int handle);

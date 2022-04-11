@@ -2068,6 +2068,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	mutex_init(&con->recovery_lock);
 	INIT_WORK(&con->recovery_work, amdgpu_ras_do_recovery);
 	atomic_set(&con->in_recovery, 0);
+	con->eeprom_control.bad_channel_bitmap = 0;
 
 	max_eeprom_records_count = amdgpu_ras_eeprom_max_record_count();
 	amdgpu_ras_validate_threshold(adev, max_eeprom_records_count);
@@ -2092,6 +2093,11 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 			goto free;
 
 		amdgpu_dpm_send_hbm_bad_pages_num(adev, con->eeprom_control.ras_num_recs);
+
+		if (con->update_channel_flag == true) {
+			amdgpu_dpm_send_hbm_bad_channel_flag(adev, con->eeprom_control.bad_channel_bitmap);
+			con->update_channel_flag = false;
+		}
 	}
 
 #ifdef CONFIG_X86_MCE_AMD
@@ -2285,6 +2291,7 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 		goto release_con;
 	}
 
+	con->update_channel_flag = false;
 	con->features = 0;
 	INIT_LIST_HEAD(&con->head);
 	/* Might need get this flag from vbios. */
@@ -2477,6 +2484,12 @@ void amdgpu_ras_block_late_fini(struct amdgpu_device *adev,
 		amdgpu_ras_interrupt_remove_handler(adev, ras_block);
 }
 
+static void amdgpu_ras_block_late_fini_default(struct amdgpu_device *adev,
+			  struct ras_common_if *ras_block)
+{
+	return amdgpu_ras_block_late_fini(adev, ras_block);
+}
+
 /* do some init work after IP late init as dependence.
  * and it runs in resume/gpu reset/booting up cases.
  */
@@ -2572,10 +2585,26 @@ int amdgpu_ras_pre_fini(struct amdgpu_device *adev)
 int amdgpu_ras_fini(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras_block_list *ras_node, *tmp;
+	struct amdgpu_ras_block_object *obj = NULL;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
 	if (!adev->ras_enabled || !con)
 		return 0;
+
+	list_for_each_entry_safe(ras_node, tmp, &adev->ras_list, node) {
+		if (ras_node->ras_obj) {
+			obj = ras_node->ras_obj;
+			if (amdgpu_ras_is_supported(adev, obj->ras_comm.block) &&
+			    obj->ras_fini)
+				obj->ras_fini(adev, &obj->ras_comm);
+			else
+				amdgpu_ras_block_late_fini_default(adev, &obj->ras_comm);
+		}
+
+		/* Clear ras blocks from ras_list and free ras block list node */
+		list_del(&ras_node->node);
+		kfree(ras_node);
+	}
 
 	amdgpu_ras_fs_fini(adev);
 	amdgpu_ras_interrupt_remove_all(adev);
@@ -2589,12 +2618,6 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 
 	amdgpu_ras_set_context(adev, NULL);
 	kfree(con);
-
-	/* Clear ras blocks from ras_list and free ras block list node */
-	list_for_each_entry_safe(ras_node, tmp, &adev->ras_list, node) {
-		list_del(&ras_node->node);
-		kfree(ras_node);
-	}
 
 	return 0;
 }

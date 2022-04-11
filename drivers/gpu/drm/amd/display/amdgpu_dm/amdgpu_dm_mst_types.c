@@ -1198,11 +1198,11 @@ void pre_validate_dsc(struct drm_atomic_state *state,
 	struct dc_state *local_dc_state = NULL;
 
 	if (!is_dsc_precompute_needed(state)) {
-		DRM_DEBUG_DRIVER("DSC precompute is not needed.\n");
+		DRM_INFO_ONCE("DSC precompute is not needed.\n");
 		return;
 	}
 	if (dm_atomic_get_state(state, dm_state_ptr)) {
-		DRM_DEBUG_DRIVER("dm_atomic_get_state() failed\n");
+		DRM_INFO_ONCE("dm_atomic_get_state() failed\n");
 		return;
 	}
 	dm_state = *dm_state_ptr;
@@ -1245,7 +1245,7 @@ void pre_validate_dsc(struct drm_atomic_state *state,
 	}
 
 	if (!pre_compute_mst_dsc_configs_for_state(state, local_dc_state, vars)) {
-		DRM_DEBUG_DRIVER("pre_compute_mst_dsc_configs_for_state() failed\n");
+		DRM_INFO_ONCE("pre_compute_mst_dsc_configs_for_state() failed\n");
 		goto clean_exit;
 	}
 
@@ -1258,7 +1258,7 @@ void pre_validate_dsc(struct drm_atomic_state *state,
 
 		if (local_dc_state->streams[i] &&
 		    is_timing_changed(stream, local_dc_state->streams[i])) {
-			DRM_DEBUG_DRIVER("crtc[%d] needs mode_changed\n", i);
+			DRM_INFO_ONCE("crtc[%d] needs mode_changed\n", i);
 		} else {
 			int ind = find_crtc_index_in_state_by_stream(state, stream);
 

@@ -2,7 +2,7 @@
 /*
  * Driver for Broadcom MPI3 Storage Controllers
  *
- * Copyright (C) 2017-2021 Broadcom Inc.
+ * Copyright (C) 2017-2022 Broadcom Inc.
  *  (mailto: mpi3mr-linuxdrv.pdl@broadcom.com)
  *
  */
@@ -53,8 +53,8 @@ extern spinlock_t mrioc_list_lock;
 extern struct list_head mrioc_list;
 extern int prot_mask;
 
-#define MPI3MR_DRIVER_VERSION	"8.0.0.61.0"
-#define MPI3MR_DRIVER_RELDATE	"20-December-2021"
+#define MPI3MR_DRIVER_VERSION	"8.0.0.68.0"
+#define MPI3MR_DRIVER_RELDATE	"10-February-2022"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
@@ -866,6 +866,8 @@ struct mpi3mr_ioc {
  * @send_ack: Event acknowledgment required or not
  * @process_evt: Bottomhalf processing required or not
  * @evt_ctx: Event context to send in Ack
+ * @pending_at_sml: waiting for device add/remove API to complete
+ * @discard: discard this event
  * @ref_count: kref count
  * @event_data: Actual MPI3 event data
  */
@@ -877,8 +879,10 @@ struct mpi3mr_fwevt {
 	bool send_ack;
 	bool process_evt;
 	u32 evt_ctx;
+	bool pending_at_sml;
+	bool discard;
 	struct kref ref_count;
-	char event_data[0] __aligned(4);
+	char event_data[] __aligned(4);
 };
 
 

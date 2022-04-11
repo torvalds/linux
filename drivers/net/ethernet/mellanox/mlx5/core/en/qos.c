@@ -50,7 +50,6 @@ static int mlx5e_find_unused_qos_qid(struct mlx5e_priv *priv)
 
 struct mlx5e_qos_node {
 	struct hlist_node hnode;
-	struct rcu_head rcu;
 	struct mlx5e_qos_node *parent;
 	u64 rate;
 	u32 bw_share;
@@ -132,7 +131,11 @@ static void mlx5e_sw_node_delete(struct mlx5e_priv *priv, struct mlx5e_qos_node 
 		__clear_bit(node->qid, priv->htb.qos_used_qids);
 		mlx5e_update_tx_netdev_queues(priv);
 	}
-	kfree_rcu(node, rcu);
+	/* Make sure this qid is no longer selected by mlx5e_select_queue, so
+	 * that mlx5e_reactivate_qos_sq can safely restart the netdev TX queue.
+	 */
+	synchronize_net();
+	kfree(node);
 }
 
 /* TX datapath API */
@@ -273,10 +276,18 @@ err_free_sq:
 static void mlx5e_activate_qos_sq(struct mlx5e_priv *priv, struct mlx5e_qos_node *node)
 {
 	struct mlx5e_txqsq *sq;
+	u16 qid;
 
 	sq = mlx5e_get_qos_sq(priv, node->qid);
 
-	WRITE_ONCE(priv->txq2sq[mlx5e_qid_from_qos(&priv->channels, node->qid)], sq);
+	qid = mlx5e_qid_from_qos(&priv->channels, node->qid);
+
+	/* If it's a new queue, it will be marked as started at this point.
+	 * Stop it before updating txq2sq.
+	 */
+	mlx5e_tx_disable_queue(netdev_get_tx_queue(priv->netdev, qid));
+
+	priv->txq2sq[qid] = sq;
 
 	/* Make the change to txq2sq visible before the queue is started.
 	 * As mlx5e_xmit runs under a spinlock, there is an implicit ACQUIRE,
@@ -299,8 +310,13 @@ static void mlx5e_deactivate_qos_sq(struct mlx5e_priv *priv, u16 qid)
 	qos_dbg(priv->mdev, "Deactivate QoS SQ qid %u\n", qid);
 	mlx5e_deactivate_txqsq(sq);
 
-	/* The queue is disabled, no synchronization with datapath is needed. */
 	priv->txq2sq[mlx5e_qid_from_qos(&priv->channels, qid)] = NULL;
+
+	/* Make the change to txq2sq visible before the queue is started again.
+	 * As mlx5e_xmit runs under a spinlock, there is an implicit ACQUIRE,
+	 * which pairs with this barrier.
+	 */
+	smp_wmb();
 }
 
 static void mlx5e_close_qos_sq(struct mlx5e_priv *priv, u16 qid)
@@ -485,9 +501,11 @@ int mlx5e_htb_root_add(struct mlx5e_priv *priv, u16 htb_maj_id, u16 htb_defcls,
 
 	opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 	if (opened) {
+		mlx5e_selq_prepare(&priv->selq, &priv->channels.params, true);
+
 		err = mlx5e_qos_alloc_queues(priv, &priv->channels);
 		if (err)
-			return err;
+			goto err_cancel_selq;
 	}
 
 	root = mlx5e_sw_node_create_root(priv);
@@ -508,6 +526,9 @@ int mlx5e_htb_root_add(struct mlx5e_priv *priv, u16 htb_maj_id, u16 htb_defcls,
 	 */
 	smp_store_release(&priv->htb.maj_id, htb_maj_id);
 
+	if (opened)
+		mlx5e_selq_apply(&priv->selq);
+
 	return 0;
 
 err_sw_node_delete:
@@ -516,6 +537,8 @@ err_sw_node_delete:
 err_free_queues:
 	if (opened)
 		mlx5e_qos_close_all_queues(&priv->channels);
+err_cancel_selq:
+	mlx5e_selq_cancel(&priv->selq);
 	return err;
 }
 
@@ -526,8 +549,15 @@ int mlx5e_htb_root_del(struct mlx5e_priv *priv)
 
 	qos_dbg(priv->mdev, "TC_HTB_DESTROY\n");
 
+	/* Wait until real_num_tx_queues is updated for mlx5e_select_queue,
+	 * so that we can safely switch to its non-HTB non-PTP fastpath.
+	 */
+	synchronize_net();
+
+	mlx5e_selq_prepare(&priv->selq, &priv->channels.params, false);
+	mlx5e_selq_apply(&priv->selq);
+
 	WRITE_ONCE(priv->htb.maj_id, 0);
-	synchronize_rcu(); /* Sync with mlx5e_select_htb_queue and TX data path. */
 
 	root = mlx5e_sw_node_find(priv, MLX5E_HTB_CLASSID_ROOT);
 	if (!root) {

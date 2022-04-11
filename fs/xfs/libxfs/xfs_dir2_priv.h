@@ -40,7 +40,7 @@ struct xfs_dir3_icfree_hdr {
 };
 
 /* xfs_dir2.c */
-xfs_dahash_t xfs_ascii_ci_hashname(struct xfs_name *name);
+xfs_dahash_t xfs_ascii_ci_hashname(const struct xfs_name *name);
 enum xfs_dacmp xfs_ascii_ci_compname(struct xfs_da_args *args,
 		const unsigned char *name, int len);
 extern int xfs_dir2_grow_inode(struct xfs_da_args *args, int space,
@@ -201,7 +201,8 @@ xfs_dir2_data_entsize(
 	return round_up(len, XFS_DIR2_DATA_ALIGN);
 }
 
-xfs_dahash_t xfs_dir2_hashname(struct xfs_mount *mp, struct xfs_name *name);
+xfs_dahash_t xfs_dir2_hashname(struct xfs_mount *mp,
+		const struct xfs_name *name);
 enum xfs_dacmp xfs_dir2_compname(struct xfs_da_args *args,
 		const unsigned char *name, int len);
 

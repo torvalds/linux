@@ -58,7 +58,7 @@ struct gb_host_device {
 
 	struct gb_svc *svc;
 	/* Private data for the host driver */
-	unsigned long hd_priv[0] __aligned(sizeof(s64));
+	unsigned long hd_priv[] __aligned(sizeof(s64));
 };
 #define to_gb_host_device(d) container_of(d, struct gb_host_device, dev)
 

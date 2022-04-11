@@ -62,7 +62,7 @@ static u32 rtw89_pci_txbd_recalc(struct rtw89_dev *rtwdev,
 				 struct rtw89_pci_tx_ring *tx_ring)
 {
 	struct rtw89_pci_dma_ring *bd_ring = &tx_ring->bd_ring;
-	u32 addr_idx = bd_ring->addr_idx;
+	u32 addr_idx = bd_ring->addr.idx;
 	u32 cnt, idx;
 
 	idx = rtw89_read32(rtwdev, addr_idx);
@@ -121,7 +121,7 @@ static u32 rtw89_pci_rxbd_recalc(struct rtw89_dev *rtwdev,
 				 struct rtw89_pci_rx_ring *rx_ring)
 {
 	struct rtw89_pci_dma_ring *bd_ring = &rx_ring->bd_ring;
-	u32 addr_idx = bd_ring->addr_idx;
+	u32 addr_idx = bd_ring->addr.idx;
 	u32 cnt, idx;
 
 	idx = rtw89_read32(rtwdev, addr_idx);
@@ -304,7 +304,7 @@ static void rtw89_pci_rxbd_deliver(struct rtw89_dev *rtwdev,
 		cnt -= rx_cnt;
 	}
 
-	rtw89_write16(rtwdev, bd_ring->addr_idx, bd_ring->wp);
+	rtw89_write16(rtwdev, bd_ring->addr.idx, bd_ring->wp);
 }
 
 static int rtw89_pci_poll_rxq_dma(struct rtw89_dev *rtwdev,
@@ -555,7 +555,7 @@ static void rtw89_pci_release_tx(struct rtw89_dev *rtwdev,
 		cnt -= release_cnt;
 	}
 
-	rtw89_write16(rtwdev, bd_ring->addr_idx, bd_ring->wp);
+	rtw89_write16(rtwdev, bd_ring->addr.idx, bd_ring->wp);
 }
 
 static int rtw89_pci_poll_rpq_dma(struct rtw89_dev *rtwdev,
@@ -598,7 +598,7 @@ static void rtw89_pci_isr_rxd_unavail(struct rtw89_dev *rtwdev,
 		rx_ring = &rtwpci->rx_rings[i];
 		bd_ring = &rx_ring->bd_ring;
 
-		reg_idx = rtw89_read32(rtwdev, bd_ring->addr_idx);
+		reg_idx = rtw89_read32(rtwdev, bd_ring->addr.idx);
 		hw_idx = FIELD_GET(TXBD_HW_IDX_MASK, reg_idx);
 		host_idx = FIELD_GET(TXBD_HOST_IDX_MASK, reg_idx);
 		hw_idx_next = (hw_idx + 1) % bd_ring->len;
@@ -697,70 +697,109 @@ exit:
 	return irqret;
 }
 
-#define case_TXCHADDRS(txch) \
-	case RTW89_TXCH_##txch: \
-		*addr_num = R_AX_##txch##_TXBD_NUM; \
-		*addr_idx = R_AX_##txch##_TXBD_IDX; \
-		*addr_bdram = R_AX_##txch##_BDRAM_CTRL; \
-		*addr_desa_l = R_AX_##txch##_TXBD_DESA_L; \
-		*addr_desa_h = R_AX_##txch##_TXBD_DESA_H; \
-		break
-
-static int rtw89_pci_get_txch_addrs(enum rtw89_tx_channel txch,
-				    u32 *addr_num,
-				    u32 *addr_idx,
-				    u32 *addr_bdram,
-				    u32 *addr_desa_l,
-				    u32 *addr_desa_h)
-{
-	switch (txch) {
-	case_TXCHADDRS(ACH0);
-	case_TXCHADDRS(ACH1);
-	case_TXCHADDRS(ACH2);
-	case_TXCHADDRS(ACH3);
-	case_TXCHADDRS(ACH4);
-	case_TXCHADDRS(ACH5);
-	case_TXCHADDRS(ACH6);
-	case_TXCHADDRS(ACH7);
-	case_TXCHADDRS(CH8);
-	case_TXCHADDRS(CH9);
-	case_TXCHADDRS(CH10);
-	case_TXCHADDRS(CH11);
-	case_TXCHADDRS(CH12);
-	default:
-		return -EINVAL;
+#define DEF_TXCHADDRS_TYPE1(info, txch, v...) \
+	[RTW89_TXCH_##txch] = { \
+		.num = R_AX_##txch##_TXBD_NUM ##v, \
+		.idx = R_AX_##txch##_TXBD_IDX ##v, \
+		.bdram = R_AX_##txch##_BDRAM_CTRL ##v, \
+		.desa_l = R_AX_##txch##_TXBD_DESA_L ##v, \
+		.desa_h = R_AX_##txch##_TXBD_DESA_H ##v, \
 	}
+
+#define DEF_TXCHADDRS(info, txch, v...) \
+	[RTW89_TXCH_##txch] = { \
+		.num = R_AX_##txch##_TXBD_NUM, \
+		.idx = R_AX_##txch##_TXBD_IDX, \
+		.bdram = R_AX_##txch##_BDRAM_CTRL ##v, \
+		.desa_l = R_AX_##txch##_TXBD_DESA_L ##v, \
+		.desa_h = R_AX_##txch##_TXBD_DESA_H ##v, \
+	}
+
+#define DEF_RXCHADDRS(info, rxch, v...) \
+	[RTW89_RXCH_##rxch] = { \
+		.num = R_AX_##rxch##_RXBD_NUM ##v, \
+		.idx = R_AX_##rxch##_RXBD_IDX ##v, \
+		.desa_l = R_AX_##rxch##_RXBD_DESA_L ##v, \
+		.desa_h = R_AX_##rxch##_RXBD_DESA_H ##v, \
+	}
+
+const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set = {
+	.tx = {
+		DEF_TXCHADDRS(info, ACH0),
+		DEF_TXCHADDRS(info, ACH1),
+		DEF_TXCHADDRS(info, ACH2),
+		DEF_TXCHADDRS(info, ACH3),
+		DEF_TXCHADDRS(info, ACH4),
+		DEF_TXCHADDRS(info, ACH5),
+		DEF_TXCHADDRS(info, ACH6),
+		DEF_TXCHADDRS(info, ACH7),
+		DEF_TXCHADDRS(info, CH8),
+		DEF_TXCHADDRS(info, CH9),
+		DEF_TXCHADDRS_TYPE1(info, CH10),
+		DEF_TXCHADDRS_TYPE1(info, CH11),
+		DEF_TXCHADDRS(info, CH12),
+	},
+	.rx = {
+		DEF_RXCHADDRS(info, RXQ),
+		DEF_RXCHADDRS(info, RPQ),
+	},
+};
+EXPORT_SYMBOL(rtw89_pci_ch_dma_addr_set);
+
+const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_v1 = {
+	.tx = {
+		DEF_TXCHADDRS(info, ACH0, _V1),
+		DEF_TXCHADDRS(info, ACH1, _V1),
+		DEF_TXCHADDRS(info, ACH2, _V1),
+		DEF_TXCHADDRS(info, ACH3, _V1),
+		DEF_TXCHADDRS(info, ACH4, _V1),
+		DEF_TXCHADDRS(info, ACH5, _V1),
+		DEF_TXCHADDRS(info, ACH6, _V1),
+		DEF_TXCHADDRS(info, ACH7, _V1),
+		DEF_TXCHADDRS(info, CH8, _V1),
+		DEF_TXCHADDRS(info, CH9, _V1),
+		DEF_TXCHADDRS_TYPE1(info, CH10, _V1),
+		DEF_TXCHADDRS_TYPE1(info, CH11, _V1),
+		DEF_TXCHADDRS(info, CH12, _V1),
+	},
+	.rx = {
+		DEF_RXCHADDRS(info, RXQ, _V1),
+		DEF_RXCHADDRS(info, RPQ, _V1),
+	},
+};
+EXPORT_SYMBOL(rtw89_pci_ch_dma_addr_set_v1);
+
+#undef DEF_TXCHADDRS_TYPE1
+#undef DEF_TXCHADDRS
+#undef DEF_RXCHADDRS
+
+static int rtw89_pci_get_txch_addrs(struct rtw89_dev *rtwdev,
+				    enum rtw89_tx_channel txch,
+				    const struct rtw89_pci_ch_dma_addr **addr)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+
+	if (txch >= RTW89_TXCH_NUM)
+		return -EINVAL;
+
+	*addr = &info->dma_addr_set->tx[txch];
 
 	return 0;
 }
 
-#undef case_TXCHADDRS
-
-#define case_RXCHADDRS(rxch) \
-	case RTW89_RXCH_##rxch: \
-		*addr_num = R_AX_##rxch##_RXBD_NUM; \
-		*addr_idx = R_AX_##rxch##_RXBD_IDX; \
-		*addr_desa_l = R_AX_##rxch##_RXBD_DESA_L; \
-		*addr_desa_h = R_AX_##rxch##_RXBD_DESA_H; \
-		break
-
-static int rtw89_pci_get_rxch_addrs(enum rtw89_rx_channel rxch,
-				    u32 *addr_num,
-				    u32 *addr_idx,
-				    u32 *addr_desa_l,
-				    u32 *addr_desa_h)
+static int rtw89_pci_get_rxch_addrs(struct rtw89_dev *rtwdev,
+				    enum rtw89_rx_channel rxch,
+				    const struct rtw89_pci_ch_dma_addr **addr)
 {
-	switch (rxch) {
-	case_RXCHADDRS(RXQ);
-	case_RXCHADDRS(RPQ);
-	default:
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+
+	if (rxch >= RTW89_RXCH_NUM)
 		return -EINVAL;
-	}
+
+	*addr = &info->dma_addr_set->rx[rxch];
 
 	return 0;
 }
-
-#undef case_RXCHADDRS
 
 static u32 rtw89_pci_get_avail_txbd_num(struct rtw89_pci_tx_ring *ring)
 {
@@ -837,7 +876,7 @@ static void __rtw89_pci_tx_kick_off(struct rtw89_dev *rtwdev, struct rtw89_pci_t
 	struct rtw89_pci_dma_ring *bd_ring = &tx_ring->bd_ring;
 	u32 host_idx, addr;
 
-	addr = bd_ring->addr_idx;
+	addr = bd_ring->addr.idx;
 	host_idx = bd_ring->wp;
 	rtw89_write16(rtwdev, addr, host_idx);
 }
@@ -879,7 +918,7 @@ static void __pci_flush_txch(struct rtw89_dev *rtwdev, u8 txch, bool drop)
 	 * just use for loop with udelay here.
 	 */
 	for (i = 0; i < 60; i++) {
-		cur_idx = rtw89_read32(rtwdev, bd_ring->addr_idx);
+		cur_idx = rtw89_read32(rtwdev, bd_ring->addr.idx);
 		cur_rp = FIELD_GET(TXBD_HW_IDX_MASK, cur_idx);
 		if (cur_rp == bd_ring->wp)
 			return;
@@ -1140,9 +1179,9 @@ static void rtw89_pci_reset_trx_rings(struct rtw89_dev *rtwdev)
 		tx_ring = &rtwpci->tx_rings[i];
 		bd_ring = &tx_ring->bd_ring;
 		bd_ram = &bd_ram_table[i];
-		addr_num = bd_ring->addr_num;
-		addr_bdram = bd_ring->addr_bdram;
-		addr_desa_l = bd_ring->addr_desa_l;
+		addr_num = bd_ring->addr.num;
+		addr_bdram = bd_ring->addr.bdram;
+		addr_desa_l = bd_ring->addr.desa_l;
 		bd_ring->wp = 0;
 		bd_ring->rp = 0;
 
@@ -1158,8 +1197,8 @@ static void rtw89_pci_reset_trx_rings(struct rtw89_dev *rtwdev)
 	for (i = 0; i < RTW89_RXCH_NUM; i++) {
 		rx_ring = &rtwpci->rx_rings[i];
 		bd_ring = &rx_ring->bd_ring;
-		addr_num = bd_ring->addr_num;
-		addr_desa_l = bd_ring->addr_desa_l;
+		addr_num = bd_ring->addr.num;
+		addr_desa_l = bd_ring->addr.desa_l;
 		bd_ring->wp = 0;
 		bd_ring->rp = 0;
 		rx_ring->diliver_skb = NULL;
@@ -1413,79 +1452,52 @@ static int rtw89_write16_mdio_clr(struct rtw89_dev *rtwdev, u8 addr, u16 mask, u
 	return 0;
 }
 
-static int rtw89_dbi_write8(struct rtw89_dev *rtwdev, u16 addr, u8 data)
+static int rtw89_pci_write_config_byte(struct rtw89_dev *rtwdev, u16 addr,
+				       u8 data)
 {
-	u16 write_addr;
-	u16 remainder = addr & ~(B_AX_DBI_ADDR_MSK | B_AX_DBI_WREN_MSK);
-	u8 flag;
-	int ret;
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct pci_dev *pdev = rtwpci->pdev;
 
-	write_addr = addr & B_AX_DBI_ADDR_MSK;
-	write_addr |= u16_encode_bits(BIT(remainder), B_AX_DBI_WREN_MSK);
-	rtw89_write8(rtwdev, R_AX_DBI_WDATA + remainder, data);
-	rtw89_write16(rtwdev, R_AX_DBI_FLAG, write_addr);
-	rtw89_write8(rtwdev, R_AX_DBI_FLAG + 2, B_AX_DBI_WFLAG >> 16);
-
-	ret = read_poll_timeout_atomic(rtw89_read8, flag, !flag, 10,
-				       10 * RTW89_PCI_WR_RETRY_CNT, false,
-				       rtwdev, R_AX_DBI_FLAG + 2);
-	if (ret)
-		WARN(flag, "failed to write to DBI register, addr=0x%04x\n",
-		     addr);
-
-	return ret;
+	return pci_write_config_byte(pdev, addr, data);
 }
 
-static int rtw89_dbi_read8(struct rtw89_dev *rtwdev, u16 addr, u8 *value)
+static int rtw89_pci_read_config_byte(struct rtw89_dev *rtwdev, u16 addr,
+				      u8 *value)
 {
-	u16 read_addr = addr & B_AX_DBI_ADDR_MSK;
-	u8 flag;
-	int ret;
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct pci_dev *pdev = rtwpci->pdev;
 
-	rtw89_write16(rtwdev, R_AX_DBI_FLAG, read_addr);
-	rtw89_write8(rtwdev, R_AX_DBI_FLAG + 2, B_AX_DBI_RFLAG >> 16);
-
-	ret = read_poll_timeout_atomic(rtw89_read8, flag, !flag, 10,
-				       10 * RTW89_PCI_WR_RETRY_CNT, false,
-				       rtwdev, R_AX_DBI_FLAG + 2);
-
-	if (!ret) {
-		read_addr = R_AX_DBI_RDATA + (addr & 3);
-		*value = rtw89_read8(rtwdev, read_addr);
-	} else {
-		WARN(1, "failed to read DBI register, addr=0x%04x\n", addr);
-		ret = -EIO;
-	}
-
-	return ret;
+	return pci_read_config_byte(pdev, addr, value);
 }
 
-static int rtw89_dbi_write8_set(struct rtw89_dev *rtwdev, u16 addr, u8 bit)
+static int rtw89_pci_config_byte_set(struct rtw89_dev *rtwdev, u16 addr,
+				     u8 bit)
 {
 	u8 value;
 	int ret;
 
-	ret = rtw89_dbi_read8(rtwdev, addr, &value);
+	ret = rtw89_pci_read_config_byte(rtwdev, addr, &value);
 	if (ret)
 		return ret;
 
 	value |= bit;
-	ret = rtw89_dbi_write8(rtwdev, addr, value);
+	ret = rtw89_pci_write_config_byte(rtwdev, addr, value);
 
 	return ret;
 }
 
-static int rtw89_dbi_write8_clr(struct rtw89_dev *rtwdev, u16 addr, u8 bit)
+static int rtw89_pci_config_byte_clr(struct rtw89_dev *rtwdev, u16 addr,
+				     u8 bit)
 {
 	u8 value;
 	int ret;
 
-	ret = rtw89_dbi_read8(rtwdev, addr, &value);
+	ret = rtw89_pci_read_config_byte(rtwdev, addr, &value);
 	if (ret)
 		return ret;
 
 	value &= ~bit;
-	ret = rtw89_dbi_write8(rtwdev, addr, value);
+	ret = rtw89_pci_write_config_byte(rtwdev, addr, value);
 
 	return ret;
 }
@@ -1542,9 +1554,10 @@ static int rtw89_pci_auto_refclk_cal(struct rtw89_dev *rtwdev, bool autook_en)
 	    rtwdev->chip->chip_id == RTL8852C)
 		return 0;
 
-	ret = rtw89_dbi_read8(rtwdev, RTW89_PCIE_PHY_RATE, &val8);
+	ret = rtw89_pci_read_config_byte(rtwdev, RTW89_PCIE_PHY_RATE, &val8);
 	if (ret) {
-		rtw89_err(rtwdev, "[ERR]dbi_r8_pcie %X\n", RTW89_PCIE_PHY_RATE);
+		rtw89_err(rtwdev, "[ERR]pci config read %X\n",
+			  RTW89_PCIE_PHY_RATE);
 		return ret;
 	}
 
@@ -1557,17 +1570,18 @@ static int rtw89_pci_auto_refclk_cal(struct rtw89_dev *rtwdev, bool autook_en)
 		return -EOPNOTSUPP;
 	}
 	/* Disable L1BD */
-	ret = rtw89_dbi_read8(rtwdev, RTW89_PCIE_L1_CTRL, &bdr_ori);
+	ret = rtw89_pci_read_config_byte(rtwdev, RTW89_PCIE_L1_CTRL, &bdr_ori);
 	if (ret) {
-		rtw89_err(rtwdev, "[ERR]dbi_r8_pcie %X\n", RTW89_PCIE_L1_CTRL);
+		rtw89_err(rtwdev, "[ERR]pci config read %X\n", RTW89_PCIE_L1_CTRL);
 		return ret;
 	}
 
 	if (bdr_ori & RTW89_PCIE_BIT_L1) {
-		ret = rtw89_dbi_write8(rtwdev, RTW89_PCIE_L1_CTRL,
-				       bdr_ori & ~RTW89_PCIE_BIT_L1);
+		ret = rtw89_pci_write_config_byte(rtwdev, RTW89_PCIE_L1_CTRL,
+						  bdr_ori & ~RTW89_PCIE_BIT_L1);
 		if (ret) {
-			rtw89_err(rtwdev, "[ERR]dbi_w8_pcie %X\n", RTW89_PCIE_L1_CTRL);
+			rtw89_err(rtwdev, "[ERR]pci config write %X\n",
+				  RTW89_PCIE_L1_CTRL);
 			return ret;
 		}
 		l1_flag = true;
@@ -1662,14 +1676,17 @@ static int rtw89_pci_auto_refclk_cal(struct rtw89_dev *rtwdev, bool autook_en)
 	}
 
 	/* CLK delay = 0 */
-	ret = rtw89_dbi_write8(rtwdev, RTW89_PCIE_CLK_CTRL, PCIE_CLKDLY_HW_0);
+	ret = rtw89_pci_write_config_byte(rtwdev, RTW89_PCIE_CLK_CTRL,
+					  PCIE_CLKDLY_HW_0);
 
 end:
 	/* Set L1BD to ori */
 	if (l1_flag) {
-		ret = rtw89_dbi_write8(rtwdev, RTW89_PCIE_L1_CTRL, bdr_ori);
+		ret = rtw89_pci_write_config_byte(rtwdev, RTW89_PCIE_L1_CTRL,
+						  bdr_ori);
 		if (ret) {
-			rtw89_err(rtwdev, "[ERR]dbi_w8_pcie %X\n", RTW89_PCIE_L1_CTRL);
+			rtw89_err(rtwdev, "[ERR]pci config write %X\n",
+				  RTW89_PCIE_L1_CTRL);
 			return ret;
 		}
 	}
@@ -2210,14 +2227,10 @@ static int rtw89_pci_alloc_tx_ring(struct rtw89_dev *rtwdev,
 				   u32 desc_size, u32 len,
 				   enum rtw89_tx_channel txch)
 {
+	const struct rtw89_pci_ch_dma_addr *txch_addr;
 	int ring_sz = desc_size * len;
 	u8 *head;
 	dma_addr_t dma;
-	u32 addr_num;
-	u32 addr_idx;
-	u32 addr_bdram;
-	u32 addr_desa_l;
-	u32 addr_desa_h;
 	int ret;
 
 	ret = rtw89_pci_alloc_tx_wd_ring(rtwdev, pdev, tx_ring, txch);
@@ -2226,8 +2239,7 @@ static int rtw89_pci_alloc_tx_ring(struct rtw89_dev *rtwdev,
 		goto err;
 	}
 
-	ret = rtw89_pci_get_txch_addrs(txch, &addr_num, &addr_idx, &addr_bdram,
-				       &addr_desa_l, &addr_desa_h);
+	ret = rtw89_pci_get_txch_addrs(rtwdev, txch, &txch_addr);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to get address of txch %d", txch);
 		goto err_free_wd_ring;
@@ -2244,11 +2256,7 @@ static int rtw89_pci_alloc_tx_ring(struct rtw89_dev *rtwdev,
 	tx_ring->bd_ring.dma = dma;
 	tx_ring->bd_ring.len = len;
 	tx_ring->bd_ring.desc_size = desc_size;
-	tx_ring->bd_ring.addr_num = addr_num;
-	tx_ring->bd_ring.addr_idx = addr_idx;
-	tx_ring->bd_ring.addr_bdram = addr_bdram;
-	tx_ring->bd_ring.addr_desa_l = addr_desa_l;
-	tx_ring->bd_ring.addr_desa_h = addr_desa_h;
+	tx_ring->bd_ring.addr = *txch_addr;
 	tx_ring->bd_ring.wp = 0;
 	tx_ring->bd_ring.rp = 0;
 	tx_ring->txch = txch;
@@ -2300,20 +2308,16 @@ static int rtw89_pci_alloc_rx_ring(struct rtw89_dev *rtwdev,
 				   struct rtw89_pci_rx_ring *rx_ring,
 				   u32 desc_size, u32 len, u32 rxch)
 {
+	const struct rtw89_pci_ch_dma_addr *rxch_addr;
 	struct sk_buff *skb;
 	u8 *head;
 	dma_addr_t dma;
-	u32 addr_num;
-	u32 addr_idx;
-	u32 addr_desa_l;
-	u32 addr_desa_h;
 	int ring_sz = desc_size * len;
 	int buf_sz = RTW89_PCI_RX_BUF_SIZE;
 	int i, allocated;
 	int ret;
 
-	ret = rtw89_pci_get_rxch_addrs(rxch, &addr_num, &addr_idx,
-				       &addr_desa_l, &addr_desa_h);
+	ret = rtw89_pci_get_rxch_addrs(rtwdev, rxch, &rxch_addr);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to get address of rxch %d", rxch);
 		return ret;
@@ -2329,10 +2333,7 @@ static int rtw89_pci_alloc_rx_ring(struct rtw89_dev *rtwdev,
 	rx_ring->bd_ring.dma = dma;
 	rx_ring->bd_ring.len = len;
 	rx_ring->bd_ring.desc_size = desc_size;
-	rx_ring->bd_ring.addr_num = addr_num;
-	rx_ring->bd_ring.addr_idx = addr_idx;
-	rx_ring->bd_ring.addr_desa_l = addr_desa_l;
-	rx_ring->bd_ring.addr_desa_h = addr_desa_h;
+	rx_ring->bd_ring.addr = *rxch_addr;
 	rx_ring->bd_ring.wp = 0;
 	rx_ring->bd_ring.rp = 0;
 	rx_ring->buf_sz = buf_sz;
@@ -2552,17 +2553,17 @@ static void rtw89_pci_clkreq_set(struct rtw89_dev *rtwdev, bool enable)
 	if (rtw89_pci_disable_clkreq)
 		return;
 
-	ret = rtw89_dbi_write8(rtwdev, RTW89_PCIE_CLK_CTRL,
-			       PCIE_CLKDLY_HW_30US);
+	ret = rtw89_pci_write_config_byte(rtwdev, RTW89_PCIE_CLK_CTRL,
+					  PCIE_CLKDLY_HW_30US);
 	if (ret)
 		rtw89_err(rtwdev, "failed to set CLKREQ Delay\n");
 
 	if (enable)
-		ret = rtw89_dbi_write8_set(rtwdev, RTW89_PCIE_L1_CTRL,
-					   RTW89_PCIE_BIT_CLK);
+		ret = rtw89_pci_config_byte_set(rtwdev, RTW89_PCIE_L1_CTRL,
+						RTW89_PCIE_BIT_CLK);
 	else
-		ret = rtw89_dbi_write8_clr(rtwdev, RTW89_PCIE_L1_CTRL,
-					   RTW89_PCIE_BIT_CLK);
+		ret = rtw89_pci_config_byte_clr(rtwdev, RTW89_PCIE_L1_CTRL,
+						RTW89_PCIE_BIT_CLK);
 	if (ret)
 		rtw89_err(rtwdev, "failed to %s CLKREQ_L1, ret=%d",
 			  enable ? "set" : "unset", ret);
@@ -2576,7 +2577,7 @@ static void rtw89_pci_aspm_set(struct rtw89_dev *rtwdev, bool enable)
 	if (rtw89_pci_disable_aspm_l1)
 		return;
 
-	ret = rtw89_dbi_read8(rtwdev, RTW89_PCIE_ASPM_CTRL, &value);
+	ret = rtw89_pci_read_config_byte(rtwdev, RTW89_PCIE_ASPM_CTRL, &value);
 	if (ret)
 		rtw89_err(rtwdev, "failed to read ASPM Delay\n");
 
@@ -2584,16 +2585,16 @@ static void rtw89_pci_aspm_set(struct rtw89_dev *rtwdev, bool enable)
 	value |= FIELD_PREP(RTW89_L1DLY_MASK, PCIE_L1DLY_16US) |
 		 FIELD_PREP(RTW89_L0DLY_MASK, PCIE_L0SDLY_4US);
 
-	ret = rtw89_dbi_write8(rtwdev, RTW89_PCIE_ASPM_CTRL, value);
+	ret = rtw89_pci_write_config_byte(rtwdev, RTW89_PCIE_ASPM_CTRL, value);
 	if (ret)
 		rtw89_err(rtwdev, "failed to read ASPM Delay\n");
 
 	if (enable)
-		ret = rtw89_dbi_write8_set(rtwdev, RTW89_PCIE_L1_CTRL,
-					   RTW89_PCIE_BIT_L1);
+		ret = rtw89_pci_config_byte_set(rtwdev, RTW89_PCIE_L1_CTRL,
+						RTW89_PCIE_BIT_L1);
 	else
-		ret = rtw89_dbi_write8_clr(rtwdev, RTW89_PCIE_L1_CTRL,
-					   RTW89_PCIE_BIT_L1);
+		ret = rtw89_pci_config_byte_clr(rtwdev, RTW89_PCIE_L1_CTRL,
+						RTW89_PCIE_BIT_L1);
 	if (ret)
 		rtw89_err(rtwdev, "failed to %s ASPM L1, ret=%d",
 			  enable ? "set" : "unset", ret);
@@ -2657,11 +2658,11 @@ static void rtw89_pci_l1ss_set(struct rtw89_dev *rtwdev, bool enable)
 	int ret;
 
 	if (enable)
-		ret = rtw89_dbi_write8_set(rtwdev, RTW89_PCIE_TIMER_CTRL,
-					   RTW89_PCIE_BIT_L1SUB);
+		ret = rtw89_pci_config_byte_set(rtwdev, RTW89_PCIE_TIMER_CTRL,
+						RTW89_PCIE_BIT_L1SUB);
 	else
-		ret = rtw89_dbi_write8_clr(rtwdev, RTW89_PCIE_TIMER_CTRL,
-					   RTW89_PCIE_BIT_L1SUB);
+		ret = rtw89_pci_config_byte_clr(rtwdev, RTW89_PCIE_TIMER_CTRL,
+						RTW89_PCIE_BIT_L1SUB);
 	if (ret)
 		rtw89_err(rtwdev, "failed to %s L1SS, ret=%d",
 			  enable ? "set" : "unset", ret);
@@ -2878,10 +2879,10 @@ static void rtw89_pci_l2_hci_ldo(struct rtw89_dev *rtwdev)
 		return;
 
 	/* Hardware need write the reg twice to ensure the setting work */
-	rtw89_dbi_write8_set(rtwdev, RTW89_PCIE_RST_MSTATE,
-			     RTW89_PCIE_BIT_CFG_RST_MSTATE);
-	rtw89_dbi_write8_set(rtwdev, RTW89_PCIE_RST_MSTATE,
-			     RTW89_PCIE_BIT_CFG_RST_MSTATE);
+	rtw89_pci_write_config_byte(rtwdev, RTW89_PCIE_RST_MSTATE,
+				    RTW89_PCIE_BIT_CFG_RST_MSTATE);
+	rtw89_pci_write_config_byte(rtwdev, RTW89_PCIE_RST_MSTATE,
+				    RTW89_PCIE_BIT_CFG_RST_MSTATE);
 }
 
 static int __maybe_unused rtw89_pci_resume(struct device *dev)
@@ -2932,11 +2933,11 @@ static const struct rtw89_hci_ops rtw89_pci_ops = {
 	.napi_poll	= rtw89_pci_napi_poll,
 };
 
-static int rtw89_pci_probe(struct pci_dev *pdev,
-			   const struct pci_device_id *id)
+int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct ieee80211_hw *hw;
 	struct rtw89_dev *rtwdev;
+	const struct rtw89_driver_info *info;
 	int driver_data_size;
 	int ret;
 
@@ -2957,13 +2958,9 @@ static int rtw89_pci_probe(struct pci_dev *pdev,
 
 	SET_IEEE80211_DEV(rtwdev->hw, &pdev->dev);
 
-	switch (id->driver_data) {
-	case RTL8852A:
-		rtwdev->chip = &rtw8852a_chip_info;
-		break;
-	default:
-		return -ENOENT;
-	}
+	info = (const struct rtw89_driver_info *)id->driver_data;
+	rtwdev->chip = info->chip;
+	rtwdev->pci_info = info->bus.pci;
 
 	ret = rtw89_core_init(rtwdev);
 	if (ret) {
@@ -3022,8 +3019,9 @@ err_release_hw:
 
 	return ret;
 }
+EXPORT_SYMBOL(rtw89_pci_probe);
 
-static void rtw89_pci_remove(struct pci_dev *pdev)
+void rtw89_pci_remove(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct rtw89_dev *rtwdev;
@@ -3038,22 +3036,7 @@ static void rtw89_pci_remove(struct pci_dev *pdev)
 	rtw89_core_deinit(rtwdev);
 	ieee80211_free_hw(hw);
 }
-
-static const struct pci_device_id rtw89_pci_id_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8852), .driver_data = RTL8852A },
-	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0xa85a), .driver_data = RTL8852A },
-	{},
-};
-MODULE_DEVICE_TABLE(pci, rtw89_pci_id_table);
-
-static struct pci_driver rtw89_pci_driver = {
-	.name		= "rtw89_pci",
-	.id_table	= rtw89_pci_id_table,
-	.probe		= rtw89_pci_probe,
-	.remove		= rtw89_pci_remove,
-	.driver.pm	= &rtw89_pm_ops,
-};
-module_pci_driver(rtw89_pci_driver);
+EXPORT_SYMBOL(rtw89_pci_remove);
 
 MODULE_AUTHOR("Realtek Corporation");
 MODULE_DESCRIPTION("Realtek 802.11ax wireless PCI driver");

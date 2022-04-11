@@ -26,6 +26,8 @@
 #include "gc/gc_10_3_0_sh_mask.h"
 #include "oss/osssys_5_0_0_offset.h"
 #include "oss/osssys_5_0_0_sh_mask.h"
+#include "athub/athub_2_1_0_offset.h"
+#include "athub/athub_2_1_0_sh_mask.h"
 #include "soc15_common.h"
 #include "v10_structs.h"
 #include "nv.h"
@@ -606,6 +608,18 @@ static int wave_control_execute_v10_3(struct amdgpu_device *adev,
 	return 0;
 }
 
+static bool get_atc_vmid_pasid_mapping_info_v10_3(struct amdgpu_device *adev,
+					uint8_t vmid, uint16_t *p_pasid)
+{
+	uint32_t value;
+
+	value = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING)
+		     + vmid);
+	*p_pasid = value & ATC_VMID0_PASID_MAPPING__PASID_MASK;
+
+	return !!(value & ATC_VMID0_PASID_MAPPING__VALID_MASK);
+}
+
 static void set_vm_context_page_table_base_v10_3(struct amdgpu_device *adev,
 		uint32_t vmid, uint64_t page_table_base)
 {
@@ -788,7 +802,7 @@ const struct kfd2kgd_calls gfx_v10_3_kfd2kgd = {
 	.hqd_destroy = hqd_destroy_v10_3,
 	.hqd_sdma_destroy = hqd_sdma_destroy_v10_3,
 	.wave_control_execute = wave_control_execute_v10_3,
-	.get_atc_vmid_pasid_mapping_info = NULL,
+	.get_atc_vmid_pasid_mapping_info = get_atc_vmid_pasid_mapping_info_v10_3,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base_v10_3,
 	.program_trap_handler_settings = program_trap_handler_settings_v10_3,
 #if 0

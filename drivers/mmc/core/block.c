@@ -1908,7 +1908,7 @@ static int mmc_blk_card_busy(struct mmc_card *card, struct request *req)
 
 	cb_data.card = card;
 	cb_data.status = 0;
-	err = __mmc_poll_for_busy(card->host, MMC_BLK_TIMEOUT_MS,
+	err = __mmc_poll_for_busy(card->host, 0, MMC_BLK_TIMEOUT_MS,
 				  &mmc_blk_busy_cb, &cb_data);
 
 	/*
