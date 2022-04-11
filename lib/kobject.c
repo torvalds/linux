@@ -54,32 +54,6 @@ void kobject_get_ownership(struct kobject *kobj, kuid_t *uid, kgid_t *gid)
 		kobj->ktype->get_ownership(kobj, uid, gid);
 }
 
-/*
- * populate_dir - populate directory with attributes.
- * @kobj: object we're working on.
- *
- * Most subsystems have a set of default attributes that are associated
- * with an object that registers with them.  This is a helper called during
- * object registration that loops through the default attributes of the
- * subsystem and creates attributes files for them in sysfs.
- */
-static int populate_dir(struct kobject *kobj)
-{
-	const struct kobj_type *t = get_ktype(kobj);
-	struct attribute *attr;
-	int error = 0;
-	int i;
-
-	if (t && t->default_attrs) {
-		for (i = 0; (attr = t->default_attrs[i]) != NULL; i++) {
-			error = sysfs_create_file(kobj, attr);
-			if (error)
-				break;
-		}
-	}
-	return error;
-}
-
 static int create_dir(struct kobject *kobj)
 {
 	const struct kobj_type *ktype = get_ktype(kobj);
@@ -89,12 +63,6 @@ static int create_dir(struct kobject *kobj)
 	error = sysfs_create_dir_ns(kobj, kobject_namespace(kobj));
 	if (error)
 		return error;
-
-	error = populate_dir(kobj);
-	if (error) {
-		sysfs_remove_dir(kobj);
-		return error;
-	}
 
 	if (ktype) {
 		error = sysfs_create_groups(kobj, ktype->default_groups);
