@@ -293,7 +293,12 @@ static int ice_repr_add(struct ice_vf *vf)
 	struct ice_q_vector *q_vector;
 	struct ice_netdev_priv *np;
 	struct ice_repr *repr;
+	struct ice_vsi *vsi;
 	int err;
+
+	vsi = ice_get_vf_vsi(vf);
+	if (!vsi)
+		return -EINVAL;
 
 	repr = kzalloc(sizeof(*repr), GFP_KERNEL);
 	if (!repr)
@@ -313,7 +318,7 @@ static int ice_repr_add(struct ice_vf *vf)
 		goto err_alloc;
 	}
 
-	repr->src_vsi = ice_get_vf_vsi(vf);
+	repr->src_vsi = vsi;
 	repr->vf = vf;
 	vf->repr = repr;
 	np = netdev_priv(repr->netdev);
