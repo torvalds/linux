@@ -373,6 +373,10 @@ struct acpi_cedt_cfmws {
 	u32 interleave_targets[];
 };
 
+struct acpi_cedt_cfmws_target_element {
+	u32 interleave_target;
+};
+
 /* Values for Interleave Arithmetic field above */
 
 #define ACPI_CEDT_CFMWS_ARITHMETIC_MODULO	(0)
