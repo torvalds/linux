@@ -2142,6 +2142,9 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_RLC_P:
 		*type = GFX_FW_TYPE_RLC_P;
 		break;
+	case AMDGPU_UCODE_ID_RLC_V:
+		*type = GFX_FW_TYPE_RLC_V;
+		break;
 	case AMDGPU_UCODE_ID_RLC_G:
 		*type = GFX_FW_TYPE_RLC_G;
 		break;
