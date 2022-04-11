@@ -2,9 +2,10 @@
 /*
  * Xilinx 'Clocking Wizard' driver
  *
- *  Copyright (C) 2013 - 2014 Xilinx
+ *  Copyright (C) 2013 - 2021 Xilinx
  *
  *  Sören Brinkmann <soren.brinkmann@xilinx.com>
+ *
  */
 
 #include <linux/platform_device.h>
