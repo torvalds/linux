@@ -39,23 +39,6 @@
 #include <linux/vfio.h>
 #include <linux/mdev.h>
 
-static const struct intel_gvt_ops intel_gvt_ops = {
-	.emulate_cfg_read = intel_vgpu_emulate_cfg_read,
-	.emulate_cfg_write = intel_vgpu_emulate_cfg_write,
-	.emulate_mmio_read = intel_vgpu_emulate_mmio_read,
-	.emulate_mmio_write = intel_vgpu_emulate_mmio_write,
-	.vgpu_create = intel_gvt_create_vgpu,
-	.vgpu_destroy = intel_gvt_destroy_vgpu,
-	.vgpu_release = intel_gvt_release_vgpu,
-	.vgpu_reset = intel_gvt_reset_vgpu,
-	.vgpu_activate = intel_gvt_activate_vgpu,
-	.vgpu_deactivate = intel_gvt_deactivate_vgpu,
-	.vgpu_query_plane = intel_vgpu_query_plane,
-	.vgpu_get_dmabuf = intel_vgpu_get_dmabuf,
-	.write_protect_handler = intel_vgpu_page_track_handler,
-	.emulate_hotplug = intel_vgpu_emulate_hotplug,
-};
-
 static void init_device_info(struct intel_gvt *gvt)
 {
 	struct intel_gvt_device_info *info = &gvt->device_info;
@@ -252,8 +235,7 @@ static int intel_gvt_init_device(struct drm_i915_private *i915)
 
 	intel_gvt_debugfs_init(gvt);
 
-	ret = intel_gvt_hypervisor_host_init(i915->drm.dev, gvt,
-					     &intel_gvt_ops);
+	ret = intel_gvt_hypervisor_host_init(i915->drm.dev, gvt);
 	if (ret)
 		goto out_destroy_idle_vgpu;
 

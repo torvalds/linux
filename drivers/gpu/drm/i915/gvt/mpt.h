@@ -51,13 +51,12 @@
  * Returns:
  * Zero on success, negative error code if failed
  */
-static inline int intel_gvt_hypervisor_host_init(struct device *dev,
-						 void *gvt, const void *ops)
+static inline int intel_gvt_hypervisor_host_init(struct device *dev, void *gvt)
 {
 	if (!intel_gvt_host.mpt->host_init)
 		return -ENODEV;
 
-	return intel_gvt_host.mpt->host_init(dev, gvt, ops);
+	return intel_gvt_host.mpt->host_init(dev, gvt);
 }
 
 /**
