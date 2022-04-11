@@ -30,7 +30,7 @@ static acpi_execute_op acpi_gbl_op_type_dispatch[] = {
 	acpi_ex_opcode_0A_0T_1R,
 	acpi_ex_opcode_1A_0T_0R,
 	acpi_ex_opcode_1A_0T_1R,
-	acpi_ex_opcode_1A_1T_0R,
+	NULL,			/* Was: acpi_ex_opcode_1A_0T_0R (Was for Load operator) */
 	acpi_ex_opcode_1A_1T_1R,
 	acpi_ex_opcode_2A_0T_0R,
 	acpi_ex_opcode_2A_0T_1R,

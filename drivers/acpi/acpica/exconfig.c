@@ -249,7 +249,7 @@ acpi_ex_region_read(union acpi_operand_object *obj_desc, u32 length, u8 *buffer)
  *
  * PARAMETERS:  obj_desc        - Region or Buffer/Field where the table will be
  *                                obtained
- *              target          - Where a handle to the table will be stored
+ *              target          - Where the status of the load will be stored
  *              walk_state      - Current state
  *
  * RETURN:      Status
@@ -277,6 +277,20 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	u32 length;
 
 	ACPI_FUNCTION_TRACE(ex_load_op);
+
+	if (target->common.descriptor_type == ACPI_DESC_TYPE_NAMED) {
+		target =
+		    acpi_ns_get_attached_object(ACPI_CAST_PTR
+						(struct acpi_namespace_node,
+						 target));
+	}
+	if (target->common.type != ACPI_TYPE_INTEGER) {
+		ACPI_EXCEPTION((AE_INFO, AE_TYPE,
+				"Type not integer: %X\n", target->common.type));
+		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
+	}
+
+	target->integer.value = 0;
 
 	/* Source Object can be either an op_region or a Buffer/Field */
 
@@ -430,9 +444,6 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	 */
 	status = acpi_ex_add_table(table_index, &ddb_handle);
 	if (ACPI_FAILURE(status)) {
-
-		/* On error, table_ptr was deallocated above */
-
 		return_ACPI_STATUS(status);
 	}
 
@@ -442,21 +453,13 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	acpi_ns_initialize_objects();
 	acpi_ex_enter_interpreter();
 
-	/* Store the ddb_handle into the Target operand */
-
-	status = acpi_ex_store(ddb_handle, target, walk_state);
-	if (ACPI_FAILURE(status)) {
-		(void)acpi_ex_unload_table(ddb_handle);
-
-		/* table_ptr was deallocated above */
-
-		acpi_ut_remove_reference(ddb_handle);
-		return_ACPI_STATUS(status);
-	}
-
-	/* Remove the reference by added by acpi_ex_store above */
+	/* Remove the reference to ddb_handle created by acpi_ex_add_table above */
 
 	acpi_ut_remove_reference(ddb_handle);
+
+	/* Return -1 (non-zero) indicates success */
+
+	target->integer.value = 0xFFFFFFFFFFFFFFFF;
 	return_ACPI_STATUS(status);
 }
 
