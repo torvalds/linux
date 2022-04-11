@@ -1670,6 +1670,7 @@ EXPORT_SYMBOL(drm_edid_are_equal);
 
 enum edid_block_status {
 	EDID_BLOCK_OK = 0,
+	EDID_BLOCK_READ_FAIL,
 	EDID_BLOCK_NULL,
 	EDID_BLOCK_ZERO,
 	EDID_BLOCK_HEADER_CORRUPT,
@@ -1735,6 +1736,9 @@ static void edid_block_status_print(enum edid_block_status status,
 {
 	switch (status) {
 	case EDID_BLOCK_OK:
+		break;
+	case EDID_BLOCK_READ_FAIL:
+		pr_debug("EDID block %d read failed\n", block_num);
 		break;
 	case EDID_BLOCK_NULL:
 		pr_debug("EDID block %d pointer is NULL\n", block_num);
@@ -2039,6 +2043,39 @@ EXPORT_SYMBOL(drm_add_override_edid_modes);
 
 typedef int read_block_fn(void *context, u8 *buf, unsigned int block, size_t len);
 
+static enum edid_block_status edid_block_read(void *block, unsigned int block_num,
+					      read_block_fn read_block,
+					      void *context)
+{
+	enum edid_block_status status;
+	bool is_base_block = block_num == 0;
+	int try;
+
+	for (try = 0; try < 4; try++) {
+		if (read_block(context, block, block_num, EDID_LENGTH))
+			return EDID_BLOCK_READ_FAIL;
+
+		status = edid_block_check(block, is_base_block);
+		if (status == EDID_BLOCK_HEADER_REPAIR) {
+			edid_header_fix(block);
+
+			/* Retry with fixed header, update status if that worked. */
+			status = edid_block_check(block, is_base_block);
+			if (status == EDID_BLOCK_OK)
+				status = EDID_BLOCK_HEADER_FIXED;
+		}
+
+		if (edid_block_status_valid(status, edid_block_tag(block)))
+			break;
+
+		/* Fail early for unrepairable base block all zeros. */
+		if (try == 0 && is_base_block && status == EDID_BLOCK_ZERO)
+			break;
+	}
+
+	return status;
+}
+
 static struct edid *drm_do_get_edid_base_block(struct drm_connector *connector,
 					       read_block_fn read_block,
 					       void *context)
@@ -2237,20 +2274,27 @@ static u32 edid_extract_panel_id(const struct edid *edid)
 
 u32 drm_edid_get_panel_id(struct i2c_adapter *adapter)
 {
-	const struct edid *edid;
-	u32 panel_id;
-
-	edid = drm_do_get_edid_base_block(NULL, drm_do_probe_ddc_edid, adapter);
+	enum edid_block_status status;
+	void *base_block;
+	u32 panel_id = 0;
 
 	/*
 	 * There are no manufacturer IDs of 0, so if there is a problem reading
 	 * the EDID then we'll just return 0.
 	 */
-	if (!edid)
+
+	base_block = kmalloc(EDID_LENGTH, GFP_KERNEL);
+	if (!base_block)
 		return 0;
 
-	panel_id = edid_extract_panel_id(edid);
-	kfree(edid);
+	status = edid_block_read(base_block, 0, drm_do_probe_ddc_edid, adapter);
+
+	edid_block_status_print(status, base_block, 0);
+
+	if (edid_block_status_valid(status, edid_block_tag(base_block)))
+		panel_id = edid_extract_panel_id(base_block);
+
+	kfree(base_block);
 
 	return panel_id;
 }
