@@ -45,7 +45,8 @@ union nf_conntrack_expect_proto {
 
 struct nf_conntrack_net_ecache {
 	struct delayed_work dwork;
-	struct netns_ct *ct_net;
+	spinlock_t dying_lock;
+	struct hlist_nulls_head dying_list;
 };
 
 struct nf_conntrack_net {

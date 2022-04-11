@@ -660,15 +660,12 @@ void nf_ct_destroy(struct nf_conntrack *nfct)
 }
 EXPORT_SYMBOL(nf_ct_destroy);
 
-static void nf_ct_delete_from_lists(struct nf_conn *ct)
+static void __nf_ct_delete_from_lists(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
 	unsigned int hash, reply_hash;
 	unsigned int sequence;
 
-	nf_ct_helper_destroy(ct);
-
-	local_bh_disable();
 	do {
 		sequence = read_seqcount_begin(&nf_conntrack_generation);
 		hash = hash_conntrack(net,
@@ -681,10 +678,31 @@ static void nf_ct_delete_from_lists(struct nf_conn *ct)
 
 	clean_from_lists(ct);
 	nf_conntrack_double_unlock(hash, reply_hash);
+}
 
+static void nf_ct_delete_from_lists(struct nf_conn *ct)
+{
+	nf_ct_helper_destroy(ct);
+	local_bh_disable();
+
+	__nf_ct_delete_from_lists(ct);
 	nf_ct_add_to_dying_list(ct);
 
 	local_bh_enable();
+}
+
+static void nf_ct_add_to_ecache_list(struct nf_conn *ct)
+{
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	struct nf_conntrack_net *cnet = nf_ct_pernet(nf_ct_net(ct));
+
+	spin_lock(&cnet->ecache.dying_lock);
+	hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
+				 &cnet->ecache.dying_list);
+	spin_unlock(&cnet->ecache.dying_lock);
+#else
+	nf_ct_add_to_dying_list(ct);
+#endif
 }
 
 bool nf_ct_delete(struct nf_conn *ct, u32 portid, int report)
@@ -709,7 +727,12 @@ bool nf_ct_delete(struct nf_conn *ct, u32 portid, int report)
 		/* destroy event was not delivered. nf_ct_put will
 		 * be done by event cache worker on redelivery.
 		 */
-		nf_ct_delete_from_lists(ct);
+		nf_ct_helper_destroy(ct);
+		local_bh_disable();
+		__nf_ct_delete_from_lists(ct);
+		nf_ct_add_to_ecache_list(ct);
+		local_bh_enable();
+
 		nf_conntrack_ecache_work(nf_ct_net(ct), NFCT_ECACHE_DESTROY_FAIL);
 		return false;
 	}
