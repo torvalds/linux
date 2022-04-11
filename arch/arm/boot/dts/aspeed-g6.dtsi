@@ -1325,6 +1325,7 @@
 				interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_RSACLK>;
 				clock-names = "rsaclk";
+				aspeed,ahbc = <&ahbc>;
 				status = "ok";
 			};
 
