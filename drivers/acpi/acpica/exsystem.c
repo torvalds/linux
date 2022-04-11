@@ -137,6 +137,11 @@ acpi_status acpi_ex_system_do_stall(u32 how_long_us)
 			    "Time parameter is too large (%u)", how_long_us));
 		status = AE_AML_OPERAND_VALUE;
 	} else {
+		if (how_long_US > 100) {
+			ACPI_WARNING((AE_INFO,
+				      "Time parameter %u us > 100 us violating ACPI spec, please fix the firmware.",
+				      how_long_us));
+		}
 		acpi_os_stall(how_long_us);
 	}
 
