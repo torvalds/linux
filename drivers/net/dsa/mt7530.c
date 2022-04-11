@@ -2900,25 +2900,16 @@ static void mt753x_phylink_get_caps(struct dsa_switch *ds, int port,
 	priv->info->mac_port_get_caps(ds, port, config);
 }
 
-static void
-mt753x_phylink_validate(struct dsa_switch *ds, int port,
-			unsigned long *supported,
-			struct phylink_link_state *state)
+static int mt753x_pcs_validate(struct phylink_pcs *pcs,
+			       unsigned long *supported,
+			       const struct phylink_link_state *state)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
-	u32 caps;
+	/* Autonegotiation is not supported in TRGMII nor 802.3z modes */
+	if (state->interface == PHY_INTERFACE_MODE_TRGMII ||
+	    phy_interface_mode_is_8023z(state->interface))
+		phylink_clear(supported, Autoneg);
 
-	caps = dsa_to_port(ds, port)->pl_config.mac_capabilities;
-
-	phylink_set_port_modes(mask);
-	phylink_get_linkmodes(mask, state->interface, caps);
-
-	if (state->interface != PHY_INTERFACE_MODE_TRGMII &&
-	    !phy_interface_mode_is_8023z(state->interface))
-		phylink_set(mask, Autoneg);
-
-	linkmode_and(supported, supported, mask);
-	linkmode_and(state->advertising, state->advertising, mask);
+	return 0;
 }
 
 static void mt7530_pcs_get_state(struct phylink_pcs *pcs,
@@ -3020,12 +3011,14 @@ static void mt7530_pcs_an_restart(struct phylink_pcs *pcs)
 }
 
 static const struct phylink_pcs_ops mt7530_pcs_ops = {
+	.pcs_validate = mt753x_pcs_validate,
 	.pcs_get_state = mt7530_pcs_get_state,
 	.pcs_config = mt753x_pcs_config,
 	.pcs_an_restart = mt7530_pcs_an_restart,
 };
 
 static const struct phylink_pcs_ops mt7531_pcs_ops = {
+	.pcs_validate = mt753x_pcs_validate,
 	.pcs_get_state = mt7531_pcs_get_state,
 	.pcs_config = mt753x_pcs_config,
 	.pcs_an_restart = mt7531_pcs_an_restart,
@@ -3117,7 +3110,6 @@ static const struct dsa_switch_ops mt7530_switch_ops = {
 	.port_mirror_add	= mt753x_port_mirror_add,
 	.port_mirror_del	= mt753x_port_mirror_del,
 	.phylink_get_caps	= mt753x_phylink_get_caps,
-	.phylink_validate	= mt753x_phylink_validate,
 	.phylink_mac_select_pcs	= mt753x_phylink_mac_select_pcs,
 	.phylink_mac_config	= mt753x_phylink_mac_config,
 	.phylink_mac_link_down	= mt753x_phylink_mac_link_down,
