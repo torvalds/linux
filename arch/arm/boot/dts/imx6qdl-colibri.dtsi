@@ -680,10 +680,11 @@
 	bus-width = <4>;
 	no-1-8-v;
 	disable-wp;
-	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
 	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_mmc_cd>;
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz &pinctrl_mmc_cd>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz &pinctrl_mmc_cd>;
+	pinctrl-3 = <&pinctrl_usdhc1_sleep &pinctrl_mmc_cd_sleep>;
 	vmmc-supply = <&reg_module_3v3>;
 	vqmmc-supply = <&vgen3_reg>;
 	status = "disabled";
@@ -951,6 +952,12 @@
 		>;
 	};
 
+	pinctrl_mmc_cd_sleep: mmccdslpgrp {
+		fsl,pins = <
+			MX6QDL_PAD_NANDF_D5__GPIO2_IO05	0x0
+		>;
+	};
+
 	pinctrl_pwm1: pwm1grp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_9__PWM1_OUT	0x1b0b1
@@ -1094,6 +1101,18 @@
 			MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x170f1
 			MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x170f1
 			MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x170f1
+		>;
+	};
+
+	/* avoid backfeeding with removed card power */
+	pinctrl_usdhc1_sleep: usdhc1sleepgrp {
+		fsl,pins = <
+			MX6QDL_PAD_SD1_CMD__SD1_CMD	0x3000
+			MX6QDL_PAD_SD1_CLK__SD1_CLK	0x3000
+			MX6QDL_PAD_SD1_DAT0__SD1_DATA0	0x3000
+			MX6QDL_PAD_SD1_DAT1__SD1_DATA1	0x3000
+			MX6QDL_PAD_SD1_DAT2__SD1_DATA2	0x3000
+			MX6QDL_PAD_SD1_DAT3__SD1_DATA3	0x3000
 		>;
 	};
 
