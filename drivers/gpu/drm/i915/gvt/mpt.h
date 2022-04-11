@@ -271,50 +271,6 @@ intel_gvt_hypervisor_dma_pin_guest_page(struct intel_vgpu *vgpu,
 }
 
 /**
- * intel_gvt_hypervisor_map_gfn_to_mfn - map a GFN region to MFN
- * @vgpu: a vGPU
- * @gfn: guest PFN
- * @mfn: host PFN
- * @nr: amount of PFNs
- * @map: map or unmap
- *
- * Returns:
- * Zero on success, negative error code if failed.
- */
-static inline int intel_gvt_hypervisor_map_gfn_to_mfn(
-		struct intel_vgpu *vgpu, unsigned long gfn,
-		unsigned long mfn, unsigned int nr,
-		bool map)
-{
-	/* a MPT implementation could have MMIO mapped elsewhere */
-	if (!intel_gvt_host.mpt->map_gfn_to_mfn)
-		return 0;
-
-	return intel_gvt_host.mpt->map_gfn_to_mfn(vgpu->handle, gfn, mfn, nr,
-						  map);
-}
-
-/**
- * intel_gvt_hypervisor_set_trap_area - Trap a guest PA region
- * @vgpu: a vGPU
- * @start: the beginning of the guest physical address region
- * @end: the end of the guest physical address region
- * @map: map or unmap
- *
- * Returns:
- * Zero on success, negative error code if failed.
- */
-static inline int intel_gvt_hypervisor_set_trap_area(
-		struct intel_vgpu *vgpu, u64 start, u64 end, bool map)
-{
-	/* a MPT implementation could have MMIO trapped elsewhere */
-	if (!intel_gvt_host.mpt->set_trap_area)
-		return 0;
-
-	return intel_gvt_host.mpt->set_trap_area(vgpu->handle, start, end, map);
-}
-
-/**
  * intel_gvt_hypervisor_set_opregion - Set opregion for guest
  * @vgpu: a vGPU
  *
