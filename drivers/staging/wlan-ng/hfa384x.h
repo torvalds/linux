@@ -1228,7 +1228,7 @@ struct hfa384x {
 	struct timer_list throttle;
 
 	struct work_struct reaper_bh;
-	struct tasklet_struct completion_bh;
+	struct work_struct completion_bh;
 
 	struct work_struct usb_work;
 
