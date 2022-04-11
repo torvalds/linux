@@ -1729,6 +1729,50 @@ static bool edid_block_valid(const void *block, bool base)
 				       edid_block_tag(block));
 }
 
+static void edid_block_status_print(enum edid_block_status status,
+				    const struct edid *block,
+				    int block_num)
+{
+	switch (status) {
+	case EDID_BLOCK_OK:
+		break;
+	case EDID_BLOCK_NULL:
+		pr_debug("EDID block %d pointer is NULL\n", block_num);
+		break;
+	case EDID_BLOCK_ZERO:
+		pr_notice("EDID block %d is all zeroes\n", block_num);
+		break;
+	case EDID_BLOCK_HEADER_CORRUPT:
+		pr_notice("EDID has corrupt header\n");
+		break;
+	case EDID_BLOCK_HEADER_REPAIR:
+		pr_debug("EDID corrupt header needs repair\n");
+		break;
+	case EDID_BLOCK_HEADER_FIXED:
+		pr_debug("EDID corrupt header fixed\n");
+		break;
+	case EDID_BLOCK_CHECKSUM:
+		if (edid_block_status_valid(status, edid_block_tag(block))) {
+			pr_debug("EDID block %d (tag 0x%02x) checksum is invalid, remainder is %d, ignoring\n",
+				 block_num, edid_block_tag(block),
+				 edid_block_compute_checksum(block));
+		} else {
+			pr_notice("EDID block %d (tag 0x%02x) checksum is invalid, remainder is %d\n",
+				  block_num, edid_block_tag(block),
+				  edid_block_compute_checksum(block));
+		}
+		break;
+	case EDID_BLOCK_VERSION:
+		pr_notice("EDID has major version %d, instead of 1\n",
+			  block->version);
+		break;
+	default:
+		WARN(1, "EDID block %d unknown edid block status code %d\n",
+		     block_num, status);
+		break;
+	}
+}
+
 /**
  * drm_edid_block_valid - Sanity check the EDID block (base or extension)
  * @raw_edid: pointer to raw EDID block
@@ -1775,33 +1819,16 @@ bool drm_edid_block_valid(u8 *_block, int block_num, bool print_bad_edid,
 			*edid_corrupt = true;
 	}
 
+	edid_block_status_print(status, block, block_num);
+
 	/* Determine whether we can use this block with this status. */
 	valid = edid_block_status_valid(status, edid_block_tag(block));
 
-	/* Some fairly random status printouts. */
-	if (status == EDID_BLOCK_CHECKSUM) {
-		if (valid) {
-			DRM_DEBUG("EDID block checksum is invalid, remainder is %d\n",
-				  edid_block_compute_checksum(block));
-			DRM_DEBUG("Assuming a KVM switch modified the block but left the original checksum\n");
-		} else if (print_bad_edid) {
-			DRM_NOTE("EDID block checksum is invalid, remainder is %d\n",
-				 edid_block_compute_checksum(block));
-		}
-	} else if (status == EDID_BLOCK_VERSION) {
-		DRM_NOTE("EDID has major version %d, instead of 1\n",
-			 block->version);
-	}
-
-	if (!valid && print_bad_edid) {
-		if (status == EDID_BLOCK_ZERO) {
-			pr_notice("EDID block is all zeroes\n");
-		} else {
-			pr_notice("Raw EDID:\n");
-			print_hex_dump(KERN_NOTICE,
-				       " \t", DUMP_PREFIX_NONE, 16, 1,
-				       block, EDID_LENGTH, false);
-		}
+	if (!valid && print_bad_edid && status != EDID_BLOCK_ZERO) {
+		pr_notice("Raw EDID:\n");
+		print_hex_dump(KERN_NOTICE,
+			       " \t", DUMP_PREFIX_NONE, 16, 1,
+			       block, EDID_LENGTH, false);
 	}
 
 	return valid;
