@@ -3149,7 +3149,7 @@ static int mtk_probe(struct platform_device *pdev)
 		struct regmap *cci;
 
 		cci = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-						      "mediatek,cci-control");
+						      "cci-control-port");
 		/* enable CPU/bus coherency */
 		if (!IS_ERR(cci))
 			regmap_write(cci, 0, 3);

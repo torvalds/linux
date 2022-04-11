@@ -970,7 +970,7 @@
 		power-domains = <&scpsys MT7622_POWER_DOMAIN_ETHSYS>;
 		mediatek,ethsys = <&ethsys>;
 		mediatek,sgmiisys = <&sgmiisys>;
-		mediatek,cci-control = <&cci_control2>;
+		cci-control-port = <&cci_control2>;
 		mediatek,wed = <&wed0>, <&wed1>;
 		mediatek,pcie-mirror = <&pcie_mirror>;
 		mediatek,hifsys = <&hifsys>;
