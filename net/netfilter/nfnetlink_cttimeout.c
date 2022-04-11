@@ -674,7 +674,6 @@ static void __exit cttimeout_exit(void)
 	RCU_INIT_POINTER(nf_ct_timeout_hook, NULL);
 
 	nf_ct_iterate_destroy(untimeout, NULL);
-	synchronize_rcu();
 }
 
 module_init(cttimeout_init);
