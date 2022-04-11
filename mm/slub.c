@@ -1268,8 +1268,7 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node, int objects)
 }
 
 /* Object debug checks for alloc/free paths */
-static void setup_object_debug(struct kmem_cache *s, struct slab *slab,
-								void *object)
+static void setup_object_debug(struct kmem_cache *s, void *object)
 {
 	if (!kmem_cache_debug_flags(s, SLAB_STORE_USER|SLAB_RED_ZONE|__OBJECT_POISON))
 		return;
@@ -1631,8 +1630,7 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
 	return flags | slub_debug_local;
 }
 #else /* !CONFIG_SLUB_DEBUG */
-static inline void setup_object_debug(struct kmem_cache *s,
-			struct slab *slab, void *object) {}
+static inline void setup_object_debug(struct kmem_cache *s, void *object) {}
 static inline
 void setup_slab_debug(struct kmem_cache *s, struct slab *slab, void *addr) {}
 
@@ -1775,10 +1773,9 @@ static inline bool slab_free_freelist_hook(struct kmem_cache *s,
 	return *head != NULL;
 }
 
-static void *setup_object(struct kmem_cache *s, struct slab *slab,
-				void *object)
+static void *setup_object(struct kmem_cache *s, void *object)
 {
-	setup_object_debug(s, slab, object);
+	setup_object_debug(s, object);
 	object = kasan_init_slab_obj(s, object);
 	if (unlikely(s->ctor)) {
 		kasan_unpoison_object_data(s, object);
@@ -1897,13 +1894,13 @@ static bool shuffle_freelist(struct kmem_cache *s, struct slab *slab)
 	/* First entry is used as the base of the freelist */
 	cur = next_freelist_entry(s, slab, &pos, start, page_limit,
 				freelist_count);
-	cur = setup_object(s, slab, cur);
+	cur = setup_object(s, cur);
 	slab->freelist = cur;
 
 	for (idx = 1; idx < slab->objects; idx++) {
 		next = next_freelist_entry(s, slab, &pos, start, page_limit,
 			freelist_count);
-		next = setup_object(s, slab, next);
+		next = setup_object(s, next);
 		set_freepointer(s, cur, next);
 		cur = next;
 	}
@@ -1974,11 +1971,11 @@ static struct slab *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 
 	if (!shuffle) {
 		start = fixup_red_left(s, start);
-		start = setup_object(s, slab, start);
+		start = setup_object(s, start);
 		slab->freelist = start;
 		for (idx = 0, p = start; idx < slab->objects - 1; idx++) {
 			next = p + s->size;
-			next = setup_object(s, slab, next);
+			next = setup_object(s, next);
 			set_freepointer(s, p, next);
 			p = next;
 		}
