@@ -137,7 +137,7 @@ acpi_status acpi_ex_system_do_stall(u32 how_long_us)
 			    "Time parameter is too large (%u)", how_long_us));
 		status = AE_AML_OPERAND_VALUE;
 	} else {
-		if (how_long_US > 100) {
+		if (how_long_us > 100) {
 			ACPI_WARNING((AE_INFO,
 				      "Time parameter %u us > 100 us violating ACPI spec, please fix the firmware.",
 				      how_long_us));
@@ -175,8 +175,8 @@ acpi_status acpi_ex_system_do_sleep(u64 how_long_ms)
 	 */
 	if (how_long_ms > 10) {
 		ACPI_WARNING((AE_INFO,
-			      "Firmware issue: Excessive sleep time (%llu ms > 10 ms) in ACPI Control Method",
-			      how_long_us));
+			      "Firmware issue: Excessive sleep time (%lu ms > 10 ms) in ACPI Control Method",
+			      how_long_ms));
 	}
 
 	/*
