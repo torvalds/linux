@@ -202,7 +202,7 @@ int skl_pcode_request(struct drm_i915_private *i915, u32 mbox, u32 request,
 
 out:
 	mutex_unlock(&i915->sb_lock);
-	return ret ? ret : status;
+	return status ? status : ret;
 #undef COND
 }
 
