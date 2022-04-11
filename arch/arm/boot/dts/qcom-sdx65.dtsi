@@ -61,10 +61,55 @@
 		#size-cells = <1>;
 		ranges;
 
+		tz_heap_mem: memory@8fcad000 {
+			no-map;
+			reg = <0x8fcad000 0x40000>;
+		};
+
+		secdata_mem: memory@8fcfd000 {
+			no-map;
+			reg = <0x8fcfd000 0x1000>;
+		};
+
+		hyp_mem: memory@8fd00000 {
+			no-map;
+			reg = <0x8fd00000 0x80000>;
+		};
+
+		access_control_mem: memory@8fd80000 {
+			no-map;
+			reg = <0x8fd80000 0x80000>;
+		};
+
+		aop_mem: memory@8fe00000 {
+			no-map;
+			reg = <0x8fe00000 0x20000>;
+		};
+
+		smem_mem: memory@8fe20000 {
+			no-map;
+			reg = <0x8fe20000 0xc0000>;
+		};
+
 		cmd_db: reserved-memory@8fee0000 {
 			compatible = "qcom,cmd-db";
 			reg = <0x8fee0000 0x20000>;
 			no-map;
+		};
+
+		tz_mem: memory@8ff00000 {
+			no-map;
+			reg = <0x8ff00000 0x100000>;
+		};
+
+		tz_apps_mem: memory@90000000 {
+			no-map;
+			reg = <0x90000000 0x500000>;
+		};
+
+		llcc_tcm_mem: memory@15800000 {
+			no-map;
+			reg = <0x15800000 0x800000>;
 		};
 	};
 
