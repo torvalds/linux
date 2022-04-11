@@ -11362,6 +11362,12 @@ enum mlxsw_reg_mgpir_device_type {
 	MLXSW_REG_MGPIR_DEVICE_TYPE_GEARBOX_DIE,
 };
 
+/* mgpir_slot_index
+ * Slot index (0: Main board).
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mgpir, slot_index, 0x00, 28, 4);
+
 /* mgpir_device_type
  * Access: RO
  */
@@ -11379,21 +11385,29 @@ MLXSW_ITEM32(reg, mgpir, devices_per_flash, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, mgpir, num_of_devices, 0x00, 0, 8);
 
+/* mgpir_num_of_slots
+ * Number of slots in the system.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mgpir, num_of_slots, 0x04, 8, 8);
+
 /* mgpir_num_of_modules
  * Number of modules.
  * Access: RO
  */
 MLXSW_ITEM32(reg, mgpir, num_of_modules, 0x04, 0, 8);
 
-static inline void mlxsw_reg_mgpir_pack(char *payload)
+static inline void mlxsw_reg_mgpir_pack(char *payload, u8 slot_index)
 {
 	MLXSW_REG_ZERO(mgpir, payload);
+	mlxsw_reg_mgpir_slot_index_set(payload, slot_index);
 }
 
 static inline void
 mlxsw_reg_mgpir_unpack(char *payload, u8 *num_of_devices,
 		       enum mlxsw_reg_mgpir_device_type *device_type,
-		       u8 *devices_per_flash, u8 *num_of_modules)
+		       u8 *devices_per_flash, u8 *num_of_modules,
+		       u8 *num_of_slots)
 {
 	if (num_of_devices)
 		*num_of_devices = mlxsw_reg_mgpir_num_of_devices_get(payload);
@@ -11404,6 +11418,8 @@ mlxsw_reg_mgpir_unpack(char *payload, u8 *num_of_devices,
 				mlxsw_reg_mgpir_devices_per_flash_get(payload);
 	if (num_of_modules)
 		*num_of_modules = mlxsw_reg_mgpir_num_of_modules_get(payload);
+	if (num_of_slots)
+		*num_of_slots = mlxsw_reg_mgpir_num_of_slots_get(payload);
 }
 
 /* MFDE - Monitoring FW Debug Register

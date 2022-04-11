@@ -1060,12 +1060,12 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
 	u8 module_count;
 	int i, err;
 
-	mlxsw_reg_mgpir_pack(mgpir_pl);
+	mlxsw_reg_mgpir_pack(mgpir_pl, 0);
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mgpir), mgpir_pl);
 	if (err)
 		return err;
 
-	mlxsw_reg_mgpir_unpack(mgpir_pl, NULL, NULL, NULL, &module_count);
+	mlxsw_reg_mgpir_unpack(mgpir_pl, NULL, NULL, NULL, &module_count, NULL);
 
 	env = kzalloc(struct_size(env, module_info, module_count), GFP_KERNEL);
 	if (!env)
