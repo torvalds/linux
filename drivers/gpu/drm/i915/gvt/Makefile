@@ -12,7 +12,6 @@ kvmgt-$(CONFIG_DRM_I915_GVT) += \
 	gvt/fb_decoder.o \
 	gvt/firmware.o \
 	gvt/gtt.o \
-	gvt/gvt.o \
 	gvt/handlers.o \
 	gvt/interrupt.o \
 	gvt/kvmgt.o \

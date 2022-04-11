@@ -1,7 +1,7 @@
 /*
  * KVMGT - the implementation of Intel mediated pass-through framework for KVM
  *
- * Copyright(c) 2014-2016 Intel Corporation. All rights reserved.
+ * Copyright(c) 2011-2016 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,6 +26,11 @@
  *    Kevin Tian <kevin.tian@intel.com>
  *    Jike Song <jike.song@intel.com>
  *    Xiaoguang Chen <xiaoguang.chen@intel.com>
+ *    Eddie Dong <eddie.dong@intel.com>
+ *
+ * Contributors:
+ *    Niu Bing <bing.niu@intel.com>
+ *    Zhi Wang <zhi.a.wang@intel.com>
  */
 
 #include <linux/init.h>
@@ -182,7 +187,7 @@ static struct attribute_group *gvt_vgpu_type_groups[] = {
 	[0 ... NR_MAX_INTEL_VGPU_TYPES - 1] = NULL,
 };
 
-int intel_gvt_init_vgpu_type_groups(struct intel_gvt *gvt)
+static int intel_gvt_init_vgpu_type_groups(struct intel_gvt *gvt)
 {
 	int i, j;
 	struct intel_vgpu_type *type;
@@ -211,7 +216,7 @@ unwind:
 	return -ENOMEM;
 }
 
-void intel_gvt_cleanup_vgpu_type_groups(struct intel_gvt *gvt)
+static void intel_gvt_cleanup_vgpu_type_groups(struct intel_gvt *gvt)
 {
 	int i;
 	struct attribute_group *group;
@@ -1720,7 +1725,7 @@ static struct mdev_driver intel_vgpu_mdev_driver = {
 	.remove		= intel_vgpu_remove,
 };
 
-const struct mdev_parent_ops intel_vgpu_mdev_ops = {
+static const struct mdev_parent_ops intel_vgpu_mdev_ops = {
 	.owner			= THIS_MODULE,
 	.supported_type_groups	= gvt_vgpu_type_groups,
 	.device_driver		= &intel_vgpu_mdev_driver,
@@ -1924,6 +1929,257 @@ void intel_gvt_dma_unmap_guest_page(struct intel_vgpu *vgpu,
 		kref_put(&entry->ref, __gvt_dma_release);
 	mutex_unlock(&vgpu->cache_lock);
 }
+
+static void init_device_info(struct intel_gvt *gvt)
+{
+	struct intel_gvt_device_info *info = &gvt->device_info;
+	struct pci_dev *pdev = to_pci_dev(gvt->gt->i915->drm.dev);
+
+	info->max_support_vgpus = 8;
+	info->cfg_space_size = PCI_CFG_SPACE_EXP_SIZE;
+	info->mmio_size = 2 * 1024 * 1024;
+	info->mmio_bar = 0;
+	info->gtt_start_offset = 8 * 1024 * 1024;
+	info->gtt_entry_size = 8;
+	info->gtt_entry_size_shift = 3;
+	info->gmadr_bytes_in_cmd = 8;
+	info->max_surface_size = 36 * 1024 * 1024;
+	info->msi_cap_offset = pdev->msi_cap;
+}
+
+static void intel_gvt_test_and_emulate_vblank(struct intel_gvt *gvt)
+{
+	struct intel_vgpu *vgpu;
+	int id;
+
+	mutex_lock(&gvt->lock);
+	idr_for_each_entry((&(gvt)->vgpu_idr), (vgpu), (id)) {
+		if (test_and_clear_bit(INTEL_GVT_REQUEST_EMULATE_VBLANK + id,
+				       (void *)&gvt->service_request)) {
+			if (vgpu->active)
+				intel_vgpu_emulate_vblank(vgpu);
+		}
+	}
+	mutex_unlock(&gvt->lock);
+}
+
+static int gvt_service_thread(void *data)
+{
+	struct intel_gvt *gvt = (struct intel_gvt *)data;
+	int ret;
+
+	gvt_dbg_core("service thread start\n");
+
+	while (!kthread_should_stop()) {
+		ret = wait_event_interruptible(gvt->service_thread_wq,
+				kthread_should_stop() || gvt->service_request);
+
+		if (kthread_should_stop())
+			break;
+
+		if (WARN_ONCE(ret, "service thread is waken up by signal.\n"))
+			continue;
+
+		intel_gvt_test_and_emulate_vblank(gvt);
+
+		if (test_bit(INTEL_GVT_REQUEST_SCHED,
+				(void *)&gvt->service_request) ||
+			test_bit(INTEL_GVT_REQUEST_EVENT_SCHED,
+					(void *)&gvt->service_request)) {
+			intel_gvt_schedule(gvt);
+		}
+	}
+
+	return 0;
+}
+
+static void clean_service_thread(struct intel_gvt *gvt)
+{
+	kthread_stop(gvt->service_thread);
+}
+
+static int init_service_thread(struct intel_gvt *gvt)
+{
+	init_waitqueue_head(&gvt->service_thread_wq);
+
+	gvt->service_thread = kthread_run(gvt_service_thread,
+			gvt, "gvt_service_thread");
+	if (IS_ERR(gvt->service_thread)) {
+		gvt_err("fail to start service thread.\n");
+		return PTR_ERR(gvt->service_thread);
+	}
+	return 0;
+}
+
+/**
+ * intel_gvt_clean_device - clean a GVT device
+ * @i915: i915 private
+ *
+ * This function is called at the driver unloading stage, to free the
+ * resources owned by a GVT device.
+ *
+ */
+static void intel_gvt_clean_device(struct drm_i915_private *i915)
+{
+	struct intel_gvt *gvt = fetch_and_zero(&i915->gvt);
+
+	if (drm_WARN_ON(&i915->drm, !gvt))
+		return;
+
+	mdev_unregister_device(i915->drm.dev);
+	intel_gvt_cleanup_vgpu_type_groups(gvt);
+	intel_gvt_destroy_idle_vgpu(gvt->idle_vgpu);
+	intel_gvt_clean_vgpu_types(gvt);
+
+	intel_gvt_debugfs_clean(gvt);
+	clean_service_thread(gvt);
+	intel_gvt_clean_cmd_parser(gvt);
+	intel_gvt_clean_sched_policy(gvt);
+	intel_gvt_clean_workload_scheduler(gvt);
+	intel_gvt_clean_gtt(gvt);
+	intel_gvt_free_firmware(gvt);
+	intel_gvt_clean_mmio_info(gvt);
+	idr_destroy(&gvt->vgpu_idr);
+
+	kfree(i915->gvt);
+}
+
+/**
+ * intel_gvt_init_device - initialize a GVT device
+ * @i915: drm i915 private data
+ *
+ * This function is called at the initialization stage, to initialize
+ * necessary GVT components.
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ *
+ */
+static int intel_gvt_init_device(struct drm_i915_private *i915)
+{
+	struct intel_gvt *gvt;
+	struct intel_vgpu *vgpu;
+	int ret;
+
+	if (drm_WARN_ON(&i915->drm, i915->gvt))
+		return -EEXIST;
+
+	gvt = kzalloc(sizeof(struct intel_gvt), GFP_KERNEL);
+	if (!gvt)
+		return -ENOMEM;
+
+	gvt_dbg_core("init gvt device\n");
+
+	idr_init_base(&gvt->vgpu_idr, 1);
+	spin_lock_init(&gvt->scheduler.mmio_context_lock);
+	mutex_init(&gvt->lock);
+	mutex_init(&gvt->sched_lock);
+	gvt->gt = to_gt(i915);
+	i915->gvt = gvt;
+
+	init_device_info(gvt);
+
+	ret = intel_gvt_setup_mmio_info(gvt);
+	if (ret)
+		goto out_clean_idr;
+
+	intel_gvt_init_engine_mmio_context(gvt);
+
+	ret = intel_gvt_load_firmware(gvt);
+	if (ret)
+		goto out_clean_mmio_info;
+
+	ret = intel_gvt_init_irq(gvt);
+	if (ret)
+		goto out_free_firmware;
+
+	ret = intel_gvt_init_gtt(gvt);
+	if (ret)
+		goto out_free_firmware;
+
+	ret = intel_gvt_init_workload_scheduler(gvt);
+	if (ret)
+		goto out_clean_gtt;
+
+	ret = intel_gvt_init_sched_policy(gvt);
+	if (ret)
+		goto out_clean_workload_scheduler;
+
+	ret = intel_gvt_init_cmd_parser(gvt);
+	if (ret)
+		goto out_clean_sched_policy;
+
+	ret = init_service_thread(gvt);
+	if (ret)
+		goto out_clean_cmd_parser;
+
+	ret = intel_gvt_init_vgpu_types(gvt);
+	if (ret)
+		goto out_clean_thread;
+
+	vgpu = intel_gvt_create_idle_vgpu(gvt);
+	if (IS_ERR(vgpu)) {
+		ret = PTR_ERR(vgpu);
+		gvt_err("failed to create idle vgpu\n");
+		goto out_clean_types;
+	}
+	gvt->idle_vgpu = vgpu;
+
+	intel_gvt_debugfs_init(gvt);
+
+	ret = intel_gvt_init_vgpu_type_groups(gvt);
+	if (ret)
+		goto out_destroy_idle_vgpu;
+
+	ret = mdev_register_device(i915->drm.dev, &intel_vgpu_mdev_ops);
+	if (ret)
+		goto out_cleanup_vgpu_type_groups;
+
+	gvt_dbg_core("gvt device initialization is done\n");
+	return 0;
+
+out_cleanup_vgpu_type_groups:
+	intel_gvt_cleanup_vgpu_type_groups(gvt);
+out_destroy_idle_vgpu:
+	intel_gvt_destroy_idle_vgpu(gvt->idle_vgpu);
+	intel_gvt_debugfs_clean(gvt);
+out_clean_types:
+	intel_gvt_clean_vgpu_types(gvt);
+out_clean_thread:
+	clean_service_thread(gvt);
+out_clean_cmd_parser:
+	intel_gvt_clean_cmd_parser(gvt);
+out_clean_sched_policy:
+	intel_gvt_clean_sched_policy(gvt);
+out_clean_workload_scheduler:
+	intel_gvt_clean_workload_scheduler(gvt);
+out_clean_gtt:
+	intel_gvt_clean_gtt(gvt);
+out_free_firmware:
+	intel_gvt_free_firmware(gvt);
+out_clean_mmio_info:
+	intel_gvt_clean_mmio_info(gvt);
+out_clean_idr:
+	idr_destroy(&gvt->vgpu_idr);
+	kfree(gvt);
+	i915->gvt = NULL;
+	return ret;
+}
+
+static void intel_gvt_pm_resume(struct drm_i915_private *i915)
+{
+	struct intel_gvt *gvt = i915->gvt;
+
+	intel_gvt_restore_fence(gvt);
+	intel_gvt_restore_mmio(gvt);
+	intel_gvt_restore_ggtt(gvt);
+}
+
+static const struct intel_vgpu_ops intel_gvt_vgpu_ops = {
+	.init_device	= intel_gvt_init_device,
+	.clean_device	= intel_gvt_clean_device,
+	.pm_resume	= intel_gvt_pm_resume,
+};
 
 static int __init kvmgt_init(void)
 {

@@ -765,12 +765,6 @@ int intel_gvt_dma_map_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 void intel_gvt_dma_unmap_guest_page(struct intel_vgpu *vgpu,
 		dma_addr_t dma_addr);
 
-int intel_gvt_init_vgpu_type_groups(struct intel_gvt *gvt);
-void intel_gvt_cleanup_vgpu_type_groups(struct intel_gvt *gvt);
-
 #include "trace.h"
-
-extern const struct intel_vgpu_ops intel_gvt_vgpu_ops;
-extern const struct mdev_parent_ops intel_vgpu_mdev_ops;
 
 #endif
