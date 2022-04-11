@@ -72,34 +72,6 @@ static inline void intel_gvt_hypervisor_host_exit(struct device *dev, void *gvt)
 }
 
 /**
- * intel_gvt_hypervisor_enable_page_track - track a guest page
- * @vgpu: a vGPU
- * @gfn: the gfn of guest
- *
- * Returns:
- * Zero on success, negative error code if failed.
- */
-static inline int intel_gvt_hypervisor_enable_page_track(
-		struct intel_vgpu *vgpu, unsigned long gfn)
-{
-	return intel_gvt_host.mpt->enable_page_track(vgpu, gfn);
-}
-
-/**
- * intel_gvt_hypervisor_disable_page_track - untrack a guest page
- * @vgpu: a vGPU
- * @gfn: the gfn of guest
- *
- * Returns:
- * Zero on success, negative error code if failed.
- */
-static inline int intel_gvt_hypervisor_disable_page_track(
-		struct intel_vgpu *vgpu, unsigned long gfn)
-{
-	return intel_gvt_host.mpt->disable_page_track(vgpu, gfn);
-}
-
-/**
  * intel_gvt_hypervisor_dma_map_guest_page - setup dma map for guest page
  * @vgpu: a vGPU
  * @gfn: guest pfn

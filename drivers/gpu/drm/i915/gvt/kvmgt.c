@@ -1702,7 +1702,7 @@ static void kvmgt_host_exit(struct device *dev, void *gvt)
 	intel_gvt_cleanup_vgpu_type_groups((struct intel_gvt *)gvt);
 }
 
-static int kvmgt_page_track_add(struct intel_vgpu *info, u64 gfn)
+int intel_gvt_page_track_add(struct intel_vgpu *info, u64 gfn)
 {
 	struct kvm *kvm = info->kvm;
 	struct kvm_memory_slot *slot;
@@ -1732,7 +1732,7 @@ out:
 	return 0;
 }
 
-static int kvmgt_page_track_remove(struct intel_vgpu *info, u64 gfn)
+int intel_gvt_page_track_remove(struct intel_vgpu *info, u64 gfn)
 {
 	struct kvm *kvm = info->kvm;
 	struct kvm_memory_slot *slot;
@@ -1968,8 +1968,6 @@ static void kvmgt_dma_unmap_guest_page(struct intel_vgpu *vgpu,
 static const struct intel_gvt_mpt kvmgt_mpt = {
 	.host_init = kvmgt_host_init,
 	.host_exit = kvmgt_host_exit,
-	.enable_page_track = kvmgt_page_track_add,
-	.disable_page_track = kvmgt_page_track_remove,
 	.dma_map_guest_page = kvmgt_dma_map_guest_page,
 	.dma_unmap_guest_page = kvmgt_dma_unmap_guest_page,
 	.dma_pin_guest_page = kvmgt_dma_pin_guest_page,

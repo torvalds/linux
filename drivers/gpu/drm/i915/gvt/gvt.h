@@ -765,6 +765,9 @@ void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_debugfs_init(struct intel_gvt *gvt);
 void intel_gvt_debugfs_clean(struct intel_gvt *gvt);
 
+int intel_gvt_page_track_add(struct intel_vgpu *info, u64 gfn);
+int intel_gvt_page_track_remove(struct intel_vgpu *info, u64 gfn);
+
 #include "trace.h"
 #include "mpt.h"
 
