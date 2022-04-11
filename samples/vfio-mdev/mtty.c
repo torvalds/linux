@@ -1208,37 +1208,10 @@ static long mtty_ioctl(struct vfio_device *vdev, unsigned int cmd,
 }
 
 static ssize_t
-sample_mtty_dev_show(struct device *dev, struct device_attribute *attr,
-		     char *buf)
-{
-	return sprintf(buf, "This is phy device\n");
-}
-
-static DEVICE_ATTR_RO(sample_mtty_dev);
-
-static struct attribute *mtty_dev_attrs[] = {
-	&dev_attr_sample_mtty_dev.attr,
-	NULL,
-};
-
-static const struct attribute_group mtty_dev_group = {
-	.name  = "mtty_dev",
-	.attrs = mtty_dev_attrs,
-};
-
-static const struct attribute_group *mtty_dev_groups[] = {
-	&mtty_dev_group,
-	NULL,
-};
-
-static ssize_t
 sample_mdev_dev_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
-	if (mdev_from_dev(dev))
-		return sprintf(buf, "This is MDEV %s\n", dev_name(dev));
-
-	return sprintf(buf, "\n");
+	return sprintf(buf, "This is MDEV %s\n", dev_name(dev));
 }
 
 static DEVICE_ATTR_RO(sample_mdev_dev);
@@ -1333,7 +1306,6 @@ static struct mdev_driver mtty_driver = {
 static const struct mdev_parent_ops mdev_fops = {
 	.owner                  = THIS_MODULE,
 	.device_driver		= &mtty_driver,
-	.dev_attr_groups        = mtty_dev_groups,
 	.supported_type_groups  = mdev_type_groups,
 };
 

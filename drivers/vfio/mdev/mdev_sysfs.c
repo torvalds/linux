@@ -197,7 +197,6 @@ void parent_remove_sysfs_files(struct mdev_parent *parent)
 		remove_mdev_supported_type(type);
 	}
 
-	sysfs_remove_groups(&parent->dev->kobj, parent->ops->dev_attr_groups);
 	kset_unregister(parent->mdev_types_kset);
 }
 
@@ -213,17 +212,10 @@ int parent_create_sysfs_files(struct mdev_parent *parent)
 
 	INIT_LIST_HEAD(&parent->type_list);
 
-	ret = sysfs_create_groups(&parent->dev->kobj,
-				  parent->ops->dev_attr_groups);
-	if (ret)
-		goto create_err;
-
 	ret = add_mdev_supported_type_groups(parent);
 	if (ret)
-		sysfs_remove_groups(&parent->dev->kobj,
-				    parent->ops->dev_attr_groups);
-	else
-		return ret;
+		goto create_err;
+	return 0;
 
 create_err:
 	kset_unregister(parent->mdev_types_kset);
