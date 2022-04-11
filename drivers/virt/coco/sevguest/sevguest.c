@@ -581,7 +581,7 @@ static void *alloc_shared_pages(size_t sz)
 	int ret;
 
 	page = alloc_pages(GFP_KERNEL_ACCOUNT, get_order(sz));
-	if (IS_ERR(page))
+	if (!page)
 		return NULL;
 
 	ret = set_memory_decrypted((unsigned long)page_address(page), npages);
