@@ -448,7 +448,7 @@ static int mlxsw_env_module_reset(struct mlxsw_core *mlxsw_core, u8 module)
 {
 	char pmaos_pl[MLXSW_REG_PMAOS_LEN];
 
-	mlxsw_reg_pmaos_pack(pmaos_pl, module);
+	mlxsw_reg_pmaos_pack(pmaos_pl, 0, module);
 	mlxsw_reg_pmaos_rst_set(pmaos_pl, true);
 
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(pmaos), pmaos_pl);
@@ -548,7 +548,7 @@ static int mlxsw_env_module_enable_set(struct mlxsw_core *mlxsw_core,
 	enum mlxsw_reg_pmaos_admin_status admin_status;
 	char pmaos_pl[MLXSW_REG_PMAOS_LEN];
 
-	mlxsw_reg_pmaos_pack(pmaos_pl, module);
+	mlxsw_reg_pmaos_pack(pmaos_pl, 0, module);
 	admin_status = enable ? MLXSW_REG_PMAOS_ADMIN_STATUS_ENABLED :
 				MLXSW_REG_PMAOS_ADMIN_STATUS_DISABLED;
 	mlxsw_reg_pmaos_admin_status_set(pmaos_pl, admin_status);
@@ -931,7 +931,7 @@ mlxsw_env_module_oper_state_event_enable(struct mlxsw_core *mlxsw_core)
 	for (i = 0; i < mlxsw_core_env(mlxsw_core)->module_count; i++) {
 		char pmaos_pl[MLXSW_REG_PMAOS_LEN];
 
-		mlxsw_reg_pmaos_pack(pmaos_pl, i);
+		mlxsw_reg_pmaos_pack(pmaos_pl, 0, i);
 		mlxsw_reg_pmaos_e_set(pmaos_pl,
 				      MLXSW_REG_PMAOS_E_GENERATE_EVENT);
 		mlxsw_reg_pmaos_ee_set(pmaos_pl, true);

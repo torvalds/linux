@@ -5769,9 +5769,10 @@ enum mlxsw_reg_pmaos_e {
  */
 MLXSW_ITEM32(reg, pmaos, e, 0x04, 0, 2);
 
-static inline void mlxsw_reg_pmaos_pack(char *payload, u8 module)
+static inline void mlxsw_reg_pmaos_pack(char *payload, u8 slot_index, u8 module)
 {
 	MLXSW_REG_ZERO(pmaos, payload);
+	mlxsw_reg_pmaos_slot_index_set(payload, slot_index);
 	mlxsw_reg_pmaos_module_set(payload, module);
 }
 
