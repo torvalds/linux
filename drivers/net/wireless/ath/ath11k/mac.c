@@ -8145,6 +8145,7 @@ static void ath11k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 	}
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static void ath11k_generate_ns_mc_addr(struct ath11k *ar,
 				       struct ath11k_arp_ns_offload *offload)
 {
@@ -8239,6 +8240,7 @@ generate:
 	/* generate ns multicast address */
 	ath11k_generate_ns_mc_addr(ar, offload);
 }
+#endif
 
 static void ath11k_mac_op_set_rekey_data(struct ieee80211_hw *hw,
 					 struct ieee80211_vif *vif,
