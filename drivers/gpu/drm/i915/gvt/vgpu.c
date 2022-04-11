@@ -405,13 +405,9 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 
 	populate_pvinfo_page(vgpu);
 
-	ret = intel_gvt_hypervisor_attach_vgpu(vgpu);
-	if (ret)
-		goto out_clean_vgpu_resource;
-
 	ret = intel_vgpu_init_gtt(vgpu);
 	if (ret)
-		goto out_detach_hypervisor_vgpu;
+		goto out_clean_vgpu_resource;
 
 	ret = intel_vgpu_init_opregion(vgpu);
 	if (ret)
@@ -454,8 +450,6 @@ out_clean_opregion:
 	intel_vgpu_clean_opregion(vgpu);
 out_clean_gtt:
 	intel_vgpu_clean_gtt(vgpu);
-out_detach_hypervisor_vgpu:
-	intel_gvt_hypervisor_detach_vgpu(vgpu);
 out_clean_vgpu_resource:
 	intel_vgpu_free_resource(vgpu);
 out_clean_vgpu_mmio:

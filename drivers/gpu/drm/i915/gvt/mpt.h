@@ -72,22 +72,6 @@ static inline void intel_gvt_hypervisor_host_exit(struct device *dev, void *gvt)
 }
 
 /**
- * intel_gvt_hypervisor_attach_vgpu - call hypervisor to initialize vGPU
- * related stuffs inside hypervisor.
- *
- * Returns:
- * Zero on success, negative error code if failed.
- */
-static inline int intel_gvt_hypervisor_attach_vgpu(struct intel_vgpu *vgpu)
-{
-	/* optional to provide */
-	if (!intel_gvt_host.mpt->attach_vgpu)
-		return 0;
-
-	return intel_gvt_host.mpt->attach_vgpu(vgpu, &vgpu->handle);
-}
-
-/**
  * intel_gvt_hypervisor_detach_vgpu - call hypervisor to release vGPU
  * related stuffs inside hypervisor.
  *
