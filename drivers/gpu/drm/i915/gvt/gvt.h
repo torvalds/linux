@@ -211,7 +211,7 @@ struct intel_vgpu {
 
 	u32 scan_nonprivbb;
 
-	struct mdev_device *mdev;
+	struct vfio_device vfio_device;
 	struct vfio_region *region;
 	int num_regions;
 	struct eventfd_ctx *intx_trigger;
