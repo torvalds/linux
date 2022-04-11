@@ -23,6 +23,20 @@
 		status = "disabled";
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
+
+		wakeup {
+			debounce-interval = <10>;
+			gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>; /* SODIMM 45 */
+			label = "Wake-Up";
+			linux,code = <KEY_WAKEUP>;
+			wakeup-source;
+		};
+	};
+
 	lcd_display: disp0 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "bgr666";
@@ -48,6 +62,12 @@
 				remote-endpoint = <&lcd_panel_in>;
 			};
 		};
+	};
+
+	/* Will be filled by the bootloader */
+	memory@10000000 {
+		device_type = "memory";
+		reg = <0x10000000 0>;
 	};
 
 	panel_dpi: panel-dpi {
@@ -564,6 +584,17 @@
 	scl-gpios = <&gpio1 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	sda-gpios = <&gpio1 6 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "disabled";
+
+	atmel_mxt_ts: touchscreen@4a {
+		compatible = "atmel,maxtouch";
+		interrupt-parent = <&gpio2>;
+		interrupts = <24 IRQ_TYPE_EDGE_FALLING>;	/* SODIMM 107 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_atmel_conn>;
+		reg = <0x4a>;
+		reset-gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;	/* SODIMM 106 */
+		status = "disabled";
+	};
 };
 
 &ipu1_di0_disp0 {
@@ -681,6 +712,28 @@
 &iomuxc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usbh_oc_1>;
+
+	/* Atmel MXT touchsceen + Capacitive Touch Adapter */
+	/* NOTE: This pin group conflicts with pin groups
+	 * pinctrl_pwm1/pinctrl_pwm4. Don't use them simultaneously.
+	 */
+	pinctrl_atmel_adap: atmeladaptergrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_9__GPIO1_IO09   0xb0b1  /* SODIMM  28 */
+			MX6QDL_PAD_SD4_DAT2__GPIO2_IO10 0xb0b1  /* SODIMM  30 */
+		>;
+	};
+
+	/* Atmel MXT touchsceen + boards with built-in Capacitive Touch Connector */
+	/* NOTE: This pin group conflicts with pin groups pinctrl_weim_cs1 and
+	 * pinctrl_weim_cs2. Don't use them simultaneously.
+	 */
+	pinctrl_atmel_conn: atmelconnectorgrp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_CS1__GPIO2_IO24  0xb0b1  /* SODIMM_107 */
+			MX6QDL_PAD_SD2_DAT1__GPIO1_IO14 0xb0b1  /* SODIMM_106 */
+		>;
+	};
 
 	pinctrl_audmux: audmuxgrp {
 		fsl,pins = <
