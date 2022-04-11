@@ -487,7 +487,10 @@ properties:
       - description: i.MX6DL Boards with Toradex Colibri iMX6DL/S Modules
         items:
           - enum:
+              - toradex,colibri_imx6dl-aster        # Colibri iMX6DL/S Module on Aster Board
               - toradex,colibri_imx6dl-eval-v3      # Colibri iMX6DL/S Module on Colibri Evaluation Board V3
+              - toradex,colibri_imx6dl-iris         # Colibri iMX6DL/S Module on Iris Board
+              - toradex,colibri_imx6dl-iris-v2      # Colibri iMX6DL/S Module on Iris Board V2
           - const: toradex,colibri_imx6dl           # Colibri iMX6DL/S Module
           - const: fsl,imx6dl
 
