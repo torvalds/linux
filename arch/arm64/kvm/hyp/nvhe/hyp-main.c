@@ -31,8 +31,6 @@ static void flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 	hyp_vcpu->vcpu.arch.sve_state	= kern_hyp_va(host_vcpu->arch.sve_state);
 	hyp_vcpu->vcpu.arch.sve_max_vl	= host_vcpu->arch.sve_max_vl;
 
-	hyp_vcpu->vcpu.arch.hw_mmu	= host_vcpu->arch.hw_mmu;
-
 	hyp_vcpu->vcpu.arch.hcr_el2	= host_vcpu->arch.hcr_el2;
 	hyp_vcpu->vcpu.arch.mdcr_el2	= host_vcpu->arch.mdcr_el2;
 	hyp_vcpu->vcpu.arch.cptr_el2	= host_vcpu->arch.cptr_el2;
@@ -100,6 +98,47 @@ static void handle___kvm_vcpu_run(struct kvm_cpu_context *host_ctxt)
 		ret = __kvm_vcpu_run(host_vcpu);
 	}
 
+out:
+	cpu_reg(host_ctxt, 1) =  ret;
+}
+
+static int pkvm_refill_memcache(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct pkvm_hyp_vm *hyp_vm = pkvm_hyp_vcpu_to_hyp_vm(hyp_vcpu);
+	u64 nr_pages = VTCR_EL2_LVLS(hyp_vm->kvm.arch.vtcr) - 1;
+	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+
+	return refill_memcache(&hyp_vcpu->vcpu.arch.pkvm_memcache, nr_pages,
+			       &host_vcpu->arch.pkvm_memcache);
+}
+
+static void handle___pkvm_host_map_guest(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(u64, pfn, host_ctxt, 1);
+	DECLARE_REG(u64, gfn, host_ctxt, 2);
+	DECLARE_REG(struct kvm_vcpu *, host_vcpu, host_ctxt, 3);
+	struct pkvm_hyp_vcpu *hyp_vcpu;
+	struct kvm *host_kvm;
+	int ret = -EINVAL;
+
+	if (!is_protected_kvm_enabled())
+		goto out;
+
+	host_vcpu = kern_hyp_va(host_vcpu);
+	host_kvm = kern_hyp_va(host_vcpu->kvm);
+	hyp_vcpu = pkvm_load_hyp_vcpu(host_kvm->arch.pkvm.handle,
+				      host_vcpu->vcpu_idx);
+	if (!hyp_vcpu)
+		goto out;
+
+	/* Top-up our per-vcpu memcache from the host's */
+	ret = pkvm_refill_memcache(hyp_vcpu);
+	if (ret)
+		goto out_put_vcpu;
+
+	ret = __pkvm_host_share_guest(pfn, gfn, hyp_vcpu);
+out_put_vcpu:
+	pkvm_put_hyp_vcpu(hyp_vcpu);
 out:
 	cpu_reg(host_ctxt, 1) =  ret;
 }
@@ -319,6 +358,7 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__pkvm_host_share_hyp),
 	HANDLE_FUNC(__pkvm_host_unshare_hyp),
 	HANDLE_FUNC(__pkvm_host_reclaim_page),
+	HANDLE_FUNC(__pkvm_host_map_guest),
 	HANDLE_FUNC(__kvm_adjust_pc),
 	HANDLE_FUNC(__kvm_vcpu_run),
 	HANDLE_FUNC(__kvm_flush_vm_context),

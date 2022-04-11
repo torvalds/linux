@@ -6,6 +6,7 @@
 
 #include <linux/kvm_host.h>
 #include <linux/memblock.h>
+#include <linux/mm.h>
 #include <linux/mutex.h>
 #include <linux/sort.h>
 
@@ -199,6 +200,10 @@ int pkvm_create_hyp_vm(struct kvm *host_kvm)
 
 void pkvm_destroy_hyp_vm(struct kvm *host_kvm)
 {
+	struct kvm_pinned_page *ppage, *tmp;
+	struct mm_struct *mm = current->mm;
+	struct list_head *ppages;
+
 	if (host_kvm->arch.pkvm.handle) {
 		WARN_ON(kvm_call_hyp_nvhe(__pkvm_teardown_vm,
 					  host_kvm->arch.pkvm.handle));
@@ -206,6 +211,18 @@ void pkvm_destroy_hyp_vm(struct kvm *host_kvm)
 
 	host_kvm->arch.pkvm.handle = 0;
 	free_hyp_memcache(&host_kvm->arch.pkvm.teardown_mc);
+
+	ppages = &host_kvm->arch.pkvm.pinned_pages;
+	list_for_each_entry_safe(ppage, tmp, ppages, link) {
+		WARN_ON(kvm_call_hyp_nvhe(__pkvm_host_reclaim_page,
+					  page_to_pfn(ppage->page)));
+		cond_resched();
+
+		account_locked_vm(mm, 1, false);
+		unpin_user_pages_dirty_lock(&ppage->page, 1, true);
+		list_del(&ppage->link);
+		kfree(ppage);
+	}
 }
 
 int pkvm_init_host_vm(struct kvm *host_kvm)
