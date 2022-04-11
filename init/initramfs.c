@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 #include <linux/namei.h>
 #include <linux/init_syscalls.h>
+#include <linux/task_work.h>
 #include <linux/umh.h>
 
 static ssize_t __init xwrite(struct file *file, const char *p, size_t count,
@@ -703,6 +704,7 @@ done:
 	initrd_end = 0;
 
 	flush_delayed_fput();
+	task_work_run();
 }
 
 static ASYNC_DOMAIN_EXCLUSIVE(initramfs_domain);
