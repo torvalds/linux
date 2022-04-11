@@ -68,4 +68,5 @@ Miscellaneous documentation can be further found in these documents:
 .. toctree::
    :maxdepth: 2
 
+   n_gsm
    n_tty

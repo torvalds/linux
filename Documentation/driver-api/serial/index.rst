@@ -17,7 +17,6 @@ Serial drivers
     :maxdepth: 1
 
     moxa-smartio
-    n_gsm
     serial-iso7816
     serial-rs485
 
