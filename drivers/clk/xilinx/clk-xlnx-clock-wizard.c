@@ -44,6 +44,8 @@
 #define WZRD_DR_INIT_REG_OFFSET		0x25C
 #define WZRD_DR_DIV_TO_PHASE_OFFSET	4
 #define WZRD_DR_BEGIN_DYNA_RECONF	0x03
+#define WZRD_DR_BEGIN_DYNA_RECONF_5_2	0x07
+#define WZRD_DR_BEGIN_DYNA_RECONF1_5_2	0x02
 
 #define WZRD_USEC_POLL		10
 #define WZRD_TIMEOUT_POLL		1000
@@ -165,7 +167,9 @@ static int clk_wzrd_dynamic_reconfig(struct clk_hw *hw, unsigned long rate,
 		goto err_reconfig;
 
 	/* Initiate reconfiguration */
-	writel(WZRD_DR_BEGIN_DYNA_RECONF,
+	writel(WZRD_DR_BEGIN_DYNA_RECONF_5_2,
+	       divider->base + WZRD_DR_INIT_REG_OFFSET);
+	writel(WZRD_DR_BEGIN_DYNA_RECONF1_5_2,
 	       divider->base + WZRD_DR_INIT_REG_OFFSET);
 
 	/* Check status register */
@@ -224,7 +228,7 @@ static int clk_wzrd_dynamic_reconfig_f(struct clk_hw *hw, unsigned long rate,
 	struct clk_wzrd_divider *divider = to_clk_wzrd_divider(hw);
 	void __iomem *div_addr = divider->base + divider->offset;
 
-	rate_div = ((parent_rate * 1000) / rate);
+	rate_div = DIV_ROUND_DOWN_ULL(parent_rate * 1000, rate);
 	clockout0_div = rate_div / 1000;
 
 	pre = DIV_ROUND_CLOSEST((parent_rate * 1000), rate);
@@ -246,7 +250,9 @@ static int clk_wzrd_dynamic_reconfig_f(struct clk_hw *hw, unsigned long rate,
 		return err;
 
 	/* Initiate reconfiguration */
-	writel(WZRD_DR_BEGIN_DYNA_RECONF,
+	writel(WZRD_DR_BEGIN_DYNA_RECONF_5_2,
+	       divider->base + WZRD_DR_INIT_REG_OFFSET);
+	writel(WZRD_DR_BEGIN_DYNA_RECONF1_5_2,
 	       divider->base + WZRD_DR_INIT_REG_OFFSET);
 
 	/* Check status register */
