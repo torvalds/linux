@@ -53,12 +53,12 @@
 SYM_FUNC_START(copy_user_generic_unrolled)
 	ASM_STAC
 	cmpl $8,%edx
-	jb 20f		/* less then 8 bytes, go to byte copy loop */
+	jb .Lcopy_user_short_string_bytes
 	ALIGN_DESTINATION
 	movl %edx,%ecx
 	andl $63,%edx
 	shrl $6,%ecx
-	jz .L_copy_short_string
+	jz copy_user_short_string
 1:	movq (%rsi),%r8
 2:	movq 1*8(%rsi),%r9
 3:	movq 2*8(%rsi),%r10
@@ -79,37 +79,11 @@ SYM_FUNC_START(copy_user_generic_unrolled)
 	leaq 64(%rdi),%rdi
 	decl %ecx
 	jnz 1b
-.L_copy_short_string:
-	movl %edx,%ecx
-	andl $7,%edx
-	shrl $3,%ecx
-	jz 20f
-18:	movq (%rsi),%r8
-19:	movq %r8,(%rdi)
-	leaq 8(%rsi),%rsi
-	leaq 8(%rdi),%rdi
-	decl %ecx
-	jnz 18b
-20:	andl %edx,%edx
-	jz 23f
-	movl %edx,%ecx
-21:	movb (%rsi),%al
-22:	movb %al,(%rdi)
-	incq %rsi
-	incq %rdi
-	decl %ecx
-	jnz 21b
-23:	xor %eax,%eax
-	ASM_CLAC
-	RET
+	jmp copy_user_short_string
 
 30:	shll $6,%ecx
 	addl %ecx,%edx
-	jmp 60f
-40:	leal (%rdx,%rcx,8),%edx
-	jmp 60f
-50:	movl %ecx,%edx
-60:	jmp .Lcopy_user_handle_tail /* ecx is zerorest also */
+	jmp .Lcopy_user_handle_tail
 
 	_ASM_EXTABLE_CPY(1b, 30b)
 	_ASM_EXTABLE_CPY(2b, 30b)
@@ -127,10 +101,6 @@ SYM_FUNC_START(copy_user_generic_unrolled)
 	_ASM_EXTABLE_CPY(14b, 30b)
 	_ASM_EXTABLE_CPY(15b, 30b)
 	_ASM_EXTABLE_CPY(16b, 30b)
-	_ASM_EXTABLE_CPY(18b, 40b)
-	_ASM_EXTABLE_CPY(19b, 40b)
-	_ASM_EXTABLE_CPY(21b, 50b)
-	_ASM_EXTABLE_CPY(22b, 50b)
 SYM_FUNC_END(copy_user_generic_unrolled)
 EXPORT_SYMBOL(copy_user_generic_unrolled)
 
@@ -191,7 +161,7 @@ EXPORT_SYMBOL(copy_user_generic_string)
 SYM_FUNC_START(copy_user_enhanced_fast_string)
 	ASM_STAC
 	/* CPUs without FSRM should avoid rep movsb for short copies */
-	ALTERNATIVE "cmpl $64, %edx; jb .L_copy_short_string", "", X86_FEATURE_FSRM
+	ALTERNATIVE "cmpl $64, %edx; jb copy_user_short_string", "", X86_FEATURE_FSRM
 	movl %edx,%ecx
 1:	rep movsb
 	xorl %eax,%eax
@@ -242,6 +212,53 @@ SYM_CODE_START_LOCAL(.Lcopy_user_handle_tail)
 	jmp .Lcopy_user_handle_tail
 
 SYM_CODE_END(.Lcopy_user_handle_tail)
+
+/*
+ * Finish memcpy of less than 64 bytes.  #AC should already be set.
+ *
+ * Input:
+ * rdi destination
+ * rsi source
+ * rdx count (< 64)
+ *
+ * Output:
+ * eax uncopied bytes or 0 if successful.
+ */
+SYM_CODE_START_LOCAL(copy_user_short_string)
+	movl %edx,%ecx
+	andl $7,%edx
+	shrl $3,%ecx
+	jz .Lcopy_user_short_string_bytes
+18:	movq (%rsi),%r8
+19:	movq %r8,(%rdi)
+	leaq 8(%rsi),%rsi
+	leaq 8(%rdi),%rdi
+	decl %ecx
+	jnz 18b
+.Lcopy_user_short_string_bytes:
+	andl %edx,%edx
+	jz 23f
+	movl %edx,%ecx
+21:	movb (%rsi),%al
+22:	movb %al,(%rdi)
+	incq %rsi
+	incq %rdi
+	decl %ecx
+	jnz 21b
+23:	xor %eax,%eax
+	ASM_CLAC
+	RET
+
+40:	leal (%rdx,%rcx,8),%edx
+	jmp 60f
+50:	movl %ecx,%edx		/* ecx is zerorest also */
+60:	jmp .Lcopy_user_handle_tail
+
+	_ASM_EXTABLE_CPY(18b, 40b)
+	_ASM_EXTABLE_CPY(19b, 40b)
+	_ASM_EXTABLE_CPY(21b, 50b)
+	_ASM_EXTABLE_CPY(22b, 50b)
+SYM_CODE_END(copy_user_short_string)
 
 /*
  * copy_user_nocache - Uncached memory copy with exception handling
