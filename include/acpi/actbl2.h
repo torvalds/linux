@@ -842,7 +842,8 @@ enum acpi_madt_type {
 	ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR = 14,
 	ACPI_MADT_TYPE_GENERIC_TRANSLATOR = 15,
 	ACPI_MADT_TYPE_MULTIPROC_WAKEUP = 16,
-	ACPI_MADT_TYPE_RESERVED = 17	/* 17 and greater are reserved */
+	ACPI_MADT_TYPE_RESERVED = 17,	/* 17 to 0x7F are reserved */
+	ACPI_MADT_TYPE_OEM_RESERVED = 0x80	/* 0x80 to 0xFF are reserved for OEM use */
 };
 
 /*
@@ -1071,6 +1072,12 @@ struct acpi_madt_multiproc_wakeup_mailbox {
 };
 
 #define ACPI_MP_WAKE_COMMAND_WAKEUP    1
+
+/* 17: OEM data */
+
+struct acpi_madt_oem_data {
+	u8 oem_data[0];
+};
 
 /*
  * Common flags fields for MADT subtables
