@@ -214,8 +214,7 @@
 	};
 
 	timer {
-		compatible = "arm,cortex-a7-timer",
-			     "arm,armv7-timer";
+		compatible = "arm,armv7-timer";
 		interrupt-parent = <&gic>;
 		arm,cpu-registers-not-fw-configured;
 		always-on;
