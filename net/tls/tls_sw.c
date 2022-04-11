@@ -1452,7 +1452,7 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	aead_size = sizeof(*aead_req) + crypto_aead_reqsize(ctx->aead_recv);
 	mem_size = aead_size + (nsg * sizeof(struct scatterlist));
 	mem_size = mem_size + prot->aad_size;
-	mem_size = mem_size + crypto_aead_ivsize(ctx->aead_recv);
+	mem_size = mem_size + MAX_IV_SIZE;
 
 	/* Allocate a single block of memory which contains
 	 * aead_req || sgin[] || sgout[] || aad || iv.
