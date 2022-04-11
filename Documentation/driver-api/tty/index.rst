@@ -36,7 +36,6 @@ In-detail description of the named TTY structures is in separate documents:
    tty_struct
    tty_ldisc
    tty_buffer
-   n_tty
    tty_internals
 
 Writing TTY Driver
@@ -60,3 +59,13 @@ A *typical* sequence a TTY driver performs is as follows:
 Steps regarding driver, i.e. 1., 3., and 5. are described in detail in
 :doc:`tty_driver`. For the other two (devices handling), look into
 :doc:`tty_port`.
+
+Other Documentation
+===================
+
+Miscellaneous documentation can be further found in these documents:
+
+.. toctree::
+   :maxdepth: 2
+
+   n_tty
