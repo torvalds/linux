@@ -579,6 +579,7 @@ struct haptics_chip {
 	struct input_dev		*input_dev;
 	struct haptics_hw_config	config;
 	struct haptics_effect		*effects;
+	struct haptics_effect		*primitives;
 	struct haptics_effect		*custom_effect;
 	struct haptics_play_info	play;
 	struct haptics_mmap		mmap;
@@ -594,11 +595,13 @@ struct haptics_chip {
 	int				fifo_empty_irq;
 	u32				hpwr_voltage_mv;
 	u32				effects_count;
+	u32				primitives_count;
 	u32				cfg_addr_base;
 	u32				ptn_addr_base;
 	u32				hbst_addr_base;
 	u32				clamped_vmax_mv;
 	u32				wa_flags;
+	u32				primitive_duration;
 	u8				cfg_revision;
 	u8				ptn_revision;
 	u8				hpwr_intf_ctl;
@@ -734,7 +737,8 @@ static int haptics_masked_write(struct haptics_chip *chip,
 	return rc;
 }
 
-static void __dump_effects(struct haptics_chip *chip)
+static void __dump_effects(struct haptics_chip *chip,
+				struct haptics_effect *effects, int effects_count)
 {
 	struct haptics_effect *effect;
 	struct pattern_s *sample;
@@ -742,8 +746,8 @@ static void __dump_effects(struct haptics_chip *chip)
 	u32 size, pos;
 	int i, j;
 
-	for (i = 0; i < chip->effects_count; i++) {
-		effect = &chip->effects[i];
+	for (i = 0; i < effects_count; i++) {
+		effect = &effects[i];
 		if (!effect)
 			return;
 
@@ -2341,13 +2345,12 @@ unlock:
 	return rc;
 }
 
-static u32 get_play_length_us(struct haptics_play_info *play)
+static u32 get_play_length_effect_us(struct haptics_effect *effect)
 {
-	struct haptics_effect *effect = play->effect;
 	u32 length_us = 0;
 
-	if (play->brake)
-		length_us = play->brake->play_length_us;
+	if (effect->brake)
+		length_us = effect->brake->play_length_us;
 
 	if ((effect->src == PATTERN1 || effect->src == PATTERN2)
 			&& effect->pattern)
@@ -2358,28 +2361,57 @@ static u32 get_play_length_us(struct haptics_play_info *play)
 	return length_us;
 }
 
+static inline u32 get_play_length_us(struct haptics_play_info *play)
+{
+	return get_play_length_effect_us(play->effect);
+}
+
+#define PRIMITIVE_EFFECT_ID_BIT		BIT(15)
+#define PRIMITIVE_EFFECT_ID_MASK	GENMASK(14, 0)
 static int haptics_load_periodic_effect(struct haptics_chip *chip,
 			s16 __user *data, u32 length, s16 magnitude)
 {
 	struct haptics_play_info *play = &chip->play;
 	s16 custom_data[CUSTOM_DATA_LEN] = { 0 };
+	struct haptics_effect *effects = NULL;
+	s16 custom_id = 0;
+	int effects_count = 0;
 	int rc, i;
-
-	if (chip->effects_count == 0)
-		return -EINVAL;
+	bool primitive;
 
 	if (copy_from_user(custom_data, data, sizeof(custom_data)))
 		return -EFAULT;
 
-	for (i = 0; i < chip->effects_count; i++)
-		if (chip->effects[i].id == custom_data[CUSTOM_DATA_EFFECT_IDX])
+	primitive = !!(custom_data[CUSTOM_DATA_EFFECT_IDX] & PRIMITIVE_EFFECT_ID_BIT);
+
+	if (primitive) {
+		if (chip->primitives_count == 0)
+			return -EINVAL;
+
+		custom_id = custom_data[CUSTOM_DATA_EFFECT_IDX] & PRIMITIVE_EFFECT_ID_MASK;
+		effects = chip->primitives;
+		effects_count = chip->primitives_count;
+	} else {
+		if (chip->effects_count == 0)
+			return -EINVAL;
+
+		custom_id = custom_data[CUSTOM_DATA_EFFECT_IDX];
+		effects = chip->effects;
+		effects_count = chip->effects_count;
+	}
+
+	for (i = 0; i < effects_count; i++)
+		if (effects[i].id == custom_id)
 			break;
 
-	if (i == chip->effects_count) {
+	if (i == effects_count) {
 		dev_err(chip->dev, "effect%d is not supported!\n",
 				custom_data[CUSTOM_DATA_EFFECT_IDX]);
 		return -EINVAL;
 	}
+
+	dev_dbg(chip->dev, "upload %s effect %d, vmax=%d\n", primitive ? "primitive" : "predefined",
+			effects[i].id, play->vmax_mv);
 
 	mutex_lock(&chip->play.lock);
 	if (chip->play.in_calibration) {
@@ -2388,12 +2420,11 @@ static int haptics_load_periodic_effect(struct haptics_chip *chip,
 		goto unlock;
 	}
 
-	play->vmax_mv = (magnitude * chip->effects[i].vmax_mv) / 0x7fff;
-	dev_dbg(chip->dev, "upload effect %d, vmax_mv=%d\n", chip->effects[i].id, play->vmax_mv);
-	rc = haptics_load_predefined_effect(chip, &chip->effects[i]);
+	play->vmax_mv = (magnitude * effects[i].vmax_mv) / 0x7fff;
+	rc = haptics_load_predefined_effect(chip, &effects[i]);
 	if (rc < 0) {
 		dev_err(chip->dev, "Play predefined effect%d failed, rc=%d\n",
-				chip->effects[i].id, rc);
+				effects[i].id, rc);
 		goto unlock;
 	}
 	mutex_unlock(&chip->play.lock);
@@ -3804,12 +3835,37 @@ static int haptics_add_effects_debugfs(struct haptics_effect *effect,
 	return 0;
 }
 
-#define EFFECT_NAME_SIZE		12
+#define EFFECT_NAME_SIZE		15
+static int haptics_add_debugfs(struct dentry *hap_dir, struct haptics_effect *effects,
+			int count, char *effect_name)
+{
+	struct dentry *effect_dir;
+	char str[EFFECT_NAME_SIZE] = {0};
+	int rc = 0;
+	int i = 0;
+
+	for (; i < count; i++) {
+		scnprintf(str, ARRAY_SIZE(str), "%s%d", effect_name, effects[i].id);
+		effect_dir = debugfs_create_dir(str, hap_dir);
+		if (IS_ERR(effect_dir)) {
+			rc = PTR_ERR(effect_dir);
+			pr_err("create %s debugfs directory failed, rc=%d\n", str, rc);
+			return rc;
+		}
+		rc = haptics_add_effects_debugfs(&effects[i], effect_dir);
+		if (rc < 0) {
+			pr_err("create debugfs nodes for %s failed, rc=%d\n", str, rc);
+			return rc;
+		}
+	}
+
+	return rc;
+}
+
 static int haptics_create_debugfs(struct haptics_chip *chip)
 {
-	struct dentry *hap_dir, *effect_dir, *file;
-	char str[EFFECT_NAME_SIZE] = {0};
-	int rc, i;
+	struct dentry *hap_dir, *file;
+	int rc = 0;
 
 	hap_dir = debugfs_create_dir("haptics", NULL);
 	if (IS_ERR(hap_dir)) {
@@ -3819,24 +3875,13 @@ static int haptics_create_debugfs(struct haptics_chip *chip)
 		return rc;
 	}
 
-	for (i = 0; i < chip->effects_count; i++) {
-		scnprintf(str, ARRAY_SIZE(str), "effect%d",
-				chip->effects[i].id);
-		effect_dir = debugfs_create_dir(str, hap_dir);
-		if (IS_ERR(effect_dir)) {
-			rc = PTR_ERR(effect_dir);
-			dev_err(chip->dev, "create %s debugfs directory failed, rc=%d\n",
-					str, rc);
-			goto exit;
-		}
+	rc = haptics_add_debugfs(hap_dir, chip->effects, chip->effects_count, "effect");
+	if (rc < 0)
+		goto exit;
 
-		rc = haptics_add_effects_debugfs(&chip->effects[i], effect_dir);
-		if (rc < 0) {
-			dev_err(chip->dev, "create debugfs nodes for %s failed, rc=%d\n",
-					str, rc);
-			goto exit;
-		}
-	}
+	rc = haptics_add_debugfs(hap_dir, chip->primitives, chip->primitives_count, "primitive");
+	if (rc < 0)
+		goto exit;
 
 	file = debugfs_create_file_unsafe("preload_effect_idx", 0644, hap_dir,
 			chip, &preload_effect_idx_dbgfs_ops);
@@ -4139,6 +4184,54 @@ static int haptics_parse_per_effect_dt(struct haptics_chip *chip,
 	return 0;
 }
 
+static int haptics_parse_primitives_dt(struct haptics_chip *chip)
+{
+	struct device_node *node = chip->dev->of_node;
+	struct device_node *child;
+	int rc, i = 0, num = 0;
+
+	for_each_available_child_of_node(node, child) {
+		if (of_find_property(child, "qcom,primitive-id", NULL))
+			num++;
+	}
+	if (!num)
+		return 0;
+
+	chip->primitives = devm_kcalloc(chip->dev, num,
+			sizeof(*chip->effects), GFP_KERNEL);
+	if (!chip->primitives)
+		return -ENOMEM;
+
+	for_each_available_child_of_node(node, child) {
+		if (!of_find_property(child, "qcom,primitive-id", NULL))
+			continue;
+
+		rc = of_property_read_u32(child, "qcom,primitive-id", &(chip->primitives[i].id));
+		if (rc < 0) {
+			dev_err(chip->dev, "Read qcom,primitive-id failed, rc=%d\n",
+					rc);
+			of_node_put(child);
+			return rc;
+		}
+
+		rc = haptics_parse_per_effect_dt(chip, child,
+					&chip->primitives[i]);
+		if (rc < 0) {
+			dev_err(chip->dev, "parse primitive %d failed, rc=%d\n",
+					i);
+			of_node_put(child);
+			return rc;
+		}
+		i++;
+	}
+
+	chip->primitives_count = i;
+	dev_dbg(chip->dev, "Dump primitive effect settings as following\n");
+	__dump_effects(chip, chip->primitives, chip->primitives_count);
+
+	return 0;
+}
+
 static int haptics_parse_effects_dt(struct haptics_chip *chip)
 {
 	struct device_node *node = chip->dev->of_node;
@@ -4161,6 +4254,14 @@ static int haptics_parse_effects_dt(struct haptics_chip *chip)
 		if (!of_find_property(child, "qcom,effect-id", NULL))
 			continue;
 
+		rc = of_property_read_u32(child, "qcom,effect-id", &(chip->effects[i].id));
+		if (rc < 0) {
+			dev_err(chip->dev, "Read qcom,effect-id failed, rc=%d\n",
+					rc);
+			of_node_put(child);
+			return rc;
+		}
+
 		rc = haptics_parse_per_effect_dt(chip, child,
 					&chip->effects[i]);
 		if (rc < 0) {
@@ -4173,7 +4274,8 @@ static int haptics_parse_effects_dt(struct haptics_chip *chip)
 	}
 
 	chip->effects_count = i;
-	__dump_effects(chip);
+	dev_dbg(chip->dev, "Dump predefined effect settings as following\n");
+	__dump_effects(chip, chip->effects, chip->effects_count);
 
 	return 0;
 }
@@ -4468,6 +4570,13 @@ static int haptics_parse_dt(struct haptics_chip *chip)
 	if (rc < 0) {
 		dev_err(chip->dev, "Parse device-tree for effects failed, rc=%d\n",
 				 rc);
+		goto free_pbs;
+	}
+
+	rc = haptics_parse_primitives_dt(chip);
+	if (rc < 0) {
+		dev_err(chip->dev, "Parse device-tree for primitives failed, rc=%d\n",
+				rc);
 		goto free_pbs;
 	}
 
@@ -5154,10 +5263,48 @@ static ssize_t lra_impedance_show(struct class *c,
 }
 static CLASS_ATTR_RO(lra_impedance);
 
+static ssize_t primitive_duration_show(struct class *c,
+		struct class_attribute *attr, char *buf)
+{
+	struct haptics_chip *chip = container_of(c,
+			struct haptics_chip, hap_class);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", chip->primitive_duration);
+}
+
+static ssize_t primitive_duration_store(struct class *c,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	struct haptics_chip *chip = container_of(c,
+			struct haptics_chip, hap_class);
+	u16 primitive_id = 0;
+	int i = 0;
+
+	if (kstrtou16(buf, 0, &primitive_id))
+		return -EINVAL;
+
+	for (i = 0; i < chip->primitives_count; i++) {
+		if (chip->primitives[i].id == primitive_id)
+			break;
+	}
+
+	if (i == chip->primitives_count) {
+		pr_err("Primitive id specified is incorrect\n");
+		return -EINVAL;
+	}
+
+	chip->primitive_duration = get_play_length_effect_us(&chip->primitives[i]);
+
+	return count;
+}
+
+static CLASS_ATTR_RW(primitive_duration);
+
 static struct attribute *hap_class_attrs[] = {
 	&class_attr_lra_calibration.attr,
 	&class_attr_lra_frequency_hz.attr,
 	&class_attr_lra_impedance.attr,
+	&class_attr_primitive_duration.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(hap_class);
@@ -5288,15 +5435,15 @@ static int haptics_probe(struct platform_device *pdev)
 
 	input_set_capability(input_dev, EV_FF, FF_CONSTANT);
 	input_set_capability(input_dev, EV_FF, FF_GAIN);
-	if (chip->effects_count != 0) {
+	if ((chip->effects_count != 0) || (chip->primitives_count != 0)) {
 		input_set_capability(input_dev, EV_FF, FF_PERIODIC);
 		input_set_capability(input_dev, EV_FF, FF_CUSTOM);
 	}
 
-	if (chip->effects_count < MAX_EFFECT_COUNT)
-		count = chip->effects_count + 1;
-	else
-		count = MAX_EFFECT_COUNT;
+	if (chip->effects_count + chip->primitives_count > MAX_EFFECT_COUNT)
+		dev_err(chip->dev, "Effects count cannot be more than %d\n", MAX_EFFECT_COUNT);
+
+	count = min_t(u32, chip->effects_count + chip->primitives_count + 1, MAX_EFFECT_COUNT);
 
 	rc = input_ff_create(input_dev, count);
 	if (rc < 0) {
