@@ -100,6 +100,13 @@ struct gvt_dma {
 	struct kref ref;
 };
 
+static void kvmgt_page_track_write(struct kvm_vcpu *vcpu, gpa_t gpa,
+		const u8 *val, int len,
+		struct kvm_page_track_notifier_node *node);
+static void kvmgt_page_track_flush_slot(struct kvm *kvm,
+		struct kvm_memory_slot *slot,
+		struct kvm_page_track_notifier_node *node);
+
 static ssize_t available_instances_show(struct mdev_type *mtype,
 					struct mdev_type_attribute *attr,
 					char *buf)
@@ -213,9 +220,7 @@ void intel_gvt_cleanup_vgpu_type_groups(struct intel_gvt *gvt)
 	}
 }
 
-static int kvmgt_guest_init(struct mdev_device *mdev);
 static void intel_vgpu_release_work(struct work_struct *work);
-static bool kvmgt_guest_exit(struct intel_vgpu *info);
 
 static void gvt_unpin_guest_page(struct intel_vgpu *vgpu, unsigned long gfn,
 		unsigned long size)
@@ -803,6 +808,27 @@ static int intel_vgpu_group_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static bool __kvmgt_vgpu_exist(struct intel_vgpu *vgpu)
+{
+	struct intel_vgpu *itr;
+	int id;
+	bool ret = false;
+
+	mutex_lock(&vgpu->gvt->lock);
+	for_each_active_vgpu(vgpu->gvt, itr, id) {
+		if (!itr->attached)
+			continue;
+
+		if (vgpu->kvm == itr->kvm) {
+			ret = true;
+			goto out;
+		}
+	}
+out:
+	mutex_unlock(&vgpu->gvt->lock);
+	return ret;
+}
+
 static int intel_vgpu_open_device(struct mdev_device *mdev)
 {
 	struct intel_vgpu *vgpu = mdev_get_drvdata(mdev);
@@ -847,14 +873,37 @@ static int intel_vgpu_open_device(struct mdev_device *mdev)
 		goto undo_group;
 	}
 
-	ret = kvmgt_guest_init(mdev);
-	if (ret)
+	ret = -EEXIST;
+	if (vgpu->attached)
 		goto undo_group;
+
+	ret = -ESRCH;
+	if (!vgpu->kvm || vgpu->kvm->mm != current->mm) {
+		gvt_vgpu_err("KVM is required to use Intel vGPU\n");
+		goto undo_group;
+	}
+
+	ret = -EEXIST;
+	if (__kvmgt_vgpu_exist(vgpu))
+		goto undo_group;
+
+	vgpu->attached = true;
+	kvm_get_kvm(vgpu->kvm);
+
+	kvmgt_protect_table_init(vgpu);
+	gvt_cache_init(vgpu);
+
+	vgpu->track_node.track_write = kvmgt_page_track_write;
+	vgpu->track_node.track_flush_slot = kvmgt_page_track_flush_slot;
+	kvm_page_track_register_notifier(vgpu->kvm, &vgpu->track_node);
+
+	debugfs_create_ulong(KVMGT_DEBUGFS_FILENAME, 0444, vgpu->debugfs,
+			     &vgpu->nr_cache_entries);
 
 	intel_gvt_activate_vgpu(vgpu);
 
 	atomic_set(&vgpu->released, 0);
-	return ret;
+	return 0;
 
 undo_group:
 	vfio_group_put_external_user(vgpu->vfio_group);
@@ -908,7 +957,12 @@ static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 	/* dereference module reference taken at open */
 	module_put(THIS_MODULE);
 
-	kvmgt_guest_exit(vgpu);
+	debugfs_remove(debugfs_lookup(KVMGT_DEBUGFS_FILENAME, vgpu->debugfs));
+
+	kvm_page_track_unregister_notifier(vgpu->kvm, &vgpu->track_node);
+	kvm_put_kvm(vgpu->kvm);
+	kvmgt_protect_table_destroy(vgpu);
+	gvt_cache_destroy(vgpu);
 
 	intel_vgpu_release_msi_eventfd_ctx(vgpu);
 	vfio_group_put_external_user(vgpu->vfio_group);
@@ -1761,69 +1815,6 @@ static void kvmgt_page_track_flush_slot(struct kvm *kvm,
 		}
 	}
 	write_unlock(&kvm->mmu_lock);
-}
-
-static bool __kvmgt_vgpu_exist(struct intel_vgpu *vgpu, struct kvm *kvm)
-{
-	struct intel_vgpu *itr;
-	int id;
-	bool ret = false;
-
-	mutex_lock(&vgpu->gvt->lock);
-	for_each_active_vgpu(vgpu->gvt, itr, id) {
-		if (!itr->attached)
-			continue;
-
-		if (kvm && kvm == itr->kvm) {
-			ret = true;
-			goto out;
-		}
-	}
-out:
-	mutex_unlock(&vgpu->gvt->lock);
-	return ret;
-}
-
-static int kvmgt_guest_init(struct mdev_device *mdev)
-{
-	struct intel_vgpu *vgpu = mdev_get_drvdata(mdev);
-	struct kvm *kvm = vgpu->kvm;
-
-	if (vgpu->attached)
-		return -EEXIST;
-
-	if (!kvm || kvm->mm != current->mm) {
-		gvt_vgpu_err("KVM is required to use Intel vGPU\n");
-		return -ESRCH;
-	}
-
-	if (__kvmgt_vgpu_exist(vgpu, kvm))
-		return -EEXIST;
-
-	vgpu->attached = true;
-	kvm_get_kvm(vgpu->kvm);
-
-	kvmgt_protect_table_init(vgpu);
-	gvt_cache_init(vgpu);
-
-	vgpu->track_node.track_write = kvmgt_page_track_write;
-	vgpu->track_node.track_flush_slot = kvmgt_page_track_flush_slot;
-	kvm_page_track_register_notifier(kvm, &vgpu->track_node);
-
-	debugfs_create_ulong(KVMGT_DEBUGFS_FILENAME, 0444, vgpu->debugfs,
-			     &vgpu->nr_cache_entries);
-	return 0;
-}
-
-static bool kvmgt_guest_exit(struct intel_vgpu *info)
-{
-	debugfs_remove(debugfs_lookup(KVMGT_DEBUGFS_FILENAME, info->debugfs));
-
-	kvm_page_track_unregister_notifier(info->kvm, &info->track_node);
-	kvm_put_kvm(info->kvm);
-	kvmgt_protect_table_destroy(info);
-	gvt_cache_destroy(info);
-	return true;
 }
 
 void intel_vgpu_detach_regions(struct intel_vgpu *vgpu)
