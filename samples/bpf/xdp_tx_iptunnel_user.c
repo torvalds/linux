@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <net/if.h>
-#include <sys/resource.h>
 #include <arpa/inet.h>
 #include <netinet/ether.h>
 #include <unistd.h>

@@ -14,7 +14,6 @@ static const char *__doc__ = " XDP RX-queue info extract example\n\n"
 #include <string.h>
 #include <unistd.h>
 #include <locale.h>
-#include <sys/resource.h>
 #include <getopt.h>
 #include <net/if.h>
 #include <time.h>

@@ -18,7 +18,6 @@
 #include <bpf/libbpf.h>
 
 #include "bpf_util.h"
-#include "bpf_rlimit.h"
 #include "../../../include/linux/filter.h"
 
 #define LOCAL_FREE_TARGET	(128)
@@ -877,6 +876,9 @@ int main(int argc, char **argv)
 	nr_cpus = bpf_num_possible_cpus();
 	assert(nr_cpus != -1);
 	printf("nr_cpus:%d\n\n", nr_cpus);
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	for (f = 0; f < ARRAY_SIZE(map_flags); f++) {
 		unsigned int tgt_free = (map_flags[f] & BPF_F_NO_COMMON_LRU) ?
