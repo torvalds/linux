@@ -525,35 +525,6 @@ clean_from_lists(struct nf_conn *ct)
 	nf_ct_remove_expectations(ct);
 }
 
-/* must be called with local_bh_disable */
-static void nf_ct_add_to_unconfirmed_list(struct nf_conn *ct)
-{
-	struct ct_pcpu *pcpu;
-
-	/* add this conntrack to the (per cpu) unconfirmed list */
-	ct->cpu = smp_processor_id();
-	pcpu = per_cpu_ptr(nf_ct_net(ct)->ct.pcpu_lists, ct->cpu);
-
-	spin_lock(&pcpu->lock);
-	hlist_nulls_add_head(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
-			     &pcpu->unconfirmed);
-	spin_unlock(&pcpu->lock);
-}
-
-/* must be called with local_bh_disable */
-static void nf_ct_del_from_unconfirmed_list(struct nf_conn *ct)
-{
-	struct ct_pcpu *pcpu;
-
-	/* We overload first tuple to link into unconfirmed list.*/
-	pcpu = per_cpu_ptr(nf_ct_net(ct)->ct.pcpu_lists, ct->cpu);
-
-	spin_lock(&pcpu->lock);
-	BUG_ON(hlist_nulls_unhashed(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode));
-	hlist_nulls_del_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode);
-	spin_unlock(&pcpu->lock);
-}
-
 #define NFCT_ALIGN(len)	(((len) + NFCT_INFOMASK) & ~NFCT_INFOMASK)
 
 /* Released via nf_ct_destroy() */
@@ -625,18 +596,12 @@ void nf_ct_destroy(struct nf_conntrack *nfct)
 	if (unlikely(nf_ct_protonum(ct) == IPPROTO_GRE))
 		destroy_gre_conntrack(ct);
 
-	local_bh_disable();
 	/* Expectations will have been removed in clean_from_lists,
 	 * except TFTP can create an expectation on the first packet,
 	 * before connection is in the list, so we need to clean here,
 	 * too.
 	 */
 	nf_ct_remove_expectations(ct);
-
-	if (unlikely(!nf_ct_is_confirmed(ct)))
-		nf_ct_del_from_unconfirmed_list(ct);
-
-	local_bh_enable();
 
 	if (ct->master)
 		nf_ct_put(ct->master);
@@ -1248,7 +1213,6 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	 * user context, else we insert an already 'dead' hash, blocking
 	 * further use of that particular connection -JM.
 	 */
-	nf_ct_del_from_unconfirmed_list(ct);
 	ct->status |= IPS_CONFIRMED;
 
 	if (unlikely(nf_ct_is_dying(ct))) {
@@ -1803,9 +1767,8 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	if (!exp)
 		__nf_ct_try_assign_helper(ct, tmpl, GFP_ATOMIC);
 
-	/* Now it is inserted into the unconfirmed list, set refcount to 1. */
+	/* Now it is going to be associated with an sk_buff, set refcount to 1. */
 	refcount_set(&ct->ct_general.use, 1);
-	nf_ct_add_to_unconfirmed_list(ct);
 
 	local_bh_enable();
 
@@ -2594,7 +2557,6 @@ i_see_dead_people:
 		nf_conntrack_ecache_pernet_fini(net);
 		nf_conntrack_expect_pernet_fini(net);
 		free_percpu(net->ct.stat);
-		free_percpu(net->ct.pcpu_lists);
 	}
 }
 
@@ -2805,26 +2767,14 @@ int nf_conntrack_init_net(struct net *net)
 {
 	struct nf_conntrack_net *cnet = nf_ct_pernet(net);
 	int ret = -ENOMEM;
-	int cpu;
 
 	BUILD_BUG_ON(IP_CT_UNTRACKED == IP_CT_NUMBER);
 	BUILD_BUG_ON_NOT_POWER_OF_2(CONNTRACK_LOCKS);
 	atomic_set(&cnet->count, 0);
 
-	net->ct.pcpu_lists = alloc_percpu(struct ct_pcpu);
-	if (!net->ct.pcpu_lists)
-		goto err_stat;
-
-	for_each_possible_cpu(cpu) {
-		struct ct_pcpu *pcpu = per_cpu_ptr(net->ct.pcpu_lists, cpu);
-
-		spin_lock_init(&pcpu->lock);
-		INIT_HLIST_NULLS_HEAD(&pcpu->unconfirmed, UNCONFIRMED_NULLS_VAL);
-	}
-
 	net->ct.stat = alloc_percpu(struct ip_conntrack_stat);
 	if (!net->ct.stat)
-		goto err_pcpu_lists;
+		return ret;
 
 	ret = nf_conntrack_expect_pernet_init(net);
 	if (ret < 0)
@@ -2840,8 +2790,5 @@ int nf_conntrack_init_net(struct net *net)
 
 err_expect:
 	free_percpu(net->ct.stat);
-err_pcpu_lists:
-	free_percpu(net->ct.pcpu_lists);
-err_stat:
 	return ret;
 }
