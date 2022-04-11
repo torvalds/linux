@@ -184,9 +184,6 @@ static void owl_uart_send_chars(struct uart_port *port)
 	struct circ_buf *xmit = &port->state->xmit;
 	unsigned int ch;
 
-	if (uart_tx_stopped(port))
-		return;
-
 	if (port->x_char) {
 		while (!(owl_uart_read(port, OWL_UART_STAT) & OWL_UART_STAT_TFFU))
 			cpu_relax();
@@ -194,6 +191,9 @@ static void owl_uart_send_chars(struct uart_port *port)
 		port->icount.tx++;
 		port->x_char = 0;
 	}
+
+	if (uart_tx_stopped(port))
+		return;
 
 	while (!(owl_uart_read(port, OWL_UART_STAT) & OWL_UART_STAT_TFFU)) {
 		if (uart_circ_empty(xmit))
