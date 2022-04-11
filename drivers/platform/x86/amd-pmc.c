@@ -422,6 +422,13 @@ static int amd_pmc_idlemask_show(struct seq_file *s, void *unused)
 	struct amd_pmc_dev *dev = s->private;
 	int rc;
 
+	/* we haven't yet read SMU version */
+	if (!dev->major) {
+		rc = amd_pmc_get_smu_version(dev);
+		if (rc)
+			return rc;
+	}
+
 	if (dev->major > 56 || (dev->major >= 55 && dev->minor >= 37)) {
 		rc = amd_pmc_idlemask_read(dev, NULL, s);
 		if (rc)
@@ -875,7 +882,6 @@ static int amd_pmc_probe(struct platform_device *pdev)
 			return err;
 	}
 
-	amd_pmc_get_smu_version(dev);
 	platform_set_drvdata(pdev, dev);
 #ifdef CONFIG_SUSPEND
 	err = acpi_register_lps0_dev(&amd_pmc_s2idle_dev_ops);
