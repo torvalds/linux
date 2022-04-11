@@ -978,8 +978,8 @@ struct acpi_madt_multiproc_wakeup {
 	u64 base_address;
 };
 
-#define ACPI_MULTIPROC_WAKEUP_MB_OS_SIZE	2032
-#define ACPI_MULTIPROC_WAKEUP_MB_FIRMWARE_SIZE	2048
+#define ACPI_MULTIPROC_WAKEUP_MB_OS_SIZE        2032
+#define ACPI_MULTIPROC_WAKEUP_MB_FIRMWARE_SIZE  2048
 
 struct acpi_madt_multiproc_wakeup_mailbox {
 	u16 command;
@@ -1597,7 +1597,7 @@ struct acpi_nhlt_mic_device_specific_config {
 
 /* Values for array_type_ext above */
 
-#define ACPI_NHLT_ARRAY_TYPE_RESERVED               0x09	// 9 and below are reserved
+#define ACPI_NHLT_ARRAY_TYPE_RESERVED               0x09	/* 9 and below are reserved */
 #define ACPI_NHLT_SMALL_LINEAR_2ELEMENT             0x0A
 #define ACPI_NHLT_BIG_LINEAR_2ELEMENT               0x0B
 #define ACPI_NHLT_FIRST_GEOMETRY_LINEAR_4ELEMENT    0x0C
@@ -1617,17 +1617,17 @@ struct acpi_nhlt_vendor_mic_count {
 struct acpi_nhlt_vendor_mic_config {
 	u8 type;
 	u8 panel;
-	u16 speaker_position_distance;	// mm
-	u16 horizontal_offset;	// mm
-	u16 vertical_offset;	// mm
-	u8 frequency_low_band;	// 5*hz
-	u8 frequency_high_band;	// 500*hz
-	u16 direction_angle;	// -180 - + 180
-	u16 elevation_angle;	// -180 - + 180
-	u16 work_vertical_angle_begin;	// -180 - + 180 with 2 deg step
-	u16 work_vertical_angle_end;	// -180 - + 180 with 2 deg step
-	u16 work_horizontal_angle_begin;	// -180 - + 180 with 2 deg step
-	u16 work_horizontal_angle_end;	// -180 - + 180 with 2 deg step
+	u16 speaker_position_distance;	/* mm */
+	u16 horizontal_offset;	/* mm */
+	u16 vertical_offset;	/* mm */
+	u8 frequency_low_band;	/* 5*Hz */
+	u8 frequency_high_band;	/* 500*Hz */
+	u16 direction_angle;	/* -180 - + 180 */
+	u16 elevation_angle;	/* -180 - + 180 */
+	u16 work_vertical_angle_begin;	/* -180 - + 180 with 2 deg step */
+	u16 work_vertical_angle_end;	/* -180 - + 180 with 2 deg step */
+	u16 work_horizontal_angle_begin;	/* -180 - + 180 with 2 deg step */
+	u16 work_horizontal_angle_end;	/* -180 - + 180 with 2 deg step */
 };
 
 /* Values for Type field above */
@@ -1638,9 +1638,9 @@ struct acpi_nhlt_vendor_mic_config {
 #define ACPI_NHLT_MIC_SUPER_CARDIOID        3
 #define ACPI_NHLT_MIC_HYPER_CARDIOID        4
 #define ACPI_NHLT_MIC_8_SHAPED              5
-#define ACPI_NHLT_MIC_RESERVED6             6	// 6 is reserved
+#define ACPI_NHLT_MIC_RESERVED6             6	/* 6 is reserved */
 #define ACPI_NHLT_MIC_VENDOR_DEFINED        7
-#define ACPI_NHLT_MIC_RESERVED              8	// 8 and above are reserved
+#define ACPI_NHLT_MIC_RESERVED              8	/* 8 and above are reserved */
 
 /* Values for Panel field above */
 
@@ -1650,12 +1650,12 @@ struct acpi_nhlt_vendor_mic_config {
 #define ACPI_NHLT_MIC_POSITION_RIGHT        3
 #define ACPI_NHLT_MIC_POSITION_FRONT        4
 #define ACPI_NHLT_MIC_POSITION_BACK         5
-#define ACPI_NHLT_MIC_POSITION_RESERVED     6	// 6 and above are reserved
+#define ACPI_NHLT_MIC_POSITION_RESERVED     6	/* 6 and above are reserved */
 
 struct acpi_nhlt_vendor_mic_device_specific_config {
 	struct acpi_nhlt_mic_device_specific_config mic_array_device_config;
 	u8 number_of_microphones;
-	struct acpi_nhlt_vendor_mic_config mic_config[];	// indexed by number_of_microphones
+	struct acpi_nhlt_vendor_mic_config mic_config[];	/* Indexed by number_of_microphones */
 };
 
 /* Microphone SNR and Sensitivity extension */
@@ -1668,8 +1668,8 @@ struct acpi_nhlt_mic_snr_sensitivity_extension {
 /* Render device with feedback */
 
 struct acpi_nhlt_render_feedback_device_specific_config {
-	u8 feedback_virtual_slot;	// render slot in case of capture
-	u16 feedback_channels;	// informative only
+	u8 feedback_virtual_slot;	/* Render slot in case of capture */
+	u16 feedback_channels;	/* Informative only */
 	u16 feedback_valid_bits_per_sample;
 };
 

@@ -379,15 +379,15 @@ struct acpi_cedt_cfmws_target_element {
 
 /* Values for Interleave Arithmetic field above */
 
-#define ACPI_CEDT_CFMWS_ARITHMETIC_MODULO	(0)
+#define ACPI_CEDT_CFMWS_ARITHMETIC_MODULO   (0)
 
 /* Values for Restrictions field above */
 
-#define ACPI_CEDT_CFMWS_RESTRICT_TYPE2		(1)
-#define ACPI_CEDT_CFMWS_RESTRICT_TYPE3		(1<<1)
-#define ACPI_CEDT_CFMWS_RESTRICT_VOLATILE	(1<<2)
-#define ACPI_CEDT_CFMWS_RESTRICT_PMEM		(1<<3)
-#define ACPI_CEDT_CFMWS_RESTRICT_FIXED		(1<<4)
+#define ACPI_CEDT_CFMWS_RESTRICT_TYPE2      (1)
+#define ACPI_CEDT_CFMWS_RESTRICT_TYPE3      (1<<1)
+#define ACPI_CEDT_CFMWS_RESTRICT_VOLATILE   (1<<2)
+#define ACPI_CEDT_CFMWS_RESTRICT_PMEM       (1<<3)
+#define ACPI_CEDT_CFMWS_RESTRICT_FIXED      (1<<4)
 
 /*******************************************************************************
  *
