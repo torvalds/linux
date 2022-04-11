@@ -357,7 +357,7 @@ struct acpi_table_bdat {
  * IORT - IO Remapping Table
  *
  * Conforms to "IO Remapping Table System Software on ARM Platforms",
- * Document number: ARM DEN 0049E.b, Feb 2021
+ * Document number: ARM DEN 0049E.d, Feb 2022
  *
  ******************************************************************************/
 
@@ -454,7 +454,8 @@ struct acpi_iort_root_complex {
 	u32 ats_attribute;
 	u32 pci_segment_number;
 	u8 memory_address_limit;	/* Memory address size limit */
-	u8 reserved[3];		/* Reserved, must be zero */
+	u16 pasid_capabilities;	/* PASID Capabilities */
+	u8 reserved[1];		/* Reserved, must be zero */
 };
 
 /* Masks for ats_attribute field above */
@@ -462,6 +463,9 @@ struct acpi_iort_root_complex {
 #define ACPI_IORT_ATS_SUPPORTED         (1)	/* The root complex ATS support */
 #define ACPI_IORT_PRI_SUPPORTED         (1<<1)	/* The root complex PRI support */
 #define ACPI_IORT_PASID_FWD_SUPPORTED   (1<<2)	/* The root complex PASID forward support */
+
+/* Masks for pasid_capabilities field above */
+#define ACPI_IORT_PASID_MAX_WIDTH       (0x1F)	/* Bits 0-4 */
 
 struct acpi_iort_smmu {
 	u64 base_address;	/* SMMU base address */
@@ -537,6 +541,25 @@ struct acpi_iort_rmr {
 	u32 rmr_count;
 	u32 rmr_offset;
 };
+
+/* Masks for Flags field above */
+#define ACPI_IORT_RMR_REMAP_PERMITTED      (1)
+#define ACPI_IORT_RMR_ACCESS_PRIVILEGE     (1<<1)
+
+/*
+ * Macro to access the Access Attributes in flags field above:
+ *  Access Attributes is encoded in bits 9:2
+ */
+#define ACPI_IORT_RMR_ACCESS_ATTRIBUTES(flags)          (((flags) >> 2) & 0xFF)
+
+/* Values for above Access Attributes */
+
+#define ACPI_IORT_RMR_ATTR_DEVICE_NGNRNE   0x00
+#define ACPI_IORT_RMR_ATTR_DEVICE_NGNRE    0x01
+#define ACPI_IORT_RMR_ATTR_DEVICE_NGRE     0x02
+#define ACPI_IORT_RMR_ATTR_DEVICE_GRE      0x03
+#define ACPI_IORT_RMR_ATTR_NORMAL_NC       0x04
+#define ACPI_IORT_RMR_ATTR_NORMAL_IWB_OWB  0x05
 
 struct acpi_iort_rmr_desc {
 	u64 base_address;
