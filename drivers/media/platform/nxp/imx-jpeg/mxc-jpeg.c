@@ -1422,7 +1422,6 @@ static int mxc_jpeg_buf_prepare(struct vb2_buffer *vb)
 				i, vb2_plane_size(vb, i), sizeimage);
 			return -EINVAL;
 		}
-		vb2_set_plane_payload(vb, i, sizeimage);
 	}
 	return 0;
 }
@@ -1470,7 +1469,6 @@ static int mxc_jpeg_queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->lock = &ctx->mxc_jpeg->lock;
 	src_vq->dev = ctx->mxc_jpeg->dev;
-	src_vq->allow_zero_bytesused = 1; /* keep old userspace apps working */
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
