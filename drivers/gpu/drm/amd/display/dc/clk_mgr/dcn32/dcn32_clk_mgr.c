@@ -284,7 +284,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool dpp_clock_lowered = false;
 	struct dmcu *dmcu = clk_mgr_base->ctx->dc->res_pool->dmcu;
 	bool force_reset = false;
-	bool update_uclk = false;
+	bool update_uclk = false, update_fclk = false;
 	bool p_state_change_support;
 	bool fclk_p_state_change_support;
 	int total_plane_count;
@@ -371,14 +371,17 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			update_uclk = true;
 		}
 
+		/* Always update saved value, even if new value not set due to P-State switching unsupported. Also check safe_to_lower for FCLK */
+		if (safe_to_lower && (clk_mgr_base->clks.fclk_p_state_change_support != clk_mgr_base->clks.fclk_prev_p_state_change_support)) {
+			update_fclk = true;
+		}
+
 		/* set UCLK to requested value if P-State switching is supported, or to re-enable P-State switching */
 		if (clk_mgr_base->clks.p_state_change_support &&
 				(update_uclk || !clk_mgr_base->clks.prev_p_state_change_support))
 			dcn30_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dramclk_khz));
 
-		if (clk_mgr_base->clks.fclk_p_state_change_support &&
-				(update_uclk || !clk_mgr_base->clks.fclk_prev_p_state_change_support)) {
-
+		if (clk_mgr_base->ctx->dce_version != DCN_VERSION_3_21 && clk_mgr_base->clks.fclk_p_state_change_support && update_fclk) {
 			/* Handle the code for sending a message to PMFW that FCLK P-state change is supported */
 			dcn32_smu_send_fclk_pstate_message(clk_mgr, FCLK_PSTATE_SUPPORTED);
 		}

@@ -33,7 +33,6 @@
 #define FCLK_PSTATE_SUPPORTED          0x01
 
 /* TODO Remove this MSG ID define after it becomes available in dalsmc */
-#define DALSMC_MSG_SetFclkSwitchAllow	0x11
 #define DALSMC_MSG_SetCabForUclkPstate	0x12
 #define DALSMC_Result_OK				0x1
 
