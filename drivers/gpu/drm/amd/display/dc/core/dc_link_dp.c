@@ -5822,6 +5822,10 @@ void detect_edp_sink_caps(struct dc_link *link)
 		core_link_read_dpcd(link, DP_PSR_SUPPORT,
 			&link->dpcd_caps.psr_info.psr_version,
 			sizeof(link->dpcd_caps.psr_info.psr_version));
+		if (link->dpcd_caps.sink_dev_id == DP_BRANCH_DEVICE_ID_001CF8)
+			core_link_read_dpcd(link, DP_FORCE_PSRSU_CAPABILITY,
+						&link->dpcd_caps.psr_info.force_psrsu_cap,
+						sizeof(link->dpcd_caps.psr_info.force_psrsu_cap));
 		core_link_read_dpcd(link, DP_PSR_CAPS,
 			&link->dpcd_caps.psr_info.psr_dpcd_caps.raw,
 			sizeof(link->dpcd_caps.psr_info.psr_dpcd_caps.raw));
