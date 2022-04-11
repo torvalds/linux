@@ -701,6 +701,10 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 			ucode->ucode_size = adev->gfx.rlc.rlc_dram_ucode_size_bytes;
 			ucode_addr = adev->gfx.rlc.rlc_dram_ucode;
 			break;
+		case AMDGPU_UCODE_ID_RLC_P:
+			ucode->ucode_size = adev->gfx.rlc.rlcp_ucode_size_bytes;
+			ucode_addr = adev->gfx.rlc.rlcp_ucode;
+			break;
 		case AMDGPU_UCODE_ID_CP_MES:
 			ucode->ucode_size = le32_to_cpu(mes_hdr->mes_ucode_size_bytes);
 			ucode_addr = (u8 *)ucode->fw->data +
