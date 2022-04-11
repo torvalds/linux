@@ -2310,7 +2310,7 @@ struct acpi_table_rgrt {
 	u16 version;
 	u8 image_type;
 	u8 reserved;
-	u8 image[0];
+	u8 image[];
 };
 
 /* image_type values */
