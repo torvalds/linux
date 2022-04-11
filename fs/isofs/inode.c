@@ -30,6 +30,9 @@
 #include "isofs.h"
 #include "zisofs.h"
 
+/* max tz offset is 13 hours */
+#define MAX_TZ_OFFSET (52*15*60)
+
 #define BEQUIET
 
 static int isofs_hashi(const struct dentry *parent, struct qstr *qstr);
@@ -800,6 +803,10 @@ root_found:
 	 * size of a file system, which is 8 TB.
 	 */
 	s->s_maxbytes = 0x80000000000LL;
+
+	/* ECMA-119 timestamp from 1900/1/1 with tz offset */
+	s->s_time_min = mktime64(1900, 1, 1, 0, 0, 0) - MAX_TZ_OFFSET;
+	s->s_time_max = mktime64(U8_MAX+1900, 12, 31, 23, 59, 59) + MAX_TZ_OFFSET;
 
 	/* Set this for reference. Its not currently used except on write
 	   which we don't have .. */

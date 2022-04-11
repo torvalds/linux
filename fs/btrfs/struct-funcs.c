@@ -33,6 +33,8 @@ static inline void put_unaligned_le8(u8 val, void *p)
  *
  * The extent buffer api is used to do the page spanning work required to
  * have a metadata blocksize different from the page size.
+ *
+ * There are 2 variants defined, one with a token pointer and one without.
  */
 
 #define DEFINE_BTRFS_SETGET_BITS(bits)					\
@@ -50,8 +52,10 @@ u##bits btrfs_get_token_##bits(const struct extent_buffer *eb,		\
 	int size = sizeof(u##bits);					\
 	u##bits res;							\
 									\
-	if (token && token->kaddr && token->offset <= offset &&		\
-	    token->eb == eb &&						\
+	ASSERT(token);							\
+	ASSERT(token->eb == eb);					\
+									\
+	if (token->kaddr && token->offset <= offset &&			\
 	   (token->offset + PAGE_SIZE >= offset + size)) {	\
 		kaddr = token->kaddr;					\
 		p = kaddr + part_offset - token->offset;		\
@@ -68,11 +72,33 @@ u##bits btrfs_get_token_##bits(const struct extent_buffer *eb,		\
 	}								\
 	p = kaddr + part_offset - map_start;				\
 	res = get_unaligned_le##bits(p + off);				\
-	if (token) {							\
-		token->kaddr = kaddr;					\
-		token->offset = map_start;				\
-		token->eb = eb;						\
+	token->kaddr = kaddr;						\
+	token->offset = map_start;					\
+	return res;							\
+}									\
+u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
+			 const void *ptr, unsigned long off)		\
+{									\
+	unsigned long part_offset = (unsigned long)ptr;			\
+	unsigned long offset = part_offset + off;			\
+	void *p;							\
+	int err;							\
+	char *kaddr;							\
+	unsigned long map_start;					\
+	unsigned long map_len;						\
+	int size = sizeof(u##bits);					\
+	u##bits res;							\
+									\
+	err = map_private_extent_buffer(eb, offset, size,		\
+					&kaddr, &map_start, &map_len);	\
+	if (err) {							\
+		__le##bits leres;					\
+									\
+		read_extent_buffer(eb, &leres, offset, size);		\
+		return le##bits##_to_cpu(leres);			\
 	}								\
+	p = kaddr + part_offset - map_start;				\
+	res = get_unaligned_le##bits(p + off);				\
 	return res;							\
 }									\
 void btrfs_set_token_##bits(struct extent_buffer *eb,			\
@@ -89,8 +115,10 @@ void btrfs_set_token_##bits(struct extent_buffer *eb,			\
 	unsigned long map_len;						\
 	int size = sizeof(u##bits);					\
 									\
-	if (token && token->kaddr && token->offset <= offset &&		\
-	    token->eb == eb &&						\
+	ASSERT(token);							\
+	ASSERT(token->eb == eb);					\
+									\
+	if (token->kaddr && token->offset <= offset &&			\
 	   (token->offset + PAGE_SIZE >= offset + size)) {	\
 		kaddr = token->kaddr;					\
 		p = kaddr + part_offset - token->offset;		\
@@ -108,11 +136,32 @@ void btrfs_set_token_##bits(struct extent_buffer *eb,			\
 	}								\
 	p = kaddr + part_offset - map_start;				\
 	put_unaligned_le##bits(val, p + off);				\
-	if (token) {							\
-		token->kaddr = kaddr;					\
-		token->offset = map_start;				\
-		token->eb = eb;						\
+	token->kaddr = kaddr;						\
+	token->offset = map_start;					\
+}									\
+void btrfs_set_##bits(struct extent_buffer *eb, void *ptr,		\
+		      unsigned long off, u##bits val)			\
+{									\
+	unsigned long part_offset = (unsigned long)ptr;			\
+	unsigned long offset = part_offset + off;			\
+	void *p;							\
+	int err;							\
+	char *kaddr;							\
+	unsigned long map_start;					\
+	unsigned long map_len;						\
+	int size = sizeof(u##bits);					\
+									\
+	err = map_private_extent_buffer(eb, offset, size,		\
+			&kaddr, &map_start, &map_len);			\
+	if (err) {							\
+		__le##bits val2;					\
+									\
+		val2 = cpu_to_le##bits(val);				\
+		write_extent_buffer(eb, &val2, offset, size);		\
+		return;							\
 	}								\
+	p = kaddr + part_offset - map_start;				\
+	put_unaligned_le##bits(val, p + off);				\
 }
 
 DEFINE_BTRFS_SETGET_BITS(8)

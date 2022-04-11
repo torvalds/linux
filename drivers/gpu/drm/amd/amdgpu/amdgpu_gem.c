@@ -50,7 +50,7 @@ void amdgpu_gem_object_free(struct drm_gem_object *gobj)
 int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 			     int alignment, u32 initial_domain,
 			     u64 flags, enum ttm_bo_type type,
-			     struct reservation_object *resv,
+			     struct dma_resv *resv,
 			     struct drm_gem_object **obj)
 {
 	struct amdgpu_bo *bo;
@@ -85,7 +85,7 @@ retry:
 		}
 		return r;
 	}
-	*obj = &bo->gem_base;
+	*obj = &bo->tbo.base;
 
 	return 0;
 }
@@ -134,7 +134,7 @@ int amdgpu_gem_object_open(struct drm_gem_object *obj,
 		return -EPERM;
 
 	if (abo->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID &&
-	    abo->tbo.resv != vm->root.base.bo->tbo.resv)
+	    abo->tbo.base.resv != vm->root.base.bo->tbo.base.resv)
 		return -EPERM;
 
 	r = amdgpu_bo_reserve(abo, false);
@@ -215,7 +215,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 	union drm_amdgpu_gem_create *args = data;
 	uint64_t flags = args->in.domain_flags;
 	uint64_t size = args->in.bo_size;
-	struct reservation_object *resv = NULL;
+	struct dma_resv *resv = NULL;
 	struct drm_gem_object *gobj;
 	uint32_t handle;
 	int r;
@@ -252,7 +252,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 		if (r)
 			return r;
 
-		resv = vm->root.base.bo->tbo.resv;
+		resv = vm->root.base.bo->tbo.base.resv;
 	}
 
 	r = amdgpu_gem_object_create(adev, size, args->in.alignment,
@@ -290,6 +290,8 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_bo *bo;
 	uint32_t handle;
 	int r;
+
+	args->addr = untagged_addr(args->addr);
 
 	if (offset_in_page(args->addr | args->size))
 		return -EINVAL;
@@ -433,7 +435,7 @@ int amdgpu_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	}
 	robj = gem_to_amdgpu_bo(gobj);
-	ret = reservation_object_wait_timeout_rcu(robj->tbo.resv, true, true,
+	ret = dma_resv_wait_timeout_rcu(robj->tbo.base.resv, true, true,
 						  timeout);
 
 	/* ret == 0 means not signaled,
@@ -689,7 +691,7 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 		struct drm_amdgpu_gem_create_in info;
 		void __user *out = u64_to_user_ptr(args->value);
 
-		info.bo_size = robj->gem_base.size;
+		info.bo_size = robj->tbo.base.size;
 		info.alignment = robj->tbo.mem.page_alignment << PAGE_SHIFT;
 		info.domains = robj->preferred_domains;
 		info.domain_flags = robj->flags;
@@ -747,7 +749,8 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_gem_object *gobj;
 	uint32_t handle;
-	u64 flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+	u64 flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+		    AMDGPU_GEM_CREATE_CPU_GTT_USWC;
 	u32 domain;
 	int r;
 
@@ -764,7 +767,7 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 	args->size = (u64)args->pitch * args->height;
 	args->size = ALIGN(args->size, PAGE_SIZE);
 	domain = amdgpu_bo_get_preferred_pin_domain(adev,
-				amdgpu_display_supported_domains(adev));
+				amdgpu_display_supported_domains(adev, flags));
 	r = amdgpu_gem_object_create(adev, args->size, 0, domain, flags,
 				     ttm_bo_type_device, NULL, &gobj);
 	if (r)
@@ -819,8 +822,8 @@ static int amdgpu_debugfs_gem_bo_info(int id, void *ptr, void *data)
 	if (pin_count)
 		seq_printf(m, " pin count %d", pin_count);
 
-	dma_buf = READ_ONCE(bo->gem_base.dma_buf);
-	attachment = READ_ONCE(bo->gem_base.import_attach);
+	dma_buf = READ_ONCE(bo->tbo.base.dma_buf);
+	attachment = READ_ONCE(bo->tbo.base.import_attach);
 
 	if (attachment)
 		seq_printf(m, " imported from %p", dma_buf);

@@ -285,7 +285,7 @@ static struct da9211_pdata *da9211_parse_regulators_dt(
 		pdata->reg_node[n] = da9211_matches[i].of_node;
 		pdata->gpiod_ren[n] = devm_gpiod_get_from_of_node(dev,
 				  da9211_matches[i].of_node,
-				  "enable",
+				  "enable-gpios",
 				  0,
 				  GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
 				  "da9211-enable");

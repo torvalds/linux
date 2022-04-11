@@ -453,10 +453,8 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 
 	/* find the IRQs */
 	info->irq_tick = platform_get_irq(pdev, 1);
-	if (info->irq_tick < 0) {
-		dev_err(&pdev->dev, "no irq for rtc tick\n");
+	if (info->irq_tick < 0)
 		return info->irq_tick;
-	}
 
 	info->dev = &pdev->dev;
 	info->data = of_device_get_match_data(&pdev->dev);
@@ -470,10 +468,8 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 
 	info->irq_alarm = platform_get_irq(pdev, 0);
-	if (info->irq_alarm < 0) {
-		dev_err(&pdev->dev, "no irq for alarm\n");
+	if (info->irq_alarm < 0)
 		return info->irq_alarm;
-	}
 
 	dev_dbg(&pdev->dev, "s3c2410_rtc: tick irq %d, alarm irq %d\n",
 		info->irq_tick, info->irq_alarm);

@@ -134,12 +134,12 @@ struct acpi_namespace_node {
 	union acpi_operand_object *object;	/* Interpreter object */
 	u8 descriptor_type;	/* Differentiate object descriptor types */
 	u8 type;		/* ACPI Type associated with this name */
-	u8 flags;		/* Miscellaneous flags */
-	acpi_owner_id owner_id;	/* Node creator */
+	u16 flags;		/* Miscellaneous flags */
 	union acpi_name_union name;	/* ACPI Name, always 4 chars per ACPI spec */
 	struct acpi_namespace_node *parent;	/* Parent node */
 	struct acpi_namespace_node *child;	/* First child */
 	struct acpi_namespace_node *peer;	/* First peer */
+	acpi_owner_id owner_id;	/* Node creator */
 
 	/*
 	 * The following fields are used by the ASL compiler and disassembler only

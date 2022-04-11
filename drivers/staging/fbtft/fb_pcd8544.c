@@ -157,10 +157,10 @@ static struct fbtft_display display = {
 	.backlight = 1,
 };
 
-FBTFT_REGISTER_DRIVER(DRVNAME, "philips,pdc8544", &display);
+FBTFT_REGISTER_DRIVER(DRVNAME, "philips,pcd8544", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);
-MODULE_ALIAS("spi:pdc8544");
+MODULE_ALIAS("spi:pcd8544");
 
 MODULE_DESCRIPTION("FB driver for the PCD8544 LCD Controller");
 MODULE_AUTHOR("Noralf Tronnes");

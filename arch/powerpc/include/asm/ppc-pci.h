@@ -62,17 +62,14 @@ void eeh_pe_dev_mode_mark(struct eeh_pe *pe, int mode);
 void eeh_sysfs_add_device(struct pci_dev *pdev);
 void eeh_sysfs_remove_device(struct pci_dev *pdev);
 
-static inline const char *eeh_pci_name(struct pci_dev *pdev) 
-{ 
-	return pdev ? pci_name(pdev) : "<null>";
-} 
-
 static inline const char *eeh_driver_name(struct pci_dev *pdev)
 {
 	return (pdev && pdev->driver) ? pdev->driver->name : "<null>";
 }
 
 #endif /* CONFIG_EEH */
+
+#define PCI_BUSNO(bdfn) ((bdfn >> 8) & 0xff)
 
 #else /* CONFIG_PCI */
 static inline void init_pci_config_tokens(void) { }

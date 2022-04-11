@@ -81,6 +81,7 @@ static int mt7615_pci_probe(struct pci_dev *pdev,
 		.sta_add = mt7615_sta_add,
 		.sta_assoc = mt7615_sta_assoc,
 		.sta_remove = mt7615_sta_remove,
+		.update_survey = mt7615_update_channel,
 	};
 	struct mt7615_dev *dev;
 	struct mt76_dev *mdev;

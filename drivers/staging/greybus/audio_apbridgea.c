@@ -5,8 +5,7 @@
  * Copyright 2015-2016 Google Inc.
  */
 
-#include "greybus.h"
-#include "greybus_protocols.h"
+#include <linux/greybus.h>
 #include "audio_apbridgea.h"
 #include "audio_codec.h"
 

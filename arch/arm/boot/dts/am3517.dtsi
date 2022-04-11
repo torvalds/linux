@@ -88,6 +88,30 @@
 			interrupts = <24>;
 			clocks = <&hecc_ck>;
 		};
+
+		/*
+		 * On am3517 the OCP registers do not seem to be accessible
+		 * similar to the omap34xx. Maybe SGX is permanently set to
+		 * "OCP bypass mode", or maybe there is OCP_SYSCONFIG that is
+		 * write-only at 0x50000e10. We detect SGX based on the SGX
+		 * revision register instead of the unreadable OCP revision
+		 * register.
+		 */
+		sgx_module: target-module@50000000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x50000014 0x4>;
+			reg-names = "rev";
+			clocks = <&sgx_fck>, <&sgx_ick>;
+			clock-names = "fck", "ick";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x50000000 0x4000>;
+
+			/*
+			 * Closed source PowerVR driver, no child device
+			 * binding or driver in mainline
+			 */
+		};
 	};
 };
 

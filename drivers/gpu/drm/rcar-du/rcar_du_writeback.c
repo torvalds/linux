@@ -147,7 +147,7 @@ static int rcar_du_wb_enc_atomic_check(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_framebuffer *fb;
 
-	if (!conn_state->writeback_job || !conn_state->writeback_job->fb)
+	if (!conn_state->writeback_job)
 		return 0;
 
 	fb = conn_state->writeback_job->fb;
@@ -221,7 +221,7 @@ void rcar_du_writeback_setup(struct rcar_du_crtc *rcrtc,
 	unsigned int i;
 
 	state = rcrtc->writeback.base.state;
-	if (!state || !state->writeback_job || !state->writeback_job->fb)
+	if (!state || !state->writeback_job)
 		return;
 
 	fb = state->writeback_job->fb;

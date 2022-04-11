@@ -6,6 +6,16 @@
 #include "vmcs12.h"
 #include "vmx.h"
 
+/*
+ * Status returned by nested_vmx_enter_non_root_mode():
+ */
+enum nvmx_vmentry_status {
+	NVMX_VMENTRY_SUCCESS,		/* Entered VMX non-root mode */
+	NVMX_VMENTRY_VMFAIL,		/* Consistency check VMFail */
+	NVMX_VMENTRY_VMEXIT,		/* Consistency check VMExit */
+	NVMX_VMENTRY_KVM_INTERNAL_ERROR,/* KVM internal error */
+};
+
 void vmx_leave_nested(struct kvm_vcpu *vcpu);
 void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 				bool apicv);
@@ -13,7 +23,8 @@ void nested_vmx_hardware_unsetup(void);
 __init int nested_vmx_hardware_setup(int (*exit_handlers[])(struct kvm_vcpu *));
 void nested_vmx_vcpu_setup(void);
 void nested_vmx_free_vcpu(struct kvm_vcpu *vcpu);
-int nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry);
+enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
+						     bool from_vmentry);
 bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason);
 void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 		       u32 exit_intr_info, unsigned long exit_qualification);

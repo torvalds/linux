@@ -44,14 +44,6 @@ enum {
 #define M0BLIE		BIT(16)
 #define M1BLIE		BIT(24)
 
-/* MSC operating modes (MSC_MODE) */
-enum {
-	MSC_MODE_SINGLE	= 0,
-	MSC_MODE_MULTI,
-	MSC_MODE_EXI,
-	MSC_MODE_DEBUG,
-};
-
 /* MSCnSTS bits */
 #define MSCSTS_WRAPSTAT	BIT(1)	/* Wrap occurred */
 #define MSCSTS_PLE	BIT(2)	/* Pipeline Empty */
@@ -93,6 +85,16 @@ static inline unsigned long msc_data_sz(struct msc_block_desc *bdesc)
 	return bdesc->valid_dw * 4 - MSC_BDESC;
 }
 
+static inline unsigned long msc_total_sz(struct msc_block_desc *bdesc)
+{
+	return bdesc->valid_dw * 4;
+}
+
+static inline unsigned long msc_block_sz(struct msc_block_desc *bdesc)
+{
+	return bdesc->block_sz * 64 - MSC_BDESC;
+}
+
 static inline bool msc_block_wrapped(struct msc_block_desc *bdesc)
 {
 	if (bdesc->hw_tag & (MSC_HW_TAG_BLOCKWRAP | MSC_HW_TAG_WINWRAP))
@@ -104,7 +106,7 @@ static inline bool msc_block_wrapped(struct msc_block_desc *bdesc)
 static inline bool msc_block_last_written(struct msc_block_desc *bdesc)
 {
 	if ((bdesc->hw_tag & MSC_HW_TAG_ENDBIT) ||
-	    (msc_data_sz(bdesc) != DATA_IN_PAGE))
+	    (msc_data_sz(bdesc) != msc_block_sz(bdesc)))
 		return true;
 
 	return false;

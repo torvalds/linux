@@ -37,7 +37,7 @@
 
 #include "i915_drv.h"
 #include "intel_connector.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_hotplug.h"
 #include "intel_tv.h"
 

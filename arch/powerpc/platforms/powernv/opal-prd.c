@@ -342,7 +342,7 @@ static int opal_prd_msg_notifier(struct notifier_block *nb,
 	int msg_size, item_size;
 	unsigned long flags;
 
-	if (msg_type != OPAL_MSG_PRD)
+	if (msg_type != OPAL_MSG_PRD && msg_type != OPAL_MSG_PRD2)
 		return 0;
 
 	/* Calculate total size of the message and item we need to store. The
@@ -390,6 +390,12 @@ static int opal_prd_probe(struct platform_device *pdev)
 	rc = opal_message_notifier_register(OPAL_MSG_PRD, &opal_prd_event_nb);
 	if (rc) {
 		pr_err("Couldn't register event notifier\n");
+		return rc;
+	}
+
+	rc = opal_message_notifier_register(OPAL_MSG_PRD2, &opal_prd_event_nb);
+	if (rc) {
+		pr_err("Couldn't register PRD2 event notifier\n");
 		return rc;
 	}
 

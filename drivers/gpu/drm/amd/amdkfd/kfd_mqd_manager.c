@@ -98,8 +98,8 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 		uint32_t *se_mask)
 {
 	struct kfd_cu_info cu_info;
-	uint32_t cu_per_sh[4] = {0};
-	int i, se, cu = 0;
+	uint32_t cu_per_se[KFD_MAX_NUM_SE] = {0};
+	int i, se, sh, cu = 0;
 
 	amdgpu_amdkfd_get_cu_info(mm->dev->kgd, &cu_info);
 
@@ -107,8 +107,8 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 		cu_mask_count = cu_info.cu_active_number;
 
 	for (se = 0; se < cu_info.num_shader_engines; se++)
-		for (i = 0; i < 4; i++)
-			cu_per_sh[se] += hweight32(cu_info.cu_bitmap[se][i]);
+		for (sh = 0; sh < cu_info.num_shader_arrays_per_engine; sh++)
+			cu_per_se[se] += hweight32(cu_info.cu_bitmap[se % 4][sh + (se / 4)]);
 
 	/* Symmetrically map cu_mask to all SEs:
 	 * cu_mask[0] bit0 -> se_mask[0] bit0;
@@ -128,6 +128,6 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 				se = 0;
 				cu++;
 			}
-		} while (cu >= cu_per_sh[se] && cu < 32);
+		} while (cu >= cu_per_se[se] && cu < 32);
 	}
 }

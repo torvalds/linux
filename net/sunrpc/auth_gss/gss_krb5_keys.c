@@ -228,14 +228,11 @@ u32 krb5_derive_key(const struct gss_krb5_enctype *gk5e,
 	ret = 0;
 
 err_free_raw:
-	memset(rawkey, 0, keybytes);
-	kfree(rawkey);
+	kzfree(rawkey);
 err_free_out:
-	memset(outblockdata, 0, blocksize);
-	kfree(outblockdata);
+	kzfree(outblockdata);
 err_free_in:
-	memset(inblockdata, 0, blocksize);
-	kfree(inblockdata);
+	kzfree(inblockdata);
 err_free_cipher:
 	crypto_free_sync_skcipher(cipher);
 err_return:

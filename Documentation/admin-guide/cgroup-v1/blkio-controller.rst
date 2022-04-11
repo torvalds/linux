@@ -130,12 +130,6 @@ Proportional weight policy files
 	    dev     weight
 	    8:16    300
 
-- blkio.leaf_weight[_device]
-	- Equivalents of blkio.weight[_device] for the purpose of
-          deciding how much weight tasks in the given cgroup has while
-          competing with the cgroup's child cgroups. For details,
-          please refer to Documentation/block/cfq-iosched.txt.
-
 - blkio.time
 	- disk time allocated to cgroup per device in milliseconds. First
 	  two fields specify the major and minor number of the device and

@@ -3079,11 +3079,7 @@ static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta.rs_drv;
 
-	/* Treat uninitialized rate scaling data same as non-existing. */
-	if (!lq_sta) {
-		IWL_DEBUG_RATE(mvm, "Station rate scaling not created yet.\n");
-		return;
-	} else if (!lq_sta->pers.drv) {
+	if (!lq_sta->pers.drv) {
 		IWL_DEBUG_RATE(mvm, "Rate scaling not initialized yet.\n");
 		return;
 	}
@@ -3342,7 +3338,7 @@ static void rs_build_rates_table_from_fixed(struct iwl_mvm *mvm,
 	if (num_of_ant(ant) == 1)
 		lq_cmd->single_stream_ant_msk = ant;
 
-	if (!mvm->trans->cfg->gen2)
+	if (!mvm->trans->trans_cfg->gen2)
 		lq_cmd->agg_frame_cnt_limit = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 	else
 		lq_cmd->agg_frame_cnt_limit =
@@ -4127,10 +4123,6 @@ static void rs_drv_add_sta_debugfs(void *mvm, void *priv_sta,
 
 	MVM_DEBUGFS_ADD_FILE_RS(ss_force, dir, 0600);
 }
-
-void rs_remove_sta_debugfs(void *mvm, void *mvm_sta)
-{
-}
 #endif
 
 /*
@@ -4158,7 +4150,6 @@ static const struct rate_control_ops rs_mvm_ops_drv = {
 	.rate_update = rs_drv_rate_update,
 #ifdef CONFIG_MAC80211_DEBUGFS
 	.add_sta_debugfs = rs_drv_add_sta_debugfs,
-	.remove_sta_debugfs = rs_remove_sta_debugfs,
 #endif
 	.capa = RATE_CTRL_CAPA_VHT_EXT_NSS_BW,
 };

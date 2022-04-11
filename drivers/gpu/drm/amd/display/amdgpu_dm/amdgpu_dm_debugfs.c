@@ -1053,9 +1053,33 @@ static int target_backlight_read(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int mst_topo(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct amdgpu_dm_connector *aconnector;
+
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		if (connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
+			continue;
+
+		aconnector = to_amdgpu_dm_connector(connector);
+
+		seq_printf(m, "\nMST topology for connector %d\n", aconnector->connector_id);
+		drm_dp_mst_dump_topology(m, &aconnector->mst_mgr);
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	return 0;
+}
+
 static const struct drm_info_list amdgpu_dm_debugfs_list[] = {
 	{"amdgpu_current_backlight_pwm", &current_backlight_read},
 	{"amdgpu_target_backlight_pwm", &target_backlight_read},
+	{"amdgpu_mst_topology", &mst_topo},
 };
 
 /*

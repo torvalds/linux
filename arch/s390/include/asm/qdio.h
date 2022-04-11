@@ -16,6 +16,7 @@
 #define QDIO_MAX_QUEUES_PER_IRQ		4
 #define QDIO_MAX_BUFFERS_PER_Q		128
 #define QDIO_MAX_BUFFERS_MASK		(QDIO_MAX_BUFFERS_PER_Q - 1)
+#define QDIO_BUFNR(num)			((num) & QDIO_MAX_BUFFERS_MASK)
 #define QDIO_MAX_ELEMENTS_PER_BUFFER	16
 #define QDIO_SBAL_SIZE			256
 
@@ -110,7 +111,7 @@ struct qib {
 	/* private: */
 	u8 res[88];
 	/* public: */
-	u8 parm[QDIO_MAX_BUFFERS_PER_Q];
+	u8 parm[128];
 } __attribute__ ((packed, aligned(256)));
 
 /**
@@ -359,7 +360,7 @@ struct qdio_initialize {
 	qdio_handler_t *output_handler;
 	void (**queue_start_poll_array) (struct ccw_device *, int,
 					  unsigned long);
-	int scan_threshold;
+	unsigned int scan_threshold;
 	unsigned long int_parm;
 	struct qdio_buffer **input_sbal_addr_array;
 	struct qdio_buffer **output_sbal_addr_array;
@@ -416,6 +417,9 @@ extern int do_QDIO(struct ccw_device *, unsigned int, int, unsigned int,
 extern int qdio_start_irq(struct ccw_device *, int);
 extern int qdio_stop_irq(struct ccw_device *, int);
 extern int qdio_get_next_buffers(struct ccw_device *, int, int *, int *);
+extern int qdio_inspect_queue(struct ccw_device *cdev, unsigned int nr,
+			      bool is_input, unsigned int *bufnr,
+			      unsigned int *error);
 extern int qdio_shutdown(struct ccw_device *, int);
 extern int qdio_free(struct ccw_device *);
 extern int qdio_get_ssqd_desc(struct ccw_device *, struct qdio_ssqd_desc *);

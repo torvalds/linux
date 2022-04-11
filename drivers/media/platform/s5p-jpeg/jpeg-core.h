@@ -150,7 +150,6 @@ struct s5p_jpeg_variant {
 
 /**
  * struct jpeg_fmt - driver's internal color format data
- * @name:	format description
  * @fourcc:	the fourcc code, 0 if not applicable
  * @depth:	number of bits per pixel
  * @colplanes:	number of color planes (1 for packed formats)
@@ -159,7 +158,6 @@ struct s5p_jpeg_variant {
  * @flags:	flags describing format applicability
  */
 struct s5p_jpeg_fmt {
-	char	*name;
 	u32	fourcc;
 	int	depth;
 	int	colplanes;

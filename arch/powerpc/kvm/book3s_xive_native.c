@@ -67,20 +67,28 @@ void kvmppc_xive_native_cleanup_vcpu(struct kvm_vcpu *vcpu)
 	xc->valid = false;
 	kvmppc_xive_disable_vcpu_interrupts(vcpu);
 
-	/* Disable the VP */
-	xive_native_disable_vp(xc->vp_id);
-
-	/* Free the queues & associated interrupts */
+	/* Free escalations */
 	for (i = 0; i < KVMPPC_XIVE_Q_COUNT; i++) {
 		/* Free the escalation irq */
 		if (xc->esc_virq[i]) {
+			if (xc->xive->single_escalation)
+				xive_cleanup_single_escalation(vcpu, xc,
+							xc->esc_virq[i]);
 			free_irq(xc->esc_virq[i], vcpu);
 			irq_dispose_mapping(xc->esc_virq[i]);
 			kfree(xc->esc_virq_names[i]);
 			xc->esc_virq[i] = 0;
 		}
+	}
 
-		/* Free the queue */
+	/* Disable the VP */
+	xive_native_disable_vp(xc->vp_id);
+
+	/* Clear the cam word so guest entry won't try to push context */
+	vcpu->arch.xive_cam_word = 0;
+
+	/* Free the queues */
+	for (i = 0; i < KVMPPC_XIVE_Q_COUNT; i++) {
 		kvmppc_xive_native_cleanup_queue(vcpu, i);
 	}
 
@@ -98,6 +106,7 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 	struct kvmppc_xive *xive = dev->private;
 	struct kvmppc_xive_vcpu *xc = NULL;
 	int rc;
+	u32 vp_id;
 
 	pr_devel("native_connect_vcpu(server=%d)\n", server_num);
 
@@ -116,7 +125,8 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 
 	mutex_lock(&xive->lock);
 
-	if (kvmppc_xive_find_server(vcpu->kvm, server_num)) {
+	vp_id = kvmppc_xive_vp(xive, server_num);
+	if (kvmppc_xive_vp_in_use(xive->kvm, vp_id)) {
 		pr_devel("Duplicate !\n");
 		rc = -EEXIST;
 		goto bail;
@@ -133,7 +143,7 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 	xc->vcpu = vcpu;
 	xc->server_num = server_num;
 
-	xc->vp_id = kvmppc_xive_vp(xive, server_num);
+	xc->vp_id = vp_id;
 	xc->valid = true;
 	vcpu->arch.irq_type = KVMPPC_IRQ_XIVE;
 
@@ -1169,6 +1179,11 @@ int kvmppc_xive_native_set_vp(struct kvm_vcpu *vcpu, union kvmppc_one_reg *val)
 	 * state when captured.
 	 */
 	return 0;
+}
+
+bool kvmppc_xive_native_supported(void)
+{
+	return xive_native_has_queue_state_support();
 }
 
 static int xive_native_debug_show(struct seq_file *m, void *private)

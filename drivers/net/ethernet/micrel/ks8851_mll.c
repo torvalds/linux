@@ -1225,7 +1225,6 @@ MODULE_DEVICE_TABLE(of, ks8851_ml_dt_ids);
 static int ks8851_probe(struct platform_device *pdev)
 {
 	int err;
-	struct resource *io_d, *io_c;
 	struct net_device *netdev;
 	struct ks_net *ks;
 	u16 id, data;
@@ -1240,15 +1239,13 @@ static int ks8851_probe(struct platform_device *pdev)
 	ks = netdev_priv(netdev);
 	ks->netdev = netdev;
 
-	io_d = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ks->hw_addr = devm_ioremap_resource(&pdev->dev, io_d);
+	ks->hw_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ks->hw_addr)) {
 		err = PTR_ERR(ks->hw_addr);
 		goto err_free;
 	}
 
-	io_c = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	ks->hw_addr_cmd = devm_ioremap_resource(&pdev->dev, io_c);
+	ks->hw_addr_cmd = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(ks->hw_addr_cmd)) {
 		err = PTR_ERR(ks->hw_addr_cmd);
 		goto err_free;

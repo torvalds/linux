@@ -599,7 +599,7 @@ int rdma_counter_get_mode(struct ib_device *dev, u8 port,
 void rdma_counter_init(struct ib_device *dev)
 {
 	struct rdma_port_counter *port_counter;
-	u32 port;
+	u32 port, i;
 
 	if (!dev->port_data)
 		return;
@@ -620,13 +620,12 @@ void rdma_counter_init(struct ib_device *dev)
 	return;
 
 fail:
-	rdma_for_each_port(dev, port) {
+	for (i = port; i >= rdma_start_port(dev); i--) {
 		port_counter = &dev->port_data[port].port_counter;
 		kfree(port_counter->hstats);
 		port_counter->hstats = NULL;
+		mutex_destroy(&port_counter->lock);
 	}
-
-	return;
 }
 
 void rdma_counter_release(struct ib_device *dev)
@@ -637,5 +636,6 @@ void rdma_counter_release(struct ib_device *dev)
 	rdma_for_each_port(dev, port) {
 		port_counter = &dev->port_data[port].port_counter;
 		kfree(port_counter->hstats);
+		mutex_destroy(&port_counter->lock);
 	}
 }

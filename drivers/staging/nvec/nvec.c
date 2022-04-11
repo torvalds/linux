@@ -767,7 +767,6 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct nvec_chip *nvec;
 	struct nvec_msg *msg;
-	struct resource *res;
 	void __iomem *base;
 	char	get_firmware_version[] = { NVEC_CNTL, GET_FIRMWARE_VERSION },
 		unmute_speakers[] = { NVEC_OEM0, 0x10, 0x59, 0x95 },
@@ -790,16 +789,13 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
 	nvec->irq = platform_get_irq(pdev, 0);
-	if (nvec->irq < 0) {
-		dev_err(dev, "no irq resource?\n");
+	if (nvec->irq < 0)
 		return -ENODEV;
-	}
 
 	i2c_clk = devm_clk_get(dev, "div-clk");
 	if (IS_ERR(i2c_clk)) {

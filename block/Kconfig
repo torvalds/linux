@@ -26,6 +26,9 @@ menuconfig BLOCK
 
 if BLOCK
 
+config BLK_RQ_ALLOC_TIME
+	bool
+
 config BLK_SCSI_REQUEST
 	bool
 
@@ -131,6 +134,16 @@ config BLK_CGROUP_IOLATENCY
 	target than the victimized group.
 
 	Note, this is an experimental interface and could be changed someday.
+
+config BLK_CGROUP_IOCOST
+	bool "Enable support for cost model based cgroup IO controller"
+	depends on BLK_CGROUP=y
+	select BLK_RQ_ALLOC_TIME
+	---help---
+	Enabling this option enables the .weight interface for cost
+	model based proportional IO control.  The IO controller
+	distributes IO capacity between different groups based on
+	their share of the overall weight distribution.
 
 config BLK_WBT_MQ
 	bool "Multiqueue writeback throttling"

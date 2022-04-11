@@ -7,6 +7,7 @@
 #define _ASM_RISCV_PGTABLE_H
 
 #include <linux/mmzone.h>
+#include <linux/sizes.h>
 
 #include <asm/pgtable-bits.h>
 
@@ -82,6 +83,35 @@ extern pgd_t swapper_pg_dir[];
 #define __S101	PAGE_READ_EXEC
 #define __S110	PAGE_SHARED_EXEC
 #define __S111	PAGE_SHARED_EXEC
+
+#define VMALLOC_SIZE     (KERN_VIRT_SIZE >> 1)
+#define VMALLOC_END      (PAGE_OFFSET - 1)
+#define VMALLOC_START    (PAGE_OFFSET - VMALLOC_SIZE)
+#define PCI_IO_SIZE      SZ_16M
+
+/*
+ * Roughly size the vmemmap space to be large enough to fit enough
+ * struct pages to map half the virtual address space. Then
+ * position vmemmap directly below the VMALLOC region.
+ */
+#define VMEMMAP_SHIFT \
+	(CONFIG_VA_BITS - PAGE_SHIFT - 1 + STRUCT_PAGE_MAX_SHIFT)
+#define VMEMMAP_SIZE	BIT(VMEMMAP_SHIFT)
+#define VMEMMAP_END	(VMALLOC_START - 1)
+#define VMEMMAP_START	(VMALLOC_START - VMEMMAP_SIZE)
+
+#define vmemmap		((struct page *)VMEMMAP_START)
+
+#define PCI_IO_END       VMEMMAP_START
+#define PCI_IO_START     (PCI_IO_END - PCI_IO_SIZE)
+#define FIXADDR_TOP      PCI_IO_START
+
+#ifdef CONFIG_64BIT
+#define FIXADDR_SIZE     PMD_SIZE
+#else
+#define FIXADDR_SIZE     PGDIR_SIZE
+#endif
+#define FIXADDR_START    (FIXADDR_TOP - FIXADDR_SIZE)
 
 /*
  * ZERO_PAGE is a global shared page that is always zero,
@@ -159,10 +189,7 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 	return __pte((pfn << _PAGE_PFN_SHIFT) | pgprot_val(prot));
 }
 
-static inline pte_t mk_pte(struct page *page, pgprot_t prot)
-{
-	return pfn_pte(page_to_pfn(page), prot);
-}
+#define mk_pte(page, prot)       pfn_pte(page_to_pfn(page), prot)
 
 #define pte_index(addr) (((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 
@@ -403,30 +430,11 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
 
-#ifdef CONFIG_FLATMEM
 #define kern_addr_valid(addr)   (1) /* FIXME */
-#endif
 
 extern void *dtb_early_va;
 extern void setup_bootmem(void);
 extern void paging_init(void);
-
-static inline void pgtable_cache_init(void)
-{
-	/* No page table caches to initialize */
-}
-
-#define VMALLOC_SIZE     (KERN_VIRT_SIZE >> 1)
-#define VMALLOC_END      (PAGE_OFFSET - 1)
-#define VMALLOC_START    (PAGE_OFFSET - VMALLOC_SIZE)
-
-#define FIXADDR_TOP      VMALLOC_START
-#ifdef CONFIG_64BIT
-#define FIXADDR_SIZE     PMD_SIZE
-#else
-#define FIXADDR_SIZE     PGDIR_SIZE
-#endif
-#define FIXADDR_START    (FIXADDR_TOP - FIXADDR_SIZE)
 
 /*
  * Task size is 0x4000000000 for RV64 or 0x9fc00000 for RV32.

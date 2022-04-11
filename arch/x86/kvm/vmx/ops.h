@@ -11,8 +11,13 @@
 #include "vmcs.h"
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
-#define __ex_clear(x, reg) \
-	____kvm_handle_fault_on_reboot(x, "xor " reg ", " reg)
+
+asmlinkage void vmread_error(unsigned long field, bool fault);
+void vmwrite_error(unsigned long field, unsigned long value);
+void vmclear_error(struct vmcs *vmcs, u64 phys_addr);
+void vmptrld_error(struct vmcs *vmcs, u64 phys_addr);
+void invvpid_error(unsigned long ext, u16 vpid, gva_t gva);
+void invept_error(unsigned long ext, u64 eptp, gpa_t gpa);
 
 static __always_inline void vmcs_check16(unsigned long field)
 {
@@ -62,8 +67,22 @@ static __always_inline unsigned long __vmcs_readl(unsigned long field)
 {
 	unsigned long value;
 
-	asm volatile (__ex_clear("vmread %1, %0", "%k0")
-		      : "=r"(value) : "r"(field));
+	asm volatile("1: vmread %2, %1\n\t"
+		     ".byte 0x3e\n\t" /* branch taken hint */
+		     "ja 3f\n\t"
+		     "mov %2, %%" _ASM_ARG1 "\n\t"
+		     "xor %%" _ASM_ARG2 ", %%" _ASM_ARG2 "\n\t"
+		     "2: call vmread_error\n\t"
+		     "xor %k1, %k1\n\t"
+		     "3:\n\t"
+
+		     ".pushsection .fixup, \"ax\"\n\t"
+		     "4: mov %2, %%" _ASM_ARG1 "\n\t"
+		     "mov $1, %%" _ASM_ARG2 "\n\t"
+		     "jmp 2b\n\t"
+		     ".popsection\n\t"
+		     _ASM_EXTABLE(1b, 4b)
+		     : ASM_CALL_CONSTRAINT, "=r"(value) : "r"(field) : "cc");
 	return value;
 }
 
@@ -103,21 +122,39 @@ static __always_inline unsigned long vmcs_readl(unsigned long field)
 	return __vmcs_readl(field);
 }
 
-static noinline void vmwrite_error(unsigned long field, unsigned long value)
-{
-	printk(KERN_ERR "vmwrite error: reg %lx value %lx (err %d)\n",
-	       field, value, vmcs_read32(VM_INSTRUCTION_ERROR));
-	dump_stack();
-}
+#define vmx_asm1(insn, op1, error_args...)				\
+do {									\
+	asm_volatile_goto("1: " __stringify(insn) " %0\n\t"		\
+			  ".byte 0x2e\n\t" /* branch not taken hint */	\
+			  "jna %l[error]\n\t"				\
+			  _ASM_EXTABLE(1b, %l[fault])			\
+			  : : op1 : "cc" : error, fault);		\
+	return;								\
+error:									\
+	insn##_error(error_args);					\
+	return;								\
+fault:									\
+	kvm_spurious_fault();						\
+} while (0)
+
+#define vmx_asm2(insn, op1, op2, error_args...)				\
+do {									\
+	asm_volatile_goto("1: "  __stringify(insn) " %1, %0\n\t"	\
+			  ".byte 0x2e\n\t" /* branch not taken hint */	\
+			  "jna %l[error]\n\t"				\
+			  _ASM_EXTABLE(1b, %l[fault])			\
+			  : : op1, op2 : "cc" : error, fault);		\
+	return;								\
+error:									\
+	insn##_error(error_args);					\
+	return;								\
+fault:									\
+	kvm_spurious_fault();						\
+} while (0)
 
 static __always_inline void __vmcs_writel(unsigned long field, unsigned long value)
 {
-	bool error;
-
-	asm volatile (__ex("vmwrite %2, %1") CC_SET(na)
-		      : CC_OUT(na) (error) : "r"(field), "rm"(value));
-	if (unlikely(error))
-		vmwrite_error(field, value);
+	vmx_asm2(vmwrite, "r"(field), "rm"(value), field, value);
 }
 
 static __always_inline void vmcs_write16(unsigned long field, u16 value)
@@ -182,28 +219,18 @@ static __always_inline void vmcs_set_bits(unsigned long field, u32 mask)
 static inline void vmcs_clear(struct vmcs *vmcs)
 {
 	u64 phys_addr = __pa(vmcs);
-	bool error;
 
-	asm volatile (__ex("vmclear %1") CC_SET(na)
-		      : CC_OUT(na) (error) : "m"(phys_addr));
-	if (unlikely(error))
-		printk(KERN_ERR "kvm: vmclear fail: %p/%llx\n",
-		       vmcs, phys_addr);
+	vmx_asm1(vmclear, "m"(phys_addr), vmcs, phys_addr);
 }
 
 static inline void vmcs_load(struct vmcs *vmcs)
 {
 	u64 phys_addr = __pa(vmcs);
-	bool error;
 
 	if (static_branch_unlikely(&enable_evmcs))
 		return evmcs_load(phys_addr);
 
-	asm volatile (__ex("vmptrld %1") CC_SET(na)
-		      : CC_OUT(na) (error) : "m"(phys_addr));
-	if (unlikely(error))
-		printk(KERN_ERR "kvm: vmptrld %p/%llx failed\n",
-		       vmcs, phys_addr);
+	vmx_asm1(vmptrld, "m"(phys_addr), vmcs, phys_addr);
 }
 
 static inline void __invvpid(unsigned long ext, u16 vpid, gva_t gva)
@@ -213,11 +240,8 @@ static inline void __invvpid(unsigned long ext, u16 vpid, gva_t gva)
 		u64 rsvd : 48;
 		u64 gva;
 	} operand = { vpid, 0, gva };
-	bool error;
 
-	asm volatile (__ex("invvpid %2, %1") CC_SET(na)
-		      : CC_OUT(na) (error) : "r"(ext), "m"(operand));
-	BUG_ON(error);
+	vmx_asm2(invvpid, "r"(ext), "m"(operand), ext, vpid, gva);
 }
 
 static inline void __invept(unsigned long ext, u64 eptp, gpa_t gpa)
@@ -225,11 +249,8 @@ static inline void __invept(unsigned long ext, u64 eptp, gpa_t gpa)
 	struct {
 		u64 eptp, gpa;
 	} operand = {eptp, gpa};
-	bool error;
 
-	asm volatile (__ex("invept %2, %1") CC_SET(na)
-		      : CC_OUT(na) (error) : "r"(ext), "m"(operand));
-	BUG_ON(error);
+	vmx_asm2(invept, "r"(ext), "m"(operand), ext, eptp, gpa);
 }
 
 static inline bool vpid_sync_vcpu_addr(int vpid, gva_t addr)

@@ -135,7 +135,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
         https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
     "Linux kernel patch submission format"
-        http://linux.yyz.us/patch-format.html
+        https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html
 
    :ref:`Documentation/process/stable-api-nonsense.rst <stable_api_nonsense>`
     이 문서는 의도적으로 커널이 불변하는 API를 갖지 않도록 결정한

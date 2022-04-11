@@ -24,10 +24,8 @@
 
 #include <asm/iosf_mbi.h>
 
-#include "intel_sideband.h"
-
 #include "i915_drv.h"
-#include "intel_drv.h"
+#include "intel_sideband.h"
 
 /*
  * IOSF sideband, see VLV2_SidebandMsg_HAS.docx and

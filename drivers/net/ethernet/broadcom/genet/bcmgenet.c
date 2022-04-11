@@ -1996,8 +1996,6 @@ static void reset_umac(struct bcmgenet_priv *priv)
 
 	/* issue soft reset with (rg)mii loopback to ensure a stable rxclk */
 	bcmgenet_umac_writel(priv, CMD_SW_RESET | CMD_LCL_LOOP_EN, UMAC_CMD);
-	udelay(2);
-	bcmgenet_umac_writel(priv, 0, UMAC_CMD);
 }
 
 static void bcmgenet_intr_disable(struct bcmgenet_priv *priv)
@@ -2018,6 +2016,8 @@ static void bcmgenet_link_intr_enable(struct bcmgenet_priv *priv)
 	 */
 	if (priv->internal_phy) {
 		int0_enable |= UMAC_IRQ_LINK_EVENT;
+		if (GENET_IS_V1(priv) || GENET_IS_V2(priv) || GENET_IS_V3(priv))
+			int0_enable |= UMAC_IRQ_PHY_DET_R;
 	} else if (priv->ext_phy) {
 		int0_enable |= UMAC_IRQ_LINK_EVENT;
 	} else if (priv->phy_interface == PHY_INTERFACE_MODE_MOCA) {
@@ -2516,19 +2516,14 @@ static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
 static void bcmgenet_fini_dma(struct bcmgenet_priv *priv)
 {
 	struct netdev_queue *txq;
-	struct sk_buff *skb;
-	struct enet_cb *cb;
 	int i;
 
 	bcmgenet_fini_rx_napi(priv);
 	bcmgenet_fini_tx_napi(priv);
 
-	for (i = 0; i < priv->num_tx_bds; i++) {
-		cb = priv->tx_cbs + i;
-		skb = bcmgenet_free_tx_cb(&priv->pdev->dev, cb);
-		if (skb)
-			dev_kfree_skb(skb);
-	}
+	for (i = 0; i < priv->num_tx_bds; i++)
+		dev_kfree_skb(bcmgenet_free_tx_cb(&priv->pdev->dev,
+						  priv->tx_cbs + i));
 
 	for (i = 0; i < priv->hw_params->tx_queues; i++) {
 		txq = netdev_get_tx_queue(priv->dev, priv->tx_rings[i].queue);
@@ -2616,11 +2611,16 @@ static void bcmgenet_irq_task(struct work_struct *work)
 	priv->irq0_stat = 0;
 	spin_unlock_irq(&priv->lock);
 
-	/* Link UP/DOWN event */
-	if (status & UMAC_IRQ_LINK_EVENT) {
-		priv->dev->phydev->link = !!(status & UMAC_IRQ_LINK_UP);
-		phy_mac_interrupt(priv->dev->phydev);
+	if (status & UMAC_IRQ_PHY_DET_R &&
+	    priv->dev->phydev->autoneg != AUTONEG_ENABLE) {
+		phy_init_hw(priv->dev->phydev);
+		genphy_config_aneg(priv->dev->phydev);
 	}
+
+	/* Link UP/DOWN event */
+	if (status & UMAC_IRQ_LINK_EVENT)
+		phy_mac_interrupt(priv->dev->phydev);
+
 }
 
 /* bcmgenet_isr1: handle Rx and Tx priority queues */
@@ -2715,7 +2715,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 	}
 
 	/* all other interested interrupts handled in bottom half */
-	status &= UMAC_IRQ_LINK_EVENT;
+	status &= (UMAC_IRQ_LINK_EVENT | UMAC_IRQ_PHY_DET_R);
 	if (status) {
 		/* Save irq status for bottom-half processing. */
 		spin_lock_irqsave(&priv->lock, flags);
@@ -3438,7 +3438,6 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	struct bcmgenet_priv *priv;
 	struct net_device *dev;
 	const void *macaddr;
-	struct resource *r;
 	unsigned int i;
 	int err = -EIO;
 	const char *phy_mode_str;
@@ -3478,8 +3477,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		macaddr = pd->mac_address;
 	}
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, r);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {
 		err = PTR_ERR(priv->base);
 		goto err;
@@ -3638,6 +3636,7 @@ static int bcmgenet_resume(struct device *d)
 	phy_init_hw(dev->phydev);
 
 	/* Speed settings must be restored */
+	genphy_config_aneg(dev->phydev);
 	bcmgenet_mii_config(priv->dev, false);
 
 	bcmgenet_set_hw_addr(priv, dev->dev_addr);

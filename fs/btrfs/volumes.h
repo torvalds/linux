@@ -82,7 +82,6 @@ struct btrfs_device {
 
 	unsigned long dev_state;
 	blk_status_t last_flush_error;
-	int flush_bio_sent;
 
 #ifdef __BTRFS_NEED_DEVICE_DATA_ORDERED
 	seqcount_t data_seqcount;
@@ -475,8 +474,6 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info);
 int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info);
 int btrfs_check_uuid_tree(struct btrfs_fs_info *fs_info);
 int btrfs_chunk_readonly(struct btrfs_fs_info *fs_info, u64 chunk_offset);
-int find_free_dev_extent_start(struct btrfs_device *device, u64 num_bytes,
-			       u64 search_start, u64 *start, u64 *max_avail);
 int find_free_dev_extent(struct btrfs_device *device, u64 num_bytes,
 			 u64 *start, u64 *max_avail);
 void btrfs_dev_stat_inc_and_print(struct btrfs_device *dev, int index);
@@ -548,12 +545,6 @@ static inline void btrfs_dev_stat_set(struct btrfs_device *dev,
 	 */
 	smp_mb__before_atomic();
 	atomic_inc(&dev->dev_stats_ccnt);
-}
-
-static inline void btrfs_dev_stat_reset(struct btrfs_device *dev,
-					int index)
-{
-	btrfs_dev_stat_set(dev, index, 0);
 }
 
 /*

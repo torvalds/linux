@@ -272,11 +272,12 @@ static int em_gio_probe(struct platform_device *pdev)
 	struct resource *io[2], *irq[2];
 	struct gpio_chip *gpio_chip;
 	struct irq_chip *irq_chip;
-	const char *name = dev_name(&pdev->dev);
+	struct device *dev = &pdev->dev;
+	const char *name = dev_name(dev);
 	unsigned int ngpios;
 	int ret;
 
-	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
+	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
@@ -290,27 +291,27 @@ static int em_gio_probe(struct platform_device *pdev)
 	irq[1] = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
 
 	if (!io[0] || !io[1] || !irq[0] || !irq[1]) {
-		dev_err(&pdev->dev, "missing IRQ or IOMEM\n");
+		dev_err(dev, "missing IRQ or IOMEM\n");
 		return -EINVAL;
 	}
 
-	p->base0 = devm_ioremap_nocache(&pdev->dev, io[0]->start,
+	p->base0 = devm_ioremap_nocache(dev, io[0]->start,
 					resource_size(io[0]));
 	if (!p->base0)
 		return -ENOMEM;
 
-	p->base1 = devm_ioremap_nocache(&pdev->dev, io[1]->start,
+	p->base1 = devm_ioremap_nocache(dev, io[1]->start,
 				   resource_size(io[1]));
 	if (!p->base1)
 		return -ENOMEM;
 
-	if (of_property_read_u32(pdev->dev.of_node, "ngpios", &ngpios)) {
-		dev_err(&pdev->dev, "Missing ngpios OF property\n");
+	if (of_property_read_u32(dev->of_node, "ngpios", &ngpios)) {
+		dev_err(dev, "Missing ngpios OF property\n");
 		return -EINVAL;
 	}
 
 	gpio_chip = &p->gpio_chip;
-	gpio_chip->of_node = pdev->dev.of_node;
+	gpio_chip->of_node = dev->of_node;
 	gpio_chip->direction_input = em_gio_direction_input;
 	gpio_chip->get = em_gio_get;
 	gpio_chip->direction_output = em_gio_direction_output;
@@ -319,7 +320,7 @@ static int em_gio_probe(struct platform_device *pdev)
 	gpio_chip->request = em_gio_request;
 	gpio_chip->free = em_gio_free;
 	gpio_chip->label = name;
-	gpio_chip->parent = &pdev->dev;
+	gpio_chip->parent = dev;
 	gpio_chip->owner = THIS_MODULE;
 	gpio_chip->base = -1;
 	gpio_chip->ngpio = ngpios;
@@ -333,33 +334,33 @@ static int em_gio_probe(struct platform_device *pdev)
 	irq_chip->irq_release_resources = em_gio_irq_relres;
 	irq_chip->flags	= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND;
 
-	p->irq_domain = irq_domain_add_simple(pdev->dev.of_node, ngpios, 0,
+	p->irq_domain = irq_domain_add_simple(dev->of_node, ngpios, 0,
 					      &em_gio_irq_domain_ops, p);
 	if (!p->irq_domain) {
-		dev_err(&pdev->dev, "cannot initialize irq domain\n");
+		dev_err(dev, "cannot initialize irq domain\n");
 		return -ENXIO;
 	}
 
-	ret = devm_add_action_or_reset(&pdev->dev, em_gio_irq_domain_remove,
+	ret = devm_add_action_or_reset(dev, em_gio_irq_domain_remove,
 				       p->irq_domain);
 	if (ret)
 		return ret;
 
-	if (devm_request_irq(&pdev->dev, irq[0]->start,
+	if (devm_request_irq(dev, irq[0]->start,
 			     em_gio_irq_handler, 0, name, p)) {
-		dev_err(&pdev->dev, "failed to request low IRQ\n");
+		dev_err(dev, "failed to request low IRQ\n");
 		return -ENOENT;
 	}
 
-	if (devm_request_irq(&pdev->dev, irq[1]->start,
+	if (devm_request_irq(dev, irq[1]->start,
 			     em_gio_irq_handler, 0, name, p)) {
-		dev_err(&pdev->dev, "failed to request high IRQ\n");
+		dev_err(dev, "failed to request high IRQ\n");
 		return -ENOENT;
 	}
 
-	ret = devm_gpiochip_add_data(&pdev->dev, gpio_chip, p);
+	ret = devm_gpiochip_add_data(dev, gpio_chip, p);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to add GPIO controller\n");
+		dev_err(dev, "failed to add GPIO controller\n");
 		return ret;
 	}
 

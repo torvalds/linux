@@ -596,7 +596,7 @@ static int ni_request_ao_mite_channel(struct comedi_device *dev)
 	if (!mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
-			"failed to reserve mite dma channel for analog outut\n");
+			"failed to reserve mite dma channel for analog output\n");
 		return -EBUSY;
 	}
 	mite_chan->dir = COMEDI_OUTPUT;

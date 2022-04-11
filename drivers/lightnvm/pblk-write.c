@@ -373,7 +373,6 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	struct pblk_emeta *emeta = meta_line->emeta;
 	struct ppa_addr *ppa_list;
 	struct pblk_g_ctx *m_ctx;
-	struct bio *bio;
 	struct nvm_rq *rqd;
 	void *data;
 	u64 paddr;
@@ -391,20 +390,9 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	rq_len = rq_ppas * geo->csecs;
 	data = ((void *)emeta->buf) + emeta->mem;
 
-	bio = pblk_bio_map_addr(pblk, data, rq_ppas, rq_len,
-					l_mg->emeta_alloc_type, GFP_KERNEL);
-	if (IS_ERR(bio)) {
-		pblk_err(pblk, "failed to map emeta io");
-		ret = PTR_ERR(bio);
-		goto fail_free_rqd;
-	}
-	bio->bi_iter.bi_sector = 0; /* internal bio */
-	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-	rqd->bio = bio;
-
 	ret = pblk_alloc_w_rq(pblk, rqd, rq_ppas, pblk_end_io_write_meta);
 	if (ret)
-		goto fail_free_bio;
+		goto fail_free_rqd;
 
 	ppa_list = nvm_rq_to_ppa_list(rqd);
 	for (i = 0; i < rqd->nr_ppas; ) {
@@ -423,7 +411,7 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 
 	pblk_down_chunk(pblk, ppa_list[0]);
 
-	ret = pblk_submit_io(pblk, rqd);
+	ret = pblk_submit_io(pblk, rqd, data);
 	if (ret) {
 		pblk_err(pblk, "emeta I/O submission failed: %d\n", ret);
 		goto fail_rollback;
@@ -437,8 +425,6 @@ fail_rollback:
 	pblk_dealloc_page(pblk, meta_line, rq_ppas);
 	list_add(&meta_line->list, &meta_line->list);
 	spin_unlock(&l_mg->close_lock);
-fail_free_bio:
-	bio_put(bio);
 fail_free_rqd:
 	pblk_free_rqd(pblk, rqd, PBLK_WRITE_INT);
 	return ret;
@@ -523,7 +509,7 @@ static int pblk_submit_io_set(struct pblk *pblk, struct nvm_rq *rqd)
 	meta_line = pblk_should_submit_meta_io(pblk, rqd);
 
 	/* Submit data write for current data line */
-	err = pblk_submit_io(pblk, rqd);
+	err = pblk_submit_io(pblk, rqd, NULL);
 	if (err) {
 		pblk_err(pblk, "data I/O submission failed: %d\n", err);
 		return NVM_IO_ERR;

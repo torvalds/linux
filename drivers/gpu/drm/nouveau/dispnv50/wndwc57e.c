@@ -29,6 +29,72 @@
 #include <nvif/clc37e.h>
 
 static void
+wndwc57e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	u32 *push;
+
+	if (!(push = evo_wait(&wndw->wndw, 17)))
+		return;
+
+	evo_mthd(push, 0x0308, 1);
+	evo_data(push, asyw->image.mode << 4 | asyw->image.interval);
+	evo_mthd(push, 0x0224, 4);
+	evo_data(push, asyw->image.h << 16 | asyw->image.w);
+	evo_data(push, asyw->image.layout << 4 | asyw->image.blockh);
+	evo_data(push, asyw->image.colorspace << 8 |
+		       asyw->image.format);
+	evo_data(push, asyw->image.blocks[0] | (asyw->image.pitch[0] >> 6));
+	evo_mthd(push, 0x0240, 1);
+	evo_data(push, asyw->image.handle[0]);
+	evo_mthd(push, 0x0260, 1);
+	evo_data(push, asyw->image.offset[0] >> 8);
+	evo_mthd(push, 0x0290, 1);
+	evo_data(push, (asyw->state.src_y >> 16) << 16 |
+		       (asyw->state.src_x >> 16));
+	evo_mthd(push, 0x0298, 1);
+	evo_data(push, (asyw->state.src_h >> 16) << 16 |
+		       (asyw->state.src_w >> 16));
+	evo_mthd(push, 0x02a4, 1);
+	evo_data(push, asyw->state.crtc_h << 16 |
+		       asyw->state.crtc_w);
+	evo_kick(push, &wndw->wndw);
+}
+
+static void
+wndwc57e_csc_clr(struct nv50_wndw *wndw)
+{
+	u32 *push;
+	if ((push = evo_wait(&wndw->wndw, 13))) {
+		 evo_mthd(push, 0x0400, 12);
+		 evo_data(push, 0x00010000);
+		 evo_data(push, 0x00000000);
+		 evo_data(push, 0x00000000);
+		 evo_data(push, 0x00000000);
+		 evo_data(push, 0x00000000);
+		 evo_data(push, 0x00010000);
+		 evo_data(push, 0x00000000);
+		 evo_data(push, 0x00000000);
+		 evo_data(push, 0x00000000);
+		 evo_data(push, 0x00000000);
+		 evo_data(push, 0x00010000);
+		 evo_data(push, 0x00000000);
+		 evo_kick(push, &wndw->wndw);
+	}
+}
+
+static void
+wndwc57e_csc_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
+{
+	u32 *push, i;
+	if ((push = evo_wait(&wndw->wndw, 13))) {
+		 evo_mthd(push, 0x0400, 12);
+		 for (i = 0; i < 12; i++)
+			  evo_data(push, asyw->csc.matrix[i]);
+		 evo_kick(push, &wndw->wndw);
+	}
+}
+
+static void
 wndwc57e_ilut_clr(struct nv50_wndw *wndw)
 {
 	u32 *push;
@@ -119,8 +185,12 @@ wndwc57e = {
 	.ilut_identity = true,
 	.xlut_set = wndwc57e_ilut_set,
 	.xlut_clr = wndwc57e_ilut_clr,
-	.image_set = wndwc37e_image_set,
+	.csc = base907c_csc,
+	.csc_set = wndwc57e_csc_set,
+	.csc_clr = wndwc57e_csc_clr,
+	.image_set = wndwc57e_image_set,
 	.image_clr = wndwc37e_image_clr,
+	.blend_set = wndwc37e_blend_set,
 	.update = wndwc37e_update,
 };
 

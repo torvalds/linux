@@ -39,6 +39,8 @@ static const struct qeth_stats txq_stats[] = {
 	QETH_TXQ_STAT("TSO bytes", tso_bytes),
 	QETH_TXQ_STAT("Packing mode switches", packing_mode_switch),
 	QETH_TXQ_STAT("Queue stopped", stopped),
+	QETH_TXQ_STAT("Completion yield", completion_yield),
+	QETH_TXQ_STAT("Completion timer", completion_timer),
 };
 
 static const struct qeth_stats card_stats[] = {

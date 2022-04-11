@@ -239,10 +239,9 @@ out:
 	return err;
 }
 
-static int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id)
+int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id)
 {
-	unsigned int val = 0;
-	int sid, err, path;
+	int err, path;
 
 	path = (mac_id == 0) ?  MTK_ETH_PATH_GMAC1_SGMII :
 				MTK_ETH_PATH_GMAC2_SGMII;
@@ -252,33 +251,10 @@ static int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id)
 	if (err)
 		return err;
 
-	/* The path GMAC to SGMII will be enabled once the SGMIISYS is being
-	 * setup done.
-	 */
-	regmap_read(eth->ethsys, ETHSYS_SYSCFG0, &val);
-
-	regmap_update_bits(eth->ethsys, ETHSYS_SYSCFG0,
-			   SYSCFG0_SGMII_MASK, ~(u32)SYSCFG0_SGMII_MASK);
-
-	/* Decide how GMAC and SGMIISYS be mapped */
-	sid = (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_SGMII)) ? 0 : mac_id;
-
-	/* Setup SGMIISYS with the determined property */
-	if (MTK_HAS_FLAGS(eth->sgmii->flags[sid], MTK_SGMII_PHYSPEED_AN))
-		err = mtk_sgmii_setup_mode_an(eth->sgmii, sid);
-	else
-		err = mtk_sgmii_setup_mode_force(eth->sgmii, sid);
-
-	if (err)
-		return err;
-
-	regmap_update_bits(eth->ethsys, ETHSYS_SYSCFG0,
-			   SYSCFG0_SGMII_MASK, val);
-
 	return 0;
 }
 
-static int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id)
+int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id)
 {
 	int err, path = 0;
 
@@ -296,7 +272,7 @@ static int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id)
 	return 0;
 }
 
-static int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id)
+int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id)
 {
 	int err, path;
 
@@ -311,42 +287,3 @@ static int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id)
 	return 0;
 }
 
-int mtk_setup_hw_path(struct mtk_eth *eth, int mac_id, int phymode)
-{
-	int err;
-
-	switch (phymode) {
-	case PHY_INTERFACE_MODE_TRGMII:
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-	case PHY_INTERFACE_MODE_RGMII_ID:
-	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_MII:
-	case PHY_INTERFACE_MODE_REVMII:
-	case PHY_INTERFACE_MODE_RMII:
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RGMII)) {
-			err = mtk_gmac_rgmii_path_setup(eth, mac_id);
-			if (err)
-				return err;
-		}
-		break;
-	case PHY_INTERFACE_MODE_SGMII:
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SGMII)) {
-			err = mtk_gmac_sgmii_path_setup(eth, mac_id);
-			if (err)
-				return err;
-		}
-		break;
-	case PHY_INTERFACE_MODE_GMII:
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_GEPHY)) {
-			err = mtk_gmac_gephy_path_setup(eth, mac_id);
-			if (err)
-				return err;
-		}
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}

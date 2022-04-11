@@ -43,7 +43,7 @@ static int hclgevf_cmd_csq_clean(struct hclgevf_hw *hw)
 {
 	struct hclgevf_dev *hdev = container_of(hw, struct hclgevf_dev, hw);
 	struct hclgevf_cmq_ring *csq = &hw->cmq.csq;
-	int clean = 0;
+	int clean;
 	u32 head;
 
 	head = hclgevf_read_dev(hw, HCLGEVF_NIC_CSQ_HEAD_REG);
@@ -74,7 +74,7 @@ static bool hclgevf_cmd_csq_done(struct hclgevf_hw *hw)
 
 static bool hclgevf_is_special_opcode(u16 opcode)
 {
-	u16 spec_opcode[] = {0x30, 0x31, 0x32};
+	static const u16 spec_opcode[] = {0x30, 0x31, 0x32};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(spec_opcode); i++) {
@@ -97,7 +97,9 @@ static void hclgevf_cmd_config_regs(struct hclgevf_cmq_ring *ring)
 		reg_val = (u32)((ring->desc_dma_addr >> 31) >> 1);
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_BASEADDR_H_REG, reg_val);
 
-		reg_val = (ring->desc_num >> HCLGEVF_NIC_CMQ_DESC_NUM_S);
+		reg_val = hclgevf_read_dev(hw, HCLGEVF_NIC_CSQ_DEPTH_REG);
+		reg_val &= HCLGEVF_NIC_SW_RST_RDY;
+		reg_val |= (ring->desc_num >> HCLGEVF_NIC_CMQ_DESC_NUM_S);
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_DEPTH_REG, reg_val);
 
 		hclgevf_write_dev(hw, HCLGEVF_NIC_CSQ_HEAD_REG, 0);
@@ -405,7 +407,15 @@ int hclgevf_cmd_init(struct hclgevf_dev *hdev)
 	}
 	hdev->fw_version = version;
 
-	dev_info(&hdev->pdev->dev, "The firmware version is %08x\n", version);
+	dev_info(&hdev->pdev->dev, "The firmware version is %lu.%lu.%lu.%lu\n",
+		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE3_MASK,
+				 HNAE3_FW_VERSION_BYTE3_SHIFT),
+		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE2_MASK,
+				 HNAE3_FW_VERSION_BYTE2_SHIFT),
+		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE1_MASK,
+				 HNAE3_FW_VERSION_BYTE1_SHIFT),
+		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE0_MASK,
+				 HNAE3_FW_VERSION_BYTE0_SHIFT));
 
 	return 0;
 

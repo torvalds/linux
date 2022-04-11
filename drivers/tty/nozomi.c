@@ -1282,7 +1282,7 @@ static void nozomi_setup_private_data(struct nozomi *dc)
 static ssize_t card_type_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	const struct nozomi *dc = pci_get_drvdata(to_pci_dev(dev));
+	const struct nozomi *dc = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%d\n", dc->card_type);
 }
@@ -1291,7 +1291,7 @@ static DEVICE_ATTR_RO(card_type);
 static ssize_t open_ttys_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	const struct nozomi *dc = pci_get_drvdata(to_pci_dev(dev));
+	const struct nozomi *dc = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%u\n", dc->open_ttys);
 }

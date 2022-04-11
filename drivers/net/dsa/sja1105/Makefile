@@ -12,3 +12,7 @@ sja1105-objs := \
 ifdef CONFIG_NET_DSA_SJA1105_PTP
 sja1105-objs += sja1105_ptp.o
 endif
+
+ifdef CONFIG_NET_DSA_SJA1105_TAS
+sja1105-objs += sja1105_tas.o
+endif

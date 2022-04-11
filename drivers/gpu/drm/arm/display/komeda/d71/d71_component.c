@@ -4,8 +4,6 @@
  * Author: James.Qian.Wang <james.qian.wang@arm.com>
  *
  */
-
-#include <drm/drm_print.h>
 #include "d71_dev.h"
 #include "komeda_kms.h"
 #include "malidp_io.h"
@@ -804,7 +802,7 @@ static int d71_downscaling_clk_check(struct komeda_pipeline *pipe,
 		denominator = (mode->htotal - 1) * v_out -  2 * v_in;
 	}
 
-	return aclk_rate * denominator >= mode->clock * 1000 * fraction ?
+	return aclk_rate * denominator >= mode->crtc_clock * 1000 * fraction ?
 	       0 : -EINVAL;
 }
 
@@ -1032,21 +1030,31 @@ static void d71_timing_ctrlr_update(struct komeda_component *c,
 				    struct komeda_component_state *state)
 {
 	struct drm_crtc_state *crtc_st = state->crtc->state;
+	struct drm_display_mode *mode = &crtc_st->adjusted_mode;
 	u32 __iomem *reg = c->reg;
-	struct videomode vm;
+	u32 hactive, hfront_porch, hback_porch, hsync_len;
+	u32 vactive, vfront_porch, vback_porch, vsync_len;
 	u32 value;
 
-	drm_display_mode_to_videomode(&crtc_st->adjusted_mode, &vm);
+	hactive = mode->crtc_hdisplay;
+	hfront_porch = mode->crtc_hsync_start - mode->crtc_hdisplay;
+	hsync_len = mode->crtc_hsync_end - mode->crtc_hsync_start;
+	hback_porch = mode->crtc_htotal - mode->crtc_hsync_end;
 
-	malidp_write32(reg, BS_ACTIVESIZE, HV_SIZE(vm.hactive, vm.vactive));
-	malidp_write32(reg, BS_HINTERVALS, BS_H_INTVALS(vm.hfront_porch,
-							vm.hback_porch));
-	malidp_write32(reg, BS_VINTERVALS, BS_V_INTVALS(vm.vfront_porch,
-							vm.vback_porch));
+	vactive = mode->crtc_vdisplay;
+	vfront_porch = mode->crtc_vsync_start - mode->crtc_vdisplay;
+	vsync_len = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	vback_porch = mode->crtc_vtotal - mode->crtc_vsync_end;
 
-	value = BS_SYNC_VSW(vm.vsync_len) | BS_SYNC_HSW(vm.hsync_len);
-	value |= vm.flags & DISPLAY_FLAGS_VSYNC_HIGH ? BS_SYNC_VSP : 0;
-	value |= vm.flags & DISPLAY_FLAGS_HSYNC_HIGH ? BS_SYNC_HSP : 0;
+	malidp_write32(reg, BS_ACTIVESIZE, HV_SIZE(hactive, vactive));
+	malidp_write32(reg, BS_HINTERVALS, BS_H_INTVALS(hfront_porch,
+							hback_porch));
+	malidp_write32(reg, BS_VINTERVALS, BS_V_INTVALS(vfront_porch,
+							vback_porch));
+
+	value = BS_SYNC_VSW(vsync_len) | BS_SYNC_HSW(hsync_len);
+	value |= mode->flags & DRM_MODE_FLAG_PVSYNC ? BS_SYNC_VSP : 0;
+	value |= mode->flags & DRM_MODE_FLAG_PHSYNC ? BS_SYNC_HSP : 0;
 	malidp_write32(reg, BS_SYNC, value);
 
 	malidp_write32(reg, BS_PROG_LINE, D71_DEFAULT_PREPRETCH_LINE - 1);
@@ -1054,6 +1062,10 @@ static void d71_timing_ctrlr_update(struct komeda_component *c,
 
 	/* configure bs control register */
 	value = BS_CTRL_EN | BS_CTRL_VM;
+	if (c->pipeline->dual_link) {
+		malidp_write32(reg, BS_DRIFT_TO, hfront_porch + 16);
+		value |= BS_CTRL_DL;
+	}
 
 	malidp_write32(reg, BLK_CONTROL, value);
 }

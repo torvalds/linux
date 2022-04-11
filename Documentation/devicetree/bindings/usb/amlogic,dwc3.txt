@@ -85,8 +85,8 @@ A child node must exist to represent the core DWC2 IP block. The name of
 the node is not important. The content of the node is defined in dwc2.txt.
 
 PHY documentation is provided in the following places:
-- Documentation/devicetree/bindings/phy/meson-g12a-usb2-phy.txt
-- Documentation/devicetree/bindings/phy/meson-g12a-usb3-pcie-phy.txt
+- Documentation/devicetree/bindings/phy/amlogic,meson-g12a-usb2-phy.yaml
+- Documentation/devicetree/bindings/phy/amlogic,meson-g12a-usb3-pcie-phy.yaml
 
 Example device nodes:
 	usb: usb@ffe09000 {

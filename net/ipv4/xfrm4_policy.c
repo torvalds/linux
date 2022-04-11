@@ -85,6 +85,7 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	xdst->u.rt.rt_flags = rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST |
 					      RTCF_LOCAL);
 	xdst->u.rt.rt_type = rt->rt_type;
+	xdst->u.rt.rt_uses_gateway = rt->rt_uses_gateway;
 	xdst->u.rt.rt_gw_family = rt->rt_gw_family;
 	if (rt->rt_gw_family == AF_INET)
 		xdst->u.rt.rt_gw4 = rt->rt_gw4;

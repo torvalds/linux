@@ -234,7 +234,7 @@ static int prism2_io_debug_proc_read(char *page, char **start, off_t off,
 {
 	local_info_t *local = (local_info_t *) data;
 	int head = local->io_debug_head;
-	int start_bytes, left, copy, copied;
+	int start_bytes, left, copy;
 
 	if (off + count > PRISM2_IO_DEBUG_SIZE * 4) {
 		*eof = 1;
@@ -243,7 +243,6 @@ static int prism2_io_debug_proc_read(char *page, char **start, off_t off,
 		count = PRISM2_IO_DEBUG_SIZE * 4 - off;
 	}
 
-	copied = 0;
 	start_bytes = (PRISM2_IO_DEBUG_SIZE - head) * 4;
 	left = count;
 

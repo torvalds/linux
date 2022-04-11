@@ -96,8 +96,8 @@ void optc2_set_dsc_config(struct timing_generator *optc,
 void optc2_set_odm_bypass(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing);
 
-void optc2_set_odm_combine(struct timing_generator *optc, int combine_opp_id,
-		int mpcc_hactive, enum dc_pixel_encoding pixel_encoding);
+void optc2_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_cnt,
+		struct dc_crtc_timing *timing);
 
 void optc2_get_optc_source(struct timing_generator *optc,
 		uint32_t *num_of_src_opp,
@@ -106,9 +106,6 @@ void optc2_get_optc_source(struct timing_generator *optc,
 
 void optc2_triplebuffer_lock(struct timing_generator *optc);
 void optc2_triplebuffer_unlock(struct timing_generator *optc);
-void optc2_lock(struct timing_generator *optc);
-void optc2_lock_global(struct timing_generator *optc);
-void optc2_setup_global_lock(struct timing_generator *optc);
 void optc2_lock_doublebuffer_disable(struct timing_generator *optc);
 void optc2_lock_doublebuffer_enable(struct timing_generator *optc);
 void optc2_program_manual_trigger(struct timing_generator *optc);

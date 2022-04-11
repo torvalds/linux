@@ -122,11 +122,14 @@ static int komeda_parse_pipe_dt(struct komeda_dev *mdev, struct device_node *np)
 	pipe->pxlclk = clk;
 
 	/* enum ports */
-	pipe->of_output_dev =
+	pipe->of_output_links[0] =
 		of_graph_get_remote_node(np, KOMEDA_OF_PORT_OUTPUT, 0);
+	pipe->of_output_links[1] =
+		of_graph_get_remote_node(np, KOMEDA_OF_PORT_OUTPUT, 1);
 	pipe->of_output_port =
 		of_graph_get_port_by_id(np, KOMEDA_OF_PORT_OUTPUT);
 
+	pipe->dual_link = pipe->of_output_links[0] && pipe->of_output_links[1];
 	pipe->of_node = of_node_get(np);
 
 	return 0;

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
 #include <string.h>
+#include <linux/kernel.h>
 
 #include "gtk.h"
 #include "../ui.h"
 #include "../helpline.h"
-#include "../../util/debug.h"
 
 static void gtk_helpline_pop(void)
 {

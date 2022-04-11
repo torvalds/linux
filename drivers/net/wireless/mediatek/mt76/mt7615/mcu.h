@@ -23,6 +23,28 @@ struct mt7615_mcu_txd {
 	u32 reserved[5];
 } __packed __aligned(4);
 
+/* event table */
+enum {
+	MCU_EVENT_TARGET_ADDRESS_LEN = 0x01,
+	MCU_EVENT_FW_START = 0x01,
+	MCU_EVENT_GENERIC = 0x01,
+	MCU_EVENT_ACCESS_REG = 0x02,
+	MCU_EVENT_MT_PATCH_SEM = 0x04,
+	MCU_EVENT_CH_PRIVILEGE = 0x18,
+	MCU_EVENT_EXT = 0xed,
+	MCU_EVENT_RESTART_DL = 0xef,
+};
+
+/* ext event table */
+enum {
+	MCU_EXT_EVENT_PS_SYNC = 0x5,
+	MCU_EXT_EVENT_FW_LOG_2_HOST = 0x13,
+	MCU_EXT_EVENT_THERMAL_PROTECT = 0x22,
+	MCU_EXT_EVENT_ASSERT_DUMP = 0x23,
+	MCU_EXT_EVENT_RDD_REPORT = 0x3a,
+	MCU_EXT_EVENT_CSA_NOTIFY = 0x4f,
+};
+
 struct mt7615_mcu_rxd {
 	__le32 rxd[4];
 
@@ -76,11 +98,14 @@ enum {
 	MCU_EXT_CMD_BSS_INFO_UPDATE = 0x26,
 	MCU_EXT_CMD_EDCA_UPDATE = 0x27,
 	MCU_EXT_CMD_DEV_INFO_UPDATE = 0x2A,
+	MCU_EXT_CMD_GET_TEMP = 0x2c,
 	MCU_EXT_CMD_WTBL_UPDATE = 0x32,
+	MCU_EXT_CMD_SET_RDD_CTRL = 0x3a,
 	MCU_EXT_CMD_PROTECT_CTRL = 0x3e,
 	MCU_EXT_CMD_MAC_INIT_CTRL = 0x46,
 	MCU_EXT_CMD_BCN_OFFLOAD = 0x49,
 	MCU_EXT_CMD_SET_RX_PATH = 0x4e,
+	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
 };
 
 enum {
@@ -264,34 +289,6 @@ struct wtbl_hdr_trans {
 	u8 rsv;
 } __packed;
 
-enum mt7615_cipher_type {
-	MT_CIPHER_NONE,
-	MT_CIPHER_WEP40,
-	MT_CIPHER_TKIP,
-	MT_CIPHER_TKIP_NO_MIC,
-	MT_CIPHER_AES_CCMP,
-	MT_CIPHER_WEP104,
-	MT_CIPHER_BIP_CMAC_128,
-	MT_CIPHER_WEP128,
-	MT_CIPHER_WAPI,
-	MT_CIPHER_CCMP_256 = 10,
-	MT_CIPHER_GCMP,
-	MT_CIPHER_GCMP_256,
-};
-
-struct wtbl_sec_key {
-	__le16 tag;
-	__le16 len;
-	u8 add; /* 0: add, 1: remove */
-	u8 rkv;
-	u8 ikv;
-	u8 cipher_id;
-	u8 key_id;
-	u8 key_len;
-	u8 rsv[2];
-	u8 key_material[32];
-} __packed;
-
 enum {
 	MT_BA_TYPE_INVALID,
 	MT_BA_TYPE_ORIGINATOR,
@@ -375,7 +372,6 @@ struct wtbl_raw {
 				     sizeof(struct wtbl_vht) + \
 				     sizeof(struct wtbl_tx_ps) + \
 				     sizeof(struct wtbl_hdr_trans) + \
-				     sizeof(struct wtbl_sec_key) + \
 				     sizeof(struct wtbl_ba) + \
 				     sizeof(struct wtbl_bf) + \
 				     sizeof(struct wtbl_smps) + \

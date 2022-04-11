@@ -1770,11 +1770,10 @@ static int atl1e_tx_map(struct atl1e_adapter *adapter,
 	}
 
 	for (f = 0; f < nr_frags; f++) {
-		const struct skb_frag_struct *frag;
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[f];
 		u16 i;
 		u16 seg_num;
 
-		frag = &skb_shinfo(skb)->frags[f];
 		buf_len = skb_frag_size(frag);
 
 		seg_num = (buf_len + MAX_TX_BUF_LEN - 1) / MAX_TX_BUF_LEN;

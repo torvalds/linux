@@ -21,6 +21,7 @@
 
 #define IOADDR(x)		(XCHAL_KIO_BYPASS_VADDR + (x))
 #define IO_SPACE_LIMIT ~0
+#define PCI_IOBASE		((void __iomem *)XCHAL_KIO_BYPASS_VADDR)
 
 #ifdef CONFIG_MMU
 

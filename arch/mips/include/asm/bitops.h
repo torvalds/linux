@@ -66,7 +66,8 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 		"	beqzl	%0, 1b					\n"
 		"	.set	pop					\n"
 		: "=&r" (temp), "=" GCC_OFF_SMALL_ASM() (*m)
-		: "ir" (1UL << bit), GCC_OFF_SMALL_ASM() (*m));
+		: "ir" (1UL << bit), GCC_OFF_SMALL_ASM() (*m)
+		: __LLSC_CLOBBER);
 #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
 	} else if (kernel_uses_llsc && __builtin_constant_p(bit)) {
 		loongson_llsc_mb();
@@ -76,7 +77,8 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 			"	" __INS "%0, %3, %2, 1			\n"
 			"	" __SC "%0, %1				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-			: "ir" (bit), "r" (~0));
+			: "ir" (bit), "r" (~0)
+			: __LLSC_CLOBBER);
 		} while (unlikely(!temp));
 #endif /* CONFIG_CPU_MIPSR2 || CONFIG_CPU_MIPSR6 */
 	} else if (kernel_uses_llsc) {
@@ -90,7 +92,8 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *addr)
 			"	" __SC	"%0, %1				\n"
 			"	.set	pop				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-			: "ir" (1UL << bit));
+			: "ir" (1UL << bit)
+			: __LLSC_CLOBBER);
 		} while (unlikely(!temp));
 	} else
 		__mips_set_bit(nr, addr);
@@ -122,7 +125,8 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 		"	beqzl	%0, 1b					\n"
 		"	.set	pop					\n"
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-		: "ir" (~(1UL << bit)));
+		: "ir" (~(1UL << bit))
+		: __LLSC_CLOBBER);
 #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
 	} else if (kernel_uses_llsc && __builtin_constant_p(bit)) {
 		loongson_llsc_mb();
@@ -132,7 +136,8 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 			"	" __INS "%0, $0, %2, 1			\n"
 			"	" __SC "%0, %1				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-			: "ir" (bit));
+			: "ir" (bit)
+			: __LLSC_CLOBBER);
 		} while (unlikely(!temp));
 #endif /* CONFIG_CPU_MIPSR2 || CONFIG_CPU_MIPSR6 */
 	} else if (kernel_uses_llsc) {
@@ -146,7 +151,8 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *addr)
 			"	" __SC "%0, %1				\n"
 			"	.set	pop				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-			: "ir" (~(1UL << bit)));
+			: "ir" (~(1UL << bit))
+			: __LLSC_CLOBBER);
 		} while (unlikely(!temp));
 	} else
 		__mips_clear_bit(nr, addr);
@@ -192,7 +198,8 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 		"	beqzl	%0, 1b				\n"
 		"	.set	pop				\n"
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-		: "ir" (1UL << bit));
+		: "ir" (1UL << bit)
+		: __LLSC_CLOBBER);
 	} else if (kernel_uses_llsc) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
 		unsigned long temp;
@@ -207,7 +214,8 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *addr)
 			"	" __SC	"%0, %1				\n"
 			"	.set	pop				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m)
-			: "ir" (1UL << bit));
+			: "ir" (1UL << bit)
+			: __LLSC_CLOBBER);
 		} while (unlikely(!temp));
 	} else
 		__mips_change_bit(nr, addr);
@@ -244,11 +252,12 @@ static inline int test_and_set_bit(unsigned long nr,
 		"	.set	pop					\n"
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
 		: "r" (1UL << bit)
-		: "memory");
+		: __LLSC_CLOBBER);
 	} else if (kernel_uses_llsc) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
 		unsigned long temp;
 
+		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
 			"	.set	push				\n"
@@ -259,7 +268,7 @@ static inline int test_and_set_bit(unsigned long nr,
 			"	.set	pop				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
 			: "r" (1UL << bit)
-			: "memory");
+			: __LLSC_CLOBBER);
 		} while (unlikely(!res));
 
 		res = temp & (1UL << bit);
@@ -300,11 +309,12 @@ static inline int test_and_set_bit_lock(unsigned long nr,
 		"	.set	pop					\n"
 		: "=&r" (temp), "+m" (*m), "=&r" (res)
 		: "r" (1UL << bit)
-		: "memory");
+		: __LLSC_CLOBBER);
 	} else if (kernel_uses_llsc) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
 		unsigned long temp;
 
+		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
 			"	.set	push				\n"
@@ -315,7 +325,7 @@ static inline int test_and_set_bit_lock(unsigned long nr,
 			"	.set	pop				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
 			: "r" (1UL << bit)
-			: "memory");
+			: __LLSC_CLOBBER);
 		} while (unlikely(!res));
 
 		res = temp & (1UL << bit);
@@ -358,12 +368,13 @@ static inline int test_and_clear_bit(unsigned long nr,
 		"	.set	pop					\n"
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
 		: "r" (1UL << bit)
-		: "memory");
+		: __LLSC_CLOBBER);
 #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
 	} else if (kernel_uses_llsc && __builtin_constant_p(nr)) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
 		unsigned long temp;
 
+		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
 			"	" __LL	"%0, %1 # test_and_clear_bit	\n"
@@ -372,13 +383,14 @@ static inline int test_and_clear_bit(unsigned long nr,
 			"	" __SC	"%0, %1				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
 			: "ir" (bit)
-			: "memory");
+			: __LLSC_CLOBBER);
 		} while (unlikely(!temp));
 #endif
 	} else if (kernel_uses_llsc) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
 		unsigned long temp;
 
+		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
 			"	.set	push				\n"
@@ -390,7 +402,7 @@ static inline int test_and_clear_bit(unsigned long nr,
 			"	.set	pop				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
 			: "r" (1UL << bit)
-			: "memory");
+			: __LLSC_CLOBBER);
 		} while (unlikely(!res));
 
 		res = temp & (1UL << bit);
@@ -433,11 +445,12 @@ static inline int test_and_change_bit(unsigned long nr,
 		"	.set	pop					\n"
 		: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
 		: "r" (1UL << bit)
-		: "memory");
+		: __LLSC_CLOBBER);
 	} else if (kernel_uses_llsc) {
 		unsigned long *m = ((unsigned long *) addr) + (nr >> SZLONG_LOG);
 		unsigned long temp;
 
+		loongson_llsc_mb();
 		do {
 			__asm__ __volatile__(
 			"	.set	push				\n"
@@ -448,7 +461,7 @@ static inline int test_and_change_bit(unsigned long nr,
 			"	.set	pop				\n"
 			: "=&r" (temp), "+" GCC_OFF_SMALL_ASM() (*m), "=&r" (res)
 			: "r" (1UL << bit)
-			: "memory");
+			: __LLSC_CLOBBER);
 		} while (unlikely(!res));
 
 		res = temp & (1UL << bit);

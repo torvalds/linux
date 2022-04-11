@@ -25,7 +25,7 @@
 #include "amdgpu.h"
 #include "amdgpu_xgmi.h"
 #include "amdgpu_smu.h"
-
+#include "df/df_3_6_offset.h"
 
 static DEFINE_MUTEX(xgmi_mutex);
 
@@ -131,9 +131,37 @@ static ssize_t amdgpu_xgmi_show_device_id(struct device *dev,
 
 }
 
+#define AMDGPU_XGMI_SET_FICAA(o)	((o) | 0x456801)
+static ssize_t amdgpu_xgmi_show_error(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	uint32_t ficaa_pie_ctl_in, ficaa_pie_status_in;
+	uint64_t fica_out;
+	unsigned int error_count = 0;
+
+	ficaa_pie_ctl_in = AMDGPU_XGMI_SET_FICAA(0x200);
+	ficaa_pie_status_in = AMDGPU_XGMI_SET_FICAA(0x208);
+
+	fica_out = adev->df_funcs->get_fica(adev, ficaa_pie_ctl_in);
+	if (fica_out != 0x1f)
+		pr_err("xGMI error counters not enabled!\n");
+
+	fica_out = adev->df_funcs->get_fica(adev, ficaa_pie_status_in);
+
+	if ((fica_out & 0xffff) == 2)
+		error_count = ((fica_out >> 62) & 0x1) + (fica_out >> 63);
+
+	adev->df_funcs->set_fica(adev, ficaa_pie_status_in, 0, 0);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", error_count);
+}
+
 
 static DEVICE_ATTR(xgmi_device_id, S_IRUGO, amdgpu_xgmi_show_device_id, NULL);
-
+static DEVICE_ATTR(xgmi_error, S_IRUGO, amdgpu_xgmi_show_error, NULL);
 
 static int amdgpu_xgmi_sysfs_add_dev_info(struct amdgpu_device *adev,
 					 struct amdgpu_hive_info *hive)
@@ -147,6 +175,12 @@ static int amdgpu_xgmi_sysfs_add_dev_info(struct amdgpu_device *adev,
 		dev_err(adev->dev, "XGMI: Failed to create device file xgmi_device_id\n");
 		return ret;
 	}
+
+	/* Create xgmi error file */
+	ret = device_create_file(adev->dev, &dev_attr_xgmi_error);
+	if (ret)
+		pr_err("failed to create xgmi_error\n");
+
 
 	/* Create sysfs link to hive info folder on the first device */
 	if (adev != hive->adev) {
@@ -248,7 +282,7 @@ int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate)
 
 	dev_dbg(adev->dev, "Set xgmi pstate %d.\n", pstate);
 
-	if (is_support_sw_smu(adev))
+	if (is_support_sw_smu_xgmi(adev))
 		ret = smu_set_xgmi_pstate(&adev->smu, pstate);
 	if (ret)
 		dev_err(adev->dev,
@@ -296,23 +330,28 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 	struct amdgpu_xgmi	*entry;
 	struct amdgpu_device *tmp_adev = NULL;
 
-	int count = 0, ret = -EINVAL;
+	int count = 0, ret = 0;
 
 	if (!adev->gmc.xgmi.supported)
 		return 0;
 
-	ret = psp_xgmi_get_node_id(&adev->psp, &adev->gmc.xgmi.node_id);
-	if (ret) {
-		dev_err(adev->dev,
-			"XGMI: Failed to get node id\n");
-		return ret;
-	}
+	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP)) {
+		ret = psp_xgmi_get_hive_id(&adev->psp, &adev->gmc.xgmi.hive_id);
+		if (ret) {
+			dev_err(adev->dev,
+				"XGMI: Failed to get hive id\n");
+			return ret;
+		}
 
-	ret = psp_xgmi_get_hive_id(&adev->psp, &adev->gmc.xgmi.hive_id);
-	if (ret) {
-		dev_err(adev->dev,
-			"XGMI: Failed to get hive id\n");
-		return ret;
+		ret = psp_xgmi_get_node_id(&adev->psp, &adev->gmc.xgmi.node_id);
+		if (ret) {
+			dev_err(adev->dev,
+				"XGMI: Failed to get node id\n");
+			return ret;
+		}
+	} else {
+		adev->gmc.xgmi.hive_id = 16;
+		adev->gmc.xgmi.node_id = adev->gmc.xgmi.physical_node_id + 16;
 	}
 
 	hive = amdgpu_get_xgmi_hive(adev, 1);
@@ -332,29 +371,32 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 	top_info->num_nodes = count;
 	hive->number_devices = count;
 
-	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
-		/* update node list for other device in the hive */
-		if (tmp_adev != adev) {
-			top_info = &tmp_adev->psp.xgmi_context.top_info;
-			top_info->nodes[count - 1].node_id = adev->gmc.xgmi.node_id;
-			top_info->num_nodes = count;
+	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP)) {
+		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+			/* update node list for other device in the hive */
+			if (tmp_adev != adev) {
+				top_info = &tmp_adev->psp.xgmi_context.top_info;
+				top_info->nodes[count - 1].node_id =
+					adev->gmc.xgmi.node_id;
+				top_info->num_nodes = count;
+			}
+			ret = amdgpu_xgmi_update_topology(hive, tmp_adev);
+			if (ret)
+				goto exit;
 		}
-		ret = amdgpu_xgmi_update_topology(hive, tmp_adev);
-		if (ret)
-			goto exit;
-	}
 
-	/* get latest topology info for each device from psp */
-	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
-		ret = psp_xgmi_get_topology_info(&tmp_adev->psp, count,
-				&tmp_adev->psp.xgmi_context.top_info);
-		if (ret) {
-			dev_err(tmp_adev->dev,
-				"XGMI: Get topology failure on device %llx, hive %llx, ret %d",
-				tmp_adev->gmc.xgmi.node_id,
-				tmp_adev->gmc.xgmi.hive_id, ret);
-			/* To do : continue with some node failed or disable the whole hive */
-			goto exit;
+		/* get latest topology info for each device from psp */
+		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+			ret = psp_xgmi_get_topology_info(&tmp_adev->psp, count,
+					&tmp_adev->psp.xgmi_context.top_info);
+			if (ret) {
+				dev_err(tmp_adev->dev,
+					"XGMI: Get topology failure on device %llx, hive %llx, ret %d",
+					tmp_adev->gmc.xgmi.node_id,
+					tmp_adev->gmc.xgmi.hive_id, ret);
+				/* To do : continue with some node failed or disable the whole hive */
+				goto exit;
+			}
 		}
 	}
 

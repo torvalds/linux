@@ -72,6 +72,21 @@ void dpp20_read_state(struct dpp *dpp_base,
 	}
 }
 
+void dpp2_power_on_obuf(
+		struct dpp *dpp_base,
+	bool power_on)
+{
+	struct dcn20_dpp *dpp = TO_DCN20_DPP(dpp_base);
+
+	REG_UPDATE(CM_MEM_PWR_CTRL, SHARED_MEM_PWR_DIS, power_on == true ? 1:0);
+
+	REG_UPDATE(OBUF_MEM_PWR_CTRL,
+			OBUF_MEM_PWR_FORCE, power_on == true ? 0:1);
+
+	REG_UPDATE(DSCL_MEM_PWR_CTRL,
+			LUT_MEM_PWR_FORCE, power_on == true ? 0:1);
+}
+
 void dpp2_dummy_program_input_lut(
 		struct dpp *dpp_base,
 		const struct dc_gamma *gamma)
@@ -227,6 +242,7 @@ static void dpp2_cnv_setup (
 				CUR0_ENABLE, 0);
 
 	}
+	dpp2_power_on_obuf(dpp_base, true);
 
 }
 
@@ -326,14 +342,18 @@ void dpp2_cnv_set_alpha_keyer(
 
 void dpp2_set_cursor_attributes(
 		struct dpp *dpp_base,
-		enum dc_cursor_color_format color_format)
+		struct dc_cursor_attributes *cursor_attributes)
 {
+	enum dc_cursor_color_format color_format = cursor_attributes->color_format;
 	struct dcn20_dpp *dpp = TO_DCN20_DPP(dpp_base);
 	int cur_rom_en = 0;
 
 	if (color_format == CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA ||
-		color_format == CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA)
-		cur_rom_en = 1;
+		color_format == CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA) {
+		if (cursor_attributes->attribute_flags.bits.ENABLE_CURSOR_DEGAMMA) {
+			cur_rom_en = 1;
+		}
+	}
 
 	REG_UPDATE_3(CURSOR0_CONTROL,
 			CUR0_MODE, color_format,

@@ -5,6 +5,7 @@
 
 #include <linux/clk.h>
 #include <linux/iommu.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 
 #include "drm.h"

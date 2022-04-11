@@ -50,7 +50,7 @@ Additional required properties for imx7d-pcie and imx8mq-pcie:
 - power-domains: Must be set to a phandle pointing to PCIE_PHY power domain
 - resets: Must contain phandles to PCIe-related reset lines exposed by SRC
   IP block
-- reset-names: Must contain the following entires:
+- reset-names: Must contain the following entries:
 	       - "pciephy"
 	       - "apps"
 	       - "turnoff"

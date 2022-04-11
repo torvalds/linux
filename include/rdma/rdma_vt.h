@@ -116,6 +116,7 @@ struct rvt_ibport {
 	u64 n_unaligned;
 	u64 n_rc_dupreq;
 	u64 n_rc_seqnak;
+	u64 n_rc_crwaits;
 	u16 pkey_violations;
 	u16 qkey_violations;
 	u16 mkey_violations;

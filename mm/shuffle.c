@@ -33,7 +33,7 @@ __meminit void page_alloc_shuffle(enum mm_shuffle_ctl ctl)
 }
 
 static bool shuffle_param;
-extern int shuffle_show(char *buffer, const struct kernel_param *kp)
+static int shuffle_show(char *buffer, const struct kernel_param *kp)
 {
 	return sprintf(buffer, "%c\n", test_bit(SHUFFLE_ENABLE, &shuffle_state)
 			? 'Y' : 'N');

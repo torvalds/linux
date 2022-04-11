@@ -227,6 +227,7 @@
 #define RT1011_STP_CALIB_RS_TEMP			0x152a
 #define RT1011_INIT_RECIPROCAL_REG_24_16				0x1538
 #define RT1011_INIT_RECIPROCAL_REG_15_0				0x1539
+#define RT1011_STP_INITIAL_RESISTANCE_TEMP				0x153c
 #define RT1011_STP_ALPHA_RECIPROCAL_MSB				0x153e
 #define RT1011_SPK_RESISTANCE_1				0x1544
 #define RT1011_SPK_RESISTANCE_2				0x1546
@@ -665,7 +666,7 @@ struct rt1011_priv {
 	int pll_out;
 
 	int bq_drc_set;
-	unsigned int r0_reg;
+	unsigned int r0_reg, cali_done;
 	int recv_spk_mode;
 };
 

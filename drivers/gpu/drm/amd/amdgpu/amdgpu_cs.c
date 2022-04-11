@@ -402,7 +402,7 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
 		.no_wait_gpu = false,
-		.resv = bo->tbo.resv,
+		.resv = bo->tbo.base.resv,
 		.flags = 0
 	};
 	uint32_t domain;
@@ -536,7 +536,6 @@ static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 
 	list_for_each_entry(lobj, validated, tv.head) {
 		struct amdgpu_bo *bo = ttm_to_amdgpu_bo(lobj->tv.bo);
-		bool binding_userptr = false;
 		struct mm_struct *usermm;
 
 		usermm = amdgpu_ttm_tt_get_usermm(bo->tbo.ttm);
@@ -553,7 +552,6 @@ static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 
 			amdgpu_ttm_tt_set_user_pages(bo->tbo.ttm,
 						     lobj->user_pages);
-			binding_userptr = true;
 		}
 
 		if (p->evictable == lobj)
@@ -563,10 +561,8 @@ static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 		if (r)
 			return r;
 
-		if (binding_userptr) {
-			kvfree(lobj->user_pages);
-			lobj->user_pages = NULL;
-		}
+		kvfree(lobj->user_pages);
+		lobj->user_pages = NULL;
 	}
 	return 0;
 }
@@ -730,7 +726,7 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
 
 	list_for_each_entry(e, &p->validated, tv.head) {
 		struct amdgpu_bo *bo = ttm_to_amdgpu_bo(e->tv.bo);
-		struct reservation_object *resv = bo->tbo.resv;
+		struct dma_resv *resv = bo->tbo.base.resv;
 
 		r = amdgpu_sync_resv(p->adev, &p->job->sync, resv, p->filp,
 				     amdgpu_bo_explicit_sync(bo));
@@ -1732,7 +1728,7 @@ int amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 	*map = mapping;
 
 	/* Double check that the BO is reserved by this CS */
-	if (READ_ONCE((*bo)->tbo.resv->lock.ctx) != &parser->ticket)
+	if (dma_resv_locking_ctx((*bo)->tbo.base.resv) != &parser->ticket)
 		return -EINVAL;
 
 	if (!((*bo)->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS)) {

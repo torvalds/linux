@@ -37,7 +37,7 @@ int main(int argc, char **argv)
 	char *file = "/dev/zero";
 	char *p;
 
-	while ((opt = getopt(argc, argv, "m:r:n:f:tTLUSH")) != -1) {
+	while ((opt = getopt(argc, argv, "m:r:n:f:tTLUwSH")) != -1) {
 		switch (opt) {
 		case 'm':
 			size = atoi(optarg) * MB;
@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 			flags |= MAP_SHARED;
 			break;
 		case 'H':
-			flags |= MAP_HUGETLB;
+			flags |= (MAP_HUGETLB | MAP_ANONYMOUS);
 			break;
 		default:
 			return -1;

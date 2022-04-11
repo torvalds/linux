@@ -1207,6 +1207,7 @@ static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
 
 	/* Compute tx offload settings based on hw capabilities */
 	net->hw_features |= NETIF_F_RXCSUM;
+	net->hw_features |= NETIF_F_SG;
 
 	if ((hwcaps.csum.ip4_txcsum & NDIS_TXCSUM_ALL_TCP4) == NDIS_TXCSUM_ALL_TCP4) {
 		/* Can checksum TCP */

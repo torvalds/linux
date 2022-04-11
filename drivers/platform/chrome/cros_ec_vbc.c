@@ -7,8 +7,9 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/cros_ec.h>
-#include <linux/mfd/cros_ec_commands.h>
 #include <linux/module.h>
+#include <linux/platform_data/cros_ec_commands.h>
+#include <linux/platform_data/cros_ec_proto.h>
 #include <linux/slab.h>
 
 #define DRV_NAME "cros-ec-vbc"

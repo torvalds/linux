@@ -532,7 +532,6 @@ typedef struct _BTC_COEXIST {
 
 extern BTC_COEXIST GLBtCoexist;
 
-u8 EXhalbtcoutsrc_InitlizeVariables(void *Adapter);
 void EXhalbtcoutsrc_PowerOnSetting(PBTC_COEXIST pBtCoexist);
 void EXhalbtcoutsrc_InitHwConfig(PBTC_COEXIST pBtCoexist, u8 bWifiOnly);
 void EXhalbtcoutsrc_InitCoexDm(PBTC_COEXIST pBtCoexist);

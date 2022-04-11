@@ -387,6 +387,9 @@ struct ncsi_aen_hncdsc_pkt {
 #define NCSI_PKT_CMD_OEM	0x50 /* OEM                              */
 #define NCSI_PKT_CMD_PLDM	0x51 /* PLDM request over NCSI over RBT  */
 #define NCSI_PKT_CMD_GPUUID	0x52 /* Get package UUID                 */
+#define NCSI_PKT_CMD_QPNPR	0x56 /* Query Pending NC PLDM request */
+#define NCSI_PKT_CMD_SNPR	0x57 /* Send NC PLDM Reply  */
+
 
 /* NCSI packet responses */
 #define NCSI_PKT_RSP_CIS	(NCSI_PKT_CMD_CIS    + 0x80)
@@ -419,6 +422,8 @@ struct ncsi_aen_hncdsc_pkt {
 #define NCSI_PKT_RSP_OEM	(NCSI_PKT_CMD_OEM    + 0x80)
 #define NCSI_PKT_RSP_PLDM	(NCSI_PKT_CMD_PLDM   + 0x80)
 #define NCSI_PKT_RSP_GPUUID	(NCSI_PKT_CMD_GPUUID + 0x80)
+#define NCSI_PKT_RSP_QPNPR	(NCSI_PKT_CMD_QPNPR   + 0x80)
+#define NCSI_PKT_RSP_SNPR	(NCSI_PKT_CMD_SNPR   + 0x80)
 
 /* NCSI response code/reason */
 #define NCSI_PKT_RSP_C_COMPLETED	0x0000 /* Command Completed        */

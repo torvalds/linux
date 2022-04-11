@@ -190,6 +190,7 @@ extern void gfs2_holder_uninit(struct gfs2_holder *gh);
 extern int gfs2_glock_nq(struct gfs2_holder *gh);
 extern int gfs2_glock_poll(struct gfs2_holder *gh);
 extern int gfs2_glock_wait(struct gfs2_holder *gh);
+extern int gfs2_glock_async_wait(unsigned int num_gh, struct gfs2_holder *ghs);
 extern void gfs2_glock_dq(struct gfs2_holder *gh);
 extern void gfs2_glock_dq_wait(struct gfs2_holder *gh);
 extern void gfs2_glock_dq_uninit(struct gfs2_holder *gh);
@@ -258,6 +259,11 @@ static inline void gfs2_holder_mark_uninitialized(struct gfs2_holder *gh)
 static inline bool gfs2_holder_initialized(struct gfs2_holder *gh)
 {
 	return gh->gh_gl;
+}
+
+static inline bool gfs2_holder_queued(struct gfs2_holder *gh)
+{
+	return !list_empty(&gh->gh_list);
 }
 
 /**

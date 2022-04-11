@@ -6,7 +6,7 @@
 **	(c) Copyright 1999 SuSE GmbH
 **	(c) Copyright 1999,2000 Hewlett-Packard Company
 **	(c) Copyright 2000 Grant Grundler
-**	(c) Copyright 2006 Helge Deller
+**	(c) Copyright 2006-2019 Helge Deller
 **
 **
 **	This module provides access to Dino PCI bus (config/IOport spaces)
@@ -154,6 +154,15 @@ struct dino_device
 static inline struct dino_device *DINO_DEV(struct pci_hba_data *hba)
 {
 	return container_of(hba, struct dino_device, hba);
+}
+
+/* Check if PCI device is behind a Card-mode Dino. */
+static int pci_dev_is_behind_card_dino(struct pci_dev *dev)
+{
+	struct dino_device *dino_dev;
+
+	dino_dev = DINO_DEV(parisc_walk_tree(dev->bus->bridge));
+	return is_card_dino(&dino_dev->hba.dev->id);
 }
 
 /*
@@ -437,6 +446,21 @@ static void quirk_cirrus_cardbus(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_CIRRUS_6832, quirk_cirrus_cardbus );
 
+#ifdef CONFIG_TULIP
+static void pci_fixup_tulip(struct pci_dev *dev)
+{
+	if (!pci_dev_is_behind_card_dino(dev))
+		return;
+	if (!(pci_resource_flags(dev, 1) & IORESOURCE_MEM))
+		return;
+	pr_warn("%s: HP HSC-PCI Cards with card-mode Dino not yet supported.\n",
+		pci_name(dev));
+	/* Disable this card by zeroing the PCI resources */
+	memset(&dev->resource[0], 0, sizeof(dev->resource[0]));
+	memset(&dev->resource[1], 0, sizeof(dev->resource[1]));
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_DEC, PCI_ANY_ID, pci_fixup_tulip);
+#endif /* CONFIG_TULIP */
 
 static void __init
 dino_bios_init(void)
@@ -863,14 +887,14 @@ static int __init dino_common_init(struct parisc_device *dev,
 #define CUJO_RAVEN_BADPAGE	0x01003000UL
 #define CUJO_FIREHAWK_BADPAGE	0x01607000UL
 
-static const char *dino_vers[] = {
+static const char dino_vers[][4] = {
 	"2.0",
 	"2.1",
 	"3.0",
 	"3.1"
 };
 
-static const char *cujo_vers[] = {
+static const char cujo_vers[][4] = {
 	"1.0",
 	"2.0"
 };

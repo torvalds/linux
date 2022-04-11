@@ -20,7 +20,6 @@
 #define STM32MP1_SYSCFG_EN_BOOSTER_MASK	BIT(8)
 
 static const struct regulator_ops stm32h7_booster_ops = {
-	.list_voltage	= regulator_list_voltage_linear,
 	.enable		= regulator_enable_regmap,
 	.disable	= regulator_disable_regmap,
 	.is_enabled	= regulator_is_enabled_regmap,
@@ -31,7 +30,6 @@ static const struct regulator_desc stm32h7_booster_desc = {
 	.supply_name = "vdda",
 	.n_voltages = 1,
 	.type = REGULATOR_VOLTAGE,
-	.min_uV = 3300000,
 	.fixed_uV = 3300000,
 	.ramp_delay = 66000, /* up to 50us to stabilize */
 	.ops = &stm32h7_booster_ops,
@@ -53,7 +51,6 @@ static int stm32mp1_booster_disable(struct regulator_dev *rdev)
 }
 
 static const struct regulator_ops stm32mp1_booster_ops = {
-	.list_voltage	= regulator_list_voltage_linear,
 	.enable		= stm32mp1_booster_enable,
 	.disable	= stm32mp1_booster_disable,
 	.is_enabled	= regulator_is_enabled_regmap,
@@ -64,7 +61,6 @@ static const struct regulator_desc stm32mp1_booster_desc = {
 	.supply_name = "vdda",
 	.n_voltages = 1,
 	.type = REGULATOR_VOLTAGE,
-	.min_uV = 3300000,
 	.fixed_uV = 3300000,
 	.ramp_delay = 66000,
 	.ops = &stm32mp1_booster_ops,

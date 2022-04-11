@@ -119,57 +119,27 @@ static const struct vpfe_standard vpfe_standards[] = {
 /* Used when raw Bayer image from ccdc is directly captured to SDRAM */
 static const struct vpfe_pixel_format vpfe_pix_fmts[] = {
 	{
-		.fmtdesc = {
-			.index = 0,
-			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			.description = "Bayer GrRBGb 8bit A-Law compr.",
-			.pixelformat = V4L2_PIX_FMT_SBGGR8,
-		},
+		.pixelformat = V4L2_PIX_FMT_SBGGR8,
 		.bpp = 1,
 	},
 	{
-		.fmtdesc = {
-			.index = 1,
-			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			.description = "Bayer GrRBGb - 16bit",
-			.pixelformat = V4L2_PIX_FMT_SBGGR16,
-		},
+		.pixelformat = V4L2_PIX_FMT_SBGGR16,
 		.bpp = 2,
 	},
 	{
-		.fmtdesc = {
-			.index = 2,
-			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			.description = "Bayer GrRBGb 8bit DPCM compr.",
-			.pixelformat = V4L2_PIX_FMT_SGRBG10DPCM8,
-		},
+		.pixelformat = V4L2_PIX_FMT_SGRBG10DPCM8,
 		.bpp = 1,
 	},
 	{
-		.fmtdesc = {
-			.index = 3,
-			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			.description = "YCbCr 4:2:2 Interleaved UYVY",
-			.pixelformat = V4L2_PIX_FMT_UYVY,
-		},
+		.pixelformat = V4L2_PIX_FMT_UYVY,
 		.bpp = 2,
 	},
 	{
-		.fmtdesc = {
-			.index = 4,
-			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			.description = "YCbCr 4:2:2 Interleaved YUYV",
-			.pixelformat = V4L2_PIX_FMT_YUYV,
-		},
+		.pixelformat = V4L2_PIX_FMT_YUYV,
 		.bpp = 2,
 	},
 	{
-		.fmtdesc = {
-			.index = 5,
-			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			.description = "Y/CbCr 4:2:0 - Semi planar",
-			.pixelformat = V4L2_PIX_FMT_NV12,
-		},
+		.pixelformat = V4L2_PIX_FMT_NV12,
 		.bpp = 1,
 	},
 };
@@ -183,7 +153,7 @@ static const struct vpfe_pixel_format *vpfe_lookup_pix_format(u32 pix_format)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(vpfe_pix_fmts); i++) {
-		if (pix_format == vpfe_pix_fmts[i].fmtdesc.pixelformat)
+		if (pix_format == vpfe_pix_fmts[i].pixelformat)
 			return &vpfe_pix_fmts[i];
 	}
 	return NULL;
@@ -782,7 +752,7 @@ static const struct vpfe_pixel_format *
 	temp = 0;
 	found = 0;
 	while (ccdc_dev->hw_ops.enum_pix(&pix, temp) >= 0) {
-		if (vpfe_pix_fmt->fmtdesc.pixelformat == pix) {
+		if (vpfe_pix_fmt->pixelformat == pix) {
 			found = 1;
 			break;
 		}
@@ -877,8 +847,6 @@ static int vpfe_querycap(struct file *file, void  *priv,
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_querycap\n");
 
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	strscpy(cap->driver, CAPTURE_DRV_NAME, sizeof(cap->driver));
 	strscpy(cap->bus_info, "VPFE", sizeof(cap->bus_info));
 	strscpy(cap->card, vpfe_dev->cfg->card_name, sizeof(cap->card));
@@ -901,7 +869,6 @@ static int vpfe_enum_fmt_vid_cap(struct file *file, void  *priv,
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	const struct vpfe_pixel_format *pix_fmt;
-	int temp_index;
 	u32 pix;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_enum_fmt_vid_cap\n");
@@ -912,9 +879,7 @@ static int vpfe_enum_fmt_vid_cap(struct file *file, void  *priv,
 	/* Fill in the information about format */
 	pix_fmt = vpfe_lookup_pix_format(pix);
 	if (pix_fmt) {
-		temp_index = fmt->index;
-		*fmt = pix_fmt->fmtdesc;
-		fmt->index = temp_index;
+		fmt->pixelformat = fmt->pixelformat;
 		return 0;
 	}
 	return -EINVAL;
@@ -1785,6 +1750,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	vfd->ioctl_ops		= &vpfe_ioctl_ops;
 	vfd->tvnorms		= 0;
 	vfd->v4l2_dev		= &vpfe_dev->v4l2_dev;
+	vfd->device_caps	= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	snprintf(vfd->name, sizeof(vfd->name),
 		 "%s_V%d.%d.%d",
 		 CAPTURE_DRV_NAME,

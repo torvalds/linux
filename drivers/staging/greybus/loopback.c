@@ -25,11 +25,8 @@
 #include <linux/workqueue.h>
 #include <linux/atomic.h>
 #include <linux/pm_runtime.h>
-
+#include <linux/greybus.h>
 #include <asm/div64.h>
-
-#include "greybus.h"
-#include "connection.h"
 
 #define NSEC_PER_DAY 86400000000000ULL
 
@@ -882,7 +879,7 @@ static int gb_loopback_fn(void *data)
 				gb->type = 0;
 				gb->send_count = 0;
 				sysfs_notify(&gb->dev->kobj,  NULL,
-						"iteration_count");
+					     "iteration_count");
 				dev_dbg(&bundle->dev, "load test complete\n");
 			} else {
 				dev_dbg(&bundle->dev,
@@ -1054,7 +1051,7 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 
 	/* Allocate kfifo */
 	if (kfifo_alloc(&gb->kfifo_lat, kfifo_depth * sizeof(u32),
-			  GFP_KERNEL)) {
+			GFP_KERNEL)) {
 		retval = -ENOMEM;
 		goto out_conn;
 	}

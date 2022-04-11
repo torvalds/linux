@@ -113,7 +113,6 @@ static int moxart_mdio_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct mii_bus *bus;
 	struct moxart_mdio_data *data;
-	struct resource *res;
 	int ret, i;
 
 	bus = mdiobus_alloc_size(sizeof(*data));
@@ -138,8 +137,7 @@ static int moxart_mdio_probe(struct platform_device *pdev)
 		bus->irq[i] = PHY_IGNORE_INTERRUPT;
 
 	data = bus->priv;
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->base = devm_ioremap_resource(&pdev->dev, res);
+	data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->base)) {
 		ret = PTR_ERR(data->base);
 		goto err_out_free_mdiobus;

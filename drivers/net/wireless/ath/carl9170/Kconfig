@@ -41,9 +41,9 @@ config CARL9170_WPC
 	default y
 
 config CARL9170_HWRNG
-        bool "Random number generator"
-        depends on CARL9170 && (HW_RANDOM = y || HW_RANDOM = CARL9170)
-        default n
+	bool "Random number generator"
+	depends on CARL9170 && (HW_RANDOM = y || HW_RANDOM = CARL9170)
+	default n
 	help
 	  Provides a hardware random number generator to the kernel.
 

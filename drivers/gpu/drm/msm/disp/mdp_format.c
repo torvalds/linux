@@ -174,7 +174,7 @@ const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format,
 
 struct csc_cfg *mdp_get_default_csc_cfg(enum csc_type type)
 {
-	if (unlikely(WARN_ON(type >= CSC_MAX)))
+	if (WARN_ON(type >= CSC_MAX))
 		return NULL;
 
 	return &csc_convert[type];

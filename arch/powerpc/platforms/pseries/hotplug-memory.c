@@ -880,34 +880,44 @@ int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
 
 	switch (hp_elog->action) {
 	case PSERIES_HP_ELOG_ACTION_ADD:
-		if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_COUNT) {
+		switch (hp_elog->id_type) {
+		case PSERIES_HP_ELOG_ID_DRC_COUNT:
 			count = hp_elog->_drc_u.drc_count;
 			rc = dlpar_memory_add_by_count(count);
-		} else if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_INDEX) {
+			break;
+		case PSERIES_HP_ELOG_ID_DRC_INDEX:
 			drc_index = hp_elog->_drc_u.drc_index;
 			rc = dlpar_memory_add_by_index(drc_index);
-		} else if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_IC) {
+			break;
+		case PSERIES_HP_ELOG_ID_DRC_IC:
 			count = hp_elog->_drc_u.ic.count;
 			drc_index = hp_elog->_drc_u.ic.index;
 			rc = dlpar_memory_add_by_ic(count, drc_index);
-		} else {
+			break;
+		default:
 			rc = -EINVAL;
+			break;
 		}
 
 		break;
 	case PSERIES_HP_ELOG_ACTION_REMOVE:
-		if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_COUNT) {
+		switch (hp_elog->id_type) {
+		case PSERIES_HP_ELOG_ID_DRC_COUNT:
 			count = hp_elog->_drc_u.drc_count;
 			rc = dlpar_memory_remove_by_count(count);
-		} else if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_INDEX) {
+			break;
+		case PSERIES_HP_ELOG_ID_DRC_INDEX:
 			drc_index = hp_elog->_drc_u.drc_index;
 			rc = dlpar_memory_remove_by_index(drc_index);
-		} else if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_IC) {
+			break;
+		case PSERIES_HP_ELOG_ID_DRC_IC:
 			count = hp_elog->_drc_u.ic.count;
 			drc_index = hp_elog->_drc_u.ic.index;
 			rc = dlpar_memory_remove_by_ic(count, drc_index);
-		} else {
+			break;
+		default:
 			rc = -EINVAL;
+			break;
 		}
 
 		break;

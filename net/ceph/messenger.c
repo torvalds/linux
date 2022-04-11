@@ -3031,6 +3031,12 @@ static void con_fault(struct ceph_connection *con)
 }
 
 
+void ceph_messenger_reset_nonce(struct ceph_messenger *msgr)
+{
+	u32 nonce = le32_to_cpu(msgr->inst.addr.nonce) + 1000000;
+	msgr->inst.addr.nonce = cpu_to_le32(nonce);
+	encode_my_addr(msgr);
+}
 
 /*
  * initialize a new messenger instance

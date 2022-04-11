@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include <linux/compiler.h>
 
 /* Opaque class structure */
 typedef struct json_writer json_writer_t;
@@ -30,8 +31,9 @@ void jsonw_pretty(json_writer_t *self, bool on);
 void jsonw_name(json_writer_t *self, const char *name);
 
 /* Add value  */
-void jsonw_vprintf_enquote(json_writer_t *self, const char *fmt, va_list ap);
-void jsonw_printf(json_writer_t *self, const char *fmt, ...);
+void __printf(2, 0) jsonw_vprintf_enquote(json_writer_t *self, const char *fmt,
+					  va_list ap);
+void __printf(2, 3) jsonw_printf(json_writer_t *self, const char *fmt, ...);
 void jsonw_string(json_writer_t *self, const char *value);
 void jsonw_bool(json_writer_t *self, bool value);
 void jsonw_float(json_writer_t *self, double number);

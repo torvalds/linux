@@ -215,7 +215,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 
 	rcu_read_lock();
 	res = ip6_xmit(sk, skb, fl6, sk->sk_mark, rcu_dereference(np->opt),
-		       tclass);
+		       tclass, sk->sk_priority);
 	rcu_read_unlock();
 	return res;
 }

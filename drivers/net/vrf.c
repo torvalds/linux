@@ -366,7 +366,7 @@ static int vrf_finish_output6(struct net *net, struct sock *sk,
 	struct neighbour *neigh;
 	int ret;
 
-	nf_reset(skb);
+	nf_reset_ct(skb);
 
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->dev = dev;
@@ -459,7 +459,7 @@ static struct sk_buff *vrf_ip6_out_direct(struct net_device *vrf_dev,
 
 	/* reset skb device */
 	if (likely(err == 1))
-		nf_reset(skb);
+		nf_reset_ct(skb);
 	else
 		skb = NULL;
 
@@ -560,7 +560,7 @@ static int vrf_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 	bool is_v6gw = false;
 	int ret = -EINVAL;
 
-	nf_reset(skb);
+	nf_reset_ct(skb);
 
 	/* Be paranoid, rather than too clever. */
 	if (unlikely(skb_headroom(skb) < hh_len && dev->header_ops)) {
@@ -670,7 +670,7 @@ static struct sk_buff *vrf_ip_out_direct(struct net_device *vrf_dev,
 
 	/* reset skb device */
 	if (likely(err == 1))
-		nf_reset(skb);
+		nf_reset_ct(skb);
 	else
 		skb = NULL;
 
@@ -865,7 +865,6 @@ static int vrf_dev_init(struct net_device *dev)
 
 	/* similarly, oper state is irrelevant; set to up to avoid confusion */
 	dev->operstate = IF_OPER_UP;
-	netdev_lockdep_set_classes(dev);
 	return 0;
 
 out_rth:
@@ -1154,7 +1153,8 @@ static int vrf_fib_rule(const struct net_device *dev, __u8 family, bool add_it)
 	struct sk_buff *skb;
 	int err;
 
-	if (family == AF_INET6 && !ipv6_mod_enabled())
+	if ((family == AF_INET6 || family == RTNL_FAMILY_IP6MR) &&
+	    !ipv6_mod_enabled())
 		return 0;
 
 	skb = nlmsg_new(vrf_fib_rule_nl_size(), GFP_KERNEL);

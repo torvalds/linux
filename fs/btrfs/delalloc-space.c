@@ -7,6 +7,7 @@
 #include "space-info.h"
 #include "transaction.h"
 #include "qgroup.h"
+#include "block-group.h"
 
 int btrfs_alloc_data_chunk_ondemand(struct btrfs_inode *inode, u64 bytes)
 {
@@ -129,8 +130,6 @@ commit_trans:
 		return -ENOSPC;
 	}
 	btrfs_space_info_update_bytes_may_use(fs_info, data_sinfo, bytes);
-	trace_btrfs_space_reservation(fs_info, "space_info",
-				      data_sinfo->flags, bytes, 1);
 	spin_unlock(&data_sinfo->lock);
 
 	return 0;
@@ -182,8 +181,6 @@ void btrfs_free_reserved_data_space_noquota(struct inode *inode, u64 start,
 	data_sinfo = fs_info->data_sinfo;
 	spin_lock(&data_sinfo->lock);
 	btrfs_space_info_update_bytes_may_use(fs_info, data_sinfo, -len);
-	trace_btrfs_space_reservation(fs_info, "space_info",
-				      data_sinfo->flags, len, 0);
 	spin_unlock(&data_sinfo->lock);
 }
 
@@ -254,13 +251,20 @@ static void btrfs_calculate_inode_block_rsv_size(struct btrfs_fs_info *fs_info,
 
 	lockdep_assert_held(&inode->lock);
 	outstanding_extents = inode->outstanding_extents;
-	if (outstanding_extents)
-		reserve_size = btrfs_calc_trans_metadata_size(fs_info,
-						outstanding_extents + 1);
+
+	/*
+	 * Insert size for the number of outstanding extents, 1 normal size for
+	 * updating the inode.
+	 */
+	if (outstanding_extents) {
+		reserve_size = btrfs_calc_insert_metadata_size(fs_info,
+						outstanding_extents);
+		reserve_size += btrfs_calc_metadata_size(fs_info, 1);
+	}
 	csum_leaves = btrfs_csum_bytes_to_leaves(fs_info,
 						 inode->csum_bytes);
-	reserve_size += btrfs_calc_trans_metadata_size(fs_info,
-						       csum_leaves);
+	reserve_size += btrfs_calc_insert_metadata_size(fs_info,
+							csum_leaves);
 	/*
 	 * For qgroup rsv, the calculation is very simple:
 	 * account one nodesize for each outstanding extent
@@ -281,10 +285,16 @@ static void calc_inode_reservations(struct btrfs_fs_info *fs_info,
 {
 	u64 nr_extents = count_max_extents(num_bytes);
 	u64 csum_leaves = btrfs_csum_bytes_to_leaves(fs_info, num_bytes);
+	u64 inode_update = btrfs_calc_metadata_size(fs_info, 1);
 
-	/* We add one for the inode update at finish ordered time */
-	*meta_reserve = btrfs_calc_trans_metadata_size(fs_info,
-						nr_extents + csum_leaves + 1);
+	*meta_reserve = btrfs_calc_insert_metadata_size(fs_info,
+						nr_extents + csum_leaves);
+
+	/*
+	 * finish_ordered_io has to update the inode, so add the space required
+	 * for an inode update.
+	 */
+	*meta_reserve += inode_update;
 	*qgroup_reserve = nr_extents * fs_info->nodesize;
 }
 
@@ -371,7 +381,6 @@ int btrfs_delalloc_reserve_metadata(struct btrfs_inode *inode, u64 num_bytes)
 out_qgroup:
 	btrfs_qgroup_free_meta_prealloc(root, qgroup_reserve);
 out_fail:
-	btrfs_inode_rsv_release(inode, true);
 	if (delalloc_lock)
 		mutex_unlock(&inode->delalloc_mutex);
 	return ret;
@@ -408,7 +417,6 @@ void btrfs_delalloc_release_metadata(struct btrfs_inode *inode, u64 num_bytes,
  * btrfs_delalloc_release_extents - release our outstanding_extents
  * @inode: the inode to balance the reservation for.
  * @num_bytes: the number of bytes we originally reserved with
- * @qgroup_free: do we need to free qgroup meta reservation or convert them.
  *
  * When we reserve space we increase outstanding_extents for the extents we may
  * add.  Once we've set the range as delalloc or created our ordered extents we
@@ -416,8 +424,7 @@ void btrfs_delalloc_release_metadata(struct btrfs_inode *inode, u64 num_bytes,
  * temporarily tracked outstanding_extents.  This _must_ be used in conjunction
  * with btrfs_delalloc_reserve_metadata.
  */
-void btrfs_delalloc_release_extents(struct btrfs_inode *inode, u64 num_bytes,
-				    bool qgroup_free)
+void btrfs_delalloc_release_extents(struct btrfs_inode *inode, u64 num_bytes)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	unsigned num_extents;
@@ -431,7 +438,7 @@ void btrfs_delalloc_release_extents(struct btrfs_inode *inode, u64 num_bytes,
 	if (btrfs_is_testing(fs_info))
 		return;
 
-	btrfs_inode_rsv_release(inode, qgroup_free);
+	btrfs_inode_rsv_release(inode, true);
 }
 
 /**

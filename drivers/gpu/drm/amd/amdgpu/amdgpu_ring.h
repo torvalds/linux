@@ -29,7 +29,7 @@
 #include <drm/drm_print.h>
 
 /* max number of rings */
-#define AMDGPU_MAX_RINGS		24
+#define AMDGPU_MAX_RINGS		28
 #define AMDGPU_MAX_GFX_RINGS		2
 #define AMDGPU_MAX_COMPUTE_RINGS	8
 #define AMDGPU_MAX_VCE_RINGS		3

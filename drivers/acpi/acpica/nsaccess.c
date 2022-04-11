@@ -598,7 +598,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 				if (flags & ACPI_NS_PREFIX_MUST_EXIST) {
 					acpi_os_printf(ACPI_MSG_BIOS_ERROR
 						       "Object does not exist: %4.4s\n",
-						       &simple_name);
+						       (char *)&simple_name);
 				}
 #endif
 				/* Name not found in ACPI namespace */

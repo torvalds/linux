@@ -12,7 +12,7 @@
             "$TC qdisc add dev $DEV2 ingress",
             "./tdc_multibatch.py $DEV2 $BATCH_DIR 100000 10 add"
         ],
-        "cmdUnderTest": "find $BATCH_DIR/add* -print | xargs -n 1 -P 10 $TC -b",
+        "cmdUnderTest": "bash -c \"find $BATCH_DIR/add* -print | xargs -n 1 -P 10 $TC -b\"",
         "expExitCode": "0",
         "verifyCmd": "$TC -s filter show dev $DEV2 ingress",
         "matchPattern": "filter protocol ip pref 1 flower chain 0 handle",
@@ -37,7 +37,7 @@
             "$TC -b $BATCH_DIR/add_0",
             "./tdc_multibatch.py $DEV2 $BATCH_DIR 100000 10 del"
         ],
-        "cmdUnderTest": "find $BATCH_DIR/del* -print | xargs -n 1 -P 10 $TC -b",
+        "cmdUnderTest": "bash -c \"find $BATCH_DIR/del* -print | xargs -n 1 -P 10 $TC -b\"",
         "expExitCode": "0",
         "verifyCmd": "$TC -s filter show dev $DEV2 ingress",
         "matchPattern": "filter protocol ip pref 1 flower chain 0 handle",
@@ -62,7 +62,7 @@
             "$TC -b $BATCH_DIR/add_0",
             "./tdc_multibatch.py $DEV2 $BATCH_DIR 100000 10 replace"
         ],
-        "cmdUnderTest": "find $BATCH_DIR/replace* -print | xargs -n 1 -P 10 $TC -b",
+        "cmdUnderTest": "bash -c \"find $BATCH_DIR/replace* -print | xargs -n 1 -P 10 $TC -b\"",
         "expExitCode": "0",
         "verifyCmd": "$TC -s filter show dev $DEV2 ingress",
         "matchPattern": "filter protocol ip pref 1 flower chain 0 handle",
@@ -87,7 +87,7 @@
             "$TC -b $BATCH_DIR/add_0",
             "./tdc_multibatch.py -d $DEV2 $BATCH_DIR 100000 10 replace"
         ],
-        "cmdUnderTest": "find $BATCH_DIR/replace* -print | xargs -n 1 -P 10 $TC -b",
+        "cmdUnderTest": "bash -c \"find $BATCH_DIR/replace* -print | xargs -n 1 -P 10 $TC -b\"",
         "expExitCode": "0",
         "verifyCmd": "$TC -s filter show dev $DEV2 ingress",
         "matchPattern": "filter protocol ip pref 1 flower chain 0 handle",
@@ -112,7 +112,7 @@
             "$TC -b $BATCH_DIR/add_0",
             "./tdc_multibatch.py -d $DEV2 $BATCH_DIR 100000 10 del"
         ],
-        "cmdUnderTest": "find $BATCH_DIR/del* -print | xargs -n 1 -P 10 $TC -f -b",
+        "cmdUnderTest": "bash -c \"find $BATCH_DIR/del* -print | xargs -n 1 -P 10 $TC -f -b\"",
         "expExitCode": "123",
         "verifyCmd": "$TC -s filter show dev $DEV2 ingress",
         "matchPattern": "filter protocol ip pref 1 flower chain 0 handle",
@@ -134,11 +134,11 @@
             "/bin/mkdir $BATCH_DIR",
             "$TC qdisc add dev $DEV2 ingress",
             "./tdc_multibatch.py -x init_ $DEV2 $BATCH_DIR 100000 5 add",
-            "find $BATCH_DIR/init_* -print | xargs -n 1 -P 5 $TC -b",
+            "bash -c \"find $BATCH_DIR/init_* -print | xargs -n 1 -P 5 $TC -b\"",
             "./tdc_multibatch.py -x par_ -a 500001 -m 5 $DEV2 $BATCH_DIR 100000 5 add",
             "./tdc_multibatch.py -x par_ $DEV2 $BATCH_DIR 100000 5 del"
         ],
-        "cmdUnderTest": "find $BATCH_DIR/par_* -print | xargs -n 1 -P 10 $TC -b",
+        "cmdUnderTest": "bash -c \"find $BATCH_DIR/par_* -print | xargs -n 1 -P 10 $TC -b\"",
         "expExitCode": "0",
         "verifyCmd": "$TC -s filter show dev $DEV2 ingress",
         "matchPattern": "filter protocol ip pref 1 flower chain 0 handle",
@@ -160,11 +160,11 @@
             "/bin/mkdir $BATCH_DIR",
             "$TC qdisc add dev $DEV2 ingress",
             "./tdc_multibatch.py -x init_ $DEV2 $BATCH_DIR 100000 10 add",
-            "find $BATCH_DIR/init_* -print | xargs -n 1 -P 5 $TC -b",
+            "bash -c \"find $BATCH_DIR/init_* -print | xargs -n 1 -P 5 $TC -b\"",
             "./tdc_multibatch.py -x par_ -a 500001 -m 5 $DEV2 $BATCH_DIR 100000 5 replace",
             "./tdc_multibatch.py -x par_ $DEV2 $BATCH_DIR 100000 5 del"
         ],
-        "cmdUnderTest": "find $BATCH_DIR/par_* -print | xargs -n 1 -P 10 $TC -b",
+        "cmdUnderTest": "bash -c \"find $BATCH_DIR/par_* -print | xargs -n 1 -P 10 $TC -b\"",
         "expExitCode": "0",
         "verifyCmd": "$TC -s filter show dev $DEV2 ingress",
         "matchPattern": "filter protocol ip pref 1 flower chain 0 handle",

@@ -46,6 +46,15 @@ config SENSORS_IBM_CFFPS
 	  This driver can also be built as a module. If so, the module will
 	  be called ibm-cffps.
 
+config SENSORS_INSPUR_IPSPS
+	tristate "INSPUR Power System Power Supply"
+	help
+	  If you say yes here you get hardware monitoring support for the INSPUR
+	  Power System power supply.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called inspur-ipsps.
+
 config SENSORS_IR35221
 	tristate "Infineon IR35221"
 	help

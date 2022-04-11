@@ -2645,11 +2645,6 @@ static int isp1362_probe(struct platform_device *pdev)
 	if (pdev->num_resources < 3)
 		return -ENODEV;
 
-	if (pdev->dev.dma_mask) {
-		DBG(1, "won't do DMA");
-		return -ENODEV;
-	}
-
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res)
 		return -ENODEV;

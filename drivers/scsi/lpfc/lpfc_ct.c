@@ -462,6 +462,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 	struct lpfc_nodelist *ndlp;
 
 	if ((vport->port_type != LPFC_NPIV_PORT) ||
+	    (fc4_type == FC_TYPE_FCP) ||
 	    !(vport->ct_flags & FC_CT_RFF_ID) || !vport->cfg_restrict_login) {
 
 		ndlp = lpfc_setup_disc_node(vport, Did);
@@ -480,10 +481,20 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "0238 Process x%06x NameServer Rsp "
-					 "Data: x%x x%x x%x x%x\n", Did,
+					 "Data: x%x x%x x%x x%x x%x\n", Did,
 					 ndlp->nlp_flag, ndlp->nlp_fc4_type,
-					 vport->fc_flag,
+					 ndlp->nlp_state, vport->fc_flag,
 					 vport->fc_rscn_id_cnt);
+
+			/* if ndlp needs to be discovered and prior
+			 * state of ndlp hit devloss, change state to
+			 * allow rediscovery.
+			 */
+			if (ndlp->nlp_flag & NLP_NPR_2B_DISC &&
+			    ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
+				lpfc_nlp_set_state(vport, ndlp,
+						   NLP_STE_NPR_NODE);
+			}
 		} else {
 			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"Skip1 GID_FTrsp: did:x%x flg:x%x cnt:%d",
@@ -491,9 +502,9 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "0239 Skip x%06x NameServer Rsp "
-					 "Data: x%x x%x\n", Did,
-					 vport->fc_flag,
-					 vport->fc_rscn_id_cnt);
+					 "Data: x%x x%x %p\n",
+					 Did, vport->fc_flag,
+					 vport->fc_rscn_id_cnt, ndlp);
 		}
 	} else {
 		if (!(vport->fc_flag & FC_RSCN_MODE) ||
@@ -751,9 +762,11 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    cpu_to_be16(SLI_CT_RESPONSE_FS_ACC)) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-					 "0208 NameServer Rsp Data: x%x x%x\n",
+					 "0208 NameServer Rsp Data: x%x x%x "
+					 "sz x%x\n",
 					 vport->fc_flag,
-					 CTreq->un.gid.Fc4Type);
+					 CTreq->un.gid.Fc4Type,
+					 irsp->un.genreq64.bdl.bdeSize);
 
 			lpfc_ns_rsp(vport,
 				    outp,
@@ -814,6 +827,11 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		}
 		vport->gidft_inp--;
 	}
+
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			 "4216 GID_FT cmpl inp %d disc %d\n",
+			 vport->gidft_inp, vport->num_disc_nodes);
+
 	/* Link up / RSCN discovery */
 	if ((vport->num_disc_nodes == 0) &&
 	    (vport->gidft_inp == 0)) {
@@ -1209,14 +1227,34 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			if (fc4_data_1 &  LPFC_FC4_TYPE_BITMASK)
 				ndlp->nlp_fc4_type |= NLP_FC4_NVME;
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-					 "3064 Setting ndlp %p, DID x%06x with "
-					 "FC4 x%08x, Data: x%08x x%08x\n",
+					 "3064 Setting ndlp x%px, DID x%06x "
+					 "with FC4 x%08x, Data: x%08x x%08x "
+					 "%d\n",
 					 ndlp, did, ndlp->nlp_fc4_type,
-					 FC_TYPE_FCP, FC_TYPE_NVME);
-			ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
+					 FC_TYPE_FCP, FC_TYPE_NVME,
+					 ndlp->nlp_state);
 
-			lpfc_nlp_set_state(vport, ndlp, NLP_STE_PRLI_ISSUE);
-			lpfc_issue_els_prli(vport, ndlp, 0);
+			if (ndlp->nlp_state == NLP_STE_REG_LOGIN_ISSUE &&
+			    ndlp->nlp_fc4_type) {
+				ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
+
+				lpfc_nlp_set_state(vport, ndlp,
+						   NLP_STE_PRLI_ISSUE);
+				lpfc_issue_els_prli(vport, ndlp, 0);
+			} else if (!ndlp->nlp_fc4_type) {
+				/* If fc4 type is still unknown, then LOGO */
+				lpfc_printf_vlog(vport, KERN_INFO,
+						 LOG_DISCOVERY,
+						 "6443 Sending LOGO ndlp x%px,"
+						 "DID x%06x with fc4_type: "
+						 "x%08x, state: %d\n",
+						 ndlp, did, ndlp->nlp_fc4_type,
+						 ndlp->nlp_state);
+				lpfc_issue_els_logo(vport, ndlp, 0);
+				ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
+				lpfc_nlp_set_state(vport, ndlp,
+						   NLP_STE_NPR_NODE);
+			}
 		}
 	} else
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
@@ -2515,7 +2553,7 @@ lpfc_fdmi_port_attr_max_frame(struct lpfc_vport *vport,
 	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
 
 	hsp = (struct serv_parm *)&vport->fc_sparam;
-	ae->un.AttrInt = (((uint32_t) hsp->cmn.bbRcvSizeMsb) << 8) |
+	ae->un.AttrInt = (((uint32_t) hsp->cmn.bbRcvSizeMsb & 0x0F) << 8) |
 			  (uint32_t) hsp->cmn.bbRcvSizeLsb;
 	ae->un.AttrInt = cpu_to_be32(ae->un.AttrInt);
 	size = FOURBYTES + sizeof(uint32_t);

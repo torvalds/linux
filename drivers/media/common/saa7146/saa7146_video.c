@@ -20,62 +20,52 @@ MODULE_PARM_DESC(max_memory, "maximum memory usage for capture buffers (default:
 /* format descriptions for capture and preview */
 static struct saa7146_format formats[] = {
 	{
-		.name		= "RGB-8 (3-3-2)",
 		.pixelformat	= V4L2_PIX_FMT_RGB332,
 		.trans		= RGB08_COMPOSED,
 		.depth		= 8,
 		.flags		= 0,
 	}, {
-		.name		= "RGB-16 (5/B-6/G-5/R)",
 		.pixelformat	= V4L2_PIX_FMT_RGB565,
 		.trans		= RGB16_COMPOSED,
 		.depth		= 16,
 		.flags		= 0,
 	}, {
-		.name		= "RGB-24 (B-G-R)",
 		.pixelformat	= V4L2_PIX_FMT_BGR24,
 		.trans		= RGB24_COMPOSED,
 		.depth		= 24,
 		.flags		= 0,
 	}, {
-		.name		= "RGB-32 (B-G-R)",
 		.pixelformat	= V4L2_PIX_FMT_BGR32,
 		.trans		= RGB32_COMPOSED,
 		.depth		= 32,
 		.flags		= 0,
 	}, {
-		.name		= "RGB-32 (R-G-B)",
 		.pixelformat	= V4L2_PIX_FMT_RGB32,
 		.trans		= RGB32_COMPOSED,
 		.depth		= 32,
 		.flags		= 0,
 		.swap		= 0x2,
 	}, {
-		.name		= "Greyscale-8",
 		.pixelformat	= V4L2_PIX_FMT_GREY,
 		.trans		= Y8,
 		.depth		= 8,
 		.flags		= 0,
 	}, {
-		.name		= "YUV 4:2:2 planar (Y-Cb-Cr)",
 		.pixelformat	= V4L2_PIX_FMT_YUV422P,
 		.trans		= YUV422_DECOMPOSED,
 		.depth		= 16,
 		.flags		= FORMAT_BYTE_SWAP|FORMAT_IS_PLANAR,
 	}, {
-		.name		= "YVU 4:2:0 planar (Y-Cb-Cr)",
 		.pixelformat	= V4L2_PIX_FMT_YVU420,
 		.trans		= YUV420_DECOMPOSED,
 		.depth		= 12,
 		.flags		= FORMAT_BYTE_SWAP|FORMAT_IS_PLANAR,
 	}, {
-		.name		= "YUV 4:2:0 planar (Y-Cb-Cr)",
 		.pixelformat	= V4L2_PIX_FMT_YUV420,
 		.trans		= YUV420_DECOMPOSED,
 		.depth		= 12,
 		.flags		= FORMAT_IS_PLANAR,
 	}, {
-		.name		= "YUV 4:2:2 (U-Y-V-Y)",
 		.pixelformat	= V4L2_PIX_FMT_UYVY,
 		.trans		= YUV422_COMPOSED,
 		.depth		= 16,
@@ -147,10 +137,10 @@ int saa7146_start_preview(struct saa7146_fh *fh)
 	}
 	vv->ov.win = fmt.fmt.win;
 
-	DEB_D("%dx%d+%d+%d %s field=%s\n",
+	DEB_D("%dx%d+%d+%d 0x%08x field=%s\n",
 	      vv->ov.win.w.width, vv->ov.win.w.height,
 	      vv->ov.win.w.left, vv->ov.win.w.top,
-	      vv->ov_fmt->name, v4l2_field_names[vv->ov.win.field]);
+	      vv->ov_fmt->pixelformat, v4l2_field_names[vv->ov.win.field]);
 
 	if (0 != (ret = saa7146_enable_overlay(fh))) {
 		DEB_D("enabling overlay failed: %d\n", ret);
@@ -515,8 +505,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtd
 {
 	if (f->index >= ARRAY_SIZE(formats))
 		return -EINVAL;
-	strscpy((char *)f->description, formats[f->index].name,
-		sizeof(f->description));
 	f->pixelformat = formats[f->index].pixelformat;
 	return 0;
 }

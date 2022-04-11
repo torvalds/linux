@@ -193,16 +193,12 @@ enum ravb_reg {
 	GECMR	= 0x05b0,
 	MAHR	= 0x05c0,
 	MALR	= 0x05c8,
-	TROCR	= 0x0700,	/* Undocumented? */
-	CDCR	= 0x0708,	/* Undocumented? */
-	LCCR	= 0x0710,	/* Undocumented? */
+	TROCR	= 0x0700,	/* R-Car Gen3 only */
 	CEFCR	= 0x0740,
 	FRECR	= 0x0748,
 	TSFRCR	= 0x0750,
 	TLFRCR	= 0x0758,
 	RFCR	= 0x0760,
-	CERCR	= 0x0768,	/* Undocumented? */
-	CEECR	= 0x0770,	/* Undocumented? */
 	MAFCR	= 0x0778,
 };
 
@@ -220,7 +216,6 @@ enum CCC_BIT {
 	CCC_CSEL_HPB	= 0x00010000,
 	CCC_CSEL_ETH_TX	= 0x00020000,
 	CCC_CSEL_GMII_REF = 0x00030000,
-	CCC_BOC		= 0x00100000,	/* Undocumented? */
 	CCC_LBME	= 0x01000000,
 };
 
@@ -317,7 +312,7 @@ enum UFCD_BIT {
 
 /* SFO */
 enum SFO_BIT {
-	SFO_FPB		= 0x0000003F,
+	SFO_FBP		= 0x0000003F,
 };
 
 /* RTC */
@@ -960,6 +955,8 @@ enum RAVB_QUEUE {
 #define NUM_RX_QUEUE	2
 #define NUM_TX_QUEUE	2
 
+#define RX_BUF_SZ	(2048 - ETH_FCS_LEN + sizeof(__sum16))
+
 /* TX descriptors per packet */
 #define NUM_TX_DESC_GEN2	2
 #define NUM_TX_DESC_GEN3	1
@@ -1023,7 +1020,6 @@ struct ravb_private {
 	u32 dirty_rx[NUM_RX_QUEUE];	/* Producer ring indices */
 	u32 cur_tx[NUM_TX_QUEUE];
 	u32 dirty_tx[NUM_TX_QUEUE];
-	u32 rx_buf_sz;			/* Based on MTU+slack. */
 	struct napi_struct napi[NUM_RX_QUEUE];
 	struct work_struct work;
 	/* MII transceiver section. */

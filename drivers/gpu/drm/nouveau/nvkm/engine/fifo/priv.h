@@ -37,4 +37,6 @@ struct nvkm_fifo_func {
 void nv04_fifo_intr(struct nvkm_fifo *);
 void nv04_fifo_pause(struct nvkm_fifo *, unsigned long *);
 void nv04_fifo_start(struct nvkm_fifo *, unsigned long *);
+
+void gf100_fifo_intr_fault(struct nvkm_fifo *, int);
 #endif

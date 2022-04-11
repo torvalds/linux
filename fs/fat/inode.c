@@ -31,6 +31,11 @@
 
 #define KB_IN_SECTORS 2
 
+/* DOS dates from 1980/1/1 through 2107/12/31 */
+#define FAT_DATE_MIN (0<<9 | 1<<5 | 1)
+#define FAT_DATE_MAX (127<<9 | 12<<5 | 31)
+#define FAT_TIME_MAX (23<<11 | 59<<5 | 29)
+
 /*
  * A deserialized copy of the on-disk structure laid out in struct
  * fat_boot_sector.
@@ -1605,6 +1610,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	int debug;
 	long error;
 	char buf[50];
+	struct timespec64 ts;
 
 	/*
 	 * GFP_KERNEL is ok here, because while we do hold the
@@ -1698,6 +1704,12 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	sbi->free_clus_valid = 0;
 	sbi->prev_free = FAT_START_ENT;
 	sb->s_maxbytes = 0xffffffff;
+	fat_time_fat2unix(sbi, &ts, 0, cpu_to_le16(FAT_DATE_MIN), 0);
+	sb->s_time_min = ts.tv_sec;
+
+	fat_time_fat2unix(sbi, &ts, cpu_to_le16(FAT_TIME_MAX),
+			  cpu_to_le16(FAT_DATE_MAX), 0);
+	sb->s_time_max = ts.tv_sec;
 
 	if (!sbi->fat_length && bpb.fat32_length) {
 		struct fat_boot_fsinfo *fsinfo;

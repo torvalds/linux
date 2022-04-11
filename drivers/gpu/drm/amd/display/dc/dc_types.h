@@ -202,6 +202,7 @@ struct dc_panel_patch {
 	unsigned int dppowerup_delay;
 	unsigned int extra_t12_ms;
 	unsigned int extra_delay_backlight_off;
+	unsigned int extra_t7_ms;
 };
 
 struct dc_edid_caps {
@@ -723,6 +724,19 @@ struct AsicStateEx {
 	unsigned int dcfClockDeepSleep;
 	unsigned int fClock;
 	unsigned int phyClock;
+};
+
+
+enum dc_clock_type {
+	DC_CLOCK_TYPE_DISPCLK = 0,
+	DC_CLOCK_TYPE_DPPCLK        = 1,
+};
+
+struct dc_clock_config {
+	uint32_t max_clock_khz;
+	uint32_t min_clock_khz;
+	uint32_t bw_requirequired_clock_khz;
+	uint32_t current_clock_khz;/*current clock in use*/
 };
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT

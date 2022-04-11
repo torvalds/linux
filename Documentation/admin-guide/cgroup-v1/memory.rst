@@ -85,8 +85,10 @@ Brief summary of control files.
  memory.oom_control		     set/show oom controls.
  memory.numa_stat		     show the number of memory usage per numa
 				     node
-
  memory.kmem.limit_in_bytes          set/show hard limit for kernel memory
+                                     This knob is deprecated and shouldn't be
+                                     used. It is planned that this be removed in
+                                     the foreseeable future.
  memory.kmem.usage_in_bytes          show current kernel memory allocation
  memory.kmem.failcnt                 show the number of kernel memory usage
 				     hits limits

@@ -1756,6 +1756,15 @@ static u32 qed_read_unaligned_dword(u8 *buf)
 	return dword;
 }
 
+/* Sets the value of the specified GRC param */
+static void qed_grc_set_param(struct qed_hwfn *p_hwfn,
+			      enum dbg_grc_params grc_param, u32 val)
+{
+	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
+
+	dev_data->grc.param_val[grc_param] = val;
+}
+
 /* Returns the value of the specified GRC param */
 static u32 qed_grc_get_param(struct qed_hwfn *p_hwfn,
 			     enum dbg_grc_params grc_param)
@@ -5119,6 +5128,69 @@ bool qed_read_fw_info(struct qed_hwfn *p_hwfn,
 	return false;
 }
 
+enum dbg_status qed_dbg_grc_config(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   enum dbg_grc_params grc_param, u32 val)
+{
+	enum dbg_status status;
+	int i;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_DEBUG,
+		   "dbg_grc_config: paramId = %d, val = %d\n", grc_param, val);
+
+	status = qed_dbg_dev_init(p_hwfn, p_ptt);
+	if (status != DBG_STATUS_OK)
+		return status;
+
+	/* Initializes the GRC parameters (if not initialized). Needed in order
+	 * to set the default parameter values for the first time.
+	 */
+	qed_dbg_grc_init_params(p_hwfn);
+
+	if (grc_param >= MAX_DBG_GRC_PARAMS)
+		return DBG_STATUS_INVALID_ARGS;
+	if (val < s_grc_param_defs[grc_param].min ||
+	    val > s_grc_param_defs[grc_param].max)
+		return DBG_STATUS_INVALID_ARGS;
+
+	if (s_grc_param_defs[grc_param].is_preset) {
+		/* Preset param */
+
+		/* Disabling a preset is not allowed. Call
+		 * dbg_grc_set_params_default instead.
+		 */
+		if (!val)
+			return DBG_STATUS_INVALID_ARGS;
+
+		/* Update all params with the preset values */
+		for (i = 0; i < MAX_DBG_GRC_PARAMS; i++) {
+			u32 preset_val;
+
+			/* Skip persistent params */
+			if (s_grc_param_defs[i].is_persistent)
+				continue;
+
+			/* Find preset value */
+			if (grc_param == DBG_GRC_PARAM_EXCLUDE_ALL)
+				preset_val =
+				    s_grc_param_defs[i].exclude_all_preset_val;
+			else if (grc_param == DBG_GRC_PARAM_CRASH)
+				preset_val =
+				    s_grc_param_defs[i].crash_preset_val;
+			else
+				return DBG_STATUS_INVALID_ARGS;
+
+			qed_grc_set_param(p_hwfn,
+					  (enum dbg_grc_params)i, preset_val);
+		}
+	} else {
+		/* Regular param - set its value */
+		qed_grc_set_param(p_hwfn, grc_param, val);
+	}
+
+	return DBG_STATUS_OK;
+}
+
 /* Assign default GRC param values */
 void qed_dbg_grc_set_params_default(struct qed_hwfn *p_hwfn)
 {
@@ -7997,8 +8069,15 @@ static u32 qed_calc_regdump_header(enum debug_print_features feature,
 int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 {
 	u8 cur_engine, omit_engine = 0, org_engine;
+	struct qed_hwfn *p_hwfn =
+		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
+	int grc_params[MAX_DBG_GRC_PARAMS], i;
 	u32 offset = 0, feature_size;
 	int rc;
+
+	for (i = 0; i < MAX_DBG_GRC_PARAMS; i++)
+		grc_params[i] = dev_data->grc.param_val[i];
 
 	if (cdev->num_hwfns == 1)
 		omit_engine = 1;
@@ -8086,6 +8165,9 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 			DP_ERR(cdev, "qed_dbg_fw_asserts failed. rc = %d\n",
 			       rc);
 		}
+
+		for (i = 0; i < MAX_DBG_GRC_PARAMS; i++)
+			dev_data->grc.param_val[i] = grc_params[i];
 
 		/* GRC dump - must be last because when mcp stuck it will
 		 * clutter idle_chk, reg_fifo, ...

@@ -1,11 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config MTD_NAND_JZ4740
-	tristate "JZ4740 NAND controller"
-	depends on MACH_JZ4740 || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  Enables support for NAND Flash on JZ4740 SoC based boards.
-
 config MTD_NAND_JZ4780
 	tristate "JZ4780 NAND controller"
 	depends on JZ4780_NEMC

@@ -41,6 +41,7 @@ struct drm_property;
 struct drm_property_blob;
 struct drm_printer;
 struct edid;
+struct i2c_adapter;
 
 enum drm_connector_force {
 	DRM_FORCE_UNSPECIFIED,
@@ -323,6 +324,8 @@ enum drm_panel_orientation {
  *					edge of the pixel clock
  * @DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE:	Sync signals are sampled on the falling
  *					edge of the pixel clock
+ * @DRM_BUS_FLAG_SHARP_SIGNALS:		Set if the Sharp-specific signals
+ *					(SPL, CLS, PS, REV) must be used
  */
 enum drm_bus_flags {
 	DRM_BUS_FLAG_DE_LOW = BIT(0),
@@ -341,6 +344,7 @@ enum drm_bus_flags {
 	DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE = DRM_BUS_FLAG_SYNC_NEGEDGE,
 	DRM_BUS_FLAG_SYNC_SAMPLE_POSEDGE = DRM_BUS_FLAG_SYNC_NEGEDGE,
 	DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE = DRM_BUS_FLAG_SYNC_POSEDGE,
+	DRM_BUS_FLAG_SHARP_SIGNALS = BIT(8),
 };
 
 /**
@@ -539,8 +543,8 @@ struct drm_connector_state {
 	 *
 	 * This is also used in the atomic helpers to map encoders to their
 	 * current and previous connectors, see
-	 * &drm_atomic_get_old_connector_for_encoder() and
-	 * &drm_atomic_get_new_connector_for_encoder().
+	 * drm_atomic_get_old_connector_for_encoder() and
+	 * drm_atomic_get_new_connector_for_encoder().
 	 *
 	 * NOTE: Atomic drivers must fill this out (either themselves or through
 	 * helpers), for otherwise the GETCONNECTOR and GETENCODER IOCTLs will
@@ -597,6 +601,12 @@ struct drm_connector_state {
 	 * match the values.
 	 */
 	unsigned int content_type;
+
+	/**
+	 * @hdcp_content_type: Connector property to pass the type of
+	 * protected content. This is most commonly used for HDCP.
+	 */
+	unsigned int hdcp_content_type;
 
 	/**
 	 * @scaling_mode: Connector property to control the
@@ -1308,6 +1318,18 @@ struct drm_connector {
 	 * [0]: progressive, [1]: interlaced
 	 */
 	int audio_latency[2];
+
+	/**
+	 * @ddc: associated ddc adapter.
+	 * A connector usually has its associated ddc adapter. If a driver uses
+	 * this field, then an appropriate symbolic link is created in connector
+	 * sysfs directory to make it easy for the user to tell which i2c
+	 * adapter is for a particular display.
+	 *
+	 * The field should be set by calling drm_connector_init_with_ddc().
+	 */
+	struct i2c_adapter *ddc;
+
 	/**
 	 * @null_edid_counter: track sinks that give us all zeros for the EDID.
 	 * Needed to workaround some HW bugs where we get all 0s
@@ -1396,6 +1418,11 @@ int drm_connector_init(struct drm_device *dev,
 		       struct drm_connector *connector,
 		       const struct drm_connector_funcs *funcs,
 		       int connector_type);
+int drm_connector_init_with_ddc(struct drm_device *dev,
+				struct drm_connector *connector,
+				const struct drm_connector_funcs *funcs,
+				int connector_type,
+				struct i2c_adapter *ddc);
 void drm_connector_attach_edid_property(struct drm_connector *connector);
 int drm_connector_register(struct drm_connector *connector);
 void drm_connector_unregister(struct drm_connector *connector);
@@ -1481,6 +1508,7 @@ const char *drm_get_dvi_i_select_name(int val);
 const char *drm_get_tv_subconnector_name(int val);
 const char *drm_get_tv_select_name(int val);
 const char *drm_get_content_protection_name(int val);
+const char *drm_get_hdcp_content_type_name(int val);
 
 int drm_mode_create_dvi_i_properties(struct drm_device *dev);
 int drm_mode_create_tv_margin_properties(struct drm_device *dev);

@@ -7,6 +7,7 @@
 #include <linux/export.h>
 #include <net/ipv6.h>
 #include <net/ipv6_stubs.h>
+#include <net/addrconf.h>
 #include <net/ip.h>
 
 /* if ipv6 module registers this function is used by xfrm to force all

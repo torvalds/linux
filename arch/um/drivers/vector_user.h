@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2002 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #ifndef __UM_VECTOR_USER_H
@@ -16,12 +16,17 @@
 #define TRANS_TAP "tap"
 #define TRANS_TAP_LEN strlen(TRANS_TAP)
 
-
 #define TRANS_GRE "gre"
 #define TRANS_GRE_LEN strlen(TRANS_RAW)
 
 #define TRANS_L2TPV3 "l2tpv3"
 #define TRANS_L2TPV3_LEN strlen(TRANS_L2TPV3)
+
+#define TRANS_HYBRID "hybrid"
+#define TRANS_HYBRID_LEN strlen(TRANS_HYBRID)
+
+#define TRANS_BESS "bess"
+#define TRANS_BESS_LEN strlen(TRANS_BESS)
 
 #ifndef IPPROTO_GRE
 #define IPPROTO_GRE 0x2F

@@ -98,6 +98,10 @@ limited. The actual limit depends on the hardware and the kernel
 configuration, but it is a good practice to use `kmalloc` for objects
 smaller than page size.
 
+The address of a chunk allocated with `kmalloc` is aligned to at least
+ARCH_KMALLOC_MINALIGN bytes.  For sizes which are a power of two, the
+alignment is also guaranteed to be at least the respective size.
+
 For large allocations you can use :c:func:`vmalloc` and
 :c:func:`vzalloc`, or directly request pages from the page
 allocator. The memory allocated by `vmalloc` and related functions is

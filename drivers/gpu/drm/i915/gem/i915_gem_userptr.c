@@ -12,11 +12,10 @@
 
 #include <drm/i915_drm.h>
 
+#include "i915_drv.h"
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"
 #include "i915_scatterlist.h"
-#include "i915_trace.h"
-#include "intel_drv.h"
 
 struct i915_mm_struct {
 	struct mm_struct *mm;
@@ -150,7 +149,8 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 			}
 		}
 
-		ret = i915_gem_object_unbind(obj);
+		ret = i915_gem_object_unbind(obj,
+					     I915_GEM_OBJECT_UNBIND_ACTIVE);
 		if (ret == 0)
 			ret = __i915_gem_object_put_pages(obj, I915_MM_SHRINKER);
 		i915_gem_object_put(obj);
@@ -662,9 +662,37 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj,
 	__i915_gem_object_release_shmem(obj, pages, true);
 	i915_gem_gtt_finish_pages(obj, pages);
 
+	/*
+	 * We always mark objects as dirty when they are used by the GPU,
+	 * just in case. However, if we set the vma as being read-only we know
+	 * that the object will never have been written to.
+	 */
+	if (i915_gem_object_is_readonly(obj))
+		obj->mm.dirty = false;
+
 	for_each_sgt_page(page, sgt_iter, pages) {
-		if (obj->mm.dirty)
+		if (obj->mm.dirty && trylock_page(page)) {
+			/*
+			 * As this may not be anonymous memory (e.g. shmem)
+			 * but exist on a real mapping, we have to lock
+			 * the page in order to dirty it -- holding
+			 * the page reference is not sufficient to
+			 * prevent the inode from being truncated.
+			 * Play safe and take the lock.
+			 *
+			 * However...!
+			 *
+			 * The mmu-notifier can be invalidated for a
+			 * migrate_page, that is alreadying holding the lock
+			 * on the page. Such a try_to_unmap() will result
+			 * in us calling put_pages() and so recursively try
+			 * to lock the page. We avoid that deadlock with
+			 * a trylock_page() and in exchange we risk missing
+			 * some page dirtying.
+			 */
 			set_page_dirty(page);
+			unlock_page(page);
+		}
 
 		mark_page_accessed(page);
 		put_page(page);
@@ -694,6 +722,7 @@ i915_gem_userptr_dmabuf_export(struct drm_i915_gem_object *obj)
 static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE |
 		 I915_GEM_OBJECT_IS_SHRINKABLE |
+		 I915_GEM_OBJECT_NO_GGTT |
 		 I915_GEM_OBJECT_ASYNC_CANCEL,
 	.get_pages = i915_gem_userptr_get_pages,
 	.put_pages = i915_gem_userptr_put_pages,

@@ -20,10 +20,29 @@
 
 #define COMPUTE_TO		(5 * HZ)
 #define LATEACK_DELAY		(10 * HZ)
-#define LATEACK_TO		256
-#define MAX_DELAY		300
 #define EWMA_LEVEL		96
 #define EWMA_DIV		128
+
+/**
+ * ath_dynack_get_max_to - set max timeout according to channel width
+ * @ah: ath hw
+ *
+ */
+static u32 ath_dynack_get_max_to(struct ath_hw *ah)
+{
+	const struct ath9k_channel *chan = ah->curchan;
+
+	if (!chan)
+		return 300;
+
+	if (IS_CHAN_HT40(chan))
+		return 300;
+	if (IS_CHAN_HALF_RATE(chan))
+		return 750;
+	if (IS_CHAN_QUARTER_RATE(chan))
+		return 1500;
+	return 600;
+}
 
 /**
  * ath_dynack_ewma - EWMA (Exponentially Weighted Moving Average) calculation
@@ -79,6 +98,24 @@ static inline bool ath_dynack_bssidmask(struct ath_hw *ah, const u8 *mac)
 }
 
 /**
+ * ath_dynack_set_timeout - configure timeouts/slottime registers
+ * @ah: ath hw
+ * @to: timeout value
+ *
+ */
+static void ath_dynack_set_timeout(struct ath_hw *ah, int to)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	int slottime = (to - 3) / 2;
+
+	ath_dbg(common, DYNACK, "ACK timeout %u slottime %u\n",
+		to, slottime);
+	ath9k_hw_setslottime(ah, slottime);
+	ath9k_hw_set_ack_timeout(ah, to);
+	ath9k_hw_set_cts_timeout(ah, to);
+}
+
+/**
  * ath_dynack_compute_ackto - compute ACK timeout as the maximum STA timeout
  * @ah: ath hw
  *
@@ -86,7 +123,6 @@ static inline bool ath_dynack_bssidmask(struct ath_hw *ah, const u8 *mac)
  */
 static void ath_dynack_compute_ackto(struct ath_hw *ah)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_dynack *da = &ah->dynack;
 	struct ath_node *an;
 	int to = 0;
@@ -96,15 +132,8 @@ static void ath_dynack_compute_ackto(struct ath_hw *ah)
 			to = an->ackto;
 
 	if (to && da->ackto != to) {
-		u32 slottime;
-
-		slottime = (to - 3) / 2;
+		ath_dynack_set_timeout(ah, to);
 		da->ackto = to;
-		ath_dbg(common, DYNACK, "ACK timeout %u slottime %u\n",
-			da->ackto, slottime);
-		ath9k_hw_setslottime(ah, slottime);
-		ath9k_hw_set_ack_timeout(ah, da->ackto);
-		ath9k_hw_set_cts_timeout(ah, da->ackto);
 	}
 }
 
@@ -116,15 +145,16 @@ static void ath_dynack_compute_ackto(struct ath_hw *ah)
  */
 static void ath_dynack_compute_to(struct ath_hw *ah)
 {
-	u32 ackto, ack_ts;
-	u8 *dst, *src;
-	struct ieee80211_sta *sta;
-	struct ath_node *an;
-	struct ts_info *st_ts;
 	struct ath_dynack *da = &ah->dynack;
+	u32 ackto, ack_ts, max_to;
+	struct ieee80211_sta *sta;
+	struct ts_info *st_ts;
+	struct ath_node *an;
+	u8 *dst, *src;
 
 	rcu_read_lock();
 
+	max_to = ath_dynack_get_max_to(ah);
 	while (da->st_rbf.h_rb != da->st_rbf.t_rb &&
 	       da->ack_rbf.h_rb != da->ack_rbf.t_rb) {
 		ack_ts = da->ack_rbf.tstamp[da->ack_rbf.h_rb];
@@ -140,7 +170,7 @@ static void ath_dynack_compute_to(struct ath_hw *ah)
 		if (ack_ts > st_ts->tstamp + st_ts->dur) {
 			ackto = ack_ts - st_ts->tstamp - st_ts->dur;
 
-			if (ackto < MAX_DELAY) {
+			if (ackto < max_to) {
 				sta = ieee80211_find_sta_by_ifaddr(ah->hw, dst,
 								   src);
 				if (sta) {
@@ -197,11 +227,10 @@ void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
 		if (ieee80211_is_assoc_req(hdr->frame_control) ||
 		    ieee80211_is_assoc_resp(hdr->frame_control) ||
 		    ieee80211_is_auth(hdr->frame_control)) {
-			ath_dbg(common, DYNACK, "late ack\n");
+			u32 max_to = ath_dynack_get_max_to(ah);
 
-			ath9k_hw_setslottime(ah, (LATEACK_TO - 3) / 2);
-			ath9k_hw_set_ack_timeout(ah, LATEACK_TO);
-			ath9k_hw_set_cts_timeout(ah, LATEACK_TO);
+			ath_dbg(common, DYNACK, "late ack\n");
+			ath_dynack_set_timeout(ah, max_to);
 			if (sta) {
 				struct ath_node *an;
 
@@ -292,15 +321,13 @@ EXPORT_SYMBOL(ath_dynack_sample_ack_ts);
  */
 void ath_dynack_node_init(struct ath_hw *ah, struct ath_node *an)
 {
-	/* ackto = slottime + sifs + air delay */
-	u32 ackto = 9 + 16 + 64;
 	struct ath_dynack *da = &ah->dynack;
 
-	an->ackto = ackto;
+	an->ackto = da->ackto;
 
-	spin_lock(&da->qlock);
+	spin_lock_bh(&da->qlock);
 	list_add_tail(&an->list, &da->nodes);
-	spin_unlock(&da->qlock);
+	spin_unlock_bh(&da->qlock);
 }
 EXPORT_SYMBOL(ath_dynack_node_init);
 
@@ -314,9 +341,9 @@ void ath_dynack_node_deinit(struct ath_hw *ah, struct ath_node *an)
 {
 	struct ath_dynack *da = &ah->dynack;
 
-	spin_lock(&da->qlock);
+	spin_lock_bh(&da->qlock);
 	list_del(&an->list);
-	spin_unlock(&da->qlock);
+	spin_unlock_bh(&da->qlock);
 }
 EXPORT_SYMBOL(ath_dynack_node_deinit);
 
@@ -327,22 +354,26 @@ EXPORT_SYMBOL(ath_dynack_node_deinit);
  */
 void ath_dynack_reset(struct ath_hw *ah)
 {
-	/* ackto = slottime + sifs + air delay */
-	u32 ackto = 9 + 16 + 64;
 	struct ath_dynack *da = &ah->dynack;
+	struct ath_node *an;
 
-	da->lto = jiffies;
-	da->ackto = ackto;
+	spin_lock_bh(&da->qlock);
+
+	da->lto = jiffies + COMPUTE_TO;
 
 	da->st_rbf.t_rb = 0;
 	da->st_rbf.h_rb = 0;
 	da->ack_rbf.t_rb = 0;
 	da->ack_rbf.h_rb = 0;
 
+	da->ackto = ath_dynack_get_max_to(ah);
+	list_for_each_entry(an, &da->nodes, list)
+		an->ackto = da->ackto;
+
 	/* init acktimeout */
-	ath9k_hw_setslottime(ah, (ackto - 3) / 2);
-	ath9k_hw_set_ack_timeout(ah, ackto);
-	ath9k_hw_set_cts_timeout(ah, ackto);
+	ath_dynack_set_timeout(ah, da->ackto);
+
+	spin_unlock_bh(&da->qlock);
 }
 EXPORT_SYMBOL(ath_dynack_reset);
 
@@ -359,6 +390,8 @@ void ath_dynack_init(struct ath_hw *ah)
 
 	spin_lock_init(&da->qlock);
 	INIT_LIST_HEAD(&da->nodes);
+	/* ackto = slottime + sifs + air delay */
+	da->ackto = 9 + 16 + 64;
 
 	ah->hw->wiphy->features |= NL80211_FEATURE_ACKTO_ESTIMATION;
 }

@@ -16,7 +16,10 @@
 #define GMAC_CONFIG			0x00000000
 #define GMAC_PACKET_FILTER		0x00000008
 #define GMAC_HASH_TAB(x)		(0x10 + (x) * 4)
+#define GMAC_VLAN_TAG			0x00000050
+#define GMAC_VLAN_HASH_TABLE		0x00000058
 #define GMAC_RX_FLOW_CTRL		0x00000090
+#define GMAC_VLAN_INCL			0x00000060
 #define GMAC_QX_TX_FLOW_CTRL(x)		(0x70 + x * 4)
 #define GMAC_TXQ_PRTY_MAP0		0x98
 #define GMAC_TXQ_PRTY_MAP1		0x9C
@@ -37,6 +40,7 @@
 #define GMAC_HW_FEATURE3		0x00000128
 #define GMAC_MDIO_ADDR			0x00000200
 #define GMAC_MDIO_DATA			0x00000204
+#define GMAC_ARP_ADDR			0x00000210
 #define GMAC_ADDR_HIGH(reg)		(0x300 + reg * 8)
 #define GMAC_ADDR_LOW(reg)		(0x304 + reg * 8)
 
@@ -62,8 +66,21 @@
 #define GMAC_PACKET_FILTER_PM		BIT(4)
 #define GMAC_PACKET_FILTER_PCF		BIT(7)
 #define GMAC_PACKET_FILTER_HPF		BIT(10)
+#define GMAC_PACKET_FILTER_VTFE		BIT(16)
 
 #define GMAC_MAX_PERFECT_ADDRESSES	128
+
+/* MAC VLAN */
+#define GMAC_VLAN_EDVLP			BIT(26)
+#define GMAC_VLAN_VTHM			BIT(25)
+#define GMAC_VLAN_DOVLTC		BIT(20)
+#define GMAC_VLAN_ESVL			BIT(18)
+#define GMAC_VLAN_ETV			BIT(16)
+#define GMAC_VLAN_VID			GENMASK(15, 0)
+#define GMAC_VLAN_VLTI			BIT(20)
+#define GMAC_VLAN_CSVL			BIT(19)
+#define GMAC_VLAN_VLC			GENMASK(17, 16)
+#define GMAC_VLAN_VLC_SHIFT		16
 
 /* MAC RX Queue Enable */
 #define GMAC_RX_QUEUE_CLEAR(queue)	~(GENMASK(1, 0) << ((queue) * 2))
@@ -149,6 +166,9 @@ enum power_event {
 #define GMAC_DEBUG_RPESTS		BIT(0)
 
 /* MAC config */
+#define GMAC_CONFIG_ARPEN		BIT(31)
+#define GMAC_CONFIG_SARC		GENMASK(30, 28)
+#define GMAC_CONFIG_SARC_SHIFT		28
 #define GMAC_CONFIG_IPC			BIT(27)
 #define GMAC_CONFIG_2K			BIT(22)
 #define GMAC_CONFIG_ACS			BIT(20)
@@ -164,11 +184,13 @@ enum power_event {
 #define GMAC_CONFIG_RE			BIT(0)
 
 /* MAC HW features0 bitmap */
+#define GMAC_HW_FEAT_SAVLANINS		BIT(27)
 #define GMAC_HW_FEAT_ADDMAC		BIT(18)
 #define GMAC_HW_FEAT_RXCOESEL		BIT(16)
 #define GMAC_HW_FEAT_TXCOSEL		BIT(14)
 #define GMAC_HW_FEAT_EEESEL		BIT(13)
 #define GMAC_HW_FEAT_TSSEL		BIT(12)
+#define GMAC_HW_FEAT_ARPOFFSEL		BIT(9)
 #define GMAC_HW_FEAT_MMCSEL		BIT(8)
 #define GMAC_HW_FEAT_MGKSEL		BIT(7)
 #define GMAC_HW_FEAT_RWKSEL		BIT(6)
@@ -198,6 +220,7 @@ enum power_event {
 #define GMAC_HW_FEAT_FRPES		GENMASK(14, 13)
 #define GMAC_HW_FEAT_FRPBS		GENMASK(12, 11)
 #define GMAC_HW_FEAT_FRPSEL		BIT(10)
+#define GMAC_HW_FEAT_DVLAN		BIT(5)
 
 /* MAC HW ADDR regs */
 #define GMAC_HI_DCS			GENMASK(18, 16)
@@ -352,7 +375,8 @@ enum power_event {
 
 /* Default operating mode of the MAC */
 #define GMAC_CORE_INIT (GMAC_CONFIG_JD | GMAC_CONFIG_PS | \
-			GMAC_CONFIG_BE | GMAC_CONFIG_DCRS)
+			GMAC_CONFIG_BE | GMAC_CONFIG_DCRS | \
+			GMAC_CONFIG_JE)
 
 /* To dump the core regs excluding  the Address Registers */
 #define	GMAC_REG_NUM	132

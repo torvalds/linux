@@ -596,8 +596,16 @@ _ctl_set_task_mid(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command *karg,
 		if (priv_data->sas_target->handle != handle)
 			continue;
 		st = scsi_cmd_priv(scmd);
-		tm_request->TaskMID = cpu_to_le16(st->smid);
-		found = 1;
+
+		/*
+		 * If the given TaskMID from the user space is zero, then the
+		 * first outstanding smid will be picked up.  Otherwise,
+		 * targeted smid will be the one.
+		 */
+		if (!tm_request->TaskMID || tm_request->TaskMID == st->smid) {
+			tm_request->TaskMID = cpu_to_le16(st->smid);
+			found = 1;
+		}
 	}
 
 	if (!found) {
@@ -654,7 +662,6 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	size_t data_in_sz = 0;
 	long ret;
 	u16 device_handle = MPT3SAS_INVALID_DEVICE_HANDLE;
-	u8 tr_method = MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE;
 
 	issue_reset = 0;
 
@@ -707,6 +714,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	ioc->ctl_cmds.status = MPT3_CMD_PENDING;
 	memset(ioc->ctl_cmds.reply, 0, ioc->reply_sz);
 	request = mpt3sas_base_get_msg_frame(ioc, smid);
+	memset(request, 0, ioc->request_sz);
 	memcpy(request, mpi_request, karg.data_sge_offset*4);
 	ioc->ctl_cmds.smid = smid;
 	data_out_sz = karg.data_out_size;
@@ -921,13 +929,37 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		Mpi2ToolboxCleanRequest_t *toolbox_request =
 			(Mpi2ToolboxCleanRequest_t *)mpi_request;
 
-		if (toolbox_request->Tool == MPI2_TOOLBOX_DIAGNOSTIC_CLI_TOOL) {
+		if ((toolbox_request->Tool == MPI2_TOOLBOX_DIAGNOSTIC_CLI_TOOL)
+		    || (toolbox_request->Tool ==
+		    MPI26_TOOLBOX_BACKEND_PCIE_LANE_MARGIN))
 			ioc->build_sg(ioc, psge, data_out_dma, data_out_sz,
 				data_in_dma, data_in_sz);
-		} else {
+		else if (toolbox_request->Tool ==
+				MPI2_TOOLBOX_MEMORY_MOVE_TOOL) {
+			Mpi2ToolboxMemMoveRequest_t *mem_move_request =
+					(Mpi2ToolboxMemMoveRequest_t *)request;
+			Mpi2SGESimple64_t tmp, *src = NULL, *dst = NULL;
+
+			ioc->build_sg_mpi(ioc, psge, data_out_dma,
+					data_out_sz, data_in_dma, data_in_sz);
+			if (data_out_sz && !data_in_sz) {
+				dst =
+				    (Mpi2SGESimple64_t *)&mem_move_request->SGL;
+				src = (void *)dst + ioc->sge_size;
+
+				memcpy(&tmp, src, ioc->sge_size);
+				memcpy(src, dst, ioc->sge_size);
+				memcpy(dst, &tmp, ioc->sge_size);
+			}
+			if (ioc->logging_level & MPT_DEBUG_TM) {
+				ioc_info(ioc,
+				  "Mpi2ToolboxMemMoveRequest_t request msg\n");
+				_debug_dump_mf(mem_move_request,
+							ioc->request_sz/4);
+			}
+		} else
 			ioc->build_sg_mpi(ioc, psge, data_out_dma, data_out_sz,
-				data_in_dma, data_in_sz);
-		}
+			    data_in_dma, data_in_sz);
 		ioc->put_smid_default(ioc, smid);
 		break;
 	}
@@ -1047,12 +1079,14 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 			mpt3sas_halt_firmware(ioc);
 			pcie_device = mpt3sas_get_pdev_by_handle(ioc,
 				le16_to_cpu(mpi_request->FunctionDependent1));
-			if (pcie_device && (!ioc->tm_custom_handling))
+			if (pcie_device && (!ioc->tm_custom_handling) &&
+			    (!(mpt3sas_scsih_is_pcie_scsi_device(
+			    pcie_device->device_info))))
 				mpt3sas_scsih_issue_locked_tm(ioc,
 				  le16_to_cpu(mpi_request->FunctionDependent1),
 				  0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0,
 				  0, pcie_device->reset_timeout,
-				  tr_method);
+			MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE);
 			else
 				mpt3sas_scsih_issue_locked_tm(ioc,
 				  le16_to_cpu(mpi_request->FunctionDependent1),
@@ -3278,9 +3312,8 @@ diag_trigger_scsi_store(struct device *cdev,
 	ssize_t sz;
 
 	spin_lock_irqsave(&ioc->diag_trigger_lock, flags);
-	sz = min(sizeof(struct SL_WH_SCSI_TRIGGERS_T), count);
-	memset(&ioc->diag_trigger_scsi, 0,
-	    sizeof(struct SL_WH_EVENT_TRIGGERS_T));
+	sz = min(sizeof(ioc->diag_trigger_scsi), count);
+	memset(&ioc->diag_trigger_scsi, 0, sizeof(ioc->diag_trigger_scsi));
 	memcpy(&ioc->diag_trigger_scsi, buf, sz);
 	if (ioc->diag_trigger_scsi.ValidEntries > NUM_VALID_ENTRIES)
 		ioc->diag_trigger_scsi.ValidEntries = NUM_VALID_ENTRIES;
@@ -3349,6 +3382,125 @@ static DEVICE_ATTR_RW(diag_trigger_mpi);
 
 /*****************************************/
 
+/**
+ * drv_support_bitmap_show - driver supported feature bitmap
+ * @cdev - pointer to embedded class device
+ * @buf - the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t
+drv_support_bitmap_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
+
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n", ioc->drv_support_bitmap);
+}
+static DEVICE_ATTR_RO(drv_support_bitmap);
+
+/**
+ * enable_sdev_max_qd_show - display whether sdev max qd is enabled/disabled
+ * @cdev - pointer to embedded class device
+ * @buf - the buffer returned
+ *
+ * A sysfs read/write shost attribute. This attribute is used to set the
+ * targets queue depth to HBA IO queue depth if this attribute is enabled.
+ */
+static ssize_t
+enable_sdev_max_qd_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", ioc->enable_sdev_max_qd);
+}
+
+/**
+ * enable_sdev_max_qd_store - Enable/disable sdev max qd
+ * @cdev - pointer to embedded class device
+ * @buf - the buffer returned
+ *
+ * A sysfs read/write shost attribute. This attribute is used to set the
+ * targets queue depth to HBA IO queue depth if this attribute is enabled.
+ * If this attribute is disabled then targets will have corresponding default
+ * queue depth.
+ */
+static ssize_t
+enable_sdev_max_qd_store(struct device *cdev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
+	struct MPT3SAS_DEVICE *sas_device_priv_data;
+	struct MPT3SAS_TARGET *sas_target_priv_data;
+	int val = 0;
+	struct scsi_device *sdev;
+	struct _raid_device *raid_device;
+	int qdepth;
+
+	if (kstrtoint(buf, 0, &val) != 0)
+		return -EINVAL;
+
+	switch (val) {
+	case 0:
+		ioc->enable_sdev_max_qd = 0;
+		shost_for_each_device(sdev, ioc->shost) {
+			sas_device_priv_data = sdev->hostdata;
+			if (!sas_device_priv_data)
+				continue;
+			sas_target_priv_data = sas_device_priv_data->sas_target;
+			if (!sas_target_priv_data)
+				continue;
+
+			if (sas_target_priv_data->flags &
+			    MPT_TARGET_FLAGS_VOLUME) {
+				raid_device =
+				    mpt3sas_raid_device_find_by_handle(ioc,
+				    sas_target_priv_data->handle);
+
+				switch (raid_device->volume_type) {
+				case MPI2_RAID_VOL_TYPE_RAID0:
+					if (raid_device->device_info &
+					    MPI2_SAS_DEVICE_INFO_SSP_TARGET)
+						qdepth =
+						    MPT3SAS_SAS_QUEUE_DEPTH;
+					else
+						qdepth =
+						    MPT3SAS_SATA_QUEUE_DEPTH;
+					break;
+				case MPI2_RAID_VOL_TYPE_RAID1E:
+				case MPI2_RAID_VOL_TYPE_RAID1:
+				case MPI2_RAID_VOL_TYPE_RAID10:
+				case MPI2_RAID_VOL_TYPE_UNKNOWN:
+				default:
+					qdepth = MPT3SAS_RAID_QUEUE_DEPTH;
+				}
+			} else if (sas_target_priv_data->flags &
+			    MPT_TARGET_FLAGS_PCIE_DEVICE)
+				qdepth = MPT3SAS_NVME_QUEUE_DEPTH;
+			else
+				qdepth = MPT3SAS_SAS_QUEUE_DEPTH;
+
+			mpt3sas_scsih_change_queue_depth(sdev, qdepth);
+		}
+		break;
+	case 1:
+		ioc->enable_sdev_max_qd = 1;
+		shost_for_each_device(sdev, ioc->shost)
+			mpt3sas_scsih_change_queue_depth(sdev,
+			    shost->can_queue);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return strlen(buf);
+}
+static DEVICE_ATTR_RW(enable_sdev_max_qd);
+
 struct device_attribute *mpt3sas_host_attrs[] = {
 	&dev_attr_version_fw,
 	&dev_attr_version_bios,
@@ -3374,7 +3526,9 @@ struct device_attribute *mpt3sas_host_attrs[] = {
 	&dev_attr_diag_trigger_event,
 	&dev_attr_diag_trigger_scsi,
 	&dev_attr_diag_trigger_mpi,
+	&dev_attr_drv_support_bitmap,
 	&dev_attr_BRM_status,
+	&dev_attr_enable_sdev_max_qd,
 	NULL,
 };
 

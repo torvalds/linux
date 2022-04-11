@@ -20,7 +20,7 @@ static int genprobe_new_chip(struct map_info *map, struct chip_probe *cp,
 
 struct mtd_info *mtd_do_chip_probe(struct map_info *map, struct chip_probe *cp)
 {
-	struct mtd_info *mtd = NULL;
+	struct mtd_info *mtd;
 	struct cfi_private *cfi;
 
 	/* First probe the map to see if we have CFI stuff there. */

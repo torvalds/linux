@@ -151,6 +151,7 @@ void generic_reg_wait(const struct dc_context *ctx,
 	unsigned int delay_between_poll_us, unsigned int time_out_num_tries,
 	const char *func_name, int line);
 
+unsigned int snprintf_count(char *pBuf, unsigned int bufSize, char *fmt, ...);
 
 /* These macros need to be used with soc15 registers in order to retrieve
  * the actual offset.

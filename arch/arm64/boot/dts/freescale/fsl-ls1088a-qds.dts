@@ -17,6 +17,39 @@
 	compatible = "fsl,ls1088a-qds", "fsl,ls1088a";
 };
 
+&dspi {
+	bus-num = <0>;
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+	};
+
+	flash@1 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-cpol;
+		spi-cpha;
+		spi-max-frequency = <3500000>;
+		reg = <1>;
+	};
+
+	flash@2 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-cpol;
+		spi-cpha;
+		spi-max-frequency = <3500000>;
+		reg = <2>;
+	};
+};
+
 &i2c0 {
 	status = "okay";
 

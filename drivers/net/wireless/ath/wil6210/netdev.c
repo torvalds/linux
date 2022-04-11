@@ -218,6 +218,7 @@ static void wil_vif_deinit(struct wil6210_vif *vif)
 	cancel_work_sync(&vif->p2p.delayed_listen_work);
 	wil_probe_client_flush(vif);
 	cancel_work_sync(&vif->probe_client_worker);
+	cancel_work_sync(&vif->enable_tx_key_worker);
 }
 
 void wil_vif_free(struct wil6210_vif *vif)
@@ -283,7 +284,9 @@ static void wil_vif_init(struct wil6210_vif *vif)
 
 	INIT_WORK(&vif->probe_client_worker, wil_probe_client_worker);
 	INIT_WORK(&vif->disconnect_worker, wil_disconnect_worker);
+	INIT_WORK(&vif->p2p.discovery_expired_work, wil_p2p_listen_expired);
 	INIT_WORK(&vif->p2p.delayed_listen_work, wil_p2p_delayed_listen_work);
+	INIT_WORK(&vif->enable_tx_key_worker, wil_enable_tx_key_worker);
 
 	INIT_LIST_HEAD(&vif->probe_client_pending);
 
@@ -540,6 +543,7 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 	cancel_work_sync(&vif->disconnect_worker);
 	wil_probe_client_flush(vif);
 	cancel_work_sync(&vif->probe_client_worker);
+	cancel_work_sync(&vif->enable_tx_key_worker);
 	/* for VIFs, ndev will be freed by destructor after RTNL is unlocked.
 	 * the main interface will be freed in wil_if_free, we need to keep it
 	 * a bit longer so logging macros will work.

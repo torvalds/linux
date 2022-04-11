@@ -33,8 +33,7 @@ void lima_bo_destroy(struct lima_bo *bo)
 	kfree(bo);
 }
 
-static struct lima_bo *lima_bo_create_struct(struct lima_device *dev, u32 size, u32 flags,
-					     struct reservation_object *resv)
+static struct lima_bo *lima_bo_create_struct(struct lima_device *dev, u32 size, u32 flags)
 {
 	struct lima_bo *bo;
 	int err;
@@ -47,7 +46,6 @@ static struct lima_bo *lima_bo_create_struct(struct lima_device *dev, u32 size, 
 
 	mutex_init(&bo->lock);
 	INIT_LIST_HEAD(&bo->va);
-	bo->gem.resv = resv;
 
 	err = drm_gem_object_init(dev->ddev, &bo->gem, size);
 	if (err) {
@@ -59,14 +57,13 @@ static struct lima_bo *lima_bo_create_struct(struct lima_device *dev, u32 size, 
 }
 
 struct lima_bo *lima_bo_create(struct lima_device *dev, u32 size,
-			       u32 flags, struct sg_table *sgt,
-			       struct reservation_object *resv)
+			       u32 flags, struct sg_table *sgt)
 {
 	int i, err;
 	size_t npages;
 	struct lima_bo *bo, *ret;
 
-	bo = lima_bo_create_struct(dev, size, flags, resv);
+	bo = lima_bo_create_struct(dev, size, flags);
 	if (IS_ERR(bo))
 		return bo;
 

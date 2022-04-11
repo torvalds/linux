@@ -3,20 +3,22 @@
  * Copyright (c) 2014 MediaTek Inc.
  * Author: Jie Qiu <jie.qiu@mediatek.com>
  */
-#include <drm/drmP.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_of.h>
-#include <linux/kernel.h>
+
+#include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/platform_device.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
-#include <linux/interrupt.h>
+#include <linux/platform_device.h>
 #include <linux/types.h>
-#include <linux/clk.h>
+
 #include <video/videomode.h>
+
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_of.h>
 
 #include "mtk_dpi_regs.h"
 #include "mtk_drm_ddp_comp.h"

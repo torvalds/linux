@@ -408,6 +408,13 @@ handler code. You also do not need to know anything about the chip's
 internal registers to create the kernel part of the driver. All you need
 to know is the irq number of the pin the chip is connected to.
 
+When used in a device-tree enabled system, the driver needs to be
+probed with the ``"of_id"`` module parameter set to the ``"compatible"``
+string of the node the driver is supposed to handle. By default, the
+node's name (without the unit address) is exposed as name for the
+UIO device in userspace. To set a custom name, a property named
+``"linux,uio-name"`` may be specified in the DT node.
+
 Using uio_dmem_genirq for platform devices
 ------------------------------------------
 

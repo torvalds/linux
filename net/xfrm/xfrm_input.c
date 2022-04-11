@@ -480,6 +480,9 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 			else
 				XFRM_INC_STATS(net,
 					       LINUX_MIB_XFRMINSTATEINVALID);
+
+			if (encap_type == -1)
+				dev_put(skb->dev);
 			goto drop;
 		}
 
@@ -706,7 +709,7 @@ resume:
 	if (err)
 		goto drop;
 
-	nf_reset(skb);
+	nf_reset_ct(skb);
 
 	if (decaps) {
 		sp = skb_sec_path(skb);

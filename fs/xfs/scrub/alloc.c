@@ -97,7 +97,6 @@ xchk_allocbt_rec(
 	xfs_agnumber_t		agno = bs->cur->bc_private.a.agno;
 	xfs_agblock_t		bno;
 	xfs_extlen_t		len;
-	int			error = 0;
 
 	bno = be32_to_cpu(rec->alloc.ar_startblock);
 	len = be32_to_cpu(rec->alloc.ar_blockcount);
@@ -109,7 +108,7 @@ xchk_allocbt_rec(
 
 	xchk_allocbt_xref(bs->sc, bno, len);
 
-	return error;
+	return 0;
 }
 
 /* Scrub the freespace btrees for some AG. */

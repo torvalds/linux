@@ -68,8 +68,10 @@ descriptors by adding their identifier to the format string
  - 'd-ng': the digest of the event, calculated with an arbitrary hash
    algorithm (field format: [<hash algo>:]digest, where the digest
    prefix is shown only if the hash algorithm is not SHA1 or MD5);
+ - 'd-modsig': the digest of the event without the appended modsig;
  - 'n-ng': the name of the event, without size limitations;
  - 'sig': the file signature;
+ - 'modsig' the appended file signature;
  - 'buf': the buffer data that was used to generate the hash without size limitations;
 
 
@@ -79,6 +81,7 @@ Below, there is the list of defined template descriptors:
  - "ima-ng" (default): its format is ``d-ng|n-ng``;
  - "ima-sig": its format is ``d-ng|n-ng|sig``;
  - "ima-buf": its format is ``d-ng|n-ng|buf``;
+ - "ima-modsig": its format is ``d-ng|n-ng|sig|d-modsig|modsig``;
 
 
 Use

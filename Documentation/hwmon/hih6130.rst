@@ -27,7 +27,7 @@ The devices communicate with the I2C protocol. All sensors are set to the same
 I2C address 0x27 by default, so an entry with I2C_BOARD_INFO("hih6130", 0x27)
 can be used in the board setup code.
 
-Please see Documentation/i2c/instantiating-devices for details on how to
+Please see Documentation/i2c/instantiating-devices.rst for details on how to
 instantiate I2C devices.
 
 sysfs-Interface

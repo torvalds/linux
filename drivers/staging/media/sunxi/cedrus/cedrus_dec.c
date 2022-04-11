@@ -46,7 +46,7 @@ void cedrus_device_run(void *priv)
 			V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION);
 		break;
 
-	case V4L2_PIX_FMT_H264_SLICE_RAW:
+	case V4L2_PIX_FMT_H264_SLICE:
 		run.h264.decode_params = cedrus_find_control_data(ctx,
 			V4L2_CID_MPEG_VIDEO_H264_DECODE_PARAMS);
 		run.h264.pps = cedrus_find_control_data(ctx,

@@ -90,6 +90,7 @@ void rtw_rx_fill_rx_status(struct rtw_dev *rtwdev,
 			   u8 *phy_status)
 {
 	struct ieee80211_hw *hw = rtwdev->hw;
+	u8 path;
 
 	memset(rx_status, 0, sizeof(*rx_status));
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
@@ -146,6 +147,10 @@ void rtw_rx_fill_rx_status(struct rtw_dev *rtwdev,
 		rx_status->bw = RATE_INFO_BW_20;
 
 	rx_status->signal = pkt_stat->signal_power;
+	for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
+		rx_status->chains |= BIT(path);
+		rx_status->chain_signal[path] = pkt_stat->rx_power[path];
+	}
 
 	rtw_rx_addr_match(rtwdev, pkt_stat, hdr);
 }

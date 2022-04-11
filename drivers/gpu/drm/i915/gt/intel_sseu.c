@@ -49,7 +49,7 @@ u32 intel_sseu_make_rpcs(struct drm_i915_private *i915,
 	 * cases which disable slices for functional, apart for performance
 	 * reasons. So in this case we select a known stable subset.
 	 */
-	if (!i915->perf.oa.exclusive_stream) {
+	if (!i915->perf.exclusive_stream) {
 		ctx_sseu = *req_sseu;
 	} else {
 		ctx_sseu = intel_sseu_from_device_info(sseu);

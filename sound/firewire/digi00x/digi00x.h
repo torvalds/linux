@@ -59,6 +59,8 @@ struct snd_dg00x {
 
 	/* Console models have additional MIDI ports for control surface. */
 	bool is_console;
+
+	struct amdtp_domain domain;
 };
 
 #define DG00X_ADDR_BASE		0xffffe0000000ull

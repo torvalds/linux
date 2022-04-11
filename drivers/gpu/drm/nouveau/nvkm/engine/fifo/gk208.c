@@ -45,6 +45,7 @@ gk208_fifo_pbdma = {
 
 static const struct gk104_fifo_func
 gk208_fifo = {
+	.intr.fault = gf100_fifo_intr_fault,
 	.pbdma = &gk208_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,

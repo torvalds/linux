@@ -18,9 +18,6 @@
 #include <libbpf.h>
 #include "bpf_load.h"
 #include "perf-sys.h"
-#include "trace_helpers.h"
-
-static int pmu_fd;
 
 static __u64 time_get_ns(void)
 {
@@ -31,12 +28,12 @@ static __u64 time_get_ns(void)
 }
 
 static __u64 start_time;
+static __u64 cnt;
 
 #define MAX_CNT 100000ll
 
-static int print_bpf_output(void *data, int size)
+static void print_bpf_output(void *ctx, int cpu, void *data, __u32 size)
 {
-	static __u64 cnt;
 	struct {
 		__u64 pid;
 		__u64 cookie;
@@ -45,7 +42,7 @@ static int print_bpf_output(void *data, int size)
 	if (e->cookie != 0x12345678) {
 		printf("BUG pid %llx cookie %llx sized %d\n",
 		       e->pid, e->cookie, size);
-		return LIBBPF_PERF_EVENT_ERROR;
+		return;
 	}
 
 	cnt++;
@@ -53,30 +50,14 @@ static int print_bpf_output(void *data, int size)
 	if (cnt == MAX_CNT) {
 		printf("recv %lld events per sec\n",
 		       MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
-		return LIBBPF_PERF_EVENT_DONE;
+		return;
 	}
-
-	return LIBBPF_PERF_EVENT_CONT;
-}
-
-static void test_bpf_perf_event(void)
-{
-	struct perf_event_attr attr = {
-		.sample_type = PERF_SAMPLE_RAW,
-		.type = PERF_TYPE_SOFTWARE,
-		.config = PERF_COUNT_SW_BPF_OUTPUT,
-	};
-	int key = 0;
-
-	pmu_fd = sys_perf_event_open(&attr, -1/*pid*/, 0/*cpu*/, -1/*group_fd*/, 0);
-
-	assert(pmu_fd >= 0);
-	assert(bpf_map_update_elem(map_fd[0], &key, &pmu_fd, BPF_ANY) == 0);
-	ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0);
 }
 
 int main(int argc, char **argv)
 {
+	struct perf_buffer_opts pb_opts = {};
+	struct perf_buffer *pb;
 	char filename[256];
 	FILE *f;
 	int ret;
@@ -88,16 +69,20 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	test_bpf_perf_event();
-
-	if (perf_event_mmap(pmu_fd) < 0)
+	pb_opts.sample_cb = print_bpf_output;
+	pb = perf_buffer__new(map_fd[0], 8, &pb_opts);
+	ret = libbpf_get_error(pb);
+	if (ret) {
+		printf("failed to setup perf_buffer: %d\n", ret);
 		return 1;
+	}
 
 	f = popen("taskset 1 dd if=/dev/zero of=/dev/null", "r");
 	(void) f;
 
 	start_time = time_get_ns();
-	ret = perf_event_poller(pmu_fd, print_bpf_output);
+	while ((ret = perf_buffer__poll(pb, 1000)) >= 0 && cnt < MAX_CNT) {
+	}
 	kill(0, SIGINT);
 	return ret;
 }

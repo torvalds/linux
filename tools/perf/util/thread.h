@@ -16,7 +16,7 @@
 
 struct addr_location;
 struct map;
-struct namespaces_event;
+struct perf_record_namespaces;
 struct thread_stack;
 struct unwind_libunwind_ops;
 
@@ -44,10 +44,6 @@ struct thread {
 	struct thread_stack	*ts;
 	struct nsinfo		*nsinfo;
 	struct srccode_state	srccode_state;
-#ifdef HAVE_LIBUNWIND_SUPPORT
-	void				*addr_space;
-	struct unwind_libunwind_ops	*unwind_libunwind_ops;
-#endif
 	bool			filter;
 	int			filter_entry_depth;
 };
@@ -78,7 +74,7 @@ static inline void thread__exited(struct thread *thread)
 
 struct namespaces *thread__namespaces(struct thread *thread);
 int thread__set_namespaces(struct thread *thread, u64 timestamp,
-			   struct namespaces_event *event);
+			   struct perf_record_namespaces *event);
 
 int __thread__set_comm(struct thread *thread, const char *comm, u64 timestamp,
 		       bool exec);

@@ -34,7 +34,16 @@
 
 #include "head_32.h"
 
-/* 601 only have IBAT; cr0.eq is set on 601 when using this macro */
+/* 601 only have IBAT */
+#ifdef CONFIG_PPC_BOOK3S_601
+#define LOAD_BAT(n, reg, RA, RB)	\
+	li	RA,0;			\
+	mtspr	SPRN_IBAT##n##U,RA;	\
+	lwz	RA,(n*16)+0(reg);	\
+	lwz	RB,(n*16)+4(reg);	\
+	mtspr	SPRN_IBAT##n##U,RA;	\
+	mtspr	SPRN_IBAT##n##L,RB
+#else
 #define LOAD_BAT(n, reg, RA, RB)	\
 	/* see the comment for clear_bats() -- Cort */ \
 	li	RA,0;			\
@@ -44,12 +53,11 @@
 	lwz	RB,(n*16)+4(reg);	\
 	mtspr	SPRN_IBAT##n##U,RA;	\
 	mtspr	SPRN_IBAT##n##L,RB;	\
-	beq	1f;			\
 	lwz	RA,(n*16)+8(reg);	\
 	lwz	RB,(n*16)+12(reg);	\
 	mtspr	SPRN_DBAT##n##U,RA;	\
-	mtspr	SPRN_DBAT##n##L,RB;	\
-1:
+	mtspr	SPRN_DBAT##n##L,RB
+#endif
 
 	__HEAD
 	.stabs	"arch/powerpc/kernel/",N_SO,0,0,0f
@@ -557,9 +565,9 @@ DataStoreTLBMiss:
 	cmplw	0,r1,r3
 	mfspr	r2, SPRN_SPRG_PGDIR
 #ifdef CONFIG_SWAP
-	li	r1, _PAGE_RW | _PAGE_PRESENT | _PAGE_ACCESSED
+	li	r1, _PAGE_RW | _PAGE_DIRTY | _PAGE_PRESENT | _PAGE_ACCESSED
 #else
-	li	r1, _PAGE_RW | _PAGE_PRESENT
+	li	r1, _PAGE_RW | _PAGE_DIRTY | _PAGE_PRESENT
 #endif
 	bge-	112f
 	lis	r2, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
@@ -820,9 +828,6 @@ load_up_mmu:
 
 /* Load the BAT registers with the values set up by MMU_init.
    MMU_init takes care of whether we're on a 601 or not. */
-	mfpvr	r3
-	srwi	r3,r3,16
-	cmpwi	r3,1
 	lis	r3,BATS@ha
 	addi	r3,r3,BATS@l
 	tophys(r3,r3)
@@ -897,9 +902,11 @@ start_here:
 	bl	machine_init
 	bl	__save_cpu_setup
 	bl	MMU_init
+#ifdef CONFIG_KASAN
 BEGIN_MMU_FTR_SECTION
 	bl	MMU_init_hw_patch
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
+#endif
 
 /*
  * Go back to running unmapped so we can load up new values
@@ -996,11 +1003,8 @@ EXPORT_SYMBOL(switch_mmu_context)
  */
 clear_bats:
 	li	r10,0
-	mfspr	r9,SPRN_PVR
-	rlwinm	r9,r9,16,16,31		/* r9 = 1 for 601, 4 for 604 */
-	cmpwi	r9, 1
-	beq	1f
 
+#ifndef CONFIG_PPC_BOOK3S_601
 	mtspr	SPRN_DBAT0U,r10
 	mtspr	SPRN_DBAT0L,r10
 	mtspr	SPRN_DBAT1U,r10
@@ -1009,7 +1013,7 @@ clear_bats:
 	mtspr	SPRN_DBAT2L,r10
 	mtspr	SPRN_DBAT3U,r10
 	mtspr	SPRN_DBAT3L,r10
-1:
+#endif
 	mtspr	SPRN_IBAT0U,r10
 	mtspr	SPRN_IBAT0L,r10
 	mtspr	SPRN_IBAT1U,r10
@@ -1104,10 +1108,7 @@ mmu_off:
  */
 initial_bats:
 	lis	r11,PAGE_OFFSET@h
-	mfspr	r9,SPRN_PVR
-	rlwinm	r9,r9,16,16,31		/* r9 = 1 for 601, 4 for 604 */
-	cmpwi	0,r9,1
-	bne	4f
+#ifdef CONFIG_PPC_BOOK3S_601
 	ori	r11,r11,4		/* set up BAT registers for 601 */
 	li	r8,0x7f			/* valid, block length = 8MB */
 	mtspr	SPRN_IBAT0U,r11		/* N.B. 601 has valid bit in */
@@ -1120,10 +1121,8 @@ initial_bats:
 	addis	r8,r8,0x800000@h
 	mtspr	SPRN_IBAT2U,r11
 	mtspr	SPRN_IBAT2L,r8
-	isync
-	blr
-
-4:	tophys(r8,r11)
+#else
+	tophys(r8,r11)
 #ifdef CONFIG_SMP
 	ori	r8,r8,0x12		/* R/W access, M=1 */
 #else
@@ -1135,9 +1134,9 @@ initial_bats:
 	mtspr	SPRN_DBAT0U,r11		/* bit in upper BAT register */
 	mtspr	SPRN_IBAT0L,r8
 	mtspr	SPRN_IBAT0U,r11
+#endif
 	isync
 	blr
-
 
 #ifdef CONFIG_BOOTX_TEXT
 setup_disp_bat:
@@ -1153,15 +1152,13 @@ setup_disp_bat:
 	beqlr
 	lwz	r11,0(r8)
 	lwz	r8,4(r8)
-	mfspr	r9,SPRN_PVR
-	rlwinm	r9,r9,16,16,31		/* r9 = 1 for 601, 4 for 604 */
-	cmpwi	0,r9,1
-	beq	1f
+#ifndef CONFIG_PPC_BOOK3S_601
 	mtspr	SPRN_DBAT3L,r8
 	mtspr	SPRN_DBAT3U,r11
-	blr
-1:	mtspr	SPRN_IBAT3L,r8
+#else
+	mtspr	SPRN_IBAT3L,r8
 	mtspr	SPRN_IBAT3U,r11
+#endif
 	blr
 #endif /* CONFIG_BOOTX_TEXT */
 

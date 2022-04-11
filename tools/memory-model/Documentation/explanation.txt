@@ -42,7 +42,8 @@ linux-kernel.bell and linux-kernel.cat files that make up the formal
 version of the model; they are extremely terse and their meanings are
 far from clear.
 
-This document describes the ideas underlying the LKMM.  It is meant
+This document describes the ideas underlying the LKMM, but excluding
+the modeling of bare C (or plain) shared memory accesses.  It is meant
 for people who want to understand how the model was designed.  It does
 not go into the details of the code in the .bell and .cat files;
 rather, it explains in English what the code expresses symbolically.
@@ -354,31 +355,25 @@ be extremely complex.
 Optimizing compilers have great freedom in the way they translate
 source code to object code.  They are allowed to apply transformations
 that add memory accesses, eliminate accesses, combine them, split them
-into pieces, or move them around.  Faced with all these possibilities,
-the LKMM basically gives up.  It insists that the code it analyzes
-must contain no ordinary accesses to shared memory; all accesses must
-be performed using READ_ONCE(), WRITE_ONCE(), or one of the other
-atomic or synchronization primitives.  These primitives prevent a
-large number of compiler optimizations.  In particular, it is
-guaranteed that the compiler will not remove such accesses from the
-generated code (unless it can prove the accesses will never be
-executed), it will not change the order in which they occur in the
-code (within limits imposed by the C standard), and it will not
-introduce extraneous accesses.
+into pieces, or move them around.  The use of READ_ONCE(), WRITE_ONCE(),
+or one of the other atomic or synchronization primitives prevents a
+large number of compiler optimizations.  In particular, it is guaranteed
+that the compiler will not remove such accesses from the generated code
+(unless it can prove the accesses will never be executed), it will not
+change the order in which they occur in the code (within limits imposed
+by the C standard), and it will not introduce extraneous accesses.
 
-This explains why the MP and SB examples above used READ_ONCE() and
-WRITE_ONCE() rather than ordinary memory accesses.  Thanks to this
-usage, we can be certain that in the MP example, P0's write event to
-buf really is po-before its write event to flag, and similarly for the
-other shared memory accesses in the examples.
+The MP and SB examples above used READ_ONCE() and WRITE_ONCE() rather
+than ordinary memory accesses.  Thanks to this usage, we can be certain
+that in the MP example, the compiler won't reorder P0's write event to
+buf and P0's write event to flag, and similarly for the other shared
+memory accesses in the examples.
 
-Private variables are not subject to this restriction.  Since they are
-not shared between CPUs, they can be accessed normally without
-READ_ONCE() or WRITE_ONCE(), and there will be no ill effects.  In
-fact, they need not even be stored in normal memory at all -- in
-principle a private variable could be stored in a CPU register (hence
-the convention that these variables have names starting with the
-letter 'r').
+Since private variables are not shared between CPUs, they can be
+accessed normally without READ_ONCE() or WRITE_ONCE().  In fact, they
+need not even be stored in normal memory at all -- in principle a
+private variable could be stored in a CPU register (hence the convention
+that these variables have names starting with the letter 'r').
 
 
 A WARNING
@@ -1302,7 +1297,7 @@ followed by an arbitrary number of cumul-fence links, ending with an
 rfe link.  You can concoct more exotic examples, containing more than
 one fence, although this quickly leads to diminishing returns in terms
 of complexity.  For instance, here's an example containing a coe link
-followed by two fences and an rfe link, utilizing the fact that
+followed by two cumul-fences and an rfe link, utilizing the fact that
 release fences are A-cumulative:
 
 	int x, y, z;
@@ -1334,10 +1329,10 @@ If x = 2, r0 = 1, and r2 = 1 after this code runs then there is a prop
 link from P0's store to its load.  This is because P0's store gets
 overwritten by P1's store since x = 2 at the end (a coe link), the
 smp_wmb() ensures that P1's store to x propagates to P2 before the
-store to y does (the first fence), the store to y propagates to P2
+store to y does (the first cumul-fence), the store to y propagates to P2
 before P2's load and store execute, P2's smp_store_release()
 guarantees that the stores to x and y both propagate to P0 before the
-store to z does (the second fence), and P0's load executes after the
+store to z does (the second cumul-fence), and P0's load executes after the
 store to z has propagated to P0 (an rfe link).
 
 In summary, the fact that the hb relation links memory access events

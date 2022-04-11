@@ -57,6 +57,7 @@ KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
 Description:    Allows the user to set the maximum clock frequency for MME, TPC
                 and IC when the power management profile is set to "automatic".
+                This property is valid only for the Goya ASIC family
 
 What:           /sys/class/habanalabs/hl<n>/ic_clk
 Date:           Jan 2019
@@ -127,8 +128,8 @@ Description:    Power management profile. Values are "auto", "manual". In "auto"
                 the max clock frequency to a low value when there are no user
                 processes that are opened on the device's file. In "manual"
                 mode, the user sets the maximum clock frequency by writing to
-                ic_clk, mme_clk and tpc_clk
-
+                ic_clk, mme_clk and tpc_clk. This property is valid only for
+                the Goya ASIC family
 
 What:           /sys/class/habanalabs/hl<n>/preboot_btl_ver
 Date:           Jan 2019
@@ -187,10 +188,3 @@ Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
 Description:    Version of the u-boot running on the device's CPU
-
-What:           /sys/class/habanalabs/hl<n>/write_open_cnt
-Date:           Jan 2019
-KernelVersion:  5.1
-Contact:        oded.gabbay@gmail.com
-Description:    Displays the total number of user processes that are currently
-                opened on the device's file

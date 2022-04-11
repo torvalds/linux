@@ -535,7 +535,7 @@ struct mlme_ext_priv
 };
 
 void init_mlme_default_rate_set(struct adapter *padapter);
-int init_mlme_ext_priv(struct adapter *padapter);
+void init_mlme_ext_priv(struct adapter *padapter);
 int init_hw_mlme_ext(struct adapter *padapter);
 void free_mlme_ext_priv (struct mlme_ext_priv *pmlmeext);
 extern void init_mlme_ext_timer(struct adapter *padapter);
@@ -650,7 +650,6 @@ void report_del_sta_event(struct adapter *padapter, unsigned char* MacAddr, unsi
 void report_add_sta_event(struct adapter *padapter, unsigned char* MacAddr, int cam_idx);
 void report_wmm_edca_update(struct adapter *padapter);
 
-void beacon_timing_control(struct adapter *padapter);
 u8 chk_bmc_sleepq_cmd(struct adapter *padapter);
 extern u8 set_tx_beacon_cmd(struct adapter *padapter);
 unsigned int setup_beacon_frame(struct adapter *padapter, unsigned char *beacon_frame);

@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2007 Luca Bigliardi (shammash@artha.org).
- * Licensed under the GPL.
  */
 
 #ifndef __UM_VDE_H__

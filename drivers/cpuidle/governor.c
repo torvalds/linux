@@ -20,14 +20,15 @@ char param_governor[CPUIDLE_NAME_LEN];
 
 LIST_HEAD(cpuidle_governors);
 struct cpuidle_governor *cpuidle_curr_governor;
+struct cpuidle_governor *cpuidle_prev_governor;
 
 /**
- * __cpuidle_find_governor - finds a governor of the specified name
+ * cpuidle_find_governor - finds a governor of the specified name
  * @str: the name
  *
  * Must be called with cpuidle_lock acquired.
  */
-static struct cpuidle_governor * __cpuidle_find_governor(const char *str)
+struct cpuidle_governor *cpuidle_find_governor(const char *str)
 {
 	struct cpuidle_governor *gov;
 
@@ -87,7 +88,7 @@ int cpuidle_register_governor(struct cpuidle_governor *gov)
 		return -ENODEV;
 
 	mutex_lock(&cpuidle_lock);
-	if (__cpuidle_find_governor(gov->name) == NULL) {
+	if (cpuidle_find_governor(gov->name) == NULL) {
 		ret = 0;
 		list_add_tail(&gov->governor_list, &cpuidle_governors);
 		if (!cpuidle_curr_governor ||

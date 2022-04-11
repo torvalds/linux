@@ -19,17 +19,17 @@
 #include <limits.h>
 #include <elf.h>
 
+#include "build-id.h"
 #include "event.h"
 #include "namespaces.h"
 #include "strlist.h"
 #include "strfilter.h"
 #include "debug.h"
-#include "cache.h"
+#include "dso.h"
 #include "color.h"
 #include "map.h"
 #include "map_groups.h"
 #include "symbol.h"
-#include "thread.h"
 #include <api/fs/fs.h>
 #include "trace-event.h"	/* For __maybe_unused */
 #include "probe-event.h"
@@ -37,7 +37,9 @@
 #include "probe-file.h"
 #include "session.h"
 #include "string2.h"
+#include "strbuf.h"
 
+#include <subcmd/pager.h>
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
 
@@ -2329,6 +2331,7 @@ void clear_probe_trace_event(struct probe_trace_event *tev)
 		}
 	}
 	zfree(&tev->args);
+	tev->nargs = 0;
 }
 
 struct kprobe_blacklist_node {

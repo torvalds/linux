@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
+#include "dso.h"
 #include "evsel.h"
 #include "machine.h"
 #include "thread.h"
@@ -32,7 +33,7 @@ void db_export__exit(struct db_export *dbe)
 	dbe->crp = NULL;
 }
 
-int db_export__evsel(struct db_export *dbe, struct perf_evsel *evsel)
+int db_export__evsel(struct db_export *dbe, struct evsel *evsel)
 {
 	if (evsel->db_id)
 		return 0;
@@ -209,7 +210,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 					       struct machine *machine,
 					       struct thread *thread,
 					       struct perf_sample *sample,
-					       struct perf_evsel *evsel)
+					       struct evsel *evsel)
 {
 	u64 kernel_start = machine__kernel_start(machine);
 	struct call_path *current = &dbe->cpr->call_path;
@@ -341,7 +342,7 @@ static int db_export__threads(struct db_export *dbe, struct thread *thread,
 }
 
 int db_export__sample(struct db_export *dbe, union perf_event *event,
-		      struct perf_sample *sample, struct perf_evsel *evsel,
+		      struct perf_sample *sample, struct evsel *evsel,
 		      struct addr_location *al)
 {
 	struct thread *thread = al->thread;
@@ -388,8 +389,8 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		}
 	}
 
-	if ((evsel->attr.sample_type & PERF_SAMPLE_ADDR) &&
-	    sample_addr_correlates_sym(&evsel->attr)) {
+	if ((evsel->core.attr.sample_type & PERF_SAMPLE_ADDR) &&
+	    sample_addr_correlates_sym(&evsel->core.attr)) {
 		struct addr_location addr_al;
 
 		thread__resolve(thread, &addr_al, sample);

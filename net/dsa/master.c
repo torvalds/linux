@@ -8,6 +8,70 @@
 
 #include "dsa_priv.h"
 
+static int dsa_master_get_regs_len(struct net_device *dev)
+{
+	struct dsa_port *cpu_dp = dev->dsa_ptr;
+	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
+	struct dsa_switch *ds = cpu_dp->ds;
+	int port = cpu_dp->index;
+	int ret = 0;
+	int len;
+
+	if (ops->get_regs_len) {
+		len = ops->get_regs_len(dev);
+		if (len < 0)
+			return len;
+		ret += len;
+	}
+
+	ret += sizeof(struct ethtool_drvinfo);
+	ret += sizeof(struct ethtool_regs);
+
+	if (ds->ops->get_regs_len) {
+		len = ds->ops->get_regs_len(ds, port);
+		if (len < 0)
+			return len;
+		ret += len;
+	}
+
+	return ret;
+}
+
+static void dsa_master_get_regs(struct net_device *dev,
+				struct ethtool_regs *regs, void *data)
+{
+	struct dsa_port *cpu_dp = dev->dsa_ptr;
+	const struct ethtool_ops *ops = cpu_dp->orig_ethtool_ops;
+	struct dsa_switch *ds = cpu_dp->ds;
+	struct ethtool_drvinfo *cpu_info;
+	struct ethtool_regs *cpu_regs;
+	int port = cpu_dp->index;
+	int len;
+
+	if (ops->get_regs_len && ops->get_regs) {
+		len = ops->get_regs_len(dev);
+		if (len < 0)
+			return;
+		regs->len = len;
+		ops->get_regs(dev, regs, data);
+		data += regs->len;
+	}
+
+	cpu_info = (struct ethtool_drvinfo *)data;
+	strlcpy(cpu_info->driver, "dsa", sizeof(cpu_info->driver));
+	data += sizeof(*cpu_info);
+	cpu_regs = (struct ethtool_regs *)data;
+	data += sizeof(*cpu_regs);
+
+	if (ds->ops->get_regs_len && ds->ops->get_regs) {
+		len = ds->ops->get_regs_len(ds, port);
+		if (len < 0)
+			return;
+		cpu_regs->len = len;
+		ds->ops->get_regs(ds, port, cpu_regs, data);
+	}
+}
+
 static void dsa_master_get_ethtool_stats(struct net_device *dev,
 					 struct ethtool_stats *stats,
 					 uint64_t *data)
@@ -147,6 +211,8 @@ static int dsa_master_ethtool_setup(struct net_device *dev)
 	if (cpu_dp->orig_ethtool_ops)
 		memcpy(ops, cpu_dp->orig_ethtool_ops, sizeof(*ops));
 
+	ops->get_regs_len = dsa_master_get_regs_len;
+	ops->get_regs = dsa_master_get_regs;
 	ops->get_sset_count = dsa_master_get_sset_count;
 	ops->get_ethtool_stats = dsa_master_get_ethtool_stats;
 	ops->get_strings = dsa_master_get_strings;
@@ -244,8 +310,6 @@ static void dsa_master_reset_mtu(struct net_device *dev)
 	rtnl_unlock();
 }
 
-static struct lock_class_key dsa_master_addr_list_lock_key;
-
 int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 {
 	int ret;
@@ -259,9 +323,6 @@ int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 	wmb();
 
 	dev->dsa_ptr = cpu_dp;
-	lockdep_set_class(&dev->addr_list_lock,
-			  &dsa_master_addr_list_lock_key);
-
 	ret = dsa_master_ethtool_setup(dev);
 	if (ret)
 		return ret;

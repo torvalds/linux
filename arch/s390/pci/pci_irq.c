@@ -284,7 +284,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			return rc;
 		irq_set_chip_and_handler(irq, &zpci_irq_chip,
 					 handle_percpu_irq);
-		msg.data = hwirq;
+		msg.data = hwirq - bit;
 		if (irq_delivery == DIRECTED) {
 			msg.address_lo = zdev->msi_addr & 0xff0000ff;
 			msg.address_lo |= msi->affinity ?

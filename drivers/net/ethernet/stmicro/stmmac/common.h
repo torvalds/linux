@@ -75,6 +75,7 @@ struct stmmac_extra_stats {
 	unsigned long rx_missed_cntr;
 	unsigned long rx_overflow_cntr;
 	unsigned long rx_vlan;
+	unsigned long rx_split_hdr_pkt_n;
 	/* Tx/Rx IRQ error info */
 	unsigned long tx_undeflow_irq;
 	unsigned long tx_process_stopped_irq;
@@ -354,6 +355,13 @@ struct dma_features {
 	unsigned int frpbs;
 	unsigned int frpes;
 	unsigned int addr64;
+	unsigned int rssen;
+	unsigned int vlhash;
+	unsigned int sphen;
+	unsigned int vlins;
+	unsigned int dvlan;
+	unsigned int l3l4fnum;
+	unsigned int arpoffsel;
 };
 
 /* GMAC TX FIFO is 8K, Rx FIFO is 16K */
@@ -380,6 +388,16 @@ struct dma_features {
 #define STMMAC_RING_MODE	0x2
 
 #define JUMBO_LEN		9000
+
+/* Receive Side Scaling */
+#define STMMAC_RSS_HASH_KEY_SIZE	40
+#define STMMAC_RSS_MAX_TABLE_SIZE	256
+
+/* VLAN */
+#define STMMAC_VLAN_NONE	0x0
+#define STMMAC_VLAN_REMOVE	0x1
+#define STMMAC_VLAN_INSERT	0x2
+#define STMMAC_VLAN_REPLACE	0x3
 
 extern const struct stmmac_desc_ops enh_desc_ops;
 extern const struct stmmac_desc_ops ndesc_ops;

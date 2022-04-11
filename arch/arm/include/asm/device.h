@@ -15,9 +15,6 @@ struct dev_archdata {
 #ifdef CONFIG_ARM_DMA_USE_IOMMU
 	struct dma_iommu_mapping	*mapping;
 #endif
-#ifdef CONFIG_XEN
-	const struct dma_map_ops *dev_dma_ops;
-#endif
 	unsigned int dma_coherent:1;
 	unsigned int dma_ops_setup:1;
 };

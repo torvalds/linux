@@ -23,7 +23,6 @@
  * written by Arthur Huillet.
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
 

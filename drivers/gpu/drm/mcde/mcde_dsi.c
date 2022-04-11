@@ -178,22 +178,26 @@ static ssize_t mcde_dsi_host_transfer(struct mipi_dsi_host *host,
 	const u32 loop_delay_us = 10; /* us */
 	const u8 *tx = msg->tx_buf;
 	u32 loop_counter;
-	size_t txlen;
+	size_t txlen = msg->tx_len;
+	size_t rxlen = msg->rx_len;
 	u32 val;
 	int ret;
 	int i;
 
-	txlen = msg->tx_len;
-	if (txlen > 12) {
+	if (txlen > 16) {
 		dev_err(d->dev,
-			"dunno how to write more than 12 bytes yet\n");
+			"dunno how to write more than 16 bytes yet\n");
+		return -EIO;
+	}
+	if (rxlen > 4) {
+		dev_err(d->dev,
+			"dunno how to read more than 4 bytes yet\n");
 		return -EIO;
 	}
 
 	dev_dbg(d->dev,
-		"message to channel %d, %zd bytes",
-		msg->channel,
-		txlen);
+		"message to channel %d, write %zd bytes read %zd bytes\n",
+		msg->channel, txlen, rxlen);
 
 	/* Command "nature" */
 	if (MCDE_DSI_HOST_IS_READ(msg->type))
@@ -210,9 +214,7 @@ static ssize_t mcde_dsi_host_transfer(struct mipi_dsi_host *host,
 	if (mipi_dsi_packet_format_is_long(msg->type))
 		val |= DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_LONGNOTSHORT;
 	val |= 0 << DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_ID_SHIFT;
-	/* Add one to the length for the MIPI DCS command */
-	val |= txlen
-		<< DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_SIZE_SHIFT;
+	val |= txlen << DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_SIZE_SHIFT;
 	val |= DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_LP_EN;
 	val |= msg->type << DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_HEAD_SHIFT;
 	writel(val, d->regs + DSI_DIRECT_CMD_MAIN_SETTINGS);
@@ -249,17 +251,36 @@ static ssize_t mcde_dsi_host_transfer(struct mipi_dsi_host *host,
 	writel(1, d->regs + DSI_DIRECT_CMD_SEND);
 
 	loop_counter = 1000 * 1000 / loop_delay_us;
-	while (!(readl(d->regs + DSI_DIRECT_CMD_STS) &
-		 DSI_DIRECT_CMD_STS_WRITE_COMPLETED)
-	       && --loop_counter)
-		usleep_range(loop_delay_us, (loop_delay_us * 3) / 2);
+	if (MCDE_DSI_HOST_IS_READ(msg->type)) {
+		/* Read command */
+		while (!(readl(d->regs + DSI_DIRECT_CMD_STS) &
+			 (DSI_DIRECT_CMD_STS_READ_COMPLETED |
+			  DSI_DIRECT_CMD_STS_READ_COMPLETED_WITH_ERR))
+		       && --loop_counter)
+			usleep_range(loop_delay_us, (loop_delay_us * 3) / 2);
+		if (!loop_counter) {
+			dev_err(d->dev, "DSI read timeout!\n");
+			return -ETIME;
+		}
+	} else {
+		/* Writing only */
+		while (!(readl(d->regs + DSI_DIRECT_CMD_STS) &
+			 DSI_DIRECT_CMD_STS_WRITE_COMPLETED)
+		       && --loop_counter)
+			usleep_range(loop_delay_us, (loop_delay_us * 3) / 2);
 
-	if (!loop_counter) {
-		dev_err(d->dev, "DSI write timeout!\n");
-		return -ETIME;
+		if (!loop_counter) {
+			dev_err(d->dev, "DSI write timeout!\n");
+			return -ETIME;
+		}
 	}
 
 	val = readl(d->regs + DSI_DIRECT_CMD_STS);
+	if (val & DSI_DIRECT_CMD_STS_READ_COMPLETED_WITH_ERR) {
+		dev_err(d->dev, "read completed with error\n");
+		writel(1, d->regs + DSI_DIRECT_CMD_RD_INIT);
+		return -EIO;
+	}
 	if (val & DSI_DIRECT_CMD_STS_ACKNOWLEDGE_WITH_ERR_RECEIVED) {
 		val >>= DSI_DIRECT_CMD_STS_ACK_VAL_SHIFT;
 		dev_err(d->dev, "error during transmission: %04x\n",
@@ -269,10 +290,7 @@ static ssize_t mcde_dsi_host_transfer(struct mipi_dsi_host *host,
 
 	if (!MCDE_DSI_HOST_IS_READ(msg->type)) {
 		/* Return number of bytes written */
-		if (mipi_dsi_packet_format_is_long(msg->type))
-			ret = 4 + txlen;
-		else
-			ret = 4;
+		ret = txlen;
 	} else {
 		/* OK this is a read command, get the response */
 		u32 rdsz;
@@ -282,7 +300,13 @@ static ssize_t mcde_dsi_host_transfer(struct mipi_dsi_host *host,
 		rdsz = readl(d->regs + DSI_DIRECT_CMD_RD_PROPERTY);
 		rdsz &= DSI_DIRECT_CMD_RD_PROPERTY_RD_SIZE_MASK;
 		rddat = readl(d->regs + DSI_DIRECT_CMD_RDDAT);
-		for (i = 0; i < 4 && i < rdsz; i++)
+		if (rdsz < rxlen) {
+			dev_err(d->dev, "read error, requested %zd got %d\n",
+				rxlen, rdsz);
+			return -EIO;
+		}
+		/* FIXME: read more than 4 bytes */
+		for (i = 0; i < 4 && i < rxlen; i++)
 			rx[i] = (rddat >> (i * 8)) & 0xff;
 		ret = rdsz;
 	}

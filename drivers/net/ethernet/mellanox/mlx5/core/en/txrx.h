@@ -6,7 +6,7 @@
 
 #include "en.h"
 
-#define MLX5E_SQ_NOPS_ROOM  MLX5_SEND_WQE_MAX_WQEBBS
+#define MLX5E_SQ_NOPS_ROOM (MLX5_SEND_WQE_MAX_WQEBBS - 1)
 #define MLX5E_SQ_STOP_ROOM (MLX5_SEND_WQE_MAX_WQEBBS +\
 			    MLX5E_SQ_NOPS_ROOM)
 
@@ -15,15 +15,14 @@
 #else
 /* TLS offload requires additional stop_room for:
  *  - a resync SKB.
- * kTLS offload requires additional stop_room for:
- * - static params WQE,
- * - progress params WQE, and
- * - resync DUMP per frag.
+ * kTLS offload requires fixed additional stop_room for:
+ * - a static params WQE, and a progress params WQE.
+ * The additional MTU-depending room for the resync DUMP WQEs
+ * will be calculated and added in runtime.
  */
 #define MLX5E_SQ_TLS_ROOM  \
 	(MLX5_SEND_WQE_MAX_WQEBBS + \
-	 MLX5E_KTLS_STATIC_WQEBBS + MLX5E_KTLS_PROGRESS_WQEBBS + \
-	 MAX_SKB_FRAGS * MLX5E_KTLS_MAX_DUMP_WQEBBS)
+	 MLX5E_KTLS_STATIC_WQEBBS + MLX5E_KTLS_PROGRESS_WQEBBS)
 #endif
 
 #define INL_HDR_START_SZ (sizeof(((struct mlx5_wqe_eth_seg *)NULL)->inline_hdr.start))
@@ -92,7 +91,7 @@ mlx5e_fill_sq_frag_edge(struct mlx5e_txqsq *sq, struct mlx5_wq_cyc *wq,
 
 	/* fill sq frag edge with nops to avoid wqe wrapping two pages */
 	for (; wi < edge_wi; wi++) {
-		wi->skb        = NULL;
+		memset(wi, 0, sizeof(*wi));
 		wi->num_wqebbs = 1;
 		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
 	}
@@ -117,9 +116,27 @@ mlx5e_notify_hw(struct mlx5_wq_cyc *wq, u16 pc, void __iomem *uar_map,
 	mlx5_write64((__be32 *)ctrl, uar_map);
 }
 
-static inline bool mlx5e_transport_inline_tx_wqe(struct mlx5e_tx_wqe *wqe)
+static inline bool mlx5e_transport_inline_tx_wqe(struct mlx5_wqe_ctrl_seg *cseg)
 {
-	return !!wqe->ctrl.tisn;
+	return cseg && !!cseg->tisn;
+}
+
+static inline u8
+mlx5e_tx_wqe_inline_mode(struct mlx5e_txqsq *sq, struct mlx5_wqe_ctrl_seg *cseg,
+			 struct sk_buff *skb)
+{
+	u8 mode;
+
+	if (mlx5e_transport_inline_tx_wqe(cseg))
+		return MLX5_INLINE_MODE_TCP_UDP;
+
+	mode = sq->min_inline_mode;
+
+	if (skb_vlan_tag_present(skb) &&
+	    test_bit(MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE, &sq->state))
+		mode = max_t(u8, MLX5_INLINE_MODE_L2, mode);
+
+	return mode;
 }
 
 static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)

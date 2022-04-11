@@ -32,6 +32,15 @@ Optional properties:
 		 ack_gpr is the gpr register offset of CAN stop acknowledge.
 		 ack_bit is the bit offset of CAN stop acknowledge.
 
+- fsl,clk-source: Select the clock source to the CAN Protocol Engine (PE).
+		  It's SoC Implementation dependent. Refer to RM for detailed
+		  definition. If this property is not set in device tree node
+		  then driver selects clock source 1 by default.
+		  0: clock source 0 (oscillator clock)
+		  1: clock source 1 (peripheral clock)
+
+- wakeup-source: enable CAN remote wakeup
+
 Example:
 
 	can@1c000 {
@@ -40,4 +49,5 @@ Example:
 		interrupts = <48 0x2>;
 		interrupt-parent = <&mpic>;
 		clock-frequency = <200000000>; // filled in by bootloader
+		fsl,clk-source = <0>; // select clock source 0 for PE
 	};

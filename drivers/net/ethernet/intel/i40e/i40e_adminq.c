@@ -610,8 +610,10 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 
 	if (hw->aq.api_maj_ver > 1 ||
 	    (hw->aq.api_maj_ver == 1 &&
-	     hw->aq.api_min_ver >= 8))
+	     hw->aq.api_min_ver >= 8)) {
 		hw->flags |= I40E_HW_FLAG_FW_LLDP_PERSISTENT;
+		hw->flags |= I40E_HW_FLAG_DROP_MODE;
+	}
 
 	if (hw->aq.api_maj_ver > I40E_FW_API_VERSION_MAJOR) {
 		ret_code = I40E_ERR_FIRMWARE_API_VERSION;

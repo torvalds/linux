@@ -201,7 +201,7 @@ static int xts_encrypt(struct skcipher_request *req)
 
 	return glue_xts_req_128bit(&cast6_enc_xts, req,
 				   XTS_TWEAK_CAST(__cast6_encrypt),
-				   &ctx->tweak_ctx, &ctx->crypt_ctx);
+				   &ctx->tweak_ctx, &ctx->crypt_ctx, false);
 }
 
 static int xts_decrypt(struct skcipher_request *req)
@@ -211,7 +211,7 @@ static int xts_decrypt(struct skcipher_request *req)
 
 	return glue_xts_req_128bit(&cast6_dec_xts, req,
 				   XTS_TWEAK_CAST(__cast6_encrypt),
-				   &ctx->tweak_ctx, &ctx->crypt_ctx);
+				   &ctx->tweak_ctx, &ctx->crypt_ctx, true);
 }
 
 static struct skcipher_alg cast6_algs[] = {

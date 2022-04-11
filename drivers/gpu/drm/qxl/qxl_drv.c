@@ -28,14 +28,18 @@
  *    Alon Levy <alevy@redhat.com>
  */
 
-#include <linux/module.h>
-#include <linux/console.h>
-
-#include <drm/drmP.h>
-#include <drm/drm.h>
-#include <drm/drm_modeset_helper.h>
-#include <drm/drm_probe_helper.h>
 #include "qxl_drv.h"
+#include <linux/console.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+
+#include <drm/drm.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_modeset_helper.h>
+#include <drm/drm_prime.h>
+#include <drm/drm_probe_helper.h>
+
 #include "qxl_object.h"
 
 static const struct pci_device_id pciidlist[] = {
@@ -224,16 +228,14 @@ static int qxl_pm_resume(struct device *dev)
 
 static int qxl_pm_thaw(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
 	return qxl_drm_resume(drm_dev, true);
 }
 
 static int qxl_pm_freeze(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
 	return qxl_drm_freeze(drm_dev);
 }
@@ -265,8 +267,7 @@ static struct pci_driver qxl_pci_driver = {
 };
 
 static struct drm_driver qxl_driver = {
-	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
-			   DRIVER_ATOMIC,
+	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 
 	.dumb_create = qxl_mode_dumb_create,
 	.dumb_map_offset = qxl_mode_dumb_mmap,
@@ -275,8 +276,6 @@ static struct drm_driver qxl_driver = {
 #endif
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_export = drm_gem_prime_export,
-	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_pin = qxl_gem_prime_pin,
 	.gem_prime_unpin = qxl_gem_prime_unpin,
 	.gem_prime_get_sg_table = qxl_gem_prime_get_sg_table,

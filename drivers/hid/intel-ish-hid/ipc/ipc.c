@@ -672,7 +672,7 @@ eoi:
  *
  * Return: 0 for success else error code.
  */
-static int ish_disable_dma(struct ishtp_device *dev)
+int ish_disable_dma(struct ishtp_device *dev)
 {
 	unsigned int	dma_delay;
 

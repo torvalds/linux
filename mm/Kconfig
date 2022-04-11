@@ -273,11 +273,6 @@ config BOUNCE
 	  by default when ZONE_DMA or HIGHMEM is selected, but you
 	  may say n to override this.
 
-config NR_QUICK
-	int
-	depends on QUICKLIST
-	default "1"
-
 config VIRT_TO_BUS
 	bool
 	help
@@ -669,23 +664,17 @@ config ZONE_DEVICE
 
 	  If FS_DAX is enabled, then say Y.
 
-config MIGRATE_VMA_HELPER
-	bool
-
 config DEV_PAGEMAP_OPS
 	bool
 
+#
+# Helpers to mirror range of the CPU page tables of a process into device page
+# tables.
+#
 config HMM_MIRROR
-	bool "HMM mirror CPU page table into a device page table"
-	depends on (X86_64 || PPC64)
-	depends on MMU && 64BIT
-	select MMU_NOTIFIER
-	help
-	  Select HMM_MIRROR if you want to mirror range of the CPU page table of a
-	  process into a device page table. Here, mirror means "keep synchronized".
-	  Prerequisites: the device must provide the ability to write-protect its
-	  page tables (at PAGE_SIZE granularity), and must be able to recover from
-	  the resulting potential page faults.
+	bool
+	depends on MMU
+	depends on MMU_NOTIFIER
 
 config DEVICE_PRIVATE
 	bool "Unaddressable device memory (GPU memory, ...)"
@@ -722,6 +711,17 @@ config GUP_BENCHMARK
 
 config GUP_GET_PTE_LOW_HIGH
 	bool
+
+config READ_ONLY_THP_FOR_FS
+	bool "Read-only THP for filesystems (EXPERIMENTAL)"
+	depends on TRANSPARENT_HUGE_PAGECACHE && SHMEM
+
+	help
+	  Allow khugepaged to put read-only file-backed pages in THP.
+
+	  This is marked experimental because it is a new feature. Write
+	  support of file THPs will be developed in the next few release
+	  cycles.
 
 config ARCH_HAS_PTE_SPECIAL
 	bool

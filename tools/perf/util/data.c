@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <linux/zalloc.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -9,13 +10,13 @@
 #include <unistd.h>
 #include <string.h>
 #include <asm/bug.h>
-#include <sys/types.h>
 #include <dirent.h>
 
 #include "data.h"
-#include "util.h"
+#include "util.h" // rm_rf_perf_data()
 #include "debug.h"
 #include "header.h"
+#include <internal/lib.h>
 
 static void close_dir(struct perf_data_file *files, int nr)
 {

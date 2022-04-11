@@ -5,15 +5,14 @@
  *      Sandy Huang <hjc@rock-chips.com>
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_dp_helper.h>
-#include <drm/drm_panel.h>
-#include <drm/drm_of.h>
-#include <drm/drm_probe_helper.h>
-
 #include <linux/component.h>
 #include <linux/of_graph.h>
+
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_dp_helper.h>
+#include <drm/drm_of.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"

@@ -228,15 +228,6 @@ struct iwl_fw_dbg {
 };
 
 /**
- * @tlv: the buffer allocation tlv
- * @is_alloc: indicates if the buffer was already allocated
- */
-struct iwl_fw_ini_allocation_data {
-	struct iwl_fw_ini_allocation_tlv tlv;
-	u32 is_alloc;
-} __packed;
-
-/**
  * struct iwl_fw_ini_active_triggers
  * @active: is this trigger active
  * @size: allocated memory size of the trigger

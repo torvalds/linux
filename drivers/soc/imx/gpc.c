@@ -249,13 +249,13 @@ static struct genpd_power_state imx6_pm_domain_pu_state = {
 };
 
 static struct imx_pm_domain imx_gpc_domains[] = {
-	[GPC_PGC_DOMAIN_ARM] {
+	[GPC_PGC_DOMAIN_ARM] = {
 		.base = {
 			.name = "ARM",
 			.flags = GENPD_FLAG_ALWAYS_ON,
 		},
 	},
-	[GPC_PGC_DOMAIN_PU] {
+	[GPC_PGC_DOMAIN_PU] = {
 		.base = {
 			.name = "PU",
 			.power_off = imx6_pm_domain_power_off,
@@ -266,7 +266,7 @@ static struct imx_pm_domain imx_gpc_domains[] = {
 		.reg_offs = 0x260,
 		.cntr_pdn_bit = 0,
 	},
-	[GPC_PGC_DOMAIN_DISPLAY] {
+	[GPC_PGC_DOMAIN_DISPLAY] = {
 		.base = {
 			.name = "DISPLAY",
 			.power_off = imx6_pm_domain_power_off,
@@ -275,7 +275,7 @@ static struct imx_pm_domain imx_gpc_domains[] = {
 		.reg_offs = 0x240,
 		.cntr_pdn_bit = 4,
 	},
-	[GPC_PGC_DOMAIN_PCI] {
+	[GPC_PGC_DOMAIN_PCI] = {
 		.base = {
 			.name = "PCI",
 			.power_off = imx6_pm_domain_power_off,

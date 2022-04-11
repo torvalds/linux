@@ -1585,7 +1585,7 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Don't wait up for transmitted skbs to be freed. */
 	if (!use_napi) {
 		skb_orphan(skb);
-		nf_reset(skb);
+		nf_reset_ct(skb);
 	}
 
 	/* If running out of space, stop queue to avoid getting packets that we

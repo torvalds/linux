@@ -433,43 +433,11 @@ PRIME is the cross device buffer sharing framework in drm, originally
 created for the OPTIMUS range of multi-gpu platforms. To userspace PRIME
 buffers are dma-buf based file descriptors.
 
-Overview and Driver Interface
------------------------------
+Overview and Lifetime Rules
+---------------------------
 
-Similar to GEM global names, PRIME file descriptors are also used to
-share buffer objects across processes. They offer additional security:
-as file descriptors must be explicitly sent over UNIX domain sockets to
-be shared between applications, they can't be guessed like the globally
-unique GEM names.
-
-Drivers that support the PRIME API must set the DRIVER_PRIME bit in the
-struct :c:type:`struct drm_driver <drm_driver>`
-driver_features field, and implement the prime_handle_to_fd and
-prime_fd_to_handle operations.
-
-int (\*prime_handle_to_fd)(struct drm_device \*dev, struct drm_file
-\*file_priv, uint32_t handle, uint32_t flags, int \*prime_fd); int
-(\*prime_fd_to_handle)(struct drm_device \*dev, struct drm_file
-\*file_priv, int prime_fd, uint32_t \*handle); Those two operations
-convert a handle to a PRIME file descriptor and vice versa. Drivers must
-use the kernel dma-buf buffer sharing framework to manage the PRIME file
-descriptors. Similar to the mode setting API PRIME is agnostic to the
-underlying buffer object manager, as long as handles are 32bit unsigned
-integers.
-
-While non-GEM drivers must implement the operations themselves, GEM
-drivers must use the :c:func:`drm_gem_prime_handle_to_fd()` and
-:c:func:`drm_gem_prime_fd_to_handle()` helper functions. Those
-helpers rely on the driver gem_prime_export and gem_prime_import
-operations to create a dma-buf instance from a GEM object (dma-buf
-exporter role) and to create a GEM object from a dma-buf instance
-(dma-buf importer role).
-
-struct dma_buf \* (\*gem_prime_export)(struct drm_device \*dev,
-struct drm_gem_object \*obj, int flags); struct drm_gem_object \*
-(\*gem_prime_import)(struct drm_device \*dev, struct dma_buf
-\*dma_buf); These two operations are mandatory for GEM drivers that
-support PRIME.
+.. kernel-doc:: drivers/gpu/drm/drm_prime.c
+   :doc: overview and lifetime rules
 
 PRIME Helper Functions
 ----------------------

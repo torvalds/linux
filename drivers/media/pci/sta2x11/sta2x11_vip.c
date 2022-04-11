@@ -560,9 +560,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	if (f->index != 0)
 		return -EINVAL;
 
-	strscpy(f->description, "4:2:2, packed, UYVY", sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_UYVY;
-	f->flags = 0;
 	return 0;
 }
 

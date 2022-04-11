@@ -10,9 +10,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/greybus.h>
 #include <linux/spi/spi.h>
 
-#include "greybus.h"
 #include "spilib.h"
 
 struct gb_spilib {

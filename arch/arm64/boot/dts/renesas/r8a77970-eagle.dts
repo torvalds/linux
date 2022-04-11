@@ -23,10 +23,13 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory@48000000 {
-		device_type = "memory";
-		/* first 128MB is reserved for secure area. */
-		reg = <0x0 0x48000000 0x0 0x38000000>;
+	d3p3: regulator-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 
 	hdmi-out {
@@ -38,15 +41,6 @@
 				remote-endpoint = <&adv7511_out>;
 			};
 		};
-	};
-
-	d3p3: regulator-fixed {
-		compatible = "regulator-fixed";
-		regulator-name = "fixed-3.3V";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-boot-on;
-		regulator-always-on;
 	};
 
 	lvds-decoder {
@@ -72,6 +66,12 @@
 				};
 			};
 		};
+	};
+
+	memory@48000000 {
+		device_type = "memory";
+		/* first 128MB is reserved for secure area. */
+		reg = <0x0 0x48000000 0x0 0x38000000>;
 	};
 };
 
@@ -100,6 +100,10 @@
 	channel0 {
 		status = "okay";
 	};
+};
+
+&du {
+	status = "okay";
 };
 
 &extal_clk {
@@ -157,6 +161,18 @@
 	};
 };
 
+&lvds0 {
+	status = "okay";
+
+	ports {
+		port@1 {
+			lvds0_out: endpoint {
+				remote-endpoint = <&thc63lvd1024_in>;
+			};
+		};
+	};
+};
+
 &pfc {
 	avb_pins: avb0 {
 		groups = "avb0_mdio", "avb0_rgmii", "avb0_txcrefclk";
@@ -189,20 +205,4 @@
 	pinctrl-names = "default";
 
 	status = "okay";
-};
-
-&du {
-	status = "okay";
-};
-
-&lvds0 {
-	status = "okay";
-
-	ports {
-		port@1 {
-			lvds0_out: endpoint {
-				remote-endpoint = <&thc63lvd1024_in>;
-			};
-		};
-	};
 };

@@ -1320,6 +1320,7 @@ static int meson_nfc_nand_chips_init(struct device *dev,
 		ret = meson_nfc_nand_chip_init(dev, nfc, nand_np);
 		if (ret) {
 			meson_nfc_nand_chip_cleanup(nfc);
+			of_node_put(nand_np);
 			return ret;
 		}
 	}

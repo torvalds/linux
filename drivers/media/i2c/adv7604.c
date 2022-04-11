@@ -2862,10 +2862,8 @@ static void adv76xx_unregister_clients(struct adv76xx_state *state)
 {
 	unsigned int i;
 
-	for (i = 1; i < ARRAY_SIZE(state->i2c_clients); ++i) {
-		if (state->i2c_clients[i])
-			i2c_unregister_device(state->i2c_clients[i]);
-	}
+	for (i = 1; i < ARRAY_SIZE(state->i2c_clients); ++i)
+		i2c_unregister_device(state->i2c_clients[i]);
 }
 
 static struct i2c_client *adv76xx_dummy_client(struct v4l2_subdev *sd,
@@ -2878,14 +2876,14 @@ static struct i2c_client *adv76xx_dummy_client(struct v4l2_subdev *sd,
 	struct i2c_client *new_client;
 
 	if (pdata && pdata->i2c_addresses[page])
-		new_client = i2c_new_dummy(client->adapter,
+		new_client = i2c_new_dummy_device(client->adapter,
 					   pdata->i2c_addresses[page]);
 	else
-		new_client = i2c_new_secondary_device(client,
+		new_client = i2c_new_ancillary_device(client,
 				adv76xx_default_addresses[page].name,
 				adv76xx_default_addresses[page].default_addr);
 
-	if (new_client)
+	if (!IS_ERR(new_client))
 		io_write(sd, io_reg, new_client->addr << 1);
 
 	return new_client;
@@ -3516,15 +3514,19 @@ static int adv76xx_probe(struct i2c_client *client,
 	}
 
 	for (i = 1; i < ADV76XX_PAGE_MAX; ++i) {
+		struct i2c_client *dummy_client;
+
 		if (!(BIT(i) & state->info->page_mask))
 			continue;
 
-		state->i2c_clients[i] = adv76xx_dummy_client(sd, i);
-		if (!state->i2c_clients[i]) {
-			err = -EINVAL;
+		dummy_client = adv76xx_dummy_client(sd, i);
+		if (IS_ERR(dummy_client)) {
+			err = PTR_ERR(dummy_client);
 			v4l2_err(sd, "failed to create i2c client %u\n", i);
 			goto err_i2c;
 		}
+
+		state->i2c_clients[i] = dummy_client;
 	}
 
 	INIT_DELAYED_WORK(&state->delayed_work_enable_hotplug,

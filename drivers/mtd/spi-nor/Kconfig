@@ -2,6 +2,8 @@
 menuconfig MTD_SPI_NOR
 	tristate "SPI-NOR device support"
 	depends on MTD
+	depends on MTD && SPI_MASTER
+	select SPI_MEM
 	help
 	  This is the framework for the SPI NOR which can be used by the SPI
 	  device drivers and the SPI-NOR device driver.

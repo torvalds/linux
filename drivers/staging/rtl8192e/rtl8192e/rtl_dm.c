@@ -618,7 +618,7 @@ static void _rtl92e_dm_tx_update_tssi_strong_signal(struct net_device *dev,
 static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	bool	bHighpowerstate, viviflag = false;
+	bool	viviflag = false;
 	struct dcmd_txcmd tx_cmd;
 	u8	powerlevelOFDM24G;
 	int	i = 0, j = 0, k = 0;
@@ -632,7 +632,6 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 	rtl92e_writeb(dev, Pw_Track_Flag, 0);
 	rtl92e_writeb(dev, FW_Busy_Flag, 0);
 	priv->rtllib->bdynamic_txpower_enable = false;
-	bHighpowerstate = priv->bDynamicTxHighPower;
 
 	powerlevelOFDM24G = (u8)(priv->Pwr_Track>>24);
 	RF_Type = priv->rf_type;
@@ -1901,7 +1900,7 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 	u8 cck_default_Rx = 0x2;
 	u8 cck_optional_Rx = 0x3;
 	long tmp_cck_max_pwdb = 0, tmp_cck_min_pwdb = 0, tmp_cck_sec_pwdb = 0;
-	u8 cck_rx_ver2_max_index = 0, cck_rx_ver2_min_index = 0;
+	u8 cck_rx_ver2_max_index = 0;
 	u8 cck_rx_ver2_sec_index = 0;
 	u8 cur_rf_rssi;
 	long cur_cck_pwdb;
@@ -1984,7 +1983,6 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 
 				if (rf_num == 1) {
 					cck_rx_ver2_max_index = i;
-					cck_rx_ver2_min_index = i;
 					cck_rx_ver2_sec_index = i;
 					tmp_cck_max_pwdb = cur_cck_pwdb;
 					tmp_cck_min_pwdb = cur_cck_pwdb;
@@ -1997,7 +1995,6 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 						tmp_cck_sec_pwdb = cur_cck_pwdb;
 						tmp_cck_min_pwdb = cur_cck_pwdb;
 						cck_rx_ver2_sec_index = i;
-						cck_rx_ver2_min_index = i;
 					}
 				} else {
 					if (cur_cck_pwdb > tmp_cck_max_pwdb) {
@@ -2027,13 +2024,10 @@ static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 						   (cur_cck_pwdb > tmp_cck_min_pwdb)) {
 						;
 					} else if (cur_cck_pwdb == tmp_cck_min_pwdb) {
-						if (tmp_cck_sec_pwdb == tmp_cck_min_pwdb) {
+						if (tmp_cck_sec_pwdb == tmp_cck_min_pwdb)
 							tmp_cck_min_pwdb = cur_cck_pwdb;
-							cck_rx_ver2_min_index = i;
-						}
 					} else if (cur_cck_pwdb < tmp_cck_min_pwdb) {
 						tmp_cck_min_pwdb = cur_cck_pwdb;
-						cck_rx_ver2_min_index = i;
 					}
 				}
 

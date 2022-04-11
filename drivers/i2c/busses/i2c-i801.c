@@ -77,7 +77,7 @@
  * SMBus Host Notify			yes
  * Interrupt processing			yes
  *
- * See the file Documentation/i2c/busses/i2c-i801 for details.
+ * See the file Documentation/i2c/busses/i2c-i801.rst for details.
  */
 
 #include <linux/interrupt.h>
@@ -292,7 +292,8 @@ struct i801_priv {
 #define FEATURE_HOST_NOTIFY	BIT(5)
 /* Not really a feature, but it's convenient to handle it as such */
 #define FEATURE_IDF		BIT(15)
-#define FEATURE_TCO		BIT(16)
+#define FEATURE_TCO_SPT		BIT(16)
+#define FEATURE_TCO_CNL		BIT(17)
 
 static const char *i801_feature_names[] = {
 	"SMBus PEC",
@@ -1500,56 +1501,22 @@ static inline unsigned int i801_get_adapter_class(struct i801_priv *priv)
 }
 #endif
 
-static const struct itco_wdt_platform_data tco_platform_data = {
+static const struct itco_wdt_platform_data spt_tco_platform_data = {
 	.name = "Intel PCH",
 	.version = 4,
 };
 
 static DEFINE_SPINLOCK(p2sb_spinlock);
 
-static void i801_add_tco(struct i801_priv *priv)
+static struct platform_device *
+i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
+		 struct resource *tco_res)
 {
-	struct pci_dev *pci_dev = priv->pci_dev;
-	struct resource tco_res[3], *res;
-	struct platform_device *pdev;
+	struct resource *res;
 	unsigned int devfn;
-	u32 tco_base, tco_ctl;
-	u32 base_addr, ctrl_val;
 	u64 base64_addr;
+	u32 base_addr;
 	u8 hidden;
-
-	if (!(priv->features & FEATURE_TCO))
-		return;
-
-	pci_read_config_dword(pci_dev, TCOBASE, &tco_base);
-	pci_read_config_dword(pci_dev, TCOCTL, &tco_ctl);
-	if (!(tco_ctl & TCOCTL_EN))
-		return;
-
-	memset(tco_res, 0, sizeof(tco_res));
-
-	res = &tco_res[ICH_RES_IO_TCO];
-	res->start = tco_base & ~1;
-	res->end = res->start + 32 - 1;
-	res->flags = IORESOURCE_IO;
-
-	/*
-	 * Power Management registers.
-	 */
-	devfn = PCI_DEVFN(PCI_SLOT(pci_dev->devfn), 2);
-	pci_bus_read_config_dword(pci_dev->bus, devfn, ACPIBASE, &base_addr);
-
-	res = &tco_res[ICH_RES_IO_SMI];
-	res->start = (base_addr & ~1) + ACPIBASE_SMI_OFF;
-	res->end = res->start + 3;
-	res->flags = IORESOURCE_IO;
-
-	/*
-	 * Enable the ACPI I/O space.
-	 */
-	pci_bus_read_config_dword(pci_dev->bus, devfn, ACPICTRL, &ctrl_val);
-	ctrl_val |= ACPICTRL_EN;
-	pci_bus_write_config_dword(pci_dev->bus, devfn, ACPICTRL, ctrl_val);
 
 	/*
 	 * We must access the NO_REBOOT bit over the Primary to Sideband
@@ -1586,15 +1553,76 @@ static void i801_add_tco(struct i801_priv *priv)
 	res->end = res->start + 3;
 	res->flags = IORESOURCE_MEM;
 
-	pdev = platform_device_register_resndata(&pci_dev->dev, "iTCO_wdt", -1,
-						 tco_res, 3, &tco_platform_data,
-						 sizeof(tco_platform_data));
-	if (IS_ERR(pdev)) {
-		dev_warn(&pci_dev->dev, "failed to create iTCO device\n");
-		return;
-	}
+	return platform_device_register_resndata(&pci_dev->dev, "iTCO_wdt", -1,
+					tco_res, 3, &spt_tco_platform_data,
+					sizeof(spt_tco_platform_data));
+}
 
-	priv->tco_pdev = pdev;
+static const struct itco_wdt_platform_data cnl_tco_platform_data = {
+	.name = "Intel PCH",
+	.version = 6,
+};
+
+static struct platform_device *
+i801_add_tco_cnl(struct i801_priv *priv, struct pci_dev *pci_dev,
+		 struct resource *tco_res)
+{
+	return platform_device_register_resndata(&pci_dev->dev, "iTCO_wdt", -1,
+					tco_res, 2, &cnl_tco_platform_data,
+					sizeof(cnl_tco_platform_data));
+}
+
+static void i801_add_tco(struct i801_priv *priv)
+{
+	u32 base_addr, tco_base, tco_ctl, ctrl_val;
+	struct pci_dev *pci_dev = priv->pci_dev;
+	struct resource tco_res[3], *res;
+	unsigned int devfn;
+
+	/* If we have ACPI based watchdog use that instead */
+	if (acpi_has_watchdog())
+		return;
+
+	if (!(priv->features & (FEATURE_TCO_SPT | FEATURE_TCO_CNL)))
+		return;
+
+	pci_read_config_dword(pci_dev, TCOBASE, &tco_base);
+	pci_read_config_dword(pci_dev, TCOCTL, &tco_ctl);
+	if (!(tco_ctl & TCOCTL_EN))
+		return;
+
+	memset(tco_res, 0, sizeof(tco_res));
+
+	res = &tco_res[ICH_RES_IO_TCO];
+	res->start = tco_base & ~1;
+	res->end = res->start + 32 - 1;
+	res->flags = IORESOURCE_IO;
+
+	/*
+	 * Power Management registers.
+	 */
+	devfn = PCI_DEVFN(PCI_SLOT(pci_dev->devfn), 2);
+	pci_bus_read_config_dword(pci_dev->bus, devfn, ACPIBASE, &base_addr);
+
+	res = &tco_res[ICH_RES_IO_SMI];
+	res->start = (base_addr & ~1) + ACPIBASE_SMI_OFF;
+	res->end = res->start + 3;
+	res->flags = IORESOURCE_IO;
+
+	/*
+	 * Enable the ACPI I/O space.
+	 */
+	pci_bus_read_config_dword(pci_dev->bus, devfn, ACPICTRL, &ctrl_val);
+	ctrl_val |= ACPICTRL_EN;
+	pci_bus_write_config_dword(pci_dev->bus, devfn, ACPICTRL, ctrl_val);
+
+	if (priv->features & FEATURE_TCO_CNL)
+		priv->tco_pdev = i801_add_tco_cnl(priv, pci_dev, tco_res);
+	else
+		priv->tco_pdev = i801_add_tco_spt(priv, pci_dev, tco_res);
+
+	if (IS_ERR(priv->tco_pdev))
+		dev_warn(&pci_dev->dev, "failed to create iTCO device\n");
 }
 
 #ifdef CONFIG_ACPI
@@ -1704,13 +1732,22 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	switch (dev->device) {
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_H_SMBUS:
 	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_SMBUS:
-	case PCI_DEVICE_ID_INTEL_CANNONLAKE_H_SMBUS:
-	case PCI_DEVICE_ID_INTEL_CANNONLAKE_LP_SMBUS:
 	case PCI_DEVICE_ID_INTEL_LEWISBURG_SMBUS:
 	case PCI_DEVICE_ID_INTEL_LEWISBURG_SSKU_SMBUS:
-	case PCI_DEVICE_ID_INTEL_CDF_SMBUS:
 	case PCI_DEVICE_ID_INTEL_DNV_SMBUS:
 	case PCI_DEVICE_ID_INTEL_KABYLAKE_PCH_H_SMBUS:
+		priv->features |= FEATURE_BLOCK_PROC;
+		priv->features |= FEATURE_I2C_BLOCK_READ;
+		priv->features |= FEATURE_IRQ;
+		priv->features |= FEATURE_SMBUS_PEC;
+		priv->features |= FEATURE_BLOCK_BUFFER;
+		priv->features |= FEATURE_TCO_SPT;
+		priv->features |= FEATURE_HOST_NOTIFY;
+		break;
+
+	case PCI_DEVICE_ID_INTEL_CANNONLAKE_H_SMBUS:
+	case PCI_DEVICE_ID_INTEL_CANNONLAKE_LP_SMBUS:
+	case PCI_DEVICE_ID_INTEL_CDF_SMBUS:
 	case PCI_DEVICE_ID_INTEL_ICELAKE_LP_SMBUS:
 	case PCI_DEVICE_ID_INTEL_COMETLAKE_SMBUS:
 	case PCI_DEVICE_ID_INTEL_ELKHART_LAKE_SMBUS:
@@ -1720,9 +1757,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		priv->features |= FEATURE_IRQ;
 		priv->features |= FEATURE_SMBUS_PEC;
 		priv->features |= FEATURE_BLOCK_BUFFER;
-		/* If we have ACPI based watchdog use that instead */
-		if (!acpi_has_watchdog())
-			priv->features |= FEATURE_TCO;
+		priv->features |= FEATURE_TCO_CNL;
 		priv->features |= FEATURE_HOST_NOTIFY;
 		break;
 
@@ -1921,8 +1956,7 @@ static int i801_suspend(struct device *dev)
 
 static int i801_resume(struct device *dev)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct i801_priv *priv = pci_get_drvdata(pci_dev);
+	struct i801_priv *priv = dev_get_drvdata(dev);
 
 	i801_enable_host_notify(&priv->adapter);
 

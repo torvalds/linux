@@ -75,9 +75,9 @@ struct intel_padgroup {
  * @hostown_offset: Register offset of HOSTSW_OWN from @regs. If %0 then it
  *                  is assumed that the host owns the pin (rather than
  *                  ACPI).
- * @is_offset: Register offset of GPI_IS from @regs. If %0 then uses the
- *             default (%0x100).
+ * @is_offset: Register offset of GPI_IS from @regs.
  * @ie_offset: Register offset of GPI_IE from @regs.
+ * @features: Additional features supported by the hardware
  * @pin_base: Starting pin of pins in this community
  * @gpp_size: Maximum number of pads in each group, such as PADCFGLOCK,
  *            HOSTSW_OWN,  GPI_IS, GPI_IE, etc. Used when @gpps is %NULL.
@@ -85,9 +85,9 @@ struct intel_padgroup {
  *			 minimum. Use %0 if the number of registers can be
  *			 determined by the size of the group.
  * @npins: Number of pins in this community
- * @features: Additional features supported by the hardware
  * @gpps: Pad groups if the controller has variable size pad groups
  * @ngpps: Number of pad groups in this community
+ * @pad_map: Optional non-linear mapping of the pads
  * @regs: Community specific common registers (reserved for core driver)
  * @pad_regs: Community specific pad registers (reserved for core driver)
  *
@@ -104,13 +104,14 @@ struct intel_community {
 	unsigned int hostown_offset;
 	unsigned int is_offset;
 	unsigned int ie_offset;
+	unsigned int features;
 	unsigned int pin_base;
 	unsigned int gpp_size;
 	unsigned int gpp_num_padown_regs;
 	size_t npins;
-	unsigned int features;
 	const struct intel_padgroup *gpps;
 	size_t ngpps;
+	const unsigned int *pad_map;
 	/* Reserved for the core driver */
 	void __iomem *regs;
 	void __iomem *pad_regs;

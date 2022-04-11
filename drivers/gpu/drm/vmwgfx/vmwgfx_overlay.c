@@ -25,14 +25,12 @@
  *
  **************************************************************************/
 
-
-#include <drm/drmP.h>
-#include "vmwgfx_drv.h"
-
 #include <drm/ttm/ttm_placement.h>
 
 #include "device_include/svga_overlay.h"
 #include "device_include/svga_escape.h"
+
+#include "vmwgfx_drv.h"
 
 #define VMW_MAX_NUM_STREAMS 1
 #define VMW_OVERLAY_CAP_MASK (SVGA_FIFO_CAP_VIDEO | SVGA_FIFO_CAP_ESCAPE)

@@ -26,7 +26,7 @@ int hl_build_hwmon_channel_info(struct hl_device *hdev,
 	int rc, i, j;
 
 	for (i = 0 ; i < ARMCP_MAX_SENSORS ; i++) {
-		type = __le32_to_cpu(sensors_arr[i].type);
+		type = le32_to_cpu(sensors_arr[i].type);
 
 		if ((type == 0) && (sensors_arr[i].flags == 0))
 			break;
@@ -58,10 +58,10 @@ int hl_build_hwmon_channel_info(struct hl_device *hdev,
 	}
 
 	for (i = 0 ; i < arr_size ; i++) {
-		type = __le32_to_cpu(sensors_arr[i].type);
+		type = le32_to_cpu(sensors_arr[i].type);
 		curr_arr = sensors_by_type[type];
 		curr_arr[sensors_by_type_next_index[type]++] =
-				__le32_to_cpu(sensors_arr[i].flags);
+				le32_to_cpu(sensors_arr[i].flags);
 	}
 
 	channels_info = kcalloc(num_active_sensor_types + 1,
@@ -273,7 +273,7 @@ long hl_get_temperature(struct hl_device *hdev, int sensor_index, u32 attr)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_TEMPERATURE_GET <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_TEMPERATURE_GET <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.sensor_index = __cpu_to_le16(sensor_index);
 	pkt.type = __cpu_to_le16(attr);
@@ -299,7 +299,7 @@ long hl_get_voltage(struct hl_device *hdev, int sensor_index, u32 attr)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_VOLTAGE_GET <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_VOLTAGE_GET <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.sensor_index = __cpu_to_le16(sensor_index);
 	pkt.type = __cpu_to_le16(attr);
@@ -325,7 +325,7 @@ long hl_get_current(struct hl_device *hdev, int sensor_index, u32 attr)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_CURRENT_GET <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_CURRENT_GET <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.sensor_index = __cpu_to_le16(sensor_index);
 	pkt.type = __cpu_to_le16(attr);
@@ -351,7 +351,7 @@ long hl_get_fan_speed(struct hl_device *hdev, int sensor_index, u32 attr)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_FAN_SPEED_GET <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_FAN_SPEED_GET <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.sensor_index = __cpu_to_le16(sensor_index);
 	pkt.type = __cpu_to_le16(attr);
@@ -377,7 +377,7 @@ long hl_get_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_PWM_GET <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_PWM_GET <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.sensor_index = __cpu_to_le16(sensor_index);
 	pkt.type = __cpu_to_le16(attr);
@@ -403,11 +403,11 @@ void hl_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr,
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_PWM_SET <<
+	pkt.ctl = cpu_to_le32(ARMCP_PACKET_PWM_SET <<
 				ARMCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.sensor_index = __cpu_to_le16(sensor_index);
 	pkt.type = __cpu_to_le16(attr);
-	pkt.value = __cpu_to_le64(value);
+	pkt.value = cpu_to_le64(value);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 					SENSORS_PKT_TIMEOUT, NULL);
@@ -421,6 +421,7 @@ void hl_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr,
 int hl_hwmon_init(struct hl_device *hdev)
 {
 	struct device *dev = hdev->pdev ? &hdev->pdev->dev : hdev->dev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc;
 
 	if ((hdev->hwmon_initialized) || !(hdev->fw_loading))
@@ -430,7 +431,8 @@ int hl_hwmon_init(struct hl_device *hdev)
 		hdev->hl_chip_info->ops = &hl_hwmon_ops;
 
 		hdev->hwmon_dev = hwmon_device_register_with_info(dev,
-				"habanalabs", hdev, hdev->hl_chip_info, NULL);
+					prop->armcp_info.card_name, hdev,
+					hdev->hl_chip_info, NULL);
 		if (IS_ERR(hdev->hwmon_dev)) {
 			rc = PTR_ERR(hdev->hwmon_dev);
 			dev_err(hdev->dev,

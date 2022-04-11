@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2019 PHYTEC Messtechnik GmbH
+ * Author: Stefan Riedmueller <s.riedmueller@phytec.de>
+ */
+
+#include "imx6ul-phytec-segin.dtsi"
+
+/ {
+	model = "PHYTEC phyBOARD-Segin i.MX6 ULL";
+	compatible = "phytec,imx6ull-pbacd-10", "phytec,imx6ull-pcl063","fsl,imx6ull";
+};
+
+&iomuxc {
+	/delete-node/ flexcan1engrp;
+	/delete-node/ rtcintgrp;
+	/delete-node/ stmpegrp;
+};
+
+&iomuxc_snvs {
+	princtrl_flexcan1_en: flexcan1engrp {
+		fsl,pins = <
+			MX6ULL_PAD_SNVS_TAMPER2__GPIO5_IO02	0x17059
+		>;
+	};
+
+	pinctrl_rtc_int: rtcintgrp {
+		fsl,pins = <
+			MX6ULL_PAD_SNVS_TAMPER1__GPIO5_IO01	0x17059
+		>;
+	};
+
+	pinctrl_stmpe: stmpegrp {
+		fsl,pins = <
+			MX6ULL_PAD_SNVS_TAMPER3__GPIO5_IO03	0x17059
+		>;
+	};
+};

@@ -9,23 +9,21 @@
  *     Jasper St. Pierre <jstpierre@mecheye.net>
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/mutex.h>
-#include <linux/platform_device.h>
 #include <linux/bitfield.h>
-#include <drm/drmP.h>
-#include <drm/drm_atomic.h>
+#include <linux/soc/amlogic/meson-canvas.h>
+
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_flip_work.h>
+#include <drm/drm_device.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "meson_crtc.h"
 #include "meson_plane.h"
-#include "meson_venc.h"
-#include "meson_vpp.h"
-#include "meson_viu.h"
 #include "meson_registers.h"
+#include "meson_venc.h"
+#include "meson_viu.h"
+#include "meson_vpp.h"
 
 #define MESON_G12A_VIU_OFFSET	0x5ec0
 
@@ -267,11 +265,11 @@ static void meson_crtc_enable_vd1(struct meson_drm *priv)
 
 static void meson_g12a_crtc_enable_vd1(struct meson_drm *priv)
 {
-	writel_relaxed(((1 << 16) | /* post bld premult*/
-			(1 << 8) | /* post src */
-			(1 << 4) | /* pre bld premult*/
-			(1 << 0)),
-			priv->io_base + _REG(VD1_BLEND_SRC_CTRL));
+	writel_relaxed(VD_BLEND_PREBLD_SRC_VD1 |
+		       VD_BLEND_PREBLD_PREMULT_EN |
+		       VD_BLEND_POSTBLD_SRC_VD1 |
+		       VD_BLEND_POSTBLD_PREMULT_EN,
+		       priv->io_base + _REG(VD1_BLEND_SRC_CTRL));
 }
 
 void meson_crtc_irq(struct meson_drm *priv)
@@ -489,7 +487,12 @@ void meson_crtc_irq(struct meson_drm *priv)
 		writel_relaxed(priv->viu.vd1_range_map_cr,
 				priv->io_base + meson_crtc->viu_offset +
 				_REG(VD1_IF0_RANGE_MAP_CR));
-		writel_relaxed(0x78404,
+		writel_relaxed(VPP_VSC_BANK_LENGTH(4) |
+			       VPP_HSC_BANK_LENGTH(4) |
+			       VPP_SC_VD_EN_ENABLE |
+			       VPP_SC_TOP_EN_ENABLE |
+			       VPP_SC_HSC_EN_ENABLE |
+			       VPP_SC_VSC_EN_ENABLE,
 				priv->io_base + _REG(VPP_SC_MISC));
 		writel_relaxed(priv->viu.vpp_pic_in_height,
 				priv->io_base + _REG(VPP_PIC_IN_HEIGHT));
@@ -572,7 +575,7 @@ int meson_crtc_create(struct meson_drm *priv)
 		return ret;
 	}
 
-	if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu")) {
+	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A)) {
 		meson_crtc->enable_osd1 = meson_g12a_crtc_enable_osd1;
 		meson_crtc->enable_vd1 = meson_g12a_crtc_enable_vd1;
 		meson_crtc->viu_offset = MESON_G12A_VIU_OFFSET;

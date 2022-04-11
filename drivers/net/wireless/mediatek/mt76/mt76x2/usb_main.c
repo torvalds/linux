@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "mt76x2u.h"
@@ -48,7 +37,7 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 	int err;
 
 	cancel_delayed_work_sync(&dev->cal_work);
-	dev->beacon_ops->pre_tbtt_enable(dev, false);
+	mt76x02_pre_tbtt_enable(dev, false);
 
 	mutex_lock(&dev->mt76.mutex);
 	set_bit(MT76_RESET, &dev->mt76.state);
@@ -59,12 +48,16 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 
 	err = mt76x2u_phy_set_channel(dev, chandef);
 
+	/* channel cycle counters read-and-clear */
+	mt76_rr(dev, MT_CH_IDLE);
+	mt76_rr(dev, MT_CH_BUSY);
+
 	mt76x2_mac_resume(dev);
 
 	clear_bit(MT76_RESET, &dev->mt76.state);
 	mutex_unlock(&dev->mt76.mutex);
 
-	dev->beacon_ops->pre_tbtt_enable(dev, true);
+	mt76x02_pre_tbtt_enable(dev, true);
 	mt76_txq_schedule_all(&dev->mt76);
 
 	return err;
@@ -121,10 +114,11 @@ const struct ieee80211_ops mt76x2u_ops = {
 	.bss_info_changed = mt76x02_bss_info_changed,
 	.configure_filter = mt76x02_configure_filter,
 	.conf_tx = mt76x02_conf_tx,
-	.sw_scan_start = mt76x02_sw_scan,
+	.sw_scan_start = mt76_sw_scan,
 	.sw_scan_complete = mt76x02_sw_scan_complete,
 	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
 	.get_txpower = mt76_get_txpower,
+	.get_survey = mt76_get_survey,
 	.set_tim = mt76_set_tim,
 	.release_buffered_frames = mt76_release_buffered_frames,
 };

@@ -143,7 +143,9 @@ struct smb2_transform_hdr {
 #define SMB2_FLAGS_ASYNC_COMMAND	cpu_to_le32(0x00000002)
 #define SMB2_FLAGS_RELATED_OPERATIONS	cpu_to_le32(0x00000004)
 #define SMB2_FLAGS_SIGNED		cpu_to_le32(0x00000008)
+#define SMB2_FLAGS_PRIORITY_MASK	cpu_to_le32(0x00000070) /* SMB3.1.1 */
 #define SMB2_FLAGS_DFS_OPERATIONS	cpu_to_le32(0x10000000)
+#define SMB2_FLAGS_REPLAY_OPERATION	cpu_to_le32(0x20000000) /* SMB3 & up */
 
 /*
  *	Definitions for SMB2 Protocol Data Units (network frames)
@@ -836,6 +838,7 @@ struct create_durable_handle_reconnect_v2 {
 	struct create_context ccontext;
 	__u8   Name[8];
 	struct durable_reconnect_context_v2 dcontext;
+	__u8   Pad[4];
 } __packed;
 
 /* See MS-SMB2 2.2.13.2.5 */

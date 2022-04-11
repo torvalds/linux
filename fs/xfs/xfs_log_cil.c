@@ -38,7 +38,7 @@ xlog_cil_ticket_alloc(
 	struct xlog_ticket *tic;
 
 	tic = xlog_ticket_alloc(log, 0, 1, XFS_TRANSACTION, 0,
-				KM_SLEEP|KM_NOFS);
+				KM_NOFS);
 
 	/*
 	 * set the current reservation to zero so we know to steal the basic
@@ -186,7 +186,7 @@ xlog_cil_alloc_shadow_bufs(
 			 */
 			kmem_free(lip->li_lv_shadow);
 
-			lv = kmem_alloc_large(buf_size, KM_SLEEP | KM_NOFS);
+			lv = kmem_alloc_large(buf_size, KM_NOFS);
 			memset(lv, 0, xlog_cil_iovec_space(niovecs));
 
 			lv->lv_item = lip;
@@ -660,7 +660,7 @@ xlog_cil_push(
 	if (!cil)
 		return 0;
 
-	new_ctx = kmem_zalloc(sizeof(*new_ctx), KM_SLEEP|KM_NOFS);
+	new_ctx = kmem_zalloc(sizeof(*new_ctx), KM_NOFS);
 	new_ctx->ticket = xlog_cil_ticket_alloc(log);
 
 	down_write(&cil->xc_ctx_lock);
@@ -1179,11 +1179,11 @@ xlog_cil_init(
 	struct xfs_cil	*cil;
 	struct xfs_cil_ctx *ctx;
 
-	cil = kmem_zalloc(sizeof(*cil), KM_SLEEP|KM_MAYFAIL);
+	cil = kmem_zalloc(sizeof(*cil), KM_MAYFAIL);
 	if (!cil)
 		return -ENOMEM;
 
-	ctx = kmem_zalloc(sizeof(*ctx), KM_SLEEP|KM_MAYFAIL);
+	ctx = kmem_zalloc(sizeof(*ctx), KM_MAYFAIL);
 	if (!ctx) {
 		kmem_free(cil);
 		return -ENOMEM;

@@ -52,7 +52,7 @@ static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	/* The number of GPIOs in the approved list */
-	ret = device_property_read_u8_array(&pdev->dev, "gpios", NULL, 0);
+	ret = device_property_count_u8(&pdev->dev, "gpios");
 	if (ret < 0) {
 		dev_err(&pdev->dev, "missing 'gpios' property\n");
 		return ret;

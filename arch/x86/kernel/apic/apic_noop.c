@@ -9,25 +9,9 @@
  * to not uglify the caller's code and allow to call (some) apic routines
  * like self-ipi, etc...
  */
-
-#include <linux/threads.h>
 #include <linux/cpumask.h>
-#include <linux/string.h>
-#include <linux/kernel.h>
-#include <linux/ctype.h>
-#include <linux/errno.h>
-#include <asm/fixmap.h>
-#include <asm/mpspec.h>
-#include <asm/apicdef.h>
+
 #include <asm/apic.h>
-#include <asm/setup.h>
-
-#include <linux/smp.h>
-#include <asm/ipi.h>
-
-#include <linux/interrupt.h>
-#include <asm/acpi.h>
-#include <asm/e820/api.h>
 
 static void noop_init_apic_ldr(void) { }
 static void noop_send_IPI(int cpu, int vector) { }

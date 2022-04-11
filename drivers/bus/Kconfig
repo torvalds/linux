@@ -29,6 +29,16 @@ config BRCMSTB_GISB_ARB
 	  arbiter. This driver provides timeout and target abort error handling
 	  and internal bus master decoding.
 
+config MOXTET
+	tristate "CZ.NIC Turris Mox module configuration bus"
+	depends on SPI_MASTER && OF
+	help
+	  Say yes here to add support for the module configuration bus found
+	  on CZ.NIC's Turris Mox. This is needed for the ability to discover
+	  the order in which the modules are connected and to get/set some of
+	  their settings. For example the GPIOs on Mox SFP module are
+	  configured through this bus.
+
 config HISILICON_LPC
 	bool "Support for ISA I/O space on HiSilicon Hip06/7"
 	depends on ARM64 && (ARCH_HISI || COMPILE_TEST)

@@ -41,10 +41,8 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 
 #define __pte_free_tlb(tlb, pte, addr)				\
 	do {							\
-		pgtable_page_dtor(pte);				\
+		pgtable_pte_page_dtor(pte);			\
 		tlb_remove_page((tlb), (pte));			\
 	} while (0)
-
-#define check_pgt_cache()	do { } while (0)
 
 #endif /* _ASM_NIOS2_PGALLOC_H */

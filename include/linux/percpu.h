@@ -105,7 +105,7 @@ extern struct pcpu_alloc_info * __init pcpu_alloc_alloc_info(int nr_groups,
 							     int nr_units);
 extern void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai);
 
-extern int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+extern void __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 					 void *base_addr);
 
 #ifdef CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK

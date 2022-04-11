@@ -487,11 +487,6 @@ static int aty128_encode_var(struct fb_var_screeninfo *var,
                              const struct aty128fb_par *par);
 static int aty128_decode_var(struct fb_var_screeninfo *var,
                              struct aty128fb_par *par);
-#if 0
-static void aty128_get_pllinfo(struct aty128fb_par *par, void __iomem *bios);
-static void __iomem *aty128_map_ROM(struct pci_dev *pdev,
-				    const struct aty128fb_par *par);
-#endif
 static void aty128_timings(struct aty128fb_par *par);
 static void aty128_init_engine(struct aty128fb_par *par);
 static void aty128_reset_engine(const struct aty128fb_par *par);
@@ -1665,19 +1660,6 @@ static void aty128_st_pal(u_int regno, u_int red, u_int green, u_int blue,
 			  struct aty128fb_par *par)
 {
 	if (par->chip_gen == rage_M3) {
-#if 0
-		/* Note: For now, on M3, we set palette on both heads, which may
-		 * be useless. Can someone with a M3 check this ?
-		 * 
-		 * This code would still be useful if using the second CRTC to 
-		 * do mirroring
-		 */
-
-		aty_st_le32(DAC_CNTL, aty_ld_le32(DAC_CNTL) |
-			    DAC_PALETTE_ACCESS_CNTL);
-		aty_st_8(PALETTE_INDEX, regno);
-		aty_st_le32(PALETTE_DATA, (red<<16)|(green<<8)|blue);
-#endif
 		aty_st_le32(DAC_CNTL, aty_ld_le32(DAC_CNTL) &
 			    ~DAC_PALETTE_ACCESS_CNTL);
 	}

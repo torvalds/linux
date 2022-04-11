@@ -294,6 +294,7 @@ _GLOBAL(ftrace_graph_caller)
 	std	r2, 24(r1)
 	ld	r2, PACATOC(r13)	/* get kernel TOC in r2 */
 
+	addi	r5, r1, 112
 	mfctr	r4		/* ftrace_caller has moved local addr here */
 	std	r4, 40(r1)
 	mflr	r3		/* ftrace_caller has restored LR from stack */

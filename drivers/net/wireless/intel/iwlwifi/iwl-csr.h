@@ -279,6 +279,7 @@
  *         Indicates MAC is entering a power-saving sleep power-down.
  *         Not a good time to access device-internal resources.
  */
+#define CSR_GP_CNTRL_REG_FLAG_INIT_DONE		     (0x00000004)
 #define CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP         (0x00000010)
 #define CSR_GP_CNTRL_REG_FLAG_XTAL_ON		     (0x00000400)
 

@@ -11,8 +11,10 @@
 #if !defined(_CROS_EC_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _CROS_EC_TRACE_H_
 
+#include <linux/bits.h>
 #include <linux/types.h>
-#include <linux/mfd/cros_ec.h>
+#include <linux/platform_data/cros_ec_commands.h>
+#include <linux/platform_data/cros_ec_proto.h>
 
 #include <linux/tracepoint.h>
 

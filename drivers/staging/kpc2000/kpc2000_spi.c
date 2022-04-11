@@ -412,8 +412,7 @@ kp_spi_cleanup(struct spi_device *spidev)
 {
 	struct kp_spi_controller_state *cs = spidev->controller_state;
 
-	if (cs)
-		kfree(cs);
+	kfree(cs);
 }
 
 /******************

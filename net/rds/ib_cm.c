@@ -450,6 +450,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	struct ib_qp_init_attr attr;
 	struct ib_cq_init_attr cq_attr = {};
 	struct rds_ib_device *rds_ibdev;
+	unsigned long max_wrs;
 	int ret, fr_queue_space;
 
 	/*
@@ -469,10 +470,15 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	/* add the conn now so that connection establishment has the dev */
 	rds_ib_add_conn(rds_ibdev, conn);
 
-	if (rds_ibdev->max_wrs < ic->i_send_ring.w_nr + 1)
-		rds_ib_ring_resize(&ic->i_send_ring, rds_ibdev->max_wrs - 1);
-	if (rds_ibdev->max_wrs < ic->i_recv_ring.w_nr + 1)
-		rds_ib_ring_resize(&ic->i_recv_ring, rds_ibdev->max_wrs - 1);
+	max_wrs = rds_ibdev->max_wrs < rds_ib_sysctl_max_send_wr + 1 ?
+		rds_ibdev->max_wrs - 1 : rds_ib_sysctl_max_send_wr;
+	if (ic->i_send_ring.w_nr != max_wrs)
+		rds_ib_ring_resize(&ic->i_send_ring, max_wrs);
+
+	max_wrs = rds_ibdev->max_wrs < rds_ib_sysctl_max_recv_wr + 1 ?
+		rds_ibdev->max_wrs - 1 : rds_ib_sysctl_max_recv_wr;
+	if (ic->i_recv_ring.w_nr != max_wrs)
+		rds_ib_ring_resize(&ic->i_recv_ring, max_wrs);
 
 	/* Protection domain and memory range */
 	ic->i_pd = rds_ibdev->pd;
@@ -1099,8 +1105,9 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 	ic->i_flowctl = 0;
 	atomic_set(&ic->i_credits, 0);
 
-	rds_ib_ring_init(&ic->i_send_ring, rds_ib_sysctl_max_send_wr);
-	rds_ib_ring_init(&ic->i_recv_ring, rds_ib_sysctl_max_recv_wr);
+	/* Re-init rings, but retain sizes. */
+	rds_ib_ring_init(&ic->i_send_ring, ic->i_send_ring.w_nr);
+	rds_ib_ring_init(&ic->i_recv_ring, ic->i_recv_ring.w_nr);
 
 	if (ic->i_ibinc) {
 		rds_inc_put(&ic->i_ibinc->ii_inc);
@@ -1147,8 +1154,8 @@ int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	 * rds_ib_conn_shutdown() waits for these to be emptied so they
 	 * must be initialized before it can be called.
 	 */
-	rds_ib_ring_init(&ic->i_send_ring, rds_ib_sysctl_max_send_wr);
-	rds_ib_ring_init(&ic->i_recv_ring, rds_ib_sysctl_max_recv_wr);
+	rds_ib_ring_init(&ic->i_send_ring, 0);
+	rds_ib_ring_init(&ic->i_recv_ring, 0);
 
 	ic->conn = conn;
 	conn->c_transport_data = ic;

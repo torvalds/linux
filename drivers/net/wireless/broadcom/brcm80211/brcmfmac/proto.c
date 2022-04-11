@@ -56,22 +56,16 @@ fail:
 	return -ENOMEM;
 }
 
-void brcmf_proto_detach_post_delif(struct brcmf_pub *drvr)
+void brcmf_proto_detach(struct brcmf_pub *drvr)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 
 	if (drvr->proto) {
 		if (drvr->bus_if->proto_type == BRCMF_PROTO_BCDC)
-			brcmf_proto_bcdc_detach_post_delif(drvr);
+			brcmf_proto_bcdc_detach(drvr);
 		else if (drvr->bus_if->proto_type == BRCMF_PROTO_MSGBUF)
 			brcmf_proto_msgbuf_detach(drvr);
 		kfree(drvr->proto);
 		drvr->proto = NULL;
 	}
-}
-
-void brcmf_proto_detach_pre_delif(struct brcmf_pub *drvr)
-{
-	if (drvr->proto && drvr->bus_if->proto_type == BRCMF_PROTO_BCDC)
-		brcmf_proto_bcdc_detach_pre_delif(drvr);
 }

@@ -61,6 +61,11 @@ int init_debug = 1;
 /* memory blocks */
 struct prom_pmemblock mdesc[PROM_MAX_PMEMBLOCKS];
 
+#define MAX_PROM_MEM 5
+static phys_addr_t prom_mem_base[MAX_PROM_MEM] __initdata;
+static phys_addr_t prom_mem_size[MAX_PROM_MEM] __initdata;
+static unsigned int nr_prom_mem __initdata;
+
 /* default feature sets */
 static char msp_default_features[] =
 #if defined(CONFIG_PMC_MSP4200_EVAL) \
@@ -352,6 +357,16 @@ void __init prom_meminit(void)
 
 		add_memory_region(base, size, type);
 		p++;
+
+		if (type == BOOT_MEM_ROM_DATA) {
+			if (nr_prom_mem >= MAX_PROM_MEM) {
+				pr_err("Too many ROM DATA regions");
+				continue;
+			}
+			prom_mem_base[nr_prom_mem] = base;
+			prom_mem_size[nr_prom_mem] = size;
+			nr_prom_mem++;
+		}
 	}
 }
 
@@ -363,7 +378,6 @@ void __init prom_free_prom_memory(void)
 	char	*ptr;
 	int	len = 0;
 	int	i;
-	unsigned long addr;
 
 	/*
 	 * preserve environment variables and command line from pmon/bbload
@@ -407,13 +421,9 @@ void __init prom_free_prom_memory(void)
 	envp[i] = NULL;			/* end array with null pointer */
 	prom_envp = envp;
 
-	for (i = 0; i < boot_mem_map.nr_map; i++) {
-		if (boot_mem_map.map[i].type != BOOT_MEM_ROM_DATA)
-			continue;
-
-		addr = boot_mem_map.map[i].addr;
+	for (i = 0; i < nr_prom_mem; i++) {
 		free_init_pages("prom memory",
-				addr, addr + boot_mem_map.map[i].size);
+			prom_mem_base[i], prom_mem_base[i] + prom_mem_size[i]);
 	}
 }
 

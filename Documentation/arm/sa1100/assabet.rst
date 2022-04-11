@@ -14,7 +14,7 @@ Building the kernel
 
 To build the kernel with current defaults::
 
-	make assabet_config
+	make assabet_defconfig
 	make oldconfig
 	make zImage
 

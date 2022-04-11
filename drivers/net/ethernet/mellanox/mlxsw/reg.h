@@ -4126,7 +4126,6 @@ MLXSW_ITEM32(reg, ptys, ext_eth_proto_cap, 0x08, 0, 32);
 #define MLXSW_REG_PTYS_ETH_SPEED_20GBASE_KR2		BIT(5)
 #define MLXSW_REG_PTYS_ETH_SPEED_40GBASE_CR4		BIT(6)
 #define MLXSW_REG_PTYS_ETH_SPEED_40GBASE_KR4		BIT(7)
-#define MLXSW_REG_PTYS_ETH_SPEED_56GBASE_R4		BIT(8)
 #define MLXSW_REG_PTYS_ETH_SPEED_10GBASE_CR		BIT(12)
 #define MLXSW_REG_PTYS_ETH_SPEED_10GBASE_SR		BIT(13)
 #define MLXSW_REG_PTYS_ETH_SPEED_10GBASE_ER_LR		BIT(14)
@@ -5422,6 +5421,14 @@ enum mlxsw_reg_htgt_trap_group {
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_LBERROR,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP0,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP1,
+
+	__MLXSW_REG_HTGT_TRAP_GROUP_MAX,
+	MLXSW_REG_HTGT_TRAP_GROUP_MAX = __MLXSW_REG_HTGT_TRAP_GROUP_MAX - 1
+};
+
+enum mlxsw_reg_htgt_discard_trap_group {
+	MLXSW_REG_HTGT_DISCARD_TRAP_GROUP_BASE = MLXSW_REG_HTGT_TRAP_GROUP_MAX,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_L2_DISCARDS,
 };
 
 /* reg_htgt_trap_group
@@ -5559,6 +5566,8 @@ enum mlxsw_reg_hpkt_action {
 	MLXSW_REG_HPKT_ACTION_DISCARD,
 	MLXSW_REG_HPKT_ACTION_SOFT_DISCARD,
 	MLXSW_REG_HPKT_ACTION_TRAP_AND_SOFT_DISCARD,
+	MLXSW_REG_HPKT_ACTION_TRAP_EXCEPTION_TO_CPU,
+	MLXSW_REG_HPKT_ACTION_SET_FW_DEFAULT = 15,
 };
 
 /* reg_hpkt_action
@@ -5569,6 +5578,8 @@ enum mlxsw_reg_hpkt_action {
  * 3 - Discard.
  * 4 - Soft discard (allow other traps to act on the packet).
  * 5 - Trap and soft discard (allow other traps to overwrite this trap).
+ * 6 - Trap to CPU (CPU receives sole copy) and count it as error.
+ * 15 - Restore the firmware's default action.
  * Access: RW
  *
  * Note: Must be set to 0 (forward) for event trap IDs, as they are already

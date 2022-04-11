@@ -2132,7 +2132,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 	struct port_info *pi = netdev_priv(qs->netdev);
 	struct sk_buff *skb = NULL;
 	struct cpl_rx_pkt *cpl;
-	struct skb_frag_struct *rx_frag;
+	skb_frag_t *rx_frag;
 	int nr_frags;
 	int offset = 0;
 
@@ -2182,7 +2182,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 
 	rx_frag += nr_frags;
 	__skb_frag_set_page(rx_frag, sd->pg_chunk.page);
-	rx_frag->page_offset = sd->pg_chunk.offset + offset;
+	skb_frag_off_set(rx_frag, sd->pg_chunk.offset + offset);
 	skb_frag_size_set(rx_frag, len);
 
 	skb->len += len;

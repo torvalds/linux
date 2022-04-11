@@ -567,15 +567,6 @@ config BLK_DEV_SVWKS
 	  This driver adds PIO/(U)DMA support for the ServerWorks OSB4/CSB5
 	  chipsets.
 
-config BLK_DEV_SGIIOC4
-	tristate "Silicon Graphics IOC4 chipset ATA/ATAPI support"
-	depends on (IA64_SGI_SN2 || IA64_GENERIC) && SGI_IOC4
-	select BLK_DEV_IDEDMA_PCI
-	help
-	  This driver adds PIO & MultiMode DMA-2 support for the SGI IOC4
-	  chipset, which has one channel and can support two devices.
-	  Please say Y here if you have an Altix System from SGI.
-
 config BLK_DEV_SIIMAGE
 	tristate "Silicon Image chipset support"
 	select BLK_DEV_IDEDMA_PCI

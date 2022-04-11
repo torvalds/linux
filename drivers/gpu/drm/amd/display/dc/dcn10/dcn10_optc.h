@@ -54,6 +54,7 @@
 	SRI(OTG_3D_STRUCTURE_CONTROL, OTG, inst),\
 	SRI(OTG_STEREO_STATUS, OTG, inst),\
 	SRI(OTG_V_TOTAL_MAX, OTG, inst),\
+	SRI(OTG_V_TOTAL_MID, OTG, inst),\
 	SRI(OTG_V_TOTAL_MIN, OTG, inst),\
 	SRI(OTG_V_TOTAL_CONTROL, OTG, inst),\
 	SRI(OTG_TRIGA_CNTL, OTG, inst),\
@@ -125,6 +126,7 @@ struct dcn_optc_registers {
 	uint32_t OTG_3D_STRUCTURE_CONTROL;
 	uint32_t OTG_STEREO_STATUS;
 	uint32_t OTG_V_TOTAL_MAX;
+	uint32_t OTG_V_TOTAL_MID;
 	uint32_t OTG_V_TOTAL_MIN;
 	uint32_t OTG_V_TOTAL_CONTROL;
 	uint32_t OTG_TRIGA_CNTL;
@@ -214,12 +216,15 @@ struct dcn_optc_registers {
 	SF(OTG0_OTG_3D_STRUCTURE_CONTROL, OTG_3D_STRUCTURE_V_UPDATE_MODE, mask_sh),\
 	SF(OTG0_OTG_3D_STRUCTURE_CONTROL, OTG_3D_STRUCTURE_STEREO_SEL_OVR, mask_sh),\
 	SF(OTG0_OTG_V_TOTAL_MAX, OTG_V_TOTAL_MAX, mask_sh),\
+	SF(OTG0_OTG_V_TOTAL_MID, OTG_V_TOTAL_MID, mask_sh),\
 	SF(OTG0_OTG_V_TOTAL_MIN, OTG_V_TOTAL_MIN, mask_sh),\
 	SF(OTG0_OTG_V_TOTAL_CONTROL, OTG_V_TOTAL_MIN_SEL, mask_sh),\
 	SF(OTG0_OTG_V_TOTAL_CONTROL, OTG_V_TOTAL_MAX_SEL, mask_sh),\
 	SF(OTG0_OTG_V_TOTAL_CONTROL, OTG_FORCE_LOCK_ON_EVENT, mask_sh),\
 	SF(OTG0_OTG_V_TOTAL_CONTROL, OTG_SET_V_TOTAL_MIN_MASK_EN, mask_sh),\
 	SF(OTG0_OTG_V_TOTAL_CONTROL, OTG_SET_V_TOTAL_MIN_MASK, mask_sh),\
+	SF(OTG0_OTG_V_TOTAL_CONTROL, OTG_VTOTAL_MID_REPLACING_MAX_EN, mask_sh),\
+	SF(OTG0_OTG_V_TOTAL_CONTROL, OTG_VTOTAL_MID_FRAME_NUM, mask_sh),\
 	SF(OTG0_OTG_FORCE_COUNT_NOW_CNTL, OTG_FORCE_COUNT_NOW_CLEAR, mask_sh),\
 	SF(OTG0_OTG_FORCE_COUNT_NOW_CNTL, OTG_FORCE_COUNT_NOW_MODE, mask_sh),\
 	SF(OTG0_OTG_FORCE_COUNT_NOW_CNTL, OTG_FORCE_COUNT_NOW_OCCURRED, mask_sh),\
@@ -348,9 +353,12 @@ struct dcn_optc_registers {
 	type OTG_3D_STRUCTURE_V_UPDATE_MODE;\
 	type OTG_3D_STRUCTURE_STEREO_SEL_OVR;\
 	type OTG_V_TOTAL_MAX;\
+	type OTG_V_TOTAL_MID;\
 	type OTG_V_TOTAL_MIN;\
 	type OTG_V_TOTAL_MIN_SEL;\
 	type OTG_V_TOTAL_MAX_SEL;\
+	type OTG_VTOTAL_MID_REPLACING_MAX_EN;\
+	type OTG_VTOTAL_MID_FRAME_NUM;\
 	type OTG_FORCE_LOCK_ON_EVENT;\
 	type OTG_SET_V_TOTAL_MIN_MASK_EN;\
 	type OTG_SET_V_TOTAL_MIN_MASK;\
@@ -494,7 +502,7 @@ struct optc {
 	const struct dcn_optc_shift *tg_shift;
 	const struct dcn_optc_mask *tg_mask;
 
-	int comb_opp_id;
+	int opp_count;
 
 	uint32_t max_h_total;
 	uint32_t max_v_total;
@@ -538,6 +546,10 @@ struct dcn_otg_state {
 
 void optc1_read_otg_state(struct optc *optc1,
 		struct dcn_otg_state *s);
+
+bool optc1_is_matching_timing(
+	struct timing_generator *tg,
+	const struct dc_crtc_timing *otg_timing);
 
 bool optc1_validate_timing(
 	struct timing_generator *optc,

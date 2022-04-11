@@ -2026,8 +2026,7 @@ static inline int tc358743_probe_of(struct tc358743_state *state)
 }
 #endif
 
-static int tc358743_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int tc358743_probe(struct i2c_client *client)
 {
 	static struct v4l2_dv_timings default_timing =
 		V4L2_DV_BT_CEA_640X480P59_94;
@@ -2222,7 +2221,7 @@ static struct i2c_driver tc358743_driver = {
 		.name = "tc358743",
 		.of_match_table = of_match_ptr(tc358743_of_match),
 	},
-	.probe = tc358743_probe,
+	.probe_new = tc358743_probe,
 	.remove = tc358743_remove,
 	.id_table = tc358743_id,
 };

@@ -2129,6 +2129,8 @@ Some of the relevant points of interest are as follows:
 <li>	<a href="#Hotplug CPU">Hotplug CPU</a>.
 <li>	<a href="#Scheduler and RCU">Scheduler and RCU</a>.
 <li>	<a href="#Tracing and RCU">Tracing and RCU</a>.
+<li>	<a href="#Accesses to User Memory and RCU">
+Accesses to User Memory and RCU</a>.
 <li>	<a href="#Energy Efficiency">Energy Efficiency</a>.
 <li>	<a href="#Scheduling-Clock Interrupts and RCU">
 	Scheduling-Clock Interrupts and RCU</a>.
@@ -2512,7 +2514,7 @@ disabled across the entire RCU read-side critical section.
 <p>
 It is possible to use tracing on RCU code, but tracing itself
 uses RCU.
-For this reason, <tt>rcu_dereference_raw_notrace()</tt>
+For this reason, <tt>rcu_dereference_raw_check()</tt>
 is provided for use by tracing, which avoids the destructive
 recursion that could otherwise ensue.
 This API is also used by virtualization in some architectures,
@@ -2520,6 +2522,75 @@ where RCU readers execute in environments in which tracing
 cannot be used.
 The tracing folks both located the requirement and provided the
 needed fix, so this surprise requirement was relatively painless.
+
+<h3><a name="Accesses to User Memory and RCU">
+Accesses to User Memory and RCU</a></h3>
+
+<p>
+The kernel needs to access user-space memory, for example, to access
+data referenced by system-call parameters.
+The <tt>get_user()</tt> macro does this job.
+
+<p>
+However, user-space memory might well be paged out, which means
+that <tt>get_user()</tt> might well page-fault and thus block while
+waiting for the resulting I/O to complete.
+It would be a very bad thing for the compiler to reorder
+a <tt>get_user()</tt> invocation into an RCU read-side critical
+section.
+For example, suppose that the source code looked like this:
+
+<blockquote>
+<pre>
+ 1 rcu_read_lock();
+ 2 p = rcu_dereference(gp);
+ 3 v = p-&gt;value;
+ 4 rcu_read_unlock();
+ 5 get_user(user_v, user_p);
+ 6 do_something_with(v, user_v);
+</pre>
+</blockquote>
+
+<p>
+The compiler must not be permitted to transform this source code into
+the following:
+
+<blockquote>
+<pre>
+ 1 rcu_read_lock();
+ 2 p = rcu_dereference(gp);
+ 3 get_user(user_v, user_p); // BUG: POSSIBLE PAGE FAULT!!!
+ 4 v = p-&gt;value;
+ 5 rcu_read_unlock();
+ 6 do_something_with(v, user_v);
+</pre>
+</blockquote>
+
+<p>
+If the compiler did make this transformation in a
+<tt>CONFIG_PREEMPT=n</tt> kernel build, and if <tt>get_user()</tt> did
+page fault, the result would be a quiescent state in the middle
+of an RCU read-side critical section.
+This misplaced quiescent state could result in line&nbsp;4 being
+a use-after-free access, which could be bad for your kernel's
+actuarial statistics.
+Similar examples can be constructed with the call to <tt>get_user()</tt>
+preceding the <tt>rcu_read_lock()</tt>.
+
+<p>
+Unfortunately, <tt>get_user()</tt> doesn't have any particular
+ordering properties, and in some architectures the underlying <tt>asm</tt>
+isn't even marked <tt>volatile</tt>.
+And even if it was marked <tt>volatile</tt>, the above access to
+<tt>p-&gt;value</tt> is not volatile, so the compiler would not have any
+reason to keep those two accesses in order.
+
+<p>
+Therefore, the Linux-kernel definitions of <tt>rcu_read_lock()</tt>
+and <tt>rcu_read_unlock()</tt> must act as compiler barriers,
+at least for outermost instances of <tt>rcu_read_lock()</tt> and
+<tt>rcu_read_unlock()</tt> within a nested set of RCU read-side critical
+sections.
 
 <h3><a name="Energy Efficiency">Energy Efficiency</a></h3>
 

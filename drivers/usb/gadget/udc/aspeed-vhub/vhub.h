@@ -257,6 +257,7 @@ enum ep0_state {
 	ep0_state_token,
 	ep0_state_data,
 	ep0_state_status,
+	ep0_state_stall,
 };
 
 /*
@@ -353,7 +354,6 @@ struct ast_vhub_dev {
 	struct usb_gadget_driver	*driver;
 	bool				registered : 1;
 	bool				wakeup_en : 1;
-	bool				suspended : 1;
 	bool				enabled : 1;
 
 	/* Endpoint structures */
@@ -507,6 +507,7 @@ void ast_vhub_init_hw(struct ast_vhub *vhub);
 /* ep0.c */
 void ast_vhub_ep0_handle_ack(struct ast_vhub_ep *ep, bool in_ack);
 void ast_vhub_ep0_handle_setup(struct ast_vhub_ep *ep);
+void ast_vhub_reset_ep0(struct ast_vhub_dev *dev);
 void ast_vhub_init_ep0(struct ast_vhub *vhub, struct ast_vhub_ep *ep,
 		       struct ast_vhub_dev *dev);
 int ast_vhub_reply(struct ast_vhub_ep *ep, char *ptr, int len);

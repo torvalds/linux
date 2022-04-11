@@ -4791,27 +4791,6 @@ void ata_scsi_hotplug(struct work_struct *work)
 		return;
 	}
 
-	/*
-	 * XXX - UGLY HACK
-	 *
-	 * The block layer suspend/resume path is fundamentally broken due
-	 * to freezable kthreads and workqueue and may deadlock if a block
-	 * device gets removed while resume is in progress.  I don't know
-	 * what the solution is short of removing freezable kthreads and
-	 * workqueues altogether.
-	 *
-	 * The following is an ugly hack to avoid kicking off device
-	 * removal while freezer is active.  This is a joke but does avoid
-	 * this particular deadlock scenario.
-	 *
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=62801
-	 * http://marc.info/?l=linux-kernel&m=138695698516487
-	 */
-#ifdef CONFIG_FREEZER
-	while (pm_freezing)
-		msleep(10);
-#endif
-
 	DPRINTK("ENTER\n");
 	mutex_lock(&ap->scsi_scan_mutex);
 

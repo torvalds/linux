@@ -48,16 +48,17 @@ void test_bpf_obj_id(void)
 		/* test_obj_id.o is a dumb prog. It should never fail
 		 * to load.
 		 */
-		if (err)
-			error_cnt++;
-		assert(!err);
+		if (CHECK_FAIL(err))
+			continue;
 
 		/* Insert a magic value to the map */
 		map_fds[i] = bpf_find_map(__func__, objs[i], "test_map_id");
-		assert(map_fds[i] >= 0);
+		if (CHECK_FAIL(map_fds[i] < 0))
+			goto done;
 		err = bpf_map_update_elem(map_fds[i], &array_key,
 					  &array_magic_value, 0);
-		assert(!err);
+		if (CHECK_FAIL(err))
+			goto done;
 
 		/* Check getting map info */
 		info_len = sizeof(struct bpf_map_info) * 2;
@@ -96,9 +97,11 @@ void test_bpf_obj_id(void)
 		prog_infos[i].map_ids = ptr_to_u64(map_ids + i);
 		prog_infos[i].nr_map_ids = 2;
 		err = clock_gettime(CLOCK_REALTIME, &real_time_ts);
-		assert(!err);
+		if (CHECK_FAIL(err))
+			goto done;
 		err = clock_gettime(CLOCK_BOOTTIME, &boot_time_ts);
-		assert(!err);
+		if (CHECK_FAIL(err))
+			goto done;
 		err = bpf_obj_get_info_by_fd(prog_fds[i], &prog_infos[i],
 					     &info_len);
 		load_time = (real_time_ts.tv_sec - boot_time_ts.tv_sec)
@@ -106,8 +109,8 @@ void test_bpf_obj_id(void)
 		if (CHECK(err ||
 			  prog_infos[i].type != BPF_PROG_TYPE_SOCKET_FILTER ||
 			  info_len != sizeof(struct bpf_prog_info) ||
-			  (jit_enabled && !prog_infos[i].jited_prog_len) ||
-			  (jit_enabled &&
+			  (env.jit_enabled && !prog_infos[i].jited_prog_len) ||
+			  (env.jit_enabled &&
 			   !memcmp(jited_insns, zeros, sizeof(zeros))) ||
 			  !prog_infos[i].xlated_prog_len ||
 			  !memcmp(xlated_insns, zeros, sizeof(zeros)) ||
@@ -121,7 +124,7 @@ void test_bpf_obj_id(void)
 			  err, errno, i,
 			  prog_infos[i].type, BPF_PROG_TYPE_SOCKET_FILTER,
 			  info_len, sizeof(struct bpf_prog_info),
-			  jit_enabled,
+			  env.jit_enabled,
 			  prog_infos[i].jited_prog_len,
 			  prog_infos[i].xlated_prog_len,
 			  !!memcmp(jited_insns, zeros, sizeof(zeros)),
@@ -224,7 +227,8 @@ void test_bpf_obj_id(void)
 		nr_id_found++;
 
 		err = bpf_map_lookup_elem(map_fd, &array_key, &array_value);
-		assert(!err);
+		if (CHECK_FAIL(err))
+			goto done;
 
 		err = bpf_obj_get_info_by_fd(map_fd, &map_info, &info_len);
 		CHECK(err || info_len != sizeof(struct bpf_map_info) ||

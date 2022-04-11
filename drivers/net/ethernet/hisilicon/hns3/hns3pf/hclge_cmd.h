@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 // Copyright (c) 2016-2017 Hisilicon Limited.
 
 #ifndef __HCLGE_CMD_H
@@ -86,6 +86,8 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QUERY_PF_RSRC		= 0x0023,
 	HCLGE_OPC_QUERY_VF_RSRC		= 0x0024,
 	HCLGE_OPC_GET_CFG_PARAM		= 0x0025,
+	HCLGE_OPC_PF_RST_DONE		= 0x0026,
+	HCLGE_OPC_QUERY_VF_RST_RDY	= 0x0027,
 
 	HCLGE_OPC_STATS_64_BIT		= 0x0030,
 	HCLGE_OPC_STATS_32_BIT		= 0x0031,
@@ -221,6 +223,9 @@ enum hclge_opcode_type {
 	HCLGE_OPC_MAC_ETHTYPE_ADD	    = 0x1010,
 	HCLGE_OPC_MAC_ETHTYPE_REMOVE	= 0x1011,
 
+	/* MAC VLAN commands */
+	HCLGE_OPC_MAC_VLAN_SWITCH_PARAM	= 0x1033,
+
 	/* VLAN commands */
 	HCLGE_OPC_VLAN_FILTER_CTRL	    = 0x1100,
 	HCLGE_OPC_VLAN_FILTER_PF_CFG	= 0x1101,
@@ -257,6 +262,7 @@ enum hclge_opcode_type {
 	/* M7 stats command */
 	HCLGE_OPC_M7_STATS_BD		= 0x7012,
 	HCLGE_OPC_M7_STATS_INFO		= 0x7013,
+	HCLGE_OPC_M7_COMPAT_CFG		= 0x701A,
 
 	/* SFP command */
 	HCLGE_OPC_GET_SFP_INFO		= 0x7104,
@@ -586,6 +592,12 @@ struct hclge_config_mac_mode_cmd {
 	u8 rsv[20];
 };
 
+struct hclge_pf_rst_sync_cmd {
+#define HCLGE_PF_RST_ALL_VF_RDY_B	0
+	u8 all_vf_ready;
+	u8 rsv[23];
+};
+
 #define HCLGE_CFG_SPEED_S		0
 #define HCLGE_CFG_SPEED_M		GENMASK(5, 0)
 
@@ -762,6 +774,31 @@ struct hclge_vlan_filter_vf_cfg_cmd {
 	u8  vf_bitmap[16];
 };
 
+#define HCLGE_SWITCH_ANTI_SPOOF_B	0U
+#define HCLGE_SWITCH_ALW_LPBK_B		1U
+#define HCLGE_SWITCH_ALW_LCL_LPBK_B	2U
+#define HCLGE_SWITCH_ALW_DST_OVRD_B	3U
+#define HCLGE_SWITCH_NO_MASK		0x0
+#define HCLGE_SWITCH_ANTI_SPOOF_MASK	0xFE
+#define HCLGE_SWITCH_ALW_LPBK_MASK	0xFD
+#define HCLGE_SWITCH_ALW_LCL_LPBK_MASK	0xFB
+#define HCLGE_SWITCH_LW_DST_OVRD_MASK	0xF7
+
+struct hclge_mac_vlan_switch_cmd {
+	u8 roce_sel;
+	u8 rsv1[3];
+	__le32 func_id;
+	u8 switch_param;
+	u8 rsv2[3];
+	u8 param_mask;
+	u8 rsv3[11];
+};
+
+enum hclge_mac_vlan_cfg_sel {
+	HCLGE_MAC_VLAN_NIC_SEL = 0,
+	HCLGE_MAC_VLAN_ROCE_SEL,
+};
+
 #define HCLGE_ACCEPT_TAG1_B		0
 #define HCLGE_ACCEPT_UNTAG1_B		1
 #define HCLGE_PORT_INS_TAG1_EN_B	2
@@ -827,7 +864,7 @@ struct hclge_mac_ethertype_idx_rd_cmd {
 	u8	flags;
 	u8	resp_code;
 	__le16  vlan_tag;
-	u8      mac_add[6];
+	u8      mac_addr[6];
 	__le16  index;
 	__le16	ethter_type;
 	__le16  egress_port;
@@ -877,6 +914,13 @@ struct hclge_reset_cmd {
 	u8 rsv[22];
 };
 
+#define HCLGE_PF_RESET_DONE_BIT		BIT(0)
+
+struct hclge_pf_rst_done_cmd {
+	u8 pf_rst_done;
+	u8 rsv[23];
+};
+
 #define HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B	BIT(0)
 #define HCLGE_CMD_SERDES_PARALLEL_INNER_LOOP_B	BIT(2)
 #define HCLGE_CMD_SERDES_DONE_B			BIT(0)
@@ -906,8 +950,11 @@ struct hclge_serdes_lb_cmd {
 #define HCLGE_NIC_CRQ_DEPTH_REG		0x27020
 #define HCLGE_NIC_CRQ_TAIL_REG		0x27024
 #define HCLGE_NIC_CRQ_HEAD_REG		0x27028
-#define HCLGE_NIC_CMQ_EN_B		16
-#define HCLGE_NIC_CMQ_ENABLE		BIT(HCLGE_NIC_CMQ_EN_B)
+
+/* this bit indicates that the driver is ready for hardware reset */
+#define HCLGE_NIC_SW_RST_RDY_B		16
+#define HCLGE_NIC_SW_RST_RDY		BIT(HCLGE_NIC_SW_RST_RDY_B)
+
 #define HCLGE_NIC_CMQ_DESC_NUM		1024
 #define HCLGE_NIC_CMQ_DESC_NUM_S	3
 
@@ -1007,6 +1054,13 @@ struct hclge_query_ppu_pf_other_int_dfx_cmd {
 	__le16 rx_rd_fbd_poison_qid;
 	__le16 rx_rd_fbd_poison_vf_id;
 	u8 rsv[4];
+};
+
+#define HCLGE_LINK_EVENT_REPORT_EN_B	0
+#define HCLGE_NCSI_ERROR_REPORT_EN_B	1
+struct hclge_firmware_compat_cmd {
+	__le32 compat;
+	u8 rsv[20];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);

@@ -10,10 +10,8 @@ void test_tcp_estats(void)
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
 	CHECK(err, "", "err %d errno %d\n", err, errno);
-	if (err) {
-		error_cnt++;
+	if (err)
 		return;
-	}
 
 	bpf_object__close(obj);
 }

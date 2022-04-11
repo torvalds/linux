@@ -326,8 +326,10 @@ extern atomic_t			kgdb_active;
 	(raw_smp_processor_id() == atomic_read(&kgdb_active))
 extern bool dbg_is_early;
 extern void __init dbg_late_init(void);
+extern void kgdb_panic(const char *msg);
 #else /* ! CONFIG_KGDB */
 #define in_dbg_master() (0)
 #define dbg_late_init()
+static inline void kgdb_panic(const char *msg) {}
 #endif /* ! CONFIG_KGDB */
 #endif /* _KGDB_H_ */

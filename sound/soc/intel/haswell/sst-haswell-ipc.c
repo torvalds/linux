@@ -511,7 +511,7 @@ static void hsw_notification_work(struct work_struct *work)
 static void hsw_stream_update(struct sst_hsw *hsw, struct ipc_message *msg)
 {
 	struct sst_hsw_stream *stream;
-	u32 header = msg->header & ~(IPC_STATUS_MASK | IPC_GLB_REPLY_MASK);
+	u32 header = msg->tx.header & ~(IPC_STATUS_MASK | IPC_GLB_REPLY_MASK);
 	u32 stream_id = msg_get_stream_id(header);
 	u32 stream_msg = msg_get_stream_type(header);
 
@@ -552,6 +552,7 @@ static int hsw_process_reply(struct sst_hsw *hsw, u32 header)
 		return -EIO;
 	}
 
+	msg->rx.header = header;
 	/* first process the header */
 	switch (reply) {
 	case IPC_GLB_REPLY_PENDING:
@@ -562,13 +563,13 @@ static int hsw_process_reply(struct sst_hsw *hsw, u32 header)
 	case IPC_GLB_REPLY_SUCCESS:
 		if (msg->pending) {
 			trace_ipc_pending_reply("completed", header);
-			sst_dsp_inbox_read(hsw->dsp, msg->rx_data,
-				msg->rx_size);
+			sst_dsp_inbox_read(hsw->dsp, msg->rx.data,
+				msg->rx.size);
 			hsw->ipc.pending = false;
 		} else {
 			/* copy data from the DSP */
-			sst_dsp_outbox_read(hsw->dsp, msg->rx_data,
-				msg->rx_size);
+			sst_dsp_outbox_read(hsw->dsp, msg->rx.data,
+				msg->rx.size);
 		}
 		break;
 	/* these will be rare - but useful for debug */
@@ -810,11 +811,13 @@ static irqreturn_t hsw_irq_thread(int irq, void *context)
 int sst_hsw_fw_get_version(struct sst_hsw *hsw,
 	struct sst_hsw_ipc_fw_version *version)
 {
+	struct sst_ipc_message request = {0}, reply = {0};
 	int ret;
 
-	ret = sst_ipc_tx_message_wait(&hsw->ipc,
-		IPC_GLB_TYPE(IPC_GLB_GET_FW_VERSION),
-		NULL, 0, version, sizeof(*version));
+	request.header = IPC_GLB_TYPE(IPC_GLB_GET_FW_VERSION);
+	reply.data = version;
+	reply.size = sizeof(*version);
+	ret = sst_ipc_tx_message_wait(&hsw->ipc, request, &reply);
 	if (ret < 0)
 		dev_err(hsw->dev, "error: get version failed\n");
 
@@ -840,7 +843,7 @@ int sst_hsw_stream_set_volume(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream, u32 stage_id, u32 channel, u32 volume)
 {
 	struct sst_hsw_ipc_volume_req *req;
-	u32 header;
+	struct sst_ipc_message request;
 	int ret;
 
 	trace_ipc_request("set stream volume", stream->reply.stream_hw_id);
@@ -848,11 +851,11 @@ int sst_hsw_stream_set_volume(struct sst_hsw *hsw,
 	if (channel >= 2 && channel != SST_HSW_CHANNELS_ALL)
 		return -EINVAL;
 
-	header = IPC_GLB_TYPE(IPC_GLB_STREAM_MESSAGE) |
+	request.header = IPC_GLB_TYPE(IPC_GLB_STREAM_MESSAGE) |
 		IPC_STR_TYPE(IPC_STR_STAGE_MESSAGE);
-	header |= (stream->reply.stream_hw_id << IPC_STR_ID_SHIFT);
-	header |= (IPC_STG_SET_VOLUME << IPC_STG_TYPE_SHIFT);
-	header |= (stage_id << IPC_STG_ID_SHIFT);
+	request.header |= (stream->reply.stream_hw_id << IPC_STR_ID_SHIFT);
+	request.header |= (IPC_STG_SET_VOLUME << IPC_STG_TYPE_SHIFT);
+	request.header |= (stage_id << IPC_STG_ID_SHIFT);
 
 	req = &stream->vol_req;
 	req->target_volume = volume;
@@ -877,8 +880,9 @@ int sst_hsw_stream_set_volume(struct sst_hsw *hsw,
 		req->channel = channel;
 	}
 
-	ret = sst_ipc_tx_message_wait(&hsw->ipc, header, req,
-		sizeof(*req), NULL, 0);
+	request.data = req;
+	request.size = sizeof(*req);
+	ret = sst_ipc_tx_message_wait(&hsw->ipc, request, NULL);
 	if (ret < 0) {
 		dev_err(hsw->dev, "error: set stream volume failed\n");
 		return ret;
@@ -905,7 +909,7 @@ int sst_hsw_mixer_set_volume(struct sst_hsw *hsw, u32 stage_id, u32 channel,
 	u32 volume)
 {
 	struct sst_hsw_ipc_volume_req req;
-	u32 header;
+	struct sst_ipc_message request;
 	int ret;
 
 	trace_ipc_request("set mixer volume", volume);
@@ -933,18 +937,19 @@ int sst_hsw_mixer_set_volume(struct sst_hsw *hsw, u32 stage_id, u32 channel,
 		req.channel = channel;
 	}
 
-	header = IPC_GLB_TYPE(IPC_GLB_STREAM_MESSAGE) |
+	request.header = IPC_GLB_TYPE(IPC_GLB_STREAM_MESSAGE) |
 		IPC_STR_TYPE(IPC_STR_STAGE_MESSAGE);
-	header |= (hsw->mixer_info.mixer_hw_id << IPC_STR_ID_SHIFT);
-	header |= (IPC_STG_SET_VOLUME << IPC_STG_TYPE_SHIFT);
-	header |= (stage_id << IPC_STG_ID_SHIFT);
+	request.header |= (hsw->mixer_info.mixer_hw_id << IPC_STR_ID_SHIFT);
+	request.header |= (IPC_STG_SET_VOLUME << IPC_STG_TYPE_SHIFT);
+	request.header |= (stage_id << IPC_STG_ID_SHIFT);
 
 	req.curve_duration = hsw->curve_duration;
 	req.curve_type = hsw->curve_type;
 	req.target_volume = volume;
 
-	ret = sst_ipc_tx_message_wait(&hsw->ipc, header, &req,
-		sizeof(req), NULL, 0);
+	request.data = &req;
+	request.size = sizeof(req);
+	ret = sst_ipc_tx_message_wait(&hsw->ipc, request, NULL);
 	if (ret < 0) {
 		dev_err(hsw->dev, "error: set mixer volume failed\n");
 		return ret;
@@ -983,7 +988,7 @@ struct sst_hsw_stream *sst_hsw_stream_new(struct sst_hsw *hsw, int id,
 
 int sst_hsw_stream_free(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 {
-	u32 header;
+	struct sst_ipc_message request;
 	int ret = 0;
 	struct sst_dsp *sst = hsw->dsp;
 	unsigned long flags;
@@ -1000,10 +1005,11 @@ int sst_hsw_stream_free(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 	trace_ipc_request("stream free", stream->host_id);
 
 	stream->free_req.stream_id = stream->reply.stream_hw_id;
-	header = IPC_GLB_TYPE(IPC_GLB_FREE_STREAM);
+	request.header = IPC_GLB_TYPE(IPC_GLB_FREE_STREAM);
+	request.data = &stream->free_req;
+	request.size = sizeof(stream->free_req);
 
-	ret = sst_ipc_tx_message_wait(&hsw->ipc, header, &stream->free_req,
-		sizeof(stream->free_req), NULL, 0);
+	ret = sst_ipc_tx_message_wait(&hsw->ipc, request, NULL);
 	if (ret < 0) {
 		dev_err(hsw->dev, "error: free stream %d failed\n",
 			stream->free_req.stream_id);
@@ -1175,9 +1181,7 @@ int sst_hsw_stream_set_module_info(struct sst_hsw *hsw,
 
 int sst_hsw_stream_commit(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 {
-	struct sst_hsw_ipc_stream_alloc_req *str_req = &stream->request;
-	struct sst_hsw_ipc_stream_alloc_reply *reply = &stream->reply;
-	u32 header;
+	struct sst_ipc_message request, reply = {0};
 	int ret;
 
 	if (!stream) {
@@ -1192,10 +1196,13 @@ int sst_hsw_stream_commit(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 
 	trace_ipc_request("stream alloc", stream->host_id);
 
-	header = IPC_GLB_TYPE(IPC_GLB_ALLOCATE_STREAM);
+	request.header = IPC_GLB_TYPE(IPC_GLB_ALLOCATE_STREAM);
+	request.data = &stream->request;
+	request.size = sizeof(stream->request);
+	reply.data = &stream->reply;
+	reply.size = sizeof(stream->reply);
 
-	ret = sst_ipc_tx_message_wait(&hsw->ipc, header, str_req,
-		sizeof(*str_req), reply, sizeof(*reply));
+	ret = sst_ipc_tx_message_wait(&hsw->ipc, request, &reply);
 	if (ret < 0) {
 		dev_err(hsw->dev, "error: stream commit failed\n");
 		return ret;
@@ -1235,23 +1242,22 @@ void sst_hsw_stream_set_silence_start(struct sst_hsw *hsw,
  ABI to be opaque to client PCM drivers to cope with any future ABI changes */
 int sst_hsw_mixer_get_info(struct sst_hsw *hsw)
 {
-	struct sst_hsw_ipc_stream_info_reply *reply;
-	u32 header;
+	struct sst_ipc_message request = {0}, reply = {0};
 	int ret;
 
-	reply = &hsw->mixer_info;
-	header = IPC_GLB_TYPE(IPC_GLB_GET_MIXER_STREAM_INFO);
+	request.header = IPC_GLB_TYPE(IPC_GLB_GET_MIXER_STREAM_INFO);
+	reply.data = &hsw->mixer_info;
+	reply.size = sizeof(hsw->mixer_info);
 
 	trace_ipc_request("get global mixer info", 0);
 
-	ret = sst_ipc_tx_message_wait(&hsw->ipc, header, NULL, 0,
-		reply, sizeof(*reply));
+	ret = sst_ipc_tx_message_wait(&hsw->ipc, request, &reply);
 	if (ret < 0) {
 		dev_err(hsw->dev, "error: get stream info failed\n");
 		return ret;
 	}
 
-	trace_hsw_mixer_info_reply(reply);
+	trace_hsw_mixer_info_reply(&hsw->mixer_info);
 
 	return 0;
 }
@@ -1260,16 +1266,15 @@ int sst_hsw_mixer_get_info(struct sst_hsw *hsw)
 static int sst_hsw_stream_operations(struct sst_hsw *hsw, int type,
 	int stream_id, int wait)
 {
-	u32 header;
+	struct sst_ipc_message request = {0};
 
-	header = IPC_GLB_TYPE(IPC_GLB_STREAM_MESSAGE) | IPC_STR_TYPE(type);
-	header |= (stream_id << IPC_STR_ID_SHIFT);
+	request.header = IPC_GLB_TYPE(IPC_GLB_STREAM_MESSAGE);
+	request.header |= IPC_STR_TYPE(type) | (stream_id << IPC_STR_ID_SHIFT);
 
 	if (wait)
-		return sst_ipc_tx_message_wait(&hsw->ipc, header,
-			NULL, 0, NULL, 0);
+		return sst_ipc_tx_message_wait(&hsw->ipc, request, NULL);
 	else
-		return sst_ipc_tx_message_nowait(&hsw->ipc, header, NULL, 0);
+		return sst_ipc_tx_message_nowait(&hsw->ipc, request);
 }
 
 /* Stream ALSA trigger operations */
@@ -1377,8 +1382,8 @@ int sst_hsw_device_set_config(struct sst_hsw *hsw,
 	enum sst_hsw_device_id dev, enum sst_hsw_device_mclk mclk,
 	enum sst_hsw_device_mode mode, u32 clock_divider)
 {
+	struct sst_ipc_message request;
 	struct sst_hsw_ipc_device_config_req config;
-	u32 header;
 	int ret;
 
 	trace_ipc_request("set device config", dev);
@@ -1394,10 +1399,11 @@ int sst_hsw_device_set_config(struct sst_hsw *hsw,
 
 	trace_hsw_device_config_req(&config);
 
-	header = IPC_GLB_TYPE(IPC_GLB_SET_DEVICE_FORMATS);
+	request.header = IPC_GLB_TYPE(IPC_GLB_SET_DEVICE_FORMATS);
+	request.data = &config;
+	request.size = sizeof(config);
 
-	ret = sst_ipc_tx_message_wait(&hsw->ipc, header, &config,
-		sizeof(config), NULL, 0);
+	ret = sst_ipc_tx_message_wait(&hsw->ipc, request, NULL);
 	if (ret < 0)
 		dev_err(hsw->dev, "error: set device formats failed\n");
 
@@ -1409,16 +1415,20 @@ EXPORT_SYMBOL_GPL(sst_hsw_device_set_config);
 int sst_hsw_dx_set_state(struct sst_hsw *hsw,
 	enum sst_hsw_dx_state state, struct sst_hsw_ipc_dx_reply *dx)
 {
-	u32 header, state_;
+	struct sst_ipc_message request, reply = {0};
+	u32 state_;
 	int ret, item;
 
-	header = IPC_GLB_TYPE(IPC_GLB_ENTER_DX_STATE);
 	state_ = state;
+	request.header = IPC_GLB_TYPE(IPC_GLB_ENTER_DX_STATE);
+	request.data = &state_;
+	request.size = sizeof(state_);
+	reply.data = dx;
+	reply.size = sizeof(*dx);
 
 	trace_ipc_request("PM enter Dx state", state);
 
-	ret = sst_ipc_tx_message_wait(&hsw->ipc, header, &state_,
-		sizeof(state_), dx, sizeof(*dx));
+	ret = sst_ipc_tx_message_wait(&hsw->ipc, request, &reply);
 	if (ret < 0) {
 		dev_err(hsw->dev, "ipc: error set dx state %d failed\n", state);
 		return ret;
@@ -1878,7 +1888,7 @@ int sst_hsw_module_enable(struct sst_hsw *hsw,
 	u32 module_id, u32 instance_id)
 {
 	int ret;
-	u32 header = 0;
+	struct sst_ipc_message request;
 	struct sst_hsw_ipc_module_config config;
 	struct sst_module *module;
 	struct sst_module_runtime *runtime;
@@ -1907,10 +1917,10 @@ int sst_hsw_module_enable(struct sst_hsw *hsw,
 		return -ENXIO;
 	}
 
-	header = IPC_GLB_TYPE(IPC_GLB_MODULE_OPERATION) |
+	request.header = IPC_GLB_TYPE(IPC_GLB_MODULE_OPERATION) |
 			IPC_MODULE_OPERATION(IPC_MODULE_ENABLE) |
 			IPC_MODULE_ID(module_id);
-	dev_dbg(dev, "module enable header: %x\n", header);
+	dev_dbg(dev, "module enable header: %x\n", (u32)request.header);
 
 	config.map.module_entries_count = 1;
 	config.map.module_entries[0].module_id = module->id;
@@ -1932,8 +1942,9 @@ int sst_hsw_module_enable(struct sst_hsw *hsw,
 		config.scratch_mem.size, config.scratch_mem.offset,
 		config.map.module_entries[0].entry_point);
 
-	ret = sst_ipc_tx_message_wait(&hsw->ipc, header,
-			&config, sizeof(config), NULL, 0);
+	request.data = &config;
+	request.size = sizeof(config);
+	ret = sst_ipc_tx_message_wait(&hsw->ipc, request, NULL);
 	if (ret < 0)
 		dev_err(dev, "ipc: module enable failed - %d\n", ret);
 	else
@@ -1946,7 +1957,7 @@ int sst_hsw_module_disable(struct sst_hsw *hsw,
 	u32 module_id, u32 instance_id)
 {
 	int ret;
-	u32 header;
+	struct sst_ipc_message request = {0};
 	struct sst_module *module;
 	struct device *dev = hsw->dev;
 	struct sst_dsp *dsp = hsw->dsp;
@@ -1967,11 +1978,11 @@ int sst_hsw_module_disable(struct sst_hsw *hsw,
 		return -ENXIO;
 	}
 
-	header = IPC_GLB_TYPE(IPC_GLB_MODULE_OPERATION) |
+	request.header = IPC_GLB_TYPE(IPC_GLB_MODULE_OPERATION) |
 			IPC_MODULE_OPERATION(IPC_MODULE_DISABLE) |
 			IPC_MODULE_ID(module_id);
 
-	ret = sst_ipc_tx_message_wait(&hsw->ipc, header,  NULL, 0, NULL, 0);
+	ret = sst_ipc_tx_message_wait(&hsw->ipc, request, NULL);
 	if (ret < 0)
 		dev_err(dev, "module disable failed - %d\n", ret);
 	else
@@ -1985,15 +1996,16 @@ int sst_hsw_module_set_param(struct sst_hsw *hsw,
 	u32 param_size, char *param)
 {
 	int ret;
-	u32 header = 0;
-	u32 payload_size = 0, transfer_parameter_size = 0;
+	struct sst_ipc_message request = {0};
+	u32 payload_size = 0;
 	struct sst_hsw_transfer_parameter *parameter;
 	struct device *dev = hsw->dev;
 
-	header = IPC_GLB_TYPE(IPC_GLB_MODULE_OPERATION) |
+	request.header = IPC_GLB_TYPE(IPC_GLB_MODULE_OPERATION) |
 			IPC_MODULE_OPERATION(IPC_MODULE_SET_PARAMETER) |
 			IPC_MODULE_ID(module_id);
-	dev_dbg(dev, "sst_hsw_module_set_param header=%x\n", header);
+	dev_dbg(dev, "sst_hsw_module_set_param header=%x\n",
+			(u32)request.header);
 
 	payload_size = param_size +
 		sizeof(struct sst_hsw_transfer_parameter) -
@@ -2003,14 +2015,14 @@ int sst_hsw_module_set_param(struct sst_hsw *hsw,
 
 	if (payload_size <= SST_HSW_IPC_MAX_SHORT_PARAMETER_SIZE) {
 		/* short parameter, mailbox can contain data */
-		dev_dbg(dev, "transfer parameter size : %d\n",
-			transfer_parameter_size);
+		dev_dbg(dev, "transfer parameter size : %zu\n",
+			request.size);
 
-		transfer_parameter_size = ALIGN(payload_size, 4);
-		dev_dbg(dev, "transfer parameter aligned size : %d\n",
-			transfer_parameter_size);
+		request.size = ALIGN(payload_size, 4);
+		dev_dbg(dev, "transfer parameter aligned size : %zu\n",
+			request.size);
 
-		parameter = kzalloc(transfer_parameter_size, GFP_KERNEL);
+		parameter = kzalloc(request.size, GFP_KERNEL);
 		if (parameter == NULL)
 			return -ENOMEM;
 
@@ -2022,9 +2034,9 @@ int sst_hsw_module_set_param(struct sst_hsw *hsw,
 
 	parameter->parameter_id = parameter_id;
 	parameter->data_size = param_size;
+	request.data = parameter;
 
-	ret = sst_ipc_tx_message_wait(&hsw->ipc, header,
-		parameter, transfer_parameter_size , NULL, 0);
+	ret = sst_ipc_tx_message_wait(&hsw->ipc, request, NULL);
 	if (ret < 0)
 		dev_err(dev, "ipc: module set parameter failed - %d\n", ret);
 
@@ -2041,8 +2053,8 @@ static struct sst_dsp_device hsw_dev = {
 static void hsw_tx_msg(struct sst_generic_ipc *ipc, struct ipc_message *msg)
 {
 	/* send the message */
-	sst_dsp_outbox_write(ipc->dsp, msg->tx_data, msg->tx_size);
-	sst_dsp_ipc_msg_tx(ipc->dsp, msg->header);
+	sst_dsp_outbox_write(ipc->dsp, msg->tx.data, msg->tx.size);
+	sst_dsp_ipc_msg_tx(ipc->dsp, msg->tx.header);
 }
 
 static void hsw_shim_dbg(struct sst_generic_ipc *ipc, const char *text)
@@ -2063,7 +2075,7 @@ static void hsw_shim_dbg(struct sst_generic_ipc *ipc, const char *text)
 static void hsw_tx_data_copy(struct ipc_message *msg, char *tx_data,
 	size_t tx_size)
 {
-	memcpy(msg->tx_data, tx_data, tx_size);
+	memcpy(msg->tx.data, tx_data, tx_size);
 }
 
 static u64 hsw_reply_msg_match(u64 header, u64 *mask)

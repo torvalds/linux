@@ -160,6 +160,7 @@ struct tipc_link {
 	struct {
 		u16 len;
 		u16 limit;
+		struct sk_buff *target_bskb;
 	} backlog[5];
 	u16 snd_nxt;
 	u16 window;
@@ -176,6 +177,7 @@ struct tipc_link {
 
 	/* Fragmentation/reassembly */
 	struct sk_buff *reasm_buf;
+	struct sk_buff *reasm_tnlmsg;
 
 	/* Broadcast */
 	u16 ackers;
@@ -849,23 +851,37 @@ static int link_schedule_user(struct tipc_link *l, struct tipc_msg *hdr)
  */
 static void link_prepare_wakeup(struct tipc_link *l)
 {
+	struct sk_buff_head *wakeupq = &l->wakeupq;
+	struct sk_buff_head *inputq = l->inputq;
 	struct sk_buff *skb, *tmp;
-	int imp, i = 0;
+	struct sk_buff_head tmpq;
+	int avail[5] = {0,};
+	int imp = 0;
 
-	skb_queue_walk_safe(&l->wakeupq, skb, tmp) {
+	__skb_queue_head_init(&tmpq);
+
+	for (; imp <= TIPC_SYSTEM_IMPORTANCE; imp++)
+		avail[imp] = l->backlog[imp].limit - l->backlog[imp].len;
+
+	skb_queue_walk_safe(wakeupq, skb, tmp) {
 		imp = TIPC_SKB_CB(skb)->chain_imp;
-		if (l->backlog[imp].len < l->backlog[imp].limit) {
-			skb_unlink(skb, &l->wakeupq);
-			skb_queue_tail(l->inputq, skb);
-		} else if (i++ > 10) {
-			break;
-		}
+		if (avail[imp] <= 0)
+			continue;
+		avail[imp]--;
+		__skb_unlink(skb, wakeupq);
+		__skb_queue_tail(&tmpq, skb);
 	}
+
+	spin_lock_bh(&inputq->lock);
+	skb_queue_splice_tail(&tmpq, inputq);
+	spin_unlock_bh(&inputq->lock);
+
 }
 
 void tipc_link_reset(struct tipc_link *l)
 {
 	struct sk_buff_head list;
+	u32 imp;
 
 	__skb_queue_head_init(&list);
 
@@ -887,14 +903,15 @@ void tipc_link_reset(struct tipc_link *l)
 	__skb_queue_purge(&l->deferdq);
 	__skb_queue_purge(&l->backlogq);
 	__skb_queue_purge(&l->failover_deferdq);
-	l->backlog[TIPC_LOW_IMPORTANCE].len = 0;
-	l->backlog[TIPC_MEDIUM_IMPORTANCE].len = 0;
-	l->backlog[TIPC_HIGH_IMPORTANCE].len = 0;
-	l->backlog[TIPC_CRITICAL_IMPORTANCE].len = 0;
-	l->backlog[TIPC_SYSTEM_IMPORTANCE].len = 0;
+	for (imp = 0; imp <= TIPC_SYSTEM_IMPORTANCE; imp++) {
+		l->backlog[imp].len = 0;
+		l->backlog[imp].target_bskb = NULL;
+	}
 	kfree_skb(l->reasm_buf);
+	kfree_skb(l->reasm_tnlmsg);
 	kfree_skb(l->failover_reasm_skb);
 	l->reasm_buf = NULL;
+	l->reasm_tnlmsg = NULL;
 	l->failover_reasm_skb = NULL;
 	l->rcv_unacked = 0;
 	l->snd_nxt = 1;
@@ -931,12 +948,15 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 	u16 bc_ack = l->bc_rcvlink->rcv_nxt - 1;
 	struct sk_buff_head *transmq = &l->transmq;
 	struct sk_buff_head *backlogq = &l->backlogq;
-	struct sk_buff *skb, *_skb, *bskb;
+	struct sk_buff *skb, *_skb, **tskb;
 	int pkt_cnt = skb_queue_len(list);
 	int rc = 0;
 
 	if (unlikely(msg_size(hdr) > mtu)) {
-		skb_queue_purge(list);
+		pr_warn("Too large msg, purging xmit list %d %d %d %d %d!\n",
+			skb_queue_len(list), msg_user(hdr),
+			msg_type(hdr), msg_size(hdr), mtu);
+		__skb_queue_purge(list);
 		return -EMSGSIZE;
 	}
 
@@ -965,7 +985,7 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 		if (likely(skb_queue_len(transmq) < maxwin)) {
 			_skb = skb_clone(skb, GFP_ATOMIC);
 			if (!_skb) {
-				skb_queue_purge(list);
+				__skb_queue_purge(list);
 				return -ENOBUFS;
 			}
 			__skb_dequeue(list);
@@ -980,19 +1000,21 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 			seqno++;
 			continue;
 		}
-		if (tipc_msg_bundle(skb_peek_tail(backlogq), hdr, mtu)) {
+		tskb = &l->backlog[imp].target_bskb;
+		if (tipc_msg_bundle(*tskb, hdr, mtu)) {
 			kfree_skb(__skb_dequeue(list));
 			l->stats.sent_bundled++;
 			continue;
 		}
-		if (tipc_msg_make_bundle(&bskb, hdr, mtu, l->addr)) {
+		if (tipc_msg_make_bundle(tskb, hdr, mtu, l->addr)) {
 			kfree_skb(__skb_dequeue(list));
-			__skb_queue_tail(backlogq, bskb);
-			l->backlog[msg_importance(buf_msg(bskb))].len++;
+			__skb_queue_tail(backlogq, *tskb);
+			l->backlog[imp].len++;
 			l->stats.sent_bundled++;
 			l->stats.sent_bundles++;
 			continue;
 		}
+		l->backlog[imp].target_bskb = NULL;
 		l->backlog[imp].len += skb_queue_len(list);
 		skb_queue_splice_tail_init(list, backlogq);
 	}
@@ -1008,6 +1030,7 @@ static void tipc_link_advance_backlog(struct tipc_link *l,
 	u16 seqno = l->snd_nxt;
 	u16 ack = l->rcv_nxt - 1;
 	u16 bc_ack = l->bc_rcvlink->rcv_nxt - 1;
+	u32 imp;
 
 	while (skb_queue_len(&l->transmq) < l->window) {
 		skb = skb_peek(&l->backlogq);
@@ -1018,7 +1041,10 @@ static void tipc_link_advance_backlog(struct tipc_link *l,
 			break;
 		__skb_dequeue(&l->backlogq);
 		hdr = buf_msg(skb);
-		l->backlog[msg_importance(hdr)].len--;
+		imp = msg_importance(hdr);
+		l->backlog[imp].len--;
+		if (unlikely(skb == l->backlog[imp].target_bskb))
+			l->backlog[imp].target_bskb = NULL;
 		__skb_queue_tail(&l->transmq, skb);
 		/* next retransmit attempt */
 		if (link_is_bc_sndlink(l))
@@ -1238,6 +1264,7 @@ static int tipc_link_tnl_rcv(struct tipc_link *l, struct sk_buff *skb,
 			     struct sk_buff_head *inputq)
 {
 	struct sk_buff **reasm_skb = &l->failover_reasm_skb;
+	struct sk_buff **reasm_tnlmsg = &l->reasm_tnlmsg;
 	struct sk_buff_head *fdefq = &l->failover_deferdq;
 	struct tipc_msg *hdr = buf_msg(skb);
 	struct sk_buff *iskb;
@@ -1245,40 +1272,56 @@ static int tipc_link_tnl_rcv(struct tipc_link *l, struct sk_buff *skb,
 	int rc = 0;
 	u16 seqno;
 
-	/* SYNCH_MSG */
-	if (msg_type(hdr) == SYNCH_MSG)
-		goto drop;
+	if (msg_type(hdr) == SYNCH_MSG) {
+		kfree_skb(skb);
+		return 0;
+	}
 
-	/* FAILOVER_MSG */
-	if (!tipc_msg_extract(skb, &iskb, &ipos)) {
-		pr_warn_ratelimited("Cannot extract FAILOVER_MSG, defq: %d\n",
-				    skb_queue_len(fdefq));
-		return rc;
+	/* Not a fragment? */
+	if (likely(!msg_nof_fragms(hdr))) {
+		if (unlikely(!tipc_msg_extract(skb, &iskb, &ipos))) {
+			pr_warn_ratelimited("Unable to extract msg, defq: %d\n",
+					    skb_queue_len(fdefq));
+			return 0;
+		}
+		kfree_skb(skb);
+	} else {
+		/* Set fragment type for buf_append */
+		if (msg_fragm_no(hdr) == 1)
+			msg_set_type(hdr, FIRST_FRAGMENT);
+		else if (msg_fragm_no(hdr) < msg_nof_fragms(hdr))
+			msg_set_type(hdr, FRAGMENT);
+		else
+			msg_set_type(hdr, LAST_FRAGMENT);
+
+		if (!tipc_buf_append(reasm_tnlmsg, &skb)) {
+			/* Successful but non-complete reassembly? */
+			if (*reasm_tnlmsg || link_is_bc_rcvlink(l))
+				return 0;
+			pr_warn_ratelimited("Unable to reassemble tunnel msg\n");
+			return tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
+		}
+		iskb = skb;
 	}
 
 	do {
 		seqno = buf_seqno(iskb);
-
 		if (unlikely(less(seqno, l->drop_point))) {
 			kfree_skb(iskb);
 			continue;
 		}
-
 		if (unlikely(seqno != l->drop_point)) {
 			__tipc_skb_queue_sorted(fdefq, seqno, iskb);
 			continue;
 		}
 
 		l->drop_point++;
-
 		if (!tipc_data_input(l, iskb, inputq))
 			rc |= tipc_link_input(l, iskb, inputq, reasm_skb);
 		if (unlikely(rc))
 			break;
 	} while ((iskb = __tipc_skb_dequeue(fdefq, l->drop_point)));
 
-drop:
-	kfree_skb(skb);
 	return rc;
 }
 
@@ -1644,7 +1687,7 @@ void tipc_link_create_dummy_tnl_msg(struct tipc_link *l,
 	struct sk_buff *skb;
 	u32 dnode = l->addr;
 
-	skb_queue_head_init(&tnlq);
+	__skb_queue_head_init(&tnlq);
 	skb = tipc_msg_create(TUNNEL_PROTOCOL, FAILOVER_MSG,
 			      INT_H_SIZE, BASIC_H_SIZE,
 			      dnode, onode, 0, 0, 0);
@@ -1675,14 +1718,18 @@ void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
 	struct sk_buff *skb, *tnlskb;
 	struct tipc_msg *hdr, tnlhdr;
 	struct sk_buff_head *queue = &l->transmq;
-	struct sk_buff_head tmpxq, tnlq;
+	struct sk_buff_head tmpxq, tnlq, frags;
 	u16 pktlen, pktcnt, seqno = l->snd_nxt;
+	bool pktcnt_need_update = false;
+	u16 syncpt;
+	int rc;
 
 	if (!tnl)
 		return;
 
-	skb_queue_head_init(&tnlq);
-	skb_queue_head_init(&tmpxq);
+	__skb_queue_head_init(&tnlq);
+	__skb_queue_head_init(&tmpxq);
+	__skb_queue_head_init(&frags);
 
 	/* At least one packet required for safe algorithm => add dummy */
 	skb = tipc_msg_create(TIPC_LOW_IMPORTANCE, TIPC_DIRECT_MSG,
@@ -1692,9 +1739,34 @@ void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
 		pr_warn("%sunable to create tunnel packet\n", link_co_err);
 		return;
 	}
-	skb_queue_tail(&tnlq, skb);
+	__skb_queue_tail(&tnlq, skb);
 	tipc_link_xmit(l, &tnlq, &tmpxq);
 	__skb_queue_purge(&tmpxq);
+
+	/* Link Synching:
+	 * From now on, send only one single ("dummy") SYNCH message
+	 * to peer. The SYNCH message does not contain any data, just
+	 * a header conveying the synch point to the peer.
+	 */
+	if (mtyp == SYNCH_MSG && (tnl->peer_caps & TIPC_TUNNEL_ENHANCED)) {
+		tnlskb = tipc_msg_create(TUNNEL_PROTOCOL, SYNCH_MSG,
+					 INT_H_SIZE, 0, l->addr,
+					 tipc_own_addr(l->net),
+					 0, 0, 0);
+		if (!tnlskb) {
+			pr_warn("%sunable to create dummy SYNCH_MSG\n",
+				link_co_err);
+			return;
+		}
+
+		hdr = buf_msg(tnlskb);
+		syncpt = l->snd_nxt + skb_queue_len(&l->backlogq) - 1;
+		msg_set_syncpt(hdr, syncpt);
+		msg_set_bearer_id(hdr, l->peer_bearer_id);
+		__skb_queue_tail(&tnlq, tnlskb);
+		tipc_link_xmit(tnl, &tnlq, xmitq);
+		return;
+	}
 
 	/* Initialize reusable tunnel packet header */
 	tipc_msg_init(tipc_own_addr(l->net), &tnlhdr, TUNNEL_PROTOCOL,
@@ -1713,6 +1785,39 @@ tnl:
 		if (queue == &l->backlogq)
 			msg_set_seqno(hdr, seqno++);
 		pktlen = msg_size(hdr);
+
+		/* Tunnel link MTU is not large enough? This could be
+		 * due to:
+		 * 1) Link MTU has just changed or set differently;
+		 * 2) Or FAILOVER on the top of a SYNCH message
+		 *
+		 * The 2nd case should not happen if peer supports
+		 * TIPC_TUNNEL_ENHANCED
+		 */
+		if (pktlen > tnl->mtu - INT_H_SIZE) {
+			if (mtyp == FAILOVER_MSG &&
+			    (tnl->peer_caps & TIPC_TUNNEL_ENHANCED)) {
+				rc = tipc_msg_fragment(skb, &tnlhdr, tnl->mtu,
+						       &frags);
+				if (rc) {
+					pr_warn("%sunable to frag msg: rc %d\n",
+						link_co_err, rc);
+					return;
+				}
+				pktcnt += skb_queue_len(&frags) - 1;
+				pktcnt_need_update = true;
+				skb_queue_splice_tail_init(&frags, &tnlq);
+				continue;
+			}
+			/* Unluckily, peer doesn't have TIPC_TUNNEL_ENHANCED
+			 * => Just warn it and return!
+			 */
+			pr_warn_ratelimited("%stoo large msg <%d, %d>: %d!\n",
+					    link_co_err, msg_user(hdr),
+					    msg_type(hdr), msg_size(hdr));
+			return;
+		}
+
 		msg_set_size(&tnlhdr, pktlen + INT_H_SIZE);
 		tnlskb = tipc_buf_acquire(pktlen + INT_H_SIZE, GFP_ATOMIC);
 		if (!tnlskb) {
@@ -1727,6 +1832,12 @@ tnl:
 		queue = &l->backlogq;
 		goto tnl;
 	}
+
+	if (pktcnt_need_update)
+		skb_queue_walk(&tnlq, skb) {
+			hdr = buf_msg(skb);
+			msg_set_msgcnt(hdr, pktcnt);
+		}
 
 	tipc_link_xmit(tnl, &tnlq, xmitq);
 

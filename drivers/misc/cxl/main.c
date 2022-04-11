@@ -18,6 +18,7 @@
 #include <linux/sched/task.h>
 
 #include <asm/cputable.h>
+#include <asm/mmu.h>
 #include <misc/cxl-base.h>
 
 #include "cxl.h"
@@ -314,6 +315,9 @@ void cxl_adapter_context_unlock(struct cxl *adapter)
 static int __init init_cxl(void)
 {
 	int rc = 0;
+
+	if (!tlbie_capable)
+		return -EINVAL;
 
 	if ((rc = cxl_file_init()))
 		return rc;

@@ -470,9 +470,12 @@ build.
 
 	The syntax of the Module.symvers file is::
 
-		<CRC>	    <Symbol>	       <module>
+	<CRC>       <Symbol>          <Namespace>  <Module>                         <Export Type>
 
-		0x2d036834  scsi_remove_host   drivers/scsi/scsi_mod
+	0xe1cc2a05  usb_stor_suspend  USB_STORAGE  drivers/usb/storage/usb-storage  EXPORT_SYMBOL_GPL
+
+	The fields are separated by tabs and values may be empty (e.g.
+	if no namespace is defined for an exported symbol).
 
 	For a kernel build without CONFIG_MODVERSIONS enabled, the CRC
 	would read 0x00000000.
@@ -495,10 +498,11 @@ build.
 	will be written containing all exported symbols that were not
 	defined in the kernel.
 
---- 6.3 Symbols From Another External Module
+6.3 Symbols From Another External Module
+----------------------------------------
 
 	Sometimes, an external module uses exported symbols from
-	another external module. kbuild needs to have full knowledge of
+	another external module. Kbuild needs to have full knowledge of
 	all symbols to avoid spitting out warnings about undefined
 	symbols. Three solutions exist for this situation.
 
@@ -518,7 +522,7 @@ build.
 		The top-level kbuild file would then look like::
 
 			#./Kbuild (or ./Makefile):
-				obj-y := foo/ bar/
+				obj-m := foo/ bar/
 
 		And executing::
 

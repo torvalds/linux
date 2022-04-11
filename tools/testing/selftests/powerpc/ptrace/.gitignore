@@ -10,3 +10,6 @@ ptrace-tm-spd-vsx
 ptrace-tm-spr
 ptrace-hwbreak
 perf-hwbreak
+core-pkey
+ptrace-pkey
+ptrace-syscall

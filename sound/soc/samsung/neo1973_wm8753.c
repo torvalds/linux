@@ -297,8 +297,7 @@ static struct snd_soc_dai_link neo1973_dai[] = {
 
 static struct snd_soc_aux_dev neo1973_aux_devs[] = {
 	{
-		.name = "dfbmcs320",
-		.codec_name = "dfbmcs320.0",
+		.dlc = COMP_AUX("dfbmcs320.0"),
 	},
 };
 

@@ -5,10 +5,12 @@
 #include <linux/stddef.h>
 #include <linux/perf_event.h>
 
-#include "../../perf.h"
 #include <linux/types.h>
-#include "../../util/debug.h"
-#include "../../util/tsc.h"
+#include <asm/barrier.h>
+#include "../../../util/debug.h"
+#include "../../../util/event.h"
+#include "../../../util/synthetic-events.h"
+#include "../../../util/tsc.h"
 
 int perf_read_tsc_conversion(const struct perf_event_mmap_page *pc,
 			     struct perf_tsc_conversion *tc)
@@ -57,7 +59,7 @@ int perf_event__synth_time_conv(const struct perf_event_mmap_page *pc,
 		.time_conv = {
 			.header = {
 				.type = PERF_RECORD_TIME_CONV,
-				.size = sizeof(struct time_conv_event),
+				.size = sizeof(struct perf_record_time_conv),
 			},
 		},
 	};

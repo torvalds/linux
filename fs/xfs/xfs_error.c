@@ -213,7 +213,7 @@ xfs_errortag_init(
 	struct xfs_mount	*mp)
 {
 	mp->m_errortag = kmem_zalloc(sizeof(unsigned int) * XFS_ERRTAG_MAX,
-			KM_SLEEP | KM_MAYFAIL);
+			KM_MAYFAIL);
 	if (!mp->m_errortag)
 		return -ENOMEM;
 

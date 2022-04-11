@@ -109,7 +109,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	 * It didn't all fit, so we have to sort everything on hashval.
 	 */
 	sbsize = sf->hdr.count * sizeof(*sbuf);
-	sbp = sbuf = kmem_alloc(sbsize, KM_SLEEP | KM_NOFS);
+	sbp = sbuf = kmem_alloc(sbsize, KM_NOFS);
 
 	/*
 	 * Scan the attribute list for the rest of the entries, storing

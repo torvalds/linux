@@ -36,6 +36,13 @@ struct drm_i915_private;
 struct intel_runtime_pm;
 struct intel_uncore;
 
+struct intel_uncore_mmio_debug {
+	spinlock_t lock; /** lock is also taken in irq contexts. */
+	int unclaimed_mmio_check;
+	int saved_mmio_check;
+	u32 suspend_count;
+};
+
 enum forcewake_domain_id {
 	FW_DOMAIN_ID_RENDER = 0,
 	FW_DOMAIN_ID_BLITTER,
@@ -70,6 +77,11 @@ struct intel_uncore_funcs {
 	void (*force_wake_put)(struct intel_uncore *uncore,
 			       enum forcewake_domains domains);
 
+	enum forcewake_domains (*read_fw_domains)(struct intel_uncore *uncore,
+						  i915_reg_t r);
+	enum forcewake_domains (*write_fw_domains)(struct intel_uncore *uncore,
+						   i915_reg_t r);
+
 	u8 (*mmio_readb)(struct intel_uncore *uncore,
 			 i915_reg_t r, bool trace);
 	u16 (*mmio_readw)(struct intel_uncore *uncore,
@@ -97,6 +109,7 @@ struct intel_forcewake_range {
 struct intel_uncore {
 	void __iomem *regs;
 
+	struct drm_i915_private *i915;
 	struct intel_runtime_pm *rpm;
 
 	spinlock_t lock; /** lock is also taken in irq contexts. */
@@ -117,9 +130,11 @@ struct intel_uncore {
 
 	enum forcewake_domains fw_domains;
 	enum forcewake_domains fw_domains_active;
+	enum forcewake_domains fw_domains_timer;
 	enum forcewake_domains fw_domains_saved; /* user domains saved for S3 */
 
 	struct intel_uncore_forcewake_domain {
+		struct intel_uncore *uncore;
 		enum forcewake_domain_id id;
 		enum forcewake_domains mask;
 		unsigned int wake_count;
@@ -127,31 +142,20 @@ struct intel_uncore {
 		struct hrtimer timer;
 		u32 __iomem *reg_set;
 		u32 __iomem *reg_ack;
-	} fw_domain[FW_DOMAIN_ID_COUNT];
+	} *fw_domain[FW_DOMAIN_ID_COUNT];
 
-	struct {
-		unsigned int count;
+	unsigned int user_forcewake_count;
 
-		int saved_mmio_check;
-		int saved_mmio_debug;
-	} user_forcewake;
-
-	int unclaimed_mmio_check;
+	struct intel_uncore_mmio_debug *debug;
 };
 
 /* Iterate over initialised fw domains */
 #define for_each_fw_domain_masked(domain__, mask__, uncore__, tmp__) \
-	for (tmp__ = (mask__); \
-	     tmp__ ? (domain__ = &(uncore__)->fw_domain[__mask_next_bit(tmp__)]), 1 : 0;)
+	for (tmp__ = (mask__); tmp__ ;) \
+		for_each_if(domain__ = (uncore__)->fw_domain[__mask_next_bit(tmp__)])
 
 #define for_each_fw_domain(domain__, uncore__, tmp__) \
 	for_each_fw_domain_masked(domain__, (uncore__)->fw_domains, uncore__, tmp__)
-
-static inline struct intel_uncore *
-forcewake_domain_to_uncore(const struct intel_uncore_forcewake_domain *d)
-{
-	return container_of(d, struct intel_uncore, fw_domain[d->id]);
-}
 
 static inline bool
 intel_uncore_has_forcewake(const struct intel_uncore *uncore)
@@ -177,8 +181,10 @@ intel_uncore_has_fifo(const struct intel_uncore *uncore)
 	return uncore->flags & UNCORE_HAS_FIFO;
 }
 
-void intel_uncore_sanitize(struct drm_i915_private *dev_priv);
-void intel_uncore_init_early(struct intel_uncore *uncore);
+void
+intel_uncore_mmio_debug_init_early(struct intel_uncore_mmio_debug *mmio_debug);
+void intel_uncore_init_early(struct intel_uncore *uncore,
+			     struct drm_i915_private *i915);
 int intel_uncore_init_mmio(struct intel_uncore *uncore);
 void intel_uncore_prune_mmio_domains(struct intel_uncore *uncore);
 bool intel_uncore_unclaimed_mmio(struct intel_uncore *uncore);
@@ -389,6 +395,18 @@ static inline void intel_uncore_rmw_fw(struct intel_uncore *uncore,
 	val &= ~clear;
 	val |= set;
 	intel_uncore_write_fw(uncore, reg, val);
+}
+
+static inline int intel_uncore_write_and_verify(struct intel_uncore *uncore,
+						i915_reg_t reg, u32 val,
+						u32 mask, u32 expected_val)
+{
+	u32 reg_val;
+
+	intel_uncore_write(uncore, reg, val);
+	reg_val = intel_uncore_read(uncore, reg);
+
+	return (reg_val & mask) != expected_val ? -EINVAL : 0;
 }
 
 #define raw_reg_read(base, reg) \

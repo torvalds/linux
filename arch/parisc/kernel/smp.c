@@ -109,6 +109,7 @@ halt_processor(void)
 	/* REVISIT : does PM *know* this CPU isn't available? */
 	set_cpu_online(smp_processor_id(), false);
 	local_irq_disable();
+	__pdc_cpu_rendezvous();
 	for (;;)
 		;
 }

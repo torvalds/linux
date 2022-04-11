@@ -362,8 +362,8 @@ static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void gmc_v6_0_flush_gpu_tlb(struct amdgpu_device *adev,
-				uint32_t vmid, uint32_t flush_type)
+static void gmc_v6_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
+					uint32_t vmhub, uint32_t flush_type)
 {
 	WREG32(mmVM_INVALIDATE_REQUEST, 1 << vmid);
 }
@@ -571,7 +571,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	else
 		gmc_v6_0_set_fault_enable_default(adev, true);
 
-	gmc_v6_0_flush_gpu_tlb(adev, 0, 0);
+	gmc_v6_0_flush_gpu_tlb(adev, 0, 0, 0);
 	dev_info(adev->dev, "PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
 		 (unsigned long long)table_addr);
@@ -839,8 +839,9 @@ static unsigned gmc_v6_0_get_vbios_fb_size(struct amdgpu_device *adev)
 static int gmc_v6_0_sw_init(void *handle)
 {
 	int r;
-	int dma_bits;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	adev->num_vmhubs = 1;
 
 	if (adev->flags & AMD_IS_APU) {
 		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
@@ -862,20 +863,12 @@ static int gmc_v6_0_sw_init(void *handle)
 
 	adev->gmc.mc_mask = 0xffffffffffULL;
 
-	adev->need_dma32 = false;
-	dma_bits = adev->need_dma32 ? 32 : 40;
-	r = pci_set_dma_mask(adev->pdev, DMA_BIT_MASK(dma_bits));
+	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(44));
 	if (r) {
-		adev->need_dma32 = true;
-		dma_bits = 32;
 		dev_warn(adev->dev, "amdgpu: No suitable DMA available.\n");
+		return r;
 	}
-	r = pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(dma_bits));
-	if (r) {
-		pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(32));
-		dev_warn(adev->dev, "amdgpu: No coherent DMA available.\n");
-	}
-	adev->need_swiotlb = drm_need_swiotlb(dma_bits);
+	adev->need_swiotlb = drm_need_swiotlb(44);
 
 	r = gmc_v6_0_init_microcode(adev);
 	if (r) {
