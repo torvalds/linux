@@ -2076,44 +2076,6 @@ static enum edid_block_status edid_block_read(void *block, unsigned int block_nu
 	return status;
 }
 
-static struct edid *drm_do_get_edid_base_block(struct drm_connector *connector,
-					       read_block_fn read_block,
-					       void *context)
-{
-	int *null_edid_counter = connector ? &connector->null_edid_counter : NULL;
-	bool *edid_corrupt = connector ? &connector->edid_corrupt : NULL;
-	void *edid;
-	int try;
-
-	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
-	if (edid == NULL)
-		return NULL;
-
-	/* base block fetch */
-	for (try = 0; try < 4; try++) {
-		if (read_block(context, edid, 0, EDID_LENGTH))
-			goto out;
-		if (drm_edid_block_valid(edid, 0, false, edid_corrupt))
-			break;
-		if (try == 0 && edid_block_is_zero(edid)) {
-			if (null_edid_counter)
-				(*null_edid_counter)++;
-			goto carp;
-		}
-	}
-	if (try == 4)
-		goto carp;
-
-	return edid;
-
-carp:
-	if (connector)
-		connector_bad_edid(connector, edid, 1);
-out:
-	kfree(edid);
-	return NULL;
-}
-
 /**
  * drm_do_get_edid - get EDID data using a custom EDID block read function
  * @connector: connector we're probing
@@ -2138,6 +2100,7 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 			     read_block_fn read_block,
 			     void *context)
 {
+	enum edid_block_status status;
 	int j, invalid_blocks = 0;
 	struct edid *edid, *new, *override;
 
@@ -2145,9 +2108,30 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	if (override)
 		return override;
 
-	edid = drm_do_get_edid_base_block(connector, read_block, context);
+	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	if (!edid)
 		return NULL;
+
+	status = edid_block_read(edid, 0, read_block, context);
+
+	edid_block_status_print(status, edid, 0);
+
+	if (status == EDID_BLOCK_READ_FAIL)
+		goto out;
+
+	/* FIXME: Clarify what a corrupt EDID actually means. */
+	if (status == EDID_BLOCK_OK || status == EDID_BLOCK_VERSION)
+		connector->edid_corrupt = false;
+	else
+		connector->edid_corrupt = true;
+
+	if (!edid_block_status_valid(status, edid_block_tag(edid))) {
+		if (status == EDID_BLOCK_ZERO)
+			connector->null_edid_counter++;
+
+		connector_bad_edid(connector, edid, 1);
+		goto out;
+	}
 
 	if (edid->extensions == 0)
 		return edid;
