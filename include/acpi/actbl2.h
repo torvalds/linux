@@ -1673,13 +1673,13 @@ struct acpi_nhlt_render_feedback_device_specific_config {
 	u16 feedback_valid_bits_per_sample;
 };
 
-/* Linux-specific structures */
+/* Non documented structures */
 
-struct acpi_nhlt_linux_specific_count {
+struct acpi_nhlt_device_info_count {
 	u8 structure_count;
 };
 
-struct acpi_nhlt_linux_specific_data {
+struct acpi_nhlt_device_info {
 	u8 device_id[16];
 	u8 device_instance_id;
 	u8 device_port_id;
