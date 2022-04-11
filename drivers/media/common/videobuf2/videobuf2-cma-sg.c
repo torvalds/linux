@@ -113,7 +113,7 @@ static int vb2_cma_sg_alloc_contiguous(struct vb2_cma_sg_buf *buf)
 			page = cma_alloc(dev_get_cma_area(buf->dev), buf->num_pages,
 					 get_order(buf->size), GFP_KERNEL);
 	}
-	if (!page) {
+	if (IS_ERR_OR_NULL(page)) {
 		pr_err("%s: cma_en:%d alloc pages fail\n", __func__, cma_en);
 		return -ENOMEM;
 	}
