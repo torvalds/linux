@@ -538,6 +538,39 @@ static int engines_show(struct seq_file *s, void *data)
 	return 0;
 }
 
+static ssize_t hl_memory_scrub(struct file *f, const char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+	u64 val = entry->memory_scrub_val;
+	int rc;
+
+	if (!hl_device_operational(hdev, NULL)) {
+		dev_warn_ratelimited(hdev->dev, "Can't scrub memory, device is not operational\n");
+		return -EIO;
+	}
+
+	mutex_lock(&hdev->fpriv_list_lock);
+	if (hdev->is_compute_ctx_active) {
+		mutex_unlock(&hdev->fpriv_list_lock);
+		dev_err(hdev->dev, "can't scrub dram, context exist\n");
+		return -EBUSY;
+	}
+	hdev->is_in_dram_scrub = true;
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	rc = hdev->asic_funcs->scrub_device_dram(hdev, val);
+
+	mutex_lock(&hdev->fpriv_list_lock);
+	hdev->is_in_dram_scrub = false;
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	if (rc)
+		return rc;
+	return count;
+}
+
 static bool hl_is_device_va(struct hl_device *hdev, u64 addr)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -1316,6 +1349,11 @@ static ssize_t hl_timeout_locked_write(struct file *f, const char __user *buf,
 	return count;
 }
 
+static const struct file_operations hl_mem_scrub_fops = {
+	.owner = THIS_MODULE,
+	.write = hl_memory_scrub,
+};
+
 static const struct file_operations hl_data32b_fops = {
 	.owner = THIS_MODULE,
 	.read = hl_data_read32,
@@ -1474,6 +1512,17 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 
 	dev_entry->root = debugfs_create_dir(dev_name(hdev->dev),
 						hl_debug_root);
+
+	debugfs_create_x64("memory_scrub_val",
+				0644,
+				dev_entry->root,
+				&dev_entry->memory_scrub_val);
+
+	debugfs_create_file("memory_scrub",
+				0200,
+				dev_entry->root,
+				dev_entry,
+				&hl_mem_scrub_fops);
 
 	debugfs_create_x64("addr",
 				0644,

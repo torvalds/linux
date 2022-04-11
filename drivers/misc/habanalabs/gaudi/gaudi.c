@@ -4740,12 +4740,11 @@ static void gaudi_dma_free_coherent(struct hl_device *hdev, size_t size,
 	dma_free_coherent(&hdev->pdev->dev, size, cpu_addr, fixed_dma_handle);
 }
 
-static int gaudi_hbm_scrubbing(struct hl_device *hdev)
+static int gaudi_scrub_device_dram(struct hl_device *hdev, u64 val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u64  cur_addr = DRAM_BASE_ADDR_USER;
-	u32 val;
-	u32 chunk_size;
+	u32 chunk_size, busy;
 	int rc, dma_id;
 
 	while (cur_addr < prop->dram_end_address) {
@@ -4759,8 +4758,10 @@ static int gaudi_hbm_scrubbing(struct hl_device *hdev)
 				"Doing HBM scrubbing for 0x%09llx - 0x%09llx\n",
 				cur_addr, cur_addr + chunk_size);
 
-			WREG32(mmDMA0_CORE_SRC_BASE_LO + dma_offset, 0xdeadbeaf);
-			WREG32(mmDMA0_CORE_SRC_BASE_HI + dma_offset, 0xdeadbeaf);
+			WREG32(mmDMA0_CORE_SRC_BASE_LO + dma_offset,
+					lower_32_bits(val));
+			WREG32(mmDMA0_CORE_SRC_BASE_HI + dma_offset,
+					upper_32_bits(val));
 			WREG32(mmDMA0_CORE_DST_BASE_LO + dma_offset,
 						lower_32_bits(cur_addr));
 			WREG32(mmDMA0_CORE_DST_BASE_HI + dma_offset,
@@ -4783,8 +4784,8 @@ static int gaudi_hbm_scrubbing(struct hl_device *hdev)
 			rc = hl_poll_timeout(
 				hdev,
 				mmDMA0_CORE_STS0 + dma_offset,
-				val,
-				((val & DMA0_CORE_STS0_BUSY_MASK) == 0),
+				busy,
+				((busy & DMA0_CORE_STS0_BUSY_MASK) == 0),
 				1000,
 				HBM_SCRUBBING_TIMEOUT_US);
 
@@ -4838,7 +4839,7 @@ static int gaudi_scrub_device_mem(struct hl_device *hdev, u64 addr, u64 size)
 		}
 
 		/* Scrub HBM using all DMA channels in parallel */
-		rc = gaudi_hbm_scrubbing(hdev);
+		rc = gaudi_scrub_device_dram(hdev, 0xdeadbeaf);
 		if (rc)
 			dev_err(hdev->dev,
 				"Failed to clear HBM in mem scrub all\n");
@@ -9208,6 +9209,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.asic_dma_alloc_coherent = gaudi_dma_alloc_coherent,
 	.asic_dma_free_coherent = gaudi_dma_free_coherent,
 	.scrub_device_mem = gaudi_scrub_device_mem,
+	.scrub_device_dram = gaudi_scrub_device_dram,
 	.get_int_queue_base = gaudi_get_int_queue_base,
 	.test_queues = gaudi_test_queues,
 	.asic_dma_pool_zalloc = gaudi_dma_pool_zalloc,

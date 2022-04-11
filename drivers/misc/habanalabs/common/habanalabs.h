@@ -1246,6 +1246,7 @@ struct fw_load_mgr {
  *                           its implementation is not trivial when the driver
  *                           is loaded in simulation mode (not upstreamed).
  * @scrub_device_mem: Scrub device memory given an address and size
+ * @scrub_device_dram: Scrub the dram memory of the device.
  * @get_int_queue_base: get the internal queue base address.
  * @test_queues: run simple test on all queues for sanity check.
  * @asic_dma_pool_zalloc: small DMA allocation of coherent memory from DMA pool.
@@ -1357,6 +1358,7 @@ struct hl_asic_funcs {
 	void (*asic_dma_free_coherent)(struct hl_device *hdev, size_t size,
 					void *cpu_addr, dma_addr_t dma_handle);
 	int (*scrub_device_mem)(struct hl_device *hdev, u64 addr, u64 size);
+	int (*scrub_device_dram)(struct hl_device *hdev, u64 val);
 	void* (*get_int_queue_base)(struct hl_device *hdev, u32 queue_id,
 				dma_addr_t *dma_handle, u16 *queue_len);
 	int (*test_queues)(struct hl_device *hdev);
@@ -2011,6 +2013,7 @@ struct hl_debugfs_entry {
  * @addr: next address to read/write from/to in read/write32.
  * @mmu_addr: next virtual address to translate to physical address in mmu_show.
  * @userptr_lookup: the target user ptr to look up for on demand.
+ * @memory_scrub_val: the value to which the dram will be scrubbed to using cb scrub_device_dram
  * @mmu_asid: ASID to use while translating in mmu_show.
  * @state_dump_head: index of the latest state dump
  * @i2c_bus: generic u8 debugfs file for bus value to use in i2c_data_read.
@@ -2041,6 +2044,7 @@ struct hl_dbg_device_entry {
 	u64				addr;
 	u64				mmu_addr;
 	u64				userptr_lookup;
+	u64				memory_scrub_val;
 	u32				mmu_asid;
 	u32				state_dump_head;
 	u8				i2c_bus;
@@ -2704,6 +2708,7 @@ struct hl_reset_info {
  * @id_control: minor of the control device
  * @cpu_pci_msb_addr: 50-bit extension bits for the device CPU's 40-bit
  *                    addresses.
+ * @is_in_dram_scrub: true if dram scrub operation is on going.
  * @disabled: is device disabled.
  * @late_init_done: is late init stage was done during initialization.
  * @hwmon_initialized: is H/W monitor sensors was initialized.
@@ -2834,6 +2839,7 @@ struct hl_device {
 	u16				id;
 	u16				id_control;
 	u16				cpu_pci_msb_addr;
+	u8				is_in_dram_scrub;
 	u8				disabled;
 	u8				late_init_done;
 	u8				hwmon_initialized;

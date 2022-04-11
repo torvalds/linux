@@ -158,6 +158,14 @@ int hl_device_open(struct inode *inode, struct file *filp)
 		goto out_err;
 	}
 
+	if (hdev->is_in_dram_scrub) {
+		dev_dbg_ratelimited(hdev->dev,
+			"Can't open %s during dram scrub\n",
+			dev_name(hdev->dev));
+		rc = -EAGAIN;
+		goto out_err;
+	}
+
 	if (hdev->compute_ctx_in_release) {
 		dev_dbg_ratelimited(hdev->dev,
 			"Can't open %s because another user is still releasing it\n",

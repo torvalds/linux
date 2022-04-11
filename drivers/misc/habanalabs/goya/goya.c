@@ -5434,6 +5434,11 @@ static int goya_mmu_prefetch_cache_range(struct hl_device *hdev, u32 flags, u32 
 	return 0;
 }
 
+static int goya_scrub_device_dram(struct hl_device *hdev, u64 val)
+{
+	return -EOPNOTSUPP;
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5452,6 +5457,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.asic_dma_alloc_coherent = goya_dma_alloc_coherent,
 	.asic_dma_free_coherent = goya_dma_free_coherent,
 	.scrub_device_mem = goya_scrub_device_mem,
+	.scrub_device_dram = goya_scrub_device_dram,
 	.get_int_queue_base = goya_get_int_queue_base,
 	.test_queues = goya_test_queues,
 	.asic_dma_pool_zalloc = goya_dma_pool_zalloc,

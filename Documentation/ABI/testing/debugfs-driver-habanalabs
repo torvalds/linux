@@ -170,6 +170,20 @@ KernelVersion:  5.1
 Contact:        ogabbay@kernel.org
 Description:    Sets the state of the third S/W led on the device
 
+What:           /sys/kernel/debug/habanalabs/hl<n>/memory_scrub
+Date:           May 2022
+KernelVersion:  5.19
+Contact:        dhirschfeld@habana.ai
+Description:    Allows the root user to scrub the dram memory. The scrubbing
+                value can be set using the debugfs file memory_scrub_val.
+
+What:           /sys/kernel/debug/habanalabs/hl<n>/memory_scrub_val
+Date:           May 2022
+KernelVersion:  5.19
+Contact:        dhirschfeld@habana.ai
+Description:    The value to which the dram will be set to when the user
+                scrubs the dram using 'memory_scrub' debugfs file
+
 What:           /sys/kernel/debug/habanalabs/hl<n>/mmu
 Date:           Jan 2019
 KernelVersion:  5.1
