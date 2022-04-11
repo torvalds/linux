@@ -1744,6 +1744,11 @@ int tls_sw_recvmsg(struct sock *sk,
 	lock_sock(sk);
 	bpf_strp_enabled = sk_psock_strp_enabled(psock);
 
+	/* If crypto failed the connection is broken */
+	err = ctx->async_wait.err;
+	if (err)
+		goto end;
+
 	/* Process pending decrypted records. It must be non-zero-copy */
 	err = process_rx_list(ctx, msg, &control, 0, len, false, is_peek);
 	if (err < 0)
@@ -1874,7 +1879,7 @@ leave_on_list:
 
 recv_end:
 	if (async) {
-		int pending;
+		int ret, pending;
 
 		/* Wait for all previously submitted records to be decrypted */
 		spin_lock_bh(&ctx->decrypt_compl_lock);
@@ -1882,11 +1887,10 @@ recv_end:
 		pending = atomic_read(&ctx->decrypt_pending);
 		spin_unlock_bh(&ctx->decrypt_compl_lock);
 		if (pending) {
-			err = crypto_wait_req(-EINPROGRESS, &ctx->async_wait);
-			if (err) {
-				/* one of async decrypt failed */
-				tls_err_abort(sk, err);
-				copied = 0;
+			ret = crypto_wait_req(-EINPROGRESS, &ctx->async_wait);
+			if (ret) {
+				if (err >= 0 || err == -EINPROGRESS)
+					err = ret;
 				decrypted = 0;
 				goto end;
 			}
