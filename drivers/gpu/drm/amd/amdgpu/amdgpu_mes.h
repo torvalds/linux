@@ -110,6 +110,9 @@ struct amdgpu_mes {
 	uint64_t			query_status_fence_gpu_addr;
 	uint64_t			*query_status_fence_ptr;
 
+	/* initialize kiq pipe */
+	int                             (*kiq_hw_init)(struct amdgpu_device *adev);
+
 	/* ip specific functions */
 	const struct amdgpu_mes_funcs   *funcs;
 };
@@ -204,5 +207,7 @@ struct amdgpu_mes_funcs {
 	int (*resume_gang)(struct amdgpu_mes *mes,
 			   struct mes_resume_gang_input *input);
 };
+
+#define amdgpu_mes_kiq_hw_init(adev) (adev)->mes.kiq_hw_init((adev))
 
 #endif /* __AMDGPU_MES_H__ */
