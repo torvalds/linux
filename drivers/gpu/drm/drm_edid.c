@@ -1568,6 +1568,38 @@ static const struct drm_display_mode edid_4k_modes[] = {
 
 /*** DDC fetch and block validation ***/
 
+static int edid_extension_block_count(const struct edid *edid)
+{
+	return edid->extensions;
+}
+
+static int edid_block_count(const struct edid *edid)
+{
+	return edid_extension_block_count(edid) + 1;
+}
+
+static int edid_size_by_blocks(int num_blocks)
+{
+	return num_blocks * EDID_LENGTH;
+}
+
+static int edid_size(const struct edid *edid)
+{
+	return edid_size_by_blocks(edid_block_count(edid));
+}
+
+static const void *edid_block_data(const struct edid *edid, int index)
+{
+	BUILD_BUG_ON(sizeof(*edid) != EDID_LENGTH);
+
+	return edid + index;
+}
+
+static const void *edid_extension_block_data(const struct edid *edid, int index)
+{
+	return edid_block_data(edid, index + 1);
+}
+
 static const u8 edid_header[] = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00
 };
@@ -1654,8 +1686,8 @@ bool drm_edid_are_equal(const struct edid *edid1, const struct edid *edid2)
 		return false;
 
 	if (edid1) {
-		edid1_len = EDID_LENGTH * (1 + edid1->extensions);
-		edid2_len = EDID_LENGTH * (1 + edid2->extensions);
+		edid1_len = edid_size(edid1);
+		edid2_len = edid_size(edid2);
 
 		if (edid1_len != edid2_len)
 			return false;
@@ -1865,14 +1897,16 @@ EXPORT_SYMBOL(drm_edid_block_valid);
 bool drm_edid_is_valid(struct edid *edid)
 {
 	int i;
-	u8 *raw = (u8 *)edid;
 
 	if (!edid)
 		return false;
 
-	for (i = 0; i <= edid->extensions; i++)
-		if (!drm_edid_block_valid(raw + i * EDID_LENGTH, i, true, NULL))
+	for (i = 0; i < edid_block_count(edid); i++) {
+		void *block = (void *)edid_block_data(edid, i);
+
+		if (!drm_edid_block_valid(block, i, true, NULL))
 			return false;
+	}
 
 	return true;
 }
@@ -1885,13 +1919,13 @@ static struct edid *edid_filter_invalid_blocks(const struct edid *edid,
 	int valid_extensions = edid->extensions - invalid_blocks;
 	int i;
 
-	new = kmalloc_array(valid_extensions + 1, EDID_LENGTH, GFP_KERNEL);
+	new = kmalloc(edid_size_by_blocks(valid_extensions + 1), GFP_KERNEL);
 	if (!new)
 		goto out;
 
 	dest_block = new;
-	for (i = 0; i <= edid->extensions; i++) {
-		const void *block = edid + i;
+	for (i = 0; i < edid_block_count(edid); i++) {
+		const void *block = edid_block_data(edid, i);
 
 		if (edid_block_valid(block, i == 0))
 			memcpy(dest_block++, block, EDID_LENGTH);
@@ -2101,7 +2135,7 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 			     void *context)
 {
 	enum edid_block_status status;
-	int j, invalid_blocks = 0;
+	int i, invalid_blocks = 0;
 	struct edid *edid, *new;
 
 	edid = drm_get_override_edid(connector);
@@ -2133,20 +2167,20 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 		goto fail;
 	}
 
-	if (edid->extensions == 0)
+	if (!edid_extension_block_count(edid))
 		goto ok;
 
-	new = krealloc(edid, (edid->extensions + 1) * EDID_LENGTH, GFP_KERNEL);
+	new = krealloc(edid, edid_size(edid), GFP_KERNEL);
 	if (!new)
 		goto fail;
 	edid = new;
 
-	for (j = 1; j <= edid->extensions; j++) {
-		void *block = edid + j;
+	for (i = 1; i < edid_block_count(edid); i++) {
+		void *block = (void *)edid_block_data(edid, i);
 
-		status = edid_block_read(block, j, read_block, context);
+		status = edid_block_read(block, i, read_block, context);
 
-		edid_block_status_print(status, block, j);
+		edid_block_status_print(status, block, i);
 
 		if (!edid_block_status_valid(status, edid_block_tag(block))) {
 			if (status == EDID_BLOCK_READ_FAIL)
@@ -2156,7 +2190,7 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	}
 
 	if (invalid_blocks) {
-		connector_bad_edid(connector, edid, edid->extensions + 1);
+		connector_bad_edid(connector, edid, edid_block_count(edid));
 
 		edid = edid_filter_invalid_blocks(edid, invalid_blocks);
 	}
@@ -2321,7 +2355,7 @@ EXPORT_SYMBOL(drm_get_edid_switcheroo);
  */
 struct edid *drm_edid_duplicate(const struct edid *edid)
 {
-	return kmemdup(edid, (edid->extensions + 1) * EDID_LENGTH, GFP_KERNEL);
+	return kmemdup(edid, edid_size(edid), GFP_KERNEL);
 }
 EXPORT_SYMBOL(drm_edid_duplicate);
 
@@ -2505,8 +2539,8 @@ drm_for_each_detailed_block(const struct edid *edid, detailed_cb *cb, void *clos
 	for (i = 0; i < EDID_DETAILED_TIMINGS; i++)
 		cb(&(edid->detailed_timings[i]), closure);
 
-	for (i = 1; i <= edid->extensions; i++) {
-		const u8 *ext = (const u8 *)edid + (i * EDID_LENGTH);
+	for (i = 0; i < edid_extension_block_count(edid); i++) {
+		const u8 *ext = edid_extension_block_data(edid, i);
 
 		switch (*ext) {
 		case CEA_EXT:
@@ -3476,17 +3510,17 @@ const u8 *drm_find_edid_extension(const struct edid *edid,
 	int i;
 
 	/* No EDID or EDID extensions */
-	if (edid == NULL || edid->extensions == 0)
+	if (!edid || !edid_extension_block_count(edid))
 		return NULL;
 
 	/* Find CEA extension */
-	for (i = *ext_index; i < edid->extensions; i++) {
-		edid_ext = (const u8 *)edid + EDID_LENGTH * (i + 1);
+	for (i = *ext_index; i < edid_extension_block_count(edid); i++) {
+		edid_ext = edid_extension_block_data(edid, i);
 		if (edid_block_tag(edid_ext) == ext_id)
 			break;
 	}
 
-	if (i >= edid->extensions)
+	if (i >= edid_extension_block_count(edid))
 		return NULL;
 
 	*ext_index = i + 1;
