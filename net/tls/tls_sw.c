@@ -1482,20 +1482,20 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	}
 
 	/* Prepare IV */
-	err = skb_copy_bits(skb, rxm->offset + TLS_HEADER_SIZE,
-			    iv + iv_offset + prot->salt_size,
-			    prot->iv_size);
-	if (err < 0) {
-		kfree(mem);
-		return err;
-	}
 	if (prot->version == TLS_1_3_VERSION ||
-	    prot->cipher_type == TLS_CIPHER_CHACHA20_POLY1305)
+	    prot->cipher_type == TLS_CIPHER_CHACHA20_POLY1305) {
 		memcpy(iv + iv_offset, tls_ctx->rx.iv,
 		       prot->iv_size + prot->salt_size);
-	else
+	} else {
+		err = skb_copy_bits(skb, rxm->offset + TLS_HEADER_SIZE,
+				    iv + iv_offset + prot->salt_size,
+				    prot->iv_size);
+		if (err < 0) {
+			kfree(mem);
+			return err;
+		}
 		memcpy(iv + iv_offset, tls_ctx->rx.iv, prot->salt_size);
-
+	}
 	xor_iv_with_seq(prot, iv + iv_offset, tls_ctx->rx.rec_seq);
 
 	/* Prepare AAD */
