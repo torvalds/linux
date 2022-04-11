@@ -41,6 +41,7 @@
 
 #define	RKVENC_SESSION_MAX_BUFFERS		40
 #define RKVENC_MAX_CORE_NUM			4
+#define RKVENC_MAX_DCHS_ID			4
 
 #define to_rkvenc_info(info)		\
 		container_of(info, struct rkvenc_hw_info, hw)
@@ -128,9 +129,17 @@ union rkvenc2_dual_core_handshake_id {
 		u32 txe		: 1;
 		u32 rxe		: 1;
 		u32 working	: 1;
-		u32 reserve0	: 9;
+		u32 reserve0	: 1;
+		u32 txid_orig	: 2;
+		u32 rxid_orig	: 2;
+		u32 txid_map	: 2;
+		u32 rxid_map	: 2;
 		u32 offset	: 11;
-		u32 reserve1	: 5;
+		u32 reserve1	: 1;
+		u32 txe_orig	: 1;
+		u32 rxe_orig	: 1;
+		u32 txe_map	: 1;
+		u32 rxe_map	: 1;
 		u32 session_id;
 	};
 };
@@ -664,6 +673,16 @@ static void rkvenc2_setup_task_id(u32 session_id, struct rkvenc_task *task)
 
 	task->reg[RKVENC_CLASS_PIC].data[DCHS_CLASS_OFFSET] = val;
 	task->dchs_id.val = (((u64)session_id << 32) | val);
+
+	task->dchs_id.txid_orig = task->dchs_id.txid;
+	task->dchs_id.rxid_orig = task->dchs_id.rxid;
+	task->dchs_id.txid_map = task->dchs_id.txid;
+	task->dchs_id.rxid_map = task->dchs_id.rxid;
+
+	task->dchs_id.txe_orig = task->dchs_id.txe;
+	task->dchs_id.rxe_orig = task->dchs_id.rxe;
+	task->dchs_id.txe_map = task->dchs_id.txe;
+	task->dchs_id.rxe_map = task->dchs_id.rxe;
 }
 
 static int rkvenc2_is_split_task(struct rkvenc_task *task)
@@ -820,7 +839,7 @@ static void rkvenc2_patch_dchs(struct rkvenc_dev *enc, struct rkvenc_task *task)
 {
 	struct rkvenc_ccu *ccu;
 	union rkvenc2_dual_core_handshake_id *dchs;
-	union rkvenc2_dual_core_handshake_id *task_id = &task->dchs_id;
+	union rkvenc2_dual_core_handshake_id *task_dchs = &task->dchs_id;
 	int core_num;
 	int core_id = enc->mpp.core_id;
 	unsigned long flags;
@@ -842,8 +861,9 @@ static void rkvenc2_patch_dchs(struct rkvenc_dev *enc, struct rkvenc_task *task)
 	spin_lock_irqsave(&ccu->lock_dchs, flags);
 
 	if (dchs[core_id].working) {
-		pr_err("can not config when core %d is still working\n", core_id);
 		spin_unlock_irqrestore(&ccu->lock_dchs, flags);
+
+		mpp_err("can not config when core %d is still working\n", core_id);
 		return;
 	}
 
@@ -853,32 +873,81 @@ static void rkvenc2_patch_dchs(struct rkvenc_dev *enc, struct rkvenc_task *task)
 			dchs[0].txid, dchs[0].txe, dchs[0].rxid, dchs[0].rxe,
 			dchs[1].working ? "work" : "idle",
 			dchs[1].txid, dchs[1].txe, dchs[1].rxid, dchs[1].rxe,
-			core_id, task_id->txid, task_id->txe, task_id->rxid, task_id->rxe);
+			core_id, task_dchs->txid, task_dchs->txe,
+			task_dchs->rxid, task_dchs->rxe);
 
-	dchs[core_id].val = task_id->val;
+	/* always use new id as  */
+	{
+		struct mpp_task *mpp_task = &task->mpp_task;
+		unsigned long id_valid = (unsigned long)-1;
+		int txid_map = -1;
+		int rxid_map = -1;
 
-	if (task_id->rxe) {
-		u32 task_rxid = task_id->rxid;
-		u32 session_id = task_id->session_id;
-		int dependency_core = -1;
-
+		/* scan all used id */
 		for (i = 0; i < core_num; i++) {
-			if (i == core_id || !dchs[i].working)
+			if (!dchs[i].working)
 				continue;
 
-			if (task_rxid == dchs[i].txid && session_id == dchs[i].session_id) {
-				dependency_core = i;
+			clear_bit(dchs[i].txid_map, &id_valid);
+			clear_bit(dchs[i].rxid_map, &id_valid);
+		}
+
+		if (task_dchs->rxe) {
+			for (i = 0; i < core_num; i++) {
+				if (i == core_id)
+					continue;
+
+				if (!dchs[i].working)
+					continue;
+
+				if (task_dchs->session_id != dchs[i].session_id)
+					continue;
+
+				if (task_dchs->rxid_orig != dchs[i].txid_orig)
+					continue;
+
+				rxid_map = dchs[i].txid_map;
 				break;
 			}
 		}
 
-		if (dependency_core < 0) {
-			u32 dchs_val = (u32)task_id->val & (~(DCHS_RXE));
+		txid_map = find_first_bit(&id_valid, RKVENC_MAX_DCHS_ID);
+		if (txid_map == RKVENC_MAX_DCHS_ID) {
+			spin_unlock_irqrestore(&ccu->lock_dchs, flags);
 
-			task->reg[RKVENC_CLASS_PIC].data[DCHS_CLASS_OFFSET] = dchs_val;
-			dchs[core_id].rxe = 0;
+			mpp_err("task %d:%d on core %d failed to find a txid\n",
+				mpp_task->session->pid, mpp_task->task_id,
+				mpp_task->core_id);
+			return;
 		}
+
+		clear_bit(txid_map, &id_valid);
+		task_dchs->txid_map = txid_map;
+
+		if (rxid_map < 0) {
+			rxid_map = find_first_bit(&id_valid, RKVENC_MAX_DCHS_ID);
+			if (rxid_map == RKVENC_MAX_DCHS_ID) {
+				spin_unlock_irqrestore(&ccu->lock_dchs, flags);
+
+				mpp_err("task %d:%d on core %d failed to find a rxid\n",
+					mpp_task->session->pid, mpp_task->task_id,
+					mpp_task->core_id);
+				return;
+			}
+
+			task_dchs->rxe_map = 0;
+		}
+
+		task_dchs->rxid_map = rxid_map;
 	}
+
+	task_dchs->txid = task_dchs->txid_map;
+	task_dchs->rxid = task_dchs->rxid_map;
+	task_dchs->rxe = task_dchs->rxe_map;
+
+	dchs[core_id].val = task_dchs->val;
+	task->reg[RKVENC_CLASS_PIC].data[DCHS_CLASS_OFFSET] = task_dchs->val;
+
 	dchs[core_id].working = 1;
 
 	spin_unlock_irqrestore(&ccu->lock_dchs, flags);
@@ -899,22 +968,23 @@ static void rkvenc2_update_dchs(struct rkvenc_dev *enc, struct rkvenc_task *task
 		return;
 	}
 
-	if (mpp_debug_unlikely(DEBUG_CORE))
-		pr_info("core %d task done\n", core_id);
-
 	spin_lock_irqsave(&ccu->lock_dchs, flags);
 	ccu->dchs[core_id].val = 0;
+
 	if (mpp_debug_unlikely(DEBUG_CORE)) {
 		union rkvenc2_dual_core_handshake_id *dchs = ccu->dchs;
-		union rkvenc2_dual_core_handshake_id *task_id = &task->dchs_id;
+		union rkvenc2_dual_core_handshake_id *task_dchs = &task->dchs_id;
 
+		pr_info("core %d task done\n", core_id);
 		pr_info("core tx:rx 0 %s %d:%d %d:%d -- 1 %s %d:%d %d:%d -- task %d %d:%d %d:%d\n",
 			dchs[0].working ? "work" : "idle",
 			dchs[0].txid, dchs[0].txe, dchs[0].rxid, dchs[0].rxe,
 			dchs[1].working ? "work" : "idle",
 			dchs[1].txid, dchs[1].txe, dchs[1].rxid, dchs[1].rxe,
-			core_id, task_id->txid, task_id->txe, task_id->rxid, task_id->rxe);
+			core_id, task_dchs->txid, task_dchs->txe,
+			task_dchs->rxid, task_dchs->rxe);
 	}
+
 	spin_unlock_irqrestore(&ccu->lock_dchs, flags);
 }
 
