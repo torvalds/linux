@@ -9978,6 +9978,12 @@ MLXSW_ITEM32(reg, mcia, l, 0x00, 31, 1);
  */
 MLXSW_ITEM32(reg, mcia, module, 0x00, 16, 8);
 
+/* reg_mcia_slot_index
+ * Slot index (0: Main board)
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mcia, slot, 0x00, 12, 4);
+
 enum {
 	MLXSW_REG_MCIA_STATUS_GOOD = 0,
 	/* No response from module's EEPROM. */
@@ -10077,11 +10083,13 @@ MLXSW_ITEM_BUF(reg, mcia, eeprom, 0x10, MLXSW_REG_MCIA_EEPROM_SIZE);
 				MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH) / \
 				MLXSW_REG_MCIA_EEPROM_UP_PAGE_LENGTH + 1)
 
-static inline void mlxsw_reg_mcia_pack(char *payload, u8 module, u8 lock,
-				       u8 page_number, u16 device_addr,
-				       u8 size, u8 i2c_device_addr)
+static inline void mlxsw_reg_mcia_pack(char *payload, u8 slot_index, u8 module,
+				       u8 lock, u8 page_number,
+				       u16 device_addr, u8 size,
+				       u8 i2c_device_addr)
 {
 	MLXSW_REG_ZERO(mcia, payload);
+	mlxsw_reg_mcia_slot_set(payload, slot_index);
 	mlxsw_reg_mcia_module_set(payload, module);
 	mlxsw_reg_mcia_l_set(payload, lock);
 	mlxsw_reg_mcia_page_number_set(payload, page_number);
