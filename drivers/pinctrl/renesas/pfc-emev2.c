@@ -4,7 +4,6 @@
  *
  * Copyright (C) 2015 Niklas Söderlund
  */
-#include <linux/init.h>
 #include <linux/kernel.h>
 
 #include "sh_pfc.h"
