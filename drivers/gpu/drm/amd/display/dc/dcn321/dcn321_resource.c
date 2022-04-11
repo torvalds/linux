@@ -1679,6 +1679,9 @@ static struct display_stream_compressor *dcn321_dsc_create(
 	}
 
 	dsc2_construct(dsc, ctx, inst, &dsc_regs[inst], &dsc_shift, &dsc_mask);
+
+	dsc->max_image_width = 6016;
+
 	return &dsc->base;
 }
 
