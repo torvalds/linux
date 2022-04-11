@@ -183,6 +183,8 @@ typedef struct xfs_mount {
 	struct percpu_counter	m_icount;	/* allocated inodes counter */
 	struct percpu_counter	m_ifree;	/* free inodes counter */
 	struct percpu_counter	m_fdblocks;	/* free block counter */
+	struct percpu_counter	m_frextents;	/* free rt extent counter */
+
 	/*
 	 * Count of data device blocks reserved for delayed allocations,
 	 * including indlen blocks.  Does not include allocated CoW staging
@@ -494,9 +496,20 @@ xfs_fdblocks_unavailable(
 	return mp->m_alloc_set_aside + atomic64_read(&mp->m_allocbt_blks);
 }
 
-extern int	xfs_mod_fdblocks(struct xfs_mount *mp, int64_t delta,
-				 bool reserved);
-extern int	xfs_mod_frextents(struct xfs_mount *mp, int64_t delta);
+int xfs_mod_freecounter(struct xfs_mount *mp, struct percpu_counter *counter,
+		int64_t delta, bool rsvd);
+
+static inline int
+xfs_mod_fdblocks(struct xfs_mount *mp, int64_t delta, bool reserved)
+{
+	return xfs_mod_freecounter(mp, &mp->m_fdblocks, delta, reserved);
+}
+
+static inline int
+xfs_mod_frextents(struct xfs_mount *mp, int64_t delta)
+{
+	return xfs_mod_freecounter(mp, &mp->m_frextents, delta, false);
+}
 
 extern int	xfs_readsb(xfs_mount_t *, int);
 extern void	xfs_freesb(xfs_mount_t *);

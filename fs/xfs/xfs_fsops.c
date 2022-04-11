@@ -349,10 +349,7 @@ xfs_fs_counts(
 	cnt->freeino = percpu_counter_read_positive(&mp->m_ifree);
 	cnt->freedata = percpu_counter_read_positive(&mp->m_fdblocks) -
 						xfs_fdblocks_unavailable(mp);
-
-	spin_lock(&mp->m_sb_lock);
-	cnt->freertx = mp->m_sb.sb_frextents;
-	spin_unlock(&mp->m_sb_lock);
+	cnt->freertx = percpu_counter_read_positive(&mp->m_frextents);
 }
 
 /*

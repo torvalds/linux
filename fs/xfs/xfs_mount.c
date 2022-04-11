@@ -1110,24 +1110,33 @@ xfs_fs_writable(
 	return true;
 }
 
+/* Adjust m_fdblocks or m_frextents. */
 int
-xfs_mod_fdblocks(
+xfs_mod_freecounter(
 	struct xfs_mount	*mp,
+	struct percpu_counter	*counter,
 	int64_t			delta,
 	bool			rsvd)
 {
 	int64_t			lcounter;
 	long long		res_used;
+	uint64_t		set_aside = 0;
 	s32			batch;
-	uint64_t		set_aside;
+	bool			has_resv_pool;
+
+	ASSERT(counter == &mp->m_fdblocks || counter == &mp->m_frextents);
+	has_resv_pool = (counter == &mp->m_fdblocks);
+	if (rsvd)
+		ASSERT(has_resv_pool);
 
 	if (delta > 0) {
 		/*
 		 * If the reserve pool is depleted, put blocks back into it
 		 * first. Most of the time the pool is full.
 		 */
-		if (likely(mp->m_resblks == mp->m_resblks_avail)) {
-			percpu_counter_add(&mp->m_fdblocks, delta);
+		if (likely(!has_resv_pool ||
+			   mp->m_resblks == mp->m_resblks_avail)) {
+			percpu_counter_add(counter, delta);
 			return 0;
 		}
 
@@ -1139,7 +1148,7 @@ xfs_mod_fdblocks(
 		} else {
 			delta -= res_used;
 			mp->m_resblks_avail = mp->m_resblks;
-			percpu_counter_add(&mp->m_fdblocks, delta);
+			percpu_counter_add(counter, delta);
 		}
 		spin_unlock(&mp->m_sb_lock);
 		return 0;
@@ -1153,7 +1162,7 @@ xfs_mod_fdblocks(
 	 * then make everything serialise as we are real close to
 	 * ENOSPC.
 	 */
-	if (__percpu_counter_compare(&mp->m_fdblocks, 2 * XFS_FDBLOCKS_BATCH,
+	if (__percpu_counter_compare(counter, 2 * XFS_FDBLOCKS_BATCH,
 				     XFS_FDBLOCKS_BATCH) < 0)
 		batch = 1;
 	else
@@ -1170,9 +1179,10 @@ xfs_mod_fdblocks(
 	 * problems (i.e. transaction abort, pagecache discards, etc.) than
 	 * slightly premature -ENOSPC.
 	 */
-	set_aside = xfs_fdblocks_unavailable(mp);
-	percpu_counter_add_batch(&mp->m_fdblocks, delta, batch);
-	if (__percpu_counter_compare(&mp->m_fdblocks, set_aside,
+	if (has_resv_pool)
+		set_aside = xfs_fdblocks_unavailable(mp);
+	percpu_counter_add_batch(counter, delta, batch);
+	if (__percpu_counter_compare(counter, set_aside,
 				     XFS_FDBLOCKS_BATCH) >= 0) {
 		/* we had space! */
 		return 0;
@@ -1183,8 +1193,8 @@ xfs_mod_fdblocks(
 	 * that took us to ENOSPC.
 	 */
 	spin_lock(&mp->m_sb_lock);
-	percpu_counter_add(&mp->m_fdblocks, -delta);
-	if (!rsvd)
+	percpu_counter_add(counter, -delta);
+	if (!has_resv_pool || !rsvd)
 		goto fdblocks_enospc;
 
 	lcounter = (long long)mp->m_resblks_avail + delta;
@@ -1199,24 +1209,6 @@ xfs_mod_fdblocks(
 fdblocks_enospc:
 	spin_unlock(&mp->m_sb_lock);
 	return -ENOSPC;
-}
-
-int
-xfs_mod_frextents(
-	struct xfs_mount	*mp,
-	int64_t			delta)
-{
-	int64_t			lcounter;
-	int			ret = 0;
-
-	spin_lock(&mp->m_sb_lock);
-	lcounter = mp->m_sb.sb_frextents + delta;
-	if (lcounter < 0)
-		ret = -ENOSPC;
-	else
-		mp->m_sb.sb_frextents = lcounter;
-	spin_unlock(&mp->m_sb_lock);
-	return ret;
 }
 
 /*
