@@ -1775,14 +1775,10 @@ int tls_sw_recvmsg(struct sock *sk,
 		skb = tls_wait_data(sk, psock, flags & MSG_DONTWAIT, timeo, &err);
 		if (!skb) {
 			if (psock) {
-				int ret = sk_msg_recvmsg(sk, psock, msg, len,
-							 flags);
-
-				if (ret > 0) {
-					decrypted += ret;
-					len -= ret;
-					continue;
-				}
+				chunk = sk_msg_recvmsg(sk, psock, msg, len,
+						       flags);
+				if (chunk > 0)
+					goto leave_on_list;
 			}
 			goto recv_end;
 		}
