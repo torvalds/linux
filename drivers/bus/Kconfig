@@ -152,6 +152,17 @@ config QCOM_EBI2
 	  Interface 2, which can be used to connect things like NAND Flash,
 	  SRAM, ethernet adapters, FPGAs and LCD displays.
 
+config QCOM_SSC_BLOCK_BUS
+	bool "Qualcomm SSC Block Bus Init Driver"
+	  depends on ARCH_QCOM
+	  help
+	  Say y here to enable support for initializing the bus that connects
+	  the SSC block's internal bus to the cNoC (configurantion NoC) on
+	  (some) qcom SoCs.
+	  The SSC (Snapdragon Sensor Core) block contains a gpio controller,
+	  i2c/spi/uart controllers, a hexagon core, and a clock controller
+	  which provides clocks for the above.
+
 config SUN50I_DE2_BUS
 	bool "Allwinner A64 DE2 Bus Driver"
 	  default ARM64
