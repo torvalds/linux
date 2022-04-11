@@ -700,6 +700,30 @@
 		>;
 	};
 
+	/* CSI pins used as GPIOs */
+	pinctrl_csi_gpio_1: csigpio1grp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_D18__GPIO3_IO18   0x1b0b0
+			MX6QDL_PAD_EIM_A19__GPIO2_IO19   0x1b0b0
+			MX6QDL_PAD_EIM_D29__GPIO3_IO29   0x130b0
+			MX6QDL_PAD_EIM_A23__GPIO6_IO06   0x1b0b0
+			MX6QDL_PAD_EIM_A20__GPIO2_IO18   0x1b0b0
+			MX6QDL_PAD_EIM_A17__GPIO2_IO21   0x1b0b0
+			MX6QDL_PAD_EIM_A18__GPIO2_IO20   0x1b0b0
+			MX6QDL_PAD_EIM_EB3__GPIO2_IO31   0x1b0b0
+			MX6QDL_PAD_EIM_D17__GPIO3_IO17   0x1b0b0
+			MX6QDL_PAD_NANDF_CS2__GPIO6_IO15 0x1b0b0
+			MX6QDL_PAD_SD2_CMD__GPIO1_IO11   0x1b0b0
+			MX6QDL_PAD_SD2_DAT0__GPIO1_IO15  0x1b0b0
+		>;
+	};
+
+	pinctrl_csi_gpio_2: csigpio2grp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_A24__GPIO5_IO04   0x1b0b0
+		>;
+	};
+
 	pinctrl_ecspi4: ecspi4grp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D22__ECSPI4_MISO	0x100b1
@@ -736,6 +760,25 @@
 		fsl,pins = <
 			MX6QDL_PAD_KEY_COL4__FLEXCAN2_TX	0x1b0b0
 			MX6QDL_PAD_KEY_ROW4__FLEXCAN2_RX	0x1b0b0
+		>;
+	};
+
+	pinctrl_gpio_1: gpio1grp {
+		fsl,pins = <
+			MX6QDL_PAD_DI0_PIN4__GPIO4_IO20     0x1b0b0
+			MX6QDL_PAD_EIM_D27__GPIO3_IO27      0x1b0b0
+			MX6QDL_PAD_ENET_REF_CLK__GPIO1_IO23 0x1b0b0
+			MX6QDL_PAD_NANDF_D3__GPIO2_IO03     0x1b0b0
+			MX6QDL_PAD_NANDF_D4__GPIO2_IO04     0x1b0b0
+			MX6QDL_PAD_NANDF_D6__GPIO2_IO06     0x1b0b0
+			MX6QDL_PAD_SD4_DAT0__GPIO2_IO08     0x1b0b0
+			MX6QDL_PAD_SD4_DAT3__GPIO2_IO11     0x1b0b0
+		>;
+	};
+	pinctrl_gpio_2: gpio2grp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_7__GPIO1_IO07       0x1b0b0
+			MX6QDL_PAD_GPIO_8__GPIO1_IO08       0x1b0b0
 		>;
 	};
 
@@ -829,6 +872,15 @@
 			MX6QDL_PAD_DISP0_DAT15__IPU1_DISP0_DATA15	0xa1
 			MX6QDL_PAD_DISP0_DAT16__IPU1_DISP0_DATA16	0xa1
 			MX6QDL_PAD_DISP0_DAT17__IPU1_DISP0_DATA17	0xa1
+		>;
+	};
+
+	pinctrl_lvds_transceiver: lvdstxgrp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_WAIT__GPIO5_IO00 0x03030 /* SODIMM  95 */
+			MX6QDL_PAD_GPIO_7__GPIO1_IO07   0x0b030 /* SODIMM  55 */
+			MX6QDL_PAD_GPIO_8__GPIO1_IO08   0x03030 /* SODIMM  63 */
+			MX6QDL_PAD_SD2_DAT3__GPIO1_IO12 0x03030 /* SODIMM  99 */
 		>;
 	};
 
