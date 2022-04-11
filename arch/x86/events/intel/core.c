@@ -4024,8 +4024,8 @@ static struct perf_guest_switch_msr *intel_guest_get_msrs(int *nr, void *data)
 
 	if (!x86_pmu.pebs_ept)
 		return arr;
-	pebs_enable = (*nr)++;
 
+	pebs_enable = (*nr)++;
 	arr[pebs_enable] = (struct perf_guest_switch_msr){
 		.msr = MSR_IA32_PEBS_ENABLE,
 		.host = cpuc->pebs_enabled & ~cpuc->intel_ctrl_guest_mask,
