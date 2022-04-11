@@ -423,12 +423,13 @@
 &gmac {
 	phy-supply = <&vccio_pmu>;
 	phy-mode = "rgmii";
-	clock_in_out = "input";
+	clock_in_out = "output";
+	assigned-clocks = <&cru SCLK_MAC>;
+	assigned-clock-parents = <&cru PLL_NPLL>;
+	assigned-clock-rates = <125000000>;
 	snps,reset-gpio = <&gpio4 7 0>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 50000>;
-	assigned-clocks = <&cru SCLK_MAC>;
-	assigned-clock-parents = <&ext_gmac>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&rgmii_pins>;
 	tx_delay = <0x30>;
