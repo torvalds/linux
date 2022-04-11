@@ -188,17 +188,12 @@ static void tls_decrypt_done(struct crypto_async_request *req, int err)
 		tls_err_abort(skb->sk, err);
 	} else {
 		struct strp_msg *rxm = strp_msg(skb);
-		int pad;
 
-		pad = padding_length(prot, skb);
-		if (pad < 0) {
-			ctx->async_wait.err = pad;
-			tls_err_abort(skb->sk, pad);
-		} else {
-			rxm->full_len -= pad;
-			rxm->offset += prot->prepend_size;
-			rxm->full_len -= prot->overhead_size;
-		}
+		/* No TLS 1.3 support with async crypto */
+		WARN_ON(prot->tail_size);
+
+		rxm->offset += prot->prepend_size;
+		rxm->full_len -= prot->overhead_size;
 	}
 
 	/* After using skb->sk to propagate sk through crypto async callback
