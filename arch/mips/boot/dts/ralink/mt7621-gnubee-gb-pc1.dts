@@ -103,14 +103,21 @@
 
 	state_default: state-default {
 		gpio-pinmux {
-			groups = "rgmii2", "uart3", "wdt";
+			groups = "uart3", "wdt";
 			function = "gpio";
 		};
 	};
 };
 
-&ethernet {
-	pinctrl-0 = <&mdio_pins>, <&rgmii1_pins>;
+&gmac1 {
+	status = "okay";
+	phy-handle = <&ethphy4>;
+};
+
+&mdio {
+	ethphy4: ethernet-phy@4 {
+		reg = <4>;
+	};
 };
 
 &switch0 {
@@ -118,11 +125,6 @@
 		port@0 {
 			status = "okay";
 			label = "ethblack";
-		};
-
-		port@4 {
-			status = "okay";
-			label = "ethblue";
 		};
 	};
 };
