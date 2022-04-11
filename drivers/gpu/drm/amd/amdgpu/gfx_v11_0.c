@@ -4883,6 +4883,44 @@ static void gfx_v11_0_unset_safe_mode(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, regRLC_SAFE_MODE, RLC_SAFE_MODE__CMD_MASK);
 }
 
+static void gfx_v11_0_update_perf_clk(struct amdgpu_device *adev,
+				      bool enable)
+{
+	uint32_t def, data;
+
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_GFX_PERF_CLK))
+		return;
+
+	def = data = RREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE);
+
+	if (enable)
+		data &= ~RLC_CGTT_MGCG_OVERRIDE__PERFMON_CLOCK_STATE_MASK;
+	else
+		data |= RLC_CGTT_MGCG_OVERRIDE__PERFMON_CLOCK_STATE_MASK;
+
+	if (def != data)
+		WREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE, data);
+}
+
+static void gfx_v11_0_update_sram_fgcg(struct amdgpu_device *adev,
+				       bool enable)
+{
+	uint32_t def, data;
+
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_GFX_FGCG))
+		return;
+
+	def = data = RREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE);
+
+	if (enable)
+		data &= ~RLC_CGTT_MGCG_OVERRIDE__GFXIP_FGCG_OVERRIDE_MASK;
+	else
+		data |= RLC_CGTT_MGCG_OVERRIDE__GFXIP_FGCG_OVERRIDE_MASK;
+
+	if (def != data)
+		WREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE, data);
+}
+
 static void gfx_v11_0_update_repeater_fgcg(struct amdgpu_device *adev,
 					   bool enable)
 {
@@ -4902,19 +4940,40 @@ static void gfx_v11_0_update_repeater_fgcg(struct amdgpu_device *adev,
 		WREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE, data);
 }
 
-#if 0
 static void gfx_v11_0_update_medium_grain_clock_gating(struct amdgpu_device *adev,
-						      bool enable)
+						       bool enable)
 {
-	/* TODO: add power related feature later. */
-}
+	uint32_t data, def;
 
-static void gfx_v11_0_update_3d_clock_gating(struct amdgpu_device *adev,
-					   bool enable)
-{
-	/* TODO: add power related feature later. */
+	if (!(adev->cg_flags & (AMD_CG_SUPPORT_GFX_MGCG | AMD_CG_SUPPORT_GFX_MGLS)))
+		return;
+
+	/* It is disabled by HW by default */
+	if (enable) {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG) {
+			/* 1 - RLC_CGTT_MGCG_OVERRIDE */
+			def = data = RREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE);
+
+			data &= ~(RLC_CGTT_MGCG_OVERRIDE__GRBM_CGTT_SCLK_OVERRIDE_MASK |
+				  RLC_CGTT_MGCG_OVERRIDE__RLC_CGTT_SCLK_OVERRIDE_MASK |
+				  RLC_CGTT_MGCG_OVERRIDE__GFXIP_MGCG_OVERRIDE_MASK);
+
+			if (def != data)
+				WREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE, data);
+		}
+	} else {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG) {
+			def = data = RREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE);
+
+			data |= (RLC_CGTT_MGCG_OVERRIDE__RLC_CGTT_SCLK_OVERRIDE_MASK |
+				 RLC_CGTT_MGCG_OVERRIDE__GRBM_CGTT_SCLK_OVERRIDE_MASK |
+				 RLC_CGTT_MGCG_OVERRIDE__GFXIP_MGCG_OVERRIDE_MASK);
+
+			if (def != data)
+				WREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE, data);
+		}
+	}
 }
-#endif
 
 static void gfx_v11_0_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
 						       bool enable)
@@ -5045,7 +5104,13 @@ static int gfx_v11_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 
 	gfx_v11_0_update_coarse_grain_clock_gating(adev, enable);
 
+	gfx_v11_0_update_medium_grain_clock_gating(adev, enable);
+
 	gfx_v11_0_update_repeater_fgcg(adev, enable);
+
+	gfx_v11_0_update_sram_fgcg(adev, enable);
+
+	gfx_v11_0_update_perf_clk(adev, enable);
 
 	if (adev->cg_flags &
 	    (AMD_CG_SUPPORT_GFX_MGCG |
@@ -5139,15 +5204,22 @@ static void gfx_v11_0_get_clockgating_state(void *handle, u64 *flags)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int data;
 
-	/* AMD_CG_SUPPORT_GFX_FGCG */
-	data = RREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE);
-	if (!(data & RLC_CGTT_MGCG_OVERRIDE__GFXIP_FGCG_OVERRIDE_MASK))
-		*flags |= AMD_CG_SUPPORT_GFX_FGCG;
-
 	/* AMD_CG_SUPPORT_GFX_MGCG */
 	data = RREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE);
 	if (!(data & RLC_CGTT_MGCG_OVERRIDE__GFXIP_MGCG_OVERRIDE_MASK))
 		*flags |= AMD_CG_SUPPORT_GFX_MGCG;
+
+	/* AMD_CG_SUPPORT_REPEATER_FGCG */
+	if (!(data & RLC_CGTT_MGCG_OVERRIDE__GFXIP_REPEATER_FGCG_OVERRIDE_MASK))
+		*flags |= AMD_CG_SUPPORT_REPEATER_FGCG;
+
+	/* AMD_CG_SUPPORT_GFX_FGCG */
+	if (!(data & RLC_CGTT_MGCG_OVERRIDE__GFXIP_FGCG_OVERRIDE_MASK))
+		*flags |= AMD_CG_SUPPORT_GFX_FGCG;
+
+	/* AMD_CG_SUPPORT_GFX_PERF_CLK */
+	if (!(data & RLC_CGTT_MGCG_OVERRIDE__PERFMON_CLOCK_STATE_MASK))
+		*flags |= AMD_CG_SUPPORT_GFX_PERF_CLK;
 
 	/* AMD_CG_SUPPORT_GFX_CGCG */
 	data = RREG32_SOC15(GC, 0, regRLC_CGCG_CGLS_CTRL);

@@ -149,6 +149,7 @@ enum amd_powergating_state {
 #define AMD_CG_SUPPORT_JPEG_MGCG		(1ULL << 30)
 #define AMD_CG_SUPPORT_GFX_FGCG			(1ULL << 31)
 #define AMD_CG_SUPPORT_REPEATER_FGCG		(1ULL << 32)
+#define AMD_CG_SUPPORT_GFX_PERF_CLK		(1ULL << 33)
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
 #define AMD_PG_SUPPORT_GFX_SMG			(1 << 1)
