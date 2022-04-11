@@ -515,7 +515,7 @@ no_route:
 }
 
 static int l2tp_ip_recvmsg(struct sock *sk, struct msghdr *msg,
-			   size_t len, int noblock, int flags, int *addr_len)
+			   size_t len, int flags, int *addr_len)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	size_t copied = 0;
@@ -526,7 +526,6 @@ static int l2tp_ip_recvmsg(struct sock *sk, struct msghdr *msg,
 	if (flags & MSG_OOB)
 		goto out;
 
-	flags |= (noblock ? MSG_DONTWAIT : 0);
 	skb = skb_recv_datagram(sk, flags, &err);
 	if (!skb)
 		goto out;

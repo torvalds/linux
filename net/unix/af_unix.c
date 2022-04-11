@@ -2484,8 +2484,7 @@ static int unix_dgram_recvmsg(struct socket *sock, struct msghdr *msg, size_t si
 	const struct proto *prot = READ_ONCE(sk->sk_prot);
 
 	if (prot != &unix_dgram_proto)
-		return prot->recvmsg(sk, msg, size, flags & MSG_DONTWAIT,
-					    flags & ~MSG_DONTWAIT, NULL);
+		return prot->recvmsg(sk, msg, size, flags, NULL);
 #endif
 	return __unix_dgram_recvmsg(sk, msg, size, flags);
 }
@@ -2917,8 +2916,7 @@ static int unix_stream_recvmsg(struct socket *sock, struct msghdr *msg,
 	const struct proto *prot = READ_ONCE(sk->sk_prot);
 
 	if (prot != &unix_stream_proto)
-		return prot->recvmsg(sk, msg, size, flags & MSG_DONTWAIT,
-					    flags & ~MSG_DONTWAIT, NULL);
+		return prot->recvmsg(sk, msg, size, flags, NULL);
 #endif
 	return unix_stream_read_generic(&state, true);
 }

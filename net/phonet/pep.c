@@ -1239,7 +1239,7 @@ struct sk_buff *pep_read(struct sock *sk)
 }
 
 static int pep_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-		       int noblock, int flags, int *addr_len)
+		       int flags, int *addr_len)
 {
 	struct sk_buff *skb;
 	int err;
@@ -1268,7 +1268,6 @@ static int pep_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			return -EINVAL;
 	}
 
-	flags |= (noblock ? MSG_DONTWAIT : 0);
 	skb = skb_recv_datagram(sk, flags, &err);
 	lock_sock(sk);
 	if (skb == NULL) {

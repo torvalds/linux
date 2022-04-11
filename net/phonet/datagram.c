@@ -112,7 +112,7 @@ static int pn_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 }
 
 static int pn_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-		      int noblock, int flags, int *addr_len)
+		      int flags, int *addr_len)
 {
 	struct sk_buff *skb = NULL;
 	struct sockaddr_pn sa;
@@ -123,7 +123,6 @@ static int pn_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			MSG_CMSG_COMPAT))
 		goto out_nofree;
 
-	flags |= (noblock ? MSG_DONTWAIT : 0);
 	skb = skb_recv_datagram(sk, flags, &rval);
 	if (skb == NULL)
 		goto out_nofree;

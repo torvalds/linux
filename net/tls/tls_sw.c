@@ -1722,7 +1722,6 @@ static int process_rx_list(struct tls_sw_context_rx *ctx,
 int tls_sw_recvmsg(struct sock *sk,
 		   struct msghdr *msg,
 		   size_t len,
-		   int nonblock,
 		   int flags,
 		   int *addr_len)
 {
@@ -1743,8 +1742,6 @@ int tls_sw_recvmsg(struct sock *sk,
 	bool is_peek = flags & MSG_PEEK;
 	bool bpf_strp_enabled;
 	bool zc_capable;
-
-	flags |= nonblock;
 
 	if (unlikely(flags & MSG_ERRQUEUE))
 		return sock_recv_errqueue(sk, msg, len, SOL_IP, IP_RECVERR);
