@@ -60,7 +60,6 @@
 struct intel_gvt_host {
 	struct device *dev;
 	bool initialized;
-	int hypervisor_type;
 	const struct intel_gvt_mpt *mpt;
 };
 

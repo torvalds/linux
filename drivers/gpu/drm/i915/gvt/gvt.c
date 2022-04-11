@@ -41,11 +41,6 @@
 
 struct intel_gvt_host intel_gvt_host;
 
-static const char * const supported_hypervisors[] = {
-	[INTEL_GVT_HYPERVISOR_XEN] = "XEN",
-	[INTEL_GVT_HYPERVISOR_KVM] = "KVM",
-};
-
 static const struct intel_gvt_ops intel_gvt_ops = {
 	.emulate_cfg_read = intel_vgpu_emulate_cfg_read,
 	.emulate_cfg_write = intel_vgpu_emulate_cfg_write,
@@ -304,23 +299,13 @@ intel_gvt_register_hypervisor(const struct intel_gvt_mpt *m)
 	if (!intel_gvt_host.initialized)
 		return -ENODEV;
 
-	if (m->type != INTEL_GVT_HYPERVISOR_KVM &&
-	    m->type != INTEL_GVT_HYPERVISOR_XEN)
-		return -EINVAL;
-
 	intel_gvt_host.mpt = m;
-	intel_gvt_host.hypervisor_type = m->type;
 	gvt = (void *)kdev_to_i915(intel_gvt_host.dev)->gvt;
 
 	ret = intel_gvt_hypervisor_host_init(intel_gvt_host.dev, gvt,
 					     &intel_gvt_ops);
-	if (ret < 0) {
-		gvt_err("Failed to init %s hypervisor module\n",
-			supported_hypervisors[intel_gvt_host.hypervisor_type]);
+	if (ret < 0)
 		return -ENODEV;
-	}
-	gvt_dbg_core("Running with hypervisor %s in host mode\n",
-		     supported_hypervisors[intel_gvt_host.hypervisor_type]);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(intel_gvt_register_hypervisor);
