@@ -7877,17 +7877,17 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 			io_req_add_to_cache(req, ctx);
 			break;
 		}
-		/* will complete beyond this point, count as submitted */
-		left--;
-		if (io_submit_sqe(ctx, req, sqe)) {
-			/*
-			 * Continue submitting even for sqe failure if the
-			 * ring was setup with IORING_SETUP_SUBMIT_ALL
-			 */
-			if (!(ctx->flags & IORING_SETUP_SUBMIT_ALL))
-				break;
+
+		/*
+		 * Continue submitting even for sqe failure if the
+		 * ring was setup with IORING_SETUP_SUBMIT_ALL
+		 */
+		if (unlikely(io_submit_sqe(ctx, req, sqe)) &&
+		    !(ctx->flags & IORING_SETUP_SUBMIT_ALL)) {
+			left--;
+			break;
 		}
-	} while (left);
+	} while (--left);
 
 	if (unlikely(left)) {
 		ret -= left;
