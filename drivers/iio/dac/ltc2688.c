@@ -298,7 +298,7 @@ static int ltc2688_read_raw(struct iio_dev *indio_dev,
 		if (ret)
 			return ret;
 
-		*val = 16;
+		*val2 = 16;
 		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		ret = regmap_read(st->regmap,
