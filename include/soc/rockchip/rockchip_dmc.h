@@ -64,7 +64,7 @@ struct dmcfreq_vop_info {
 	unsigned int plane_num;
 };
 
-#if IS_ENABLED(CONFIG_ARM_ROCKCHIP_DMC_DEVFREQ)
+#if IS_REACHABLE(CONFIG_ARM_ROCKCHIP_DMC_DEVFREQ)
 void rockchip_dmcfreq_lock(void);
 void rockchip_dmcfreq_lock_nested(void);
 void rockchip_dmcfreq_unlock(void);
