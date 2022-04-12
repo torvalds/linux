@@ -2224,21 +2224,6 @@ static void io_flush_cached_locked_reqs(struct io_ring_ctx *ctx,
 	spin_unlock(&ctx->completion_lock);
 }
 
-/* Returns true IFF there are requests in the cache */
-static bool io_flush_cached_reqs(struct io_ring_ctx *ctx)
-{
-	struct io_submit_state *state = &ctx->submit_state;
-
-	/*
-	 * If we have more than a batch's worth of requests in our IRQ side
-	 * locked cache, grab the lock and move them over to our submission
-	 * side cache.
-	 */
-	if (READ_ONCE(ctx->locked_free_nr) > IO_COMPL_BATCH)
-		io_flush_cached_locked_reqs(ctx, state);
-	return !!state->free_list.next;
-}
-
 /*
  * A request might get retired back into the request caches even before opcode
  * handlers and io_issue_sqe() are done with it, e.g. inline completion path.
@@ -2251,11 +2236,18 @@ static __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 	struct io_submit_state *state = &ctx->submit_state;
 	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
 	void *reqs[IO_REQ_ALLOC_BATCH];
-	struct io_kiocb *req;
 	int ret, i;
 
-	if (likely(state->free_list.next || io_flush_cached_reqs(ctx)))
-		return true;
+	/*
+	 * If we have more than a batch's worth of requests in our IRQ side
+	 * locked cache, grab the lock and move them over to our submission
+	 * side cache.
+	 */
+	if (READ_ONCE(ctx->locked_free_nr) > IO_COMPL_BATCH) {
+		io_flush_cached_locked_reqs(ctx, &ctx->submit_state);
+		if (state->free_list.next)
+			return true;
+	}
 
 	ret = kmem_cache_alloc_bulk(req_cachep, gfp, ARRAY_SIZE(reqs), reqs);
 
@@ -2272,7 +2264,7 @@ static __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 
 	percpu_ref_get_many(&ctx->refs, ret);
 	for (i = 0; i < ret; i++) {
-		req = reqs[i];
+		struct io_kiocb *req = reqs[i];
 
 		io_preinit_req(req, ctx);
 		wq_stack_add_head(&req->comp_list, &state->free_list);
