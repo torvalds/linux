@@ -124,9 +124,26 @@ int rockchip_perf_get_level(void)
 	return perf_level;
 }
 
+struct cpumask *rockchip_perf_get_cpul_mask(void)
+{
+	if (static_branch_unlikely(&sched_asym_cpucapacity))
+		return cpul_mask;
+
+	return NULL;
+}
+
+struct cpumask *rockchip_perf_get_cpub_mask(void)
+{
+	if (static_branch_unlikely(&sched_asym_cpucapacity))
+		return cpub_mask;
+
+	return NULL;
+}
+
 #ifdef CONFIG_SMP
 int rockchip_perf_select_rt_cpu(int prev_cpu, struct cpumask *lowest_mask)
 {
+	struct cpumask target_mask;
 	int cpu = nr_cpu_ids;
 
 	if (!perf_init_done)
@@ -134,9 +151,14 @@ int rockchip_perf_select_rt_cpu(int prev_cpu, struct cpumask *lowest_mask)
 
 	if (static_branch_unlikely(&sched_asym_cpucapacity)) {
 		if (perf_level == 0)
-			cpu = cpumask_first_and(lowest_mask, cpul_mask);
+			cpumask_and(&target_mask, lowest_mask, cpul_mask);
 		if (perf_level == 2)
-			cpu = cpumask_first_and(lowest_mask, cpub_mask);
+			cpumask_and(&target_mask, lowest_mask, cpub_mask);
+
+		if (cpumask_test_cpu(prev_cpu, &target_mask))
+			return prev_cpu;
+
+		cpu = cpumask_first(&target_mask);
 
 		if (cpu < nr_cpu_ids)
 			return cpu;
