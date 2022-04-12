@@ -1725,6 +1725,10 @@ static int zonefs_fill_super(struct super_block *sb, void *data, int silent)
 	if (ret)
 		goto cleanup;
 
+	ret = zonefs_sysfs_register(sb);
+	if (ret)
+		goto cleanup;
+
 	zonefs_info(sb, "Mounting %u zones",
 		    blkdev_nr_zones(sb->s_bdev->bd_disk));
 
@@ -1770,6 +1774,8 @@ static void zonefs_kill_super(struct super_block *sb)
 
 	if (sb->s_root)
 		d_genocide(sb->s_root);
+
+	zonefs_sysfs_unregister(sb);
 	kill_block_super(sb);
 	kfree(sbi);
 }
@@ -1817,16 +1823,26 @@ static int __init zonefs_init(void)
 		return ret;
 
 	ret = register_filesystem(&zonefs_type);
-	if (ret) {
-		zonefs_destroy_inodecache();
-		return ret;
-	}
+	if (ret)
+		goto destroy_inodecache;
+
+	ret = zonefs_sysfs_init();
+	if (ret)
+		goto unregister_fs;
 
 	return 0;
+
+unregister_fs:
+	unregister_filesystem(&zonefs_type);
+destroy_inodecache:
+	zonefs_destroy_inodecache();
+
+	return ret;
 }
 
 static void __exit zonefs_exit(void)
 {
+	zonefs_sysfs_exit();
 	zonefs_destroy_inodecache();
 	unregister_filesystem(&zonefs_type);
 }

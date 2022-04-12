@@ -12,6 +12,7 @@
 #include <linux/uuid.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
+#include <linux/kobject.h>
 
 /*
  * Maximum length of file names: this only needs to be large enough to fit
@@ -184,6 +185,10 @@ struct zonefs_sb_info {
 
 	unsigned int		s_max_wro_seq_files;
 	atomic_t		s_wro_seq_files;
+
+	bool			s_sysfs_registered;
+	struct kobject		s_kobj;
+	struct completion	s_kobj_unregister;
 };
 
 static inline struct zonefs_sb_info *ZONEFS_SB(struct super_block *sb)
@@ -197,5 +202,10 @@ static inline struct zonefs_sb_info *ZONEFS_SB(struct super_block *sb)
 	pr_err("zonefs (%s) ERROR: " format, sb->s_id, ## args)
 #define zonefs_warn(sb, format, args...)	\
 	pr_warn("zonefs (%s) WARNING: " format, sb->s_id, ## args)
+
+int zonefs_sysfs_register(struct super_block *sb);
+void zonefs_sysfs_unregister(struct super_block *sb);
+int zonefs_sysfs_init(void);
+void zonefs_sysfs_exit(void);
 
 #endif
