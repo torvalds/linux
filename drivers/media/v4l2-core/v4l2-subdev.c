@@ -318,14 +318,55 @@ static int call_get_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 	       sd->ops->pad->get_mbus_config(sd, pad, config);
 }
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+/*
+ * Create state-management wrapper for pad ops dealing with subdev state. The
+ * wrapper handles the case where the caller does not provide the called
+ * subdev's state. This should be removed when all the callers are fixed.
+ */
+#define DEFINE_STATE_WRAPPER(f, arg_type)                                  \
+	static int call_##f##_state(struct v4l2_subdev *sd,                \
+				    struct v4l2_subdev_state *_state,      \
+				    arg_type *arg)                         \
+	{                                                                  \
+		struct v4l2_subdev_state *state = _state;                  \
+		int ret;                                                   \
+		if (!_state)                                               \
+			state = v4l2_subdev_lock_and_get_active_state(sd); \
+		ret = call_##f(sd, state, arg);                            \
+		if (!_state && state)                                      \
+			v4l2_subdev_unlock_state(state);                   \
+		return ret;                                                \
+	}
+
+#else /* CONFIG_MEDIA_CONTROLLER */
+
+#define DEFINE_STATE_WRAPPER(f, arg_type)                            \
+	static int call_##f##_state(struct v4l2_subdev *sd,          \
+				    struct v4l2_subdev_state *state, \
+				    arg_type *arg)                   \
+	{                                                            \
+		return call_##f(sd, state, arg);                     \
+	}
+
+#endif /* CONFIG_MEDIA_CONTROLLER */
+
+DEFINE_STATE_WRAPPER(get_fmt, struct v4l2_subdev_format);
+DEFINE_STATE_WRAPPER(set_fmt, struct v4l2_subdev_format);
+DEFINE_STATE_WRAPPER(enum_mbus_code, struct v4l2_subdev_mbus_code_enum);
+DEFINE_STATE_WRAPPER(enum_frame_size, struct v4l2_subdev_frame_size_enum);
+DEFINE_STATE_WRAPPER(enum_frame_interval, struct v4l2_subdev_frame_interval_enum);
+DEFINE_STATE_WRAPPER(get_selection, struct v4l2_subdev_selection);
+DEFINE_STATE_WRAPPER(set_selection, struct v4l2_subdev_selection);
+
 static const struct v4l2_subdev_pad_ops v4l2_subdev_call_pad_wrappers = {
-	.get_fmt		= call_get_fmt,
-	.set_fmt		= call_set_fmt,
-	.enum_mbus_code		= call_enum_mbus_code,
-	.enum_frame_size	= call_enum_frame_size,
-	.enum_frame_interval	= call_enum_frame_interval,
-	.get_selection		= call_get_selection,
-	.set_selection		= call_set_selection,
+	.get_fmt		= call_get_fmt_state,
+	.set_fmt		= call_set_fmt_state,
+	.enum_mbus_code		= call_enum_mbus_code_state,
+	.enum_frame_size	= call_enum_frame_size_state,
+	.enum_frame_interval	= call_enum_frame_interval_state,
+	.get_selection		= call_get_selection_state,
+	.set_selection		= call_set_selection_state,
 	.get_edid		= call_get_edid,
 	.set_edid		= call_set_edid,
 	.dv_timings_cap		= call_dv_timings_cap,
