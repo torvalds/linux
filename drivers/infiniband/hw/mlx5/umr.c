@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. */
 
+#include <rdma/ib_umem_odp.h>
 #include "mlx5_ib.h"
 #include "umr.h"
 #include "wr.h"
@@ -465,8 +466,8 @@ static void mlx5r_umr_free_xlt(void *xlt, size_t length)
 	free_pages((unsigned long)xlt, get_order(length));
 }
 
-void mlx5r_umr_unmap_free_xlt(struct mlx5_ib_dev *dev, void *xlt,
-			     struct ib_sge *sg)
+static void mlx5r_umr_unmap_free_xlt(struct mlx5_ib_dev *dev, void *xlt,
+				     struct ib_sge *sg)
 {
 	struct device *ddev = &dev->mdev->pdev->dev;
 
@@ -477,8 +478,9 @@ void mlx5r_umr_unmap_free_xlt(struct mlx5_ib_dev *dev, void *xlt,
 /*
  * Create an XLT buffer ready for submission.
  */
-void *mlx5r_umr_create_xlt(struct mlx5_ib_dev *dev, struct ib_sge *sg,
-			  size_t nents, size_t ent_size, unsigned int flags)
+static void *mlx5r_umr_create_xlt(struct mlx5_ib_dev *dev, struct ib_sge *sg,
+				  size_t nents, size_t ent_size,
+				  unsigned int flags)
 {
 	struct device *ddev = &dev->mdev->pdev->dev;
 	dma_addr_t dma;
@@ -656,5 +658,86 @@ int mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
 err:
 	sg.length = orig_sg_length;
 	mlx5r_umr_unmap_free_xlt(dev, mtt, &sg);
+	return err;
+}
+
+static bool umr_can_use_indirect_mkey(struct mlx5_ib_dev *dev)
+{
+	return !MLX5_CAP_GEN(dev->mdev, umr_indirect_mkey_disabled);
+}
+
+int mlx5r_umr_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
+			 int page_shift, int flags)
+{
+	int desc_size = (flags & MLX5_IB_UPD_XLT_INDIRECT)
+			       ? sizeof(struct mlx5_klm)
+			       : sizeof(struct mlx5_mtt);
+	const int page_align = MLX5_UMR_MTT_ALIGNMENT / desc_size;
+	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
+	struct device *ddev = &dev->mdev->pdev->dev;
+	const int page_mask = page_align - 1;
+	struct mlx5r_umr_wqe wqe = {};
+	size_t pages_mapped = 0;
+	size_t pages_to_map = 0;
+	size_t size_to_map = 0;
+	size_t orig_sg_length;
+	size_t pages_iter;
+	struct ib_sge sg;
+	int err = 0;
+	void *xlt;
+
+	if ((flags & MLX5_IB_UPD_XLT_INDIRECT) &&
+	    !umr_can_use_indirect_mkey(dev))
+		return -EPERM;
+
+	if (WARN_ON(!mr->umem->is_odp))
+		return -EINVAL;
+
+	/* UMR copies MTTs in units of MLX5_UMR_MTT_ALIGNMENT bytes,
+	 * so we need to align the offset and length accordingly
+	 */
+	if (idx & page_mask) {
+		npages += idx & page_mask;
+		idx &= ~page_mask;
+	}
+	pages_to_map = ALIGN(npages, page_align);
+
+	xlt = mlx5r_umr_create_xlt(dev, &sg, npages, desc_size, flags);
+	if (!xlt)
+		return -ENOMEM;
+
+	pages_iter = sg.length / desc_size;
+	orig_sg_length = sg.length;
+
+	if (!(flags & MLX5_IB_UPD_XLT_INDIRECT)) {
+		struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
+		size_t max_pages = ib_umem_odp_num_pages(odp) - idx;
+
+		pages_to_map = min_t(size_t, pages_to_map, max_pages);
+	}
+
+	mlx5r_umr_set_update_xlt_ctrl_seg(&wqe.ctrl_seg, flags, &sg);
+	mlx5r_umr_set_update_xlt_mkey_seg(dev, &wqe.mkey_seg, mr, page_shift);
+	mlx5r_umr_set_update_xlt_data_seg(&wqe.data_seg, &sg);
+
+	for (pages_mapped = 0;
+	     pages_mapped < pages_to_map && !err;
+	     pages_mapped += pages_iter, idx += pages_iter) {
+		npages = min_t(int, pages_iter, pages_to_map - pages_mapped);
+		size_to_map = npages * desc_size;
+		dma_sync_single_for_cpu(ddev, sg.addr, sg.length,
+					DMA_TO_DEVICE);
+		mlx5_odp_populate_xlt(xlt, idx, npages, mr, flags);
+		dma_sync_single_for_device(ddev, sg.addr, sg.length,
+					   DMA_TO_DEVICE);
+		sg.length = ALIGN(size_to_map, MLX5_UMR_MTT_ALIGNMENT);
+
+		if (pages_mapped + pages_iter >= pages_to_map)
+			mlx5r_umr_final_update_xlt(dev, &wqe, mr, &sg, flags);
+		mlx5r_umr_update_offset(&wqe.ctrl_seg, idx * desc_size);
+		err = mlx5r_umr_post_send_wait(dev, mr->mmkey.key, &wqe, true);
+	}
+	sg.length = orig_sg_length;
+	mlx5r_umr_unmap_free_xlt(dev, xlt, &sg);
 	return err;
 }
