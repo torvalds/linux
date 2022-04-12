@@ -416,6 +416,13 @@ struct io_ring_ctx {
 	unsigned long		check_cq_overflow;
 
 	struct {
+		/*
+		 * We cache a range of free CQEs we can use, once exhausted it
+		 * should go through a slower range setup, see __io_get_cqe()
+		 */
+		struct io_uring_cqe	*cqe_cached;
+		struct io_uring_cqe	*cqe_sentinel;
+
 		unsigned		cached_cq_tail;
 		unsigned		cq_entries;
 		struct io_ev_fd	__rcu	*io_ev_fd;
@@ -1844,21 +1851,38 @@ static inline unsigned int __io_cqring_events(struct io_ring_ctx *ctx)
 	return ctx->cached_cq_tail - READ_ONCE(ctx->rings->cq.head);
 }
 
-static inline struct io_uring_cqe *io_get_cqe(struct io_ring_ctx *ctx)
+/*
+ * writes to the cq entry need to come after reading head; the
+ * control dependency is enough as we're using WRITE_ONCE to
+ * fill the cq entry
+ */
+static noinline struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx)
 {
 	struct io_rings *rings = ctx->rings;
-	unsigned tail, mask = ctx->cq_entries - 1;
+	unsigned int off = ctx->cached_cq_tail & (ctx->cq_entries - 1);
+	unsigned int free, queued, len;
 
-	/*
-	 * writes to the cq entry need to come after reading head; the
-	 * control dependency is enough as we're using WRITE_ONCE to
-	 * fill the cq entry
-	 */
-	if (__io_cqring_events(ctx) == ctx->cq_entries)
+	/* userspace may cheat modifying the tail, be safe and do min */
+	queued = min(__io_cqring_events(ctx), ctx->cq_entries);
+	free = ctx->cq_entries - queued;
+	/* we need a contiguous range, limit based on the current array offset */
+	len = min(free, ctx->cq_entries - off);
+	if (!len)
 		return NULL;
 
-	tail = ctx->cached_cq_tail++;
-	return &rings->cqes[tail & mask];
+	ctx->cached_cq_tail++;
+	ctx->cqe_cached = &rings->cqes[off];
+	ctx->cqe_sentinel = ctx->cqe_cached + len;
+	return ctx->cqe_cached++;
+}
+
+static inline struct io_uring_cqe *io_get_cqe(struct io_ring_ctx *ctx)
+{
+	if (likely(ctx->cqe_cached < ctx->cqe_sentinel)) {
+		ctx->cached_cq_tail++;
+		return ctx->cqe_cached++;
+	}
+	return __io_get_cqe(ctx);
 }
 
 static void io_eventfd_signal(struct io_ring_ctx *ctx)
