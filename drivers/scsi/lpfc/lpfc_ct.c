@@ -2018,28 +2018,30 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		vport->ct_flags &= ~FC_CT_RFT_ID;
 		CtReq->CommandResponse.bits.CmdRsp =
 		    cpu_to_be16(SLI_CTNS_RFT_ID);
-		CtReq->un.rft.PortId = cpu_to_be32(vport->fc_myDID);
+		CtReq->un.rft.port_id = cpu_to_be32(vport->fc_myDID);
+
+		/* Register Application Services type if vmid enabled. */
+		if (phba->cfg_vmid_app_header)
+			CtReq->un.rft.app_serv_reg =
+				cpu_to_be32(RFT_APP_SERV_REG);
 
 		/* Register FC4 FCP type if enabled.  */
 		if (vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH ||
 		    vport->cfg_enable_fc4_type == LPFC_ENABLE_FCP)
-			CtReq->un.rft.fcpReg = 1;
+			CtReq->un.rft.fcp_reg = cpu_to_be32(RFT_FCP_REG);
 
-		/* Register NVME type if enabled.  Defined LE and swapped.
-		 * rsvd[0] is used as word1 because of the hard-coded
-		 * word0 usage in the ct_request data structure.
-		 */
+		/* Register NVME type if enabled. */
 		if (vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH ||
 		    vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)
-			CtReq->un.rft.rsvd[0] =
-				cpu_to_be32(LPFC_FC4_TYPE_BITMASK);
+			CtReq->un.rft.nvme_reg = cpu_to_be32(RFT_NVME_REG);
 
 		ptr = (uint32_t *)CtReq;
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-				 "6433 Issue RFT (%s %s): %08x %08x %08x %08x "
-				 "%08x %08x %08x %08x\n",
-				 CtReq->un.rft.fcpReg ? "FCP" : " ",
-				 CtReq->un.rft.rsvd[0] ? "NVME" : " ",
+				 "6433 Issue RFT (%s %s %s): %08x %08x %08x "
+				 "%08x %08x %08x %08x %08x\n",
+				 CtReq->un.rft.fcp_reg ? "FCP" : " ",
+				 CtReq->un.rft.nvme_reg ? "NVME" : " ",
+				 CtReq->un.rft.app_serv_reg ? "APPS" : " ",
 				 *ptr, *(ptr + 1), *(ptr + 2), *(ptr + 3),
 				 *(ptr + 4), *(ptr + 5),
 				 *(ptr + 6), *(ptr + 7));

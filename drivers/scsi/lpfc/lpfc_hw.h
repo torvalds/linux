@@ -97,6 +97,18 @@ union CtCommandResponse {
 #define FC4_FEATURE_INIT	0x2
 #define FC4_FEATURE_NVME_DISC	0x4
 
+enum rft_word0 {
+	RFT_FCP_REG	= (0x1 << 8),
+};
+
+enum rft_word1 {
+	RFT_NVME_REG	= (0x1 << 8),
+};
+
+enum rft_word3 {
+	RFT_APP_SERV_REG	= (0x1 << 0),
+};
+
 struct lpfc_sli_ct_request {
 	/* Structure is in Big Endian format */
 	union CtRevisionId RevisionId;
@@ -131,25 +143,13 @@ struct lpfc_sli_ct_request {
 			uint8_t Fc4Type;
 		} gid_ff;
 		struct rft {
-			uint32_t PortId;	/* For RFT_ID requests */
+			__be32 port_id; /* For RFT_ID requests */
 
-#ifdef __BIG_ENDIAN_BITFIELD
-			uint32_t rsvd0:16;
-			uint32_t rsvd1:7;
-			uint32_t fcpReg:1;	/* Type 8 */
-			uint32_t rsvd2:2;
-			uint32_t ipReg:1;	/* Type 5 */
-			uint32_t rsvd3:5;
-#else	/*  __LITTLE_ENDIAN_BITFIELD */
-			uint32_t rsvd0:16;
-			uint32_t fcpReg:1;	/* Type 8 */
-			uint32_t rsvd1:7;
-			uint32_t rsvd3:5;
-			uint32_t ipReg:1;	/* Type 5 */
-			uint32_t rsvd2:2;
-#endif
-
-			uint32_t rsvd[7];
+			__be32 fcp_reg;	/* rsvd 31:9, fcp_reg 8, rsvd 7:0 */
+			__be32 nvme_reg; /* rsvd 31:9, nvme_reg 8, rsvd 7:0 */
+			__be32 word2;
+			__be32 app_serv_reg; /* rsvd 31:1, app_serv_reg 0 */
+			__be32 word[4];
 		} rft;
 		struct rnn {
 			uint32_t PortId;	/* For RNN_ID requests */
