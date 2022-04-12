@@ -304,16 +304,6 @@ enum mcu_mmps_mode {
 	MCU_MMPS_DISABLE,
 };
 
-enum {
-	SCS_SEND_DATA,
-	SCS_SET_MANUAL_PD_TH,
-	SCS_CONFIG,
-	SCS_ENABLE,
-	SCS_SHOW_INFO,
-	SCS_GET_GLO_ADDR,
-	SCS_GET_GLO_ADDR_EVENT,
-};
-
 struct bss_info_bmc_rate {
 	__le16 tag;
 	__le16 len;
