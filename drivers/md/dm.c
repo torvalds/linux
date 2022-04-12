@@ -508,30 +508,28 @@ static void dm_io_acct(struct dm_io *io, bool end)
 	unsigned long start_time = io->start_time;
 	struct mapped_device *md = io->md;
 	struct bio *bio = io->orig_bio;
-	bool is_flush_with_data;
-	unsigned int bi_size;
+	unsigned int sectors;
 
-	/* If REQ_PREFLUSH set save any payload but do not account it */
-	is_flush_with_data = bio_is_flush_with_data(bio);
-	if (is_flush_with_data) {
-		bi_size = bio->bi_iter.bi_size;
-		bio->bi_iter.bi_size = 0;
-	}
+	/*
+	 * If REQ_PREFLUSH set, don't account payload, it will be
+	 * submitted (and accounted) after this flush completes.
+	 */
+	if (bio_is_flush_with_data(bio))
+		sectors = 0;
+	else
+		sectors = bio_sectors(bio);
 
 	if (!end)
-		bio_start_io_acct_time(bio, start_time);
+		bdev_start_io_acct(bio->bi_bdev, sectors, bio_op(bio),
+				   start_time);
 	else
-		bio_end_io_acct(bio, start_time);
+		bdev_end_io_acct(bio->bi_bdev, bio_op(bio), start_time);
 
 	if (static_branch_unlikely(&stats_enabled) &&
 	    unlikely(dm_stats_used(&md->stats)))
 		dm_stats_account_io(&md->stats, bio_data_dir(bio),
-				    bio->bi_iter.bi_sector, bio_sectors(bio),
+				    bio->bi_iter.bi_sector, sectors,
 				    end, start_time, stats_aux);
-
-	/* Restore bio's payload so it does get accounted upon requeue */
-	if (is_flush_with_data)
-		bio->bi_iter.bi_size = bi_size;
 }
 
 static void __dm_start_io_acct(struct dm_io *io)
