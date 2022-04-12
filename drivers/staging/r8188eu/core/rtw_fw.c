@@ -74,49 +74,42 @@ static void fw_download_enable(struct adapter *padapter, bool enable)
 static int block_write(struct adapter *padapter, u8 *buffer, u32 size)
 {
 	int ret = _SUCCESS;
-	u32	blockSize_p1 = 4;	/*  (Default) Phase #1 : PCI muse use 4-byte write to download FW */
-	u32	blockSize_p2 = 8;	/*  Phase #2 : Use 8-byte, if Phase#1 use big size to write FW. */
-	u32	blockSize_p3 = 1;	/*  Phase #3 : Use 1-byte, the remnant of FW image. */
-	u32	blockCount_p1 = 0, blockCount_p2 = 0, blockCount_p3 = 0;
-	u32	remainSize_p1 = 0, remainSize_p2 = 0;
+	u32 blocks, block_size, remain;
 	u32	i = 0, offset = 0;
 
-	blockSize_p1 = MAX_REG_BLOCK_SIZE;
+	block_size = MAX_REG_BLOCK_SIZE;
 
-	/* 3 Phase #1 */
-	blockCount_p1 = size / blockSize_p1;
-	remainSize_p1 = size % blockSize_p1;
+	blocks = size / block_size;
+	remain = size % block_size;
 
-	for (i = 0; i < blockCount_p1; i++) {
-		ret = rtw_writeN(padapter, (FW_8188E_START_ADDRESS + i * blockSize_p1), blockSize_p1, (buffer + i * blockSize_p1));
+	for (i = 0; i < blocks; i++) {
+		ret = rtw_writeN(padapter, (FW_8188E_START_ADDRESS + i * block_size), block_size, (buffer + i * block_size));
 		if (ret == _FAIL)
 			goto exit;
 	}
 
-	/* 3 Phase #2 */
-	if (remainSize_p1) {
-		offset = blockCount_p1 * blockSize_p1;
+	if (remain) {
+		offset = blocks * block_size;
+		block_size = 8;
 
-		blockCount_p2 = remainSize_p1 / blockSize_p2;
-		remainSize_p2 = remainSize_p1 % blockSize_p2;
+		blocks = remain / block_size;
+		remain = remain % block_size;
 
-		for (i = 0; i < blockCount_p2; i++) {
-			ret = rtw_writeN(padapter, (FW_8188E_START_ADDRESS + offset + i * blockSize_p2), blockSize_p2, (buffer + offset + i * blockSize_p2));
-
+		for (i = 0; i < blocks; i++) {
+			ret = rtw_writeN(padapter, (FW_8188E_START_ADDRESS + offset + i * block_size), block_size, (buffer + offset + i * block_size));
 			if (ret == _FAIL)
 				goto exit;
 		}
 	}
 
-	/* 3 Phase #3 */
-	if (remainSize_p2) {
-		offset = (blockCount_p1 * blockSize_p1) + (blockCount_p2 * blockSize_p2);
+	if (remain) {
+		offset += blocks * block_size;
 
-		blockCount_p3 = remainSize_p2 / blockSize_p3;
+		/* block size 1 */
+		blocks = remain;
 
-		for (i = 0; i < blockCount_p3; i++) {
+		for (i = 0; i < blocks; i++) {
 			ret = rtw_write8(padapter, (FW_8188E_START_ADDRESS + offset + i), *(buffer + offset + i));
-
 			if (ret == _FAIL)
 				goto exit;
 		}
