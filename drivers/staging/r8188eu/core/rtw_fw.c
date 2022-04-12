@@ -75,7 +75,8 @@ static int block_write(struct adapter *padapter, u8 *buffer, u32 size)
 {
 	int ret = _SUCCESS;
 	u32 blocks, block_size, remain;
-	u32 i, offset;
+	u32 i, offset, addr;
+	u8 *data;
 
 	block_size = MAX_REG_BLOCK_SIZE;
 
@@ -83,7 +84,10 @@ static int block_write(struct adapter *padapter, u8 *buffer, u32 size)
 	remain = size % block_size;
 
 	for (i = 0; i < blocks; i++) {
-		ret = rtw_writeN(padapter, (FW_8188E_START_ADDRESS + i * block_size), block_size, (buffer + i * block_size));
+		addr = FW_8188E_START_ADDRESS + i * block_size;
+		data = buffer + i * block_size;
+
+		ret = rtw_writeN(padapter, addr, block_size, data);
 		if (ret == _FAIL)
 			goto exit;
 	}
@@ -96,7 +100,10 @@ static int block_write(struct adapter *padapter, u8 *buffer, u32 size)
 		remain = remain % block_size;
 
 		for (i = 0; i < blocks; i++) {
-			ret = rtw_writeN(padapter, (FW_8188E_START_ADDRESS + offset + i * block_size), block_size, (buffer + offset + i * block_size));
+			addr = FW_8188E_START_ADDRESS + offset + i * block_size;
+			data = buffer + offset + i * block_size;
+
+			ret = rtw_writeN(padapter, addr, block_size, data);
 			if (ret == _FAIL)
 				goto exit;
 		}
@@ -109,7 +116,10 @@ static int block_write(struct adapter *padapter, u8 *buffer, u32 size)
 		blocks = remain;
 
 		for (i = 0; i < blocks; i++) {
-			ret = rtw_write8(padapter, (FW_8188E_START_ADDRESS + offset + i), *(buffer + offset + i));
+			addr = FW_8188E_START_ADDRESS + offset + i;
+			data = buffer + offset + i;
+
+			ret = rtw_write8(padapter, addr, *data);
 			if (ret == _FAIL)
 				goto exit;
 		}
