@@ -63,7 +63,7 @@ static int subdev_open(struct file *file)
 	v4l2_fh_init(&subdev_fh->vfh, vdev);
 	v4l2_fh_add(&subdev_fh->vfh);
 	file->private_data = &subdev_fh->vfh;
-#if defined(CONFIG_MEDIA_CONTROLLER)
+
 	if (sd->v4l2_dev->mdev && sd->entity.graph_obj.mdev->dev) {
 		struct module *owner;
 
@@ -74,7 +74,6 @@ static int subdev_open(struct file *file)
 		}
 		subdev_fh->owner = owner;
 	}
-#endif
 
 	if (sd->internal_ops && sd->internal_ops->open) {
 		ret = sd->internal_ops->open(sd, subdev_fh);
