@@ -1193,7 +1193,7 @@ static const struct regmap_config qcm2290_bimc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc qcm2290_bimc = {
+static const struct qcom_icc_desc qcm2290_bimc = {
 	.type = QCOM_ICC_BIMC,
 	.nodes = qcm2290_bimc_nodes,
 	.num_nodes = ARRAY_SIZE(qcm2290_bimc_nodes),
@@ -1248,7 +1248,7 @@ static const struct regmap_config qcm2290_cnoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc qcm2290_cnoc = {
+static const struct qcom_icc_desc qcm2290_cnoc = {
 	.type = QCOM_ICC_NOC,
 	.nodes = qcm2290_cnoc_nodes,
 	.num_nodes = ARRAY_SIZE(qcm2290_cnoc_nodes),
@@ -1289,7 +1289,7 @@ static const struct regmap_config qcm2290_snoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc qcm2290_snoc = {
+static const struct qcom_icc_desc qcm2290_snoc = {
 	.type = QCOM_ICC_QNOC,
 	.nodes = qcm2290_snoc_nodes,
 	.num_nodes = ARRAY_SIZE(qcm2290_snoc_nodes),
@@ -1303,7 +1303,7 @@ static struct qcom_icc_node *qcm2290_qup_virt_nodes[] = {
 	[SLAVE_QUP_CORE_0] = &slv_qup_core_0
 };
 
-static struct qcom_icc_desc qcm2290_qup_virt = {
+static const struct qcom_icc_desc qcm2290_qup_virt = {
 	.type = QCOM_ICC_QNOC,
 	.nodes = qcm2290_qup_virt_nodes,
 	.num_nodes = ARRAY_SIZE(qcm2290_qup_virt_nodes),
@@ -1316,7 +1316,7 @@ static struct qcom_icc_node *qcm2290_mmnrt_virt_nodes[] = {
 	[SLAVE_SNOC_BIMC_NRT] = &slv_snoc_bimc_nrt,
 };
 
-static struct qcom_icc_desc qcm2290_mmnrt_virt = {
+static const struct qcom_icc_desc qcm2290_mmnrt_virt = {
 	.type = QCOM_ICC_QNOC,
 	.nodes = qcm2290_mmnrt_virt_nodes,
 	.num_nodes = ARRAY_SIZE(qcm2290_mmnrt_virt_nodes),
@@ -1330,7 +1330,7 @@ static struct qcom_icc_node *qcm2290_mmrt_virt_nodes[] = {
 	[SLAVE_SNOC_BIMC_RT] = &slv_snoc_bimc_rt,
 };
 
-static struct qcom_icc_desc qcm2290_mmrt_virt = {
+static const struct qcom_icc_desc qcm2290_mmrt_virt = {
 	.type = QCOM_ICC_QNOC,
 	.nodes = qcm2290_mmrt_virt_nodes,
 	.num_nodes = ARRAY_SIZE(qcm2290_mmrt_virt_nodes),

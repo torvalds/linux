@@ -1512,7 +1512,7 @@ static const struct regmap_config sdm660_a2noc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc sdm660_a2noc = {
+static const struct qcom_icc_desc sdm660_a2noc = {
 	.type = QCOM_ICC_NOC,
 	.nodes = sdm660_a2noc_nodes,
 	.num_nodes = ARRAY_SIZE(sdm660_a2noc_nodes),
@@ -1540,7 +1540,7 @@ static const struct regmap_config sdm660_bimc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc sdm660_bimc = {
+static const struct qcom_icc_desc sdm660_bimc = {
 	.type = QCOM_ICC_BIMC,
 	.nodes = sdm660_bimc_nodes,
 	.num_nodes = ARRAY_SIZE(sdm660_bimc_nodes),
@@ -1594,7 +1594,7 @@ static const struct regmap_config sdm660_cnoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc sdm660_cnoc = {
+static const struct qcom_icc_desc sdm660_cnoc = {
 	.type = QCOM_ICC_NOC,
 	.nodes = sdm660_cnoc_nodes,
 	.num_nodes = ARRAY_SIZE(sdm660_cnoc_nodes),
@@ -1615,7 +1615,7 @@ static const struct regmap_config sdm660_gnoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc sdm660_gnoc = {
+static const struct qcom_icc_desc sdm660_gnoc = {
 	.type = QCOM_ICC_NOC,
 	.nodes = sdm660_gnoc_nodes,
 	.num_nodes = ARRAY_SIZE(sdm660_gnoc_nodes),
@@ -1655,7 +1655,7 @@ static const struct regmap_config sdm660_mnoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc sdm660_mnoc = {
+static const struct qcom_icc_desc sdm660_mnoc = {
 	.type = QCOM_ICC_NOC,
 	.nodes = sdm660_mnoc_nodes,
 	.num_nodes = ARRAY_SIZE(sdm660_mnoc_nodes),
@@ -1692,7 +1692,7 @@ static const struct regmap_config sdm660_snoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc sdm660_snoc = {
+static const struct qcom_icc_desc sdm660_snoc = {
 	.type = QCOM_ICC_NOC,
 	.nodes = sdm660_snoc_nodes,
 	.num_nodes = ARRAY_SIZE(sdm660_snoc_nodes),

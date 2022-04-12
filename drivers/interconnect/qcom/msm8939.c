@@ -1281,7 +1281,7 @@ static const struct regmap_config msm8939_snoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc msm8939_snoc = {
+static const struct qcom_icc_desc msm8939_snoc = {
 	.type = QCOM_ICC_NOC,
 	.nodes = msm8939_snoc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8939_snoc_nodes),
@@ -1301,7 +1301,7 @@ static struct qcom_icc_node *msm8939_snoc_mm_nodes[] = {
 	[SNOC_MM_INT_2] = &mm_int_2,
 };
 
-static struct qcom_icc_desc msm8939_snoc_mm = {
+static const struct qcom_icc_desc msm8939_snoc_mm = {
 	.type = QCOM_ICC_NOC,
 	.nodes = msm8939_snoc_mm_nodes,
 	.num_nodes = ARRAY_SIZE(msm8939_snoc_mm_nodes),
@@ -1329,7 +1329,7 @@ static const struct regmap_config msm8939_bimc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc msm8939_bimc = {
+static const struct qcom_icc_desc msm8939_bimc = {
 	.type = QCOM_ICC_BIMC,
 	.nodes = msm8939_bimc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8939_bimc_nodes),
@@ -1400,7 +1400,7 @@ static const struct regmap_config msm8939_pcnoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc msm8939_pcnoc = {
+static const struct qcom_icc_desc msm8939_pcnoc = {
 	.type = QCOM_ICC_NOC,
 	.nodes = msm8939_pcnoc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8939_pcnoc_nodes),

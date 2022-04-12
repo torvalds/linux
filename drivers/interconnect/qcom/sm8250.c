@@ -216,7 +216,7 @@ static struct qcom_icc_node *aggre1_noc_nodes[] = {
 	[SLAVE_SERVICE_A1NOC] = &srvc_aggre1_noc,
 };
 
-static struct qcom_icc_desc sm8250_aggre1_noc = {
+static const struct qcom_icc_desc sm8250_aggre1_noc = {
 	.nodes = aggre1_noc_nodes,
 	.num_nodes = ARRAY_SIZE(aggre1_noc_nodes),
 	.bcms = aggre1_noc_bcms,
@@ -246,7 +246,7 @@ static struct qcom_icc_node *aggre2_noc_nodes[] = {
 	[SLAVE_SERVICE_A2NOC] = &srvc_aggre2_noc,
 };
 
-static struct qcom_icc_desc sm8250_aggre2_noc = {
+static const struct qcom_icc_desc sm8250_aggre2_noc = {
 	.nodes = aggre2_noc_nodes,
 	.num_nodes = ARRAY_SIZE(aggre2_noc_nodes),
 	.bcms = aggre2_noc_bcms,
@@ -263,7 +263,7 @@ static struct qcom_icc_node *compute_noc_nodes[] = {
 	[SLAVE_CDSP_MEM_NOC] = &qns_cdsp_mem_noc,
 };
 
-static struct qcom_icc_desc sm8250_compute_noc = {
+static const struct qcom_icc_desc sm8250_compute_noc = {
 	.nodes = compute_noc_nodes,
 	.num_nodes = ARRAY_SIZE(compute_noc_nodes),
 	.bcms = compute_noc_bcms,
@@ -329,7 +329,7 @@ static struct qcom_icc_node *config_noc_nodes[] = {
 	[SLAVE_SERVICE_CNOC] = &srvc_cnoc,
 };
 
-static struct qcom_icc_desc sm8250_config_noc = {
+static const struct qcom_icc_desc sm8250_config_noc = {
 	.nodes = config_noc_nodes,
 	.num_nodes = ARRAY_SIZE(config_noc_nodes),
 	.bcms = config_noc_bcms,
@@ -345,7 +345,7 @@ static struct qcom_icc_node *dc_noc_nodes[] = {
 	[SLAVE_GEM_NOC_CFG] = &qhs_memnoc,
 };
 
-static struct qcom_icc_desc sm8250_dc_noc = {
+static const struct qcom_icc_desc sm8250_dc_noc = {
 	.nodes = dc_noc_nodes,
 	.num_nodes = ARRAY_SIZE(dc_noc_nodes),
 	.bcms = dc_noc_bcms,
@@ -379,7 +379,7 @@ static struct qcom_icc_node *gem_noc_nodes[] = {
 	[SLAVE_SERVICE_GEM_NOC] = &srvc_sys_gemnoc,
 };
 
-static struct qcom_icc_desc sm8250_gem_noc = {
+static const struct qcom_icc_desc sm8250_gem_noc = {
 	.nodes = gem_noc_nodes,
 	.num_nodes = ARRAY_SIZE(gem_noc_nodes),
 	.bcms = gem_noc_bcms,
@@ -395,7 +395,7 @@ static struct qcom_icc_node *ipa_virt_nodes[] = {
 	[SLAVE_IPA_CORE] = &ipa_core_slave,
 };
 
-static struct qcom_icc_desc sm8250_ipa_virt = {
+static const struct qcom_icc_desc sm8250_ipa_virt = {
 	.nodes = ipa_virt_nodes,
 	.num_nodes = ARRAY_SIZE(ipa_virt_nodes),
 	.bcms = ipa_virt_bcms,
@@ -412,7 +412,7 @@ static struct qcom_icc_node *mc_virt_nodes[] = {
 	[SLAVE_EBI_CH0] = &ebi,
 };
 
-static struct qcom_icc_desc sm8250_mc_virt = {
+static const struct qcom_icc_desc sm8250_mc_virt = {
 	.nodes = mc_virt_nodes,
 	.num_nodes = ARRAY_SIZE(mc_virt_nodes),
 	.bcms = mc_virt_bcms,
@@ -442,7 +442,7 @@ static struct qcom_icc_node *mmss_noc_nodes[] = {
 	[SLAVE_SERVICE_MNOC] = &srvc_mnoc,
 };
 
-static struct qcom_icc_desc sm8250_mmss_noc = {
+static const struct qcom_icc_desc sm8250_mmss_noc = {
 	.nodes = mmss_noc_nodes,
 	.num_nodes = ARRAY_SIZE(mmss_noc_nodes),
 	.bcms = mmss_noc_bcms,
@@ -468,7 +468,7 @@ static struct qcom_icc_node *npu_noc_nodes[] = {
 	[SLAVE_SERVICE_NPU_NOC] = &srvc_noc,
 };
 
-static struct qcom_icc_desc sm8250_npu_noc = {
+static const struct qcom_icc_desc sm8250_npu_noc = {
 	.nodes = npu_noc_nodes,
 	.num_nodes = ARRAY_SIZE(npu_noc_nodes),
 	.bcms = npu_noc_bcms,
@@ -511,7 +511,7 @@ static struct qcom_icc_node *system_noc_nodes[] = {
 	[SLAVE_TCU] = &xs_sys_tcu_cfg,
 };
 
-static struct qcom_icc_desc sm8250_system_noc = {
+static const struct qcom_icc_desc sm8250_system_noc = {
 	.nodes = system_noc_nodes,
 	.num_nodes = ARRAY_SIZE(system_noc_nodes),
 	.bcms = system_noc_bcms,

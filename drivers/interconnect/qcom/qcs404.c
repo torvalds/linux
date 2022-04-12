@@ -984,7 +984,7 @@ static struct qcom_icc_node *qcs404_bimc_nodes[] = {
 	[SLAVE_BIMC_SNOC] = &slv_bimc_snoc,
 };
 
-static struct qcom_icc_desc qcs404_bimc = {
+static const struct qcom_icc_desc qcs404_bimc = {
 	.nodes = qcs404_bimc_nodes,
 	.num_nodes = ARRAY_SIZE(qcs404_bimc_nodes),
 };
@@ -1038,7 +1038,7 @@ static struct qcom_icc_node *qcs404_pcnoc_nodes[] = {
 	[SLAVE_PCNOC_SNOC] = &slv_pcnoc_snoc,
 };
 
-static struct qcom_icc_desc qcs404_pcnoc = {
+static const struct qcom_icc_desc qcs404_pcnoc = {
 	.nodes = qcs404_pcnoc_nodes,
 	.num_nodes = ARRAY_SIZE(qcs404_pcnoc_nodes),
 };
@@ -1066,7 +1066,7 @@ static struct qcom_icc_node *qcs404_snoc_nodes[] = {
 	[SLAVE_LPASS] = &slv_lpass,
 };
 
-static struct qcom_icc_desc qcs404_snoc = {
+static const struct qcom_icc_desc qcs404_snoc = {
 	.nodes = qcs404_snoc_nodes,
 	.num_nodes = ARRAY_SIZE(qcs404_snoc_nodes),
 };

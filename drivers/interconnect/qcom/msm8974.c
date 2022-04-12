@@ -254,7 +254,7 @@ static struct msm8974_icc_node *msm8974_bimc_nodes[] = {
 	[BIMC_SLV_AMPSS_L2] = &slv_ampss_l2,
 };
 
-static struct msm8974_icc_desc msm8974_bimc = {
+static const struct msm8974_icc_desc msm8974_bimc = {
 	.nodes = msm8974_bimc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8974_bimc_nodes),
 };
@@ -337,7 +337,7 @@ static struct msm8974_icc_node *msm8974_cnoc_nodes[] = {
 	[CNOC_SLV_SERVICE_CNOC] = &slv_service_cnoc,
 };
 
-static struct msm8974_icc_desc msm8974_cnoc = {
+static const struct msm8974_icc_desc msm8974_cnoc = {
 	.nodes = msm8974_cnoc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8974_cnoc_nodes),
 };
@@ -390,7 +390,7 @@ static struct msm8974_icc_node *msm8974_mnoc_nodes[] = {
 	[MNOC_SLV_SERVICE_MNOC] = &slv_service_mnoc,
 };
 
-static struct msm8974_icc_desc msm8974_mnoc = {
+static const struct msm8974_icc_desc msm8974_mnoc = {
 	.nodes = msm8974_mnoc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8974_mnoc_nodes),
 };
@@ -425,7 +425,7 @@ static struct msm8974_icc_node *msm8974_onoc_nodes[] = {
 	[OCMEM_SLV_OCMEM] = &slv_ocmem,
 };
 
-static struct msm8974_icc_desc msm8974_onoc = {
+static const struct msm8974_icc_desc msm8974_onoc = {
 	.nodes = msm8974_onoc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8974_onoc_nodes),
 };
@@ -488,7 +488,7 @@ static struct msm8974_icc_node *msm8974_pnoc_nodes[] = {
 	[PNOC_SLV_SERVICE_PNOC] = &slv_service_pnoc,
 };
 
-static struct msm8974_icc_desc msm8974_pnoc = {
+static const struct msm8974_icc_desc msm8974_pnoc = {
 	.nodes = msm8974_pnoc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8974_pnoc_nodes),
 };
@@ -545,7 +545,7 @@ static struct msm8974_icc_node *msm8974_snoc_nodes[] = {
 	[SNOC_SLV_QDSS_STM] = &slv_qdss_stm,
 };
 
-static struct msm8974_icc_desc msm8974_snoc = {
+static const struct msm8974_icc_desc msm8974_snoc = {
 	.nodes = msm8974_snoc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8974_snoc_nodes),
 };
