@@ -152,6 +152,24 @@ int ethnl_set_rings(struct sk_buff *skb, struct genl_info *info)
 	if (!ops->get_ringparam || !ops->set_ringparam)
 		goto out_dev;
 
+	if (tb[ETHTOOL_A_RINGS_RX_BUF_LEN] &&
+	    !(ops->supported_ring_params & ETHTOOL_RING_USE_RX_BUF_LEN)) {
+		ret = -EOPNOTSUPP;
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[ETHTOOL_A_RINGS_RX_BUF_LEN],
+				    "setting rx buf len not supported");
+		goto out_dev;
+	}
+
+	if (tb[ETHTOOL_A_RINGS_CQE_SIZE] &&
+	    !(ops->supported_ring_params & ETHTOOL_RING_USE_CQE_SIZE)) {
+		ret = -EOPNOTSUPP;
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[ETHTOOL_A_RINGS_CQE_SIZE],
+				    "setting cqe size not supported");
+		goto out_dev;
+	}
+
 	if (tb[ETHTOOL_A_RINGS_TX_PUSH] &&
 	    !(ops->supported_ring_params & ETHTOOL_RING_USE_TX_PUSH)) {
 		ret = -EOPNOTSUPP;
@@ -198,24 +216,6 @@ int ethnl_set_rings(struct sk_buff *skb, struct genl_info *info)
 		ret = -EINVAL;
 		NL_SET_ERR_MSG_ATTR(info->extack, err_attr,
 				    "requested ring size exceeds maximum");
-		goto out_ops;
-	}
-
-	if (kernel_ringparam.rx_buf_len != 0 &&
-	    !(ops->supported_ring_params & ETHTOOL_RING_USE_RX_BUF_LEN)) {
-		ret = -EOPNOTSUPP;
-		NL_SET_ERR_MSG_ATTR(info->extack,
-				    tb[ETHTOOL_A_RINGS_RX_BUF_LEN],
-				    "setting rx buf len not supported");
-		goto out_ops;
-	}
-
-	if (kernel_ringparam.cqe_size &&
-	    !(ops->supported_ring_params & ETHTOOL_RING_USE_CQE_SIZE)) {
-		ret = -EOPNOTSUPP;
-		NL_SET_ERR_MSG_ATTR(info->extack,
-				    tb[ETHTOOL_A_RINGS_CQE_SIZE],
-				    "setting cqe size not supported");
 		goto out_ops;
 	}
 
