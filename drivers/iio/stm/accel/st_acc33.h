@@ -44,6 +44,8 @@ struct st_acc33_hw {
 	const char *name;
 	int irq;
 
+	u32 module_id;
+
 	struct mutex fifo_lock;
 	struct mutex lock;
 

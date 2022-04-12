@@ -369,6 +369,16 @@ static ssize_t st_acc33_get_scale_avail(struct device *device,
 	return len;
 }
 
+static ssize_t st_acc33_get_module_id(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct st_acc33_hw *hw = iio_priv(iio_dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", hw->module_id);
+}
+
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(st_acc33_get_sampling_frequency_avail);
 static IIO_DEVICE_ATTR(in_accel_scale_available, 0444,
 		       st_acc33_get_scale_avail, NULL, 0);
@@ -378,6 +388,7 @@ static IIO_DEVICE_ATTR(hwfifo_watermark, 0644,
 static IIO_DEVICE_ATTR(hwfifo_watermark_max, 0444,
 		       st_acc33_get_max_hwfifo_watermark, NULL, 0);
 static IIO_DEVICE_ATTR(hwfifo_flush, 0200, NULL, st_acc33_flush_hwfifo, 0);
+static IIO_DEVICE_ATTR(module_id, 0444, st_acc33_get_module_id, NULL, 0);
 
 static struct attribute *st_acc33_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
@@ -385,6 +396,7 @@ static struct attribute *st_acc33_attributes[] = {
 	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -437,6 +449,13 @@ static int st_acc33_init_device(struct st_acc33_hw *hw)
 
 	return st_acc33_write_with_mask(hw, REG_CTRL3_ADDR,
 					REG_CTRL3_I1_WTM_MASK, 1);
+}
+
+static void st_acc33_get_properties(struct st_acc33_hw *hw)
+{
+	if (device_property_read_u32(hw->dev, "st,module_id", &hw->module_id)) {
+		hw->module_id = 1;
+	}
 }
 
 static int st_acc33_init_interface(struct st_acc33_hw *hw)
@@ -493,6 +512,8 @@ int st_acc33_probe(struct device *device, int irq, const char *name,
 	err = st_acc33_check_whoami(hw);
 	if (err < 0)
 		return err;
+
+	st_acc33_get_properties(hw);
 
 	err = st_acc33_init_device(hw);
 	if (err < 0)
