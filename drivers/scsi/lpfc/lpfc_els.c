@@ -3388,7 +3388,6 @@ lpfc_cmpl_els_disc_cmd(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				lpfc_issue_els_edc(vport, cmdiocb->retry);
 				break;
 			case ELS_CMD_RDF:
-				cmdiocb->context1 = NULL; /* save ndlp refcnt */
 				lpfc_issue_els_rdf(vport, cmdiocb->retry);
 				break;
 			}
