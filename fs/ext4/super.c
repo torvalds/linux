@@ -1211,6 +1211,9 @@ static void ext4_put_super(struct super_block *sb)
 	 */
 	ext4_unregister_sysfs(sb);
 
+	if (___ratelimit(&ext4_mount_msg_ratelimit, "EXT4-fs unmount"))
+		ext4_msg(sb, KERN_INFO, "unmounting filesystem.");
+
 	ext4_unregister_li_request(sb);
 	ext4_quota_off_umount(sb);
 
