@@ -73,7 +73,7 @@
 			spi0: spi@fffe0000 {
 				status = "okay";
 				cs-gpios = <&pioA 3 0>, <0>, <0>, <0>;
-				mtd_dataflash@0 {
+				flash@0 {
 					compatible = "atmel,at45", "atmel,dataflash";
 					spi-max-frequency = <15000000>;
 					reg = <0>;
@@ -94,7 +94,7 @@
 			status = "okay";
 		};
 
-		nor_flash@10000000 {
+		flash@10000000 {
 			compatible = "cfi-flash";
 			reg = <0x10000000 0x800000>;
 			linux,mtd-name = "physmap-flash.0";
