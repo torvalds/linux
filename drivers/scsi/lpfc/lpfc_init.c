@@ -5539,7 +5539,7 @@ lpfc_cgn_update_stat(struct lpfc_hba *phba, uint32_t dtag)
 	struct tm broken;
 	struct timespec64 cur_time;
 	u32 cnt;
-	u16 value;
+	u32 value;
 
 	/* Make sure we have a congestion info buffer */
 	if (!phba->cgn_i)
