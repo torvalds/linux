@@ -981,6 +981,9 @@ struct lpfc_sli4_hba {
 #define lpfc_conf_trunk_port3_nd_MASK	0x1
 	uint8_t flash_id;
 	uint8_t asic_rev;
+	uint16_t fawwpn_flag;	/* FA-WWPN support state */
+#define LPFC_FAWWPN_CONFIG	0x1 /* FA-PWWN is configured */
+#define LPFC_FAWWPN_FABRIC	0x2 /* FA-PWWN success with Fabric */
 };
 
 enum lpfc_sge_type {

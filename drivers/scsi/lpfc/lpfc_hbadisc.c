@@ -1183,6 +1183,7 @@ lpfc_port_link_failure(struct lpfc_vport *vport)
 void
 lpfc_linkdown_port(struct lpfc_vport *vport)
 {
+	struct lpfc_hba *phba = vport->phba;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 
 	if (vport->cfg_enable_fc4_type != LPFC_ENABLE_NVME)
@@ -1200,6 +1201,13 @@ lpfc_linkdown_port(struct lpfc_vport *vport)
 	vport->fc_flag &= ~FC_DISC_DELAYED;
 	spin_unlock_irq(shost->host_lock);
 	del_timer_sync(&vport->delayed_disc_tmo);
+
+	if (phba->sli_rev == LPFC_SLI_REV4 &&
+	    vport->port_type == LPFC_PHYSICAL_PORT &&
+	    phba->sli4_hba.fawwpn_flag & LPFC_FAWWPN_CONFIG) {
+		/* Assume success on link up */
+		phba->sli4_hba.fawwpn_flag |= LPFC_FAWWPN_FABRIC;
+	}
 }
 
 int

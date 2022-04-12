@@ -2893,6 +2893,9 @@ struct lpfc_mbx_read_config {
 #define lpfc_mbx_rd_conf_extnts_inuse_SHIFT	31
 #define lpfc_mbx_rd_conf_extnts_inuse_MASK	0x00000001
 #define lpfc_mbx_rd_conf_extnts_inuse_WORD	word1
+#define lpfc_mbx_rd_conf_fawwpn_SHIFT		30
+#define lpfc_mbx_rd_conf_fawwpn_MASK		0x00000001
+#define lpfc_mbx_rd_conf_fawwpn_WORD		word1
 #define lpfc_mbx_rd_conf_wcs_SHIFT		28	/* warning signaling */
 #define lpfc_mbx_rd_conf_wcs_MASK		0x00000001
 #define lpfc_mbx_rd_conf_wcs_WORD		word1

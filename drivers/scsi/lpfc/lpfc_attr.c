@@ -1120,12 +1120,22 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 				len += scnprintf(buf + len, PAGE_SIZE-len,
 						"   Private Loop\n");
 		} else {
-			if (vport->fc_flag & FC_FABRIC)
-				len += scnprintf(buf + len, PAGE_SIZE-len,
-						"   Fabric\n");
-			else
+			if (vport->fc_flag & FC_FABRIC) {
+				if (phba->sli_rev == LPFC_SLI_REV4 &&
+				    vport->port_type == LPFC_PHYSICAL_PORT &&
+				    phba->sli4_hba.fawwpn_flag &
+					LPFC_FAWWPN_FABRIC)
+					len += scnprintf(buf + len,
+							 PAGE_SIZE - len,
+							 "   Fabric FA-PWWN\n");
+				else
+					len += scnprintf(buf + len,
+							 PAGE_SIZE - len,
+							 "   Fabric\n");
+			} else {
 				len += scnprintf(buf + len, PAGE_SIZE-len,
 						"   Point-2-Point\n");
+			}
 		}
 	}
 

@@ -511,8 +511,6 @@ struct class_parms {
 	uint8_t word3Reserved2;	/* Fc Word 3, bit  0: 7 */
 };
 
-#define FAPWWN_KEY_VENDOR	0x42524344 /*valid vendor version fawwpn key*/
-
 struct serv_parm {	/* Structure is in Big Endian format */
 	struct csp cmn;
 	struct lpfc_name portName;
