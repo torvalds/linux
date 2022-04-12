@@ -44,6 +44,7 @@
 #include <rdma/ib_verbs.h>
 #include "dm.h"
 #include "mlx5_ib.h"
+#include "umr.h"
 
 /*
  * We can't use an array for xlt_emergency_page because dma_map_single doesn't
@@ -598,7 +599,7 @@ struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
 	struct mlx5_ib_mr *mr;
 
 	/* Matches access in alloc_cache_mr() */
-	if (!mlx5_ib_can_reconfig_with_umr(dev, 0, access_flags))
+	if (!mlx5r_umr_can_reconfig(dev, 0, access_flags))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	spin_lock_irq(&ent->lock);
@@ -738,7 +739,7 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 		ent->access_mode = MLX5_MKC_ACCESS_MODE_MTT;
 		if ((dev->mdev->profile.mask & MLX5_PROF_MASK_MR_CACHE) &&
 		    !dev->is_rep && mlx5_core_is_pf(dev->mdev) &&
-		    mlx5_ib_can_load_pas_with_umr(dev, 0))
+		    mlx5r_umr_can_load_pas(dev, 0))
 			ent->limit = dev->mdev->profile.mr_cache[i].limit;
 		else
 			ent->limit = 0;
@@ -946,7 +947,7 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 	 * cache then synchronously create an uncached one.
 	 */
 	if (!ent || ent->limit == 0 ||
-	    !mlx5_ib_can_reconfig_with_umr(dev, 0, access_flags)) {
+	    !mlx5r_umr_can_reconfig(dev, 0, access_flags)) {
 		mutex_lock(&dev->slow_path_mutex);
 		mr = reg_create(pd, umem, iova, access_flags, page_size, false);
 		mutex_unlock(&dev->slow_path_mutex);
@@ -1438,7 +1439,7 @@ static struct ib_mr *create_real_mr(struct ib_pd *pd, struct ib_umem *umem,
 	bool xlt_with_umr;
 	int err;
 
-	xlt_with_umr = mlx5_ib_can_load_pas_with_umr(dev, umem->length);
+	xlt_with_umr = mlx5r_umr_can_load_pas(dev, umem->length);
 	if (xlt_with_umr) {
 		mr = alloc_cacheable_mr(pd, umem, iova, access_flags);
 	} else {
@@ -1501,7 +1502,7 @@ static struct ib_mr *create_user_odp_mr(struct ib_pd *pd, u64 start, u64 length,
 	}
 
 	/* ODP requires xlt update via umr to work. */
-	if (!mlx5_ib_can_load_pas_with_umr(dev, length))
+	if (!mlx5r_umr_can_load_pas(dev, length))
 		return ERR_PTR(-EINVAL);
 
 	odp = ib_umem_odp_get(&dev->ib_dev, start, length, access_flags,
@@ -1591,7 +1592,7 @@ struct ib_mr *mlx5_ib_reg_user_mr_dmabuf(struct ib_pd *pd, u64 offset,
 		    offset, virt_addr, length, fd, access_flags);
 
 	/* dmabuf requires xlt update via umr to work. */
-	if (!mlx5_ib_can_load_pas_with_umr(dev, length))
+	if (!mlx5r_umr_can_load_pas(dev, length))
 		return ERR_PTR(-EINVAL);
 
 	umem_dmabuf = ib_umem_dmabuf_get(&dev->ib_dev, offset, length, fd,
@@ -1666,8 +1667,8 @@ static bool can_use_umr_rereg_access(struct mlx5_ib_dev *dev,
 	if (diffs & ~(IB_ACCESS_LOCAL_WRITE | IB_ACCESS_REMOTE_WRITE |
 		      IB_ACCESS_REMOTE_READ | IB_ACCESS_RELAXED_ORDERING))
 		return false;
-	return mlx5_ib_can_reconfig_with_umr(dev, current_access_flags,
-					     target_access_flags);
+	return mlx5r_umr_can_reconfig(dev, current_access_flags,
+				      target_access_flags);
 }
 
 static int umr_rereg_pd_access(struct mlx5_ib_mr *mr, struct ib_pd *pd,
@@ -1704,7 +1705,7 @@ static bool can_use_umr_rereg_pas(struct mlx5_ib_mr *mr,
 	/* We only track the allocated sizes of MRs from the cache */
 	if (!mr->cache_ent)
 		return false;
-	if (!mlx5_ib_can_load_pas_with_umr(dev, new_umem->length))
+	if (!mlx5r_umr_can_load_pas(dev, new_umem->length))
 		return false;
 
 	*page_size =

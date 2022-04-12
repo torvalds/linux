@@ -7,6 +7,7 @@
 #include <linux/mlx5/qp.h>
 #include <linux/mlx5/driver.h>
 #include "wr.h"
+#include "umr.h"
 
 static const u32 mlx5_ib_opcode[] = {
 	[IB_WR_SEND]				= MLX5_OPCODE_SEND,
@@ -870,7 +871,7 @@ static int set_reg_wr(struct mlx5_ib_qp *qp,
 	 * Relaxed Ordering is set implicitly in mlx5_set_umr_free_mkey() and
 	 * kernel ULPs are not aware of it, so we don't set it here.
 	 */
-	if (!mlx5_ib_can_reconfig_with_umr(dev, 0, wr->access)) {
+	if (!mlx5r_umr_can_reconfig(dev, 0, wr->access)) {
 		mlx5_ib_warn(
 			to_mdev(qp->ibqp.device),
 			"Fast update for MR access flags is not possible\n");

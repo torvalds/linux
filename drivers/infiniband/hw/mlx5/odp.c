@@ -38,6 +38,7 @@
 
 #include "mlx5_ib.h"
 #include "cmd.h"
+#include "umr.h"
 #include "qp.h"
 
 #include <linux/mlx5/eq.h>
@@ -323,8 +324,7 @@ static void internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 
 	memset(caps, 0, sizeof(*caps));
 
-	if (!MLX5_CAP_GEN(dev->mdev, pg) ||
-	    !mlx5_ib_can_load_pas_with_umr(dev, 0))
+	if (!MLX5_CAP_GEN(dev->mdev, pg) || !mlx5r_umr_can_load_pas(dev, 0))
 		return;
 
 	caps->general_caps = IB_ODP_SUPPORT;
@@ -487,8 +487,7 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	struct mlx5_ib_mr *imr;
 	int err;
 
-	if (!mlx5_ib_can_load_pas_with_umr(dev,
-					   MLX5_IMR_MTT_ENTRIES * PAGE_SIZE))
+	if (!mlx5r_umr_can_load_pas(dev, MLX5_IMR_MTT_ENTRIES * PAGE_SIZE))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	umem_odp = ib_umem_odp_alloc_implicit(&dev->ib_dev, access_flags);
