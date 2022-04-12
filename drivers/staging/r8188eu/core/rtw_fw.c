@@ -71,7 +71,7 @@ static void fw_download_enable(struct adapter *padapter, bool enable)
 	}
 }
 
-static int block_write(struct adapter *padapter, void *buffer, u32 size)
+static int block_write(struct adapter *padapter, u8 *buffer, u32 size)
 {
 	int ret = _SUCCESS;
 	u32	blockSize_p1 = 4;	/*  (Default) Phase #1 : PCI muse use 4-byte write to download FW */
@@ -79,7 +79,6 @@ static int block_write(struct adapter *padapter, void *buffer, u32 size)
 	u32	blockSize_p3 = 1;	/*  Phase #3 : Use 1-byte, the remnant of FW image. */
 	u32	blockCount_p1 = 0, blockCount_p2 = 0, blockCount_p3 = 0;
 	u32	remainSize_p1 = 0, remainSize_p2 = 0;
-	u8 *bufferPtr	= (u8 *)buffer;
 	u32	i = 0, offset = 0;
 
 	blockSize_p1 = MAX_REG_BLOCK_SIZE;
@@ -89,7 +88,7 @@ static int block_write(struct adapter *padapter, void *buffer, u32 size)
 	remainSize_p1 = size % blockSize_p1;
 
 	for (i = 0; i < blockCount_p1; i++) {
-		ret = rtw_writeN(padapter, (FW_8188E_START_ADDRESS + i * blockSize_p1), blockSize_p1, (bufferPtr + i * blockSize_p1));
+		ret = rtw_writeN(padapter, (FW_8188E_START_ADDRESS + i * blockSize_p1), blockSize_p1, (buffer + i * blockSize_p1));
 		if (ret == _FAIL)
 			goto exit;
 	}
@@ -102,7 +101,7 @@ static int block_write(struct adapter *padapter, void *buffer, u32 size)
 		remainSize_p2 = remainSize_p1 % blockSize_p2;
 
 		for (i = 0; i < blockCount_p2; i++) {
-			ret = rtw_writeN(padapter, (FW_8188E_START_ADDRESS + offset + i * blockSize_p2), blockSize_p2, (bufferPtr + offset + i * blockSize_p2));
+			ret = rtw_writeN(padapter, (FW_8188E_START_ADDRESS + offset + i * blockSize_p2), blockSize_p2, (buffer + offset + i * blockSize_p2));
 
 			if (ret == _FAIL)
 				goto exit;
@@ -116,7 +115,7 @@ static int block_write(struct adapter *padapter, void *buffer, u32 size)
 		blockCount_p3 = remainSize_p2 / blockSize_p3;
 
 		for (i = 0; i < blockCount_p3; i++) {
-			ret = rtw_write8(padapter, (FW_8188E_START_ADDRESS + offset + i), *(bufferPtr + offset + i));
+			ret = rtw_write8(padapter, (FW_8188E_START_ADDRESS + offset + i), *(buffer + offset + i));
 
 			if (ret == _FAIL)
 				goto exit;
@@ -127,7 +126,7 @@ exit:
 	return ret;
 }
 
-static int page_write(struct adapter *padapter, u32 page, void *buffer, u32 size)
+static int page_write(struct adapter *padapter, u32 page, u8 *buffer, u32 size)
 {
 	u8 value8;
 	u8 u8Page = (u8)(page & 0x07);
@@ -138,21 +137,20 @@ static int page_write(struct adapter *padapter, u32 page, void *buffer, u32 size
 	return block_write(padapter, buffer, size);
 }
 
-static int write_fw(struct adapter *padapter, void *buffer, u32 size)
+static int write_fw(struct adapter *padapter, u8 *buffer, u32 size)
 {
 	/*  Since we need dynamic decide method of dwonload fw, so we call this function to get chip version. */
 	/*  We can remove _ReadChipVersion from ReadpadapterInfo8192C later. */
 	int ret = _SUCCESS;
 	u32	pageNums, remainSize;
 	u32	page, offset;
-	u8 *bufferPtr = (u8 *)buffer;
 
 	pageNums = size / MAX_PAGE_SIZE;
 	remainSize = size % MAX_PAGE_SIZE;
 
 	for (page = 0; page < pageNums; page++) {
 		offset = page * MAX_PAGE_SIZE;
-		ret = page_write(padapter, page, bufferPtr + offset, MAX_PAGE_SIZE);
+		ret = page_write(padapter, page, buffer + offset, MAX_PAGE_SIZE);
 
 		if (ret == _FAIL)
 			goto exit;
@@ -160,7 +158,7 @@ static int write_fw(struct adapter *padapter, void *buffer, u32 size)
 	if (remainSize) {
 		offset = pageNums * MAX_PAGE_SIZE;
 		page = pageNums;
-		ret = page_write(padapter, page, bufferPtr + offset, remainSize);
+		ret = page_write(padapter, page, buffer + offset, remainSize);
 
 		if (ret == _FAIL)
 			goto exit;
