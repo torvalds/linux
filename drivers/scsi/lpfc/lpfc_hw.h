@@ -2648,19 +2648,26 @@ typedef struct {
 } READ_SPARM_VAR;
 
 /* Structure for MB Command READ_STATUS (14) */
+enum read_status_word1 {
+	RD_ST_CC	= 0x01,
+	RD_ST_XKB	= 0x80,
+};
+
+enum read_status_word17 {
+	RD_ST_XMIT_XKB_MASK = 0x3fffff,
+};
+
+enum read_status_word18 {
+	RD_ST_RCV_XKB_MASK = 0x3fffff,
+};
 
 typedef struct {
-#ifdef __BIG_ENDIAN_BITFIELD
-	uint32_t rsvd1:31;
-	uint32_t clrCounters:1;
-	uint16_t activeXriCnt;
-	uint16_t activeRpiCnt;
-#else	/*  __LITTLE_ENDIAN_BITFIELD */
-	uint32_t clrCounters:1;
-	uint32_t rsvd1:31;
-	uint16_t activeRpiCnt;
-	uint16_t activeXriCnt;
-#endif
+	u8 clear_counters; /* rsvd 7:1, cc 0 */
+	u8 rsvd5;
+	u8 rsvd6;
+	u8 xkb; /* xkb 7, rsvd 6:0 */
+
+	u32 rsvd8;
 
 	uint32_t xmitByteCnt;
 	uint32_t rcvByteCnt;
@@ -2672,6 +2679,14 @@ typedef struct {
 	uint32_t totalRespExchanges;
 	uint32_t rcvPbsyCnt;
 	uint32_t rcvFbsyCnt;
+
+	u32 drop_frame_no_rq;
+	u32 empty_rq;
+	u32 drop_frame_no_xri;
+	u32 empty_xri;
+
+	u32 xmit_xkb; /* rsvd 31:22, xmit_xkb 21:0 */
+	u32 rcv_xkb; /* rsvd 31:22, rcv_xkb 21:0 */
 } READ_STATUS_VAR;
 
 /* Structure for MB Command READ_RPI (15) */
