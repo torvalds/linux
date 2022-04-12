@@ -1009,13 +1009,13 @@ inode_unlock:
 	return ret;
 }
 
-static inline bool zonefs_file_use_exp_open(struct inode *inode, struct file *file)
+/*
+ * Write open accounting is done only for sequential files.
+ */
+static inline bool zonefs_seq_file_need_wro(struct inode *inode,
+					    struct file *file)
 {
 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	struct zonefs_sb_info *sbi = ZONEFS_SB(inode->i_sb);
-
-	if (!(sbi->s_mount_opts & ZONEFS_MNTOPT_EXPLICIT_OPEN))
-		return false;
 
 	if (zi->i_ztype != ZONEFS_ZTYPE_SEQ)
 		return false;
@@ -1026,30 +1026,33 @@ static inline bool zonefs_file_use_exp_open(struct inode *inode, struct file *fi
 	return true;
 }
 
-static int zonefs_open_zone(struct inode *inode)
+static int zonefs_seq_file_write_open(struct inode *inode)
 {
 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	struct zonefs_sb_info *sbi = ZONEFS_SB(inode->i_sb);
 	int ret = 0;
 
 	mutex_lock(&zi->i_truncate_mutex);
 
 	if (!zi->i_wr_refcnt) {
+		struct zonefs_sb_info *sbi = ZONEFS_SB(inode->i_sb);
 		unsigned int wro = atomic_inc_return(&sbi->s_wro_seq_files);
 
-		if (wro > sbi->s_max_wro_seq_files) {
-			atomic_dec(&sbi->s_wro_seq_files);
-			ret = -EBUSY;
-			goto unlock;
-		}
+		if (sbi->s_mount_opts & ZONEFS_MNTOPT_EXPLICIT_OPEN) {
 
-		if (i_size_read(inode) < zi->i_max_size) {
-			ret = zonefs_zone_mgmt(inode, REQ_OP_ZONE_OPEN);
-			if (ret) {
+			if (wro > sbi->s_max_wro_seq_files) {
 				atomic_dec(&sbi->s_wro_seq_files);
+				ret = -EBUSY;
 				goto unlock;
 			}
-			zi->i_flags |= ZONEFS_ZONE_OPEN;
+
+			if (i_size_read(inode) < zi->i_max_size) {
+				ret = zonefs_zone_mgmt(inode, REQ_OP_ZONE_OPEN);
+				if (ret) {
+					atomic_dec(&sbi->s_wro_seq_files);
+					goto unlock;
+				}
+				zi->i_flags |= ZONEFS_ZONE_OPEN;
+			}
 		}
 	}
 
@@ -1069,30 +1072,31 @@ static int zonefs_file_open(struct inode *inode, struct file *file)
 	if (ret)
 		return ret;
 
-	if (zonefs_file_use_exp_open(inode, file))
-		return zonefs_open_zone(inode);
+	if (zonefs_seq_file_need_wro(inode, file))
+		return zonefs_seq_file_write_open(inode);
 
 	return 0;
 }
 
-static void zonefs_close_zone(struct inode *inode)
+static void zonefs_seq_file_write_close(struct inode *inode)
 {
 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+	struct super_block *sb = inode->i_sb;
+	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
 	int ret = 0;
 
 	mutex_lock(&zi->i_truncate_mutex);
+
 	zi->i_wr_refcnt--;
-	if (!zi->i_wr_refcnt) {
-		struct zonefs_sb_info *sbi = ZONEFS_SB(inode->i_sb);
-		struct super_block *sb = inode->i_sb;
+	if (zi->i_wr_refcnt)
+		goto unlock;
 
-		/*
-		 * If the file zone is full, it is not open anymore and we only
-		 * need to decrement the open count.
-		 */
-		if (!(zi->i_flags & ZONEFS_ZONE_OPEN))
-			goto dec;
-
+	/*
+	 * The file zone may not be open anymore (e.g. the file was truncated to
+	 * its maximum size or it was fully written). For this case, we only
+	 * need to decrement the write open count.
+	 */
+	if (zi->i_flags & ZONEFS_ZONE_OPEN) {
 		ret = zonefs_zone_mgmt(inode, REQ_OP_ZONE_CLOSE);
 		if (ret) {
 			__zonefs_io_error(inode, false);
@@ -1104,14 +1108,22 @@ static void zonefs_close_zone(struct inode *inode)
 			 */
 			if (zi->i_flags & ZONEFS_ZONE_OPEN &&
 			    !(sb->s_flags & SB_RDONLY)) {
-				zonefs_warn(sb, "closing zone failed, remounting filesystem read-only\n");
+				zonefs_warn(sb,
+					"closing zone at %llu failed %d\n",
+					zi->i_zsector, ret);
+				zonefs_warn(sb,
+					"remounting filesystem read-only\n");
 				sb->s_flags |= SB_RDONLY;
 			}
+			goto unlock;
 		}
+
 		zi->i_flags &= ~ZONEFS_ZONE_OPEN;
-dec:
-		atomic_dec(&sbi->s_wro_seq_files);
 	}
+
+	atomic_dec(&sbi->s_wro_seq_files);
+
+unlock:
 	mutex_unlock(&zi->i_truncate_mutex);
 }
 
@@ -1123,8 +1135,8 @@ static int zonefs_file_release(struct inode *inode, struct file *file)
 	 * the zone has gone offline or read-only). Make sure we don't fail the
 	 * close(2) for user-space.
 	 */
-	if (zonefs_file_use_exp_open(inode, file))
-		zonefs_close_zone(inode);
+	if (zonefs_seq_file_need_wro(inode, file))
+		zonefs_seq_file_write_close(inode);
 
 	return 0;
 }
