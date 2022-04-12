@@ -17,6 +17,7 @@ struct perf_ftrace {
 	struct list_head	nograph_funcs;
 	unsigned long		percpu_buffer_size;
 	bool			inherit;
+	bool			use_nsec;
 	int			graph_depth;
 	int			func_stack_trace;
 	int			func_irq_info;

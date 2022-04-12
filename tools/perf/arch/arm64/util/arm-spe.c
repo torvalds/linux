@@ -158,7 +158,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 				return -EINVAL;
 			}
 			evsel->core.attr.freq = 0;
-			evsel->core.attr.sample_period = 1;
+			evsel->core.attr.sample_period = arm_spe_pmu->default_config->sample_period;
 			arm_spe_evsel = evsel;
 			opts->full_auxtrace = true;
 		}

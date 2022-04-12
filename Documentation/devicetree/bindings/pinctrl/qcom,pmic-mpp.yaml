@@ -21,6 +21,7 @@ properties:
           - qcom,pm8019-mpp
           - qcom,pm8038-mpp
           - qcom,pm8058-mpp
+          - qcom,pm8226-mpp
           - qcom,pm8821-mpp
           - qcom,pm8841-mpp
           - qcom,pm8916-mpp

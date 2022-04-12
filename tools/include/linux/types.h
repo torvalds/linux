@@ -63,9 +63,19 @@ typedef __u64 __bitwise __be64;
 typedef __u16 __bitwise __sum16;
 typedef __u32 __bitwise __wsum;
 
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+typedef u64 phys_addr_t;
+#else
+typedef u32 phys_addr_t;
+#endif
+
 typedef struct {
 	int counter;
 } atomic_t;
+
+typedef struct {
+	long counter;
+} atomic_long_t;
 
 #ifndef __aligned_u64
 # define __aligned_u64 __u64 __attribute__((aligned(8)))

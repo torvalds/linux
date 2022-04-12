@@ -876,6 +876,8 @@ patternProperties:
     description: NXP Semiconductors
   "^oceanic,.*":
     description: Oceanic Systems (UK) Ltd.
+  "^ocs,.*":
+    description: Orient Chip Technology Co., Ltd.
   "^oct,.*":
     description: Octavo Systems LLC
   "^okaya,.*":
@@ -1371,6 +1373,8 @@ patternProperties:
     description: Wi2Wi, Inc.
   "^wiligear,.*":
     description: Wiligear, Ltd.
+  "^willsemi,.*":
+    description: Will Semiconductor Ltd.
   "^winbond,.*":
     description: Winbond Electronics corp.
   "^wingtech,.*":

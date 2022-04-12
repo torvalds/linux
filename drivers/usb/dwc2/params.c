@@ -82,6 +82,14 @@ static void dwc2_set_s3c6400_params(struct dwc2_hsotg *hsotg)
 	p->phy_utmi_width = 8;
 }
 
+static void dwc2_set_socfpga_agilex_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->power_down = DWC2_POWER_DOWN_PARAM_NONE;
+	p->no_clock_gating = true;
+}
+
 static void dwc2_set_rk_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
@@ -239,6 +247,8 @@ const struct of_device_id dwc2_of_match_table[] = {
 	  .data = dwc2_set_stm32mp15_fsotg_params },
 	{ .compatible = "st,stm32mp15-hsotg",
 	  .data = dwc2_set_stm32mp15_hsotg_params },
+	{ .compatible = "intel,socfpga-agilex-hsotg",
+	  .data = dwc2_set_socfpga_agilex_params },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dwc2_of_match_table);

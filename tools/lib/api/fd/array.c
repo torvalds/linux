@@ -88,6 +88,23 @@ int fdarray__add(struct fdarray *fda, int fd, short revents, enum fdarray_flags 
 	return pos;
 }
 
+int fdarray__dup_entry_from(struct fdarray *fda, int pos, struct fdarray *from)
+{
+	struct pollfd *entry;
+	int npos;
+
+	if (pos >= from->nr)
+		return -EINVAL;
+
+	entry = &from->entries[pos];
+
+	npos = fdarray__add(fda, entry->fd, entry->events, from->priv[pos].flags);
+	if (npos >= 0)
+		fda->priv[npos] = from->priv[pos];
+
+	return npos;
+}
+
 int fdarray__filter(struct fdarray *fda, short revents,
 		    void (*entry_destructor)(struct fdarray *fda, int fd, void *arg),
 		    void *arg)

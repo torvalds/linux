@@ -691,7 +691,7 @@ $(OUTPUT)common-cmds.h: $(wildcard Documentation/perf-*.txt)
 $(SCRIPTS) : % : %.sh
 	$(QUIET_GEN)$(INSTALL) '$@.sh' '$(OUTPUT)$@'
 
-$(OUTPUT)PERF-VERSION-FILE: ../../.git/HEAD
+$(OUTPUT)PERF-VERSION-FILE: ../../.git/HEAD ../../.git/ORIG_HEAD
 	$(Q)$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
 	$(Q)touch $(OUTPUT)PERF-VERSION-FILE
 
@@ -1144,7 +1144,7 @@ endif
 # then force version regeneration:
 #
 ifeq ($(wildcard ../../.git/HEAD),)
-    GIT-HEAD-PHONY = ../../.git/HEAD
+    GIT-HEAD-PHONY = ../../.git/HEAD ../../.git/ORIG_HEAD
 else
     GIT-HEAD-PHONY =
 endif

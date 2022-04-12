@@ -344,7 +344,8 @@ static int exynos_wkup_irq_set_wake(struct irq_data *irqd, unsigned int on)
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
 	unsigned long bit = 1UL << (2 * bank->eint_offset + irqd->hwirq);
 
-	pr_info("wake %s for irq %d\n", on ? "enabled" : "disabled", irqd->irq);
+	pr_info("wake %s for irq %u (%s-%lu)\n", on ? "enabled" : "disabled",
+		irqd->irq, bank->name, irqd->hwirq);
 
 	if (!on)
 		*our_chip->eint_wake_mask_value |= bit;

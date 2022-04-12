@@ -170,7 +170,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 #else
 	if (flags & FUSE_IOCTL_COMPAT) {
 		inarg.flags |= FUSE_IOCTL_32BIT;
-#ifdef CONFIG_X86_X32
+#ifdef CONFIG_X86_X32_ABI
 		if (in_x32_syscall())
 			inarg.flags |= FUSE_IOCTL_COMPAT_X32;
 #endif

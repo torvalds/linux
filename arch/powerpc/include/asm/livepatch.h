@@ -16,16 +16,6 @@ static inline void klp_arch_set_pc(struct ftrace_regs *fregs, unsigned long ip)
 {
 	ftrace_instruction_pointer_set(fregs, ip);
 }
-
-#define klp_get_ftrace_location klp_get_ftrace_location
-static inline unsigned long klp_get_ftrace_location(unsigned long faddr)
-{
-	/*
-	 * Live patch works on PPC32 and only with -mprofile-kernel on PPC64. In
-	 * both cases, the ftrace location is always within the first 16 bytes.
-	 */
-	return ftrace_location_range(faddr, faddr + 16);
-}
 #endif /* CONFIG_LIVEPATCH */
 
 #ifdef CONFIG_LIVEPATCH_64

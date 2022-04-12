@@ -955,10 +955,10 @@ try_again_reset:
 	 * Enable counters and exec the command:
 	 */
 	if (forks) {
-		evlist__start_workload(evsel_list);
 		err = enable_counters();
 		if (err)
 			return -1;
+		evlist__start_workload(evsel_list);
 
 		t0 = rdclock();
 		clock_gettime(CLOCK_MONOTONIC, &ref_time);
@@ -2271,11 +2271,11 @@ int cmd_stat(int argc, const char **argv)
 	} else
 		stat_config.csv_sep = DEFAULT_SEPARATOR;
 
-	if (argc && !strncmp(argv[0], "rec", 3)) {
+	if (argc && strlen(argv[0]) > 2 && strstarts("record", argv[0])) {
 		argc = __cmd_record(argc, argv);
 		if (argc < 0)
 			return -1;
-	} else if (argc && !strncmp(argv[0], "rep", 3))
+	} else if (argc && strlen(argv[0]) > 2 && strstarts("report", argv[0]))
 		return __cmd_report(argc, argv);
 
 	interval = stat_config.interval;
