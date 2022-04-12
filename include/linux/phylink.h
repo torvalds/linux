@@ -160,11 +160,6 @@ struct phylink_mac_ops {
  * clearing unsupported speeds and duplex settings. The port modes
  * should not be cleared; phylink_set_port_modes() will help with this.
  *
- * If the @state->interface mode is %PHY_INTERFACE_MODE_1000BASEX
- * or %PHY_INTERFACE_MODE_2500BASEX, select the appropriate mode
- * based on @state->advertising and/or @state->speed and update
- * @state->interface accordingly. See phylink_helper_basex_speed().
- *
  * When @config->supported_interfaces has been set, phylink will iterate
  * over the supported interfaces to determine the full capability of the
  * MAC. The validation function must not print errors if @state->interface
@@ -579,7 +574,6 @@ int phylink_speed_up(struct phylink *pl);
 #define phylink_test(bm, mode)	__phylink_do_bit(test_bit, bm, mode)
 
 void phylink_set_port_modes(unsigned long *bits);
-void phylink_helper_basex_speed(struct phylink_link_state *state);
 
 void phylink_mii_c22_pcs_decode_state(struct phylink_link_state *state,
 				      u16 bmsr, u16 lpa);
