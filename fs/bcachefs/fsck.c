@@ -304,7 +304,7 @@ static int __remove_dirent(struct btree_trans *trans, struct bpos pos)
 
 	ret = lookup_first_inode(trans, pos.inode, &dir_inode);
 	if (ret)
-		return ret;
+		goto err;
 
 	dir_hash_info = bch2_hash_info_init(c, &dir_inode);
 
@@ -313,6 +313,9 @@ static int __remove_dirent(struct btree_trans *trans, struct bpos pos)
 	ret = bch2_hash_delete_at(trans, bch2_dirent_hash_desc,
 				  &dir_hash_info, &iter, 0);
 	bch2_trans_iter_exit(trans, &iter);
+err:
+	if (ret && ret != -EINTR)
+		bch_err(c, "error %i from __remove_dirent()", ret);
 	return ret;
 }
 
@@ -799,8 +802,10 @@ static int check_inode(struct btree_trans *trans,
 		return ret;
 
 	ret = check_key_has_snapshot(trans, iter, k);
+	if (ret < 0)
+		goto err;
 	if (ret)
-		return ret < 0 ? ret : 0;
+		return 0;
 
 	/*
 	 * if snapshot id isn't a leaf node, skip it - deletion in
@@ -911,7 +916,10 @@ static int check_inode(struct btree_trans *trans,
 			bch_err(c, "error in fsck: error %i "
 				"updating inode", ret);
 	}
+err:
 fsck_err:
+	if (ret)
+		bch_err(c, "error %i from check_inode()", ret);
 	return ret;
 }
 
@@ -941,6 +949,8 @@ static int check_inodes(struct bch_fs *c, bool full)
 	bch2_trans_iter_exit(&trans, &iter);
 
 	bch2_trans_exit(&trans);
+	if (ret)
+		bch_err(c, "error %i from check_inodes()", ret);
 	return ret;
 }
 
@@ -1134,6 +1144,8 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 		ret2 = -EINTR;
 	}
 fsck_err:
+	if (ret)
+		bch_err(c, "error %i from check_i_sectors()", ret);
 	return ret ?: ret2;
 }
 
@@ -1257,6 +1269,9 @@ out:
 err:
 fsck_err:
 	printbuf_exit(&buf);
+
+	if (ret && ret != -EINTR)
+		bch_err(c, "error %i from check_extent()", ret);
 	return ret;
 }
 
@@ -1305,6 +1320,8 @@ static int check_extents(struct bch_fs *c)
 	bch2_trans_exit(&trans);
 	snapshots_seen_exit(&s);
 
+	if (ret)
+		bch_err(c, "error %i from check_extents()", ret);
 	return ret;
 }
 
@@ -1342,6 +1359,8 @@ static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
 		}
 	}
 fsck_err:
+	if (ret)
+		bch_err(c, "error %i from check_subdir_count()", ret);
 	return ret ?: ret2;
 }
 
@@ -1458,6 +1477,9 @@ out:
 err:
 fsck_err:
 	printbuf_exit(&buf);
+
+	if (ret && ret != -EINTR)
+		bch_err(c, "error %i from check_target()", ret);
 	return ret;
 }
 
@@ -1631,6 +1653,9 @@ out:
 err:
 fsck_err:
 	printbuf_exit(&buf);
+
+	if (ret && ret != -EINTR)
+		bch_err(c, "error %i from check_dirent()", ret);
 	return ret;
 }
 
@@ -1675,6 +1700,9 @@ static int check_dirents(struct bch_fs *c)
 	snapshots_seen_exit(&s);
 	inode_walker_exit(&dir);
 	inode_walker_exit(&target);
+
+	if (ret)
+		bch_err(c, "error %i from check_dirents()", ret);
 	return ret;
 }
 
@@ -1717,6 +1745,8 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 
 	ret = hash_check_key(trans, bch2_xattr_hash_desc, hash_info, iter, k);
 fsck_err:
+	if (ret && ret != -EINTR)
+		bch_err(c, "error %i from check_xattr()", ret);
 	return ret;
 }
 
@@ -1754,6 +1784,9 @@ static int check_xattrs(struct bch_fs *c)
 	bch2_trans_iter_exit(&trans, &iter);
 
 	bch2_trans_exit(&trans);
+
+	if (ret)
+		bch_err(c, "error %i from check_xattrs()", ret);
 	return ret;
 }
 
