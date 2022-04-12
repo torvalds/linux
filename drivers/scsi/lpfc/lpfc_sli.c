@@ -22117,7 +22117,7 @@ lpfc_get_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
 			return NULL;
 		}
 
-		tmp->fcp_cmnd = dma_pool_alloc(phba->lpfc_cmd_rsp_buf_pool,
+		tmp->fcp_cmnd = dma_pool_zalloc(phba->lpfc_cmd_rsp_buf_pool,
 						GFP_ATOMIC,
 						&tmp->fcp_cmd_rsp_dma_handle);
 
