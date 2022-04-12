@@ -770,7 +770,7 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 	int order_index;
 	int busy_cpu = -1;
 	bool enough_idle = (this_rq->avg_idle > NEWIDLE_BALANCE_THRESHOLD);
-	bool help_min_cap = false;
+	bool help_min_cap = false, find_next_cluster = false;
 	int first_idle;
 	int has_misfit = 0;
 
@@ -828,6 +828,26 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 	 * can be queued remotely, so keep a check on nr_running
 	 * and bail out.
 	 */
+	if (num_sched_clusters <= 2) {
+		busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][0],
+				&has_misfit);
+		if (busy_cpu != -1)
+			goto found_busy_cpu;
+
+		if (num_sched_clusters == 2) {
+			has_misfit = false;
+			find_next_cluster = (order_index == 0) ? enough_idle : 1;
+			if (find_next_cluster) {
+				busy_cpu = walt_lb_find_busiest_cpu(this_cpu,
+						&cpu_array[order_index][1], &has_misfit);
+				if (busy_cpu != -1 && (enough_idle || has_misfit))
+					goto found_busy_cpu;
+			}
+		}
+
+		goto unlock;
+	}
+
 	if (order_index == 0) {
 		busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][0],
 				&has_misfit);
