@@ -8864,6 +8864,9 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	}
 	mempool_free(mboxq, phba->mbox_mem_pool);
 
+	/* Enable RAS FW log support */
+	lpfc_sli4_ras_setup(phba);
+
 	phba->hba_flag |= HBA_SETUP;
 	return rc;
 

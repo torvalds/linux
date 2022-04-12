@@ -14832,9 +14832,6 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Check if there are static vports to be created. */
 	lpfc_create_static_vport(phba);
 
-	/* Enable RAS FW log support */
-	lpfc_sli4_ras_setup(phba);
-
 	timer_setup(&phba->cpuhp_poll_timer, lpfc_sli4_poll_hbtimer, 0);
 	cpuhp_state_add_instance_nocalls(lpfc_cpuhp_state, &phba->cpuhp);
 
