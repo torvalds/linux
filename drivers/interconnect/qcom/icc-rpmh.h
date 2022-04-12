@@ -112,7 +112,7 @@ struct qcom_icc_fabric {
 };
 
 struct qcom_icc_desc {
-	struct qcom_icc_node **nodes;
+	struct qcom_icc_node * const *nodes;
 	size_t num_nodes;
 	struct qcom_icc_bcm **bcms;
 	size_t num_bcms;

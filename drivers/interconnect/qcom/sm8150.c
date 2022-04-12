@@ -191,7 +191,7 @@ static struct qcom_icc_bcm *aggre1_noc_bcms[] = {
 	&bcm_sn3,
 };
 
-static struct qcom_icc_node *aggre1_noc_nodes[] = {
+static struct qcom_icc_node * const aggre1_noc_nodes[] = {
 	[MASTER_A1NOC_CFG] = &qhm_a1noc_cfg,
 	[MASTER_QUP_0] = &qhm_qup0,
 	[MASTER_EMAC] = &xm_emac,
@@ -216,7 +216,7 @@ static struct qcom_icc_bcm *aggre2_noc_bcms[] = {
 	&bcm_sn3,
 };
 
-static struct qcom_icc_node *aggre2_noc_nodes[] = {
+static struct qcom_icc_node * const aggre2_noc_nodes[] = {
 	[MASTER_A2NOC_CFG] = &qhm_a2noc_cfg,
 	[MASTER_QDSS_BAM] = &qhm_qdss_bam,
 	[MASTER_QSPI] = &qhm_qspi,
@@ -248,7 +248,7 @@ static struct qcom_icc_bcm *camnoc_virt_bcms[] = {
 	&bcm_mm1,
 };
 
-static struct qcom_icc_node *camnoc_virt_nodes[] = {
+static struct qcom_icc_node * const camnoc_virt_nodes[] = {
 	[MASTER_CAMNOC_HF0_UNCOMP] = &qxm_camnoc_hf0_uncomp,
 	[MASTER_CAMNOC_HF1_UNCOMP] = &qxm_camnoc_hf1_uncomp,
 	[MASTER_CAMNOC_SF_UNCOMP] = &qxm_camnoc_sf_uncomp,
@@ -267,7 +267,7 @@ static struct qcom_icc_bcm *compute_noc_bcms[] = {
 	&bcm_co1,
 };
 
-static struct qcom_icc_node *compute_noc_nodes[] = {
+static struct qcom_icc_node * const compute_noc_nodes[] = {
 	[MASTER_NPU] = &qnm_npu,
 	[SLAVE_CDSP_MEM_NOC] = &qns_cdsp_mem_noc,
 };
@@ -283,7 +283,7 @@ static struct qcom_icc_bcm *config_noc_bcms[] = {
 	&bcm_cn0,
 };
 
-static struct qcom_icc_node *config_noc_nodes[] = {
+static struct qcom_icc_node * const config_noc_nodes[] = {
 	[MASTER_SPDM] = &qhm_spdm,
 	[SNOC_CNOC_MAS] = &qnm_snoc,
 	[MASTER_QDSS_DAP] = &xm_qdss_dap,
@@ -350,7 +350,7 @@ static const struct qcom_icc_desc sm8150_config_noc = {
 static struct qcom_icc_bcm *dc_noc_bcms[] = {
 };
 
-static struct qcom_icc_node *dc_noc_nodes[] = {
+static struct qcom_icc_node * const dc_noc_nodes[] = {
 	[MASTER_CNOC_DC_NOC] = &qhm_cnoc_dc_noc,
 	[SLAVE_LLCC_CFG] = &qhs_llcc,
 	[SLAVE_GEM_NOC_CFG] = &qhs_memnoc,
@@ -371,7 +371,7 @@ static struct qcom_icc_bcm *gem_noc_bcms[] = {
 	&bcm_sh5,
 };
 
-static struct qcom_icc_node *gem_noc_nodes[] = {
+static struct qcom_icc_node * const gem_noc_nodes[] = {
 	[MASTER_AMPSS_M0] = &acm_apps,
 	[MASTER_GPU_TCU] = &acm_gpu_tcu,
 	[MASTER_SYS_TCU] = &acm_sys_tcu,
@@ -402,7 +402,7 @@ static struct qcom_icc_bcm *ipa_virt_bcms[] = {
 	&bcm_ip0,
 };
 
-static struct qcom_icc_node *ipa_virt_nodes[] = {
+static struct qcom_icc_node * const ipa_virt_nodes[] = {
 	[MASTER_IPA_CORE] = &ipa_core_master,
 	[SLAVE_IPA_CORE] = &ipa_core_slave,
 };
@@ -419,7 +419,7 @@ static struct qcom_icc_bcm *mc_virt_bcms[] = {
 	&bcm_mc0,
 };
 
-static struct qcom_icc_node *mc_virt_nodes[] = {
+static struct qcom_icc_node * const mc_virt_nodes[] = {
 	[MASTER_LLCC] = &llcc_mc,
 	[SLAVE_EBI_CH0] = &ebi,
 };
@@ -438,7 +438,7 @@ static struct qcom_icc_bcm *mmss_noc_bcms[] = {
 	&bcm_mm3,
 };
 
-static struct qcom_icc_node *mmss_noc_nodes[] = {
+static struct qcom_icc_node * const mmss_noc_nodes[] = {
 	[MASTER_CNOC_MNOC_CFG] = &qhm_mnoc_cfg,
 	[MASTER_CAMNOC_HF0] = &qxm_camnoc_hf0,
 	[MASTER_CAMNOC_HF1] = &qxm_camnoc_hf1,
@@ -475,7 +475,7 @@ static struct qcom_icc_bcm *system_noc_bcms[] = {
 	&bcm_sn9,
 };
 
-static struct qcom_icc_node *system_noc_nodes[] = {
+static struct qcom_icc_node * const system_noc_nodes[] = {
 	[MASTER_SNOC_CFG] = &qhm_snoc_cfg,
 	[A1NOC_SNOC_MAS] = &qnm_aggre1_noc,
 	[A2NOC_SNOC_MAS] = &qnm_aggre2_noc,

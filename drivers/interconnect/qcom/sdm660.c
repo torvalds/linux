@@ -1490,7 +1490,7 @@ static struct qcom_icc_node slv_srvc_snoc = {
 	.slv_rpm_id = 29,
 };
 
-static struct qcom_icc_node *sdm660_a2noc_nodes[] = {
+static struct qcom_icc_node * const sdm660_a2noc_nodes[] = {
 	[MASTER_IPA] = &mas_ipa,
 	[MASTER_CNOC_A2NOC] = &mas_cnoc_a2noc,
 	[MASTER_SDCC_1] = &mas_sdcc_1,
@@ -1521,7 +1521,7 @@ static const struct qcom_icc_desc sdm660_a2noc = {
 	.regmap_cfg = &sdm660_a2noc_regmap_config,
 };
 
-static struct qcom_icc_node *sdm660_bimc_nodes[] = {
+static struct qcom_icc_node * const sdm660_bimc_nodes[] = {
 	[MASTER_GNOC_BIMC] = &mas_gnoc_bimc,
 	[MASTER_OXILI] = &mas_oxili,
 	[MASTER_MNOC_BIMC] = &mas_mnoc_bimc,
@@ -1547,7 +1547,7 @@ static const struct qcom_icc_desc sdm660_bimc = {
 	.regmap_cfg = &sdm660_bimc_regmap_config,
 };
 
-static struct qcom_icc_node *sdm660_cnoc_nodes[] = {
+static struct qcom_icc_node * const sdm660_cnoc_nodes[] = {
 	[MASTER_SNOC_CNOC] = &mas_snoc_cnoc,
 	[MASTER_QDSS_DAP] = &mas_qdss_dap,
 	[SLAVE_CNOC_A2NOC] = &slv_cnoc_a2noc,
@@ -1601,7 +1601,7 @@ static const struct qcom_icc_desc sdm660_cnoc = {
 	.regmap_cfg = &sdm660_cnoc_regmap_config,
 };
 
-static struct qcom_icc_node *sdm660_gnoc_nodes[] = {
+static struct qcom_icc_node * const sdm660_gnoc_nodes[] = {
 	[MASTER_APSS_PROC] = &mas_apss_proc,
 	[SLAVE_GNOC_BIMC] = &slv_gnoc_bimc,
 	[SLAVE_GNOC_SNOC] = &slv_gnoc_snoc,
@@ -1622,7 +1622,7 @@ static const struct qcom_icc_desc sdm660_gnoc = {
 	.regmap_cfg = &sdm660_gnoc_regmap_config,
 };
 
-static struct qcom_icc_node *sdm660_mnoc_nodes[] = {
+static struct qcom_icc_node * const sdm660_mnoc_nodes[] = {
 	[MASTER_CPP] = &mas_cpp,
 	[MASTER_JPEG] = &mas_jpeg,
 	[MASTER_MDP_P0] = &mas_mdp_p0,
@@ -1664,7 +1664,7 @@ static const struct qcom_icc_desc sdm660_mnoc = {
 	.regmap_cfg = &sdm660_mnoc_regmap_config,
 };
 
-static struct qcom_icc_node *sdm660_snoc_nodes[] = {
+static struct qcom_icc_node * const sdm660_snoc_nodes[] = {
 	[MASTER_QDSS_ETR] = &mas_qdss_etr,
 	[MASTER_QDSS_BAM] = &mas_qdss_bam,
 	[MASTER_SNOC_CFG] = &mas_snoc_cfg,

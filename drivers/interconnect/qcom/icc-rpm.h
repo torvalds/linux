@@ -81,7 +81,7 @@ struct qcom_icc_node {
 };
 
 struct qcom_icc_desc {
-	struct qcom_icc_node **nodes;
+	struct qcom_icc_node * const *nodes;
 	size_t num_nodes;
 	const char * const *clocks;
 	size_t num_clocks;

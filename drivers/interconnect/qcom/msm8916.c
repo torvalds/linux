@@ -1191,7 +1191,7 @@ static struct qcom_icc_node snoc_pcnoc_slv = {
 	.links = snoc_pcnoc_slv_links,
 };
 
-static struct qcom_icc_node *msm8916_snoc_nodes[] = {
+static struct qcom_icc_node * const msm8916_snoc_nodes[] = {
 	[BIMC_SNOC_SLV] = &bimc_snoc_slv,
 	[MASTER_JPEG] = &mas_jpeg,
 	[MASTER_MDP_PORT0] = &mas_mdp,
@@ -1236,7 +1236,7 @@ static const struct qcom_icc_desc msm8916_snoc = {
 	.qos_offset = 0x7000,
 };
 
-static struct qcom_icc_node *msm8916_bimc_nodes[] = {
+static struct qcom_icc_node * const msm8916_bimc_nodes[] = {
 	[BIMC_SNOC_MAS] = &bimc_snoc_mas,
 	[MASTER_AMPSS_M0] = &mas_apss,
 	[MASTER_GRAPHICS_3D] = &mas_gfx,
@@ -1264,7 +1264,7 @@ static const struct qcom_icc_desc msm8916_bimc = {
 	.qos_offset = 0x8000,
 };
 
-static struct qcom_icc_node *msm8916_pcnoc_nodes[] = {
+static struct qcom_icc_node * const msm8916_pcnoc_nodes[] = {
 	[MASTER_BLSP_1] = &mas_blsp_1,
 	[MASTER_DEHR] = &mas_dehr,
 	[MASTER_LPASS] = &mas_audio,
