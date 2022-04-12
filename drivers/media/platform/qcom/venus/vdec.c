@@ -1200,6 +1200,8 @@ static void vdec_stop_streaming(struct vb2_queue *q)
 	struct venus_inst *inst = vb2_get_drv_priv(q);
 	int ret = -EINVAL;
 
+	vdec_pm_get_put(inst);
+
 	mutex_lock(&inst->lock);
 
 	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
