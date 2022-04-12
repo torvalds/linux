@@ -98,7 +98,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
 	unsigned long clone_flags = args->flags;
 	unsigned long new_stackp = args->stack;
-	unsigned long arg = args->stack_size;
 	unsigned long tls = args->tls;
 	struct fake_frame
 	{
@@ -133,15 +132,15 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	frame->sf.gprs[9] = (unsigned long)frame;
 
 	/* Store access registers to kernel stack of new process. */
-	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (unlikely(args->fn)) {
 		/* kernel thread */
 		memset(&frame->childregs, 0, sizeof(struct pt_regs));
 		frame->childregs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT |
 				PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 		frame->childregs.psw.addr =
 				(unsigned long)__ret_from_fork;
-		frame->childregs.gprs[9] = new_stackp; /* function */
-		frame->childregs.gprs[10] = arg;
+		frame->childregs.gprs[9] = (unsigned long)args->fn;
+		frame->childregs.gprs[10] = (unsigned long)args->fn_arg;
 		frame->childregs.orig_gpr2 = -1;
 		frame->childregs.last_break = 1;
 		return 0;

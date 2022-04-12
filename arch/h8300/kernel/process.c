@@ -108,16 +108,15 @@ void flush_thread(void)
 int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
 	unsigned long usp = args->stack;
-	unsigned long topstk = args->stack_size;
 	struct pt_regs *childregs;
 
 	childregs = (struct pt_regs *) (THREAD_SIZE + task_stack_page(p)) - 1;
 
-	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (unlikely(args->fn)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->retpc = (unsigned long) ret_from_kernel_thread;
-		childregs->er4 = topstk; /* arg */
-		childregs->er5 = usp; /* fn */
+		childregs->er4 = (unsigned long) args->fn_arg;
+		childregs->er5 = (unsigned long) args->fn;
 	}  else {
 		*childregs = *current_pt_regs();
 		childregs->er0 = 0;

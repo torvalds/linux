@@ -104,7 +104,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
 	unsigned long clone_flags = args->flags;
 	unsigned long usp = args->stack;
-	unsigned long arg = args->stack_size;
 	unsigned long tls = args->tls;
 	struct pt_regs *childregs = task_pt_regs(p);
 	struct pt_regs *regs;
@@ -112,12 +111,12 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	struct switch_stack *childstack =
 		((struct switch_stack *)childregs) - 1;
 
-	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (unlikely(args->fn)) {
 		memset(childstack, 0,
 			sizeof(struct switch_stack) + sizeof(struct pt_regs));
 
-		childstack->r16 = usp;		/* fn */
-		childstack->r17 = arg;
+		childstack->r16 = (unsigned long) args->fn;
+		childstack->r17 = (unsigned long) args->fn_arg;
 		childstack->ra = (unsigned long) ret_from_kernel_thread;
 		childregs->estatus = STATUS_PIE;
 		childregs->sp = (unsigned long) childstack;

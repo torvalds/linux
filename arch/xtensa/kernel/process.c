@@ -205,7 +205,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
 	unsigned long clone_flags = args->flags;
 	unsigned long usp_thread_fn = args->stack;
-	unsigned long thread_fn_arg = args->stack_size;
 	unsigned long tls = args->tls;
 	struct pt_regs *childregs = task_pt_regs(p);
 
@@ -226,7 +225,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 #error Unsupported Xtensa ABI
 #endif
 
-	if (!(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (!args->fn) {
 		struct pt_regs *regs = current_pt_regs();
 		unsigned long usp = usp_thread_fn ?
 			usp_thread_fn : regs->areg[1];
@@ -278,15 +277,15 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		 * Window underflow will load registers from the
 		 * spill slots on the stack on return from _switch_to.
 		 */
-		SPILL_SLOT(childregs, 2) = usp_thread_fn;
-		SPILL_SLOT(childregs, 3) = thread_fn_arg;
+		SPILL_SLOT(childregs, 2) = (unsigned long)args->fn;
+		SPILL_SLOT(childregs, 3) = (unsigned long)args->fn_arg;
 #elif defined(__XTENSA_CALL0_ABI__)
 		/*
 		 * a12 = thread_fn, a13 = thread_fn arg.
 		 * _switch_to epilogue will load registers from the stack.
 		 */
-		((unsigned long *)p->thread.sp)[0] = usp_thread_fn;
-		((unsigned long *)p->thread.sp)[1] = thread_fn_arg;
+		((unsigned long *)p->thread.sp)[0] = (unsigned long)args->fn;
+		((unsigned long *)p->thread.sp)[1] = (unsigned long)args->fn_arg;
 #else
 #error Unsupported Xtensa ABI
 #endif

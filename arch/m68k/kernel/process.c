@@ -142,7 +142,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
 	unsigned long clone_flags = args->flags;
 	unsigned long usp = args->stack;
-	unsigned long arg = args->stack_size;
 	unsigned long tls = args->tls;
 	struct fork_frame {
 		struct switch_stack sw;
@@ -160,12 +159,12 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	 */
 	p->thread.fc = USER_DATA;
 
-	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (unlikely(args->fn)) {
 		/* kernel thread */
 		memset(frame, 0, sizeof(struct fork_frame));
 		frame->regs.sr = PS_S;
-		frame->sw.a3 = usp; /* function */
-		frame->sw.d7 = arg;
+		frame->sw.a3 = (unsigned long)args->fn;
+		frame->sw.d7 = (unsigned long)args->fn_arg;
 		frame->sw.retpc = (unsigned long)ret_from_kernel_thread;
 		p->thread.usp = 0;
 		return 0;

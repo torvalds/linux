@@ -56,19 +56,18 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
 	unsigned long clone_flags = args->flags;
 	unsigned long usp = args->stack;
-	unsigned long arg = args->stack_size;
 	unsigned long tls = args->tls;
 	struct pt_regs *childregs = task_pt_regs(p);
 	struct thread_info *ti = task_thread_info(p);
 
-	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (unlikely(args->fn)) {
 		/* if we're creating a new kernel thread then just zeroing all
 		 * the registers. That's OK for a brand new thread.*/
 		memset(childregs, 0, sizeof(struct pt_regs));
 		memset(&ti->cpu_context, 0, sizeof(struct cpu_context));
 		ti->cpu_context.r1  = (unsigned long)childregs;
-		ti->cpu_context.r20 = (unsigned long)usp; /* fn */
-		ti->cpu_context.r19 = (unsigned long)arg;
+		ti->cpu_context.r20 = (unsigned long)args->fn;
+		ti->cpu_context.r19 = (unsigned long)args->fn_arg;
 		childregs->pt_mode = 1;
 		local_save_flags(childregs->msr);
 		ti->cpu_context.msr = childregs->msr & ~MSR_IE;
