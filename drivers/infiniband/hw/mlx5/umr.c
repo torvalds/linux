@@ -349,3 +349,44 @@ int mlx5r_umr_revoke_mr(struct mlx5_ib_mr *mr)
 
 	return mlx5r_umr_post_send_wait(dev, mr->mmkey.key, &wqe, false);
 }
+
+static void mlx5r_umr_set_access_flags(struct mlx5_ib_dev *dev,
+				       struct mlx5_mkey_seg *seg,
+				       unsigned int access_flags)
+{
+	MLX5_SET(mkc, seg, a, !!(access_flags & IB_ACCESS_REMOTE_ATOMIC));
+	MLX5_SET(mkc, seg, rw, !!(access_flags & IB_ACCESS_REMOTE_WRITE));
+	MLX5_SET(mkc, seg, rr, !!(access_flags & IB_ACCESS_REMOTE_READ));
+	MLX5_SET(mkc, seg, lw, !!(access_flags & IB_ACCESS_LOCAL_WRITE));
+	MLX5_SET(mkc, seg, lr, 1);
+	MLX5_SET(mkc, seg, relaxed_ordering_write,
+		 !!(access_flags & IB_ACCESS_RELAXED_ORDERING));
+	MLX5_SET(mkc, seg, relaxed_ordering_read,
+		 !!(access_flags & IB_ACCESS_RELAXED_ORDERING));
+}
+
+int mlx5r_umr_rereg_pd_access(struct mlx5_ib_mr *mr, struct ib_pd *pd,
+			      int access_flags)
+{
+	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
+	struct mlx5r_umr_wqe wqe = {};
+	int err;
+
+	wqe.ctrl_seg.mkey_mask = get_umr_update_access_mask(dev);
+	wqe.ctrl_seg.mkey_mask |= get_umr_update_pd_mask();
+	wqe.ctrl_seg.flags = MLX5_UMR_CHECK_FREE;
+	wqe.ctrl_seg.flags |= MLX5_UMR_INLINE;
+
+	mlx5r_umr_set_access_flags(dev, &wqe.mkey_seg, access_flags);
+	MLX5_SET(mkc, &wqe.mkey_seg, pd, to_mpd(pd)->pdn);
+	MLX5_SET(mkc, &wqe.mkey_seg, qpn, 0xffffff);
+	MLX5_SET(mkc, &wqe.mkey_seg, mkey_7_0,
+		 mlx5_mkey_variant(mr->mmkey.key));
+
+	err = mlx5r_umr_post_send_wait(dev, mr->mmkey.key, &wqe, false);
+	if (err)
+		return err;
+
+	mr->access_flags = access_flags;
+	return 0;
+}

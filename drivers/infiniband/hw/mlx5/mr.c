@@ -1646,30 +1646,6 @@ static bool can_use_umr_rereg_access(struct mlx5_ib_dev *dev,
 				      target_access_flags);
 }
 
-static int umr_rereg_pd_access(struct mlx5_ib_mr *mr, struct ib_pd *pd,
-			       int access_flags)
-{
-	struct mlx5_ib_dev *dev = to_mdev(mr->ibmr.device);
-	struct mlx5_umr_wr umrwr = {
-		.wr = {
-			.send_flags = MLX5_IB_SEND_UMR_FAIL_IF_FREE |
-				      MLX5_IB_SEND_UMR_UPDATE_PD_ACCESS,
-			.opcode = MLX5_IB_WR_UMR,
-		},
-		.mkey = mr->mmkey.key,
-		.pd = pd,
-		.access_flags = access_flags,
-	};
-	int err;
-
-	err = mlx5_ib_post_send_wait(dev, &umrwr);
-	if (err)
-		return err;
-
-	mr->access_flags = access_flags;
-	return 0;
-}
-
 static bool can_use_umr_rereg_pas(struct mlx5_ib_mr *mr,
 				  struct ib_umem *new_umem,
 				  int new_access_flags, u64 iova,
@@ -1770,7 +1746,8 @@ struct ib_mr *mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 		/* Fast path for PD/access change */
 		if (can_use_umr_rereg_access(dev, mr->access_flags,
 					     new_access_flags)) {
-			err = umr_rereg_pd_access(mr, new_pd, new_access_flags);
+			err = mlx5r_umr_rereg_pd_access(mr, new_pd,
+							new_access_flags);
 			if (err)
 				return ERR_PTR(err);
 			return NULL;
