@@ -34,6 +34,7 @@
 #include <linux/numa.h>
 #include <linux/zalloc.h>
 
+#include "../util/header.h"
 #include <numa.h>
 #include <numaif.h>
 
@@ -585,6 +586,11 @@ static int parse_setup_cpu_list(void)
 			return -1;
 		}
 
+		if (is_cpu_online(bind_cpu_0) != 1 || is_cpu_online(bind_cpu_1) != 1) {
+			printf("\nTest not applicable, bind_cpu_0 or bind_cpu_1 is offline\n");
+			return -1;
+		}
+
 		BUG_ON(bind_cpu_0 < 0 || bind_cpu_1 < 0);
 		BUG_ON(bind_cpu_0 > bind_cpu_1);
 
@@ -751,8 +757,6 @@ static int parse_nodes_opt(const struct option *opt __maybe_unused,
 
 	return parse_node_list(arg);
 }
-
-#define BIT(x) (1ul << x)
 
 static inline uint32_t lfsr_32(uint32_t lfsr)
 {
