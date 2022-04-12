@@ -182,8 +182,8 @@ struct zonefs_sb_info {
 	loff_t			s_blocks;
 	loff_t			s_used_blocks;
 
-	unsigned int		s_max_open_zones;
-	atomic_t		s_open_zones;
+	unsigned int		s_max_wro_seq_files;
+	atomic_t		s_wro_seq_files;
 };
 
 static inline struct zonefs_sb_info *ZONEFS_SB(struct super_block *sb)
