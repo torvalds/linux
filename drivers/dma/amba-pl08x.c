@@ -1535,14 +1535,6 @@ static void pl08x_free_chan_resources(struct dma_chan *chan)
 	vchan_free_chan_resources(to_virt_chan(chan));
 }
 
-static struct dma_async_tx_descriptor *pl08x_prep_dma_interrupt(
-		struct dma_chan *chan, unsigned long flags)
-{
-	struct dma_async_tx_descriptor *retval = NULL;
-
-	return retval;
-}
-
 /*
  * Code accessing dma_async_is_complete() in a tight loop may give problems.
  * If slaves are relying on interrupts to signal completion this function
@@ -2760,7 +2752,6 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	pl08x->memcpy.dev = &adev->dev;
 	pl08x->memcpy.device_free_chan_resources = pl08x_free_chan_resources;
 	pl08x->memcpy.device_prep_dma_memcpy = pl08x_prep_dma_memcpy;
-	pl08x->memcpy.device_prep_dma_interrupt = pl08x_prep_dma_interrupt;
 	pl08x->memcpy.device_tx_status = pl08x_dma_tx_status;
 	pl08x->memcpy.device_issue_pending = pl08x_issue_pending;
 	pl08x->memcpy.device_config = pl08x_config;
@@ -2787,8 +2778,6 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		pl08x->slave.dev = &adev->dev;
 		pl08x->slave.device_free_chan_resources =
 			pl08x_free_chan_resources;
-		pl08x->slave.device_prep_dma_interrupt =
-			pl08x_prep_dma_interrupt;
 		pl08x->slave.device_tx_status = pl08x_dma_tx_status;
 		pl08x->slave.device_issue_pending = pl08x_issue_pending;
 		pl08x->slave.device_prep_slave_sg = pl08x_prep_slave_sg;
