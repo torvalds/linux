@@ -1163,6 +1163,7 @@ static struct inode *zonefs_alloc_inode(struct super_block *sb)
 	mutex_init(&zi->i_truncate_mutex);
 	init_rwsem(&zi->i_mmap_sem);
 	zi->i_wr_refcnt = 0;
+	zi->i_flags = 0;
 
 	return &zi->i_vnode;
 }
