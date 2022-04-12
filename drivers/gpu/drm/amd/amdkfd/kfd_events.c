@@ -780,7 +780,7 @@ static struct kfd_event_waiter *alloc_event_waiters(uint32_t num_events)
 	return event_waiters;
 }
 
-static int init_event_waiter_get_status(struct kfd_process *p,
+static int init_event_waiter(struct kfd_process *p,
 		struct kfd_event_waiter *waiter,
 		uint32_t event_id)
 {
@@ -793,23 +793,11 @@ static int init_event_waiter_get_status(struct kfd_process *p,
 	waiter->event = ev;
 	waiter->activated = ev->signaled;
 	ev->signaled = ev->signaled && !ev->auto_reset;
+	if (!waiter->activated)
+		add_wait_queue(&ev->wq, &waiter->wait);
 	spin_unlock(&ev->lock);
 
 	return 0;
-}
-
-static void init_event_waiter_add_to_waitlist(struct kfd_event_waiter *waiter)
-{
-	struct kfd_event *ev = waiter->event;
-
-	/* Only add to the wait list if we actually need to
-	 * wait on this event.
-	 */
-	if (!waiter->activated) {
-		spin_lock(&ev->lock);
-		add_wait_queue(&ev->wq, &waiter->wait);
-		spin_unlock(&ev->lock);
-	}
 }
 
 /* test_event_condition - Test condition of events being waited for
@@ -941,8 +929,8 @@ int kfd_wait_on_events(struct kfd_process *p,
 			goto out_unlock;
 		}
 
-		ret = init_event_waiter_get_status(p, &event_waiters[i],
-				event_data.event_id);
+		ret = init_event_waiter(p, &event_waiters[i],
+					event_data.event_id);
 		if (ret)
 			goto out_unlock;
 	}
@@ -959,10 +947,6 @@ int kfd_wait_on_events(struct kfd_process *p,
 		 */
 		goto out_unlock;
 	}
-
-	/* Add to wait lists if we need to wait. */
-	for (i = 0; i < num_events; i++)
-		init_event_waiter_add_to_waitlist(&event_waiters[i]);
 
 	mutex_unlock(&p->event_mutex);
 
