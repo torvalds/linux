@@ -75,10 +75,6 @@ static inline u64 mlx5r_umr_get_xlt_octo(u64 bytes)
 	       MLX5_IB_UMR_OCTOWORD;
 }
 
-int mlx5r_umr_set_umr_ctrl_seg(struct mlx5_ib_dev *dev,
-			       struct mlx5_wqe_umr_ctrl_seg *umr,
-			       const struct ib_send_wr *wr);
-
 struct mlx5r_umr_context {
 	struct ib_cqe cqe;
 	enum ib_wc_status status;

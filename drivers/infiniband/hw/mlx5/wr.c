@@ -214,43 +214,6 @@ static void set_linv_mkey_seg(struct mlx5_mkey_seg *seg)
 	seg->status = MLX5_MKEY_STATUS_FREE;
 }
 
-static void set_reg_mkey_segment(struct mlx5_ib_dev *dev,
-				 struct mlx5_mkey_seg *seg,
-				 const struct ib_send_wr *wr)
-{
-	const struct mlx5_umr_wr *umrwr = umr_wr(wr);
-
-	memset(seg, 0, sizeof(*seg));
-	if (wr->send_flags & MLX5_IB_SEND_UMR_DISABLE_MR)
-		MLX5_SET(mkc, seg, free, 1);
-
-	MLX5_SET(mkc, seg, a,
-		 !!(umrwr->access_flags & IB_ACCESS_REMOTE_ATOMIC));
-	MLX5_SET(mkc, seg, rw,
-		 !!(umrwr->access_flags & IB_ACCESS_REMOTE_WRITE));
-	MLX5_SET(mkc, seg, rr, !!(umrwr->access_flags & IB_ACCESS_REMOTE_READ));
-	MLX5_SET(mkc, seg, lw, !!(umrwr->access_flags & IB_ACCESS_LOCAL_WRITE));
-	MLX5_SET(mkc, seg, lr, 1);
-	if (MLX5_CAP_GEN(dev->mdev, relaxed_ordering_write_umr))
-		MLX5_SET(mkc, seg, relaxed_ordering_write,
-			 !!(umrwr->access_flags & IB_ACCESS_RELAXED_ORDERING));
-	if (MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read_umr))
-		MLX5_SET(mkc, seg, relaxed_ordering_read,
-			 !!(umrwr->access_flags & IB_ACCESS_RELAXED_ORDERING));
-
-	if (umrwr->pd)
-		MLX5_SET(mkc, seg, pd, to_mpd(umrwr->pd)->pdn);
-	if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_TRANSLATION &&
-	    !umrwr->length)
-		MLX5_SET(mkc, seg, length64, 1);
-
-	MLX5_SET64(mkc, seg, start_addr, umrwr->virt_addr);
-	MLX5_SET64(mkc, seg, len, umrwr->length);
-	MLX5_SET(mkc, seg, log_page_size, umrwr->page_shift);
-	MLX5_SET(mkc, seg, qpn, 0xffffff);
-	MLX5_SET(mkc, seg, mkey_7_0, mlx5_mkey_variant(umrwr->mkey));
-}
-
 static void set_reg_data_seg(struct mlx5_wqe_data_seg *dseg,
 			     struct mlx5_ib_mr *mr,
 			     struct mlx5_ib_pd *pd)
@@ -1059,35 +1022,6 @@ static void handle_qpt_ud(struct mlx5_ib_qp *qp, const struct ib_send_wr *wr,
 	}
 }
 
-static int handle_qpt_reg_umr(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
-			      const struct ib_send_wr *wr,
-			      struct mlx5_wqe_ctrl_seg **ctrl, void **seg,
-			      int *size, void **cur_edge, unsigned int idx)
-{
-	int err = 0;
-
-	if (unlikely(wr->opcode != MLX5_IB_WR_UMR)) {
-		err = -EINVAL;
-		mlx5_ib_warn(dev, "bad opcode %d\n", wr->opcode);
-		goto out;
-	}
-
-	qp->sq.wr_data[idx] = MLX5_IB_WR_UMR;
-	(*ctrl)->imm = cpu_to_be32(umr_wr(wr)->mkey);
-	err = mlx5r_umr_set_umr_ctrl_seg(dev, *seg, wr);
-	if (unlikely(err))
-		goto out;
-	*seg += sizeof(struct mlx5_wqe_umr_ctrl_seg);
-	*size += sizeof(struct mlx5_wqe_umr_ctrl_seg) / 16;
-	handle_post_send_edge(&qp->sq, seg, *size, cur_edge);
-	set_reg_mkey_segment(dev, *seg, wr);
-	*seg += sizeof(struct mlx5_mkey_seg);
-	*size += sizeof(struct mlx5_mkey_seg) / 16;
-	handle_post_send_edge(&qp->sq, seg, *size, cur_edge);
-out:
-	return err;
-}
-
 void mlx5r_ring_db(struct mlx5_ib_qp *qp, unsigned int nreq,
 		   struct mlx5_wqe_ctrl_seg *ctrl)
 {
@@ -1219,12 +1153,6 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			break;
 		case IB_QPT_UD:
 			handle_qpt_ud(qp, wr, &seg, &size, &cur_edge);
-			break;
-		case MLX5_IB_QPT_REG_UMR:
-			err = handle_qpt_reg_umr(dev, qp, wr, &ctrl, &seg,
-						       &size, &cur_edge, idx);
-			if (unlikely(err))
-				goto out;
 			break;
 
 		default:
