@@ -23,11 +23,11 @@ struct btrfs_io_geometry {
 	/* offset of logical address in chunk */
 	u64 offset;
 	/* length of single IO stripe */
-	u64 stripe_len;
+	u32 stripe_len;
+	/* offset of address in stripe */
+	u32 stripe_offset;
 	/* number of stripe where address falls */
 	u64 stripe_nr;
-	/* offset of address in stripe */
-	u64 stripe_offset;
 	/* offset of raid56 stripe into the chunk */
 	u64 raid56_stripe_offset;
 };
@@ -430,7 +430,7 @@ struct map_lookup {
 	u64 type;
 	int io_align;
 	int io_width;
-	u64 stripe_len;
+	u32 stripe_len;
 	int num_stripes;
 	int sub_stripes;
 	int verified_stripes; /* For mount time dev extent verification */

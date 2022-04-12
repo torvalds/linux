@@ -949,9 +949,10 @@ static struct page *page_in_rbio(struct btrfs_raid_bio *rbio,
  * number of pages we need for the entire stripe across all the
  * drives
  */
-static unsigned long rbio_nr_pages(unsigned long stripe_len, int nr_stripes)
+static unsigned long rbio_nr_pages(u32 stripe_len, int nr_stripes)
 {
-	return DIV_ROUND_UP(stripe_len, PAGE_SIZE) * nr_stripes;
+	ASSERT(IS_ALIGNED(stripe_len, PAGE_SIZE));
+	return (stripe_len >> PAGE_SHIFT) * nr_stripes;
 }
 
 /*
@@ -960,13 +961,13 @@ static unsigned long rbio_nr_pages(unsigned long stripe_len, int nr_stripes)
  */
 static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 					 struct btrfs_io_context *bioc,
-					 u64 stripe_len)
+					 u32 stripe_len)
 {
 	struct btrfs_raid_bio *rbio;
 	int nr_data = 0;
 	int real_stripes = bioc->num_stripes - bioc->num_tgtdevs;
 	int num_pages = rbio_nr_pages(stripe_len, real_stripes);
-	int stripe_npages = DIV_ROUND_UP(stripe_len, PAGE_SIZE);
+	int stripe_npages = stripe_len >> PAGE_SHIFT;
 	void *p;
 
 	rbio = kzalloc(sizeof(*rbio) +
@@ -1691,8 +1692,7 @@ static void btrfs_raid_unplug(struct blk_plug_cb *cb, bool from_schedule)
 /*
  * our main entry point for writes from the rest of the FS.
  */
-int raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc,
-			u64 stripe_len)
+int raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc, u32 stripe_len)
 {
 	struct btrfs_fs_info *fs_info = bioc->fs_info;
 	struct btrfs_raid_bio *rbio;
@@ -2089,7 +2089,7 @@ cleanup:
  * of the drive.
  */
 int raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
-			  u64 stripe_len, int mirror_num, int generic_io)
+			  u32 stripe_len, int mirror_num, int generic_io)
 {
 	struct btrfs_fs_info *fs_info = bioc->fs_info;
 	struct btrfs_raid_bio *rbio;
@@ -2195,7 +2195,7 @@ static void read_rebuild_work(struct btrfs_work *work)
 
 struct btrfs_raid_bio *raid56_parity_alloc_scrub_rbio(struct bio *bio,
 				struct btrfs_io_context *bioc,
-				u64 stripe_len, struct btrfs_device *scrub_dev,
+				u32 stripe_len, struct btrfs_device *scrub_dev,
 				unsigned long *dbitmap, int stripe_nsectors)
 {
 	struct btrfs_fs_info *fs_info = bioc->fs_info;
