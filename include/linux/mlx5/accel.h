@@ -111,46 +111,43 @@ struct mlx5_accel_esp_xfrm {
 	struct mlx5_accel_esp_xfrm_attrs attrs;
 };
 
-enum {
-	MLX5_ACCEL_XFRM_FLAG_REQUIRE_METADATA = 1UL << 0,
-};
-
 enum mlx5_accel_ipsec_cap {
 	MLX5_ACCEL_IPSEC_CAP_DEVICE		= 1 << 0,
-	MLX5_ACCEL_IPSEC_CAP_REQUIRED_METADATA	= 1 << 1,
-	MLX5_ACCEL_IPSEC_CAP_ESP		= 1 << 2,
-	MLX5_ACCEL_IPSEC_CAP_IPV6		= 1 << 3,
-	MLX5_ACCEL_IPSEC_CAP_LSO		= 1 << 4,
-	MLX5_ACCEL_IPSEC_CAP_RX_NO_TRAILER	= 1 << 5,
-	MLX5_ACCEL_IPSEC_CAP_ESN		= 1 << 6,
-	MLX5_ACCEL_IPSEC_CAP_TX_IV_IS_ESN	= 1 << 7,
+	MLX5_ACCEL_IPSEC_CAP_ESP		= 1 << 1,
+	MLX5_ACCEL_IPSEC_CAP_IPV6		= 1 << 2,
+	MLX5_ACCEL_IPSEC_CAP_LSO		= 1 << 3,
+	MLX5_ACCEL_IPSEC_CAP_ESN		= 1 << 4,
 };
 
-#ifdef CONFIG_MLX5_ACCEL
+#ifdef CONFIG_MLX5_EN_IPSEC
 
-u32 mlx5_accel_ipsec_device_caps(struct mlx5_core_dev *mdev);
+u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev);
 
 struct mlx5_accel_esp_xfrm *
 mlx5_accel_esp_create_xfrm(struct mlx5_core_dev *mdev,
-			   const struct mlx5_accel_esp_xfrm_attrs *attrs,
-			   u32 flags);
+			   const struct mlx5_accel_esp_xfrm_attrs *attrs);
 void mlx5_accel_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm);
 int mlx5_accel_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
 			       const struct mlx5_accel_esp_xfrm_attrs *attrs);
 
 #else
 
-static inline u32 mlx5_accel_ipsec_device_caps(struct mlx5_core_dev *mdev) { return 0; }
+static inline u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
+{
+	return 0;
+}
 
 static inline struct mlx5_accel_esp_xfrm *
 mlx5_accel_esp_create_xfrm(struct mlx5_core_dev *mdev,
-			   const struct mlx5_accel_esp_xfrm_attrs *attrs,
-			   u32 flags) { return ERR_PTR(-EOPNOTSUPP); }
+			   const struct mlx5_accel_esp_xfrm_attrs *attrs)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
 static inline void
 mlx5_accel_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm) {}
 static inline int
 mlx5_accel_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
 			   const struct mlx5_accel_esp_xfrm_attrs *attrs) { return -EOPNOTSUPP; }
 
-#endif /* CONFIG_MLX5_ACCEL */
+#endif /* CONFIG_MLX5_EN_IPSEC */
 #endif /* __MLX5_ACCEL_H__ */

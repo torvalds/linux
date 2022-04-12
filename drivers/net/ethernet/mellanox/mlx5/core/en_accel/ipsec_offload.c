@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020, Mellanox Technologies inc. All rights reserved. */
+/* Copyright (c) 2017, Mellanox Technologies inc. All rights reserved. */
 
 #include "mlx5_core.h"
 #include "ipsec_offload.h"
 #include "lib/mlx5.h"
 #include "en_accel/ipsec_fs.h"
-
-#define MLX5_IPSEC_DEV_BASIC_CAPS (MLX5_ACCEL_IPSEC_CAP_DEVICE | MLX5_ACCEL_IPSEC_CAP_IPV6 | \
-				   MLX5_ACCEL_IPSEC_CAP_LSO)
 
 struct mlx5_ipsec_sa_ctx {
 	struct rhash_head hash;
@@ -25,25 +22,37 @@ struct mlx5_ipsec_esp_xfrm {
 	struct mlx5_accel_esp_xfrm accel_xfrm;
 };
 
-static u32 mlx5_ipsec_offload_device_caps(struct mlx5_core_dev *mdev)
+u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 {
-	u32 caps = MLX5_IPSEC_DEV_BASIC_CAPS;
+	u32 caps;
 
-	if (!mlx5_is_ipsec_device(mdev))
+	if (!MLX5_CAP_GEN(mdev, ipsec_offload))
+		return 0;
+
+	if (!MLX5_CAP_GEN(mdev, log_max_dek))
+		return 0;
+
+	if (!(MLX5_CAP_GEN_64(mdev, general_obj_types) &
+	    MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_IPSEC))
+		return 0;
+
+	if (!MLX5_CAP_IPSEC(mdev, ipsec_crypto_offload) ||
+	    !MLX5_CAP_ETH(mdev, insert_trailer))
 		return 0;
 
 	if (!MLX5_CAP_FLOWTABLE_NIC_TX(mdev, ipsec_encrypt) ||
 	    !MLX5_CAP_FLOWTABLE_NIC_RX(mdev, ipsec_decrypt))
 		return 0;
 
+	caps = MLX5_ACCEL_IPSEC_CAP_DEVICE | MLX5_ACCEL_IPSEC_CAP_IPV6 |
+	       MLX5_ACCEL_IPSEC_CAP_LSO;
+
 	if (MLX5_CAP_IPSEC(mdev, ipsec_crypto_esp_aes_gcm_128_encrypt) &&
 	    MLX5_CAP_IPSEC(mdev, ipsec_crypto_esp_aes_gcm_128_decrypt))
 		caps |= MLX5_ACCEL_IPSEC_CAP_ESP;
 
-	if (MLX5_CAP_IPSEC(mdev, ipsec_esn)) {
+	if (MLX5_CAP_IPSEC(mdev, ipsec_esn))
 		caps |= MLX5_ACCEL_IPSEC_CAP_ESN;
-		caps |= MLX5_ACCEL_IPSEC_CAP_TX_IV_IS_ESN;
-	}
 
 	/* We can accommodate up to 2^24 different IPsec objects
 	 * because we use up to 24 bit in flow table metadata
@@ -52,6 +61,7 @@ static u32 mlx5_ipsec_offload_device_caps(struct mlx5_core_dev *mdev)
 	WARN_ON_ONCE(MLX5_CAP_IPSEC(mdev, log_max_ipsec_offload) > 24);
 	return caps;
 }
+EXPORT_SYMBOL_GPL(mlx5_ipsec_device_caps);
 
 static int
 mlx5_ipsec_offload_esp_validate_xfrm_attrs(struct mlx5_core_dev *mdev,
@@ -94,8 +104,7 @@ mlx5_ipsec_offload_esp_validate_xfrm_attrs(struct mlx5_core_dev *mdev,
 
 static struct mlx5_accel_esp_xfrm *
 mlx5_ipsec_offload_esp_create_xfrm(struct mlx5_core_dev *mdev,
-				   const struct mlx5_accel_esp_xfrm_attrs *attrs,
-				   u32 flags)
+				   const struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
 	struct mlx5_ipsec_esp_xfrm *mxfrm;
 	int err = 0;
@@ -274,11 +283,6 @@ static void mlx5_ipsec_offload_delete_sa_ctx(void *context)
 	mutex_unlock(&mxfrm->lock);
 }
 
-static int mlx5_ipsec_offload_init(struct mlx5_core_dev *mdev)
-{
-	return 0;
-}
-
 static int mlx5_modify_ipsec_obj(struct mlx5_core_dev *mdev,
 				 struct mlx5_ipsec_obj_attrs *attrs,
 				 u32 ipsec_id)
@@ -366,20 +370,51 @@ change_sw_xfrm_attrs:
 	return err;
 }
 
-static const struct mlx5_accel_ipsec_ops ipsec_offload_ops = {
-	.device_caps = mlx5_ipsec_offload_device_caps,
-	.create_hw_context = mlx5_ipsec_offload_create_sa_ctx,
-	.free_hw_context = mlx5_ipsec_offload_delete_sa_ctx,
-	.init = mlx5_ipsec_offload_init,
-	.esp_create_xfrm = mlx5_ipsec_offload_esp_create_xfrm,
-	.esp_destroy_xfrm = mlx5_ipsec_offload_esp_destroy_xfrm,
-	.esp_modify_xfrm = mlx5_ipsec_offload_esp_modify_xfrm,
-};
-
-const struct mlx5_accel_ipsec_ops *mlx5_ipsec_offload_ops(struct mlx5_core_dev *mdev)
+void *mlx5_accel_esp_create_hw_context(struct mlx5_core_dev *mdev,
+				       struct mlx5_accel_esp_xfrm *xfrm,
+				       u32 *sa_handle)
 {
-	if (!mlx5_ipsec_offload_device_caps(mdev))
-		return NULL;
+	__be32 saddr[4] = {}, daddr[4] = {};
 
-	return &ipsec_offload_ops;
+	if (!xfrm->attrs.is_ipv6) {
+		saddr[3] = xfrm->attrs.saddr.a4;
+		daddr[3] = xfrm->attrs.daddr.a4;
+	} else {
+		memcpy(saddr, xfrm->attrs.saddr.a6, sizeof(saddr));
+		memcpy(daddr, xfrm->attrs.daddr.a6, sizeof(daddr));
+	}
+
+	return mlx5_ipsec_offload_create_sa_ctx(mdev, xfrm, saddr, daddr,
+						xfrm->attrs.spi,
+						xfrm->attrs.is_ipv6, sa_handle);
+}
+
+void mlx5_accel_esp_free_hw_context(struct mlx5_core_dev *mdev, void *context)
+{
+	mlx5_ipsec_offload_delete_sa_ctx(context);
+}
+
+struct mlx5_accel_esp_xfrm *
+mlx5_accel_esp_create_xfrm(struct mlx5_core_dev *mdev,
+			   const struct mlx5_accel_esp_xfrm_attrs *attrs)
+{
+	struct mlx5_accel_esp_xfrm *xfrm;
+
+	xfrm = mlx5_ipsec_offload_esp_create_xfrm(mdev, attrs);
+	if (IS_ERR(xfrm))
+		return xfrm;
+
+	xfrm->mdev = mdev;
+	return xfrm;
+}
+
+void mlx5_accel_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm)
+{
+	mlx5_ipsec_offload_esp_destroy_xfrm(xfrm);
+}
+
+int mlx5_accel_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
+			       const struct mlx5_accel_esp_xfrm_attrs *attrs)
+{
+	return mlx5_ipsec_offload_esp_modify_xfrm(xfrm, attrs);
 }

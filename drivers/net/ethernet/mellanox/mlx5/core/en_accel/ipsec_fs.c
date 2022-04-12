@@ -2,7 +2,7 @@
 /* Copyright (c) 2020, Mellanox Technologies inc. All rights reserved. */
 
 #include <linux/netdevice.h>
-#include "accel/ipsec_offload.h"
+#include "ipsec_offload.h"
 #include "ipsec_fs.h"
 #include "fs_core.h"
 
@@ -699,9 +699,6 @@ void mlx5e_accel_ipsec_fs_cleanup(struct mlx5e_priv *priv)
 int mlx5e_accel_ipsec_fs_init(struct mlx5e_priv *priv)
 {
 	int err;
-
-	if (!mlx5_is_ipsec_device(priv->mdev) || !priv->ipsec)
-		return -EOPNOTSUPP;
 
 	err = fs_init_tx(priv);
 	if (err)
