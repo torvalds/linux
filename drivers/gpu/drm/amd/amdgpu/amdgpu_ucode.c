@@ -688,12 +688,12 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		switch (ucode->ucode_id) {
 		case AMDGPU_UCODE_ID_SDMA_UCODE_TH0:
-			ucode->ucode_size = le32_to_cpu(sdma_hdr->ctx_jt_offset + sdma_hdr->ctx_jt_size);
+			ucode->ucode_size = le32_to_cpu(sdma_hdr->ctx_ucode_size_bytes);
 			ucode_addr = (u8 *)ucode->fw->data +
 				le32_to_cpu(sdma_hdr->header.ucode_array_offset_bytes);
 			break;
 		case AMDGPU_UCODE_ID_SDMA_UCODE_TH1:
-			ucode->ucode_size = le32_to_cpu(sdma_hdr->ctl_jt_offset + sdma_hdr->ctl_jt_size);
+			ucode->ucode_size = le32_to_cpu(sdma_hdr->ctl_ucode_size_bytes);
 			ucode_addr = (u8 *)ucode->fw->data +
 				le32_to_cpu(sdma_hdr->ctl_ucode_offset);
 			break;
