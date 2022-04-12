@@ -4089,10 +4089,12 @@ static void adjust_sit_entry_set(struct sit_entry_set *ses,
 		return;
 
 	list_for_each_entry_continue(next, head, set_list)
-		if (ses->entry_cnt <= next->entry_cnt)
-			break;
+		if (ses->entry_cnt <= next->entry_cnt) {
+			list_move_tail(&ses->set_list, &next->set_list);
+			return;
+		}
 
-	list_move_tail(&ses->set_list, &next->set_list);
+	list_move_tail(&ses->set_list, head);
 }
 
 static void add_sit_entry(unsigned int segno, struct list_head *head)
