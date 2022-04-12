@@ -593,7 +593,7 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 
 	if (old_lru != new_lru) {
 		ret = bch2_lru_change(trans, new->k.p.inode, new->k.p.offset,
-				      old_lru, &new_lru);
+				      old_lru, &new_lru, old);
 		if (ret)
 			return ret;
 

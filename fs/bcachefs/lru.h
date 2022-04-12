@@ -10,9 +10,9 @@ void bch2_lru_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 	.val_to_text	= bch2_lru_to_text,	\
 }
 
-int bch2_lru_delete(struct btree_trans *, u64, u64, u64);
+int bch2_lru_delete(struct btree_trans *, u64, u64, u64, struct bkey_s_c);
 int bch2_lru_set(struct btree_trans *, u64, u64, u64 *);
-int bch2_lru_change(struct btree_trans *, u64, u64, u64, u64 *);
+int bch2_lru_change(struct btree_trans *, u64, u64, u64, u64 *, struct bkey_s_c);
 
 int bch2_check_lrus(struct bch_fs *, bool);
 

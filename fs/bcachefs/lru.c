@@ -30,11 +30,13 @@ void bch2_lru_to_text(struct printbuf *out, struct bch_fs *c,
 	pr_buf(out, "idx %llu", le64_to_cpu(lru->idx));
 }
 
-int bch2_lru_delete(struct btree_trans *trans, u64 id, u64 idx, u64 time)
+int bch2_lru_delete(struct btree_trans *trans, u64 id, u64 idx, u64 time,
+		    struct bkey_s_c orig_k)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	u64 existing_idx;
+	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	if (!time)
@@ -50,18 +52,20 @@ int bch2_lru_delete(struct btree_trans *trans, u64 id, u64 idx, u64 time)
 		goto err;
 
 	if (k.k->type != KEY_TYPE_lru) {
+		bch2_bkey_val_to_text(&buf, trans->c, orig_k);
 		bch2_trans_inconsistent(trans,
-			"pointer to nonexistent lru %llu:%llu",
-			id, time);
+			"pointer to nonexistent lru %llu:%llu\n%s",
+			id, time, buf.buf);
 		ret = -EIO;
 		goto err;
 	}
 
 	existing_idx = le64_to_cpu(bkey_s_c_to_lru(k).v->idx);
 	if (existing_idx != idx) {
+		bch2_bkey_val_to_text(&buf, trans->c, orig_k);
 		bch2_trans_inconsistent(trans,
-			"lru %llu:%llu with wrong backpointer: got %llu, should be %llu",
-			id, time, existing_idx, idx);
+			"lru %llu:%llu with wrong backpointer: got %llu, should be %llu\n%s",
+			id, time, existing_idx, idx, buf.buf);
 		ret = -EIO;
 		goto err;
 	}
@@ -69,6 +73,7 @@ int bch2_lru_delete(struct btree_trans *trans, u64 id, u64 idx, u64 time)
 	ret = bch2_btree_delete_at(trans, &iter, 0);
 err:
 	bch2_trans_iter_exit(trans, &iter);
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -114,12 +119,13 @@ err:
 }
 
 int bch2_lru_change(struct btree_trans *trans, u64 id, u64 idx,
-		    u64 old_time, u64 *new_time)
+		    u64 old_time, u64 *new_time,
+		    struct bkey_s_c k)
 {
 	if (old_time == *new_time)
 		return 0;
 
-	return  bch2_lru_delete(trans, id, idx, old_time) ?:
+	return  bch2_lru_delete(trans, id, idx, old_time, k) ?:
 		bch2_lru_set(trans, id, idx, new_time);
 }
 
