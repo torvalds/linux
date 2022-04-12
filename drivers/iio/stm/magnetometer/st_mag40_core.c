@@ -262,14 +262,26 @@ static int st_mag40_read_raw(struct iio_dev *iio_dev,
 	return ret;
 }
 
+static ssize_t st_mag40_get_module_id(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct st_mag40_data *cdata = iio_priv(iio_dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", cdata->module_id);
+}
+
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 			      st_mag40_get_sampling_frequency,
 			      st_mag40_set_sampling_frequency);
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(st_mag40_get_sampling_frequency_avail);
+static IIO_DEVICE_ATTR(module_id, 0444, st_mag40_get_module_id, NULL, 0);
 
 static struct attribute *st_mag40_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -281,6 +293,14 @@ static const struct iio_info st_mag40_info = {
 	.attrs = &st_mag40_attribute_group,
 	.read_raw = &st_mag40_read_raw,
 };
+
+static void st_mag40_get_properties(struct st_mag40_data *cdata)
+{
+	if (device_property_read_u32(cdata->dev, "st,module_id",
+				     &cdata->module_id)) {
+		cdata->module_id = 1;
+	}
+}
 
 int st_mag40_common_probe(struct iio_dev *iio_dev)
 {
@@ -309,6 +329,8 @@ int st_mag40_common_probe(struct iio_dev *iio_dev)
 	iio_dev->num_channels = ARRAY_SIZE(st_mag40_channels);
 	iio_dev->info = &st_mag40_info;
 	iio_dev->modes = INDIO_DIRECT_MODE;
+
+	st_mag40_get_properties(cdata);
 
 	err = st_mag40_init_sensors(cdata);
 	if (err < 0)

@@ -103,6 +103,8 @@ struct st_mag40_data {
 	s64 ts_irq;
 	s64 delta_ts;
 
+	u32 module_id;
+
 	u16 odr;
 	u8 samples_to_discard;
 
