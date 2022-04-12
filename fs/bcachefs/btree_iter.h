@@ -249,6 +249,8 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *);
 struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *, struct bpos);
 struct bkey_s_c bch2_btree_iter_next(struct btree_iter *);
 
+struct bkey_s_c bch2_btree_iter_peek_all_levels(struct btree_iter *);
+
 static inline struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 {
 	return bch2_btree_iter_peek_upto(iter, SPOS_MAX);
@@ -350,9 +352,9 @@ static inline int bkey_err(struct bkey_s_c k)
 static inline struct bkey_s_c bch2_btree_iter_peek_type(struct btree_iter *iter,
 							unsigned flags)
 {
-	return flags & BTREE_ITER_SLOTS
-		? bch2_btree_iter_peek_slot(iter)
-		: bch2_btree_iter_peek(iter);
+	return  flags & BTREE_ITER_ALL_LEVELS ? bch2_btree_iter_peek_all_levels(iter) :
+		flags & BTREE_ITER_SLOTS      ? bch2_btree_iter_peek_slot(iter) :
+						bch2_btree_iter_peek(iter);
 }
 
 static inline struct bkey_s_c bch2_btree_iter_peek_upto_type(struct btree_iter *iter,

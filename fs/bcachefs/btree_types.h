@@ -182,22 +182,16 @@ struct btree_node_iter {
  * Iterate over all possible positions, synthesizing deleted keys for holes:
  */
 #define BTREE_ITER_SLOTS		(1 << 0)
+#define BTREE_ITER_ALL_LEVELS		(1 << 1)
 /*
  * Indicates that intent locks should be taken on leaf nodes, because we expect
  * to be doing updates:
  */
-#define BTREE_ITER_INTENT		(1 << 1)
+#define BTREE_ITER_INTENT		(1 << 2)
 /*
  * Causes the btree iterator code to prefetch additional btree nodes from disk:
  */
-#define BTREE_ITER_PREFETCH		(1 << 2)
-/*
- * Indicates that this iterator should not be reused until transaction commit,
- * either because a pending update references it or because the update depends
- * on that particular key being locked (e.g. by the str_hash code, for hash
- * table consistency)
- */
-#define BTREE_ITER_KEEP_UNTIL_COMMIT	(1 << 3)
+#define BTREE_ITER_PREFETCH		(1 << 3)
 /*
  * Used in bch2_btree_iter_traverse(), to indicate whether we're searching for
  * @pos or the first key strictly greater than @pos
@@ -282,7 +276,8 @@ struct btree_iter {
 	struct btree_path	*key_cache_path;
 
 	enum btree_id		btree_id:4;
-	unsigned		min_depth:4;
+	unsigned		min_depth:3;
+	unsigned		advanced:1;
 
 	/* btree_iter_copy starts here: */
 	u16			flags;
