@@ -4,7 +4,7 @@
 #include <linux/firmware.h>
 #include "../include/rtw_fw.h"
 
-#define MAX_REG_BOLCK_SIZE	196
+#define MAX_REG_BLOCK_SIZE	196
 #define FW_8188E_START_ADDRESS	0x1000
 #define MAX_PAGE_SIZE		4096
 
@@ -82,7 +82,7 @@ static int block_write(struct adapter *padapter, void *buffer, u32 buffSize)
 	u8 *bufferPtr	= (u8 *)buffer;
 	u32	i = 0, offset = 0;
 
-	blockSize_p1 = MAX_REG_BOLCK_SIZE;
+	blockSize_p1 = MAX_REG_BLOCK_SIZE;
 
 	/* 3 Phase #1 */
 	blockCount_p1 = buffSize / blockSize_p1;
