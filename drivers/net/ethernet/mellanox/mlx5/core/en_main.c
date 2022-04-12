@@ -3595,12 +3595,6 @@ static int set_feature_lro(struct net_device *netdev, bool enable)
 	mutex_lock(&priv->state_lock);
 
 	cur_params = &priv->channels.params;
-	if (enable && !MLX5E_GET_PFLAG(cur_params, MLX5E_PFLAG_RX_STRIDING_RQ)) {
-		netdev_warn(netdev, "can't set LRO with legacy RQ\n");
-		err = -EINVAL;
-		goto out;
-	}
-
 	new_params = *cur_params;
 
 	if (enable)
