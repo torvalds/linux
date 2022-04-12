@@ -3394,7 +3394,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		fri.tb_id = table_id;
 		fri.dst = res.prefix;
 		fri.dst_len = res.prefixlen;
-		fri.tos = fl4.flowi4_tos;
+		fri.dscp = inet_dsfield_to_dscp(fl4.flowi4_tos);
 		fri.type = rt->rt_type;
 		fri.offload = 0;
 		fri.trap = 0;
@@ -3407,7 +3407,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 				if (fa->fa_slen == slen &&
 				    fa->tb_id == fri.tb_id &&
-				    fa->fa_dscp == inet_dsfield_to_dscp(fri.tos) &&
+				    fa->fa_dscp == fri.dscp &&
 				    fa->fa_info == res.fi &&
 				    fa->fa_type == fri.type) {
 					fri.offload = READ_ONCE(fa->offload);

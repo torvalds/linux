@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/inetdevice.h>
+#include <net/inet_dscp.h>
 #include <net/switchdev.h>
 #include <linux/rhashtable.h>
 
@@ -26,7 +27,7 @@ struct prestera_kern_fib_cache {
 	/* Indicate if route is not overlapped by another table */
 	struct rhash_head ht_node; /* node of prestera_router */
 	struct fib_info *fi;
-	u8 kern_tos;
+	dscp_t kern_dscp;
 	u8 kern_type;
 	bool reachable;
 };
@@ -88,7 +89,7 @@ prestera_kern_fib_cache_destroy(struct prestera_switch *sw,
 static struct prestera_kern_fib_cache *
 prestera_kern_fib_cache_create(struct prestera_switch *sw,
 			       struct prestera_kern_fib_cache_key *key,
-			       struct fib_info *fi, u8 tos, u8 type)
+			       struct fib_info *fi, dscp_t dscp, u8 type)
 {
 	struct prestera_kern_fib_cache *fib_cache;
 	int err;
@@ -100,7 +101,7 @@ prestera_kern_fib_cache_create(struct prestera_switch *sw,
 	memcpy(&fib_cache->key, key, sizeof(*key));
 	fib_info_hold(fi);
 	fib_cache->fi = fi;
-	fib_cache->kern_tos = tos;
+	fib_cache->kern_dscp = dscp;
 	fib_cache->kern_type = type;
 
 	err = rhashtable_insert_fast(&sw->router->kern_fib_cache_ht,
@@ -132,7 +133,7 @@ __prestera_k_arb_fib_lpm_offload_set(struct prestera_switch *sw,
 	fri.tb_id = fc->key.kern_tb_id;
 	fri.dst = fc->key.addr.u.ipv4;
 	fri.dst_len = fc->key.prefix_len;
-	fri.tos = fc->kern_tos;
+	fri.dscp = fc->kern_dscp;
 	fri.type = fc->kern_type;
 	/* flags begin */
 	fri.offload = offload;
@@ -305,7 +306,7 @@ prestera_k_arb_fib_evt(struct prestera_switch *sw,
 	if (replace) {
 		fib_cache = prestera_kern_fib_cache_create(sw, &fc_key,
 							   fen_info->fi,
-							   fen_info->tos,
+							   fen_info->dscp,
 							   fen_info->type);
 		if (!fib_cache) {
 			dev_err(sw->dev->dev, "fib_cache == NULL");
