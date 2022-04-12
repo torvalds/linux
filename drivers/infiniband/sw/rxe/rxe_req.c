@@ -525,8 +525,7 @@ static void rollback_state(struct rxe_send_wqe *wqe,
 	qp->req.psn    = rollback_psn;
 }
 
-static void update_state(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
-			 struct rxe_pkt_info *pkt)
+static void update_state(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 {
 	qp->req.opcode = pkt->opcode;
 
@@ -753,7 +752,7 @@ next_wqe:
 		goto err;
 	}
 
-	update_state(qp, wqe, &pkt);
+	update_state(qp, &pkt);
 
 	goto next_wqe;
 
