@@ -917,19 +917,24 @@ static int isp_show(struct seq_file *p, void *v)
 
 	switch (dev->isp_ver) {
 	case ISP_V20:
-		isp20_show(dev, p);
+		if (IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V20))
+			isp20_show(dev, p);
 		break;
 	case ISP_V21:
-		isp21_show(dev, p);
+		if (IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V21))
+			isp21_show(dev, p);
 		break;
 	case ISP_V30:
-		if (dev->hw_dev->is_unite)
-			isp30_unite_show(dev, p);
-		else
-			isp30_show(dev, p);
+		if (IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V30)) {
+			if (dev->hw_dev->is_unite)
+				isp30_unite_show(dev, p);
+			else
+				isp30_show(dev, p);
+		}
 		break;
 	case ISP_V32:
-		isp32_show(dev, p);
+		if (IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V32))
+			isp32_show(dev, p);
 		break;
 	default:
 		break;
