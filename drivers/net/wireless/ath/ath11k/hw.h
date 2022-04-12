@@ -195,6 +195,7 @@ struct ath11k_hw_params {
 	bool current_cc_support;
 	bool dbr_debug_support;
 	bool global_reset;
+	const struct cfg80211_sar_capa *bios_sar_capa;
 };
 
 struct ath11k_hw_ops {
@@ -380,4 +381,5 @@ static inline const char *ath11k_bd_ie_type_str(enum ath11k_bd_ie_type type)
 	return "unknown";
 }
 
+extern const struct cfg80211_sar_capa ath11k_hw_sar_capa_wcn6855;
 #endif
