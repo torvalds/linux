@@ -5,6 +5,13 @@
 #include "umr.h"
 #include "wr.h"
 
+/*
+ * We can't use an array for xlt_emergency_page because dma_map_single doesn't
+ * work on kernel modules memory
+ */
+void *xlt_emergency_page;
+static DEFINE_MUTEX(xlt_emergency_page_mutex);
+
 static __be64 get_umr_enable_mr_mask(void)
 {
 	u64 result;
@@ -389,4 +396,106 @@ int mlx5r_umr_rereg_pd_access(struct mlx5_ib_mr *mr, struct ib_pd *pd,
 
 	mr->access_flags = access_flags;
 	return 0;
+}
+
+#define MLX5_MAX_UMR_CHUNK                                                     \
+	((1 << (MLX5_MAX_UMR_SHIFT + 4)) - MLX5_UMR_MTT_ALIGNMENT)
+#define MLX5_SPARE_UMR_CHUNK 0x10000
+
+/*
+ * Allocate a temporary buffer to hold the per-page information to transfer to
+ * HW. For efficiency this should be as large as it can be, but buffer
+ * allocation failure is not allowed, so try smaller sizes.
+ */
+static void *mlx5r_umr_alloc_xlt(size_t *nents, size_t ent_size, gfp_t gfp_mask)
+{
+	const size_t xlt_chunk_align = MLX5_UMR_MTT_ALIGNMENT / ent_size;
+	size_t size;
+	void *res = NULL;
+
+	static_assert(PAGE_SIZE % MLX5_UMR_MTT_ALIGNMENT == 0);
+
+	/*
+	 * MLX5_IB_UPD_XLT_ATOMIC doesn't signal an atomic context just that the
+	 * allocation can't trigger any kind of reclaim.
+	 */
+	might_sleep();
+
+	gfp_mask |= __GFP_ZERO | __GFP_NORETRY;
+
+	/*
+	 * If the system already has a suitable high order page then just use
+	 * that, but don't try hard to create one. This max is about 1M, so a
+	 * free x86 huge page will satisfy it.
+	 */
+	size = min_t(size_t, ent_size * ALIGN(*nents, xlt_chunk_align),
+		     MLX5_MAX_UMR_CHUNK);
+	*nents = size / ent_size;
+	res = (void *)__get_free_pages(gfp_mask | __GFP_NOWARN,
+				       get_order(size));
+	if (res)
+		return res;
+
+	if (size > MLX5_SPARE_UMR_CHUNK) {
+		size = MLX5_SPARE_UMR_CHUNK;
+		*nents = size / ent_size;
+		res = (void *)__get_free_pages(gfp_mask | __GFP_NOWARN,
+					       get_order(size));
+		if (res)
+			return res;
+	}
+
+	*nents = PAGE_SIZE / ent_size;
+	res = (void *)__get_free_page(gfp_mask);
+	if (res)
+		return res;
+
+	mutex_lock(&xlt_emergency_page_mutex);
+	memset(xlt_emergency_page, 0, PAGE_SIZE);
+	return xlt_emergency_page;
+}
+
+static void mlx5r_umr_free_xlt(void *xlt, size_t length)
+{
+	if (xlt == xlt_emergency_page) {
+		mutex_unlock(&xlt_emergency_page_mutex);
+		return;
+	}
+
+	free_pages((unsigned long)xlt, get_order(length));
+}
+
+void mlx5r_umr_unmap_free_xlt(struct mlx5_ib_dev *dev, void *xlt,
+			     struct ib_sge *sg)
+{
+	struct device *ddev = &dev->mdev->pdev->dev;
+
+	dma_unmap_single(ddev, sg->addr, sg->length, DMA_TO_DEVICE);
+	mlx5r_umr_free_xlt(xlt, sg->length);
+}
+
+/*
+ * Create an XLT buffer ready for submission.
+ */
+void *mlx5r_umr_create_xlt(struct mlx5_ib_dev *dev, struct ib_sge *sg,
+			  size_t nents, size_t ent_size, unsigned int flags)
+{
+	struct device *ddev = &dev->mdev->pdev->dev;
+	dma_addr_t dma;
+	void *xlt;
+
+	xlt = mlx5r_umr_alloc_xlt(&nents, ent_size,
+				 flags & MLX5_IB_UPD_XLT_ATOMIC ? GFP_ATOMIC :
+								  GFP_KERNEL);
+	sg->length = nents * ent_size;
+	dma = dma_map_single(ddev, xlt, sg->length, DMA_TO_DEVICE);
+	if (dma_mapping_error(ddev, dma)) {
+		mlx5_ib_err(dev, "unable to map DMA during XLT update.\n");
+		mlx5r_umr_free_xlt(xlt, sg->length);
+		return NULL;
+	}
+	sg->addr = dma;
+	sg->lkey = dev->umrc.pd->local_dma_lkey;
+
+	return xlt;
 }

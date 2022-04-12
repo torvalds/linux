@@ -46,13 +46,6 @@
 #include "mlx5_ib.h"
 #include "umr.h"
 
-/*
- * We can't use an array for xlt_emergency_page because dma_map_single doesn't
- * work on kernel modules memory
- */
-void *xlt_emergency_page;
-static DEFINE_MUTEX(xlt_emergency_page_mutex);
-
 enum {
 	MAX_PENDING_REG_MR = 8,
 };
@@ -966,74 +959,6 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 	return mr;
 }
 
-#define MLX5_MAX_UMR_CHUNK ((1 << (MLX5_MAX_UMR_SHIFT + 4)) - \
-			    MLX5_UMR_MTT_ALIGNMENT)
-#define MLX5_SPARE_UMR_CHUNK 0x10000
-
-/*
- * Allocate a temporary buffer to hold the per-page information to transfer to
- * HW. For efficiency this should be as large as it can be, but buffer
- * allocation failure is not allowed, so try smaller sizes.
- */
-static void *mlx5_ib_alloc_xlt(size_t *nents, size_t ent_size, gfp_t gfp_mask)
-{
-	const size_t xlt_chunk_align =
-		MLX5_UMR_MTT_ALIGNMENT / ent_size;
-	size_t size;
-	void *res = NULL;
-
-	static_assert(PAGE_SIZE % MLX5_UMR_MTT_ALIGNMENT == 0);
-
-	/*
-	 * MLX5_IB_UPD_XLT_ATOMIC doesn't signal an atomic context just that the
-	 * allocation can't trigger any kind of reclaim.
-	 */
-	might_sleep();
-
-	gfp_mask |= __GFP_ZERO | __GFP_NORETRY;
-
-	/*
-	 * If the system already has a suitable high order page then just use
-	 * that, but don't try hard to create one. This max is about 1M, so a
-	 * free x86 huge page will satisfy it.
-	 */
-	size = min_t(size_t, ent_size * ALIGN(*nents, xlt_chunk_align),
-		     MLX5_MAX_UMR_CHUNK);
-	*nents = size / ent_size;
-	res = (void *)__get_free_pages(gfp_mask | __GFP_NOWARN,
-				       get_order(size));
-	if (res)
-		return res;
-
-	if (size > MLX5_SPARE_UMR_CHUNK) {
-		size = MLX5_SPARE_UMR_CHUNK;
-		*nents = size / ent_size;
-		res = (void *)__get_free_pages(gfp_mask | __GFP_NOWARN,
-					       get_order(size));
-		if (res)
-			return res;
-	}
-
-	*nents = PAGE_SIZE / ent_size;
-	res = (void *)__get_free_page(gfp_mask);
-	if (res)
-		return res;
-
-	mutex_lock(&xlt_emergency_page_mutex);
-	memset(xlt_emergency_page, 0, PAGE_SIZE);
-	return xlt_emergency_page;
-}
-
-static void mlx5_ib_free_xlt(void *xlt, size_t length)
-{
-	if (xlt == xlt_emergency_page) {
-		mutex_unlock(&xlt_emergency_page_mutex);
-		return;
-	}
-
-	free_pages((unsigned long)xlt, get_order(length));
-}
-
 /*
  * Create a MLX5_IB_SEND_UMR_UPDATE_XLT work request and XLT buffer ready for
  * submission.
@@ -1044,22 +969,9 @@ static void *mlx5_ib_create_xlt_wr(struct mlx5_ib_mr *mr,
 				   unsigned int flags)
 {
 	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
-	struct device *ddev = &dev->mdev->pdev->dev;
-	dma_addr_t dma;
 	void *xlt;
 
-	xlt = mlx5_ib_alloc_xlt(&nents, ent_size,
-				flags & MLX5_IB_UPD_XLT_ATOMIC ? GFP_ATOMIC :
-								 GFP_KERNEL);
-	sg->length = nents * ent_size;
-	dma = dma_map_single(ddev, xlt, sg->length, DMA_TO_DEVICE);
-	if (dma_mapping_error(ddev, dma)) {
-		mlx5_ib_err(dev, "unable to map DMA during XLT update.\n");
-		mlx5_ib_free_xlt(xlt, sg->length);
-		return NULL;
-	}
-	sg->addr = dma;
-	sg->lkey = dev->umrc.pd->local_dma_lkey;
+	xlt = mlx5r_umr_create_xlt(dev, sg, nents, ent_size, flags);
 
 	memset(wr, 0, sizeof(*wr));
 	wr->wr.send_flags = MLX5_IB_SEND_UMR_UPDATE_XLT;
@@ -1076,15 +988,6 @@ static void *mlx5_ib_create_xlt_wr(struct mlx5_ib_mr *mr,
 	wr->page_shift = mr->page_shift;
 	wr->xlt_size = sg->length;
 	return xlt;
-}
-
-static void mlx5_ib_unmap_free_xlt(struct mlx5_ib_dev *dev, void *xlt,
-				   struct ib_sge *sg)
-{
-	struct device *ddev = &dev->mdev->pdev->dev;
-
-	dma_unmap_single(ddev, sg->addr, sg->length, DMA_TO_DEVICE);
-	mlx5_ib_free_xlt(xlt, sg->length);
 }
 
 static unsigned int xlt_wr_final_send_flags(unsigned int flags)
@@ -1175,7 +1078,7 @@ int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 		err = mlx5_ib_post_send_wait(dev, &wr);
 	}
 	sg.length = orig_sg_length;
-	mlx5_ib_unmap_free_xlt(dev, xlt, &sg);
+	mlx5r_umr_unmap_free_xlt(dev, xlt, &sg);
 	return err;
 }
 
@@ -1245,7 +1148,7 @@ int mlx5_ib_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
 
 err:
 	sg.length = orig_sg_length;
-	mlx5_ib_unmap_free_xlt(dev, mtt, &sg);
+	mlx5r_umr_unmap_free_xlt(dev, mtt, &sg);
 	return err;
 }
 

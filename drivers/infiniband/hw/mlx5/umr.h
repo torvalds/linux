@@ -94,5 +94,9 @@ struct mlx5r_umr_wqe {
 int mlx5r_umr_revoke_mr(struct mlx5_ib_mr *mr);
 int mlx5r_umr_rereg_pd_access(struct mlx5_ib_mr *mr, struct ib_pd *pd,
 			      int access_flags);
+void *mlx5r_umr_create_xlt(struct mlx5_ib_dev *dev, struct ib_sge *sg,
+			   size_t nents, size_t ent_size, unsigned int flags);
+void mlx5r_umr_unmap_free_xlt(struct mlx5_ib_dev *dev, void *xlt,
+			      struct ib_sge *sg);
 
 #endif /* _MLX5_IB_UMR_H */
