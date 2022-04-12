@@ -2578,7 +2578,7 @@ int mlx5e_update_tx_netdev_queues(struct mlx5e_priv *priv)
 	int qos_queues = 0;
 
 	if (priv->htb)
-		qos_queues = mlx5e_qos_cur_leaf_nodes(priv->htb);
+		qos_queues = mlx5e_htb_cur_leaf_nodes(priv->htb);
 
 	nch = priv->channels.params.num_channels;
 	ntc = mlx5e_get_dcb_num_tc(&priv->channels.params);

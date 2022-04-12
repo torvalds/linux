@@ -16,10 +16,9 @@ struct tc_htb_qopt_offload;
 
 int mlx5e_qos_bytes_rate_check(struct mlx5_core_dev *mdev, u64 nbytes);
 int mlx5e_qos_max_leaf_nodes(struct mlx5_core_dev *mdev);
-int mlx5e_qos_cur_leaf_nodes(struct mlx5e_htb *htb);
 
 /* TX datapath API */
-int mlx5e_get_txq_by_classid(struct mlx5e_htb *htb, u16 classid);
+int mlx5e_htb_get_txq_by_classid(struct mlx5e_htb *htb, u16 classid);
 
 /* SQ lifecycle */
 int mlx5e_qos_open_queues(struct mlx5e_priv *priv, struct mlx5e_channels *chs);
@@ -28,6 +27,7 @@ void mlx5e_qos_deactivate_queues(struct mlx5e_channel *c);
 void mlx5e_qos_close_queues(struct mlx5e_channel *c);
 
 /* HTB API */
+int mlx5e_htb_cur_leaf_nodes(struct mlx5e_htb *htb);
 int mlx5e_htb_setup_tc(struct mlx5e_priv *priv, struct tc_htb_qopt_offload *htb);
 
 /* MQPRIO TX rate limit */
