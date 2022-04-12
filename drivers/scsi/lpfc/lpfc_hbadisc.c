@@ -5156,7 +5156,7 @@ lpfc_check_sli_ndlp(struct lpfc_hba *phba,
 	if (pring->ringno == LPFC_ELS_RING) {
 		switch (ulp_command) {
 		case CMD_GEN_REQUEST64_CR:
-			if (iocb->context_un.ndlp == ndlp)
+			if (iocb->ndlp == ndlp)
 				return 1;
 			fallthrough;
 		case CMD_ELS_REQUEST64_CR:
@@ -5164,7 +5164,7 @@ lpfc_check_sli_ndlp(struct lpfc_hba *phba,
 				return 1;
 			fallthrough;
 		case CMD_XMIT_ELS_RSP64_CX:
-			if (iocb->context1 == (uint8_t *) ndlp)
+			if (iocb->ndlp == ndlp)
 				return 1;
 		}
 	} else if (pring->ringno == LPFC_FCP_RING) {
@@ -6099,7 +6099,7 @@ lpfc_free_tx(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	 */
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(iocb, next_iocb, &pring->txq, list) {
-		if (iocb->context1 != ndlp)
+		if (iocb->ndlp != ndlp)
 			continue;
 
 		ulp_command = get_job_cmnd(phba, iocb);
@@ -6113,7 +6113,7 @@ lpfc_free_tx(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 
 	/* Next check the txcmplq */
 	list_for_each_entry_safe(iocb, next_iocb, &pring->txcmplq, list) {
-		if (iocb->context1 != ndlp)
+		if (iocb->ndlp != ndlp)
 			continue;
 
 		ulp_command = get_job_cmnd(phba, iocb);

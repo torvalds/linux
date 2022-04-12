@@ -433,7 +433,7 @@ lpfc_new_scsi_buf_s3(struct lpfc_vport *vport, int num_to_alloc)
 		iocb->ulpClass = CLASS3;
 		psb->status = IOSTAT_SUCCESS;
 		/* Put it back into the SCSI buffer list */
-		psb->cur_iocbq.context1  = psb;
+		psb->cur_iocbq.io_buf = psb;
 		spin_lock_init(&psb->buf_lock);
 		lpfc_release_scsi_buf_s3(phba, psb);
 
@@ -4082,8 +4082,7 @@ static void
 lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 			 struct lpfc_iocbq *pwqeOut)
 {
-	struct lpfc_io_buf *lpfc_cmd =
-		(struct lpfc_io_buf *)pwqeIn->context1;
+	struct lpfc_io_buf *lpfc_cmd = pwqeIn->io_buf;
 	struct lpfc_wcqe_complete *wcqe = &pwqeOut->wcqe_cmpl;
 	struct lpfc_vport *vport = pwqeIn->vport;
 	struct lpfc_rport_data *rdata;
@@ -4421,7 +4420,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			struct lpfc_iocbq *pIocbOut)
 {
 	struct lpfc_io_buf *lpfc_cmd =
-		(struct lpfc_io_buf *) pIocbIn->context1;
+		(struct lpfc_io_buf *) pIocbIn->io_buf;
 	struct lpfc_vport      *vport = pIocbIn->vport;
 	struct lpfc_rport_data *rdata = lpfc_cmd->rdata;
 	struct lpfc_nodelist *pnode = rdata->pnode;
@@ -4744,7 +4743,7 @@ static int lpfc_scsi_prep_cmnd_buf_s3(struct lpfc_vport *vport,
 		piocbq->iocb.ulpFCP2Rcvy = 0;
 
 	piocbq->iocb.ulpClass = (pnode->nlp_fcp_info & 0x0f);
-	piocbq->context1  = lpfc_cmd;
+	piocbq->io_buf  = lpfc_cmd;
 	if (!piocbq->cmd_cmpl)
 		piocbq->cmd_cmpl = lpfc_scsi_cmd_iocb_cmpl;
 	piocbq->iocb.ulpTimeout = tmo;
@@ -4856,8 +4855,7 @@ static int lpfc_scsi_prep_cmnd_buf_s4(struct lpfc_vport *vport,
 	bf_set(wqe_reqtag, &wqe->generic.wqe_com, pwqeq->iotag);
 
 	pwqeq->vport = vport;
-	pwqeq->vport = vport;
-	pwqeq->context1 = lpfc_cmd;
+	pwqeq->io_buf = lpfc_cmd;
 	pwqeq->hba_wqidx = lpfc_cmd->hdwq_no;
 	pwqeq->cmd_cmpl = lpfc_fcp_io_cmd_wqe_cmpl;
 
@@ -5098,8 +5096,7 @@ lpfc_tskmgmt_def_cmpl(struct lpfc_hba *phba,
 			struct lpfc_iocbq *cmdiocbq,
 			struct lpfc_iocbq *rspiocbq)
 {
-	struct lpfc_io_buf *lpfc_cmd =
-		(struct lpfc_io_buf *) cmdiocbq->context1;
+	struct lpfc_io_buf *lpfc_cmd = cmdiocbq->io_buf;
 	if (lpfc_cmd)
 		lpfc_release_scsi_buf(phba, lpfc_cmd);
 	return;
@@ -5916,7 +5913,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		goto out_unlock_ring;
 	}
 
-	BUG_ON(iocb->context1 != lpfc_cmd);
+	WARN_ON(iocb->io_buf != lpfc_cmd);
 
 	/* abort issued in recovery is still in progress */
 	if (iocb->cmd_flag & LPFC_DRIVER_ABORTED) {

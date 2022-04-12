@@ -118,22 +118,22 @@ lpfc_ct_unsol_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_dmabuf *mp, *bmp;
 
-	ndlp = (struct lpfc_nodelist *)cmdiocb->context1;
+	ndlp = cmdiocb->ndlp;
 	if (ndlp)
 		lpfc_nlp_put(ndlp);
 
-	mp = cmdiocb->context2;
-	bmp = cmdiocb->context3;
+	mp = cmdiocb->rsp_dmabuf;
+	bmp = cmdiocb->bpl_dmabuf;
 	if (mp) {
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
-		cmdiocb->context2 = NULL;
+		cmdiocb->rsp_dmabuf = NULL;
 	}
 
 	if (bmp) {
 		lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 		kfree(bmp);
-		cmdiocb->context3 = NULL;
+		cmdiocb->bpl_dmabuf = NULL;
 	}
 
 	lpfc_sli_release_iocbq(phba, cmdiocb);
@@ -232,18 +232,17 @@ lpfc_ct_reject_event(struct lpfc_nodelist *ndlp,
 	}
 
 	/* Save for completion so we can release these resources */
-	cmdiocbq->context2 = (uint8_t *)mp;
-	cmdiocbq->context3 = (uint8_t *)bmp;
+	cmdiocbq->rsp_dmabuf = mp;
+	cmdiocbq->bpl_dmabuf = bmp;
 	cmdiocbq->cmd_cmpl = lpfc_ct_unsol_cmpl;
 	tmo = (3 * phba->fc_ratov);
 
 	cmdiocbq->retry = 0;
 	cmdiocbq->vport = vport;
-	cmdiocbq->context_un.ndlp = NULL;
 	cmdiocbq->drvrTimeout = tmo + LPFC_DRVR_TIMEOUT;
 
-	cmdiocbq->context1 = lpfc_nlp_get(ndlp);
-	if (!cmdiocbq->context1)
+	cmdiocbq->ndlp = lpfc_nlp_get(ndlp);
+	if (!cmdiocbq->ndlp)
 		goto ct_no_ndlp;
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, cmdiocbq, 0);
@@ -310,8 +309,8 @@ lpfc_ct_handle_mibreq(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocbq)
 		return;
 	}
 
-	ct_req = ((struct lpfc_sli_ct_request *)
-		 (((struct lpfc_dmabuf *)ctiocbq->context2)->virt));
+	ct_req = (struct lpfc_sli_ct_request *)ctiocbq->cmd_dmabuf->virt;
+
 	mi_cmd = ct_req->CommandResponse.bits.CmdRsp;
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "6442 : MI Cmd : x%x Not Supported\n", mi_cmd);
@@ -347,14 +346,14 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	uint32_t size;
 	struct list_head head;
 	struct lpfc_sli_ct_request *ct_req;
-	struct lpfc_dmabuf *bdeBuf1 = ctiocbq->context2;
-	struct lpfc_dmabuf *bdeBuf2 = ctiocbq->context3;
+	struct lpfc_dmabuf *bdeBuf1 = ctiocbq->cmd_dmabuf;
+	struct lpfc_dmabuf *bdeBuf2 = ctiocbq->bpl_dmabuf;
 	u32 status, parameter, bde_count = 0;
 	struct lpfc_wcqe_complete *wcqe_cmpl = NULL;
 
-	ctiocbq->context1 = NULL;
-	ctiocbq->context2 = NULL;
-	ctiocbq->context3 = NULL;
+	ctiocbq->cmd_dmabuf = NULL;
+	ctiocbq->rsp_dmabuf = NULL;
+	ctiocbq->bpl_dmabuf = NULL;
 
 	wcqe_cmpl = &ctiocbq->wcqe_cmpl;
 	status = get_job_ulpstatus(phba, ctiocbq);
@@ -382,12 +381,11 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	if (bde_count == 0)
 		return;
 
-	ctiocbq->context2 = bdeBuf1;
+	ctiocbq->cmd_dmabuf = bdeBuf1;
 	if (bde_count == 2)
-		ctiocbq->context3 = bdeBuf2;
+		ctiocbq->bpl_dmabuf = bdeBuf2;
 
-	ct_req = ((struct lpfc_sli_ct_request *)
-		 (((struct lpfc_dmabuf *)ctiocbq->context2)->virt));
+	ct_req = (struct lpfc_sli_ct_request *)ctiocbq->cmd_dmabuf->virt;
 
 	if (ct_req->FsType == SLI_CT_MANAGEMENT_SERVICE &&
 	    ct_req->FsSubType == SLI_CT_MIB_Subtypes) {
@@ -408,8 +406,8 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 			if (!bde_count)
 				continue;
-			bdeBuf1 = iocb->context2;
-			iocb->context2 = NULL;
+			bdeBuf1 = iocb->cmd_dmabuf;
+			iocb->cmd_dmabuf = NULL;
 			if (phba->sli_rev == LPFC_SLI_REV4)
 				size = iocb->wqe.gen_req.bde.tus.f.bdeSize;
 			else
@@ -417,8 +415,8 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			lpfc_ct_unsol_buffer(phba, ctiocbq, bdeBuf1, size);
 			lpfc_in_buf_free(phba, bdeBuf1);
 			if (bde_count == 2) {
-				bdeBuf2 = iocb->context3;
-				iocb->context3 = NULL;
+				bdeBuf2 = iocb->bpl_dmabuf;
+				iocb->bpl_dmabuf = NULL;
 				if (phba->sli_rev == LPFC_SLI_REV4)
 					size = iocb->unsol_rcv_len;
 				else
@@ -549,24 +547,25 @@ lpfc_ct_free_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocb)
 {
 	struct lpfc_dmabuf *buf_ptr;
 
-	/* I/O job is complete so context is now invalid*/
-	ctiocb->context_un.ndlp = NULL;
-	if (ctiocb->context1) {
-		buf_ptr = (struct lpfc_dmabuf *) ctiocb->context1;
+	/* IOCBQ job structure gets cleaned during release.  Just release
+	 * the dma buffers here.
+	 */
+	if (ctiocb->cmd_dmabuf) {
+		buf_ptr = ctiocb->cmd_dmabuf;
 		lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
 		kfree(buf_ptr);
-		ctiocb->context1 = NULL;
+		ctiocb->cmd_dmabuf = NULL;
 	}
-	if (ctiocb->context2) {
-		lpfc_free_ct_rsp(phba, (struct lpfc_dmabuf *) ctiocb->context2);
-		ctiocb->context2 = NULL;
+	if (ctiocb->rsp_dmabuf) {
+		lpfc_free_ct_rsp(phba, ctiocb->rsp_dmabuf);
+		ctiocb->rsp_dmabuf = NULL;
 	}
 
-	if (ctiocb->context3) {
-		buf_ptr = (struct lpfc_dmabuf *) ctiocb->context3;
+	if (ctiocb->bpl_dmabuf) {
+		buf_ptr = ctiocb->bpl_dmabuf;
 		lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
 		kfree(buf_ptr);
-		ctiocb->context3 = NULL;
+		ctiocb->bpl_dmabuf = NULL;
 	}
 	lpfc_sli_release_iocbq(phba, ctiocb);
 	return 0;
@@ -605,11 +604,11 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	/* Update the num_entry bde count */
 	geniocb->num_bdes = num_entry;
 
-	geniocb->context3 = (uint8_t *) bmp;
+	geniocb->bpl_dmabuf = bmp;
 
 	/* Save for completion so we can release these resources */
-	geniocb->context1 = (uint8_t *) inp;
-	geniocb->context2 = (uint8_t *) outp;
+	geniocb->cmd_dmabuf = inp;
+	geniocb->rsp_dmabuf = outp;
 
 	geniocb->event_tag = event_tag;
 
@@ -635,8 +634,8 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	geniocb->drvrTimeout = tmo + LPFC_DRVR_TIMEOUT;
 	geniocb->vport = vport;
 	geniocb->retry = retry;
-	geniocb->context_un.ndlp = lpfc_nlp_get(ndlp);
-	if (!geniocb->context_un.ndlp)
+	geniocb->ndlp = lpfc_nlp_get(ndlp);
+	if (!geniocb->ndlp)
 		goto out;
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, geniocb, 0);
@@ -926,13 +925,12 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	int rc, type;
 
 	/* First save ndlp, before we overwrite it */
-	ndlp = cmdiocb->context_un.ndlp;
+	ndlp = cmdiocb->ndlp;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
-	cmdiocb->context_un.rsp_iocb = rspiocb;
-
-	inp = (struct lpfc_dmabuf *) cmdiocb->context1;
-	outp = (struct lpfc_dmabuf *) cmdiocb->context2;
+	cmdiocb->rsp_iocb = rspiocb;
+	inp = cmdiocb->cmd_dmabuf;
+	outp = cmdiocb->rsp_dmabuf;
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 		 "GID_FT cmpl:     status:x%x/x%x rtry:%d",
@@ -1143,12 +1141,12 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	int rc;
 
 	/* First save ndlp, before we overwrite it */
-	ndlp = cmdiocb->context_un.ndlp;
+	ndlp = cmdiocb->ndlp;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
-	cmdiocb->context_un.rsp_iocb = rspiocb;
-	inp = (struct lpfc_dmabuf *)cmdiocb->context1;
-	outp = (struct lpfc_dmabuf *)cmdiocb->context2;
+	cmdiocb->rsp_iocb = rspiocb;
+	inp = cmdiocb->cmd_dmabuf;
+	outp = cmdiocb->rsp_dmabuf;
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 			      "GID_PT cmpl:     status:x%x/x%x rtry:%d",
@@ -1346,8 +1344,8 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_dmabuf *inp = (struct lpfc_dmabuf *) cmdiocb->context1;
-	struct lpfc_dmabuf *outp = (struct lpfc_dmabuf *) cmdiocb->context2;
+	struct lpfc_dmabuf *inp = cmdiocb->cmd_dmabuf;
+	struct lpfc_dmabuf *outp = cmdiocb->rsp_dmabuf;
 	struct lpfc_sli_ct_request *CTrsp;
 	int did, rc, retry;
 	uint8_t fbits;
@@ -1426,7 +1424,7 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					 cmdiocb->retry, did);
 				if (rc == 0) {
 					/* success */
-					free_ndlp = cmdiocb->context_un.ndlp;
+					free_ndlp = cmdiocb->ndlp;
 					lpfc_ct_free_iocb(phba, cmdiocb);
 					lpfc_nlp_put(free_ndlp);
 					return;
@@ -1483,7 +1481,7 @@ out:
 	}
 
 iocb_free:
-	free_ndlp = cmdiocb->context_un.ndlp;
+	free_ndlp = cmdiocb->ndlp;
 	lpfc_ct_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(free_ndlp);
 	return;
@@ -1494,8 +1492,8 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			struct lpfc_iocbq *rspiocb)
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
-	struct lpfc_dmabuf *inp = (struct lpfc_dmabuf *)cmdiocb->context1;
-	struct lpfc_dmabuf *outp = (struct lpfc_dmabuf *)cmdiocb->context2;
+	struct lpfc_dmabuf *inp = cmdiocb->cmd_dmabuf;
+	struct lpfc_dmabuf *outp = cmdiocb->rsp_dmabuf;
 	struct lpfc_sli_ct_request *CTrsp;
 	int did;
 	struct lpfc_nodelist *ndlp = NULL;
@@ -1519,7 +1517,7 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 	/* Preserve the nameserver node to release the reference. */
-	ns_ndlp = cmdiocb->context_un.ndlp;
+	ns_ndlp = cmdiocb->ndlp;
 
 	if (ulp_status == IOSTAT_SUCCESS) {
 		/* Good status, continue checking */
@@ -1605,13 +1603,13 @@ lpfc_cmpl_ct(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	u32 ulp_word4 = get_job_word4(phba, rspiocb);
 
 	/* First save ndlp, before we overwrite it */
-	ndlp = cmdiocb->context_un.ndlp;
+	ndlp = cmdiocb->ndlp;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
-	cmdiocb->context_un.rsp_iocb = rspiocb;
+	cmdiocb->rsp_iocb = rspiocb;
 
-	inp = (struct lpfc_dmabuf *) cmdiocb->context1;
-	outp = (struct lpfc_dmabuf *) cmdiocb->context2;
+	inp = cmdiocb->cmd_dmabuf;
+	outp = cmdiocb->rsp_dmabuf;
 
 	cmdcode = be16_to_cpu(((struct lpfc_sli_ct_request *) inp->virt)->
 					CommandResponse.bits.CmdRsp);
@@ -1672,8 +1670,8 @@ lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		struct lpfc_dmabuf *outp;
 		struct lpfc_sli_ct_request *CTrsp;
 
-		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
-		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
+		outp = cmdiocb->rsp_dmabuf;
+		CTrsp = (struct lpfc_sli_ct_request *)outp->virt;
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
 			vport->ct_flags |= FC_CT_RFT_ID;
@@ -1693,7 +1691,7 @@ lpfc_cmpl_ct_cmd_rnn_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		struct lpfc_dmabuf *outp;
 		struct lpfc_sli_ct_request *CTrsp;
 
-		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
+		outp = cmdiocb->rsp_dmabuf;
 		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
@@ -1714,8 +1712,8 @@ lpfc_cmpl_ct_cmd_rspn_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		struct lpfc_dmabuf *outp;
 		struct lpfc_sli_ct_request *CTrsp;
 
-		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
-		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
+		outp = cmdiocb->rsp_dmabuf;
+		CTrsp = (struct lpfc_sli_ct_request *)outp->virt;
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
 			vport->ct_flags |= FC_CT_RSPN_ID;
@@ -1735,7 +1733,7 @@ lpfc_cmpl_ct_cmd_rsnn_nn(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		struct lpfc_dmabuf *outp;
 		struct lpfc_sli_ct_request *CTrsp;
 
-		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
+		outp = cmdiocb->rsp_dmabuf;
 		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
@@ -1768,8 +1766,8 @@ lpfc_cmpl_ct_cmd_rff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		struct lpfc_dmabuf *outp;
 		struct lpfc_sli_ct_request *CTrsp;
 
-		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
-		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
+		outp = cmdiocb->rsp_dmabuf;
+		CTrsp = (struct lpfc_sli_ct_request *)outp->virt;
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
 			vport->ct_flags |= FC_CT_RFF_ID;
@@ -1865,7 +1863,7 @@ lpfc_get_gidft_type(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb)
 	struct lpfc_dmabuf *mp;
 	uint32_t type;
 
-	mp = cmdiocb->context1;
+	mp = cmdiocb->cmd_dmabuf;
 	if (mp == NULL)
 		return 0;
 	CtReq = (struct lpfc_sli_ct_request *)mp->virt;
@@ -2171,8 +2169,8 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		       struct lpfc_iocbq *rspiocb)
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
-	struct lpfc_dmabuf *inp = cmdiocb->context1;
-	struct lpfc_dmabuf *outp = cmdiocb->context2;
+	struct lpfc_dmabuf *inp = cmdiocb->cmd_dmabuf;
+	struct lpfc_dmabuf *outp = cmdiocb->rsp_dmabuf;
 	struct lpfc_sli_ct_request *CTcmd = inp->virt;
 	struct lpfc_sli_ct_request *CTrsp = outp->virt;
 	uint16_t fdmi_cmd = CTcmd->CommandResponse.bits.CmdRsp;
@@ -2226,7 +2224,7 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 ulp_word4);
 	}
 
-	free_ndlp = cmdiocb->context_un.ndlp;
+	free_ndlp = cmdiocb->ndlp;
 	lpfc_ct_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(free_ndlp);
 
@@ -3812,8 +3810,8 @@ lpfc_cmpl_ct_cmd_vmid(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		      struct lpfc_iocbq *rspiocb)
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
-	struct lpfc_dmabuf *inp = cmdiocb->context1;
-	struct lpfc_dmabuf *outp = cmdiocb->context2;
+	struct lpfc_dmabuf *inp = cmdiocb->cmd_dmabuf;
+	struct lpfc_dmabuf *outp = cmdiocb->rsp_dmabuf;
 	struct lpfc_sli_ct_request *ctcmd = inp->virt;
 	struct lpfc_sli_ct_request *ctrsp = outp->virt;
 	u16 rsp = ctrsp->CommandResponse.bits.CmdRsp;

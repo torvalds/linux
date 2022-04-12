@@ -173,9 +173,9 @@ lpfc_check_elscmpl_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	void     *ptr = NULL;
 	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
 
-	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
+	pcmd = cmdiocb->cmd_dmabuf;
 
-	/* For lpfc_els_abort, context2 could be zero'ed to delay
+	/* For lpfc_els_abort, cmd_dmabuf could be zero'ed to delay
 	 * freeing associated memory till after ABTS completes.
 	 */
 	if (pcmd) {
@@ -343,7 +343,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	u32 remote_did;
 
 	memset(&stat, 0, sizeof (struct ls_rjt));
-	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
+	pcmd = cmdiocb->cmd_dmabuf;
 	lp = (uint32_t *) pcmd->virt;
 	sp = (struct serv_parm *) ((uint8_t *) lp + sizeof (uint32_t));
 	if (wwn_to_u64(sp->portName.u.wwn) == 0) {
@@ -716,7 +716,7 @@ lpfc_rcv_padisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	uint32_t *lp;
 	uint32_t cmd;
 
-	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
+	pcmd = cmdiocb->cmd_dmabuf;
 	lp = (uint32_t *) pcmd->virt;
 
 	cmd = *lp++;
@@ -924,7 +924,7 @@ lpfc_rcv_prli_support_check(struct lpfc_vport *vport,
 	uint32_t *payload;
 	uint32_t cmd;
 
-	payload = ((struct lpfc_dmabuf *)cmdiocb->context2)->virt;
+	payload = cmdiocb->cmd_dmabuf->virt;
 	cmd = *payload;
 	if (vport->phba->nvmet_support) {
 		/* Must be a NVME PRLI */
@@ -961,9 +961,9 @@ lpfc_rcv_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct fc_rport *rport = ndlp->rport;
 	u32 roles;
 
-	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
-	lp = (uint32_t *) pcmd->virt;
-	npr = (PRLI *) ((uint8_t *) lp + sizeof (uint32_t));
+	pcmd = cmdiocb->cmd_dmabuf;
+	lp = (uint32_t *)pcmd->virt;
+	npr = (PRLI *)((uint8_t *)lp + sizeof(uint32_t));
 
 	if ((npr->prliType == PRLI_FCP_TYPE) ||
 	    (npr->prliType == PRLI_NVME_TYPE)) {
@@ -1224,7 +1224,7 @@ lpfc_rcv_plogi_plogi_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct Scsi_Host   *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_iocbq *cmdiocb = arg;
-	struct lpfc_dmabuf *pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
+	struct lpfc_dmabuf *pcmd = cmdiocb->cmd_dmabuf;
 	uint32_t *lp = (uint32_t *) pcmd->virt;
 	struct serv_parm *sp = (struct serv_parm *) (lp + 1);
 	struct ls_rjt stat;
@@ -1345,7 +1345,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 	u32 did;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
-	rspiocb = cmdiocb->context_un.rsp_iocb;
+	rspiocb = cmdiocb->rsp_iocb;
 
 	ulp_status = get_job_ulpstatus(phba, rspiocb);
 
@@ -1357,7 +1357,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 	if (ulp_status)
 		goto out;
 
-	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
+	pcmd = cmdiocb->cmd_dmabuf;
 
 	prsp = list_get_first(&pcmd->list, struct lpfc_dmabuf, list);
 	if (!prsp)
@@ -1703,7 +1703,7 @@ lpfc_cmpl_adisc_adisc_issue(struct lpfc_vport *vport,
 	u32 ulp_status;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
-	rspiocb = cmdiocb->context_un.rsp_iocb;
+	rspiocb = cmdiocb->rsp_iocb;
 
 	ulp_status = get_job_ulpstatus(phba, rspiocb);
 
@@ -2158,7 +2158,7 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	u32 ulp_status;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
-	rspiocb = cmdiocb->context_un.rsp_iocb;
+	rspiocb = cmdiocb->rsp_iocb;
 
 	ulp_status = get_job_ulpstatus(phba, rspiocb);
 
@@ -2778,7 +2778,7 @@ lpfc_cmpl_plogi_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	u32 ulp_status;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
-	rspiocb = cmdiocb->context_un.rsp_iocb;
+	rspiocb = cmdiocb->rsp_iocb;
 
 	ulp_status = get_job_ulpstatus(phba, rspiocb);
 
@@ -2797,7 +2797,7 @@ lpfc_cmpl_prli_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	u32 ulp_status;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
-	rspiocb = cmdiocb->context_un.rsp_iocb;
+	rspiocb = cmdiocb->rsp_iocb;
 
 	ulp_status = get_job_ulpstatus(phba, rspiocb);
 
@@ -2833,7 +2833,7 @@ lpfc_cmpl_adisc_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	u32 ulp_status;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
-	rspiocb = cmdiocb->context_un.rsp_iocb;
+	rspiocb = cmdiocb->rsp_iocb;
 
 	ulp_status = get_job_ulpstatus(phba, rspiocb);
 

@@ -4323,9 +4323,10 @@ lpfc_sli4_io_sgl_update(struct lpfc_hba *phba)
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"6074 Current allocated XRI sgl count:%d, "
-			"maximum XRI count:%d\n",
+			"maximum XRI count:%d els_xri_cnt:%d\n\n",
 			phba->sli4_hba.io_xri_cnt,
-			phba->sli4_hba.io_xri_max);
+			phba->sli4_hba.io_xri_max,
+			els_xri_cnt);
 
 	cnt = lpfc_io_buf_flush(phba, &io_sgl_list);
 
@@ -4464,12 +4465,11 @@ lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc)
 		}
 		pwqeq->sli4_lxritag = lxri;
 		pwqeq->sli4_xritag = phba->sli4_hba.xri_ids[lxri];
-		pwqeq->context1 = lpfc_ncmd;
 
 		/* Initialize local short-hand pointers. */
 		lpfc_ncmd->dma_sgl = lpfc_ncmd->data;
 		lpfc_ncmd->dma_phys_sgl = lpfc_ncmd->dma_handle;
-		lpfc_ncmd->cur_iocbq.context1 = lpfc_ncmd;
+		lpfc_ncmd->cur_iocbq.io_buf = lpfc_ncmd;
 		spin_lock_init(&lpfc_ncmd->buf_lock);
 
 		/* add the nvme buffer to a post list */
@@ -4478,7 +4478,9 @@ lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc)
 	}
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME,
 			"6114 Allocate %d out of %d requested new NVME "
-			"buffers\n", bcnt, num_to_alloc);
+			"buffers of size x%zu bytes\n", bcnt, num_to_alloc,
+			sizeof(*lpfc_ncmd));
+
 
 	/* post the list of nvme buffer sgls to port if available */
 	if (!list_empty(&post_nblist))
