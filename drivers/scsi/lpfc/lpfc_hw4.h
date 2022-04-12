@@ -4476,12 +4476,8 @@ struct wqe_common {
 #define wqe_cmd_type_MASK     0x0000000f
 #define wqe_cmd_type_WORD     word11
 #define wqe_els_id_SHIFT      4
-#define wqe_els_id_MASK       0x00000003
+#define wqe_els_id_MASK       0x00000007
 #define wqe_els_id_WORD       word11
-#define LPFC_ELS_ID_FLOGI	3
-#define LPFC_ELS_ID_FDISC	2
-#define LPFC_ELS_ID_LOGO	1
-#define LPFC_ELS_ID_DEFAULT	0
 #define wqe_irsp_SHIFT        4
 #define wqe_irsp_MASK         0x00000001
 #define wqe_irsp_WORD         word11
@@ -4526,6 +4522,14 @@ struct lpfc_wqe_generic{
 	uint32_t word5;
 	struct wqe_common wqe_com;
 	uint32_t payload[4];
+};
+
+enum els_request64_wqe_word11 {
+	LPFC_ELS_ID_DEFAULT,
+	LPFC_ELS_ID_LOGO,
+	LPFC_ELS_ID_FDISC,
+	LPFC_ELS_ID_FLOGI,
+	LPFC_ELS_ID_PLOGI,
 };
 
 struct els_request64_wqe {

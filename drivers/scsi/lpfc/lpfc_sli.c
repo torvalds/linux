@@ -10583,6 +10583,7 @@ __lpfc_sli_prep_els_req_rsp_s4(struct lpfc_iocbq *cmdiocbq,
 	struct lpfc_hba  *phba = vport->phba;
 	union lpfc_wqe128 *wqe;
 	struct ulp_bde64_le *bde;
+	u8 els_id;
 
 	wqe = &cmdiocbq->wqe;
 	memset(wqe, 0, sizeof(*wqe));
@@ -10595,7 +10596,7 @@ __lpfc_sli_prep_els_req_rsp_s4(struct lpfc_iocbq *cmdiocbq,
 	bde->type_size |= cpu_to_le32(ULP_BDE64_TYPE_BDE_64);
 
 	if (expect_rsp) {
-		bf_set(wqe_cmnd, &wqe->els_req.wqe_com, CMD_ELS_REQUEST64_CR);
+		bf_set(wqe_cmnd, &wqe->els_req.wqe_com, CMD_ELS_REQUEST64_WQE);
 
 		/* Transfer length */
 		wqe->els_req.payload_len = cmd_size;
@@ -10603,6 +10604,30 @@ __lpfc_sli_prep_els_req_rsp_s4(struct lpfc_iocbq *cmdiocbq,
 
 		/* DID */
 		bf_set(wqe_els_did, &wqe->els_req.wqe_dest, did);
+
+		/* Word 11 - ELS_ID */
+		switch (elscmd) {
+		case ELS_CMD_PLOGI:
+			els_id = LPFC_ELS_ID_PLOGI;
+			break;
+		case ELS_CMD_FLOGI:
+			els_id = LPFC_ELS_ID_FLOGI;
+			break;
+		case ELS_CMD_LOGO:
+			els_id = LPFC_ELS_ID_LOGO;
+			break;
+		case ELS_CMD_FDISC:
+			if (!vport->fc_myDID) {
+				els_id = LPFC_ELS_ID_FDISC;
+				break;
+			}
+			fallthrough;
+		default:
+			els_id = LPFC_ELS_ID_DEFAULT;
+			break;
+		}
+
+		bf_set(wqe_els_id, &wqe->els_req.wqe_com, els_id);
 	} else {
 		/* DID */
 		bf_set(wqe_els_did, &wqe->xmit_els_rsp.wqe_dest, did);
@@ -10611,7 +10636,7 @@ __lpfc_sli_prep_els_req_rsp_s4(struct lpfc_iocbq *cmdiocbq,
 		wqe->xmit_els_rsp.response_payload_len = cmd_size;
 
 		bf_set(wqe_cmnd, &wqe->xmit_els_rsp.wqe_com,
-		       CMD_XMIT_ELS_RSP64_CX);
+		       CMD_XMIT_ELS_RSP64_WQE);
 	}
 
 	bf_set(wqe_tmo, &wqe->generic.wqe_com, tmo);
@@ -10627,7 +10652,7 @@ __lpfc_sli_prep_els_req_rsp_s4(struct lpfc_iocbq *cmdiocbq,
 		if (expect_rsp) {
 			bf_set(els_req64_sid, &wqe->els_req, vport->fc_myDID);
 
-			/* For ELS_REQUEST64_CR, use the VPI by default */
+			/* For ELS_REQUEST64_WQE, use the VPI by default */
 			bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
 			       phba->vpi_ids[vport->vpi]);
 		}
@@ -22215,7 +22240,6 @@ lpfc_sli_prep_wqe(struct lpfc_hba *phba, struct lpfc_iocbq *job)
 	u32 fip, abort_tag;
 	struct lpfc_nodelist *ndlp = NULL;
 	union lpfc_wqe128 *wqe = &job->wqe;
-	u32 els_id = LPFC_ELS_ID_DEFAULT;
 	u8 command_type = ELS_COMMAND_NON_FIP;
 
 	fip = phba->hba_flag & HBA_FIP_SUPPORT;
@@ -22233,11 +22257,6 @@ lpfc_sli_prep_wqe(struct lpfc_hba *phba, struct lpfc_iocbq *job)
 	switch (cmnd) {
 	case CMD_ELS_REQUEST64_WQE:
 		ndlp = job->ndlp;
-
-		/* CCP CCPE PV PRI in word10 were set in the memcpy */
-		if (command_type == ELS_COMMAND_FIP)
-			els_id = ((job->cmd_flag & LPFC_FIP_ELS_ID_MASK)
-				  >> LPFC_FIP_ELS_ID_SHIFT);
 
 		if_type = bf_get(lpfc_sli_intf_if_type,
 				 &phba->sli4_hba.sli_intf);
@@ -22275,7 +22294,6 @@ lpfc_sli_prep_wqe(struct lpfc_hba *phba, struct lpfc_iocbq *job)
 		bf_set(wqe_temp_rpi, &wqe->els_req.wqe_com,
 		       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
 
-		bf_set(wqe_els_id, &wqe->els_req.wqe_com, els_id);
 		bf_set(wqe_dbde, &wqe->els_req.wqe_com, 1);
 		bf_set(wqe_iod, &wqe->els_req.wqe_com, LPFC_WQE_IOD_READ);
 		bf_set(wqe_qosd, &wqe->els_req.wqe_com, 1);
