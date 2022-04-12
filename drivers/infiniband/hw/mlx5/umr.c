@@ -499,3 +499,162 @@ void *mlx5r_umr_create_xlt(struct mlx5_ib_dev *dev, struct ib_sge *sg,
 
 	return xlt;
 }
+
+static void
+mlx5r_umr_set_update_xlt_ctrl_seg(struct mlx5_wqe_umr_ctrl_seg *ctrl_seg,
+				  unsigned int flags, struct ib_sge *sg)
+{
+	if (!(flags & MLX5_IB_UPD_XLT_ENABLE))
+		/* fail if free */
+		ctrl_seg->flags = MLX5_UMR_CHECK_FREE;
+	else
+		/* fail if not free */
+		ctrl_seg->flags = MLX5_UMR_CHECK_NOT_FREE;
+	ctrl_seg->xlt_octowords =
+		cpu_to_be16(mlx5r_umr_get_xlt_octo(sg->length));
+}
+
+static void mlx5r_umr_set_update_xlt_mkey_seg(struct mlx5_ib_dev *dev,
+					      struct mlx5_mkey_seg *mkey_seg,
+					      struct mlx5_ib_mr *mr,
+					      unsigned int page_shift)
+{
+	mlx5r_umr_set_access_flags(dev, mkey_seg, mr->access_flags);
+	MLX5_SET(mkc, mkey_seg, pd, to_mpd(mr->ibmr.pd)->pdn);
+	MLX5_SET64(mkc, mkey_seg, start_addr, mr->ibmr.iova);
+	MLX5_SET64(mkc, mkey_seg, len, mr->ibmr.length);
+	MLX5_SET(mkc, mkey_seg, log_page_size, page_shift);
+	MLX5_SET(mkc, mkey_seg, qpn, 0xffffff);
+	MLX5_SET(mkc, mkey_seg, mkey_7_0, mlx5_mkey_variant(mr->mmkey.key));
+}
+
+static void
+mlx5r_umr_set_update_xlt_data_seg(struct mlx5_wqe_data_seg *data_seg,
+				  struct ib_sge *sg)
+{
+	data_seg->byte_count = cpu_to_be32(sg->length);
+	data_seg->lkey = cpu_to_be32(sg->lkey);
+	data_seg->addr = cpu_to_be64(sg->addr);
+}
+
+static void mlx5r_umr_update_offset(struct mlx5_wqe_umr_ctrl_seg *ctrl_seg,
+				    u64 offset)
+{
+	u64 octo_offset = mlx5r_umr_get_xlt_octo(offset);
+
+	ctrl_seg->xlt_offset = cpu_to_be16(octo_offset & 0xffff);
+	ctrl_seg->xlt_offset_47_16 = cpu_to_be32(octo_offset >> 16);
+	ctrl_seg->flags |= MLX5_UMR_TRANSLATION_OFFSET_EN;
+}
+
+static void mlx5r_umr_final_update_xlt(struct mlx5_ib_dev *dev,
+				       struct mlx5r_umr_wqe *wqe,
+				       struct mlx5_ib_mr *mr, struct ib_sge *sg,
+				       unsigned int flags)
+{
+	bool update_pd_access, update_translation;
+
+	if (flags & MLX5_IB_UPD_XLT_ENABLE)
+		wqe->ctrl_seg.mkey_mask |= get_umr_enable_mr_mask();
+
+	update_pd_access = flags & MLX5_IB_UPD_XLT_ENABLE ||
+			   flags & MLX5_IB_UPD_XLT_PD ||
+			   flags & MLX5_IB_UPD_XLT_ACCESS;
+
+	if (update_pd_access) {
+		wqe->ctrl_seg.mkey_mask |= get_umr_update_access_mask(dev);
+		wqe->ctrl_seg.mkey_mask |= get_umr_update_pd_mask();
+	}
+
+	update_translation =
+		flags & MLX5_IB_UPD_XLT_ENABLE || flags & MLX5_IB_UPD_XLT_ADDR;
+
+	if (update_translation) {
+		wqe->ctrl_seg.mkey_mask |= get_umr_update_translation_mask();
+		if (!mr->ibmr.length)
+			MLX5_SET(mkc, &wqe->mkey_seg, length64, 1);
+	}
+
+	wqe->ctrl_seg.xlt_octowords =
+		cpu_to_be16(mlx5r_umr_get_xlt_octo(sg->length));
+	wqe->data_seg.byte_count = cpu_to_be32(sg->length);
+}
+
+/*
+ * Send the DMA list to the HW for a normal MR using UMR.
+ * Dmabuf MR is handled in a similar way, except that the MLX5_IB_UPD_XLT_ZAP
+ * flag may be used.
+ */
+int mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
+{
+	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
+	struct device *ddev = &dev->mdev->pdev->dev;
+	struct mlx5r_umr_wqe wqe = {};
+	struct ib_block_iter biter;
+	struct mlx5_mtt *cur_mtt;
+	size_t orig_sg_length;
+	struct mlx5_mtt *mtt;
+	size_t final_size;
+	struct ib_sge sg;
+	u64 offset = 0;
+	int err = 0;
+
+	if (WARN_ON(mr->umem->is_odp))
+		return -EINVAL;
+
+	mtt = mlx5r_umr_create_xlt(
+		dev, &sg, ib_umem_num_dma_blocks(mr->umem, 1 << mr->page_shift),
+		sizeof(*mtt), flags);
+	if (!mtt)
+		return -ENOMEM;
+
+	orig_sg_length = sg.length;
+
+	mlx5r_umr_set_update_xlt_ctrl_seg(&wqe.ctrl_seg, flags, &sg);
+	mlx5r_umr_set_update_xlt_mkey_seg(dev, &wqe.mkey_seg, mr,
+					  mr->page_shift);
+	mlx5r_umr_set_update_xlt_data_seg(&wqe.data_seg, &sg);
+
+	cur_mtt = mtt;
+	rdma_for_each_block(mr->umem->sgt_append.sgt.sgl, &biter,
+			    mr->umem->sgt_append.sgt.nents,
+			    BIT(mr->page_shift)) {
+		if (cur_mtt == (void *)mtt + sg.length) {
+			dma_sync_single_for_device(ddev, sg.addr, sg.length,
+						   DMA_TO_DEVICE);
+
+			err = mlx5r_umr_post_send_wait(dev, mr->mmkey.key, &wqe,
+						       true);
+			if (err)
+				goto err;
+			dma_sync_single_for_cpu(ddev, sg.addr, sg.length,
+						DMA_TO_DEVICE);
+			offset += sg.length;
+			mlx5r_umr_update_offset(&wqe.ctrl_seg, offset);
+
+			cur_mtt = mtt;
+		}
+
+		cur_mtt->ptag =
+			cpu_to_be64(rdma_block_iter_dma_address(&biter) |
+				    MLX5_IB_MTT_PRESENT);
+
+		if (mr->umem->is_dmabuf && (flags & MLX5_IB_UPD_XLT_ZAP))
+			cur_mtt->ptag = 0;
+
+		cur_mtt++;
+	}
+
+	final_size = (void *)cur_mtt - (void *)mtt;
+	sg.length = ALIGN(final_size, MLX5_UMR_MTT_ALIGNMENT);
+	memset(cur_mtt, 0, sg.length - final_size);
+	mlx5r_umr_final_update_xlt(dev, &wqe, mr, &sg, flags);
+
+	dma_sync_single_for_device(ddev, sg.addr, sg.length, DMA_TO_DEVICE);
+	err = mlx5r_umr_post_send_wait(dev, mr->mmkey.key, &wqe, true);
+
+err:
+	sg.length = orig_sg_length;
+	mlx5r_umr_unmap_free_xlt(dev, mtt, &sg);
+	return err;
+}

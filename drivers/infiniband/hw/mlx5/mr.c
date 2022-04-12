@@ -1083,76 +1083,6 @@ int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 }
 
 /*
- * Send the DMA list to the HW for a normal MR using UMR.
- * Dmabuf MR is handled in a similar way, except that the MLX5_IB_UPD_XLT_ZAP
- * flag may be used.
- */
-int mlx5_ib_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
-{
-	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
-	struct device *ddev = &dev->mdev->pdev->dev;
-	struct ib_block_iter biter;
-	struct mlx5_mtt *cur_mtt;
-	struct mlx5_umr_wr wr;
-	size_t orig_sg_length;
-	struct mlx5_mtt *mtt;
-	size_t final_size;
-	struct ib_sge sg;
-	int err = 0;
-
-	if (WARN_ON(mr->umem->is_odp))
-		return -EINVAL;
-
-	mtt = mlx5_ib_create_xlt_wr(mr, &wr, &sg,
-				    ib_umem_num_dma_blocks(mr->umem,
-							   1 << mr->page_shift),
-				    sizeof(*mtt), flags);
-	if (!mtt)
-		return -ENOMEM;
-	orig_sg_length = sg.length;
-
-	cur_mtt = mtt;
-	rdma_for_each_block (mr->umem->sgt_append.sgt.sgl, &biter,
-			     mr->umem->sgt_append.sgt.nents,
-			     BIT(mr->page_shift)) {
-		if (cur_mtt == (void *)mtt + sg.length) {
-			dma_sync_single_for_device(ddev, sg.addr, sg.length,
-						   DMA_TO_DEVICE);
-			err = mlx5_ib_post_send_wait(dev, &wr);
-			if (err)
-				goto err;
-			dma_sync_single_for_cpu(ddev, sg.addr, sg.length,
-						DMA_TO_DEVICE);
-			wr.offset += sg.length;
-			cur_mtt = mtt;
-		}
-
-		cur_mtt->ptag =
-			cpu_to_be64(rdma_block_iter_dma_address(&biter) |
-				    MLX5_IB_MTT_PRESENT);
-
-		if (mr->umem->is_dmabuf && (flags & MLX5_IB_UPD_XLT_ZAP))
-			cur_mtt->ptag = 0;
-
-		cur_mtt++;
-	}
-
-	final_size = (void *)cur_mtt - (void *)mtt;
-	sg.length = ALIGN(final_size, MLX5_UMR_MTT_ALIGNMENT);
-	memset(cur_mtt, 0, sg.length - final_size);
-	wr.wr.send_flags |= xlt_wr_final_send_flags(flags);
-	wr.xlt_size = sg.length;
-
-	dma_sync_single_for_device(ddev, sg.addr, sg.length, DMA_TO_DEVICE);
-	err = mlx5_ib_post_send_wait(dev, &wr);
-
-err:
-	sg.length = orig_sg_length;
-	mlx5r_umr_unmap_free_xlt(dev, mtt, &sg);
-	return err;
-}
-
-/*
  * If ibmr is NULL it will be allocated by reg_create.
  * Else, the given ibmr will be used.
  */
@@ -1368,7 +1298,7 @@ static struct ib_mr *create_real_mr(struct ib_pd *pd, struct ib_umem *umem,
 		 * configured properly but left disabled. It is safe to go ahead
 		 * and configure it again via UMR while enabling it.
 		 */
-		err = mlx5_ib_update_mr_pas(mr, MLX5_IB_UPD_XLT_ENABLE);
+		err = mlx5r_umr_update_mr_pas(mr, MLX5_IB_UPD_XLT_ENABLE);
 		if (err) {
 			mlx5_ib_dereg_mr(&mr->ibmr, NULL);
 			return ERR_PTR(err);
@@ -1467,7 +1397,7 @@ static void mlx5_ib_dmabuf_invalidate_cb(struct dma_buf_attachment *attach)
 	if (!umem_dmabuf->sgt)
 		return;
 
-	mlx5_ib_update_mr_pas(mr, MLX5_IB_UPD_XLT_ZAP);
+	mlx5r_umr_update_mr_pas(mr, MLX5_IB_UPD_XLT_ZAP);
 	ib_umem_dmabuf_unmap_pages(umem_dmabuf);
 }
 
@@ -1602,7 +1532,7 @@ static int umr_rereg_pas(struct mlx5_ib_mr *mr, struct ib_pd *pd,
 	mr->ibmr.length = new_umem->length;
 	mr->page_shift = order_base_2(page_size);
 	mr->umem = new_umem;
-	err = mlx5_ib_update_mr_pas(mr, upd_flags);
+	err = mlx5r_umr_update_mr_pas(mr, upd_flags);
 	if (err) {
 		/*
 		 * The MR is revoked at this point so there is no issue to free
