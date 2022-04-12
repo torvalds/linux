@@ -238,7 +238,7 @@ static void gpmi_dump_info(struct gpmi_nand_data *this)
 		geo->block_mark_bit_offset);
 }
 
-static inline bool gpmi_check_ecc(struct gpmi_nand_data *this)
+static bool gpmi_check_ecc(struct gpmi_nand_data *this)
 {
 	struct nand_chip *chip = &this->nand;
 	struct bch_geometry *geo = &this->bch_geometry;
