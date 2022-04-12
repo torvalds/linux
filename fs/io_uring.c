@@ -2224,6 +2224,11 @@ static void io_flush_cached_locked_reqs(struct io_ring_ctx *ctx,
 	spin_unlock(&ctx->completion_lock);
 }
 
+static inline bool io_req_cache_empty(struct io_ring_ctx *ctx)
+{
+	return !ctx->submit_state.free_list.next;
+}
+
 /*
  * A request might get retired back into the request caches even before opcode
  * handlers and io_issue_sqe() are done with it, e.g. inline completion path.
@@ -2245,7 +2250,7 @@ static __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 	 */
 	if (READ_ONCE(ctx->locked_free_nr) > IO_COMPL_BATCH) {
 		io_flush_cached_locked_reqs(ctx, &ctx->submit_state);
-		if (state->free_list.next)
+		if (!io_req_cache_empty(ctx))
 			return true;
 	}
 
@@ -2274,7 +2279,7 @@ static __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 
 static inline bool io_alloc_req_refill(struct io_ring_ctx *ctx)
 {
-	if (unlikely(!ctx->submit_state.free_list.next))
+	if (unlikely(io_req_cache_empty(ctx)))
 		return __io_alloc_req_refill(ctx);
 	return true;
 }
@@ -9809,7 +9814,7 @@ static void io_req_caches_free(struct io_ring_ctx *ctx)
 	mutex_lock(&ctx->uring_lock);
 	io_flush_cached_locked_reqs(ctx, state);
 
-	while (state->free_list.next) {
+	while (!io_req_cache_empty(ctx)) {
 		struct io_wq_work_node *node;
 		struct io_kiocb *req;
 
