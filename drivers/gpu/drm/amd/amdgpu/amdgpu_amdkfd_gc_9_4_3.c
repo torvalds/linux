@@ -21,14 +21,13 @@
  */
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
-#include "amdgpu_amdkfd_arcturus.h"
 #include "amdgpu_amdkfd_gfx_v9.h"
 #include "gc/gc_9_4_3_offset.h"
 #include "gc/gc_9_4_3_sh_mask.h"
 #include "athub/athub_1_8_0_offset.h"
 #include "athub/athub_1_8_0_sh_mask.h"
-#include "oss/osssys_4_0_offset.h"
-#include "oss/osssys_4_0_sh_mask.h"
+#include "oss/osssys_4_4_2_offset.h"
+#include "oss/osssys_4_4_2_sh_mask.h"
 #include "v9_structs.h"
 #include "soc15.h"
 #include "sdma/sdma_4_4_2_offset.h"
@@ -220,9 +219,12 @@ int kgd_gfx_v9_4_3_hqd_sdma_destroy(struct amdgpu_device *adev, void *mqd,
 }
 
 static int kgd_gfx_v9_4_3_set_pasid_vmid_mapping(struct amdgpu_device *adev,
-				u32 pasid, unsigned int vmid, uint32_t inst)
+			u32 pasid, unsigned int vmid, uint32_t xcc_inst)
 {
 	unsigned long timeout;
+	unsigned int reg;
+	/* Every two XCCs share one AID */
+	unsigned int aid = xcc_inst / 2;
 
 	/*
 	 * We have to assume that there is no outstanding mapping.
@@ -234,11 +236,11 @@ static int kgd_gfx_v9_4_3_set_pasid_vmid_mapping(struct amdgpu_device *adev,
 	uint32_t pasid_mapping = (pasid == 0) ? 0 : (uint32_t)pasid |
 			ATC_VMID0_PASID_MAPPING__VALID_MASK;
 
-	WREG32(SOC15_REG_OFFSET(ATHUB, inst,
+	WREG32(SOC15_REG_OFFSET(ATHUB, 0,
 		regATC_VMID0_PASID_MAPPING) + vmid, pasid_mapping);
 
 	timeout = jiffies + msecs_to_jiffies(10);
-	while (!(RREG32(SOC15_REG_OFFSET(ATHUB, inst,
+	while (!(RREG32(SOC15_REG_OFFSET(ATHUB, 0,
 			regATC_VMID_PASID_MAPPING_UPDATE_STATUS)) &
 			(1U << vmid))) {
 		if (time_after(jiffies, timeout)) {
@@ -248,14 +250,25 @@ static int kgd_gfx_v9_4_3_set_pasid_vmid_mapping(struct amdgpu_device *adev,
 		cpu_relax();
 	}
 
-	WREG32(SOC15_REG_OFFSET(ATHUB, inst,
+	WREG32(SOC15_REG_OFFSET(ATHUB, 0,
 		regATC_VMID_PASID_MAPPING_UPDATE_STATUS),
 		1U << vmid);
 
-	WREG32(SOC15_REG_OFFSET(OSSSYS, inst, mmIH_VMID_0_LUT) + vmid,
+	reg = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_LUT_INDEX));
+	/* Every 4 numbers is a cycle. 1st is AID, 2nd and 3rd are XCDs,
+	 * and the 4th is reserved. Therefore "aid * 4 + (xcc_inst % 2) + 1"
+	 * programs _LUT for XCC and "aid * 4" for AID where the XCC connects
+	 * to.
+	 */
+	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_LUT_INDEX),
+		aid * 4 + (xcc_inst % 2) + 1);
+	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_0_LUT) + vmid,
 		pasid_mapping);
-	WREG32(SOC15_REG_OFFSET(OSSSYS, inst, mmIH_VMID_0_LUT_MM) + vmid,
+	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_LUT_INDEX),
+		aid * 4);
+	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_0_LUT_MM) + vmid,
 		pasid_mapping);
+	WREG32(SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_LUT_INDEX), reg);
 
 	return 0;
 }
