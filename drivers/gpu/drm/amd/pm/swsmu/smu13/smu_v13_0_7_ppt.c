@@ -1541,6 +1541,7 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.load_microcode = smu_v13_0_load_microcode,
 	.init_smc_tables = smu_v13_0_7_init_smc_tables,
 	.init_power = smu_v13_0_init_power,
+	.fini_power = smu_v13_0_fini_power,
 	.check_fw_status = smu_v13_0_7_check_fw_status,
 	.setup_pptable = smu_v13_0_7_setup_pptable,
 	.check_fw_version = smu_v13_0_check_fw_version,
