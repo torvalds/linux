@@ -1022,15 +1022,14 @@ int __init rand_initialize(void)
  */
 void add_device_randomness(const void *buf, size_t size)
 {
-	unsigned long cycles = random_get_entropy();
-	unsigned long flags, now = jiffies;
+	unsigned long entropy = random_get_entropy();
+	unsigned long flags;
 
 	if (crng_init == 0 && size)
 		crng_pre_init_inject(buf, size, false);
 
 	spin_lock_irqsave(&input_pool.lock, flags);
-	_mix_pool_bytes(&cycles, sizeof(cycles));
-	_mix_pool_bytes(&now, sizeof(now));
+	_mix_pool_bytes(&entropy, sizeof(entropy));
 	_mix_pool_bytes(buf, size);
 	spin_unlock_irqrestore(&input_pool.lock, flags);
 }
@@ -1053,12 +1052,11 @@ struct timer_rand_state {
  */
 static void add_timer_randomness(struct timer_rand_state *state, unsigned int num)
 {
-	unsigned long cycles = random_get_entropy(), now = jiffies, flags;
+	unsigned long entropy = random_get_entropy(), now = jiffies, flags;
 	long delta, delta2, delta3;
 
 	spin_lock_irqsave(&input_pool.lock, flags);
-	_mix_pool_bytes(&cycles, sizeof(cycles));
-	_mix_pool_bytes(&now, sizeof(now));
+	_mix_pool_bytes(&entropy, sizeof(entropy));
 	_mix_pool_bytes(&num, sizeof(num));
 	spin_unlock_irqrestore(&input_pool.lock, flags);
 
@@ -1186,7 +1184,6 @@ struct fast_pool {
 	unsigned long pool[4];
 	unsigned long last;
 	unsigned int count;
-	u16 reg_idx;
 };
 
 static DEFINE_PER_CPU(struct fast_pool, irq_randomness) = {
@@ -1204,13 +1201,13 @@ static DEFINE_PER_CPU(struct fast_pool, irq_randomness) = {
  * This is [Half]SipHash-1-x, starting from an empty key. Because
  * the key is fixed, it assumes that its inputs are non-malicious,
  * and therefore this has no security on its own. s represents the
- * 128 or 256-bit SipHash state, while v represents a 128-bit input.
+ * four-word SipHash state, while v represents a two-word input.
  */
-static void fast_mix(unsigned long s[4], const unsigned long *v)
+static void fast_mix(unsigned long s[4], const unsigned long v[2])
 {
 	size_t i;
 
-	for (i = 0; i < 16 / sizeof(long); ++i) {
+	for (i = 0; i < 2; ++i) {
 		s[3] ^= v[i];
 #ifdef CONFIG_64BIT
 		s[0] += s[1]; s[1] = rol64(s[1], 13); s[1] ^= s[0]; s[0] = rol64(s[0], 32);
@@ -1250,33 +1247,17 @@ int random_online_cpu(unsigned int cpu)
 }
 #endif
 
-static unsigned long get_reg(struct fast_pool *f, struct pt_regs *regs)
-{
-	unsigned long *ptr = (unsigned long *)regs;
-	unsigned int idx;
-
-	if (regs == NULL)
-		return 0;
-	idx = READ_ONCE(f->reg_idx);
-	if (idx >= sizeof(struct pt_regs) / sizeof(unsigned long))
-		idx = 0;
-	ptr += idx++;
-	WRITE_ONCE(f->reg_idx, idx);
-	return *ptr;
-}
-
 static void mix_interrupt_randomness(struct work_struct *work)
 {
 	struct fast_pool *fast_pool = container_of(work, struct fast_pool, mix);
 	/*
-	 * The size of the copied stack pool is explicitly 16 bytes so that we
-	 * tax mix_pool_byte()'s compression function the same amount on all
-	 * platforms. This means on 64-bit we copy half the pool into this,
-	 * while on 32-bit we copy all of it. The entropy is supposed to be
-	 * sufficiently dispersed between bits that in the sponge-like
-	 * half case, on average we don't wind up "losing" some.
+	 * The size of the copied stack pool is explicitly 2 longs so that we
+	 * only ever ingest half of the siphash output each time, retaining
+	 * the other half as the next "key" that carries over. The entropy is
+	 * supposed to be sufficiently dispersed between bits so on average
+	 * we don't wind up "losing" some.
 	 */
-	u8 pool[16];
+	unsigned long pool[2];
 
 	/* Check to see if we're running on the wrong CPU due to hotplug. */
 	local_irq_disable();
@@ -1308,36 +1289,21 @@ static void mix_interrupt_randomness(struct work_struct *work)
 void add_interrupt_randomness(int irq)
 {
 	enum { MIX_INFLIGHT = 1U << 31 };
-	unsigned long cycles = random_get_entropy(), now = jiffies;
+	unsigned long entropy = random_get_entropy();
 	struct fast_pool *fast_pool = this_cpu_ptr(&irq_randomness);
 	struct pt_regs *regs = get_irq_regs();
 	unsigned int new_count;
-	union {
-		u32 u32[4];
-		u64 u64[2];
-		unsigned long longs[16 / sizeof(long)];
-	} irq_data;
 
-	if (cycles == 0)
-		cycles = get_reg(fast_pool, regs);
-
-	if (sizeof(unsigned long) == 8) {
-		irq_data.u64[0] = cycles ^ rol64(now, 32) ^ irq;
-		irq_data.u64[1] = regs ? instruction_pointer(regs) : _RET_IP_;
-	} else {
-		irq_data.u32[0] = cycles ^ irq;
-		irq_data.u32[1] = now;
-		irq_data.u32[2] = regs ? instruction_pointer(regs) : _RET_IP_;
-		irq_data.u32[3] = get_reg(fast_pool, regs);
-	}
-
-	fast_mix(fast_pool->pool, irq_data.longs);
+	fast_mix(fast_pool->pool, (unsigned long[2]){
+		entropy,
+		(regs ? instruction_pointer(regs) : _RET_IP_) ^ swab(irq)
+	});
 	new_count = ++fast_pool->count;
 
 	if (new_count & MIX_INFLIGHT)
 		return;
 
-	if (new_count < 64 && (!time_after(now, fast_pool->last + HZ) ||
+	if (new_count < 64 && (!time_is_before_jiffies(fast_pool->last + HZ) ||
 			       unlikely(crng_init == 0)))
 		return;
 
@@ -1373,28 +1339,28 @@ static void entropy_timer(struct timer_list *t)
 static void try_to_generate_entropy(void)
 {
 	struct {
-		unsigned long cycles;
+		unsigned long entropy;
 		struct timer_list timer;
 	} stack;
 
-	stack.cycles = random_get_entropy();
+	stack.entropy = random_get_entropy();
 
 	/* Slow counter - or none. Don't even bother */
-	if (stack.cycles == random_get_entropy())
+	if (stack.entropy == random_get_entropy())
 		return;
 
 	timer_setup_on_stack(&stack.timer, entropy_timer, 0);
 	while (!crng_ready() && !signal_pending(current)) {
 		if (!timer_pending(&stack.timer))
 			mod_timer(&stack.timer, jiffies + 1);
-		mix_pool_bytes(&stack.cycles, sizeof(stack.cycles));
+		mix_pool_bytes(&stack.entropy, sizeof(stack.entropy));
 		schedule();
-		stack.cycles = random_get_entropy();
+		stack.entropy = random_get_entropy();
 	}
 
 	del_timer_sync(&stack.timer);
 	destroy_timer_on_stack(&stack.timer);
-	mix_pool_bytes(&stack.cycles, sizeof(stack.cycles));
+	mix_pool_bytes(&stack.entropy, sizeof(stack.entropy));
 }
 
 
