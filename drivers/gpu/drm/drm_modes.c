@@ -942,6 +942,23 @@ void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *
 EXPORT_SYMBOL(drm_mode_copy);
 
 /**
+ * drm_mode_init - initialize the mode from another mode
+ * @dst: mode to overwrite
+ * @src: mode to copy
+ *
+ * Copy an existing mode into another mode, zeroing the
+ * list head of the destination mode. Typically used
+ * to guarantee the list head is not left with stack
+ * garbage in on-stack modes.
+ */
+void drm_mode_init(struct drm_display_mode *dst, const struct drm_display_mode *src)
+{
+	memset(dst, 0, sizeof(*dst));
+	drm_mode_copy(dst, src);
+}
+EXPORT_SYMBOL(drm_mode_init);
+
+/**
  * drm_mode_duplicate - allocate and duplicate an existing mode
  * @dev: drm_device to allocate the duplicated mode for
  * @mode: mode to duplicate

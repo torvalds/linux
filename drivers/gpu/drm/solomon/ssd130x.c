@@ -48,7 +48,7 @@
 #define SSD130X_CONTRAST			0x81
 #define SSD130X_SET_LOOKUP_TABLE		0x91
 #define SSD130X_CHARGE_PUMP			0x8d
-#define SSD130X_SEG_REMAP_ON			0xa1
+#define SSD130X_SET_SEG_REMAP			0xa0
 #define SSD130X_DISPLAY_OFF			0xae
 #define SSD130X_SET_MULTIPLEX_RATIO		0xa8
 #define SSD130X_DISPLAY_ON			0xaf
@@ -61,7 +61,9 @@
 #define SSD130X_SET_COM_PINS_CONFIG		0xda
 #define SSD130X_SET_VCOMH			0xdb
 
-#define SSD130X_SET_COM_SCAN_DIR_MASK		GENMASK(3, 2)
+#define SSD130X_SET_SEG_REMAP_MASK		GENMASK(0, 0)
+#define SSD130X_SET_SEG_REMAP_SET(val)		FIELD_PREP(SSD130X_SET_SEG_REMAP_MASK, (val))
+#define SSD130X_SET_COM_SCAN_DIR_MASK		GENMASK(3, 3)
 #define SSD130X_SET_COM_SCAN_DIR_SET(val)	FIELD_PREP(SSD130X_SET_COM_SCAN_DIR_MASK, (val))
 #define SSD130X_SET_CLOCK_DIV_MASK		GENMASK(3, 0)
 #define SSD130X_SET_CLOCK_DIV_SET(val)		FIELD_PREP(SSD130X_SET_CLOCK_DIV_MASK, (val))
@@ -235,7 +237,7 @@ static void ssd130x_power_off(struct ssd130x_device *ssd130x)
 
 static int ssd130x_init(struct ssd130x_device *ssd130x)
 {
-	u32 precharge, dclk, com_invdir, compins, chargepump;
+	u32 precharge, dclk, com_invdir, compins, chargepump, seg_remap;
 	int ret;
 
 	/* Set initial contrast */
@@ -244,11 +246,11 @@ static int ssd130x_init(struct ssd130x_device *ssd130x)
 		return ret;
 
 	/* Set segment re-map */
-	if (ssd130x->seg_remap) {
-		ret = ssd130x_write_cmd(ssd130x, 1, SSD130X_SEG_REMAP_ON);
-		if (ret < 0)
-			return ret;
-	}
+	seg_remap = (SSD130X_SET_SEG_REMAP |
+		     SSD130X_SET_SEG_REMAP_SET(ssd130x->seg_remap));
+	ret = ssd130x_write_cmd(ssd130x, 1, seg_remap);
+	if (ret < 0)
+		return ret;
 
 	/* Set COM direction */
 	com_invdir = (SSD130X_SET_COM_SCAN_DIR |
@@ -353,10 +355,13 @@ static int ssd130x_update_rect(struct ssd130x_device *ssd130x, u8 *buf,
 	unsigned int width = drm_rect_width(rect);
 	unsigned int height = drm_rect_height(rect);
 	unsigned int line_length = DIV_ROUND_UP(width, 8);
-	unsigned int pages = DIV_ROUND_UP(y % 8 + height, 8);
+	unsigned int pages = DIV_ROUND_UP(height, 8);
+	struct drm_device *drm = &ssd130x->drm;
 	u32 array_idx = 0;
 	int ret, i, j, k;
 	u8 *data_array = NULL;
+
+	drm_WARN_ONCE(drm, y % 8 != 0, "y must be aligned to screen page\n");
 
 	data_array = kcalloc(width, pages, GFP_KERNEL);
 	if (!data_array)
@@ -399,13 +404,13 @@ static int ssd130x_update_rect(struct ssd130x_device *ssd130x, u8 *buf,
 	if (ret < 0)
 		goto out_free;
 
-	for (i = y / 8; i < y / 8 + pages; i++) {
+	for (i = 0; i < pages; i++) {
 		int m = 8;
 
 		/* Last page may be partial */
-		if (8 * (i + 1) > ssd130x->height)
+		if (8 * (y / 8 + i + 1) > ssd130x->height)
 			m = ssd130x->height % 8;
-		for (j = x; j < x + width; j++) {
+		for (j = 0; j < width; j++) {
 			u8 data = 0;
 
 			for (k = 0; k < m; k++) {
@@ -435,7 +440,8 @@ static void ssd130x_clear_screen(struct ssd130x_device *ssd130x)
 		.y2 = ssd130x->height,
 	};
 
-	buf = kcalloc(ssd130x->width, ssd130x->height, GFP_KERNEL);
+	buf = kcalloc(DIV_ROUND_UP(ssd130x->width, 8), ssd130x->height,
+		      GFP_KERNEL);
 	if (!buf)
 		return;
 
@@ -449,14 +455,20 @@ static int ssd130x_fb_blit_rect(struct drm_framebuffer *fb, const struct iosys_m
 {
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(fb->dev);
 	void *vmap = map->vaddr; /* TODO: Use mapping abstraction properly */
+	unsigned int dst_pitch;
 	int ret = 0;
 	u8 *buf = NULL;
 
-	buf = kcalloc(fb->width, fb->height, GFP_KERNEL);
+	/* Align y to display page boundaries */
+	rect->y1 = round_down(rect->y1, 8);
+	rect->y2 = min_t(unsigned int, round_up(rect->y2, 8), ssd130x->height);
+
+	dst_pitch = DIV_ROUND_UP(drm_rect_width(rect), 8);
+	buf = kcalloc(dst_pitch, drm_rect_height(rect), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	drm_fb_xrgb8888_to_mono_reversed(buf, 0, vmap, fb, rect);
+	drm_fb_xrgb8888_to_mono(buf, dst_pitch, vmap, fb, rect);
 
 	ssd130x_update_rect(ssd130x, buf, rect);
 

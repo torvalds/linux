@@ -90,6 +90,7 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 
 	list_for_each_entry(entry, list, head) {
 		struct ttm_buffer_object *bo = entry->bo;
+		unsigned int num_fences;
 
 		ret = ttm_bo_reserve(bo, intr, (ticket == NULL), ticket);
 		if (ret == -EALREADY && dups) {
@@ -100,12 +101,10 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 			continue;
 		}
 
+		num_fences = min(entry->num_shared, 1u);
 		if (!ret) {
-			if (!entry->num_shared)
-				continue;
-
-			ret = dma_resv_reserve_shared(bo->base.resv,
-								entry->num_shared);
+			ret = dma_resv_reserve_fences(bo->base.resv,
+						      num_fences);
 			if (!ret)
 				continue;
 		}
@@ -120,9 +119,9 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 			ret = ttm_bo_reserve_slowpath(bo, intr, ticket);
 		}
 
-		if (!ret && entry->num_shared)
-			ret = dma_resv_reserve_shared(bo->base.resv,
-								entry->num_shared);
+		if (!ret)
+			ret = dma_resv_reserve_fences(bo->base.resv,
+						      num_fences);
 
 		if (unlikely(ret != 0)) {
 			if (ticket) {

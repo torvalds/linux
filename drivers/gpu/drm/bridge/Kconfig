@@ -77,6 +77,7 @@ config DRM_DISPLAY_CONNECTOR
 config DRM_ITE_IT6505
         tristate "ITE IT6505 DisplayPort bridge"
         depends on OF
+	select DRM_DP_HELPER
         select DRM_KMS_HELPER
         select EXTCON
         help
@@ -265,6 +266,7 @@ config DRM_TOSHIBA_TC358767
 	select DRM_DP_HELPER
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
+	select DRM_MIPI_DSI
 	select DRM_PANEL
 	help
 	  Toshiba TC358767 eDP bridge chip driver.

@@ -219,12 +219,12 @@ config QCOM_SCM_DOWNLOAD_MODE_DEFAULT
 
 config SYSFB
 	bool
-	default y
-	depends on X86 || EFI
+	select BOOT_VESA_SUPPORT
 
 config SYSFB_SIMPLEFB
 	bool "Mark VGA/VBE/EFI FB as generic system framebuffer"
-	depends on SYSFB
+	depends on X86 || EFI
+	select SYSFB
 	help
 	  Firmwares often provide initial graphics framebuffers so the BIOS,
 	  bootloader or kernel can show basic video-output during boot for

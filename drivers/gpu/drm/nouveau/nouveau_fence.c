@@ -346,11 +346,9 @@ nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan,
 	struct dma_resv *resv = nvbo->bo.base.resv;
 	int i, ret;
 
-	if (!exclusive) {
-		ret = dma_resv_reserve_shared(resv, 1);
-		if (ret)
-			return ret;
-	}
+	ret = dma_resv_reserve_fences(resv, 1);
+	if (ret)
+		return ret;
 
 	/* Waiting for the exclusive fence first causes performance regressions
 	 * under some circumstances. So manually wait for the shared ones first.
