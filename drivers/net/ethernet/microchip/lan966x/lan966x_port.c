@@ -393,6 +393,9 @@ void lan966x_port_init(struct lan966x_port *port)
 
 	lan966x_port_config_down(port);
 
+	if (lan966x->fdma)
+		lan966x_fdma_netdev_init(lan966x, port->dev);
+
 	if (config->portmode != PHY_INTERFACE_MODE_QSGMII)
 		return;
 
