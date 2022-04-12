@@ -271,7 +271,7 @@ static int mlxsw_thermal_get_temp(struct thermal_zone_device *tzdev,
 	int temp;
 	int err;
 
-	mlxsw_reg_mtmp_pack(mtmp_pl, 0, false, false);
+	mlxsw_reg_mtmp_pack(mtmp_pl, 0, 0, false, false);
 
 	err = mlxsw_reg_query(thermal->core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err) {
@@ -431,7 +431,7 @@ mlxsw_thermal_module_temp_and_thresholds_get(struct mlxsw_core *core,
 	int err;
 
 	/* Read module temperature and thresholds. */
-	mlxsw_reg_mtmp_pack(mtmp_pl, sensor_index, false, false);
+	mlxsw_reg_mtmp_pack(mtmp_pl, 0, sensor_index, false, false);
 	err = mlxsw_reg_query(core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err) {
 		/* Set temperature and thresholds to zero to avoid passing
@@ -576,7 +576,7 @@ static int mlxsw_thermal_gearbox_temp_get(struct thermal_zone_device *tzdev,
 	int err;
 
 	index = MLXSW_REG_MTMP_GBOX_INDEX_MIN + tz->module;
-	mlxsw_reg_mtmp_pack(mtmp_pl, index, false, false);
+	mlxsw_reg_mtmp_pack(mtmp_pl, 0, index, false, false);
 
 	err = mlxsw_reg_query(thermal->core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err)
@@ -746,13 +746,13 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
 	int i, err;
 
-	mlxsw_reg_mgpir_pack(mgpir_pl);
+	mlxsw_reg_mgpir_pack(mgpir_pl, 0);
 	err = mlxsw_reg_query(core, MLXSW_REG(mgpir), mgpir_pl);
 	if (err)
 		return err;
 
 	mlxsw_reg_mgpir_unpack(mgpir_pl, NULL, NULL, NULL,
-			       &thermal->tz_module_num);
+			       &thermal->tz_module_num, NULL);
 
 	thermal->tz_module_arr = kcalloc(thermal->tz_module_num,
 					 sizeof(*thermal->tz_module_arr),
@@ -837,13 +837,13 @@ mlxsw_thermal_gearboxes_init(struct device *dev, struct mlxsw_core *core,
 	int i;
 	int err;
 
-	mlxsw_reg_mgpir_pack(mgpir_pl);
+	mlxsw_reg_mgpir_pack(mgpir_pl, 0);
 	err = mlxsw_reg_query(core, MLXSW_REG(mgpir), mgpir_pl);
 	if (err)
 		return err;
 
 	mlxsw_reg_mgpir_unpack(mgpir_pl, &gbox_num, &device_type, NULL,
-			       NULL);
+			       NULL, NULL);
 	if (device_type != MLXSW_REG_MGPIR_DEVICE_TYPE_GEARBOX_DIE ||
 	    !gbox_num)
 		return 0;

@@ -69,8 +69,8 @@ mlxsw_env_validate_cable_ident(struct mlxsw_core *core, int id, bool *qsfp,
 	if (err)
 		return err;
 
-	mlxsw_reg_mcia_pack(mcia_pl, id, 0, MLXSW_REG_MCIA_PAGE0_LO_OFF, 0, 1,
-			    MLXSW_REG_MCIA_I2C_ADDR_LOW);
+	mlxsw_reg_mcia_pack(mcia_pl, 0, id, 0, MLXSW_REG_MCIA_PAGE0_LO_OFF, 0,
+			    1, MLXSW_REG_MCIA_I2C_ADDR_LOW);
 	err = mlxsw_reg_query(core, MLXSW_REG(mcia), mcia_pl);
 	if (err)
 		return err;
@@ -145,7 +145,8 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
 		}
 	}
 
-	mlxsw_reg_mcia_pack(mcia_pl, module, 0, page, offset, size, i2c_addr);
+	mlxsw_reg_mcia_pack(mcia_pl, 0, module, 0, page, offset, size,
+			    i2c_addr);
 
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mcia), mcia_pl);
 	if (err)
@@ -177,7 +178,7 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 	int page;
 	int err;
 
-	mlxsw_reg_mtmp_pack(mtmp_pl, MLXSW_REG_MTMP_MODULE_INDEX_MIN + module,
+	mlxsw_reg_mtmp_pack(mtmp_pl, 0, MLXSW_REG_MTMP_MODULE_INDEX_MIN + module,
 			    false, false);
 	err = mlxsw_reg_query(core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err)
@@ -219,12 +220,12 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 			page = MLXSW_REG_MCIA_TH_PAGE_CMIS_NUM;
 		else
 			page = MLXSW_REG_MCIA_TH_PAGE_NUM;
-		mlxsw_reg_mcia_pack(mcia_pl, module, 0, page,
+		mlxsw_reg_mcia_pack(mcia_pl, 0, module, 0, page,
 				    MLXSW_REG_MCIA_TH_PAGE_OFF + off,
 				    MLXSW_REG_MCIA_TH_ITEM_SIZE,
 				    MLXSW_REG_MCIA_I2C_ADDR_LOW);
 	} else {
-		mlxsw_reg_mcia_pack(mcia_pl, module, 0,
+		mlxsw_reg_mcia_pack(mcia_pl, 0, module, 0,
 				    MLXSW_REG_MCIA_PAGE0_LO,
 				    off, MLXSW_REG_MCIA_TH_ITEM_SIZE,
 				    MLXSW_REG_MCIA_I2C_ADDR_HIGH);
@@ -419,7 +420,7 @@ mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core, u8 module,
 		size = min_t(u8, page->length - bytes_read,
 			     MLXSW_REG_MCIA_EEPROM_SIZE);
 
-		mlxsw_reg_mcia_pack(mcia_pl, module, 0, page->page,
+		mlxsw_reg_mcia_pack(mcia_pl, 0, module, 0, page->page,
 				    device_addr + bytes_read, size,
 				    page->i2c_address);
 		mlxsw_reg_mcia_bank_number_set(mcia_pl, page->bank);
@@ -447,7 +448,7 @@ static int mlxsw_env_module_reset(struct mlxsw_core *mlxsw_core, u8 module)
 {
 	char pmaos_pl[MLXSW_REG_PMAOS_LEN];
 
-	mlxsw_reg_pmaos_pack(pmaos_pl, module);
+	mlxsw_reg_pmaos_pack(pmaos_pl, 0, module);
 	mlxsw_reg_pmaos_rst_set(pmaos_pl, true);
 
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(pmaos), pmaos_pl);
@@ -519,7 +520,7 @@ mlxsw_env_get_module_power_mode(struct mlxsw_core *mlxsw_core, u8 module,
 
 	params->policy = mlxsw_env->module_info[module].power_mode_policy;
 
-	mlxsw_reg_mcion_pack(mcion_pl, module);
+	mlxsw_reg_mcion_pack(mcion_pl, 0, module);
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mcion), mcion_pl);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to retrieve module's power mode");
@@ -547,7 +548,7 @@ static int mlxsw_env_module_enable_set(struct mlxsw_core *mlxsw_core,
 	enum mlxsw_reg_pmaos_admin_status admin_status;
 	char pmaos_pl[MLXSW_REG_PMAOS_LEN];
 
-	mlxsw_reg_pmaos_pack(pmaos_pl, module);
+	mlxsw_reg_pmaos_pack(pmaos_pl, 0, module);
 	admin_status = enable ? MLXSW_REG_PMAOS_ADMIN_STATUS_ENABLED :
 				MLXSW_REG_PMAOS_ADMIN_STATUS_DISABLED;
 	mlxsw_reg_pmaos_admin_status_set(pmaos_pl, admin_status);
@@ -562,7 +563,7 @@ static int mlxsw_env_module_low_power_set(struct mlxsw_core *mlxsw_core,
 	u16 eeprom_override_mask, eeprom_override;
 	char pmmp_pl[MLXSW_REG_PMMP_LEN];
 
-	mlxsw_reg_pmmp_pack(pmmp_pl, module);
+	mlxsw_reg_pmmp_pack(pmmp_pl, 0, module);
 	mlxsw_reg_pmmp_sticky_set(pmmp_pl, true);
 	/* Mask all the bits except low power mode. */
 	eeprom_override_mask = ~MLXSW_REG_PMMP_EEPROM_OVERRIDE_LOW_POWER_MASK;
@@ -660,8 +661,8 @@ static int mlxsw_env_module_has_temp_sensor(struct mlxsw_core *mlxsw_core,
 	u16 temp;
 	int err;
 
-	mlxsw_reg_mtbr_pack(mtbr_pl, MLXSW_REG_MTBR_BASE_MODULE_INDEX + module,
-			    1);
+	mlxsw_reg_mtbr_pack(mtbr_pl, 0,
+			    MLXSW_REG_MTBR_BASE_MODULE_INDEX + module, 1);
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mtbr), mtbr_pl);
 	if (err)
 		return err;
@@ -930,7 +931,7 @@ mlxsw_env_module_oper_state_event_enable(struct mlxsw_core *mlxsw_core)
 	for (i = 0; i < mlxsw_core_env(mlxsw_core)->module_count; i++) {
 		char pmaos_pl[MLXSW_REG_PMAOS_LEN];
 
-		mlxsw_reg_pmaos_pack(pmaos_pl, i);
+		mlxsw_reg_pmaos_pack(pmaos_pl, 0, i);
 		mlxsw_reg_pmaos_e_set(pmaos_pl,
 				      MLXSW_REG_PMAOS_E_GENERATE_EVENT);
 		mlxsw_reg_pmaos_ee_set(pmaos_pl, true);
@@ -1059,12 +1060,12 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
 	u8 module_count;
 	int i, err;
 
-	mlxsw_reg_mgpir_pack(mgpir_pl);
+	mlxsw_reg_mgpir_pack(mgpir_pl, 0);
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mgpir), mgpir_pl);
 	if (err)
 		return err;
 
-	mlxsw_reg_mgpir_unpack(mgpir_pl, NULL, NULL, NULL, &module_count);
+	mlxsw_reg_mgpir_unpack(mgpir_pl, NULL, NULL, NULL, &module_count, NULL);
 
 	env = kzalloc(struct_size(env, module_info, module_count), GFP_KERNEL);
 	if (!env)
