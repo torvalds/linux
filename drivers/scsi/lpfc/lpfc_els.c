@@ -1531,6 +1531,8 @@ lpfc_initial_flogi(struct lpfc_vport *vport)
 		lpfc_enqueue_node(vport, ndlp);
 	}
 
+	/* Reset the Fabric flag, topology change may have happened */
+	vport->fc_flag &= ~FC_FABRIC;
 	if (lpfc_issue_els_flogi(vport, ndlp, 0)) {
 		/* This decrement of reference count to node shall kick off
 		 * the release of the node.
