@@ -14,11 +14,19 @@ struct am65_cpsw_est {
 	struct tc_taprio_qopt_offload taprio;
 };
 
+struct am65_cpsw_ale_ratelimit {
+	unsigned long cookie;
+	u64 rate_packet_ps;
+};
+
 struct am65_cpsw_qos {
 	struct am65_cpsw_est *est_admin;
 	struct am65_cpsw_est *est_oper;
 	ktime_t link_down_time;
 	int link_speed;
+
+	struct am65_cpsw_ale_ratelimit ale_bc_ratelimit;
+	struct am65_cpsw_ale_ratelimit ale_mc_ratelimit;
 };
 
 int am65_cpsw_qos_ndo_setup_tc(struct net_device *ndev, enum tc_setup_type type,
