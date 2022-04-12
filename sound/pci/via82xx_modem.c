@@ -1103,8 +1103,8 @@ static int snd_via82xx_create(struct snd_card *card,
 }
 
 
-static int snd_via82xx_probe(struct pci_dev *pci,
-			     const struct pci_device_id *pci_id)
+static int __snd_via82xx_probe(struct pci_dev *pci,
+			       const struct pci_device_id *pci_id)
 {
 	struct snd_card *card;
 	struct via82xx_modem *chip;
@@ -1155,6 +1155,12 @@ static int snd_via82xx_probe(struct pci_dev *pci,
 		return err;
 	pci_set_drvdata(pci, card);
 	return 0;
+}
+
+static int snd_via82xx_probe(struct pci_dev *pci,
+			     const struct pci_device_id *pci_id)
+{
+	return snd_card_free_on_error(&pci->dev, __snd_via82xx_probe(pci, pci_id));
 }
 
 static struct pci_driver via82xx_modem_driver = {
