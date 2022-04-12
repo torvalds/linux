@@ -1023,7 +1023,7 @@ v4l2_subdev_get_try_compose(struct v4l2_subdev *sd,
 	return &state->pads[pad].try_compose;
 }
 
-#endif
+#endif /* CONFIG_VIDEO_V4L2_SUBDEV_API */
 
 extern const struct v4l2_file_operations v4l2_subdev_fops;
 
@@ -1204,4 +1204,4 @@ extern const struct v4l2_subdev_ops v4l2_subdev_call_wrappers;
 void v4l2_subdev_notify_event(struct v4l2_subdev *sd,
 			      const struct v4l2_event *ev);
 
-#endif
+#endif /* _V4L2_SUBDEV_H */
