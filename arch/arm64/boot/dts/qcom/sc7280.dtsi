@@ -886,6 +886,8 @@
 			mmc-hs400-1_8v;
 			mmc-hs400-enhanced-strobe;
 
+			resets = <&gcc GCC_SDCC1_BCR>;
+
 			sdhc1_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
@@ -2731,6 +2733,8 @@
 			bus-width = <4>;
 
 			qcom,dll-config = <0x0007642c>;
+
+			resets = <&gcc GCC_SDCC2_BCR>;
 
 			sdhc2_opp_table: opp-table {
 				compatible = "operating-points-v2";
