@@ -1629,31 +1629,6 @@ err_dereg_mr:
 	return ERR_PTR(err);
 }
 
-/**
- * revoke_mr - Fence all DMA on the MR
- * @mr: The MR to fence
- *
- * Upon return the NIC will not be doing any DMA to the pages under the MR,
- * and any DMA in progress will be completed. Failure of this function
- * indicates the HW has failed catastrophically.
- */
-static int revoke_mr(struct mlx5_ib_mr *mr)
-{
-	struct mlx5_umr_wr umrwr = {};
-
-	if (mr_to_mdev(mr)->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
-		return 0;
-
-	umrwr.wr.send_flags = MLX5_IB_SEND_UMR_DISABLE_MR |
-			      MLX5_IB_SEND_UMR_UPDATE_PD_ACCESS;
-	umrwr.wr.opcode = MLX5_IB_WR_UMR;
-	umrwr.pd = mr_to_mdev(mr)->umrc.pd;
-	umrwr.mkey = mr->mmkey.key;
-	umrwr.ignore_free_state = 1;
-
-	return mlx5_ib_post_send_wait(mr_to_mdev(mr), &umrwr);
-}
-
 /*
  * True if the change in access flags can be done via UMR, only some access
  * flags can be updated.
@@ -1730,7 +1705,7 @@ static int umr_rereg_pas(struct mlx5_ib_mr *mr, struct ib_pd *pd,
 	 * with it. This ensure the change is atomic relative to any use of the
 	 * MR.
 	 */
-	err = revoke_mr(mr);
+	err = mlx5r_umr_revoke_mr(mr);
 	if (err)
 		return err;
 
@@ -1808,7 +1783,7 @@ struct ib_mr *mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 		 * Only one active MR can refer to a umem at one time, revoke
 		 * the old MR before assigning the umem to the new one.
 		 */
-		err = revoke_mr(mr);
+		err = mlx5r_umr_revoke_mr(mr);
 		if (err)
 			return ERR_PTR(err);
 		umem = mr->umem;
@@ -1953,7 +1928,7 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 
 	/* Stop DMA */
 	if (mr->cache_ent) {
-		if (revoke_mr(mr)) {
+		if (mlx5r_umr_revoke_mr(mr)) {
 			spin_lock_irq(&mr->cache_ent->lock);
 			mr->cache_ent->total_mrs--;
 			spin_unlock_irq(&mr->cache_ent->lock);

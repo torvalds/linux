@@ -91,4 +91,6 @@ struct mlx5r_umr_wqe {
 	struct mlx5_wqe_data_seg data_seg;
 };
 
+int mlx5r_umr_revoke_mr(struct mlx5_ib_mr *mr);
+
 #endif /* _MLX5_IB_UMR_H */

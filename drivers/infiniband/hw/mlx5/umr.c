@@ -320,3 +320,32 @@ static int mlx5r_umr_post_send_wait(struct mlx5_ib_dev *dev, u32 mkey,
 	up(&umrc->sem);
 	return err;
 }
+
+/**
+ * mlx5r_umr_revoke_mr - Fence all DMA on the MR
+ * @mr: The MR to fence
+ *
+ * Upon return the NIC will not be doing any DMA to the pages under the MR,
+ * and any DMA in progress will be completed. Failure of this function
+ * indicates the HW has failed catastrophically.
+ */
+int mlx5r_umr_revoke_mr(struct mlx5_ib_mr *mr)
+{
+	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
+	struct mlx5r_umr_wqe wqe = {};
+
+	if (dev->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
+		return 0;
+
+	wqe.ctrl_seg.mkey_mask |= get_umr_update_pd_mask();
+	wqe.ctrl_seg.mkey_mask |= get_umr_disable_mr_mask();
+	wqe.ctrl_seg.flags |= MLX5_UMR_INLINE;
+
+	MLX5_SET(mkc, &wqe.mkey_seg, free, 1);
+	MLX5_SET(mkc, &wqe.mkey_seg, pd, to_mpd(dev->umrc.pd)->pdn);
+	MLX5_SET(mkc, &wqe.mkey_seg, qpn, 0xffffff);
+	MLX5_SET(mkc, &wqe.mkey_seg, mkey_7_0,
+		 mlx5_mkey_variant(mr->mmkey.key));
+
+	return mlx5r_umr_post_send_wait(dev, mr->mmkey.key, &wqe, false);
+}
