@@ -10533,6 +10533,11 @@ static int io_ringfd_register(struct io_ring_ctx *ctx, void __user *__arg,
 			break;
 		}
 
+		if (reg.resv) {
+			ret = -EINVAL;
+			break;
+		}
+
 		if (reg.offset == -1U) {
 			start = 0;
 			end = IO_RINGFD_REG_MAX;
@@ -10579,7 +10584,7 @@ static int io_ringfd_unregister(struct io_ring_ctx *ctx, void __user *__arg,
 			ret = -EFAULT;
 			break;
 		}
-		if (reg.offset >= IO_RINGFD_REG_MAX) {
+		if (reg.resv || reg.offset >= IO_RINGFD_REG_MAX) {
 			ret = -EINVAL;
 			break;
 		}
