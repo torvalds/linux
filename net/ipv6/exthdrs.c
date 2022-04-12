@@ -487,7 +487,6 @@ static int ipv6_rpl_srh_rcv(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	struct inet6_dev *idev;
 	struct ipv6hdr *oldhdr;
-	struct in6_addr addr;
 	unsigned char *buf;
 	int accept_rpl_seg;
 	int i, err;
@@ -616,9 +615,7 @@ looped_back:
 		return -1;
 	}
 
-	addr = ipv6_hdr(skb)->daddr;
-	ipv6_hdr(skb)->daddr = ohdr->rpl_segaddr[i];
-	ohdr->rpl_segaddr[i] = addr;
+	swap(ipv6_hdr(skb)->daddr, ohdr->rpl_segaddr[i]);
 
 	ipv6_rpl_srh_compress(chdr, ohdr, &ipv6_hdr(skb)->daddr, n);
 
