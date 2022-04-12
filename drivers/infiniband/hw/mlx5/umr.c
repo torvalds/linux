@@ -3,6 +3,7 @@
 
 #include "mlx5_ib.h"
 #include "umr.h"
+#include "wr.h"
 
 static __be64 get_umr_enable_mr_mask(void)
 {
@@ -227,4 +228,95 @@ void mlx5r_umr_resource_cleanup(struct mlx5_ib_dev *dev)
 	ib_destroy_qp(dev->umrc.qp);
 	ib_free_cq(dev->umrc.cq);
 	ib_dealloc_pd(dev->umrc.pd);
+}
+
+static int mlx5r_umr_post_send(struct ib_qp *ibqp, u32 mkey, struct ib_cqe *cqe,
+			       struct mlx5r_umr_wqe *wqe, bool with_data)
+{
+	unsigned int wqe_size =
+		with_data ? sizeof(struct mlx5r_umr_wqe) :
+			    sizeof(struct mlx5r_umr_wqe) -
+				    sizeof(struct mlx5_wqe_data_seg);
+	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
+	struct mlx5_core_dev *mdev = dev->mdev;
+	struct mlx5_ib_qp *qp = to_mqp(ibqp);
+	struct mlx5_wqe_ctrl_seg *ctrl;
+	union {
+		struct ib_cqe *ib_cqe;
+		u64 wr_id;
+	} id;
+	void *cur_edge, *seg;
+	unsigned long flags;
+	unsigned int idx;
+	int size, err;
+
+	if (unlikely(mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR))
+		return -EIO;
+
+	spin_lock_irqsave(&qp->sq.lock, flags);
+
+	err = mlx5r_begin_wqe(qp, &seg, &ctrl, &idx, &size, &cur_edge, 0,
+			      cpu_to_be32(mkey), false, false);
+	if (WARN_ON(err))
+		goto out;
+
+	qp->sq.wr_data[idx] = MLX5_IB_WR_UMR;
+
+	mlx5r_memcpy_send_wqe(&qp->sq, &cur_edge, &seg, &size, wqe, wqe_size);
+
+	id.ib_cqe = cqe;
+	mlx5r_finish_wqe(qp, ctrl, seg, size, cur_edge, idx, id.wr_id, 0,
+			 MLX5_FENCE_MODE_NONE, MLX5_OPCODE_UMR);
+
+	mlx5r_ring_db(qp, 1, ctrl);
+
+out:
+	spin_unlock_irqrestore(&qp->sq.lock, flags);
+
+	return err;
+}
+
+static void mlx5r_umr_done(struct ib_cq *cq, struct ib_wc *wc)
+{
+	struct mlx5_ib_umr_context *context =
+		container_of(wc->wr_cqe, struct mlx5_ib_umr_context, cqe);
+
+	context->status = wc->status;
+	complete(&context->done);
+}
+
+static inline void mlx5r_umr_init_context(struct mlx5r_umr_context *context)
+{
+	context->cqe.done = mlx5r_umr_done;
+	init_completion(&context->done);
+}
+
+static int mlx5r_umr_post_send_wait(struct mlx5_ib_dev *dev, u32 mkey,
+				   struct mlx5r_umr_wqe *wqe, bool with_data)
+{
+	struct umr_common *umrc = &dev->umrc;
+	struct mlx5r_umr_context umr_context;
+	int err;
+
+	err = umr_check_mkey_mask(dev, be64_to_cpu(wqe->ctrl_seg.mkey_mask));
+	if (WARN_ON(err))
+		return err;
+
+	mlx5r_umr_init_context(&umr_context);
+
+	down(&umrc->sem);
+	err = mlx5r_umr_post_send(umrc->qp, mkey, &umr_context.cqe, wqe,
+				  with_data);
+	if (err)
+		mlx5_ib_warn(dev, "UMR post send failed, err %d\n", err);
+	else {
+		wait_for_completion(&umr_context.done);
+		if (umr_context.status != IB_WC_SUCCESS) {
+			mlx5_ib_warn(dev, "reg umr failed (%u)\n",
+				     umr_context.status);
+			err = -EFAULT;
+		}
+	}
+	up(&umrc->sem);
+	return err;
 }

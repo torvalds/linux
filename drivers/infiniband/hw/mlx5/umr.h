@@ -79,4 +79,16 @@ int mlx5r_umr_set_umr_ctrl_seg(struct mlx5_ib_dev *dev,
 			       struct mlx5_wqe_umr_ctrl_seg *umr,
 			       const struct ib_send_wr *wr);
 
+struct mlx5r_umr_context {
+	struct ib_cqe cqe;
+	enum ib_wc_status status;
+	struct completion done;
+};
+
+struct mlx5r_umr_wqe {
+	struct mlx5_wqe_umr_ctrl_seg ctrl_seg;
+	struct mlx5_mkey_seg mkey_seg;
+	struct mlx5_wqe_data_seg data_seg;
+};
+
 #endif /* _MLX5_IB_UMR_H */
