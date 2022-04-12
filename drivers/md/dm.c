@@ -516,8 +516,10 @@ static void dm_io_acct(struct dm_io *io, bool end)
 	 */
 	if (bio_is_flush_with_data(bio))
 		sectors = 0;
-	else
+	else if (likely(!(dm_io_flagged(io, DM_IO_WAS_SPLIT))))
 		sectors = bio_sectors(bio);
+	else
+		sectors = io->sectors;
 
 	if (!end)
 		bdev_start_io_acct(bio->bi_bdev, sectors, bio_op(bio),
@@ -526,10 +528,18 @@ static void dm_io_acct(struct dm_io *io, bool end)
 		bdev_end_io_acct(bio->bi_bdev, bio_op(bio), start_time);
 
 	if (static_branch_unlikely(&stats_enabled) &&
-	    unlikely(dm_stats_used(&md->stats)))
+	    unlikely(dm_stats_used(&md->stats))) {
+		sector_t sector;
+
+		if (likely(!dm_io_flagged(io, DM_IO_WAS_SPLIT)))
+			sector = bio->bi_iter.bi_sector;
+		else
+			sector = bio_end_sector(bio) - io->sector_offset;
+
 		dm_stats_account_io(&md->stats, bio_data_dir(bio),
-				    bio->bi_iter.bi_sector, sectors,
+				    sector, sectors,
 				    end, start_time, stats_aux);
+	}
 }
 
 static void __dm_start_io_acct(struct dm_io *io)
@@ -582,7 +592,7 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	io->status = BLK_STS_OK;
 	atomic_set(&io->io_count, 1);
 	this_cpu_inc(*md->pending_io);
-	io->orig_bio = NULL;
+	io->orig_bio = bio;
 	io->md = md;
 	io->map_task = current;
 	spin_lock_init(&io->lock);
@@ -1219,6 +1229,13 @@ void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors)
 
 	*tio->len_ptr -= bio_sectors - n_sectors;
 	bio->bi_iter.bi_size = n_sectors << SECTOR_SHIFT;
+
+	/*
+	 * __split_and_process_bio() may have already saved mapped part
+	 * for accounting but it is being reduced so update accordingly.
+	 */
+	dm_io_set_flag(tio->io, DM_IO_WAS_SPLIT);
+	tio->io->sectors = n_sectors;
 }
 EXPORT_SYMBOL_GPL(dm_accept_partial_bio);
 
@@ -1257,13 +1274,6 @@ void dm_submit_bio_remap(struct bio *clone, struct bio *tgt_clone)
 		/* Still in target's map function */
 		dm_io_set_flag(io, DM_IO_START_ACCT);
 	} else {
-		/*
-		 * Called by another thread, managed by DM target,
-		 * wait for dm_split_and_process_bio() to store
-		 * io->orig_bio
-		 */
-		while (unlikely(!smp_load_acquire(&io->orig_bio)))
-			msleep(1);
 		dm_start_io_acct(io, clone);
 	}
 
@@ -1357,6 +1367,31 @@ static void __map_bio(struct bio *clone)
 	}
 }
 
+static void setup_split_accounting(struct clone_info *ci, unsigned len)
+{
+	struct dm_io *io = ci->io;
+
+	if (ci->sector_count > len) {
+		/*
+		 * Split needed, save the mapped part for accounting.
+		 * NOTE: dm_accept_partial_bio() will update accordingly.
+		 */
+		dm_io_set_flag(io, DM_IO_WAS_SPLIT);
+		io->sectors = len;
+	}
+
+	if (static_branch_unlikely(&stats_enabled) &&
+	    unlikely(dm_stats_used(&io->md->stats))) {
+		/*
+		 * Save bi_sector in terms of its offset from end of
+		 * original bio, only needed for DM-stats' benefit.
+		 * - saved regardless of whether split needed so that
+		 *   dm_accept_partial_bio() doesn't need to.
+		 */
+		io->sector_offset = bio_end_sector(ci->bio) - ci->sector;
+	}
+}
+
 static void alloc_multiple_bios(struct bio_list *blist, struct clone_info *ci,
 				struct dm_target *ti, unsigned num_bios)
 {
@@ -1396,6 +1431,8 @@ static void __send_duplicate_bios(struct clone_info *ci, struct dm_target *ti,
 	case 0:
 		break;
 	case 1:
+		if (len)
+			setup_split_accounting(ci, *len);
 		clone = alloc_tio(ci, ti, 0, len, GFP_NOIO);
 		__map_bio(clone);
 		break;
@@ -1559,6 +1596,7 @@ static blk_status_t __split_and_process_bio(struct clone_info *ci)
 	ci->submit_as_polled = ci->bio->bi_opf & REQ_POLLED;
 
 	len = min_t(sector_t, max_io_len(ti, ci->sector), ci->sector_count);
+	setup_split_accounting(ci, len);
 	clone = alloc_tio(ci, ti, 0, &len, GFP_NOIO);
 	__map_bio(clone);
 
@@ -1592,7 +1630,6 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 {
 	struct clone_info ci;
 	struct dm_io *io;
-	struct bio *orig_bio = NULL;
 	blk_status_t error = BLK_STS_OK;
 
 	init_clone_info(&ci, md, map, bio);
@@ -1608,23 +1645,15 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	io->map_task = NULL;
 	if (error || !ci.sector_count)
 		goto out;
-
 	/*
 	 * Remainder must be passed to submit_bio_noacct() so it gets handled
 	 * *after* bios already submitted have been completely processed.
-	 * We take a clone of the original to store in io->orig_bio to be
-	 * used by dm_end_io_acct() and for dm_io_complete() to use for
-	 * completion handling.
 	 */
-	orig_bio = bio_split(bio, bio_sectors(bio) - ci.sector_count,
-			     GFP_NOIO, &md->queue->bio_split);
-	bio_chain(orig_bio, bio);
-	trace_block_split(orig_bio, bio->bi_iter.bi_sector);
+	bio_trim(bio, io->sectors, ci.sector_count);
+	trace_block_split(bio, bio->bi_iter.bi_sector);
+	bio_inc_remaining(bio);
 	submit_bio_noacct(bio);
 out:
-	if (!orig_bio)
-		orig_bio = bio;
-	smp_store_release(&io->orig_bio, orig_bio);
 	if (dm_io_flagged(io, DM_IO_START_ACCT))
 		dm_start_io_acct(io, NULL);
 

@@ -267,7 +267,12 @@ struct dm_io {
 	blk_status_t status;
 	atomic_t io_count;
 	struct mapped_device *md;
+
+	/* The three fields represent mapped part of original bio */
 	struct bio *orig_bio;
+	unsigned int sector_offset; /* offset to end of orig_bio */
+	unsigned int sectors;
+
 	/* last member of dm_target_io is 'struct bio' */
 	struct dm_target_io tio;
 };
@@ -277,7 +282,8 @@ struct dm_io {
  */
 enum {
 	DM_IO_START_ACCT,
-	DM_IO_ACCOUNTED
+	DM_IO_ACCOUNTED,
+	DM_IO_WAS_SPLIT
 };
 
 static inline bool dm_io_flagged(struct dm_io *io, unsigned int bit)
