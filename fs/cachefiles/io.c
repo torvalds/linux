@@ -138,7 +138,6 @@ static int cachefiles_read(struct netfs_cache_resources *cres,
 	ki->iocb.ki_filp	= file;
 	ki->iocb.ki_pos		= start_pos + skipped;
 	ki->iocb.ki_flags	= IOCB_DIRECT;
-	ki->iocb.ki_hint	= ki_hint_validate(file_write_hint(file));
 	ki->iocb.ki_ioprio	= get_current_ioprio();
 	ki->skipped		= skipped;
 	ki->object		= object;
@@ -313,7 +312,6 @@ static int cachefiles_write(struct netfs_cache_resources *cres,
 	ki->iocb.ki_filp	= file;
 	ki->iocb.ki_pos		= start_pos;
 	ki->iocb.ki_flags	= IOCB_DIRECT | IOCB_WRITE;
-	ki->iocb.ki_hint	= ki_hint_validate(file_write_hint(file));
 	ki->iocb.ki_ioprio	= get_current_ioprio();
 	ki->object		= object;
 	ki->inval_counter	= cres->inval_counter;

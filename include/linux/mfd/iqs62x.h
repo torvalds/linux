@@ -14,6 +14,11 @@
 #define IQS624_PROD_NUM				0x43
 #define IQS625_PROD_NUM				0x4E
 
+#define IQS620_HW_NUM_V0			0x82
+#define IQS620_HW_NUM_V1			IQS620_HW_NUM_V0
+#define IQS620_HW_NUM_V2			IQS620_HW_NUM_V0
+#define IQS620_HW_NUM_V3			0x92
+
 #define IQS621_ALS_FLAGS			0x16
 #define IQS622_ALS_FLAGS			0x14
 
@@ -129,6 +134,8 @@ struct iqs62x_core {
 	struct completion fw_done;
 	enum iqs62x_ui_sel ui_sel;
 	unsigned long event_cache;
+	u8 sw_num;
+	u8 hw_num;
 };
 
 extern const struct iqs62x_event_desc iqs62x_events[IQS62X_NUM_EVENTS];

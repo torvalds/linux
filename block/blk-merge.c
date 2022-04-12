@@ -754,13 +754,6 @@ static struct request *attempt_merge(struct request_queue *q,
 	if (rq_data_dir(req) != rq_data_dir(next))
 		return NULL;
 
-	/*
-	 * Don't allow merge of different write hints, or for a hint with
-	 * non-hint IO.
-	 */
-	if (req->write_hint != next->write_hint)
-		return NULL;
-
 	if (req->ioprio != next->ioprio)
 		return NULL;
 
@@ -884,13 +877,6 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 
 	/* Only merge if the crypt contexts are compatible */
 	if (!bio_crypt_rq_ctx_compatible(rq, bio))
-		return false;
-
-	/*
-	 * Don't allow merge of different write hints, or for a hint with
-	 * non-hint IO.
-	 */
-	if (rq->write_hint != bio->bi_write_hint)
 		return false;
 
 	if (rq->ioprio != bio_prio(bio))

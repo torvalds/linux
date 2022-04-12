@@ -37,8 +37,8 @@ properties:
 
   exit-latency-us:
     description: |
-      The exit latency constraint in microsecond for the injected idle state 
-      for the device. It is the latency constraint to apply when selecting an 
+      The exit latency constraint in microsecond for the injected idle state
+      for the device. It is the latency constraint to apply when selecting an
       idle state from among all the present ones.
 
 required:
@@ -65,7 +65,7 @@ examples:
                          capacity-dmips-mhz = <1024>;
                          dynamic-power-coefficient = <436>;
                          #cooling-cells = <2>; /* min followed by max */
-                         cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+                         cpu-idle-states = <&CPU_SLEEP>, <&CLUSTER_SLEEP>;
                          thermal-idle {
                                  #cooling-cells = <2>;
                                  duration-us = <10000>;
@@ -81,7 +81,7 @@ examples:
                         capacity-dmips-mhz = <1024>;
                         dynamic-power-coefficient = <436>;
                         #cooling-cells = <2>; /* min followed by max */
-                        cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+                        cpu-idle-states = <&CPU_SLEEP>, <&CLUSTER_SLEEP>;
                         thermal-idle {
                                 #cooling-cells = <2>;
                                 duration-us = <10000>;

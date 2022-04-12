@@ -678,7 +678,7 @@ config MAX63XX_WATCHDOG
 
 config MAX77620_WATCHDOG
 	tristate "Maxim Max77620 Watchdog Timer"
-	depends on MFD_MAX77620 || COMPILE_TEST
+	depends on MFD_MAX77620 || MFD_MAX77714 || COMPILE_TEST
 	select WATCHDOG_CORE
 	help
 	  This is the driver for the Max77620 watchdog timer.

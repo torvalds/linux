@@ -43,7 +43,6 @@ properties:
 
   performance-domains:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
-    maxItems: 1
     description:
       A phandle and performance domain specifier as defined by bindings of the
       performance controller/provider specified by phandle.

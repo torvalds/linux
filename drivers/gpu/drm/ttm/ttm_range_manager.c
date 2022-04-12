@@ -89,7 +89,7 @@ static int ttm_range_man_alloc(struct ttm_resource_manager *man,
 	spin_unlock(&rman->lock);
 
 	if (unlikely(ret)) {
-		ttm_resource_fini(man, *res);
+		ttm_resource_fini(man, &node->base);
 		kfree(node);
 		return ret;
 	}
