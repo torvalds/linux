@@ -32,7 +32,7 @@
 
 #include "lib/mlx5.h"
 #include "en.h"
-#include "en_accel/tls.h"
+#include "en_accel/ktls.h"
 #include "en_accel/en_accel.h"
 #include "en/ptp.h"
 #include "en/port.h"
@@ -1900,17 +1900,17 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(pme) { return; }
 
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(tls)
 {
-	return mlx5e_tls_get_count(priv);
+	return mlx5e_ktls_get_count(priv);
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(tls)
 {
-	return idx + mlx5e_tls_get_strings(priv, data + idx * ETH_GSTRING_LEN);
+	return idx + mlx5e_ktls_get_strings(priv, data + idx * ETH_GSTRING_LEN);
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(tls)
 {
-	return idx + mlx5e_tls_get_stats(priv, data + idx);
+	return idx + mlx5e_ktls_get_stats(priv, data + idx);
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(tls) { return; }
@@ -2443,7 +2443,6 @@ mlx5e_stats_grp_t mlx5e_nic_stats_grps[] = {
 	&MLX5E_STATS_GRP(pme),
 #ifdef CONFIG_MLX5_EN_IPSEC
 	&MLX5E_STATS_GRP(ipsec_sw),
-	&MLX5E_STATS_GRP(ipsec_hw),
 #endif
 	&MLX5E_STATS_GRP(tls),
 	&MLX5E_STATS_GRP(channels),

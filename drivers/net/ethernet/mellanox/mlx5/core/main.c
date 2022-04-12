@@ -62,9 +62,7 @@
 #include "lib/mlx5.h"
 #include "lib/tout.h"
 #include "fpga/core.h"
-#include "fpga/ipsec.h"
-#include "accel/ipsec.h"
-#include "accel/tls.h"
+#include "en_accel/ipsec_offload.h"
 #include "lib/clock.h"
 #include "lib/vxlan.h"
 #include "lib/geneve.h"
@@ -1183,14 +1181,6 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 		goto err_fpga_start;
 	}
 
-	mlx5_accel_ipsec_init(dev);
-
-	err = mlx5_accel_tls_init(dev);
-	if (err) {
-		mlx5_core_err(dev, "TLS device start failed %d\n", err);
-		goto err_tls_start;
-	}
-
 	err = mlx5_init_fs(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to init flow steering\n");
@@ -1238,9 +1228,6 @@ err_vhca:
 err_set_hca:
 	mlx5_cleanup_fs(dev);
 err_fs:
-	mlx5_accel_tls_cleanup(dev);
-err_tls_start:
-	mlx5_accel_ipsec_cleanup(dev);
 	mlx5_fpga_device_stop(dev);
 err_fpga_start:
 	mlx5_rsc_dump_cleanup(dev);
@@ -1266,8 +1253,6 @@ static void mlx5_unload(struct mlx5_core_dev *dev)
 	mlx5_sf_hw_table_destroy(dev);
 	mlx5_vhca_event_stop(dev);
 	mlx5_cleanup_fs(dev);
-	mlx5_accel_ipsec_cleanup(dev);
-	mlx5_accel_tls_cleanup(dev);
 	mlx5_fpga_device_stop(dev);
 	mlx5_rsc_dump_cleanup(dev);
 	mlx5_hv_vhca_cleanup(dev->hv_vhca);
@@ -1947,7 +1932,6 @@ static int __init init(void)
 	get_random_bytes(&sw_owner_id, sizeof(sw_owner_id));
 
 	mlx5_core_verify_params();
-	mlx5_fpga_ipsec_build_fs_cmds();
 	mlx5_register_debugfs();
 
 	err = pci_register_driver(&mlx5_core_driver);
