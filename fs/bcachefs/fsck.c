@@ -311,7 +311,8 @@ static int __remove_dirent(struct btree_trans *trans, struct bpos pos)
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_dirents, pos, BTREE_ITER_INTENT);
 
 	ret = bch2_hash_delete_at(trans, bch2_dirent_hash_desc,
-				  &dir_hash_info, &iter, 0);
+				  &dir_hash_info, &iter,
+				  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
 	bch2_trans_iter_exit(trans, &iter);
 err:
 	if (ret && ret != -EINTR)
