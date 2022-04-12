@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * include/linux/mmc/sh_mmcif.h
- *
  * platform data for eMMC driver
  *
  * Copyright (C) 2010 Renesas Solutions Corp.
