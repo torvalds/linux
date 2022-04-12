@@ -2571,16 +2571,6 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	phba->fc_stat.elsXmitPRLI++;
 	elsiocb->cmd_cmpl = lpfc_cmpl_els_prli;
-	spin_lock_irq(&ndlp->lock);
-	ndlp->nlp_flag |= NLP_PRLI_SND;
-
-	/* The vport counters are used for lpfc_scan_finished, but
-	 * the ndlp is used to track outstanding PRLIs for different
-	 * FC4 types.
-	 */
-	vport->fc_prli_sent++;
-	ndlp->fc4_prli_sent++;
-	spin_unlock_irq(&ndlp->lock);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 			      "Issue PRLI:  did:x%x refcnt %d",
@@ -2588,16 +2578,25 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	elsiocb->context1 = lpfc_nlp_get(ndlp);
 	if (!elsiocb->context1) {
 		lpfc_els_free_iocb(phba, elsiocb);
-		goto err;
+		return 1;
 	}
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 	if (rc == IOCB_ERROR) {
 		lpfc_els_free_iocb(phba, elsiocb);
 		lpfc_nlp_put(ndlp);
-		goto err;
+		return 1;
 	}
 
+	/* The vport counters are used for lpfc_scan_finished, but
+	 * the ndlp is used to track outstanding PRLIs for different
+	 * FC4 types.
+	 */
+	spin_lock_irq(&ndlp->lock);
+	ndlp->nlp_flag |= NLP_PRLI_SND;
+	vport->fc_prli_sent++;
+	ndlp->fc4_prli_sent++;
+	spin_unlock_irq(&ndlp->lock);
 
 	/* The driver supports 2 FC4 types.  Make sure
 	 * a PRLI is issued for all types before exiting.
@@ -2607,12 +2606,6 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		goto send_next_prli;
 	else
 		return 0;
-
-err:
-	spin_lock_irq(&ndlp->lock);
-	ndlp->nlp_flag &= ~NLP_PRLI_SND;
-	spin_unlock_irq(&ndlp->lock);
-	return 1;
 }
 
 /**
