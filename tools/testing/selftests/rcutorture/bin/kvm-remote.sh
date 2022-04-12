@@ -262,6 +262,7 @@ echo All batches started. `date` | tee -a "$oldrun/remote-log"
 # Wait for all remaining scenarios to complete and collect results.
 for i in $systems
 do
+	echo " ---" Waiting for $i `date` | tee -a "$oldrun/remote-log"
 	while checkremotefile "$i" "$resdir/$ds/remote.run"
 	do
 		sleep 30
