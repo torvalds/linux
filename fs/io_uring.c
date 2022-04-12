@@ -576,6 +576,16 @@ struct io_accept {
 	unsigned long			nofile;
 };
 
+struct io_socket {
+	struct file			*file;
+	int				domain;
+	int				type;
+	int				protocol;
+	int				flags;
+	u32				file_slot;
+	unsigned long			nofile;
+};
+
 struct io_sync {
 	struct file			*file;
 	loff_t				len;
@@ -951,6 +961,7 @@ struct io_kiocb {
 		struct io_hardlink	hardlink;
 		struct io_msg		msg;
 		struct io_xattr		xattr;
+		struct io_socket	sock;
 	};
 
 	u8				opcode;
@@ -1227,6 +1238,9 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file = 1
 	},
 	[IORING_OP_GETXATTR] = {},
+	[IORING_OP_SOCKET] = {
+		.audit_skip		= 1,
+	},
 };
 
 /* requests with any of those set should undergo io_disarm_next() */
@@ -6017,6 +6031,62 @@ static int io_accept(struct io_kiocb *req, unsigned int issue_flags)
 	return 0;
 }
 
+static int io_socket_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_socket *sock = &req->sock;
+
+	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+	if (sqe->ioprio || sqe->addr || sqe->rw_flags || sqe->buf_index)
+		return -EINVAL;
+
+	sock->domain = READ_ONCE(sqe->fd);
+	sock->type = READ_ONCE(sqe->off);
+	sock->protocol = READ_ONCE(sqe->len);
+	sock->file_slot = READ_ONCE(sqe->file_index);
+	sock->nofile = rlimit(RLIMIT_NOFILE);
+
+	sock->flags = sock->type & ~SOCK_TYPE_MASK;
+	if (sock->file_slot && (sock->flags & SOCK_CLOEXEC))
+		return -EINVAL;
+	if (sock->flags & ~(SOCK_CLOEXEC | SOCK_NONBLOCK))
+		return -EINVAL;
+	return 0;
+}
+
+static int io_socket(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_socket *sock = &req->sock;
+	bool fixed = !!sock->file_slot;
+	struct file *file;
+	int ret, fd;
+
+	if (!fixed) {
+		fd = __get_unused_fd_flags(sock->flags, sock->nofile);
+		if (unlikely(fd < 0))
+			return fd;
+	}
+	file = __sys_socket_file(sock->domain, sock->type, sock->protocol);
+	if (IS_ERR(file)) {
+		if (!fixed)
+			put_unused_fd(fd);
+		ret = PTR_ERR(file);
+		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
+			return -EAGAIN;
+		if (ret == -ERESTARTSYS)
+			ret = -EINTR;
+		req_set_fail(req);
+	} else if (!fixed) {
+		fd_install(fd, file);
+		ret = fd;
+	} else {
+		ret = io_install_fixed_file(req, file, issue_flags,
+					    sock->file_slot - 1);
+	}
+	__io_req_complete(req, issue_flags, ret, 0);
+	return 0;
+}
+
 static int io_connect_prep_async(struct io_kiocb *req)
 {
 	struct io_async_connect *io = req->async_data;
@@ -6105,6 +6175,7 @@ IO_NETOP_PREP_ASYNC(sendmsg);
 IO_NETOP_PREP_ASYNC(recvmsg);
 IO_NETOP_PREP_ASYNC(connect);
 IO_NETOP_PREP(accept);
+IO_NETOP_PREP(socket);
 IO_NETOP_FN(send);
 IO_NETOP_FN(recv);
 #endif /* CONFIG_NET */
@@ -7426,6 +7497,8 @@ static int io_req_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return io_fgetxattr_prep(req, sqe);
 	case IORING_OP_GETXATTR:
 		return io_getxattr_prep(req, sqe);
+	case IORING_OP_SOCKET:
+		return io_socket_prep(req, sqe);
 	}
 
 	printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
@@ -7743,6 +7816,9 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 		break;
 	case IORING_OP_GETXATTR:
 		ret = io_getxattr(req, issue_flags);
+		break;
+	case IORING_OP_SOCKET:
+		ret = io_socket(req, issue_flags);
 		break;
 	default:
 		ret = -EINVAL;

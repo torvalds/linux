@@ -151,6 +151,7 @@ enum {
 	IORING_OP_SETXATTR,
 	IORING_OP_FGETXATTR,
 	IORING_OP_GETXATTR,
+	IORING_OP_SOCKET,
 
 	/* this goes last, obviously */
 	IORING_OP_LAST,
