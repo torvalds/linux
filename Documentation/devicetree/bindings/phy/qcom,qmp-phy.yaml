@@ -58,6 +58,7 @@ properties:
       - qcom,sm8450-qmp-usb3-phy
       - qcom,sdx55-qmp-pcie-phy
       - qcom,sdx55-qmp-usb3-uni-phy
+      - qcom,sdx65-qmp-usb3-uni-phy
 
   reg:
     minItems: 1
@@ -164,6 +165,7 @@ allOf:
           contains:
             enum:
               - qcom,sdx55-qmp-usb3-uni-phy
+              - qcom,sdx65-qmp-usb3-uni-phy
     then:
       properties:
         clocks:
