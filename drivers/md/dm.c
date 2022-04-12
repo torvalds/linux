@@ -590,7 +590,9 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	io = container_of(tio, struct dm_io, tio);
 	io->magic = DM_IO_MAGIC;
 	io->status = BLK_STS_OK;
-	atomic_set(&io->io_count, 1);
+
+	/* one ref is for submission, the other is for completion */
+	atomic_set(&io->io_count, 2);
 	this_cpu_inc(*md->pending_io);
 	io->orig_bio = bio;
 	io->md = md;
@@ -955,11 +957,6 @@ static void dm_io_complete(struct dm_io *io)
 	}
 }
 
-static void dm_io_inc_pending(struct dm_io *io)
-{
-	atomic_inc(&io->io_count);
-}
-
 /*
  * Decrements the number of outstanding ios that a bio has been
  * cloned into, completing the original io if necc.
@@ -1316,7 +1313,6 @@ static void __map_bio(struct bio *clone)
 	/*
 	 * Map the clone.
 	 */
-	dm_io_inc_pending(io);
 	tio->old_sector = clone->bi_iter.bi_sector;
 
 	if (static_branch_unlikely(&swap_bios_enabled) &&
@@ -1426,11 +1422,12 @@ static void alloc_multiple_bios(struct bio_list *blist, struct clone_info *ci,
 	}
 }
 
-static void __send_duplicate_bios(struct clone_info *ci, struct dm_target *ti,
+static int __send_duplicate_bios(struct clone_info *ci, struct dm_target *ti,
 				  unsigned num_bios, unsigned *len)
 {
 	struct bio_list blist = BIO_EMPTY_LIST;
 	struct bio *clone;
+	int ret = 0;
 
 	switch (num_bios) {
 	case 0:
@@ -1440,6 +1437,7 @@ static void __send_duplicate_bios(struct clone_info *ci, struct dm_target *ti,
 			setup_split_accounting(ci, *len);
 		clone = alloc_tio(ci, ti, 0, len, GFP_NOIO);
 		__map_bio(clone);
+		ret = 1;
 		break;
 	default:
 		/* dm_accept_partial_bio() is not supported with shared tio->len_ptr */
@@ -1447,9 +1445,12 @@ static void __send_duplicate_bios(struct clone_info *ci, struct dm_target *ti,
 		while ((clone = bio_list_pop(&blist))) {
 			dm_tio_set_flag(clone_to_tio(clone), DM_TIO_IS_DUPLICATE_BIO);
 			__map_bio(clone);
+			ret += 1;
 		}
 		break;
 	}
+
+	return ret;
 }
 
 static void __send_empty_flush(struct clone_info *ci)
@@ -1470,8 +1471,19 @@ static void __send_empty_flush(struct clone_info *ci)
 	ci->sector_count = 0;
 	ci->io->tio.clone.bi_iter.bi_size = 0;
 
-	while ((ti = dm_table_get_target(ci->map, target_nr++)))
-		__send_duplicate_bios(ci, ti, ti->num_flush_bios, NULL);
+	while ((ti = dm_table_get_target(ci->map, target_nr++))) {
+		int bios;
+
+		atomic_add(ti->num_flush_bios, &ci->io->io_count);
+		bios = __send_duplicate_bios(ci, ti, ti->num_flush_bios, NULL);
+		atomic_sub(ti->num_flush_bios - bios, &ci->io->io_count);
+	}
+
+	/*
+	 * alloc_io() takes one extra reference for submission, so the
+	 * reference won't reach 0 without the following subtraction
+	 */
+	atomic_sub(1, &ci->io->io_count);
 
 	bio_uninit(ci->bio);
 }
@@ -1480,11 +1492,18 @@ static void __send_changing_extent_only(struct clone_info *ci, struct dm_target 
 					unsigned num_bios)
 {
 	unsigned len;
+	int bios;
 
 	len = min_t(sector_t, ci->sector_count,
 		    max_io_len_target_boundary(ti, dm_target_offset(ti, ci->sector)));
 
-	__send_duplicate_bios(ci, ti, num_bios, &len);
+	atomic_add(num_bios, &ci->io->io_count);
+	bios = __send_duplicate_bios(ci, ti, num_bios, &len);
+	/*
+	 * alloc_io() takes one extra reference for submission, so the
+	 * reference won't reach 0 without the following (+1) subtraction
+	 */
+	atomic_sub(num_bios - bios + 1, &ci->io->io_count);
 
 	ci->sector += len;
 	ci->sector_count -= len;
@@ -1669,9 +1688,15 @@ out:
 	 * Add every dm_io instance into the hlist_head which is stored in
 	 * bio->bi_private, so that dm_poll_bio can poll them all.
 	 */
-	if (error || !ci.submit_as_polled)
-		dm_io_dec_pending(ci.io, error);
-	else
+	if (error || !ci.submit_as_polled) {
+		/*
+		 * In case of submission failure, the extra reference for
+		 * submitting io isn't consumed yet
+		 */
+		if (error)
+			atomic_dec(&io->io_count);
+		dm_io_dec_pending(io, error);
+	} else
 		dm_queue_poll_io(bio, io);
 }
 
