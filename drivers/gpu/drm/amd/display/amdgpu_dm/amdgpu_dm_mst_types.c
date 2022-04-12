@@ -140,11 +140,28 @@ amdgpu_dm_mst_connector_late_register(struct drm_connector *connector)
 static void
 amdgpu_dm_mst_connector_early_unregister(struct drm_connector *connector)
 {
-	struct amdgpu_dm_connector *amdgpu_dm_connector =
+	struct amdgpu_dm_connector *aconnector =
 		to_amdgpu_dm_connector(connector);
-	struct drm_dp_mst_port *port = amdgpu_dm_connector->port;
+	struct drm_dp_mst_port *port = aconnector->port;
+	struct amdgpu_dm_connector *root = aconnector->mst_port;
+	struct dc_link *dc_link = aconnector->dc_link;
+	struct dc_sink *dc_sink = aconnector->dc_sink;
 
 	drm_dp_mst_connector_early_unregister(connector, port);
+
+	/*
+	 * Release dc_sink for connector which its attached port is
+	 * no longer in the mst topology
+	 */
+	drm_modeset_lock(&root->mst_mgr.base.lock, NULL);
+	if (dc_sink) {
+		if (dc_link->sink_count)
+			dc_link_remove_remote_sink(dc_link, dc_sink);
+
+		dc_sink_release(dc_sink);
+		aconnector->dc_sink = NULL;
+	}
+	drm_modeset_unlock(&root->mst_mgr.base.lock);
 }
 
 static const struct drm_connector_funcs dm_dp_mst_connector_funcs = {
@@ -351,7 +368,7 @@ dm_dp_mst_detect(struct drm_connector *connector,
 		return connector_status_disconnected;
 
 	connection_status = drm_dp_mst_detect_port(connector, ctx, &master->mst_mgr,
-				      aconnector->port);
+							aconnector->port);
 
 	if (port->pdt != DP_PEER_DEVICE_NONE && !port->dpcd_rev) {
 		uint8_t dpcd_rev;
@@ -383,6 +400,17 @@ dm_dp_mst_detect(struct drm_connector *connector,
 			DRM_DEBUG_KMS("Can't access DPCD");
 	} else if (port->pdt == DP_PEER_DEVICE_NONE) {
 		port->dpcd_rev = 0;
+	}
+
+	/*
+	 * Release dc_sink for connector which unplug event is notified by CSN msg
+	 */
+	if (connection_status == connector_status_disconnected && aconnector->dc_sink) {
+		if (aconnector->dc_link->sink_count)
+			dc_link_remove_remote_sink(aconnector->dc_link, aconnector->dc_sink);
+
+		dc_sink_release(aconnector->dc_sink);
+		aconnector->dc_sink = NULL;
 	}
 
 	return connection_status;

@@ -2201,7 +2201,8 @@ static void s3_handle_mst(struct drm_device *dev, bool suspend)
 		} else {
 			ret = drm_dp_mst_topology_mgr_resume(mgr, true);
 			if (ret < 0) {
-				drm_dp_mst_topology_mgr_set_mst(mgr, false);
+				dm_helpers_dp_mst_stop_top_mgr(aconnector->dc_link->ctx,
+					aconnector->dc_link);
 				need_hotplug = true;
 			}
 		}
@@ -10606,7 +10607,7 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 		 * added MST connectors not found in existing crtc_state in the chained mode
 		 * TODO: need to dig out the root cause of that
 		 */
-		if (!aconnector || (!aconnector->dc_sink && aconnector->mst_port))
+		if (!aconnector)
 			goto skip_modeset;
 
 		if (modereset_required(new_crtc_state))
