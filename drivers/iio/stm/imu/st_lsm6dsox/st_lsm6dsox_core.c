@@ -1559,6 +1559,17 @@ static ssize_t st_lsm6dsox_sysfs_reset_step_counter(struct device *dev,
 	return err < 0 ? err : size;
 }
 
+ssize_t st_lsm6dsox_get_module_id(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct st_lsm6dsox_sensor *sensor = iio_priv(iio_dev);
+	struct st_lsm6dsox_hw *hw = sensor->hw;
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", hw->module_id);
+}
+
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(st_lsm6dsox_sysfs_sampling_frequency_avail);
 static IIO_DEVICE_ATTR(in_accel_scale_available, 0444,
 		       st_lsm6dsox_sysfs_scale_avail, NULL, 0);
@@ -1587,6 +1598,7 @@ static IIO_DEVICE_ATTR(power_mode, 0644,
 		       st_lsm6dsox_set_power_mode, 0);
 static IIO_DEVICE_ATTR(reset_counter, 0200, NULL,
 		       st_lsm6dsox_sysfs_reset_step_counter, 0);
+static IIO_DEVICE_ATTR(module_id, 0444, st_lsm6dsox_get_module_id, NULL, 0);
 
 static struct attribute *st_lsm6dsox_acc_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
@@ -1598,6 +1610,7 @@ static struct attribute *st_lsm6dsox_acc_attributes[] = {
 	&iio_dev_attr_power_mode.dev_attr.attr,
 	&iio_dev_attr_selftest_available.dev_attr.attr,
 	&iio_dev_attr_selftest.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1624,6 +1637,7 @@ static struct attribute *st_lsm6dsox_gyro_attributes[] = {
 	&iio_dev_attr_power_mode.dev_attr.attr,
 	&iio_dev_attr_selftest_available.dev_attr.attr,
 	&iio_dev_attr_selftest.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1643,6 +1657,7 @@ static struct attribute *st_lsm6dsox_temp_attributes[] = {
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1661,6 +1676,7 @@ static struct attribute *st_lsm6dsox_step_counter_attributes[] = {
 	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
 	&iio_dev_attr_reset_counter.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1673,6 +1689,7 @@ static const struct iio_info st_lsm6dsox_step_counter_info = {
 };
 
 static struct attribute *st_lsm6dsox_step_detector_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1687,6 +1704,7 @@ static const struct iio_info st_lsm6dsox_step_detector_info = {
 };
 
 static struct attribute *st_lsm6dsox_sign_motion_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1701,6 +1719,7 @@ static const struct iio_info st_lsm6dsox_sign_motion_info = {
 };
 
 static struct attribute *st_lsm6dsox_tilt_attributes[] = {
+	&iio_dev_attr_module_id.dev_attr.attr,
 	NULL,
 };
 
@@ -1969,6 +1988,14 @@ static void st_lsm6dsox_disable_regulator_action(void *_data)
 	regulator_disable(hw->vdd_supply);
 }
 
+static void st_lsm6dsox_get_properties(struct st_lsm6dsox_hw *hw)
+{
+	if (device_property_read_u32(hw->dev, "st,module_id",
+				     &hw->module_id)) {
+		hw->module_id = 1;
+	}
+}
+
 static int st_lsm6dsox_power_enable(struct st_lsm6dsox_hw *hw)
 {
 	int err;
@@ -2059,6 +2086,8 @@ int st_lsm6dsox_probe(struct device *dev, int irq, int hw_id,
 		return err;
 
 	scnprintf(hw->dev_name, sizeof(hw->dev_name), "%s", name);
+
+	st_lsm6dsox_get_properties(hw);
 
 	err = st_lsm6dsox_get_odr_calibration(hw);
 	if (err < 0)
