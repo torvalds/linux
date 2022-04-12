@@ -1983,7 +1983,12 @@ static noinline_for_stack void rcu_gp_fqs_loop(void)
 		gf = RCU_GP_FLAG_OVLD;
 	ret = 0;
 	for (;;) {
-		if (!ret) {
+		if (rcu_state.cbovld) {
+			j = (j + 2) / 3;
+			if (j <= 0)
+				j = 1;
+		}
+		if (!ret || time_before(jiffies + j, rcu_state.jiffies_force_qs)) {
 			WRITE_ONCE(rcu_state.jiffies_force_qs, jiffies + j);
 			/*
 			 * jiffies_force_qs before RCU_GP_WAIT_FQS state
