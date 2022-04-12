@@ -670,9 +670,10 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 
 		if (unlikely(!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags))) {
 			struct bkey_i *j_k =
-				bch2_journal_keys_peek(c, i->btree_id, i->level, i->k->k.p);
+				bch2_journal_keys_peek_slot(c, i->btree_id, i->level,
+							    i->k->k.p);
 
-			if (j_k && !bpos_cmp(j_k->k.p, i->k->k.p)) {
+			if (j_k) {
 				i->old_k = j_k->k;
 				i->old_v = &j_k->v;
 			}
@@ -1550,9 +1551,9 @@ bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *pa
 
 		if (unlikely(trans->journal_replay_not_finished)) {
 			struct bkey_i *j_k =
-				bch2_journal_keys_peek(c, n.btree_id, n.level, k->k.p);
+				bch2_journal_keys_peek_slot(c, n.btree_id, n.level, k->k.p);
 
-			if (j_k && !bpos_cmp(j_k->k.p, i->k->k.p)) {
+			if (j_k) {
 				i->old_k = j_k->k;
 				i->old_v = &j_k->v;
 			}

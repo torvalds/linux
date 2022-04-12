@@ -2225,10 +2225,10 @@ static noinline
 struct bkey_s_c btree_trans_peek_slot_journal(struct btree_trans *trans,
 					      struct btree_iter *iter)
 {
-	struct bkey_i *k = bch2_journal_keys_peek(trans->c, iter->btree_id, 0,
-						  iter->path->pos);
+	struct bkey_i *k = bch2_journal_keys_peek_slot(trans->c, iter->btree_id,
+						       0, iter->path->pos);
 
-	if (k && !bpos_cmp(k->k.p, iter->path->pos)) {
+	if (k) {
 		iter->k = k->k;
 		return bkey_i_to_s_c(k);
 	} else {
@@ -2242,12 +2242,11 @@ struct bkey_s_c btree_trans_peek_journal(struct btree_trans *trans,
 					 struct bkey_s_c k)
 {
 	struct bkey_i *next_journal =
-		bch2_journal_keys_peek(trans->c, iter->btree_id, 0,
-				       iter->path->pos);
+		bch2_journal_keys_peek_upto(trans->c, iter->btree_id, 0,
+				iter->path->pos,
+				k.k ? k.k->p : iter->path->l[0].b->key.k.p);
 
-	if (next_journal &&
-	    bpos_cmp(next_journal->k.p,
-		     k.k ? k.k->p : iter->path->l[0].b->key.k.p) <= 0) {
+	if (next_journal) {
 		iter->k = next_journal->k;
 		k = bkey_i_to_s_c(next_journal);
 	}

@@ -30,8 +30,10 @@ struct btree_and_journal_iter {
 
 size_t bch2_journal_key_search(struct journal_keys *, enum btree_id,
 			       unsigned, struct bpos);
-struct bkey_i *bch2_journal_keys_peek(struct bch_fs *, enum btree_id,
-				      unsigned, struct bpos pos);
+struct bkey_i *bch2_journal_keys_peek_upto(struct bch_fs *, enum btree_id,
+					   unsigned, struct bpos, struct bpos);
+struct bkey_i *bch2_journal_keys_peek_slot(struct bch_fs *, enum btree_id,
+					   unsigned, struct bpos);
 
 int bch2_journal_key_insert_take(struct bch_fs *, enum btree_id,
 				 unsigned, struct bkey_i *);

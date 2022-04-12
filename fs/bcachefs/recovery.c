@@ -109,24 +109,32 @@ size_t bch2_journal_key_search(struct journal_keys *keys,
 	return idx_to_pos(keys, l);
 }
 
-struct bkey_i *bch2_journal_keys_peek(struct bch_fs *c, enum btree_id btree_id,
-				      unsigned level, struct bpos pos)
+struct bkey_i *bch2_journal_keys_peek_upto(struct bch_fs *c, enum btree_id btree_id,
+					   unsigned level, struct bpos pos,
+					   struct bpos end_pos)
 {
 	struct journal_keys *keys = &c->journal_keys;
 	size_t idx = bch2_journal_key_search(keys, btree_id, level, pos);
 
 	while (idx < keys->size &&
-	       keys->d[idx].overwritten) {
+	       keys->d[idx].btree_id == btree_id &&
+	       keys->d[idx].level == level &&
+	       bpos_cmp(keys->d[idx].k->k.p, end_pos) <= 0) {
+		if (!keys->d[idx].overwritten)
+			return keys->d[idx].k;
+
 		idx++;
 		if (idx == keys->gap)
 			idx += keys->size - keys->nr;
 	}
 
-	if (idx < keys->size &&
-	    keys->d[idx].btree_id == btree_id &&
-	    keys->d[idx].level == level)
-		return keys->d[idx].k;
 	return NULL;
+}
+
+struct bkey_i *bch2_journal_keys_peek_slot(struct bch_fs *c, enum btree_id btree_id,
+					   unsigned level, struct bpos pos)
+{
+	return bch2_journal_keys_peek_upto(c, btree_id, level, pos, pos);
 }
 
 static void journal_iters_fix(struct bch_fs *c)
