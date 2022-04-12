@@ -311,9 +311,6 @@ struct mlx5_ib_flow_db {
 #define MLX5_IB_QPT_DCT		IB_QPT_RESERVED4
 #define MLX5_IB_WR_UMR		IB_WR_RESERVED1
 
-#define MLX5_IB_UMR_OCTOWORD	       16
-#define MLX5_IB_UMR_XLT_ALIGNMENT      64
-
 #define MLX5_IB_UPD_XLT_ZAP	      BIT(0)
 #define MLX5_IB_UPD_XLT_ENABLE	      BIT(1)
 #define MLX5_IB_UPD_XLT_ATOMIC	      BIT(2)

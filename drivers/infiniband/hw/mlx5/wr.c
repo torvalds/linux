@@ -166,12 +166,6 @@ static void set_data_ptr_seg(struct mlx5_wqe_data_seg *dseg, struct ib_sge *sg)
 	dseg->addr       = cpu_to_be64(sg->addr);
 }
 
-static u64 get_xlt_octo(u64 bytes)
-{
-	return ALIGN(bytes, MLX5_IB_UMR_XLT_ALIGNMENT) /
-	       MLX5_IB_UMR_OCTOWORD;
-}
-
 static __be64 frwr_mkey_mask(bool atomic)
 {
 	u64 result;
@@ -223,7 +217,7 @@ static void set_reg_umr_seg(struct mlx5_wqe_umr_ctrl_seg *umr,
 	memset(umr, 0, sizeof(*umr));
 
 	umr->flags = flags;
-	umr->xlt_octowords = cpu_to_be16(get_xlt_octo(size));
+	umr->xlt_octowords = cpu_to_be16(mlx5r_umr_get_xlt_octo(size));
 	umr->mkey_mask = frwr_mkey_mask(atomic);
 }
 
@@ -232,134 +226,6 @@ static void set_linv_umr_seg(struct mlx5_wqe_umr_ctrl_seg *umr)
 	memset(umr, 0, sizeof(*umr));
 	umr->mkey_mask = cpu_to_be64(MLX5_MKEY_MASK_FREE);
 	umr->flags = MLX5_UMR_INLINE;
-}
-
-static __be64 get_umr_enable_mr_mask(void)
-{
-	u64 result;
-
-	result = MLX5_MKEY_MASK_KEY |
-		 MLX5_MKEY_MASK_FREE;
-
-	return cpu_to_be64(result);
-}
-
-static __be64 get_umr_disable_mr_mask(void)
-{
-	u64 result;
-
-	result = MLX5_MKEY_MASK_FREE;
-
-	return cpu_to_be64(result);
-}
-
-static __be64 get_umr_update_translation_mask(void)
-{
-	u64 result;
-
-	result = MLX5_MKEY_MASK_LEN |
-		 MLX5_MKEY_MASK_PAGE_SIZE |
-		 MLX5_MKEY_MASK_START_ADDR;
-
-	return cpu_to_be64(result);
-}
-
-static __be64 get_umr_update_access_mask(int atomic,
-					 int relaxed_ordering_write,
-					 int relaxed_ordering_read)
-{
-	u64 result;
-
-	result = MLX5_MKEY_MASK_LR |
-		 MLX5_MKEY_MASK_LW |
-		 MLX5_MKEY_MASK_RR |
-		 MLX5_MKEY_MASK_RW;
-
-	if (atomic)
-		result |= MLX5_MKEY_MASK_A;
-
-	if (relaxed_ordering_write)
-		result |= MLX5_MKEY_MASK_RELAXED_ORDERING_WRITE;
-
-	if (relaxed_ordering_read)
-		result |= MLX5_MKEY_MASK_RELAXED_ORDERING_READ;
-
-	return cpu_to_be64(result);
-}
-
-static __be64 get_umr_update_pd_mask(void)
-{
-	u64 result;
-
-	result = MLX5_MKEY_MASK_PD;
-
-	return cpu_to_be64(result);
-}
-
-static int umr_check_mkey_mask(struct mlx5_ib_dev *dev, u64 mask)
-{
-	if (mask & MLX5_MKEY_MASK_PAGE_SIZE &&
-	    MLX5_CAP_GEN(dev->mdev, umr_modify_entity_size_disabled))
-		return -EPERM;
-
-	if (mask & MLX5_MKEY_MASK_A &&
-	    MLX5_CAP_GEN(dev->mdev, umr_modify_atomic_disabled))
-		return -EPERM;
-
-	if (mask & MLX5_MKEY_MASK_RELAXED_ORDERING_WRITE &&
-	    !MLX5_CAP_GEN(dev->mdev, relaxed_ordering_write_umr))
-		return -EPERM;
-
-	if (mask & MLX5_MKEY_MASK_RELAXED_ORDERING_READ &&
-	    !MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read_umr))
-		return -EPERM;
-
-	return 0;
-}
-
-static int set_reg_umr_segment(struct mlx5_ib_dev *dev,
-			       struct mlx5_wqe_umr_ctrl_seg *umr,
-			       const struct ib_send_wr *wr)
-{
-	const struct mlx5_umr_wr *umrwr = umr_wr(wr);
-
-	memset(umr, 0, sizeof(*umr));
-
-	if (!umrwr->ignore_free_state) {
-		if (wr->send_flags & MLX5_IB_SEND_UMR_FAIL_IF_FREE)
-			 /* fail if free */
-			umr->flags = MLX5_UMR_CHECK_FREE;
-		else
-			/* fail if not free */
-			umr->flags = MLX5_UMR_CHECK_NOT_FREE;
-	}
-
-	umr->xlt_octowords = cpu_to_be16(get_xlt_octo(umrwr->xlt_size));
-	if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_XLT) {
-		u64 offset = get_xlt_octo(umrwr->offset);
-
-		umr->xlt_offset = cpu_to_be16(offset & 0xffff);
-		umr->xlt_offset_47_16 = cpu_to_be32(offset >> 16);
-		umr->flags |= MLX5_UMR_TRANSLATION_OFFSET_EN;
-	}
-	if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_TRANSLATION)
-		umr->mkey_mask |= get_umr_update_translation_mask();
-	if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_PD_ACCESS) {
-		umr->mkey_mask |= get_umr_update_access_mask(
-			!!(MLX5_CAP_GEN(dev->mdev, atomic)),
-			!!(MLX5_CAP_GEN(dev->mdev, relaxed_ordering_write_umr)),
-			!!(MLX5_CAP_GEN(dev->mdev, relaxed_ordering_read_umr)));
-		umr->mkey_mask |= get_umr_update_pd_mask();
-	}
-	if (wr->send_flags & MLX5_IB_SEND_UMR_ENABLE_MR)
-		umr->mkey_mask |= get_umr_enable_mr_mask();
-	if (wr->send_flags & MLX5_IB_SEND_UMR_DISABLE_MR)
-		umr->mkey_mask |= get_umr_disable_mr_mask();
-
-	if (!wr->num_sge)
-		umr->flags |= MLX5_UMR_INLINE;
-
-	return umr_check_mkey_mask(dev, be64_to_cpu(umr->mkey_mask));
 }
 
 static u8 get_umr_flags(int acc)
@@ -761,7 +627,7 @@ static void set_sig_mkey_segment(struct mlx5_mkey_seg *seg,
 	seg->flags_pd = cpu_to_be32(MLX5_MKEY_REMOTE_INVAL | sigerr << 26 |
 				    MLX5_MKEY_BSF_EN | pdn);
 	seg->len = cpu_to_be64(length);
-	seg->xlt_oct_size = cpu_to_be32(get_xlt_octo(size));
+	seg->xlt_oct_size = cpu_to_be32(mlx5r_umr_get_xlt_octo(size));
 	seg->bsfs_octo_size = cpu_to_be32(MLX5_MKEY_BSF_OCTO_SIZE);
 }
 
@@ -771,7 +637,7 @@ static void set_sig_umr_segment(struct mlx5_wqe_umr_ctrl_seg *umr,
 	memset(umr, 0, sizeof(*umr));
 
 	umr->flags = MLX5_FLAGS_INLINE | MLX5_FLAGS_CHECK_FREE;
-	umr->xlt_octowords = cpu_to_be16(get_xlt_octo(size));
+	umr->xlt_octowords = cpu_to_be16(mlx5r_umr_get_xlt_octo(size));
 	umr->bsf_octowords = cpu_to_be16(MLX5_MKEY_BSF_OCTO_SIZE);
 	umr->mkey_mask = sig_mkey_mask();
 }
@@ -1262,7 +1128,7 @@ static int handle_qpt_reg_umr(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 
 	qp->sq.wr_data[idx] = MLX5_IB_WR_UMR;
 	(*ctrl)->imm = cpu_to_be32(umr_wr(wr)->mkey);
-	err = set_reg_umr_segment(dev, *seg, wr);
+	err = mlx5r_umr_set_umr_ctrl_seg(dev, *seg, wr);
 	if (unlikely(err))
 		goto out;
 	*seg += sizeof(struct mlx5_wqe_umr_ctrl_seg);

@@ -10,6 +10,9 @@
 #define MLX5_MAX_UMR_SHIFT 16
 #define MLX5_MAX_UMR_PAGES (1 << MLX5_MAX_UMR_SHIFT)
 
+#define MLX5_IB_UMR_OCTOWORD	       16
+#define MLX5_IB_UMR_XLT_ALIGNMENT      64
+
 int mlx5r_umr_resource_init(struct mlx5_ib_dev *dev);
 void mlx5r_umr_resource_cleanup(struct mlx5_ib_dev *dev);
 
@@ -65,5 +68,15 @@ static inline bool mlx5r_umr_can_reconfig(struct mlx5_ib_dev *dev,
 
 	return true;
 }
+
+static inline u64 mlx5r_umr_get_xlt_octo(u64 bytes)
+{
+	return ALIGN(bytes, MLX5_IB_UMR_XLT_ALIGNMENT) /
+	       MLX5_IB_UMR_OCTOWORD;
+}
+
+int mlx5r_umr_set_umr_ctrl_seg(struct mlx5_ib_dev *dev,
+			       struct mlx5_wqe_umr_ctrl_seg *umr,
+			       const struct ib_send_wr *wr);
 
 #endif /* _MLX5_IB_UMR_H */
