@@ -75,7 +75,7 @@ static int block_write(struct adapter *padapter, u8 *buffer, u32 size)
 {
 	int ret = _SUCCESS;
 	u32 blocks, block_size, remain;
-	u32	i = 0, offset = 0;
+	u32 i, offset;
 
 	block_size = MAX_REG_BLOCK_SIZE;
 
