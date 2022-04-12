@@ -166,24 +166,27 @@ static int add_extent_changeset(struct extent_state *state, u32 bits,
 	return ret;
 }
 
-int __must_check submit_one_bio(struct bio *bio, int mirror_num,
-				unsigned long bio_flags)
+void submit_one_bio(struct bio *bio, int mirror_num, unsigned long bio_flags)
 {
-	blk_status_t ret = 0;
 	struct extent_io_tree *tree = bio->bi_private;
 
 	bio->bi_private = NULL;
 
 	/* Caller should ensure the bio has at least some range added */
 	ASSERT(bio->bi_iter.bi_size);
+
 	if (is_data_inode(tree->private_data))
-		ret = btrfs_submit_data_bio(tree->private_data, bio, mirror_num,
+		btrfs_submit_data_bio(tree->private_data, bio, mirror_num,
 					    bio_flags);
 	else
-		ret = btrfs_submit_metadata_bio(tree->private_data, bio,
+		btrfs_submit_metadata_bio(tree->private_data, bio,
 						mirror_num, bio_flags);
-
-	return blk_status_to_errno(ret);
+	/*
+	 * Above submission hooks will handle the error by ending the bio,
+	 * which will do the cleanup properly.  So here we should not return
+	 * any error, or the caller of submit_extent_page() will do cleanup
+	 * again, causing problems.
+	 */
 }
 
 /* Cleanup unsubmitted bios */
@@ -204,13 +207,12 @@ static void end_write_bio(struct extent_page_data *epd, int ret)
  * Return 0 if everything is OK.
  * Return <0 for error.
  */
-static int __must_check flush_write_bio(struct extent_page_data *epd)
+static void flush_write_bio(struct extent_page_data *epd)
 {
-	int ret = 0;
 	struct bio *bio = epd->bio_ctrl.bio;
 
 	if (bio) {
-		ret = submit_one_bio(bio, 0, 0);
+		submit_one_bio(bio, 0, 0);
 		/*
 		 * Clean up of epd->bio is handled by its endio function.
 		 * And endio is either triggered by successful bio execution
@@ -220,7 +222,6 @@ static int __must_check flush_write_bio(struct extent_page_data *epd)
 		 */
 		epd->bio_ctrl.bio = NULL;
 	}
-	return ret;
 }
 
 int __init extent_state_cache_init(void)
@@ -3446,10 +3447,8 @@ static int submit_extent_page(unsigned int opf,
 	ASSERT(pg_offset < PAGE_SIZE && size <= PAGE_SIZE &&
 	       pg_offset + size <= PAGE_SIZE);
 	if (force_bio_submit && bio_ctrl->bio) {
-		ret = submit_one_bio(bio_ctrl->bio, mirror_num, bio_ctrl->bio_flags);
+		submit_one_bio(bio_ctrl->bio, mirror_num, bio_ctrl->bio_flags);
 		bio_ctrl->bio = NULL;
-		if (ret < 0)
-			return ret;
 	}
 
 	while (cur < pg_offset + size) {
@@ -3490,11 +3489,8 @@ static int submit_extent_page(unsigned int opf,
 		if (added < size - offset) {
 			/* The bio should contain some page(s) */
 			ASSERT(bio_ctrl->bio->bi_iter.bi_size);
-			ret = submit_one_bio(bio_ctrl->bio, mirror_num,
-					bio_ctrl->bio_flags);
+			submit_one_bio(bio_ctrl->bio, mirror_num, bio_ctrl->bio_flags);
 			bio_ctrl->bio = NULL;
-			if (ret < 0)
-				return ret;
 		}
 		cur += added;
 	}
@@ -4242,14 +4238,12 @@ static noinline_for_stack int lock_extent_buffer_for_io(struct extent_buffer *eb
 			  struct extent_page_data *epd)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
-	int i, num_pages, failed_page_nr;
+	int i, num_pages;
 	int flush = 0;
 	int ret = 0;
 
 	if (!btrfs_try_tree_write_lock(eb)) {
-		ret = flush_write_bio(epd);
-		if (ret < 0)
-			return ret;
+		flush_write_bio(epd);
 		flush = 1;
 		btrfs_tree_lock(eb);
 	}
@@ -4259,9 +4253,7 @@ static noinline_for_stack int lock_extent_buffer_for_io(struct extent_buffer *eb
 		if (!epd->sync_io)
 			return 0;
 		if (!flush) {
-			ret = flush_write_bio(epd);
-			if (ret < 0)
-				return ret;
+			flush_write_bio(epd);
 			flush = 1;
 		}
 		while (1) {
@@ -4308,39 +4300,13 @@ static noinline_for_stack int lock_extent_buffer_for_io(struct extent_buffer *eb
 
 		if (!trylock_page(p)) {
 			if (!flush) {
-				int err;
-
-				err = flush_write_bio(epd);
-				if (err < 0) {
-					ret = err;
-					failed_page_nr = i;
-					goto err_unlock;
-				}
+				flush_write_bio(epd);
 				flush = 1;
 			}
 			lock_page(p);
 		}
 	}
 
-	return ret;
-err_unlock:
-	/* Unlock already locked pages */
-	for (i = 0; i < failed_page_nr; i++)
-		unlock_page(eb->pages[i]);
-	/*
-	 * Clear EXTENT_BUFFER_WRITEBACK and wake up anyone waiting on it.
-	 * Also set back EXTENT_BUFFER_DIRTY so future attempts to this eb can
-	 * be made and undo everything done before.
-	 */
-	btrfs_tree_lock(eb);
-	spin_lock(&eb->refs_lock);
-	set_bit(EXTENT_BUFFER_DIRTY, &eb->bflags);
-	end_extent_buffer_writeback(eb);
-	spin_unlock(&eb->refs_lock);
-	percpu_counter_add_batch(&fs_info->dirty_metadata_bytes, eb->len,
-				 fs_info->dirty_metadata_batch);
-	btrfs_clear_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN);
-	btrfs_tree_unlock(eb);
 	return ret;
 }
 
@@ -4962,13 +4928,19 @@ retry:
 	 *   if the fs already has error.
 	 */
 	if (!BTRFS_FS_ERROR(fs_info)) {
-		ret = flush_write_bio(&epd);
+		flush_write_bio(&epd);
 	} else {
 		ret = -EROFS;
 		end_write_bio(&epd, ret);
 	}
 out:
 	btrfs_zoned_meta_io_unlock(fs_info);
+	/*
+	 * We can get ret > 0 from submit_extent_page() indicating how many ebs
+	 * were submitted. Reset it to 0 to avoid false alerts for the caller.
+	 */
+	if (ret > 0)
+		ret = 0;
 	return ret;
 }
 
@@ -5070,8 +5042,7 @@ retry:
 			 * tmpfs file mapping
 			 */
 			if (!trylock_page(page)) {
-				ret = flush_write_bio(epd);
-				BUG_ON(ret < 0);
+				flush_write_bio(epd);
 				lock_page(page);
 			}
 
@@ -5081,10 +5052,8 @@ retry:
 			}
 
 			if (wbc->sync_mode != WB_SYNC_NONE) {
-				if (PageWriteback(page)) {
-					ret = flush_write_bio(epd);
-					BUG_ON(ret < 0);
-				}
+				if (PageWriteback(page))
+					flush_write_bio(epd);
 				wait_on_page_writeback(page);
 			}
 
@@ -5124,9 +5093,8 @@ retry:
 		 * page in our current bio, and thus deadlock, so flush the
 		 * write bio here.
 		 */
-		ret = flush_write_bio(epd);
-		if (!ret)
-			goto retry;
+		flush_write_bio(epd);
+		goto retry;
 	}
 
 	if (wbc->range_cyclic || (wbc->nr_to_write > 0 && range_whole))
@@ -5152,8 +5120,7 @@ int extent_write_full_page(struct page *page, struct writeback_control *wbc)
 		return ret;
 	}
 
-	ret = flush_write_bio(&epd);
-	ASSERT(ret <= 0);
+	flush_write_bio(&epd);
 	return ret;
 }
 
@@ -5215,7 +5182,7 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end)
 	}
 
 	if (!found_error)
-		ret = flush_write_bio(&epd);
+		flush_write_bio(&epd);
 	else
 		end_write_bio(&epd, ret);
 
@@ -5248,7 +5215,7 @@ int extent_writepages(struct address_space *mapping,
 		end_write_bio(&epd, ret);
 		return ret;
 	}
-	ret = flush_write_bio(&epd);
+	flush_write_bio(&epd);
 	return ret;
 }
 
@@ -5271,10 +5238,8 @@ void extent_readahead(struct readahead_control *rac)
 	if (em_cached)
 		free_extent_map(em_cached);
 
-	if (bio_ctrl.bio) {
-		if (submit_one_bio(bio_ctrl.bio, 0, bio_ctrl.bio_flags))
-			return;
-	}
+	if (bio_ctrl.bio)
+		submit_one_bio(bio_ctrl.bio, 0, bio_ctrl.bio_flags);
 }
 
 /*
@@ -6654,12 +6619,8 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 		atomic_dec(&eb->io_pages);
 	}
 	if (bio_ctrl.bio) {
-		int tmp;
-
-		tmp = submit_one_bio(bio_ctrl.bio, mirror_num, 0);
+		submit_one_bio(bio_ctrl.bio, mirror_num, 0);
 		bio_ctrl.bio = NULL;
-		if (tmp < 0)
-			return tmp;
 	}
 	if (ret || wait != WAIT_COMPLETE)
 		return ret;
@@ -6772,10 +6733,8 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num)
 	}
 
 	if (bio_ctrl.bio) {
-		err = submit_one_bio(bio_ctrl.bio, mirror_num, bio_ctrl.bio_flags);
+		submit_one_bio(bio_ctrl.bio, mirror_num, bio_ctrl.bio_flags);
 		bio_ctrl.bio = NULL;
-		if (err)
-			return err;
 	}
 
 	if (ret || wait != WAIT_COMPLETE)
