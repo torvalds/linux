@@ -3153,6 +3153,7 @@ static int
 lpfc_fdmi_port_attr_active_fc4type(struct lpfc_vport *vport,
 				   struct lpfc_fdmi_attr_def *ad)
 {
+	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_fdmi_attr_entry *ae;
 	uint32_t size;
 
@@ -3163,7 +3164,8 @@ lpfc_fdmi_port_attr_active_fc4type(struct lpfc_vport *vport,
 	ae->un.AttrTypes[7] = 0x01; /* Type 0x20 - CT */
 
 	/* Check to see if NVME is configured or not */
-	if (vport->phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
+	if (vport == phba->pport &&
+	    phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
 		ae->un.AttrTypes[6] = 0x1; /* Type 0x28 - NVME */
 
 	size = FOURBYTES + 32;
