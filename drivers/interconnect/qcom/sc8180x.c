@@ -191,53 +191,53 @@ DEFINE_QBCM(bcm_sn11, "SN11", false, &mas_qnm_aggre2_noc);
 DEFINE_QBCM(bcm_sn14, "SN14", false, &slv_qns_pcie_mem_noc);
 DEFINE_QBCM(bcm_sn15, "SN15", false, &mas_qnm_gemnoc);
 
-static struct qcom_icc_bcm *aggre1_noc_bcms[] = {
+static struct qcom_icc_bcm * const aggre1_noc_bcms[] = {
 	&bcm_sn3,
 	&bcm_ce0,
 	&bcm_qup0,
 };
 
-static struct qcom_icc_bcm *aggre2_noc_bcms[] = {
+static struct qcom_icc_bcm * const aggre2_noc_bcms[] = {
 	&bcm_sn14,
 	&bcm_ce0,
 	&bcm_qup0,
 };
 
-static struct qcom_icc_bcm *camnoc_virt_bcms[] = {
+static struct qcom_icc_bcm * const camnoc_virt_bcms[] = {
 	&bcm_mm1,
 };
 
-static struct qcom_icc_bcm *compute_noc_bcms[] = {
+static struct qcom_icc_bcm * const compute_noc_bcms[] = {
 	&bcm_co0,
 	&bcm_co2,
 };
 
-static struct qcom_icc_bcm *config_noc_bcms[] = {
+static struct qcom_icc_bcm * const config_noc_bcms[] = {
 	&bcm_cn0,
 };
 
-static struct qcom_icc_bcm *gem_noc_bcms[] = {
+static struct qcom_icc_bcm * const gem_noc_bcms[] = {
 	&bcm_sh0,
 	&bcm_sh2,
 	&bcm_sh3,
 };
 
-static struct qcom_icc_bcm *ipa_virt_bcms[] = {
+static struct qcom_icc_bcm * const ipa_virt_bcms[] = {
 	&bcm_ip0,
 };
 
-static struct qcom_icc_bcm *mc_virt_bcms[] = {
+static struct qcom_icc_bcm * const mc_virt_bcms[] = {
 	&bcm_mc0,
 	&bcm_acv,
 };
 
-static struct qcom_icc_bcm *mmss_noc_bcms[] = {
+static struct qcom_icc_bcm * const mmss_noc_bcms[] = {
 	&bcm_mm0,
 	&bcm_mm1,
 	&bcm_mm2,
 };
 
-static struct qcom_icc_bcm *system_noc_bcms[] = {
+static struct qcom_icc_bcm * const system_noc_bcms[] = {
 	&bcm_sn0,
 	&bcm_sn1,
 	&bcm_sn2,

@@ -102,7 +102,7 @@ DEFINE_QBCM(bcm_sn9, "SN9", false, &qnm_memnoc);
 DEFINE_QBCM(bcm_sn10, "SN10", false, &qnm_memnoc_pcie);
 DEFINE_QBCM(bcm_sn11, "SN11", false, &qnm_ipa, &xm_ipa2pcie_slv);
 
-static struct qcom_icc_bcm *mc_virt_bcms[] = {
+static struct qcom_icc_bcm * const mc_virt_bcms[] = {
 	&bcm_mc0,
 };
 
@@ -118,7 +118,7 @@ static const struct qcom_icc_desc sdx55_mc_virt = {
 	.num_bcms = ARRAY_SIZE(mc_virt_bcms),
 };
 
-static struct qcom_icc_bcm *mem_noc_bcms[] = {
+static struct qcom_icc_bcm * const mem_noc_bcms[] = {
 	&bcm_sh0,
 	&bcm_sh3,
 	&bcm_sh4,
@@ -140,7 +140,7 @@ static const struct qcom_icc_desc sdx55_mem_noc = {
 	.num_bcms = ARRAY_SIZE(mem_noc_bcms),
 };
 
-static struct qcom_icc_bcm *system_noc_bcms[] = {
+static struct qcom_icc_bcm * const system_noc_bcms[] = {
 	&bcm_ce0,
 	&bcm_pn0,
 	&bcm_pn1,
@@ -219,7 +219,7 @@ static const struct qcom_icc_desc sdx55_system_noc = {
 	.num_bcms = ARRAY_SIZE(system_noc_bcms),
 };
 
-static struct qcom_icc_bcm *ipa_virt_bcms[] = {
+static struct qcom_icc_bcm * const ipa_virt_bcms[] = {
 	&bcm_ip0,
 };
 

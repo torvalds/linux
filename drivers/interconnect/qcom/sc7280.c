@@ -1476,7 +1476,7 @@ static struct qcom_icc_bcm bcm_sn14 = {
 	.nodes = { &qns_pcie_mem_noc },
 };
 
-static struct qcom_icc_bcm *aggre1_noc_bcms[] = {
+static struct qcom_icc_bcm * const aggre1_noc_bcms[] = {
 	&bcm_sn5,
 	&bcm_sn6,
 	&bcm_sn14,
@@ -1507,7 +1507,7 @@ static const struct qcom_icc_desc sc7280_aggre1_noc = {
 	.num_bcms = ARRAY_SIZE(aggre1_noc_bcms),
 };
 
-static struct qcom_icc_bcm *aggre2_noc_bcms[] = {
+static struct qcom_icc_bcm * const aggre2_noc_bcms[] = {
 	&bcm_ce0,
 };
 
@@ -1529,7 +1529,7 @@ static const struct qcom_icc_desc sc7280_aggre2_noc = {
 	.num_bcms = ARRAY_SIZE(aggre2_noc_bcms),
 };
 
-static struct qcom_icc_bcm *clk_virt_bcms[] = {
+static struct qcom_icc_bcm * const clk_virt_bcms[] = {
 	&bcm_qup0,
 	&bcm_qup1,
 };
@@ -1548,7 +1548,7 @@ static const struct qcom_icc_desc sc7280_clk_virt = {
 	.num_bcms = ARRAY_SIZE(clk_virt_bcms),
 };
 
-static struct qcom_icc_bcm *cnoc2_bcms[] = {
+static struct qcom_icc_bcm * const cnoc2_bcms[] = {
 	&bcm_cn1,
 	&bcm_cn2,
 };
@@ -1610,7 +1610,7 @@ static const struct qcom_icc_desc sc7280_cnoc2 = {
 	.num_bcms = ARRAY_SIZE(cnoc2_bcms),
 };
 
-static struct qcom_icc_bcm *cnoc3_bcms[] = {
+static struct qcom_icc_bcm * const cnoc3_bcms[] = {
 	&bcm_cn0,
 	&bcm_cn1,
 	&bcm_sn3,
@@ -1642,7 +1642,7 @@ static const struct qcom_icc_desc sc7280_cnoc3 = {
 	.num_bcms = ARRAY_SIZE(cnoc3_bcms),
 };
 
-static struct qcom_icc_bcm *dc_noc_bcms[] = {
+static struct qcom_icc_bcm * const dc_noc_bcms[] = {
 };
 
 static struct qcom_icc_node * const dc_noc_nodes[] = {
@@ -1658,7 +1658,7 @@ static const struct qcom_icc_desc sc7280_dc_noc = {
 	.num_bcms = ARRAY_SIZE(dc_noc_bcms),
 };
 
-static struct qcom_icc_bcm *gem_noc_bcms[] = {
+static struct qcom_icc_bcm * const gem_noc_bcms[] = {
 	&bcm_sh0,
 	&bcm_sh2,
 	&bcm_sh3,
@@ -1694,7 +1694,7 @@ static const struct qcom_icc_desc sc7280_gem_noc = {
 	.num_bcms = ARRAY_SIZE(gem_noc_bcms),
 };
 
-static struct qcom_icc_bcm *lpass_ag_noc_bcms[] = {
+static struct qcom_icc_bcm * const lpass_ag_noc_bcms[] = {
 };
 
 static struct qcom_icc_node * const lpass_ag_noc_nodes[] = {
@@ -1714,7 +1714,7 @@ static const struct qcom_icc_desc sc7280_lpass_ag_noc = {
 	.num_bcms = ARRAY_SIZE(lpass_ag_noc_bcms),
 };
 
-static struct qcom_icc_bcm *mc_virt_bcms[] = {
+static struct qcom_icc_bcm * const mc_virt_bcms[] = {
 	&bcm_acv,
 	&bcm_mc0,
 };
@@ -1731,7 +1731,7 @@ static const struct qcom_icc_desc sc7280_mc_virt = {
 	.num_bcms = ARRAY_SIZE(mc_virt_bcms),
 };
 
-static struct qcom_icc_bcm *mmss_noc_bcms[] = {
+static struct qcom_icc_bcm * const mmss_noc_bcms[] = {
 	&bcm_mm0,
 	&bcm_mm1,
 	&bcm_mm4,
@@ -1758,7 +1758,7 @@ static const struct qcom_icc_desc sc7280_mmss_noc = {
 	.num_bcms = ARRAY_SIZE(mmss_noc_bcms),
 };
 
-static struct qcom_icc_bcm *nsp_noc_bcms[] = {
+static struct qcom_icc_bcm * const nsp_noc_bcms[] = {
 	&bcm_co0,
 	&bcm_co3,
 };
@@ -1777,7 +1777,7 @@ static const struct qcom_icc_desc sc7280_nsp_noc = {
 	.num_bcms = ARRAY_SIZE(nsp_noc_bcms),
 };
 
-static struct qcom_icc_bcm *system_noc_bcms[] = {
+static struct qcom_icc_bcm * const system_noc_bcms[] = {
 	&bcm_sn0,
 	&bcm_sn2,
 	&bcm_sn7,

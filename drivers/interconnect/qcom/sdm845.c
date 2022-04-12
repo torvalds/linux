@@ -175,7 +175,7 @@ DEFINE_QBCM(bcm_sn12, "SN12", false, &qnm_gladiator_sodv, &xm_gic);
 DEFINE_QBCM(bcm_sn14, "SN14", false, &qnm_pcie_anoc);
 DEFINE_QBCM(bcm_sn15, "SN15", false, &qnm_memnoc);
 
-static struct qcom_icc_bcm *aggre1_noc_bcms[] = {
+static struct qcom_icc_bcm * const aggre1_noc_bcms[] = {
 	&bcm_sn9,
 	&bcm_qup0,
 };
@@ -201,7 +201,7 @@ static const struct qcom_icc_desc sdm845_aggre1_noc = {
 	.num_bcms = ARRAY_SIZE(aggre1_noc_bcms),
 };
 
-static struct qcom_icc_bcm *aggre2_noc_bcms[] = {
+static struct qcom_icc_bcm * const aggre2_noc_bcms[] = {
 	&bcm_ce0,
 	&bcm_sn11,
 	&bcm_qup0,
@@ -230,7 +230,7 @@ static const struct qcom_icc_desc sdm845_aggre2_noc = {
 	.num_bcms = ARRAY_SIZE(aggre2_noc_bcms),
 };
 
-static struct qcom_icc_bcm *config_noc_bcms[] = {
+static struct qcom_icc_bcm * const config_noc_bcms[] = {
 	&bcm_cn0,
 };
 
@@ -291,7 +291,7 @@ static const struct qcom_icc_desc sdm845_config_noc = {
 	.num_bcms = ARRAY_SIZE(config_noc_bcms),
 };
 
-static struct qcom_icc_bcm *dc_noc_bcms[] = {
+static struct qcom_icc_bcm * const dc_noc_bcms[] = {
 };
 
 static struct qcom_icc_node * const dc_noc_nodes[] = {
@@ -307,7 +307,7 @@ static const struct qcom_icc_desc sdm845_dc_noc = {
 	.num_bcms = ARRAY_SIZE(dc_noc_bcms),
 };
 
-static struct qcom_icc_bcm *gladiator_noc_bcms[] = {
+static struct qcom_icc_bcm * const gladiator_noc_bcms[] = {
 };
 
 static struct qcom_icc_node * const gladiator_noc_nodes[] = {
@@ -325,7 +325,7 @@ static const struct qcom_icc_desc sdm845_gladiator_noc = {
 	.num_bcms = ARRAY_SIZE(gladiator_noc_bcms),
 };
 
-static struct qcom_icc_bcm *mem_noc_bcms[] = {
+static struct qcom_icc_bcm * const mem_noc_bcms[] = {
 	&bcm_mc0,
 	&bcm_acv,
 	&bcm_sh0,
@@ -360,7 +360,7 @@ static const struct qcom_icc_desc sdm845_mem_noc = {
 	.num_bcms = ARRAY_SIZE(mem_noc_bcms),
 };
 
-static struct qcom_icc_bcm *mmss_noc_bcms[] = {
+static struct qcom_icc_bcm * const mmss_noc_bcms[] = {
 	&bcm_mm0,
 	&bcm_mm1,
 	&bcm_mm2,
@@ -394,7 +394,7 @@ static const struct qcom_icc_desc sdm845_mmss_noc = {
 	.num_bcms = ARRAY_SIZE(mmss_noc_bcms),
 };
 
-static struct qcom_icc_bcm *system_noc_bcms[] = {
+static struct qcom_icc_bcm * const system_noc_bcms[] = {
 	&bcm_sn0,
 	&bcm_sn1,
 	&bcm_sn2,
