@@ -844,8 +844,8 @@ snd_ad1889_create(struct snd_card *card, struct pci_dev *pci)
 }
 
 static int
-snd_ad1889_probe(struct pci_dev *pci,
-		 const struct pci_device_id *pci_id)
+__snd_ad1889_probe(struct pci_dev *pci,
+		   const struct pci_device_id *pci_id)
 {
 	int err;
 	static int devno;
@@ -902,6 +902,12 @@ snd_ad1889_probe(struct pci_dev *pci,
 
 	devno++;
 	return 0;
+}
+
+static int snd_ad1889_probe(struct pci_dev *pci,
+			    const struct pci_device_id *pci_id)
+{
+	return snd_card_free_on_error(&pci->dev, __snd_ad1889_probe(pci, pci_id));
 }
 
 static const struct pci_device_id snd_ad1889_ids[] = {
