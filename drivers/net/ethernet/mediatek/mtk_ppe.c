@@ -600,6 +600,7 @@ void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
 	struct mtk_foe_entry *hwe = &ppe->foe_table[hash];
 	struct mtk_flow_entry *entry;
 	struct mtk_foe_bridge key = {};
+	struct hlist_node *n;
 	struct ethhdr *eh;
 	bool found = false;
 	u8 *tag;
@@ -609,7 +610,7 @@ void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
 	if (FIELD_GET(MTK_FOE_IB1_STATE, hwe->ib1) == MTK_FOE_STATE_BIND)
 		goto out;
 
-	hlist_for_each_entry(entry, head, list) {
+	hlist_for_each_entry_safe(entry, n, head, list) {
 		if (entry->type == MTK_FLOW_TYPE_L2_SUBFLOW) {
 			if (unlikely(FIELD_GET(MTK_FOE_IB1_STATE, hwe->ib1) ==
 				     MTK_FOE_STATE_BIND))
