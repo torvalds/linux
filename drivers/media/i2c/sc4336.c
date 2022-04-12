@@ -147,6 +147,7 @@ struct sc4336 {
 	bool			streaming;
 	bool			power_on;
 	const struct sc4336_mode *cur_mode;
+	struct v4l2_fract	cur_fps;
 	u32			module_index;
 	const char		*module_facing;
 	const char		*module_name;
@@ -544,6 +545,7 @@ static int sc4336_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(sc4336->vblank, vblank_def,
 					 SC4336_VTS_MAX - mode->height,
 					 1, vblank_def);
+		sc4336->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&sc4336->mutex);
@@ -637,7 +639,10 @@ static int sc4336_g_frame_interval(struct v4l2_subdev *sd,
 	const struct sc4336_mode *mode = sc4336->cur_mode;
 
 	mutex_lock(&sc4336->mutex);
-	fi->interval = mode->max_fps;
+	if (sc4336->streaming)
+		fi->interval = sc4336->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 	mutex_unlock(&sc4336->mutex);
 
 	return 0;
@@ -1095,6 +1100,14 @@ static const struct v4l2_subdev_ops sc4336_subdev_ops = {
 	.pad	= &sc4336_pad_ops,
 };
 
+static void sc4336_modify_fps_info(struct sc4336 *sc4336)
+{
+	const struct sc4336_mode *mode = sc4336->cur_mode;
+
+	sc4336->cur_fps.denominator = mode->max_fps.denominator * sc4336->cur_vts /
+				       mode->vts_def;
+}
+
 static int sc4336_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc4336 *sc4336 = container_of(ctrl->handler,
@@ -1157,6 +1170,8 @@ static int sc4336_set_ctrl(struct v4l2_ctrl *ctrl)
 					 (ctrl->val + sc4336->cur_mode->height)
 					 & 0xff);
 		sc4336->cur_vts = ctrl->val + sc4336->cur_mode->height;
+		if (sc4336->cur_vts != sc4336->cur_mode->vts_def)
+			sc4336_modify_fps_info(sc4336);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc4336_enable_test_pattern(sc4336, ctrl->val);
@@ -1224,6 +1239,7 @@ static int sc4336_initialize_controls(struct sc4336 *sc4336)
 					    V4L2_CID_VBLANK, vblank_def,
 					    SC4336_VTS_MAX - mode->height,
 					    1, vblank_def);
+	sc4336->cur_fps = mode->max_fps;
 	exposure_max = mode->vts_def - 8;
 	sc4336->exposure = v4l2_ctrl_new_std(handler, &sc4336_ctrl_ops,
 					      V4L2_CID_EXPOSURE, SC4336_EXPOSURE_MIN,
