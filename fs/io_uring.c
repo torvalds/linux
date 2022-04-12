@@ -7855,24 +7855,22 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 	__must_hold(&ctx->uring_lock)
 {
 	unsigned int entries = io_sqring_entries(ctx);
-	int submitted = 0;
+	unsigned int left;
+	int ret;
 
 	if (unlikely(!entries))
 		return 0;
 	/* make sure SQ entry isn't read before tail */
-	nr = min3(nr, ctx->sq_entries, entries);
-	io_get_task_refs(nr);
+	ret = left = min3(nr, ctx->sq_entries, entries);
+	io_get_task_refs(left);
+	io_submit_state_start(&ctx->submit_state, left);
 
-	io_submit_state_start(&ctx->submit_state, nr);
 	do {
 		const struct io_uring_sqe *sqe;
 		struct io_kiocb *req;
 
-		if (unlikely(!io_alloc_req_refill(ctx))) {
-			if (!submitted)
-				submitted = -EAGAIN;
+		if (unlikely(!io_alloc_req_refill(ctx)))
 			break;
-		}
 		req = io_alloc_req(ctx);
 		sqe = io_get_sqe(ctx);
 		if (unlikely(!sqe)) {
@@ -7880,7 +7878,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 			break;
 		}
 		/* will complete beyond this point, count as submitted */
-		submitted++;
+		left--;
 		if (io_submit_sqe(ctx, req, sqe)) {
 			/*
 			 * Continue submitting even for sqe failure if the
@@ -7889,20 +7887,20 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 			if (!(ctx->flags & IORING_SETUP_SUBMIT_ALL))
 				break;
 		}
-	} while (submitted < nr);
+	} while (left);
 
-	if (unlikely(submitted != nr)) {
-		int ref_used = (submitted == -EAGAIN) ? 0 : submitted;
-		int unused = nr - ref_used;
-
-		current->io_uring->cached_refs += unused;
+	if (unlikely(left)) {
+		ret -= left;
+		/* try again if it submitted nothing and can't allocate a req */
+		if (!ret && io_req_cache_empty(ctx))
+			ret = -EAGAIN;
+		current->io_uring->cached_refs += left;
 	}
 
 	io_submit_state_end(ctx);
 	 /* Commit SQ ring head once we've consumed and submitted all SQEs */
 	io_commit_sqring(ctx);
-
-	return submitted;
+	return ret;
 }
 
 static inline bool io_sqd_events_pending(struct io_sq_data *sqd)
