@@ -550,13 +550,6 @@ int dm_zone_map_bio(struct dm_target_io *tio)
 		return DM_MAPIO_KILL;
 	}
 
-	/*
-	 * The target map function may issue and complete the IO quickly.
-	 * Take an extra reference on the IO to make sure it does disappear
-	 * until we run dm_zone_map_bio_end().
-	 */
-	dm_io_inc_pending(io);
-
 	/* Let the target do its work */
 	r = ti->type->map(ti, clone);
 	switch (r) {
@@ -586,9 +579,6 @@ int dm_zone_map_bio(struct dm_target_io *tio)
 		sts = BLK_STS_IOERR;
 		break;
 	}
-
-	/* Drop the extra reference on the IO */
-	dm_io_dec_pending(io, sts);
 
 	if (sts != BLK_STS_OK)
 		return DM_MAPIO_KILL;

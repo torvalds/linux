@@ -955,6 +955,11 @@ static void dm_io_complete(struct dm_io *io)
 	}
 }
 
+static void dm_io_inc_pending(struct dm_io *io)
+{
+	atomic_inc(&io->io_count);
+}
+
 /*
  * Decrements the number of outstanding ios that a bio has been
  * cloned into, completing the original io if necc.
@@ -978,7 +983,7 @@ static void dm_io_set_error(struct dm_io *io, blk_status_t error)
 	spin_unlock_irqrestore(&io->lock, flags);
 }
 
-void dm_io_dec_pending(struct dm_io *io, blk_status_t error)
+static void dm_io_dec_pending(struct dm_io *io, blk_status_t error)
 {
 	if (unlikely(error))
 		dm_io_set_error(io, error);
