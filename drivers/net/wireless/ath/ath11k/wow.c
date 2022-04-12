@@ -758,7 +758,7 @@ int ath11k_wow_op_resume(struct ieee80211_hw *hw)
 	ret = ath11k_dp_rx_pktlog_start(ar->ab);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to start rx pktlog from wow: %d\n", ret);
-		return ret;
+		goto exit;
 	}
 
 	ret = ath11k_wow_wakeup(ar->ab);
