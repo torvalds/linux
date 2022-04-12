@@ -579,26 +579,30 @@ static void __media_entity_remove_link(struct media_entity *entity,
 	struct media_link *rlink, *tmp;
 	struct media_entity *remote;
 
-	if (link->source->entity == entity)
-		remote = link->sink->entity;
-	else
-		remote = link->source->entity;
-
-	list_for_each_entry_safe(rlink, tmp, &remote->links, list) {
-		if (rlink != link->reverse)
-			continue;
-
+	/* Remove the reverse links for a data link. */
+	if ((link->flags & MEDIA_LNK_FL_LINK_TYPE) == MEDIA_LNK_FL_DATA_LINK) {
 		if (link->source->entity == entity)
-			remote->num_backlinks--;
+			remote = link->sink->entity;
+		else
+			remote = link->source->entity;
 
-		/* Remove the remote link */
-		list_del(&rlink->list);
-		media_gobj_destroy(&rlink->graph_obj);
-		kfree(rlink);
+		list_for_each_entry_safe(rlink, tmp, &remote->links, list) {
+			if (rlink != link->reverse)
+				continue;
 
-		if (--remote->num_links == 0)
-			break;
+			if (link->source->entity == entity)
+				remote->num_backlinks--;
+
+			/* Remove the remote link */
+			list_del(&rlink->list);
+			media_gobj_destroy(&rlink->graph_obj);
+			kfree(rlink);
+
+			if (--remote->num_links == 0)
+				break;
+		}
 	}
+
 	list_del(&link->list);
 	media_gobj_destroy(&link->graph_obj);
 	kfree(link);
