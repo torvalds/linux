@@ -1094,8 +1094,7 @@ static int sta32x_probe_dt(struct device *dev, struct sta32x_priv *sta32x)
 }
 #endif
 
-static int sta32x_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int sta32x_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct sta32x_priv *sta32x;
@@ -1175,7 +1174,7 @@ static struct i2c_driver sta32x_i2c_driver = {
 		.name = "sta32x",
 		.of_match_table = of_match_ptr(st32x_dt_ids),
 	},
-	.probe =    sta32x_i2c_probe,
+	.probe_new = sta32x_i2c_probe,
 	.id_table = sta32x_i2c_id,
 };
 
