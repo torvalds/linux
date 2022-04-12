@@ -989,7 +989,7 @@ struct v4l2_subdev_fh {
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 
 /**
- * v4l2_subdev_get_try_format - ancillary routine to call
+ * v4l2_subdev_get_pad_format - ancillary routine to call
  *	&struct v4l2_subdev_pad_config->try_fmt
  *
  * @sd: pointer to &struct v4l2_subdev
@@ -997,7 +997,7 @@ struct v4l2_subdev_fh {
  * @pad: index of the pad in the &struct v4l2_subdev_state->pads array
  */
 static inline struct v4l2_mbus_framefmt *
-v4l2_subdev_get_try_format(struct v4l2_subdev *sd,
+v4l2_subdev_get_pad_format(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *state,
 			   unsigned int pad)
 {
@@ -1007,7 +1007,7 @@ v4l2_subdev_get_try_format(struct v4l2_subdev *sd,
 }
 
 /**
- * v4l2_subdev_get_try_crop - ancillary routine to call
+ * v4l2_subdev_get_pad_crop - ancillary routine to call
  *	&struct v4l2_subdev_pad_config->try_crop
  *
  * @sd: pointer to &struct v4l2_subdev
@@ -1015,7 +1015,7 @@ v4l2_subdev_get_try_format(struct v4l2_subdev *sd,
  * @pad: index of the pad in the &struct v4l2_subdev_state->pads array.
  */
 static inline struct v4l2_rect *
-v4l2_subdev_get_try_crop(struct v4l2_subdev *sd,
+v4l2_subdev_get_pad_crop(struct v4l2_subdev *sd,
 			 struct v4l2_subdev_state *state,
 			 unsigned int pad)
 {
@@ -1025,7 +1025,7 @@ v4l2_subdev_get_try_crop(struct v4l2_subdev *sd,
 }
 
 /**
- * v4l2_subdev_get_try_compose - ancillary routine to call
+ * v4l2_subdev_get_pad_compose - ancillary routine to call
  *	&struct v4l2_subdev_pad_config->try_compose
  *
  * @sd: pointer to &struct v4l2_subdev
@@ -1033,7 +1033,7 @@ v4l2_subdev_get_try_crop(struct v4l2_subdev *sd,
  * @pad: index of the pad in the &struct v4l2_subdev_state->pads array.
  */
 static inline struct v4l2_rect *
-v4l2_subdev_get_try_compose(struct v4l2_subdev *sd,
+v4l2_subdev_get_pad_compose(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_state *state,
 			    unsigned int pad)
 {
@@ -1041,6 +1041,19 @@ v4l2_subdev_get_try_compose(struct v4l2_subdev *sd,
 		pad = 0;
 	return &state->pads[pad].try_compose;
 }
+
+/*
+ * Temprary helpers until uses of v4l2_subdev_get_try_* functions have been
+ * renamed
+ */
+#define v4l2_subdev_get_try_format(sd, state, pad) \
+	v4l2_subdev_get_pad_format(sd, state, pad)
+
+#define v4l2_subdev_get_try_crop(sd, state, pad) \
+	v4l2_subdev_get_pad_crop(sd, state, pad)
+
+#define v4l2_subdev_get_try_compose(sd, state, pad) \
+	v4l2_subdev_get_pad_compose(sd, state, pad)
 
 #endif /* CONFIG_VIDEO_V4L2_SUBDEV_API */
 
