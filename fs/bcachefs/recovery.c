@@ -556,7 +556,8 @@ static int journal_keys_sort(struct bch_fs *c)
 static void replay_now_at(struct journal *j, u64 seq)
 {
 	BUG_ON(seq < j->replay_journal_seq);
-	BUG_ON(seq > j->replay_journal_seq_end);
+
+	seq = min(seq, j->replay_journal_seq_end);
 
 	while (j->replay_journal_seq < seq)
 		bch2_journal_pin_put(j, j->replay_journal_seq++);
@@ -629,8 +630,7 @@ static int bch2_journal_replay(struct bch_fs *c)
 
 		cond_resched();
 
-		if (!k->allocated)
-			replay_now_at(j, keys->journal_seq_base + k->journal_seq);
+		replay_now_at(j, keys->journal_seq_base + k->journal_seq);
 
 		ret = bch2_trans_do(c, NULL, NULL,
 				    BTREE_INSERT_LAZY_RW|
