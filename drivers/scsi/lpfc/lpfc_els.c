@@ -345,7 +345,6 @@ lpfc_issue_fabric_reglogin(struct lpfc_vport *vport)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	LPFC_MBOXQ_t *mbox;
-	struct lpfc_dmabuf *mp;
 	struct lpfc_nodelist *ndlp;
 	struct serv_parm *sp;
 	int rc;
@@ -395,7 +394,7 @@ lpfc_issue_fabric_reglogin(struct lpfc_vport *vport)
 	mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
 	if (!mbox->ctx_ndlp) {
 		err = 6;
-		goto fail_no_ndlp;
+		goto fail_free_mbox;
 	}
 
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
@@ -411,13 +410,8 @@ fail_issue_reg_login:
 	 * for the failed mbox command.
 	 */
 	lpfc_nlp_put(ndlp);
-fail_no_ndlp:
-	mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
-	lpfc_mbuf_free(phba, mp->virt, mp->phys);
-	kfree(mp);
 fail_free_mbox:
-	mempool_free(mbox, phba->mbox_mem_pool);
-
+	lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
 fail:
 	lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
@@ -465,45 +459,37 @@ lpfc_issue_reg_vfi(struct lpfc_vport *vport)
 
 	/* Supply CSP's only if we are fabric connect or pt-to-pt connect */
 	if ((vport->fc_flag & FC_FABRIC) || (vport->fc_flag & FC_PT2PT)) {
-		dmabuf = kzalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
-		if (!dmabuf) {
+		rc = lpfc_mbox_rsrc_prep(phba, mboxq);
+		if (rc) {
 			rc = -ENOMEM;
-			goto fail;
+			goto fail_mbox;
 		}
-		dmabuf->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &dmabuf->phys);
-		if (!dmabuf->virt) {
-			rc = -ENOMEM;
-			goto fail;
-		}
+		dmabuf = mboxq->ctx_buf;
 		memcpy(dmabuf->virt, &phba->fc_fabparam,
 		       sizeof(struct serv_parm));
 	}
 
 	vport->port_state = LPFC_FABRIC_CFG_LINK;
-	if (dmabuf)
+	if (dmabuf) {
 		lpfc_reg_vfi(mboxq, vport, dmabuf->phys);
-	else
+		/* lpfc_reg_vfi memsets the mailbox.  Restore the ctx_buf. */
+		mboxq->ctx_buf = dmabuf;
+	} else {
 		lpfc_reg_vfi(mboxq, vport, 0);
+	}
 
 	mboxq->mbox_cmpl = lpfc_mbx_cmpl_reg_vfi;
 	mboxq->vport = vport;
-	mboxq->ctx_buf = dmabuf;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
 		rc = -ENXIO;
-		goto fail;
+		goto fail_mbox;
 	}
 	return 0;
 
+fail_mbox:
+	lpfc_mbox_rsrc_cleanup(phba, mboxq, MBOX_THD_UNLOCKED);
 fail:
-	if (mboxq)
-		mempool_free(mboxq, phba->mbox_mem_pool);
-	if (dmabuf) {
-		if (dmabuf->virt)
-			lpfc_mbuf_free(phba, dmabuf->virt, dmabuf->phys);
-		kfree(dmabuf);
-	}
-
 	lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0289 Issue Register VFI failed: Err %d\n", rc);
@@ -3252,7 +3238,6 @@ lpfc_reg_fab_ctrl_node(struct lpfc_vport *vport, struct lpfc_nodelist *fc_ndlp)
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_nodelist *ns_ndlp;
 	LPFC_MBOXQ_t *mbox;
-	struct lpfc_dmabuf *mp;
 
 	if (fc_ndlp->nlp_flag & NLP_RPI_REGISTERED)
 		return rc;
@@ -3289,7 +3274,7 @@ lpfc_reg_fab_ctrl_node(struct lpfc_vport *vport, struct lpfc_nodelist *fc_ndlp)
 	mbox->ctx_ndlp = lpfc_nlp_get(fc_ndlp);
 	if (!mbox->ctx_ndlp) {
 		rc = -ENOMEM;
-		goto out_mem;
+		goto out;
 	}
 
 	mbox->vport = vport;
@@ -3297,21 +3282,15 @@ lpfc_reg_fab_ctrl_node(struct lpfc_vport *vport, struct lpfc_nodelist *fc_ndlp)
 	if (rc == MBX_NOT_FINISHED) {
 		rc = -ENODEV;
 		lpfc_nlp_put(fc_ndlp);
-		goto out_mem;
+		goto out;
 	}
 	/* Success path. Exit. */
 	lpfc_nlp_set_state(vport, fc_ndlp,
 			   NLP_STE_REG_LOGIN_ISSUE);
 	return 0;
 
- out_mem:
-	fc_ndlp->nlp_flag &= ~NLP_REG_LOGIN_SEND;
-	mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
-	lpfc_mbuf_free(phba, mp->virt, mp->phys);
-	kfree(mp);
-
  out:
-	mempool_free(mbox, phba->mbox_mem_pool);
+	lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
 			 "0938 %s: failed to format reg_login "
 			 "Data: x%x x%x x%x x%x\n", __func__,
@@ -5248,13 +5227,9 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 void
 lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
 	struct lpfc_nodelist *ndlp = pmb->ctx_ndlp;
 	u32 mbx_flag = pmb->mbox_flag;
 	u32 mbx_cmd = pmb->u.mb.mbxCommand;
-
-	pmb->ctx_buf = NULL;
-	pmb->ctx_ndlp = NULL;
 
 	if (ndlp) {
 		lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
@@ -5278,10 +5253,7 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		lpfc_drop_node(ndlp->vport, ndlp);
 	}
 
-	lpfc_mbuf_free(phba, mp->virt, mp->phys);
-	kfree(mp);
-	mempool_free(pmb, phba->mbox_mem_pool);
-	return;
+	lpfc_mbox_rsrc_cleanup(phba, pmb, MBOX_THD_UNLOCKED);
 }
 
 /**
@@ -5306,7 +5278,6 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct Scsi_Host  *shost = vport ? lpfc_shost_from_vport(vport) : NULL;
 	IOCB_t  *irsp;
 	LPFC_MBOXQ_t *mbox = NULL;
-	struct lpfc_dmabuf *mp = NULL;
 	u32 ulp_status, ulp_word4, tmo, did, iotag;
 
 	if (!vport) {
@@ -5332,14 +5303,8 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* Check to see if link went down during discovery */
 	if (!ndlp || lpfc_els_chk_latt(vport)) {
-		if (mbox) {
-			mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
-			if (mp) {
-				lpfc_mbuf_free(phba, mp->virt, mp->phys);
-				kfree(mp);
-			}
-			mempool_free(mbox, phba->mbox_mem_pool);
-		}
+		if (mbox)
+			lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
 		goto out;
 	}
 
@@ -5370,14 +5335,7 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 							 ndlp->nlp_state,
 							 ndlp->nlp_rpi,
 							 ndlp->nlp_flag);
-					mp = mbox->ctx_buf;
-					if (mp) {
-						lpfc_mbuf_free(phba, mp->virt,
-							       mp->phys);
-						kfree(mp);
-					}
-					mempool_free(mbox, phba->mbox_mem_pool);
-					goto out;
+					goto out_free_mbox;
 				}
 			}
 
@@ -5386,7 +5344,7 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 */
 			mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
 			if (!mbox->ctx_ndlp)
-				goto out;
+				goto out_free_mbox;
 
 			mbox->vport = vport;
 			if (ndlp->nlp_flag & NLP_RM_DFLT_RPI) {
@@ -5418,12 +5376,8 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_state,
 				ndlp->nlp_rpi);
 		}
-		mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
-		if (mp) {
-			lpfc_mbuf_free(phba, mp->virt, mp->phys);
-			kfree(mp);
-		}
-		mempool_free(mbox, phba->mbox_mem_pool);
+out_free_mbox:
+		lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
 	}
 out:
 	if (ndlp && shost) {
@@ -7188,7 +7142,6 @@ static int
 lpfc_get_rdp_info(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context)
 {
 	LPFC_MBOXQ_t *mbox = NULL;
-	struct lpfc_dmabuf *mp;
 	int rc;
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -7199,21 +7152,19 @@ lpfc_get_rdp_info(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context)
 	}
 
 	if (lpfc_sli4_dump_page_a0(phba, mbox))
-		goto prep_mbox_fail;
+		goto rdp_fail;
 	mbox->vport = rdp_context->ndlp->vport;
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_rdp_page_a0;
 	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
-		mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		goto issue_mbox_fail;
+		lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
+		return 1;
 	}
 
 	return 0;
 
-prep_mbox_fail:
-issue_mbox_fail:
+rdp_fail:
 	mempool_free(mbox, phba->mbox_mem_pool);
 	return 1;
 }

@@ -2848,18 +2848,10 @@ void
 lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport  *vport = pmb->vport;
-	struct lpfc_dmabuf *mp;
 	struct lpfc_nodelist *ndlp;
 	struct Scsi_Host *shost;
 	uint16_t rpi, vpi;
 	int rc;
-
-	mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
-
-	if (mp) {
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
-	}
 
 	/*
 	 * If a REG_LOGIN succeeded  after node is destroyed or node
@@ -2893,8 +2885,6 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (pmb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
 		ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
 		lpfc_nlp_put(ndlp);
-		pmb->ctx_buf = NULL;
-		pmb->ctx_ndlp = NULL;
 	}
 
 	if (pmb->u.mb.mbxCommand == MBX_UNREG_LOGIN) {
@@ -2945,7 +2935,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (bf_get(lpfc_mqe_command, &pmb->u.mqe) == MBX_SLI4_CONFIG)
 		lpfc_sli4_mbox_cmd_free(phba, pmb);
 	else
-		mempool_free(pmb, phba->mbox_mem_pool);
+		lpfc_mbox_rsrc_cleanup(phba, pmb, MBOX_THD_UNLOCKED);
 }
  /**
  * lpfc_sli4_unreg_rpi_cmpl_clr - mailbox completion handler
@@ -5851,26 +5841,20 @@ lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba)
 			mboxq->mcqe.trailer);
 
 	if (rc) {
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
 		rc = -EIO;
 		goto out_free_mboxq;
 	}
 	data_length = mqe->un.mb_words[5];
 	if (data_length > DMP_RGN23_SIZE) {
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
 		rc = -EIO;
 		goto out_free_mboxq;
 	}
 
 	lpfc_parse_fcoe_conf(phba, mp->virt, data_length);
-	lpfc_mbuf_free(phba, mp->virt, mp->phys);
-	kfree(mp);
 	rc = 0;
 
 out_free_mboxq:
-	mempool_free(mboxq, phba->mbox_mem_pool);
+	lpfc_mbox_rsrc_cleanup(phba, mboxq, MBOX_THD_UNLOCKED);
 	return rc;
 }
 
@@ -8539,8 +8523,9 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	}
 
 	/*
-	 * This memory was allocated by the lpfc_read_sparam routine. Release
-	 * it to the mbuf pool.
+	 * This memory was allocated by the lpfc_read_sparam routine but is
+	 * no longer needed.  It is released and ctx_buf NULLed to prevent
+	 * unintended pointer access as the mbox is reused.
 	 */
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
@@ -12065,7 +12050,6 @@ lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_nodelist *ndlp = cmdiocb->ndlp;
 	IOCB_t *irsp;
 	LPFC_MBOXQ_t *mbox;
-	struct lpfc_dmabuf *mp;
 	u32 ulp_command, ulp_status, ulp_word4, iotag;
 
 	ulp_command = get_job_cmnd(phba, cmdiocb);
@@ -12084,12 +12068,7 @@ lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		if (cmdiocb->context_un.mbox) {
 			mbox = cmdiocb->context_un.mbox;
-			mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
-			if (mp) {
-				lpfc_mbuf_free(phba, mp->virt, mp->phys);
-				kfree(mp);
-			}
-			mempool_free(mbox, phba->mbox_mem_pool);
+			lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
 			cmdiocb->context_un.mbox = NULL;
 		}
 	}
@@ -15744,7 +15723,6 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 
 	mbox->vport = phba->pport;
 	mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-	mbox->ctx_buf = NULL;
 	mbox->ctx_ndlp = NULL;
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
 	shdr = (union lpfc_sli4_cfg_shdr *) &eq_delay->header.cfg_shdr;
@@ -20341,11 +20319,7 @@ lpfc_sli4_get_config_region23(struct lpfc_hba *phba, char *rgn23_data)
 	}
 	lpfc_sli_pcimem_bcopy((char *)mp->virt, rgn23_data, data_length);
 out:
-	mempool_free(mboxq, phba->mbox_mem_pool);
-	if (mp) {
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
-	}
+	lpfc_mbox_rsrc_cleanup(phba, mboxq, MBOX_THD_UNLOCKED);
 	return data_length;
 }
 
@@ -20660,7 +20634,6 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 {
 	struct lpfc_hba *phba = vport->phba;
 	LPFC_MBOXQ_t *mb, *nextmb;
-	struct lpfc_dmabuf *mp;
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_nodelist *act_mbx_ndlp = NULL;
 	LIST_HEAD(mbox_cmd_list);
@@ -20730,12 +20703,6 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 	while (!list_empty(&mbox_cmd_list)) {
 		list_remove_head(&mbox_cmd_list, mb, LPFC_MBOXQ_t, list);
 		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
-			mp = (struct lpfc_dmabuf *)(mb->ctx_buf);
-			if (mp) {
-				__lpfc_mbuf_free(phba, mp->virt, mp->phys);
-				kfree(mp);
-			}
-			mb->ctx_buf = NULL;
 			ndlp = (struct lpfc_nodelist *)mb->ctx_ndlp;
 			mb->ctx_ndlp = NULL;
 			if (ndlp) {
@@ -20745,7 +20712,7 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 				lpfc_nlp_put(ndlp);
 			}
 		}
-		mempool_free(mb, phba->mbox_mem_pool);
+		lpfc_mbox_rsrc_cleanup(phba, mb, MBOX_THD_UNLOCKED);
 	}
 
 	/* Release the ndlp with the cleaned-up active mailbox command */
@@ -21892,7 +21859,6 @@ lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,
 
 	mbox->vport = phba->pport;
 	mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-	mbox->ctx_buf = NULL;
 	mbox->ctx_ndlp = NULL;
 
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
@@ -21929,9 +21895,12 @@ lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,
 	}
 
  exit:
+	/* This is an embedded SLI4 mailbox with an external buffer allocated.
+	 * Free the pcmd and then cleanup with the correct routine.
+	 */
 	lpfc_mbuf_free(phba, pcmd->virt, pcmd->phys);
 	kfree(pcmd);
-	mempool_free(mbox, phba->mbox_mem_pool);
+	lpfc_sli4_mbox_cmd_free(phba, mbox);
 	return byte_cnt;
 }
 

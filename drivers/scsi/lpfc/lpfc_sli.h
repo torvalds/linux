@@ -35,6 +35,12 @@ typedef enum _lpfc_ctx_cmd {
 	LPFC_CTX_HOST
 } lpfc_ctx_cmd;
 
+/* Enumeration to describe the thread lock context. */
+enum lpfc_mbox_ctx {
+	MBOX_THD_UNLOCKED,
+	MBOX_THD_LOCKED
+};
+
 union lpfc_vmid_tag {
 	uint32_t app_id;
 	uint8_t cs_ctl_vmid;

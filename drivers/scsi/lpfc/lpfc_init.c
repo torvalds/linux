@@ -443,15 +443,16 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 				"READ_SPARM mbxStatus x%x\n",
 				mb->mbxCommand, mb->mbxStatus);
 		phba->link_state = LPFC_HBA_ERROR;
-		mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
-		mempool_free(pmb, phba->mbox_mem_pool);
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
+		lpfc_mbox_rsrc_cleanup(phba, pmb, MBOX_THD_UNLOCKED);
 		return -EIO;
 	}
 
 	mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 
+	/* This dmabuf was allocated by lpfc_read_sparam. The dmabuf is no
+	 * longer needed.  Prevent unintended ctx_buf access as the mbox is
+	 * reused.
+	 */
 	memcpy(&vport->fc_sparam, mp->virt, sizeof (struct serv_parm));
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
@@ -2182,7 +2183,6 @@ lpfc_handle_latt(struct lpfc_hba *phba)
 	struct lpfc_sli   *psli = &phba->sli;
 	LPFC_MBOXQ_t *pmb;
 	volatile uint32_t control;
-	struct lpfc_dmabuf *mp;
 	int rc = 0;
 
 	pmb = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -2191,23 +2191,17 @@ lpfc_handle_latt(struct lpfc_hba *phba)
 		goto lpfc_handle_latt_err_exit;
 	}
 
-	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
-	if (!mp) {
+	rc = lpfc_mbox_rsrc_prep(phba, pmb);
+	if (rc) {
 		rc = 2;
-		goto lpfc_handle_latt_free_pmb;
-	}
-
-	mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
-	if (!mp->virt) {
-		rc = 3;
-		goto lpfc_handle_latt_free_mp;
+		mempool_free(pmb, phba->mbox_mem_pool);
+		goto lpfc_handle_latt_err_exit;
 	}
 
 	/* Cleanup any outstanding ELS commands */
 	lpfc_els_flush_all_cmd(phba);
-
 	psli->slistat.link_event++;
-	lpfc_read_topology(phba, pmb, mp);
+	lpfc_read_topology(phba, pmb, (struct lpfc_dmabuf *)pmb->ctx_buf);
 	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_topology;
 	pmb->vport = vport;
 	/* Block ELS IOCBs until we have processed this mbox command */
@@ -2228,11 +2222,7 @@ lpfc_handle_latt(struct lpfc_hba *phba)
 
 lpfc_handle_latt_free_mbuf:
 	phba->sli.sli3_ring[LPFC_ELS_RING].flag &= ~LPFC_STOP_IOCB_EVENT;
-	lpfc_mbuf_free(phba, mp->virt, mp->phys);
-lpfc_handle_latt_free_mp:
-	kfree(mp);
-lpfc_handle_latt_free_pmb:
-	mempool_free(pmb, phba->mbox_mem_pool);
+	lpfc_mbox_rsrc_cleanup(phba, pmb, MBOX_THD_UNLOCKED);
 lpfc_handle_latt_err_exit:
 	/* Enable Link attention interrupts */
 	spin_lock_irq(&phba->hbalock);
@@ -5315,7 +5305,6 @@ static void
 lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 			 struct lpfc_acqe_link *acqe_link)
 {
-	struct lpfc_dmabuf *mp;
 	LPFC_MBOXQ_t *pmb;
 	MAILBOX_t *mb;
 	struct lpfc_mbx_read_top *la;
@@ -5332,17 +5321,12 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 				"0395 The mboxq allocation failed\n");
 		return;
 	}
-	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
-	if (!mp) {
+
+	rc = lpfc_mbox_rsrc_prep(phba, pmb);
+	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"0396 The lpfc_dmabuf allocation failed\n");
+				"0396 mailbox allocation failed\n");
 		goto out_free_pmb;
-	}
-	mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
-	if (!mp->virt) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"0397 The mbuf allocation failed\n");
-		goto out_free_dmabuf;
 	}
 
 	/* Cleanup any outstanding ELS commands */
@@ -5355,7 +5339,7 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	phba->sli.slistat.link_event++;
 
 	/* Create lpfc_handle_latt mailbox command from link ACQE */
-	lpfc_read_topology(phba, pmb, mp);
+	lpfc_read_topology(phba, pmb, (struct lpfc_dmabuf *)pmb->ctx_buf);
 	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_topology;
 	pmb->vport = phba->pport;
 
@@ -5393,10 +5377,8 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	 */
 	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
-		if (rc == MBX_NOT_FINISHED) {
-			lpfc_mbuf_free(phba, mp->virt, mp->phys);
-			goto out_free_dmabuf;
-		}
+		if (rc == MBX_NOT_FINISHED)
+			goto out_free_pmb;
 		return;
 	}
 	/*
@@ -5431,10 +5413,8 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 
 	return;
 
-out_free_dmabuf:
-	kfree(mp);
 out_free_pmb:
-	mempool_free(pmb, phba->mbox_mem_pool);
+	lpfc_mbox_rsrc_cleanup(phba, pmb, MBOX_THD_UNLOCKED);
 }
 
 /**
@@ -6245,7 +6225,6 @@ lpfc_update_trunk_link_status(struct lpfc_hba *phba,
 static void
 lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 {
-	struct lpfc_dmabuf *mp;
 	LPFC_MBOXQ_t *pmb;
 	MAILBOX_t *mb;
 	struct lpfc_mbx_read_top *la;
@@ -6305,17 +6284,11 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 				"2897 The mboxq allocation failed\n");
 		return;
 	}
-	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
-	if (!mp) {
+	rc = lpfc_mbox_rsrc_prep(phba, pmb);
+	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"2898 The lpfc_dmabuf allocation failed\n");
+				"2898 The mboxq prep failed\n");
 		goto out_free_pmb;
-	}
-	mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
-	if (!mp->virt) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"2899 The mbuf allocation failed\n");
-		goto out_free_dmabuf;
 	}
 
 	/* Cleanup any outstanding ELS commands */
@@ -6328,7 +6301,7 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 	phba->sli.slistat.link_event++;
 
 	/* Create lpfc_handle_latt mailbox command from link ACQE */
-	lpfc_read_topology(phba, pmb, mp);
+	lpfc_read_topology(phba, pmb, (struct lpfc_dmabuf *)pmb->ctx_buf);
 	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_topology;
 	pmb->vport = phba->pport;
 
@@ -6372,16 +6345,12 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 	}
 
 	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED) {
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		goto out_free_dmabuf;
-	}
+	if (rc == MBX_NOT_FINISHED)
+		goto out_free_pmb;
 	return;
 
-out_free_dmabuf:
-	kfree(mp);
 out_free_pmb:
-	mempool_free(pmb, phba->mbox_mem_pool);
+	lpfc_mbox_rsrc_cleanup(phba, pmb, MBOX_THD_UNLOCKED);
 }
 
 /**

@@ -327,7 +327,6 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 {
 	struct lpfc_hba    *phba = vport->phba;
 	struct lpfc_dmabuf *pcmd;
-	struct lpfc_dmabuf *mp;
 	uint64_t nlp_portwwn = 0;
 	uint32_t *lp;
 	union lpfc_wqe128 *wqe;
@@ -592,12 +591,8 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		 * a default RPI.
 		 */
 		if (phba->sli_rev == LPFC_SLI_REV4) {
-			mp = (struct lpfc_dmabuf *)login_mbox->ctx_buf;
-			if (mp) {
-				lpfc_mbuf_free(phba, mp->virt, mp->phys);
-				kfree(mp);
-			}
-			mempool_free(login_mbox, phba->mbox_mem_pool);
+			lpfc_mbox_rsrc_cleanup(phba, login_mbox,
+					       MBOX_THD_UNLOCKED);
 			login_mbox = NULL;
 		} else {
 			/* In order to preserve RPIs, we want to cleanup
@@ -615,14 +610,9 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_NOTHING_MORE;
 		rc = lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb,
 					 ndlp, login_mbox);
-		if (rc) {
-			mp = (struct lpfc_dmabuf *)login_mbox->ctx_buf;
-			if (mp) {
-				lpfc_mbuf_free(phba, mp->virt, mp->phys);
-				kfree(mp);
-			}
-			mempool_free(login_mbox, phba->mbox_mem_pool);
-		}
+		if (rc && login_mbox)
+			lpfc_mbox_rsrc_cleanup(phba, login_mbox,
+					       MBOX_THD_UNLOCKED);
 		return 1;
 	}
 
@@ -1334,7 +1324,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 {
 	struct lpfc_hba    *phba = vport->phba;
 	struct lpfc_iocbq  *cmdiocb, *rspiocb;
-	struct lpfc_dmabuf *pcmd, *prsp, *mp;
+	struct lpfc_dmabuf *pcmd, *prsp;
 	uint32_t *lp;
 	uint32_t vid, flag;
 	struct serv_parm *sp;
@@ -1501,11 +1491,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 		 * command
 		 */
 		lpfc_nlp_put(ndlp);
-		mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
-		mempool_free(mbox, phba->mbox_mem_pool);
-
+		lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0134 PLOGI: cannot issue reg_login "
 				 "Data: x%x x%x x%x x%x\n",
@@ -1856,7 +1842,6 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *) arg;
 	LPFC_MBOXQ_t	  *mb;
 	LPFC_MBOXQ_t	  *nextmb;
-	struct lpfc_dmabuf *mp;
 	struct lpfc_nodelist *ns_ndlp;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
@@ -1876,16 +1861,11 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   (ndlp == (struct lpfc_nodelist *)mb->ctx_ndlp)) {
-			mp = (struct lpfc_dmabuf *)(mb->ctx_buf);
-			if (mp) {
-				__lpfc_mbuf_free(phba, mp->virt, mp->phys);
-				kfree(mp);
-			}
 			ndlp->nlp_flag &= ~NLP_REG_LOGIN_SEND;
 			lpfc_nlp_put(ndlp);
 			list_del(&mb->list);
 			phba->sli.mboxq_cnt--;
-			mempool_free(mb, phba->mbox_mem_pool);
+			lpfc_mbox_rsrc_cleanup(phba, mb, MBOX_THD_LOCKED);
 		}
 	}
 	spin_unlock_irq(&phba->hbalock);
