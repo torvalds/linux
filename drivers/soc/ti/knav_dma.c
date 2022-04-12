@@ -745,9 +745,8 @@ static int knav_dma_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&kdev->list);
 
 	pm_runtime_enable(kdev->dev);
-	ret = pm_runtime_get_sync(kdev->dev);
+	ret = pm_runtime_resume_and_get(kdev->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(kdev->dev);
 		dev_err(kdev->dev, "unable to enable pktdma, err %d\n", ret);
 		goto err_pm_disable;
 	}
