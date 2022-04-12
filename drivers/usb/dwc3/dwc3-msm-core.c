@@ -607,6 +607,7 @@ struct dwc3_msm {
 	bool			has_orientation_gpio;
 
 	bool			wcd_usbss;
+	bool			dynamic_disable;
 };
 
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
@@ -3518,6 +3519,9 @@ static int dwc3_msm_power_collapse_por(struct dwc3_msm *mdwc)
 
 	dwc = platform_get_drvdata(mdwc->dwc3);
 
+	if (mdwc->dynamic_disable)
+		return -EINVAL;
+
 	/*
 	 * Reading a value on the TCSR_USB_INT_DYN_EN_DIS register deviating
 	 * from 0xF means that TZ caused TCSR to disable USB Interface
@@ -4319,6 +4323,12 @@ static void dwc3_ext_event_notify(struct dwc3_msm *mdwc)
 {
 	/* Flush processing any pending events before handling new ones */
 	flush_work(&mdwc->sm_work);
+
+	if (mdwc->dynamic_disable && (mdwc->vbus_active ||
+			(mdwc->id_state == DWC3_ID_GROUND))) {
+		dev_err(mdwc->dev, "%s: Event not allowed\n", __func__);
+		return;
+	}
 
 	dbg_log_string("enter: mdwc->inputs:%lx hs_phy_flags:%x\n",
 				mdwc->inputs, mdwc->hs_phy->flags);
@@ -5203,12 +5213,60 @@ static ssize_t xhci_test_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(xhci_test);
 
+static ssize_t dynamic_disable_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct dwc3_msm *mdwc = dev_get_drvdata(dev);
+	bool disable;
+
+	strtobool(buf, &disable);
+	if (disable) {
+		if (mdwc->dynamic_disable) {
+			dbg_log_string("USB already disabled\n");
+			return count;
+		}
+
+		flush_work(&mdwc->sm_work);
+		set_bit(ID, &mdwc->inputs);
+		clear_bit(B_SESS_VLD, &mdwc->inputs);
+		queue_work(mdwc->sm_usb_wq, &mdwc->sm_work);
+		flush_work(&mdwc->sm_work);
+		while (test_bit(WAIT_FOR_LPM, &mdwc->inputs))
+			msleep(20);
+		mdwc->dynamic_disable = true;
+		dbg_log_string("Dynamic USB disable\n");
+	} else {
+		if (!mdwc->dynamic_disable) {
+			dbg_log_string("USB already enabled\n");
+			return count;
+		}
+		if (mdwc->tcsr_dyn_en_dis) {
+			if (dwc3_msm_read_reg(mdwc->tcsr_dyn_en_dis, 0) != 0xF) {
+				dbg_log_string("Unable to enable USB\n");
+				return count;
+			}
+		}
+
+		mdwc->dynamic_disable = false;
+		pm_runtime_disable(mdwc->dev);
+		pm_runtime_set_suspended(mdwc->dev);
+		pm_runtime_enable(mdwc->dev);
+		dwc3_ext_event_notify(mdwc);
+		flush_work(&mdwc->sm_work);
+		dbg_log_string("Dynamic USB enable\n");
+	}
+
+	return count;
+}
+static DEVICE_ATTR_WO(dynamic_disable);
+
 static struct attribute *dwc3_msm_attrs[] = {
 	&dev_attr_orientation.attr,
 	&dev_attr_mode.attr,
 	&dev_attr_speed.attr,
 	&dev_attr_bus_vote.attr,
 	&dev_attr_xhci_test.attr,
+	&dev_attr_dynamic_disable.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(dwc3_msm);
