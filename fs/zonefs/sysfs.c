@@ -51,9 +51,23 @@ static ssize_t nr_wro_seq_files_show(struct zonefs_sb_info *sbi, char *buf)
 }
 ZONEFS_SYSFS_ATTR_RO(nr_wro_seq_files);
 
+static ssize_t max_active_seq_files_show(struct zonefs_sb_info *sbi, char *buf)
+{
+	return sysfs_emit(buf, "%u\n", sbi->s_max_active_seq_files);
+}
+ZONEFS_SYSFS_ATTR_RO(max_active_seq_files);
+
+static ssize_t nr_active_seq_files_show(struct zonefs_sb_info *sbi, char *buf)
+{
+	return sysfs_emit(buf, "%d\n", atomic_read(&sbi->s_active_seq_files));
+}
+ZONEFS_SYSFS_ATTR_RO(nr_active_seq_files);
+
 static struct attribute *zonefs_sysfs_attrs[] = {
 	ATTR_LIST(max_wro_seq_files),
 	ATTR_LIST(nr_wro_seq_files),
+	ATTR_LIST(max_active_seq_files),
+	ATTR_LIST(nr_active_seq_files),
 	NULL,
 };
 ATTRIBUTE_GROUPS(zonefs_sysfs);

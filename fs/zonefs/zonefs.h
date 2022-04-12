@@ -40,6 +40,7 @@ static inline enum zonefs_ztype zonefs_zone_type(struct blk_zone *zone)
 }
 
 #define ZONEFS_ZONE_OPEN	(1 << 0)
+#define ZONEFS_ZONE_ACTIVE	(1 << 1)
 
 /*
  * In-memory inode data.
@@ -185,6 +186,9 @@ struct zonefs_sb_info {
 
 	unsigned int		s_max_wro_seq_files;
 	atomic_t		s_wro_seq_files;
+
+	unsigned int		s_max_active_seq_files;
+	atomic_t		s_active_seq_files;
 
 	bool			s_sysfs_registered;
 	struct kobject		s_kobj;
