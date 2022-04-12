@@ -1370,7 +1370,7 @@ struct svm_validate_context {
 	struct kfd_process *process;
 	struct svm_range *prange;
 	bool intr;
-	unsigned long bitmap[MAX_GPU_INSTANCE];
+	DECLARE_BITMAP(bitmap, MAX_GPU_INSTANCE);
 	struct ttm_validate_buffer tv[MAX_GPU_INSTANCE];
 	struct list_head validate_list;
 	struct ww_acquire_ctx ticket;
