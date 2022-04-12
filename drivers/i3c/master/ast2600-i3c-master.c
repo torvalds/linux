@@ -243,6 +243,10 @@
 #define SCL_EXT_LCNT_1(x)		((x) & GENMASK(7, 0))
 
 #define SCL_EXT_TERMN_LCNT_TIMING	0xcc
+#define SDA_HOLD_SWITCH_DLY_TIMING	0xd0
+#define SDA_TX_HOLD			GENMASK(18, 16)
+#define SDA_PP_OD_SWITCH_DLY		GENMASK(10, 8)
+#define SDA_OD_PP_SWITCH_DLY		GENMASK(2, 0)
 #define BUS_FREE_TIMING			0xd4
 #define BUS_I3C_AVAILABLE_TIME(x)	(((x) << 16) & GENMASK(31, 16))
 #define BUS_I3C_MST_FREE(x)		((x) & GENMASK(15, 0))
@@ -2077,6 +2081,7 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 	struct aspeed_i3c_master *master;
 	struct device_node *np;
 	int ret, irq;
+	u32 val;
 
 	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
 	if (!master)
@@ -2124,6 +2129,13 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 		master->secondary = true;
 	else
 		master->secondary = false;
+
+	if (!of_property_read_u32(np, "sda-tx-hold", &val)) {
+		ret = readl(master->regs + SDA_HOLD_SWITCH_DLY_TIMING);
+		ret &= ~SDA_TX_HOLD;
+		ret |= FIELD_PREP(SDA_TX_HOLD, val);
+		writel(ret, master->regs + SDA_HOLD_SWITCH_DLY_TIMING);
+	}
 
 	/* Information regarding the FIFOs/QUEUEs depth */
 	ret = readl(master->regs + QUEUE_STATUS_LEVEL);
