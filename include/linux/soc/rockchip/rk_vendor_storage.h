@@ -29,7 +29,7 @@
 #define LAN_RGMII_DL_ID			16
 #define EINK_VCOM_ID			17
 
-#if IS_ENABLED(CONFIG_ROCKCHIP_VENDOR_STORAGE)
+#if IS_REACHABLE(CONFIG_ROCKCHIP_VENDOR_STORAGE)
 int rk_vendor_read(u32 id, void *pbuf, u32 size);
 int rk_vendor_write(u32 id, void *pbuf, u32 size);
 int rk_vendor_register(void *read, void *write);
