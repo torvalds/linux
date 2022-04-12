@@ -686,8 +686,14 @@ lpfc_sli4_refresh_params(struct lpfc_hba *phba)
 		return rc;
 	}
 	mbx_sli4_parameters = &mqe->un.get_sli4_parameters.sli4_parameters;
-	phba->sli4_hba.pc_sli4_params.mi_ver =
+
+	/* Are we forcing MI off via module parameter? */
+	if (phba->cfg_enable_mi)
+		phba->sli4_hba.pc_sli4_params.mi_ver =
 			bf_get(cfg_mi_ver, mbx_sli4_parameters);
+	else
+		phba->sli4_hba.pc_sli4_params.mi_ver = 0;
+
 	phba->sli4_hba.pc_sli4_params.cmf =
 			bf_get(cfg_cmf, mbx_sli4_parameters);
 	phba->sli4_hba.pc_sli4_params.pls =

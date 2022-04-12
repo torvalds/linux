@@ -7994,10 +7994,6 @@ lpfc_cmf_setup(struct lpfc_hba *phba)
 
 	sli4_params = &phba->sli4_hba.pc_sli4_params;
 
-	/* Are we forcing MI off via module parameter? */
-	if (!phba->cfg_enable_mi)
-		sli4_params->mi_ver = 0;
-
 	/* Always try to enable MI feature if we can */
 	if (sli4_params->mi_ver) {
 		lpfc_set_features(phba, mboxq, LPFC_SET_ENABLE_MI);
