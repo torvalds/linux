@@ -17,11 +17,16 @@ struct rk_crypto_algt *rk_cipher_get_algt(struct crypto_skcipher *tfm)
 	return container_of(alg, struct rk_crypto_algt, alg.crypto);
 }
 
-static struct rk_cipher_ctx *rk_cipher_ctx_cast(struct rk_crypto_dev *rk_dev)
+struct rk_crypto_algt *rk_aead_get_algt(struct crypto_aead *tfm)
 {
-	struct skcipher_request *req = skcipher_request_cast(rk_dev->async_req);
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct rk_cipher_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct aead_alg *alg = crypto_aead_alg(tfm);
+
+	return container_of(alg, struct rk_crypto_algt, alg.aead);
+}
+
+struct rk_cipher_ctx *rk_cipher_ctx_cast(struct rk_crypto_dev *rk_dev)
+{
+	struct rk_cipher_ctx *ctx = crypto_tfm_ctx(rk_dev->async_req->tfm);
 
 	return ctx;
 }
@@ -31,15 +36,13 @@ struct rk_alg_ctx *rk_cipher_alg_ctx(struct rk_crypto_dev *rk_dev)
 	return &(rk_cipher_ctx_cast(rk_dev)->algs_ctx);
 }
 
-static bool is_no_multi_blocksize(struct skcipher_request *req)
+static bool is_no_multi_blocksize(uint32_t mode)
 {
-	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
-	struct rk_crypto_algt *algt = rk_cipher_get_algt(cipher);
-
-	return (algt->mode == CIPHER_MODE_CFB ||
-		algt->mode == CIPHER_MODE_OFB ||
-		algt->mode == CIPHER_MODE_CTR ||
-		algt->mode == CIPHER_MODE_XTS) ? true : false;
+	return (mode == CIPHER_MODE_CFB ||
+		mode == CIPHER_MODE_OFB ||
+		mode == CIPHER_MODE_CTR ||
+		mode == CIPHER_MODE_XTS ||
+		mode == CIPHER_MODE_GCM) ? true : false;
 }
 
 int rk_cipher_fallback(struct skcipher_request *req, struct rk_cipher_ctx *ctx, bool encrypt)
@@ -251,6 +254,7 @@ exit:
 int rk_ablk_rx(struct rk_crypto_dev *rk_dev)
 {
 	int err = 0;
+	struct rk_cipher_ctx *ctx = rk_cipher_ctx_cast(rk_dev);
 	struct rk_alg_ctx *alg_ctx = rk_cipher_alg_ctx(rk_dev);
 
 	CRYPTO_TRACE("left_bytes = %u\n", alg_ctx->left_bytes);
@@ -273,7 +277,48 @@ int rk_ablk_rx(struct rk_crypto_dev *rk_dev)
 		}
 		err = rk_set_data_start(rk_dev);
 	} else {
-		rk_iv_copyback(rk_dev);
+		if (alg_ctx->is_aead) {
+			u8 hard_tag[RK_MAX_TAG_SIZE];
+			u8 user_tag[RK_MAX_TAG_SIZE];
+			struct aead_request *req =
+				aead_request_cast(rk_dev->async_req);
+			struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+
+			unsigned int authsize = crypto_aead_authsize(tfm);
+
+			CRYPTO_TRACE("cryptlen = %u, assoclen = %u, aead authsize = %u",
+				     alg_ctx->total, alg_ctx->assoclen, authsize);
+
+			err = alg_ctx->ops.hw_get_result(rk_dev, hard_tag, authsize);
+			if (err)
+				goto out_rx;
+
+			CRYPTO_DUMPHEX("hard_tag", hard_tag, authsize);
+			if (!ctx->is_enc) {
+				if (!sg_pcopy_to_buffer(alg_ctx->req_src,
+							sg_nents(alg_ctx->req_src),
+							user_tag, authsize,
+							alg_ctx->total +
+							alg_ctx->assoclen)) {
+					err = -EINVAL;
+					goto out_rx;
+				}
+
+				CRYPTO_DUMPHEX("user_tag", user_tag, authsize);
+				err = crypto_memneq(user_tag, hard_tag, authsize) ? -EBADMSG : 0;
+			} else {
+				if (!sg_pcopy_from_buffer(alg_ctx->req_dst,
+							  sg_nents(alg_ctx->req_dst),
+							  hard_tag, authsize,
+							  alg_ctx->total +
+							  alg_ctx->assoclen)) {
+					err = -EINVAL;
+					goto out_rx;
+				}
+			}
+		} else {
+			rk_iv_copyback(rk_dev);
+		}
 	}
 out_rx:
 	return err;
@@ -310,10 +355,128 @@ int rk_ablk_start(struct rk_crypto_dev *rk_dev)
 int rk_skcipher_handle_req(struct rk_crypto_dev *rk_dev, struct skcipher_request *req)
 {
 	struct rk_cipher_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
+	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
+	struct rk_crypto_algt *algt = rk_cipher_get_algt(cipher);
 
 	if (!IS_ALIGNED(req->cryptlen, ctx->algs_ctx.chunk_size) &&
-	    !is_no_multi_blocksize(req))
+	    !is_no_multi_blocksize(algt->mode))
 		return -EINVAL;
 	else
 		return rk_dev->enqueue(rk_dev, &req->base);
+}
+
+int rk_aead_fallback(struct aead_request *req, struct rk_cipher_ctx *ctx, bool encrypt)
+{
+	int ret;
+	struct aead_request *subreq = aead_request_ctx(req);
+
+	if (!ctx->fallback_aead) {
+		CRYPTO_TRACE("fallback_tfm is empty");
+		return -EINVAL;
+	}
+
+	CRYPTO_MSG("use fallback tfm");
+
+	if (!ctx->fallback_key_inited) {
+		ret = crypto_aead_setkey(ctx->fallback_aead, ctx->key, ctx->keylen);
+		if (ret) {
+			CRYPTO_MSG("fallback crypto_skcipher_setkey err = %d\n", ret);
+			goto exit;
+		}
+
+		ctx->fallback_key_inited = true;
+	}
+
+	aead_request_set_tfm(subreq, ctx->fallback_aead);
+	aead_request_set_callback(subreq, req->base.flags, req->base.complete, req->base.data);
+	aead_request_set_crypt(subreq, req->src, req->dst, req->cryptlen, req->iv);
+	aead_request_set_ad(subreq, req->assoclen);
+
+	ret = encrypt ? crypto_aead_encrypt(subreq) : crypto_aead_decrypt(subreq);
+
+exit:
+	return ret;
+}
+
+int rk_aead_setkey(struct crypto_aead *cipher, const u8 *key, unsigned int keylen)
+{
+	struct crypto_tfm *tfm = crypto_aead_tfm(cipher);
+	struct rk_crypto_algt *algt = rk_aead_get_algt(cipher);
+	struct rk_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	int ret = -EINVAL;
+
+	CRYPTO_MSG("algo = %x, mode = %x, key_len = %d\n", algt->algo, algt->mode, keylen);
+
+	switch (algt->algo) {
+	case CIPHER_ALGO_AES:
+		if (keylen != AES_KEYSIZE_128 &&
+		    keylen != AES_KEYSIZE_192 &&
+		    keylen != AES_KEYSIZE_256)
+			goto error;
+
+		break;
+	case CIPHER_ALGO_SM4:
+		if (keylen != SM4_KEY_SIZE)
+			goto error;
+
+		break;
+	default:
+		CRYPTO_TRACE();
+		goto error;
+	}
+
+	memcpy(ctx->key, key, keylen);
+	ctx->keylen = keylen;
+	ctx->fallback_key_inited = false;
+
+	return 0;
+
+error:
+	return ret;
+}
+
+int rk_aead_start(struct rk_crypto_dev *rk_dev)
+{
+	struct aead_request *req = aead_request_cast(rk_dev->async_req);
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+	struct rk_cipher_ctx *ctx = crypto_aead_ctx(tfm);
+	struct rk_crypto_algt *algt = rk_aead_get_algt(tfm);
+	struct rk_alg_ctx *alg_ctx = rk_cipher_alg_ctx(rk_dev);
+	unsigned int total = 0, authsize;
+	unsigned long flags;
+	int err = 0;
+
+	total = req->cryptlen + req->assoclen;
+
+	authsize = ctx->is_enc ? 0 : crypto_aead_authsize(tfm);
+
+	alg_ctx->total      = req->cryptlen - authsize;
+	alg_ctx->assoclen   = req->assoclen;
+	alg_ctx->sg_src     = req->src;
+	alg_ctx->req_src    = req->src;
+	alg_ctx->src_nents  = sg_nents_for_len(req->src, total);
+	alg_ctx->sg_dst     = req->dst;
+	alg_ctx->req_dst    = req->dst;
+	alg_ctx->dst_nents  = sg_nents_for_len(req->dst, total - authsize);
+	alg_ctx->left_bytes = alg_ctx->total;
+
+	CRYPTO_TRACE("src_nents = %zu, dst_nents = %zu", alg_ctx->src_nents, alg_ctx->dst_nents);
+	CRYPTO_TRACE("is_enc = %d, authsize = %u, cryptlen = %u, total = %u, assoclen = %u",
+		     ctx->is_enc, authsize, req->cryptlen, alg_ctx->total, alg_ctx->assoclen);
+
+	spin_lock_irqsave(&rk_dev->lock, flags);
+	alg_ctx->ops.hw_init(rk_dev, algt->algo, algt->mode);
+	err = rk_set_data_start(rk_dev);
+	spin_unlock_irqrestore(&rk_dev->lock, flags);
+	return err;
+}
+
+int rk_aead_gcm_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
+{
+	return crypto_gcm_check_authsize(authsize);
+}
+
+int rk_aead_handle_req(struct rk_crypto_dev *rk_dev, struct aead_request *req)
+{
+	return rk_dev->enqueue(rk_dev, &req->base);
 }

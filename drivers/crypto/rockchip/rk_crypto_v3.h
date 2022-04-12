@@ -36,6 +36,7 @@ extern struct rk_crypto_algt rk_v3_xts_sm4_alg;
 extern struct rk_crypto_algt rk_v3_cfb_sm4_alg;
 extern struct rk_crypto_algt rk_v3_ofb_sm4_alg;
 extern struct rk_crypto_algt rk_v3_ctr_sm4_alg;
+extern struct rk_crypto_algt rk_v3_gcm_sm4_alg;
 
 extern struct rk_crypto_algt rk_v3_ecb_aes_alg;
 extern struct rk_crypto_algt rk_v3_cbc_aes_alg;
@@ -43,6 +44,7 @@ extern struct rk_crypto_algt rk_v3_xts_aes_alg;
 extern struct rk_crypto_algt rk_v3_cfb_aes_alg;
 extern struct rk_crypto_algt rk_v3_ofb_aes_alg;
 extern struct rk_crypto_algt rk_v3_ctr_aes_alg;
+extern struct rk_crypto_algt rk_v3_gcm_aes_alg;
 
 extern struct rk_crypto_algt rk_v3_ecb_des_alg;
 extern struct rk_crypto_algt rk_v3_cbc_des_alg;

@@ -22,6 +22,7 @@ static struct rk_crypto_algt *crypto_v2_algs[] = {
 	&rk_v2_cfb_sm4_alg,		/* cfb(sm4) */
 	&rk_v2_ofb_sm4_alg,		/* ofb(sm4) */
 	&rk_v2_ctr_sm4_alg,		/* ctr(sm4) */
+	&rk_v2_gcm_sm4_alg,		/* gcm(sm4) */
 
 	&rk_v2_ecb_aes_alg,		/* ecb(aes) */
 	&rk_v2_cbc_aes_alg,		/* cbc(aes) */
@@ -29,6 +30,7 @@ static struct rk_crypto_algt *crypto_v2_algs[] = {
 	&rk_v2_cfb_aes_alg,		/* cfb(aes) */
 	&rk_v2_ofb_aes_alg,		/* ofb(aes) */
 	&rk_v2_ctr_aes_alg,		/* ctr(aes) */
+	&rk_v2_gcm_aes_alg,		/* gcm(aes) */
 
 	&rk_v2_ecb_des_alg,		/* ecb(des) */
 	&rk_v2_cbc_des_alg,		/* cbc(des) */

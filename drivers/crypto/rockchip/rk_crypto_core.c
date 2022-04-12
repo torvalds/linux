@@ -10,6 +10,7 @@
  * Some ideas are from marvell-cesa.c and s5p-sss.c driver.
  */
 
+#include <crypto/scatterwalk.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
@@ -60,6 +61,7 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 {
 	int ret = -EINVAL;
 	unsigned int count;
+	u32 src_nents, dst_nents;
 	struct device *dev = rk_dev->dev;
 	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
 
@@ -69,13 +71,58 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 	if (alg_ctx->total == 0)
 		return 0;
 
+	src_nents = alg_ctx->src_nents;
+	dst_nents = alg_ctx->dst_nents;
+
+	/* skip assoclen data */
+	if (alg_ctx->assoclen && alg_ctx->left_bytes == alg_ctx->total) {
+		CRYPTO_TRACE("have assoclen...");
+
+		if (alg_ctx->assoclen > rk_dev->aad_max) {
+			ret = -ENOMEM;
+			goto error;
+		}
+
+		if (!sg_pcopy_to_buffer(alg_ctx->req_src, alg_ctx->src_nents,
+					rk_dev->addr_aad, alg_ctx->assoclen, 0)) {
+			dev_err(dev, "[%s:%d] assoc pcopy err\n",
+				__func__, __LINE__);
+			ret = -EINVAL;
+			goto error;
+		}
+
+		sg_init_one(&alg_ctx->sg_aad, rk_dev->addr_aad, alg_ctx->assoclen);
+
+		if (!dma_map_sg(dev, &alg_ctx->sg_aad, 1, DMA_TO_DEVICE)) {
+			dev_err(dev, "[%s:%d] dma_map_sg(sg_aad)  error\n",
+				__func__, __LINE__);
+			ret = -ENOMEM;
+			goto error;
+		}
+
+		alg_ctx->addr_aad_in = sg_dma_address(&alg_ctx->sg_aad);
+
+		/* point sg_src and sg_dst skip assoc data */
+		sg_src = scatterwalk_ffwd(rk_dev->src, alg_ctx->req_src,
+					  alg_ctx->assoclen);
+		sg_dst = (alg_ctx->req_src == alg_ctx->req_dst) ? sg_src :
+			 scatterwalk_ffwd(rk_dev->dst, alg_ctx->req_dst,
+					  alg_ctx->assoclen);
+
+		alg_ctx->sg_src = sg_src;
+		alg_ctx->sg_dst = sg_dst;
+		src_nents = sg_nents_for_len(sg_src, alg_ctx->total);
+		dst_nents = sg_nents_for_len(sg_dst, alg_ctx->total);
+
+		CRYPTO_TRACE("src_nents = %u, dst_nents = %u", src_nents, dst_nents);
+	}
+
 	if (alg_ctx->left_bytes == alg_ctx->total)
-		alg_ctx->aligned = rk_crypto_check_align(alg_ctx->req_src, alg_ctx->src_nents,
-							 alg_ctx->req_dst, alg_ctx->dst_nents,
+		alg_ctx->aligned = rk_crypto_check_align(sg_src, src_nents, sg_dst, dst_nents,
 							 alg_ctx->align_size);
 
-	CRYPTO_TRACE("aligned = %d, total = %u, left_bytes = %u\n",
-		     alg_ctx->aligned, alg_ctx->total, alg_ctx->left_bytes);
+	CRYPTO_TRACE("aligned = %d, total = %u, left_bytes = %u, assoclen = %u\n",
+		     alg_ctx->aligned, alg_ctx->total, alg_ctx->left_bytes, alg_ctx->assoclen);
 
 	if (alg_ctx->aligned) {
 		u32 nents;
@@ -118,7 +165,7 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 
 		if (!sg_pcopy_to_buffer(alg_ctx->req_src, alg_ctx->src_nents,
 					rk_dev->addr_vir, count,
-					alg_ctx->total - alg_ctx->left_bytes)) {
+					alg_ctx->assoclen + alg_ctx->total - alg_ctx->left_bytes)) {
 			dev_err(dev, "[%s:%d] pcopy err\n",
 				__func__, __LINE__);
 			ret = -EINVAL;
@@ -183,12 +230,22 @@ static int rk_unload_data(struct rk_crypto_dev *rk_dev)
 		if (!sg_pcopy_from_buffer(alg_ctx->req_dst, alg_ctx->dst_nents,
 					  rk_dev->addr_vir, alg_ctx->count,
 					  alg_ctx->total - alg_ctx->left_bytes -
-					  alg_ctx->count)) {
+					  alg_ctx->count + alg_ctx->assoclen)) {
 			ret = -EINVAL;
 			goto exit;
 		}
 	}
 
+	if (alg_ctx->assoclen) {
+		dma_unmap_sg(rk_dev->dev, &alg_ctx->sg_aad, 1, DMA_TO_DEVICE);
+
+		/* copy assoc data to dst */
+		if (!sg_pcopy_from_buffer(alg_ctx->req_dst, sg_nents(alg_ctx->req_dst),
+					  rk_dev->addr_aad, alg_ctx->assoclen, 0)) {
+			ret = -EINVAL;
+			goto exit;
+		}
+	}
 exit:
 	return ret;
 }
@@ -421,6 +478,11 @@ static int rk_crypto_register(struct rk_crypto_dev *rk_dev)
 			err = crypto_register_ahash(&tmp_algs->alg.hash);
 		} else if (tmp_algs->type == ALG_TYPE_ASYM) {
 			err = crypto_register_akcipher(&tmp_algs->alg.asym);
+		} else if (tmp_algs->type == ALG_TYPE_AEAD) {
+			if (soc_data->use_soft_aes192 &&
+			    tmp_algs->algo == CIPHER_ALGO_AES)
+				tmp_algs->use_soft_aes192 = true;
+			err = crypto_register_aead(&tmp_algs->alg.aead);
 		} else {
 			continue;
 		}
@@ -449,6 +511,8 @@ err_cipher_algs:
 			crypto_unregister_ahash(&tmp_algs->alg.hash);
 		else if (tmp_algs->type == ALG_TYPE_ASYM)
 			crypto_unregister_akcipher(&tmp_algs->alg.asym);
+		else if (tmp_algs->type == ALG_TYPE_AEAD)
+			crypto_unregister_aead(&tmp_algs->alg.aead);
 	}
 
 	rk_dev->release_crypto(rk_dev, __func__);
@@ -524,8 +588,8 @@ static char *crypto_rv1126_algs_name[] = {
 };
 
 static char *crypto_full_algs_name[] = {
-	"ecb(sm4)", "cbc(sm4)", "cfb(sm4)", "ofb(sm4)", "ctr(sm4)",
-	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ofb(aes)", "ctr(aes)",
+	"ecb(sm4)", "cbc(sm4)", "cfb(sm4)", "ofb(sm4)", "ctr(sm4)", "gcm(sm4)",
+	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ofb(aes)", "ctr(aes)", "gcm(aes)",
 	"ecb(des)", "cbc(des)", "cfb(des)", "ofb(des)",
 	"ecb(des3_ede)", "cbc(des3_ede)", "cfb(des3_ede)", "ofb(des3_ede)",
 	"sha1", "sha224", "sha256", "sha384", "sha512", "md5", "sm3",
@@ -710,6 +774,15 @@ static int rk_crypto_probe(struct platform_device *pdev)
 
 	rk_dev->vir_max = RK_BUFFER_SIZE;
 
+	rk_dev->addr_aad = (void *)__get_free_page(GFP_KERNEL);
+	if (!rk_dev->addr_aad) {
+		err = -ENOMEM;
+		dev_err(dev, "__get_free_page failed.\n");
+		goto err_crypto;
+	}
+
+	rk_dev->aad_max = RK_BUFFER_SIZE;
+
 	platform_set_drvdata(pdev, rk_dev);
 
 	tasklet_init(&rk_dev->queue_task,
@@ -759,6 +832,9 @@ static int rk_crypto_remove(struct platform_device *pdev)
 
 	if (rk_dev->addr_vir)
 		free_pages((unsigned long)rk_dev->addr_vir, RK_BUFFER_ORDER);
+
+	if (rk_dev->addr_aad)
+		free_page((unsigned long)rk_dev->addr_aad);
 
 	rk_dev->soc_data->hw_deinit(&pdev->dev, rk_dev->hw_info);
 

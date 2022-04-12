@@ -8,14 +8,19 @@
  *
  */
 
+#include <crypto/scatterwalk.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
 #include "rk_crypto_core.h"
+#include "rk_crypto_utils.h"
 #include "rk_crypto_skcipher_utils.h"
 #include "rk_crypto_v3.h"
 #include "rk_crypto_v3_reg.h"
+
+#define RK_POLL_PERIOD_US	100
+#define RK_POLL_TIMEOUT_US	50000
 
 static const u32 cipher_algo2bc[] = {
 	[CIPHER_ALGO_DES]      = CRYPTO_BC_DES,
@@ -31,6 +36,7 @@ static const u32 cipher_mode2bc[] = {
 	[CIPHER_MODE_OFB] = CRYPTO_BC_OFB,
 	[CIPHER_MODE_CTR] = CRYPTO_BC_CTR,
 	[CIPHER_MODE_XTS] = CRYPTO_BC_XTS,
+	[CIPHER_MODE_GCM] = CRYPTO_BC_GCM,
 };
 
 static int rk_crypto_irq_handle(int irq, void *dev_id)
@@ -75,6 +81,26 @@ static int rk_crypto_irq_handle(int irq, void *dev_id)
 	return 0;
 }
 
+static inline void set_pc_len_reg(struct rk_crypto_dev *rk_dev, u64 pc_len)
+{
+	u32 chn_base = CRYPTO_CH0_PC_LEN_0;
+
+	CRYPTO_TRACE("PC length = %lu\n", (unsigned long)pc_len);
+
+	CRYPTO_WRITE(rk_dev, chn_base, pc_len & 0xffffffff);
+	CRYPTO_WRITE(rk_dev, chn_base + 4, pc_len >> 32);
+}
+
+static inline void set_aad_len_reg(struct rk_crypto_dev *rk_dev, u64 aad_len)
+{
+	u32 chn_base = CRYPTO_CH0_AAD_LEN_0;
+
+	CRYPTO_TRACE("AAD length = %lu\n", (unsigned long)aad_len);
+
+	CRYPTO_WRITE(rk_dev, chn_base, aad_len & 0xffffffff);
+	CRYPTO_WRITE(rk_dev, chn_base + 4, aad_len >> 32);
+}
+
 static void set_iv_reg(struct rk_crypto_dev *rk_dev, const u8 *iv, u32 iv_len)
 {
 	if (!iv || iv_len == 0)
@@ -99,6 +125,29 @@ static void write_tkey_reg(struct rk_crypto_dev *rk_dev, const u8 *key,
 	rk_crypto_write_regs(rk_dev, CRYPTO_CH4_KEY_0, key, key_len);
 }
 
+static int get_tag_reg(struct rk_crypto_dev *rk_dev, u8 *tag, u32 tag_len)
+{
+	int ret;
+	u32 reg_ctrl = 0;
+
+	CRYPTO_TRACE("tag_len = %u", tag_len);
+
+	if (tag_len > RK_MAX_TAG_SIZE)
+		return -EINVAL;
+
+	ret = readl_poll_timeout_atomic(rk_dev->reg + CRYPTO_TAG_VALID,
+					reg_ctrl,
+					reg_ctrl & CRYPTO_CH0_TAG_VALID,
+					RK_POLL_PERIOD_US,
+					RK_POLL_TIMEOUT_US);
+	if (ret)
+		goto exit;
+
+	rk_crypto_read_regs(rk_dev, CRYPTO_CH0_TAG_0, tag, tag_len);
+exit:
+	return ret;
+}
+
 static bool is_force_fallback(struct rk_crypto_algt *algt, uint32_t key_len)
 {
 	if (algt->algo != CIPHER_ALGO_AES)
@@ -120,8 +169,8 @@ static bool is_calc_need_round_up(struct skcipher_request *req)
 	struct rk_crypto_algt *algt = rk_cipher_get_algt(cipher);
 
 	return (algt->mode == CIPHER_MODE_CFB ||
-		algt->mode == CIPHER_MODE_OFB ||
-		algt->mode == CIPHER_MODE_CTR) ? true : false;
+			algt->mode == CIPHER_MODE_OFB ||
+			algt->mode == CIPHER_MODE_CTR) ? true : false;
 }
 
 static void rk_cipher_reset(struct rk_crypto_dev *rk_dev)
@@ -229,8 +278,10 @@ static int rk_cipher_crypt(struct skcipher_request *req, bool encrypt)
 			ctx->mode |= CRYPTO_BC_256_bit_key;
 	}
 
-	if (req->iv)
-		memcpy(ctx->iv, req->iv, crypto_skcipher_ivsize(tfm));
+	ctx->iv_len = crypto_skcipher_ivsize(tfm);
+
+	memset(ctx->iv, 0x00, sizeof(ctx->iv));
+	memcpy(ctx->iv, req->iv, ctx->iv_len);
 
 	ctx->is_enc = encrypt;
 
@@ -250,17 +301,11 @@ static int rk_cipher_decrypt(struct skcipher_request *req)
 
 static int rk_ablk_hw_init(struct rk_crypto_dev *rk_dev, u32 algo, u32 mode)
 {
-	struct skcipher_request *req =
-		skcipher_request_cast(rk_dev->async_req);
-	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
-	struct rk_cipher_ctx *ctx = crypto_skcipher_ctx(cipher);
-	u32 ivsize;
+	struct rk_cipher_ctx *ctx = rk_cipher_ctx_cast(rk_dev);
 
 	rk_cipher_reset(rk_dev);
 
 	CRYPTO_WRITE(rk_dev, CRYPTO_BC_CTL, 0x00010000);
-
-	ivsize = crypto_skcipher_ivsize(cipher);
 
 	if (mode == CIPHER_MODE_XTS) {
 		uint32_t tmp_len = ctx->keylen / 2;
@@ -272,7 +317,7 @@ static int rk_ablk_hw_init(struct rk_crypto_dev *rk_dev, u32 algo, u32 mode)
 	}
 
 	if (mode != CIPHER_MODE_ECB)
-		set_iv_reg(rk_dev, req->iv, ivsize);
+		set_iv_reg(rk_dev, ctx->iv, ctx->iv_len);
 
 	ctx->mode |= CRYPTO_BC_ENABLE;
 
@@ -292,7 +337,7 @@ static int crypto_dma_start(struct rk_crypto_dev *rk_dev, uint32_t flag)
 	struct skcipher_request *req =
 		skcipher_request_cast(rk_dev->async_req);
 	struct rk_alg_ctx *alg_ctx = rk_cipher_alg_ctx(rk_dev);
-	struct crypto_lli_desc *lli_head, *lli_tail;
+	struct crypto_lli_desc *lli_head, *lli_tail, *lli_aad;
 	u32 calc_len = alg_ctx->count;
 	u32 start_flag = CRYPTO_DMA_START;
 	int ret;
@@ -308,26 +353,50 @@ static int crypto_dma_start(struct rk_crypto_dev *rk_dev, uint32_t flag)
 
 	lli_head = hw_info->hw_desc.lli_head;
 	lli_tail = hw_info->hw_desc.lli_tail;
+	lli_aad  = hw_info->hw_desc.lli_aad;
 
 	/*
 	 *	the data length is not aligned will use addr_vir to calculate,
 	 *	so crypto v2 could round up data length to chunk_size
 	 */
-	if (is_calc_need_round_up(req))
+	if (!alg_ctx->is_aead && is_calc_need_round_up(req))
 		calc_len = round_up(calc_len, alg_ctx->chunk_size);
+
+	CRYPTO_TRACE("calc_len = %u, cryptlen = %u, assoclen= %u, is_aead = %d",
+		     calc_len, alg_ctx->total, alg_ctx->assoclen, alg_ctx->is_aead);
 
 	lli_head->user_define = LLI_USER_STRING_START | LLI_USER_CIPHER_START;
 
-	lli_tail->dma_ctrl    = LLI_DMA_CTRL_DST_DONE | LLI_DMA_CTRL_LAST;
+	lli_tail->dma_ctrl     = LLI_DMA_CTRL_DST_DONE | LLI_DMA_CTRL_LAST;
 	lli_tail->user_define |= LLI_USER_STRING_LAST;
-	lli_tail->src_len    += (calc_len - alg_ctx->count);
-	lli_tail->dst_len    += (calc_len - alg_ctx->count);
+	lli_tail->src_len     += (calc_len - alg_ctx->count);
+	lli_tail->dst_len     += (calc_len - alg_ctx->count);
+
+	if (alg_ctx->is_aead) {
+		lli_aad->src_addr    = alg_ctx->addr_aad_in;
+		lli_aad->src_len     = alg_ctx->assoclen;
+		lli_aad->user_define = LLI_USER_CIPHER_START |
+				       LLI_USER_STRING_START |
+				       LLI_USER_STRING_LAST |
+				       LLI_USER_STRING_AAD;
+		lli_aad->next_addr   = hw_info->hw_desc.lli_head_dma;
+
+		/* clear cipher start */
+		lli_head->user_define &= (~((u32)LLI_USER_CIPHER_START));
+
+		set_pc_len_reg(rk_dev, alg_ctx->total);
+		set_aad_len_reg(rk_dev, alg_ctx->assoclen);
+	}
 
 	rk_crypto_dump_hw_desc(&hw_info->hw_desc);
 
 	dma_wmb();
 
-	CRYPTO_WRITE(rk_dev, CRYPTO_DMA_LLI_ADDR, hw_info->hw_desc.lli_head_dma);
+	if (alg_ctx->is_aead)
+		CRYPTO_WRITE(rk_dev, CRYPTO_DMA_LLI_ADDR, hw_info->hw_desc.lli_aad_dma);
+	else
+		CRYPTO_WRITE(rk_dev, CRYPTO_DMA_LLI_ADDR, hw_info->hw_desc.lli_head_dma);
+
 	CRYPTO_WRITE(rk_dev, CRYPTO_DMA_CTL, start_flag | (start_flag << WRITE_MASK));
 
 	return 0;
@@ -395,6 +464,151 @@ static void rk_ablk_exit_tfm(struct crypto_skcipher *tfm)
 	ctx->rk_dev->release_crypto(ctx->rk_dev, alg_name);
 }
 
+static int rk_aead_init_tfm(struct crypto_aead *tfm)
+{
+	struct aead_alg *alg = crypto_aead_alg(tfm);
+	struct rk_crypto_algt *algt =
+		container_of(alg, struct rk_crypto_algt, alg.aead);
+	struct rk_cipher_ctx *ctx = crypto_tfm_ctx(&tfm->base);
+	const char *alg_name = crypto_tfm_alg_name(&tfm->base);
+	struct rk_crypto_dev *rk_dev = algt->rk_dev;
+	struct rk_alg_ctx *alg_ctx = &ctx->algs_ctx;
+
+	CRYPTO_TRACE();
+
+	if (!rk_dev->request_crypto)
+		return -EFAULT;
+
+	rk_dev->request_crypto(rk_dev, alg_name);
+
+	alg_ctx->align_size     = 64;
+	alg_ctx->chunk_size     = crypto_aead_chunksize(tfm);
+
+	alg_ctx->ops.start      = rk_aead_start;
+	alg_ctx->ops.update     = rk_ablk_rx;
+	alg_ctx->ops.complete   = rk_crypto_complete;
+	alg_ctx->ops.irq_handle = rk_crypto_irq_handle;
+
+	alg_ctx->ops.hw_init       = rk_ablk_hw_init;
+	alg_ctx->ops.hw_dma_start  = crypto_dma_start;
+	alg_ctx->ops.hw_write_iv   = set_iv_reg;
+	alg_ctx->ops.hw_get_result = get_tag_reg;
+
+	ctx->rk_dev      = rk_dev;
+	alg_ctx->is_aead = 1;
+
+	if (algt->alg.crypto.base.cra_flags & CRYPTO_ALG_NEED_FALLBACK) {
+		CRYPTO_MSG("alloc fallback tfm, name = %s", alg_name);
+		ctx->fallback_aead =
+			crypto_alloc_aead(alg_name, 0,
+					  CRYPTO_ALG_ASYNC |
+					  CRYPTO_ALG_NEED_FALLBACK);
+		if (IS_ERR(ctx->fallback_aead)) {
+			dev_err(rk_dev->dev,
+				"Load fallback driver %s err: %ld.\n",
+				alg_name, PTR_ERR(ctx->fallback_aead));
+			ctx->fallback_aead = NULL;
+		}
+
+		crypto_aead_set_reqsize(tfm, sizeof(struct aead_request) +
+					crypto_aead_reqsize(ctx->fallback_aead));
+	}
+
+	return 0;
+}
+
+static void rk_aead_exit_tfm(struct crypto_aead *tfm)
+{
+	struct rk_cipher_ctx *ctx = crypto_tfm_ctx(&tfm->base);
+
+	CRYPTO_TRACE();
+
+	if (ctx->fallback_aead) {
+		CRYPTO_MSG("free fallback tfm");
+		crypto_free_aead(ctx->fallback_aead);
+	}
+
+	ctx->rk_dev->release_crypto(ctx->rk_dev, crypto_tfm_alg_name(&tfm->base));
+}
+
+static int rk_aead_crypt(struct aead_request *req, bool encrypt)
+{
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+	struct rk_cipher_ctx *ctx = crypto_aead_ctx(tfm);
+	struct rk_crypto_algt *algt = rk_aead_get_algt(tfm);
+	struct scatterlist *sg_src, *sg_dst;
+	struct scatterlist src[2], dst[2];
+	u64 data_len;
+	bool aligned;
+	int ret = -EINVAL;
+
+	CRYPTO_TRACE("%s cryptlen = %u, assoclen = %u",
+		     encrypt ? "encrypt" : "decrypt",
+		     req->cryptlen, req->assoclen);
+
+	data_len = encrypt ? req->cryptlen : (req->cryptlen - crypto_aead_authsize(tfm));
+
+	if (req->assoclen == 0 ||
+	    req->cryptlen == 0 ||
+	    data_len == 0 ||
+	    is_force_fallback(algt, ctx->keylen))
+		return rk_aead_fallback(req, ctx, encrypt);
+
+	/* point sg_src and sg_dst skip assoc data */
+	sg_src = scatterwalk_ffwd(src, req->src, req->assoclen);
+	sg_dst = (req->src == req->dst) ? sg_src : scatterwalk_ffwd(dst, req->dst, req->assoclen);
+
+	aligned = rk_crypto_check_align(sg_src, sg_nents_for_len(sg_src, data_len),
+					sg_dst, sg_nents_for_len(sg_dst, data_len),
+					64);
+
+	if (sg_nents_for_len(sg_src, data_len) > RK_DEFAULT_LLI_CNT ||
+	    sg_nents_for_len(sg_dst, data_len) > RK_DEFAULT_LLI_CNT)
+		return rk_aead_fallback(req, ctx, encrypt);
+
+	if (!aligned) {
+		if (req->assoclen > ctx->rk_dev->aad_max ||
+		    data_len > ctx->rk_dev->vir_max)
+			return rk_aead_fallback(req, ctx, encrypt);
+	}
+
+	ctx->mode = cipher_algo2bc[algt->algo] |
+		    cipher_mode2bc[algt->mode];
+	if (!encrypt)
+		ctx->mode |= CRYPTO_BC_DECRYPT;
+
+	if (algt->algo == CIPHER_ALGO_AES) {
+		if (ctx->keylen == AES_KEYSIZE_128)
+			ctx->mode |= CRYPTO_BC_128_bit_key;
+		else if (ctx->keylen == AES_KEYSIZE_192)
+			ctx->mode |= CRYPTO_BC_192_bit_key;
+		else if (ctx->keylen == AES_KEYSIZE_256)
+			ctx->mode |= CRYPTO_BC_256_bit_key;
+	}
+
+	ctx->iv_len = crypto_aead_ivsize(tfm);
+
+	memset(ctx->iv, 0x00, sizeof(ctx->iv));
+	memcpy(ctx->iv, req->iv, ctx->iv_len);
+
+	ctx->is_enc = encrypt;
+
+	CRYPTO_MSG("ctx->mode = %x\n", ctx->mode);
+	ret = rk_aead_handle_req(ctx->rk_dev, req);
+
+	return ret;
+}
+
+static int rk_aead_encrypt(struct aead_request *req)
+{
+	return rk_aead_crypt(req, true);
+}
+
+static int rk_aead_decrypt(struct aead_request *req)
+{
+	return rk_aead_crypt(req, false);
+}
+
 struct rk_crypto_algt rk_v3_ecb_sm4_alg =
 	RK_CIPHER_ALGO_INIT(SM4, ECB, ecb(sm4), ecb-sm4-rk);
 
@@ -413,6 +627,9 @@ struct rk_crypto_algt rk_v3_ofb_sm4_alg =
 struct rk_crypto_algt rk_v3_ctr_sm4_alg =
 	RK_CIPHER_ALGO_INIT(SM4, CTR, ctr(sm4), ctr-sm4-rk);
 
+struct rk_crypto_algt rk_v3_gcm_sm4_alg =
+	RK_AEAD_ALGO_INIT(SM4, GCM, gcm(sm4), gcm-sm4-rk);
+
 struct rk_crypto_algt rk_v3_ecb_aes_alg =
 	RK_CIPHER_ALGO_INIT(AES, ECB, ecb(aes), ecb-aes-rk);
 
@@ -430,6 +647,9 @@ struct rk_crypto_algt rk_v3_ofb_aes_alg =
 
 struct rk_crypto_algt rk_v3_ctr_aes_alg =
 	RK_CIPHER_ALGO_INIT(AES, CTR, ctr(aes), ctr-aes-rk);
+
+struct rk_crypto_algt rk_v3_gcm_aes_alg =
+	RK_AEAD_ALGO_INIT(AES, GCM, gcm(aes), gcm-aes-rk);
 
 struct rk_crypto_algt rk_v3_ecb_des_alg =
 	RK_CIPHER_ALGO_INIT(DES, ECB, ecb(des), ecb-des-rk);

@@ -8,6 +8,7 @@
  *
  */
 
+#include <crypto/scatterwalk.h>
 #include <linux/scatterlist.h>
 
 #include "rk_crypto_core.h"
@@ -174,10 +175,18 @@ int rk_crypto_hw_desc_alloc(struct device *dev, struct rk_hw_desc *hw_desc)
 
 	memset(hw_desc, 0x00, sizeof(*hw_desc));
 
+	hw_desc->lli_aad = dma_alloc_coherent(dev, sizeof(struct crypto_lli_desc),
+					      &hw_desc->lli_aad_dma, GFP_KERNEL);
+	if (!hw_desc->lli_aad)
+		return -ENOMEM;
+
 	///TODO: cma
 	hw_desc->lli_head = dma_alloc_coherent(dev, lli_len, &hw_desc->lli_head_dma, GFP_KERNEL);
-	if (!hw_desc->lli_head)
+	if (!hw_desc->lli_head) {
+		dma_free_coherent(dev, sizeof(struct crypto_lli_desc),
+				  hw_desc->lli_aad, hw_desc->lli_aad_dma);
 		return -ENOMEM;
+	}
 
 	hw_desc->lli_tail = hw_desc->lli_head;
 	hw_desc->total    = lli_cnt;
@@ -185,9 +194,9 @@ int rk_crypto_hw_desc_alloc(struct device *dev, struct rk_hw_desc *hw_desc)
 
 	memset(hw_desc->lli_head, 0x00, lli_len);
 
-	CRYPTO_TRACE("dev = %lx, buffer_len = %u, lli_head = %lx, lli_head_dma = %x",
+	CRYPTO_TRACE("dev = %lx, buffer_len = %u, lli_head = %lx, lli_head_dma = %lx",
 		     (unsigned long)hw_desc->dev, lli_len,
-		     (unsigned long)hw_desc->lli_head, hw_desc->lli_head_dma);
+		     (unsigned long)hw_desc->lli_head, (unsigned long)hw_desc->lli_head_dma);
 
 	return 0;
 }
@@ -197,9 +206,13 @@ void rk_crypto_hw_desc_free(struct rk_hw_desc *hw_desc)
 	if (!hw_desc || !hw_desc->dev || !hw_desc->lli_head)
 		return;
 
-	CRYPTO_TRACE("dev = %lx, buffer_len = %u, lli_head = %lx, lli_head_dma = %x",
-		     (unsigned long)hw_desc->dev, hw_desc->total * sizeof(struct crypto_lli_desc),
-		     (unsigned long)hw_desc->lli_head, hw_desc->lli_head_dma);
+	CRYPTO_TRACE("dev = %lx, buffer_len = %lu, lli_head = %lx, lli_head_dma = %lx",
+		     (unsigned long)hw_desc->dev,
+		     (unsigned long)hw_desc->total * sizeof(struct crypto_lli_desc),
+		     (unsigned long)hw_desc->lli_head, (unsigned long)hw_desc->lli_head_dma);
+
+	dma_free_coherent(hw_desc->dev, sizeof(struct crypto_lli_desc),
+			  hw_desc->lli_aad, hw_desc->lli_aad_dma);
 
 	dma_free_coherent(hw_desc->dev, hw_desc->total * sizeof(struct crypto_lli_desc),
 			  hw_desc->lli_head, hw_desc->lli_head_dma);

@@ -757,6 +757,7 @@ config CRYPTO_DEV_ROCKCHIP
 	select CRYPTO_CFB
 	select CRYPTO_OFB
 	select CRYPTO_CTR
+	select CRYPTO_GCM
 	select CRYPTO_LIB_DES
 	select CRYPTO_MD5
 	select CRYPTO_SHA1

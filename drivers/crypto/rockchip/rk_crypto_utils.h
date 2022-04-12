@@ -26,9 +26,11 @@ struct crypto_lli_desc {
 
 struct rk_hw_desc {
 	struct device			*dev;
+	struct crypto_lli_desc		*lli_aad;
 	struct crypto_lli_desc		*lli_head;
 	struct crypto_lli_desc		*lli_tail;
 	dma_addr_t			lli_head_dma;
+	dma_addr_t			lli_aad_dma;
 	u32				total;
 };
 
