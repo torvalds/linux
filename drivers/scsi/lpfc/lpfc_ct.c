@@ -2236,7 +2236,7 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	cmd =  be16_to_cpu(fdmi_cmd);
 	if (fdmi_rsp == cpu_to_be16(SLI_CT_RESPONSE_FS_RJT)) {
 		/* FDMI rsp failed */
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY | LOG_ELS,
 				 "0220 FDMI cmd failed FS_RJT Data: x%x", cmd);
 
 		/* Should we fallback to FDMI-2 / FDMI-1 ? */
@@ -2272,9 +2272,9 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				phba->link_flag &= ~LS_CT_VEN_RPA;
 				if (phba->cmf_active_mode == LPFC_CFG_OFF)
 					return;
-				lpfc_printf_log(phba, KERN_ERR,
+				lpfc_printf_log(phba, KERN_WARNING,
 						LOG_DISCOVERY | LOG_ELS,
-						"6460 VEN FDMI RPA failure\n");
+						"6460 VEN FDMI RPA RJT\n");
 				return;
 			}
 			if (vport->fdmi_port_mask == LPFC_FDMI2_PORT_ATTR) {

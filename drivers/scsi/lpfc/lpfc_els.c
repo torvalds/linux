@@ -4258,7 +4258,7 @@ lpfc_issue_els_edc(struct lpfc_vport *vport, uint8_t retry)
 
 	phba->cgn_sig_freq = lpfc_fabric_cgn_frequency;
 
-	lpfc_printf_vlog(vport, KERN_INFO, LOG_CGN_MGMT,
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS | LOG_CGN_MGMT,
 			 "4623 Xmit EDC to remote "
 			 "NPORT x%x reg_sig x%x reg_fpin:x%x\n",
 			 ndlp->nlp_DID, phba->cgn_reg_signal,

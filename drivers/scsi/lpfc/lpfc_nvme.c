@@ -2466,12 +2466,12 @@ lpfc_nvme_rescan_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if (!nrport || !remoteport)
 		goto rescan_exit;
 
-	/* Only rescan if we are an NVME target in the MAPPED state */
+	/* Rescan an NVME target in MAPPED state with DISCOVERY role set */
 	if (remoteport->port_role & FC_PORT_ROLE_NVME_DISCOVERY &&
 	    ndlp->nlp_state == NLP_STE_MAPPED_NODE) {
 		nvme_fc_rescan_remoteport(remoteport);
 
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 				 "6172 NVME rescanned DID x%06x "
 				 "port_state x%x\n",
 				 ndlp->nlp_DID, remoteport->port_state);
