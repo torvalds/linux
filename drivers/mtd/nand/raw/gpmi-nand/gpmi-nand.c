@@ -240,7 +240,13 @@ static void gpmi_dump_info(struct gpmi_nand_data *this)
 
 static inline bool gpmi_check_ecc(struct gpmi_nand_data *this)
 {
+	struct nand_chip *chip = &this->nand;
 	struct bch_geometry *geo = &this->bch_geometry;
+	struct nand_device *nand = &chip->base;
+	struct nand_ecc_props *conf = &nand->ecc.ctx.conf;
+
+	conf->step_size = geo->eccn_chunk_size;
+	conf->strength = geo->ecc_strength;
 
 	/* Do the sanity check. */
 	if (GPMI_IS_MXS(this)) {
@@ -248,7 +254,14 @@ static inline bool gpmi_check_ecc(struct gpmi_nand_data *this)
 		if (geo->gf_len == 14)
 			return false;
 	}
-	return geo->ecc_strength <= this->devdata->bch_max_ecc_strength;
+
+	if (geo->ecc_strength > this->devdata->bch_max_ecc_strength)
+		return false;
+
+	if (!nand_ecc_is_strong_enough(nand))
+		return false;
+
+	return true;
 }
 
 /*
