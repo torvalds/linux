@@ -1082,7 +1082,8 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 				break;
 			}
 		}
-		if (!should_disable && pipe_split_change)
+		if (!should_disable && pipe_split_change &&
+				dc->current_state->stream_count != context->stream_count)
 			should_disable = true;
 
 		if (should_disable && old_stream) {
@@ -1690,6 +1691,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	struct pipe_ctx *pipe;
 	int i, k, l;
 	struct dc_stream_state *dc_streams[MAX_STREAMS] = {0};
+	struct dc_state *old_state;
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	dc_z10_restore(dc);
@@ -1808,9 +1810,10 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	for (i = 0; i < context->stream_count; i++)
 		context->streams[i]->mode_changed = false;
 
-	dc_release_state(dc->current_state);
-
+	old_state = dc->current_state;
 	dc->current_state = context;
+
+	dc_release_state(old_state);
 
 	dc_retain_state(dc->current_state);
 
@@ -2386,6 +2389,8 @@ static enum surface_update_type check_update_surfaces_for_stream(
 
 		if (stream_update->mst_bw_update)
 			su_flags->bits.mst_bw = 1;
+		if (stream_update->crtc_timing_adjust && dc_extended_blank_supported(dc))
+			su_flags->bits.crtc_timing_adjust = 1;
 
 		if (su_flags->raw != 0)
 			overall_type = UPDATE_TYPE_FULL;
@@ -2646,6 +2651,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 
 	if (update->vrr_infopacket)
 		stream->vrr_infopacket = *update->vrr_infopacket;
+
+	if (update->crtc_timing_adjust)
+		stream->adjust = *update->crtc_timing_adjust;
 
 	if (update->dpms_off)
 		stream->dpms_off = *update->dpms_off;
@@ -3360,6 +3368,19 @@ bool dc_is_dmcu_initialized(struct dc *dc)
 	return false;
 }
 
+bool dc_is_oem_i2c_device_present(
+	struct dc *dc,
+	size_t slave_address)
+{
+	if (dc->res_pool->oem_device)
+		return dce_i2c_oem_device_present(
+			dc->res_pool,
+			dc->res_pool->oem_device,
+			slave_address);
+
+	return false;
+}
+
 bool dc_submit_i2c(
 		struct dc *dc,
 		uint32_t link_index,
@@ -3737,8 +3758,8 @@ bool dc_is_dmub_outbox_supported(struct dc *dc)
 	return dc->debug.enable_dmub_aux_for_legacy_ddc;
 }
 
-/**
- * dc_process_dmub_aux_transfer_async - Submits aux command to dmub via inbox message
+/*
+ *****************************************************************************
  *  Function: dc_enable_dmub_notifications
  *
  *  @brief
@@ -3780,7 +3801,7 @@ void dc_enable_dmub_outbox(struct dc *dc)
 }
 
 /**
- *****************************************************************************
+ * dc_process_dmub_aux_transfer_async - Submits aux command to dmub via inbox message
  *                                      Sets port index appropriately for legacy DDC
  * @dc: dc structure
  * @link_index: link index
@@ -4034,4 +4055,18 @@ void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bo
 
 	if (pipe->stream_res.abm && pipe->stream_res.abm->funcs->set_abm_pause)
 		pipe->stream_res.abm->funcs->set_abm_pause(pipe->stream_res.abm, !enable, i, pipe->stream_res.tg->inst);
+}
+/*
+ * dc_extended_blank_supported: Decide whether extended blank is supported
+ *
+ * Extended blank is a freesync optimization feature to be enabled in the future.
+ * During the extra vblank period gained from freesync, we have the ability to enter z9/z10.
+ *
+ * @param [in] dc: Current DC state
+ * @return: Indicate whether extended blank is supported (true or false)
+ */
+bool dc_extended_blank_supported(struct dc *dc)
+{
+	return dc->debug.extended_blank_optimization && !dc->debug.disable_z10
+		&& dc->caps.zstate_support && dc->caps.is_apu;
 }

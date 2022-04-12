@@ -494,11 +494,8 @@ static int lm3692x_probe(struct i2c_client *client,
 static int lm3692x_remove(struct i2c_client *client)
 {
 	struct lm3692x_led *led = i2c_get_clientdata(client);
-	int ret;
 
-	ret = lm3692x_leds_disable(led);
-	if (ret)
-		return ret;
+	lm3692x_leds_disable(led);
 	mutex_destroy(&led->lock);
 
 	return 0;

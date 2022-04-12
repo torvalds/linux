@@ -18,7 +18,7 @@
  * Returns:
  *	x0 - address of last occurrence of 'c' or 0
  */
-SYM_FUNC_START_WEAK_PI(strrchr)
+SYM_FUNC_START(__pi_strrchr)
 	mov	x3, #0
 	and	w1, w1, #0xff
 1:	ldrb	w2, [x0], #1
@@ -29,5 +29,6 @@ SYM_FUNC_START_WEAK_PI(strrchr)
 	b	1b
 2:	mov	x0, x3
 	ret
-SYM_FUNC_END_PI(strrchr)
+SYM_FUNC_END(__pi_strrchr)
+SYM_FUNC_ALIAS_WEAK(strrchr, __pi_strrchr)
 EXPORT_SYMBOL_NOKASAN(strrchr)

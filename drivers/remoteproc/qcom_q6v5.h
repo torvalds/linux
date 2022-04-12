@@ -7,6 +7,7 @@
 #include <linux/completion.h>
 #include <linux/soc/qcom/qcom_aoss.h>
 
+struct icc_path;
 struct rproc;
 struct qcom_smem_state;
 struct qcom_sysmon;
@@ -17,6 +18,8 @@ struct qcom_q6v5 {
 
 	struct qcom_smem_state *state;
 	struct qmp *qmp;
+
+	struct icc_path *path;
 
 	unsigned stop_bit;
 

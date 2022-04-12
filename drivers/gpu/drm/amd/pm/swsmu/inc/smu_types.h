@@ -190,6 +190,7 @@
 	__SMU_DUMMY_MAP(PowerUpCvip),                    \
 	__SMU_DUMMY_MAP(PowerDownCvip),                  \
        __SMU_DUMMY_MAP(EnableGfxOff),                   \
+       __SMU_DUMMY_MAP(DisableGfxOff),                   \
        __SMU_DUMMY_MAP(SetSoftMinGfxclk),               \
        __SMU_DUMMY_MAP(SetSoftMinFclk),                 \
        __SMU_DUMMY_MAP(GetThermalLimit),                \
@@ -229,8 +230,10 @@
 	__SMU_DUMMY_MAP(BoardPowerCalibration),   \
 	__SMU_DUMMY_MAP(RequestGfxclk),           \
 	__SMU_DUMMY_MAP(ForceGfxVid),             \
+	__SMU_DUMMY_MAP(Spare0),                  \
 	__SMU_DUMMY_MAP(UnforceGfxVid),           \
-	__SMU_DUMMY_MAP(HeavySBR),
+	__SMU_DUMMY_MAP(HeavySBR),			\
+	__SMU_DUMMY_MAP(SetBadHBMPagesRetiredFlagsPerChannel),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
@@ -362,6 +365,7 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(SMUIO_CG),			\
        __SMU_DUMMY_MAP(THM_CG),				\
        __SMU_DUMMY_MAP(CLK_CG),				\
+       __SMU_DUMMY_MAP(DATA_CALCULATION),				\
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(feature)	SMU_FEATURE_##feature##_BIT

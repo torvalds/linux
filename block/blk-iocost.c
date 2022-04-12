@@ -178,12 +178,12 @@
 #include <linux/time64.h>
 #include <linux/parser.h>
 #include <linux/sched/signal.h>
-#include <linux/blk-cgroup.h>
 #include <asm/local.h>
 #include <asm/local64.h>
 #include "blk-rq-qos.h"
 #include "blk-stat.h"
 #include "blk-wbt.h"
+#include "blk-cgroup.h"
 
 #ifdef CONFIG_TRACEPOINTS
 

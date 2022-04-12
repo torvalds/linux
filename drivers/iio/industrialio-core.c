@@ -747,7 +747,7 @@ static ssize_t iio_read_channel_label(struct device *dev,
 		return indio_dev->info->read_label(indio_dev, this_attr->c, buf);
 
 	if (this_attr->c->extend_name)
-		return sprintf(buf, "%s\n", this_attr->c->extend_name);
+		return sysfs_emit(buf, "%s\n", this_attr->c->extend_name);
 
 	return -EINVAL;
 }

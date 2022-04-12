@@ -651,7 +651,7 @@ static const struct dev_pm_ops vcnl4035_pm_ops = {
 };
 
 static const struct i2c_device_id vcnl4035_id[] = {
-	{ "vcnl4035", 0},
+	{ "vcnl4035", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, vcnl4035_id);

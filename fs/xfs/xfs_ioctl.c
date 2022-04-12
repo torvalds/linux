@@ -1189,7 +1189,7 @@ xfs_ioctl_setattr_get_trans(
 		goto out_error;
 
 	error = xfs_trans_alloc_ichange(ip, NULL, NULL, pdqp,
-			capable(CAP_FOWNER), &tp);
+			has_capability_noaudit(current, CAP_FOWNER), &tp);
 	if (error)
 		goto out_error;
 

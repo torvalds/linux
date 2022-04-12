@@ -430,7 +430,7 @@ unmask:
 		 * be taken as the remainder of this one. We need to kill the
 		 * socket so the server throws away the partial SMB
 		 */
-		cifs_mark_tcp_ses_conns_for_reconnect(server, false);
+		cifs_signal_cifsd_for_reconnect(server, false);
 		trace_smb3_partial_send_reconnect(server->CurrentMid,
 						  server->conn_id, server->hostname);
 	}

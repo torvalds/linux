@@ -1526,8 +1526,14 @@ static void do_io(struct io_thread_req *req, struct io_desc *desc)
 			}
 			break;
 		case REQ_OP_DISCARD:
-		case REQ_OP_WRITE_ZEROES:
 			n = os_falloc_punch(req->fds[bit], off, len);
+			if (n) {
+				req->error = map_error(-n);
+				return;
+			}
+			break;
+		case REQ_OP_WRITE_ZEROES:
+			n = os_falloc_zeroes(req->fds[bit], off, len);
 			if (n) {
 				req->error = map_error(-n);
 				return;

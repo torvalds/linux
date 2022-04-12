@@ -23,6 +23,7 @@
  */
 
 #include <drm/drm_auth.h>
+#include <drm/drm_drv.h>
 #include "amdgpu.h"
 #include "amdgpu_sched.h"
 #include "amdgpu_ras.h"
@@ -204,8 +205,14 @@ static int amdgpu_ctx_init_entity(struct amdgpu_ctx *ctx, u32 hw_ip,
 	if (r)
 		goto error_free_entity;
 
-	ctx->entities[hw_ip][ring] = entity;
+	/* It's not an error if we fail to install the new entity */
+	if (cmpxchg(&ctx->entities[hw_ip][ring], NULL, entity))
+		goto cleanup_entity;
+
 	return 0;
+
+cleanup_entity:
+	drm_sched_entity_fini(&entity->entity);
 
 error_free_entity:
 	kfree(entity);
@@ -261,9 +268,6 @@ static int amdgpu_ctx_get_stable_pstate(struct amdgpu_ctx *ctx,
 	struct amdgpu_device *adev = ctx->adev;
 	enum amd_dpm_forced_level current_level;
 
-	if (!ctx)
-		return -EINVAL;
-
 	current_level = amdgpu_dpm_get_performance_level(adev);
 
 	switch (current_level) {
@@ -292,9 +296,6 @@ static int amdgpu_ctx_set_stable_pstate(struct amdgpu_ctx *ctx,
 	struct amdgpu_device *adev = ctx->adev;
 	enum amd_dpm_forced_level level;
 	int r;
-
-	if (!ctx)
-		return -EINVAL;
 
 	mutex_lock(&adev->pm.stable_pstate_ctx_lock);
 	if (adev->pm.stable_pstate_ctx && adev->pm.stable_pstate_ctx != ctx) {
@@ -339,7 +340,7 @@ static void amdgpu_ctx_fini(struct kref *ref)
 {
 	struct amdgpu_ctx *ctx = container_of(ref, struct amdgpu_ctx, refcount);
 	struct amdgpu_device *adev = ctx->adev;
-	unsigned i, j;
+	unsigned i, j, idx;
 
 	if (!adev)
 		return;
@@ -350,7 +351,12 @@ static void amdgpu_ctx_fini(struct kref *ref)
 			ctx->entities[i][j] = NULL;
 		}
 	}
-	amdgpu_ctx_set_stable_pstate(ctx, AMDGPU_CTX_STABLE_PSTATE_NONE);
+
+	if (drm_dev_enter(&adev->ddev, &idx)) {
+		amdgpu_ctx_set_stable_pstate(ctx, AMDGPU_CTX_STABLE_PSTATE_NONE);
+		drm_dev_exit(idx);
+	}
+
 	kfree(ctx);
 }
 

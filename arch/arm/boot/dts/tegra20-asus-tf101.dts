@@ -436,17 +436,27 @@
 		};
 	};
 
+	spdif@70002400 {
+		status = "okay";
+
+		nvidia,fixed-parent-rate;
+	};
+
 	i2s@70002800 {
 		status = "okay";
+
+		nvidia,fixed-parent-rate;
 	};
 
 	serial@70006040 {
 		compatible = "nvidia,tegra20-hsuart";
+		/delete-property/ reg-shift;
 		/* GPS BCM4751 */
 	};
 
 	serial@70006200 {
 		compatible = "nvidia,tegra20-hsuart";
+		/delete-property/ reg-shift;
 		status = "okay";
 
 		/* Azurewave AW-NH615 BCM4329B1 */
@@ -756,7 +766,7 @@
 
 			lpddr2 {
 				compatible = "elpida,B8132B2PB-6D-F", "jedec,lpddr2-s4";
-				revision-id1 = <1>;
+				revision-id = <1 0>;
 				density = <2048>;
 				io-width = <16>;
 			};

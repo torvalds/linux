@@ -433,7 +433,7 @@ ax88796c_skb_return(struct ax88796c_device *ax_local,
 	netif_info(ax_local, rx_status, ndev, "< rx, len %zu, type 0x%x\n",
 		   skb->len + sizeof(struct ethhdr), skb->protocol);
 
-	status = netif_rx_ni(skb);
+	status = netif_rx(skb);
 	if (status != NET_RX_SUCCESS && net_ratelimit())
 		netif_info(ax_local, rx_err, ndev,
 			   "netif_rx status %d\n", status);
@@ -1102,7 +1102,7 @@ err:
 	return ret;
 }
 
-static int ax88796c_remove(struct spi_device *spi)
+static void ax88796c_remove(struct spi_device *spi)
 {
 	struct ax88796c_device *ax_local = dev_get_drvdata(&spi->dev);
 	struct net_device *ndev = ax_local->ndev;
@@ -1112,8 +1112,6 @@ static int ax88796c_remove(struct spi_device *spi)
 	netif_info(ax_local, probe, ndev, "removing network device %s %s\n",
 		   dev_driver_string(&spi->dev),
 		   dev_name(&spi->dev));
-
-	return 0;
 }
 
 #ifdef CONFIG_OF

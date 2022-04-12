@@ -346,8 +346,8 @@ iwl_mvm_ftm_target_chandef_v2(struct iwl_mvm *mvm,
 		*format_bw |= IWL_LOCATION_BW_80MHZ << LOCATION_BW_POS;
 		break;
 	case NL80211_CHAN_WIDTH_160:
-		cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
-						TOF_RANGE_REQ_CMD,
+		cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+						WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 						IWL_FW_CMD_VER_UNKNOWN);
 
 		if (cmd_ver >= 13) {
@@ -548,7 +548,7 @@ static int iwl_mvm_ftm_start_v5(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_tof_range_req_cmd_v5 cmd_v5;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 		.data[0] = &cmd_v5,
 		.len[0] = sizeof(cmd_v5),
@@ -574,7 +574,7 @@ static int iwl_mvm_ftm_start_v7(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_tof_range_req_cmd_v7 cmd_v7;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 		.data[0] = &cmd_v7,
 		.len[0] = sizeof(cmd_v7),
@@ -604,7 +604,7 @@ static int iwl_mvm_ftm_start_v8(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_tof_range_req_cmd_v8 cmd;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
@@ -630,7 +630,7 @@ static int iwl_mvm_ftm_start_v9(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_tof_range_req_cmd_v9 cmd;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
@@ -728,7 +728,7 @@ static int iwl_mvm_ftm_start_v11(struct iwl_mvm *mvm,
 {
 	struct iwl_tof_range_req_cmd_v11 cmd;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
@@ -799,7 +799,7 @@ static int iwl_mvm_ftm_start_v12(struct iwl_mvm *mvm,
 {
 	struct iwl_tof_range_req_cmd_v12 cmd;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
@@ -827,7 +827,7 @@ static int iwl_mvm_ftm_start_v13(struct iwl_mvm *mvm,
 {
 	struct iwl_tof_range_req_cmd_v13 cmd;
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(TOF_RANGE_REQ_CMD, LOCATION_GROUP, 0),
+		.id = WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 		.dataflags[0] = IWL_HCMD_DFL_DUP,
 		.data[0] = &cmd,
 		.len[0] = sizeof(cmd),
@@ -877,8 +877,8 @@ int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return -EBUSY;
 
 	if (new_api) {
-		u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, LOCATION_GROUP,
-						   TOF_RANGE_REQ_CMD,
+		u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+						   WIDE_ID(LOCATION_GROUP, TOF_RANGE_REQ_CMD),
 						   IWL_FW_CMD_VER_UNKNOWN);
 
 		switch (cmd_ver) {
@@ -927,8 +927,7 @@ void iwl_mvm_ftm_abort(struct iwl_mvm *mvm, struct cfg80211_pmsr_request *req)
 
 	iwl_mvm_ftm_reset(mvm);
 
-	if (iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(TOF_RANGE_ABORT_CMD,
-						 LOCATION_GROUP, 0),
+	if (iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(LOCATION_GROUP, TOF_RANGE_ABORT_CMD),
 				 0, sizeof(cmd), &cmd))
 		IWL_ERR(mvm, "failed to abort FTM process\n");
 }

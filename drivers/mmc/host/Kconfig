@@ -1094,3 +1094,16 @@ config MMC_OWL
 
 config MMC_SDHCI_EXTERNAL_DMA
 	bool
+
+config MMC_LITEX
+	tristate "LiteX MMC Host Controller support"
+	depends on ((PPC_MICROWATT || LITEX) && OF && HAVE_CLK) || COMPILE_TEST
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
+	help
+	  This selects support for the MMC Host Controller found in LiteX SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called litex_mmc.
+
+	  If unsure, say N.

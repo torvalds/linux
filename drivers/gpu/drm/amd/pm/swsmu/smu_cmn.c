@@ -51,6 +51,17 @@
 #define mmMP1_SMN_C2PMSG_90                                                                            0x029a
 #define mmMP1_SMN_C2PMSG_90_BASE_IDX                                                                   0
 
+/* SMU 13.0.5 has its specific mailbox messaging registers */
+
+#define mmMP1_C2PMSG_2                                                                            (0xbee142 + 0xb00000 / 4)
+#define mmMP1_C2PMSG_2_BASE_IDX                                                                   0
+
+#define mmMP1_C2PMSG_34                                                                           (0xbee262 + 0xb00000 / 4)
+#define mmMP1_C2PMSG_34_BASE_IDX                                                                   0
+
+#define mmMP1_C2PMSG_33                                                                                (0xbee261 + 0xb00000 / 4)
+#define mmMP1_C2PMSG_33_BASE_IDX                                                                   0
+
 #define MP1_C2PMSG_90__CONTENT_MASK                                                                    0xFFFFFFFFL
 
 #undef __SMU_DUMMY_MAP
@@ -58,6 +69,12 @@
 static const char * const __smu_message_names[] = {
 	SMU_MESSAGE_TYPES
 };
+
+#define smu_cmn_call_asic_func(intf, smu, args...)                             \
+	((smu)->ppt_funcs ? ((smu)->ppt_funcs->intf ?                          \
+				     (smu)->ppt_funcs->intf(smu, ##args) :     \
+				     -ENOTSUPP) :                              \
+			    -EINVAL)
 
 static const char *smu_get_message_name(struct smu_context *smu,
 					enum smu_message_type type)
@@ -73,7 +90,10 @@ static void smu_cmn_read_arg(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	*arg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5))
+		*arg = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_34);
+	else
+		*arg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
 }
 
 /* Redefine the SMU error codes here.
@@ -119,7 +139,10 @@ static u32 __smu_cmn_poll_stat(struct smu_context *smu)
 	u32 reg;
 
 	for ( ; timeout > 0; timeout--) {
-		reg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
+		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5))
+			reg = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_33);
+		else
+			reg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
 		if ((reg & MP1_C2PMSG_90__CONTENT_MASK) != 0)
 			break;
 
@@ -137,15 +160,21 @@ static void __smu_cmn_reg_print_error(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 	const char *message = smu_get_message_name(smu, msg);
+	u32 msg_idx, prm;
 
 	switch (reg_c2pmsg_90) {
 	case SMU_RESP_NONE: {
-		u32 msg_idx = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66);
-		u32 prm     = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
+		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5)) {
+			msg_idx = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_2);
+			prm     = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_34);
+		} else {
+			msg_idx = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66);
+			prm     = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
+		}
 		dev_err_ratelimited(adev->dev,
 				    "SMU: I'm not done with your previous command: SMN_C2PMSG_66:0x%08X SMN_C2PMSG_82:0x%08X",
 				    msg_idx, prm);
-	}
+		}
 		break;
 	case SMU_RESP_OK:
 		/* The SMU executed the command. It completed with a
@@ -235,9 +264,16 @@ static void __smu_cmn_send_msg(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82, param);
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5)) {
+		WREG32_SOC15(MP1, 0, mmMP1_C2PMSG_33, 0);
+		WREG32_SOC15(MP1, 0, mmMP1_C2PMSG_34, param);
+		WREG32_SOC15(MP1, 0, mmMP1_C2PMSG_2, msg);
+	} else {
+		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
+		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82, param);
+		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
+	}
+
 }
 
 /**
@@ -267,7 +303,6 @@ int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
 	reg = __smu_cmn_poll_stat(smu);
 	res = __smu_cmn_reg2errno(smu, reg);
 	if (reg == SMU_RESP_NONE ||
-	    reg == SMU_RESP_BUSY_OTHER ||
 	    res == -EREMOTEIO)
 		goto Out;
 	__smu_cmn_send_msg(smu, msg_index, param);
@@ -361,7 +396,6 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 	reg = __smu_cmn_poll_stat(smu);
 	res = __smu_cmn_reg2errno(smu, reg);
 	if (reg == SMU_RESP_NONE ||
-	    reg == SMU_RESP_BUSY_OTHER ||
 	    res == -EREMOTEIO) {
 		__smu_cmn_reg_print_error(smu, reg, index, param, msg);
 		goto Out;
@@ -493,6 +527,12 @@ int smu_cmn_feature_is_supported(struct smu_context *smu,
 	return test_bit(feature_id, feature->supported);
 }
 
+static int __smu_get_enabled_features(struct smu_context *smu,
+			       uint64_t *enabled_features)
+{
+	return smu_cmn_call_asic_func(get_enabled_mask, smu, enabled_features);
+}
+
 int smu_cmn_feature_is_enabled(struct smu_context *smu,
 			       enum smu_feature_mask mask)
 {
@@ -500,7 +540,7 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 	uint64_t enabled_features;
 	int feature_id;
 
-	if (smu_cmn_get_enabled_mask(smu, &enabled_features)) {
+	if (__smu_get_enabled_features(smu, &enabled_features)) {
 		dev_err(adev->dev, "Failed to retrieve enabled ppfeatures!\n");
 		return 0;
 	}
@@ -552,10 +592,9 @@ bool smu_cmn_clk_dpm_is_enabled(struct smu_context *smu,
 int smu_cmn_get_enabled_mask(struct smu_context *smu,
 			     uint64_t *feature_mask)
 {
-	struct amdgpu_device *adev = smu->adev;
 	uint32_t *feature_mask_high;
 	uint32_t *feature_mask_low;
-	int ret = 0;
+	int ret = 0, index = 0;
 
 	if (!feature_mask)
 		return -EINVAL;
@@ -563,12 +602,10 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 	feature_mask_low = &((uint32_t *)feature_mask)[0];
 	feature_mask_high = &((uint32_t *)feature_mask)[1];
 
-	switch (adev->ip_versions[MP1_HWIP][0]) {
-	/* For Vangogh and Yellow Carp */
-	case IP_VERSION(11, 5, 0):
-	case IP_VERSION(13, 0, 1):
-	case IP_VERSION(13, 0, 3):
-	case IP_VERSION(13, 0, 8):
+	index = smu_cmn_to_asic_specific_index(smu,
+						CMN2ASIC_MAPPING_MSG,
+						SMU_MSG_GetEnabledSmuFeatures);
+	if (index > 0) {
 		ret = smu_cmn_send_smc_msg_with_param(smu,
 						      SMU_MSG_GetEnabledSmuFeatures,
 						      0,
@@ -580,19 +617,7 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 						      SMU_MSG_GetEnabledSmuFeatures,
 						      1,
 						      feature_mask_high);
-		break;
-	/*
-	 * For Cyan Skillfish and Renoir, there is no interface provided by PMFW
-	 * to retrieve the enabled features. So, we assume all features are enabled.
-	 * TODO: add other APU ASICs which suffer from the same issue here
-	 */
-	case IP_VERSION(11, 0, 8):
-	case IP_VERSION(12, 0, 0):
-	case IP_VERSION(12, 0, 1):
-		memset(feature_mask, 0xff, sizeof(*feature_mask));
-		break;
-	/* other dGPU ASICs */
-	default:
+	} else {
 		ret = smu_cmn_send_smc_msg(smu,
 					   SMU_MSG_GetEnabledSmuFeaturesHigh,
 					   feature_mask_high);
@@ -602,7 +627,6 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 		ret = smu_cmn_send_smc_msg(smu,
 					   SMU_MSG_GetEnabledSmuFeaturesLow,
 					   feature_mask_low);
-		break;
 	}
 
 	return ret;
@@ -696,8 +720,7 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 	int ret = 0, i;
 	int feature_id;
 
-	ret = smu_cmn_get_enabled_mask(smu,
-				       &feature_mask);
+	ret = __smu_get_enabled_features(smu, &feature_mask);
 	if (ret)
 		return 0;
 
@@ -749,8 +772,7 @@ int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
 	uint64_t feature_2_enabled = 0;
 	uint64_t feature_2_disabled = 0;
 
-	ret = smu_cmn_get_enabled_mask(smu,
-				       &feature_mask);
+	ret = __smu_get_enabled_features(smu, &feature_mask);
 	if (ret)
 		return ret;
 

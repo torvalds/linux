@@ -683,10 +683,6 @@ static void gmc_v10_0_set_umc_funcs(struct amdgpu_device *adev)
 		if (!adev->umc.ras->ras_block.ras_late_init)
 				adev->umc.ras->ras_block.ras_late_init = amdgpu_umc_ras_late_init;
 
-		/* If don't define special ras_fini function, use default ras_fini */
-		if (!adev->umc.ras->ras_block.ras_fini)
-				adev->umc.ras->ras_block.ras_fini = amdgpu_umc_ras_fini;
-
 		/* If not defined special ras_cb function, use default ras_cb */
 		if (!adev->umc.ras->ras_block.ras_cb)
 			adev->umc.ras->ras_block.ras_cb = amdgpu_umc_process_ras_data_cb;
@@ -818,7 +814,7 @@ static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
 	adev->gmc.aper_size = pci_resource_len(adev->pdev, 0);
 
 #ifdef CONFIG_X86_64
-	if (adev->flags & AMD_IS_APU) {
+	if ((adev->flags & AMD_IS_APU) && !amdgpu_passthrough(adev)) {
 		adev->gmc.aper_base = adev->gfxhub.funcs->get_mc_fb_offset(adev);
 		adev->gmc.aper_size = adev->gmc.real_vram_size;
 	}
@@ -952,7 +948,6 @@ static int gmc_v10_0_sw_init(void *handle)
 		return r;
 
 	amdgpu_gmc_get_vbios_allocations(adev);
-	amdgpu_gmc_get_reserved_allocation(adev);
 
 	/* Memory manager */
 	r = amdgpu_bo_init(adev);

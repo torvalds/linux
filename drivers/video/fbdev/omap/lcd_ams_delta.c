@@ -131,18 +131,14 @@ static int ams_delta_panel_probe(struct platform_device *pdev)
 	int ret;
 
 	gpiod_vblen = devm_gpiod_get(&pdev->dev, "vblen", GPIOD_OUT_LOW);
-	if (IS_ERR(gpiod_vblen)) {
-		ret = PTR_ERR(gpiod_vblen);
-		dev_err(&pdev->dev, "VBLEN GPIO request failed (%d)\n", ret);
-		return ret;
-	}
+	if (IS_ERR(gpiod_vblen))
+		return dev_err_probe(&pdev->dev, PTR_ERR(gpiod_vblen),
+				     "VBLEN GPIO request failed\n");
 
 	gpiod_ndisp = devm_gpiod_get(&pdev->dev, "ndisp", GPIOD_OUT_LOW);
-	if (IS_ERR(gpiod_ndisp)) {
-		ret = PTR_ERR(gpiod_ndisp);
-		dev_err(&pdev->dev, "NDISP GPIO request failed (%d)\n", ret);
-		return ret;
-	}
+	if (IS_ERR(gpiod_ndisp))
+		return dev_err_probe(&pdev->dev, PTR_ERR(gpiod_ndisp),
+				     "NDISP GPIO request failed\n");
 
 #ifdef CONFIG_LCD_CLASS_DEVICE
 	lcd_device = lcd_device_register("omapfb", &pdev->dev, NULL,

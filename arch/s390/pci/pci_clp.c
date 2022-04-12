@@ -17,10 +17,13 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/uaccess.h>
+#include <asm/asm-extable.h>
 #include <asm/pci_debug.h>
 #include <asm/pci_clp.h>
 #include <asm/clp.h>
 #include <uapi/asm/clp.h>
+
+#include "pci_bus.h"
 
 bool zpci_unique_uid;
 
@@ -403,8 +406,11 @@ static void __clp_add(struct clp_fh_list_entry *entry, void *data)
 		return;
 
 	zdev = get_zdev_by_fid(entry->fid);
-	if (!zdev)
-		zpci_create_device(entry->fid, entry->fh, entry->config_state);
+	if (zdev) {
+		zpci_zdev_put(zdev);
+		return;
+	}
+	zpci_create_device(entry->fid, entry->fh, entry->config_state);
 }
 
 int clp_scan_pci_devices(void)

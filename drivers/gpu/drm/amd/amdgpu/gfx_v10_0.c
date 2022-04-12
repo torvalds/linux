@@ -250,13 +250,6 @@ MODULE_FIRMWARE("amdgpu/yellow_carp_mec.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_mec2.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_rlc.bin");
 
-MODULE_FIRMWARE("amdgpu/cyan_skillfish_ce.bin");
-MODULE_FIRMWARE("amdgpu/cyan_skillfish_pfp.bin");
-MODULE_FIRMWARE("amdgpu/cyan_skillfish_me.bin");
-MODULE_FIRMWARE("amdgpu/cyan_skillfish_mec.bin");
-MODULE_FIRMWARE("amdgpu/cyan_skillfish_mec2.bin");
-MODULE_FIRMWARE("amdgpu/cyan_skillfish_rlc.bin");
-
 MODULE_FIRMWARE("amdgpu/cyan_skillfish2_ce.bin");
 MODULE_FIRMWARE("amdgpu/cyan_skillfish2_pfp.bin");
 MODULE_FIRMWARE("amdgpu/cyan_skillfish2_me.bin");
@@ -3300,7 +3293,7 @@ static const struct soc15_reg_golden golden_settings_gc_10_3_3[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG3, 0xffffffff, 0x00000280),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG4, 0xffffffff, 0x00800000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0x0c1807ff, 0x00000242),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGCR_GENERAL_CNTL, 0x1ff1ffff, 0x00000500),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGCR_GENERAL_CNTL_Vangogh, 0x1ff1ffff, 0x00000500),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGL1_PIPE_STEER, 0x000000ff, 0x000000e4),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGL2_PIPE_STEER_0, 0x77777777, 0x32103210),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGL2_PIPE_STEER_1, 0x77777777, 0x32103210),
@@ -3436,7 +3429,7 @@ static const struct soc15_reg_golden golden_settings_gc_10_3_6[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG3, 0xffffffff, 0x00000280),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG4, 0xffffffff, 0x00800000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0x0c1807ff, 0x00000042),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGCR_GENERAL_CNTL, 0x1ff1ffff, 0x00000500),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGCR_GENERAL_CNTL_Vangogh, 0x1ff1ffff, 0x00000500),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGL1_PIPE_STEER, 0x000000ff, 0x00000044),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGL2_PIPE_STEER_0, 0x77777777, 0x32103210),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGL2_PIPE_STEER_1, 0x77777777, 0x32103210),
@@ -3461,7 +3454,7 @@ static const struct soc15_reg_golden golden_settings_gc_10_3_7[] = {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG3, 0xffffffff, 0x00000280),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG4, 0xffffffff, 0x00800000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0x0c1807ff, 0x00000041),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGCR_GENERAL_CNTL, 0x1ff1ffff, 0x00000500),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGCR_GENERAL_CNTL_Vangogh, 0x1ff1ffff, 0x00000500),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGL1_PIPE_STEER, 0x000000ff, 0x000000e4),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGL2_PIPE_STEER_0, 0x77777777, 0x32103210),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGL2_PIPE_STEER_1, 0x77777777, 0x32103210),
@@ -4043,10 +4036,7 @@ static int gfx_v10_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(10, 1, 3):
 	case IP_VERSION(10, 1, 4):
-		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2)
-			chip_name = "cyan_skillfish2";
-		else
-			chip_name = "cyan_skillfish";
+		chip_name = "cyan_skillfish2";
 		break;
 	case IP_VERSION(10, 3, 7):
 		chip_name = "gc_10_3_7";
@@ -6557,6 +6547,7 @@ static void gfx_v10_0_kiq_setting(struct amdgpu_ring *ring)
 	case IP_VERSION(10, 3, 5):
 	case IP_VERSION(10, 3, 6):
 	case IP_VERSION(10, 3, 3):
+	case IP_VERSION(10, 3, 7):
 		tmp = RREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS_Sienna_Cichlid);
 		tmp &= 0xffffff00;
 		tmp |= (ring->me << 5) | (ring->pipe << 3) | (ring->queue);
@@ -7698,6 +7689,7 @@ static uint64_t gfx_v10_0_get_gpu_clock_counter(struct amdgpu_device *adev)
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(10, 3, 1):
 	case IP_VERSION(10, 3, 3):
+	case IP_VERSION(10, 3, 7):
 		preempt_disable();
 		clock_hi = RREG32_SOC15_NO_KIQ(SMUIO, 0, mmGOLDEN_TSC_COUNT_UPPER_Vangogh);
 		clock_lo = RREG32_SOC15_NO_KIQ(SMUIO, 0, mmGOLDEN_TSC_COUNT_LOWER_Vangogh);
@@ -7857,6 +7849,7 @@ static void gfx_v10_0_set_safe_mode(struct amdgpu_device *adev)
 	case IP_VERSION(10, 3, 5):
 	case IP_VERSION(10, 3, 6):
 	case IP_VERSION(10, 3, 3):
+	case IP_VERSION(10, 3, 7):
 		WREG32_SOC15(GC, 0, mmRLC_SAFE_MODE_Sienna_Cichlid, data);
 
 		/* wait for RLC_SAFE_MODE */
@@ -7894,6 +7887,7 @@ static void gfx_v10_0_unset_safe_mode(struct amdgpu_device *adev)
 	case IP_VERSION(10, 3, 5):
 	case IP_VERSION(10, 3, 6):
 	case IP_VERSION(10, 3, 3):
+	case IP_VERSION(10, 3, 7):
 		WREG32_SOC15(GC, 0, mmRLC_SAFE_MODE_Sienna_Cichlid, data);
 		break;
 	default:
@@ -8348,6 +8342,7 @@ static void gfx_v10_cntl_power_gating(struct amdgpu_device *adev, bool enable)
 		case IP_VERSION(10, 3, 1):
 		case IP_VERSION(10, 3, 3):
 		case IP_VERSION(10, 3, 6):
+		case IP_VERSION(10, 3, 7):
 			data = 0x4E20 & RLC_PG_DELAY_3__CGCG_ACTIVE_BEFORE_CGPG_MASK_Vangogh;
 			WREG32_SOC15(GC, 0, mmRLC_PG_DELAY_3, data);
 			break;
@@ -8417,6 +8412,7 @@ static int gfx_v10_0_set_powergating_state(void *handle,
 	case IP_VERSION(10, 3, 1):
 	case IP_VERSION(10, 3, 3):
 	case IP_VERSION(10, 3, 6):
+	case IP_VERSION(10, 3, 7):
 		gfx_v10_cntl_pg(adev, enable);
 		amdgpu_gfx_off_ctrl(adev, enable);
 		break;
@@ -8445,6 +8441,7 @@ static int gfx_v10_0_set_clockgating_state(void *handle,
 	case IP_VERSION(10, 3, 5):
 	case IP_VERSION(10, 3, 6):
 	case IP_VERSION(10, 3, 3):
+	case IP_VERSION(10, 3, 7):
 		gfx_v10_0_update_gfx_clock_gating(adev,
 						 state == AMD_CG_STATE_GATE);
 		break;
@@ -9381,6 +9378,7 @@ static const struct amdgpu_ring_funcs gfx_v10_0_ring_funcs_gfx = {
 	.align_mask = 0xff,
 	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
 	.support_64bit_ptrs = true,
+	.secure_submission_supported = true,
 	.vmhub = AMDGPU_GFXHUB_0,
 	.get_rptr = gfx_v10_0_ring_get_rptr_gfx,
 	.get_wptr = gfx_v10_0_ring_get_wptr_gfx,

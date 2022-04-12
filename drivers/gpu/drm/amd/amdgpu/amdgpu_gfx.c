@@ -266,7 +266,7 @@ static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 		    * adev->gfx.mec.num_pipe_per_mec
 		    * adev->gfx.mec.num_queue_per_pipe;
 
-	while (queue_bit-- >= 0) {
+	while (--queue_bit >= 0) {
 		if (test_bit(queue_bit, adev->gfx.mec.queue_bitmap))
 			continue;
 
@@ -642,13 +642,6 @@ int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *r
 late_fini:
 	amdgpu_ras_block_late_fini(adev, ras_block);
 	return r;
-}
-
-void amdgpu_gfx_ras_fini(struct amdgpu_device *adev)
-{
-	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX) &&
-			adev->gfx.ras_if)
-		amdgpu_ras_block_late_fini(adev, adev->gfx.ras_if);
 }
 
 int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,

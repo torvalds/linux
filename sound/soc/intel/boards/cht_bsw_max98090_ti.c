@@ -296,7 +296,7 @@ static int cht_max98090_headset_init(struct snd_soc_component *component)
 	int ret;
 
 	/*
-	 * TI supports 4 butons headset detection
+	 * TI supports 4 buttons headset detection
 	 * KEY_MEDIA
 	 * KEY_VOICECOMMAND
 	 * KEY_VOLUMEUP
@@ -558,7 +558,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 			dev_dbg(dev, "Unable to add GPIO mapping table\n");
 	}
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	snd_soc_card_cht.dev = &pdev->dev;
 	mach = pdev->dev.platform_data;
 	platform_name = mach->mach_params.platform;

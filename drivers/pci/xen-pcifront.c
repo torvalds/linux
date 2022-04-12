@@ -755,7 +755,7 @@ static void free_pdev(struct pcifront_device *pdev)
 		xenbus_free_evtchn(pdev->xdev, pdev->evtchn);
 
 	if (pdev->gnt_ref != INVALID_GRANT_REF)
-		gnttab_end_foreign_access(pdev->gnt_ref, 0 /* r/w page */,
+		gnttab_end_foreign_access(pdev->gnt_ref,
 					  (unsigned long)pdev->sh_info);
 	else
 		free_page((unsigned long)pdev->sh_info);

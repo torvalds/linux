@@ -26,6 +26,7 @@
 
 #include <linux/hashtable.h>
 #include <linux/mmu_notifier.h>
+#include <linux/memremap.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/atomic.h>
@@ -355,7 +356,6 @@ enum kfd_mempool {
 /* Character device interface */
 int kfd_chardev_init(void);
 void kfd_chardev_exit(void);
-struct device *kfd_chardev(void);
 
 /**
  * enum kfd_unmap_queues_filter - Enum for queue filters.

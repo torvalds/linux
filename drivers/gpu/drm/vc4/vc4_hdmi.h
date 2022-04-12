@@ -117,7 +117,15 @@ struct vc4_hdmi_audio {
 	struct snd_soc_dai_link_component platform;
 	struct snd_dmaengine_dai_dma_data dma_data;
 	struct hdmi_audio_infoframe infoframe;
+	struct platform_device *codec_pdev;
 	bool streaming;
+};
+
+enum vc4_hdmi_output_format {
+	VC4_HDMI_OUTPUT_RGB,
+	VC4_HDMI_OUTPUT_YUV422,
+	VC4_HDMI_OUTPUT_YUV444,
+	VC4_HDMI_OUTPUT_YUV420,
 };
 
 /* General HDMI hardware state. */
@@ -219,6 +227,18 @@ struct vc4_hdmi {
 	 * the scrambler on? Protected by @mutex.
 	 */
 	bool scdc_enabled;
+
+	/**
+	 * @output_bpc: Copy of @vc4_connector_state.output_bpc for use
+	 * outside of KMS hooks. Protected by @mutex.
+	 */
+	unsigned int output_bpc;
+
+	/**
+	 * @output_format: Copy of @vc4_connector_state.output_format
+	 * for use outside of KMS hooks. Protected by @mutex.
+	 */
+	enum vc4_hdmi_output_format output_format;
 };
 
 static inline struct vc4_hdmi *
@@ -237,7 +257,9 @@ encoder_to_vc4_hdmi(struct drm_encoder *encoder)
 
 struct vc4_hdmi_connector_state {
 	struct drm_connector_state	base;
-	unsigned long long		pixel_rate;
+	unsigned long long		tmds_char_rate;
+	unsigned int 			output_bpc;
+	enum vc4_hdmi_output_format	output_format;
 };
 
 static inline struct vc4_hdmi_connector_state *

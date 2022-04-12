@@ -88,9 +88,7 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/clock/imx5-clock.h>
-    #include <dt-bindings/clock/vf610-clock.h>
-    #include <dt-bindings/gpio/gpio.h>
-    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
 
     i2c@83fc4000 {
         compatible = "fsl,imx51-i2c", "fsl,imx21-i2c";
@@ -98,6 +96,9 @@ examples:
         interrupts = <63>;
         clocks = <&clks IMX5_CLK_I2C2_GATE>;
     };
+
+  - |
+    #include <dt-bindings/clock/vf610-clock.h>
 
     i2c@40066000 {
         compatible = "fsl,vf610-i2c";

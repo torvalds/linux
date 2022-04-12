@@ -260,6 +260,25 @@ static const struct snd_soc_acpi_link_adr adl_sdw_rt711_link2_rt1316_link01_rt71
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr adl_sdw_rt711_link2_rt1316_link01[] = {
+	{
+		.mask = BIT(2),
+		.num_adr = ARRAY_SIZE(rt711_sdca_2_adr),
+		.adr_d = rt711_sdca_2_adr,
+	},
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt1316_0_group2_adr),
+		.adr_d = rt1316_0_group2_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(rt1316_1_group2_adr),
+		.adr_d = rt1316_1_group2_adr,
+	},
+	{}
+};
+
 static const struct snd_soc_acpi_link_adr adl_sdw_rt1316_link12_rt714_link0[] = {
 	{
 		.mask = BIT(1),
@@ -340,6 +359,15 @@ static const struct snd_soc_acpi_link_adr adl_rvp[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr adlps_rvp[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt711_sdca_0_adr),
+		.adr_d = rt711_sdca_0_adr,
+	},
+	{}
+};
+
 static const struct snd_soc_acpi_link_adr adl_chromebook_base[] = {
 	{
 		.mask = BIT(0),
@@ -390,7 +418,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.drv_name = "adl_mx98373_rt5682",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_max98373_amp,
-		.sof_fw_filename = "sof-adl.ri",
 		.sof_tplg_filename = "sof-adl-max98373-rt5682.tplg",
 	},
 	{
@@ -398,7 +425,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.drv_name = "adl_mx98357_rt5682",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_max98357a_amp,
-		.sof_fw_filename = "sof-adl.ri",
 		.sof_tplg_filename = "sof-adl-max98357a-rt5682.tplg",
 	},
 	{
@@ -406,7 +432,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.drv_name = "adl_mx98360_rt5682",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_max98360a_amp,
-		.sof_fw_filename = "sof-adl.ri",
 		.sof_tplg_filename = "sof-adl-max98360a-rt5682.tplg",
 	},
 	{
@@ -414,7 +439,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.drv_name = "adl_rt1019p_nau8825",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_rt1019p_amp,
-		.sof_fw_filename = "sof-adl.ri",
 		.sof_tplg_filename = "sof-adl-rt1019-nau8825.tplg",
 	},
 	{
@@ -422,7 +446,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.drv_name = "adl_max98373_nau8825",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_max98373_amp,
-		.sof_fw_filename = "sof-adl.ri",
 		.sof_tplg_filename = "sof-adl-max98373-nau8825.tplg",
 	},
 	{
@@ -430,13 +453,11 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.drv_name = "adl_mx98360a_nau8825",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_max98360a_amp,
-		.sof_fw_filename = "sof-adl.ri",
 		.sof_tplg_filename = "sof-adl-mx98360a-nau8825.tplg",
 	},
 	{
 		.id = "10508825",
 		.drv_name = "sof_nau8825",
-		.sof_fw_filename = "sof-adl.ri",
 		.sof_tplg_filename = "sof-adl-nau8825.tplg",
 	},
 	{
@@ -444,8 +465,18 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.drv_name = "adl_max98390_rt5682",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_max98390_amp,
-		.sof_fw_filename = "sof-adl.ri",
 		.sof_tplg_filename = "sof-adl-max98390-rt5682.tplg",
+	},
+	{
+		.comp_ids = &adl_rt5682_rt5682s_hp,
+		.drv_name = "adl_rt5682",
+		.sof_tplg_filename = "sof-adl-rt5682.tplg",
+	},
+	/* place amp-only boards in the end of table */
+	{
+		.id = "CSC3541",
+		.drv_name = "adl_cs35l41",
+		.sof_tplg_filename = "sof-adl-cs35l41.tplg",
 	},
 	{},
 };
@@ -475,21 +506,24 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_sdw_machines[] = {
 		.link_mask = 0xF, /* 4 active links required */
 		.links = adl_sdw_rt711_link2_rt1316_link01_rt714_link3,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-adl.ri",
 		.sof_tplg_filename = "sof-adl-rt711-l2-rt1316-l01-rt714-l3.tplg",
+	},
+	{
+		.link_mask = 0x7, /* rt1316 on link0 and link1 & rt711 on link2*/
+		.links = adl_sdw_rt711_link2_rt1316_link01,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-adl-rt711-l2-rt1316-l01.tplg",
 	},
 	{
 		.link_mask = 0xC, /* rt1316 on link2 & rt714 on link3 */
 		.links = adl_sdw_rt1316_link2_rt714_link3,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-adl.ri",
 		.sof_tplg_filename = "sof-adl-rt1316-l2-mono-rt714-l3.tplg",
 	},
 	{
 		.link_mask = 0x7, /* rt714 on link0 & two rt1316s on link1 and link2 */
 		.links = adl_sdw_rt1316_link12_rt714_link0,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-adl.ri",
 		.sof_tplg_filename = "sof-adl-rt1316-l12-rt714-l0.tplg",
 	},
 	{
@@ -505,10 +539,15 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_sdw_machines[] = {
 		.sof_tplg_filename = "sof-adl-rt711.tplg",
 	},
 	{
+		.link_mask = 0x1, /* link0 required */
+		.links = adlps_rvp,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-adl-rt711.tplg",
+	},
+	{
 		.link_mask = 0x5, /* rt5682 on link0 & 2xmax98373 on link 2 */
 		.links = adl_chromebook_base,
 		.drv_name = "sof_sdw",
-		.sof_fw_filename = "sof-adl.ri",
 		.sof_tplg_filename = "sof-adl-sdw-max98373-rt5682.tplg",
 	},
 	{},

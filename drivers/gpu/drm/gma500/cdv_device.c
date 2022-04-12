@@ -262,6 +262,7 @@ static int cdv_save_display_registers(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct psb_save_area *regs = &dev_priv->regs;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector;
 
 	dev_dbg(dev->dev, "Saving GPU registers.\n");
@@ -298,8 +299,10 @@ static int cdv_save_display_registers(struct drm_device *dev)
 	regs->cdv.saveIER = REG_READ(PSB_INT_ENABLE_R);
 	regs->cdv.saveIMR = REG_READ(PSB_INT_MASK_R);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter)
 		connector->funcs->dpms(connector, DRM_MODE_DPMS_OFF);
+	drm_connector_list_iter_end(&conn_iter);
 
 	return 0;
 }
@@ -317,6 +320,7 @@ static int cdv_restore_display_registers(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct psb_save_area *regs = &dev_priv->regs;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector;
 	u32 temp;
 
@@ -373,8 +377,10 @@ static int cdv_restore_display_registers(struct drm_device *dev)
 
 	drm_mode_config_reset(dev);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter)
 		connector->funcs->dpms(connector, DRM_MODE_DPMS_ON);
+	drm_connector_list_iter_end(&conn_iter);
 
 	/* Resume the modeset for every activated CRTC */
 	drm_helper_resume_force_mode(dev);
@@ -603,7 +609,6 @@ const struct psb_ops cdv_chip_ops = {
 	.errata = cdv_errata,
 
 	.crtc_helper = &cdv_intel_helper_funcs,
-	.crtc_funcs = &gma_intel_crtc_funcs,
 	.clock_funcs = &cdv_clock_funcs,
 
 	.output_init = cdv_output_init,

@@ -342,12 +342,12 @@ struct hid_item {
  * HID device quirks.
  */
 
-/* 
+/*
  * Increase this if you need to configure more HID quirks at module load time
  */
 #define MAX_USBHID_BOOT_QUIRKS 4
 
-#define HID_QUIRK_INVERT			BIT(0)
+/* BIT(0) reserved for backward compatibility, was HID_QUIRK_INVERT */
 #define HID_QUIRK_NOTOUCH			BIT(1)
 #define HID_QUIRK_IGNORE			BIT(2)
 #define HID_QUIRK_NOGET				BIT(3)
@@ -476,31 +476,50 @@ struct hid_field {
 	unsigned  report_count;		/* number of this field in the report */
 	unsigned  report_type;		/* (input,output,feature) */
 	__s32    *value;		/* last known value(s) */
+	__s32    *new_value;		/* newly read value(s) */
+	__s32    *usages_priorities;	/* priority of each usage when reading the report
+					 * bits 8-16 are reserved for hid-input usage
+					 */
 	__s32     logical_minimum;
 	__s32     logical_maximum;
 	__s32     physical_minimum;
 	__s32     physical_maximum;
 	__s32     unit_exponent;
 	unsigned  unit;
+	bool      ignored;		/* this field is ignored in this event */
 	struct hid_report *report;	/* associated report */
 	unsigned index;			/* index into report->field[] */
 	/* hidinput data */
 	struct hid_input *hidinput;	/* associated input structure */
 	__u16 dpad;			/* dpad input code */
+	unsigned int slot_idx;		/* slot index in a report */
 };
 
 #define HID_MAX_FIELDS 256
 
+struct hid_field_entry {
+	struct list_head list;
+	struct hid_field *field;
+	unsigned int index;
+	__s32 priority;
+};
+
 struct hid_report {
 	struct list_head list;
 	struct list_head hidinput_list;
+	struct list_head field_entry_list;		/* ordered list of input fields */
 	unsigned int id;				/* id of this report */
 	unsigned int type;				/* report type */
 	unsigned int application;			/* application usage for this report */
 	struct hid_field *field[HID_MAX_FIELDS];	/* fields of the report */
+	struct hid_field_entry *field_entries;		/* allocated memory of input field_entry */
 	unsigned maxfield;				/* maximum valid field index */
 	unsigned size;					/* size of the report (bits) */
 	struct hid_device *device;			/* associated device */
+
+	/* tool related state */
+	bool tool_active;				/* whether the current tool is active */
+	unsigned int tool;				/* BTN_TOOL_* */
 };
 
 #define HID_MAX_IDS 256

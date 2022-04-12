@@ -3698,8 +3698,7 @@ skl_setup_sagv_block_time(struct drm_i915_private *dev_priv)
 		MISSING_CASE(DISPLAY_VER(dev_priv));
 	}
 
-	/* Default to an unusable block time */
-	dev_priv->sagv_block_time_us = -1;
+	dev_priv->sagv_block_time_us = 0;
 }
 
 /*
@@ -5145,12 +5144,15 @@ skl_allocate_plane_ddb(struct skl_plane_ddb_iter *iter,
 		       const struct skl_wm_level *wm,
 		       u64 data_rate)
 {
-	u16 extra;
+	u16 extra = 0;
 
-	extra = min_t(u16, iter->size,
-		      DIV64_U64_ROUND_UP(iter->size * data_rate, iter->data_rate));
-	iter->size -= extra;
-	iter->data_rate -= data_rate;
+	if (data_rate) {
+		extra = min_t(u16, iter->size,
+			      DIV64_U64_ROUND_UP(iter->size * data_rate,
+						 iter->data_rate));
+		iter->size -= extra;
+		iter->data_rate -= data_rate;
+	}
 
 	return wm->min_ddb_alloc + extra;
 }
@@ -5193,9 +5195,6 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb_y[PLANE_CURSOR],
 			   alloc->end - iter.total[PLANE_CURSOR], alloc->end);
 
-	if (iter.data_rate == 0)
-		return 0;
-
 	/*
 	 * Find the highest watermark level for which we can satisfy the block
 	 * requirement of active planes.
@@ -5234,6 +5233,10 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 		return -EINVAL;
 	}
 
+	/* avoid the WARN later when we don't allocate any extra DDB */
+	if (iter.data_rate == 0)
+		iter.size = 0;
+
 	/*
 	 * Grant each plane the blocks it requires at the highest achievable
 	 * watermark level, plus an extra share of the leftover blocks
@@ -5246,19 +5249,9 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 		if (plane_id == PLANE_CURSOR)
 			continue;
 
-		/*
-		 * We've accounted for all active planes; remaining planes are
-		 * all disabled.
-		 */
-		if (iter.data_rate == 0)
-			break;
-
 		iter.total[plane_id] =
 			skl_allocate_plane_ddb(&iter, &wm->wm[level],
 					       crtc_state->plane_data_rate[plane_id]);
-
-		if (iter.data_rate == 0)
-			break;
 
 		iter.uv_total[plane_id] =
 			skl_allocate_plane_ddb(&iter, &wm->uv_wm[level],
@@ -5651,7 +5644,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 	result->min_ddb_alloc = max(min_ddb_alloc, blocks) + 1;
 	result->enable = true;
 
-	if (DISPLAY_VER(dev_priv) < 12)
+	if (DISPLAY_VER(dev_priv) < 12 && dev_priv->sagv_block_time_us)
 		result->can_sagv = latency >= dev_priv->sagv_block_time_us;
 }
 
@@ -5684,7 +5677,10 @@ static void tgl_compute_sagv_wm(const struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	struct skl_wm_level *sagv_wm = &plane_wm->sagv.wm0;
 	struct skl_wm_level *levels = plane_wm->wm;
-	unsigned int latency = dev_priv->wm.skl_latency[0] + dev_priv->sagv_block_time_us;
+	unsigned int latency = 0;
+
+	if (dev_priv->sagv_block_time_us)
+		latency = dev_priv->sagv_block_time_us + dev_priv->wm.skl_latency[0];
 
 	skl_compute_plane_wm(crtc_state, plane, 0, latency,
 			     wm_params, &levels[0],

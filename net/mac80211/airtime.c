@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2019 Felix Fietkau <nbd@nbd.name>
+ * Copyright (C) 2021 Intel Corporation
  */
 
 #include <net/mac80211.h>
@@ -67,17 +68,11 @@
 #define IEEE80211_VHT_STREAM_GROUPS	8 /* BW(=4) * SGI(=2) */
 
 #define IEEE80211_HE_MAX_STREAMS	8
-#define IEEE80211_HE_STREAM_GROUPS	12 /* BW(=4) * GI(=3) */
 
 #define IEEE80211_HT_GROUPS_NB	(IEEE80211_MAX_STREAMS *	\
 				 IEEE80211_HT_STREAM_GROUPS)
 #define IEEE80211_VHT_GROUPS_NB	(IEEE80211_MAX_STREAMS *	\
 					 IEEE80211_VHT_STREAM_GROUPS)
-#define IEEE80211_HE_GROUPS_NB	(IEEE80211_HE_MAX_STREAMS *	\
-				 IEEE80211_HE_STREAM_GROUPS)
-#define IEEE80211_GROUPS_NB	(IEEE80211_HT_GROUPS_NB +	\
-				 IEEE80211_VHT_GROUPS_NB +	\
-				 IEEE80211_HE_GROUPS_NB)
 
 #define IEEE80211_HT_GROUP_0	0
 #define IEEE80211_VHT_GROUP_0	(IEEE80211_HT_GROUP_0 + IEEE80211_HT_GROUPS_NB)
@@ -477,7 +472,9 @@ u32 ieee80211_calc_rx_airtime(struct ieee80211_hw *hw,
 		bool sp = status->enc_flags & RX_ENC_FLAG_SHORTPRE;
 		bool cck;
 
-		if (WARN_ON_ONCE(status->band > NL80211_BAND_5GHZ))
+		/* on 60GHz or sub-1GHz band, there are no legacy rates */
+		if (WARN_ON_ONCE(status->band == NL80211_BAND_60GHZ ||
+				 status->band == NL80211_BAND_S1GHZ))
 			return 0;
 
 		sband = hw->wiphy->bands[status->band];
@@ -650,12 +647,12 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 		struct sta_info *sta = container_of(pubsta, struct sta_info,
 						    sta);
 		struct ieee80211_rx_status stat;
-		struct ieee80211_tx_rate *rate = &sta->tx_stats.last_rate;
+		struct ieee80211_tx_rate *tx_rate = &sta->tx_stats.last_rate;
 		struct rate_info *ri = &sta->tx_stats.last_rate_info;
 		u32 duration, overhead;
 		u8 agg_shift;
 
-		if (ieee80211_fill_rx_status(&stat, hw, rate, ri, band, len))
+		if (ieee80211_fill_rx_status(&stat, hw, tx_rate, ri, band, len))
 			return 0;
 
 		if (stat.encoding == RX_ENC_LEGACY || !ampdu)

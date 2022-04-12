@@ -626,7 +626,7 @@ amdgpu_connector_fixup_lcd_native_mode(struct drm_encoder *encoder,
 		if (mode->type & DRM_MODE_TYPE_PREFERRED) {
 			if (mode->hdisplay != native_mode->hdisplay ||
 			    mode->vdisplay != native_mode->vdisplay)
-				memcpy(native_mode, mode, sizeof(*mode));
+				drm_mode_copy(native_mode, mode);
 		}
 	}
 
@@ -635,7 +635,7 @@ amdgpu_connector_fixup_lcd_native_mode(struct drm_encoder *encoder,
 		list_for_each_entry_safe(mode, t, &connector->probed_modes, head) {
 			if (mode->hdisplay == native_mode->hdisplay &&
 			    mode->vdisplay == native_mode->vdisplay) {
-				*native_mode = *mode;
+				drm_mode_copy(native_mode, mode);
 				drm_mode_set_crtcinfo(native_mode, CRTC_INTERLACE_HALVE_V);
 				DRM_DEBUG_KMS("Determined LVDS native mode details from EDID\n");
 				break;

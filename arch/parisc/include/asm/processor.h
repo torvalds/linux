@@ -95,6 +95,7 @@ struct cpuinfo_parisc {
 
 extern struct system_cpuinfo_parisc boot_cpu_data;
 DECLARE_PER_CPU(struct cpuinfo_parisc, cpu_data);
+extern int time_keeper_id;		/* CPU used for timekeeping */
 
 #define CPU_HVERSION ((boot_cpu_data.hversion >> 4) & 0x0FFF)
 
@@ -236,7 +237,7 @@ on downward growing arches, it looks like this:
 
 #define start_thread(regs, new_pc, new_sp) do {		\
 	elf_addr_t *sp = (elf_addr_t *)new_sp;		\
-	__u32 spaceid = (__u32)current->mm->context;	\
+	__u32 spaceid = (__u32)current->mm->context.space_id;	\
 	elf_addr_t pc = (elf_addr_t)new_pc | 3;		\
 	elf_caddr_t *argv = (elf_caddr_t *)bprm->exec + 1;	\
 							\

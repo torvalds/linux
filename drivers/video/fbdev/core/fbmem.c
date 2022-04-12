@@ -397,18 +397,14 @@ static void fb_rotate_logo(struct fb_info *info, u8 *dst,
 	} else if (rotate == FB_ROTATE_CW) {
 		fb_rotate_logo_cw(image->data, dst, image->width,
 				  image->height);
-		tmp = image->width;
-		image->width = image->height;
-		image->height = tmp;
+		swap(image->width, image->height);
 		tmp = image->dy;
 		image->dy = image->dx;
 		image->dx = info->var.xres - image->width - tmp;
 	} else if (rotate == FB_ROTATE_CCW) {
 		fb_rotate_logo_ccw(image->data, dst, image->width,
 				   image->height);
-		tmp = image->width;
-		image->width = image->height;
-		image->height = tmp;
+		swap(image->width, image->height);
 		tmp = image->dx;
 		image->dx = image->dy;
 		image->dy = info->var.yres - image->height - tmp;
@@ -1583,7 +1579,14 @@ static void do_remove_conflicting_framebuffers(struct apertures_struct *a,
 			 * If it's not a platform device, at least print a warning. A
 			 * fix would add code to remove the device from the system.
 			 */
-			if (dev_is_platform(device)) {
+			if (!device) {
+				/* TODO: Represent each OF framebuffer as its own
+				 * device in the device hierarchy. For now, offb
+				 * doesn't have such a device, so unregister the
+				 * framebuffer as before without warning.
+				 */
+				do_unregister_framebuffer(registered_fb[i]);
+			} else if (dev_is_platform(device)) {
 				registered_fb[i]->forced_out = true;
 				platform_device_unregister(to_platform_device(device));
 			} else {

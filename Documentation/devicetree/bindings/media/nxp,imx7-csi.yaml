@@ -17,6 +17,7 @@ properties:
   compatible:
     oneOf:
       - enum:
+          - fsl,imx8mq-csi
           - fsl,imx7-csi
           - fsl,imx6ul-csi
       - items:

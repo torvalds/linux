@@ -1783,19 +1783,20 @@ bool empty_inline_dir(struct inode *dir, int *has_inline_data)
 	void *inline_pos;
 	unsigned int offset;
 	struct ext4_dir_entry_2 *de;
-	bool ret = true;
+	bool ret = false;
 
 	err = ext4_get_inode_loc(dir, &iloc);
 	if (err) {
 		EXT4_ERROR_INODE_ERR(dir, -err,
 				     "error %d getting inode %lu block",
 				     err, dir->i_ino);
-		return true;
+		return false;
 	}
 
 	down_read(&EXT4_I(dir)->xattr_sem);
 	if (!ext4_has_inline_data(dir)) {
 		*has_inline_data = 0;
+		ret = true;
 		goto out;
 	}
 
@@ -1804,7 +1805,6 @@ bool empty_inline_dir(struct inode *dir, int *has_inline_data)
 		ext4_warning(dir->i_sb,
 			     "bad inline directory (dir #%lu) - no `..'",
 			     dir->i_ino);
-		ret = true;
 		goto out;
 	}
 
@@ -1823,16 +1823,15 @@ bool empty_inline_dir(struct inode *dir, int *has_inline_data)
 				     dir->i_ino, le32_to_cpu(de->inode),
 				     le16_to_cpu(de->rec_len), de->name_len,
 				     inline_size);
-			ret = true;
 			goto out;
 		}
 		if (le32_to_cpu(de->inode)) {
-			ret = false;
 			goto out;
 		}
 		offset += ext4_rec_len_from_disk(de->rec_len, inline_size);
 	}
 
+	ret = true;
 out:
 	up_read(&EXT4_I(dir)->xattr_sem);
 	brelse(iloc.bh);

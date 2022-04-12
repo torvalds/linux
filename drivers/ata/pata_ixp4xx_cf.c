@@ -293,7 +293,7 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
 
 static const struct of_device_id ixp4xx_pata_of_match[] = {
 	{ .compatible = "intel,ixp4xx-compact-flash", },
-	{ },
+	{ /* sentinel */ }
 };
 
 static struct platform_driver ixp4xx_pata_platform_driver = {

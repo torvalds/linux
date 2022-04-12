@@ -34,6 +34,7 @@
 #define DP_BRANCH_DEVICE_ID_90CC24 0x90CC24
 #define DP_BRANCH_DEVICE_ID_00E04C 0x00E04C
 #define DP_BRANCH_DEVICE_ID_006037 0x006037
+#define DP_BRANCH_DEVICE_ID_001CF8 0x001CF8
 #define DP_BRANCH_HW_REV_10 0x10
 #define DP_BRANCH_HW_REV_20 0x20
 
@@ -63,6 +64,7 @@ enum ddc_service_type {
 struct display_sink_capability {
 	/* dongle type (DP converter, CV smart dongle) */
 	enum display_dongle_type dongle_type;
+	bool is_dongle_type_one;
 
 	/**********************************************************
 	 capabilities going INTO SINK DEVICE (stream capabilities)

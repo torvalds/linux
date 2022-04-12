@@ -10,6 +10,7 @@
 #include <linux/ipv6.h>
 #include <net/checksum.h>
 #include <linux/printk.h>
+#include <linux/jiffies.h>
 
 #include "qlcnic.h"
 
@@ -332,7 +333,7 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	hlist_for_each_entry_safe(tmp_fil, n, head, fnode) {
 		if (ether_addr_equal(tmp_fil->faddr, (u8 *)&src_addr) &&
 		    tmp_fil->vlan_id == vlan_id) {
-			if (jiffies > (QLCNIC_READD_AGE * HZ + tmp_fil->ftime))
+			if (time_is_before_jiffies(QLCNIC_READD_AGE * HZ + tmp_fil->ftime))
 				qlcnic_change_filter(adapter, &src_addr,
 						     vlan_id, tx_ring);
 			tmp_fil->ftime = jiffies;

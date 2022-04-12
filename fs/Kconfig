@@ -48,7 +48,7 @@ config FS_DAX
 	bool "File system based Direct Access (DAX) support"
 	depends on MMU
 	depends on !(ARM || MIPS || SPARC)
-	select DEV_PAGEMAP_OPS if (ZONE_DEVICE && !FS_DAX_LIMITED)
+	depends on ZONE_DEVICE || FS_DAX_LIMITED
 	select FS_IOMAP
 	select DAX
 	help
@@ -344,7 +344,7 @@ config LOCKD
 
 config LOCKD_V4
 	bool
-	depends on NFSD_V3 || NFS_V3
+	depends on NFSD || NFS_V3
 	depends on FILE_LOCKING
 	default y
 

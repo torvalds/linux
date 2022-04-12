@@ -1026,7 +1026,7 @@ static int starfive_gpio_set_config(struct gpio_chip *gc, unsigned int gpio,
 		break;
 	default:
 		return -ENOTSUPP;
-	};
+	}
 
 	starfive_padctl_rmw(sfp, starfive_gpio_to_pin(sfp, gpio), mask, value);
 	return 0;
@@ -1164,6 +1164,7 @@ static int starfive_irq_set_type(struct irq_data *d, unsigned int trigger)
 }
 
 static struct irq_chip starfive_irq_chip = {
+	.name = "StarFive GPIO",
 	.irq_ack = starfive_irq_ack,
 	.irq_mask = starfive_irq_mask,
 	.irq_mask_ack = starfive_irq_mask_ack,
@@ -1307,9 +1308,6 @@ static int starfive_probe(struct platform_device *pdev)
 	sfp->gc.base = -1;
 	sfp->gc.ngpio = NR_GPIOS;
 
-	starfive_irq_chip.parent_device = dev;
-	starfive_irq_chip.name = sfp->gc.label;
-
 	sfp->gc.irq.chip = &starfive_irq_chip;
 	sfp->gc.irq.parent_handler = starfive_gpio_irq_handler;
 	sfp->gc.irq.num_parents = 1;
@@ -1329,6 +1327,8 @@ static int starfive_probe(struct platform_device *pdev)
 	ret = devm_gpiochip_add_data(dev, &sfp->gc, sfp);
 	if (ret)
 		return dev_err_probe(dev, ret, "could not register gpiochip\n");
+
+	irq_domain_set_pm_device(sfp->gc.irq.domain, dev);
 
 out_pinctrl_enable:
 	return pinctrl_enable(sfp->pctl);

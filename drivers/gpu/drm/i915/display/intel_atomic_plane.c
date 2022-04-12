@@ -110,7 +110,6 @@ intel_plane_duplicate_state(struct drm_plane *plane)
 	intel_state->ggtt_vma = NULL;
 	intel_state->dpt_vma = NULL;
 	intel_state->flags = 0;
-	intel_state->do_async_flip = false;
 
 	/* add reference to fb */
 	if (intel_state->hw.fb)
@@ -506,7 +505,7 @@ static int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_cr
 		new_crtc_state->disable_lp_wm = true;
 
 	if (intel_plane_do_async_flip(plane, old_crtc_state, new_crtc_state))
-		new_plane_state->do_async_flip = true;
+		new_crtc_state->do_async_flip = true;
 
 	return 0;
 }
@@ -678,7 +677,7 @@ void intel_plane_update_arm(struct intel_plane *plane,
 
 	trace_intel_plane_update_arm(&plane->base, crtc);
 
-	if (plane_state->do_async_flip)
+	if (crtc_state->do_async_flip && plane->async_flip)
 		plane->async_flip(plane, crtc_state, plane_state, true);
 	else
 		plane->update_arm(plane, crtc_state, plane_state);
@@ -703,7 +702,7 @@ void intel_crtc_planes_update_noarm(struct intel_atomic_state *state,
 	struct intel_plane *plane;
 	int i;
 
-	if (new_crtc_state->uapi.async_flip)
+	if (new_crtc_state->do_async_flip)
 		return;
 
 	/*

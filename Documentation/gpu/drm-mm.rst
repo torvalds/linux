@@ -466,6 +466,15 @@ DRM MM Range Allocator Function References
 .. kernel-doc:: drivers/gpu/drm/drm_mm.c
    :export:
 
+DRM Buddy Allocator
+===================
+
+DRM Buddy Function References
+-----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_buddy.c
+   :export:
+
 DRM Cache Handling and Fast WC memcpy()
 =======================================
 

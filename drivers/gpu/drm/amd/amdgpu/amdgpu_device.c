@@ -80,12 +80,7 @@ MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/picasso_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven2_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_gpu_info.bin");
-MODULE_FIRMWARE("amdgpu/renoir_gpu_info.bin");
-MODULE_FIRMWARE("amdgpu/navi10_gpu_info.bin");
-MODULE_FIRMWARE("amdgpu/navi14_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi12_gpu_info.bin");
-MODULE_FIRMWARE("amdgpu/vangogh_gpu_info.bin");
-MODULE_FIRMWARE("amdgpu/yellow_carp_gpu_info.bin");
 
 #define AMDGPU_RESUME_MS		2000
 #define AMDGPU_MAX_RETRY_LIMIT		2
@@ -1539,6 +1534,11 @@ static int amdgpu_device_check_arguments(struct amdgpu_device *adev)
 		amdgpu_sched_hw_submission = roundup_pow_of_two(amdgpu_sched_hw_submission);
 	}
 
+	if (amdgpu_reset_method < -1 || amdgpu_reset_method > 4) {
+		dev_warn(adev->dev, "invalid option for reset method, reverting to default\n");
+		amdgpu_reset_method = -1;
+	}
+
 	amdgpu_device_check_smu_prv_buffer_size(adev);
 
 	amdgpu_device_check_vm_size(adev);
@@ -1549,7 +1549,6 @@ static int amdgpu_device_check_arguments(struct amdgpu_device *adev)
 
 	amdgpu_gmc_tmz_set(adev);
 
-	amdgpu_gmc_noretry_set(adev);
 
 	return 0;
 }
@@ -1987,26 +1986,8 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 	case CHIP_ARCTURUS:
 		chip_name = "arcturus";
 		break;
-	case CHIP_RENOIR:
-		if (adev->apu_flags & AMD_APU_IS_RENOIR)
-			chip_name = "renoir";
-		else
-			chip_name = "green_sardine";
-		break;
-	case CHIP_NAVI10:
-		chip_name = "navi10";
-		break;
-	case CHIP_NAVI14:
-		chip_name = "navi14";
-		break;
 	case CHIP_NAVI12:
 		chip_name = "navi12";
-		break;
-	case CHIP_VANGOGH:
-		chip_name = "vangogh";
-		break;
-	case CHIP_YELLOW_CARP:
-		chip_name = "yellow_carp";
 		break;
 	}
 
@@ -2178,8 +2159,10 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	    !pci_is_thunderbolt_attached(to_pci_dev(dev->dev)))
 		adev->flags |= AMD_IS_PX;
 
-	parent = pci_upstream_bridge(adev->pdev);
-	adev->has_pr3 = parent ? pci_pr3_present(parent) : false;
+	if (!(adev->flags & AMD_IS_APU)) {
+		parent = pci_upstream_bridge(adev->pdev);
+		adev->has_pr3 = parent ? pci_pr3_present(parent) : false;
+	}
 
 	amdgpu_amdkfd_device_probe(adev);
 
@@ -3609,6 +3592,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	mutex_init(&adev->psp.mutex);
 	mutex_init(&adev->notifier_lock);
 	mutex_init(&adev->pm.stable_pstate_ctx_lock);
+	mutex_init(&adev->benchmark_mutex);
 
 	amdgpu_device_init_apu_flags(adev);
 
@@ -3682,6 +3666,15 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	if (amdgpu_mes && adev->asic_type >= CHIP_NAVI10)
 		adev->enable_mes = true;
 
+	/*
+	 * Reset domain needs to be present early, before XGMI hive discovered
+	 * (if any) and intitialized to use reset sem and in_gpu reset flag
+	 * early on during init and before calling to RREG32.
+	 */
+	adev->reset_domain = amdgpu_reset_create_reset_domain(SINGLE_DEVICE, "amdgpu-reset-dev");
+	if (!adev->reset_domain)
+		return -ENOMEM;
+
 	/* detect hw virtualization here */
 	amdgpu_detect_virtualization(adev);
 
@@ -3691,20 +3684,12 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		return r;
 	}
 
-	/*
-	 * Reset domain needs to be present early, before XGMI hive discovered
-	 * (if any) and intitialized to use reset sem and in_gpu reset flag
-	 * early on during init.
-	 */
-	adev->reset_domain = amdgpu_reset_create_reset_domain(SINGLE_DEVICE ,"amdgpu-reset-dev");
-	if (!adev->reset_domain)
-		return -ENOMEM;
-
 	/* early init functions */
 	r = amdgpu_device_ip_early_init(adev);
 	if (r)
 		return r;
 
+	amdgpu_gmc_noretry_set(adev);
 	/* Need to get xgmi info early to decide the reset behavior*/
 	if (adev->gmc.xgmi.supported) {
 		r = adev->gfxhub.funcs->get_xgmi_info(adev);
@@ -3871,19 +3856,6 @@ fence_driver_init:
 		DRM_ERROR("Creating firmware sysfs failed (%d).\n", r);
 	} else
 		adev->ucode_sysfs_en = true;
-
-	if ((amdgpu_testing & 1)) {
-		if (adev->accel_working)
-			amdgpu_test_moves(adev);
-		else
-			DRM_INFO("amdgpu: acceleration disabled, skipping move tests\n");
-	}
-	if (amdgpu_benchmarking) {
-		if (adev->accel_working)
-			amdgpu_benchmark(adev, amdgpu_benchmarking);
-		else
-			DRM_INFO("amdgpu: acceleration disabled, skipping benchmarks\n");
-	}
 
 	/*
 	 * Register gpu instance before amdgpu_device_enable_mgpu_fan_boost.
@@ -4723,6 +4695,22 @@ int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 	return r;
 }
 
+static int amdgpu_reset_reg_dumps(struct amdgpu_device *adev)
+{
+	uint32_t reg_value;
+	int i;
+
+	lockdep_assert_held(&adev->reset_domain->sem);
+	dump_stack();
+
+	for (i = 0; i < adev->num_regs; i++) {
+		reg_value = RREG32(adev->reset_dump_reg_list[i]);
+		trace_amdgpu_reset_reg_dumps(adev->reset_dump_reg_list[i], reg_value);
+	}
+
+	return 0;
+}
+
 int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 			 struct amdgpu_reset_context *reset_context)
 {
@@ -4733,6 +4721,7 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 	/* Try reset handler method first */
 	tmp_adev = list_first_entry(device_list_handle, struct amdgpu_device,
 				    reset_list);
+	amdgpu_reset_reg_dumps(tmp_adev);
 	r = amdgpu_reset_perform_reset(tmp_adev, reset_context);
 	/* If reset handler not implemented, continue; otherwise return */
 	if (r == -ENOSYS)
@@ -5744,7 +5733,7 @@ void amdgpu_device_flush_hdp(struct amdgpu_device *adev,
 		struct amdgpu_ring *ring)
 {
 #ifdef CONFIG_X86_64
-	if (adev->flags & AMD_IS_APU)
+	if ((adev->flags & AMD_IS_APU) && !amdgpu_passthrough(adev))
 		return;
 #endif
 	if (adev->gmc.xgmi.connected_to_cpu)
@@ -5760,7 +5749,7 @@ void amdgpu_device_invalidate_hdp(struct amdgpu_device *adev,
 		struct amdgpu_ring *ring)
 {
 #ifdef CONFIG_X86_64
-	if (adev->flags & AMD_IS_APU)
+	if ((adev->flags & AMD_IS_APU) && !amdgpu_passthrough(adev))
 		return;
 #endif
 	if (adev->gmc.xgmi.connected_to_cpu)

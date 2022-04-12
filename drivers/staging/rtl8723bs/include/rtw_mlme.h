@@ -102,13 +102,17 @@ there are several "locks" in mlme_priv,
 since mlme_priv is a shared resource between many threads,
 like ISR/Call-Back functions, the OID handlers, and even timer functions.
 
-
 Each struct __queue has its own locks, already.
-Other items are protected by mlme_priv.lock.
+Other items in mlme_priv are protected by mlme_priv.lock, while items in
+xmit_priv are protected by xmit_priv.lock.
 
 To avoid possible dead lock, any thread trying to modifiying mlme_priv
 SHALL not lock up more than one locks at a time!
 
+The only exception is that queue functions which take the __queue.lock
+may be called with the xmit_priv.lock held. In this case the order
+MUST always be first lock xmit_priv.lock and then call any queue functions
+which take __queue.lock.
 */
 
 

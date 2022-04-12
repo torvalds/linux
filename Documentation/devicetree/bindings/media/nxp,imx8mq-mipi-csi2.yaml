@@ -58,11 +58,11 @@ properties:
       req_gpr is the gpr register offset of RX_ENABLE for the mipi phy.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
-      items:
-        - description: The 'gpr' is the phandle to general purpose register node.
-        - description: The 'req_gpr' is the gpr register offset containing
-                       CSI2_1_RX_ENABLE or CSI2_2_RX_ENABLE respectively.
-          maximum: 0xff
+      - items:
+          - description: The 'gpr' is the phandle to general purpose register node.
+          - description: The 'req_gpr' is the gpr register offset containing
+                        CSI2_1_RX_ENABLE or CSI2_2_RX_ENABLE respectively.
+            maximum: 0xff
 
   interconnects:
     maxItems: 1

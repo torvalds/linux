@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.173"
+#define DC_VER "3.2.177"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -188,6 +188,7 @@ struct dc_caps {
 	bool psp_setup_panel_mode;
 	bool extended_aux_timeout_support;
 	bool dmcub_support;
+	bool zstate_support;
 	uint32_t num_of_internal_disp;
 	enum dp_protocol_version max_dp_protocol_version;
 	unsigned int mall_size_per_mem_channel;
@@ -354,6 +355,7 @@ enum dc_psr_power_opts {
 	psr_power_opt_invalid = 0x0,
 	psr_power_opt_smu_opt_static_screen = 0x1,
 	psr_power_opt_z10_static_screen = 0x10,
+	psr_power_opt_ds_disable_allow = 0x100,
 };
 
 enum dcc_option {
@@ -520,6 +522,22 @@ union dpia_debug_options {
 		uint32_t hpd_delay_in_ms:12; /* bits 4-15 */
 		uint32_t disable_force_tbt3_work_around:1; /* bit 16 */
 		uint32_t reserved:15;
+	} bits;
+	uint32_t raw;
+};
+
+/* AUX wake work around options
+ * 0: enable/disable work around
+ * 1: use default timeout LINK_AUX_WAKE_TIMEOUT_MS
+ * 15-2: reserved
+ * 31-16: timeout in ms
+ */
+union aux_wake_wa_options {
+	struct {
+		uint32_t enable_wa : 1;
+		uint32_t use_default_timeout : 1;
+		uint32_t rsvd: 14;
+		uint32_t timeout_ms : 16;
 	} bits;
 	uint32_t raw;
 };
@@ -702,13 +720,17 @@ struct dc_debug_options {
 	bool enable_driver_sequence_debug;
 	enum det_size crb_alloc_policy;
 	int crb_alloc_policy_min_disp_count;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool disable_z10;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool enable_z9_disable_interface;
 	bool enable_sw_cntl_psr;
 	union dpia_debug_options dpia_debug;
 #endif
 	bool apply_vendor_specific_lttpr_wa;
+	bool extended_blank_optimization;
+	union aux_wake_wa_options aux_wake_wa;
+	bool ignore_dpref_ss;
+	uint8_t psr_power_use_phy_fsm;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -1203,6 +1225,7 @@ struct dpcd_caps {
 
 	/* dongle type (DP converter, CV smart dongle) */
 	enum display_dongle_type dongle_type;
+	bool is_dongle_type_one;
 	/* branch device or sink device */
 	bool is_branch_dev;
 	/* Dongle's downstream count. */
@@ -1230,14 +1253,16 @@ struct dpcd_caps {
 	union dpcd_fec_capability fec_cap;
 	struct dpcd_dsc_capabilities dsc_caps;
 	struct dc_lttpr_caps lttpr_caps;
-	struct psr_caps psr_caps;
 	struct dpcd_usb4_dp_tunneling_info usb4_dp_tun_info;
 
 	union dp_128b_132b_supported_link_rates dp_128b_132b_supported_link_rates;
 	union dp_main_line_channel_coding_cap channel_coding_cap;
 	union dp_sink_video_fallback_formats fallback_formats;
 	union dp_fec_capability1 fec_cap1;
-	union dp_cable_attributes cable_attributes;
+	union dp_cable_id cable_id;
+	uint8_t edp_rev;
+	union edp_alpm_caps alpm_caps;
+	struct edp_psr_info psr_info;
 };
 
 union dpcd_sink_ext_caps {
@@ -1362,6 +1387,8 @@ struct dc_sink_init_data {
 	uint32_t dongle_max_pix_clk;
 	bool converter_disable_audio;
 };
+
+bool dc_extended_blank_supported(struct dc *dc);
 
 struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params);
 

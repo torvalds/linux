@@ -33,6 +33,7 @@
 #define MAX_MTP_SLOT_COUNT 64
 #define DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE 0x50
 #define TRAINING_AUX_RD_INTERVAL 100 //us
+#define LINK_AUX_WAKE_TIMEOUT_MS 1500 // Timeout when trying to wake unresponsive DPRX.
 
 struct dc_link;
 struct dc_stream_state;
@@ -106,7 +107,7 @@ bool dp_overwrite_extended_receiver_cap(struct dc_link *link);
 
 void dpcd_set_source_specific_data(struct dc_link *link);
 
-void dpcd_update_cable_id(struct dc_link *link);
+void dpcd_write_cable_id_to_dprx(struct dc_link *link);
 
 /* Write DPCD link configuration data. */
 enum dc_status dpcd_set_link_settings(

@@ -95,7 +95,7 @@ static inline bool ssb_gige_must_flush_posted_writes(struct pci_dev *pdev)
 	struct ssb_gige *dev = pdev_to_ssb_gige(pdev);
 	if (dev)
 		return (dev->dev->bus->chip_id == 0x4785);
-	return 0;
+	return false;
 }
 
 /* Get the device MAC address */

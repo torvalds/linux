@@ -154,6 +154,47 @@ int qos_policer_conf_set(struct ocelot *ocelot, int port, u32 pol_ix,
 	return 0;
 }
 
+int ocelot_policer_validate(const struct flow_action *action,
+			    const struct flow_action_entry *a,
+			    struct netlink_ext_ack *extack)
+{
+	if (a->police.exceed.act_id != FLOW_ACTION_DROP) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when exceed action is not drop");
+		return -EOPNOTSUPP;
+	}
+
+	if (a->police.notexceed.act_id != FLOW_ACTION_PIPE &&
+	    a->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is not pipe or ok");
+		return -EOPNOTSUPP;
+	}
+
+	if (a->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	    !flow_action_is_last_entry(action, a)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is ok, but police action is not last");
+		return -EOPNOTSUPP;
+	}
+
+	if (a->police.peakrate_bytes_ps ||
+	    a->police.avrate || a->police.overhead) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when peakrate/avrate/overhead is configured");
+		return -EOPNOTSUPP;
+	}
+
+	if (a->police.rate_pkt_ps) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload does not support packets per second");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ocelot_policer_validate);
+
 int ocelot_port_policer_add(struct ocelot *ocelot, int port,
 			    struct ocelot_policer *pol)
 {

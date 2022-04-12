@@ -17,6 +17,8 @@
  * @resp:		command response
  * @link_info:		link related information
  * @mac_to_index_bmap:	Mac address to CGX table index mapping
+ * @rx_fc_pfvf_bmap:    Receive flow control enabled netdev mapping
+ * @tx_fc_pfvf_bmap:    Transmit flow control enabled netdev mapping
  * @event_cb:		callback for linkchange events
  * @event_cb_lock:	lock for serializing callback with unregister
  * @cgx:		parent cgx port
@@ -33,6 +35,8 @@ struct lmac {
 	u64 resp;
 	struct cgx_link_user_info link_info;
 	struct rsrc_bmap mac_to_index_bmap;
+	struct rsrc_bmap rx_fc_pfvf_bmap;
+	struct rsrc_bmap tx_fc_pfvf_bmap;
 	struct cgx_event_cb event_cb;
 	/* lock for serializing callback with unregister */
 	spinlock_t event_cb_lock;
@@ -110,6 +114,12 @@ struct mac_ops {
 
 	int			(*mac_rx_tx_enable)(void *cgxd, int lmac_id, bool enable);
 	int			(*mac_tx_enable)(void *cgxd, int lmac_id, bool enable);
+	int                     (*pfc_config)(void *cgxd, int lmac_id,
+					      u8 tx_pause, u8 rx_pause, u16 pfc_en);
+
+	int                     (*mac_get_pfc_frm_cfg)(void *cgxd, int lmac_id,
+						       u8 *tx_pause, u8 *rx_pause);
+
 };
 
 struct cgx {

@@ -50,6 +50,7 @@
 #include "inc/hw/panel_cntl.h"
 #include "inc/link_enc_cfg.h"
 #include "inc/link_dpcd.h"
+#include "link/link_dp_trace.h"
 
 #include "dc/dcn30/dcn30_vpg.h"
 
@@ -730,6 +731,7 @@ static bool detect_dp(struct dc_link *link,
 								sink_caps,
 								audio_support);
 		link->dpcd_caps.dongle_type = sink_caps->dongle_type;
+		link->dpcd_caps.is_dongle_type_one = sink_caps->is_dongle_type_one;
 		link->dpcd_caps.dpcd_rev.raw = 0;
 	}
 
@@ -1180,6 +1182,9 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		case EDID_BAD_CHECKSUM:
 			DC_LOG_ERROR("EDID checksum invalid.\n");
 			break;
+		case EDID_PARTIAL_VALID:
+			DC_LOG_ERROR("Partial EDID valid, abandon invalid blocks.\n");
+			break;
 		case EDID_NO_RESPONSE:
 			DC_LOG_ERROR("No EDID read.\n");
 			/*
@@ -1197,6 +1202,22 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 
 				return false;
 			}
+
+			if (link->type == dc_connection_sst_branch &&
+					link->dpcd_caps.dongle_type ==
+						DISPLAY_DONGLE_DP_VGA_CONVERTER &&
+					reason == DETECT_REASON_HPDRX) {
+				/* Abort detection for DP-VGA adapters when EDID
+				 * can't be read and detection reason is VGA-side
+				 * hotplug
+				 */
+				if (prev_sink)
+					dc_sink_release(prev_sink);
+				link_disconnect_sink(link);
+
+				return true;
+			}
+
 			break;
 		default:
 			break;
@@ -1237,6 +1258,9 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		if (sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A &&
 		    !sink->edid_caps.edid_hdmi)
 			sink->sink_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
+
+		if (link->local_sink && dc_is_dp_signal(sink_caps.signal))
+			dp_trace_init(link);
 
 		/* Connectivity log: detection */
 		for (i = 0; i < sink->dc_edid.length / DC_EDID_BLOCK_SIZE; i++) {
@@ -1289,7 +1313,8 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		 */
 		link->dongle_max_pix_clk = 0;
 
-		dc_link_dp_clear_rx_status(link);
+		dc_link_clear_dprx_states(link);
+		dp_trace_reset(link);
 	}
 
 	LINK_INFO("link=%d, dc_sink_in=%p is now %s prev_sink=%p edid same=%d\n",
@@ -1970,7 +1995,7 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 		msleep(post_oui_delay);
 
 	// similarly, mode switch can cause loss of cable ID
-	dpcd_update_cable_id(link);
+	dpcd_write_cable_id_to_dprx(link);
 
 	skip_video_pattern = true;
 
@@ -2785,6 +2810,17 @@ static bool dp_active_dongle_validate_timing(
 			return false;
 		}
 
+		/* Check 3D format */
+		switch (timing->timing_3d_format) {
+		case TIMING_3D_FORMAT_NONE:
+		case TIMING_3D_FORMAT_FRAME_ALTERNATE:
+			/*Only frame alternate 3D is supported on active dongle*/
+			break;
+		default:
+			/*other 3D formats are not supported due to bad infoframe translation */
+			return false;
+		}
+
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 		if (dongle_caps->dp_hdmi_frl_max_link_bw_in_kbps > 0) { // DP to HDMI FRL converter
 			struct dc_crtc_timing outputTiming = *timing;
@@ -3236,9 +3272,16 @@ bool dc_link_setup_psr(struct dc_link *link,
 	/*skip power down the single pipe since it blocks the cstate*/
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (link->ctx->asic_id.chip_family >= FAMILY_RV) {
-		psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
-		if (link->ctx->asic_id.chip_family == FAMILY_YELLOW_CARP && !dc->debug.disable_z10)
-			psr_context->psr_level.bits.SKIP_CRTC_DISABLE = false;
+		switch(link->ctx->asic_id.chip_family) {
+		case FAMILY_YELLOW_CARP:
+		case AMDGPU_FAMILY_GC_10_3_6:
+			if(!dc->debug.disable_z10)
+				psr_context->psr_level.bits.SKIP_CRTC_DISABLE = false;
+			break;
+		default:
+			psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
+			break;
+		}
 	}
 #else
 	if (link->ctx->asic_id.chip_family >= FAMILY_RV)
@@ -3905,7 +3948,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 				&link->mst_stream_alloc_table);
 		break;
 	case DP_UNKNOWN_ENCODING:
-		DC_LOG_ERROR("Failure: unknown encoding format\n");
+		DC_LOG_DEBUG("Unknown encoding format\n");
 		return DC_ERROR_UNEXPECTED;
 	}
 

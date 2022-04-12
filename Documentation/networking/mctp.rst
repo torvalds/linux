@@ -212,6 +212,54 @@ remote address is already known, or the message does not require a reply.
 Like the send calls, sockets will only receive responses to requests they have
 sent (TO=1) and may only respond (TO=0) to requests they have received.
 
+``ioctl(SIOCMCTPALLOCTAG)`` and ``ioctl(SIOCMCTPDROPTAG)``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These tags give applications more control over MCTP message tags, by allocating
+(and dropping) tag values explicitly, rather than the kernel automatically
+allocating a per-message tag at ``sendmsg()`` time.
+
+In general, you will only need to use these ioctls if your MCTP protocol does
+not fit the usual request/response model. For example, if you need to persist
+tags across multiple requests, or a request may generate more than one response.
+In these cases, the ioctls allow you to decouple the tag allocation (and
+release) from individual message send and receive operations.
+
+Both ioctls are passed a pointer to a ``struct mctp_ioc_tag_ctl``:
+
+.. code-block:: C
+
+    struct mctp_ioc_tag_ctl {
+        mctp_eid_t      peer_addr;
+        __u8		tag;
+        __u16   	flags;
+    };
+
+``SIOCMCTPALLOCTAG`` allocates a tag for a specific peer, which an application
+can use in future ``sendmsg()`` calls. The application populates the
+``peer_addr`` member with the remote EID. Other fields must be zero.
+
+On return, the ``tag`` member will be populated with the allocated tag value.
+The allocated tag will have the following tag bits set:
+
+ - ``MCTP_TAG_OWNER``: it only makes sense to allocate tags if you're the tag
+   owner
+
+ - ``MCTP_TAG_PREALLOC``: to indicate to ``sendmsg()`` that this is a
+   preallocated tag.
+
+ - ... and the actual tag value, within the least-significant three bits
+   (``MCTP_TAG_MASK``). Note that zero is a valid tag value.
+
+The tag value should be used as-is for the ``smctp_tag`` member of ``struct
+sockaddr_mctp``.
+
+``SIOCMCTPDROPTAG`` releases a tag that has been previously allocated by a
+``SIOCMCTPALLOCTAG`` ioctl. The ``peer_addr`` must be the same as used for the
+allocation, and the ``tag`` value must match exactly the tag returned from the
+allocation (including the ``MCTP_TAG_OWNER`` and ``MCTP_TAG_PREALLOC`` bits).
+The ``flags`` field must be zero.
+
 Kernel internals
 ================
 

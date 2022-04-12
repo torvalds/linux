@@ -808,6 +808,16 @@ config CRYPTO_DEV_ZYNQMP_AES
 	  accelerator. Select this if you want to use the ZynqMP module
 	  for AES algorithms.
 
+config CRYPTO_DEV_ZYNQMP_SHA3
+	tristate "Support for Xilinx ZynqMP SHA3 hardware accelerator"
+	depends on ZYNQMP_FIRMWARE || COMPILE_TEST
+	select CRYPTO_SHA3
+	help
+	  Xilinx ZynqMP has SHA3 engine used for secure hash calculation.
+	  This driver interfaces with SHA3 hardware engine.
+	  Select this if you want to use the ZynqMP module
+	  for SHA3 hash computation.
+
 source "drivers/crypto/chelsio/Kconfig"
 
 source "drivers/crypto/virtio/Kconfig"

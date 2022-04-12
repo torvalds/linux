@@ -37,25 +37,12 @@
 
 static struct irq_domain *nvic_irq_domain;
 
-static void __nvic_handle_irq(irq_hw_number_t hwirq)
+static void __irq_entry nvic_handle_irq(struct pt_regs *regs)
 {
+	unsigned long icsr = readl_relaxed(BASEADDR_V7M_SCB + V7M_SCB_ICSR);
+	irq_hw_number_t hwirq = (icsr & V7M_SCB_ICSR_VECTACTIVE) - 16;
+
 	generic_handle_domain_irq(nvic_irq_domain, hwirq);
-}
-
-/*
- * TODO: restructure the ARMv7M entry logic so that this entry logic can live
- * in arch code.
- */
-asmlinkage void __exception_irq_entry
-nvic_handle_irq(irq_hw_number_t hwirq, struct pt_regs *regs)
-{
-	struct pt_regs *old_regs;
-
-	irq_enter();
-	old_regs = set_irq_regs(regs);
-	__nvic_handle_irq(hwirq);
-	set_irq_regs(old_regs);
-	irq_exit();
 }
 
 static int nvic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
@@ -107,6 +94,7 @@ static int __init nvic_of_init(struct device_node *node,
 
 	if (!nvic_irq_domain) {
 		pr_warn("Failed to allocate irq domain\n");
+		iounmap(nvic_base);
 		return -ENOMEM;
 	}
 
@@ -116,6 +104,7 @@ static int __init nvic_of_init(struct device_node *node,
 	if (ret) {
 		pr_warn("Failed to allocate irq chips\n");
 		irq_domain_remove(nvic_irq_domain);
+		iounmap(nvic_base);
 		return ret;
 	}
 
@@ -141,6 +130,7 @@ static int __init nvic_of_init(struct device_node *node,
 	for (i = 0; i < irqs; i += 4)
 		writel_relaxed(0, nvic_base + NVIC_IPR + i);
 
+	set_handle_irq(nvic_handle_irq);
 	return 0;
 }
 IRQCHIP_DECLARE(armv7m_nvic, "arm,armv7m-nvic", nvic_of_init);

@@ -2026,14 +2026,8 @@ static int sh_eth_phy_init(struct net_device *ndev)
 	}
 
 	/* mask with MAC supported features */
-	if (mdp->cd->register_type != SH_ETH_REG_GIGABIT) {
-		int err = phy_set_max_speed(phydev, SPEED_100);
-		if (err) {
-			netdev_err(ndev, "failed to limit PHY to 100 Mbit/s\n");
-			phy_disconnect(phydev);
-			return err;
-		}
-	}
+	if (mdp->cd->register_type != SH_ETH_REG_GIGABIT)
+		phy_set_max_speed(phydev, SPEED_100);
 
 	phy_attached_info(phydev);
 
@@ -3450,9 +3444,7 @@ static int sh_eth_wol_restore(struct net_device *ndev)
 	 * both be reset and all registers restored. This is what
 	 * happens during suspend and resume without WoL enabled.
 	 */
-	ret = sh_eth_close(ndev);
-	if (ret < 0)
-		return ret;
+	sh_eth_close(ndev);
 	ret = sh_eth_open(ndev);
 	if (ret < 0)
 		return ret;
@@ -3464,7 +3456,7 @@ static int sh_eth_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	int ret = 0;
+	int ret;
 
 	if (!netif_running(ndev))
 		return 0;
@@ -3483,7 +3475,7 @@ static int sh_eth_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct sh_eth_private *mdp = netdev_priv(ndev);
-	int ret = 0;
+	int ret;
 
 	if (!netif_running(ndev))
 		return 0;

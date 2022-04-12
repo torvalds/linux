@@ -27,7 +27,7 @@ void gfn_to_pfn_cache_invalidate_start(struct kvm *kvm, unsigned long start,
 {
 	DECLARE_BITMAP(vcpu_bitmap, KVM_MAX_VCPUS);
 	struct gfn_to_pfn_cache *gpc;
-	bool wake_vcpus = false;
+	bool evict_vcpus = false;
 
 	spin_lock(&kvm->gpc_lock);
 	list_for_each_entry(gpc, &kvm->gpc_list, list) {
@@ -40,41 +40,32 @@ void gfn_to_pfn_cache_invalidate_start(struct kvm *kvm, unsigned long start,
 
 			/*
 			 * If a guest vCPU could be using the physical address,
-			 * it needs to be woken.
+			 * it needs to be forced out of guest mode.
 			 */
-			if (gpc->guest_uses_pa) {
-				if (!wake_vcpus) {
-					wake_vcpus = true;
+			if (gpc->usage & KVM_GUEST_USES_PFN) {
+				if (!evict_vcpus) {
+					evict_vcpus = true;
 					bitmap_zero(vcpu_bitmap, KVM_MAX_VCPUS);
 				}
 				__set_bit(gpc->vcpu->vcpu_idx, vcpu_bitmap);
 			}
-
-			/*
-			 * We cannot call mark_page_dirty() from here because
-			 * this physical CPU might not have an active vCPU
-			 * with which to do the KVM dirty tracking.
-			 *
-			 * Neither is there any point in telling the kernel MM
-			 * that the underlying page is dirty. A vCPU in guest
-			 * mode might still be writing to it up to the point
-			 * where we wake them a few lines further down anyway.
-			 *
-			 * So all the dirty marking happens on the unmap.
-			 */
 		}
 		write_unlock_irq(&gpc->lock);
 	}
 	spin_unlock(&kvm->gpc_lock);
 
-	if (wake_vcpus) {
-		unsigned int req = KVM_REQ_GPC_INVALIDATE;
+	if (evict_vcpus) {
+		/*
+		 * KVM needs to ensure the vCPU is fully out of guest context
+		 * before allowing the invalidation to continue.
+		 */
+		unsigned int req = KVM_REQ_OUTSIDE_GUEST_MODE;
 		bool called;
 
 		/*
 		 * If the OOM reaper is active, then all vCPUs should have
 		 * been stopped already, so perform the request without
-		 * KVM_REQUEST_WAIT and be sad if any needed to be woken.
+		 * KVM_REQUEST_WAIT and be sad if any needed to be IPI'd.
 		 */
 		if (!may_block)
 			req &= ~KVM_REQUEST_WAIT;
@@ -104,8 +95,7 @@ bool kvm_gfn_to_pfn_cache_check(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 }
 EXPORT_SYMBOL_GPL(kvm_gfn_to_pfn_cache_check);
 
-static void __release_gpc(struct kvm *kvm, kvm_pfn_t pfn, void *khva,
-			  gpa_t gpa, bool dirty)
+static void __release_gpc(struct kvm *kvm, kvm_pfn_t pfn, void *khva, gpa_t gpa)
 {
 	/* Unmap the old page if it was mapped before, and release it */
 	if (!is_error_noslot_pfn(pfn)) {
@@ -118,9 +108,7 @@ static void __release_gpc(struct kvm *kvm, kvm_pfn_t pfn, void *khva,
 #endif
 		}
 
-		kvm_release_pfn(pfn, dirty);
-		if (dirty)
-			mark_page_dirty(kvm, gpa);
+		kvm_release_pfn(pfn, false);
 	}
 }
 
@@ -152,7 +140,7 @@ static kvm_pfn_t hva_to_pfn_retry(struct kvm *kvm, unsigned long uhva)
 }
 
 int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
-				 gpa_t gpa, unsigned long len, bool dirty)
+				 gpa_t gpa, unsigned long len)
 {
 	struct kvm_memslots *slots = kvm_memslots(kvm);
 	unsigned long page_offset = gpa & ~PAGE_MASK;
@@ -160,7 +148,7 @@ int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 	unsigned long old_uhva;
 	gpa_t old_gpa;
 	void *old_khva;
-	bool old_valid, old_dirty;
+	bool old_valid;
 	int ret = 0;
 
 	/*
@@ -177,20 +165,19 @@ int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 	old_khva = gpc->khva - offset_in_page(gpc->khva);
 	old_uhva = gpc->uhva;
 	old_valid = gpc->valid;
-	old_dirty = gpc->dirty;
 
 	/* If the userspace HVA is invalid, refresh that first */
 	if (gpc->gpa != gpa || gpc->generation != slots->generation ||
 	    kvm_is_error_hva(gpc->uhva)) {
 		gfn_t gfn = gpa_to_gfn(gpa);
 
-		gpc->dirty = false;
 		gpc->gpa = gpa;
 		gpc->generation = slots->generation;
 		gpc->memslot = __gfn_to_memslot(slots, gfn);
 		gpc->uhva = gfn_to_hva_memslot(gpc->memslot, gfn);
 
 		if (kvm_is_error_hva(gpc->uhva)) {
+			gpc->pfn = KVM_PFN_ERR_FAULT;
 			ret = -EFAULT;
 			goto out;
 		}
@@ -219,7 +206,7 @@ int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 			goto map_done;
 		}
 
-		if (gpc->kernel_map) {
+		if (gpc->usage & KVM_HOST_USES_PFN) {
 			if (new_pfn == old_pfn) {
 				new_khva = old_khva;
 				old_pfn = KVM_PFN_ERR_FAULT;
@@ -255,14 +242,9 @@ int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 	}
 
  out:
-	if (ret)
-		gpc->dirty = false;
-	else
-		gpc->dirty = dirty;
-
 	write_unlock_irq(&gpc->lock);
 
-	__release_gpc(kvm, old_pfn, old_khva, old_gpa, old_dirty);
+	__release_gpc(kvm, old_pfn, old_khva, old_gpa);
 
 	return ret;
 }
@@ -272,7 +254,6 @@ void kvm_gfn_to_pfn_cache_unmap(struct kvm *kvm, struct gfn_to_pfn_cache *gpc)
 {
 	void *old_khva;
 	kvm_pfn_t old_pfn;
-	bool old_dirty;
 	gpa_t old_gpa;
 
 	write_lock_irq(&gpc->lock);
@@ -280,7 +261,6 @@ void kvm_gfn_to_pfn_cache_unmap(struct kvm *kvm, struct gfn_to_pfn_cache *gpc)
 	gpc->valid = false;
 
 	old_khva = gpc->khva - offset_in_page(gpc->khva);
-	old_dirty = gpc->dirty;
 	old_gpa = gpc->gpa;
 	old_pfn = gpc->pfn;
 
@@ -293,16 +273,17 @@ void kvm_gfn_to_pfn_cache_unmap(struct kvm *kvm, struct gfn_to_pfn_cache *gpc)
 
 	write_unlock_irq(&gpc->lock);
 
-	__release_gpc(kvm, old_pfn, old_khva, old_gpa, old_dirty);
+	__release_gpc(kvm, old_pfn, old_khva, old_gpa);
 }
 EXPORT_SYMBOL_GPL(kvm_gfn_to_pfn_cache_unmap);
 
 
 int kvm_gfn_to_pfn_cache_init(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
-			      struct kvm_vcpu *vcpu, bool guest_uses_pa,
-			      bool kernel_map, gpa_t gpa, unsigned long len,
-			      bool dirty)
+			      struct kvm_vcpu *vcpu, enum pfn_cache_usage usage,
+			      gpa_t gpa, unsigned long len)
 {
+	WARN_ON_ONCE(!usage || (usage & KVM_GUEST_AND_HOST_USE_PFN) != usage);
+
 	if (!gpc->active) {
 		rwlock_init(&gpc->lock);
 
@@ -310,8 +291,7 @@ int kvm_gfn_to_pfn_cache_init(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 		gpc->pfn = KVM_PFN_ERR_FAULT;
 		gpc->uhva = KVM_HVA_ERR_BAD;
 		gpc->vcpu = vcpu;
-		gpc->kernel_map = kernel_map;
-		gpc->guest_uses_pa = guest_uses_pa;
+		gpc->usage = usage;
 		gpc->valid = false;
 		gpc->active = true;
 
@@ -319,7 +299,7 @@ int kvm_gfn_to_pfn_cache_init(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 		list_add(&gpc->list, &kvm->gpc_list);
 		spin_unlock(&kvm->gpc_lock);
 	}
-	return kvm_gfn_to_pfn_cache_refresh(kvm, gpc, gpa, len, dirty);
+	return kvm_gfn_to_pfn_cache_refresh(kvm, gpc, gpa, len);
 }
 EXPORT_SYMBOL_GPL(kvm_gfn_to_pfn_cache_init);
 

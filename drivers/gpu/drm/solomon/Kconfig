@@ -1,6 +1,6 @@
 config DRM_SSD130X
 	tristate "DRM support for Solomon SSD130x OLED displays"
-	depends on DRM
+	depends on DRM && MMU
 	select BACKLIGHT_CLASS_DEVICE
 	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER

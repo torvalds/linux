@@ -97,6 +97,11 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 			amdgpu_ras_save_bad_pages(adev);
 
 			amdgpu_dpm_send_hbm_bad_pages_num(adev, con->eeprom_control.ras_num_recs);
+
+			if (con->update_channel_flag == true) {
+				amdgpu_dpm_send_hbm_bad_channel_flag(adev, con->eeprom_control.bad_channel_bitmap);
+				con->update_channel_flag = false;
+			}
 		}
 
 		if (reset)
@@ -160,13 +165,6 @@ int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *r
 late_fini:
 	amdgpu_ras_block_late_fini(adev, ras_block);
 	return r;
-}
-
-void amdgpu_umc_ras_fini(struct amdgpu_device *adev)
-{
-	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC) &&
-			adev->umc.ras_if)
-		amdgpu_ras_block_late_fini(adev, adev->umc.ras_if);
 }
 
 int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,

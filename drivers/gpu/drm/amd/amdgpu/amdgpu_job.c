@@ -81,14 +81,10 @@ exit:
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 		     struct amdgpu_job **job, struct amdgpu_vm *vm)
 {
-	size_t size = sizeof(struct amdgpu_job);
-
 	if (num_ibs == 0)
 		return -EINVAL;
 
-	size += sizeof(struct amdgpu_ib) * num_ibs;
-
-	*job = kzalloc(size, GFP_KERNEL);
+	*job = kzalloc(struct_size(*job, ibs, num_ibs), GFP_KERNEL);
 	if (!*job)
 		return -ENOMEM;
 
@@ -98,7 +94,6 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 	 */
 	(*job)->base.sched = &adev->rings[0]->sched;
 	(*job)->vm = vm;
-	(*job)->ibs = (void *)&(*job)[1];
 	(*job)->num_ibs = num_ibs;
 
 	amdgpu_sync_create(&(*job)->sync);

@@ -221,9 +221,6 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 
 	fbo->base = *bo;
 
-	ttm_bo_get(bo);
-	fbo->bo = bo;
-
 	/**
 	 * Fix up members that we shouldn't copy directly:
 	 * TODO: Explicit member copy would probably be better here.
@@ -231,7 +228,6 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 
 	atomic_inc(&ttm_glob.bo_count);
 	INIT_LIST_HEAD(&fbo->base.ddestroy);
-	INIT_LIST_HEAD(&fbo->base.lru);
 	fbo->base.moving = NULL;
 	drm_vma_node_reset(&fbo->base.base.vma_node);
 
@@ -250,6 +246,15 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	fbo->base.base.dev = NULL;
 	ret = dma_resv_trylock(&fbo->base.base._resv);
 	WARN_ON(!ret);
+
+	ret = dma_resv_reserve_fences(&fbo->base.base._resv, 1);
+	if (ret) {
+		kfree(fbo);
+		return ret;
+	}
+
+	ttm_bo_get(bo);
+	fbo->bo = bo;
 
 	ttm_bo_move_to_lru_tail_unlocked(&fbo->base);
 

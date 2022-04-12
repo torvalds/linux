@@ -15,6 +15,7 @@
 #include <linux/pagemap.h>
 #include <linux/udp.h>
 #include <linux/sunrpc/msg_prot.h>
+#include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/export.h>
 
@@ -220,12 +221,6 @@ static int xprt_send_kvec(struct socket *sock, struct msghdr *msg,
 static int xprt_send_pagedata(struct socket *sock, struct msghdr *msg,
 			      struct xdr_buf *xdr, size_t base)
 {
-	int err;
-
-	err = xdr_alloc_bvec(xdr, GFP_KERNEL);
-	if (err < 0)
-		return err;
-
 	iov_iter_bvec(&msg->msg_iter, WRITE, xdr->bvec, xdr_buf_pagecount(xdr),
 		      xdr->page_len + xdr->page_base);
 	return xprt_sendmsg(sock, msg, base + xdr->page_base);

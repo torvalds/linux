@@ -372,8 +372,8 @@ struct drm_connector;
 struct drm_connector_state;
 struct drm_display_mode;
 
-int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads);
-int drm_edid_to_speaker_allocation(struct edid *edid, u8 **sadb);
+int drm_edid_to_sad(const struct edid *edid, struct cea_sad **sads);
+int drm_edid_to_speaker_allocation(const struct edid *edid, u8 **sadb);
 int drm_av_sync_delay(struct drm_connector *connector,
 		      const struct drm_display_mode *mode);
 
@@ -569,8 +569,8 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
 int drm_add_override_edid_modes(struct drm_connector *connector);
 
 u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
-bool drm_detect_hdmi_monitor(struct edid *edid);
-bool drm_detect_monitor_audio(struct edid *edid);
+bool drm_detect_hdmi_monitor(const struct edid *edid);
+bool drm_detect_monitor_audio(const struct edid *edid);
 enum hdmi_quantization_range
 drm_default_rgb_quant_range(const struct drm_display_mode *mode);
 int drm_add_modes_noedid(struct drm_connector *connector,
@@ -578,11 +578,11 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 void drm_set_preferred_mode(struct drm_connector *connector,
 			    int hpref, int vpref);
 
-int drm_edid_header_is_valid(const u8 *raw_edid);
+int drm_edid_header_is_valid(const void *edid);
 bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 			  bool *edid_corrupt);
 bool drm_edid_is_valid(struct edid *edid);
-void drm_edid_get_monitor_name(struct edid *edid, char *name,
+void drm_edid_get_monitor_name(const struct edid *edid, char *name,
 			       int buflen);
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh,

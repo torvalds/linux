@@ -81,6 +81,9 @@ obj-$(CONFIG_ACPI_AC) 		+= ac.o
 obj-$(CONFIG_ACPI_BUTTON)	+= button.o
 obj-$(CONFIG_ACPI_TINY_POWER_BUTTON)	+= tiny-power-button.o
 obj-$(CONFIG_ACPI_FAN)		+= fan.o
+fan-objs			:= fan_core.o
+fan-objs			+= fan_attr.o
+
 obj-$(CONFIG_ACPI_VIDEO)	+= video.o
 obj-$(CONFIG_ACPI_TAD)		+= acpi_tad.o
 obj-$(CONFIG_ACPI_PCI_SLOT)	+= pci_slot.o

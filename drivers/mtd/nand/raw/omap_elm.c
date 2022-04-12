@@ -282,7 +282,7 @@ static void elm_start_processing(struct elm_info *info,
 static void elm_error_correction(struct elm_info *info,
 		struct elm_errorvec *err_vec)
 {
-	int i, j, errors = 0;
+	int i, j;
 	int offset;
 	u32 reg_val;
 
@@ -312,8 +312,6 @@ static void elm_error_correction(struct elm_info *info,
 					/* Update error location register */
 					offset += 4;
 				}
-
-				errors += err_vec[i].error_count;
 			} else {
 				err_vec[i].error_uncorrectable = true;
 			}

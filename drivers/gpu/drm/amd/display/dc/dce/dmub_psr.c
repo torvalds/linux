@@ -320,6 +320,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 		copy_settings_data->otg_inst			= 0;
 
 	// Misc
+	copy_settings_data->use_phy_fsm             = link->ctx->dc->debug.psr_power_use_phy_fsm;
 	copy_settings_data->psr_level				= psr_context->psr_level.u32all;
 	copy_settings_data->smu_optimizations_en		= psr_context->allow_smu_optimizations;
 	copy_settings_data->multi_disp_optimizations_en	= psr_context->allow_multi_disp_optimizations;

@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/soc/microchip/microchip,mpfs-sys-controller.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Microchip PolarFire SoC (MPFS) MSS (microprocessor subsystem) system controller
+
+maintainers:
+  - Conor Dooley <conor.dooley@microchip.com>
+
+description: |
+  PolarFire SoC devices include a microcontroller acting as the system controller,
+  which provides "services" to the main processor and to the FPGA fabric. These
+  services include hardware rng, reprogramming of the FPGA and verfification of the
+  eNVM contents etc. More information on these services can be found online, at
+  https://onlinedocs.microchip.com/pr/GUID-1409CF11-8EF9-4C24-A94E-70979A688632-en-US-1/index.html
+
+  Communication with the system controller is done via a mailbox, of which the client
+  portion is documented here.
+
+properties:
+  mboxes:
+    maxItems: 1
+
+  compatible:
+    const: microchip,mpfs-sys-controller
+
+required:
+  - compatible
+  - mboxes
+
+additionalProperties: false
+
+examples:
+  - |
+    syscontroller {
+      compatible = "microchip,mpfs-sys-controller";
+      mboxes = <&mbox 0>;
+    };

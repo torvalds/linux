@@ -716,19 +716,18 @@ int msm_hdmi_pll_8996_init(struct platform_device *pdev)
 
 	pll->pdev = pdev;
 
-	pll->mmio_qserdes_com = msm_ioremap(pdev, "hdmi_pll", "HDMI_PLL");
+	pll->mmio_qserdes_com = msm_ioremap(pdev, "hdmi_pll");
 	if (IS_ERR(pll->mmio_qserdes_com)) {
 		DRM_DEV_ERROR(dev, "failed to map pll base\n");
 		return -ENOMEM;
 	}
 
 	for (i = 0; i < HDMI_NUM_TX_CHANNEL; i++) {
-		char name[32], label[32];
+		char name[32];
 
 		snprintf(name, sizeof(name), "hdmi_tx_l%d", i);
-		snprintf(label, sizeof(label), "HDMI_TX_L%d", i);
 
-		pll->mmio_qserdes_tx[i] = msm_ioremap(pdev, name, label);
+		pll->mmio_qserdes_tx[i] = msm_ioremap(pdev, name);
 		if (IS_ERR(pll->mmio_qserdes_tx[i])) {
 			DRM_DEV_ERROR(dev, "failed to map pll base\n");
 			return -ENOMEM;

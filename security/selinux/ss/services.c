@@ -529,8 +529,6 @@ out:
 	/* release scontext/tcontext */
 	kfree(tcontext_name);
 	kfree(scontext_name);
-
-	return;
 }
 
 /*
@@ -1452,7 +1450,7 @@ static int string_to_context_struct(struct policydb *pol,
 	/* Parse the security context. */
 
 	rc = -EINVAL;
-	scontextp = (char *) scontext;
+	scontextp = scontext;
 
 	/* Extract the user. */
 	p = scontextp;
@@ -2875,7 +2873,7 @@ out_unlock:
  */
 static inline int __security_genfs_sid(struct selinux_policy *policy,
 				       const char *fstype,
-				       char *path,
+				       const char *path,
 				       u16 orig_sclass,
 				       u32 *sid)
 {
@@ -2928,7 +2926,7 @@ static inline int __security_genfs_sid(struct selinux_policy *policy,
  */
 int security_genfs_sid(struct selinux_state *state,
 		       const char *fstype,
-		       char *path,
+		       const char *path,
 		       u16 orig_sclass,
 		       u32 *sid)
 {
@@ -2952,7 +2950,7 @@ int security_genfs_sid(struct selinux_state *state,
 
 int selinux_policy_genfs_sid(struct selinux_policy *policy,
 			const char *fstype,
-			char *path,
+			const char *path,
 			u16 orig_sclass,
 			u32 *sid)
 {

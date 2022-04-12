@@ -114,6 +114,8 @@ MODULE_FIRMWARE(FIRMWARE_DIMGREY_CAVEFISH_DMUB);
 MODULE_FIRMWARE(FIRMWARE_BEIGE_GOBY_DMUB);
 #define FIRMWARE_YELLOW_CARP_DMUB "amdgpu/yellow_carp_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_YELLOW_CARP_DMUB);
+#define FIRMWARE_DCN_315_DMUB "amdgpu/dcn_3_1_5_dmcub.bin"
+MODULE_FIRMWARE(FIRMWARE_DCN_315_DMUB);
 #define FIRMWARE_DCN316_DMUB "amdgpu/dcn_3_1_6_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_DCN316_DMUB);
 
@@ -1441,6 +1443,25 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	init_data.dce_environment = DCE_ENV_PRODUCTION_DRV;
 
+	switch (adev->ip_versions[DCE_HWIP][0]) {
+	case IP_VERSION(2, 1, 0):
+		switch (adev->dm.dmcub_fw_version) {
+		case 0: /* development */
+		case 0x1: /* linux-firmware.git hash 6d9f399 */
+		case 0x01000000: /* linux-firmware.git hash 9a0b0f4 */
+			init_data.flags.disable_dmcu = false;
+			break;
+		default:
+			init_data.flags.disable_dmcu = true;
+		}
+		break;
+	case IP_VERSION(2, 0, 3):
+		init_data.flags.disable_dmcu = true;
+		break;
+	default:
+		break;
+	}
+
 	switch (adev->asic_type) {
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
@@ -1448,33 +1469,29 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		break;
 	default:
 		switch (adev->ip_versions[DCE_HWIP][0]) {
-		case IP_VERSION(2, 1, 0):
-			init_data.flags.gpu_vm_support = true;
-			switch (adev->dm.dmcub_fw_version) {
-			case 0: /* development */
-			case 0x1: /* linux-firmware.git hash 6d9f399 */
-			case 0x01000000: /* linux-firmware.git hash 9a0b0f4 */
-				init_data.flags.disable_dmcu = false;
-				break;
-			default:
-				init_data.flags.disable_dmcu = true;
-			}
-			break;
 		case IP_VERSION(1, 0, 0):
 		case IP_VERSION(1, 0, 1):
+			/* enable S/G on PCO and RV2 */
+			if ((adev->apu_flags & AMD_APU_IS_RAVEN2) ||
+			    (adev->apu_flags & AMD_APU_IS_PICASSO))
+				init_data.flags.gpu_vm_support = true;
+			break;
+		case IP_VERSION(2, 1, 0):
 		case IP_VERSION(3, 0, 1):
 		case IP_VERSION(3, 1, 2):
 		case IP_VERSION(3, 1, 3):
+		case IP_VERSION(3, 1, 5):
+		case IP_VERSION(3, 1, 6):
 			init_data.flags.gpu_vm_support = true;
-			break;
-		case IP_VERSION(2, 0, 3):
-			init_data.flags.disable_dmcu = true;
 			break;
 		default:
 			break;
 		}
 		break;
 	}
+
+	if (init_data.flags.gpu_vm_support)
+		adev->mode_info.gpu_vm_support = true;
 
 	if (amdgpu_dc_feature_mask & DC_FBC_MASK)
 		init_data.flags.fbc_support = true;
@@ -1803,6 +1820,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 		case IP_VERSION(3, 0, 1):
 		case IP_VERSION(3, 1, 2):
 		case IP_VERSION(3, 1, 3):
+		case IP_VERSION(3, 1, 5):
 		case IP_VERSION(3, 1, 6):
 			return 0;
 		default:
@@ -1919,11 +1937,14 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 		dmub_asic = (adev->external_rev_id == YELLOW_CARP_B0) ? DMUB_ASIC_DCN31B : DMUB_ASIC_DCN31;
 		fw_name_dmub = FIRMWARE_YELLOW_CARP_DMUB;
 		break;
+	case IP_VERSION(3, 1, 5):
+		dmub_asic = DMUB_ASIC_DCN315;
+		fw_name_dmub = FIRMWARE_DCN_315_DMUB;
+		break;
 	case IP_VERSION(3, 1, 6):
 		dmub_asic = DMUB_ASIC_DCN316;
 		fw_name_dmub = FIRMWARE_DCN316_DMUB;
 		break;
-
 	default:
 		/* ASIC doesn't support DMUB. */
 		return 0;
@@ -2613,10 +2634,13 @@ static int dm_resume(void *handle)
 		 * before the 0 streams commit.
 		 *
 		 * DC expects that link encoder assignments are *not* valid
-		 * when committing a state, so as a workaround it needs to be
-		 * cleared here.
+		 * when committing a state, so as a workaround we can copy
+		 * off of the current state.
+		 *
+		 * We lose the previous assignments, but we had already
+		 * commit 0 streams anyway.
 		 */
-		link_enc_cfg_init(dm->dc, dc_state);
+		link_enc_cfg_copy(adev->dm.dc->current_state, dc_state);
 
 		if (dc_enable_dmub_notifications(adev->dm.dc))
 			amdgpu_dm_outbox_init(adev);
@@ -2690,7 +2714,8 @@ static int dm_resume(void *handle)
 		 * this is the case when traversing through already created
 		 * MST connectors, should be skipped
 		 */
-		if (aconnector->mst_port)
+		if (aconnector->dc_link &&
+		    aconnector->dc_link->type == dc_connection_mst_branch)
 			continue;
 
 		mutex_lock(&aconnector->hpd_lock);
@@ -3948,7 +3973,7 @@ static u32 convert_brightness_to_user(const struct amdgpu_dm_backlight_caps *cap
 				 max - min);
 }
 
-static int amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
+static void amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
 					 int bl_idx,
 					 u32 user_brightness)
 {
@@ -3979,7 +4004,8 @@ static int amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
 			DRM_DEBUG("DM: Failed to update backlight on eDP[%d]\n", bl_idx);
 	}
 
-	return rc ? 0 : 1;
+	if (rc)
+		dm->actual_brightness[bl_idx] = user_brightness;
 }
 
 static int amdgpu_dm_backlight_update_status(struct backlight_device *bd)
@@ -4231,6 +4257,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case IP_VERSION(3, 0, 0):
 	case IP_VERSION(3, 1, 2):
 	case IP_VERSION(3, 1, 3):
+	case IP_VERSION(3, 1, 5):
 	case IP_VERSION(3, 1, 6):
 	case IP_VERSION(2, 1, 0):
 		if (register_outbox_irq_handlers(dm->adev)) {
@@ -4248,6 +4275,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		switch (adev->ip_versions[DCE_HWIP][0]) {
 		case IP_VERSION(3, 1, 2):
 		case IP_VERSION(3, 1, 3):
+		case IP_VERSION(3, 1, 5):
 		case IP_VERSION(3, 1, 6):
 			psr_feature_enabled = true;
 			break;
@@ -4366,6 +4394,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(3, 0, 1):
 		case IP_VERSION(3, 1, 2):
 		case IP_VERSION(3, 1, 3):
+		case IP_VERSION(3, 1, 5):
 		case IP_VERSION(3, 1, 6):
 			if (dcn10_register_irq_handlers(dm->adev)) {
 				DRM_ERROR("DM: Failed to initialize IRQ\n");
@@ -4552,6 +4581,7 @@ static int dm_early_init(void *handle)
 		case IP_VERSION(2, 1, 0):
 		case IP_VERSION(3, 1, 2):
 		case IP_VERSION(3, 1, 3):
+		case IP_VERSION(3, 1, 5):
 		case IP_VERSION(3, 1, 6):
 			adev->mode_info.num_crtc = 4;
 			adev->mode_info.num_hpd = 4;
@@ -5225,6 +5255,7 @@ get_plane_modifiers(const struct amdgpu_device *adev, unsigned int plane_type, u
 	case AMDGPU_FAMILY_NV:
 	case AMDGPU_FAMILY_VGH:
 	case AMDGPU_FAMILY_YC:
+	case AMDGPU_FAMILY_GC_10_3_6:
 	case AMDGPU_FAMILY_GC_10_3_7:
 		if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 3, 0))
 			add_gfx10_3_modifiers(adev, mods, &size, &capacity);
@@ -6331,7 +6362,7 @@ get_highest_refresh_rate_mode(struct amdgpu_dm_connector *aconnector,
 		}
 	}
 
-	aconnector->freesync_vid_base = *m_pref;
+	drm_mode_copy(&aconnector->freesync_vid_base, m_pref);
 	return m_pref;
 }
 
@@ -6362,7 +6393,7 @@ static bool is_freesync_video_mode(const struct drm_display_mode *mode,
 		return true;
 }
 
-struct dc_stream_state *
+static struct dc_stream_state *
 create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		       const struct drm_display_mode *drm_mode,
 		       const struct dm_connector_state *dm_state,
@@ -6444,8 +6475,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		recalculate_timing = is_freesync_video_mode(&mode, aconnector);
 		if (recalculate_timing) {
 			freesync_mode = get_highest_refresh_rate_mode(aconnector, false);
-			saved_mode = mode;
-			mode = *freesync_mode;
+			drm_mode_copy(&saved_mode, &mode);
+			drm_mode_copy(&mode, freesync_mode);
 		} else {
 			decide_crtc_timing_for_drm_display_mode(
 				&mode, preferred_mode, scale);
@@ -9918,7 +9949,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	/* restore the backlight level */
 	for (i = 0; i < dm->num_of_edps; i++) {
 		if (dm->backlight_dev[i] &&
-		    (amdgpu_dm_backlight_get_level(dm, i) != dm->brightness[i]))
+		    (dm->actual_brightness[i] != dm->brightness[i]))
 			amdgpu_dm_backlight_set_level(dm, i, dm->brightness[i]);
 	}
 #endif
@@ -10152,27 +10183,27 @@ static bool
 is_timing_unchanged_for_freesync(struct drm_crtc_state *old_crtc_state,
 				 struct drm_crtc_state *new_crtc_state)
 {
-	struct drm_display_mode old_mode, new_mode;
+	const struct drm_display_mode *old_mode, *new_mode;
 
 	if (!old_crtc_state || !new_crtc_state)
 		return false;
 
-	old_mode = old_crtc_state->mode;
-	new_mode = new_crtc_state->mode;
+	old_mode = &old_crtc_state->mode;
+	new_mode = &new_crtc_state->mode;
 
-	if (old_mode.clock       == new_mode.clock &&
-	    old_mode.hdisplay    == new_mode.hdisplay &&
-	    old_mode.vdisplay    == new_mode.vdisplay &&
-	    old_mode.htotal      == new_mode.htotal &&
-	    old_mode.vtotal      != new_mode.vtotal &&
-	    old_mode.hsync_start == new_mode.hsync_start &&
-	    old_mode.vsync_start != new_mode.vsync_start &&
-	    old_mode.hsync_end   == new_mode.hsync_end &&
-	    old_mode.vsync_end   != new_mode.vsync_end &&
-	    old_mode.hskew       == new_mode.hskew &&
-	    old_mode.vscan       == new_mode.vscan &&
-	    (old_mode.vsync_end - old_mode.vsync_start) ==
-	    (new_mode.vsync_end - new_mode.vsync_start))
+	if (old_mode->clock       == new_mode->clock &&
+	    old_mode->hdisplay    == new_mode->hdisplay &&
+	    old_mode->vdisplay    == new_mode->vdisplay &&
+	    old_mode->htotal      == new_mode->htotal &&
+	    old_mode->vtotal      != new_mode->vtotal &&
+	    old_mode->hsync_start == new_mode->hsync_start &&
+	    old_mode->vsync_start != new_mode->vsync_start &&
+	    old_mode->hsync_end   == new_mode->hsync_end &&
+	    old_mode->vsync_end   != new_mode->vsync_end &&
+	    old_mode->hskew       == new_mode->hskew &&
+	    old_mode->vscan       == new_mode->vscan &&
+	    (old_mode->vsync_end - old_mode->vsync_start) ==
+	    (new_mode->vsync_end - new_mode->vsync_start))
 		return true;
 
 	return false;
@@ -10192,7 +10223,7 @@ static void set_freesync_fixed_config(struct dm_crtc_state *dm_new_crtc_state) {
 	dm_new_crtc_state->freesync_config.fixed_refresh_in_uhz = res;
 }
 
-int dm_update_crtc_state(struct amdgpu_display_manager *dm,
+static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 			 struct drm_atomic_state *state,
 			 struct drm_crtc *crtc,
 			 struct drm_crtc_state *old_crtc_state,

@@ -32,19 +32,15 @@ static void device_wakeup(struct wfx_dev *wdev)
 	}
 	for (;;) {
 		gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 1);
-		/* completion.h does not provide any function to wait
-		 * completion without consume it (a kind of
-		 * wait_for_completion_done_timeout()). So we have to emulate
-		 * it.
+		/* completion.h does not provide any function to wait completion without consume it
+		 * (a kind of wait_for_completion_done_timeout()). So we have to emulate it.
 		 */
-		if (wait_for_completion_timeout(&wdev->hif.ctrl_ready,
-						msecs_to_jiffies(2))) {
+		if (wait_for_completion_timeout(&wdev->hif.ctrl_ready, msecs_to_jiffies(2))) {
 			complete(&wdev->hif.ctrl_ready);
 			return;
 		} else if (max_retry-- > 0) {
-			/* Older firmwares have a race in sleep/wake-up process.
-			 * Redo the process is sufficient to unfreeze the
-			 * chip.
+			/* Older firmwares have a race in sleep/wake-up process.  Redo the process
+			 * is sufficient to unfreeze the chip.
 			 */
 			dev_err(wdev->dev, "timeout while wake up chip\n");
 			gpiod_set_value_cansleep(wdev->pdata.gpio_wakeup, 0);
@@ -67,14 +63,13 @@ static void device_release(struct wfx_dev *wdev)
 static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 {
 	struct sk_buff *skb;
-	struct hif_msg *hif;
+	struct wfx_hif_msg *hif;
 	size_t alloc_len;
 	size_t computed_len;
 	int release_count;
 	int piggyback = 0;
 
-	WARN(read_len > round_down(0xFFF, 2) * sizeof(u16),
-	     "%s: request exceed the chip capability", __func__);
+	WARN(read_len > round_down(0xFFF, 2) * sizeof(u16), "request exceed the chip capability");
 
 	/* Add 2 to take into account piggyback size */
 	alloc_len = wdev->hwbus_ops->align_size(wdev->hwbus_priv, read_len + 2);
@@ -88,9 +83,9 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	piggyback = le16_to_cpup((__le16 *)(skb->data + alloc_len - 2));
 	_trace_piggyback(piggyback, false);
 
-	hif = (struct hif_msg *)skb->data;
+	hif = (struct wfx_hif_msg *)skb->data;
 	WARN(hif->encrypted & 0x3, "encryption is unsupported");
-	if (WARN(read_len < sizeof(struct hif_msg), "corrupted read"))
+	if (WARN(read_len < sizeof(struct wfx_hif_msg), "corrupted read"))
 		goto err;
 	computed_len = le16_to_cpu(hif->len);
 	computed_len = round_up(computed_len, 2);
@@ -105,7 +100,8 @@ static int rx_helper(struct wfx_dev *wdev, size_t read_len, int *is_cnf)
 	if (!(hif->id & HIF_ID_IS_INDICATION)) {
 		(*is_cnf)++;
 		if (hif->id == HIF_CNF_ID_MULTI_TRANSMIT)
-			release_count = ((struct hif_cnf_multi_transmit *)hif->body)->num_tx_confs;
+			release_count =
+				((struct wfx_hif_cnf_multi_transmit *)hif->body)->num_tx_confs;
 		else
 			release_count = 1;
 		WARN(wdev->hif.tx_buffers_used < release_count, "corrupted buffer counter");
@@ -169,7 +165,7 @@ static int bh_work_rx(struct wfx_dev *wdev, int max_msg, int *num_cnf)
 	return i;
 }
 
-static void tx_helper(struct wfx_dev *wdev, struct hif_msg *hif)
+static void tx_helper(struct wfx_dev *wdev, struct wfx_hif_msg *hif)
 {
 	int ret;
 	void *data;
@@ -182,9 +178,9 @@ static void tx_helper(struct wfx_dev *wdev, struct hif_msg *hif)
 	wdev->hif.tx_seqnum = (wdev->hif.tx_seqnum + 1) % (HIF_COUNTER_MAX + 1);
 
 	data = hif;
-	WARN(len > wdev->hw_caps.size_inp_ch_buf,
-	     "%s: request exceed the chip capability: %zu > %d\n", __func__,
-	     len, wdev->hw_caps.size_inp_ch_buf);
+	WARN(len > le16_to_cpu(wdev->hw_caps.size_inp_ch_buf),
+	     "request exceed the chip capability: %zu > %d\n",
+	     len, le16_to_cpu(wdev->hw_caps.size_inp_ch_buf));
 	len = wdev->hwbus_ops->align_size(wdev->hwbus_priv, len);
 	ret = wfx_data_write(wdev, data, len);
 	if (ret)
@@ -199,12 +195,12 @@ end:
 
 static int bh_work_tx(struct wfx_dev *wdev, int max_msg)
 {
-	struct hif_msg *hif;
+	struct wfx_hif_msg *hif;
 	int i;
 
 	for (i = 0; i < max_msg; i++) {
 		hif = NULL;
-		if (wdev->hif.tx_buffers_used < wdev->hw_caps.num_inp_ch_bufs) {
+		if (wdev->hif.tx_buffers_used < le16_to_cpu(wdev->hw_caps.num_inp_ch_bufs)) {
 			if (try_wait_for_completion(&wdev->hif_cmd.ready)) {
 				WARN(!mutex_is_locked(&wdev->hif_cmd.lock), "data locking error");
 				hif = wdev->hif_cmd.buf_send;
@@ -219,19 +215,18 @@ static int bh_work_tx(struct wfx_dev *wdev, int max_msg)
 	return i;
 }
 
-/* In SDIO mode, it is necessary to make an access to a register to acknowledge
- * last received message. It could be possible to restrict this acknowledge to
- * SDIO mode and only if last operation was rx.
+/* In SDIO mode, it is necessary to make an access to a register to acknowledge last received
+ * message. It could be possible to restrict this acknowledge to SDIO mode and only if last
+ * operation was rx.
  */
 static void ack_sdio_data(struct wfx_dev *wdev)
 {
 	u32 cfg_reg;
 
-	config_reg_read(wdev, &cfg_reg);
+	wfx_config_reg_read(wdev, &cfg_reg);
 	if (cfg_reg & 0xFF) {
-		dev_warn(wdev->dev, "chip reports errors: %02x\n",
-			 cfg_reg & 0xFF);
-		config_reg_write_bits(wdev, 0xFF, 0x00);
+		dev_warn(wdev->dev, "chip reports errors: %02x\n", cfg_reg & 0xFF);
+		wfx_config_reg_write_bits(wdev, 0xFF, 0x00);
 	}
 }
 
@@ -261,8 +256,7 @@ static void bh_work(struct work_struct *work)
 		device_release(wdev);
 		release_chip = true;
 	}
-	_trace_bh_stats(stats_ind, stats_req, stats_cnf,
-			wdev->hif.tx_buffers_used, release_chip);
+	_trace_bh_stats(stats_ind, stats_req, stats_cnf, wdev->hif.tx_buffers_used, release_chip);
 }
 
 /* An IRQ from chip did occur */
@@ -270,7 +264,7 @@ void wfx_bh_request_rx(struct wfx_dev *wdev)
 {
 	u32 cur, prev;
 
-	control_reg_read(wdev, &cur);
+	wfx_control_reg_read(wdev, &cur);
 	prev = atomic_xchg(&wdev->hif.ctrl_reg, cur);
 	complete(&wdev->hif.ctrl_ready);
 	queue_work(system_highpri_wq, &wdev->hif.bh);
@@ -289,12 +283,11 @@ void wfx_bh_request_tx(struct wfx_dev *wdev)
 	queue_work(system_highpri_wq, &wdev->hif.bh);
 }
 
-/* If IRQ is not available, this function allow to manually poll the control
- * register and simulate an IRQ ahen an event happened.
+/* If IRQ is not available, this function allow to manually poll the control register and simulate
+ * an IRQ ahen an event happened.
  *
- * Note that the device has a bug: If an IRQ raise while host read control
- * register, the IRQ is lost. So, use this function carefully (only duing
- * device initialisation).
+ * Note that the device has a bug: If an IRQ raise while host read control register, the IRQ is
+ * lost. So, use this function carefully (only duing device initialisation).
  */
 void wfx_bh_poll_irq(struct wfx_dev *wdev)
 {
@@ -302,9 +295,10 @@ void wfx_bh_poll_irq(struct wfx_dev *wdev)
 	u32 reg;
 
 	WARN(!wdev->poll_irq, "unexpected IRQ polling can mask IRQ");
+	flush_workqueue(system_highpri_wq);
 	start = ktime_get();
 	for (;;) {
-		control_reg_read(wdev, &reg);
+		wfx_control_reg_read(wdev, &reg);
 		now = ktime_get();
 		if (reg & 0xFFF)
 			break;

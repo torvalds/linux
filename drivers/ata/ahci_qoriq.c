@@ -77,7 +77,7 @@ static const struct of_device_id ahci_qoriq_of_match[] = {
 	{ .compatible = "fsl,ls1088a-ahci", .data = (void *)AHCI_LS1088A},
 	{ .compatible = "fsl,ls2088a-ahci", .data = (void *)AHCI_LS2088A},
 	{ .compatible = "fsl,lx2160a-ahci", .data = (void *)AHCI_LX2160A},
-	{},
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ahci_qoriq_of_match);
 
@@ -123,7 +123,7 @@ static int ahci_qoriq_hardreset(struct ata_link *link, unsigned int *class,
 
 	/* clear D2H reception area to properly wait for D2H FIS */
 	ata_tf_init(link->device, &tf);
-	tf.command = ATA_BUSY;
+	tf.status = ATA_BUSY;
 	ata_tf_to_fis(&tf, 0, 0, d2h_fis);
 
 	rc = sata_link_hardreset(link, timing, deadline, &online,

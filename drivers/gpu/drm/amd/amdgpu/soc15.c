@@ -586,8 +586,8 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 static int soc15_asic_reset(struct amdgpu_device *adev)
 {
 	/* original raven doesn't have full asic reset */
-	if ((adev->apu_flags & AMD_APU_IS_RAVEN) &&
-	    !(adev->apu_flags & AMD_APU_IS_RAVEN2))
+	if ((adev->apu_flags & AMD_APU_IS_RAVEN) ||
+	    (adev->apu_flags & AMD_APU_IS_RAVEN2))
 		return 0;
 
 	switch (soc15_asic_reset_method(adev)) {
@@ -852,6 +852,10 @@ static void vega20_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 static bool soc15_need_reset_on_init(struct amdgpu_device *adev)
 {
 	u32 sol_reg;
+
+	/* CP hangs in IGT reloading test on RN, reset to WA */
+	if (adev->asic_type == CHIP_RENOIR)
+		return true;
 
 	/* Just return false for soc15 GPUs.  Reset does not seem to
 	 * be necessary.
@@ -1213,9 +1217,6 @@ static int soc15_common_sw_init(void *handle)
 static int soc15_common_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (adev->nbio.ras && adev->nbio.ras->ras_block.ras_fini)
-		adev->nbio.ras->ras_block.ras_fini(adev);
 
 	if (adev->df.funcs &&
 	    adev->df.funcs->sw_fini)

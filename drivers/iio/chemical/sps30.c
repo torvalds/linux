@@ -221,7 +221,7 @@ static ssize_t cleaning_period_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d\n", be32_to_cpu(val));
+	return sysfs_emit(buf, "%d\n", be32_to_cpu(val));
 }
 
 static ssize_t cleaning_period_store(struct device *dev, struct device_attribute *attr,

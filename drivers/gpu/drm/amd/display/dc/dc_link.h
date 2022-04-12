@@ -43,8 +43,8 @@ struct dc_link_status {
 	struct dpcd_caps *dpcd_caps;
 };
 
-struct dp_receiver_status {
-	bool cable_id_updated;
+struct dprx_states {
+	bool cable_id_written;
 };
 
 /* DP MST stream allocation (payload bandwidth number) */
@@ -74,6 +74,28 @@ struct time_stamp {
 
 struct link_trace {
 	struct time_stamp time_stamp;
+};
+
+struct dp_trace_lt_counts {
+	unsigned int total;
+	unsigned int fail;
+};
+
+struct dp_trace_lt {
+	struct dp_trace_lt_counts counts;
+	struct dp_trace_timestamps {
+		unsigned long long start;
+		unsigned long long end;
+	} timestamps;
+	enum link_training_result result;
+	bool is_logged;
+};
+
+struct dp_trace {
+	struct dp_trace_lt detect_lt_trace;
+	struct dp_trace_lt commit_lt_trace;
+	unsigned int link_loss_count;
+	bool is_initialized;
 };
 
 /* PSR feature flags */
@@ -120,6 +142,8 @@ struct dc_link {
 	bool is_hpd_pending; /* Indicates a new received hpd */
 
 	bool edp_sink_present;
+
+	struct dp_trace dp_trace;
 
 	/* caps is the same as reported_link_cap. link_traing use
 	 * reported_link_cap. Will clean up.  TODO
@@ -205,7 +229,7 @@ struct dc_link {
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 
 	struct dc_link_status link_status;
-	struct dp_receiver_status dprx_status;
+	struct dprx_states dprx_states;
 
 	struct link_trace link_trace;
 	struct gpio *hpd_gpio;
@@ -442,6 +466,11 @@ const struct dc_link_settings *dc_link_get_link_cap(
 void dc_link_overwrite_extended_receiver_cap(
 		struct dc_link *link);
 
+bool dc_is_oem_i2c_device_present(
+	struct dc *dc,
+	size_t slave_address
+);
+
 bool dc_submit_i2c(
 		struct dc *dc,
 		uint32_t link_index,
@@ -466,8 +495,20 @@ void dc_link_get_cur_link_res(const struct dc_link *link,
 void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map);
 /* restore link resource allocation state from a snapshot */
 void dc_restore_link_res_map(const struct dc *dc, uint32_t *map);
-void dc_link_dp_clear_rx_status(struct dc_link *link);
+void dc_link_clear_dprx_states(struct dc_link *link);
 struct gpio *get_hpd_gpio(struct dc_bios *dcb,
 		struct graphics_object_id link_id,
 		struct gpio_service *gpio_service);
+void dp_trace_reset(struct dc_link *link);
+bool dc_dp_trace_is_initialized(struct dc_link *link);
+unsigned long long dc_dp_trace_get_lt_end_timestamp(struct dc_link *link,
+		bool in_detection);
+void dc_dp_trace_set_is_logged_flag(struct dc_link *link,
+		bool in_detection,
+		bool is_logged);
+bool dc_dp_trace_is_logged(struct dc_link *link,
+		bool in_detection);
+struct dp_trace_lt_counts *dc_dp_trace_get_lt_counts(struct dc_link *link,
+		bool in_detection);
+unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link);
 #endif /* DC_LINK_H_ */

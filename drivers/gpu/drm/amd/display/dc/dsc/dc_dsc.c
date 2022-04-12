@@ -864,10 +864,10 @@ static bool setup_dsc_config(
 		min_slices_h = inc_num_slices(dsc_common_caps.slice_caps, min_slices_h);
 	}
 
+	is_dsc_possible = (min_slices_h <= max_slices_h);
+
 	if (pic_width % min_slices_h != 0)
 		min_slices_h = 0; // DSC TODO: Maybe try increasing the number of slices first?
-
-	is_dsc_possible = (min_slices_h <= max_slices_h);
 
 	if (min_slices_h == 0 && max_slices_h == 0)
 		is_dsc_possible = false;

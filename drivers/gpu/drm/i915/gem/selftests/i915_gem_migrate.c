@@ -216,7 +216,10 @@ static int __igt_lmem_pages_migrate(struct intel_gt *gt,
 					  i915_gem_object_is_lmem(obj),
 					  0xdeadbeaf, &rq);
 		if (rq) {
-			dma_resv_add_excl_fence(obj->base.resv, &rq->fence);
+			err = dma_resv_reserve_fences(obj->base.resv, 1);
+			if (!err)
+				dma_resv_add_excl_fence(obj->base.resv,
+							&rq->fence);
 			i915_gem_object_set_moving_fence(obj, &rq->fence);
 			i915_request_put(rq);
 		}

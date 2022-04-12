@@ -54,9 +54,7 @@ static void kvm_ioapic_update_eoi_one(struct kvm_vcpu *vcpu,
 				      int trigger_mode,
 				      int pin);
 
-static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
-					  unsigned long addr,
-					  unsigned long length)
+static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic)
 {
 	unsigned long result = 0;
 
@@ -593,7 +591,7 @@ static int ioapic_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *this,
 		break;
 
 	case IOAPIC_REG_WINDOW:
-		result = ioapic_read_indirect(ioapic, addr, len);
+		result = ioapic_read_indirect(ioapic);
 		break;
 
 	default:

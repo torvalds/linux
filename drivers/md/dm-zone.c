@@ -130,7 +130,6 @@ bool dm_is_zone_write(struct mapped_device *md, struct bio *bio)
 
 	switch (bio_op(bio)) {
 	case REQ_OP_WRITE_ZEROES:
-	case REQ_OP_WRITE_SAME:
 	case REQ_OP_WRITE:
 		return !op_is_flush(bio->bi_opf) && bio_sectors(bio);
 	default:
@@ -390,7 +389,6 @@ static bool dm_zone_map_bio_begin(struct mapped_device *md,
 	case REQ_OP_ZONE_FINISH:
 		return true;
 	case REQ_OP_WRITE_ZEROES:
-	case REQ_OP_WRITE_SAME:
 	case REQ_OP_WRITE:
 		/* Writes must be aligned to the zone write pointer */
 		if ((clone->bi_iter.bi_sector & (zsectors - 1)) != zwp_offset)
@@ -446,7 +444,6 @@ static blk_status_t dm_zone_map_bio_end(struct mapped_device *md,
 			   blk_queue_zone_sectors(md->queue));
 		return BLK_STS_OK;
 	case REQ_OP_WRITE_ZEROES:
-	case REQ_OP_WRITE_SAME:
 	case REQ_OP_WRITE:
 		WRITE_ONCE(md->zwp_offset[zno], zwp_offset + nr_sectors);
 		return BLK_STS_OK;
@@ -503,7 +500,6 @@ static bool dm_need_zone_wp_tracking(struct bio *orig_bio)
 		return false;
 	switch (bio_op(orig_bio)) {
 	case REQ_OP_WRITE_ZEROES:
-	case REQ_OP_WRITE_SAME:
 	case REQ_OP_WRITE:
 	case REQ_OP_ZONE_RESET:
 	case REQ_OP_ZONE_FINISH:

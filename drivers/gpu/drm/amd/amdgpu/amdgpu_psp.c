@@ -133,6 +133,7 @@ static int psp_early_init(void *handle)
 		break;
 	case IP_VERSION(13, 0, 1):
 	case IP_VERSION(13, 0, 3):
+	case IP_VERSION(13, 0, 5):
 	case IP_VERSION(13, 0, 8):
 		psp_v13_0_set_psp_funcs(psp);
 		psp->autoload_supported = true;
@@ -276,7 +277,7 @@ static int psp_init_sriov_microcode(struct psp_context *psp)
 		ret = psp_init_cap_microcode(psp, "sienna_cichlid");
 		break;
 	case IP_VERSION(13, 0, 2):
-		ret = psp_init_ta_microcode(psp, "aldebaran");
+		ret = psp_init_cap_microcode(psp, "aldebaran");
 		break;
 	default:
 		BUG();
@@ -308,6 +309,10 @@ static int psp_sw_init(void *handle)
 		DRM_ERROR("Failed to load psp firmware!\n");
 		return ret;
 	}
+
+	adev->psp.xgmi_context.supports_extended_data =
+		!adev->gmc.xgmi.connected_to_cpu &&
+			adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 2);
 
 	memset(&boot_cfg_entry, 0, sizeof(boot_cfg_entry));
 	if (psp_get_runtime_db_entry(adev,
@@ -3007,7 +3012,6 @@ static int psp_init_sos_base_fw(struct amdgpu_device *adev)
 		adev->psp.sos.size_bytes = le32_to_cpu(sos_hdr->sos.size_bytes);
 		adev->psp.sos.start_addr = ucode_array_start_addr +
 				le32_to_cpu(sos_hdr->sos.offset_bytes);
-		adev->psp.xgmi_context.supports_extended_data = false;
 	} else {
 		/* Load alternate PSP SOS FW */
 		sos_hdr_v1_3 = (const struct psp_firmware_header_v1_3 *)adev->psp.sos_fw->data;
@@ -3022,7 +3026,6 @@ static int psp_init_sos_base_fw(struct amdgpu_device *adev)
 		adev->psp.sos.size_bytes = le32_to_cpu(sos_hdr_v1_3->sos_aux.size_bytes);
 		adev->psp.sos.start_addr = ucode_array_start_addr +
 			le32_to_cpu(sos_hdr_v1_3->sos_aux.offset_bytes);
-		adev->psp.xgmi_context.supports_extended_data = true;
 	}
 
 	if ((adev->psp.sys.size_bytes == 0) || (adev->psp.sos.size_bytes == 0)) {

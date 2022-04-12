@@ -1043,6 +1043,13 @@ static int igt_lmem_write_cpu(void *arg)
 	}
 
 	i915_gem_object_lock(obj, NULL);
+
+	err = dma_resv_reserve_fences(obj->base.resv, 1);
+	if (err) {
+		i915_gem_object_unlock(obj);
+		goto out_put;
+	}
+
 	/* Put the pages into a known state -- from the gpu for added fun */
 	intel_engine_pm_get(engine);
 	err = intel_context_migrate_clear(engine->gt->migrate.context, NULL,

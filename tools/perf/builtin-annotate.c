@@ -46,7 +46,11 @@ struct perf_annotate {
 	struct perf_tool tool;
 	struct perf_session *session;
 	struct annotation_options opts;
-	bool	   use_tui, use_stdio, use_stdio2, use_gtk;
+#ifdef HAVE_SLANG_SUPPORT
+	bool	   use_tui;
+#endif
+	bool	   use_stdio, use_stdio2;
+	bool	   use_gtk;
 	bool	   skip_missing;
 	bool	   has_br_stack;
 	bool	   group_set;
@@ -190,7 +194,6 @@ static int process_branch_callback(struct evsel *evsel,
 	};
 
 	struct addr_location a;
-	int ret;
 
 	if (machine__resolve(machine, &a, sample) < 0)
 		return -1;
@@ -203,8 +206,7 @@ static int process_branch_callback(struct evsel *evsel,
 
 	hist__account_cycles(sample->branch_stack, al, sample, false, NULL);
 
-	ret = hist_entry_iter__add(&iter, &a, PERF_MAX_STACK_DEPTH, ann);
-	return ret;
+	return hist_entry_iter__add(&iter, &a, PERF_MAX_STACK_DEPTH, ann);
 }
 
 static bool has_annotation(struct perf_annotate *ann)
@@ -503,7 +505,9 @@ int cmd_annotate(int argc, const char **argv)
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN(0, "gtk", &annotate.use_gtk, "Use the GTK interface"),
+#ifdef HAVE_SLANG_SUPPORT
 	OPT_BOOLEAN(0, "tui", &annotate.use_tui, "Use the TUI interface"),
+#endif
 	OPT_BOOLEAN(0, "stdio", &annotate.use_stdio, "Use the stdio interface"),
 	OPT_BOOLEAN(0, "stdio2", &annotate.use_stdio2, "Use the stdio interface"),
 	OPT_BOOLEAN(0, "ignore-vmlinux", &symbol_conf.ignore_vmlinux,
@@ -624,8 +628,10 @@ int cmd_annotate(int argc, const char **argv)
 
 	if (annotate.use_stdio || annotate.use_stdio2)
 		use_browser = 0;
+#ifdef HAVE_SLANG_SUPPORT
 	else if (annotate.use_tui)
 		use_browser = 1;
+#endif
 	else if (annotate.use_gtk)
 		use_browser = 2;
 

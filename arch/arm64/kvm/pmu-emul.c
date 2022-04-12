@@ -7,6 +7,7 @@
 #include <linux/cpu.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <linux/list.h>
 #include <linux/perf_event.h>
 #include <linux/perf/arm_pmu.h>
 #include <linux/uaccess.h>
@@ -16,6 +17,9 @@
 
 DEFINE_STATIC_KEY_FALSE(kvm_arm_pmu_available);
 
+static LIST_HEAD(arm_pmus);
+static DEFINE_MUTEX(arm_pmus_lock);
+
 static void kvm_pmu_create_perf_event(struct kvm_vcpu *vcpu, u64 select_idx);
 static void kvm_pmu_update_pmc_chained(struct kvm_vcpu *vcpu, u64 select_idx);
 static void kvm_pmu_stop_counter(struct kvm_vcpu *vcpu, struct kvm_pmc *pmc);
@@ -24,7 +28,11 @@ static void kvm_pmu_stop_counter(struct kvm_vcpu *vcpu, struct kvm_pmc *pmc);
 
 static u32 kvm_pmu_event_mask(struct kvm *kvm)
 {
-	switch (kvm->arch.pmuver) {
+	unsigned int pmuver;
+
+	pmuver = kvm->arch.arm_pmu->pmuver;
+
+	switch (pmuver) {
 	case ID_AA64DFR0_PMUVER_8_0:
 		return GENMASK(9, 0);
 	case ID_AA64DFR0_PMUVER_8_1:
@@ -33,7 +41,7 @@ static u32 kvm_pmu_event_mask(struct kvm *kvm)
 	case ID_AA64DFR0_PMUVER_8_7:
 		return GENMASK(15, 0);
 	default:		/* Shouldn't be here, just for sanity */
-		WARN_ONCE(1, "Unknown PMU version %d\n", kvm->arch.pmuver);
+		WARN_ONCE(1, "Unknown PMU version %d\n", pmuver);
 		return 0;
 	}
 }
@@ -600,6 +608,7 @@ static bool kvm_pmu_counter_is_enabled(struct kvm_vcpu *vcpu, u64 select_idx)
  */
 static void kvm_pmu_create_perf_event(struct kvm_vcpu *vcpu, u64 select_idx)
 {
+	struct arm_pmu *arm_pmu = vcpu->kvm->arch.arm_pmu;
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
 	struct kvm_pmc *pmc;
 	struct perf_event *event;
@@ -636,7 +645,7 @@ static void kvm_pmu_create_perf_event(struct kvm_vcpu *vcpu, u64 select_idx)
 		return;
 
 	memset(&attr, 0, sizeof(struct perf_event_attr));
-	attr.type = PERF_TYPE_RAW;
+	attr.type = arm_pmu->pmu.type;
 	attr.size = sizeof(attr);
 	attr.pinned = 1;
 	attr.disabled = !kvm_pmu_counter_is_enabled(vcpu, pmc->idx);
@@ -745,17 +754,33 @@ void kvm_pmu_set_counter_event_type(struct kvm_vcpu *vcpu, u64 data,
 
 void kvm_host_pmu_init(struct arm_pmu *pmu)
 {
-	if (pmu->pmuver != 0 && pmu->pmuver != ID_AA64DFR0_PMUVER_IMP_DEF &&
-	    !kvm_arm_support_pmu_v3() && !is_protected_kvm_enabled())
+	struct arm_pmu_entry *entry;
+
+	if (pmu->pmuver == 0 || pmu->pmuver == ID_AA64DFR0_PMUVER_IMP_DEF ||
+	    is_protected_kvm_enabled())
+		return;
+
+	mutex_lock(&arm_pmus_lock);
+
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		goto out_unlock;
+
+	entry->arm_pmu = pmu;
+	list_add_tail(&entry->entry, &arm_pmus);
+
+	if (list_is_singular(&arm_pmus))
 		static_branch_enable(&kvm_arm_pmu_available);
+
+out_unlock:
+	mutex_unlock(&arm_pmus_lock);
 }
 
-static int kvm_pmu_probe_pmuver(void)
+static struct arm_pmu *kvm_pmu_probe_armpmu(void)
 {
 	struct perf_event_attr attr = { };
 	struct perf_event *event;
-	struct arm_pmu *pmu;
-	int pmuver = ID_AA64DFR0_PMUVER_IMP_DEF;
+	struct arm_pmu *pmu = NULL;
 
 	/*
 	 * Create a dummy event that only counts user cycles. As we'll never
@@ -780,19 +805,20 @@ static int kvm_pmu_probe_pmuver(void)
 	if (IS_ERR(event)) {
 		pr_err_once("kvm: pmu event creation failed %ld\n",
 			    PTR_ERR(event));
-		return ID_AA64DFR0_PMUVER_IMP_DEF;
+		return NULL;
 	}
 
 	if (event->pmu) {
 		pmu = to_arm_pmu(event->pmu);
-		if (pmu->pmuver)
-			pmuver = pmu->pmuver;
+		if (pmu->pmuver == 0 ||
+		    pmu->pmuver == ID_AA64DFR0_PMUVER_IMP_DEF)
+			pmu = NULL;
 	}
 
 	perf_event_disable(event);
 	perf_event_release_kernel(event);
 
-	return pmuver;
+	return pmu;
 }
 
 u64 kvm_pmu_get_pmceid(struct kvm_vcpu *vcpu, bool pmceid1)
@@ -810,7 +836,7 @@ u64 kvm_pmu_get_pmceid(struct kvm_vcpu *vcpu, bool pmceid1)
 		 * Don't advertise STALL_SLOT, as PMMIR_EL0 is handled
 		 * as RAZ
 		 */
-		if (vcpu->kvm->arch.pmuver >= ID_AA64DFR0_PMUVER_8_4)
+		if (vcpu->kvm->arch.arm_pmu->pmuver >= ID_AA64DFR0_PMUVER_8_4)
 			val &= ~BIT_ULL(ARMV8_PMUV3_PERFCTR_STALL_SLOT - 32);
 		base = 32;
 	}
@@ -922,26 +948,64 @@ static bool pmu_irq_is_valid(struct kvm *kvm, int irq)
 	return true;
 }
 
+static int kvm_arm_pmu_v3_set_pmu(struct kvm_vcpu *vcpu, int pmu_id)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct arm_pmu_entry *entry;
+	struct arm_pmu *arm_pmu;
+	int ret = -ENXIO;
+
+	mutex_lock(&kvm->lock);
+	mutex_lock(&arm_pmus_lock);
+
+	list_for_each_entry(entry, &arm_pmus, entry) {
+		arm_pmu = entry->arm_pmu;
+		if (arm_pmu->pmu.type == pmu_id) {
+			if (test_bit(KVM_ARCH_FLAG_HAS_RAN_ONCE, &kvm->arch.flags) ||
+			    (kvm->arch.pmu_filter && kvm->arch.arm_pmu != arm_pmu)) {
+				ret = -EBUSY;
+				break;
+			}
+
+			kvm->arch.arm_pmu = arm_pmu;
+			cpumask_copy(kvm->arch.supported_cpus, &arm_pmu->supported_cpus);
+			ret = 0;
+			break;
+		}
+	}
+
+	mutex_unlock(&arm_pmus_lock);
+	mutex_unlock(&kvm->lock);
+	return ret;
+}
+
 int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 {
+	struct kvm *kvm = vcpu->kvm;
+
 	if (!kvm_vcpu_has_pmu(vcpu))
 		return -ENODEV;
 
 	if (vcpu->arch.pmu.created)
 		return -EBUSY;
 
-	if (!vcpu->kvm->arch.pmuver)
-		vcpu->kvm->arch.pmuver = kvm_pmu_probe_pmuver();
-
-	if (vcpu->kvm->arch.pmuver == ID_AA64DFR0_PMUVER_IMP_DEF)
-		return -ENODEV;
+	mutex_lock(&kvm->lock);
+	if (!kvm->arch.arm_pmu) {
+		/* No PMU set, get the default one */
+		kvm->arch.arm_pmu = kvm_pmu_probe_armpmu();
+		if (!kvm->arch.arm_pmu) {
+			mutex_unlock(&kvm->lock);
+			return -ENODEV;
+		}
+	}
+	mutex_unlock(&kvm->lock);
 
 	switch (attr->attr) {
 	case KVM_ARM_VCPU_PMU_V3_IRQ: {
 		int __user *uaddr = (int __user *)(long)attr->addr;
 		int irq;
 
-		if (!irqchip_in_kernel(vcpu->kvm))
+		if (!irqchip_in_kernel(kvm))
 			return -EINVAL;
 
 		if (get_user(irq, uaddr))
@@ -951,7 +1015,7 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 		if (!(irq_is_ppi(irq) || irq_is_spi(irq)))
 			return -EINVAL;
 
-		if (!pmu_irq_is_valid(vcpu->kvm, irq))
+		if (!pmu_irq_is_valid(kvm, irq))
 			return -EINVAL;
 
 		if (kvm_arm_pmu_irq_initialized(vcpu))
@@ -966,7 +1030,7 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 		struct kvm_pmu_event_filter filter;
 		int nr_events;
 
-		nr_events = kvm_pmu_event_mask(vcpu->kvm) + 1;
+		nr_events = kvm_pmu_event_mask(kvm) + 1;
 
 		uaddr = (struct kvm_pmu_event_filter __user *)(long)attr->addr;
 
@@ -978,12 +1042,17 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 		     filter.action != KVM_PMU_EVENT_DENY))
 			return -EINVAL;
 
-		mutex_lock(&vcpu->kvm->lock);
+		mutex_lock(&kvm->lock);
 
-		if (!vcpu->kvm->arch.pmu_filter) {
-			vcpu->kvm->arch.pmu_filter = bitmap_alloc(nr_events, GFP_KERNEL_ACCOUNT);
-			if (!vcpu->kvm->arch.pmu_filter) {
-				mutex_unlock(&vcpu->kvm->lock);
+		if (test_bit(KVM_ARCH_FLAG_HAS_RAN_ONCE, &kvm->arch.flags)) {
+			mutex_unlock(&kvm->lock);
+			return -EBUSY;
+		}
+
+		if (!kvm->arch.pmu_filter) {
+			kvm->arch.pmu_filter = bitmap_alloc(nr_events, GFP_KERNEL_ACCOUNT);
+			if (!kvm->arch.pmu_filter) {
+				mutex_unlock(&kvm->lock);
 				return -ENOMEM;
 			}
 
@@ -994,19 +1063,28 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 			 * events, the default is to allow.
 			 */
 			if (filter.action == KVM_PMU_EVENT_ALLOW)
-				bitmap_zero(vcpu->kvm->arch.pmu_filter, nr_events);
+				bitmap_zero(kvm->arch.pmu_filter, nr_events);
 			else
-				bitmap_fill(vcpu->kvm->arch.pmu_filter, nr_events);
+				bitmap_fill(kvm->arch.pmu_filter, nr_events);
 		}
 
 		if (filter.action == KVM_PMU_EVENT_ALLOW)
-			bitmap_set(vcpu->kvm->arch.pmu_filter, filter.base_event, filter.nevents);
+			bitmap_set(kvm->arch.pmu_filter, filter.base_event, filter.nevents);
 		else
-			bitmap_clear(vcpu->kvm->arch.pmu_filter, filter.base_event, filter.nevents);
+			bitmap_clear(kvm->arch.pmu_filter, filter.base_event, filter.nevents);
 
-		mutex_unlock(&vcpu->kvm->lock);
+		mutex_unlock(&kvm->lock);
 
 		return 0;
+	}
+	case KVM_ARM_VCPU_PMU_V3_SET_PMU: {
+		int __user *uaddr = (int __user *)(long)attr->addr;
+		int pmu_id;
+
+		if (get_user(pmu_id, uaddr))
+			return -EFAULT;
+
+		return kvm_arm_pmu_v3_set_pmu(vcpu, pmu_id);
 	}
 	case KVM_ARM_VCPU_PMU_V3_INIT:
 		return kvm_arm_pmu_v3_init(vcpu);
@@ -1045,6 +1123,7 @@ int kvm_arm_pmu_v3_has_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 	case KVM_ARM_VCPU_PMU_V3_IRQ:
 	case KVM_ARM_VCPU_PMU_V3_INIT:
 	case KVM_ARM_VCPU_PMU_V3_FILTER:
+	case KVM_ARM_VCPU_PMU_V3_SET_PMU:
 		if (kvm_vcpu_has_pmu(vcpu))
 			return 0;
 	}

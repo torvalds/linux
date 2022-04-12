@@ -180,7 +180,7 @@ static const struct cfg80211_sar_freq_ranges mt76_sar_freq_ranges[] = {
 	{ .start_freq = 5725, .end_freq = 5950, },
 };
 
-const struct cfg80211_sar_capa mt76_sar_capa = {
+static const struct cfg80211_sar_capa mt76_sar_capa = {
 	.type = NL80211_SAR_TYPE_POWER,
 	.num_freq_ranges = ARRAY_SIZE(mt76_sar_freq_ranges),
 	.freq_ranges = &mt76_sar_freq_ranges[0],
@@ -823,6 +823,10 @@ void mt76_set_channel(struct mt76_phy *phy)
 	wait_event_timeout(dev->tx_wait, !mt76_has_tx_pending(phy), timeout);
 	mt76_update_survey(phy);
 
+	if (phy->chandef.chan->center_freq != chandef->chan->center_freq ||
+	    phy->chandef.width != chandef->width)
+		phy->dfs_state = MT_DFS_STATE_UNKNOWN;
+
 	phy->chandef = *chandef;
 	phy->chan_state = mt76_channel_state(phy, chandef->chan);
 
@@ -928,6 +932,36 @@ void mt76_wcid_key_setup(struct mt76_dev *dev, struct mt76_wcid *wcid,
 }
 EXPORT_SYMBOL(mt76_wcid_key_setup);
 
+static int
+mt76_rx_signal(struct mt76_rx_status *status)
+{
+	s8 *chain_signal = status->chain_signal;
+	int signal = -128;
+	u8 chains;
+
+	for (chains = status->chains; chains; chains >>= 1, chain_signal++) {
+		int cur, diff;
+
+		cur = *chain_signal;
+		if (!(chains & BIT(0)) ||
+		    cur > 0)
+			continue;
+
+		if (cur > signal)
+			swap(cur, signal);
+
+		diff = signal - cur;
+		if (diff == 0)
+			signal += 3;
+		else if (diff <= 2)
+			signal += 2;
+		else if (diff <= 6)
+			signal += 1;
+	}
+
+	return signal;
+}
+
 static void
 mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
 		struct ieee80211_hw **hw,
@@ -956,6 +990,9 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
 	status->ampdu_reference = mstat.ampdu_ref;
 	status->device_timestamp = mstat.timestamp;
 	status->mactime = mstat.timestamp;
+	status->signal = mt76_rx_signal(&mstat);
+	if (status->signal <= -128)
+		status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 
 	if (ieee80211_is_beacon(hdr->frame_control) ||
 	    ieee80211_is_probe_resp(hdr->frame_control))
@@ -1604,3 +1641,27 @@ void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
 	wi->worker_stat_count = ei - wi->initial_stat_idx;
 }
 EXPORT_SYMBOL_GPL(mt76_ethtool_worker);
+
+enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy)
+{
+	struct ieee80211_hw *hw = phy->hw;
+	struct mt76_dev *dev = phy->dev;
+
+	if (dev->region == NL80211_DFS_UNSET ||
+	    test_bit(MT76_SCANNING, &phy->state))
+		return MT_DFS_STATE_DISABLED;
+
+	if (!hw->conf.radar_enabled) {
+		if ((hw->conf.flags & IEEE80211_CONF_MONITOR) &&
+		    (phy->chandef.chan->flags & IEEE80211_CHAN_RADAR))
+			return MT_DFS_STATE_ACTIVE;
+
+		return MT_DFS_STATE_DISABLED;
+	}
+
+	if (!cfg80211_reg_can_beacon(hw->wiphy, &phy->chandef, NL80211_IFTYPE_AP))
+		return MT_DFS_STATE_CAC;
+
+	return MT_DFS_STATE_ACTIVE;
+}
+EXPORT_SYMBOL_GPL(mt76_phy_dfs_state);

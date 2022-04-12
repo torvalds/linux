@@ -466,10 +466,18 @@ void drm_bus_flags_from_videomode(const struct videomode *vm, u32 *bus_flags);
 int of_get_drm_display_mode(struct device_node *np,
 			    struct drm_display_mode *dmode, u32 *bus_flags,
 			    int index);
+int of_get_drm_panel_display_mode(struct device_node *np,
+				  struct drm_display_mode *dmode, u32 *bus_flags);
 #else
 static inline int of_get_drm_display_mode(struct device_node *np,
 					  struct drm_display_mode *dmode,
 					  u32 *bus_flags, int index)
+{
+	return -EINVAL;
+}
+
+static inline int of_get_drm_panel_display_mode(struct device_node *np,
+						struct drm_display_mode *dmode, u32 *bus_flags)
 {
 	return -EINVAL;
 }
@@ -483,6 +491,8 @@ void drm_mode_get_hv_timing(const struct drm_display_mode *mode,
 void drm_mode_set_crtcinfo(struct drm_display_mode *p,
 			   int adjust_flags);
 void drm_mode_copy(struct drm_display_mode *dst,
+		   const struct drm_display_mode *src);
+void drm_mode_init(struct drm_display_mode *dst,
 		   const struct drm_display_mode *src);
 struct drm_display_mode *drm_mode_duplicate(struct drm_device *dev,
 					    const struct drm_display_mode *mode);

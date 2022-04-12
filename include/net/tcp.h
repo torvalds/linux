@@ -1367,7 +1367,8 @@ static inline bool tcp_checksum_complete(struct sk_buff *skb)
 		__skb_checksum_complete(skb);
 }
 
-bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb);
+bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb,
+		     enum skb_drop_reason *reason);
 
 #ifdef CONFIG_INET
 void __sk_defer_free_flush(struct sock *sk);
@@ -1674,6 +1675,12 @@ tcp_md5_do_lookup(const struct sock *sk, int l3index,
 	return __tcp_md5_do_lookup(sk, l3index, addr, family);
 }
 
+enum skb_drop_reason
+tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
+		     const void *saddr, const void *daddr,
+		     int family, int dif, int sdif);
+
+
 #define tcp_twsk_md5_key(twsk)	((twsk)->tw_md5_key)
 #else
 static inline struct tcp_md5sig_key *
@@ -1681,6 +1688,14 @@ tcp_md5_do_lookup(const struct sock *sk, int l3index,
 		  const union tcp_md5_addr *addr, int family)
 {
 	return NULL;
+}
+
+static inline enum skb_drop_reason
+tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
+		     const void *saddr, const void *daddr,
+		     int family, int dif, int sdif)
+{
+	return SKB_NOT_DROPPED_YET;
 }
 #define tcp_twsk_md5_key(twsk)	NULL
 #endif
@@ -1815,11 +1830,6 @@ static inline struct sk_buff *tcp_rtx_queue_head(const struct sock *sk)
 static inline struct sk_buff *tcp_rtx_queue_tail(const struct sock *sk)
 {
 	return skb_rb_last(&sk->tcp_rtx_queue);
-}
-
-static inline struct sk_buff *tcp_write_queue_head(const struct sock *sk)
-{
-	return skb_peek(&sk->sk_write_queue);
 }
 
 static inline struct sk_buff *tcp_write_queue_tail(const struct sock *sk)
@@ -2358,7 +2368,7 @@ static inline u32 tcp_timeout_init(struct sock *sk)
 
 	if (timeout <= 0)
 		timeout = TCP_TIMEOUT_INIT;
-	return timeout;
+	return min_t(int, timeout, TCP_RTO_MAX);
 }
 
 static inline u32 tcp_rwnd_init_bpf(struct sock *sk)

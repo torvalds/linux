@@ -85,7 +85,7 @@
 struct i2s_dev_data {
 	bool tdm_mode;
 	bool master_mode;
-	unsigned int i2s_irq;
+	int i2s_irq;
 	u16 i2s_instance;
 	u32 tdm_fmt;
 	void __iomem *acp5x_base;
@@ -105,6 +105,8 @@ struct i2s_stream_instance {
 	dma_addr_t dma_addr;
 	u64 bytescount;
 	void __iomem *acp5x_base;
+	u32 lrclk_div;
+	u32 bclk_div;
 };
 
 union acp_dma_count {
@@ -190,4 +192,31 @@ static inline u64 acp_get_byte_count(struct i2s_stream_instance *rtd,
 		}
 	}
 	return byte_count.bytescount;
+}
+
+static inline void acp5x_set_i2s_clk(struct i2s_dev_data *adata,
+				     struct i2s_stream_instance *rtd)
+{
+	union acp_i2stdm_mstrclkgen mclkgen;
+	u32 master_reg;
+
+	switch (rtd->i2s_instance) {
+	case I2S_HS_INSTANCE:
+		master_reg = ACP_I2STDM2_MSTRCLKGEN;
+		break;
+	case I2S_SP_INSTANCE:
+	default:
+		master_reg = ACP_I2STDM0_MSTRCLKGEN;
+		break;
+	}
+
+	mclkgen.bits.i2stdm_master_mode = 0x1;
+	if (adata->tdm_mode)
+		mclkgen.bits.i2stdm_format_mode = 0x01;
+	else
+		mclkgen.bits.i2stdm_format_mode = 0x00;
+
+	mclkgen.bits.i2stdm_bclk_div_val = rtd->bclk_div;
+	mclkgen.bits.i2stdm_lrclk_div_val = rtd->lrclk_div;
+	acp_writel(mclkgen.u32_all, rtd->acp5x_base + master_reg);
 }

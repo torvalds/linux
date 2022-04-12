@@ -250,6 +250,7 @@ void module_decompress_cleanup(struct load_info *info)
 	info->max_pages = info->used_pages = 0;
 }
 
+#ifdef CONFIG_SYSFS
 static ssize_t compression_show(struct kobject *kobj,
 				struct kobj_attribute *attr, char *buf)
 {
@@ -269,3 +270,4 @@ static int __init module_decompress_sysfs_init(void)
 	return 0;
 }
 late_initcall(module_decompress_sysfs_init);
+#endif

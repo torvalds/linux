@@ -339,7 +339,7 @@
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "R2 invalid mem access 'inv'",
+	.errstr = "R2 invalid mem access 'scalar'",
 	.result = REJECT,
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,

@@ -23,8 +23,12 @@ properties:
       - description: infinity2m boards
         items:
           - enum:
+              - 100ask,dongshanpione # 100ask DongShanPiOne
               - honestar,ssd201htv2 # Honestar SSD201_HT_V2 devkit
               - m5stack,unitv2 # M5Stack UnitV2
+              - miyoo,miyoo-mini # Miyoo Mini
+              - wirelesstag,ido-som2d01 # Wireless Tag IDO-SOM2D01
+              - wirelesstag,ido-sbc2d06-v1b-22w # Wireless Tag IDO-SBC2D06-1VB-22W
           - const: mstar,infinity2m
 
       - description: infinity3 boards

@@ -19,7 +19,6 @@ struct thread_info {
 	unsigned int		flags;		/* low level flags */
 	unsigned int		ieee_state;	/* see fpu.h */
 
-	mm_segment_t		addr_limit;	/* thread address space */
 	unsigned		cpu;		/* current CPU */
 	int			preempt_count; /* 0 => preemptable, <0 => BUG */
 	unsigned int		status;		/* thread-synchronous flags */
@@ -35,7 +34,6 @@ struct thread_info {
 #define INIT_THREAD_INFO(tsk)			\
 {						\
 	.task		= &tsk,			\
-	.addr_limit	= KERNEL_DS,		\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 }
 

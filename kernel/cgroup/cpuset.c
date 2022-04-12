@@ -71,7 +71,7 @@ DEFINE_STATIC_KEY_FALSE(cpusets_enabled_key);
 
 /*
  * There could be abnormal cpuset configurations for cpu or memory
- * node binding, add this key to provide a quick low-cost judgement
+ * node binding, add this key to provide a quick low-cost judgment
  * of the situation.
  */
 DEFINE_STATIC_KEY_FALSE(cpusets_insane_config_key);
@@ -833,7 +833,7 @@ static int generate_sched_domains(cpumask_var_t **domains,
 			update_domain_attr_tree(dattr, &top_cpuset);
 		}
 		cpumask_and(doms[0], top_cpuset.effective_cpus,
-			    housekeeping_cpumask(HK_FLAG_DOMAIN));
+			    housekeeping_cpumask(HK_TYPE_DOMAIN));
 
 		goto done;
 	}
@@ -863,7 +863,7 @@ static int generate_sched_domains(cpumask_var_t **domains,
 		if (!cpumask_empty(cp->cpus_allowed) &&
 		    !(is_sched_load_balance(cp) &&
 		      cpumask_intersects(cp->cpus_allowed,
-					 housekeeping_cpumask(HK_FLAG_DOMAIN))))
+					 housekeeping_cpumask(HK_TYPE_DOMAIN))))
 			continue;
 
 		if (root_load_balance &&
@@ -952,7 +952,7 @@ restart:
 
 			if (apn == b->pn) {
 				cpumask_or(dp, dp, b->effective_cpus);
-				cpumask_and(dp, dp, housekeeping_cpumask(HK_FLAG_DOMAIN));
+				cpumask_and(dp, dp, housekeeping_cpumask(HK_TYPE_DOMAIN));
 				if (dattr)
 					update_domain_attr_tree(dattr + nslot, b);
 
@@ -1181,7 +1181,7 @@ enum subparts_cmd {
  * effective_cpus. The function will return 0 if all the CPUs listed in
  * cpus_allowed can be granted or an error code will be returned.
  *
- * For partcmd_disable, the cpuset is being transofrmed from a partition
+ * For partcmd_disable, the cpuset is being transformed from a partition
  * root back to a non-partition root. Any CPUs in cpus_allowed that are in
  * parent's subparts_cpus will be taken away from that cpumask and put back
  * into parent's effective_cpus. 0 should always be returned.
@@ -2027,7 +2027,7 @@ out:
 }
 
 /*
- * update_prstate - update partititon_root_state
+ * update_prstate - update partition_root_state
  * cs: the cpuset to update
  * new_prs: new partition root state
  *
@@ -2289,6 +2289,7 @@ static void cpuset_attach(struct cgroup_taskset *tset)
 	cgroup_taskset_first(tset, &css);
 	cs = css_cs(css);
 
+	cpus_read_lock();
 	percpu_down_write(&cpuset_rwsem);
 
 	guarantee_online_mems(cs, &cpuset_attach_nodemask_to);
@@ -2342,6 +2343,7 @@ static void cpuset_attach(struct cgroup_taskset *tset)
 		wake_up(&cpuset_attach_wq);
 
 	percpu_up_write(&cpuset_rwsem);
+	cpus_read_unlock();
 }
 
 /* The various types of files and directories in a cpuset file system */
@@ -2877,7 +2879,7 @@ static int cpuset_css_online(struct cgroup_subsys_state *css)
 	/*
 	 * Clone @parent's configuration if CGRP_CPUSET_CLONE_CHILDREN is
 	 * set.  This flag handling is implemented in cgroup core for
-	 * histrical reasons - the flag may be specified during mount.
+	 * historical reasons - the flag may be specified during mount.
 	 *
 	 * Currently, if any sibling cpusets have exclusive cpus or mem, we
 	 * refuse to clone the configuration - thereby refusing the task to
@@ -3074,7 +3076,7 @@ hotplug_update_tasks_legacy(struct cpuset *cs,
 
 	/*
 	 * Don't call update_tasks_cpumask() if the cpuset becomes empty,
-	 * as the tasks will be migratecd to an ancestor.
+	 * as the tasks will be migrated to an ancestor.
 	 */
 	if (cpus_updated && !cpumask_empty(cs->cpus_allowed))
 		update_tasks_cpumask(cs);
@@ -3522,8 +3524,8 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
 	return cs;
 }
 
-/**
- * cpuset_node_allowed - Can we allocate on a memory node?
+/*
+ * __cpuset_node_allowed - Can we allocate on a memory node?
  * @node: is this an allowed node?
  * @gfp_mask: memory allocation flags
  *
@@ -3694,8 +3696,8 @@ void cpuset_print_current_mems_allowed(void)
 
 int cpuset_memory_pressure_enabled __read_mostly;
 
-/**
- * cpuset_memory_pressure_bump - keep stats of per-cpuset reclaims.
+/*
+ * __cpuset_memory_pressure_bump - keep stats of per-cpuset reclaims.
  *
  * Keep a running average of the rate of synchronous (direct)
  * page reclaim efforts initiated by tasks in each cpuset.
@@ -3710,7 +3712,7 @@ int cpuset_memory_pressure_enabled __read_mostly;
  * "memory_pressure".  Value displayed is an integer
  * representing the recent rate of entry into the synchronous
  * (direct) page reclaim by any task attached to the cpuset.
- **/
+ */
 
 void __cpuset_memory_pressure_bump(void)
 {

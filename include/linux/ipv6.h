@@ -51,7 +51,7 @@ struct ipv6_devconf {
 	__s32		use_optimistic;
 #endif
 #ifdef CONFIG_IPV6_MROUTE
-	__s32		mc_forwarding;
+	atomic_t	mc_forwarding;
 #endif
 	__s32		disable_ipv6;
 	__s32		drop_unicast_in_l2_multicast;
@@ -371,19 +371,12 @@ static inline struct ipv6_pinfo * inet6_sk(const struct sock *__sk)
 	return NULL;
 }
 
-static inline struct inet6_request_sock *
-			inet6_rsk(const struct request_sock *rsk)
-{
-	return NULL;
-}
-
 static inline struct raw6_sock *raw6_sk(const struct sock *sk)
 {
 	return NULL;
 }
 
 #define inet6_rcv_saddr(__sk)	NULL
-#define tcp_twsk_ipv6only(__sk)		0
 #define inet_v6_ipv6only(__sk)		0
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 #endif /* _IPV6_H */

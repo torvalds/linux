@@ -506,33 +506,9 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 	 */
 	if ((bo_flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC) &&
 	    amdgpu_bo_support_uswc(bo_flags) &&
-	    amdgpu_device_asic_has_dc_support(adev->asic_type)) {
-		switch (adev->asic_type) {
-		case CHIP_CARRIZO:
-		case CHIP_STONEY:
-			domain |= AMDGPU_GEM_DOMAIN_GTT;
-			break;
-		default:
-			switch (adev->ip_versions[DCE_HWIP][0]) {
-			case IP_VERSION(1, 0, 0):
-			case IP_VERSION(1, 0, 1):
-				/* enable S/G on PCO and RV2 */
-				if ((adev->apu_flags & AMD_APU_IS_RAVEN2) ||
-				    (adev->apu_flags & AMD_APU_IS_PICASSO))
-					domain |= AMDGPU_GEM_DOMAIN_GTT;
-				break;
-			case IP_VERSION(2, 1, 0):
-			case IP_VERSION(3, 0, 1):
-			case IP_VERSION(3, 1, 2):
-			case IP_VERSION(3, 1, 3):
-				domain |= AMDGPU_GEM_DOMAIN_GTT;
-				break;
-			default:
-				break;
-			}
-			break;
-		}
-	}
+	    amdgpu_device_asic_has_dc_support(adev->asic_type) &&
+	    adev->mode_info.gpu_vm_support)
+		domain |= AMDGPU_GEM_DOMAIN_GTT;
 #endif
 
 	return domain;
@@ -715,9 +691,9 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 			return -EINVAL;
 		}
 
-		if (adev->asic_type >= CHIP_SIENNA_CICHLID)
+		if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 3, 0))
 			version = AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS;
-		else if (adev->family == AMDGPU_FAMILY_NV)
+		else if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 0, 0))
 			version = AMD_FMT_MOD_TILE_VER_GFX10;
 		else
 			version = AMD_FMT_MOD_TILE_VER_GFX9;
@@ -811,7 +787,7 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 				if (adev->family >= AMDGPU_FAMILY_NV) {
 					int extra_pipe = 0;
 
-					if (adev->asic_type >= CHIP_SIENNA_CICHLID &&
+					if ((adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 3, 0)) &&
 					    pipes == packers && pipes > 1)
 						extra_pipe = 1;
 
@@ -1148,7 +1124,7 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	if (dev->mode_config.fb_modifiers_not_supported) {
+	if (dev->mode_config.fb_modifiers_not_supported && !adev->enable_virtual_display) {
 		drm_WARN_ONCE(dev, adev->family >= AMDGPU_FAMILY_AI,
 			      "GFX9+ requires FB check based on format modifier\n");
 		ret = check_tiling_flags_gfx6(rfb);

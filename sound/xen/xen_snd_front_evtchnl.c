@@ -168,7 +168,7 @@ static void evtchnl_free(struct xen_snd_front_info *front_info,
 
 	/* End access and free the page. */
 	if (channel->gref != GRANT_INVALID_REF)
-		gnttab_end_foreign_access(channel->gref, 0, page);
+		gnttab_end_foreign_access(channel->gref, page);
 	else
 		free_page(page);
 

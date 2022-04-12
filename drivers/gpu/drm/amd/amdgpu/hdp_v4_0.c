@@ -146,6 +146,9 @@ static void hdp_v4_0_init_registers(struct amdgpu_device *adev)
 
 	WREG32_FIELD15(HDP, 0, HDP_MISC_CNTL, FLUSH_INVALIDATE_CACHE, 1);
 
+	if (adev->ip_versions[HDP_HWIP][0] == IP_VERSION(4, 4, 0))
+		WREG32_FIELD15(HDP, 0, HDP_MISC_CNTL, READ_BUFFER_WATERMARK, 2);
+
 	WREG32_SOC15(HDP, 0, mmHDP_NONSURFACE_BASE, (adev->gmc.vram_start >> 8));
 	WREG32_SOC15(HDP, 0, mmHDP_NONSURFACE_BASE_HI, (adev->gmc.vram_start >> 40));
 }
@@ -163,7 +166,6 @@ struct amdgpu_hdp_ras hdp_v4_0_ras = {
 			.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
 		},
 		.hw_ops = &hdp_v4_0_ras_hw_ops,
-		.ras_fini = amdgpu_hdp_ras_fini,
 	},
 };
 

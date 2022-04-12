@@ -44,28 +44,6 @@ static struct power_supply_battery_ocv_table ocv_cap_tbl[] = {
 };
 
 /*
- * Note that the res_to_temp table must be strictly sorted by falling
- * resistance values to work.
- */
-static const struct ab8500_res_to_temp temp_tbl[] = {
-	{-5, 214834},
-	{ 0, 162943},
-	{ 5, 124820},
-	{10,  96520},
-	{15,  75306},
-	{20,  59254},
-	{25,  47000},
-	{30,  37566},
-	{35,  30245},
-	{40,  24520},
-	{45,  20010},
-	{50,  16432},
-	{55,  13576},
-	{60,  11280},
-	{65,   9425},
-};
-
-/*
  * Note that the batres_vs_temp table must be strictly sorted by falling
  * temperature values to work. Factory resistance is 300 mOhm and the
  * resistance values to the right are percentages of 300 mOhm.
@@ -80,20 +58,19 @@ static struct power_supply_resistance_temp_table temp_to_batres_tbl_thermistor[]
 	{ .temp = -20, .resistance = 198 /* 595 mOhm */ },
 };
 
-/* Default battery type for reference designs is the unknown type */
-static struct ab8500_battery_type bat_type_thermistor_unknown = {
-	.resis_high = 0,
-	.resis_low = 0,
-	.maint_a_cur_lvl = 400,
-	.maint_a_vol_lvl = 4050,
-	.maint_a_chg_timer_h = 60,
-	.maint_b_cur_lvl = 400,
-	.maint_b_vol_lvl = 4000,
-	.maint_b_chg_timer_h = 200,
-	.low_high_cur_lvl = 300,
-	.low_high_vol_lvl = 4000,
-	.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl),
-	.r_to_t_tbl = temp_tbl,
+static struct power_supply_maintenance_charge_table ab8500_maint_charg_table[] = {
+	{
+		/* Maintenance charging phase A, 60 hours */
+		.charge_current_max_ua = 400000,
+		.charge_voltage_max_uv = 4050000,
+		.charge_safety_timer_minutes = 60*60,
+	},
+	{
+		/* Maintenance charging phase B, 200 hours */
+		.charge_current_max_ua = 400000,
+		.charge_voltage_max_uv = 4000000,
+		.charge_safety_timer_minutes = 200*60,
+	}
 };
 
 static const struct ab8500_bm_capacity_levels cap_levels = {
@@ -148,17 +125,13 @@ struct ab8500_bm_data ab8500_bm_data = {
 	.usb_safety_tmr_h       = 4,
 	.bkup_bat_v             = BUP_VCH_SEL_2P6V,
 	.bkup_bat_i             = BUP_ICH_SEL_150UA,
-	.no_maintenance         = false,
 	.capacity_scaling       = false,
-	.adc_therm              = AB8500_ADC_THERM_BATCTRL,
 	.chg_unknown_bat        = false,
 	.enable_overshoot       = false,
 	.fg_res                 = 100,
 	.cap_levels             = &cap_levels,
-	.bat_type               = &bat_type_thermistor_unknown,
 	.interval_charging      = 5,
 	.interval_not_charging  = 120,
-	.gnd_lift_resistance    = 34,
 	.maxi                   = &ab8500_maxi_params,
 	.chg_params             = &chg,
 	.fg_params              = &fg,
@@ -188,13 +161,11 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 	 * fall back to safe defaults.
 	 */
 	if ((bi->voltage_min_design_uv < 0) ||
-	    (bi->voltage_max_design_uv < 0) ||
-	    (bi->overvoltage_limit_uv < 0)) {
+	    (bi->voltage_max_design_uv < 0)) {
 		/* Nominal voltage is 3.7V for unknown batteries */
 		bi->voltage_min_design_uv = 3700000;
-		bi->voltage_max_design_uv = 3700000;
-		/* Termination voltage (overcharge limit) 4.05V */
-		bi->overvoltage_limit_uv = 4050000;
+		/* Termination voltage 4.05V */
+		bi->voltage_max_design_uv = 4050000;
 	}
 
 	if (bi->constant_charge_current_max_ua < 0)
@@ -207,6 +178,24 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 		/* Charging stops when we drop below this current */
 		bi->charge_term_current_ua = 200000;
 
+	if (!bi->maintenance_charge || !bi->maintenance_charge_size) {
+		bi->maintenance_charge = ab8500_maint_charg_table;
+		bi->maintenance_charge_size = ARRAY_SIZE(ab8500_maint_charg_table);
+	}
+
+	if (bi->alert_low_temp_charge_current_ua < 0 ||
+	    bi->alert_low_temp_charge_voltage_uv < 0)
+	{
+		bi->alert_low_temp_charge_current_ua = 300000;
+		bi->alert_low_temp_charge_voltage_uv = 4000000;
+	}
+	if (bi->alert_high_temp_charge_current_ua < 0 ||
+	    bi->alert_high_temp_charge_voltage_uv < 0)
+	{
+		bi->alert_high_temp_charge_current_ua = 300000;
+		bi->alert_high_temp_charge_voltage_uv = 4000000;
+	}
+
 	/*
 	 * Internal resistance and factory resistance are tightly coupled
 	 * so both MUST be defined or we fall back to defaults.
@@ -216,6 +205,13 @@ int ab8500_bm_of_probe(struct power_supply *psy,
 		bi->factory_internal_resistance_uohm = 300000;
 		bi->resist_table = temp_to_batres_tbl_thermistor;
 		bi->resist_table_size = ARRAY_SIZE(temp_to_batres_tbl_thermistor);
+	}
+
+	/* The default battery is emulated by a resistor at 7K */
+	if (bi->bti_resistance_ohm < 0 ||
+	    bi->bti_resistance_tolerance < 0) {
+		bi->bti_resistance_ohm = 7000;
+		bi->bti_resistance_tolerance = 20;
 	}
 
 	if (!bi->ocv_table[0]) {

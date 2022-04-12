@@ -1648,6 +1648,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 {
 	struct parse_events_term *term;
 	struct list_head *list = NULL;
+	struct list_head *orig_head = NULL;
 	struct perf_pmu *pmu = NULL;
 	int ok = 0;
 	char *config;
@@ -1674,7 +1675,6 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 	}
 	list_add_tail(&term->list, head);
 
-
 	/* Add it for all PMUs that support the alias */
 	list = malloc(sizeof(struct list_head));
 	if (!list)
@@ -1687,13 +1687,15 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 
 		list_for_each_entry(alias, &pmu->aliases, list) {
 			if (!strcasecmp(alias->name, str)) {
+				parse_events_copy_term_list(head, &orig_head);
 				if (!parse_events_add_pmu(parse_state, list,
-							  pmu->name, head,
+							  pmu->name, orig_head,
 							  true, true)) {
 					pr_debug("%s -> %s/%s/\n", str,
 						 pmu->name, alias->str);
 					ok++;
 				}
+				parse_events_terms__delete(orig_head);
 			}
 		}
 	}
@@ -2193,7 +2195,7 @@ int perf_pmu__test_parse_init(void)
 	for (i = 0; i < ARRAY_SIZE(symbols); i++, tmp++) {
 		tmp->type = symbols[i].type;
 		tmp->symbol = strdup(symbols[i].symbol);
-		if (!list->symbol)
+		if (!tmp->symbol)
 			goto err_free;
 	}
 

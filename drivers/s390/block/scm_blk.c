@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
-#include <linux/genhd.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <asm/eadm.h>

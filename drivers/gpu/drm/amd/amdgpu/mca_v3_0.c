@@ -37,11 +37,6 @@ static void mca_v3_0_mp0_query_ras_error_count(struct amdgpu_device *adev,
 				         ras_error_status);
 }
 
-static void mca_v3_0_mp0_ras_fini(struct amdgpu_device *adev)
-{
-	amdgpu_mca_ras_fini(adev, &adev->mca.mp0);
-}
-
 static int mca_v3_0_ras_block_match(struct amdgpu_ras_block_object *block_obj,
 				enum amdgpu_ras_block block, uint32_t sub_block_index)
 {
@@ -71,7 +66,6 @@ struct amdgpu_mca_ras_block mca_v3_0_mp0_ras = {
 		},
 		.hw_ops = &mca_v3_0_mp0_hw_ops,
 		.ras_block_match = mca_v3_0_ras_block_match,
-		.ras_fini = mca_v3_0_mp0_ras_fini,
 	},
 };
 
@@ -81,11 +75,6 @@ static void mca_v3_0_mp1_query_ras_error_count(struct amdgpu_device *adev,
 	amdgpu_mca_query_ras_error_count(adev,
 				         smnMCMP1_STATUST0,
 				         ras_error_status);
-}
-
-static void mca_v3_0_mp1_ras_fini(struct amdgpu_device *adev)
-{
-	amdgpu_mca_ras_fini(adev, &adev->mca.mp1);
 }
 
 const struct amdgpu_ras_block_hw_ops mca_v3_0_mp1_hw_ops = {
@@ -103,7 +92,6 @@ struct amdgpu_mca_ras_block mca_v3_0_mp1_ras = {
 		},
 		.hw_ops = &mca_v3_0_mp1_hw_ops,
 		.ras_block_match = mca_v3_0_ras_block_match,
-		.ras_fini = mca_v3_0_mp1_ras_fini,
 	},
 };
 
@@ -113,11 +101,6 @@ static void mca_v3_0_mpio_query_ras_error_count(struct amdgpu_device *adev,
 	amdgpu_mca_query_ras_error_count(adev,
 				         smnMCMPIO_STATUST0,
 				         ras_error_status);
-}
-
-static void mca_v3_0_mpio_ras_fini(struct amdgpu_device *adev)
-{
-	amdgpu_mca_ras_fini(adev, &adev->mca.mpio);
 }
 
 const struct amdgpu_ras_block_hw_ops mca_v3_0_mpio_hw_ops = {
@@ -135,7 +118,6 @@ struct amdgpu_mca_ras_block mca_v3_0_mpio_ras = {
 		},
 		.hw_ops = &mca_v3_0_mpio_hw_ops,
 		.ras_block_match = mca_v3_0_ras_block_match,
-		.ras_fini = mca_v3_0_mpio_ras_fini,
 	},
 };
 

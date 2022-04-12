@@ -175,7 +175,7 @@ struct xoadc_channel {
 	const char *datasheet_name;
 	u8 pre_scale_mux:2;
 	u8 amux_channel:4;
-	const struct vadc_prescale_ratio prescale;
+	const struct u32_fract prescale;
 	enum iio_chan_type type;
 	enum vadc_scale_fn_type scale_fn_type;
 	u8 amux_ip_rsv:3;
@@ -218,7 +218,9 @@ struct xoadc_variant {
 		.datasheet_name = __stringify(_dname),			\
 		.pre_scale_mux = _presmux,				\
 		.amux_channel = _amux,					\
-		.prescale = { .num = _prenum, .den = _preden },		\
+		.prescale = {						\
+			.numerator = _prenum, .denominator = _preden,	\
+		},							\
 		.type = _type,						\
 		.scale_fn_type = _scale,				\
 		.amux_ip_rsv = _amip,					\
@@ -809,12 +811,11 @@ static int pm8xxx_xoadc_parse_channel(struct device *dev,
 		BIT(IIO_CHAN_INFO_PROCESSED);
 	iio_chan->indexed = 1;
 
-	dev_dbg(dev, "channel [PRESCALE/MUX: %02x AMUX: %02x] \"%s\" "
-		"ref voltage: %d, decimation %d "
-		"prescale %d/%d, scale function %d\n",
+	dev_dbg(dev,
+		"channel [PRESCALE/MUX: %02x AMUX: %02x] \"%s\" ref voltage: %d, decimation %d prescale %d/%d, scale function %d\n",
 		hwchan->pre_scale_mux, hwchan->amux_channel, ch->name,
-		ch->amux_ip_rsv, ch->decimation, hwchan->prescale.num,
-		hwchan->prescale.den, hwchan->scale_fn_type);
+		ch->amux_ip_rsv, ch->decimation, hwchan->prescale.numerator,
+		hwchan->prescale.denominator, hwchan->scale_fn_type);
 
 	return 0;
 }

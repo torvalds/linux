@@ -29,6 +29,11 @@ struct kvm_pmu {
 	struct irq_work overflow_work;
 };
 
+struct arm_pmu_entry {
+	struct list_head entry;
+	struct arm_pmu *arm_pmu;
+};
+
 DECLARE_STATIC_KEY_FALSE(kvm_arm_pmu_available);
 
 static __always_inline bool kvm_arm_support_pmu_v3(void)

@@ -1168,20 +1168,18 @@ static int max98095_dai1_set_fmt(struct snd_soc_dai *codec_dai,
 	if (fmt != cdata->fmt) {
 		cdata->fmt = fmt;
 
-		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-		case SND_SOC_DAIFMT_CBS_CFS:
-			/* Slave mode PLL */
+		switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+		case SND_SOC_DAIFMT_CBC_CFC:
+			/* Consumer mode PLL */
 			snd_soc_component_write(component, M98095_028_DAI1_CLKCFG_HI,
 				0x80);
 			snd_soc_component_write(component, M98095_029_DAI1_CLKCFG_LO,
 				0x00);
 			break;
-		case SND_SOC_DAIFMT_CBM_CFM:
-			/* Set to master mode */
+		case SND_SOC_DAIFMT_CBP_CFP:
+			/* Set to provider mode */
 			regval |= M98095_DAI_MAS;
 			break;
-		case SND_SOC_DAIFMT_CBS_CFM:
-		case SND_SOC_DAIFMT_CBM_CFS:
 		default:
 			dev_err(component->dev, "Clock mode unsupported");
 			return -EINVAL;
@@ -1236,20 +1234,18 @@ static int max98095_dai2_set_fmt(struct snd_soc_dai *codec_dai,
 	if (fmt != cdata->fmt) {
 		cdata->fmt = fmt;
 
-		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-		case SND_SOC_DAIFMT_CBS_CFS:
-			/* Slave mode PLL */
+		switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+		case SND_SOC_DAIFMT_CBC_CFC:
+			/* Consumer mode PLL */
 			snd_soc_component_write(component, M98095_032_DAI2_CLKCFG_HI,
 				0x80);
 			snd_soc_component_write(component, M98095_033_DAI2_CLKCFG_LO,
 				0x00);
 			break;
-		case SND_SOC_DAIFMT_CBM_CFM:
-			/* Set to master mode */
+		case SND_SOC_DAIFMT_CBP_CFP:
+			/* Set to provider mode */
 			regval |= M98095_DAI_MAS;
 			break;
-		case SND_SOC_DAIFMT_CBS_CFM:
-		case SND_SOC_DAIFMT_CBM_CFS:
 		default:
 			dev_err(component->dev, "Clock mode unsupported");
 			return -EINVAL;
@@ -1305,20 +1301,18 @@ static int max98095_dai3_set_fmt(struct snd_soc_dai *codec_dai,
 	if (fmt != cdata->fmt) {
 		cdata->fmt = fmt;
 
-		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-		case SND_SOC_DAIFMT_CBS_CFS:
-			/* Slave mode PLL */
+		switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+		case SND_SOC_DAIFMT_CBC_CFC:
+			/* Consumer mode PLL */
 			snd_soc_component_write(component, M98095_03C_DAI3_CLKCFG_HI,
 				0x80);
 			snd_soc_component_write(component, M98095_03D_DAI3_CLKCFG_LO,
 				0x00);
 			break;
-		case SND_SOC_DAIFMT_CBM_CFM:
-			/* Set to master mode */
+		case SND_SOC_DAIFMT_CBP_CFP:
+			/* Set to provider mode */
 			regval |= M98095_DAI_MAS;
 			break;
-		case SND_SOC_DAIFMT_CBS_CFM:
-		case SND_SOC_DAIFMT_CBM_CFS:
 		default:
 			dev_err(component->dev, "Clock mode unsupported");
 			return -EINVAL;

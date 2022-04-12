@@ -111,13 +111,6 @@ late_fini:
 	return r;
 }
 
-void amdgpu_sdma_ras_fini(struct amdgpu_device *adev)
-{
-	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__SDMA) &&
-			adev->sdma.ras_if)
-		amdgpu_ras_block_late_fini(adev, adev->sdma.ras_if);
-}
-
 int amdgpu_sdma_process_ras_data_cb(struct amdgpu_device *adev,
 		void *err_data,
 		struct amdgpu_iv_entry *entry)

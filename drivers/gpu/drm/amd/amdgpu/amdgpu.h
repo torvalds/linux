@@ -60,7 +60,6 @@
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_ioctl.h>
-#include <drm/gpu_scheduler.h>
 
 #include <kgd_kfd_interface.h>
 #include "dm_pp_interface.h"
@@ -155,8 +154,6 @@ extern int amdgpu_vis_vram_limit;
 extern int amdgpu_gart_size;
 extern int amdgpu_gtt_size;
 extern int amdgpu_moverate;
-extern int amdgpu_benchmarking;
-extern int amdgpu_testing;
 extern int amdgpu_audio;
 extern int amdgpu_disp_priority;
 extern int amdgpu_hw_i2c;
@@ -213,6 +210,7 @@ extern int amdgpu_mes;
 extern int amdgpu_noretry;
 extern int amdgpu_force_asic_type;
 extern int amdgpu_smartshift_bias;
+extern int amdgpu_use_xgmi_p2p;
 #ifdef CONFIG_HSA_AMD
 extern int sched_policy;
 extern bool debug_evictions;
@@ -233,6 +231,9 @@ extern int amdgpu_si_support;
 extern int amdgpu_cik_support;
 #endif
 extern int amdgpu_num_kcq;
+
+#define AMDGPU_VCNFW_LOG_SIZE (32 * 1024)
+extern int amdgpu_vcnfw_log;
 
 #define AMDGPU_VM_MAX_NUM_CTX			4096
 #define AMDGPU_SG_THRESHOLD			(256*1024*1024)
@@ -275,9 +276,6 @@ extern int amdgpu_num_kcq;
 #define AMDGPU_SMARTSHIFT_MIN_BIAS (-100)
 
 struct amdgpu_device;
-struct amdgpu_ib;
-struct amdgpu_cs_parser;
-struct amdgpu_job;
 struct amdgpu_irq_src;
 struct amdgpu_fpriv;
 struct amdgpu_bo_va_mapping;
@@ -466,20 +464,6 @@ struct amdgpu_flip_work {
 
 
 /*
- * CP & rings.
- */
-
-struct amdgpu_ib {
-	struct amdgpu_sa_bo		*sa_bo;
-	uint32_t			length_dw;
-	uint64_t			gpu_addr;
-	uint32_t			*ptr;
-	uint32_t			flags;
-};
-
-extern const struct drm_sched_backend_ops amdgpu_sched_ops;
-
-/*
  * file private structure
  */
 
@@ -493,79 +477,6 @@ struct amdgpu_fpriv {
 };
 
 int amdgpu_file_to_fpriv(struct file *filp, struct amdgpu_fpriv **fpriv);
-
-int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-		  unsigned size,
-		  enum amdgpu_ib_pool_type pool,
-		  struct amdgpu_ib *ib);
-void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib,
-		    struct dma_fence *f);
-int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
-		       struct amdgpu_ib *ibs, struct amdgpu_job *job,
-		       struct dma_fence **f);
-int amdgpu_ib_pool_init(struct amdgpu_device *adev);
-void amdgpu_ib_pool_fini(struct amdgpu_device *adev);
-int amdgpu_ib_ring_tests(struct amdgpu_device *adev);
-
-/*
- * CS.
- */
-struct amdgpu_cs_chunk {
-	uint32_t		chunk_id;
-	uint32_t		length_dw;
-	void			*kdata;
-};
-
-struct amdgpu_cs_post_dep {
-	struct drm_syncobj *syncobj;
-	struct dma_fence_chain *chain;
-	u64 point;
-};
-
-struct amdgpu_cs_parser {
-	struct amdgpu_device	*adev;
-	struct drm_file		*filp;
-	struct amdgpu_ctx	*ctx;
-
-	/* chunks */
-	unsigned		nchunks;
-	struct amdgpu_cs_chunk	*chunks;
-
-	/* scheduler job object */
-	struct amdgpu_job	*job;
-	struct drm_sched_entity	*entity;
-
-	/* buffer objects */
-	struct ww_acquire_ctx		ticket;
-	struct amdgpu_bo_list		*bo_list;
-	struct amdgpu_mn		*mn;
-	struct amdgpu_bo_list_entry	vm_pd;
-	struct list_head		validated;
-	struct dma_fence		*fence;
-	uint64_t			bytes_moved_threshold;
-	uint64_t			bytes_moved_vis_threshold;
-	uint64_t			bytes_moved;
-	uint64_t			bytes_moved_vis;
-
-	/* user fence */
-	struct amdgpu_bo_list_entry	uf_entry;
-
-	unsigned			num_post_deps;
-	struct amdgpu_cs_post_dep	*post_deps;
-};
-
-static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p,
-				      uint32_t ib_idx, int idx)
-{
-	return p->job->ibs[ib_idx].ptr[idx];
-}
-
-static inline void amdgpu_set_ib_value(struct amdgpu_cs_parser *p,
-				       uint32_t ib_idx, int idx,
-				       uint32_t value)
-{
-	p->job->ibs[ib_idx].ptr[idx] = value;
-}
 
 /*
  * Writeback
@@ -586,13 +497,7 @@ void amdgpu_device_wb_free(struct amdgpu_device *adev, u32 wb);
 /*
  * Benchmarking
  */
-void amdgpu_benchmark(struct amdgpu_device *adev, int test_number);
-
-
-/*
- * Testing
- */
-void amdgpu_test_moves(struct amdgpu_device *adev);
+int amdgpu_benchmark(struct amdgpu_device *adev, int test_number);
 
 /*
  * ASIC specific register table accessible by UMD
@@ -1102,6 +1007,12 @@ struct amdgpu_device {
 	struct ip_discovery_top         *ip_top;
 
 	struct amdgpu_reset_domain	*reset_domain;
+
+	struct mutex			benchmark_mutex;
+
+	/* reset dump register */
+	uint32_t                        *reset_dump_reg_list;
+	int                             num_regs;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
@@ -1436,10 +1347,6 @@ bool amdgpu_acpi_is_s0ix_active(struct amdgpu_device *adev);
 static inline bool amdgpu_acpi_is_s0ix_active(struct amdgpu_device *adev) { return false; }
 static inline bool amdgpu_acpi_is_s3_active(struct amdgpu_device *adev) { return false; }
 #endif
-
-int amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
-			   uint64_t addr, struct amdgpu_bo **bo,
-			   struct amdgpu_bo_va_mapping **mapping);
 
 #if defined(CONFIG_DRM_AMD_DC)
 int amdgpu_dm_display_resume(struct amdgpu_device *adev );

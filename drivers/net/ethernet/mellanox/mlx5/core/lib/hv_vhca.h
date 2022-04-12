@@ -92,13 +92,6 @@ mlx5_hv_vhca_agent_create(struct mlx5_hv_vhca *hv_vhca,
 static inline void mlx5_hv_vhca_agent_destroy(struct mlx5_hv_vhca_agent *agent)
 {
 }
-
-static inline int
-mlx5_hv_vhca_write_agent(struct mlx5_hv_vhca_agent *agent,
-			 void *buf, int len)
-{
-	return 0;
-}
 #endif
 
 #endif /* __LIB_HV_VHCA_H__ */

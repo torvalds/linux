@@ -138,6 +138,7 @@ enum dc_edid_status {
 	EDID_BAD_CHECKSUM,
 	EDID_THE_SAME,
 	EDID_FALL_BACK,
+	EDID_PARTIAL_VALID,
 };
 
 enum act_return_status {

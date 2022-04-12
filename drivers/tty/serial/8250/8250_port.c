@@ -307,6 +307,14 @@ static const struct serial8250_config uart_config[] = {
 		.rxtrig_bytes	= {1, 32, 64, 112},
 		.flags		= UART_CAP_FIFO | UART_CAP_SLEEP,
 	},
+	[PORT_ASPEED_VUART] = {
+		.name		= "ASPEED VUART",
+		.fifo_size	= 16,
+		.tx_loadsz	= 16,
+		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_00,
+		.rxtrig_bytes	= {1, 4, 8, 14},
+		.flags		= UART_CAP_FIFO,
+	},
 };
 
 /* Uart divisor latch read */
@@ -1615,6 +1623,18 @@ static inline void start_tx_rs485(struct uart_port *port)
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct uart_8250_em485 *em485 = up->em485;
 
+	/*
+	 * While serial8250_em485_handle_stop_tx() is a noop if
+	 * em485->active_timer != &em485->stop_tx_timer, it might happen that
+	 * the timer is still armed and triggers only after the current bunch of
+	 * chars is send and em485->active_timer == &em485->stop_tx_timer again.
+	 * So cancel the timer. There is still a theoretical race condition if
+	 * the timer is already running and only comes around to check for
+	 * em485->active_timer when &em485->stop_tx_timer is armed again.
+	 */
+	if (em485->active_timer == &em485->stop_tx_timer)
+		hrtimer_try_to_cancel(&em485->stop_tx_timer);
+
 	em485->active_timer = NULL;
 
 	if (em485->tx_stopped) {
@@ -1656,6 +1676,9 @@ static void serial8250_start_tx(struct uart_port *port)
 	struct uart_8250_em485 *em485 = up->em485;
 
 	serial8250_rpm_get_tx(up);
+
+	if (!port->x_char && uart_circ_empty(&port->state->xmit))
+		return;
 
 	if (em485 &&
 	    em485->active_timer == &em485->start_tx_timer)
@@ -1799,9 +1822,7 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 	int count;
 
 	if (port->x_char) {
-		serial_out(up, UART_TX, port->x_char);
-		port->icount.tx++;
-		port->x_char = 0;
+		uart_xchar_out(port, UART_TX);
 		return;
 	}
 	if (uart_tx_stopped(port)) {
@@ -2582,21 +2603,7 @@ static unsigned char serial8250_compute_lcr(struct uart_8250_port *up,
 {
 	unsigned char cval;
 
-	switch (c_cflag & CSIZE) {
-	case CS5:
-		cval = UART_LCR_WLEN5;
-		break;
-	case CS6:
-		cval = UART_LCR_WLEN6;
-		break;
-	case CS7:
-		cval = UART_LCR_WLEN7;
-		break;
-	default:
-	case CS8:
-		cval = UART_LCR_WLEN8;
-		break;
-	}
+	cval = UART_LCR_WLEN(tty_get_char_size(c_cflag));
 
 	if (c_cflag & CSTOPB)
 		cval |= UART_LCR_STOP;
@@ -3296,7 +3303,7 @@ EXPORT_SYMBOL_GPL(serial8250_set_defaults);
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 
-static void serial8250_console_putchar(struct uart_port *port, int ch)
+static void serial8250_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 

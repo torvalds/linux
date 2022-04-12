@@ -161,7 +161,7 @@ make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 		return GSS_S_FAILURE;
 	}
 
-	checksumdata = kmalloc(GSS_KRB5_MAX_CKSUM_LEN, GFP_NOFS);
+	checksumdata = kmalloc(GSS_KRB5_MAX_CKSUM_LEN, GFP_KERNEL);
 	if (checksumdata == NULL)
 		return GSS_S_FAILURE;
 
@@ -169,7 +169,7 @@ make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 	if (IS_ERR(tfm))
 		goto out_free_cksum;
 
-	req = ahash_request_alloc(tfm, GFP_NOFS);
+	req = ahash_request_alloc(tfm, GFP_KERNEL);
 	if (!req)
 		goto out_free_ahash;
 
@@ -257,7 +257,7 @@ make_checksum_v2(struct krb5_ctx *kctx, char *header, int hdrlen,
 		return GSS_S_FAILURE;
 	}
 
-	checksumdata = kmalloc(GSS_KRB5_MAX_CKSUM_LEN, GFP_NOFS);
+	checksumdata = kmalloc(GSS_KRB5_MAX_CKSUM_LEN, GFP_KERNEL);
 	if (!checksumdata)
 		return GSS_S_FAILURE;
 
@@ -265,7 +265,7 @@ make_checksum_v2(struct krb5_ctx *kctx, char *header, int hdrlen,
 	if (IS_ERR(tfm))
 		goto out_free_cksum;
 
-	req = ahash_request_alloc(tfm, GFP_NOFS);
+	req = ahash_request_alloc(tfm, GFP_KERNEL);
 	if (!req)
 		goto out_free_ahash;
 
@@ -554,7 +554,7 @@ gss_krb5_cts_crypt(struct crypto_sync_skcipher *cipher, struct xdr_buf *buf,
 		WARN_ON(0);
 		return -ENOMEM;
 	}
-	data = kmalloc(GSS_KRB5_MAX_BLOCKSIZE * 2, GFP_NOFS);
+	data = kmalloc(GSS_KRB5_MAX_BLOCKSIZE * 2, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 

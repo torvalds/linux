@@ -3,9 +3,6 @@
 #define _LINUX_MM_H
 
 #include <linux/errno.h>
-
-#ifdef __KERNEL__
-
 #include <linux/mmdebug.h>
 #include <linux/gfp.h>
 #include <linux/bug.h>
@@ -26,7 +23,6 @@
 #include <linux/err.h>
 #include <linux/page-flags.h>
 #include <linux/page_ref.h>
-#include <linux/memremap.h>
 #include <linux/overflow.h>
 #include <linux/sizes.h>
 #include <linux/sched.h>
@@ -216,8 +212,10 @@ int overcommit_policy_handler(struct ctl_table *, int, void *, size_t *,
 
 #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
 #define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + (n))
+#define folio_page_idx(folio, p)	(page_to_pfn(p) - folio_pfn(folio))
 #else
 #define nth_page(page,n) ((page) + (n))
+#define folio_page_idx(folio, p)	((p) - &(folio)->page)
 #endif
 
 /* to align the pointer to the (next) page boundary */
@@ -227,6 +225,10 @@ int overcommit_policy_handler(struct ctl_table *, int, void *, size_t *,
 #define PAGE_ALIGNED(addr)	IS_ALIGNED((unsigned long)(addr), PAGE_SIZE)
 
 #define lru_to_page(head) (list_entry((head)->prev, struct page, lru))
+static inline struct folio *lru_to_folio(struct list_head *head)
+{
+	return list_entry((head)->prev, struct folio, lru);
+}
 
 void setup_initial_init_mm(void *start_code, void *end_code,
 			   void *end_data, void *brk);
@@ -478,7 +480,8 @@ struct vm_fault {
 		struct vm_area_struct *vma;	/* Target VMA */
 		gfp_t gfp_mask;			/* gfp mask to be used for allocations */
 		pgoff_t pgoff;			/* Logical page offset based on vma */
-		unsigned long address;		/* Faulting virtual address */
+		unsigned long address;		/* Faulting virtual address - masked */
+		unsigned long real_address;	/* Faulting virtual address - unmasked */
 	};
 	enum fault_flag flags;		/* FAULT_FLAG_xxx flags
 					 * XXX: should really be 'const' */
@@ -774,21 +777,26 @@ static inline int is_vmalloc_or_module_addr(const void *x)
 }
 #endif
 
-static inline int head_compound_mapcount(struct page *head)
+/*
+ * How many times the entire folio is mapped as a single unit (eg by a
+ * PMD or PUD entry).  This is probably not what you want, except for
+ * debugging purposes; look at folio_mapcount() or page_mapcount()
+ * instead.
+ */
+static inline int folio_entire_mapcount(struct folio *folio)
 {
-	return atomic_read(compound_mapcount_ptr(head)) + 1;
+	VM_BUG_ON_FOLIO(!folio_test_large(folio), folio);
+	return atomic_read(folio_mapcount_ptr(folio)) + 1;
 }
 
 /*
  * Mapcount of compound page as a whole, does not include mapped sub-pages.
  *
- * Must be called only for compound pages or any their tail sub-pages.
+ * Must be called only for compound pages.
  */
 static inline int compound_mapcount(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageCompound(page), page);
-	page = compound_head(page);
-	return head_compound_mapcount(page);
+	return folio_entire_mapcount(page_folio(page));
 }
 
 /*
@@ -818,15 +826,16 @@ static inline int page_mapcount(struct page *page)
 	return atomic_read(&page->_mapcount) + 1;
 }
 
+int folio_mapcount(struct folio *folio);
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-int total_mapcount(struct page *page);
-int page_trans_huge_mapcount(struct page *page);
-#else
 static inline int total_mapcount(struct page *page)
 {
-	return page_mapcount(page);
+	return folio_mapcount(page_folio(page));
 }
-static inline int page_trans_huge_mapcount(struct page *page)
+
+#else
+static inline int total_mapcount(struct page *page)
 {
 	return page_mapcount(page);
 }
@@ -889,33 +898,17 @@ static inline void destroy_compound_page(struct page *page)
 	compound_page_dtors[page[1].compound_dtor](page);
 }
 
-static inline bool hpage_pincount_available(struct page *page)
-{
-	/*
-	 * Can the page->hpage_pinned_refcount field be used? That field is in
-	 * the 3rd page of the compound page, so the smallest (2-page) compound
-	 * pages cannot support it.
-	 */
-	page = compound_head(page);
-	return PageCompound(page) && compound_order(page) > 1;
-}
-
 static inline int head_compound_pincount(struct page *head)
 {
 	return atomic_read(compound_pincount_ptr(head));
 }
 
-static inline int compound_pincount(struct page *page)
-{
-	VM_BUG_ON_PAGE(!hpage_pincount_available(page), page);
-	page = compound_head(page);
-	return head_compound_pincount(page);
-}
-
 static inline void set_compound_order(struct page *page, unsigned int order)
 {
 	page[1].compound_order = order;
+#ifdef CONFIG_64BIT
 	page[1].compound_nr = 1U << order;
+#endif
 }
 
 /* Returns the number of pages in this potentially compound page. */
@@ -923,7 +916,11 @@ static inline unsigned long compound_nr(struct page *page)
 {
 	if (!PageHead(page))
 		return 1;
+#ifdef CONFIG_64BIT
 	return page[1].compound_nr;
+#else
+	return 1UL << compound_order(page);
+#endif
 }
 
 /* Returns the number of bytes in this potentially compound page. */
@@ -936,6 +933,37 @@ static inline unsigned long page_size(struct page *page)
 static inline unsigned int page_shift(struct page *page)
 {
 	return PAGE_SHIFT + compound_order(page);
+}
+
+/**
+ * thp_order - Order of a transparent huge page.
+ * @page: Head page of a transparent huge page.
+ */
+static inline unsigned int thp_order(struct page *page)
+{
+	VM_BUG_ON_PGFLAGS(PageTail(page), page);
+	return compound_order(page);
+}
+
+/**
+ * thp_nr_pages - The number of regular pages in this huge page.
+ * @page: The head page of a huge page.
+ */
+static inline int thp_nr_pages(struct page *page)
+{
+	VM_BUG_ON_PGFLAGS(PageTail(page), page);
+	return compound_nr(page);
+}
+
+/**
+ * thp_size - Size of a transparent huge page.
+ * @page: Head page of a transparent huge page.
+ *
+ * Return: Number of bytes in this page.
+ */
+static inline unsigned long thp_size(struct page *page)
+{
+	return PAGE_SIZE << thp_order(page);
 }
 
 void free_compound_page(struct page *page);
@@ -1089,59 +1117,35 @@ static inline bool is_zone_device_page(const struct page *page)
 }
 #endif
 
+static inline bool folio_is_zone_device(const struct folio *folio)
+{
+	return is_zone_device_page(&folio->page);
+}
+
 static inline bool is_zone_movable_page(const struct page *page)
 {
 	return page_zonenum(page) == ZONE_MOVABLE;
 }
 
-#ifdef CONFIG_DEV_PAGEMAP_OPS
-void free_devmap_managed_page(struct page *page);
+#if defined(CONFIG_ZONE_DEVICE) && defined(CONFIG_FS_DAX)
 DECLARE_STATIC_KEY_FALSE(devmap_managed_key);
 
-static inline bool page_is_devmap_managed(struct page *page)
+bool __put_devmap_managed_page(struct page *page);
+static inline bool put_devmap_managed_page(struct page *page)
 {
 	if (!static_branch_unlikely(&devmap_managed_key))
 		return false;
 	if (!is_zone_device_page(page))
 		return false;
-	switch (page->pgmap->type) {
-	case MEMORY_DEVICE_PRIVATE:
-	case MEMORY_DEVICE_FS_DAX:
-		return true;
-	default:
-		break;
-	}
-	return false;
+	return __put_devmap_managed_page(page);
 }
 
-void put_devmap_managed_page(struct page *page);
-
-#else /* CONFIG_DEV_PAGEMAP_OPS */
-static inline bool page_is_devmap_managed(struct page *page)
+#else /* CONFIG_ZONE_DEVICE && CONFIG_FS_DAX */
+static inline bool put_devmap_managed_page(struct page *page)
 {
 	return false;
 }
-
-static inline void put_devmap_managed_page(struct page *page)
-{
-}
-#endif /* CONFIG_DEV_PAGEMAP_OPS */
-
-static inline bool is_device_private_page(const struct page *page)
-{
-	return IS_ENABLED(CONFIG_DEV_PAGEMAP_OPS) &&
-		IS_ENABLED(CONFIG_DEVICE_PRIVATE) &&
-		is_zone_device_page(page) &&
-		page->pgmap->type == MEMORY_DEVICE_PRIVATE;
-}
-
-static inline bool is_pci_p2pdma_page(const struct page *page)
-{
-	return IS_ENABLED(CONFIG_DEV_PAGEMAP_OPS) &&
-		IS_ENABLED(CONFIG_PCI_P2PDMA) &&
-		is_zone_device_page(page) &&
-		page->pgmap->type == MEMORY_DEVICE_PCI_P2PDMA;
-}
+#endif /* CONFIG_ZONE_DEVICE && CONFIG_FS_DAX */
 
 /* 127: arbitrary random number, small enough to assemble well */
 #define folio_ref_zero_or_close_to_overflow(folio) \
@@ -1167,9 +1171,6 @@ static inline void get_page(struct page *page)
 }
 
 bool __must_check try_grab_page(struct page *page, unsigned int flags);
-struct page *try_grab_compound_head(struct page *page, int refs,
-				    unsigned int flags);
-
 
 static inline __must_check bool try_get_page(struct page *page)
 {
@@ -1224,16 +1225,11 @@ static inline void put_page(struct page *page)
 	struct folio *folio = page_folio(page);
 
 	/*
-	 * For devmap managed pages we need to catch refcount transition from
-	 * 2 to 1, when refcount reach one it means the page is free and we
-	 * need to inform the device driver through callback. See
-	 * include/linux/memremap.h and HMM for details.
+	 * For some devmap managed pages we need to catch refcount transition
+	 * from 2 to 1:
 	 */
-	if (page_is_devmap_managed(&folio->page)) {
-		put_devmap_managed_page(&folio->page);
+	if (put_devmap_managed_page(&folio->page))
 		return;
-	}
-
 	folio_put(folio);
 }
 
@@ -1263,10 +1259,9 @@ static inline void put_page(struct page *page)
  * applications that don't have huge page reference counts, this won't be an
  * issue.
  *
- * Locking: the lockless algorithm described in page_cache_get_speculative()
- * and page_cache_gup_pin_speculative() provides safe operation for
- * get_user_pages and page_mkclean and other calls that race to set up page
- * table entries.
+ * Locking: the lockless algorithm described in folio_try_get_rcu()
+ * provides safe operation for get_user_pages(), page_mkclean() and
+ * other calls that race to set up page table entries.
  */
 #define GUP_PIN_COUNTING_BIAS (1U << 10)
 
@@ -1277,68 +1272,9 @@ void unpin_user_page_range_dirty_lock(struct page *page, unsigned long npages,
 				      bool make_dirty);
 void unpin_user_pages(struct page **pages, unsigned long npages);
 
-/**
- * page_maybe_dma_pinned - Report if a page is pinned for DMA.
- * @page: The page.
- *
- * This function checks if a page has been pinned via a call to
- * a function in the pin_user_pages() family.
- *
- * For non-huge pages, the return value is partially fuzzy: false is not fuzzy,
- * because it means "definitely not pinned for DMA", but true means "probably
- * pinned for DMA, but possibly a false positive due to having at least
- * GUP_PIN_COUNTING_BIAS worth of normal page references".
- *
- * False positives are OK, because: a) it's unlikely for a page to get that many
- * refcounts, and b) all the callers of this routine are expected to be able to
- * deal gracefully with a false positive.
- *
- * For huge pages, the result will be exactly correct. That's because we have
- * more tracking data available: the 3rd struct page in the compound page is
- * used to track the pincount (instead using of the GUP_PIN_COUNTING_BIAS
- * scheme).
- *
- * For more information, please see Documentation/core-api/pin_user_pages.rst.
- *
- * Return: True, if it is likely that the page has been "dma-pinned".
- * False, if the page is definitely not dma-pinned.
- */
-static inline bool page_maybe_dma_pinned(struct page *page)
-{
-	if (hpage_pincount_available(page))
-		return compound_pincount(page) > 0;
-
-	/*
-	 * page_ref_count() is signed. If that refcount overflows, then
-	 * page_ref_count() returns a negative value, and callers will avoid
-	 * further incrementing the refcount.
-	 *
-	 * Here, for that overflow case, use the signed bit to count a little
-	 * bit higher via unsigned math, and thus still get an accurate result.
-	 */
-	return ((unsigned int)page_ref_count(compound_head(page))) >=
-		GUP_PIN_COUNTING_BIAS;
-}
-
 static inline bool is_cow_mapping(vm_flags_t flags)
 {
 	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
-}
-
-/*
- * This should most likely only be called during fork() to see whether we
- * should break the cow immediately for a page on the src mm.
- */
-static inline bool page_needs_cow_for_dma(struct vm_area_struct *vma,
-					  struct page *page)
-{
-	if (!is_cow_mapping(vma->vm_flags))
-		return false;
-
-	if (!test_bit(MMF_HAS_PINNED, &vma->vm_mm->flags))
-		return false;
-
-	return page_maybe_dma_pinned(page);
 }
 
 #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
@@ -1585,6 +1521,74 @@ static inline unsigned long folio_pfn(struct folio *folio)
 	return page_to_pfn(&folio->page);
 }
 
+static inline atomic_t *folio_pincount_ptr(struct folio *folio)
+{
+	return &folio_page(folio, 1)->compound_pincount;
+}
+
+/**
+ * folio_maybe_dma_pinned - Report if a folio may be pinned for DMA.
+ * @folio: The folio.
+ *
+ * This function checks if a folio has been pinned via a call to
+ * a function in the pin_user_pages() family.
+ *
+ * For small folios, the return value is partially fuzzy: false is not fuzzy,
+ * because it means "definitely not pinned for DMA", but true means "probably
+ * pinned for DMA, but possibly a false positive due to having at least
+ * GUP_PIN_COUNTING_BIAS worth of normal folio references".
+ *
+ * False positives are OK, because: a) it's unlikely for a folio to
+ * get that many refcounts, and b) all the callers of this routine are
+ * expected to be able to deal gracefully with a false positive.
+ *
+ * For large folios, the result will be exactly correct. That's because
+ * we have more tracking data available: the compound_pincount is used
+ * instead of the GUP_PIN_COUNTING_BIAS scheme.
+ *
+ * For more information, please see Documentation/core-api/pin_user_pages.rst.
+ *
+ * Return: True, if it is likely that the page has been "dma-pinned".
+ * False, if the page is definitely not dma-pinned.
+ */
+static inline bool folio_maybe_dma_pinned(struct folio *folio)
+{
+	if (folio_test_large(folio))
+		return atomic_read(folio_pincount_ptr(folio)) > 0;
+
+	/*
+	 * folio_ref_count() is signed. If that refcount overflows, then
+	 * folio_ref_count() returns a negative value, and callers will avoid
+	 * further incrementing the refcount.
+	 *
+	 * Here, for that overflow case, use the sign bit to count a little
+	 * bit higher via unsigned math, and thus still get an accurate result.
+	 */
+	return ((unsigned int)folio_ref_count(folio)) >=
+		GUP_PIN_COUNTING_BIAS;
+}
+
+static inline bool page_maybe_dma_pinned(struct page *page)
+{
+	return folio_maybe_dma_pinned(page_folio(page));
+}
+
+/*
+ * This should most likely only be called during fork() to see whether we
+ * should break the cow immediately for a page on the src mm.
+ */
+static inline bool page_needs_cow_for_dma(struct vm_area_struct *vma,
+					  struct page *page)
+{
+	if (!is_cow_mapping(vma->vm_flags))
+		return false;
+
+	if (!test_bit(MMF_HAS_PINNED, &vma->vm_mm->flags))
+		return false;
+
+	return page_maybe_dma_pinned(page);
+}
+
 /* MIGRATE_CMA and ZONE_MOVABLE do not allow pin pages */
 #ifdef CONFIG_MIGRATION
 static inline bool is_pinnable_page(struct page *page)
@@ -1598,6 +1602,11 @@ static inline bool is_pinnable_page(struct page *page)
 	return true;
 }
 #endif
+
+static inline bool folio_is_pinnable(struct folio *folio)
+{
+	return is_pinnable_page(&folio->page);
+}
 
 static inline void set_page_zone(struct page *page, enum zone_type zone)
 {
@@ -1748,7 +1757,6 @@ static inline void *folio_address(const struct folio *folio)
 }
 
 extern void *page_rmapping(struct page *page);
-extern struct anon_vma *page_anon_vma(struct page *page);
 extern pgoff_t __page_file_index(struct page *page);
 
 /*
@@ -1854,7 +1862,6 @@ extern void truncate_setsize(struct inode *inode, loff_t newsize);
 void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to);
 void truncate_pagecache_range(struct inode *inode, loff_t offset, loff_t end);
 int generic_error_remove_page(struct address_space *mapping, struct page *page);
-int invalidate_inode_page(struct page *page);
 
 #ifdef CONFIG_MMU
 extern vm_fault_t handle_mm_fault(struct vm_area_struct *vma,
@@ -1916,10 +1923,6 @@ long get_user_pages(unsigned long start, unsigned long nr_pages,
 long pin_user_pages(unsigned long start, unsigned long nr_pages,
 		    unsigned int gup_flags, struct page **pages,
 		    struct vm_area_struct **vmas);
-long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
-		    unsigned int gup_flags, struct page **pages, int *locked);
-long pin_user_pages_locked(unsigned long start, unsigned long nr_pages,
-		    unsigned int gup_flags, struct page **pages, int *locked);
 long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
 		    struct page **pages, unsigned int gup_flags);
 long pin_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
@@ -1938,9 +1941,6 @@ struct kvec;
 int get_kernel_pages(const struct kvec *iov, int nr_pages, int write,
 			struct page **pages);
 struct page *get_dump_page(unsigned long addr);
-
-extern void do_invalidatepage(struct page *page, unsigned int offset,
-			      unsigned int length);
 
 bool folio_mark_dirty(struct folio *folio);
 bool set_page_dirty(struct page *page);
@@ -2453,7 +2453,6 @@ static inline spinlock_t *pud_lock(struct mm_struct *mm, pud_t *pud)
 }
 
 extern void __init pagecache_init(void);
-extern void __init free_area_init_memoryless_node(int nid);
 extern void free_initmem(void);
 
 /*
@@ -2626,7 +2625,7 @@ static inline int vma_adjust(struct vm_area_struct *vma, unsigned long start,
 extern struct vm_area_struct *vma_merge(struct mm_struct *,
 	struct vm_area_struct *prev, unsigned long addr, unsigned long end,
 	unsigned long vm_flags, struct anon_vma *, struct file *, pgoff_t,
-	struct mempolicy *, struct vm_userfaultfd_ctx, const char *);
+	struct mempolicy *, struct vm_userfaultfd_ctx, struct anon_vma_name *);
 extern struct anon_vma *find_mergeable_anon_vma(struct vm_area_struct *);
 extern int __split_vma(struct mm_struct *, struct vm_area_struct *,
 	unsigned long addr, int new_below);
@@ -2925,13 +2924,11 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
 #define FOLL_FORCE	0x10	/* get_user_pages read/write w/o permission */
 #define FOLL_NOWAIT	0x20	/* if a disk transfer is needed, start the IO
 				 * and return without waiting upon it */
-#define FOLL_POPULATE	0x40	/* fault in pages (with FOLL_MLOCK) */
 #define FOLL_NOFAULT	0x80	/* do not fault in pages */
 #define FOLL_HWPOISON	0x100	/* check page is hwpoisoned */
 #define FOLL_NUMA	0x200	/* force NUMA hinting page fault */
 #define FOLL_MIGRATION	0x400	/* wait for page to replace migration entry */
 #define FOLL_TRIED	0x800	/* a retry, previous pass started an IO */
-#define FOLL_MLOCK	0x1000	/* lock present pages */
 #define FOLL_REMOTE	0x2000	/* we are working on non-current tsk/mm */
 #define FOLL_COW	0x4000	/* internal GUP flag */
 #define FOLL_ANON	0x8000	/* don't do file mappings */
@@ -3151,10 +3148,12 @@ static inline void print_vma_addr(char *prefix, unsigned long rip)
 }
 #endif
 
+#ifdef CONFIG_HUGETLB_PAGE_FREE_VMEMMAP
 int vmemmap_remap_free(unsigned long start, unsigned long end,
 		       unsigned long reuse);
 int vmemmap_remap_alloc(unsigned long start, unsigned long end,
 			unsigned long reuse, gfp_t gfp_mask);
+#endif
 
 void *sparse_buffer_alloc(unsigned long size);
 struct page * __populate_section_memmap(unsigned long pfn,
@@ -3244,6 +3243,7 @@ enum mf_action_page_type {
 	MF_MSG_BUDDY,
 	MF_MSG_DAX,
 	MF_MSG_UNSPLIT_THP,
+	MF_MSG_DIFFERENT_PAGE_SIZE,
 	MF_MSG_UNKNOWN,
 };
 
@@ -3372,14 +3372,14 @@ static inline int seal_check_future_write(int seals, struct vm_area_struct *vma)
 
 #ifdef CONFIG_ANON_VMA_NAME
 int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
-			  unsigned long len_in, const char *name);
+			  unsigned long len_in,
+			  struct anon_vma_name *anon_name);
 #else
 static inline int
 madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
-		      unsigned long len_in, const char *name) {
+		      unsigned long len_in, struct anon_vma_name *anon_name) {
 	return 0;
 }
 #endif
 
-#endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */

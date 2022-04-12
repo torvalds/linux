@@ -30,7 +30,7 @@ static int nft_last_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	u64 last_jiffies;
 	int err;
 
-	last = kzalloc(sizeof(*last), GFP_KERNEL);
+	last = kzalloc(sizeof(*last), GFP_KERNEL_ACCOUNT);
 	if (!last)
 		return -ENOMEM;
 
@@ -120,6 +120,7 @@ static const struct nft_expr_ops nft_last_ops = {
 	.destroy	= nft_last_destroy,
 	.clone		= nft_last_clone,
 	.dump		= nft_last_dump,
+	.reduce		= NFT_REDUCE_READONLY,
 };
 
 struct nft_expr_type nft_last_type __read_mostly = {

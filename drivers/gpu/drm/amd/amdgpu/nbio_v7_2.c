@@ -61,6 +61,7 @@ static u32 nbio_v7_2_get_rev_id(struct amdgpu_device *adev)
 
 	switch (adev->ip_versions[NBIO_HWIP][0]) {
 	case IP_VERSION(7, 2, 1):
+	case IP_VERSION(7, 3, 0):
 	case IP_VERSION(7, 5, 0):
 		tmp = RREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0_YC);
 		break;
@@ -79,6 +80,7 @@ static void nbio_v7_2_mc_access_enable(struct amdgpu_device *adev, bool enable)
 {
 	switch (adev->ip_versions[NBIO_HWIP][0]) {
 	case IP_VERSION(7, 2, 1):
+	case IP_VERSION(7, 3, 0):
 	case IP_VERSION(7, 5, 0):
 		if (enable)
 			WREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_FB_EN_YC,
@@ -262,6 +264,7 @@ static void nbio_v7_2_update_medium_grain_light_sleep(struct amdgpu_device *adev
 
 	switch (adev->ip_versions[NBIO_HWIP][0]) {
 	case IP_VERSION(7, 2, 1):
+	case IP_VERSION(7, 3, 0):
 	case IP_VERSION(7, 5, 0):
 		def = data = RREG32_PCIE_PORT(SOC15_REG_OFFSET(NBIO, 0, regPCIE_CNTL2));
 		if (enable && (adev->cg_flags & AMD_CG_SUPPORT_BIF_LS))
@@ -368,6 +371,7 @@ static void nbio_v7_2_init_registers(struct amdgpu_device *adev)
 	uint32_t def, data;
 	switch (adev->ip_versions[NBIO_HWIP][0]) {
 	case IP_VERSION(7, 2, 1):
+	case IP_VERSION(7, 3, 0):
 	case IP_VERSION(7, 5, 0):
 		def = data = RREG32_PCIE_PORT(SOC15_REG_OFFSET(NBIO, 0, regBIF1_PCIE_MST_CTRL_3));
 		data = REG_SET_FIELD(data, BIF1_PCIE_MST_CTRL_3,

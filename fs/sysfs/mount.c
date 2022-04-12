@@ -103,7 +103,7 @@ int __init sysfs_init(void)
 	if (IS_ERR(sysfs_root))
 		return PTR_ERR(sysfs_root);
 
-	sysfs_root_kn = sysfs_root->kn;
+	sysfs_root_kn = kernfs_root_to_node(sysfs_root);
 
 	err = register_filesystem(&sysfs_fs_type);
 	if (err) {

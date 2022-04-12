@@ -1739,6 +1739,16 @@ void dcn20_program_front_end_for_ctx(
 					|| pipe->stream->update_flags.raw)
 				&& hws->funcs.program_all_writeback_pipes_in_tree)
 			hws->funcs.program_all_writeback_pipes_in_tree(dc, pipe->stream, context);
+
+		/* Avoid underflow by check of pipe line read when adding 2nd plane. */
+		if (hws->wa.wait_hubpret_read_start_during_mpo_transition &&
+			!pipe->top_pipe &&
+			pipe->stream &&
+			pipe->plane_res.hubp->funcs->hubp_wait_pipe_read_start &&
+			dc->current_state->stream_status[0].plane_count == 1 &&
+			context->stream_status[0].plane_count > 1) {
+			pipe->plane_res.hubp->funcs->hubp_wait_pipe_read_start(pipe->plane_res.hubp);
+		}
 	}
 }
 
@@ -1818,6 +1828,7 @@ void dcn20_prepare_bandwidth(
 		struct dc_state *context)
 {
 	struct hubbub *hubbub = dc->res_pool->hubbub;
+	unsigned int compbuf_size_kb = 0;
 
 	dc->clk_mgr->funcs->update_clocks(
 			dc->clk_mgr,
@@ -1829,9 +1840,16 @@ void dcn20_prepare_bandwidth(
 					&context->bw_ctx.bw.dcn.watermarks,
 					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 					false);
+
 	/* decrease compbuf size */
-	if (hubbub->funcs->program_compbuf_size)
-		hubbub->funcs->program_compbuf_size(hubbub, context->bw_ctx.bw.dcn.compbuf_size_kb, false);
+	if (hubbub->funcs->program_compbuf_size) {
+		if (context->bw_ctx.dml.ip.min_comp_buffer_size_kbytes)
+			compbuf_size_kb = context->bw_ctx.dml.ip.min_comp_buffer_size_kbytes;
+		else
+			compbuf_size_kb = context->bw_ctx.bw.dcn.compbuf_size_kb;
+
+		hubbub->funcs->program_compbuf_size(hubbub, compbuf_size_kb, false);
+	}
 }
 
 void dcn20_optimize_bandwidth(
@@ -1839,6 +1857,7 @@ void dcn20_optimize_bandwidth(
 		struct dc_state *context)
 {
 	struct hubbub *hubbub = dc->res_pool->hubbub;
+	int i;
 
 	/* program dchubbub watermarks */
 	hubbub->funcs->program_watermarks(hubbub,
@@ -1855,6 +1874,17 @@ void dcn20_optimize_bandwidth(
 			dc->clk_mgr,
 			context,
 			true);
+	if (dc_extended_blank_supported(dc) && context->bw_ctx.bw.dcn.clk.zstate_support == DCN_ZSTATE_SUPPORT_ALLOW) {
+		for (i = 0; i < dc->res_pool->pipe_count; ++i) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+			if (pipe_ctx->stream && pipe_ctx->plane_res.hubp->funcs->program_extended_blank
+				&& pipe_ctx->stream->adjust.v_total_min == pipe_ctx->stream->adjust.v_total_max
+				&& pipe_ctx->stream->adjust.v_total_max > pipe_ctx->stream->timing.v_total)
+					pipe_ctx->plane_res.hubp->funcs->program_extended_blank(pipe_ctx->plane_res.hubp,
+						pipe_ctx->dlg_regs.optimized_min_dst_y_next_start);
+		}
+	}
 	/* increase compbuf size */
 	if (hubbub->funcs->program_compbuf_size)
 		hubbub->funcs->program_compbuf_size(hubbub, context->bw_ctx.bw.dcn.compbuf_size_kb, true);

@@ -18,7 +18,6 @@ int mlx5e_qos_cur_leaf_nodes(struct mlx5e_priv *priv);
 
 /* TX datapath API */
 int mlx5e_get_txq_by_classid(struct mlx5e_priv *priv, u16 classid);
-struct mlx5e_txqsq *mlx5e_get_sq(struct mlx5e_priv *priv, int qid);
 
 /* SQ lifecycle */
 int mlx5e_qos_open_queues(struct mlx5e_priv *priv, struct mlx5e_channels *chs);

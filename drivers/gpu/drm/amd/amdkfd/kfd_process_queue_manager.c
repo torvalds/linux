@@ -786,7 +786,7 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 	}
 
 	*priv_data_offset += sizeof(*q_data);
-	q_extra_data_size = q_data->ctl_stack_size + q_data->mqd_size;
+	q_extra_data_size = (uint64_t)q_data->ctl_stack_size + q_data->mqd_size;
 
 	if (*priv_data_offset + q_extra_data_size > max_priv_data_size) {
 		ret = -EINVAL;

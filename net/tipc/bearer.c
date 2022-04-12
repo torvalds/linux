@@ -352,15 +352,17 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 		goto rejected;
 	}
 
+	/* Create monitoring data before accepting activate messages */
+	if (tipc_mon_create(net, bearer_id)) {
+		bearer_disable(net, b);
+		kfree_skb(skb);
+		return -ENOMEM;
+	}
+
 	test_and_set_bit_lock(0, &b->up);
 	rcu_assign_pointer(tn->bearer_list[bearer_id], b);
 	if (skb)
 		tipc_bearer_xmit_skb(net, bearer_id, skb, &b->bcast_addr);
-
-	if (tipc_mon_create(net, bearer_id)) {
-		bearer_disable(net, b);
-		return -ENOMEM;
-	}
 
 	pr_info("Enabled bearer <%s>, priority %u\n", name, prio);
 
@@ -768,7 +770,7 @@ void tipc_clone_to_loopback(struct net *net, struct sk_buff_head *pkts)
 		skb->pkt_type = PACKET_HOST;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->protocol = eth_type_trans(skb, dev);
-		netif_rx_ni(skb);
+		netif_rx(skb);
 	}
 }
 

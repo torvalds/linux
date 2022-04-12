@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE // needed for sched.h to get sched_[gs]etaffinity and CPU_(ZERO,SET)
+#include <inttypes.h>
 #include <sched.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -68,7 +69,7 @@ static int test_stat_cpu(void)
 	perf_evlist__set_maps(evlist, cpus, NULL);
 
 	err = perf_evlist__open(evlist);
-	__T("failed to open evsel", err == 0);
+	__T("failed to open evlist", err == 0);
 
 	perf_evlist__for_each_evsel(evlist, evsel) {
 		cpus = perf_evsel__cpus(evsel);
@@ -129,7 +130,7 @@ static int test_stat_thread(void)
 	perf_evlist__set_maps(evlist, NULL, threads);
 
 	err = perf_evlist__open(evlist);
-	__T("failed to open evsel", err == 0);
+	__T("failed to open evlist", err == 0);
 
 	perf_evlist__for_each_evsel(evlist, evsel) {
 		perf_evsel__read(evsel, 0, 0, &counts);
@@ -186,7 +187,7 @@ static int test_stat_thread_enable(void)
 	perf_evlist__set_maps(evlist, NULL, threads);
 
 	err = perf_evlist__open(evlist);
-	__T("failed to open evsel", err == 0);
+	__T("failed to open evlist", err == 0);
 
 	perf_evlist__for_each_evsel(evlist, evsel) {
 		perf_evsel__read(evsel, 0, 0, &counts);
@@ -506,7 +507,7 @@ static int test_stat_multiplexing(void)
 	perf_evlist__set_maps(evlist, NULL, threads);
 
 	err = perf_evlist__open(evlist);
-	__T("failed to open evsel", err == 0);
+	__T("failed to open evlist", err == 0);
 
 	perf_evlist__enable(evlist);
 
@@ -526,12 +527,12 @@ static int test_stat_multiplexing(void)
 
 	min = counts[0].val;
 	for (i = 0; i < EVENT_NUM; i++) {
-		__T_VERBOSE("Event %2d -- Raw count = %lu, run = %lu, enable = %lu\n",
+		__T_VERBOSE("Event %2d -- Raw count = %" PRIu64 ", run = %" PRIu64 ", enable = %" PRIu64 "\n",
 			    i, counts[i].val, counts[i].run, counts[i].ena);
 
 		perf_counts_values__scale(&counts[i], true, &scaled);
 		if (scaled == 1) {
-			__T_VERBOSE("\t Scaled count = %lu (%.2lf%%, %lu/%lu)\n",
+			__T_VERBOSE("\t Scaled count = %" PRIu64 " (%.2lf%%, %" PRIu64 "/%" PRIu64 ")\n",
 				    counts[i].val,
 				    (double)counts[i].run / (double)counts[i].ena * 100.0,
 				    counts[i].run, counts[i].ena);

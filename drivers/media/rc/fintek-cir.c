@@ -287,7 +287,7 @@ static void fintek_process_rx_ir_data(struct fintek_dev *fintek)
 			if (fintek->rem)
 				fintek->parser_state = PARSE_IRDATA;
 			else
-				ir_raw_event_reset(fintek->rdev);
+				ir_raw_event_overflow(fintek->rdev);
 			break;
 		case SUBCMD:
 			fintek->rem = fintek_cmdsize(fintek->cmd, sample);

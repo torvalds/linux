@@ -58,7 +58,7 @@ struct __guc_ads_blob {
 	struct guc_gt_system_info system_info;
 	struct guc_engine_usage engine_usage;
 	/* From here on, location is dynamic! Refer to above diagram. */
-	struct guc_mmio_reg regset[0];
+	struct guc_mmio_reg regset[];
 } __packed;
 
 #define ads_blob_read(guc_, field_)					\

@@ -273,6 +273,8 @@ static void program_cursor_attributes(
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
 			dc->hwss.cursor_lock(dc, pipe_to_program, true);
+			if (pipe_to_program->next_odm_pipe)
+				dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, true);
 		}
 
 		dc->hwss.set_cursor_attribute(pipe_ctx);
@@ -280,8 +282,11 @@ static void program_cursor_attributes(
 			dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
 	}
 
-	if (pipe_to_program)
+	if (pipe_to_program) {
 		dc->hwss.cursor_lock(dc, pipe_to_program, false);
+		if (pipe_to_program->next_odm_pipe)
+			dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, false);
+	}
 }
 
 #ifndef TRIM_FSFT
@@ -711,6 +716,20 @@ enum dc_status dc_stream_add_dsc_to_resource(struct dc *dc,
 	} else {
 		return DC_NO_DSC_RESOURCE;
 	}
+}
+
+struct pipe_ctx *dc_stream_get_pipe_ctx(struct dc_stream_state *stream)
+{
+	int i = 0;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe = &stream->ctx->dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream == stream)
+			return pipe;
+	}
+
+	return NULL;
 }
 
 void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)

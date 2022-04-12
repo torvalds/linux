@@ -300,6 +300,46 @@ static int sja1105_flower_parse_key(struct sja1105_private *priv,
 	return -EOPNOTSUPP;
 }
 
+static int sja1105_policer_validate(const struct flow_action *action,
+				    const struct flow_action_entry *act,
+				    struct netlink_ext_ack *extack)
+{
+	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when exceed action is not drop");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
+	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is not pipe or ok");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
+	    !flow_action_is_last_entry(action, act)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when conform action is ok, but action is not last");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.peakrate_bytes_ps ||
+	    act->police.avrate || act->police.overhead) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offload not supported when peakrate/avrate/overhead is configured");
+		return -EOPNOTSUPP;
+	}
+
+	if (act->police.rate_pkt_ps) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "QoS offload not support packets per second");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 			   struct flow_cls_offload *cls, bool ingress)
 {
@@ -321,12 +361,9 @@ int sja1105_cls_flower_add(struct dsa_switch *ds, int port,
 	flow_action_for_each(i, act, &rule->action) {
 		switch (act->id) {
 		case FLOW_ACTION_POLICE:
-			if (act->police.rate_pkt_ps) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "QoS offload not support packets per second");
-				rc = -EOPNOTSUPP;
+			rc = sja1105_policer_validate(&rule->action, act, extack);
+			if (rc)
 				goto out;
-			}
 
 			rc = sja1105_flower_policer(priv, port, extack, cookie,
 						    &key,

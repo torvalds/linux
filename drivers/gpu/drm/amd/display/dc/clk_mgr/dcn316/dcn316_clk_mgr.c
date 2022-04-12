@@ -172,8 +172,7 @@ static void dcn316_update_clocks(struct clk_mgr *clk_mgr_base,
 				union display_idle_optimization_u idle_info = { 0 };
 				idle_info.idle_info.df_request_disabled = 1;
 				idle_info.idle_info.phy_ref_clk_off = 1;
-				// Todo DCN316 set this to 1 if any no issue
-				idle_info.idle_info.s0i2_rdy = 0;
+				idle_info.idle_info.s0i2_rdy = 1;
 				dcn316_smu_set_display_idle_optimization(clk_mgr, idle_info.data);
 				/* update power state */
 				clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_LOW_POWER;
@@ -485,7 +484,7 @@ static unsigned int find_clk_for_voltage(
 	return clock;
 }
 
-void dcn316_clk_mgr_helper_populate_bw_params(
+static void dcn316_clk_mgr_helper_populate_bw_params(
 		struct clk_mgr_internal *clk_mgr,
 		struct integrated_info *bios_info,
 		const DpmClocks_316_t *clock_table)
@@ -530,7 +529,16 @@ void dcn316_clk_mgr_helper_populate_bw_params(
 		bw_params->clk_table.entries[i].fclk_mhz = clock_table->DfPstateTable[j].FClk;
 		bw_params->clk_table.entries[i].memclk_mhz = clock_table->DfPstateTable[j].MemClk;
 		bw_params->clk_table.entries[i].voltage = clock_table->DfPstateTable[j].Voltage;
-		bw_params->clk_table.entries[i].wck_ratio = 1;
+		switch (clock_table->DfPstateTable[j].WckRatio) {
+		case WCK_RATIO_1_2:
+			bw_params->clk_table.entries[i].wck_ratio = 2;
+			break;
+		case WCK_RATIO_1_4:
+			bw_params->clk_table.entries[i].wck_ratio = 4;
+			break;
+		default:
+			bw_params->clk_table.entries[i].wck_ratio = 1;
+		}
 		temp = find_clk_for_voltage(clock_table, clock_table->DcfClocks, clock_table->DfPstateTable[j].Voltage);
 		if (temp)
 			bw_params->clk_table.entries[i].dcfclk_mhz = temp;
@@ -675,8 +683,11 @@ void dcn316_clk_mgr_construct(
 	}
 
 	clk_mgr->base.base.dprefclk_khz = 600000;
-	clk_mgr->base.dccg->ref_dtbclk_khz = 600000;
+	clk_mgr->base.base.dprefclk_khz = dcn316_smu_get_dpref_clk(&clk_mgr->base);
+ 	clk_mgr->base.dccg->ref_dtbclk_khz = clk_mgr->base.base.dprefclk_khz;
 	dce_clock_read_ss_info(&clk_mgr->base);
+	clk_mgr->base.dccg->ref_dtbclk_khz =
+	dce_adjust_dp_ref_freq_for_ss(&clk_mgr->base, clk_mgr->base.base.dprefclk_khz);
 
 	clk_mgr->base.base.bw_params = &dcn316_bw_params;
 

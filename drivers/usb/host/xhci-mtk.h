@@ -11,10 +11,12 @@
 
 #include <linux/clk.h>
 #include <linux/hashtable.h>
+#include <linux/regulator/consumer.h>
 
 #include "xhci.h"
 
 #define BULK_CLKS_NUM	5
+#define BULK_VREGS_NUM	2
 
 /* support at most 64 ep, use 32 size hash table */
 #define SCH_EP_HASH_BITS	5
@@ -150,9 +152,8 @@ struct xhci_hcd_mtk {
 	int num_u3_ports;
 	int u2p_dis_msk;
 	int u3p_dis_msk;
-	struct regulator *vusb33;
-	struct regulator *vbus;
 	struct clk_bulk_data clks[BULK_CLKS_NUM];
+	struct regulator_bulk_data supplies[BULK_VREGS_NUM];
 	unsigned int has_ippc:1;
 	unsigned int lpm_support:1;
 	unsigned int u2_lpm_disable:1;

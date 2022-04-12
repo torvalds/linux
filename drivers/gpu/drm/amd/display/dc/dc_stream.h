@@ -131,6 +131,7 @@ union stream_update_flags {
 		uint32_t wb_update:1;
 		uint32_t dsc_changed : 1;
 		uint32_t mst_bw : 1;
+		uint32_t crtc_timing_adjust : 1;
 	} bits;
 
 	uint32_t raw;
@@ -289,6 +290,7 @@ struct dc_stream_update {
 	struct dc_3dlut *lut3d_func;
 
 	struct test_pattern *pending_test_pattern;
+	struct dc_crtc_timing_adjust *crtc_timing_adjust;
 };
 
 bool dc_is_stream_unchanged(
@@ -523,5 +525,7 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 				 int num_streams,
 				 unsigned int *v_pos,
 				 unsigned int *nom_v_pos);
+
+struct pipe_ctx *dc_stream_get_pipe_ctx(struct dc_stream_state *stream);
 
 #endif /* DC_STREAM_H_ */

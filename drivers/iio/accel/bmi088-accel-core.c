@@ -146,7 +146,7 @@ const struct regmap_config bmi088_regmap_conf = {
 	.volatile_table = &bmi088_volatile_table,
 	.cache_type = REGCACHE_RBTREE,
 };
-EXPORT_SYMBOL_GPL(bmi088_regmap_conf);
+EXPORT_SYMBOL_NS_GPL(bmi088_regmap_conf, IIO_BMI088);
 
 static int bmi088_accel_power_up(struct bmi088_accel_data *data)
 {
@@ -533,7 +533,7 @@ int bmi088_accel_core_probe(struct device *dev, struct regmap *regmap,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(bmi088_accel_core_probe);
+EXPORT_SYMBOL_NS_GPL(bmi088_accel_core_probe, IIO_BMI088);
 
 
 void bmi088_accel_core_remove(struct device *dev)
@@ -547,7 +547,7 @@ void bmi088_accel_core_remove(struct device *dev)
 	pm_runtime_set_suspended(dev);
 	bmi088_accel_power_down(data);
 }
-EXPORT_SYMBOL_GPL(bmi088_accel_core_remove);
+EXPORT_SYMBOL_NS_GPL(bmi088_accel_core_remove, IIO_BMI088);
 
 static int __maybe_unused bmi088_accel_runtime_suspend(struct device *dev)
 {
@@ -571,7 +571,7 @@ const struct dev_pm_ops bmi088_accel_pm_ops = {
 	SET_RUNTIME_PM_OPS(bmi088_accel_runtime_suspend,
 			   bmi088_accel_runtime_resume, NULL)
 };
-EXPORT_SYMBOL_GPL(bmi088_accel_pm_ops);
+EXPORT_SYMBOL_NS_GPL(bmi088_accel_pm_ops, IIO_BMI088);
 
 MODULE_AUTHOR("Niek van Agt <niek.van.agt@topicproducts.com>");
 MODULE_LICENSE("GPL v2");

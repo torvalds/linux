@@ -103,7 +103,8 @@
 #define PPSMC_MSG_GfxDriverResetRecovery	0x42
 #define PPSMC_MSG_BoardPowerCalibration 	0x43
 #define PPSMC_MSG_HeavySBR                      0x45
-#define PPSMC_Message_Count			0x46
+#define PPSMC_MSG_SetBadHBMPagesRetiredFlagsPerChannel	0x46
+#define PPSMC_Message_Count			0x47
 
 
 //PPSMC Reset Types

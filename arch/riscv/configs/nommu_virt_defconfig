@@ -19,7 +19,6 @@ CONFIG_EXPERT=y
 # CONFIG_AIO is not set
 # CONFIG_IO_URING is not set
 # CONFIG_ADVISE_SYSCALLS is not set
-# CONFIG_MEMBARRIER is not set
 # CONFIG_KALLSYMS is not set
 # CONFIG_VM_EVENT_COUNTERS is not set
 # CONFIG_COMPAT_BRK is not set

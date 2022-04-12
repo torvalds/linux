@@ -150,10 +150,9 @@ static int imx_ldb_connector_get_modes(struct drm_connector *connector)
 	if (imx_ldb_ch->mode_valid) {
 		struct drm_display_mode *mode;
 
-		mode = drm_mode_create(connector->dev);
+		mode = drm_mode_duplicate(connector->dev, &imx_ldb_ch->mode);
 		if (!mode)
 			return -EINVAL;
-		drm_mode_copy(mode, &imx_ldb_ch->mode);
 		mode->type |= DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 		drm_mode_probed_add(connector, mode);
 		num_modes++;
@@ -572,6 +571,8 @@ static int imx_ldb_panel_ddc(struct device *dev,
 		edidp = of_get_property(child, "edid", &edid_len);
 		if (edidp) {
 			channel->edid = kmemdup(edidp, edid_len, GFP_KERNEL);
+			if (!channel->edid)
+				return -ENOMEM;
 		} else if (!channel->panel) {
 			/* fallback to display-timings node */
 			ret = of_get_drm_display_mode(child,

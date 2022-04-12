@@ -25,43 +25,49 @@ void test_xdp_noinline(void)
 		__u8 flags;
 	} real_def = {.dst = MAGIC_VAL};
 	__u32 ch_key = 11, real_num = 3;
-	__u32 duration = 0, retval, size;
 	int err, i;
 	__u64 bytes = 0, pkts = 0;
 	char buf[128];
 	u32 *magic = (u32 *)buf;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.data_out = buf,
+		.data_size_out = sizeof(buf),
+		.repeat = NUM_ITER,
+	);
 
 	skel = test_xdp_noinline__open_and_load();
-	if (CHECK(!skel, "skel_open_and_load", "failed\n"))
+	if (!ASSERT_OK_PTR(skel, "skel_open_and_load"))
 		return;
 
 	bpf_map_update_elem(bpf_map__fd(skel->maps.vip_map), &key, &value, 0);
 	bpf_map_update_elem(bpf_map__fd(skel->maps.ch_rings), &ch_key, &real_num, 0);
 	bpf_map_update_elem(bpf_map__fd(skel->maps.reals), &real_num, &real_def, 0);
 
-	err = bpf_prog_test_run(bpf_program__fd(skel->progs.balancer_ingress_v4),
-				NUM_ITER, &pkt_v4, sizeof(pkt_v4),
-				buf, &size, &retval, &duration);
-	CHECK(err || retval != 1 || size != 54 ||
-	      *magic != MAGIC_VAL, "ipv4",
-	      "err %d errno %d retval %d size %d magic %x\n",
-	      err, errno, retval, size, *magic);
+	err = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.balancer_ingress_v4), &topts);
+	ASSERT_OK(err, "ipv4 test_run");
+	ASSERT_EQ(topts.retval, 1, "ipv4 test_run retval");
+	ASSERT_EQ(topts.data_size_out, 54, "ipv4 test_run data_size_out");
+	ASSERT_EQ(*magic, MAGIC_VAL, "ipv4 test_run magic");
 
-	err = bpf_prog_test_run(bpf_program__fd(skel->progs.balancer_ingress_v6),
-				NUM_ITER, &pkt_v6, sizeof(pkt_v6),
-				buf, &size, &retval, &duration);
-	CHECK(err || retval != 1 || size != 74 ||
-	      *magic != MAGIC_VAL, "ipv6",
-	      "err %d errno %d retval %d size %d magic %x\n",
-	      err, errno, retval, size, *magic);
+	topts.data_in = &pkt_v6;
+	topts.data_size_in = sizeof(pkt_v6);
+	topts.data_out = buf;
+	topts.data_size_out = sizeof(buf);
+
+	err = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.balancer_ingress_v6), &topts);
+	ASSERT_OK(err, "ipv6 test_run");
+	ASSERT_EQ(topts.retval, 1, "ipv6 test_run retval");
+	ASSERT_EQ(topts.data_size_out, 74, "ipv6 test_run data_size_out");
+	ASSERT_EQ(*magic, MAGIC_VAL, "ipv6 test_run magic");
 
 	bpf_map_lookup_elem(bpf_map__fd(skel->maps.stats), &stats_key, stats);
 	for (i = 0; i < nr_cpus; i++) {
 		bytes += stats[i].bytes;
 		pkts += stats[i].pkts;
 	}
-	CHECK(bytes != MAGIC_BYTES * NUM_ITER * 2 || pkts != NUM_ITER * 2,
-	      "stats", "bytes %lld pkts %lld\n",
-	      (unsigned long long)bytes, (unsigned long long)pkts);
+	ASSERT_EQ(bytes, MAGIC_BYTES * NUM_ITER * 2, "stats bytes");
+	ASSERT_EQ(pkts, NUM_ITER * 2, "stats pkts");
 	test_xdp_noinline__destroy(skel);
 }

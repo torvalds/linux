@@ -1384,7 +1384,7 @@ struct drm_mode_config_helper_funcs {
 	 * starting to commit the update to the hardware.
 	 *
 	 * After the atomic update is committed to the hardware this hook needs
-	 * to call drm_atomic_helper_commit_hw_done(). Then wait for the upate
+	 * to call drm_atomic_helper_commit_hw_done(). Then wait for the update
 	 * to be executed by the hardware, for example using
 	 * drm_atomic_helper_wait_for_vblanks() or
 	 * drm_atomic_helper_wait_for_flip_done(), and then clean up the old

@@ -66,6 +66,7 @@
 #include "dcn302/dcn302_resource.h"
 #include "dcn303/dcn303_resource.h"
 #include "dcn31/dcn31_resource.h"
+#include "dcn315/dcn315_resource.h"
 #include "dcn316/dcn316_resource.h"
 #endif
 
@@ -155,6 +156,10 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 	case FAMILY_YELLOW_CARP:
 		if (ASICREV_IS_YELLOW_CARP(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_3_1;
+		break;
+	case AMDGPU_FAMILY_GC_10_3_6:
+		if (ASICREV_IS_GC_10_3_6(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_15;
 		break;
 	case AMDGPU_FAMILY_GC_10_3_7:
 		if (ASICREV_IS_GC_10_3_7(asic_id.hw_internal_rev))
@@ -250,6 +255,9 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 	case DCN_VERSION_3_1:
 		res_pool = dcn31_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_15:
+		res_pool = dcn315_create_resource_pool(init_data, dc);
 		break;
 	case DCN_VERSION_3_16:
 		res_pool = dcn316_create_resource_pool(init_data, dc);
@@ -1677,8 +1685,8 @@ bool dc_is_stream_unchanged(
 	if (old_stream->ignore_msa_timing_param != stream->ignore_msa_timing_param)
 		return false;
 
-	// Only Have Audio left to check whether it is same or not. This is a corner case for Tiled sinks
-	if (old_stream->audio_info.mode_count != stream->audio_info.mode_count)
+	/*compare audio info*/
+	if (memcmp(&old_stream->audio_info, &stream->audio_info, sizeof(stream->audio_info)) != 0)
 		return false;
 
 	return true;
@@ -1916,7 +1924,7 @@ static struct audio *find_first_free_audio(
 			return pool->audios[i];
 		}
 	}
-	return 0;
+	return NULL;
 }
 
 /*
@@ -2327,6 +2335,9 @@ void dc_resource_state_construct(
 
 bool dc_resource_is_dsc_encoding_supported(const struct dc *dc)
 {
+	if (dc->res_pool == NULL)
+		return false;
+
 	return dc->res_pool->res_cap->num_dsc > 0;
 }
 
@@ -2607,6 +2618,8 @@ static void set_avi_info_frame(
 	hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
 
 	///VIC
+	if (pipe_ctx->stream->timing.hdmi_vic != 0)
+		vic = 0;
 	format = stream->timing.timing_3d_format;
 	/*todo, add 3DStereo support*/
 	if (format != TIMING_3D_FORMAT_NONE) {

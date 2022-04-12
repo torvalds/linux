@@ -815,7 +815,8 @@ xfs_fs_statfs(
 	spin_unlock(&mp->m_sb_lock);
 
 	/* make sure statp->f_bfree does not underflow */
-	statp->f_bfree = max_t(int64_t, fdblocks - mp->m_alloc_set_aside, 0);
+	statp->f_bfree = max_t(int64_t, 0,
+				fdblocks - xfs_fdblocks_unavailable(mp));
 	statp->f_bavail = statp->f_bfree;
 
 	fakeinos = XFS_FSB_TO_INO(mp, statp->f_bfree);
@@ -1753,6 +1754,11 @@ xfs_remount_ro(
 	};
 	int			error;
 
+	/* Flush all the dirty data to disk. */
+	error = sync_filesystem(mp->m_super);
+	if (error)
+		return error;
+
 	/*
 	 * Cancel background eofb scanning so it cannot race with the final
 	 * log force+buftarg wait and deadlock the remount.
@@ -1830,8 +1836,6 @@ xfs_fs_reconfigure(
 	error = xfs_fs_validate_params(new_mp);
 	if (error)
 		return error;
-
-	sync_filesystem(mp->m_super);
 
 	/* inode32 -> inode64 */
 	if (xfs_has_small_inums(mp) && !xfs_has_small_inums(new_mp)) {

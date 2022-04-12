@@ -206,7 +206,7 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 	usleep_range(2000, 2500);
 }
 
-/* Disable to allow reading SPROM. Don't know the adventages of enabling it. */
+/* Disable to allow reading SPROM. Don't know the advantages of enabling it. */
 void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable)
 {
 	struct bcma_bus *bus = cc->core->bus;
@@ -234,7 +234,7 @@ static void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 	switch (bus->chipinfo.id) {
 	case BCMA_CHIP_ID_BCM4313:
 		/*
-		 * enable 12 mA drive strenth for 4313 and set chipControl
+		 * enable 12 mA drive strength for 4313 and set chipControl
 		 * register bit 1
 		 */
 		bcma_chipco_chipctl_maskset(cc, 0,
@@ -249,7 +249,7 @@ static void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 	case BCMA_CHIP_ID_BCM43224:
 	case BCMA_CHIP_ID_BCM43421:
 		/*
-		 * enable 12 mA drive strenth for 43224 and set chipControl
+		 * enable 12 mA drive strength for 43224 and set chipControl
 		 * register bit 15
 		 */
 		if (bus->chipinfo.rev == 0) {

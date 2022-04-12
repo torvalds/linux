@@ -20,7 +20,7 @@ Example device node:
 			    refclk-type-hs = "dlmc_ref_clk0";
 			    power = <0x00000002 0x00000002 0x00000001>;
 			    xhci@1690000000000 {
-				    compatible = "cavium,octeon-7130-xhci", "synopsys,dwc3";
+				    compatible = "cavium,octeon-7130-xhci", "snps,dwc3";
 				    reg = <0x00016900 0x00000000 0x00000010 0x00000000>;
 				    interrupt-parent = <0x00000010>;
 				    interrupts = <0x00000009 0x00000004>;

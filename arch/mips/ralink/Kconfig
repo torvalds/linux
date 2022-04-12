@@ -54,10 +54,15 @@ choice
 		select HAVE_PCI
 		select PCI_DRIVERS_GENERIC
 		select SOC_BUS
+
+		help
+		  The MT7621 system-on-a-chip includes an 880 MHz MIPS1004Kc dual-core CPU,
+		  a 5-port 10/100/1000 switch/PHY and one RGMII.
 endchoice
 
 choice
 	prompt "Devicetree selection"
+	depends on !SOC_MT7621
 	default DTB_RT_NONE
 	help
 	  Select the devicetree.

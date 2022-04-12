@@ -76,15 +76,17 @@ int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 	state->mode_blob = NULL;
 
 	if (mode) {
+		struct drm_property_blob *blob;
+
 		drm_mode_convert_to_umode(&umode, mode);
-		state->mode_blob =
-			drm_property_create_blob(state->crtc->dev,
-						 sizeof(umode),
-						 &umode);
-		if (IS_ERR(state->mode_blob))
-			return PTR_ERR(state->mode_blob);
+		blob = drm_property_create_blob(crtc->dev,
+						sizeof(umode), &umode);
+		if (IS_ERR(blob))
+			return PTR_ERR(blob);
 
 		drm_mode_copy(&state->mode, mode);
+
+		state->mode_blob = blob;
 		state->enable = true;
 		drm_dbg_atomic(crtc->dev,
 			       "Set [MODE:%s] for [CRTC:%d:%s] state %p\n",
@@ -1326,7 +1328,6 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	struct drm_out_fence_state *fence_state;
 	int ret = 0;
 	unsigned int i, j, num_fences;
-	struct drm_printer p = drm_info_printer(dev->dev);
 
 	/* disallow for drivers not supporting atomic: */
 	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
@@ -1458,9 +1459,6 @@ retry:
 	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
 		ret = drm_atomic_nonblocking_commit(state);
 	} else {
-		if (drm_debug_enabled(DRM_UT_STATE))
-			drm_atomic_print_new_state(state, &p);
-
 		ret = drm_atomic_commit(state);
 	}
 

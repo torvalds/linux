@@ -143,8 +143,7 @@ static void __init at91rm9200_pmc_setup(struct device_node *np)
 					   parent_names,
 					   &at91rm9200_master_layout,
 					   &rm9200_mck_characteristics,
-					   &rm9200_mck_lock, CLK_SET_RATE_GATE,
-					   INT_MIN);
+					   &rm9200_mck_lock);
 	if (IS_ERR(hw))
 		goto err_free;
 

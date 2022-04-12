@@ -30,6 +30,44 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x0>;
+			clocks = <&pmc PMC_TYPE_CORE PMC_CPUPLL>;
+			clock-names = "cpu";
+			operating-points-v2 = <&cpu_opp_table>;
+		};
+	};
+
+	cpu_opp_table: opp-table {
+		compatible = "operating-points-v2";
+
+		opp-90000000 {
+			opp-hz = /bits/ 64 <90000000>;
+			opp-microvolt = <1050000 1050000 1225000>;
+			clock-latency-ns = <320000>;
+		};
+
+		opp-250000000 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <1050000 1050000 1225000>;
+			clock-latency-ns = <320000>;
+		};
+
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1050000 1050000 1225000>;
+			clock-latency-ns = <320000>;
+			opp-suspend;
+		};
+
+		opp-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <1150000 1125000 1225000>;
+			clock-latency-ns = <320000>;
+		};
+
+		opp-1000000002 {
+			opp-hz = /bits/ 64 <1000000002>;
+			opp-microvolt = <1250000 1225000 1300000>;
+			clock-latency-ns = <320000>;
 		};
 	};
 
@@ -75,6 +113,45 @@
 		#size-cells = <1>;
 		ranges;
 
+		nfc_sram: sram@600000 {
+			compatible = "mmio-sram";
+			no-memory-wc;
+			reg = <0x00600000 0x2400>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x00600000 0x2400>;
+		};
+
+		nfc_io: nfc-io@10000000 {
+			compatible = "atmel,sama5d3-nfc-io", "syscon";
+			reg = <0x10000000 0x8000000>;
+		};
+
+		ebi: ebi@40000000 {
+			compatible = "atmel,sama5d3-ebi";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			atmel,smc = <&hsmc>;
+			reg = <0x40000000 0x20000000>;
+			ranges = <0x0 0x0 0x40000000 0x8000000
+				  0x1 0x0 0x48000000 0x8000000
+				  0x2 0x0 0x50000000 0x8000000
+				  0x3 0x0 0x58000000 0x8000000>;
+			clocks = <&pmc PMC_TYPE_CORE PMC_MCK1>;
+			status = "disabled";
+
+			nand_controller: nand-controller {
+				compatible = "atmel,sama5d3-nand-controller";
+				atmel,nfc-sram = <&nfc_sram>;
+				atmel,nfc-io = <&nfc_io>;
+				ecc-engine = <&pmecc>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				ranges;
+				status = "disabled";
+			};
+		};
+
 		securam: securam@e0000000 {
 			compatible = "microchip,sama7g5-securam", "atmel,sama5d2-securam", "mmio-sram";
 			reg = <0xe0000000 0x4000>;
@@ -83,7 +160,6 @@
 			#size-cells = <1>;
 			ranges = <0 0xe0000000 0x4000>;
 			no-memory-wc;
-			status = "okay";
 		};
 
 		secumod: secumod@e0004000 {
@@ -181,6 +257,22 @@
 			clock-names = "t0_clk", "t1_clk", "t2_clk", "slow_clk";
 		};
 
+		hsmc: hsmc@e0808000 {
+			compatible = "atmel,sama5d2-smc", "syscon", "simple-mfd";
+			reg = <0xe0808000 0x1000>;
+			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 21>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			pmecc: ecc-engine@e0808070 {
+				compatible = "atmel,sama5d2-pmecc";
+				reg = <0xe0808070 0x490>,
+				      <0xe0808500 0x200>;
+			};
+		};
+
 		qspi0: spi@e080c000 {
 			compatible = "microchip,sama7g5-ospi";
 			reg = <0xe080c000 0x400>, <0x20000000 0x10000000>;
@@ -208,6 +300,102 @@
 			clock-names = "pclk", "gclk";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		can0: can@e0828000 {
+			compatible = "bosch,m_can";
+			reg = <0xe0828000 0x100>, <0x100000 0x7800>;
+			reg-names = "m_can", "message_ram";
+			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "int0", "int1";
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 61>, <&pmc PMC_TYPE_GCK 61>;
+			clock-names = "hclk", "cclk";
+			assigned-clocks = <&pmc PMC_TYPE_GCK 61>;
+			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_SYSPLL>;
+			assigned-clock-rates = <40000000>;
+			bosch,mram-cfg = <0x3400 0 0 64 0 0 32 32>;
+			status = "disabled";
+		};
+
+		can1: can@e082c000 {
+			compatible = "bosch,m_can";
+			reg = <0xe082c000 0x100>, <0x100000 0xbc00>;
+			reg-names = "m_can", "message_ram";
+			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "int0", "int1";
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 62>, <&pmc PMC_TYPE_GCK 62>;
+			clock-names = "hclk", "cclk";
+			assigned-clocks = <&pmc PMC_TYPE_GCK 62>;
+			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_SYSPLL>;
+			assigned-clock-rates = <40000000>;
+			bosch,mram-cfg = <0x7800 0 0 64 0 0 32 32>;
+			status = "disabled";
+		};
+
+		can2: can@e0830000 {
+			compatible = "bosch,m_can";
+			reg = <0xe0830000 0x100>, <0x100000 0x10000>;
+			reg-names = "m_can", "message_ram";
+			interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "int0", "int1";
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 63>, <&pmc PMC_TYPE_GCK 63>;
+			clock-names = "hclk", "cclk";
+			assigned-clocks = <&pmc PMC_TYPE_GCK 63>;
+			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_SYSPLL>;
+			assigned-clock-rates = <40000000>;
+			bosch,mram-cfg = <0xbc00 0 0 64 0 0 32 32>;
+			status = "disabled";
+		};
+
+		can3: can@e0834000 {
+			compatible = "bosch,m_can";
+			reg = <0xe0834000 0x100>, <0x110000 0x4400>;
+			reg-names = "m_can", "message_ram";
+			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "int0", "int1";
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 64>, <&pmc PMC_TYPE_GCK 64>;
+			clock-names = "hclk", "cclk";
+			assigned-clocks = <&pmc PMC_TYPE_GCK 64>;
+			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_SYSPLL>;
+			assigned-clock-rates = <40000000>;
+			bosch,mram-cfg = <0x0 0 0 64 0 0 32 32>;
+			status = "disabled";
+		};
+
+		can4: can@e0838000 {
+			compatible = "bosch,m_can";
+			reg = <0xe0838000 0x100>, <0x110000 0x8800>;
+			reg-names = "m_can", "message_ram";
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "int0", "int1";
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 65>, <&pmc PMC_TYPE_GCK 65>;
+			clock-names = "hclk", "cclk";
+			assigned-clocks = <&pmc PMC_TYPE_GCK 65>;
+			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_SYSPLL>;
+			assigned-clock-rates = <40000000>;
+			bosch,mram-cfg = <0x4400 0 0 64 0 0 32 32>;
+			status = "disabled";
+		};
+
+		can5: can@e083c000 {
+			compatible = "bosch,m_can";
+			reg = <0xe083c000 0x100>, <0x110000 0xcc00>;
+			reg-names = "m_can", "message_ram";
+			interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "int0", "int1";
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 66>, <&pmc PMC_TYPE_GCK 66>;
+			clock-names = "hclk", "cclk";
+			assigned-clocks = <&pmc PMC_TYPE_GCK 66>;
+			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_SYSPLL>;
+			assigned-clock-rates = <40000000>;
+			bosch,mram-cfg = <0x8800 0 0 64 0 0 32 32>;
 			status = "disabled";
 		};
 
@@ -322,6 +510,19 @@
 			status = "disabled";
 		};
 
+		eic: interrupt-controller@e1628000 {
+			compatible = "microchip,sama7g5-eic";
+			reg = <0xe1628000 0xec>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 37>;
+			clock-names = "pclk";
+			status = "disabled";
+		};
+
 		pit64b0: timer@e1800000 {
 			compatible = "microchip,sama7g5-pit64b", "microchip,sam9x60-pit64b";
 			reg = <0xe1800000 0x4000>;
@@ -336,6 +537,27 @@
 			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 71>, <&pmc PMC_TYPE_GCK 71>;
 			clock-names = "pclk", "gclk";
+		};
+
+		aes: crypto@e1810000 {
+			compatible = "atmel,at91sam9g46-aes";
+			reg = <0xe1810000 0x100>;
+			interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 27>;
+			clock-names = "aes_clk";
+			dmas = <&dma0 AT91_XDMAC_DT_PERID(1)>,
+			       <&dma0 AT91_XDMAC_DT_PERID(2)>;
+			dma-names = "tx", "rx";
+		};
+
+		sha: crypto@e1814000 {
+			compatible = "atmel,at91sam9g46-sha";
+			reg = <0xe1814000 0x100>;
+			interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 83>;
+			clock-names = "sha_clk";
+			dmas = <&dma0 AT91_XDMAC_DT_PERID(48)>;
+			dma-names = "tx";
 		};
 
 		flx0: flexcom@e1818000 {
@@ -382,8 +604,6 @@
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(7)>,
 					<&dma0 AT91_XDMAC_DT_PERID(8)>;
 				dma-names = "rx", "tx";
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				status = "disabled";
 			};
 		};
@@ -418,6 +638,17 @@
 			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 97>;
 			status = "disabled";
+		};
+
+		tdes: crypto@e2014000 {
+			compatible = "atmel,at91sam9g46-tdes";
+			reg = <0xe2014000 0x100>;
+			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 96>;
+			clock-names = "tdes_clk";
+			dmas = <&dma0 AT91_XDMAC_DT_PERID(54)>,
+			       <&dma0 AT91_XDMAC_DT_PERID(53)>;
+			dma-names = "tx", "rx";
 		};
 
 		flx4: flexcom@e2018000 {
@@ -558,8 +789,6 @@
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(21)>,
 					<&dma0 AT91_XDMAC_DT_PERID(22)>;
 				dma-names = "rx", "tx";
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				status = "disabled";
 			};
 		};
@@ -584,8 +813,6 @@
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(23)>,
 					<&dma0 AT91_XDMAC_DT_PERID(24)>;
 				dma-names = "rx", "tx";
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				status = "disabled";
 			};
 		};
@@ -618,13 +845,11 @@
 		uddrc: uddrc@e3800000 {
 			compatible = "microchip,sama7g5-uddrc";
 			reg = <0xe3800000 0x4000>;
-			status = "okay";
 		};
 
 		ddr3phy: ddr3phy@e3804000 {
 			compatible = "microchip,sama7g5-ddr3phy";
 			reg = <0xe3804000 0x1000>;
-			status = "okay";
 		};
 
 		gic: interrupt-controller@e8c11000 {
