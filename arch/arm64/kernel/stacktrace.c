@@ -18,21 +18,6 @@
 #include <asm/stack_pointer.h>
 #include <asm/stacktrace.h>
 
-/*
- * AArch64 PCS assigns the frame pointer to x29.
- *
- * A simple function prologue looks like this:
- * 	sub	sp, sp, #0x10
- *   	stp	x29, x30, [sp]
- *	mov	x29, sp
- *
- * A simple function epilogue looks like this:
- *	mov	sp, x29
- *	ldp	x29, x30, [sp]
- *	add	sp, sp, #0x10
- */
-
-
 static notrace void start_backtrace(struct stackframe *frame, unsigned long fp,
 				    unsigned long pc)
 {
