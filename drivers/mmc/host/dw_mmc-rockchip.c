@@ -10,6 +10,7 @@
 #include <linux/of_address.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/pm_runtime.h>
+#include <linux/rockchip/cpu.h>
 #include <linux/slab.h>
 
 #include "dw_mmc.h"
@@ -389,6 +390,19 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 	if (of_device_is_compatible(host->dev->of_node,
 				    "rockchip,rk3288-dw-mshc"))
 		host->bus_hz /= RK3288_CLKGEN_DIV;
+
+	if (of_device_is_compatible(host->dev->of_node,
+				    "rockchip,rv1106-dw-mshc") &&
+	    rockchip_get_cpu_version() == 0 &&
+	    !strcmp(dev_name(host->dev), "ffaa0000.mmc")) {
+		if (device_property_read_bool(host->dev, "no-sd")) {
+			dev_err(host->dev, "Invalid usage, should be SD card only\n");
+			return -EINVAL;
+		}
+
+		host->is_rv1106_sd = true;
+		dev_info(host->dev, "is rv1106 sd\n");
+	}
 
 	host->need_xfer_timer = true;
 	return 0;
