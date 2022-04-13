@@ -57,6 +57,9 @@ struct amdgpu_mec {
 	u64			hpd_eop_gpu_addr;
 	struct amdgpu_bo	*mec_fw_obj;
 	u64			mec_fw_gpu_addr;
+	struct amdgpu_bo	*mec_fw_data_obj;
+	u64			mec_fw_data_gpu_addr;
+
 	u32 num_mec;
 	u32 num_pipe_per_mec;
 	u32 num_queue_per_pipe;
@@ -245,6 +248,10 @@ struct amdgpu_pfp {
 	struct amdgpu_bo		*pfp_fw_obj;
 	uint64_t			pfp_fw_gpu_addr;
 	uint32_t			*pfp_fw_ptr;
+
+	struct amdgpu_bo		*pfp_fw_data_obj;
+	uint64_t			pfp_fw_data_gpu_addr;
+	uint32_t			*pfp_fw_data_ptr;
 };
 
 struct amdgpu_ce {
@@ -257,6 +264,11 @@ struct amdgpu_me {
 	struct amdgpu_bo		*me_fw_obj;
 	uint64_t			me_fw_gpu_addr;
 	uint32_t			*me_fw_ptr;
+
+	struct amdgpu_bo		*me_fw_data_obj;
+	uint64_t			me_fw_data_gpu_addr;
+	uint32_t			*me_fw_data_ptr;
+
 	uint32_t			num_me;
 	uint32_t			num_pipe_per_me;
 	uint32_t			num_queue_per_pipe;
@@ -277,6 +289,7 @@ struct amdgpu_gfx {
 	struct amdgpu_kiq		kiq;
 	struct amdgpu_imu		imu;
 	struct amdgpu_scratch		scratch;
+	bool				rs64_enable; /* firmware format */
 	const struct firmware		*me_fw;	/* ME firmware */
 	uint32_t			me_fw_version;
 	const struct firmware		*pfp_fw; /* PFP firmware */
