@@ -75,7 +75,7 @@ static u8 do_join(struct _adapter *padapter)
 			 * acquired by caller...
 			 */
 			struct wlan_bssid_ex *pdev_network =
-				&(padapter->registrypriv.dev_network);
+				&padapter->registrypriv.dev_network;
 			pmlmepriv->fw_state = WIFI_ADHOC_MASTER_STATE;
 			pibss = padapter->registrypriv.dev_network.MacAddress;
 			memcpy(&pdev_network->Ssid,
