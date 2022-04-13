@@ -629,18 +629,19 @@ int ice_clean_rx_irq_zc(struct ice_rx_ring *rx_ring, int budget)
 		xsk_buff_dma_sync_for_cpu(xdp, rx_ring->xsk_pool);
 
 		xdp_res = ice_run_xdp_zc(rx_ring, xdp, xdp_prog, xdp_ring);
-		if (xdp_res) {
-			if (xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR))
-				xdp_xmit |= xdp_res;
-			else
-				xsk_buff_free(xdp);
+		if (likely(xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR)))
+			xdp_xmit |= xdp_res;
+		else if (xdp_res == ICE_XDP_CONSUMED)
+			xsk_buff_free(xdp);
+		else
+			goto construct_skb;
 
-			total_rx_bytes += size;
-			total_rx_packets++;
+		total_rx_bytes += size;
+		total_rx_packets++;
 
-			ice_bump_ntc(rx_ring);
-			continue;
-		}
+		ice_bump_ntc(rx_ring);
+		continue;
+
 construct_skb:
 		/* XDP_PASS path */
 		skb = ice_construct_skb_zc(rx_ring, xdp);
