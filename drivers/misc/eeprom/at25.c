@@ -309,7 +309,7 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 	u32 val;
 	int err;
 
-	strncpy(chip->name, "at25", sizeof(chip->name));
+	strscpy(chip->name, "at25", sizeof(chip->name));
 
 	err = device_property_read_u32(dev, "size", &val);
 	if (err)
@@ -370,7 +370,7 @@ static int at25_fram_to_chip(struct device *dev, struct spi_eeprom *chip)
 	u8 id[FM25_ID_LEN];
 	int i;
 
-	strncpy(chip->name, "fm25", sizeof(chip->name));
+	strscpy(chip->name, "fm25", sizeof(chip->name));
 
 	/* Get ID of chip */
 	fm25_aux_read(at25, id, FM25_RDID, FM25_ID_LEN);

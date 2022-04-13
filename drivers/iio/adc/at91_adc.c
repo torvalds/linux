@@ -1234,7 +1234,6 @@ static int at91_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int at91_adc_suspend(struct device *dev)
 {
 	struct iio_dev *idev = dev_get_drvdata(dev);
@@ -1256,9 +1255,9 @@ static int at91_adc_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(at91_adc_pm_ops, at91_adc_suspend, at91_adc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(at91_adc_pm_ops, at91_adc_suspend,
+				at91_adc_resume);
 
 static const struct at91_adc_trigger at91sam9260_triggers[] = {
 	{ .name = "timer-counter-0", .value = 0x1 },
@@ -1386,7 +1385,7 @@ static struct platform_driver at91_adc_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
 		   .of_match_table = at91_adc_dt_ids,
-		   .pm = &at91_adc_pm_ops,
+		   .pm = pm_sleep_ptr(&at91_adc_pm_ops),
 	},
 };
 

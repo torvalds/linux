@@ -163,6 +163,8 @@ Hardware Monitoring Kernel Drivers
    pim4328
    pli1209bc
    pm6764tr
+   peci-cputemp
+   peci-dimmtemp
    pmbus
    powr1220
    pxe1610

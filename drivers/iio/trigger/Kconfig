@@ -38,7 +38,7 @@ config IIO_STM32_LPTIMER_TRIGGER
 
 config IIO_STM32_TIMER_TRIGGER
 	tristate "STM32 Timer Trigger"
-	depends on (ARCH_STM32 && OF && MFD_STM32_TIMERS) || COMPILE_TEST
+	depends on (ARCH_STM32 && MFD_STM32_TIMERS) || COMPILE_TEST
 	help
 	  Select this option to enable STM32 Timer Trigger
 

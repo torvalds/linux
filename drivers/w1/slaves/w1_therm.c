@@ -574,6 +574,41 @@ static inline int w1_DS18S20_convert_time(struct w1_slave *sl)
 		return SLAVE_CONV_TIME_OVERRIDE(sl);
 }
 
+static inline int w1_DS1825_convert_time(struct w1_slave *sl)
+{
+	int ret;
+
+	if (!sl->family_data)
+		return -ENODEV;	/* device unknown */
+
+	if (SLAVE_CONV_TIME_OVERRIDE(sl) != CONV_TIME_DEFAULT)
+		return SLAVE_CONV_TIME_OVERRIDE(sl);
+
+	/* Return the conversion time, depending on resolution,
+	 * select maximum conversion time among all compatible devices
+	 */
+	switch (SLAVE_RESOLUTION(sl)) {
+	case 9:
+		ret = 95;
+		break;
+	case 10:
+		ret = 190;
+		break;
+	case 11:
+		ret = 375;
+		break;
+	case 12:
+		ret = 750;
+		break;
+	case 14:
+		ret = 100; /* MAX31850 only. Datasheet says 100ms  */
+		break;
+	default:
+		ret = 750;
+	}
+	return ret;
+}
+
 static inline int w1_DS18B20_write_data(struct w1_slave *sl,
 				const u8 *data)
 {
@@ -594,6 +629,7 @@ static inline int w1_DS18B20_set_resolution(struct w1_slave *sl, int val)
 
 	/* DS18B20 resolution is 9 to 12 bits */
 	/* GX20MH01 resolution is 9 to 14 bits */
+	/* MAX31850 resolution is fixed 14 bits */
 	if (val < W1_THERM_RESOLUTION_MIN || val > W1_THERM_RESOLUTION_MAX)
 		return -EINVAL;
 
@@ -649,6 +685,7 @@ static inline int w1_DS18B20_get_resolution(struct w1_slave *sl)
 		+ W1_THERM_RESOLUTION_MIN;
 	/* GX20MH01 has one special case:
 	 *   >=14 means 14 bits when getting resolution from bit value.
+	 * MAX31850 delivers fixed 15 and has 14 bits.
 	 * Other devices have no more then 12 bits.
 	 */
 	if (resolution > W1_THERM_RESOLUTION_MAX)
@@ -715,6 +752,34 @@ static inline int w1_DS18S20_convert_temp(u8 rom[9])
 	return t;
 }
 
+/**
+ * w1_DS1825_convert_temp() - temperature computation for DS1825
+ * @rom: data read from device RAM (8 data bytes + 1 CRC byte)
+ *
+ * Can be called for any DS1825 compliant device.
+ * Is used by MAX31850, too
+ *
+ * Return: value in millidegrees Celsius.
+ */
+
+static inline int w1_DS1825_convert_temp(u8 rom[9])
+{
+	u16 bv;
+	s16 t;
+
+	/* Signed 16-bit value to unsigned, cpu order */
+	bv = le16_to_cpup((__le16 *)rom);
+
+	/* Config register bit 7 = 1 - MA31850 found, 14 bit resolution */
+	if (rom[4] & 0x80) {
+		/* Mask out bits 0 (Fault) and 1 (Reserved) */
+		/* Avoid arithmetic shift of signed value */
+		bv = (bv & 0xFFFC); /* Degrees, lowest 4 bits are 2^-1, 2^-2 and 2 zero bits */
+	}
+	t = (s16)bv;	/* Degrees, lowest bit is 2^-4 */
+	return (int)t * 1000 / 16;	/* Sign-extend to int; millidegrees */
+}
+
 /* Device capability description */
 /* GX20MH01 device shares family number and structure with DS18B20 */
 
@@ -757,9 +822,10 @@ static struct w1_therm_family_converter w1_therm_families[] = {
 		.bulk_read			= false
 	},
 	{
+		/* Also used for MAX31850 */
 		.f				= &w1_therm_family_DS1825,
-		.convert			= w1_DS18B20_convert_temp,
-		.get_conversion_time	= w1_DS18B20_convert_time,
+		.convert			= w1_DS1825_convert_temp,
+		.get_conversion_time	= w1_DS1825_convert_time,
 		.set_resolution		= w1_DS18B20_set_resolution,
 		.get_resolution		= w1_DS18B20_get_resolution,
 		.write_data			= w1_DS18B20_write_data,
@@ -2089,16 +2155,20 @@ static ssize_t w1_seq_show(struct device *device,
 		if (sl->reg_num.id == reg_num->id)
 			seq = i;
 
+		if (w1_reset_bus(sl->master))
+			goto error;
+
+		/* Put the device into chain DONE state */
+		w1_write_8(sl->master, W1_MATCH_ROM);
+		w1_write_block(sl->master, (u8 *)&rn, 8);
 		w1_write_8(sl->master, W1_42_CHAIN);
 		w1_write_8(sl->master, W1_42_CHAIN_DONE);
 		w1_write_8(sl->master, W1_42_CHAIN_DONE_INV);
-		w1_read_block(sl->master, &ack, sizeof(ack));
 
 		/* check for acknowledgment */
 		ack = w1_read_8(sl->master);
 		if (ack != W1_42_SUCCESS_CONFIRM_BYTE)
 			goto error;
-
 	}
 
 	/* Exit from CHAIN state */
