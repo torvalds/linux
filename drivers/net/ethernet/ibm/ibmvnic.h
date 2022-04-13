@@ -798,6 +798,11 @@ struct ibmvnic_long_term_buff {
 	u8 map_id;
 };
 
+struct ibmvnic_ltb_set {
+	int num_ltbs;
+	struct ibmvnic_long_term_buff *ltbs;
+};
+
 struct ibmvnic_tx_buff {
 	struct sk_buff *skb;
 	int index;
@@ -833,7 +838,7 @@ struct ibmvnic_rx_pool {
 	int next_free;
 	int next_alloc;
 	int active;
-	struct ibmvnic_long_term_buff long_term_buff;
+	struct ibmvnic_ltb_set ltb_set;
 } ____cacheline_aligned;
 
 struct ibmvnic_vpd {

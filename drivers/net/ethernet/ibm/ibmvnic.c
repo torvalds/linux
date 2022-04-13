@@ -345,6 +345,41 @@ static void free_long_term_buff(struct ibmvnic_adapter *adapter,
 	ltb->map_id = 0;
 }
 
+static void free_ltb_set(struct ibmvnic_adapter *adapter,
+			 struct ibmvnic_ltb_set *ltb_set)
+{
+	int i;
+
+	for (i = 0; i < ltb_set->num_ltbs; i++)
+		free_long_term_buff(adapter, &ltb_set->ltbs[i]);
+
+	kfree(ltb_set->ltbs);
+	ltb_set->ltbs = NULL;
+	ltb_set->num_ltbs = 0;
+}
+
+static int alloc_ltb_set(struct ibmvnic_adapter *adapter,
+			 struct ibmvnic_ltb_set *ltb_set, int num_buffs,
+			 int buff_size)
+{
+	struct ibmvnic_long_term_buff *ltb;
+	int ltb_size;
+	int size;
+
+	size = sizeof(struct ibmvnic_long_term_buff);
+
+	ltb_set->ltbs = kmalloc(size, GFP_KERNEL);
+	if (!ltb_set->ltbs)
+		return -ENOMEM;
+
+	ltb_set->num_ltbs = 1;
+	ltb = &ltb_set->ltbs[0];
+
+	ltb_size = num_buffs * buff_size;
+
+	return alloc_long_term_buff(adapter, ltb, ltb_size);
+}
+
 /**
  * map_rxpool_buf_to_ltb - Map given rxpool buffer to offset in an LTB.
  * @rxpool: The receive buffer pool containing buffer
@@ -360,7 +395,7 @@ static void map_rxpool_buf_to_ltb(struct ibmvnic_rx_pool *rxpool,
 				  struct ibmvnic_long_term_buff **ltbp,
 				  unsigned int *offset)
 {
-	*ltbp = &rxpool->long_term_buff;
+	*ltbp = &rxpool->ltb_set.ltbs[0];
 	*offset = bufidx * rxpool->buff_size;
 }
 
@@ -618,7 +653,7 @@ static void release_rx_pools(struct ibmvnic_adapter *adapter)
 
 		kfree(rx_pool->free_map);
 
-		free_long_term_buff(adapter, &rx_pool->long_term_buff);
+		free_ltb_set(adapter, &rx_pool->ltb_set);
 
 		if (!rx_pool->rx_buff)
 			continue;
@@ -763,9 +798,8 @@ update_ltb:
 		dev_dbg(dev, "Updating LTB for rx pool %d [%d, %d]\n",
 			i, rx_pool->size, rx_pool->buff_size);
 
-		rc = alloc_long_term_buff(adapter, &rx_pool->long_term_buff,
-					  rx_pool->size * rx_pool->buff_size);
-		if (rc)
+		if (alloc_ltb_set(adapter, &rx_pool->ltb_set,
+				  rx_pool->size, rx_pool->buff_size))
 			goto out;
 
 		for (j = 0; j < rx_pool->size; ++j) {
