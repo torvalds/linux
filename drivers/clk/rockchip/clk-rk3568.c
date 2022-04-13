@@ -430,11 +430,6 @@ static struct rockchip_clk_branch rk3568_rtc32k_pmu_fracmux __initdata =
 	MUX(CLK_RTC_32K, "clk_rtc_32k", clk_rtc32k_pmu_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 			RK3568_PMU_CLKSEL_CON(0), 6, 2, MFLAGS);
 
-static struct rockchip_clk_branch rk3568_clk_npu_np5 __initdata =
-	COMPOSITE_HALFDIV(CLK_NPU_NP5, "clk_npu_np5", npll_gpll_p, 0,
-			RK3568_CLKSEL_CON(7), 7, 1, MFLAGS, 4, 2, DFLAGS,
-			RK3568_CLKGATE_CON(3), 1, GFLAGS);
-
 static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 	/*
 	 * Clock-Architecture Diagram 1
@@ -559,10 +554,12 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 			RK3568_CLKGATE_CON(2), 9, GFLAGS),
 
 	/* PD_NPU */
-	COMPOSITE_BROTHER(CLK_NPU_SRC, "clk_npu_src", npll_gpll_p, 0,
+	COMPOSITE(CLK_NPU_SRC, "clk_npu_src", npll_gpll_p, 0,
 			RK3568_CLKSEL_CON(7), 6, 1, MFLAGS, 0, 4, DFLAGS,
-			RK3568_CLKGATE_CON(3), 0, GFLAGS,
-			&rk3568_clk_npu_np5),
+			RK3568_CLKGATE_CON(3), 0, GFLAGS),
+	COMPOSITE_HALFDIV(CLK_NPU_NP5, "clk_npu_np5", npll_gpll_p, 0,
+			RK3568_CLKSEL_CON(7), 7, 1, MFLAGS, 4, 2, DFLAGS,
+			RK3568_CLKGATE_CON(3), 1, GFLAGS),
 	MUX(CLK_NPU_PRE_NDFT, "clk_npu_pre_ndft", clk_npu_pre_ndft_p, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
 			RK3568_CLKSEL_CON(7), 8, 1, MFLAGS),
 	MUX(CLK_NPU, "clk_npu", clk_npu_p, CLK_SET_RATE_PARENT,
