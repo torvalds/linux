@@ -447,6 +447,12 @@ enum skb_drop_reason {
 					 * 2211, such as a broadcasts
 					 * ICMP_TIMESTAMP
 					 */
+	SKB_DROP_REASON_IP_INADDRERRORS,	/* host unreachable, corresponding
+						 * to IPSTATS_MIB_INADDRERRORS
+						 */
+	SKB_DROP_REASON_IP_INNOROUTES,	/* network unreachable, corresponding
+					 * to IPSTATS_MIB_INADDRERRORS
+					 */
 	SKB_DROP_REASON_MAX,
 };
 
