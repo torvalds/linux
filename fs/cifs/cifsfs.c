@@ -266,10 +266,11 @@ static void cifs_kill_sb(struct super_block *sb)
 	 * before we kill the sb.
 	 */
 	if (cifs_sb->root) {
-		node = rb_first(root);
-		while (node != NULL) {
+		for (node = rb_first(root); node; node = rb_next(node)) {
 			tlink = rb_entry(node, struct tcon_link, tl_rbnode);
 			tcon = tlink_tcon(tlink);
+			if (IS_ERR(tcon))
+				continue;
 			cfid = &tcon->crfid;
 			mutex_lock(&cfid->fid_mutex);
 			if (cfid->dentry) {
@@ -277,7 +278,6 @@ static void cifs_kill_sb(struct super_block *sb)
 				cfid->dentry = NULL;
 			}
 			mutex_unlock(&cfid->fid_mutex);
-			node = rb_next(node);
 		}
 
 		/* finally release root dentry */
