@@ -453,6 +453,9 @@ enum skb_drop_reason {
 	SKB_DROP_REASON_IP_INNOROUTES,	/* network unreachable, corresponding
 					 * to IPSTATS_MIB_INADDRERRORS
 					 */
+	SKB_DROP_REASON_PKT_TOO_BIG,	/* packet size is too big (maybe exceed
+					 * the MTU)
+					 */
 	SKB_DROP_REASON_MAX,
 };
 
