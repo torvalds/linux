@@ -66,6 +66,11 @@ enum amdgpu_gfx_partition {
 
 #define NUM_XCC(x) hweight16(x)
 
+enum amdgpu_pkg_type {
+	AMDGPU_PKG_TYPE_APU = 2,
+	AMDGPU_PKG_TYPE_UNKNOWN,
+};
+
 struct amdgpu_mec {
 	struct amdgpu_bo	*hpd_eop_obj;
 	u64			hpd_eop_gpu_addr;
