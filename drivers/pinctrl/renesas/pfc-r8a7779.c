@@ -3300,13 +3300,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_5_1_FN, FN_A2,
 		GP_5_0_FN, FN_A1 ))
 	},
-	{ PINMUX_CFG_REG("GPSR6", 0xfffc001c, 32, 1, GROUP(
-		0, 0, 0, 0, 0, 0, 0, 0,	0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,	0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("GPSR6", 0xfffc001c, 32,
+			     GROUP(-23, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+			     GROUP(
+		/* GP6_31_9 RESERVED */
 		GP_6_8_FN, FN_IP3_20,
 		GP_6_7_FN, FN_IP3_19,
 		GP_6_6_FN, FN_IP3_18,
