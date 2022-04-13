@@ -50,6 +50,7 @@ struct mlxsw_hwmon_dev {
 	unsigned int attrs_count;
 	u8 sensor_count;
 	u8 module_sensor_max;
+	u8 slot_index;
 };
 
 struct mlxsw_hwmon {
@@ -72,7 +73,8 @@ static ssize_t mlxsw_hwmon_temp_show(struct device *dev,
 
 	index = mlxsw_hwmon_get_attr_index(mlxsw_hwmon_attr->type_index,
 					   mlxsw_hwmon_dev->module_sensor_max);
-	mlxsw_reg_mtmp_pack(mtmp_pl, 0, index, false, false);
+	mlxsw_reg_mtmp_pack(mtmp_pl, mlxsw_hwmon_dev->slot_index, index, false,
+			    false);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err) {
 		dev_err(mlxsw_hwmon->bus_info->dev, "Failed to query temp sensor\n");
@@ -96,7 +98,8 @@ static ssize_t mlxsw_hwmon_temp_max_show(struct device *dev,
 
 	index = mlxsw_hwmon_get_attr_index(mlxsw_hwmon_attr->type_index,
 					   mlxsw_hwmon_dev->module_sensor_max);
-	mlxsw_reg_mtmp_pack(mtmp_pl, 0, index, false, false);
+	mlxsw_reg_mtmp_pack(mtmp_pl, mlxsw_hwmon_dev->slot_index, index, false,
+			    false);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err) {
 		dev_err(mlxsw_hwmon->bus_info->dev, "Failed to query temp sensor\n");
@@ -128,6 +131,7 @@ static ssize_t mlxsw_hwmon_temp_rst_store(struct device *dev,
 	index = mlxsw_hwmon_get_attr_index(mlxsw_hwmon_attr->type_index,
 					   mlxsw_hwmon_dev->module_sensor_max);
 
+	mlxsw_reg_mtmp_slot_index_set(mtmp_pl, mlxsw_hwmon_dev->slot_index);
 	mlxsw_reg_mtmp_sensor_index_set(mtmp_pl, index);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err)
@@ -245,7 +249,7 @@ static int mlxsw_hwmon_module_temp_get(struct device *dev,
 	int err;
 
 	module = mlxsw_hwmon_attr->type_index - mlxsw_hwmon_dev->sensor_count;
-	mlxsw_reg_mtmp_pack(mtmp_pl, 0,
+	mlxsw_reg_mtmp_pack(mtmp_pl, mlxsw_hwmon_dev->slot_index,
 			    MLXSW_REG_MTMP_MODULE_INDEX_MIN + module, false,
 			    false);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
@@ -285,8 +289,8 @@ static ssize_t mlxsw_hwmon_module_temp_fault_show(struct device *dev,
 	int err;
 
 	module = mlxsw_hwmon_attr->type_index - mlxsw_hwmon_dev->sensor_count;
-	mlxsw_reg_mtbr_pack(mtbr_pl, 0, MLXSW_REG_MTBR_BASE_MODULE_INDEX + module,
-			    1);
+	mlxsw_reg_mtbr_pack(mtbr_pl, mlxsw_hwmon_dev->slot_index,
+			    MLXSW_REG_MTBR_BASE_MODULE_INDEX + module, 1);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtbr), mtbr_pl);
 	if (err) {
 		dev_err(dev, "Failed to query module temperature sensor\n");
@@ -326,7 +330,8 @@ static int mlxsw_hwmon_module_temp_critical_get(struct device *dev,
 	int err;
 
 	module = mlxsw_hwmon_attr->type_index - mlxsw_hwmon_dev->sensor_count;
-	err = mlxsw_env_module_temp_thresholds_get(mlxsw_hwmon->core, 0,
+	err = mlxsw_env_module_temp_thresholds_get(mlxsw_hwmon->core,
+						   mlxsw_hwmon_dev->slot_index,
 						   module, SFP_TEMP_HIGH_WARN,
 						   p_temp);
 	if (err) {
@@ -362,7 +367,8 @@ static int mlxsw_hwmon_module_temp_emergency_get(struct device *dev,
 	int err;
 
 	module = mlxsw_hwmon_attr->type_index - mlxsw_hwmon_dev->sensor_count;
-	err = mlxsw_env_module_temp_thresholds_get(mlxsw_hwmon->core, 0,
+	err = mlxsw_env_module_temp_thresholds_get(mlxsw_hwmon->core,
+						   mlxsw_hwmon_dev->slot_index,
 						   module, SFP_TEMP_HIGH_ALARM,
 						   p_temp);
 	if (err) {
@@ -609,6 +615,8 @@ static int mlxsw_hwmon_temp_init(struct mlxsw_hwmon_dev *mlxsw_hwmon_dev)
 	for (i = 0; i < mlxsw_hwmon_dev->sensor_count; i++) {
 		char mtmp_pl[MLXSW_REG_MTMP_LEN] = {0};
 
+		mlxsw_reg_mtmp_slot_index_set(mtmp_pl,
+					      mlxsw_hwmon_dev->slot_index);
 		mlxsw_reg_mtmp_sensor_index_set(mtmp_pl, i);
 		err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp),
 				      mtmp_pl);
@@ -678,7 +686,7 @@ static int mlxsw_hwmon_module_init(struct mlxsw_hwmon_dev *mlxsw_hwmon_dev)
 	u8 module_sensor_max;
 	int i, err;
 
-	mlxsw_reg_mgpir_pack(mgpir_pl, 0);
+	mlxsw_reg_mgpir_pack(mgpir_pl, mlxsw_hwmon_dev->slot_index);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mgpir), mgpir_pl);
 	if (err)
 		return err;
@@ -730,7 +738,7 @@ static int mlxsw_hwmon_gearbox_init(struct mlxsw_hwmon_dev *mlxsw_hwmon_dev)
 	u8 gbox_num;
 	int err;
 
-	mlxsw_reg_mgpir_pack(mgpir_pl, 0);
+	mlxsw_reg_mgpir_pack(mgpir_pl, mlxsw_hwmon_dev->slot_index);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mgpir), mgpir_pl);
 	if (err)
 		return err;
@@ -746,7 +754,8 @@ static int mlxsw_hwmon_gearbox_init(struct mlxsw_hwmon_dev *mlxsw_hwmon_dev)
 	while (index < max_index) {
 		sensor_index = index % mlxsw_hwmon_dev->module_sensor_max +
 			       MLXSW_REG_MTMP_GBOX_INDEX_MIN;
-		mlxsw_reg_mtmp_pack(mtmp_pl, 0, sensor_index, true, true);
+		mlxsw_reg_mtmp_pack(mtmp_pl, mlxsw_hwmon_dev->slot_index,
+				    sensor_index, true, true);
 		err = mlxsw_reg_write(mlxsw_hwmon->core,
 				      MLXSW_REG(mtmp), mtmp_pl);
 		if (err) {
@@ -797,6 +806,7 @@ int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_hwmon->core = mlxsw_core;
 	mlxsw_hwmon->bus_info = mlxsw_bus_info;
 	mlxsw_hwmon->line_cards[0].hwmon = mlxsw_hwmon;
+	mlxsw_hwmon->line_cards[0].slot_index = 0;
 
 	err = mlxsw_hwmon_temp_init(&mlxsw_hwmon->line_cards[0]);
 	if (err)
