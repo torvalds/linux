@@ -4464,6 +4464,16 @@ static void android_rvh_update_cpus_allowed(void *unused, struct task_struct *p,
 		*ret = set_cpus_allowed_ptr(p, &wts->cpus_requested);
 }
 
+static void android_rvh_sched_getaffinity(void *unused, struct task_struct *p,
+					  struct cpumask *in_mask)
+{
+	if (unlikely(walt_disabled))
+		return;
+
+	if (!(p->flags & PF_KTHREAD))
+		cpumask_andnot(in_mask, in_mask, cpu_halt_mask);
+}
+
 static void android_rvh_sched_setaffinity(void *unused, struct task_struct *p,
 					  const struct cpumask *in_mask,
 					  int *retval)
@@ -4551,6 +4561,7 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_cpu_cgroup_online(android_rvh_cpu_cgroup_online, NULL);
 	register_trace_android_rvh_update_cpus_allowed(android_rvh_update_cpus_allowed, NULL);
 	register_trace_android_rvh_sched_setaffinity(android_rvh_sched_setaffinity, NULL);
+	register_trace_android_rvh_sched_getaffinity(android_rvh_sched_getaffinity, NULL);
 	register_trace_android_rvh_sched_fork_init(android_rvh_sched_fork_init, NULL);
 	register_trace_android_rvh_ttwu_cond(android_rvh_ttwu_cond, NULL);
 	register_trace_android_rvh_sched_exec(android_rvh_sched_exec, NULL);
