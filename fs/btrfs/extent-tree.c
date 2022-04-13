@@ -2492,7 +2492,7 @@ static u64 get_alloc_profile_by_root(struct btrfs_root *root, int data)
 	return ret;
 }
 
-static u64 first_logical_byte(struct btrfs_fs_info *fs_info, u64 search_start)
+static u64 first_logical_byte(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_block_group *cache;
 	u64 bytenr;
@@ -2504,7 +2504,8 @@ static u64 first_logical_byte(struct btrfs_fs_info *fs_info, u64 search_start)
 	if (bytenr < (u64)-1)
 		return bytenr;
 
-	cache = btrfs_lookup_first_block_group(fs_info, search_start);
+	/* Get the block group with the lowest logical start address. */
+	cache = btrfs_lookup_first_block_group(fs_info, 0);
 	if (!cache)
 		return 0;
 
@@ -4267,7 +4268,7 @@ static noinline int find_free_extent(struct btrfs_root *root,
 		return ret;
 
 	ffe_ctl->search_start = max(ffe_ctl->search_start,
-				    first_logical_byte(fs_info, 0));
+				    first_logical_byte(fs_info));
 	ffe_ctl->search_start = max(ffe_ctl->search_start, ffe_ctl->hint_byte);
 	if (ffe_ctl->search_start == ffe_ctl->hint_byte) {
 		block_group = btrfs_lookup_block_group(fs_info,
