@@ -1072,31 +1072,20 @@ static const struct pinmux_func pinmux_func_gpios[] = {
 };
 
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
-	{ PINMUX_CFG_REG("PBIORL", 0xfffe3886, 16, 1, GROUP(
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("PBIORL", 0xfffe3886, 16,
+			     GROUP(-4, 1, 1, 1, 1, -8),
+			     GROUP(
+		/* RESERVED [4] */
 		PB11_IN, PB11_OUT,
 		PB10_IN, PB10_OUT,
 		PB9_IN, PB9_OUT,
 		PB8_IN, PB8_OUT,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0 ))
+		/* RESERVED [8] */ ))
 	},
-	{ PINMUX_CFG_REG("PBCRL4", 0xfffe3890, 16, 4, GROUP(
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-
+	{ PINMUX_CFG_REG_VAR("PBCRL4", 0xfffe3890, 16,
+			     GROUP(-12, 4),
+			     GROUP(
+		/* RESERVED [12] */
 		PB12MD_00, PB12MD_01, PB12MD_10, PB12MD_11,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
@@ -1139,13 +1128,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PB0MD_00, PB0MD_01, PB0MD_10, PB0MD_11,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("IFCR", 0xfffe38a2, 16, 4, GROUP(
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-
+	{ PINMUX_CFG_REG_VAR("IFCR", 0xfffe38a2, 16,
+			     GROUP(-12, 4),
+			     GROUP(
+		/* RESERVED [12] */
 		PB12IRQ_00, PB12IRQ_01, PB12IRQ_10, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
@@ -1167,9 +1153,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PC1_IN, PC1_OUT,
 		PC0_IN, PC0_OUT ))
 	},
-	{ PINMUX_CFG_REG("PCCRL4", 0xfffe3910, 16, 4, GROUP(
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-
+	{ PINMUX_CFG_REG_VAR("PCCRL4", 0xfffe3910, 16,
+			     GROUP(-4, 4, 4, 4),
+			     GROUP(
+		/* RESERVED [4] */
 		PC14MD_0, PC14MD_1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1417,8 +1404,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PF1_IN, PF1_OUT,
 		PF0_IN, PF0_OUT ))
 	},
-	{ PINMUX_CFG_REG("PFCRH4", 0xfffe3a88, 16, 4, GROUP(
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	{ PINMUX_CFG_REG_VAR("PFCRH4", 0xfffe3a88, 16,
+			     GROUP(-4, 4, 4, 4),
+			     GROUP(
+		/* RESERVED [4] */
 
 		PF30MD_0, PF30MD_1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
