@@ -389,8 +389,6 @@ struct rga_session_manager {
 };
 
 struct rga_drvdata_t {
-	struct miscdevice miscdev;
-
 	/* used by rga2's mmu lock */
 	struct mutex lock;
 
