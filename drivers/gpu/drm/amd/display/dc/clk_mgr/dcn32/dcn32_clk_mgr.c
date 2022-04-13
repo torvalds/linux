@@ -607,6 +607,10 @@ void dcn32_clk_mgr_construct(
 	if (clk_mgr->base.dentist_vco_freq_khz == 0)
 		clk_mgr->base.dentist_vco_freq_khz = 4300000; /* Updated as per HW docs */
 
+	if (clk_mgr->dccg->ref_dtbclk_khz != clk_mgr->base.boot_snapshot.dtbclk) {
+		clk_mgr->dccg->ref_dtbclk_khz = clk_mgr->base.boot_snapshot.dtbclk;
+	}
+
 	if (clk_mgr->base.boot_snapshot.dprefclk != 0) {
 		//ASSERT(clk_mgr->base.dprefclk_khz == clk_mgr->base.boot_snapshot.dprefclk);
 		//clk_mgr->base.dprefclk_khz = clk_mgr->base.boot_snapshot.dprefclk;
