@@ -6227,12 +6227,8 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 		if (ret)
 			goto out;
 	}
-	/*
-	 * index_cnt is ignored for everything but a dir,
-	 * btrfs_set_inode_index_count has an explanation for the magic
-	 * number
-	 */
-	BTRFS_I(inode)->index_cnt = 2;
+	/* index_cnt is ignored for everything but a dir. */
+	BTRFS_I(inode)->index_cnt = BTRFS_DIR_START_INDEX;
 	BTRFS_I(inode)->generation = trans->transid;
 	inode->i_generation = BTRFS_I(inode)->generation;
 
