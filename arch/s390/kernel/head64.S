@@ -5,7 +5,6 @@
  *   Author(s):	Hartmut Penner <hp@de.ibm.com>
  *		Martin Schwidefsky <schwidefsky@de.ibm.com>
  *		Rob van der Heij <rvdhei@iae.nl>
- *		Heiko Carstens <heiko.carstens@de.ibm.com>
  *
  */
 

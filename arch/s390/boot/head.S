@@ -5,7 +5,6 @@
  *    Author(s): Hartmut Penner <hp@de.ibm.com>
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
  *		 Rob van der Heij <rvdhei@iae.nl>
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  *
  * There are 5 different IPL methods
  *  1) load the image directly into ram at address 0 and do an PSW restart

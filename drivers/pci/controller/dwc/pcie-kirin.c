@@ -332,9 +332,6 @@ static int hi3660_pcie_phy_init(struct platform_device *pdev,
 	pcie->phy_priv = phy;
 	phy->dev = dev;
 
-	/* registers */
-	pdev = container_of(dev, struct platform_device, dev);
-
 	ret = hi3660_pcie_phy_get_clk(phy);
 	if (ret)
 		return ret;
@@ -756,22 +753,28 @@ static int __exit kirin_pcie_remove(struct platform_device *pdev)
 	return 0;
 }
 
+struct kirin_pcie_data {
+	enum pcie_kirin_phy_type	phy_type;
+};
+
+static const struct kirin_pcie_data kirin_960_data = {
+	.phy_type = PCIE_KIRIN_INTERNAL_PHY,
+};
+
+static const struct kirin_pcie_data kirin_970_data = {
+	.phy_type = PCIE_KIRIN_EXTERNAL_PHY,
+};
+
 static const struct of_device_id kirin_pcie_match[] = {
-	{
-		.compatible = "hisilicon,kirin960-pcie",
-		.data = (void *)PCIE_KIRIN_INTERNAL_PHY
-	},
-	{
-		.compatible = "hisilicon,kirin970-pcie",
-		.data = (void *)PCIE_KIRIN_EXTERNAL_PHY
-	},
+	{ .compatible = "hisilicon,kirin960-pcie", .data = &kirin_960_data },
+	{ .compatible = "hisilicon,kirin970-pcie", .data = &kirin_970_data },
 	{},
 };
 
 static int kirin_pcie_probe(struct platform_device *pdev)
 {
-	enum pcie_kirin_phy_type phy_type;
 	struct device *dev = &pdev->dev;
+	const struct kirin_pcie_data *data;
 	struct kirin_pcie *kirin_pcie;
 	struct dw_pcie *pci;
 	int ret;
@@ -781,12 +784,11 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	phy_type = (long)of_device_get_match_data(dev);
-	if (!phy_type) {
+	data = of_device_get_match_data(dev);
+	if (!data) {
 		dev_err(dev, "OF data missing\n");
 		return -EINVAL;
 	}
-
 
 	kirin_pcie = devm_kzalloc(dev, sizeof(struct kirin_pcie), GFP_KERNEL);
 	if (!kirin_pcie)
@@ -800,7 +802,7 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 	pci->ops = &kirin_dw_pcie_ops;
 	pci->pp.ops = &kirin_pcie_host_ops;
 	kirin_pcie->pci = pci;
-	kirin_pcie->type = phy_type;
+	kirin_pcie->type = data->phy_type;
 
 	ret = kirin_pcie_get_resource(kirin_pcie, pdev);
 	if (ret)

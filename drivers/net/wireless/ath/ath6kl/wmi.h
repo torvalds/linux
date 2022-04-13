@@ -863,7 +863,7 @@ struct wmi_begin_scan_cmd {
 	u8 num_ch;
 
 	/* channels in Mhz */
-	__le16 ch_list[1];
+	__le16 ch_list[];
 } __packed;
 
 /* wmi_start_scan_cmd is to be deprecated. Use
@@ -889,7 +889,7 @@ struct wmi_start_scan_cmd {
 	u8 num_ch;
 
 	/* channels in Mhz */
-	__le16 ch_list[1];
+	__le16 ch_list[];
 } __packed;
 
 /*
@@ -1373,7 +1373,7 @@ struct wmi_channel_list_reply {
 	u8 num_ch;
 
 	/* channel in Mhz */
-	__le16 ch_list[1];
+	__le16 ch_list[];
 } __packed;
 
 /* List of Events (target to host) */
@@ -1545,7 +1545,7 @@ struct wmi_connect_event {
 	u8 beacon_ie_len;
 	u8 assoc_req_len;
 	u8 assoc_resp_len;
-	u8 assoc_info[1];
+	u8 assoc_info[];
 } __packed;
 
 /* Disconnect Event */
@@ -1596,7 +1596,7 @@ struct wmi_disconnect_event {
 	u8 disconn_reason;
 
 	u8 assoc_resp_len;
-	u8 assoc_info[1];
+	u8 assoc_info[];
 } __packed;
 
 /*
@@ -1637,7 +1637,7 @@ struct bss_bias {
 
 struct bss_bias_info {
 	u8 num_bss;
-	struct bss_bias bss_bias[0];
+	struct bss_bias bss_bias[];
 } __packed;
 
 struct low_rssi_scan_params {
@@ -1720,7 +1720,7 @@ struct wmi_neighbor_info {
 
 struct wmi_neighbor_report_event {
 	u8 num_neighbors;
-	struct wmi_neighbor_info neighbor[0];
+	struct wmi_neighbor_info neighbor[];
 } __packed;
 
 /* TKIP MIC Error Event */
@@ -1957,7 +1957,7 @@ union wmi_ap_info {
 struct wmi_aplist_event {
 	u8 ap_list_ver;
 	u8 num_ap;
-	union wmi_ap_info ap_list[1];
+	union wmi_ap_info ap_list[];
 } __packed;
 
 /* Developer Commands */
@@ -2051,7 +2051,7 @@ struct wmi_get_keepalive_cmd {
 struct wmi_set_appie_cmd {
 	u8 mgmt_frm_type; /* enum wmi_mgmt_frame_type */
 	u8 ie_len;
-	u8 ie_info[0];
+	u8 ie_info[];
 } __packed;
 
 struct wmi_set_ie_cmd {
@@ -2059,7 +2059,7 @@ struct wmi_set_ie_cmd {
 	u8 ie_field;	/* enum wmi_ie_field_type */
 	u8 ie_len;
 	u8 reserved;
-	u8 ie_info[0];
+	u8 ie_info[];
 } __packed;
 
 /* Notify the WSC registration status to the target */
@@ -2127,7 +2127,7 @@ struct wmi_add_wow_pattern_cmd {
 	u8 filter_list_id;
 	u8 filter_size;
 	u8 filter_offset;
-	u8 filter[0];
+	u8 filter[];
 } __packed;
 
 struct wmi_del_wow_pattern_cmd {
@@ -2360,7 +2360,7 @@ struct wmi_send_action_cmd {
 	__le32 freq;
 	__le32 wait;
 	__le16 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct wmi_send_mgmt_cmd {
@@ -2369,7 +2369,7 @@ struct wmi_send_mgmt_cmd {
 	__le32 wait;
 	__le32 no_cck;
 	__le16 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct wmi_tx_status_event {
@@ -2389,7 +2389,7 @@ struct wmi_set_appie_extended_cmd {
 	u8 role_id;
 	u8 mgmt_frm_type;
 	u8 ie_len;
-	u8 ie_info[0];
+	u8 ie_info[];
 } __packed;
 
 struct wmi_remain_on_chnl_event {
@@ -2406,18 +2406,18 @@ struct wmi_cancel_remain_on_chnl_event {
 struct wmi_rx_action_event {
 	__le32 freq;
 	__le16 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct wmi_p2p_capabilities_event {
 	__le16 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct wmi_p2p_rx_probe_req_event {
 	__le32 freq;
 	__le16 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 #define P2P_FLAG_CAPABILITIES_REQ   (0x00000001)
@@ -2431,7 +2431,7 @@ struct wmi_get_p2p_info {
 struct wmi_p2p_info_event {
 	__le32 info_req_flags;
 	__le16 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct wmi_p2p_capabilities {
@@ -2450,7 +2450,7 @@ struct wmi_p2p_probe_response_cmd {
 	__le32 freq;
 	u8 destination_addr[ETH_ALEN];
 	__le16 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /* Extended WMI (WMIX)

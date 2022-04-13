@@ -551,7 +551,7 @@ static int do_attach_detach_xdp(int progfd, enum net_attach_type attach_type,
 	if (attach_type == NET_ATTACH_TYPE_XDP_OFFLOAD)
 		flags |= XDP_FLAGS_HW_MODE;
 
-	return bpf_set_link_xdp_fd(ifindex, progfd, flags);
+	return bpf_xdp_attach(ifindex, progfd, flags, NULL);
 }
 
 static int do_attach(int argc, char **argv)

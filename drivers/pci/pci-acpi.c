@@ -89,9 +89,9 @@ int acpi_get_rc_resources(struct device *dev, const char *hid, u16 segment,
 		return -ENODEV;
 	}
 
-	ret = acpi_bus_get_device(handle, &adev);
-	if (ret)
-		return ret;
+	adev = acpi_fetch_acpi_dev(handle);
+	if (!adev)
+		return -ENODEV;
 
 	ret = acpi_get_rc_addr(adev, res);
 	if (ret) {

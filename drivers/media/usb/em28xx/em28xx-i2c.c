@@ -26,7 +26,7 @@
 #include <linux/i2c.h>
 #include <linux/jiffies.h>
 
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 

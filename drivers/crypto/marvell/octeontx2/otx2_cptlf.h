@@ -26,12 +26,22 @@
  */
 #define OTX2_CPT_INST_QLEN_MSGS	((OTX2_CPT_SIZE_DIV40 - 1) * 40)
 
+/*
+ * LDWB is getting incorrectly used when IQB_LDWB = 1 and CPT instruction
+ * queue has less than 320 free entries. So, increase HW instruction queue
+ * size by 320 and give 320 entries less for SW/NIX RX as a workaround.
+ */
+#define OTX2_CPT_INST_QLEN_EXTRA_BYTES  (320 * OTX2_CPT_INST_SIZE)
+#define OTX2_CPT_EXTRA_SIZE_DIV40       (320/40)
+
 /* CPT instruction queue length in bytes */
-#define OTX2_CPT_INST_QLEN_BYTES (OTX2_CPT_SIZE_DIV40 * 40 * \
-				  OTX2_CPT_INST_SIZE)
+#define OTX2_CPT_INST_QLEN_BYTES                                               \
+		((OTX2_CPT_SIZE_DIV40 * 40 * OTX2_CPT_INST_SIZE) +             \
+		OTX2_CPT_INST_QLEN_EXTRA_BYTES)
 
 /* CPT instruction group queue length in bytes */
-#define OTX2_CPT_INST_GRP_QLEN_BYTES (OTX2_CPT_SIZE_DIV40 * 16)
+#define OTX2_CPT_INST_GRP_QLEN_BYTES                                           \
+		((OTX2_CPT_SIZE_DIV40 + OTX2_CPT_EXTRA_SIZE_DIV40) * 16)
 
 /* CPT FC length in bytes */
 #define OTX2_CPT_Q_FC_LEN 128
@@ -179,7 +189,8 @@ static inline void otx2_cptlf_do_set_iqueue_size(struct otx2_cptlf_info *lf)
 {
 	union otx2_cptx_lf_q_size lf_q_size = { .u = 0x0 };
 
-	lf_q_size.s.size_div40 = OTX2_CPT_SIZE_DIV40;
+	lf_q_size.s.size_div40 = OTX2_CPT_SIZE_DIV40 +
+				 OTX2_CPT_EXTRA_SIZE_DIV40;
 	otx2_cpt_write64(lf->lfs->reg_base, BLKADDR_CPT0, lf->slot,
 			 OTX2_CPT_LF_Q_SIZE, lf_q_size.u);
 }

@@ -1821,11 +1821,11 @@ static void __writecache_writeback_pmem(struct dm_writecache *wc, struct writeba
 
 		max_pages = e->wc_list_contiguous;
 
-		bio = bio_alloc_bioset(GFP_NOIO, max_pages, &wc->bio_set);
+		bio = bio_alloc_bioset(wc->dev->bdev, max_pages, REQ_OP_WRITE,
+				       GFP_NOIO, &wc->bio_set);
 		wb = container_of(bio, struct writeback_struct, bio);
 		wb->wc = wc;
 		bio->bi_end_io = writecache_writeback_endio;
-		bio_set_dev(bio, wc->dev->bdev);
 		bio->bi_iter.bi_sector = read_original_sector(wc, e);
 		if (max_pages <= WB_LIST_INLINE ||
 		    unlikely(!(wb->wc_list = kmalloc_array(max_pages, sizeof(struct wc_entry *),
@@ -1852,7 +1852,8 @@ static void __writecache_writeback_pmem(struct dm_writecache *wc, struct writeba
 			wb->wc_list[wb->wc_list_n++] = f;
 			e = f;
 		}
-		bio_set_op_attrs(bio, REQ_OP_WRITE, WC_MODE_FUA(wc) * REQ_FUA);
+		if (WC_MODE_FUA(wc))
+			bio->bi_opf |= REQ_FUA;
 		if (writecache_has_error(wc)) {
 			bio->bi_status = BLK_STS_IOERR;
 			bio_endio(bio);

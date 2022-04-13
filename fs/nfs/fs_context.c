@@ -80,6 +80,7 @@ enum nfs_param {
 	Opt_source,
 	Opt_tcp,
 	Opt_timeo,
+	Opt_trunkdiscovery,
 	Opt_udp,
 	Opt_v,
 	Opt_vers,
@@ -180,6 +181,7 @@ static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_string("source",	Opt_source),
 	fsparam_flag  ("tcp",		Opt_tcp),
 	fsparam_u32   ("timeo",		Opt_timeo),
+	fsparam_flag_no("trunkdiscovery", Opt_trunkdiscovery),
 	fsparam_flag  ("udp",		Opt_udp),
 	fsparam_flag  ("v2",		Opt_v),
 	fsparam_flag  ("v3",		Opt_v),
@@ -528,6 +530,12 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 			ctx->flags |= NFS_MOUNT_NOCTO;
 		else
 			ctx->flags &= ~NFS_MOUNT_NOCTO;
+		break;
+	case Opt_trunkdiscovery:
+		if (result.negated)
+			ctx->flags &= ~NFS_MOUNT_TRUNK_DISCOVERY;
+		else
+			ctx->flags |= NFS_MOUNT_TRUNK_DISCOVERY;
 		break;
 	case Opt_ac:
 		if (result.negated)

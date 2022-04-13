@@ -150,7 +150,7 @@ int intel_pasid_alloc_table(struct device *dev)
 	int size;
 
 	might_sleep();
-	info = get_domain_info(dev);
+	info = dev_iommu_priv_get(dev);
 	if (WARN_ON(!info || !dev_is_pci(dev) || info->pasid_table))
 		return -EINVAL;
 
@@ -197,7 +197,7 @@ void intel_pasid_free_table(struct device *dev)
 	struct pasid_entry *table;
 	int i, max_pde;
 
-	info = get_domain_info(dev);
+	info = dev_iommu_priv_get(dev);
 	if (!info || !dev_is_pci(dev) || !info->pasid_table)
 		return;
 
@@ -223,7 +223,7 @@ struct pasid_table *intel_pasid_get_table(struct device *dev)
 {
 	struct device_domain_info *info;
 
-	info = get_domain_info(dev);
+	info = dev_iommu_priv_get(dev);
 	if (!info)
 		return NULL;
 
@@ -234,7 +234,7 @@ static int intel_pasid_get_dev_max_id(struct device *dev)
 {
 	struct device_domain_info *info;
 
-	info = get_domain_info(dev);
+	info = dev_iommu_priv_get(dev);
 	if (!info || !info->pasid_table)
 		return 0;
 
@@ -254,7 +254,7 @@ static struct pasid_entry *intel_pasid_get_entry(struct device *dev, u32 pasid)
 		return NULL;
 
 	dir = pasid_table->table;
-	info = get_domain_info(dev);
+	info = dev_iommu_priv_get(dev);
 	dir_index = pasid >> PASID_PDE_SHIFT;
 	index = pasid & PASID_PTE_MASK;
 
@@ -487,7 +487,7 @@ devtlb_invalidation_with_pasid(struct intel_iommu *iommu,
 	struct device_domain_info *info;
 	u16 sid, qdep, pfsid;
 
-	info = get_domain_info(dev);
+	info = dev_iommu_priv_get(dev);
 	if (!info || !info->ats_enabled)
 		return;
 
@@ -761,165 +761,4 @@ int intel_pasid_setup_pass_through(struct intel_iommu *iommu,
 	pasid_flush_caches(iommu, pte, pasid, did);
 
 	return 0;
-}
-
-static int
-intel_pasid_setup_bind_data(struct intel_iommu *iommu, struct pasid_entry *pte,
-			    struct iommu_gpasid_bind_data_vtd *pasid_data)
-{
-	/*
-	 * Not all guest PASID table entry fields are passed down during bind,
-	 * here we only set up the ones that are dependent on guest settings.
-	 * Execution related bits such as NXE, SMEP are not supported.
-	 * Other fields, such as snoop related, are set based on host needs
-	 * regardless of guest settings.
-	 */
-	if (pasid_data->flags & IOMMU_SVA_VTD_GPASID_SRE) {
-		if (!ecap_srs(iommu->ecap)) {
-			pr_err_ratelimited("No supervisor request support on %s\n",
-					   iommu->name);
-			return -EINVAL;
-		}
-		pasid_set_sre(pte);
-		/* Enable write protect WP if guest requested */
-		if (pasid_data->flags & IOMMU_SVA_VTD_GPASID_WPE)
-			pasid_set_wpe(pte);
-	}
-
-	if (pasid_data->flags & IOMMU_SVA_VTD_GPASID_EAFE) {
-		if (!ecap_eafs(iommu->ecap)) {
-			pr_err_ratelimited("No extended access flag support on %s\n",
-					   iommu->name);
-			return -EINVAL;
-		}
-		pasid_set_eafe(pte);
-	}
-
-	/*
-	 * Memory type is only applicable to devices inside processor coherent
-	 * domain. Will add MTS support once coherent devices are available.
-	 */
-	if (pasid_data->flags & IOMMU_SVA_VTD_GPASID_MTS_MASK) {
-		pr_warn_ratelimited("No memory type support %s\n",
-				    iommu->name);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-/**
- * intel_pasid_setup_nested() - Set up PASID entry for nested translation.
- * This could be used for guest shared virtual address. In this case, the
- * first level page tables are used for GVA-GPA translation in the guest,
- * second level page tables are used for GPA-HPA translation.
- *
- * @iommu:      IOMMU which the device belong to
- * @dev:        Device to be set up for translation
- * @gpgd:       FLPTPTR: First Level Page translation pointer in GPA
- * @pasid:      PASID to be programmed in the device PASID table
- * @pasid_data: Additional PASID info from the guest bind request
- * @domain:     Domain info for setting up second level page tables
- * @addr_width: Address width of the first level (guest)
- */
-int intel_pasid_setup_nested(struct intel_iommu *iommu, struct device *dev,
-			     pgd_t *gpgd, u32 pasid,
-			     struct iommu_gpasid_bind_data_vtd *pasid_data,
-			     struct dmar_domain *domain, int addr_width)
-{
-	struct pasid_entry *pte;
-	struct dma_pte *pgd;
-	int ret = 0;
-	u64 pgd_val;
-	int agaw;
-	u16 did;
-
-	if (!ecap_nest(iommu->ecap)) {
-		pr_err_ratelimited("IOMMU: %s: No nested translation support\n",
-				   iommu->name);
-		return -EINVAL;
-	}
-
-	if (!(domain->flags & DOMAIN_FLAG_NESTING_MODE)) {
-		pr_err_ratelimited("Domain is not in nesting mode, %x\n",
-				   domain->flags);
-		return -EINVAL;
-	}
-
-	pte = intel_pasid_get_entry(dev, pasid);
-	if (WARN_ON(!pte))
-		return -EINVAL;
-
-	/*
-	 * Caller must ensure PASID entry is not in use, i.e. not bind the
-	 * same PASID to the same device twice.
-	 */
-	if (pasid_pte_is_present(pte))
-		return -EBUSY;
-
-	pasid_clear_entry(pte);
-
-	/* Sanity checking performed by caller to make sure address
-	 * width matching in two dimensions:
-	 * 1. CPU vs. IOMMU
-	 * 2. Guest vs. Host.
-	 */
-	switch (addr_width) {
-#ifdef CONFIG_X86
-	case ADDR_WIDTH_5LEVEL:
-		if (!cpu_feature_enabled(X86_FEATURE_LA57) ||
-		    !cap_5lp_support(iommu->cap)) {
-			dev_err_ratelimited(dev,
-					    "5-level paging not supported\n");
-			return -EINVAL;
-		}
-
-		pasid_set_flpm(pte, 1);
-		break;
-#endif
-	case ADDR_WIDTH_4LEVEL:
-		pasid_set_flpm(pte, 0);
-		break;
-	default:
-		dev_err_ratelimited(dev, "Invalid guest address width %d\n",
-				    addr_width);
-		return -EINVAL;
-	}
-
-	/* First level PGD is in GPA, must be supported by the second level */
-	if ((uintptr_t)gpgd > domain->max_addr) {
-		dev_err_ratelimited(dev,
-				    "Guest PGD %lx not supported, max %llx\n",
-				    (uintptr_t)gpgd, domain->max_addr);
-		return -EINVAL;
-	}
-	pasid_set_flptr(pte, (uintptr_t)gpgd);
-
-	ret = intel_pasid_setup_bind_data(iommu, pte, pasid_data);
-	if (ret)
-		return ret;
-
-	/* Setup the second level based on the given domain */
-	pgd = domain->pgd;
-
-	agaw = iommu_skip_agaw(domain, iommu, &pgd);
-	if (agaw < 0) {
-		dev_err_ratelimited(dev, "Invalid domain page table\n");
-		return -EINVAL;
-	}
-	pgd_val = virt_to_phys(pgd);
-	pasid_set_slptr(pte, pgd_val);
-	pasid_set_fault_enable(pte);
-
-	did = domain->iommu_did[iommu->seq_id];
-	pasid_set_domain_id(pte, did);
-
-	pasid_set_address_width(pte, agaw);
-	pasid_set_page_snoop(pte, !!ecap_smpwc(iommu->ecap));
-
-	pasid_set_translation_type(pte, PASID_ENTRY_PGTT_NESTED);
-	pasid_set_present(pte);
-	pasid_flush_caches(iommu, pte, pasid, did);
-
-	return ret;
 }

@@ -238,7 +238,7 @@ static irqreturn_t ite_cir_isr(int irq, void *data)
 	/* Check for RX overflow */
 	if (iflags & ITE_IRQ_RX_FIFO_OVERRUN) {
 		dev_warn(&dev->rdev->dev, "receive overflow\n");
-		ir_raw_event_reset(dev->rdev);
+		ir_raw_event_overflow(dev->rdev);
 	}
 
 	/* check for the receive interrupt */

@@ -301,7 +301,7 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 {
 	struct socket_alloc *ei;
 
-	ei = kmem_cache_alloc(sock_inode_cachep, GFP_KERNEL);
+	ei = alloc_inode_sb(sb, sock_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	init_waitqueue_head(&ei->socket.wq.wait);
@@ -3448,7 +3448,7 @@ EXPORT_SYMBOL(kernel_connect);
  *	@addr: address holder
  *
  * 	Fills the @addr pointer with the address which the socket is bound.
- *	Returns 0 or an error code.
+ *	Returns the length of the address in bytes or an error code.
  */
 
 int kernel_getsockname(struct socket *sock, struct sockaddr *addr)
@@ -3463,7 +3463,7 @@ EXPORT_SYMBOL(kernel_getsockname);
  *	@addr: address holder
  *
  * 	Fills the @addr pointer with the address which the socket is connected.
- *	Returns 0 or an error code.
+ *	Returns the length of the address in bytes or an error code.
  */
 
 int kernel_getpeername(struct socket *sock, struct sockaddr *addr)

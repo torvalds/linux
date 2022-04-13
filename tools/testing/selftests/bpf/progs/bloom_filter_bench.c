@@ -5,6 +5,7 @@
 #include <linux/bpf.h>
 #include <stdbool.h>
 #include <bpf/bpf_helpers.h>
+#include "bpf_misc.h"
 
 char _license[] SEC("license") = "GPL";
 
@@ -87,7 +88,7 @@ bloom_callback(struct bpf_map *map, __u32 *key, void *val,
 	return 0;
 }
 
-SEC("fentry/__x64_sys_getpgid")
+SEC("fentry/" SYS_PREFIX "sys_getpgid")
 int bloom_lookup(void *ctx)
 {
 	struct callback_ctx data;
@@ -100,7 +101,7 @@ int bloom_lookup(void *ctx)
 	return 0;
 }
 
-SEC("fentry/__x64_sys_getpgid")
+SEC("fentry/" SYS_PREFIX "sys_getpgid")
 int bloom_update(void *ctx)
 {
 	struct callback_ctx data;
@@ -113,7 +114,7 @@ int bloom_update(void *ctx)
 	return 0;
 }
 
-SEC("fentry/__x64_sys_getpgid")
+SEC("fentry/" SYS_PREFIX "sys_getpgid")
 int bloom_hashmap_lookup(void *ctx)
 {
 	__u64 *result;

@@ -36,6 +36,7 @@
 #include "gt/intel_context.h"
 #include "gt/intel_engine.h"
 #include "gt/intel_engine_heartbeat.h"
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_reset.h"
 #include "gt/intel_ring.h"
@@ -43,6 +44,7 @@
 
 #include "i915_active.h"
 #include "i915_deps.h"
+#include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_pm.h"
@@ -116,8 +118,10 @@ static void i915_fence_release(struct dma_fence *fence)
 		   rq->guc_prio != GUC_PRIO_FINI);
 
 	i915_request_free_capture_list(fetch_and_zero(&rq->capture_list));
-	if (i915_vma_snapshot_present(&rq->batch_snapshot))
-		i915_vma_snapshot_put_onstack(&rq->batch_snapshot);
+	if (rq->batch_res) {
+		i915_vma_resource_put(rq->batch_res);
+		rq->batch_res = NULL;
+	}
 
 	/*
 	 * The request is put onto a RCU freelist (i.e. the address
@@ -308,7 +312,7 @@ void i915_request_free_capture_list(struct i915_capture_list *capture)
 	while (capture) {
 		struct i915_capture_list *next = capture->next;
 
-		i915_vma_snapshot_put(capture->vma_snapshot);
+		i915_vma_resource_put(capture->vma_res);
 		kfree(capture);
 		capture = next;
 	}
@@ -854,7 +858,7 @@ static void __i915_request_ctor(void *arg)
 	i915_sw_fence_init(&rq->semaphore, semaphore_notify);
 
 	clear_capture_list(rq);
-	rq->batch_snapshot.present = false;
+	rq->batch_res = NULL;
 
 	init_llist_head(&rq->execute_cb);
 }
@@ -960,7 +964,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	__rq_init_watchdog(rq);
 	assert_capture_list_is_null(rq);
 	GEM_BUG_ON(!llist_empty(&rq->execute_cb));
-	GEM_BUG_ON(i915_vma_snapshot_present(&rq->batch_snapshot));
+	GEM_BUG_ON(rq->batch_res);
 
 	/*
 	 * Reserve space in the ring buffer for all the commands required to

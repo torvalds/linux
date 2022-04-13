@@ -839,7 +839,7 @@ static void ath6kl_deliver_frames_to_nw_stack(struct net_device *dev,
 
 	skb->protocol = eth_type_trans(skb, skb->dev);
 
-	netif_rx_ni(skb);
+	netif_rx(skb);
 }
 
 static void ath6kl_alloc_netbufs(struct sk_buff_head *q, u16 num)

@@ -122,6 +122,7 @@ SYM_FUNC_END(xen_read_cr2_direct);
 .macro xen_pv_trap name
 SYM_CODE_START(xen_\name)
 	UNWIND_HINT_EMPTY
+	ENDBR
 	pop %rcx
 	pop %r11
 	jmp  \name
@@ -147,6 +148,9 @@ xen_pv_trap asm_exc_page_fault
 xen_pv_trap asm_exc_spurious_interrupt_bug
 xen_pv_trap asm_exc_coprocessor_error
 xen_pv_trap asm_exc_alignment_check
+#ifdef CONFIG_X86_KERNEL_IBT
+xen_pv_trap asm_exc_control_protection
+#endif
 #ifdef CONFIG_X86_MCE
 xen_pv_trap asm_xenpv_exc_machine_check
 #endif /* CONFIG_X86_MCE */
@@ -162,6 +166,7 @@ SYM_CODE_START(xen_early_idt_handler_array)
 	i = 0
 	.rept NUM_EXCEPTION_VECTORS
 	UNWIND_HINT_EMPTY
+	ENDBR
 	pop %rcx
 	pop %r11
 	jmp early_idt_handler_array + i*EARLY_IDT_HANDLER_SIZE
@@ -189,6 +194,7 @@ hypercall_iret = hypercall_page + __HYPERVISOR_iret * 32
  */
 SYM_CODE_START(xen_iret)
 	UNWIND_HINT_EMPTY
+	ANNOTATE_NOENDBR
 	pushq $0
 	jmp hypercall_iret
 SYM_CODE_END(xen_iret)
@@ -230,6 +236,7 @@ SYM_CODE_END(xenpv_restore_regs_and_return_to_usermode)
 /* Normal 64-bit system call target */
 SYM_CODE_START(xen_syscall_target)
 	UNWIND_HINT_EMPTY
+	ENDBR
 	popq %rcx
 	popq %r11
 
@@ -249,6 +256,7 @@ SYM_CODE_END(xen_syscall_target)
 /* 32-bit compat syscall target */
 SYM_CODE_START(xen_syscall32_target)
 	UNWIND_HINT_EMPTY
+	ENDBR
 	popq %rcx
 	popq %r11
 
@@ -266,6 +274,7 @@ SYM_CODE_END(xen_syscall32_target)
 /* 32-bit compat sysenter target */
 SYM_CODE_START(xen_sysenter_target)
 	UNWIND_HINT_EMPTY
+	ENDBR
 	/*
 	 * NB: Xen is polite and clears TF from EFLAGS for us.  This means
 	 * that we don't need to guard against single step exceptions here.
@@ -289,6 +298,7 @@ SYM_CODE_END(xen_sysenter_target)
 SYM_CODE_START(xen_syscall32_target)
 SYM_CODE_START(xen_sysenter_target)
 	UNWIND_HINT_EMPTY
+	ENDBR
 	lea 16(%rsp), %rsp	/* strip %rcx, %r11 */
 	mov $-ENOSYS, %rax
 	pushq $0

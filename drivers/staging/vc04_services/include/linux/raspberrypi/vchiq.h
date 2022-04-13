@@ -45,7 +45,7 @@ struct vchiq_header {
 	/* Size of message data. */
 	unsigned int size;
 
-	char data[0];           /* message */
+	char data[];           /* message */
 };
 
 struct vchiq_element {

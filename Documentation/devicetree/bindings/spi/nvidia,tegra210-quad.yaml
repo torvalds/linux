@@ -19,6 +19,7 @@ properties:
       - nvidia,tegra210-qspi
       - nvidia,tegra186-qspi
       - nvidia,tegra194-qspi
+      - nvidia,tegra234-qspi
 
   reg:
     maxItems: 1
@@ -106,7 +107,7 @@ examples:
             dma-names = "rx", "tx";
 
             flash@0 {
-                    compatible = "spi-nor";
+                    compatible = "jedec,spi-nor";
                     reg = <0>;
                     spi-max-frequency = <104000000>;
                     spi-tx-bus-width = <2>;

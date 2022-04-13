@@ -208,6 +208,7 @@
 #define JM_MAX_JOB_THROTTLE_LIMIT	0x3F
 #define JM_FORCE_COHERENCY_FEATURES_SHIFT 2
 #define JM_IDVS_GROUP_SIZE_SHIFT	16
+#define JM_DEFAULT_IDVS_GROUP_SIZE	0xF
 #define JM_MAX_IDVS_GROUP_SIZE		0x3F
 
 
@@ -292,7 +293,7 @@
 #define AS_FAULTADDRESS_LO(as)		(MMU_AS(as) + 0x20) /* (RO) Fault Address for address space n, low word */
 #define AS_FAULTADDRESS_HI(as)		(MMU_AS(as) + 0x24) /* (RO) Fault Address for address space n, high word */
 #define AS_STATUS(as)			(MMU_AS(as) + 0x28) /* (RO) Status flags for address space n */
-/* Additional Bifrost AS regsiters */
+/* Additional Bifrost AS registers */
 #define AS_TRANSCFG_LO(as)		(MMU_AS(as) + 0x30) /* (RW) Translation table configuration for address space n, low word */
 #define AS_TRANSCFG_HI(as)		(MMU_AS(as) + 0x34) /* (RW) Translation table configuration for address space n, high word */
 #define AS_FAULTEXTRA_LO(as)		(MMU_AS(as) + 0x38) /* (RO) Secondary fault address for address space n, low word */

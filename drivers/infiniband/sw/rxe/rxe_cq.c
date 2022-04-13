@@ -42,13 +42,14 @@ err1:
 static void rxe_send_complete(struct tasklet_struct *t)
 {
 	struct rxe_cq *cq = from_tasklet(cq, t, comp_task);
+	unsigned long flags;
 
-	spin_lock_bh(&cq->cq_lock);
+	spin_lock_irqsave(&cq->cq_lock, flags);
 	if (cq->is_dying) {
-		spin_unlock_bh(&cq->cq_lock);
+		spin_unlock_irqrestore(&cq->cq_lock, flags);
 		return;
 	}
-	spin_unlock_bh(&cq->cq_lock);
+	spin_unlock_irqrestore(&cq->cq_lock, flags);
 
 	cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 }
@@ -107,12 +108,13 @@ int rxe_cq_post(struct rxe_cq *cq, struct rxe_cqe *cqe, int solicited)
 	struct ib_event ev;
 	int full;
 	void *addr;
+	unsigned long flags;
 
-	spin_lock_bh(&cq->cq_lock);
+	spin_lock_irqsave(&cq->cq_lock, flags);
 
 	full = queue_full(cq->queue, QUEUE_TYPE_TO_CLIENT);
 	if (unlikely(full)) {
-		spin_unlock_bh(&cq->cq_lock);
+		spin_unlock_irqrestore(&cq->cq_lock, flags);
 		if (cq->ibcq.event_handler) {
 			ev.device = cq->ibcq.device;
 			ev.element.cq = &cq->ibcq;
@@ -128,7 +130,7 @@ int rxe_cq_post(struct rxe_cq *cq, struct rxe_cqe *cqe, int solicited)
 
 	queue_advance_producer(cq->queue, QUEUE_TYPE_TO_CLIENT);
 
-	spin_unlock_bh(&cq->cq_lock);
+	spin_unlock_irqrestore(&cq->cq_lock, flags);
 
 	if ((cq->notify == IB_CQ_NEXT_COMP) ||
 	    (cq->notify == IB_CQ_SOLICITED && solicited)) {
@@ -141,9 +143,11 @@ int rxe_cq_post(struct rxe_cq *cq, struct rxe_cqe *cqe, int solicited)
 
 void rxe_cq_disable(struct rxe_cq *cq)
 {
-	spin_lock_bh(&cq->cq_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&cq->cq_lock, flags);
 	cq->is_dying = true;
-	spin_unlock_bh(&cq->cq_lock);
+	spin_unlock_irqrestore(&cq->cq_lock, flags);
 }
 
 void rxe_cq_cleanup(struct rxe_pool_elem *elem)

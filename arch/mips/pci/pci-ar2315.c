@@ -384,7 +384,7 @@ static int ar2315_pci_irq_map(struct irq_domain *d, unsigned irq,
 	return 0;
 }
 
-static struct irq_domain_ops ar2315_pci_irq_domain_ops = {
+static const struct irq_domain_ops ar2315_pci_irq_domain_ops = {
 	.map = ar2315_pci_irq_map,
 };
 

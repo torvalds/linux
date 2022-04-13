@@ -21,7 +21,7 @@
  * Below is some version info we got:
  *    SOC   Version   IP-Version  Glitch- [TR]WRN_INT IRQ Err Memory err RTR rece-   FD Mode     MB
  *                                Filter? connected?  Passive detection  ption in MB Supported?
- * MCF5441X FlexCAN2  ?               no       yes        no       no       yes           no     16
+ * MCF5441X FlexCAN2  ?               no       yes        no       no        no           no     16
  *    MX25  FlexCAN2  03.00.00.00     no        no        no       no        no           no     64
  *    MX28  FlexCAN2  03.00.04.00    yes       yes        no       no        no           no     64
  *    MX35  FlexCAN2  03.00.00.00     no        no        no       no        no           no     64

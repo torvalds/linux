@@ -32,22 +32,10 @@ static inline void blowfish_enc_blk(struct bf_ctx *ctx, u8 *dst, const u8 *src)
 	__blowfish_enc_blk(ctx, dst, src, false);
 }
 
-static inline void blowfish_enc_blk_xor(struct bf_ctx *ctx, u8 *dst,
-					const u8 *src)
-{
-	__blowfish_enc_blk(ctx, dst, src, true);
-}
-
 static inline void blowfish_enc_blk_4way(struct bf_ctx *ctx, u8 *dst,
 					 const u8 *src)
 {
 	__blowfish_enc_blk_4way(ctx, dst, src, false);
-}
-
-static inline void blowfish_enc_blk_xor_4way(struct bf_ctx *ctx, u8 *dst,
-				      const u8 *src)
-{
-	__blowfish_enc_blk_4way(ctx, dst, src, true);
 }
 
 static void blowfish_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)

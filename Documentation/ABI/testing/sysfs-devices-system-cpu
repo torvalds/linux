@@ -73,6 +73,7 @@ What:		/sys/devices/system/cpu/cpuX/topology/core_id
 		/sys/devices/system/cpu/cpuX/topology/physical_package_id
 		/sys/devices/system/cpu/cpuX/topology/thread_siblings
 		/sys/devices/system/cpu/cpuX/topology/thread_siblings_list
+		/sys/devices/system/cpu/cpuX/topology/ppin
 Date:		December 2008
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	CPU topology files that describe a logical CPU's relationship
@@ -102,6 +103,11 @@ Description:	CPU topology files that describe a logical CPU's relationship
 
 		thread_siblings_list: human-readable list of cpuX's hardware
 		threads within the same core as cpuX
+
+		ppin: human-readable Protected Processor Identification
+		Number of the socket the cpu# belongs to. There should be
+		one per physical_package_id. File is readable only to
+		admin.
 
 		See Documentation/admin-guide/cputopology.rst for more information.
 
@@ -662,6 +668,7 @@ Description:	Preferred MTE tag checking mode
 
 		================  ==============================================
 		"sync"	  	  Prefer synchronous mode
+		"asymm"	  	  Prefer asymmetric mode
 		"async"	  	  Prefer asynchronous mode
 		================  ==============================================
 

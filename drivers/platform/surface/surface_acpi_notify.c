@@ -770,7 +770,8 @@ static acpi_status san_consumer_setup(acpi_handle handle, u32 lvl,
 		return AE_OK;
 
 	/* Ignore ACPI devices that are not present. */
-	if (acpi_bus_get_device(handle, &adev) != 0)
+	adev = acpi_fetch_acpi_dev(handle);
+	if (!adev)
 		return AE_OK;
 
 	san_consumer_dbg(&pdev->dev, handle, "creating device link\n");

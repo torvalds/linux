@@ -20,17 +20,27 @@ int arch_evlist__add_default_attrs(struct evlist *evlist)
 
 struct evsel *arch_evlist__leader(struct list_head *list)
 {
-	struct evsel *evsel, *first;
+	struct evsel *evsel, *first, *slots = NULL;
+	bool has_topdown = false;
 
 	first = list_first_entry(list, struct evsel, core.node);
 
 	if (!pmu_have_event("cpu", "slots"))
 		return first;
 
+	/* If there is a slots event and a topdown event then the slots event comes first. */
 	__evlist__for_each_entry(list, evsel) {
-		if (evsel->pmu_name && !strcmp(evsel->pmu_name, "cpu") &&
-			evsel->name && strstr(evsel->name, "slots"))
-			return evsel;
+		if (evsel->pmu_name && !strcmp(evsel->pmu_name, "cpu") && evsel->name) {
+			if (strcasestr(evsel->name, "slots")) {
+				slots = evsel;
+				if (slots == first)
+					return first;
+			}
+			if (!strncasecmp(evsel->name, "topdown", 7))
+				has_topdown = true;
+			if (slots && has_topdown)
+				return slots;
+		}
 	}
 	return first;
 }

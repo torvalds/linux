@@ -139,30 +139,37 @@ config IIO_ST_GYRO_3AXIS
 	tristate "STMicroelectronics gyroscopes 3-Axis Driver"
 	depends on (I2C || SPI_MASTER) && SYSFS
 	select IIO_ST_SENSORS_CORE
-	select IIO_ST_GYRO_I2C_3AXIS if (I2C)
-	select IIO_ST_GYRO_SPI_3AXIS if (SPI_MASTER)
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics gyroscopes:
 	  L3G4200D, LSM330DL, L3GD20, LSM330DLC, L3G4IS, LSM330, LSM9DS0.
 
-	  This driver can also be built as a module. If so, these modules
-	  will be created:
-	  - st_gyro (core functions for the driver [it is mandatory]);
-	  - st_gyro_i2c (necessary for the I2C devices [optional*]);
-	  - st_gyro_spi (necessary for the SPI devices [optional*]);
-
-	  (*) one of these is necessary to do something.
+	  Also need to enable at least one of I2C and SPI interface drivers
+	  below.
 
 config IIO_ST_GYRO_I2C_3AXIS
-	tristate
-	depends on IIO_ST_GYRO_3AXIS
-	depends on IIO_ST_SENSORS_I2C
+	tristate "STMicroelectronics gyroscopes 3-Axis I2C Interface"
+	depends on I2C && IIO_ST_GYRO_3AXIS
+	default I2C && IIO_ST_GYRO_3AXIS
+	select IIO_ST_SENSORS_I2C
+	help
+	  Build support for STMicroelectronics gyroscopes I2C interface.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_gyro_i2c.
+
 
 config IIO_ST_GYRO_SPI_3AXIS
-	tristate
-	depends on IIO_ST_GYRO_3AXIS
-	depends on IIO_ST_SENSORS_SPI
+	tristate "STMicroelectronics gyroscopes 3-Axis SPI Interface"
+	depends on SPI_MASTER && IIO_ST_GYRO_3AXIS
+	default SPI_MASTER && IIO_ST_GYRO_3AXIS
+	select IIO_ST_SENSORS_SPI
+	help
+	  Build support for STMicroelectronics gyroscopes SPI interface.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_gyro_spi.
+
 
 config ITG3200
 	tristate "InvenSense ITG3200 Digital 3-Axis Gyroscope I2C driver"

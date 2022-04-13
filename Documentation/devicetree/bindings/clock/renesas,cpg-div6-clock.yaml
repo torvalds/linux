@@ -51,6 +51,18 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/clock/r8a73a4-clock.h>
+
+    cpg_clocks: cpg_clocks@e6150000 {
+            compatible = "renesas,r8a73a4-cpg-clocks";
+            reg = <0xe6150000 0x10000>;
+            clocks = <&extal1_clk>, <&extal2_clk>;
+            #clock-cells = <1>;
+            clock-output-names = "main", "pll0", "pll1", "pll2",
+                                  "pll2s", "pll2h", "z", "z2",
+                                  "i", "m3", "b", "m1", "m2",
+                                  "zx", "zs", "hp";
+    };
+
     sdhi2_clk: sdhi2_clk@e615007c {
             compatible = "renesas,r8a73a4-div6-clock", "renesas,cpg-div6-clock";
             reg = <0xe615007c 4>;

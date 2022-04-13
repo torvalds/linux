@@ -39,8 +39,8 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 	}
 
 	do {
-		ret = kvm_gfn_to_pfn_cache_init(kvm, gpc, NULL, false, true,
-						gpa, PAGE_SIZE, false);
+		ret = kvm_gfn_to_pfn_cache_init(kvm, gpc, NULL, KVM_HOST_USES_PFN,
+						gpa, PAGE_SIZE);
 		if (ret)
 			goto out;
 
@@ -133,32 +133,57 @@ static void kvm_xen_update_runstate(struct kvm_vcpu *v, int state)
 void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 {
 	struct kvm_vcpu_xen *vx = &v->arch.xen;
+	struct gfn_to_hva_cache *ghc = &vx->runstate_cache;
+	struct kvm_memslots *slots = kvm_memslots(v->kvm);
+	bool atomic = (state == RUNSTATE_runnable);
 	uint64_t state_entry_time;
-	unsigned int offset;
+	int __user *user_state;
+	uint64_t __user *user_times;
 
 	kvm_xen_update_runstate(v, state);
 
 	if (!vx->runstate_set)
 		return;
 
+	if (unlikely(slots->generation != ghc->generation || kvm_is_error_hva(ghc->hva)) &&
+	    kvm_gfn_to_hva_cache_init(v->kvm, ghc, ghc->gpa, ghc->len))
+		return;
+
+	/* We made sure it fits in a single page */
+	BUG_ON(!ghc->memslot);
+
+	if (atomic)
+		pagefault_disable();
+
+	/*
+	 * The only difference between 32-bit and 64-bit versions of the
+	 * runstate struct us the alignment of uint64_t in 32-bit, which
+	 * means that the 64-bit version has an additional 4 bytes of
+	 * padding after the first field 'state'.
+	 *
+	 * So we use 'int __user *user_state' to point to the state field,
+	 * and 'uint64_t __user *user_times' for runstate_entry_time. So
+	 * the actual array of time[] in each state starts at user_times[1].
+	 */
+	BUILD_BUG_ON(offsetof(struct vcpu_runstate_info, state) != 0);
+	BUILD_BUG_ON(offsetof(struct compat_vcpu_runstate_info, state) != 0);
+	user_state = (int __user *)ghc->hva;
+
 	BUILD_BUG_ON(sizeof(struct compat_vcpu_runstate_info) != 0x2c);
 
-	offset = offsetof(struct compat_vcpu_runstate_info, state_entry_time);
+	user_times = (uint64_t __user *)(ghc->hva +
+					 offsetof(struct compat_vcpu_runstate_info,
+						  state_entry_time));
 #ifdef CONFIG_X86_64
-	/*
-	 * The only difference is alignment of uint64_t in 32-bit.
-	 * So the first field 'state' is accessed directly using
-	 * offsetof() (where its offset happens to be zero), while the
-	 * remaining fields which are all uint64_t, start at 'offset'
-	 * which we tweak here by adding 4.
-	 */
 	BUILD_BUG_ON(offsetof(struct vcpu_runstate_info, state_entry_time) !=
 		     offsetof(struct compat_vcpu_runstate_info, state_entry_time) + 4);
 	BUILD_BUG_ON(offsetof(struct vcpu_runstate_info, time) !=
 		     offsetof(struct compat_vcpu_runstate_info, time) + 4);
 
 	if (v->kvm->arch.xen.long_mode)
-		offset = offsetof(struct vcpu_runstate_info, state_entry_time);
+		user_times = (uint64_t __user *)(ghc->hva +
+						 offsetof(struct vcpu_runstate_info,
+							  state_entry_time));
 #endif
 	/*
 	 * First write the updated state_entry_time at the appropriate
@@ -172,10 +197,8 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 	BUILD_BUG_ON(sizeof_field(struct compat_vcpu_runstate_info, state_entry_time) !=
 		     sizeof(state_entry_time));
 
-	if (kvm_write_guest_offset_cached(v->kvm, &v->arch.xen.runstate_cache,
-					  &state_entry_time, offset,
-					  sizeof(state_entry_time)))
-		return;
+	if (__put_user(state_entry_time, user_times))
+		goto out;
 	smp_wmb();
 
 	/*
@@ -189,11 +212,8 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 	BUILD_BUG_ON(sizeof_field(struct compat_vcpu_runstate_info, state) !=
 		     sizeof(vx->current_runstate));
 
-	if (kvm_write_guest_offset_cached(v->kvm, &v->arch.xen.runstate_cache,
-					  &vx->current_runstate,
-					  offsetof(struct vcpu_runstate_info, state),
-					  sizeof(vx->current_runstate)))
-		return;
+	if (__put_user(vx->current_runstate, user_state))
+		goto out;
 
 	/*
 	 * Write the actual runstate times immediately after the
@@ -208,24 +228,23 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 	BUILD_BUG_ON(sizeof_field(struct vcpu_runstate_info, time) !=
 		     sizeof(vx->runstate_times));
 
-	if (kvm_write_guest_offset_cached(v->kvm, &v->arch.xen.runstate_cache,
-					  &vx->runstate_times[0],
-					  offset + sizeof(u64),
-					  sizeof(vx->runstate_times)))
-		return;
-
+	if (__copy_to_user(user_times + 1, vx->runstate_times, sizeof(vx->runstate_times)))
+		goto out;
 	smp_wmb();
 
 	/*
 	 * Finally, clear the XEN_RUNSTATE_UPDATE bit in the guest's
 	 * runstate_entry_time field.
 	 */
-
 	state_entry_time &= ~XEN_RUNSTATE_UPDATE;
-	if (kvm_write_guest_offset_cached(v->kvm, &v->arch.xen.runstate_cache,
-					  &state_entry_time, offset,
-					  sizeof(state_entry_time)))
-		return;
+	__put_user(state_entry_time, user_times);
+	smp_wmb();
+
+ out:
+	mark_page_dirty_in_slot(v->kvm, ghc->memslot, ghc->gpa >> PAGE_SHIFT);
+
+	if (atomic)
+		pagefault_enable();
 }
 
 int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
@@ -316,10 +335,7 @@ int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 				     "\tnotq %0\n"
 				     "\t" LOCK_PREFIX "andq %0, %2\n"
 				     "2:\n"
-				     "\t.section .fixup,\"ax\"\n"
-				     "3:\tjmp\t2b\n"
-				     "\t.previous\n"
-				     _ASM_EXTABLE_UA(1b, 3b)
+				     _ASM_EXTABLE_UA(1b, 2b)
 				     : "=r" (evtchn_pending_sel),
 				       "+m" (vi->evtchn_pending_sel),
 				       "+m" (v->arch.xen.evtchn_pending_sel)
@@ -335,10 +351,7 @@ int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 				     "\tnotl %0\n"
 				     "\t" LOCK_PREFIX "andl %0, %2\n"
 				     "2:\n"
-				     "\t.section .fixup,\"ax\"\n"
-				     "3:\tjmp\t2b\n"
-				     "\t.previous\n"
-				     _ASM_EXTABLE_UA(1b, 3b)
+				     _ASM_EXTABLE_UA(1b, 2b)
 				     : "=r" (evtchn_pending_sel32),
 				       "+m" (vi->evtchn_pending_sel),
 				       "+m" (v->arch.xen.evtchn_pending_sel)
@@ -449,6 +462,12 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 			break;
 		}
 
+		/* It must fit within a single page */
+		if ((data->u.gpa & ~PAGE_MASK) + sizeof(struct vcpu_info) > PAGE_SIZE) {
+			r = -EINVAL;
+			break;
+		}
+
 		r = kvm_gfn_to_hva_cache_init(vcpu->kvm,
 					      &vcpu->arch.xen.vcpu_info_cache,
 					      data->u.gpa,
@@ -463,6 +482,12 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		if (data->u.gpa == GPA_INVALID) {
 			vcpu->arch.xen.vcpu_time_info_set = false;
 			r = 0;
+			break;
+		}
+
+		/* It must fit within a single page */
+		if ((data->u.gpa & ~PAGE_MASK) + sizeof(struct pvclock_vcpu_time_info) > PAGE_SIZE) {
+			r = -EINVAL;
 			break;
 		}
 
@@ -484,6 +509,12 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		if (data->u.gpa == GPA_INVALID) {
 			vcpu->arch.xen.runstate_set = false;
 			r = 0;
+			break;
+		}
+
+		/* It must fit within a single page */
+		if ((data->u.gpa & ~PAGE_MASK) + sizeof(struct vcpu_runstate_info) > PAGE_SIZE) {
+			r = -EINVAL;
 			break;
 		}
 
@@ -701,7 +732,7 @@ int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 		instructions[0] = 0xb8;
 
 		/* vmcall / vmmcall */
-		kvm_x86_ops.patch_hypercall(vcpu, instructions + 5);
+		static_call(kvm_x86_patch_hypercall)(vcpu, instructions + 5);
 
 		/* ret */
 		instructions[8] = 0xc3;
@@ -836,7 +867,7 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 	vcpu->run->exit_reason = KVM_EXIT_XEN;
 	vcpu->run->xen.type = KVM_EXIT_XEN_HCALL;
 	vcpu->run->xen.u.hcall.longmode = longmode;
-	vcpu->run->xen.u.hcall.cpl = kvm_x86_ops.get_cpl(vcpu);
+	vcpu->run->xen.u.hcall.cpl = static_call(kvm_x86_get_cpl)(vcpu);
 	vcpu->run->xen.u.hcall.input = input;
 	vcpu->run->xen.u.hcall.params[0] = params[0];
 	vcpu->run->xen.u.hcall.params[1] = params[1];
@@ -994,8 +1025,7 @@ static int evtchn_set_fn(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm
 			break;
 
 		idx = srcu_read_lock(&kvm->srcu);
-		rc = kvm_gfn_to_pfn_cache_refresh(kvm, gpc, gpc->gpa,
-						  PAGE_SIZE, false);
+		rc = kvm_gfn_to_pfn_cache_refresh(kvm, gpc, gpc->gpa, PAGE_SIZE);
 		srcu_read_unlock(&kvm->srcu, idx);
 	} while(!rc);
 

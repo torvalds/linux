@@ -147,7 +147,7 @@ EXPORT_SYMBOL(qe_issue_cmd);
  * memory mapped space.
  * The BRG clock is the QE clock divided by 2.
  * It was set up long ago during the initial boot phase and is
- * is given to us.
+ * given to us.
  * Baud rate clocks are zero-based in the driver code (as that maps
  * to port numbers). Documentation uses 1-based numbering.
  */
@@ -421,7 +421,7 @@ static void qe_upload_microcode(const void *base,
 
 	for (i = 0; i < be32_to_cpu(ucode->count); i++)
 		iowrite32be(be32_to_cpu(code[i]), &qe_immr->iram.idata);
-	
+
 	/* Set I-RAM Ready Register */
 	iowrite32be(QE_IRAM_READY, &qe_immr->iram.iready);
 }

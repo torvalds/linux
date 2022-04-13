@@ -28,7 +28,7 @@
 #include <media/i2c/wm8775.h>
 
 #include "cx88-reg.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 
 #include <linux/mutex.h>
 

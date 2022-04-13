@@ -4,6 +4,7 @@
  */
 
 #include "intel_combo_phy.h"
+#include "intel_combo_phy_regs.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 

@@ -203,7 +203,7 @@ const struct regmap_config bmc150_regmap_conf = {
 	.val_bits = 8,
 	.max_register = 0x3f,
 };
-EXPORT_SYMBOL_GPL(bmc150_regmap_conf);
+EXPORT_SYMBOL_NS_GPL(bmc150_regmap_conf, IIO_BMC150);
 
 static int bmc150_accel_set_mode(struct bmc150_accel_data *data,
 				 enum bmc150_power_modes mode,
@@ -1783,11 +1783,14 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	ret = iio_device_register(indio_dev);
 	if (ret < 0) {
 		dev_err(dev, "Unable to register iio device\n");
-		goto err_trigger_unregister;
+		goto err_pm_cleanup;
 	}
 
 	return 0;
 
+err_pm_cleanup:
+	pm_runtime_dont_use_autosuspend(dev);
+	pm_runtime_disable(dev);
 err_trigger_unregister:
 	bmc150_accel_unregister_triggers(data, BMC150_ACCEL_TRIGGERS - 1);
 err_buffer_cleanup:
@@ -1798,7 +1801,7 @@ err_disable_regulators:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(bmc150_accel_core_probe);
+EXPORT_SYMBOL_NS_GPL(bmc150_accel_core_probe, IIO_BMC150);
 
 void bmc150_accel_core_remove(struct device *dev)
 {
@@ -1821,7 +1824,7 @@ void bmc150_accel_core_remove(struct device *dev)
 	regulator_bulk_disable(ARRAY_SIZE(data->regulators),
 			       data->regulators);
 }
-EXPORT_SYMBOL_GPL(bmc150_accel_core_remove);
+EXPORT_SYMBOL_NS_GPL(bmc150_accel_core_remove, IIO_BMC150);
 
 #ifdef CONFIG_PM_SLEEP
 static int bmc150_accel_suspend(struct device *dev)
@@ -1896,7 +1899,7 @@ const struct dev_pm_ops bmc150_accel_pm_ops = {
 	SET_RUNTIME_PM_OPS(bmc150_accel_runtime_suspend,
 			   bmc150_accel_runtime_resume, NULL)
 };
-EXPORT_SYMBOL_GPL(bmc150_accel_pm_ops);
+EXPORT_SYMBOL_NS_GPL(bmc150_accel_pm_ops, IIO_BMC150);
 
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_LICENSE("GPL v2");

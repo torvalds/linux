@@ -135,7 +135,6 @@ u32 tcp_ca_get_key_by_name(struct net *net, const char *name, bool *ecn_ca)
 
 	return key;
 }
-EXPORT_SYMBOL_GPL(tcp_ca_get_key_by_name);
 
 char *tcp_ca_get_name_by_key(u32 key, char *buffer)
 {
@@ -151,7 +150,6 @@ char *tcp_ca_get_name_by_key(u32 key, char *buffer)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(tcp_ca_get_name_by_key);
 
 /* Assign choice of congestion control. */
 void tcp_assign_congestion_control(struct sock *sk)

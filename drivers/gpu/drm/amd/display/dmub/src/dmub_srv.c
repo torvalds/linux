@@ -32,6 +32,8 @@
 #include "dmub_dcn302.h"
 #include "dmub_dcn303.h"
 #include "dmub_dcn31.h"
+#include "dmub_dcn315.h"
+#include "dmub_dcn316.h"
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -220,7 +222,14 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 
 	case DMUB_ASIC_DCN31:
 	case DMUB_ASIC_DCN31B:
-		dmub->regs_dcn31 = &dmub_srv_dcn31_regs;
+	case DMUB_ASIC_DCN315:
+	case DMUB_ASIC_DCN316:
+		if (asic == DMUB_ASIC_DCN315)
+			dmub->regs_dcn31 = &dmub_srv_dcn315_regs;
+		else if (asic == DMUB_ASIC_DCN316)
+			dmub->regs_dcn31 = &dmub_srv_dcn316_regs;
+		else
+			dmub->regs_dcn31 = &dmub_srv_dcn31_regs;
 		funcs->reset = dmub_dcn31_reset;
 		funcs->reset_release = dmub_dcn31_reset_release;
 		funcs->backdoor_load = dmub_dcn31_backdoor_load;

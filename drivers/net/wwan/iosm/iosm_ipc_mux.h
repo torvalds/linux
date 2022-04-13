@@ -8,9 +8,12 @@
 
 #include "iosm_ipc_protocol.h"
 
-/* Size of the buffer for the IP MUX data buffer. */
-#define IPC_MEM_MAX_DL_MUX_BUF_SIZE (16 * 1024)
-#define IPC_MEM_MAX_UL_ADB_BUF_SIZE IPC_MEM_MAX_DL_MUX_BUF_SIZE
+#define IPC_MEM_MAX_UL_DG_ENTRIES	100
+#define IPC_MEM_MAX_TDS_MUX_AGGR_UL	60
+
+#define IPC_MEM_MAX_ADB_BUF_SIZE (16 * 1024)
+#define IPC_MEM_MAX_UL_ADB_BUF_SIZE IPC_MEM_MAX_ADB_BUF_SIZE
+#define IPC_MEM_MAX_DL_ADB_BUF_SIZE IPC_MEM_MAX_ADB_BUF_SIZE
 
 /* Size of the buffer for the IP MUX Lite data buffer. */
 #define IPC_MEM_MAX_DL_MUX_LITE_BUF_SIZE (2 * 1024)
@@ -167,6 +170,7 @@ enum mux_state {
 enum ipc_mux_protocol {
 	MUX_UNKNOWN,
 	MUX_LITE,
+	MUX_AGGREGATION,
 };
 
 /* Supported UL data transfer methods. */
@@ -192,24 +196,111 @@ struct mux_session {
 	   flush:1; /* flush net interface ? */
 };
 
-/* State of a single UL data block. */
-struct mux_adb {
-	struct sk_buff *dest_skb; /* Current UL skb for the data block. */
-	u8 *buf; /* ADB memory. */
-	struct mux_adgh *adgh; /* ADGH pointer */
-	struct sk_buff *qlth_skb; /* QLTH pointer */
-	u32 *next_table_index; /* Pointer to next table index. */
-	struct sk_buff_head free_list; /* List of alloc. ADB for the UL sess.*/
-	int size; /* Size of the ADB memory. */
-	u32 if_cnt; /* Statistic counter */
-	u32 dg_cnt_total;
-	u32 payload_size;
+/**
+ * struct mux_adth_dg - Structure of the datagram in the Aggregated Datagram
+ *			Table Header.
+ * @datagram_index :	Index (in bytes) to the k-th datagram in the table.
+ *			Index shall count from the start of the block including
+ *			the 16-byte header. This value shall be non-zero.
+ * @datagram_length:	Length of the k-th datagram including the head padding.
+ *			This value shall be non-zero.
+ * @service_class:	Service class identifier for the datagram.
+ * @reserved:		Reserved bytes. Set to zero
+ */
+struct mux_adth_dg {
+	__le32 datagram_index;
+	__le16 datagram_length;
+	u8 service_class;
+	u8 reserved;
 };
 
-/* Temporary ACB state. */
+/**
+ * struct mux_qlth_ql - Structure of the queue level in the Aggregated
+ *			Datagram Queue Level Table Header.
+ * @nr_of_bytes:	Number of bytes available to transmit in the queue.
+ */
+struct mux_qlth_ql {
+	__le32 nr_of_bytes;
+};
+
+/**
+ * struct mux_qlth -    Structure of Aggregated Datagram Queue Level Table
+ *			Header.
+ * @signature:          Signature of the Queue Level Table Header
+ *                      Value: 0x48544C51 (ASCII characters: 'Q' 'L' 'T' 'H')
+ * @table_length:       Length (in bytes) of the datagram table. This length
+ *                      shall include the queue level table header size.
+ *                      Minimum value:0x10
+ * @if_id:              ID of the interface the queue levels in the table
+ *                      belong to.
+ * @reserved:           Reserved byte. Set to zero.
+ * @next_table_index:   Index (in bytes) to the next table in the buffer. Index
+ *                      shall count from the start of the block including the
+ *                      16-byte header. Value of zero indicates end of the list.
+ * @reserved2:          Reserved bytes. Set to zero
+ * @ql:                 Queue level table with variable length
+ */
+struct mux_qlth {
+	__le32 signature;
+	__le16 table_length;
+	u8 if_id;
+	u8 reserved;
+	__le32 next_table_index;
+	__le32 reserved2;
+	struct mux_qlth_ql ql;
+};
+
+/**
+ * struct mux_adb - Structure of State of a single UL data block.
+ * @dest_skb:		Current UL skb for the data block.
+ * @buf:		ADB memory
+ * @adgh:		ADGH pointer
+ * @qlth_skb:		QLTH pointer
+ * @next_table_index:	Pointer to next table index.
+ * @free_list:		List of alloc. ADB for the UL sess.
+ * @size:		Size of the ADB memory.
+ * @if_cnt:		Statistic counter
+ * @dg_cnt_total:	Datagram count total
+ * @payload_size:	Payload Size
+ * @dg:			Datagram table.
+ * @pp_qlt:		Pointers to hold Queue Level Tables of session
+ * @adbh:		ADBH pointer
+ * @qlt_updated:	Queue level table updated
+ * @dg_count:		Datagram count
+ */
+struct mux_adb {
+	struct sk_buff *dest_skb;
+	u8 *buf;
+	struct mux_adgh *adgh;
+	struct sk_buff *qlth_skb;
+	u32 *next_table_index;
+	struct sk_buff_head free_list;
+	int size;
+	u32 if_cnt;
+	u32 dg_cnt_total;
+	u32 payload_size;
+	struct mux_adth_dg
+		dg[IPC_MEM_MUX_IP_SESSION_ENTRIES][IPC_MEM_MAX_UL_DG_ENTRIES];
+	struct mux_qlth *pp_qlt[IPC_MEM_MUX_IP_SESSION_ENTRIES];
+	struct mux_adbh *adbh;
+	u32 qlt_updated[IPC_MEM_MUX_IP_SESSION_ENTRIES];
+	u32 dg_count[IPC_MEM_MUX_IP_SESSION_ENTRIES];
+};
+
+/**
+ * struct mux_acb - Structure of Temporary ACB state.
+ * @skb:		Used UL skb.
+ * @if_id:		Session id.
+ * @buf_p:		Command buffer.
+ * @wanted_response:	Wanted Response
+ * @got_response:	Got response
+ * @cmd:		command
+ * @got_param:		Received command/response parameter
+ */
 struct mux_acb {
 	struct sk_buff *skb; /* Used UL skb. */
 	int if_id; /* Session id. */
+	u8 *buf_p;
 	u32 wanted_response;
 	u32 got_response;
 	u32 cmd;
@@ -241,6 +332,12 @@ struct mux_acb {
  * @wwan_q_offset:	This will hold the offset of the given instance
  *			Useful while passing or receiving packets from
  *			wwan/imem layer.
+ * @adb_finish_timer:	Timer for forcefully finishing the ADB
+ * @acb_tx_sequence_nr: Sequence number for the ACB header.
+ * @params:		user configurable parameters
+ * @adb_tx_sequence_nr: Sequence number for ADB header
+ * @acc_adb_size:       Statistic data for logging
+ * @acc_payload_size:   Statistic data for logging
  * @initialized:	MUX object is initialized
  * @ev_mux_net_transmit_pending:
  *			0 means inform the IPC tasklet to pass the
@@ -269,10 +366,16 @@ struct iosm_mux {
 	long long ul_data_pend_bytes;
 	struct mux_acb acb;
 	int wwan_q_offset;
+	struct hrtimer adb_finish_timer;
+	u16 acb_tx_sequence_nr;
+	struct ipc_params *params;
+	u16 adb_tx_sequence_nr;
+	unsigned long long acc_adb_size;
+	unsigned long long acc_payload_size;
 	u8 initialized:1,
 	   ev_mux_net_transmit_pending:1,
-	   adb_prep_ongoing:1;
-};
+	   adb_prep_ongoing;
+} __packed;
 
 /* MUX configuration structure */
 struct ipc_mux_config {

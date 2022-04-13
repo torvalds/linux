@@ -120,6 +120,11 @@ enum mlx5_flow_steering_mode {
 	MLX5_FLOW_STEERING_MODE_SMFS
 };
 
+enum mlx5_flow_steering_capabilty {
+	MLX5_FLOW_STEERING_CAP_VLAN_PUSH_ON_RX = 1UL << 0,
+	MLX5_FLOW_STEERING_CAP_VLAN_POP_ON_TX = 1UL << 1,
+};
+
 struct mlx5_flow_steering {
 	struct mlx5_core_dev *dev;
 	enum   mlx5_flow_steering_mode	mode;
@@ -300,6 +305,8 @@ int mlx5_fs_egress_acls_init(struct mlx5_core_dev *dev, int total_vports);
 void mlx5_fs_egress_acls_cleanup(struct mlx5_core_dev *dev);
 int mlx5_fs_ingress_acls_init(struct mlx5_core_dev *dev, int total_vports);
 void mlx5_fs_ingress_acls_cleanup(struct mlx5_core_dev *dev);
+
+u32 mlx5_fs_get_capabilities(struct mlx5_core_dev *dev, enum mlx5_flow_namespace_type type);
 
 struct mlx5_flow_root_namespace *find_root(struct fs_node *node);
 

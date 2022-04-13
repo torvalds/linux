@@ -515,6 +515,10 @@ static void ceph_con_reset_protocol(struct ceph_connection *con)
 		ceph_msg_put(con->out_msg);
 		con->out_msg = NULL;
 	}
+	if (con->bounce_page) {
+		__free_page(con->bounce_page);
+		con->bounce_page = NULL;
+	}
 
 	if (ceph_msgr2(from_msgr(con->msgr)))
 		ceph_con_v2_reset_protocol(con);

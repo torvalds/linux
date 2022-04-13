@@ -19,11 +19,3 @@ config DRM_I915_UNSTABLE
 	  Recommended for driver developers _only_.
 
 	  If in the slightest bit of doubt, say "N".
-
-config DRM_I915_UNSTABLE_FAKE_LMEM
-	bool "Enable the experimental fake lmem"
-	depends on DRM_I915_UNSTABLE
-	default n
-	help
-	  Convert some system memory into a fake local memory region for
-	  testing.

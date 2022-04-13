@@ -17,6 +17,8 @@ a) 等待一个CPU（任务为可运行）
 b) 完成由该任务发起的块I/O同步请求
 c) 页面交换
 d) 内存回收
+e) 页缓存抖动
+f) 直接规整
 
 并将这些统计信息通过taskstats接口提供给用户空间。
 
@@ -37,10 +39,10 @@ d) 内存回收
 向用户态返回一个通用数据结构，对应每pid或每tgid的统计信息。延时计数功能填写
 该数据结构的特定字段。见
 
-     include/linux/taskstats.h
+     include/uapi/linux/taskstats.h
 
 其描述了延时计数相关字段。系统通常以计数器形式返回 CPU、同步块 I/O、交换、内存
-回收等的累积延时。
+回收、页缓存抖动、直接规整等的累积延时。
 
 取任务某计数器两个连续读数的差值，将得到任务在该时间间隔内等待对应资源的总延时。
 
@@ -72,40 +74,36 @@ kernel.task_delayacct进行开关。注意，只有在启用延时计数后启�
 
 getdelays命令的一般格式::
 
-	getdelays [-t tgid] [-p pid] [-c cmd...]
+	getdelays [-dilv] [-t tgid] [-p pid]
 
 获取pid为10的任务从系统启动后的延时信息::
 
-	# ./getdelays -p 10
+	# ./getdelays -d -p 10
 	（输出信息和下例相似）
 
 获取所有tgid为5的任务从系统启动后的总延时信息::
 
-	# ./getdelays -t 5
+	# ./getdelays -d -t 5
+	print delayacct stats ON
+	TGID	5
 
 
-	CPU	count	real total	virtual total	delay total
-		7876	92005750	100000000	24001500
-	IO	count	delay total
-		0	0
-	SWAP	count	delay total
-		0	0
-	RECLAIM	count	delay total
-		0	0
+	CPU             count     real total  virtual total    delay total  delay average
+	                    8        7000000        6872122        3382277          0.423ms
+	IO              count    delay total  delay average
+	                    0              0              0ms
+	SWAP            count    delay total  delay average
+	                    0              0              0ms
+	RECLAIM         count    delay total  delay average
+	                    0              0              0ms
+	THRASHING       count    delay total  delay average
+	                    0              0              0ms
+	COMPACT         count    delay total  delay average
+	                    0              0              0ms
 
-获取指定简单命令运行时的延时信息::
+获取pid为1的IO计数，它只和-p一起使用::
+	# ./getdelays -i -p 1
+	printing IO accounting
+	linuxrc: read=65536, write=0, cancelled_write=0
 
-  # ./getdelays -c ls /
-
-  bin   data1  data3  data5  dev  home  media  opt   root  srv        sys  usr
-  boot  data2  data4  data6  etc  lib   mnt    proc  sbin  subdomain  tmp  var
-
-
-  CPU	count	real total	virtual total	delay total
-	6	4000250		4000000		0
-  IO	count	delay total
-	0	0
-  SWAP	count	delay total
-	0	0
-  RECLAIM	count	delay total
-	0	0
+上面的命令与-v一起使用，可以获取更多调试信息。

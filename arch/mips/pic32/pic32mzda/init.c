@@ -78,14 +78,6 @@ void __init prom_init(void)
 	pic32_init_cmdline((int)fw_arg0, (char **)fw_arg1);
 }
 
-void __init device_tree_init(void)
-{
-	if (!initial_boot_params)
-		return;
-
-	unflatten_and_copy_device_tree();
-}
-
 static struct pic32_sdhci_platform_data sdhci_data = {
 	.setup_dma = pic32_set_sdhci_adma_fifo_threshold,
 };

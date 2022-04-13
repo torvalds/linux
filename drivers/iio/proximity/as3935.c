@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
+#include <linux/devm-helpers.h>
 #include <linux/mutex.h>
 #include <linux/err.h>
 #include <linux/irq.h>
@@ -122,7 +123,7 @@ static ssize_t as3935_sensor_sensitivity_show(struct device *dev,
 		return ret;
 	val = (val & AS3935_AFE_MASK) >> 1;
 
-	return sprintf(buf, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t as3935_sensor_sensitivity_store(struct device *dev,
@@ -153,7 +154,7 @@ static ssize_t as3935_noise_level_tripped_show(struct device *dev,
 	int ret;
 
 	mutex_lock(&st->lock);
-	ret = sprintf(buf, "%d\n", !time_after(jiffies, st->noise_tripped + HZ));
+	ret = sysfs_emit(buf, "%d\n", !time_after(jiffies, st->noise_tripped + HZ));
 	mutex_unlock(&st->lock);
 
 	return ret;
@@ -295,7 +296,6 @@ static void calibrate_as3935(struct as3935_state *st)
 	as3935_write(st, AS3935_NFLWDTH, st->nflwdth_reg);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int as3935_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
@@ -337,20 +337,7 @@ err_resume:
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(as3935_pm_ops, as3935_suspend, as3935_resume);
-#define AS3935_PM_OPS (&as3935_pm_ops)
-
-#else
-#define AS3935_PM_OPS NULL
-#endif
-
-static void as3935_stop_work(void *data)
-{
-	struct iio_dev *indio_dev = data;
-	struct as3935_state *st = iio_priv(indio_dev);
-
-	cancel_delayed_work_sync(&st->work);
-}
+static DEFINE_SIMPLE_DEV_PM_OPS(as3935_pm_ops, as3935_suspend, as3935_resume);
 
 static int as3935_probe(struct spi_device *spi)
 {
@@ -432,8 +419,7 @@ static int as3935_probe(struct spi_device *spi)
 
 	calibrate_as3935(st);
 
-	INIT_DELAYED_WORK(&st->work, as3935_event_work);
-	ret = devm_add_action(dev, as3935_stop_work, indio_dev);
+	ret = devm_delayed_work_autocancel(dev, &st->work, as3935_event_work);
 	if (ret)
 		return ret;
 
@@ -472,7 +458,7 @@ static struct spi_driver as3935_driver = {
 	.driver = {
 		.name	= "as3935",
 		.of_match_table = as3935_of_match,
-		.pm	= AS3935_PM_OPS,
+		.pm	= pm_sleep_ptr(&as3935_pm_ops),
 	},
 	.probe		= as3935_probe,
 	.id_table	= as3935_id,

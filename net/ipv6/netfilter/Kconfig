@@ -47,10 +47,6 @@ config NFT_FIB_IPV6
 endif # NF_TABLES_IPV6
 endif # NF_TABLES
 
-config NF_FLOW_TABLE_IPV6
-	tristate
-	select NF_FLOW_TABLE_INET
-
 config NF_DUP_IPV6
 	tristate "Netfilter IPv6 packet duplication to alternate destination"
 	depends on !NF_CONNTRACK || NF_CONNTRACK

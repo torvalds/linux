@@ -397,9 +397,9 @@ brcmf_proto_bcdc_add_tdls_peer(struct brcmf_pub *drvr, int ifidx,
 }
 
 static void brcmf_proto_bcdc_rxreorder(struct brcmf_if *ifp,
-				       struct sk_buff *skb, bool inirq)
+				       struct sk_buff *skb)
 {
-	brcmf_fws_rxreorder(ifp, skb, inirq);
+	brcmf_fws_rxreorder(ifp, skb);
 }
 
 static void

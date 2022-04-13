@@ -89,7 +89,7 @@
  * Parameters for VCO frequency configuration
  *
  * VCO frequency =
- * ((ndiv_int + ndiv_frac / 2^20) * (ref freqeuncy  / pdiv)
+ * ((ndiv_int + ndiv_frac / 2^20) * (ref frequency  / pdiv)
  */
 struct iproc_pll_vco_param {
 	unsigned long rate;

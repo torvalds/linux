@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 /*
  * sha512-ce-glue.c - SHA-384/SHA-512 using ARMv8 Crypto Extensions
  *

@@ -266,7 +266,7 @@ static int bperf_cgrp__read(struct evsel *evsel)
 		idx = evsel->core.idx;
 		err = bpf_map_lookup_elem(reading_map_fd, &idx, values);
 		if (err) {
-			pr_err("bpf map lookup falied: idx=%u, event=%s, cgrp=%s\n",
+			pr_err("bpf map lookup failed: idx=%u, event=%s, cgrp=%s\n",
 			       idx, evsel__name(evsel), evsel->cgrp->name);
 			goto out;
 		}

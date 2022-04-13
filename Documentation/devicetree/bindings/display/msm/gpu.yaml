@@ -64,6 +64,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     minItems: 1
     maxItems: 4
+    items:
+      maxItems: 1
     description: |
       phandles to one or more reserved on-chip SRAM regions.
       phandle to the On Chip Memory (OCMEM) that's present on some a3xx and

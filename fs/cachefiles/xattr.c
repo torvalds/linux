@@ -28,6 +28,11 @@ struct cachefiles_xattr {
 static const char cachefiles_xattr_cache[] =
 	XATTR_USER_PREFIX "CacheFiles.cache";
 
+struct cachefiles_vol_xattr {
+	__be32	reserved;	/* Reserved, should be 0 */
+	__u8	data[];		/* netfs volume coherency data */
+} __packed;
+
 /*
  * set the state xattr on a cache file
  */
@@ -185,6 +190,7 @@ void cachefiles_prepare_to_write(struct fscache_cookie *cookie)
  */
 bool cachefiles_set_volume_xattr(struct cachefiles_volume *volume)
 {
+	struct cachefiles_vol_xattr *buf;
 	unsigned int len = volume->vcookie->coherency_len;
 	const void *p = volume->vcookie->coherency;
 	struct dentry *dentry = volume->dentry;
@@ -192,10 +198,17 @@ bool cachefiles_set_volume_xattr(struct cachefiles_volume *volume)
 
 	_enter("%x,#%d", volume->vcookie->debug_id, len);
 
+	len += sizeof(*buf);
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf)
+		return false;
+	buf->reserved = cpu_to_be32(0);
+	memcpy(buf->data, p, len);
+
 	ret = cachefiles_inject_write_error();
 	if (ret == 0)
 		ret = vfs_setxattr(&init_user_ns, dentry, cachefiles_xattr_cache,
-				   p, len, 0);
+				   buf, len, 0);
 	if (ret < 0) {
 		trace_cachefiles_vfs_error(NULL, d_inode(dentry), ret,
 					   cachefiles_trace_setxattr_error);
@@ -209,6 +222,7 @@ bool cachefiles_set_volume_xattr(struct cachefiles_volume *volume)
 					       cachefiles_coherency_vol_set_ok);
 	}
 
+	kfree(buf);
 	_leave(" = %d", ret);
 	return ret == 0;
 }
@@ -218,7 +232,7 @@ bool cachefiles_set_volume_xattr(struct cachefiles_volume *volume)
  */
 int cachefiles_check_volume_xattr(struct cachefiles_volume *volume)
 {
-	struct cachefiles_xattr *buf;
+	struct cachefiles_vol_xattr *buf;
 	struct dentry *dentry = volume->dentry;
 	unsigned int len = volume->vcookie->coherency_len;
 	const void *p = volume->vcookie->coherency;
@@ -228,6 +242,7 @@ int cachefiles_check_volume_xattr(struct cachefiles_volume *volume)
 
 	_enter("");
 
+	len += sizeof(*buf);
 	buf = kmalloc(len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
@@ -245,7 +260,9 @@ int cachefiles_check_volume_xattr(struct cachefiles_volume *volume)
 					"Failed to read xattr with error %zd", xlen);
 		}
 		why = cachefiles_coherency_vol_check_xattr;
-	} else if (memcmp(buf->data, p, len) != 0) {
+	} else if (buf->reserved != cpu_to_be32(0)) {
+		why = cachefiles_coherency_vol_check_resv;
+	} else if (memcmp(buf->data, p, len - sizeof(*buf)) != 0) {
 		why = cachefiles_coherency_vol_check_cmp;
 	} else {
 		why = cachefiles_coherency_vol_check_ok;

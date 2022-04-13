@@ -472,7 +472,7 @@ const struct st_sensor_settings *st_gyro_get_settings(const char *name)
 
 	return &st_gyro_sensors_settings[index];
 }
-EXPORT_SYMBOL(st_gyro_get_settings);
+EXPORT_SYMBOL_NS(st_gyro_get_settings, IIO_ST_SENSORS);
 
 int st_gyro_common_probe(struct iio_dev *indio_dev)
 {
@@ -518,8 +518,9 @@ int st_gyro_common_probe(struct iio_dev *indio_dev)
 
 	return devm_iio_device_register(parent, indio_dev);
 }
-EXPORT_SYMBOL(st_gyro_common_probe);
+EXPORT_SYMBOL_NS(st_gyro_common_probe, IIO_ST_SENSORS);
 
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics gyroscopes driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_ST_SENSORS);

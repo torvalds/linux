@@ -11,21 +11,40 @@ maintainers:
   - Thierry Reding <thierry.reding@gmail.com>
 
 allOf:
-  - $ref: lvds.yaml#
+  - $ref: panel-common.yaml#
+  - $ref: /schemas/display/lvds.yaml/#
+
+select:
+  properties:
+    compatible:
+      contains:
+        const: innolux,ee101ia-01d
+
+  required:
+    - compatible
 
 properties:
   compatible:
     items:
       - const: innolux,ee101ia-01d
-      - {} # panel-lvds, but not listed here to avoid false select
+      - const: panel-lvds
 
   backlight: true
+  data-mapping: true
   enable-gpios: true
   power-supply: true
   width-mm: true
   height-mm: true
   panel-timing: true
   port: true
+
+required:
+  - compatible
+  - data-mapping
+  - width-mm
+  - height-mm
+  - panel-timing
+  - port
 
 additionalProperties: false
 ...

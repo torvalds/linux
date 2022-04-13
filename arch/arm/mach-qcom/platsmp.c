@@ -357,8 +357,7 @@ static void __init qcom_smp_prepare_cpus(unsigned int max_cpus)
 {
 	int cpu;
 
-	if (qcom_scm_set_cold_boot_addr(secondary_startup_arm,
-					cpu_present_mask)) {
+	if (qcom_scm_set_cold_boot_addr(secondary_startup_arm)) {
 		for_each_present_cpu(cpu) {
 			if (cpu == smp_processor_id())
 				continue;

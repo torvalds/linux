@@ -305,6 +305,9 @@ static int __init hyperv_init(void)
 {
 	int ret;
 
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	ret = pci_register_driver(&hyperv_pci_driver);
 	if (ret != 0)
 		return ret;

@@ -33,6 +33,19 @@ struct btf * __weak btf__load_from_kernel_by_id(__u32 id)
        return err ? ERR_PTR(err) : btf;
 }
 
+int __weak bpf_prog_load(enum bpf_prog_type prog_type,
+			 const char *prog_name __maybe_unused,
+			 const char *license,
+			 const struct bpf_insn *insns, size_t insn_cnt,
+			 const struct bpf_prog_load_opts *opts)
+{
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+	return bpf_load_program(prog_type, insns, insn_cnt, license,
+				opts->kern_version, opts->log_buf, opts->log_size);
+#pragma GCC diagnostic pop
+}
+
 struct bpf_program * __weak
 bpf_object__next_program(const struct bpf_object *obj, struct bpf_program *prev)
 {
@@ -92,7 +105,7 @@ static int machine__process_bpf_event_load(struct machine *machine,
 	for (i = 0; i < info_linear->info.nr_jited_ksyms; i++) {
 		u64 *addrs = (u64 *)(uintptr_t)(info_linear->info.jited_ksyms);
 		u64 addr = addrs[i];
-		struct map *map = maps__find(&machine->kmaps, addr);
+		struct map *map = maps__find(machine__kernel_maps(machine), addr);
 
 		if (map) {
 			map->dso->binary_type = DSO_BINARY_TYPE__BPF_PROG_INFO;

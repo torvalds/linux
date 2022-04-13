@@ -35,7 +35,6 @@
 #include <crypto/aead.h>
 #include <linux/inetdevice.h>
 #include <linux/netdevice.h>
-#include <linux/module.h>
 
 #include "en.h"
 #include "en_accel/ipsec.h"

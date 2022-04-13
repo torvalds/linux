@@ -218,7 +218,6 @@ static int dmard10_probe(struct i2c_client *client,
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int dmard10_suspend(struct device *dev)
 {
 	return dmard10_shutdown(to_i2c_client(dev));
@@ -228,9 +227,9 @@ static int dmard10_resume(struct device *dev)
 {
 	return dmard10_reset(to_i2c_client(dev));
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(dmard10_pm_ops, dmard10_suspend, dmard10_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(dmard10_pm_ops, dmard10_suspend,
+				dmard10_resume);
 
 static const struct i2c_device_id dmard10_i2c_id[] = {
 	{"dmard10", 0},
@@ -241,7 +240,7 @@ MODULE_DEVICE_TABLE(i2c, dmard10_i2c_id);
 static struct i2c_driver dmard10_driver = {
 	.driver = {
 		.name = "dmard10",
-		.pm = &dmard10_pm_ops,
+		.pm = pm_sleep_ptr(&dmard10_pm_ops),
 	},
 	.probe		= dmard10_probe,
 	.id_table	= dmard10_i2c_id,

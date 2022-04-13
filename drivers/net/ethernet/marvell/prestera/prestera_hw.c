@@ -55,6 +55,8 @@ enum prestera_cmd_type_t {
 
 	PRESTERA_CMD_TYPE_ROUTER_RIF_CREATE = 0x600,
 	PRESTERA_CMD_TYPE_ROUTER_RIF_DELETE = 0x601,
+	PRESTERA_CMD_TYPE_ROUTER_LPM_ADD = 0x610,
+	PRESTERA_CMD_TYPE_ROUTER_LPM_DELETE = 0x611,
 	PRESTERA_CMD_TYPE_ROUTER_VR_CREATE = 0x630,
 	PRESTERA_CMD_TYPE_ROUTER_VR_DELETE = 0x631,
 
@@ -424,6 +426,9 @@ struct prestera_msg_acl_action {
 	__le32 __reserved;
 	union {
 		struct {
+			__le32 index;
+		} jump;
+		struct {
 			__le32 id;
 		} count;
 		__le32 reserved[6];
@@ -499,6 +504,15 @@ struct prestera_msg_iface {
 	u8 __pad[3];
 };
 
+struct prestera_msg_ip_addr {
+	union {
+		__be32 ipv4;
+		__be32 ipv6[4];
+	} u;
+	u8 v; /* e.g. PRESTERA_IPV4 */
+	u8 __pad[3];
+};
+
 struct prestera_msg_rif_req {
 	struct prestera_msg_cmd cmd;
 	struct prestera_msg_iface iif;
@@ -512,6 +526,15 @@ struct prestera_msg_rif_req {
 struct prestera_msg_rif_resp {
 	struct prestera_msg_ret ret;
 	__le16 rif_id;
+	u8 __pad[2];
+};
+
+struct prestera_msg_lpm_req {
+	struct prestera_msg_cmd cmd;
+	struct prestera_msg_ip_addr dst;
+	__le32 grp_id;
+	__le32 dst_len;
+	__le16 vr_id;
 	u8 __pad[2];
 };
 
@@ -598,9 +621,11 @@ static void prestera_hw_build_tests(void)
 	BUILD_BUG_ON(sizeof(struct prestera_msg_counter_stats) != 16);
 	BUILD_BUG_ON(sizeof(struct prestera_msg_rif_req) != 36);
 	BUILD_BUG_ON(sizeof(struct prestera_msg_vr_req) != 8);
+	BUILD_BUG_ON(sizeof(struct prestera_msg_lpm_req) != 36);
 
 	/*  structure that are part of req/resp fw messages */
 	BUILD_BUG_ON(sizeof(struct prestera_msg_iface) != 16);
+	BUILD_BUG_ON(sizeof(struct prestera_msg_ip_addr) != 20);
 
 	/* check responses */
 	BUILD_BUG_ON(sizeof(struct prestera_msg_common_resp) != 8);
@@ -1163,6 +1188,9 @@ prestera_acl_rule_add_put_action(struct prestera_msg_acl_action *action,
 	case PRESTERA_ACL_RULE_ACTION_DROP:
 	case PRESTERA_ACL_RULE_ACTION_TRAP:
 		/* just rule action id, no specific data */
+		break;
+	case PRESTERA_ACL_RULE_ACTION_JUMP:
+		action->jump.index = __cpu_to_le32(info->jump.index);
 		break;
 	case PRESTERA_ACL_RULE_ACTION_COUNT:
 		action->count.id = __cpu_to_le32(info->count.id);
@@ -1888,6 +1916,33 @@ int prestera_hw_vr_delete(struct prestera_switch *sw, u16 vr_id)
 	};
 
 	return prestera_cmd(sw, PRESTERA_CMD_TYPE_ROUTER_VR_DELETE, &req.cmd,
+			    sizeof(req));
+}
+
+int prestera_hw_lpm_add(struct prestera_switch *sw, u16 vr_id,
+			__be32 dst, u32 dst_len, u32 grp_id)
+{
+	struct prestera_msg_lpm_req req = {
+		.dst_len = __cpu_to_le32(dst_len),
+		.vr_id = __cpu_to_le16(vr_id),
+		.grp_id = __cpu_to_le32(grp_id),
+		.dst.u.ipv4 = dst
+	};
+
+	return prestera_cmd(sw, PRESTERA_CMD_TYPE_ROUTER_LPM_ADD, &req.cmd,
+			    sizeof(req));
+}
+
+int prestera_hw_lpm_del(struct prestera_switch *sw, u16 vr_id,
+			__be32 dst, u32 dst_len)
+{
+	struct prestera_msg_lpm_req req = {
+		.dst_len = __cpu_to_le32(dst_len),
+		.vr_id = __cpu_to_le16(vr_id),
+		.dst.u.ipv4 = dst
+	};
+
+	return prestera_cmd(sw, PRESTERA_CMD_TYPE_ROUTER_LPM_DELETE, &req.cmd,
 			    sizeof(req));
 }
 

@@ -24,9 +24,6 @@ config KEXEC_ELF
 config HAVE_IMA_KEXEC
 	bool
 
-config SET_FS
-	bool
-
 config HOTPLUG_SMT
 	bool
 
@@ -167,7 +164,13 @@ config ARCH_USE_BUILTIN_BSWAP
 
 config KRETPROBES
 	def_bool y
-	depends on KPROBES && HAVE_KRETPROBES
+	depends on KPROBES && (HAVE_KRETPROBES || HAVE_RETHOOK)
+
+config KRETPROBE_ON_RETHOOK
+	def_bool y
+	depends on HAVE_RETHOOK
+	depends on KRETPROBES
+	select RETHOOK
 
 config USER_RETURN_NOTIFIER
 	bool
@@ -205,6 +208,9 @@ config HAVE_FUNCTION_ERROR_INJECTION
 config HAVE_NMI
 	bool
 
+config HAVE_FUNCTION_DESCRIPTORS
+	bool
+
 config TRACE_IRQFLAGS_SUPPORT
 	bool
 
@@ -217,9 +223,8 @@ config TRACE_IRQFLAGS_SUPPORT
 #	asm/syscall.h		supplying asm-generic/syscall.h interface
 #	linux/regset.h		user_regset interfaces
 #	CORE_DUMP_USE_REGSET	#define'd in linux/elf.h
-#	TIF_SYSCALL_TRACE	calls tracehook_report_syscall_{entry,exit}
-#	TIF_NOTIFY_RESUME	calls tracehook_notify_resume()
-#	signal delivery		calls tracehook_signal_handler()
+#	TIF_SYSCALL_TRACE	calls ptrace_report_syscall_{entry,exit}
+#	TIF_NOTIFY_RESUME	calls resume_user_mode_work()
 #
 config HAVE_ARCH_TRACEHOOK
 	bool
@@ -599,21 +604,22 @@ config STACKPROTECTOR_STRONG
 config ARCH_SUPPORTS_SHADOW_CALL_STACK
 	bool
 	help
-	  An architecture should select this if it supports Clang's Shadow
-	  Call Stack and implements runtime support for shadow stack
+	  An architecture should select this if it supports the compiler's
+	  Shadow Call Stack and implements runtime support for shadow stack
 	  switching.
 
 config SHADOW_CALL_STACK
-	bool "Clang Shadow Call Stack"
-	depends on CC_IS_CLANG && ARCH_SUPPORTS_SHADOW_CALL_STACK
+	bool "Shadow Call Stack"
+	depends on ARCH_SUPPORTS_SHADOW_CALL_STACK
 	depends on DYNAMIC_FTRACE_WITH_REGS || !FUNCTION_GRAPH_TRACER
 	help
-	  This option enables Clang's Shadow Call Stack, which uses a
-	  shadow stack to protect function return addresses from being
-	  overwritten by an attacker. More information can be found in
-	  Clang's documentation:
+	  This option enables the compiler's Shadow Call Stack, which
+	  uses a shadow stack to protect function return addresses from
+	  being overwritten by an attacker. More information can be found
+	  in the compiler's documentation:
 
-	    https://clang.llvm.org/docs/ShadowCallStack.html
+	  - Clang: https://clang.llvm.org/docs/ShadowCallStack.html
+	  - GCC: https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html#Instrumentation-Options
 
 	  Note that security guarantees in the kernel differ from the
 	  ones documented for user space. The kernel must store addresses
@@ -898,6 +904,13 @@ config HAVE_SOFTIRQ_ON_OWN_STACK
 	  Architecture provides a function to run __do_softirq() on a
 	  separate stack.
 
+config ALTERNATE_USER_ADDRESS_SPACE
+	bool
+	help
+	  Architectures set this when the CPU uses separate address
+	  spaces for kernel and user space pointers. In this case, the
+	  access_ok() check on a __user pointer is skipped.
+
 config PGTABLE_LEVELS
 	int
 	default 2
@@ -1159,16 +1172,30 @@ config HAVE_ARCH_RANDOMIZE_KSTACK_OFFSET
 	  to the compiler, so it will attempt to add canary checks regardless
 	  of the static branch state.
 
-config RANDOMIZE_KSTACK_OFFSET_DEFAULT
-	bool "Randomize kernel stack offset on syscall entry"
+config RANDOMIZE_KSTACK_OFFSET
+	bool "Support for randomizing kernel stack offset on syscall entry" if EXPERT
+	default y
 	depends on HAVE_ARCH_RANDOMIZE_KSTACK_OFFSET
+	depends on INIT_STACK_NONE || !CC_IS_CLANG || CLANG_VERSION >= 140000
 	help
 	  The kernel stack offset can be randomized (after pt_regs) by
 	  roughly 5 bits of entropy, frustrating memory corruption
 	  attacks that depend on stack address determinism or
-	  cross-syscall address exposures. This feature is controlled
-	  by kernel boot param "randomize_kstack_offset=on/off", and this
-	  config chooses the default boot state.
+	  cross-syscall address exposures.
+
+	  The feature is controlled via the "randomize_kstack_offset=on/off"
+	  kernel boot param, and if turned off has zero overhead due to its use
+	  of static branches (see JUMP_LABEL).
+
+	  If unsure, say Y.
+
+config RANDOMIZE_KSTACK_OFFSET_DEFAULT
+	bool "Default state of kernel stack offset randomization"
+	depends on RANDOMIZE_KSTACK_OFFSET
+	help
+	  Kernel stack offset randomization is controlled by kernel boot param
+	  "randomize_kstack_offset=on/off", and this config chooses the default
+	  boot state.
 
 config ARCH_OPTIONAL_KERNEL_RWX
 	def_bool n
@@ -1278,12 +1305,41 @@ config HAVE_STATIC_CALL_INLINE
 
 config HAVE_PREEMPT_DYNAMIC
 	bool
+
+config HAVE_PREEMPT_DYNAMIC_CALL
+	bool
 	depends on HAVE_STATIC_CALL
-	depends on GENERIC_ENTRY
+	select HAVE_PREEMPT_DYNAMIC
 	help
-	   Select this if the architecture support boot time preempt setting
-	   on top of static calls. It is strongly advised to support inline
-	   static call to avoid any overhead.
+	   An architecture should select this if it can handle the preemption
+	   model being selected at boot time using static calls.
+
+	   Where an architecture selects HAVE_STATIC_CALL_INLINE, any call to a
+	   preemption function will be patched directly.
+
+	   Where an architecture does not select HAVE_STATIC_CALL_INLINE, any
+	   call to a preemption function will go through a trampoline, and the
+	   trampoline will be patched.
+
+	   It is strongly advised to support inline static call to avoid any
+	   overhead.
+
+config HAVE_PREEMPT_DYNAMIC_KEY
+	bool
+	depends on HAVE_ARCH_JUMP_LABEL && CC_HAS_ASM_GOTO
+	select HAVE_PREEMPT_DYNAMIC
+	help
+	   An architecture should select this if it can handle the preemption
+	   model being selected at boot time using static keys.
+
+	   Each preemption function will be given an early return based on a
+	   static key. This should have slightly lower overhead than non-inline
+	   static calls, as this effectively inlines each trampoline into the
+	   start of its callee. This may avoid redundant work, and may
+	   integrate better with CFI schemes.
+
+	   This will have greater overhead than using inline static calls as
+	   the call to the preemption function cannot be entirely elided.
 
 config ARCH_WANT_LD_ORPHAN_WARN
 	bool

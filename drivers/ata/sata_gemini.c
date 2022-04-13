@@ -419,10 +419,8 @@ static int gemini_sata_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id gemini_sata_of_match[] = {
-	{
-		.compatible = "cortina,gemini-sata-bridge",
-	},
-	{},
+	{ .compatible = "cortina,gemini-sata-bridge", },
+	{ /* sentinel */ }
 };
 
 static struct platform_driver gemini_sata_driver = {

@@ -391,7 +391,7 @@
 };
 
 &pinctrl0 {
-	t_flash_detect: t-flash-detect {
+	t_flash_detect: t-flash-detect-pins {
 		samsung,pins = "gph3-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;

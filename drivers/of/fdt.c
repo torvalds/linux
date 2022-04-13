@@ -648,8 +648,8 @@ void __init early_init_fdt_scan_reserved_mem(void)
 	}
 
 	fdt_scan_reserved_mem();
-	fdt_init_reserved_mem();
 	fdt_reserve_elfcorehdr();
+	fdt_init_reserved_mem();
 }
 
 /**

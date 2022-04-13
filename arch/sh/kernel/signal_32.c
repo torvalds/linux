@@ -25,7 +25,7 @@
 #include <linux/personality.h>
 #include <linux/binfmts.h>
 #include <linux/io.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
 #include <asm/cacheflush.h>
@@ -503,5 +503,5 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, unsigned int save_r0,
 		do_signal(regs, save_r0);
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME)
-		tracehook_notify_resume(regs);
+		resume_user_mode_work(regs);
 }

@@ -26,10 +26,7 @@ The fundamental unit in KUnit is the test case. The KUnit test cases are
 grouped into KUnit suites. A KUnit test case is a function with type
 signature ``void (*)(struct kunit *test)``.
 These test case functions are wrapped in a struct called
-``struct kunit_case``. For code, see:
-
-.. kernel-doc:: include/kunit/test.h
-	:identifiers: kunit_case
+struct kunit_case.
 
 .. note:
 	``generate_params`` is optional for non-parameterized tests.
@@ -152,17 +149,11 @@ Parameterized Tests
 Each KUnit parameterized test is associated with a collection of
 parameters. The test is invoked multiple times, once for each parameter
 value and the parameter is stored in the ``param_value`` field.
-The test case includes a ``KUNIT_CASE_PARAM()`` macro that accepts a
+The test case includes a KUNIT_CASE_PARAM() macro that accepts a
 generator function.
 The generator function is passed the previous parameter and returns the next
 parameter. It also provides a macro to generate common-case generators based on
 arrays.
-
-For code, see:
-
-.. kernel-doc:: include/kunit/test.h
-	:identifiers: KUNIT_ARRAY_PARAM
-
 
 kunit_tool (Command Line Test Harness)
 ======================================

@@ -138,6 +138,7 @@ needed).
    scheduler/index
    mhi/index
    tty/index
+   peci/index
 
 Architecture-agnostic documentation
 -----------------------------------
@@ -166,6 +167,7 @@ to ReStructured Text format, or are simply too old.
 .. toctree::
    :maxdepth: 2
 
+   tools/index
    staging/index
    watch_queue
 

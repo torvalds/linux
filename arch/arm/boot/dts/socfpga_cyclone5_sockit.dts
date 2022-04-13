@@ -111,7 +111,7 @@
 		};
 	};
 
-	regulator_3_3v: vcc3p3-regulator {
+	regulator_3_3v: regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC3P3";
 		regulator-min-microvolt = <3300000>;

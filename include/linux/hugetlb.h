@@ -754,7 +754,7 @@ static inline void arch_clear_hugepage_flags(struct page *page) { }
 static inline pte_t arch_make_huge_pte(pte_t entry, unsigned int shift,
 				       vm_flags_t flags)
 {
-	return entry;
+	return pte_mkhuge(entry);
 }
 #endif
 
@@ -970,6 +970,11 @@ static inline struct hstate *page_hstate(struct page *page)
 	return NULL;
 }
 
+static inline struct hstate *size_to_hstate(unsigned long size)
+{
+	return NULL;
+}
+
 static inline unsigned long huge_page_size(struct hstate *h)
 {
 	return PAGE_SIZE;
@@ -1074,12 +1079,6 @@ static inline void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr
 {
 }
 #endif	/* CONFIG_HUGETLB_PAGE */
-
-#ifdef CONFIG_HUGETLB_PAGE_FREE_VMEMMAP
-extern bool hugetlb_free_vmemmap_enabled;
-#else
-#define hugetlb_free_vmemmap_enabled	false
-#endif
 
 static inline spinlock_t *huge_pte_lock(struct hstate *h,
 					struct mm_struct *mm, pte_t *pte)
