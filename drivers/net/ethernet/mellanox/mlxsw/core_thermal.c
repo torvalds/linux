@@ -685,8 +685,12 @@ mlxsw_thermal_module_tz_init(struct mlxsw_thermal_module *module_tz)
 	char tz_name[MLXSW_THERMAL_ZONE_MAX_NAME];
 	int err;
 
-	snprintf(tz_name, sizeof(tz_name), "mlxsw-module%d",
-		 module_tz->module + 1);
+	if (module_tz->slot_index)
+		snprintf(tz_name, sizeof(tz_name), "mlxsw-lc%d-module%d",
+			 module_tz->slot_index, module_tz->module + 1);
+	else
+		snprintf(tz_name, sizeof(tz_name), "mlxsw-module%d",
+			 module_tz->module + 1);
 	module_tz->tzdev = thermal_zone_device_register(tz_name,
 							MLXSW_THERMAL_NUM_TRIPS,
 							MLXSW_THERMAL_TRIP_MASK,
@@ -820,8 +824,12 @@ mlxsw_thermal_gearbox_tz_init(struct mlxsw_thermal_module *gearbox_tz)
 	char tz_name[MLXSW_THERMAL_ZONE_MAX_NAME];
 	int ret;
 
-	snprintf(tz_name, sizeof(tz_name), "mlxsw-gearbox%d",
-		 gearbox_tz->module + 1);
+	if (gearbox_tz->slot_index)
+		snprintf(tz_name, sizeof(tz_name), "mlxsw-lc%d-gearbox%d",
+			 gearbox_tz->slot_index, gearbox_tz->module + 1);
+	else
+		snprintf(tz_name, sizeof(tz_name), "mlxsw-gearbox%d",
+			 gearbox_tz->module + 1);
 	gearbox_tz->tzdev = thermal_zone_device_register(tz_name,
 						MLXSW_THERMAL_NUM_TRIPS,
 						MLXSW_THERMAL_TRIP_MASK,
