@@ -4470,6 +4470,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		VOP_AFBC_SET(vop2, win, rotate_90, vpstate->rotate_90_en);
 	} else {
 		VOP_CLUSTER_SET(vop2, win, afbc_enable, 0);
+		VOP_AFBC_SET(vop2, win, transform_offset, 0);
 		VOP_WIN_SET(vop2, win, ymirror, vpstate->ymirror_en);
 		VOP_WIN_SET(vop2, win, xmirror, vpstate->xmirror_en);
 	}
