@@ -2772,7 +2772,6 @@ static void fbcon_unbind(void)
 static inline void fbcon_unbind(void) {}
 #endif /* CONFIG_VT_HW_CONSOLE_BINDING */
 
-/* called with console_lock held */
 void fbcon_fb_unbind(struct fb_info *info)
 {
 	int i, new_idx = -1;
@@ -2822,7 +2821,6 @@ void fbcon_fb_unbind(struct fb_info *info)
 	console_unlock();
 }
 
-/* called with console_lock held */
 void fbcon_fb_unregistered(struct fb_info *info)
 {
 	int i, idx;
@@ -2928,14 +2926,11 @@ MODULE_PARM_DESC(lockless_register_fb,
 	"Lockless framebuffer registration for debugging [default=off]");
 
 /* called with console_lock held */
-int fbcon_fb_registered(struct fb_info *info)
+static int do_fb_registered(struct fb_info *info)
 {
 	int ret = 0, i, idx;
 
-	if (!lockless_register_fb)
-		console_lock();
-	else
-		atomic_inc(&ignore_console_lock_warning);
+	WARN_CONSOLE_UNLOCKED();
 
 	fbcon_registered_fb[info->node] = info;
 	fbcon_num_registered_fb++;
@@ -2945,7 +2940,7 @@ int fbcon_fb_registered(struct fb_info *info)
 
 	if (deferred_takeover) {
 		pr_info("fbcon: Deferring console take-over\n");
-		goto out;
+		return 0;
 	}
 
 	if (info_idx == -1) {
@@ -2965,7 +2960,20 @@ int fbcon_fb_registered(struct fb_info *info)
 		}
 	}
 
-out:
+	return ret;
+}
+
+int fbcon_fb_registered(struct fb_info *info)
+{
+	int ret;
+
+	if (!lockless_register_fb)
+		console_lock();
+	else
+		atomic_inc(&ignore_console_lock_warning);
+
+	ret = do_fb_registered(info);
+
 	if (!lockless_register_fb)
 		console_unlock();
 	else
@@ -3280,7 +3288,7 @@ static void fbcon_register_existing_fbs(struct work_struct *work)
 	logo_shown = FBCON_LOGO_DONTSHOW;
 
 	fbcon_for_each_registered_fb(i)
-		fbcon_fb_registered(fbcon_registered_fb[i]);
+		do_fb_registered(fbcon_registered_fb[i]);
 
 	console_unlock();
 }
