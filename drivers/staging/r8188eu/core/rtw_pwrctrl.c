@@ -382,10 +382,8 @@ int rtw_pwr_wakeup(struct adapter *padapter)
 	if (pwrpriv->ips_deny_time < jiffies + rtw_ms_to_systime(ips_deffer_ms))
 		pwrpriv->ips_deny_time = jiffies + rtw_ms_to_systime(ips_deffer_ms);
 
-	if (pwrpriv->ps_processing) {
-		while (pwrpriv->ps_processing && rtw_get_passing_time_ms(start) <= 3000)
-			msleep(10);
-	}
+	while (pwrpriv->ps_processing && rtw_get_passing_time_ms(start) <= 3000)
+		msleep(10);
 
 	/* System suspend is not allowed to wakeup */
 	while (pwrpriv->bInSuspend && rtw_get_passing_time_ms(start) <= 3000)
