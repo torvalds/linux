@@ -1029,12 +1029,6 @@ static int gbcodec_probe(struct snd_soc_component *comp)
 	return 0;
 }
 
-static void gbcodec_remove(struct snd_soc_component *comp)
-{
-	/* Empty function for now */
-	return;
-}
-
 static int gbcodec_write(struct snd_soc_component *comp, unsigned int reg,
 			 unsigned int value)
 {
@@ -1049,8 +1043,6 @@ static unsigned int gbcodec_read(struct snd_soc_component *comp,
 
 static const struct snd_soc_component_driver soc_codec_dev_gbaudio = {
 	.probe	= gbcodec_probe,
-	.remove	= gbcodec_remove,
-
 	.read = gbcodec_read,
 	.write = gbcodec_write,
 };
