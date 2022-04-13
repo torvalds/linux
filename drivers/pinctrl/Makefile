@@ -73,3 +73,4 @@ obj-$(CONFIG_ARCH_VT8500)	+= vt8500/
 obj-y				+= mediatek/
 obj-y				+= cirrus/
 obj-$(CONFIG_PINCTRL_VISCONTI)	+= visconti/
+obj-$(CONFIG_PINCTRL_STARFIVE)	+= starfive/
