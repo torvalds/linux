@@ -539,7 +539,7 @@ mlxsw_sp_port_module_map(struct mlxsw_sp *mlxsw_sp, u16 local_port,
 	char pmlp_pl[MLXSW_REG_PMLP_LEN];
 	int i, err;
 
-	mlxsw_env_module_port_map(mlxsw_sp->core, port_mapping->module);
+	mlxsw_env_module_port_map(mlxsw_sp->core, 0, port_mapping->module);
 
 	mlxsw_reg_pmlp_pack(pmlp_pl, local_port);
 	mlxsw_reg_pmlp_width_set(pmlp_pl, port_mapping->width);
@@ -554,19 +554,19 @@ mlxsw_sp_port_module_map(struct mlxsw_sp *mlxsw_sp, u16 local_port,
 	return 0;
 
 err_pmlp_write:
-	mlxsw_env_module_port_unmap(mlxsw_sp->core, port_mapping->module);
+	mlxsw_env_module_port_unmap(mlxsw_sp->core, 0, port_mapping->module);
 	return err;
 }
 
 static void mlxsw_sp_port_module_unmap(struct mlxsw_sp *mlxsw_sp, u16 local_port,
-				       u8 module)
+				       u8 slot_index, u8 module)
 {
 	char pmlp_pl[MLXSW_REG_PMLP_LEN];
 
 	mlxsw_reg_pmlp_pack(pmlp_pl, local_port);
 	mlxsw_reg_pmlp_width_set(pmlp_pl, 0);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pmlp), pmlp_pl);
-	mlxsw_env_module_port_unmap(mlxsw_sp->core, module);
+	mlxsw_env_module_port_unmap(mlxsw_sp->core, slot_index, module);
 }
 
 static int mlxsw_sp_port_open(struct net_device *dev)
@@ -575,7 +575,7 @@ static int mlxsw_sp_port_open(struct net_device *dev)
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	int err;
 
-	err = mlxsw_env_module_port_up(mlxsw_sp->core,
+	err = mlxsw_env_module_port_up(mlxsw_sp->core, 0,
 				       mlxsw_sp_port->mapping.module);
 	if (err)
 		return err;
@@ -586,7 +586,7 @@ static int mlxsw_sp_port_open(struct net_device *dev)
 	return 0;
 
 err_port_admin_status_set:
-	mlxsw_env_module_port_down(mlxsw_sp->core,
+	mlxsw_env_module_port_down(mlxsw_sp->core, 0,
 				   mlxsw_sp_port->mapping.module);
 	return err;
 }
@@ -598,7 +598,7 @@ static int mlxsw_sp_port_stop(struct net_device *dev)
 
 	netif_stop_queue(dev);
 	mlxsw_sp_port_admin_status_set(mlxsw_sp_port, false);
-	mlxsw_env_module_port_down(mlxsw_sp->core,
+	mlxsw_env_module_port_down(mlxsw_sp->core, 0,
 				   mlxsw_sp_port->mapping.module);
 	return 0;
 }
@@ -1449,7 +1449,7 @@ static int mlxsw_sp_port_overheat_init_val_set(struct mlxsw_sp_port *mlxsw_sp_po
 	u64 overheat_counter;
 	int err;
 
-	err = mlxsw_env_module_overheat_counter_get(mlxsw_sp->core, module,
+	err = mlxsw_env_module_overheat_counter_get(mlxsw_sp->core, 0, module,
 						    &overheat_counter);
 	if (err)
 		return err;
@@ -1775,7 +1775,8 @@ err_port_label_info_get:
 	mlxsw_sp_port_swid_set(mlxsw_sp, local_port,
 			       MLXSW_PORT_SWID_DISABLED_PORT);
 err_port_swid_set:
-	mlxsw_sp_port_module_unmap(mlxsw_sp, local_port, port_mapping->module);
+	mlxsw_sp_port_module_unmap(mlxsw_sp, local_port, 0,
+				   port_mapping->module);
 	return err;
 }
 
@@ -1804,7 +1805,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u16 local_port)
 	mlxsw_core_port_fini(mlxsw_sp->core, local_port);
 	mlxsw_sp_port_swid_set(mlxsw_sp, local_port,
 			       MLXSW_PORT_SWID_DISABLED_PORT);
-	mlxsw_sp_port_module_unmap(mlxsw_sp, local_port, module);
+	mlxsw_sp_port_module_unmap(mlxsw_sp, local_port, 0, module);
 }
 
 static int mlxsw_sp_cpu_port_create(struct mlxsw_sp *mlxsw_sp)

@@ -573,7 +573,7 @@ mlxsw_sp_port_get_transceiver_overheat_stats(struct mlxsw_sp_port *mlxsw_sp_port
 	u64 stats;
 	int err;
 
-	err = mlxsw_env_module_overheat_counter_get(mlxsw_core,
+	err = mlxsw_env_module_overheat_counter_get(mlxsw_core, 0,
 						    port_mapping.module,
 						    &stats);
 	if (err)
@@ -1035,7 +1035,7 @@ static int mlxsw_sp_get_module_info(struct net_device *netdev,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(netdev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 
-	return mlxsw_env_get_module_info(netdev, mlxsw_sp->core,
+	return mlxsw_env_get_module_info(netdev, mlxsw_sp->core, 0,
 					 mlxsw_sp_port->mapping.module,
 					 modinfo);
 }
@@ -1046,7 +1046,7 @@ static int mlxsw_sp_get_module_eeprom(struct net_device *netdev,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(netdev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 
-	return mlxsw_env_get_module_eeprom(netdev, mlxsw_sp->core,
+	return mlxsw_env_get_module_eeprom(netdev, mlxsw_sp->core, 0,
 					   mlxsw_sp_port->mapping.module, ee,
 					   data);
 }
@@ -1060,8 +1060,8 @@ mlxsw_sp_get_module_eeprom_by_page(struct net_device *dev,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	u8 module = mlxsw_sp_port->mapping.module;
 
-	return mlxsw_env_get_module_eeprom_by_page(mlxsw_sp->core, module, page,
-						   extack);
+	return mlxsw_env_get_module_eeprom_by_page(mlxsw_sp->core, 0, module,
+						   page, extack);
 }
 
 static int
@@ -1204,7 +1204,7 @@ static int mlxsw_sp_reset(struct net_device *dev, u32 *flags)
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	u8 module = mlxsw_sp_port->mapping.module;
 
-	return mlxsw_env_reset_module(dev, mlxsw_sp->core, module, flags);
+	return mlxsw_env_reset_module(dev, mlxsw_sp->core, 0, module, flags);
 }
 
 static int
@@ -1216,8 +1216,8 @@ mlxsw_sp_get_module_power_mode(struct net_device *dev,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	u8 module = mlxsw_sp_port->mapping.module;
 
-	return mlxsw_env_get_module_power_mode(mlxsw_sp->core, module, params,
-					       extack);
+	return mlxsw_env_get_module_power_mode(mlxsw_sp->core, 0, module,
+					       params, extack);
 }
 
 static int
@@ -1229,7 +1229,7 @@ mlxsw_sp_set_module_power_mode(struct net_device *dev,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	u8 module = mlxsw_sp_port->mapping.module;
 
-	return mlxsw_env_set_module_power_mode(mlxsw_sp->core, module,
+	return mlxsw_env_set_module_power_mode(mlxsw_sp->core, 0, module,
 					       params->policy, extack);
 }
 

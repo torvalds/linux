@@ -311,8 +311,9 @@ static int mlxsw_hwmon_module_temp_critical_get(struct device *dev,
 	int err;
 
 	module = mlxsw_hwmon_attr->type_index - mlxsw_hwmon->sensor_count;
-	err = mlxsw_env_module_temp_thresholds_get(mlxsw_hwmon->core, module,
-						   SFP_TEMP_HIGH_WARN, p_temp);
+	err = mlxsw_env_module_temp_thresholds_get(mlxsw_hwmon->core, 0,
+						   module, SFP_TEMP_HIGH_WARN,
+						   p_temp);
 	if (err) {
 		dev_err(dev, "Failed to query module temperature thresholds\n");
 		return err;
@@ -345,8 +346,9 @@ static int mlxsw_hwmon_module_temp_emergency_get(struct device *dev,
 	int err;
 
 	module = mlxsw_hwmon_attr->type_index - mlxsw_hwmon->sensor_count;
-	err = mlxsw_env_module_temp_thresholds_get(mlxsw_hwmon->core, module,
-						   SFP_TEMP_HIGH_ALARM, p_temp);
+	err = mlxsw_env_module_temp_thresholds_get(mlxsw_hwmon->core, 0,
+						   module, SFP_TEMP_HIGH_ALARM,
+						   p_temp);
 	if (err) {
 		dev_err(dev, "Failed to query module temperature thresholds\n");
 		return err;

@@ -150,13 +150,13 @@ mlxsw_thermal_module_trips_update(struct device *dev, struct mlxsw_core *core,
 	 * EEPROM if we got valid thresholds from MTMP.
 	 */
 	if (!emerg_temp || !crit_temp) {
-		err = mlxsw_env_module_temp_thresholds_get(core, tz->module,
+		err = mlxsw_env_module_temp_thresholds_get(core, 0, tz->module,
 							   SFP_TEMP_HIGH_WARN,
 							   &crit_temp);
 		if (err)
 			return err;
 
-		err = mlxsw_env_module_temp_thresholds_get(core, tz->module,
+		err = mlxsw_env_module_temp_thresholds_get(core, 0, tz->module,
 							   SFP_TEMP_HIGH_ALARM,
 							   &emerg_temp);
 		if (err)

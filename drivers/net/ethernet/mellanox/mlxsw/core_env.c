@@ -28,7 +28,8 @@ struct mlxsw_env {
 	struct mlxsw_env_module_info module_info[];
 };
 
-static int __mlxsw_env_validate_module_type(struct mlxsw_core *core, u8 module)
+static int __mlxsw_env_validate_module_type(struct mlxsw_core *core,
+					    u8 slot_index, u8 module)
 {
 	struct mlxsw_env *mlxsw_env = mlxsw_core_env(core);
 	int err;
@@ -44,33 +45,35 @@ static int __mlxsw_env_validate_module_type(struct mlxsw_core *core, u8 module)
 	return err;
 }
 
-static int mlxsw_env_validate_module_type(struct mlxsw_core *core, u8 module)
+static int mlxsw_env_validate_module_type(struct mlxsw_core *core,
+					  u8 slot_index, u8 module)
 {
 	struct mlxsw_env *mlxsw_env = mlxsw_core_env(core);
 	int err;
 
 	mutex_lock(&mlxsw_env->module_info_lock);
-	err = __mlxsw_env_validate_module_type(core, module);
+	err = __mlxsw_env_validate_module_type(core, slot_index, module);
 	mutex_unlock(&mlxsw_env->module_info_lock);
 
 	return err;
 }
 
 static int
-mlxsw_env_validate_cable_ident(struct mlxsw_core *core, int id, bool *qsfp,
-			       bool *cmis)
+mlxsw_env_validate_cable_ident(struct mlxsw_core *core, u8 slot_index, int id,
+			       bool *qsfp, bool *cmis)
 {
 	char mcia_pl[MLXSW_REG_MCIA_LEN];
 	char *eeprom_tmp;
 	u8 ident;
 	int err;
 
-	err = mlxsw_env_validate_module_type(core, id);
+	err = mlxsw_env_validate_module_type(core, slot_index, id);
 	if (err)
 		return err;
 
-	mlxsw_reg_mcia_pack(mcia_pl, 0, id, 0, MLXSW_REG_MCIA_PAGE0_LO_OFF, 0,
-			    1, MLXSW_REG_MCIA_I2C_ADDR_LOW);
+	mlxsw_reg_mcia_pack(mcia_pl, slot_index, id, 0,
+			    MLXSW_REG_MCIA_PAGE0_LO_OFF, 0, 1,
+			    MLXSW_REG_MCIA_I2C_ADDR_LOW);
 	err = mlxsw_reg_query(core, MLXSW_REG(mcia), mcia_pl);
 	if (err)
 		return err;
@@ -99,8 +102,8 @@ mlxsw_env_validate_cable_ident(struct mlxsw_core *core, int id, bool *qsfp,
 }
 
 static int
-mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
-			      u16 offset, u16 size, void *data,
+mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, u8 slot_index,
+			      int module, u16 offset, u16 size, void *data,
 			      bool qsfp, unsigned int *p_read_size)
 {
 	char mcia_pl[MLXSW_REG_MCIA_LEN];
@@ -145,7 +148,7 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
 		}
 	}
 
-	mlxsw_reg_mcia_pack(mcia_pl, 0, module, 0, page, offset, size,
+	mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, 0, page, offset, size,
 			    i2c_addr);
 
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mcia), mcia_pl);
@@ -163,8 +166,9 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, int module,
 	return 0;
 }
 
-int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
-					 int off, int *temp)
+int
+mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, u8 slot_index,
+				     int module, int off, int *temp)
 {
 	unsigned int module_temp, module_crit, module_emerg;
 	union {
@@ -178,8 +182,9 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 	int page;
 	int err;
 
-	mlxsw_reg_mtmp_pack(mtmp_pl, 0, MLXSW_REG_MTMP_MODULE_INDEX_MIN + module,
-			    false, false);
+	mlxsw_reg_mtmp_pack(mtmp_pl, slot_index,
+			    MLXSW_REG_MTMP_MODULE_INDEX_MIN + module, false,
+			    false);
 	err = mlxsw_reg_query(core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err)
 		return err;
@@ -208,7 +213,8 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 	 */
 
 	/* Validate module identifier value. */
-	err = mlxsw_env_validate_cable_ident(core, module, &qsfp, &cmis);
+	err = mlxsw_env_validate_cable_ident(core, slot_index, module, &qsfp,
+					     &cmis);
 	if (err)
 		return err;
 
@@ -220,12 +226,12 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 			page = MLXSW_REG_MCIA_TH_PAGE_CMIS_NUM;
 		else
 			page = MLXSW_REG_MCIA_TH_PAGE_NUM;
-		mlxsw_reg_mcia_pack(mcia_pl, 0, module, 0, page,
+		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, 0, page,
 				    MLXSW_REG_MCIA_TH_PAGE_OFF + off,
 				    MLXSW_REG_MCIA_TH_ITEM_SIZE,
 				    MLXSW_REG_MCIA_I2C_ADDR_LOW);
 	} else {
-		mlxsw_reg_mcia_pack(mcia_pl, 0, module, 0,
+		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, 0,
 				    MLXSW_REG_MCIA_PAGE0_LO,
 				    off, MLXSW_REG_MCIA_TH_ITEM_SIZE,
 				    MLXSW_REG_MCIA_I2C_ADDR_HIGH);
@@ -243,8 +249,8 @@ int mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, int module,
 }
 
 int mlxsw_env_get_module_info(struct net_device *netdev,
-			      struct mlxsw_core *mlxsw_core, int module,
-			      struct ethtool_modinfo *modinfo)
+			      struct mlxsw_core *mlxsw_core, u8 slot_index,
+			      int module, struct ethtool_modinfo *modinfo)
 {
 	u8 module_info[MLXSW_REG_MCIA_EEPROM_MODULE_INFO_SIZE];
 	u16 offset = MLXSW_REG_MCIA_EEPROM_MODULE_INFO_SIZE;
@@ -252,15 +258,16 @@ int mlxsw_env_get_module_info(struct net_device *netdev,
 	unsigned int read_size;
 	int err;
 
-	err = mlxsw_env_validate_module_type(mlxsw_core, module);
+	err = mlxsw_env_validate_module_type(mlxsw_core, slot_index, module);
 	if (err) {
 		netdev_err(netdev,
 			   "EEPROM is not equipped on port module type");
 		return err;
 	}
 
-	err = mlxsw_env_query_module_eeprom(mlxsw_core, module, 0, offset,
-					    module_info, false, &read_size);
+	err = mlxsw_env_query_module_eeprom(mlxsw_core, slot_index, module, 0,
+					    offset, module_info, false,
+					    &read_size);
 	if (err)
 		return err;
 
@@ -289,9 +296,10 @@ int mlxsw_env_get_module_info(struct net_device *netdev,
 		break;
 	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_SFP:
 		/* Verify if transceiver provides diagnostic monitoring page */
-		err = mlxsw_env_query_module_eeprom(mlxsw_core, module,
-						    SFP_DIAGMON, 1, &diag_mon,
-						    false, &read_size);
+		err = mlxsw_env_query_module_eeprom(mlxsw_core, slot_index,
+						    module, SFP_DIAGMON, 1,
+						    &diag_mon, false,
+						    &read_size);
 		if (err)
 			return err;
 
@@ -330,8 +338,9 @@ int mlxsw_env_get_module_info(struct net_device *netdev,
 EXPORT_SYMBOL(mlxsw_env_get_module_info);
 
 int mlxsw_env_get_module_eeprom(struct net_device *netdev,
-				struct mlxsw_core *mlxsw_core, int module,
-				struct ethtool_eeprom *ee, u8 *data)
+				struct mlxsw_core *mlxsw_core, u8 slot_index,
+				int module, struct ethtool_eeprom *ee,
+				u8 *data)
 {
 	int offset = ee->offset;
 	unsigned int read_size;
@@ -344,12 +353,14 @@ int mlxsw_env_get_module_eeprom(struct net_device *netdev,
 
 	memset(data, 0, ee->len);
 	/* Validate module identifier value. */
-	err = mlxsw_env_validate_cable_ident(mlxsw_core, module, &qsfp, &cmis);
+	err = mlxsw_env_validate_cable_ident(mlxsw_core, slot_index, module,
+					     &qsfp, &cmis);
 	if (err)
 		return err;
 
 	while (i < ee->len) {
-		err = mlxsw_env_query_module_eeprom(mlxsw_core, module, offset,
+		err = mlxsw_env_query_module_eeprom(mlxsw_core, slot_index,
+						    module, offset,
 						    ee->len - i, data + i,
 						    qsfp, &read_size);
 		if (err) {
@@ -395,7 +406,8 @@ static int mlxsw_env_mcia_status_process(const char *mcia_pl,
 }
 
 int
-mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core, u8 module,
+mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core,
+				    u8 slot_index, u8 module,
 				    const struct ethtool_module_eeprom *page,
 				    struct netlink_ext_ack *extack)
 {
@@ -403,7 +415,7 @@ mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core, u8 module,
 	u16 device_addr;
 	int err;
 
-	err = mlxsw_env_validate_module_type(mlxsw_core, module);
+	err = mlxsw_env_validate_module_type(mlxsw_core, slot_index, module);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "EEPROM is not equipped on port module type");
 		return err;
@@ -420,7 +432,7 @@ mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core, u8 module,
 		size = min_t(u8, page->length - bytes_read,
 			     MLXSW_REG_MCIA_EEPROM_SIZE);
 
-		mlxsw_reg_mcia_pack(mcia_pl, 0, module, 0, page->page,
+		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, 0, page->page,
 				    device_addr + bytes_read, size,
 				    page->i2c_address);
 		mlxsw_reg_mcia_bank_number_set(mcia_pl, page->bank);
@@ -444,18 +456,20 @@ mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core, u8 module,
 }
 EXPORT_SYMBOL(mlxsw_env_get_module_eeprom_by_page);
 
-static int mlxsw_env_module_reset(struct mlxsw_core *mlxsw_core, u8 module)
+static int mlxsw_env_module_reset(struct mlxsw_core *mlxsw_core, u8 slot_index,
+				  u8 module)
 {
 	char pmaos_pl[MLXSW_REG_PMAOS_LEN];
 
-	mlxsw_reg_pmaos_pack(pmaos_pl, 0, module);
+	mlxsw_reg_pmaos_pack(pmaos_pl, slot_index, module);
 	mlxsw_reg_pmaos_rst_set(pmaos_pl, true);
 
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(pmaos), pmaos_pl);
 }
 
 int mlxsw_env_reset_module(struct net_device *netdev,
-			   struct mlxsw_core *mlxsw_core, u8 module, u32 *flags)
+			   struct mlxsw_core *mlxsw_core, u8 slot_index,
+			   u8 module, u32 *flags)
 {
 	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
 	u32 req = *flags;
@@ -467,7 +481,7 @@ int mlxsw_env_reset_module(struct net_device *netdev,
 
 	mutex_lock(&mlxsw_env->module_info_lock);
 
-	err = __mlxsw_env_validate_module_type(mlxsw_core, module);
+	err = __mlxsw_env_validate_module_type(mlxsw_core, slot_index, module);
 	if (err) {
 		netdev_err(netdev, "Reset module is not supported on port module type\n");
 		goto out;
@@ -486,7 +500,7 @@ int mlxsw_env_reset_module(struct net_device *netdev,
 		goto out;
 	}
 
-	err = mlxsw_env_module_reset(mlxsw_core, module);
+	err = mlxsw_env_module_reset(mlxsw_core, slot_index, module);
 	if (err) {
 		netdev_err(netdev, "Failed to reset module\n");
 		goto out;
@@ -501,7 +515,8 @@ out:
 EXPORT_SYMBOL(mlxsw_env_reset_module);
 
 int
-mlxsw_env_get_module_power_mode(struct mlxsw_core *mlxsw_core, u8 module,
+mlxsw_env_get_module_power_mode(struct mlxsw_core *mlxsw_core, u8 slot_index,
+				u8 module,
 				struct ethtool_module_power_mode_params *params,
 				struct netlink_ext_ack *extack)
 {
@@ -512,7 +527,7 @@ mlxsw_env_get_module_power_mode(struct mlxsw_core *mlxsw_core, u8 module,
 
 	mutex_lock(&mlxsw_env->module_info_lock);
 
-	err = __mlxsw_env_validate_module_type(mlxsw_core, module);
+	err = __mlxsw_env_validate_module_type(mlxsw_core, slot_index, module);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Power mode is not supported on port module type");
 		goto out;
@@ -520,7 +535,7 @@ mlxsw_env_get_module_power_mode(struct mlxsw_core *mlxsw_core, u8 module,
 
 	params->policy = mlxsw_env->module_info[module].power_mode_policy;
 
-	mlxsw_reg_mcion_pack(mcion_pl, 0, module);
+	mlxsw_reg_mcion_pack(mcion_pl, slot_index, module);
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mcion), mcion_pl);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to retrieve module's power mode");
@@ -543,12 +558,12 @@ out:
 EXPORT_SYMBOL(mlxsw_env_get_module_power_mode);
 
 static int mlxsw_env_module_enable_set(struct mlxsw_core *mlxsw_core,
-				       u8 module, bool enable)
+				       u8 slot_index, u8 module, bool enable)
 {
 	enum mlxsw_reg_pmaos_admin_status admin_status;
 	char pmaos_pl[MLXSW_REG_PMAOS_LEN];
 
-	mlxsw_reg_pmaos_pack(pmaos_pl, 0, module);
+	mlxsw_reg_pmaos_pack(pmaos_pl, slot_index, module);
 	admin_status = enable ? MLXSW_REG_PMAOS_ADMIN_STATUS_ENABLED :
 				MLXSW_REG_PMAOS_ADMIN_STATUS_DISABLED;
 	mlxsw_reg_pmaos_admin_status_set(pmaos_pl, admin_status);
@@ -558,12 +573,13 @@ static int mlxsw_env_module_enable_set(struct mlxsw_core *mlxsw_core,
 }
 
 static int mlxsw_env_module_low_power_set(struct mlxsw_core *mlxsw_core,
-					  u8 module, bool low_power)
+					  u8 slot_index, u8 module,
+					  bool low_power)
 {
 	u16 eeprom_override_mask, eeprom_override;
 	char pmmp_pl[MLXSW_REG_PMMP_LEN];
 
-	mlxsw_reg_pmmp_pack(pmmp_pl, 0, module);
+	mlxsw_reg_pmmp_pack(pmmp_pl, slot_index, module);
 	mlxsw_reg_pmmp_sticky_set(pmmp_pl, true);
 	/* Mask all the bits except low power mode. */
 	eeprom_override_mask = ~MLXSW_REG_PMMP_EEPROM_OVERRIDE_LOW_POWER_MASK;
@@ -576,24 +592,26 @@ static int mlxsw_env_module_low_power_set(struct mlxsw_core *mlxsw_core,
 }
 
 static int __mlxsw_env_set_module_power_mode(struct mlxsw_core *mlxsw_core,
-					     u8 module, bool low_power,
+					     u8 slot_index, u8 module,
+					     bool low_power,
 					     struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = mlxsw_env_module_enable_set(mlxsw_core, module, false);
+	err = mlxsw_env_module_enable_set(mlxsw_core, slot_index, module, false);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to disable module");
 		return err;
 	}
 
-	err = mlxsw_env_module_low_power_set(mlxsw_core, module, low_power);
+	err = mlxsw_env_module_low_power_set(mlxsw_core, slot_index, module,
+					     low_power);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to set module's power mode");
 		goto err_module_low_power_set;
 	}
 
-	err = mlxsw_env_module_enable_set(mlxsw_core, module, true);
+	err = mlxsw_env_module_enable_set(mlxsw_core, slot_index, module, true);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to enable module");
 		goto err_module_enable_set;
@@ -602,14 +620,16 @@ static int __mlxsw_env_set_module_power_mode(struct mlxsw_core *mlxsw_core,
 	return 0;
 
 err_module_enable_set:
-	mlxsw_env_module_low_power_set(mlxsw_core, module, !low_power);
+	mlxsw_env_module_low_power_set(mlxsw_core, slot_index, module,
+				       !low_power);
 err_module_low_power_set:
-	mlxsw_env_module_enable_set(mlxsw_core, module, true);
+	mlxsw_env_module_enable_set(mlxsw_core, slot_index, module, true);
 	return err;
 }
 
 int
-mlxsw_env_set_module_power_mode(struct mlxsw_core *mlxsw_core, u8 module,
+mlxsw_env_set_module_power_mode(struct mlxsw_core *mlxsw_core, u8 slot_index,
+				u8 module,
 				enum ethtool_module_power_mode_policy policy,
 				struct netlink_ext_ack *extack)
 {
@@ -625,7 +645,7 @@ mlxsw_env_set_module_power_mode(struct mlxsw_core *mlxsw_core, u8 module,
 
 	mutex_lock(&mlxsw_env->module_info_lock);
 
-	err = __mlxsw_env_validate_module_type(mlxsw_core, module);
+	err = __mlxsw_env_validate_module_type(mlxsw_core, slot_index, module);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Power mode set is not supported on port module type");
@@ -640,8 +660,8 @@ mlxsw_env_set_module_power_mode(struct mlxsw_core *mlxsw_core, u8 module,
 		goto out_set_policy;
 
 	low_power = policy == ETHTOOL_MODULE_POWER_MODE_POLICY_AUTO;
-	err = __mlxsw_env_set_module_power_mode(mlxsw_core, module, low_power,
-						extack);
+	err = __mlxsw_env_set_module_power_mode(mlxsw_core, slot_index, module,
+						low_power, extack);
 	if (err)
 		goto out;
 
@@ -654,14 +674,14 @@ out:
 EXPORT_SYMBOL(mlxsw_env_set_module_power_mode);
 
 static int mlxsw_env_module_has_temp_sensor(struct mlxsw_core *mlxsw_core,
-					    u8 module,
+					    u8 slot_index, u8 module,
 					    bool *p_has_temp_sensor)
 {
 	char mtbr_pl[MLXSW_REG_MTBR_LEN];
 	u16 temp;
 	int err;
 
-	mlxsw_reg_mtbr_pack(mtbr_pl, 0,
+	mlxsw_reg_mtbr_pack(mtbr_pl, slot_index,
 			    MLXSW_REG_MTBR_BASE_MODULE_INDEX + module, 1);
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mtbr), mtbr_pl);
 	if (err)
@@ -682,13 +702,15 @@ static int mlxsw_env_module_has_temp_sensor(struct mlxsw_core *mlxsw_core,
 	return 0;
 }
 
-static int mlxsw_env_temp_event_set(struct mlxsw_core *mlxsw_core,
-				    u16 sensor_index, bool enable)
+static int
+mlxsw_env_temp_event_set(struct mlxsw_core *mlxsw_core, u8 slot_index,
+			 u16 sensor_index, bool enable)
 {
 	char mtmp_pl[MLXSW_REG_MTMP_LEN] = {0};
 	enum mlxsw_reg_mtmp_tee tee;
 	int err, threshold_hi;
 
+	mlxsw_reg_mtmp_slot_index_set(mtmp_pl, slot_index);
 	mlxsw_reg_mtmp_sensor_index_set(mtmp_pl, sensor_index);
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err)
@@ -696,6 +718,7 @@ static int mlxsw_env_temp_event_set(struct mlxsw_core *mlxsw_core,
 
 	if (enable) {
 		err = mlxsw_env_module_temp_thresholds_get(mlxsw_core,
+							   slot_index,
 							   sensor_index -
 							   MLXSW_REG_MTMP_MODULE_INDEX_MIN,
 							   SFP_TEMP_HIGH_WARN,
@@ -722,14 +745,15 @@ static int mlxsw_env_temp_event_set(struct mlxsw_core *mlxsw_core,
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(mtmp), mtmp_pl);
 }
 
-static int mlxsw_env_module_temp_event_enable(struct mlxsw_core *mlxsw_core)
+static int mlxsw_env_module_temp_event_enable(struct mlxsw_core *mlxsw_core,
+					      u8 slot_index)
 {
 	int i, err, sensor_index;
 	bool has_temp_sensor;
 
 	for (i = 0; i < mlxsw_core_env(mlxsw_core)->module_count; i++) {
-		err = mlxsw_env_module_has_temp_sensor(mlxsw_core, i,
-						       &has_temp_sensor);
+		err = mlxsw_env_module_has_temp_sensor(mlxsw_core, slot_index,
+						       i, &has_temp_sensor);
 		if (err)
 			return err;
 
@@ -737,7 +761,8 @@ static int mlxsw_env_module_temp_event_enable(struct mlxsw_core *mlxsw_core)
 			continue;
 
 		sensor_index = i + MLXSW_REG_MTMP_MODULE_INDEX_MIN;
-		err = mlxsw_env_temp_event_set(mlxsw_core, sensor_index, true);
+		err = mlxsw_env_temp_event_set(mlxsw_core, slot_index,
+					       sensor_index, true);
 		if (err)
 			return err;
 	}
@@ -838,6 +863,7 @@ static void mlxsw_env_temp_warn_event_unregister(struct mlxsw_env *mlxsw_env)
 
 struct mlxsw_env_module_plug_unplug_event {
 	struct mlxsw_env *mlxsw_env;
+	u8 slot_index;
 	u8 module;
 	struct work_struct work;
 };
@@ -858,7 +884,9 @@ static void mlxsw_env_pmpe_event_work(struct work_struct *work)
 	mlxsw_env->module_info[event->module].is_overheat = false;
 	mutex_unlock(&mlxsw_env->module_info_lock);
 
-	err = mlxsw_env_module_has_temp_sensor(mlxsw_env->core, event->module,
+	err = mlxsw_env_module_has_temp_sensor(mlxsw_env->core,
+					       event->slot_index,
+					       event->module,
 					       &has_temp_sensor);
 	/* Do not disable events on modules without sensors or faulty sensors
 	 * because FW returns errors.
@@ -870,7 +898,8 @@ static void mlxsw_env_pmpe_event_work(struct work_struct *work)
 		goto out;
 
 	sensor_index = event->module + MLXSW_REG_MTMP_MODULE_INDEX_MIN;
-	mlxsw_env_temp_event_set(mlxsw_env->core, sensor_index, true);
+	mlxsw_env_temp_event_set(mlxsw_env->core, event->slot_index,
+				 sensor_index, true);
 
 out:
 	kfree(event);
@@ -897,6 +926,7 @@ mlxsw_env_pmpe_listener_func(const struct mlxsw_reg_info *reg, char *pmpe_pl,
 		return;
 
 	event->mlxsw_env = mlxsw_env;
+	event->slot_index = 0;
 	event->module = module;
 	INIT_WORK(&event->work, mlxsw_env_pmpe_event_work);
 	mlxsw_core_schedule_work(&event->work);
@@ -924,14 +954,15 @@ mlxsw_env_module_plug_event_unregister(struct mlxsw_env *mlxsw_env)
 }
 
 static int
-mlxsw_env_module_oper_state_event_enable(struct mlxsw_core *mlxsw_core)
+mlxsw_env_module_oper_state_event_enable(struct mlxsw_core *mlxsw_core,
+					 u8 slot_index)
 {
 	int i, err;
 
 	for (i = 0; i < mlxsw_core_env(mlxsw_core)->module_count; i++) {
 		char pmaos_pl[MLXSW_REG_PMAOS_LEN];
 
-		mlxsw_reg_pmaos_pack(pmaos_pl, 0, i);
+		mlxsw_reg_pmaos_pack(pmaos_pl, slot_index, i);
 		mlxsw_reg_pmaos_e_set(pmaos_pl,
 				      MLXSW_REG_PMAOS_E_GENERATE_EVENT);
 		mlxsw_reg_pmaos_ee_set(pmaos_pl, true);
@@ -943,8 +974,8 @@ mlxsw_env_module_oper_state_event_enable(struct mlxsw_core *mlxsw_core)
 }
 
 int
-mlxsw_env_module_overheat_counter_get(struct mlxsw_core *mlxsw_core, u8 module,
-				      u64 *p_counter)
+mlxsw_env_module_overheat_counter_get(struct mlxsw_core *mlxsw_core, u8 slot_index,
+				      u8 module, u64 *p_counter)
 {
 	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
 
@@ -956,7 +987,8 @@ mlxsw_env_module_overheat_counter_get(struct mlxsw_core *mlxsw_core, u8 module,
 }
 EXPORT_SYMBOL(mlxsw_env_module_overheat_counter_get);
 
-void mlxsw_env_module_port_map(struct mlxsw_core *mlxsw_core, u8 module)
+void mlxsw_env_module_port_map(struct mlxsw_core *mlxsw_core, u8 slot_index,
+			       u8 module)
 {
 	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
 
@@ -966,7 +998,8 @@ void mlxsw_env_module_port_map(struct mlxsw_core *mlxsw_core, u8 module)
 }
 EXPORT_SYMBOL(mlxsw_env_module_port_map);
 
-void mlxsw_env_module_port_unmap(struct mlxsw_core *mlxsw_core, u8 module)
+void mlxsw_env_module_port_unmap(struct mlxsw_core *mlxsw_core, u8 slot_index,
+				 u8 module)
 {
 	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
 
@@ -976,7 +1009,8 @@ void mlxsw_env_module_port_unmap(struct mlxsw_core *mlxsw_core, u8 module)
 }
 EXPORT_SYMBOL(mlxsw_env_module_port_unmap);
 
-int mlxsw_env_module_port_up(struct mlxsw_core *mlxsw_core, u8 module)
+int mlxsw_env_module_port_up(struct mlxsw_core *mlxsw_core, u8 slot_index,
+			     u8 module)
 {
 	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
 	int err = 0;
@@ -993,8 +1027,8 @@ int mlxsw_env_module_port_up(struct mlxsw_core *mlxsw_core, u8 module)
 	/* Transition to high power mode following first port using the module
 	 * being put administratively up.
 	 */
-	err = __mlxsw_env_set_module_power_mode(mlxsw_core, module, false,
-						NULL);
+	err = __mlxsw_env_set_module_power_mode(mlxsw_core, slot_index, module,
+						false, NULL);
 	if (err)
 		goto out_unlock;
 
@@ -1006,7 +1040,8 @@ out_unlock:
 }
 EXPORT_SYMBOL(mlxsw_env_module_port_up);
 
-void mlxsw_env_module_port_down(struct mlxsw_core *mlxsw_core, u8 module)
+void mlxsw_env_module_port_down(struct mlxsw_core *mlxsw_core, u8 slot_index,
+				u8 module)
 {
 	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
 
@@ -1024,7 +1059,8 @@ void mlxsw_env_module_port_down(struct mlxsw_core *mlxsw_core, u8 module)
 	/* Transition to low power mode following last port using the module
 	 * being put administratively down.
 	 */
-	__mlxsw_env_set_module_power_mode(mlxsw_core, module, true, NULL);
+	__mlxsw_env_set_module_power_mode(mlxsw_core, slot_index, module, true,
+					  NULL);
 
 out_unlock:
 	mutex_unlock(&mlxsw_env->module_info_lock);
@@ -1032,7 +1068,7 @@ out_unlock:
 EXPORT_SYMBOL(mlxsw_env_module_port_down);
 
 static int
-mlxsw_env_module_type_set(struct mlxsw_core *mlxsw_core)
+mlxsw_env_module_type_set(struct mlxsw_core *mlxsw_core, u8 slot_index)
 {
 	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
 	int i;
@@ -1041,7 +1077,7 @@ mlxsw_env_module_type_set(struct mlxsw_core *mlxsw_core)
 		char pmtm_pl[MLXSW_REG_PMTM_LEN];
 		int err;
 
-		mlxsw_reg_pmtm_pack(pmtm_pl, 0, i);
+		mlxsw_reg_pmtm_pack(pmtm_pl, slot_index, i);
 		err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(pmtm), pmtm_pl);
 		if (err)
 			return err;
@@ -1091,15 +1127,15 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
 	if (err)
 		goto err_module_plug_event_register;
 
-	err = mlxsw_env_module_oper_state_event_enable(mlxsw_core);
+	err = mlxsw_env_module_oper_state_event_enable(mlxsw_core, 0);
 	if (err)
 		goto err_oper_state_event_enable;
 
-	err = mlxsw_env_module_temp_event_enable(mlxsw_core);
+	err = mlxsw_env_module_temp_event_enable(mlxsw_core, 0);
 	if (err)
 		goto err_temp_event_enable;
 
-	err = mlxsw_env_module_type_set(mlxsw_core);
+	err = mlxsw_env_module_type_set(mlxsw_core, 0);
 	if (err)
 		goto err_type_set;
 
