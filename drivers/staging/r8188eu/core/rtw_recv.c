@@ -978,7 +978,7 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	pattrib->ack_policy = 0;
 	/* parsing QC field */
 	if (pattrib->qos) {
-		pattrib->priority = GetPriority((ptr + 24));
+		pattrib->priority = ieee80211_get_tid(hdr);
 		pattrib->ack_policy = GetAckpolicy((ptr + 24));
 		pattrib->amsdu = GetAMsdu((ptr + 24));
 		pattrib->hdrlen = 26;
