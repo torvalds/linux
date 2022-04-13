@@ -526,10 +526,10 @@ int ixgbe_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 		return -ENETDOWN;
 
 	if (!READ_ONCE(adapter->xdp_prog))
-		return -ENXIO;
+		return -EINVAL;
 
 	if (qid >= adapter->num_xdp_queues)
-		return -ENXIO;
+		return -EINVAL;
 
 	ring = adapter->xdp_ring[qid];
 
@@ -537,7 +537,7 @@ int ixgbe_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 		return -ENETDOWN;
 
 	if (!ring->xsk_pool)
-		return -ENXIO;
+		return -EINVAL;
 
 	if (!napi_if_scheduled_mark_missed(&ring->q_vector->napi)) {
 		u64 eics = BIT_ULL(ring->q_vector->v_idx);
