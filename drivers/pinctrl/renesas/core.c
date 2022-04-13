@@ -13,10 +13,11 @@
 #include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
+#include <linux/math.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/machine.h>
@@ -213,7 +214,7 @@ static void sh_pfc_config_reg_helper(struct sh_pfc *pfc,
 		*maskp = (1 << crp->var_field_width[in_pos]) - 1;
 		*posp = crp->reg_width;
 		for (k = 0; k <= in_pos; k++)
-			*posp -= crp->var_field_width[k];
+			*posp -= abs(crp->var_field_width[k]);
 	}
 }
 
@@ -261,14 +262,17 @@ static int sh_pfc_get_config_reg(struct sh_pfc *pfc, u16 enum_id,
 		if (!r_width)
 			break;
 
-		for (bit_pos = 0; bit_pos < r_width; bit_pos += curr_width) {
+		for (bit_pos = 0; bit_pos < r_width; bit_pos += curr_width, m++) {
 			u32 ncomb;
 			u32 n;
 
-			if (f_width)
+			if (f_width) {
 				curr_width = f_width;
-			else
-				curr_width = config_reg->var_field_width[m];
+			} else {
+				curr_width = abs(config_reg->var_field_width[m]);
+				if (config_reg->var_field_width[m] < 0)
+					continue;
+			}
 
 			ncomb = 1 << curr_width;
 			for (n = 0; n < ncomb; n++) {
@@ -280,7 +284,6 @@ static int sh_pfc_get_config_reg(struct sh_pfc *pfc, u16 enum_id,
 				}
 			}
 			pos += ncomb;
-			m++;
 		}
 		k++;
 	}
@@ -874,7 +877,8 @@ static const struct sh_pfc_pin __init *sh_pfc_find_pin(
 static void __init sh_pfc_check_cfg_reg(const char *drvname,
 					const struct pinmux_cfg_reg *cfg_reg)
 {
-	unsigned int i, n, rw, fw;
+	unsigned int i, n, rw;
+	int fw;
 
 	sh_pfc_check_reg(drvname, cfg_reg->reg,
 			 GENMASK(cfg_reg->reg_width - 1, 0));
@@ -887,11 +891,15 @@ static void __init sh_pfc_check_cfg_reg(const char *drvname,
 	}
 
 	for (i = 0, n = 0, rw = 0; (fw = cfg_reg->var_field_width[i]); i++) {
-		if (fw > 3 && is0s(&cfg_reg->enum_ids[n], 1 << fw))
-			sh_pfc_warn("reg 0x%x: reserved field [%u:%u] can be split to reduce table size\n",
-				    cfg_reg->reg, rw, rw + fw - 1);
-		n += 1 << fw;
-		rw += fw;
+		if (fw < 0) {
+			rw += -fw;
+		} else {
+			if (is0s(&cfg_reg->enum_ids[n], 1 << fw))
+				sh_pfc_warn("reg 0x%x: field [%u:%u] can be described as reserved\n",
+					    cfg_reg->reg, rw, rw + fw - 1);
+			n += 1 << fw;
+			rw += fw;
+		}
 	}
 
 	if (rw != cfg_reg->reg_width)

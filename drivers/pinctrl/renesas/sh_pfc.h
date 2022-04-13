@@ -112,7 +112,7 @@ struct pinmux_cfg_reg {
 #define SET_NR_ENUM_IDS(n)
 #endif
 	const u16 *enum_ids;
-	const u8 *var_field_width;
+	const s8 *var_field_width;
 };
 
 #define GROUP(...)	__VA_ARGS__
@@ -142,14 +142,15 @@ struct pinmux_cfg_reg {
  *   - r_width: Width of the register (in bits)
  *   - f_widths: List of widths of the register fields (in bits), from left
  *               to right (i.e. MSB to LSB), wrapped using the GROUP() macro.
- *   - ids: For each register field (from left to right, i.e. MSB to LSB),
- *          2^f_widths[i] enum IDs must be specified, one for each possible
- *          combination of the register field bit values, all wrapped using
- *          the GROUP() macro.
+ *               Reserved fields are indicated by negating the field width.
+ *   - ids: For each non-reserved register field (from left to right, i.e. MSB
+ *          to LSB), 2^f_widths[i] enum IDs must be specified, one for each
+ *          possible combination of the register field bit values, all wrapped
+ *          using the GROUP() macro.
  */
 #define PINMUX_CFG_REG_VAR(name, r, r_width, f_widths, ids)		\
 	.reg = r, .reg_width = r_width,					\
-	.var_field_width = (const u8 []) { f_widths, 0 },		\
+	.var_field_width = (const s8 []) { f_widths, 0 },		\
 	SET_NR_ENUM_IDS(sizeof((const u16 []) { ids }) / sizeof(u16))	\
 	.enum_ids = (const u16 []) { ids }
 
