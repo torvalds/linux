@@ -2292,8 +2292,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT &&
-	    !amdgpu_sriov_vf(adev)) {
+	if ((adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT &&
+	     !amdgpu_sriov_vf(adev)) ||
+	    (adev->firmware.load_type == AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO && amdgpu_dpm == 1)) {
 		r = amdgpu_discovery_set_smu_ip_blocks(adev);
 		if (r)
 			return r;
