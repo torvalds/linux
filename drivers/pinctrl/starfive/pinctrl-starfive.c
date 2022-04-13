@@ -443,6 +443,7 @@ int starfive_pinctrl_probe(struct platform_device *pdev,
 		pctl->pin_regs[i].gpo_doen_reg = -1;
 		pctl->pin_regs[i].func_sel_reg = -1;
 		pctl->pin_regs[i].syscon_reg = -1;
+		pctl->pin_regs[i].pad_sel_reg = -1;
 	}
 	
 	pctl->padctl_base = devm_platform_ioremap_resource_byname(pdev, "control");
