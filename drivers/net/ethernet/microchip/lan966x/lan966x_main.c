@@ -671,6 +671,9 @@ static void lan966x_cleanup_ports(struct lan966x *lan966x)
 		disable_irq(lan966x->ana_irq);
 		lan966x->ana_irq = -ENXIO;
 	}
+
+	if (lan966x->ptp_irq)
+		devm_free_irq(lan966x->dev, lan966x->ptp_irq, lan966x);
 }
 
 static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
