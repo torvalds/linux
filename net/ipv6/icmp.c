@@ -629,12 +629,13 @@ out_bh_enable:
 }
 EXPORT_SYMBOL(icmp6_send);
 
-/* Slightly more convenient version of icmp6_send.
+/* Slightly more convenient version of icmp6_send with drop reasons.
  */
-void icmpv6_param_prob(struct sk_buff *skb, u8 code, int pos)
+void icmpv6_param_prob_reason(struct sk_buff *skb, u8 code, int pos,
+			      enum skb_drop_reason reason)
 {
 	icmp6_send(skb, ICMPV6_PARAMPROB, code, pos, NULL, IP6CB(skb));
-	kfree_skb(skb);
+	kfree_skb_reason(skb, reason);
 }
 
 /* Generate icmpv6 with type/code ICMPV6_DEST_UNREACH/ICMPV6_ADDR_UNREACH
