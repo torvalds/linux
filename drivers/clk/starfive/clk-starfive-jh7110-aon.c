@@ -56,7 +56,7 @@ static const struct jh7110_clk_data jh7110_clk_aon_data[] __initconst = {
 			"u0_rtc_hms_clk_cal", 0, JH7110_OSC),
 };
 
-const int __init clk_starfive_jh7110_aon_init(struct platform_device *pdev, 
+int __init clk_starfive_jh7110_aon_init(struct platform_device *pdev, 
 						struct jh7110_clk_priv *priv)
 {
 	unsigned int idx;

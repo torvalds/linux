@@ -80,7 +80,7 @@ static const struct jh7110_clk_data jh7110_clk_stg_data[] __initconst = {
 			0, JH7110_STG_AXIAHB),
 };
 
-const int __init clk_starfive_jh7110_stg_init(struct platform_device *pdev,
+int __init clk_starfive_jh7110_stg_init(struct platform_device *pdev,
 						struct jh7110_clk_priv *priv)
 {
 	unsigned int idx;

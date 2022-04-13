@@ -122,11 +122,11 @@ struct jh7110_clk_priv {
 void __iomem *jh7110_clk_reg_addr_get(struct jh7110_clk *clk);
 const struct clk_ops *starfive_jh7110_clk_ops(u32 max);
 
-const int __init clk_starfive_jh7110_sys_init(struct platform_device *pdev, \
+int __init clk_starfive_jh7110_sys_init(struct platform_device *pdev, \
 					struct jh7110_clk_priv *priv);
-const int __init clk_starfive_jh7110_stg_init(struct platform_device *pdev, \
+int __init clk_starfive_jh7110_stg_init(struct platform_device *pdev, \
 					struct jh7110_clk_priv *priv);
-const int __init clk_starfive_jh7110_aon_init(struct platform_device *pdev, \
+int __init clk_starfive_jh7110_aon_init(struct platform_device *pdev, \
 					struct jh7110_clk_priv *priv);
 
 #endif

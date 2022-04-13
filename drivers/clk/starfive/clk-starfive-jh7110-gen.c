@@ -106,7 +106,7 @@ static int jh7110_clk_determine_rate(struct clk_hw *hw,
 	unsigned long parent = req->best_parent_rate;
 	unsigned long rate = clamp(req->rate, req->min_rate, req->max_rate);
 	unsigned long div = min_t(unsigned long, 
-						DIV_ROUND_UP(parent, rate), clk->max_div);
+				DIV_ROUND_UP(parent, rate), clk->max_div);
 	unsigned long result = parent / div;
 
 	/*
@@ -283,27 +283,29 @@ static const struct clk_ops jh7110_clk_inv_ops = {
 
 const struct clk_ops *starfive_jh7110_clk_ops(u32 max)
 {
+	const struct clk_ops *ops;
+
 	if (max & JH7110_CLK_DIV_MASK) {
 		if (max & JH7110_CLK_MUX_MASK) {
 			if (max & JH7110_CLK_ENABLE)
-				return &jh7110_clk_gmd_ops;
-			return &jh7110_clk_mdiv_ops;
-		}
+				ops = &jh7110_clk_gmd_ops;
+			else
+				ops = &jh7110_clk_mdiv_ops;
+		} else if (max & JH7110_CLK_ENABLE)
+			ops = &jh7110_clk_gdiv_ops;
+		else
+			ops = &jh7110_clk_div_ops;
+	} else if (max & JH7110_CLK_MUX_MASK) {
 		if (max & JH7110_CLK_ENABLE)
-			return &jh7110_clk_gdiv_ops;
-		return &jh7110_clk_div_ops;
-	}
+			ops = &jh7110_clk_gmux_ops;
+		else
+			ops = &jh7110_clk_mux_ops;
+	} else if (max & JH7110_CLK_ENABLE)
+		ops = &jh7110_clk_gate_ops;
+	else
+		ops = &jh7110_clk_inv_ops;
 
-	if (max & JH7110_CLK_MUX_MASK) {
-		if (max & JH7110_CLK_ENABLE)
-			return &jh7110_clk_gmux_ops;
-		return &jh7110_clk_mux_ops;
-	}
-
-	if (max & JH7110_CLK_ENABLE)
-		return &jh7110_clk_gate_ops;
-
-	return &jh7110_clk_inv_ops;
+	return ops;
 }
 EXPORT_SYMBOL_GPL(starfive_jh7110_clk_ops);
 
@@ -367,7 +369,7 @@ static struct platform_driver clk_starfive_jh7110_driver = {
 	},
 };
 builtin_platform_driver_probe(clk_starfive_jh7110_driver, 
-							clk_starfive_jh7110_probe);
+			clk_starfive_jh7110_probe);
 
 MODULE_AUTHOR("Xingyu Wu <xingyu.wu@starfivetech.com>");
 MODULE_DESCRIPTION("StarFive JH7110 sysgen clock driver");

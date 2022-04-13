@@ -439,7 +439,7 @@ static const struct jh7110_clk_data jh7110_clk_sys_data[] __initconst = {
 			"u0_jtag_certification_trng_clk", 4, JH7110_OSC),
 };
 
-const int __init clk_starfive_jh7110_sys_init(struct platform_device *pdev, 
+int __init clk_starfive_jh7110_sys_init(struct platform_device *pdev, 
 						struct jh7110_clk_priv *priv)
 {
 	unsigned int idx;

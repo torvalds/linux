@@ -95,6 +95,29 @@ config USB_CDNS3_HOST_FLUSH_DMA
 
 endmenu
 
+choice
+        prompt "StarFive JH SOCs board type"
+        depends on SOC_STARFIVE
+	default STARFIVE_FPGA
+	help
+          choice StarFive JH7110 SOC board type
+
+        config STARFIVE_BOARD_FPGA
+                bool "FPGA"
+                help
+                  This enables support for StarFive SoC FPGA board type Hardware.
+	
+        config STARFIVE_BOARD_EVB
+                bool "EVB"
+                help
+                  This enables support for StarFive SoC EVB board type Hardware.
+	
+	config STARFIVE_BOARD_VISIONFIVE
+                bool "Visionfive"
+                help
+                  This enables support for StarFive SoC Visionfive board type Hardware.
+endchoice
+
 config SOC_VIRT
 	bool "QEMU Virt Machine"
 	select CLINT_TIMER if RISCV_M_MODE
