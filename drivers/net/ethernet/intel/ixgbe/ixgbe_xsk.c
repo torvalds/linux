@@ -109,9 +109,13 @@ static int ixgbe_run_xdp_zc(struct ixgbe_adapter *adapter,
 
 	if (likely(act == XDP_REDIRECT)) {
 		err = xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
-		if (err)
-			goto out_failure;
-		return IXGBE_XDP_REDIR;
+		if (!err)
+			return IXGBE_XDP_REDIR;
+		if (xsk_uses_need_wakeup(rx_ring->xsk_pool) && err == -ENOBUFS)
+			result = IXGBE_XDP_EXIT;
+		else
+			result = IXGBE_XDP_CONSUMED;
+		goto out_failure;
 	}
 
 	switch (act) {
@@ -130,16 +134,17 @@ static int ixgbe_run_xdp_zc(struct ixgbe_adapter *adapter,
 		if (result == IXGBE_XDP_CONSUMED)
 			goto out_failure;
 		break;
+	case XDP_DROP:
+		result = IXGBE_XDP_CONSUMED;
+		break;
 	default:
 		bpf_warn_invalid_xdp_action(rx_ring->netdev, xdp_prog, act);
 		fallthrough;
 	case XDP_ABORTED:
+		result = IXGBE_XDP_CONSUMED;
 out_failure:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
 		fallthrough; /* handle aborts by dropping packet */
-	case XDP_DROP:
-		result = IXGBE_XDP_CONSUMED;
-		break;
 	}
 	return result;
 }
@@ -303,12 +308,16 @@ int ixgbe_clean_rx_irq_zc(struct ixgbe_q_vector *q_vector,
 		xsk_buff_dma_sync_for_cpu(bi->xdp, rx_ring->xsk_pool);
 		xdp_res = ixgbe_run_xdp_zc(adapter, rx_ring, bi->xdp);
 
-		if (likely(xdp_res & (IXGBE_XDP_TX | IXGBE_XDP_REDIR)))
+		if (likely(xdp_res & (IXGBE_XDP_TX | IXGBE_XDP_REDIR))) {
 			xdp_xmit |= xdp_res;
-		else if (xdp_res == IXGBE_XDP_CONSUMED)
+		} else if (xdp_res == IXGBE_XDP_EXIT) {
+			failure = true;
+			break;
+		} else if (xdp_res == IXGBE_XDP_CONSUMED) {
 			xsk_buff_free(bi->xdp);
-		else
+		} else if (xdp_res == IXGBE_XDP_PASS) {
 			goto construct_skb;
+		}
 
 		bi->xdp = NULL;
 		total_rx_packets++;

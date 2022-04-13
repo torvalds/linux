@@ -8,6 +8,7 @@
 #define IXGBE_XDP_CONSUMED	BIT(0)
 #define IXGBE_XDP_TX		BIT(1)
 #define IXGBE_XDP_REDIR		BIT(2)
+#define IXGBE_XDP_EXIT		BIT(3)
 
 #define IXGBE_TXD_CMD (IXGBE_TXD_CMD_EOP | \
 		       IXGBE_TXD_CMD_RS)
