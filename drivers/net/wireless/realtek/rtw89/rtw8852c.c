@@ -645,6 +645,7 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.mac_cfg_gnt		= rtw89_mac_cfg_gnt_v1,
 	.stop_sch_tx		= rtw89_mac_stop_sch_tx_v1,
 	.resume_sch_tx		= rtw89_mac_resume_sch_tx_v1,
+	.h2c_dctl_sec_cam	= rtw89_fw_h2c_dctl_sec_cam_v1,
 
 	.btc_init_cfg		= rtw8852c_btc_init_cfg,
 };

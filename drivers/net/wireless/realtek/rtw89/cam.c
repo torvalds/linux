@@ -244,6 +244,12 @@ static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 	addr_cam->sec_ent[key_idx] = sec_cam->sec_cam_idx;
 	addr_cam->sec_entries[key_idx] = sec_cam;
 	set_bit(key_idx, addr_cam->sec_cam_map);
+	ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif, rtwsta);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to update dctl cam sec entry: %d\n",
+			  ret);
+		return ret;
+	}
 	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif, rtwsta, NULL);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to update addr cam sec entry: %d\n",
@@ -398,6 +404,9 @@ int rtw89_cam_sec_key_del(struct rtw89_dev *rtwdev,
 	clear_bit(key_idx, addr_cam->sec_cam_map);
 	addr_cam->sec_entries[key_idx] = NULL;
 	if (inform_fw) {
+		ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif, rtwsta);
+		if (ret)
+			rtw89_err(rtwdev, "failed to update dctl cam del key: %d\n", ret);
 		ret = rtw89_fw_h2c_cam(rtwdev, rtwvif, rtwsta, NULL);
 		if (ret)
 			rtw89_err(rtwdev, "failed to update cam del key: %d\n", ret);

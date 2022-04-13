@@ -2106,6 +2106,9 @@ struct rtw89_chip_ops {
 	int (*stop_sch_tx)(struct rtw89_dev *rtwdev, u8 mac_idx,
 			   u32 *tx_en, enum rtw89_sch_tx_sel sel);
 	int (*resume_sch_tx)(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en);
+	int (*h2c_dctl_sec_cam)(struct rtw89_dev *rtwdev,
+				struct rtw89_vif *rtwvif,
+				struct rtw89_sta *rtwsta);
 
 	void (*btc_set_rfe)(struct rtw89_dev *rtwdev);
 	void (*btc_init_cfg)(struct rtw89_dev *rtwdev);
@@ -3632,6 +3635,18 @@ int rtw89_chip_resume_sch_tx(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
 	return chip->ops->resume_sch_tx(rtwdev, mac_idx, tx_en);
+}
+
+static inline
+int rtw89_chip_h2c_dctl_sec_cam(struct rtw89_dev *rtwdev,
+				struct rtw89_vif *rtwvif,
+				struct rtw89_sta *rtwsta)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (!chip->ops->h2c_dctl_sec_cam)
+		return 0;
+	return chip->ops->h2c_dctl_sec_cam(rtwdev, rtwvif, rtwsta);
 }
 
 static inline u8 *get_hdr_bssid(struct ieee80211_hdr *hdr)
