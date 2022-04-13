@@ -257,12 +257,14 @@ static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 				struct ibmvnic_long_term_buff *ltb, int size)
 {
 	struct device *dev = &adapter->vdev->dev;
+	u64 prev = 0;
 	int rc;
 
 	if (!reuse_ltb(ltb, size)) {
 		dev_dbg(dev,
 			"LTB size changed from 0x%llx to 0x%x, reallocating\n",
 			 ltb->size, size);
+		prev = ltb->size;
 		free_long_term_buff(adapter, ltb);
 	}
 
@@ -283,8 +285,8 @@ static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 		bitmap_set(adapter->map_ids, ltb->map_id, 1);
 
 		dev_dbg(dev,
-			"Allocated new LTB [map %d, size 0x%llx]\n",
-			 ltb->map_id, ltb->size);
+			"Allocated new LTB [map %d, size 0x%llx was 0x%llx]\n",
+			 ltb->map_id, ltb->size, prev);
 	}
 
 	/* Ensure ltb is zeroed - specially when reusing it. */
@@ -529,7 +531,21 @@ static void map_txpool_buf_to_ltb(struct ibmvnic_tx_pool *txpool,
 				  struct ibmvnic_long_term_buff **ltbp,
 				  unsigned int *offset)
 {
-	*ltbp = &txpool->long_term_buff;
+	struct ibmvnic_long_term_buff *ltb;
+	int nbufs;	/* # of buffers in one ltb */
+	int i;
+
+	WARN_ON_ONCE(bufidx >= txpool->num_buffers);
+
+	for (i = 0; i < txpool->ltb_set.num_ltbs; i++) {
+		ltb = &txpool->ltb_set.ltbs[i];
+		nbufs = ltb->size / txpool->buf_size;
+		if (bufidx < nbufs)
+			break;
+		bufidx -= nbufs;
+	}
+
+	*ltbp = ltb;
 	*offset = bufidx * txpool->buf_size;
 }
 
@@ -971,7 +987,7 @@ static void release_one_tx_pool(struct ibmvnic_adapter *adapter,
 {
 	kfree(tx_pool->tx_buff);
 	kfree(tx_pool->free_map);
-	free_long_term_buff(adapter, &tx_pool->long_term_buff);
+	free_ltb_set(adapter, &tx_pool->ltb_set);
 }
 
 /**
@@ -1161,17 +1177,16 @@ update_ltb:
 	for (i = 0; i < num_pools; i++) {
 		struct ibmvnic_tx_pool *tso_pool;
 		struct ibmvnic_tx_pool *tx_pool;
-		u32 ltb_size;
 
 		tx_pool = &adapter->tx_pool[i];
-		ltb_size = tx_pool->num_buffers * tx_pool->buf_size;
-		if (alloc_long_term_buff(adapter, &tx_pool->long_term_buff,
-					 ltb_size))
-			goto out;
 
-		dev_dbg(dev, "Updated LTB for tx pool %d [%p, %d, %d]\n",
-			i, tx_pool->long_term_buff.buff,
-			tx_pool->num_buffers, tx_pool->buf_size);
+		dev_dbg(dev, "Updating LTB for tx pool %d [%d, %d]\n",
+			i, tx_pool->num_buffers, tx_pool->buf_size);
+
+		rc = alloc_ltb_set(adapter, &tx_pool->ltb_set,
+				   tx_pool->num_buffers, tx_pool->buf_size);
+		if (rc)
+			goto out;
 
 		tx_pool->consumer_index = 0;
 		tx_pool->producer_index = 0;
@@ -1180,14 +1195,14 @@ update_ltb:
 			tx_pool->free_map[j] = j;
 
 		tso_pool = &adapter->tso_pool[i];
-		ltb_size = tso_pool->num_buffers * tso_pool->buf_size;
-		if (alloc_long_term_buff(adapter, &tso_pool->long_term_buff,
-					 ltb_size))
-			goto out;
 
-		dev_dbg(dev, "Updated LTB for tso pool %d [%p, %d, %d]\n",
-			i, tso_pool->long_term_buff.buff,
-			tso_pool->num_buffers, tso_pool->buf_size);
+		dev_dbg(dev, "Updating LTB for tso pool %d [%d, %d]\n",
+			i, tso_pool->num_buffers, tso_pool->buf_size);
+
+		rc = alloc_ltb_set(adapter, &tso_pool->ltb_set,
+				   tso_pool->num_buffers, tso_pool->buf_size);
+		if (rc)
+			goto out;
 
 		tso_pool->consumer_index = 0;
 		tso_pool->producer_index = 0;

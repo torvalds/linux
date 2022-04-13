@@ -856,7 +856,7 @@ struct ibmvnic_tx_pool {
 	int *free_map;
 	int consumer_index;
 	int producer_index;
-	struct ibmvnic_long_term_buff long_term_buff;
+	struct ibmvnic_ltb_set ltb_set;
 	int num_buffers;
 	int buf_size;
 } ____cacheline_aligned;
