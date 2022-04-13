@@ -1316,6 +1316,7 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 				   struct cfg80211_beacon_data *params)
 {
 	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_bss_conf *bss_conf;
 	struct beacon_data *old;
 	int err;
 
@@ -1335,6 +1336,14 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	err = ieee80211_assign_beacon(sdata, params, NULL, NULL);
 	if (err < 0)
 		return err;
+
+	bss_conf = &sdata->vif.bss_conf;
+	if (params->he_bss_color_valid &&
+	    params->he_bss_color.enabled != bss_conf->he_bss_color.enabled) {
+		bss_conf->he_bss_color.enabled = params->he_bss_color.enabled;
+		err |= BSS_CHANGED_HE_BSS_COLOR;
+	}
+
 	ieee80211_bss_info_change_notify(sdata, err);
 	return 0;
 }
