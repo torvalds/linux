@@ -1773,6 +1773,7 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 	int ret;
 	bool check_prev = true;
 	u64 ino = btrfs_ino(inode);
+	struct btrfs_block_group *bg;
 	bool nocow = false;
 	struct can_nocow_file_extent_args nocow_args = { 0 };
 
@@ -1901,7 +1902,8 @@ next_slot:
 		}
 
 		ret = 0;
-		if (btrfs_inc_nocow_writers(fs_info, nocow_args.disk_bytenr))
+		bg = btrfs_inc_nocow_writers(fs_info, nocow_args.disk_bytenr);
+		if (bg)
 			nocow = true;
 out_check:
 		/*
@@ -1977,9 +1979,10 @@ out_check:
 				goto error;
 		}
 
-		if (nocow)
-			btrfs_dec_nocow_writers(fs_info, nocow_args.disk_bytenr);
-		nocow = false;
+		if (nocow) {
+			btrfs_dec_nocow_writers(bg);
+			nocow = false;
+		}
 
 		if (btrfs_is_data_reloc_root(root))
 			/*
@@ -2023,7 +2026,7 @@ out_check:
 
 error:
 	if (nocow)
-		btrfs_dec_nocow_writers(fs_info, nocow_args.disk_bytenr);
+		btrfs_dec_nocow_writers(bg);
 
 	if (ret && cur_offset < end)
 		extent_clear_unlock_delalloc(inode, cur_offset, end,
@@ -7417,6 +7420,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 	struct extent_map *em = *map;
 	int type;
 	u64 block_start, orig_start, orig_block_len, ram_bytes;
+	struct btrfs_block_group *bg;
 	bool can_nocow = false;
 	bool space_reserved = false;
 	u64 prev_len;
@@ -7442,9 +7446,11 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 		block_start = em->block_start + (start - em->start);
 
 		if (can_nocow_extent(inode, start, &len, &orig_start,
-				     &orig_block_len, &ram_bytes, false) == 1 &&
-		    btrfs_inc_nocow_writers(fs_info, block_start))
-			can_nocow = true;
+				     &orig_block_len, &ram_bytes, false) == 1) {
+			bg = btrfs_inc_nocow_writers(fs_info, block_start);
+			if (bg)
+				can_nocow = true;
+		}
 	}
 
 	prev_len = len;
@@ -7458,7 +7464,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 			/* Our caller expects us to free the input extent map. */
 			free_extent_map(em);
 			*map = NULL;
-			btrfs_dec_nocow_writers(fs_info, block_start);
+			btrfs_dec_nocow_writers(bg);
 			if (nowait && (ret == -ENOSPC || ret == -EDQUOT))
 				ret = -EAGAIN;
 			goto out;
@@ -7469,7 +7475,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 					      orig_start, block_start,
 					      len, orig_block_len,
 					      ram_bytes, type);
-		btrfs_dec_nocow_writers(fs_info, block_start);
+		btrfs_dec_nocow_writers(bg);
 		if (type == BTRFS_ORDERED_PREALLOC) {
 			free_extent_map(em);
 			*map = em = em2;
