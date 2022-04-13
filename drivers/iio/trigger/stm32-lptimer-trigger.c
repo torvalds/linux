@@ -13,6 +13,7 @@
 #include <linux/mfd/stm32-lptimer.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 /* List Low-Power Timer triggers */
 static const char * const stm32_lptim_triggers[] = {
@@ -77,7 +78,7 @@ static int stm32_lptim_trigger_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	if (of_property_read_u32(pdev->dev.of_node, "reg", &index))
+	if (device_property_read_u32(&pdev->dev, "reg", &index))
 		return -EINVAL;
 
 	if (index >= ARRAY_SIZE(stm32_lptim_triggers))
