@@ -3150,8 +3150,6 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 
 	fast_tx = kmemdup(&build, sizeof(build), GFP_ATOMIC);
 	/* if the kmemdup fails, continue w/o fast_tx */
-	if (!fast_tx)
-		goto out;
 
  out:
 	/* we might have raced against another call to this function */
