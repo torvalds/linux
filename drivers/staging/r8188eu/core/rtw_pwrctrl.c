@@ -373,14 +373,8 @@ int rtw_pwr_wakeup(struct adapter *padapter)
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	unsigned long timeout = jiffies + msecs_to_jiffies(3000);
+	unsigned long deny_time;
 	int ret = _SUCCESS;
-	u32 ips_deffer_ms;
-
-	/* the ms will prevent from falling into IPS after wakeup */
-	ips_deffer_ms = RTW_PWR_STATE_CHK_INTERVAL;
-
-	if (pwrpriv->ips_deny_time < jiffies + rtw_ms_to_systime(ips_deffer_ms))
-		pwrpriv->ips_deny_time = jiffies + rtw_ms_to_systime(ips_deffer_ms);
 
 	while (pwrpriv->ps_processing && time_before(jiffies, timeout))
 		msleep(10);
@@ -406,8 +400,9 @@ int rtw_pwr_wakeup(struct adapter *padapter)
 	}
 
 exit:
-	if (pwrpriv->ips_deny_time < jiffies + rtw_ms_to_systime(ips_deffer_ms))
-		pwrpriv->ips_deny_time = jiffies + rtw_ms_to_systime(ips_deffer_ms);
+	deny_time = jiffies + msecs_to_jiffies(RTW_PWR_STATE_CHK_INTERVAL);
+	if (time_before(pwrpriv->ips_deny_time, deny_time))
+		pwrpriv->ips_deny_time = deny_time;
 	return ret;
 }
 
