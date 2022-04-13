@@ -90,6 +90,7 @@ static int cn10k_rng_read(struct hwrng *hwrng, void *data,
 {
 	struct cn10k_rng *rng = (struct cn10k_rng *)hwrng->priv;
 	unsigned int size;
+	u8 *pos = data;
 	int err = 0;
 	u64 value;
 
@@ -102,17 +103,20 @@ static int cn10k_rng_read(struct hwrng *hwrng, void *data,
 	while (size >= 8) {
 		cn10k_read_trng(rng, &value);
 
-		*((u64 *)data) = (u64)value;
+		*((u64 *)pos) = value;
 		size -= 8;
-		data += 8;
+		pos += 8;
 	}
 
-	while (size > 0) {
+	if (size > 0) {
 		cn10k_read_trng(rng, &value);
 
-		*((u8 *)data) = (u8)value;
-		size--;
-		data++;
+		while (size > 0) {
+			*pos = (u8)value;
+			value >>= 8;
+			size--;
+			pos++;
+		}
 	}
 
 	return max - size;
