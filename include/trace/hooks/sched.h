@@ -124,6 +124,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_sched_setaffinity,
 	TP_PROTO(struct task_struct *p, const struct cpumask *in_mask, int *retval),
 	TP_ARGS(p, in_mask, retval), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_sched_getaffinity,
+	TP_PROTO(struct task_struct *p, struct cpumask *in_mask),
+	TP_ARGS(p, in_mask), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_update_cpus_allowed,
 	TP_PROTO(struct task_struct *p, cpumask_var_t cpus_requested,
 		 const struct cpumask *new_mask, int *ret),
