@@ -1002,7 +1002,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 #endif
 
 	/*
-	 * kn->attr.ops is accesible only while holding active ref.  We
+	 * kn->attr.ops is accessible only while holding active ref.  We
 	 * need to know whether some ops are implemented outside active
 	 * ref.  Cache their existence in flags.
 	 */

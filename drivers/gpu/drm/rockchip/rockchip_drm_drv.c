@@ -290,11 +290,6 @@ int rockchip_drm_endpoint_is_subdriver(struct device_node *ep)
 	return false;
 }
 
-static int compare_dev(struct device *dev, void *data)
-{
-	return dev == (struct device *)data;
-}
-
 static void rockchip_drm_match_remove(struct device *dev)
 {
 	struct device_link *link;
@@ -321,7 +316,7 @@ static struct component_match *rockchip_drm_match_add(struct device *dev)
 				break;
 
 			device_link_add(dev, d, DL_FLAG_STATELESS);
-			component_match_add(dev, &match, compare_dev, d);
+			component_match_add(dev, &match, component_compare_dev, d);
 		} while (true);
 	}
 

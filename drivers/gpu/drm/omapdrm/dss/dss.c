@@ -1344,12 +1344,6 @@ static const struct component_master_ops dss_component_ops = {
 	.unbind = dss_unbind,
 };
 
-static int dss_component_compare(struct device *dev, void *data)
-{
-	struct device *child = data;
-	return dev == child;
-}
-
 struct dss_component_match_data {
 	struct device *dev;
 	struct component_match **match;
@@ -1379,7 +1373,7 @@ static int dss_add_child_component(struct device *dev, void *data)
 		return device_for_each_child(dev, cmatch,
 					     dss_add_child_component);
 
-	component_match_add(cmatch->dev, match, dss_component_compare, dev);
+	component_match_add(cmatch->dev, match, component_compare_dev, dev);
 
 	return 0;
 }

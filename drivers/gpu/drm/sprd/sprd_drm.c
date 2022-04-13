@@ -133,14 +133,9 @@ static const struct component_master_ops drm_component_ops = {
 	.unbind = sprd_drm_unbind,
 };
 
-static int compare_of(struct device *dev, void *data)
-{
-	return dev->of_node == data;
-}
-
 static int sprd_drm_probe(struct platform_device *pdev)
 {
-	return drm_of_component_probe(&pdev->dev, compare_of, &drm_component_ops);
+	return drm_of_component_probe(&pdev->dev, component_compare_of, &drm_component_ops);
 }
 
 static int sprd_drm_remove(struct platform_device *pdev)

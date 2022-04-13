@@ -78,7 +78,7 @@ static void bch_stats_release(struct kobject *k)
 {
 }
 
-static struct attribute *bch_stats_files[] = {
+static struct attribute *bch_stats_attrs[] = {
 	&sysfs_cache_hits,
 	&sysfs_cache_misses,
 	&sysfs_cache_bypass_hits,
@@ -88,6 +88,7 @@ static struct attribute *bch_stats_files[] = {
 	&sysfs_bypassed,
 	NULL
 };
+ATTRIBUTE_GROUPS(bch_stats);
 static KTYPE(bch_stats);
 
 int bch_cache_accounting_add_kobjs(struct cache_accounting *acc,

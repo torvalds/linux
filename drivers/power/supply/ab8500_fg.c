@@ -2537,10 +2537,11 @@ static struct attribute *ab8500_fg_attrs[] = {
 	&charge_now_attr.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(ab8500_fg);
 
 static struct kobj_type ab8500_fg_ktype = {
 	.sysfs_ops = &ab8500_fg_sysfs_ops,
-	.default_attrs = ab8500_fg_attrs,
+	.default_groups = ab8500_fg_groups,
 };
 
 /**
