@@ -3,6 +3,7 @@
 /aarch64/debug-exceptions
 /aarch64/get-reg-list
 /aarch64/psci_cpu_on_test
+/aarch64/vcpu_width_config
 /aarch64/vgic_init
 /aarch64/vgic_irq
 /s390x/memop
@@ -33,6 +34,7 @@
 /x86_64/state_test
 /x86_64/svm_vmcall_test
 /x86_64/svm_int_ctl_test
+/x86_64/tsc_scaling_sync
 /x86_64/sync_regs_test
 /x86_64/tsc_msrs_test
 /x86_64/userspace_io_test
