@@ -371,10 +371,14 @@ static int asus_wmi_evaluate_method_buf(u32 method_id,
 
 	switch (obj->type) {
 	case ACPI_TYPE_BUFFER:
-		if (obj->buffer.length > size)
+		if (obj->buffer.length > size) {
 			err = -ENOSPC;
-		if (obj->buffer.length == 0)
+			break;
+		}
+		if (obj->buffer.length == 0) {
 			err = -ENODATA;
+			break;
+		}
 
 		memcpy(ret_buffer, obj->buffer.pointer, obj->buffer.length);
 		break;
