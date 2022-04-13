@@ -213,13 +213,13 @@ static const struct component_ops cs35l41_hda_comp_ops = {
 	.unbind = cs35l41_hda_unbind,
 };
 
-static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41,
-					const struct cs35l41_hda_hw_config *hw_cfg)
+static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41)
 {
+	struct cs35l41_hw_cfg *hw_cfg = &cs35l41->hw_cfg;
 	bool internal_boost = false;
 	int ret;
 
-	if (!hw_cfg) {
+	if (hw_cfg->vspk_always_on) {
 		cs35l41->reg_seq = &cs35l41_hda_reg_seq_no_bst;
 		return 0;
 	}
@@ -227,7 +227,7 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41,
 	if (hw_cfg->bst_ind || hw_cfg->bst_cap || hw_cfg->bst_ipk)
 		internal_boost = true;
 
-	switch (hw_cfg->gpio1_func) {
+	switch (hw_cfg->gpio1.func) {
 	case CS35L41_NOT_USED:
 		break;
 	case CS35l41_VSPK_SWITCH:
@@ -239,11 +239,11 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41,
 				   CS35L41_GPIO1_CTRL_MASK, 2 << CS35L41_GPIO1_CTRL_SHIFT);
 		break;
 	default:
-		dev_err(cs35l41->dev, "Invalid function %d for GPIO1\n", hw_cfg->gpio1_func);
+		dev_err(cs35l41->dev, "Invalid function %d for GPIO1\n", hw_cfg->gpio1.func);
 		return -EINVAL;
 	}
 
-	switch (hw_cfg->gpio2_func) {
+	switch (hw_cfg->gpio2.func) {
 	case CS35L41_NOT_USED:
 		break;
 	case CS35L41_INTERRUPT:
@@ -251,7 +251,7 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41,
 				   CS35L41_GPIO2_CTRL_MASK, 2 << CS35L41_GPIO2_CTRL_SHIFT);
 		break;
 	default:
-		dev_err(cs35l41->dev, "Invalid function %d for GPIO2\n", hw_cfg->gpio2_func);
+		dev_err(cs35l41->dev, "Invalid function %d for GPIO2\n", hw_cfg->gpio2.func);
 		return -EINVAL;
 	}
 
@@ -267,13 +267,12 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41,
 		cs35l41->reg_seq = &cs35l41_hda_reg_seq_ext_bst;
 	}
 
-	return cs35l41_hda_channel_map(cs35l41->dev, 0, NULL, 1, (unsigned int *)&hw_cfg->spk_pos);
+	return cs35l41_hda_channel_map(cs35l41->dev, 0, NULL, 1, &hw_cfg->spk_pos);
 }
 
-static struct cs35l41_hda_hw_config *cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41,
-							   const char *hid, int id)
+static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, int id)
 {
-	struct cs35l41_hda_hw_config *hw_cfg;
+	struct cs35l41_hw_cfg *hw_cfg = &cs35l41->hw_cfg;
 	u32 values[HDA_MAX_COMPONENTS];
 	struct acpi_device *adev;
 	struct device *physdev;
@@ -284,7 +283,7 @@ static struct cs35l41_hda_hw_config *cs35l41_hda_read_acpi(struct cs35l41_hda *c
 	adev = acpi_dev_get_first_match_dev(hid, NULL, -1);
 	if (!adev) {
 		dev_err(cs35l41->dev, "Failed to find an ACPI device for %s\n", hid);
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 	}
 
 	physdev = get_device(acpi_get_first_physical_node(adev));
@@ -324,29 +323,23 @@ static struct cs35l41_hda_hw_config *cs35l41_hda_read_acpi(struct cs35l41_hda *c
 	cs35l41->reset_gpio = fwnode_gpiod_get_index(&adev->fwnode, "reset", cs35l41->index,
 						     GPIOD_OUT_LOW, "cs35l41-reset");
 
-	hw_cfg = kzalloc(sizeof(*hw_cfg), GFP_KERNEL);
-	if (!hw_cfg) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
 	property = "cirrus,speaker-position";
 	ret = device_property_read_u32_array(physdev, property, values, nval);
 	if (ret)
-		goto err_free;
+		goto err;
 	hw_cfg->spk_pos = values[cs35l41->index];
 
 	property = "cirrus,gpio1-func";
 	ret = device_property_read_u32_array(physdev, property, values, nval);
 	if (ret)
-		goto err_free;
-	hw_cfg->gpio1_func = values[cs35l41->index];
+		goto err;
+	hw_cfg->gpio1.func = values[cs35l41->index];
 
 	property = "cirrus,gpio2-func";
 	ret = device_property_read_u32_array(physdev, property, values, nval);
 	if (ret)
-		goto err_free;
-	hw_cfg->gpio2_func = values[cs35l41->index];
+		goto err;
+	hw_cfg->gpio2.func = values[cs35l41->index];
 
 	property = "cirrus,boost-peak-milliamp";
 	ret = device_property_read_u32_array(physdev, property, values, nval);
@@ -365,15 +358,13 @@ static struct cs35l41_hda_hw_config *cs35l41_hda_read_acpi(struct cs35l41_hda *c
 
 	put_device(physdev);
 
-	return hw_cfg;
+	return 0;
 
-err_free:
-	kfree(hw_cfg);
 err:
 	put_device(physdev);
 	dev_err(cs35l41->dev, "Failed property %s: %d\n", property, ret);
 
-	return ERR_PTR(ret);
+	return ret;
 
 no_acpi_dsd:
 	/*
@@ -384,22 +375,21 @@ no_acpi_dsd:
 	 * fwnode.
 	 */
 	if (strncmp(hid, "CLSA0100", 8) != 0)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	/* check I2C address to assign the index */
 	cs35l41->index = id == 0x40 ? 0 : 1;
 	cs35l41->reset_gpio = gpiod_get_index(physdev, NULL, 0, GPIOD_OUT_HIGH);
-	cs35l41->vspk_always_on = true;
+	cs35l41->hw_cfg.vspk_always_on = true;
 	put_device(physdev);
 
-	return NULL;
+	return 0;
 }
 
 int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int irq,
 		      struct regmap *regmap)
 {
 	unsigned int int_sts, regid, reg_revid, mtl_revid, chipid, int_status;
-	struct cs35l41_hda_hw_config *acpi_hw_cfg;
 	struct cs35l41_hda *cs35l41;
 	int ret;
 
@@ -415,9 +405,11 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 	cs35l41->regmap = regmap;
 	dev_set_drvdata(dev, cs35l41);
 
-	acpi_hw_cfg = cs35l41_hda_read_acpi(cs35l41, device_name, id);
-	if (IS_ERR(acpi_hw_cfg))
-		return PTR_ERR(acpi_hw_cfg);
+	ret = cs35l41_hda_read_acpi(cs35l41, device_name, id);
+	if (ret) {
+		dev_err_probe(cs35l41->dev, ret, "Platform not supported %d\n", ret);
+		return ret;
+	}
 
 	if (IS_ERR(cs35l41->reset_gpio)) {
 		ret = PTR_ERR(cs35l41->reset_gpio);
@@ -490,11 +482,9 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 	if (ret)
 		goto err;
 
-	ret = cs35l41_hda_apply_properties(cs35l41, acpi_hw_cfg);
+	ret = cs35l41_hda_apply_properties(cs35l41);
 	if (ret)
 		goto err;
-	kfree(acpi_hw_cfg);
-	acpi_hw_cfg = NULL;
 
 	if (cs35l41->reg_seq->probe) {
 		ret = regmap_multi_reg_write(cs35l41->regmap, cs35l41->reg_seq->probe,
@@ -516,8 +506,7 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 	return 0;
 
 err:
-	kfree(acpi_hw_cfg);
-	if (!cs35l41->vspk_always_on)
+	if (!cs35l41->hw_cfg.vspk_always_on)
 		gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);
 	gpiod_put(cs35l41->reset_gpio);
 
@@ -531,7 +520,7 @@ void cs35l41_hda_remove(struct device *dev)
 
 	component_del(cs35l41->dev, &cs35l41_hda_comp_ops);
 
-	if (!cs35l41->vspk_always_on)
+	if (!cs35l41->hw_cfg.vspk_always_on)
 		gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);
 	gpiod_put(cs35l41->reset_gpio);
 }

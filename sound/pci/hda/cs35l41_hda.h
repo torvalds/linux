@@ -40,26 +40,15 @@ struct cs35l41_hda_reg_sequence {
 	unsigned int num_close;
 };
 
-struct cs35l41_hda_hw_config {
-	unsigned int spk_pos;
-	unsigned int gpio1_func;
-	unsigned int gpio2_func;
-	int bst_ind;
-	int bst_ipk;
-	int bst_cap;
-};
-
 struct cs35l41_hda {
 	struct device *dev;
 	struct regmap *regmap;
 	struct gpio_desc *reset_gpio;
 	const struct cs35l41_hda_reg_sequence *reg_seq;
+	struct cs35l41_hw_cfg hw_cfg;
 
 	int irq;
 	int index;
-
-	/* Don't put the AMP in reset of VSPK can not be turned off */
-	bool vspk_always_on;
 };
 
 int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int irq,

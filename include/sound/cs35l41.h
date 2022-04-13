@@ -701,9 +701,6 @@
 #define CS35L41_GPIO1_CTRL_SHIFT	16
 #define CS35L41_GPIO2_CTRL_MASK		0x07000000
 #define CS35L41_GPIO2_CTRL_SHIFT	24
-#define CS35L41_GPIO_CTRL_OPEN_INT	2
-#define CS35L41_GPIO_CTRL_ACTV_LO	4
-#define CS35L41_GPIO_CTRL_ACTV_HI	5
 #define CS35L41_GPIO_POL_MASK		0x1000
 #define CS35L41_GPIO_POL_SHIFT		12
 
@@ -735,19 +732,43 @@ enum cs35l41_clk_ids {
 	CS35L41_CLKID_MCLK = 4,
 };
 
-struct cs35l41_irq_cfg {
-	bool irq_pol_inv;
-	bool irq_out_en;
-	int irq_src_sel;
+enum cs35l41_gpio1_func {
+	CS35L41_GPIO1_HIZ,
+	CS35L41_GPIO1_GPIO,
+	CS35L41_GPIO1_MDSYNC,
+	CS35L41_GPIO1_MCLK,
+	CS35L41_GPIO1_PDM_CLK,
+	CS35L41_GPIO1_PDM_DATA,
 };
 
-struct cs35l41_platform_data {
+enum cs35l41_gpio2_func {
+	CS35L41_GPIO2_HIZ,
+	CS35L41_GPIO2_GPIO,
+	CS35L41_GPIO2_INT_OPEN_DRAIN,
+	CS35L41_GPIO2_MCLK,
+	CS35L41_GPIO2_INT_PUSH_PULL_LOW,
+	CS35L41_GPIO2_INT_PUSH_PULL_HIGH,
+	CS35L41_GPIO2_PDM_CLK,
+	CS35L41_GPIO2_PDM_DATA,
+};
+
+struct cs35l41_gpio_cfg {
+	bool pol_inv;
+	bool out_en;
+	unsigned int func;
+};
+
+struct cs35l41_hw_cfg {
 	int bst_ind;
 	int bst_ipk;
 	int bst_cap;
 	int dout_hiz;
-	struct cs35l41_irq_cfg irq_config1;
-	struct cs35l41_irq_cfg irq_config2;
+	struct cs35l41_gpio_cfg gpio1;
+	struct cs35l41_gpio_cfg gpio2;
+	unsigned int spk_pos;
+
+	/* Don't put the AMP in reset if VSPK can not be turned off */
+	bool vspk_always_on;
 };
 
 struct cs35l41_otp_packed_element_t {

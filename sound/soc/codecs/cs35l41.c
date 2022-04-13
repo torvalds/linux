@@ -999,10 +999,10 @@ static int cs35l41_set_pdata(struct cs35l41_private *cs35l41)
 
 	/* Set Platform Data */
 	/* Required */
-	if (cs35l41->pdata.bst_ipk &&
-	    cs35l41->pdata.bst_ind && cs35l41->pdata.bst_cap) {
-		ret = cs35l41_boost_config(cs35l41->dev, cs35l41->regmap, cs35l41->pdata.bst_ind,
-					   cs35l41->pdata.bst_cap, cs35l41->pdata.bst_ipk);
+	if (cs35l41->hw_cfg.bst_ipk &&
+	    cs35l41->hw_cfg.bst_ind && cs35l41->hw_cfg.bst_cap) {
+		ret = cs35l41_boost_config(cs35l41->dev, cs35l41->regmap, cs35l41->hw_cfg.bst_ind,
+					   cs35l41->hw_cfg.bst_cap, cs35l41->hw_cfg.bst_ipk);
 		if (ret) {
 			dev_err(cs35l41->dev, "Error in Boost DT config: %d\n", ret);
 			return ret;
@@ -1013,43 +1013,39 @@ static int cs35l41_set_pdata(struct cs35l41_private *cs35l41)
 	}
 
 	/* Optional */
-	if (cs35l41->pdata.dout_hiz <= CS35L41_ASP_DOUT_HIZ_MASK &&
-	    cs35l41->pdata.dout_hiz >= 0)
-		regmap_update_bits(cs35l41->regmap, CS35L41_SP_HIZ_CTRL,
-				   CS35L41_ASP_DOUT_HIZ_MASK,
-				   cs35l41->pdata.dout_hiz);
+	if (cs35l41->hw_cfg.dout_hiz <= CS35L41_ASP_DOUT_HIZ_MASK &&
+	    cs35l41->hw_cfg.dout_hiz >= 0)
+		regmap_update_bits(cs35l41->regmap, CS35L41_SP_HIZ_CTRL, CS35L41_ASP_DOUT_HIZ_MASK,
+				   cs35l41->hw_cfg.dout_hiz);
 
 	return 0;
 }
 
-static int cs35l41_irq_gpio_config(struct cs35l41_private *cs35l41)
+static int cs35l41_gpio_config(struct cs35l41_private *cs35l41)
 {
-	struct cs35l41_irq_cfg *irq_gpio_cfg1 = &cs35l41->pdata.irq_config1;
-	struct cs35l41_irq_cfg *irq_gpio_cfg2 = &cs35l41->pdata.irq_config2;
+	struct cs35l41_gpio_cfg *gpio1 = &cs35l41->hw_cfg.gpio1;
+	struct cs35l41_gpio_cfg *gpio2 = &cs35l41->hw_cfg.gpio2;
 	int irq_pol = IRQF_TRIGGER_NONE;
 
 	regmap_update_bits(cs35l41->regmap, CS35L41_GPIO1_CTRL1,
 			   CS35L41_GPIO_POL_MASK | CS35L41_GPIO_DIR_MASK,
-			   irq_gpio_cfg1->irq_pol_inv << CS35L41_GPIO_POL_SHIFT |
-			   !irq_gpio_cfg1->irq_out_en << CS35L41_GPIO_DIR_SHIFT);
+			   gpio1->pol_inv << CS35L41_GPIO_POL_SHIFT |
+			   !gpio1->out_en << CS35L41_GPIO_DIR_SHIFT);
 
 	regmap_update_bits(cs35l41->regmap, CS35L41_GPIO2_CTRL1,
 			   CS35L41_GPIO_POL_MASK | CS35L41_GPIO_DIR_MASK,
-			   irq_gpio_cfg2->irq_pol_inv << CS35L41_GPIO_POL_SHIFT |
-			   !irq_gpio_cfg2->irq_out_en << CS35L41_GPIO_DIR_SHIFT);
+			   gpio2->pol_inv << CS35L41_GPIO_POL_SHIFT |
+			   !gpio2->out_en << CS35L41_GPIO_DIR_SHIFT);
 
 	regmap_update_bits(cs35l41->regmap, CS35L41_GPIO_PAD_CONTROL,
 			   CS35L41_GPIO1_CTRL_MASK | CS35L41_GPIO2_CTRL_MASK,
-			   irq_gpio_cfg1->irq_src_sel << CS35L41_GPIO1_CTRL_SHIFT |
-			   irq_gpio_cfg2->irq_src_sel << CS35L41_GPIO2_CTRL_SHIFT);
+			   gpio1->func << CS35L41_GPIO1_CTRL_SHIFT |
+			   gpio2->func << CS35L41_GPIO2_CTRL_SHIFT);
 
-	if ((irq_gpio_cfg2->irq_src_sel ==
-			(CS35L41_GPIO_CTRL_ACTV_LO | CS35L41_VALID_PDATA)) ||
-		(irq_gpio_cfg2->irq_src_sel ==
-			(CS35L41_GPIO_CTRL_OPEN_INT | CS35L41_VALID_PDATA)))
+	if ((gpio2->func == (CS35L41_GPIO2_INT_PUSH_PULL_LOW | CS35L41_VALID_PDATA)) ||
+		(gpio2->func == (CS35L41_GPIO2_INT_OPEN_DRAIN | CS35L41_VALID_PDATA)))
 		irq_pol = IRQF_TRIGGER_LOW;
-	else if (irq_gpio_cfg2->irq_src_sel ==
-			(CS35L41_GPIO_CTRL_ACTV_HI | CS35L41_VALID_PDATA))
+	else if (gpio2->func == (CS35L41_GPIO2_INT_PUSH_PULL_HIGH | CS35L41_VALID_PDATA))
 		irq_pol = IRQF_TRIGGER_HIGH;
 
 	return irq_pol;
@@ -1115,50 +1111,44 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l41 = {
 	.set_sysclk = cs35l41_component_set_sysclk,
 };
 
-static int cs35l41_handle_pdata(struct device *dev, struct cs35l41_platform_data *pdata)
+static int cs35l41_handle_pdata(struct device *dev, struct cs35l41_hw_cfg *hw_cfg)
 {
-	struct cs35l41_irq_cfg *irq_gpio1_config = &pdata->irq_config1;
-	struct cs35l41_irq_cfg *irq_gpio2_config = &pdata->irq_config2;
+	struct cs35l41_gpio_cfg *gpio1 = &hw_cfg->gpio1;
+	struct cs35l41_gpio_cfg *gpio2 = &hw_cfg->gpio2;
 	unsigned int val;
 	int ret;
 
 	ret = device_property_read_u32(dev, "cirrus,boost-peak-milliamp", &val);
 	if (ret >= 0)
-		pdata->bst_ipk = val;
+		hw_cfg->bst_ipk = val;
 
 	ret = device_property_read_u32(dev, "cirrus,boost-ind-nanohenry", &val);
 	if (ret >= 0)
-		pdata->bst_ind = val;
+		hw_cfg->bst_ind = val;
 
 	ret = device_property_read_u32(dev, "cirrus,boost-cap-microfarad", &val);
 	if (ret >= 0)
-		pdata->bst_cap = val;
+		hw_cfg->bst_cap = val;
 
 	ret = device_property_read_u32(dev, "cirrus,asp-sdout-hiz", &val);
 	if (ret >= 0)
-		pdata->dout_hiz = val;
+		hw_cfg->dout_hiz = val;
 	else
-		pdata->dout_hiz = -1;
+		hw_cfg->dout_hiz = -1;
 
 	/* GPIO1 Pin Config */
-	irq_gpio1_config->irq_pol_inv = device_property_read_bool(dev,
-					"cirrus,gpio1-polarity-invert");
-	irq_gpio1_config->irq_out_en = device_property_read_bool(dev,
-					"cirrus,gpio1-output-enable");
-	ret = device_property_read_u32(dev, "cirrus,gpio1-src-select",
-				       &val);
+	gpio1->pol_inv = device_property_read_bool(dev, "cirrus,gpio1-polarity-invert");
+	gpio1->out_en = device_property_read_bool(dev, "cirrus,gpio1-output-enable");
+	ret = device_property_read_u32(dev, "cirrus,gpio1-src-select", &val);
 	if (ret >= 0)
-		irq_gpio1_config->irq_src_sel = val | CS35L41_VALID_PDATA;
+		gpio1->func = val | CS35L41_VALID_PDATA;
 
 	/* GPIO2 Pin Config */
-	irq_gpio2_config->irq_pol_inv = device_property_read_bool(dev,
-					"cirrus,gpio2-polarity-invert");
-	irq_gpio2_config->irq_out_en = device_property_read_bool(dev,
-					"cirrus,gpio2-output-enable");
-	ret = device_property_read_u32(dev, "cirrus,gpio2-src-select",
-				       &val);
+	gpio2->pol_inv = device_property_read_bool(dev, "cirrus,gpio2-polarity-invert");
+	gpio2->out_en = device_property_read_bool(dev, "cirrus,gpio2-output-enable");
+	ret = device_property_read_u32(dev, "cirrus,gpio2-src-select", &val);
 	if (ret >= 0)
-		irq_gpio2_config->irq_src_sel = val | CS35L41_VALID_PDATA;
+		gpio2->func = val | CS35L41_VALID_PDATA;
 
 	return 0;
 }
@@ -1248,17 +1238,16 @@ err_dsp:
 	return ret;
 }
 
-int cs35l41_probe(struct cs35l41_private *cs35l41,
-		  struct cs35l41_platform_data *pdata)
+int cs35l41_probe(struct cs35l41_private *cs35l41, const struct cs35l41_hw_cfg *hw_cfg)
 {
 	u32 regid, reg_revid, i, mtl_revid, int_status, chipid_match;
 	int irq_pol = 0;
 	int ret;
 
-	if (pdata) {
-		cs35l41->pdata = *pdata;
+	if (hw_cfg) {
+		cs35l41->hw_cfg = *hw_cfg;
 	} else {
-		ret = cs35l41_handle_pdata(cs35l41->dev, &cs35l41->pdata);
+		ret = cs35l41_handle_pdata(cs35l41->dev, &cs35l41->hw_cfg);
 		if (ret != 0)
 			return ret;
 	}
@@ -1357,7 +1346,7 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 
 	cs35l41_test_key_lock(cs35l41->dev, cs35l41->regmap);
 
-	irq_pol = cs35l41_irq_gpio_config(cs35l41);
+	irq_pol = cs35l41_gpio_config(cs35l41);
 
 	/* Set interrupt masks for critical errors */
 	regmap_write(cs35l41->regmap, CS35L41_IRQ1_MASK1,
