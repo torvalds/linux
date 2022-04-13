@@ -550,6 +550,10 @@ struct acpi_osc_context {
 
 acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 
+/* Number of _OSC capability DWORDS depends on bridge type */
+#define OSC_PCI_CAPABILITY_DWORDS		3
+#define OSC_CXL_CAPABILITY_DWORDS		5
+
 /* Indexes into _OSC Capabilities Buffer (DWORDs 2 & 3 are device-specific) */
 #define OSC_QUERY_DWORD				0	/* DWORD 1 */
 #define OSC_SUPPORT_DWORD			1	/* DWORD 2 */
