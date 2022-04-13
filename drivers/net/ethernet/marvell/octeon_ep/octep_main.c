@@ -153,6 +153,43 @@ static netdev_tx_t octep_start_xmit(struct sk_buff *skb,
 }
 
 /**
+ * octep_get_stats64() - Get Octeon network device statistics.
+ *
+ * @netdev: kernel network device.
+ * @stats: pointer to stats structure to be filled in.
+ */
+static void octep_get_stats64(struct net_device *netdev,
+			      struct rtnl_link_stats64 *stats)
+{
+	u64 tx_packets, tx_bytes, rx_packets, rx_bytes;
+	struct octep_device *oct = netdev_priv(netdev);
+	int q;
+
+	octep_get_if_stats(oct);
+	tx_packets = 0;
+	tx_bytes = 0;
+	rx_packets = 0;
+	rx_bytes = 0;
+	for (q = 0; q < oct->num_oqs; q++) {
+		struct octep_iq *iq = oct->iq[q];
+		struct octep_oq *oq = oct->oq[q];
+
+		tx_packets += iq->stats.instr_completed;
+		tx_bytes += iq->stats.bytes_sent;
+		rx_packets += oq->stats.packets;
+		rx_bytes += oq->stats.bytes;
+	}
+	stats->tx_packets = tx_packets;
+	stats->tx_bytes = tx_bytes;
+	stats->rx_packets = rx_packets;
+	stats->rx_bytes = rx_bytes;
+	stats->multicast = oct->iface_rx_stats.mcast_pkts;
+	stats->rx_errors = oct->iface_rx_stats.err_pkts;
+	stats->collisions = oct->iface_tx_stats.xscol;
+	stats->tx_fifo_errors = oct->iface_tx_stats.undflw;
+}
+
+/**
  * octep_tx_timeout_task - work queue task to Handle Tx queue timeout.
  *
  * @work: pointer to Tx queue timeout work_struct
@@ -190,11 +227,52 @@ static void octep_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 	queue_work(octep_wq, &oct->tx_timeout_task);
 }
 
+static int octep_set_mac(struct net_device *netdev, void *p)
+{
+	struct octep_device *oct = netdev_priv(netdev);
+	struct sockaddr *addr = (struct sockaddr *)p;
+	int err;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	err = octep_set_mac_addr(oct, addr->sa_data);
+	if (err)
+		return err;
+
+	memcpy(oct->mac_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(netdev, addr->sa_data);
+
+	return 0;
+}
+
+static int octep_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	struct octep_device *oct = netdev_priv(netdev);
+	struct octep_iface_link_info *link_info;
+	int err = 0;
+
+	link_info = &oct->link_info;
+	if (link_info->mtu == new_mtu)
+		return 0;
+
+	err = octep_set_mtu(oct, new_mtu);
+	if (!err) {
+		oct->link_info.mtu = new_mtu;
+		netdev->mtu = new_mtu;
+	}
+
+	return err;
+}
+
 static const struct net_device_ops octep_netdev_ops = {
 	.ndo_open                = octep_open,
 	.ndo_stop                = octep_stop,
 	.ndo_start_xmit          = octep_start_xmit,
+	.ndo_get_stats64         = octep_get_stats64,
 	.ndo_tx_timeout          = octep_tx_timeout,
+	.ndo_set_mac_address     = octep_set_mac,
+	.ndo_change_mtu          = octep_change_mtu,
 };
 
 /**

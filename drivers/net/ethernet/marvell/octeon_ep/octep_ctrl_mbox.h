@@ -120,7 +120,7 @@ struct octep_ctrl_mbox {
 	/* size of bar memory */
 	u32 barmem_sz;
 	/* pointer to BAR memory */
-	void __iomem *barmem;
+	u8 __iomem *barmem;
 	/* user context for callback, can be null */
 	void *user_ctx;
 	/* callback handler for processing request, called from octep_ctrl_mbox_recv */

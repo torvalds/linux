@@ -87,6 +87,66 @@ int octep_get_mac_addr(struct octep_device *oct, u8 *addr)
 	return err;
 }
 
+int octep_set_mac_addr(struct octep_device *oct, u8 *addr)
+{
+	struct octep_ctrl_net_h2f_req req = {};
+	struct octep_ctrl_mbox_msg msg = {};
+
+	req.hdr.cmd = OCTEP_CTRL_NET_H2F_CMD_MAC;
+	req.mac.cmd = OCTEP_CTRL_NET_CMD_SET;
+	memcpy(&req.mac.addr, addr, ETH_ALEN);
+
+	msg.hdr.flags = OCTEP_CTRL_MBOX_MSG_HDR_FLAG_REQ;
+	msg.hdr.sizew = OCTEP_CTRL_NET_H2F_MAC_REQ_SZW;
+	msg.msg = &req;
+
+	return octep_ctrl_mbox_send(&oct->ctrl_mbox, &msg);
+}
+
+int octep_set_mtu(struct octep_device *oct, int mtu)
+{
+	struct octep_ctrl_net_h2f_req req = {};
+	struct octep_ctrl_mbox_msg msg = {};
+
+	req.hdr.cmd = OCTEP_CTRL_NET_H2F_CMD_MTU;
+	req.mtu.cmd = OCTEP_CTRL_NET_CMD_SET;
+	req.mtu.val = mtu;
+
+	msg.hdr.flags = OCTEP_CTRL_MBOX_MSG_HDR_FLAG_REQ;
+	msg.hdr.sizew = OCTEP_CTRL_NET_H2F_MTU_REQ_SZW;
+	msg.msg = &req;
+
+	return octep_ctrl_mbox_send(&oct->ctrl_mbox, &msg);
+}
+
+int octep_get_if_stats(struct octep_device *oct)
+{
+	void __iomem *iface_rx_stats;
+	void __iomem *iface_tx_stats;
+	struct octep_ctrl_net_h2f_req req = {};
+	struct octep_ctrl_mbox_msg msg = {};
+	int err;
+
+	req.hdr.cmd = OCTEP_CTRL_NET_H2F_CMD_GET_IF_STATS;
+	req.mac.cmd = OCTEP_CTRL_NET_CMD_GET;
+	req.get_stats.offset = oct->ctrl_mbox_ifstats_offset;
+
+	msg.hdr.flags = OCTEP_CTRL_MBOX_MSG_HDR_FLAG_REQ;
+	msg.hdr.sizew = OCTEP_CTRL_NET_H2F_GET_STATS_REQ_SZW;
+	msg.msg = &req;
+	err = octep_ctrl_mbox_send(&oct->ctrl_mbox, &msg);
+	if (err)
+		return err;
+
+	iface_rx_stats = oct->ctrl_mbox.barmem + oct->ctrl_mbox_ifstats_offset;
+	iface_tx_stats = oct->ctrl_mbox.barmem + oct->ctrl_mbox_ifstats_offset +
+			 sizeof(struct octep_iface_rx_stats);
+	memcpy_fromio(&oct->iface_rx_stats, iface_rx_stats, sizeof(struct octep_iface_rx_stats));
+	memcpy_fromio(&oct->iface_tx_stats, iface_tx_stats, sizeof(struct octep_iface_tx_stats));
+
+	return err;
+}
+
 int octep_get_link_info(struct octep_device *oct)
 {
 	struct octep_ctrl_net_h2f_req req = {};
