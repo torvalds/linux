@@ -199,7 +199,7 @@ nfs4_xattr_alloc_entry(const char *name, const void *value,
 		flags = NFS4_XATTR_ENTRY_EXTVAL;
 	}
 
-	buf = kmalloc(alloclen, GFP_KERNEL_ACCOUNT | GFP_NOFS);
+	buf = kmalloc(alloclen, GFP_KERNEL);
 	if (buf == NULL)
 		return NULL;
 	entry = (struct nfs4_xattr_entry *)buf;
@@ -213,7 +213,7 @@ nfs4_xattr_alloc_entry(const char *name, const void *value,
 
 
 	if (flags & NFS4_XATTR_ENTRY_EXTVAL) {
-		valp = kvmalloc(len, GFP_KERNEL_ACCOUNT | GFP_NOFS);
+		valp = kvmalloc(len, GFP_KERNEL);
 		if (valp == NULL) {
 			kfree(buf);
 			return NULL;
@@ -289,8 +289,7 @@ nfs4_xattr_alloc_cache(void)
 {
 	struct nfs4_xattr_cache *cache;
 
-	cache = kmem_cache_alloc(nfs4_xattr_cache_cachep,
-	    GFP_KERNEL_ACCOUNT | GFP_NOFS);
+	cache = kmem_cache_alloc(nfs4_xattr_cache_cachep, GFP_KERNEL);
 	if (cache == NULL)
 		return NULL;
 

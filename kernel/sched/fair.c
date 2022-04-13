@@ -44,6 +44,7 @@
 #include <linux/profile.h>
 #include <linux/psi.h>
 #include <linux/ratelimit.h>
+#include <linux/task_work.h>
 
 #include <asm/switch_to.h>
 

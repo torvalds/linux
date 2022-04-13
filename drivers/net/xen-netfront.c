@@ -425,7 +425,7 @@ static bool xennet_tx_buf_gc(struct netfront_queue *queue)
 			skb = queue->tx_skbs[id];
 			queue->tx_skbs[id] = NULL;
 			if (unlikely(!gnttab_end_foreign_access_ref(
-				queue->grant_tx_ref[id], GNTMAP_readonly))) {
+				queue->grant_tx_ref[id]))) {
 				dev_alert(dev,
 					  "Grant still in use by backend domain\n");
 				goto err;
@@ -1029,7 +1029,7 @@ static int xennet_get_responses(struct netfront_queue *queue,
 			goto next;
 		}
 
-		if (!gnttab_end_foreign_access_ref(ref, 0)) {
+		if (!gnttab_end_foreign_access_ref(ref)) {
 			dev_alert(dev,
 				  "Grant still in use by backend domain\n");
 			queue->info->broken = true;
@@ -1388,7 +1388,6 @@ static void xennet_release_tx_bufs(struct netfront_queue *queue)
 		queue->tx_skbs[i] = NULL;
 		get_page(queue->grant_tx_page[i]);
 		gnttab_end_foreign_access(queue->grant_tx_ref[i],
-					  GNTMAP_readonly,
 					  (unsigned long)page_address(queue->grant_tx_page[i]));
 		queue->grant_tx_page[i] = NULL;
 		queue->grant_tx_ref[i] = GRANT_INVALID_REF;
@@ -1421,7 +1420,7 @@ static void xennet_release_rx_bufs(struct netfront_queue *queue)
 		 * foreign access is ended (which may be deferred).
 		 */
 		get_page(page);
-		gnttab_end_foreign_access(ref, 0,
+		gnttab_end_foreign_access(ref,
 					  (unsigned long)page_address(page));
 		queue->grant_rx_ref[id] = GRANT_INVALID_REF;
 
@@ -1763,7 +1762,7 @@ static void xennet_end_access(int ref, void *page)
 {
 	/* This frees the page as a side-effect */
 	if (ref != GRANT_INVALID_REF)
-		gnttab_end_foreign_access(ref, 0, (unsigned long)page);
+		gnttab_end_foreign_access(ref, (unsigned long)page);
 }
 
 static void xennet_disconnect_backend(struct netfront_info *info)
@@ -1980,14 +1979,14 @@ static int setup_netfront(struct xenbus_device *dev,
 	 */
  fail:
 	if (queue->rx_ring_ref != GRANT_INVALID_REF) {
-		gnttab_end_foreign_access(queue->rx_ring_ref, 0,
+		gnttab_end_foreign_access(queue->rx_ring_ref,
 					  (unsigned long)rxs);
 		queue->rx_ring_ref = GRANT_INVALID_REF;
 	} else {
 		free_page((unsigned long)rxs);
 	}
 	if (queue->tx_ring_ref != GRANT_INVALID_REF) {
-		gnttab_end_foreign_access(queue->tx_ring_ref, 0,
+		gnttab_end_foreign_access(queue->tx_ring_ref,
 					  (unsigned long)txs);
 		queue->tx_ring_ref = GRANT_INVALID_REF;
 	} else {

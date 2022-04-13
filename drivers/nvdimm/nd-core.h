@@ -82,30 +82,12 @@ static inline void nvdimm_security_overwrite_query(struct work_struct *work)
 }
 #endif
 
-/**
- * struct blk_alloc_info - tracking info for BLK dpa scanning
- * @nd_mapping: blk region mapping boundaries
- * @available: decremented in alias_dpa_busy as aliased PMEM is scanned
- * @busy: decremented in blk_dpa_busy to account for ranges already
- * 	  handled by alias_dpa_busy
- * @res: alias_dpa_busy interprets this a free space range that needs to
- * 	 be truncated to the valid BLK allocation starting DPA, blk_dpa_busy
- * 	 treats it as a busy range that needs the aliased PMEM ranges
- * 	 truncated.
- */
-struct blk_alloc_info {
-	struct nd_mapping *nd_mapping;
-	resource_size_t available, busy;
-	struct resource *res;
-};
-
 bool is_nvdimm(struct device *dev);
 bool is_nd_pmem(struct device *dev);
 bool is_nd_volatile(struct device *dev);
-bool is_nd_blk(struct device *dev);
 static inline bool is_nd_region(struct device *dev)
 {
-	return is_nd_pmem(dev) || is_nd_blk(dev) || is_nd_volatile(dev);
+	return is_nd_pmem(dev) || is_nd_volatile(dev);
 }
 static inline bool is_memory(struct device *dev)
 {
@@ -142,17 +124,12 @@ resource_size_t nd_pmem_max_contiguous_dpa(struct nd_region *nd_region,
 					   struct nd_mapping *nd_mapping);
 resource_size_t nd_region_allocatable_dpa(struct nd_region *nd_region);
 resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
-		struct nd_mapping *nd_mapping, resource_size_t *overlap);
-resource_size_t nd_blk_available_dpa(struct nd_region *nd_region);
+				      struct nd_mapping *nd_mapping);
 resource_size_t nd_region_available_dpa(struct nd_region *nd_region);
 int nd_region_conflict(struct nd_region *nd_region, resource_size_t start,
 		resource_size_t size);
 resource_size_t nvdimm_allocated_dpa(struct nvdimm_drvdata *ndd,
 		struct nd_label_id *label_id);
-int alias_dpa_busy(struct device *dev, void *data);
-struct resource *nsblk_add_resource(struct nd_region *nd_region,
-		struct nvdimm_drvdata *ndd, struct nd_namespace_blk *nsblk,
-		resource_size_t start);
 int nvdimm_num_label_slots(struct nvdimm_drvdata *ndd);
 void get_ndd(struct nvdimm_drvdata *ndd);
 resource_size_t __nvdimm_namespace_capacity(struct nd_namespace_common *ndns);
