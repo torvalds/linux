@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved. */
 
+#include <linux/genalloc.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -73,6 +74,8 @@ struct qrtr_genpool_dev {
 	struct qrtr_genpool_pipe tx_pipe;
 	wait_queue_head_t tx_avail_notify;
 
+	struct gen_pool *pool;
+	dma_addr_t dma_addr;
 	void *base;
 	size_t size;
 };
@@ -378,7 +381,33 @@ static void qrtr_genpool_fifo_init(struct qrtr_genpool_dev *qdev)
 
 static int qrtr_genpool_memory_init(struct qrtr_genpool_dev *qdev)
 {
-	/* operation not supported */
+	struct device_node *np;
+
+	np = of_parse_phandle(qdev->dev->of_node, "gen-pool", 0);
+	if (!np) {
+		dev_err(qdev->dev, "failed to parse gen-pool\n");
+		return -ENODEV;
+	}
+
+	qdev->pool = of_gen_pool_get(np, "qrtr-gen-pool", 0);
+	of_node_put(np);
+	if (!qdev->pool) {
+		dev_err(qdev->dev, "failed to get qrtr gen pool\n");
+		return -ENODEV;
+	}
+
+	/* check if pool has any entries */
+	if (!gen_pool_avail(qdev->pool))
+		return -EPROBE_DEFER;
+
+	qdev->size = gen_pool_size(qdev->pool);
+	qdev->base = gen_pool_dma_alloc(qdev->pool, qdev->size,
+					&qdev->dma_addr);
+	if (!qdev->base) {
+		dev_err(qdev->dev, "failed to dma alloc\n");
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
