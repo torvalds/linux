@@ -100,6 +100,101 @@ ATOMIC_OPS(xor)
 
 #undef ATOMIC_FETCH_OP
 
+static __always_inline int
+arch_atomic_fetch_add_unless(atomic_t *v, int a, int u)
+{
+	int prev, tmp;
+
+	__asm__ __volatile__ (
+		RELEASE_FENCE
+		"1:	ldex.w		%0, (%3)	\n"
+		"	cmpne		%0, %4		\n"
+		"	bf		2f		\n"
+		"	mov		%1, %0		\n"
+		"	add		%1, %2		\n"
+		"	stex.w		%1, (%3)	\n"
+		"	bez		%1, 1b		\n"
+		FULL_FENCE
+		"2:\n"
+		: "=&r" (prev), "=&r" (tmp)
+		: "r" (a), "r" (&v->counter), "r" (u)
+		: "memory");
+
+	return prev;
+}
+#define arch_atomic_fetch_add_unless arch_atomic_fetch_add_unless
+
+static __always_inline bool
+arch_atomic_inc_unless_negative(atomic_t *v)
+{
+	int rc, tmp;
+
+	__asm__ __volatile__ (
+		RELEASE_FENCE
+		"1:	ldex.w		%0, (%2)	\n"
+		"	movi		%1, 0		\n"
+		"	blz		%0, 2f		\n"
+		"	movi		%1, 1		\n"
+		"	addi		%0, 1		\n"
+		"	stex.w		%0, (%2)	\n"
+		"	bez		%0, 1b		\n"
+		FULL_FENCE
+		"2:\n"
+		: "=&r" (tmp), "=&r" (rc)
+		: "r" (&v->counter)
+		: "memory");
+
+	return tmp ? true : false;
+
+}
+#define arch_atomic_inc_unless_negative arch_atomic_inc_unless_negative
+
+static __always_inline bool
+arch_atomic_dec_unless_positive(atomic_t *v)
+{
+	int rc, tmp;
+
+	__asm__ __volatile__ (
+		RELEASE_FENCE
+		"1:	ldex.w		%0, (%2)	\n"
+		"	movi		%1, 0		\n"
+		"	bhz		%0, 2f		\n"
+		"	movi		%1, 1		\n"
+		"	subi		%0, 1		\n"
+		"	stex.w		%0, (%2)	\n"
+		"	bez		%0, 1b		\n"
+		FULL_FENCE
+		"2:\n"
+		: "=&r" (tmp), "=&r" (rc)
+		: "r" (&v->counter)
+		: "memory");
+
+	return tmp ? true : false;
+}
+#define arch_atomic_dec_unless_positive arch_atomic_dec_unless_positive
+
+static __always_inline int
+arch_atomic_dec_if_positive(atomic_t *v)
+{
+	int dec, tmp;
+
+	__asm__ __volatile__ (
+		RELEASE_FENCE
+		"1:	ldex.w		%0, (%2)	\n"
+		"	subi		%1, %0, 1	\n"
+		"	blz		%1, 2f		\n"
+		"	stex.w		%1, (%2)	\n"
+		"	bez		%1, 1b		\n"
+		FULL_FENCE
+		"2:\n"
+		: "=&r" (dec), "=&r" (tmp)
+		: "r" (&v->counter)
+		: "memory");
+
+	return dec - 1;
+}
+#define arch_atomic_dec_if_positive arch_atomic_dec_if_positive
+
 #define ATOMIC_OP()							\
 static __always_inline							\
 int arch_atomic_xchg_relaxed(atomic_t *v, int n)			\
