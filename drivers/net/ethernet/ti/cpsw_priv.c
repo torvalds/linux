@@ -755,11 +755,9 @@ int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
 		return -EINVAL;
 	}
 
-	ret = pm_runtime_get_sync(cpsw->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+	ret = pm_runtime_resume_and_get(cpsw->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = cpdma_chan_set_rate(cpsw->txv[queue].ch, ch_rate);
 	pm_runtime_put(cpsw->dev);
@@ -971,11 +969,9 @@ static int cpsw_set_cbs(struct net_device *ndev,
 		return -1;
 	}
 
-	ret = pm_runtime_get_sync(cpsw->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+	ret = pm_runtime_resume_and_get(cpsw->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	bw = qopt->enable ? qopt->idleslope : 0;
 	ret = cpsw_set_fifo_rlimit(priv, fifo, bw);
@@ -1009,11 +1005,9 @@ static int cpsw_set_mqprio(struct net_device *ndev, void *type_data)
 	if (mqprio->mode != TC_MQPRIO_MODE_DCB)
 		return -EINVAL;
 
-	ret = pm_runtime_get_sync(cpsw->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+	ret = pm_runtime_resume_and_get(cpsw->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	if (num_tc) {
 		for (i = 0; i < 8; i++) {
