@@ -217,7 +217,7 @@ static bool xsk_is_bound(struct xdp_sock *xs)
 static int xsk_rcv_check(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
 	if (!xsk_is_bound(xs))
-		return -EINVAL;
+		return -ENXIO;
 
 	if (xs->dev != xdp->rxq->dev || xs->queue_id != xdp->rxq->queue_index)
 		return -EINVAL;
