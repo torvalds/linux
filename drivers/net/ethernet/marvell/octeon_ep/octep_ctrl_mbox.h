@@ -107,11 +107,11 @@ struct octep_ctrl_mbox_q {
 	/* q mask */
 	u16 mask;
 	/* producer address in bar mem */
-	void __iomem *hw_prod;
+	u8 __iomem *hw_prod;
 	/* consumer address in bar mem */
-	void __iomem *hw_cons;
+	u8 __iomem *hw_cons;
 	/* q base address in bar mem */
-	void __iomem *hw_q;
+	u8 __iomem *hw_q;
 };
 
 struct octep_ctrl_mbox {
