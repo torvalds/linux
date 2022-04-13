@@ -7,11 +7,11 @@
 	};
 
 	etf@20140000 {
-		power-domains = <&scmi_devpd 0>;
+		power-domains = <&scmi_devpd 8>;
 	};
 
 	funnel@20150000 {
-		power-domains = <&scmi_devpd 0>;
+		power-domains = <&scmi_devpd 8>;
 	};
 };
 
