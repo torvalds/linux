@@ -3232,8 +3232,7 @@ void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 	btrfs_init_async_reclaim_work(fs_info);
 
 	spin_lock_init(&fs_info->block_group_cache_lock);
-	fs_info->block_group_cache_tree = RB_ROOT;
-	fs_info->first_logical_byte = (u64)-1;
+	fs_info->block_group_cache_tree = RB_ROOT_CACHED;
 
 	extent_io_tree_init(fs_info, &fs_info->excluded_extents,
 			    IO_TREE_FS_EXCLUDED_EXTENTS, NULL);

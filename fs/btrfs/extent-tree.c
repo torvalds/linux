@@ -2494,23 +2494,19 @@ static u64 get_alloc_profile_by_root(struct btrfs_root *root, int data)
 
 static u64 first_logical_byte(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_block_group *cache;
-	u64 bytenr;
+	struct rb_node *leftmost;
+	u64 bytenr = 0;
 
 	spin_lock(&fs_info->block_group_cache_lock);
-	bytenr = fs_info->first_logical_byte;
-	spin_unlock(&fs_info->block_group_cache_lock);
-
-	if (bytenr < (u64)-1)
-		return bytenr;
-
 	/* Get the block group with the lowest logical start address. */
-	cache = btrfs_lookup_first_block_group(fs_info, 0);
-	if (!cache)
-		return 0;
+	leftmost = rb_first_cached(&fs_info->block_group_cache_tree);
+	if (leftmost) {
+		struct btrfs_block_group *bg;
 
-	bytenr = cache->start;
-	btrfs_put_block_group(cache);
+		bg = rb_entry(leftmost, struct btrfs_block_group, cache_node);
+		bytenr = bg->start;
+	}
+	spin_unlock(&fs_info->block_group_cache_lock);
 
 	return bytenr;
 }

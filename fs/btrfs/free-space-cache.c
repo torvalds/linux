@@ -4072,7 +4072,7 @@ static int cleanup_free_space_cache_v1(struct btrfs_fs_info *fs_info,
 
 	btrfs_info(fs_info, "cleaning free space cache v1");
 
-	node = rb_first(&fs_info->block_group_cache_tree);
+	node = rb_first_cached(&fs_info->block_group_cache_tree);
 	while (node) {
 		block_group = rb_entry(node, struct btrfs_block_group, cache_node);
 		ret = btrfs_remove_free_space_inode(trans, NULL, block_group);

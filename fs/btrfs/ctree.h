@@ -680,8 +680,7 @@ struct btrfs_fs_info {
 
 	/* block group cache stuff */
 	spinlock_t block_group_cache_lock;
-	u64 first_logical_byte;
-	struct rb_root block_group_cache_tree;
+	struct rb_root_cached block_group_cache_tree;
 
 	/* keep track of unallocated space */
 	atomic64_t free_chunk_space;
