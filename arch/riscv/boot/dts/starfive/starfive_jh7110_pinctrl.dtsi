@@ -343,6 +343,113 @@
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
+
+	dvp_pins: dvp-pins {
+		dvp-clk-pins {
+			sf,pins = <PAD_GPIO21>;
+			sf,pinmux = <PAD_GPIO21_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_SYS_CRG_DVP_CLK_FUNC_SEL 1>;
+		};
+
+		dvp-vsync-pins {
+			sf,pins = <PAD_GPIO22>;
+			sf,pinmux = <PAD_GPIO22_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_VVALID_C_FUNC_SEL 1>;
+		};
+
+		dvp-hsync-pins {
+			sf,pins = <PAD_GPIO23>;
+			sf,pinmux = <PAD_GPIO23_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_HVALID_C_FUNC_SEL 1>;
+		};
+
+		dvp-data0-pins {
+			sf,pins = <PAD_GPIO24>;
+			sf,pinmux = <PAD_GPIO24_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_DATA_C0_FUNC_SEL 1>;
+		};
+
+		dvp-data1-pins {
+			sf,pins = <PAD_GPIO25>;
+			sf,pinmux = <PAD_GPIO25_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_DATA_C1_FUNC_SEL 1>;
+		};
+
+		dvp-data2-pins {
+			sf,pins = <PAD_GPIO26>;
+			sf,pinmux = <PAD_GPIO26_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_DATA_C2_FUNC_SEL 1>;
+		};
+
+		dvp-data3-pins {
+			sf,pins = <PAD_GPIO27>;
+			sf,pinmux = <PAD_GPIO27_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_DATA_C3_FUNC_SEL 1>;
+		};
+
+		dvp-data4-pins {
+			sf,pins = <PAD_GPIO28>;
+			sf,pinmux = <PAD_GPIO28_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_DATA_C4_FUNC_SEL 1>;
+		};
+
+		dvp-data5-pins {
+			sf,pins = <PAD_GPIO29>;
+			sf,pinmux = <PAD_GPIO29_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_DATA_C5_FUNC_SEL 1>;
+		};
+
+		dvp-data6-pins {
+			sf,pins = <PAD_GPIO30>;
+			sf,pinmux = <PAD_GPIO30_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_DATA_C6_FUNC_SEL 1>;
+		};
+
+		dvp-data7-pins {
+			sf,pins = <PAD_GPIO31>;
+			sf,pinmux = <PAD_GPIO31_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_DATA_C7_FUNC_SEL 1>;
+		};
+
+		dvp-data8-pins {
+			sf,pins = <PAD_GPIO32>;
+			sf,pinmux = <PAD_GPIO32_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_DATA_C8_FUNC_SEL 1>;
+		};
+
+		dvp-data9-pins {
+			sf,pins = <PAD_GPIO33>;
+			sf,pinmux = <PAD_GPIO33_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_DATA_C9_FUNC_SEL 1>;
+		};
+
+		dvp-data10-pins {
+			sf,pins = <PAD_GPIO34>;
+			sf,pinmux = <PAD_GPIO34_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_DATA_C10_FUNC_SEL 1>;
+		};
+
+		dvp-data11-pins {
+			sf,pins = <PAD_GPIO35>;
+			sf,pinmux = <PAD_GPIO35_FUNC_SEL 2>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_DATA_C11_FUNC_SEL 1>;
+		};
+	};
 };
 
 &gpioa {
