@@ -77,9 +77,15 @@ and the following optional properties:
 - marvell,pcie-lane: the physical PCIe lane number, for ports having
   multiple lanes. If this property is not found, we assume that the
   value is 0.
+- num-lanes: number of SerDes PCIe lanes for this link (1 or 4)
 - reset-gpios: optional GPIO to PERST#
 - reset-delay-us: delay in us to wait after reset de-assertion, if not
   specified will default to 100ms, as required by the PCIe specification.
+- interrupt-names: list of interrupt names, supported are:
+   - "intx" - interrupt line triggered by one of the legacy interrupt
+- interrupts or interrupts-extended: List of the interrupt sources which
+  corresponding to the "interrupt-names". If non-empty then also additional
+  'interrupt-controller' subnode must be defined.
 
 Example:
 
@@ -141,6 +147,7 @@ pcie-controller {
 		interrupt-map = <0 0 0 0 &mpic 58>;
 		marvell,pcie-port = <0>;
 		marvell,pcie-lane = <0>;
+		num-lanes = <1>;
 		/* low-active PERST# reset on GPIO 25 */
 		reset-gpios = <&gpio0 25 1>;
 		/* wait 20ms for device settle after reset deassertion */
@@ -161,6 +168,7 @@ pcie-controller {
 		interrupt-map = <0 0 0 0 &mpic 59>;
 		marvell,pcie-port = <0>;
 		marvell,pcie-lane = <1>;
+		num-lanes = <1>;
 		clocks = <&gateclk 6>;
 	};
 
@@ -177,6 +185,7 @@ pcie-controller {
 		interrupt-map = <0 0 0 0 &mpic 60>;
 		marvell,pcie-port = <0>;
 		marvell,pcie-lane = <2>;
+		num-lanes = <1>;
 		clocks = <&gateclk 7>;
 	};
 
@@ -193,6 +202,7 @@ pcie-controller {
 		interrupt-map = <0 0 0 0 &mpic 61>;
 		marvell,pcie-port = <0>;
 		marvell,pcie-lane = <3>;
+		num-lanes = <1>;
 		clocks = <&gateclk 8>;
 	};
 
@@ -209,6 +219,7 @@ pcie-controller {
 		interrupt-map = <0 0 0 0 &mpic 62>;
 		marvell,pcie-port = <1>;
 		marvell,pcie-lane = <0>;
+		num-lanes = <1>;
 		clocks = <&gateclk 9>;
 	};
 
@@ -225,6 +236,7 @@ pcie-controller {
 		interrupt-map = <0 0 0 0 &mpic 63>;
 		marvell,pcie-port = <1>;
 		marvell,pcie-lane = <1>;
+		num-lanes = <1>;
 		clocks = <&gateclk 10>;
 	};
 
@@ -241,6 +253,7 @@ pcie-controller {
 		interrupt-map = <0 0 0 0 &mpic 64>;
 		marvell,pcie-port = <1>;
 		marvell,pcie-lane = <2>;
+		num-lanes = <1>;
 		clocks = <&gateclk 11>;
 	};
 
@@ -257,6 +270,7 @@ pcie-controller {
 		interrupt-map = <0 0 0 0 &mpic 65>;
 		marvell,pcie-port = <1>;
 		marvell,pcie-lane = <3>;
+		num-lanes = <1>;
 		clocks = <&gateclk 12>;
 	};
 
@@ -273,6 +287,7 @@ pcie-controller {
 		interrupt-map = <0 0 0 0 &mpic 99>;
 		marvell,pcie-port = <2>;
 		marvell,pcie-lane = <0>;
+		num-lanes = <1>;
 		clocks = <&gateclk 26>;
 	};
 
@@ -289,6 +304,7 @@ pcie-controller {
 		interrupt-map = <0 0 0 0 &mpic 103>;
 		marvell,pcie-port = <3>;
 		marvell,pcie-lane = <0>;
+		num-lanes = <1>;
 		clocks = <&gateclk 27>;
 	};
 };

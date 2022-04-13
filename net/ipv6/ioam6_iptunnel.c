@@ -32,11 +32,23 @@ struct ioam6_lwt_encap {
 	struct ioam6_trace_hdr traceh;
 } __packed;
 
+struct ioam6_lwt_freq {
+	u32 k;
+	u32 n;
+};
+
 struct ioam6_lwt {
 	struct dst_cache cache;
+	struct ioam6_lwt_freq freq;
+	atomic_t pkt_cnt;
 	u8 mode;
 	struct in6_addr tundst;
 	struct ioam6_lwt_encap	tuninfo;
+};
+
+static struct netlink_range_validation freq_range = {
+	.min = IOAM6_IPTUNNEL_FREQ_MIN,
+	.max = IOAM6_IPTUNNEL_FREQ_MAX,
 };
 
 static struct ioam6_lwt *ioam6_lwt_state(struct lwtunnel_state *lwt)
@@ -55,6 +67,8 @@ static struct ioam6_trace_hdr *ioam6_lwt_trace(struct lwtunnel_state *lwt)
 }
 
 static const struct nla_policy ioam6_iptunnel_policy[IOAM6_IPTUNNEL_MAX + 1] = {
+	[IOAM6_IPTUNNEL_FREQ_K] = NLA_POLICY_FULL_RANGE(NLA_U32, &freq_range),
+	[IOAM6_IPTUNNEL_FREQ_N] = NLA_POLICY_FULL_RANGE(NLA_U32, &freq_range),
 	[IOAM6_IPTUNNEL_MODE]	= NLA_POLICY_RANGE(NLA_U8,
 						   IOAM6_IPTUNNEL_MODE_MIN,
 						   IOAM6_IPTUNNEL_MODE_MAX),
@@ -96,6 +110,7 @@ static int ioam6_build_state(struct net *net, struct nlattr *nla,
 	struct lwtunnel_state *lwt;
 	struct ioam6_lwt *ilwt;
 	int len_aligned, err;
+	u32 freq_k, freq_n;
 	u8 mode;
 
 	if (family != AF_INET6)
@@ -105,6 +120,23 @@ static int ioam6_build_state(struct net *net, struct nlattr *nla,
 			       ioam6_iptunnel_policy, extack);
 	if (err < 0)
 		return err;
+
+	if ((!tb[IOAM6_IPTUNNEL_FREQ_K] && tb[IOAM6_IPTUNNEL_FREQ_N]) ||
+	    (tb[IOAM6_IPTUNNEL_FREQ_K] && !tb[IOAM6_IPTUNNEL_FREQ_N])) {
+		NL_SET_ERR_MSG(extack, "freq: missing parameter");
+		return -EINVAL;
+	} else if (!tb[IOAM6_IPTUNNEL_FREQ_K] && !tb[IOAM6_IPTUNNEL_FREQ_N]) {
+		freq_k = IOAM6_IPTUNNEL_FREQ_MIN;
+		freq_n = IOAM6_IPTUNNEL_FREQ_MIN;
+	} else {
+		freq_k = nla_get_u32(tb[IOAM6_IPTUNNEL_FREQ_K]);
+		freq_n = nla_get_u32(tb[IOAM6_IPTUNNEL_FREQ_N]);
+
+		if (freq_k > freq_n) {
+			NL_SET_ERR_MSG(extack, "freq: k > n is forbidden");
+			return -EINVAL;
+		}
+	}
 
 	if (!tb[IOAM6_IPTUNNEL_MODE])
 		mode = IOAM6_IPTUNNEL_MODE_INLINE;
@@ -139,6 +171,10 @@ static int ioam6_build_state(struct net *net, struct nlattr *nla,
 		kfree(lwt);
 		return err;
 	}
+
+	atomic_set(&ilwt->pkt_cnt, 0);
+	ilwt->freq.k = freq_k;
+	ilwt->freq.n = freq_n;
 
 	ilwt->mode = mode;
 	if (tb[IOAM6_IPTUNNEL_DST])
@@ -263,11 +299,18 @@ static int ioam6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	struct in6_addr orig_daddr;
 	struct ioam6_lwt *ilwt;
 	int err = -EINVAL;
+	u32 pkt_cnt;
 
 	if (skb->protocol != htons(ETH_P_IPV6))
 		goto drop;
 
 	ilwt = ioam6_lwt_state(dst->lwtstate);
+
+	/* Check for insertion frequency (i.e., "k over n" insertions) */
+	pkt_cnt = atomic_fetch_inc(&ilwt->pkt_cnt);
+	if (pkt_cnt % ilwt->freq.n >= ilwt->freq.k)
+		goto out;
+
 	orig_daddr = ipv6_hdr(skb)->daddr;
 
 	switch (ilwt->mode) {
@@ -358,6 +401,14 @@ static int ioam6_fill_encap_info(struct sk_buff *skb,
 	struct ioam6_lwt *ilwt = ioam6_lwt_state(lwtstate);
 	int err;
 
+	err = nla_put_u32(skb, IOAM6_IPTUNNEL_FREQ_K, ilwt->freq.k);
+	if (err)
+		goto ret;
+
+	err = nla_put_u32(skb, IOAM6_IPTUNNEL_FREQ_N, ilwt->freq.n);
+	if (err)
+		goto ret;
+
 	err = nla_put_u8(skb, IOAM6_IPTUNNEL_MODE, ilwt->mode);
 	if (err)
 		goto ret;
@@ -379,7 +430,9 @@ static int ioam6_encap_nlsize(struct lwtunnel_state *lwtstate)
 	struct ioam6_lwt *ilwt = ioam6_lwt_state(lwtstate);
 	int nlsize;
 
-	nlsize = nla_total_size(sizeof(ilwt->mode)) +
+	nlsize = nla_total_size(sizeof(ilwt->freq.k)) +
+		  nla_total_size(sizeof(ilwt->freq.n)) +
+		  nla_total_size(sizeof(ilwt->mode)) +
 		  nla_total_size(sizeof(ilwt->tuninfo.traceh));
 
 	if (ilwt->mode != IOAM6_IPTUNNEL_MODE_INLINE)
@@ -395,7 +448,9 @@ static int ioam6_encap_cmp(struct lwtunnel_state *a, struct lwtunnel_state *b)
 	struct ioam6_lwt *ilwt_a = ioam6_lwt_state(a);
 	struct ioam6_lwt *ilwt_b = ioam6_lwt_state(b);
 
-	return (ilwt_a->mode != ilwt_b->mode ||
+	return (ilwt_a->freq.k != ilwt_b->freq.k ||
+		ilwt_a->freq.n != ilwt_b->freq.n ||
+		ilwt_a->mode != ilwt_b->mode ||
 		(ilwt_a->mode != IOAM6_IPTUNNEL_MODE_INLINE &&
 		 !ipv6_addr_equal(&ilwt_a->tundst, &ilwt_b->tundst)) ||
 		trace_a->namespace_id != trace_b->namespace_id);

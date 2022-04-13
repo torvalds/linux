@@ -8,8 +8,6 @@
 
 #include <linux/types.h>
 
-#include "i915_reg.h"
-
 enum intel_output_format;
 enum pipe;
 enum port;

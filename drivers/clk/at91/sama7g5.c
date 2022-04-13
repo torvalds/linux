@@ -302,6 +302,7 @@ static const struct {
  * @ep_count:		extra parents count
  * @ep_mux_table:	mux table for extra parents
  * @id:			clock id
+ * @eid:		export index in sama7g5->chws[] array
  * @c:			true if clock is critical and cannot be disabled
  */
 static const struct {
@@ -311,6 +312,7 @@ static const struct {
 	u8 ep_count;
 	u8 ep_mux_table[4];
 	u8 id;
+	u8 eid;
 	u8 c;
 } sama7g5_mckx[] = {
 	{ .n = "mck1",
@@ -319,6 +321,7 @@ static const struct {
 	  .ep_mux_table = { 5, },
 	  .ep_count = 1,
 	  .ep_chg_id = INT_MIN,
+	  .eid = PMC_MCK1,
 	  .c = 1, },
 
 	{ .n = "mck2",
@@ -696,16 +699,16 @@ static const struct {
 	{ .n  = "pdmc0_gclk",
 	  .id = 68,
 	  .r = { .max = 50000000  },
-	  .pp = { "syspll_divpmcck", "baudpll_divpmcck", },
-	  .pp_mux_table = { 5, 8, },
+	  .pp = { "syspll_divpmcck", "audiopll_divpmcck", },
+	  .pp_mux_table = { 5, 9, },
 	  .pp_count = 2,
 	  .pp_chg_id = INT_MIN, },
 
 	{ .n  = "pdmc1_gclk",
 	  .id = 69,
 	  .r = { .max = 50000000, },
-	  .pp = { "syspll_divpmcck", "baudpll_divpmcck", },
-	  .pp_mux_table = { 5, 8, },
+	  .pp = { "syspll_divpmcck", "audiopll_divpmcck", },
+	  .pp_mux_table = { 5, 9, },
 	  .pp_count = 2,
 	  .pp_chg_id = INT_MIN, },
 
@@ -913,7 +916,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 	if (IS_ERR(regmap))
 		return;
 
-	sama7g5_pmc = pmc_data_allocate(PMC_CPU + 1,
+	sama7g5_pmc = pmc_data_allocate(PMC_MCK1 + 1,
 					nck(sama7g5_systemck),
 					nck(sama7g5_periphck),
 					nck(sama7g5_gck), 8);
@@ -1027,6 +1030,9 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 			goto err_free;
 
 		alloc_mem[alloc_mem_size++] = mux_table;
+
+		if (sama7g5_mckx[i].eid)
+			sama7g5_pmc->chws[sama7g5_mckx[i].eid] = hw;
 	}
 
 	hw = at91_clk_sama7g5_register_utmi(regmap, "utmick", "main_xtal");

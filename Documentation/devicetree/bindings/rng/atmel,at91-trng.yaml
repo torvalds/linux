@@ -9,7 +9,7 @@ title: Atmel AT91 True Random Number Generator
 maintainers:
   - Nicolas Ferre <nicolas.ferre@microchip.com>
   - Alexandre Belloni <alexandre.belloni@bootlin.com>
-  - Ludovic Desroches <ludovic.desroches@microchip.com>
+  - Claudiu Beznea <claudiu.beznea@microchip.com>
 
 properties:
   compatible:

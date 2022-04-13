@@ -21,7 +21,7 @@ endif
 aflags_dwarf	:= -Wa,-gdwarf-2
 KBUILD_AFLAGS_DECOMPRESSOR := $(CLANG_FLAGS) -m64 -D__ASSEMBLY__
 KBUILD_AFLAGS_DECOMPRESSOR += $(if $(CONFIG_DEBUG_INFO),$(aflags_dwarf))
-KBUILD_CFLAGS_DECOMPRESSOR := $(CLANG_FLAGS) -m64 -O2
+KBUILD_CFLAGS_DECOMPRESSOR := $(CLANG_FLAGS) -m64 -O2 -mpacked-stack
 KBUILD_CFLAGS_DECOMPRESSOR += -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY
 KBUILD_CFLAGS_DECOMPRESSOR += -fno-delete-null-pointer-checks -msoft-float -mbackchain
 KBUILD_CFLAGS_DECOMPRESSOR += -fno-asynchronous-unwind-tables
@@ -36,9 +36,6 @@ CHECKFLAGS	+= -D__s390__ -D__s390x__
 
 export LD_BFD
 
-mflags-$(CONFIG_MARCH_Z900)   := -march=z900
-mflags-$(CONFIG_MARCH_Z990)   := -march=z990
-mflags-$(CONFIG_MARCH_Z9_109) := -march=z9-109
 mflags-$(CONFIG_MARCH_Z10)    := -march=z10
 mflags-$(CONFIG_MARCH_Z196)   := -march=z196
 mflags-$(CONFIG_MARCH_ZEC12)  := -march=zEC12
@@ -51,9 +48,6 @@ export CC_FLAGS_MARCH := $(mflags-y)
 aflags-y += $(mflags-y)
 cflags-y += $(mflags-y)
 
-cflags-$(CONFIG_MARCH_Z900_TUNE)	+= -mtune=z900
-cflags-$(CONFIG_MARCH_Z990_TUNE)	+= -mtune=z990
-cflags-$(CONFIG_MARCH_Z9_109_TUNE)	+= -mtune=z9-109
 cflags-$(CONFIG_MARCH_Z10_TUNE)		+= -mtune=z10
 cflags-$(CONFIG_MARCH_Z196_TUNE)	+= -mtune=z196
 cflags-$(CONFIG_MARCH_ZEC12_TUNE)	+= -mtune=zEC12
@@ -68,11 +62,6 @@ cflags-y += -Wa,-I$(srctree)/arch/$(ARCH)/include
 #
 cflags-$(CONFIG_FRAME_POINTER) += -fno-optimize-sibling-calls
 
-ifneq ($(call cc-option,-mpacked-stack -mbackchain -msoft-float),)
-cflags-$(CONFIG_PACK_STACK)  += -mpacked-stack -D__PACK_STACK
-aflags-$(CONFIG_PACK_STACK)  += -D__PACK_STACK
-endif
-
 KBUILD_AFLAGS_DECOMPRESSOR += $(aflags-y)
 KBUILD_CFLAGS_DECOMPRESSOR += $(cflags-y)
 
@@ -86,14 +75,18 @@ ifneq ($(call cc-option,-mstack-size=8192 -mstack-guard=128),)
 endif
 
 ifdef CONFIG_EXPOLINE
-  ifneq ($(call cc-option,$(CC_FLAGS_MARCH) -mindirect-branch=thunk),)
+  ifdef CONFIG_EXPOLINE_EXTERN
+    KBUILD_LDFLAGS_MODULE += arch/s390/lib/expoline.o
+    CC_FLAGS_EXPOLINE := -mindirect-branch=thunk-extern
+    CC_FLAGS_EXPOLINE += -mfunction-return=thunk-extern
+  else
     CC_FLAGS_EXPOLINE := -mindirect-branch=thunk
     CC_FLAGS_EXPOLINE += -mfunction-return=thunk
-    CC_FLAGS_EXPOLINE += -mindirect-branch-table
-    export CC_FLAGS_EXPOLINE
-    cflags-y += $(CC_FLAGS_EXPOLINE) -DCC_USING_EXPOLINE
-    aflags-y += -DCC_USING_EXPOLINE
   endif
+  CC_FLAGS_EXPOLINE += -mindirect-branch-table
+  export CC_FLAGS_EXPOLINE
+  cflags-y += $(CC_FLAGS_EXPOLINE) -DCC_USING_EXPOLINE
+  aflags-y += -DCC_USING_EXPOLINE
 endif
 
 ifdef CONFIG_FUNCTION_TRACER
@@ -111,7 +104,7 @@ endif
 # Test CFI features of binutils
 cfi := $(call as-instr,.cfi_startproc\n.cfi_val_offset 15$(comma)-160\n.cfi_endproc,-DCONFIG_AS_CFI_VAL_OFFSET=1)
 
-KBUILD_CFLAGS	+= -mbackchain -msoft-float $(cflags-y)
+KBUILD_CFLAGS	+= -mpacked-stack -mbackchain -msoft-float $(cflags-y)
 KBUILD_CFLAGS	+= -pipe -Wno-sign-compare
 KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables $(cfi)
 KBUILD_AFLAGS	+= $(aflags-y) $(cfi)

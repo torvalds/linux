@@ -1133,7 +1133,8 @@ out:
 	neigh_release(neigh);
 }
 
-int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
+int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb,
+		       const bool immediate_ok)
 {
 	int rc;
 	bool immediate_probe = false;
@@ -1154,18 +1155,23 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 			atomic_set(&neigh->probes,
 				   NEIGH_VAR(neigh->parms, UCAST_PROBES));
 			neigh_del_timer(neigh);
-			neigh->nud_state     = NUD_INCOMPLETE;
+			neigh->nud_state = NUD_INCOMPLETE;
 			neigh->updated = now;
-			next = now + max(NEIGH_VAR(neigh->parms, RETRANS_TIME),
-					 HZ/100);
+			if (!immediate_ok) {
+				next = now + 1;
+			} else {
+				immediate_probe = true;
+				next = now + max(NEIGH_VAR(neigh->parms,
+							   RETRANS_TIME),
+						 HZ / 100);
+			}
 			neigh_add_timer(neigh, next);
-			immediate_probe = true;
 		} else {
 			neigh->nud_state = NUD_FAILED;
 			neigh->updated = jiffies;
 			write_unlock_bh(&neigh->lock);
 
-			kfree_skb(skb);
+			kfree_skb_reason(skb, SKB_DROP_REASON_NEIGH_FAILED);
 			return 1;
 		}
 	} else if (neigh->nud_state & NUD_STALE) {
@@ -1187,7 +1193,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 				if (!buff)
 					break;
 				neigh->arp_queue_len_bytes -= buff->truesize;
-				kfree_skb(buff);
+				kfree_skb_reason(buff, SKB_DROP_REASON_NEIGH_QUEUEFULL);
 				NEIGH_CACHE_STAT_INC(neigh->tbl, unres_discards);
 			}
 			skb_dst_force(skb);
@@ -1209,7 +1215,7 @@ out_dead:
 	if (neigh->nud_state & NUD_STALE)
 		goto out_unlock_bh;
 	write_unlock_bh(&neigh->lock);
-	kfree_skb(skb);
+	kfree_skb_reason(skb, SKB_DROP_REASON_NEIGH_DEAD);
 	trace_neigh_event_send_dead(neigh, 1);
 	return 1;
 }
@@ -1571,7 +1577,7 @@ static void neigh_managed_work(struct work_struct *work)
 
 	write_lock_bh(&tbl->lock);
 	list_for_each_entry(neigh, &tbl->managed_list, managed_list)
-		neigh_event_send(neigh, NULL);
+		neigh_event_send_probe(neigh, NULL, false);
 	queue_delayed_work(system_power_efficient_wq, &tbl->managed_work,
 			   NEIGH_VAR(&tbl->parms, DELAY_PROBE_TIME));
 	write_unlock_bh(&tbl->lock);

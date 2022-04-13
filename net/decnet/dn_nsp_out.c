@@ -52,6 +52,7 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/if_packet.h>
+#include <linux/jiffies.h>
 #include <net/neighbour.h>
 #include <net/dst.h>
 #include <net/flow.h>
@@ -351,7 +352,7 @@ void dn_nsp_queue_xmit(struct sock *sk, struct sk_buff *skb,
 	 * Slow start: If we have been idle for more than
 	 * one RTT, then reset window to min size.
 	 */
-	if ((jiffies - scp->stamp) > t)
+	if (time_is_before_jiffies(scp->stamp + t))
 		scp->snd_window = NSP_MIN_WINDOW;
 
 	if (oth)

@@ -9,7 +9,6 @@
 #include <linux/types.h>
 #include <linux/blk-mq.h>
 #include <linux/hdreg.h>
-#include <linux/genhd.h>
 #include <linux/cdrom.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>

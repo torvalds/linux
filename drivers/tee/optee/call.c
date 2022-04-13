@@ -120,7 +120,7 @@ struct tee_shm *optee_get_msg_arg(struct tee_context *ctx, size_t num_params,
 	if (optee->rpc_arg_count)
 		sz += OPTEE_MSG_GET_ARG_SIZE(optee->rpc_arg_count);
 
-	shm = tee_shm_alloc(ctx, sz, TEE_SHM_MAPPED | TEE_SHM_PRIV);
+	shm = tee_shm_alloc_priv_buf(ctx, sz);
 	if (IS_ERR(shm))
 		return shm;
 

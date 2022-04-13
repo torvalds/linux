@@ -103,12 +103,6 @@ properties:
       clocks:
         maxItems: 8
 
-      assigned-clocks:
-        maxItems: 1
-
-      assigned-clocks-parents:
-        maxItems: 1
-
     required:
       - clocks
 

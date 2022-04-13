@@ -662,3 +662,58 @@ int hl_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_hard,
 	return rc;
 }
 
+u64 hl_mmu_get_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte)
+{
+	return (curr_pte & PAGE_PRESENT_MASK) ? (curr_pte & HOP_PHYS_ADDR_MASK) : ULLONG_MAX;
+}
+
+/**
+ * hl_mmu_get_hop_pte_phys_addr() - extract PTE address from HOP
+ * @ctx: pointer to the context structure to initialize.
+ * @hop_idx: HOP index.
+ * @hop_addr: HOP address.
+ * @virt_addr: virtual address fro the translation.
+ *
+ * @return the matching PTE value on success, otherwise U64_MAX.
+ */
+u64 hl_mmu_get_hop_pte_phys_addr(struct hl_ctx *ctx, struct hl_mmu_properties *mmu_prop,
+					u8 hop_idx, u64 hop_addr, u64 virt_addr)
+{
+	u64 mask, shift;
+
+	if (hop_idx >= mmu_prop->num_hops) {
+		dev_err_ratelimited(ctx->hdev->dev, "Invalid hop index %d\n", hop_idx);
+		return U64_MAX;
+	}
+
+	/* currently max number of HOPs is 6 */
+	switch (hop_idx) {
+	case 0:
+		mask = mmu_prop->hop0_mask;
+		shift = mmu_prop->hop0_shift;
+		break;
+	case 1:
+		mask = mmu_prop->hop1_mask;
+		shift = mmu_prop->hop1_shift;
+		break;
+	case 2:
+		mask = mmu_prop->hop2_mask;
+		shift = mmu_prop->hop2_shift;
+		break;
+	case 3:
+		mask = mmu_prop->hop3_mask;
+		shift = mmu_prop->hop3_shift;
+		break;
+	case 4:
+		mask = mmu_prop->hop4_mask;
+		shift = mmu_prop->hop4_shift;
+		break;
+	default:
+		mask = mmu_prop->hop5_mask;
+		shift = mmu_prop->hop5_shift;
+		break;
+	}
+
+	return hop_addr + ctx->hdev->asic_prop.mmu_pte_size * ((virt_addr & mask) >> shift);
+}
+

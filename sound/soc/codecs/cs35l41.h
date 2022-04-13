@@ -44,7 +44,7 @@ enum cs35l41_cspl_mbox_cmd {
 struct cs35l41_private {
 	struct wm_adsp dsp; /* needs to be first member */
 	struct snd_soc_codec *codec;
-	struct cs35l41_platform_data pdata;
+	struct cs35l41_hw_cfg hw_cfg;
 	struct device *dev;
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[CS35L41_NUM_SUPPLIES];
@@ -53,8 +53,7 @@ struct cs35l41_private {
 	struct gpio_desc *reset_gpio;
 };
 
-int cs35l41_probe(struct cs35l41_private *cs35l41,
-		  struct cs35l41_platform_data *pdata);
+int cs35l41_probe(struct cs35l41_private *cs35l41, const struct cs35l41_hw_cfg *hw_cfg);
 void cs35l41_remove(struct cs35l41_private *cs35l41);
 
 #endif /*__CS35L41_H__*/

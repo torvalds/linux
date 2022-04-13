@@ -40,6 +40,11 @@ void link_enc_cfg_init(
 		struct dc_state *state);
 
 /*
+ * Copies a link encoder assignment from another state.
+ */
+void link_enc_cfg_copy(const struct dc_state *src_ctx, struct dc_state *dst_ctx);
+
+/*
  * Algorithm for assigning available DIG link encoders to streams.
  *
  * Update link_enc_assignments table and link_enc_avail list accordingly in
@@ -95,6 +100,9 @@ struct link_encoder *link_enc_cfg_get_next_avail_link_enc(struct dc *dc);
 struct link_encoder *link_enc_cfg_get_link_enc_used_by_stream(
 		struct dc *dc,
 		const struct dc_stream_state *stream);
+
+/* Return DIG link encoder. NULL if unused. */
+struct link_encoder *link_enc_cfg_get_link_enc(const struct dc_link *link);
 
 /* Return true if encoder available to use. */
 bool link_enc_cfg_is_link_enc_avail(struct dc *dc, enum engine_id eng_id, struct dc_link *link);

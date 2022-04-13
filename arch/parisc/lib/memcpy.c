@@ -13,8 +13,8 @@
 #include <linux/compiler.h>
 #include <linux/uaccess.h>
 
-#define get_user_space() (uaccess_kernel() ? 0 : mfsp(3))
-#define get_kernel_space() (0)
+#define get_user_space()	mfsp(SR_USER)
+#define get_kernel_space()	SR_KERNEL
 
 /* Returns 0 for success, otherwise, returns number of bytes not transferred. */
 extern unsigned long pa_memcpy(void *dst, const void *src,
@@ -23,8 +23,8 @@ extern unsigned long pa_memcpy(void *dst, const void *src,
 unsigned long raw_copy_to_user(void __user *dst, const void *src,
 			       unsigned long len)
 {
-	mtsp(get_kernel_space(), 1);
-	mtsp(get_user_space(), 2);
+	mtsp(get_kernel_space(), SR_TEMP1);
+	mtsp(get_user_space(), SR_TEMP2);
 	return pa_memcpy((void __force *)dst, src, len);
 }
 EXPORT_SYMBOL(raw_copy_to_user);
@@ -32,16 +32,16 @@ EXPORT_SYMBOL(raw_copy_to_user);
 unsigned long raw_copy_from_user(void *dst, const void __user *src,
 			       unsigned long len)
 {
-	mtsp(get_user_space(), 1);
-	mtsp(get_kernel_space(), 2);
+	mtsp(get_user_space(), SR_TEMP1);
+	mtsp(get_kernel_space(), SR_TEMP2);
 	return pa_memcpy(dst, (void __force *)src, len);
 }
 EXPORT_SYMBOL(raw_copy_from_user);
 
 void * memcpy(void * dst,const void *src, size_t count)
 {
-	mtsp(get_kernel_space(), 1);
-	mtsp(get_kernel_space(), 2);
+	mtsp(get_kernel_space(), SR_TEMP1);
+	mtsp(get_kernel_space(), SR_TEMP2);
 	pa_memcpy(dst, src, count);
 	return dst;
 }

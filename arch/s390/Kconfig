@@ -55,11 +55,14 @@ config S390
 	# Note: keep this list sorted alphabetically
 	#
 	imply IMA_SECURE_AND_OR_TRUSTED_BOOT
+	select ALTERNATE_USER_ADDRESS_SPACE
 	select ARCH_32BIT_USTAT_F_TINODE
 	select ARCH_BINFMT_ELF_STATE
+	select ARCH_CORRECT_STACKTRACE_ON_KRETPROBE
 	select ARCH_ENABLE_MEMORY_HOTPLUG if SPARSEMEM
 	select ARCH_ENABLE_MEMORY_HOTREMOVE
 	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
+	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DEBUG_WX
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
@@ -120,7 +123,6 @@ config S390
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS2
-	select CPU_NO_EFFICIENT_FFS if !HAVE_MARCH_Z9_109_FEATURES
 	select DMA_OPS if PCI
 	select DYNAMIC_FTRACE if FUNCTION_TRACER
 	select GENERIC_ALLOCATOR
@@ -155,7 +157,7 @@ config S390
 	select HAVE_DYNAMIC_FTRACE_WITH_ARGS
 	select HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
-	select HAVE_EBPF_JIT if PACK_STACK && HAVE_MARCH_Z196_FEATURES
+	select HAVE_EBPF_JIT if HAVE_MARCH_Z196_FEATURES
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_FAST_GUP
 	select HAVE_FENTRY
@@ -230,20 +232,8 @@ source "kernel/livepatch/Kconfig"
 
 menu "Processor type and features"
 
-config HAVE_MARCH_Z900_FEATURES
-	def_bool n
-
-config HAVE_MARCH_Z990_FEATURES
-	def_bool n
-	select HAVE_MARCH_Z900_FEATURES
-
-config HAVE_MARCH_Z9_109_FEATURES
-	def_bool n
-	select HAVE_MARCH_Z990_FEATURES
-
 config HAVE_MARCH_Z10_FEATURES
 	def_bool n
-	select HAVE_MARCH_Z9_109_FEATURES
 
 config HAVE_MARCH_Z196_FEATURES
 	def_bool n
@@ -269,41 +259,13 @@ choice
 	prompt "Processor type"
 	default MARCH_Z196
 
-config MARCH_Z900
-	bool "IBM zSeries model z800 and z900"
-	select HAVE_MARCH_Z900_FEATURES
-	depends on $(cc-option,-march=z900)
-	help
-	  Select this to enable optimizations for model z800/z900 (2064 and
-	  2066 series). This will enable some optimizations that are not
-	  available on older ESA/390 (31 Bit) only CPUs.
-
-config MARCH_Z990
-	bool "IBM zSeries model z890 and z990"
-	select HAVE_MARCH_Z990_FEATURES
-	depends on $(cc-option,-march=z990)
-	help
-	  Select this to enable optimizations for model z890/z990 (2084 and
-	  2086 series). The kernel will be slightly faster but will not work
-	  on older machines.
-
-config MARCH_Z9_109
-	bool "IBM System z9"
-	select HAVE_MARCH_Z9_109_FEATURES
-	depends on $(cc-option,-march=z9-109)
-	help
-	  Select this to enable optimizations for IBM System z9 (2094 and
-	  2096 series). The kernel will be slightly faster but will not work
-	  on older machines.
-
 config MARCH_Z10
 	bool "IBM System z10"
 	select HAVE_MARCH_Z10_FEATURES
 	depends on $(cc-option,-march=z10)
 	help
-	  Select this to enable optimizations for IBM System z10 (2097 and
-	  2098 series). The kernel will be slightly faster but will not work
-	  on older machines.
+	  Select this to enable optimizations for IBM System z10 (2097 and 2098
+	  series). This is the oldest machine generation currently supported.
 
 config MARCH_Z196
 	bool "IBM zEnterprise 114 and 196"
@@ -352,15 +314,6 @@ config MARCH_Z15
 
 endchoice
 
-config MARCH_Z900_TUNE
-	def_bool TUNE_Z900 || MARCH_Z900 && TUNE_DEFAULT
-
-config MARCH_Z990_TUNE
-	def_bool TUNE_Z990 || MARCH_Z990 && TUNE_DEFAULT
-
-config MARCH_Z9_109_TUNE
-	def_bool TUNE_Z9_109 || MARCH_Z9_109 && TUNE_DEFAULT
-
 config MARCH_Z10_TUNE
 	def_bool TUNE_Z10 || MARCH_Z10 && TUNE_DEFAULT
 
@@ -396,21 +349,8 @@ config TUNE_DEFAULT
 	  Tune the generated code for the target processor for which the kernel
 	  will be compiled.
 
-config TUNE_Z900
-	bool "IBM zSeries model z800 and z900"
-	depends on $(cc-option,-mtune=z900)
-
-config TUNE_Z990
-	bool "IBM zSeries model z890 and z990"
-	depends on $(cc-option,-mtune=z990)
-
-config TUNE_Z9_109
-	bool "IBM System z9"
-	depends on $(cc-option,-mtune=z9-109)
-
 config TUNE_Z10
 	bool "IBM System z10"
-	depends on $(cc-option,-mtune=z10)
 
 config TUNE_Z196
 	bool "IBM zEnterprise 114 and 196"
@@ -585,6 +525,7 @@ config KERNEL_NOBP
 
 config EXPOLINE
 	def_bool n
+	depends on $(cc-option,-mindirect-branch=thunk)
 	prompt "Avoid speculative indirect branches in the kernel"
 	help
 	  Compile the kernel with the expoline compiler options to guard
@@ -592,6 +533,19 @@ config EXPOLINE
 	  branches.
 	  Requires a compiler with -mindirect-branch=thunk support for full
 	  protection. The kernel may run slower.
+
+	  If unsure, say N.
+
+config EXPOLINE_EXTERN
+	def_bool n
+	depends on EXPOLINE
+	depends on CC_IS_GCC && GCC_VERSION >= 110200
+	depends on $(success,$(srctree)/arch/s390/tools/gcc-thunk-extern.sh $(CC))
+	prompt "Generate expolines as extern functions."
+	help
+	  This option is required for some tooling like kpatch. The kernel is
+	  compiled with -mindirect-branch=thunk-extern and requires a newer
+	  compiler.
 
 	  If unsure, say N.
 
@@ -655,20 +609,6 @@ config MAX_PHYSMEM_BITS
 	  in bits. Supported is any size between 2^42 (4TB) and 2^53 (8PB).
 	  Increasing the number of bits also increases the kernel image size.
 	  By default 46 bits (64TB) are supported.
-
-config PACK_STACK
-	def_bool y
-	prompt "Pack kernel stack"
-	help
-	  This option enables the compiler option -mkernel-backchain if it
-	  is available. If the option is available the compiler supports
-	  the new stack layout which dramatically reduces the minimum stack
-	  frame size. With an old compiler a non-leaf function needs a
-	  minimum of 96 bytes on 31 bit and 160 bytes on 64 bit. With
-	  -mkernel-backchain the minimum size drops to 16 byte on 31 bit
-	  and 24 byte on 64 bit.
-
-	  Say Y if you are unsure.
 
 config CHECK_STACK
 	def_bool y
@@ -945,6 +885,9 @@ config S390_GUEST
 
 endmenu
 
+config S390_MODULES_SANITY_TEST_HELPERS
+	def_bool n
+
 menu "Selftests"
 
 config S390_UNWIND_SELFTEST
@@ -971,4 +914,16 @@ config S390_KPROBES_SANITY_TEST
 
 	  Say N if you are unsure.
 
+config S390_MODULES_SANITY_TEST
+	def_tristate n
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	prompt "Enable s390 specific modules tests"
+	select S390_MODULES_SANITY_TEST_HELPERS
+	help
+	  This option enables an s390 specific modules test. This option is
+	  not useful for distributions or general kernels, but only for
+	  kernel developers working on architecture code.
+
+	  Say N if you are unsure.
 endmenu

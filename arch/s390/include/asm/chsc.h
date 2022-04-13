@@ -63,7 +63,7 @@ struct chsc_pnso_area {
 	struct chsc_header response;
 	u32:32;
 	struct chsc_pnso_naihdr naihdr;
-	struct chsc_pnso_naid_l2 entries[0];
+	struct chsc_pnso_naid_l2 entries[];
 } __packed __aligned(PAGE_SIZE);
 
 #endif /* _ASM_S390_CHSC_H */

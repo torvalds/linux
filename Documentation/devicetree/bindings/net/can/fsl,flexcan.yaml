@@ -84,12 +84,12 @@ properties:
       req_bit is the bit offset of CAN stop request.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
-      items:
-        - description: The 'gpr' is the phandle to general purpose register node.
-        - description: The 'req_gpr' is the gpr register offset of CAN stop request.
-          maximum: 0xff
-        - description: The 'req_bit' is the bit offset of CAN stop request.
-          maximum: 0x1f
+      - items:
+          - description: The 'gpr' is the phandle to general purpose register node.
+          - description: The 'req_gpr' is the gpr register offset of CAN stop request.
+            maximum: 0xff
+          - description: The 'req_bit' is the bit offset of CAN stop request.
+            maximum: 0x1f
 
   fsl,clk-source:
     description: |

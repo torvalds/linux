@@ -683,6 +683,9 @@ TEST_F(tls, splice_cmsg_to_pipe)
 	char buf[10];
 	int p[2];
 
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
 	ASSERT_GE(pipe(p), 0);
 	EXPECT_EQ(tls_send_cmsg(self->fd, 100, test_str, send_len, 0), 10);
 	EXPECT_EQ(splice(self->cfd, NULL, p[1], NULL, send_len, 0), -1);
@@ -702,6 +705,9 @@ TEST_F(tls, splice_dec_cmsg_to_pipe)
 	int send_len = 10;
 	char buf[10];
 	int p[2];
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
 
 	ASSERT_GE(pipe(p), 0);
 	EXPECT_EQ(tls_send_cmsg(self->fd, 100, test_str, send_len, 0), 10);

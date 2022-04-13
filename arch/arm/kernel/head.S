@@ -424,6 +424,13 @@ ENDPROC(secondary_startup)
 ENDPROC(secondary_startup_arm)
 
 ENTRY(__secondary_switched)
+#if defined(CONFIG_VMAP_STACK) && !defined(CONFIG_ARM_LPAE)
+	@ Before using the vmap'ed stack, we have to switch to swapper_pg_dir
+	@ as the ID map does not cover the vmalloc region.
+	mrc	p15, 0, ip, c2, c0, 1	@ read TTBR1
+	mcr	p15, 0, ip, c2, c0, 0	@ set TTBR0
+	instr_sync
+#endif
 	adr_l	r7, secondary_data + 12		@ get secondary_data.stack
 	ldr	sp, [r7]
 	ldr	r0, [r7, #4]			@ get secondary_data.task

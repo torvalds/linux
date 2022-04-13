@@ -813,7 +813,7 @@
 	interrupt-parent = <&combiner>;
 	interrupts = <2 4>;
 	reg = <0x100C0000 0x100>;
-	clocks = <&clock 383>;
+	clocks = <&clock CLK_TMU_APBIF>;
 	clock-names = "tmu_apbif";
 	status = "disabled";
 };

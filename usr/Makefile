@@ -3,7 +3,7 @@
 # kbuild file for usr/ - including initramfs image
 #
 
-compress-y					:= shipped
+compress-y					:= copy
 compress-$(CONFIG_INITRAMFS_COMPRESSION_GZIP)	:= gzip
 compress-$(CONFIG_INITRAMFS_COMPRESSION_BZIP2)	:= bzip2
 compress-$(CONFIG_INITRAMFS_COMPRESSION_LZMA)	:= lzma
@@ -37,7 +37,7 @@ endif
 # .cpio.*, use it directly as an initramfs, and avoid double compression.
 ifeq ($(words $(subst .cpio.,$(space),$(ramfs-input))),2)
 cpio-data := $(ramfs-input)
-compress-y := shipped
+compress-y := copy
 endif
 
 endif

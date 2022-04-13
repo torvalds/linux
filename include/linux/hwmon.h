@@ -332,12 +332,14 @@ enum hwmon_pwm_attributes {
 	hwmon_pwm_enable,
 	hwmon_pwm_mode,
 	hwmon_pwm_freq,
+	hwmon_pwm_auto_channels_temp,
 };
 
 #define HWMON_PWM_INPUT			BIT(hwmon_pwm_input)
 #define HWMON_PWM_ENABLE		BIT(hwmon_pwm_enable)
 #define HWMON_PWM_MODE			BIT(hwmon_pwm_mode)
 #define HWMON_PWM_FREQ			BIT(hwmon_pwm_freq)
+#define HWMON_PWM_AUTO_CHANNELS_TEMP	BIT(hwmon_pwm_auto_channels_temp)
 
 enum hwmon_intrusion_attributes {
 	hwmon_intrusion_alarm,

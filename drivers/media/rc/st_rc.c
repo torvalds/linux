@@ -111,7 +111,7 @@ static irqreturn_t st_rc_rx_interrupt(int irq, void *data)
 		int_status = readl(dev->rx_base + IRB_RX_INT_STATUS);
 		if (unlikely(int_status & IRB_RX_OVERRUN_INT)) {
 			/* discard the entire collection in case of errors!  */
-			ir_raw_event_reset(dev->rdev);
+			ir_raw_event_overflow(dev->rdev);
 			dev_info(dev->dev, "IR RX overrun\n");
 			writel(IRB_RX_OVERRUN_INT,
 					dev->rx_base + IRB_RX_INT_CLEAR);

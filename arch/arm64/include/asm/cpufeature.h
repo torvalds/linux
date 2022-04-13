@@ -356,6 +356,7 @@ struct arm64_cpu_capabilities {
 		struct {	/* Feature register checking */
 			u32 sys_reg;
 			u8 field_pos;
+			u8 field_width;
 			u8 min_field_value;
 			u8 hwcap_type;
 			bool sign;
@@ -576,6 +577,8 @@ static inline u64 arm64_ftr_reg_user_value(const struct arm64_ftr_reg *reg)
 static inline int __attribute_const__
 cpuid_feature_extract_field_width(u64 features, int field, int width, bool sign)
 {
+	if (WARN_ON_ONCE(!width))
+		width = 4;
 	return (sign) ?
 		cpuid_feature_extract_signed_field_width(features, field, width) :
 		cpuid_feature_extract_unsigned_field_width(features, field, width);
@@ -635,6 +638,35 @@ u64 __read_sysreg_by_encoding(u32 sys_id);
 static inline bool cpu_supports_mixed_endian_el0(void)
 {
 	return id_aa64mmfr0_mixed_endian_el0(read_cpuid(ID_AA64MMFR0_EL1));
+}
+
+
+static inline bool supports_csv2p3(int scope)
+{
+	u64 pfr0;
+	u8 csv2_val;
+
+	if (scope == SCOPE_LOCAL_CPU)
+		pfr0 = read_sysreg_s(SYS_ID_AA64PFR0_EL1);
+	else
+		pfr0 = read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1);
+
+	csv2_val = cpuid_feature_extract_unsigned_field(pfr0,
+							ID_AA64PFR0_CSV2_SHIFT);
+	return csv2_val == 3;
+}
+
+static inline bool supports_clearbhb(int scope)
+{
+	u64 isar2;
+
+	if (scope == SCOPE_LOCAL_CPU)
+		isar2 = read_sysreg_s(SYS_ID_AA64ISAR2_EL1);
+	else
+		isar2 = read_sanitised_ftr_reg(SYS_ID_AA64ISAR2_EL1);
+
+	return cpuid_feature_extract_unsigned_field(isar2,
+						    ID_AA64ISAR2_CLEARBHB_SHIFT);
 }
 
 const struct cpumask *system_32bit_el0_cpumask(void);
@@ -854,6 +886,7 @@ static inline unsigned int get_vmid_bits(u64 mmfr1)
 extern struct arm64_ftr_override id_aa64mmfr1_override;
 extern struct arm64_ftr_override id_aa64pfr1_override;
 extern struct arm64_ftr_override id_aa64isar1_override;
+extern struct arm64_ftr_override id_aa64isar2_override;
 
 u32 get_kvm_ipa_limit(void);
 void dump_cpu_features(void);

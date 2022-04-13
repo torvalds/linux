@@ -71,11 +71,18 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 	".if " oldinstr_pad_len(num) " > 6\n"				\
 	"\tjg " e_oldinstr_pad_end "f\n"				\
 	"6620:\n"							\
-	"\t.fill (" oldinstr_pad_len(num) " - (6620b-662b)) / 2, 2, 0x0700\n" \
+	"\t.rept (" oldinstr_pad_len(num) " - (6620b-662b)) / 2\n"	\
+	"\tnopr\n"							\
 	".else\n"							\
-	"\t.fill " oldinstr_pad_len(num) " / 6, 6, 0xc0040000\n"	\
-	"\t.fill " oldinstr_pad_len(num) " %% 6 / 4, 4, 0x47000000\n"	\
-	"\t.fill " oldinstr_pad_len(num) " %% 6 %% 4 / 2, 2, 0x0700\n"	\
+	"\t.rept " oldinstr_pad_len(num) " / 6\n"			\
+	"\t.brcl 0,0\n"							\
+	"\t.endr\n"							\
+	"\t.rept " oldinstr_pad_len(num) " %% 6 / 4\n"			\
+	"\tnop\n"							\
+	"\t.endr\n"							\
+	"\t.rept " oldinstr_pad_len(num) " %% 6 %% 4 / 2\n"		\
+	"\tnopr\n"							\
+	".endr\n"							\
 	".endif\n"
 
 #define OLDINSTR(oldinstr, num)						\

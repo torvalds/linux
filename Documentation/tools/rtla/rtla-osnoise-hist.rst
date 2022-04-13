@@ -36,7 +36,7 @@ default). The reason for reducing the runtime is to avoid starving the
 **rtla** tool. The tool is also set to run for *one minute*. The output
 histogram is set to group outputs in buckets of *10us* and *25* entries::
 
-  [root@f34 ~/]# rtla osnoise hist -P F:1 -c 0-11 -r 900000 -d 1M -b 10 -e 25
+  [root@f34 ~/]# rtla osnoise hist -P F:1 -c 0-11 -r 900000 -d 1M -b 10 -E 25
   # RTLA osnoise histogram
   # Time unit is microseconds (us)
   # Duration:   0 00:01:00

@@ -16,7 +16,9 @@ description:
 
 properties:
   compatible:
-    const: qcom,sc8180x-edp-phy
+    enum:
+      - qcom,sc7280-edp-phy
+      - qcom,sc8180x-edp-phy
 
   reg:
     items:

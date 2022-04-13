@@ -538,7 +538,6 @@
 #define CS35L41_OTP_SIZE_WORDS		32
 #define CS35L41_NUM_OTP_ELEM		100
 
-#define CS35L41_VALID_PDATA		0x80000000
 #define CS35L41_NUM_SUPPLIES            2
 
 #define CS35L41_SCLK_MSTR_MASK		0x10
@@ -662,6 +661,7 @@
 #define CS35L41_GLOBAL_EN_SHIFT		0
 #define CS35L41_BST_EN_MASK		0x0030
 #define CS35L41_BST_EN_SHIFT		4
+#define CS35L41_BST_DIS_FET_OFF		0x00
 #define CS35L41_BST_EN_DEFAULT		0x2
 #define CS35L41_AMP_EN_SHIFT		0
 #define CS35L41_AMP_EN_MASK		1
@@ -701,9 +701,8 @@
 #define CS35L41_GPIO1_CTRL_SHIFT	16
 #define CS35L41_GPIO2_CTRL_MASK		0x07000000
 #define CS35L41_GPIO2_CTRL_SHIFT	24
-#define CS35L41_GPIO_CTRL_OPEN_INT	2
-#define CS35L41_GPIO_CTRL_ACTV_LO	4
-#define CS35L41_GPIO_CTRL_ACTV_HI	5
+#define CS35L41_GPIO_LVL_SHIFT		15
+#define CS35L41_GPIO_LVL_MASK		BIT(CS35L41_GPIO_LVL_SHIFT)
 #define CS35L41_GPIO_POL_MASK		0x1000
 #define CS35L41_GPIO_POL_SHIFT		12
 
@@ -729,25 +728,56 @@
 #define CS35L41_SPI_MAX_FREQ		4000000
 #define CS35L41_REGSTRIDE		4
 
+enum cs35l41_boost_type {
+	CS35L41_INT_BOOST,
+	CS35L41_EXT_BOOST,
+	CS35L41_EXT_BOOST_NO_VSPK_SWITCH,
+};
+
 enum cs35l41_clk_ids {
 	CS35L41_CLKID_SCLK = 0,
 	CS35L41_CLKID_LRCLK = 1,
 	CS35L41_CLKID_MCLK = 4,
 };
 
-struct cs35l41_irq_cfg {
-	bool irq_pol_inv;
-	bool irq_out_en;
-	int irq_src_sel;
+enum cs35l41_gpio1_func {
+	CS35L41_GPIO1_HIZ,
+	CS35L41_GPIO1_GPIO,
+	CS35L41_GPIO1_MDSYNC,
+	CS35L41_GPIO1_MCLK,
+	CS35L41_GPIO1_PDM_CLK,
+	CS35L41_GPIO1_PDM_DATA,
 };
 
-struct cs35l41_platform_data {
+enum cs35l41_gpio2_func {
+	CS35L41_GPIO2_HIZ,
+	CS35L41_GPIO2_GPIO,
+	CS35L41_GPIO2_INT_OPEN_DRAIN,
+	CS35L41_GPIO2_MCLK,
+	CS35L41_GPIO2_INT_PUSH_PULL_LOW,
+	CS35L41_GPIO2_INT_PUSH_PULL_HIGH,
+	CS35L41_GPIO2_PDM_CLK,
+	CS35L41_GPIO2_PDM_DATA,
+};
+
+struct cs35l41_gpio_cfg {
+	bool valid;
+	bool pol_inv;
+	bool out_en;
+	unsigned int func;
+};
+
+struct cs35l41_hw_cfg {
+	bool valid;
 	int bst_ind;
 	int bst_ipk;
 	int bst_cap;
 	int dout_hiz;
-	struct cs35l41_irq_cfg irq_config1;
-	struct cs35l41_irq_cfg irq_config2;
+	struct cs35l41_gpio_cfg gpio1;
+	struct cs35l41_gpio_cfg gpio2;
+	unsigned int spk_pos;
+
+	enum cs35l41_boost_type bst_type;
 };
 
 struct cs35l41_otp_packed_element_t {
@@ -774,7 +804,10 @@ int cs35l41_register_errata_patch(struct device *dev, struct regmap *reg, unsign
 int cs35l41_set_channels(struct device *dev, struct regmap *reg,
 			 unsigned int tx_num, unsigned int *tx_slot,
 			 unsigned int rx_num, unsigned int *rx_slot);
-int cs35l41_boost_config(struct device *dev, struct regmap *regmap, int boost_ind, int boost_cap,
-			 int boost_ipk);
+int cs35l41_gpio_config(struct regmap *regmap, struct cs35l41_hw_cfg *hw_cfg);
+int cs35l41_init_boost(struct device *dev, struct regmap *regmap,
+		       struct cs35l41_hw_cfg *hw_cfg);
+bool cs35l41_safe_reset(struct regmap *regmap, enum cs35l41_boost_type b_type);
+int cs35l41_global_enable(struct regmap *regmap, enum cs35l41_boost_type b_type, int enable);
 
 #endif /* __CS35L41_H */

@@ -104,8 +104,7 @@ properties:
       - "1.5A" and "3.0A", 5V 1.5A and 5V 3.0A respectively, as defined in USB
         Type-C Cable and Connector specification, when Power Delivery is not
         supported.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/string
+    $ref: /schemas/types.yaml#/definitions/string
     enum:
       - default
       - 1.5A

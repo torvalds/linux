@@ -14,6 +14,8 @@
 #include "intel_pm.h"
 #include "vlv_suspend.h"
 
+#include "gt/intel_gt_regs.h"
+
 struct vlv_s0ix_state {
 	/* GAM */
 	u32 wr_watermark;

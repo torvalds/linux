@@ -33,6 +33,7 @@ static const u8 ksz8795_regs[] = {
 	[REG_IND_DATA_HI]		= 0x71,
 	[REG_IND_DATA_LO]		= 0x75,
 	[REG_IND_MIB_CHECK]		= 0x74,
+	[REG_IND_BYTE]			= 0xA0,
 	[P_FORCE_CTRL]			= 0x0C,
 	[P_LINK_STATUS]			= 0x0E,
 	[P_LOCAL_CTRL]			= 0x07,
@@ -220,6 +221,25 @@ static void ksz_port_cfg(struct ksz_device *dev, int port, int offset, u8 bits,
 {
 	regmap_update_bits(dev->regmap[0], PORT_CTRL_ADDR(port, offset),
 			   bits, set ? bits : 0);
+}
+
+static int ksz8_ind_write8(struct ksz_device *dev, u8 table, u16 addr, u8 data)
+{
+	struct ksz8 *ksz8 = dev->priv;
+	const u8 *regs = ksz8->regs;
+	u16 ctrl_addr;
+	int ret = 0;
+
+	mutex_lock(&dev->alu_mutex);
+
+	ctrl_addr = IND_ACC_TABLE(table) | addr;
+	ret = ksz_write8(dev, regs[REG_IND_BYTE], data);
+	if (!ret)
+		ret = ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
+
+	mutex_unlock(&dev->alu_mutex);
+
+	return ret;
 }
 
 static int ksz8_reset_switch(struct ksz_device *dev)
@@ -1213,7 +1233,7 @@ static int ksz8_port_vlan_del(struct dsa_switch *ds, int port,
 
 static int ksz8_port_mirror_add(struct dsa_switch *ds, int port,
 				struct dsa_mall_mirror_tc_entry *mirror,
-				bool ingress)
+				bool ingress, struct netlink_ext_ack *extack)
 {
 	struct ksz_device *dev = ds->priv;
 
@@ -1391,6 +1411,23 @@ static void ksz8_config_cpu_port(struct dsa_switch *ds)
 	}
 }
 
+static int ksz8_handle_global_errata(struct dsa_switch *ds)
+{
+	struct ksz_device *dev = ds->priv;
+	int ret = 0;
+
+	/* KSZ87xx Errata DS80000687C.
+	 * Module 2: Link drops with some EEE link partners.
+	 *   An issue with the EEE next page exchange between the
+	 *   KSZ879x/KSZ877x/KSZ876x and some EEE link partners may result in
+	 *   the link dropping.
+	 */
+	if (dev->ksz87xx_eee_link_erratum)
+		ret = ksz8_ind_write8(dev, TABLE_EEE, REG_IND_EEE_GLOB2_HI, 0);
+
+	return ret;
+}
+
 static int ksz8_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
@@ -1458,30 +1495,25 @@ static int ksz8_setup(struct dsa_switch *ds)
 
 	ds->configure_vlan_while_not_filtering = false;
 
-	return 0;
+	return ksz8_handle_global_errata(ds);
 }
 
-static void ksz8_validate(struct dsa_switch *ds, int port,
-			  unsigned long *supported,
-			  struct phylink_link_state *state)
+static void ksz8_get_caps(struct dsa_switch *ds, int port,
+			  struct phylink_config *config)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct ksz_device *dev = ds->priv;
 
 	if (port == dev->cpu_port) {
-		if (state->interface != PHY_INTERFACE_MODE_RMII &&
-		    state->interface != PHY_INTERFACE_MODE_MII &&
-		    state->interface != PHY_INTERFACE_MODE_NA)
-			goto unsupported;
+		__set_bit(PHY_INTERFACE_MODE_RMII,
+			  config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_MII,
+			  config->supported_interfaces);
 	} else {
-		if (state->interface != PHY_INTERFACE_MODE_INTERNAL &&
-		    state->interface != PHY_INTERFACE_MODE_NA)
-			goto unsupported;
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
 	}
 
-	/* Allow all the expected bits */
-	phylink_set_port_modes(mask);
-	phylink_set(mask, Autoneg);
+	config->mac_capabilities = MAC_10 | MAC_100;
 
 	/* Silicon Errata Sheet (DS80000830A):
 	 * "Port 1 does not respond to received flow control PAUSE frames"
@@ -1489,27 +1521,11 @@ static void ksz8_validate(struct dsa_switch *ds, int port,
 	 * switches.
 	 */
 	if (!ksz_is_ksz88x3(dev) || port)
-		phylink_set(mask, Pause);
+		config->mac_capabilities |= MAC_SYM_PAUSE;
 
 	/* Asym pause is not supported on KSZ8863 and KSZ8873 */
 	if (!ksz_is_ksz88x3(dev))
-		phylink_set(mask, Asym_Pause);
-
-	/* 10M and 100M are only supported */
-	phylink_set(mask, 10baseT_Half);
-	phylink_set(mask, 10baseT_Full);
-	phylink_set(mask, 100baseT_Half);
-	phylink_set(mask, 100baseT_Full);
-
-	linkmode_and(supported, supported, mask);
-	linkmode_and(state->advertising, state->advertising, mask);
-
-	return;
-
-unsupported:
-	linkmode_zero(supported);
-	dev_err(ds->dev, "Unsupported interface: %s, port: %d\n",
-		phy_modes(state->interface), port);
+		config->mac_capabilities |= MAC_ASYM_PAUSE;
 }
 
 static const struct dsa_switch_ops ksz8_switch_ops = {
@@ -1518,7 +1534,7 @@ static const struct dsa_switch_ops ksz8_switch_ops = {
 	.setup			= ksz8_setup,
 	.phy_read		= ksz_phy_read16,
 	.phy_write		= ksz_phy_write16,
-	.phylink_validate	= ksz8_validate,
+	.phylink_get_caps	= ksz8_get_caps,
 	.phylink_mac_link_down	= ksz_mac_link_down,
 	.port_enable		= ksz_enable_port,
 	.get_strings		= ksz8_get_strings,
@@ -1596,6 +1612,7 @@ struct ksz_chip_data {
 	int num_statics;
 	int cpu_ports;
 	int port_cnt;
+	bool ksz87xx_eee_link_erratum;
 };
 
 static const struct ksz_chip_data ksz8_switch_chips[] = {
@@ -1607,6 +1624,7 @@ static const struct ksz_chip_data ksz8_switch_chips[] = {
 		.num_statics = 8,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total cpu and user ports */
+		.ksz87xx_eee_link_erratum = true,
 	},
 	{
 		/*
@@ -1630,6 +1648,7 @@ static const struct ksz_chip_data ksz8_switch_chips[] = {
 		.num_statics = 8,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 4,		/* total cpu and user ports */
+		.ksz87xx_eee_link_erratum = true,
 	},
 	{
 		.chip_id = 0x8765,
@@ -1639,6 +1658,7 @@ static const struct ksz_chip_data ksz8_switch_chips[] = {
 		.num_statics = 8,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total cpu and user ports */
+		.ksz87xx_eee_link_erratum = true,
 	},
 	{
 		.chip_id = 0x8830,
@@ -1673,6 +1693,8 @@ static int ksz8_switch_init(struct ksz_device *dev)
 			dev->host_mask = chip->cpu_ports;
 			dev->port_mask = (BIT(dev->phy_port_cnt) - 1) |
 					 chip->cpu_ports;
+			dev->ksz87xx_eee_link_erratum =
+				chip->ksz87xx_eee_link_erratum;
 			break;
 		}
 	}

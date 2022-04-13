@@ -9,6 +9,7 @@
 #include <linux/namei.h>
 #include <linux/nls.h>
 #include <linux/sizes.h>
+#include <linux/pagemap.h>
 #include <linux/vfs.h>
 #include "vfsmod.h"
 

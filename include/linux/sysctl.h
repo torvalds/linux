@@ -265,7 +265,7 @@ static inline struct ctl_table_header *register_sysctl_table(struct ctl_table * 
 	return NULL;
 }
 
-static inline struct sysctl_header *register_sysctl_mount_point(const char *path)
+static inline struct ctl_table_header *register_sysctl_mount_point(const char *path)
 {
 	return NULL;
 }

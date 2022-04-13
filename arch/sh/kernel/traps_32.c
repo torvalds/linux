@@ -75,6 +75,23 @@ static struct mem_access user_mem_access = {
 	copy_to_user,
 };
 
+static unsigned long copy_from_kernel_wrapper(void *dst, const void __user *src,
+					      unsigned long cnt)
+{
+	return copy_from_kernel_nofault(dst, (const void __force *)src, cnt);
+}
+
+static unsigned long copy_to_kernel_wrapper(void __user *dst, const void *src,
+					    unsigned long cnt)
+{
+	return copy_to_kernel_nofault((void __force *)dst, src, cnt);
+}
+
+static struct mem_access kernel_mem_access = {
+	copy_from_kernel_wrapper,
+	copy_to_kernel_wrapper,
+};
+
 /*
  * handle an instruction that does an unaligned memory access by emulating the
  * desired behaviour
@@ -473,7 +490,6 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 				 unsigned long address)
 {
 	unsigned long error_code = 0;
-	mm_segment_t oldfs;
 	insn_size_t instruction;
 	int tmp;
 
@@ -489,13 +505,10 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 		local_irq_enable();
 		inc_unaligned_user_access();
 
-		oldfs = force_uaccess_begin();
 		if (copy_from_user(&instruction, (insn_size_t __user *)(regs->pc & ~1),
 				   sizeof(instruction))) {
-			force_uaccess_end(oldfs);
 			goto uspace_segv;
 		}
-		force_uaccess_end(oldfs);
 
 		/* shout about userspace fixups */
 		unaligned_fixups_notify(current, instruction, regs);
@@ -518,11 +531,9 @@ fixup:
 			goto uspace_segv;
 		}
 
-		oldfs = force_uaccess_begin();
 		tmp = handle_unaligned_access(instruction, regs,
 					      &user_mem_access, 0,
 					      address);
-		force_uaccess_end(oldfs);
 
 		if (tmp == 0)
 			return; /* sorted */
@@ -538,21 +549,18 @@ uspace_segv:
 		if (regs->pc & 1)
 			die("unaligned program counter", regs, error_code);
 
-		set_fs(KERNEL_DS);
-		if (copy_from_user(&instruction, (void __user *)(regs->pc),
+		if (copy_from_kernel_nofault(&instruction, (void *)(regs->pc),
 				   sizeof(instruction))) {
 			/* Argh. Fault on the instruction itself.
 			   This should never happen non-SMP
 			*/
-			set_fs(oldfs);
 			die("insn faulting in do_address_error", regs, 0);
 		}
 
 		unaligned_fixups_notify(current, instruction, regs);
 
-		handle_unaligned_access(instruction, regs, &user_mem_access,
+		handle_unaligned_access(instruction, regs, &kernel_mem_access,
 					0, address);
-		set_fs(oldfs);
 	}
 }
 

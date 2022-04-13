@@ -11,6 +11,7 @@
 #include <linux/string.h>
 #include <asm/memory.h>
 #include <asm/domain.h>
+#include <asm/unaligned.h>
 #include <asm/unified.h>
 #include <asm/compiler.h>
 
@@ -53,21 +54,6 @@ extern int __get_user_bad(void);
 extern int __put_user_bad(void);
 
 #ifdef CONFIG_MMU
-
-/*
- * We use 33-bit arithmetic here.  Success returns zero, failure returns
- * addr_limit.  We take advantage that addr_limit will be zero for KERNEL_DS,
- * so this will always return success in that case.
- */
-#define __range_ok(addr, size) ({ \
-	unsigned long flag, roksum; \
-	__chk_user_ptr(addr);	\
-	__asm__(".syntax unified\n" \
-		"adds %1, %2, %3; sbcscc %1, %1, %0; movcc %0, #0" \
-		: "=&r" (flag), "=&r" (roksum) \
-		: "r" (addr), "Ir" (size), "0" (TASK_SIZE) \
-		: "cc"); \
-	flag; })
 
 /*
  * This is a type: either unsigned long, if the argument fits into
@@ -240,15 +226,12 @@ extern int __put_user_8(void *, unsigned long long);
 
 #else /* CONFIG_MMU */
 
-#define __addr_ok(addr)		((void)(addr), 1)
-#define __range_ok(addr, size)	((void)(addr), 0)
-
 #define get_user(x, p)	__get_user(x, p)
 #define __put_user_check __put_user_nocheck
 
 #endif /* CONFIG_MMU */
 
-#define access_ok(addr, size)	(__range_ok(addr, size) == 0)
+#include <asm-generic/access_ok.h>
 
 #ifdef CONFIG_CPU_SPECTRE
 /*
@@ -475,8 +458,6 @@ do {									\
 	: "r" (x), "i" (-EFAULT)				\
 	: "cc")
 
-#define HAVE_GET_KERNEL_NOFAULT
-
 #define __get_kernel_nofault(dst, src, type, err_label)			\
 do {									\
 	const type *__pk_ptr = (src);					\
@@ -497,7 +478,10 @@ do {									\
 	}								\
 	default: __err = __get_user_bad(); break;			\
 	}								\
-	*(type *)(dst) = __val;						\
+	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))		\
+		put_unaligned(__val, (type *)(dst));			\
+	else								\
+		*(type *)(dst) = __val; /* aligned by caller */		\
 	if (__err)							\
 		goto err_label;						\
 } while (0)
@@ -507,7 +491,9 @@ do {									\
 	const type *__pk_ptr = (dst);					\
 	unsigned long __dst = (unsigned long)__pk_ptr;			\
 	int __err = 0;							\
-	type __val = *(type *)src;					\
+	type __val = IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)	\
+		     ? get_unaligned((type *)(src))			\
+		     : *(type *)(src);	/* aligned by caller */		\
 	switch (sizeof(type)) {						\
 	case 1: __put_user_asm_byte(__val, __dst, __err, ""); break;	\
 	case 2:	__put_user_asm_half(__val, __dst, __err, ""); break;	\

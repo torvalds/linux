@@ -3,9 +3,10 @@ DT_DOC_CHECKER ?= dt-doc-validate
 DT_EXTRACT_EX ?= dt-extract-example
 DT_MK_SCHEMA ?= dt-mk-schema
 
-DT_SCHEMA_LINT = $(shell which yamllint)
+DT_SCHEMA_LINT = $(shell which yamllint || \
+  echo "warning: python package 'yamllint' not installed, skipping" >&2)
 
-DT_SCHEMA_MIN_VERSION = 2021.2.1
+DT_SCHEMA_MIN_VERSION = 2022.3
 
 PHONY += check_dtschema_version
 check_dtschema_version:
@@ -24,18 +25,11 @@ quiet_cmd_extract_ex = DTEX    $@
 $(obj)/%.example.dts: $(src)/%.yaml check_dtschema_version FORCE
 	$(call if_changed,extract_ex)
 
-# Use full schemas when checking %.example.dts
-DT_TMP_SCHEMA := $(obj)/processed-schema-examples.json
-
 find_all_cmd = find $(srctree)/$(src) \( -name '*.yaml' ! \
-		-name 'processed-schema*' ! \
-		-name '*.example.dt.yaml' \)
+		-name 'processed-schema*' \)
 
-ifeq ($(DT_SCHEMA_FILES),)
-find_cmd = $(find_all_cmd)
-else
-find_cmd = echo $(addprefix $(srctree)/, $(DT_SCHEMA_FILES))
-endif
+find_cmd = $(find_all_cmd) | grep -F "$(DT_SCHEMA_FILES)"
+CHK_DT_DOCS := $(shell $(find_cmd))
 
 quiet_cmd_yamllint = LINT    $(src)
       cmd_yamllint = ($(find_cmd) | \
@@ -72,35 +66,14 @@ override DTC_FLAGS := \
 # Disable undocumented compatible checks until warning free
 override DT_CHECKER_FLAGS ?=
 
-$(obj)/processed-schema-examples.json: $(DT_DOCS) $(src)/.yamllint check_dtschema_version FORCE
+$(obj)/processed-schema.json: $(DT_DOCS) $(src)/.yamllint check_dtschema_version FORCE
 	$(call if_changed_rule,chkdt)
 
-ifeq ($(DT_SCHEMA_FILES),)
-
-# Unless DT_SCHEMA_FILES is specified, use the full schema for dtbs_check too.
-# Just copy processed-schema-examples.json
-
-$(obj)/processed-schema.json: $(obj)/processed-schema-examples.json FORCE
-	$(call if_changed,copy)
-
-DT_SCHEMA_FILES = $(DT_DOCS)
-
-else
-
-# If DT_SCHEMA_FILES is specified, use it for processed-schema.json
-
-$(obj)/processed-schema.json: DT_MK_SCHEMA_FLAGS := -u
-$(obj)/processed-schema.json: $(DT_SCHEMA_FILES) check_dtschema_version FORCE
-	$(call if_changed,mk_schema)
-
-endif
-
-always-$(CHECK_DT_BINDING) += processed-schema-examples.json
-always-$(CHECK_DTBS)       += processed-schema.json
-always-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dts, $(DT_SCHEMA_FILES))
-always-$(CHECK_DT_BINDING) += $(patsubst $(src)/%.yaml,%.example.dt.yaml, $(DT_SCHEMA_FILES))
+always-y += processed-schema.json
+always-$(CHECK_DT_BINDING) += $(patsubst $(srctree)/$(src)/%.yaml,%.example.dts, $(CHK_DT_DOCS))
+always-$(CHECK_DT_BINDING) += $(patsubst $(srctree)/$(src)/%.yaml,%.example.dtb, $(CHK_DT_DOCS))
 
 # Hack: avoid 'Argument list too long' error for 'make clean'. Remove most of
 # build artifacts here before they are processed by scripts/Makefile.clean
 clean-files = $(shell find $(obj) \( -name '*.example.dts' -o \
-			-name '*.example.dt.yaml' \) -delete 2>/dev/null)
+			-name '*.example.dtb' \) -delete 2>/dev/null)

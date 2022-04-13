@@ -329,22 +329,6 @@ static void test_zero_memory_regions(void)
 }
 #endif /* __x86_64__ */
 
-static int test_memory_region_add(struct kvm_vm *vm, void *mem, uint32_t slot,
-				   uint32_t size, uint64_t guest_addr)
-{
-	struct kvm_userspace_memory_region region;
-	int ret;
-
-	region.slot = slot;
-	region.flags = 0;
-	region.guest_phys_addr = guest_addr;
-	region.memory_size = size;
-	region.userspace_addr = (uintptr_t) mem;
-	ret = ioctl(vm_get_fd(vm), KVM_SET_USER_MEMORY_REGION, &region);
-
-	return ret;
-}
-
 /*
  * Test it can be added memory slots up to KVM_CAP_NR_MEMSLOTS, then any
  * tentative to add further slots should fail.
@@ -382,23 +366,20 @@ static void test_add_max_memory_regions(void)
 	TEST_ASSERT(mem != MAP_FAILED, "Failed to mmap() host");
 	mem_aligned = (void *)(((size_t) mem + alignment - 1) & ~(alignment - 1));
 
-	for (slot = 0; slot < max_mem_slots; slot++) {
-		ret = test_memory_region_add(vm, mem_aligned +
-					     ((uint64_t)slot * MEM_REGION_SIZE),
-					     slot, MEM_REGION_SIZE,
-					     (uint64_t)slot * MEM_REGION_SIZE);
-		TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION IOCTL failed,\n"
-			    "  rc: %i errno: %i slot: %i\n",
-			    ret, errno, slot);
-	}
+	for (slot = 0; slot < max_mem_slots; slot++)
+		vm_set_user_memory_region(vm, slot, 0,
+					  ((uint64_t)slot * MEM_REGION_SIZE),
+					  MEM_REGION_SIZE,
+					  mem_aligned + (uint64_t)slot * MEM_REGION_SIZE);
 
 	/* Check it cannot be added memory slots beyond the limit */
 	mem_extra = mmap(NULL, MEM_REGION_SIZE, PROT_READ | PROT_WRITE,
 			 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	TEST_ASSERT(mem_extra != MAP_FAILED, "Failed to mmap() host");
 
-	ret = test_memory_region_add(vm, mem_extra, max_mem_slots, MEM_REGION_SIZE,
-				     (uint64_t)max_mem_slots * MEM_REGION_SIZE);
+	ret = __vm_set_user_memory_region(vm, max_mem_slots, 0,
+					  (uint64_t)max_mem_slots * MEM_REGION_SIZE,
+					  MEM_REGION_SIZE, mem_extra);
 	TEST_ASSERT(ret == -1 && errno == EINVAL,
 		    "Adding one more memory slot should fail with EINVAL");
 

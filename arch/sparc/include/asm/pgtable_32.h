@@ -127,11 +127,16 @@ static inline int srmmu_device_memory(unsigned long x)
 	return ((x & 0xF0000000) != 0);
 }
 
+static inline unsigned long pmd_pfn(pmd_t pmd)
+{
+	return (pmd_val(pmd) & SRMMU_PTD_PMASK) >> (PAGE_SHIFT-4);
+}
+
 static inline struct page *pmd_page(pmd_t pmd)
 {
 	if (srmmu_device_memory(pmd_val(pmd)))
 		BUG();
-	return pfn_to_page((pmd_val(pmd) & SRMMU_PTD_PMASK) >> (PAGE_SHIFT-4));
+	return pfn_to_page(pmd_pfn(pmd));
 }
 
 static inline unsigned long __pmd_page(pmd_t pmd)

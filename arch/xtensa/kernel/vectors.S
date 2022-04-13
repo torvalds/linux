@@ -88,7 +88,7 @@ ENDPROC(_UserExceptionVector)
  * Kernel exception vector. (Exceptions with PS.UM == 0, PS.EXCM == 0)
  *
  * We get this exception when we were already in kernel space.
- * We decrement the current stack pointer (kernel) by PT_SIZE and
+ * We decrement the current stack pointer (kernel) by PT_KERNEL_SIZE and
  * jump to the first-level handler associated with the exception cause.
  *
  * Note: we need to preserve space for the spill region.
@@ -100,7 +100,7 @@ ENTRY(_KernelExceptionVector)
 
 	xsr	a3, excsave1		# save a3, and get dispatch table
 	wsr	a2, depc		# save a2
-	addi	a2, a1, -16-PT_SIZE	# adjust stack pointer
+	addi	a2, a1, -16 - PT_KERNEL_SIZE	# adjust stack pointer
 	s32i	a0, a2, PT_AREG0	# save a0 to ESF
 	rsr	a0, exccause		# retrieve exception cause
 	s32i	a0, a2, PT_DEPC		# mark it as a regular exception

@@ -215,7 +215,6 @@ static int tsl4531_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int tsl4531_suspend(struct device *dev)
 {
 	return tsl4531_powerdown(to_i2c_client(dev));
@@ -227,11 +226,8 @@ static int tsl4531_resume(struct device *dev)
 		TSL4531_MODE_NORMAL);
 }
 
-static SIMPLE_DEV_PM_OPS(tsl4531_pm_ops, tsl4531_suspend, tsl4531_resume);
-#define TSL4531_PM_OPS (&tsl4531_pm_ops)
-#else
-#define TSL4531_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(tsl4531_pm_ops, tsl4531_suspend,
+				tsl4531_resume);
 
 static const struct i2c_device_id tsl4531_id[] = {
 	{ "tsl4531", 0 },
@@ -242,7 +238,7 @@ MODULE_DEVICE_TABLE(i2c, tsl4531_id);
 static struct i2c_driver tsl4531_driver = {
 	.driver = {
 		.name   = TSL4531_DRV_NAME,
-		.pm	= TSL4531_PM_OPS,
+		.pm	= pm_sleep_ptr(&tsl4531_pm_ops),
 	},
 	.probe  = tsl4531_probe,
 	.remove = tsl4531_remove,

@@ -16,7 +16,7 @@
 
 #include <media/tuner.h>
 
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "xc5000.h"
 
 MODULE_DESCRIPTION("DVB driver extension module for tm5600/6000/6010 based TV cards");

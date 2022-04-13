@@ -1047,7 +1047,8 @@ request_started_state_tc_event(struct isci_request *ireq,
 		resp_iu = &ireq->ssp.rsp;
 		datapres = resp_iu->datapres;
 
-		if (datapres == 1 || datapres == 2) {
+		if (datapres == SAS_DATAPRES_RESPONSE_DATA ||
+		    datapres == SAS_DATAPRES_SENSE_DATA) {
 			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
 			ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
 		} else {
@@ -1730,8 +1731,8 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 
 			resp_iu = &ireq->ssp.rsp;
 
-			if (resp_iu->datapres == 0x01 ||
-			    resp_iu->datapres == 0x02) {
+			if (resp_iu->datapres == SAS_DATAPRES_RESPONSE_DATA ||
+			    resp_iu->datapres == SAS_DATAPRES_SENSE_DATA) {
 				ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
 				ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 			} else {
@@ -2934,8 +2935,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 	if (test_bit(IREQ_COMPLETE_IN_TARGET, &request->flags)) {
 		/* Normal notification (task_done) */
 		task->task_state_flags |= SAS_TASK_STATE_DONE;
-		task->task_state_flags &= ~(SAS_TASK_AT_INITIATOR |
-					    SAS_TASK_STATE_PENDING);
+		task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
 	}
 	spin_unlock_irqrestore(&task->task_state_lock, task_flags);
 
@@ -3406,9 +3406,9 @@ static struct isci_request *isci_request_from_tag(struct isci_host *ihost, u16 t
 	return ireq;
 }
 
-static struct isci_request *isci_io_request_from_tag(struct isci_host *ihost,
-						     struct sas_task *task,
-						     u16 tag)
+struct isci_request *isci_io_request_from_tag(struct isci_host *ihost,
+					      struct sas_task *task,
+					      u16 tag)
 {
 	struct isci_request *ireq;
 
@@ -3434,15 +3434,11 @@ struct isci_request *isci_tmf_request_from_tag(struct isci_host *ihost,
 }
 
 int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *idev,
-			 struct sas_task *task, u16 tag)
+			 struct sas_task *task, struct isci_request *ireq)
 {
 	enum sci_status status;
-	struct isci_request *ireq;
 	unsigned long flags;
 	int ret = 0;
-
-	/* do common allocation and init of request object. */
-	ireq = isci_io_request_from_tag(ihost, task, tag);
 
 	status = isci_io_request_build(ihost, ireq, idev);
 	if (status != SCI_SUCCESS) {

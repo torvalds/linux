@@ -75,9 +75,25 @@ function set_dynamic_debug() {
 }
 
 function set_ftrace_enabled() {
-	result=$(sysctl -q kernel.ftrace_enabled="$1" 2>&1 && \
-		 sysctl kernel.ftrace_enabled 2>&1)
-	echo "livepatch: $result" > /dev/kmsg
+	local can_fail=0
+	if [[ "$1" == "--fail" ]] ; then
+		can_fail=1
+		shift
+	fi
+
+	local err=$(sysctl -q kernel.ftrace_enabled="$1" 2>&1)
+	local result=$(sysctl --values kernel.ftrace_enabled)
+
+	if [[ "$result" != "$1" ]] ; then
+		if [[ $can_fail -eq 1 ]] ; then
+			echo "livepatch: $err" > /dev/kmsg
+			return
+		fi
+
+		skip "failed to set kernel.ftrace_enabled = $1"
+	fi
+
+	echo "livepatch: kernel.ftrace_enabled = $result" > /dev/kmsg
 }
 
 function cleanup() {

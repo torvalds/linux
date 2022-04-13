@@ -356,7 +356,7 @@ static void hi3110_hw_rx(struct spi_device *spi)
 
 	can_led_event(priv->net, CAN_LED_EVENT_RX);
 
-	netif_rx_ni(skb);
+	netif_rx(skb);
 }
 
 static void hi3110_hw_sleep(struct spi_device *spi)
@@ -677,7 +677,7 @@ static irqreturn_t hi3110_can_ist(int irq, void *dev_id)
 			tx_state = txerr >= rxerr ? new_state : 0;
 			rx_state = txerr <= rxerr ? new_state : 0;
 			can_change_state(net, cf, tx_state, rx_state);
-			netif_rx_ni(skb);
+			netif_rx(skb);
 
 			if (new_state == CAN_STATE_BUS_OFF) {
 				can_bus_off(net);
@@ -718,7 +718,7 @@ static irqreturn_t hi3110_can_ist(int irq, void *dev_id)
 				cf->data[6] = hi3110_read(spi, HI3110_READ_TEC);
 				cf->data[7] = hi3110_read(spi, HI3110_READ_REC);
 				netdev_dbg(priv->net, "Bus Error\n");
-				netif_rx_ni(skb);
+				netif_rx(skb);
 			}
 		}
 
@@ -948,7 +948,7 @@ static int hi3110_can_probe(struct spi_device *spi)
 	return dev_err_probe(dev, ret, "Probe failed\n");
 }
 
-static int hi3110_can_remove(struct spi_device *spi)
+static void hi3110_can_remove(struct spi_device *spi)
 {
 	struct hi3110_priv *priv = spi_get_drvdata(spi);
 	struct net_device *net = priv->net;
@@ -960,8 +960,6 @@ static int hi3110_can_remove(struct spi_device *spi)
 	clk_disable_unprepare(priv->clk);
 
 	free_candev(net);
-
-	return 0;
 }
 
 static int __maybe_unused hi3110_can_suspend(struct device *dev)

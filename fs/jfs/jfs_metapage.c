@@ -417,12 +417,10 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 		}
 		len = min(xlen, (int)JFS_SBI(inode->i_sb)->nbperpage);
 
-		bio = bio_alloc(GFP_NOFS, 1);
-		bio_set_dev(bio, inode->i_sb->s_bdev);
+		bio = bio_alloc(inode->i_sb->s_bdev, 1, REQ_OP_WRITE, GFP_NOFS);
 		bio->bi_iter.bi_sector = pblock << (inode->i_blkbits - 9);
 		bio->bi_end_io = metapage_write_end_io;
 		bio->bi_private = page;
-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 		/* Don't call bio_add_page yet, we may add to this vec */
 		bio_offset = offset;
@@ -497,13 +495,12 @@ static int metapage_readpage(struct file *fp, struct page *page)
 			if (bio)
 				submit_bio(bio);
 
-			bio = bio_alloc(GFP_NOFS, 1);
-			bio_set_dev(bio, inode->i_sb->s_bdev);
+			bio = bio_alloc(inode->i_sb->s_bdev, 1, REQ_OP_READ,
+					GFP_NOFS);
 			bio->bi_iter.bi_sector =
 				pblock << (inode->i_blkbits - 9);
 			bio->bi_end_io = metapage_read_end_io;
 			bio->bi_private = page;
-			bio_set_op_attrs(bio, REQ_OP_READ, 0);
 			len = xlen << inode->i_blkbits;
 			offset = block_offset << inode->i_blkbits;
 			if (bio_add_page(bio, page, len, offset) < len)
@@ -555,22 +552,22 @@ static int metapage_releasepage(struct page *page, gfp_t gfp_mask)
 	return ret;
 }
 
-static void metapage_invalidatepage(struct page *page, unsigned int offset,
-				    unsigned int length)
+static void metapage_invalidate_folio(struct folio *folio, size_t offset,
+				    size_t length)
 {
-	BUG_ON(offset || length < PAGE_SIZE);
+	BUG_ON(offset || length < folio_size(folio));
 
-	BUG_ON(PageWriteback(page));
+	BUG_ON(folio_test_writeback(folio));
 
-	metapage_releasepage(page, 0);
+	metapage_releasepage(&folio->page, 0);
 }
 
 const struct address_space_operations jfs_metapage_aops = {
 	.readpage	= metapage_readpage,
 	.writepage	= metapage_writepage,
 	.releasepage	= metapage_releasepage,
-	.invalidatepage	= metapage_invalidatepage,
-	.set_page_dirty	= __set_page_dirty_nobuffers,
+	.invalidate_folio = metapage_invalidate_folio,
+	.dirty_folio	= filemap_dirty_folio,
 };
 
 struct metapage *__get_metapage(struct inode *inode, unsigned long lblock,

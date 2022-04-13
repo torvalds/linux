@@ -382,7 +382,8 @@ static int imx_pgc_power_down(struct generic_pm_domain *genpd)
 	return 0;
 
 out_clk_disable:
-	clk_bulk_disable_unprepare(domain->num_clks, domain->clks);
+	if (!domain->keep_clocks)
+		clk_bulk_disable_unprepare(domain->num_clks, domain->clks);
 
 	return ret;
 }

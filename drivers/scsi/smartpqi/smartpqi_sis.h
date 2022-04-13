@@ -12,6 +12,7 @@
 #if !defined(_SMARTPQI_SIS_H)
 #define _SMARTPQI_SIS_H
 
+void sis_verify_structures(void);
 int sis_wait_for_ctrl_ready(struct pqi_ctrl_info *ctrl_info);
 int sis_wait_for_ctrl_ready_resume(struct pqi_ctrl_info *ctrl_info);
 bool sis_is_firmware_running(struct pqi_ctrl_info *ctrl_info);

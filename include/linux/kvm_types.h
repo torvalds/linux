@@ -18,6 +18,7 @@ struct kvm_memslots;
 
 enum kvm_mr_change;
 
+#include <linux/bits.h>
 #include <linux/types.h>
 #include <linux/spinlock_types.h>
 
@@ -46,6 +47,12 @@ typedef u64            hfn_t;
 
 typedef hfn_t kvm_pfn_t;
 
+enum pfn_cache_usage {
+	KVM_GUEST_USES_PFN = BIT(0),
+	KVM_HOST_USES_PFN  = BIT(1),
+	KVM_GUEST_AND_HOST_USE_PFN = KVM_GUEST_USES_PFN | KVM_HOST_USES_PFN,
+};
+
 struct gfn_to_hva_cache {
 	u64 generation;
 	gpa_t gpa;
@@ -64,11 +71,9 @@ struct gfn_to_pfn_cache {
 	rwlock_t lock;
 	void *khva;
 	kvm_pfn_t pfn;
+	enum pfn_cache_usage usage;
 	bool active;
 	bool valid;
-	bool dirty;
-	bool kernel_map;
-	bool guest_uses_pa;
 };
 
 #ifdef KVM_ARCH_NR_OBJS_PER_MEMORY_CACHE

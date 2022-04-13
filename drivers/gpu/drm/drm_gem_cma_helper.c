@@ -209,7 +209,7 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
 void drm_gem_cma_free(struct drm_gem_cma_object *cma_obj)
 {
 	struct drm_gem_object *gem_obj = &cma_obj->base;
-	struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR(cma_obj->vaddr);
+	struct iosys_map map = IOSYS_MAP_INIT_VADDR(cma_obj->vaddr);
 
 	if (gem_obj->import_attach) {
 		if (cma_obj->vaddr)
@@ -480,9 +480,10 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_import_sg_table);
  * Returns:
  * 0 on success, or a negative error code otherwise.
  */
-int drm_gem_cma_vmap(struct drm_gem_cma_object *cma_obj, struct dma_buf_map *map)
+int drm_gem_cma_vmap(struct drm_gem_cma_object *cma_obj,
+		     struct iosys_map *map)
 {
-	dma_buf_map_set_vaddr(map, cma_obj->vaddr);
+	iosys_map_set_vaddr(map, cma_obj->vaddr);
 
 	return 0;
 }
@@ -512,6 +513,7 @@ int drm_gem_cma_mmap(struct drm_gem_cma_object *cma_obj, struct vm_area_struct *
 	 */
 	vma->vm_pgoff -= drm_vma_node_start(&obj->vma_node);
 	vma->vm_flags &= ~VM_PFNMAP;
+	vma->vm_flags |= VM_DONTEXPAND;
 
 	if (cma_obj->map_noncoherent) {
 		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
@@ -557,7 +559,7 @@ drm_gem_cma_prime_import_sg_table_vmap(struct drm_device *dev,
 {
 	struct drm_gem_cma_object *cma_obj;
 	struct drm_gem_object *obj;
-	struct dma_buf_map map;
+	struct iosys_map map;
 	int ret;
 
 	ret = dma_buf_vmap(attach->dmabuf, &map);

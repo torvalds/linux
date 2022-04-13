@@ -69,7 +69,7 @@ static int ir_rcmm_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		return 0;
 
 	if (!is_timing_event(ev)) {
-		if (ev.reset)
+		if (ev.overflow)
 			data->state = STATE_INACTIVE;
 		return 0;
 	}

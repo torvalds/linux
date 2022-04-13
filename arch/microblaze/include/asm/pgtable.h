@@ -399,6 +399,9 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 	return ((unsigned long) (pmd_val(pmd) & PAGE_MASK));
 }
 
+/* returns pfn of the pmd entry*/
+#define pmd_pfn(pmd)	(__pa(pmd_val(pmd)) >> PAGE_SHIFT)
+
 /* returns struct *page of the pmd entry*/
 #define pmd_page(pmd)	(pfn_to_page(__pa(pmd_val(pmd)) >> PAGE_SHIFT))
 

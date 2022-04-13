@@ -16,8 +16,13 @@
 #define ID_REV_ID_MASK_			(0xFFFF0000)
 #define ID_REV_ID_LAN7430_		(0x74300000)
 #define ID_REV_ID_LAN7431_		(0x74310000)
-#define ID_REV_IS_VALID_CHIP_ID_(id_rev)	\
-	(((id_rev) & 0xFFF00000) == 0x74300000)
+#define ID_REV_ID_LAN743X_		(0x74300000)
+#define ID_REV_ID_A011_			(0xA0110000)	// PCI11010
+#define ID_REV_ID_A041_			(0xA0410000)	// PCI11414
+#define ID_REV_ID_A0X1_			(0xA0010000)
+#define ID_REV_IS_VALID_CHIP_ID_(id_rev)	    \
+	((((id_rev) & 0xFFF00000) == ID_REV_ID_LAN743X_) || \
+	 (((id_rev) & 0xFF0F0000) == ID_REV_ID_A0X1_))
 #define ID_REV_CHIP_REV_MASK_		(0x0000FFFF)
 #define ID_REV_CHIP_REV_A0_		(0x00000000)
 #define ID_REV_CHIP_REV_B0_		(0x00000010)
@@ -25,6 +30,17 @@
 #define FPGA_REV			(0x04)
 #define FPGA_REV_GET_MINOR_(fpga_rev)	(((fpga_rev) >> 8) & 0x000000FF)
 #define FPGA_REV_GET_MAJOR_(fpga_rev)	((fpga_rev) & 0x000000FF)
+#define FPGA_SGMII_OP			BIT(24)
+
+#define STRAP_READ			(0x0C)
+#define STRAP_READ_USE_SGMII_EN_	BIT(22)
+#define STRAP_READ_SGMII_EN_		BIT(6)
+#define STRAP_READ_SGMII_REFCLK_	BIT(5)
+#define STRAP_READ_SGMII_2_5G_		BIT(4)
+#define STRAP_READ_BASE_X_		BIT(3)
+#define STRAP_READ_RGMII_TXC_DELAY_EN_	BIT(2)
+#define STRAP_READ_RGMII_RXC_DELAY_EN_	BIT(1)
+#define STRAP_READ_ADV_PM_DISABLE_	BIT(0)
 
 #define HW_CFG					(0x010)
 #define HW_CFG_RELOAD_TYPE_ALL_			(0x00000FC0)
@@ -69,6 +85,40 @@
 #define E2P_CMD_EPC_ADDR_MASK_		(0x000001FF)
 
 #define E2P_DATA			(0x044)
+
+/* Hearthstone top level & System Reg Addresses */
+#define ETH_CTRL_REG_ADDR_BASE		(0x0000)
+#define ETH_SYS_REG_ADDR_BASE		(0x4000)
+#define CONFIG_REG_ADDR_BASE		(0x0000)
+#define ETH_EEPROM_REG_ADDR_BASE	(0x0E00)
+#define ETH_OTP_REG_ADDR_BASE		(0x1000)
+#define SYS_LOCK_REG			(0x00A0)
+#define SYS_LOCK_REG_MAIN_LOCK_		BIT(7)
+#define SYS_LOCK_REG_GEN_PERI_LOCK_	BIT(5)
+#define SYS_LOCK_REG_SPI_PERI_LOCK_	BIT(4)
+#define SYS_LOCK_REG_SMBUS_PERI_LOCK_	BIT(3)
+#define SYS_LOCK_REG_UART_SS_LOCK_	BIT(2)
+#define SYS_LOCK_REG_ENET_SS_LOCK_	BIT(1)
+#define SYS_LOCK_REG_USB_SS_LOCK_	BIT(0)
+#define ETH_SYSTEM_SYS_LOCK_REG		(ETH_SYS_REG_ADDR_BASE + \
+					 CONFIG_REG_ADDR_BASE + \
+					 SYS_LOCK_REG)
+#define HS_EEPROM_REG_ADDR_BASE		(ETH_SYS_REG_ADDR_BASE + \
+					 ETH_EEPROM_REG_ADDR_BASE)
+#define HS_E2P_CMD			(HS_EEPROM_REG_ADDR_BASE + 0x0000)
+#define HS_E2P_CMD_EPC_BUSY_		BIT(31)
+#define HS_E2P_CMD_EPC_CMD_WRITE_	GENMASK(29, 28)
+#define HS_E2P_CMD_EPC_CMD_READ_	(0x0)
+#define HS_E2P_CMD_EPC_TIMEOUT_		BIT(17)
+#define HS_E2P_CMD_EPC_ADDR_MASK_	GENMASK(15, 0)
+#define HS_E2P_DATA			(HS_EEPROM_REG_ADDR_BASE + 0x0004)
+#define HS_E2P_DATA_MASK_		GENMASK(7, 0)
+#define HS_E2P_CFG			(HS_EEPROM_REG_ADDR_BASE + 0x0008)
+#define HS_E2P_CFG_I2C_PULSE_MASK_	GENMASK(19, 16)
+#define HS_E2P_CFG_EEPROM_SIZE_SEL_	BIT(12)
+#define HS_E2P_CFG_I2C_BAUD_RATE_MASK_	GENMASK(9, 8)
+#define HS_E2P_CFG_TEST_EEPR_TO_BYP_	BIT(0)
+#define HS_E2P_PAD_CTL			(HS_EEPROM_REG_ADDR_BASE + 0x000C)
 
 #define GPIO_CFG0			(0x050)
 #define GPIO_CFG0_GPIO_DIR_BIT_(bit)	BIT(16 + (bit))
@@ -135,6 +185,13 @@
 #define MAC_RX_ADDRL			(0x11C)
 
 #define MAC_MII_ACC			(0x120)
+#define MAC_MII_ACC_MDC_CYCLE_SHIFT_	(16)
+#define MAC_MII_ACC_MDC_CYCLE_MASK_	(0x00070000)
+#define MAC_MII_ACC_MDC_CYCLE_2_5MHZ_	(0)
+#define MAC_MII_ACC_MDC_CYCLE_5MHZ_	(1)
+#define MAC_MII_ACC_MDC_CYCLE_12_5MHZ_	(2)
+#define MAC_MII_ACC_MDC_CYCLE_25MHZ_	(3)
+#define MAC_MII_ACC_MDC_CYCLE_1_25MHZ_	(4)
 #define MAC_MII_ACC_PHY_ADDR_SHIFT_	(11)
 #define MAC_MII_ACC_PHY_ADDR_MASK_	(0x0000F800)
 #define MAC_MII_ACC_MIIRINDA_SHIFT_	(6)
@@ -142,6 +199,15 @@
 #define MAC_MII_ACC_MII_READ_		(0x00000000)
 #define MAC_MII_ACC_MII_WRITE_		(0x00000002)
 #define MAC_MII_ACC_MII_BUSY_		BIT(0)
+
+#define MAC_MII_ACC_MIIMMD_SHIFT_	(6)
+#define MAC_MII_ACC_MIIMMD_MASK_	(0x000007C0)
+#define MAC_MII_ACC_MIICL45_		BIT(3)
+#define MAC_MII_ACC_MIICMD_MASK_	(0x00000006)
+#define MAC_MII_ACC_MIICMD_ADDR_	(0x00000000)
+#define MAC_MII_ACC_MIICMD_WRITE_	(0x00000002)
+#define MAC_MII_ACC_MIICMD_READ_	(0x00000004)
+#define MAC_MII_ACC_MIICMD_READ_INC_	(0x00000006)
 
 #define MAC_MII_DATA			(0x124)
 
@@ -214,6 +280,11 @@
 
 #define MAC_WUCSR2			(0x600)
 
+#define SGMII_CTL			(0x728)
+#define SGMII_CTL_SGMII_ENABLE_		BIT(31)
+#define SGMII_CTL_LINK_STATUS_SOURCE_	BIT(8)
+#define SGMII_CTL_SGMII_POWER_DN_	BIT(1)
+
 #define INT_STS				(0x780)
 #define INT_BIT_DMA_RX_(channel)	BIT(24 + (channel))
 #define INT_BIT_ALL_RX_			(0x0F000000)
@@ -261,8 +332,11 @@
 #define INT_MOD_CFG5			(0x7D4)
 #define INT_MOD_CFG6			(0x7D8)
 #define INT_MOD_CFG7			(0x7DC)
+#define INT_MOD_CFG8			(0x7E0)
+#define INT_MOD_CFG9			(0x7E4)
 
 #define PTP_CMD_CTL					(0x0A00)
+#define PTP_CMD_CTL_PTP_LTC_TARGET_READ_		BIT(13)
 #define PTP_CMD_CTL_PTP_CLK_STP_NSEC_			BIT(6)
 #define PTP_CMD_CTL_PTP_CLOCK_STEP_SEC_			BIT(5)
 #define PTP_CMD_CTL_PTP_CLOCK_LOAD_			BIT(4)
@@ -284,9 +358,51 @@
 	(((value) & 0x7) << (1 + ((channel) << 2)))
 #define PTP_GENERAL_CONFIG_RELOAD_ADD_X_(channel)	(BIT((channel) << 2))
 
+#define HS_PTP_GENERAL_CONFIG				(0x0A04)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_X_MASK_(channel) \
+	(0xf << (4 + ((channel) << 2)))
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_100NS_	(0)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_500NS_	(1)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_1US_		(2)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_5US_		(3)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_10US_		(4)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_50US_		(5)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_100US_	(6)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_500US_	(7)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_1MS_		(8)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_5MS_		(9)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_10MS_		(10)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_50MS_		(11)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_100MS_	(12)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_200MS_	(13)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_TOGG_		(14)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_INT_		(15)
+#define HS_PTP_GENERAL_CONFIG_CLOCK_EVENT_X_SET_(channel, value) \
+	(((value) & 0xf) << (4 + ((channel) << 2)))
+#define HS_PTP_GENERAL_CONFIG_EVENT_POL_X_(channel)	(BIT(1 + ((channel) * 2)))
+#define HS_PTP_GENERAL_CONFIG_RELOAD_ADD_X_(channel)	(BIT((channel) * 2))
+
 #define PTP_INT_STS				(0x0A08)
+#define PTP_INT_IO_FE_MASK_			GENMASK(31, 24)
+#define PTP_INT_IO_FE_SHIFT_			(24)
+#define PTP_INT_IO_FE_SET_(channel)		BIT(24 + (channel))
+#define PTP_INT_IO_RE_MASK_			GENMASK(23, 16)
+#define PTP_INT_IO_RE_SHIFT_			(16)
+#define PTP_INT_IO_RE_SET_(channel)		BIT(16 + (channel))
+#define PTP_INT_TX_TS_OVRFL_INT_		BIT(14)
+#define PTP_INT_TX_SWTS_ERR_INT_		BIT(13)
+#define PTP_INT_TX_TS_INT_			BIT(12)
+#define PTP_INT_RX_TS_OVRFL_INT_		BIT(9)
+#define PTP_INT_RX_TS_INT_			BIT(8)
+#define PTP_INT_TIMER_INT_B_			BIT(1)
+#define PTP_INT_TIMER_INT_A_			BIT(0)
 #define PTP_INT_EN_SET				(0x0A0C)
+#define PTP_INT_EN_FE_EN_SET_(channel)		BIT(24 + (channel))
+#define PTP_INT_EN_RE_EN_SET_(channel)		BIT(16 + (channel))
+#define PTP_INT_EN_TIMER_SET_(channel)		BIT(channel)
 #define PTP_INT_EN_CLR				(0x0A10)
+#define PTP_INT_EN_FE_EN_CLR_(channel)		BIT(24 + (channel))
+#define PTP_INT_EN_RE_EN_CLR_(channel)		BIT(16 + (channel))
 #define PTP_INT_BIT_TX_SWTS_ERR_		BIT(13)
 #define PTP_INT_BIT_TX_TS_			BIT(12)
 #define PTP_INT_BIT_TIMER_B_			BIT(1)
@@ -304,6 +420,16 @@
 #define PTP_CLOCK_TARGET_NS_X(channel)		(0x0A34 + ((channel) << 4))
 #define PTP_CLOCK_TARGET_RELOAD_SEC_X(channel)	(0x0A38 + ((channel) << 4))
 #define PTP_CLOCK_TARGET_RELOAD_NS_X(channel)	(0x0A3C + ((channel) << 4))
+#define PTP_LTC_SET_SEC_HI			(0x0A50)
+#define PTP_LTC_SET_SEC_HI_SEC_47_32_MASK_	GENMASK(15, 0)
+#define PTP_VERSION				(0x0A54)
+#define PTP_VERSION_TX_UP_MASK_			GENMASK(31, 24)
+#define PTP_VERSION_TX_LO_MASK_			GENMASK(23, 16)
+#define PTP_VERSION_RX_UP_MASK_			GENMASK(15, 8)
+#define PTP_VERSION_RX_LO_MASK_			GENMASK(7, 0)
+#define PTP_IO_SEL				(0x0A58)
+#define PTP_IO_SEL_MASK_			GENMASK(10, 8)
+#define PTP_IO_SEL_SHIFT_			(8)
 #define PTP_LATENCY				(0x0A5C)
 #define PTP_LATENCY_TX_SET_(tx_latency)		(((u32)(tx_latency)) << 16)
 #define PTP_LATENCY_RX_SET_(rx_latency)		\
@@ -327,6 +453,59 @@
 #define PTP_TX_MSG_HEADER			(0x0AB4)
 #define PTP_TX_MSG_HEADER_MSG_TYPE_		(0x000F0000)
 #define PTP_TX_MSG_HEADER_MSG_TYPE_SYNC_	(0x00000000)
+
+#define PTP_TX_CAP_INFO				(0x0AB8)
+#define PTP_TX_CAP_INFO_TX_CH_MASK_		GENMASK(1, 0)
+#define PTP_TX_DOMAIN				(0x0ABC)
+#define PTP_TX_DOMAIN_MASK_			GENMASK(23, 16)
+#define PTP_TX_DOMAIN_RANGE_EN_			BIT(15)
+#define PTP_TX_DOMAIN_RANGE_MASK_		GENMASK(7, 0)
+#define PTP_TX_SDOID				(0x0AC0)
+#define PTP_TX_SDOID_MASK_			GENMASK(23, 16)
+#define PTP_TX_SDOID_RANGE_EN_			BIT(15)
+#define PTP_TX_SDOID_11_0_MASK_			GENMASK(7, 0)
+#define PTP_IO_CAP_CONFIG			(0x0AC4)
+#define PTP_IO_CAP_CONFIG_LOCK_FE_(channel)	BIT(24 + (channel))
+#define PTP_IO_CAP_CONFIG_LOCK_RE_(channel)	BIT(16 + (channel))
+#define PTP_IO_CAP_CONFIG_FE_CAP_EN_(channel)	BIT(8 + (channel))
+#define PTP_IO_CAP_CONFIG_RE_CAP_EN_(channel)	BIT(0 + (channel))
+#define PTP_IO_RE_LTC_SEC_CAP_X			(0x0AC8)
+#define PTP_IO_RE_LTC_NS_CAP_X			(0x0ACC)
+#define PTP_IO_FE_LTC_SEC_CAP_X			(0x0AD0)
+#define PTP_IO_FE_LTC_NS_CAP_X			(0x0AD4)
+#define PTP_IO_EVENT_OUTPUT_CFG			(0x0AD8)
+#define PTP_IO_EVENT_OUTPUT_CFG_SEL_(channel)	BIT(16 + (channel))
+#define PTP_IO_EVENT_OUTPUT_CFG_EN_(channel)	BIT(0 + (channel))
+#define PTP_IO_PIN_CFG				(0x0ADC)
+#define PTP_IO_PIN_CFG_OBUF_TYPE_(channel)	BIT(0 + (channel))
+#define PTP_LTC_RD_SEC_HI			(0x0AF0)
+#define PTP_LTC_RD_SEC_HI_SEC_47_32_MASK_	GENMASK(15, 0)
+#define PTP_LTC_RD_SEC_LO			(0x0AF4)
+#define PTP_LTC_RD_NS				(0x0AF8)
+#define PTP_LTC_RD_NS_29_0_MASK_		GENMASK(29, 0)
+#define PTP_LTC_RD_SUBNS			(0x0AFC)
+#define PTP_RX_USER_MAC_HI			(0x0B00)
+#define PTP_RX_USER_MAC_HI_47_32_MASK_		GENMASK(15, 0)
+#define PTP_RX_USER_MAC_LO			(0x0B04)
+#define PTP_RX_USER_IP_ADDR_0			(0x0B20)
+#define PTP_RX_USER_IP_ADDR_1			(0x0B24)
+#define PTP_RX_USER_IP_ADDR_2			(0x0B28)
+#define PTP_RX_USER_IP_ADDR_3			(0x0B2C)
+#define PTP_RX_USER_IP_MASK_0			(0x0B30)
+#define PTP_RX_USER_IP_MASK_1			(0x0B34)
+#define PTP_RX_USER_IP_MASK_2			(0x0B38)
+#define PTP_RX_USER_IP_MASK_3			(0x0B3C)
+#define PTP_TX_USER_MAC_HI			(0x0B40)
+#define PTP_TX_USER_MAC_HI_47_32_MASK_		GENMASK(15, 0)
+#define PTP_TX_USER_MAC_LO			(0x0B44)
+#define PTP_TX_USER_IP_ADDR_0			(0x0B60)
+#define PTP_TX_USER_IP_ADDR_1			(0x0B64)
+#define PTP_TX_USER_IP_ADDR_2			(0x0B68)
+#define PTP_TX_USER_IP_ADDR_3			(0x0B6C)
+#define PTP_TX_USER_IP_MASK_0			(0x0B70)
+#define PTP_TX_USER_IP_MASK_1			(0x0B74)
+#define PTP_TX_USER_IP_MASK_2			(0x0B78)
+#define PTP_TX_USER_IP_MASK_3			(0x0B7C)
 
 #define DMAC_CFG				(0xC00)
 #define DMAC_CFG_COAL_EN_			BIT(16)
@@ -483,6 +662,20 @@
 #define OTP_STATUS				(0x1030)
 #define OTP_STATUS_BUSY_			BIT(0)
 
+/* Hearthstone OTP block registers */
+#define HS_OTP_BLOCK_BASE			(ETH_SYS_REG_ADDR_BASE + \
+						 ETH_OTP_REG_ADDR_BASE)
+#define HS_OTP_PWR_DN				(HS_OTP_BLOCK_BASE + 0x0)
+#define HS_OTP_ADDR_HIGH			(HS_OTP_BLOCK_BASE + 0x4)
+#define HS_OTP_ADDR_LOW				(HS_OTP_BLOCK_BASE + 0x8)
+#define HS_OTP_PRGM_DATA			(HS_OTP_BLOCK_BASE + 0x10)
+#define HS_OTP_PRGM_MODE			(HS_OTP_BLOCK_BASE + 0x14)
+#define HS_OTP_READ_DATA			(HS_OTP_BLOCK_BASE + 0x18)
+#define HS_OTP_FUNC_CMD				(HS_OTP_BLOCK_BASE + 0x20)
+#define HS_OTP_TST_CMD				(HS_OTP_BLOCK_BASE + 0x24)
+#define HS_OTP_CMD_GO				(HS_OTP_BLOCK_BASE + 0x28)
+#define HS_OTP_STATUS				(HS_OTP_BLOCK_BASE + 0x30)
+
 /* MAC statistics registers */
 #define STAT_RX_FCS_ERRORS			(0x1200)
 #define STAT_RX_ALIGNMENT_ERRORS		(0x1204)
@@ -541,10 +734,12 @@
 
 #define LAN743X_MAX_RX_CHANNELS		(4)
 #define LAN743X_MAX_TX_CHANNELS		(1)
+#define PCI11X1X_MAX_TX_CHANNELS	(4)
 struct lan743x_adapter;
 
 #define LAN743X_USED_RX_CHANNELS	(4)
 #define LAN743X_USED_TX_CHANNELS	(1)
+#define PCI11X1X_USED_TX_CHANNELS	(4)
 #define LAN743X_INT_MOD	(400)
 
 #if (LAN743X_USED_RX_CHANNELS > LAN743X_MAX_RX_CHANNELS)
@@ -553,12 +748,17 @@ struct lan743x_adapter;
 #if (LAN743X_USED_TX_CHANNELS > LAN743X_MAX_TX_CHANNELS)
 #error Invalid LAN743X_USED_TX_CHANNELS
 #endif
+#if (PCI11X1X_USED_TX_CHANNELS > PCI11X1X_MAX_TX_CHANNELS)
+#error Invalid PCI11X1X_USED_TX_CHANNELS
+#endif
 
 /* PCI */
 /* SMSC acquired EFAR late 1990's, MCHP acquired SMSC 2012 */
 #define PCI_VENDOR_ID_SMSC		PCI_VENDOR_ID_EFAR
 #define PCI_DEVICE_ID_SMSC_LAN7430	(0x7430)
 #define PCI_DEVICE_ID_SMSC_LAN7431	(0x7431)
+#define PCI_DEVICE_ID_SMSC_A011		(0xA011)
+#define PCI_DEVICE_ID_SMSC_A041		(0xA041)
 
 #define PCI_CONFIG_LENGTH		(0x1000)
 
@@ -607,13 +807,14 @@ struct lan743x_vector {
 };
 
 #define LAN743X_MAX_VECTOR_COUNT	(8)
+#define PCI11X1X_MAX_VECTOR_COUNT	(16)
 
 struct lan743x_intr {
 	int			flags;
 
 	unsigned int		irq;
 
-	struct lan743x_vector	vector_list[LAN743X_MAX_VECTOR_COUNT];
+	struct lan743x_vector	vector_list[PCI11X1X_MAX_VECTOR_COUNT];
 	int			number_of_vectors;
 	bool			using_vectors;
 
@@ -668,6 +869,7 @@ struct lan743x_tx {
 	int		last_tail;
 
 	struct napi_struct napi;
+	u32 frame_count;
 
 	struct sk_buff *overflow_skb;
 };
@@ -721,8 +923,17 @@ struct lan743x_adapter {
 	u8			mac_address[ETH_ALEN];
 
 	struct lan743x_phy      phy;
-	struct lan743x_tx       tx[LAN743X_MAX_TX_CHANNELS];
-	struct lan743x_rx       rx[LAN743X_MAX_RX_CHANNELS];
+	struct lan743x_tx       tx[PCI11X1X_USED_TX_CHANNELS];
+	struct lan743x_rx       rx[LAN743X_USED_RX_CHANNELS];
+	bool			is_pci11x1x;
+	bool			is_sgmii_en;
+	/* protect ethernet syslock */
+	spinlock_t		eth_syslock_spinlock;
+	bool			eth_syslock_en;
+	u32			eth_syslock_acquire_cnt;
+	u8			max_tx_channels;
+	u8			used_tx_channels;
+	u8			max_vector_count;
 
 #define LAN743X_ADAPTER_FLAG_OTP		BIT(0)
 	u32			flags;

@@ -4,12 +4,14 @@
 #ifndef _ICE_COMMON_H_
 #define _ICE_COMMON_H_
 
-#include "ice.h"
+#include <linux/bitfield.h>
+
 #include "ice_type.h"
 #include "ice_nvm.h"
 #include "ice_flex_pipe.h"
-#include "ice_switch.h"
 #include <linux/avf/virtchnl.h>
+#include "ice_switch.h"
+#include "ice_fdir.h"
 
 #define ICE_SQ_SEND_DELAY_TIME_MS	10
 #define ICE_SQ_SEND_MAX_EXECUTE		3
@@ -83,6 +85,9 @@ int ice_aq_get_fw_ver(struct ice_hw *hw, struct ice_sq_cd *cd);
 
 int
 ice_aq_send_driver_ver(struct ice_hw *hw, struct ice_driver_ver *dv,
+		       struct ice_sq_cd *cd);
+int
+ice_aq_set_port_params(struct ice_port_info *pi, bool double_vlan,
 		       struct ice_sq_cd *cd);
 int
 ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
@@ -205,5 +210,9 @@ ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
 bool ice_fw_supports_lldp_fltr_ctrl(struct ice_hw *hw);
 int
 ice_lldp_fltr_add_remove(struct ice_hw *hw, u16 vsi_num, bool add);
+int
+ice_aq_read_i2c(struct ice_hw *hw, struct ice_aqc_link_topo_addr topo_addr,
+		u16 bus_addr, __le16 addr, u8 params, u8 *data,
+		struct ice_sq_cd *cd);
 bool ice_fw_supports_report_dflt_cfg(struct ice_hw *hw);
 #endif /* _ICE_COMMON_H_ */
