@@ -10,6 +10,7 @@
 
 #include <linux/atomic.h>
 #include <linux/wait.h>
+#include <linux/completion.h>
 #include <linux/workqueue.h>
 
 struct wfx_dev;

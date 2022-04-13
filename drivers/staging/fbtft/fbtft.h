@@ -240,7 +240,7 @@ struct fbtft_par {
 int fbtft_write_buf_dc(struct fbtft_par *par, void *buf, size_t len, int dc);
 __printf(5, 6)
 void fbtft_dbg_hex(const struct device *dev, int groupsize,
-		   void *buf, size_t len, const char *fmt, ...);
+		   const void *buf, size_t len, const char *fmt, ...);
 struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 					struct device *dev,
 					struct fbtft_platform_data *pdata);
