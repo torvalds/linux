@@ -536,7 +536,7 @@ void r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key)
 		return;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetstakey_para, _SetStaKey_CMD_);
-	ph2c->rsp = (u8 *) psetstakey_rsp;
+	ph2c->rsp = (u8 *)psetstakey_rsp;
 	ph2c->rspsz = sizeof(struct set_stakey_rsp);
 	ether_addr_copy(psetstakey_para->addr, sta->hwaddr);
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
