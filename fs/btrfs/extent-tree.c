@@ -2497,7 +2497,7 @@ static u64 first_logical_byte(struct btrfs_fs_info *fs_info)
 	struct rb_node *leftmost;
 	u64 bytenr = 0;
 
-	spin_lock(&fs_info->block_group_cache_lock);
+	read_lock(&fs_info->block_group_cache_lock);
 	/* Get the block group with the lowest logical start address. */
 	leftmost = rb_first_cached(&fs_info->block_group_cache_tree);
 	if (leftmost) {
@@ -2506,7 +2506,7 @@ static u64 first_logical_byte(struct btrfs_fs_info *fs_info)
 		bg = rb_entry(leftmost, struct btrfs_block_group, cache_node);
 		bytenr = bg->start;
 	}
-	spin_unlock(&fs_info->block_group_cache_lock);
+	read_unlock(&fs_info->block_group_cache_lock);
 
 	return bytenr;
 }
