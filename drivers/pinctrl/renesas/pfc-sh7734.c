@@ -1805,16 +1805,13 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_4_1_FN, FN_IP9_21_20,
 		GP_4_0_FN, FN_IP9_19_18 ))
 	},
-	{ PINMUX_CFG_REG("GPSR5", 0xFFFC0018, 32, 1, GROUP(
-		0, 0, 0, 0, 0, 0, 0, 0, /* 31 - 28 */
-		0, 0, 0, 0, 0, 0, 0, 0, /* 27 - 24 */
-		0, 0, 0, 0, 0, 0, 0, 0, /* 23 - 20 */
-		0, 0, 0, 0, 0, 0, 0, 0, /* 19 - 16 */
-		0, 0, 0, 0, 0, 0, 0, 0, /* 15 - 12 */
+	{ PINMUX_CFG_REG_VAR("GPSR5", 0xFFFC0018, 32,
+			     GROUP(-20, 1, 1, -6, 1, 1, 1, 1),
+			     GROUP(
+		/* GP5_31_12 RESERVED */
 		GP_5_11_FN, FN_IP10_29_28,
 		GP_5_10_FN, FN_IP10_27_26,
-		0, 0, 0, 0, 0, 0, 0, 0, /* 9 - 6 */
-		0, 0, 0, 0, /* 5, 4 */
+		/* GP5_9_4 RESERVED */
 		GP_5_3_FN, FN_IRQ3_B,
 		GP_5_2_FN, FN_IRQ2_B,
 		GP_5_1_FN, FN_IP11_3,
@@ -2352,10 +2349,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	},
 	{ PINMUX_CFG_REG("INOUTSEL4", 0xFFC44004, 32, 1, GROUP(GP_INOUTSEL(4)))
 	},
-	{ PINMUX_CFG_REG("INOUTSEL5", 0xffc45004, 32, 1, GROUP(
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 31 - 24 */
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 23 - 16 */
-		0, 0, 0, 0, 0, 0, 0, 0, /* 15 - 12 */
+	{ PINMUX_CFG_REG_VAR("INOUTSEL5", 0xffc45004, 32,
+			     GROUP(-20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+			     GROUP(
+		/* GP5_31_12 RESERVED */
 		GP_5_11_IN, GP_5_11_OUT,
 		GP_5_10_IN, GP_5_10_OUT,
 		GP_5_9_IN, GP_5_9_OUT,
