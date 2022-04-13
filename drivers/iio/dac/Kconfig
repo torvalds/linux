@@ -285,7 +285,6 @@ config CIO_DAC
 
 config DPOT_DAC
 	tristate "DAC emulation using a DPOT"
-	depends on OF
 	help
 	  Say yes here to build support for DAC emulation using a digital
 	  potentiometer.
