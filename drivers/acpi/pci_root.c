@@ -183,7 +183,7 @@ static acpi_status acpi_pci_run_osc(acpi_handle handle,
 
 	status = acpi_run_osc(handle, &context);
 	if (ACPI_SUCCESS(status)) {
-		*retval = *((u32 *)(context.ret.pointer + 8));
+		*retval = acpi_osc_ctx_get_pci_control(&context);
 		kfree(context.ret.pointer);
 	}
 	return status;
