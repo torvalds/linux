@@ -338,6 +338,7 @@ struct rcu_torture_ops {
 	void (*sync)(void);
 	void (*exp_sync)(void);
 	unsigned long (*get_gp_state)(void);
+	unsigned long (*get_gp_completed)(void);
 	unsigned long (*start_gp_poll)(void);
 	bool (*poll_gp_state)(unsigned long oldstate);
 	void (*cond_sync)(unsigned long oldstate);
@@ -504,6 +505,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.sync			= synchronize_rcu,
 	.exp_sync		= synchronize_rcu_expedited,
 	.get_gp_state		= get_state_synchronize_rcu,
+	.get_gp_completed	= get_completed_synchronize_rcu,
 	.start_gp_poll		= start_poll_synchronize_rcu,
 	.poll_gp_state		= poll_state_synchronize_rcu,
 	.cond_sync		= cond_synchronize_rcu,
@@ -1254,6 +1256,10 @@ rcu_torture_writer(void *arg)
 					  rcu_torture_writer_state_getname(),
 					  rcu_torture_writer_state,
 					  cookie, cur_ops->get_gp_state());
+				if (cur_ops->get_gp_completed) {
+					cookie = cur_ops->get_gp_completed();
+					WARN_ON_ONCE(!cur_ops->poll_gp_state(cookie));
+				}
 				cur_ops->readunlock(idx);
 			}
 			switch (synctype[torture_random(&rand) % nsynctypes]) {
