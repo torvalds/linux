@@ -2,6 +2,7 @@
 /dts-v1/;
 #include <dt-bindings/reset/starfive-jh7110.h>
 #include "starfive_jh7110_clk.dtsi"
+#include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 
 / {
 	#address-cells = <2>;
@@ -225,6 +226,54 @@
 			riscv,ndev = <136>;
 		};
 
+		clkgen: clock-controller {
+			compatible = "starfive,jh7110-clkgen";
+			reg = <0x0 0x13020000 0x0 0x10000>,
+				<0x0 0x10230000 0x0 0x10000>,
+				<0x0 0x17000000 0x0 0x10000>; 
+			reg-names = "sys", "stg", "aon";
+			clocks = <&osc>, <&gmac1_rmii_refin>, 
+				<&gmac1_rgmii_rxin>, 
+				<&i2stx_bclk_ext>, <&i2stx_lrck_ext>, 
+				<&i2srx_bclk_ext>, <&i2srx_lrck_ext>, 
+				<&tdm_ext>, <&mclk_ext>, 
+				<&jtag_tck_inner>, <&bist_apb>,
+				<&stg_apb>, <&clk_rtc>,
+				<&gmac0_rmii_refin>, <&gmac0_rgmii_rxin>;
+			clock-names = "osc", "gmac1_rmii_refin", 
+				"gmac1_rgmii_rxin", 
+				"i2stx_bclk_ext", "i2stx_lrck_ext",
+				"i2srx_bclk_ext", "i2srx_lrck_ext",
+				"tdm_ext", "mclk_ext", 
+				"jtag_tck_inner", "bist_apb",
+				"stg_apb", "clk_rtc",
+				"gmac0_rmii_refin", "gmac0_rgmii_rxin";
+			#clock-cells = <1>;
+			status = "okay";
+		};
+
+		clkvout: clock-controller@295C0000 {
+			compatible = "starfive,jh7110-clk-vout";
+			reg = <0x0 0x295C0000 0x0 0x10000>;
+			reg-names = "vout";
+			clocks = <&hdmitx0_pixelclk>, 
+				<&mipitx_dphy_rxesc>, 
+				<&mipitx_dphy_txbytehs>;
+			clock-names = "hdmitx0_pixelclk", 
+				"mipitx_dphy_rxesc", 
+				"mipitx_dphy_txbytehs";
+			#clock-cells = <1>;
+			status = "disabled";
+		};
+
+		clkisp: clock-controller@19810000 {
+			compatible = "starfive,jh7110-clk-isp";
+			reg = <0x0 0x19810000 0x0 0x10000>;
+			reg-names = "isp";
+			#clock-cells = <1>;
+			status = "disabled";
+		};
+
 		timer: timer@13050000 {
                         compatible = "starfive,si5-timers";
                         reg = <0x0 0x13050000 0x0 0x10000>;
@@ -273,7 +322,8 @@
 			reg = <0x0 0x10000000 0x0 0x10000>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
-			clocks = <&oscclk>, <&apb0clk>;
+			clocks = <&clkgen JH7110_UART0_CLK_CORE>, 
+					<&clkgen JH7110_UART0_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
 			status = "okay";
 		};
