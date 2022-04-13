@@ -169,18 +169,7 @@ int uvcg_query_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf)
 
 int uvcg_queue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf)
 {
-	unsigned long flags;
-	int ret;
-
-	ret = vb2_qbuf(&queue->queue, NULL, buf);
-	if (ret < 0)
-		return ret;
-
-	spin_lock_irqsave(&queue->irqlock, flags);
-	ret = (queue->flags & UVC_QUEUE_PAUSED) != 0;
-	queue->flags &= ~UVC_QUEUE_PAUSED;
-	spin_unlock_irqrestore(&queue->irqlock, flags);
-	return ret;
+	return vb2_qbuf(&queue->queue, NULL, buf);
 }
 
 /*
@@ -348,8 +337,6 @@ struct uvc_buffer *uvcg_queue_head(struct uvc_video_queue *queue)
 	if (!list_empty(&queue->irqqueue))
 		buf = list_first_entry(&queue->irqqueue, struct uvc_buffer,
 				       queue);
-	else
-		queue->flags |= UVC_QUEUE_PAUSED;
 
 	return buf;
 }
