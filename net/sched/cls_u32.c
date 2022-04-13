@@ -386,14 +386,19 @@ static int u32_init(struct tcf_proto *tp)
 	return 0;
 }
 
-static int u32_destroy_key(struct tc_u_knode *n, bool free_pf)
+static void __u32_destroy_key(struct tc_u_knode *n)
 {
 	struct tc_u_hnode *ht = rtnl_dereference(n->ht_down);
 
 	tcf_exts_destroy(&n->exts);
-	tcf_exts_put_net(&n->exts);
 	if (ht && --ht->refcnt == 0)
 		kfree(ht);
+	kfree(n);
+}
+
+static void u32_destroy_key(struct tc_u_knode *n, bool free_pf)
+{
+	tcf_exts_put_net(&n->exts);
 #ifdef CONFIG_CLS_U32_PERF
 	if (free_pf)
 		free_percpu(n->pf);
@@ -402,8 +407,7 @@ static int u32_destroy_key(struct tc_u_knode *n, bool free_pf)
 	if (free_pf)
 		free_percpu(n->pcpu_success);
 #endif
-	kfree(n);
-	return 0;
+	__u32_destroy_key(n);
 }
 
 /* u32_delete_key_rcu should be called when free'ing a copied
@@ -898,13 +902,13 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 				    tca[TCA_RATE], flags, extack);
 
 		if (err) {
-			u32_destroy_key(new, false);
+			__u32_destroy_key(new);
 			return err;
 		}
 
 		err = u32_replace_hw_knode(tp, new, flags, extack);
 		if (err) {
-			u32_destroy_key(new, false);
+			__u32_destroy_key(new);
 			return err;
 		}
 
