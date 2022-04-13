@@ -740,11 +740,8 @@ static int ttm_bo_add_move_fence(struct ttm_buffer_object *bo,
 	dma_resv_add_fence(bo->base.resv, fence, DMA_RESV_USAGE_KERNEL);
 
 	ret = dma_resv_reserve_fences(bo->base.resv, 1);
-	if (unlikely(ret)) {
-		dma_fence_put(fence);
-		return ret;
-	}
-	return 0;
+	dma_fence_put(fence);
+	return ret;
 }
 
 /*
