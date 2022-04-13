@@ -261,8 +261,6 @@ struct rve_pending_ctx_manager {
 };
 
 struct rve_drvdata_t {
-	struct miscdevice miscdev;
-
 	struct rve_fence_context *fence_ctx;
 
 	/* used by rve2's mmu lock */

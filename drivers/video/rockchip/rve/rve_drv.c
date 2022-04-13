@@ -762,7 +762,7 @@ static void __exit rve_exit(void)
 
 	platform_driver_unregister(&rve_driver);
 
-	misc_deregister(&(rve_drvdata->miscdev));
+	misc_deregister(&rve_dev);
 
 	kfree(rve_drvdata);
 }
