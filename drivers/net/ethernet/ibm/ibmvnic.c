@@ -369,7 +369,7 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 	dma_addr_t dma_addr;
 	unsigned char *dst;
 	int shift = 0;
-	int index;
+	int bufidx;
 	int i;
 
 	if (!pool->active)
@@ -385,14 +385,14 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 	 * be 0.
 	 */
 	for (i = ind_bufp->index; i < count; ++i) {
-		index = pool->free_map[pool->next_free];
+		bufidx = pool->free_map[pool->next_free];
 
 		/* We maybe reusing the skb from earlier resets. Allocate
 		 * only if necessary. But since the LTB may have changed
 		 * during reset (see init_rx_pools()), update LTB below
 		 * even if reusing skb.
 		 */
-		skb = pool->rx_buff[index].skb;
+		skb = pool->rx_buff[bufidx].skb;
 		if (!skb) {
 			skb = netdev_alloc_skb(adapter->netdev,
 					       pool->buff_size);
@@ -407,24 +407,24 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 		pool->next_free = (pool->next_free + 1) % pool->size;
 
 		/* Copy the skb to the long term mapped DMA buffer */
-		offset = index * pool->buff_size;
+		offset = bufidx * pool->buff_size;
 		dst = pool->long_term_buff.buff + offset;
 		memset(dst, 0, pool->buff_size);
 		dma_addr = pool->long_term_buff.addr + offset;
 
 		/* add the skb to an rx_buff in the pool */
-		pool->rx_buff[index].data = dst;
-		pool->rx_buff[index].dma = dma_addr;
-		pool->rx_buff[index].skb = skb;
-		pool->rx_buff[index].pool_index = pool->index;
-		pool->rx_buff[index].size = pool->buff_size;
+		pool->rx_buff[bufidx].data = dst;
+		pool->rx_buff[bufidx].dma = dma_addr;
+		pool->rx_buff[bufidx].skb = skb;
+		pool->rx_buff[bufidx].pool_index = pool->index;
+		pool->rx_buff[bufidx].size = pool->buff_size;
 
 		/* queue the rx_buff for the next send_subcrq_indirect */
 		sub_crq = &ind_bufp->indir_arr[ind_bufp->index++];
 		memset(sub_crq, 0, sizeof(*sub_crq));
 		sub_crq->rx_add.first = IBMVNIC_CRQ_CMD;
 		sub_crq->rx_add.correlator =
-		    cpu_to_be64((u64)&pool->rx_buff[index]);
+		    cpu_to_be64((u64)&pool->rx_buff[bufidx]);
 		sub_crq->rx_add.ioba = cpu_to_be32(dma_addr);
 		sub_crq->rx_add.map_id = pool->long_term_buff.map_id;
 
@@ -466,10 +466,10 @@ failure:
 		sub_crq = &ind_bufp->indir_arr[i];
 		rx_buff = (struct ibmvnic_rx_buff *)
 				be64_to_cpu(sub_crq->rx_add.correlator);
-		index = (int)(rx_buff - pool->rx_buff);
-		pool->free_map[pool->next_free] = index;
-		dev_kfree_skb_any(pool->rx_buff[index].skb);
-		pool->rx_buff[index].skb = NULL;
+		bufidx = (int)(rx_buff - pool->rx_buff);
+		pool->free_map[pool->next_free] = bufidx;
+		dev_kfree_skb_any(pool->rx_buff[bufidx].skb);
+		pool->rx_buff[bufidx].skb = NULL;
 	}
 	adapter->replenish_add_buff_failure += ind_bufp->index;
 	atomic_add(buffers_added, &pool->available);
@@ -1926,7 +1926,7 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int offset;
 	int num_entries = 1;
 	unsigned char *dst;
-	int index = 0;
+	int bufidx = 0;
 	u8 proto = 0;
 
 	/* If a reset is in progress, drop the packet since
@@ -1960,9 +1960,9 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	else
 		tx_pool = &adapter->tx_pool[queue_num];
 
-	index = tx_pool->free_map[tx_pool->consumer_index];
+	bufidx = tx_pool->free_map[tx_pool->consumer_index];
 
-	if (index == IBMVNIC_INVALID_MAP) {
+	if (bufidx == IBMVNIC_INVALID_MAP) {
 		dev_kfree_skb_any(skb);
 		tx_send_failed++;
 		tx_dropped++;
@@ -1973,7 +1973,7 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	tx_pool->free_map[tx_pool->consumer_index] = IBMVNIC_INVALID_MAP;
 
-	offset = index * tx_pool->buf_size;
+	offset = bufidx * tx_pool->buf_size;
 	dst = tx_pool->long_term_buff.buff + offset;
 	memset(dst, 0, tx_pool->buf_size);
 	data_dma_addr = tx_pool->long_term_buff.addr + offset;
@@ -2003,9 +2003,9 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	tx_pool->consumer_index =
 	    (tx_pool->consumer_index + 1) % tx_pool->num_buffers;
 
-	tx_buff = &tx_pool->tx_buff[index];
+	tx_buff = &tx_pool->tx_buff[bufidx];
 	tx_buff->skb = skb;
-	tx_buff->index = index;
+	tx_buff->index = bufidx;
 	tx_buff->pool_index = queue_num;
 
 	memset(&tx_crq, 0, sizeof(tx_crq));
@@ -2017,9 +2017,9 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	if (skb_is_gso(skb))
 		tx_crq.v1.correlator =
-			cpu_to_be32(index | IBMVNIC_TSO_POOL_MASK);
+			cpu_to_be32(bufidx | IBMVNIC_TSO_POOL_MASK);
 	else
-		tx_crq.v1.correlator = cpu_to_be32(index);
+		tx_crq.v1.correlator = cpu_to_be32(bufidx);
 	tx_crq.v1.dma_reg = cpu_to_be16(tx_pool->long_term_buff.map_id);
 	tx_crq.v1.sge_len = cpu_to_be32(skb->len);
 	tx_crq.v1.ioba = cpu_to_be64(data_dma_addr);
