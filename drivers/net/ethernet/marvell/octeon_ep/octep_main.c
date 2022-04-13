@@ -18,7 +18,7 @@
 #include "octep_main.h"
 #include "octep_ctrl_net.h"
 
-static struct workqueue_struct *octep_wq;
+struct workqueue_struct *octep_wq;
 
 /* Supported Devices */
 static const struct pci_device_id octep_pci_id_tbl[] = {

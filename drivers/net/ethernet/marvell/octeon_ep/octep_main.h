@@ -109,17 +109,17 @@ struct octep_mbox {
 	u32 state;
 
 	/* SLI_MAC_PF_MBOX_INT for PF, SLI_PKT_MBOX_INT for VF. */
-	void *mbox_int_reg;
+	u8 __iomem *mbox_int_reg;
 
 	/* SLI_PKT_PF_VF_MBOX_SIG(0) for PF,
 	 * SLI_PKT_PF_VF_MBOX_SIG(1) for VF.
 	 */
-	void *mbox_write_reg;
+	u8 __iomem *mbox_write_reg;
 
 	/* SLI_PKT_PF_VF_MBOX_SIG(1) for PF,
 	 * SLI_PKT_PF_VF_MBOX_SIG(0) for VF.
 	 */
-	void *mbox_read_reg;
+	u8 __iomem *mbox_read_reg;
 
 	struct octep_mbox_data mbox_data;
 };
@@ -294,13 +294,13 @@ static inline u16 OCTEP_MINOR_REV(struct octep_device *oct)
 
 /* Octeon CSR read/write access APIs */
 #define octep_write_csr(octep_dev, reg_off, value) \
-	writel(value, (u8 *)(octep_dev)->mmio[0].hw_addr + (reg_off))
+	writel(value, (octep_dev)->mmio[0].hw_addr + (reg_off))
 
 #define octep_write_csr64(octep_dev, reg_off, val64) \
 	writeq(val64, (octep_dev)->mmio[0].hw_addr + (reg_off))
 
 #define octep_read_csr(octep_dev, reg_off)         \
-	readl((u8 *)(octep_dev)->mmio[0].hw_addr + (reg_off))
+	readl((octep_dev)->mmio[0].hw_addr + (reg_off))
 
 #define octep_read_csr64(octep_dev, reg_off)         \
 	readq((octep_dev)->mmio[0].hw_addr + (reg_off))
@@ -348,6 +348,8 @@ OCTEP_PCI_WIN_WRITE(struct octep_device *oct, u64 addr, u64 val)
 	dev_dbg(&oct->pdev->dev,
 		"%s: reg: 0x%016llx val: 0x%016llx\n", __func__, addr, val);
 }
+
+extern struct workqueue_struct *octep_wq;
 
 int octep_device_setup(struct octep_device *oct);
 int octep_setup_iqs(struct octep_device *oct);
