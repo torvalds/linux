@@ -233,7 +233,7 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	struct rga_virt_addr *virt_addr = NULL;
 
 	uv_addr = viraddr + (memory_parm->width * memory_parm->height);
-	v_addr = (memory_parm->width * memory_parm->height) /
+	v_addr = uv_addr + (memory_parm->width * memory_parm->height) /
 		 (rga_is_yuv422p_format(memory_parm->format) ? 2 : 4);
 
 	/* Calculate page size. */
