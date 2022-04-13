@@ -364,6 +364,11 @@ struct cpsw_common {
 	u8 base_mac[ETH_ALEN];
 };
 
+struct cpsw_ale_ratelimit {
+	unsigned long cookie;
+	u64 rate_packet_ps;
+};
+
 struct cpsw_priv {
 	struct net_device		*ndev;
 	struct device			*dev;
@@ -384,6 +389,8 @@ struct cpsw_priv {
 	struct cpsw_common *cpsw;
 	int offload_fwd_mark;
 	u32 tx_packet_min;
+	struct cpsw_ale_ratelimit ale_bc_ratelimit;
+	struct cpsw_ale_ratelimit ale_mc_ratelimit;
 };
 
 #define ndev_to_cpsw(ndev) (((struct cpsw_priv *)netdev_priv(ndev))->cpsw)
@@ -461,6 +468,7 @@ int cpsw_ndo_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 bool cpsw_shp_is_off(struct cpsw_priv *priv);
 void cpsw_cbs_resume(struct cpsw_slave *slave, struct cpsw_priv *priv);
 void cpsw_mqprio_resume(struct cpsw_slave *slave, struct cpsw_priv *priv);
+void cpsw_qos_clsflower_resume(struct cpsw_priv *priv);
 
 /* ethtool */
 u32 cpsw_get_msglevel(struct net_device *ndev);
