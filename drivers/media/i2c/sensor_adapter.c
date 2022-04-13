@@ -1045,8 +1045,8 @@ static int sensor_get_selection(struct v4l2_subdev *sd,
 				sensor->crop.top, sensor->crop.height);
 		} else {
 			sel->r.left = 0;
-			sel->r.width = 0;
-			sel->r.top = sensor->cur_mode->width;
+			sel->r.width = sensor->cur_mode->width;
+			sel->r.top = 0;
 			sel->r.height = sensor->cur_mode->height;
 		}
 		return 0;
