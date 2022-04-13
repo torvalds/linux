@@ -15,6 +15,10 @@
 	};
 };
 
+&cti_sys2 {
+	power-domains = <&scmi_devpd 8>;
+};
+
 &A57_0 {
 	clocks = <&scmi_dvfs 0>;
 };
