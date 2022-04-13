@@ -167,8 +167,7 @@ The table below shows an example of its usage::
         Name (_DSD, Package () {
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
             Package () {
-                Package () {"interrupt-names",
-                Package (2) {"default", "alert"}},
+                Package () { "interrupt-names", Package () { "default", "alert" } },
             }
         ...
         })
