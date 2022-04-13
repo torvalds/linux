@@ -442,7 +442,6 @@ config TI_DAC7612
 
 config VF610_DAC
 	tristate "Vybrid vf610 DAC driver"
-	depends on OF
 	depends on HAS_IOMEM
 	help
 	  Say yes here to support Vybrid board digital-to-analog converter.
