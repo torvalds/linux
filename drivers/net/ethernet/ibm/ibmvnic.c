@@ -364,6 +364,25 @@ static void map_rxpool_buf_to_ltb(struct ibmvnic_rx_pool *rxpool,
 	*offset = bufidx * rxpool->buff_size;
 }
 
+/**
+ * map_txpool_buf_to_ltb - Map given txpool buffer to offset in an LTB.
+ * @txpool: The transmit buffer pool containing buffer
+ * @bufidx: Index of buffer in txpool
+ * @ltbp: (Output) pointer to the long term buffer (LTB) containing the buffer
+ * @offset: (Output) offset of buffer in the LTB from @ltbp
+ *
+ * Map the given buffer identified by [txpool, bufidx] to an LTB in the
+ * pool and its corresponding offset.
+ */
+static void map_txpool_buf_to_ltb(struct ibmvnic_tx_pool *txpool,
+				  unsigned int bufidx,
+				  struct ibmvnic_long_term_buff **ltbp,
+				  unsigned int *offset)
+{
+	*ltbp = &txpool->long_term_buff;
+	*offset = bufidx * txpool->buf_size;
+}
+
 static void deactivate_rx_pools(struct ibmvnic_adapter *adapter)
 {
 	int i;
@@ -1931,6 +1950,7 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct ibmvnic_ind_xmit_queue *ind_bufp;
 	struct ibmvnic_tx_buff *tx_buff = NULL;
 	struct ibmvnic_sub_crq_queue *tx_scrq;
+	struct ibmvnic_long_term_buff *ltb;
 	struct ibmvnic_tx_pool *tx_pool;
 	unsigned int tx_send_failed = 0;
 	netdev_tx_t ret = NETDEV_TX_OK;
@@ -1993,10 +2013,11 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	tx_pool->free_map[tx_pool->consumer_index] = IBMVNIC_INVALID_MAP;
 
-	offset = bufidx * tx_pool->buf_size;
-	dst = tx_pool->long_term_buff.buff + offset;
+	map_txpool_buf_to_ltb(tx_pool, bufidx, &ltb, &offset);
+
+	dst = ltb->buff + offset;
 	memset(dst, 0, tx_pool->buf_size);
-	data_dma_addr = tx_pool->long_term_buff.addr + offset;
+	data_dma_addr = ltb->addr + offset;
 
 	if (skb_shinfo(skb)->nr_frags) {
 		int cur, i;
@@ -2040,7 +2061,7 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 			cpu_to_be32(bufidx | IBMVNIC_TSO_POOL_MASK);
 	else
 		tx_crq.v1.correlator = cpu_to_be32(bufidx);
-	tx_crq.v1.dma_reg = cpu_to_be16(tx_pool->long_term_buff.map_id);
+	tx_crq.v1.dma_reg = cpu_to_be16(ltb->map_id);
 	tx_crq.v1.sge_len = cpu_to_be32(skb->len);
 	tx_crq.v1.ioba = cpu_to_be64(data_dma_addr);
 
