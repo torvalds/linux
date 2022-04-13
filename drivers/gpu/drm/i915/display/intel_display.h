@@ -567,6 +567,8 @@ bool intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state);
 
 void intel_plane_destroy(struct drm_plane *plane);
+void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state);
+void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state);
 void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state);
 void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state);
 void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
