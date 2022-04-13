@@ -77,9 +77,6 @@ void *rtw_malloc2d(int h, int w, int size);
 		spin_lock_init(&((q)->lock));			\
 	} while (0)
 
-u32  rtw_systime_to_ms(u32 systime);
-s32  rtw_get_passing_time_ms(u32 start);
-
 void rtw_usleep_os(int us);
 
 static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)

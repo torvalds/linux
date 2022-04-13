@@ -42,17 +42,6 @@ Otherwise, there will be racing condition.
 Caller must check if the list is empty before calling rtw_list_delete
 */
 
-inline u32 rtw_systime_to_ms(u32 systime)
-{
-	return systime * 1000 / HZ;
-}
-
-/*  the input parameter start use the same unit as jiffies */
-inline s32 rtw_get_passing_time_ms(u32 start)
-{
-	return rtw_systime_to_ms(jiffies - start);
-}
-
 void rtw_usleep_os(int us)
 {
 	if (1 < (us / 1000))
