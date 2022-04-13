@@ -23,6 +23,9 @@
 #define RCU_SEQ_CTR_SHIFT	2
 #define RCU_SEQ_STATE_MASK	((1 << RCU_SEQ_CTR_SHIFT) - 1)
 
+/* Low-order bit definition for polled grace-period APIs. */
+#define RCU_GET_STATE_COMPLETED	0x1
+
 extern int sysctl_sched_rt_runtime;
 
 /*
