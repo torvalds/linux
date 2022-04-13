@@ -2184,3 +2184,14 @@ int smu_v13_0_deep_sleep_control(struct smu_context *smu,
 
 	return ret;
 }
+
+int smu_v13_0_gfx_ulv_control(struct smu_context *smu,
+			      bool enablement)
+{
+	int ret = 0;
+
+	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_GFX_ULV_BIT))
+		ret = smu_cmn_feature_set_enabled(smu, SMU_FEATURE_GFX_ULV_BIT, enablement);
+
+	return ret;
+}

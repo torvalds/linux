@@ -278,5 +278,8 @@ int smu_v13_0_run_btc(struct smu_context *smu);
 int smu_v13_0_deep_sleep_control(struct smu_context *smu,
 				 bool enablement);
 
+int smu_v13_0_gfx_ulv_control(struct smu_context *smu,
+			      bool enablement);
+
 #endif
 #endif
