@@ -1451,12 +1451,14 @@ void vmbus_free_mmio(resource_size_t start, resource_size_t size);
 			  0x80, 0x2e, 0x27, 0xed, 0xe1, 0x9f)
 
 /*
- * Linux doesn't support the 3 devices: the first two are for
- * Automatic Virtual Machine Activation, and the third is for
- * Remote Desktop Virtualization.
+ * Linux doesn't support these 4 devices: the first two are for
+ * Automatic Virtual Machine Activation, the third is for
+ * Remote Desktop Virtualization, and the fourth is Initial
+ * Machine Configuration (IMC) used only by Windows guests.
  * {f8e65716-3cb3-4a06-9a60-1889c5cccab5}
  * {3375baf4-9e15-4b30-b765-67acb10d607b}
  * {276aacf4-ac15-426c-98dd-7521ad3f01fe}
+ * {c376c1c3-d276-48d2-90a9-c04748072c60}
  */
 
 #define HV_AVMA1_GUID \
@@ -1470,6 +1472,10 @@ void vmbus_free_mmio(resource_size_t start, resource_size_t size);
 #define HV_RDV_GUID \
 	.guid = GUID_INIT(0x276aacf4, 0xac15, 0x426c, 0x98, 0xdd, \
 			  0x75, 0x21, 0xad, 0x3f, 0x01, 0xfe)
+
+#define HV_IMC_GUID \
+	.guid = GUID_INIT(0xc376c1c3, 0xd276, 0x48d2, 0x90, 0xa9, \
+			  0xc0, 0x47, 0x48, 0x07, 0x2c, 0x60)
 
 /*
  * Common header for Hyper-V ICs
