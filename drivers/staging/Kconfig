@@ -58,6 +58,8 @@ source "drivers/staging/nvec/Kconfig"
 
 source "drivers/staging/media/Kconfig"
 
+source "drivers/staging/android/Kconfig"
+
 source "drivers/staging/board/Kconfig"
 
 source "drivers/staging/gdm724x/Kconfig"
