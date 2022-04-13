@@ -64,6 +64,7 @@
 #define HL_CPUCP_MON_DUMP_TIMEOUT_USEC	10000000 /* 10s */
 
 #define HL_FW_STATUS_POLL_INTERVAL_USEC		10000 /* 10ms */
+#define HL_FW_COMMS_STATUS_PLDM_POLL_INTERVAL_USEC	1000000 /* 1s */
 
 #define HL_PCI_ELBI_TIMEOUT_MSEC	10 /* 10ms */
 
@@ -2717,6 +2718,9 @@ struct hl_reset_info {
  *                                  session.
  * @open_counter: number of successful device open operations.
  * @fw_poll_interval_usec: FW status poll interval in usec.
+ *                         used for CPU boot status
+ * @fw_comms_poll_interval_usec: FW comms/protocol poll interval in usec.
+ *                                  used for COMMs protocols cmds(COMMS_STS_*)
  * @card_type: Various ASICs have several card types. This indicates the card
  *             type of the current device.
  * @major: habanalabs kernel driver major.
@@ -2847,6 +2851,8 @@ struct hl_device {
 	u64				open_counter;
 	u64				fw_poll_interval_usec;
 	ktime_t				last_successful_open_ktime;
+	u64				fw_comms_poll_interval_usec;
+
 	enum cpucp_card_types		card_type;
 	u32				major;
 	u32				high_pll;

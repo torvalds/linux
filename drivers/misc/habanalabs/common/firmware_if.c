@@ -1589,7 +1589,7 @@ static int hl_fw_dynamic_wait_for_status(struct hl_device *hdev,
 		le32_to_cpu(dyn_regs->cpu_cmd_status_to_host),
 		status,
 		FIELD_GET(COMMS_STATUS_STATUS_MASK, status) == expected_status,
-		hdev->fw_poll_interval_usec,
+		hdev->fw_comms_poll_interval_usec,
 		timeout);
 
 	if (rc) {
