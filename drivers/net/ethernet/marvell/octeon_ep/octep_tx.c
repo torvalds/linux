@@ -25,6 +25,79 @@ static void octep_iq_reset_indices(struct octep_iq *iq)
 }
 
 /**
+ * octep_iq_process_completions() - Process Tx queue completions.
+ *
+ * @iq: Octeon Tx queue data structure.
+ * @budget: max number of completions to be processed in one invocation.
+ */
+int octep_iq_process_completions(struct octep_iq *iq, u16 budget)
+{
+	u32 compl_pkts, compl_bytes, compl_sg;
+	struct octep_device *oct = iq->octep_dev;
+	struct octep_tx_buffer *tx_buffer;
+	struct skb_shared_info *shinfo;
+	u32 fi = iq->flush_index;
+	struct sk_buff *skb;
+	u8 frags, i;
+
+	compl_pkts = 0;
+	compl_sg = 0;
+	compl_bytes = 0;
+	iq->octep_read_index = oct->hw_ops.update_iq_read_idx(iq);
+
+	while (likely(budget && (fi != iq->octep_read_index))) {
+		tx_buffer = iq->buff_info + fi;
+		skb = tx_buffer->skb;
+
+		fi++;
+		if (unlikely(fi == iq->max_count))
+			fi = 0;
+		compl_bytes += skb->len;
+		compl_pkts++;
+		budget--;
+
+		if (!tx_buffer->gather) {
+			dma_unmap_single(iq->dev, tx_buffer->dma,
+					 tx_buffer->skb->len, DMA_TO_DEVICE);
+			dev_kfree_skb_any(skb);
+			continue;
+		}
+
+		/* Scatter/Gather */
+		shinfo = skb_shinfo(skb);
+		frags = shinfo->nr_frags;
+		compl_sg++;
+
+		dma_unmap_single(iq->dev, tx_buffer->sglist[0].dma_ptr[0],
+				 tx_buffer->sglist[0].len[0], DMA_TO_DEVICE);
+
+		i = 1; /* entry 0 is main skb, unmapped above */
+		while (frags--) {
+			dma_unmap_page(iq->dev, tx_buffer->sglist[i >> 2].dma_ptr[i & 3],
+				       tx_buffer->sglist[i >> 2].len[i & 3], DMA_TO_DEVICE);
+			i++;
+		}
+
+		dev_kfree_skb_any(skb);
+	}
+
+	iq->pkts_processed += compl_pkts;
+	atomic_sub(compl_pkts, &iq->instr_pending);
+	iq->stats.instr_completed += compl_pkts;
+	iq->stats.bytes_sent += compl_bytes;
+	iq->stats.sgentry_sent += compl_sg;
+	iq->flush_index = fi;
+
+	netdev_tx_completed_queue(iq->netdev_q, compl_pkts, compl_bytes);
+
+	if (unlikely(__netif_subqueue_stopped(iq->netdev, iq->q_no)) &&
+	    ((iq->max_count - atomic_read(&iq->instr_pending)) >
+	     OCTEP_WAKE_QUEUE_THRESHOLD))
+		netif_wake_subqueue(iq->netdev, iq->q_no);
+	return !budget;
+}
+
+/**
  * octep_iq_free_pending() - Free Tx buffers for pending completions.
  *
  * @iq: Octeon Tx queue data structure.
