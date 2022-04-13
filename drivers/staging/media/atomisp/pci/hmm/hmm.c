@@ -427,10 +427,7 @@ int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes)
 		idx = (virt - bo->start) >> PAGE_SHIFT;
 		offset = (virt - bo->start) - (idx << PAGE_SHIFT);
 
-		if (in_atomic())
-			des = (char *)kmap_atomic(bo->pages[idx]);
-		else
-			des = (char *)kmap(bo->pages[idx]);
+		des = (char *)kmap_local_page(bo->pages[idx]);
 
 		if (!des) {
 			dev_err(atomisp_dev,
@@ -457,14 +454,7 @@ int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes)
 
 		clflush_cache_range(des, len);
 
-		if (in_atomic())
-			/*
-			 * Note: kunmap_atomic requires return addr from
-			 * kmap_atomic, not the page. See linux/highmem.h
-			 */
-			kunmap_atomic(des - offset);
-		else
-			kunmap(bo->pages[idx]);
+		kunmap_local(des);
 	}
 
 	return 0;
