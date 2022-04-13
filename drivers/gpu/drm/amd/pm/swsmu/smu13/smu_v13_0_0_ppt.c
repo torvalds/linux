@@ -141,6 +141,14 @@ static struct cmn2asic_mapping smu_v13_0_0_feature_mask_map[SMU_FEATURE_COUNT] =
 	[SMU_FEATURE_DPM_DCLK_BIT] = {1, FEATURE_MM_DPM_BIT},
 	[SMU_FEATURE_FAN_CONTROL_BIT] = {1, FEATURE_FAN_CONTROL_BIT},
 	[SMU_FEATURE_PPT_BIT] = {1, FEATURE_THROTTLERS_BIT},
+	[SMU_FEATURE_DS_GFXCLK_BIT] = {1, FEATURE_DS_GFXCLK_BIT},
+	[SMU_FEATURE_DS_SOCCLK_BIT] = {1, FEATURE_DS_SOCCLK_BIT},
+	[SMU_FEATURE_DS_UCLK_BIT] = {1, FEATURE_DS_UCLK_BIT},
+	[SMU_FEATURE_DS_FCLK_BIT] = {1, FEATURE_DS_FCLK_BIT},
+	[SMU_FEATURE_DS_LCLK_BIT] = {1, FEATURE_DS_LCLK_BIT},
+	[SMU_FEATURE_DS_VCN_BIT] = {1, FEATURE_DS_VCN_BIT},
+	[SMU_FEATURE_DS_MP0CLK_BIT] = {1, FEATURE_SOC_MPCLK_DS_BIT},
+	[SMU_FEATURE_DS_MP1CLK_BIT] = {1, FEATURE_BACO_MPCLK_DS_BIT},
 };
 
 static struct cmn2asic_mapping smu_v13_0_0_table_map[SMU_TABLE_COUNT] = {
@@ -1571,6 +1579,7 @@ static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 	.set_tool_table_location = smu_v13_0_set_tool_table_location,
+	.deep_sleep_control = smu_v13_0_deep_sleep_control,
 };
 
 void smu_v13_0_0_set_ppt_funcs(struct smu_context *smu)
