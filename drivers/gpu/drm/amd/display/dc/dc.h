@@ -423,7 +423,6 @@ struct dc_clocks {
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	enum dcn_zstate_support_state zstate_support;
 	bool dtbclk_en;
-	int dtbclk_khz;
 #endif
 	enum dcn_pwr_state pwr_state;
 	/*
