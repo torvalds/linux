@@ -739,14 +739,12 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
  * PORTnCR helper macro for SH-Mobile/R-Mobile
  */
 #define PORTCR(nr, reg) {						\
-	PINMUX_CFG_REG_VAR("PORT" nr "CR", reg, 8, GROUP(2, 2, 1, 3),	\
+	PINMUX_CFG_REG_VAR("PORT" nr "CR", reg, 8, GROUP(-2, 2, -1, 3),	\
 			   GROUP(					\
 		/* PULMD[1:0], handled by .set_bias() */		\
-		0, 0, 0, 0,						\
 		/* IE and OE */						\
 		0, PORT##nr##_OUT, PORT##nr##_IN, 0,			\
 		/* SEC, not supported */				\
-		0, 0,							\
 		/* PTMD[2:0] */						\
 		PORT##nr##_FN0, PORT##nr##_FN1,				\
 		PORT##nr##_FN2, PORT##nr##_FN3,				\
