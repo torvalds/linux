@@ -877,7 +877,7 @@ static const struct sh_pfc_pin __init *sh_pfc_find_pin(
 static void __init sh_pfc_check_cfg_reg(const char *drvname,
 					const struct pinmux_cfg_reg *cfg_reg)
 {
-	unsigned int i, n, rw;
+	unsigned int i, n, rw, r;
 	int fw;
 
 	sh_pfc_check_reg(drvname, cfg_reg->reg,
@@ -886,6 +886,15 @@ static void __init sh_pfc_check_cfg_reg(const char *drvname,
 	if (cfg_reg->field_width) {
 		fw = cfg_reg->field_width;
 		n = (cfg_reg->reg_width / fw) << fw;
+		for (i = 0, r = 0; i < n; i += 1 << fw) {
+			if (is0s(&cfg_reg->enum_ids[i], 1 << fw))
+				r++;
+		}
+
+		if ((r << fw) * sizeof(u16) > cfg_reg->reg_width / fw)
+			sh_pfc_warn("reg 0x%x can be described with variable-width reserved fields\n",
+				    cfg_reg->reg);
+
 		/* Skip field checks (done at build time) */
 		goto check_enum_ids;
 	}
