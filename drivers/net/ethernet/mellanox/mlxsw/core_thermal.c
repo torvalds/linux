@@ -21,7 +21,6 @@
 #define MLXSW_THERMAL_ASIC_TEMP_HOT	105000	/* 105C */
 #define MLXSW_THERMAL_HYSTERESIS_TEMP	5000	/* 5C */
 #define MLXSW_THERMAL_MODULE_TEMP_SHIFT	(MLXSW_THERMAL_HYSTERESIS_TEMP * 2)
-#define MLXSW_THERMAL_ZONE_MAX_NAME	16
 #define MLXSW_THERMAL_TEMP_SCORE_MAX	GENMASK(31, 0)
 #define MLXSW_THERMAL_MAX_STATE	10
 #define MLXSW_THERMAL_MIN_STATE	2
@@ -681,7 +680,7 @@ static const struct thermal_cooling_device_ops mlxsw_cooling_ops = {
 static int
 mlxsw_thermal_module_tz_init(struct mlxsw_thermal_module *module_tz)
 {
-	char tz_name[MLXSW_THERMAL_ZONE_MAX_NAME];
+	char tz_name[THERMAL_NAME_LENGTH];
 	int err;
 
 	if (module_tz->slot_index)
@@ -820,7 +819,7 @@ mlxsw_thermal_modules_fini(struct mlxsw_thermal *thermal,
 static int
 mlxsw_thermal_gearbox_tz_init(struct mlxsw_thermal_module *gearbox_tz)
 {
-	char tz_name[MLXSW_THERMAL_ZONE_MAX_NAME];
+	char tz_name[THERMAL_NAME_LENGTH];
 	int ret;
 
 	if (gearbox_tz->slot_index)
