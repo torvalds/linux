@@ -199,7 +199,7 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 {
 	void __iomem *hdm = cxlhdm->regs.hdm_decoder;
 	struct cxl_port *port = cxlhdm->port;
-	int i, committed, failed;
+	int i, committed;
 	u32 ctrl;
 
 	/*
@@ -219,7 +219,7 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 	if (committed != cxlhdm->decoder_count)
 		msleep(20);
 
-	for (i = 0, failed = 0; i < cxlhdm->decoder_count; i++) {
+	for (i = 0; i < cxlhdm->decoder_count; i++) {
 		int target_map[CXL_DECODER_MAX_INTERLEAVE] = { 0 };
 		int rc, target_count = cxlhdm->target_count;
 		struct cxl_decoder *cxld;
@@ -237,8 +237,7 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 		rc = init_hdm_decoder(port, cxld, target_map, hdm, i);
 		if (rc) {
 			put_device(&cxld->dev);
-			failed++;
-			continue;
+			return rc;
 		}
 		rc = add_hdm_decoder(port, cxld, target_map);
 		if (rc) {
@@ -246,11 +245,6 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 				 "Failed to add decoder to port\n");
 			return rc;
 		}
-	}
-
-	if (failed == cxlhdm->decoder_count) {
-		dev_err(&port->dev, "No valid decoders found\n");
-		return -ENXIO;
 	}
 
 	return 0;
