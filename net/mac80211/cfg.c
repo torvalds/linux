@@ -1174,7 +1174,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			      IEEE80211_HE_OPERATION_RTS_THRESHOLD_MASK);
 		changed |= BSS_CHANGED_HE_OBSS_PD;
 
-		if (params->he_bss_color.enabled)
+		if (params->beacon.he_bss_color.enabled)
 			changed |= BSS_CHANGED_HE_BSS_COLOR;
 	}
 
@@ -1231,7 +1231,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	sdata->vif.bss_conf.allow_p2p_go_ps = sdata->vif.p2p;
 	sdata->vif.bss_conf.twt_responder = params->twt_responder;
 	sdata->vif.bss_conf.he_obss_pd = params->he_obss_pd;
-	sdata->vif.bss_conf.he_bss_color = params->he_bss_color;
+	sdata->vif.bss_conf.he_bss_color = params->beacon.he_bss_color;
 	sdata->vif.bss_conf.s1g = params->chandef.chan->band ==
 				  NL80211_BAND_S1GHZ;
 

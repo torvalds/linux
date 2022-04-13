@@ -5173,6 +5173,30 @@ nl80211_parse_mbssid_elems(struct wiphy *wiphy, struct nlattr *attrs)
 	return elems;
 }
 
+static int nl80211_parse_he_bss_color(struct nlattr *attrs,
+				      struct cfg80211_he_bss_color *he_bss_color)
+{
+	struct nlattr *tb[NL80211_HE_BSS_COLOR_ATTR_MAX + 1];
+	int err;
+
+	err = nla_parse_nested(tb, NL80211_HE_BSS_COLOR_ATTR_MAX, attrs,
+			       he_bss_color_policy, NULL);
+	if (err)
+		return err;
+
+	if (!tb[NL80211_HE_BSS_COLOR_ATTR_COLOR])
+		return -EINVAL;
+
+	he_bss_color->color =
+		nla_get_u8(tb[NL80211_HE_BSS_COLOR_ATTR_COLOR]);
+	he_bss_color->enabled =
+		!nla_get_flag(tb[NL80211_HE_BSS_COLOR_ATTR_DISABLED]);
+	he_bss_color->partial =
+		nla_get_flag(tb[NL80211_HE_BSS_COLOR_ATTR_PARTIAL]);
+
+	return 0;
+}
+
 static int nl80211_parse_beacon(struct cfg80211_registered_device *rdev,
 				struct nlattr *attrs[],
 				struct cfg80211_beacon_data *bcn)
@@ -5253,6 +5277,14 @@ static int nl80211_parse_beacon(struct cfg80211_registered_device *rdev,
 		bcn->ftm_responder = -1;
 	}
 
+	if (attrs[NL80211_ATTR_HE_BSS_COLOR]) {
+		err = nl80211_parse_he_bss_color(attrs[NL80211_ATTR_HE_BSS_COLOR],
+						 &bcn->he_bss_color);
+		if (err)
+			return err;
+		bcn->he_bss_color_valid = true;
+	}
+
 	if (attrs[NL80211_ATTR_MBSSID_ELEMS]) {
 		struct cfg80211_mbssid_elems *mbssid =
 			nl80211_parse_mbssid_elems(&rdev->wiphy,
@@ -5307,30 +5339,6 @@ static int nl80211_parse_he_obss_pd(struct nlattr *attrs,
 		       sizeof(he_obss_pd->partial_bssid_bitmap));
 
 	he_obss_pd->enable = true;
-
-	return 0;
-}
-
-static int nl80211_parse_he_bss_color(struct nlattr *attrs,
-				      struct cfg80211_he_bss_color *he_bss_color)
-{
-	struct nlattr *tb[NL80211_HE_BSS_COLOR_ATTR_MAX + 1];
-	int err;
-
-	err = nla_parse_nested(tb, NL80211_HE_BSS_COLOR_ATTR_MAX, attrs,
-			       he_bss_color_policy, NULL);
-	if (err)
-		return err;
-
-	if (!tb[NL80211_HE_BSS_COLOR_ATTR_COLOR])
-		return -EINVAL;
-
-	he_bss_color->color =
-		nla_get_u8(tb[NL80211_HE_BSS_COLOR_ATTR_COLOR]);
-	he_bss_color->enabled =
-		!nla_get_flag(tb[NL80211_HE_BSS_COLOR_ATTR_DISABLED]);
-	he_bss_color->partial =
-		nla_get_flag(tb[NL80211_HE_BSS_COLOR_ATTR_PARTIAL]);
 
 	return 0;
 }
@@ -5722,14 +5730,6 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 		err = nl80211_parse_he_obss_pd(
 					info->attrs[NL80211_ATTR_HE_OBSS_PD],
 					&params->he_obss_pd);
-		if (err)
-			goto out;
-	}
-
-	if (info->attrs[NL80211_ATTR_HE_BSS_COLOR]) {
-		err = nl80211_parse_he_bss_color(
-					info->attrs[NL80211_ATTR_HE_BSS_COLOR],
-					&params->he_bss_color);
 		if (err)
 			goto out;
 	}

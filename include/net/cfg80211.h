@@ -1183,6 +1183,9 @@ struct cfg80211_mbssid_elems {
  *	Token (measurement type 11)
  * @lci_len: LCI data length
  * @civicloc_len: Civic location data length
+ * @he_bss_color: BSS Color settings
+ * @he_bss_color_valid: indicates whether bss color
+	attribute is present in beacon data or not.
  */
 struct cfg80211_beacon_data {
 	const u8 *head, *tail;
@@ -1202,6 +1205,8 @@ struct cfg80211_beacon_data {
 	size_t probe_resp_len;
 	size_t lci_len;
 	size_t civicloc_len;
+	struct cfg80211_he_bss_color he_bss_color;
+	bool he_bss_color_valid;
 };
 
 struct mac_address {
@@ -1292,7 +1297,6 @@ struct cfg80211_unsol_bcast_probe_resp {
  * @sae_h2e_required: stations must support direct H2E technique in SAE
  * @flags: flags, as defined in enum cfg80211_ap_settings_flags
  * @he_obss_pd: OBSS Packet Detection settings
- * @he_bss_color: BSS Color settings
  * @he_oper: HE operation IE (or %NULL if HE isn't enabled)
  * @fils_discovery: FILS discovery transmission parameters
  * @unsol_bcast_probe_resp: Unsolicited broadcast probe response parameters
@@ -1326,7 +1330,6 @@ struct cfg80211_ap_settings {
 	bool twt_responder;
 	u32 flags;
 	struct ieee80211_he_obss_pd he_obss_pd;
-	struct cfg80211_he_bss_color he_bss_color;
 	struct cfg80211_fils_discovery fils_discovery;
 	struct cfg80211_unsol_bcast_probe_resp unsol_bcast_probe_resp;
 	struct cfg80211_mbssid_config mbssid_config;
