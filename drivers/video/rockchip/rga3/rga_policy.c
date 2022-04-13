@@ -211,6 +211,7 @@ int rga_job_assign(struct rga_job *job)
 	int feature;
 	int core = RGA_NONE_CORE;
 	int optional_cores = RGA_NONE_CORE;
+	int specified_cores = RGA_NONE_CORE;
 	int i;
 	int min_of_job_count = 0;
 	unsigned long flags;
@@ -220,10 +221,8 @@ int rga_job_assign(struct rga_job *job)
 		if (rga_base->core > RGA_CORE_MASK) {
 			pr_err("invalid setting core by user\n");
 			goto finish;
-		} else if (rga_base->core & RGA_CORE_MASK) {
-			optional_cores = rga_base->core;
-			goto skip_functional_policy;
-		}
+		} else if (rga_base->core & RGA_CORE_MASK)
+			specified_cores = rga_base->core;
 	}
 
 	feature = rga_set_feature(rga_base);
@@ -232,6 +231,10 @@ int rga_job_assign(struct rga_job *job)
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
 		data = rga_drvdata->scheduler[i]->data;
 		scheduler = rga_drvdata->scheduler[i];
+
+		if ((specified_cores != RGA_NONE_CORE) &&
+			(!(scheduler->core & specified_cores)))
+			continue;
 
 		if (DEBUGGER_EN(MSG))
 			pr_info("start policy on core = %d", scheduler->core);
@@ -316,7 +319,6 @@ int rga_job_assign(struct rga_job *job)
 		goto finish;
 	}
 
-skip_functional_policy:
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
 		scheduler = rga_drvdata->scheduler[i];
 
