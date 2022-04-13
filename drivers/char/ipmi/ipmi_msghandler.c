@@ -2384,7 +2384,8 @@ out_err:
 		ipmi_free_smi_msg(smi_msg);
 		ipmi_free_recv_msg(recv_msg);
 	} else {
-		pr_debug("Send: %*ph\n", smi_msg->data_size, smi_msg->data);
+		dev_dbg(intf->si_dev, "Send: %*ph\n",
+			smi_msg->data_size, smi_msg->data);
 
 		smi_send(intf, intf->handlers, smi_msg, priority);
 	}
@@ -3925,7 +3926,8 @@ static int handle_ipmb_get_msg_cmd(struct ipmi_smi *intf,
 		msg->data[10] = ipmb_checksum(&msg->data[6], 4);
 		msg->data_size = 11;
 
-		pr_debug("Invalid command: %*ph\n", msg->data_size, msg->data);
+		dev_dbg(intf->si_dev, "Invalid command: %*ph\n",
+			msg->data_size, msg->data);
 
 		rcu_read_lock();
 		if (!intf->in_shutdown) {
@@ -4533,7 +4535,7 @@ static int handle_one_recv_msg(struct ipmi_smi *intf,
 	unsigned char cc;
 	bool is_cmd = !((msg->rsp[0] >> 2) & 1);
 
-	pr_debug("Recv: %*ph\n", msg->rsp_size, msg->rsp);
+	dev_dbg(intf->si_dev, "Recv: %*ph\n", msg->rsp_size, msg->rsp);
 
 	if (msg->rsp_size < 2) {
 		/* Message is too small to be correct. */
@@ -4917,7 +4919,8 @@ smi_from_recv_msg(struct ipmi_smi *intf, struct ipmi_recv_msg *recv_msg,
 	smi_msg->data_size = recv_msg->msg.data_len;
 	smi_msg->msgid = STORE_SEQ_IN_MSGID(seq, seqid);
 
-	pr_debug("Resend: %*ph\n", smi_msg->data_size, smi_msg->data);
+	dev_dbg(intf->si_dev, "Resend: %*ph\n",
+		smi_msg->data_size, smi_msg->data);
 
 	return smi_msg;
 }
