@@ -12,6 +12,7 @@
 #include <linux/clk-provider.h>
 #include <linux/debugfs.h>
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
+#include <dt-bindings/clock/starfive-jh7110-vout.h>
 
 /* register flags */
 #define JH7110_CLK_SYS_FLAG	1
@@ -29,6 +30,8 @@
 
 /* clkgen PLL CLOCK offset */
 #define PLL_OF(x)	(x - JH7110_CLK_REG_END)
+/* vout PLL CLOCK offset */
+#define PLL_OFV(x)	(x - JH7110_CLK_VOUT_REG_END)
 
 /* clock data */
 struct jh7110_clk_data {

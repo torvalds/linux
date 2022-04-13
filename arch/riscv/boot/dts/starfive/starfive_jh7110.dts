@@ -3,6 +3,7 @@
 #include <dt-bindings/reset/starfive-jh7110.h>
 #include "starfive_jh7110_clk.dtsi"
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
+#include <dt-bindings/clock/starfive-jh7110-vout.h>
 
 / {
 	#address-cells = <2>;
