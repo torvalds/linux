@@ -10,6 +10,7 @@
 #include <linux/spi/spi.h>
 #include <linux/module.h>
 #include <linux/iio/iio.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
 #include <asm/unaligned.h>
@@ -362,8 +363,7 @@ static int ltc2632_probe(struct spi_device *spi)
 		}
 	}
 
-	indio_dev->name = dev_of_node(&spi->dev) ? dev_of_node(&spi->dev)->name
-						 : spi_get_device_id(spi)->name;
+	indio_dev->name = fwnode_get_name(dev_fwnode(&spi->dev)) ?: spi_get_device_id(spi)->name;
 	indio_dev->info = &ltc2632_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = chip_info->channels;
@@ -469,7 +469,7 @@ MODULE_DEVICE_TABLE(of, ltc2632_of_match);
 static struct spi_driver ltc2632_driver = {
 	.driver		= {
 		.name	= "ltc2632",
-		.of_match_table = of_match_ptr(ltc2632_of_match),
+		.of_match_table = ltc2632_of_match,
 	},
 	.probe		= ltc2632_probe,
 	.remove		= ltc2632_remove,
