@@ -18,7 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <dt-bindings/memory/tegra186-mc.h>
 #include "virt-dma.h"
 
