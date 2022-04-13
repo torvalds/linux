@@ -403,10 +403,8 @@ int rtw_pwr_wakeup(struct adapter *padapter)
 		}
 	}
 
-	/* TODO: the following checking need to be merged... */
-	if (padapter->bDriverStopped || !padapter->bup ||
-	    !padapter->hw_init_completed) {
-		ret = false;
+	if (padapter->bDriverStopped || !padapter->bup || !padapter->hw_init_completed) {
+		ret = _FAIL;
 		goto exit;
 	}
 
