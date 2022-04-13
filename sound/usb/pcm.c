@@ -659,9 +659,6 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 #define hwc_debug(fmt, args...) do { } while(0)
 #endif
 
-#define MAX_BUFFER_BYTES	(4 * 1024 * 1024)
-#define MAX_PERIOD_BYTES	(512 * 1024)
-
 static const struct snd_pcm_hardware snd_usb_hardware =
 {
 	.info =			SNDRV_PCM_INFO_MMAP |
@@ -672,9 +669,9 @@ static const struct snd_pcm_hardware snd_usb_hardware =
 				SNDRV_PCM_INFO_PAUSE,
 	.channels_min =		1,
 	.channels_max =		256,
-	.buffer_bytes_max =	MAX_BUFFER_BYTES,
+	.buffer_bytes_max =	INT_MAX, /* limited by BUFFER_TIME later */
 	.period_bytes_min =	64,
-	.period_bytes_max =	MAX_PERIOD_BYTES,
+	.period_bytes_max =	INT_MAX, /* limited by PERIOD_TIME later */
 	.periods_min =		2,
 	.periods_max =		1024,
 };
@@ -974,78 +971,6 @@ static int hw_rule_periods_implicit_fb(struct snd_pcm_hw_params *params,
 				      ep->cur_buffer_periods);
 }
 
-/* get the adjusted max buffer (or period) bytes that can fit with the
- * paired format for implicit fb
- */
-static unsigned int
-get_adjusted_max_bytes(struct snd_usb_substream *subs,
-		       struct snd_usb_substream *pair,
-		       struct snd_pcm_hw_params *params,
-		       unsigned int max_bytes,
-		       bool reverse_map)
-{
-	const struct audioformat *fp, *pp;
-	unsigned int rmax = 0, r;
-
-	list_for_each_entry(fp, &subs->fmt_list, list) {
-		if (!fp->implicit_fb)
-			continue;
-		if (!reverse_map &&
-		    !hw_check_valid_format(subs, params, fp))
-			continue;
-		list_for_each_entry(pp, &pair->fmt_list, list) {
-			if (pp->iface != fp->sync_iface ||
-			    pp->altsetting != fp->sync_altsetting ||
-			    pp->ep_idx != fp->sync_ep_idx)
-				continue;
-			if (reverse_map &&
-			    !hw_check_valid_format(pair, params, pp))
-				break;
-			if (!reverse_map && pp->channels > fp->channels)
-				r = max_bytes * fp->channels / pp->channels;
-			else if (reverse_map && pp->channels < fp->channels)
-				r = max_bytes * pp->channels / fp->channels;
-			else
-				r = max_bytes;
-			rmax = max(rmax, r);
-			break;
-		}
-	}
-	return rmax;
-}
-
-/* Reduce the period or buffer bytes depending on the paired substream;
- * when a paired configuration for implicit fb has a higher number of channels,
- * we need to reduce the max size accordingly, otherwise it may become unusable
- */
-static int hw_rule_bytes_implicit_fb(struct snd_pcm_hw_params *params,
-				     struct snd_pcm_hw_rule *rule)
-{
-	struct snd_usb_substream *subs = rule->private;
-	struct snd_usb_substream *pair;
-	struct snd_interval *it;
-	unsigned int max_bytes;
-	unsigned int rmax;
-
-	pair = &subs->stream->substream[!subs->direction];
-	if (!pair->ep_num)
-		return 0;
-
-	if (rule->var == SNDRV_PCM_HW_PARAM_PERIOD_BYTES)
-		max_bytes = MAX_PERIOD_BYTES;
-	else
-		max_bytes = MAX_BUFFER_BYTES;
-
-	rmax = get_adjusted_max_bytes(subs, pair, params, max_bytes, false);
-	if (!rmax)
-		rmax = get_adjusted_max_bytes(pair, subs, params, max_bytes, true);
-	if (!rmax)
-		return 0;
-
-	it = hw_param_interval(params, rule->var);
-	return apply_hw_params_minmax(it, 0, rmax);
-}
-
 /*
  * set up the runtime hardware information.
  */
@@ -1139,6 +1064,18 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 			return err;
 	}
 
+	/* set max period and buffer sizes for 1 and 2 seconds, respectively */
+	err = snd_pcm_hw_constraint_minmax(runtime,
+					   SNDRV_PCM_HW_PARAM_PERIOD_TIME,
+					   0, 1000000);
+	if (err < 0)
+		return err;
+	err = snd_pcm_hw_constraint_minmax(runtime,
+					   SNDRV_PCM_HW_PARAM_BUFFER_TIME,
+					   0, 2000000);
+	if (err < 0)
+		return err;
+
 	/* additional hw constraints for implicit fb */
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_FORMAT,
 				  hw_rule_format_implicit_fb, subs,
@@ -1158,16 +1095,6 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_PERIODS,
 				  hw_rule_periods_implicit_fb, subs,
 				  SNDRV_PCM_HW_PARAM_PERIODS, -1);
-	if (err < 0)
-		return err;
-	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
-				  hw_rule_bytes_implicit_fb, subs,
-				  SNDRV_PCM_HW_PARAM_BUFFER_BYTES, -1);
-	if (err < 0)
-		return err;
-	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
-				  hw_rule_bytes_implicit_fb, subs,
-				  SNDRV_PCM_HW_PARAM_PERIOD_BYTES, -1);
 	if (err < 0)
 		return err;
 
