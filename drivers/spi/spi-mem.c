@@ -262,9 +262,8 @@ static int spi_mem_access_start(struct spi_mem *mem)
 	if (ctlr->auto_runtime_pm) {
 		int ret;
 
-		ret = pm_runtime_get_sync(ctlr->dev.parent);
+		ret = pm_runtime_resume_and_get(ctlr->dev.parent);
 		if (ret < 0) {
-			pm_runtime_put_noidle(ctlr->dev.parent);
 			dev_err(&ctlr->dev, "Failed to power device: %d\n",
 				ret);
 			return ret;
