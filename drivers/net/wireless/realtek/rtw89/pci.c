@@ -1522,7 +1522,7 @@ rtw89_write16_mdio_mask(struct rtw89_dev *rtwdev, u8 addr, u16 mask, u16 data, u
 	u16 val;
 
 	ret = rtw89_read16_mdio(rtwdev, addr, speed, &val);
-	if (!ret)
+	if (ret)
 		return ret;
 
 	shift = __ffs(mask);
@@ -1530,7 +1530,7 @@ rtw89_write16_mdio_mask(struct rtw89_dev *rtwdev, u8 addr, u16 mask, u16 data, u
 	val |= ((data << shift) & mask);
 
 	ret = rtw89_write16_mdio(rtwdev, addr, val, speed);
-	if (!ret)
+	if (ret)
 		return ret;
 
 	return 0;
