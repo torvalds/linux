@@ -70,9 +70,6 @@ static int notrace unwind_frame(struct task_struct *tsk,
 	unsigned long fp = frame->fp;
 	struct stack_info info;
 
-	if (!tsk)
-		tsk = current;
-
 	/* Final frame; nothing to unwind */
 	if (fp == (unsigned long)task_pt_regs(tsk)->stackframe)
 		return -ENOENT;
