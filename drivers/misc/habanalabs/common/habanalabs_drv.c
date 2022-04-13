@@ -237,7 +237,7 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	hpriv->filp = filp;
 	nonseekable_open(inode, filp);
 
-	hpriv->taskpid = find_get_pid(current->pid);
+	hpriv->taskpid = get_task_pid(current, PIDTYPE_PID);
 
 	mutex_lock(&hdev->fpriv_ctrl_list_lock);
 
