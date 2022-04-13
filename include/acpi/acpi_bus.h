@@ -594,8 +594,10 @@ struct acpi_pci_root {
 	int bridge_type;
 	struct resource secondary;	/* downstream bus range */
 
-	u32 osc_support_set;	/* _OSC state of support bits */
-	u32 osc_control_set;	/* _OSC state of control bits */
+	u32 osc_support_set;		/* _OSC state of support bits */
+	u32 osc_control_set;		/* _OSC state of control bits */
+	u32 osc_ext_support_set;	/* _OSC state of extended support bits */
+	u32 osc_ext_control_set;	/* _OSC state of extended control bits */
 	phys_addr_t mcfg_addr;
 };
 
