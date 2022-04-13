@@ -390,19 +390,6 @@ void free_mlme_ext_priv(struct mlme_ext_priv *pmlmeext)
 	}
 }
 
-static void _mgt_dispatcher(struct adapter *padapter, struct mlme_handler *ptable, struct recv_frame *precv_frame)
-{
-	u8 *pframe = precv_frame->rx_data;
-
-	if (ptable->func) {
-	/* receive the frames that ra(a1) is my address or ra(a1) is bc address. */
-		if (memcmp(GetAddr1Ptr(pframe), myid(&padapter->eeprompriv), ETH_ALEN) &&
-		    !is_broadcast_ether_addr(GetAddr1Ptr(pframe)))
-			return;
-		ptable->func(padapter, precv_frame);
-	}
-}
-
 void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	int index;
@@ -442,7 +429,14 @@ void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
 		else
 			ptable->func = &OnAuthClient;
 	}
-	_mgt_dispatcher(padapter, ptable, precv_frame);
+
+	if (ptable->func) {
+	/* receive the frames that ra(a1) is my address or ra(a1) is bc address. */
+		if (memcmp(GetAddr1Ptr(pframe), myid(&padapter->eeprompriv), ETH_ALEN) &&
+		    !is_broadcast_ether_addr(GetAddr1Ptr(pframe)))
+			return;
+		ptable->func(padapter, precv_frame);
+	}
 }
 
 static u32 p2p_listen_state_process(struct adapter *padapter, unsigned char *da)
