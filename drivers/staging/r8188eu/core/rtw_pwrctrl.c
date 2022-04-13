@@ -372,8 +372,8 @@ int rtw_pwr_wakeup(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	unsigned long timeout = jiffies + msecs_to_jiffies(3000);
 	int ret = _SUCCESS;
-	u32 start = jiffies;
 	u32 ips_deffer_ms;
 
 	/* the ms will prevent from falling into IPS after wakeup */
@@ -382,11 +382,11 @@ int rtw_pwr_wakeup(struct adapter *padapter)
 	if (pwrpriv->ips_deny_time < jiffies + rtw_ms_to_systime(ips_deffer_ms))
 		pwrpriv->ips_deny_time = jiffies + rtw_ms_to_systime(ips_deffer_ms);
 
-	while (pwrpriv->ps_processing && rtw_get_passing_time_ms(start) <= 3000)
+	while (pwrpriv->ps_processing && time_before(jiffies, timeout))
 		msleep(10);
 
 	/* System suspend is not allowed to wakeup */
-	while (pwrpriv->bInSuspend && rtw_get_passing_time_ms(start) <= 3000)
+	while (pwrpriv->bInSuspend && time_before(jiffies, timeout))
 		msleep(10);
 
 	/* I think this should be check in IPS, LPS, autosuspend functions... */
