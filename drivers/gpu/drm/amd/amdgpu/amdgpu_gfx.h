@@ -30,6 +30,7 @@
 #include "clearstate_defs.h"
 #include "amdgpu_ring.h"
 #include "amdgpu_rlc.h"
+#include "amdgpu_imu.h"
 #include "soc15.h"
 #include "amdgpu_ras.h"
 
@@ -274,6 +275,7 @@ struct amdgpu_gfx {
 	struct amdgpu_me		me;
 	struct amdgpu_mec		mec;
 	struct amdgpu_kiq		kiq;
+	struct amdgpu_imu		imu;
 	struct amdgpu_scratch		scratch;
 	const struct firmware		*me_fw;	/* ME firmware */
 	uint32_t			me_fw_version;
@@ -287,6 +289,8 @@ struct amdgpu_gfx {
 	uint32_t			mec_fw_version;
 	const struct firmware		*mec2_fw; /* MEC2 firmware */
 	uint32_t			mec2_fw_version;
+	const struct firmware		*imu_fw; /* IMU firmware */
+	uint32_t			imu_fw_version;
 	uint32_t			me_feature_version;
 	uint32_t			ce_feature_version;
 	uint32_t			pfp_feature_version;

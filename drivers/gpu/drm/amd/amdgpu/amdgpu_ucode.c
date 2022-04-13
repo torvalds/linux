@@ -126,6 +126,19 @@ void amdgpu_ucode_print_gfx_hdr(const struct common_firmware_header *hdr)
 	}
 }
 
+void amdgpu_ucode_print_imu_hdr(const struct common_firmware_header *hdr)
+{
+	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
+	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+
+	DRM_DEBUG("IMU\n");
+	amdgpu_ucode_print_common_hdr(hdr);
+
+	if (version_major != 1) {
+		DRM_ERROR("Unknown GFX ucode version: %u.%u\n", version_major, version_minor);
+	}
+}
+
 void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
