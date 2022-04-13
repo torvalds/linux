@@ -362,6 +362,7 @@ void ip6_protocol_deliver_rcu(struct net *net, struct sk_buff *skb, int nexthdr,
 	const struct inet6_protocol *ipprot;
 	struct inet6_dev *idev;
 	unsigned int nhoff;
+	SKB_DR(reason);
 	bool raw;
 
 	/*
@@ -421,12 +422,16 @@ resubmit_final:
 			if (ipv6_addr_is_multicast(&hdr->daddr) &&
 			    !ipv6_chk_mcast_addr(dev, &hdr->daddr,
 						 &hdr->saddr) &&
-			    !ipv6_is_mld(skb, nexthdr, skb_network_header_len(skb)))
+			    !ipv6_is_mld(skb, nexthdr, skb_network_header_len(skb))) {
+				SKB_DR_SET(reason, IP_INADDRERRORS);
 				goto discard;
+			}
 		}
 		if (!(ipprot->flags & INET6_PROTO_NOPOLICY) &&
-		    !xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb))
+		    !xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
+			SKB_DR_SET(reason, XFRM_POLICY);
 			goto discard;
+		}
 
 		ret = INDIRECT_CALL_2(ipprot->handler, tcp_v6_rcv, udpv6_rcv,
 				      skb);
@@ -452,8 +457,11 @@ resubmit_final:
 						IPSTATS_MIB_INUNKNOWNPROTOS);
 				icmpv6_send(skb, ICMPV6_PARAMPROB,
 					    ICMPV6_UNK_NEXTHDR, nhoff);
+				SKB_DR_SET(reason, IP_NOPROTO);
+			} else {
+				SKB_DR_SET(reason, XFRM_POLICY);
 			}
-			kfree_skb(skb);
+			kfree_skb_reason(skb, reason);
 		} else {
 			__IP6_INC_STATS(net, idev, IPSTATS_MIB_INDELIVERS);
 			consume_skb(skb);
@@ -463,7 +471,7 @@ resubmit_final:
 
 discard:
 	__IP6_INC_STATS(net, idev, IPSTATS_MIB_INDISCARDS);
-	kfree_skb(skb);
+	kfree_skb_reason(skb, reason);
 }
 
 static int ip6_input_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
