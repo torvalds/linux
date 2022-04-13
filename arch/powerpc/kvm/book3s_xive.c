@@ -1785,8 +1785,7 @@ void kvmppc_xive_disable_vcpu_interrupts(struct kvm_vcpu *vcpu)
  * stale_p (because it has no easy way to address it).  Hence we have
  * to adjust stale_p before shutting down the interrupt.
  */
-void xive_cleanup_single_escalation(struct kvm_vcpu *vcpu,
-				    struct kvmppc_xive_vcpu *xc, int irq)
+void xive_cleanup_single_escalation(struct kvm_vcpu *vcpu, int irq)
 {
 	struct irq_data *d = irq_get_irq_data(irq);
 	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
@@ -1827,8 +1826,7 @@ void kvmppc_xive_cleanup_vcpu(struct kvm_vcpu *vcpu)
 	for (i = 0; i < KVMPPC_XIVE_Q_COUNT; i++) {
 		if (xc->esc_virq[i]) {
 			if (kvmppc_xive_has_single_escalation(xc->xive))
-				xive_cleanup_single_escalation(vcpu, xc,
-							xc->esc_virq[i]);
+				xive_cleanup_single_escalation(vcpu, xc->esc_virq[i]);
 			free_irq(xc->esc_virq[i], vcpu);
 			irq_dispose_mapping(xc->esc_virq[i]);
 			kfree(xc->esc_virq_names[i]);
