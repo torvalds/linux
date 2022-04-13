@@ -468,6 +468,22 @@
 	};
 };
 
+&i2c5 {
+	status = "okay";
+
+	accelerometer@18 {
+		compatible = "silan,sc7a20";
+		reg = <0x18>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PB2 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-0 = <&accelerometer_int_l>;
+		pinctrl-names = "default";
+		st,drdy-int-pin = <1>;
+		vdd-supply = <&vcc_3v3>;
+		vddio-supply = <&vcc_3v3>;
+	};
+};
+
 &i2s1_8ch {
 	pinctrl-0 = <&i2s1m0_lrcktx>, <&i2s1m0_sclktx>, <&i2s1m0_sdi0>, <&i2s1m0_sdo0>;
 	rockchip,trcm-sync-tx-only;
@@ -482,6 +498,12 @@
 };
 
 &pinctrl {
+	accelerometer {
+		accelerometer_int_l: accelerometer-int-l {
+			rockchip,pins = <3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	audio-amplifier {
 		spk_amp_enable_h: spk-amp-enable-h {
 			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
