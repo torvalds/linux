@@ -5012,11 +5012,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 #define F_(x, y)	x,
 #define FM(x)		FN_##x,
 	{ PINMUX_CFG_REG_VAR("MOD_SEL0", 0xe6060500, 32,
-			     GROUP(1, 2, 1, 2, 1, 1, 1, 1, 2, 3, 1, 1,
+			     GROUP(-1, 2, 1, 2, 1, 1, 1, 1, 2, 3, 1, 1,
 				   1, 2, 2, 1, 1, 1, 2, 1, 1, 1, 2),
 			     GROUP(
 		/* RESERVED 31 */
-		0, 0,
 		MOD_SEL0_30_29
 		MOD_SEL0_28
 		MOD_SEL0_27_26
@@ -5041,15 +5040,14 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		MOD_SEL0_1_0 ))
 	},
 	{ PINMUX_CFG_REG_VAR("MOD_SEL1", 0xe6060504, 32,
-			     GROUP(1, 1, 1, 1, 1, 1, 1, 3, 3, 1, 1, 1,
-				   1, 2, 2, 2, 1, 1, 2, 1, 4),
+			     GROUP(1, 1, 1, 1, -1, 1, 1, 3, 3, 1, 1, 1,
+				   1, 2, 2, 2, 1, 1, 2, 1, -4),
 			     GROUP(
 		MOD_SEL1_31
 		MOD_SEL1_30
 		MOD_SEL1_29
 		MOD_SEL1_28
 		/* RESERVED 27 */
-		0, 0,
 		MOD_SEL1_26
 		MOD_SEL1_25
 		MOD_SEL1_24_23_22
@@ -5065,8 +5063,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		MOD_SEL1_7
 		MOD_SEL1_6_5
 		MOD_SEL1_4
-		/* RESERVED 3, 2, 1, 0  */
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
+		/* RESERVED 3, 2, 1, 0  */ ))
 	},
 	{ },
 };
