@@ -20,6 +20,7 @@ bool rga_is_yuv422p_format(uint32_t format);
 bool rga_is_only_y_format(uint32_t format);
 
 int rga_get_format_bits(uint32_t format);
+uint32_t rga_get_pixel_stride_from_format(uint32_t format);
 
 const char *rga_get_format_name(uint32_t format);
 const char *rga_get_render_mode_str(uint8_t mode);

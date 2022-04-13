@@ -264,6 +264,8 @@ const struct rga_hw_data rga3_data = {
 	.max_upscale_factor = 3,
 	.max_downscale_factor = 3,
 
+	.byte_stride = 16,
+
 	.feature = RGA_COLOR_KEY,
 	.csc_r2y_mode = RGA_MODE_CSC_BT601L |
 		RGA_MODE_CSC_BT601F | RGA_MODE_CSC_BT709 |
@@ -286,6 +288,8 @@ const struct rga_hw_data rga2e_data = {
 	.max_upscale_factor = 4,
 	.max_downscale_factor = 4,
 
+	.byte_stride = 4,
+
 	.feature = RGA_COLOR_FILL | RGA_COLOR_PALETTE |
 			RGA_COLOR_KEY | RGA_ROP_CALCULATE |
 			RGA_NN_QUANTIZE | RGA_DITHER,
@@ -307,6 +311,8 @@ const struct rga_hw_data rga2e_1106_data = {
 	/* 1 << factor mean real factor */
 	.max_upscale_factor = 4,
 	.max_downscale_factor = 4,
+
+	.byte_stride = 4,
 
 	.feature = RGA_COLOR_FILL | RGA_COLOR_PALETTE |
 		   RGA_COLOR_KEY | RGA_ROP_CALCULATE |

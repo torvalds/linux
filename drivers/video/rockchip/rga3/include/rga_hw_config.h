@@ -46,6 +46,8 @@ struct rga_hw_data {
 	unsigned int max_upscale_factor;
 	unsigned int max_downscale_factor;
 
+	uint32_t byte_stride;
+
 	const struct rga_win_data *win;
 	unsigned int win_size;
 };

@@ -347,6 +347,76 @@ const char *rga_get_format_name(uint32_t format)
 	}
 }
 
+uint32_t rga_get_pixel_stride_from_format(uint32_t format)
+{
+	uint32_t pixel_stride = 0;
+
+	switch (format) {
+	case RGA_FORMAT_RGBA_8888:
+	case RGA_FORMAT_RGBX_8888:
+	case RGA_FORMAT_BGRA_8888:
+	case RGA_FORMAT_BGRX_8888:
+	case RGA_FORMAT_ARGB_8888:
+	case RGA_FORMAT_XRGB_8888:
+	case RGA_FORMAT_ABGR_8888:
+	case RGA_FORMAT_XBGR_8888:
+		pixel_stride = 32;
+		break;
+	case RGA_FORMAT_RGB_888:
+	case RGA_FORMAT_BGR_888:
+		pixel_stride = 24;
+		break;
+	case RGA_FORMAT_RGB_565:
+	case RGA_FORMAT_RGBA_5551:
+	case RGA_FORMAT_RGBA_4444:
+	case RGA_FORMAT_BGR_565:
+	case RGA_FORMAT_BGRA_5551:
+	case RGA_FORMAT_BGRA_4444:
+	case RGA_FORMAT_ARGB_5551:
+	case RGA_FORMAT_ARGB_4444:
+	case RGA_FORMAT_ABGR_5551:
+	case RGA_FORMAT_ABGR_4444:
+	case RGA_FORMAT_YVYU_422:
+	case RGA_FORMAT_YVYU_420:
+	case RGA_FORMAT_VYUY_422:
+	case RGA_FORMAT_VYUY_420:
+	case RGA_FORMAT_YUYV_422:
+	case RGA_FORMAT_YUYV_420:
+	case RGA_FORMAT_UYVY_422:
+	case RGA_FORMAT_UYVY_420:
+		pixel_stride = 16;
+		break;
+	case RGA_FORMAT_YCbCr_420_SP_10B:
+	case RGA_FORMAT_YCrCb_420_SP_10B:
+	case RGA_FORMAT_YCbCr_422_SP_10B:
+	case RGA_FORMAT_YCrCb_422_SP_10B:
+		pixel_stride = 10;
+		break;
+	case RGA_FORMAT_BPP1:
+	case RGA_FORMAT_BPP2:
+	case RGA_FORMAT_BPP4:
+	case RGA_FORMAT_BPP8:
+	case RGA_FORMAT_YCbCr_420_SP:
+	case RGA_FORMAT_YCbCr_420_P:
+	case RGA_FORMAT_YCrCb_420_SP:
+	case RGA_FORMAT_YCrCb_420_P:
+	case RGA_FORMAT_YCbCr_422_SP:
+	case RGA_FORMAT_YCbCr_422_P:
+	case RGA_FORMAT_YCrCb_422_SP:
+	case RGA_FORMAT_YCrCb_422_P:
+		pixel_stride = 8;
+		break;
+	case RGA_FORMAT_Y4:
+		pixel_stride = 4;
+		break;
+	default:
+		pr_err("unknown format [0x%x]\n", format);
+		return -1;
+	}
+
+	return pixel_stride;
+}
+
 const char *rga_get_render_mode_str(uint8_t mode)
 {
 	switch (mode) {
