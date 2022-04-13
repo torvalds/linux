@@ -388,12 +388,8 @@ int rtw_pwr_wakeup(struct adapter *padapter)
 	}
 
 	/* System suspend is not allowed to wakeup */
-	if (pwrpriv->bInSuspend) {
-		while (pwrpriv->bInSuspend &&
-		       (rtw_get_passing_time_ms(start) <= 3000 ||
-		       (rtw_get_passing_time_ms(start) <= 500)))
-				msleep(10);
-	}
+	while (pwrpriv->bInSuspend && rtw_get_passing_time_ms(start) <= 3000)
+		msleep(10);
 
 	/* I think this should be check in IPS, LPS, autosuspend functions... */
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
