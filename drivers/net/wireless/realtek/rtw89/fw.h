@@ -973,6 +973,36 @@ static inline void SET_CMC_TBL_ANTSEL_D(void *table, u32 val)
 	le32p_replace_bits((__le32 *)(table) + 14, SET_CMC_TBL_MASK_ANTSEL_D,
 			   BIT(31));
 }
+
+#define SET_CMC_TBL_MASK_NOMINAL_PKT_PADDING GENMASK(1, 0)
+static inline void SET_CMC_TBL_NOMINAL_PKT_PADDING_V1(void *table, u32 val)
+{
+	le32p_replace_bits((__le32 *)(table) + 7, val, GENMASK(1, 0));
+	le32p_replace_bits((__le32 *)(table) + 15, SET_CMC_TBL_MASK_NOMINAL_PKT_PADDING,
+			   GENMASK(1, 0));
+}
+
+static inline void SET_CMC_TBL_NOMINAL_PKT_PADDING40_V1(void *table, u32 val)
+{
+	le32p_replace_bits((__le32 *)(table) + 7, val, GENMASK(3, 2));
+	le32p_replace_bits((__le32 *)(table) + 15, SET_CMC_TBL_MASK_NOMINAL_PKT_PADDING,
+			   GENMASK(3, 2));
+}
+
+static inline void SET_CMC_TBL_NOMINAL_PKT_PADDING80_V1(void *table, u32 val)
+{
+	le32p_replace_bits((__le32 *)(table) + 7, val, GENMASK(5, 4));
+	le32p_replace_bits((__le32 *)(table) + 15, SET_CMC_TBL_MASK_NOMINAL_PKT_PADDING,
+			   GENMASK(5, 4));
+}
+
+static inline void SET_CMC_TBL_NOMINAL_PKT_PADDING160_V1(void *table, u32 val)
+{
+	le32p_replace_bits((__le32 *)(table) + 7, val, GENMASK(7, 6));
+	le32p_replace_bits((__le32 *)(table) + 15, SET_CMC_TBL_MASK_NOMINAL_PKT_PADDING,
+			   GENMASK(7, 6));
+}
+
 #define SET_CMC_TBL_MASK_ADDR_CAM_INDEX GENMASK(7, 0)
 static inline void SET_CMC_TBL_ADDR_CAM_INDEX(void *table, u32 val)
 {
@@ -1001,7 +1031,6 @@ static inline void SET_CMC_TBL_DOPPLER_CTRL(void *table, u32 val)
 	le32p_replace_bits((__le32 *)(table) + 15, SET_CMC_TBL_MASK_DOPPLER_CTRL,
 			   GENMASK(19, 18));
 }
-#define SET_CMC_TBL_MASK_NOMINAL_PKT_PADDING GENMASK(1, 0)
 static inline void SET_CMC_TBL_NOMINAL_PKT_PADDING(void *table, u32 val)
 {
 	le32p_replace_bits((__le32 *)(table) + 7, val, GENMASK(21, 20));
@@ -1106,13 +1135,14 @@ static inline void SET_CMC_TBL_CSI_GI_LTF(void *table, u32 val)
 	le32p_replace_bits((__le32 *)(table) + 16, SET_CMC_TBL_MASK_CSI_GI_LTF,
 			   GENMASK(27, 25));
 }
-#define SET_CMC_TBL_MASK_CSI_GID_SEL BIT(0)
-static inline void SET_CMC_TBL_CSI_GID_SEL(void *table, u32 val)
+
+static inline void SET_CMC_TBL_NOMINAL_PKT_PADDING160(void *table, u32 val)
 {
-	le32p_replace_bits((__le32 *)(table) + 8, val, BIT(29));
-	le32p_replace_bits((__le32 *)(table) + 16, SET_CMC_TBL_MASK_CSI_GID_SEL,
-			   BIT(29));
+	le32p_replace_bits((__le32 *)(table) + 8, val, GENMASK(29, 28));
+	le32p_replace_bits((__le32 *)(table) + 16, SET_CMC_TBL_MASK_NOMINAL_PKT_PADDING,
+			   GENMASK(29, 28));
 }
+
 #define SET_CMC_TBL_MASK_CSI_BW GENMASK(1, 0)
 static inline void SET_CMC_TBL_CSI_BW(void *table, u32 val)
 {
@@ -2170,6 +2200,7 @@ struct rtw89_fw_h2c_rf_reg_info {
 #define H2C_CL_MAC_FR_EXCHG		0x5
 #define H2C_FUNC_MAC_CCTLINFO_UD	0x2
 #define H2C_FUNC_MAC_BCN_UPD		0x5
+#define H2C_FUNC_MAC_CCTLINFO_UD_V1	0xa
 
 /* CLASS 6 - Address CAM */
 #define H2C_CL_MAC_ADDR_CAM_UPDATE	0x6

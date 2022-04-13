@@ -780,6 +780,7 @@ fail:
 int rtw89_fw_h2c_default_cmac_tbl(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif *rtwvif)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct sk_buff *skb;
 	u8 ntx_path = hal->antenna_tx ? hal->antenna_tx : RF_B;
@@ -794,16 +795,18 @@ int rtw89_fw_h2c_default_cmac_tbl(struct rtw89_dev *rtwdev,
 	skb_put(skb, H2C_CMC_TBL_LEN);
 	SET_CTRL_INFO_MACID(skb->data, macid);
 	SET_CTRL_INFO_OPERATION(skb->data, 1);
-	SET_CMC_TBL_TXPWR_MODE(skb->data, 0);
-	SET_CMC_TBL_NTX_PATH_EN(skb->data, ntx_path);
-	SET_CMC_TBL_PATH_MAP_A(skb->data, 0);
-	SET_CMC_TBL_PATH_MAP_B(skb->data, map_b);
-	SET_CMC_TBL_PATH_MAP_C(skb->data, 0);
-	SET_CMC_TBL_PATH_MAP_D(skb->data, 0);
-	SET_CMC_TBL_ANTSEL_A(skb->data, 0);
-	SET_CMC_TBL_ANTSEL_B(skb->data, 0);
-	SET_CMC_TBL_ANTSEL_C(skb->data, 0);
-	SET_CMC_TBL_ANTSEL_D(skb->data, 0);
+	if (chip->h2c_cctl_func_id == H2C_FUNC_MAC_CCTLINFO_UD) {
+		SET_CMC_TBL_TXPWR_MODE(skb->data, 0);
+		SET_CMC_TBL_NTX_PATH_EN(skb->data, ntx_path);
+		SET_CMC_TBL_PATH_MAP_A(skb->data, 0);
+		SET_CMC_TBL_PATH_MAP_B(skb->data, map_b);
+		SET_CMC_TBL_PATH_MAP_C(skb->data, 0);
+		SET_CMC_TBL_PATH_MAP_D(skb->data, 0);
+		SET_CMC_TBL_ANTSEL_A(skb->data, 0);
+		SET_CMC_TBL_ANTSEL_B(skb->data, 0);
+		SET_CMC_TBL_ANTSEL_C(skb->data, 0);
+		SET_CMC_TBL_ANTSEL_D(skb->data, 0);
+	}
 	SET_CMC_TBL_DOPPLER_CTRL(skb->data, 0);
 	SET_CMC_TBL_TXPWR_TOLERENCE(skb->data, 0);
 	if (rtwvif->net_type == RTW89_NET_TYPE_AP_MODE)
@@ -811,7 +814,7 @@ int rtw89_fw_h2c_default_cmac_tbl(struct rtw89_dev *rtwdev,
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC, H2C_CL_MAC_FR_EXCHG,
-			      H2C_FUNC_MAC_CCTLINFO_UD, 0, 1,
+			      chip->h2c_cctl_func_id, 0, 1,
 			      H2C_CMC_TBL_LEN);
 
 	if (rtw89_h2c_tx(rtwdev, skb, false)) {
@@ -851,6 +854,8 @@ static void __get_sta_he_pkt_padding(struct rtw89_dev *rtwdev,
 
 		for (i = 0; i < RTW89_PPE_BW_NUM; i++)
 			pads[i] = pad;
+
+		return;
 	}
 
 	ru_bitmap = FIELD_GET(IEEE80211_PPE_THRES_RU_INDEX_BITMASK_MASK, ppe_thres_hdr);
@@ -885,6 +890,7 @@ int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
@@ -917,9 +923,17 @@ int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 	else
 		SET_CMC_TBL_ULDL(skb->data, 0);
 	SET_CMC_TBL_MULTI_PORT_ID(skb->data, rtwvif->port);
-	SET_CMC_TBL_NOMINAL_PKT_PADDING(skb->data, pads[RTW89_CHANNEL_WIDTH_20]);
-	SET_CMC_TBL_NOMINAL_PKT_PADDING40(skb->data, pads[RTW89_CHANNEL_WIDTH_40]);
-	SET_CMC_TBL_NOMINAL_PKT_PADDING80(skb->data, pads[RTW89_CHANNEL_WIDTH_80]);
+	if (chip->h2c_cctl_func_id == H2C_FUNC_MAC_CCTLINFO_UD_V1) {
+		SET_CMC_TBL_NOMINAL_PKT_PADDING_V1(skb->data, pads[RTW89_CHANNEL_WIDTH_20]);
+		SET_CMC_TBL_NOMINAL_PKT_PADDING40_V1(skb->data, pads[RTW89_CHANNEL_WIDTH_40]);
+		SET_CMC_TBL_NOMINAL_PKT_PADDING80_V1(skb->data, pads[RTW89_CHANNEL_WIDTH_80]);
+		SET_CMC_TBL_NOMINAL_PKT_PADDING160_V1(skb->data, pads[RTW89_CHANNEL_WIDTH_160]);
+	} else if (chip->h2c_cctl_func_id == H2C_FUNC_MAC_CCTLINFO_UD) {
+		SET_CMC_TBL_NOMINAL_PKT_PADDING(skb->data, pads[RTW89_CHANNEL_WIDTH_20]);
+		SET_CMC_TBL_NOMINAL_PKT_PADDING40(skb->data, pads[RTW89_CHANNEL_WIDTH_40]);
+		SET_CMC_TBL_NOMINAL_PKT_PADDING80(skb->data, pads[RTW89_CHANNEL_WIDTH_80]);
+		SET_CMC_TBL_NOMINAL_PKT_PADDING160(skb->data, pads[RTW89_CHANNEL_WIDTH_160]);
+	}
 	if (sta)
 		SET_CMC_TBL_BSR_QUEUE_SIZE_FORMAT(skb->data,
 						  sta->deflink.he_cap.has_he);
@@ -928,7 +942,7 @@ int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC, H2C_CL_MAC_FR_EXCHG,
-			      H2C_FUNC_MAC_CCTLINFO_UD, 0, 1,
+			      chip->h2c_cctl_func_id, 0, 1,
 			      H2C_CMC_TBL_LEN);
 
 	if (rtw89_h2c_tx(rtwdev, skb, false)) {
@@ -946,6 +960,7 @@ fail:
 int rtw89_fw_h2c_txtime_cmac_tbl(struct rtw89_dev *rtwdev,
 				 struct rtw89_sta *rtwsta)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct sk_buff *skb;
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_CMC_TBL_LEN);
@@ -967,7 +982,7 @@ int rtw89_fw_h2c_txtime_cmac_tbl(struct rtw89_dev *rtwdev,
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC, H2C_CL_MAC_FR_EXCHG,
-			      H2C_FUNC_MAC_CCTLINFO_UD, 0, 1,
+			      chip->h2c_cctl_func_id, 0, 1,
 			      H2C_CMC_TBL_LEN);
 
 	if (rtw89_h2c_tx(rtwdev, skb, false)) {

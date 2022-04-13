@@ -578,7 +578,7 @@ enum rtw89_ps_mode {
 #define RTW89_2G_BW_NUM (RTW89_CHANNEL_WIDTH_40 + 1)
 #define RTW89_5G_BW_NUM (RTW89_CHANNEL_WIDTH_160 + 1)
 #define RTW89_6G_BW_NUM (RTW89_CHANNEL_WIDTH_160 + 1)
-#define RTW89_PPE_BW_NUM (RTW89_CHANNEL_WIDTH_80 + 1)
+#define RTW89_PPE_BW_NUM (RTW89_CHANNEL_WIDTH_160 + 1)
 
 enum rtw89_ru_bandwidth {
 	RTW89_RU26 = 0,
@@ -2413,6 +2413,7 @@ struct rtw89_chip_info {
 	const struct rtw89_btc_rf_trx_para *rf_para_dlink;
 	u8 ps_mode_supported;
 
+	u32 h2c_cctl_func_id;
 	u32 hci_func_en_addr;
 	u32 h2c_desc_size;
 	u32 txwd_body_size;

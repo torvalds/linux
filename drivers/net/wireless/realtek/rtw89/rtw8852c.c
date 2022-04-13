@@ -667,6 +667,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.dav_log_efuse_size	= 16,
 	.phycap_addr		= 0x590,
 	.phycap_size		= 0x60,
+	.h2c_cctl_func_id	= H2C_FUNC_MAC_CCTLINFO_UD_V1,
 	.hci_func_en_addr	= R_AX_HCI_FUNC_EN_V1,
 	.h2c_desc_size		= sizeof(struct rtw89_rxdesc_short),
 	.txwd_body_size		= sizeof(struct rtw89_txwd_body_v1),
