@@ -69,6 +69,7 @@
 #include "jpeg_v3_0.h"
 #include "amdgpu_vkms.h"
 #include "mes_v10_1.h"
+#include "mes_v11_0.h"
 #include "smuio_v11_0.h"
 #include "smuio_v11_0_6.h"
 #include "smuio_v13_0.h"
@@ -1873,7 +1874,17 @@ static int amdgpu_discovery_set_mes_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(10, 3, 4):
 	case IP_VERSION(10, 3, 5):
 	case IP_VERSION(10, 3, 6):
-		amdgpu_device_ip_block_add(adev, &mes_v10_1_ip_block);
+		if (amdgpu_mes) {
+			amdgpu_device_ip_block_add(adev, &mes_v10_1_ip_block);
+			adev->enable_mes = true;
+			if (amdgpu_mes_kiq)
+				adev->enable_mes_kiq = true;
+		}
+		break;
+	case IP_VERSION(11, 0, 0):
+		amdgpu_device_ip_block_add(adev, &mes_v11_0_ip_block);
+		adev->enable_mes = true;
+		adev->enable_mes_kiq = true;
 		break;
 	default:
 		break;
@@ -2308,11 +2319,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	if (adev->enable_mes) {
-		r = amdgpu_discovery_set_mes_ip_blocks(adev);
-		if (r)
-			return r;
-	}
+	r = amdgpu_discovery_set_mes_ip_blocks(adev);
+	if (r)
+		return r;
 
 	return 0;
 }
