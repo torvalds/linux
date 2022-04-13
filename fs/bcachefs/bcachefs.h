@@ -518,7 +518,6 @@ enum {
 	/* misc: */
 	BCH_FS_NEED_ANOTHER_GC,
 	BCH_FS_DELETED_NODES,
-	BCH_FS_REBUILD_REPLICAS,
 };
 
 struct btree_debug {

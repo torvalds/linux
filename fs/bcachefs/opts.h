@@ -316,11 +316,6 @@ enum opt_type {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Don't replay the journal")			\
-	x(rebuild_replicas,		u8,				\
-	  OPT_FS|OPT_MOUNT,						\
-	  OPT_BOOL(),							\
-	  BCH2_NO_SB_OPT,		false,				\
-	  NULL,		"Rebuild the superblock replicas section")	\
 	x(keep_journal,			u8,				\
 	  0,								\
 	  OPT_BOOL(),							\

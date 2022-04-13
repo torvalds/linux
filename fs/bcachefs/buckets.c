@@ -382,10 +382,9 @@ static inline int update_replicas(struct bch_fs *c, struct bkey_s_c k,
 
 	idx = bch2_replicas_entry_idx(c, r);
 	if (idx < 0 &&
-	    (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
-	     fsck_err(c, "no replicas entry\n"
-		      "  while marking %s",
-		      (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))) {
+	    fsck_err(c, "no replicas entry\n"
+		     "  while marking %s",
+		     (bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 		percpu_up_read(&c->mark_lock);
 		ret = bch2_mark_replicas(c, r);
 		percpu_down_read(&c->mark_lock);

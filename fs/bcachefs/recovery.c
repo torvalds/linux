@@ -1087,12 +1087,6 @@ int bch2_fs_recovery(struct bch_fs *c)
 		c->opts.fix_errors = FSCK_OPT_YES;
 	}
 
-	if (!c->replicas.entries ||
-	    c->opts.rebuild_replicas) {
-		bch_info(c, "building replicas info");
-		set_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
-	}
-
 	if (!c->opts.nochanges) {
 		if (c->sb.version < bcachefs_metadata_version_new_data_types) {
 			bch_info(c, "version prior to new_data_types, upgrade and fsck required");
@@ -1224,10 +1218,7 @@ use_clean:
 	if (!c->opts.fsck)
 		set_bit(BCH_FS_FSCK_DONE, &c->flags);
 
-	if (c->opts.fsck ||
-	    !(c->sb.compat & (1ULL << BCH_COMPAT_alloc_info)) ||
-	    !(c->sb.compat & (1ULL << BCH_COMPAT_alloc_metadata)) ||
-	    test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags)) {
+	if (c->opts.fsck) {
 		bool metadata_only = c->opts.norecovery;
 
 		bch_info(c, "checking allocations");
@@ -1236,24 +1227,24 @@ use_clean:
 		if (ret)
 			goto err;
 		bch_verbose(c, "done checking allocations");
-	}
 
-	if (c->opts.fsck) {
 		bch_info(c, "checking need_discard and freespace btrees");
 		err = "error checking need_discard and freespace btrees";
 		ret = bch2_check_alloc_info(c);
 		if (ret)
 			goto err;
+		bch_verbose(c, "done checking need_discard and freespace btrees");
 
+		bch_info(c, "checking lrus");
+		err = "error checking lrus";
 		ret = bch2_check_lrus(c, true);
 		if (ret)
 			goto err;
-		bch_verbose(c, "done checking need_discard and freespace btrees");
+		bch_verbose(c, "done checking lrus");
 	}
 
 	bch2_stripes_heap_start(c);
 
-	clear_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
 	set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
 	set_bit(BCH_FS_MAY_GO_RW, &c->flags);
 
