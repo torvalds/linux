@@ -59,6 +59,8 @@ enum MES_SCH_API_OPCODE {
 	MES_SCH_API_PROGRAM_GDS			= 12,
 	MES_SCH_API_SET_DEBUG_VMID		= 13,
 	MES_SCH_API_MISC			= 14,
+	MES_SCH_API_UPDATE_ROOT_PAGE_TABLE      = 15,
+	MES_SCH_API_AMD_LOG                     = 16,
 	MES_SCH_API_MAX				= 0xFF
 };
 
@@ -116,7 +118,12 @@ enum { MAX_VMID_GCHUB = 16 };
 enum { MAX_VMID_MMHUB = 16 };
 
 enum MES_LOG_OPERATION {
-	MES_LOG_OPERATION_CONTEXT_STATE_CHANGE = 0
+	MES_LOG_OPERATION_CONTEXT_STATE_CHANGE = 0,
+	MES_LOG_OPERATION_QUEUE_NEW_WORK = 1,
+	MES_LOG_OPERATION_QUEUE_UNWAIT_SYNC_OBJECT = 2,
+	MES_LOG_OPERATION_QUEUE_NO_MORE_WORK = 3,
+	MES_LOG_OPERATION_QUEUE_WAIT_SYNC_OBJECT = 4,
+	MES_LOG_OPERATION_QUEUE_INVALID = 0xF,
 };
 
 enum MES_LOG_CONTEXT_STATE {
@@ -124,11 +131,32 @@ enum MES_LOG_CONTEXT_STATE {
 	MES_LOG_CONTEXT_STATE_RUNNING		= 1,
 	MES_LOG_CONTEXT_STATE_READY		= 2,
 	MES_LOG_CONTEXT_STATE_READY_STANDBY	= 3,
+	MES_LOG_CONTEXT_STATE_INVALID           = 0xF,
 };
 
 struct MES_LOG_CONTEXT_STATE_CHANGE {
 	void				*h_context;
 	enum MES_LOG_CONTEXT_STATE	new_context_state;
+};
+
+struct MES_LOG_QUEUE_NEW_WORK {
+	uint64_t                   h_queue;
+	uint64_t                   reserved;
+};
+
+struct MES_LOG_QUEUE_UNWAIT_SYNC_OBJECT {
+	uint64_t                   h_queue;
+	uint64_t                   h_sync_object;
+};
+
+struct MES_LOG_QUEUE_NO_MORE_WORK {
+	uint64_t                   h_queue;
+	uint64_t                   reserved;
+};
+
+struct MES_LOG_QUEUE_WAIT_SYNC_OBJECT {
+	uint64_t                   h_queue;
+	uint64_t                   h_sync_object;
 };
 
 struct MES_LOG_ENTRY_HEADER {
@@ -143,14 +171,22 @@ struct MES_LOG_ENTRY_DATA {
 	uint32_t	operation_type; /* operation_type is of MES_LOG_OPERATION type */
 	uint32_t	reserved_operation_type_bits;
 	union {
-		struct MES_LOG_CONTEXT_STATE_CHANGE	context_state_change;
-		uint64_t				reserved_operation_data[2];
+		struct MES_LOG_CONTEXT_STATE_CHANGE     context_state_change;
+		struct MES_LOG_QUEUE_NEW_WORK           queue_new_work;
+		struct MES_LOG_QUEUE_UNWAIT_SYNC_OBJECT queue_unwait_sync_object;
+		struct MES_LOG_QUEUE_NO_MORE_WORK       queue_no_more_work;
+		struct MES_LOG_QUEUE_WAIT_SYNC_OBJECT   queue_wait_sync_object;
+		uint64_t                                all[2];
 	};
 };
 
 struct MES_LOG_BUFFER {
 	struct MES_LOG_ENTRY_HEADER	header;
 	struct MES_LOG_ENTRY_DATA	entries[1];
+};
+
+enum MES_SWIP_TO_HWIP_DEF {
+	MES_MAX_HWIP_SEGMENT = 6,
 };
 
 union MESAPI_SET_HW_RESOURCES {
@@ -163,14 +199,26 @@ union MESAPI_SET_HW_RESOURCES {
 		uint32_t		compute_hqd_mask[MAX_COMPUTE_PIPES];
 		uint32_t		gfx_hqd_mask[MAX_GFX_PIPES];
 		uint32_t		sdma_hqd_mask[MAX_SDMA_PIPES];
-		uint32_t		agreegated_doorbells[AMD_PRIORITY_NUM_LEVELS];
+		uint32_t		aggregated_doorbells[AMD_PRIORITY_NUM_LEVELS];
 		uint64_t		g_sch_ctx_gpu_mc_ptr;
 		uint64_t		query_status_fence_gpu_mc_ptr;
+		uint32_t		gc_base[MES_MAX_HWIP_SEGMENT];
+		uint32_t		mmhub_base[MES_MAX_HWIP_SEGMENT];
+		uint32_t		osssys_base[MES_MAX_HWIP_SEGMENT];
 		struct MES_API_STATUS	api_status;
 		union {
 			struct {
 				uint32_t disable_reset	: 1;
-				uint32_t reserved	: 31;
+				uint32_t use_different_vmid_compute : 1;
+				uint32_t disable_mes_log   : 1;
+				uint32_t apply_mmhub_pgvm_invalidate_ack_loss_wa : 1;
+				uint32_t apply_grbm_remote_register_dummy_read_wa : 1;
+				uint32_t second_gfx_pipe_enabled : 1;
+				uint32_t enable_level_process_quantum_check : 1;
+				uint32_t apply_cwsr_program_all_vmid_sq_shader_tba_registers_wa : 1;
+				uint32_t enable_mqd_active_poll : 1;
+				uint32_t disable_timer_int : 1;
+				uint32_t reserved	: 22;
 			};
 			uint32_t	uint32_t_all;
 		};
@@ -195,12 +243,16 @@ union MESAPI__ADD_QUEUE {
 		uint32_t			doorbell_offset;
 		uint64_t			mqd_addr;
 		uint64_t			wptr_addr;
+		uint64_t                        h_context;
+		uint64_t                        h_queue;
 		enum MES_QUEUE_TYPE		queue_type;
 		uint32_t			gds_base;
 		uint32_t			gds_size;
 		uint32_t			gws_base;
 		uint32_t			gws_size;
 		uint32_t			oa_mask;
+		uint64_t                        trap_handler_addr;
+		uint32_t                        vm_context_cntl;
 
 		struct {
 			uint32_t paging			: 1;
@@ -208,7 +260,8 @@ union MESAPI__ADD_QUEUE {
 			uint32_t program_gds		: 1;
 			uint32_t is_gang_suspended	: 1;
 			uint32_t is_tmz_queue		: 1;
-			uint32_t reserved		: 24;
+			uint32_t map_kiq_utility_queue  : 1;
+			uint32_t reserved		: 23;
 		};
 		struct MES_API_STATUS		api_status;
 	};
@@ -223,10 +276,18 @@ union MESAPI__REMOVE_QUEUE {
 		uint64_t		gang_context_addr;
 
 		struct {
-			uint32_t unmap_legacy_gfx_queue	: 1;
-			uint32_t reserved		: 31;
+			uint32_t unmap_legacy_gfx_queue   : 1;
+			uint32_t unmap_kiq_utility_queue  : 1;
+			uint32_t preempt_legacy_gfx_queue : 1;
+			uint32_t reserved                 : 29;
 		};
-		struct MES_API_STATUS	api_status;
+		struct MES_API_STATUS	    api_status;
+
+		uint32_t                    pipe_id;
+		uint32_t                    queue_id;
+
+		uint64_t                    tf_addr;
+		uint32_t                    tf_data;
 	};
 
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -321,16 +382,45 @@ union MESAPI__RESUME {
 
 union MESAPI__RESET {
 	struct {
-		union MES_API_HEADER	header;
+		union MES_API_HEADER		header;
 
 		struct {
-			uint32_t reset_queue	: 1;
-			uint32_t reserved	: 31;
+			/* Only reset the queue given by doorbell_offset (not entire gang) */
+			uint32_t                reset_queue_only : 1;
+			/* Hang detection first then reset any queues that are hung */
+			uint32_t                hang_detect_then_reset : 1;
+			/* Only do hang detection (no reset) */
+			uint32_t                hang_detect_only : 1;
+			/* Rest HP and LP kernel queues not managed by MES */
+			uint32_t                reset_legacy_gfx : 1;
+			uint32_t                reserved : 28;
 		};
 
-		uint64_t		gang_context_addr;
-		uint32_t		doorbell_offset; /* valid only if reset_queue = true */
-		struct MES_API_STATUS	api_status;
+		uint64_t			gang_context_addr;
+
+		/* valid only if reset_queue_only = true */
+		uint32_t			doorbell_offset;
+
+		/* valid only if hang_detect_then_reset = true */
+		uint64_t			doorbell_offset_addr;
+		enum MES_QUEUE_TYPE		queue_type;
+
+		/* valid only if reset_legacy_gfx = true */
+		uint32_t			pipe_id_lp;
+		uint32_t			queue_id_lp;
+		uint32_t			vmid_id_lp;
+		uint64_t			mqd_mc_addr_lp;
+		uint32_t			doorbell_offset_lp;
+		uint64_t			wptr_addr_lp;
+
+		uint32_t			pipe_id_hp;
+		uint32_t			queue_id_hp;
+		uint32_t			vmid_id_hp;
+		uint64_t			mqd_mc_addr_hp;
+		uint32_t			doorbell_offset_hp;
+		uint64_t			wptr_addr_hp;
+
+		struct MES_API_STATUS		api_status;
 	};
 
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -408,6 +498,8 @@ union MESAPI__SET_DEBUG_VMID {
 
 enum MESAPI_MISC_OPCODE {
 	MESAPI_MISC__MODIFY_REG,
+	MESAPI_MISC__INV_GART,
+	MESAPI_MISC__QUERY_STATUS,
 	MESAPI_MISC__MAX,
 };
 
@@ -420,6 +512,21 @@ enum MODIFY_REG_SUBCODE {
 
 enum { MISC_DATA_MAX_SIZE_IN_DWORDS = 20 };
 
+struct MODIFY_REG {
+	enum MODIFY_REG_SUBCODE   subcode;
+	uint32_t                  reg_offset;
+	uint32_t                  reg_value;
+};
+
+struct INV_GART {
+	uint64_t                  inv_range_va_start;
+	uint64_t                  inv_range_size;
+};
+
+struct QUERY_STATUS {
+	uint32_t context_id;
+};
+
 union MESAPI__MISC {
 	struct {
 		union MES_API_HEADER	header;
@@ -427,16 +534,36 @@ union MESAPI__MISC {
 		struct MES_API_STATUS	api_status;
 
 		union {
-			struct {
-				enum MODIFY_REG_SUBCODE	subcode;
-				uint32_t		reg_offset;
-				uint32_t		reg_value;
-			} modify_reg;
+			struct		MODIFY_REG modify_reg;
+			struct		INV_GART inv_gart;
+			struct		QUERY_STATUS query_status;
 			uint32_t	data[MISC_DATA_MAX_SIZE_IN_DWORDS];
 		};
 	};
 
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
+};
+
+union MESAPI__UPDATE_ROOT_PAGE_TABLE {
+	struct {
+		union MES_API_HEADER        header;
+		uint64_t                    page_table_base_addr;
+		uint64_t                    process_context_addr;
+		struct MES_API_STATUS       api_status;
+	};
+
+	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
+};
+
+union MESAPI_AMD_LOG {
+	struct {
+		union MES_API_HEADER        header;
+		uint64_t                    p_buffer_memory;
+		uint64_t                    p_buffer_size_used;
+		struct MES_API_STATUS       api_status;
+	};
+
+	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
 };
 
 #pragma pack(pop)

@@ -133,6 +133,8 @@ static int mes_v10_1_add_hw_queue(struct amdgpu_mes *mes,
 {
 	struct amdgpu_device *adev = mes->adev;
 	union MESAPI__ADD_QUEUE mes_add_queue_pkt;
+	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB_0];
+	uint32_t vm_cntx_cntl = hub->vm_cntx_cntl;
 
 	memset(&mes_add_queue_pkt, 0, sizeof(mes_add_queue_pkt));
 
@@ -141,8 +143,7 @@ static int mes_v10_1_add_hw_queue(struct amdgpu_mes *mes,
 	mes_add_queue_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
 
 	mes_add_queue_pkt.process_id = input->process_id;
-	mes_add_queue_pkt.page_table_base_addr =
-		input->page_table_base_addr - adev->gmc.vram_start;
+	mes_add_queue_pkt.page_table_base_addr = input->page_table_base_addr;
 	mes_add_queue_pkt.process_va_start = input->process_va_start;
 	mes_add_queue_pkt.process_va_end = input->process_va_end;
 	mes_add_queue_pkt.process_quantum = input->process_quantum;
@@ -159,6 +160,10 @@ static int mes_v10_1_add_hw_queue(struct amdgpu_mes *mes,
 	mes_add_queue_pkt.queue_type =
 		convert_to_mes_queue_type(input->queue_type);
 	mes_add_queue_pkt.paging = input->paging;
+	mes_add_queue_pkt.vm_context_cntl = vm_cntx_cntl;
+	mes_add_queue_pkt.gws_base = input->gws_base;
+	mes_add_queue_pkt.gws_size = input->gws_size;
+	mes_add_queue_pkt.trap_handler_addr = input->tba_addr;
 
 	mes_add_queue_pkt.api_status.api_completion_fence_addr =
 		mes->ring.fence_drv.gpu_addr;
@@ -182,6 +187,44 @@ static int mes_v10_1_remove_hw_queue(struct amdgpu_mes *mes,
 
 	mes_remove_queue_pkt.doorbell_offset = input->doorbell_offset;
 	mes_remove_queue_pkt.gang_context_addr = input->gang_context_addr;
+
+	mes_remove_queue_pkt.api_status.api_completion_fence_addr =
+		mes->ring.fence_drv.gpu_addr;
+	mes_remove_queue_pkt.api_status.api_completion_fence_value =
+		++mes->ring.fence_drv.sync_seq;
+
+	return mes_v10_1_submit_pkt_and_poll_completion(mes,
+			&mes_remove_queue_pkt, sizeof(mes_remove_queue_pkt));
+}
+
+static int mes_v10_1_unmap_legacy_queue(struct amdgpu_mes *mes,
+				 struct mes_unmap_legacy_queue_input *input)
+{
+	union MESAPI__REMOVE_QUEUE mes_remove_queue_pkt;
+
+	memset(&mes_remove_queue_pkt, 0, sizeof(mes_remove_queue_pkt));
+
+	mes_remove_queue_pkt.header.type = MES_API_TYPE_SCHEDULER;
+	mes_remove_queue_pkt.header.opcode = MES_SCH_API_REMOVE_QUEUE;
+	mes_remove_queue_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
+
+	mes_remove_queue_pkt.doorbell_offset = input->doorbell_offset;
+	mes_remove_queue_pkt.gang_context_addr = 0;
+
+	mes_remove_queue_pkt.pipe_id = input->pipe_id;
+	mes_remove_queue_pkt.queue_id = input->queue_id;
+
+	if (input->action == PREEMPT_QUEUES_NO_UNMAP) {
+		mes_remove_queue_pkt.preempt_legacy_gfx_queue = 1;
+		mes_remove_queue_pkt.tf_addr = input->trail_fence_addr;
+		mes_remove_queue_pkt.tf_data =
+			lower_32_bits(input->trail_fence_data);
+	} else {
+		if (input->queue_type == AMDGPU_RING_TYPE_GFX)
+			mes_remove_queue_pkt.unmap_legacy_gfx_queue = 1;
+		else
+			mes_remove_queue_pkt.unmap_kiq_utility_queue = 1;
+	}
 
 	mes_remove_queue_pkt.api_status.api_completion_fence_addr =
 		mes->ring.fence_drv.gpu_addr;
@@ -254,8 +297,20 @@ static int mes_v10_1_set_hw_resources(struct amdgpu_mes *mes)
 		mes_set_hw_res_pkt.sdma_hqd_mask[i] = mes->sdma_hqd_mask[i];
 
 	for (i = 0; i < AMD_PRIORITY_NUM_LEVELS; i++)
-		mes_set_hw_res_pkt.agreegated_doorbells[i] =
+		mes_set_hw_res_pkt.aggregated_doorbells[i] =
 			mes->agreegated_doorbells[i];
+
+	for (i = 0; i < 5; i++) {
+		mes_set_hw_res_pkt.gc_base[i] = adev->reg_offset[GC_HWIP][0][i];
+		mes_set_hw_res_pkt.mmhub_base[i] =
+			adev->reg_offset[MMHUB_HWIP][0][i];
+		mes_set_hw_res_pkt.osssys_base[i] =
+			adev->reg_offset[OSSSYS_HWIP][0][i];
+	}
+
+	mes_set_hw_res_pkt.disable_reset = 1;
+	mes_set_hw_res_pkt.disable_mes_log = 1;
+	mes_set_hw_res_pkt.use_different_vmid_compute = 1;
 
 	mes_set_hw_res_pkt.api_status.api_completion_fence_addr =
 		mes->ring.fence_drv.gpu_addr;
@@ -269,6 +324,7 @@ static int mes_v10_1_set_hw_resources(struct amdgpu_mes *mes)
 static const struct amdgpu_mes_funcs mes_v10_1_funcs = {
 	.add_hw_queue = mes_v10_1_add_hw_queue,
 	.remove_hw_queue = mes_v10_1_remove_hw_queue,
+	.unmap_legacy_queue = mes_v10_1_unmap_legacy_queue,
 	.suspend_gang = mes_v10_1_suspend_gang,
 	.resume_gang = mes_v10_1_resume_gang,
 };
@@ -1096,6 +1152,13 @@ static int mes_v10_1_hw_init(void *handle)
 		DRM_ERROR("MES is busy\n");
 		goto failure;
 	}
+
+	/*
+	 * Disable KIQ ring usage from the driver once MES is enabled.
+	 * MES uses KIQ ring exclusively so driver cannot access KIQ ring
+	 * with MES enabled.
+	 */
+	adev->gfx.kiq.ring.sched.ready = false;
 
 	return 0;
 

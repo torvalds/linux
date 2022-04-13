@@ -56,7 +56,7 @@ enum admgpu_mes_pipe {
 struct amdgpu_mes {
 	struct amdgpu_device            *adev;
 
-	struct mutex                    mutex;
+	struct mutex                    mutex_hidden;
 
 	struct idr                      pasid_idr;
 	struct idr                      gang_id_idr;
@@ -109,9 +109,11 @@ struct amdgpu_mes {
 	uint32_t			query_status_fence_offs;
 	uint64_t			query_status_fence_gpu_addr;
 	uint64_t			*query_status_fence_ptr;
+	uint32_t			saved_flags;
 
 	/* initialize kiq pipe */
 	int                             (*kiq_hw_init)(struct amdgpu_device *adev);
+	int                             (*kiq_hw_fini)(struct amdgpu_device *adev);
 
 	/* ip specific functions */
 	const struct amdgpu_mes_funcs   *funcs;
@@ -198,11 +200,25 @@ struct mes_add_queue_input {
 	uint64_t	wptr_addr;
 	uint32_t	queue_type;
 	uint32_t	paging;
+	uint32_t        gws_base;
+	uint32_t        gws_size;
+	uint64_t	tba_addr;
+	uint64_t	tma_addr;
 };
 
 struct mes_remove_queue_input {
 	uint32_t	doorbell_offset;
 	uint64_t	gang_context_addr;
+};
+
+struct mes_unmap_legacy_queue_input {
+	enum amdgpu_unmap_queues_action    action;
+	uint32_t                           queue_type;
+	uint32_t                           doorbell_offset;
+	uint32_t                           pipe_id;
+	uint32_t                           queue_id;
+	uint64_t                           trail_fence_addr;
+	uint64_t                           trail_fence_data;
 };
 
 struct mes_suspend_gang_input {
@@ -224,6 +240,9 @@ struct amdgpu_mes_funcs {
 	int (*remove_hw_queue)(struct amdgpu_mes *mes,
 			       struct mes_remove_queue_input *input);
 
+	int (*unmap_legacy_queue)(struct amdgpu_mes *mes,
+				  struct mes_unmap_legacy_queue_input *input);
+
 	int (*suspend_gang)(struct amdgpu_mes *mes,
 			    struct mes_suspend_gang_input *input);
 
@@ -232,6 +251,7 @@ struct amdgpu_mes_funcs {
 };
 
 #define amdgpu_mes_kiq_hw_init(adev) (adev)->mes.kiq_hw_init((adev))
+#define amdgpu_mes_kiq_hw_fini(adev) (adev)->mes.kiq_hw_fini((adev))
 
 int amdgpu_mes_ctx_get_offs(struct amdgpu_ring *ring, unsigned int id_offs);
 
@@ -254,6 +274,11 @@ int amdgpu_mes_add_hw_queue(struct amdgpu_device *adev, int gang_id,
 			    struct amdgpu_mes_queue_properties *qprops,
 			    int *queue_id);
 int amdgpu_mes_remove_hw_queue(struct amdgpu_device *adev, int queue_id);
+
+int amdgpu_mes_unmap_legacy_queue(struct amdgpu_device *adev,
+				  struct amdgpu_ring *ring,
+				  enum amdgpu_unmap_queues_action action,
+				  u64 gpu_addr, u64 seq);
 
 int amdgpu_mes_add_ring(struct amdgpu_device *adev, int gang_id,
 			int queue_type, int idx,
@@ -280,4 +305,62 @@ unsigned int amdgpu_mes_get_doorbell_dw_offset_in_bar(
 					uint32_t doorbell_index,
 					unsigned int doorbell_id);
 int amdgpu_mes_doorbell_process_slice(struct amdgpu_device *adev);
+
+/*
+ * MES lock can be taken in MMU notifiers.
+ *
+ * A bit more detail about why to set no-FS reclaim with MES lock:
+ *
+ * The purpose of the MMU notifier is to stop GPU access to memory so
+ * that the Linux VM subsystem can move pages around safely. This is
+ * done by preempting user mode queues for the affected process. When
+ * MES is used, MES lock needs to be taken to preempt the queues.
+ *
+ * The MMU notifier callback entry point in the driver is
+ * amdgpu_mn_invalidate_range_start_hsa. The relevant call chain from
+ * there is:
+ * amdgpu_amdkfd_evict_userptr -> kgd2kfd_quiesce_mm ->
+ * kfd_process_evict_queues -> pdd->dev->dqm->ops.evict_process_queues
+ *
+ * The last part of the chain is a function pointer where we take the
+ * MES lock.
+ *
+ * The problem with taking locks in the MMU notifier is, that MMU
+ * notifiers can be called in reclaim-FS context. That's where the
+ * kernel frees up pages to make room for new page allocations under
+ * memory pressure. While we are running in reclaim-FS context, we must
+ * not trigger another memory reclaim operation because that would
+ * recursively reenter the reclaim code and cause a deadlock. The
+ * memalloc_nofs_save/restore calls guarantee that.
+ *
+ * In addition we also need to avoid lock dependencies on other locks taken
+ * under the MES lock, for example reservation locks. Here is a possible
+ * scenario of a deadlock:
+ * Thread A: takes and holds reservation lock | triggers reclaim-FS |
+ * MMU notifier | blocks trying to take MES lock
+ * Thread B: takes and holds MES lock | blocks trying to take reservation lock
+ *
+ * In this scenario Thread B gets involved in a deadlock even without
+ * triggering a reclaim-FS operation itself.
+ * To fix this and break the lock dependency chain you'd need to either:
+ * 1. protect reservation locks with memalloc_nofs_save/restore, or
+ * 2. avoid taking reservation locks under the MES lock.
+ *
+ * Reservation locks are taken all over the kernel in different subsystems, we
+ * have no control over them and their lock dependencies.So the only workable
+ * solution is to avoid taking other locks under the MES lock.
+ * As a result, make sure no reclaim-FS happens while holding this lock anywhere
+ * to prevent deadlocks when an MMU notifier runs in reclaim-FS context.
+ */
+static inline void amdgpu_mes_lock(struct amdgpu_mes *mes)
+{
+	mutex_lock(&mes->mutex_hidden);
+	mes->saved_flags = memalloc_noreclaim_save();
+}
+
+static inline void amdgpu_mes_unlock(struct amdgpu_mes *mes)
+{
+	memalloc_noreclaim_restore(mes->saved_flags);
+	mutex_unlock(&mes->mutex_hidden);
+}
 #endif /* __AMDGPU_MES_H__ */
