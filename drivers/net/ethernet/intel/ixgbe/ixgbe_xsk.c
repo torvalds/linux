@@ -303,21 +303,22 @@ int ixgbe_clean_rx_irq_zc(struct ixgbe_q_vector *q_vector,
 		xsk_buff_dma_sync_for_cpu(bi->xdp, rx_ring->xsk_pool);
 		xdp_res = ixgbe_run_xdp_zc(adapter, rx_ring, bi->xdp);
 
-		if (xdp_res) {
-			if (xdp_res & (IXGBE_XDP_TX | IXGBE_XDP_REDIR))
-				xdp_xmit |= xdp_res;
-			else
-				xsk_buff_free(bi->xdp);
+		if (likely(xdp_res & (IXGBE_XDP_TX | IXGBE_XDP_REDIR)))
+			xdp_xmit |= xdp_res;
+		else if (xdp_res == IXGBE_XDP_CONSUMED)
+			xsk_buff_free(bi->xdp);
+		else
+			goto construct_skb;
 
-			bi->xdp = NULL;
-			total_rx_packets++;
-			total_rx_bytes += size;
+		bi->xdp = NULL;
+		total_rx_packets++;
+		total_rx_bytes += size;
 
-			cleaned_count++;
-			ixgbe_inc_ntc(rx_ring);
-			continue;
-		}
+		cleaned_count++;
+		ixgbe_inc_ntc(rx_ring);
+		continue;
 
+construct_skb:
 		/* XDP_PASS path */
 		skb = ixgbe_construct_skb_zc(rx_ring, bi->xdp);
 		if (!skb) {
