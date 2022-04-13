@@ -540,9 +540,13 @@ ice_run_xdp_zc(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
 
 	if (likely(act == XDP_REDIRECT)) {
 		err = xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog);
-		if (err)
-			goto out_failure;
-		return ICE_XDP_REDIR;
+		if (!err)
+			return ICE_XDP_REDIR;
+		if (xsk_uses_need_wakeup(rx_ring->xsk_pool) && err == -ENOBUFS)
+			result = ICE_XDP_EXIT;
+		else
+			result = ICE_XDP_CONSUMED;
+		goto out_failure;
 	}
 
 	switch (act) {
@@ -553,15 +557,16 @@ ice_run_xdp_zc(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
 		if (result == ICE_XDP_CONSUMED)
 			goto out_failure;
 		break;
+	case XDP_DROP:
+		result = ICE_XDP_CONSUMED;
+		break;
 	default:
 		bpf_warn_invalid_xdp_action(rx_ring->netdev, xdp_prog, act);
 		fallthrough;
 	case XDP_ABORTED:
+		result = ICE_XDP_CONSUMED;
 out_failure:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
-		fallthrough;
-	case XDP_DROP:
-		result = ICE_XDP_CONSUMED;
 		break;
 	}
 
@@ -629,12 +634,16 @@ int ice_clean_rx_irq_zc(struct ice_rx_ring *rx_ring, int budget)
 		xsk_buff_dma_sync_for_cpu(xdp, rx_ring->xsk_pool);
 
 		xdp_res = ice_run_xdp_zc(rx_ring, xdp, xdp_prog, xdp_ring);
-		if (likely(xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR)))
+		if (likely(xdp_res & (ICE_XDP_TX | ICE_XDP_REDIR))) {
 			xdp_xmit |= xdp_res;
-		else if (xdp_res == ICE_XDP_CONSUMED)
+		} else if (xdp_res == ICE_XDP_EXIT) {
+			failure = true;
+			break;
+		} else if (xdp_res == ICE_XDP_CONSUMED) {
 			xsk_buff_free(xdp);
-		else
+		} else if (xdp_res == ICE_XDP_PASS) {
 			goto construct_skb;
+		}
 
 		total_rx_bytes += size;
 		total_rx_packets++;
@@ -669,7 +678,7 @@ construct_skb:
 		ice_receive_skb(rx_ring, skb, vlan_tag);
 	}
 
-	failure = !ice_alloc_rx_bufs_zc(rx_ring, ICE_DESC_UNUSED(rx_ring));
+	failure |= !ice_alloc_rx_bufs_zc(rx_ring, ICE_DESC_UNUSED(rx_ring));
 
 	ice_finalize_xdp_rx(xdp_ring, xdp_xmit);
 	ice_update_rx_ring_stats(rx_ring, total_rx_packets, total_rx_bytes);
