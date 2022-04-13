@@ -5164,10 +5164,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 #define F_(x, y)	x,
 #define FM(x)		FN_##x,
 	{ PINMUX_CFG_REG_VAR("MOD_SEL0", 0xe6060500, 32,
-			     GROUP(1, 2, 2, 3, 1, 1, 2, 1, 1, 1, 2, 1,
-				   1, 1, 1, 1, 1, 1, 2, 2, 1, 2, 1),
+			     GROUP(-1, 2, 2, 3, 1, 1, 2, 1, 1, 1, 2, 1,
+				   1, 1, 1, 1, 1, 1, 2, 2, 1, 2, -1),
 			     GROUP(
-		0, 0, /* RESERVED 31 */
+		/* RESERVED 31 */
 		MOD_SEL0_30_29
 		MOD_SEL0_28_27
 		MOD_SEL0_26_25_24
@@ -5189,11 +5189,11 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		MOD_SEL0_5_4
 		MOD_SEL0_3
 		MOD_SEL0_2_1
-		0, 0, /* RESERVED 0 */ ))
+		/* RESERVED 0 */ ))
 	},
 	{ PINMUX_CFG_REG_VAR("MOD_SEL1", 0xe6060504, 32,
 			     GROUP(2, 3, 1, 2, 3, 1, 1, 2, 1, 2, 1, 1,
-				   1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1),
+				   1, 1, 1, -2, 1, 1, 1, 1, 1, 1, 1),
 			     GROUP(
 		MOD_SEL1_31_30
 		MOD_SEL1_29_28_27
@@ -5210,7 +5210,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		MOD_SEL1_11
 		MOD_SEL1_10
 		MOD_SEL1_9
-		0, 0, 0, 0, /* RESERVED 8, 7 */
+		/* RESERVED 8, 7 */
 		MOD_SEL1_6
 		MOD_SEL1_5
 		MOD_SEL1_4
@@ -5220,35 +5220,12 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		MOD_SEL1_0 ))
 	},
 	{ PINMUX_CFG_REG_VAR("MOD_SEL2", 0xe6060508, 32,
-			     GROUP(1, 1, 1, 1, 4, 4, 4, 4, 4, 4, 1, 2, 1),
+			     GROUP(1, 1, 1, -28, 1),
 			     GROUP(
 		MOD_SEL2_31
 		MOD_SEL2_30
 		MOD_SEL2_29
-		/* RESERVED 28 */
-		0, 0,
-		/* RESERVED 27, 26, 25, 24 */
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		/* RESERVED 23, 22, 21, 20 */
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		/* RESERVED 19, 18, 17, 16 */
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		/* RESERVED 15, 14, 13, 12 */
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		/* RESERVED 11, 10, 9, 8 */
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		/* RESERVED 7, 6, 5, 4 */
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		/* RESERVED 3 */
-		0, 0,
-		/* RESERVED 2, 1 */
-		0, 0, 0, 0,
+		/* RESERVED 28-1 */
 		MOD_SEL2_0 ))
 	},
 	{ },
