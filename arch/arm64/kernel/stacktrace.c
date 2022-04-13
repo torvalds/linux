@@ -50,8 +50,8 @@ struct stackframe {
 #endif
 };
 
-static notrace void start_backtrace(struct stackframe *frame, unsigned long fp,
-				    unsigned long pc)
+static notrace void unwind_init(struct stackframe *frame, unsigned long fp,
+				unsigned long pc)
 {
 	frame->fp = fp;
 	frame->pc = pc;
@@ -62,7 +62,7 @@ static notrace void start_backtrace(struct stackframe *frame, unsigned long fp,
 	/*
 	 * Prime the first unwind.
 	 *
-	 * In unwind_frame() we'll check that the FP points to a valid stack,
+	 * In unwind_next() we'll check that the FP points to a valid stack,
 	 * which can't be STACK_TYPE_UNKNOWN, and the first unwind will be
 	 * treated as a transition to whichever stack that happens to be. The
 	 * prev_fp value won't be used, but we set it to 0 such that it is
@@ -72,7 +72,7 @@ static notrace void start_backtrace(struct stackframe *frame, unsigned long fp,
 	frame->prev_fp = 0;
 	frame->prev_type = STACK_TYPE_UNKNOWN;
 }
-NOKPROBE_SYMBOL(start_backtrace);
+NOKPROBE_SYMBOL(unwind_init);
 
 /*
  * Unwind from one frame record (A) to the next frame record (B).
@@ -81,8 +81,8 @@ NOKPROBE_SYMBOL(start_backtrace);
  * records (e.g. a cycle), determined based on the location and fp value of A
  * and the location (but not the fp value) of B.
  */
-static int notrace unwind_frame(struct task_struct *tsk,
-				struct stackframe *frame)
+static int notrace unwind_next(struct task_struct *tsk,
+			       struct stackframe *frame)
 {
 	unsigned long fp = frame->fp;
 	struct stack_info info;
@@ -122,7 +122,7 @@ static int notrace unwind_frame(struct task_struct *tsk,
 
 	/*
 	 * Record this frame record's values and location. The prev_fp and
-	 * prev_type are only meaningful to the next unwind_frame() invocation.
+	 * prev_type are only meaningful to the next unwind_next() invocation.
 	 */
 	frame->fp = READ_ONCE_NOCHECK(*(unsigned long *)(fp));
 	frame->pc = READ_ONCE_NOCHECK(*(unsigned long *)(fp + 8));
@@ -155,23 +155,23 @@ static int notrace unwind_frame(struct task_struct *tsk,
 
 	return 0;
 }
-NOKPROBE_SYMBOL(unwind_frame);
+NOKPROBE_SYMBOL(unwind_next);
 
-static void notrace walk_stackframe(struct task_struct *tsk,
-				    struct stackframe *frame,
-				    bool (*fn)(void *, unsigned long), void *data)
+static void notrace unwind(struct task_struct *tsk,
+			   struct stackframe *frame,
+			   bool (*fn)(void *, unsigned long), void *data)
 {
 	while (1) {
 		int ret;
 
 		if (!fn(data, frame->pc))
 			break;
-		ret = unwind_frame(tsk, frame);
+		ret = unwind_next(tsk, frame);
 		if (ret < 0)
 			break;
 	}
 }
-NOKPROBE_SYMBOL(walk_stackframe);
+NOKPROBE_SYMBOL(unwind);
 
 static bool dump_backtrace_entry(void *arg, unsigned long where)
 {
@@ -213,14 +213,14 @@ noinline notrace void arch_stack_walk(stack_trace_consume_fn consume_entry,
 	struct stackframe frame;
 
 	if (regs)
-		start_backtrace(&frame, regs->regs[29], regs->pc);
+		unwind_init(&frame, regs->regs[29], regs->pc);
 	else if (task == current)
-		start_backtrace(&frame,
+		unwind_init(&frame,
 				(unsigned long)__builtin_frame_address(1),
 				(unsigned long)__builtin_return_address(0));
 	else
-		start_backtrace(&frame, thread_saved_fp(task),
+		unwind_init(&frame, thread_saved_fp(task),
 				thread_saved_pc(task));
 
-	walk_stackframe(task, &frame, consume_entry, cookie);
+	unwind(task, &frame, consume_entry, cookie);
 }
