@@ -1059,6 +1059,7 @@ static int octep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_WORK(&octep_dev->ctrl_mbox_task, octep_ctrl_mbox_task);
 
 	netdev->netdev_ops = &octep_netdev_ops;
+	octep_set_ethtool_ops(netdev);
 	netif_carrier_off(netdev);
 
 	netdev->hw_features = NETIF_F_SG;
