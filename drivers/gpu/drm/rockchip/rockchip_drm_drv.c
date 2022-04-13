@@ -1286,13 +1286,9 @@ static int rockchip_drm_bind(struct device *dev)
 		goto err_free;
 	}
 
-	ret = rockchip_drm_init_iommu(drm_dev);
-	if (ret)
-		goto err_free;
-
 	ret = drmm_mode_config_init(drm_dev);
 	if (ret)
-		goto err_iommu_cleanup;
+		goto err_free;
 
 	rockchip_drm_mode_config_init(drm_dev);
 	rockchip_drm_create_properties(drm_dev);
@@ -1318,6 +1314,10 @@ static int rockchip_drm_bind(struct device *dev)
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(drm_dev);
 
+	ret = rockchip_drm_init_iommu(drm_dev);
+	if (ret)
+		goto err_unbind_all;
+
 	rockchip_gem_pool_init(drm_dev);
 	ret = of_reserved_mem_device_init(drm_dev->dev);
 	if (ret)
@@ -1327,7 +1327,7 @@ static int rockchip_drm_bind(struct device *dev)
 
 	ret = rockchip_drm_fbdev_init(drm_dev);
 	if (ret)
-		goto err_unbind_all;
+		goto err_iommu_cleanup;
 
 	drm_dev->mode_config.allow_fb_modifiers = true;
 
@@ -1340,12 +1340,12 @@ err_kms_helper_poll_fini:
 	rockchip_gem_pool_destroy(drm_dev);
 	drm_kms_helper_poll_fini(drm_dev);
 	rockchip_drm_fbdev_fini(drm_dev);
+err_iommu_cleanup:
+	rockchip_iommu_cleanup(drm_dev);
 err_unbind_all:
 	component_unbind_all(dev, drm_dev);
 err_mode_config_cleanup:
 	drm_mode_config_cleanup(drm_dev);
-err_iommu_cleanup:
-	rockchip_iommu_cleanup(drm_dev);
 err_free:
 	drm_dev->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
