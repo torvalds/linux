@@ -217,6 +217,63 @@
  * 44.add the iqtool module
  * 45.add csm params config for isp3
  * 46.fix CSI2RX_DATA_IDS_1 config err
+ *
+ * v1.9.0:
+ * 1.fix config for isp_params_v3x
+ * 2.clean rdbk kfifo for isp32
+ * 3.fix awb raw data config for multi device
+ * 4.increase v4l2 events length
+ * 5.check virtual isp link to hw
+ * 6.fix isp30 uyvy format error
+ * 7.add API to get stream information
+ * 8.3a params config first for isp21
+ * 9.fix bigmode for multi device for isp21
+ * 10.fix reg config for multi device
+ * 11.add version to querycap
+ * 12.fix mp uyvy format error for isp30
+ * 13.add isp32 for rv1106
+ * 14.isp32 bls2 remove to awb
+ * 15.isp32 support mirror and flip
+ * 16.isp32 support raw data compression
+ * 17.add cgc config
+ * 18.add get isp information api
+ * 19.build depends on CPU config
+ * 20.isp32 mi switch according to output buf
+ * 21.add luma stream for isp32
+ * 22.scale up and down for some stream
+ * 23.isp32 add vsm
+ * 24.fix config of capture_v30
+ * 25.wrap mode for dvb
+ * 26.use videobuf2-cma-sg
+ * 27.remove vb2_dma_contig and vb2_dma_sg
+ * 28.Revert "dynamic memory alloc for params and stats function"
+ * 29.isp32 fix nv12 error
+ * 30.fix using of vb2_cma_sg
+ * 31.isp32 fix MI_WR_WRAP_CTRL default value
+ * 32.fix params v32 drc and bay3d config
+ * 33.add the rockit buff
+ * 34.isp32 fix cac config
+ * 35.isp32 support bay3d cur write to system sram
+ * 36.isp32 fix frame id to dvbm
+ * 37.set isp subdev crop and also check stream crop
+ * 38.power on to set pipeline default format
+ * 39.add isp reg cache read/write api
+ * 40.Solve the problem of invalid mirror
+ * 41.Solve the wrap_line frame rate problem
+ * 42.vicap->isp online set clk according to sensor rate
+ * 43.enable mipi drop interrupt
+ * 44.isp32 fix bay3d config
+ * 45.isp32 fix bay3d config
+ * 46.Solve the cmsk problem
+ * 47.fix stream link error
+ * 48.update procfs for isp32
+ * 49.support soft dvbm for vepu
+ * 50.disable ISP_FRAME_IN irq
+ * 51.fix rv1106 clk to 350
+ * 52.fix init format for struct no clean
+ * 53.procfs build with different isp version
+ * 54.fix isp debug time for fe/fs irq together
+ * 55.awb or gain debug info to ddr for isp32
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
