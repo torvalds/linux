@@ -2213,7 +2213,7 @@ static void hostif_sme_work(struct work_struct *work)
 	hostif_sme_execute(priv, priv->sme_i.event_buff[priv->sme_i.qhead]);
 	inc_smeqhead(priv);
 	if (cnt_smeqbody(priv) > 0)
-	        schedule_work(&priv->sme_work);
+		schedule_work(&priv->sme_work);
 }
 
 /* send to Station Management Entity module */
