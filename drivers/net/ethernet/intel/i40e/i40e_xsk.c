@@ -606,13 +606,13 @@ int i40e_xsk_wakeup(struct net_device *dev, u32 queue_id, u32 flags)
 		return -ENETDOWN;
 
 	if (!i40e_enabled_xdp_vsi(vsi))
-		return -ENXIO;
+		return -EINVAL;
 
 	if (queue_id >= vsi->num_queue_pairs)
-		return -ENXIO;
+		return -EINVAL;
 
 	if (!vsi->xdp_rings[queue_id]->xsk_pool)
-		return -ENXIO;
+		return -EINVAL;
 
 	ring = vsi->xdp_rings[queue_id];
 
