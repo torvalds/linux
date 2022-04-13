@@ -531,8 +531,7 @@ static int test_driver_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 	struct device_node *ep;
-	const struct of_device_id *of_id = of_match_device(test_of_match, &pdev->dev);
-	const struct test_adata *adata = of_id->data;
+	const struct test_adata *adata = of_device_get_match_data(&pdev->dev);
 	struct snd_soc_component_driver *cdriv;
 	struct snd_soc_dai_driver *ddriv;
 	struct test_dai_name *dname;
@@ -549,7 +548,7 @@ static int test_driver_probe(struct platform_device *pdev)
 	cdriv	= devm_kzalloc(dev, sizeof(*cdriv),		GFP_KERNEL);
 	ddriv	= devm_kzalloc(dev, sizeof(*ddriv) * num,	GFP_KERNEL);
 	dname	= devm_kzalloc(dev, sizeof(*dname) * num,	GFP_KERNEL);
-	if (!priv || !cdriv || !ddriv || !dname)
+	if (!priv || !cdriv || !ddriv || !dname || !adata)
 		return -EINVAL;
 
 	priv->dev		= dev;

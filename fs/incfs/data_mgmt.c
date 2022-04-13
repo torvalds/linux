@@ -175,7 +175,6 @@ void incfs_free_mount_info(struct mount_info *mi)
 		kfree(mi->pseudo_file_xattr[i].data);
 	kfree(mi->mi_per_uid_read_timeouts);
 	incfs_free_sysfs_node(mi->mi_sysfs_node);
-	kfree(mi->mi_options.sysfs_name);
 	kfree(mi);
 }
 

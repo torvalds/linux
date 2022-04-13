@@ -23,7 +23,6 @@
 #include "../ops.h"
 #include "hda.h"
 
-#define HDA_FW_BOOT_ATTEMPTS	3
 #define HDA_CL_STREAM_FORMAT 0x40
 
 static struct hdac_ext_stream *cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
@@ -88,12 +87,14 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
 	unsigned int status;
-	u32 flags;
+	unsigned long mask;
+	char *dump_msg;
+	u32 flags, j;
 	int ret;
 	int i;
 
 	/* step 1: power up corex */
-	ret = snd_sof_dsp_core_power_up(sdev, chip->host_managed_cores_mask);
+	ret = hda_dsp_enable_core(sdev, chip->host_managed_cores_mask);
 	if (ret < 0) {
 		if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 			dev_err(sdev->dev, "error: dsp core 0/1 power up failed\n");
@@ -148,8 +149,8 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 				       chip->ipc_ack_mask);
 
 	/* step 5: power down cores that are no longer needed */
-	ret = snd_sof_dsp_core_power_down(sdev, chip->host_managed_cores_mask &
-					  ~(chip->init_core_mask));
+	ret = hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask &
+					   ~(chip->init_core_mask));
 	if (ret < 0) {
 		if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 			dev_err(sdev->dev,
@@ -168,8 +169,14 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 					HDA_DSP_REG_POLL_INTERVAL_US,
 					chip->rom_init_timeout *
 					USEC_PER_MSEC);
-	if (!ret)
+	if (!ret) {
+		/* set enabled cores mask and increment ref count for cores in init_core_mask */
+		sdev->enabled_cores_mask |= chip->init_core_mask;
+		mask = sdev->enabled_cores_mask;
+		for_each_set_bit(j, &mask, SOF_MAX_DSP_NUM_CORES)
+			sdev->dsp_core_ref_count[j]++;
 		return 0;
+	}
 
 	if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 		dev_err(sdev->dev,
@@ -183,9 +190,12 @@ err:
 	if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 		flags &= ~SOF_DBG_DUMP_OPTIONAL;
 
-	snd_sof_dsp_dbg_dump(sdev, flags);
-	snd_sof_dsp_core_power_down(sdev, chip->host_managed_cores_mask);
+	dump_msg = kasprintf(GFP_KERNEL, "Boot iteration failed: %d/%d",
+			     hda->boot_iteration, HDA_FW_BOOT_ATTEMPTS);
+	snd_sof_dsp_dbg_dump(sdev, dump_msg, flags);
+	hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
 
+	kfree(dump_msg);
 	return ret;
 }
 
@@ -407,16 +417,19 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 		hda_sdw_process_wakeen(sdev);
 
 	/*
-	 * at this point DSP ROM has been initialized and
-	 * should be ready for code loading and firmware boot
+	 * Set the boot_iteration to the last attempt, indicating that the
+	 * DSP ROM has been initialized and from this point there will be no
+	 * retry done to boot.
+	 *
+	 * Continue with code loading and firmware boot
 	 */
+	hda->boot_iteration = HDA_FW_BOOT_ATTEMPTS;
 	ret = cl_copy_fw(sdev, stream);
-	if (!ret) {
+	if (!ret)
 		dev_dbg(sdev->dev, "Firmware download successful, booting...\n");
-	} else {
-		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_MBOX);
-		dev_err(sdev->dev, "error: load fw failed ret: %d\n", ret);
-	}
+	else
+		snd_sof_dsp_dbg_dump(sdev, "Firmware download failed",
+				     SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_MBOX);
 
 cleanup:
 	/*
@@ -474,46 +487,6 @@ int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
 	return hda_dsp_ctrl_clock_power_gating(sdev, true);
 }
 
-/*
- * post fw run operations for ICL,
- * Core 3 will be powered up and in stall when HPRO is enabled
- */
-int hda_dsp_post_fw_run_icl(struct snd_sof_dev *sdev)
-{
-	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
-	int ret;
-
-	if (sdev->first_boot) {
-		ret = hda_sdw_startup(sdev);
-		if (ret < 0) {
-			dev_err(sdev->dev,
-				"error: could not startup SoundWire links\n");
-			return ret;
-		}
-	}
-
-	hda_sdw_int_enable(sdev, true);
-
-	/*
-	 * The recommended HW programming sequence for ICL is to
-	 * power up core 3 and keep it in stall if HPRO is enabled.
-	 * Major difference between ICL and TGL, on ICL core 3 is managed by
-	 * the host whereas on TGL it is handled by the firmware.
-	 */
-	if (!hda->clk_config_lpro) {
-		ret = snd_sof_dsp_core_power_up(sdev, BIT(3));
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: dsp core power up failed on core 3\n");
-			return ret;
-		}
-
-		snd_sof_dsp_stall(sdev, BIT(3));
-	}
-
-	/* re-enable clock gating and power gating */
-	return hda_dsp_ctrl_clock_power_gating(sdev, true);
-}
-
 int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
 					 const struct sof_ext_man_elem_header *hdr)
 {
@@ -548,27 +521,6 @@ int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
 			dev_info(sdev->dev, "unsupported token type: %d\n",
 				 config_data->elems[i].token);
 		}
-
-	return 0;
-}
-
-int hda_dsp_core_stall_icl(struct snd_sof_dev *sdev, unsigned int core_mask)
-{
-	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
-	const struct sof_intel_dsp_desc *chip = hda->desc;
-
-	/* make sure core_mask in host managed cores */
-	core_mask &= chip->host_managed_cores_mask;
-	if (!core_mask) {
-		dev_err(sdev->dev, "error: core_mask is not in host managed cores\n");
-		return -EINVAL;
-	}
-
-	/* stall core */
-	snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
-					 HDA_DSP_REG_ADSPCS,
-					 HDA_DSP_ADSPCS_CSTALL_MASK(core_mask),
-					 HDA_DSP_ADSPCS_CSTALL_MASK(core_mask));
 
 	return 0;
 }

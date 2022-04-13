@@ -1323,8 +1323,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	psrc = of_get_property(mpic->node, "protected-sources", &psize);
 	if (psrc) {
 		/* Allocate a bitmap with one bit per interrupt */
-		unsigned int mapsize = BITS_TO_LONGS(intvec_top + 1);
-		mpic->protected = kcalloc(mapsize, sizeof(long), GFP_KERNEL);
+		mpic->protected = bitmap_zalloc(intvec_top + 1, GFP_KERNEL);
 		BUG_ON(mpic->protected == NULL);
 		for (i = 0; i < psize/sizeof(u32); i++) {
 			if (psrc[i] > intvec_top)
@@ -1840,7 +1839,7 @@ unsigned int mpic_get_mcirq(void)
 }
 
 #ifdef CONFIG_SMP
-void mpic_request_ipis(void)
+void __init mpic_request_ipis(void)
 {
 	struct mpic *mpic = mpic_primary;
 	int i;

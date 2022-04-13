@@ -454,7 +454,6 @@ static int axg_spdifin_probe(struct platform_device *pdev)
 	struct axg_spdifin *priv;
 	struct snd_soc_dai_driver *dai_drv;
 	void __iomem *regs;
-	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -479,20 +478,12 @@ static int axg_spdifin_probe(struct platform_device *pdev)
 	}
 
 	priv->pclk = devm_clk_get(dev, "pclk");
-	if (IS_ERR(priv->pclk)) {
-		ret = PTR_ERR(priv->pclk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get pclk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(priv->pclk))
+		return dev_err_probe(dev, PTR_ERR(priv->pclk), "failed to get pclk\n");
 
 	priv->refclk = devm_clk_get(dev, "refclk");
-	if (IS_ERR(priv->refclk)) {
-		ret = PTR_ERR(priv->refclk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get mclk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(priv->refclk))
+		return dev_err_probe(dev, PTR_ERR(priv->refclk), "failed to get mclk\n");
 
 	dai_drv = axg_spdifin_get_dai_drv(dev, priv);
 	if (IS_ERR(dai_drv)) {

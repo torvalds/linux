@@ -981,7 +981,7 @@ const struct attribute_group *bfad_im_host_groups[] = {
 	NULL
 };
 
-struct attribute *bfad_im_vport_attrs[] = {
+static struct attribute *bfad_im_vport_attrs[] = {
 	&dev_attr_serial_number.attr,
 	&dev_attr_model.attr,
 	&dev_attr_model_description.attr,

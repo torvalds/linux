@@ -147,7 +147,7 @@ static int byt_cht_cx2072x_aif1_startup(struct snd_pcm_substream *substream)
 					    SNDRV_PCM_HW_PARAM_RATE, 48000);
 }
 
-static struct snd_soc_ops byt_cht_cx2072x_aif1_ops = {
+static const struct snd_soc_ops byt_cht_cx2072x_aif1_ops = {
 	.startup = byt_cht_cx2072x_aif1_startup,
 };
 

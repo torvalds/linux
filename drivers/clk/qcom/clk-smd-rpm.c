@@ -17,7 +17,6 @@
 #include <linux/soc/qcom/smd-rpm.h>
 
 #include <dt-bindings/clock/qcom,rpmcc.h>
-#include <dt-bindings/mfd/qcom-rpm.h>
 
 #define QCOM_RPM_KEY_SOFTWARE_ENABLE			0x6e657773
 #define QCOM_RPM_KEY_PIN_CTRL_CLK_BUFFER_ENABLE_KEY	0x62636370
@@ -151,12 +150,6 @@ struct clk_smd_rpm_req {
 	__le32 value;
 };
 
-struct rpm_cc {
-	struct qcom_rpm *rpm;
-	struct clk_smd_rpm **clks;
-	size_t num_clks;
-};
-
 struct rpm_smd_clk_desc {
 	struct clk_smd_rpm **clks;
 	size_t num_clks;
@@ -196,10 +189,6 @@ static int clk_smd_rpm_set_rate_active(struct clk_smd_rpm *r,
 		.value = cpu_to_le32(DIV_ROUND_UP(rate, 1000)), /* to kHz */
 	};
 
-	/* Buffered clock needs a binary value */
-	if (r->rpm_res_type == QCOM_SMD_RPM_CLK_BUF_A)
-		req.value = cpu_to_le32(!!req.value);
-
 	return qcom_rpm_smd_write(r->rpm, QCOM_SMD_RPM_ACTIVE_STATE,
 				  r->rpm_res_type, r->rpm_clk_id, &req,
 				  sizeof(req));
@@ -213,10 +202,6 @@ static int clk_smd_rpm_set_rate_sleep(struct clk_smd_rpm *r,
 		.nbytes = cpu_to_le32(sizeof(u32)),
 		.value = cpu_to_le32(DIV_ROUND_UP(rate, 1000)), /* to kHz */
 	};
-
-	/* Buffered clock needs a binary value */
-	if (r->rpm_res_type == QCOM_SMD_RPM_CLK_BUF_A)
-		req.value = cpu_to_le32(!!req.value);
 
 	return qcom_rpm_smd_write(r->rpm, QCOM_SMD_RPM_SLEEP_STATE,
 				  r->rpm_res_type, r->rpm_clk_id, &req,
@@ -1159,20 +1144,19 @@ MODULE_DEVICE_TABLE(of, rpm_smd_clk_match_table);
 static struct clk_hw *qcom_smdrpm_clk_hw_get(struct of_phandle_args *clkspec,
 					     void *data)
 {
-	struct rpm_cc *rcc = data;
+	const struct rpm_smd_clk_desc *desc = data;
 	unsigned int idx = clkspec->args[0];
 
-	if (idx >= rcc->num_clks) {
+	if (idx >= desc->num_clks) {
 		pr_err("%s: invalid index %u\n", __func__, idx);
 		return ERR_PTR(-EINVAL);
 	}
 
-	return rcc->clks[idx] ? &rcc->clks[idx]->hw : ERR_PTR(-ENOENT);
+	return desc->clks[idx] ? &desc->clks[idx]->hw : ERR_PTR(-ENOENT);
 }
 
 static int rpm_smd_clk_probe(struct platform_device *pdev)
 {
-	struct rpm_cc *rcc;
 	int ret;
 	size_t num_clks, i;
 	struct qcom_smd_rpm *rpm;
@@ -1191,13 +1175,6 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 
 	rpm_smd_clks = desc->clks;
 	num_clks = desc->num_clks;
-
-	rcc = devm_kzalloc(&pdev->dev, sizeof(*rcc), GFP_KERNEL);
-	if (!rcc)
-		return -ENOMEM;
-
-	rcc->clks = rpm_smd_clks;
-	rcc->num_clks = num_clks;
 
 	for (i = 0; i < num_clks; i++) {
 		if (!rpm_smd_clks[i])
@@ -1224,7 +1201,7 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_of_clk_add_hw_provider(&pdev->dev, qcom_smdrpm_clk_hw_get,
-				     rcc);
+					  (void *)desc);
 	if (ret)
 		goto err;
 

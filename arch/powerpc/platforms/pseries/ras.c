@@ -526,6 +526,7 @@ static int mce_handle_err_realmode(int disposition, u8 error_type)
 			disposition = RTAS_DISP_FULLY_RECOVERED;
 			break;
 		case	MC_ERROR_TYPE_SLB:
+#ifdef CONFIG_PPC_64S_HASH_MMU
 			/*
 			 * Store the old slb content in paca before flushing.
 			 * Print this when we go to virtual mode.
@@ -538,6 +539,7 @@ static int mce_handle_err_realmode(int disposition, u8 error_type)
 				slb_save_contents(local_paca->mce_faulty_slbs);
 			flush_and_reload_slb();
 			disposition = RTAS_DISP_FULLY_RECOVERED;
+#endif
 			break;
 		default:
 			break;

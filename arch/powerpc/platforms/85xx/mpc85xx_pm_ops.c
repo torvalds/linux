@@ -15,6 +15,8 @@
 #include <asm/io.h>
 #include <asm/fsl_pm.h>
 
+#include "smp.h"
+
 static struct ccsr_guts __iomem *guts;
 
 #ifdef CONFIG_FSL_PMC

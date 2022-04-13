@@ -614,7 +614,7 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 #endif
-	int ret;
+	int ret, j;
 
 	hda_sdw_int_enable(sdev, false);
 
@@ -629,12 +629,16 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 #endif
 
 	/* power down DSP */
-	ret = snd_sof_dsp_core_power_down(sdev, chip->host_managed_cores_mask);
+	ret = hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: failed to power down core during suspend\n");
 		return ret;
 	}
+
+	/* reset ref counts for all cores */
+	for (j = 0; j < chip->cores_num; j++)
+		sdev->dsp_core_ref_count[j] = 0;
 
 	/* disable ppcap interrupt */
 	hda_dsp_ctrl_ppcap_enable(sdev, false);
@@ -961,4 +965,48 @@ void hda_dsp_d0i3_work(struct work_struct *work)
 		dev_err_ratelimited(sdev->dev,
 				    "error: failed to set DSP state %d substate %d\n",
 				    target_state.state, target_state.substate);
+}
+
+int hda_dsp_core_get(struct snd_sof_dev *sdev, int core)
+{
+	struct sof_ipc_pm_core_config pm_core_config = {
+		.hdr = {
+			.cmd = SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_CORE_ENABLE,
+			.size = sizeof(pm_core_config),
+		},
+		.enable_mask = sdev->enabled_cores_mask | BIT(core),
+	};
+	int ret, ret1;
+
+	/* power up core */
+	ret = hda_dsp_enable_core(sdev, BIT(core));
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to power up core %d with err: %d\n",
+			core, ret);
+		return ret;
+	}
+
+	/* No need to send IPC for primary core or if FW boot is not complete */
+	if (sdev->fw_state != SOF_FW_BOOT_COMPLETE || core == SOF_DSP_PRIMARY_CORE)
+		return 0;
+
+	/* Now notify DSP for secondary cores */
+	ret = sof_ipc_tx_message(sdev->ipc, pm_core_config.hdr.cmd,
+				 &pm_core_config, sizeof(pm_core_config),
+				 &pm_core_config, sizeof(pm_core_config));
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to enable secondary core '%d' failed with %d\n",
+			core, ret);
+		goto power_down;
+	}
+
+	return ret;
+
+power_down:
+	/* power down core if it is host managed and return the original error if this fails too */
+	ret1 = hda_dsp_core_reset_power_down(sdev, BIT(core));
+	if (ret1 < 0)
+		dev_err(sdev->dev, "failed to power down core: %d with err: %d\n", core, ret1);
+
+	return ret;
 }

@@ -3086,7 +3086,7 @@ static int wcd938x_mbhc_micb_ctrl_threshold_mic(struct snd_soc_component *compon
 						int micb_num, bool req_en)
 {
 	struct wcd938x_priv *wcd938x = snd_soc_component_get_drvdata(component);
-	int rc, micb_mv;
+	int micb_mv;
 
 	if (micb_num != MIC_BIAS_2)
 		return -EINVAL;
@@ -3100,9 +3100,7 @@ static int wcd938x_mbhc_micb_ctrl_threshold_mic(struct snd_soc_component *compon
 
 	micb_mv = req_en ? WCD_MBHC_THR_HS_MICB_MV : wcd938x->micb2_mv;
 
-	rc = wcd938x_mbhc_micb_adjust_voltage(component, micb_mv, MIC_BIAS_2);
-
-	return rc;
+	return wcd938x_mbhc_micb_adjust_voltage(component, micb_mv, MIC_BIAS_2);
 }
 
 static inline void wcd938x_mbhc_get_result_params(struct wcd938x_priv *wcd938x,
@@ -4287,7 +4285,7 @@ static int wcd938x_codec_set_sdw_stream(struct snd_soc_dai *dai,
 static const struct snd_soc_dai_ops wcd938x_sdw_dai_ops = {
 	.hw_params = wcd938x_codec_hw_params,
 	.hw_free = wcd938x_codec_free,
-	.set_sdw_stream = wcd938x_codec_set_sdw_stream,
+	.set_stream = wcd938x_codec_set_sdw_stream,
 };
 
 static struct snd_soc_dai_driver wcd938x_dais[] = {

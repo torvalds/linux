@@ -192,7 +192,7 @@ static int hmc425a_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	st->type = (enum hmc425a_type)of_device_get_match_data(&pdev->dev);
+	st->type = (uintptr_t)of_device_get_match_data(&pdev->dev);
 
 	st->chip_info = &hmc425a_chip_info_tbl[st->type];
 	indio_dev->num_channels = st->chip_info->num_channels;

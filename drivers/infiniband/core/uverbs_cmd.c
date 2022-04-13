@@ -1399,7 +1399,6 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	attr.sq_sig_type   = cmd->sq_sig_all ? IB_SIGNAL_ALL_WR :
 					      IB_SIGNAL_REQ_WR;
 	attr.qp_type       = cmd->qp_type;
-	attr.create_flags  = 0;
 
 	attr.cap.max_send_wr     = cmd->max_send_wr;
 	attr.cap.max_recv_wr     = cmd->max_recv_wr;

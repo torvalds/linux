@@ -235,6 +235,11 @@ void __init efi_init(void)
 	}
 
 	reserve_regions();
+	/*
+	 * For memblock manipulation, the cap should come after the memblock_add().
+	 * And now, memblock is fully populated, it is time to do capping.
+	 */
+	early_init_dt_check_for_usable_mem_range();
 	efi_esrt_init();
 	efi_mokvar_table_init();
 

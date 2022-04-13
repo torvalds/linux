@@ -220,7 +220,7 @@ static void arm_smmu_mmu_notifier_free(struct mmu_notifier *mn)
 	kfree(mn_to_smmu(mn));
 }
 
-static struct mmu_notifier_ops arm_smmu_mmu_notifier_ops = {
+static const struct mmu_notifier_ops arm_smmu_mmu_notifier_ops = {
 	.invalidate_range	= arm_smmu_mm_invalidate_range,
 	.release		= arm_smmu_mm_release,
 	.free_notifier		= arm_smmu_mmu_notifier_free,

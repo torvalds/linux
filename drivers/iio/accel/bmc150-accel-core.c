@@ -170,7 +170,7 @@ static const struct {
 				     {1000, 0, 0x0E},
 				     {2000, 0, 0x0F} };
 
-static const struct {
+static __maybe_unused const struct {
 	int bw_bits;
 	int msec;
 } bmc150_accel_sample_upd_time[] = { {0x08, 64},

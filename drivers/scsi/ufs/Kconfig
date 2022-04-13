@@ -50,9 +50,11 @@ config SCSI_UFSHCD
 	  However, do not compile this as a module if your root file system
 	  (the one containing the directory /) is located on a UFS device.
 
+if SCSI_UFSHCD
+
 config SCSI_UFSHCD_PCI
 	tristate "PCI bus based UFS Controller support"
-	depends on SCSI_UFSHCD && PCI
+	depends on PCI
 	help
 	  This selects the PCI UFS Host Controller Interface. Select this if
 	  you have UFS Host Controller with PCI Interface.
@@ -71,7 +73,6 @@ config SCSI_UFS_DWC_TC_PCI
 
 config SCSI_UFSHCD_PLATFORM
 	tristate "Platform bus based UFS Controller support"
-	depends on SCSI_UFSHCD
 	depends on HAS_IOMEM
 	help
 	  This selects the UFS host controller support. Select this if
@@ -147,7 +148,6 @@ config SCSI_UFS_TI_J721E
 
 config SCSI_UFS_BSG
 	bool "Universal Flash Storage BSG device node"
-	depends on SCSI_UFSHCD
 	select BLK_DEV_BSGLIB
 	help
 	  Universal Flash Storage (UFS) is SCSI transport specification for
@@ -177,7 +177,7 @@ config SCSI_UFS_EXYNOS
 
 config SCSI_UFS_CRYPTO
 	bool "UFS Crypto Engine Support"
-	depends on SCSI_UFSHCD && BLK_INLINE_ENCRYPTION
+	depends on BLK_INLINE_ENCRYPTION
 	help
 	  Enable Crypto Engine Support in UFS.
 	  Enabling this makes it possible for the kernel to use the crypto
@@ -186,7 +186,6 @@ config SCSI_UFS_CRYPTO
 
 config SCSI_UFS_HPB
 	bool "Support UFS Host Performance Booster"
-	depends on SCSI_UFSHCD
 	help
 	  The UFS HPB feature improves random read performance. It caches
 	  L2P (logical to physical) map of UFS to host DRAM. The driver uses HPB
@@ -195,16 +194,18 @@ config SCSI_UFS_HPB
 
 config SCSI_UFS_FAULT_INJECTION
 	bool "UFS Fault Injection Support"
-	depends on SCSI_UFSHCD && FAULT_INJECTION
+	depends on FAULT_INJECTION
 	help
 	  Enable fault injection support in the UFS driver. This makes it easier
 	  to test the UFS error handler and abort handler.
 
 config SCSI_UFS_HWMON
-	bool "UFS  Temperature Notification"
+	bool "UFS Temperature Notification"
 	depends on SCSI_UFSHCD=HWMON || HWMON=y
 	help
 	  This provides support for UFS hardware monitoring. If enabled,
 	  a hardware monitoring device will be created for the UFS device.
 
 	  If unsure, say N.
+
+endif

@@ -231,7 +231,7 @@ static int set_spdif_rate(struct snd_ac97 *ac97, unsigned short rate)
  * If the codec doesn't support VAR, the rate must be 48000 (except
  * for SPDIF).
  *
- * The valid registers are AC97_PMC_MIC_ADC_RATE,
+ * The valid registers are AC97_PCM_MIC_ADC_RATE,
  * AC97_PCM_FRONT_DAC_RATE, AC97_PCM_LR_ADC_RATE.
  * AC97_PCM_SURR_DAC_RATE and AC97_PCM_LFE_DAC_RATE are accepted
  * if the codec supports them.

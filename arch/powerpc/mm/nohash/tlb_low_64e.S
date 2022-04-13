@@ -128,6 +128,13 @@ END_BTB_FLUSH_SECTION
 
 	bne	tlb_miss_kernel_bolted
 
+tlb_miss_user_bolted:
+#ifdef CONFIG_PPC_KUAP
+	mfspr	r10,SPRN_MAS1
+	rlwinm.	r10,r10,0,0x3fff0000
+	beq-	tlb_miss_fault_bolted /* KUAP fault */
+#endif
+
 tlb_miss_common_bolted:
 /*
  * This is the guts of the TLB miss handler for bolted-linear.
@@ -246,7 +253,7 @@ itlb_miss_fault_bolted:
 
 	cmpldi	cr0,r15,0			/* Check for user region */
 	oris	r11,r11,_PAGE_ACCESSED@h
-	beq	tlb_miss_common_bolted
+	beq	tlb_miss_user_bolted
 	b	itlb_miss_kernel_bolted
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
@@ -676,6 +683,11 @@ finish_normal_tlb_miss:
 	/* Check if required permissions are met */
 	andc.	r15,r11,r14
 	bne-	normal_tlb_miss_access_fault
+#ifdef CONFIG_PPC_KUAP
+	mfspr	r11,SPRN_MAS1
+	rlwinm.	r10,r11,0,0x3fff0000
+	beq-	normal_tlb_miss_access_fault /* KUAP fault */
+#endif
 
 	/* Now we build the MAS:
 	 *
@@ -689,15 +701,17 @@ finish_normal_tlb_miss:
 	 *
 	 * TODO: mix up code below for better scheduling
 	 */
-	clrrdi	r11,r16,12		/* Clear low crap in EA */
-	rlwimi	r11,r14,32-19,27,31	/* Insert WIMGE */
-	mtspr	SPRN_MAS2,r11
+	clrrdi	r10,r16,12		/* Clear low crap in EA */
+	rlwimi	r10,r14,32-19,27,31	/* Insert WIMGE */
+	mtspr	SPRN_MAS2,r10
 
 	/* Check page size, if not standard, update MAS1 */
-	rldicl	r11,r14,64-8,64-8
-	cmpldi	cr0,r11,BOOK3E_PAGESZ_4K
+	rldicl	r10,r14,64-8,64-8
+	cmpldi	cr0,r10,BOOK3E_PAGESZ_4K
 	beq-	1f
+#ifndef CONFIG_PPC_KUAP
 	mfspr	r11,SPRN_MAS1
+#endif
 	rlwimi	r11,r14,31,21,24
 	rlwinm	r11,r11,0,21,19
 	mtspr	SPRN_MAS1,r11
@@ -786,7 +800,16 @@ virt_page_table_tlb_miss:
 	mfspr	r10,SPRN_MAS1
 	rlwinm	r10,r10,0,16,1			/* Clear TID */
 	mtspr	SPRN_MAS1,r10
+#ifdef CONFIG_PPC_KUAP
+	b	2f
 1:
+	mfspr	r10,SPRN_MAS1
+	rlwinm.	r10,r10,0,0x3fff0000
+	beq-	virt_page_table_tlb_miss_fault /* KUAP fault */
+2:
+#else
+1:
+#endif
 BEGIN_MMU_FTR_SECTION
 	/* Search if we already have a TLB entry for that virtual address, and
 	 * if we do, bail out.
@@ -1027,6 +1050,11 @@ virt_page_table_tlb_miss_whacko_fault:
  * avoid too much complication, it will save/restore things for us
  */
 htw_tlb_miss:
+#ifdef CONFIG_PPC_KUAP
+	mfspr	r10,SPRN_MAS1
+	rlwinm.	r10,r10,0,0x3fff0000
+	beq-	htw_tlb_miss_fault /* KUAP fault */
+#endif
 	/* Search if we already have a TLB entry for that virtual address, and
 	 * if we do, bail out.
 	 *

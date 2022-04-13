@@ -966,6 +966,7 @@ config MMC_REALTEK_USB
 config MMC_SUNXI
 	tristate "Allwinner sunxi SD/MMC Host Controller support"
 	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on SUNXI_CCU
 	help
 	  This selects support for the SD/MMC Host Controller on
 	  Allwinner sunxi SoCs.

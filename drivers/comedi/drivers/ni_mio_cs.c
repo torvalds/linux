@@ -28,10 +28,10 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/comedi/comedi_pcmcia.h>
+#include <linux/comedi/comedi_8255.h>
 
-#include "../comedi_pcmcia.h"
 #include "ni_stc.h"
-#include "8255.h"
 
 /*
  *  AT specific setup

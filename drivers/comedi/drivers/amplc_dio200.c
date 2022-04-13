@@ -185,7 +185,7 @@
  */
 
 #include <linux/module.h>
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 #include "amplc_dio200.h"
 

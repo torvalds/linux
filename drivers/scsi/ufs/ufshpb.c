@@ -10,7 +10,6 @@
  */
 
 #include <asm/unaligned.h>
-#include <linux/async.h>
 
 #include "ufshcd.h"
 #include "ufshpb.h"

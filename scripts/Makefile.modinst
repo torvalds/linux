@@ -25,7 +25,7 @@ suffix-$(CONFIG_MODULE_COMPRESS_ZSTD)	:= .zst
 
 modules := $(patsubst $(extmod_prefix)%, $(dst)/%$(suffix-y), $(modules))
 ifneq ($(KBUILD_EXTMOD),)
-extmod_suffix := $(subst /,_,$(subst .,_,$(subst -,_,$(KBUILD_EXTMOD))))
+extmod_suffix := $(shell echo "${KBUILD_EXTMOD}" | md5sum | cut -d " " -f 1)
 modules += $(dst)/modules.order.$(extmod_suffix)
 endif
 

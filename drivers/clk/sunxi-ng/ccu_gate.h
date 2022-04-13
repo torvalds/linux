@@ -53,7 +53,7 @@ struct ccu_gate {
 	}
 
 /*
- * The following two macros allow the re-use of the data structure
+ * The following macros allow the re-use of the data structure
  * holding the parent info.
  */
 #define SUNXI_CCU_GATE_HWS(_struct, _name, _parent, _reg, _gate, _flags) \
@@ -61,6 +61,21 @@ struct ccu_gate {
 		.enable	= _gate,					\
 		.common	= {						\
 			.reg		= _reg,				\
+			.hw.init	= CLK_HW_INIT_HWS(_name,	\
+							  _parent,	\
+							  &ccu_gate_ops, \
+							  _flags),	\
+		}							\
+	}
+
+#define SUNXI_CCU_GATE_HWS_WITH_PREDIV(_struct, _name, _parent, _reg,	\
+				       _gate, _prediv, _flags)		\
+	struct ccu_gate _struct = {					\
+		.enable	= _gate,					\
+		.common	= {						\
+			.reg		= _reg,				\
+			.prediv		= _prediv,			\
+			.features	= CCU_FEATURE_ALL_PREDIV,	\
 			.hw.init	= CLK_HW_INIT_HWS(_name,	\
 							  _parent,	\
 							  &ccu_gate_ops, \
@@ -78,6 +93,21 @@ struct ccu_gate {
 							 _data,		\
 							 &ccu_gate_ops,	\
 							 _flags),	\
+		}							\
+	}
+
+#define SUNXI_CCU_GATE_DATA_WITH_PREDIV(_struct, _name, _parent, _reg,	\
+					_gate, _prediv, _flags)		\
+	struct ccu_gate _struct = {					\
+		.enable	= _gate,					\
+		.common	= {						\
+			.reg		= _reg,				\
+			.prediv		= _prediv,			\
+			.features	= CCU_FEATURE_ALL_PREDIV,	\
+			.hw.init	= CLK_HW_INIT_PARENTS_DATA(_name, \
+								   _parent, \
+								   &ccu_gate_ops, \
+								   _flags), \
 		}							\
 	}
 

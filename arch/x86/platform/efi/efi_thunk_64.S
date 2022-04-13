@@ -73,7 +73,7 @@ SYM_CODE_START(__efi64_thunk)
 1:	movq	0x20(%rsp), %rsp
 	pop	%rbx
 	pop	%rbp
-	retq
+	RET
 
 	.code32
 2:	pushl	$__KERNEL_CS

@@ -10,11 +10,10 @@
  */
 
 #include <linux/module.h>
+#include <linux/comedi/comedidev.h>
+#include <linux/comedi/comedi_8255.h>
+#include <linux/comedi/comedi_8254.h>
 
-#include "../comedidev.h"
-
-#include "8255.h"
-#include "comedi_8254.h"
 #include "das08.h"
 
 /*

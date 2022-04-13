@@ -357,12 +357,6 @@ config MTD_INTEL_VR_NOR
 	  Map driver for a NOR flash bank located on the Expansion Bus of the
 	  Intel Vermilion Range chipset.
 
-config MTD_RBTX4939
-	tristate "Map driver for RBTX4939 board"
-	depends on TOSHIBA_RBTX4939 && MTD_CFI && MTD_COMPLEX_MAPPINGS
-	help
-	  Map driver for NOR flash chips on RBTX4939 board.
-
 config MTD_PLATRAM
 	tristate "Map driver for platform device RAM (mtd-ram)"
 	select MTD_RAM

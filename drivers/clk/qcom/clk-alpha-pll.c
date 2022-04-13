@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2015, 2018-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -258,6 +259,10 @@ EXPORT_SYMBOL_GPL(clk_alpha_pll_regs);
 #define LUCID_OLE_RINGOSC_CAL_L_VAL_MASK	GENMASK(31, 24)
 #define LUCID_OLE_RINGOSC_CAL_L_VAL_SHIFT	24
 
+/* LUCID EVO PLL specific settings and offsets */
+#define LUCID_EVO_ENABLE_VOTE_RUN       BIT(25)
+#define LUCID_EVO_PLL_L_VAL_MASK        GENMASK(15, 0)
+
 /* ZONDA PLL specific */
 #define ZONDA_PLL_OUT_MASK	0xf
 #define ZONDA_STAY_IN_CFA	BIT(16)
@@ -287,7 +292,7 @@ static int wait_for_pll(struct clk_alpha_pll *pll, u32 mask, bool inverse,
 	if (ret)
 		return ret;
 
-	for (count = 100; count > 0; count--) {
+	for (count = 200; count > 0; count--) {
 		ret = regmap_read(pll->clkr.regmap, PLL_MODE(pll), &val);
 		if (ret)
 			return ret;
@@ -2264,23 +2269,31 @@ static int alpha_pll_lucid_5lpe_set_rate(struct clk_hw *hw, unsigned long rate,
 					  LUCID_5LPE_ALPHA_PLL_ACK_LATCH);
 }
 
-static int clk_lucid_5lpe_pll_postdiv_set_rate(struct clk_hw *hw, unsigned long rate,
-					       unsigned long parent_rate)
+static int __clk_lucid_pll_postdiv_set_rate(struct clk_hw *hw, unsigned long rate,
+					    unsigned long parent_rate,
+					    unsigned long enable_vote_run)
 {
 	struct clk_alpha_pll_postdiv *pll = to_clk_alpha_pll_postdiv(hw);
-	int i, val = 0, div, ret;
+	struct regmap *regmap = pll->clkr.regmap;
+	int i, val, div, ret;
 	u32 mask;
 
 	/*
 	 * If the PLL is in FSM mode, then treat set_rate callback as a
 	 * no-operation.
 	 */
-	ret = regmap_read(pll->clkr.regmap, PLL_USER_CTL(pll), &val);
+	ret = regmap_read(regmap, PLL_USER_CTL(pll), &val);
 	if (ret)
 		return ret;
 
-	if (val & LUCID_5LPE_ENABLE_VOTE_RUN)
+	if (val & enable_vote_run)
 		return 0;
+
+	if (!pll->post_div_table) {
+		pr_err("Missing the post_div_table for the %s PLL\n",
+		       clk_hw_get_name(&pll->clkr.hw));
+		return -EINVAL;
+	}
 
 	div = DIV_ROUND_UP_ULL((u64)parent_rate, rate);
 	for (i = 0; i < pll->num_post_div; i++) {
@@ -2293,6 +2306,12 @@ static int clk_lucid_5lpe_pll_postdiv_set_rate(struct clk_hw *hw, unsigned long 
 	mask = GENMASK(pll->width + pll->post_div_shift - 1, pll->post_div_shift);
 	return regmap_update_bits(pll->clkr.regmap, PLL_USER_CTL(pll),
 				  mask, val << pll->post_div_shift);
+}
+
+static int clk_lucid_5lpe_pll_postdiv_set_rate(struct clk_hw *hw, unsigned long rate,
+					       unsigned long parent_rate)
+{
+	return __clk_lucid_pll_postdiv_set_rate(hw, rate, parent_rate, LUCID_5LPE_ENABLE_VOTE_RUN);
 }
 
 const struct clk_ops clk_alpha_pll_lucid_5lpe_ops = {
@@ -3075,10 +3094,11 @@ EXPORT_SYMBOL(clk_lucid_evo_pll_configure);
 static int alpha_pll_lucid_evo_enable(struct clk_hw *hw)
 {
 	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
+	struct regmap *regmap = pll->clkr.regmap;
 	u32 val;
 	int ret;
 
-	ret = regmap_read(pll->clkr.regmap, PLL_USER_CTL(pll), &val);
+	ret = regmap_read(regmap, PLL_USER_CTL(pll), &val);
 	if (ret)
 		return ret;
 
@@ -3091,36 +3111,32 @@ static int alpha_pll_lucid_evo_enable(struct clk_hw *hw)
 	}
 
 	/* Check if PLL is already enabled */
-	ret = trion_pll_is_enabled(pll, pll->clkr.regmap);
-	if (ret < 0)
+	ret = trion_pll_is_enabled(pll, regmap);
+	if (ret < 0) {
 		return ret;
-	else if (ret) {
-		pr_warn("%s PLL is already enabled\n",
-				clk_hw_get_name(&pll->clkr.hw));
+	} else if (ret) {
+		pr_warn("%s PLL is already enabled\n", clk_hw_get_name(&pll->clkr.hw));
 		return 0;
 	}
 
-	ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll),
-						 PLL_RESET_N, PLL_RESET_N);
+	ret = regmap_update_bits(regmap, PLL_MODE(pll), PLL_RESET_N, PLL_RESET_N);
 	if (ret)
 		return ret;
 
 	/* Set operation mode to RUN */
-	regmap_write(pll->clkr.regmap, PLL_OPMODE(pll), PLL_RUN);
+	regmap_write(regmap, PLL_OPMODE(pll), PLL_RUN);
 
 	ret = wait_for_pll_enable_lock(pll);
 	if (ret)
 		return ret;
 
 	/* Enable the PLL outputs */
-	ret = regmap_update_bits(pll->clkr.regmap, PLL_USER_CTL(pll),
-				 PLL_OUT_MASK, PLL_OUT_MASK);
+	ret = regmap_update_bits(regmap, PLL_USER_CTL(pll), PLL_OUT_MASK, PLL_OUT_MASK);
 	if (ret)
 		return ret;
 
 	/* Enable the global PLL outputs */
-	ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll),
-				 PLL_OUTCTRL, PLL_OUTCTRL);
+	ret = regmap_update_bits(regmap, PLL_MODE(pll), PLL_OUTCTRL, PLL_OUTCTRL);
 	if (ret)
 		return ret;
 
@@ -3132,10 +3148,11 @@ static int alpha_pll_lucid_evo_enable(struct clk_hw *hw)
 static void alpha_pll_lucid_evo_disable(struct clk_hw *hw)
 {
 	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
+	struct regmap *regmap = pll->clkr.regmap;
 	u32 val;
 	int ret;
 
-	ret = regmap_read(pll->clkr.regmap, PLL_USER_CTL(pll), &val);
+	ret = regmap_read(regmap, PLL_USER_CTL(pll), &val);
 	if (ret)
 		return;
 
@@ -3146,14 +3163,12 @@ static void alpha_pll_lucid_evo_disable(struct clk_hw *hw)
 	}
 
 	/* Disable the global PLL output */
-	ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll),
-							PLL_OUTCTRL, 0);
+	ret = regmap_update_bits(regmap, PLL_MODE(pll), PLL_OUTCTRL, 0);
 	if (ret)
 		return;
 
 	/* Disable the PLL outputs */
-	ret = regmap_update_bits(pll->clkr.regmap, PLL_USER_CTL(pll),
-			PLL_OUT_MASK, 0);
+	ret = regmap_update_bits(regmap, PLL_USER_CTL(pll), PLL_OUT_MASK, 0);
 	if (ret)
 		return;
 
@@ -3225,54 +3240,6 @@ static int alpha_pll_lucid_evo_prepare(struct clk_hw *hw)
 	alpha_pll_lucid_evo_disable(hw);
 
 	return 0;
-}
-
-static unsigned long
-alpha_pll_lucid_evo_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
-{
-	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
-	u32 l, frac;
-
-	regmap_read(pll->clkr.regmap, PLL_L_VAL(pll), &l);
-	l &= LUCID_EVO_PLL_L_VAL_MASK;
-	regmap_read(pll->clkr.regmap, PLL_ALPHA_VAL(pll), &frac);
-
-	return alpha_pll_calc_rate(parent_rate, l, frac, ALPHA_REG_16BIT_WIDTH);
-}
-
-static int clk_lucid_evo_pll_postdiv_set_rate(struct clk_hw *hw,
-				unsigned long rate, unsigned long parent_rate)
-{
-	struct clk_alpha_pll_postdiv *pll = to_clk_alpha_pll_postdiv(hw);
-	int i, val = 0, div, ret;
-
-	/*
-	 * If the PLL is in FSM mode, then treat set_rate callback as a
-	 * no-operation.
-	 */
-	ret = regmap_read(pll->clkr.regmap, PLL_USER_CTL(pll), &val);
-	if (ret)
-		return ret;
-
-	if (val & LUCID_EVO_ENABLE_VOTE_RUN)
-		return 0;
-
-	if (!pll->post_div_table) {
-		pr_err("Missing the post_div_table for the PLL\n");
-		return -EINVAL;
-	}
-
-	div = DIV_ROUND_UP_ULL((u64)parent_rate, rate);
-	for (i = 0; i < pll->num_post_div; i++) {
-		if (pll->post_div_table[i].div == div) {
-			val = pll->post_div_table[i].val;
-			break;
-		}
-	}
-
-	return regmap_update_bits(pll->clkr.regmap, PLL_USER_CTL(pll),
-				(BIT(pll->width) - 1) << pll->post_div_shift,
-				val << pll->post_div_shift);
 }
 
 static int alpha_pll_lucid_evo_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -3394,6 +3361,26 @@ static int clk_lucid_evo_pll_init(struct clk_hw *hw)
 	return 0;
 }
 
+static unsigned long alpha_pll_lucid_evo_recalc_rate(struct clk_hw *hw,
+						     unsigned long parent_rate)
+{
+	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
+	struct regmap *regmap = pll->clkr.regmap;
+	u32 l, frac;
+
+	regmap_read(regmap, PLL_L_VAL(pll), &l);
+	l &= LUCID_EVO_PLL_L_VAL_MASK;
+	regmap_read(regmap, PLL_ALPHA_VAL(pll), &frac);
+
+	return alpha_pll_calc_rate(parent_rate, l, frac, pll_alpha_width(pll));
+}
+
+static int clk_lucid_evo_pll_postdiv_set_rate(struct clk_hw *hw, unsigned long rate,
+					      unsigned long parent_rate)
+{
+	return __clk_lucid_pll_postdiv_set_rate(hw, rate, parent_rate, LUCID_EVO_ENABLE_VOTE_RUN);
+}
+
 const struct clk_ops clk_alpha_pll_fixed_lucid_evo_ops = {
 	.prepare = clk_prepare_regmap,
 	.unprepare = clk_unprepare_regmap,
@@ -3407,14 +3394,14 @@ const struct clk_ops clk_alpha_pll_fixed_lucid_evo_ops = {
 	.debug_init = clk_common_debug_init,
 	.init = clk_lucid_evo_pll_init,
 };
-EXPORT_SYMBOL(clk_alpha_pll_fixed_lucid_evo_ops);
+EXPORT_SYMBOL_GPL(clk_alpha_pll_fixed_lucid_evo_ops);
 
 const struct clk_ops clk_alpha_pll_postdiv_lucid_evo_ops = {
 	.recalc_rate = clk_alpha_pll_postdiv_fabia_recalc_rate,
 	.round_rate = clk_alpha_pll_postdiv_fabia_round_rate,
 	.set_rate = clk_lucid_evo_pll_postdiv_set_rate,
 };
-EXPORT_SYMBOL(clk_alpha_pll_postdiv_lucid_evo_ops);
+EXPORT_SYMBOL_GPL(clk_alpha_pll_postdiv_lucid_evo_ops);
 
 const struct clk_ops clk_alpha_pll_lucid_evo_ops = {
 	.prepare = alpha_pll_lucid_evo_prepare,

@@ -16,7 +16,7 @@ struct iio_buffer;
 struct iio_chan_spec;
 struct iio_dev;
 
-extern struct device_type iio_device_type;
+extern const struct device_type iio_device_type;
 
 struct iio_dev_buffer_pair {
 	struct iio_dev		*indio_dev;

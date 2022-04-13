@@ -30,8 +30,7 @@
  */
 
 #include <linux/module.h>
-
-#include "../comedi_pcmcia.h"
+#include <linux/comedi/comedi_pcmcia.h>
 
 #include "das08.h"
 

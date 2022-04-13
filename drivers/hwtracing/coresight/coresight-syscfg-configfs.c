@@ -6,6 +6,7 @@
 
 #include <linux/configfs.h>
 
+#include "coresight-config.h"
 #include "coresight-syscfg-configfs.h"
 
 /* create a default ci_type. */
@@ -87,9 +88,75 @@ static ssize_t cscfg_cfg_values_show(struct config_item *item, char *page)
 }
 CONFIGFS_ATTR_RO(cscfg_cfg_, values);
 
+static ssize_t cscfg_cfg_enable_show(struct config_item *item, char *page)
+{
+	struct cscfg_fs_config *fs_config = container_of(to_config_group(item),
+							 struct cscfg_fs_config, group);
+
+	return scnprintf(page, PAGE_SIZE, "%d\n", fs_config->active);
+}
+
+static ssize_t cscfg_cfg_enable_store(struct config_item *item,
+					const char *page, size_t count)
+{
+	struct cscfg_fs_config *fs_config = container_of(to_config_group(item),
+							 struct cscfg_fs_config, group);
+	int err;
+	bool val;
+
+	err = kstrtobool(page, &val);
+	if (!err)
+		err = cscfg_config_sysfs_activate(fs_config->config_desc, val);
+	if (!err) {
+		fs_config->active = val;
+		if (val)
+			cscfg_config_sysfs_set_preset(fs_config->preset);
+	}
+	return err ? err : count;
+}
+CONFIGFS_ATTR(cscfg_cfg_, enable);
+
+static ssize_t cscfg_cfg_preset_show(struct config_item *item, char *page)
+{
+	struct cscfg_fs_config *fs_config = container_of(to_config_group(item),
+							 struct cscfg_fs_config, group);
+
+	return scnprintf(page, PAGE_SIZE, "%d\n", fs_config->preset);
+}
+
+static ssize_t cscfg_cfg_preset_store(struct config_item *item,
+					     const char *page, size_t count)
+{
+	struct cscfg_fs_config *fs_config = container_of(to_config_group(item),
+							 struct cscfg_fs_config, group);
+	int preset, err;
+
+	err = kstrtoint(page, 0, &preset);
+	if (!err) {
+		/*
+		 * presets start at 1, and go up to max (15),
+		 * but the config may provide fewer.
+		 */
+		if ((preset < 1) || (preset > fs_config->config_desc->nr_presets))
+			err = -EINVAL;
+	}
+
+	if (!err) {
+		/* set new value */
+		fs_config->preset = preset;
+		/* set on system if active */
+		if (fs_config->active)
+			cscfg_config_sysfs_set_preset(fs_config->preset);
+	}
+	return err ? err : count;
+}
+CONFIGFS_ATTR(cscfg_cfg_, preset);
+
 static struct configfs_attribute *cscfg_config_view_attrs[] = {
 	&cscfg_cfg_attr_description,
 	&cscfg_cfg_attr_feature_refs,
+	&cscfg_cfg_attr_enable,
+	&cscfg_cfg_attr_preset,
 	NULL,
 };
 
@@ -334,7 +401,17 @@ int cscfg_configfs_add_config(struct cscfg_config_desc *config_desc)
 	if (IS_ERR(new_group))
 		return PTR_ERR(new_group);
 	err =  configfs_register_group(&cscfg_configs_grp, new_group);
+	if (!err)
+		config_desc->fs_group = new_group;
 	return err;
+}
+
+void cscfg_configfs_del_config(struct cscfg_config_desc *config_desc)
+{
+	if (config_desc->fs_group) {
+		configfs_unregister_group(config_desc->fs_group);
+		config_desc->fs_group = NULL;
+	}
 }
 
 static struct config_item_type cscfg_features_type = {
@@ -358,7 +435,17 @@ int cscfg_configfs_add_feature(struct cscfg_feature_desc *feat_desc)
 	if (IS_ERR(new_group))
 		return PTR_ERR(new_group);
 	err =  configfs_register_group(&cscfg_features_grp, new_group);
+	if (!err)
+		feat_desc->fs_group = new_group;
 	return err;
+}
+
+void cscfg_configfs_del_feature(struct cscfg_feature_desc *feat_desc)
+{
+	if (feat_desc->fs_group) {
+		configfs_unregister_group(feat_desc->fs_group);
+		feat_desc->fs_group = NULL;
+	}
 }
 
 int cscfg_configfs_init(struct cscfg_manager *cscfg_mgr)

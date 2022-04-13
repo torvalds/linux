@@ -1662,10 +1662,9 @@ static int at91_adc_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static void at91_adc_dma_init(struct platform_device *pdev)
+static void at91_adc_dma_init(struct at91_adc_state *st)
 {
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct at91_adc_state *st = iio_priv(indio_dev);
+	struct device *dev = &st->indio_dev->dev;
 	struct dma_slave_config config = {0};
 	/* we have 2 bytes for each channel */
 	unsigned int sample_size = st->soc_info.platform->nr_channels * 2;
@@ -1680,9 +1679,9 @@ static void at91_adc_dma_init(struct platform_device *pdev)
 	if (st->dma_st.dma_chan)
 		return;
 
-	st->dma_st.dma_chan = dma_request_chan(&pdev->dev, "rx");
+	st->dma_st.dma_chan = dma_request_chan(dev, "rx");
 	if (IS_ERR(st->dma_st.dma_chan))  {
-		dev_info(&pdev->dev, "can't get DMA channel\n");
+		dev_info(dev, "can't get DMA channel\n");
 		st->dma_st.dma_chan = NULL;
 		goto dma_exit;
 	}
@@ -1692,7 +1691,7 @@ static void at91_adc_dma_init(struct platform_device *pdev)
 					       &st->dma_st.rx_dma_buf,
 					       GFP_KERNEL);
 	if (!st->dma_st.rx_buf) {
-		dev_info(&pdev->dev, "can't allocate coherent DMA area\n");
+		dev_info(dev, "can't allocate coherent DMA area\n");
 		goto dma_chan_disable;
 	}
 
@@ -1705,11 +1704,11 @@ static void at91_adc_dma_init(struct platform_device *pdev)
 	config.dst_maxburst = 1;
 
 	if (dmaengine_slave_config(st->dma_st.dma_chan, &config)) {
-		dev_info(&pdev->dev, "can't configure DMA slave\n");
+		dev_info(dev, "can't configure DMA slave\n");
 		goto dma_free_area;
 	}
 
-	dev_info(&pdev->dev, "using %s for rx DMA transfers\n",
+	dev_info(dev, "using %s for rx DMA transfers\n",
 		 dma_chan_name(st->dma_st.dma_chan));
 
 	return;
@@ -1721,13 +1720,12 @@ dma_chan_disable:
 	dma_release_channel(st->dma_st.dma_chan);
 	st->dma_st.dma_chan = NULL;
 dma_exit:
-	dev_info(&pdev->dev, "continuing without DMA support\n");
+	dev_info(dev, "continuing without DMA support\n");
 }
 
-static void at91_adc_dma_disable(struct platform_device *pdev)
+static void at91_adc_dma_disable(struct at91_adc_state *st)
 {
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct at91_adc_state *st = iio_priv(indio_dev);
+	struct device *dev = &st->indio_dev->dev;
 	/* we have 2 bytes for each channel */
 	unsigned int sample_size = st->soc_info.platform->nr_channels * 2;
 	unsigned int pages = DIV_ROUND_UP(AT91_HWFIFO_MAX_SIZE *
@@ -1745,7 +1743,7 @@ static void at91_adc_dma_disable(struct platform_device *pdev)
 	dma_release_channel(st->dma_st.dma_chan);
 	st->dma_st.dma_chan = NULL;
 
-	dev_info(&pdev->dev, "continuing without DMA support\n");
+	dev_info(dev, "continuing without DMA support\n");
 }
 
 static int at91_adc_set_watermark(struct iio_dev *indio_dev, unsigned int val)
@@ -1771,9 +1769,9 @@ static int at91_adc_set_watermark(struct iio_dev *indio_dev, unsigned int val)
 	 */
 
 	if (val == 1)
-		at91_adc_dma_disable(to_platform_device(&indio_dev->dev));
+		at91_adc_dma_disable(st);
 	else if (val > 1)
-		at91_adc_dma_init(to_platform_device(&indio_dev->dev));
+		at91_adc_dma_init(st);
 
 	/*
 	 * We can start the DMA only after setting the watermark and
@@ -1781,7 +1779,7 @@ static int at91_adc_set_watermark(struct iio_dev *indio_dev, unsigned int val)
 	 */
 	ret = at91_adc_buffer_prepare(indio_dev);
 	if (ret)
-		at91_adc_dma_disable(to_platform_device(&indio_dev->dev));
+		at91_adc_dma_disable(st);
 
 	return ret;
 }
@@ -1828,7 +1826,7 @@ static void at91_adc_hw_init(struct iio_dev *indio_dev)
 static ssize_t at91_adc_get_fifo_state(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct at91_adc_state *st = iio_priv(indio_dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", !!st->dma_st.dma_chan);
@@ -1837,7 +1835,7 @@ static ssize_t at91_adc_get_fifo_state(struct device *dev,
 static ssize_t at91_adc_get_watermark(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct at91_adc_state *st = iio_priv(indio_dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", st->dma_st.watermark);
@@ -2078,7 +2076,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 	return 0;
 
 dma_disable:
-	at91_adc_dma_disable(pdev);
+	at91_adc_dma_disable(st);
 per_clk_disable_unprepare:
 	clk_disable_unprepare(st->per_clk);
 vref_disable:
@@ -2095,7 +2093,7 @@ static int at91_adc_remove(struct platform_device *pdev)
 
 	iio_device_unregister(indio_dev);
 
-	at91_adc_dma_disable(pdev);
+	at91_adc_dma_disable(st);
 
 	clk_disable_unprepare(st->per_clk);
 

@@ -212,7 +212,7 @@ static const struct iio_chan_spec_ext_info dac5571_ext_info[] = {
 		.shared	   = IIO_SEPARATE,
 	},
 	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &dac5571_powerdown_mode),
-	IIO_ENUM_AVAILABLE("powerdown_mode", &dac5571_powerdown_mode),
+	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &dac5571_powerdown_mode),
 	{},
 };
 

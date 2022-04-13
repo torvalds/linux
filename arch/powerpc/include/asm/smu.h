@@ -456,7 +456,7 @@ extern void smu_poll(void);
 /*
  * Init routine, presence check....
  */
-extern int smu_init(void);
+int __init smu_init(void);
 extern int smu_present(void);
 struct platform_device;
 extern struct platform_device *smu_get_ofdev(void);

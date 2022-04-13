@@ -129,11 +129,11 @@ static void irq_release(struct mlx5_irq *irq)
 	struct mlx5_irq_pool *pool = irq->pool;
 
 	xa_erase(&pool->irqs, irq->index);
-	/* free_irq requires that affinity and rmap will be cleared
+	/* free_irq requires that affinity_hint and rmap will be cleared
 	 * before calling it. This is why there is asymmetry with set_rmap
 	 * which should be called after alloc_irq but before request_irq.
 	 */
-	irq_set_affinity_hint(irq->irqn, NULL);
+	irq_update_affinity_hint(irq->irqn, NULL);
 	free_cpumask_var(irq->mask);
 	free_irq(irq->irqn, &irq->nh);
 	kfree(irq);
@@ -238,7 +238,7 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 	}
 	if (affinity) {
 		cpumask_copy(irq->mask, affinity);
-		irq_set_affinity_hint(irq->irqn, irq->mask);
+		irq_set_affinity_and_hint(irq->irqn, irq->mask);
 	}
 	irq->pool = pool;
 	irq->refcount = 1;
@@ -251,7 +251,7 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 	}
 	return irq;
 err_xa:
-	irq_set_affinity_hint(irq->irqn, NULL);
+	irq_update_affinity_hint(irq->irqn, NULL);
 	free_cpumask_var(irq->mask);
 err_cpumask:
 	free_irq(irq->irqn, &irq->nh);

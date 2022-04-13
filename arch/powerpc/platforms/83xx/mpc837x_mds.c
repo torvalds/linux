@@ -23,7 +23,7 @@
 #define BCSR12_USB_SER_PIN	0x80
 #define BCSR12_USB_SER_DEVICE	0x02
 
-static int mpc837xmds_usb_cfg(void)
+static int __init mpc837xmds_usb_cfg(void)
 {
 	struct device_node *np;
 	const void *phy_type, *mode;

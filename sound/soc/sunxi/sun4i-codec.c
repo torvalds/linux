@@ -1752,8 +1752,7 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 						  GPIOD_OUT_LOW);
 	if (IS_ERR(scodec->gpio_pa)) {
 		ret = PTR_ERR(scodec->gpio_pa);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to get pa gpio: %d\n", ret);
+		dev_err_probe(&pdev->dev, ret, "Failed to get pa gpio\n");
 		return ret;
 	}
 

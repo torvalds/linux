@@ -179,7 +179,7 @@ efc_nport_alloc_read_sparm64(struct efc *efc, struct efc_nport *nport)
 	nport->dma.size = EFC_SPARAM_DMA_SZ;
 	nport->dma.virt = dma_alloc_coherent(&efc->pci->dev,
 					     nport->dma.size, &nport->dma.phys,
-					     GFP_DMA);
+					     GFP_KERNEL);
 	if (!nport->dma.virt) {
 		efc_log_err(efc, "Failed to allocate DMA memory\n");
 		efc_nport_free_resources(nport, EFC_EVT_NPORT_ALLOC_FAIL, data);
@@ -466,7 +466,7 @@ efc_cmd_domain_alloc(struct efc *efc, struct efc_domain *domain, u32 fcf)
 	domain->dma.size = EFC_SPARAM_DMA_SZ;
 	domain->dma.virt = dma_alloc_coherent(&efc->pci->dev,
 					      domain->dma.size,
-					      &domain->dma.phys, GFP_DMA);
+					      &domain->dma.phys, GFP_KERNEL);
 	if (!domain->dma.virt) {
 		efc_log_err(efc, "Failed to allocate DMA memory\n");
 		return -EIO;
