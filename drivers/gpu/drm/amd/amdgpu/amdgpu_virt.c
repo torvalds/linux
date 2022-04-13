@@ -870,11 +870,11 @@ static u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v
 	uint32_t timeout = 50000;
 	uint32_t i, tmp;
 	uint32_t ret = 0;
-	static void *scratch_reg0;
-	static void *scratch_reg1;
-	static void *scratch_reg2;
-	static void *scratch_reg3;
-	static void *spare_int;
+	void *scratch_reg0;
+	void *scratch_reg1;
+	void *scratch_reg2;
+	void *scratch_reg3;
+	void *spare_int;
 
 	if (!adev->gfx.rlc.rlcg_reg_access_supported) {
 		dev_err(adev->dev,
