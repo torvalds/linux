@@ -633,14 +633,19 @@ int kfd_set_event(struct kfd_process *p, uint32_t event_id)
 	rcu_read_lock();
 
 	ev = lookup_event_by_id(p, event_id);
+	if (!ev) {
+		ret = -EINVAL;
+		goto unlock_rcu;
+	}
 	spin_lock(&ev->lock);
 
-	if (ev && event_can_be_cpu_signaled(ev))
+	if (event_can_be_cpu_signaled(ev))
 		set_event(ev);
 	else
 		ret = -EINVAL;
 
 	spin_unlock(&ev->lock);
+unlock_rcu:
 	rcu_read_unlock();
 	return ret;
 }
@@ -659,14 +664,19 @@ int kfd_reset_event(struct kfd_process *p, uint32_t event_id)
 	rcu_read_lock();
 
 	ev = lookup_event_by_id(p, event_id);
+	if (!ev) {
+		ret = -EINVAL;
+		goto unlock_rcu;
+	}
 	spin_lock(&ev->lock);
 
-	if (ev && event_can_be_cpu_signaled(ev))
+	if (event_can_be_cpu_signaled(ev))
 		reset_event(ev);
 	else
 		ret = -EINVAL;
 
 	spin_unlock(&ev->lock);
+unlock_rcu:
 	rcu_read_unlock();
 	return ret;
 
