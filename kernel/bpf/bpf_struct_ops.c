@@ -263,7 +263,7 @@ int bpf_struct_ops_map_sys_lookup_elem(struct bpf_map *map, void *key,
 	/* No lock is needed.  state and refcnt do not need
 	 * to be updated together under atomic context.
 	 */
-	uvalue = (struct bpf_struct_ops_value *)value;
+	uvalue = value;
 	memcpy(uvalue, st_map->uvalue, map->value_size);
 	uvalue->state = state;
 	refcount_set(&uvalue->refcnt, refcount_read(&kvalue->refcnt));
@@ -353,7 +353,7 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	if (err)
 		return err;
 
-	uvalue = (struct bpf_struct_ops_value *)value;
+	uvalue = value;
 	err = check_zero_holes(t, uvalue->data);
 	if (err)
 		return err;

@@ -738,7 +738,7 @@ static void check_and_free_timer(struct bpf_htab *htab, struct htab_elem *elem)
  */
 static bool htab_lru_map_delete_node(void *arg, struct bpf_lru_node *node)
 {
-	struct bpf_htab *htab = (struct bpf_htab *)arg;
+	struct bpf_htab *htab = arg;
 	struct htab_elem *l = NULL, *tgt_l;
 	struct hlist_nulls_head *head;
 	struct hlist_nulls_node *n;
