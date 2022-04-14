@@ -1284,10 +1284,8 @@ static bool is_dtbclk_required(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
-#if defined (CONFIG_DRM_AMD_DC_DP2_0)
 		if (is_dp_128b_132b_signal(&context->res_ctx.pipe_ctx[i]))
 			return true;
-#endif
 	}
 	return false;
 }

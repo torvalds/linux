@@ -41,9 +41,7 @@
 
 #include "dc_dmub_srv.h"
 
-#if defined (CONFIG_DRM_AMD_DC_DP2_0)
 #include "dc_link_dp.h"
-#endif
 
 #define TO_CLK_MGR_DCN315(clk_mgr)\
 	container_of(clk_mgr, struct clk_mgr_dcn315, base)
