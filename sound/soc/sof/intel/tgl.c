@@ -59,7 +59,7 @@ static int tgl_dsp_core_put(struct snd_sof_dev *sdev, int core)
 }
 
 /* Tigerlake ops */
-const struct snd_sof_dsp_ops sof_tgl_ops = {
+struct snd_sof_dsp_ops sof_tgl_ops = {
 	/* probe/remove/shutdown */
 	.probe		= hda_dsp_probe,
 	.remove		= hda_dsp_remove,

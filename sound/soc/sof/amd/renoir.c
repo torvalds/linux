@@ -123,7 +123,7 @@ static struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev
 }
 
 /* AMD Renoir DSP ops */
-const struct snd_sof_dsp_ops sof_renoir_ops = {
+struct snd_sof_dsp_ops sof_renoir_ops = {
 	/* probe and remove */
 	.probe			= amd_sof_acp_probe,
 	.remove			= amd_sof_acp_remove,

@@ -331,7 +331,7 @@ EXPORT_SYMBOL_GPL(snd_sof_dbg_memory_info_init);
 
 int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 {
-	const struct snd_sof_dsp_ops *ops = sof_ops(sdev);
+	struct snd_sof_dsp_ops *ops = sof_ops(sdev);
 	const struct snd_sof_debugfs_map *map;
 	int i;
 	int err;

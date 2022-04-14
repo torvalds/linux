@@ -16,6 +16,7 @@
 #include <sound/soc-acpi.h>
 
 struct snd_sof_dsp_ops;
+struct snd_sof_dev;
 
 /**
  * enum sof_fw_state - DSP firmware state definitions
@@ -135,7 +136,8 @@ struct sof_dev_desc {
 	/* default firmware name */
 	const char *default_fw_filename[SOF_IPC_TYPE_COUNT];
 
-	const struct snd_sof_dsp_ops *ops;
+	struct snd_sof_dsp_ops *ops;
+	int (*ops_init)(struct snd_sof_dev *sdev);
 };
 
 int sof_dai_get_mclk(struct snd_soc_pcm_runtime *rtd);

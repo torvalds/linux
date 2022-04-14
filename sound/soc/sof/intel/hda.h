@@ -687,10 +687,10 @@ extern struct snd_soc_dai_driver skl_dai[];
 /*
  * Platform Specific HW abstraction Ops.
  */
-extern const struct snd_sof_dsp_ops sof_apl_ops;
-extern const struct snd_sof_dsp_ops sof_cnl_ops;
-extern const struct snd_sof_dsp_ops sof_tgl_ops;
-extern const struct snd_sof_dsp_ops sof_icl_ops;
+extern struct snd_sof_dsp_ops sof_apl_ops;
+extern struct snd_sof_dsp_ops sof_cnl_ops;
+extern struct snd_sof_dsp_ops sof_tgl_ops;
+extern struct snd_sof_dsp_ops sof_icl_ops;
 
 extern const struct sof_intel_dsp_desc apl_chip_info;
 extern const struct sof_intel_dsp_desc cnl_chip_info;

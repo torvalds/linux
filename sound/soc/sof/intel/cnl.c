@@ -244,7 +244,7 @@ void cnl_ipc_dump(struct snd_sof_dev *sdev)
 }
 
 /* cannonlake ops */
-const struct snd_sof_dsp_ops sof_cnl_ops = {
+struct snd_sof_dsp_ops sof_cnl_ops = {
 	/* probe/remove/shutdown */
 	.probe		= hda_dsp_probe,
 	.remove		= hda_dsp_remove,

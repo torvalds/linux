@@ -204,7 +204,7 @@ int acp_pcm_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_substream *substr
 		      struct snd_pcm_hw_params *params,
 		      struct snd_sof_platform_stream_params *platform_params);
 
-extern const struct snd_sof_dsp_ops sof_renoir_ops;
+extern struct snd_sof_dsp_ops sof_renoir_ops;
 
 /* Machine configuration */
 int snd_amd_acp_find_config(struct pci_dev *pci);

@@ -216,7 +216,7 @@ irq:
 }
 
 /* baytrail ops */
-static const struct snd_sof_dsp_ops sof_byt_ops = {
+static struct snd_sof_dsp_ops sof_byt_ops = {
 	/* device init */
 	.probe		= byt_acpi_probe,
 	.remove		= byt_remove,
@@ -298,7 +298,7 @@ static const struct sof_intel_dsp_desc byt_chip_info = {
 };
 
 /* cherrytrail and braswell ops */
-static const struct snd_sof_dsp_ops sof_cht_ops = {
+static struct snd_sof_dsp_ops sof_cht_ops = {
 	/* device init */
 	.probe		= byt_acpi_probe,
 	.remove		= byt_remove,

@@ -136,7 +136,7 @@ irq:
 	return ret;
 }
 
-const struct snd_sof_dsp_ops sof_tng_ops = {
+struct snd_sof_dsp_ops sof_tng_ops = {
 	/* device init */
 	.probe		= tangier_pci_probe,
 

@@ -88,7 +88,7 @@ static int icl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 }
 
 /* Icelake ops */
-const struct snd_sof_dsp_ops sof_icl_ops = {
+struct snd_sof_dsp_ops sof_icl_ops = {
 	/* probe/remove/shutdown */
 	.probe		= hda_dsp_probe,
 	.remove		= hda_dsp_remove,
