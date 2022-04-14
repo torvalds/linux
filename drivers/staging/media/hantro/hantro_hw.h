@@ -345,8 +345,6 @@ int hantro_hevc_dec_prepare_run(struct hantro_ctx *ctx);
 dma_addr_t hantro_hevc_get_ref_buf(struct hantro_ctx *ctx, int poc);
 int hantro_hevc_add_ref_buf(struct hantro_ctx *ctx, int poc, dma_addr_t addr);
 void hantro_hevc_ref_remove_unused(struct hantro_ctx *ctx);
-size_t hantro_hevc_chroma_offset(const struct v4l2_ctrl_hevc_sps *sps);
-size_t hantro_hevc_motion_vectors_offset(const struct v4l2_ctrl_hevc_sps *sps);
 
 static inline unsigned short hantro_vp9_num_sbs(unsigned short dimension)
 {

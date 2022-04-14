@@ -27,23 +27,6 @@
 
 #define UNUSED_REF	-1
 
-#define G2_ALIGN		16
-
-size_t hantro_hevc_chroma_offset(const struct v4l2_ctrl_hevc_sps *sps)
-{
-	int bytes_per_pixel = sps->bit_depth_luma_minus8 == 0 ? 1 : 2;
-
-	return sps->pic_width_in_luma_samples *
-	       sps->pic_height_in_luma_samples * bytes_per_pixel;
-}
-
-size_t hantro_hevc_motion_vectors_offset(const struct v4l2_ctrl_hevc_sps *sps)
-{
-	size_t cr_offset = hantro_hevc_chroma_offset(sps);
-
-	return ALIGN((cr_offset * 3) / 2, G2_ALIGN);
-}
-
 static void hantro_hevc_ref_init(struct hantro_ctx *ctx)
 {
 	struct hantro_hevc_dec_hw_ctx *hevc_dec = &ctx->hevc_dec;
