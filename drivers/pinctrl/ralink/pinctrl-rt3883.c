@@ -87,7 +87,7 @@ static int rt3883_pinctrl_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id rt3883_pinctrl_match[] = {
-	{ .compatible = "ralink,rt2880-pinmux" },
+	{ .compatible = "ralink,rt3883-pinctrl" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, rt3883_pinctrl_match);
@@ -95,7 +95,7 @@ MODULE_DEVICE_TABLE(of, rt3883_pinctrl_match);
 static struct platform_driver rt3883_pinctrl_driver = {
 	.probe = rt3883_pinctrl_probe,
 	.driver = {
-		.name = "rt2880-pinmux",
+		.name = "rt3883-pinctrl",
 		.of_match_table = rt3883_pinctrl_match,
 	},
 };
