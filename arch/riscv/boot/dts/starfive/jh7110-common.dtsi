@@ -1,0 +1,377 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+/*
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 Hal Feng <hal.feng@starfivetech.com>
+ */
+
+/dts-v1/;
+#include "jh7110.dtsi"
+#include "jh7110_pinctrl.dtsi"
+
+/ {
+	aliases {
+		spi0="/soc/spi@13010000";
+		gpio0="/soc/gpio@13040000";
+		ethernet0="/soc/gmac0@16030000";
+		mmc0="/soc/sdio0@16010000";
+		mmc1="/soc/sdio1@16020000";
+	};
+
+	chosen {
+		linux,initrd-start = <0x0 0x46100000>;
+		linux,initrd-end = <0x0 0x4c000000>;
+		stdout-path = "/soc/serial@10000000:115200";
+		#bootargs = "debug console=ttyS0 rootwait";
+	};
+
+	cpus {
+		timebase-frequency = <2000000>;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x40000000 0x1 0x0>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x20000000>;
+			alignment = <0x0 0x1000>;
+			alloc-ranges = <0x0 0xa0000000 0x0 0x20000000>;
+			linux,cma-default;
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&dma {
+    status = "okay";
+};
+
+&trng {
+    status = "okay";
+};
+
+&i2c6 {
+	clock-frequency = <100000>;
+	i2c-sda-hold-time-ns = <300>;
+	i2c-sda-falling-time-ns = <3000>;
+	i2c-scl-falling-time-ns = <3000>;
+	auto_calc_scl_lhcnt;
+	status = "okay";
+
+	sc2235@30 {
+		compatible = "sc2235";
+		reg = <0x30>;
+		clocks = <&clk_ext_camera>;
+		clock-names = "xclk";
+		powerdown-gpios = <&gpio 0 0>;
+		reset-gpios = <&gpio 0 0>;
+		sc2235-18-gpios = <&gpio 11 0>;
+		sc2235-15-gpios = <&gpio 12 0>;
+		sc2235-28-gpios = <&gpio 10 0>;
+		sc2235-reset-gpios = <&gpio 16 0>;
+		sc2235-pwdn-gpios = <&gpio 15 0>;
+		sc2235-esync-gpios = <&gpio 17 0>;
+		sc2235-oen-gpios = <&gpio 18 0>;
+
+		port {
+			/* Parallel bus endpoint */
+			sc2235_to_parallel: endpoint {
+				remote-endpoint = <&parallel_from_sc2235>;
+				bus-type = <5>;      /* Parallel */
+				bus-width = <8>;
+				data-shift = <2>; /* lines 13:6 are used */
+				hsync-active = <1>;
+				vsync-active = <1>;
+				pclk-sample = <1>;
+			};
+		};
+	};
+
+	ov13850@10 {
+		compatible = "ovti,ov13850";
+		reg = <0x10>;
+		clocks = <&clk_ext_camera>;
+		clock-names = "xclk";
+		powerdown-gpio = <&gpio 15 0>;
+		reset-gpio = <&gpio 16 0>;
+		rotation = <0>;
+
+		port {
+			/* CSI2 bus endpoint */
+			ov13850_to_csi2rx0: endpoint {
+				remote-endpoint = <&csi2rx0_from_ov13850>;
+				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
+				clock-lanes = <2>;
+				data-lanes = <0 1>;
+			};
+		};
+	};
+};
+
+&i2c0 {
+	clock-frequency = <100000>;
+	i2c-sda-hold-time-ns = <300>;
+	i2c-sda-falling-time-ns = <3000>;
+	i2c-scl-falling-time-ns = <3000>;
+	auto_calc_scl_lhcnt;
+	status = "okay";
+
+	ac108_a: ac108@3b {
+		compatible = "x-power,ac108_0";
+		reg = <0x3b>;
+		#sound-dai-cells = <0>;
+		data-protocol = <0>;
+	};
+
+	wm8960: codec@1a {
+		compatible = "wlf,wm8960";
+		reg = <0x1a>;
+		#sound-dai-cells = <0>;
+
+		wlf,shared-lrclk;
+	};
+};
+
+&i2c1 {
+	clock-frequency = <100000>;
+	i2c-sda-hold-time-ns = <300>;
+	i2c-sda-falling-time-ns = <3000>;
+	i2c-scl-falling-time-ns = <3000>;
+	auto_calc_scl_lhcnt;
+	status = "okay";
+
+	adv7513@39 {
+		compatible = "adi,adv7513";
+		reg = <0x39>, <0x49>, <0x29>, <0x59>;
+		reg-names = "main", "edid", "cec", "packet";
+
+		adi,input-depth = <8>;
+		adi,input-colorspace = "rgb";
+		adi,input-clock = "1x";
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				adv7513_0_in: endpoint {
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				adv7513_1_out: endpoint {
+				};
+			};
+		};
+	};
+};
+
+&sdio0 {
+	clock-frequency = <4000000>;
+	max-frequency = <1000000>;
+	card-detect-delay = <300>;
+	bus-width = <8>;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	cap-mmc-hw-reset;
+	non-removable;
+	enable-sdio-wakeup;
+	keep-power-in-suspend;
+	cap-mmc-highspeed;
+	post-power-on-delay-ms = <200>;
+	status = "okay";
+};
+
+&sdio1 {
+	clock-frequency = <4000000>;
+	max-frequency = <1000000>;
+	card-detect-delay = <300>;
+	bus-width = <4>;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	cap-mmc-hw-reset;
+	non-removable;
+	enable-sdio-wakeup;
+	keep-power-in-suspend;
+	cap-mmc-highspeed;
+	post-power-on-delay-ms = <200>;
+	status = "okay";
+};
+
+&vin_sysctl {
+    status = "okay";
+
+	ports {
+		port@3 {
+			reg = <2>;
+
+			/* Parallel bus endpoint */
+			parallel_from_sc2235: endpoint {
+				remote-endpoint = <&sc2235_to_parallel>;
+				bus-type = <5>;      /* Parallel */
+				bus-width = <8>;
+				data-shift = <2>; /* lines 9:2 are used */
+				hsync-active = <1>;
+				vsync-active = <0>;
+				pclk-sample = <1>;
+				status = "okay";
+			};
+		};
+
+		port@4 {
+			reg = <3>;
+
+			/* Parallel bus endpoint */
+			csi2rx0_from_ov13850: endpoint {
+				remote-endpoint = <&ov13850_to_csi2rx0>;
+				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
+				clock-lanes = <2>;
+				data-lanes = <0 1>;
+				status = "okay";
+			};
+		};
+	};
+};
+
+&jpu {
+    status = "okay";
+};
+
+&vpu_dec {
+    status = "okay";
+};
+
+&vpu_enc {
+    status = "okay";
+};
+
+&gmac0 {
+	status = "okay";
+};
+
+&gpu {
+    status = "okay";
+};
+
+&ipmscan0 {
+    status = "okay";
+};
+
+&ipmscan1 {
+    status = "okay";
+};
+
+&tdm {
+    status = "okay";
+};
+
+&spdif0 {
+    status = "okay";
+};
+
+&pwmdac {
+    status = "okay";
+};
+
+&i2stx {
+    status = "okay";
+};
+
+&pdm {
+    status = "okay";
+};
+
+&i2srx_3ch {
+    status = "okay";
+};
+
+&i2stx_4ch0 {
+    status = "okay";
+};
+
+&i2stx_4ch1 {
+    status = "okay";
+};
+
+&ptc {
+	status = "okay";
+};
+
+&spdif_transmitter {
+    status = "okay";
+};
+
+&spdif_receiver {
+    status = "okay";
+};
+
+&pwmdac_codec {
+    status = "okay";
+};
+
+&dmic_codec {
+    status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	spi_dev0: spi@0 {
+		compatible = "rohm,dh2228fv";
+		pl022,com-mode = <1>;
+		spi-max-frequency = <10000000>;
+		reg = <0>;
+		status = "okay";
+	};
+};
+
+&pcie0 {
+    status = "okay";
+};
+
+&mailbox_contrl0 {
+    status = "okay";
+};
+
+&mailbox_client0 {
+    status = "okay";
+};
+
+&display {
+	status = "okay";
+};
+
+&encoder {
+	encoder-type = <2>;
+	status = "okay";
+
+	ports {
+		port@0 {
+			endpoint {
+				remote-endpoint = <&adv7513_0_in>;
+			};
+		};
+
+		port@1 {
+			endpoint {
+				remote-endpoint = <&dc_out_dpi0>;
+			};
+		};
+	};
+};

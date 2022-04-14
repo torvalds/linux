@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+/*
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ */
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/starfive,jh7110-pinfunc.h>
 
@@ -11,7 +16,7 @@
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
-	
+
 	gmac1_pins: gmac1-pins {
 		gmac1-pins0 {
 			sf,pins = <PAD_GMAC1_MDC>;
@@ -29,7 +34,7 @@
 			sf,pin-gpio-doen = <OEN_I2C0_IC_CLK_OE>;
 			sf,pin-gpio-din =  <GPI_I2C0_IC_CLK_IN_A>;
 		};
-		
+
 		i2c0-pins-sda {
 			sf,pins = <PAD_GPIO51>;
 			sf,pinmux = <PAD_GPIO51_FUNC_SEL 0>;
@@ -39,7 +44,7 @@
 			sf,pin-gpio-din =  <GPI_I2C0_IC_DATA_IN_A>;
 		};
 	};
-	
+
 	i2c6_pins: i2c6-pins {
 		i2c6-pins-scl {
 			sf,pins = <PAD_GPIO20>;
@@ -49,7 +54,7 @@
 			sf,pin-gpio-doen = <OEN_I2C6_IC_CLK_OE>;
 			sf,pin-gpio-din =  <GPI_I2C6_IC_CLK_IN_A>;
 		};
-		
+
 		i2c6-pins-sda {
 			sf,pins = <PAD_GPIO19>;
 			sf,pinmux = <PAD_GPIO19_FUNC_SEL 0>;
@@ -59,7 +64,7 @@
 			sf,pin-gpio-din =  <GPI_I2C6_IC_DATA_IN_A>;
 		};
 	};
-	
+
 	mmc0_pins: mmc0-pins {
 		 mmc0-pins-rest {
 			sf,pins = <PAD_GPIO62>;
@@ -69,7 +74,7 @@
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
-	
+
 	mmc1_pins: mmc1-pins {
 		 mmc1-pins0 {
 			sf,pins = <PAD_GPIO10>;
@@ -78,7 +83,7 @@
 			sf,pin-gpio-dout = <GPO_SDIO1_CCLK_OUT>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
-		
+
 		mmc1-pins1 {
 			sf,pins = <PAD_GPIO9>;
 			sf,pinmux = <PAD_GPIO9_FUNC_SEL 0>;
@@ -87,7 +92,7 @@
 			sf,pin-gpio-doen = <OEN_SDIO1_CCMD_OUT_EN>;
 			sf,pin-gpio-din =  <GPI_SDIO1_CCMD_IN>;
 		};
-		
+
 		mmc1-pins2 {
 			sf,pins = <PAD_GPIO11>;
 			sf,pinmux = <PAD_GPIO11_FUNC_SEL 0>;
@@ -96,7 +101,7 @@
 			sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_0>;
 			sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_0>;
 		};
-		
+
 		mmc1-pins3 {
 			sf,pins = <PAD_GPIO12>;
 			sf,pinmux = <PAD_GPIO12_FUNC_SEL 0>;
@@ -105,7 +110,7 @@
 			sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_1>;
 			sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_1>;
 		};
-		
+
 		mmc1-pins4 {
 			sf,pins = <PAD_GPIO7>;
 			sf,pinmux = <PAD_GPIO7_FUNC_SEL 0>;
@@ -124,7 +129,7 @@
 			sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_3>;
 		};
 	};
-	
+
 	pwmdac0_pins: pwmdac0-pins {
 		pwmdac0-pins-left {
 			sf,pins = <PAD_GPIO19>;
@@ -133,7 +138,7 @@
 			sf,pin-gpio-dout = <GPO_PWMDAC0_LEFT_OUTPUT>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
-		
+
 		pwmdac0-pins-right {
 			sf,pins = <PAD_GPIO42>;
 			sf,pinmux = <PAD_GPIO42_FUNC_SEL 0>;
@@ -142,16 +147,16 @@
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
-	
+
 	i2s_clk_pins: i2s-clk0 {
 		i2s-clk0_mclk {
 			sf,pins = <PAD_GPIO32>;
 			sf,pinmux = <PAD_GPIO32_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_CRG0_MCLK_OUT>;	
+			sf,pin-gpio-dout = <GPO_CRG0_MCLK_OUT>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
-	
+
 		i2s-clk0_bclk {
 			sf,pins = <PAD_GPIO37>;
 			sf,pinmux = <PAD_GPIO37_FUNC_SEL 0>;
@@ -159,7 +164,7 @@
 			sf,pin-gpio-dout = <GPO_I2SRX0_BCLK_MST>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
-		
+
 		i2s-clk0_lrclk {
 			sf,pins = <PAD_GPIO25>;
 			sf,pinmux = <PAD_GPIO25_FUNC_SEL 0>;
@@ -168,7 +173,7 @@
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
-	
+
 	i2stx_pins: i2stx-pins {
 		i2stx-pins0 {
 			sf,pins = <PAD_GPIO18>;
@@ -198,7 +203,7 @@
 			sf,pin-gpio-dout = <GPO_CAN0_CTRL_TXD>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
-		
+
 		can0-pins1 {
 			sf,pins = <PAD_GPIO27>;
 			sf,pinmux = <PAD_GPIO27_FUNC_SEL 0>;
@@ -206,7 +211,7 @@
 			sf,pin-gpio-doen = <OEN_HIGH>;
 			sf,pin-gpio-din =  <GPI_CAN0_CTRL_RXD>;
 		};
-		
+
 		can0-pins2 {
 			sf,pins = <PAD_GPIO45>;
 			sf,pinmux = <PAD_GPIO45_FUNC_SEL 0>;
@@ -215,7 +220,7 @@
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
-	
+
 	can1_pins: can1-pins {
 		can1-pins0 {
 			sf,pins = <PAD_GPIO28>;
@@ -224,7 +229,7 @@
 			sf,pin-gpio-dout = <GPO_CAN1_CTRL_TXD>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
-		
+
 		can1-pins1 {
 			sf,pins = <PAD_GPIO27>;
 			sf,pinmux = <PAD_GPIO27_FUNC_SEL 0>;
@@ -232,7 +237,7 @@
 			sf,pin-gpio-doen = <OEN_HIGH>;
 			sf,pin-gpio-din =  <GPI_CAN1_CTRL_RXD>;
 		};
-		
+
 		can1-pins2 {
 			sf,pins = <PAD_GPIO45>;
 			sf,pinmux = <PAD_GPIO45_FUNC_SEL 0>;
@@ -251,7 +256,7 @@
 			sf,pin-gpio-doen = <OEN_PTC0_PWM_0_OE_N>;
 		};
 	};
-	
+
 	ssp0_pins: ssp0-pins {
 		ssp0-pins_tx {
 			sf,pins = <PAD_GPIO57>;
@@ -268,7 +273,7 @@
 			sf,pin-gpio-doen = <OEN_HIGH>;
 			sf,pin-gpio-din =  <GPI_SPI0_SSPRXD>;
 		};
-		
+
 		ssp0-pins_clk {
 			sf,pins = <PAD_GPIO61>;
 			sf,pinmux = <PAD_GPIO61_FUNC_SEL 0>;
@@ -276,7 +281,7 @@
 			sf,pin-gpio-dout = <GPO_SPI0_SSPCLKOUT>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
-		
+
 		ssp0-pins_cs {
 			sf,pins = <PAD_GPIO14>;
 			sf,pinmux = <PAD_GPIO14_FUNC_SEL 0>;
@@ -285,7 +290,7 @@
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
-	
+
 	sc2235_pins: sc2235-pins {
 		sc2235-1V8-pins {
 			sf,pins = <PAD_GPIO11>;
@@ -294,7 +299,7 @@
 			sf,pin-gpio-dout = <GPO_HIGH>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
-		
+
 		sc2235-1V5-pins {
 			sf,pins = <PAD_GPIO12>;
 			sf,pinmux = <PAD_GPIO12_FUNC_SEL 0>;
@@ -302,7 +307,7 @@
 			sf,pin-gpio-dout = <GPO_HIGH>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
-		
+
 		sc2235-2V8-pins {
 			sf,pins = <PAD_GPIO10>;
 			sf,pinmux = <PAD_GPIO10_FUNC_SEL 0>;
@@ -310,7 +315,7 @@
 			sf,pin-gpio-dout = <GPO_HIGH>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
-		
+
 		sc2235-reset-pins {
 			sf,pins = <PAD_GPIO16>;
 			sf,pinmux = <PAD_GPIO16_FUNC_SEL 0>;
@@ -318,7 +323,7 @@
 			sf,pin-gpio-dout = <GPO_HIGH>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
-		
+
 		sc2235-pwdn-pins {
 			sf,pins = <PAD_GPIO15>;
 			sf,pinmux = <PAD_GPIO15_FUNC_SEL 0>;
@@ -326,7 +331,7 @@
 			sf,pin-gpio-dout = <GPO_HIGH>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
-		
+
 		sc2235-esync-pins {
 			sf,pins = <PAD_GPIO17>;
 			sf,pinmux = <PAD_GPIO17_FUNC_SEL 0>;
@@ -334,7 +339,7 @@
 			sf,pin-gpio-dout = <GPO_LOW>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
-		
+
 		sc2235-oen-pins {
 			sf,pins = <PAD_GPIO18>;
 			sf,pinmux = <PAD_GPIO18_FUNC_SEL 0>;
@@ -453,7 +458,6 @@
 };
 
 &gpioa {
-
 	pwm_ch4_pins: pwm_ch4-pins {
 		pwm_ch4-pins0 {
 			sf,pins = <PAD_RGPIO2>;
@@ -462,7 +466,6 @@
 			sf,pin-gpio-doen = <U0_PWM_8CH_PTC_OE_N_4>;
 		};
 	};
-	
 };
 
 &gmac0 {
@@ -512,4 +515,3 @@
 	pinctrl-0 = <&mmc1_pins>;
 	status = "okay";
 };
-

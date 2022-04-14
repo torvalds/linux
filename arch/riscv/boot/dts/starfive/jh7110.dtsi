@@ -1,63 +1,54 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+/*
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 Hal Feng <hal.feng@starfivetech.com>
+ */
+
 /dts-v1/;
+#include "jh7110_clk.dtsi"
 #include <dt-bindings/reset/starfive-jh7110.h>
-#include "starfive_jh7110_clk.dtsi"
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 #include <dt-bindings/clock/starfive-jh7110-vout.h>
 
 / {
+	compatible = "starfive,jh7110";
 	#address-cells = <2>;
 	#size-cells = <2>;
-	compatible = "sifive,freedom-u74-arty";
-	model = "sifive,freedom-u74-arty";
 
-	chosen {
-			linux,initrd-start = <0x0 0x46100000>;
-			linux,initrd-end = <0x0 0x4c000000>;
-			stdout-path = "/soc/serial@10000000:115200";
-			#bootargs = "debug console=ttyS0 rootwait";
-	};
-	aliases {
-		spi0="/soc/spi@13010000";
-		gpio0="/soc/gpio@13040000";
-		ethernet0="/soc/gmac0@16030000";
-		mmc0="/soc/sdio0@16010000";
-		mmc1="/soc/sdio1@16020000";
-	};
-	cpus: cpus {
+	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		timebase-frequency = <2000000>;
-		compatible = "starfive,fu74-g000";
-		cpu@0 {
-			clock-frequency = <0>;
-			compatible = "starfive,rocket0", "riscv";
+
+		cpu0: cpu@0 {
+			compatible = "sifive,u74-mc", "riscv";
+			reg = <0>;
 			d-cache-block-size = <64>;
 			d-cache-sets = <64>;
-			d-cache-size = <32768>;
+			d-cache-size = <8192>;
 			d-tlb-sets = <1>;
 			d-tlb-size = <40>;
 			device_type = "cpu";
 			i-cache-block-size = <64>;
 			i-cache-sets = <64>;
-			i-cache-size = <32768>;
+			i-cache-size = <16384>;
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
 			next-level-cache = <&cachectrl>;
-			reg = <0>;
 			riscv,isa = "rv64imac";
-			status = "disabled";
 			tlb-split;
+			status = "disabled";
+
 			cpu0intctrl: interrupt-controller {
 				#interrupt-cells = <1>;
 				compatible = "riscv,cpu-intc";
 				interrupt-controller;
 			};
 		};
-		cpu@1 {
-			clock-frequency = <0>;
-			compatible = "starfive,rocket0", "riscv";
+
+		cpu1: cpu@1 {
+			compatible = "sifive,u74-mc", "riscv";
+			reg = <1>;
 			d-cache-block-size = <64>;
 			d-cache-sets = <64>;
 			d-cache-size = <32768>;
@@ -71,19 +62,20 @@
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
 			next-level-cache = <&cachectrl>;
-			reg = <1>;
 			riscv,isa = "rv64imafdc";
-			status = "okay";
 			tlb-split;
+			status = "okay";
+
 			cpu1intctrl: interrupt-controller {
 				#interrupt-cells = <1>;
 				compatible = "riscv,cpu-intc";
 				interrupt-controller;
 			};
 		};
-		cpu@2 {
-			clock-frequency = <0>;
-			compatible = "starfive,rocket0", "riscv";
+
+		cpu2: cpu@2 {
+			compatible = "sifive,u74-mc", "riscv";
+			reg = <2>;
 			d-cache-block-size = <64>;
 			d-cache-sets = <64>;
 			d-cache-size = <32768>;
@@ -97,19 +89,20 @@
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
 			next-level-cache = <&cachectrl>;
-			reg = <2>;
 			riscv,isa = "rv64imafdc";
-			status = "okay";
 			tlb-split;
+			status = "okay";
+
 			cpu2intctrl: interrupt-controller {
 				#interrupt-cells = <1>;
 				compatible = "riscv,cpu-intc";
 				interrupt-controller;
 			};
 		};
-		cpu@3 {
-			clock-frequency = <0>;
-			compatible = "starfive,rocket0", "riscv";
+
+		cpu3: cpu@3 {
+			compatible = "sifive,u74-mc", "riscv";
+			reg = <3>;
 			d-cache-block-size = <64>;
 			d-cache-sets = <64>;
 			d-cache-size = <32768>;
@@ -123,19 +116,20 @@
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
 			next-level-cache = <&cachectrl>;
-			reg = <3>;
 			riscv,isa = "rv64imafdc";
-			status = "okay";
 			tlb-split;
+			status = "okay";
+
 			cpu3intctrl: interrupt-controller {
 				#interrupt-cells = <1>;
 				compatible = "riscv,cpu-intc";
 				interrupt-controller;
 			};
 		};
-		cpu@4 {
-			clock-frequency = <0>;
-			compatible = "starfive,rocket0", "riscv";
+
+		cpu4: cpu@4 {
+			compatible = "sifive,u74-mc", "riscv";
+			reg = <4>;
 			d-cache-block-size = <64>;
 			d-cache-sets = <64>;
 			d-cache-size = <32768>;
@@ -149,10 +143,10 @@
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
 			next-level-cache = <&cachectrl>;
-			reg = <4>;
 			riscv,isa = "rv64imafdc";
-			status = "okay";
 			tlb-split;
+			status = "okay";
+
 			cpu4intctrl: interrupt-controller {
 				#interrupt-cells = <1>;
 				compatible = "riscv,cpu-intc";
@@ -160,69 +154,50 @@
 			};
 		};
 	};
-	memory@80000000 {
-		device_type = "memory";
-		reg = <0x0 0x40000000 0x1 0x0>;
-	};
-	reserved-memory {
-                #address-cells = <2>;
-                #size-cells = <2>;
-                ranges;
-
-                linux,cma {
-                        compatible = "shared-dma-pool";
-                        reusable;
-                        size = <0x0 0x20000000>;
-                        alignment = <0x0 0x1000>;
-                        alloc-ranges = <0x0 0xa0000000 0x0 0x20000000>;
-                        linux,cma-default;
-                };
-        };
 
 	soc: soc {
+		compatible = "simple-bus";
+		interrupt-parent = <&plic>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		#clock-cells = <1>;
-		compatible = "starfive,freedom-u74-arty", "simple-bus", "arm,amba-bus";
 		ranges;
 
 		cachectrl: cache-controller@2010000 {
+			compatible = "sifive,fu740-c000-ccache", "cache";
+			reg = <0x0 0x2010000 0x0 0x4000 0x0 0x8000000 0x0 0x2000000>;
+			reg-names = "control", "sideband";
+			interrupts = <1 3 4 2>;
 			cache-block-size = <64>;
 			cache-level = <2>;
 			cache-sets = <2048>;
 			cache-size = <2097152>;
 			cache-unified;
-			compatible = "sifive,fu540-c000-ccache", "starfive,ccache0", "cache";
-			interrupt-parent = <&plic>;
-			interrupts = <1 3 4 2>;
-			/*next-level-cache = <&L40 &L36>;*/
-			reg = <0x0 0x2010000 0x0 0x4000 0x0 0x8000000 0x0 0x2000000>;
-			reg-names = "control", "sideband";
 		};
+
 		clint: clint@2000000 {
-			#interrupt-cells = <1>;
 			compatible = "riscv,clint0";
-			/*interrupts-extended = <&cpu0intctrl 3 &cpu0intctrl 7 &cpu1intctrl 3 &cpu1intctrl 7 >;*/
+			reg = <0x0 0x2000000 0x0 0x10000>;
+			reg-names = "control";
 			interrupts-extended = <&cpu0intctrl 3 &cpu0intctrl 7
 						&cpu1intctrl 3 &cpu1intctrl 7
 						&cpu2intctrl 3 &cpu2intctrl 7
 						&cpu3intctrl 3 &cpu3intctrl 7
 						&cpu4intctrl 3 &cpu4intctrl 7>;
-			reg = <0x0 0x2000000 0x0 0x10000>;
-			reg-names = "control";
-		};
-		plic: plic@c000000 {
 			#interrupt-cells = <1>;
+		};
+
+		plic: plic@c000000 {
 			compatible = "riscv,plic0";
-			interrupt-controller;
-			/*interrupts-extended = <&cpu0intctrl 11 &cpu0intctrl 9 &cpu1intctrl 11 &cpu1intctrl 9 >;*/
+			reg = <0x0 0xc000000 0x0 0x4000000>;
+			reg-names = "control";
 			interrupts-extended = <&cpu0intctrl 11
 						&cpu1intctrl 11 &cpu1intctrl 9
 						&cpu2intctrl 11 &cpu2intctrl 9
 						&cpu3intctrl 11 &cpu3intctrl 9
 						&cpu4intctrl 11 &cpu4intctrl 9>;
-			reg = <0x0 0xc000000 0x0 0x4000000>;
-			reg-names = "control";
+			interrupt-controller;
+			#interrupt-cells = <1>;
 			riscv,max-priority = <7>;
 			riscv,ndev = <136>;
 		};
@@ -231,21 +206,21 @@
 			compatible = "starfive,jh7110-clkgen";
 			reg = <0x0 0x13020000 0x0 0x10000>,
 				<0x0 0x10230000 0x0 0x10000>,
-				<0x0 0x17000000 0x0 0x10000>; 
+				<0x0 0x17000000 0x0 0x10000>;
 			reg-names = "sys", "stg", "aon";
-			clocks = <&osc>, <&gmac1_rmii_refin>, 
-				<&gmac1_rgmii_rxin>, 
-				<&i2stx_bclk_ext>, <&i2stx_lrck_ext>, 
-				<&i2srx_bclk_ext>, <&i2srx_lrck_ext>, 
-				<&tdm_ext>, <&mclk_ext>, 
+			clocks = <&osc>, <&gmac1_rmii_refin>,
+				<&gmac1_rgmii_rxin>,
+				<&i2stx_bclk_ext>, <&i2stx_lrck_ext>,
+				<&i2srx_bclk_ext>, <&i2srx_lrck_ext>,
+				<&tdm_ext>, <&mclk_ext>,
 				<&jtag_tck_inner>, <&bist_apb>,
 				<&stg_apb>, <&clk_rtc>,
 				<&gmac0_rmii_refin>, <&gmac0_rgmii_rxin>;
-			clock-names = "osc", "gmac1_rmii_refin", 
-				"gmac1_rgmii_rxin", 
+			clock-names = "osc", "gmac1_rmii_refin",
+				"gmac1_rgmii_rxin",
 				"i2stx_bclk_ext", "i2stx_lrck_ext",
 				"i2srx_bclk_ext", "i2srx_lrck_ext",
-				"tdm_ext", "mclk_ext", 
+				"tdm_ext", "mclk_ext",
 				"jtag_tck_inner", "bist_apb",
 				"stg_apb", "clk_rtc",
 				"gmac0_rmii_refin", "gmac0_rgmii_rxin";
@@ -257,11 +232,11 @@
 			compatible = "starfive,jh7110-clk-vout";
 			reg = <0x0 0x295C0000 0x0 0x10000>;
 			reg-names = "vout";
-			clocks = <&hdmitx0_pixelclk>, 
-				<&mipitx_dphy_rxesc>, 
+			clocks = <&hdmitx0_pixelclk>,
+				<&mipitx_dphy_rxesc>,
 				<&mipitx_dphy_txbytehs>;
-			clock-names = "hdmitx0_pixelclk", 
-				"mipitx_dphy_rxesc", 
+			clock-names = "hdmitx0_pixelclk",
+				"mipitx_dphy_rxesc",
 				"mipitx_dphy_txbytehs";
 			#clock-cells = <1>;
 			status = "disabled";
@@ -275,31 +250,84 @@
 			status = "disabled";
 		};
 
-		timer: timer@13050000 {
-                        compatible = "starfive,si5-timers";
-                        reg = <0x0 0x13050000 0x0 0x10000>;
-                        interrupt-parent = <&plic>;
-                        interrupts = <69>, <70>, <71> ,<72>;
-                        interrupt-names = "timer0", "timer1", "timer2", "timer3";
-                        clock-frequency = <2000000>;
-                        status = "disabled";
-                };
+		qspi: qspi@13010000 {
+			compatible = "cadence,qspi","cdns,qspi-nor";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x13010000 0x0 0x10000
+				0x0 0x21000000 0x0 0x400000>;
+			clocks = <&clkgen JH7110_QSPI_CLK_REF>;
+			clock-names = "clk_ref";
+			resets = <&rstgen RSTN_U0_CDNS_QSPI_APB>,
+					<&rstgen RSTN_U0_CDNS_QSPI_AHB>,
+					<&rstgen RSTN_U0_CDNS_QSPI_REF>;
+			resets-names = "rst_apb", "rst_ahb", "rst_ref";
+			cdns,fifo-depth = <256>;
+			cdns,fifo-width = <4>;
+			spi-max-frequency = <250000000>;
 
-                wdog: wdog@13070000 {
-                        compatible = "starfive,dskit-wdt";
-                        reg = <0x0 0x13070000 0x0 0x10000>;
-                        interrupt-parent = <&plic>;
-                        interrupts = <68>;
-                        interrupt-names = "wdog";
-                        clock-frequency = <2000000>;
+			nor_flash: nor-flash@0 {
+				compatible = "jedec,spi-nor";
+				reg=<0>;
+				spi-max-frequency = <100000000>;
+				cdns,tshsl-ns = <1>;
+				cdns,tsd2d-ns = <1>;
+				cdns,tchsh-ns = <1>;
+				cdns,tslch-ns = <1>;
+			};
+		};
+
+		otp: otp@17050000 {
+			compatible = "starfive,jh7110-otp";
+			reg = <0x0 0x17050000 0x0 0x10000>;
+			clock-frequency = <4000000>;
+			clocks = <&clkgen JH7110_OTPC_CLK_APB>;
+			clock-names = "apb";
+		};
+
+		USB30: usb@10100000 {
+			compatible = "cdns,usb3";
+			reg = <0x0 0x10100000 0x0 0x10000>,
+				<0x0 0x10110000 0x0 0x10000>,
+				<0x0 0x10120000 0x0 0x10000>;
+			reg-names = "otg", "xhci", "dev";
+			phy-names = "cdns3,usb3-phy", "cnds3,usb2-phy";
+			clocks = <&clkgen JH7110_USB0_CLK_APP_125>,
+				<&clkgen JH7110_USB0_CLK_LPM>,
+				<&clkgen JH7110_USB0_CLK_STB>,
+				<&clkgen JH7110_USB0_CLK_USB_APB>,
+				<&clkgen JH7110_USB0_CLK_AXI>,
+				<&clkgen JH7110_USB0_CLK_UTMI_APB>;
+			clock-names = "app","lpm","stb","apb","axi","utmi";
+			resets = <&rstgen RSTN_U0_CDN_USB_PWEUP>,
+					<&rstgen RSTN_U0_CDN_USB_APB>,
+					<&rstgen RSTN_U0_CDN_USB_AXI>,
+					<&rstgen RSTN_U0_CDN_USB_UTMI_APB>;
+			reset-names = "rst_pweup","rst_apb","rst_axi","rst_utmi";
+		};
+
+		timer: timer@13050000 {
+			compatible = "starfive,si5-timers";
+			reg = <0x0 0x13050000 0x0 0x10000>;
+			interrupts = <69>, <70>, <71> ,<72>;
+			interrupt-names = "timer0", "timer1", "timer2", "timer3";
+			clock-frequency = <2000000>;
+			status = "disabled";
+		};
+
+		wdog: wdog@13070000 {
+			compatible = "starfive,dskit-wdt";
+			reg = <0x0 0x13070000 0x0 0x10000>;
+			interrupts = <68>;
+			interrupt-names = "wdog";
+			clock-frequency = <2000000>;
 			timeout-sec = <15>;
-                        status = "okay";
-                };
+			status = "okay";
+		};
 
 		rtc: rtc@17040000 {
 			compatible = "starfive,rtc_hms";
 			reg = <0x0 0x17040000 0x0 0x10000>;
-			interrupt-parent = <&plic>;
 			interrupts = <10>, <11>, <12>;
 			interrupt-names = "rtc_ms_pulse", "rtc_sec_pulse", "rtc";
 			clocks = <&rtc_hmsclk>, <&oscclk>;
@@ -311,84 +339,82 @@
 		pmu: pmu@17030000 {
 			compatible = "starfive,jh7110-pmu";
 			reg = <0x0 0x17030000 0x0 0x10000>;
-			interrupt-parent = <&plic>;
 			interrupts = <111>;
 			status = "okay";
 		};
 
 		uart0: serial@10000000 {
 			compatible = "snps,dw-apb-uart";
-			interrupt-parent = <&plic>;
-			interrupts = <32>;
 			reg = <0x0 0x10000000 0x0 0x10000>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			clocks = <&clkgen JH7110_UART0_CLK_CORE>, 
 					<&clkgen JH7110_UART0_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
-			status = "okay";
+			interrupts = <32>;
+			status = "disabled";
 		};
+
 		uart1: serial@10010000 {
 			compatible = "snps,dw-apb-uart";
-			interrupt-parent = <&plic>;
-			interrupts = <33>;
 			reg = <0x0 0x10010000 0x0 0x10000>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			clocks = <&oscclk>, <&apb0clk>;
 			clock-names = "baudclk", "apb_pclk";
-			status = "okay";
+			interrupts = <33>;
+			status = "disabled";
 		};
+
 		uart2: serial@10020000 {
 			compatible = "snps,dw-apb-uart";
-			interrupt-parent = <&plic>;
-			interrupts = <34>;
 			reg = <0x0 0x10020000 0x0 0x10000>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			clocks = <&oscclk>, <&apb0clk>;
 			clock-names = "baudclk", "apb_pclk";
-			status = "okay";
+			interrupts = <34>;
+			status = "disabled";
 		};
+
 		uart3: serial@12000000 {
 			compatible = "snps,dw-apb-uart";
-			interrupt-parent = <&plic>;
-			interrupts = <45>;
 			reg = <0x0 0x12000000 0x0 0x10000>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			clocks = <&uartclk>, <&apb0clk>;
 			clock-names = "baudclk", "apb_pclk";
-			status = "okay";
+			interrupts = <45>;
+			status = "disabled";
 		};
+
 		uart4: serial@12010000 {
 			compatible = "snps,dw-apb-uart";
-			interrupt-parent = <&plic>;
-			interrupts = <46>;
 			reg = <0x0 0x12010000 0x0 0x10000>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			clocks = <&uartclk>, <&apb0clk>;
 			clock-names = "baudclk", "apb_pclk";
-			status = "okay";
+			interrupts = <46>;
+			status = "disabled";
 		};
+
 		uart5: serial@12020000 {
 			compatible = "snps,dw-apb-uart";
-			interrupt-parent = <&plic>;
-			interrupts = <47>;
 			reg = <0x0 0x12020000 0x0 0x10000>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
 			clocks = <&uartclk>, <&apb0clk>;
 			clock-names = "baudclk", "apb_pclk";
-			status = "okay";
+			interrupts = <47>;
+			status = "disabled";
 		};
+
 		dma: dma-controller@16050000 {
 			compatible = "starfive,axi-dma";
 			reg = <0x0 0x16050000 0x0 0x10000>;
 			clocks = <&stg_axiahb_clk>, <&stg_apbclk>;
 			clock-names = "core-clk", "cfgr-clk";
-			interrupt-parent = <&plic>;
 			interrupts = <73>;
 			#dma-cells = <2>;
 			dma-channels = <4>;
@@ -398,15 +424,14 @@
 			snps,block-size = <65536 65536 65536 65536>;
 			snps,priority = <0 1 2 3>;
 			snps,axi-max-burst-len = <16>;
-			status = "okay";
+			status = "disabled";
 		};
+
 		gpio: gpio@13040000 {
-			/*compatible = "starfive,gpio7110";*/
 			compatible = "starfive_jh7110-sys-pinctrl";
-			interrupt-parent = <&plic>;
-			interrupts = <91>;
 			reg = <0x0 0x13040000 0x0 0x10000>;
 			reg-names = "control";
+			interrupts = <91>;
 			interrupt-controller;
 			#gpio-cells = <2>;
 			ngpios = <64>;
@@ -415,328 +440,141 @@
 
 		gpioa: gpio@17020000 {
 			compatible = "starfive_jh7110-aon-pinctrl";
-			interrupt-parent = <&plic>;
-			interrupts = <90>;
 			reg = <0x0 0x17020000 0x0 0x10000>;
 			reg-names = "control";
+			interrupts = <90>;
 			interrupt-controller;
 			#gpio-cells = <2>;
 			ngpios = <4>;
 			status = "okay";
 		};
-		
+
 		trng: trng@1600C000 {
 			compatible = "starfive,trng";
 			reg = <0x0 0x1600C000 0x0 0x4000>;
-			interrupt-parent = <&plic>;
-			interrupts = <30>;
 			clocks = <&apb12clk>;
-			status = "okay";
+			interrupts = <30>;
+			status = "disabled";
 		};
-
 
 		i2c6: i2c@12060000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
 			compatible = "snps,designware-i2c";
 			reg = <0x0 0x12060000 0x0 0x10000>;
-			interrupt-parent = <&plic>;
 			interrupts = <51>;
-			clock-frequency = <100000>;
-			i2c-sda-hold-time-ns = <300>;
-			i2c-sda-falling-time-ns = <3000>;
-			i2c-scl-falling-time-ns = <3000>;
-			auto_calc_scl_lhcnt;
-
-			status = "okay";
-
-			sc2235@30 {
-				compatible = "sc2235";
-				reg = <0x30>;
-				clocks = <&clk_ext_camera>;
-				clock-names = "xclk";
-				powerdown-gpios = <&gpio 0 0>;
-				reset-gpios = <&gpio 0 0>;
-				sc2235-18-gpios = <&gpio 11 0>;
-				sc2235-15-gpios = <&gpio 12 0>;
-				sc2235-28-gpios = <&gpio 10 0>;
-				sc2235-reset-gpios = <&gpio 16 0>;
-				sc2235-pwdn-gpios = <&gpio 15 0>;
-				sc2235-esync-gpios = <&gpio 17 0>;
-				sc2235-oen-gpios = <&gpio 18 0>;
-				//DOVDD-supply = <&v2v8>;
-
-				port {
-					/* Parallel bus endpoint */
-					sc2235_to_parallel: endpoint {
-						remote-endpoint = <&parallel_from_sc2235>;
-						bus-type = <5>;      /* Parallel */
-						bus-width = <8>;
-						data-shift = <2>; /* lines 13:6 are used */
-						hsync-active = <1>;
-						vsync-active = <1>;
-						pclk-sample = <1>;
-					};
-				};
-			};
-
-			ov13850@10 {
-                compatible = "ovti,ov13850";
-                reg = <0x10>;
-                clocks = <&clk_ext_camera>;
-                clock-names = "xclk";
-                powerdown-gpio = <&gpio 15 0>;
-                reset-gpio = <&gpio 16 0>;
-                //DOVDD-supply = <&v2v8>;
-                rotation = <0>;
-
-                port {
-                    /* CSI2 bus endpoint */
-                    ov13850_to_csi2rx0: endpoint {
-                        remote-endpoint = <&csi2rx0_from_ov13850>;
-                        bus-type = <4>;      /* MIPI CSI-2 D-PHY */
-                        clock-lanes = <2>;
-                        data-lanes = <0 1>;
-                    };
-                };
-            };
-		};
-		i2c0: i2c@10030000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c0: i2c@10030000 {
 			compatible = "snps,designware-i2c";
 			reg = <0x0 0x10030000 0x0 0x10000>;
-			interrupt-parent = <&plic>;
 			interrupts = <35>;
-			/*clocks = <&hfclk>; */
-			clock-frequency = <100000>;
-			i2c-sda-hold-time-ns = <300>;
-			i2c-sda-falling-time-ns = <3000>;
-			i2c-scl-falling-time-ns = <3000>;
-			auto_calc_scl_lhcnt;
-			status = "okay";
-
-			ac108_a: ac108@3b {
-				compatible = "x-power,ac108_0";
-				reg = <0x3b>;
-				#sound-dai-cells = <0>;
-				data-protocol = <0>;
-			};
-
-			wm8960: codec@1a {
-				compatible = "wlf,wm8960";
-				reg = <0x1a>;
-				#sound-dai-cells = <0>;
-
-				wlf,shared-lrclk;
-			};
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 
 		i2c1: i2c@10040000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
 			compatible = "snps,designware-i2c";
 			reg = <0x0 0x10040000 0x0 0x10000>;
-			interrupt-parent = <&plic>;
 			interrupts = <36>;
-			/*clocks = <&hfclk>; */
-			clock-frequency = <100000>;
-			i2c-sda-hold-time-ns = <300>;
-			i2c-sda-falling-time-ns = <3000>;
-			i2c-scl-falling-time-ns = <3000>;
-			auto_calc_scl_lhcnt;
-
-			adv7513@39 {
-					compatible = "adi,adv7513";
-					reg = <0x39>, <0x49>, <0x29>, <0x59>;
-					reg-names = "main", "edid", "cec", "packet";
-
-					adi,input-depth = <8>;
-					adi,input-colorspace = "rgb";
-					adi,input-clock = "1x";
-					ports {
-						#address-cells = <1>;
-						#size-cells = <0>;
-
-						port@0 {
-							reg = <0>;
-							adv7513_0_in: endpoint {
-							};
-						};
-
-						port@1 {
-							reg = <1>;
-							adv7513_1_out: endpoint {
-							};
-						};
-					};
-			};
-			/*
-			seeed_plane_i2c@45 { //next to do handle this node to i2cX
-					compatible = "seeed_panel";
-					reg = <0x45>;
-
-					port {
-						panel_dsi_port: endpoint {
-							remote-endpoint = <&dsi_out_port>;
-						};
-					};
-			};*/
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
-		/*emmc*/
-		sdio0:sdio0@16010000{
+
+		sdio0: sdio0@16010000 {
 			compatible = "snps,dw-mshc";
 			reg = <0x0 0x16010000 0x0 0x10000>;
-			interrupts = <74>;
-			interrupt-parent = <&plic>;
 			clocks = <&dwmmc_biuclk>,<&dwmmc_ciuclk>;
 			clock-names = "biu","ciu";
-			clock-frequency = <4000000>;
-			max-frequency = <1000000>;
+			interrupts = <74>;
 			fifo-depth = <32>;
-			card-detect-delay = <300>;
 			fifo-watermark-aligned;
 			data-addr = <0>;
-			bus-width = <8>;
-			cap-sd-highspeed;
-			/*broken-cd;*/
-			cap-sdio-irq;
-			cap-mmc-hw-reset;
-			non-removable;
-			enable-sdio-wakeup;
-			keep-power-in-suspend;
-			/*cap-power-off-card;*/
-			cap-mmc-highspeed;
-			/*fixed-emmc-driver-type;*/
-			post-power-on-delay-ms = <200>;
-
+			status = "disabled";
 		};
-		/*SD*/
-		sdio1:sdio1@16020000{
+
+		sdio1: sdio1@16020000 {
 			compatible = "snps,dw-mshc";
 			reg = <0x0 0x16020000 0x0 0x10000>;
-			interrupts = <75>;
-			interrupt-parent = <&plic>;
 			clocks = <&dwmmc_biuclk>,<&dwmmc_ciuclk>;
 			clock-names = "biu","ciu";
-			clock-frequency = <4000000>;
-			max-frequency = <1000000>;
+			interrupts = <75>;
 			fifo-depth = <32>;
-			card-detect-delay = <300>;
 			fifo-watermark-aligned;
 			data-addr = <0>;
-			bus-width = <4>;
-			cap-sd-highspeed;
-			/*broken-cd;*/
-			cap-sdio-irq;
-			cap-mmc-hw-reset;
-			non-removable;
-			enable-sdio-wakeup;
-			keep-power-in-suspend;
-			/*cap-power-off-card;*/
-			cap-mmc-highspeed;
-			/*fixed-emmc-driver-type;*/
-			post-power-on-delay-ms = <200>;
+			status = "disabled";
 		};
-		vin_sysctl:vin_sysctl@19800000 {
+
+		vin_sysctl: vin_sysctl@19800000 {
 			compatible = "starfive,stf-vin";
-			reg = <0x0 0x19800000 0x0 0x10000>,//mipi-csi-0  			mipi0
-				<0x0 0x19810000 0x0 0x10000>,//dom-isp-cfg    			vclk
-				<0x0 0x19820000 0x0 0x10000>,//mipirx-dphyapb config	vrst
-				<0x0 0x19830000 0x0 0x10000>,//reserved					mipi1
-				<0x0 0x19840000 0x0 0x10000>,//dom-isp-syscon			sctrl
-				<0x0 0x19870000 0x0 0x30000>,//ispv1-mini				isp0
-				<0x0 0x198a0000 0x0 0x30000>,//reserved					isp1
-				<0x0 0x11800000 0x0 0x10000>,//reserved					tclk
-				<0x0 0x11840000 0x0 0x10000>,//reserved					trst
-				<0x0 0x11858000 0x0 0x10000>,//reserved					iopad
-				<0x0 0x17030000 0x0 0x10000>,  						 //pmu
-				<0x0 0x13020000 0x0 0x10000>;  //sys_crg
+			reg = <0x0 0x19800000 0x0 0x10000>,
+				<0x0 0x19810000 0x0 0x10000>,
+				<0x0 0x19820000 0x0 0x10000>,
+				<0x0 0x19830000 0x0 0x10000>,
+				<0x0 0x19840000 0x0 0x10000>,
+				<0x0 0x19870000 0x0 0x30000>,
+				<0x0 0x198a0000 0x0 0x30000>,
+				<0x0 0x11800000 0x0 0x10000>,
+				<0x0 0x11840000 0x0 0x10000>,
+				<0x0 0x11858000 0x0 0x10000>,
+				<0x0 0x17030000 0x0 0x10000>,
+				<0x0 0x13020000 0x0 0x10000>;
 			reg-names = "mipi0", "vclk", "vrst", "mipi1", "sctrl", "isp0", "isp1", "tclk", "trst", "iopad", "pmu", "syscrg";
-			interrupt-parent = <&plic>;
 			interrupts = <92 87 86>;
-			// memory-region = <&vin_reserved>;
-
-			ports {
-				port@3 {
-					reg = <2>; //dvp sensor
-
-					/* Parallel bus endpoint */
-					parallel_from_sc2235: endpoint {
-						remote-endpoint = <&sc2235_to_parallel>;
-						bus-type = <5>;      /* Parallel */
-						bus-width = <8>;
-						data-shift = <2>; /* lines 9:2 are used */
-						hsync-active = <1>;
-						vsync-active = <0>;
-						pclk-sample = <1>;
-						status = "okay";
-					};
-				};
-
-                port@4 {
-					reg = <3>; //csi2rx0 sensor
-
-					/* Parallel bus endpoint */
-					csi2rx0_from_ov13850: endpoint {
-						remote-endpoint = <&ov13850_to_csi2rx0>;
-						bus-type = <4>;      /* MIPI CSI-2 D-PHY */
-						clock-lanes = <2>;
-						data-lanes = <0 1>;
-						status = "okay";
-					};
-				};
-			};
+			status = "disabled";
 		};
+
 		jpu: jpu@11900000 {
-		    compatible = "starfive,jpu";
-		    reg = <0x0 0x13090000 0x0 0x300>;
-		    interrupt-parent = <&plic>;
-		    interrupts = <14>;
-		    clocks = <&jpuclk>;
-		    clock-names = "axi_clk", "core_clk", "apb_clk";
+			compatible = "starfive,jpu";
+			reg = <0x0 0x13090000 0x0 0x300>;
+			clocks = <&jpuclk>;
+			clock-names = "axi_clk", "core_clk", "apb_clk";
 			resets = <&rstgen RSTN_U0_CODAJ12_AXI>,
 				<&rstgen RSTN_U0_CODAJ12_CORE>,
 				<&rstgen RSTN_U0_CODAJ12_APB>;
 			reset-names = "rst_axi",
 				"rst_core",
 				"rst_apb";
-		    status = "okay";
+			interrupts = <14>;
+			status = "disabled";
 		};
 
 		vpu_dec: vpu_dec@130A0000 {
-		    compatible = "starfive,vdec";
-		    reg = <0 0x130A0000 0 0x10000>;
-		    interrupt-parent = <&plic>;
-		    interrupts = <13>;
-		    clocks = <&vdec_rootclk>;
-		    clock-names = "axi_clk",
+			compatible = "starfive,vdec";
+			reg = <0 0x130A0000 0 0x10000>;
+			clocks = <&vdec_rootclk>;
+			clock-names = "axi_clk",
 				"bpu_clk",
 				"vce_clk",
 				"apb_clk",
 				"aximem_128b";
-		    //starfive,vdec_noc_ctrl;
-		    resets = <&rstgen RSTN_U0_WAVE511_AXI>,
+			resets = <&rstgen RSTN_U0_WAVE511_AXI>,
 				<&rstgen RSTN_U0_WAVE511_BPU>,
 				<&rstgen RSTN_U0_WAVE511_VCE>,
 				<&rstgen RSTN_U0_WAVE511_APB>,
 				<&rstgen RSTN_U0_AXIMEM_128B_AXI>;
-		    reset-names = "rst_axi",
+			reset-names = "rst_axi",
 				"rst_bpu",
 				"rst_vce",
 				"rst_apb",
 				"rst_sram";
-		    status = "okay";
+			interrupts = <13>;
+			status = "disabled";
 		};
-		vpu_enc:vpu_enc@130B0000 {
+
+		vpu_enc: vpu_enc@130B0000 {
 			compatible = "cnm,cnm420l-vpu";
 			reg = <0x0 0x130B0000 0x0 0x10000>;
-			interrupt-parent = <&plic>;
-			interrupts = <15>;
+			reg-names = "control";
 			clocks = <&venc_rootclk>;
 			clock-names = "vcodec";
-			reg-names = "control";
+			interrupts = <15>;
+			status = "disabled";
 		};
+
 		rstgen: reset-controller {
 			compatible = "starfive,jh7110-reset";
 			reg = <0x0 0x13020000 0x0 0x10000>,
@@ -749,16 +587,17 @@
 			status = "okay";
 		};
 
-		/*gmac device configuration*/
 		stmmac_axi_setup: stmmac-axi-config {
 			snps,wr_osr_lmt = <0xf>;
 			snps,rd_osr_lmt = <0xf>;
 			snps,blen = <256 128 64 32 0 0 0>;
 		};
-		gmac0:gmac0@16030000{
+
+		gmac0: gmac0@16030000 {
 			compatible = "snps,dwc-qos-ethernet-5.10a";
 			reg = <0x0 0x16030000 0x0 0x10000>;
-			interrupt-parent = <&plic>;
+			clocks = <&gmac_bus_clk>, <&gmac_rxtx_clk>, <&gmac_bus_clk>,<&gmac_ptp_clk>;
+			clock-names = "stmmaceth","phy_ref_clk", "apb_pclk","ptp_ref";
 			interrupts = <7>;
 			phy-reset-gpios = <&gpio 63 0>;
 			max-frame-size = <9000>;
@@ -767,11 +606,8 @@
 			snps,perfect-filter-entries = <128>;
 			rx-fifo-depth = <262144>;
 			tx-fifo-depth = <131072>;
-			clock-names = "stmmaceth","phy_ref_clk", "apb_pclk","ptp_ref";
-			clocks = <&gmac_bus_clk>, <&gmac_rxtx_clk>, <&gmac_bus_clk>,<&gmac_ptp_clk>;
 			snps,fixed-burst;
 			snps,no-pbl-x8;
-			/*snps,force_sf_dma_mode;*/
 			snps,force_thresh_dma_mode;
 			snps,axi-config = <&stmmac_axi_setup>;
 			snps,tso;
@@ -782,38 +618,38 @@
 			snps,burst-map = <0x7>;
 			snps,txpbl = <16>;
 			snps,rxpbl = <16>;
+			status = "disabled";
 		};
 
-		gpu:gpu@18000000{
+		gpu: gpu@18000000 {
 			compatible = "img-gpu";
-			interrupt-parent = <&plic>;
-			interrupts = <82>;
 			reg = <0x0 0x18000000 0x0 0x100000 0x0 0x130C000 0x0 0x10000>;
 			clocks = <&gpu_core_clk>, <&gpu_sys_clk>;
 			clock-names = "gpu_core_clk","gpu_sys_clk";
+			interrupts = <82>;
 			current-clock = <8000000>;
-			status = "okay";
-                };
+			status = "disabled";
+		};
 
-		ipmscan0: can@130d0000  {
+		ipmscan0: can@130d0000 {
 			compatible = "ipms,can";
 			reg = <0x0 0x130d0000 0x0 0x1000>;
-			interrupts = <112>;
-			interrupt-parent = <&plic>;
 			clocks = <&canclk>;
 			clock-names = "ipms_can_clk";
+			interrupts = <112>;
+			status = "disabled";
 		};
 
-		ipmscan1: can@130c0000  {
+		ipmscan1: can@130c0000 {
 			compatible = "ipms,canfd";
 			reg = <0x0 0x130c0000 0x0 0x1000>;
-			interrupts = <113>;
-			interrupt-parent = <&plic>;
 			clocks = <&canclk>;
 			clock-names = "ipms_can_clk";
+			interrupts = <113>;
+			status = "disabled";
 		};
 
-		tdm: tdm@10090000  {
+		tdm: tdm@10090000 {
 			compatible = "starfive,tdm";
 			reg = <0x0 0x10090000 0x0 0x1000>;
 			reg-names = "tdm";
@@ -822,17 +658,18 @@
 			dmas = <&dma 20 1>, <&dma 21 1>;
 			dma-names = "rx","tx";
 			#sound-dai-cells = <0>;
+			status = "disabled";
 		};
 
 		spdif0: spdif0@100a0000 {
 			compatible = "starfive,sf-spdif";
 			reg = <0x0 0x100a0000 0x0 0x1000>;
-			interrupt-parent = <&plic>;
-			interrupts = <84>;
-			interrupt-names = "tx";
 			clocks = <&audioclk>;
 			clock-names = "audioclk";
+			interrupts = <84>;
+			interrupt-names = "tx";
 			#sound-dai-cells = <0>;
+			status = "disabled";
 		};
 
 		pwmdac: pwmdac@100b0000 {
@@ -842,17 +679,19 @@
 			dmas = <&dma 22 1>;
 			dma-names = "tx";
 			#sound-dai-cells = <0>;
+			status = "disabled";
 		};
 
-		i2stx: i2stx@100c0000  {
+		i2stx: i2stx@100c0000 {
 			compatible = "snps,designware-i2stx";
 			reg = <0x0 0x100c0000 0x0 0x1000>;
-			interrupt-names = "tx";
 			clocks = <&apb0clk>;
 			clock-names = "i2sclk";
+			interrupt-names = "tx";
 			#sound-dai-cells = <0>;
-			dmas = <&dma 28>;
+			dmas = <&dma 28 1>;
 			dma-names = "rx";
+			status = "disabled";
 		};
 
 		pdm: pdm@100d0000 {
@@ -862,178 +701,144 @@
 			clocks = <&audioclk>;
 			clock-names = "audioclk";
 			#sound-dai-cells = <0>;
+			status = "disabled";
 		};
 
 		i2srx_3ch: i2srx-3ch@100e0000 {
 			compatible = "snps,designware-i2srx";
 			reg = <0x0 0x100e0000 0x0 0x1000>;
-			interrupt-parent = <&plic>;
-			/*interrupts = <42>, <43>, <44>;*/
-			/*interrupt-names = "rx-ch0","rx-ch1","rx-ch2";*/
-			interrupts = <42>;
-			interrupt-names = "rx";
 			clocks = <&apb0clk>;
 			clock-names = "i2sclk";
+			interrupts = <42>;
+			interrupt-names = "rx";
 			#sound-dai-cells = <0>;
+			status = "disabled";
 		};
 
 		i2stx_4ch0: i2stx-4ch0@120b0000 {
 			compatible = "snps,designware-i2stx-4ch0";
 			reg = <0x0 0x120b0000 0x0 0x1000>;
-			interrupt-parent = <&plic>;
-			interrupts = <58>;
-			interrupt-names = "tx";
 			clocks = <&apb0clk>;
 			clock-names = "i2sclk";
+			interrupts = <58>;
+			interrupt-names = "tx";
 			#sound-dai-cells = <0>;
+			status = "disabled";
 		};
 
 		i2stx_4ch1: i2sdac1@120c0000 {
 			compatible = "snps,designware-i2stx-4ch1";
 			reg = <0x0 0x120c0000 0x0 0x1000>;
-			interrupt-parent = <&plic>;
-			interrupts = <59>;
-			interrupt-names = "tx";
 			clocks = <&apb0clk>;
 			clock-names = "i2sclk";
+			interrupts = <59>;
+			interrupt-names = "tx";
 			#sound-dai-cells = <0>;
+			status = "disabled";
 		};
 
 		ptc: pwm@120d0000 {
 			compatible = "starfive,pwm0";
 			reg = <0x0 0x120d0000 0x0 0x10000>;
 			reg-names = "control";
-			sifive,approx-period = <1000000>;
 			clocks = <&pwmclk>;
+			sifive,approx-period = <1000000>;
 			#pwm-cells=<3>;
 			sifive,npwm = <8>;
-		};
-
-		ac108_mclk: ac108_mclk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <24576000>;
-		};
-
-		wm8960_mclk: wm8960_mclk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <4000000>;
+			status = "disabled";
 		};
 
 		spdif_transmitter: spdif_transmitter {
 			compatible = "linux,spdif-dit";
 			#sound-dai-cells = <0>;
+			status = "disabled";
 		};
 
 		spdif_receiver: spdif_receiver {
 			compatible = "linux,spdif-dir";
 			#sound-dai-cells = <0>;
+			status = "disabled";
 		};
 
 		pwmdac_codec: pwmdac-transmitter {
 			compatible = "linux,pwmdac-dit";
 			#sound-dai-cells = <0>;
+			status = "disabled";
 		};
 
 		dmic_codec: dmic_codec {
 			compatible = "dmic-codec";
 			#sound-dai-cells = <0>;
+			status = "disabled";
 		};
 
-		spi0:spi0@10060000 {
+		spi0: spi0@10060000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x0 0x10060000 0x0 0x10000>;
 			clocks = <&ahb1clk>;
 			clock-names = "apb_pclk";
+			interrupts = <38>;
 			dmas = <&dma 14 1>, <&dma 15 1>;
 			dma-names = "rx","tx";
+			arm,primecell-periphid = <0x00041022>;
+			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			arm,primecell-periphid = <0x00041022>;
-			interrupt-parent = <&plic>;
-			interrupts = <38>;
-			num-cs = <1>;
-			spi_dev0: spi@0 {
-				compatible = "rohm,dh2228fv";
-				pl022,com-mode = <1>;
-				spi-max-frequency = <10000000>;
-				reg = <0>;
-				status = "okay";
-			};
+			status = "disabled";
 		};
 
-		pcie0:pcie0@2B000000 {
+		pcie0: pcie0@2B000000 {
 			compatible = "plda,pci-xpressrich3-axi";
 			reg = <0x0 0x2B000000 0x0 0x1000000
 					0x9 0x40000000 0x0 0x10000000>;
 			reg-names = "reg", "config";
-			device_type = "pci";
-			bus-range = <0x0 0xff>;
-			#address-cells = <3>;
-			#size-cells = <2>;
-			#interrupt-cells = <1>;
-			ranges = <0x82000000  0x0 0x30000000  0x0 0x30000000 0x0 0x06000000>;
-			msi-parent = <&plic>;
 			interrupts = <56>;
 			interrupt-controller;
 			interrupt-names = "msi";
-			interrupt-parent = <&plic>;
 			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
 			interrupt-map = <0x0 0x0 0x0 0x1 &plic 0x1>,
 							<0x0 0x0 0x0 0x2 &plic 0x2>,
 							<0x0 0x0 0x0 0x3 &plic 0x3>,
 							<0x0 0x0 0x0 0x4 &plic 0x4>;
+			#interrupt-cells = <1>;
+			device_type = "pci";
+			bus-range = <0x0 0xff>;
+			msi-parent = <&plic>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x82000000  0x0 0x30000000  0x0 0x30000000 0x0 0x06000000>;
+			status = "disabled";
 		};
 
 		mailbox_contrl0: mailbox@0 {
 			compatible = "starfive,mail_box";
 			reg = <0x0 0x13060000 0x0 0x0001000>;
-			interrupt-parent = <&plic>;
 			interrupts = <26 27>;
 			#mbox-cells = <2>;
+			status = "disabled";
 		};
 
-		mailbox_client@0 {
+		mailbox_client0: mailbox_client@0 {
 			compatible = "starfive,mailbox-test";
-			interrupt-parent = <&plic>;
 			mbox-names = "rx", "tx";
 			mboxes = <&mailbox_contrl0 0 1>,<&mailbox_contrl0 1 0>;
+			status = "disabled";
 		};
 
-		display-subsystem {
+		display: display-subsystem {
 			compatible = "verisilicon,display-subsystem";
-			//memory-region = <&sffb_reserved>;
 			ports = <&dc_out_dpi0>;
-			status = "okay";
+			status = "disabled";
 		};
 
-		display-encoder {
+		encoder: display-encoder {
 			compatible = "starfive,display-encoder";
-			encoder-type = <2>;	//2-TMDS, 3-LVDS, 6-DSI, 8-DPI
-			status = "okay";
-
-			ports {
-				port@0 {
-					endpoint {
-						remote-endpoint = <&adv7513_0_in>;
-						//remote-endpoint = <&dsi_0_in>;
-					};
-				};
-
-				port@1 {
-					endpoint {
-						remote-endpoint = <&dc_out_dpi0>;
-					};
-				};
-
-			};
+			status = "disabled";
 		};
 
 		dc8200@29400000 {
 			compatible = "verisilicon,dc8200";
 			reg = <0x0 0x29400000 0x0 0x100>,<0x0 0x29400800 0x0 0x2000>;
-			interrupt-parent = <&plic>;
 			interrupts = <95>;
 
 			port {
@@ -1048,18 +853,23 @@
 					remote-endpoint = <&vd_input>;*/
 				};
 			};
+		};
 
-			/*port: port@0 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				reg = <0>;
+		sound_pwmdac: snd-card_pwmdac {
+			compatible = "simple-audio-card";
+			simple-audio-card,name = "Starfive-Pwmdac-Sound-Card";
+			simple-audio-card,bitclock-master = <&pwmdac_dailink_master>;
+			simple-audio-card,frame-master = <&pwmdac_dailink_master>;
+			simple-audio-card,format = "left_j";
+			status = "disabled";
 
-				crtc_0_out: endpoint {
-				};
-			};*/
+			pwmdac_dailink_master: simple-audio-card,cpu {
+				sound-dai = <&pwmdac>;
+			};
+
+			simple-audio-card,codec {
+				sound-dai = <&pwmdac_codec>;
+			};
 		};
 	};
 };
-
-#include "starfive_jh7110_pinctrl.dtsi"
-#include "starfive_jh7110_audio.dtsi"
