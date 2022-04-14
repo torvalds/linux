@@ -3,6 +3,7 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include <linux/string_helpers.h>
 #include <linux/kernel.h>
 
 #include <drm/drm_print.h>
@@ -375,7 +376,7 @@ static void vlv_wait_for_gt_wells(struct drm_i915_private *dev_priv,
 	if (vlv_wait_for_pw_status(dev_priv, mask, val))
 		drm_dbg(&dev_priv->drm,
 			"timeout waiting for GT wells to go %s\n",
-			onoff(wait_for_on));
+			str_on_off(wait_for_on));
 }
 
 static void vlv_check_no_gt_access(struct drm_i915_private *i915)

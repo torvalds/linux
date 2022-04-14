@@ -383,6 +383,8 @@ struct i915_ppgtt {
 #define i915_is_dpt(vm) ((vm)->is_dpt)
 #define i915_is_ggtt_or_dpt(vm) (i915_is_ggtt(vm) || i915_is_dpt(vm))
 
+bool intel_vm_no_concurrent_access_wa(struct drm_i915_private *i915);
+
 int __must_check
 i915_vm_lock_objects(struct i915_address_space *vm, struct i915_gem_ww_ctx *ww);
 

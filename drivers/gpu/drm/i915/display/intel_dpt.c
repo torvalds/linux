@@ -249,7 +249,7 @@ intel_dpt_create(struct intel_framebuffer *fb)
 	size = round_up(size * sizeof(gen8_pte_t), I915_GTT_PAGE_SIZE);
 
 	if (HAS_LMEM(i915))
-		dpt_obj = i915_gem_object_create_lmem(i915, size, 0);
+		dpt_obj = i915_gem_object_create_lmem(i915, size, I915_BO_ALLOC_CONTIGUOUS);
 	else
 		dpt_obj = i915_gem_object_create_stolen(i915, size);
 	if (IS_ERR(dpt_obj))

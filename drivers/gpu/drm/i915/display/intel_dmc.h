@@ -10,11 +10,8 @@
 #include "intel_wakeref.h"
 #include <linux/workqueue.h>
 
+struct drm_i915_error_state_buf;
 struct drm_i915_private;
-
-#define DMC_VERSION(major, minor)	((major) << 16 | (minor))
-#define DMC_VERSION_MAJOR(version)	((version) >> 16)
-#define DMC_VERSION_MINOR(version)	((version) & 0xffff)
 
 enum {
 	DMC_FW_MAIN = 0,
@@ -54,5 +51,10 @@ void intel_dmc_ucode_fini(struct drm_i915_private *i915);
 void intel_dmc_ucode_suspend(struct drm_i915_private *i915);
 void intel_dmc_ucode_resume(struct drm_i915_private *i915);
 bool intel_dmc_has_payload(struct drm_i915_private *i915);
+void intel_dmc_debugfs_register(struct drm_i915_private *i915);
+void intel_dmc_print_error_state(struct drm_i915_error_state_buf *m,
+				 struct drm_i915_private *i915);
+
+void assert_dmc_loaded(struct drm_i915_private *i915);
 
 #endif /* __INTEL_DMC_H__ */

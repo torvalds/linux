@@ -1440,7 +1440,6 @@
 #define   VLV_MEDIA_RC6_COUNT_EN		(1 << 1)
 #define   VLV_RENDER_RC6_COUNT_EN		(1 << 0)
 #define GEN6_GT_GFX_RC6				_MMIO(0x138108)
-#define VLV_GT_RENDER_RC6			_MMIO(0x138108)
 #define VLV_GT_MEDIA_RC6			_MMIO(0x13810c)
 
 #define GEN6_GT_GFX_RC6p			_MMIO(0x13810c)

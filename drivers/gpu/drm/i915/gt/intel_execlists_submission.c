@@ -107,6 +107,7 @@
  *
  */
 #include <linux/interrupt.h>
+#include <linux/string_helpers.h>
 
 #include "i915_drv.h"
 #include "i915_trace.h"
@@ -1335,11 +1336,11 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		} else if (timeslice_expired(engine, last)) {
 			ENGINE_TRACE(engine,
 				     "expired:%s last=%llx:%lld, prio=%d, hint=%d, yield?=%s\n",
-				     yesno(timer_expired(&execlists->timer)),
+				     str_yes_no(timer_expired(&execlists->timer)),
 				     last->fence.context, last->fence.seqno,
 				     rq_prio(last),
 				     sched_engine->queue_priority_hint,
-				     yesno(timeslice_yield(execlists, last)));
+				     str_yes_no(timeslice_yield(execlists, last)));
 
 			/*
 			 * Consume this timeslice; ensure we start a new one.
@@ -1427,7 +1428,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			     __i915_request_is_complete(rq) ? "!" :
 			     __i915_request_has_started(rq) ? "*" :
 			     "",
-			     yesno(engine != ve->siblings[0]));
+			     str_yes_no(engine != ve->siblings[0]));
 
 		WRITE_ONCE(ve->request, NULL);
 		WRITE_ONCE(ve->base.sched_engine->queue_priority_hint, INT_MIN);
