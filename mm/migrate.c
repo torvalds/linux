@@ -1520,10 +1520,11 @@ out:
 
 struct page *alloc_migration_target(struct page *page, unsigned long private)
 {
+	struct folio *folio = page_folio(page);
 	struct migration_target_control *mtc;
 	gfp_t gfp_mask;
 	unsigned int order = 0;
-	struct page *new_page = NULL;
+	struct folio *new_folio = NULL;
 	int nid;
 	int zidx;
 
@@ -1531,34 +1532,31 @@ struct page *alloc_migration_target(struct page *page, unsigned long private)
 	gfp_mask = mtc->gfp_mask;
 	nid = mtc->nid;
 	if (nid == NUMA_NO_NODE)
-		nid = page_to_nid(page);
+		nid = folio_nid(folio);
 
-	if (PageHuge(page)) {
-		struct hstate *h = page_hstate(compound_head(page));
+	if (folio_test_hugetlb(folio)) {
+		struct hstate *h = page_hstate(&folio->page);
 
 		gfp_mask = htlb_modify_alloc_mask(h, gfp_mask);
 		return alloc_huge_page_nodemask(h, nid, mtc->nmask, gfp_mask);
 	}
 
-	if (PageTransHuge(page)) {
+	if (folio_test_large(folio)) {
 		/*
 		 * clear __GFP_RECLAIM to make the migration callback
 		 * consistent with regular THP allocations.
 		 */
 		gfp_mask &= ~__GFP_RECLAIM;
 		gfp_mask |= GFP_TRANSHUGE;
-		order = HPAGE_PMD_ORDER;
+		order = folio_order(folio);
 	}
-	zidx = zone_idx(page_zone(page));
+	zidx = zone_idx(folio_zone(folio));
 	if (is_highmem_idx(zidx) || zidx == ZONE_MOVABLE)
 		gfp_mask |= __GFP_HIGHMEM;
 
-	new_page = __alloc_pages(gfp_mask, order, nid, mtc->nmask);
+	new_folio = __folio_alloc(gfp_mask, order, nid, mtc->nmask);
 
-	if (new_page && PageTransHuge(new_page))
-		prep_transhuge_page(new_page);
-
-	return new_page;
+	return &new_folio->page;
 }
 
 #ifdef CONFIG_NUMA
@@ -1999,32 +1997,20 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
 					   unsigned long data)
 {
 	int nid = (int) data;
-	struct page *newpage;
+	int order = compound_order(page);
+	gfp_t gfp = __GFP_THISNODE;
+	struct folio *new;
 
-	newpage = __alloc_pages_node(nid,
-					 (GFP_HIGHUSER_MOVABLE |
-					  __GFP_THISNODE | __GFP_NOMEMALLOC |
-					  __GFP_NORETRY | __GFP_NOWARN) &
-					 ~__GFP_RECLAIM, 0);
+	if (order > 0)
+		gfp |= GFP_TRANSHUGE_LIGHT;
+	else {
+		gfp |= GFP_HIGHUSER_MOVABLE | __GFP_NOMEMALLOC | __GFP_NORETRY |
+			__GFP_NOWARN;
+		gfp &= ~__GFP_RECLAIM;
+	}
+	new = __folio_alloc_node(gfp, order, nid);
 
-	return newpage;
-}
-
-static struct page *alloc_misplaced_dst_page_thp(struct page *page,
-						 unsigned long data)
-{
-	int nid = (int) data;
-	struct page *newpage;
-
-	newpage = alloc_pages_node(nid, (GFP_TRANSHUGE_LIGHT | __GFP_THISNODE),
-				   HPAGE_PMD_ORDER);
-	if (!newpage)
-		goto out;
-
-	prep_transhuge_page(newpage);
-
-out:
-	return newpage;
+	return &new->page;
 }
 
 static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
@@ -2082,21 +2068,7 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
 	int nr_remaining;
 	unsigned int nr_succeeded;
 	LIST_HEAD(migratepages);
-	new_page_t *new;
-	bool compound;
 	int nr_pages = thp_nr_pages(page);
-
-	/*
-	 * PTE mapped THP or HugeTLB page can't reach here so the page could
-	 * be either base page or THP.  And it must be head page if it is
-	 * THP.
-	 */
-	compound = PageTransHuge(page);
-
-	if (compound)
-		new = alloc_misplaced_dst_page_thp;
-	else
-		new = alloc_misplaced_dst_page;
 
 	/*
 	 * Don't migrate file pages that are mapped in multiple processes
@@ -2118,9 +2090,9 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
 		goto out;
 
 	list_add(&page->lru, &migratepages);
-	nr_remaining = migrate_pages(&migratepages, *new, NULL, node,
-				     MIGRATE_ASYNC, MR_NUMA_MISPLACED,
-				     &nr_succeeded);
+	nr_remaining = migrate_pages(&migratepages, alloc_misplaced_dst_page,
+				     NULL, node, MIGRATE_ASYNC,
+				     MR_NUMA_MISPLACED, &nr_succeeded);
 	if (nr_remaining) {
 		if (!list_empty(&migratepages)) {
 			list_del(&page->lru);

@@ -80,8 +80,8 @@ static const struct IP_BASE NBIO_BASE = { { { { 0x00000000, 0x00000014, 0x00000D
 #define VBIOSSMC_MSG_SetDppclkFreq                0x06 ///< Set DPP clock frequency in MHZ
 #define VBIOSSMC_MSG_SetHardMinDcfclkByFreq       0x07 ///< Set DCF clock frequency hard min in MHZ
 #define VBIOSSMC_MSG_SetMinDeepSleepDcfclk        0x08 ///< Set DCF clock minimum frequency in deep sleep in MHZ
-#define VBIOSSMC_MSG_SetPhyclkVoltageByFreq       0x09 ///< Set display phy clock frequency in MHZ in case VMIN does not support phy frequency
-#define VBIOSSMC_MSG_GetFclkFrequency             0x0A ///< Get FCLK frequency, return frequemcy in MHZ
+#define VBIOSSMC_MSG_GetDtbclkFreq                0x09 ///< Get display dtb clock frequency in MHZ in case VMIN does not support phy frequency
+#define VBIOSSMC_MSG_SetDtbClk                    0x0A ///< Set dtb clock frequency, return frequemcy in MHZ
 #define VBIOSSMC_MSG_SetDisplayCount              0x0B ///< Inform PMFW of number of display connected
 #define VBIOSSMC_MSG_EnableTmdp48MHzRefclkPwrDown 0x0C ///< To ask PMFW turn off TMDP 48MHz refclk during display off to save power
 #define VBIOSSMC_MSG_UpdatePmeRestore             0x0D ///< To ask PMFW to write into Azalia for PME wake up event
@@ -324,15 +324,26 @@ int dcn315_smu_get_dpref_clk(struct clk_mgr_internal *clk_mgr)
 	return (dprefclk_get_mhz * 1000);
 }
 
-int dcn315_smu_get_smu_fclk(struct clk_mgr_internal *clk_mgr)
+int dcn315_smu_get_dtbclk(struct clk_mgr_internal *clk_mgr)
 {
 	int fclk_get_mhz = -1;
 
 	if (clk_mgr->smu_present) {
 		fclk_get_mhz = dcn315_smu_send_msg_with_param(
 			clk_mgr,
-			VBIOSSMC_MSG_GetFclkFrequency,
+			VBIOSSMC_MSG_GetDtbclkFreq,
 			0);
 	}
 	return (fclk_get_mhz * 1000);
+}
+
+void dcn315_smu_set_dtbclk(struct clk_mgr_internal *clk_mgr, bool enable)
+{
+	if (!clk_mgr->smu_present)
+		return;
+
+	dcn315_smu_send_msg_with_param(
+			clk_mgr,
+			VBIOSSMC_MSG_SetDtbClk,
+			enable);
 }

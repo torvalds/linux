@@ -95,6 +95,7 @@ static void lpfc_sli4_oas_verify(struct lpfc_hba *phba);
 static uint16_t lpfc_find_cpu_handle(struct lpfc_hba *, uint16_t, int);
 static void lpfc_setup_bg(struct lpfc_hba *, struct Scsi_Host *);
 static int lpfc_sli4_cgn_parm_chg_evt(struct lpfc_hba *);
+static void lpfc_sli4_prep_dev_for_reset(struct lpfc_hba *phba);
 
 static struct scsi_transport_template *lpfc_transport_template = NULL;
 static struct scsi_transport_template *lpfc_vport_transport_template = NULL;
@@ -1642,7 +1643,7 @@ lpfc_sli4_offline_eratt(struct lpfc_hba *phba)
 {
 	spin_lock_irq(&phba->hbalock);
 	if (phba->link_state == LPFC_HBA_ERROR &&
-	    phba->hba_flag & HBA_PCI_ERR) {
+		test_bit(HBA_PCI_ERR, &phba->bit_flags)) {
 		spin_unlock_irq(&phba->hbalock);
 		return;
 	}
@@ -1985,6 +1986,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	if (pci_channel_offline(phba->pcidev)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3166 pci channel is offline\n");
+		lpfc_sli_flush_io_rings(phba);
 		return;
 	}
 
@@ -2973,6 +2975,22 @@ lpfc_cleanup(struct lpfc_vport *vport)
 					NLP_EVT_DEVICE_RM);
 	}
 
+	/* This is a special case flush to return all
+	 * IOs before entering this loop. There are
+	 * two points in the code where a flush is
+	 * avoided if the FC_UNLOADING flag is set.
+	 * one is in the multipool destroy,
+	 * (this prevents a crash) and the other is
+	 * in the nvme abort handler, ( also prevents
+	 * a crash). Both of these exceptions are
+	 * cases where the slot is still accessible.
+	 * The flush here is only when the pci slot
+	 * is offline.
+	 */
+	if (vport->load_flag & FC_UNLOADING &&
+	    pci_channel_offline(phba->pcidev))
+		lpfc_sli_flush_io_rings(vport->phba);
+
 	/* At this point, ALL ndlp's should be gone
 	 * because of the previous NLP_EVT_DEVICE_RM.
 	 * Lets wait for this to happen, if needed.
@@ -2985,7 +3003,7 @@ lpfc_cleanup(struct lpfc_vport *vport)
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						&vport->fc_nodes, nlp_listp) {
 				lpfc_printf_vlog(ndlp->vport, KERN_ERR,
-						 LOG_TRACE_EVENT,
+						 LOG_DISCOVERY,
 						 "0282 did:x%x ndlp:x%px "
 						 "refcnt:%d xflags x%x nflag x%x\n",
 						 ndlp->nlp_DID, (void *)ndlp,
@@ -3682,7 +3700,8 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 	struct lpfc_vport **vports;
 	struct Scsi_Host *shost;
 	int i;
-	int offline = 0;
+	int offline;
+	bool hba_pci_err;
 
 	if (vport->fc_flag & FC_OFFLINE_MODE)
 		return;
@@ -3692,6 +3711,7 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 	lpfc_linkdown(phba);
 
 	offline =  pci_channel_offline(phba->pcidev);
+	hba_pci_err = test_bit(HBA_PCI_ERR, &phba->bit_flags);
 
 	/* Issue an unreg_login to all nodes on all vports */
 	vports = lpfc_create_vport_work_array(phba);
@@ -3715,11 +3735,14 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 				ndlp->nlp_flag &= ~NLP_NPR_ADISC;
 				spin_unlock_irq(&ndlp->lock);
 
-				if (offline) {
+				if (offline || hba_pci_err) {
 					spin_lock_irq(&ndlp->lock);
 					ndlp->nlp_flag &= ~(NLP_UNREG_INP |
 							    NLP_RPI_REGISTERED);
 					spin_unlock_irq(&ndlp->lock);
+					if (phba->sli_rev == LPFC_SLI_REV4)
+						lpfc_sli_rpi_release(vports[i],
+								     ndlp);
 				} else {
 					lpfc_unreg_rpi(vports[i], ndlp);
 				}
@@ -13354,8 +13377,9 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 	/* Abort all iocbs associated with the hba */
 	lpfc_sli_hba_iocb_abort(phba);
 
-	/* Wait for completion of device XRI exchange busy */
-	lpfc_sli4_xri_exchange_busy_wait(phba);
+	if (!pci_channel_offline(phba->pcidev))
+		/* Wait for completion of device XRI exchange busy */
+		lpfc_sli4_xri_exchange_busy_wait(phba);
 
 	/* per-phba callback de-registration for hotplug event */
 	if (phba->pport)
@@ -13374,14 +13398,11 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 	/* Disable FW logging to host memory */
 	lpfc_ras_stop_fwlog(phba);
 
-	/* Unset the queues shared with the hardware then release all
-	 * allocated resources.
-	 */
-	lpfc_sli4_queue_unset(phba);
-	lpfc_sli4_queue_destroy(phba);
-
 	/* Reset SLI4 HBA FCoE function */
 	lpfc_pci_function_reset(phba);
+
+	/* release all queue allocated resources. */
+	lpfc_sli4_queue_destroy(phba);
 
 	/* Free RAS DMA memory */
 	if (phba->ras_fwlog.ras_enabled)
@@ -14262,6 +14283,7 @@ lpfc_sli_prep_dev_for_perm_failure(struct lpfc_hba *phba)
 			"2711 PCI channel permanent disable for failure\n");
 	/* Block all SCSI devices' I/Os on the host */
 	lpfc_scsi_dev_block(phba);
+	lpfc_sli4_prep_dev_for_reset(phba);
 
 	/* stop all timers */
 	lpfc_stop_hba_timers(phba);
@@ -15057,24 +15079,28 @@ lpfc_sli4_prep_dev_for_recover(struct lpfc_hba *phba)
 static void
 lpfc_sli4_prep_dev_for_reset(struct lpfc_hba *phba)
 {
-	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-			"2826 PCI channel disable preparing for reset\n");
+	int offline =  pci_channel_offline(phba->pcidev);
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"2826 PCI channel disable preparing for reset offline"
+			" %d\n", offline);
 
 	/* Block any management I/Os to the device */
 	lpfc_block_mgmt_io(phba, LPFC_MBX_NO_WAIT);
 
-	/* Block all SCSI devices' I/Os on the host */
-	lpfc_scsi_dev_block(phba);
 
+	/* HBA_PCI_ERR was set in io_error_detect */
+	lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
 	/* Flush all driver's outstanding I/Os as we are to reset */
 	lpfc_sli_flush_io_rings(phba);
+	lpfc_offline(phba);
 
 	/* stop all timers */
 	lpfc_stop_hba_timers(phba);
 
+	lpfc_sli4_queue_destroy(phba);
 	/* Disable interrupt and pci device */
 	lpfc_sli4_disable_intr(phba);
-	lpfc_sli4_queue_destroy(phba);
 	pci_disable_device(phba->pcidev);
 }
 
@@ -15123,6 +15149,7 @@ lpfc_io_error_detected_s4(struct pci_dev *pdev, pci_channel_state_t state)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+	bool hba_pci_err;
 
 	switch (state) {
 	case pci_channel_io_normal:
@@ -15130,17 +15157,24 @@ lpfc_io_error_detected_s4(struct pci_dev *pdev, pci_channel_state_t state)
 		lpfc_sli4_prep_dev_for_recover(phba);
 		return PCI_ERS_RESULT_CAN_RECOVER;
 	case pci_channel_io_frozen:
-		phba->hba_flag |= HBA_PCI_ERR;
+		hba_pci_err = test_and_set_bit(HBA_PCI_ERR, &phba->bit_flags);
 		/* Fatal error, prepare for slot reset */
-		lpfc_sli4_prep_dev_for_reset(phba);
+		if (!hba_pci_err)
+			lpfc_sli4_prep_dev_for_reset(phba);
+		else
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2832  Already handling PCI error "
+					"state: x%x\n", state);
 		return PCI_ERS_RESULT_NEED_RESET;
 	case pci_channel_io_perm_failure:
-		phba->hba_flag |= HBA_PCI_ERR;
+		set_bit(HBA_PCI_ERR, &phba->bit_flags);
 		/* Permanent failure, prepare for device down */
 		lpfc_sli4_prep_dev_for_perm_failure(phba);
 		return PCI_ERS_RESULT_DISCONNECT;
 	default:
-		phba->hba_flag |= HBA_PCI_ERR;
+		hba_pci_err = test_and_set_bit(HBA_PCI_ERR, &phba->bit_flags);
+		if (!hba_pci_err)
+			lpfc_sli4_prep_dev_for_reset(phba);
 		/* Unknown state, prepare and request slot reset */
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2825 Unknown PCI error state: x%x\n", state);
@@ -15174,17 +15208,21 @@ lpfc_io_slot_reset_s4(struct pci_dev *pdev)
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 	struct lpfc_sli *psli = &phba->sli;
 	uint32_t intr_mode;
+	bool hba_pci_err;
 
 	dev_printk(KERN_INFO, &pdev->dev, "recovering from a slot reset.\n");
 	if (pci_enable_device_mem(pdev)) {
 		printk(KERN_ERR "lpfc: Cannot re-enable "
-			"PCI device after reset.\n");
+		       "PCI device after reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
 	pci_restore_state(pdev);
 
-	phba->hba_flag &= ~HBA_PCI_ERR;
+	hba_pci_err = test_and_clear_bit(HBA_PCI_ERR, &phba->bit_flags);
+	if (!hba_pci_err)
+		dev_info(&pdev->dev,
+			 "hba_pci_err was not set, recovering slot reset.\n");
 	/*
 	 * As the new kernel behavior of pci_restore_state() API call clears
 	 * device saved_state flag, need to save the restored state again.
@@ -15198,6 +15236,8 @@ lpfc_io_slot_reset_s4(struct pci_dev *pdev)
 	psli->sli_flag &= ~LPFC_SLI_ACTIVE;
 	spin_unlock_irq(&phba->hbalock);
 
+	/* Init cpu_map array */
+	lpfc_cpu_map_array_init(phba);
 	/* Configure and enable interrupt */
 	intr_mode = lpfc_sli4_enable_intr(phba, phba->intr_mode);
 	if (intr_mode == LPFC_INTR_ERROR) {
@@ -15239,8 +15279,6 @@ lpfc_io_resume_s4(struct pci_dev *pdev)
 	 */
 	if (!(phba->sli.sli_flag & LPFC_SLI_ACTIVE)) {
 		/* Perform device reset */
-		lpfc_offline_prep(phba, LPFC_MBX_WAIT);
-		lpfc_offline(phba);
 		lpfc_sli_brdrestart(phba);
 		/* Bring the device back online */
 		lpfc_online(phba);

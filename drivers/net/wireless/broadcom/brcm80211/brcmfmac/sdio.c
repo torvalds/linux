@@ -4165,7 +4165,7 @@ static int brcmf_sdio_bus_reset(struct device *dev)
 
 	/* reset the adapter */
 	sdio_claim_host(sdiodev->func1);
-	mmc_hw_reset(sdiodev->func1->card->host);
+	mmc_hw_reset(sdiodev->func1->card);
 	sdio_release_host(sdiodev->func1);
 
 	brcmf_bus_change_state(sdiodev->bus_if, BRCMF_BUS_DOWN);

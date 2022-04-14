@@ -69,10 +69,11 @@
 /*
  * Local functions
  */
-static void	 xprt_init(struct rpc_xprt *xprt, struct net *net);
+static void	xprt_init(struct rpc_xprt *xprt, struct net *net);
 static __be32	xprt_alloc_xid(struct rpc_xprt *xprt);
-static void	 xprt_destroy(struct rpc_xprt *xprt);
-static void	 xprt_request_init(struct rpc_task *task);
+static void	xprt_destroy(struct rpc_xprt *xprt);
+static void	xprt_request_init(struct rpc_task *task);
+static int	xprt_request_prepare(struct rpc_rqst *req);
 
 static DEFINE_SPINLOCK(xprt_list_lock);
 static LIST_HEAD(xprt_list);
@@ -929,12 +930,7 @@ void xprt_connect(struct rpc_task *task)
 	if (!xprt_lock_write(xprt, task))
 		return;
 
-	if (test_and_clear_bit(XPRT_CLOSE_WAIT, &xprt->state)) {
-		trace_xprt_disconnect_cleanup(xprt);
-		xprt->ops->close(xprt);
-	}
-
-	if (!xprt_connected(xprt)) {
+	if (!xprt_connected(xprt) && !test_bit(XPRT_CLOSE_WAIT, &xprt->state)) {
 		task->tk_rqstp->rq_connect_cookie = xprt->connect_cookie;
 		rpc_sleep_on_timeout(&xprt->pending, task, NULL,
 				xprt_request_timeout(task->tk_rqstp));
@@ -1143,16 +1139,19 @@ xprt_request_need_enqueue_receive(struct rpc_task *task, struct rpc_rqst *req)
  * @task: RPC task
  *
  */
-void
+int
 xprt_request_enqueue_receive(struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
+	int ret;
 
 	if (!xprt_request_need_enqueue_receive(task, req))
-		return;
+		return 0;
 
-	xprt_request_prepare(task->tk_rqstp);
+	ret = xprt_request_prepare(task->tk_rqstp);
+	if (ret)
+		return ret;
 	spin_lock(&xprt->queue_lock);
 
 	/* Update the softirq receive buffer */
@@ -1166,6 +1165,7 @@ xprt_request_enqueue_receive(struct rpc_task *task)
 
 	/* Turn off autodisconnect */
 	del_singleshot_timer_sync(&xprt->timer);
+	return 0;
 }
 
 /**
@@ -1452,14 +1452,16 @@ xprt_request_dequeue_xprt(struct rpc_task *task)
  *
  * Calls into the transport layer to do whatever is needed to prepare
  * the request for transmission or receive.
+ * Returns error, or zero.
  */
-void
+static int
 xprt_request_prepare(struct rpc_rqst *req)
 {
 	struct rpc_xprt *xprt = req->rq_xprt;
 
 	if (xprt->ops->prepare_request)
-		xprt->ops->prepare_request(req);
+		return xprt->ops->prepare_request(req);
+	return 0;
 }
 
 /**

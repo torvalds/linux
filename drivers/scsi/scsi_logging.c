@@ -30,7 +30,7 @@ static inline const char *scmd_name(const struct scsi_cmnd *scmd)
 {
 	struct request *rq = scsi_cmd_to_rq((struct scsi_cmnd *)scmd);
 
-	if (!rq->q->disk)
+	if (!rq->q || !rq->q->disk)
 		return NULL;
 	return rq->q->disk->disk_name;
 }
