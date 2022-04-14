@@ -687,7 +687,7 @@ config ARM64_ERRATUM_2051678
 	default y
 	help
 	  This options adds the workaround for ARM Cortex-A510 erratum ARM64_ERRATUM_2051678.
-	  Affected Coretex-A510 might not respect the ordering rules for
+	  Affected Cortex-A510 might not respect the ordering rules for
 	  hardware update of the page table's dirty bit. The workaround
 	  is to not enable the feature on affected CPUs.
 
