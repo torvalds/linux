@@ -1517,6 +1517,30 @@ static inline bool btree_path_good_node(struct btree_trans *trans,
 	return true;
 }
 
+static void btree_path_set_level_up(struct btree_path *path)
+{
+	btree_node_unlock(path, path->level);
+	path->l[path->level].b = BTREE_ITER_NO_NODE_UP;
+	path->level++;
+	btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+}
+
+static void btree_path_set_level_down(struct btree_trans *trans,
+				      struct btree_path *path,
+				      unsigned new_level)
+{
+	unsigned l;
+
+	path->level = new_level;
+
+	for (l = path->level + 1; l < BTREE_MAX_DEPTH; l++)
+		if (btree_lock_want(path, l) == BTREE_NODE_UNLOCKED)
+			btree_node_unlock(path, l);
+
+	btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+	bch2_btree_path_verify(trans, path);
+}
+
 static inline unsigned btree_path_up_until_good_node(struct btree_trans *trans,
 						     struct btree_path *path,
 						     int check_pos)
@@ -2084,7 +2108,6 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 	struct btree_trans *trans = iter->trans;
 	struct btree_path *path = iter->path;
 	struct btree *b = NULL;
-	unsigned l;
 	int ret;
 
 	BUG_ON(trans->restarted);
@@ -2097,10 +2120,7 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 
 	/* got to end? */
 	if (!btree_path_node(path, path->level + 1)) {
-		btree_node_unlock(path, path->level);
-		path->l[path->level].b = BTREE_ITER_NO_NODE_UP;
-		path->level++;
-		btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+		btree_path_set_level_up(path);
 		return NULL;
 	}
 
@@ -2131,14 +2151,7 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 			bch2_btree_path_set_pos(trans, path, bpos_successor(iter->pos),
 					   iter->flags & BTREE_ITER_INTENT);
 
-		path->level = iter->min_depth;
-
-		for (l = path->level + 1; l < BTREE_MAX_DEPTH; l++)
-			if (btree_lock_want(path, l) == BTREE_NODE_UNLOCKED)
-				btree_node_unlock(path, l);
-
-		btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
-		bch2_btree_iter_verify(iter);
+		btree_path_set_level_down(trans, path, iter->min_depth);
 
 		ret = bch2_btree_path_traverse(trans, path, iter->flags);
 		if (ret)
