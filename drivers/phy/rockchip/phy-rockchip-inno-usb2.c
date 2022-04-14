@@ -905,12 +905,8 @@ static irqreturn_t rockchip_usb2phy_bvalid_irq(int irq, void *data)
 	if (!property_enabled(rphy->grf, &rport->port_cfg->bvalid_det_st))
 		return IRQ_NONE;
 
-	mutex_lock(&rport->mutex);
-
 	/* clear bvalid detect irq pending status */
 	property_enable(rphy->grf, &rport->port_cfg->bvalid_det_clr, true);
-
-	mutex_unlock(&rport->mutex);
 
 	rockchip_usb2phy_otg_sm_work(&rport->otg_sm_work.work);
 
