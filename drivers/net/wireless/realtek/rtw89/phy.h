@@ -221,6 +221,35 @@ enum rtw89_dig_gain_tia_idx {
 	RTW89_DIG_GAIN_TIA_IDX1 = 1
 };
 
+enum rtw89_tssi_bandedge_cfg {
+	RTW89_TSSI_BANDEDGE_FLAT,
+	RTW89_TSSI_BANDEDGE_LOW,
+	RTW89_TSSI_BANDEDGE_MID,
+	RTW89_TSSI_BANDEDGE_HIGH,
+
+	RTW89_TSSI_CFG_NUM,
+};
+
+enum rtw89_tssi_sbw_idx {
+	RTW89_TSSI_SBW20,
+	RTW89_TSSI_SBW40_0,
+	RTW89_TSSI_SBW40_1,
+	RTW89_TSSI_SBW80_0,
+	RTW89_TSSI_SBW80_1,
+	RTW89_TSSI_SBW80_2,
+	RTW89_TSSI_SBW80_3,
+	RTW89_TSSI_SBW160_0,
+	RTW89_TSSI_SBW160_1,
+	RTW89_TSSI_SBW160_2,
+	RTW89_TSSI_SBW160_3,
+	RTW89_TSSI_SBW160_4,
+	RTW89_TSSI_SBW160_5,
+	RTW89_TSSI_SBW160_6,
+	RTW89_TSSI_SBW160_7,
+
+	RTW89_TSSI_SBW_NUM,
+};
+
 struct rtw89_txpwr_byrate_cfg {
 	enum rtw89_band band;
 	enum rtw89_nss nss;
@@ -261,6 +290,10 @@ struct rtw89_phy_dig_gain_table {
 	const struct rtw89_phy_dig_gain_cfg *cfg_tia_g;
 	const struct rtw89_phy_dig_gain_cfg *cfg_lna_a;
 	const struct rtw89_phy_dig_gain_cfg *cfg_tia_a;
+};
+
+struct rtw89_phy_tssi_dbw_table {
+	u32 data[RTW89_TSSI_CFG_NUM][RTW89_TSSI_SBW_NUM];
 };
 
 struct rtw89_phy_reg3_tbl {
@@ -446,5 +479,8 @@ void rtw89_phy_set_phy_regs(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 void rtw89_phy_dig_reset(struct rtw89_dev *rtwdev);
 void rtw89_phy_dig(struct rtw89_dev *rtwdev);
 void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif);
+void rtw89_phy_tssi_ctrl_set_bandedge_cfg(struct rtw89_dev *rtwdev,
+					  enum rtw89_mac_idx mac_idx,
+					  enum rtw89_tssi_bandedge_cfg bandedge_cfg);
 
 #endif

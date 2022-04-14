@@ -2380,6 +2380,7 @@ struct rtw89_chip_info {
 	const struct rtw89_phy_table *nctl_table;
 	const struct rtw89_txpwr_table *byr_table;
 	const struct rtw89_phy_dig_gain_table *dig_table;
+	const struct rtw89_phy_tssi_dbw_table *tssi_dbw_table;
 	const s8 (*txpwr_lmt_2g)[RTW89_2G_BW_NUM][RTW89_NTX_NUM]
 				[RTW89_RS_LMT_NUM][RTW89_BF_NUM]
 				[RTW89_REGD_NUM][RTW89_2G_CH_NUM];

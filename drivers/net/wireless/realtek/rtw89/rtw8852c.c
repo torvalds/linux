@@ -674,6 +674,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.txpwr_factor_rf	= 2,
 	.txpwr_factor_mac	= 1,
 	.dig_table		= NULL,
+	.tssi_dbw_table		= &rtw89_8852c_tssi_dbw_table,
 	.hw_sec_hdr		= true,
 	.sec_ctrl_efuse_size	= 4,
 	.physical_efuse_size	= 1216,

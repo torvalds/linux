@@ -3420,3 +3420,109 @@ rtw89_rfk_parser(struct rtw89_dev *rtwdev, const struct rtw89_rfk_tbl *tbl)
 		_rfk_handler[p->flag](rtwdev, p);
 }
 EXPORT_SYMBOL(rtw89_rfk_parser);
+
+#define RTW89_TSSI_FAST_MODE_NUM 4
+
+static const struct rtw89_reg_def rtw89_tssi_fastmode_regs_flat[RTW89_TSSI_FAST_MODE_NUM] = {
+	{0xD934, 0xff0000},
+	{0xD934, 0xff000000},
+	{0xD938, 0xff},
+	{0xD934, 0xff00},
+};
+
+static const struct rtw89_reg_def rtw89_tssi_fastmode_regs_level[RTW89_TSSI_FAST_MODE_NUM] = {
+	{0xD930, 0xff0000},
+	{0xD930, 0xff000000},
+	{0xD934, 0xff},
+	{0xD930, 0xff00},
+};
+
+static
+void rtw89_phy_tssi_ctrl_set_fast_mode_cfg(struct rtw89_dev *rtwdev,
+					   enum rtw89_mac_idx mac_idx,
+					   enum rtw89_tssi_bandedge_cfg bandedge_cfg,
+					   u32 val)
+{
+	const struct rtw89_reg_def *regs;
+	u32 reg;
+	int i;
+
+	if (bandedge_cfg == RTW89_TSSI_BANDEDGE_FLAT)
+		regs = rtw89_tssi_fastmode_regs_flat;
+	else
+		regs = rtw89_tssi_fastmode_regs_level;
+
+	for (i = 0; i < RTW89_TSSI_FAST_MODE_NUM; i++) {
+		reg = rtw89_mac_reg_by_idx(regs[i].addr, mac_idx);
+		rtw89_write32_mask(rtwdev, reg, regs[i].mask, val);
+	}
+}
+
+static const struct rtw89_reg_def rtw89_tssi_bandedge_regs_flat[RTW89_TSSI_SBW_NUM] = {
+	{0xD91C, 0xff000000},
+	{0xD920, 0xff},
+	{0xD920, 0xff00},
+	{0xD920, 0xff0000},
+	{0xD920, 0xff000000},
+	{0xD924, 0xff},
+	{0xD924, 0xff00},
+	{0xD914, 0xff000000},
+	{0xD918, 0xff},
+	{0xD918, 0xff00},
+	{0xD918, 0xff0000},
+	{0xD918, 0xff000000},
+	{0xD91C, 0xff},
+	{0xD91C, 0xff00},
+	{0xD91C, 0xff0000},
+};
+
+static const struct rtw89_reg_def rtw89_tssi_bandedge_regs_level[RTW89_TSSI_SBW_NUM] = {
+	{0xD910, 0xff},
+	{0xD910, 0xff00},
+	{0xD910, 0xff0000},
+	{0xD910, 0xff000000},
+	{0xD914, 0xff},
+	{0xD914, 0xff00},
+	{0xD914, 0xff0000},
+	{0xD908, 0xff},
+	{0xD908, 0xff00},
+	{0xD908, 0xff0000},
+	{0xD908, 0xff000000},
+	{0xD90C, 0xff},
+	{0xD90C, 0xff00},
+	{0xD90C, 0xff0000},
+	{0xD90C, 0xff000000},
+};
+
+void rtw89_phy_tssi_ctrl_set_bandedge_cfg(struct rtw89_dev *rtwdev,
+					  enum rtw89_mac_idx mac_idx,
+					  enum rtw89_tssi_bandedge_cfg bandedge_cfg)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_reg_def *regs;
+	const u32 *data;
+	u32 reg;
+	int i;
+
+	if (bandedge_cfg >= RTW89_TSSI_CFG_NUM)
+		return;
+
+	if (bandedge_cfg == RTW89_TSSI_BANDEDGE_FLAT)
+		regs = rtw89_tssi_bandedge_regs_flat;
+	else
+		regs = rtw89_tssi_bandedge_regs_level;
+
+	data = chip->tssi_dbw_table->data[bandedge_cfg];
+
+	for (i = 0; i < RTW89_TSSI_SBW_NUM; i++) {
+		reg = rtw89_mac_reg_by_idx(regs[i].addr, mac_idx);
+		rtw89_write32_mask(rtwdev, reg, regs[i].mask, data[i]);
+	}
+
+	reg = rtw89_mac_reg_by_idx(R_AX_BANDEDGE_CFG, mac_idx);
+	rtw89_write32_mask(rtwdev, reg, B_AX_BANDEDGE_CFG_IDX_MASK, bandedge_cfg);
+
+	rtw89_phy_tssi_ctrl_set_fast_mode_cfg(rtwdev, mac_idx, bandedge_cfg,
+					      data[RTW89_TSSI_SBW20]);
+}
+EXPORT_SYMBOL(rtw89_phy_tssi_ctrl_set_bandedge_cfg);

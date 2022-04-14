@@ -19461,3 +19461,10 @@ const struct rtw89_txpwr_track_cfg rtw89_8852c_trk_cfg = {
 	.delta_swingidx_2g_cck_a_n = _txpwr_track_delta_swingidx_2g_cck_a_n,
 	.delta_swingidx_2g_cck_a_p = _txpwr_track_delta_swingidx_2g_cck_a_p,
 };
+
+const struct rtw89_phy_tssi_dbw_table rtw89_8852c_tssi_dbw_table = {
+	.data[RTW89_TSSI_BANDEDGE_FLAT] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	.data[RTW89_TSSI_BANDEDGE_LOW] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	.data[RTW89_TSSI_BANDEDGE_MID] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	.data[RTW89_TSSI_BANDEDGE_HIGH] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+};
