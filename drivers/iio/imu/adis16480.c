@@ -7,14 +7,16 @@
 
 #include <linux/clk.h>
 #include <linux/bitfield.h>
-#include <linux/of_irq.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/math.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/lcm.h>
+#include <linux/property.h>
 #include <linux/swab.h>
 #include <linux/crc32.h>
 
@@ -1239,9 +1241,10 @@ static int adis16480_enable_irq(struct adis *adis, bool enable)
 	return __adis_write_reg_16(adis, ADIS16480_REG_FNCTIO_CTRL, val);
 }
 
-static int adis16480_config_irq_pin(struct device_node *of_node,
-				    struct adis16480 *st)
+static int adis16480_config_irq_pin(struct adis16480 *st)
 {
+	struct device *dev = &st->adis.spi->dev;
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct irq_data *desc;
 	enum adis16480_int_pin pin;
 	unsigned int irq_type;
@@ -1267,7 +1270,7 @@ static int adis16480_config_irq_pin(struct device_node *of_node,
 	 */
 	pin = ADIS16480_PIN_DIO1;
 	for (i = 0; i < ARRAY_SIZE(adis16480_int_pin_names); i++) {
-		irq = of_irq_get_byname(of_node, adis16480_int_pin_names[i]);
+		irq = fwnode_irq_get_byname(fwnode, adis16480_int_pin_names[i]);
 		if (irq > 0) {
 			pin = i;
 			break;
@@ -1295,15 +1298,15 @@ static int adis16480_config_irq_pin(struct device_node *of_node,
 	return adis_write_reg_16(&st->adis, ADIS16480_REG_FNCTIO_CTRL, val);
 }
 
-static int adis16480_of_get_ext_clk_pin(struct adis16480 *st,
-					struct device_node *of_node)
+static int adis16480_fw_get_ext_clk_pin(struct adis16480 *st)
 {
+	struct device *dev = &st->adis.spi->dev;
 	const char *ext_clk_pin;
 	enum adis16480_int_pin pin;
 	int i;
 
 	pin = ADIS16480_PIN_DIO2;
-	if (of_property_read_string(of_node, "adi,ext-clk-pin", &ext_clk_pin))
+	if (device_property_read_string(dev, "adi,ext-clk-pin", &ext_clk_pin))
 		goto clk_input_not_found;
 
 	for (i = 0; i < ARRAY_SIZE(adis16480_int_pin_names); i++) {
@@ -1317,9 +1320,7 @@ clk_input_not_found:
 	return pin;
 }
 
-static int adis16480_ext_clk_config(struct adis16480 *st,
-				    struct device_node *of_node,
-				    bool enable)
+static int adis16480_ext_clk_config(struct adis16480 *st, bool enable)
 {
 	unsigned int mode, mask;
 	enum adis16480_int_pin pin;
@@ -1330,7 +1331,7 @@ static int adis16480_ext_clk_config(struct adis16480 *st,
 	if (ret)
 		return ret;
 
-	pin = adis16480_of_get_ext_clk_pin(st, of_node);
+	pin = adis16480_fw_get_ext_clk_pin(st);
 	/*
 	 * Each DIOx pin supports only one function at a time. When a single pin
 	 * has two assignments, the enable bit for a lower priority function
@@ -1438,7 +1439,7 @@ static int adis16480_probe(struct spi_device *spi)
 			return ret;
 	}
 
-	ret = adis16480_config_irq_pin(spi->dev.of_node, st);
+	ret = adis16480_config_irq_pin(st);
 	if (ret)
 		return ret;
 
@@ -1447,7 +1448,7 @@ static int adis16480_probe(struct spi_device *spi)
 		return ret;
 
 	if (!IS_ERR_OR_NULL(st->ext_clk)) {
-		ret = adis16480_ext_clk_config(st, spi->dev.of_node, true);
+		ret = adis16480_ext_clk_config(st, true);
 		if (ret)
 			return ret;
 
