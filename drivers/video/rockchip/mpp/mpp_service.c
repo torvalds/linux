@@ -184,6 +184,55 @@ static int mpp_show_version(struct seq_file *seq, void *offset)
 	return 0;
 }
 
+static int mpp_dump_session(struct mpp_session *session, struct seq_file *s)
+{
+	struct mpp_dma_session *dma = session->dma;
+	struct mpp_dma_buffer *n;
+	struct mpp_dma_buffer *buffer;
+	phys_addr_t end;
+	unsigned long z = 0, t = 0;
+	int i = 0;
+#define K(size) ((unsigned long)((size) >> 10))
+
+	if (!dma)
+		return 0;
+
+	seq_puts(s, "session iova range dump:\n");
+
+	mutex_lock(&dma->list_mutex);
+	list_for_each_entry_safe(buffer, n, &dma->used_list, link) {
+		end = buffer->iova + buffer->size - 1;
+		z = (unsigned long)buffer->size;
+		t += z;
+
+		seq_printf(s, "%4d: ", i++);
+		seq_printf(s, "%pa..%pa (%10lu %s)\n", &buffer->iova, &end,
+			   (z >= 1024) ? (K(z)) : z,
+			   (z >= 1024) ? "KiB" : "Bytes");
+	}
+	i = 0;
+	list_for_each_entry_safe(buffer, n, &dma->unused_list, link) {
+		if (!buffer->dmabuf)
+			continue;
+
+		end = buffer->iova + buffer->size - 1;
+		z = (unsigned long)buffer->size;
+		t += z;
+
+		seq_printf(s, "%4d: ", i++);
+		seq_printf(s, "%pa..%pa (%10lu %s)\n", &buffer->iova, &end,
+			   (z >= 1024) ? (K(z)) : z,
+			   (z >= 1024) ? "KiB" : "Bytes");
+	}
+
+	mutex_unlock(&dma->list_mutex);
+	seq_printf(s, "session: pid=%d index=%d\n", session->pid, session->index);
+	seq_printf(s, " device: %s\n", dev_name(session->mpp->dev));
+	seq_printf(s, " memory: %lu MiB\n", K(K(t)));
+
+	return 0;
+}
+
 static int mpp_show_session_summary(struct seq_file *seq, void *offset)
 {
 	struct mpp_session *session = NULL, *n;
@@ -201,6 +250,8 @@ static int mpp_show_session_summary(struct seq_file *seq, void *offset)
 		if (!session->mpp)
 			continue;
 		mpp = session->mpp;
+
+		mpp_dump_session(session, seq);
 
 		if (mpp->dev_ops->dump_session)
 			mpp->dev_ops->dump_session(session, seq);
