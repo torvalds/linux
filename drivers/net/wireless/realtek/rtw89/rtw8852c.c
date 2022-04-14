@@ -495,6 +495,186 @@ static void rtw8852c_power_trim(struct rtw89_dev *rtwdev)
 	rtw8852c_pa_bias_trim(rtwdev);
 }
 
+static void rtw8852c_bb_reset_all(struct rtw89_dev *rtwdev,
+				  enum rtw89_phy_idx phy_idx)
+{
+	/*HW SI reset*/
+	rtw89_phy_write32_mask(rtwdev, R_S0_HW_SI_DIS, B_S0_HW_SI_DIS_W_R_TRIG,
+			       0x7);
+	rtw89_phy_write32_mask(rtwdev, R_S1_HW_SI_DIS, B_S1_HW_SI_DIS_W_R_TRIG,
+			       0x7);
+
+	udelay(1);
+
+	rtw89_phy_write32_idx(rtwdev, R_RSTB_ASYNC, B_RSTB_ASYNC_ALL, 1,
+			      phy_idx);
+	rtw89_phy_write32_idx(rtwdev, R_RSTB_ASYNC, B_RSTB_ASYNC_ALL, 0,
+			      phy_idx);
+	/*HW SI reset*/
+	rtw89_phy_write32_mask(rtwdev, R_S0_HW_SI_DIS, B_S0_HW_SI_DIS_W_R_TRIG,
+			       0x0);
+	rtw89_phy_write32_mask(rtwdev, R_S1_HW_SI_DIS, B_S1_HW_SI_DIS_W_R_TRIG,
+			       0x0);
+
+	rtw89_phy_write32_idx(rtwdev, R_RSTB_ASYNC, B_RSTB_ASYNC_ALL, 1,
+			      phy_idx);
+}
+
+static void rtw8852c_bb_reset_en(struct rtw89_dev *rtwdev,
+				 enum rtw89_phy_idx phy_idx, bool en)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	if (en) {
+		rtw89_phy_write32_idx(rtwdev, R_S0_HW_SI_DIS,
+				      B_S0_HW_SI_DIS_W_R_TRIG, 0x0, phy_idx);
+		rtw89_phy_write32_idx(rtwdev, R_S1_HW_SI_DIS,
+				      B_S1_HW_SI_DIS_W_R_TRIG, 0x0, phy_idx);
+		rtw89_phy_write32_idx(rtwdev, R_RSTB_ASYNC, B_RSTB_ASYNC_ALL, 1,
+				      phy_idx);
+		if (hal->current_band_type == RTW89_BAND_2G)
+			rtw89_phy_write32_mask(rtwdev, R_RXCCA_V1, B_RXCCA_DIS_V1, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_PD_CTRL, B_PD_HIT_DIS, 0x0);
+	} else {
+		rtw89_phy_write32_mask(rtwdev, R_RXCCA_V1, B_RXCCA_DIS_V1, 0x1);
+		rtw89_phy_write32_mask(rtwdev, R_PD_CTRL, B_PD_HIT_DIS, 0x1);
+		rtw89_phy_write32_idx(rtwdev, R_S0_HW_SI_DIS,
+				      B_S0_HW_SI_DIS_W_R_TRIG, 0x7, phy_idx);
+		rtw89_phy_write32_idx(rtwdev, R_S1_HW_SI_DIS,
+				      B_S1_HW_SI_DIS_W_R_TRIG, 0x7, phy_idx);
+		fsleep(1);
+		rtw89_phy_write32_idx(rtwdev, R_RSTB_ASYNC, B_RSTB_ASYNC_ALL, 0,
+				      phy_idx);
+	}
+}
+
+static void rtw8852c_bb_reset(struct rtw89_dev *rtwdev,
+			      enum rtw89_phy_idx phy_idx)
+{
+	rtw8852c_bb_reset_all(rtwdev, phy_idx);
+}
+
+static
+void rtw8852c_bb_gpio_trsw(struct rtw89_dev *rtwdev, enum rtw89_rf_path path,
+			   u8 tx_path_en, u8 trsw_tx,
+			   u8 trsw_rx, u8 trsw, u8 trsw_b)
+{
+	static const u32 path_cr_bases[] = {0x5868, 0x7868};
+	u32 mask_ofst = 16;
+	u32 cr;
+	u32 val;
+
+	if (path >= ARRAY_SIZE(path_cr_bases))
+		return;
+
+	cr = path_cr_bases[path];
+
+	mask_ofst += (tx_path_en * 4 + trsw_tx * 2 + trsw_rx) * 2;
+	val = FIELD_PREP(B_P0_TRSW_A, trsw) | FIELD_PREP(B_P0_TRSW_B, trsw_b);
+
+	rtw89_phy_write32_mask(rtwdev, cr, (B_P0_TRSW_A | B_P0_TRSW_B) << mask_ofst, val);
+}
+
+enum rtw8852c_rfe_src {
+	PAPE_RFM,
+	TRSW_RFM,
+	LNAON_RFM,
+};
+
+static
+void rtw8852c_bb_gpio_rfm(struct rtw89_dev *rtwdev, enum rtw89_rf_path path,
+			  enum rtw8852c_rfe_src src, u8 dis_tx_gnt_wl,
+			  u8 active_tx_opt, u8 act_bt_en, u8 rfm_output_val)
+{
+	static const u32 path_cr_bases[] = {0x5894, 0x7894};
+	static const u32 masks[] = {0, 8, 16};
+	u32 mask, mask_ofst;
+	u32 cr;
+	u32 val;
+
+	if (src >= ARRAY_SIZE(masks) || path >= ARRAY_SIZE(path_cr_bases))
+		return;
+
+	mask_ofst = masks[src];
+	cr = path_cr_bases[path];
+
+	val = FIELD_PREP(B_P0_RFM_DIS_WL, dis_tx_gnt_wl) |
+	      FIELD_PREP(B_P0_RFM_TX_OPT, active_tx_opt) |
+	      FIELD_PREP(B_P0_RFM_BT_EN, act_bt_en) |
+	      FIELD_PREP(B_P0_RFM_OUT, rfm_output_val);
+	mask = 0xff << mask_ofst;
+
+	rtw89_phy_write32_mask(rtwdev, cr, mask, val);
+}
+
+static void rtw8852c_bb_gpio_init(struct rtw89_dev *rtwdev)
+{
+	static const u32 cr_bases[] = {0x5800, 0x7800};
+	u32 addr;
+	u8 i;
+
+	for (i = 0; i < ARRAY_SIZE(cr_bases); i++) {
+		addr = cr_bases[i];
+		rtw89_phy_write32_set(rtwdev, (addr | 0x68), B_P0_TRSW_A);
+		rtw89_phy_write32_clr(rtwdev, (addr | 0x68), B_P0_TRSW_X);
+		rtw89_phy_write32_clr(rtwdev, (addr | 0x68), B_P0_TRSW_SO_A2);
+		rtw89_phy_write32(rtwdev, (addr | 0x80), 0x77777777);
+		rtw89_phy_write32(rtwdev, (addr | 0x84), 0x77777777);
+	}
+
+	rtw89_phy_write32(rtwdev, R_RFE_E_A2, 0xffffffff);
+	rtw89_phy_write32(rtwdev, R_RFE_O_SEL_A2, 0);
+	rtw89_phy_write32(rtwdev, R_RFE_SEL0_A2, 0);
+	rtw89_phy_write32(rtwdev, R_RFE_SEL32_A2, 0);
+
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_A, 0, 0, 0, 0, 1);
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_A, 0, 0, 1, 1, 0);
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_A, 0, 1, 0, 1, 0);
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_A, 0, 1, 1, 1, 0);
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_A, 1, 0, 0, 0, 1);
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_A, 1, 0, 1, 1, 0);
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_A, 1, 1, 0, 1, 0);
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_A, 1, 1, 1, 1, 0);
+
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_B, 0, 0, 0, 0, 1);
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_B, 0, 0, 1, 1, 0);
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_B, 0, 1, 0, 1, 0);
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_B, 0, 1, 1, 1, 0);
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_B, 1, 0, 0, 0, 1);
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_B, 1, 0, 1, 1, 0);
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_B, 1, 1, 0, 1, 0);
+	rtw8852c_bb_gpio_trsw(rtwdev, RF_PATH_B, 1, 1, 1, 1, 0);
+
+	rtw8852c_bb_gpio_rfm(rtwdev, RF_PATH_A, PAPE_RFM, 0, 0, 0, 0x0);
+	rtw8852c_bb_gpio_rfm(rtwdev, RF_PATH_A, TRSW_RFM, 0, 0, 0, 0x4);
+	rtw8852c_bb_gpio_rfm(rtwdev, RF_PATH_A, LNAON_RFM, 0, 0, 0, 0x8);
+
+	rtw8852c_bb_gpio_rfm(rtwdev, RF_PATH_B, PAPE_RFM, 0, 0, 0, 0x0);
+	rtw8852c_bb_gpio_rfm(rtwdev, RF_PATH_B, TRSW_RFM, 0, 0, 0, 0x4);
+	rtw8852c_bb_gpio_rfm(rtwdev, RF_PATH_B, LNAON_RFM, 0, 0, 0, 0x8);
+}
+
+static void rtw8852c_bb_macid_ctrl_init(struct rtw89_dev *rtwdev,
+					enum rtw89_phy_idx phy_idx)
+{
+	u32 addr;
+
+	for (addr = R_AX_PWR_MACID_LMT_TABLE0;
+	     addr <= R_AX_PWR_MACID_LMT_TABLE127; addr += 4)
+		rtw89_mac_txpwr_write32(rtwdev, phy_idx, addr, 0);
+}
+
+static void rtw8852c_bb_sethw(struct rtw89_dev *rtwdev)
+{
+	rtw89_phy_write32_set(rtwdev, R_DBCC_80P80_SEL_EVM_RPT,
+			      B_DBCC_80P80_SEL_EVM_RPT_EN);
+	rtw89_phy_write32_set(rtwdev, R_DBCC_80P80_SEL_EVM_RPT2,
+			      B_DBCC_80P80_SEL_EVM_RPT2_EN);
+
+	rtw8852c_bb_macid_ctrl_init(rtwdev, RTW89_PHY_0);
+	rtw8852c_bb_gpio_init(rtwdev);
+}
+
 static
 void rtw8852c_set_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
 				     s8 pw_ofst, enum rtw89_mac_idx mac_idx)
@@ -632,6 +812,8 @@ static void rtw8852c_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.enable_bb_rf		= rtw8852c_mac_enable_bb_rf,
 	.disable_bb_rf		= rtw8852c_mac_disable_bb_rf,
+	.bb_reset		= rtw8852c_bb_reset,
+	.bb_sethw		= rtw8852c_bb_sethw,
 	.read_efuse		= rtw8852c_read_efuse,
 	.read_phycap		= rtw8852c_read_phycap,
 	.power_trim		= rtw8852c_power_trim,
