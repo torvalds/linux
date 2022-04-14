@@ -26,9 +26,7 @@
 
 #define OCTEP_CTRL_MBOX_INFO_MAGIC_NUM_OFFSET(m)	(m)
 #define OCTEP_CTRL_MBOX_INFO_BARMEM_SZ_OFFSET(m)	((m) + 8)
-#define OCTEP_CTRL_MBOX_INFO_HOST_VERSION_OFFSET(m)	((m) + 16)
 #define OCTEP_CTRL_MBOX_INFO_HOST_STATUS_OFFSET(m)	((m) + 24)
-#define OCTEP_CTRL_MBOX_INFO_FW_VERSION_OFFSET(m)	((m) + 136)
 #define OCTEP_CTRL_MBOX_INFO_FW_STATUS_OFFSET(m)	((m) + 144)
 
 #define OCTEP_CTRL_MBOX_H2FQ_INFO_OFFSET(m)		((m) + OCTEP_CTRL_MBOX_INFO_SZ)
@@ -65,7 +63,7 @@ static u32 octep_ctrl_mbox_circq_depth(u32 pi, u32 ci, u32 mask)
 
 int octep_ctrl_mbox_init(struct octep_ctrl_mbox *mbox)
 {
-	u64 version, magic_num, status;
+	u64 magic_num, status;
 
 	if (!mbox)
 		return -EINVAL;
@@ -81,13 +79,6 @@ int octep_ctrl_mbox_init(struct octep_ctrl_mbox *mbox)
 		return -EINVAL;
 	}
 
-	version = readq(OCTEP_CTRL_MBOX_INFO_FW_VERSION_OFFSET(mbox->barmem));
-	if (version != OCTEP_DRV_VERSION) {
-		pr_info("octep_ctrl_mbox : Firmware version mismatch %llx != %x\n",
-			version, OCTEP_DRV_VERSION);
-		return -EINVAL;
-	}
-
 	status = readq(OCTEP_CTRL_MBOX_INFO_FW_STATUS_OFFSET(mbox->barmem));
 	if (status != OCTEP_CTRL_MBOX_STATUS_READY) {
 		pr_info("octep_ctrl_mbox : Firmware is not ready.\n");
@@ -96,7 +87,6 @@ int octep_ctrl_mbox_init(struct octep_ctrl_mbox *mbox)
 
 	mbox->barmem_sz = readl(OCTEP_CTRL_MBOX_INFO_BARMEM_SZ_OFFSET(mbox->barmem));
 
-	writeq(mbox->version, OCTEP_CTRL_MBOX_INFO_HOST_VERSION_OFFSET(mbox->barmem));
 	writeq(OCTEP_CTRL_MBOX_STATUS_INIT, OCTEP_CTRL_MBOX_INFO_HOST_STATUS_OFFSET(mbox->barmem));
 
 	mbox->h2fq.elem_cnt = readl(OCTEP_CTRL_MBOX_H2FQ_ELEM_CNT_OFFSET(mbox->barmem));
@@ -248,7 +238,6 @@ int octep_ctrl_mbox_uninit(struct octep_ctrl_mbox *mbox)
 
 	writeq(OCTEP_CTRL_MBOX_STATUS_INVALID,
 	       OCTEP_CTRL_MBOX_INFO_HOST_STATUS_OFFSET(mbox->barmem));
-	writeq(0, OCTEP_CTRL_MBOX_INFO_HOST_VERSION_OFFSET(mbox->barmem));
 
 	pr_info("Octep ctrl mbox : Uninit successful.\n");
 

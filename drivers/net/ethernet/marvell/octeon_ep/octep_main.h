@@ -12,15 +12,6 @@
 #include "octep_rx.h"
 #include "octep_ctrl_mbox.h"
 
-#define OCTEP_DRV_VERSION_MAJOR		1
-#define OCTEP_DRV_VERSION_MINOR		0
-#define OCTEP_DRV_VERSION_VARIANT	0
-
-#define OCTEP_DRV_VERSION	((OCTEP_DRV_VERSION_MAJOR << 16) + \
-				  (OCTEP_DRV_VERSION_MINOR << 8) + \
-				  OCTEP_DRV_VERSION_VARIANT)
-
-#define OCTEP_DRV_VERSION_STR	"1.0.0"
 #define OCTEP_DRV_NAME		"octeon_ep"
 #define OCTEP_DRV_STRING	"Marvell Octeon EndPoint NIC Driver"
 

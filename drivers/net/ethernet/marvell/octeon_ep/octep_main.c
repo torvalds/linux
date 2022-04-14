@@ -30,7 +30,6 @@ MODULE_DEVICE_TABLE(pci, octep_pci_id_tbl);
 MODULE_AUTHOR("Veerasenareddy Burru <vburru@marvell.com>");
 MODULE_DESCRIPTION(OCTEP_DRV_STRING);
 MODULE_LICENSE("GPL");
-MODULE_VERSION(OCTEP_DRV_VERSION_STR);
 
 /**
  * octep_alloc_ioq_vectors() - Allocate Tx/Rx Queue interrupt info.
@@ -950,7 +949,6 @@ int octep_device_setup(struct octep_device *oct)
 
 	/* Initialize control mbox */
 	ctrl_mbox = &oct->ctrl_mbox;
-	ctrl_mbox->version = OCTEP_DRV_VERSION;
 	ctrl_mbox->barmem = CFG_GET_CTRL_MBOX_MEM_ADDR(oct->conf);
 	ret = octep_ctrl_mbox_init(ctrl_mbox);
 	if (ret) {
