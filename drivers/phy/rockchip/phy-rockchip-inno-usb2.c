@@ -919,13 +919,11 @@ static irqreturn_t rockchip_usb2phy_bvalid_irq(int irq, void *data)
 
 static irqreturn_t rockchip_usb2phy_otg_mux_irq(int irq, void *data)
 {
-	struct rockchip_usb2phy_port *rport = data;
-	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
+	irqreturn_t ret = IRQ_NONE;
 
-	if (property_enabled(rphy->grf, &rport->port_cfg->bvalid_det_st))
-		return rockchip_usb2phy_bvalid_irq(irq, data);
-	else
-		return IRQ_NONE;
+	ret |= rockchip_usb2phy_bvalid_irq(irq, data);
+
+	return ret;
 }
 
 static irqreturn_t rockchip_usb2phy_irq(int irq, void *data)
