@@ -1618,11 +1618,9 @@ static int cqspi_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
 		goto probe_master_put;
-	}
 
 	ret = clk_prepare_enable(cqspi->clk);
 	if (ret) {
