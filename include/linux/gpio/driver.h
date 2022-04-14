@@ -766,4 +766,14 @@ static inline unsigned int gpiochip_node_count(struct device *dev)
 	return count;
 }
 
+static inline struct fwnode_handle *gpiochip_node_get_first(struct device *dev)
+{
+	struct fwnode_handle *fwnode;
+
+	for_each_gpiochip_node(dev, fwnode)
+		return fwnode;
+
+	return NULL;
+}
+
 #endif /* __LINUX_GPIO_DRIVER_H */
