@@ -382,6 +382,12 @@ static int uclogic_raw_event_frame(
 		}
 	}
 
+	/* If need to, and can, transform the bitmap dial reports */
+	if (frame->bitmap_dial_byte > 0 && frame->bitmap_dial_byte < size) {
+		if (data[frame->bitmap_dial_byte] == 2)
+			data[frame->bitmap_dial_byte] = -1;
+	}
+
 	return 0;
 }
 

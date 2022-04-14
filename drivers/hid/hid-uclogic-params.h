@@ -153,6 +153,13 @@ struct uclogic_params_frame {
 	 * Zero if no reversal should be done.
 	 */
 	__s8 touch_ring_flip_at;
+	/*
+	 * Offset of the bitmap dial byte, in the report. Zero if not present.
+	 * Only valid if "id" is not zero. A bitmap dial sends reports with a
+	 * dedicated bit per direction: 1 means clockwise rotation, 2 means
+	 * counterclockwise, as opposed to the normal 1 and -1.
+	 */
+	unsigned int bitmap_dial_byte;
 };
 
 /*
@@ -230,6 +237,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 	"\t\t.touch_ring_byte = %u\n"       \
 	"\t\t.touch_ring_max = %hhd\n"      \
 	"\t\t.touch_ring_flip_at = %hhd\n"  \
+	"\t\t.bitmap_dial_byte = %u\n"      \
 	"\t},\n"                            \
 	"\t{\n"                             \
 	"\t\t.desc_ptr = %p\n"              \
@@ -241,6 +249,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 	"\t\t.touch_ring_byte = %u\n"       \
 	"\t\t.touch_ring_max = %hhd\n"      \
 	"\t\t.touch_ring_flip_at = %hhd\n"  \
+	"\t\t.bitmap_dial_byte = %u\n"      \
 	"\t},\n"                            \
 	"\t{\n"                             \
 	"\t\t.desc_ptr = %p\n"              \
@@ -252,6 +261,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 	"\t\t.touch_ring_byte = %u\n"       \
 	"\t\t.touch_ring_max = %hhd\n"      \
 	"\t\t.touch_ring_flip_at = %hhd\n"  \
+	"\t\t.bitmap_dial_byte = %u\n"      \
 	"\t},\n"                            \
 	"}\n"
 
@@ -281,6 +291,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 	(_params)->frame_list[0].touch_ring_byte,                   \
 	(_params)->frame_list[0].touch_ring_max,                    \
 	(_params)->frame_list[0].touch_ring_flip_at,                \
+	(_params)->frame_list[0].bitmap_dial_byte,                  \
 	(_params)->frame_list[1].desc_ptr,                          \
 	(_params)->frame_list[1].desc_size,                         \
 	(_params)->frame_list[1].id,                                \
@@ -290,6 +301,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 	(_params)->frame_list[1].touch_ring_byte,                   \
 	(_params)->frame_list[1].touch_ring_max,                    \
 	(_params)->frame_list[1].touch_ring_flip_at,                \
+	(_params)->frame_list[1].bitmap_dial_byte,                  \
 	(_params)->frame_list[2].desc_ptr,                          \
 	(_params)->frame_list[2].desc_size,                         \
 	(_params)->frame_list[2].id,                                \
@@ -298,7 +310,8 @@ extern int uclogic_params_init(struct uclogic_params *params,
 	(_params)->frame_list[2].dev_id_byte,                       \
 	(_params)->frame_list[2].touch_ring_byte,                   \
 	(_params)->frame_list[2].touch_ring_max,                    \
-	(_params)->frame_list[2].touch_ring_flip_at
+	(_params)->frame_list[2].touch_ring_flip_at,                \
+	(_params)->frame_list[2].bitmap_dial_byte
 
 /* Get a replacement report descriptor for a tablet's interface. */
 extern int uclogic_params_get_desc(const struct uclogic_params *params,
