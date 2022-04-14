@@ -777,6 +777,23 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 			p.frame_list[1].touch_ring_max = 12;
 			p.frame_list[1].touch_ring_flip_at = 6;
 
+			/* Create v2 frame dial parameters */
+			rc = uclogic_params_frame_init_with_desc(
+					&p.frame_list[2],
+					uclogic_rdesc_v2_frame_dial_arr,
+					uclogic_rdesc_v2_frame_dial_size,
+					UCLOGIC_RDESC_V2_FRAME_DIAL_ID);
+			if (rc != 0) {
+				hid_err(hdev,
+					"failed creating v2 frame dial parameters: %d\n",
+					rc);
+				goto cleanup;
+			}
+			p.frame_list[2].suffix = "Dial";
+			p.frame_list[2].dev_id_byte =
+				UCLOGIC_RDESC_V2_FRAME_DIAL_DEV_ID_BYTE;
+			p.frame_list[2].bitmap_dial_byte = 5;
+
 			/*
 			 * Link button and touch ring subreports from pen
 			 * reports
@@ -787,6 +804,9 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 			p.pen.subreport_list[1].value = 0xf0;
 			p.pen.subreport_list[1].id =
 				UCLOGIC_RDESC_V2_FRAME_TOUCH_RING_ID;
+			p.pen.subreport_list[2].value = 0xf1;
+			p.pen.subreport_list[2].id =
+				UCLOGIC_RDESC_V2_FRAME_DIAL_ID;
 			goto output;
 		}
 		hid_dbg(hdev, "pen v2 parameters not found\n");
