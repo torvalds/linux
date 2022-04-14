@@ -774,7 +774,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	char version[16] = { 0 };
 	struct rga_version_t driver_version;
 	struct rga_hw_versions_t hw_versions;
-	struct rga_internal_ctx_t *ctx;
+	struct rga_internal_ctx_t ctx;
 
 	struct rga_session *session = file->private_data;
 
@@ -799,17 +799,11 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		if (DEBUGGER_EN(MSG))
 			rga_cmd_print_debug_info(&req_rga);
 
-		ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-		if (!ctx) {
-			pr_err("can not kzalloc for ctx!\n");
-			return -ENOMEM;
-		}
+		ctx.sync_mode = cmd;
+		ctx.use_batch_mode = false;
+		ctx.session = session;
 
-		ctx->sync_mode = cmd;
-		ctx->use_batch_mode = false;
-		ctx->session = session;
-
-		ret = rga_job_commit(&req_rga, ctx);
+		ret = rga_job_commit(&req_rga, &ctx);
 		if (ret < 0) {
 			if (ret == -ERESTARTSYS) {
 				if (DEBUGGER_EN(MSG))
@@ -827,8 +821,6 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			ret = -EFAULT;
 			break;
 		}
-
-		kfree(ctx);
 
 		break;
 	case RGA_CACHE_FLUSH:
