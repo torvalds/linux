@@ -255,6 +255,21 @@ struct rga_session {
 	pid_t tgid;
 };
 
+struct rga_job_buffer {
+	union {
+		struct {
+			struct rga_internal_buffer *y_addr;
+			struct rga_internal_buffer *uv_addr;
+			struct rga_internal_buffer *v_addr;
+		};
+		struct rga_internal_buffer *addr;
+	};
+
+	uint32_t *page_table;
+	int order;
+	int page_count;
+};
+
 struct rga_job {
 	struct list_head head;
 
@@ -272,11 +287,11 @@ struct rga_job {
 	/* used by rga2 */
 	struct rga_dma_buffer_t *rga_dma_buffer_els;
 
-	struct rga_internal_buffer *src_buffer;
-	struct rga_internal_buffer *src1_buffer;
-	struct rga_internal_buffer *dst_buffer;
+	struct rga_job_buffer src_buffer;
+	struct rga_job_buffer src1_buffer;
+	struct rga_job_buffer dst_buffer;
 	/* used by rga2 */
-	struct rga_internal_buffer *els_buffer;
+	struct rga_job_buffer els_buffer;
 
 	struct dma_buf *dma_buf_src0;
 	struct dma_buf *dma_buf_src1;

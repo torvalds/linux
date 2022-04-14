@@ -475,78 +475,6 @@ out:
 	return status;
 }
 
-static int rga2_sgt_to_page_table(struct sg_table *sg,
-				  uint32_t *page_table,
-				  int32_t pageCount,
-				  int32_t use_dma_address)
-{
-	uint32_t i;
-	unsigned long Address;
-	uint32_t mapped_size = 0;
-	uint32_t len;
-	struct scatterlist *sgl = sg->sgl;
-	uint32_t sg_num = 0;
-	uint32_t break_flag = 0;
-
-	do {
-		len = sg_dma_len(sgl) >> PAGE_SHIFT;
-		if (len == 0)
-			len = sgl->length >> PAGE_SHIFT;
-
-		if (use_dma_address)
-			/*
-			 * The fd passed by user space gets sg through
-			 * dma_buf_map_attachment,
-			 * so dma_address can be use here.
-			 */
-			Address = sg_dma_address(sgl);
-		else
-			Address = sg_phys(sgl);
-
-		for (i = 0; i < len; i++) {
-			if (mapped_size + i >= pageCount) {
-				break_flag = 1;
-				break;
-			}
-			page_table[mapped_size + i] =
-				(uint32_t) (Address + (i << PAGE_SHIFT));
-		}
-		if (break_flag)
-			break;
-		mapped_size += len;
-		sg_num += 1;
-	} while ((sgl = sg_next(sgl)) && (mapped_size < pageCount)
-		 && (sg_num < sg->nents));
-
-	return 0;
-}
-
-static int rga2_mmu_set_channel_internal(struct rga_scheduler_t *scheduler,
-					 struct rga_internal_buffer *internal_buffer,
-					 uint32_t *mmu_base,
-					 unsigned long page_count,
-					 uint32_t **virt_flush_base,
-					 uint32_t *virt_flush_count,
-					 int map_flag)
-{
-	struct sg_table *sgt = NULL;
-
-	sgt = rga_mm_lookup_sgt(internal_buffer, scheduler->core);
-	if (sgt == NULL) {
-		pr_err("rga2 cannot get sgt from handle!\n");
-		return -EINVAL;
-	}
-
-	if (internal_buffer->type == RGA_VIRTUAL_ADDRESS) {
-		rga2_sgt_to_page_table(sgt, mmu_base, page_count, false);
-	} else {
-		page_count = (page_count + 15) & (~15);
-		rga2_sgt_to_page_table(sgt, mmu_base, page_count, true);
-	}
-
-	return page_count;
-}
-
 static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 			struct rga2_req *req, struct rga_job *job)
 {
@@ -639,18 +567,12 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 	mutex_unlock(&rga_drvdata->lock);
 
 	if (Src0MemSize) {
-		if (job->src_buffer) {
-			ret = rga2_mmu_set_channel_internal(scheduler,
-							    job->src_buffer,
-							    MMU_Base,
-							    Src0PageCount,
-							    &reg->MMU_src0_base,
-							    &reg->MMU_src0_count,
-							    MMU_MAP_CLEAN);
-			if (ret < 0) {
-				pr_err("src0 channel set mmu base error!\n");
-				return ret;
-			}
+		if (job->src_buffer.addr) {
+			rga2_dma_sync_flush_range(job->src_buffer.page_table,
+						  (job->src_buffer.page_table +
+						   job->src_buffer.page_count),
+						  scheduler);
+			req->mmu_info.src0_base_addr = virt_to_phys(job->src_buffer.page_table);
 		} else {
 			if (job->rga_dma_buffer_src0) {
 				ret = rga2_MapION(job->rga_dma_buffer_src0->sgt,
@@ -669,40 +591,34 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 				reg->MMU_src0_base = MMU_Base;
 				reg->MMU_src0_count = Src0PageCount;
 			}
-		}
+			if (ret < 0) {
+				pr_err("rga2 map src0 memory failed\n");
+				status = ret;
+				goto out;
+			}
 
-		if (ret < 0) {
-			pr_err("rga2 map src0 memory failed\n");
-			status = ret;
-			goto out;
-		}
-		/* change the buf address in req struct */
-		req->mmu_info.src0_base_addr = (((unsigned long)MMU_Base_phys));
-		uv_size = (req->src.uv_addr
-			 - (Src0Start << PAGE_SHIFT)) >> PAGE_SHIFT;
-		v_size = (req->src.v_addr
-			 - (Src0Start << PAGE_SHIFT)) >> PAGE_SHIFT;
+			req->mmu_info.src0_base_addr = (((unsigned long)MMU_Base_phys));
+			/* change the buf address in req struct */
+			uv_size = (req->src.uv_addr
+				- (Src0Start << PAGE_SHIFT)) >> PAGE_SHIFT;
+			v_size = (req->src.v_addr
+				- (Src0Start << PAGE_SHIFT)) >> PAGE_SHIFT;
 
-		req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK));
-		req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) |
-			(uv_size << PAGE_SHIFT);
-		req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) |
-			(v_size << PAGE_SHIFT);
+			req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK));
+			req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) |
+				(uv_size << PAGE_SHIFT);
+			req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) |
+				(v_size << PAGE_SHIFT);
+		}
 	}
 
 	if (Src1MemSize) {
-		if (job->src1_buffer) {
-			ret = rga2_mmu_set_channel_internal(scheduler,
-							    job->src1_buffer,
-							    MMU_Base + Src0MemSize,
-							    Src1PageCount,
-							    &reg->MMU_src1_base,
-							    &reg->MMU_src1_count,
-							    MMU_MAP_CLEAN);
-			if (ret < 0) {
-				pr_err("src1 channel set mmu base error!\n");
-				return ret;
-			}
+		if (job->src1_buffer.y_addr) {
+			rga2_dma_sync_flush_range(job->src1_buffer.page_table,
+						  (job->src1_buffer.page_table +
+						   job->src1_buffer.page_count),
+						  scheduler);
+			req->mmu_info.src1_base_addr = virt_to_phys(job->src1_buffer.page_table);
 		} else {
 			if (job->rga_dma_buffer_src1) {
 				ret = rga2_MapION(job->rga_dma_buffer_src1->sgt,
@@ -717,17 +633,16 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 				reg->MMU_src1_base = MMU_Base + Src0MemSize;
 				reg->MMU_src1_count = Src1PageCount;
 			}
+			if (ret < 0) {
+				pr_err("rga2 map src1 memory failed\n");
+				status = ret;
+				goto out;
+			}
+			/* change the buf address in req struct */
+			req->mmu_info.src1_base_addr = ((unsigned long)(MMU_Base_phys
+									+ Src0MemSize));
+			req->src1.yrgb_addr = (req->src1.yrgb_addr & (~PAGE_MASK));
 		}
-
-		if (ret < 0) {
-			pr_err("rga2 map src1 memory failed\n");
-			status = ret;
-			goto out;
-		}
-		/* change the buf address in req struct */
-		req->mmu_info.src1_base_addr = ((unsigned long)(MMU_Base_phys
-								+ Src0MemSize));
-		req->src1.yrgb_addr = (req->src1.yrgb_addr & (~PAGE_MASK));
 	}
 
 	if (DstMemSize) {
@@ -739,19 +654,12 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 			map_flag = MMU_MAP_CLEAN | MMU_MAP_INVALID;
 		else
 			map_flag = MMU_MAP_INVALID;
-
-		if (job->dst_buffer) {
-			ret = rga2_mmu_set_channel_internal(scheduler,
-							    job->dst_buffer,
-							    MMU_Base + Src0MemSize + Src1MemSize,
-							    DstPageCount,
-							    &reg->MMU_dst_base,
-							    &reg->MMU_dst_count,
-							    map_flag);
-			if (ret < 0) {
-				pr_err("dst channel set mmu base error!\n");
-				return ret;
-			}
+		if (job->dst_buffer.addr) {
+			rga2_dma_sync_flush_range(job->dst_buffer.page_table,
+						  (job->dst_buffer.page_table +
+						   job->dst_buffer.page_count),
+						  scheduler);
+			req->mmu_info.dst_base_addr = virt_to_phys(job->dst_buffer.page_table);
 		} else {
 			if (job->rga_dma_buffer_dst) {
 				ret = rga2_MapION(job->rga_dma_buffer_dst->sgt,
@@ -774,27 +682,25 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 				reg->MMU_dst_base = MMU_Base + Src0MemSize + Src1MemSize;
 				reg->MMU_dst_count = DstPageCount;
 			}
+			if (ret < 0) {
+				pr_err("rga2 map dst memory failed\n");
+				status = ret;
+				goto out;
+			}
+			req->mmu_info.dst_base_addr = ((unsigned long)(MMU_Base_phys
+								       + Src0MemSize +
+								       Src1MemSize));
+			/* change the buf address in req struct */
+			req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK));
+			uv_size = (req->dst.uv_addr
+				- (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
+			v_size = (req->dst.v_addr
+				- (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
+			req->dst.uv_addr = (req->dst.uv_addr & (~PAGE_MASK)) |
+				((uv_size) << PAGE_SHIFT);
+			req->dst.v_addr = (req->dst.v_addr & (~PAGE_MASK)) |
+				((v_size) << PAGE_SHIFT);
 		}
-
-		if (ret < 0) {
-			pr_err("rga2 map dst memory failed\n");
-			status = ret;
-			goto out;
-		}
-
-		/* change the buf address in req struct */
-		req->mmu_info.dst_base_addr = ((unsigned long)(MMU_Base_phys
-								 + Src0MemSize +
-								 Src1MemSize));
-		req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK));
-		uv_size = (req->dst.uv_addr
-			 - (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
-		v_size = (req->dst.v_addr
-			 - (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
-		req->dst.uv_addr = (req->dst.uv_addr & (~PAGE_MASK)) |
-			((uv_size) << PAGE_SHIFT);
-		req->dst.v_addr = (req->dst.v_addr & (~PAGE_MASK)) |
-			((v_size) << PAGE_SHIFT);
 
 		if (((req->alpha_rop_flag & 1) == 1) &&
 			(req->bitblt_mode == 0)) {
@@ -804,10 +710,13 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 				req->mmu_info.dst_mmu_flag;
 		}
 	}
-	/* flush data to DDR */
-	rga2_dma_sync_flush_range(MMU_Base, (MMU_Base + AllSize), scheduler);
-	rga2_mmu_buf_get(&rga2_mmu_info, AllSize);
-	reg->MMU_len = AllSize;
+
+	if (!(job->flags & RGA_JOB_USE_HANDLE)) {
+		/* flush data to DDR */
+		rga2_dma_sync_flush_range(MMU_Base, (MMU_Base + AllSize), scheduler);
+		rga2_mmu_buf_get(&rga2_mmu_info, AllSize);
+		reg->MMU_len = AllSize;
+	}
 	status = 0;
 out:
 	return status;
@@ -999,7 +908,6 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_mmu_other_t *reg,
 	uint32_t *MMU_Base, *MMU_Base_phys;
 	int ret;
 	int status;
-	struct sg_table *sgt;
 
 	struct rga_scheduler_t *scheduler = NULL;
 
@@ -1044,35 +952,13 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_mmu_other_t *reg,
 		mutex_unlock(&rga_drvdata->lock);
 
 		if (DstMemSize) {
-			if (job->dst_buffer) {
-				switch (job->dst_buffer->type) {
-				case RGA_DMA_BUFFER:
-					sgt = rga_mm_lookup_sgt(job->dst_buffer, scheduler->core);
-					if (sgt == NULL) {
-						pr_err("rga2 cannot get sgt from handle!\n");
-						status = -EFAULT;
-						goto out;
-					}
-					ret = rga2_MapION(sgt, &MMU_Base[0], DstMemSize);
-
-					break;
-				case RGA_VIRTUAL_ADDRESS:
-					ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
-								 DstStart, DstPageCount,
-								 1, MMU_MAP_INVALID,
-								 scheduler,
-								 job->dst_buffer->current_mm);
-
-					/* Save pagetable to invalid cache and unmap. */
-					reg->MMU_dst_base = MMU_Base;
-					reg->MMU_dst_count = DstPageCount;
-
-					break;
-				default:
-					status = -EFAULT;
-					goto out;
-				}
-
+			if (job->dst_buffer.addr) {
+				rga2_dma_sync_flush_range(job->dst_buffer.page_table,
+							  (job->dst_buffer.page_table +
+							   job->dst_buffer.page_count),
+							  scheduler);
+				req->mmu_info.dst_base_addr =
+					virt_to_phys(job->dst_buffer.page_table);
 			} else {
 				if (job->rga_dma_buffer_dst) {
 					ret = rga2_MapION(job->rga_dma_buffer_dst->sgt,
@@ -1084,38 +970,38 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_mmu_other_t *reg,
 								 MMU_MAP_INVALID,
 								 scheduler, job->mm);
 				}
-			}
-			if (ret < 0) {
-				pr_err("map dst memory failed\n");
-				status = ret;
-				break;
-			}
+				if (ret < 0) {
+					pr_err("map dst memory failed\n");
+					status = ret;
+					break;
+				}
+				/* change the buf address in req struct */
+				req->mmu_info.dst_base_addr =
+					((unsigned long)MMU_Base_phys);
+				req->dst.yrgb_addr =
+					(req->dst.yrgb_addr & (~PAGE_MASK));
 
-			/* change the buf address in req struct */
-			req->mmu_info.dst_base_addr =
-				((unsigned long)MMU_Base_phys);
-			req->dst.yrgb_addr =
-				(req->dst.yrgb_addr & (~PAGE_MASK));
-
-			uv_size = (req->dst.uv_addr
-				 - (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
-			v_size = (req->dst.v_addr
-				 - (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
-			req->dst.uv_addr = (req->dst.uv_addr & (~PAGE_MASK)) |
-				((uv_size) << PAGE_SHIFT);
-			req->dst.v_addr = (req->dst.v_addr & (~PAGE_MASK)) |
-				((v_size) << PAGE_SHIFT);
+				uv_size = (req->dst.uv_addr
+					- (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
+				v_size = (req->dst.v_addr
+					- (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
+				req->dst.uv_addr = (req->dst.uv_addr & (~PAGE_MASK)) |
+					((uv_size) << PAGE_SHIFT);
+				req->dst.v_addr = (req->dst.v_addr & (~PAGE_MASK)) |
+					((v_size) << PAGE_SHIFT);
+			}
 		}
 
-		/* flush data to DDR */
-		rga2_dma_sync_flush_range(MMU_Base, (MMU_Base + AllSize + 1), scheduler);
-		rga2_mmu_buf_get(&rga2_mmu_info, AllSize);
-		reg->MMU_len = AllSize;
+		if (!(job->flags & RGA_JOB_USE_HANDLE)) {
+			/* flush data to DDR */
+			rga2_dma_sync_flush_range(MMU_Base, (MMU_Base + AllSize + 1), scheduler);
+			rga2_mmu_buf_get(&rga2_mmu_info, AllSize);
+			reg->MMU_len = AllSize;
+		}
 
 		return 0;
 	} while (0);
 
-out:
 	return status;
 }
 

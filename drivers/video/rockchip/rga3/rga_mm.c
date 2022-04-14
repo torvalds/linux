@@ -831,10 +831,10 @@ static int rga_mm_set_mmu_flag(struct rga_job *job)
 	int dst_mmu_en;
 	int els_mmu_en;
 
-	src_mmu_en = rga_mm_is_need_mmu(job->core, job->src_buffer);
-	src1_mmu_en = rga_mm_is_need_mmu(job->core, job->src1_buffer);
-	dst_mmu_en = rga_mm_is_need_mmu(job->core, job->dst_buffer);
-	els_mmu_en = rga_mm_is_need_mmu(job->core, job->els_buffer);
+	src_mmu_en = rga_mm_is_need_mmu(job->core, job->src_buffer.addr);
+	src1_mmu_en = rga_mm_is_need_mmu(job->core, job->src1_buffer.addr);
+	dst_mmu_en = rga_mm_is_need_mmu(job->core, job->dst_buffer.addr);
+	els_mmu_en = rga_mm_is_need_mmu(job->core, job->els_buffer.addr);
 
 	mmu_info = &job->rga_command_base.mmu_info;
 	if (src_mmu_en)
@@ -853,6 +853,167 @@ static int rga_mm_set_mmu_flag(struct rga_job *job)
 	}
 
 	return 0;
+}
+
+static int rga_mm_sgt_to_page_table(struct sg_table *sg,
+				    uint32_t *page_table,
+				    int32_t pageCount,
+				    int32_t use_dma_address)
+{
+	uint32_t i;
+	unsigned long Address;
+	uint32_t mapped_size = 0;
+	uint32_t len;
+	struct scatterlist *sgl = sg->sgl;
+	uint32_t sg_num = 0;
+	uint32_t break_flag = 0;
+
+	do {
+		len = sg_dma_len(sgl) >> PAGE_SHIFT;
+		if (len == 0)
+			len = sgl->length >> PAGE_SHIFT;
+
+		if (use_dma_address)
+			/*
+			 * The fd passed by user space gets sg through
+			 * dma_buf_map_attachment,
+			 * so dma_address can be use here.
+			 */
+			Address = sg_dma_address(sgl);
+		else
+			Address = sg_phys(sgl);
+
+		for (i = 0; i < len; i++) {
+			if (mapped_size + i >= pageCount) {
+				break_flag = 1;
+				break;
+			}
+			page_table[mapped_size + i] =
+				(uint32_t) (Address + (i << PAGE_SHIFT));
+		}
+		if (break_flag)
+			break;
+		mapped_size += len;
+		sg_num += 1;
+	} while ((sgl = sg_next(sgl)) && (mapped_size < pageCount)
+		 && (sg_num < sg->nents));
+
+	return 0;
+}
+
+static int rga_mm_set_mmu_base(struct rga_job *job,
+			       struct rga_img_info_t *img,
+			       struct rga_job_buffer *job_buf)
+{
+	int ret;
+	int yrgb_count = 0;
+	int uv_count = 0;
+	int v_count = 0;
+	int page_count = 0;
+	int order;
+	uint32_t *page_table = NULL;
+	struct sg_table *sgt = NULL;
+
+	int img_size, yrgb_size, uv_size, v_size;
+	int img_offset = 0;
+	int yrgb_offset = 0;
+	int uv_offset = 0;
+	int v_offset = 0;
+
+	img_size = rga_image_size_cal(img->vir_w, img->vir_h, img->format,
+				      &yrgb_size, &uv_size, &v_size);
+
+	/* using third-address */
+	if (job_buf->uv_addr) {
+		if (job_buf->y_addr->virt_addr != NULL)
+			yrgb_offset = job_buf->y_addr->virt_addr->offset;
+		if (job_buf->uv_addr->virt_addr != NULL)
+			uv_offset = job_buf->uv_addr->virt_addr->offset;
+		if (job_buf->v_addr->virt_addr != NULL)
+			v_offset = job_buf->v_addr->virt_addr->offset;
+
+		yrgb_count = RGA_GET_PAGE_COUNT(yrgb_size + yrgb_offset);
+		uv_count = RGA_GET_PAGE_COUNT(uv_size + uv_offset);
+		v_count = RGA_GET_PAGE_COUNT(v_size + v_offset);
+		page_count = yrgb_count + uv_count + v_count;
+
+		if (page_count < 0) {
+			pr_err("page count cal error!\n");
+			return -EFAULT;
+		}
+
+		order = get_order(page_count * sizeof(uint32_t *));
+		page_table = (uint32_t *)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
+		if (page_table == NULL) {
+			pr_err("%s can not alloc pages for pages\n", __func__);
+			return -ENOMEM;
+		}
+
+		sgt = rga_mm_lookup_sgt(job_buf->y_addr, job->core);
+		if (sgt == NULL) {
+			pr_err("rga2 cannot get sgt from handle!\n");
+			ret = -EINVAL;
+			goto err_free_page_table;
+		}
+		rga_mm_sgt_to_page_table(sgt, page_table, yrgb_count, false);
+
+		sgt = rga_mm_lookup_sgt(job_buf->uv_addr, job->core);
+		if (sgt == NULL) {
+			pr_err("rga2 cannot get sgt from handle!\n");
+			ret = -EINVAL;
+			goto err_free_page_table;
+		}
+		rga_mm_sgt_to_page_table(sgt, page_table + yrgb_count, uv_count, false);
+
+		sgt = rga_mm_lookup_sgt(job_buf->v_addr, job->core);
+		if (sgt == NULL) {
+			pr_err("rga2 cannot get sgt from handle!\n");
+			ret = -EINVAL;
+			goto err_free_page_table;
+		}
+		rga_mm_sgt_to_page_table(sgt, page_table + yrgb_count + uv_count, v_count, false);
+
+		img->yrgb_addr = yrgb_offset;
+		img->uv_addr = (yrgb_count << PAGE_SHIFT) + uv_offset;
+		img->v_addr = ((yrgb_count + uv_count) << PAGE_SHIFT) + v_offset;
+	} else {
+		if (job_buf->addr->virt_addr != NULL)
+			img_offset = job_buf->addr->virt_addr->offset;
+
+		page_count = RGA_GET_PAGE_COUNT(img_size + img_offset);
+		if (page_count < 0) {
+			pr_err("page count cal error!\n");
+			return -EFAULT;
+		}
+
+		order = get_order(page_count * sizeof(uint32_t *));
+		page_table = (uint32_t *)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
+		if (page_table == NULL) {
+			pr_err("%s can not alloc pages for pages\n", __func__);
+			return -ENOMEM;
+		}
+
+		sgt = rga_mm_lookup_sgt(job_buf->addr, job->core);
+		if (sgt == NULL) {
+			pr_err("rga2 cannot get sgt from handle!\n");
+			ret = -EINVAL;
+			goto err_free_page_table;
+		}
+		rga_mm_sgt_to_page_table(sgt, page_table, page_count, false);
+
+		img->yrgb_addr = img_offset;
+		rga_convert_addr(img, false);
+	}
+
+	job_buf->page_table = page_table;
+	job_buf->order = order;
+	job_buf->page_count = page_count;
+
+	return 0;
+
+err_free_page_table:
+	free_pages((unsigned long)page_table, order);
+	return ret;
 }
 
 static int rga_mm_sync_dma_sg_for_device(struct rga_internal_buffer *buffer,
@@ -907,64 +1068,66 @@ static int rga_mm_sync_dma_sg_for_cpu(struct rga_internal_buffer *buffer,
 	return 0;
 }
 
-static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
-					  struct rga_job *job,
-					  struct rga_img_info_t *img,
-					  struct rga_internal_buffer **buf,
-					  enum dma_data_direction dir)
+static int rga_mm_get_buffer(struct rga_mm *mm,
+			     struct rga_job *job,
+			     uint64_t handle,
+			     uint64_t *channel_addr,
+			     struct rga_internal_buffer **buf,
+			     enum dma_data_direction dir)
 {
 	int ret = 0;
+	uint64_t addr = 0;
 	struct rga_internal_buffer *internal_buffer = NULL;
 
-	if (!(img->yrgb_addr > 0)) {
+	if (handle == 0) {
 		pr_err("No buffer handle can be used!\n");
 		return -EFAULT;
 	}
 
 	mutex_lock(&mm->lock);
-	*buf = rga_mm_lookup_handle(mm, img->yrgb_addr);
+	*buf = rga_mm_lookup_handle(mm, handle);
 	if (*buf == NULL) {
-		pr_err("This handle[%ld] is illegal.\n", (unsigned long)img->yrgb_addr);
+		pr_err("This handle[%ld] is illegal.\n", (unsigned long)handle);
 
-		ret = -EFAULT;
-		goto unlock_mm_and_return;
+		mutex_unlock(&mm->lock);
+		return -EFAULT;
 	}
 
 	internal_buffer = *buf;
 	kref_get(&internal_buffer->refcount);
+
+	mutex_unlock(&mm->lock);
 
 	switch (internal_buffer->type) {
 	case RGA_DMA_BUFFER:
 	case RGA_DMA_BUFFER_PTR:
 		if (job->core == RGA3_SCHEDULER_CORE0 ||
 		    job->core == RGA3_SCHEDULER_CORE1) {
-			img->yrgb_addr = rga_mm_lookup_iova(internal_buffer, job->core);
-			if (img->yrgb_addr == 0) {
-				pr_err("lookup dma_buf iova error!\n");
-
-				ret = -EINVAL;
-				goto unlock_mm_and_return;
+			addr = rga_mm_lookup_iova(internal_buffer, job->core);
+			if (addr == 0) {
+				pr_err("handle[%ld] lookup dma_buf iova error!\n",
+				       (unsigned long)handle);
+				return -EINVAL;
 			}
 		} else if (job->core == RGA2_SCHEDULER_CORE0 &&
 			   internal_buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS) {
-			img->yrgb_addr = internal_buffer->phys_addr;
+			addr = internal_buffer->phys_addr;
 		} else {
-			img->yrgb_addr = 0;
+			addr = 0;
 		}
 
 		break;
 	case RGA_VIRTUAL_ADDRESS:
 		if (job->core == RGA3_SCHEDULER_CORE0 ||
 		    job->core == RGA3_SCHEDULER_CORE1) {
-			img->yrgb_addr = rga_mm_lookup_iova(internal_buffer, job->core);
-			if (img->yrgb_addr == 0) {
-				pr_err("lookup virt_addr iova error!\n");
-
-				ret = -EINVAL;
-				goto unlock_mm_and_return;
+			addr = rga_mm_lookup_iova(internal_buffer, job->core);
+			if (addr == 0) {
+				pr_err("handle[%ld] lookup virt_addr iova error!\n",
+				       (unsigned long)handle);
+				return -EINVAL;
 			}
 		} else {
-			img->yrgb_addr = internal_buffer->virt_addr->addr;
+			addr = internal_buffer->virt_addr->addr;
 		}
 
 		/*
@@ -975,50 +1138,112 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 		ret = rga_mm_sync_dma_sg_for_device(internal_buffer, job, dir);
 		if (ret < 0) {
 			pr_err("sync sgt for device error!\n");
-			goto unlock_mm_and_return;
+			return ret;
 		}
 
 		break;
 	case RGA_PHYSICAL_ADDRESS:
-		img->yrgb_addr = internal_buffer->phys_addr;
+		addr = internal_buffer->phys_addr;
 		break;
 	default:
 		pr_err("Illegal external buffer!\n");
-
-		ret = -EFAULT;
-		goto unlock_mm_and_return;
+		return -EFAULT;
 	}
-	mutex_unlock(&mm->lock);
 
-	rga_convert_addr(img, false);
+	*channel_addr = addr;
 
 	return 0;
-unlock_mm_and_return:
+}
+
+static void rga_mm_put_buffer(struct rga_mm *mm,
+			      struct rga_job *job,
+			      struct rga_internal_buffer *internal_buffer,
+			      enum dma_data_direction dir)
+{
+	if (internal_buffer->type == RGA_VIRTUAL_ADDRESS && dir != DMA_NONE)
+		if (rga_mm_sync_dma_sg_for_cpu(internal_buffer, job, dir))
+			pr_err("sync sgt for cpu error!\n");
+
+	mutex_lock(&mm->lock);
+	kref_put(&internal_buffer->refcount, rga_mm_kref_release_buffer);
 	mutex_unlock(&mm->lock);
-	return ret;
+}
+
+static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
+					  struct rga_job *job,
+					  struct rga_img_info_t *img,
+					  struct rga_job_buffer *job_buf,
+					  enum dma_data_direction dir)
+{
+	int ret = 0;
+	int handle = 0;
+
+	/* using third-address */
+	if (img->uv_addr > 0) {
+		handle = img->yrgb_addr;
+		if (handle > 0) {
+			ret = rga_mm_get_buffer(mm, job, handle, &img->yrgb_addr,
+						&job_buf->y_addr, dir);
+			if (ret < 0) {
+				pr_err("handle[%d] Can't get src y/rgb address info!\n", handle);
+				return ret;
+			}
+		}
+
+		handle = img->uv_addr;
+		if (handle > 0) {
+			ret = rga_mm_get_buffer(mm, job, handle, &img->uv_addr,
+						&job_buf->uv_addr, dir);
+			if (ret < 0) {
+				pr_err("handle[%d] Can't get src uv address info!\n", handle);
+				return ret;
+			}
+		}
+
+		handle = img->v_addr;
+		if (handle > 0) {
+			ret = rga_mm_get_buffer(mm, job, handle, &img->v_addr,
+						&job_buf->v_addr, dir);
+			if (ret < 0) {
+				pr_err("handle[%d] Can't get src uv address info!\n", handle);
+				return ret;
+			}
+		}
+	} else {
+		handle = img->yrgb_addr;
+		if (handle > 0) {
+			ret = rga_mm_get_buffer(mm, job, handle, &img->yrgb_addr,
+						&job_buf->addr, dir);
+			if (ret < 0) {
+				pr_err("handle[%d] Can't get src y/rgb address info!\n", handle);
+				return ret;
+			}
+		}
+
+		rga_convert_addr(img, false);
+	}
+
+	if (job->core == RGA2_SCHEDULER_CORE0 &&
+	    rga_mm_is_need_mmu(job->core, job_buf->addr))
+		rga_mm_set_mmu_base(job, img, job_buf);
+
+	return 0;
 }
 
 static void rga_mm_put_channel_handle_info(struct rga_mm *mm,
-					   struct rga_internal_buffer *internal_buffer,
 					   struct rga_job *job,
+					   struct rga_job_buffer *job_buf,
 					   enum dma_data_direction dir)
 {
-	int ret;
+	if (job_buf->y_addr)
+		rga_mm_put_buffer(mm, job, job_buf->y_addr, dir);
+	if (job_buf->uv_addr)
+		rga_mm_put_buffer(mm, job, job_buf->uv_addr, dir);
+	if (job_buf->v_addr)
+		rga_mm_put_buffer(mm, job, job_buf->v_addr, dir);
 
-	if (internal_buffer->type == RGA_VIRTUAL_ADDRESS && dir != DMA_NONE) {
-		ret = rga_mm_sync_dma_sg_for_cpu(internal_buffer, job, dir);
-		if (ret < 0) {
-			pr_err("sync sgt for cpu error!\n");
-			goto put_internal_buffer;
-		}
-	}
-
-put_internal_buffer:
-	mutex_lock(&mm->lock);
-
-	kref_put(&internal_buffer->refcount, rga_mm_kref_release_buffer);
-
-	mutex_unlock(&mm->lock);
+	if (job_buf->page_table)
+		free_pages((unsigned long)job_buf->page_table, job_buf->order);
 }
 
 int rga_mm_get_handle_info(struct rga_job *job)
@@ -1036,7 +1261,7 @@ int rga_mm_get_handle_info(struct rga_job *job)
 						     &job->src_buffer,
 						     DMA_TO_DEVICE);
 		if (ret < 0) {
-			pr_err("Can't get src buffer info!\n");
+			pr_err("Can't get src buffer third info!\n");
 			return ret;
 		}
 	}
@@ -1046,15 +1271,15 @@ int rga_mm_get_handle_info(struct rga_job *job)
 						     &job->dst_buffer,
 						     DMA_TO_DEVICE);
 		if (ret < 0) {
-			pr_err("Can't get dst buffer info!\n");
+			pr_err("Can't get dst buffer third info!\n");
 			return ret;
 		}
 	}
 
 	if (likely(req->pat.yrgb_addr > 0)) {
 
-		if (job->rga_command_base.render_mode != UPDATE_PALETTE_TABLE_MODE) {
-			if (job->rga_command_base.bsfilter_flag)
+		if (req->render_mode != UPDATE_PALETTE_TABLE_MODE) {
+			if (req->bsfilter_flag)
 				dir = DMA_BIDIRECTIONAL;
 			else
 				dir = DMA_TO_DEVICE;
@@ -1068,7 +1293,7 @@ int rga_mm_get_handle_info(struct rga_job *job)
 							     DMA_BIDIRECTIONAL);
 		}
 		if (ret < 0) {
-			pr_err("Can't get pat buffer info!\n");
+			pr_err("Can't get pat buffer third info!\n");
 			return ret;
 		}
 	}
@@ -1080,18 +1305,12 @@ int rga_mm_get_handle_info(struct rga_job *job)
 
 void rga_mm_put_handle_info(struct rga_job *job)
 {
-	struct rga_mm *mm = NULL;
+	struct rga_mm *mm = rga_drvdata->mm;
 
-	mm = rga_drvdata->mm;
-
-	if (job->src_buffer)
-		rga_mm_put_channel_handle_info(mm, job->src_buffer, job, DMA_NONE);
-	if (job->dst_buffer)
-		rga_mm_put_channel_handle_info(mm, job->dst_buffer, job, DMA_FROM_DEVICE);
-	if (job->src1_buffer)
-		rga_mm_put_channel_handle_info(mm, job->src1_buffer, job, DMA_NONE);
-	if (job->els_buffer)
-		rga_mm_put_channel_handle_info(mm, job->els_buffer, job, DMA_NONE);
+	rga_mm_put_channel_handle_info(mm, job, &job->src_buffer, DMA_NONE);
+	rga_mm_put_channel_handle_info(mm, job, &job->dst_buffer, DMA_FROM_DEVICE);
+	rga_mm_put_channel_handle_info(mm, job, &job->src1_buffer, DMA_NONE);
+	rga_mm_put_channel_handle_info(mm, job, &job->els_buffer, DMA_NONE);
 }
 
 uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
