@@ -1672,7 +1672,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			gpio-range = <&pinmux_aon 0 0 30>;
+			gpio-ranges = <&pinmux_aon 0 0 30>;
 		};
 
 		pinmux_aon: pinmux@c300000 {
