@@ -18,6 +18,7 @@ static int rcu_print_task_exp_stall(struct rcu_node *rnp);
 static void rcu_exp_gp_seq_start(void)
 {
 	rcu_seq_start(&rcu_state.expedited_sequence);
+	rcu_poll_gp_seq_start_unlocked(&rcu_state.gp_seq_polled_exp_snap);
 }
 
 /*
@@ -34,6 +35,7 @@ static __maybe_unused unsigned long rcu_exp_gp_seq_endval(void)
  */
 static void rcu_exp_gp_seq_end(void)
 {
+	rcu_poll_gp_seq_end_unlocked(&rcu_state.gp_seq_polled_exp_snap);
 	rcu_seq_end(&rcu_state.expedited_sequence);
 	smp_mb(); /* Ensure that consecutive grace periods serialize. */
 }
@@ -913,8 +915,18 @@ void synchronize_rcu_expedited(void)
 			 "Illegal synchronize_rcu_expedited() in RCU read-side critical section");
 
 	/* Is the state is such that the call is a grace period? */
-	if (rcu_blocking_is_gp())
-		return;
+	if (rcu_blocking_is_gp()) {
+		// Note well that this code runs with !PREEMPT && !SMP.
+		// In addition, all code that advances grace periods runs
+		// at process level.  Therefore, this expedited GP overlaps
+		// with other expedited GPs only by being fully nested within
+		// them, which allows reuse of ->gp_seq_polled_exp_snap.
+		rcu_poll_gp_seq_start_unlocked(&rcu_state.gp_seq_polled_exp_snap);
+		rcu_poll_gp_seq_end_unlocked(&rcu_state.gp_seq_polled_exp_snap);
+		if (rcu_init_invoked())
+			cond_resched();
+		return;  // Context allows vacuous grace periods.
+	}
 
 	/* If expedited grace periods are prohibited, fall back to normal. */
 	if (rcu_gp_is_normal()) {

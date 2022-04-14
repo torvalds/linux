@@ -325,6 +325,7 @@ struct rcu_state {
 	unsigned long gp_wake_seq;		/* ->gp_seq at ^^^. */
 	unsigned long gp_seq_polled;		/* GP seq for polled API. */
 	unsigned long gp_seq_polled_snap;	/* ->gp_seq_polled at normal GP start. */
+	unsigned long gp_seq_polled_exp_snap;	/* ->gp_seq_polled at expedited GP start. */
 
 	/* End of fields guarded by root rcu_node's lock. */
 

@@ -1812,6 +1812,7 @@ static void rcu_poll_gp_seq_end(unsigned long *snap)
 	if (*snap && *snap == rcu_state.gp_seq_polled) {
 		rcu_seq_end(&rcu_state.gp_seq_polled);
 		rcu_state.gp_seq_polled_snap = 0;
+		rcu_state.gp_seq_polled_exp_snap = 0;
 	} else {
 		*snap = 0;
 	}
@@ -3913,10 +3914,10 @@ void synchronize_rcu(void)
 			 "Illegal synchronize_rcu() in RCU read-side critical section");
 	if (rcu_blocking_is_gp()) {
 		// Note well that this code runs with !PREEMPT && !SMP.
-		// In addition, all code that advances grace periods runs
-		// at process level.  Therefore, this GP overlaps with other
-		// GPs only by being fully nested within them, which allows
-		// reuse of ->gp_seq_polled_snap.
+		// In addition, all code that advances grace periods runs at
+		// process level.  Therefore, this normal GP overlaps with
+		// other normal GPs only by being fully nested within them,
+		// which allows reuse of ->gp_seq_polled_snap.
 		rcu_poll_gp_seq_start_unlocked(&rcu_state.gp_seq_polled_snap);
 		rcu_poll_gp_seq_end_unlocked(&rcu_state.gp_seq_polled_snap);
 		if (rcu_init_invoked())
