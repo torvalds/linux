@@ -35,6 +35,7 @@ static bool cxl_raw_allow_all;
 	.flags = _flags,                                                       \
 	}
 
+#define CXL_VARIABLE_PAYLOAD	~0U
 /*
  * This table defines the supported mailbox commands for the driver. This table
  * is made up of a UAPI structure. Non-negative values as parameters in the
@@ -44,26 +45,26 @@ static bool cxl_raw_allow_all;
 static struct cxl_mem_command cxl_mem_commands[CXL_MEM_COMMAND_ID_MAX] = {
 	CXL_CMD(IDENTIFY, 0, 0x43, CXL_CMD_FLAG_FORCE_ENABLE),
 #ifdef CONFIG_CXL_MEM_RAW_COMMANDS
-	CXL_CMD(RAW, ~0, ~0, 0),
+	CXL_CMD(RAW, CXL_VARIABLE_PAYLOAD, CXL_VARIABLE_PAYLOAD, 0),
 #endif
-	CXL_CMD(GET_SUPPORTED_LOGS, 0, ~0, CXL_CMD_FLAG_FORCE_ENABLE),
+	CXL_CMD(GET_SUPPORTED_LOGS, 0, CXL_VARIABLE_PAYLOAD, CXL_CMD_FLAG_FORCE_ENABLE),
 	CXL_CMD(GET_FW_INFO, 0, 0x50, 0),
 	CXL_CMD(GET_PARTITION_INFO, 0, 0x20, 0),
-	CXL_CMD(GET_LSA, 0x8, ~0, 0),
+	CXL_CMD(GET_LSA, 0x8, CXL_VARIABLE_PAYLOAD, 0),
 	CXL_CMD(GET_HEALTH_INFO, 0, 0x12, 0),
-	CXL_CMD(GET_LOG, 0x18, ~0, CXL_CMD_FLAG_FORCE_ENABLE),
+	CXL_CMD(GET_LOG, 0x18, CXL_VARIABLE_PAYLOAD, CXL_CMD_FLAG_FORCE_ENABLE),
 	CXL_CMD(SET_PARTITION_INFO, 0x0a, 0, 0),
-	CXL_CMD(SET_LSA, ~0, 0, 0),
+	CXL_CMD(SET_LSA, CXL_VARIABLE_PAYLOAD, 0, 0),
 	CXL_CMD(GET_ALERT_CONFIG, 0, 0x10, 0),
 	CXL_CMD(SET_ALERT_CONFIG, 0xc, 0, 0),
 	CXL_CMD(GET_SHUTDOWN_STATE, 0, 0x1, 0),
 	CXL_CMD(SET_SHUTDOWN_STATE, 0x1, 0, 0),
-	CXL_CMD(GET_POISON, 0x10, ~0, 0),
+	CXL_CMD(GET_POISON, 0x10, CXL_VARIABLE_PAYLOAD, 0),
 	CXL_CMD(INJECT_POISON, 0x8, 0, 0),
 	CXL_CMD(CLEAR_POISON, 0x48, 0, 0),
 	CXL_CMD(GET_SCAN_MEDIA_CAPS, 0x10, 0x4, 0),
 	CXL_CMD(SCAN_MEDIA, 0x11, 0, 0),
-	CXL_CMD(GET_SCAN_MEDIA, 0, ~0, 0),
+	CXL_CMD(GET_SCAN_MEDIA, 0, CXL_VARIABLE_PAYLOAD, 0),
 };
 
 /*
@@ -187,9 +188,10 @@ int cxl_mbox_send_cmd(struct cxl_dev_state *cxlds, u16 opcode, void *in,
 	 * Variable sized commands can't be validated and so it's up to the
 	 * caller to do that if they wish.
 	 */
-	if (cmd->info.size_out >= 0 && mbox_cmd.size_out != out_size)
-		return -EIO;
-
+	if (cmd->info.size_out != CXL_VARIABLE_PAYLOAD) {
+		if (mbox_cmd.size_out != out_size)
+			return -EIO;
+	}
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_mbox_send_cmd, CXL);
@@ -275,7 +277,7 @@ static int cxl_mbox_cmd_ctor(struct cxl_mbox_cmd *mbox,
 	}
 
 	/* Prepare to handle a full payload for variable sized output */
-	if (out_size < 0)
+	if (out_size == CXL_VARIABLE_PAYLOAD)
 		mbox->size_out = cxlds->payload_size;
 	else
 		mbox->size_out = out_size;
@@ -353,11 +355,11 @@ static int cxl_to_mem_cmd(struct cxl_mem_command *mem_cmd,
 		return -EBUSY;
 
 	/* Check the input buffer is the expected size */
-	if (info->size_in >= 0 && info->size_in != send_cmd->in.size)
+	if (info->size_in != send_cmd->in.size)
 		return -ENOMEM;
 
 	/* Check the output buffer is at least large enough */
-	if (info->size_out >= 0 && send_cmd->out.size < info->size_out)
+	if (send_cmd->out.size < info->size_out)
 		return -ENOMEM;
 
 	*mem_cmd = (struct cxl_mem_command) {
