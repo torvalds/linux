@@ -561,7 +561,9 @@ struct fscrypt_mode {
 	int keysize;		/* key size in bytes */
 	int security_strength;	/* security strength in bytes */
 	int ivsize;		/* IV size in bytes */
-	int logged_impl_name;
+	int logged_cryptoapi_impl;
+	int logged_blk_crypto_native;
+	int logged_blk_crypto_fallback;
 	enum blk_crypto_mode_num blk_crypto_mode;
 };
 
