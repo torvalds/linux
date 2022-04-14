@@ -203,45 +203,57 @@ extern int uclogic_params_init(struct uclogic_params *params,
 
 /* Tablet interface parameters *printf format string */
 #define UCLOGIC_PARAMS_FMT_STR \
-		".invalid = %s\n"                               \
-		".desc_ptr = %p\n"                              \
-		".desc_size = %u\n"                             \
-		".pen.desc_ptr = %p\n"                          \
-		".pen.desc_size = %u\n"                         \
-		".pen.id = %u\n"                                \
-		".pen.subreport_list[0] = {0x%02hhx, %hhu}\n"   \
-		".pen.subreport_list[1] = {0x%02hhx, %hhu}\n"   \
-		".pen.subreport_list[2] = {0x%02hhx, %hhu}\n"   \
-		".pen.inrange = %s\n"                           \
-		".pen.fragmented_hires = %s\n"                  \
-		".pen.tilt_y_flipped = %s\n"                    \
-		".frame_list[0].desc_ptr = %p\n"                \
-		".frame_list[0].desc_size = %u\n"               \
-		".frame_list[0].id = %u\n"                      \
-		".frame_list[0].suffix = %s\n"                  \
-		".frame_list[0].re_lsb = %u\n"                  \
-		".frame_list[0].dev_id_byte = %u\n"             \
-		".frame_list[0].touch_ring_byte = %u\n"         \
-		".frame_list[0].touch_ring_max = %hhd\n"        \
-		".frame_list[0].touch_ring_flip_at = %hhd\n"    \
-		".frame_list[1].desc_ptr = %p\n"                \
-		".frame_list[1].desc_size = %u\n"               \
-		".frame_list[1].id = %u\n"                      \
-		".frame_list[1].suffix = %s\n"                  \
-		".frame_list[1].re_lsb = %u\n"                  \
-		".frame_list[1].dev_id_byte = %u\n"             \
-		".frame_list[1].touch_ring_byte = %u\n"         \
-		".frame_list[1].touch_ring_max = %hhd\n"        \
-		".frame_list[1].touch_ring_flip_at = %hhd\n"    \
-		".frame_list[2].desc_ptr = %p\n"                \
-		".frame_list[2].desc_size = %u\n"               \
-		".frame_list[2].id = %u\n"                      \
-		".frame_list[2].suffix = %s\n"                  \
-		".frame_list[2].re_lsb = %u\n"                  \
-		".frame_list[2].dev_id_byte = %u\n"             \
-		".frame_list[2].touch_ring_byte = %u\n"         \
-		".frame_list[2].touch_ring_max = %hhd\n"        \
-		".frame_list[2].touch_ring_flip_at = %hhd\n"
+		".invalid = %s\n"                   \
+		".desc_ptr = %p\n"                  \
+		".desc_size = %u\n"                 \
+		".pen = {\n"                        \
+		"\t.desc_ptr = %p\n"                \
+		"\t.desc_size = %u\n"               \
+		"\t.id = %u\n"                      \
+		"\t.subreport_list = {\n"           \
+		"\t\t{0x%02hhx, %hhu},\n"           \
+		"\t\t{0x%02hhx, %hhu},\n"           \
+		"\t\t{0x%02hhx, %hhu},\n"           \
+		"\t}\n"                             \
+		"\t.inrange = %s\n"                 \
+		"\t.fragmented_hires = %s\n"        \
+		"\t.tilt_y_flipped = %s\n"          \
+		"}\n"                               \
+		".frame_list = {\n"                 \
+		"\t{\n"                             \
+		"\t\t.desc_ptr = %p\n"              \
+		"\t\t.desc_size = %u\n"             \
+		"\t\t.id = %u\n"                    \
+		"\t\t.suffix = %s\n"                \
+		"\t\t.re_lsb = %u\n"                \
+		"\t\t.dev_id_byte = %u\n"           \
+		"\t\t.touch_ring_byte = %u\n"       \
+		"\t\t.touch_ring_max = %hhd\n"      \
+		"\t\t.touch_ring_flip_at = %hhd\n"  \
+		"\t},\n"                            \
+		"\t{\n"                             \
+		"\t\t.desc_ptr = %p\n"              \
+		"\t\t.desc_size = %u\n"             \
+		"\t\t.id = %u\n"                    \
+		"\t\t.suffix = %s\n"                \
+		"\t\t.re_lsb = %u\n"                \
+		"\t\t.dev_id_byte = %u\n"           \
+		"\t\t.touch_ring_byte = %u\n"       \
+		"\t\t.touch_ring_max = %hhd\n"      \
+		"\t\t.touch_ring_flip_at = %hhd\n"  \
+		"\t},\n"                            \
+		"\t{\n"                             \
+		"\t\t.desc_ptr = %p\n"              \
+		"\t\t.desc_size = %u\n"             \
+		"\t\t.id = %u\n"                    \
+		"\t\t.suffix = %s\n"                \
+		"\t\t.re_lsb = %u\n"                \
+		"\t\t.dev_id_byte = %u\n"           \
+		"\t\t.touch_ring_byte = %u\n"       \
+		"\t\t.touch_ring_max = %hhd\n"      \
+		"\t\t.touch_ring_flip_at = %hhd\n"  \
+		"\t},\n"                            \
+		"}\n"
 
 /* Tablet interface parameters *printf format arguments */
 #define UCLOGIC_PARAMS_FMT_ARGS(_params) \
