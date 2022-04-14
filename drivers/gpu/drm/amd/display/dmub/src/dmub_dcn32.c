@@ -299,11 +299,13 @@ void dmub_dcn32_set_outbox1_rptr(struct dmub_srv *dmub, uint32_t rptr_offset)
 
 bool dmub_dcn32_is_hw_init(struct dmub_srv *dmub)
 {
+	union dmub_fw_boot_status status;
 	uint32_t is_hw_init;
 
+	status.all = REG_READ(DMCUB_SCRATCH0);
 	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_hw_init);
 
-	return is_hw_init != 0;
+	return is_hw_init != 0 && status.bits.dal_fw;
 }
 
 bool dmub_dcn32_is_supported(struct dmub_srv *dmub)
