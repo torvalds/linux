@@ -27,6 +27,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
+#include <linux/pm_qos.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -614,6 +615,31 @@ static struct notifier_block rockchip_cpufreq_notifier_block = {
 	.notifier_call = rockchip_cpufreq_notifier,
 };
 
+#ifdef MODULE
+static struct pm_qos_request idle_pm_qos;
+static int idle_disable_refcnt;
+static DEFINE_MUTEX(idle_disable_lock);
+
+static int rockchip_cpufreq_idle_state_disable(struct cpumask *cpumask,
+					       int index, bool disable)
+{
+	mutex_lock(&idle_disable_lock);
+
+	if (disable) {
+		if (idle_disable_refcnt == 0)
+			cpu_latency_qos_update_request(&idle_pm_qos, 0);
+		idle_disable_refcnt++;
+	} else {
+		if (--idle_disable_refcnt == 0)
+			cpu_latency_qos_update_request(&idle_pm_qos,
+						       PM_QOS_DEFAULT_VALUE);
+	}
+
+	mutex_unlock(&idle_disable_lock);
+
+	return 0;
+}
+#else
 static int rockchip_cpufreq_idle_state_disable(struct cpumask *cpumask,
 					       int index, bool disable)
 {
@@ -641,6 +667,7 @@ static int rockchip_cpufreq_idle_state_disable(struct cpumask *cpumask,
 
 	return 0;
 }
+#endif
 
 static int rockchip_cpufreq_transition_notifier(struct notifier_block *nb,
 						unsigned long event, void *data)
@@ -722,6 +749,9 @@ static int __init rockchip_cpufreq_driver_init(void)
 			pr_err("failed to register cpufreq notifier\n");
 			goto release_cluster_info;
 		}
+#ifdef MODULE
+		cpu_latency_qos_add_request(&idle_pm_qos, PM_QOS_DEFAULT_VALUE);
+#endif
 	}
 
 	return PTR_ERR_OR_ZERO(platform_device_register_data(NULL, "cpufreq-dt",
