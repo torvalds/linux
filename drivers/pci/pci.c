@@ -2703,8 +2703,6 @@ int pci_finish_runtime_suspend(struct pci_dev *dev)
 	if (target_state == PCI_POWER_ERROR)
 		return -EIO;
 
-	dev->runtime_d3cold = target_state == PCI_D3cold;
-
 	/*
 	 * There are systems (for example, Intel mobile chips since Coffee
 	 * Lake) where the power drawn while suspended can be significantly
@@ -2722,7 +2720,6 @@ int pci_finish_runtime_suspend(struct pci_dev *dev)
 	if (error) {
 		pci_enable_wake(dev, target_state, false);
 		pci_restore_ptm_state(dev);
-		dev->runtime_d3cold = false;
 	}
 
 	return error;
