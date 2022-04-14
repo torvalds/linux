@@ -269,9 +269,11 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 		init.ops = &rockchip_ddrclk_scpi_ops;
 		break;
 #endif
+#ifdef CONFIG_ROCKCHIP_DDRCLK_SIP_V2
 	case ROCKCHIP_DDRCLK_SIP_V2:
 		init.ops = &rockchip_ddrclk_sip_ops_v2;
 		break;
+#endif
 	default:
 		pr_err("%s: unsupported ddrclk type %d\n", __func__, ddr_flag);
 		kfree(ddrclk);

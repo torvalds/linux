@@ -166,17 +166,30 @@ config ROCKCHIP_CLK_PVTM
 	help
 	  Say y here to enable clk pvtm.
 
+config ROCKCHIP_DDRCLK
+	bool
+
 config ROCKCHIP_DDRCLK_SCPI
 	bool "Rockchip DDR Clk SCPI"
 	default y if RK3368_SCPI_PROTOCOL
+	select ROCKCHIP_DDRCLK
 	help
 	  Say y here to enable ddr clk scpi.
 
 config ROCKCHIP_DDRCLK_SIP
 	bool "Rockchip DDR Clk SIP"
 	default y if CPU_RK3399
+	select ROCKCHIP_DDRCLK
 	help
 	  Say y here to enable ddr clk sip.
+
+config ROCKCHIP_DDRCLK_SIP_V2
+	bool "Rockchip DDR Clk SIP V2"
+	default y if CPU_PX30   || CPU_RK1808 || CPU_RK312X || CPU_RK322X || \
+		     CPU_RK3288 || CPU_RK3308 || CPU_RK3328 || CPU_RV1126
+	select ROCKCHIP_DDRCLK
+	help
+	  Say y here to enable ddr clk sip v2.
 
 config ROCKCHIP_PLL_RK3066
 	bool "Rockchip PLL Type RK3066"

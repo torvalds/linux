@@ -596,6 +596,7 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 #define ROCKCHIP_DDRCLK_SCPI		0x02
 #define ROCKCHIP_DDRCLK_SIP_V2		0x03
 
+#ifdef CONFIG_ROCKCHIP_DDRCLK
 void rockchip_set_ddrclk_params(void __iomem *params);
 void rockchip_set_ddrclk_dmcfreq_wait_complete(int (*func)(void));
 
@@ -605,6 +606,20 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 					 int mux_shift, int mux_width,
 					 int div_shift, int div_width,
 					 int ddr_flags, void __iomem *reg_base);
+#else
+static inline void rockchip_set_ddrclk_params(void __iomem *params) {}
+static inline void rockchip_set_ddrclk_dmcfreq_wait_complete(int (*func)(void)) {}
+static inline
+struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
+					 const char *const *parent_names,
+					 u8 num_parents, int mux_offset,
+					 int mux_shift, int mux_width,
+					 int div_shift, int div_width,
+					 int ddr_flags, void __iomem *reg_base)
+{
+	return NULL;
+}
+#endif
 
 #define ROCKCHIP_INVERTER_HIWORD_MASK	BIT(0)
 
