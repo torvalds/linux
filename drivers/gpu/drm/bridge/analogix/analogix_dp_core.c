@@ -499,11 +499,6 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 	if (retval < 0)
 		return retval;
 
-	retval = drm_dp_dpcd_read(&dp->aux, DP_ADJUST_REQUEST_LANE0_1,
-				  adjust_request, 2);
-	if (retval < 0)
-		return retval;
-
 	if (analogix_dp_clock_recovery_ok(link_status, lane_count) == 0) {
 		if (analogix_dp_tps3_supported(dp))
 			training_pattern = TRAINING_PTN3;
@@ -520,7 +515,14 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 
 		dev_dbg(dp->dev, "Link Training Clock Recovery success\n");
 		dp->link_train.lt_state = EQUALIZER_TRAINING;
+
+		return 0;
 	} else {
+		retval = drm_dp_dpcd_read(&dp->aux, DP_ADJUST_REQUEST_LANE0_1,
+					  adjust_request, 2);
+		if (retval < 0)
+			return retval;
+
 		for (lane = 0; lane < lane_count; lane++) {
 			training_lane = analogix_dp_get_lane_link_training(
 							dp, lane);
@@ -577,17 +579,10 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 		return -EIO;
 	}
 
-	retval = drm_dp_dpcd_read(&dp->aux, DP_ADJUST_REQUEST_LANE0_1,
-				  adjust_request, 2);
-	if (retval < 0)
-		return retval;
-
 	retval = drm_dp_dpcd_readb(&dp->aux, DP_LANE_ALIGN_STATUS_UPDATED,
 				   &link_align);
 	if (retval < 0)
 		return retval;
-
-	analogix_dp_get_adjust_training_lane(dp, adjust_request);
 
 	if (!analogix_dp_channel_eq_ok(link_status, link_align, lane_count)) {
 		/* traing pattern Set to Normal */
@@ -620,6 +615,12 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 		return -EIO;
 	}
 
+	retval = drm_dp_dpcd_read(&dp->aux, DP_ADJUST_REQUEST_LANE0_1,
+				  adjust_request, 2);
+	if (retval < 0)
+		return retval;
+
+	analogix_dp_get_adjust_training_lane(dp, adjust_request);
 	analogix_dp_set_lane_link_training(dp);
 
 	retval = drm_dp_dpcd_write(&dp->aux, DP_TRAINING_LANE0_SET,
