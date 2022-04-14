@@ -173,11 +173,8 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 	/* Make sure this is a valid target state */
 
 	/* There is a special case for D0 addressed below. */
-	if (state > ACPI_STATE_D0 && state == device->power.state) {
-		acpi_handle_debug(device->handle, "Already in %s\n",
-				  acpi_power_state_string(state));
-		return 0;
-	}
+	if (state > ACPI_STATE_D0 && state == device->power.state)
+		goto no_change;
 
 	if (state == ACPI_STATE_D3_COLD) {
 		/*
@@ -249,7 +246,7 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 
 			/* Nothing to do here if _PSC is not present. */
 			if (!device->power.flags.explicit_get)
-				return 0;
+				goto no_change;
 
 			/*
 			 * The power state of the device was set to D0 last
@@ -264,13 +261,13 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 			 */
 			result = acpi_dev_pm_explicit_get(device, &psc);
 			if (result || psc == ACPI_STATE_D0)
-				return 0;
+				goto no_change;
 		}
 
 		result = acpi_dev_pm_explicit_set(device, ACPI_STATE_D0);
 	}
 
- end:
+end:
 	if (result) {
 		acpi_handle_debug(device->handle,
 				  "Failed to change power state to %s\n",
@@ -282,6 +279,11 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 	}
 
 	return result;
+
+no_change:
+	acpi_handle_debug(device->handle, "Already in %s\n",
+			  acpi_power_state_string(state));
+	return 0;
 }
 EXPORT_SYMBOL(acpi_device_set_power);
 
