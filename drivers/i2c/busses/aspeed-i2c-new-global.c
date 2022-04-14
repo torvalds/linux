@@ -24,11 +24,11 @@ static const struct of_device_id aspeed_i2c_ic_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, aspeed_i2c_ic_of_match);
 
-#define I2CCG_DIV_CTRL 0x6C411208
+#define I2CCG_DIV_CTRL 0xC6411208
 /*
  * APB clk : 100Mhz
  * div  : scl       : baseclk [APB/((div/2) + 1)] : tBuf [1/bclk * 16]
- * I2CG10[31:24] base clk4 for i2c auto recovery timeout counter
+ * I2CG10[31:24] base clk4 for i2c auto recovery timeout counter (0xC6)
  * I2CG10[23:16] base clk3 for Standard-mode (100Khz) min tBuf 4.7us
  * 0x3c : 100.8Khz  : 3.225Mhz                    : 4.96us
  * 0x3d : 99.2Khz   : 3.174Mhz                    : 5.04us
