@@ -1362,31 +1362,25 @@ static int adis16480_get_ext_clocks(struct adis16480 *st)
 {
 	struct device *dev = &st->adis.spi->dev;
 
-	st->clk_mode = ADIS16480_CLK_INT;
-	st->ext_clk = devm_clk_get(dev, "sync");
-	if (!IS_ERR_OR_NULL(st->ext_clk)) {
+	st->ext_clk = devm_clk_get_optional(dev, "sync");
+	if (IS_ERR(st->ext_clk))
+		return dev_err_probe(dev, PTR_ERR(st->ext_clk), "failed to get ext clk\n");
+	if (st->ext_clk) {
 		st->clk_mode = ADIS16480_CLK_SYNC;
 		return 0;
 	}
 
-	if (PTR_ERR(st->ext_clk) != -ENOENT) {
-		dev_err(dev, "failed to get ext clk\n");
-		return PTR_ERR(st->ext_clk);
-	}
-
 	if (st->chip_info->has_pps_clk_mode) {
-		st->ext_clk = devm_clk_get(dev, "pps");
-		if (!IS_ERR_OR_NULL(st->ext_clk)) {
+		st->ext_clk = devm_clk_get_optional(dev, "pps");
+		if (IS_ERR(st->ext_clk))
+			return dev_err_probe(dev, PTR_ERR(st->ext_clk), "failed to get ext clk\n");
+		if (st->ext_clk) {
 			st->clk_mode = ADIS16480_CLK_PPS;
 			return 0;
 		}
-
-		if (PTR_ERR(st->ext_clk) != -ENOENT) {
-			dev_err(dev, "failed to get ext clk\n");
-			return PTR_ERR(st->ext_clk);
-		}
 	}
 
+	st->clk_mode = ADIS16480_CLK_INT;
 	return 0;
 }
 
@@ -1447,7 +1441,7 @@ static int adis16480_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	if (!IS_ERR_OR_NULL(st->ext_clk)) {
+	if (st->ext_clk) {
 		ret = adis16480_ext_clk_config(st, true);
 		if (ret)
 			return ret;
