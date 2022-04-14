@@ -28,11 +28,15 @@ static const struct sof_dev_desc cnl_desc = {
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
 	.chip_info = &cnl_chip_info,
+	.ipc_supported_mask	= BIT(SOF_IPC) | BIT(SOF_INTEL_IPC4),
+	.ipc_default		= SOF_IPC,
 	.default_fw_path = {
 		[SOF_IPC] = "intel/sof",
+		[SOF_INTEL_IPC4] = "intel/avs/cnl",
 	},
 	.default_tplg_path = {
 		[SOF_IPC] = "intel/sof-tplg",
+		[SOF_INTEL_IPC4] = "intel/avs-tplg",
 	},
 	.default_fw_filename = "sof-cnl.ri",
 	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
@@ -48,11 +52,15 @@ static const struct sof_dev_desc cfl_desc = {
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
 	.chip_info = &cnl_chip_info,
+	.ipc_supported_mask	= BIT(SOF_IPC) | BIT(SOF_INTEL_IPC4),
+	.ipc_default		= SOF_IPC,
 	.default_fw_path = {
 		[SOF_IPC] = "intel/sof",
+		[SOF_INTEL_IPC4] = "intel/avs/cnl",
 	},
 	.default_tplg_path = {
 		[SOF_IPC] = "intel/sof-tplg",
+		[SOF_INTEL_IPC4] = "intel/avs-tplg",
 	},
 	.default_fw_filename = "sof-cfl.ri",
 	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
@@ -68,11 +76,15 @@ static const struct sof_dev_desc cml_desc = {
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
 	.chip_info = &cnl_chip_info,
+	.ipc_supported_mask	= BIT(SOF_IPC) | BIT(SOF_INTEL_IPC4),
+	.ipc_default		= SOF_IPC,
 	.default_fw_path = {
 		[SOF_IPC] = "intel/sof",
+		[SOF_INTEL_IPC4] = "intel/avs/cnl",
 	},
 	.default_tplg_path = {
 		[SOF_IPC] = "intel/sof-tplg",
+		[SOF_INTEL_IPC4] = "intel/avs-tplg",
 	},
 	.default_fw_filename = "sof-cml.ri",
 	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",

@@ -646,6 +646,8 @@ static const struct sof_dev_desc sof_acpi_broadwell_desc = {
 	.resindex_imr_base = -1,
 	.irqindex_host_ipc = 0,
 	.chip_info = &bdw_chip_info,
+	.ipc_supported_mask = BIT(SOF_IPC),
+	.ipc_default = SOF_IPC,
 	.default_fw_path = {
 		[SOF_IPC] = "intel/sof",
 	},

@@ -388,6 +388,8 @@ static const struct sof_dev_desc sof_acpi_baytrailcr_desc = {
 	.resindex_imr_base = 2,
 	.irqindex_host_ipc = 0,
 	.chip_info = &byt_chip_info,
+	.ipc_supported_mask = BIT(SOF_IPC),
+	.ipc_default = SOF_IPC,
 	.default_fw_path = {
 		[SOF_IPC] = "intel/sof",
 	},
@@ -406,6 +408,8 @@ static const struct sof_dev_desc sof_acpi_baytrail_desc = {
 	.resindex_imr_base = 2,
 	.irqindex_host_ipc = 5,
 	.chip_info = &byt_chip_info,
+	.ipc_supported_mask = BIT(SOF_IPC),
+	.ipc_default = SOF_IPC,
 	.default_fw_path = {
 		[SOF_IPC] = "intel/sof",
 	},
@@ -424,6 +428,8 @@ static const struct sof_dev_desc sof_acpi_cherrytrail_desc = {
 	.resindex_imr_base = 2,
 	.irqindex_host_ipc = 5,
 	.chip_info = &cht_chip_info,
+	.ipc_supported_mask = BIT(SOF_IPC),
+	.ipc_default = SOF_IPC,
 	.default_fw_path = {
 		[SOF_IPC] = "intel/sof",
 	},

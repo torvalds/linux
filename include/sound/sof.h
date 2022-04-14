@@ -124,6 +124,10 @@ struct sof_dev_desc {
 	/* defaults for no codec mode */
 	const char *nocodec_tplg_filename;
 
+	/* information on supported IPCs */
+	unsigned int ipc_supported_mask;
+	enum sof_ipc_type ipc_default;
+
 	/* defaults paths for firmware and topology files */
 	const char *default_fw_path[SOF_IPC_TYPE_COUNT];
 	const char *default_tplg_path[SOF_IPC_TYPE_COUNT];

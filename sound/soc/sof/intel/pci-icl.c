@@ -28,11 +28,15 @@ static const struct sof_dev_desc icl_desc = {
 	.resindex_imr_base      = -1,
 	.irqindex_host_ipc      = -1,
 	.chip_info = &icl_chip_info,
+	.ipc_supported_mask	= BIT(SOF_IPC) | BIT(SOF_INTEL_IPC4),
+	.ipc_default		= SOF_IPC,
 	.default_fw_path = {
 		[SOF_IPC] = "intel/sof",
+		[SOF_INTEL_IPC4] = "intel/avs/icl",
 	},
 	.default_tplg_path = {
 		[SOF_IPC] = "intel/sof-tplg",
+		[SOF_INTEL_IPC4] = "intel/avs-tplg",
 	},
 	.default_fw_filename = "sof-icl.ri",
 	.nocodec_tplg_filename = "sof-icl-nocodec.tplg",
@@ -47,11 +51,15 @@ static const struct sof_dev_desc jsl_desc = {
 	.resindex_imr_base      = -1,
 	.irqindex_host_ipc      = -1,
 	.chip_info = &jsl_chip_info,
+	.ipc_supported_mask	= BIT(SOF_IPC) | BIT(SOF_INTEL_IPC4),
+	.ipc_default		= SOF_IPC,
 	.default_fw_path = {
 		[SOF_IPC] = "intel/sof",
+		[SOF_INTEL_IPC4] = "intel/avs/jsl",
 	},
 	.default_tplg_path = {
 		[SOF_IPC] = "intel/sof-tplg",
+		[SOF_INTEL_IPC4] = "intel/avs-tplg",
 	},
 	.default_fw_filename = "sof-jsl.ri",
 	.nocodec_tplg_filename = "sof-jsl-nocodec.tplg",

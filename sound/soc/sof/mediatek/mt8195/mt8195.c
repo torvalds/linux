@@ -440,6 +440,8 @@ static const struct snd_sof_dsp_ops sof_mt8195_ops = {
 };
 
 static const struct sof_dev_desc sof_of_mt8195_desc = {
+	.ipc_supported_mask	= BIT(SOF_IPC),
+	.ipc_default		= SOF_IPC,
 	.default_fw_path = {
 		[SOF_IPC] = "mediatek/sof",
 	},
