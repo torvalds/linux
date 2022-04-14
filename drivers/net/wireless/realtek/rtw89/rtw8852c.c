@@ -9,6 +9,7 @@
 #include "phy.h"
 #include "reg.h"
 #include "rtw8852c.h"
+#include "rtw8852c_table.h"
 
 static const struct rtw89_dle_mem rtw8852c_dle_mem_pcie[] = {
 	[RTW89_QTA_SCC] = {RTW89_QTA_SCC, &rtw89_mac_size.wde_size19,
@@ -658,6 +659,11 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.rf_base_addr		= {0xe000, 0xf000},
 	.pwr_on_seq		= NULL,
 	.pwr_off_seq		= NULL,
+	.bb_table		= &rtw89_8852c_phy_bb_table,
+	.bb_gain_table		= &rtw89_8852c_phy_bb_gain_table,
+	.rf_table		= {&rtw89_8852c_phy_radiob_table,
+				   &rtw89_8852c_phy_radioa_table,},
+	.nctl_table		= &rtw89_8852c_phy_nctl_table,
 	.dig_table		= NULL,
 	.hw_sec_hdr		= true,
 	.sec_ctrl_efuse_size	= 4,
