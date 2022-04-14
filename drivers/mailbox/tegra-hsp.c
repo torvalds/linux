@@ -67,8 +67,14 @@ struct tegra_hsp_doorbell {
 	unsigned int index;
 };
 
+struct tegra_hsp_sm_ops {
+	void (*send)(struct tegra_hsp_channel *channel, void *data);
+	void (*recv)(struct tegra_hsp_channel *channel);
+};
+
 struct tegra_hsp_mailbox {
 	struct tegra_hsp_channel channel;
+	const struct tegra_hsp_sm_ops *ops;
 	unsigned int index;
 	bool producer;
 };
@@ -208,8 +214,7 @@ static irqreturn_t tegra_hsp_shared_irq(int irq, void *data)
 {
 	struct tegra_hsp *hsp = data;
 	unsigned long bit, mask;
-	u32 status, value;
-	void *msg;
+	u32 status;
 
 	status = tegra_hsp_readl(hsp, HSP_INT_IR) & hsp->mask;
 
@@ -245,25 +250,8 @@ static irqreturn_t tegra_hsp_shared_irq(int irq, void *data)
 	for_each_set_bit(bit, &mask, hsp->num_sm) {
 		struct tegra_hsp_mailbox *mb = &hsp->mailboxes[bit];
 
-		if (!mb->producer) {
-			value = tegra_hsp_channel_readl(&mb->channel,
-							HSP_SM_SHRD_MBOX);
-			value &= ~HSP_SM_SHRD_MBOX_FULL;
-			msg = (void *)(unsigned long)value;
-			mbox_chan_received_data(mb->channel.chan, msg);
-
-			/*
-			 * Need to clear all bits here since some producers,
-			 * such as TCU, depend on fields in the register
-			 * getting cleared by the consumer.
-			 *
-			 * The mailbox API doesn't give the consumers a way
-			 * of doing that explicitly, so we have to make sure
-			 * we cover all possible cases.
-			 */
-			tegra_hsp_channel_writel(&mb->channel, 0x0,
-						 HSP_SM_SHRD_MBOX);
-		}
+		if (!mb->producer)
+			mb->ops->recv(&mb->channel);
 	}
 
 	return IRQ_HANDLED;
@@ -372,21 +360,52 @@ static const struct mbox_chan_ops tegra_hsp_db_ops = {
 	.shutdown = tegra_hsp_doorbell_shutdown,
 };
 
-static int tegra_hsp_mailbox_send_data(struct mbox_chan *chan, void *data)
+static void tegra_hsp_sm_send32(struct tegra_hsp_channel *channel, void *data)
 {
-	struct tegra_hsp_mailbox *mb = chan->con_priv;
-	struct tegra_hsp *hsp = mb->channel.hsp;
-	unsigned long flags;
 	u32 value;
-
-	if (WARN_ON(!mb->producer))
-		return -EPERM;
 
 	/* copy data and mark mailbox full */
 	value = (u32)(unsigned long)data;
 	value |= HSP_SM_SHRD_MBOX_FULL;
 
-	tegra_hsp_channel_writel(&mb->channel, value, HSP_SM_SHRD_MBOX);
+	tegra_hsp_channel_writel(channel, value, HSP_SM_SHRD_MBOX);
+}
+
+static void tegra_hsp_sm_recv32(struct tegra_hsp_channel *channel)
+{
+	u32 value;
+	void *msg;
+
+	value = tegra_hsp_channel_readl(channel, HSP_SM_SHRD_MBOX);
+	value &= ~HSP_SM_SHRD_MBOX_FULL;
+	msg = (void *)(unsigned long)value;
+	mbox_chan_received_data(channel->chan, msg);
+
+	/*
+	 * Need to clear all bits here since some producers, such as TCU, depend
+	 * on fields in the register getting cleared by the consumer.
+	 *
+	 * The mailbox API doesn't give the consumers a way of doing that
+	 * explicitly, so we have to make sure we cover all possible cases.
+	 */
+	tegra_hsp_channel_writel(channel, 0x0, HSP_SM_SHRD_MBOX);
+}
+
+static const struct tegra_hsp_sm_ops tegra_hsp_sm_32bit_ops = {
+	.send = tegra_hsp_sm_send32,
+	.recv = tegra_hsp_sm_recv32,
+};
+
+static int tegra_hsp_mailbox_send_data(struct mbox_chan *chan, void *data)
+{
+	struct tegra_hsp_mailbox *mb = chan->con_priv;
+	struct tegra_hsp *hsp = mb->channel.hsp;
+	unsigned long flags;
+
+	if (WARN_ON(!mb->producer))
+		return -EPERM;
+
+	mb->ops->send(&mb->channel, data);
 
 	/* enable EMPTY interrupt for the shared mailbox */
 	spin_lock_irqsave(&hsp->lock, flags);
@@ -557,6 +576,7 @@ static struct mbox_chan *tegra_hsp_sm_xlate(struct mbox_controller *mbox,
 		return ERR_PTR(-ENODEV);
 
 	mb = &hsp->mailboxes[index];
+	mb->ops = &tegra_hsp_sm_32bit_ops;
 
 	if ((args->args[1] & TEGRA_HSP_SM_FLAG_TX) == 0)
 		mb->producer = false;
