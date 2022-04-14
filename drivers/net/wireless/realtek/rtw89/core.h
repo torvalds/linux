@@ -74,6 +74,16 @@ enum rtw89_subband {
 	RTW89_SUBBAND_NR,
 };
 
+enum rtw89_gain_offset {
+	RTW89_GAIN_OFFSET_2G_CCK,
+	RTW89_GAIN_OFFSET_2G_OFDM,
+	RTW89_GAIN_OFFSET_5G_LOW,
+	RTW89_GAIN_OFFSET_5G_MID,
+	RTW89_GAIN_OFFSET_5G_HIGH,
+
+	RTW89_GAIN_OFFSET_NR,
+};
+
 enum rtw89_hci_type {
 	RTW89_HCI_TYPE_PCIE,
 	RTW89_HCI_TYPE_USB,
@@ -3035,6 +3045,12 @@ struct rtw89_phy_bb_gain_info {
 		       [RTW89_BB_RXSC_NUM_160];
 };
 
+struct rtw89_phy_efuse_gain {
+	bool offset_valid;
+	s8 offset[RF_PATH_MAX][RTW89_GAIN_OFFSET_NR]; /* S(8, 0) */
+	s8 offset_base[RTW89_PHY_MAX]; /* S(8, 4) */
+};
+
 struct rtw89_dev {
 	struct ieee80211_hw *hw;
 	struct device *dev;
@@ -3098,6 +3114,7 @@ struct rtw89_dev {
 	struct rtw89_dig_info dig;
 	struct rtw89_phy_ch_info ch_info;
 	struct rtw89_phy_bb_gain_info bb_gain;
+	struct rtw89_phy_efuse_gain efuse_gain;
 
 	struct delayed_work track_work;
 	struct delayed_work coex_act1_work;
