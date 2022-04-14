@@ -14,6 +14,7 @@
 #include <linux/rwsem.h>
 #include <linux/uidgid.h>
 #include <linux/pm_wakeup.h>
+#include <linux/of_device.h>
 #include <linux/ipc_logging.h>
 
 #include <net/sock.h>
@@ -2086,9 +2087,29 @@ static const struct net_proto_family qrtr_family = {
 	.create	= qrtr_create,
 };
 
+static void qrtr_update_node_id(void)
+{
+	const char *compat = "qcom,qrtr";
+	struct device_node *np = NULL;
+	u32 node_id;
+	int ret;
+
+	while ((np = of_find_compatible_node(np, NULL, compat))) {
+		ret = of_property_read_u32(np, "qcom,node-id", &node_id);
+		of_node_put(np);
+		if (ret)
+			continue;
+
+		qrtr_local_nid = node_id;
+		break;
+	}
+}
+
 static int __init qrtr_proto_init(void)
 {
 	int rc;
+
+	qrtr_update_node_id();
 
 	rc = proto_register(&qrtr_proto, 1);
 	if (rc)
