@@ -646,8 +646,12 @@ static const struct sof_dev_desc sof_acpi_broadwell_desc = {
 	.resindex_imr_base = -1,
 	.irqindex_host_ipc = 0,
 	.chip_info = &bdw_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
+	.default_fw_path = {
+		[SOF_IPC] = "intel/sof",
+	},
+	.default_tplg_path = {
+		[SOF_IPC] = "intel/sof-tplg",
+	},
 	.default_fw_filename = "sof-bdw.ri",
 	.nocodec_tplg_filename = "sof-bdw-nocodec.tplg",
 	.ops = &sof_bdw_ops,

@@ -125,8 +125,8 @@ struct sof_dev_desc {
 	const char *nocodec_tplg_filename;
 
 	/* defaults paths for firmware and topology files */
-	const char *default_fw_path;
-	const char *default_tplg_path;
+	const char *default_fw_path[SOF_IPC_TYPE_COUNT];
+	const char *default_tplg_path[SOF_IPC_TYPE_COUNT];
 
 	/* default firmware name */
 	const char *default_fw_filename;

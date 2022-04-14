@@ -69,12 +69,12 @@ int sof_of_probe(struct platform_device *pdev)
 	if (fw_path)
 		sof_pdata->fw_filename_prefix = fw_path;
 	else
-		sof_pdata->fw_filename_prefix = sof_pdata->desc->default_fw_path;
+		sof_pdata->fw_filename_prefix = sof_pdata->desc->default_fw_path[SOF_IPC];
 
 	if (tplg_path)
 		sof_pdata->tplg_filename_prefix = tplg_path;
 	else
-		sof_pdata->tplg_filename_prefix = sof_pdata->desc->default_tplg_path;
+		sof_pdata->tplg_filename_prefix = sof_pdata->desc->default_tplg_path[SOF_IPC];
 
 	/* set callback to be called on successful device probe to enable runtime_pm */
 	sof_pdata->sof_probe_complete = sof_of_probe_complete;
