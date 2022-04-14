@@ -223,8 +223,8 @@
 #define HDA_DSP_REG_POLL_INTERVAL_US		500	/* 0.5 msec */
 #define HDA_DSP_REG_POLL_RETRY_COUNT		50
 
-#define HDA_DSP_ADSPIC_IPC			1
-#define HDA_DSP_ADSPIS_IPC			1
+#define HDA_DSP_ADSPIC_IPC			BIT(0)
+#define HDA_DSP_ADSPIS_IPC			BIT(0)
 
 /* Intel HD Audio General DSP Registers */
 #define HDA_DSP_GEN_BASE		0x0
@@ -268,8 +268,8 @@
 /* HIPCTE */
 #define HDA_DSP_REG_HIPCTE_MSG_MASK	0x3FFFFFFF
 
-#define HDA_DSP_ADSPIC_CL_DMA		0x2
-#define HDA_DSP_ADSPIS_CL_DMA		0x2
+#define HDA_DSP_ADSPIC_CL_DMA		BIT(1)
+#define HDA_DSP_ADSPIS_CL_DMA		BIT(1)
 
 /* Delay before scheduling D0i3 entry */
 #define BXT_D0I3_DELAY 5000
