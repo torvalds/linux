@@ -3135,7 +3135,8 @@ static int  rk817_bat_pm_suspend(struct device *dev)
 		 */
 		if (battery->sleep_chrg_status == CHARGE_FINISH) {
 			battery->work_mode = MODE_FINISH;
-			battery->finish_base = get_boot_sec();
+			if (!battery->finish_base)
+				battery->finish_base = get_boot_sec();
 		} else {
 			battery->work_mode = MODE_SMOOTH;
 			rk817_bat_smooth_algo_prepare(battery);
