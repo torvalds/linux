@@ -6,7 +6,7 @@ typedef enum WL_EVENT_PRIO {
 	PRIO_EVENT_ESCAN,
 	PRIO_EVENT_WEXT
 }wl_event_prio_t;
-s32 wl_ext_event_attach(struct net_device *dev, dhd_pub_t *dhdp);
+s32 wl_ext_event_attach(struct net_device *net);
 void wl_ext_event_dettach(dhd_pub_t *dhdp);
 int wl_ext_event_attach_netdev(struct net_device *net, int ifidx, uint8 bssidx);
 int wl_ext_event_dettach_netdev(struct net_device *net, int ifidx);

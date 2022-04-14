@@ -108,12 +108,29 @@ typedef struct mchan_params {
 	int miracast_mode;
 } mchan_params_t;
 
+#ifdef SCAN_SUPPRESS
+enum scan_intput_flags {
+	NO_SCAN_INTPUT	= (1 << (0)),
+	SCAN_CURCHAN_INTPUT	= (1 << (1)),
+	SCAN_LIGHT_INTPUT	= (1 << (2)),
+};
+#endif
+
+enum war_flags {
+	SET_CHAN_INCONN	= (1 << (0)),
+	FW_REINIT_INCSA	= (1 << (1)),
+	FW_REINIT_EMPTY_SCAN	= (1 << (2)),
+	P2P_AP_MAC_CONFLICT	= (1 << (3)),
+	RESEND_EAPOL_PKT	= (1 << (4))
+};
+
 enum in4way_flags {
 	STA_NO_SCAN_IN4WAY	= (1 << (0)),
 	STA_NO_BTC_IN4WAY	= (1 << (1)),
 	STA_WAIT_DISCONNECTED	= (1 << (2)),
-	STA_START_AUTH_DELAY	= (1 << (3)),
-	AP_WAIT_STA_RECONNECT	= (1 << (4)),
+	AP_WAIT_STA_RECONNECT	= (1 << (3)),
+	STA_FAKE_SCAN_IN_CONNECT	= (1 << (4)),
+	STA_REASSOC_RETRY	= (1 << (5)),
 };
 
 enum in_suspend_flags {
@@ -129,43 +146,45 @@ enum in_suspend_flags {
 
 enum in_suspend_mode {
 	EARLY_SUSPEND = 0,
-	PM_NOTIFIER = 1
+	PM_NOTIFIER = 1,
+	SUSPEND_MODE_2 = 2
 };
 
-#ifdef HOST_TPUT_TEST
+#ifdef TPUT_MONITOR
 enum data_drop_mode {
-	NO_DATA_DROP = 0,
+	NO_DATA_DROP = -1,
+	FW_DROP = 0,
 	TXPKT_DROP = 1,
 	XMIT_DROP = 2
 };
 #endif
 
-enum eapol_status {
-	EAPOL_STATUS_NONE = 0,
-	EAPOL_STATUS_REQID = 1,
-	EAPOL_STATUS_RSPID = 2,
-	EAPOL_STATUS_WSC_START = 3,
-	EAPOL_STATUS_WPS_M1 = 4,
-	EAPOL_STATUS_WPS_M2 = 5,
-	EAPOL_STATUS_WPS_M3 = 6,
-	EAPOL_STATUS_WPS_M4 = 7,
-	EAPOL_STATUS_WPS_M5 = 8,
-	EAPOL_STATUS_WPS_M6 = 9,
-	EAPOL_STATUS_WPS_M7 = 10,
-	EAPOL_STATUS_WPS_M8 = 11,
-	EAPOL_STATUS_WSC_DONE = 12,
-	EAPOL_STATUS_4WAY_START = 13,
-	AUTH_SAE_COMMIT_M1 = 14,
-	AUTH_SAE_COMMIT_M2 = 15,
-	AUTH_SAE_CONFIRM_M3 = 16,
-	AUTH_SAE_CONFIRM_M4 = 17,
-	EAPOL_STATUS_4WAY_M1 = 18,
-	EAPOL_STATUS_4WAY_M2 = 19,
-	EAPOL_STATUS_4WAY_M3 = 20,
-	EAPOL_STATUS_4WAY_M4 = 21,
-	EAPOL_STATUS_GROUPKEY_M1 = 22,
-	EAPOL_STATUS_GROUPKEY_M2 = 23,
-	EAPOL_STATUS_4WAY_DONE = 24
+enum conn_state {
+	CONN_STATE_IDLE = 0,
+	CONN_STATE_CONNECTING = 1,
+	CONN_STATE_AUTH_SAE_M1 = 2,
+	CONN_STATE_AUTH_SAE_M2 = 3,
+	CONN_STATE_AUTH_SAE_M3 = 4,
+	CONN_STATE_AUTH_SAE_M4 = 5,
+	CONN_STATE_REQID = 6,
+	CONN_STATE_RSPID = 7,
+	CONN_STATE_WSC_START = 8,
+	CONN_STATE_WPS_M1 = 9,
+	CONN_STATE_WPS_M2 = 10,
+	CONN_STATE_WPS_M3 = 11,
+	CONN_STATE_WPS_M4 = 12,
+	CONN_STATE_WPS_M5 = 13,
+	CONN_STATE_WPS_M6 = 14,
+	CONN_STATE_WPS_M7 = 15,
+	CONN_STATE_WPS_M8 = 16,
+	CONN_STATE_WSC_DONE = 17,
+	CONN_STATE_4WAY_M1 = 18,
+	CONN_STATE_4WAY_M2 = 19,
+	CONN_STATE_4WAY_M3 = 20,
+	CONN_STATE_4WAY_M4 = 21,
+	CONN_STATE_CONNECTED = 22,
+	CONN_STATE_GROUPKEY_M1 = 23,
+	CONN_STATE_GROUPKEY_M2 = 24,
 };
 
 typedef struct dhd_conf {
@@ -198,6 +217,7 @@ typedef struct dhd_conf {
 	int roam_delta[2];
 	int fullroamperiod;
 	uint keep_alive_period;
+	bool rekey_offload;
 #ifdef ARP_OFFLOAD_SUPPORT
 	bool garp;
 #endif
@@ -254,6 +274,10 @@ typedef struct dhd_conf {
 #ifdef BCMSDIO_INTSTATUS_WAR
 	uint read_intr_mode;
 #endif
+	int kso_try_max;
+#ifdef KSO_DEBUG
+	uint kso_try_array[10];
+#endif
 #endif
 #ifdef BCMPCIE
 	int bus_deepsleep_disable;
@@ -277,9 +301,9 @@ typedef struct dhd_conf {
 	int pktprio8021x;
 	uint insuspend;
 	bool suspended;
+	struct ether_addr bssid_insuspend;
 #ifdef SUSPEND_EVENT
 	char resume_eventmask[WL_EVENTING_MASK_LEN];
-	struct ether_addr bssid_insuspend;
 	bool wlfc;
 #endif
 #ifdef IDHCP
@@ -296,6 +320,7 @@ typedef struct dhd_conf {
 	char isam_enable[50];
 #endif
 	int ctrl_resched;
+	uint rxcnt_timeout;
 	mchan_params_t *mchan;
 	char *wl_preinit;
 	char *wl_suspend;
@@ -303,6 +328,7 @@ typedef struct dhd_conf {
 	int tsq;
 	int orphan_move;
 	uint in4way;
+	uint war;
 #ifdef WL_EXT_WOWL
 	uint wowl;
 #endif
@@ -314,14 +340,23 @@ typedef struct dhd_conf {
 	int proptx_maxcnt_2g;
 	int proptx_maxcnt_5g;
 #endif /* DYNAMIC_PROPTX_MAXCOUNT */
-#ifdef HOST_TPUT_TEST
-	int data_drop_mode;
-	uint tput_measure_ms;
-	struct osl_timespec tput_ts;
-	unsigned long net_len;
-#endif
 #ifdef TPUT_MONITOR
+	int data_drop_mode;
+	unsigned long net_len;
 	uint tput_monitor_ms;
+	struct osl_timespec tput_ts;
+	unsigned long last_tx;
+	unsigned long last_rx;
+	unsigned long last_net_tx;
+#ifdef BCMSDIO
+	int32 doflow_tput_thresh;
+#endif
+#endif
+#ifdef SCAN_SUPPRESS
+	uint scan_intput;
+	int scan_busy_thresh;
+	int scan_busy_tmo;
+	int32 scan_tput_thresh;
 #endif
 #ifdef DHD_TPUT_PATCH
 	bool tput_patch;
@@ -337,6 +372,7 @@ typedef struct dhd_conf {
 #ifdef CHECK_DOWNLOAD_FW
 	bool fwchk;
 #endif
+	char *vndr_ie_assocreq;
 } dhd_conf_t;
 
 #ifdef BCMSDIO
@@ -351,8 +387,8 @@ int dhd_conf_get_otp(dhd_pub_t *dhd, si_t *sih);
 bool dhd_conf_legacy_msi_chip(dhd_pub_t *dhd);
 #endif
 void dhd_conf_set_path_params(dhd_pub_t *dhd, char *fw_path, char *nv_path);
-int dhd_conf_set_intiovar(dhd_pub_t *dhd, uint cmd, char *name, int val,
-	int def, bool down);
+int dhd_conf_set_intiovar(dhd_pub_t *dhd, int ifidx, uint cmd, char *name,
+	int val, int def, bool down);
 int dhd_conf_get_band(dhd_pub_t *dhd);
 int dhd_conf_set_country(dhd_pub_t *dhd, wl_country_t *cspec);
 int dhd_conf_get_country(dhd_pub_t *dhd, wl_country_t *cspec);
@@ -384,8 +420,8 @@ void dhd_conf_set_garp(dhd_pub_t *dhd, int ifidx, uint32 ipa, bool enable);
 #ifdef PROP_TXSTATUS
 int dhd_conf_get_disable_proptx(dhd_pub_t *dhd);
 #endif
-#ifdef HOST_TPUT_TEST
-void dhd_conf_tput_measure(dhd_pub_t *dhd);
+#ifdef TPUT_MONITOR
+void dhd_conf_tput_monitor(dhd_pub_t *dhd);
 #endif
 uint dhd_conf_get_insuspend(dhd_pub_t *dhd, uint mask);
 int dhd_conf_set_suspend_resume(dhd_pub_t *dhd, int suspend);
@@ -396,6 +432,7 @@ int dhd_conf_attach(dhd_pub_t *dhd);
 void dhd_conf_detach(dhd_pub_t *dhd);
 void *dhd_get_pub(struct net_device *dev);
 int wl_pattern_atoh(char *src, char *dst);
+int dhd_conf_suspend_resume_sta(dhd_pub_t *dhd, int ifidx, int suspend);
 #ifdef BCMSDIO
 extern int dhd_bus_sleep(dhd_pub_t *dhdp, bool sleep, uint32 *intstatus);
 #endif

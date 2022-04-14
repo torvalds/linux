@@ -14,6 +14,13 @@ int wl_android_ext_priv_cmd(struct net_device *net, char *command, int total_len
 	int *bytes_written);
 void wl_ext_get_sec(struct net_device *dev, int ifmode, char *sec, int total_len, bool dump);
 bool wl_ext_check_scan(struct net_device *dev, dhd_pub_t *dhdp);
+int wl_ext_set_scan_time(struct net_device *dev, int scan_time,
+	uint32 scan_get, uint32 scan_set);
+void wl_ext_wait_event_complete(struct dhd_pub *dhd, int ifidx);
+int wl_ext_add_del_ie(struct net_device *dev, uint pktflag, char *ie_data, const char* add_del_cmd);
+#ifdef WL_ESCAN
+int wl_ext_drv_scan(struct net_device *dev, uint band, bool fast_scan);
+#endif
 #ifdef WL_EXT_GENL
 int wl_ext_genl_init(struct net_device *net);
 void wl_ext_genl_deinit(struct net_device *net);
@@ -43,24 +50,15 @@ int wl_ext_get_ioctl_ver(struct net_device *dev, int *ioctl_ver);
 #endif
 #if defined(WL_CFG80211) || defined(WL_ESCAN)
 void wl_ext_user_sync(struct dhd_pub *dhd, int ifidx, bool lock);
-bool wl_ext_event_complete(struct dhd_pub *dhd, int ifidx);
 #endif
 #if defined(WL_CFG80211)
 bool wl_legacy_chip_check(struct net_device *net);
 bool wl_new_chip_check(struct net_device *net);
 bool wl_extsae_chip(struct dhd_pub *dhd);
-void wl_ext_bss_iovar_war(struct net_device *dev, s32 *val);
 #endif
-#if defined(WL_EXT_IAPSTA) && defined(WL_CFG80211)
-int wl_ext_in4way_sync(struct net_device *dev, uint action,
-	enum wl_ext_status status, void *context);
-void wl_ext_update_extsae_4way(struct net_device *dev,
-	const struct ieee80211_mgmt *mgmt, bool tx);
-#endif /* WL_EXT_IAPSTA && WL_CFG80211 */
-#if defined(WL_EXT_IAPSTA) && defined(USE_IW)
-int wl_ext_in4way_sync_wext(struct net_device *dev, uint action,
-	enum wl_ext_status status, void *context);
-#endif /* WL_EXT_IAPSTA && USE_IW */
+#if defined(WL_EXT_IAPSTA) || defined(WL_CFG80211)
+void wl_ext_bss_iovar_war(struct net_device *dev, s32 *val);
+#endif /* WL_EXT_IAPSTA ||WL_CFG80211 */
 
 typedef struct wl_conn_info {
 	uint8 bssidx;
@@ -85,7 +83,6 @@ s32 wl_ext_connect(struct net_device *dev, wl_conn_info_t *conn_info);
 //#define RSSIAVG
 //#define RSSIOFFSET
 //#define RSSIOFFSET_NEW
-//#define SORT_BSS_BY_RSSI
 
 #define RSSI_MAXVAL -2
 #define RSSI_MINVAL -200
@@ -138,7 +135,11 @@ int wl_update_rssi_offset(struct net_device *net, int rssi);
 #endif
 
 #if defined(BSSCACHE)
-#define BSSCACHE_TIMEOUT	15
+#define BSSCACHE_TIMEOUT	30
+#define BSSCACHE_MAXCNT		20
+#define BSSCACHE_DIRTY		4
+#define SORT_BSS_CHANNEL
+//#define SORT_BSS_RSSI
 
 typedef struct wl_bss_cache {
 	struct wl_bss_cache *next;
@@ -154,6 +155,7 @@ typedef struct wl_bss_cache_ctrl {
 void wl_free_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl);
 void wl_delete_dirty_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl);
 void wl_delete_disconnected_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl, u8 *bssid);
+int wl_bss_cache_size(wl_bss_cache_ctrl_t *bss_cache_ctrl);
 void wl_reset_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl);
 void wl_update_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl,
 #if defined(RSSIAVG)

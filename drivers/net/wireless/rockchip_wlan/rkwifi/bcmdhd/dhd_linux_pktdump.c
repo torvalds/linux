@@ -674,76 +674,79 @@ dhd_dump_wsc_message(dhd_pub_t *dhd, int ifidx, uint8 *pktdata,
 			switch (*msg) {
 			case WSC_MSG_M1:
 #ifdef WL_EXT_IAPSTA
-				wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M1);
+				wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_WPS_M1);
 #endif
 				DHD_STATLOG_DATA(dhd, ST(WPS_M1), ifidx, tx, cond);
 				EAP_PRINT("EAP Packet, WPS M1");
 				break;
 			case WSC_MSG_M2:
 #ifdef WL_EXT_IAPSTA
-				wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M2);
+				wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_WPS_M2);
 #endif
 				DHD_STATLOG_DATA(dhd, ST(WPS_M2), ifidx, tx, cond);
 				EAP_PRINT("EAP Packet, WPS M2");
 				break;
 			case WSC_MSG_M3:
 #ifdef WL_EXT_IAPSTA
-				wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M3);
+				wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_WPS_M3);
 #endif
 				DHD_STATLOG_DATA(dhd, ST(WPS_M3), ifidx, tx, cond);
 				EAP_PRINT("EAP Packet, WPS M3");
 				break;
 			case WSC_MSG_M4:
 #ifdef WL_EXT_IAPSTA
-				wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M4);
+				wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_WPS_M4);
 #endif
 				DHD_STATLOG_DATA(dhd, ST(WPS_M4), ifidx, tx, cond);
 				EAP_PRINT("EAP Packet, WPS M4");
 				break;
 			case WSC_MSG_M5:
 #ifdef WL_EXT_IAPSTA
-				wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M5);
+				wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_WPS_M5);
 #endif
 				DHD_STATLOG_DATA(dhd, ST(WPS_M5), ifidx, tx, cond);
 				EAP_PRINT("EAP Packet, WPS M5");
 				break;
 			case WSC_MSG_M6:
 #ifdef WL_EXT_IAPSTA
-				wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M6);
+				wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_WPS_M6);
 #endif
 				DHD_STATLOG_DATA(dhd, ST(WPS_M6), ifidx, tx, cond);
 				EAP_PRINT("EAP Packet, WPS M6");
 				break;
 			case WSC_MSG_M7:
 #ifdef WL_EXT_IAPSTA
-				wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M7);
+				wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_WPS_M7);
 #endif
 				DHD_STATLOG_DATA(dhd, ST(WPS_M7), ifidx, tx, cond);
 				EAP_PRINT("EAP Packet, WPS M7");
 				break;
 			case WSC_MSG_M8:
 #ifdef WL_EXT_IAPSTA
-				wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M8);
+				wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_WPS_M8);
 #endif
 				DHD_STATLOG_DATA(dhd, ST(WPS_M8), ifidx, tx, cond);
 				EAP_PRINT("EAP Packet, WPS M8");
 				break;
 			default:
+				EAP_PRINT("EAP Packet, WPS MSG TYPE %d", *msg);
 				break;
 			}
 		}
 	} else if (eap_wsc->opcode == WSC_OPCODE_START) {
 #ifdef WL_EXT_IAPSTA
-		wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WSC_START);
+		wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_WSC_START);
 #endif
 		DHD_STATLOG_DATA(dhd, ST(WSC_START), ifidx, tx, cond);
 		EAP_PRINT("EAP Packet, WSC Start");
 	} else if (eap_wsc->opcode == WSC_OPCODE_DONE) {
 #ifdef WL_EXT_IAPSTA
-		wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WSC_DONE);
+		wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_WSC_DONE);
 #endif
 		DHD_STATLOG_DATA(dhd, ST(WSC_DONE), ifidx, tx, cond);
 		EAP_PRINT("EAP Packet, WSC Done");
+	} else {
+		EAP_PRINT("EAP Packet, WSC opcode=%d", eap_wsc->opcode);
 	}
 }
 
@@ -778,13 +781,13 @@ dhd_dump_eap_packet(dhd_pub_t *dhd, int ifidx, uint8 *pktdata,
 		case EAP_TYPE_IDENT:
 			if (isreq) {
 #ifdef WL_EXT_IAPSTA
-				wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_REQID);
+				wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_REQID);
 #endif
 				DHD_STATLOG_DATA(dhd, ST(EAP_REQ_IDENTITY), ifidx, tx, cond);
 				EAP_PRINT("EAP Packet, Request, Identity");
 			} else {
 #ifdef WL_EXT_IAPSTA
-				wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_RSPID);
+				wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_RSPID);
 #endif
 				DHD_STATLOG_DATA(dhd, ST(EAP_RESP_IDENTITY), ifidx, tx, cond);
 				EAP_PRINT("EAP Packet, Response, Identity");
@@ -867,6 +870,7 @@ dhd_dump_eap_packet(dhd_pub_t *dhd, int ifidx, uint8 *pktdata,
 				pkthash, pktfate);
 			break;
 		default:
+			EAP_PRINT("EAP Packet, EAP TYPE %d", eap_hdr->type);
 			break;
 		}
 	} else if (eap_hdr->code == EAP_CODE_SUCCESS) {
@@ -875,6 +879,8 @@ dhd_dump_eap_packet(dhd_pub_t *dhd, int ifidx, uint8 *pktdata,
 	} else if (eap_hdr->code == EAP_CODE_FAILURE) {
 		DHD_STATLOG_DATA(dhd, ST(EAP_FAILURE), ifidx, tx, cond);
 		EAP_PRINT("EAP Packet, Failure");
+	} else {
+		EAP_PRINT("EAP Packet, EAP CODE %d", eap_hdr->code);
 	}
 }
 
@@ -912,42 +918,42 @@ dhd_dump_eapol_4way_message(dhd_pub_t *dhd, int ifidx, uint8 *pktdata, bool tx,
 	switch (type) {
 	case EAPOL_4WAY_M1:
 #ifdef WL_EXT_IAPSTA
-		wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_4WAY_M1);
+		wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_4WAY_M1);
 #endif
 		DHD_STATLOG_DATA(dhd, ST(EAPOL_M1), ifidx, tx, cond);
 		EAP_PRINT("EAPOL Packet, 4-way handshake, M1");
 		break;
 	case EAPOL_4WAY_M2:
 #ifdef WL_EXT_IAPSTA
-		wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_4WAY_M2);
+		wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_4WAY_M2);
 #endif
 		DHD_STATLOG_DATA(dhd, ST(EAPOL_M2), ifidx, tx, cond);
 		EAP_PRINT("EAPOL Packet, 4-way handshake, M2");
 		break;
 	case EAPOL_4WAY_M3:
 #ifdef WL_EXT_IAPSTA
-		wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_4WAY_M3);
+		wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_4WAY_M3);
 #endif
 		DHD_STATLOG_DATA(dhd, ST(EAPOL_M3), ifidx, tx, cond);
 		EAP_PRINT("EAPOL Packet, 4-way handshake, M3");
 		break;
 	case EAPOL_4WAY_M4:
 #ifdef WL_EXT_IAPSTA
-		wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_4WAY_M4);
+		wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_4WAY_M4);
 #endif
 		DHD_STATLOG_DATA(dhd, ST(EAPOL_M4), ifidx, tx, cond);
 		EAP_PRINT("EAPOL Packet, 4-way handshake, M4");
 		break;
 	case EAPOL_GROUPKEY_M1:
 #ifdef WL_EXT_IAPSTA
-		wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_GROUPKEY_M1);
+		wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_GROUPKEY_M1);
 #endif
 		DHD_STATLOG_DATA(dhd, ST(EAPOL_GROUPKEY_M1), ifidx, tx, cond);
 		EAP_PRINT_REPLAY("EAPOL Packet, GROUP Key handshake, M1");
 		break;
 	case EAPOL_GROUPKEY_M2:
 #ifdef WL_EXT_IAPSTA
-		wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_GROUPKEY_M2);
+		wl_ext_update_conn_state(dhd, ifidx, CONN_STATE_GROUPKEY_M2);
 #endif
 		DHD_STATLOG_DATA(dhd, ST(EAPOL_GROUPKEY_M2), ifidx, tx, cond);
 		EAP_PRINT_REPLAY("EAPOL Packet, GROUP Key handshake, M2");

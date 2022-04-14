@@ -95,7 +95,12 @@ struct sdioh_info {
 	struct sdio_func	*func[SDIOD_MAX_IOFUNCS];
 	uint		sd_clk_rate;
 	uint	txglom_mode;		/* Txglom mode: 0 - copy, 1 - multi-descriptor */
+#ifdef PKT_STATICS
 	uint32	sdio_spent_time_us;
+#endif
+#if !defined(OOB_INTR_ONLY)
+	struct mutex claim_host_mutex; // terence 20140926: fix for claim host issue
+#endif
 };
 
 /************************************************************

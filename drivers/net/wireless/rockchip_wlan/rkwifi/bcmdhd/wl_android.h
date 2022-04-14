@@ -30,6 +30,9 @@
 #include <dngl_stats.h>
 #include <dhd.h>
 #ifdef WL_EXT_IAPSTA
+#ifdef WL_ESCAN
+#include <wl_escan.h>
+#endif /* WL_ESCAN */
 #include <wl_iapsta.h>
 #endif /* WL_IAPSTA */
 #if defined(WL_EXT_IAPSTA) || defined(USE_IW) || defined(WL_ESCAN) || \
@@ -78,6 +81,7 @@ typedef struct _compat_android_wifi_priv_cmd {
 #define ANDROID_INFO_LEVEL	(1 << 2)
 #define ANDROID_SCAN_LEVEL	(1 << 3)
 #define ANDROID_DBG_LEVEL	(1 << 4)
+#define ANDROID_TPUT_LEVEL	(1 << 8)
 #define ANDROID_MSG_LEVEL	(1 << 0)
 
 #define WL_MSG(name, arg1, args...) \
@@ -95,7 +99,7 @@ do {	\
 		static uint32 __err_cnt = 0; \
 		uint64 __cur_ts = 0; \
 		static uint8 static_tmp[size]; \
-		__cur_ts = local_clock(); \
+		__cur_ts = osl_localtime_ns(); \
 		if (__err_ts == 0 || (__cur_ts > __err_ts && \
 		(__cur_ts - __err_ts > WL_MSG_PRINT_RATE_LIMIT_PERIOD)) || \
 		memcmp(&static_tmp, cmp, size)) { \

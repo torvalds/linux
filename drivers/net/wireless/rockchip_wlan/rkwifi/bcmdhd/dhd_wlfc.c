@@ -4034,7 +4034,7 @@ dhd_wlfc_hostreorder_init(dhd_pub_t *dhd)
 	dhd->proptxstatus_mode = WLFC_ONLY_AMPDU_HOSTREORDER;
 	dhd_os_wlfc_unblock(dhd);
 	/* terence 20161229: enable ampdu_hostreorder if tlv enable hostreorder */
-	dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "ampdu_hostreorder", 1, 0, TRUE);
+	dhd_conf_set_intiovar(dhd, 0, WLC_SET_VAR, "ampdu_hostreorder", 1, 0, TRUE);
 
 	return BCME_OK;
 }

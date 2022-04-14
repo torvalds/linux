@@ -67,15 +67,6 @@ uint dump_msg_level = 0;
 #define MAXSZ_BUF		4096
 #define MAXSZ_CONFIG	8192
 
-#ifndef WL_CFG80211
-#define htod32(i) i
-#define htod16(i) i
-#define dtoh32(i) i
-#define dtoh16(i) i
-#define htodchanspec(i) i
-#define dtohchanspec(i) i
-#endif
-
 #if defined(BCMSDIO) && defined(DYNAMIC_MAX_HDR_READ)
 extern uint firstread;
 #endif
@@ -1094,31 +1085,53 @@ dhd_conf_set_conf_name_by_chip(dhd_pub_t *dhd, char *conf_path)
 }
 #endif
 
-#ifdef HOST_TPUT_TEST
+#ifdef TPUT_MONITOR
 void
-dhd_conf_tput_measure(dhd_pub_t *dhd)
+dhd_conf_tput_monitor(dhd_pub_t *dhd)
 {
 	struct dhd_conf *conf = dhd->conf;
 
-	if (conf->tput_measure_ms) {
+	if (conf->tput_monitor_ms && conf->data_drop_mode >= FW_DROP) {
 		if (conf->tput_ts.tv_sec == 0 && conf->tput_ts.tv_nsec == 0) {
 			osl_do_gettimeofday(&conf->tput_ts);
 		} else {
 			struct osl_timespec cur_ts;
+			int32 tput_tx = 0, tput_rx = 0, tput_tx_kb = 0,
+				tput_rx_kb = 0, tput_net = 0, tput_net_kb = 0;
 			uint32 diff_ms;
-			int32 tx_tput = 0, rx_tput = 0, net_tput = 0;
-			static unsigned long last_tx = 0, last_rx = 0, last_net_tx = 0;
+			unsigned long diff_bytes;
 			osl_do_gettimeofday(&cur_ts);
 			diff_ms = osl_do_gettimediff(&cur_ts, &conf->tput_ts)/1000;
-			if (diff_ms >= conf->tput_measure_ms) {
-				tx_tput = (int32)(((dhd->dstats.tx_bytes-last_tx)/1024/1024)*8)*1000/diff_ms;
-				rx_tput = (int32)(((dhd->dstats.rx_bytes-last_rx)/1024/1024)*8)*1000/diff_ms;
-				net_tput = (int32)(((conf->net_len-last_net_tx)/1024/1024)*8)*1000/diff_ms;
-				last_tx = dhd->dstats.tx_bytes;
-				last_rx = dhd->dstats.rx_bytes;
-				last_net_tx = conf->net_len;
+			if (diff_ms >= conf->tput_monitor_ms) {
+				diff_bytes = dhd->dstats.tx_bytes - conf->last_tx;
+				tput_tx = (int32)((diff_bytes/1024/1024)*8)*1000/diff_ms;
+				if (tput_tx == 0) {
+					tput_tx = (int32)(diff_bytes*8/1024/1024)*1000/diff_ms;
+					tput_tx_kb = (int32)(diff_bytes*8*1000/1024)/diff_ms;
+					tput_tx_kb = tput_tx_kb % 1000;
+				}
+				diff_bytes = dhd->dstats.rx_bytes - conf->last_rx;
+				tput_rx = (int32)((diff_bytes/1024/1024)*8)*1000/diff_ms;
+				if (tput_rx == 0) {
+					tput_rx = (int32)(diff_bytes*8/1024/1024)*1000/diff_ms;
+					tput_rx_kb = (int32)(diff_bytes*8*1000/1024)/diff_ms;
+					tput_rx_kb = tput_tx_kb % 1000;
+				}
+				diff_bytes = conf->net_len - conf->last_net_tx;
+				tput_net = (int32)((diff_bytes/1024/1024)*8)*1000/diff_ms;
+				if (tput_net == 0) {
+					tput_net = (int32)(diff_bytes*8/1024/1024)*1000/diff_ms;
+					tput_net_kb = (int32)(diff_bytes*8*1000/1024)/diff_ms;
+					tput_net_kb = tput_net_kb % 1000;
+				}
+				conf->last_tx = dhd->dstats.tx_bytes;
+				conf->last_rx = dhd->dstats.rx_bytes;
+				conf->last_net_tx = conf->net_len;
 				memcpy(&conf->tput_ts, &cur_ts, sizeof(struct osl_timespec));
-				CONFIG_TRACE("xmit=%dMbps, tx=%dMbps, rx=%dMbps\n", net_tput, tx_tput, rx_tput);
+				CONFIG_TRACE("xmit=%3d.%d%d%d Mbps, tx=%3d.%d%d%d Mbps, rx=%3d.%d%d%d Mbps\n",
+					tput_net, (tput_net_kb/100)%10, (tput_net_kb/10)%10, (tput_net_kb)%10,
+					tput_tx, (tput_tx_kb/100)%10, (tput_tx_kb/10)%10, (tput_tx_kb)%10,
+					tput_rx, (tput_rx_kb/100)%10, (tput_rx_kb/10)%10, (tput_rx_kb)%10);
 			}
 		}
 	}
@@ -1136,7 +1149,12 @@ dhd_conf_set_tput_patch(dhd_pub_t *dhd)
 		conf->pktsetsum = TRUE;
 #ifdef BCMSDIO
 		conf->dhd_dpc_prio = 98;
-		conf->disable_proptx = 1;
+/* need to check if CPU can support multi-core first,
+ * so don't enable it by default.
+ */
+//		conf->dpc_cpucore = 2;
+//		conf->rxf_cpucore = 3;
+//		conf->disable_proptx = 1;
 		conf->frameburst = 1;
 #ifdef DYNAMIC_MAX_HDR_READ
 		conf->max_hdr_read = 256;
@@ -1271,7 +1289,7 @@ dhd_conf_set_path_params(dhd_pub_t *dhd, char *fw_path, char *nv_path)
 }
 
 int
-dhd_conf_set_intiovar(dhd_pub_t *dhd, uint cmd, char *name, int val,
+dhd_conf_set_intiovar(dhd_pub_t *dhd, int ifidx, uint cmd, char *name, int val,
 	int def, bool down)
 {
 	int ret = -1;
@@ -1297,7 +1315,7 @@ dhd_conf_set_intiovar(dhd_pub_t *dhd, uint cmd, char *name, int val,
 	return ret;
 }
 
-int
+static int
 dhd_conf_set_bufiovar(dhd_pub_t *dhd, int ifidx, uint cmd, char *name,
 	char *buf, int len, bool down)
 {
@@ -1367,7 +1385,7 @@ exit:
 	return ret;
 }
 
-int
+static int
 dhd_conf_get_iovar(dhd_pub_t *dhd, int ifidx, int cmd, char *name,
 	char *buf, int len)
 {
@@ -1459,7 +1477,7 @@ dhd_conf_btc_params(dhd_pub_t *dhd, char *cmd, char *buf)
 	cur_val |= value;
 
 	// need to WLC_UP before btc_params
-	dhd_conf_set_intiovar(dhd, WLC_UP, "WLC_UP", 0, 0, FALSE);
+	dhd_conf_set_intiovar(dhd, 0, WLC_UP, "WLC_UP", 0, 0, FALSE);
 
 	CONFIG_TRACE("wl %s%d 0x%04x\n", cmd, index, cur_val);
 	ret = dhd_conf_reg2args(dhd, cmd, TRUE, index, &cur_val);
@@ -1637,7 +1655,7 @@ static int iovar_tpl_parse(const iovar_tpl_t *tpl, int tpl_count,
 	return ret;
 }
 
-bool
+static bool
 dhd_conf_set_wl_cmd(dhd_pub_t *dhd, char *data, bool down)
 {
 	int cmd, val, ret = 0, len;
@@ -1662,6 +1680,7 @@ dhd_conf_set_wl_cmd(dhd_pub_t *dhd, char *data, bool down)
 
 	pick_tmp = pdata;
 	while (pick_tmp && (pick_tmp2 = bcmstrtok(&pick_tmp, ",", 0)) != NULL) {
+		char *pEnd;
 		pch = bcmstrtok(&pick_tmp2, "=", 0);
 		if (!pch)
 			break;
@@ -1669,8 +1688,8 @@ dhd_conf_set_wl_cmd(dhd_pub_t *dhd, char *data, bool down)
 			pch++;
 		}
 		memset(name, 0 , sizeof (name));
-		cmd = (int)simple_strtol(pch, NULL, 0);
-		if (cmd == 0) {
+		cmd = bcm_strtoul(pch, &pEnd, 0);
+		if (cmd == 0 || strlen(pEnd)) {
 			cmd = WLC_SET_VAR;
 			strcpy(name, pch);
 		}
@@ -1682,7 +1701,7 @@ dhd_conf_set_wl_cmd(dhd_pub_t *dhd, char *data, bool down)
 			dhd, cmd, name, pch);
 		if (ret) {
 			val = (int)simple_strtol(pch, NULL, 0);
-			dhd_conf_set_intiovar(dhd, cmd, name, val, -1, down);
+			dhd_conf_set_intiovar(dhd, 0, cmd, name, val, -1, down);
 		}
 	}
 
@@ -1848,13 +1867,13 @@ dhd_conf_set_roam(dhd_pub_t *dhd)
 			(char *)&wnm_bsstrans_resp, sizeof(wnm_bsstrans_resp));
 		if (wnm_bsstrans_resp == WL_BSSTRANS_POLICY_PRODUCT) {
 			dhd->wbtext_policy = WL_BSSTRANS_POLICY_ROAM_ALWAYS;
-			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "wnm_bsstrans_resp",
+			dhd_conf_set_intiovar(dhd, 0, WLC_SET_VAR, "wnm_bsstrans_resp",
 				WL_BSSTRANS_POLICY_ROAM_ALWAYS, 0, FALSE);
 		}
 	}
 
 	dhd_roam_disable = conf->roam_off;
-	dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "roam_off", dhd->conf->roam_off, 0, FALSE);
+	dhd_conf_set_intiovar(dhd, 0, WLC_SET_VAR, "roam_off", dhd->conf->roam_off, 0, FALSE);
 
 	if (!conf->roam_off || !conf->roam_off_suspend) {
 		CONFIG_MSG("set roam_trigger %d\n", conf->roam_trigger[0]);
@@ -1869,7 +1888,7 @@ dhd_conf_set_roam(dhd_pub_t *dhd)
 		dhd_conf_set_bufiovar(dhd, 0, WLC_SET_ROAM_DELTA, "WLC_SET_ROAM_DELTA",
 			(char *)conf->roam_delta, sizeof(conf->roam_delta), FALSE);
 
-		dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "fullroamperiod",
+		dhd_conf_set_intiovar(dhd, 0, WLC_SET_VAR, "fullroamperiod",
 			dhd->conf->fullroamperiod, 1, FALSE);
 	}
 
@@ -1929,7 +1948,7 @@ exit:
 	return ret;
 }
 
-int
+static int
 dhd_conf_enable_roam_offload(dhd_pub_t *dhd, int enable)
 {
 	int err;
@@ -1938,7 +1957,7 @@ dhd_conf_enable_roam_offload(dhd_pub_t *dhd, int enable)
 	if (dhd->conf->roam_off_suspend)
 		return 0;
 
-	err = dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "roam_offload", enable, 0, FALSE);
+	err = dhd_conf_set_intiovar(dhd, 0, WLC_SET_VAR, "roam_offload", enable, 0, FALSE);
 	if (err)
 		return err;
 
@@ -2133,7 +2152,7 @@ dhd_conf_set_mchan_bw(dhd_pub_t *dhd, int p2p_mode, int miracast_mode)
 		set &= ((mchan->p2p_mode == -1) | (mchan->p2p_mode == p2p_mode));
 		set &= ((mchan->miracast_mode == -1) | (mchan->miracast_mode == miracast_mode));
 		if (set) {
-			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "mchan_bw", mchan->bw, 0, FALSE);
+			dhd_conf_set_intiovar(dhd, 0, WLC_SET_VAR, "mchan_bw", mchan->bw, 0, FALSE);
 		}
 		mchan = mchan->next;
 	}
@@ -2149,12 +2168,24 @@ dhd_conf_add_pkt_filter(dhd_pub_t *dhd)
 	char str[16];
 #define MACS "%02x%02x%02x%02x%02x%02x"
 
-	/*
-	 * Filter in less pkt: ARP(0x0806, ID is 105), BRCM(0x886C), 802.1X(0x888E)
+	/*  0) suspend_mode=1
+	 * Case 0: default is unicast pkt and event wake up
+	 * Case 1: no connection in suspend
+	 *   1) wl_suspend=3=0
+	 *   2) wl_resume=2=0
+	 *   3) insuspend=0x7
+	 * Case 2: keep connection in suspend, but no pkt and event wake up
 	 *   1) dhd_master_mode=1
 	 *   2) pkt_filter_delete=100, 102, 103, 104, 105, 106, 107
-	 *   3) pkt_filter_add=131 0 0 12 0xFFFF 0x886C, 132 0 0 12 0xFFFF 0x888E
+	 *   3) pkt_filter_add=141 0 0 0 0xFFFFFFFFFFFF 0x000000000000
+	 *   4) insuspend=0x7
+	 *   5) rekey_offload=1
+	 * Case 3: magic pkt and event wake up
+	 *   1) dhd_master_mode=1
+	 *   2) pkt_filter_delete=100, 102, 103, 104, 105, 106, 107
+	 *   3) pkt_filter_add=141 0 0 0 0xFFFFFFFFFFFF 0x000000000000
 	 *   4) magic_pkt_filter_add=141 0 1 12
+	 *   5) rekey_offload=1
 	 */
 	for(i=0; i<dhd->conf->pkt_filter_add.count; i++) {
 		dhd->pktfilter[i+dhd->pktfilter_count] = dhd->conf->pkt_filter_add.filter[i];
@@ -2322,7 +2353,7 @@ typedef struct wl_wowl_pattern2 {
 	wl_wowl_pattern_t wowl_pattern;
 } wl_wowl_pattern2_t;
 static int
-dhd_conf_wowl_pattern(dhd_pub_t *dhd, bool add, char *data)
+dhd_conf_wowl_pattern(dhd_pub_t *dhd, int ifidx, bool add, char *data)
 {
 	uint buf_len = 0;
 	int	id, type, polarity, offset;
@@ -2339,7 +2370,7 @@ dhd_conf_wowl_pattern(dhd_pub_t *dhd, bool add, char *data)
 			strcpy(cmd, "clr");
 		if (!strcmp(cmd, "clr")) {
 			CONFIG_TRACE("wowl_pattern clr\n");
-			ret = dhd_conf_set_bufiovar(dhd, 0, WLC_SET_VAR, "wowl_pattern", cmd,
+			ret = dhd_conf_set_bufiovar(dhd, ifidx, WLC_SET_VAR, "wowl_pattern", cmd,
 				sizeof(cmd), FALSE);
 			goto exit;
 		}
@@ -2436,7 +2467,7 @@ dhd_conf_wowl_pattern(dhd_pub_t *dhd, bool add, char *data)
 
 		CONFIG_TRACE("%s %d %s %s\n", cmd, offset, mask, pattern);
 
-		ret = dhd_conf_set_bufiovar(dhd, 0, WLC_SET_VAR, "wowl_pattern",
+		ret = dhd_conf_set_bufiovar(dhd, ifidx, WLC_SET_VAR, "wowl_pattern",
 			(char *)wowl_pattern2, buf_len, FALSE);
 	}
 
@@ -2447,7 +2478,7 @@ exit:
 }
 
 static int
-dhd_conf_wowl_wakeind(dhd_pub_t *dhd, bool clear)
+dhd_conf_wowl_wakeind(dhd_pub_t *dhd, int ifidx, bool clear)
 {
 	s8 iovar_buf[WLC_IOCTL_SMLEN];
 	wl_wowl_wakeind_t *wake = NULL;
@@ -2456,10 +2487,10 @@ dhd_conf_wowl_wakeind(dhd_pub_t *dhd, bool clear)
 
 	if (clear) {
 		CONFIG_TRACE("wowl_wakeind clear\n");
-		ret = dhd_conf_set_bufiovar(dhd, 0, WLC_SET_VAR, "wowl_wakeind",
+		ret = dhd_conf_set_bufiovar(dhd, ifidx, WLC_SET_VAR, "wowl_wakeind",
 			clr, sizeof(clr), 0);
 	} else {
-		ret = dhd_conf_get_iovar(dhd, 0, WLC_GET_VAR, "wowl_wakeind",
+		ret = dhd_conf_get_iovar(dhd, ifidx, WLC_GET_VAR, "wowl_wakeind",
 			iovar_buf, sizeof(iovar_buf));
 		if (!ret) {
 			wake = (wl_wowl_wakeind_t *) iovar_buf;
@@ -2610,18 +2641,70 @@ dhd_conf_get_insuspend(dhd_pub_t *dhd, uint mask)
 	return (insuspend & mask);
 }
 
-#ifdef SUSPEND_EVENT
-void
-dhd_conf_set_suspend_event(dhd_pub_t *dhd, int suspend)
+static void
+dhd_conf_check_connection(dhd_pub_t *dhd, int ifidx, int suspend)
 {
 	struct dhd_conf *conf = dhd->conf;
 	struct ether_addr bssid;
-	char suspend_eventmask[WL_EVENTING_MASK_LEN];
 	wl_event_msg_t msg;
 	int pm;
 #ifdef WL_CFG80211
 	struct net_device *net;
+	unsigned long flags = 0;
 #endif /* defined(WL_CFG80211) */
+
+	if (suspend) {
+		memset(&bssid, 0, ETHER_ADDR_LEN);
+		dhd_wl_ioctl_cmd(dhd, WLC_GET_BSSID, &bssid, ETHER_ADDR_LEN, FALSE, ifidx);
+		if (memcmp(&ether_null, &bssid, ETHER_ADDR_LEN))
+			memcpy(&conf->bssid_insuspend, &bssid, ETHER_ADDR_LEN);
+		else
+			memset(&conf->bssid_insuspend, 0, ETHER_ADDR_LEN);
+	}
+	else {
+		if (memcmp(&ether_null, &conf->bssid_insuspend, ETHER_ADDR_LEN)) {
+			memset(&bssid, 0, ETHER_ADDR_LEN);
+			dhd_wl_ioctl_cmd(dhd, WLC_GET_BSSID, &bssid, ETHER_ADDR_LEN, FALSE, ifidx);
+			if (memcmp(&ether_null, &bssid, ETHER_ADDR_LEN)) {
+				dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_PM, "WLC_SET_PM", 0, 0, FALSE);
+				dhd_conf_set_bufiovar(dhd, ifidx, WLC_SET_VAR, "send_nulldata",
+					(char *)&bssid, ETHER_ADDR_LEN, FALSE);
+				OSL_SLEEP(100);
+				if (conf->pm >= 0)
+					pm = conf->pm;
+				else
+					pm = PM_FAST;
+				dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_PM, "WLC_SET_PM", pm, 0, FALSE);
+			} else {
+				CONFIG_TRACE("send WLC_E_DEAUTH_IND event\n");
+				bzero(&msg, sizeof(wl_event_msg_t));
+				msg.ifidx = ifidx;
+				memcpy(&msg.addr, &conf->bssid_insuspend, ETHER_ADDR_LEN);
+				msg.event_type = hton32(WLC_E_DEAUTH_IND);
+				msg.status = 0;
+				msg.reason = hton32(DOT11_RC_DEAUTH_LEAVING);
+#ifdef WL_EVENT
+				wl_ext_event_send(dhd->event_params, &msg, NULL);
+#endif
+#ifdef WL_CFG80211
+				spin_lock_irqsave(&dhd->up_lock, flags);
+				net = dhd_idx2net(dhd, ifidx);
+				if (net && dhd->up) {
+					wl_cfg80211_event(net, &msg, NULL);
+				}
+				spin_unlock_irqrestore(&dhd->up_lock, flags);
+#endif /* defined(WL_CFG80211) */
+			}
+		}
+	}
+}
+
+#ifdef SUSPEND_EVENT
+static void
+dhd_conf_set_suspend_event(dhd_pub_t *dhd, int suspend)
+{
+	struct dhd_conf *conf = dhd->conf;
+	char suspend_eventmask[WL_EVENTING_MASK_LEN];
 
 	CONFIG_TRACE("Enter\n");
 	if (suspend) {
@@ -2641,96 +2724,151 @@ dhd_conf_set_suspend_event(dhd_pub_t *dhd, int suspend)
 		setbit(suspend_eventmask, WLC_E_ESCAN_RESULT);
 		dhd_conf_set_bufiovar(dhd, 0, WLC_SET_VAR, "event_msgs",
 			suspend_eventmask, sizeof(suspend_eventmask), FALSE);
-		if (dhd->op_mode & DHD_FLAG_STA_MODE) {
-			memset(&bssid, 0, ETHER_ADDR_LEN);
-			dhd_wl_ioctl_cmd(dhd, WLC_GET_BSSID, &bssid, ETHER_ADDR_LEN, FALSE, 0);
-			if (memcmp(&ether_null, &bssid, ETHER_ADDR_LEN))
-				memcpy(&conf->bssid_insuspend, &bssid, ETHER_ADDR_LEN);
-			else
-				memset(&conf->bssid_insuspend, 0, ETHER_ADDR_LEN);
-		}
 	}
 	else {
 		dhd_conf_set_bufiovar(dhd, 0, WLC_SET_VAR, "event_msgs",
 			conf->resume_eventmask, sizeof(conf->resume_eventmask), FALSE);
-		if (dhd->op_mode & DHD_FLAG_STA_MODE) {
-			if (memcmp(&ether_null, &conf->bssid_insuspend, ETHER_ADDR_LEN)) {
-				memset(&bssid, 0, ETHER_ADDR_LEN);
-				dhd_wl_ioctl_cmd(dhd, WLC_GET_BSSID, &bssid, ETHER_ADDR_LEN,
-					FALSE, 0);
-				if (memcmp(&ether_null, &bssid, ETHER_ADDR_LEN)) {
-					dhd_conf_set_intiovar(dhd, WLC_SET_PM, "WLC_SET_PM", 0, 0, FALSE);
-					dhd_conf_set_bufiovar(dhd, 0, WLC_SET_VAR, "send_nulldata",
-						(char *)&bssid, ETHER_ADDR_LEN, FALSE);
-					OSL_SLEEP(100);
-					if (conf->pm >= 0)
-						pm = conf->pm;
-					else
-						pm = PM_FAST;
-					dhd_conf_set_intiovar(dhd, WLC_SET_PM, "WLC_SET_PM", pm, 0, FALSE);
-				} else {
-					CONFIG_TRACE("send WLC_E_DEAUTH_IND event\n");
-					bzero(&msg, sizeof(wl_event_msg_t));
-					memcpy(&msg.addr, &conf->bssid_insuspend, ETHER_ADDR_LEN);
-					msg.event_type = hton32(WLC_E_DEAUTH_IND);
-					msg.status = 0;
-					msg.reason = hton32(DOT11_RC_DEAUTH_LEAVING);
-#ifdef WL_EVENT
-					wl_ext_event_send(dhd->event_params, &msg, NULL);
-#endif
-#ifdef WL_CFG80211
-					net = dhd_idx2net(dhd, 0);
-					if (net && dhd->up) {
-						unsigned long flags = 0;
-						spin_lock_irqsave(&dhd->up_lock, flags);
-						wl_cfg80211_event(net, &msg, NULL);
-						spin_unlock_irqrestore(&dhd->up_lock, flags);
-					}
-#endif /* defined(WL_CFG80211) */
-				}
-			}
 #ifdef PROP_TXSTATUS
 #if defined(BCMSDIO) || defined(BCMDBUS)
-			if (conf->wlfc) {
-				dhd_wlfc_init(dhd);
-				dhd_conf_set_intiovar(dhd, WLC_UP, "WLC_UP", 0, 0, FALSE);
-			}
+		if (conf->wlfc) {
+			dhd_wlfc_init(dhd);
+			dhd_conf_set_intiovar(dhd, 0, WLC_UP, "WLC_UP", 0, 0, FALSE);
+		}
 #endif
 #endif /* PROP_TXSTATUS */
+	}
+
+}
+#endif
+
+int
+dhd_conf_suspend_resume_sta(dhd_pub_t *dhd, int ifidx, int suspend)
+{
+	struct dhd_conf *conf = dhd->conf;
+	uint insuspend = 0;
+	int pm;
+#ifdef WL_EXT_WOWL
+	int i;
+#endif
+
+	insuspend = dhd_conf_get_insuspend(dhd, ALL_IN_SUSPEND);
+	if (insuspend)
+		WL_MSG(dhd_ifname(dhd, ifidx), "suspend %d\n", suspend);
+
+	if (suspend) {
+		dhd_conf_check_connection(dhd, ifidx, suspend);
+		dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_VAR, "roam_off",
+			conf->roam_off_suspend, 0, FALSE);
+		dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_VAR, "bcn_li_dtim",
+			conf->suspend_bcn_li_dtim, 0, FALSE);
+		if (conf->pm_in_suspend >= 0)
+			pm = conf->pm_in_suspend;
+		else if (conf->pm >= 0)
+			pm = conf->pm;
+		else
+			pm = PM_FAST;
+		dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_PM, "WLC_SET_PM", pm, 0, FALSE);
+#ifdef WL_EXT_WOWL
+		if ((insuspend & WOWL_IN_SUSPEND) && dhd_master_mode) {
+			dhd_conf_wowl_pattern(dhd, ifidx, FALSE, "clr");
+			for(i=0; i<conf->pkt_filter_add.count; i++) {
+				dhd_conf_wowl_pattern(dhd, ifidx, TRUE, conf->pkt_filter_add.filter[i]);
+			}
+			dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_VAR, "wowl", conf->wowl, 0, FALSE);
+			dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_VAR, "wowl_activate", 1, 0, FALSE);
+			dhd_conf_wowl_wakeind(dhd, ifidx, TRUE);
+		}
+#endif
+	}
+	else {
+		dhd_conf_get_iovar(dhd, 0, WLC_GET_PM, "WLC_GET_PM", (char *)&pm, sizeof(pm));
+		CONFIG_TRACE("PM in suspend = %d\n", pm);
+		if (conf->pm >= 0)
+			pm = conf->pm;
+		else
+			pm = PM_FAST;
+		dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_PM, "WLC_SET_PM", pm, 0, FALSE);
+#ifdef WL_EXT_WOWL
+		if (insuspend & WOWL_IN_SUSPEND) {
+			dhd_conf_wowl_wakeind(dhd, ifidx, FALSE);
+			dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_VAR, "wowl_activate", 0, 0, FALSE);
+			dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_VAR, "wowl", 0, 0, FALSE);
+			dhd_conf_wowl_pattern(dhd, ifidx, FALSE, "clr");
+		}
+#endif
+		dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_VAR, "bcn_li_dtim", 0, 0, FALSE);
+		dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_VAR, "roam_off",
+			conf->roam_off, 0, FALSE);
+		dhd_conf_check_connection(dhd, ifidx, suspend);
+	}
+
+	return 0;
+}
+
+#ifndef WL_EXT_IAPSTA
+static int
+dhd_conf_suspend_resume_ap(dhd_pub_t *dhd, int ifidx, int suspend)
+{
+	struct dhd_conf *conf = dhd->conf;
+	uint insuspend = 0;
+
+	insuspend = dhd_conf_get_insuspend(dhd, ALL_IN_SUSPEND);
+	if (insuspend)
+		WL_MSG(dhd_ifname(dhd, ifidx), "suspend %d\n", suspend);
+
+	if (suspend) {
+		if (insuspend & AP_DOWN_IN_SUSPEND) {
+			dhd_conf_set_intiovar(dhd, ifidx, WLC_DOWN, "WLC_DOWN", 1, 0, FALSE);
+		}
+	} else {
+		if (insuspend & AP_DOWN_IN_SUSPEND) {
+			dhd_conf_set_intiovar(dhd, ifidx, WLC_UP, "WLC_UP", 0, 0, FALSE);
 		}
 	}
 
+	return 0;
 }
-#endif
+#endif /* !WL_EXT_IAPSTA */
 
-#if defined(WL_CFG80211) || defined(WL_ESCAN)
-static void
-dhd_conf_wait_event_complete(struct dhd_pub *dhd, int ifidx)
+static int
+dhd_conf_suspend_resume_bus(dhd_pub_t *dhd, int suspend)
 {
-	s32 timeout = -1;
+	uint insuspend = 0;
 
-	timeout = wait_event_interruptible_timeout(dhd->conf->event_complete,
-		wl_ext_event_complete(dhd, ifidx), msecs_to_jiffies(10000));
-	if (timeout <= 0 || !wl_ext_event_complete(dhd, ifidx)) {
-		wl_ext_event_complete(dhd, ifidx);
-		CONFIG_ERROR("timeout\n");
-	}
-}
+	insuspend = dhd_conf_get_insuspend(dhd, ALL_IN_SUSPEND);
+	if (insuspend)
+		CONFIG_MSG("suspend %d\n", suspend);
+
+	if (suspend) {
+		if (insuspend & (WOWL_IN_SUSPEND | NO_TXCTL_IN_SUSPEND)) {
+#ifdef BCMSDIO
+			uint32 intstatus = 0;
+			int ret = 0;
 #endif
+			int hostsleep = 2;
+#ifdef WL_EXT_WOWL
+			hostsleep = 1;
+#endif
+			dhd_conf_set_intiovar(dhd, 0, WLC_SET_VAR, "hostsleep", hostsleep, 0, FALSE);
+#ifdef BCMSDIO
+			ret = dhd_bus_sleep(dhd, TRUE, &intstatus);
+			CONFIG_TRACE("ret = %d, intstatus = 0x%x\n", ret, intstatus);
+#endif
+		}
+	} else {
+		if (insuspend & (WOWL_IN_SUSPEND | NO_TXCTL_IN_SUSPEND)) {
+			dhd_conf_set_intiovar(dhd, 0, WLC_SET_VAR, "hostsleep", 0, 0, FALSE);
+		}
+	}
+
+	return 0;
+}
 
 int
 dhd_conf_set_suspend_resume(dhd_pub_t *dhd, int suspend)
 {
 	struct dhd_conf *conf = dhd->conf;
 	uint insuspend = 0;
-	int pm;
-#ifdef BCMSDIO
-	uint32 intstatus = 0;
-	int ret = 0;
-#endif
-#ifdef WL_EXT_WOWL
-	int i;
-#endif
 
 	insuspend = dhd_conf_get_insuspend(dhd, ALL_IN_SUSPEND);
 	if (insuspend)
@@ -2742,24 +2880,14 @@ dhd_conf_set_suspend_resume(dhd_pub_t *dhd, int suspend)
 	}
 
 	if (suspend) {
-		if (dhd->op_mode & DHD_FLAG_STA_MODE) {
-			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "roam_off",
-				dhd->conf->roam_off_suspend, 0, FALSE);
-			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "bcn_li_dtim",
-				dhd->conf->suspend_bcn_li_dtim, 0, FALSE);
-			if (insuspend & ROAM_OFFLOAD_IN_SUSPEND)
-				dhd_conf_enable_roam_offload(dhd, 2);
-		} else if (dhd->op_mode & DHD_FLAG_HOSTAP_MODE) {
-			if (insuspend & AP_DOWN_IN_SUSPEND) {
-				dhd_conf_set_intiovar(dhd, WLC_DOWN, "WLC_DOWN", 1, 0, FALSE);
-			}
-		}
-#if defined(WL_CFG80211) || defined(WL_ESCAN)
 		if (insuspend & (NO_EVENT_IN_SUSPEND|NO_TXCTL_IN_SUSPEND|WOWL_IN_SUSPEND)) {
 			if (conf->suspend_mode == PM_NOTIFIER)
-				dhd_conf_wait_event_complete(dhd, 0);
+#ifdef WL_EXT_IAPSTA
+				wl_iapsta_wait_event_complete(dhd);
+#else
+				wl_ext_wait_event_complete(dhd, 0);
+#endif /* WL_EXT_IAPSTA */
 		}
-#endif
 		if (insuspend & NO_TXDATA_IN_SUSPEND) {
 			dhd_txflowcontrol(dhd, ALL_INTERFACES, ON);
 		}
@@ -2769,65 +2897,45 @@ dhd_conf_set_suspend_resume(dhd_pub_t *dhd, int suspend)
 				wl_ext_user_sync(dhd, 0, TRUE);
 		}
 #endif
+		if (insuspend & ROAM_OFFLOAD_IN_SUSPEND)
+			dhd_conf_enable_roam_offload(dhd, 2);
 #ifdef SUSPEND_EVENT
 		if (insuspend & NO_EVENT_IN_SUSPEND) {
 			dhd_conf_set_suspend_event(dhd, suspend);
 		}
 #endif
+#ifdef WL_EXT_IAPSTA
+		wl_iapsta_suspend_resume(dhd, suspend);
+#else
 		if (dhd->op_mode & DHD_FLAG_STA_MODE) {
-			if (conf->pm_in_suspend >= 0)
-				pm = conf->pm_in_suspend;
-			else if (conf->pm >= 0)
-				pm = conf->pm;
-			else
-				pm = PM_FAST;
-			dhd_conf_set_intiovar(dhd, WLC_SET_PM, "WLC_SET_PM", pm, 0, FALSE);
+			dhd_conf_suspend_resume_sta(dhd, 0, suspend);
+		} else if (dhd->op_mode & DHD_FLAG_HOSTAP_MODE) {
+			dhd_conf_suspend_resume_ap(dhd, 0, suspend);
 		}
+#endif /* WL_EXT_IAPSTA */
 		dhd_conf_set_wl_cmd(dhd, conf->wl_suspend, FALSE);
-#ifdef WL_EXT_WOWL
-		if ((insuspend & WOWL_IN_SUSPEND) && dhd_master_mode) {
-			dhd_conf_wowl_pattern(dhd, FALSE, "clr");
-			for(i=0; i<conf->pkt_filter_add.count; i++) {
-				dhd_conf_wowl_pattern(dhd, TRUE, conf->pkt_filter_add.filter[i]);
-			}
-			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "wowl", conf->wowl, 0, FALSE);
-			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "wowl_activate", 1, 0, FALSE);
-			dhd_conf_wowl_wakeind(dhd, TRUE);
-			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "hostsleep", 1, 0, FALSE);
-#ifdef BCMSDIO
-			ret = dhd_bus_sleep(dhd, TRUE, &intstatus);
-			CONFIG_TRACE("ret = %d, intstatus = 0x%x\n", ret, intstatus);
-#endif
-		} else
-#endif
-		if (insuspend & NO_TXCTL_IN_SUSPEND) {
-			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "hostsleep", 2, 0, FALSE);
-#ifdef BCMSDIO
-			ret = dhd_bus_sleep(dhd, TRUE, &intstatus);
-			CONFIG_TRACE("ret = %d, intstatus = 0x%x\n", ret, intstatus);
-#endif
-		}
+		dhd_conf_suspend_resume_bus(dhd, suspend);
 		conf->suspended = TRUE;
-	} else {
-		if (insuspend & (WOWL_IN_SUSPEND | NO_TXCTL_IN_SUSPEND)) {
-			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "hostsleep", 0, 0, FALSE);
-		}
-#ifdef WL_EXT_WOWL
-		if (insuspend & WOWL_IN_SUSPEND) {
-			dhd_conf_wowl_wakeind(dhd, FALSE);
-			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "wowl_activate", 0, 0, FALSE);
-			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "wowl", 0, 0, FALSE);
-			dhd_conf_wowl_pattern(dhd, FALSE, "clr");
-		}
-#endif
-		dhd_conf_set_wl_cmd(dhd, conf->wl_resume, FALSE);
-		dhd_conf_get_iovar(dhd, 0, WLC_GET_PM, "WLC_GET_PM", (char *)&pm, sizeof(pm));
-		CONFIG_TRACE("PM in suspend = %d\n", pm);
+	}
+	else {
+		dhd_conf_suspend_resume_bus(dhd, suspend);
 #ifdef SUSPEND_EVENT
 		if (insuspend & NO_EVENT_IN_SUSPEND) {
 			dhd_conf_set_suspend_event(dhd, suspend);
 		}
 #endif
+		if (insuspend & ROAM_OFFLOAD_IN_SUSPEND)
+			dhd_conf_enable_roam_offload(dhd, 0);
+		dhd_conf_set_wl_cmd(dhd, conf->wl_resume, FALSE);
+#ifdef WL_EXT_IAPSTA
+		wl_iapsta_suspend_resume(dhd, suspend);
+#else
+		if (dhd->op_mode & DHD_FLAG_STA_MODE) {
+			dhd_conf_suspend_resume_sta(dhd, 0, suspend);
+		} else if (dhd->op_mode & DHD_FLAG_HOSTAP_MODE) {
+			dhd_conf_suspend_resume_ap(dhd, 0, suspend);
+		}
+#endif /* WL_EXT_IAPSTA */
 #if defined(WL_CFG80211) || defined(WL_ESCAN)
 		if (insuspend & (NO_EVENT_IN_SUSPEND|NO_TXCTL_IN_SUSPEND|WOWL_IN_SUSPEND)) {
 			if (conf->suspend_mode == PM_NOTIFIER)
@@ -2836,24 +2944,6 @@ dhd_conf_set_suspend_resume(dhd_pub_t *dhd, int suspend)
 #endif
 		if (insuspend & NO_TXDATA_IN_SUSPEND) {
 			dhd_txflowcontrol(dhd, ALL_INTERFACES, OFF);
-		}
-		if (dhd->op_mode & DHD_FLAG_STA_MODE) {
-			if (insuspend & ROAM_OFFLOAD_IN_SUSPEND)
-				dhd_conf_enable_roam_offload(dhd, 0);
-			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "bcn_li_dtim", 0, 0, FALSE);
-			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "roam_off",
-				dhd->conf->roam_off, 0, FALSE);
-		} else if (dhd->op_mode & DHD_FLAG_HOSTAP_MODE) {
-			if (insuspend & AP_DOWN_IN_SUSPEND) {
-				dhd_conf_set_intiovar(dhd, WLC_UP, "WLC_UP", 0, 0, FALSE);
-			}
-		}
-		if (dhd->op_mode & DHD_FLAG_STA_MODE) {
-			if (conf->pm >= 0)
-				pm = conf->pm;
-			else
-				pm = PM_FAST;
-			dhd_conf_set_intiovar(dhd, WLC_SET_PM, "WLC_SET_PM", pm, 0, FALSE);
 		}
 		conf->suspended = FALSE;
 	}
@@ -3819,6 +3909,10 @@ dhd_conf_read_sdio_params(dhd_pub_t *dhd, char *full_param, uint len_param)
 		CONFIG_MSG("read_intr_mode = %d\n", conf->read_intr_mode);
 	}
 #endif
+	else if (!strncmp("kso_try_max=", full_param, len_param)) {
+		conf->kso_try_max = (int)simple_strtol(data, NULL, 0);
+		CONFIG_MSG("kso_try_max = %d\n", conf->kso_try_max);
+	}
 	else
 		return false;
 
@@ -3875,8 +3969,12 @@ dhd_conf_read_pm_params(dhd_pub_t *dhd, char *full_param, uint len_param)
 	else if (!strncmp("suspend_mode=", full_param, len_param)) {
 		conf->suspend_mode = (int)simple_strtol(data, NULL, 0);
 		CONFIG_MSG("suspend_mode = %d\n", conf->suspend_mode);
-		if (conf->suspend_mode == PM_NOTIFIER)
+		if (conf->suspend_mode == EARLY_SUSPEND)
+			conf->insuspend &= ~(NO_TXDATA_IN_SUSPEND | NO_TXCTL_IN_SUSPEND);
+		else if (conf->suspend_mode == PM_NOTIFIER ||
+				conf->suspend_mode == SUSPEND_MODE_2)
 			conf->insuspend |= (NO_TXDATA_IN_SUSPEND | NO_TXCTL_IN_SUSPEND);
+		CONFIG_MSG("insuspend = 0x%x\n", conf->insuspend);
 	}
 	else if (!strncmp("suspend_bcn_li_dtim=", full_param, len_param)) {
 		conf->suspend_bcn_li_dtim = (int)simple_strtol(data, NULL, 10);
@@ -3899,6 +3997,13 @@ dhd_conf_read_pm_params(dhd_pub_t *dhd, char *full_param, uint len_param)
 		CONFIG_MSG("wowl = 0x%x\n", conf->wowl);
 	}
 #endif
+	else if (!strncmp("rekey_offload=", full_param, len_param)) {
+		if (!strncmp(data, "1", 1))
+			conf->rekey_offload = TRUE;
+		else
+			conf->rekey_offload = FALSE;
+		CONFIG_MSG("rekey_offload = %d\n", conf->rekey_offload);
+	}
 	else
 		return false;
 
@@ -4067,9 +4172,17 @@ dhd_conf_read_others(dhd_pub_t *dhd, char *full_param, uint len_param)
 		conf->ctrl_resched = (int)simple_strtol(data, NULL, 10);
 		CONFIG_MSG("ctrl_resched = %d\n", conf->ctrl_resched);
 	}
+	else if (!strncmp("rxcnt_timeout=", full_param, len_param)) {
+		conf->rxcnt_timeout = (int)simple_strtol(data, NULL, 10);
+		CONFIG_MSG("rxcnt_timeout = %d\n", conf->rxcnt_timeout);
+	}
 	else if (!strncmp("in4way=", full_param, len_param)) {
 		conf->in4way = (int)simple_strtol(data, NULL, 0);
 		CONFIG_MSG("in4way = 0x%x\n", conf->in4way);
+	}
+	else if (!strncmp("war=", full_param, len_param)) {
+		conf->war = (int)simple_strtol(data, NULL, 0);
+		CONFIG_MSG("war = 0x%x\n", conf->war);
 	}
 	else if (!strncmp("wl_preinit=", full_param, len_param)) {
 		if (conf->wl_preinit) {
@@ -4145,20 +4258,42 @@ dhd_conf_read_others(dhd_pub_t *dhd, char *full_param, uint len_param)
 		CONFIG_MSG("proptx_maxcnt_5g = %d\n", conf->proptx_maxcnt_5g);
 	}
 #endif
-#ifdef HOST_TPUT_TEST
+#ifdef TPUT_MONITOR
 	else if (!strncmp("data_drop_mode=", full_param, len_param)) {
 		conf->data_drop_mode = (int)simple_strtol(data, NULL, 0);
 		CONFIG_MSG("data_drop_mode = %d\n", conf->data_drop_mode);
 	}
-	else if (!strncmp("tput_measure_ms=", full_param, len_param)) {
-		conf->tput_measure_ms= (int)simple_strtol(data, NULL, 0);
-		CONFIG_MSG("tput_measure_ms = %d\n", conf->tput_measure_ms);
-	}
-#endif
-#ifdef TPUT_MONITOR
 	else if (!strncmp("tput_monitor_ms=", full_param, len_param)) {
 		conf->tput_monitor_ms = (int)simple_strtol(data, NULL, 0);
 		CONFIG_MSG("tput_monitor_ms = %d\n", conf->tput_monitor_ms);
+	}
+#ifdef BCMSDIO
+	else if (!strncmp("doflow_tput_thresh=", full_param, len_param)) {
+		conf->doflow_tput_thresh = (int)simple_strtol(data, NULL, 0);
+		CONFIG_MSG("doflow_tput_thresh = %d\n", conf->doflow_tput_thresh);
+		if (conf->doflow_tput_thresh > 0)
+			conf->tput_monitor_ms = 1000;
+	}
+#endif
+#endif
+#ifdef SCAN_SUPPRESS
+	else if (!strncmp("scan_intput=", full_param, len_param)) {
+		conf->scan_intput = (int)simple_strtol(data, NULL, 0);
+		CONFIG_MSG("scan_intput = 0x%x\n", conf->scan_intput);
+	}
+	else if (!strncmp("scan_tput_thresh=", full_param, len_param)) {
+		conf->scan_tput_thresh = (int)simple_strtol(data, NULL, 0);
+		CONFIG_MSG("scan_tput_thresh = %d\n", conf->scan_tput_thresh);
+		if (conf->scan_tput_thresh > 0)
+			conf->tput_monitor_ms = 1000;
+	}
+	else if (!strncmp("scan_busy_tmo=", full_param, len_param)) {
+		conf->scan_busy_tmo = (int)simple_strtol(data, NULL, 0);
+		CONFIG_MSG("scan_busy_tmo = %d\n", conf->scan_busy_tmo);
+	}
+	else if (!strncmp("scan_busy_thresh=", full_param, len_param)) {
+		conf->scan_busy_thresh = (int)simple_strtol(data, NULL, 0);
+		CONFIG_MSG("scan_busy_thresh = %d\n", conf->scan_busy_thresh);
 	}
 #endif
 #ifdef DHD_TPUT_PATCH
@@ -4209,6 +4344,19 @@ dhd_conf_read_others(dhd_pub_t *dhd, char *full_param, uint len_param)
 		CONFIG_MSG("fwchk = %d\n", conf->fwchk);
 	}
 #endif
+	else if (!strncmp("vndr_ie_assocreq=", full_param, len_param)) {
+		if (conf->vndr_ie_assocreq) {
+			kfree(conf->vndr_ie_assocreq);
+			conf->vndr_ie_assocreq = NULL;
+		}
+		if (!(conf->vndr_ie_assocreq = kmalloc(strlen(data)+1, GFP_KERNEL))) {
+			CONFIG_ERROR("kmalloc failed\n");
+		} else {
+			memset(conf->vndr_ie_assocreq, 0, strlen(data)+1);
+			strcpy(conf->vndr_ie_assocreq, data);
+			CONFIG_MSG("vndr_ie_assocreq = %s\n", conf->vndr_ie_assocreq);
+		}
+	}
 	else
 		return false;
 
@@ -4393,6 +4541,9 @@ dhd_conf_set_chiprev(dhd_pub_t *dhd, uint chip, uint chiprev)
 		dhd->conf->devid, dhd->conf->chip, dhd->conf->chiprev,
 		dhd->conf->svid, dhd->conf->ssid);
 #endif
+#if defined(BCMDBUS)
+	CONFIG_MSG("chip=0x%x, chiprev=%d\n", dhd->conf->chip, dhd->conf->chiprev);
+#endif
 
 	return 0;
 }
@@ -4485,33 +4636,33 @@ void
 dhd_conf_postinit_ioctls(dhd_pub_t *dhd)
 {
 	struct dhd_conf *conf = dhd->conf;
-	char wl_preinit[] = "assoc_retry_max=20";
+	char wl_preinit[] = "assoc_retry_max=10";
 #ifdef NO_POWER_SAVE
 	char wl_no_power_save[] = "mpc=0, 86=0";
 	dhd_conf_set_wl_cmd(dhd, wl_no_power_save, FALSE);
 #endif
 
-	dhd_conf_set_intiovar(dhd, WLC_UP, "WLC_UP", 0, 0, FALSE);
+	dhd_conf_set_intiovar(dhd, 0, WLC_UP, "WLC_UP", 0, 0, FALSE);
 	dhd_conf_map_country_list(dhd, &conf->cspec);
 	dhd_conf_set_country(dhd, &conf->cspec);
 	dhd_conf_fix_country(dhd);
 	dhd_conf_get_country(dhd, &dhd->dhd_cspec);
 
-	dhd_conf_set_intiovar(dhd, WLC_SET_BAND, "WLC_SET_BAND", conf->band, 0, FALSE);
-	dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "bcn_timeout", conf->bcn_timeout, 0, FALSE);
-	dhd_conf_set_intiovar(dhd, WLC_SET_PM, "WLC_SET_PM", conf->pm, 0, FALSE);
-	dhd_conf_set_intiovar(dhd, WLC_SET_SRL, "WLC_SET_SRL", conf->srl, 0, FALSE);
-	dhd_conf_set_intiovar(dhd, WLC_SET_LRL, "WLC_SET_LRL", conf->lrl, 0, FALSE);
+	dhd_conf_set_intiovar(dhd, 0, WLC_SET_BAND, "WLC_SET_BAND", conf->band, 0, FALSE);
+	dhd_conf_set_intiovar(dhd, 0, WLC_SET_VAR, "bcn_timeout", conf->bcn_timeout, 0, FALSE);
+	dhd_conf_set_intiovar(dhd, 0, WLC_SET_PM, "WLC_SET_PM", conf->pm, 0, FALSE);
+	dhd_conf_set_intiovar(dhd, 0, WLC_SET_SRL, "WLC_SET_SRL", conf->srl, 0, FALSE);
+	dhd_conf_set_intiovar(dhd, 0, WLC_SET_LRL, "WLC_SET_LRL", conf->lrl, 0, FALSE);
 	dhd_conf_set_bw_cap(dhd);
 	dhd_conf_set_roam(dhd);
 
 #if defined(BCMPCIE)
-	dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "bus:deepsleep_disable",
+	dhd_conf_set_intiovar(dhd, 0, WLC_SET_VAR, "bus:deepsleep_disable",
 		conf->bus_deepsleep_disable, 0, FALSE);
 #endif /* defined(BCMPCIE) */
 
 #ifdef IDHCP
-	dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "dhcpc_enable", conf->dhcpc_enable,
+	dhd_conf_set_intiovar(dhd, 0, WLC_SET_VAR, "dhcpc_enable", conf->dhcpc_enable,
 		0, FALSE);
 	if (conf->dhcpd_enable >= 0) {
 		dhd_conf_set_bufiovar(dhd, 0, WLC_SET_VAR, "dhcpd_ip_addr",
@@ -4522,11 +4673,11 @@ dhd_conf_postinit_ioctls(dhd_pub_t *dhd)
 			(char *)&conf->dhcpd_ip_start, sizeof(conf->dhcpd_ip_start), FALSE);
 		dhd_conf_set_bufiovar(dhd, 0, WLC_SET_VAR, "dhcpd_ip_end",
 			(char *)&conf->dhcpd_ip_end, sizeof(conf->dhcpd_ip_end), FALSE);
-		dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "dhcpd_enable",
+		dhd_conf_set_intiovar(dhd, 0, WLC_SET_VAR, "dhcpd_enable",
 			conf->dhcpd_enable, 0, FALSE);
 	}
 #endif
-	dhd_conf_set_intiovar(dhd, WLC_SET_FAKEFRAG, "WLC_SET_FAKEFRAG",
+	dhd_conf_set_intiovar(dhd, 0, WLC_SET_FAKEFRAG, "WLC_SET_FAKEFRAG",
 		conf->frameburst, 0, FALSE);
 
 	dhd_conf_set_wl_cmd(dhd, wl_preinit, TRUE);
@@ -4550,11 +4701,15 @@ dhd_conf_postinit_ioctls(dhd_pub_t *dhd)
 			conf->chip == BCM43569_CHIP_ID ||
 			conf->chip == BCM43751_CHIP_ID || conf->chip == BCM43752_CHIP_ID ||
 			conf->chip == BCM4375_CHIP_ID) {
-		dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "txbf", 1, 0, FALSE);
+		dhd_conf_set_intiovar(dhd, 0, WLC_SET_VAR, "txbf", 1, 0, FALSE);
 	}
 	if (conf->chip == BCM4375_CHIP_ID) {
 		char he_cmd[] = "110=1, nmode=1, vhtmode=1, he=enab 1";
 		dhd_conf_set_wl_cmd(dhd, he_cmd, TRUE);
+	}
+	if (conf->chip == BCM43752_CHIP_ID || conf->chip == BCM4359_CHIP_ID) {
+		char txack_alive[] = "txack_alive=0";
+		dhd_conf_set_wl_cmd(dhd, txack_alive, TRUE);
 	}
 #if defined(WLEASYMESH)
 	if (conf->fw_type == FW_TYPE_EZMESH) {
@@ -4590,7 +4745,7 @@ dhd_conf_postinit_ioctls(dhd_pub_t *dhd)
 	dhd_conf_set_wl_cmd(dhd, conf->wl_preinit, TRUE);
 
 #ifndef WL_CFG80211
-	dhd_conf_set_intiovar(dhd, WLC_UP, "WLC_UP", 0, 0, FALSE);
+	dhd_conf_set_intiovar(dhd, 0, WLC_UP, "WLC_UP", 0, 0, FALSE);
 #endif
 
 }
@@ -4626,6 +4781,10 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 	if (conf->wl_resume) {
 		kfree(conf->wl_resume);
 		conf->wl_resume = NULL;
+	}
+	if (conf->vndr_ie_assocreq) {
+		kfree(conf->vndr_ie_assocreq);
+		conf->vndr_ie_assocreq = NULL;
 	}
 	conf->band = -1;
 	memset(&conf->bw_cap, -1, sizeof(conf->bw_cap));
@@ -4701,6 +4860,10 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 #ifdef BCMSDIO_INTSTATUS_WAR
 	conf->read_intr_mode = 0;
 #endif
+	conf->kso_try_max = 0;
+#ifdef KSO_DEBUG
+	memset(&conf->kso_try_array, 0, sizeof(conf->kso_try_array));
+#endif
 #endif
 #ifdef BCMPCIE
 	conf->bus_deepsleep_disable = 1;
@@ -4715,19 +4878,20 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 	conf->pm = -1;
 	conf->pm_in_suspend = -1;
 	conf->insuspend = 0;
-	conf->suspend_mode = EARLY_SUSPEND;
+	conf->suspend_mode = PM_NOTIFIER;
 	conf->suspend_bcn_li_dtim = -1;
+	conf->rekey_offload = FALSE;
 #ifdef WL_EXT_WOWL
 	dhd_master_mode = TRUE;
 	conf->wowl = WL_WOWL_NET|WL_WOWL_DIS|WL_WOWL_BCN;
 	conf->insuspend |= (WOWL_IN_SUSPEND | NO_TXDATA_IN_SUSPEND);
 #endif
-	if (conf->suspend_mode == PM_NOTIFIER)
+	if (conf->suspend_mode == PM_NOTIFIER || conf->suspend_mode == SUSPEND_MODE_2)
 		conf->insuspend |= (NO_TXDATA_IN_SUSPEND | NO_TXCTL_IN_SUSPEND);
 	conf->suspended = FALSE;
+	memset(&conf->bssid_insuspend, 0, ETHER_ADDR_LEN);
 #ifdef SUSPEND_EVENT
 	memset(&conf->resume_eventmask, 0, sizeof(conf->resume_eventmask));
-	memset(&conf->bssid_insuspend, 0, ETHER_ADDR_LEN);
 	conf->wlfc = FALSE;
 #endif
 #ifdef GET_CUSTOM_MAC_FROM_CONFIG
@@ -4754,18 +4918,42 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 #endif
 	conf->pktprio8021x = -1;
 	conf->ctrl_resched = 2;
+	conf->rxcnt_timeout = 3;
 	conf->in4way = STA_NO_SCAN_IN4WAY | STA_WAIT_DISCONNECTED |
-		STA_START_AUTH_DELAY | AP_WAIT_STA_RECONNECT;
+		AP_WAIT_STA_RECONNECT;
+	if (conf->chip == BCM43752_CHIP_ID)
+		conf->war = SET_CHAN_INCONN | FW_REINIT_INCSA | FW_REINIT_EMPTY_SCAN;
+	else
+		conf->war = 0;
+#ifdef P2P_AP_CONCURRENT
+	conf->war |= P2P_AP_MAC_CONFLICT;
+#endif
 #ifdef PROPTX_MAXCOUNT
 	conf->proptx_maxcnt_2g = 46;
 	conf->proptx_maxcnt_5g = WL_TXSTATUS_FREERUNCTR_MASK;
 #endif /* DYNAMIC_PROPTX_MAXCOUNT */
-#ifdef HOST_TPUT_TEST
-	conf->data_drop_mode = 0;
-	conf->tput_measure_ms = 0;
-#endif
 #ifdef TPUT_MONITOR
+	conf->data_drop_mode = NO_DATA_DROP;
 	conf->tput_monitor_ms = 0;
+#ifdef BCMSDIO
+	if (conf->chip == BCM43752_CHIP_ID || conf->chip == BCM4375_CHIP_ID)
+		conf->doflow_tput_thresh = 200;
+	else
+		conf->doflow_tput_thresh = 9999;
+	if (conf->doflow_tput_thresh > 0 && conf->doflow_tput_thresh < 9999)
+		conf->tput_monitor_ms = 1000;
+#endif
+#endif
+#ifdef SCAN_SUPPRESS
+	conf->scan_intput = SCAN_CURCHAN_INTPUT;
+	conf->scan_busy_thresh = 10;
+	conf->scan_busy_tmo = 120;
+	if (conf->chip == BCM43752_CHIP_ID || conf->chip == BCM4375_CHIP_ID)
+		conf->scan_tput_thresh = 100;
+	else
+		conf->scan_tput_thresh = 9999;
+	if (conf->scan_tput_thresh > 0 && conf->scan_tput_thresh < 9999)
+		conf->tput_monitor_ms = 1000;
 #endif
 #ifdef DHD_TPUT_PATCH
 	conf->tput_patch = FALSE;
@@ -4892,6 +5080,10 @@ dhd_conf_reset(dhd_pub_t *dhd)
 		kfree(conf->wl_resume);
 		conf->wl_resume = NULL;
 	}
+	if (conf->vndr_ie_assocreq) {
+		kfree(conf->vndr_ie_assocreq);
+		conf->vndr_ie_assocreq = NULL;
+	}
 	memset(conf, 0, sizeof(dhd_conf_t));
 	return 0;
 }
@@ -4955,6 +5147,10 @@ dhd_conf_detach(dhd_pub_t *dhd)
 		if (conf->wl_resume) {
 			kfree(conf->wl_resume);
 			conf->wl_resume = NULL;
+		}
+		if (conf->vndr_ie_assocreq) {
+			kfree(conf->vndr_ie_assocreq);
+			conf->vndr_ie_assocreq = NULL;
 		}
 		MFREE(dhd->osh, conf, sizeof(dhd_conf_t));
 	}

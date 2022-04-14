@@ -1936,8 +1936,8 @@ struct bcm_cfg80211 {
 	struct mutex bcn_sync;  /* mainly for bcn resume/suspend synchronization */
 	wl_bcnrecv_info_t bcnrecv_info;
 #endif /* WL_BCNRECV */
-	struct net_device *static_ndev;
-	uint8 static_ndev_state;
+	struct net_device *static_ndev[DHD_MAX_STATIC_IFS];
+	uint8 static_ndev_state[DHD_MAX_STATIC_IFS];
 	bool hal_started;
 	wl_wlc_version_t wlc_ver;
 	bool scan_params_v2;
@@ -1992,7 +1992,7 @@ enum wl_state_type {
 	WL_STATE_AUTHORIZING /* Assocated to authorized */
 };
 
-#define WL_STATIC_IFIDX	(DHD_MAX_IFS + DHD_MAX_STATIC_IFS - 1)
+#define WL_STATIC_IFIDX	(DHD_MAX_IFS)
 enum static_ndev_states {
 	NDEV_STATE_NONE,
 	NDEV_STATE_OS_IF_CREATED,
@@ -2000,14 +2000,13 @@ enum static_ndev_states {
 	NDEV_STATE_FW_IF_FAILED,
 	NDEV_STATE_FW_IF_DELETED
 };
-#define IS_CFG80211_STATIC_IF(cfg, ndev) \
-	((cfg && (cfg->static_ndev == ndev)) ? true : false)
-#define IS_CFG80211_STATIC_IF_ACTIVE(cfg) \
-	((cfg && cfg->static_ndev && \
-	(cfg->static_ndev_state & NDEV_STATE_FW_IF_CREATED)) ? true : false)
-#define IS_CFG80211_STATIC_IF_NAME(cfg, name) \
-	(cfg && cfg->static_ndev && \
-	  !strncmp(cfg->static_ndev->name, name, strlen(name)))
+#ifdef WL_STATIC_IF
+bool wl_cfg80211_static_if(struct bcm_cfg80211 *cfg, struct net_device *ndev);
+int wl_cfg80211_static_ifidx(struct bcm_cfg80211 *cfg, struct net_device *ndev);
+struct net_device *wl_cfg80211_static_if_active(struct bcm_cfg80211 *cfg);
+int wl_cfg80211_static_if_name(struct bcm_cfg80211 *cfg, const char *name);
+void wl_cfg80211_static_if_dev_close(struct net_device *dev);
+#endif /* WL_STATIC_IF */
 
 #ifdef WL_SAE
 typedef struct wl_sae_key_info {
@@ -2964,12 +2963,12 @@ s32 wl_cfg80211_delete_iface(struct bcm_cfg80211 *cfg, wl_iftype_t sec_data_if_t
 
 #ifdef WL_STATIC_IF
 extern struct net_device *wl_cfg80211_register_static_if(struct bcm_cfg80211 *cfg,
-	u16 iftype, char *ifname);
+	u16 iftype, char *ifname, int static_ifidx);
 extern void wl_cfg80211_unregister_static_if(struct bcm_cfg80211 * cfg);
 extern s32 wl_cfg80211_static_if_open(struct net_device *net);
 extern s32 wl_cfg80211_static_if_close(struct net_device *net);
 extern struct net_device * wl_cfg80211_post_static_ifcreate(struct bcm_cfg80211 *cfg,
-	wl_if_event_info *event, u8 *addr, s32 iface_type);
+	wl_if_event_info *event, u8 *addr, s32 iface_type, int static_ifidx);
 extern s32 wl_cfg80211_post_static_ifdel(struct bcm_cfg80211 *cfg, struct net_device *ndev);
 #endif  /* WL_STATIC_IF */
 extern struct wireless_dev *wl_cfg80211_get_wdev_from_ifname(struct bcm_cfg80211 *cfg,
@@ -3091,5 +3090,10 @@ extern s32 wl_handle_auth_event(struct bcm_cfg80211 *cfg, struct net_device *nde
 extern bool wl_customer6_legacy_chip_check(struct bcm_cfg80211 *cfg,
 	struct net_device *ndev);
 #endif /* CUSTOMER_HW6 */
+void wl_wlfc_enable(struct bcm_cfg80211 *cfg, bool enable);
+s32 wl_handle_join(struct bcm_cfg80211 *cfg, struct net_device *dev,
+	wlcfg_assoc_info_t *assoc_info);
+s32 wl_handle_reassoc(struct bcm_cfg80211 *cfg, struct net_device *dev,
+	wlcfg_assoc_info_t *info);
 s32 wl_cfg80211_autochannel(struct net_device *dev, char* command, int total_len);
 #endif /* _wl_cfg80211_h_ */

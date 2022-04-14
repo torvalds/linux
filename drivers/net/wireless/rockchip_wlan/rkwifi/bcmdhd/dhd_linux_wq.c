@@ -63,6 +63,10 @@ typedef struct dhd_deferred_event {
 #define DHD_PRIO_WORK_FIFO_SIZE	(16 * DEFRD_EVT_SIZE)
 #define DHD_WORK_FIFO_SIZE	(64 * DEFRD_EVT_SIZE)
 
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 32))
+#define kfifo_avail(fifo) (fifo->size - kfifo_len(fifo))
+#endif /* (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 32)) */
+
 #define DHD_FIFO_HAS_FREE_SPACE(fifo) \
 	((fifo) && (kfifo_avail(fifo) >= DEFRD_EVT_SIZE))
 #define DHD_FIFO_HAS_ENOUGH_DATA(fifo) \
@@ -86,11 +90,15 @@ dhd_kfifo_init(u8 *buf, int size, spinlock_t *lock)
 	struct kfifo *fifo;
 	gfp_t flags = CAN_SLEEP()? GFP_KERNEL : GFP_ATOMIC;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33))
+	fifo = kfifo_init(buf, size, flags, lock);
+#else
 	fifo = (struct kfifo *)kzalloc(sizeof(struct kfifo), flags);
 	if (!fifo) {
 		return NULL;
 	}
 	kfifo_init(fifo, buf, size);
+#endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)) */
 	return fifo;
 }
 

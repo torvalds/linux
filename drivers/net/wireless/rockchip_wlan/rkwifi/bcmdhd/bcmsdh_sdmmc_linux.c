@@ -87,6 +87,9 @@ static int sdioh_probe(struct sdio_func *func)
 	adapter = dhd_wifi_platform_get_adapter(SDIO_BUS, host_idx, rca);
 	if (adapter != NULL) {
 		sd_err(("found adapter info '%s'\n", adapter->name));
+		adapter->bus_type = SDIO_BUS;
+		adapter->bus_num = host_idx;
+		adapter->slot_num = rca;
 		adapter->sdio_func = func;
 	} else
 		sd_err(("can't find adapter info for this chip\n"));

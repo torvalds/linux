@@ -77,6 +77,7 @@
 #ifdef BCMPERFSTATS
 #include <bcmperf.h>
 #endif
+#include <wl_android.h>
 
 #define NUMBER_OF_BITS_BYTE	8u
 
@@ -4929,6 +4930,24 @@ BCMPOSTTRAPFN(bcm_bitcount)(const uint8 *bitmap, uint length)
 	return bitcount;
 }
 
+static void
+dump_nvram(char *varbuf, int column, unsigned int n, unsigned int len)
+{
+	unsigned int m;
+	char vars[128];
+
+	if (((n==0) && (varbuf[0]=='#')) ||
+			((column==0) && (android_msg_level & ANDROID_INFO_LEVEL))) {
+		memset(vars, 0x00, sizeof(vars));
+		for (m=n; m<len && (m-n)<(sizeof(vars)-1); m++) {
+			if (varbuf[m] == '\n')
+				break;
+			vars[m-n] = varbuf[m];
+		}
+		printf("%s\n", vars);
+	}
+}
+
 /*
  * ProcessVars:Takes a buffer of "<var>=<value>\n" lines read from a file and ending in a NUL.
  * also accepts nvram files which are already in the format of <var1>=<value>\0\<var2>=<value2>\0
@@ -4944,24 +4963,13 @@ process_nvram_vars(char *varbuf, unsigned int len)
 	int column;
 	unsigned int buf_len, n;
 	unsigned int pad = 0;
-	char nv_ver[128];
 
 	dp = varbuf;
 
 	findNewline = FALSE;
 	column = 0;
 
-	// terence 20130914: print out NVRAM version
-	if (varbuf[0] == '#') {
-		memset(nv_ver, 0x00, sizeof(nv_ver));
-		for (n=1; n<len && n<(sizeof(nv_ver)-1); n++) {
-			if (varbuf[n] == '\n')
-				break;
-			nv_ver[n-1] = varbuf[n];
-		}
-		printf("NVRAM version: %s\n", nv_ver);
-	}
-
+	dump_nvram(varbuf, 0, 0, len);
 	for (n = 0; n < len; n++) {
 		if (varbuf[n] == '\r')
 			continue;
@@ -4979,6 +4987,7 @@ process_nvram_vars(char *varbuf, unsigned int len)
 			column = 0;
 			continue;
 		}
+		dump_nvram(varbuf, column, n, len);
 		*dp++ = varbuf[n];
 		column++;
 	}

@@ -2358,7 +2358,7 @@ dhdpcie_dongle_attach(dhd_bus_t *bus)
 	bus->deep_sleep = TRUE;
 #endif
 
-	bus->idma_enabled = TRUE;
+	bus->idma_enabled = FALSE;
 	bus->ifrm_enabled = TRUE;
 #ifdef BCMINTERNAL
 	bus->dma_chan = 0;
@@ -4142,7 +4142,8 @@ dhdpcie_download_code_file(struct dhd_bus *bus, char *pfw_path)
 				goto err;
 			}
 			if (memcmp(memptr_tmp, memptr, len)) {
-				DHD_ERROR(("%s: Downloaded image is corrupted.\n", __FUNCTION__));
+				DHD_ERROR(("%s: Downloaded image is corrupted at 0x%08x\n", __FUNCTION__, offset));
+				bcmerror = BCME_ERROR;
 				goto err;
 			} else
 				DHD_INFO(("%s: Download, Upload and compare succeeded.\n", __FUNCTION__));
@@ -5556,6 +5557,9 @@ BCMFASTPATH(dhd_bus_schedule_queue)(struct dhd_bus  *bus, uint16 flow_id, bool t
 		unsigned long flags;
 		void *txp = NULL;
 		flow_queue_t *queue;
+#ifdef TPUT_MONITOR
+		int pktlen;
+#endif
 
 		queue = &flow_ring_node->queue; /* queue associated with flow ring */
 
@@ -5594,6 +5598,12 @@ BCMFASTPATH(dhd_bus_schedule_queue)(struct dhd_bus  *bus, uint16 flow_id, bool t
 #endif /* DHDTCPACK_SUPPRESS */
 			/* Attempt to transfer packet over flow ring */
 			/* XXX: ifidx is wrong */
+#ifdef TPUT_MONITOR
+			pktlen  = PKTLEN(OSH_NULL, txp);
+			if ((bus->dhd->conf->data_drop_mode == TXPKT_DROP) && (pktlen > 500))
+				ret = BCME_OK;
+			else
+#endif
 			ret = dhd_prot_txdata(bus->dhd, txp, flow_ring_node->flow_info.ifindex);
 			if (ret != BCME_OK) { /* may not have resources in flow ring */
 				DHD_INFO(("%s: Reinserrt %d\n", __FUNCTION__, ret));

@@ -32,22 +32,18 @@
 #define WLAN_PLAT_NODFS_FLAG	0x01
 #define WLAN_PLAT_AP_FLAG	0x02
 struct wifi_platform_data {
-#ifdef BUS_POWER_RESTORE
 	int (*set_power)(int val, wifi_adapter_info_t *adapter);
-#else
-	int (*set_power)(int val);
-#endif
 	int (*set_reset)(int val);
 	int (*set_carddetect)(int val);
 #ifdef DHD_COREDUMP
 	int (*set_coredump)(const char *buf, int buf_len, const char *info);
 #endif /* DHD_COREDUMP */
-	void *(*mem_prealloc)(int section, unsigned long size);
-#ifdef CUSTOM_MULTI_MAC
-	int (*get_mac_addr)(unsigned char *buf, char *name);
+#ifdef BCMDHD_MDRIVER
+	void *(*mem_prealloc)(uint bus_type, int index, int section, unsigned long size);
 #else
-	int (*get_mac_addr)(unsigned char *buf);
+	void *(*mem_prealloc)(int section, unsigned long size);
 #endif
+	int (*get_mac_addr)(unsigned char *buf, int ifidx);
 #ifdef BCMSDIO
 	int (*get_wake_irq)(void);
 #endif

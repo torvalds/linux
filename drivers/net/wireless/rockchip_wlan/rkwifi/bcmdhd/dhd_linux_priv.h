@@ -41,6 +41,7 @@
 #ifdef CONFIG_HAS_WAKELOCK
 #include <linux/pm_wakeup.h>
 #endif /* CONFIG_HAS_WAKELOCK */
+#include <linux/wakelock.h>
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhd_dbg.h>
@@ -89,7 +90,7 @@ typedef struct dhd_info {
 #ifdef BCMDBUS
 	ulong		wlfc_lock_flags;
 	ulong		wlfc_pub_lock_flags;
-#endif
+#endif /* BCMDBUS */
 #endif /* PROP_TXSTATUS */
 	wait_queue_head_t ioctl_resp_wait;
 	wait_queue_head_t d3ack_wait;
@@ -111,10 +112,12 @@ typedef struct dhd_info {
 	spinlock_t	sdlock;
 	spinlock_t	txqlock;
 	spinlock_t	dhd_lock;
+	spinlock_t	txoff_lock;
 #ifdef BCMDBUS
 	ulong		txqlock_flags;
-#else
+#endif /* BCMDBUS */
 
+#ifndef BCMDBUS
 	struct semaphore sdsem;
 	tsk_ctl_t	thr_dpc_ctl;
 	tsk_ctl_t	thr_wdt_ctl;
@@ -142,6 +145,7 @@ typedef struct dhd_info {
 	struct wakeup_source wl_nanwake; /* NAN wakelock */
 #endif /* CONFIG_HAS_WAKELOCK */
 
+	struct wake_lock rx_wakelock;
 #if defined(OEM_ANDROID)
 	/* net_device interface lock, prevent race conditions among net_dev interface
 	 * calls and wifi_on or wifi_off

@@ -183,6 +183,9 @@ extern uint wl_msg_level;
 char fw_path2[MOD_PARAM_PATHLEN];
 extern bool softap_enabled;
 #endif
+#ifdef PROP_TXSTATUS
+extern int disable_proptx;
+#endif /* PROP_TXSTATUS */
 
 #ifdef REPORT_FATAL_TIMEOUTS
 #ifdef BCMINTERNAL
@@ -2465,9 +2468,6 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 			}
 			*((char *)arg + dhd_ver_len + bus_api_rev_len) = '\0';
 		}
-#if defined(BCMSDIO) && defined(PKT_STATICS)
-		dhd_bus_clear_txpktstatics(dhd_pub->bus);
-#endif
 		break;
 
 	case IOV_GVAL(IOV_WLMSGLEVEL):
@@ -2510,9 +2510,6 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 	case IOV_GVAL(IOV_MSGLEVEL):
 		int_val = (int32)dhd_msg_level;
 		bcopy(&int_val, arg, val_size);
-#if defined(BCMSDIO) && defined(PKT_STATICS)
-		dhd_bus_dump_txpktstatics(dhd_pub->bus);
-#endif
 		break;
 
 	case IOV_SVAL(IOV_MSGLEVEL):
@@ -2662,6 +2659,10 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 		/* wlfc is already set as desired */
 		if (wlfc_enab == (int_val == 0 ? FALSE : TRUE))
 			goto exit;
+
+		if (int_val == TRUE && disable_proptx) {
+			disable_proptx = 0;
+		}
 
 		if (int_val == TRUE)
 			bcmerror = dhd_wlfc_init(dhd_pub);

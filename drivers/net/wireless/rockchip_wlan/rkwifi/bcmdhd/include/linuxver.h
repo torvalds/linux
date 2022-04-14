@@ -392,7 +392,9 @@ extern void timer_cb_compat(struct timer_list *tl);
 #define timer_expires(timer_compat) (timer_compat)->timer.expires
 
 #define del_timer(t) del_timer(&((t)->timer))
+#ifndef del_timer_sync
 #define del_timer_sync(t) del_timer_sync(&((t)->timer))
+#endif
 #define timer_pending(t) timer_pending(&((t)->timer))
 #define add_timer(t) add_timer(&((t)->timer))
 #define mod_timer(t, j) mod_timer(&((t)->timer), j)
@@ -921,5 +923,9 @@ int kernel_read_compat(struct file *file, loff_t offset, char *addr, unsigned lo
 #else /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) */
 #define kernel_read_compat(file, offset, addr, count) kernel_read(file, offset, addr, count)
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) */
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
+#define netdev_tx_t int
+#endif
 
 #endif /* _linuxver_h_ */

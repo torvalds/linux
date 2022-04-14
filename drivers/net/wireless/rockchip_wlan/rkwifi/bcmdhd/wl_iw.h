@@ -133,10 +133,8 @@ int wl_iw_send_priv_event(struct net_device *dev, char *flag);
 int wl_iw_handle_scanresults_ies(char **event_p, char *end,
 	struct iw_request_info *info, wl_bss_info_t *bi);
 #endif
-int wl_iw_attach(struct net_device *dev, dhd_pub_t *dhdp);
-void wl_iw_detach(struct net_device *dev, dhd_pub_t *dhdp);
-int wl_iw_up(struct net_device *dev, dhd_pub_t *dhdp);
-void wl_iw_down(struct net_device *dev, dhd_pub_t *dhdp);
+int wl_iw_attach(struct net_device *dev);
+void wl_iw_detach(struct net_device *dev);
 s32 wl_iw_autochannel(struct net_device *dev, char* command, int total_len);
 
 /* message levels */

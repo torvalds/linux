@@ -672,10 +672,15 @@ dbus_get_fw_nvram(dhd_bus_t *dhd_bus, char *pfw_path, char *pnv_path)
 	}
 
 	total_len = actual_fwlen + dhd_bus->nvram_len + nvram_words_pad;
+#if defined(CONFIG_DHD_USE_STATIC_BUF)
+	dhd_bus->image = (uint8*)DHD_OS_PREALLOC(dhd_bus->dhd,
+		DHD_PREALLOC_MEMDUMP_RAM, total_len);
+#else
 	dhd_bus->image = MALLOC(dhd_bus->pub.osh, total_len);
+#endif /* CONFIG_DHD_USE_STATIC_BUF */
 	dhd_bus->image_len = total_len;
 	if (dhd_bus->image == NULL) {
-		DBUSERR(("%s: malloc failed!\n", __FUNCTION__));
+		DBUSERR(("%s: malloc failed! size=%d\n", __FUNCTION__, total_len));
 		goto err;
 	}
 
@@ -764,7 +769,11 @@ dbus_do_download(dhd_bus_t *dhd_bus, char *pfw_path, char *pnv_path)
 		err = DBUS_ERR;
 
 	if (dhd_bus->image) {
+#if defined(CONFIG_DHD_USE_STATIC_BUF)
+		DHD_OS_PREFREE(dhd_bus->dhd, dhd_bus->image, dhd_bus->image_len);
+#else
 		MFREE(dhd_bus->pub.osh, dhd_bus->image, dhd_bus->image_len);
+#endif /* CONFIG_DHD_USE_STATIC_BUF */
 		dhd_bus->image = NULL;
 		dhd_bus->image_len = 0;
 	}
@@ -2342,8 +2351,9 @@ dhd_dbus_send_complete(void *handle, void *info, int status)
 	if (DHD_PKTTAG_WLFCPKT(PKTTAG(pkt)) &&
 		(dhd_wlfc_txcomplete(dhd, pkt, status == 0) != WLFC_UNSUPPORTED)) {
 		return;
-	}
+	} else
 #endif /* PROP_TXSTATUS */
+	dhd_txcomplete(dhd, pkt, status == 0);
 	PKTFREE(dhd->osh, pkt, TRUE);
 }
 

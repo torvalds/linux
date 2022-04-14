@@ -2425,7 +2425,7 @@ static ssize_t read_csi_data(struct file *filp, struct kobject *kobj,
 }
 
 static struct bin_attribute dhd_attr_csi = {
-	.attr = { .name = "csi",
+	.attr = { .name = "csi" BUS_TYPE,
 		  .mode = 0660, },
 	.size = MAX_CSI_FILESZ,
 	.read = read_csi_data,
@@ -2903,7 +2903,7 @@ int dhd_sysfs_init(dhd_info_t *dhd)
 	}
 
 	/* Initialize the kobject */
-	ret = kobject_init_and_add(&dhd->dhd_kobj, &dhd_ktype, NULL, "wifi");
+	ret = kobject_init_and_add(&dhd->dhd_kobj, &dhd_ktype, NULL, "wifi" BUS_TYPE);
 	if (ret) {
 		kobject_put(&dhd->dhd_kobj);
 		DHD_ERROR(("%s(): Unable to allocate kobject \r\n", __FUNCTION__));

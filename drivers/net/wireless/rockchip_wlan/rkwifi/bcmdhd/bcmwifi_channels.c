@@ -136,6 +136,12 @@ static const uint16 wf_chspec_bw_mhz[] = {
 };
 #define WF_NUM_BW ARRAYSIZE(wf_chspec_bw_mhz)
 
+/* 40MHz channels in 2.4GHz band */
+static const uint8 wf_2g_40m_chans[] = {
+	3, 4, 5, 6, 7, 8, 9, 10, 11
+};
+#define WF_NUM_2G_40M_CHANS ARRAYSIZE(wf_2g_40m_chans)
+
 /* 40MHz channels in 5GHz band */
 static const uint8 wf_5g_40m_chans[] = {
 	38, 46, 54, 62, 102, 110, 118, 126, 134, 142, 151, 159, 167, 175
@@ -2091,17 +2097,17 @@ wf_create_chspec_from_primary(uint primary_channel, chanspec_bw_t bw, chanspec_b
 
 	if (bw == WL_CHANSPEC_BW_20) {
 		chspec = wf_create_20MHz_chspec(primary_channel, band);
-	} else if (band == WL_CHANSPEC_BAND_2G) {
-		/* 2G 40MHz cannot be uniquely identified by the primary channel.
-		 * Return INVAL for any channel given. Or if bw != 20
-		 */
-	} else if (band == WL_CHANSPEC_BAND_5G) {
+	} else if (band == WL_CHANSPEC_BAND_2G || band == WL_CHANSPEC_BAND_5G) {
 		/* For 5GHz, use the lookup tables for valid 40/80/160 center channels
 		 * and search for a center channel compatible with the given primary channel.
 		 */
 		const uint8 *center_ch = NULL;
 		uint num_ch, i;
 
+		if (band == WL_CHANSPEC_BAND_2G && bw == WL_CHANSPEC_BW_40) {
+			center_ch = wf_2g_40m_chans;
+			num_ch = WF_NUM_2G_40M_CHANS;
+		} else
 		if (bw == WL_CHANSPEC_BW_40) {
 			center_ch = wf_5g_40m_chans;
 			num_ch = WF_NUM_5G_40M_CHANS;
@@ -2280,8 +2286,13 @@ wf_channel2chspec(uint pri_ch, uint bw)
 	chspec |= bw;
 
 	if (bw == WL_CHANSPEC_BW_40) {
-		center_ch = wf_5g_40m_chans;
-		num_ch = WF_NUM_5G_40M_CHANS;
+		if (pri_ch <= CH_MAX_2G_CHANNEL) {
+			center_ch = wf_2g_40m_chans;
+			num_ch = WF_NUM_2G_40M_CHANS;
+		} else {
+			center_ch = wf_5g_40m_chans;
+			num_ch = WF_NUM_5G_40M_CHANS;
+		}
 	} else if (bw == WL_CHANSPEC_BW_80) {
 		center_ch = wf_5g_80m_chans;
 		num_ch = WF_NUM_5G_80M_CHANS;

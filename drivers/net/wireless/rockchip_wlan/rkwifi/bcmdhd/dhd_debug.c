@@ -832,13 +832,18 @@ dhd_dbg_verboselog_printf(dhd_pub_t *dhdp, prcd_event_log_hdr_t *plog_hdr,
 	/* ensure preserve fw logs go to debug_dump only in case of customer4 */
 	if (logset < dhdp->event_log_max_sets &&
 			((0x01u << logset) & dhdp->logset_prsrv_mask)) {
-		DHD_PRSRV_MEM((fmtstr_loc_buf, arg[0], arg[1], arg[2], arg[3],
-			arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], arg[10],
-			arg[11], arg[12], arg[13], arg[14], arg[15]));
+		if (dhd_msg_level & DHD_EVENT_VAL) {
+			if (dhd_msg_level & DHD_PRSRV_MEM_VAL)
+				printk(fmtstr_loc_buf, arg[0], arg[1], arg[2], arg[3],
+					arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], arg[10],
+					arg[11], arg[12], arg[13], arg[14], arg[15]);
+		}
 	} else {
-		DHD_FWLOG((fmtstr_loc_buf, arg[0], arg[1], arg[2], arg[3],
-			arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], arg[10],
-			arg[11], arg[12], arg[13], arg[14], arg[15]));
+		if (dhd_msg_level & DHD_FWLOG_VAL) {
+			printk(fmtstr_loc_buf, arg[0], arg[1], arg[2], arg[3],
+				arg[4], arg[5], arg[6], arg[7], arg[8], arg[9], arg[10],
+				arg[11], arg[12], arg[13], arg[14], arg[15]);
+		}
 #ifdef DHD_LOG_PRINT_RATE_LIMIT
 		log_print_count++;
 #endif /* DHD_LOG_PRINT_RATE_LIMIT */

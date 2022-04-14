@@ -447,7 +447,7 @@ osl_is_flag_set(osl_t *osh, uint32 mask)
 	return (osh->flags & mask);
 }
 
-#if (defined(__ARM_ARCH_7A__) && !defined(DHD_USE_COHERENT_MEM_FOR_RING))
+#if (defined(BCMPCIE) && defined(__ARM_ARCH_7A__) && !defined(DHD_USE_COHERENT_MEM_FOR_RING))
 
 inline void
 BCMFASTPATH(osl_cache_flush)(void *va, uint size)
@@ -525,6 +525,7 @@ osl_pci_write_config(osl_t *osh, uint offset, uint size, uint val)
 #endif /* BCMDBG */
 }
 
+#ifdef BCMPCIE
 /* return bus # for the pci device pointed by osh->pdev */
 uint
 osl_pci_bus(osl_t *osh)
@@ -577,6 +578,7 @@ osl_pci_device(osl_t *osh)
 
 	return osh->pdev;
 }
+#endif
 
 #ifdef BCMDBG_MEM
 /* In BCMDBG_MEM configurations osl_malloc is only used internally in
@@ -1344,9 +1346,11 @@ osl_sleep(uint ms)
 	ms *= htclkratio;
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
 	if (ms < 20)
 		usleep_range(ms*1000, ms*1000 + 1000);
 	else
+#endif
 		msleep(ms);
 }
 
@@ -1377,7 +1381,11 @@ osl_localtime_ns(void)
 	 * GPL-incompatible module (NIC builds wl.ko)
 	 * cannnot use the GPL-only symbol.
 	 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
 	ts_nsec = local_clock();
+#else
+	ts_nsec = cpu_clock(smp_processor_id());
+#endif
 #endif /* BCMDONGLEHOST */
 	return ts_nsec;
 }
@@ -1394,7 +1402,11 @@ osl_get_localtime(uint64 *sec, uint64 *usec)
 	 * GPL-incompatible module (NIC builds wl.ko) can
 	 * not use the GPL-only symbol.
 	 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
 	ts_nsec = local_clock();
+#else
+	ts_nsec = cpu_clock(smp_processor_id());
+#endif
 	rem_nsec = do_div(ts_nsec, NSEC_PER_SEC);
 #endif /* BCMDONGLEHOST */
 	*sec = (uint64)ts_nsec;
@@ -2146,6 +2158,7 @@ osl_do_gettimediff(struct osl_timespec *cur_ts, struct osl_timespec *old_ts)
 	return total_diff_us;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
 void
 osl_get_monotonic_boottime(struct osl_timespec *ts)
 {
@@ -2166,3 +2179,4 @@ osl_get_monotonic_boottime(struct osl_timespec *ts)
 	ts->tv_nsec = curtime.tv_nsec;
 	ts->tv_usec = curtime.tv_nsec / 1000;
 }
+#endif

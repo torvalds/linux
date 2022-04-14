@@ -1112,9 +1112,9 @@ wl_cfgp2p_escan(struct bcm_cfg80211 *cfg, struct net_device *dev, u16 active_sca
 	}
 	CFGP2P_DBG(("\n"));
 
+	WL_MSG(dev->name, "P2P_SEARCH sync ID: %d, bssidx: %d\n", sync_id, bssidx);
 	ret = wldev_iovar_setbuf_bsscfg(pri_dev, "p2p_scan",
 		memblk, memsize, cfg->ioctl_buf, WLC_IOCTL_MAXLEN, bssidx, &cfg->ioctl_buf_sync);
-	WL_MSG(dev->name, "P2P_SEARCH sync ID: %d, bssidx: %d\n", sync_id, bssidx);
 	if (ret == BCME_OK) {
 		wl_set_p2p_status(cfg, SCANNING);
 	}
@@ -1789,6 +1789,9 @@ wl_cfgp2p_generate_bss_mac(struct bcm_cfg80211 *cfg, struct ether_addr *primary_
 {
 	struct ether_addr *mac_addr = wl_to_p2p_bss_macaddr(cfg, P2PAPI_BSSCFG_DEVICE);
 	struct ether_addr *int_addr;
+#ifdef P2P_AP_CONCURRENT
+	dhd_pub_t *dhd = (dhd_pub_t *)(cfg->pub);
+#endif
 
 	if (ETHER_IS_LOCALADDR(primary_addr)) {
 		/* STA is using locally administered MAC. Use randomized mac
@@ -1798,6 +1801,10 @@ wl_cfgp2p_generate_bss_mac(struct bcm_cfg80211 *cfg, struct ether_addr *primary_
 	} else {
 		(void)memcpy_s(mac_addr, ETH_ALEN, bcmcfg_to_prmry_ndev(cfg)->perm_addr, ETH_ALEN);
 		mac_addr->octet[0] |= 0x02;
+#ifdef P2P_AP_CONCURRENT
+		if (dhd->conf->war & P2P_AP_MAC_CONFLICT)
+			wl_ext_iapsta_get_vif_macaddr(dhd, 2, (u8 *)mac_addr);
+#endif
 		WL_DBG(("P2P Discovery address:"MACDBG "\n", MAC2STRDBG(mac_addr->octet)));
 	}
 
@@ -2623,7 +2630,6 @@ wl_cfgp2p_add_p2p_disc_if(struct bcm_cfg80211 *cfg)
 	cfg->p2p_wdev = wdev;
 
 	printf("P2P interface registered\n");
-	printf("%s: wdev: %p, wdev->net: %p\n", __FUNCTION__, wdev, wdev->netdev);
 	return wdev;
 }
 

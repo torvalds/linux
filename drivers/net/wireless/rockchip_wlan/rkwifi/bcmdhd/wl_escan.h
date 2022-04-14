@@ -3,6 +3,9 @@
 #define _wl_escan_
 #include <linuxver.h>
 #include <wl_iw.h>
+#include <wl_iapsta.h>
+#include <wl_android_ext.h>
+#include <dhd_config.h>
 
 #define ESCAN_BUF_SIZE (64 * 1024)
 
@@ -14,6 +17,13 @@ enum escan_state {
 	ESCAN_STATE_IDLE,
 	ESCAN_STATE_SCANING
 };
+
+typedef struct wl_scan_info {
+	bool bcast_ssid;
+	wlc_ssid_t ssid;
+	wl_channel_list_t channels;
+	int scan_time;
+} wl_scan_info_t;
 
 typedef struct wl_escan_info {
 	struct net_device *dev;
@@ -62,16 +72,15 @@ bool wl_escan_mesh_peer(struct net_device *dev,
 	struct wl_mesh_params *mesh_info);
 #endif /* WLMESH */
 
-int wl_escan_set_scan(struct net_device *dev, dhd_pub_t *dhdp,
-	wlc_ssid_t *ssid, uint16 channel, bool bcast);
-int wl_escan_get_scan(struct net_device *dev, dhd_pub_t *dhdp,
+int wl_escan_set_scan(struct net_device *dev, wl_scan_info_t *scan_info);
+int wl_escan_get_scan(struct net_device *dev,
 	struct iw_request_info *info, struct iw_point *dwrq, char *extra);
-int wl_escan_attach(struct net_device *dev, dhd_pub_t *dhdp);
-void wl_escan_detach(struct net_device *dev, dhd_pub_t *dhdp);
-int wl_escan_event_attach(struct net_device *dev, dhd_pub_t *dhdp);
-int wl_escan_event_dettach(struct net_device *dev, dhd_pub_t *dhdp);
-int wl_escan_up(struct net_device *dev, dhd_pub_t *dhdp);
-void wl_escan_down(struct net_device *dev, dhd_pub_t *dhdp);
+int wl_escan_attach(struct net_device *dev);
+void wl_escan_detach(struct net_device *dev);
+int wl_escan_event_attach(struct net_device *dev, int ifidx);
+int wl_escan_event_dettach(struct net_device *dev, int ifidx);
+int wl_escan_up(struct net_device *dev);
+void wl_escan_down(struct net_device *dev);
 
 #endif /* _wl_escan_ */
 

@@ -61,8 +61,12 @@ extern tcp_hdr_flag_t dhd_tcpdata_get_flag(dhd_pub_t *dhdp, void *pkt);
 #define	TCPACKSZMAX	(TCPACKSZMIN + 100)
 
 /* Max number of TCP streams that have own src/dst IP addrs and TCP ports */
+#ifndef TCPACK_INFO_MAXNUM
 #define TCPACK_INFO_MAXNUM 4
+#endif
+#ifndef TCPDATA_INFO_MAXNUM
 #define TCPDATA_INFO_MAXNUM 4
+#endif
 #define TCPDATA_PSH_INFO_MAXNUM (8 * TCPDATA_INFO_MAXNUM)
 
 #define TCPDATA_INFO_TIMEOUT 5000	/* Remove tcpdata_info if inactive for this time (in ms) */

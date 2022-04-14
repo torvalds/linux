@@ -1526,6 +1526,9 @@ dhdpcie_bus_register(void)
 		bus_for_each_dev(dhdpcie_driver.driver.bus, NULL, &error, dhdpcie_device_scan);
 		if (!error) {
 			DHD_ERROR(("No Broadcom PCI device enumerated!\n"));
+#ifdef DHD_PRELOAD
+			return 0;
+#endif
 		} else if (!dhdpcie_init_succeeded) {
 			DHD_ERROR(("%s: dhdpcie initialize failed.\n", __FUNCTION__));
 		} else {

@@ -395,6 +395,8 @@ int dhd_tcpack_suppress_set(dhd_pub_t *dhdp, uint8 mode)
 
 	printf("%s: TCP ACK Suppress mode %d -> mode %d\n",
 		__FUNCTION__, dhdp->tcpack_sup_mode, mode);
+	printf("%s: TCPACK_INFO_MAXNUM=%d, TCPDATA_INFO_MAXNUM=%d\n",
+		__FUNCTION__, TCPACK_INFO_MAXNUM, TCPDATA_INFO_MAXNUM);
 
 	/* Pre-process routines to change a new mode as per previous mode */
 	switch (prev_mode) {
