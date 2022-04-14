@@ -487,7 +487,7 @@ static irqreturn_t octep_non_ioq_intr_handler_cn93_pf(void *dev)
 		goto irq_handled;
 	}
 
-	dev_info(&pdev->dev, "Reserved inerrupts raised; Ignore\n");
+	dev_info(&pdev->dev, "Reserved interrupts raised; Ignore\n");
 irq_handled:
 	return IRQ_HANDLED;
 }
