@@ -183,16 +183,16 @@ static const struct clk_ops clk_prcmu_opp_volt_scalable_ops = {
 	.set_rate = clk_prcmu_set_rate,
 };
 
-static struct clk *clk_reg_prcmu(const char *name,
-				 const char *parent_name,
-				 u8 cg_sel,
-				 unsigned long rate,
-				 unsigned long flags,
-				 const struct clk_ops *clk_prcmu_ops)
+static struct clk_hw *clk_reg_prcmu(const char *name,
+				    const char *parent_name,
+				    u8 cg_sel,
+				    unsigned long rate,
+				    unsigned long flags,
+				    const struct clk_ops *clk_prcmu_ops)
 {
 	struct clk_prcmu *clk;
 	struct clk_init_data clk_prcmu_init;
-	struct clk *clk_reg;
+	int ret;
 
 	if (!name) {
 		pr_err("clk_prcmu: %s invalid arguments passed\n", __func__);
@@ -216,11 +216,11 @@ static struct clk *clk_reg_prcmu(const char *name,
 	clk_prcmu_init.num_parents = (parent_name ? 1 : 0);
 	clk->hw.init = &clk_prcmu_init;
 
-	clk_reg = clk_register(NULL, &clk->hw);
-	if (IS_ERR_OR_NULL(clk_reg))
+	ret = clk_hw_register(NULL, &clk->hw);
+	if (ret)
 		goto free_clk;
 
-	return clk_reg;
+	return &clk->hw;
 
 free_clk:
 	kfree(clk);
@@ -228,58 +228,58 @@ free_clk:
 	return ERR_PTR(-ENOMEM);
 }
 
-struct clk *clk_reg_prcmu_scalable(const char *name,
-				   const char *parent_name,
-				   u8 cg_sel,
-				   unsigned long rate,
-				   unsigned long flags)
+struct clk_hw *clk_reg_prcmu_scalable(const char *name,
+				      const char *parent_name,
+				      u8 cg_sel,
+				      unsigned long rate,
+				      unsigned long flags)
 {
 	return clk_reg_prcmu(name, parent_name, cg_sel, rate, flags,
 			&clk_prcmu_scalable_ops);
 }
 
-struct clk *clk_reg_prcmu_gate(const char *name,
-			       const char *parent_name,
-			       u8 cg_sel,
-			       unsigned long flags)
+struct clk_hw *clk_reg_prcmu_gate(const char *name,
+				  const char *parent_name,
+				  u8 cg_sel,
+				  unsigned long flags)
 {
 	return clk_reg_prcmu(name, parent_name, cg_sel, 0, flags,
 			&clk_prcmu_gate_ops);
 }
 
-struct clk *clk_reg_prcmu_scalable_rate(const char *name,
-					const char *parent_name,
-					u8 cg_sel,
-					unsigned long rate,
-					unsigned long flags)
+struct clk_hw *clk_reg_prcmu_scalable_rate(const char *name,
+					   const char *parent_name,
+					   u8 cg_sel,
+					   unsigned long rate,
+					   unsigned long flags)
 {
 	return clk_reg_prcmu(name, parent_name, cg_sel, rate, flags,
 			&clk_prcmu_scalable_rate_ops);
 }
 
-struct clk *clk_reg_prcmu_rate(const char *name,
-			       const char *parent_name,
-			       u8 cg_sel,
-			       unsigned long flags)
+struct clk_hw *clk_reg_prcmu_rate(const char *name,
+				  const char *parent_name,
+				  u8 cg_sel,
+				  unsigned long flags)
 {
 	return clk_reg_prcmu(name, parent_name, cg_sel, 0, flags,
 			&clk_prcmu_rate_ops);
 }
 
-struct clk *clk_reg_prcmu_opp_gate(const char *name,
-				   const char *parent_name,
-				   u8 cg_sel,
-				   unsigned long flags)
+struct clk_hw *clk_reg_prcmu_opp_gate(const char *name,
+				      const char *parent_name,
+				      u8 cg_sel,
+				      unsigned long flags)
 {
 	return clk_reg_prcmu(name, parent_name, cg_sel, 0, flags,
 			&clk_prcmu_opp_gate_ops);
 }
 
-struct clk *clk_reg_prcmu_opp_volt_scalable(const char *name,
-					    const char *parent_name,
-					    u8 cg_sel,
-					    unsigned long rate,
-					    unsigned long flags)
+struct clk_hw *clk_reg_prcmu_opp_volt_scalable(const char *name,
+					       const char *parent_name,
+					       u8 cg_sel,
+					       unsigned long rate,
+					       unsigned long flags)
 {
 	return clk_reg_prcmu(name, parent_name, cg_sel, rate, flags,
 			&clk_prcmu_opp_volt_scalable_ops);

@@ -13,6 +13,7 @@
 #include <linux/types.h>
 
 struct clk;
+struct clk_hw;
 
 struct clk *clk_reg_prcc_pclk(const char *name,
 			      const char *parent_name,
@@ -26,38 +27,38 @@ struct clk *clk_reg_prcc_kclk(const char *name,
 			      u32 cg_sel,
 			      unsigned long flags);
 
-struct clk *clk_reg_prcmu_scalable(const char *name,
-				   const char *parent_name,
-				   u8 cg_sel,
-				   unsigned long rate,
-				   unsigned long flags);
+struct clk_hw *clk_reg_prcmu_scalable(const char *name,
+				      const char *parent_name,
+				      u8 cg_sel,
+				      unsigned long rate,
+				      unsigned long flags);
 
-struct clk *clk_reg_prcmu_gate(const char *name,
-			       const char *parent_name,
-			       u8 cg_sel,
-			       unsigned long flags);
+struct clk_hw *clk_reg_prcmu_gate(const char *name,
+				  const char *parent_name,
+				  u8 cg_sel,
+				  unsigned long flags);
 
-struct clk *clk_reg_prcmu_scalable_rate(const char *name,
-					const char *parent_name,
-					u8 cg_sel,
-					unsigned long rate,
-					unsigned long flags);
+struct clk_hw *clk_reg_prcmu_scalable_rate(const char *name,
+					   const char *parent_name,
+					   u8 cg_sel,
+					   unsigned long rate,
+					   unsigned long flags);
 
-struct clk *clk_reg_prcmu_rate(const char *name,
-			       const char *parent_name,
-			       u8 cg_sel,
-			       unsigned long flags);
+struct clk_hw *clk_reg_prcmu_rate(const char *name,
+				  const char *parent_name,
+				  u8 cg_sel,
+				  unsigned long flags);
 
-struct clk *clk_reg_prcmu_opp_gate(const char *name,
-				   const char *parent_name,
-				   u8 cg_sel,
-				   unsigned long flags);
+struct clk_hw *clk_reg_prcmu_opp_gate(const char *name,
+				      const char *parent_name,
+				      u8 cg_sel,
+				      unsigned long flags);
 
-struct clk *clk_reg_prcmu_opp_volt_scalable(const char *name,
-					    const char *parent_name,
-					    u8 cg_sel,
-					    unsigned long rate,
-					    unsigned long flags);
+struct clk_hw *clk_reg_prcmu_opp_volt_scalable(const char *name,
+					       const char *parent_name,
+					       u8 cg_sel,
+					       unsigned long rate,
+					       unsigned long flags);
 
 struct clk *clk_reg_sysctrl_gate(struct device *dev,
 				 const char *name,
