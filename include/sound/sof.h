@@ -47,6 +47,13 @@ enum sof_dsp_power_states {
 	SOF_DSP_PM_D3,
 };
 
+/* Definitions for multiple IPCs */
+enum sof_ipc_type {
+	SOF_IPC,
+	SOF_INTEL_IPC4,
+	SOF_IPC_TYPE_COUNT
+};
+
 /*
  * SOF Platform data.
  */
@@ -83,6 +90,8 @@ struct snd_sof_pdata {
 	const struct snd_soc_acpi_mach *machine;
 
 	void *hw_pdata;
+
+	enum sof_ipc_type ipc_type;
 };
 
 /*
