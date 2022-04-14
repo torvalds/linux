@@ -1422,9 +1422,8 @@ static int emac_dev_open(struct net_device *ndev)
 	struct phy_device *phydev = NULL;
 	struct device *phy = NULL;
 
-	ret = pm_runtime_get_sync(&priv->pdev->dev);
+	ret = pm_runtime_resume_and_get(&priv->pdev->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&priv->pdev->dev);
 		dev_err(&priv->pdev->dev, "%s: failed to get_sync(%d)\n",
 			__func__, ret);
 		return ret;
@@ -1661,9 +1660,8 @@ static struct net_device_stats *emac_dev_getnetstats(struct net_device *ndev)
 	u32 stats_clear_mask;
 	int err;
 
-	err = pm_runtime_get_sync(&priv->pdev->dev);
+	err = pm_runtime_resume_and_get(&priv->pdev->dev);
 	if (err < 0) {
-		pm_runtime_put_noidle(&priv->pdev->dev);
 		dev_err(&priv->pdev->dev, "%s: failed to get_sync(%d)\n",
 			__func__, err);
 		return &ndev->stats;
@@ -1954,9 +1952,8 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	netif_napi_add(ndev, &priv->napi, emac_poll, EMAC_POLL_WEIGHT);
 
 	pm_runtime_enable(&pdev->dev);
-	rc = pm_runtime_get_sync(&pdev->dev);
+	rc = pm_runtime_resume_and_get(&pdev->dev);
 	if (rc < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
 		dev_err(&pdev->dev, "%s: failed to get_sync(%d)\n",
 			__func__, rc);
 		goto err_napi_del;
