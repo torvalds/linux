@@ -8,8 +8,10 @@
 
 #include "intel_runtime_pm.h"
 
+enum aux_ch;
 enum dpio_channel;
 enum dpio_phy;
+enum port;
 struct drm_i915_private;
 struct i915_power_well;
 struct intel_encoder;
@@ -130,6 +132,7 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_INIT,
 
 	POWER_DOMAIN_NUM,
+	POWER_DOMAIN_INVALID = POWER_DOMAIN_NUM,
 };
 
 #define POWER_DOMAIN_PIPE(pipe) ((pipe) + POWER_DOMAIN_PIPE_A)
@@ -265,6 +268,15 @@ intel_display_power_put_all_in_set(struct drm_i915_private *i915,
 }
 
 void intel_display_power_debug(struct drm_i915_private *i915, struct seq_file *m);
+
+enum intel_display_power_domain
+intel_display_power_ddi_lanes_domain(struct drm_i915_private *i915, enum port port);
+enum intel_display_power_domain
+intel_display_power_ddi_io_domain(struct drm_i915_private *i915, enum port port);
+enum intel_display_power_domain
+intel_display_power_legacy_aux_domain(struct drm_i915_private *i915, enum aux_ch aux_ch);
+enum intel_display_power_domain
+intel_display_power_tbt_aux_domain(struct drm_i915_private *i915, enum aux_ch aux_ch);
 
 /*
  * FIXME: We should probably switch this to a 0-based scheme to be consistent

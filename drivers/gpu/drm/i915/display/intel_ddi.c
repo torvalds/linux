@@ -40,6 +40,7 @@
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
+#include "intel_display_power.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_link_training.h"
@@ -4364,7 +4365,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->get_power_domains = intel_ddi_get_power_domains;
 
 	encoder->type = INTEL_OUTPUT_DDI;
-	encoder->power_domain = intel_port_to_power_domain(port);
+	encoder->power_domain = intel_display_power_ddi_lanes_domain(dev_priv, port);
 	encoder->port = port;
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
@@ -4492,8 +4493,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	}
 
 	drm_WARN_ON(&dev_priv->drm, port > PORT_I);
-	dig_port->ddi_io_power_domain = POWER_DOMAIN_PORT_DDI_IO_A +
-					      port - PORT_A;
+	dig_port->ddi_io_power_domain = intel_display_power_ddi_io_domain(dev_priv, port);
 
 	if (init_dp) {
 		if (!intel_ddi_init_dp_connector(dig_port))

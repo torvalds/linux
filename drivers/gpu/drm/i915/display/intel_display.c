@@ -51,6 +51,7 @@
 #include "display/intel_crt.h"
 #include "display/intel_ddi.h"
 #include "display/intel_display_debugfs.h"
+#include "display/intel_display_power.h"
 #include "display/intel_dp.h"
 #include "display/intel_dp_mst.h"
 #include "display/intel_dpll.h"
@@ -2157,91 +2158,15 @@ enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv, enum port port)
 		return TC_PORT_1 + port - PORT_C;
 }
 
-enum intel_display_power_domain intel_port_to_power_domain(enum port port)
-{
-	switch (port) {
-	case PORT_A:
-		return POWER_DOMAIN_PORT_DDI_LANES_A;
-	case PORT_B:
-		return POWER_DOMAIN_PORT_DDI_LANES_B;
-	case PORT_C:
-		return POWER_DOMAIN_PORT_DDI_LANES_C;
-	case PORT_D:
-		return POWER_DOMAIN_PORT_DDI_LANES_D;
-	case PORT_E:
-		return POWER_DOMAIN_PORT_DDI_LANES_E;
-	case PORT_F:
-		return POWER_DOMAIN_PORT_DDI_LANES_F;
-	case PORT_G:
-		return POWER_DOMAIN_PORT_DDI_LANES_G;
-	case PORT_H:
-		return POWER_DOMAIN_PORT_DDI_LANES_H;
-	case PORT_I:
-		return POWER_DOMAIN_PORT_DDI_LANES_I;
-	default:
-		MISSING_CASE(port);
-		return POWER_DOMAIN_PORT_OTHER;
-	}
-}
-
 enum intel_display_power_domain
 intel_aux_power_domain(struct intel_digital_port *dig_port)
 {
-	if (intel_tc_port_in_tbt_alt_mode(dig_port)) {
-		switch (dig_port->aux_ch) {
-		case AUX_CH_C:
-			return POWER_DOMAIN_AUX_TBT_C;
-		case AUX_CH_D:
-			return POWER_DOMAIN_AUX_TBT_D;
-		case AUX_CH_E:
-			return POWER_DOMAIN_AUX_TBT_E;
-		case AUX_CH_F:
-			return POWER_DOMAIN_AUX_TBT_F;
-		case AUX_CH_G:
-			return POWER_DOMAIN_AUX_TBT_G;
-		case AUX_CH_H:
-			return POWER_DOMAIN_AUX_TBT_H;
-		case AUX_CH_I:
-			return POWER_DOMAIN_AUX_TBT_I;
-		default:
-			MISSING_CASE(dig_port->aux_ch);
-			return POWER_DOMAIN_AUX_TBT_C;
-		}
-	}
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 
-	return intel_legacy_aux_to_power_domain(dig_port->aux_ch);
-}
+	if (intel_tc_port_in_tbt_alt_mode(dig_port))
+		return intel_display_power_tbt_aux_domain(i915, dig_port->aux_ch);
 
-/*
- * Converts aux_ch to power_domain without caring about TBT ports for that use
- * intel_aux_power_domain()
- */
-enum intel_display_power_domain
-intel_legacy_aux_to_power_domain(enum aux_ch aux_ch)
-{
-	switch (aux_ch) {
-	case AUX_CH_A:
-		return POWER_DOMAIN_AUX_A;
-	case AUX_CH_B:
-		return POWER_DOMAIN_AUX_B;
-	case AUX_CH_C:
-		return POWER_DOMAIN_AUX_C;
-	case AUX_CH_D:
-		return POWER_DOMAIN_AUX_D;
-	case AUX_CH_E:
-		return POWER_DOMAIN_AUX_E;
-	case AUX_CH_F:
-		return POWER_DOMAIN_AUX_F;
-	case AUX_CH_G:
-		return POWER_DOMAIN_AUX_G;
-	case AUX_CH_H:
-		return POWER_DOMAIN_AUX_H;
-	case AUX_CH_I:
-		return POWER_DOMAIN_AUX_I;
-	default:
-		MISSING_CASE(aux_ch);
-		return POWER_DOMAIN_AUX_A;
-	}
+	return intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
 }
 
 static void get_crtc_power_domains(struct intel_crtc_state *crtc_state,

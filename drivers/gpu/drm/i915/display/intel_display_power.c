@@ -2256,3 +2256,209 @@ void intel_display_power_debug(struct drm_i915_private *i915, struct seq_file *m
 
 	mutex_unlock(&power_domains->lock);
 }
+
+struct intel_ddi_port_domains {
+	enum port port_start;
+	enum port port_end;
+	enum aux_ch aux_ch_start;
+	enum aux_ch aux_ch_end;
+
+	enum intel_display_power_domain ddi_lanes;
+	enum intel_display_power_domain ddi_io;
+	enum intel_display_power_domain aux_legacy_usbc;
+	enum intel_display_power_domain aux_tbt;
+};
+
+static const struct intel_ddi_port_domains
+i9xx_port_domains[] = {
+	{
+		.port_start = PORT_A,
+		.port_end = PORT_F,
+		.aux_ch_start = AUX_CH_A,
+		.aux_ch_end = AUX_CH_F,
+
+		.ddi_lanes = POWER_DOMAIN_PORT_DDI_LANES_A,
+		.ddi_io = POWER_DOMAIN_PORT_DDI_IO_A,
+		.aux_legacy_usbc = POWER_DOMAIN_AUX_A,
+		.aux_tbt = POWER_DOMAIN_INVALID,
+	},
+};
+
+static const struct intel_ddi_port_domains
+d11_port_domains[] = {
+	{
+		.port_start = PORT_A,
+		.port_end = PORT_B,
+		.aux_ch_start = AUX_CH_A,
+		.aux_ch_end = AUX_CH_B,
+
+		.ddi_lanes = POWER_DOMAIN_PORT_DDI_LANES_A,
+		.ddi_io = POWER_DOMAIN_PORT_DDI_IO_A,
+		.aux_legacy_usbc = POWER_DOMAIN_AUX_A,
+		.aux_tbt = POWER_DOMAIN_INVALID,
+	}, {
+		.port_start = PORT_C,
+		.port_end = PORT_F,
+		.aux_ch_start = AUX_CH_C,
+		.aux_ch_end = AUX_CH_F,
+
+		.ddi_lanes = POWER_DOMAIN_PORT_DDI_LANES_C,
+		.ddi_io = POWER_DOMAIN_PORT_DDI_IO_C,
+		.aux_legacy_usbc = POWER_DOMAIN_AUX_C,
+		.aux_tbt = POWER_DOMAIN_AUX_TBT_C,
+	},
+};
+
+static const struct intel_ddi_port_domains
+d12_port_domains[] = {
+	{
+		.port_start = PORT_A,
+		.port_end = PORT_C,
+		.aux_ch_start = AUX_CH_A,
+		.aux_ch_end = AUX_CH_C,
+
+		.ddi_lanes = POWER_DOMAIN_PORT_DDI_LANES_A,
+		.ddi_io = POWER_DOMAIN_PORT_DDI_IO_A,
+		.aux_legacy_usbc = POWER_DOMAIN_AUX_A,
+		.aux_tbt = POWER_DOMAIN_INVALID,
+	}, {
+		.port_start = PORT_TC1,
+		.port_end = PORT_TC6,
+		.aux_ch_start = AUX_CH_USBC1,
+		.aux_ch_end = AUX_CH_USBC6,
+
+		.ddi_lanes = POWER_DOMAIN_PORT_DDI_LANES_TC1,
+		.ddi_io = POWER_DOMAIN_PORT_DDI_IO_TC1,
+		.aux_legacy_usbc = POWER_DOMAIN_AUX_USBC1,
+		.aux_tbt = POWER_DOMAIN_AUX_TBT1,
+	},
+};
+
+static const struct intel_ddi_port_domains
+d13_port_domains[] = {
+	{
+		.port_start = PORT_A,
+		.port_end = PORT_C,
+		.aux_ch_start = AUX_CH_A,
+		.aux_ch_end = AUX_CH_C,
+
+		.ddi_lanes = POWER_DOMAIN_PORT_DDI_LANES_A,
+		.ddi_io = POWER_DOMAIN_PORT_DDI_IO_A,
+		.aux_legacy_usbc = POWER_DOMAIN_AUX_A,
+		.aux_tbt = POWER_DOMAIN_INVALID,
+	}, {
+		.port_start = PORT_TC1,
+		.port_end = PORT_TC4,
+		.aux_ch_start = AUX_CH_USBC1,
+		.aux_ch_end = AUX_CH_USBC4,
+
+		.ddi_lanes = POWER_DOMAIN_PORT_DDI_LANES_TC1,
+		.ddi_io = POWER_DOMAIN_PORT_DDI_IO_TC1,
+		.aux_legacy_usbc = POWER_DOMAIN_AUX_USBC1,
+		.aux_tbt = POWER_DOMAIN_AUX_TBT1,
+	}, {
+		.port_start = PORT_D_XELPD,
+		.port_end = PORT_E_XELPD,
+		.aux_ch_start = AUX_CH_D_XELPD,
+		.aux_ch_end = AUX_CH_E_XELPD,
+
+		.ddi_lanes = POWER_DOMAIN_PORT_DDI_LANES_D_XELPD,
+		.ddi_io = POWER_DOMAIN_PORT_DDI_IO_D_XELPD,
+		.aux_legacy_usbc = POWER_DOMAIN_AUX_D_XELPD,
+		.aux_tbt = POWER_DOMAIN_INVALID,
+	},
+};
+
+static void
+intel_port_domains_for_platform(struct drm_i915_private *i915,
+				const struct intel_ddi_port_domains **domains,
+				int *domains_size)
+{
+	if (DISPLAY_VER(i915) >= 13) {
+		*domains = d13_port_domains;
+		*domains_size = ARRAY_SIZE(d13_port_domains);
+	} else if (DISPLAY_VER(i915) >= 12) {
+		*domains = d12_port_domains;
+		*domains_size = ARRAY_SIZE(d12_port_domains);
+	} else if (DISPLAY_VER(i915) >= 11) {
+		*domains = d11_port_domains;
+		*domains_size = ARRAY_SIZE(d11_port_domains);
+	} else {
+		*domains = i9xx_port_domains;
+		*domains_size = ARRAY_SIZE(i9xx_port_domains);
+	}
+}
+
+static const struct intel_ddi_port_domains *
+intel_port_domains_for_port(struct drm_i915_private *i915, enum port port)
+{
+	const struct intel_ddi_port_domains *domains;
+	int domains_size;
+	int i;
+
+	intel_port_domains_for_platform(i915, &domains, &domains_size);
+	for (i = 0; i < domains_size; i++)
+		if (port >= domains[i].port_start && port <= domains[i].port_end)
+			return &domains[i];
+
+	return NULL;
+}
+
+enum intel_display_power_domain
+intel_display_power_ddi_io_domain(struct drm_i915_private *i915, enum port port)
+{
+	const struct intel_ddi_port_domains *domains = intel_port_domains_for_port(i915, port);
+
+	if (drm_WARN_ON(&i915->drm, !domains) || domains->ddi_io == POWER_DOMAIN_INVALID)
+		return POWER_DOMAIN_PORT_DDI_IO_A;
+
+	return domains->ddi_io + port - domains->port_start;
+}
+
+enum intel_display_power_domain
+intel_display_power_ddi_lanes_domain(struct drm_i915_private *i915, enum port port)
+{
+	const struct intel_ddi_port_domains *domains = intel_port_domains_for_port(i915, port);
+
+	if (drm_WARN_ON(&i915->drm, !domains) || domains->ddi_lanes == POWER_DOMAIN_INVALID)
+		return POWER_DOMAIN_PORT_DDI_LANES_A;
+
+	return domains->ddi_lanes + port - domains->port_start;
+}
+
+static const struct intel_ddi_port_domains *
+intel_port_domains_for_aux_ch(struct drm_i915_private *i915, enum aux_ch aux_ch)
+{
+	const struct intel_ddi_port_domains *domains;
+	int domains_size;
+	int i;
+
+	intel_port_domains_for_platform(i915, &domains, &domains_size);
+	for (i = 0; i < domains_size; i++)
+		if (aux_ch >= domains[i].aux_ch_start && aux_ch <= domains[i].aux_ch_end)
+			return &domains[i];
+
+	return NULL;
+}
+
+enum intel_display_power_domain
+intel_display_power_legacy_aux_domain(struct drm_i915_private *i915, enum aux_ch aux_ch)
+{
+	const struct intel_ddi_port_domains *domains = intel_port_domains_for_aux_ch(i915, aux_ch);
+
+	if (drm_WARN_ON(&i915->drm, !domains) || domains->aux_legacy_usbc == POWER_DOMAIN_INVALID)
+		return POWER_DOMAIN_AUX_A;
+
+	return domains->aux_legacy_usbc + aux_ch - domains->aux_ch_start;
+}
+
+enum intel_display_power_domain
+intel_display_power_tbt_aux_domain(struct drm_i915_private *i915, enum aux_ch aux_ch)
+{
+	const struct intel_ddi_port_domains *domains = intel_port_domains_for_aux_ch(i915, aux_ch);
+
+	if (drm_WARN_ON(&i915->drm, !domains) || domains->aux_tbt == POWER_DOMAIN_INVALID)
+		return POWER_DOMAIN_AUX_TBT1;
+
+	return domains->aux_tbt + aux_ch - domains->aux_ch_start;
+}
