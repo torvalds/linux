@@ -765,6 +765,7 @@ static inline bool is_iommu_enable(struct device *dev)
 void rkisp_soft_reset(struct rkisp_hw_dev *dev, bool is_secure)
 {
 	void __iomem *base = dev->base_addr;
+	u32 val;
 
 	if (is_secure) {
 		/* if isp working, cru reset isn't secure.
@@ -786,7 +787,14 @@ void rkisp_soft_reset(struct rkisp_hw_dev *dev, bool is_secure)
 	/* reset for Dehaze */
 	if (dev->isp_ver == ISP_V20)
 		writel(CIF_ISP_CTRL_ISP_MODE_BAYER_ITU601, base + CIF_ISP_CTRL);
-	writel(0xffff, base + CIF_IRCL);
+	val = 0xffff;
+	if (dev->isp_ver == ISP_V32) {
+		val = 0x3fffffff;
+		rv1106_sdmmc_get_lock();
+	}
+	writel(val, base + CIF_IRCL);
+	if (dev->isp_ver == ISP_V32)
+		rv1106_sdmmc_put_lock();
 	if (dev->is_unite)
 		writel(0xffff, dev->base_next_addr + CIF_IRCL);
 	udelay(10);
@@ -807,10 +815,13 @@ static void isp_config_clk(struct rkisp_hw_dev *dev, int on)
 
 	if ((dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32) && on)
 		val |= ICCL_MPFBC_CLK;
-	if (dev->isp_ver == ISP_V32 && on)
-		val |= ISP32_BRSZ_CLK_ENABLE;
-
+	if (dev->isp_ver == ISP_V32) {
+		val |= ISP32_BRSZ_CLK_ENABLE | BIT(0) | BIT(16);
+		rv1106_sdmmc_get_lock();
+	}
 	writel(val, dev->base_addr + CIF_ICCL);
+	if (dev->isp_ver == ISP_V32)
+		rv1106_sdmmc_put_lock();
 	if (dev->is_unite)
 		writel(val, dev->base_next_addr + CIF_ICCL);
 
@@ -835,7 +846,13 @@ static void isp_config_clk(struct rkisp_hw_dev *dev, int on)
 		if ((dev->isp_ver == ISP_V20 ||
 		     dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32) && on)
 			val |= CLK_CTRL_ISP_3A;
+		if (dev->isp_ver == ISP_V32) {
+			val &= ~CLK_CTRL_ISP_RAW;
+			rv1106_sdmmc_get_lock();
+		}
 		writel(val, dev->base_addr + CTRL_VI_ISP_CLK_CTRL);
+		if (dev->isp_ver == ISP_V32)
+			rv1106_sdmmc_put_lock();
 		if (dev->is_unite)
 			writel(val, dev->base_next_addr + CTRL_VI_ISP_CLK_CTRL);
 	}

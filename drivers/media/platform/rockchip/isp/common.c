@@ -18,7 +18,11 @@ void rkisp_write(struct rkisp_device *dev, u32 reg, u32 val, bool is_direct)
 	*flag = SW_REG_CACHE;
 	if (dev->hw_dev->is_single || is_direct) {
 		*flag = SW_REG_CACHE_SYNC;
+		if (dev->isp_ver == ISP_V32 && reg <= 0x200)
+			rv1106_sdmmc_get_lock();
 		writel(val, dev->hw_dev->base_addr + reg);
+		if (dev->isp_ver == ISP_V32 && reg <= 0x200)
+			rv1106_sdmmc_put_lock();
 	}
 }
 

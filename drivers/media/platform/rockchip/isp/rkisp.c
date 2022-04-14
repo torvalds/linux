@@ -1696,6 +1696,9 @@ static int rkisp_config_path(struct rkisp_device *dev)
 		ret = -EINVAL;
 	}
 
+	if (dev->isp_ver == ISP_V32)
+		dpcl |= BIT(0);
+
 	rkisp_unite_set_bits(dev, CIF_VI_DPCL, 0, dpcl, true,
 			     dev->hw_dev->is_unite);
 	return ret;

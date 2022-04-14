@@ -421,7 +421,6 @@ rkisp_stats_update_buf(struct rkisp_isp_stats_vdev *stats_vdev)
 	spin_unlock_irqrestore(&stats_vdev->rd_lock, flags);
 
 	if (stats_vdev->nxt_buf) {
-		rkisp_set_bits(dev, ISP3X_SWS_CFG, 0, ISP3X_3A_DDR_WRITE_EN, false);
 		rkisp_write(dev, ISP3X_MI_3A_WR_BASE, stats_vdev->nxt_buf->buff_addr[0], false);
 		v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
 			 "%s BASE:0x%x SHD:0x%x\n",
@@ -431,8 +430,9 @@ rkisp_stats_update_buf(struct rkisp_isp_stats_vdev *stats_vdev)
 			stats_vdev->cur_buf = stats_vdev->nxt_buf;
 			stats_vdev->nxt_buf = NULL;
 		}
-	} else {
-		rkisp_clear_bits(dev, ISP3X_SWS_CFG, ISP3X_3A_DDR_WRITE_EN, false);
+	} else if (stats_vdev->stats_buf[0].mem_priv) {
+		rkisp_write(dev, ISP3X_MI_3A_WR_BASE,
+			    stats_vdev->stats_buf[0].dma_addr, false);
 	}
 }
 
@@ -677,8 +677,14 @@ void rkisp_stats_first_ddr_config_v32(struct rkisp_isp_stats_vdev *stats_vdev)
 	if (!stats_vdev->streamon)
 		return;
 
+	stats_vdev->stats_buf[0].is_need_vaddr = true;
+	stats_vdev->stats_buf[0].size = sizeof(struct rkisp32_isp_stat_buffer);
+	if (rkisp_alloc_buffer(dev, &stats_vdev->stats_buf[0]))
+		v4l2_warn(&dev->v4l2_dev,
+			  "stats alloc buf fail\n");
 	rkisp_stats_update_buf(stats_vdev);
 	rkisp_write(dev, ISP3X_MI_DBR_WR_SIZE, size, false);
+	rkisp_set_bits(dev, ISP3X_SWS_CFG, 0, ISP3X_3A_DDR_WRITE_EN, false);
 	if (stats_vdev->nxt_buf) {
 		stats_vdev->cur_buf = stats_vdev->nxt_buf;
 		stats_vdev->nxt_buf = NULL;

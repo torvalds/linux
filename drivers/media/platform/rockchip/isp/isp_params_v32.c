@@ -1107,9 +1107,11 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 	isp3_param_write(params_vdev, ctrl, ISP3X_RAWAF_CTRL);
 
 	ctrl = isp3_param_read(params_vdev, ISP3X_VI_ISP_PATH);
-	ctrl &= ~(ISP3X_RAWAF_SEL(3));
-	ctrl |= ISP3X_RAWAF_SEL(arg->rawaf_sel);
-	isp3_param_write(params_vdev, ctrl, ISP3X_VI_ISP_PATH);
+	if ((ctrl & ISP3X_RAWAF_SEL(3)) != ISP3X_RAWAF_SEL(arg->rawaf_sel)) {
+		ctrl &= ~(ISP3X_RAWAF_SEL(3));
+		ctrl |= ISP3X_RAWAF_SEL(arg->rawaf_sel);
+		isp3_param_write(params_vdev, ctrl, ISP3X_VI_ISP_PATH);
+	}
 
 	params_vdev->afaemode_en = arg->ae_mode;
 	if (params_vdev->afaemode_en)
@@ -1192,9 +1194,11 @@ isp_rawaelite_config(struct rkisp_isp_params_vdev *params_vdev,
 			 ISP3X_RAWAE_LITE_BLK_SIZ);
 
 	value = isp3_param_read(params_vdev, ISP3X_VI_ISP_PATH);
-	value &= ~(ISP3X_RAWAE012_SEL(3));
-	value |= ISP3X_RAWAE012_SEL(arg->rawae_sel);
-	isp3_param_write(params_vdev, value, ISP3X_VI_ISP_PATH);
+	if ((value & ISP3X_RAWAE012_SEL(3)) != ISP3X_RAWAE012_SEL(arg->rawae_sel)) {
+		value &= ~(ISP3X_RAWAE012_SEL(3));
+		value |= ISP3X_RAWAE012_SEL(arg->rawae_sel);
+		isp3_param_write(params_vdev, value, ISP3X_VI_ISP_PATH);
+	}
 }
 
 static void
@@ -1290,16 +1294,19 @@ isp_rawaebig_config(struct rkisp_isp_params_vdev *params_vdev,
 			addr + ISP3X_RAWAE_BIG_WND1_SIZE + 8 * i);
 	}
 
+	value = isp3_param_read(params_vdev, ISP3X_VI_ISP_PATH);
 	if (blk_no == 0) {
-		value = isp3_param_read(params_vdev, ISP3X_VI_ISP_PATH);
-		value &= ~(ISP3X_RAWAE3_SEL(3));
-		value |= ISP3X_RAWAE3_SEL(arg->rawae_sel);
-		isp3_param_write(params_vdev, value, ISP3X_VI_ISP_PATH);
+		if ((value & ISP3X_RAWAE3_SEL(3)) != ISP3X_RAWAE3_SEL(arg->rawae_sel)) {
+			value &= ~(ISP3X_RAWAE3_SEL(3));
+			value |= ISP3X_RAWAE3_SEL(arg->rawae_sel);
+			isp3_param_write(params_vdev, value, ISP3X_VI_ISP_PATH);
+		}
 	} else {
-		value = isp3_param_read(params_vdev, ISP3X_VI_ISP_PATH);
-		value &= ~(ISP3X_RAWAE012_SEL(3));
-		value |= ISP3X_RAWAE012_SEL(arg->rawae_sel);
-		isp3_param_write(params_vdev, value, ISP3X_VI_ISP_PATH);
+		if ((value & ISP3X_RAWAE012_SEL(3)) != ISP3X_RAWAE012_SEL(arg->rawae_sel)) {
+			value &= ~(ISP3X_RAWAE012_SEL(3));
+			value |= ISP3X_RAWAE012_SEL(arg->rawae_sel);
+			isp3_param_write(params_vdev, value, ISP3X_VI_ISP_PATH);
+		}
 	}
 }
 
@@ -1400,7 +1407,7 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 	struct isp32_isp_params_cfg *params_rec = params_vdev->isp32_params;
 	struct isp32_rawawb_meas_cfg *arg_rec = &params_rec->meas.rawawb;
 	const struct isp2x_bls_fixed_val *pval = &arg->bls2_val;
-	u32 value;
+	u32 value, val, mask;
 
 	value = isp3_param_read(params_vdev, ISP3X_BLS_CTRL);
 	value &= ~ISP32_BLS_BLS2_EN;
@@ -2066,11 +2073,15 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 		 !!arg->uv_en0 << 1;
 	isp3_param_write(params_vdev, value, ISP3X_RAWAWB_CTRL);
 
+	mask = ISP32_DRC2AWB_SEL | ISP32_BNR2AWB_SEL | ISP3X_RAWAWB_SEL(3);
+	val = ISP3X_RAWAWB_SEL(arg->rawawb_sel) |
+	      (arg->bnr2awb_sel & 0x1) << 26 | (arg->drc2awb_sel & 0x1) << 27;
 	value = isp3_param_read(params_vdev, ISP3X_VI_ISP_PATH);
-	value &= ~(ISP32_DRC2AWB_SEL | ISP32_BNR2AWB_SEL | ISP3X_RAWAWB_SEL(3));
-	value |= ISP3X_RAWAWB_SEL(arg->rawawb_sel) |
-		 (arg->bnr2awb_sel & 0x1) << 26 | (arg->drc2awb_sel & 0x1) << 27;
-	isp3_param_write(params_vdev, value, ISP3X_VI_ISP_PATH);
+	if ((value & mask) != val) {
+		value &= ~mask;
+		value |= val;
+		isp3_param_write(params_vdev, value, ISP3X_VI_ISP_PATH);
+	}
 }
 
 static void
@@ -4516,7 +4527,6 @@ rkisp_params_stream_stop_v32(struct rkisp_isp_params_vdev *params_vdev)
 	priv_val->buf_info_idx = -1;
 	for (i = 0; i < priv_val->buf_info_cnt; i++)
 		rkisp_free_buffer(ispdev, &priv_val->buf_info[i]);
-
 }
 
 static void
