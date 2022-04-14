@@ -21,6 +21,14 @@
 #include "intel_snps_phy.h"
 #include "vlv_sideband.h"
 
+#define for_each_power_domain_well(__dev_priv, __power_well, __domain_mask)	\
+	for_each_power_well(__dev_priv, __power_well)				\
+		for_each_if((__power_well)->desc->domains & (__domain_mask))
+
+#define for_each_power_domain_well_reverse(__dev_priv, __power_well, __domain_mask) \
+	for_each_power_well_reverse(__dev_priv, __power_well)		        \
+		for_each_if((__power_well)->desc->domains & (__domain_mask))
+
 const char *
 intel_display_power_domain_str(enum intel_display_power_domain domain)
 {
