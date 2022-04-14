@@ -119,7 +119,6 @@ static void mt7921e_unregister_device(struct mt7921_dev *dev)
 	mt7921_mcu_exit(dev);
 
 	tasklet_disable(&dev->irq_tasklet);
-	mt76_free_device(&dev->mt76);
 }
 
 static u32 __mt7921_reg_addr(struct mt7921_dev *dev, u32 addr)
@@ -356,6 +355,7 @@ static void mt7921_pci_remove(struct pci_dev *pdev)
 
 	mt7921e_unregister_device(dev);
 	devm_free_irq(&pdev->dev, pdev->irq, dev);
+	mt76_free_device(&dev->mt76);
 	pci_free_irq_vectors(pdev);
 }
 
