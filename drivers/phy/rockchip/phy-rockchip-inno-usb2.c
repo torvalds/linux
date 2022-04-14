@@ -940,8 +940,14 @@ static irqreturn_t rockchip_usb2phy_irq(int irq, void *data)
 		if (!rport->phy)
 			continue;
 
-		/* Handle linestate irq for both otg port and host port */
-		ret = rockchip_usb2phy_linestate_irq(irq, rport);
+		switch (rport->port_id) {
+		case USB2PHY_PORT_OTG:
+			ret |= rockchip_usb2phy_otg_mux_irq(irq, rport);
+			break;
+		case USB2PHY_PORT_HOST:
+			ret |= rockchip_usb2phy_linestate_irq(irq, rport);
+			break;
+		}
 	}
 
 	return ret;
