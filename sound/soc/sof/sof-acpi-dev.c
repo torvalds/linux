@@ -74,7 +74,7 @@ int sof_acpi_probe(struct platform_device *pdev, const struct sof_dev_desc *desc
 
 	sof_pdata->desc = desc;
 	sof_pdata->dev = &pdev->dev;
-	sof_pdata->fw_filename = desc->default_fw_filename;
+	sof_pdata->fw_filename = desc->default_fw_filename[SOF_IPC];
 
 	/* alternate fw and tplg filenames ? */
 	if (fw_path)

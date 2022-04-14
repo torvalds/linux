@@ -448,7 +448,9 @@ static const struct sof_dev_desc sof_of_mt8195_desc = {
 	.default_tplg_path = {
 		[SOF_IPC] = "mediatek/sof-tplg",
 	},
-	.default_fw_filename = "sof-mt8195.ri",
+	.default_fw_filename = {
+		[SOF_IPC] = "sof-mt8195.ri",
+	},
 	.nocodec_tplg_filename = "sof-mt8195-nocodec.tplg",
 	.ops = &sof_mt8195_ops,
 };

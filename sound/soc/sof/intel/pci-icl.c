@@ -38,7 +38,10 @@ static const struct sof_dev_desc icl_desc = {
 		[SOF_IPC] = "intel/sof-tplg",
 		[SOF_INTEL_IPC4] = "intel/avs-tplg",
 	},
-	.default_fw_filename = "sof-icl.ri",
+	.default_fw_filename = {
+		[SOF_IPC] = "sof-icl.ri",
+		[SOF_INTEL_IPC4] = "dsp_basefw.bin",
+	},
 	.nocodec_tplg_filename = "sof-icl-nocodec.tplg",
 	.ops = &sof_icl_ops,
 };
@@ -61,7 +64,10 @@ static const struct sof_dev_desc jsl_desc = {
 		[SOF_IPC] = "intel/sof-tplg",
 		[SOF_INTEL_IPC4] = "intel/avs-tplg",
 	},
-	.default_fw_filename = "sof-jsl.ri",
+	.default_fw_filename = {
+		[SOF_IPC] = "sof-jsl.ri",
+		[SOF_INTEL_IPC4] = "dsp_basefw.bin",
+	},
 	.nocodec_tplg_filename = "sof-jsl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
 };

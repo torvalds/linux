@@ -38,7 +38,10 @@ static const struct sof_dev_desc cnl_desc = {
 		[SOF_IPC] = "intel/sof-tplg",
 		[SOF_INTEL_IPC4] = "intel/avs-tplg",
 	},
-	.default_fw_filename = "sof-cnl.ri",
+	.default_fw_filename = {
+		[SOF_IPC] = "sof-cnl.ri",
+		[SOF_INTEL_IPC4] = "dsp_basefw.bin",
+	},
 	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
 };
@@ -62,7 +65,10 @@ static const struct sof_dev_desc cfl_desc = {
 		[SOF_IPC] = "intel/sof-tplg",
 		[SOF_INTEL_IPC4] = "intel/avs-tplg",
 	},
-	.default_fw_filename = "sof-cfl.ri",
+	.default_fw_filename = {
+		[SOF_IPC] = "sof-cfl.ri",
+		[SOF_INTEL_IPC4] = "dsp_basefw.bin",
+	},
 	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
 };
@@ -86,7 +92,10 @@ static const struct sof_dev_desc cml_desc = {
 		[SOF_IPC] = "intel/sof-tplg",
 		[SOF_INTEL_IPC4] = "intel/avs-tplg",
 	},
-	.default_fw_filename = "sof-cml.ri",
+	.default_fw_filename = {
+		[SOF_IPC] = "sof-cml.ri",
+		[SOF_INTEL_IPC4] = "dsp_basefw.bin",
+	},
 	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
 	.ops = &sof_cnl_ops,
 };

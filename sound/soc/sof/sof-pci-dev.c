@@ -173,7 +173,9 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	sof_pdata->name = pci_name(pci);
 	sof_pdata->desc = desc;
 	sof_pdata->dev = dev;
-	sof_pdata->fw_filename = desc->default_fw_filename;
+
+	sof_pdata->ipc_type = desc->ipc_default;
+	sof_pdata->fw_filename = desc->default_fw_filename[sof_pdata->ipc_type];
 
 	/*
 	 * for platforms using the SOF community key, change the
@@ -193,7 +195,7 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	} else if (dmi_check_system(community_key_platforms)) {
 		sof_pdata->fw_filename_prefix =
 			devm_kasprintf(dev, GFP_KERNEL, "%s/%s",
-				       sof_pdata->desc->default_fw_path[SOF_IPC],
+				       sof_pdata->desc->default_fw_path[sof_pdata->ipc_type],
 				       "community");
 
 		dev_dbg(dev,
@@ -201,14 +203,14 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 			sof_pdata->fw_filename_prefix);
 	} else {
 		sof_pdata->fw_filename_prefix =
-			sof_pdata->desc->default_fw_path[SOF_IPC];
+			sof_pdata->desc->default_fw_path[sof_pdata->ipc_type];
 	}
 
 	if (tplg_path)
 		sof_pdata->tplg_filename_prefix = tplg_path;
 	else
 		sof_pdata->tplg_filename_prefix =
-			sof_pdata->desc->default_tplg_path[SOF_IPC];
+			sof_pdata->desc->default_tplg_path[sof_pdata->ipc_type];
 
 	dmi_check_system(sof_tplg_table);
 	if (sof_override_tplg_name)

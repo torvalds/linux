@@ -396,7 +396,9 @@ static const struct sof_dev_desc sof_acpi_baytrailcr_desc = {
 	.default_tplg_path = {
 		[SOF_IPC] = "intel/sof-tplg",
 	},
-	.default_fw_filename = "sof-byt.ri",
+	.default_fw_filename = {
+		[SOF_IPC] = "sof-byt.ri",
+	},
 	.nocodec_tplg_filename = "sof-byt-nocodec.tplg",
 	.ops = &sof_byt_ops,
 };
@@ -416,7 +418,9 @@ static const struct sof_dev_desc sof_acpi_baytrail_desc = {
 	.default_tplg_path = {
 		[SOF_IPC] = "intel/sof-tplg",
 	},
-	.default_fw_filename = "sof-byt.ri",
+	.default_fw_filename = {
+		[SOF_IPC] = "sof-byt.ri",
+	},
 	.nocodec_tplg_filename = "sof-byt-nocodec.tplg",
 	.ops = &sof_byt_ops,
 };
@@ -436,7 +440,9 @@ static const struct sof_dev_desc sof_acpi_cherrytrail_desc = {
 	.default_tplg_path = {
 		[SOF_IPC] = "intel/sof-tplg",
 	},
-	.default_fw_filename = "sof-cht.ri",
+	.default_fw_filename = {
+		[SOF_IPC] = "sof-cht.ri",
+	},
 	.nocodec_tplg_filename = "sof-cht-nocodec.tplg",
 	.ops = &sof_cht_ops,
 };

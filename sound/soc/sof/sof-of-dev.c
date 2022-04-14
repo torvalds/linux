@@ -64,7 +64,7 @@ int sof_of_probe(struct platform_device *pdev)
 
 	sof_pdata->desc = desc;
 	sof_pdata->dev = &pdev->dev;
-	sof_pdata->fw_filename = desc->default_fw_filename;
+	sof_pdata->fw_filename = desc->default_fw_filename[SOF_IPC];
 
 	if (fw_path)
 		sof_pdata->fw_filename_prefix = fw_path;
