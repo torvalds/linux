@@ -171,6 +171,7 @@ struct sof_intel_dsp_desc {
 	u32 sdw_alh_base;
 	u32 quirks;
 	bool (*check_sdw_irq)(struct snd_sof_dev *sdev);
+	bool (*check_ipc_irq)(struct snd_sof_dev *sdev);
 };
 
 extern struct snd_sof_dsp_ops sof_tng_ops;
