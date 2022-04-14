@@ -903,11 +903,35 @@ static const struct i915_power_well_desc tgl_power_wells_main[] = {
 		.ops = &icl_ddi_power_well_ops,
 	}, {
 		.instances = &I915_PW_INSTANCES(
+			I915_PW("PW_4", &tgl_pwdoms_pw_4,
+				.hsw.idx = ICL_PW_CTL_IDX_PW_4),
+		),
+		.ops = &hsw_power_well_ops,
+		.has_fuses = true,
+		.irq_pipe_mask = BIT(PIPE_C),
+	}, {
+		.instances = &I915_PW_INSTANCES(
+			I915_PW("PW_5", &tgl_pwdoms_pw_5,
+				.hsw.idx = TGL_PW_CTL_IDX_PW_5),
+		),
+		.ops = &hsw_power_well_ops,
+		.has_fuses = true,
+		.irq_pipe_mask = BIT(PIPE_D),
+	},
+};
+
+static const struct i915_power_well_desc tgl_power_wells_tc_cold_off[] = {
+	{
+		.instances = &I915_PW_INSTANCES(
 			I915_PW("TC_cold_off", &tgl_pwdoms_tc_cold_off,
 				.id = TGL_DISP_PW_TC_COLD_OFF),
 		),
 		.ops = &tgl_tc_cold_off_ops,
-	}, {
+	},
+};
+
+static const struct i915_power_well_desc tgl_power_wells_aux[] = {
+	{
 		.instances = &I915_PW_INSTANCES(
 			I915_PW("AUX_A", &tgl_pwdoms_aux_a, .hsw.idx = ICL_PW_CTL_IDX_AUX_A),
 			I915_PW("AUX_B", &tgl_pwdoms_aux_b, .hsw.idx = ICL_PW_CTL_IDX_AUX_B),
@@ -931,22 +955,6 @@ static const struct i915_power_well_desc tgl_power_wells_main[] = {
 		),
 		.ops = &icl_aux_power_well_ops,
 		.is_tc_tbt = true,
-	}, {
-		.instances = &I915_PW_INSTANCES(
-			I915_PW("PW_4", &tgl_pwdoms_pw_4,
-				.hsw.idx = ICL_PW_CTL_IDX_PW_4),
-		),
-		.ops = &hsw_power_well_ops,
-		.has_fuses = true,
-		.irq_pipe_mask = BIT(PIPE_C),
-	}, {
-		.instances = &I915_PW_INSTANCES(
-			I915_PW("PW_5", &tgl_pwdoms_pw_5,
-				.hsw.idx = TGL_PW_CTL_IDX_PW_5),
-		),
-		.ops = &hsw_power_well_ops,
-		.has_fuses = true,
-		.irq_pipe_mask = BIT(PIPE_D),
 	},
 };
 
@@ -954,6 +962,15 @@ static const struct i915_power_well_desc_list tgl_power_wells[] = {
 	I915_PW_DESCRIPTORS(i9xx_power_wells_always_on),
 	I915_PW_DESCRIPTORS(icl_power_wells_pw_1),
 	I915_PW_DESCRIPTORS(tgl_power_wells_main),
+	I915_PW_DESCRIPTORS(tgl_power_wells_tc_cold_off),
+	I915_PW_DESCRIPTORS(tgl_power_wells_aux),
+};
+
+static const struct i915_power_well_desc_list adls_power_wells[] = {
+	I915_PW_DESCRIPTORS(i9xx_power_wells_always_on),
+	I915_PW_DESCRIPTORS(icl_power_wells_pw_1),
+	I915_PW_DESCRIPTORS(tgl_power_wells_main),
+	I915_PW_DESCRIPTORS(tgl_power_wells_aux),
 };
 
 #define RKL_PW_4_POWER_DOMAINS \
@@ -1400,7 +1417,7 @@ static void init_power_well_domains(const struct i915_power_well_instance *inst,
 static int
 __set_power_wells(struct i915_power_domains *power_domains,
 		  const struct i915_power_well_desc_list *power_well_descs,
-		  int power_well_descs_sz, u64 skip_mask)
+		  int power_well_descs_sz)
 {
 	struct drm_i915_private *i915 = container_of(power_domains,
 						     struct drm_i915_private,
@@ -1413,8 +1430,7 @@ __set_power_wells(struct i915_power_domains *power_domains,
 	int plt_idx = 0;
 
 	for_each_power_well_instance(power_well_descs, power_well_descs_sz, desc_list, desc, inst)
-		if (!(BIT_ULL(inst->id) & skip_mask))
-			power_well_count++;
+		power_well_count++;
 
 	power_domains->power_well_count = power_well_count;
 	power_domains->power_wells =
@@ -1427,9 +1443,6 @@ __set_power_wells(struct i915_power_domains *power_domains,
 	for_each_power_well_instance(power_well_descs, power_well_descs_sz, desc_list, desc, inst) {
 		struct i915_power_well *pw = &power_domains->power_wells[plt_idx];
 		enum i915_power_well_id id = inst->id;
-
-		if (BIT_ULL(id) & skip_mask)
-			continue;
 
 		pw->desc = desc;
 		drm_WARN_ON(&i915->drm,
@@ -1451,12 +1464,9 @@ __set_power_wells(struct i915_power_domains *power_domains,
 	return 0;
 }
 
-#define set_power_wells_mask(power_domains, __power_well_descs, skip_mask) \
-	__set_power_wells(power_domains, __power_well_descs, \
-			  ARRAY_SIZE(__power_well_descs), skip_mask)
-
 #define set_power_wells(power_domains, __power_well_descs) \
-	set_power_wells_mask(power_domains, __power_well_descs, 0)
+	__set_power_wells(power_domains, __power_well_descs, \
+			  ARRAY_SIZE(__power_well_descs))
 
 /**
  * intel_display_power_map_init - initialize power domain -> power well mappings
@@ -1485,8 +1495,7 @@ int intel_display_power_map_init(struct i915_power_domains *power_domains)
 	else if (IS_DG1(i915))
 		return set_power_wells(power_domains, dg1_power_wells);
 	else if (IS_ALDERLAKE_S(i915))
-		return set_power_wells_mask(power_domains, tgl_power_wells,
-					   BIT_ULL(TGL_DISP_PW_TC_COLD_OFF));
+		return set_power_wells(power_domains, adls_power_wells);
 	else if (IS_ROCKETLAKE(i915))
 		return set_power_wells(power_domains, rkl_power_wells);
 	else if (DISPLAY_VER(i915) == 12)
