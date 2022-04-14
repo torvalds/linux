@@ -362,30 +362,30 @@ static struct ralink_pmx_group mt76x8_pinmux_data[] = {
 	{ 0 }
 };
 
-static int mt7620_pinmux_probe(struct platform_device *pdev)
+static int mt7620_pinctrl_probe(struct platform_device *pdev)
 {
 	if (is_mt76x8())
-		return ralink_pinmux_init(pdev, mt76x8_pinmux_data);
+		return ralink_pinctrl_init(pdev, mt76x8_pinmux_data);
 	else
-		return ralink_pinmux_init(pdev, mt7620a_pinmux_data);
+		return ralink_pinctrl_init(pdev, mt7620a_pinmux_data);
 }
 
-static const struct of_device_id mt7620_pinmux_match[] = {
+static const struct of_device_id mt7620_pinctrl_match[] = {
 	{ .compatible = "ralink,rt2880-pinmux" },
 	{}
 };
-MODULE_DEVICE_TABLE(of, mt7620_pinmux_match);
+MODULE_DEVICE_TABLE(of, mt7620_pinctrl_match);
 
-static struct platform_driver mt7620_pinmux_driver = {
-	.probe = mt7620_pinmux_probe,
+static struct platform_driver mt7620_pinctrl_driver = {
+	.probe = mt7620_pinctrl_probe,
 	.driver = {
 		.name = "rt2880-pinmux",
-		.of_match_table = mt7620_pinmux_match,
+		.of_match_table = mt7620_pinctrl_match,
 	},
 };
 
-static int __init mt7620_pinmux_init(void)
+static int __init mt7620_pinctrl_init(void)
 {
-	return platform_driver_register(&mt7620_pinmux_driver);
+	return platform_driver_register(&mt7620_pinctrl_driver);
 }
-core_initcall_sync(mt7620_pinmux_init);
+core_initcall_sync(mt7620_pinctrl_init);

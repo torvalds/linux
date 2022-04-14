@@ -104,34 +104,34 @@ static struct ralink_pmx_group rt5350_pinmux_data[] = {
 	{ 0 }
 };
 
-static int rt305x_pinmux_probe(struct platform_device *pdev)
+static int rt305x_pinctrl_probe(struct platform_device *pdev)
 {
 	if (soc_is_rt5350())
-		return ralink_pinmux_init(pdev, rt5350_pinmux_data);
+		return ralink_pinctrl_init(pdev, rt5350_pinmux_data);
 	else if (soc_is_rt305x() || soc_is_rt3350())
-		return ralink_pinmux_init(pdev, rt3050_pinmux_data);
+		return ralink_pinctrl_init(pdev, rt3050_pinmux_data);
 	else if (soc_is_rt3352())
-		return ralink_pinmux_init(pdev, rt3352_pinmux_data);
+		return ralink_pinctrl_init(pdev, rt3352_pinmux_data);
 	else
 		return -EINVAL;
 }
 
-static const struct of_device_id rt305x_pinmux_match[] = {
+static const struct of_device_id rt305x_pinctrl_match[] = {
 	{ .compatible = "ralink,rt2880-pinmux" },
 	{}
 };
-MODULE_DEVICE_TABLE(of, rt305x_pinmux_match);
+MODULE_DEVICE_TABLE(of, rt305x_pinctrl_match);
 
-static struct platform_driver rt305x_pinmux_driver = {
-	.probe = rt305x_pinmux_probe,
+static struct platform_driver rt305x_pinctrl_driver = {
+	.probe = rt305x_pinctrl_probe,
 	.driver = {
 		.name = "rt2880-pinmux",
-		.of_match_table = rt305x_pinmux_match,
+		.of_match_table = rt305x_pinctrl_match,
 	},
 };
 
-static int __init rt305x_pinmux_init(void)
+static int __init rt305x_pinctrl_init(void)
 {
-	return platform_driver_register(&rt305x_pinmux_driver);
+	return platform_driver_register(&rt305x_pinctrl_driver);
 }
-core_initcall_sync(rt305x_pinmux_init);
+core_initcall_sync(rt305x_pinctrl_init);

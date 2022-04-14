@@ -182,7 +182,7 @@ static const struct pinmux_ops ralink_pmx_group_ops = {
 
 static struct pinctrl_desc ralink_pctrl_desc = {
 	.owner		= THIS_MODULE,
-	.name		= "ralink-pinmux",
+	.name		= "ralink-pinctrl",
 	.pctlops	= &ralink_pctrl_ops,
 	.pmxops		= &ralink_pmx_group_ops,
 };
@@ -191,7 +191,7 @@ static struct ralink_pmx_func gpio_func = {
 	.name = "gpio",
 };
 
-static int ralink_pinmux_index(struct ralink_priv *p)
+static int ralink_pinctrl_index(struct ralink_priv *p)
 {
 	struct ralink_pmx_group *mux = p->groups;
 	int i, j, c = 0;
@@ -248,7 +248,7 @@ static int ralink_pinmux_index(struct ralink_priv *p)
 	return 0;
 }
 
-static int ralink_pinmux_pins(struct ralink_priv *p)
+static int ralink_pinctrl_pins(struct ralink_priv *p)
 {
 	int i, j;
 
@@ -311,8 +311,8 @@ static int ralink_pinmux_pins(struct ralink_priv *p)
 	return 0;
 }
 
-int ralink_pinmux_init(struct platform_device *pdev,
-		       struct ralink_pmx_group *data)
+int ralink_pinctrl_init(struct platform_device *pdev,
+			struct ralink_pmx_group *data)
 {
 	struct ralink_priv *p;
 	struct pinctrl_dev *dev;
@@ -332,13 +332,13 @@ int ralink_pinmux_init(struct platform_device *pdev,
 	platform_set_drvdata(pdev, p);
 
 	/* init the device */
-	err = ralink_pinmux_index(p);
+	err = ralink_pinctrl_index(p);
 	if (err) {
 		dev_err(&pdev->dev, "failed to load index\n");
 		return err;
 	}
 
-	err = ralink_pinmux_pins(p);
+	err = ralink_pinctrl_pins(p);
 	if (err) {
 		dev_err(&pdev->dev, "failed to load pins\n");
 		return err;

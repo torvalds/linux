@@ -47,7 +47,7 @@ struct ralink_pmx_group {
 	int func_count;
 };
 
-int ralink_pinmux_init(struct platform_device *pdev,
-		       struct ralink_pmx_group *data);
+int ralink_pinctrl_init(struct platform_device *pdev,
+			struct ralink_pmx_group *data);
 
 #endif
