@@ -401,6 +401,7 @@ enum rtw89_rate_section {
 	RTW89_RS_OFFSET,
 	RTW89_RS_MAX,
 	RTW89_RS_LMT_NUM = RTW89_RS_MCS + 1,
+	RTW89_RS_TX_SHAPE_NUM = RTW89_RS_OFDM + 1,
 };
 
 enum rtw89_rate_max {
