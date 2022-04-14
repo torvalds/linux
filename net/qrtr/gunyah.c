@@ -552,6 +552,24 @@ static struct device_node *qrtr_gunyah_svm_of_parse(struct qrtr_gunyah_dev *qdev
 	return shm_np;
 }
 
+static int qrtr_gunyah_alloc_fifo(struct qrtr_gunyah_dev *qdev)
+{
+	struct device *dev = qdev->dev;
+	resource_size_t size;
+
+	size = FIFO_1_START + FIFO_SIZE;
+
+	qdev->base = dma_alloc_attrs(dev, size, &qdev->res.start, GFP_KERNEL,
+				     DMA_ATTR_FORCE_CONTIGUOUS);
+	if (!qdev->base)
+		return -ENOMEM;
+
+	qdev->res.end = qdev->res.start + size - 1;
+	qdev->size = size;
+
+	return 0;
+}
+
 static int qrtr_gunyah_map_memory(struct qrtr_gunyah_dev *qdev)
 {
 	struct device *dev = qdev->dev;
@@ -559,8 +577,11 @@ static int qrtr_gunyah_map_memory(struct qrtr_gunyah_dev *qdev)
 	resource_size_t size;
 	int ret;
 
-	np = of_parse_phandle(dev->of_node, "shared-buffer", 0);
-	if (!np) {
+	if (qdev->master) {
+		np = of_parse_phandle(dev->of_node, "shared-buffer", 0);
+		if (!np)
+			return qrtr_gunyah_alloc_fifo(qdev);
+	} else {
 		np = qrtr_gunyah_svm_of_parse(qdev);
 		if (!np) {
 			dev_err(dev, "can't parse shared mem node!\n");
@@ -679,10 +700,31 @@ register_fail:
 static int qrtr_gunyah_remove(struct platform_device *pdev)
 {
 	struct qrtr_gunyah_dev *qdev = dev_get_drvdata(&pdev->dev);
+	struct device_node *np;
+	gh_vmid_t peer_vmid;
+	gh_vmid_t self_vmid;
 
 	cancel_work_sync(&qdev->work);
 	gh_dbl_tx_unregister(qdev->tx_dbl);
 	gh_dbl_rx_unregister(qdev->rx_dbl);
+
+	if (!qdev->master)
+		return 0;
+
+	if (gh_rm_get_vmid(qdev->peer_name, &peer_vmid))
+		return 0;
+	if (gh_rm_get_vmid(GH_PRIMARY_VM, &self_vmid))
+		return 0;
+	qrtr_gunyah_unshare_mem(qdev, self_vmid, peer_vmid);
+
+	np = of_parse_phandle(qdev->dev->of_node, "shared-buffer", 0);
+	if (np) {
+		of_node_put(np);
+		return 0;
+	}
+
+	dma_free_attrs(qdev->dev, qdev->size, qdev->base, qdev->res.start,
+		       DMA_ATTR_FORCE_CONTIGUOUS);
 
 	return 0;
 }
