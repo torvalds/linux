@@ -446,7 +446,7 @@
 		dvp-data11-pins {
 			sf,pins = <PAD_GPIO35>;
 			sf,pinmux = <PAD_GPIO35_FUNC_SEL 2>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1) | GPIO_PD(1))>;
 			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_DATA_C11_FUNC_SEL 1>;
 		};
 	};
