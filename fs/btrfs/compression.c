@@ -425,7 +425,6 @@ out:
 }
 
 static blk_status_t submit_compressed_bio(struct btrfs_fs_info *fs_info,
-					  struct compressed_bio *cb,
 					  struct bio *bio, int mirror_num)
 {
 	blk_status_t ret;
@@ -604,7 +603,7 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 					goto finish_cb;
 			}
 
-			ret = submit_compressed_bio(fs_info, cb, bio, 0);
+			ret = submit_compressed_bio(fs_info, bio, 0);
 			if (ret)
 				goto finish_cb;
 			bio = NULL;
@@ -942,7 +941,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 						  fs_info->sectorsize);
 			sums += fs_info->csum_size * nr_sectors;
 
-			ret = submit_compressed_bio(fs_info, cb, comp_bio, mirror_num);
+			ret = submit_compressed_bio(fs_info, comp_bio, mirror_num);
 			if (ret)
 				goto finish_cb;
 			comp_bio = NULL;
