@@ -66,8 +66,7 @@ descriptors by adding their identifier to the format string
    calculated with the SHA1 or MD5 hash algorithm;
  - 'n': the name of the event (i.e. the file name), with size up to 255 bytes;
  - 'd-ng': the digest of the event, calculated with an arbitrary hash
-   algorithm (field format: [<hash algo>:]digest, where the digest
-   prefix is shown only if the hash algorithm is not SHA1 or MD5);
+   algorithm (field format: <hash algo>:digest);
  - 'd-modsig': the digest of the event without the appended modsig;
  - 'n-ng': the name of the event, without size limitations;
  - 'sig': the file signature, or the EVM portable signature if the file
