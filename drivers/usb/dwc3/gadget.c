@@ -2234,6 +2234,7 @@ int __dwc3_gadget_ep_set_halt(struct dwc3_ep *dep, int value, int protocol)
 	struct dwc3_gadget_ep_cmd_params	params;
 	struct dwc3				*dwc = dep->dwc;
 	int					ret;
+	struct dwc3_vendor *vdwc = container_of(dwc, struct dwc3_vendor, dwc);
 
 	if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
 		dev_err(dwc->dev, "%s is of Isochronous type\n", dep->name);
@@ -2287,6 +2288,9 @@ int __dwc3_gadget_ep_set_halt(struct dwc3_ep *dep, int value, int protocol)
 		if (dep->flags & DWC3_EP_END_TRANSFER_PENDING ||
 		    (dep->flags & DWC3_EP_DELAY_STOP)) {
 			dep->flags |= DWC3_EP_PENDING_CLEAR_STALL;
+			if (protocol)
+				vdwc->clear_stall_protocol = dep->number;
+
 			return 0;
 		}
 
@@ -3704,6 +3708,7 @@ static void dwc3_gadget_endpoint_command_complete(struct dwc3_ep *dep,
 
 	if (dep->flags & DWC3_EP_PENDING_CLEAR_STALL) {
 		struct dwc3 *dwc = dep->dwc;
+		struct dwc3_vendor *vdwc = container_of(dwc, struct dwc3_vendor, dwc);
 
 		dep->flags &= ~DWC3_EP_PENDING_CLEAR_STALL;
 		if (dwc3_send_clear_stall_ep_cmd(dep)) {
@@ -3716,7 +3721,7 @@ static void dwc3_gadget_endpoint_command_complete(struct dwc3_ep *dep,
 		}
 
 		dep->flags &= ~(DWC3_EP_STALL | DWC3_EP_WEDGE);
-		if (dwc->delayed_status)
+		if (vdwc->clear_stall_protocol == dep->number)
 			dwc3_ep0_send_delayed_status(dwc);
 	}
 

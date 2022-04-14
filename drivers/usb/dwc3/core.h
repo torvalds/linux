@@ -1334,10 +1334,12 @@ struct dwc3 {
 /**
  * struct dwc3_vendor - contains parameters without modifying the format of DWC3 core
  * @dwc: contains dwc3 core reference
+ * @clear_stall_protocol: endpoint number that requires a delayed status phase
  * @softconnect: true when gadget connect is called, false when disconnect runs
  */
 struct dwc3_vendor {
 	struct dwc3	dwc;
+	u8		clear_stall_protocol;
 	unsigned	softconnect:1;
 };
 

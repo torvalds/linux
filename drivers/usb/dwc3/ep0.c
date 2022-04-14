@@ -1089,8 +1089,10 @@ static void dwc3_ep0_do_control_status(struct dwc3 *dwc,
 void dwc3_ep0_send_delayed_status(struct dwc3 *dwc)
 {
 	unsigned int direction = !dwc->ep0_expect_in;
+	struct dwc3_vendor *vdwc = container_of(dwc, struct dwc3_vendor, dwc);
 
 	dwc->delayed_status = false;
+	vdwc->clear_stall_protocol = 0;
 
 	if (dwc->ep0state != EP0_STATUS_PHASE)
 		return;
