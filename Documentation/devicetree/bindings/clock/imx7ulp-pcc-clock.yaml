@@ -108,14 +108,3 @@ examples:
                        "upll", "sosc_bus_clk", "firc_bus_clk",
                        "rosc", "spll_bus_clk";
     };
-
-    mmc@40380000 {
-        compatible = "fsl,imx7ulp-usdhc";
-        reg = <0x40380000 0x10000>;
-        interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
-        clocks = <&scg1 IMX7ULP_CLK_NIC1_BUS_DIV>,
-                 <&scg1 IMX7ULP_CLK_NIC1_DIV>,
-                 <&pcc2 IMX7ULP_CLK_USDHC1>;
-        clock-names ="ipg", "ahb", "per";
-        bus-width = <4>;
-    };

@@ -73,12 +73,12 @@
 
 static struct clk_pll_table clk_audio_pll_table[] = {
 	{ 0, 45158400 }, { 1, 49152000 },
-	{ 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_pll_table clk_edp_pll_table[] = {
 	{ 0, 810000000 }, { 1, 135000000 }, { 2, 270000000 },
-	{ 0, 0 },
+	{ /* sentinel */ }
 };
 
 /* pll clocks */
@@ -120,41 +120,41 @@ static struct clk_div_table nand_div_table[] = {
 	{ 4, 8 }, { 5, 10 }, { 6, 12 }, { 7, 14 },
 	{ 8, 16 }, { 9, 18 }, { 10, 20 }, { 11, 22 },
 	{ 12, 24 }, { 13, 26 }, { 14, 28 }, { 15, 30 },
-	{ 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_div_table apb_div_table[] = {
 	{ 1, 2 }, { 2, 3 }, { 3, 4 },
-	{ 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_div_table eth_mac_div_table[] = {
 	{ 0, 2 }, { 1, 4 },
-	{ 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_div_table rmii_ref_div_table[] = {
 	{ 0, 4 },	  { 1, 10 },
-	{ 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_div_table usb3_mac_div_table[] = {
 	{ 1, 2 }, { 2, 3 }, { 3, 4 },
-	{ 0, 8 },
+	{ /* sentinel */ }
 };
 
 static struct clk_div_table i2s_div_table[] = {
 	{ 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 4 },
 	{ 4, 6 }, { 5, 8 }, { 6, 12 }, { 7, 16 },
 	{ 8, 24 },
-	{ 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_div_table hdmia_div_table[] = {
 	{ 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 4 },
 	{ 4, 6 }, { 5, 8 }, { 6, 12 }, { 7, 16 },
 	{ 8, 24 },
-	{ 0, 0 },
+	{ /* sentinel */ }
 };
 
 /* divider clocks */
@@ -185,24 +185,24 @@ static struct clk_factor_table sd_factor_table[] = {
 	{ 280, 1, 25 * 128 }, { 281, 1, 26 * 128 }, { 282, 1, 27 * 128 }, { 283, 1, 28 * 128 },
 	{ 284, 1, 29 * 128 }, { 285, 1, 30 * 128 }, { 286, 1, 31 * 128 }, { 287, 1, 32 * 128 },
 
-	{ 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_factor_table dmm_factor_table[] = {
 	{ 0, 1, 1 }, { 1, 2, 3 }, { 2, 1, 2 }, { 3, 1, 3 },
 	{ 4, 1, 4 },
-	{ 0, 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_factor_table noc_factor_table[] = {
 	{ 0, 1, 1 },   { 1, 2, 3 }, { 2, 1, 2 }, { 3, 1, 3 }, { 4, 1, 4 },
-	{ 0, 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_factor_table bisp_factor_table[] = {
 	{ 0, 1, 1 }, { 1, 2, 3 }, { 2, 1, 2 }, { 3, 2, 5 },
 	{ 4, 1, 3 }, { 5, 1, 4 }, { 6, 1, 6 }, { 7, 1, 8 },
-	{ 0, 0, 0 },
+	{ /* sentinel */ }
 };
 
 /* factor clocks */

@@ -60,11 +60,6 @@ static const struct parent_map gcc_xo_gpll0_gpll0_out_main_div2_map[] = {
 	{ P_GPLL0_DIV2, 4 },
 };
 
-static const char * const gcc_xo_gpll0[] = {
-	"xo",
-	"gpll0",
-};
-
 static const struct parent_map gcc_xo_gpll0_map[] = {
 	{ P_XO, 0 },
 	{ P_GPLL0, 1 },
@@ -956,6 +951,11 @@ static struct clk_rcg2 blsp1_uart6_apps_clk_src = {
 	},
 };
 
+static const struct clk_parent_data gcc_xo_gpll0[] = {
+	{ .fw_name = "xo" },
+	{ .hw = &gpll0.clkr.hw },
+};
+
 static const struct freq_tbl ftbl_pcie_axi_clk_src[] = {
 	F(19200000, P_XO, 1, 0, 0),
 	F(200000000, P_GPLL0, 4, 0, 0),
@@ -969,7 +969,7 @@ static struct clk_rcg2 pcie0_axi_clk_src = {
 	.parent_map = gcc_xo_gpll0_map,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pcie0_axi_clk_src",
-		.parent_names = gcc_xo_gpll0,
+		.parent_data = gcc_xo_gpll0,
 		.num_parents = 2,
 		.ops = &clk_rcg2_ops,
 	},
@@ -1016,7 +1016,7 @@ static struct clk_rcg2 pcie1_axi_clk_src = {
 	.parent_map = gcc_xo_gpll0_map,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pcie1_axi_clk_src",
-		.parent_names = gcc_xo_gpll0,
+		.parent_data = gcc_xo_gpll0,
 		.num_parents = 2,
 		.ops = &clk_rcg2_ops,
 	},
@@ -1074,7 +1074,7 @@ static struct clk_rcg2 sdcc1_apps_clk_src = {
 		.name = "sdcc1_apps_clk_src",
 		.parent_names = gcc_xo_gpll0_gpll2_gpll0_out_main_div2,
 		.num_parents = 4,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 };
 
@@ -1330,7 +1330,7 @@ static struct clk_rcg2 nss_ce_clk_src = {
 	.parent_map = gcc_xo_gpll0_map,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "nss_ce_clk_src",
-		.parent_names = gcc_xo_gpll0,
+		.parent_data = gcc_xo_gpll0,
 		.num_parents = 2,
 		.ops = &clk_rcg2_ops,
 	},
@@ -4329,8 +4329,7 @@ static struct clk_rcg2 pcie0_rchng_clk_src = {
 	.parent_map = gcc_xo_gpll0_map,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pcie0_rchng_clk_src",
-		.parent_hws = (const struct clk_hw *[]) {
-				&gpll0.clkr.hw },
+		.parent_data = gcc_xo_gpll0,
 		.num_parents = 2,
 		.ops = &clk_rcg2_ops,
 	},
