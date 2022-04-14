@@ -44,6 +44,7 @@ struct starfive_pin_config {
 	u32 gpio_din_num;
 	s32 *gpio_din_reg;
 	s32 syscon;
+	s32 padmux_func;
 };
 
 struct starfive_pin {
@@ -59,6 +60,9 @@ struct starfive_pin_reg {
 	s32 func_sel_shift;
 	s32 func_sel_mask;
 	s32 syscon_reg;
+	s32 pad_sel_reg;
+	s32 pad_sel_shift;
+	s32 pad_sel_mask;
 };
 
 struct starfive_iopad_sel_func_inf {

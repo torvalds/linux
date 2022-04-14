@@ -1016,7 +1016,7 @@ static int starfive_jh7110_sys_pmx_set_one_pin_mux(struct starfive_pinctrl *pctl
 		
 	raw_spin_lock_irqsave(&pctl->lock, flags);
 	if(pin_reg->func_sel_reg != -1){
-		pinctrl_set_reg(pctl->padctl_base + pin_reg->func_sel_reg, 
+		pinctrl_set_reg(pctl->padctl_base + pin_reg->func_sel_reg,
 			pin_config->pinmux_func, pin_reg->func_sel_shift,
 			pin_reg->func_sel_mask);
 	}
@@ -1041,8 +1041,14 @@ static int starfive_jh7110_sys_pmx_set_one_pin_mux(struct starfive_pinctrl *pctl
 
 	if(pin_reg->syscon_reg != -1){
 		pinctrl_set_reg(pctl->padctl_base + pin_reg->syscon_reg, 
-				pin_config->syscon, PADCFG_PAD_GMAC_SYSCON_SHIFT, 
+				pin_config->syscon, PADCFG_PAD_GMAC_SYSCON_SHIFT,
 				PADCFG_PAD_GMAC_SYSCON_MASK);
+	}
+
+	if(pin_reg->pad_sel_reg != -1){
+		pinctrl_set_reg(pctl->padctl_base + pin_reg->pad_sel_reg,
+			pin_config->padmux_func, pin_reg->pad_sel_shift,
+			pin_reg->pad_sel_mask);
 	}
 	raw_spin_unlock_irqrestore(&pctl->lock, flags);
 	
@@ -1096,6 +1102,14 @@ static void starfive_jh7110_sys_parse_pin_config(struct starfive_pinctrl *pctl,
 		pin_reg->func_sel_shift = be32_to_cpu(*list++);
 		pin_reg->func_sel_mask = be32_to_cpu(*list++);
 		pin_data->pin_config.pinmux_func = be32_to_cpu(*list++);
+	}
+
+	list = of_get_property(np, "sf,padmux", &size);
+	if (list) {
+		pin_reg->pad_sel_reg = be32_to_cpu(*list++);
+		pin_reg->pad_sel_shift = be32_to_cpu(*list++);
+		pin_reg->pad_sel_mask = be32_to_cpu(*list++);
+		pin_data->pin_config.padmux_func = be32_to_cpu(*list++);
 	}
 
 	list = of_get_property(np, "sf,pin-syscon", &size);
