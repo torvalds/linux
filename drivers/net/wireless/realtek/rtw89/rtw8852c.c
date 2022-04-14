@@ -11,6 +11,37 @@
 #include "rtw8852c.h"
 #include "rtw8852c_table.h"
 
+static const struct rtw89_hfc_ch_cfg rtw8852c_hfc_chcfg_pcie[] = {
+	{13, 1614, grp_0}, /* ACH 0 */
+	{13, 1614, grp_0}, /* ACH 1 */
+	{13, 1614, grp_0}, /* ACH 2 */
+	{13, 1614, grp_0}, /* ACH 3 */
+	{13, 1614, grp_1}, /* ACH 4 */
+	{13, 1614, grp_1}, /* ACH 5 */
+	{13, 1614, grp_1}, /* ACH 6 */
+	{13, 1614, grp_1}, /* ACH 7 */
+	{13, 1614, grp_0}, /* B0MGQ */
+	{13, 1614, grp_0}, /* B0HIQ */
+	{13, 1614, grp_1}, /* B1MGQ */
+	{13, 1614, grp_1}, /* B1HIQ */
+	{40, 0, 0} /* FWCMDQ */
+};
+
+static const struct rtw89_hfc_pub_cfg rtw8852c_hfc_pubcfg_pcie = {
+	1614, /* Group 0 */
+	1614, /* Group 1 */
+	3228, /* Public Max */
+	0 /* WP threshold */
+};
+
+static const struct rtw89_hfc_param_ini rtw8852c_hfc_param_ini_pcie[] = {
+	[RTW89_QTA_SCC] = {rtw8852c_hfc_chcfg_pcie, &rtw8852c_hfc_pubcfg_pcie,
+			   &rtw89_mac_size.hfc_preccfg_pcie, RTW89_HCIFC_POH},
+	[RTW89_QTA_DLFW] = {NULL, NULL, &rtw89_mac_size.hfc_preccfg_pcie,
+			    RTW89_HCIFC_POH},
+	[RTW89_QTA_INVALID] = {NULL},
+};
+
 static const struct rtw89_dle_mem rtw8852c_dle_mem_pcie[] = {
 	[RTW89_QTA_SCC] = {RTW89_QTA_SCC, &rtw89_mac_size.wde_size19,
 			   &rtw89_mac_size.ple_size19, &rtw89_mac_size.wde_qt18,
@@ -1116,6 +1147,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.chip_id		= RTL8852C,
 	.ops			= &rtw8852c_chip_ops,
 	.fw_name		= "rtw89/rtw8852c_fw.bin",
+	.hfc_param_ini		= rtw8852c_hfc_param_ini_pcie,
 	.dle_mem		= rtw8852c_dle_mem_pcie,
 	.rf_base_addr		= {0xe000, 0xf000},
 	.pwr_on_seq		= NULL,
