@@ -491,31 +491,15 @@ static void rockchip_hdptx_phy_set_voltage(struct rockchip_hdptx_phy *hdptx,
 {
 	const struct tx_drv_ctrl *ctrl;
 
-	regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c28),
-			   LN_ANA_TX_JEQ_EN,
-			   FIELD_PREP(LN_ANA_TX_JEQ_EN, 0x1));
-
 	switch (dp->link_rate) {
 	case 1620:
 		ctrl = &tx_drv_ctrl_rbr[dp->voltage[lane]][dp->pre[lane]];
-		regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c28),
-				   LN_TX_JEQ_EVEN_CTRL_RBR,
-				   FIELD_PREP(LN_TX_JEQ_EVEN_CTRL_RBR, 0x7));
-		regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c30),
-				   LN_TX_JEQ_ODD_CTRL_RBR,
-				   FIELD_PREP(LN_TX_JEQ_ODD_CTRL_RBR, 0x7));
 		regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c44),
 				   LN_TX_SER_40BIT_EN_RBR,
 				   FIELD_PREP(LN_TX_SER_40BIT_EN_RBR, 0x1));
 		break;
 	case 2700:
 		ctrl = &tx_drv_ctrl_hbr[dp->voltage[lane]][dp->pre[lane]];
-		regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c2c),
-				   LN_TX_JEQ_EVEN_CTRL_HBR,
-				   FIELD_PREP(LN_TX_JEQ_EVEN_CTRL_HBR, 0x7));
-		regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c34),
-				   LN_TX_JEQ_ODD_CTRL_HBR,
-				   FIELD_PREP(LN_TX_JEQ_ODD_CTRL_HBR, 0x7));
 		regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c44),
 				   LN_TX_SER_40BIT_EN_HBR,
 				   FIELD_PREP(LN_TX_SER_40BIT_EN_HBR, 0x1));
@@ -523,12 +507,6 @@ static void rockchip_hdptx_phy_set_voltage(struct rockchip_hdptx_phy *hdptx,
 	case 5400:
 	default:
 		ctrl = &tx_drv_ctrl_hbr2[dp->voltage[lane]][dp->pre[lane]];
-		regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c2c),
-				   LN_TX_JEQ_EVEN_CTRL_HBR2,
-				   FIELD_PREP(LN_TX_JEQ_EVEN_CTRL_HBR2, 0x7));
-		regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c34),
-				   LN_TX_JEQ_ODD_CTRL_HBR2,
-				   FIELD_PREP(LN_TX_JEQ_ODD_CTRL_HBR2, 0x7));
 		regmap_update_bits(hdptx->regmap, LANE_REG(lane, 0x0c44),
 				   LN_TX_SER_40BIT_EN_HBR2,
 				   FIELD_PREP(LN_TX_SER_40BIT_EN_HBR2, 0x1));
