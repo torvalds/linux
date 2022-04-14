@@ -21,10 +21,12 @@
 #define sof_ops(sdev) \
 	((sdev)->pdata->desc->ops)
 
-static inline void sof_ops_init(struct snd_sof_dev *sdev)
+static inline int sof_ops_init(struct snd_sof_dev *sdev)
 {
 	if (sdev->pdata->desc->ops_init)
-		sdev->pdata->desc->ops_init(sdev);
+		return sdev->pdata->desc->ops_init(sdev);
+
+	return 0;
 }
 
 /* Mandatory operations are verified during probing */

@@ -43,6 +43,7 @@ static const struct sof_dev_desc bxt_desc = {
 	},
 	.nocodec_tplg_filename = "sof-apl-nocodec.tplg",
 	.ops = &sof_apl_ops,
+	.ops_init = sof_apl_ops_init,
 };
 
 static const struct sof_dev_desc glk_desc = {
@@ -69,6 +70,7 @@ static const struct sof_dev_desc glk_desc = {
 	},
 	.nocodec_tplg_filename = "sof-glk-nocodec.tplg",
 	.ops = &sof_apl_ops,
+	.ops_init = sof_apl_ops_init,
 };
 
 /* PCI IDs */
