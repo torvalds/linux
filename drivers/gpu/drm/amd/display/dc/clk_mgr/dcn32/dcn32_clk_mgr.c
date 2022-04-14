@@ -757,7 +757,7 @@ static void dcn32_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 	if (!clk_mgr->smu_present)
 		return;
 
-	dcn30_smu_set_pme_workaround(clk_mgr);
+	dcn32_smu_set_pme_workaround(clk_mgr);
 }
 
 static bool dcn32_is_smu_present(struct clk_mgr *clk_mgr_base)

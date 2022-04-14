@@ -115,6 +115,14 @@ void dcn32_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr)
 			DALSMC_MSG_TransferTableDram2Smu, TABLE_WATERMARKS, NULL);
 }
 
+void dcn32_smu_set_pme_workaround(struct clk_mgr_internal *clk_mgr)
+{
+	smu_print("SMU Set PME workaround\n");
+
+	dcn32_smu_send_msg_with_param(clk_mgr,
+		DALSMC_MSG_BacoAudioD3PME, 0, NULL);
+}
+
 /* Returns the actual frequency that was set in MHz, 0 on failure */
 unsigned int dcn32_smu_set_hard_min_by_freq(struct clk_mgr_internal *clk_mgr, uint32_t clk, uint16_t freq_mhz)
 {
