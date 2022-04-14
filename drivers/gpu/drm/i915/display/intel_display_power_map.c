@@ -1035,7 +1035,11 @@ static const struct i915_power_well_desc rkl_power_wells_main[] = {
 		.ops = &hsw_power_well_ops,
 		.has_fuses = true,
 		.irq_pipe_mask = BIT(PIPE_C),
-	}, {
+	},
+};
+
+static const struct i915_power_well_desc rkl_power_wells_ddi_aux[] = {
+	{
 		.instances = &I915_PW_INSTANCES(
 			I915_PW("DDI_IO_A", &icl_pwdoms_ddi_io_a, .hsw.idx = ICL_PW_CTL_IDX_DDI_A),
 			I915_PW("DDI_IO_B", &icl_pwdoms_ddi_io_b, .hsw.idx = ICL_PW_CTL_IDX_DDI_B),
@@ -1058,6 +1062,7 @@ static const struct i915_power_well_desc_list rkl_power_wells[] = {
 	I915_PW_DESCRIPTORS(i9xx_power_wells_always_on),
 	I915_PW_DESCRIPTORS(icl_power_wells_pw_1),
 	I915_PW_DESCRIPTORS(rkl_power_wells_main),
+	I915_PW_DESCRIPTORS(rkl_power_wells_ddi_aux),
 };
 
 /*
@@ -1119,22 +1124,6 @@ static const struct i915_power_well_desc dg1_power_wells_main[] = {
 		.has_fuses = true,
 	}, {
 		.instances = &I915_PW_INSTANCES(
-			I915_PW("DDI_IO_A", &icl_pwdoms_ddi_io_a, .hsw.idx = ICL_PW_CTL_IDX_DDI_A),
-			I915_PW("DDI_IO_B", &icl_pwdoms_ddi_io_b, .hsw.idx = ICL_PW_CTL_IDX_DDI_B),
-			I915_PW("DDI_IO_TC1", &tgl_pwdoms_ddi_io_tc1, .hsw.idx = TGL_PW_CTL_IDX_DDI_TC1),
-			I915_PW("DDI_IO_TC2", &tgl_pwdoms_ddi_io_tc2, .hsw.idx = TGL_PW_CTL_IDX_DDI_TC2),
-		),
-		.ops = &icl_ddi_power_well_ops,
-	}, {
-		.instances = &I915_PW_INSTANCES(
-			I915_PW("AUX_A", &tgl_pwdoms_aux_a, .hsw.idx = ICL_PW_CTL_IDX_AUX_A),
-			I915_PW("AUX_B", &tgl_pwdoms_aux_b, .hsw.idx = ICL_PW_CTL_IDX_AUX_B),
-			I915_PW("AUX_USBC1", &tgl_pwdoms_aux_usbc1, .hsw.idx = TGL_PW_CTL_IDX_AUX_TC1),
-			I915_PW("AUX_USBC2", &tgl_pwdoms_aux_usbc2, .hsw.idx = TGL_PW_CTL_IDX_AUX_TC2),
-		),
-		.ops = &icl_aux_power_well_ops,
-	}, {
-		.instances = &I915_PW_INSTANCES(
 			I915_PW("PW_4", &tgl_pwdoms_pw_4,
 				.hsw.idx = ICL_PW_CTL_IDX_PW_4),
 		),
@@ -1156,6 +1145,7 @@ static const struct i915_power_well_desc_list dg1_power_wells[] = {
 	I915_PW_DESCRIPTORS(i9xx_power_wells_always_on),
 	I915_PW_DESCRIPTORS(icl_power_wells_pw_1),
 	I915_PW_DESCRIPTORS(dg1_power_wells_main),
+	I915_PW_DESCRIPTORS(rkl_power_wells_ddi_aux),
 };
 
 /*
