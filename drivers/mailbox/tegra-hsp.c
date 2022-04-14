@@ -46,9 +46,17 @@
 #define HSP_SM_SHRD_MBOX_FULL_INT_IE	0x04
 #define HSP_SM_SHRD_MBOX_EMPTY_INT_IE	0x08
 
+#define HSP_SHRD_MBOX_TYPE1_TAG		0x40
+#define HSP_SHRD_MBOX_TYPE1_DATA0	0x48
+#define HSP_SHRD_MBOX_TYPE1_DATA1	0x4c
+#define HSP_SHRD_MBOX_TYPE1_DATA2	0x50
+#define HSP_SHRD_MBOX_TYPE1_DATA3	0x54
+
 #define HSP_DB_CCPLEX		1
 #define HSP_DB_BPMP		3
 #define HSP_DB_MAX		7
+
+#define HSP_MBOX_TYPE_MASK	0xff
 
 struct tegra_hsp_channel;
 struct tegra_hsp;
@@ -88,6 +96,7 @@ struct tegra_hsp_db_map {
 struct tegra_hsp_soc {
 	const struct tegra_hsp_db_map *map;
 	bool has_per_mb_ie;
+	bool has_128_bit_mb;
 };
 
 struct tegra_hsp {
@@ -396,6 +405,51 @@ static const struct tegra_hsp_sm_ops tegra_hsp_sm_32bit_ops = {
 	.recv = tegra_hsp_sm_recv32,
 };
 
+static void tegra_hsp_sm_send128(struct tegra_hsp_channel *channel, void *data)
+{
+	u32 value[4];
+
+	memcpy(value, data, sizeof(value));
+
+	/* Copy data */
+	tegra_hsp_channel_writel(channel, value[0], HSP_SHRD_MBOX_TYPE1_DATA0);
+	tegra_hsp_channel_writel(channel, value[1], HSP_SHRD_MBOX_TYPE1_DATA1);
+	tegra_hsp_channel_writel(channel, value[2], HSP_SHRD_MBOX_TYPE1_DATA2);
+	tegra_hsp_channel_writel(channel, value[3], HSP_SHRD_MBOX_TYPE1_DATA3);
+
+	/* Update tag to mark mailbox full */
+	tegra_hsp_channel_writel(channel, HSP_SM_SHRD_MBOX_FULL,
+				 HSP_SHRD_MBOX_TYPE1_TAG);
+}
+
+static void tegra_hsp_sm_recv128(struct tegra_hsp_channel *channel)
+{
+	u32 value[4];
+	void *msg;
+
+	value[0] = tegra_hsp_channel_readl(channel, HSP_SHRD_MBOX_TYPE1_DATA0);
+	value[1] = tegra_hsp_channel_readl(channel, HSP_SHRD_MBOX_TYPE1_DATA1);
+	value[2] = tegra_hsp_channel_readl(channel, HSP_SHRD_MBOX_TYPE1_DATA2);
+	value[3] = tegra_hsp_channel_readl(channel, HSP_SHRD_MBOX_TYPE1_DATA3);
+
+	msg = (void *)(unsigned long)value;
+	mbox_chan_received_data(channel->chan, msg);
+
+	/*
+	 * Clear data registers and tag.
+	 */
+	tegra_hsp_channel_writel(channel, 0x0, HSP_SHRD_MBOX_TYPE1_DATA0);
+	tegra_hsp_channel_writel(channel, 0x0, HSP_SHRD_MBOX_TYPE1_DATA1);
+	tegra_hsp_channel_writel(channel, 0x0, HSP_SHRD_MBOX_TYPE1_DATA2);
+	tegra_hsp_channel_writel(channel, 0x0, HSP_SHRD_MBOX_TYPE1_DATA3);
+	tegra_hsp_channel_writel(channel, 0x0, HSP_SHRD_MBOX_TYPE1_TAG);
+}
+
+static const struct tegra_hsp_sm_ops tegra_hsp_sm_128bit_ops = {
+	.send = tegra_hsp_sm_send128,
+	.recv = tegra_hsp_sm_recv128,
+};
+
 static int tegra_hsp_mailbox_send_data(struct mbox_chan *chan, void *data)
 {
 	struct tegra_hsp_mailbox *mb = chan->con_priv;
@@ -571,12 +625,20 @@ static struct mbox_chan *tegra_hsp_sm_xlate(struct mbox_controller *mbox,
 
 	index = args->args[1] & TEGRA_HSP_SM_MASK;
 
-	if (type != TEGRA_HSP_MBOX_TYPE_SM || !hsp->shared_irqs ||
-	    index >= hsp->num_sm)
+	if ((type & HSP_MBOX_TYPE_MASK) != TEGRA_HSP_MBOX_TYPE_SM ||
+	    !hsp->shared_irqs || index >= hsp->num_sm)
 		return ERR_PTR(-ENODEV);
 
 	mb = &hsp->mailboxes[index];
-	mb->ops = &tegra_hsp_sm_32bit_ops;
+
+	if (type & TEGRA_HSP_MBOX_TYPE_SM_128BIT) {
+		if (!hsp->soc->has_128_bit_mb)
+			return ERR_PTR(-ENODEV);
+
+		mb->ops = &tegra_hsp_sm_128bit_ops;
+	} else {
+		mb->ops = &tegra_hsp_sm_32bit_ops;
+	}
 
 	if ((args->args[1] & TEGRA_HSP_SM_FLAG_TX) == 0)
 		mb->producer = false;
@@ -853,16 +915,25 @@ static const struct tegra_hsp_db_map tegra186_hsp_db_map[] = {
 static const struct tegra_hsp_soc tegra186_hsp_soc = {
 	.map = tegra186_hsp_db_map,
 	.has_per_mb_ie = false,
+	.has_128_bit_mb = false,
 };
 
 static const struct tegra_hsp_soc tegra194_hsp_soc = {
 	.map = tegra186_hsp_db_map,
 	.has_per_mb_ie = true,
+	.has_128_bit_mb = false,
+};
+
+static const struct tegra_hsp_soc tegra234_hsp_soc = {
+	.map = tegra186_hsp_db_map,
+	.has_per_mb_ie = false,
+	.has_128_bit_mb = true,
 };
 
 static const struct of_device_id tegra_hsp_match[] = {
 	{ .compatible = "nvidia,tegra186-hsp", .data = &tegra186_hsp_soc },
 	{ .compatible = "nvidia,tegra194-hsp", .data = &tegra194_hsp_soc },
+	{ .compatible = "nvidia,tegra234-hsp", .data = &tegra234_hsp_soc },
 	{ }
 };
 
