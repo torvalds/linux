@@ -180,7 +180,7 @@
 			spi0: spi@fffcc000 {
 				status = "okay";
 				cs-gpios = <&pioA 28 0>, <0>, <0>, <0>;
-				mtd_dataflash@0 {
+				flash@0 {
 					compatible = "atmel,at45", "atmel,dataflash";
 					spi-max-frequency = <15000000>;
 					reg = <0>;
