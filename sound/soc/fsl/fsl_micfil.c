@@ -31,6 +31,15 @@
 
 #define MICFIL_OSR_DEFAULT	16
 
+enum quality {
+	QUALITY_HIGH,
+	QUALITY_MEDIUM,
+	QUALITY_LOW,
+	QUALITY_VLOW0,
+	QUALITY_VLOW1,
+	QUALITY_VLOW2,
+};
+
 struct fsl_micfil {
 	struct platform_device *pdev;
 	struct regmap *regmap;
@@ -42,7 +51,7 @@ struct fsl_micfil {
 	unsigned int dataline;
 	char name[32];
 	int irq[MICFIL_IRQ_LINES];
-	int quality;	/*QUALITY 2-0 bits */
+	enum quality quality;
 };
 
 struct fsl_micfil_soc_data {
@@ -65,28 +74,72 @@ static const struct of_device_id fsl_micfil_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_micfil_dt_ids);
 
-/* Table 5. Quality Modes
- * Medium	0 0 0
- * High		0 0 1
- * Very Low 2	1 0 0
- * Very Low 1	1 0 1
- * Very Low 0	1 1 0
- * Low		1 1 1
- */
 static const char * const micfil_quality_select_texts[] = {
-	"Medium", "High",
-	"N/A", "N/A",
-	"VLow2", "VLow1",
-	"VLow0", "Low",
+	[QUALITY_HIGH] = "High",
+	[QUALITY_MEDIUM] = "Medium",
+	[QUALITY_LOW] = "Low",
+	[QUALITY_VLOW0] = "VLow0",
+	[QUALITY_VLOW1] = "Vlow1",
+	[QUALITY_VLOW2] = "Vlow2",
 };
 
 static const struct soc_enum fsl_micfil_quality_enum =
-	SOC_ENUM_SINGLE(REG_MICFIL_CTRL2,
-			MICFIL_CTRL2_QSEL_SHIFT,
-			ARRAY_SIZE(micfil_quality_select_texts),
-			micfil_quality_select_texts);
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(micfil_quality_select_texts),
+			    micfil_quality_select_texts);
 
 static DECLARE_TLV_DB_SCALE(gain_tlv, 0, 100, 0);
+
+static int micfil_set_quality(struct fsl_micfil *micfil)
+{
+	u32 qsel;
+
+	switch (micfil->quality) {
+	case QUALITY_HIGH:
+		qsel = MICFIL_QSEL_HIGH_QUALITY;
+		break;
+	case QUALITY_MEDIUM:
+		qsel = MICFIL_QSEL_MEDIUM_QUALITY;
+		break;
+	case QUALITY_LOW:
+		qsel = MICFIL_QSEL_LOW_QUALITY;
+		break;
+	case QUALITY_VLOW0:
+		qsel = MICFIL_QSEL_VLOW0_QUALITY;
+		break;
+	case QUALITY_VLOW1:
+		qsel = MICFIL_QSEL_VLOW1_QUALITY;
+		break;
+	case QUALITY_VLOW2:
+		qsel = MICFIL_QSEL_VLOW2_QUALITY;
+		break;
+	}
+
+	return regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL2,
+				  MICFIL_CTRL2_QSEL,
+				  FIELD_PREP(MICFIL_CTRL2_QSEL, qsel));
+}
+
+static int micfil_quality_get(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct fsl_micfil *micfil = snd_soc_component_get_drvdata(cmpnt);
+
+	ucontrol->value.integer.value[0] = micfil->quality;
+
+	return 0;
+}
+
+static int micfil_quality_set(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct fsl_micfil *micfil = snd_soc_component_get_drvdata(cmpnt);
+
+	micfil->quality = ucontrol->value.integer.value[0];
+
+	return micfil_set_quality(micfil);
+}
 
 static const struct snd_kcontrol_new fsl_micfil_snd_controls[] = {
 	SOC_SINGLE_SX_TLV("CH0 Volume", REG_MICFIL_OUT_CTRL,
@@ -107,7 +160,7 @@ static const struct snd_kcontrol_new fsl_micfil_snd_controls[] = {
 			  MICFIL_OUTGAIN_CHX_SHIFT(7), 0xF, 0x7, gain_tlv),
 	SOC_ENUM_EXT("MICFIL Quality Select",
 		     fsl_micfil_quality_enum,
-		     snd_soc_get_enum_double, snd_soc_put_enum_double),
+		     micfil_quality_get, micfil_quality_set),
 };
 
 /* The SRES is a self-negated bit which provides the CPU with the
@@ -207,22 +260,21 @@ static int fsl_set_clock_params(struct device *dev, unsigned int rate)
 {
 	struct fsl_micfil *micfil = dev_get_drvdata(dev);
 	int clk_div = 8;
+	int osr = MICFIL_OSR_DEFAULT;
 	int ret;
 
-	ret = clk_set_rate(micfil->mclk, rate * clk_div * MICFIL_OSR_DEFAULT * 8);
+	ret = clk_set_rate(micfil->mclk, rate * clk_div * osr * 8);
 	if (ret)
 		return ret;
 
-	/* set CICOSR */
-	ret = regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL2,
-				 MICFIL_CTRL2_CICOSR,
-				 FIELD_PREP(MICFIL_CTRL2_CICOSR, 16 - MICFIL_OSR_DEFAULT));
+	ret = micfil_set_quality(micfil);
 	if (ret)
 		return ret;
 
 	ret = regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL2,
-				 MICFIL_CTRL2_CLKDIV,
-				 FIELD_PREP(MICFIL_CTRL2_CLKDIV, clk_div));
+				 MICFIL_CTRL2_CLKDIV | MICFIL_CTRL2_CICOSR,
+				 FIELD_PREP(MICFIL_CTRL2_CLKDIV, clk_div) |
+				 FIELD_PREP(MICFIL_CTRL2_CICOSR, 16 - osr));
 
 	return ret;
 }
@@ -275,12 +327,7 @@ static int fsl_micfil_dai_probe(struct snd_soc_dai *cpu_dai)
 	struct fsl_micfil *micfil = dev_get_drvdata(cpu_dai->dev);
 	int ret;
 
-	/* set qsel to medium */
-	ret = regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL2,
-			MICFIL_CTRL2_QSEL,
-			FIELD_PREP(MICFIL_CTRL2_QSEL, MICFIL_QSEL_MEDIUM_QUALITY));
-	if (ret)
-		return ret;
+	micfil->quality = QUALITY_MEDIUM;
 
 	/* set default gain to max_gain */
 	regmap_write(micfil->regmap, REG_MICFIL_OUT_CTRL, 0x77777777);
