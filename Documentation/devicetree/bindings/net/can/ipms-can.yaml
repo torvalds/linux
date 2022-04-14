@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+#$id: http://devicetree.org/schemas/net/can/ipms-can.yaml#
+#$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: IPMS CAN/CANFD controller Device Tree Bindings
+
+properties:
+  compatible:
+    const:ipms,can
+
+  reg:
+    minItems: 1
+    items:
+      - description:CAN controller registers
+      - description:sys_syscon is used to enable canfd controller
+
+  reg-names:
+    minItems: 1
+    items:
+      - const:reg_base
+      - const:sys_syscon
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    items:
+      - description:ipms_can_clk clock
+      - description:apb_clk clock
+      - description:core_clk clock
+      - description:timer_clk clock
+
+  clock-names:
+    minItems: 1
+    items:
+      - const:ipms_can_clk
+      - const:apb_clk
+      - const:core_clk
+      - const:timer_clk
+  resets:
+   minItems: 1
+    items:
+      - description:apb_clk reset
+      - description:core_clk reset
+      - description:timer_clk reset
+  reset-names:
+    minItems: 1
+    items:
+      - const:rst_apb
+      - const:rst_core
+      - const:rst_timer
+  syscon,canfd-enable:
+    type:boolean
+    description:
+    Use syscon,canfd-enable to control whether to enable the canfd controller.
+    When the canfd controller needs to be enabled,
+    the syscon,canfd-enable,syscon,canfd-offset, and syscon,canfd-mask attributes must be configured at the same time.
+    It is meaningless to set one of the properties separately.
+  syscon,canfd-offset:
+    description:
+    syscon,canfd-offset is a constant, can0 is 0x10, can1 is 0x88
+  syscon,canfd-mask:
+    description:
+    syscon,canfd-mask is a constant,can0 is 0x8,can1 is 0x40000
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+
+additionalProperties:
+  - syscon,canfd-enable
+  - syscon,canfd-offset
+  - syscon,canfd-mask
+
+examples:
+  - |
+    ipmscan0: can@130d0000{
+    compatible = "ipms,can";
+    reg = <0x0 0x130d0000 0x0 0x1000>,
+          <0x0 0x13030000 0x0 0x10000>;
+    reg-names = "reg_base","sys_syscon";
+    interrupts = <112>;
+    interrupt-parent = <&plic>;
+    clocks = <&canclk>,
+             <&clkgen JH7110_CAN0_CTRL_CLK_APB>,
+             <&clkgen JH7110_CAN0_CTRL_CLK_CAN>,
+             <&clkgen JH7110_CAN0_CTRL_CLK_TIMER>;
+    clock-names = "ipms_can_clk",
+                  "apb_clk",
+                  "core_clk",
+                  "timer_clk";
+    resets = <&rstgen RSTN_U0_CAN_CTRL_APB>,
+             <&rstgen RSTN_U0_CAN_CTRL_CORE>,
+             <&rstgen RSTN_U0_CAN_CTRL_TIMER>;
+    reset-names = "rst_apb",
+                  "rst_core",
+                  "rst_timer";
+    };
+
+...
