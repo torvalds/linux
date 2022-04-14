@@ -8,6 +8,7 @@
 #include <linux/types.h>
 
 #include "intel_display.h"
+#include "intel_display_power.h"
 
 struct drm_i915_private;
 struct i915_power_well;
@@ -102,7 +103,7 @@ struct i915_power_well_desc {
 
 struct i915_power_well {
 	const struct i915_power_well_desc *desc;
-	u64 domains;
+	struct intel_power_domain_mask domains;
 	/* power well enable/disable usage count */
 	int count;
 	/* cached hw enabled state */
@@ -129,7 +130,7 @@ bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 					 enum i915_power_well_id power_well_id);
 bool intel_power_well_is_always_on(struct i915_power_well *power_well);
 const char *intel_power_well_name(struct i915_power_well *power_well);
-u64 intel_power_well_domains(struct i915_power_well *power_well);
+struct intel_power_domain_mask *intel_power_well_domains(struct i915_power_well *power_well);
 int intel_power_well_refcount(struct i915_power_well *power_well);
 
 void chv_phy_powergate_lanes(struct intel_encoder *encoder,

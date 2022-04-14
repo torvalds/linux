@@ -2084,13 +2084,13 @@ static void init_power_well_domains(const struct i915_power_well_desc *desc,
 		return;
 
 	if (desc->domain_list->count == 0) {
-		power_well->domains = GENMASK_ULL(POWER_DOMAIN_NUM - 1, 0);
+		bitmap_fill(power_well->domains.bits, POWER_DOMAIN_NUM);
 
 		return;
 	}
 
 	for (j = 0; j < desc->domain_list->count; j++)
-		power_well->domains |= BIT_ULL(desc->domain_list->list[j]);
+		set_bit(desc->domain_list->list[j], power_well->domains.bits);
 }
 
 static int
