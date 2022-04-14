@@ -147,7 +147,7 @@ static __always_inline struct pt_regs fake_pt_regs(void)
 	struct pt_regs regs;
 
 	memset(&regs, 0, sizeof(regs));
-	regs.gprs[15] = current_stack_pointer();
+	regs.gprs[15] = current_stack_pointer;
 
 	asm volatile(
 		"basr	%[psw_addr],0\n"

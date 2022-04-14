@@ -255,6 +255,10 @@ config HAVE_MARCH_Z15_FEATURES
 	def_bool n
 	select HAVE_MARCH_Z14_FEATURES
 
+config HAVE_MARCH_Z16_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z15_FEATURES
+
 choice
 	prompt "Processor type"
 	default MARCH_Z196
@@ -312,6 +316,14 @@ config MARCH_Z15
 	  and 8561 series). The kernel will be slightly faster but will not
 	  work on older machines.
 
+config MARCH_Z16
+	bool "IBM z16"
+	select HAVE_MARCH_Z16_FEATURES
+	depends on $(cc-option,-march=z16)
+	help
+	  Select this to enable optimizations for IBM z16 (3931 and
+	  3932 series).
+
 endchoice
 
 config MARCH_Z10_TUNE
@@ -331,6 +343,9 @@ config MARCH_Z14_TUNE
 
 config MARCH_Z15_TUNE
 	def_bool TUNE_Z15 || MARCH_Z15 && TUNE_DEFAULT
+
+config MARCH_Z16_TUNE
+	def_bool TUNE_Z16 || MARCH_Z16 && TUNE_DEFAULT
 
 choice
 	prompt "Tune code generation"
@@ -371,6 +386,10 @@ config TUNE_Z14
 config TUNE_Z15
 	bool "IBM z15"
 	depends on $(cc-option,-mtune=z15)
+
+config TUNE_Z16
+	bool "IBM z16"
+	depends on $(cc-option,-mtune=z16)
 
 endchoice
 
