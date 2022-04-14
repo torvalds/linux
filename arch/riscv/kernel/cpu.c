@@ -139,6 +139,7 @@ static void print_mmu(struct seq_file *f)
 {
 	char sv_type[16];
 
+#ifdef CONFIG_MMU
 #if defined(CONFIG_32BIT)
 	strncpy(sv_type, "sv32", 5);
 #elif defined(CONFIG_64BIT)
@@ -149,6 +150,9 @@ static void print_mmu(struct seq_file *f)
 	else
 		strncpy(sv_type, "sv39", 5);
 #endif
+#else
+	strncpy(sv_type, "none", 5);
+#endif /* CONFIG_MMU */
 	seq_printf(f, "mmu\t\t: %s\n", sv_type);
 }
 
