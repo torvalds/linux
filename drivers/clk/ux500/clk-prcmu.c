@@ -18,7 +18,6 @@
 struct clk_prcmu {
 	struct clk_hw hw;
 	u8 cg_sel;
-	int is_prepared;
 	int opp_requested;
 };
 
@@ -26,14 +25,9 @@ struct clk_prcmu {
 
 static int clk_prcmu_prepare(struct clk_hw *hw)
 {
-	int ret;
 	struct clk_prcmu *clk = to_clk_prcmu(hw);
 
-	ret = prcmu_request_clock(clk->cg_sel, true);
-	if (!ret)
-		clk->is_prepared = 1;
-
-	return ret;
+	return prcmu_request_clock(clk->cg_sel, true);
 }
 
 static void clk_prcmu_unprepare(struct clk_hw *hw)
@@ -41,15 +35,7 @@ static void clk_prcmu_unprepare(struct clk_hw *hw)
 	struct clk_prcmu *clk = to_clk_prcmu(hw);
 	if (prcmu_request_clock(clk->cg_sel, false))
 		pr_err("clk_prcmu: %s failed to disable %s.\n", __func__,
-			clk_hw_get_name(hw));
-	else
-		clk->is_prepared = 0;
-}
-
-static int clk_prcmu_is_prepared(struct clk_hw *hw)
-{
-	struct clk_prcmu *clk = to_clk_prcmu(hw);
-	return clk->is_prepared;
+		       clk_hw_get_name(hw));
 }
 
 static unsigned long clk_prcmu_recalc_rate(struct clk_hw *hw,
@@ -98,7 +84,6 @@ static int clk_prcmu_opp_prepare(struct clk_hw *hw)
 		return err;
 	}
 
-	clk->is_prepared = 1;
 	return 0;
 }
 
@@ -117,8 +102,6 @@ static void clk_prcmu_opp_unprepare(struct clk_hw *hw)
 					(char *)clk_hw_get_name(hw));
 		clk->opp_requested = 0;
 	}
-
-	clk->is_prepared = 0;
 }
 
 static int clk_prcmu_opp_volt_prepare(struct clk_hw *hw)
@@ -143,7 +126,6 @@ static int clk_prcmu_opp_volt_prepare(struct clk_hw *hw)
 		return err;
 	}
 
-	clk->is_prepared = 1;
 	return 0;
 }
 
@@ -161,14 +143,11 @@ static void clk_prcmu_opp_volt_unprepare(struct clk_hw *hw)
 		prcmu_request_ape_opp_100_voltage(false);
 		clk->opp_requested = 0;
 	}
-
-	clk->is_prepared = 0;
 }
 
 static const struct clk_ops clk_prcmu_scalable_ops = {
 	.prepare = clk_prcmu_prepare,
 	.unprepare = clk_prcmu_unprepare,
-	.is_prepared = clk_prcmu_is_prepared,
 	.recalc_rate = clk_prcmu_recalc_rate,
 	.round_rate = clk_prcmu_round_rate,
 	.set_rate = clk_prcmu_set_rate,
@@ -177,7 +156,6 @@ static const struct clk_ops clk_prcmu_scalable_ops = {
 static const struct clk_ops clk_prcmu_gate_ops = {
 	.prepare = clk_prcmu_prepare,
 	.unprepare = clk_prcmu_unprepare,
-	.is_prepared = clk_prcmu_is_prepared,
 	.recalc_rate = clk_prcmu_recalc_rate,
 };
 
@@ -194,14 +172,12 @@ static const struct clk_ops clk_prcmu_rate_ops = {
 static const struct clk_ops clk_prcmu_opp_gate_ops = {
 	.prepare = clk_prcmu_opp_prepare,
 	.unprepare = clk_prcmu_opp_unprepare,
-	.is_prepared = clk_prcmu_is_prepared,
 	.recalc_rate = clk_prcmu_recalc_rate,
 };
 
 static const struct clk_ops clk_prcmu_opp_volt_scalable_ops = {
 	.prepare = clk_prcmu_opp_volt_prepare,
 	.unprepare = clk_prcmu_opp_volt_unprepare,
-	.is_prepared = clk_prcmu_is_prepared,
 	.recalc_rate = clk_prcmu_recalc_rate,
 	.round_rate = clk_prcmu_round_rate,
 	.set_rate = clk_prcmu_set_rate,
@@ -228,7 +204,6 @@ static struct clk *clk_reg_prcmu(const char *name,
 		return ERR_PTR(-ENOMEM);
 
 	clk->cg_sel = cg_sel;
-	clk->is_prepared = 1;
 	clk->opp_requested = 0;
 	/* "rate" can be used for changing the initial frequency */
 	if (rate)
