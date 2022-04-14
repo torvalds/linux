@@ -253,7 +253,7 @@ static inline bool property_enabled(struct regmap *base,
 		return false;
 
 	tmp = (orig & mask) >> reg->bitstart;
-	return tmp == reg->enable;
+	return tmp != reg->disable;
 }
 
 static int rockchip_usb2phy_clk480m_prepare(struct clk_hw *hw)
