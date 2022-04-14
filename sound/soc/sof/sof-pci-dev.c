@@ -23,6 +23,10 @@ static char *fw_path;
 module_param(fw_path, charp, 0444);
 MODULE_PARM_DESC(fw_path, "alternate path for SOF firmware.");
 
+static char *fw_filename;
+module_param(fw_filename, charp, 0444);
+MODULE_PARM_DESC(fw_filename, "alternate filename for SOF firmware.");
+
 static char *tplg_path;
 module_param(tplg_path, charp, 0444);
 MODULE_PARM_DESC(tplg_path, "alternate path for SOF topology.");
@@ -175,7 +179,15 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	sof_pdata->dev = dev;
 
 	sof_pdata->ipc_type = desc->ipc_default;
-	sof_pdata->fw_filename = desc->default_fw_filename[sof_pdata->ipc_type];
+
+	if (fw_filename) {
+		sof_pdata->fw_filename = fw_filename;
+
+		dev_dbg(dev, "Module parameter used, changed fw filename to %s\n",
+			sof_pdata->fw_filename);
+	} else {
+		sof_pdata->fw_filename = desc->default_fw_filename[sof_pdata->ipc_type];
+	}
 
 	/*
 	 * for platforms using the SOF community key, change the
