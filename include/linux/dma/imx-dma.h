@@ -3,8 +3,8 @@
  * Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
-#ifndef __ASM_ARCH_MXC_DMA_H__
-#define __ASM_ARCH_MXC_DMA_H__
+#ifndef __LINUX_DMA_IMX_H
+#define __LINUX_DMA_IMX_H
 
 #include <linux/scatterlist.h>
 #include <linux/device.h>
@@ -65,4 +65,4 @@ static inline int imx_dma_is_general_purpose(struct dma_chan *chan)
 		!strcmp(chan->device->dev->driver->name, "imx-dma");
 }
 
-#endif
+#endif /* __LINUX_DMA_IMX_H */
