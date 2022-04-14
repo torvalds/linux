@@ -4087,9 +4087,10 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_IIR_WR_BASE);
 		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_IIR_RD_BASE);
 
-		div = new_params->others.bay3d_cfg.lo4x4_en ?
-			16 : (new_params->others.bay3d_cfg.lo4x8_en ? 32 : 64);
-		val = ALIGN(w * h / div, 16);
+		div = priv_val->is_lo8x8 ? 64 : 16;
+		val = w * h / div;
+		/* pixel to Byte and align */
+		val = ALIGN(val * 2, 16);
 		priv_val->buf_3dnr_ds.size = val;
 		ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dnr_ds);
 		if (ret) {
