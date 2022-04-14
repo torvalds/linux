@@ -433,6 +433,7 @@ config QCOM_PDC
 config QCOM_MPM
 	tristate "QCOM MPM"
 	depends on ARCH_QCOM
+	depends on MAILBOX
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  MSM Power Manager driver to manage and configure wakeup

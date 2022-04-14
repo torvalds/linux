@@ -5929,13 +5929,15 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	}
 
 	lpfc_cmd->waitq = &waitq;
-	if (phba->sli_rev == LPFC_SLI_REV4)
+	if (phba->sli_rev == LPFC_SLI_REV4) {
 		spin_unlock(&pring_s4->ring_lock);
-	else
+		ret_val = lpfc_sli4_issue_abort_iotag(phba, iocb,
+						      lpfc_sli_abort_fcp_cmpl);
+	} else {
 		pring = &phba->sli.sli3_ring[LPFC_FCP_RING];
-
-	ret_val = lpfc_sli_issue_abort_iotag(phba, pring, iocb,
-					     lpfc_sli_abort_fcp_cmpl);
+		ret_val = lpfc_sli_issue_abort_iotag(phba, pring, iocb,
+						     lpfc_sli_abort_fcp_cmpl);
+	}
 
 	/* Make sure HBA is alive */
 	lpfc_issue_hb_tmo(phba);

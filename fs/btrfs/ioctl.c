@@ -1239,7 +1239,7 @@ static u32 get_extent_max_capacity(const struct extent_map *em)
 }
 
 static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em,
-				     bool locked)
+				     u32 extent_thresh, u64 newer_than, bool locked)
 {
 	struct extent_map *next;
 	bool ret = false;
@@ -1249,11 +1249,12 @@ static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em,
 		return false;
 
 	/*
-	 * We want to check if the next extent can be merged with the current
-	 * one, which can be an extent created in a past generation, so we pass
-	 * a minimum generation of 0 to defrag_lookup_extent().
+	 * Here we need to pass @newer_then when checking the next extent, or
+	 * we will hit a case we mark current extent for defrag, but the next
+	 * one will not be a target.
+	 * This will just cause extra IO without really reducing the fragments.
 	 */
-	next = defrag_lookup_extent(inode, em->start + em->len, 0, locked);
+	next = defrag_lookup_extent(inode, em->start + em->len, newer_than, locked);
 	/* No more em or hole */
 	if (!next || next->block_start >= EXTENT_MAP_LAST_BYTE)
 		goto out;
@@ -1265,6 +1266,13 @@ static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em,
 	 */
 	if (next->len >= get_extent_max_capacity(em))
 		goto out;
+	/* Skip older extent */
+	if (next->generation < newer_than)
+		goto out;
+	/* Also check extent size */
+	if (next->len >= extent_thresh)
+		goto out;
+
 	ret = true;
 out:
 	free_extent_map(next);
@@ -1470,7 +1478,7 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 			goto next;
 
 		next_mergeable = defrag_check_next_extent(&inode->vfs_inode, em,
-							  locked);
+						extent_thresh, newer_than, locked);
 		if (!next_mergeable) {
 			struct defrag_target_range *last;
 

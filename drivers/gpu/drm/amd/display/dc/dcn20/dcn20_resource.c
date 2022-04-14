@@ -1976,7 +1976,6 @@ int dcn20_validate_apply_pipe_split_flags(
 				/*If need split for odm but 4 way split already*/
 				if (split[i] == 2 && ((pipe->prev_odm_pipe && !pipe->prev_odm_pipe->prev_odm_pipe)
 						|| !pipe->next_odm_pipe)) {
-					ASSERT(0); /* NOT expected yet */
 					merge[i] = true; /* 4 -> 2 ODM */
 				} else if (split[i] == 0 && pipe->prev_odm_pipe) {
 					ASSERT(0); /* NOT expected yet */

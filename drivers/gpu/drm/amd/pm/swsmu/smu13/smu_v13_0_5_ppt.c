@@ -991,7 +991,7 @@ static int smu_v13_0_5_set_performance_level(struct smu_context *smu,
 		return -EINVAL;
 	}
 
-	if (sclk_min && sclk_max) {
+	if (sclk_min && sclk_max && smu_v13_0_5_clk_dpm_is_enabled(smu, SMU_SCLK)) {
 		ret = smu_v13_0_5_set_soft_freq_limited_range(smu,
 							    SMU_SCLK,
 							    sclk_min,
