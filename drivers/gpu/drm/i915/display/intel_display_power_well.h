@@ -50,7 +50,10 @@ enum i915_power_well_id {
 
 struct i915_power_well_desc {
 	const char *name;
-	u64 domains;
+	const struct i915_power_domain_list {
+		const enum intel_display_power_domain *list;
+		u8 count;
+	} *domain_list;
 	/* Mask of pipes whose IRQ logic is backed by the pw */
 	u16 irq_pipe_mask:4;
 	u16 always_on:1;
@@ -99,6 +102,7 @@ struct i915_power_well_desc {
 
 struct i915_power_well {
 	const struct i915_power_well_desc *desc;
+	u64 domains;
 	/* power well enable/disable usage count */
 	int count;
 	/* cached hw enabled state */

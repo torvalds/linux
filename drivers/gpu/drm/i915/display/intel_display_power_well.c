@@ -156,7 +156,7 @@ const char *intel_power_well_name(struct i915_power_well *power_well)
 
 u64 intel_power_well_domains(struct i915_power_well *power_well)
 {
-	return power_well->desc->domains;
+	return power_well->domains;
 }
 
 int intel_power_well_refcount(struct i915_power_well *power_well)
