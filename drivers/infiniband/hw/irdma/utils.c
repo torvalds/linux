@@ -150,31 +150,35 @@ int irdma_inetaddr_event(struct notifier_block *notifier, unsigned long event,
 			 void *ptr)
 {
 	struct in_ifaddr *ifa = ptr;
-	struct net_device *netdev = ifa->ifa_dev->dev;
+	struct net_device *real_dev, *netdev = ifa->ifa_dev->dev;
 	struct irdma_device *iwdev;
 	struct ib_device *ibdev;
 	u32 local_ipaddr;
 
-	ibdev = ib_device_get_by_netdev(netdev, RDMA_DRIVER_IRDMA);
+	real_dev = rdma_vlan_dev_real_dev(netdev);
+	if (!real_dev)
+		real_dev = netdev;
+
+	ibdev = ib_device_get_by_netdev(real_dev, RDMA_DRIVER_IRDMA);
 	if (!ibdev)
 		return NOTIFY_DONE;
 
 	iwdev = to_iwdev(ibdev);
 	local_ipaddr = ntohl(ifa->ifa_address);
 	ibdev_dbg(&iwdev->ibdev,
-		  "DEV: netdev %p event %lu local_ip=%pI4 MAC=%pM\n", netdev,
-		  event, &local_ipaddr, netdev->dev_addr);
+		  "DEV: netdev %p event %lu local_ip=%pI4 MAC=%pM\n", real_dev,
+		  event, &local_ipaddr, real_dev->dev_addr);
 	switch (event) {
 	case NETDEV_DOWN:
-		irdma_manage_arp_cache(iwdev->rf, netdev->dev_addr,
+		irdma_manage_arp_cache(iwdev->rf, real_dev->dev_addr,
 				       &local_ipaddr, true, IRDMA_ARP_DELETE);
-		irdma_if_notify(iwdev, netdev, &local_ipaddr, true, false);
+		irdma_if_notify(iwdev, real_dev, &local_ipaddr, true, false);
 		irdma_gid_change_event(&iwdev->ibdev);
 		break;
 	case NETDEV_UP:
 	case NETDEV_CHANGEADDR:
-		irdma_add_arp(iwdev->rf, &local_ipaddr, true, netdev->dev_addr);
-		irdma_if_notify(iwdev, netdev, &local_ipaddr, true, true);
+		irdma_add_arp(iwdev->rf, &local_ipaddr, true, real_dev->dev_addr);
+		irdma_if_notify(iwdev, real_dev, &local_ipaddr, true, true);
 		irdma_gid_change_event(&iwdev->ibdev);
 		break;
 	default:
@@ -196,32 +200,36 @@ int irdma_inet6addr_event(struct notifier_block *notifier, unsigned long event,
 			  void *ptr)
 {
 	struct inet6_ifaddr *ifa = ptr;
-	struct net_device *netdev = ifa->idev->dev;
+	struct net_device *real_dev, *netdev = ifa->idev->dev;
 	struct irdma_device *iwdev;
 	struct ib_device *ibdev;
 	u32 local_ipaddr6[4];
 
-	ibdev = ib_device_get_by_netdev(netdev, RDMA_DRIVER_IRDMA);
+	real_dev = rdma_vlan_dev_real_dev(netdev);
+	if (!real_dev)
+		real_dev = netdev;
+
+	ibdev = ib_device_get_by_netdev(real_dev, RDMA_DRIVER_IRDMA);
 	if (!ibdev)
 		return NOTIFY_DONE;
 
 	iwdev = to_iwdev(ibdev);
 	irdma_copy_ip_ntohl(local_ipaddr6, ifa->addr.in6_u.u6_addr32);
 	ibdev_dbg(&iwdev->ibdev,
-		  "DEV: netdev %p event %lu local_ip=%pI6 MAC=%pM\n", netdev,
-		  event, local_ipaddr6, netdev->dev_addr);
+		  "DEV: netdev %p event %lu local_ip=%pI6 MAC=%pM\n", real_dev,
+		  event, local_ipaddr6, real_dev->dev_addr);
 	switch (event) {
 	case NETDEV_DOWN:
-		irdma_manage_arp_cache(iwdev->rf, netdev->dev_addr,
+		irdma_manage_arp_cache(iwdev->rf, real_dev->dev_addr,
 				       local_ipaddr6, false, IRDMA_ARP_DELETE);
-		irdma_if_notify(iwdev, netdev, local_ipaddr6, false, false);
+		irdma_if_notify(iwdev, real_dev, local_ipaddr6, false, false);
 		irdma_gid_change_event(&iwdev->ibdev);
 		break;
 	case NETDEV_UP:
 	case NETDEV_CHANGEADDR:
 		irdma_add_arp(iwdev->rf, local_ipaddr6, false,
-			      netdev->dev_addr);
-		irdma_if_notify(iwdev, netdev, local_ipaddr6, false, true);
+			      real_dev->dev_addr);
+		irdma_if_notify(iwdev, real_dev, local_ipaddr6, false, true);
 		irdma_gid_change_event(&iwdev->ibdev);
 		break;
 	default:
@@ -243,14 +251,18 @@ int irdma_net_event(struct notifier_block *notifier, unsigned long event,
 		    void *ptr)
 {
 	struct neighbour *neigh = ptr;
+	struct net_device *real_dev, *netdev = (struct net_device *)neigh->dev;
 	struct irdma_device *iwdev;
 	struct ib_device *ibdev;
 	__be32 *p;
 	u32 local_ipaddr[4] = {};
 	bool ipv4 = true;
 
-	ibdev = ib_device_get_by_netdev((struct net_device *)neigh->dev,
-					RDMA_DRIVER_IRDMA);
+	real_dev = rdma_vlan_dev_real_dev(netdev);
+	if (!real_dev)
+		real_dev = netdev;
+
+	ibdev = ib_device_get_by_netdev(real_dev, RDMA_DRIVER_IRDMA);
 	if (!ibdev)
 		return NOTIFY_DONE;
 

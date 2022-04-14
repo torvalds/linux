@@ -567,7 +567,7 @@ DECLARE_INTERRUPT_HANDLER_RAW(do_slb_fault);
 DECLARE_INTERRUPT_HANDLER(do_bad_slb_fault);
 
 /* hash_utils.c */
-DECLARE_INTERRUPT_HANDLER_RAW(do_hash_fault);
+DECLARE_INTERRUPT_HANDLER(do_hash_fault);
 
 /* fault.c */
 DECLARE_INTERRUPT_HANDLER(do_page_fault);

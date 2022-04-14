@@ -28,7 +28,7 @@ struct pps_pin {
 	u8 state;
 };
 
-#define TSIO_PIN_VALID(pin) ((pin) < (BNXT_MAX_TSIO_PINS))
+#define TSIO_PIN_VALID(pin) ((pin) >= 0 && (pin) < (BNXT_MAX_TSIO_PINS))
 
 #define EVENT_DATA2_PPS_EVENT_TYPE(data2)				\
 	((data2) & ASYNC_EVENT_CMPL_PPS_TIMESTAMP_EVENT_DATA2_EVENT_TYPE)

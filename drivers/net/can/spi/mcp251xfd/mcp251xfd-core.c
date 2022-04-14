@@ -2706,7 +2706,7 @@ mcp251xfd_register_get_dev_id(const struct mcp251xfd_priv *priv,
  out_kfree_buf_rx:
 	kfree(buf_rx);
 
-	return 0;
+	return err;
 }
 
 #define MCP251XFD_QUIRK_ACTIVE(quirk) \

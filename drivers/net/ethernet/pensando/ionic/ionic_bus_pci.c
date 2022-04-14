@@ -331,6 +331,9 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_deregister_lifs;
 	}
 
+	mod_timer(&ionic->watchdog_timer,
+		  round_jiffies(jiffies + ionic->watchdog_period));
+
 	return 0;
 
 err_out_deregister_lifs:
@@ -348,7 +351,6 @@ err_out_port_reset:
 err_out_reset:
 	ionic_reset(ionic);
 err_out_teardown:
-	del_timer_sync(&ionic->watchdog_timer);
 	pci_clear_master(pdev);
 	/* Don't fail the probe for these errors, keep
 	 * the hw interface around for inspection

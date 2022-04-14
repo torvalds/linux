@@ -7,6 +7,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/scatterlist.h>
+#include <linux/blk-cgroup.h>
 
 #include <trace/events/block.h>
 
@@ -561,6 +562,9 @@ static inline unsigned int blk_rq_get_max_segments(struct request *rq)
 static inline int ll_new_hw_segment(struct request *req, struct bio *bio,
 		unsigned int nr_phys_segs)
 {
+	if (!blk_cgroup_mergeable(req, bio))
+		goto no_merge;
+
 	if (blk_integrity_merge_bio(req->q, req, bio) == false)
 		goto no_merge;
 
@@ -655,6 +659,9 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 
 	total_phys_segments = req->nr_phys_segments + next->nr_phys_segments;
 	if (total_phys_segments > blk_rq_get_max_segments(req))
+		return 0;
+
+	if (!blk_cgroup_mergeable(req, next->bio))
 		return 0;
 
 	if (blk_integrity_merge_rq(q, req, next) == false)
@@ -861,6 +868,10 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 
 	/* must be same device */
 	if (rq->rq_disk != bio->bi_bdev->bd_disk)
+		return false;
+
+	/* don't merge across cgroup boundaries */
+	if (!blk_cgroup_mergeable(rq, bio))
 		return false;
 
 	/* only merge integrity protected bio into ditto rq */

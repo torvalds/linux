@@ -1040,6 +1040,9 @@ static int nft_ct_helper_obj_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		goto err_put_helper;
 
+	/* Avoid the bogus warning, helper will be assigned after CT init */
+	nf_ct_set_auto_assign_helper_warned(ctx->net);
+
 	return 0;
 
 err_put_helper:

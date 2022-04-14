@@ -1022,7 +1022,7 @@ static ssize_t hns3_dbg_read(struct file *filp, char __user *buffer,
 		return ret;
 
 	mutex_lock(&handle->dbgfs_lock);
-	save_buf = &hns3_dbg_cmd[index].buf;
+	save_buf = &handle->dbgfs_buf[index];
 
 	if (!test_bit(HNS3_NIC_STATE_INITED, &priv->state) ||
 	    test_bit(HNS3_NIC_STATE_RESETTING, &priv->state)) {
@@ -1127,6 +1127,13 @@ int hns3_dbg_init(struct hnae3_handle *handle)
 	int ret;
 	u32 i;
 
+	handle->dbgfs_buf = devm_kcalloc(&handle->pdev->dev,
+					 ARRAY_SIZE(hns3_dbg_cmd),
+					 sizeof(*handle->dbgfs_buf),
+					 GFP_KERNEL);
+	if (!handle->dbgfs_buf)
+		return -ENOMEM;
+
 	hns3_dbg_dentry[HNS3_DBG_DENTRY_COMMON].dentry =
 				debugfs_create_dir(name, hns3_dbgfs_root);
 	handle->hnae3_dbgfs = hns3_dbg_dentry[HNS3_DBG_DENTRY_COMMON].dentry;
@@ -1175,9 +1182,9 @@ void hns3_dbg_uninit(struct hnae3_handle *handle)
 	u32 i;
 
 	for (i = 0; i < ARRAY_SIZE(hns3_dbg_cmd); i++)
-		if (hns3_dbg_cmd[i].buf) {
-			kvfree(hns3_dbg_cmd[i].buf);
-			hns3_dbg_cmd[i].buf = NULL;
+		if (handle->dbgfs_buf[i]) {
+			kvfree(handle->dbgfs_buf[i]);
+			handle->dbgfs_buf[i] = NULL;
 		}
 
 	mutex_destroy(&handle->dbgfs_lock);

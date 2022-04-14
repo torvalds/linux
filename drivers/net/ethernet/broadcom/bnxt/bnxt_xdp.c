@@ -20,6 +20,8 @@
 #include "bnxt.h"
 #include "bnxt_xdp.h"
 
+DEFINE_STATIC_KEY_FALSE(bnxt_xdp_locking_key);
+
 struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 				   struct bnxt_tx_ring_info *txr,
 				   dma_addr_t mapping, u32 len)
@@ -227,11 +229,16 @@ int bnxt_xdp_xmit(struct net_device *dev, int num_frames,
 	ring = smp_processor_id() % bp->tx_nr_rings_xdp;
 	txr = &bp->tx_ring[ring];
 
+	if (READ_ONCE(txr->dev_state) == BNXT_DEV_STATE_CLOSING)
+		return -EINVAL;
+
+	if (static_branch_unlikely(&bnxt_xdp_locking_key))
+		spin_lock(&txr->xdp_tx_lock);
+
 	for (i = 0; i < num_frames; i++) {
 		struct xdp_frame *xdp = frames[i];
 
-		if (!txr || !bnxt_tx_avail(bp, txr) ||
-		    !(bp->bnapi[ring]->flags & BNXT_NAPI_FLAG_XDP))
+		if (!bnxt_tx_avail(bp, txr))
 			break;
 
 		mapping = dma_map_single(&pdev->dev, xdp->data, xdp->len,
@@ -249,6 +256,9 @@ int bnxt_xdp_xmit(struct net_device *dev, int num_frames,
 		wmb();
 		bnxt_db_write(bp, &txr->tx_db, txr->tx_prod);
 	}
+
+	if (static_branch_unlikely(&bnxt_xdp_locking_key))
+		spin_unlock(&txr->xdp_tx_lock);
 
 	return nxmit;
 }

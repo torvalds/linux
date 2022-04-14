@@ -65,6 +65,8 @@ struct mapped_device {
 	struct gendisk *disk;
 	struct dax_device *dax_dev;
 
+	unsigned long __percpu *pending_io;
+
 	/*
 	 * A list of ios that arrived while we were suspended.
 	 */

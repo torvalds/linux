@@ -68,6 +68,9 @@
 /* NVIDIA Tegra Combined UART */
 #define PORT_TEGRA_TCU	41
 
+/* ASPEED AST2x00 virtual UART */
+#define PORT_ASPEED_VUART	42
+
 /* Intel EG20 */
 #define PORT_PCH_8LINE	44
 #define PORT_PCH_2LINE	45

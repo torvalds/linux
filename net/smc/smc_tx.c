@@ -594,6 +594,20 @@ int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
 	return rc;
 }
 
+void smc_tx_pending(struct smc_connection *conn)
+{
+	struct smc_sock *smc = container_of(conn, struct smc_sock, conn);
+	int rc;
+
+	if (smc->sk.sk_err)
+		return;
+
+	rc = smc_tx_sndbuf_nonempty(conn);
+	if (!rc && conn->local_rx_ctrl.prod_flags.write_blocked &&
+	    !atomic_read(&conn->bytes_to_rcv))
+		conn->local_rx_ctrl.prod_flags.write_blocked = 0;
+}
+
 /* Wakeup sndbuf consumers from process context
  * since there is more data to transmit
  */
@@ -603,18 +617,9 @@ void smc_tx_work(struct work_struct *work)
 						   struct smc_connection,
 						   tx_work);
 	struct smc_sock *smc = container_of(conn, struct smc_sock, conn);
-	int rc;
 
 	lock_sock(&smc->sk);
-	if (smc->sk.sk_err)
-		goto out;
-
-	rc = smc_tx_sndbuf_nonempty(conn);
-	if (!rc && conn->local_rx_ctrl.prod_flags.write_blocked &&
-	    !atomic_read(&conn->bytes_to_rcv))
-		conn->local_rx_ctrl.prod_flags.write_blocked = 0;
-
-out:
+	smc_tx_pending(conn);
 	release_sock(&smc->sk);
 }
 
