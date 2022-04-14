@@ -1727,6 +1727,45 @@ static void rtw8852c_set_channel(struct rtw89_dev *rtwdev,
 	rtw8852c_set_channel_rf(rtwdev, params, RTW89_PHY_0);
 }
 
+static void rtw8852c_dfs_en(struct rtw89_dev *rtwdev, bool en)
+{
+	if (en)
+		rtw89_phy_write32_mask(rtwdev, R_UPD_P0, B_UPD_P0_EN, 1);
+	else
+		rtw89_phy_write32_mask(rtwdev, R_UPD_P0, B_UPD_P0_EN, 0);
+}
+
+static void rtw8852c_adc_en(struct rtw89_dev *rtwdev, bool en)
+{
+	if (en)
+		rtw89_phy_write32_mask(rtwdev, R_ADC_FIFO, B_ADC_FIFO_RST,
+				       0x0);
+	else
+		rtw89_phy_write32_mask(rtwdev, R_ADC_FIFO, B_ADC_FIFO_RST,
+				       0xf);
+}
+
+static void rtw8852c_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
+				      struct rtw89_channel_help_params *p)
+{
+	u8 phy_idx = RTW89_PHY_0;
+
+	if (enter) {
+		rtw89_chip_stop_sch_tx(rtwdev, RTW89_MAC_0, &p->tx_en, RTW89_SCH_TX_SEL_ALL);
+		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, false);
+		rtw8852c_dfs_en(rtwdev, false);
+		rtw8852c_adc_en(rtwdev, false);
+		fsleep(40);
+		rtw8852c_bb_reset_en(rtwdev, phy_idx, false);
+	} else {
+		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, true);
+		rtw8852c_adc_en(rtwdev, true);
+		rtw8852c_dfs_en(rtwdev, true);
+		rtw8852c_bb_reset_en(rtwdev, phy_idx, true);
+		rtw89_chip_resume_sch_tx(rtwdev, RTW89_MAC_0, p->tx_en);
+	}
+}
+
 static
 void rtw8852c_set_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
 				     s8 pw_ofst, enum rtw89_mac_idx mac_idx)
@@ -1913,6 +1952,7 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.bb_reset		= rtw8852c_bb_reset,
 	.bb_sethw		= rtw8852c_bb_sethw,
 	.set_channel		= rtw8852c_set_channel,
+	.set_channel_help	= rtw8852c_set_channel_help,
 	.read_efuse		= rtw8852c_read_efuse,
 	.read_phycap		= rtw8852c_read_phycap,
 	.power_trim		= rtw8852c_power_trim,
