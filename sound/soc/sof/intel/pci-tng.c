@@ -210,6 +210,7 @@ struct snd_sof_dsp_ops sof_tng_ops = {
 const struct sof_intel_dsp_desc tng_chip_info = {
 	.cores_num = 1,
 	.host_managed_cores_mask = 1,
+	.hw_ip_version = SOF_INTEL_TANGIER,
 };
 
 static const struct sof_dev_desc tng_desc = {
