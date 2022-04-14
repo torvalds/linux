@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright 2018 NXP
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -116,23 +117,22 @@ static inline int get_pdm_clk(struct fsl_micfil *micfil,
 	int bclk;
 
 	regmap_read(micfil->regmap, REG_MICFIL_CTRL2, &ctrl2_reg);
-	osr = 16 - ((ctrl2_reg & MICFIL_CTRL2_CICOSR_MASK)
-		    >> MICFIL_CTRL2_CICOSR_SHIFT);
-	qsel = ctrl2_reg & MICFIL_CTRL2_QSEL_MASK;
+	osr = 16 - FIELD_GET(MICFIL_CTRL2_CICOSR, ctrl2_reg);
+	qsel = FIELD_GET(MICFIL_CTRL2_QSEL, ctrl2_reg);
 
 	switch (qsel) {
-	case MICFIL_HIGH_QUALITY:
+	case MICFIL_QSEL_HIGH_QUALITY:
 		bclk = rate * 8 * osr / 2; /* kfactor = 0.5 */
 		break;
-	case MICFIL_MEDIUM_QUALITY:
-	case MICFIL_VLOW0_QUALITY:
+	case MICFIL_QSEL_MEDIUM_QUALITY:
+	case MICFIL_QSEL_VLOW0_QUALITY:
 		bclk = rate * 4 * osr * 1; /* kfactor = 1 */
 		break;
-	case MICFIL_LOW_QUALITY:
-	case MICFIL_VLOW1_QUALITY:
+	case MICFIL_QSEL_LOW_QUALITY:
+	case MICFIL_QSEL_VLOW1_QUALITY:
 		bclk = rate * 2 * osr * 2; /* kfactor = 2 */
 		break;
-	case MICFIL_VLOW2_QUALITY:
+	case MICFIL_QSEL_VLOW2_QUALITY:
 		bclk = rate * osr * 4; /* kfactor = 4 */
 		break;
 	default:
@@ -244,8 +244,8 @@ static int fsl_micfil_trigger(struct snd_pcm_substream *substream, int cmd,
 		 * 11 - reserved
 		 */
 		ret = regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL1,
-					 MICFIL_CTRL1_DISEL_MASK,
-					 (1 << MICFIL_CTRL1_DISEL_SHIFT));
+				MICFIL_CTRL1_DISEL,
+				FIELD_PREP(MICFIL_CTRL1_DISEL, MICFIL_CTRL1_DISEL_DMA));
 		if (ret) {
 			dev_err(dev, "failed to update DISEL bits\n");
 			return ret;
@@ -274,8 +274,8 @@ static int fsl_micfil_trigger(struct snd_pcm_substream *substream, int cmd,
 		}
 
 		ret = regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL1,
-					 MICFIL_CTRL1_DISEL_MASK,
-					 (0 << MICFIL_CTRL1_DISEL_SHIFT));
+				MICFIL_CTRL1_DISEL,
+				FIELD_PREP(MICFIL_CTRL1_DISEL, MICFIL_CTRL1_DISEL_DISABLE));
 		if (ret) {
 			dev_err(dev, "failed to update DISEL bits\n");
 			return ret;
@@ -300,8 +300,8 @@ static int fsl_set_clock_params(struct device *dev, unsigned int rate)
 
 	/* set CICOSR */
 	ret |= regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL2,
-				 MICFIL_CTRL2_CICOSR_MASK,
-				 MICFIL_CTRL2_OSR_DEFAULT);
+				 MICFIL_CTRL2_CICOSR,
+				 FIELD_PREP(MICFIL_CTRL2_CICOSR, MICFIL_CTRL2_CICOSR_DEFAULT));
 	if (ret)
 		dev_err(dev, "failed to set CICOSR in reg 0x%X\n",
 			REG_MICFIL_CTRL2);
@@ -312,7 +312,8 @@ static int fsl_set_clock_params(struct device *dev, unsigned int rate)
 		ret = -EINVAL;
 
 	ret |= regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL2,
-				 MICFIL_CTRL2_CLKDIV_MASK, clk_div);
+				 MICFIL_CTRL2_CLKDIV,
+				 FIELD_PREP(MICFIL_CTRL2_CLKDIV, clk_div));
 	if (ret)
 		dev_err(dev, "failed to set CLKDIV in reg 0x%X\n",
 			REG_MICFIL_CTRL2);
@@ -368,13 +369,13 @@ static int fsl_micfil_dai_probe(struct snd_soc_dai *cpu_dai)
 {
 	struct fsl_micfil *micfil = dev_get_drvdata(cpu_dai->dev);
 	struct device *dev = cpu_dai->dev;
-	unsigned int val;
 	int ret;
 	int i;
 
 	/* set qsel to medium */
 	ret = regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL2,
-				 MICFIL_CTRL2_QSEL_MASK, MICFIL_MEDIUM_QUALITY);
+			MICFIL_CTRL2_QSEL,
+			FIELD_PREP(MICFIL_CTRL2_QSEL, MICFIL_QSEL_MEDIUM_QUALITY));
 	if (ret) {
 		dev_err(dev, "failed to set quality mode bits, reg 0x%X\n",
 			REG_MICFIL_CTRL2);
@@ -390,10 +391,9 @@ static int fsl_micfil_dai_probe(struct snd_soc_dai *cpu_dai)
 				  &micfil->dma_params_rx);
 
 	/* FIFO Watermark Control - FIFOWMK*/
-	val = MICFIL_FIFO_CTRL_FIFOWMK(micfil->soc->fifo_depth) - 1;
 	ret = regmap_update_bits(micfil->regmap, REG_MICFIL_FIFO_CTRL,
-				 MICFIL_FIFO_CTRL_FIFOWMK_MASK,
-				 val);
+			MICFIL_FIFO_CTRL_FIFOWMK,
+			FIELD_PREP(MICFIL_FIFO_CTRL_FIFOWMK, micfil->soc->fifo_depth - 1));
 	if (ret) {
 		dev_err(dev, "failed to set FIFOWMK\n");
 		return ret;
@@ -553,11 +553,11 @@ static irqreturn_t micfil_isr(int irq, void *devid)
 	regmap_read(micfil->regmap, REG_MICFIL_CTRL1, &ctrl1_reg);
 	regmap_read(micfil->regmap, REG_MICFIL_FIFO_STAT, &fifo_stat_reg);
 
-	dma_enabled = MICFIL_DMA_ENABLED(ctrl1_reg);
+	dma_enabled = FIELD_GET(MICFIL_CTRL1_DISEL, ctrl1_reg) == MICFIL_CTRL1_DISEL_DMA;
 
 	/* Channel 0-7 Output Data Flags */
 	for (i = 0; i < MICFIL_OUTPUT_CHANNELS; i++) {
-		if (stat_reg & MICFIL_STAT_CHXF_MASK(i))
+		if (stat_reg & MICFIL_STAT_CHXF(i))
 			dev_dbg(&pdev->dev,
 				"Data available in Data Channel %d\n", i);
 		/* if DMA is not enabled, field must be written with 1
@@ -566,17 +566,17 @@ static irqreturn_t micfil_isr(int irq, void *devid)
 		if (!dma_enabled)
 			regmap_write_bits(micfil->regmap,
 					  REG_MICFIL_STAT,
-					  MICFIL_STAT_CHXF_MASK(i),
+					  MICFIL_STAT_CHXF(i),
 					  1);
 	}
 
 	for (i = 0; i < MICFIL_FIFO_NUM; i++) {
-		if (fifo_stat_reg & MICFIL_FIFO_STAT_FIFOX_OVER_MASK(i))
+		if (fifo_stat_reg & MICFIL_FIFO_STAT_FIFOX_OVER(i))
 			dev_dbg(&pdev->dev,
 				"FIFO Overflow Exception flag for channel %d\n",
 				i);
 
-		if (fifo_stat_reg & MICFIL_FIFO_STAT_FIFOX_UNDER_MASK(i))
+		if (fifo_stat_reg & MICFIL_FIFO_STAT_FIFOX_UNDER(i))
 			dev_dbg(&pdev->dev,
 				"FIFO Underflow Exception flag for channel %d\n",
 				i);
