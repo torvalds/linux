@@ -4492,7 +4492,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	}
 
 	drm_WARN_ON(&dev_priv->drm, port > PORT_I);
-	dig_port->ddi_io_power_domain = POWER_DOMAIN_PORT_DDI_A_IO +
+	dig_port->ddi_io_power_domain = POWER_DOMAIN_PORT_DDI_IO_A +
 					      port - PORT_A;
 
 	if (init_dp) {

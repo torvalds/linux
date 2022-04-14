@@ -399,8 +399,8 @@ static void get_dsi_io_power_domains(struct drm_i915_private *dev_priv,
 		intel_dsi->io_wakeref[port] =
 			intel_display_power_get(dev_priv,
 						port == PORT_A ?
-						POWER_DOMAIN_PORT_DDI_A_IO :
-						POWER_DOMAIN_PORT_DDI_B_IO);
+						POWER_DOMAIN_PORT_DDI_IO_A :
+						POWER_DOMAIN_PORT_DDI_IO_B);
 	}
 }
 
@@ -1425,8 +1425,8 @@ static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
 		wakeref = fetch_and_zero(&intel_dsi->io_wakeref[port]);
 		intel_display_power_put(dev_priv,
 					port == PORT_A ?
-					POWER_DOMAIN_PORT_DDI_A_IO :
-					POWER_DOMAIN_PORT_DDI_B_IO,
+					POWER_DOMAIN_PORT_DDI_IO_A :
+					POWER_DOMAIN_PORT_DDI_IO_B,
 					wakeref);
 	}
 

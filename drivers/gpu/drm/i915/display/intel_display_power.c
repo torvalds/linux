@@ -44,14 +44,14 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "PIPE_C";
 	case POWER_DOMAIN_PIPE_D:
 		return "PIPE_D";
-	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
-		return "PIPE_A_PANEL_FITTER";
-	case POWER_DOMAIN_PIPE_B_PANEL_FITTER:
-		return "PIPE_B_PANEL_FITTER";
-	case POWER_DOMAIN_PIPE_C_PANEL_FITTER:
-		return "PIPE_C_PANEL_FITTER";
-	case POWER_DOMAIN_PIPE_D_PANEL_FITTER:
-		return "PIPE_D_PANEL_FITTER";
+	case POWER_DOMAIN_PIPE_PANEL_FITTER_A:
+		return "PIPE_PANEL_FITTER_A";
+	case POWER_DOMAIN_PIPE_PANEL_FITTER_B:
+		return "PIPE_PANEL_FITTER_B";
+	case POWER_DOMAIN_PIPE_PANEL_FITTER_C:
+		return "PIPE_PANEL_FITTER_C";
+	case POWER_DOMAIN_PIPE_PANEL_FITTER_D:
+		return "PIPE_PANEL_FITTER_D";
 	case POWER_DOMAIN_TRANSCODER_A:
 		return "TRANSCODER_A";
 	case POWER_DOMAIN_TRANSCODER_B:
@@ -68,42 +68,42 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "TRANSCODER_DSI_C";
 	case POWER_DOMAIN_TRANSCODER_VDSC_PW2:
 		return "TRANSCODER_VDSC_PW2";
-	case POWER_DOMAIN_PORT_DDI_A_LANES:
-		return "PORT_DDI_A_LANES";
-	case POWER_DOMAIN_PORT_DDI_B_LANES:
-		return "PORT_DDI_B_LANES";
-	case POWER_DOMAIN_PORT_DDI_C_LANES:
-		return "PORT_DDI_C_LANES";
-	case POWER_DOMAIN_PORT_DDI_D_LANES:
-		return "PORT_DDI_D_LANES";
-	case POWER_DOMAIN_PORT_DDI_E_LANES:
-		return "PORT_DDI_E_LANES";
-	case POWER_DOMAIN_PORT_DDI_F_LANES:
-		return "PORT_DDI_F_LANES";
-	case POWER_DOMAIN_PORT_DDI_G_LANES:
-		return "PORT_DDI_G_LANES";
-	case POWER_DOMAIN_PORT_DDI_H_LANES:
-		return "PORT_DDI_H_LANES";
-	case POWER_DOMAIN_PORT_DDI_I_LANES:
-		return "PORT_DDI_I_LANES";
-	case POWER_DOMAIN_PORT_DDI_A_IO:
-		return "PORT_DDI_A_IO";
-	case POWER_DOMAIN_PORT_DDI_B_IO:
-		return "PORT_DDI_B_IO";
-	case POWER_DOMAIN_PORT_DDI_C_IO:
-		return "PORT_DDI_C_IO";
-	case POWER_DOMAIN_PORT_DDI_D_IO:
-		return "PORT_DDI_D_IO";
-	case POWER_DOMAIN_PORT_DDI_E_IO:
-		return "PORT_DDI_E_IO";
-	case POWER_DOMAIN_PORT_DDI_F_IO:
-		return "PORT_DDI_F_IO";
-	case POWER_DOMAIN_PORT_DDI_G_IO:
-		return "PORT_DDI_G_IO";
-	case POWER_DOMAIN_PORT_DDI_H_IO:
-		return "PORT_DDI_H_IO";
-	case POWER_DOMAIN_PORT_DDI_I_IO:
-		return "PORT_DDI_I_IO";
+	case POWER_DOMAIN_PORT_DDI_LANES_A:
+		return "PORT_DDI_LANES_A";
+	case POWER_DOMAIN_PORT_DDI_LANES_B:
+		return "PORT_DDI_LANES_B";
+	case POWER_DOMAIN_PORT_DDI_LANES_C:
+		return "PORT_DDI_LANES_C";
+	case POWER_DOMAIN_PORT_DDI_LANES_D:
+		return "PORT_DDI_LANES_D";
+	case POWER_DOMAIN_PORT_DDI_LANES_E:
+		return "PORT_DDI_LANES_E";
+	case POWER_DOMAIN_PORT_DDI_LANES_F:
+		return "PORT_DDI_LANES_F";
+	case POWER_DOMAIN_PORT_DDI_LANES_G:
+		return "PORT_DDI_LANES_G";
+	case POWER_DOMAIN_PORT_DDI_LANES_H:
+		return "PORT_DDI_LANES_H";
+	case POWER_DOMAIN_PORT_DDI_LANES_I:
+		return "PORT_DDI_LANES_I";
+	case POWER_DOMAIN_PORT_DDI_IO_A:
+		return "PORT_DDI_IO_A";
+	case POWER_DOMAIN_PORT_DDI_IO_B:
+		return "PORT_DDI_IO_B";
+	case POWER_DOMAIN_PORT_DDI_IO_C:
+		return "PORT_DDI_IO_C";
+	case POWER_DOMAIN_PORT_DDI_IO_D:
+		return "PORT_DDI_IO_D";
+	case POWER_DOMAIN_PORT_DDI_IO_E:
+		return "PORT_DDI_IO_E";
+	case POWER_DOMAIN_PORT_DDI_IO_F:
+		return "PORT_DDI_IO_F";
+	case POWER_DOMAIN_PORT_DDI_IO_G:
+		return "PORT_DDI_IO_G";
+	case POWER_DOMAIN_PORT_DDI_IO_H:
+		return "PORT_DDI_IO_H";
+	case POWER_DOMAIN_PORT_DDI_IO_I:
+		return "PORT_DDI_IO_I";
 	case POWER_DOMAIN_PORT_DSI:
 		return "PORT_DSI";
 	case POWER_DOMAIN_PORT_CRT:
@@ -136,20 +136,20 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "AUX_I";
 	case POWER_DOMAIN_AUX_IO_A:
 		return "AUX_IO_A";
-	case POWER_DOMAIN_AUX_C_TBT:
-		return "AUX_C_TBT";
-	case POWER_DOMAIN_AUX_D_TBT:
-		return "AUX_D_TBT";
-	case POWER_DOMAIN_AUX_E_TBT:
-		return "AUX_E_TBT";
-	case POWER_DOMAIN_AUX_F_TBT:
-		return "AUX_F_TBT";
-	case POWER_DOMAIN_AUX_G_TBT:
-		return "AUX_G_TBT";
-	case POWER_DOMAIN_AUX_H_TBT:
-		return "AUX_H_TBT";
-	case POWER_DOMAIN_AUX_I_TBT:
-		return "AUX_I_TBT";
+	case POWER_DOMAIN_AUX_TBT_C:
+		return "AUX_TBT_C";
+	case POWER_DOMAIN_AUX_TBT_D:
+		return "AUX_TBT_D";
+	case POWER_DOMAIN_AUX_TBT_E:
+		return "AUX_TBT_E";
+	case POWER_DOMAIN_AUX_TBT_F:
+		return "AUX_TBT_F";
+	case POWER_DOMAIN_AUX_TBT_G:
+		return "AUX_TBT_G";
+	case POWER_DOMAIN_AUX_TBT_H:
+		return "AUX_TBT_H";
+	case POWER_DOMAIN_AUX_TBT_I:
+		return "AUX_TBT_I";
 	case POWER_DOMAIN_GMBUS:
 		return "GMBUS";
 	case POWER_DOMAIN_INIT:

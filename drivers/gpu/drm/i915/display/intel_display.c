@@ -2161,23 +2161,23 @@ enum intel_display_power_domain intel_port_to_power_domain(enum port port)
 {
 	switch (port) {
 	case PORT_A:
-		return POWER_DOMAIN_PORT_DDI_A_LANES;
+		return POWER_DOMAIN_PORT_DDI_LANES_A;
 	case PORT_B:
-		return POWER_DOMAIN_PORT_DDI_B_LANES;
+		return POWER_DOMAIN_PORT_DDI_LANES_B;
 	case PORT_C:
-		return POWER_DOMAIN_PORT_DDI_C_LANES;
+		return POWER_DOMAIN_PORT_DDI_LANES_C;
 	case PORT_D:
-		return POWER_DOMAIN_PORT_DDI_D_LANES;
+		return POWER_DOMAIN_PORT_DDI_LANES_D;
 	case PORT_E:
-		return POWER_DOMAIN_PORT_DDI_E_LANES;
+		return POWER_DOMAIN_PORT_DDI_LANES_E;
 	case PORT_F:
-		return POWER_DOMAIN_PORT_DDI_F_LANES;
+		return POWER_DOMAIN_PORT_DDI_LANES_F;
 	case PORT_G:
-		return POWER_DOMAIN_PORT_DDI_G_LANES;
+		return POWER_DOMAIN_PORT_DDI_LANES_G;
 	case PORT_H:
-		return POWER_DOMAIN_PORT_DDI_H_LANES;
+		return POWER_DOMAIN_PORT_DDI_LANES_H;
 	case PORT_I:
-		return POWER_DOMAIN_PORT_DDI_I_LANES;
+		return POWER_DOMAIN_PORT_DDI_LANES_I;
 	default:
 		MISSING_CASE(port);
 		return POWER_DOMAIN_PORT_OTHER;
@@ -2190,22 +2190,22 @@ intel_aux_power_domain(struct intel_digital_port *dig_port)
 	if (intel_tc_port_in_tbt_alt_mode(dig_port)) {
 		switch (dig_port->aux_ch) {
 		case AUX_CH_C:
-			return POWER_DOMAIN_AUX_C_TBT;
+			return POWER_DOMAIN_AUX_TBT_C;
 		case AUX_CH_D:
-			return POWER_DOMAIN_AUX_D_TBT;
+			return POWER_DOMAIN_AUX_TBT_D;
 		case AUX_CH_E:
-			return POWER_DOMAIN_AUX_E_TBT;
+			return POWER_DOMAIN_AUX_TBT_E;
 		case AUX_CH_F:
-			return POWER_DOMAIN_AUX_F_TBT;
+			return POWER_DOMAIN_AUX_TBT_F;
 		case AUX_CH_G:
-			return POWER_DOMAIN_AUX_G_TBT;
+			return POWER_DOMAIN_AUX_TBT_G;
 		case AUX_CH_H:
-			return POWER_DOMAIN_AUX_H_TBT;
+			return POWER_DOMAIN_AUX_TBT_H;
 		case AUX_CH_I:
-			return POWER_DOMAIN_AUX_I_TBT;
+			return POWER_DOMAIN_AUX_TBT_I;
 		default:
 			MISSING_CASE(dig_port->aux_ch);
-			return POWER_DOMAIN_AUX_C_TBT;
+			return POWER_DOMAIN_AUX_TBT_C;
 		}
 	}
 
