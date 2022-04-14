@@ -569,6 +569,7 @@ TRACE_EVENT(rdev_start_ap,
 		__field(bool, privacy)
 		__field(enum nl80211_auth_type, auth_type)
 		__field(int, inactivity_timeout)
+		__field(unsigned int, link_id)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
@@ -583,16 +584,17 @@ TRACE_EVENT(rdev_start_ap,
 		__entry->inactivity_timeout = settings->inactivity_timeout;
 		memset(__entry->ssid, 0, IEEE80211_MAX_SSID_LEN + 1);
 		memcpy(__entry->ssid, settings->ssid, settings->ssid_len);
+		__entry->link_id = settings->beacon.link_id;
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", AP settings - ssid: %s, "
 		  CHAN_DEF_PR_FMT ", beacon interval: %d, dtim period: %d, "
 		  "hidden ssid: %d, wpa versions: %u, privacy: %s, "
-		  "auth type: %d, inactivity timeout: %d",
+		  "auth type: %d, inactivity timeout: %d, link_id: %d",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->ssid, CHAN_DEF_PR_ARG,
 		  __entry->beacon_interval, __entry->dtim_period,
 		  __entry->hidden_ssid, __entry->wpa_ver,
 		  BOOL_TO_STR(__entry->privacy), __entry->auth_type,
-		  __entry->inactivity_timeout)
+		  __entry->inactivity_timeout, __entry->link_id)
 );
 
 TRACE_EVENT(rdev_change_beacon,
@@ -602,6 +604,7 @@ TRACE_EVENT(rdev_change_beacon,
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
+		__field(int, link_id)
 		__dynamic_array(u8, head, info ? info->head_len : 0)
 		__dynamic_array(u8, tail, info ? info->tail_len : 0)
 		__dynamic_array(u8, beacon_ies, info ? info->beacon_ies_len : 0)
@@ -615,6 +618,7 @@ TRACE_EVENT(rdev_change_beacon,
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
 		if (info) {
+			__entry->link_id = info->link_id;
 			if (info->head)
 				memcpy(__get_dynamic_array(head), info->head,
 				       info->head_len);
@@ -635,9 +639,30 @@ TRACE_EVENT(rdev_change_beacon,
 			if (info->probe_resp)
 				memcpy(__get_dynamic_array(probe_resp),
 				       info->probe_resp, info->probe_resp_len);
+		} else {
+			__entry->link_id = -1;
 		}
 	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT, WIPHY_PR_ARG, NETDEV_PR_ARG)
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", link_id:%d",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->link_id)
+);
+
+TRACE_EVENT(rdev_stop_ap,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 unsigned int link_id),
+	TP_ARGS(wiphy, netdev, link_id),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		__field(unsigned int, link_id)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		__entry->link_id = link_id;
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", link_id: %d",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->link_id)
 );
 
 DECLARE_EVENT_CLASS(wiphy_netdev_evt,
@@ -652,11 +677,6 @@ DECLARE_EVENT_CLASS(wiphy_netdev_evt,
 		NETDEV_ASSIGN;
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT, WIPHY_PR_ARG, NETDEV_PR_ARG)
-);
-
-DEFINE_EVENT(wiphy_netdev_evt, rdev_stop_ap,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev),
-	TP_ARGS(wiphy, netdev)
 );
 
 DEFINE_EVENT(wiphy_netdev_evt, rdev_set_rekey_data,
@@ -1619,20 +1639,24 @@ TRACE_EVENT(rdev_testmode_dump,
 
 TRACE_EVENT(rdev_set_bitrate_mask,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 unsigned int link_id,
 		 const u8 *peer, const struct cfg80211_bitrate_mask *mask),
-	TP_ARGS(wiphy, netdev, peer, mask),
+	TP_ARGS(wiphy, netdev, link_id, peer, mask),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
+		__field(unsigned int, link_id)
 		MAC_ENTRY(peer)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
+		__entry->link_id = link_id;
 		MAC_ASSIGN(peer, peer);
 	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", peer: " MAC_PR_FMT,
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(peer))
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", link_id: %d, peer: " MAC_PR_FMT,
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->link_id,
+		  MAC_PR_ARG(peer))
 );
 
 TRACE_EVENT(rdev_update_mgmt_frame_registrations,
@@ -2040,9 +2064,22 @@ TRACE_EVENT(rdev_set_noack_map,
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->noack_map)
 );
 
-DEFINE_EVENT(wiphy_wdev_evt, rdev_get_channel,
-	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev),
-	TP_ARGS(wiphy, wdev)
+TRACE_EVENT(rdev_get_channel,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
+		 unsigned int link_id),
+	TP_ARGS(wiphy, wdev, link_id),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		WDEV_ENTRY
+		__field(unsigned int, link_id)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		WDEV_ASSIGN;
+		__entry->link_id = link_id;
+	),
+	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT ", link_id: %u",
+		  WIPHY_PR_ARG, WDEV_PR_ARG, __entry->link_id)
 );
 
 TRACE_EVENT(rdev_return_chandef,
@@ -2296,20 +2333,24 @@ TRACE_EVENT(rdev_set_qos_map,
 
 TRACE_EVENT(rdev_set_ap_chanwidth,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 unsigned int link_id,
 		 struct cfg80211_chan_def *chandef),
-	TP_ARGS(wiphy, netdev, chandef),
+	TP_ARGS(wiphy, netdev, link_id, chandef),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
 		CHAN_DEF_ENTRY
+		__field(unsigned int, link_id)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
 		CHAN_DEF_ASSIGN(chandef);
+		__entry->link_id = link_id;
 	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", " CHAN_DEF_PR_FMT,
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, CHAN_DEF_PR_ARG)
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", " CHAN_DEF_PR_FMT ", link:%d",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, CHAN_DEF_PR_ARG,
+		  __entry->link_id)
 );
 
 TRACE_EVENT(rdev_add_tx_ts,
@@ -3022,18 +3063,21 @@ TRACE_EVENT(cfg80211_chandef_dfs_required,
 
 TRACE_EVENT(cfg80211_ch_switch_notify,
 	TP_PROTO(struct net_device *netdev,
-		 struct cfg80211_chan_def *chandef),
-	TP_ARGS(netdev, chandef),
+		 struct cfg80211_chan_def *chandef,
+		 unsigned int link_id),
+	TP_ARGS(netdev, chandef, link_id),
 	TP_STRUCT__entry(
 		NETDEV_ENTRY
 		CHAN_DEF_ENTRY
+		__field(unsigned int, link_id)
 	),
 	TP_fast_assign(
 		NETDEV_ASSIGN;
 		CHAN_DEF_ASSIGN(chandef);
+		__entry->link_id = link_id;
 	),
-	TP_printk(NETDEV_PR_FMT ", " CHAN_DEF_PR_FMT,
-		  NETDEV_PR_ARG, CHAN_DEF_PR_ARG)
+	TP_printk(NETDEV_PR_FMT ", " CHAN_DEF_PR_FMT ", link:%d",
+		  NETDEV_PR_ARG, CHAN_DEF_PR_ARG, __entry->link_id)
 );
 
 TRACE_EVENT(cfg80211_ch_switch_started_notify,

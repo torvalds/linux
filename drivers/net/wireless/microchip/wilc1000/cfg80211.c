@@ -1426,7 +1426,8 @@ static int change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	return wilc_add_beacon(vif, 0, 0, beacon);
 }
 
-static int stop_ap(struct wiphy *wiphy, struct net_device *dev)
+static int stop_ap(struct wiphy *wiphy, struct net_device *dev,
+		   unsigned int link_id)
 {
 	int ret;
 	struct wilc_vif *vif = netdev_priv(dev);

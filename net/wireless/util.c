@@ -5,7 +5,7 @@
  * Copyright 2007-2009	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #include <linux/export.h>
 #include <linux/bitops.h>
@@ -1041,7 +1041,6 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 			return -EBUSY;
 
 		dev->ieee80211_ptr->use_4addr = false;
-		dev->ieee80211_ptr->mesh_id_up_len = 0;
 		wdev_lock(dev->ieee80211_ptr);
 		rdev_set_qos_map(rdev, dev, NULL);
 		wdev_unlock(dev->ieee80211_ptr);
@@ -1049,7 +1048,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		switch (otype) {
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_P2P_GO:
-			cfg80211_stop_ap(rdev, dev, true);
+			cfg80211_stop_ap(rdev, dev, -1, true);
 			break;
 		case NL80211_IFTYPE_ADHOC:
 			cfg80211_leave_ibss(rdev, dev, false);
@@ -1073,6 +1072,11 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 
 		cfg80211_process_rdev_events(rdev);
 		cfg80211_mlme_purge_registrations(dev->ieee80211_ptr);
+
+		memset(&dev->ieee80211_ptr->u, 0,
+		       sizeof(dev->ieee80211_ptr->u));
+		memset(&dev->ieee80211_ptr->links, 0,
+		       sizeof(dev->ieee80211_ptr->links));
 	}
 
 	err = rdev_change_virtual_intf(rdev, dev, ntype, params);
@@ -1930,6 +1934,24 @@ bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
 }
 EXPORT_SYMBOL(ieee80211_chandef_to_operating_class);
 
+static int cfg80211_wdev_bi(struct wireless_dev *wdev)
+{
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+		WARN_ON(wdev->valid_links);
+		return wdev->links[0].ap.beacon_interval;
+	case NL80211_IFTYPE_MESH_POINT:
+		return wdev->u.mesh.beacon_interval;
+	case NL80211_IFTYPE_ADHOC:
+		return wdev->u.ibss.beacon_interval;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static void cfg80211_calculate_bi_data(struct wiphy *wiphy, u32 new_beacon_int,
 				       u32 *beacon_int_gcd,
 				       bool *beacon_int_different)
@@ -1940,19 +1962,27 @@ static void cfg80211_calculate_bi_data(struct wiphy *wiphy, u32 new_beacon_int,
 	*beacon_int_different = false;
 
 	list_for_each_entry(wdev, &wiphy->wdev_list, list) {
-		if (!wdev->beacon_interval)
+		int wdev_bi;
+
+		/* this feature isn't supported with MLO */
+		if (wdev->valid_links)
+			continue;
+
+		wdev_bi = cfg80211_wdev_bi(wdev);
+
+		if (!wdev_bi)
 			continue;
 
 		if (!*beacon_int_gcd) {
-			*beacon_int_gcd = wdev->beacon_interval;
+			*beacon_int_gcd = wdev_bi;
 			continue;
 		}
 
-		if (wdev->beacon_interval == *beacon_int_gcd)
+		if (wdev_bi == *beacon_int_gcd)
 			continue;
 
 		*beacon_int_different = true;
-		*beacon_int_gcd = gcd(*beacon_int_gcd, wdev->beacon_interval);
+		*beacon_int_gcd = gcd(*beacon_int_gcd, wdev_bi);
 	}
 
 	if (new_beacon_int && *beacon_int_gcd != new_beacon_int) {

@@ -1118,6 +1118,7 @@ static void _cfg80211_unregister_wdev(struct wireless_dev *wdev,
 				      bool unregister_netdev)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
+	unsigned int link_id;
 
 	ASSERT_RTNL();
 	lockdep_assert_held(&rdev->wiphy.mtx);
@@ -1167,11 +1168,22 @@ static void _cfg80211_unregister_wdev(struct wireless_dev *wdev,
 	 */
 	cfg80211_process_wdev_events(wdev);
 
-	if (WARN_ON(wdev->current_bss)) {
-		cfg80211_unhold_bss(wdev->current_bss);
-		cfg80211_put_bss(wdev->wiphy, &wdev->current_bss->pub);
-		wdev->current_bss = NULL;
+	if (wdev->iftype == NL80211_IFTYPE_STATION ||
+	    wdev->iftype == NL80211_IFTYPE_P2P_CLIENT) {
+		for (link_id = 0; link_id < ARRAY_SIZE(wdev->links); link_id++) {
+			struct cfg80211_internal_bss *curbss;
+
+			curbss = wdev->links[link_id].client.current_bss;
+
+			if (WARN_ON(curbss)) {
+				cfg80211_unhold_bss(curbss);
+				cfg80211_put_bss(wdev->wiphy, &curbss->pub);
+				wdev->links[link_id].client.current_bss = NULL;
+			}
+		}
 	}
+
+	wdev->connected = false;
 }
 
 void cfg80211_unregister_wdev(struct wireless_dev *wdev)
@@ -1233,7 +1245,7 @@ void __cfg80211_leave(struct cfg80211_registered_device *rdev,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
-		__cfg80211_stop_ap(rdev, dev, true);
+		__cfg80211_stop_ap(rdev, dev, -1, true);
 		break;
 	case NL80211_IFTYPE_OCB:
 		__cfg80211_leave_ocb(rdev, dev);
@@ -1463,9 +1475,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 				memcpy(&setup, &default_mesh_setup,
 						sizeof(setup));
 				 /* back compat only needed for mesh_id */
-				setup.mesh_id = wdev->ssid;
-				setup.mesh_id_len = wdev->mesh_id_up_len;
-				if (wdev->mesh_id_up_len)
+				setup.mesh_id = wdev->u.mesh.id;
+				setup.mesh_id_len = wdev->u.mesh.id_up_len;
+				if (wdev->u.mesh.id_up_len)
 					__cfg80211_join_mesh(rdev, dev,
 							&setup,
 							&default_mesh_config);

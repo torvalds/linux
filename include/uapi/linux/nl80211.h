@@ -324,6 +324,17 @@
  */
 
 /**
+ * DOC: Multi-Link Operation
+ *
+ * In Multi-Link Operation, a connection between to MLDs utilizes multiple
+ * links. To use this in nl80211, various commands and responses now need
+ * to or will include the new %NL80211_ATTR_MLO_LINKS attribute.
+ * Additionally, various commands that need to operate on a specific link
+ * now need to be given the %NL80211_ATTR_MLO_LINK_ID attribute, e.g. to
+ * use %NL80211_CMD_START_AP or similar functions.
+ */
+
+/**
  * enum nl80211_commands - supported nl80211 commands
  *
  * @NL80211_CMD_UNSPEC: unspecified command to catch errors
@@ -1237,6 +1248,12 @@
  *      to describe the BSSID address of the AP and %NL80211_ATTR_TIMEOUT to
  *      specify the timeout value.
  *
+ * @NL80211_CMD_ADD_LINK: Add a new link to an interface. The
+ *	%NL80211_ATTR_MLO_LINK_ID attribute is used for the new link.
+ * @NL80211_CMD_REMOVE_LINK: Remove a link from an interface. This may come
+ *	without %NL80211_ATTR_MLO_LINK_ID as an easy way to remove all links
+ *	in preparation for e.g. roaming to a regular (non-MLO) AP.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1480,6 +1497,9 @@ enum nl80211_commands {
 	NL80211_CMD_SET_FILS_AAD,
 
 	NL80211_CMD_ASSOC_COMEBACK,
+
+	NL80211_CMD_ADD_LINK,
+	NL80211_CMD_REMOVE_LINK,
 
 	/* add new commands above here */
 
@@ -2663,6 +2683,11 @@ enum nl80211_commands {
  *	association request when used with NL80211_CMD_NEW_STATION). Can be set
  *	only if %NL80211_STA_FLAG_WME is set.
  *
+ * @NL80211_ATTR_MLO_LINK_ID: A (u8) link ID for use with MLO, to be used with
+ *	various commands that need a link ID to operate.
+ * @NL80211_ATTR_MLO_LINKS: A nested array of links, each containing some
+ *	per-link information and a link ID.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3176,6 +3201,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_EHT_CAPABILITY,
 
 	NL80211_ATTR_DISABLE_EHT,
+
+	NL80211_ATTR_MLO_LINKS,
+	NL80211_ATTR_MLO_LINK_ID,
 
 	/* add attributes here, update the policy in nl80211.c */
 

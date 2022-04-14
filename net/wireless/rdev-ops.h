@@ -1,4 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Portions of this file
+ * Copyright(c) 2016-2017 Intel Deutschland GmbH
+ * Copyright (C) 2018, 2021-2022 Intel Corporation
+ */
 #ifndef __CFG80211_RDEV_OPS
 #define __CFG80211_RDEV_OPS
 
@@ -172,11 +177,11 @@ static inline int rdev_change_beacon(struct cfg80211_registered_device *rdev,
 }
 
 static inline int rdev_stop_ap(struct cfg80211_registered_device *rdev,
-			       struct net_device *dev)
+			       struct net_device *dev, unsigned int link_id)
 {
 	int ret;
-	trace_rdev_stop_ap(&rdev->wiphy, dev);
-	ret = rdev->ops->stop_ap(&rdev->wiphy, dev);
+	trace_rdev_stop_ap(&rdev->wiphy, dev, link_id);
+	ret = rdev->ops->stop_ap(&rdev->wiphy, dev, link_id);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -651,12 +656,14 @@ static inline int rdev_testmode_dump(struct cfg80211_registered_device *rdev,
 
 static inline int
 rdev_set_bitrate_mask(struct cfg80211_registered_device *rdev,
-		      struct net_device *dev, const u8 *peer,
+		      struct net_device *dev, unsigned int link_id,
+		      const u8 *peer,
 		      const struct cfg80211_bitrate_mask *mask)
 {
 	int ret;
-	trace_rdev_set_bitrate_mask(&rdev->wiphy, dev, peer, mask);
-	ret = rdev->ops->set_bitrate_mask(&rdev->wiphy, dev, peer, mask);
+	trace_rdev_set_bitrate_mask(&rdev->wiphy, dev, link_id, peer, mask);
+	ret = rdev->ops->set_bitrate_mask(&rdev->wiphy, dev, link_id,
+					  peer, mask);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -944,12 +951,13 @@ static inline int rdev_set_noack_map(struct cfg80211_registered_device *rdev,
 static inline int
 rdev_get_channel(struct cfg80211_registered_device *rdev,
 		 struct wireless_dev *wdev,
+		 unsigned int link_id,
 		 struct cfg80211_chan_def *chandef)
 {
 	int ret;
 
-	trace_rdev_get_channel(&rdev->wiphy, wdev);
-	ret = rdev->ops->get_channel(&rdev->wiphy, wdev, chandef);
+	trace_rdev_get_channel(&rdev->wiphy, wdev, link_id);
+	ret = rdev->ops->get_channel(&rdev->wiphy, wdev, link_id, chandef);
 	trace_rdev_return_chandef(&rdev->wiphy, ret, chandef);
 
 	return ret;
@@ -1107,12 +1115,14 @@ static inline int rdev_set_qos_map(struct cfg80211_registered_device *rdev,
 
 static inline int
 rdev_set_ap_chanwidth(struct cfg80211_registered_device *rdev,
-		      struct net_device *dev, struct cfg80211_chan_def *chandef)
+		      struct net_device *dev,
+		      unsigned int link_id,
+		      struct cfg80211_chan_def *chandef)
 {
 	int ret;
 
-	trace_rdev_set_ap_chanwidth(&rdev->wiphy, dev, chandef);
-	ret = rdev->ops->set_ap_chanwidth(&rdev->wiphy, dev, chandef);
+	trace_rdev_set_ap_chanwidth(&rdev->wiphy, dev, link_id, chandef);
+	ret = rdev->ops->set_ap_chanwidth(&rdev->wiphy, dev, link_id, chandef);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 
 	return ret;

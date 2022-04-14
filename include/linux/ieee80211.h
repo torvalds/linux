@@ -4376,4 +4376,7 @@ enum ieee80211_range_params_max_total_ltf {
 	IEEE80211_RANGE_PARAMS_MAX_TOTAL_LTF_UNSPECIFIED,
 };
 
+/* multi-link device */
+#define IEEE80211_MLD_MAX_NUM_LINKS	15
+
 #endif /* LINUX_IEEE80211_H */

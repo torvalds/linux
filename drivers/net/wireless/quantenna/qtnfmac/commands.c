@@ -2005,7 +2005,7 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 		dwell_active = scan_req->duration;
 		dwell_passive = scan_req->duration;
 	} else if (wdev->iftype == NL80211_IFTYPE_STATION &&
-		   wdev->current_bss) {
+		   wdev->connected) {
 		/* let device select dwell based on traffic conditions */
 		dwell_active = QTNF_SCAN_TIME_AUTO;
 		dwell_passive = QTNF_SCAN_TIME_AUTO;
