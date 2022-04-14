@@ -323,6 +323,8 @@ struct rcu_state {
 	short gp_state;				/* GP kthread sleep state. */
 	unsigned long gp_wake_time;		/* Last GP kthread wake. */
 	unsigned long gp_wake_seq;		/* ->gp_seq at ^^^. */
+	unsigned long gp_seq_polled;		/* GP seq for polled API. */
+	unsigned long gp_seq_polled_snap;	/* ->gp_seq_polled at normal GP start. */
 
 	/* End of fields guarded by root rcu_node's lock. */
 
