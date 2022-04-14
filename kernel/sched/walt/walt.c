@@ -4189,21 +4189,12 @@ static void android_rvh_try_to_wake_up_success(void *unused, struct task_struct 
 	raw_spin_unlock_irqrestore(&cpu_rq(cpu)->__lock, flags);
 }
 
-u64 tick_sched_clock;
+static u64 tick_sched_clock;
 static DECLARE_COMPLETION(tick_sched_clock_completion);
 
 static void android_rvh_tick_entry(void *unused, struct rq *rq)
 {
 	u64 wallclock;
-
-	if (!tick_sched_clock) {
-		/*
-		 * Let the window begin 20us prior to the tick,
-		 * that way we are guaranteed a rollover when the tick occurs.
-		 */
-		tick_sched_clock = rq_clock(rq) - 20000;
-		complete_all(&tick_sched_clock_completion);
-	}
 
 	lockdep_assert_held(&rq->__lock);
 	if (unlikely(walt_disabled))
@@ -4221,6 +4212,15 @@ static void android_vh_scheduler_tick(void *unused, struct rq *rq)
 {
 	struct walt_related_thread_group *grp;
 	u32 old_load;
+
+	if (!tick_sched_clock) {
+		/*
+		 * Let the window begin 20us prior to the tick,
+		 * that way we are guaranteed a rollover when the tick occurs.
+		 */
+		tick_sched_clock = rq_clock(rq) - 20000;
+		complete(&tick_sched_clock_completion);
+	}
 
 	if (unlikely(walt_disabled))
 		return;
@@ -4442,7 +4442,7 @@ static void walt_init(struct work_struct *work)
 	walt_rt_init();
 	walt_cfs_init();
 	walt_halt_init();
-	wait_for_completion(&tick_sched_clock_completion);
+	wait_for_completion_interruptible(&tick_sched_clock_completion);
 	stop_machine(walt_init_stop_handler, NULL, NULL);
 
 	hdr = register_sysctl_table(walt_base_table);
