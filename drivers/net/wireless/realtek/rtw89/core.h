@@ -3000,6 +3000,41 @@ struct rtw89_hw_scan_info {
 	u8 op_band;
 };
 
+enum rtw89_phy_bb_gain_band {
+	RTW89_BB_GAIN_BAND_2G = 0,
+	RTW89_BB_GAIN_BAND_5G_L = 1,
+	RTW89_BB_GAIN_BAND_5G_M = 2,
+	RTW89_BB_GAIN_BAND_5G_H = 3,
+	RTW89_BB_GAIN_BAND_6G_L = 4,
+	RTW89_BB_GAIN_BAND_6G_M = 5,
+	RTW89_BB_GAIN_BAND_6G_H = 6,
+	RTW89_BB_GAIN_BAND_6G_UH = 7,
+
+	RTW89_BB_GAIN_BAND_NR,
+};
+
+enum rtw89_phy_bb_rxsc_num {
+	RTW89_BB_RXSC_NUM_40 = 9, /* SC: 0, 1~8 */
+	RTW89_BB_RXSC_NUM_80 = 13, /* SC: 0, 1~8, 9~12 */
+	RTW89_BB_RXSC_NUM_160 = 15, /* SC: 0, 1~8, 9~12, 13~14 */
+};
+
+struct rtw89_phy_bb_gain_info {
+	s8 lna_gain[RTW89_BB_GAIN_BAND_NR][RF_PATH_MAX][LNA_GAIN_NUM];
+	s8 tia_gain[RTW89_BB_GAIN_BAND_NR][RF_PATH_MAX][TIA_GAIN_NUM];
+	s8 lna_gain_bypass[RTW89_BB_GAIN_BAND_NR][RF_PATH_MAX][LNA_GAIN_NUM];
+	s8 lna_op1db[RTW89_BB_GAIN_BAND_NR][RF_PATH_MAX][LNA_GAIN_NUM];
+	s8 tia_lna_op1db[RTW89_BB_GAIN_BAND_NR][RF_PATH_MAX]
+			[LNA_GAIN_NUM + 1]; /* TIA0_LNA0~6 + TIA1_LNA6 */
+	s8 rpl_ofst_20[RTW89_BB_GAIN_BAND_NR][RF_PATH_MAX];
+	s8 rpl_ofst_40[RTW89_BB_GAIN_BAND_NR][RF_PATH_MAX]
+		      [RTW89_BB_RXSC_NUM_40];
+	s8 rpl_ofst_80[RTW89_BB_GAIN_BAND_NR][RF_PATH_MAX]
+		      [RTW89_BB_RXSC_NUM_80];
+	s8 rpl_ofst_160[RTW89_BB_GAIN_BAND_NR][RF_PATH_MAX]
+		       [RTW89_BB_RXSC_NUM_160];
+};
+
 struct rtw89_dev {
 	struct ieee80211_hw *hw;
 	struct device *dev;
@@ -3062,6 +3097,8 @@ struct rtw89_dev {
 	struct rtw89_env_monitor_info env_monitor;
 	struct rtw89_dig_info dig;
 	struct rtw89_phy_ch_info ch_info;
+	struct rtw89_phy_bb_gain_info bb_gain;
+
 	struct delayed_work track_work;
 	struct delayed_work coex_act1_work;
 	struct delayed_work coex_bt_devinfo_work;

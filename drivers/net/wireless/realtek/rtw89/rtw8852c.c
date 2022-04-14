@@ -495,6 +495,184 @@ static void rtw8852c_power_trim(struct rtw89_dev *rtwdev)
 	rtw8852c_pa_bias_trim(rtwdev);
 }
 
+struct rtw8852c_bb_gain {
+	u32 gain_g[BB_PATH_NUM_8852C];
+	u32 gain_a[BB_PATH_NUM_8852C];
+	u32 gain_mask;
+};
+
+static const struct rtw8852c_bb_gain bb_gain_lna[LNA_GAIN_NUM] = {
+	{ .gain_g = {0x4678, 0x475C}, .gain_a = {0x45DC, 0x4740},
+	  .gain_mask = 0x00ff0000 },
+	{ .gain_g = {0x4678, 0x475C}, .gain_a = {0x45DC, 0x4740},
+	  .gain_mask = 0xff000000 },
+	{ .gain_g = {0x467C, 0x4760}, .gain_a = {0x4660, 0x4744},
+	  .gain_mask = 0x000000ff },
+	{ .gain_g = {0x467C, 0x4760}, .gain_a = {0x4660, 0x4744},
+	  .gain_mask = 0x0000ff00 },
+	{ .gain_g = {0x467C, 0x4760}, .gain_a = {0x4660, 0x4744},
+	  .gain_mask = 0x00ff0000 },
+	{ .gain_g = {0x467C, 0x4760}, .gain_a = {0x4660, 0x4744},
+	  .gain_mask = 0xff000000 },
+	{ .gain_g = {0x4680, 0x4764}, .gain_a = {0x4664, 0x4748},
+	  .gain_mask = 0x000000ff },
+};
+
+static const struct rtw8852c_bb_gain bb_gain_tia[TIA_GAIN_NUM] = {
+	{ .gain_g = {0x4680, 0x4764}, .gain_a = {0x4664, 0x4748},
+	  .gain_mask = 0x00ff0000 },
+	{ .gain_g = {0x4680, 0x4764}, .gain_a = {0x4664, 0x4748},
+	  .gain_mask = 0xff000000 },
+};
+
+struct rtw8852c_bb_gain_bypass {
+	u32 gain_g[BB_PATH_NUM_8852C];
+	u32 gain_a[BB_PATH_NUM_8852C];
+	u32 gain_mask_g;
+	u32 gain_mask_a;
+};
+
+static
+const struct rtw8852c_bb_gain_bypass bb_gain_bypass_lna[LNA_GAIN_NUM] = {
+	{ .gain_g = {0x4BB8, 0x4C7C}, .gain_a = {0x4BB4, 0x4C78},
+	  .gain_mask_g = 0xff000000, .gain_mask_a = 0xff},
+	{ .gain_g = {0x4BBC, 0x4C80}, .gain_a = {0x4BB4, 0x4C78},
+	  .gain_mask_g = 0xff, .gain_mask_a = 0xff00},
+	{ .gain_g = {0x4BBC, 0x4C80}, .gain_a = {0x4BB4, 0x4C78},
+	  .gain_mask_g = 0xff00, .gain_mask_a = 0xff0000},
+	{ .gain_g = {0x4BBC, 0x4C80}, .gain_a = {0x4BB4, 0x4C78},
+	  .gain_mask_g = 0xff0000, .gain_mask_a = 0xff000000},
+	{ .gain_g = {0x4BBC, 0x4C80}, .gain_a = {0x4BB8, 0x4C7C},
+	  .gain_mask_g = 0xff000000, .gain_mask_a = 0xff},
+	{ .gain_g = {0x4BC0, 0x4C84}, .gain_a = {0x4BB8, 0x4C7C},
+	  .gain_mask_g = 0xff, .gain_mask_a = 0xff00},
+	{ .gain_g = {0x4BC0, 0x4C84}, .gain_a = {0x4BB8, 0x4C7C},
+	  .gain_mask_g = 0xff00, .gain_mask_a = 0xff0000},
+};
+
+struct rtw8852c_bb_gain_op1db {
+	struct {
+		u32 lna[BB_PATH_NUM_8852C];
+		u32 tia_lna[BB_PATH_NUM_8852C];
+		u32 mask;
+	} reg[LNA_GAIN_NUM];
+	u32 reg_tia0_lna6[BB_PATH_NUM_8852C];
+	u32 mask_tia0_lna6;
+};
+
+static const struct rtw8852c_bb_gain_op1db bb_gain_op1db_a = {
+	.reg = {
+		{ .lna = {0x4668, 0x474c}, .tia_lna = {0x4670, 0x4754},
+		  .mask = 0xff},
+		{ .lna = {0x4668, 0x474c}, .tia_lna = {0x4670, 0x4754},
+		  .mask = 0xff00},
+		{ .lna = {0x4668, 0x474c}, .tia_lna = {0x4670, 0x4754},
+		  .mask = 0xff0000},
+		{ .lna = {0x4668, 0x474c}, .tia_lna = {0x4670, 0x4754},
+		  .mask = 0xff000000},
+		{ .lna = {0x466c, 0x4750}, .tia_lna = {0x4674, 0x4758},
+		  .mask = 0xff},
+		{ .lna = {0x466c, 0x4750}, .tia_lna = {0x4674, 0x4758},
+		  .mask = 0xff00},
+		{ .lna = {0x466c, 0x4750}, .tia_lna = {0x4674, 0x4758},
+		  .mask = 0xff0000},
+	},
+	.reg_tia0_lna6 = {0x4674, 0x4758},
+	.mask_tia0_lna6 = 0xff000000,
+};
+
+static enum rtw89_phy_bb_gain_band
+rtw8852c_mapping_gain_band(enum rtw89_subband subband)
+{
+	switch (subband) {
+	default:
+	case RTW89_CH_2G:
+		return RTW89_BB_GAIN_BAND_2G;
+	case RTW89_CH_5G_BAND_1:
+		return RTW89_BB_GAIN_BAND_5G_L;
+	case RTW89_CH_5G_BAND_3:
+		return RTW89_BB_GAIN_BAND_5G_M;
+	case RTW89_CH_5G_BAND_4:
+		return RTW89_BB_GAIN_BAND_5G_H;
+	case RTW89_CH_6G_BAND_IDX0:
+	case RTW89_CH_6G_BAND_IDX1:
+		return RTW89_BB_GAIN_BAND_6G_L;
+	case RTW89_CH_6G_BAND_IDX2:
+	case RTW89_CH_6G_BAND_IDX3:
+		return RTW89_BB_GAIN_BAND_6G_M;
+	case RTW89_CH_6G_BAND_IDX4:
+	case RTW89_CH_6G_BAND_IDX5:
+		return RTW89_BB_GAIN_BAND_6G_H;
+	case RTW89_CH_6G_BAND_IDX6:
+	case RTW89_CH_6G_BAND_IDX7:
+		return RTW89_BB_GAIN_BAND_6G_UH;
+	}
+}
+
+static void rtw8852c_set_gain_error(struct rtw89_dev *rtwdev,
+				    enum rtw89_subband subband,
+				    enum rtw89_rf_path path)
+{
+	const struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain;
+	u8 gain_band = rtw8852c_mapping_gain_band(subband);
+	s32 val;
+	u32 reg;
+	u32 mask;
+	int i;
+
+	for (i = 0; i < LNA_GAIN_NUM; i++) {
+		if (subband == RTW89_CH_2G)
+			reg = bb_gain_lna[i].gain_g[path];
+		else
+			reg = bb_gain_lna[i].gain_a[path];
+
+		mask = bb_gain_lna[i].gain_mask;
+		val = gain->lna_gain[gain_band][path][i];
+		rtw89_phy_write32_mask(rtwdev, reg, mask, val);
+
+		if (subband == RTW89_CH_2G) {
+			reg = bb_gain_bypass_lna[i].gain_g[path];
+			mask = bb_gain_bypass_lna[i].gain_mask_g;
+		} else {
+			reg = bb_gain_bypass_lna[i].gain_a[path];
+			mask = bb_gain_bypass_lna[i].gain_mask_a;
+		}
+
+		val = gain->lna_gain_bypass[gain_band][path][i];
+		rtw89_phy_write32_mask(rtwdev, reg, mask, val);
+
+		if (subband != RTW89_CH_2G) {
+			reg = bb_gain_op1db_a.reg[i].lna[path];
+			mask = bb_gain_op1db_a.reg[i].mask;
+			val = gain->lna_op1db[gain_band][path][i];
+			rtw89_phy_write32_mask(rtwdev, reg, mask, val);
+
+			reg = bb_gain_op1db_a.reg[i].tia_lna[path];
+			mask = bb_gain_op1db_a.reg[i].mask;
+			val = gain->tia_lna_op1db[gain_band][path][i];
+			rtw89_phy_write32_mask(rtwdev, reg, mask, val);
+		}
+	}
+
+	if (subband != RTW89_CH_2G) {
+		reg = bb_gain_op1db_a.reg_tia0_lna6[path];
+		mask = bb_gain_op1db_a.mask_tia0_lna6;
+		val = gain->tia_lna_op1db[gain_band][path][7];
+		rtw89_phy_write32_mask(rtwdev, reg, mask, val);
+	}
+
+	for (i = 0; i < TIA_GAIN_NUM; i++) {
+		if (subband == RTW89_CH_2G)
+			reg = bb_gain_tia[i].gain_g[path];
+		else
+			reg = bb_gain_tia[i].gain_a[path];
+
+		mask = bb_gain_tia[i].gain_mask;
+		val = gain->tia_gain[gain_band][path][i];
+		rtw89_phy_write32_mask(rtwdev, reg, mask, val);
+	}
+}
+
 static void rtw8852c_bb_reset_all(struct rtw89_dev *rtwdev,
 				  enum rtw89_phy_idx phy_idx)
 {
