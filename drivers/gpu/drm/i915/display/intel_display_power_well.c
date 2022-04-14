@@ -197,8 +197,8 @@ static enum aux_ch icl_aux_pw_to_ch(const struct i915_power_well *power_well)
 {
 	int pw_idx = power_well->desc->hsw.idx;
 
-	return power_well->desc->hsw.is_tc_tbt ? ICL_TBT_AUX_PW_TO_CH(pw_idx) :
-						 ICL_AUX_PW_TO_CH(pw_idx);
+	return power_well->desc->is_tc_tbt ? ICL_TBT_AUX_PW_TO_CH(pw_idx) :
+					     ICL_AUX_PW_TO_CH(pw_idx);
 }
 
 static struct intel_digital_port *
@@ -326,7 +326,7 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 	int pw_idx = power_well->desc->hsw.idx;
 	u32 val;
 
-	if (power_well->desc->hsw.has_fuses) {
+	if (power_well->desc->has_fuses) {
 		enum skl_power_gate pg;
 
 		pg = DISPLAY_VER(dev_priv) >= 11 ? ICL_PW_CTL_IDX_TO_PG(pw_idx) :
@@ -353,7 +353,7 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 
 	hsw_wait_for_power_well_enable(dev_priv, power_well, false);
 
-	if (power_well->desc->hsw.has_fuses) {
+	if (power_well->desc->has_fuses) {
 		enum skl_power_gate pg;
 
 		pg = DISPLAY_VER(dev_priv) >= 11 ? ICL_PW_CTL_IDX_TO_PG(pw_idx) :
@@ -362,8 +362,8 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 	}
 
 	hsw_power_well_post_enable(dev_priv,
-				   power_well->desc->hsw.irq_pipe_mask,
-				   power_well->desc->hsw.has_vga);
+				   power_well->desc->irq_pipe_mask,
+				   power_well->desc->has_vga);
 }
 
 static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
@@ -374,7 +374,7 @@ static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
 	u32 val;
 
 	hsw_power_well_pre_disable(dev_priv,
-				   power_well->desc->hsw.irq_pipe_mask);
+				   power_well->desc->irq_pipe_mask);
 
 	val = intel_de_read(dev_priv, regs->driver);
 	intel_de_write(dev_priv, regs->driver,
@@ -491,7 +491,7 @@ icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 	enum aux_ch aux_ch = icl_aux_pw_to_ch(power_well);
 	struct intel_digital_port *dig_port = aux_ch_to_digital_port(dev_priv, aux_ch);
 	const struct i915_power_well_regs *regs = power_well->desc->ops->regs;
-	bool is_tbt = power_well->desc->hsw.is_tc_tbt;
+	bool is_tbt = power_well->desc->is_tc_tbt;
 	bool timeout_expected;
 	u32 val;
 

@@ -51,13 +51,24 @@ enum i915_power_well_id {
 struct i915_power_well_desc {
 	const char *name;
 	u64 domains;
-	u8 always_on:1;
+	/* Mask of pipes whose IRQ logic is backed by the pw */
+	u16 irq_pipe_mask:4;
+	u16 always_on:1;
 	/*
 	 * Instead of waiting for the status bit to ack enables,
 	 * just wait a specific amount of time and then consider
 	 * the well enabled.
 	 */
-	u8 fixed_enable_delay:1;
+	u16 fixed_enable_delay:1;
+	/* The pw is backing the VGA functionality */
+	u16 has_vga:1;
+	u16 has_fuses:1;
+	/*
+	 * The pw is for an ICL+ TypeC PHY port in
+	 * Thunderbolt mode.
+	 */
+	u16 is_tc_tbt:1;
+
 	/* unique identifier for this power well */
 	enum i915_power_well_id id;
 	/*
@@ -81,16 +92,6 @@ struct i915_power_well_desc {
 			 * constrol/status registers.
 			 */
 			u8 idx;
-			/* Mask of pipes whose IRQ logic is backed by the pw */
-			u8 irq_pipe_mask;
-			/* The pw is backing the VGA functionality */
-			bool has_vga:1;
-			bool has_fuses:1;
-			/*
-			 * The pw is for an ICL+ TypeC PHY port in
-			 * Thunderbolt mode.
-			 */
-			bool is_tc_tbt:1;
 		} hsw;
 	};
 	const struct i915_power_well_ops *ops;
