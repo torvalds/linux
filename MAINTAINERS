@@ -20183,14 +20183,6 @@ F:	drivers/cdrom/cdrom.c
 F:	include/linux/cdrom.h
 F:	include/uapi/linux/cdrom.h
 
-UNISYS S-PAR DRIVERS
-M:	David Kershner <david.kershner@unisys.com>
-L:	sparmaintainer@unisys.com (Unisys internal)
-S:	Supported
-F:	drivers/staging/unisys/
-F:	drivers/visorbus/
-F:	include/linux/visorbus.h
-
 UNIVERSAL FLASH STORAGE HOST CONTROLLER DRIVER
 R:	Alim Akhtar <alim.akhtar@samsung.com>
 R:	Avri Altman <avri.altman@wdc.com>

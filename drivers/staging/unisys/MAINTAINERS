@@ -1,5 +1,0 @@
-Unisys s-Par drivers
-M:	David Kershner <sparmaintainer@unisys.com>
-S:	Maintained
-F:	drivers/staging/unisys/Documentation/overview.txt
-F:	drivers/staging/unisys/
