@@ -253,8 +253,8 @@ const struct rga_win_data rga2e_win_data[] = {
 
 const struct rga_hw_data rga3_data = {
 	.version = 0,
-	.min_input = { 128, 128 },
-	.min_output = { 128, 128 },
+	.min_input = { 68, 2 },
+	.min_output = { 68, 2 },
 	.max_input = { 8176, 8176 },
 	.max_output = { 8128, 8128 },
 
@@ -277,8 +277,8 @@ const struct rga_hw_data rga3_data = {
 
 const struct rga_hw_data rga2e_data = {
 	.version = 0,
-	.min_input = { 0, 0 },
-	.min_output = { 0, 0 },
+	.min_input = { 2, 2 },
+	.min_output = { 2, 2 },
 	.max_input = { 8192, 8192 },
 	.max_output = { 4096, 4096 },
 
