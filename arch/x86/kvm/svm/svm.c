@@ -62,19 +62,7 @@ MODULE_DEVICE_TABLE(x86cpu, svm_cpu_id);
 #define SEG_TYPE_LDT 2
 #define SEG_TYPE_BUSY_TSS16 3
 
-#define SVM_FEATURE_LBRV           (1 <<  1)
-#define SVM_FEATURE_SVML           (1 <<  2)
-#define SVM_FEATURE_TSC_RATE       (1 <<  4)
-#define SVM_FEATURE_VMCB_CLEAN     (1 <<  5)
-#define SVM_FEATURE_FLUSH_ASID     (1 <<  6)
-#define SVM_FEATURE_DECODE_ASSIST  (1 <<  7)
-#define SVM_FEATURE_PAUSE_FILTER   (1 << 10)
-
 #define DEBUGCTL_RESERVED_BITS (~(0x3fULL))
-
-#define TSC_RATIO_RSVD          0xffffff0000000000ULL
-#define TSC_RATIO_MIN		0x0000000000000001ULL
-#define TSC_RATIO_MAX		0x000000ffffffffffULL
 
 static bool erratum_383_found __read_mostly;
 
@@ -87,7 +75,6 @@ u32 msrpm_offsets[MSRPM_OFFSETS] __read_mostly;
 static uint64_t osvw_len = 4, osvw_status;
 
 static DEFINE_PER_CPU(u64, current_tsc_ratio);
-#define TSC_RATIO_DEFAULT	0x0100000000ULL
 
 static const struct svm_direct_access_msrs {
 	u32 index;   /* Index of the MSR */
@@ -480,7 +467,7 @@ static void svm_hardware_disable(void)
 {
 	/* Make sure we clean up behind us */
 	if (tsc_scaling)
-		wrmsrl(MSR_AMD64_TSC_RATIO, TSC_RATIO_DEFAULT);
+		wrmsrl(MSR_AMD64_TSC_RATIO, SVM_TSC_RATIO_DEFAULT);
 
 	cpu_svm_disable();
 
@@ -526,8 +513,8 @@ static int svm_hardware_enable(void)
 		 * Set the default value, even if we don't use TSC scaling
 		 * to avoid having stale value in the msr
 		 */
-		wrmsrl(MSR_AMD64_TSC_RATIO, TSC_RATIO_DEFAULT);
-		__this_cpu_write(current_tsc_ratio, TSC_RATIO_DEFAULT);
+		wrmsrl(MSR_AMD64_TSC_RATIO, SVM_TSC_RATIO_DEFAULT);
+		__this_cpu_write(current_tsc_ratio, SVM_TSC_RATIO_DEFAULT);
 	}
 
 
@@ -2723,7 +2710,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 			break;
 		}
 
-		if (data & TSC_RATIO_RSVD)
+		if (data & SVM_TSC_RATIO_RSVD)
 			return 1;
 
 		svm->tsc_ratio_msr = data;
@@ -2918,7 +2905,7 @@ static int interrupt_window_interception(struct kvm_vcpu *vcpu)
 	 * In this case AVIC was temporarily disabled for
 	 * requesting the IRQ window and we have to re-enable it.
 	 */
-	kvm_request_apicv_update(vcpu->kvm, true, APICV_INHIBIT_REASON_IRQWIN);
+	kvm_clear_apicv_inhibit(vcpu->kvm, APICV_INHIBIT_REASON_IRQWIN);
 
 	++vcpu->stat.irq_window_exits;
 	return 1;
@@ -3516,7 +3503,7 @@ static void svm_enable_irq_window(struct kvm_vcpu *vcpu)
 		 * via AVIC. In such case, we need to temporarily disable AVIC,
 		 * and fallback to injecting IRQ via V_IRQ.
 		 */
-		kvm_request_apicv_update(vcpu->kvm, false, APICV_INHIBIT_REASON_IRQWIN);
+		kvm_set_apicv_inhibit(vcpu->kvm, APICV_INHIBIT_REASON_IRQWIN);
 		svm_set_vintr(svm);
 	}
 }
@@ -3948,6 +3935,7 @@ static void svm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct kvm_cpuid_entry2 *best;
+	struct kvm *kvm = vcpu->kvm;
 
 	vcpu->arch.xsaves_enabled = guest_cpuid_has(vcpu, X86_FEATURE_XSAVE) &&
 				    boot_cpu_has(X86_FEATURE_XSAVE) &&
@@ -3974,16 +3962,14 @@ static void svm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 		 * is exposed to the guest, disable AVIC.
 		 */
 		if (guest_cpuid_has(vcpu, X86_FEATURE_X2APIC))
-			kvm_request_apicv_update(vcpu->kvm, false,
-						 APICV_INHIBIT_REASON_X2APIC);
+			kvm_set_apicv_inhibit(kvm, APICV_INHIBIT_REASON_X2APIC);
 
 		/*
 		 * Currently, AVIC does not work with nested virtualization.
 		 * So, we disable AVIC when cpuid for SVM is set in the L1 guest.
 		 */
 		if (nested && guest_cpuid_has(vcpu, X86_FEATURE_SVM))
-			kvm_request_apicv_update(vcpu->kvm, false,
-						 APICV_INHIBIT_REASON_NESTED);
+			kvm_set_apicv_inhibit(kvm, APICV_INHIBIT_REASON_NESTED);
 	}
 	init_vmcb_after_set_cpuid(vcpu);
 }
@@ -4766,10 +4752,10 @@ static __init int svm_hardware_setup(void)
 		} else {
 			pr_info("TSC scaling supported\n");
 			kvm_has_tsc_control = true;
-			kvm_max_tsc_scaling_ratio = TSC_RATIO_MAX;
-			kvm_tsc_scaling_ratio_frac_bits = 32;
 		}
 	}
+	kvm_max_tsc_scaling_ratio = SVM_TSC_RATIO_MAX;
+	kvm_tsc_scaling_ratio_frac_bits = 32;
 
 	tsc_aux_uret_slot = kvm_add_user_return_msr(MSR_TSC_AUX);
 

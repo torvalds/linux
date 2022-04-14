@@ -135,6 +135,16 @@ KVM_REQ_UNHALT
   such as a pending signal, which does not indicate the VCPU's halt
   emulation should stop, and therefore does not make the request.
 
+KVM_REQ_OUTSIDE_GUEST_MODE
+
+  This "request" ensures the target vCPU has exited guest mode prior to the
+  sender of the request continuing on.  No action needs be taken by the target,
+  and so no request is actually logged for the target.  This request is similar
+  to a "kick", but unlike a kick it guarantees the vCPU has actually exited
+  guest mode.  A kick only guarantees the vCPU will exit at some point in the
+  future, e.g. a previous kick may have started the process, but there's no
+  guarantee the to-be-kicked vCPU has fully exited guest mode.
+
 KVM_REQUEST_MASK
 ----------------
 

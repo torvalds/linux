@@ -95,7 +95,10 @@ struct blkcg_gq {
 
 	spinlock_t			async_bio_lock;
 	struct bio_list			async_bios;
-	struct work_struct		async_bio_work;
+	union {
+		struct work_struct	async_bio_work;
+		struct work_struct	free_work;
+	};
 
 	atomic_t			use_delay;
 	atomic64_t			delay_nsec;

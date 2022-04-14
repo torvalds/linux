@@ -892,13 +892,19 @@ static void dm_io_complete(struct dm_io *io)
 	if (unlikely(wq_has_sleeper(&md->wait)))
 		wake_up(&md->wait);
 
-	if (io_error == BLK_STS_DM_REQUEUE) {
-		/*
-		 * Upper layer won't help us poll split bio, io->orig_bio
-		 * may only reflect a subset of the pre-split original,
-		 * so clear REQ_POLLED in case of requeue
-		 */
-		bio->bi_opf &= ~REQ_POLLED;
+	if (io_error == BLK_STS_DM_REQUEUE || io_error == BLK_STS_AGAIN) {
+		if (bio->bi_opf & REQ_POLLED) {
+			/*
+			 * Upper layer won't help us poll split bio (io->orig_bio
+			 * may only reflect a subset of the pre-split original)
+			 * so clear REQ_POLLED in case of requeue.
+			 */
+			bio->bi_opf &= ~REQ_POLLED;
+			if (io_error == BLK_STS_AGAIN) {
+				/* io_uring doesn't handle BLK_STS_AGAIN (yet) */
+				queue_io(md, bio);
+			}
+		}
 		return;
 	}
 

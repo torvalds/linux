@@ -214,27 +214,27 @@ static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
  */
 static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 				  unsigned pte_access, unsigned pte_pkey,
-				  unsigned pfec)
+				  u64 access)
 {
-	int cpl = static_call(kvm_x86_get_cpl)(vcpu);
+	/* strip nested paging fault error codes */
+	unsigned int pfec = access;
 	unsigned long rflags = static_call(kvm_x86_get_rflags)(vcpu);
 
 	/*
-	 * If CPL < 3, SMAP prevention are disabled if EFLAGS.AC = 1.
+	 * For explicit supervisor accesses, SMAP is disabled if EFLAGS.AC = 1.
+	 * For implicit supervisor accesses, SMAP cannot be overridden.
 	 *
-	 * If CPL = 3, SMAP applies to all supervisor-mode data accesses
-	 * (these are implicit supervisor accesses) regardless of the value
-	 * of EFLAGS.AC.
+	 * SMAP works on supervisor accesses only, and not_smap can
+	 * be set or not set when user access with neither has any bearing
+	 * on the result.
 	 *
-	 * This computes (cpl < 3) && (rflags & X86_EFLAGS_AC), leaving
-	 * the result in X86_EFLAGS_AC. We then insert it in place of
-	 * the PFERR_RSVD_MASK bit; this bit will always be zero in pfec,
-	 * but it will be one in index if SMAP checks are being overridden.
-	 * It is important to keep this branchless.
+	 * We put the SMAP checking bit in place of the PFERR_RSVD_MASK bit;
+	 * this bit will always be zero in pfec, but it will be one in index
+	 * if SMAP checks are being disabled.
 	 */
-	unsigned long smap = (cpl - 3) & (rflags & X86_EFLAGS_AC);
-	int index = (pfec >> 1) +
-		    (smap >> (X86_EFLAGS_AC_BIT - PFERR_RSVD_BIT + 1));
+	u64 implicit_access = access & PFERR_IMPLICIT_ACCESS;
+	bool not_smap = ((rflags & X86_EFLAGS_AC) | implicit_access) == X86_EFLAGS_AC;
+	int index = (pfec + (not_smap << PFERR_RSVD_BIT)) >> 1;
 	bool fault = (mmu->permissions[index] >> pte_access) & 1;
 	u32 errcode = PFERR_PRESENT_MASK;
 
@@ -317,12 +317,12 @@ static inline void kvm_update_page_stats(struct kvm *kvm, int level, int count)
 	atomic64_add(count, &kvm->stat.pages[level - 1]);
 }
 
-gpa_t translate_nested_gpa(struct kvm_vcpu *vcpu, gpa_t gpa, u32 access,
+gpa_t translate_nested_gpa(struct kvm_vcpu *vcpu, gpa_t gpa, u64 access,
 			   struct x86_exception *exception);
 
 static inline gpa_t kvm_translate_gpa(struct kvm_vcpu *vcpu,
 				      struct kvm_mmu *mmu,
-				      gpa_t gpa, u32 access,
+				      gpa_t gpa, u64 access,
 				      struct x86_exception *exception)
 {
 	if (mmu != &vcpu->arch.nested_mmu)

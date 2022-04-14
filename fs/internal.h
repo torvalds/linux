@@ -74,7 +74,7 @@ int do_linkat(int olddfd, struct filename *old, int newdfd,
  * namespace.c
  */
 extern struct vfsmount *lookup_mnt(const struct path *);
-extern int finish_automount(struct vfsmount *, struct path *);
+extern int finish_automount(struct vfsmount *, const struct path *);
 
 extern int sb_prepare_remount_readonly(struct super_block *);
 
