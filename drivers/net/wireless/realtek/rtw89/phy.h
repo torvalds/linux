@@ -307,6 +307,15 @@ const struct rtw89_phy_reg3_tbl _name ## _tbl = {	\
 	.size = ARRAY_SIZE(_name),			\
 }
 
+struct rtw89_nbi_reg_def {
+	struct rtw89_reg_def notch1_idx;
+	struct rtw89_reg_def notch1_frac_idx;
+	struct rtw89_reg_def notch1_en;
+	struct rtw89_reg_def notch2_idx;
+	struct rtw89_reg_def notch2_frac_idx;
+	struct rtw89_reg_def notch2_en;
+};
+
 extern const u8 rtw89_rs_idx_max[RTW89_RS_MAX];
 extern const u8 rtw89_rs_nss_max[RTW89_RS_MAX];
 
