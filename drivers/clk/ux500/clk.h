@@ -60,6 +60,11 @@ struct clk_hw *clk_reg_prcmu_opp_volt_scalable(const char *name,
 					       unsigned long rate,
 					       unsigned long flags);
 
+struct clk_hw *clk_reg_prcmu_clkout(const char *name,
+				    const char * const *parent_names,
+				    int num_parents,
+				    u8 source, u8 divider);
+
 struct clk *clk_reg_sysctrl_gate(struct device *dev,
 				 const char *name,
 				 const char *parent_name,
