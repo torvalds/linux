@@ -562,6 +562,77 @@ static void rtw8852c_power_trim(struct rtw89_dev *rtwdev)
 	rtw8852c_pa_bias_trim(rtwdev);
 }
 
+static void rtw8852c_set_channel_mac(struct rtw89_dev *rtwdev,
+				     struct rtw89_channel_params *param,
+				     u8 mac_idx)
+{
+	u32 rf_mod = rtw89_mac_reg_by_idx(R_AX_WMAC_RFMOD, mac_idx);
+	u32 sub_carr = rtw89_mac_reg_by_idx(R_AX_TX_SUB_CARRIER_VALUE,
+					     mac_idx);
+	u32 chk_rate = rtw89_mac_reg_by_idx(R_AX_TXRATE_CHK, mac_idx);
+	u8 txsc20 = 0, txsc40 = 0, txsc80 = 0;
+	u8 rf_mod_val = 0, chk_rate_mask = 0;
+	u32 txsc;
+
+	switch (param->bandwidth) {
+	case RTW89_CHANNEL_WIDTH_160:
+		txsc80 = rtw89_phy_get_txsc(rtwdev, param,
+					    RTW89_CHANNEL_WIDTH_80);
+		fallthrough;
+	case RTW89_CHANNEL_WIDTH_80:
+		txsc40 = rtw89_phy_get_txsc(rtwdev, param,
+					    RTW89_CHANNEL_WIDTH_40);
+		fallthrough;
+	case RTW89_CHANNEL_WIDTH_40:
+		txsc20 = rtw89_phy_get_txsc(rtwdev, param,
+					    RTW89_CHANNEL_WIDTH_20);
+		break;
+	default:
+		break;
+	}
+
+	switch (param->bandwidth) {
+	case RTW89_CHANNEL_WIDTH_160:
+		rf_mod_val = AX_WMAC_RFMOD_160M;
+		txsc = FIELD_PREP(B_AX_TXSC_20M_MASK, txsc20) |
+		       FIELD_PREP(B_AX_TXSC_40M_MASK, txsc40) |
+		       FIELD_PREP(B_AX_TXSC_80M_MASK, txsc80);
+		break;
+	case RTW89_CHANNEL_WIDTH_80:
+		rf_mod_val = AX_WMAC_RFMOD_80M;
+		txsc = FIELD_PREP(B_AX_TXSC_20M_MASK, txsc20) |
+		       FIELD_PREP(B_AX_TXSC_40M_MASK, txsc40);
+		break;
+	case RTW89_CHANNEL_WIDTH_40:
+		rf_mod_val = AX_WMAC_RFMOD_40M;
+		txsc = FIELD_PREP(B_AX_TXSC_20M_MASK, txsc20);
+		break;
+	case RTW89_CHANNEL_WIDTH_20:
+	default:
+		rf_mod_val = AX_WMAC_RFMOD_20M;
+		txsc = 0;
+		break;
+	}
+	rtw89_write8_mask(rtwdev, rf_mod, B_AX_WMAC_RFMOD_MASK, rf_mod_val);
+	rtw89_write32(rtwdev, sub_carr, txsc);
+
+	switch (param->band_type) {
+	case RTW89_BAND_2G:
+		chk_rate_mask = B_AX_BAND_MODE;
+		break;
+	case RTW89_BAND_5G:
+	case RTW89_BAND_6G:
+		chk_rate_mask = B_AX_CHECK_CCK_EN | B_AX_RTS_LIMIT_IN_OFDM6;
+		break;
+	default:
+		rtw89_warn(rtwdev, "Invalid band_type:%d\n", param->band_type);
+		return;
+	}
+	rtw89_write8_clr(rtwdev, chk_rate, B_AX_BAND_MODE | B_AX_CHECK_CCK_EN |
+					   B_AX_RTS_LIMIT_IN_OFDM6);
+	rtw89_write8_set(rtwdev, chk_rate, chk_rate_mask);
+}
+
 struct rtw8852c_bb_gain {
 	u32 gain_g[BB_PATH_NUM_8852C];
 	u32 gain_a[BB_PATH_NUM_8852C];
