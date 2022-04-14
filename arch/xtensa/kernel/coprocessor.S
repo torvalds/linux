@@ -30,7 +30,7 @@
 		.align 4;						\
 	.Lsave_cp_regs_cp##x:						\
 		xchal_cp##x##_store a2 a3 a4 a5 a6;			\
-		jx	a0;						\
+		ret;							\
 	.endif
 
 #define SAVE_CP_REGS_TAB(x)						\
@@ -47,7 +47,7 @@
 		.align 4;						\
 	.Lload_cp_regs_cp##x:						\
 		xchal_cp##x##_load a2 a3 a4 a5 a6;			\
-		jx	a0;						\
+		ret;							\
 	.endif
 
 #define LOAD_CP_REGS_TAB(x)						\
@@ -163,21 +163,20 @@ ENTRY(fast_coprocessor)
 	s32i	a5, a4, THREAD_CPENABLE
 
 	/*
-	 * Get context save area and 'call' save routine. 
+	 * Get context save area and call save routine.
 	 * (a4 still holds previous owner (thread_info), a3 CP number)
 	 */
 
 	movi	a5, .Lsave_cp_regs_jump_table
-	movi	a0, 2f			# a0: 'return' address
 	addx8	a3, a3, a5		# a3: coprocessor number
 	l32i	a2, a3, 4		# a2: xtregs offset
 	l32i	a3, a3, 0		# a3: jump address
 	add	a2, a2, a4
-	jx	a3
+	callx0	a3
 
 	/* Note that only a0 and a1 were preserved. */
 
-2:	rsr	a3, exccause
+	rsr	a3, exccause
 	addi	a3, a3, -EXCCAUSE_COPROCESSOR0_DISABLED
 	movi	a0, coprocessor_owner
 	addx4	a0, a3, a0
@@ -187,19 +186,18 @@ ENTRY(fast_coprocessor)
 1:	GET_THREAD_INFO (a4, a1)
 	s32i	a4, a0, 0
 
-	/* Get context save area and 'call' load routine. */
+	/* Get context save area and call load routine. */
 
 	movi	a5, .Lload_cp_regs_jump_table
-	movi	a0, 1f
 	addx8	a3, a3, a5
 	l32i	a2, a3, 4		# a2: xtregs offset
 	l32i	a3, a3, 0		# a3: jump address
 	add	a2, a2, a4
-	jx	a3
+	callx0	a3
 
 	/* Restore all registers and return from exception handler. */
 
-1:	l32i	a6, a1, PT_AREG6
+	l32i	a6, a1, PT_AREG6
 	l32i	a5, a1, PT_AREG5
 	l32i	a4, a1, PT_AREG4
 
