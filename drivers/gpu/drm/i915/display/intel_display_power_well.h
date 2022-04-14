@@ -36,41 +36,6 @@ enum i915_power_well_id {
 	TGL_DISP_PW_TC_COLD_OFF,
 };
 
-struct i915_power_well_regs {
-	i915_reg_t bios;
-	i915_reg_t driver;
-	i915_reg_t kvmr;
-	i915_reg_t debug;
-};
-
-struct i915_power_well_ops {
-	const struct i915_power_well_regs *regs;
-	/*
-	 * Synchronize the well's hw state to match the current sw state, for
-	 * example enable/disable it based on the current refcount. Called
-	 * during driver init and resume time, possibly after first calling
-	 * the enable/disable handlers.
-	 */
-	void (*sync_hw)(struct drm_i915_private *i915,
-			struct i915_power_well *power_well);
-	/*
-	 * Enable the well and resources that depend on it (for example
-	 * interrupts located on the well). Called after the 0->1 refcount
-	 * transition.
-	 */
-	void (*enable)(struct drm_i915_private *i915,
-		       struct i915_power_well *power_well);
-	/*
-	 * Disable the well and resources that depend on it. Called after
-	 * the 1->0 refcount transition.
-	 */
-	void (*disable)(struct drm_i915_private *i915,
-			struct i915_power_well *power_well);
-	/* Returns the hw enabled state. */
-	bool (*is_enabled)(struct drm_i915_private *i915,
-			   struct i915_power_well *power_well);
-};
-
 struct i915_power_well_desc {
 	const char *name;
 	bool always_on;
@@ -149,5 +114,32 @@ bool intel_power_well_is_always_on(struct i915_power_well *power_well);
 const char *intel_power_well_name(struct i915_power_well *power_well);
 u64 intel_power_well_domains(struct i915_power_well *power_well);
 int intel_power_well_refcount(struct i915_power_well *power_well);
+
+void chv_phy_powergate_lanes(struct intel_encoder *encoder,
+			     bool override, unsigned int mask);
+bool chv_phy_powergate_ch(struct drm_i915_private *dev_priv, enum dpio_phy phy,
+			  enum dpio_channel ch, bool override);
+
+void gen9_enable_dc5(struct drm_i915_private *dev_priv);
+void skl_enable_dc6(struct drm_i915_private *dev_priv);
+void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv);
+void gen9_set_dc_state(struct drm_i915_private *dev_priv, u32 state);
+void gen9_disable_dc_states(struct drm_i915_private *dev_priv);
+void bxt_enable_dc9(struct drm_i915_private *dev_priv);
+void bxt_disable_dc9(struct drm_i915_private *dev_priv);
+
+extern const struct i915_power_well_ops i9xx_always_on_power_well_ops;
+extern const struct i915_power_well_ops chv_pipe_power_well_ops;
+extern const struct i915_power_well_ops chv_dpio_cmn_power_well_ops;
+extern const struct i915_power_well_ops i830_pipes_power_well_ops;
+extern const struct i915_power_well_ops hsw_power_well_ops;
+extern const struct i915_power_well_ops gen9_dc_off_power_well_ops;
+extern const struct i915_power_well_ops bxt_dpio_cmn_power_well_ops;
+extern const struct i915_power_well_ops vlv_display_power_well_ops;
+extern const struct i915_power_well_ops vlv_dpio_cmn_power_well_ops;
+extern const struct i915_power_well_ops vlv_dpio_power_well_ops;
+extern const struct i915_power_well_ops icl_aux_power_well_ops;
+extern const struct i915_power_well_ops icl_ddi_power_well_ops;
+extern const struct i915_power_well_ops tgl_tc_cold_off_ops;
 
 #endif

@@ -305,9 +305,4 @@ void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
 	for ((wf) = intel_display_power_get_if_enabled((i915), (domain)); (wf); \
 	     intel_display_power_put_async((i915), (domain), (wf)), (wf) = 0)
 
-void chv_phy_powergate_lanes(struct intel_encoder *encoder,
-			     bool override, unsigned int mask);
-bool chv_phy_powergate_ch(struct drm_i915_private *dev_priv, enum dpio_phy phy,
-			  enum dpio_channel ch, bool override);
-
 #endif /* __INTEL_DISPLAY_POWER_H__ */
