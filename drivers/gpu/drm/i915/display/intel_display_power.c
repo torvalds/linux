@@ -166,14 +166,6 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "AUX_E_XELPD";
 	case POWER_DOMAIN_AUX_IO_A:
 		return "AUX_IO_A";
-	case POWER_DOMAIN_AUX_TBT_C:
-		return "AUX_TBT_C";
-	case POWER_DOMAIN_AUX_TBT_D:
-		return "AUX_TBT_D";
-	case POWER_DOMAIN_AUX_TBT_E:
-		return "AUX_TBT_E";
-	case POWER_DOMAIN_AUX_TBT_F:
-		return "AUX_TBT_F";
 	case POWER_DOMAIN_AUX_TBT1:
 		return "AUX_TBT1";
 	case POWER_DOMAIN_AUX_TBT2:
@@ -2341,7 +2333,7 @@ d11_port_domains[] = {
 		.ddi_lanes = POWER_DOMAIN_PORT_DDI_LANES_C,
 		.ddi_io = POWER_DOMAIN_PORT_DDI_IO_C,
 		.aux_legacy_usbc = POWER_DOMAIN_AUX_C,
-		.aux_tbt = POWER_DOMAIN_AUX_TBT_C,
+		.aux_tbt = POWER_DOMAIN_AUX_TBT1,
 	},
 };
 
