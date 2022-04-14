@@ -120,7 +120,9 @@
  *  06 Apr 2022 : 1. Dynamic MTU change supported. Max MTU supported is 2000 bytes.
  *		  2. Constant buffer size of 2K used, so that during MTU change there is no buffer reconfiguration.
  *  VERSION     : 01-00-48
-*/
+ *  14 Apr 2022 : 1. Ignoring error from tc956xmac_hw_setup in tc956xmac_open API.
+ *  VERSION     : 01-00-49
+ */
 
 #include <linux/clk.h>
 #include <linux/kernel.h>
@@ -4791,7 +4793,8 @@ static int tc956xmac_hw_setup(struct net_device *dev, bool init_ptp)
 	/* DMA initialization and SW reset */
 	ret = tc956xmac_init_dma_engine(priv);
 	if (ret < 0) {
-		netdev_err(priv->dev, "%s: DMA engine initialization failed\n",
+		netdev_err(priv->dev, 
+		"%s: DMA engine initialization failed check availability of clock if supplied from external source/PHY \n",
 			   __func__);
 		return ret;
 	}
@@ -5038,7 +5041,7 @@ static int tc956xmac_open(struct net_device *dev)
 	ret = tc956xmac_hw_setup(dev, true);
 	if (ret < 0) {
 		netdev_err(priv->dev, "%s: Hw setup failed\n", __func__);
-		goto init_error;
+		/*goto init_error;*/
 	}
 
 #ifdef TC956X

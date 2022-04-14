@@ -156,7 +156,9 @@
  *  06 Apr 2022 : 1. Version update 
  *		  2. Max MTU supported is 2000 bytes.
  *  VERSION     : 01-00-48
-*/
+ *  14 Apr 2022 : 1. Version update
+ *  VERSION     : 01-00-49
+ */
 
 #include <linux/clk-provider.h>
 #include <linux/pci.h>
@@ -220,7 +222,7 @@ static unsigned int mac1_txq1_size = TX_QUEUE1_SIZE;
 unsigned int mac0_en_lp_pause_frame_cnt = DISABLE;
 unsigned int mac1_en_lp_pause_frame_cnt = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 4, 8};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 4, 9};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
