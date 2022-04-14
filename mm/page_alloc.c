@@ -1108,6 +1108,9 @@ continue_merging:
 
 		buddy_pfn = __find_buddy_pfn(pfn, order);
 		buddy = page + (buddy_pfn - pfn);
+
+		if (!page_is_buddy(page, buddy, order))
+			goto done_merging;
 		buddy_mt = get_pageblock_migratetype(buddy);
 
 		if (migratetype != buddy_mt

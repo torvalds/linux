@@ -60,7 +60,7 @@ ifndef VERBOSE
   VERBOSE = 0
 endif
 
-INCLUDES = -I$(if $(OUTPUT),$(OUTPUT),.)				\
+INCLUDES = -I$(or $(OUTPUT),.) \
 	   -I$(srctree)/tools/include -I$(srctree)/tools/include/uapi
 
 export prefix libdir src obj

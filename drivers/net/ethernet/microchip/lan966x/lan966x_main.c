@@ -408,6 +408,9 @@ static int lan966x_port_ioctl(struct net_device *dev, struct ifreq *ifr,
 		}
 	}
 
+	if (!dev->phydev)
+		return -ENODEV;
+
 	return phy_mii_ioctl(dev->phydev, ifr, cmd);
 }
 

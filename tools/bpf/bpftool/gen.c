@@ -477,7 +477,7 @@ static void codegen_asserts(struct bpf_object *obj, const char *obj_name)
 	codegen("\
 		\n\
 		__attribute__((unused)) static void			    \n\
-		%1$s__assert(struct %1$s *s)				    \n\
+		%1$s__assert(struct %1$s *s __attribute__((unused)))	    \n\
 		{							    \n\
 		#ifdef __cplusplus					    \n\
 		#define _Static_assert static_assert			    \n\
