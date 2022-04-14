@@ -3983,6 +3983,13 @@ static void android_rvh_set_task_cpu(void *unused, struct task_struct *p, unsign
 	if (!cpumask_test_cpu(new_cpu, p->cpus_ptr))
 		WALT_BUG(WALT_BUG_WALT, p, "selecting unaffined cpu=%d comm=%s(%d) affinity=0x%x",
 			 new_cpu, p->comm, p->pid, (*(cpumask_bits(p->cpus_ptr))));
+
+	if (!p->in_execve &&
+	    is_compat_thread(task_thread_info(p)) &&
+	    !cpumask_test_cpu(new_cpu, system_32bit_el0_cpumask()))
+		WALT_BUG(WALT_BUG_WALT, p,
+			 "selecting non 32 bit cpu=%d comm=%s(%d) 32bit_cpus=0x%x",
+			 new_cpu, p->comm, p->pid, (*(cpumask_bits(system_32bit_el0_cpumask()))));
 }
 
 static void android_rvh_new_task_stats(void *unused, struct task_struct *p)
