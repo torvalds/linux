@@ -170,17 +170,13 @@ static int fsl_micfil_reset(struct device *dev)
 
 	ret = regmap_clear_bits(micfil->regmap, REG_MICFIL_CTRL1,
 				MICFIL_CTRL1_MDIS);
-	if (ret) {
-		dev_err(dev, "failed to clear MDIS bit %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	ret = regmap_set_bits(micfil->regmap, REG_MICFIL_CTRL1,
 			      MICFIL_CTRL1_SRES);
-	if (ret) {
-		dev_err(dev, "failed to reset MICFIL: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }
@@ -242,18 +238,14 @@ static int fsl_micfil_trigger(struct snd_pcm_substream *substream, int cmd,
 		ret = regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL1,
 				MICFIL_CTRL1_DISEL,
 				FIELD_PREP(MICFIL_CTRL1_DISEL, MICFIL_CTRL1_DISEL_DMA));
-		if (ret) {
-			dev_err(dev, "failed to update DISEL bits\n");
+		if (ret)
 			return ret;
-		}
 
 		/* Enable the module */
 		ret = regmap_set_bits(micfil->regmap, REG_MICFIL_CTRL1,
 				      MICFIL_CTRL1_PDMIEN);
-		if (ret) {
-			dev_err(dev, "failed to enable the module\n");
+		if (ret)
 			return ret;
-		}
 
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -262,18 +254,14 @@ static int fsl_micfil_trigger(struct snd_pcm_substream *substream, int cmd,
 		/* Disable the module */
 		ret = regmap_clear_bits(micfil->regmap, REG_MICFIL_CTRL1,
 					MICFIL_CTRL1_PDMIEN);
-		if (ret) {
-			dev_err(dev, "failed to enable the module\n");
+		if (ret)
 			return ret;
-		}
 
 		ret = regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL1,
 				MICFIL_CTRL1_DISEL,
 				FIELD_PREP(MICFIL_CTRL1_DISEL, MICFIL_CTRL1_DISEL_DISABLE));
-		if (ret) {
-			dev_err(dev, "failed to update DISEL bits\n");
+		if (ret)
 			return ret;
-		}
 		break;
 	default:
 		return -EINVAL;
@@ -293,24 +281,20 @@ static int fsl_set_clock_params(struct device *dev, unsigned int rate)
 			clk_get_rate(micfil->mclk), rate);
 
 	/* set CICOSR */
-	ret |= regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL2,
+	ret = regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL2,
 				 MICFIL_CTRL2_CICOSR,
 				 FIELD_PREP(MICFIL_CTRL2_CICOSR, MICFIL_CTRL2_CICOSR_DEFAULT));
 	if (ret)
-		dev_err(dev, "failed to set CICOSR in reg 0x%X\n",
-			REG_MICFIL_CTRL2);
+		return ret;
 
 	/* set CLK_DIV */
 	clk_div = get_clk_div(micfil, rate);
 	if (clk_div < 0)
 		ret = -EINVAL;
 
-	ret |= regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL2,
+	ret = regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL2,
 				 MICFIL_CTRL2_CLKDIV,
 				 FIELD_PREP(MICFIL_CTRL2_CLKDIV, clk_div));
-	if (ret)
-		dev_err(dev, "failed to set CLKDIV in reg 0x%X\n",
-			REG_MICFIL_CTRL2);
 
 	return ret;
 }
@@ -328,19 +312,14 @@ static int fsl_micfil_hw_params(struct snd_pcm_substream *substream,
 	/* 1. Disable the module */
 	ret = regmap_clear_bits(micfil->regmap, REG_MICFIL_CTRL1,
 				MICFIL_CTRL1_PDMIEN);
-	if (ret) {
-		dev_err(dev, "failed to disable the module\n");
+	if (ret)
 		return ret;
-	}
 
 	/* enable channels */
 	ret = regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL1,
 				 0xFF, ((1 << channels) - 1));
-	if (ret) {
-		dev_err(dev, "failed to enable channels %d, reg 0x%X\n", ret,
-			REG_MICFIL_CTRL1);
+	if (ret)
 		return ret;
-	}
 
 	ret = fsl_set_clock_params(dev, rate);
 	if (ret < 0) {
@@ -362,7 +341,6 @@ static const struct snd_soc_dai_ops fsl_micfil_dai_ops = {
 static int fsl_micfil_dai_probe(struct snd_soc_dai *cpu_dai)
 {
 	struct fsl_micfil *micfil = dev_get_drvdata(cpu_dai->dev);
-	struct device *dev = cpu_dai->dev;
 	int ret;
 	int i;
 
@@ -370,11 +348,8 @@ static int fsl_micfil_dai_probe(struct snd_soc_dai *cpu_dai)
 	ret = regmap_update_bits(micfil->regmap, REG_MICFIL_CTRL2,
 			MICFIL_CTRL2_QSEL,
 			FIELD_PREP(MICFIL_CTRL2_QSEL, MICFIL_QSEL_MEDIUM_QUALITY));
-	if (ret) {
-		dev_err(dev, "failed to set quality mode bits, reg 0x%X\n",
-			REG_MICFIL_CTRL2);
+	if (ret)
 		return ret;
-	}
 
 	/* set default gain to max_gain */
 	regmap_write(micfil->regmap, REG_MICFIL_OUT_CTRL, 0x77777777);
@@ -388,10 +363,8 @@ static int fsl_micfil_dai_probe(struct snd_soc_dai *cpu_dai)
 	ret = regmap_update_bits(micfil->regmap, REG_MICFIL_FIFO_CTRL,
 			MICFIL_FIFO_CTRL_FIFOWMK,
 			FIELD_PREP(MICFIL_FIFO_CTRL_FIFOWMK, micfil->soc->fifo_depth - 1));
-	if (ret) {
-		dev_err(dev, "failed to set FIFOWMK\n");
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }
