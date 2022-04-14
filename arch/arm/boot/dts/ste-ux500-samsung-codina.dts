@@ -480,10 +480,20 @@
 		uart@80121000 {
 			status = "okay";
 			pinctrl-names = "default", "sleep";
-			/* CTS/RTS is not used, CTS is repurposed as GPIO */
-			pinctrl-0 = <&u1rxtx_a_1_default>;
-			pinctrl-1 = <&u1rxtx_a_1_sleep>;
-			/* FIXME: add a device for the GPS here */
+			pinctrl-0 = <&u1rxtx_a_1_default &u1ctsrts_a_1_default>;
+			pinctrl-1 = <&u1rxtx_a_1_sleep &u1ctsrts_a_1_sleep>;
+
+			gnss {
+				compatible = "brcm,bcm4751";
+				/* GPS_RSTN on GPIO21 */
+				reset-gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
+				/* GPS_ON_OFF on GPIO86 */
+				enable-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
+				/* GPS_1V8 (VSMPS2) */
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&bcm4751_codina_default>;
+			};
 		};
 
 		/* Debugging console UART connected to TSU6111RSVR (FSA880) */
@@ -879,6 +889,20 @@
 			/* Enable and firmware GPIOs */
 			codina_cfg2 {
 				pins = "GPIO31_V3", "GPIO88_C4";
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+	bcm4751 {
+		bcm4751_codina_default: bcm4751_codina {
+			/* Reset line, start out asserted */
+			codina_cfg1 {
+				pins = "GPIO21_AB3";
+				ste,config = <&gpio_out_lo>;
+			};
+			/* GPS_ON_OFF, start out deasserted (off) */
+			codina_cfg2 {
+				pins = "GPIO86_C6";
 				ste,config = <&gpio_out_lo>;
 			};
 		};
