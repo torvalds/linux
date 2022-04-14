@@ -19,6 +19,7 @@ properties:
           - enum:
               - ti,am335x-timer
               - ti,am335x-timer-1ms
+              - ti,am654-timer
               - ti,dm814-timer
               - ti,dm816-timer
               - ti,omap2420-timer
@@ -88,11 +89,20 @@ properties:
 required:
   - compatible
   - reg
-  - interrupts
 
 additionalProperties: false
 
 allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: ti,am654-timer
+    then:
+      required:
+        - interrupts
+
   - if:
       not:
         properties:
