@@ -1932,13 +1932,13 @@ static int anx7625_audio_get_eld(struct device *dev, void *data,
 	struct anx7625_data *ctx = dev_get_drvdata(dev);
 
 	if (!ctx->connector) {
-		dev_err(dev, "connector not initial\n");
-		return -EINVAL;
+		/* Pass en empty ELD if connector not available */
+		memset(buf, 0, len);
+	} else {
+		dev_dbg(dev, "audio copy eld\n");
+		memcpy(buf, ctx->connector->eld,
+		       min(sizeof(ctx->connector->eld), len));
 	}
-
-	dev_dbg(dev, "audio copy eld\n");
-	memcpy(buf, ctx->connector->eld,
-	       min(sizeof(ctx->connector->eld), len));
 
 	return 0;
 }
