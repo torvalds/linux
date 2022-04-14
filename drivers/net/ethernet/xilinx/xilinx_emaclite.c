@@ -4,7 +4,7 @@
  * This is a new flat driver which is based on the original emac_lite
  * driver from John Williams <john.williams@xilinx.com>.
  *
- * 2007 - 2013 (c) Xilinx, Inc.
+ * Copyright (c) 2007 - 2013 Xilinx, Inc.
  */
 
 #include <linux/module.h>
