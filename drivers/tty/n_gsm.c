@@ -2373,7 +2373,7 @@ static int gsm_config(struct gsm_mux *gsm, struct gsm_config *c)
 	 * configuration
 	 */
 
-	if (gsm->initiator && (need_close || need_restart)) {
+	if (need_close || need_restart) {
 		int ret;
 
 		ret = gsm_disconnect(gsm);
