@@ -762,6 +762,8 @@ static ssize_t sel_write_checkreqprot(struct file *file, const char __user *buf,
 	}
 
 	checkreqprot_set(fsi->state, (new_value ? 1 : 0));
+	if (new_value)
+		ssleep(5);
 	length = count;
 
 	selinux_ima_measure_state(fsi->state);

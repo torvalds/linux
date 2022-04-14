@@ -152,10 +152,8 @@ static inline bool checkreqprot_get(const struct selinux_state *state)
 
 static inline void checkreqprot_set(struct selinux_state *state, bool value)
 {
-	if (value) {
+	if (value)
 		pr_err("SELinux: https://github.com/SELinuxProject/selinux-kernel/wiki/DEPRECATE-checkreqprot\n");
-		ssleep(5);
-	}
 	WRITE_ONCE(state->checkreqprot, value);
 }
 
