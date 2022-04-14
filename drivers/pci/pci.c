@@ -1310,21 +1310,6 @@ static int pci_dev_wait(struct pci_dev *dev, char *reset_type, int timeout)
 int pci_power_up(struct pci_dev *dev)
 {
 	pci_platform_power_transition(dev, PCI_D0);
-
-	/*
-	 * Mandatory power management transition delays are handled in
-	 * pci_pm_resume_noirq() and pci_pm_runtime_resume() of the
-	 * corresponding bridge.
-	 */
-	if (dev->runtime_d3cold) {
-		/*
-		 * When powering on a bridge from D3cold, the whole hierarchy
-		 * may be powered on into D0uninitialized state, resume them to
-		 * give them a chance to suspend again
-		 */
-		pci_resume_bus(dev->subordinate);
-	}
-
 	return pci_raw_set_power_state(dev, PCI_D0);
 }
 
