@@ -645,7 +645,7 @@ static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 len,
 	int ret;
 
 	/*
-	 * Lock destination range to serialize with concurrent readpages() and
+	 * Lock destination range to serialize with concurrent readahead() and
 	 * source range to serialize with relocation.
 	 */
 	btrfs_double_extent_lock(src, loff, dst, dst_loff, len);
@@ -739,7 +739,7 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	}
 
 	/*
-	 * Lock destination range to serialize with concurrent readpages() and
+	 * Lock destination range to serialize with concurrent readahead() and
 	 * source range to serialize with relocation.
 	 */
 	btrfs_double_extent_lock(src, off, inode, destoff, len);

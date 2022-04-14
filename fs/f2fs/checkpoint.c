@@ -456,7 +456,7 @@ static bool f2fs_dirty_meta_folio(struct address_space *mapping,
 		folio_mark_uptodate(folio);
 	if (!folio_test_dirty(folio)) {
 		filemap_dirty_folio(mapping, folio);
-		inc_page_count(F2FS_P_SB(&folio->page), F2FS_DIRTY_META);
+		inc_page_count(F2FS_M_SB(mapping), F2FS_DIRTY_META);
 		set_page_private_reference(&folio->page);
 		return true;
 	}

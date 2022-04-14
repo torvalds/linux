@@ -9,6 +9,7 @@
 /dts-v1/;
 
 /include/ "amd-seattle-soc.dtsi"
+/include/ "amd-seattle-cpus.dtsi"
 
 / {
 	model = "AMD Seattle (Rev.B1) Development Board (Overdrive)";

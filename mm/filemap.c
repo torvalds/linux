@@ -2538,7 +2538,7 @@ static int filemap_create_folio(struct file *file,
 	 * the page cache as the locked folio would then be enough to
 	 * synchronize with hole punching. But there are code paths
 	 * such as filemap_update_page() filling in partially uptodate
-	 * pages or ->readpages() that need to hold invalidate_lock
+	 * pages or ->readahead() that need to hold invalidate_lock
 	 * while mapping blocks for IO so let's hold the lock here as
 	 * well to keep locking rules simple.
 	 */
@@ -3752,9 +3752,10 @@ out:
 }
 EXPORT_SYMBOL(generic_file_direct_write);
 
-ssize_t generic_perform_write(struct file *file,
-				struct iov_iter *i, loff_t pos)
+ssize_t generic_perform_write(struct kiocb *iocb, struct iov_iter *i)
 {
+	struct file *file = iocb->ki_filp;
+	loff_t pos = iocb->ki_pos;
 	struct address_space *mapping = file->f_mapping;
 	const struct address_space_operations *a_ops = mapping->a_ops;
 	long status = 0;
@@ -3884,7 +3885,8 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		if (written < 0 || !iov_iter_count(from) || IS_DAX(inode))
 			goto out;
 
-		status = generic_perform_write(file, from, pos = iocb->ki_pos);
+		pos = iocb->ki_pos;
+		status = generic_perform_write(iocb, from);
 		/*
 		 * If generic_perform_write() returned a synchronous error
 		 * then we want to return the number of bytes which were
@@ -3916,7 +3918,7 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			 */
 		}
 	} else {
-		written = generic_perform_write(file, from, iocb->ki_pos);
+		written = generic_perform_write(iocb, from);
 		if (likely(written > 0))
 			iocb->ki_pos += written;
 	}

@@ -597,7 +597,7 @@ CIFSSMBNegotiate(const unsigned int xid,
 	set_credits(server, server->maxReq);
 	/* probably no need to store and check maxvcs */
 	server->maxBuf = le32_to_cpu(pSMBr->MaxBufferSize);
-	/* set up max_read for readpages check */
+	/* set up max_read for readahead check */
 	server->max_read = server->maxBuf;
 	server->max_rw = le32_to_cpu(pSMBr->MaxRawSize);
 	cifs_dbg(NOISY, "Max buf = %d\n", ses->server->maxBuf);

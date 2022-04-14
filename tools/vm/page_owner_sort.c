@@ -441,7 +441,6 @@ static void usage(void)
 		"-n\t\tSort by task command name.\n"
 		"-a\t\tSort by memory allocate time.\n"
 		"-r\t\tSort by memory release time.\n"
-		"-c\t\tCull by comparing stacktrace instead of total block.\n"
 		"-f\t\tFilter out the information of blocks whose memory has been released.\n"
 		"--pid <PID>\tSelect by pid. This selects the information of blocks whose process ID number equals to <PID>.\n"
 		"--tgid <TGID>\tSelect by tgid. This selects the information of blocks whose Thread Group ID number equals to <TGID>.\n"
@@ -466,13 +465,10 @@ int main(int argc, char **argv)
 		{ 0, 0, 0, 0},
 	};
 
-	while ((opt = getopt_long(argc, argv, "acfmnprstP", longopts, NULL)) != -1)
+	while ((opt = getopt_long(argc, argv, "afmnprstP", longopts, NULL)) != -1)
 		switch (opt) {
 		case 'a':
 			cmp = compare_ts;
-			break;
-		case 'c':
-			cull = cull | CULL_STACKTRACE;
 			break;
 		case 'f':
 			filter = filter | FILTER_UNRELEASE;

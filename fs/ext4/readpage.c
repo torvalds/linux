@@ -109,7 +109,7 @@ static void verity_work(struct work_struct *work)
 	struct bio *bio = ctx->bio;
 
 	/*
-	 * fsverity_verify_bio() may call readpages() again, and although verity
+	 * fsverity_verify_bio() may call readahead() again, and although verity
 	 * will be disabled for that, decryption may still be needed, causing
 	 * another bio_post_read_ctx to be allocated.  So to guarantee that
 	 * mempool_alloc() never deadlocks we must free the current ctx first.

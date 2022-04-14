@@ -8296,7 +8296,7 @@ static void btrfs_invalidate_folio(struct folio *folio, size_t offset,
 	 * cover the full folio, like invalidating the last folio, we're
 	 * still safe to wait for ordered extent to finish.
 	 */
-	if (!(offset == 0 && length == PAGE_SIZE)) {
+	if (!(offset == 0 && length == folio_size(folio))) {
 		btrfs_releasepage(&folio->page, GFP_NOFS);
 		return;
 	}
