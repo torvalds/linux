@@ -3158,6 +3158,23 @@
 #define RR_DTXLOK 0x08
 #define RR_RSV2 0x09
 #define RR_CFGCH 0x18
+#define RR_CFGCH_V1 0x10018
+#define RR_CFGCH_BAND1 GENMASK(17, 16)
+#define CFGCH_BAND1_2G 0
+#define CFGCH_BAND1_5G 1
+#define CFGCH_BAND1_6G 3
+#define RR_CFGCH_BAND0 GENMASK(9, 8)
+#define CFGCH_BAND0_2G 0
+#define CFGCH_BAND0_5G 1
+#define CFGCH_BAND0_6G 0
+#define RR_CFGCH_BW GENMASK(11, 10)
+#define RR_CFGCH_CH GENMASK(7, 0)
+#define CFGCH_BW_20M 3
+#define CFGCH_BW_40M 2
+#define CFGCH_BW_80M 1
+#define CFGCH_BW_160M 0
+#define RR_APK 0x19
+#define RR_APK_MOD GENMASK(5, 4)
 #define RR_BTC 0x1a
 #define RR_BTC_TXBB GENMASK(14, 12)
 #define RR_BTC_RXBB GENMASK(11, 10)
@@ -3176,8 +3193,10 @@
 #define RR_RXK_SEL2G BIT(8)
 #define RR_LUTWA 0x33
 #define RR_LUTWA_MASK GENMASK(9, 0)
+#define RR_LUTWA_M2 GENMASK(4, 0)
 #define RR_LUTWD1 0x3e
 #define RR_LUTWD0 0x3f
+#define RR_LUTWD0_LB GENMASK(5, 0)
 #define RR_TM 0x42
 #define RR_TM_TRI BIT(19)
 #define RR_TM_VAL GENMASK(6, 1)
@@ -3260,6 +3279,7 @@
 #define RR_LUTDBG 0xdf
 #define RR_LUTDBG_LOK BIT(2)
 #define RR_LUTWE2 0xee
+#define RR_LUTWE2_RTXBW BIT(2)
 #define RR_LUTWE 0xef
 #define RR_LUTWE_LOK BIT(2)
 #define RR_RFC 0xf0
@@ -3856,6 +3876,10 @@
 #define B_IQKINF2_FCNT GENMASK(23, 16)
 #define B_IQKINF2_KCNT GENMASK(15, 8)
 #define B_IQKINF2_NCTLV GENMAKS(7, 0)
+#define R_P0_CFCH_BW0 0xC0D4
+#define B_P0_CFCH_BW0 GENMASK(27, 26)
+#define R_P0_CFCH_BW1 0xC0D8
+#define B_P0_CFCH_BW1 GENMASK(8, 5)
 
 /* WiFi CPU local domain */
 #define R_AX_WDT_CTRL 0x0040
