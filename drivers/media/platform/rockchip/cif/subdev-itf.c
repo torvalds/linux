@@ -425,10 +425,16 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 			return -EINVAL;
 		}
 	}
+#if IS_ENABLED(CONFIG_CPU_RV1106)
+	rv1106_sdmmc_get_lock();
+#endif
 	if (rkcif_debug == 3)
 		rkcif_write_register_or(cif_dev, CIF_REG_GLB_INTEN, int_en);
 	else
 		rkcif_write_register_and(cif_dev, CIF_REG_GLB_INTEN, ~int_en);
+#if IS_ENABLED(CONFIG_CPU_RV1106)
+	rv1106_sdmmc_put_lock();
+#endif
 	return 0;
 }
 
@@ -453,7 +459,13 @@ static void sditf_channel_disable(struct sditf_priv *priv, int user)
 		else
 			ctrl_val = CIF_TOISP1_FE(0) | CIF_TOISP1_FE(1) | CIF_TOISP1_FE(2);
 	}
+#if IS_ENABLED(CONFIG_CPU_RV1106)
+	rv1106_sdmmc_get_lock();
+#endif
 	rkcif_write_register_or(cif_dev, CIF_REG_GLB_INTEN, ctrl_val);
+#if IS_ENABLED(CONFIG_CPU_RV1106)
+	rv1106_sdmmc_put_lock();
+#endif
 	priv->toisp_inf.ch_info[0].is_valid = false;
 	priv->toisp_inf.ch_info[1].is_valid = false;
 	priv->toisp_inf.ch_info[2].is_valid = false;

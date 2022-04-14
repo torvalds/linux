@@ -26,6 +26,10 @@
 #include "hw.h"
 #include "subdev-itf.h"
 
+#if IS_ENABLED(CONFIG_CPU_RV1106)
+#include <linux/soc/rockchip/rk_sdmmc.h>
+#endif
+
 #define CIF_DRIVER_NAME		"rkcif"
 #define CIF_VIDEODEVICE_NAME	"stream_cif"
 

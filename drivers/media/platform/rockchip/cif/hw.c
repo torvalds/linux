@@ -1038,8 +1038,12 @@ static irqreturn_t rkcif_irq_handler(int irq, void *ctx)
 	unsigned int intstat_glb = 0;
 	int i;
 
-	if (cif_hw->chip_id >= CHIP_RK3588_CIF)
+	if (cif_hw->chip_id >= CHIP_RK3588_CIF) {
 		intstat_glb = rkcif_irq_global(cif_hw->cif_dev[0]);
+		if (intstat_glb)
+			rkcif_write_register(cif_hw->cif_dev[0], CIF_REG_GLB_INTST, intstat_glb);
+	}
+
 	for (i = 0; i < cif_hw->dev_num; i++) {
 		if (cif_hw->cif_dev[i]->isr_hdl) {
 			cif_hw->cif_dev[i]->isr_hdl(irq, cif_hw->cif_dev[i]);

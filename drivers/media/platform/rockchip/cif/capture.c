@@ -2546,8 +2546,17 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 		rkcif_write_register_or(dev, CIF_REG_MIPI_LVDS_INTEN,
 					CSI_ALL_ERROR_INTEN_V1);
 	}
+#if IS_ENABLED(CONFIG_CPU_RV1106)
+	if (channel->id == 1)
+		rv1106_sdmmc_get_lock();
+#endif
 	rkcif_write_register(dev, get_reg_index_of_id_ctrl1(channel->id),
 			     channel->width | (channel->height << 16));
+
+#if IS_ENABLED(CONFIG_CPU_RV1106)
+	if (channel->id == 1)
+		rv1106_sdmmc_put_lock();
+#endif
 
 	rkcif_write_register(dev, get_reg_index_of_frm0_y_vlw(channel->id),
 			     channel->virtual_width);
@@ -3924,6 +3933,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 	unsigned int dma_en = 0;
 	int i = 0;
 	u32 sav_detect = BT656_DETECT_SAV;
+	u32 reserved = 0;
 
 	if (stream->state < RKCIF_STATE_STREAMING) {
 		stream->frame_idx = 0;
@@ -3938,6 +3948,25 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 	if ((mode & RKCIF_STREAM_MODE_CAPTURE) == RKCIF_STREAM_MODE_CAPTURE)
 		stream->dma_en = RKCIF_DMAEN_BY_VICAP;
 
+	mbus_flags = mbus->flags;
+	if ((mbus_flags & CIF_DVP_PCLK_DUAL_EDGE) == CIF_DVP_PCLK_DUAL_EDGE) {
+		bt1120_edge_mode = (dev->chip_id < CHIP_RK3588_CIF ?
+			BT1120_CLOCK_DOUBLE_EDGES : BT1120_CLOCK_DOUBLE_EDGES_RK3588);
+		rkcif_enable_dvp_clk_dual_edge(dev, true);
+	} else {
+		bt1120_edge_mode = dev->chip_id < CHIP_RK3588_CIF ?
+			BT1120_CLOCK_SINGLE_EDGES : BT1120_CLOCK_SINGLE_EDGES_RK3588;
+		rkcif_enable_dvp_clk_dual_edge(dev, false);
+	}
+
+	if (mbus_flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
+		rkcif_config_dvp_clk_sampling_edge(dev, RKCIF_CLK_RISING);
+	else
+		rkcif_config_dvp_clk_sampling_edge(dev, RKCIF_CLK_FALLING);
+
+#if IS_ENABLED(CONFIG_CPU_RV1106)
+	rv1106_sdmmc_get_lock();
+#endif
 	if (sensor_info->sd && mbus->type == V4L2_MBUS_BT656) {
 		int ret;
 
@@ -3966,22 +3995,6 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 			rkcif_write_register_or(dev, CIF_REG_DVP_MULTI_ID, multi_id);
 		}
 	}
-
-	mbus_flags = mbus->flags;
-	if ((mbus_flags & CIF_DVP_PCLK_DUAL_EDGE) == CIF_DVP_PCLK_DUAL_EDGE) {
-		bt1120_edge_mode = (dev->chip_id < CHIP_RK3588_CIF ?
-			BT1120_CLOCK_DOUBLE_EDGES : BT1120_CLOCK_DOUBLE_EDGES_RK3588);
-		rkcif_enable_dvp_clk_dual_edge(dev, true);
-	} else {
-		bt1120_edge_mode = dev->chip_id < CHIP_RK3588_CIF ?
-			BT1120_CLOCK_SINGLE_EDGES : BT1120_CLOCK_SINGLE_EDGES_RK3588;
-		rkcif_enable_dvp_clk_dual_edge(dev, false);
-	}
-
-	if (mbus_flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
-		rkcif_config_dvp_clk_sampling_edge(dev, RKCIF_CLK_RISING);
-	else
-		rkcif_config_dvp_clk_sampling_edge(dev, RKCIF_CLK_FALLING);
 
 	href_pol = (mbus_flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH) ?
 		    HSY_HIGH_ACTIVE : HSY_LOW_ACTIVE;
@@ -4111,7 +4124,11 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 		rkcif_write_register(dev, CIF_REG_DVP_LINE_INT_NUM, 0x1);
 		rkcif_write_register_or(dev, CIF_REG_DVP_INTEN, LINE_INT_EN);
 	} else {
-		rkcif_write_register(dev, CIF_REG_DVP_INTSTAT, 0x3c3ffff);
+		if (dev->chip_id == CHIP_RV1106_CIF)
+			reserved = 0xfc3c0000;
+		else
+			reserved = 0;
+		rkcif_write_register(dev, CIF_REG_DVP_INTSTAT, 0x3c3ffff | reserved);
 		rkcif_write_register_or(dev, CIF_REG_DVP_INTEN, 0x033ffff);//0x3c3ffff
 	}
 
@@ -4179,7 +4196,9 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 		rkcif_write_register(dev, CIF_REG_DVP_CTRL,
 				     AXI_BURST_16 | workmode | ENABLE_CAPTURE);
 	}
-
+#if IS_ENABLED(CONFIG_CPU_RV1106)
+	rv1106_sdmmc_put_lock();
+#endif
 	atomic_set(&sof_sd->frm_sync_seq, 0);
 	stream->state = RKCIF_STATE_STREAMING;
 	stream->cifdev->dvp_sof_in_oneframe = 0;
@@ -7764,12 +7783,10 @@ unsigned int rkcif_irq_global(struct rkcif_device *cif_dev)
 	unsigned int intstat_glb = 0;
 
 	intstat_glb = rkcif_read_register(cif_dev, CIF_REG_GLB_INTST);
-	if (intstat_glb) {
-		rkcif_write_register(cif_dev, CIF_REG_GLB_INTST, intstat_glb);
+	if (intstat_glb)
 		v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
 			 "intstat_glb 0x%x\n",
 			 intstat_glb);
-	}
 
 	if (intstat_glb & SCALE_TOISP_AXI0_ERR) {
 		v4l2_err(&cif_dev->v4l2_dev,
