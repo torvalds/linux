@@ -13702,6 +13702,126 @@ static const struct rtw89_txpwr_byrate_cfg rtw89_8852c_txpwr_byrate[] = {
 	{ 2, 0, 4, 0, 4, 0x00000000, },
 };
 
+static const s8 _txpwr_track_delta_swingidx_6gb_n[][DELTA_SWINGIDX_SIZE] = {
+	{0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5,
+	 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10},
+	{0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5,
+	 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10},
+	{0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5,
+	 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10},
+	{0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5,
+	 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10},
+};
+
+static const s8 _txpwr_track_delta_swingidx_6gb_p[][DELTA_SWINGIDX_SIZE] = {
+	{0, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6, 7, 8, 8, 9, 9, 10, 11,
+	 11, 12, 12, 13, 14, 14, 15, 15, 16, 17, 17, 18},
+	{0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 9, 9, 10,
+	 10, 11, 11, 12, 12, 13, 13, 14, 15, 15, 16, 16},
+	{0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 9, 9, 10,
+	 10, 11, 11, 12, 12, 13, 13, 14, 15, 15, 16, 16},
+	{0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 9, 9, 10,
+	 10, 11, 11, 12, 12, 13, 13, 14, 15, 15, 16, 16},
+};
+
+static const s8 _txpwr_track_delta_swingidx_6ga_n[][DELTA_SWINGIDX_SIZE] = {
+	{0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3,
+	 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6},
+	{0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3,
+	 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6},
+	{0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3,
+	 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6},
+	{0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3,
+	 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6},
+};
+
+static const s8 _txpwr_track_delta_swingidx_6ga_p[][DELTA_SWINGIDX_SIZE] = {
+	{0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8,
+	 9, 9, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15},
+	{0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8,
+	 9, 9, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15},
+	{0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8,
+	 9, 9, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15},
+	{0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8,
+	 9, 9, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15},
+};
+
+static const s8 _txpwr_track_delta_swingidx_5gb_n[][DELTA_SWINGIDX_SIZE] = {
+	{0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5,
+	 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10},
+	{0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4,
+	 5, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8},
+	{0, 1, 1, 2, 2, 2, 3, 3, 4, 4, 4, 5, 5, 6, 6, 6, 7,
+	 7, 8, 8, 8, 9, 9, 10, 10, 10, 11, 11, 12, 12},
+};
+
+static const s8 _txpwr_track_delta_swingidx_5gb_p[][DELTA_SWINGIDX_SIZE] = {
+	{0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 8, 8, 9, 9, 10,
+	 10, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16, 16},
+	{0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 8, 8, 9, 9, 10,
+	 10, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16, 16},
+	{0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 8, 8, 9, 9, 10,
+	 10, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16, 16},
+};
+
+static const s8 _txpwr_track_delta_swingidx_5ga_n[][DELTA_SWINGIDX_SIZE] = {
+	{0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3,
+	 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6},
+	{0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2,
+	 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3},
+	{0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4,
+	 5, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8},
+};
+
+static const s8 _txpwr_track_delta_swingidx_5ga_p[][DELTA_SWINGIDX_SIZE] = {
+	{0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 6, 6, 7, 7, 8,
+	 8, 9, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14},
+	{0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 6, 6, 7, 7, 8,
+	 8, 9, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14},
+	{0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 6, 6, 7, 7, 8,
+	 8, 9, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14},
+};
+
+static const s8 _txpwr_track_delta_swingidx_2gb_n[] = {
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1,
+	 -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+};
+
+static const s8 _txpwr_track_delta_swingidx_2gb_p[] = {
+	0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2
+};
+
+static const s8 _txpwr_track_delta_swingidx_2ga_n[] = {
+	0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -2, -2,
+	 -2, -2, -2, -2, -2, -2, -3, -3, -3, -3, -3, -3, -3
+};
+
+static const s8 _txpwr_track_delta_swingidx_2ga_p[] = {
+	0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3,
+	 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5
+};
+
+static const s8 _txpwr_track_delta_swingidx_2g_cck_b_n[] = {
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1,
+	 -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+};
+
+static const s8 _txpwr_track_delta_swingidx_2g_cck_b_p[] = {
+	0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2
+};
+
+static const s8 _txpwr_track_delta_swingidx_2g_cck_a_n[] = {
+	0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -2, -2,
+	 -2, -2, -2, -2, -2, -2, -3, -3, -3, -3, -3, -3, -3
+};
+
+static const s8 _txpwr_track_delta_swingidx_2g_cck_a_p[] = {
+	0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3,
+	 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5
+};
+
 const u8 rtw89_8852c_tx_shape[RTW89_BAND_MAX][RTW89_RS_TX_SHAPE_NUM]
 			     [RTW89_REGD_NUM] = {
 	[0][0][RTW89_ACMA] = 0,
@@ -19321,4 +19441,23 @@ const struct rtw89_txpwr_table rtw89_8852c_byr_table = {
 	.data = rtw89_8852c_txpwr_byrate,
 	.size = ARRAY_SIZE(rtw89_8852c_txpwr_byrate),
 	.load = rtw89_phy_load_txpwr_byrate,
+};
+
+const struct rtw89_txpwr_track_cfg rtw89_8852c_trk_cfg = {
+	.delta_swingidx_6gb_n = _txpwr_track_delta_swingidx_6gb_n,
+	.delta_swingidx_6gb_p = _txpwr_track_delta_swingidx_6gb_p,
+	.delta_swingidx_6ga_n = _txpwr_track_delta_swingidx_6ga_n,
+	.delta_swingidx_6ga_p = _txpwr_track_delta_swingidx_6ga_p,
+	.delta_swingidx_5gb_n = _txpwr_track_delta_swingidx_5gb_n,
+	.delta_swingidx_5gb_p = _txpwr_track_delta_swingidx_5gb_p,
+	.delta_swingidx_5ga_n = _txpwr_track_delta_swingidx_5ga_n,
+	.delta_swingidx_5ga_p = _txpwr_track_delta_swingidx_5ga_p,
+	.delta_swingidx_2gb_n = _txpwr_track_delta_swingidx_2gb_n,
+	.delta_swingidx_2gb_p = _txpwr_track_delta_swingidx_2gb_p,
+	.delta_swingidx_2ga_n = _txpwr_track_delta_swingidx_2ga_n,
+	.delta_swingidx_2ga_p = _txpwr_track_delta_swingidx_2ga_p,
+	.delta_swingidx_2g_cck_b_n = _txpwr_track_delta_swingidx_2g_cck_b_n,
+	.delta_swingidx_2g_cck_b_p = _txpwr_track_delta_swingidx_2g_cck_b_p,
+	.delta_swingidx_2g_cck_a_n = _txpwr_track_delta_swingidx_2g_cck_a_n,
+	.delta_swingidx_2g_cck_a_p = _txpwr_track_delta_swingidx_2g_cck_a_p,
 };

@@ -2907,10 +2907,10 @@ static void _tssi_set_tmeter_tbl(struct rtw89_dev *rtwdev, enum rtw89_phy_idx ph
 	struct rtw89_tssi_info *tssi_info = &rtwdev->tssi;
 	u8 ch = rtwdev->hal.current_channel;
 	u8 subband = rtwdev->hal.current_subband;
-	const u8 *thm_up_a = NULL;
-	const u8 *thm_down_a = NULL;
-	const u8 *thm_up_b = NULL;
-	const u8 *thm_down_b = NULL;
+	const s8 *thm_up_a = NULL;
+	const s8 *thm_down_a = NULL;
+	const s8 *thm_up_b = NULL;
+	const s8 *thm_down_b = NULL;
 	u8 thermal = 0xff;
 	s8 thm_ofst[64] = {0};
 	u32 tmp = 0;

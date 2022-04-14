@@ -233,18 +233,22 @@ struct rtw89_txpwr_byrate_cfg {
 #define DELTA_SWINGIDX_SIZE 30
 
 struct rtw89_txpwr_track_cfg {
-	const u8 (*delta_swingidx_5gb_n)[DELTA_SWINGIDX_SIZE];
-	const u8 (*delta_swingidx_5gb_p)[DELTA_SWINGIDX_SIZE];
-	const u8 (*delta_swingidx_5ga_n)[DELTA_SWINGIDX_SIZE];
-	const u8 (*delta_swingidx_5ga_p)[DELTA_SWINGIDX_SIZE];
-	const u8 *delta_swingidx_2gb_n;
-	const u8 *delta_swingidx_2gb_p;
-	const u8 *delta_swingidx_2ga_n;
-	const u8 *delta_swingidx_2ga_p;
-	const u8 *delta_swingidx_2g_cck_b_n;
-	const u8 *delta_swingidx_2g_cck_b_p;
-	const u8 *delta_swingidx_2g_cck_a_n;
-	const u8 *delta_swingidx_2g_cck_a_p;
+	const s8 (*delta_swingidx_6gb_n)[DELTA_SWINGIDX_SIZE];
+	const s8 (*delta_swingidx_6gb_p)[DELTA_SWINGIDX_SIZE];
+	const s8 (*delta_swingidx_6ga_n)[DELTA_SWINGIDX_SIZE];
+	const s8 (*delta_swingidx_6ga_p)[DELTA_SWINGIDX_SIZE];
+	const s8 (*delta_swingidx_5gb_n)[DELTA_SWINGIDX_SIZE];
+	const s8 (*delta_swingidx_5gb_p)[DELTA_SWINGIDX_SIZE];
+	const s8 (*delta_swingidx_5ga_n)[DELTA_SWINGIDX_SIZE];
+	const s8 (*delta_swingidx_5ga_p)[DELTA_SWINGIDX_SIZE];
+	const s8 *delta_swingidx_2gb_n;
+	const s8 *delta_swingidx_2gb_p;
+	const s8 *delta_swingidx_2ga_n;
+	const s8 *delta_swingidx_2ga_p;
+	const s8 *delta_swingidx_2g_cck_b_n;
+	const s8 *delta_swingidx_2g_cck_b_p;
+	const s8 *delta_swingidx_2g_cck_a_n;
+	const s8 *delta_swingidx_2g_cck_a_p;
 };
 
 struct rtw89_phy_dig_gain_cfg {

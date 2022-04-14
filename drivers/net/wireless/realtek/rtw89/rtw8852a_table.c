@@ -43313,7 +43313,7 @@ static const struct rtw89_txpwr_byrate_cfg rtw89_8852a_txpwr_byrate[] = {
 	{ 1, 0, 4, 0, 4, 0x00000000, },
 };
 
-static const u8 _txpwr_track_delta_swingidx_5gb_n[][DELTA_SWINGIDX_SIZE] = {
+static const s8 _txpwr_track_delta_swingidx_5gb_n[][DELTA_SWINGIDX_SIZE] = {
 	{0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 6, 7,
 	 7, 7, 8, 8, 9, 9, 9, 10, 10, 10, 11, 11, 11},
 	{0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4,
@@ -43322,7 +43322,7 @@ static const u8 _txpwr_track_delta_swingidx_5gb_n[][DELTA_SWINGIDX_SIZE] = {
 	 5, 6, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9},
 };
 
-static const u8 _txpwr_track_delta_swingidx_5gb_p[][DELTA_SWINGIDX_SIZE] = {
+static const s8 _txpwr_track_delta_swingidx_5gb_p[][DELTA_SWINGIDX_SIZE] = {
 	{0, 1, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 6, 6,
 	 6, 7, 7, 7, 8, 8, 8, 9, 9, 10, 10, 10, 11, 11},
 	{0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4,
@@ -43331,7 +43331,7 @@ static const u8 _txpwr_track_delta_swingidx_5gb_p[][DELTA_SWINGIDX_SIZE] = {
 	 5, 6, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9},
 };
 
-static const u8 _txpwr_track_delta_swingidx_5ga_n[][DELTA_SWINGIDX_SIZE] = {
+static const s8 _txpwr_track_delta_swingidx_5ga_n[][DELTA_SWINGIDX_SIZE] = {
 	{0, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 6, 7,
 	 7, 7, 8, 8, 9, 9, 9, 10, 10, 10, 11, 11, 11},
 	{0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4,
@@ -43340,7 +43340,7 @@ static const u8 _txpwr_track_delta_swingidx_5ga_n[][DELTA_SWINGIDX_SIZE] = {
 	 5, 6, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9},
 };
 
-static const u8 _txpwr_track_delta_swingidx_5ga_p[][DELTA_SWINGIDX_SIZE] = {
+static const s8 _txpwr_track_delta_swingidx_5ga_p[][DELTA_SWINGIDX_SIZE] = {
 	{0, 1, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 6, 6,
 	 6, 7, 7, 7, 8, 8, 8, 9, 9, 10, 10, 10, 11, 11},
 	{0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4,
@@ -43349,35 +43349,35 @@ static const u8 _txpwr_track_delta_swingidx_5ga_p[][DELTA_SWINGIDX_SIZE] = {
 	 5, 6, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9},
 };
 
-static const u8 _txpwr_track_delta_swingidx_2gb_n[] = {
+static const s8 _txpwr_track_delta_swingidx_2gb_n[] = {
 	0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4,
 	 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7};
 
-static const u8 _txpwr_track_delta_swingidx_2gb_p[] = {
+static const s8 _txpwr_track_delta_swingidx_2gb_p[] = {
 	0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
 	 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3};
 
-static const u8 _txpwr_track_delta_swingidx_2ga_n[] = {
+static const s8 _txpwr_track_delta_swingidx_2ga_n[] = {
 	0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3,
 	 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5};
 
-static const u8 _txpwr_track_delta_swingidx_2ga_p[] = {
+static const s8 _txpwr_track_delta_swingidx_2ga_p[] = {
 	0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5,
 	 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10};
 
-static const u8 _txpwr_track_delta_swingidx_2g_cck_b_n[] = {
+static const s8 _txpwr_track_delta_swingidx_2g_cck_b_n[] = {
 	0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4,
 	 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7};
 
-static const u8 _txpwr_track_delta_swingidx_2g_cck_b_p[] = {
+static const s8 _txpwr_track_delta_swingidx_2g_cck_b_p[] = {
 	0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
 	 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3};
 
-static const u8 _txpwr_track_delta_swingidx_2g_cck_a_n[] = {
+static const s8 _txpwr_track_delta_swingidx_2g_cck_a_n[] = {
 	0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3,
 	 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5};
 
-static const u8 _txpwr_track_delta_swingidx_2g_cck_a_p[] = {
+static const s8 _txpwr_track_delta_swingidx_2g_cck_a_p[] = {
 	0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5,
 	 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10};
 
