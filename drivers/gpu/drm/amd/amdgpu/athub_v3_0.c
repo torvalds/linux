@@ -70,6 +70,7 @@ int athub_v3_0_set_clockgating(struct amdgpu_device *adev,
 
 	switch (adev->ip_versions[ATHUB_HWIP][0]) {
 	case IP_VERSION(3, 0, 0):
+	case IP_VERSION(3, 0, 2):
 		athub_v3_0_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		athub_v3_0_update_medium_grain_light_sleep(adev,
