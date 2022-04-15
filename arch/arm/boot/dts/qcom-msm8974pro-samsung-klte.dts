@@ -778,50 +778,37 @@
 	};
 
 	i2c_touchkey_pins: i2c-touchkey {
-		mux {
-			pins = "gpio95", "gpio96";
-			function = "gpio";
-			input-enable;
-			bias-pull-up;
-		};
+		pins = "gpio95", "gpio96";
+		function = "gpio";
+		input-enable;
+		bias-pull-up;
 	};
 
 	i2c_led_gpioex_pins: i2c-led-gpioex {
-		mux {
-			pins = "gpio120", "gpio121";
-			function = "gpio";
-			input-enable;
-			bias-pull-down;
-		};
+		pins = "gpio120", "gpio121";
+		function = "gpio";
+		input-enable;
+		bias-pull-down;
 	};
 
 	gpioex_pin: gpioex {
-		res {
-			pins = "gpio145";
-			function = "gpio";
-
-			bias-pull-up;
-			drive-strength = <2>;
-		};
+		pins = "gpio145";
+		function = "gpio";
+		bias-pull-up;
+		drive-strength = <2>;
 	};
 
 	wifi_pin: wifi {
-		int {
-			pins = "gpio92";
-			function = "gpio";
-
-			input-enable;
-			bias-pull-down;
-		};
+		pins = "gpio92";
+		function = "gpio";
+		input-enable;
+		bias-pull-down;
 	};
 
 	panel_te_pin: panel {
-		te {
-			pins = "gpio12";
-			function = "mdp_vsync";
-
-			drive-strength = <2>;
-			bias-disable;
-		};
+		pins = "gpio12";
+		function = "mdp_vsync";
+		drive-strength = <2>;
+		bias-disable;
 	};
 };

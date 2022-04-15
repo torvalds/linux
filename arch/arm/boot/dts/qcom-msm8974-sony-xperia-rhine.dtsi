@@ -375,14 +375,11 @@
 
 &tlmm {
 	ts_int_pin: touch-int {
-		pin {
-			pins = "gpio61";
-			function = "gpio";
-
-			drive-strength = <2>;
-			bias-disable;
-			input-enable;
-		};
+		pins = "gpio61";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
 	};
 
 	sdc1_on: sdc1-on {

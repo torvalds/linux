@@ -573,12 +573,10 @@
 	};
 
 	mpu6515_pin: mpu6515 {
-		irq {
-			pins = "gpio73";
-			function = "gpio";
-			bias-disable;
-			input-enable;
-		};
+		pins = "gpio73";
+		function = "gpio";
+		bias-disable;
+		input-enable;
 	};
 
 	touch_pin: touch {
@@ -601,13 +599,10 @@
 	};
 
 	panel_pin: panel {
-		te {
-			pins = "gpio12";
-			function = "mdp_vsync";
-
-			drive-strength = <2>;
-			bias-disable;
-		};
+		pins = "gpio12";
+		function = "mdp_vsync";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
 	bt_pin: bt {
