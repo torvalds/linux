@@ -85,12 +85,35 @@
 	};
 };
 
+&blsp1_i2c6 {
+	status = "okay";
+	clock-frequency = <355000>;
+
+	nfc@28 {
+		compatible = "nxp,pn544-i2c";
+		reg = <0x28>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <59 IRQ_TYPE_EDGE_RISING>;
+
+		enable-gpios = <&pm8941_gpios 23 GPIO_ACTIVE_HIGH>;
+		firmware-gpios = <&tlmm 77 GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &blsp1_uart2 {
 	status = "okay";
 };
 
 &blsp2_dma {
 	qcom,controlled-remotely;
+};
+
+&blsp2_i2c5 {
+	status = "okay";
+	clock-frequency = <355000>;
+
+	/* sii8334 MHL HDMI bridge */
 };
 
 &otg {
