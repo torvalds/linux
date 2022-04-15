@@ -1514,6 +1514,14 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 			ab8500_chargalg_stop_maintenance_timer(di);
 			ab8500_chargalg_state_to(di, STATE_MAINTENANCE_B_INIT);
 		}
+		/*
+		 * This happens if the voltage drops too quickly during
+		 * maintenance charging, especially in older batteries.
+		 */
+		if (ab8500_chargalg_time_to_restart(di)) {
+			ab8500_chargalg_state_to(di, STATE_NORMAL_INIT);
+			dev_info(di->dev, "restarted charging from maintenance state A - battery getting old?\n");
+		}
 		break;
 
 	case STATE_MAINTENANCE_B_INIT:
@@ -1537,6 +1545,14 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 		if (di->events.maintenance_timer_expired) {
 			ab8500_chargalg_stop_maintenance_timer(di);
 			ab8500_chargalg_state_to(di, STATE_NORMAL_INIT);
+		}
+		/*
+		 * This happens if the voltage drops too quickly during
+		 * maintenance charging, especially in older batteries.
+		 */
+		if (ab8500_chargalg_time_to_restart(di)) {
+			ab8500_chargalg_state_to(di, STATE_NORMAL_INIT);
+			dev_info(di->dev, "restarted charging from maintenance state B - battery getting old?\n");
 		}
 		break;
 
