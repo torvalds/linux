@@ -24,11 +24,17 @@
 #include "cpu.h"
 
 struct aperfmperf {
+	seqcount_t	seq;
+	unsigned long	last_update;
+	u64		acnt;
+	u64		mcnt;
 	u64		aperf;
 	u64		mperf;
 };
 
-static DEFINE_PER_CPU_SHARED_ALIGNED(struct aperfmperf, cpu_samples);
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct aperfmperf, cpu_samples) = {
+	.seq = SEQCNT_ZERO(cpu_samples.seq)
+};
 
 struct aperfmperf_sample {
 	unsigned int	khz;
@@ -514,6 +520,12 @@ void arch_scale_freq_tick(void)
 
 	s->aperf = aperf;
 	s->mperf = mperf;
+
+	raw_write_seqcount_begin(&s->seq);
+	s->last_update = jiffies;
+	s->acnt = acnt;
+	s->mcnt = mcnt;
+	raw_write_seqcount_end(&s->seq);
 
 	scale_freq_tick(acnt, mcnt);
 }
