@@ -2346,7 +2346,7 @@ qca8k_port_enable(struct dsa_switch *ds, int port,
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 
 	qca8k_port_set_status(priv, port, 1);
-	priv->port_sts[port].enabled = 1;
+	priv->port_enabled_map |= BIT(port);
 
 	if (dsa_is_user_port(ds, port))
 		phy_support_asym_pause(phy);
@@ -2360,7 +2360,7 @@ qca8k_port_disable(struct dsa_switch *ds, int port)
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 
 	qca8k_port_set_status(priv, port, 0);
-	priv->port_sts[port].enabled = 0;
+	priv->port_enabled_map &= ~BIT(port);
 }
 
 static int
@@ -3235,13 +3235,16 @@ static void qca8k_sw_shutdown(struct mdio_device *mdiodev)
 static void
 qca8k_set_pm(struct qca8k_priv *priv, int enable)
 {
-	int i;
+	int port;
 
-	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
-		if (!priv->port_sts[i].enabled)
+	for (port = 0; port < QCA8K_NUM_PORTS; port++) {
+		/* Do not enable on resume if the port was
+		 * disabled before.
+		 */
+		if (!(priv->port_enabled_map & BIT(port)))
 			continue;
 
-		qca8k_port_set_status(priv, i, enable);
+		qca8k_port_set_status(priv, port, enable);
 	}
 }
 

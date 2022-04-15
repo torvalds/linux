@@ -324,10 +324,6 @@ enum qca8k_mid_cmd {
 	QCA8K_MIB_CAST = 3,
 };
 
-struct ar8xxx_port_status {
-	int enabled;
-};
-
 struct qca8k_match_data {
 	u8 id;
 	bool reduced_package;
@@ -388,11 +384,14 @@ struct qca8k_priv {
 	u8 mirror_rx;
 	u8 mirror_tx;
 	u8 lag_hash_mode;
+	/* Each bit correspond to a port. This switch can support a max of 7 port.
+	 * Bit 1: port enabled. Bit 0: port disabled.
+	 */
+	u8 port_enabled_map;
 	bool legacy_phy_port_mapping;
 	struct qca8k_ports_config ports_config;
 	struct regmap *regmap;
 	struct mii_bus *bus;
-	struct ar8xxx_port_status port_sts[QCA8K_NUM_PORTS];
 	struct dsa_switch *ds;
 	struct mutex reg_mutex;
 	struct device *dev;
