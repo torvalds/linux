@@ -5902,7 +5902,7 @@ static int io_poll_check_events(struct io_kiocb *req, bool locked)
 
 	/* req->task == current here, checking PF_EXITING is safe */
 	if (unlikely(req->task->flags & PF_EXITING))
-		io_poll_mark_cancelled(req);
+		return -ECANCELED;
 
 	do {
 		v = atomic_read(&req->poll_refs);
