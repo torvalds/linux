@@ -59,9 +59,6 @@
 	status = "okay";
 	clock-frequency = <100000>;
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins>;
-
 	charger: bq24192@6b {
 		compatible = "ti,bq24192";
 		reg = <0x6b>;
@@ -93,9 +90,6 @@
 	status = "okay";
 	clock-frequency = <355000>;
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins>;
-
 	synaptics@70 {
 		compatible = "syna,rmi4-i2c";
 		reg = <0x70>;
@@ -126,9 +120,6 @@
 	status = "okay";
 	clock-frequency = <100000>;
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c3_pins>;
-
 	avago_apds993@39 {
 		compatible = "avago,apds9930";
 		reg = <0x39>;
@@ -143,9 +134,6 @@
 &blsp2_i2c5 {
 	status = "okay";
 	clock-frequency = <355000>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c11_pins>;
 
 	led-controller@38 {
 		compatible = "ti,lm3630a";
@@ -167,9 +155,6 @@
 &blsp2_i2c6 {
 	status = "okay";
 	clock-frequency = <100000>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c12_pins>;
 
 	mpu6515@68 {
 		compatible = "invensense,mpu6515";
@@ -211,9 +196,6 @@
 
 &blsp2_uart4 {
 	status = "okay";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&blsp2_uart4_pin_a>;
 
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
@@ -533,8 +515,9 @@
 	vmmc-supply = <&pm8941_l20>;
 	vqmmc-supply = <&pm8941_s3>;
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdhc1_pin_a>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc1_on>;
+	pinctrl-1 = <&sdc1_off>;
 };
 
 &sdhc_2 {
@@ -545,11 +528,9 @@
 	vqmmc-supply = <&pm8941_s3>;
 	non-removable;
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdhc2_pin_a>;
-
-	#address-cells = <1>;
-	#size-cells = <0>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc2_on>;
+	pinctrl-1 = <&sdc2_off>;
 
 	bcrmf@1 {
 		compatible = "brcm,bcm4339-fmac", "brcm,bcm4329-fmac";
@@ -563,7 +544,7 @@
 };
 
 &tlmm {
-	sdhc1_pin_a: sdhc1-pin-active {
+	sdc1_on: sdc1-on {
 		clk {
 			pins = "sdc1_clk";
 			drive-strength = <16>;
@@ -577,7 +558,7 @@
 		};
 	};
 
-	sdhc2_pin_a: sdhc2-pin-active {
+	sdc2_on: sdc2-on {
 		clk {
 			pins = "sdc2_clk";
 			drive-strength = <6>;
@@ -588,54 +569,6 @@
 			pins = "sdc2_cmd", "sdc2_data";
 			drive-strength = <6>;
 			bias-pull-up;
-		};
-	};
-
-	i2c1_pins: i2c1 {
-		mux {
-			pins = "gpio2", "gpio3";
-			function = "blsp_i2c1";
-
-			drive-strength = <2>;
-			bias-disable;
-		};
-	};
-
-	i2c2_pins: i2c2 {
-		mux {
-			pins = "gpio6", "gpio7";
-			function = "blsp_i2c2";
-
-			drive-strength = <2>;
-			bias-disable;
-		};
-	};
-
-	i2c3_pins: i2c3 {
-		mux {
-			pins = "gpio10", "gpio11";
-			function = "blsp_i2c3";
-			drive-strength = <2>;
-			bias-disable;
-		};
-	};
-
-	i2c11_pins: i2c11 {
-		mux {
-			pins = "gpio83", "gpio84";
-			function = "blsp_i2c11";
-
-			drive-strength = <2>;
-			bias-disable;
-		};
-	};
-
-	i2c12_pins: i2c12 {
-		mux {
-			pins = "gpio87", "gpio88";
-			function = "blsp_i2c12";
-			drive-strength = <2>;
-			bias-disable;
 		};
 	};
 
@@ -691,40 +624,6 @@
 		shutdown {
 			pins = "gpio41";
 			function = "gpio";
-		};
-	};
-
-	blsp2_uart4_pin_a: blsp2-uart4-pin-active {
-		tx {
-			pins = "gpio53";
-			function = "blsp_uart10";
-
-			drive-strength = <2>;
-			bias-disable;
-		};
-
-		rx {
-			pins = "gpio54";
-			function = "blsp_uart10";
-
-			drive-strength = <2>;
-			bias-pull-up;
-		};
-
-		cts {
-			pins = "gpio55";
-			function = "blsp_uart10";
-
-			drive-strength = <2>;
-			bias-pull-up;
-		};
-
-		rts {
-			pins = "gpio56";
-			function = "blsp_uart10";
-
-			drive-strength = <2>;
-			bias-disable;
 		};
 	};
 };

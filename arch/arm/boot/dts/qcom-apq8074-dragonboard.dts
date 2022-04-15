@@ -26,9 +26,6 @@
 	status = "okay";
 	clock-frequency = <200000>;
 
-	pinctrl-0 = <&i2c11_pins>;
-	pinctrl-names = "default";
-
 	eeprom: eeprom@52 {
 		compatible = "atmel,24c128";
 		reg = <0x52>;
@@ -256,48 +253,25 @@
 	vmmc-supply = <&pm8941_l20>;
 	vqmmc-supply = <&pm8941_s3>;
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdhc1_pin_a>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc1_on>;
+	pinctrl-1 = <&sdc1_off>;
 };
 
 &sdhc_2 {
 	status = "okay";
-	cd-gpios = <&tlmm 62 0x1>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdhc2_pin_a>, <&sdhc2_cd_pin_a>;
 
+	cd-gpios = <&tlmm 62 0x1>;
 	vmmc-supply = <&pm8941_l21>;
 	vqmmc-supply = <&pm8941_l13>;
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc2_on>;
+	pinctrl-1 = <&sdc2_off>;
 };
 
 &tlmm {
-	i2c11_pins: i2c11 {
-		mux {
-			pins = "gpio83", "gpio84";
-			function = "blsp_i2c11";
-		};
-	};
-
-	spi8_default: spi8_default {
-		mosi {
-			pins = "gpio45";
-			function = "blsp_spi8";
-		};
-		miso {
-			pins = "gpio46";
-			function = "blsp_spi8";
-		};
-		cs {
-			pins = "gpio47";
-			function = "blsp_spi8";
-		};
-		clk {
-			pins = "gpio48";
-			function = "blsp_spi8";
-		};
-	};
-
-	sdhc1_pin_a: sdhc1-pin-active {
+	sdc1_on: sdc1-on {
 		clk {
 			pins = "sdc1_clk";
 			drive-strength = <16>;
@@ -311,15 +285,7 @@
 		};
 	};
 
-	sdhc2_cd_pin_a: sdhc2-cd-pin-active {
-		pins = "gpio62";
-		function = "gpio";
-
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	sdhc2_pin_a: sdhc2-pin-active {
+	sdc2_on: sdc2-on {
 		clk {
 			pins = "sdc2_clk";
 			drive-strength = <10>;
@@ -330,6 +296,13 @@
 			pins = "sdc2_cmd", "sdc2_data";
 			drive-strength = <6>;
 			bias-pull-up;
+		};
+
+		cd {
+			pins = "gpio62";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
 		};
 	};
 };

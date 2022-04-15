@@ -466,6 +466,9 @@
 			clock-names = "core", "iface", "xo";
 			bus-width = <4>;
 
+			#address-cells = <1>;
+			#size-cells = <0>;
+
 			status = "disabled";
 		};
 
@@ -481,6 +484,9 @@
 				 <&xo_board>;
 			clock-names = "core", "iface", "xo";
 			bus-width = <4>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
 
 			status = "disabled";
 		};
@@ -510,6 +516,9 @@
 			interrupts = <0 95 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP1_I2C_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_i2c1_default>;
+			pinctrl-1 = <&blsp1_i2c1_sleep>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -521,6 +530,9 @@
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_i2c2_default>;
+			pinctrl-1 = <&blsp1_i2c2_sleep>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -532,6 +544,9 @@
 			interrupts = <0 97 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_i2c3_default>;
+			pinctrl-1 = <&blsp1_i2c3_sleep>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -543,6 +558,9 @@
 			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP6_I2C_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_i2c6_default>;
+			pinctrl-1 = <&blsp1_i2c6_sleep>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -591,6 +609,9 @@
 			interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP2_QUP2_I2C_APPS_CLK>, <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp2_i2c2_default>;
+			pinctrl-1 = <&blsp2_i2c2_sleep>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
@@ -602,10 +623,13 @@
 			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP2_QUP5_I2C_APPS_CLK>, <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			dmas = <&blsp2_dma 20>, <&blsp2_dma 21>;
 			dma-names = "tx", "rx";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp2_i2c5_default>;
+			pinctrl-1 = <&blsp2_i2c5_sleep>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		blsp2_i2c6: i2c@f9968000 {
@@ -1185,6 +1209,223 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
+
+			sdc1_off: sdc1-off {
+				clk {
+					pins = "sdc1_clk";
+					bias-disable;
+					drive-strength = <2>;
+				};
+
+				cmd {
+					pins = "sdc1_cmd";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+
+				data {
+					pins = "sdc1_data";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+			};
+
+			sdc2_off: sdc2-off {
+				clk {
+					pins = "sdc2_clk";
+					bias-disable;
+					drive-strength = <2>;
+				};
+
+				cmd {
+					pins = "sdc2_cmd";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+
+				data {
+					pins = "sdc2_data";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+
+				cd {
+					pins = "gpio54";
+					bias-disable;
+					drive-strength = <2>;
+				};
+			};
+
+			blsp1_uart2_active: blsp1-uart2-active {
+				rx {
+					pins = "gpio5";
+					function = "blsp_uart2";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+
+				tx {
+					pins = "gpio4";
+					function = "blsp_uart2";
+					drive-strength = <4>;
+					bias-disable;
+				};
+			};
+
+			blsp2_uart1_active: blsp2-uart1-active {
+				tx-rts {
+					pins = "gpio41", "gpio44";
+					function = "blsp_uart7";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				rx-cts {
+					pins = "gpio42", "gpio43";
+					function = "blsp_uart7";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+
+			blsp2_uart1_sleep: blsp2-uart1-sleep {
+				pins = "gpio41", "gpio42", "gpio43", "gpio44";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+
+			blsp2_uart4_active: blsp2-uart4-active {
+				tx-rts {
+					pins = "gpio53", "gpio56";
+					function = "blsp_uart10";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				rx-cts {
+					pins = "gpio54", "gpio55";
+					function = "blsp_uart10";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+
+			blsp1_i2c1_default: blsp1-i2c1-default {
+				pins = "gpio2", "gpio3";
+				function = "blsp_i2c1";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp1_i2c1_sleep: blsp1-i2c1-sleep {
+				pins = "gpio2", "gpio3";
+				function = "blsp_i2c1";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			blsp1_i2c2_default: blsp1-i2c2-default {
+				pins = "gpio6", "gpio7";
+				function = "blsp_i2c2";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp1_i2c2_sleep: blsp1-i2c2-sleep {
+				pins = "gpio6", "gpio7";
+				function = "blsp_i2c2";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			blsp1_i2c3_default: blsp1-i2c3-default {
+				pins = "gpio10", "gpio11";
+				function = "blsp_i2c3";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp1_i2c3_sleep: blsp1-i2c3-sleep {
+				pins = "gpio10", "gpio11";
+				function = "blsp_i2c3";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			/* BLSP1_I2C4 info is missing */
+
+			/* BLSP1_I2C5 info is missing */
+
+			blsp1_i2c6_default: blsp1-i2c6-default {
+				pins = "gpio29", "gpio30";
+				function = "blsp_i2c6";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp1_i2c6_sleep: blsp1-i2c6-sleep {
+				pins = "gpio29", "gpio30";
+				function = "blsp_i2c6";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+			/* 6 interfaces per QUP, BLSP2 indexes are numbered (n)+6 */
+
+			/* BLSP2_I2C1 info is missing */
+
+			blsp2_i2c2_default: blsp2-i2c2-default {
+				pins = "gpio47", "gpio48";
+				function = "blsp_i2c8";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp2_i2c2_sleep: blsp2-i2c2-sleep {
+				pins = "gpio47", "gpio48";
+				function = "blsp_i2c8";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			/* BLSP2_I2C3 info is missing */
+
+			/* BLSP2_I2C4 info is missing */
+
+			blsp2_i2c5_default: blsp2-i2c5-default {
+				pins = "gpio83", "gpio84";
+				function = "blsp_i2c11";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp2_i2c5_sleep: blsp2-i2c5-sleep {
+				pins = "gpio83", "gpio84";
+				function = "blsp_i2c11";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			/* BLSP2_I2C6 info is missing - nobody uses it though? */
+
+			spi8_default: spi8_default {
+				mosi {
+					pins = "gpio45";
+					function = "blsp_spi8";
+				};
+				miso {
+					pins = "gpio46";
+					function = "blsp_spi8";
+				};
+				cs {
+					pins = "gpio47";
+					function = "blsp_spi8";
+				};
+				clk {
+					pins = "gpio48";
+					function = "blsp_spi8";
+				};
+			};
 		};
 
 		mmcc: clock-controller@fd8c0000 {

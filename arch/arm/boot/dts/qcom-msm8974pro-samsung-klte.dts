@@ -161,9 +161,6 @@
 &blsp1_i2c2 {
 	status = "okay";
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins>;
-
 	touchscreen@20 {
 		compatible = "syna,rmi4-i2c";
 		reg = <0x20>;
@@ -196,9 +193,6 @@
 
 &blsp1_i2c6 {
 	status = "okay";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c6_pins>;
 
 	pmic@60 {
 		reg = <0x60>;
@@ -299,9 +293,6 @@
 
 &blsp2_i2c6 {
 	status = "okay";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c12_pins>;
 
 	fuelgauge@36 {
 		compatible = "maxim,max17048";
@@ -667,24 +658,21 @@
 	vmmc-supply = <&pma8084_l20>;
 	vqmmc-supply = <&pma8084_s4>;
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdhc1_pin_a>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc1_on>;
+	pinctrl-1 = <&sdc1_off>;
 };
 
 &sdhc_2 {
 	status = "okay";
 	max-frequency = <100000000>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdhc3_pin_a>;
-
 	vmmc-supply = <&vreg_wlan>;
 	vqmmc-supply = <&pma8084_s4>;
-
 	non-removable;
 
-	#address-cells = <1>;
-	#size-cells = <0>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc2_on>;
+	pinctrl-1 = <&sdc2_off>;
 
 	wifi@1 {
 		reg = <1>;
@@ -702,7 +690,6 @@
 &sdhc_3 {
 	status = "okay";
 	max-frequency = <100000000>;
-
 	vmmc-supply = <&pma8084_l21>;
 	vqmmc-supply = <&pma8084_l13>;
 
@@ -712,11 +699,12 @@
 	 * cd-gpios the driver resorts to polling, so hotplug works.
 	 */
 	pinctrl-names = "default";
-	pinctrl-0 = <&sdhc2_pin_a /* &sdhc2_cd_pin */>;
+	pinctrl-0 = <&sdc3_on /* &sdhc3_cd_pin */>;
 	/* cd-gpios = <&tlmm 62 GPIO_ACTIVE_LOW>; */
 };
 
 &tlmm {
+	/* This seems suspicious, but somebody with this device should look into it. */
 	blsp2_uart2_pins_active: blsp2-uart2-pins-active {
 		pins = "gpio45", "gpio46", "gpio47", "gpio48";
 		function = "blsp_uart8";
@@ -746,7 +734,7 @@
 		};
 	};
 
-	sdhc1_pin_a: sdhc1-pin-active {
+	sdc1_on: sdhc1-on {
 		clk {
 			pins = "sdc1_clk";
 			drive-strength = <4>;
@@ -760,17 +748,14 @@
 		};
 	};
 
-	sdhc2_pin_a: sdhc2-pin-active {
-		clk-cmd-data {
-			pins = "gpio35", "gpio36", "gpio37", "gpio38",
-				"gpio39", "gpio40";
-			function = "sdc3";
-			drive-strength = <8>;
-			bias-disable;
-		};
+	sdc3_on: sdc3-on {
+		pins = "gpio35", "gpio36", "gpio37", "gpio38", "gpio39", "gpio40";
+		function = "sdc3";
+		drive-strength = <8>;
+		bias-disable;
 	};
 
-	sdhc2_cd_pin: sdhc2-cd {
+	sdhc3_cd_pin: sdc3-cd-on {
 		pins = "gpio62";
 		function = "gpio";
 
@@ -778,7 +763,7 @@
 		bias-disable;
 	};
 
-	sdhc3_pin_a: sdhc3-pin-active {
+	sdc2_on: sdhc2-on {
 		clk {
 			pins = "sdc2_clk";
 			drive-strength = <6>;
@@ -789,36 +774,6 @@
 			pins = "sdc2_cmd", "sdc2_data";
 			drive-strength = <6>;
 			bias-pull-up;
-		};
-	};
-
-	i2c2_pins: i2c2 {
-		mux {
-			pins = "gpio6", "gpio7";
-			function = "blsp_i2c2";
-
-			drive-strength = <2>;
-			bias-disable;
-		};
-	};
-
-	i2c6_pins: i2c6 {
-		mux {
-			pins = "gpio29", "gpio30";
-			function = "blsp_i2c6";
-
-			drive-strength = <2>;
-			bias-disable;
-		};
-	};
-
-	i2c12_pins: i2c12 {
-		mux {
-			pins = "gpio87", "gpio88";
-			function = "blsp_i2c12";
-
-			drive-strength = <2>;
-			bias-disable;
 		};
 	};
 
