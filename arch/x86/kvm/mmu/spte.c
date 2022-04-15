@@ -139,7 +139,7 @@ bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	else
 		pte_access &= ~ACC_WRITE_MASK;
 
-	if (!kvm_is_mmio_pfn(pfn))
+	if (shadow_me_mask && !kvm_is_mmio_pfn(pfn))
 		spte |= shadow_me_mask;
 
 	spte |= (u64)pfn << PAGE_SHIFT;
