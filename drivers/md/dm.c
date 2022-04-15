@@ -1194,7 +1194,7 @@ static int dm_dax_zero_page_range(struct dax_device *dax_dev, pgoff_t pgoff,
  * +--------------------+---------------+-------+
  *
  * <-------------- *tio->len_ptr --------------->
- *                      <------- bi_size ------->
+ *                      <----- bio_sectors ----->
  *                      <-- n_sectors -->
  *
  * Region 1 was already iterated over with bio_advance or similar function.
@@ -1211,15 +1211,15 @@ static int dm_dax_zero_page_range(struct dax_device *dax_dev, pgoff_t pgoff,
 void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors)
 {
 	struct dm_target_io *tio = clone_to_tio(bio);
-	unsigned bi_size = bio->bi_iter.bi_size >> SECTOR_SHIFT;
+	unsigned bio_sectors = bio_sectors(bio);
 
 	BUG_ON(dm_tio_flagged(tio, DM_TIO_IS_DUPLICATE_BIO));
 	BUG_ON(op_is_zone_mgmt(bio_op(bio)));
 	BUG_ON(bio_op(bio) == REQ_OP_ZONE_APPEND);
-	BUG_ON(bi_size > *tio->len_ptr);
-	BUG_ON(n_sectors > bi_size);
+	BUG_ON(bio_sectors > *tio->len_ptr);
+	BUG_ON(n_sectors > bio_sectors);
 
-	*tio->len_ptr -= bi_size - n_sectors;
+	*tio->len_ptr -= bio_sectors - n_sectors;
 	bio->bi_iter.bi_size = n_sectors << SECTOR_SHIFT;
 }
 EXPORT_SYMBOL_GPL(dm_accept_partial_bio);
