@@ -5618,6 +5618,8 @@ static int ext4_fill_super(struct super_block *sb, struct fs_context *fc)
 		ext4_msg(sb, KERN_INFO, "mounted filesystem with%s. "
 			 "Quota mode: %s.", descr, ext4_quota_mode(sb));
 
+	/* Update the s_overhead_clusters if necessary */
+	ext4_update_overhead(sb);
 	return 0;
 
 free_sbi:
