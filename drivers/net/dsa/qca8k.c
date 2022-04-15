@@ -1287,7 +1287,12 @@ qca8k_internal_mdio_read(struct mii_bus *slave_bus, int phy, int regnum)
 	if (ret >= 0)
 		return ret;
 
-	return qca8k_mdio_read(priv, phy, regnum);
+	ret = qca8k_mdio_read(priv, phy, regnum);
+
+	if (ret < 0)
+		return 0xffff;
+
+	return ret;
 }
 
 static int
