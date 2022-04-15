@@ -1374,13 +1374,21 @@ static void dw_hdmi_phy_sel_interface_control(struct dw_hdmi *hdmi, u8 enable)
 			 HDMI_PHY_CONF0_SELDIPIF_MASK);
 }
 
-void dw_hdmi_phy_reset(struct dw_hdmi *hdmi)
+void dw_hdmi_phy_gen1_reset(struct dw_hdmi *hdmi)
+{
+	/* PHY reset. The reset signal is active low on Gen1 PHYs. */
+	hdmi_writeb(hdmi, 0, HDMI_MC_PHYRSTZ);
+	hdmi_writeb(hdmi, HDMI_MC_PHYRSTZ_PHYRSTZ, HDMI_MC_PHYRSTZ);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_phy_gen1_reset);
+
+void dw_hdmi_phy_gen2_reset(struct dw_hdmi *hdmi)
 {
 	/* PHY reset. The reset signal is active high on Gen2 PHYs. */
 	hdmi_writeb(hdmi, HDMI_MC_PHYRSTZ_PHYRSTZ, HDMI_MC_PHYRSTZ);
 	hdmi_writeb(hdmi, 0, HDMI_MC_PHYRSTZ);
 }
-EXPORT_SYMBOL_GPL(dw_hdmi_phy_reset);
+EXPORT_SYMBOL_GPL(dw_hdmi_phy_gen2_reset);
 
 void dw_hdmi_phy_i2c_set_addr(struct dw_hdmi *hdmi, u8 address)
 {
@@ -1534,7 +1542,7 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi,
 	if (phy->has_svsret)
 		dw_hdmi_phy_enable_svsret(hdmi, 1);
 
-	dw_hdmi_phy_reset(hdmi);
+	dw_hdmi_phy_gen2_reset(hdmi);
 
 	hdmi_writeb(hdmi, HDMI_MC_HEACPHY_RST_ASSERT, HDMI_MC_HEACPHY_RST);
 
