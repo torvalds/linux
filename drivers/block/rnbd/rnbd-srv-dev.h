@@ -44,7 +44,7 @@ static inline int rnbd_dev_get_max_hw_sects(const struct rnbd_dev *dev)
 
 static inline int rnbd_dev_get_secure_discard(const struct rnbd_dev *dev)
 {
-	return blk_queue_secure_erase(bdev_get_queue(dev->bdev));
+	return bdev_max_secure_erase_sectors(dev->bdev);
 }
 
 static inline int rnbd_dev_get_max_discard_sects(const struct rnbd_dev *dev)

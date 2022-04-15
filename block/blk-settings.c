@@ -46,6 +46,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->max_zone_append_sectors = 0;
 	lim->max_discard_sectors = 0;
 	lim->max_hw_discard_sectors = 0;
+	lim->max_secure_erase_sectors = 0;
 	lim->discard_granularity = 0;
 	lim->discard_alignment = 0;
 	lim->discard_misaligned = 0;
@@ -175,6 +176,18 @@ void blk_queue_max_discard_sectors(struct request_queue *q,
 	q->limits.max_discard_sectors = max_discard_sectors;
 }
 EXPORT_SYMBOL(blk_queue_max_discard_sectors);
+
+/**
+ * blk_queue_max_secure_erase_sectors - set max sectors for a secure erase
+ * @q:  the request queue for the device
+ * @max_sectors: maximum number of sectors to secure_erase
+ **/
+void blk_queue_max_secure_erase_sectors(struct request_queue *q,
+		unsigned int max_sectors)
+{
+	q->limits.max_secure_erase_sectors = max_sectors;
+}
+EXPORT_SYMBOL(blk_queue_max_secure_erase_sectors);
 
 /**
  * blk_queue_max_write_zeroes_sectors - set max sectors for a single
@@ -661,7 +674,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		t->discard_alignment = lcm_not_zero(t->discard_alignment, alignment) %
 			t->discard_granularity;
 	}
-
+	t->max_secure_erase_sectors = min_not_zero(t->max_secure_erase_sectors,
+						   b->max_secure_erase_sectors);
 	t->zone_write_granularity = max(t->zone_write_granularity,
 					b->zone_write_granularity);
 	t->zoned = max(t->zoned, b->zoned);

@@ -36,26 +36,15 @@ static sector_t bio_discard_limit(struct block_device *bdev, sector_t sector)
 }
 
 int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask, int flags,
-		struct bio **biop)
+		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop)
 {
-	struct request_queue *q = bdev_get_queue(bdev);
 	struct bio *bio = *biop;
-	unsigned int op;
 	sector_t bs_mask;
 
 	if (bdev_read_only(bdev))
 		return -EPERM;
-
-	if (flags & BLKDEV_DISCARD_SECURE) {
-		if (!blk_queue_secure_erase(q))
-			return -EOPNOTSUPP;
-		op = REQ_OP_SECURE_ERASE;
-	} else {
-		if (!bdev_max_discard_sectors(bdev))
-			return -EOPNOTSUPP;
-		op = REQ_OP_DISCARD;
-	}
+	if (!bdev_max_discard_sectors(bdev))
+		return -EOPNOTSUPP;
 
 	/* In case the discard granularity isn't set by buggy device driver */
 	if (WARN_ON_ONCE(!bdev_discard_granularity(bdev))) {
@@ -77,7 +66,7 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		sector_t req_sects =
 			min(nr_sects, bio_discard_limit(bdev, sector));
 
-		bio = blk_next_bio(bio, bdev, 0, op, gfp_mask);
+		bio = blk_next_bio(bio, bdev, 0, REQ_OP_DISCARD, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		bio->bi_iter.bi_size = req_sects << 9;
 		sector += req_sects;
@@ -103,21 +92,19 @@ EXPORT_SYMBOL(__blkdev_issue_discard);
  * @sector:	start sector
  * @nr_sects:	number of sectors to discard
  * @gfp_mask:	memory allocation flags (for bio_alloc)
- * @flags:	BLKDEV_DISCARD_* flags to control behaviour
  *
  * Description:
  *    Issue a discard request for the sectors in question.
  */
 int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags)
+		sector_t nr_sects, gfp_t gfp_mask)
 {
 	struct bio *bio = NULL;
 	struct blk_plug plug;
 	int ret;
 
 	blk_start_plug(&plug);
-	ret = __blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, flags,
-			&bio);
+	ret = __blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, &bio);
 	if (!ret && bio) {
 		ret = submit_bio_wait(bio);
 		if (ret == -EOPNOTSUPP)
@@ -314,3 +301,42 @@ retry:
 	return ret;
 }
 EXPORT_SYMBOL(blkdev_issue_zeroout);
+
+int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
+		sector_t nr_sects, gfp_t gfp)
+{
+	sector_t bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
+	unsigned int max_sectors = bdev_max_secure_erase_sectors(bdev);
+	struct bio *bio = NULL;
+	struct blk_plug plug;
+	int ret = 0;
+
+	if (max_sectors == 0)
+		return -EOPNOTSUPP;
+	if ((sector | nr_sects) & bs_mask)
+		return -EINVAL;
+	if (bdev_read_only(bdev))
+		return -EPERM;
+
+	blk_start_plug(&plug);
+	for (;;) {
+		unsigned int len = min_t(sector_t, nr_sects, max_sectors);
+
+		bio = blk_next_bio(bio, bdev, 0, REQ_OP_SECURE_ERASE, gfp);
+		bio->bi_iter.bi_sector = sector;
+		bio->bi_iter.bi_size = len;
+
+		sector += len << SECTOR_SHIFT;
+		nr_sects -= len << SECTOR_SHIFT;
+		if (!nr_sects) {
+			ret = submit_bio_wait(bio);
+			bio_put(bio);
+			break;
+		}
+		cond_resched();
+	}
+	blk_finish_plug(&plug);
+
+	return ret;
+}
+EXPORT_SYMBOL(blkdev_issue_secure_erase);

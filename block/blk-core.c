@@ -824,7 +824,7 @@ void submit_bio_noacct(struct bio *bio)
 			goto not_supported;
 		break;
 	case REQ_OP_SECURE_ERASE:
-		if (!blk_queue_secure_erase(q))
+		if (!bdev_max_secure_erase_sectors(bdev))
 			goto not_supported;
 		break;
 	case REQ_OP_ZONE_APPEND:

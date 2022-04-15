@@ -1244,7 +1244,7 @@ static int __submit_discard_cmd(struct f2fs_sb_info *sbi,
 		err = __blkdev_issue_discard(bdev,
 					SECTOR_FROM_BLOCK(start),
 					SECTOR_FROM_BLOCK(len),
-					GFP_NOFS, 0, &bio);
+					GFP_NOFS, &bio);
 submit:
 		if (err) {
 			spin_lock_irqsave(&dc->lock, flags);

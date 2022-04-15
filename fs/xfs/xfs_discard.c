@@ -114,7 +114,7 @@ xfs_trim_extents(
 		}
 
 		trace_xfs_discard_extent(mp, agno, fbno, flen);
-		error = blkdev_issue_discard(bdev, dbno, dlen, GFP_NOFS, 0);
+		error = blkdev_issue_discard(bdev, dbno, dlen, GFP_NOFS);
 		if (error)
 			goto out_del_cursor;
 		*blocks_trimmed += flen;

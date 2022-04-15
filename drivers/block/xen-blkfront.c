@@ -949,7 +949,8 @@ static void blkif_set_queue_limits(struct blkfront_info *info)
 						 info->physical_sector_size;
 		rq->limits.discard_alignment = info->discard_alignment;
 		if (info->feature_secdiscard)
-			blk_queue_flag_set(QUEUE_FLAG_SECERASE, rq);
+			blk_queue_max_secure_erase_sectors(rq,
+							   get_capacity(gd));
 	}
 
 	/* Hard sector size and max sectors impersonate the equiv. hardware. */
@@ -1606,7 +1607,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				info->feature_discard = 0;
 				info->feature_secdiscard = 0;
 				blk_queue_max_discard_sectors(rq, 0);
-				blk_queue_flag_clear(QUEUE_FLAG_SECERASE, rq);
+				blk_queue_max_secure_erase_sectors(rq, 0);
 			}
 			break;
 		case BLKIF_OP_FLUSH_DISKCACHE:
