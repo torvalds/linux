@@ -84,7 +84,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "microcode\t: 0x%x\n", c->microcode);
 
 	if (cpu_has(c, X86_FEATURE_TSC)) {
-		unsigned int freq = aperfmperf_get_khz(cpu);
+		unsigned int freq = arch_freq_get_on_cpu(cpu);
 
 		if (!freq)
 			freq = cpufreq_quick_get(cpu);
