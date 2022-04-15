@@ -132,6 +132,7 @@ static int __init rk_dmabuf_init(void)
 	};
 
 	pdev = platform_device_register_full(&dev_info);
+	dma_set_max_seg_size(&pdev->dev, (unsigned int)DMA_BIT_MASK(64));
 	dmabuf_dev = pdev ? &pdev->dev : NULL;
 
 	proc_create_single("rk_dmabuf", 0, NULL, rk_dmabuf_show);
