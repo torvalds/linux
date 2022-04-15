@@ -3897,6 +3897,10 @@ static void guc_default_vfuncs(struct intel_engine_cs *engine)
 	engine->flags |= I915_ENGINE_HAS_PREEMPTION;
 	engine->flags |= I915_ENGINE_HAS_TIMESLICES;
 
+	/* Wa_14014475959:dg2 */
+	if (IS_DG2(engine->i915) && engine->class == COMPUTE_CLASS)
+		engine->flags |= I915_ENGINE_USES_WA_HOLD_CCS_SWITCHOUT;
+
 	/*
 	 * TODO: GuC supports timeslicing and semaphores as well, but they're
 	 * handled by the firmware so some minor tweaks are required before

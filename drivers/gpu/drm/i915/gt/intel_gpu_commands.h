@@ -134,6 +134,13 @@
 #define   MI_MEM_VIRTUAL	(1 << 22) /* 945,g33,965 */
 #define   MI_USE_GGTT		(1 << 22) /* g4x+ */
 #define MI_STORE_DWORD_INDEX	MI_INSTR(0x21, 1)
+#define MI_ATOMIC		MI_INSTR(0x2f, 1)
+#define MI_ATOMIC_INLINE	(MI_INSTR(0x2f, 9) | MI_ATOMIC_INLINE_DATA)
+#define   MI_ATOMIC_GLOBAL_GTT		(1 << 22)
+#define   MI_ATOMIC_INLINE_DATA		(1 << 18)
+#define   MI_ATOMIC_CS_STALL		(1 << 17)
+#define	  MI_ATOMIC_MOVE		(0x4 << 8)
+
 /*
  * Official intel docs are somewhat sloppy concerning MI_LOAD_REGISTER_IMM:
  * - Always issue a MI_NOOP _before_ the MI_LOAD_REGISTER_IMM - otherwise hw

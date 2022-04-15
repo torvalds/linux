@@ -296,6 +296,10 @@ static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 	if (IS_DG2_GRAPHICS_STEP(gt->i915, G10, STEP_A0, STEP_B0))
 		flags |= GUC_WA_GAM_CREDITS;
 
+	/* Wa_14014475959:dg2 */
+	if (IS_DG2(gt->i915))
+		flags |= GUC_WA_HOLD_CCS_SWITCHOUT;
+
 	/*
 	 * Wa_14012197797:dg2_g10:a0,dg2_g11:a0
 	 * Wa_22011391025:dg2_g10,dg2_g11,dg2_g12
