@@ -2570,9 +2570,8 @@ out:
  *
  *    c-3) otherwise:			async submit
  */
-blk_status_t btrfs_submit_data_bio(struct inode *inode, struct bio *bio,
-				   int mirror_num, unsigned long bio_flags)
-
+void btrfs_submit_data_bio(struct inode *inode, struct bio *bio,
+			   int mirror_num, unsigned long bio_flags)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -2609,7 +2608,7 @@ blk_status_t btrfs_submit_data_bio(struct inode *inode, struct bio *bio,
 			 */
 			btrfs_submit_compressed_read(inode, bio, mirror_num,
 						     bio_flags);
-			return BLK_STS_OK;
+			return;
 		} else {
 			/*
 			 * Lookup bio sums does extra checks around whether we
@@ -2643,7 +2642,6 @@ out:
 		bio->bi_status = ret;
 		bio_endio(bio);
 	}
-	return ret;
 }
 
 /*
@@ -7787,25 +7785,20 @@ static void btrfs_dio_private_put(struct btrfs_dio_private *dip)
 	kfree(dip);
 }
 
-static blk_status_t submit_dio_repair_bio(struct inode *inode, struct bio *bio,
-					  int mirror_num,
-					  unsigned long bio_flags)
+static void submit_dio_repair_bio(struct inode *inode, struct bio *bio,
+				  int mirror_num, unsigned long bio_flags)
 {
 	struct btrfs_dio_private *dip = bio->bi_private;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	blk_status_t ret;
 
 	BUG_ON(bio_op(bio) == REQ_OP_WRITE);
 
-	ret = btrfs_bio_wq_end_io(fs_info, bio, BTRFS_WQ_ENDIO_DATA);
-	if (ret)
-		return ret;
+	if (btrfs_bio_wq_end_io(fs_info, bio, BTRFS_WQ_ENDIO_DATA))
+		return;
 
 	refcount_inc(&dip->refs);
-	ret = btrfs_map_bio(fs_info, bio, mirror_num);
-	if (ret)
+	if (btrfs_map_bio(fs_info, bio, mirror_num))
 		refcount_dec(&dip->refs);
-	return ret;
 }
 
 static blk_status_t btrfs_check_read_dio_bio(struct btrfs_dio_private *dip,

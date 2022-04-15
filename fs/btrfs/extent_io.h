@@ -71,7 +71,7 @@ struct btrfs_fs_info;
 struct io_failure_record;
 struct extent_io_tree;
 
-typedef blk_status_t (submit_bio_hook_t)(struct inode *inode, struct bio *bio,
+typedef void (submit_bio_hook_t)(struct inode *inode, struct bio *bio,
 					 int mirror_num,
 					 unsigned long bio_flags);
 
