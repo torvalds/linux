@@ -419,7 +419,15 @@ static const struct sppctl_grp sp7021grps_prbp[] = {
 	EGRP("PROBE_PORT2", 2, pins_prp2),
 };
 
+/*
+ * Due to compatible reason, the first valid item should start at the third
+ * position of the array. Please keep the first two items of the table
+ * no use (dummy).
+ */
 const struct sppctl_func sppctl_list_funcs[] = {
+	FNCN("", pinmux_type_fpmx, 0x00, 0, 0),
+	FNCN("", pinmux_type_fpmx, 0x00, 0, 0),
+
 	FNCN("L2SW_CLK_OUT",        pinmux_type_fpmx, 0x00, 0, 7),
 	FNCN("L2SW_MAC_SMI_MDC",    pinmux_type_fpmx, 0x00, 8, 7),
 	FNCN("L2SW_LED_FLASH0",     pinmux_type_fpmx, 0x01, 0, 7),
