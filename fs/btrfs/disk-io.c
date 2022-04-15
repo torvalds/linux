@@ -920,8 +920,7 @@ static bool should_async_write(struct btrfs_fs_info *fs_info,
 	return true;
 }
 
-blk_status_t btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio,
-				       int mirror_num)
+void btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio, int mirror_num)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	blk_status_t ret;
@@ -933,14 +932,12 @@ blk_status_t btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio,
 		 */
 		ret = btrfs_bio_wq_end_io(fs_info, bio,
 					  BTRFS_WQ_ENDIO_METADATA);
-		if (ret)
-			goto out_w_error;
-		ret = btrfs_map_bio(fs_info, bio, mirror_num);
+		if (!ret)
+			ret = btrfs_map_bio(fs_info, bio, mirror_num);
 	} else if (!should_async_write(fs_info, BTRFS_I(inode))) {
 		ret = btree_csum_one_bio(bio);
-		if (ret)
-			goto out_w_error;
-		ret = btrfs_map_bio(fs_info, bio, mirror_num);
+		if (!ret)
+			ret = btrfs_map_bio(fs_info, bio, mirror_num);
 	} else {
 		/*
 		 * kthread helpers are used to submit writes so that
@@ -950,14 +947,10 @@ blk_status_t btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio,
 					  0, btree_submit_bio_start);
 	}
 
-	if (ret)
-		goto out_w_error;
-	return 0;
-
-out_w_error:
-	bio->bi_status = ret;
-	bio_endio(bio);
-	return ret;
+	if (ret) {
+		bio->bi_status = ret;
+		bio_endio(bio);
+	}
 }
 
 #ifdef CONFIG_MIGRATION
