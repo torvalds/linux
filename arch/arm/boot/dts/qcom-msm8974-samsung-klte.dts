@@ -534,7 +534,7 @@
 		};
 	};
 
-	sdhc_1: sdhci@f9824900 {
+	sdhci@f9824900 {
 		status = "okay";
 
 		vmmc-supply = <&pma8084_l20>;
@@ -547,7 +547,7 @@
 		pinctrl-0 = <&sdhc1_pin_a>;
 	};
 
-	sdhc_2: sdhci@f9864900 {
+	sdhci@f9864900 {
 		status = "okay";
 
 		max-frequency = <100000000>;
