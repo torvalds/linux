@@ -962,3 +962,88 @@ void synchronize_rcu_expedited(void)
 		synchronize_rcu_expedited_destroy_work(&rew);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
+
+/*
+ * Ensure that start_poll_synchronize_rcu_expedited() has the expedited
+ * RCU grace periods that it needs.
+ */
+static void sync_rcu_do_polled_gp(struct work_struct *wp)
+{
+	unsigned long flags;
+	struct rcu_node *rnp = container_of(wp, struct rcu_node, exp_poll_wq);
+	unsigned long s;
+
+	raw_spin_lock_irqsave(&rnp->exp_poll_lock, flags);
+	s = rnp->exp_seq_poll_rq;
+	rnp->exp_seq_poll_rq = RCU_GET_STATE_COMPLETED;
+	raw_spin_unlock_irqrestore(&rnp->exp_poll_lock, flags);
+	if (s == RCU_GET_STATE_COMPLETED)
+		return;
+	while (!poll_state_synchronize_rcu(s))
+		synchronize_rcu_expedited();
+	raw_spin_lock_irqsave(&rnp->exp_poll_lock, flags);
+	s = rnp->exp_seq_poll_rq;
+	if (poll_state_synchronize_rcu(s))
+		rnp->exp_seq_poll_rq = RCU_GET_STATE_COMPLETED;
+	raw_spin_unlock_irqrestore(&rnp->exp_poll_lock, flags);
+}
+
+/**
+ * start_poll_synchronize_rcu_expedited - Snapshot current RCU state and start expedited grace period
+ *
+ * Returns a cookie to pass to a call to cond_synchronize_rcu(),
+ * cond_synchronize_rcu_expedited(), or poll_state_synchronize_rcu(),
+ * allowing them to determine whether or not any sort of grace period has
+ * elapsed in the meantime.  If the needed expedited grace period is not
+ * already slated to start, initiates that grace period.
+ */
+unsigned long start_poll_synchronize_rcu_expedited(void)
+{
+	unsigned long flags;
+	struct rcu_data *rdp;
+	struct rcu_node *rnp;
+	unsigned long s;
+
+	s = get_state_synchronize_rcu();
+	rdp = per_cpu_ptr(&rcu_data, raw_smp_processor_id());
+	rnp = rdp->mynode;
+	if (rcu_init_invoked())
+		raw_spin_lock_irqsave(&rnp->exp_poll_lock, flags);
+	if (!poll_state_synchronize_rcu(s)) {
+		rnp->exp_seq_poll_rq = s;
+		if (rcu_init_invoked())
+			queue_work(rcu_gp_wq, &rnp->exp_poll_wq);
+	}
+	if (rcu_init_invoked())
+		raw_spin_unlock_irqrestore(&rnp->exp_poll_lock, flags);
+
+	return s;
+}
+EXPORT_SYMBOL_GPL(start_poll_synchronize_rcu_expedited);
+
+/**
+ * cond_synchronize_rcu_expedited - Conditionally wait for an expedited RCU grace period
+ *
+ * @oldstate: value from get_state_synchronize_rcu(), start_poll_synchronize_rcu(), or start_poll_synchronize_rcu_expedited()
+ *
+ * If any type of full RCU grace period has elapsed since the earlier
+ * call to get_state_synchronize_rcu(), start_poll_synchronize_rcu(),
+ * or start_poll_synchronize_rcu_expedited(), just return.  Otherwise,
+ * invoke synchronize_rcu_expedited() to wait for a full grace period.
+ *
+ * Yes, this function does not take counter wrap into account.
+ * But counter wrap is harmless.  If the counter wraps, we have waited for
+ * more than 2 billion grace periods (and way more on a 64-bit system!),
+ * so waiting for a couple of additional grace periods should be just fine.
+ *
+ * This function provides the same memory-ordering guarantees that
+ * would be provided by a synchronize_rcu() that was invoked at the call
+ * to the function that provided @oldstate and that returned at the end
+ * of this function.
+ */
+void cond_synchronize_rcu_expedited(unsigned long oldstate)
+{
+	if (!poll_state_synchronize_rcu(oldstate))
+		synchronize_rcu_expedited();
+}
+EXPORT_SYMBOL_GPL(cond_synchronize_rcu_expedited);
