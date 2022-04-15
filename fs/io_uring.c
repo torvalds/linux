@@ -2268,7 +2268,7 @@ static __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 	 * locked cache, grab the lock and move them over to our submission
 	 * side cache.
 	 */
-	if (READ_ONCE(ctx->locked_free_nr) > IO_COMPL_BATCH) {
+	if (data_race(ctx->locked_free_nr) > IO_COMPL_BATCH) {
 		io_flush_cached_locked_reqs(ctx, &ctx->submit_state);
 		if (!io_req_cache_empty(ctx))
 			return true;
@@ -2562,8 +2562,8 @@ static void tctx_task_work(struct callback_head *cb)
 			handle_tw_list(node2, &ctx, &uring_locked);
 		cond_resched();
 
-		if (!tctx->task_list.first &&
-		    !tctx->prior_task_list.first && uring_locked)
+		if (data_race(!tctx->task_list.first) &&
+		    data_race(!tctx->prior_task_list.first) && uring_locked)
 			io_submit_flush_completions(ctx);
 	}
 
