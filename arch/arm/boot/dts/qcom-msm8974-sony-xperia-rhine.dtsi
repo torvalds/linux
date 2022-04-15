@@ -49,6 +49,22 @@
 			linux,code = <KEY_VOLUMEUP>;
 		};
 	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		ramoops@3e8e0000 {
+			compatible = "ramoops";
+			reg = <0x3e8e0000 0x200000>;
+
+			console-size = <0x100000>;
+			record-size = <0x10000>;
+			ftrace-size = <0x10000>;
+			pmsg-size = <0x80000>;
+		};
+	};
 };
 
 &blsp1_i2c2 {
