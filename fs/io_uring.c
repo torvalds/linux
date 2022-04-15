@@ -1729,7 +1729,6 @@ static inline void io_req_add_compl_list(struct io_kiocb *req)
 
 static void io_queue_async_work(struct io_kiocb *req, bool *dont_use)
 {
-	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *link = io_prep_linked_timeout(req);
 	struct io_uring_task *tctx = req->task->io_uring;
 
@@ -1749,8 +1748,9 @@ static void io_queue_async_work(struct io_kiocb *req, bool *dont_use)
 	if (WARN_ON_ONCE(!same_thread_group(req->task, current)))
 		req->work.flags |= IO_WQ_WORK_CANCEL;
 
-	trace_io_uring_queue_async_work(ctx, req, req->cqe.user_data, req->opcode, req->flags,
-					&req->work, io_wq_is_hashed(&req->work));
+	trace_io_uring_queue_async_work(req->ctx, req, req->cqe.user_data,
+					req->opcode, req->flags, &req->work,
+					io_wq_is_hashed(&req->work));
 	io_wq_enqueue(tctx->io_wq, &req->work);
 	if (link)
 		io_queue_linked_timeout(link);
@@ -2642,18 +2642,14 @@ static void io_req_task_work_add(struct io_kiocb *req, bool priority)
 
 static void io_req_task_cancel(struct io_kiocb *req, bool *locked)
 {
-	struct io_ring_ctx *ctx = req->ctx;
-
 	/* not needed for normal modes, but SQPOLL depends on it */
-	io_tw_lock(ctx, locked);
+	io_tw_lock(req->ctx, locked);
 	io_req_complete_failed(req, req->cqe.res);
 }
 
 static void io_req_task_submit(struct io_kiocb *req, bool *locked)
 {
-	struct io_ring_ctx *ctx = req->ctx;
-
-	io_tw_lock(ctx, locked);
+	io_tw_lock(req->ctx, locked);
 	/* req->task == current here, checking PF_EXITING is safe */
 	if (likely(!(req->task->flags & PF_EXITING)))
 		__io_queue_sqe(req);
