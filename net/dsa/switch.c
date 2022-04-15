@@ -49,7 +49,7 @@ static int dsa_switch_ageing_time(struct dsa_switch *ds,
 static bool dsa_port_mtu_match(struct dsa_port *dp,
 			       struct dsa_notifier_mtu_info *info)
 {
-	if (dp->ds->index == info->sw_index && dp->index == info->port)
+	if (dp == info->dp)
 		return true;
 
 	/* Do not propagate to other switches in the tree if the notifier was
@@ -88,25 +88,26 @@ static int dsa_switch_mtu(struct dsa_switch *ds,
 static int dsa_switch_bridge_join(struct dsa_switch *ds,
 				  struct dsa_notifier_bridge_info *info)
 {
-	struct dsa_switch_tree *dst = ds->dst;
 	int err;
 
-	if (dst->index == info->tree_index && ds->index == info->sw_index) {
+	if (info->dp->ds == ds) {
 		if (!ds->ops->port_bridge_join)
 			return -EOPNOTSUPP;
 
-		err = ds->ops->port_bridge_join(ds, info->port, info->bridge,
+		err = ds->ops->port_bridge_join(ds, info->dp->index,
+						info->bridge,
 						&info->tx_fwd_offload,
 						info->extack);
 		if (err)
 			return err;
 	}
 
-	if ((dst->index != info->tree_index || ds->index != info->sw_index) &&
-	    ds->ops->crosschip_bridge_join) {
-		err = ds->ops->crosschip_bridge_join(ds, info->tree_index,
-						     info->sw_index,
-						     info->port, info->bridge,
+	if (info->dp->ds != ds && ds->ops->crosschip_bridge_join) {
+		err = ds->ops->crosschip_bridge_join(ds,
+						     info->dp->ds->dst->index,
+						     info->dp->ds->index,
+						     info->dp->index,
+						     info->bridge,
 						     info->extack);
 		if (err)
 			return err;
@@ -118,16 +119,13 @@ static int dsa_switch_bridge_join(struct dsa_switch *ds,
 static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 				   struct dsa_notifier_bridge_info *info)
 {
-	struct dsa_switch_tree *dst = ds->dst;
+	if (info->dp->ds == ds && ds->ops->port_bridge_leave)
+		ds->ops->port_bridge_leave(ds, info->dp->index, info->bridge);
 
-	if (dst->index == info->tree_index && ds->index == info->sw_index &&
-	    ds->ops->port_bridge_leave)
-		ds->ops->port_bridge_leave(ds, info->port, info->bridge);
-
-	if ((dst->index != info->tree_index || ds->index != info->sw_index) &&
-	    ds->ops->crosschip_bridge_leave)
-		ds->ops->crosschip_bridge_leave(ds, info->tree_index,
-						info->sw_index, info->port,
+	if (info->dp->ds != ds && ds->ops->crosschip_bridge_leave)
+		ds->ops->crosschip_bridge_leave(ds, info->dp->ds->dst->index,
+						info->dp->ds->index,
+						info->dp->index,
 						info->bridge);
 
 	return 0;
@@ -138,16 +136,11 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
  * emitted and its dedicated CPU port.
  */
 static bool dsa_port_host_address_match(struct dsa_port *dp,
-					int info_sw_index, int info_port)
+					const struct dsa_port *targeted_dp)
 {
-	struct dsa_port *targeted_dp, *cpu_dp;
-	struct dsa_switch *targeted_ds;
+	struct dsa_port *cpu_dp = targeted_dp->cpu_dp;
 
-	targeted_ds = dsa_switch_find(dp->ds->dst->index, info_sw_index);
-	targeted_dp = dsa_to_port(targeted_ds, info_port);
-	cpu_dp = targeted_dp->cpu_dp;
-
-	if (dsa_switch_is_upstream_of(dp->ds, targeted_ds))
+	if (dsa_switch_is_upstream_of(dp->ds, targeted_dp->ds))
 		return dp->index == dsa_towards_port(dp->ds, cpu_dp->ds->index,
 						     cpu_dp->index);
 
@@ -415,8 +408,7 @@ static int dsa_switch_host_fdb_add(struct dsa_switch *ds,
 		return -EOPNOTSUPP;
 
 	dsa_switch_for_each_port(dp, ds) {
-		if (dsa_port_host_address_match(dp, info->sw_index,
-						info->port)) {
+		if (dsa_port_host_address_match(dp, info->dp)) {
 			err = dsa_port_do_fdb_add(dp, info->addr, info->vid,
 						  info->db);
 			if (err)
@@ -437,8 +429,7 @@ static int dsa_switch_host_fdb_del(struct dsa_switch *ds,
 		return -EOPNOTSUPP;
 
 	dsa_switch_for_each_port(dp, ds) {
-		if (dsa_port_host_address_match(dp, info->sw_index,
-						info->port)) {
+		if (dsa_port_host_address_match(dp, info->dp)) {
 			err = dsa_port_do_fdb_del(dp, info->addr, info->vid,
 						  info->db);
 			if (err)
@@ -452,7 +443,7 @@ static int dsa_switch_host_fdb_del(struct dsa_switch *ds,
 static int dsa_switch_fdb_add(struct dsa_switch *ds,
 			      struct dsa_notifier_fdb_info *info)
 {
-	int port = dsa_towards_port(ds, info->sw_index, info->port);
+	int port = dsa_towards_port(ds, info->dp->ds->index, info->dp->index);
 	struct dsa_port *dp = dsa_to_port(ds, port);
 
 	if (!ds->ops->port_fdb_add)
@@ -464,7 +455,7 @@ static int dsa_switch_fdb_add(struct dsa_switch *ds,
 static int dsa_switch_fdb_del(struct dsa_switch *ds,
 			      struct dsa_notifier_fdb_info *info)
 {
-	int port = dsa_towards_port(ds, info->sw_index, info->port);
+	int port = dsa_towards_port(ds, info->dp->ds->index, info->dp->index);
 	struct dsa_port *dp = dsa_to_port(ds, port);
 
 	if (!ds->ops->port_fdb_del)
@@ -512,12 +503,12 @@ static int dsa_switch_lag_fdb_del(struct dsa_switch *ds,
 static int dsa_switch_lag_change(struct dsa_switch *ds,
 				 struct dsa_notifier_lag_info *info)
 {
-	if (ds->index == info->sw_index && ds->ops->port_lag_change)
-		return ds->ops->port_lag_change(ds, info->port);
+	if (info->dp->ds == ds && ds->ops->port_lag_change)
+		return ds->ops->port_lag_change(ds, info->dp->index);
 
-	if (ds->index != info->sw_index && ds->ops->crosschip_lag_change)
-		return ds->ops->crosschip_lag_change(ds, info->sw_index,
-						     info->port);
+	if (info->dp->ds != ds && ds->ops->crosschip_lag_change)
+		return ds->ops->crosschip_lag_change(ds, info->dp->ds->index,
+						     info->dp->index);
 
 	return 0;
 }
@@ -525,13 +516,13 @@ static int dsa_switch_lag_change(struct dsa_switch *ds,
 static int dsa_switch_lag_join(struct dsa_switch *ds,
 			       struct dsa_notifier_lag_info *info)
 {
-	if (ds->index == info->sw_index && ds->ops->port_lag_join)
-		return ds->ops->port_lag_join(ds, info->port, info->lag,
+	if (info->dp->ds == ds && ds->ops->port_lag_join)
+		return ds->ops->port_lag_join(ds, info->dp->index, info->lag,
 					      info->info);
 
-	if (ds->index != info->sw_index && ds->ops->crosschip_lag_join)
-		return ds->ops->crosschip_lag_join(ds, info->sw_index,
-						   info->port, info->lag,
+	if (info->dp->ds != ds && ds->ops->crosschip_lag_join)
+		return ds->ops->crosschip_lag_join(ds, info->dp->ds->index,
+						   info->dp->index, info->lag,
 						   info->info);
 
 	return -EOPNOTSUPP;
@@ -540,12 +531,12 @@ static int dsa_switch_lag_join(struct dsa_switch *ds,
 static int dsa_switch_lag_leave(struct dsa_switch *ds,
 				struct dsa_notifier_lag_info *info)
 {
-	if (ds->index == info->sw_index && ds->ops->port_lag_leave)
-		return ds->ops->port_lag_leave(ds, info->port, info->lag);
+	if (info->dp->ds == ds && ds->ops->port_lag_leave)
+		return ds->ops->port_lag_leave(ds, info->dp->index, info->lag);
 
-	if (ds->index != info->sw_index && ds->ops->crosschip_lag_leave)
-		return ds->ops->crosschip_lag_leave(ds, info->sw_index,
-						    info->port, info->lag);
+	if (info->dp->ds != ds && ds->ops->crosschip_lag_leave)
+		return ds->ops->crosschip_lag_leave(ds, info->dp->ds->index,
+						    info->dp->index, info->lag);
 
 	return -EOPNOTSUPP;
 }
@@ -553,7 +544,7 @@ static int dsa_switch_lag_leave(struct dsa_switch *ds,
 static int dsa_switch_mdb_add(struct dsa_switch *ds,
 			      struct dsa_notifier_mdb_info *info)
 {
-	int port = dsa_towards_port(ds, info->sw_index, info->port);
+	int port = dsa_towards_port(ds, info->dp->ds->index, info->dp->index);
 	struct dsa_port *dp = dsa_to_port(ds, port);
 
 	if (!ds->ops->port_mdb_add)
@@ -565,7 +556,7 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 static int dsa_switch_mdb_del(struct dsa_switch *ds,
 			      struct dsa_notifier_mdb_info *info)
 {
-	int port = dsa_towards_port(ds, info->sw_index, info->port);
+	int port = dsa_towards_port(ds, info->dp->ds->index, info->dp->index);
 	struct dsa_port *dp = dsa_to_port(ds, port);
 
 	if (!ds->ops->port_mdb_del)
@@ -584,8 +575,7 @@ static int dsa_switch_host_mdb_add(struct dsa_switch *ds,
 		return -EOPNOTSUPP;
 
 	dsa_switch_for_each_port(dp, ds) {
-		if (dsa_port_host_address_match(dp, info->sw_index,
-						info->port)) {
+		if (dsa_port_host_address_match(dp, info->dp)) {
 			err = dsa_port_do_mdb_add(dp, info->mdb, info->db);
 			if (err)
 				break;
@@ -605,8 +595,7 @@ static int dsa_switch_host_mdb_del(struct dsa_switch *ds,
 		return -EOPNOTSUPP;
 
 	dsa_switch_for_each_port(dp, ds) {
-		if (dsa_port_host_address_match(dp, info->sw_index,
-						info->port)) {
+		if (dsa_port_host_address_match(dp, info->dp)) {
 			err = dsa_port_do_mdb_del(dp, info->mdb, info->db);
 			if (err)
 				break;
@@ -620,29 +609,18 @@ static int dsa_switch_host_mdb_del(struct dsa_switch *ds,
 static bool dsa_port_vlan_match(struct dsa_port *dp,
 				struct dsa_notifier_vlan_info *info)
 {
-	if (dp->ds->index == info->sw_index && dp->index == info->port)
-		return true;
-
-	if (dsa_port_is_dsa(dp))
-		return true;
-
-	return false;
+	return dsa_port_is_dsa(dp) || dp == info->dp;
 }
 
 /* Host VLANs match on the targeted port's CPU port, and on all DSA ports
  * (upstream and downstream) of that switch and its upstream switches.
  */
 static bool dsa_port_host_vlan_match(struct dsa_port *dp,
-				     struct dsa_notifier_vlan_info *info)
+				     const struct dsa_port *targeted_dp)
 {
-	struct dsa_port *targeted_dp, *cpu_dp;
-	struct dsa_switch *targeted_ds;
+	struct dsa_port *cpu_dp = targeted_dp->cpu_dp;
 
-	targeted_ds = dsa_switch_find(dp->ds->dst->index, info->sw_index);
-	targeted_dp = dsa_to_port(targeted_ds, info->port);
-	cpu_dp = targeted_dp->cpu_dp;
-
-	if (dsa_switch_is_upstream_of(dp->ds, targeted_ds))
+	if (dsa_switch_is_upstream_of(dp->ds, targeted_dp->ds))
 		return dsa_port_is_dsa(dp) || dp == cpu_dp;
 
 	return false;
@@ -800,7 +778,7 @@ static int dsa_switch_host_vlan_add(struct dsa_switch *ds,
 		return -EOPNOTSUPP;
 
 	dsa_switch_for_each_port(dp, ds) {
-		if (dsa_port_host_vlan_match(dp, info)) {
+		if (dsa_port_host_vlan_match(dp, info->dp)) {
 			err = dsa_port_do_vlan_add(dp, info->vlan,
 						   info->extack);
 			if (err)
@@ -821,7 +799,7 @@ static int dsa_switch_host_vlan_del(struct dsa_switch *ds,
 		return -EOPNOTSUPP;
 
 	dsa_switch_for_each_port(dp, ds) {
-		if (dsa_port_host_vlan_match(dp, info)) {
+		if (dsa_port_host_vlan_match(dp, info->dp)) {
 			err = dsa_port_do_vlan_del(dp, info->vlan);
 			if (err)
 				return err;

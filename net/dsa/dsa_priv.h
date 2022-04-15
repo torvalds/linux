@@ -54,18 +54,15 @@ struct dsa_notifier_ageing_time_info {
 
 /* DSA_NOTIFIER_BRIDGE_* */
 struct dsa_notifier_bridge_info {
+	const struct dsa_port *dp;
 	struct dsa_bridge bridge;
-	int tree_index;
-	int sw_index;
-	int port;
 	bool tx_fwd_offload;
 	struct netlink_ext_ack *extack;
 };
 
 /* DSA_NOTIFIER_FDB_* */
 struct dsa_notifier_fdb_info {
-	int sw_index;
-	int port;
+	const struct dsa_port *dp;
 	const unsigned char *addr;
 	u16 vid;
 	struct dsa_db db;
@@ -81,34 +78,29 @@ struct dsa_notifier_lag_fdb_info {
 
 /* DSA_NOTIFIER_MDB_* */
 struct dsa_notifier_mdb_info {
+	const struct dsa_port *dp;
 	const struct switchdev_obj_port_mdb *mdb;
-	int sw_index;
-	int port;
 	struct dsa_db db;
 };
 
 /* DSA_NOTIFIER_LAG_* */
 struct dsa_notifier_lag_info {
+	const struct dsa_port *dp;
 	struct dsa_lag lag;
-	int sw_index;
-	int port;
-
 	struct netdev_lag_upper_info *info;
 };
 
 /* DSA_NOTIFIER_VLAN_* */
 struct dsa_notifier_vlan_info {
+	const struct dsa_port *dp;
 	const struct switchdev_obj_port_vlan *vlan;
-	int sw_index;
-	int port;
 	struct netlink_ext_ack *extack;
 };
 
 /* DSA_NOTIFIER_MTU */
 struct dsa_notifier_mtu_info {
+	const struct dsa_port *dp;
 	bool targeted_match;
-	int sw_index;
-	int port;
 	int mtu;
 };
 
@@ -119,9 +111,7 @@ struct dsa_notifier_tag_proto_info {
 
 /* DSA_NOTIFIER_TAG_8021Q_VLAN_* */
 struct dsa_notifier_tag_8021q_vlan_info {
-	int tree_index;
-	int sw_index;
-	int port;
+	const struct dsa_port *dp;
 	u16 vid;
 };
 
