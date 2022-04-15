@@ -87,12 +87,6 @@
 		clock-frequency = <204800000>;
 	};
 
-	vdec_rootclk: vdec_rootclk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <400000000>;
-	};
-
 	venc_rootclk: venc_rootclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
