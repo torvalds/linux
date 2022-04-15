@@ -1071,7 +1071,8 @@ static int octep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	octep_get_mac_addr(octep_dev, octep_dev->mac_addr);
 	eth_hw_addr_set(netdev, octep_dev->mac_addr);
 
-	if (register_netdev(netdev)) {
+	err = register_netdev(netdev);
+	if (err) {
 		dev_err(&pdev->dev, "Failed to register netdev\n");
 		goto register_dev_err;
 	}
