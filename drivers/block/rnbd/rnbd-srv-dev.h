@@ -52,8 +52,7 @@ static inline int rnbd_dev_get_max_discard_sects(const struct rnbd_dev *dev)
 	if (!blk_queue_discard(bdev_get_queue(dev->bdev)))
 		return 0;
 
-	return blk_queue_get_max_sectors(bdev_get_queue(dev->bdev),
-					 REQ_OP_DISCARD);
+	return bdev_max_discard_sectors(dev->bdev);
 }
 
 static inline int rnbd_dev_get_discard_granularity(const struct rnbd_dev *dev)
