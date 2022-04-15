@@ -280,7 +280,7 @@
 		vmmc-supply = <&pm8941_l21>;
 		vqmmc-supply = <&pm8941_l13>;
 
-		cd-gpios = <&msmgpio 62 GPIO_ACTIVE_LOW>;
+		cd-gpios = <&tlmm 62 GPIO_ACTIVE_LOW>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdhc2_pin_a>, <&sdhc2_cd_pin_a>;

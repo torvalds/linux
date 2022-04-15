@@ -239,7 +239,7 @@
 		regulator-min-microvolt = <3150000>;
 		regulator-max-microvolt = <3150000>;
 
-		gpio = <&msmgpio 69 0>;
+		gpio = <&tlmm 69 0>;
 		enable-active-high;
 
 		vin-supply = <&pm8941_s3>;
@@ -323,7 +323,7 @@
 		vmmc-supply = <&pm8941_l21>;
 		vqmmc-supply = <&pm8941_l13>;
 
-		cd-gpios = <&msmgpio 62 GPIO_ACTIVE_LOW>;
+		cd-gpios = <&tlmm 62 GPIO_ACTIVE_LOW>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdhc2_pin_a>, <&sdhc2_cd_pin_a>;
@@ -351,8 +351,8 @@
 				    <&bt_dev_wake_pin>,
 				    <&bt_reg_on_pin>;
 
-			host-wakeup-gpios = <&msmgpio 95 GPIO_ACTIVE_HIGH>;
-			device-wakeup-gpios = <&msmgpio 96 GPIO_ACTIVE_HIGH>;
+			host-wakeup-gpios = <&tlmm 95 GPIO_ACTIVE_HIGH>;
+			device-wakeup-gpios = <&tlmm 96 GPIO_ACTIVE_HIGH>;
 			shutdown-gpios = <&pm8941_gpios 16 GPIO_ACTIVE_HIGH>;
 		};
 	};
@@ -566,7 +566,7 @@
 			compatible = "syna,rmi4-i2c";
 			reg = <0x2c>;
 
-			interrupt-parent = <&msmgpio>;
+			interrupt-parent = <&tlmm>;
 			interrupts = <86 IRQ_TYPE_EDGE_FALLING>;
 
 			#address-cells = <1>;

@@ -250,7 +250,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
-		gpio = <&msmgpio 26 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 26 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";
@@ -482,9 +482,9 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&bt_pin>;
 
-			host-wakeup-gpios = <&msmgpio 42 GPIO_ACTIVE_HIGH>;
-			device-wakeup-gpios = <&msmgpio 62 GPIO_ACTIVE_HIGH>;
-			shutdown-gpios = <&msmgpio 41 GPIO_ACTIVE_HIGH>;
+			host-wakeup-gpios = <&tlmm 42 GPIO_ACTIVE_HIGH>;
+			device-wakeup-gpios = <&tlmm 62 GPIO_ACTIVE_HIGH>;
+			shutdown-gpios = <&tlmm 41 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -522,7 +522,7 @@
 		mpu6515@68 {
 			compatible = "invensense,mpu6515";
 			reg = <0x68>;
-			interrupts-extended = <&msmgpio 73 IRQ_TYPE_EDGE_FALLING>;
+			interrupts-extended = <&tlmm 73 IRQ_TYPE_EDGE_FALLING>;
 			vddio-supply = <&pm8941_lvs1>;
 
 			pinctrl-names = "default";
@@ -538,7 +538,7 @@
 				ak8963@f {
 					compatible = "asahi-kasei,ak8963";
 					reg = <0x0f>;
-					gpios = <&msmgpio 67 0>;
+					gpios = <&tlmm 67 0>;
 					vid-supply = <&pm8941_lvs1>;
 					vdd-supply = <&pm8941_l17>;
 				};
@@ -577,7 +577,7 @@
 			maxim,double-soc;
 			maxim,rcomp = /bits/ 8 <0x4d>;
 
-			interrupt-parent = <&msmgpio>;
+			interrupt-parent = <&tlmm>;
 			interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
 
 			pinctrl-names = "default";
@@ -600,7 +600,7 @@
 			compatible = "syna,rmi4-i2c";
 			reg = <0x70>;
 
-			interrupts-extended = <&msmgpio 5 IRQ_TYPE_EDGE_FALLING>;
+			interrupts-extended = <&tlmm 5 IRQ_TYPE_EDGE_FALLING>;
 			vdd-supply = <&pm8941_l22>;
 			vio-supply = <&pm8941_lvs3>;
 
@@ -632,7 +632,7 @@
 		avago_apds993@39 {
 			compatible = "avago,apds9930";
 			reg = <0x39>;
-			interrupts-extended = <&msmgpio 61 IRQ_TYPE_EDGE_FALLING>;
+			interrupts-extended = <&tlmm 61 IRQ_TYPE_EDGE_FALLING>;
 			vdd-supply = <&pm8941_l17>;
 			vddio-supply = <&pm8941_lvs1>;
 			led-max-microamp = <100000>;

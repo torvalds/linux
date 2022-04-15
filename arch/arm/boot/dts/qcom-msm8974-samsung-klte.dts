@@ -247,8 +247,8 @@
 		compatible = "i2c-gpio";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		sda-gpios = <&msmgpio 95 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
-		scl-gpios = <&msmgpio 96 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		sda-gpios = <&tlmm 95 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 96 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_touchkey_pins>;
 
@@ -272,8 +272,8 @@
 		compatible = "i2c-gpio";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		scl-gpios = <&msmgpio 121 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
-		sda-gpios = <&msmgpio 120 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 121 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		sda-gpios = <&tlmm 120 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_led_gpioex_pins>;
 
@@ -291,7 +291,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&gpioex_pin>;
 
-			reset-gpios = <&msmgpio 145 GPIO_ACTIVE_LOW>;
+			reset-gpios = <&tlmm 145 GPIO_ACTIVE_LOW>;
 		};
 
 		led-controller@30 {
@@ -371,9 +371,9 @@
 			max-speed = <3000000>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&bt_pins>;
-			device-wakeup-gpios = <&msmgpio 91 GPIO_ACTIVE_HIGH>;
+			device-wakeup-gpios = <&tlmm 91 GPIO_ACTIVE_HIGH>;
 			shutdown-gpios = <&gpio_expander 9 GPIO_ACTIVE_HIGH>;
-			interrupt-parent = <&msmgpio>;
+			interrupt-parent = <&tlmm>;
 			interrupts = <75 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "host-wakeup";
 		};
@@ -563,7 +563,7 @@
 		 */
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdhc2_pin_a /* &sdhc2_cd_pin */>;
-		// cd-gpios = <&msmgpio 62 GPIO_ACTIVE_LOW>;
+		// cd-gpios = <&tlmm 62 GPIO_ACTIVE_LOW>;
 	};
 
 	sdhci@f98a4900 {
@@ -587,7 +587,7 @@
 			reg = <1>;
 			compatible = "brcm,bcm4329-fmac";
 
-			interrupt-parent = <&msmgpio>;
+			interrupt-parent = <&tlmm>;
 			interrupts = <92 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "host-wake";
 
@@ -818,7 +818,7 @@
 				vddr-supply = <&vreg_panel>;
 
 				reset-gpios = <&pma8084_gpios 17 GPIO_ACTIVE_LOW>;
-				te-gpios = <&msmgpio 12 GPIO_ACTIVE_HIGH>;
+				te-gpios = <&tlmm 12 GPIO_ACTIVE_HIGH>;
 
 				port {
 					panel_in: endpoint {

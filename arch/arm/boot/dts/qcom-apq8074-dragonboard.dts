@@ -35,7 +35,7 @@
 		};
 
 		sdhci@f98a4900 {
-			cd-gpios = <&msmgpio 62 0x1>;
+			cd-gpios = <&tlmm 62 0x1>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&sdhc2_pin_a>, <&sdhc2_cd_pin_a>;
 			bus-width = <4>;

@@ -51,7 +51,7 @@
 
 	vibrator {
 		compatible = "gpio-vibrator";
-		enable-gpios = <&msmgpio 86 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&tlmm 86 GPIO_ACTIVE_HIGH>;
 		vcc-supply = <&pm8941_l18>;
 	};
 
