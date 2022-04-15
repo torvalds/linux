@@ -428,37 +428,36 @@ static void register_freq_invariance_syscore_ops(void)
 static inline void register_freq_invariance_syscore_ops(void) {}
 #endif
 
-void init_freq_invariance(bool secondary, bool cppc_ready)
+void bp_init_freq_invariance(bool cppc_ready)
 {
-	bool ret = false;
+	bool ret;
 
-	if (!boot_cpu_has(X86_FEATURE_APERFMPERF))
+	if (!cpu_feature_enabled(X86_FEATURE_APERFMPERF))
 		return;
 
-	if (secondary) {
-		if (static_branch_likely(&arch_scale_freq_key)) {
-			init_counter_refs();
-		}
-		return;
-	}
+	init_counter_refs();
 
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
 		ret = intel_set_max_freq_ratio();
 	else if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
-		if (!cppc_ready) {
+		if (!cppc_ready)
 			return;
-		}
 		ret = amd_set_max_freq_ratio(&arch_turbo_freq_ratio);
 	}
 
 	if (ret) {
-		init_counter_refs();
 		static_branch_enable(&arch_scale_freq_key);
 		register_freq_invariance_syscore_ops();
 		pr_info("Estimated ratio of average max frequency by base frequency (times 1024): %llu\n", arch_max_freq_ratio);
 	} else {
 		pr_debug("Couldn't determine max cpu frequency, necessary for scale-invariant accounting.\n");
 	}
+}
+
+void ap_init_freq_invariance(void)
+{
+	if (cpu_feature_enabled(X86_FEATURE_APERFMPERF))
+		init_counter_refs();
 }
 
 static void disable_freq_invariance_workfn(struct work_struct *work)

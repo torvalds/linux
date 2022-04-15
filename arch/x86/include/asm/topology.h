@@ -216,14 +216,12 @@ extern void arch_scale_freq_tick(void);
 #define arch_scale_freq_tick arch_scale_freq_tick
 
 extern void arch_set_max_freq_ratio(bool turbo_disabled);
-void init_freq_invariance(bool secondary, bool cppc_ready);
+extern void bp_init_freq_invariance(bool cppc_ready);
+extern void ap_init_freq_invariance(void);
 #else
-static inline void arch_set_max_freq_ratio(bool turbo_disabled)
-{
-}
-static inline void init_freq_invariance(bool secondary, bool cppc_ready)
-{
-}
+static inline void arch_set_max_freq_ratio(bool turbo_disabled) { }
+static inline void bp_init_freq_invariance(bool cppc_ready) { }
+static inline void ap_init_freq_invariance(void) { }
 #endif
 
 #ifdef CONFIG_ACPI_CPPC_LIB

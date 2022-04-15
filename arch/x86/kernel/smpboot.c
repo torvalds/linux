@@ -186,7 +186,7 @@ static void smp_callin(void)
 	 */
 	set_cpu_sibling_map(raw_smp_processor_id());
 
-	init_freq_invariance(true, false);
+	ap_init_freq_invariance();
 
 	/*
 	 * Get our bogomips.
@@ -1396,7 +1396,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
 	smp_prepare_cpus_common();
 
-	init_freq_invariance(false, false);
+	bp_init_freq_invariance(false);
 	smp_sanity_check();
 
 	switch (apic_intr_mode) {

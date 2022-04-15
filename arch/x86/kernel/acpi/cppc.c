@@ -96,7 +96,8 @@ void init_freq_invariance_cppc(void)
 
 	mutex_lock(&freq_invariance_lock);
 
-	init_freq_invariance(secondary, true);
+	if (!secondary)
+		bp_init_freq_invariance(true);
 	secondary = true;
 
 	mutex_unlock(&freq_invariance_lock);
