@@ -2223,17 +2223,6 @@ static void io_req_complete_failed(struct io_kiocb *req, s32 res)
 	io_req_complete_post(req, res, io_put_kbuf(req, IO_URING_F_UNLOCKED));
 }
 
-static void io_req_complete_fail_submit(struct io_kiocb *req)
-{
-	/*
-	 * We don't submit, fail them all, for that replace hardlinks with
-	 * normal links. Extra REQ_F_LINK is tolerated.
-	 */
-	req->flags &= ~REQ_F_HARDLINK;
-	req->flags |= REQ_F_LINK;
-	io_req_complete_failed(req, req->cqe.res);
-}
-
 /*
  * Don't initialise the fields below on every allocation, but do that in
  * advance and keep them valid across allocations.
@@ -7564,8 +7553,14 @@ static inline void io_queue_sqe(struct io_kiocb *req)
 static void io_queue_sqe_fallback(struct io_kiocb *req)
 	__must_hold(&req->ctx->uring_lock)
 {
-	if (req->flags & REQ_F_FAIL) {
-		io_req_complete_fail_submit(req);
+	if (unlikely(req->flags & REQ_F_FAIL)) {
+		/*
+		 * We don't submit, fail them all, for that replace hardlinks
+		 * with normal links. Extra REQ_F_LINK is tolerated.
+		 */
+		req->flags &= ~REQ_F_HARDLINK;
+		req->flags |= REQ_F_LINK;
+		io_req_complete_failed(req, req->cqe.res);
 	} else if (unlikely(req->ctx->drain_active)) {
 		io_drain_req(req);
 	} else {
