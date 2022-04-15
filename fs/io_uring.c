@@ -7111,13 +7111,14 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 	const struct cred *creds = NULL;
 	int ret;
 
+	if (unlikely(!io_assign_file(req, issue_flags)))
+		return -EBADF;
+
 	if (unlikely((req->flags & REQ_F_CREDS) && req->creds != current_cred()))
 		creds = override_creds(req->creds);
 
 	if (!io_op_defs[req->opcode].audit_skip)
 		audit_uring_entry(req->opcode);
-	if (unlikely(!io_assign_file(req, issue_flags)))
-		return -EBADF;
 
 	switch (req->opcode) {
 	case IORING_OP_NOP:
