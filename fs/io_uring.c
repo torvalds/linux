@@ -1189,7 +1189,6 @@ static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 static void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
 
 static void __io_req_complete_post(struct io_kiocb *req, s32 res, u32 cflags);
-static void io_put_req(struct io_kiocb *req);
 static void io_dismantle_req(struct io_kiocb *req);
 static void io_queue_linked_timeout(struct io_kiocb *req);
 static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
@@ -2328,7 +2327,7 @@ static inline void io_dismantle_req(struct io_kiocb *req)
 		io_put_file(req->file);
 }
 
-static __cold void __io_free_req(struct io_kiocb *req)
+static __cold void io_free_req(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
@@ -2685,12 +2684,6 @@ static void io_queue_next(struct io_kiocb *req)
 		io_req_task_queue(nxt);
 }
 
-static void io_free_req(struct io_kiocb *req)
-{
-	io_queue_next(req);
-	__io_free_req(req);
-}
-
 static void io_free_batch_list(struct io_ring_ctx *ctx,
 				struct io_wq_work_node *node)
 	__must_hold(&ctx->uring_lock)
@@ -2779,15 +2772,17 @@ static inline struct io_kiocb *io_put_req_find_next(struct io_kiocb *req)
 	if (req_ref_put_and_test(req)) {
 		if (unlikely(req->flags & (REQ_F_LINK|REQ_F_HARDLINK)))
 			nxt = io_req_find_next(req);
-		__io_free_req(req);
+		io_free_req(req);
 	}
 	return nxt;
 }
 
 static inline void io_put_req(struct io_kiocb *req)
 {
-	if (req_ref_put_and_test(req))
+	if (req_ref_put_and_test(req)) {
+		io_queue_next(req);
 		io_free_req(req);
+	}
 }
 
 static unsigned io_cqring_events(struct io_ring_ctx *ctx)
