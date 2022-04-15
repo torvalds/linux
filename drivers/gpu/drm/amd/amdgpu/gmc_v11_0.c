@@ -698,6 +698,7 @@ static int gmc_v11_0_sw_init(void *handle)
 
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 2):
 		adev->num_vmhubs = 2;
 		/*
 		 * To fulfill 4-level page support,
