@@ -38,6 +38,7 @@
 #include "nouveau_reg.h"
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
+#include "nouveau_acpi.h"
 
 static struct ida bl_ida;
 #define BL_NAME_SIZE 15 // 12 for name + 2 for digits + 1 for '\0'
@@ -402,6 +403,11 @@ nouveau_backlight_init(struct drm_connector *connector)
 	if (ret) {
 		if (ret == -ENODEV)
 			ret = 0;
+		goto fail_alloc;
+	}
+
+	if (!nouveau_acpi_video_backlight_use_native()) {
+		NV_INFO(drm, "Skipping nv_backlight registration\n");
 		goto fail_alloc;
 	}
 
