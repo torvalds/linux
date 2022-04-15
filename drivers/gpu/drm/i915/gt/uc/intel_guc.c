@@ -292,6 +292,10 @@ static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 	    GRAPHICS_VER_FULL(gt->i915) < IP_VER(12, 50))
 		flags |= GUC_WA_POLLCS;
 
+	/* Wa_22011802037: graphics version 12 */
+	if (GRAPHICS_VER(gt->i915) == 12)
+		flags |= GUC_WA_PRE_PARSER;
+
 	return flags;
 }
 

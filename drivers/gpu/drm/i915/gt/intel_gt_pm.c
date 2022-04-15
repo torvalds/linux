@@ -181,15 +181,16 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 	if (intel_gt_is_wedged(gt))
 		intel_gt_unset_wedged(gt);
 
-	for_each_engine(engine, gt, id)
+	/* For GuC mode, ensure submission is disabled before stopping ring */
+	intel_uc_reset_prepare(&gt->uc);
+
+	for_each_engine(engine, gt, id) {
 		if (engine->reset.prepare)
 			engine->reset.prepare(engine);
 
-	intel_uc_reset_prepare(&gt->uc);
-
-	for_each_engine(engine, gt, id)
 		if (engine->sanitize)
 			engine->sanitize(engine);
+	}
 
 	if (reset_engines(gt) || force) {
 		for_each_engine(engine, gt, id)

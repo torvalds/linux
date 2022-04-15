@@ -98,7 +98,8 @@
 #define   GUC_LOG_BUF_ADDR_SHIFT	12
 
 #define GUC_CTL_WA			1
-#define   GUC_WA_POLLCS                 BIT(18)
+#define   GUC_WA_PRE_PARSER		BIT(14)
+#define   GUC_WA_POLLCS			BIT(18)
 
 #define GUC_CTL_FEATURE			2
 #define   GUC_CTL_ENABLE_SLPC		BIT(2)
