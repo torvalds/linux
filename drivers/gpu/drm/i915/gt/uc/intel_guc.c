@@ -319,6 +319,14 @@ static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 	    IS_DG2_GRAPHICS_STEP(gt->i915, G11, STEP_A0, STEP_B0))
 		flags |= GUC_WA_RCS_RESET_BEFORE_RC6;
 
+	/*
+	 * Wa_22012727170:dg2_g10[a0-c0), dg2_g11[a0..)
+	 * Wa_22012727685:dg2_g11[a0..)
+	 */
+	if (IS_DG2_GRAPHICS_STEP(gt->i915, G10, STEP_A0, STEP_C0) ||
+	    IS_DG2_GRAPHICS_STEP(gt->i915, G11, STEP_A0, STEP_FOREVER))
+		flags |= GUC_WA_CONTEXT_ISOLATION;
+
 	return flags;
 }
 
