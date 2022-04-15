@@ -57,11 +57,11 @@ void do_unhandled(struct pt_regs *regs);
 /* Initialize minimal exc_table structure sufficient for basic paging */
 static inline void __init early_trap_init(void)
 {
-	static struct exc_table exc_table __initdata = {
+	static struct exc_table init_exc_table __initdata = {
 		.fast_kernel_handler[EXCCAUSE_DTLB_MISS] =
 			fast_second_level_miss,
 	};
-	__asm__ __volatile__("wsr  %0, excsave1\n" : : "a" (&exc_table));
+	xtensa_set_sr(&init_exc_table, excsave1);
 }
 
 void secondary_trap_init(void);
