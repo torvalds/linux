@@ -109,9 +109,17 @@
 
 	vddmx-supply = <&pm8841_s1>;
 	vddcx-supply = <&pm8841_s2>;
+	vddpx-supply = <&pm8941_s3>;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&wcnss_pin_a>;
+
+	iris {
+		vddxo-supply = <&pm8941_l6>;
+		vddrfa-supply = <&pm8941_l11>;
+		vddpa-supply = <&pm8941_l19>;
+		vdddig-supply = <&pm8941_s3>;
+	};
 
 	smd-edge {
 		qcom,remote-pid = <4>;
@@ -125,6 +133,8 @@
 
 &rpm_requests {
 	pm8841-regulators {
+		compatible = "qcom,rpm-pm8841-regulators";
+
 		pm8841_s1: s1 {
 			regulator-min-microvolt = <675000>;
 			regulator-max-microvolt = <1050000>;
@@ -142,6 +152,8 @@
 	};
 
 	pm8941-regulators {
+		compatible = "qcom,rpm-pm8941-regulators";
+
 		vdd_l1_l3-supply = <&pm8941_s1>;
 		vdd_l2_lvs1_2_3-supply = <&pm8941_s3>;
 		vdd_l4_l11-supply = <&pm8941_s1>;
