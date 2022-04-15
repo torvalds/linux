@@ -1200,7 +1200,7 @@ static inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 static inline struct file *io_file_get_normal(struct io_kiocb *req, int fd);
 static void io_drop_inflight_file(struct io_kiocb *req);
 static bool io_assign_file(struct io_kiocb *req, unsigned int issue_flags);
-static void __io_queue_sqe(struct io_kiocb *req);
+static void io_queue_sqe(struct io_kiocb *req);
 static void io_rsrc_put_work(struct work_struct *work);
 
 static void io_req_task_queue(struct io_kiocb *req);
@@ -2663,7 +2663,7 @@ static void io_req_task_submit(struct io_kiocb *req, bool *locked)
 	io_tw_lock(req->ctx, locked);
 	/* req->task == current here, checking PF_EXITING is safe */
 	if (likely(!(req->task->flags & PF_EXITING)))
-		__io_queue_sqe(req);
+		io_queue_sqe(req);
 	else
 		io_req_complete_failed(req, -EFAULT);
 }
@@ -7532,7 +7532,7 @@ static void io_queue_sqe_arm_apoll(struct io_kiocb *req)
 		io_queue_linked_timeout(linked_timeout);
 }
 
-static inline void __io_queue_sqe(struct io_kiocb *req)
+static inline void io_queue_sqe(struct io_kiocb *req)
 	__must_hold(&req->ctx->uring_lock)
 {
 	int ret;
@@ -7571,15 +7571,6 @@ static void io_queue_sqe_fallback(struct io_kiocb *req)
 		else
 			io_queue_async_work(req, NULL);
 	}
-}
-
-static inline void io_queue_sqe(struct io_kiocb *req)
-	__must_hold(&req->ctx->uring_lock)
-{
-	if (likely(!(req->flags & (REQ_F_FORCE_ASYNC | REQ_F_FAIL))))
-		__io_queue_sqe(req);
-	else
-		io_queue_sqe_fallback(req);
 }
 
 /*
@@ -7782,7 +7773,11 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		return 0;
 	}
 
-	io_queue_sqe(req);
+	if (likely(!(req->flags & (REQ_F_FORCE_ASYNC | REQ_F_FAIL))))
+		io_queue_sqe(req);
+	else
+		io_queue_sqe_fallback(req);
+
 	return 0;
 }
 
