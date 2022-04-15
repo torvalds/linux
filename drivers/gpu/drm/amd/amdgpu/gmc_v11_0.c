@@ -542,6 +542,7 @@ static void gmc_v11_0_set_umc_funcs(struct amdgpu_device *adev)
 {
 	switch (adev->ip_versions[UMC_HWIP][0]) {
 	case IP_VERSION(8, 10, 0):
+	case IP_VERSION(8, 11, 0):
 		break;
 	default:
 		break;
