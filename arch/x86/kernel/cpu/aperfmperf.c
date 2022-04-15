@@ -22,6 +22,13 @@
 
 #include "cpu.h"
 
+struct aperfmperf {
+	u64		aperf;
+	u64		mperf;
+};
+
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct aperfmperf, cpu_samples);
+
 struct aperfmperf_sample {
 	unsigned int	khz;
 	atomic_t	scfpending;
@@ -194,8 +201,6 @@ unsigned int arch_freq_get_on_cpu(int cpu)
 
 DEFINE_STATIC_KEY_FALSE(arch_scale_freq_key);
 
-static DEFINE_PER_CPU(u64, arch_prev_aperf);
-static DEFINE_PER_CPU(u64, arch_prev_mperf);
 static u64 arch_turbo_freq_ratio = SCHED_CAPACITY_SCALE;
 static u64 arch_max_freq_ratio = SCHED_CAPACITY_SCALE;
 
@@ -407,8 +412,8 @@ static void init_counter_refs(void)
 	rdmsrl(MSR_IA32_APERF, aperf);
 	rdmsrl(MSR_IA32_MPERF, mperf);
 
-	this_cpu_write(arch_prev_aperf, aperf);
-	this_cpu_write(arch_prev_mperf, mperf);
+	this_cpu_write(cpu_samples.aperf, aperf);
+	this_cpu_write(cpu_samples.mperf, mperf);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -474,9 +479,8 @@ DEFINE_PER_CPU(unsigned long, arch_freq_scale) = SCHED_CAPACITY_SCALE;
 
 void arch_scale_freq_tick(void)
 {
-	u64 freq_scale;
-	u64 aperf, mperf;
-	u64 acnt, mcnt;
+	struct aperfmperf *s = this_cpu_ptr(&cpu_samples);
+	u64 aperf, mperf, acnt, mcnt, freq_scale;
 
 	if (!arch_scale_freq_invariant())
 		return;
@@ -484,11 +488,11 @@ void arch_scale_freq_tick(void)
 	rdmsrl(MSR_IA32_APERF, aperf);
 	rdmsrl(MSR_IA32_MPERF, mperf);
 
-	acnt = aperf - this_cpu_read(arch_prev_aperf);
-	mcnt = mperf - this_cpu_read(arch_prev_mperf);
+	acnt = aperf - s->aperf;
+	mcnt = mperf - s->mperf;
 
-	this_cpu_write(arch_prev_aperf, aperf);
-	this_cpu_write(arch_prev_mperf, mperf);
+	s->aperf = aperf;
+	s->mperf = mperf;
 
 	if (check_shl_overflow(acnt, 2*SCHED_CAPACITY_SHIFT, &acnt))
 		goto error;
