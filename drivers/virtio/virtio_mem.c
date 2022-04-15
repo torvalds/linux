@@ -3,10 +3,13 @@
  * Virtio-mem device driver.
  *
  * Copyright Red Hat, Inc. 2020
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Author(s): David Hildenbrand <david@redhat.com>
  */
 
+#include <linux/platform_device.h>
+#include <linux/of_address.h>
 #include <linux/virtio.h>
 #include <linux/virtio_mem.h>
 #include <linux/workqueue.h>
@@ -103,7 +106,7 @@ enum virtio_mem_bbm_bb_state {
 };
 
 struct virtio_mem {
-	struct virtio_device *vdev;
+	struct platform_device *vdev;
 
 	/* We might first have to unplug all memory when starting up. */
 	bool unplug_all_required;
@@ -112,9 +115,6 @@ struct virtio_mem {
 	struct work_struct wq;
 	atomic_t wq_active;
 	atomic_t config_changed;
-
-	/* Virtqueue for guest->host requests. */
-	struct virtqueue *vq;
 
 	/* Wait for a host response to a guest request. */
 	wait_queue_head_t host_resp;
@@ -155,6 +155,10 @@ struct virtio_mem {
 #define VIRTIO_MEM_DEFAULT_OFFLINE_THRESHOLD		(1024 * 1024 * 1024)
 	atomic64_t offline_size;
 	uint64_t offline_threshold;
+
+	/* Held when updating new_requested_size */
+	spinlock_t config_lock;
+	uint64_t new_requested_size;
 
 	/* If set, the driver is in SBM, otherwise in BBM. */
 	bool in_sbm;
@@ -1318,134 +1322,30 @@ static void virtio_mem_online_page_cb(struct page *page, unsigned int order)
 	generic_online_page(page, order);
 }
 
-static uint64_t virtio_mem_send_request(struct virtio_mem *vm,
-					const struct virtio_mem_req *req)
-{
-	struct scatterlist *sgs[2], sg_req, sg_resp;
-	unsigned int len;
-	int rc;
-
-	/* don't use the request residing on the stack (vaddr) */
-	vm->req = *req;
-
-	/* out: buffer for request */
-	sg_init_one(&sg_req, &vm->req, sizeof(vm->req));
-	sgs[0] = &sg_req;
-
-	/* in: buffer for response */
-	sg_init_one(&sg_resp, &vm->resp, sizeof(vm->resp));
-	sgs[1] = &sg_resp;
-
-	rc = virtqueue_add_sgs(vm->vq, sgs, 1, 1, vm, GFP_KERNEL);
-	if (rc < 0)
-		return rc;
-
-	virtqueue_kick(vm->vq);
-
-	/* wait for a response */
-	wait_event(vm->host_resp, virtqueue_get_buf(vm->vq, &len));
-
-	return virtio16_to_cpu(vm->vdev, vm->resp.type);
-}
-
 static int virtio_mem_send_plug_request(struct virtio_mem *vm, uint64_t addr,
 					uint64_t size)
 {
-	const uint64_t nb_vm_blocks = size / vm->device_block_size;
-	const struct virtio_mem_req req = {
-		.type = cpu_to_virtio16(vm->vdev, VIRTIO_MEM_REQ_PLUG),
-		.u.plug.addr = cpu_to_virtio64(vm->vdev, addr),
-		.u.plug.nb_blocks = cpu_to_virtio16(vm->vdev, nb_vm_blocks),
-	};
-	int rc = -ENOMEM;
-
-	if (atomic_read(&vm->config_changed))
-		return -EAGAIN;
 
 	dev_dbg(&vm->vdev->dev, "plugging memory: 0x%llx - 0x%llx\n", addr,
 		addr + size - 1);
-
-	switch (virtio_mem_send_request(vm, &req)) {
-	case VIRTIO_MEM_RESP_ACK:
-		vm->plugged_size += size;
-		return 0;
-	case VIRTIO_MEM_RESP_NACK:
-		rc = -EAGAIN;
-		break;
-	case VIRTIO_MEM_RESP_BUSY:
-		rc = -ETXTBSY;
-		break;
-	case VIRTIO_MEM_RESP_ERROR:
-		rc = -EINVAL;
-		break;
-	default:
-		break;
-	}
-
-	dev_dbg(&vm->vdev->dev, "plugging memory failed: %d\n", rc);
-	return rc;
+	WARN_ON(1);
+	return -EINVAL;
 }
 
 static int virtio_mem_send_unplug_request(struct virtio_mem *vm, uint64_t addr,
 					  uint64_t size)
 {
-	const uint64_t nb_vm_blocks = size / vm->device_block_size;
-	const struct virtio_mem_req req = {
-		.type = cpu_to_virtio16(vm->vdev, VIRTIO_MEM_REQ_UNPLUG),
-		.u.unplug.addr = cpu_to_virtio64(vm->vdev, addr),
-		.u.unplug.nb_blocks = cpu_to_virtio16(vm->vdev, nb_vm_blocks),
-	};
-	int rc = -ENOMEM;
-
-	if (atomic_read(&vm->config_changed))
-		return -EAGAIN;
-
 	dev_dbg(&vm->vdev->dev, "unplugging memory: 0x%llx - 0x%llx\n", addr,
 		addr + size - 1);
-
-	switch (virtio_mem_send_request(vm, &req)) {
-	case VIRTIO_MEM_RESP_ACK:
-		vm->plugged_size -= size;
-		return 0;
-	case VIRTIO_MEM_RESP_BUSY:
-		rc = -ETXTBSY;
-		break;
-	case VIRTIO_MEM_RESP_ERROR:
-		rc = -EINVAL;
-		break;
-	default:
-		break;
-	}
-
-	dev_dbg(&vm->vdev->dev, "unplugging memory failed: %d\n", rc);
-	return rc;
+	WARN_ON(1);
+	return -EINVAL;
 }
 
 static int virtio_mem_send_unplug_all_request(struct virtio_mem *vm)
 {
-	const struct virtio_mem_req req = {
-		.type = cpu_to_virtio16(vm->vdev, VIRTIO_MEM_REQ_UNPLUG_ALL),
-	};
-	int rc = -ENOMEM;
-
 	dev_dbg(&vm->vdev->dev, "unplugging all memory");
-
-	switch (virtio_mem_send_request(vm, &req)) {
-	case VIRTIO_MEM_RESP_ACK:
-		vm->unplug_all_required = false;
-		vm->plugged_size = 0;
-		/* usable region might have shrunk */
-		atomic_set(&vm->config_changed, 1);
-		return 0;
-	case VIRTIO_MEM_RESP_BUSY:
-		rc = -ETXTBSY;
-		break;
-	default:
-		break;
-	}
-
-	dev_dbg(&vm->vdev->dev, "unplugging all memory failed: %d\n", rc);
-	return rc;
+	WARN_ON(1);
+	return -EINVAL;
 }
 
 /*
@@ -2296,18 +2196,15 @@ static int virtio_mem_unplug_pending_mb(struct virtio_mem *vm)
 static void virtio_mem_refresh_config(struct virtio_mem *vm)
 {
 	const struct range pluggable_range = mhp_get_pluggable_range(true);
-	uint64_t new_plugged_size, usable_region_size, end_addr;
-
-	/* the plugged_size is just a reflection of what _we_ did previously */
-	virtio_cread_le(vm->vdev, struct virtio_mem_config, plugged_size,
-			&new_plugged_size);
-	if (WARN_ON_ONCE(new_plugged_size != vm->plugged_size))
-		vm->plugged_size = new_plugged_size;
+	uint64_t end_addr;
 
 	/* calculate the last usable memory block id */
-	virtio_cread_le(vm->vdev, struct virtio_mem_config,
-			usable_region_size, &usable_region_size);
-	end_addr = min(vm->addr + usable_region_size - 1,
+	/*
+	 * Although the end address never changes with virtio-mem platform device
+	 * this is the only place with the previous code flow where last_usable_mb_id
+	 * is set. So, keep it here for now to minimize diff.
+	 */
+	end_addr = min(vm->addr + vm->region_size - 1,
 		       pluggable_range.end);
 
 	if (vm->in_sbm) {
@@ -2328,9 +2225,7 @@ static void virtio_mem_refresh_config(struct virtio_mem *vm)
 	 */
 
 	/* see if there is a request to change the size */
-	virtio_cread_le(vm->vdev, struct virtio_mem_config, requested_size,
-			&vm->requested_size);
-
+	vm->requested_size = READ_ONCE(vm->new_requested_size);
 	dev_info(&vm->vdev->dev, "plugged size: 0x%llx", vm->plugged_size);
 	dev_info(&vm->vdev->dev, "requested size: 0x%llx", vm->requested_size);
 }
@@ -2431,26 +2326,6 @@ static enum hrtimer_restart virtio_mem_timer_expired(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static void virtio_mem_handle_response(struct virtqueue *vq)
-{
-	struct virtio_mem *vm = vq->vdev->priv;
-
-	wake_up(&vm->host_resp);
-}
-
-static int virtio_mem_init_vq(struct virtio_mem *vm)
-{
-	struct virtqueue *vq;
-
-	vq = virtio_find_single_vq(vm->vdev, virtio_mem_handle_response,
-				   "guest-request");
-	if (IS_ERR(vq))
-		return PTR_ERR(vq);
-	vm->vq = vq;
-
-	return 0;
-}
-
 static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 {
 	const struct range pluggable_range = mhp_get_pluggable_range(true);
@@ -2518,6 +2393,22 @@ static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 		/* Make sure we can add two big blocks. */
 		vm->offline_threshold = max_t(uint64_t, 2 * vm->bbm.bb_size,
 					      vm->offline_threshold);
+	}
+
+	/*
+	 * virtio_mem_sbm_plug_sb() & virtio_mem_bbm_plug_bb() call
+	 * virtio_mem_send_plug_request() with count * sb_size and
+	 * bb_size respectively. Check whether vm->device_block_size
+	 * fits evenly.
+	 */
+	if (vm->in_sbm && vm->sbm.sb_size % vm->device_block_size) {
+		dev_err(&vm->vdev->dev, "Device block size %llx doesn't fit in %llx\n",
+			vm->device_block_size, vm->sbm.sb_size);
+		return -EINVAL;
+	} else if (!vm->in_sbm && vm->bbm.bb_size % vm->device_block_size) {
+		dev_err(&vm->vdev->dev, "Device block size %llx doesn't fit in %llx\n",
+			vm->device_block_size, vm->bbm.bb_size);
+		return -EINVAL;
 	}
 
 	dev_info(&vm->vdev->dev, "memory block size: 0x%lx",
@@ -2656,23 +2547,29 @@ static int virtio_mem_init_kdump(struct virtio_mem *vm)
 static int virtio_mem_init(struct virtio_mem *vm)
 {
 	uint16_t node_id;
-
-	if (!vm->vdev->config->get) {
-		dev_err(&vm->vdev->dev, "config access disabled\n");
-		return -EINVAL;
-	}
+	int ret;
+	struct resource res;
+	u32 device_block_size;
 
 	/* Fetch all properties that can't change. */
-	virtio_cread_le(vm->vdev, struct virtio_mem_config, plugged_size,
-			&vm->plugged_size);
-	virtio_cread_le(vm->vdev, struct virtio_mem_config, block_size,
-			&vm->device_block_size);
-	virtio_cread_le(vm->vdev, struct virtio_mem_config, node_id,
-			&node_id);
+	vm->plugged_size = 0;
+	ret = of_property_read_u32(vm->vdev->dev.of_node, "qcom,block-size",
+				   &device_block_size);
+	if (ret) {
+		dev_err(&vm->vdev->dev, "Failed to parse qcom,block-size property\n");
+		return -EINVAL;
+	}
+	vm->device_block_size = device_block_size;
+
+	node_id = NUMA_NO_NODE;
 	vm->nid = virtio_mem_translate_node_id(vm, node_id);
-	virtio_cread_le(vm->vdev, struct virtio_mem_config, addr, &vm->addr);
-	virtio_cread_le(vm->vdev, struct virtio_mem_config, region_size,
-			&vm->region_size);
+	ret = of_address_to_resource(vm->vdev->dev.of_node, 0, &res);
+	if (ret) {
+		dev_err(&vm->vdev->dev, "Failed to parse reg property\n");
+		return -EINVAL;
+	}
+	vm->addr = res.start;
+	vm->region_size = resource_size(&res);
 
 	/* Determine the nid for the device based on the lowest address. */
 	if (vm->nid == NUMA_NO_NODE)
@@ -2750,7 +2647,7 @@ static bool virtio_mem_has_memory_added(struct virtio_mem *vm)
 				   virtio_mem_range_has_system_ram) == 1;
 }
 
-static int virtio_mem_probe(struct virtio_device *vdev)
+static int virtio_mem_probe(struct platform_device *vdev)
 {
 	struct virtio_mem *vm;
 	int rc;
@@ -2758,14 +2655,16 @@ static int virtio_mem_probe(struct virtio_device *vdev)
 	BUILD_BUG_ON(sizeof(struct virtio_mem_req) != 24);
 	BUILD_BUG_ON(sizeof(struct virtio_mem_resp) != 10);
 
-	vdev->priv = vm = kzalloc(sizeof(*vm), GFP_KERNEL);
+	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
 	if (!vm)
 		return -ENOMEM;
+	platform_set_drvdata(vdev, vm);
 
 	init_waitqueue_head(&vm->host_resp);
 	vm->vdev = vdev;
 	INIT_WORK(&vm->wq, virtio_mem_run_wq);
 	mutex_init(&vm->hotplug_mutex);
+	spin_lock_init(&vm->config_lock);
 	INIT_LIST_HEAD(&vm->next);
 	spin_lock_init(&vm->removal_lock);
 	hrtimer_init(&vm->retry_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -2773,17 +2672,10 @@ static int virtio_mem_probe(struct virtio_device *vdev)
 	vm->retry_timer_ms = VIRTIO_MEM_RETRY_TIMER_MIN_MS;
 	vm->in_kdump = is_kdump_kernel();
 
-	/* register the virtqueue */
-	rc = virtio_mem_init_vq(vm);
-	if (rc)
-		goto out_free_vm;
-
 	/* initialize the device by querying the config */
 	rc = virtio_mem_init(vm);
 	if (rc)
-		goto out_del_vq;
-
-	virtio_device_ready(vdev);
+		goto out_free_vm;
 
 	/* trigger a config update to start processing the requested_size */
 	if (!vm->in_kdump) {
@@ -2792,11 +2684,10 @@ static int virtio_mem_probe(struct virtio_device *vdev)
 	}
 
 	return 0;
-out_del_vq:
-	vdev->config->del_vqs(vdev);
+
 out_free_vm:
 	kfree(vm);
-	vdev->priv = NULL;
+	platform_set_drvdata(vdev, NULL);
 
 	return rc;
 }
@@ -2873,26 +2764,24 @@ static void virtio_mem_deinit_kdump(struct virtio_mem *vm)
 #endif /* CONFIG_PROC_VMCORE */
 }
 
-static void virtio_mem_remove(struct virtio_device *vdev)
+static int virtio_mem_remove(struct platform_device *vdev)
 {
-	struct virtio_mem *vm = vdev->priv;
+	struct virtio_mem *vm = platform_get_drvdata(vdev);
 
 	if (vm->in_kdump)
 		virtio_mem_deinit_kdump(vm);
 	else
 		virtio_mem_deinit_hotplug(vm);
 
-	/* reset the device and cleanup the queues */
-	virtio_reset_device(vdev);
-	vdev->config->del_vqs(vdev);
-
 	kfree(vm);
-	vdev->priv = NULL;
+	platform_set_drvdata(vdev, NULL);
+
+	return 0;
 }
 
-static void virtio_mem_config_changed(struct virtio_device *vdev)
+static void __maybe_unused virtio_mem_config_changed(struct platform_device *vdev)
 {
-	struct virtio_mem *vm = vdev->priv;
+	struct virtio_mem *vm = platform_get_drvdata(vdev);
 
 	if (unlikely(vm->in_kdump))
 		return;
@@ -2901,52 +2790,22 @@ static void virtio_mem_config_changed(struct virtio_device *vdev)
 	virtio_mem_retry(vm);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int virtio_mem_freeze(struct virtio_device *vdev)
-{
-	/*
-	 * When restarting the VM, all memory is usually unplugged. Don't
-	 * allow to suspend/hibernate.
-	 */
-	dev_err(&vdev->dev, "save/restore not supported.\n");
-	return -EPERM;
-}
-
-static int virtio_mem_restore(struct virtio_device *vdev)
-{
-	return -EPERM;
-}
-#endif
-
-static unsigned int virtio_mem_features[] = {
-#if defined(CONFIG_NUMA) && defined(CONFIG_ACPI_NUMA)
-	VIRTIO_MEM_F_ACPI_PXM,
-#endif
-	VIRTIO_MEM_F_UNPLUGGED_INACCESSIBLE,
+static const struct of_device_id virtio_mem_id_table[] = {
+	{ .compatible = "qcom,virtio-mem" },
+	{ },
 };
 
-static const struct virtio_device_id virtio_mem_id_table[] = {
-	{ VIRTIO_ID_MEM, VIRTIO_DEV_ANY_ID },
-	{ 0 },
+static struct platform_driver virtio_mem_driver = {
+	.driver	= {
+		.name			= "virtio_mem",
+		.of_match_table		= virtio_mem_id_table,
+	},
+	.probe	= virtio_mem_probe,
+	.remove	= virtio_mem_remove,
 };
 
-static struct virtio_driver virtio_mem_driver = {
-	.feature_table = virtio_mem_features,
-	.feature_table_size = ARRAY_SIZE(virtio_mem_features),
-	.driver.name = KBUILD_MODNAME,
-	.driver.owner = THIS_MODULE,
-	.id_table = virtio_mem_id_table,
-	.probe = virtio_mem_probe,
-	.remove = virtio_mem_remove,
-	.config_changed = virtio_mem_config_changed,
-#ifdef CONFIG_PM_SLEEP
-	.freeze	=	virtio_mem_freeze,
-	.restore =	virtio_mem_restore,
-#endif
-};
-
-module_virtio_driver(virtio_mem_driver);
-MODULE_DEVICE_TABLE(virtio, virtio_mem_id_table);
+module_platform_driver(virtio_mem_driver);
+MODULE_DEVICE_TABLE(of, virtio_mem_id_table);
 MODULE_AUTHOR("David Hildenbrand <david@redhat.com>");
 MODULE_DESCRIPTION("Virtio-mem driver");
 MODULE_LICENSE("GPL");
