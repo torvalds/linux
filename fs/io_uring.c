@@ -1675,6 +1675,17 @@ static inline struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 	return __io_prep_linked_timeout(req);
 }
 
+static noinline void __io_arm_ltimeout(struct io_kiocb *req)
+{
+	io_queue_linked_timeout(__io_prep_linked_timeout(req));
+}
+
+static inline void io_arm_ltimeout(struct io_kiocb *req)
+{
+	if (unlikely(req->flags & REQ_F_ARM_LTIMEOUT))
+		__io_arm_ltimeout(req);
+}
+
 static void io_prep_async_work(struct io_kiocb *req)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
@@ -7301,7 +7312,6 @@ static void io_wq_submit_work(struct io_wq_work *work)
 	const struct io_op_def *def = &io_op_defs[req->opcode];
 	unsigned int issue_flags = IO_URING_F_UNLOCKED;
 	bool needs_poll = false;
-	struct io_kiocb *timeout;
 	int ret = 0, err = -ECANCELED;
 
 	/* one will be dropped by ->io_free_work() after returning to io-wq */
@@ -7310,10 +7320,7 @@ static void io_wq_submit_work(struct io_wq_work *work)
 	else
 		req_ref_get(req);
 
-	timeout = io_prep_linked_timeout(req);
-	if (timeout)
-		io_queue_linked_timeout(timeout);
-
+	io_arm_ltimeout(req);
 
 	/* either cancelled or io-wq is dying, so don't touch tctx->iowq */
 	if (work->flags & IO_WQ_WORK_CANCEL) {
@@ -7528,7 +7535,6 @@ static void io_queue_sqe_arm_apoll(struct io_kiocb *req)
 static inline void __io_queue_sqe(struct io_kiocb *req)
 	__must_hold(&req->ctx->uring_lock)
 {
-	struct io_kiocb *linked_timeout;
 	int ret;
 
 	ret = io_issue_sqe(req, IO_URING_F_NONBLOCK|IO_URING_F_COMPLETE_DEFER);
@@ -7542,9 +7548,7 @@ static inline void __io_queue_sqe(struct io_kiocb *req)
 	 * doesn't support non-blocking read/write attempts
 	 */
 	if (likely(!ret)) {
-		linked_timeout = io_prep_linked_timeout(req);
-		if (linked_timeout)
-			io_queue_linked_timeout(linked_timeout);
+		io_arm_ltimeout(req);
 	} else if (ret == -EAGAIN && !(req->flags & REQ_F_NOWAIT)) {
 		io_queue_sqe_arm_apoll(req);
 	} else {
