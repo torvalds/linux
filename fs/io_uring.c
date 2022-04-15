@@ -7508,10 +7508,17 @@ static void io_queue_linked_timeout(struct io_kiocb *req)
 	io_put_req(req);
 }
 
-static void io_queue_sqe_arm_apoll(struct io_kiocb *req)
+static void io_queue_async(struct io_kiocb *req, int ret)
 	__must_hold(&req->ctx->uring_lock)
 {
-	struct io_kiocb *linked_timeout = io_prep_linked_timeout(req);
+	struct io_kiocb *linked_timeout;
+
+	if (ret != -EAGAIN || (req->flags & REQ_F_NOWAIT)) {
+		io_req_complete_failed(req, ret);
+		return;
+	}
+
+	linked_timeout = io_prep_linked_timeout(req);
 
 	switch (io_arm_poll_handler(req, 0)) {
 	case IO_APOLL_READY:
@@ -7547,13 +7554,10 @@ static inline void io_queue_sqe(struct io_kiocb *req)
 	 * We async punt it if the file wasn't marked NOWAIT, or if the file
 	 * doesn't support non-blocking read/write attempts
 	 */
-	if (likely(!ret)) {
+	if (likely(!ret))
 		io_arm_ltimeout(req);
-	} else if (ret == -EAGAIN && !(req->flags & REQ_F_NOWAIT)) {
-		io_queue_sqe_arm_apoll(req);
-	} else {
-		io_req_complete_failed(req, ret);
-	}
+	else
+		io_queue_async(req, ret);
 }
 
 static void io_queue_sqe_fallback(struct io_kiocb *req)
