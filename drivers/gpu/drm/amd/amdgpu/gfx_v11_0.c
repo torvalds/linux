@@ -59,6 +59,10 @@ MODULE_FIRMWARE("amdgpu/gc_11_0_0_me.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_rlc.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_0_toc.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_2_pfp.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_2_me.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_2_mec.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_0_2_rlc.bin");
 
 static const struct soc15_reg_golden golden_settings_gc_11_0[] =
 {
@@ -1123,6 +1127,7 @@ static int gfx_v11_0_gpu_early_init(struct amdgpu_device *adev)
 
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 2):
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -1549,6 +1554,7 @@ static int gfx_v11_0_sw_init(void *handle)
 
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 2):
 		adev->gfx.me.num_me = 1;
 		adev->gfx.me.num_pipe_per_me = 1;
 		adev->gfx.me.num_queue_per_pipe = 1;
