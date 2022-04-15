@@ -36,7 +36,7 @@ athub_v3_0_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 
 	def = data = RREG32_SOC15(ATHUB, 0, regATHUB_MISC_CNTL);
 
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_MC_MGCG))
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_ATHUB_MGCG))
 		data |= ATHUB_MISC_CNTL__CG_ENABLE_MASK;
 	else
 		data &= ~ATHUB_MISC_CNTL__CG_ENABLE_MASK;
@@ -53,8 +53,7 @@ athub_v3_0_update_medium_grain_light_sleep(struct amdgpu_device *adev,
 
 	def = data = RREG32_SOC15(ATHUB, 0, regATHUB_MISC_CNTL);
 
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_MC_LS) &&
-	    (adev->cg_flags & AMD_CG_SUPPORT_HDP_LS))
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_ATHUB_LS))
 		data |= ATHUB_MISC_CNTL__CG_MEM_LS_ENABLE_MASK;
 	else
 		data &= ~ATHUB_MISC_CNTL__CG_MEM_LS_ENABLE_MASK;
