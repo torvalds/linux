@@ -1932,6 +1932,8 @@ static void ocelot_port_set_mcast_flood(struct ocelot *ocelot, int port,
 		val = BIT(port);
 
 	ocelot_rmw_rix(ocelot, val, BIT(port), ANA_PGID_PGID, PGID_MC);
+	ocelot_rmw_rix(ocelot, val, BIT(port), ANA_PGID_PGID, PGID_MCIPV4);
+	ocelot_rmw_rix(ocelot, val, BIT(port), ANA_PGID_PGID, PGID_MCIPV6);
 }
 
 static void ocelot_port_set_bcast_flood(struct ocelot *ocelot, int port,
