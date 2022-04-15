@@ -294,7 +294,7 @@ static int ircut_s_ctrl(struct v4l2_ctrl *ctrl)
 
 static long ircut_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	return 0;
+	return -EINVAL;
 }
 
 static const struct v4l2_subdev_core_ops ircut_core_ops = {
