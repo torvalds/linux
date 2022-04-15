@@ -101,49 +101,6 @@ static bool aperfmperf_snapshot_cpu(int cpu, ktime_t now, bool wait)
 	return time_delta <= APERFMPERF_STALE_THRESHOLD_MS;
 }
 
-unsigned int aperfmperf_get_khz(int cpu)
-{
-	if (!cpu_khz)
-		return 0;
-
-	if (!boot_cpu_has(X86_FEATURE_APERFMPERF))
-		return 0;
-
-	if (!housekeeping_cpu(cpu, HK_TYPE_MISC))
-		return 0;
-
-	if (rcu_is_idle_cpu(cpu))
-		return 0; /* Idle CPUs are completely uninteresting. */
-
-	aperfmperf_snapshot_cpu(cpu, ktime_get(), true);
-	return per_cpu(samples.khz, cpu);
-}
-
-void arch_freq_prepare_all(void)
-{
-	ktime_t now = ktime_get();
-	bool wait = false;
-	int cpu;
-
-	if (!cpu_khz)
-		return;
-
-	if (!boot_cpu_has(X86_FEATURE_APERFMPERF))
-		return;
-
-	for_each_online_cpu(cpu) {
-		if (!housekeeping_cpu(cpu, HK_TYPE_MISC))
-			continue;
-		if (rcu_is_idle_cpu(cpu))
-			continue; /* Idle CPUs are completely uninteresting. */
-		if (!aperfmperf_snapshot_cpu(cpu, now, false))
-			wait = true;
-	}
-
-	if (wait)
-		msleep(APERFMPERF_REFRESH_DELAY_MS);
-}
-
 unsigned int arch_freq_get_on_cpu(int cpu)
 {
 	struct aperfmperf_sample *s = per_cpu_ptr(&samples, cpu);
@@ -528,6 +485,40 @@ void arch_scale_freq_tick(void)
 	raw_write_seqcount_end(&s->seq);
 
 	scale_freq_tick(acnt, mcnt);
+}
+
+/*
+ * Discard samples older than the define maximum sample age of 20ms. There
+ * is no point in sending IPIs in such a case. If the scheduler tick was
+ * not running then the CPU is either idle or isolated.
+ */
+#define MAX_SAMPLE_AGE	((unsigned long)HZ / 50)
+
+unsigned int aperfmperf_get_khz(int cpu)
+{
+	struct aperfmperf *s = per_cpu_ptr(&cpu_samples, cpu);
+	unsigned long last;
+	unsigned int seq;
+	u64 acnt, mcnt;
+
+	if (!cpu_feature_enabled(X86_FEATURE_APERFMPERF))
+		return 0;
+
+	do {
+		seq = raw_read_seqcount_begin(&s->seq);
+		last = s->last_update;
+		acnt = s->acnt;
+		mcnt = s->mcnt;
+	} while (read_seqcount_retry(&s->seq, seq));
+
+	/*
+	 * Bail on invalid count and when the last update was too long ago,
+	 * which covers idle and NOHZ full CPUs.
+	 */
+	if (!mcnt || (jiffies - last) > MAX_SAMPLE_AGE)
+		return 0;
+
+	return div64_u64((cpu_khz * acnt), mcnt);
 }
 
 static int __init bp_init_aperfmperf(void)
