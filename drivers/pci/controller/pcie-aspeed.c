@@ -690,7 +690,7 @@ static void aspeed_pcie_port_init(struct aspeed_pcie *pcie)
 
 	//reset rc bridge
 	reset_control_assert(pcie->phy_rst);
-	ndelay(300);
+	mdelay(100);
 	//plda init
 	regmap_write(pcie->pciephy, ASPEED_PCIE_LOCK, PCIE_UNLOCK);
 //	regmap_write(pcie->pciephy, ASPEED_PCIE_CLASS_CODE, PCIE_CFG_CLASS_CODE(0x60000) | PCIE_CFG_REV_ID(4));
@@ -703,7 +703,7 @@ static void aspeed_pcie_port_init(struct aspeed_pcie *pcie)
 #endif
 
 	reset_control_deassert(pcie->phy_rst);
-	mdelay(10);
+	mdelay(50);
 
 
 	//clr intx isr
