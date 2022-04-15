@@ -7765,7 +7765,7 @@ static inline int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	 * submitted sync once the chain is complete. If none of those
 	 * conditions are true (normal request), then just queue it.
 	 */
-	if (link->head) {
+	if (unlikely(link->head)) {
 		ret = io_req_prep_async(req);
 		if (unlikely(ret))
 			return io_submit_fail_init(sqe, req, ret);
@@ -7779,17 +7779,22 @@ static inline int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		/* last request of the link, flush it */
 		req = link->head;
 		link->head = NULL;
-	} else if (req->flags & IO_REQ_LINK_FLAGS) {
-		link->head = req;
-		link->last = req;
+		if (req->flags & (REQ_F_FORCE_ASYNC | REQ_F_FAIL))
+			goto fallback;
+
+	} else if (unlikely(req->flags & (IO_REQ_LINK_FLAGS |
+					  REQ_F_FORCE_ASYNC | REQ_F_FAIL))) {
+		if (req->flags & IO_REQ_LINK_FLAGS) {
+			link->head = req;
+			link->last = req;
+		} else {
+fallback:
+			io_queue_sqe_fallback(req);
+		}
 		return 0;
 	}
 
-	if (likely(!(req->flags & (REQ_F_FORCE_ASYNC | REQ_F_FAIL))))
-		io_queue_sqe(req);
-	else
-		io_queue_sqe_fallback(req);
-
+	io_queue_sqe(req);
 	return 0;
 }
 
