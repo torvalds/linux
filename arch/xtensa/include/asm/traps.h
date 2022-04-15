@@ -39,8 +39,22 @@ struct exc_table {
  *  void (*)(struct pt_regs *regs, unsigned long exccause);
  */
 extern void * __init trap_set_handler(int cause, void *handler);
-extern void do_unhandled(struct pt_regs *regs, unsigned long exccause);
-void fast_second_level_miss(void);
+
+asmlinkage void fast_illegal_instruction_user(void);
+asmlinkage void fast_syscall_user(void);
+asmlinkage void fast_alloca(void);
+asmlinkage void fast_unaligned(void);
+asmlinkage void fast_second_level_miss(void);
+asmlinkage void fast_store_prohibited(void);
+asmlinkage void fast_coprocessor(void);
+
+asmlinkage void kernel_exception(void);
+asmlinkage void user_exception(void);
+asmlinkage void system_call(struct pt_regs *regs);
+
+void do_IRQ(int hwirq, struct pt_regs *regs);
+void do_page_fault(struct pt_regs *regs);
+void do_unhandled(struct pt_regs *regs, unsigned long exccause);
 
 /* Initialize minimal exc_table structure sufficient for basic paging */
 static inline void __init early_trap_init(void)
