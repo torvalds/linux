@@ -5,7 +5,7 @@ config CLK_STARFIVE_JH7110
 	depends on SOC_STARFIVE_JH7110 || COMPILE_TEST
 	default y if SOC_STARFIVE_JH7110
 	help
-		Say yes here to support the clock controller on the StarFive 
+		Say yes here to support the clock controller on the StarFive
 		JH7110 SoC.
 
 config CLK_STARFIVE_JH7110_VOUT
@@ -13,5 +13,5 @@ config CLK_STARFIVE_JH7110_VOUT
 	depends on CLK_STARFIVE_JH7110
 	default y if SOC_STARFIVE_JH7110
 	help
-		Say yes here to support the vout clocks on the StarFive 
+		Say yes here to support the vout clocks on the StarFive
 		JH7100 SoC.

@@ -106,12 +106,12 @@ choice
                 bool "FPGA"
                 help
                   This enables support for StarFive SoC FPGA board type Hardware.
-	
+
         config STARFIVE_BOARD_EVB
                 bool "EVB"
                 help
                   This enables support for StarFive SoC EVB board type Hardware.
-	
+
 	config STARFIVE_BOARD_VISIONFIVE
                 bool "Visionfive"
                 help
