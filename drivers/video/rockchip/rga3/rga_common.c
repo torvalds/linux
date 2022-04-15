@@ -508,6 +508,10 @@ void rga_convert_addr(struct rga_img_info_t *img, bool before_vir_get_channel)
 int rga_image_size_cal(int w, int h, int format,
 		       int *yrgb_size, int *uv_size, int *v_size)
 {
+	int yrgb = 0;
+	int uv = 0;
+	int v = 0;
+
 	switch (format) {
 	case RGA_FORMAT_RGBA_8888:
 	case RGA_FORMAT_RGBX_8888:
@@ -517,11 +521,11 @@ int rga_image_size_cal(int w, int h, int format,
 	case RGA_FORMAT_XRGB_8888:
 	case RGA_FORMAT_ABGR_8888:
 	case RGA_FORMAT_XBGR_8888:
-		*yrgb_size = w * h * 4;
+		yrgb = w * h * 4;
 		break;
 	case RGA_FORMAT_RGB_888:
 	case RGA_FORMAT_BGR_888:
-		*yrgb_size = w * h * 3;
+		yrgb = w * h * 3;
 		break;
 	case RGA_FORMAT_RGB_565:
 	case RGA_FORMAT_RGBA_5551:
@@ -537,47 +541,54 @@ int rga_image_size_cal(int w, int h, int format,
 	case RGA_FORMAT_VYUY_422:
 	case RGA_FORMAT_YUYV_422:
 	case RGA_FORMAT_UYVY_422:
-		*yrgb_size = w * h * 2;
+		yrgb = w * h * 2;
 		break;
 	case RGA_FORMAT_YVYU_420:
 	case RGA_FORMAT_VYUY_420:
 	case RGA_FORMAT_YUYV_420:
 	case RGA_FORMAT_UYVY_420:
-		*yrgb_size = (w * h) + ((w * h) >> 1);
+		yrgb = (w * h) + ((w * h) >> 1);
 		break;
 	/* YUV FORMAT */
 	case RGA_FORMAT_YCbCr_422_SP:
 	case RGA_FORMAT_YCrCb_422_SP:
-		*yrgb_size = w * h;
-		*uv_size = w * h;
+		yrgb = w * h;
+		uv = w * h;
 		break;
 	case RGA_FORMAT_YCbCr_422_P:
 	case RGA_FORMAT_YCrCb_422_P:
-		*yrgb_size = w * h;
-		*uv_size = (w * h) >> 1;
-		*v_size = *uv_size;
+		yrgb = w * h;
+		uv = (w * h) >> 1;
+		v = uv;
 		break;
 	case RGA_FORMAT_YCbCr_420_SP:
 	case RGA_FORMAT_YCrCb_420_SP:
-		*yrgb_size = w * h;
-		*uv_size = (w * h) >> 1;
+		yrgb = w * h;
+		uv = (w * h) >> 1;
 		break;
 	case RGA_FORMAT_YCbCr_420_P:
 	case RGA_FORMAT_YCrCb_420_P:
-		*yrgb_size = w * h;
-		*uv_size = (w * h) >> 2;
-		*v_size = *uv_size;
+		yrgb = w * h;
+		uv = (w * h) >> 2;
+		v = uv;
 		break;
 	case RGA_FORMAT_YCbCr_400:
-		*yrgb_size = w * h;
+		yrgb = w * h;
 		break;
 	case RGA_FORMAT_Y4:
-		*yrgb_size = (w * h) >> 1;
+		yrgb = (w * h) >> 1;
 		break;
 	default:
 		pr_err("Unsuport format [0x%x]\n", format);
 		return -EFAULT;
 	}
 
-	return (*yrgb_size + *uv_size + *v_size);
+	if (yrgb_size != NULL)
+		*yrgb_size = yrgb;
+	if (uv_size != NULL)
+		*uv_size = uv;
+	if (v_size != NULL)
+		*v_size = v;
+
+	return (yrgb + uv + v);
 }

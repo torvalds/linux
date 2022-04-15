@@ -226,21 +226,28 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	int result = 0;
 	int order;
 	unsigned int count;
-	unsigned long start_addr;
+	int img_size;
+	size_t offset;
 	unsigned long size;
-	uint64_t uv_addr, v_addr;
 	struct page **pages = NULL;
 	struct rga_virt_addr *virt_addr = NULL;
 
-	uv_addr = viraddr + (memory_parm->width * memory_parm->height);
-	v_addr = uv_addr + (memory_parm->width * memory_parm->height) /
-		 (rga_is_yuv422p_format(memory_parm->format) ? 2 : 4);
+	if (memory_parm->size)
+		img_size = memory_parm->size;
+	else
+		img_size = rga_image_size_cal(memory_parm->width,
+					      memory_parm->height,
+					      memory_parm->format,
+					      NULL, NULL, NULL);
 
-	/* Calculate page size. */
-	count = rga_buf_size_cal(viraddr, uv_addr, v_addr, memory_parm->format,
-				 memory_parm->width, memory_parm->height,
-				 &start_addr, NULL);
+	offset = viraddr & (~PAGE_MASK);
+	count = RGA_GET_PAGE_COUNT(img_size + offset);
 	size = count * PAGE_SIZE;
+	if (!size) {
+		pr_err("failed to calculating buffer size! size = %ld, count = %d, offset = %ld\n",
+		       size, count, (unsigned long)offset);
+		return -EFAULT;
+	}
 
 	/* alloc pages and page_table */
 	order = get_order(count * sizeof(struct page *));
@@ -251,7 +258,7 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	}
 
 	/* get pages from virtual address. */
-	ret = rga_get_user_pages(pages, start_addr, count, writeFlag, mm);
+	ret = rga_get_user_pages(pages, viraddr >> PAGE_SHIFT, count, writeFlag, mm);
 	if (ret < 0) {
 		pr_err("failed to get pages");
 		ret = -EINVAL;
@@ -274,7 +281,7 @@ static int rga_alloc_virt_addr(struct rga_virt_addr **virt_addr_p,
 	virt_addr->pages_order = order;
 	virt_addr->page_count = count;
 	virt_addr->size = size;
-	virt_addr->offset = viraddr & (~PAGE_MASK);
+	virt_addr->offset = offset;
 	virt_addr->result = result;
 
 	return 0;
