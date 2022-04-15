@@ -17,9 +17,9 @@
 #include "tlv320aic32x4.h"
 
 static const struct of_device_id aic32x4_of_id[];
+static const struct i2c_device_id aic32x4_i2c_id[];
 
-static int aic32x4_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int aic32x4_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap *regmap;
 	struct regmap_config config;
@@ -35,7 +35,10 @@ static int aic32x4_i2c_probe(struct i2c_client *i2c,
 
 		oid = of_match_node(aic32x4_of_id, i2c->dev.of_node);
 		dev_set_drvdata(&i2c->dev, (void *)oid->data);
-	} else if (id) {
+	} else {
+		const struct i2c_device_id *id;
+
+		id = i2c_match_id(aic32x4_i2c_id, i2c);
 		dev_set_drvdata(&i2c->dev, (void *)id->driver_data);
 	}
 
@@ -70,7 +73,7 @@ static struct i2c_driver aic32x4_i2c_driver = {
 		.name = "tlv320aic32x4",
 		.of_match_table = aic32x4_of_id,
 	},
-	.probe =    aic32x4_i2c_probe,
+	.probe_new = aic32x4_i2c_probe,
 	.remove =   aic32x4_i2c_remove,
 	.id_table = aic32x4_i2c_id,
 };
