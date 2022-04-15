@@ -477,22 +477,9 @@ static DECLARE_WORK(disable_freq_invariance_work,
 
 DEFINE_PER_CPU(unsigned long, arch_freq_scale) = SCHED_CAPACITY_SCALE;
 
-void arch_scale_freq_tick(void)
+static void scale_freq_tick(u64 acnt, u64 mcnt)
 {
-	struct aperfmperf *s = this_cpu_ptr(&cpu_samples);
-	u64 aperf, mperf, acnt, mcnt, freq_scale;
-
-	if (!arch_scale_freq_invariant())
-		return;
-
-	rdmsrl(MSR_IA32_APERF, aperf);
-	rdmsrl(MSR_IA32_MPERF, mperf);
-
-	acnt = aperf - s->aperf;
-	mcnt = mperf - s->mperf;
-
-	s->aperf = aperf;
-	s->mperf = mperf;
+	u64 freq_scale;
 
 	if (check_shl_overflow(acnt, 2*SCHED_CAPACITY_SHIFT, &acnt))
 		goto error;
@@ -513,5 +500,24 @@ void arch_scale_freq_tick(void)
 error:
 	pr_warn("Scheduler frequency invariance went wobbly, disabling!\n");
 	schedule_work(&disable_freq_invariance_work);
+}
+
+void arch_scale_freq_tick(void)
+{
+	struct aperfmperf *s = this_cpu_ptr(&cpu_samples);
+	u64 acnt, mcnt, aperf, mperf;
+
+	if (!arch_scale_freq_invariant())
+		return;
+
+	rdmsrl(MSR_IA32_APERF, aperf);
+	rdmsrl(MSR_IA32_MPERF, mperf);
+	acnt = aperf - s->aperf;
+	mcnt = mperf - s->mperf;
+
+	s->aperf = aperf;
+	s->mperf = mperf;
+
+	scale_freq_tick(acnt, mcnt);
 }
 #endif /* CONFIG_X86_64 && CONFIG_SMP */
