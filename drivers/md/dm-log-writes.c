@@ -866,9 +866,8 @@ static int log_writes_message(struct dm_target *ti, unsigned argc, char **argv,
 static void log_writes_io_hints(struct dm_target *ti, struct queue_limits *limits)
 {
 	struct log_writes_c *lc = ti->private;
-	struct request_queue *q = bdev_get_queue(lc->dev->bdev);
 
-	if (!q || !blk_queue_discard(q)) {
+	if (!bdev_max_discard_sectors(lc->dev->bdev)) {
 		lc->device_supports_discard = false;
 		limits->discard_granularity = lc->sectorsize;
 		limits->max_discard_sectors = (UINT_MAX >> SECTOR_SHIFT);

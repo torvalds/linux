@@ -627,13 +627,9 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (opts->allow_utime == (unsigned short)-1)
 		opts->allow_utime = ~opts->fs_dmask & 0022;
 
-	if (opts->discard) {
-		struct request_queue *q = bdev_get_queue(sb->s_bdev);
-
-		if (!blk_queue_discard(q)) {
-			exfat_warn(sb, "mounting with \"discard\" option, but the device does not support discard");
-			opts->discard = 0;
-		}
+	if (opts->discard && !bdev_max_discard_sectors(sb->s_bdev)) {
+		exfat_warn(sb, "mounting with \"discard\" option, but the device does not support discard");
+		opts->discard = 0;
 	}
 
 	sb->s_flags |= SB_NODIRATIME;

@@ -1005,7 +1005,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 		bio_get(s->iop.bio);
 
 		if (bio_op(bio) == REQ_OP_DISCARD &&
-		    !blk_queue_discard(bdev_get_queue(dc->bdev)))
+		    !bdev_max_discard_sectors(dc->bdev))
 			goto insert_data;
 
 		/* I/O request sent to backing device */
@@ -1115,7 +1115,7 @@ static void detached_dev_do_request(struct bcache_device *d, struct bio *bio,
 	bio->bi_private = ddip;
 
 	if ((bio_op(bio) == REQ_OP_DISCARD) &&
-	    !blk_queue_discard(bdev_get_queue(dc->bdev)))
+	    !bdev_max_discard_sectors(dc->bdev))
 		bio->bi_end_io(bio);
 	else
 		submit_bio_noacct(bio);

@@ -820,7 +820,7 @@ void submit_bio_noacct(struct bio *bio)
 
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
-		if (!blk_queue_discard(q))
+		if (!bdev_max_discard_sectors(bdev))
 			goto not_supported;
 		break;
 	case REQ_OP_SECURE_ERASE:

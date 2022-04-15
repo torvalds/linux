@@ -583,7 +583,7 @@ static void xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info
 	if (!xenbus_read_unsigned(dev->nodename, "discard-enable", 1))
 		return;
 
-	if (blk_queue_discard(q)) {
+	if (bdev_max_discard_sectors(bdev)) {
 		err = xenbus_printf(xbt, dev->nodename,
 			"discard-granularity", "%u",
 			q->limits.discard_granularity);

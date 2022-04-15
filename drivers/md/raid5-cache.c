@@ -1318,7 +1318,7 @@ static void r5l_write_super_and_discard_space(struct r5l_log *log,
 
 	r5l_write_super(log, end);
 
-	if (!blk_queue_discard(bdev_get_queue(bdev)))
+	if (!bdev_max_discard_sectors(bdev))
 		return;
 
 	mddev = log->rdev->mddev;

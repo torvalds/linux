@@ -162,7 +162,7 @@ xfs_ioc_trim(
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	if (!blk_queue_discard(q))
+	if (!bdev_max_discard_sectors(mp->m_ddev_targp->bt_bdev))
 		return -EOPNOTSUPP;
 
 	/*

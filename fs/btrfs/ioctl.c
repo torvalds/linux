@@ -501,7 +501,7 @@ static noinline int btrfs_ioctl_fitrim(struct btrfs_fs_info *fs_info,
 		if (!device->bdev)
 			continue;
 		q = bdev_get_queue(device->bdev);
-		if (blk_queue_discard(q)) {
+		if (bdev_max_discard_sectors(device->bdev)) {
 			num_devices++;
 			minlen = min_t(u64, q->limits.discard_granularity,
 				     minlen);

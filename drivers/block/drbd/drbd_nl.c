@@ -1210,7 +1210,7 @@ static void decide_on_discard_support(struct drbd_device *device,
 		first_peer_device(device)->connection;
 	struct request_queue *q = device->rq_queue;
 
-	if (bdev && !blk_queue_discard(bdev->backing_bdev->bd_disk->queue))
+	if (bdev && !bdev_max_discard_sectors(bdev->backing_bdev))
 		goto not_supported;
 
 	if (connection->cstate >= C_CONNECTED &&
@@ -1230,28 +1230,14 @@ static void decide_on_discard_support(struct drbd_device *device,
 	 */
 	blk_queue_discard_granularity(q, 512);
 	q->limits.max_discard_sectors = drbd_max_discard_sectors(connection);
-	blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
 	q->limits.max_write_zeroes_sectors =
 		drbd_max_discard_sectors(connection);
 	return;
 
 not_supported:
-	blk_queue_flag_clear(QUEUE_FLAG_DISCARD, q);
 	blk_queue_discard_granularity(q, 0);
 	q->limits.max_discard_sectors = 0;
 	q->limits.max_write_zeroes_sectors = 0;
-}
-
-static void fixup_discard_if_not_supported(struct request_queue *q)
-{
-	/* To avoid confusion, if this queue does not support discard, clear
-	 * max_discard_sectors, which is what lsblk -D reports to the user.
-	 * Older kernels got this wrong in "stack limits".
-	 * */
-	if (!blk_queue_discard(q)) {
-		blk_queue_max_discard_sectors(q, 0);
-		blk_queue_discard_granularity(q, 0);
-	}
 }
 
 static void fixup_write_zeroes(struct drbd_device *device, struct request_queue *q)
@@ -1300,7 +1286,6 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
 		blk_stack_limits(&q->limits, &b->limits, 0);
 		disk_update_readahead(device->vdisk);
 	}
-	fixup_discard_if_not_supported(q);
 	fixup_write_zeroes(device, q);
 }
 
@@ -1447,7 +1432,7 @@ static void sanitize_disk_conf(struct drbd_device *device, struct disk_conf *dis
 	if (disk_conf->al_extents > drbd_al_extents_max(nbc))
 		disk_conf->al_extents = drbd_al_extents_max(nbc);
 
-	if (!blk_queue_discard(q)) {
+	if (!bdev_max_discard_sectors(bdev)) {
 		if (disk_conf->rs_discard_granularity) {
 			disk_conf->rs_discard_granularity = 0; /* disable feature */
 			drbd_info(device, "rs_discard_granularity feature disabled\n");

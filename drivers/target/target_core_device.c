@@ -838,7 +838,7 @@ bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
 	struct request_queue *q = bdev_get_queue(bdev);
 	int block_size = bdev_logical_block_size(bdev);
 
-	if (!blk_queue_discard(q))
+	if (!bdev_max_discard_sectors(bdev))
 		return false;
 
 	attrib->max_unmap_lba_count =

@@ -53,7 +53,7 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 			return -EOPNOTSUPP;
 		op = REQ_OP_SECURE_ERASE;
 	} else {
-		if (!blk_queue_discard(q))
+		if (!bdev_max_discard_sectors(bdev))
 			return -EOPNOTSUPP;
 		op = REQ_OP_DISCARD;
 	}

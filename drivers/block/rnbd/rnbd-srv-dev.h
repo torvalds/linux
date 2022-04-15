@@ -49,9 +49,6 @@ static inline int rnbd_dev_get_secure_discard(const struct rnbd_dev *dev)
 
 static inline int rnbd_dev_get_max_discard_sects(const struct rnbd_dev *dev)
 {
-	if (!blk_queue_discard(bdev_get_queue(dev->bdev)))
-		return 0;
-
 	return bdev_max_discard_sectors(dev->bdev);
 }
 
