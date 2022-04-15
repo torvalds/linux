@@ -155,8 +155,8 @@ schedstats also adds a new /proc/<pid>/schedstat file to include some of
 the same information on a per-process level.  There are three fields in
 this file correlating for that process to:
 
-     1) time spent on the cpu
-     2) time spent waiting on a runqueue
+     1) time spent on the cpu (in nanoseconds)
+     2) time spent waiting on a runqueue (in nanoseconds)
      3) # of timeslices run on this cpu
 
 A program could be easily written to make use of these extra fields to
