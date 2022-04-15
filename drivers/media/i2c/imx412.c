@@ -1040,9 +1040,9 @@ static int imx412_power_off(struct device *dev)
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct imx412 *imx412 = to_imx412(sd);
 
-	gpiod_set_value_cansleep(imx412->reset_gpio, 1);
-
 	clk_disable_unprepare(imx412->inclk);
+
+	gpiod_set_value_cansleep(imx412->reset_gpio, 1);
 
 	return 0;
 }
