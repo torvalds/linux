@@ -191,7 +191,10 @@ struct dw_hdmi {
 
 	spinlock_t audio_lock;
 	struct mutex audio_mutex;
+	unsigned int sample_non_pcm;
+	unsigned int sample_width;
 	unsigned int sample_rate;
+	unsigned int channels;
 	unsigned int audio_cts;
 	unsigned int audio_n;
 	bool audio_enable;
@@ -589,6 +592,8 @@ static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk)
 			n = 4096;
 		else if (pixel_clk == 74176000 || pixel_clk == 148352000)
 			n = 11648;
+		else if (pixel_clk == 297000000)
+			n = 3072;
 		else
 			n = 4096;
 		n *= mult;
@@ -601,6 +606,8 @@ static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk)
 			n = 17836;
 		else if (pixel_clk == 148352000)
 			n = 8918;
+		else if (pixel_clk == 297000000)
+			n = 4704;
 		else
 			n = 6272;
 		n *= mult;
@@ -615,6 +622,8 @@ static unsigned int hdmi_compute_n(unsigned int freq, unsigned long pixel_clk)
 			n = 11648;
 		else if (pixel_clk == 148352000)
 			n = 5824;
+		else if (pixel_clk == 297000000)
+			n = 5120;
 		else
 			n = 6144;
 		n *= mult;
@@ -659,8 +668,8 @@ static void hdmi_set_clk_regenerator(struct dw_hdmi *hdmi,
 
 	config3 = hdmi_readb(hdmi, HDMI_CONFIG3_ID);
 
-	/* Only compute CTS when using internal AHB audio */
-	if (config3 & HDMI_CONFIG3_AHBAUDDMA) {
+	/* Compute CTS when using internal AHB audio or General Parallel audio*/
+	if ((config3 & HDMI_CONFIG3_AHBAUDDMA) || (config3 & HDMI_CONFIG3_GPAUD)) {
 		/*
 		 * Compute the CTS value from the N value.  Note that CTS and N
 		 * can be up to 20 bits in total, so we need 64-bit math.  Also
@@ -702,6 +711,22 @@ static void hdmi_clk_regenerator_update_pixel_clock(struct dw_hdmi *hdmi)
 	mutex_unlock(&hdmi->audio_mutex);
 }
 
+void dw_hdmi_set_sample_width(struct dw_hdmi *hdmi, unsigned int width)
+{
+	mutex_lock(&hdmi->audio_mutex);
+	hdmi->sample_width = width;
+	mutex_unlock(&hdmi->audio_mutex);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_set_sample_width);
+
+void dw_hdmi_set_sample_non_pcm(struct dw_hdmi *hdmi, unsigned int non_pcm)
+{
+	mutex_lock(&hdmi->audio_mutex);
+	hdmi->sample_non_pcm = non_pcm;
+	mutex_unlock(&hdmi->audio_mutex);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_set_sample_non_pcm);
+
 void dw_hdmi_set_sample_rate(struct dw_hdmi *hdmi, unsigned int rate)
 {
 	mutex_lock(&hdmi->audio_mutex);
@@ -717,6 +742,7 @@ void dw_hdmi_set_channel_count(struct dw_hdmi *hdmi, unsigned int cnt)
 	u8 layout;
 
 	mutex_lock(&hdmi->audio_mutex);
+	hdmi->channels = cnt;
 
 	/*
 	 * For >2 channel PCM audio, we need to select layout 1
@@ -763,6 +789,89 @@ static u8 *hdmi_audio_get_eld(struct dw_hdmi *hdmi)
 		return NULL;
 
 	return hdmi->curr_conn->eld;
+}
+
+static void dw_hdmi_gp_audio_enable(struct dw_hdmi *hdmi)
+{
+	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
+	int sample_freq = 0x2, org_sample_freq = 0xD;
+	int ch_mask = BIT(hdmi->channels) - 1;
+
+	switch (hdmi->sample_rate) {
+	case 32000:
+		sample_freq = 0x03;
+		org_sample_freq = 0x0C;
+		break;
+	case 44100:
+		sample_freq = 0x00;
+		org_sample_freq = 0x0F;
+		break;
+	case 48000:
+		sample_freq = 0x02;
+		org_sample_freq = 0x0D;
+		break;
+	case 88200:
+		sample_freq = 0x08;
+		org_sample_freq = 0x07;
+		break;
+	case 96000:
+		sample_freq = 0x0A;
+		org_sample_freq = 0x05;
+		break;
+	case 176400:
+		sample_freq = 0x0C;
+		org_sample_freq = 0x03;
+		break;
+	case 192000:
+		sample_freq = 0x0E;
+		org_sample_freq = 0x01;
+		break;
+	default:
+		break;
+	}
+
+	hdmi_set_cts_n(hdmi, hdmi->audio_cts, hdmi->audio_n);
+	hdmi_enable_audio_clk(hdmi, true);
+
+	hdmi_writeb(hdmi, 0x1, HDMI_FC_AUDSCHNLS0);
+	hdmi_writeb(hdmi, hdmi->channels, HDMI_FC_AUDSCHNLS2);
+	hdmi_writeb(hdmi, 0x22, HDMI_FC_AUDSCHNLS3);
+	hdmi_writeb(hdmi, 0x22, HDMI_FC_AUDSCHNLS4);
+	hdmi_writeb(hdmi, 0x11, HDMI_FC_AUDSCHNLS5);
+	hdmi_writeb(hdmi, 0x11, HDMI_FC_AUDSCHNLS6);
+	hdmi_writeb(hdmi, (0x3 << 4) | sample_freq, HDMI_FC_AUDSCHNLS7);
+	hdmi_writeb(hdmi, (org_sample_freq << 4) | 0xb, HDMI_FC_AUDSCHNLS8);
+
+	hdmi_writeb(hdmi, ch_mask, HDMI_GP_CONF1);
+	hdmi_writeb(hdmi, 0x02, HDMI_GP_CONF2);
+	hdmi_writeb(hdmi, 0x01, HDMI_GP_CONF0);
+
+	hdmi_modb(hdmi,  0x3, 0x3, HDMI_FC_DATAUTO3);
+
+	/* hbr */
+	if (hdmi->sample_rate == 192000 && hdmi->channels == 8 &&
+	    hdmi->sample_width == 32 && hdmi->sample_non_pcm)
+		hdmi_modb(hdmi, 0x01, 0x01, HDMI_GP_CONF2);
+
+	if (pdata->enable_audio)
+		pdata->enable_audio(hdmi,
+					    hdmi->channels,
+					    hdmi->sample_width,
+					    hdmi->sample_rate,
+					    hdmi->sample_non_pcm);
+}
+
+static void dw_hdmi_gp_audio_disable(struct dw_hdmi *hdmi)
+{
+	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
+
+	hdmi_set_cts_n(hdmi, hdmi->audio_cts, 0);
+
+	hdmi_modb(hdmi,  0, 0x3, HDMI_FC_DATAUTO3);
+	if (pdata->disable_audio)
+		pdata->disable_audio(hdmi);
+
+	hdmi_enable_audio_clk(hdmi, false);
 }
 
 static void dw_hdmi_ahb_audio_enable(struct dw_hdmi *hdmi)
@@ -3258,6 +3367,7 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 	hdmi->plat_data = plat_data;
 	hdmi->dev = dev;
 	hdmi->sample_rate = 48000;
+	hdmi->channels = 2;
 	hdmi->disabled = true;
 	hdmi->rxsense = true;
 	hdmi->phy_mask = (u8)~(HDMI_PHY_HPD | HDMI_PHY_RX_SENSE);
@@ -3477,6 +3587,24 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->disable_audio = dw_hdmi_i2s_audio_disable;
 
 		pdevinfo.name = "dw-hdmi-i2s-audio";
+		pdevinfo.data = &audio;
+		pdevinfo.size_data = sizeof(audio);
+		pdevinfo.dma_mask = DMA_BIT_MASK(32);
+		hdmi->audio = platform_device_register_full(&pdevinfo);
+	} else if (iores && config3 & HDMI_CONFIG3_GPAUD) {
+		struct dw_hdmi_audio_data audio;
+
+		audio.phys = iores->start;
+		audio.base = hdmi->regs;
+		audio.irq = irq;
+		audio.hdmi = hdmi;
+		audio.get_eld = hdmi_audio_get_eld;
+
+		hdmi->enable_audio = dw_hdmi_gp_audio_enable;
+		hdmi->disable_audio = dw_hdmi_gp_audio_disable;
+
+		pdevinfo.name = "dw-hdmi-gp-audio";
+		pdevinfo.id = PLATFORM_DEVID_NONE;
 		pdevinfo.data = &audio;
 		pdevinfo.size_data = sizeof(audio);
 		pdevinfo.dma_mask = DMA_BIT_MASK(32);
