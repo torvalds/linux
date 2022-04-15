@@ -12,7 +12,7 @@
 
 	aliases {
 		serial0 = &blsp1_uart1;
-		serial1 = &blsp2_uart10;
+		serial1 = &blsp2_uart4;
 	};
 
 	chosen {
@@ -395,7 +395,7 @@
 			};
 		};
 
-		blsp2_uart10_pin_a: blsp2-uart10-pin-active {
+		blsp2_uart4_pin_a: blsp2-uart4-pin-active {
 			tx {
 				pins = "gpio53";
 				function = "blsp_uart10";
@@ -473,7 +473,7 @@
 		status = "okay";
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&blsp2_uart10_pin_a>;
+		pinctrl-0 = <&blsp2_uart4_pin_a>;
 
 		bluetooth {
 			compatible = "brcm,bcm43438-bt";

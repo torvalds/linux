@@ -713,7 +713,7 @@
 			status = "disabled";
 		};
 
-		blsp2_uart7: serial@f995d000 {
+		blsp2_uart1: serial@f995d000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0xf995d000 0x1000>;
 			interrupts = <GIC_SPI 113 IRQ_TYPE_NONE>;
@@ -722,7 +722,7 @@
 			status = "disabled";
 		};
 
-		blsp2_uart8: serial@f995e000 {
+		blsp2_uart2: serial@f995e000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0xf995e000 0x1000>;
 			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
@@ -731,7 +731,7 @@
 			status = "disabled";
 		};
 
-		blsp2_uart10: serial@f9960000 {
+		blsp2_uart4: serial@f9960000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0xf9960000 0x1000>;
 			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;

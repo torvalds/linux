@@ -358,13 +358,13 @@
 		status = "okay";
 	};
 
-	/* blsp2_uart8 */
+	/* blsp2_uart2 */
 	serial@f995e000 {
 		status = "okay";
 
 		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&blsp2_uart8_pins_active>;
-		pinctrl-1 = <&blsp2_uart8_pins_sleep>;
+		pinctrl-0 = <&blsp2_uart2_pins_active>;
+		pinctrl-1 = <&blsp2_uart2_pins_sleep>;
 
 		bluetooth {
 			compatible = "brcm,bcm43540-bt";
@@ -380,14 +380,14 @@
 	};
 
 	pinctrl@fd510000 {
-		blsp2_uart8_pins_active: blsp2-uart8-pins-active {
+		blsp2_uart2_pins_active: blsp2-uart2-pins-active {
 			pins = "gpio45", "gpio46", "gpio47", "gpio48";
 			function = "blsp_uart8";
 			drive-strength = <8>;
 			bias-disable;
 		};
 
-		blsp2_uart8_pins_sleep: blsp2-uart8-pins-sleep {
+		blsp2_uart2_pins_sleep: blsp2-uart2-pins-sleep {
 			pins = "gpio45", "gpio46", "gpio47", "gpio48";
 			function = "gpio";
 			drive-strength = <2>;
