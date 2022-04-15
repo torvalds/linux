@@ -60,8 +60,6 @@
 };
 
 &imem {
-	status = "okay";
-
 	reboot-mode {
 		mode-normal	= <0x77665501>;
 		mode-bootloader	= <0x77665500>;
