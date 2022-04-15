@@ -190,8 +190,7 @@ static void submit_one_bio(struct bio *bio, int mirror_num, unsigned long bio_fl
 		btrfs_submit_data_bio(tree->private_data, bio, mirror_num,
 					    bio_flags);
 	else
-		btrfs_submit_metadata_bio(tree->private_data, bio,
-						mirror_num, bio_flags);
+		btrfs_submit_metadata_bio(tree->private_data, bio, mirror_num);
 	/*
 	 * Above submission hooks will handle the error by ending the bio,
 	 * which will do the cleanup properly.  So here we should not return
