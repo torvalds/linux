@@ -100,6 +100,7 @@
 #define GUC_CTL_WA			1
 #define   GUC_WA_GAM_CREDITS		BIT(10)
 #define   GUC_WA_DUAL_QUEUE		BIT(11)
+#define   GUC_WA_RCS_RESET_BEFORE_RC6	BIT(13)
 #define   GUC_WA_PRE_PARSER		BIT(14)
 #define   GUC_WA_POLLCS			BIT(18)
 
