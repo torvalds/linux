@@ -1323,8 +1323,7 @@ static void __map_bio(struct bio *clone)
 }
 
 static void alloc_multiple_bios(struct bio_list *blist, struct clone_info *ci,
-				struct dm_target *ti, unsigned num_bios,
-				unsigned *len)
+				struct dm_target *ti, unsigned num_bios)
 {
 	struct bio *bio;
 	int try;
@@ -1335,7 +1334,7 @@ static void alloc_multiple_bios(struct bio_list *blist, struct clone_info *ci,
 		if (try)
 			mutex_lock(&ci->io->md->table_devices_lock);
 		for (bio_nr = 0; bio_nr < num_bios; bio_nr++) {
-			bio = alloc_tio(ci, ti, bio_nr, len,
+			bio = alloc_tio(ci, ti, bio_nr, NULL,
 					try ? GFP_NOIO : GFP_NOWAIT);
 			if (!bio)
 				break;
@@ -1363,11 +1362,11 @@ static void __send_duplicate_bios(struct clone_info *ci, struct dm_target *ti,
 		break;
 	case 1:
 		clone = alloc_tio(ci, ti, 0, len, GFP_NOIO);
-		dm_tio_set_flag(clone_to_tio(clone), DM_TIO_IS_DUPLICATE_BIO);
 		__map_bio(clone);
 		break;
 	default:
-		alloc_multiple_bios(&blist, ci, ti, num_bios, len);
+		/* dm_accept_partial_bio() is not supported with shared tio->len_ptr */
+		alloc_multiple_bios(&blist, ci, ti, num_bios);
 		while ((clone = bio_list_pop(&blist))) {
 			dm_tio_set_flag(clone_to_tio(clone), DM_TIO_IS_DUPLICATE_BIO);
 			__map_bio(clone);
@@ -1392,6 +1391,7 @@ static void __send_empty_flush(struct clone_info *ci)
 
 	ci->bio = &flush_bio;
 	ci->sector_count = 0;
+	ci->io->tio.clone.bi_iter.bi_size = 0;
 
 	while ((ti = dm_table_get_target(ci->map, target_nr++)))
 		__send_duplicate_bios(ci, ti, ti->num_flush_bios, NULL);
@@ -1407,14 +1407,10 @@ static void __send_changing_extent_only(struct clone_info *ci, struct dm_target 
 	len = min_t(sector_t, ci->sector_count,
 		    max_io_len_target_boundary(ti, dm_target_offset(ti, ci->sector)));
 
-	/*
-	 * dm_accept_partial_bio cannot be used with duplicate bios,
-	 * so update clone_info cursor before __send_duplicate_bios().
-	 */
+	__send_duplicate_bios(ci, ti, num_bios, &len);
+
 	ci->sector += len;
 	ci->sector_count -= len;
-
-	__send_duplicate_bios(ci, ti, num_bios, &len);
 }
 
 static bool is_abnormal_io(struct bio *bio)
