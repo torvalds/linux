@@ -1391,6 +1391,7 @@ static void __send_empty_flush(struct clone_info *ci)
 
 	ci->bio = &flush_bio;
 	ci->sector_count = 0;
+	ci->io->tio.clone.bi_iter.bi_size = 0;
 
 	while ((ti = dm_table_get_target(ci->map, target_nr++)))
 		__send_duplicate_bios(ci, ti, ti->num_flush_bios, NULL);
