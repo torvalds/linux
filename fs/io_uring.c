@@ -7705,7 +7705,44 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	return io_req_prep(req, sqe);
 }
 
-static int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
+static __cold int io_submit_fail_init(const struct io_uring_sqe *sqe,
+				      struct io_kiocb *req, int ret)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_submit_link *link = &ctx->submit_state.link;
+	struct io_kiocb *head = link->head;
+
+	trace_io_uring_req_failed(sqe, ctx, req, ret);
+
+	/*
+	 * Avoid breaking links in the middle as it renders links with SQPOLL
+	 * unusable. Instead of failing eagerly, continue assembling the link if
+	 * applicable and mark the head with REQ_F_FAIL. The link flushing code
+	 * should find the flag and handle the rest.
+	 */
+	req_fail_link_node(req, ret);
+	if (head && !(head->flags & REQ_F_FAIL))
+		req_fail_link_node(head, -ECANCELED);
+
+	if (!(req->flags & IO_REQ_LINK_FLAGS)) {
+		if (head) {
+			link->last->link = req;
+			link->head = NULL;
+			req = head;
+		}
+		io_queue_sqe_fallback(req);
+		return ret;
+	}
+
+	if (head)
+		link->last->link = req;
+	else
+		link->head = req;
+	link->last = req;
+	return 0;
+}
+
+static inline int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 			 const struct io_uring_sqe *sqe)
 	__must_hold(&ctx->uring_lock)
 {
@@ -7713,32 +7750,8 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	int ret;
 
 	ret = io_init_req(ctx, req, sqe);
-	if (unlikely(ret)) {
-		trace_io_uring_req_failed(sqe, ctx, req, ret);
-
-		/* fail even hard links since we don't submit */
-		if (link->head) {
-			/*
-			 * we can judge a link req is failed or cancelled by if
-			 * REQ_F_FAIL is set, but the head is an exception since
-			 * it may be set REQ_F_FAIL because of other req's failure
-			 * so let's leverage req->cqe.res to distinguish if a head
-			 * is set REQ_F_FAIL because of its failure or other req's
-			 * failure so that we can set the correct ret code for it.
-			 * init result here to avoid affecting the normal path.
-			 */
-			if (!(link->head->flags & REQ_F_FAIL))
-				req_fail_link_node(link->head, -ECANCELED);
-		} else if (!(req->flags & IO_REQ_LINK_FLAGS)) {
-			/*
-			 * the current req is a normal req, we should return
-			 * error and thus break the submittion loop.
-			 */
-			io_req_complete_failed(req, ret);
-			return ret;
-		}
-		req_fail_link_node(req, ret);
-	}
+	if (unlikely(ret))
+		return io_submit_fail_init(sqe, req, ret);
 
 	/* don't need @sqe from now on */
 	trace_io_uring_submit_sqe(ctx, req, req->cqe.user_data, req->opcode,
@@ -7753,25 +7766,19 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	 * conditions are true (normal request), then just queue it.
 	 */
 	if (link->head) {
-		struct io_kiocb *head = link->head;
+		ret = io_req_prep_async(req);
+		if (unlikely(ret))
+			return io_submit_fail_init(sqe, req, ret);
 
-		if (!(req->flags & REQ_F_FAIL)) {
-			ret = io_req_prep_async(req);
-			if (unlikely(ret)) {
-				req_fail_link_node(req, ret);
-				if (!(head->flags & REQ_F_FAIL))
-					req_fail_link_node(head, -ECANCELED);
-			}
-		}
-		trace_io_uring_link(ctx, req, head);
+		trace_io_uring_link(ctx, req, link->head);
 		link->last->link = req;
 		link->last = req;
 
 		if (req->flags & IO_REQ_LINK_FLAGS)
 			return 0;
-		/* last request of a link, enqueue the link */
+		/* last request of the link, flush it */
+		req = link->head;
 		link->head = NULL;
-		req = head;
 	} else if (req->flags & IO_REQ_LINK_FLAGS) {
 		link->head = req;
 		link->last = req;
