@@ -5716,13 +5716,12 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 /**
  * mpt3sas_check_same_4gb_region - checks whether all reply queues in a set are
  *	having same upper 32bits in their base memory address.
- * @reply_pool_start_address: Base address of a reply queue set
+ * @start_address: Base address of a reply queue set
  * @pool_sz: Size of single Reply Descriptor Post Queues pool size
  *
  * Return: 1 if reply queues in a set have a same upper 32bits in their base
  * memory address, else 0.
  */
-
 static int
 mpt3sas_check_same_4gb_region(dma_addr_t start_address, u32 pool_sz)
 {

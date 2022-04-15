@@ -458,6 +458,12 @@ bool lan966x_hw_offload(struct lan966x *lan966x, u32 port, struct sk_buff *skb)
 		     ANA_CPU_FWD_CFG_MLD_REDIR_ENA)))
 		return true;
 
+	if (eth_type_vlan(skb->protocol)) {
+		skb = skb_vlan_untag(skb);
+		if (unlikely(!skb))
+			return false;
+	}
+
 	if (skb->protocol == htons(ETH_P_IP) &&
 	    ip_hdr(skb)->protocol == IPPROTO_IGMP)
 		return false;

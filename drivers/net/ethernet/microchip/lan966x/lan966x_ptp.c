@@ -29,10 +29,10 @@ enum {
 
 static u64 lan966x_ptp_get_nominal_value(void)
 {
-	u64 res = 0x304d2df1;
-
-	res <<= 32;
-	return res;
+	/* This is the default value that for each system clock, the time of day
+	 * is increased. It has the format 5.59 nanosecond.
+	 */
+	return 0x304d4873ecade305;
 }
 
 int lan966x_ptp_hwtstamp_set(struct lan966x_port *port, struct ifreq *ifr)
