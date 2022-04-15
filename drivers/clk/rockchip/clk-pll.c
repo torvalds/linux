@@ -1429,10 +1429,14 @@ static int rockchip_rk3588_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 static int rockchip_rk3588_pll_enable(struct clk_hw *hw)
 {
 	struct rockchip_clk_pll *pll = to_rockchip_clk_pll(hw);
+	const struct clk_ops *pll_mux_ops = pll->pll_mux_ops;
+	struct clk_mux *pll_mux = &pll->pll_mux;
 
 	writel(HIWORD_UPDATE(0, RK3588_PLLCON1_PWRDOWN, 0),
 	       pll->reg_base + RK3588_PLLCON(1));
 	rockchip_rk3588_pll_wait_lock(pll);
+
+	pll_mux_ops->set_parent(&pll_mux->hw, PLL_MODE_NORM);
 
 	return 0;
 }
@@ -1440,6 +1444,10 @@ static int rockchip_rk3588_pll_enable(struct clk_hw *hw)
 static void rockchip_rk3588_pll_disable(struct clk_hw *hw)
 {
 	struct rockchip_clk_pll *pll = to_rockchip_clk_pll(hw);
+	const struct clk_ops *pll_mux_ops = pll->pll_mux_ops;
+	struct clk_mux *pll_mux = &pll->pll_mux;
+
+	pll_mux_ops->set_parent(&pll_mux->hw, PLL_MODE_SLOW);
 
 	writel(HIWORD_UPDATE(RK3588_PLLCON1_PWRDOWN,
 			     RK3588_PLLCON1_PWRDOWN, 0),
@@ -1599,13 +1607,7 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 	pll_mux->flags = 0;
 	pll_mux->lock = &ctx->lock;
 	pll_mux->hw.init = &init;
-
-	if (pll_type == pll_rk3036 ||
-	    pll_type == pll_rk3066 ||
-	    pll_type == pll_rk3328 ||
-	    pll_type == pll_rk3399 ||
-	    pll_type == pll_rk3588)
-		pll_mux->flags |= CLK_MUX_HIWORD_MASK;
+	pll_mux->flags |= CLK_MUX_HIWORD_MASK;
 
 	/* the actual muxing is xin24m, pll-output, xin32k */
 	pll_parents[0] = parent_names[0];
