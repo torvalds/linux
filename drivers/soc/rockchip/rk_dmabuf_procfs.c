@@ -16,7 +16,6 @@ static struct device *dmabuf_dev;
 
 static void rk_dmabuf_dump_empty_sgt(struct dma_buf *dmabuf, void *private)
 {
-	struct dma_buf *db = (struct dma_buf *)dmabuf;
 	struct dma_buf_attachment *a;
 	struct seq_file *s = private;
 	struct scatterlist *sg;
@@ -24,13 +23,13 @@ static void rk_dmabuf_dump_empty_sgt(struct dma_buf *dmabuf, void *private)
 	phys_addr_t end, len;
 	int i;
 
-	a = dma_buf_attach(db, dmabuf_dev);
+	a = dma_buf_attach(dmabuf, dmabuf_dev);
 	if (IS_ERR(a))
 		return;
 
 	sgt = dma_buf_map_attachment(a, DMA_BIDIRECTIONAL);
 	if (IS_ERR(sgt)) {
-		dma_buf_detach(db, a);
+		dma_buf_detach(dmabuf, a);
 		return;
 	}
 
@@ -38,10 +37,10 @@ static void rk_dmabuf_dump_empty_sgt(struct dma_buf *dmabuf, void *private)
 		end = sg->dma_address + sg->length - 1;
 		len = sg->length;
 		if (i)
-			seq_printf(s, "%48s", " ");
+			seq_printf(s, "%65s", " ");
 		else
-			seq_printf(s, "%-16.16s %-16.16s %10lu KiB",
-				   dmabuf->name,
+			seq_printf(s, "%px %-16.16s %-16.16s %10lu KiB",
+				   dmabuf, dmabuf->name,
 				   dmabuf->exp_name, K(dmabuf->size));
 		seq_printf(s, "%4d: %pa..%pa (%10lu %s)\n", i,
 			   &sg->dma_address, &end,
@@ -49,19 +48,16 @@ static void rk_dmabuf_dump_empty_sgt(struct dma_buf *dmabuf, void *private)
 			   (len >> 10) ? "KiB" : "Bytes");
 	}
 	dma_buf_unmap_attachment(a, sgt, DMA_BIDIRECTIONAL);
-	dma_buf_detach(db, a);
+	dma_buf_detach(dmabuf, a);
 }
 
-static void rk_dmabuf_dump_sgt(struct dma_buf *dmabuf, void *private)
+static void rk_dmabuf_dump_sgt(const struct dma_buf *dmabuf, void *private)
 {
 	struct seq_file *s = private;
 	struct scatterlist *sg;
 	struct dma_buf_attachment *a, *t;
 	phys_addr_t end, len;
 	int i;
-
-	if (list_empty(&dmabuf->attachments))
-		return rk_dmabuf_dump_empty_sgt(dmabuf, s);
 
 	list_for_each_entry_safe(a, t, &dmabuf->attachments, node) {
 		if (!a->sgt)
@@ -70,26 +66,33 @@ static void rk_dmabuf_dump_sgt(struct dma_buf *dmabuf, void *private)
 			end = sg->dma_address + sg->length - 1;
 			len = sg->length;
 			if (i)
-				seq_printf(s, "%48s", " ");
+				seq_printf(s, "%65s", " ");
 			else
-				seq_printf(s, "%-16.16s %-16.16s %10lu KiB",
-					   dmabuf->name,
+				seq_printf(s, "%px %-16.16s %-16.16s %10lu KiB",
+					   dmabuf, dmabuf->name,
 					   dmabuf->exp_name, K(dmabuf->size));
 			seq_printf(s, "%4d: %pa..%pa (%10lu %s)\n", i,
 				   &sg->dma_address, &end,
 				   (len >> 10) ? (K(len)) : (unsigned long)len,
 				   (len >> 10) ? "KiB" : "Bytes");
 		}
-		break;
+		return;
+	}
+	/* Try to attach and map the dmabufs without sgt. */
+	if (IS_ENABLED(CONFIG_DMABUF_DEBUG_ADVANCED)) {
+		struct dma_buf *dbuf = (struct dma_buf *)dmabuf;
+
+		get_dma_buf(dbuf);
+		rk_dmabuf_dump_empty_sgt(dbuf, s);
+		dma_buf_put(dbuf);
 	}
 }
 
 static int rk_dmabuf_cb(const struct dma_buf *dmabuf, void *private)
 {
 	struct seq_file *s = private;
-	struct dma_buf *db = (struct dma_buf *)dmabuf;
 
-	rk_dmabuf_dump_sgt(db, s);
+	rk_dmabuf_dump_sgt(dmabuf, s);
 
 	return 0;
 }
@@ -101,22 +104,43 @@ static int rk_dmabuf_cb2(const struct dma_buf *dmabuf, void *private)
 	return 0;
 }
 
-static int rk_dmabuf_show(struct seq_file *s, void *v)
+static int rk_dmabuf_cb3(const struct dma_buf *dmabuf, void *private)
 {
-	int ret;
+	struct seq_file *s = private;
+	struct dma_buf_attachment *a, *t;
+
+	seq_printf(s, "%px %-16.16s %-16.16s %10lu KiB",
+		   dmabuf, dmabuf->name,
+		   dmabuf->exp_name, K(dmabuf->size));
+	list_for_each_entry_safe(a, t, &dmabuf->attachments, node) {
+		seq_printf(s, " %s", dev_name(a->dev));
+	}
+	seq_puts(s, "\n");
+
+	return 0;
+}
+
+static int rk_dmabuf_sgt_show(struct seq_file *s, void *v)
+{
+	seq_printf(s, "%16s %-16s %-16s %14s %8s\n\n",
+		   "DMABUF", "NAME", "EXPORT", "SIZE:KiB", "SGLIST");
+
+	return get_each_dmabuf(rk_dmabuf_cb, s);
+}
+
+static int rk_dmabuf_dev_show(struct seq_file *s, void *v)
+{
+	seq_printf(s, "%16s %-16s %-16s %14s %8s\n\n",
+		   "DMABUF", "NAME", "EXPORT", "SIZE:KiB", "AttachedDevices");
+
+	return get_each_dmabuf(rk_dmabuf_cb3, s);
+}
+
+static int rk_dmabuf_size_show(struct seq_file *s, void *v)
+{
 	unsigned long total_size = 0;
 
-	seq_printf(s, "%-16s %-16s %14s %8s\n\n",
-		   "NAME", "EXPORT", "SIZE:KiB", "SGLIST");
-
-	ret = get_each_dmabuf(rk_dmabuf_cb, s);
-	if (ret)
-		return ret;
-
-	ret = get_each_dmabuf(rk_dmabuf_cb2, &total_size);
-	if (ret)
-		return ret;
-
+	get_each_dmabuf(rk_dmabuf_cb2, &total_size);
 	seq_printf(s, "Total: %lu KiB\n", K(total_size));
 
 	return 0;
@@ -130,12 +154,15 @@ static int __init rk_dmabuf_init(void)
 		.id		= PLATFORM_DEVID_NONE,
 		.dma_mask	= DMA_BIT_MASK(64),
 	};
+	struct proc_dir_entry *root = proc_mkdir("rk_dmabuf", NULL);
 
 	pdev = platform_device_register_full(&dev_info);
 	dma_set_max_seg_size(&pdev->dev, (unsigned int)DMA_BIT_MASK(64));
 	dmabuf_dev = pdev ? &pdev->dev : NULL;
 
-	proc_create_single("rk_dmabuf", 0, NULL, rk_dmabuf_show);
+	proc_create_single("sgt", 0, root, rk_dmabuf_sgt_show);
+	proc_create_single("dev", 0, root, rk_dmabuf_dev_show);
+	proc_create_single("size", 0, root, rk_dmabuf_size_show);
 
 	return 0;
 }

@@ -17,6 +17,13 @@ config DMABUF_DEBUG
 	  This option support to debug all the dmabuf on db_list, allows to set
 	  a name for dmabuf. If not sure, say N
 
+config DMABUF_DEBUG_ADVANCED
+	bool "DMABUF debug advanced option"
+	depends on DMABUF_DEBUG
+	help
+	  This option support to debug all the dmabuf on db_list, allows to attach
+	  and map a dmabuf who has no attachment. If not sure, say N
+
 config SYNC_FILE
 	bool "Explicit Synchronization Framework"
 	default n
