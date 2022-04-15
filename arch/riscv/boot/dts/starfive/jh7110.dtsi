@@ -321,6 +321,12 @@
 			interrupts = <68>;
 			interrupt-names = "wdog";
 			clock-frequency = <2000000>;
+			clocks = <&clkgen JH7110_DSKIT_WDT_CLK_WDT>,
+				<&clkgen JH7110_DSKIT_WDT_CLK_APB>;
+			clock-names = "core_clk", "apb_clk";
+			resets = <&rstgen RSTN_U0_DSKIT_WDT_APB>,
+				<&rstgen RSTN_U0_DSKIT_WDT_CORE>;
+			reset-names = "rst_apb", "rst_core";
 			timeout-sec = <15>;
 			status = "okay";
 		};
@@ -348,7 +354,7 @@
 			reg = <0x0 0x10000000 0x0 0x10000>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
-			clocks = <&clkgen JH7110_UART0_CLK_CORE>, 
+			clocks = <&clkgen JH7110_UART0_CLK_CORE>,
 					<&clkgen JH7110_UART0_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
 			interrupts = <32>;

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright 2021 StarFive, Inc <samin.guo@starfivetech.com>
+ * Copyright 2022 StarFive, Inc <xingyu.wu@starfivetech.com>
  *
  * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING
  * CUSTOMERS WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER
@@ -27,6 +28,9 @@
 #include <linux/timer.h>
 #include <linux/uaccess.h>
 #include <linux/watchdog.h>
+#include <linux/reset.h>
+#include <linux/reset-controller.h>
+
 
 /* JH7100 WatchDog register define */
 #define JH7100_WDGINTSTAUS	0x000
@@ -125,6 +129,8 @@ struct stf_si5_wdt {
 	struct watchdog_device wdt_device;
 	struct clk *core_clk;
 	struct clk *apb_clk;
+	struct reset_control *rst_apb;
+	struct reset_control *rst_core;
 	const struct si5_wdt_variant *drv_data;
 	u32 count;	/*count of timeout*/
 	u32 reload;	/*restore the count*/
@@ -134,17 +140,17 @@ struct stf_si5_wdt {
 
 #ifdef CONFIG_OF
 static struct si5_wdt_variant_t jh7100_variant = {
-        .unlock_key = JH7100_UNLOCK_KEY,
-        .enrst_shift = JH7100_RESEN_SHIFT,
-        .en_shift = JH7100_EN_SHIFT,
+	.unlock_key = JH7100_UNLOCK_KEY,
+	.enrst_shift = JH7100_RESEN_SHIFT,
+	.en_shift = JH7100_EN_SHIFT,
 	.intclr_check = 1,
 	.intclr_ava_shift = JH7100_INTCLR_AVA_SHIFT,
 };
 
 static struct si5_wdt_variant_t jh7110_variant = {
-        .unlock_key = JH7110_UNLOCK_KEY,
-        .enrst_shift = JH7110_RESEN_SHIFT,
-        .en_shift = JH7110_EN_SHIFT,
+	.unlock_key = JH7110_UNLOCK_KEY,
+	.enrst_shift = JH7110_RESEN_SHIFT,
+	.en_shift = JH7110_EN_SHIFT,
 };
 
 static const struct si5_wdt_variant drv_data_jh7100 = {
@@ -156,7 +162,7 @@ static const struct si5_wdt_variant drv_data_jh7100 = {
 	.int_clr = JH7100_WDOGINTCLR,
 	.int_mask = JH7100_WDOGINTMSK,
 	.unlock = JH7100_WDOGLOCK,
-	.variant =  &jh7100_variant,
+	.variant = &jh7100_variant,
 };
 
 static const struct si5_wdt_variant drv_data_jh7110 = {
@@ -166,14 +172,14 @@ static const struct si5_wdt_variant drv_data_jh7110 = {
 	.value = JH7110_WDOGVALUE,
 	.int_clr = JH7110_WDOGINTCLR,
 	.unlock = JH7110_WDOGLOCK,
-	.variant =  &jh7110_variant,
+	.variant = &jh7110_variant,
 };
 
 static const struct of_device_id starfive_wdt_match[] = {
 	{ .compatible = "starfive,si5-wdt",
-	  .data = &drv_data_jh7100 },
+		.data = &drv_data_jh7100 },
 	{ .compatible = "starfive,dskit-wdt",
-	  .data = &drv_data_jh7110 },
+		.data = &drv_data_jh7110 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, starfive_wdt_match);
@@ -218,18 +224,38 @@ static int si5wdt_enable_clock(struct stf_si5_wdt *wdt)
 {
 	int err = 0;
 
-	wdt->apb_clk =	devm_clk_get(wdt->dev, "apb_clk");
+	wdt->apb_clk = devm_clk_get(wdt->dev, "apb_clk");
 	if (!IS_ERR(wdt->apb_clk)) {
 		err = clk_prepare_enable(wdt->apb_clk);
 		if(err)
 			dev_warn(wdt->dev, "enable core_clk error.\n");
 	}
 
-	wdt->core_clk =  devm_clk_get(wdt->dev, "core_clk");
+	wdt->core_clk = devm_clk_get(wdt->dev, "core_clk");
 	if (!IS_ERR(wdt->core_clk)) {
 		err = clk_prepare_enable(wdt->core_clk);
 		if(err)
 			dev_warn(wdt->dev, "enable apb_clk error.\n");
+	}
+
+	return err;
+}
+
+static int si5wdt_reset_init(struct stf_si5_wdt *wdt)
+{
+	int err = 0;
+
+	wdt->rst_apb = devm_reset_control_get_exclusive(wdt->dev, "rst_apb");
+	if (!IS_ERR(wdt->rst_apb)) {
+		err = reset_control_deassert(wdt->rst_apb);
+		if(err)
+			dev_warn(wdt->dev, "deassert apb_rst error.\n");
+	}
+	wdt->rst_core = devm_reset_control_get_exclusive(wdt->dev, "rst_core");
+	if (!IS_ERR(wdt->rst_core)) {
+		err = reset_control_deassert(wdt->rst_core);
+		if(err)
+			dev_warn(wdt->dev, "deassert core_rst error.\n");
 	}
 
 	return err;
@@ -482,12 +508,12 @@ static int si5wdt_start(struct watchdog_device *wdd)
 }
 
 static int si5wdt_restart(struct watchdog_device *wdd, unsigned long action,
-			      void *data)
+				void *data)
 {
 	struct stf_si5_wdt *wdt = watchdog_get_drvdata(wdd);
 
 	si5wdt_unlock(wdt);
-	/* disable watchdog, to be safe  */
+	/* disable watchdog, to be safe */
 	si5wdt_disable(wdt);
 
 	if (soft_noboot)
@@ -512,7 +538,7 @@ static int si5wdt_restart(struct watchdog_device *wdd, unsigned long action,
 }
 
 static int si5wdt_set_timeout(struct watchdog_device *wdd,
-				    unsigned int timeout)
+					unsigned int timeout)
 {
 	struct stf_si5_wdt *wdt = watchdog_get_drvdata(wdd);
 
@@ -549,9 +575,9 @@ static int si5wdt_set_timeout(struct watchdog_device *wdd,
 #define OPTIONS (WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE)
 
 static const struct watchdog_info si5_wdt_ident = {
-	.options          = OPTIONS,
+	.options	= OPTIONS,
 	.firmware_version = 0,
-	.identity         = "StarFive SI5 Watchdog",
+	.identity	= "StarFive SI5 Watchdog",
 };
 
 static const struct watchdog_ops si5wdt_ops = {
@@ -579,7 +605,7 @@ si5_get_wdt_drv_data(struct platform_device *pdev)
 	if (!variant) {
 		/* Device matched by platform_device_id */
 		variant = (struct si5_wdt_variant *)
-			   platform_get_device_id(pdev)->driver_data;
+			platform_get_device_id(pdev)->driver_data;
 	}
 
 	return variant;
@@ -622,6 +648,10 @@ static int si5wdt_probe(struct platform_device *pdev)
 		dev_warn(wdt->dev, "get & enable clk err\n");
 
 	si5wdt_get_clock_rate(wdt);
+
+	ret = si5wdt_reset_init(wdt);
+	if (ret)
+		dev_warn(wdt->dev, "get & deassert rst err\n");
 
 	wdt->wdt_device.min_timeout = 1;
 	wdt->wdt_device.max_timeout = si5wdt_max_timeout(wdt);
@@ -776,6 +806,7 @@ static struct platform_driver starfive_si5wdt_driver = {
 
 module_platform_driver(starfive_si5wdt_driver);
 
+MODULE_AUTHOR("xingyu.wu <xingyu.wu@starfivetech.com>");
 MODULE_AUTHOR("samin.guo <samin.guo@starfivetech.com>");
 MODULE_DESCRIPTION("StarFive SI5 Watchdog Device Driver");
 MODULE_LICENSE("GPL v2");
