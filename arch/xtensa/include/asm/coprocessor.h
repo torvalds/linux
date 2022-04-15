@@ -143,10 +143,9 @@ typedef struct { XCHAL_CP7_SA_LIST(2) } xtregs_cp7_t
 	__attribute__ ((aligned (XCHAL_CP7_SA_ALIGN)));
 
 extern struct thread_info* coprocessor_owner[XCHAL_CP_MAX];
-extern void coprocessor_flush(struct thread_info*, int);
-
-extern void coprocessor_release_all(struct thread_info*);
-extern void coprocessor_flush_all(struct thread_info*);
+void coprocessor_flush(struct thread_info *ti, int cp_index);
+void coprocessor_release_all(struct thread_info *ti);
+void coprocessor_flush_all(struct thread_info *ti);
 
 #endif	/* XTENSA_HAVE_COPROCESSORS */
 
