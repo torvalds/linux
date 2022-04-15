@@ -1180,6 +1180,7 @@ static const struct io_op_def io_op_defs[] = {
 
 /* requests with any of those set should undergo io_disarm_next() */
 #define IO_DISARM_MASK (REQ_F_ARM_LTIMEOUT | REQ_F_LINK_TIMEOUT | REQ_F_FAIL)
+#define IO_REQ_LINK_FLAGS (REQ_F_LINK | REQ_F_HARDLINK)
 
 static bool io_disarm_next(struct io_kiocb *req);
 static void io_uring_del_tctx_node(unsigned long index);
@@ -2160,7 +2161,7 @@ static void __io_req_complete_post(struct io_kiocb *req, s32 res,
 	 * free_list cache.
 	 */
 	if (req_ref_put_and_test(req)) {
-		if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK)) {
+		if (req->flags & IO_REQ_LINK_FLAGS) {
 			if (req->flags & IO_DISARM_MASK)
 				io_disarm_next(req);
 			if (req->link) {
@@ -2721,7 +2722,7 @@ static void io_free_batch_list(struct io_ring_ctx *ctx,
 						&ctx->apoll_cache);
 				req->flags &= ~REQ_F_POLLED;
 			}
-			if (req->flags & (REQ_F_LINK|REQ_F_HARDLINK))
+			if (req->flags & IO_REQ_LINK_FLAGS)
 				io_queue_next(req);
 			if (unlikely(req->flags & IO_REQ_CLEAN_FLAGS))
 				io_clean_op(req);
@@ -2781,7 +2782,7 @@ static inline struct io_kiocb *io_put_req_find_next(struct io_kiocb *req)
 	struct io_kiocb *nxt = NULL;
 
 	if (req_ref_put_and_test(req)) {
-		if (unlikely(req->flags & (REQ_F_LINK|REQ_F_HARDLINK)))
+		if (unlikely(req->flags & IO_REQ_LINK_FLAGS))
 			nxt = io_req_find_next(req);
 		io_free_req(req);
 	}
@@ -7728,7 +7729,7 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 			 */
 			if (!(link->head->flags & REQ_F_FAIL))
 				req_fail_link_node(link->head, -ECANCELED);
-		} else if (!(req->flags & (REQ_F_LINK | REQ_F_HARDLINK))) {
+		} else if (!(req->flags & IO_REQ_LINK_FLAGS)) {
 			/*
 			 * the current req is a normal req, we should return
 			 * error and thus break the submittion loop.
@@ -7766,12 +7767,12 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		link->last->link = req;
 		link->last = req;
 
-		if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK))
+		if (req->flags & IO_REQ_LINK_FLAGS)
 			return 0;
 		/* last request of a link, enqueue the link */
 		link->head = NULL;
 		req = head;
-	} else if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK)) {
+	} else if (req->flags & IO_REQ_LINK_FLAGS) {
 		link->head = req;
 		link->last = req;
 		return 0;
