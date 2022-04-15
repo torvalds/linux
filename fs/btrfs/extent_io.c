@@ -137,6 +137,17 @@ struct tree_entry {
 	struct rb_node rb_node;
 };
 
+/*
+ * Structure to record info about the bio being assembled, and other info like
+ * how many bytes are there before stripe/ordered extent boundary.
+ */
+struct btrfs_bio_ctrl {
+	struct bio *bio;
+	unsigned long bio_flags;
+	u32 len_to_stripe_boundary;
+	u32 len_to_oe_boundary;
+};
+
 struct extent_page_data {
 	struct btrfs_bio_ctrl bio_ctrl;
 	/* tells writepage not to lock the state bits for this range
@@ -166,7 +177,7 @@ static int add_extent_changeset(struct extent_state *state, u32 bits,
 	return ret;
 }
 
-void submit_one_bio(struct bio *bio, int mirror_num, unsigned long bio_flags)
+static void submit_one_bio(struct bio *bio, int mirror_num, unsigned long bio_flags)
 {
 	struct extent_io_tree *tree = bio->bi_private;
 
@@ -3604,7 +3615,7 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
  * XXX JDM: This needs looking at to ensure proper page locking
  * return 0 on success, otherwise return error
  */
-int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
+static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		      struct btrfs_bio_ctrl *bio_ctrl,
 		      unsigned int read_flags, u64 *prev_em_start)
 {
@@ -3790,6 +3801,26 @@ int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		pg_offset += iosize;
 	}
 out:
+	return ret;
+}
+
+int btrfs_readpage(struct file *file, struct page *page)
+{
+	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
+	u64 start = page_offset(page);
+	u64 end = start + PAGE_SIZE - 1;
+	struct btrfs_bio_ctrl bio_ctrl = { 0 };
+	int ret;
+
+	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
+
+	ret = btrfs_do_readpage(page, NULL, &bio_ctrl, 0, NULL);
+	/*
+	 * If btrfs_do_readpage() failed we will want to submit the assembled
+	 * bio to do the cleanup.
+	 */
+	if (bio_ctrl.bio)
+		submit_one_bio(bio_ctrl.bio, 0, bio_ctrl.bio_flags);
 	return ret;
 }
 
