@@ -1188,10 +1188,8 @@ static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 bool cancel_all);
 static void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
 
-static void io_fill_cqe_req(struct io_kiocb *req, s32 res, u32 cflags);
-
+static void __io_req_complete_post(struct io_kiocb *req, s32 res, u32 cflags);
 static void io_put_req(struct io_kiocb *req);
-static void io_put_req_deferred(struct io_kiocb *req);
 static void io_dismantle_req(struct io_kiocb *req);
 static void io_queue_linked_timeout(struct io_kiocb *req);
 static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
@@ -1216,6 +1214,7 @@ static int io_close_fixed(struct io_kiocb *req, unsigned int issue_flags);
 
 static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer);
 static void io_eventfd_signal(struct io_ring_ctx *ctx);
+static void io_req_tw_post_queue(struct io_kiocb *req, s32 res, u32 cflags);
 
 static struct kmem_cache *req_cachep;
 
@@ -1768,8 +1767,7 @@ static void io_kill_timeout(struct io_kiocb *req, int status)
 		atomic_set(&req->ctx->cq_timeouts,
 			atomic_read(&req->ctx->cq_timeouts) + 1);
 		list_del_init(&req->timeout.list);
-		io_fill_cqe_req(req, status, 0);
-		io_put_req_deferred(req);
+		io_req_tw_post_queue(req, status, 0);
 	}
 }
 
@@ -2132,12 +2130,6 @@ static inline bool __io_fill_cqe_req(struct io_kiocb *req, s32 res, u32 cflags)
 	return __io_fill_cqe(req->ctx, req->cqe.user_data, res, cflags);
 }
 
-static noinline void io_fill_cqe_req(struct io_kiocb *req, s32 res, u32 cflags)
-{
-	if (!(req->flags & REQ_F_CQE_SKIP))
-		__io_fill_cqe_req(req, res, cflags);
-}
-
 static noinline bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data,
 				     s32 res, u32 cflags)
 {
@@ -2371,9 +2363,7 @@ static bool io_kill_linked_timeout(struct io_kiocb *req)
 		link->timeout.head = NULL;
 		if (hrtimer_try_to_cancel(&io->timer) != -1) {
 			list_del(&link->timeout.list);
-			/* leave REQ_F_CQE_SKIP to io_fill_cqe_req */
-			io_fill_cqe_req(link, -ECANCELED, 0);
-			io_put_req_deferred(link);
+			io_req_tw_post_queue(link, -ECANCELED, 0);
 			return true;
 		}
 	}
@@ -2399,11 +2389,11 @@ static void io_fail_links(struct io_kiocb *req)
 		trace_io_uring_fail_link(req->ctx, req, req->cqe.user_data,
 					req->opcode, link);
 
-		if (!ignore_cqes) {
+		if (ignore_cqes)
+			link->flags |= REQ_F_CQE_SKIP;
+		else
 			link->flags &= ~REQ_F_CQE_SKIP;
-			io_fill_cqe_req(link, res, 0);
-		}
-		io_put_req_deferred(link);
+		__io_req_complete_post(link, res, 0);
 		link = nxt;
 	}
 }
@@ -2419,9 +2409,7 @@ static bool io_disarm_next(struct io_kiocb *req)
 		req->flags &= ~REQ_F_ARM_LTIMEOUT;
 		if (link && link->opcode == IORING_OP_LINK_TIMEOUT) {
 			io_remove_next_linked(req);
-			/* leave REQ_F_CQE_SKIP to io_fill_cqe_req */
-			io_fill_cqe_req(link, -ECANCELED, 0);
-			io_put_req_deferred(link);
+			io_req_tw_post_queue(link, -ECANCELED, 0);
 			posted = true;
 		}
 	} else if (req->flags & REQ_F_LINK_TIMEOUT) {
@@ -2640,6 +2628,19 @@ static void io_req_task_work_add(struct io_kiocb *req, bool priority)
 	}
 }
 
+static void io_req_tw_post(struct io_kiocb *req, bool *locked)
+{
+	io_req_complete_post(req, req->cqe.res, req->cqe.flags);
+}
+
+static void io_req_tw_post_queue(struct io_kiocb *req, s32 res, u32 cflags)
+{
+	req->cqe.res = res;
+	req->cqe.flags = cflags;
+	req->io_task_work.func = io_req_tw_post;
+	io_req_task_work_add(req, false);
+}
+
 static void io_req_task_cancel(struct io_kiocb *req, bool *locked)
 {
 	/* not needed for normal modes, but SQPOLL depends on it */
@@ -2688,11 +2689,6 @@ static void io_free_req(struct io_kiocb *req)
 {
 	io_queue_next(req);
 	__io_free_req(req);
-}
-
-static void io_free_req_work(struct io_kiocb *req, bool *locked)
-{
-	io_free_req(req);
 }
 
 static void io_free_batch_list(struct io_ring_ctx *ctx,
@@ -2792,14 +2788,6 @@ static inline void io_put_req(struct io_kiocb *req)
 {
 	if (req_ref_put_and_test(req))
 		io_free_req(req);
-}
-
-static inline void io_put_req_deferred(struct io_kiocb *req)
-{
-	if (req_ref_put_and_test(req)) {
-		req->io_task_work.func = io_free_req_work;
-		io_req_task_work_add(req, false);
-	}
 }
 
 static unsigned io_cqring_events(struct io_ring_ctx *ctx)
