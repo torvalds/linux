@@ -1807,10 +1807,9 @@ int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
 	struct net_device *master = dsa_slave_to_master(dev);
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *cpu_dp = dp->cpu_dp;
 	struct dsa_switch *ds = p->dp->ds;
 	struct dsa_port *other_dp;
-	struct dsa_port *cpu_dp;
-	int port = p->dp->index;
 	int largest_mtu = 0;
 	int new_master_mtu;
 	int old_master_mtu;
@@ -1842,8 +1841,6 @@ int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
 		if (largest_mtu < slave_mtu)
 			largest_mtu = slave_mtu;
 	}
-
-	cpu_dp = dsa_to_port(ds, port)->cpu_dp;
 
 	mtu_limit = min_t(int, master->max_mtu, dev->max_mtu);
 	old_master_mtu = master->mtu;
