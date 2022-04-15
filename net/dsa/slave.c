@@ -1808,7 +1808,7 @@ int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->dp->ds;
-	struct dsa_port *dp_iter;
+	struct dsa_port *other_dp;
 	struct dsa_port *cpu_dp;
 	int port = p->dp->index;
 	int largest_mtu = 0;
@@ -1821,26 +1821,23 @@ int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
 	if (!ds->ops->port_change_mtu)
 		return -EOPNOTSUPP;
 
-	list_for_each_entry(dp_iter, &ds->dst->ports, list) {
+	dsa_tree_for_each_user_port(other_dp, ds->dst) {
 		int slave_mtu;
-
-		if (!dsa_port_is_user(dp_iter))
-			continue;
 
 		/* During probe, this function will be called for each slave
 		 * device, while not all of them have been allocated. That's
 		 * ok, it doesn't change what the maximum is, so ignore it.
 		 */
-		if (!dp_iter->slave)
+		if (!other_dp->slave)
 			continue;
 
 		/* Pretend that we already applied the setting, which we
 		 * actually haven't (still haven't done all integrity checks)
 		 */
-		if (dp_iter == dp)
+		if (dp == other_dp)
 			slave_mtu = new_mtu;
 		else
-			slave_mtu = dp_iter->slave->mtu;
+			slave_mtu = other_dp->slave->mtu;
 
 		if (largest_mtu < slave_mtu)
 			largest_mtu = slave_mtu;
