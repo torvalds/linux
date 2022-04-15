@@ -2015,31 +2015,35 @@ static int aspeed_i3c_master_send_sir(struct i3c_master_controller *m,
 	if ((slv_event & SLV_EVENT_CTRL_SIR_EN) == 0)
 		return -EPERM;
 
-	buf = kzalloc(CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	if (CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD) {
+		buf = kzalloc(CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
 
-	memcpy(buf, payload->data, payload->len);
+		memcpy(buf, payload->data, payload->len);
+		act_len = payload->len;
+		/*
+		 * AST2600 HW does not export the max ibi payload length to the
+		 * software interface, so we can only send fixed length SIR.
+		 *
+		 * Another consideration is if the bus main master is AST2600,
+		 * it cannot receive IBI with data length (4n + 1) including the
+		 * MDB.  Which means the length of the user payload must not be
+		 * 4n bytes.  Thus we pad 3 bytes for workaround.
+		 */
+		act_len = CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD;
+		if ((act_len & 0x3) == 0x0)
+			act_len += 3;
+
+		aspeed_i3c_master_wr_tx_fifo(master, buf, act_len);
+	}
+
 	init_completion(&master->sir_complete);
-
-	act_len = payload->len;
-	/*
-	 * AST2600 HW does not export the max ibi payload length to the
-	 * software interface, so we can only send fixed length SIR.
-	 *
-	 * Another consideration is if the bus main master is AST2600,
-	 * it cannot receive IBI with data length (4n + 1) including the
-	 * MDB.  Which means the length of the user payload must not be
-	 * 4n bytes.  Thus we pad 3 bytes for workaround.
-	 */
-	act_len = CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD;
-	if ((act_len & 0x3) == 0x0)
-		act_len += 3;
-
-	aspeed_i3c_master_wr_tx_fifo(master, buf, act_len);
 	writel(1, master->regs + SLV_INTR_REQ);
 	wait_for_completion(&master->sir_complete);
-	kfree(buf);
+
+	if (CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD)
+		kfree(buf);
 
 	intr_req = readl(master->regs + SLV_INTR_REQ);
 	if (SLV_INTR_REQ_IBI_STS(intr_req) != SLV_IBI_STS_OK) {
