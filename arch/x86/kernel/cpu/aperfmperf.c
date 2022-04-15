@@ -139,6 +139,9 @@ unsigned int arch_freq_get_on_cpu(int cpu)
 	if (!housekeeping_cpu(cpu, HK_TYPE_MISC))
 		return 0;
 
+	if (rcu_is_idle_cpu(cpu))
+		return 0;
+
 	if (aperfmperf_snapshot_cpu(cpu, ktime_get(), true))
 		return per_cpu(samples.khz, cpu);
 
