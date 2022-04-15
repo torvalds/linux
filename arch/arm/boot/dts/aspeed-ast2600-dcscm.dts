@@ -193,6 +193,10 @@
 	status = "okay";
 };
 
+&i2c15 {
+	status = "okay";
+};
+
 #if 0
 &ehci0 {
 	status = "disabled";
