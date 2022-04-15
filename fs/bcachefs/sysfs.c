@@ -55,6 +55,9 @@ static ssize_t fn ## _show(struct kobject *kobj, struct attribute *attr,\
 	struct printbuf out = PRINTBUF;					\
 	ssize_t ret = fn ## _to_text(&out, kobj, attr);			\
 									\
+	if (out.pos && out.buf[out.pos - 1] != '\n')			\
+		pr_newline(&out);					\
+									\
 	if (!ret && out.allocation_failure)				\
 		ret = -ENOMEM;						\
 									\
