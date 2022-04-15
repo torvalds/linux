@@ -100,7 +100,6 @@ struct dsa_notifier_vlan_info {
 /* DSA_NOTIFIER_MTU */
 struct dsa_notifier_mtu_info {
 	const struct dsa_port *dp;
-	bool targeted_match;
 	int mtu;
 };
 
@@ -231,8 +230,7 @@ int dsa_port_mst_enable(struct dsa_port *dp, bool on,
 			struct netlink_ext_ack *extack);
 int dsa_port_vlan_msti(struct dsa_port *dp,
 		       const struct switchdev_vlan_msti *msti);
-int dsa_port_mtu_change(struct dsa_port *dp, int new_mtu,
-			bool targeted_match);
+int dsa_port_mtu_change(struct dsa_port *dp, int new_mtu);
 int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 		     u16 vid);
 int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,

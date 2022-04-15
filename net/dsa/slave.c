@@ -1859,15 +1859,14 @@ int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
 			goto out_master_failed;
 
 		/* We only need to propagate the MTU of the CPU port to
-		 * upstream switches, so create a non-targeted notifier which
-		 * updates all switches.
+		 * upstream switches, so emit a notifier which updates them.
 		 */
-		err = dsa_port_mtu_change(cpu_dp, cpu_mtu, false);
+		err = dsa_port_mtu_change(cpu_dp, cpu_mtu);
 		if (err)
 			goto out_cpu_failed;
 	}
 
-	err = dsa_port_mtu_change(dp, new_mtu, true);
+	err = ds->ops->port_change_mtu(ds, dp->index, new_mtu);
 	if (err)
 		goto out_port_failed;
 
@@ -1880,8 +1879,7 @@ int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
 out_port_failed:
 	if (new_master_mtu != old_master_mtu)
 		dsa_port_mtu_change(cpu_dp, old_master_mtu -
-				    dsa_tag_protocol_overhead(cpu_dp->tag_ops),
-				    false);
+				    dsa_tag_protocol_overhead(cpu_dp->tag_ops));
 out_cpu_failed:
 	if (new_master_mtu != old_master_mtu)
 		dev_set_mtu(master, old_master_mtu);
