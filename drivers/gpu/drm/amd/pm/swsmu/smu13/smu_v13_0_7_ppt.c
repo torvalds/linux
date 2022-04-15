@@ -1277,6 +1277,47 @@ static int smu_v13_0_7_populate_umd_state_clk(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v13_0_7_get_fan_speed_pwm(struct smu_context *smu,
+					 uint32_t *speed)
+{
+	if (!speed)
+		return -EINVAL;
+
+	return smu_v13_0_7_get_smu_metrics_data(smu,
+						METRICS_CURR_FANPWM,
+						speed);
+}
+
+static int smu_v13_0_7_get_fan_speed_rpm(struct smu_context *smu,
+					 uint32_t *speed)
+{
+	if (!speed)
+		return -EINVAL;
+
+	return smu_v13_0_7_get_smu_metrics_data(smu,
+						METRICS_CURR_FANSPEED,
+						speed);
+}
+
+static int smu_v13_0_7_enable_mgpu_fan_boost(struct smu_context *smu)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *pptable = table_context->driver_pptable;
+	SkuTable_t *skutable = &pptable->SkuTable;
+
+	/*
+	 * Skip the MGpuFanBoost setting for those ASICs
+	 * which do not support it
+	 */
+	if (skutable->MGpuAcousticLimitRpmThreshold == 0)
+		return 0;
+
+	return smu_cmn_send_smc_msg_with_param(smu,
+					       SMU_MSG_SetMGpuFanBoostLimitRpm,
+					       0,
+					       NULL);
+}
+
 static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.get_allowed_feature_mask = smu_v13_0_7_get_allowed_feature_mask,
 	.set_default_dpm_table = smu_v13_0_7_set_default_dpm_table,
@@ -1313,6 +1354,13 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.get_gpu_metrics = smu_v13_0_7_get_gpu_metrics,
 	.set_soft_freq_limited_range = smu_v13_0_set_soft_freq_limited_range,
 	.set_performance_level = smu_v13_0_set_performance_level,
+	.get_fan_speed_pwm = smu_v13_0_7_get_fan_speed_pwm,
+	.get_fan_speed_rpm = smu_v13_0_7_get_fan_speed_rpm,
+	.set_fan_speed_pwm = smu_v13_0_set_fan_speed_pwm,
+	.set_fan_speed_rpm = smu_v13_0_set_fan_speed_rpm,
+	.get_fan_control_mode = smu_v13_0_get_fan_control_mode,
+	.set_fan_control_mode = smu_v13_0_set_fan_control_mode,
+	.enable_mgpu_fan_boost = smu_v13_0_7_enable_mgpu_fan_boost,
 };
 
 void smu_v13_0_7_set_ppt_funcs(struct smu_context *smu)
