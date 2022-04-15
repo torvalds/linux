@@ -2836,11 +2836,11 @@ static int stmmac_open(struct net_device *dev)
 	priv->rx_copybreak = STMMAC_RX_COPYBREAK;
 
 	if (!priv->dma_tx_size)
-		priv->dma_tx_size = priv->plat->dma_size ? priv->plat->dma_size :
+		priv->dma_tx_size = priv->plat->dma_tx_size ? priv->plat->dma_tx_size :
 				    DMA_DEFAULT_TX_SIZE;
 
 	if (!priv->dma_rx_size)
-		priv->dma_rx_size = priv->plat->dma_size ? priv->plat->dma_size :
+		priv->dma_rx_size = priv->plat->dma_rx_size ? priv->plat->dma_rx_size :
 				    DMA_DEFAULT_RX_SIZE;
 
 	/* Earlier check for TBS */
