@@ -1278,6 +1278,15 @@ static int __intel_engine_stop_cs(struct intel_engine_cs *engine,
 	int err;
 
 	intel_uncore_write_fw(uncore, mode, _MASKED_BIT_ENABLE(STOP_RING));
+
+	/*
+	 * Wa_22011802037 : gen12, Prior to doing a reset, ensure CS is
+	 * stopped, set ring stop bit and prefetch disable bit to halt CS
+	 */
+	if (GRAPHICS_VER(engine->i915) == 12)
+		intel_uncore_write_fw(uncore, RING_MODE_GEN7(engine->mmio_base),
+				      _MASKED_BIT_ENABLE(GEN12_GFX_PREFETCH_DISABLE));
+
 	err = __intel_wait_for_register_fw(engine->uncore, mode,
 					   MODE_IDLE, MODE_IDLE,
 					   fast_timeout_us,

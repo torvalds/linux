@@ -181,6 +181,7 @@
 #define   GFX_SURFACE_FAULT_ENABLE		(1 << 12)
 #define   GFX_REPLAY_MODE			(1 << 11)
 #define   GFX_PSMI_GRANULARITY			(1 << 10)
+#define   GEN12_GFX_PREFETCH_DISABLE		REG_BIT(10)
 #define   GFX_PPGTT_ENABLE			(1 << 9)
 #define   GEN8_GFX_PPGTT_48B			(1 << 7)
 #define   GFX_FORWARD_VBLANK_MASK		(3 << 5)
