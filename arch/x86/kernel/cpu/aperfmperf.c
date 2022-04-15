@@ -17,6 +17,7 @@
 #include <linux/smp.h>
 #include <linux/syscore_ops.h>
 
+#include <asm/cpu.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 
@@ -162,6 +163,17 @@ unsigned int arch_freq_get_on_cpu(int cpu)
 	smp_call_function_single(cpu, aperfmperf_snapshot_khz, NULL, 1);
 
 	return per_cpu(samples.khz, cpu);
+}
+
+static void init_counter_refs(void)
+{
+	u64 aperf, mperf;
+
+	rdmsrl(MSR_IA32_APERF, aperf);
+	rdmsrl(MSR_IA32_MPERF, mperf);
+
+	this_cpu_write(cpu_samples.aperf, aperf);
+	this_cpu_write(cpu_samples.mperf, mperf);
 }
 
 #if defined(CONFIG_X86_64) && defined(CONFIG_SMP)
@@ -405,17 +417,6 @@ out:
 	return true;
 }
 
-static void init_counter_refs(void)
-{
-	u64 aperf, mperf;
-
-	rdmsrl(MSR_IA32_APERF, aperf);
-	rdmsrl(MSR_IA32_MPERF, mperf);
-
-	this_cpu_write(cpu_samples.aperf, aperf);
-	this_cpu_write(cpu_samples.mperf, mperf);
-}
-
 #ifdef CONFIG_PM_SLEEP
 static struct syscore_ops freq_invariance_syscore_ops = {
 	.resume = init_counter_refs,
@@ -447,24 +448,13 @@ void freq_invariance_set_perf_ratio(u64 ratio, bool turbo_disabled)
 	freq_invariance_enable();
 }
 
-void __init bp_init_freq_invariance(void)
+static void __init bp_init_freq_invariance(void)
 {
-	if (!cpu_feature_enabled(X86_FEATURE_APERFMPERF))
-		return;
-
-	init_counter_refs();
-
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
 		return;
 
 	if (intel_set_max_freq_ratio())
 		freq_invariance_enable();
-}
-
-void ap_init_freq_invariance(void)
-{
-	if (cpu_feature_enabled(X86_FEATURE_APERFMPERF))
-		init_counter_refs();
 }
 
 static void disable_freq_invariance_workfn(struct work_struct *work)
@@ -480,6 +470,9 @@ DEFINE_PER_CPU(unsigned long, arch_freq_scale) = SCHED_CAPACITY_SCALE;
 static void scale_freq_tick(u64 acnt, u64 mcnt)
 {
 	u64 freq_scale;
+
+	if (!arch_scale_freq_invariant())
+		return;
 
 	if (check_shl_overflow(acnt, 2*SCHED_CAPACITY_SHIFT, &acnt))
 		goto error;
@@ -501,13 +494,17 @@ error:
 	pr_warn("Scheduler frequency invariance went wobbly, disabling!\n");
 	schedule_work(&disable_freq_invariance_work);
 }
+#else
+static inline void bp_init_freq_invariance(void) { }
+static inline void scale_freq_tick(u64 acnt, u64 mcnt) { }
+#endif /* CONFIG_X86_64 && CONFIG_SMP */
 
 void arch_scale_freq_tick(void)
 {
 	struct aperfmperf *s = this_cpu_ptr(&cpu_samples);
 	u64 acnt, mcnt, aperf, mperf;
 
-	if (!arch_scale_freq_invariant())
+	if (!cpu_feature_enabled(X86_FEATURE_APERFMPERF))
 		return;
 
 	rdmsrl(MSR_IA32_APERF, aperf);
@@ -520,4 +517,20 @@ void arch_scale_freq_tick(void)
 
 	scale_freq_tick(acnt, mcnt);
 }
-#endif /* CONFIG_X86_64 && CONFIG_SMP */
+
+static int __init bp_init_aperfmperf(void)
+{
+	if (!cpu_feature_enabled(X86_FEATURE_APERFMPERF))
+		return 0;
+
+	init_counter_refs();
+	bp_init_freq_invariance();
+	return 0;
+}
+early_initcall(bp_init_aperfmperf);
+
+void ap_init_aperfmperf(void)
+{
+	if (cpu_feature_enabled(X86_FEATURE_APERFMPERF))
+		init_counter_refs();
+}
