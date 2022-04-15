@@ -29,6 +29,9 @@
 #include "../../regulator/internal.h"
 #include "gdsc-debug.h"
 
+#define CREATE_TRACE_POINTS
+#include "trace-gdsc.h"
+
 /* GDSCR */
 #define PWR_ON_MASK		BIT(31)
 #define CLK_DIS_WAIT_MASK	(0xF << 12)
@@ -100,8 +103,8 @@ struct gdsc {
 };
 
 enum gdscr_status {
-	ENABLED,
 	DISABLED,
+	ENABLED,
 };
 
 static inline u32 gdsc_mb(struct gdsc *gds)
@@ -148,8 +151,11 @@ static int poll_gdsc_status(struct gdsc *sc, enum gdscr_status status)
 			break;
 		}
 
-		if (val)
+		if (val) {
+			trace_gdsc_time(sc->rdesc.name, status,
+					sc->gds_timeout - count, 0);
 			return 0;
+		}
 		/*
 		 * There is no guarantee about the delay needed for the enable
 		 * bit in the GDSCR to be set or reset after the GDSC state
@@ -160,6 +166,8 @@ static int poll_gdsc_status(struct gdsc *sc, enum gdscr_status status)
 		udelay(1);
 	}
 
+	trace_gdsc_time(sc->rdesc.name, status,
+			sc->gds_timeout - count, 1);
 	return -ETIMEDOUT;
 }
 
