@@ -206,7 +206,7 @@ void arch_set_max_freq_ratio(bool turbo_disabled)
 }
 EXPORT_SYMBOL_GPL(arch_set_max_freq_ratio);
 
-static bool turbo_disabled(void)
+static bool __init turbo_disabled(void)
 {
 	u64 misc_en;
 	int err;
@@ -218,7 +218,7 @@ static bool turbo_disabled(void)
 	return (misc_en & MSR_IA32_MISC_ENABLE_TURBO_DISABLE);
 }
 
-static bool slv_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
+static bool __init slv_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
 {
 	int err;
 
@@ -240,26 +240,26 @@ static bool slv_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
 	X86_MATCH_VENDOR_FAM_MODEL_FEATURE(INTEL, 6,		\
 		INTEL_FAM6_##model, X86_FEATURE_APERFMPERF, NULL)
 
-static const struct x86_cpu_id has_knl_turbo_ratio_limits[] = {
+static const struct x86_cpu_id has_knl_turbo_ratio_limits[] __initconst = {
 	X86_MATCH(XEON_PHI_KNL),
 	X86_MATCH(XEON_PHI_KNM),
 	{}
 };
 
-static const struct x86_cpu_id has_skx_turbo_ratio_limits[] = {
+static const struct x86_cpu_id has_skx_turbo_ratio_limits[] __initconst = {
 	X86_MATCH(SKYLAKE_X),
 	{}
 };
 
-static const struct x86_cpu_id has_glm_turbo_ratio_limits[] = {
+static const struct x86_cpu_id has_glm_turbo_ratio_limits[] __initconst = {
 	X86_MATCH(ATOM_GOLDMONT),
 	X86_MATCH(ATOM_GOLDMONT_D),
 	X86_MATCH(ATOM_GOLDMONT_PLUS),
 	{}
 };
 
-static bool knl_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq,
-				int num_delta_fratio)
+static bool __init knl_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq,
+					  int num_delta_fratio)
 {
 	int fratio, delta_fratio, found;
 	int err, i;
@@ -297,7 +297,7 @@ static bool knl_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq,
 	return true;
 }
 
-static bool skx_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq, int size)
+static bool __init skx_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq, int size)
 {
 	u64 ratios, counts;
 	u32 group_size;
@@ -328,7 +328,7 @@ static bool skx_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq, int size)
 	return false;
 }
 
-static bool core_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
+static bool __init core_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
 {
 	u64 msr;
 	int err;
@@ -351,7 +351,7 @@ static bool core_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
 	return true;
 }
 
-static bool intel_set_max_freq_ratio(void)
+static bool __init intel_set_max_freq_ratio(void)
 {
 	u64 base_freq, turbo_freq;
 	u64 turbo_ratio;
@@ -418,40 +418,42 @@ static struct syscore_ops freq_invariance_syscore_ops = {
 
 static void register_freq_invariance_syscore_ops(void)
 {
-	/* Bail out if registered already. */
-	if (freq_invariance_syscore_ops.node.prev)
-		return;
-
 	register_syscore_ops(&freq_invariance_syscore_ops);
 }
 #else
 static inline void register_freq_invariance_syscore_ops(void) {}
 #endif
 
-void bp_init_freq_invariance(bool cppc_ready)
+static void freq_invariance_enable(void)
 {
-	bool ret;
+	if (static_branch_unlikely(&arch_scale_freq_key)) {
+		WARN_ON_ONCE(1);
+		return;
+	}
+	static_branch_enable(&arch_scale_freq_key);
+	register_freq_invariance_syscore_ops();
+	pr_info("Estimated ratio of average max frequency by base frequency (times 1024): %llu\n", arch_max_freq_ratio);
+}
 
+void freq_invariance_set_perf_ratio(u64 ratio, bool turbo_disabled)
+{
+	arch_turbo_freq_ratio = ratio;
+	arch_set_max_freq_ratio(turbo_disabled);
+	freq_invariance_enable();
+}
+
+void __init bp_init_freq_invariance(void)
+{
 	if (!cpu_feature_enabled(X86_FEATURE_APERFMPERF))
 		return;
 
 	init_counter_refs();
 
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
-		ret = intel_set_max_freq_ratio();
-	else if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
-		if (!cppc_ready)
-			return;
-		ret = amd_set_max_freq_ratio(&arch_turbo_freq_ratio);
-	}
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return;
 
-	if (ret) {
-		static_branch_enable(&arch_scale_freq_key);
-		register_freq_invariance_syscore_ops();
-		pr_info("Estimated ratio of average max frequency by base frequency (times 1024): %llu\n", arch_max_freq_ratio);
-	} else {
-		pr_debug("Couldn't determine max cpu frequency, necessary for scale-invariant accounting.\n");
-	}
+	if (intel_set_max_freq_ratio())
+		freq_invariance_enable();
 }
 
 void ap_init_freq_invariance(void)

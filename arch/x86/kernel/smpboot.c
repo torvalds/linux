@@ -1396,7 +1396,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
 	smp_prepare_cpus_common();
 
-	bp_init_freq_invariance(false);
+	bp_init_freq_invariance();
 	smp_sanity_check();
 
 	switch (apic_intr_mode) {
