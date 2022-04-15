@@ -387,7 +387,7 @@ config HW_RANDOM_PIC32
 
 config HW_RANDOM_POLARFIRE_SOC
 	tristate "Microchip PolarFire SoC Random Number Generator support"
-	depends on HW_RANDOM && POLARFIRE_SOC_SYS_CTRL
+	depends on POLARFIRE_SOC_SYS_CTRL || COMPILE_TEST
 	help
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on PolarFire SoC (MPFS).
