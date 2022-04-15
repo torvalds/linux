@@ -957,7 +957,7 @@
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		i2c@f9923000 {
+		blsp1_i2c1: i2c@f9923000 {
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9923000 0x1000>;
@@ -968,7 +968,7 @@
 			#size-cells = <0>;
 		};
 
-		i2c@f9924000 {
+		blsp1_i2c2: i2c@f9924000 {
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9924000 0x1000>;
@@ -979,7 +979,7 @@
 			#size-cells = <0>;
 		};
 
-		blsp_i2c3: i2c@f9925000 {
+		blsp1_i2c3: i2c@f9925000 {
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9925000 0x1000>;
@@ -990,7 +990,7 @@
 			#size-cells = <0>;
 		};
 
-		blsp_i2c6: i2c@f9928000 {
+		blsp1_i2c6: i2c@f9928000 {
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9928000 0x1000>;
@@ -1001,7 +1001,7 @@
 			#size-cells = <0>;
 		};
 
-		blsp_i2c8: i2c@f9964000 {
+		blsp2_i2c2: i2c@f9964000 {
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9964000 0x1000>;
@@ -1012,7 +1012,7 @@
 			#size-cells = <0>;
 		};
 
-		blsp_i2c11: i2c@f9967000 {
+		blsp2_i2c5: i2c@f9967000 {
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9967000 0x1000>;
@@ -1025,7 +1025,7 @@
 			dma-names = "tx", "rx";
 		};
 
-		blsp_i2c12: i2c@f9968000 {
+		blsp2_i2c6: i2c@f9968000 {
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9968000 0x1000>;
