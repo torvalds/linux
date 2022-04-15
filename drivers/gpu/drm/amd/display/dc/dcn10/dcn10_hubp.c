@@ -1316,7 +1316,7 @@ void hubp1_set_flip_int(struct hubp *hubp)
  *
  * @hubp: hubp struct reference.
  */
-void hubp1_wait_pipe_read_start(struct hubp *hubp)
+static void hubp1_wait_pipe_read_start(struct hubp *hubp)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 

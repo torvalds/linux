@@ -790,6 +790,5 @@ bool hubp1_in_blank(struct hubp *hubp);
 void hubp1_soft_reset(struct hubp *hubp, bool reset);
 
 void hubp1_set_flip_int(struct hubp *hubp);
-void hubp1_wait_pipe_read_start(struct hubp *hubp);
 
 #endif
