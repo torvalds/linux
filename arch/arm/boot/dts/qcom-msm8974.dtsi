@@ -339,36 +339,6 @@
 		clock-frequency = <19200000>;
 	};
 
-	remoteproc_adsp: adsp-pil {
-		compatible = "qcom,msm8974-adsp-pil";
-
-		interrupts-extended = <&intc GIC_SPI 162 IRQ_TYPE_EDGE_RISING>,
-				      <&adsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
-				      <&adsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
-				      <&adsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
-				      <&adsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "wdog", "fatal", "ready", "handover", "stop-ack";
-
-		cx-supply = <&pm8841_s2>;
-
-		clocks = <&xo_board>;
-		clock-names = "xo";
-
-		memory-region = <&adsp_region>;
-
-		qcom,smem-states = <&adsp_smp2p_out 0>;
-		qcom,smem-state-names = "stop";
-
-		smd-edge {
-			interrupts = <GIC_SPI 156 IRQ_TYPE_EDGE_RISING>;
-
-			qcom,ipc = <&apcs 8 8>;
-			qcom,smd-edge = <1>;
-
-			label = "lpass";
-		};
-	};
-
 	smem {
 		compatible = "qcom,smem";
 
@@ -1587,6 +1557,36 @@
 				clock-names = "iface", "ref";
 
 				status = "disabled";
+			};
+		};
+
+		remoteproc_adsp: remoteproc@fe200000 {
+			compatible = "qcom,msm8974-adsp-pil";
+			reg = <0xfe200000 0x100>;
+
+			interrupts-extended = <&intc GIC_SPI 162 IRQ_TYPE_EDGE_RISING>,
+					       <&adsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+					       <&adsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+					       <&adsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+					       <&adsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "wdog", "fatal", "ready", "handover", "stop-ack";
+
+			clocks = <&xo_board>;
+			clock-names = "xo";
+
+			memory-region = <&adsp_region>;
+
+			qcom,smem-states = <&adsp_smp2p_out 0>;
+			qcom,smem-state-names = "stop";
+
+			smd-edge {
+				interrupts = <GIC_SPI 156 IRQ_TYPE_EDGE_RISING>;
+
+				qcom,ipc = <&apcs 8 8>;
+				qcom,smd-edge = <1>;
+				label = "lpass";
+				#address-cells = <1>;
+				#size-cells = <0>;
 			};
 		};
 
