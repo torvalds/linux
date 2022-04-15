@@ -18,6 +18,7 @@
 #include <linux/page-flags.h>
 #include <linux/mm.h> /* for __put_page() */
 #include <linux/poison.h>
+#include <linux/ethtool.h>
 
 #include <trace/events/page_pool.h>
 
@@ -42,6 +43,20 @@
 		this_cpu_add(s->__stat, val);						\
 	} while (0)
 
+static const char pp_stats[][ETH_GSTRING_LEN] = {
+	"rx_pp_alloc_fast",
+	"rx_pp_alloc_slow",
+	"rx_pp_alloc_slow_ho",
+	"rx_pp_alloc_empty",
+	"rx_pp_alloc_refill",
+	"rx_pp_alloc_waive",
+	"rx_pp_recycle_cached",
+	"rx_pp_recycle_cache_full",
+	"rx_pp_recycle_ring",
+	"rx_pp_recycle_ring_full",
+	"rx_pp_recycle_released_ref",
+};
+
 bool page_pool_get_stats(struct page_pool *pool,
 			 struct page_pool_stats *stats)
 {
@@ -50,7 +65,13 @@ bool page_pool_get_stats(struct page_pool *pool,
 	if (!stats)
 		return false;
 
-	memcpy(&stats->alloc_stats, &pool->alloc_stats, sizeof(pool->alloc_stats));
+	/* The caller is responsible to initialize stats. */
+	stats->alloc_stats.fast += pool->alloc_stats.fast;
+	stats->alloc_stats.slow += pool->alloc_stats.slow;
+	stats->alloc_stats.slow_high_order += pool->alloc_stats.slow_high_order;
+	stats->alloc_stats.empty += pool->alloc_stats.empty;
+	stats->alloc_stats.refill += pool->alloc_stats.refill;
+	stats->alloc_stats.waive += pool->alloc_stats.waive;
 
 	for_each_possible_cpu(cpu) {
 		const struct page_pool_recycle_stats *pcpu =
@@ -66,6 +87,46 @@ bool page_pool_get_stats(struct page_pool *pool,
 	return true;
 }
 EXPORT_SYMBOL(page_pool_get_stats);
+
+u8 *page_pool_ethtool_stats_get_strings(u8 *data)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pp_stats); i++) {
+		memcpy(data, pp_stats[i], ETH_GSTRING_LEN);
+		data += ETH_GSTRING_LEN;
+	}
+
+	return data;
+}
+EXPORT_SYMBOL(page_pool_ethtool_stats_get_strings);
+
+int page_pool_ethtool_stats_get_count(void)
+{
+	return ARRAY_SIZE(pp_stats);
+}
+EXPORT_SYMBOL(page_pool_ethtool_stats_get_count);
+
+u64 *page_pool_ethtool_stats_get(u64 *data, void *stats)
+{
+	struct page_pool_stats *pool_stats = stats;
+
+	*data++ = pool_stats->alloc_stats.fast;
+	*data++ = pool_stats->alloc_stats.slow;
+	*data++ = pool_stats->alloc_stats.slow_high_order;
+	*data++ = pool_stats->alloc_stats.empty;
+	*data++ = pool_stats->alloc_stats.refill;
+	*data++ = pool_stats->alloc_stats.waive;
+	*data++ = pool_stats->recycle_stats.cached;
+	*data++ = pool_stats->recycle_stats.cache_full;
+	*data++ = pool_stats->recycle_stats.ring;
+	*data++ = pool_stats->recycle_stats.ring_full;
+	*data++ = pool_stats->recycle_stats.released_refcnt;
+
+	return data;
+}
+EXPORT_SYMBOL(page_pool_ethtool_stats_get);
+
 #else
 #define alloc_stat_inc(pool, __stat)
 #define recycle_stat_inc(pool, __stat)
