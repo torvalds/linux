@@ -3457,7 +3457,7 @@ replay:
 			return rtnl_group_changelink(skb, net,
 						nla_get_u32(tb[IFLA_GROUP]),
 						ifm, extack, tb);
-		return -ENODEV;
+		return -EINVAL;
 	}
 
 	if (tb[IFLA_MAP] || tb[IFLA_PROTINFO])
