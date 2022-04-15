@@ -1736,7 +1736,7 @@ static inline void io_req_add_compl_list(struct io_kiocb *req)
 	wq_list_add_tail(&req->comp_list, &state->compl_reqs);
 }
 
-static void io_queue_async_work(struct io_kiocb *req, bool *dont_use)
+static void io_queue_iowq(struct io_kiocb *req, bool *dont_use)
 {
 	struct io_kiocb *link = io_prep_linked_timeout(req);
 	struct io_uring_task *tctx = req->task->io_uring;
@@ -2683,7 +2683,7 @@ static void io_req_task_queue(struct io_kiocb *req)
 
 static void io_req_task_queue_reissue(struct io_kiocb *req)
 {
-	req->io_task_work.func = io_queue_async_work;
+	req->io_task_work.func = io_queue_iowq;
 	io_req_task_work_add(req, false);
 }
 
@@ -7522,7 +7522,7 @@ static void io_queue_sqe_arm_apoll(struct io_kiocb *req)
 		 * Queued up for async execution, worker will release
 		 * submit reference when the iocb is actually submitted.
 		 */
-		io_queue_async_work(req, NULL);
+		io_queue_iowq(req, NULL);
 		break;
 	case IO_APOLL_OK:
 		break;
@@ -7569,7 +7569,7 @@ static void io_queue_sqe_fallback(struct io_kiocb *req)
 		if (unlikely(ret))
 			io_req_complete_failed(req, ret);
 		else
-			io_queue_async_work(req, NULL);
+			io_queue_iowq(req, NULL);
 	}
 }
 
