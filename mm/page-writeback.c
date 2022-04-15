@@ -89,9 +89,6 @@ static int vm_highmem_is_dirtyable;
  */
 static int vm_dirty_ratio = 20;
 
-/* this is needed for the proc_doulongvec_minmax of vm_dirty_bytes */
-static const unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
-
 /*
  * vm_dirty_bytes starts at 0 (disabled) so that it is a function of
  * vm_dirty_ratio * the amount of dirtyable memory
@@ -2077,6 +2074,10 @@ static int page_writeback_cpu_online(unsigned int cpu)
 }
 
 #ifdef CONFIG_SYSCTL
+
+/* this is needed for the proc_doulongvec_minmax of vm_dirty_bytes */
+static const unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
+
 static struct ctl_table vm_page_writeback_sysctls[] = {
 	{
 		.procname   = "dirty_background_ratio",
