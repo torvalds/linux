@@ -503,8 +503,13 @@ static void run_test(struct vcpu_config *c)
 		++missing_regs;
 
 	if (new_regs || missing_regs) {
+		n = 0;
+		for_each_reg_filtered(i)
+			++n;
+
 		printf("%s: Number blessed registers: %5lld\n", config_name(c), blessed_n);
-		printf("%s: Number registers:         %5lld\n", config_name(c), reg_list->n);
+		printf("%s: Number registers:         %5lld (includes %lld filtered registers)\n",
+		       config_name(c), reg_list->n, reg_list->n - n);
 	}
 
 	if (new_regs) {
@@ -683,9 +688,10 @@ static __u64 base_regs[] = {
 	KVM_REG_ARM64 | KVM_REG_SIZE_U64 | KVM_REG_ARM_CORE | KVM_REG_ARM_CORE_REG(spsr[4]),
 	KVM_REG_ARM64 | KVM_REG_SIZE_U32 | KVM_REG_ARM_CORE | KVM_REG_ARM_CORE_REG(fp_regs.fpsr),
 	KVM_REG_ARM64 | KVM_REG_SIZE_U32 | KVM_REG_ARM_CORE | KVM_REG_ARM_CORE_REG(fp_regs.fpcr),
-	KVM_REG_ARM_FW_REG(0),
-	KVM_REG_ARM_FW_REG(1),
-	KVM_REG_ARM_FW_REG(2),
+	KVM_REG_ARM_FW_REG(0),		/* KVM_REG_ARM_PSCI_VERSION */
+	KVM_REG_ARM_FW_REG(1),		/* KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1 */
+	KVM_REG_ARM_FW_REG(2),		/* KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2 */
+	KVM_REG_ARM_FW_REG(3),		/* KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3 */
 	ARM64_SYS_REG(3, 3, 14, 3, 1),	/* CNTV_CTL_EL0 */
 	ARM64_SYS_REG(3, 3, 14, 3, 2),	/* CNTV_CVAL_EL0 */
 	ARM64_SYS_REG(3, 3, 14, 0, 2),

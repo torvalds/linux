@@ -542,7 +542,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 		in_flight = server->in_flight;
 		spin_unlock(&server->req_lock);
 
-		trace_smb3_add_credits(server->CurrentMid,
+		trace_smb3_nblk_credits(server->CurrentMid,
 				server->conn_id, server->hostname, scredits, -1, in_flight);
 		cifs_dbg(FYI, "%s: remove %u credits total=%d\n",
 				__func__, 1, scredits);
@@ -648,7 +648,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 			in_flight = server->in_flight;
 			spin_unlock(&server->req_lock);
 
-			trace_smb3_add_credits(server->CurrentMid,
+			trace_smb3_waitff_credits(server->CurrentMid,
 					server->conn_id, server->hostname, scredits,
 					-(num_credits), in_flight);
 			cifs_dbg(FYI, "%s: remove %u credits total=%d\n",

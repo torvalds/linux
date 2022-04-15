@@ -894,7 +894,7 @@ xmit_hash_policy
 		Uses XOR of hardware MAC addresses and packet type ID
 		field to generate the hash. The formula is
 
-		hash = source MAC XOR destination MAC XOR packet type ID
+		hash = source MAC[5] XOR destination MAC[5] XOR packet type ID
 		slave number = hash modulo slave count
 
 		This algorithm will place all traffic to a particular
@@ -910,7 +910,7 @@ xmit_hash_policy
 		Uses XOR of hardware MAC addresses and IP addresses to
 		generate the hash.  The formula is
 
-		hash = source MAC XOR destination MAC XOR packet type ID
+		hash = source MAC[5] XOR destination MAC[5] XOR packet type ID
 		hash = hash XOR source IP XOR destination IP
 		hash = hash XOR (hash RSHIFT 16)
 		hash = hash XOR (hash RSHIFT 8)

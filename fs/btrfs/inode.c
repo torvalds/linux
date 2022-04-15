@@ -2016,8 +2016,7 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 		 * to use run_delalloc_nocow() here, like for  regular
 		 * preallocated inodes.
 		 */
-		ASSERT(!zoned ||
-		       (zoned && btrfs_is_data_reloc_root(inode->root)));
+		ASSERT(!zoned || btrfs_is_data_reloc_root(inode->root));
 		ret = run_delalloc_nocow(inode, locked_page, start, end,
 					 page_started, nr_written);
 	} else if (!inode_can_compress(inode) ||
@@ -7444,6 +7443,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 	u64 block_start, orig_start, orig_block_len, ram_bytes;
 	bool can_nocow = false;
 	bool space_reserved = false;
+	u64 prev_len;
 	int ret = 0;
 
 	/*
@@ -7471,6 +7471,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 			can_nocow = true;
 	}
 
+	prev_len = len;
 	if (can_nocow) {
 		struct extent_map *em2;
 
@@ -7500,8 +7501,6 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 			goto out;
 		}
 	} else {
-		const u64 prev_len = len;
-
 		/* Our caller expects us to free the input extent map. */
 		free_extent_map(em);
 		*map = NULL;
@@ -7532,7 +7531,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 	 * We have created our ordered extent, so we can now release our reservation
 	 * for an outstanding extent.
 	 */
-	btrfs_delalloc_release_extents(BTRFS_I(inode), len);
+	btrfs_delalloc_release_extents(BTRFS_I(inode), prev_len);
 
 	/*
 	 * Need to update the i_size under the extent lock so buffered
