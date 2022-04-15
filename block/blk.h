@@ -347,20 +347,6 @@ static inline unsigned int bio_allowed_max_sectors(struct request_queue *q)
 }
 
 /*
- * The max bio size which is aligned to q->limits.discard_granularity. This
- * is a hint to split large discard bio in generic block layer, then if device
- * driver needs to split the discard bio into smaller ones, their bi_size can
- * be very probably and easily aligned to discard_granularity of the device's
- * queue.
- */
-static inline unsigned int bio_aligned_discard_max_sectors(
-					struct request_queue *q)
-{
-	return round_down(UINT_MAX, q->limits.discard_granularity) >>
-			SECTOR_SHIFT;
-}
-
-/*
  * Internal io_context interface
  */
 struct io_cq *ioc_find_get_icq(struct request_queue *q);
