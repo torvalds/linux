@@ -65,14 +65,10 @@ enum msm_dp_controller {
  * enum msm_display_caps - features/capabilities supported by displays
  * @MSM_DISPLAY_CAP_VID_MODE:           Video or "active" mode supported
  * @MSM_DISPLAY_CAP_CMD_MODE:           Command mode supported
- * @MSM_DISPLAY_CAP_HOT_PLUG:           Hot plug detection supported
- * @MSM_DISPLAY_CAP_EDID:               EDID supported
  */
 enum msm_display_caps {
 	MSM_DISPLAY_CAP_VID_MODE	= BIT(0),
 	MSM_DISPLAY_CAP_CMD_MODE	= BIT(1),
-	MSM_DISPLAY_CAP_HOT_PLUG	= BIT(2),
-	MSM_DISPLAY_CAP_EDID		= BIT(3),
 };
 
 /**
