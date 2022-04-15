@@ -57,6 +57,9 @@ static void do_nmi(struct pt_regs *regs);
 static void do_unaligned_user(struct pt_regs *regs);
 #endif
 static void do_multihit(struct pt_regs *regs);
+#if XTENSA_HAVE_COPROCESSORS
+static void do_coprocessor(struct pt_regs *regs);
+#endif
 static void do_debug(struct pt_regs *regs);
 
 /*
@@ -69,7 +72,8 @@ static void do_debug(struct pt_regs *regs);
 #define USER		0x02
 
 #define COPROCESSOR(x)							\
-{ EXCCAUSE_COPROCESSOR ## x ## _DISABLED, USER|KRNL, fast_coprocessor }
+{ EXCCAUSE_COPROCESSOR ## x ## _DISABLED, USER|KRNL, fast_coprocessor },\
+{ EXCCAUSE_COPROCESSOR ## x ## _DISABLED, 0, do_coprocessor }
 
 typedef struct {
 	int cause;
@@ -324,6 +328,13 @@ static void do_unaligned_user(struct pt_regs *regs)
 			    regs->excvaddr, current->comm,
 			    task_pid_nr(current), regs->pc);
 	force_sig_fault(SIGBUS, BUS_ADRALN, (void *) regs->excvaddr);
+}
+#endif
+
+#if XTENSA_HAVE_COPROCESSORS
+static void do_coprocessor(struct pt_regs *regs)
+{
+	coprocessor_flush_release_all(current_thread_info());
 }
 #endif
 

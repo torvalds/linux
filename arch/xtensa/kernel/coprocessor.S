@@ -19,6 +19,26 @@
 #include <asm/current.h>
 #include <asm/regs.h>
 
+/*
+ * Rules for coprocessor state manipulation on SMP:
+ *
+ * - a task may have live coprocessors only on one CPU.
+ *
+ * - whether coprocessor context of task T is live on some CPU is
+ *   denoted by T's thread_info->cpenable.
+ *
+ * - non-zero thread_info->cpenable means that thread_info->cp_owner_cpu
+ *   is valid in the T's thread_info. Zero thread_info->cpenable means that
+ *   coprocessor context is valid in the T's thread_info.
+ *
+ * - if a coprocessor context of task T is live on CPU X, only CPU X changes
+ *   T's thread_info->cpenable, cp_owner_cpu and coprocessor save area.
+ *   This is done by making sure that for the task T with live coprocessor
+ *   on CPU X cpenable SR is 0 when T runs on any other CPU Y.
+ *   When fast_coprocessor exception is taken on CPU Y it goes to the
+ *   C-level do_coprocessor that uses IPI to make CPU X flush T's coprocessors.
+ */
+
 #if XTENSA_HAVE_COPROCESSORS
 
 /*
@@ -101,9 +121,37 @@
 
 ENTRY(fast_coprocessor)
 
+	s32i	a3, a2, PT_AREG3
+
+#ifdef CONFIG_SMP
+	/*
+	 * Check if any coprocessor context is live on another CPU
+	 * and if so go through the C-level coprocessor exception handler
+	 * to flush it to memory.
+	 */
+	GET_THREAD_INFO (a0, a2)
+	l32i	a3, a0, THREAD_CPENABLE
+	beqz	a3, .Lload_local
+
+	/*
+	 * Pairs with smp_wmb in local_coprocessor_release_all
+	 * and with both memws below.
+	 */
+	memw
+	l32i	a3, a0, THREAD_CPU
+	l32i	a0, a0, THREAD_CP_OWNER_CPU
+	beq	a0, a3, .Lload_local
+
+	rsr	a0, ps
+	l32i	a3, a2, PT_AREG3
+	bbci.l	a0, PS_UM_BIT, 1f
+	call0	user_exception
+1:	call0	kernel_exception
+#endif
+
 	/* Save remaining registers a1-a3 and SAR */
 
-	s32i	a3, a2, PT_AREG3
+.Lload_local:
 	rsr	a3, sar
 	s32i	a1, a2, PT_AREG1
 	s32i	a3, a2, PT_SAR
@@ -117,6 +165,9 @@ ENTRY(fast_coprocessor)
 	s32i	a5, a1, PT_AREG5
 	s32i	a6, a1, PT_AREG6
 	s32i	a7, a1, PT_AREG7
+	s32i	a8, a1, PT_AREG8
+	s32i	a9, a1, PT_AREG9
+	s32i	a10, a1, PT_AREG10
 
 	/* Find coprocessor number. Subtract first CP EXCCAUSE from EXCCAUSE */
 
@@ -139,51 +190,66 @@ ENTRY(fast_coprocessor)
 	addx8	a7, a3, a7
 	addx4	a7, a3, a7
 
-	/* Retrieve previous owner. (a3 still holds CP number) */
+	/* Retrieve previous owner (a8). */
 
-	movi	a0, coprocessor_owner	# list of owners
+	rsr	a0, excsave1		# exc_table
 	addx4	a0, a3, a0		# entry for CP
-	l32i	a4, a0, 0
+	l32i	a8, a0, EXC_TABLE_COPROCESSOR_OWNER
 
-	beqz	a4, 1f			# skip 'save' if no previous owner
+	/* Set new owner (a9). */
+
+	GET_THREAD_INFO (a9, a1)
+	l32i	a4, a9, THREAD_CPU
+	s32i	a9, a0, EXC_TABLE_COPROCESSOR_OWNER
+	s32i	a4, a9, THREAD_CP_OWNER_CPU
+
+	/*
+	 * Enable coprocessor for the new owner. (a2 = 1 << CP number)
+	 * This can be done before loading context into the coprocessor.
+	 */
+	l32i	a4, a9, THREAD_CPENABLE
+	or	a4, a4, a2
+
+	/*
+	 * Make sure THREAD_CP_OWNER_CPU is in memory before updating
+	 * THREAD_CPENABLE
+	 */
+	memw				# (2)
+	s32i	a4, a9, THREAD_CPENABLE
+
+	beqz	a8, 1f			# skip 'save' if no previous owner
 
 	/* Disable coprocessor for previous owner. (a2 = 1 << CP number) */
 
-	l32i	a5, a4, THREAD_CPENABLE
-	xor	a5, a5, a2		# (1 << cp-id) still in a2
-	s32i	a5, a4, THREAD_CPENABLE
+	l32i	a10, a8, THREAD_CPENABLE
+	xor	a10, a10, a2
 
-	/*
-	 * Get context save area and call save routine.
-	 * (a4 still holds previous owner (thread_info), a3 CP number)
-	 */
+	/* Get context save area and call save routine. */
 
 	l32i	a2, a7, CP_REGS_TAB_OFFSET
 	l32i	a3, a7, CP_REGS_TAB_SAVE
-	add	a2, a2, a4
+	add	a2, a2, a8
 	callx0	a3
 
-	/* Note that only a0 and a1 were preserved. */
-
-	rsr	a3, exccause
-	addi	a3, a3, -EXCCAUSE_COPROCESSOR0_DISABLED
-	movi	a0, coprocessor_owner
-	addx4	a0, a3, a0
-
-	/* Set new 'owner' (a0 points to the CP owner, a3 contains the CP nr) */
-
-1:	GET_THREAD_INFO (a4, a1)
-	s32i	a4, a0, 0
-
+	/*
+	 * Make sure coprocessor context and THREAD_CP_OWNER_CPU are in memory
+	 * before updating THREAD_CPENABLE
+	 */
+	memw				# (3)
+	s32i	a10, a8, THREAD_CPENABLE
+1:
 	/* Get context save area and call load routine. */
 
 	l32i	a2, a7, CP_REGS_TAB_OFFSET
 	l32i	a3, a7, CP_REGS_TAB_LOAD
-	add	a2, a2, a4
+	add	a2, a2, a9
 	callx0	a3
 
 	/* Restore all registers and return from exception handler. */
 
+	l32i	a10, a1, PT_AREG10
+	l32i	a9, a1, PT_AREG9
+	l32i	a8, a1, PT_AREG8
 	l32i	a7, a1, PT_AREG7
 	l32i	a6, a1, PT_AREG6
 	l32i	a5, a1, PT_AREG5
@@ -232,13 +298,5 @@ ENTRY(coprocessor_flush)
 	abi_ret_default
 
 ENDPROC(coprocessor_flush)
-
-	.data
-
-ENTRY(coprocessor_owner)
-
-	.fill XCHAL_CP_MAX, 4, 0
-
-END(coprocessor_owner)
 
 #endif /* XTENSA_HAVE_COPROCESSORS */

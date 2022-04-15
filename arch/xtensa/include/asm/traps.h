@@ -27,6 +27,10 @@ struct exc_table {
 	void *fixup;
 	/* For passing a parameter to fixup */
 	void *fixup_param;
+#if XTENSA_HAVE_COPROCESSORS
+	/* Pointers to owner struct thread_info */
+	struct thread_info *coprocessor_owner[XCHAL_CP_MAX];
+#endif
 	/* Fast user exception handlers */
 	void *fast_user_handler[EXCCAUSE_N];
 	/* Fast kernel exception handlers */
@@ -34,6 +38,8 @@ struct exc_table {
 	/* Default C-Handlers */
 	xtensa_exception_handler *default_handler[EXCCAUSE_N];
 };
+
+DECLARE_PER_CPU(struct exc_table, exc_table);
 
 xtensa_exception_handler *
 __init trap_set_handler(int cause, xtensa_exception_handler *handler);
