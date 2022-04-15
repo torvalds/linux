@@ -9,7 +9,7 @@
  *
  */
 #include <linux/delay.h>
-#include <linux/dma-buf.h>
+#include <linux/dma-buf-cache.h>
 #include <linux/dma-iommu.h>
 #include <linux/iommu.h>
 #include <linux/of.h>
@@ -245,8 +245,10 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 	buffer->dma = dma;
 
 	kref_init(&buffer->ref);
-	/* Increase the reference for used outside the buffer pool */
-	kref_get(&buffer->ref);
+
+	if (!IS_ENABLED(CONFIG_DMABUF_CACHE))
+		/* Increase the reference for used outside the buffer pool */
+		kref_get(&buffer->ref);
 
 	mutex_lock(&dma->list_mutex);
 	dma->buffer_count++;
