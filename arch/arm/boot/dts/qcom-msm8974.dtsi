@@ -339,7 +339,7 @@
 		clock-frequency = <19200000>;
 	};
 
-	adsp-pil {
+	remoteproc_adsp: adsp-pil {
 		compatible = "qcom,msm8974-adsp-pil";
 
 		interrupts-extended = <&intc GIC_SPI 162 IRQ_TYPE_EDGE_RISING>,
@@ -840,7 +840,7 @@
 			clock-names = "core";
 		};
 
-		remoteproc@fc880000 {
+		remoteproc_mss: remoteproc@fc880000 {
 			compatible = "qcom,msm8974-mss-pil";
 			reg = <0xfc880000 0x100>, <0xfc820000 0x020>;
 			reg-names = "qdsp6", "rmb";
