@@ -84,6 +84,7 @@ static void psp_check_pmfw_centralized_cstate_management(struct psp_context *psp
 	case IP_VERSION(11, 0, 13):
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 2):
+	case IP_VERSION(13, 0, 7):
 		psp->pmfw_centralized_cstate_management = true;
 		break;
 	default:
@@ -144,6 +145,7 @@ static int psp_early_init(void *handle)
 		}
 		break;
 	case IP_VERSION(13, 0, 0):
+	case IP_VERSION(13, 0, 7):
 		psp_v13_0_set_psp_funcs(psp);
 		psp->autoload_supported = true;
 		break;
