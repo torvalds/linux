@@ -801,8 +801,8 @@ static noinline int add_ra_bio_pages(struct inode *inode,
  * After the compressed pages are read, we copy the bytes into the
  * bio we were passed and then call the bio end_io calls
  */
-blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
-				 int mirror_num, unsigned long bio_flags)
+void btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
+				  int mirror_num, unsigned long bio_flags)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct extent_map_tree *em_tree;
@@ -947,7 +947,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			comp_bio = NULL;
 		}
 	}
-	return BLK_STS_OK;
+	return;
 
 fail:
 	if (cb->compressed_pages) {
@@ -963,7 +963,7 @@ out:
 	free_extent_map(em);
 	bio->bi_status = ret;
 	bio_endio(bio);
-	return ret;
+	return;
 finish_cb:
 	if (comp_bio) {
 		comp_bio->bi_status = ret;
@@ -971,7 +971,7 @@ finish_cb:
 	}
 	/* All bytes of @cb is submitted, endio will free @cb */
 	if (cur_disk_byte == disk_bytenr + compressed_len)
-		return ret;
+		return;
 
 	wait_var_event(cb, refcount_read(&cb->pending_sectors) ==
 			   (disk_bytenr + compressed_len - cur_disk_byte) >>
@@ -983,7 +983,6 @@ finish_cb:
 	ASSERT(refcount_read(&cb->pending_sectors));
 	/* Now we are the only one referring @cb, can finish it safely. */
 	finish_compressed_bio_read(cb);
-	return ret;
 }
 
 /*
