@@ -688,9 +688,9 @@ int ieee80211_wx_get_encode_ext(struct ieee80211_device *ieee,
 	} else {
 		if (strcmp(crypt->ops->name, "WEP") == 0)
 			ext->alg = IW_ENCODE_ALG_WEP;
-		else if (strcmp(crypt->ops->name, "TKIP"))
+		else if (strcmp(crypt->ops->name, "TKIP") == 0)
 			ext->alg = IW_ENCODE_ALG_TKIP;
-		else if (strcmp(crypt->ops->name, "CCMP"))
+		else if (strcmp(crypt->ops->name, "CCMP") == 0)
 			ext->alg = IW_ENCODE_ALG_CCMP;
 		else
 			return -EINVAL;
