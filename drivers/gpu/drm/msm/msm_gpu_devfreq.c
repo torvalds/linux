@@ -224,7 +224,6 @@ void msm_devfreq_boost(struct msm_gpu *gpu, unsigned factor)
 void msm_devfreq_active(struct msm_gpu *gpu)
 {
 	struct msm_gpu_devfreq *df = &gpu->devfreq;
-	struct devfreq_dev_status status;
 	unsigned int idle_time;
 
 	if (!has_devfreq(gpu))
@@ -248,12 +247,6 @@ void msm_devfreq_active(struct msm_gpu *gpu)
 
 	dev_pm_qos_update_request(&df->idle_freq,
 				  PM_QOS_MAX_FREQUENCY_DEFAULT_VALUE);
-
-	/*
-	 * Reset the polling interval so we aren't inconsistent
-	 * about freq vs busy/total cycles
-	 */
-	msm_devfreq_get_dev_status(&gpu->pdev->dev, &status);
 }
 
 
