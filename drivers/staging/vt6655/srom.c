@@ -28,7 +28,6 @@
  */
 
 #include "upc.h"
-#include "tmacro.h"
 #include "mac.h"
 #include "srom.h"
 

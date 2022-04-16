@@ -18,7 +18,6 @@
 #ifndef __MAC_H__
 #define __MAC_H__
 
-#include "tmacro.h"
 #include "upc.h"
 
 /*---------------------  Export Definitions -------------------------*/
@@ -740,6 +739,9 @@ do {									\
 
 #define MACvSetRFLE_LatchBase(iobase)                                 \
 	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_RFLEOPT)
+
+#define MAKEWORD(lb, hb) \
+	((unsigned short)(((unsigned char)(lb)) | (((unsigned short)((unsigned char)(hb))) << 8)))
 
 bool MACbIsRegBitsOff(struct vnt_private *priv, unsigned char byRegOfs,
 		      unsigned char byTestBits);
