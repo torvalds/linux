@@ -56,7 +56,7 @@ static const struct reg_name mem_reg_name[] = {
 	{"trst"},
 	{"iopad"},
 	{"pmu"},
-	{"syscrg"},
+	//{"syscrg"},
 };
 
 int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
@@ -96,11 +96,11 @@ int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
 			vin->vin_top_iopad_base = regs;
 		else if (!strcmp(name,"pmu"))
 			vin->pmu_test = regs;
-		else if (!strcmp(name,"syscrg")) 
-			vin->sys_crg = regs;
 		else
 			st_err(ST_CAMSS, "Could not match resource name\n");
 	}
+
+	vin->sys_crg = ioremap(0x13020000, 10000);
 
 	return 0;
 }

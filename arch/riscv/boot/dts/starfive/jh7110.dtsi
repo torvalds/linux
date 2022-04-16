@@ -592,9 +592,8 @@
 				<0x0 0x11800000 0x0 0x10000>,
 				<0x0 0x11840000 0x0 0x10000>,
 				<0x0 0x11858000 0x0 0x10000>,
-				<0x0 0x17030000 0x0 0x10000>,
-				<0x0 0x13020000 0x0 0x10000>;
-			reg-names = "mipi0", "vclk", "vrst", "mipi1", "sctrl", "isp0", "isp1", "tclk", "trst", "iopad", "pmu", "syscrg";
+				<0x0 0x17030000 0x0 0x10000>;
+			reg-names = "mipi0", "vclk", "vrst", "mipi1", "sctrl", "isp0", "isp1", "tclk", "trst", "iopad", "pmu";
 			interrupts = <92 87 86>;
 			status = "disabled";
 		};
