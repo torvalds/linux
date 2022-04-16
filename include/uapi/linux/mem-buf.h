@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _UAPI_LINUX_MEM_BUF_H
@@ -20,6 +21,7 @@ enum mem_buf_mem_type {
 	MEM_BUF_MAX_MEM_TYPE,
 };
 #define MEM_BUF_DMAHEAP_MEM_TYPE (MEM_BUF_ION_MEM_TYPE + 1)
+/* RESERVED for MEM_BUF_BUDDY_MEM_TYPE: MEM_BUF_ION_MEM_TYPE + 2 */
 
 /* The mem-buf values that represent VMIDs for an ACL. */
 #define MEM_BUF_VMID_PRIMARY_VM 0

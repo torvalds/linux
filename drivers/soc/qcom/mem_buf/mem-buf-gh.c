@@ -11,6 +11,8 @@
 #include <linux/module.h>
 #include <linux/qcom_dma_heap.h>
 #include <linux/qcom_tui_heap.h>
+#include <linux/dma-map-ops.h>
+#include <linux/cma.h>
 
 #include "../../../../drivers/dma-buf/heaps/qcom_sg_ops.h"
 #include "mem-buf-gh.h"
@@ -202,12 +204,75 @@ static int mem_buf_rmt_alloc_dmaheap_mem(struct mem_buf_xfer_mem *xfer_mem)
 	return 0;
 }
 
+/* In future, try allocating from buddy if cma not available */
+static int mem_buf_rmt_alloc_buddy_mem(struct mem_buf_xfer_mem *xfer_mem)
+{
+	struct cma *cma;
+	struct sg_table *table;
+	struct page *page;
+	int ret;
+	u32 align;
+	size_t nr_pages;
+
+	pr_debug("%s: Starting DMAHEAP-BUDDY allocation\n", __func__);
+
+	/*
+	 * For the common case of 4Mb transfer, we want it to be nicely aligned
+	 * to allow for 2Mb block mappings in S2 pagetable.
+	 */
+	align = min(get_order(xfer_mem->size), get_order(SZ_2M));
+	nr_pages = xfer_mem->size >> PAGE_SHIFT;
+
+	/*
+	 * Don't use dev_get_cma_area() as we don't want to fall back to
+	 * dma_contiguous_default_area.
+	 */
+	cma = mem_buf_dev->cma_area;
+	if (!cma)
+		return -ENOMEM;
+
+	table = kzalloc(sizeof(*table), GFP_KERNEL);
+	if (!table) {
+		ret = -ENOMEM;
+		goto err_alloc_table;
+	}
+
+	ret = sg_alloc_table(table, 1, GFP_KERNEL);
+	if (ret)
+		goto err_sg_init;
+
+	page = cma_alloc(cma, nr_pages, align, false);
+	if (!page) {
+		ret = -ENOMEM;
+		goto err_cma_alloc;
+	}
+
+	sg_set_page(table->sgl, page, nr_pages << PAGE_SHIFT, 0);
+
+	/* Zero memory before transferring to Guest VM */
+	memset(page_address(page), 0, nr_pages << PAGE_SHIFT);
+
+	xfer_mem->mem_sgt = table;
+	xfer_mem->secure_alloc = false;
+	pr_debug("%s: DMAHEAP-BUDDY allocation complete\n", __func__);
+	return 0;
+
+err_cma_alloc:
+	sg_free_table(table);
+err_sg_init:
+	kfree(table);
+err_alloc_table:
+	return ret;
+}
+
 static int mem_buf_rmt_alloc_mem(struct mem_buf_xfer_mem *xfer_mem)
 {
 	int ret = -EINVAL;
 
 	if (xfer_mem->mem_type == MEM_BUF_DMAHEAP_MEM_TYPE)
 		ret = mem_buf_rmt_alloc_dmaheap_mem(xfer_mem);
+	else if (xfer_mem->mem_type == MEM_BUF_BUDDY_MEM_TYPE)
+		ret = mem_buf_rmt_alloc_buddy_mem(xfer_mem);
 
 	return ret;
 }
@@ -233,10 +298,22 @@ static void mem_buf_rmt_free_dmaheap_mem(struct mem_buf_xfer_mem *xfer_mem)
 	pr_debug("%s: DMAHEAP memory freed\n", __func__);
 }
 
+static void mem_buf_rmt_free_buddy_mem(struct mem_buf_xfer_mem *xfer_mem)
+{
+	struct sg_table *table = xfer_mem->mem_sgt;
+
+	pr_debug("%s: Freeing DMAHEAP-BUDDY memory\n", __func__);
+	cma_release(dev_get_cma_area(mem_buf_dev), sg_page(table->sgl),
+		table->sgl->length >> PAGE_SHIFT);
+	pr_debug("%s: DMAHEAP-BUDDY memory freed\n", __func__);
+}
+
 static void mem_buf_rmt_free_mem(struct mem_buf_xfer_mem *xfer_mem)
 {
 	if (xfer_mem->mem_type == MEM_BUF_DMAHEAP_MEM_TYPE)
 		mem_buf_rmt_free_dmaheap_mem(xfer_mem);
+	else if (xfer_mem->mem_type == MEM_BUF_BUDDY_MEM_TYPE)
+		mem_buf_rmt_free_buddy_mem(xfer_mem);
 }
 
 static
@@ -263,6 +340,8 @@ static void *mem_buf_alloc_xfer_mem_type_data(enum mem_buf_mem_type type,
 
 	if (type == MEM_BUF_DMAHEAP_MEM_TYPE)
 		data = mem_buf_alloc_dmaheap_xfer_mem_type_data(rmt_data);
+	else if (type == MEM_BUF_BUDDY_MEM_TYPE)
+		data = NULL;
 
 	return data;
 }
@@ -278,6 +357,7 @@ static void mem_buf_free_xfer_mem_type_data(enum mem_buf_mem_type type,
 {
 	if (type == MEM_BUF_DMAHEAP_MEM_TYPE)
 		mem_buf_free_dmaheap_xfer_mem_type_data(data);
+	/* Do nothing for MEM_BUF_BUDDY_MEM_TYPE */
 }
 
 static
@@ -784,6 +864,8 @@ static void *mem_buf_retrieve_mem_type_data_user(enum mem_buf_mem_type mem_type,
 
 	if (mem_type == MEM_BUF_DMAHEAP_MEM_TYPE)
 		data = mem_buf_retrieve_dmaheap_mem_type_data_user(mem_type_data);
+	else if (mem_type == MEM_BUF_BUDDY_MEM_TYPE)
+		data = NULL;
 
 	return data;
 }
@@ -800,6 +882,8 @@ static void *mem_buf_retrieve_mem_type_data(enum mem_buf_mem_type mem_type,
 
 	if (mem_type == MEM_BUF_DMAHEAP_MEM_TYPE)
 		data = mem_buf_retrieve_dmaheap_mem_type_data(mem_type_data);
+	else if (mem_type == MEM_BUF_BUDDY_MEM_TYPE)
+		data = NULL;
 
 	return data;
 }
@@ -814,11 +898,18 @@ static void mem_buf_free_mem_type_data(enum mem_buf_mem_type mem_type,
 {
 	if (mem_type == MEM_BUF_DMAHEAP_MEM_TYPE)
 		mem_buf_free_dmaheap_mem_type_data(mem_type_data);
+	/* Do nothing for MEM_BUF_BUDDY_MEM_TYPE */
 }
 
 static bool is_valid_mem_type(enum mem_buf_mem_type mem_type)
 {
-	return mem_type == MEM_BUF_DMAHEAP_MEM_TYPE;
+	return (mem_type == MEM_BUF_DMAHEAP_MEM_TYPE) ||
+		(mem_type == MEM_BUF_BUDDY_MEM_TYPE);
+}
+
+static bool is_valid_ioctl_mem_type(enum mem_buf_mem_type mem_type)
+{
+	return (mem_type == MEM_BUF_DMAHEAP_MEM_TYPE);
 }
 
 void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data)
@@ -1098,8 +1189,8 @@ int mem_buf_alloc_fd(struct mem_buf_alloc_ioctl_arg *allocation_args)
 	if (!allocation_args->size || !allocation_args->nr_acl_entries ||
 	    !allocation_args->acl_list ||
 	    (allocation_args->nr_acl_entries > MEM_BUF_MAX_NR_ACL_ENTS) ||
-	    !is_valid_mem_type(allocation_args->src_mem_type) ||
-	    !is_valid_mem_type(allocation_args->dst_mem_type) ||
+	    !is_valid_ioctl_mem_type(allocation_args->src_mem_type) ||
+	    !is_valid_ioctl_mem_type(allocation_args->dst_mem_type) ||
 	    allocation_args->reserved0 || allocation_args->reserved1 ||
 	    allocation_args->reserved2)
 		return -EINVAL;

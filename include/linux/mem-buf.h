@@ -14,6 +14,9 @@
 #include <linux/dma-buf.h>
 #include <uapi/linux/mem-buf.h>
 
+/* For in-kernel use only, not allowed for userspace ioctl */
+#define MEM_BUF_BUDDY_MEM_TYPE (MEM_BUF_ION_MEM_TYPE + 2)
+
 /* Used to obtain the underlying vmperm struct of a DMA-BUF */
 struct mem_buf_vmperm *to_mem_buf_vmperm(struct dma_buf *dmabuf);
 
