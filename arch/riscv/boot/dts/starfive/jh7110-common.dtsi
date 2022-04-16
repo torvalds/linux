@@ -73,7 +73,7 @@
 	auto_calc_scl_lhcnt;
 	status = "okay";
 
-	sc22235: sc2235@30 {
+	sc2235: sc2235@30 {
 		compatible = "sc2235";
 		reg = <0x30>;
 		clocks = <&clk_ext_camera>;
