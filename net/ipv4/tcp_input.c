@@ -4674,7 +4674,7 @@ static bool tcp_ooo_try_coalesce(struct sock *sk,
 {
 	bool res = tcp_try_coalesce(sk, to, from, fragstolen);
 
-	/* In case tcp_drop() is called later, update to->gso_segs */
+	/* In case tcp_drop_reason() is called later, update to->gso_segs */
 	if (res) {
 		u32 gso_segs = max_t(u16, 1, skb_shinfo(to)->gso_segs) +
 			       max_t(u16, 1, skb_shinfo(from)->gso_segs);
@@ -4689,11 +4689,6 @@ static void tcp_drop_reason(struct sock *sk, struct sk_buff *skb,
 {
 	sk_drops_add(sk, skb);
 	kfree_skb_reason(skb, reason);
-}
-
-static void tcp_drop(struct sock *sk, struct sk_buff *skb)
-{
-	tcp_drop_reason(sk, skb, SKB_DROP_REASON_NOT_SPECIFIED);
 }
 
 /* This one checks to see if we can put data from the
@@ -4723,7 +4718,7 @@ static void tcp_ofo_queue(struct sock *sk)
 		rb_erase(&skb->rbnode, &tp->out_of_order_queue);
 
 		if (unlikely(!after(TCP_SKB_CB(skb)->end_seq, tp->rcv_nxt))) {
-			tcp_drop(sk, skb);
+			tcp_drop_reason(sk, skb, SKB_DROP_REASON_TCP_OFO_DROP);
 			continue;
 		}
 
