@@ -1405,8 +1405,8 @@ static int check_dirent_target(struct btree_trans *trans,
 
 		if (fsck_err_on(backpointer_exists &&
 				!target->bi_nlink, c,
-				"inode %llu has multiple links but i_nlink 0",
-				target->bi_inum)) {
+				"inode %llu type %s has multiple links but i_nlink 0",
+				target->bi_inum, bch2_d_types[d.v->d_type])) {
 			target->bi_nlink++;
 			target->bi_flags &= ~BCH_INODE_UNLINKED;
 
@@ -2254,8 +2254,8 @@ static int check_nlinks_update_hardlinks(struct bch_fs *c,
 		}
 
 		if (fsck_err_on(bch2_inode_nlink_get(&u) != link->count, c,
-				"inode %llu has wrong i_nlink (type %u i_nlink %u, should be %u)",
-				u.bi_inum, mode_to_type(u.bi_mode),
+				"inode %llu type %s has wrong i_nlink (%u, should be %u)",
+				u.bi_inum, bch2_d_types[mode_to_type(u.bi_mode)],
 				bch2_inode_nlink_get(&u), link->count)) {
 			bch2_inode_nlink_set(&u, link->count);
 
