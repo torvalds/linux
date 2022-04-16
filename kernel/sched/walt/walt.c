@@ -4334,7 +4334,7 @@ static void walt_do_sched_yield(void *unused, struct rq *rq)
 	if (mvp_prio != WALT_NOT_MVP)
 		walt_cfs_deactivate_mvp_task(curr);
 
-	if (rt_task(curr))
+	if (per_cpu(rt_task_arrival_time, cpu_of(rq)))
 		per_cpu(rt_task_arrival_time, cpu_of(rq)) = 0;
 }
 

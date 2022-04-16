@@ -12,10 +12,10 @@
 #define MSEC_TO_NSEC (1000 * 1000)
 
 static DEFINE_PER_CPU(cpumask_var_t, walt_local_cpu_mask);
-DEFINE_PER_CPU(u64, rt_task_arrival_time);
+DEFINE_PER_CPU(u64, rt_task_arrival_time) = 0;
 static bool long_running_rt_task_trace_rgstrd;
 
-void rt_task_arrival_marker(void *unused, bool preempt,
+static void rt_task_arrival_marker(void *unused, bool preempt,
 	struct task_struct *prev, struct task_struct *next)
 {
 	unsigned int cpu = raw_smp_processor_id();
@@ -26,7 +26,7 @@ void rt_task_arrival_marker(void *unused, bool preempt,
 		per_cpu(rt_task_arrival_time, cpu) = 0;
 }
 
-void long_running_rt_task_notifier(void *unused, struct rq *rq)
+static void long_running_rt_task_notifier(void *unused, struct rq *rq)
 {
 	struct task_struct *curr = rq->curr;
 	unsigned int cpu = raw_smp_processor_id();
@@ -36,6 +36,19 @@ void long_running_rt_task_notifier(void *unused, struct rq *rq)
 
 	if (!per_cpu(rt_task_arrival_time, cpu))
 		return;
+
+	if (per_cpu(rt_task_arrival_time, cpu) && curr->policy != SCHED_FIFO) {
+		/* This should never happen, trying to avoid any false positives */
+		printk_deferred("Long running RT false positive detected for task %s (%d) runtime > %u now=%llu task arrival time=%llu runtime=%llu\n",
+				curr->comm, curr->pid,
+				sysctl_sched_long_running_rt_task_ms * MSEC_TO_NSEC,
+				rq_clock_task(rq),
+				per_cpu(rt_task_arrival_time, cpu),
+				rq_clock_task(rq) -
+				per_cpu(rt_task_arrival_time, cpu));
+		per_cpu(rt_task_arrival_time, cpu) = 0;
+		return;
+	}
 
 	if (rq_clock_task(rq) -
 		per_cpu(rt_task_arrival_time, cpu)

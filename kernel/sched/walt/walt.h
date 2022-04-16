@@ -886,11 +886,6 @@ static inline bool walt_fair_task(struct task_struct *p)
 	return p->prio >= MAX_RT_PRIO && !is_idle_task(p);
 }
 
-extern void rt_task_arrival_marker(void *unused, bool preempt,
-	struct task_struct *prev, struct task_struct *next);
-
-extern void long_running_rt_task_notifier(void *unused, struct rq *rq);
-
 extern int sched_long_running_rt_task_ms_handler(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp,
 		loff_t *ppos);
@@ -936,7 +931,7 @@ extern int in_sched_bug;
 extern struct rq *__migrate_task(struct rq *rq, struct rq_flags *rf,
 				 struct task_struct *p, int dest_cpu);
 
-extern DEFINE_PER_CPU(u64, rt_task_arrival_time);
+DECLARE_PER_CPU(u64, rt_task_arrival_time);
 extern int walt_get_mvp_task_prio(struct task_struct *p);
 extern void walt_cfs_deactivate_mvp_task(struct task_struct *p);
 
