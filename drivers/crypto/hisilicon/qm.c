@@ -3226,9 +3226,17 @@ static void qm_qp_event_notifier(struct hisi_qp *qp)
 	wake_up_interruptible(&qp->uacce_q->wait);
 }
 
+ /* This function returns free number of qp in qm. */
 static int hisi_qm_get_available_instances(struct uacce_device *uacce)
 {
-	return hisi_qm_get_free_qp_num(uacce->priv);
+	struct hisi_qm *qm = uacce->priv;
+	int ret;
+
+	down_read(&qm->qps_lock);
+	ret = qm->qp_num - qm->qp_in_used;
+	up_read(&qm->qps_lock);
+
+	return ret;
 }
 
 static void hisi_qm_set_hw_reset(struct hisi_qm *qm, int offset)
@@ -3539,24 +3547,6 @@ void hisi_qm_wait_task_finish(struct hisi_qm *qm, struct hisi_qm_list *qm_list)
 	udelay(REMOVE_WAIT_DELAY);
 }
 EXPORT_SYMBOL_GPL(hisi_qm_wait_task_finish);
-
-/**
- * hisi_qm_get_free_qp_num() - Get free number of qp in qm.
- * @qm: The qm which want to get free qp.
- *
- * This function return free number of qp in qm.
- */
-int hisi_qm_get_free_qp_num(struct hisi_qm *qm)
-{
-	int ret;
-
-	down_read(&qm->qps_lock);
-	ret = qm->qp_num - qm->qp_in_used;
-	up_read(&qm->qps_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(hisi_qm_get_free_qp_num);
 
 static void hisi_qp_memory_uninit(struct hisi_qm *qm, int num)
 {
