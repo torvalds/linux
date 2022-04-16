@@ -1619,6 +1619,8 @@ static irqreturn_t mmci_irq(int irq, void *dev_id)
 
 	do {
 		status = readl(host->base + MMCISTATUS);
+		if (!status)
+			break;
 
 		if (host->singleirq) {
 			if (status & host->mask1_reg)
