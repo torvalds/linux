@@ -46,7 +46,7 @@ static const struct reg_name mem_reg_name[] = {
 #ifndef CONFIG_VIDEO_CADENCE_CSI2RX
 	{"mipi0"},
 #endif
-	{"vclk"},
+	//{"vclk"},
 	{"vrst"},
 	{"mipi1"},
 	{"sctrl"},
@@ -57,6 +57,17 @@ static const struct reg_name mem_reg_name[] = {
 	{"iopad"},
 	{"pmu"},
 	//{"syscrg"},
+};
+
+char *resets[] = {
+	"rst_isp_top_n",
+	"rst_isp_top_axi",
+	"rst_wrapper_p",
+	"rst_wrapper_c",
+	"rst_pclk",
+	"rst_sys_clk",
+	"rst_axird",
+	"rst_axiwr",
 };
 
 int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
@@ -76,8 +87,8 @@ int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
 
 		if (!strcmp(name, "mipi0"))
 			vin->mipi0_base = regs;
-		else if (!strcmp(name, "vclk"))
-			vin->clkgen_base = regs;
+		// else if (!strcmp(name, "vclk"))
+		// 	vin->clkgen_base = regs;
 		else if (!strcmp(name, "vrst"))
 			vin->rstgen_base = regs;
 		else if (!strcmp(name, "mipi1"))
@@ -100,7 +111,8 @@ int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
 			st_err(ST_CAMSS, "Could not match resource name\n");
 	}
 
-	vin->sys_crg = ioremap(0x13020000, 10000);
+	vin->clkgen_base = ioremap(0x19810000, 0x10000);
+	vin->sys_crg = ioremap(0x13020000, 0x10000);
 
 	return 0;
 }
@@ -919,7 +931,7 @@ static int stfcamss_probe(struct platform_device *pdev)
 	struct device_node *node;
 	struct resource res_mem;
 	struct device *dev = &pdev->dev;
-	int ret = 0, num_subdevs;
+	int ret = 0, i, num_subdevs;
 
 	printk("stfcamss probe enter!\n");
 
@@ -1001,6 +1013,28 @@ static int stfcamss_probe(struct platform_device *pdev)
 		st_err(ST_CAMSS, "Could not get isp1 irq\n");
 		goto err_cam;
 	}
+
+#ifdef CONFIG_RESET_STARFIVE_JH7110
+	stfcamss->nrsts = ARRAY_SIZE(resets);
+	stfcamss->sys_rst = devm_kzalloc(dev, stfcamss->nrsts * sizeof(*stfcamss->sys_rst),
+			GFP_KERNEL);
+	if (!stfcamss->sys_rst) {
+		ret = -ENOMEM;
+		goto err_cam;
+	}
+
+	for (i = 0; i < stfcamss->nrsts; i++) {
+		struct stfcamss_rst *reset = &stfcamss->sys_rst[i];
+		reset->rst = devm_reset_control_get_exclusive(dev, resets[i]);
+		if (IS_ERR(reset->rst)) {
+			st_err(ST_CAMSS, "get %s resets name failed\n", resets[i]);
+			return PTR_ERR(reset->rst);
+		}
+		st_debug(ST_CAMSS, "get %s resets name: \n", resets[i]);
+
+		reset->name = resets[i];
+	}
+#endif
 
 	ret = stfcamss_get_mem_res(pdev, vin);
 	if (ret) {

@@ -594,6 +594,17 @@
 				<0x0 0x11858000 0x0 0x10000>,
 				<0x0 0x17030000 0x0 0x10000>;
 			reg-names = "mipi0", "vclk", "vrst", "mipi1", "sctrl", "isp0", "isp1", "tclk", "trst", "iopad", "pmu";
+			resets = <&rstgen RSTN_U0_DOM_ISP_TOP_N>,
+					<&rstgen RSTN_U0_DOM_ISP_TOP_AXI>,
+					<&rstgen RSTN_U0_ISPV2_TOP_WRAPPER_P>,
+					<&rstgen RSTN_U0_ISPV2_TOP_WRAPPER_C>,
+					<&rstgen RSTN_U0_VIN_N_PCLK>,
+					<&rstgen RSTN_U0_VIN_N_SYS_CLK>,
+					<&rstgen RSTN_U0_VIN_P_AXIRD>,
+					<&rstgen RSTN_U0_VIN_P_AXIWR>;
+			reset-names = "rst_isp_top_n", "rst_isp_top_axi", "rst_wrapper_p",
+						"rst_wrapper_c", "rst_pclk", "rst_sys_clk",
+						"rst_axird", "rst_axiwr";
 			interrupts = <92 87 86>;
 			status = "disabled";
 		};

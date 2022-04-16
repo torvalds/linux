@@ -105,28 +105,40 @@ static int stf_vin_clk_enable(struct stf_vin2_dev *vin_dev)
 {
 
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
-
-	reg_set_bit(vin->clkgen_base, CLK_DOM4_APB_FUNC, CLK_MUX_SEL, 0x8);
-	reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PCLK, CLK_U0_VIN_PCLK_ICG, 0x1<<31);
-	reg_set_bit(vin->clkgen_base, CLK_U0_VIN_SYS_CLK, CLK_MUX_SEL, 0x2);
-	reg_set_bit(vin->clkgen_base, CLK_U0_ISPV2_TOP_WRAPPER_CLK_C, CLK_U0_ISPV2_CLK_ICG, 0x1<<31);
+#ifdef CONFIG_RESET_STARFIVE_JH7110
+	reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_WRAPPER_C].rst);
+	reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_WRAPPER_P].rst);
+	reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_PCLK].rst);
+	reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_SYS_CLK].rst);
+	reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_AXIRD].rst);
+	reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_AXIWR].rst);
+#else
 	reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
 		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE,
 		RST_U0_ISPV2_TOP_WRAPPER_RST_P);
-	reg_set_bit(vin->clkgen_base, CLK_U0_ISPV2_TOP_WRAPPER_CLK_C, CLK_U0_ISPV2_MUX_SEL, 0x0);
 	reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
 		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE,
 		RST_U0_ISPV2_TOP_WRAPPER_RST_C);
-	reg_set_bit(vin->clkgen_base, CLK_DVP_INV, CLK_POLARITY, 0x0);
-	reg_set_bit(vin->clkgen_base, CLK_U0_ISPV2_TOP_WRAPPER_CLK_C, CLK_U0_ISPV2_MUX_SEL, 0x1<<24);
 	reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
 		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE,
 		RSTN_U0_VIN_RST_N_PCLK
 		| RSTN_U0_VIN_RST_P_AXIRD
 		| RSTN_U0_VIN_RST_N_SYS_CLK);
-	reg_set_bit(vin->clkgen_base,	CLK_U0_VIN_CLK_P_AXIWR,	CLK_U0_VIN_MUX_SEL, 0x0);
 	reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
 		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE, RSTN_U0_VIN_RST_P_AXIWR);
+#endif
+	reg_set_bit(vin->clkgen_base, CLK_DOM4_APB_FUNC, CLK_MUX_SEL, 0x8);
+	reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PCLK, CLK_U0_VIN_PCLK_ICG, 0x1<<31);
+	reg_set_bit(vin->clkgen_base, CLK_U0_VIN_SYS_CLK, CLK_MUX_SEL, 0x2);
+	reg_set_bit(vin->clkgen_base, CLK_U0_ISPV2_TOP_WRAPPER_CLK_C, CLK_U0_ISPV2_CLK_ICG, 0x1<<31);
+
+	reg_set_bit(vin->clkgen_base, CLK_U0_ISPV2_TOP_WRAPPER_CLK_C, CLK_U0_ISPV2_MUX_SEL, 0x0);
+
+	reg_set_bit(vin->clkgen_base, CLK_DVP_INV, CLK_POLARITY, 0x0);
+	reg_set_bit(vin->clkgen_base, CLK_U0_ISPV2_TOP_WRAPPER_CLK_C, CLK_U0_ISPV2_MUX_SEL, 0x1<<24);
+
+	reg_set_bit(vin->clkgen_base,	CLK_U0_VIN_CLK_P_AXIWR,	CLK_U0_VIN_MUX_SEL, 0x0);
+
 	reg_set_bit(vin->clkgen_base,   CLK_U0_VIN_CLK_P_AXIWR, CLK_U0_VIN_MUX_SEL, 0x1<<24);
 
 #if 0
@@ -160,11 +172,18 @@ static int stf_vin_clk_disable(struct stf_vin2_dev *vin_dev)
 
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 
+#ifdef CONFIG_RESET_STARFIVE_JH7110
+	reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_PCLK].rst);
+	reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_SYS_CLK].rst);
+	reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_AXIRD].rst);
+	reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_AXIWR].rst);
+#else
 	reg_assert_rst(vin->clkgen_base,SOFTWARE_RESET_ASSERT0_ASSERT_SET,
 		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE, RSTN_U0_VIN_RST_N_PCLK
 		| RSTN_U0_VIN_RST_N_SYS_CLK
 		| RSTN_U0_VIN_RST_P_AXIRD
 		| RSTN_U0_VIN_RST_P_AXIWR);
+#endif
 
 	reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PCLK, CLK_U0_VIN_PCLK_ICG, 0x0);
 
@@ -254,13 +273,23 @@ static void stf_vin_power_on(struct stf_vin2_dev *vin_dev,	int enable)
 
 		reg_set_highest_bit(vin->sys_crg, 0xCCU);
 		reg_set_highest_bit(vin->sys_crg, 0xD0U);
-		reg_clear_rst(vin->sys_crg, 0x2FCU,0x30CU, (0x1 << 9));
-		reg_clear_rst(vin->sys_crg, 0x2FCU,0x30CU, (0x1 << 10));
+#ifdef CONFIG_RESET_STARFIVE_JH7110
+		reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_N].rst);
+		reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rst);
+#else
+		reg_clear_rst(vin->sys_crg, 0x2FCU, 0x30CU, (0x1 << 9));
+		reg_clear_rst(vin->sys_crg, 0x2FCU, 0x30CU, (0x1 << 10));
+#endif
 	} else {
 		reg = reg_read(vin->sysctrl_base, SYSCONSAIF_SYSCFG_36);
 		if(reg && U0_VIN_CNFG_ISP_DVP_EN0) {
-			reg_assert_rst(vin->sys_crg, 0x2FCU ,0x30cu, BIT(9));  
-			reg_assert_rst(vin->sys_crg, 0x2FCU ,0x30cu, BIT(10)); 
+#ifdef CONFIG_RESET_STARFIVE_JH7110
+			reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_N].rst);
+			reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rst);
+#else
+			reg_assert_rst(vin->sys_crg, 0x2FCU, 0x30cu, BIT(9));
+			reg_assert_rst(vin->sys_crg, 0x2FCU, 0x30cu, BIT(10));
+#endif
 			reg_set_bit(vin->sys_crg, 0xccu, BIT(31), 0x0);
 			reg_set_bit(vin->sys_crg, 0xd0u, BIT(31), 0x0);
 			reg_write(vin->pmu_test, SW_DEST_POWER_ON, (0x1<<5));
