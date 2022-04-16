@@ -390,6 +390,8 @@ enum skb_drop_reason {
 	SKB_DROP_REASON_TCP_CLOSE,	/* TCP socket in CLOSE state */
 	SKB_DROP_REASON_TCP_FASTOPEN,	/* dropped by FASTOPEN request socket */
 	SKB_DROP_REASON_TCP_OLD_ACK,	/* TCP ACK is old, but in window */
+	SKB_DROP_REASON_TCP_TOO_OLD_ACK, /* TCP ACK is too old */
+	SKB_DROP_REASON_TCP_ACK_UNSENT_DATA, /* TCP ACK for data we haven't sent yet */
 	SKB_DROP_REASON_IP_OUTNOROUTES,	/* route lookup failed */
 	SKB_DROP_REASON_BPF_CGROUP_EGRESS,	/* dropped by
 						 * BPF_PROG_TYPE_CGROUP_SKB
