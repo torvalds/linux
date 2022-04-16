@@ -40,6 +40,7 @@
 #include <linux/signal.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
+#include <linux/version.h>
 #include <linux/pci-epf.h>
 
 #include "pcie-designware.h"
@@ -859,6 +860,22 @@ static int rk_pci_find_resbar_capability(struct rk_pcie *rk_pcie)
 	return 0;
 }
 
+#ifdef MODULE
+void dw_pcie_write_dbi2(struct dw_pcie *pci, u32 reg, size_t size, u32 val)
+{
+	int ret;
+
+	if (pci->ops && pci->ops->write_dbi2) {
+		pci->ops->write_dbi2(pci, pci->dbi_base2, reg, size, val);
+		return;
+	}
+
+	ret = dw_pcie_write(pci->dbi_base2 + reg, size, val);
+	if (ret)
+		dev_err(pci->dev, "write DBI address failed\n");
+}
+#endif
+
 static int rk_pcie_ep_set_bar_flag(struct rk_pcie *rk_pcie, enum pci_barno barno, int flags)
 {
 	enum pci_barno bar = barno;
@@ -1601,7 +1618,11 @@ static int rk_pcie_irq_set_affinity(struct irq_data *d,
 	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
 
+#if defined(MODULE) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0))
+	irq_set_affinity_hint(priv->legacy_parent_irq, cpumask_of(cpu));
+#else
 	irq_set_affinity(priv->legacy_parent_irq, cpumask_of(cpu));
+#endif
 	irq_data_update_effective_affinity(d, cpumask_of(cpu));
 
 	return IRQ_SET_MASK_OK_DONE;
