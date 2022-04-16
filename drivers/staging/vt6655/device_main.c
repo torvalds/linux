@@ -377,7 +377,7 @@ static void device_init_registers(struct vnt_private *priv)
 
 	if (priv->byRadioCtl & EEP_RADIOCTL_ENABLE) {
 		/* Get GPIO */
-		MACvGPIOIn(priv->port_offset, &priv->byGPIO);
+		VNSvInPortB(priv->port_offset + MAC_REG_GPIOCTL1, &priv->byGPIO);
 
 		if (((priv->byGPIO & GPIO0_DATA) &&
 		     !(priv->byRadioCtl & EEP_RADIOCTL_INV)) ||
