@@ -49,6 +49,18 @@ ap_tp_i2c: &i2c0 {
 	};
 };
 
+&ap_sar_sensor_i2c {
+	status = "okay";
+};
+
+&ap_sar_sensor0 {
+	status = "okay";
+};
+
+&ap_sar_sensor1 {
+	status = "okay";
+};
+
 ap_ts_pen_1v8: &i2c13 {
 	status = "okay";
 	clock-frequency = <400000>;
