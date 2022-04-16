@@ -1386,7 +1386,7 @@
 				gpio3 {
 					pins = "gpio3";
 					function = "fps-out";
-					drive-open-drain = <1>;
+					drive-open-drain;
 					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
 					maxim,active-fps-power-up-slot = <4>;
 					maxim,active-fps-power-down-slot = <2>;
@@ -1395,7 +1395,7 @@
 				gpio5_6 {
 					pins = "gpio5", "gpio6";
 					function = "gpio";
-					drive-push-pull = <1>;
+					drive-push-pull;
 				};
 
 				gpio4 {

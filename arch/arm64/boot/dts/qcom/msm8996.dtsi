@@ -1249,14 +1249,14 @@
 				pins = "gpio47", "gpio48";
 				function = "blsp_i2c3";
 				drive-strength = <16>;
-				bias-disable = <0>;
+				bias-disable;
 			};
 
 			blsp1_i2c3_sleep: blsp1-i2c2-sleep {
 				pins = "gpio47", "gpio48";
 				function = "gpio";
 				drive-strength = <2>;
-				bias-disable = <0>;
+				bias-disable;
 			};
 
 			blsp2_uart3_4pins_default: blsp2-uart2-4pins {

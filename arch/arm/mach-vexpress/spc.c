@@ -122,13 +122,13 @@ static inline bool cluster_is_a15(u32 cluster)
 }
 
 /**
- * ve_spc_global_wakeup_irq()
+ * ve_spc_global_wakeup_irq() - sets/clears global wakeup IRQs
+ *
+ * @set: if true, global wake-up IRQs are set, if false they are cleared
  *
  * Function to set/clear global wakeup IRQs. Not protected by locking since
  * it might be used in code paths where normal cacheable locks are not
  * working. Locking must be provided by the caller to ensure atomicity.
- *
- * @set: if true, global wake-up IRQs are set, if false they are cleared
  */
 void ve_spc_global_wakeup_irq(bool set)
 {
@@ -145,15 +145,15 @@ void ve_spc_global_wakeup_irq(bool set)
 }
 
 /**
- * ve_spc_cpu_wakeup_irq()
- *
- * Function to set/clear per-CPU wake-up IRQs. Not protected by locking since
- * it might be used in code paths where normal cacheable locks are not
- * working. Locking must be provided by the caller to ensure atomicity.
+ * ve_spc_cpu_wakeup_irq() - sets/clears per-CPU wake-up IRQs
  *
  * @cluster: mpidr[15:8] bitfield describing cluster affinity level
  * @cpu: mpidr[7:0] bitfield describing cpu affinity level
  * @set: if true, wake-up IRQs are set, if false they are cleared
+ *
+ * Function to set/clear per-CPU wake-up IRQs. Not protected by locking since
+ * it might be used in code paths where normal cacheable locks are not
+ * working. Locking must be provided by the caller to ensure atomicity.
  */
 void ve_spc_cpu_wakeup_irq(u32 cluster, u32 cpu, bool set)
 {
@@ -200,14 +200,14 @@ void ve_spc_set_resume_addr(u32 cluster, u32 cpu, u32 addr)
 }
 
 /**
- * ve_spc_powerdown()
+ * ve_spc_powerdown() - enables/disables cluster powerdown
+ *
+ * @cluster: mpidr[15:8] bitfield describing cluster affinity level
+ * @enable: if true enables powerdown, if false disables it
  *
  * Function to enable/disable cluster powerdown. Not protected by locking
  * since it might be used in code paths where normal cacheable locks are not
  * working. Locking must be provided by the caller to ensure atomicity.
- *
- * @cluster: mpidr[15:8] bitfield describing cluster affinity level
- * @enable: if true enables powerdown, if false disables it
  */
 void ve_spc_powerdown(u32 cluster, bool enable)
 {
@@ -228,7 +228,7 @@ static u32 standbywfi_cpu_mask(u32 cpu, u32 cluster)
 }
 
 /**
- * ve_spc_cpu_in_wfi(u32 cpu, u32 cluster)
+ * ve_spc_cpu_in_wfi() - Checks if the specified CPU is in WFI or not
  *
  * @cpu: mpidr[7:0] bitfield describing CPU affinity level within cluster
  * @cluster: mpidr[15:8] bitfield describing cluster affinity level
@@ -580,7 +580,7 @@ static int __init ve_spc_clk_init(void)
 		}
 
 		cluster = topology_physical_package_id(cpu_dev->id);
-		if (init_opp_table[cluster])
+		if (cluster < 0 || init_opp_table[cluster])
 			continue;
 
 		if (ve_init_opp_table(cpu_dev))

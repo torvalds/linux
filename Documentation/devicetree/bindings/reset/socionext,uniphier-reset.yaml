@@ -55,6 +55,9 @@ properties:
   "#reset-cells":
     const: 1
 
+  resets:
+    maxItems: 1
+
 additionalProperties: false
 
 required:

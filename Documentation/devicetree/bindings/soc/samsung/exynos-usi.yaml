@@ -8,7 +8,7 @@ title: Samsung's Exynos USI (Universal Serial Interface) binding
 
 maintainers:
   - Sam Protsenko <semen.protsenko@linaro.org>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 description: |
   USI IP-core provides selectable serial protocol (UART, SPI or High-Speed I2C).
