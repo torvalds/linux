@@ -21,9 +21,10 @@ void stf_dvp_io_pad_config(struct stf_vin_dev *vin)
 {
 	/*
 	 * pin: 21 ~ 35
-	 * offset: 0x144 ~ 0x164
+	 * iomux
 	 * SCFG_funcshare_pad_ctrl
 	 */
+#if 0
 	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x0174U, 0x1);
 	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a0U, 0x10);
 	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b4U, 0x200000);
@@ -69,7 +70,7 @@ void stf_dvp_io_pad_config(struct stf_vin_dev *vin)
 	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x01acU, 0x11);
 	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a4U, 0x12492);
 	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b0U, 0x24924800);
-
+#endif
 }
 
 static int stf_dvp_config_set(struct stf_dvp_dev *dvp_dev)

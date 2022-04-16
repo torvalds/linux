@@ -532,3 +532,9 @@
 	pinctrl-0 = <&mmc1_pins>;
 	status = "okay";
 };
+
+&vin_sysctl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dvp_pins>;
+	status = "okay";	
+};
