@@ -255,15 +255,12 @@ static inline bool dm_tio_is_normal(struct dm_target_io *tio)
 #define DM_IO_MAGIC 19577
 struct dm_io {
 	unsigned short magic;
-
+	blk_short_t flags;
 	spinlock_t lock;
 	unsigned long start_time;
 	void *data;
 	struct dm_io *next;
-	struct task_struct *map_task;
 	struct dm_stats_aux stats_aux;
-
-	blk_short_t flags;
 	blk_status_t status;
 	atomic_t io_count;
 	struct mapped_device *md;
@@ -281,7 +278,6 @@ struct dm_io {
  * dm_io flags
  */
 enum {
-	DM_IO_START_ACCT,
 	DM_IO_ACCOUNTED,
 	DM_IO_WAS_SPLIT
 };

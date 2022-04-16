@@ -596,7 +596,6 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	this_cpu_inc(*md->pending_io);
 	io->orig_bio = bio;
 	io->md = md;
-	io->map_task = current;
 	spin_lock_init(&io->lock);
 	io->start_time = jiffies;
 	io->flags = 0;
@@ -1241,13 +1240,6 @@ void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors)
 }
 EXPORT_SYMBOL_GPL(dm_accept_partial_bio);
 
-static inline void __dm_submit_bio_remap(struct bio *clone,
-					 dev_t dev, sector_t old_sector)
-{
-	trace_block_bio_remap(clone, dev, old_sector);
-	submit_bio_noacct(clone);
-}
-
 /*
  * @clone: clone bio that DM core passed to target's .map function
  * @tgt_clone: clone of @clone bio that target needs submitted
@@ -1262,8 +1254,6 @@ void dm_submit_bio_remap(struct bio *clone, struct bio *tgt_clone)
 	struct dm_target_io *tio = clone_to_tio(clone);
 	struct dm_io *io = tio->io;
 
-	WARN_ON_ONCE(!tio->ti->accounts_remapped_io);
-
 	/* establish bio that will get submitted */
 	if (!tgt_clone)
 		tgt_clone = clone;
@@ -1272,15 +1262,11 @@ void dm_submit_bio_remap(struct bio *clone, struct bio *tgt_clone)
 	 * Account io->origin_bio to DM dev on behalf of target
 	 * that took ownership of IO with DM_MAPIO_SUBMITTED.
 	 */
-	if (io->map_task == current) {
-		/* Still in target's map function */
-		dm_io_set_flag(io, DM_IO_START_ACCT);
-	} else {
-		dm_start_io_acct(io, clone);
-	}
+	dm_start_io_acct(io, clone);
 
-	__dm_submit_bio_remap(tgt_clone, disk_devt(io->md->disk),
+	trace_block_bio_remap(tgt_clone, disk_devt(io->md->disk),
 			      tio->old_sector);
+	submit_bio_noacct(tgt_clone);
 }
 EXPORT_SYMBOL_GPL(dm_submit_bio_remap);
 
@@ -1340,16 +1326,10 @@ static void __map_bio(struct bio *clone)
 	case DM_MAPIO_SUBMITTED:
 		/* target has assumed ownership of this io */
 		if (!ti->accounts_remapped_io)
-			dm_io_set_flag(io, DM_IO_START_ACCT);
+			dm_start_io_acct(io, clone);
 		break;
 	case DM_MAPIO_REMAPPED:
-		/*
-		 * the bio has been remapped so dispatch it, but defer
-		 * dm_start_io_acct() until after possible bio_split().
-		 */
-		__dm_submit_bio_remap(clone, disk_devt(md->disk),
-				      tio->old_sector);
-		dm_io_set_flag(io, DM_IO_START_ACCT);
+		dm_submit_bio_remap(clone, NULL);
 		break;
 	case DM_MAPIO_KILL:
 	case DM_MAPIO_REQUEUE:
@@ -1667,7 +1647,6 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	}
 
 	error = __split_and_process_bio(&ci);
-	io->map_task = NULL;
 	if (error || !ci.sector_count)
 		goto out;
 	/*
@@ -1679,9 +1658,6 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	bio_inc_remaining(bio);
 	submit_bio_noacct(bio);
 out:
-	if (dm_io_flagged(io, DM_IO_START_ACCT))
-		dm_start_io_acct(io, NULL);
-
 	/*
 	 * Drop the extra reference count for non-POLLED bio, and hold one
 	 * reference for POLLED bio, which will be released in dm_poll_bio
