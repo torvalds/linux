@@ -2,7 +2,6 @@
 /*
  * Copyright (C) 2021 StarFive Technology Co., Ltd.
  */
-#include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
@@ -18,7 +17,6 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/reset.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 #include <linux/uaccess.h>
@@ -57,6 +55,11 @@ static const struct reg_name mem_reg_name[] = {
 	{"iopad"},
 	{"pmu"},
 	//{"syscrg"},
+};
+
+char *clocks[] = {
+	"clk_ispcore_2x",
+	"clk_isp_axi",
 };
 
 char *resets[] = {
@@ -1013,6 +1016,28 @@ static int stfcamss_probe(struct platform_device *pdev)
 		st_err(ST_CAMSS, "Could not get isp1 irq\n");
 		goto err_cam;
 	}
+
+#ifdef CONFIG_CLK_STARFIVE_JH7110
+	stfcamss->nclks = ARRAY_SIZE(clocks);
+	stfcamss->sys_clk = devm_kzalloc(dev, stfcamss->nclks * sizeof(*stfcamss->sys_clk),
+			GFP_KERNEL);
+	if (!stfcamss->sys_clk) {
+		ret = -ENOMEM;
+		goto err_cam;
+	}
+
+	for (i = 0; i < stfcamss->nclks; i++) {
+		struct stfcamss_clk *clock = &stfcamss->sys_clk[i];
+		clock->clk = devm_clk_get(dev, clocks[i]);
+		if (IS_ERR(clock->clk)) {
+			st_err(ST_CAMSS, "get %s clocks name failed\n", clocks[i]);
+			return PTR_ERR(clock->clk);
+		}
+		st_debug(ST_CAMSS, "get %s clocks name: \n", clocks[i]);
+
+		clock->name = clocks[i];
+	}
+#endif
 
 #ifdef CONFIG_RESET_STARFIVE_JH7110
 	stfcamss->nrsts = ARRAY_SIZE(resets);

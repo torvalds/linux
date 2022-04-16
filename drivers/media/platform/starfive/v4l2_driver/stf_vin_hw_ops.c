@@ -271,8 +271,14 @@ static void stf_vin_power_on(struct stf_vin2_dev *vin_dev,	int enable)
  		reg_write(vin->pmu_test, SW_ENCOURAGE, 0x05);
 		reg_write(vin->pmu_test, SW_ENCOURAGE, 0x50);
 
+#ifdef CONFIG_CLK_STARFIVE_JH7110
+		clk_prepare_enable(vin_dev->stfcamss->sys_clk[STFCLK_ISPCORE_2X].clk);
+		clk_prepare_enable(vin_dev->stfcamss->sys_clk[STFCLK_ISP_AXI].clk);
+#else
 		reg_set_highest_bit(vin->sys_crg, 0xCCU);
 		reg_set_highest_bit(vin->sys_crg, 0xD0U);
+#endif
+
 #ifdef CONFIG_RESET_STARFIVE_JH7110
 		reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_N].rst);
 		reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rst);
@@ -280,9 +286,9 @@ static void stf_vin_power_on(struct stf_vin2_dev *vin_dev,	int enable)
 		reg_clear_rst(vin->sys_crg, 0x2FCU, 0x30CU, (0x1 << 9));
 		reg_clear_rst(vin->sys_crg, 0x2FCU, 0x30CU, (0x1 << 10));
 #endif
+
 	} else {
-		reg = reg_read(vin->sysctrl_base, SYSCONSAIF_SYSCFG_36);
-		if(reg && U0_VIN_CNFG_ISP_DVP_EN0) {
+
 #ifdef CONFIG_RESET_STARFIVE_JH7110
 			reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_N].rst);
 			reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rst);
@@ -290,14 +296,20 @@ static void stf_vin_power_on(struct stf_vin2_dev *vin_dev,	int enable)
 			reg_assert_rst(vin->sys_crg, 0x2FCU, 0x30cu, BIT(9));
 			reg_assert_rst(vin->sys_crg, 0x2FCU, 0x30cu, BIT(10));
 #endif
-			reg_set_bit(vin->sys_crg, 0xccu, BIT(31), 0x0);
-			reg_set_bit(vin->sys_crg, 0xd0u, BIT(31), 0x0);
-			reg_write(vin->pmu_test, SW_DEST_POWER_ON, (0x1<<5));
-			//reg_write(vin->pmu_test, SW_DEST_POWER_OFF, (0x1<<5));	//changhuang modify 01-12
-			reg_write(vin->pmu_test, SW_ENCOURAGE, 0xff);
-			reg_write(vin->pmu_test, SW_ENCOURAGE, 0x0a);
-			reg_write(vin->pmu_test, SW_ENCOURAGE, 0xa0);
-		}
+
+#ifdef CONFIG_CLK_STARFIVE_JH7110
+		clk_disable_unprepare(vin_dev->stfcamss->sys_clk[STFCLK_ISPCORE_2X].clk);
+		clk_disable_unprepare(vin_dev->stfcamss->sys_clk[STFCLK_ISP_AXI].clk);
+#else
+		reg_set_bit(vin->sys_crg, 0xccu, BIT(31), 0x0);
+		reg_set_bit(vin->sys_crg, 0xd0u, BIT(31), 0x0);
+#endif
+
+		reg_write(vin->pmu_test, SW_DEST_POWER_ON, (0x1<<5));
+		//reg_write(vin->pmu_test, SW_DEST_POWER_OFF, (0x1<<5));	//changhuang modify 01-12
+		reg_write(vin->pmu_test, SW_ENCOURAGE, 0xff);
+		reg_write(vin->pmu_test, SW_ENCOURAGE, 0x0a);
+		reg_write(vin->pmu_test, SW_ENCOURAGE, 0xa0);
 	}
 }
 

@@ -8,6 +8,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/reset.h>
+#include <linux/clk.h>
 
 enum sensor_type {
 	SENSOR_VIN,
@@ -40,6 +41,12 @@ enum port_num {
 	CSI2RX1_SENSOR_PORT_NUMBER
 };
 
+enum stf_clk_num {
+	STFCLK_ISPCORE_2X = 0,
+	STFCLK_ISP_AXI,
+	STFCLK_NUM
+};
+
 enum stf_rst_num {
 	STFRST_ISP_TOP_N = 0,
 	STFRST_ISP_TOP_AXI,
@@ -52,6 +59,10 @@ enum stf_rst_num {
 	STFRST_NUM
 };
 
+struct stfcamss_clk {
+	struct clk *clk;
+	const char *name;
+};
 
 struct stfcamss_rst {
 	struct reset_control *rst;
@@ -72,6 +83,8 @@ struct stfcamss {
 	int isp_num;
 	struct stf_isp_dev *isp_dev;   // subdev
 	struct v4l2_async_notifier notifier;
+	struct stfcamss_clk *sys_clk;
+	int nclks;
 	struct stfcamss_rst *sys_rst;
 	int nrsts;
 #ifdef CONFIG_DEBUG_FS
