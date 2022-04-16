@@ -7,10 +7,15 @@
 
 #include "rv1106.dtsi"
 #include "rv1106-evb-v10.dtsi"
+#include "rv1106-thunder-boot-spi-nor.dtsi"
 
 / {
 	model = "Rockchip RV1106G EVB2 V10 Board";
 	compatible = "rockchip,rv1106g-evb2-v10", "rockchip,rv1106";
+
+	chosen {
+		bootargs = "loglevel=0 console=ttyFIQ0 root=/dev/rd0 snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=0 driver_async_probe=dwmmc_rockchip";
+	};
 
 	vcc_1v8: vcc-1v8 {
 		compatible = "regulator-fixed";
@@ -63,6 +68,16 @@
 	};
 };
 
+&emmc {
+	status = "disabled";
+};
+
+&fiq_debugger {
+	rockchip,baudrate = <1500000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2m1_xfer>;
+};
+
 &pinctrl {
 	sdmmc {
 		/omit-if-no-ref/
@@ -79,6 +94,18 @@
 		sdmmc_volt: sdmmc-volt {
 			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
+	};
+};
+
+&sfc {
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <118800000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
 	};
 };
 
