@@ -6186,7 +6186,9 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 
 		if (th->rst) {
 			tcp_reset(sk, skb);
-			goto discard;
+consume:
+			__kfree_skb(skb);
+			return 0;
 		}
 
 		/* rfc793:
@@ -6275,13 +6277,9 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 			tcp_enter_quickack_mode(sk, TCP_MAX_QUICKACKS);
 			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
 						  TCP_DELACK_MAX, TCP_RTO_MAX);
-
-discard:
-			tcp_drop(sk, skb);
-			return 0;
-		} else {
-			tcp_send_ack(sk);
+			goto consume;
 		}
+		tcp_send_ack(sk);
 		return -1;
 	}
 
@@ -6350,7 +6348,7 @@ discard:
 		 */
 		return -1;
 #else
-		goto discard;
+		goto consume;
 #endif
 	}
 	/* "fifth, if neither of the SYN or RST bits is set then
@@ -6360,7 +6358,8 @@ discard:
 discard_and_undo:
 	tcp_clear_options(&tp->rx_opt);
 	tp->rx_opt.mss_clamp = saved_clamp;
-	goto discard;
+	tcp_drop(sk, skb);
+	return 0;
 
 reset_and_undo:
 	tcp_clear_options(&tp->rx_opt);
