@@ -6413,21 +6413,26 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 	struct request_sock *req;
 	int queued = 0;
 	bool acceptable;
+	SKB_DR(reason);
 
 	switch (sk->sk_state) {
 	case TCP_CLOSE:
+		SKB_DR_SET(reason, TCP_CLOSE);
 		goto discard;
 
 	case TCP_LISTEN:
 		if (th->ack)
 			return 1;
 
-		if (th->rst)
+		if (th->rst) {
+			SKB_DR_SET(reason, TCP_RESET);
 			goto discard;
-
+		}
 		if (th->syn) {
-			if (th->fin)
+			if (th->fin) {
+				SKB_DR_SET(reason, TCP_FLAGS);
 				goto discard;
+			}
 			/* It is possible that we process SYN packets from backlog,
 			 * so we need to make sure to disable BH and RCU right there.
 			 */
@@ -6442,6 +6447,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 			consume_skb(skb);
 			return 0;
 		}
+		SKB_DR_SET(reason, TCP_FLAGS);
 		goto discard;
 
 	case TCP_SYN_SENT:
@@ -6468,13 +6474,16 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 		WARN_ON_ONCE(sk->sk_state != TCP_SYN_RECV &&
 		    sk->sk_state != TCP_FIN_WAIT1);
 
-		if (!tcp_check_req(sk, skb, req, true, &req_stolen))
+		if (!tcp_check_req(sk, skb, req, true, &req_stolen)) {
+			SKB_DR_SET(reason, TCP_FASTOPEN);
 			goto discard;
+		}
 	}
 
-	if (!th->ack && !th->rst && !th->syn)
+	if (!th->ack && !th->rst && !th->syn) {
+		SKB_DR_SET(reason, TCP_FLAGS);
 		goto discard;
-
+	}
 	if (!tcp_validate_incoming(sk, skb, th, 0))
 		return 0;
 
@@ -6487,6 +6496,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 		if (sk->sk_state == TCP_SYN_RECV)
 			return 1;	/* send one RST */
 		tcp_send_challenge_ack(sk);
+		SKB_DR_SET(reason, TCP_OLD_ACK);
 		goto discard;
 	}
 	switch (sk->sk_state) {
@@ -6647,7 +6657,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 
 	if (!queued) {
 discard:
-		tcp_drop(sk, skb);
+		tcp_drop_reason(sk, skb, reason);
 	}
 	return 0;
 
