@@ -2860,7 +2860,7 @@ static struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, u8 alg_type)
  *
  * This function releases the resource of a qp.
  */
-void hisi_qm_release_qp(struct hisi_qp *qp)
+static void hisi_qm_release_qp(struct hisi_qp *qp)
 {
 	struct hisi_qm *qm = qp->qm;
 
@@ -2878,7 +2878,6 @@ void hisi_qm_release_qp(struct hisi_qp *qp)
 
 	qm_pm_put_sync(qm);
 }
-EXPORT_SYMBOL_GPL(hisi_qm_release_qp);
 
 static int qm_sq_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 {
