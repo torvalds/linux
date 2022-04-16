@@ -49,18 +49,38 @@ static unsigned long get_freq(struct msm_gpu *gpu)
 	return clk_get_rate(gpu->core_clk);
 }
 
+static void get_raw_dev_status(struct msm_gpu *gpu,
+		struct devfreq_dev_status *status)
+{
+	struct msm_gpu_devfreq *df = &gpu->devfreq;
+	u64 busy_cycles, busy_time;
+	unsigned long sample_rate;
+	ktime_t time;
+
+	status->current_frequency = get_freq(gpu);
+	busy_cycles = gpu->funcs->gpu_busy(gpu, &sample_rate);
+	time = ktime_get();
+
+	busy_time = busy_cycles - df->busy_cycles;
+	status->total_time = ktime_us_delta(time, df->time);
+
+	df->busy_cycles = busy_cycles;
+	df->time = time;
+
+	busy_time *= USEC_PER_SEC;
+	do_div(busy_time, sample_rate);
+	if (WARN_ON(busy_time > ~0LU))
+		busy_time = ~0LU;
+
+	status->busy_time = busy_time;
+}
+
 static int msm_devfreq_get_dev_status(struct device *dev,
 		struct devfreq_dev_status *status)
 {
 	struct msm_gpu *gpu = dev_to_gpu(dev);
-	ktime_t time;
 
-	status->current_frequency = get_freq(gpu);
-	status->busy_time = gpu->funcs->gpu_busy(gpu);
-
-	time = ktime_get();
-	status->total_time = ktime_us_delta(time, gpu->devfreq.time);
-	gpu->devfreq.time = time;
+	get_raw_dev_status(gpu, status);
 
 	return 0;
 }
