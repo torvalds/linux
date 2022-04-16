@@ -231,7 +231,10 @@ static void i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
 		return;
 
 	mutex_lock(&inode->ei_quota_lock);
-	BUG_ON((s64) inode->v.i_blocks + sectors < 0);
+	bch2_fs_inconsistent_on((s64) inode->v.i_blocks + sectors < 0, c,
+				"inode %lu i_blocks underflow: %llu + %lli < 0 (ondisk %lli)",
+				inode->v.i_ino, (u64) inode->v.i_blocks, sectors,
+				inode->ei_inode.bi_sectors);
 	inode->v.i_blocks += sectors;
 
 #ifdef CONFIG_BCACHEFS_QUOTA
@@ -2695,9 +2698,11 @@ int bch2_truncate(struct mnt_idmap *idmap,
 			U64_MAX, &i_sectors_delta);
 	i_sectors_acct(c, inode, NULL, i_sectors_delta);
 
-	WARN_ON(!inode->v.i_size && inode->v.i_blocks &&
-		!bch2_journal_error(&c->journal));
-
+	bch2_fs_inconsistent_on(!inode->v.i_size && inode->v.i_blocks &&
+				!bch2_journal_error(&c->journal), c,
+				"inode %lu truncated to 0 but i_blocks %llu (ondisk %lli)",
+				inode->v.i_ino, (u64) inode->v.i_blocks,
+				inode->ei_inode.bi_sectors);
 	if (unlikely(ret))
 		goto err;
 
