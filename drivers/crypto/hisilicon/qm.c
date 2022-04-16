@@ -2835,7 +2835,7 @@ static struct hisi_qp *qm_create_qp_nolock(struct hisi_qm *qm, u8 alg_type)
  * return created qp, -EBUSY if all qps in qm allocated, -ENOMEM if allocating
  * qp memory fails.
  */
-struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, u8 alg_type)
+static struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, u8 alg_type)
 {
 	struct hisi_qp *qp;
 	int ret;
@@ -2853,7 +2853,6 @@ struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, u8 alg_type)
 
 	return qp;
 }
-EXPORT_SYMBOL_GPL(hisi_qm_create_qp);
 
 /**
  * hisi_qm_release_qp() - Release a qp back to its qm.
@@ -3738,7 +3737,7 @@ EXPORT_SYMBOL_GPL(hisi_qm_uninit);
  *
  * qm hw v1 does not support this interface.
  */
-int hisi_qm_get_vft(struct hisi_qm *qm, u32 *base, u32 *number)
+static int hisi_qm_get_vft(struct hisi_qm *qm, u32 *base, u32 *number)
 {
 	if (!base || !number)
 		return -EINVAL;
@@ -3750,7 +3749,6 @@ int hisi_qm_get_vft(struct hisi_qm *qm, u32 *base, u32 *number)
 
 	return qm->ops->get_vft(qm, base, number);
 }
-EXPORT_SYMBOL_GPL(hisi_qm_get_vft);
 
 /**
  * hisi_qm_set_vft() - Set vft to a qm.
