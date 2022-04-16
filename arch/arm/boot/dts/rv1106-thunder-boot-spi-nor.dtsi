@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rv1106-thunder-boot.dtsi"
+
+/ {
+	thunder_boot_spi_nor: thunder-boot-spi-nor {
+		compatible = "rockchip,thunder-boot-sfc";
+		reg = <0xffac0000 0x4000>;
+		memory-region-src = <&ramdisk_c>;
+		memory-region-dst = <&ramdisk_r>;
+	};
+};
