@@ -14,7 +14,6 @@ properties:
   compatible:
     enum:
       - nvidia,tegra20-pmc
-      - nvidia,tegra20-pmc
       - nvidia,tegra30-pmc
       - nvidia,tegra114-pmc
       - nvidia,tegra124-pmc
