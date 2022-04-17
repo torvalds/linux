@@ -256,14 +256,13 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 	fw_data = dvobj->firmware.data;
 	fw_size = dvobj->firmware.size;
 
-	/*  To Check Fw header. Added by tynli. 2009.12.04. */
 	fwhdr = (struct rt_firmware_hdr *)dvobj->firmware.data;
 
-	pr_info_once("%sFirmware Version %d, SubVersion %d, Signature 0x%x\n",
-		     DRIVER_PREFIX, le16_to_cpu(fwhdr->version), fwhdr->subversion,
-		     le16_to_cpu(fwhdr->signature));
-
 	if (IS_FW_HEADER_EXIST(fwhdr)) {
+		pr_info_once("%sFirmware Version %d, SubVersion %d, Signature 0x%x\n",
+			     DRIVER_PREFIX, le16_to_cpu(fwhdr->version), fwhdr->subversion,
+			     le16_to_cpu(fwhdr->signature));
+
 		fw_data = fw_data + sizeof(struct rt_firmware_hdr);
 		fw_size = fw_size - sizeof(struct rt_firmware_hdr);
 	}
