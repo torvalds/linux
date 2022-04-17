@@ -275,6 +275,7 @@ static int mxsfb_reset_block(struct mxsfb_drm_private *mxsfb)
 }
 
 static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb,
+				     struct drm_bridge_state *bridge_state,
 				     const u32 bus_format)
 {
 	struct drm_device *drm = mxsfb->crtc.dev;
@@ -284,6 +285,8 @@ static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb,
 
 	if (mxsfb->bridge && mxsfb->bridge->timings)
 		bus_flags = mxsfb->bridge->timings->input_bus_flags;
+	else if (bridge_state)
+		bus_flags = bridge_state->input_bus_cfg.flags;
 
 	DRM_DEV_DEBUG_DRIVER(drm->dev, "Pixel clock: %dkHz (actual: %dkHz)\n",
 			     m->crtc_clock,
@@ -345,7 +348,7 @@ static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(crtc->dev);
 	struct drm_plane_state *new_pstate = drm_atomic_get_new_plane_state(state,
 									    crtc->primary);
-	struct drm_bridge_state *bridge_state;
+	struct drm_bridge_state *bridge_state = NULL;
 	struct drm_device *drm = mxsfb->drm;
 	u32 bus_format = 0;
 	dma_addr_t paddr;
@@ -381,7 +384,7 @@ static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (!bus_format)
 		bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 
-	mxsfb_crtc_mode_set_nofb(mxsfb, bus_format);
+	mxsfb_crtc_mode_set_nofb(mxsfb, bridge_state, bus_format);
 
 	/* Write cur_buf as well to avoid an initial corrupt frame */
 	paddr = drm_fb_cma_get_gem_addr(new_pstate->fb, new_pstate, 0);
