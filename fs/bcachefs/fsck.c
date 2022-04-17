@@ -740,8 +740,9 @@ static int hash_check_key(struct btree_trans *trans,
 	if (hash_k.k->p.offset < hash)
 		goto bad_hash;
 
-	for_each_btree_key(trans, iter, desc.btree_id, POS(hash_k.k->p.inode, hash),
-			   BTREE_ITER_SLOTS, k, ret) {
+	for_each_btree_key_norestart(trans, iter, desc.btree_id,
+				     POS(hash_k.k->p.inode, hash),
+				     BTREE_ITER_SLOTS, k, ret) {
 		if (!bkey_cmp(k.k->p, hash_k.k->p))
 			break;
 
@@ -759,16 +760,15 @@ static int hash_check_key(struct btree_trans *trans,
 			bch2_trans_iter_exit(trans, &iter);
 			goto bad_hash;
 		}
-
 	}
 out:
 	bch2_trans_iter_exit(trans, &iter);
 	printbuf_exit(&buf);
 	return ret;
 bad_hash:
-	if (fsck_err(c, "hash table key at wrong offset: btree %u inode %llu offset %llu, "
+	if (fsck_err(c, "hash table key at wrong offset: btree %s inode %llu offset %llu, "
 		     "hashed to %llu\n%s",
-		     desc.btree_id, hash_k.k->p.inode, hash_k.k->p.offset, hash,
+		     bch2_btree_ids[desc.btree_id], hash_k.k->p.inode, hash_k.k->p.offset, hash,
 		     (printbuf_reset(&buf),
 		      bch2_bkey_val_to_text(&buf, c, hash_k), buf.buf)) == FSCK_ERR_IGNORE)
 		return 0;
