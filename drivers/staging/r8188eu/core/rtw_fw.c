@@ -9,34 +9,34 @@
 #define MAX_PAGE_SIZE		4096
 
 #define IS_FW_HEADER_EXIST(_fwhdr)				\
-	((le16_to_cpu(_fwhdr->Signature) & 0xFFF0) == 0x92C0 ||	\
-	(le16_to_cpu(_fwhdr->Signature) & 0xFFF0) == 0x88C0 ||	\
-	(le16_to_cpu(_fwhdr->Signature) & 0xFFF0) == 0x2300 ||	\
-	(le16_to_cpu(_fwhdr->Signature) & 0xFFF0) == 0x88E0)
+	((le16_to_cpu(_fwhdr->signature) & 0xFFF0) == 0x92C0 ||	\
+	(le16_to_cpu(_fwhdr->signature) & 0xFFF0) == 0x88C0 ||	\
+	(le16_to_cpu(_fwhdr->signature) & 0xFFF0) == 0x2300 ||	\
+	(le16_to_cpu(_fwhdr->signature) & 0xFFF0) == 0x88E0)
 
 struct rt_firmware_hdr {
-	__le16		Signature;	/* 92C0: test chip; 92C,
-					 * 88C0: test chip; 88C1: MP A-cut;
-					 * 92C1: MP A-cut */
-	u8		Category;	/* AP/NIC and USB/PCI */
-	u8		Function;	/* Reserved for different FW function
-					 * indcation, for further use when
-					 * driver needs to download different
-					 * FW for different conditions */
-	__le16		Version;	/* FW Version */
-	u8		Subversion;	/* FW Subversion, default 0x00 */
-	u8		Rsvd1;
-	u8		Month;		/* Release time Month field */
-	u8		Date;		/* Release time Date field */
-	u8		Hour;		/* Release time Hour field */
-	u8		Minute;		/* Release time Minute field */
-	__le16		RamCodeSize;	/* The size of RAM code */
-	u8		Foundry;
-	u8		Rsvd2;
-	__le32		SvnIdx;		/* The SVN entry index */
-	__le32		Rsvd3;
-	__le32		Rsvd4;
-	__le32		Rsvd5;
+	__le16	signature;	/* 92C0: test chip; 92C,
+				 * 88C0: test chip; 88C1: MP A-cut;
+				 * 92C1: MP A-cut */
+	u8	category;	/* AP/NIC and USB/PCI */
+	u8	function;	/* Reserved for different FW function
+				 * indcation, for further use when
+				 * driver needs to download different
+				 * FW for different conditions */
+	__le16	version;	/* FW Version */
+	u8	subversion;	/* FW Subversion, default 0x00 */
+	u8	rsvd1;
+	u8	month;		/* Release time Month field */
+	u8	date;		/* Release time Date field */
+	u8	hour;		/* Release time Hour field */
+	u8	minute;		/* Release time Minute field */
+	__le16	ramcodesize;	/* The size of RAM code */
+	u8	foundry;
+	u8	rsvd2;
+	__le32	svnidx;		/* The SVN entry index */
+	__le32	rsvd3;
+	__le32	rsvd4;
+	__le32	rsvd5;
 };
 
 static void fw_download_enable(struct adapter *padapter, bool enable)
@@ -259,9 +259,9 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 	/*  To Check Fw header. Added by tynli. 2009.12.04. */
 	fwhdr = (struct rt_firmware_hdr *)dvobj->firmware.data;
 
-	fw_version = le16_to_cpu(fwhdr->Version);
-	fw_subversion = fwhdr->Subversion;
-	fw_signature = le16_to_cpu(fwhdr->Signature);
+	fw_version = le16_to_cpu(fwhdr->version);
+	fw_subversion = fwhdr->subversion;
+	fw_signature = le16_to_cpu(fwhdr->signature);
 
 	if (!log_version++)
 		pr_info("%sFirmware Version %d, SubVersion %d, Signature 0x%x\n",
