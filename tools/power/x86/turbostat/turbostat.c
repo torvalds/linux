@@ -3,7 +3,7 @@
  * turbostat -- show CPU frequency and C-state residency
  * on modern Intel and AMD processors.
  *
- * Copyright (c) 2021 Intel Corporation.
+ * Copyright (c) 2022 Intel Corporation.
  * Len Brown <len.brown@intel.com>
  */
 
@@ -6128,7 +6128,7 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 21.05.04" " - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2022.04.16 - Len Brown <lenb@kernel.org>\n");
 }
 
 int add_counter(unsigned int msr_num, char *path, char *name,
