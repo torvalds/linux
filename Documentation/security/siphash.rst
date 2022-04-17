@@ -132,10 +132,10 @@ Generating a HalfSipHash key
 ============================
 
 Keys should always be generated from a cryptographically secure source of
-random numbers, either using get_random_bytes or get_random_once:
+random numbers, either using get_random_bytes or get_random_once::
 
-hsiphash_key_t key;
-get_random_bytes(&key, sizeof(key));
+	hsiphash_key_t key;
+	get_random_bytes(&key, sizeof(key));
 
 If you're not deriving your key from here, you're doing it wrong.
 
