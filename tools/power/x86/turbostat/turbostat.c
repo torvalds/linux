@@ -37,6 +37,169 @@
 #include <asm/unistd.h>
 #include <stdbool.h>
 
+/*
+ * This list matches the column headers, except
+ * 1. built-in only, the sysfs counters are not here -- we learn of those at run-time
+ * 2. Core and CPU are moved to the end, we can't have strings that contain them
+ *    matching on them for --show and --hide.
+ */
+
+/*
+ * buffer size used by sscanf() for added column names
+ * Usually truncated to 7 characters, but also handles 18 columns for raw 64-bit counters
+ */
+#define	NAME_BYTES 20
+#define PATH_BYTES 128
+
+enum counter_scope { SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE };
+enum counter_type { COUNTER_ITEMS, COUNTER_CYCLES, COUNTER_SECONDS, COUNTER_USEC };
+enum counter_format { FORMAT_RAW, FORMAT_DELTA, FORMAT_PERCENT };
+
+struct msr_counter {
+	unsigned int msr_num;
+	char name[NAME_BYTES];
+	char path[PATH_BYTES];
+	unsigned int width;
+	enum counter_type type;
+	enum counter_format format;
+	struct msr_counter *next;
+	unsigned int flags;
+#define	FLAGS_HIDE	(1 << 0)
+#define	FLAGS_SHOW	(1 << 1)
+#define	SYSFS_PERCPU	(1 << 1)
+};
+
+struct msr_counter bic[] = {
+	{ 0x0, "usec" },
+	{ 0x0, "Time_Of_Day_Seconds" },
+	{ 0x0, "Package" },
+	{ 0x0, "Node" },
+	{ 0x0, "Avg_MHz" },
+	{ 0x0, "Busy%" },
+	{ 0x0, "Bzy_MHz" },
+	{ 0x0, "TSC_MHz" },
+	{ 0x0, "IRQ" },
+	{ 0x0, "SMI", "", 32, 0, FORMAT_DELTA, NULL },
+	{ 0x0, "sysfs" },
+	{ 0x0, "CPU%c1" },
+	{ 0x0, "CPU%c3" },
+	{ 0x0, "CPU%c6" },
+	{ 0x0, "CPU%c7" },
+	{ 0x0, "ThreadC" },
+	{ 0x0, "CoreTmp" },
+	{ 0x0, "CoreCnt" },
+	{ 0x0, "PkgTmp" },
+	{ 0x0, "GFX%rc6" },
+	{ 0x0, "GFXMHz" },
+	{ 0x0, "Pkg%pc2" },
+	{ 0x0, "Pkg%pc3" },
+	{ 0x0, "Pkg%pc6" },
+	{ 0x0, "Pkg%pc7" },
+	{ 0x0, "Pkg%pc8" },
+	{ 0x0, "Pkg%pc9" },
+	{ 0x0, "Pk%pc10" },
+	{ 0x0, "CPU%LPI" },
+	{ 0x0, "SYS%LPI" },
+	{ 0x0, "PkgWatt" },
+	{ 0x0, "CorWatt" },
+	{ 0x0, "GFXWatt" },
+	{ 0x0, "PkgCnt" },
+	{ 0x0, "RAMWatt" },
+	{ 0x0, "PKG_%" },
+	{ 0x0, "RAM_%" },
+	{ 0x0, "Pkg_J" },
+	{ 0x0, "Cor_J" },
+	{ 0x0, "GFX_J" },
+	{ 0x0, "RAM_J" },
+	{ 0x0, "Mod%c6" },
+	{ 0x0, "Totl%C0" },
+	{ 0x0, "Any%C0" },
+	{ 0x0, "GFX%C0" },
+	{ 0x0, "CPUGFX%" },
+	{ 0x0, "Core" },
+	{ 0x0, "CPU" },
+	{ 0x0, "APIC" },
+	{ 0x0, "X2APIC" },
+	{ 0x0, "Die" },
+	{ 0x0, "GFXAMHz" },
+	{ 0x0, "IPC" },
+	{ 0x0, "CoreThr" },
+};
+
+#define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
+#define	BIC_USEC	(1ULL << 0)
+#define	BIC_TOD		(1ULL << 1)
+#define	BIC_Package	(1ULL << 2)
+#define	BIC_Node	(1ULL << 3)
+#define	BIC_Avg_MHz	(1ULL << 4)
+#define	BIC_Busy	(1ULL << 5)
+#define	BIC_Bzy_MHz	(1ULL << 6)
+#define	BIC_TSC_MHz	(1ULL << 7)
+#define	BIC_IRQ		(1ULL << 8)
+#define	BIC_SMI		(1ULL << 9)
+#define	BIC_sysfs	(1ULL << 10)
+#define	BIC_CPU_c1	(1ULL << 11)
+#define	BIC_CPU_c3	(1ULL << 12)
+#define	BIC_CPU_c6	(1ULL << 13)
+#define	BIC_CPU_c7	(1ULL << 14)
+#define	BIC_ThreadC	(1ULL << 15)
+#define	BIC_CoreTmp	(1ULL << 16)
+#define	BIC_CoreCnt	(1ULL << 17)
+#define	BIC_PkgTmp	(1ULL << 18)
+#define	BIC_GFX_rc6	(1ULL << 19)
+#define	BIC_GFXMHz	(1ULL << 20)
+#define	BIC_Pkgpc2	(1ULL << 21)
+#define	BIC_Pkgpc3	(1ULL << 22)
+#define	BIC_Pkgpc6	(1ULL << 23)
+#define	BIC_Pkgpc7	(1ULL << 24)
+#define	BIC_Pkgpc8	(1ULL << 25)
+#define	BIC_Pkgpc9	(1ULL << 26)
+#define	BIC_Pkgpc10	(1ULL << 27)
+#define BIC_CPU_LPI	(1ULL << 28)
+#define BIC_SYS_LPI	(1ULL << 29)
+#define	BIC_PkgWatt	(1ULL << 30)
+#define	BIC_CorWatt	(1ULL << 31)
+#define	BIC_GFXWatt	(1ULL << 32)
+#define	BIC_PkgCnt	(1ULL << 33)
+#define	BIC_RAMWatt	(1ULL << 34)
+#define	BIC_PKG__	(1ULL << 35)
+#define	BIC_RAM__	(1ULL << 36)
+#define	BIC_Pkg_J	(1ULL << 37)
+#define	BIC_Cor_J	(1ULL << 38)
+#define	BIC_GFX_J	(1ULL << 39)
+#define	BIC_RAM_J	(1ULL << 40)
+#define	BIC_Mod_c6	(1ULL << 41)
+#define	BIC_Totl_c0	(1ULL << 42)
+#define	BIC_Any_c0	(1ULL << 43)
+#define	BIC_GFX_c0	(1ULL << 44)
+#define	BIC_CPUGFX	(1ULL << 45)
+#define	BIC_Core	(1ULL << 46)
+#define	BIC_CPU		(1ULL << 47)
+#define	BIC_APIC	(1ULL << 48)
+#define	BIC_X2APIC	(1ULL << 49)
+#define	BIC_Die		(1ULL << 50)
+#define	BIC_GFXACTMHz	(1ULL << 51)
+#define	BIC_IPC		(1ULL << 52)
+#define	BIC_CORE_THROT_CNT	(1ULL << 53)
+
+#define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die )
+#define BIC_THERMAL_PWR ( BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__)
+#define BIC_FREQUENCY ( BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz )
+#define BIC_IDLE ( BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX)
+#define BIC_OTHER ( BIC_IRQ | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
+
+#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
+
+unsigned long long bic_enabled = (0xFFFFFFFFFFFFFFFFULL & ~BIC_DISABLED_BY_DEFAULT);
+unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs | BIC_APIC | BIC_X2APIC;
+
+#define DO_BIC(COUNTER_NAME) (bic_enabled & bic_present & COUNTER_NAME)
+#define DO_BIC_READ(COUNTER_NAME) (bic_present & COUNTER_NAME)
+#define ENABLE_BIC(COUNTER_NAME) (bic_enabled |= COUNTER_NAME)
+#define BIC_PRESENT(COUNTER_BIT) (bic_present |= COUNTER_BIT)
+#define BIC_NOT_PRESENT(COUNTER_BIT) (bic_present &= ~COUNTER_BIT)
+#define BIC_IS_ENABLED(COUNTER_BIT) (bic_enabled & COUNTER_BIT)
+
 char *proc_stat = "/proc/stat";
 FILE *outf;
 int *fd_percpu;
@@ -160,13 +323,6 @@ int ignore_stdin;
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-/*
- * buffer size used by sscanf() for added column names
- * Usually truncated to 7 characters, but also handles 18 columns for raw 64-bit counters
- */
-#define	NAME_BYTES 20
-#define PATH_BYTES 128
-
 int backwards_count;
 char *progname;
 
@@ -256,24 +412,6 @@ struct pkg_data {
 	 (core_no))
 
 #define GET_PKG(pkg_base, pkg_no) (pkg_base + pkg_no)
-
-enum counter_scope { SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE };
-enum counter_type { COUNTER_ITEMS, COUNTER_CYCLES, COUNTER_SECONDS, COUNTER_USEC };
-enum counter_format { FORMAT_RAW, FORMAT_DELTA, FORMAT_PERCENT };
-
-struct msr_counter {
-	unsigned int msr_num;
-	char name[NAME_BYTES];
-	char path[PATH_BYTES];
-	unsigned int width;
-	enum counter_type type;
-	enum counter_format format;
-	struct msr_counter *next;
-	unsigned int flags;
-#define	FLAGS_HIDE	(1 << 0)
-#define	FLAGS_SHOW	(1 << 1)
-#define	SYSFS_PERCPU	(1 << 1)
-};
 
 /*
  * The accumulated sum of MSR is defined as a monotonic
@@ -524,8 +662,10 @@ static int perf_instr_count_open(int cpu_num)
 
 	/* counter for cpu_num, including user + kernel and all processes */
 	fd = perf_event_open(&pea, -1, cpu_num, -1, 0);
-	if (fd == -1)
-		err(-1, "cpu%d: perf instruction counter\n", cpu_num);
+	if (fd == -1) {
+		warn("cpu%d: perf instruction counter", cpu_num);
+		BIC_NOT_PRESENT(BIC_IPC);
+	}
 
 	return fd;
 }
@@ -551,143 +691,6 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 
 	return 0;
 }
-
-/*
- * This list matches the column headers, except
- * 1. built-in only, the sysfs counters are not here -- we learn of those at run-time
- * 2. Core and CPU are moved to the end, we can't have strings that contain them
- *    matching on them for --show and --hide.
- */
-struct msr_counter bic[] = {
-	{ 0x0, "usec" },
-	{ 0x0, "Time_Of_Day_Seconds" },
-	{ 0x0, "Package" },
-	{ 0x0, "Node" },
-	{ 0x0, "Avg_MHz" },
-	{ 0x0, "Busy%" },
-	{ 0x0, "Bzy_MHz" },
-	{ 0x0, "TSC_MHz" },
-	{ 0x0, "IRQ" },
-	{ 0x0, "SMI", "", 32, 0, FORMAT_DELTA, NULL },
-	{ 0x0, "sysfs" },
-	{ 0x0, "CPU%c1" },
-	{ 0x0, "CPU%c3" },
-	{ 0x0, "CPU%c6" },
-	{ 0x0, "CPU%c7" },
-	{ 0x0, "ThreadC" },
-	{ 0x0, "CoreTmp" },
-	{ 0x0, "CoreCnt" },
-	{ 0x0, "PkgTmp" },
-	{ 0x0, "GFX%rc6" },
-	{ 0x0, "GFXMHz" },
-	{ 0x0, "Pkg%pc2" },
-	{ 0x0, "Pkg%pc3" },
-	{ 0x0, "Pkg%pc6" },
-	{ 0x0, "Pkg%pc7" },
-	{ 0x0, "Pkg%pc8" },
-	{ 0x0, "Pkg%pc9" },
-	{ 0x0, "Pk%pc10" },
-	{ 0x0, "CPU%LPI" },
-	{ 0x0, "SYS%LPI" },
-	{ 0x0, "PkgWatt" },
-	{ 0x0, "CorWatt" },
-	{ 0x0, "GFXWatt" },
-	{ 0x0, "PkgCnt" },
-	{ 0x0, "RAMWatt" },
-	{ 0x0, "PKG_%" },
-	{ 0x0, "RAM_%" },
-	{ 0x0, "Pkg_J" },
-	{ 0x0, "Cor_J" },
-	{ 0x0, "GFX_J" },
-	{ 0x0, "RAM_J" },
-	{ 0x0, "Mod%c6" },
-	{ 0x0, "Totl%C0" },
-	{ 0x0, "Any%C0" },
-	{ 0x0, "GFX%C0" },
-	{ 0x0, "CPUGFX%" },
-	{ 0x0, "Core" },
-	{ 0x0, "CPU" },
-	{ 0x0, "APIC" },
-	{ 0x0, "X2APIC" },
-	{ 0x0, "Die" },
-	{ 0x0, "GFXAMHz" },
-	{ 0x0, "IPC" },
-	{ 0x0, "CoreThr" },
-};
-
-#define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
-#define	BIC_USEC	(1ULL << 0)
-#define	BIC_TOD		(1ULL << 1)
-#define	BIC_Package	(1ULL << 2)
-#define	BIC_Node	(1ULL << 3)
-#define	BIC_Avg_MHz	(1ULL << 4)
-#define	BIC_Busy	(1ULL << 5)
-#define	BIC_Bzy_MHz	(1ULL << 6)
-#define	BIC_TSC_MHz	(1ULL << 7)
-#define	BIC_IRQ		(1ULL << 8)
-#define	BIC_SMI		(1ULL << 9)
-#define	BIC_sysfs	(1ULL << 10)
-#define	BIC_CPU_c1	(1ULL << 11)
-#define	BIC_CPU_c3	(1ULL << 12)
-#define	BIC_CPU_c6	(1ULL << 13)
-#define	BIC_CPU_c7	(1ULL << 14)
-#define	BIC_ThreadC	(1ULL << 15)
-#define	BIC_CoreTmp	(1ULL << 16)
-#define	BIC_CoreCnt	(1ULL << 17)
-#define	BIC_PkgTmp	(1ULL << 18)
-#define	BIC_GFX_rc6	(1ULL << 19)
-#define	BIC_GFXMHz	(1ULL << 20)
-#define	BIC_Pkgpc2	(1ULL << 21)
-#define	BIC_Pkgpc3	(1ULL << 22)
-#define	BIC_Pkgpc6	(1ULL << 23)
-#define	BIC_Pkgpc7	(1ULL << 24)
-#define	BIC_Pkgpc8	(1ULL << 25)
-#define	BIC_Pkgpc9	(1ULL << 26)
-#define	BIC_Pkgpc10	(1ULL << 27)
-#define BIC_CPU_LPI	(1ULL << 28)
-#define BIC_SYS_LPI	(1ULL << 29)
-#define	BIC_PkgWatt	(1ULL << 30)
-#define	BIC_CorWatt	(1ULL << 31)
-#define	BIC_GFXWatt	(1ULL << 32)
-#define	BIC_PkgCnt	(1ULL << 33)
-#define	BIC_RAMWatt	(1ULL << 34)
-#define	BIC_PKG__	(1ULL << 35)
-#define	BIC_RAM__	(1ULL << 36)
-#define	BIC_Pkg_J	(1ULL << 37)
-#define	BIC_Cor_J	(1ULL << 38)
-#define	BIC_GFX_J	(1ULL << 39)
-#define	BIC_RAM_J	(1ULL << 40)
-#define	BIC_Mod_c6	(1ULL << 41)
-#define	BIC_Totl_c0	(1ULL << 42)
-#define	BIC_Any_c0	(1ULL << 43)
-#define	BIC_GFX_c0	(1ULL << 44)
-#define	BIC_CPUGFX	(1ULL << 45)
-#define	BIC_Core	(1ULL << 46)
-#define	BIC_CPU		(1ULL << 47)
-#define	BIC_APIC	(1ULL << 48)
-#define	BIC_X2APIC	(1ULL << 49)
-#define	BIC_Die		(1ULL << 50)
-#define	BIC_GFXACTMHz	(1ULL << 51)
-#define	BIC_IPC		(1ULL << 52)
-#define	BIC_CORE_THROT_CNT	(1ULL << 53)
-
-#define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die )
-#define BIC_THERMAL_PWR ( BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__)
-#define BIC_FREQUENCY ( BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz )
-#define BIC_IDLE ( BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX)
-#define BIC_OTHER ( BIC_IRQ | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
-
-#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
-
-unsigned long long bic_enabled = (0xFFFFFFFFFFFFFFFFULL & ~BIC_DISABLED_BY_DEFAULT);
-unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs | BIC_APIC | BIC_X2APIC;
-
-#define DO_BIC(COUNTER_NAME) (bic_enabled & bic_present & COUNTER_NAME)
-#define DO_BIC_READ(COUNTER_NAME) (bic_present & COUNTER_NAME)
-#define ENABLE_BIC(COUNTER_NAME) (bic_enabled |= COUNTER_NAME)
-#define BIC_PRESENT(COUNTER_BIT) (bic_present |= COUNTER_BIT)
-#define BIC_NOT_PRESENT(COUNTER_BIT) (bic_present &= ~COUNTER_BIT)
-#define BIC_IS_ENABLED(COUNTER_BIT) (bic_enabled & COUNTER_BIT)
 
 #define MAX_DEFERRED 16
 char *deferred_add_names[MAX_DEFERRED];
@@ -791,7 +794,7 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 				deferred_add_names[deferred_add_index++] = name_list;
 				if (deferred_add_index >= MAX_DEFERRED) {
 					fprintf(stderr, "More than max %d un-recognized --add options '%s'\n",
-							MAX_DEFERRED, name_list);
+						MAX_DEFERRED, name_list);
 					help();
 					exit(1);
 				}
@@ -801,7 +804,7 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 					fprintf(stderr, "deferred \"%s\"\n", name_list);
 				if (deferred_skip_index >= MAX_DEFERRED) {
 					fprintf(stderr, "More than max %d un-recognized --skip options '%s'\n",
-							MAX_DEFERRED, name_list);
+						MAX_DEFERRED, name_list);
 					help();
 					exit(1);
 				}
@@ -3493,6 +3496,9 @@ release_msr:
 /*
  * set_my_sched_priority(pri)
  * return previous
+ *
+ * if non-root, do this:
+ * # /sbin/setcap cap_sys_rawio,cap_sys_nice=+ep /usr/bin/turbostat
  */
 int set_my_sched_priority(int priority)
 {
@@ -3511,7 +3517,7 @@ int set_my_sched_priority(int priority)
 	errno = 0;
 	retval = getpriority(PRIO_PROCESS, 0);
 	if (retval != priority)
-		err(-1, "getpriority(%d) != setpriority(%d)", retval, priority);
+		err(retval, "getpriority(%d) != setpriority(%d)", retval, priority);
 
 	return original_priority;
 }
@@ -4829,9 +4835,7 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 		fprintf(outf, "cpu%d: MSR_VR_CURRENT_CONFIG: 0x%08llx\n", cpu, msr);
 		fprintf(outf, "cpu%d: PKG Limit #4: %f Watts (%slocked)\n",
-			cpu,
-			((msr >> 0) & 0x1FFF) * rapl_power_units,
-			(msr >> 31) & 1 ? "" : "UN");
+			cpu, ((msr >> 0) & 0x1FFF) * rapl_power_units, (msr >> 31) & 1 ? "" : "UN");
 	}
 
 	if (do_rapl & RAPL_DRAM_POWER_INFO) {
@@ -5965,6 +5969,9 @@ void turbostat_init()
 
 	if (!quiet && do_irtl_snb)
 		print_irtl();
+
+	if (DO_BIC(BIC_IPC))
+		(void)get_instr_count_fd(base_cpu);
 }
 
 int fork_it(char **argv)
@@ -6481,8 +6488,7 @@ void cmdline(int argc, char **argv)
 			header_iterations = strtod(optarg, NULL);
 
 			if (header_iterations <= 0) {
-				fprintf(outf, "iterations %d should be positive number\n",
-					header_iterations);
+				fprintf(outf, "iterations %d should be positive number\n", header_iterations);
 				exit(2);
 			}
 			break;
