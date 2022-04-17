@@ -20,6 +20,24 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 
+static void aq_get_rxpages_xdp(struct aq_ring_buff_s *buff,
+			       struct xdp_buff *xdp)
+{
+	struct skb_shared_info *sinfo;
+	int i;
+
+	if (xdp_buff_has_frags(xdp)) {
+		sinfo = xdp_get_shared_info_from_buff(xdp);
+
+		for (i = 0; i < sinfo->nr_frags; i++) {
+			skb_frag_t *frag = &sinfo->frags[i];
+
+			page_ref_inc(skb_frag_page(frag));
+		}
+	}
+	page_ref_inc(buff->rxdata.page);
+}
+
 static inline void aq_free_rxpage(struct aq_rxpage *rxpage, struct device *dev)
 {
 	unsigned int len = PAGE_SIZE << rxpage->order;
@@ -319,15 +337,26 @@ bool aq_ring_tx_clean(struct aq_ring_s *self)
 			}
 		}
 
-		if (unlikely(buff->is_eop && buff->skb)) {
+		if (likely(!buff->is_eop))
+			goto out;
+
+		if (buff->skb) {
 			u64_stats_update_begin(&self->stats.tx.syncp);
 			++self->stats.tx.packets;
 			self->stats.tx.bytes += buff->skb->len;
 			u64_stats_update_end(&self->stats.tx.syncp);
-
 			dev_kfree_skb_any(buff->skb);
-			buff->skb = NULL;
+		} else if (buff->xdpf) {
+			u64_stats_update_begin(&self->stats.tx.syncp);
+			++self->stats.tx.packets;
+			self->stats.tx.bytes += xdp_get_frame_len(buff->xdpf);
+			u64_stats_update_end(&self->stats.tx.syncp);
+			xdp_return_frame_rx_napi(buff->xdpf);
 		}
+
+out:
+		buff->skb = NULL;
+		buff->xdpf = NULL;
 		buff->pa = 0U;
 		buff->eop_index = 0xffffU;
 		self->sw_head = aq_ring_next_dx(self, self->sw_head);
@@ -360,11 +389,136 @@ static void aq_rx_checksum(struct aq_ring_s *self,
 		__skb_incr_checksum_unnecessary(skb);
 }
 
-#define AQ_SKB_ALIGN SKB_DATA_ALIGN(sizeof(struct skb_shared_info))
-int aq_ring_rx_clean(struct aq_ring_s *self,
-		     struct napi_struct *napi,
-		     int *work_done,
-		     int budget)
+static struct sk_buff *aq_xdp_run_prog(struct aq_nic_s *aq_nic,
+				       struct xdp_buff *xdp,
+				       struct aq_ring_s *rx_ring,
+				       struct aq_ring_buff_s *buff)
+{
+	int result = NETDEV_TX_BUSY;
+	struct aq_ring_s *tx_ring;
+	struct xdp_frame *xdpf;
+	struct bpf_prog *prog;
+	u32 act = XDP_ABORTED;
+	struct sk_buff *skb;
+
+	u64_stats_update_begin(&rx_ring->stats.rx.syncp);
+	++rx_ring->stats.rx.packets;
+	rx_ring->stats.rx.bytes += xdp_get_buff_len(xdp);
+	u64_stats_update_end(&rx_ring->stats.rx.syncp);
+
+	prog = READ_ONCE(rx_ring->xdp_prog);
+	if (!prog)
+		goto pass;
+
+	prefetchw(xdp->data_hard_start); /* xdp_frame write */
+
+	/* single buffer XDP program, but packet is multi buffer, aborted */
+	if (xdp_buff_has_frags(xdp) && !prog->aux->xdp_has_frags)
+		goto out_aborted;
+
+	act = bpf_prog_run_xdp(prog, xdp);
+	switch (act) {
+	case XDP_PASS:
+pass:
+		xdpf = xdp_convert_buff_to_frame(xdp);
+		if (unlikely(!xdpf))
+			goto out_aborted;
+		skb = xdp_build_skb_from_frame(xdpf, aq_nic->ndev);
+		if (!skb)
+			goto out_aborted;
+		u64_stats_update_begin(&rx_ring->stats.rx.syncp);
+		++rx_ring->stats.rx.xdp_pass;
+		u64_stats_update_end(&rx_ring->stats.rx.syncp);
+		aq_get_rxpages_xdp(buff, xdp);
+		return skb;
+	case XDP_TX:
+		xdpf = xdp_convert_buff_to_frame(xdp);
+		if (unlikely(!xdpf))
+			goto out_aborted;
+		tx_ring = aq_nic->aq_ring_tx[rx_ring->idx];
+		result = aq_nic_xmit_xdpf(aq_nic, tx_ring, xdpf);
+		if (result == NETDEV_TX_BUSY)
+			goto out_aborted;
+		u64_stats_update_begin(&rx_ring->stats.rx.syncp);
+		++rx_ring->stats.rx.xdp_tx;
+		u64_stats_update_end(&rx_ring->stats.rx.syncp);
+		aq_get_rxpages_xdp(buff, xdp);
+		break;
+	case XDP_REDIRECT:
+		if (xdp_do_redirect(aq_nic->ndev, xdp, prog) < 0)
+			goto out_aborted;
+		xdp_do_flush();
+		u64_stats_update_begin(&rx_ring->stats.rx.syncp);
+		++rx_ring->stats.rx.xdp_redirect;
+		u64_stats_update_end(&rx_ring->stats.rx.syncp);
+		aq_get_rxpages_xdp(buff, xdp);
+		break;
+	default:
+		fallthrough;
+	case XDP_ABORTED:
+out_aborted:
+		u64_stats_update_begin(&rx_ring->stats.rx.syncp);
+		++rx_ring->stats.rx.xdp_aborted;
+		u64_stats_update_end(&rx_ring->stats.rx.syncp);
+		trace_xdp_exception(aq_nic->ndev, prog, act);
+		bpf_warn_invalid_xdp_action(aq_nic->ndev, prog, act);
+		break;
+	case XDP_DROP:
+		u64_stats_update_begin(&rx_ring->stats.rx.syncp);
+		++rx_ring->stats.rx.xdp_drop;
+		u64_stats_update_end(&rx_ring->stats.rx.syncp);
+		break;
+	}
+
+	return ERR_PTR(-result);
+}
+
+static bool aq_add_rx_fragment(struct device *dev,
+			       struct aq_ring_s *ring,
+			       struct aq_ring_buff_s *buff,
+			       struct xdp_buff *xdp)
+{
+	struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
+	struct aq_ring_buff_s *buff_ = buff;
+
+	memset(sinfo, 0, sizeof(*sinfo));
+	do {
+		skb_frag_t *frag;
+
+		if (unlikely(sinfo->nr_frags >= MAX_SKB_FRAGS))
+			return true;
+
+		frag = &sinfo->frags[sinfo->nr_frags++];
+		buff_ = &ring->buff_ring[buff_->next];
+		dma_sync_single_range_for_cpu(dev,
+					      buff_->rxdata.daddr,
+					      buff_->rxdata.pg_off,
+					      buff_->len,
+					      DMA_FROM_DEVICE);
+		skb_frag_off_set(frag, buff_->rxdata.pg_off);
+		skb_frag_size_set(frag, buff_->len);
+		sinfo->xdp_frags_size += buff_->len;
+		__skb_frag_set_page(frag, buff_->rxdata.page);
+
+		buff_->is_cleaned = 1;
+
+		buff->is_ip_cso &= buff_->is_ip_cso;
+		buff->is_udp_cso &= buff_->is_udp_cso;
+		buff->is_tcp_cso &= buff_->is_tcp_cso;
+		buff->is_cso_err |= buff_->is_cso_err;
+
+		if (page_is_pfmemalloc(buff_->rxdata.page))
+			xdp_buff_set_frag_pfmemalloc(xdp);
+
+	} while (!buff_->is_eop);
+
+	xdp_buff_set_frags_flag(xdp);
+
+	return false;
+}
+
+static int __aq_ring_rx_clean(struct aq_ring_s *self, struct napi_struct *napi,
+			      int *work_done, int budget)
 {
 	struct net_device *ndev = aq_nic_get_ndev(self->aq_nic);
 	bool is_rsc_completed = true;
@@ -531,6 +685,149 @@ err_exit:
 	return err;
 }
 
+static int __aq_ring_xdp_clean(struct aq_ring_s *rx_ring,
+			       struct napi_struct *napi, int *work_done,
+			       int budget)
+{
+	int frame_sz = rx_ring->page_offset + rx_ring->frame_max +
+		       rx_ring->tail_size;
+	struct aq_nic_s *aq_nic = rx_ring->aq_nic;
+	bool is_rsc_completed = true;
+	struct device *dev;
+	int err = 0;
+
+	dev = aq_nic_get_dev(aq_nic);
+	for (; (rx_ring->sw_head != rx_ring->hw_head) && budget;
+		rx_ring->sw_head = aq_ring_next_dx(rx_ring, rx_ring->sw_head),
+		--budget, ++(*work_done)) {
+		struct aq_ring_buff_s *buff = &rx_ring->buff_ring[rx_ring->sw_head];
+		bool is_ptp_ring = aq_ptp_ring(rx_ring->aq_nic, rx_ring);
+		struct aq_ring_buff_s *buff_ = NULL;
+		struct sk_buff *skb = NULL;
+		unsigned int next_ = 0U;
+		struct xdp_buff xdp;
+		void *hard_start;
+
+		if (buff->is_cleaned)
+			continue;
+
+		if (!buff->is_eop) {
+			buff_ = buff;
+			do {
+				if (buff_->next >= rx_ring->size) {
+					err = -EIO;
+					goto err_exit;
+				}
+				next_ = buff_->next;
+				buff_ = &rx_ring->buff_ring[next_];
+				is_rsc_completed =
+					aq_ring_dx_in_range(rx_ring->sw_head,
+							    next_,
+							    rx_ring->hw_head);
+
+				if (unlikely(!is_rsc_completed))
+					break;
+
+				buff->is_error |= buff_->is_error;
+				buff->is_cso_err |= buff_->is_cso_err;
+			} while (!buff_->is_eop);
+
+			if (!is_rsc_completed) {
+				err = 0;
+				goto err_exit;
+			}
+			if (buff->is_error ||
+			    (buff->is_lro && buff->is_cso_err)) {
+				buff_ = buff;
+				do {
+					if (buff_->next >= rx_ring->size) {
+						err = -EIO;
+						goto err_exit;
+					}
+					next_ = buff_->next;
+					buff_ = &rx_ring->buff_ring[next_];
+
+					buff_->is_cleaned = true;
+				} while (!buff_->is_eop);
+
+				u64_stats_update_begin(&rx_ring->stats.rx.syncp);
+				++rx_ring->stats.rx.errors;
+				u64_stats_update_end(&rx_ring->stats.rx.syncp);
+				continue;
+			}
+		}
+
+		if (buff->is_error) {
+			u64_stats_update_begin(&rx_ring->stats.rx.syncp);
+			++rx_ring->stats.rx.errors;
+			u64_stats_update_end(&rx_ring->stats.rx.syncp);
+			continue;
+		}
+
+		dma_sync_single_range_for_cpu(dev,
+					      buff->rxdata.daddr,
+					      buff->rxdata.pg_off,
+					      buff->len, DMA_FROM_DEVICE);
+		hard_start = page_address(buff->rxdata.page) +
+			     buff->rxdata.pg_off - rx_ring->page_offset;
+
+		if (is_ptp_ring)
+			buff->len -=
+				aq_ptp_extract_ts(rx_ring->aq_nic, skb,
+						  aq_buf_vaddr(&buff->rxdata),
+						  buff->len);
+
+		xdp_init_buff(&xdp, frame_sz, &rx_ring->xdp_rxq);
+		xdp_prepare_buff(&xdp, hard_start, rx_ring->page_offset,
+				 buff->len, false);
+		if (!buff->is_eop) {
+			if (aq_add_rx_fragment(dev, rx_ring, buff, &xdp)) {
+				u64_stats_update_begin(&rx_ring->stats.rx.syncp);
+				++rx_ring->stats.rx.packets;
+				rx_ring->stats.rx.bytes += xdp_get_buff_len(&xdp);
+				++rx_ring->stats.rx.xdp_aborted;
+				u64_stats_update_end(&rx_ring->stats.rx.syncp);
+				continue;
+			}
+		}
+
+		skb = aq_xdp_run_prog(aq_nic, &xdp, rx_ring, buff);
+		if (IS_ERR(skb) || !skb)
+			continue;
+
+		if (buff->is_vlan)
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+					       buff->vlan_rx_tag);
+
+		aq_rx_checksum(rx_ring, buff, skb);
+
+		skb_set_hash(skb, buff->rss_hash,
+			     buff->is_hash_l4 ? PKT_HASH_TYPE_L4 :
+			     PKT_HASH_TYPE_NONE);
+		/* Send all PTP traffic to 0 queue */
+		skb_record_rx_queue(skb,
+				    is_ptp_ring ? 0
+						: AQ_NIC_RING2QMAP(rx_ring->aq_nic,
+								   rx_ring->idx));
+
+		napi_gro_receive(napi, skb);
+	}
+
+err_exit:
+	return err;
+}
+
+int aq_ring_rx_clean(struct aq_ring_s *self,
+		     struct napi_struct *napi,
+		     int *work_done,
+		     int budget)
+{
+	if (static_branch_unlikely(&aq_xdp_locking_key))
+		return __aq_ring_xdp_clean(self, napi, work_done, budget);
+	else
+		return __aq_ring_rx_clean(self, napi, work_done, budget);
+}
+
 void aq_ring_hwts_rx_clean(struct aq_ring_s *self, struct aq_nic_s *aq_nic)
 {
 #if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
@@ -620,6 +917,15 @@ unsigned int aq_ring_fill_stats_data(struct aq_ring_s *self, u64 *data)
 			data[++count] = self->stats.rx.alloc_fails;
 			data[++count] = self->stats.rx.skb_alloc_fails;
 			data[++count] = self->stats.rx.polls;
+			data[++count] = self->stats.rx.pg_flips;
+			data[++count] = self->stats.rx.pg_reuses;
+			data[++count] = self->stats.rx.pg_losts;
+			data[++count] = self->stats.rx.xdp_aborted;
+			data[++count] = self->stats.rx.xdp_drop;
+			data[++count] = self->stats.rx.xdp_pass;
+			data[++count] = self->stats.rx.xdp_tx;
+			data[++count] = self->stats.rx.xdp_invalid;
+			data[++count] = self->stats.rx.xdp_redirect;
 		} while (u64_stats_fetch_retry_irq(&self->stats.rx.syncp, start));
 	} else {
 		/* This data should mimic aq_ethtool_queue_tx_stat_names structure */

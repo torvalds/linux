@@ -155,7 +155,7 @@ int aq_vec_ring_alloc(struct aq_vec_s *self, struct aq_nic_s *aq_nic,
 			goto err_exit;
 		}
 		if (xdp_rxq_info_reg_mem_model(&self->ring[i][AQ_VEC_RX_ID].xdp_rxq,
-					       MEM_TYPE_PAGE_ORDER0, NULL) < 0) {
+					       MEM_TYPE_PAGE_SHARED, NULL) < 0) {
 			xdp_rxq_info_unreg(&self->ring[i][AQ_VEC_RX_ID].xdp_rxq);
 			err = -ENOMEM;
 			goto err_exit;

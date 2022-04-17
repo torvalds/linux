@@ -106,6 +106,12 @@ struct aq_ring_stats_rx_s {
 	u64 pg_losts;
 	u64 pg_flips;
 	u64 pg_reuses;
+	u64 xdp_aborted;
+	u64 xdp_drop;
+	u64 xdp_pass;
+	u64 xdp_tx;
+	u64 xdp_invalid;
+	u64 xdp_redirect;
 };
 
 struct aq_ring_stats_tx_s {
