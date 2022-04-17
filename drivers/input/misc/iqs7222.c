@@ -1534,8 +1534,8 @@ static int iqs7222_parse_props(struct iqs7222_private *iqs7222,
 			       enum iqs7222_reg_key_id reg_key)
 {
 	u16 *setup = iqs7222_setup(iqs7222, reg_grp, child_index);
-	struct fwnode_handle *reg_grp_node = *child_node;
 	struct i2c_client *client = iqs7222->client;
+	struct fwnode_handle *reg_grp_node;
 	char reg_grp_name[16];
 	int i;
 
@@ -1550,7 +1550,8 @@ static int iqs7222_parse_props(struct iqs7222_private *iqs7222,
 		 * for additional group-specific processing. In some cases, the
 		 * child node may have already been derived.
 		 */
-		if (*child_node)
+		reg_grp_node = *child_node;
+		if (reg_grp_node)
 			break;
 
 		snprintf(reg_grp_name, sizeof(reg_grp_name), "%s-%d",
