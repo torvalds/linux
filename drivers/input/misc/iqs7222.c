@@ -1677,14 +1677,14 @@ static int iqs7222_parse_cycle(struct iqs7222_private *iqs7222, int cycle_index)
 		return 0;
 
 	count = fwnode_property_count_u32(cycle_node, "azoteq,tx-enable");
-	if (count > ARRAY_SIZE(pins)) {
-		dev_err(&client->dev, "Invalid number of %s CTx pins\n",
-			fwnode_get_name(cycle_node));
-		return -EINVAL;
-	} else if (count < 0) {
+	if (count < 0) {
 		dev_err(&client->dev, "Failed to count %s CTx pins: %d\n",
 			fwnode_get_name(cycle_node), count);
 		return count;
+	} else if (count > ARRAY_SIZE(pins)) {
+		dev_err(&client->dev, "Invalid number of %s CTx pins\n",
+			fwnode_get_name(cycle_node));
+		return -EINVAL;
 	}
 
 	error = fwnode_property_read_u32_array(cycle_node, "azoteq,tx-enable",
@@ -1807,16 +1807,16 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222, int chan_index)
 
 		count = fwnode_property_count_u32(chan_node,
 						  "azoteq,rx-enable");
-		if (count > ARRAY_SIZE(pins)) {
-			dev_err(&client->dev,
-				"Invalid number of %s CRx pins\n",
-				fwnode_get_name(chan_node));
-			return -EINVAL;
-		} else if (count < 0) {
+		if (count < 0) {
 			dev_err(&client->dev,
 				"Failed to count %s CRx pins: %d\n",
 				fwnode_get_name(chan_node), count);
 			return count;
+		} else if (count > ARRAY_SIZE(pins)) {
+			dev_err(&client->dev,
+				"Invalid number of %s CRx pins\n",
+				fwnode_get_name(chan_node));
+			return -EINVAL;
 		}
 
 		error = fwnode_property_read_u32_array(chan_node,
@@ -1975,14 +1975,14 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222, int sldr_index)
 	 * the specified resolution.
 	 */
 	count = fwnode_property_count_u32(sldr_node, "azoteq,channel-select");
-	if (count < 3 || count > ARRAY_SIZE(chan_sel)) {
-		dev_err(&client->dev, "Invalid number of %s channels\n",
-			fwnode_get_name(sldr_node));
-		return -EINVAL;
-	} else if (count < 0) {
+	if (count < 0) {
 		dev_err(&client->dev, "Failed to count %s channels: %d\n",
 			fwnode_get_name(sldr_node), count);
 		return count;
+	} else if (count < 3 || count > ARRAY_SIZE(chan_sel)) {
+		dev_err(&client->dev, "Invalid number of %s channels\n",
+			fwnode_get_name(sldr_node));
+		return -EINVAL;
 	}
 
 	error = fwnode_property_read_u32_array(sldr_node,
