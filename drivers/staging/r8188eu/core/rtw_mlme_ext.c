@@ -431,13 +431,8 @@ void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
 			ptable->func = &OnAuthClient;
 	}
 
-	if (ptable->func) {
-	/* receive the frames that ra(a1) is my address or ra(a1) is bc address. */
-		if (memcmp(hdr->addr1, myid(&padapter->eeprompriv), ETH_ALEN) &&
-		    !is_broadcast_ether_addr(hdr->addr1))
-			return;
+	if (ptable->func)
 		ptable->func(padapter, precv_frame);
-	}
 }
 
 static u32 p2p_listen_state_process(struct adapter *padapter, unsigned char *da)
