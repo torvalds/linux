@@ -11,6 +11,8 @@
 #define AQ_NIC_H
 
 #include <linux/ethtool.h>
+#include <net/xdp.h>
+#include <linux/bpf.h>
 
 #include "aq_common.h"
 #include "aq_rss.h"
@@ -128,6 +130,7 @@ struct aq_nic_s {
 	struct aq_vec_s *aq_vec[AQ_CFG_VECS_MAX];
 	struct aq_ring_s *aq_ring_tx[AQ_HW_QUEUES_MAX];
 	struct aq_hw_s *aq_hw;
+	struct bpf_prog *xdp_prog;
 	struct net_device *ndev;
 	unsigned int aq_vecs;
 	unsigned int packet_filter;

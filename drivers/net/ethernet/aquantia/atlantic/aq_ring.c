@@ -7,12 +7,16 @@
 
 /* File aq_ring.c: Definition of functions for Rx/Tx rings. */
 
-#include "aq_ring.h"
 #include "aq_nic.h"
 #include "aq_hw.h"
 #include "aq_hw_utils.h"
 #include "aq_ptp.h"
+#include "aq_vec.h"
+#include "aq_main.h"
 
+#include <net/xdp.h>
+#include <linux/filter.h>
+#include <linux/bpf_trace.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 
@@ -27,9 +31,10 @@ static inline void aq_free_rxpage(struct aq_rxpage *rxpage, struct device *dev)
 	rxpage->page = NULL;
 }
 
-static int aq_get_rxpage(struct aq_rxpage *rxpage, unsigned int order,
-			 struct device *dev)
+static int aq_alloc_rxpages(struct aq_rxpage *rxpage, struct aq_ring_s *rx_ring)
 {
+	struct device *dev = aq_nic_get_dev(rx_ring->aq_nic);
+	unsigned int order = rx_ring->page_order;
 	struct page *page;
 	int ret = -ENOMEM;
 	dma_addr_t daddr;
@@ -47,7 +52,7 @@ static int aq_get_rxpage(struct aq_rxpage *rxpage, unsigned int order,
 	rxpage->page = page;
 	rxpage->daddr = daddr;
 	rxpage->order = order;
-	rxpage->pg_off = 0;
+	rxpage->pg_off = rx_ring->page_offset;
 
 	return 0;
 
@@ -58,21 +63,26 @@ err_exit:
 	return ret;
 }
 
-static int aq_get_rxpages(struct aq_ring_s *self, struct aq_ring_buff_s *rxbuf,
-			  int order)
+static int aq_get_rxpages(struct aq_ring_s *self, struct aq_ring_buff_s *rxbuf)
 {
+	unsigned int order = self->page_order;
+	u16 page_offset = self->page_offset;
+	u16 frame_max = self->frame_max;
+	u16 tail_size = self->tail_size;
 	int ret;
 
 	if (rxbuf->rxdata.page) {
 		/* One means ring is the only user and can reuse */
 		if (page_ref_count(rxbuf->rxdata.page) > 1) {
 			/* Try reuse buffer */
-			rxbuf->rxdata.pg_off += AQ_CFG_RX_FRAME_MAX;
-			if (rxbuf->rxdata.pg_off + AQ_CFG_RX_FRAME_MAX <=
-				(PAGE_SIZE << order)) {
+			rxbuf->rxdata.pg_off += frame_max + page_offset +
+						tail_size;
+			if (rxbuf->rxdata.pg_off + frame_max + tail_size <=
+			    (PAGE_SIZE << order)) {
 				u64_stats_update_begin(&self->stats.rx.syncp);
 				self->stats.rx.pg_flips++;
 				u64_stats_update_end(&self->stats.rx.syncp);
+
 			} else {
 				/* Buffer exhausted. We have other users and
 				 * should release this page and realloc
@@ -84,7 +94,7 @@ static int aq_get_rxpages(struct aq_ring_s *self, struct aq_ring_buff_s *rxbuf,
 				u64_stats_update_end(&self->stats.rx.syncp);
 			}
 		} else {
-			rxbuf->rxdata.pg_off = 0;
+			rxbuf->rxdata.pg_off = page_offset;
 			u64_stats_update_begin(&self->stats.rx.syncp);
 			self->stats.rx.pg_reuses++;
 			u64_stats_update_end(&self->stats.rx.syncp);
@@ -92,8 +102,7 @@ static int aq_get_rxpages(struct aq_ring_s *self, struct aq_ring_buff_s *rxbuf,
 	}
 
 	if (!rxbuf->rxdata.page) {
-		ret = aq_get_rxpage(&rxbuf->rxdata, order,
-				    aq_nic_get_dev(self->aq_nic));
+		ret = aq_alloc_rxpages(&rxbuf->rxdata, self);
 		if (ret) {
 			u64_stats_update_begin(&self->stats.rx.syncp);
 			self->stats.rx.alloc_fails++;
@@ -117,6 +126,7 @@ static struct aq_ring_s *aq_ring_alloc(struct aq_ring_s *self,
 		err = -ENOMEM;
 		goto err_exit;
 	}
+
 	self->dx_ring = dma_alloc_coherent(aq_nic_get_dev(aq_nic),
 					   self->size * self->dx_size,
 					   &self->dx_ring_pa, GFP_KERNEL);
@@ -172,11 +182,22 @@ struct aq_ring_s *aq_ring_rx_alloc(struct aq_ring_s *self,
 	self->idx = idx;
 	self->size = aq_nic_cfg->rxds;
 	self->dx_size = aq_nic_cfg->aq_hw_caps->rxd_size;
-	self->page_order = fls(AQ_CFG_RX_FRAME_MAX / PAGE_SIZE +
-			       (AQ_CFG_RX_FRAME_MAX % PAGE_SIZE ? 1 : 0)) - 1;
+	self->xdp_prog = aq_nic->xdp_prog;
+	self->frame_max = AQ_CFG_RX_FRAME_MAX;
 
-	if (aq_nic_cfg->rxpageorder > self->page_order)
-		self->page_order = aq_nic_cfg->rxpageorder;
+	/* Only order-2 is allowed if XDP is enabled */
+	if (READ_ONCE(self->xdp_prog)) {
+		self->page_offset = AQ_XDP_HEADROOM;
+		self->page_order = AQ_CFG_XDP_PAGEORDER;
+		self->tail_size = AQ_XDP_TAILROOM;
+	} else {
+		self->page_offset = 0;
+		self->page_order = fls(self->frame_max / PAGE_SIZE +
+				       (self->frame_max % PAGE_SIZE ? 1 : 0)) - 1;
+		if (aq_nic_cfg->rxpageorder > self->page_order)
+			self->page_order = aq_nic_cfg->rxpageorder;
+		self->tail_size = 0;
+	}
 
 	self = aq_ring_alloc(self, aq_nic);
 	if (!self) {
@@ -449,7 +470,7 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 			skb_add_rx_frag(skb, 0, buff->rxdata.page,
 					buff->rxdata.pg_off + hdr_len,
 					buff->len - hdr_len,
-					AQ_CFG_RX_FRAME_MAX);
+					self->frame_max);
 			page_ref_inc(buff->rxdata.page);
 		}
 
@@ -469,7 +490,7 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 						buff_->rxdata.page,
 						buff_->rxdata.pg_off,
 						buff_->len,
-						AQ_CFG_RX_FRAME_MAX);
+						self->frame_max);
 				page_ref_inc(buff_->rxdata.page);
 				buff_->is_cleaned = 1;
 
@@ -529,7 +550,6 @@ void aq_ring_hwts_rx_clean(struct aq_ring_s *self, struct aq_nic_s *aq_nic)
 
 int aq_ring_rx_fill(struct aq_ring_s *self)
 {
-	unsigned int page_order = self->page_order;
 	struct aq_ring_buff_s *buff = NULL;
 	int err = 0;
 	int i = 0;
@@ -543,9 +563,9 @@ int aq_ring_rx_fill(struct aq_ring_s *self)
 		buff = &self->buff_ring[self->sw_tail];
 
 		buff->flags = 0U;
-		buff->len = AQ_CFG_RX_FRAME_MAX;
+		buff->len = self->frame_max;
 
-		err = aq_get_rxpages(self, buff, page_order);
+		err = aq_get_rxpages(self, buff);
 		if (err)
 			goto err_exit;
 
