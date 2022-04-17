@@ -184,11 +184,7 @@ enum SCAN_STATE {
 	SCAN_STATE_MAX,
 };
 
-struct mlme_handler {
-	unsigned int   num;
-	char *str;
-	unsigned int (*func)(struct adapter *adapt, struct recv_frame *frame);
-};
+typedef unsigned int (*mlme_handler)(struct adapter *adapt, struct recv_frame *frame);
 
 struct action_handler {
 	unsigned int   num;

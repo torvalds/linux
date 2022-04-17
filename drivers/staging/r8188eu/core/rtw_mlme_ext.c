@@ -14,25 +14,22 @@
 #include "../include/rtl8188e_xmit.h"
 #include "../include/rtl8188e_dm.h"
 
-static struct mlme_handler mlme_sta_tbl[] = {
-	{WIFI_ASSOCREQ,		"OnAssocReq",	&OnAssocReq},
-	{WIFI_ASSOCRSP,		"OnAssocRsp",	&OnAssocRsp},
-	{WIFI_REASSOCREQ,	"OnReAssocReq",	&OnAssocReq},
-	{WIFI_REASSOCRSP,	"OnReAssocRsp",	&OnAssocRsp},
-	{WIFI_PROBEREQ,		"OnProbeReq",	&OnProbeReq},
-	{WIFI_PROBERSP,		"OnProbeRsp",		&OnProbeRsp},
-
-	/*----------------------------------------------------------
-					below 2 are reserved
-	-----------------------------------------------------------*/
-	{0,					"DoReserved",		&DoReserved},
-	{0,					"DoReserved",		&DoReserved},
-	{WIFI_BEACON,		"OnBeacon",		&OnBeacon},
-	{WIFI_ATIM,			"OnATIM",		&OnAtim},
-	{WIFI_DISASSOC,		"OnDisassoc",		&OnDisassoc},
-	{WIFI_AUTH,			"OnAuth",		&OnAuthClient},
-	{WIFI_DEAUTH,		"OnDeAuth",		&OnDeAuth},
-	{WIFI_ACTION,		"OnAction",		&OnAction},
+/* response function for each management frame subtype, do not reorder */
+static mlme_handler mlme_sta_tbl[] = {
+	OnAssocReq,
+	OnAssocRsp,
+	OnAssocReq,
+	OnAssocRsp,
+	OnProbeReq,
+	OnProbeRsp,
+	DoReserved,
+	DoReserved,
+	OnBeacon,
+	OnAtim,
+	OnDisassoc,
+	OnAuthClient,
+	OnDeAuth,
+	OnAction,
 };
 
 static struct action_handler OnAction_tbl[] = {
@@ -393,7 +390,7 @@ void free_mlme_ext_priv(struct mlme_ext_priv *pmlmeext)
 void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	int index;
-	struct mlme_handler *ptable;
+	mlme_handler fct;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
 	struct sta_info *psta = rtw_get_stainfo(&padapter->stapriv, hdr->addr2);
@@ -406,12 +403,10 @@ void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
 	    !is_broadcast_ether_addr(hdr->addr1))
 		return;
 
-	ptable = mlme_sta_tbl;
-
 	index = (le16_to_cpu(hdr->frame_control) & IEEE80211_FCTL_STYPE) >> 4;
 	if (index > 13)
 		return;
-	ptable += index;
+	fct = mlme_sta_tbl[index];
 
 	if (psta) {
 		if (ieee80211_has_retry(hdr->frame_control)) {
@@ -424,13 +419,13 @@ void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
 
 	if (ieee80211_is_auth(hdr->frame_control)) {
 		if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
-			ptable->func = &OnAuth;
+			fct = OnAuth;
 		else
-			ptable->func = &OnAuthClient;
+			fct = OnAuthClient;
 	}
 
-	if (ptable->func)
-		ptable->func(padapter, precv_frame);
+	if (fct)
+		fct(padapter, precv_frame);
 }
 
 static u32 p2p_listen_state_process(struct adapter *padapter, unsigned char *da)
