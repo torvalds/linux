@@ -1866,7 +1866,7 @@ config X86_KERNEL_IBT
 	  code with them to make this happen.
 
 	  In addition to building the kernel with IBT, seal all functions that
-	  are not indirect call targets, avoiding them ever becomming one.
+	  are not indirect call targets, avoiding them ever becoming one.
 
 	  This requires LTO like objtool runs and will slow down the build. It
 	  does significantly reduce the number of ENDBR instructions in the
