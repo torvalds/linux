@@ -28,15 +28,6 @@
 #include <asm/tlbflush.h>
 #include <variant/tie-asm.h>
 
-/* Unimplemented features. */
-
-#undef KERNEL_STACK_OVERFLOW_CHECK
-
-/* Not well tested.
- *
- * - fast_coprocessor
- */
-
 /*
  * Macro to find first bit set in WINDOWBASE from the left + 1
  *
@@ -349,15 +340,6 @@ KABI_W	_bbsi.l	a2, 3, 1f
 1:
 	l32i	a0, a1, PT_AREG0	# restore saved a0
 	wsr	a0, depc
-
-#ifdef KERNEL_STACK_OVERFLOW_CHECK
-
-	/*  Stack overflow check, for debugging  */
-	extui	a2, a1, TASK_SIZE_BITS,XX
-	movi	a3, SIZE??
-	_bge	a2, a3, out_of_stack_panic
-
-#endif
 
 /*
  * This is the common exception handler.
