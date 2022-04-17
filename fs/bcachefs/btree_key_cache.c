@@ -236,6 +236,13 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 	 */
 	new_u64s = k.k->u64s + 1;
 
+	/*
+	 * Allocate some extra space so that the transaction commit path is less
+	 * likely to have to reallocate, since that requires a transaction
+	 * restart:
+	 */
+	new_u64s = min(256U, (new_u64s * 3) / 2);
+
 	if (new_u64s > ck->u64s) {
 		new_u64s = roundup_pow_of_two(new_u64s);
 		new_k = kmalloc(new_u64s * sizeof(u64), GFP_NOFS);
