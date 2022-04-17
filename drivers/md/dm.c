@@ -84,7 +84,8 @@ struct clone_info {
 	struct dm_io *io;
 	sector_t sector;
 	unsigned sector_count;
-	bool submit_as_polled;
+	bool is_abnormal_io:1;
+	bool submit_as_polled:1;
 };
 
 #define DM_TARGET_IO_BIO_OFFSET (offsetof(struct dm_target_io, clone))
@@ -1491,21 +1492,24 @@ static void __send_changing_extent_only(struct clone_info *ci, struct dm_target 
 
 static bool is_abnormal_io(struct bio *bio)
 {
-	bool r = false;
+	unsigned int op = bio_op(bio);
 
-	switch (bio_op(bio)) {
-	case REQ_OP_DISCARD:
-	case REQ_OP_SECURE_ERASE:
-	case REQ_OP_WRITE_ZEROES:
-		r = true;
-		break;
+	if (op != REQ_OP_READ && op != REQ_OP_WRITE && op != REQ_OP_FLUSH) {
+		switch (op) {
+		case REQ_OP_DISCARD:
+		case REQ_OP_SECURE_ERASE:
+		case REQ_OP_WRITE_ZEROES:
+			return true;
+		default:
+			break;
+		}
 	}
 
-	return r;
+	return false;
 }
 
-static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
-				  blk_status_t *status)
+static blk_status_t __process_abnormal_io(struct clone_info *ci,
+					  struct dm_target *ti)
 {
 	unsigned num_bios = 0;
 
@@ -1519,8 +1523,6 @@ static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
 	case REQ_OP_WRITE_ZEROES:
 		num_bios = ti->num_write_zeroes_bios;
 		break;
-	default:
-		return false;
 	}
 
 	/*
@@ -1530,12 +1532,10 @@ static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
 	 * check was performed.
 	 */
 	if (unlikely(!num_bios))
-		*status = BLK_STS_NOTSUPP;
-	else {
-		__send_changing_extent_only(ci, ti, num_bios);
-		*status = BLK_STS_OK;
-	}
-	return true;
+		return BLK_STS_NOTSUPP;
+
+	__send_changing_extent_only(ci, ti, num_bios);
+	return BLK_STS_OK;
 }
 
 /*
@@ -1588,11 +1588,12 @@ static blk_status_t __split_and_process_bio(struct clone_info *ci)
 	struct bio *clone;
 	struct dm_target *ti;
 	unsigned len;
-	blk_status_t error = BLK_STS_IOERR;
 
 	ti = dm_table_find_target(ci->map, ci->sector);
-	if (unlikely(!ti || __process_abnormal_io(ci, ti, &error)))
-		return error;
+	if (unlikely(!ti))
+		return BLK_STS_IOERR;
+	else if (unlikely(ci->is_abnormal_io))
+		return __process_abnormal_io(ci, ti);
 
 	/*
 	 * Only support bio polling for normal IO, and the target io is
@@ -1612,11 +1613,12 @@ static blk_status_t __split_and_process_bio(struct clone_info *ci)
 }
 
 static void init_clone_info(struct clone_info *ci, struct mapped_device *md,
-			    struct dm_table *map, struct bio *bio)
+			    struct dm_table *map, struct bio *bio, bool is_abnormal)
 {
 	ci->map = map;
 	ci->io = alloc_io(md, bio);
 	ci->bio = bio;
+	ci->is_abnormal_io = is_abnormal;
 	ci->submit_as_polled = false;
 	ci->sector = bio->bi_iter.bi_sector;
 	ci->sector_count = bio_sectors(bio);
@@ -1636,8 +1638,18 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	struct clone_info ci;
 	struct dm_io *io;
 	blk_status_t error = BLK_STS_OK;
+	bool is_abnormal;
 
-	init_clone_info(&ci, md, map, bio);
+	is_abnormal = is_abnormal_io(bio);
+	if (unlikely(is_abnormal)) {
+		/*
+		 * Use blk_queue_split() for abnormal IO (e.g. discard, etc)
+		 * otherwise associated queue_limits won't be imposed.
+		 */
+		blk_queue_split(&bio);
+	}
+
+	init_clone_info(&ci, md, map, bio, is_abnormal);
 	io = ci.io;
 
 	if (bio->bi_opf & REQ_PREFLUSH) {
@@ -1696,13 +1708,6 @@ static void dm_submit_bio(struct bio *bio)
 			queue_io(md, bio);
 		goto out;
 	}
-
-	/*
-	 * Use blk_queue_split() for abnormal IO (e.g. discard, writesame, etc)
-	 * otherwise associated queue_limits won't be imposed.
-	 */
-	if (unlikely(is_abnormal_io(bio)))
-		blk_queue_split(&bio);
 
 	dm_split_and_process_bio(md, map, bio);
 out:
