@@ -223,21 +223,6 @@ static int mxsfb_reset_block(struct mxsfb_drm_private *mxsfb)
 	return 0;
 }
 
-static dma_addr_t mxsfb_get_fb_paddr(struct drm_plane *plane)
-{
-	struct drm_framebuffer *fb = plane->state->fb;
-	struct drm_gem_cma_object *gem;
-
-	if (!fb)
-		return 0;
-
-	gem = drm_fb_cma_get_gem_obj(fb, 0);
-	if (!gem)
-		return 0;
-
-	return gem->paddr;
-}
-
 static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb,
 				     const u32 bus_format)
 {
@@ -350,6 +335,8 @@ static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 				     struct drm_atomic_state *state)
 {
 	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(crtc->dev);
+	struct drm_plane_state *new_pstate = drm_atomic_get_new_plane_state(state,
+									    crtc->primary);
 	struct drm_bridge_state *bridge_state;
 	struct drm_device *drm = mxsfb->drm;
 	u32 bus_format = 0;
@@ -389,7 +376,7 @@ static void mxsfb_crtc_atomic_enable(struct drm_crtc *crtc,
 	mxsfb_crtc_mode_set_nofb(mxsfb, bus_format);
 
 	/* Write cur_buf as well to avoid an initial corrupt frame */
-	paddr = mxsfb_get_fb_paddr(crtc->primary);
+	paddr = drm_fb_cma_get_gem_addr(new_pstate->fb, new_pstate, 0);
 	if (paddr) {
 		writel(paddr, mxsfb->base + mxsfb->devdata->cur_buf);
 		writel(paddr, mxsfb->base + mxsfb->devdata->next_buf);
@@ -492,9 +479,11 @@ static void mxsfb_plane_primary_atomic_update(struct drm_plane *plane,
 					      struct drm_atomic_state *state)
 {
 	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(plane->dev);
+	struct drm_plane_state *new_pstate = drm_atomic_get_new_plane_state(state,
+									    plane);
 	dma_addr_t paddr;
 
-	paddr = mxsfb_get_fb_paddr(plane);
+	paddr = drm_fb_cma_get_gem_addr(new_pstate->fb, new_pstate, 0);
 	if (paddr)
 		writel(paddr, mxsfb->base + mxsfb->devdata->next_buf);
 }
@@ -510,7 +499,7 @@ static void mxsfb_plane_overlay_atomic_update(struct drm_plane *plane,
 	dma_addr_t paddr;
 	u32 ctrl;
 
-	paddr = mxsfb_get_fb_paddr(plane);
+	paddr = drm_fb_cma_get_gem_addr(new_pstate->fb, new_pstate, 0);
 	if (!paddr) {
 		writel(0, mxsfb->base + LCDC_AS_CTRL);
 		return;
