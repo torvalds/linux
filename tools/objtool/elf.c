@@ -514,37 +514,180 @@ int elf_add_reloc(struct elf *elf, struct section *sec, unsigned long offset,
 	return 0;
 }
 
+/*
+ * Ensure that any reloc section containing references to @sym is marked
+ * changed such that it will get re-generated in elf_rebuild_reloc_sections()
+ * with the new symbol index.
+ */
+static void elf_dirty_reloc_sym(struct elf *elf, struct symbol *sym)
+{
+	struct section *sec;
+
+	list_for_each_entry(sec, &elf->sections, list) {
+		struct reloc *reloc;
+
+		if (sec->changed)
+			continue;
+
+		list_for_each_entry(reloc, &sec->reloc_list, list) {
+			if (reloc->sym == sym) {
+				sec->changed = true;
+				break;
+			}
+		}
+	}
+}
+
+/*
+ * Move the first global symbol, as per sh_info, into a new, higher symbol
+ * index. This fees up the shndx for a new local symbol.
+ */
+static int elf_move_global_symbol(struct elf *elf, struct section *symtab,
+				  struct section *symtab_shndx)
+{
+	Elf_Data *data, *shndx_data = NULL;
+	Elf32_Word first_non_local;
+	struct symbol *sym;
+	Elf_Scn *s;
+
+	first_non_local = symtab->sh.sh_info;
+
+	sym = find_symbol_by_index(elf, first_non_local);
+	if (!sym) {
+		WARN("no non-local symbols !?");
+		return first_non_local;
+	}
+
+	s = elf_getscn(elf->elf, symtab->idx);
+	if (!s) {
+		WARN_ELF("elf_getscn");
+		return -1;
+	}
+
+	data = elf_newdata(s);
+	if (!data) {
+		WARN_ELF("elf_newdata");
+		return -1;
+	}
+
+	data->d_buf = &sym->sym;
+	data->d_size = sizeof(sym->sym);
+	data->d_align = 1;
+	data->d_type = ELF_T_SYM;
+
+	sym->idx = symtab->sh.sh_size / sizeof(sym->sym);
+	elf_dirty_reloc_sym(elf, sym);
+
+	symtab->sh.sh_info += 1;
+	symtab->sh.sh_size += data->d_size;
+	symtab->changed = true;
+
+	if (symtab_shndx) {
+		s = elf_getscn(elf->elf, symtab_shndx->idx);
+		if (!s) {
+			WARN_ELF("elf_getscn");
+			return -1;
+		}
+
+		shndx_data = elf_newdata(s);
+		if (!shndx_data) {
+			WARN_ELF("elf_newshndx_data");
+			return -1;
+		}
+
+		shndx_data->d_buf = &sym->sec->idx;
+		shndx_data->d_size = sizeof(Elf32_Word);
+		shndx_data->d_align = 4;
+		shndx_data->d_type = ELF_T_WORD;
+
+		symtab_shndx->sh.sh_size += 4;
+		symtab_shndx->changed = true;
+	}
+
+	return first_non_local;
+}
+
+static struct symbol *
+elf_create_section_symbol(struct elf *elf, struct section *sec)
+{
+	struct section *symtab, *symtab_shndx;
+	Elf_Data *shndx_data = NULL;
+	struct symbol *sym;
+	Elf32_Word shndx;
+
+	symtab = find_section_by_name(elf, ".symtab");
+	if (symtab) {
+		symtab_shndx = find_section_by_name(elf, ".symtab_shndx");
+		if (symtab_shndx)
+			shndx_data = symtab_shndx->data;
+	} else {
+		WARN("no .symtab");
+		return NULL;
+	}
+
+	sym = malloc(sizeof(*sym));
+	if (!sym) {
+		perror("malloc");
+		return NULL;
+	}
+	memset(sym, 0, sizeof(*sym));
+
+	sym->idx = elf_move_global_symbol(elf, symtab, symtab_shndx);
+	if (sym->idx < 0) {
+		WARN("elf_move_global_symbol");
+		return NULL;
+	}
+
+	sym->name = sec->name;
+	sym->sec = sec;
+
+	// st_name 0
+	sym->sym.st_info = GELF_ST_INFO(STB_LOCAL, STT_SECTION);
+	// st_other 0
+	// st_value 0
+	// st_size 0
+	shndx = sec->idx;
+	if (shndx >= SHN_UNDEF && shndx < SHN_LORESERVE) {
+		sym->sym.st_shndx = shndx;
+		if (!shndx_data)
+			shndx = 0;
+	} else {
+		sym->sym.st_shndx = SHN_XINDEX;
+		if (!shndx_data) {
+			WARN("no .symtab_shndx");
+			return NULL;
+		}
+	}
+
+	if (!gelf_update_symshndx(symtab->data, shndx_data, sym->idx, &sym->sym, shndx)) {
+		WARN_ELF("gelf_update_symshndx");
+		return NULL;
+	}
+
+	elf_add_symbol(elf, sym);
+
+	return sym;
+}
+
 int elf_add_reloc_to_insn(struct elf *elf, struct section *sec,
 			  unsigned long offset, unsigned int type,
 			  struct section *insn_sec, unsigned long insn_off)
 {
-	struct symbol *sym;
-	int addend;
+	struct symbol *sym = insn_sec->sym;
+	int addend = insn_off;
 
-	if (insn_sec->sym) {
-		sym = insn_sec->sym;
-		addend = insn_off;
-
-	} else {
+	if (!sym) {
 		/*
-		 * The Clang assembler strips section symbols, so we have to
-		 * reference the function symbol instead:
+		 * Due to how weak functions work, we must use section based
+		 * relocations. Symbol based relocations would result in the
+		 * weak and non-weak function annotations being overlaid on the
+		 * non-weak function after linking.
 		 */
-		sym = find_symbol_containing(insn_sec, insn_off);
-		if (!sym) {
-			/*
-			 * Hack alert.  This happens when we need to reference
-			 * the NOP pad insn immediately after the function.
-			 */
-			sym = find_symbol_containing(insn_sec, insn_off - 1);
-		}
-
-		if (!sym) {
-			WARN("can't find symbol containing %s+0x%lx", insn_sec->name, insn_off);
+		sym = elf_create_section_symbol(elf, insn_sec);
+		if (!sym)
 			return -1;
-		}
 
-		addend = insn_off - sym->offset;
+		insn_sec->sym = sym;
 	}
 
 	return elf_add_reloc(elf, sec, offset, type, sym, addend);
