@@ -2099,29 +2099,33 @@ void bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 	}
 }
 
-static void __bch2_btree_flush_all(struct bch_fs *c, unsigned flag)
+static bool __bch2_btree_flush_all(struct bch_fs *c, unsigned flag)
 {
 	struct bucket_table *tbl;
 	struct rhash_head *pos;
 	struct btree *b;
 	unsigned i;
+	bool ret = false;
 restart:
 	rcu_read_lock();
 	for_each_cached_btree(b, c, tbl, i, pos)
 		if (test_bit(flag, &b->flags)) {
 			rcu_read_unlock();
 			wait_on_bit_io(&b->flags, flag, TASK_UNINTERRUPTIBLE);
+			ret = true;
 			goto restart;
 		}
 	rcu_read_unlock();
+
+	return ret;
 }
 
-void bch2_btree_flush_all_reads(struct bch_fs *c)
+bool bch2_btree_flush_all_reads(struct bch_fs *c)
 {
-	__bch2_btree_flush_all(c, BTREE_NODE_read_in_flight);
+	return __bch2_btree_flush_all(c, BTREE_NODE_read_in_flight);
 }
 
-void bch2_btree_flush_all_writes(struct bch_fs *c)
+bool bch2_btree_flush_all_writes(struct bch_fs *c)
 {
-	__bch2_btree_flush_all(c, BTREE_NODE_write_in_flight);
+	return __bch2_btree_flush_all(c, BTREE_NODE_write_in_flight);
 }

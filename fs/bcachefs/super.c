@@ -195,56 +195,32 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 {
 	struct bch_dev *ca;
 	unsigned i, clean_passes = 0;
+	u64 seq = 0;
 
 	bch2_rebalance_stop(c);
 	bch2_copygc_stop(c);
 	bch2_gc_thread_stop(c);
 
-	/*
-	 * Flush journal before stopping allocators, because flushing journal
-	 * blacklist entries involves allocating new btree nodes:
-	 */
-	bch2_journal_flush_all_pins(&c->journal);
-
 	bch_verbose(c, "flushing journal and stopping allocators");
-
-	bch2_journal_flush_all_pins(&c->journal);
 
 	do {
 		clean_passes++;
 
-		if (bch2_journal_flush_all_pins(&c->journal))
-			clean_passes = 0;
-
-		/*
-		 * In flight interior btree updates will generate more journal
-		 * updates and btree updates (alloc btree):
-		 */
-		if (bch2_btree_interior_updates_nr_pending(c)) {
-			closure_wait_event(&c->btree_interior_update_wait,
-					   !bch2_btree_interior_updates_nr_pending(c));
+		if (bch2_btree_interior_updates_flush(c) ||
+		    bch2_journal_flush_all_pins(&c->journal) ||
+		    bch2_btree_flush_all_writes(c) ||
+		    seq != atomic64_read(&c->journal.seq)) {
+			seq = atomic64_read(&c->journal.seq);
 			clean_passes = 0;
 		}
-		flush_work(&c->btree_interior_update_work);
-
-		if (bch2_journal_flush_all_pins(&c->journal))
-			clean_passes = 0;
 	} while (clean_passes < 2);
+
 	bch_verbose(c, "flushing journal and stopping allocators complete");
 
-	set_bit(BCH_FS_ALLOC_CLEAN, &c->flags);
-
-	closure_wait_event(&c->btree_interior_update_wait,
-			   !bch2_btree_interior_updates_nr_pending(c));
-	flush_work(&c->btree_interior_update_work);
-
+	if (test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags) &&
+	    !test_bit(BCH_FS_EMERGENCY_RO, &c->flags))
+		set_bit(BCH_FS_CLEAN_SHUTDOWN, &c->flags);
 	bch2_fs_journal_stop(&c->journal);
-
-	/*
-	 * the journal kicks off btree writes via reclaim - wait for in flight
-	 * writes after stopping journal:
-	 */
-	bch2_btree_flush_all_writes(c);
 
 	/*
 	 * After stopping journal:
@@ -304,7 +280,7 @@ void bch2_fs_read_only(struct bch_fs *c)
 	    !test_bit(BCH_FS_ERROR, &c->flags) &&
 	    !test_bit(BCH_FS_EMERGENCY_RO, &c->flags) &&
 	    test_bit(BCH_FS_STARTED, &c->flags) &&
-	    test_bit(BCH_FS_ALLOC_CLEAN, &c->flags) &&
+	    test_bit(BCH_FS_CLEAN_SHUTDOWN, &c->flags) &&
 	    !c->opts.norecovery) {
 		bch_verbose(c, "marking filesystem clean");
 		bch2_fs_mark_clean(c);
@@ -395,7 +371,7 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	if (ret)
 		goto err;
 
-	clear_bit(BCH_FS_ALLOC_CLEAN, &c->flags);
+	clear_bit(BCH_FS_CLEAN_SHUTDOWN, &c->flags);
 
 	for_each_rw_member(ca, c, i)
 		bch2_dev_allocator_add(c, ca);

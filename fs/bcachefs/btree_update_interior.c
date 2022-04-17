@@ -2175,16 +2175,24 @@ void bch2_btree_updates_to_text(struct printbuf *out, struct bch_fs *c)
 	mutex_unlock(&c->btree_interior_update_lock);
 }
 
-size_t bch2_btree_interior_updates_nr_pending(struct bch_fs *c)
+static bool bch2_btree_interior_updates_pending(struct bch_fs *c)
 {
-	size_t ret = 0;
-	struct list_head *i;
+	bool ret;
 
 	mutex_lock(&c->btree_interior_update_lock);
-	list_for_each(i, &c->btree_interior_update_list)
-		ret++;
+	ret = !list_empty(&c->btree_interior_update_list);
 	mutex_unlock(&c->btree_interior_update_lock);
 
+	return ret;
+}
+
+bool bch2_btree_interior_updates_flush(struct bch_fs *c)
+{
+	bool ret = bch2_btree_interior_updates_pending(c);
+
+	if (ret)
+		closure_wait_event(&c->btree_interior_update_wait,
+				   !bch2_btree_interior_updates_pending(c));
 	return ret;
 }
 

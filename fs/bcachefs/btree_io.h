@@ -152,8 +152,8 @@ static inline void btree_node_write_if_need(struct bch_fs *c, struct btree *b,
 	bch2_btree_node_write(c, b, lock_held, BTREE_WRITE_ONLY_IF_NEED);
 }
 
-void bch2_btree_flush_all_reads(struct bch_fs *);
-void bch2_btree_flush_all_writes(struct bch_fs *);
+bool bch2_btree_flush_all_reads(struct bch_fs *);
+bool bch2_btree_flush_all_writes(struct bch_fs *);
 
 static inline void compat_bformat(unsigned level, enum btree_id btree_id,
 				  unsigned version, unsigned big_endian,

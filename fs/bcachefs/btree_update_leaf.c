@@ -1117,6 +1117,8 @@ int __bch2_trans_commit(struct btree_trans *trans)
 			goto out_reset;
 	}
 
+	EBUG_ON(test_bit(BCH_FS_CLEAN_SHUTDOWN, &c->flags));
+
 	memset(&trans->journal_preres, 0, sizeof(trans->journal_preres));
 
 	trans->journal_u64s		= trans->extra_journal_entries.nr;

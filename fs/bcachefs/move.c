@@ -942,9 +942,7 @@ next:
 	if (ret)
 		bch_err(c, "error %i in bch2_move_btree", ret);
 
-	/* flush relevant btree updates */
-	closure_wait_event(&c->btree_interior_update_wait,
-			   !bch2_btree_interior_updates_nr_pending(c));
+	bch2_btree_interior_updates_flush(c);
 
 	progress_list_del(c, stats);
 	return ret;

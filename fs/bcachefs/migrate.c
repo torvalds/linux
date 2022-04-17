@@ -175,10 +175,7 @@ next:
 			goto err;
 	}
 
-	/* flush relevant btree updates */
-	closure_wait_event(&c->btree_interior_update_wait,
-			   !bch2_btree_interior_updates_nr_pending(c));
-
+	bch2_btree_interior_updates_flush(c);
 	ret = 0;
 err:
 	bch2_trans_exit(&trans);

@@ -1751,9 +1751,7 @@ int bch2_gc(struct bch_fs *c, bool initial, bool metadata_only)
 
 	down_write(&c->gc_lock);
 
-	/* flush interior btree updates: */
-	closure_wait_event(&c->btree_interior_update_wait,
-			   !bch2_btree_interior_updates_nr_pending(c));
+	bch2_btree_interior_updates_flush(c);
 
 	ret   = bch2_gc_start(c, metadata_only) ?:
 		bch2_gc_alloc_start(c, metadata_only) ?:
