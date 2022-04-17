@@ -5959,9 +5959,10 @@ slow_path:
 
 step5:
 	reason = tcp_ack(sk, skb, FLAG_SLOWPATH | FLAG_UPDATE_TS_RECENT);
-	if (reason < 0)
+	if ((int)reason < 0) {
+		reason = -reason;
 		goto discard;
-
+	}
 	tcp_rcv_rtt_measure_ts(sk, skb);
 
 	/* Process urgent data. */
