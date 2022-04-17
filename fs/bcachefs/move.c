@@ -597,7 +597,7 @@ err_free_pages:
 err_free:
 	kfree(io);
 err:
-	trace_move_alloc_fail(k.k);
+	trace_move_alloc_mem_fail(k.k);
 	return ret;
 }
 

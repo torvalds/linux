@@ -600,9 +600,6 @@ int bch2_mark_alloc(struct btree_trans *trans,
 			bch2_fs_fatal_error(c, "bch2_mark_alloc(): no replicas entry while updating cached sectors");
 			return ret;
 		}
-
-		trace_invalidate(ca, bucket_to_sector(ca, new.k->p.offset),
-				 old_a.cached_sectors);
 	}
 
 	return 0;

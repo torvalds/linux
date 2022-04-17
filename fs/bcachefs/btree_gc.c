@@ -1742,12 +1742,10 @@ static void bch2_gc_stripes_reset(struct bch_fs *c, bool metadata_only)
  */
 int bch2_gc(struct bch_fs *c, bool initial, bool metadata_only)
 {
-	u64 start_time = local_clock();
 	unsigned iter = 0;
 	int ret;
 
 	lockdep_assert_held(&c->state_lock);
-	trace_gc_start(c);
 
 	down_write(&c->gc_lock);
 
@@ -1839,9 +1837,6 @@ out:
 	percpu_up_write(&c->mark_lock);
 
 	up_write(&c->gc_lock);
-
-	trace_gc_end(c);
-	bch2_time_stats_update(&c->times[BCH_TIME_btree_gc], start_time);
 
 	/*
 	 * At startup, allocations can happen directly instead of via the
@@ -1979,6 +1974,7 @@ int bch2_gc_gens(struct bch_fs *c)
 	if (!mutex_trylock(&c->gc_gens_lock))
 		return 0;
 
+	trace_gc_gens_start(c);
 	down_read(&c->gc_lock);
 	bch2_trans_init(&trans, c, 0, 0);
 
@@ -2030,6 +2026,7 @@ int bch2_gc_gens(struct bch_fs *c)
 	c->gc_count++;
 
 	bch2_time_stats_update(&c->times[BCH_TIME_btree_gc], start_time);
+	trace_gc_gens_end(c);
 err:
 	for_each_member_device(ca, c, i) {
 		kvfree(ca->oldest_gen);

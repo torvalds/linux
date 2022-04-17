@@ -1169,6 +1169,8 @@ retry:
 
 	if (ret)
 		goto err;
+
+	trace_transaction_commit(trans->fn, _RET_IP_);
 out:
 	bch2_journal_preres_put(&c->journal, &trans->journal_preres);
 

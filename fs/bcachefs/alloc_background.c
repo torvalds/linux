@@ -1066,7 +1066,7 @@ static void bch2_do_discards_work(struct work_struct *work)
 
 	percpu_ref_put(&c->writes);
 
-	trace_do_discards(c, seen, open, need_journal_commit, discarded, ret);
+	trace_discard_buckets(c, seen, open, need_journal_commit, discarded, ret);
 }
 
 void bch2_do_discards(struct bch_fs *c)
@@ -1130,6 +1130,10 @@ static int invalidate_one_bucket(struct btree_trans *trans, struct bch_dev *ca)
 
 	ret = bch2_trans_update(trans, &alloc_iter, &a->k_i,
 				BTREE_TRIGGER_BUCKET_INVALIDATE);
+	if (ret)
+		goto out;
+
+	trace_invalidate_bucket(c, a->k.p.inode, a->k.p.offset);
 out:
 	bch2_trans_iter_exit(trans, &alloc_iter);
 	bch2_trans_iter_exit(trans, &lru_iter);

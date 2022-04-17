@@ -142,17 +142,21 @@ DEFINE_EVENT(bio, journal_write,
 );
 
 TRACE_EVENT(journal_reclaim_start,
-	TP_PROTO(struct bch_fs *c, u64 min_nr,
+	TP_PROTO(struct bch_fs *c, bool direct, bool kicked,
+		 u64 min_nr, u64 min_key_cache,
 		 u64 prereserved, u64 prereserved_total,
 		 u64 btree_cache_dirty, u64 btree_cache_total,
 		 u64 btree_key_cache_dirty, u64 btree_key_cache_total),
-	TP_ARGS(c, min_nr, prereserved, prereserved_total,
+	TP_ARGS(c, direct, kicked, min_nr, min_key_cache, prereserved, prereserved_total,
 		btree_cache_dirty, btree_cache_total,
 		btree_key_cache_dirty, btree_key_cache_total),
 
 	TP_STRUCT__entry(
 		__field(dev_t,		dev			)
+		__field(bool,		direct			)
+		__field(bool,		kicked			)
 		__field(u64,		min_nr			)
+		__field(u64,		min_key_cache		)
 		__field(u64,		prereserved		)
 		__field(u64,		prereserved_total	)
 		__field(u64,		btree_cache_dirty	)
@@ -163,7 +167,10 @@ TRACE_EVENT(journal_reclaim_start,
 
 	TP_fast_assign(
 		__entry->dev			= c->dev;
+		__entry->direct			= direct;
+		__entry->kicked			= kicked;
 		__entry->min_nr			= min_nr;
+		__entry->min_key_cache		= min_key_cache;
 		__entry->prereserved		= prereserved;
 		__entry->prereserved_total	= prereserved_total;
 		__entry->btree_cache_dirty	= btree_cache_dirty;
@@ -172,9 +179,12 @@ TRACE_EVENT(journal_reclaim_start,
 		__entry->btree_key_cache_total	= btree_key_cache_total;
 	),
 
-	TP_printk("%d,%d min %llu prereserved %llu/%llu btree cache %llu/%llu key cache %llu/%llu",
+	TP_printk("%d,%d direct %u kicked %u min %llu key cache %llu prereserved %llu/%llu btree cache %llu/%llu key cache %llu/%llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->direct,
+		  __entry->kicked,
 		  __entry->min_nr,
+		  __entry->min_key_cache,
 		  __entry->prereserved,
 		  __entry->prereserved_total,
 		  __entry->btree_cache_dirty,
@@ -197,44 +207,12 @@ TRACE_EVENT(journal_reclaim_finish,
 		__entry->nr_flushed	= nr_flushed;
 	),
 
-	TP_printk("%d%d flushed %llu",
+	TP_printk("%d,%d flushed %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->nr_flushed)
 );
 
 /* allocator: */
-
-TRACE_EVENT(do_discards,
-	TP_PROTO(struct bch_fs *c, u64 seen, u64 open,
-		 u64 need_journal_commit, u64 discarded, int ret),
-	TP_ARGS(c, seen, open, need_journal_commit, discarded, ret),
-
-	TP_STRUCT__entry(
-		__field(dev_t,		dev			)
-		__field(u64,		seen			)
-		__field(u64,		open			)
-		__field(u64,		need_journal_commit	)
-		__field(u64,		discarded		)
-		__field(int,		ret			)
-	),
-
-	TP_fast_assign(
-		__entry->dev			= c->dev;
-		__entry->seen			= seen;
-		__entry->open			= open;
-		__entry->need_journal_commit	= need_journal_commit;
-		__entry->discarded		= discarded;
-		__entry->ret			= ret;
-	),
-
-	TP_printk("%d%d seen %llu open %llu need_journal_commit %llu discarded %llu ret %i",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->seen,
-		  __entry->open,
-		  __entry->need_journal_commit,
-		  __entry->discarded,
-		  __entry->ret)
-);
 
 /* bset.c: */
 
@@ -370,6 +348,11 @@ DEFINE_EVENT(btree_node, btree_merge,
 	TP_ARGS(c, b)
 );
 
+DEFINE_EVENT(btree_node, btree_rewrite,
+	TP_PROTO(struct bch_fs *c, struct btree *b),
+	TP_ARGS(c, b)
+);
+
 DEFINE_EVENT(btree_node, btree_set_root,
 	TP_PROTO(struct bch_fs *c, struct btree *b),
 	TP_ARGS(c, b)
@@ -443,78 +426,17 @@ TRACE_EVENT(btree_node_relock_fail,
 
 /* Garbage collection */
 
-DEFINE_EVENT(btree_node, btree_gc_rewrite_node,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
-);
-
-DEFINE_EVENT(btree_node, btree_gc_rewrite_node_fail,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
-);
-
-DEFINE_EVENT(bch_fs, gc_start,
+DEFINE_EVENT(bch_fs, gc_gens_start,
 	TP_PROTO(struct bch_fs *c),
 	TP_ARGS(c)
 );
 
-DEFINE_EVENT(bch_fs, gc_end,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
-);
-
-DEFINE_EVENT(bch_fs, gc_cannot_inc_gens,
+DEFINE_EVENT(bch_fs, gc_gens_end,
 	TP_PROTO(struct bch_fs *c),
 	TP_ARGS(c)
 );
 
 /* Allocator */
-
-TRACE_EVENT(alloc_scan,
-	TP_PROTO(struct bch_dev *ca, u64 found, u64 inc_gen, u64 inc_gen_skipped),
-	TP_ARGS(ca, found, inc_gen, inc_gen_skipped),
-
-	TP_STRUCT__entry(
-		__field(dev_t,		dev		)
-		__field(u64,		found		)
-		__field(u64,		inc_gen		)
-		__field(u64,		inc_gen_skipped	)
-	),
-
-	TP_fast_assign(
-		__entry->dev		= ca->dev;
-		__entry->found		= found;
-		__entry->inc_gen	= inc_gen;
-		__entry->inc_gen_skipped = inc_gen_skipped;
-	),
-
-	TP_printk("%d,%d found %llu inc_gen %llu inc_gen_skipped %llu",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->found, __entry->inc_gen, __entry->inc_gen_skipped)
-);
-
-TRACE_EVENT(invalidate,
-	TP_PROTO(struct bch_dev *ca, u64 offset, unsigned sectors),
-	TP_ARGS(ca, offset, sectors),
-
-	TP_STRUCT__entry(
-		__field(unsigned,	sectors			)
-		__field(dev_t,		dev			)
-		__field(__u64,		offset			)
-	),
-
-	TP_fast_assign(
-		__entry->dev		= ca->dev;
-		__entry->offset		= offset,
-		__entry->sectors	= sectors;
-	),
-
-	TP_printk("invalidated %u sectors at %d,%d sector=%llu",
-		  __entry->sectors,
-		  MAJOR(__entry->dev),
-		  MINOR(__entry->dev),
-		  __entry->offset)
-);
 
 DECLARE_EVENT_CLASS(bucket_alloc,
 	TP_PROTO(struct bch_dev *ca, const char *alloc_reserve,
@@ -587,6 +509,59 @@ DEFINE_EVENT(bucket_alloc, bucket_alloc_fail,
 	TP_ARGS(ca, alloc_reserve, avail, seen, open, need_journal_commit, nouse, nonblocking, ret)
 );
 
+TRACE_EVENT(discard_buckets,
+	TP_PROTO(struct bch_fs *c, u64 seen, u64 open,
+		 u64 need_journal_commit, u64 discarded, int ret),
+	TP_ARGS(c, seen, open, need_journal_commit, discarded, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__field(u64,		seen			)
+		__field(u64,		open			)
+		__field(u64,		need_journal_commit	)
+		__field(u64,		discarded		)
+		__field(int,		ret			)
+	),
+
+	TP_fast_assign(
+		__entry->dev			= c->dev;
+		__entry->seen			= seen;
+		__entry->open			= open;
+		__entry->need_journal_commit	= need_journal_commit;
+		__entry->discarded		= discarded;
+		__entry->ret			= ret;
+	),
+
+	TP_printk("%d%d seen %llu open %llu need_journal_commit %llu discarded %llu ret %i",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->seen,
+		  __entry->open,
+		  __entry->need_journal_commit,
+		  __entry->discarded,
+		  __entry->ret)
+);
+
+TRACE_EVENT(invalidate_bucket,
+	TP_PROTO(struct bch_fs *c, unsigned dev, u64 bucket),
+	TP_ARGS(c, dev, bucket),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__field(u32,		dev_idx			)
+		__field(u64,		bucket			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= c->dev;
+		__entry->dev_idx	= dev;
+		__entry->bucket		= bucket;
+	),
+
+	TP_printk("%d:%d invalidated %u:%llu",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->dev_idx, __entry->bucket)
+);
+
 /* Moving IO */
 
 DEFINE_EVENT(bkey, move_extent,
@@ -594,7 +569,7 @@ DEFINE_EVENT(bkey, move_extent,
 	TP_ARGS(k)
 );
 
-DEFINE_EVENT(bkey, move_alloc_fail,
+DEFINE_EVENT(bkey, move_alloc_mem_fail,
 	TP_PROTO(const struct bkey *k),
 	TP_ARGS(k)
 );
@@ -678,7 +653,7 @@ TRACE_EVENT(copygc_wait,
 		  __entry->wait_amount, __entry->until)
 );
 
-DECLARE_EVENT_CLASS(transaction_restart,
+DECLARE_EVENT_CLASS(transaction_event,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long caller_ip),
 	TP_ARGS(trans_fn, caller_ip),
@@ -696,55 +671,61 @@ DECLARE_EVENT_CLASS(transaction_restart,
 	TP_printk("%s %pS", __entry->trans_fn, (void *) __entry->caller_ip)
 );
 
-DEFINE_EVENT(transaction_restart,	transaction_restart_ip,
+DEFINE_EVENT(transaction_event,	transaction_commit,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long caller_ip),
 	TP_ARGS(trans_fn, caller_ip)
 );
 
-DEFINE_EVENT(transaction_restart,	trans_blocked_journal_reclaim,
+DEFINE_EVENT(transaction_event,	transaction_restart_ip,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long caller_ip),
 	TP_ARGS(trans_fn, caller_ip)
 );
 
-DEFINE_EVENT(transaction_restart,	trans_restart_journal_res_get,
+DEFINE_EVENT(transaction_event,	trans_blocked_journal_reclaim,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long caller_ip),
 	TP_ARGS(trans_fn, caller_ip)
 );
 
-DEFINE_EVENT(transaction_restart,	trans_restart_journal_preres_get,
+DEFINE_EVENT(transaction_event,	trans_restart_journal_res_get,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long caller_ip),
 	TP_ARGS(trans_fn, caller_ip)
 );
 
-DEFINE_EVENT(transaction_restart,	trans_restart_journal_reclaim,
+DEFINE_EVENT(transaction_event,	trans_restart_journal_preres_get,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long caller_ip),
 	TP_ARGS(trans_fn, caller_ip)
 );
 
-DEFINE_EVENT(transaction_restart,	trans_restart_fault_inject,
+DEFINE_EVENT(transaction_event,	trans_restart_journal_reclaim,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long caller_ip),
 	TP_ARGS(trans_fn, caller_ip)
 );
 
-DEFINE_EVENT(transaction_restart,	trans_traverse_all,
+DEFINE_EVENT(transaction_event,	trans_restart_fault_inject,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long caller_ip),
 	TP_ARGS(trans_fn, caller_ip)
 );
 
-DEFINE_EVENT(transaction_restart,	trans_restart_mark_replicas,
+DEFINE_EVENT(transaction_event,	trans_traverse_all,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long caller_ip),
 	TP_ARGS(trans_fn, caller_ip)
 );
 
-DEFINE_EVENT(transaction_restart,	trans_restart_key_cache_raced,
+DEFINE_EVENT(transaction_event,	trans_restart_mark_replicas,
+	TP_PROTO(const char *trans_fn,
+		 unsigned long caller_ip),
+	TP_ARGS(trans_fn, caller_ip)
+);
+
+DEFINE_EVENT(transaction_event,	trans_restart_key_cache_raced,
 	TP_PROTO(const char *trans_fn,
 		 unsigned long caller_ip),
 	TP_ARGS(trans_fn, caller_ip)
