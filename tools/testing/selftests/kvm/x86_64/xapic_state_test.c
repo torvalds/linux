@@ -11,7 +11,7 @@
 #include "processor.h"
 #include "test_util.h"
 
-struct kvm_vcpu {
+struct xapic_vcpu {
 	uint32_t id;
 	bool is_x2apic;
 };
@@ -47,7 +47,7 @@ static void x2apic_guest_code(void)
 	} while (1);
 }
 
-static void ____test_icr(struct kvm_vm *vm, struct kvm_vcpu *vcpu, uint64_t val)
+static void ____test_icr(struct kvm_vm *vm, struct xapic_vcpu *vcpu, uint64_t val)
 {
 	struct kvm_lapic_state xapic;
 	struct ucall uc;
@@ -75,13 +75,13 @@ static void ____test_icr(struct kvm_vm *vm, struct kvm_vcpu *vcpu, uint64_t val)
 	ASSERT_EQ(icr, val & ~APIC_ICR_BUSY);
 }
 
-static void __test_icr(struct kvm_vm *vm, struct kvm_vcpu *vcpu, uint64_t val)
+static void __test_icr(struct kvm_vm *vm, struct xapic_vcpu *vcpu, uint64_t val)
 {
 	____test_icr(vm, vcpu, val | APIC_ICR_BUSY);
 	____test_icr(vm, vcpu, val & ~(u64)APIC_ICR_BUSY);
 }
 
-static void test_icr(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
+static void test_icr(struct kvm_vm *vm, struct xapic_vcpu *vcpu)
 {
 	uint64_t icr, i, j;
 
@@ -116,7 +116,7 @@ static void test_icr(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 
 int main(int argc, char *argv[])
 {
-	struct kvm_vcpu vcpu = {
+	struct xapic_vcpu vcpu = {
 		.id = 0,
 		.is_x2apic = true,
 	};
