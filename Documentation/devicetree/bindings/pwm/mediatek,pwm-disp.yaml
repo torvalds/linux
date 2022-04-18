@@ -26,6 +26,7 @@ properties:
           - const: mediatek,mt8173-disp-pwm
       - items:
           - enum:
+              - mediatek,mt8186-disp-pwm
               - mediatek,mt8192-disp-pwm
               - mediatek,mt8195-disp-pwm
           - const: mediatek,mt8183-disp-pwm
