@@ -5875,6 +5875,69 @@ static inline void mlxsw_reg_pmtdb_pack(char *payload, u8 slot_index, u8 module,
 	mlxsw_reg_pmtdb_num_ports_set(payload, num_ports);
 }
 
+/* PMECR - Ports Mapping Event Configuration Register
+ * --------------------------------------------------
+ * The PMECR register is used to enable/disable event triggering
+ * in case of local port mapping change.
+ */
+#define MLXSW_REG_PMECR_ID 0x501B
+#define MLXSW_REG_PMECR_LEN 0x20
+
+MLXSW_REG_DEFINE(pmecr, MLXSW_REG_PMECR_ID, MLXSW_REG_PMECR_LEN);
+
+/* reg_pmecr_local_port
+ * Local port number.
+ * Access: Index
+ */
+MLXSW_ITEM32_LP(reg, pmecr, 0x00, 16, 0x00, 12);
+
+/* reg_pmecr_ee
+ * Event update enable. If this bit is set, event generation will be updated
+ * based on the e field. Only relevant on Set operations.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, pmecr, ee, 0x04, 30, 1);
+
+/* reg_pmecr_eswi
+ * Software ignore enable bit. If this bit is set, the value of swi is used.
+ * If this bit is clear, the value of swi is ignored.
+ * Only relevant on Set operations.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, pmecr, eswi, 0x04, 24, 1);
+
+/* reg_pmecr_swi
+ * Software ignore. If this bit is set, the device shouldn't generate events
+ * in case of PMLP SET operation but only upon self local port mapping change
+ * (if applicable according to e configuration). This is supplementary
+ * configuration on top of e value.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pmecr, swi, 0x04, 8, 1);
+
+enum mlxsw_reg_pmecr_e {
+	MLXSW_REG_PMECR_E_DO_NOT_GENERATE_EVENT,
+	MLXSW_REG_PMECR_E_GENERATE_EVENT,
+	MLXSW_REG_PMECR_E_GENERATE_SINGLE_EVENT,
+};
+
+/* reg_pmecr_e
+ * Event generation on local port mapping change.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pmecr, e, 0x04, 0, 2);
+
+static inline void mlxsw_reg_pmecr_pack(char *payload, u16 local_port,
+					enum mlxsw_reg_pmecr_e e)
+{
+	MLXSW_REG_ZERO(pmecr, payload);
+	mlxsw_reg_pmecr_local_port_set(payload, local_port);
+	mlxsw_reg_pmecr_e_set(payload, e);
+	mlxsw_reg_pmecr_ee_set(payload, true);
+	mlxsw_reg_pmecr_swi_set(payload, true);
+	mlxsw_reg_pmecr_eswi_set(payload, true);
+}
+
 /* PMPE - Port Module Plug/Unplug Event Register
  * ---------------------------------------------
  * This register reports any operational status change of a module.
@@ -12678,6 +12741,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pmaos),
 	MLXSW_REG(pplr),
 	MLXSW_REG(pmtdb),
+	MLXSW_REG(pmecr),
 	MLXSW_REG(pmpe),
 	MLXSW_REG(pddr),
 	MLXSW_REG(pmmp),
