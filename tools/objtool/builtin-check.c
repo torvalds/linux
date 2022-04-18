@@ -3,16 +3,6 @@
  * Copyright (C) 2015-2017 Josh Poimboeuf <jpoimboe@redhat.com>
  */
 
-/*
- * objtool check:
- *
- * This command analyzes every .o file and ensures the validity of its stack
- * trace metadata.  It enforces a set of rules on asm code and C inline
- * assembly code so that stack traces can be reliable.
- *
- * For more information, see tools/objtool/Documentation/stack-validation.txt.
- */
-
 #include <subcmd/parse-options.h>
 #include <string.h>
 #include <stdlib.h>
@@ -22,7 +12,7 @@
 struct opts opts;
 
 static const char * const check_usage[] = {
-	"objtool check <actions> [<options>] file.o",
+	"objtool <actions> [<options>] file.o",
 	NULL,
 };
 
@@ -31,14 +21,26 @@ static const char * const env_usage[] = {
 	NULL,
 };
 
+static int parse_dump(const struct option *opt, const char *str, int unset)
+{
+	if (!str || !strcmp(str, "orc")) {
+		opts.dump_orc = true;
+		return 0;
+	}
+
+	return -1;
+}
+
 const struct option check_options[] = {
 	OPT_GROUP("Actions:"),
 	OPT_BOOLEAN('i', "ibt", &opts.ibt, "validate and annotate IBT"),
 	OPT_BOOLEAN('m', "mcount", &opts.mcount, "annotate mcount/fentry calls for ftrace"),
 	OPT_BOOLEAN('n', "noinstr", &opts.noinstr, "validate noinstr rules"),
+	OPT_BOOLEAN('o', "orc", &opts.orc, "generate ORC metadata"),
 	OPT_BOOLEAN('r', "retpoline", &opts.retpoline, "validate and annotate retpoline usage"),
 	OPT_BOOLEAN('l', "sls", &opts.sls, "validate straight-line-speculation mitigations"),
 	OPT_BOOLEAN('u', "uaccess", &opts.uaccess, "validate uaccess rules for SMAP"),
+	OPT_CALLBACK_OPTARG(0, "dump", NULL, NULL, "orc", "dump metadata", parse_dump),
 
 	OPT_GROUP("Options:"),
 	OPT_BOOLEAN(0, "backtrace", &opts.backtrace, "unwind on error"),
@@ -81,7 +83,31 @@ int cmd_parse_options(int argc, const char **argv, const char * const usage[])
 	return argc;
 }
 
-int cmd_check(int argc, const char **argv)
+static bool opts_valid(void)
+{
+	if (opts.ibt		||
+	    opts.mcount		||
+	    opts.noinstr	||
+	    opts.orc		||
+	    opts.retpoline	||
+	    opts.sls		||
+	    opts.uaccess) {
+		if (opts.dump_orc) {
+			fprintf(stderr, "--dump can't be combined with other options\n");
+			return false;
+		}
+
+		return true;
+	}
+
+	if (opts.dump_orc)
+		return true;
+
+	fprintf(stderr, "At least one command required\n");
+	return false;
+}
+
+int objtool_run(int argc, const char **argv)
 {
 	const char *objname;
 	struct objtool_file *file;
@@ -89,6 +115,12 @@ int cmd_check(int argc, const char **argv)
 
 	argc = cmd_parse_options(argc, argv, check_usage);
 	objname = argv[0];
+
+	if (!opts_valid())
+		return 1;
+
+	if (opts.dump_orc)
+		return orc_dump(objname);
 
 	file = objtool_open_read(objname);
 	if (!file)

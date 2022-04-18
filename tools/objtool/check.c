@@ -3949,6 +3949,14 @@ int check(struct objtool_file *file)
 		warnings += ret;
 	}
 
+	if (opts.orc && !list_empty(&file->insn_list)) {
+		ret = orc_create(file);
+		if (ret < 0)
+			goto out;
+		warnings += ret;
+	}
+
+
 	if (opts.stats) {
 		printf("nr_insns_visited: %ld\n", nr_insns_visited);
 		printf("nr_cfi: %ld\n", nr_cfi);

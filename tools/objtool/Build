@@ -2,16 +2,14 @@ objtool-y += arch/$(SRCARCH)/
 
 objtool-y += weak.o
 
-objtool-$(SUBCMD_CHECK) += check.o
-objtool-$(SUBCMD_CHECK) += special.o
-objtool-$(SUBCMD_ORC) += check.o
-objtool-$(SUBCMD_ORC) += orc_gen.o
-objtool-$(SUBCMD_ORC) += orc_dump.o
-
+objtool-y += check.o
+objtool-y += special.o
 objtool-y += builtin-check.o
-objtool-y += builtin-orc.o
 objtool-y += elf.o
 objtool-y += objtool.o
+
+objtool-$(BUILD_ORC) += orc_gen.o
+objtool-$(BUILD_ORC) += orc_dump.o
 
 objtool-y += libstring.o
 objtool-y += libctype.o

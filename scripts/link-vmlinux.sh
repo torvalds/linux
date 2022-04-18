@@ -113,9 +113,6 @@ objtool_link()
 
 		# Don't perform vmlinux validation unless explicitly requested,
 		# but run objtool on vmlinux.o now that we have an object file.
-		if is_enabled CONFIG_UNWINDER_ORC; then
-			objtoolcmd="orc generate"
-		fi
 
 		if is_enabled CONFIG_X86_KERNEL_IBT; then
 			objtoolopt="${objtoolopt} --ibt"
@@ -123,6 +120,10 @@ objtool_link()
 
 		if is_enabled CONFIG_FTRACE_MCOUNT_USE_OBJTOOL; then
 			objtoolopt="${objtoolopt} --mcount"
+		fi
+
+		if is_enabled CONFIG_UNWINDER_ORC; then
+			objtoolopt="${objtoolopt} --orc"
 		fi
 
 		objtoolopt="${objtoolopt} --lto"
@@ -133,10 +134,6 @@ objtool_link()
 	fi
 
 	if [ -n "${objtoolopt}" ]; then
-
-		if [ -z "${objtoolcmd}" ]; then
-			objtoolcmd="check"
-		fi
 
 		if is_enabled CONFIG_RETPOLINE; then
 			objtoolopt="${objtoolopt} --retpoline"
@@ -161,7 +158,7 @@ objtool_link()
 		objtoolopt="${objtoolopt} --vmlinux"
 
 		info OBJTOOL ${1}
-		tools/objtool/objtool ${objtoolcmd} ${objtoolopt} ${1}
+		tools/objtool/objtool ${objtoolopt} ${1}
 	fi
 }
 

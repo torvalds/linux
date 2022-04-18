@@ -11,9 +11,11 @@ extern const struct option check_options[];
 
 struct opts {
 	/* actions: */
+	bool dump_orc;
 	bool ibt;
 	bool mcount;
 	bool noinstr;
+	bool orc;
 	bool retpoline;
 	bool sls;
 	bool uaccess;
@@ -34,7 +36,6 @@ extern struct opts opts;
 
 extern int cmd_parse_options(int argc, const char **argv, const char * const usage[]);
 
-extern int cmd_check(int argc, const char **argv);
-extern int cmd_orc(int argc, const char **argv);
+extern int objtool_run(int argc, const char **argv);
 
 #endif /* _BUILTIN_H */
