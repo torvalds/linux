@@ -33,15 +33,6 @@
 		ret;							\
 	.endif
 
-#define SAVE_CP_REGS_TAB(x)						\
-	.if XTENSA_HAVE_COPROCESSOR(x);					\
-		.long .Lsave_cp_regs_cp##x;				\
-	.else;								\
-		.long 0;						\
-	.endif;								\
-	.long THREAD_XTREGS_CP##x
-
-
 #define LOAD_CP_REGS(x)							\
 	.if XTENSA_HAVE_COPROCESSOR(x);					\
 		.align 4;						\
@@ -50,13 +41,18 @@
 		ret;							\
 	.endif
 
-#define LOAD_CP_REGS_TAB(x)						\
+#define CP_REGS_TAB(x)							\
 	.if XTENSA_HAVE_COPROCESSOR(x);					\
+		.long .Lsave_cp_regs_cp##x;				\
 		.long .Lload_cp_regs_cp##x;				\
 	.else;								\
-		.long 0;						\
+		.long 0, 0;						\
 	.endif;								\
 	.long THREAD_XTREGS_CP##x
+
+#define CP_REGS_TAB_SAVE 0
+#define CP_REGS_TAB_LOAD 4
+#define CP_REGS_TAB_OFFSET 8
 
 	__XTENSA_HANDLER
 
@@ -79,25 +75,15 @@
 	LOAD_CP_REGS(7)
 
 	.align 4
-.Lsave_cp_regs_jump_table:
-	SAVE_CP_REGS_TAB(0)
-	SAVE_CP_REGS_TAB(1)
-	SAVE_CP_REGS_TAB(2)
-	SAVE_CP_REGS_TAB(3)
-	SAVE_CP_REGS_TAB(4)
-	SAVE_CP_REGS_TAB(5)
-	SAVE_CP_REGS_TAB(6)
-	SAVE_CP_REGS_TAB(7)
-
-.Lload_cp_regs_jump_table:
-	LOAD_CP_REGS_TAB(0)
-	LOAD_CP_REGS_TAB(1)
-	LOAD_CP_REGS_TAB(2)
-	LOAD_CP_REGS_TAB(3)
-	LOAD_CP_REGS_TAB(4)
-	LOAD_CP_REGS_TAB(5)
-	LOAD_CP_REGS_TAB(6)
-	LOAD_CP_REGS_TAB(7)
+.Lcp_regs_jump_table:
+	CP_REGS_TAB(0)
+	CP_REGS_TAB(1)
+	CP_REGS_TAB(2)
+	CP_REGS_TAB(3)
+	CP_REGS_TAB(4)
+	CP_REGS_TAB(5)
+	CP_REGS_TAB(6)
+	CP_REGS_TAB(7)
 
 /*
  * Entry condition:
@@ -125,13 +111,12 @@ ENTRY(fast_coprocessor)
 	rsr	a2, depc
 	s32i	a2, a1, PT_AREG2
 
-	/*
-	 * The hal macros require up to 4 temporary registers. We use a3..a6.
-	 */
+	/* The hal macros require up to 4 temporary registers. We use a3..a6. */
 
 	s32i	a4, a1, PT_AREG4
 	s32i	a5, a1, PT_AREG5
 	s32i	a6, a1, PT_AREG6
+	s32i	a7, a1, PT_AREG7
 
 	/* Find coprocessor number. Subtract first CP EXCCAUSE from EXCCAUSE */
 
@@ -147,6 +132,12 @@ ENTRY(fast_coprocessor)
 	or	a0, a0, a2
 	wsr	a0, cpenable
 	rsync
+
+	/* Get coprocessor save/load table entry (a7). */
+
+	movi	a7, .Lcp_regs_jump_table
+	addx8	a7, a3, a7
+	addx4	a7, a3, a7
 
 	/* Retrieve previous owner. (a3 still holds CP number) */
 
@@ -167,10 +158,8 @@ ENTRY(fast_coprocessor)
 	 * (a4 still holds previous owner (thread_info), a3 CP number)
 	 */
 
-	movi	a5, .Lsave_cp_regs_jump_table
-	addx8	a3, a3, a5		# a3: coprocessor number
-	l32i	a2, a3, 4		# a2: xtregs offset
-	l32i	a3, a3, 0		# a3: jump address
+	l32i	a2, a7, CP_REGS_TAB_OFFSET
+	l32i	a3, a7, CP_REGS_TAB_SAVE
 	add	a2, a2, a4
 	callx0	a3
 
@@ -188,15 +177,14 @@ ENTRY(fast_coprocessor)
 
 	/* Get context save area and call load routine. */
 
-	movi	a5, .Lload_cp_regs_jump_table
-	addx8	a3, a3, a5
-	l32i	a2, a3, 4		# a2: xtregs offset
-	l32i	a3, a3, 0		# a3: jump address
+	l32i	a2, a7, CP_REGS_TAB_OFFSET
+	l32i	a3, a7, CP_REGS_TAB_LOAD
 	add	a2, a2, a4
 	callx0	a3
 
 	/* Restore all registers and return from exception handler. */
 
+	l32i	a7, a1, PT_AREG7
 	l32i	a6, a1, PT_AREG6
 	l32i	a5, a1, PT_AREG5
 	l32i	a4, a1, PT_AREG4
@@ -232,13 +220,14 @@ ENTRY(coprocessor_flush)
 	abi_entry(4)
 
 	s32i	a0, a1, 0
-	movi	a0, .Lsave_cp_regs_jump_table
-	addx8	a3, a3, a0
-	l32i	a4, a3, 4
-	l32i	a3, a3, 0
-	add	a2, a2, a4
-	beqz	a3, 1f
-	callx0	a3
+	movi	a4, .Lcp_regs_jump_table
+	addx8	a4, a3, a4
+	addx4	a3, a3, a4
+	l32i	a4, a3, CP_REGS_TAB_SAVE
+	beqz	a4, 1f
+	l32i	a3, a3, CP_REGS_TAB_OFFSET
+	add	a2, a2, a3
+	callx0	a4
 1:	l32i	a0, a1, 0
 
 	abi_ret(4)
