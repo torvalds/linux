@@ -15,7 +15,10 @@ enum mlx5_lag_port_affinity {
 
 struct lag_mp {
 	struct notifier_block     fib_nb;
-	struct fib_info           *mfi; /* used in tracking fib events */
+	struct {
+		const void        *mfi; /* used in tracking fib events */
+		u32               priority;
+	} fib;
 	struct workqueue_struct   *wq;
 };
 
