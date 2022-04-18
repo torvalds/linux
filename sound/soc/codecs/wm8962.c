@@ -2896,9 +2896,8 @@ static int wm8962_set_fll(struct snd_soc_component *component, int fll_id, int s
 
 	reinit_completion(&wm8962->fll_lock);
 
-	ret = pm_runtime_get_sync(component->dev);
+	ret = pm_runtime_resume_and_get(component->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(component->dev);
 		dev_err(component->dev, "Failed to resume device: %d\n", ret);
 		return ret;
 	}
@@ -3030,9 +3029,8 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 	unsigned int active;
 	int reg, ret;
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
 		dev_err(dev, "Failed to resume: %d\n", ret);
 		return IRQ_NONE;
 	}
