@@ -33,11 +33,7 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 	}
 
 	str = malloc(strlen(name) + 20);
-
-	if (func)
-		sprintf(str, "%s()+0x%lx", name, name_off);
-	else
-		sprintf(str, "%s+0x%lx", name, name_off);
+	sprintf(str, "%s+0x%lx", name, name_off);
 
 	return str;
 }
