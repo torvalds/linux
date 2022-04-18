@@ -284,7 +284,6 @@
 #include <linux/times.h>
 #include <linux/uaccess.h>
 #include <scsi/scsi_common.h>
-#include <scsi/scsi_request.h>
 
 /* used to tell the module to turn on full debugging messages */
 static bool debug;
@@ -1366,7 +1365,6 @@ out_free:
  */
 int cdrom_number_of_slots(struct cdrom_device_info *cdi) 
 {
-	int status;
 	int nslots = 1;
 	struct cdrom_changer_info *info;
 
@@ -1378,7 +1376,7 @@ int cdrom_number_of_slots(struct cdrom_device_info *cdi)
 	if (!info)
 		return -ENOMEM;
 
-	if ((status = cdrom_read_mech_status(cdi, info)) == 0)
+	if (cdrom_read_mech_status(cdi, info) == 0)
 		nslots = info->hdr.nslots;
 
 	kfree(info);
@@ -3691,27 +3689,6 @@ static struct ctl_table cdrom_table[] = {
 	},
 	{ }
 };
-
-static struct ctl_table cdrom_cdrom_table[] = {
-	{
-		.procname	= "cdrom",
-		.maxlen		= 0,
-		.mode		= 0555,
-		.child		= cdrom_table,
-	},
-	{ }
-};
-
-/* Make sure that /proc/sys/dev is there */
-static struct ctl_table cdrom_root_table[] = {
-	{
-		.procname	= "dev",
-		.maxlen		= 0,
-		.mode		= 0555,
-		.child		= cdrom_cdrom_table,
-	},
-	{ }
-};
 static struct ctl_table_header *cdrom_sysctl_header;
 
 static void cdrom_sysctl_register(void)
@@ -3721,7 +3698,7 @@ static void cdrom_sysctl_register(void)
 	if (!atomic_add_unless(&initialized, 1, 1))
 		return;
 
-	cdrom_sysctl_header = register_sysctl_table(cdrom_root_table);
+	cdrom_sysctl_header = register_sysctl("dev/cdrom", cdrom_table);
 
 	/* set the defaults */
 	cdrom_sysctl_settings.autoclose = autoclose;

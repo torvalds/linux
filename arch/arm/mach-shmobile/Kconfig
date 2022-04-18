@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig ARCH_RENESAS
 	bool "Renesas ARM SoCs"
-	depends on ARCH_MULTI_V7 && MMU
+	depends on ARCH_MULTI_V7
 	select ARM_GIC
 	select GPIOLIB
 	select NO_IOPORT_MAP

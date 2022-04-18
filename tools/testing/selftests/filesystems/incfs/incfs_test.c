@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/xattr.h>
+#include <sys/statvfs.h>
 
 #include <linux/random.h>
 #include <linux/stat.h>
@@ -43,6 +44,7 @@
 #define	FS_IOC_GETFLAGS			_IOR('f', 1, long)
 #define FS_VERITY_FL			0x00100000 /* Verity protected inode */
 
+#define TEST_SKIP 2
 #define TEST_FAILURE 1
 #define TEST_SUCCESS 0
 
@@ -2793,14 +2795,16 @@ failure:
 	return TEST_FAILURE;
 }
 
+#define THREE_GB (3LL * 1024 * 1024 * 1024)
+#define FOUR_GB (4LL * 1024 * 1024 * 1024) /* Have 1GB of margin */
 static int large_file_test(const char *mount_dir)
 {
 	char *backing_dir;
 	int cmd_fd = -1;
 	int i;
-	int result = TEST_FAILURE;
+	int result = TEST_FAILURE, ret;
 	uint8_t data[INCFS_DATA_FILE_BLOCK_SIZE] = {};
-	int block_count = 3LL * 1024 * 1024 * 1024 / INCFS_DATA_FILE_BLOCK_SIZE;
+	int block_count = THREE_GB / INCFS_DATA_FILE_BLOCK_SIZE;
 	struct incfs_fill_block *block_buf =
 		calloc(block_count, sizeof(struct incfs_fill_block));
 	struct incfs_fill_blocks fill_blocks = {
@@ -2809,6 +2813,22 @@ static int large_file_test(const char *mount_dir)
 	};
 	incfs_uuid_t id;
 	int fd = -1;
+	struct statvfs svfs;
+	unsigned long long free_disksz;
+
+	ret = statvfs(mount_dir, &svfs);
+	if (ret) {
+		ksft_print_msg("Can't get disk size. Skipping %s...\n", __func__);
+		return TEST_SKIP;
+	}
+
+	free_disksz = (unsigned long long)svfs.f_bavail * svfs.f_bsize;
+
+	if (FOUR_GB > free_disksz) {
+		ksft_print_msg("Not enough free disk space (%lldMB). Skipping %s...\n",
+				free_disksz >> 20, __func__);
+		return TEST_SKIP;
+	}
 
 	backing_dir = create_backing_dir(mount_dir);
 	if (!backing_dir)
@@ -2849,6 +2869,7 @@ static int large_file_test(const char *mount_dir)
 failure:
 	close(fd);
 	close(cmd_fd);
+	unlink("very_large_file");
 	umount(mount_dir);
 	free(backing_dir);
 	return result;
@@ -4610,6 +4631,29 @@ out:
 	return result;
 }
 
+static int stacked_mount_test(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+	char *backing_dir = NULL;
+
+	/* Mount with no node */
+	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
+	TESTEQUAL(mount_fs(mount_dir, backing_dir, 0), 0);
+	/* Try mounting another instance with same name */
+	TESTEQUAL(mount_fs(mount_dir, backing_dir, 0), 0);
+	/* Try unmounting the first instance */
+	TESTEQUAL(umount_fs(mount_dir), 0);
+	/* Try unmounting the second instance */
+	TESTEQUAL(umount_fs(mount_dir), 0);
+	result = TEST_SUCCESS;
+out:
+	/* Cleanup */
+	rmdir(mount_dir);
+	rmdir(backing_dir);
+	free(backing_dir);
+	return result;
+}
+
 static char *setup_mount_dir()
 {
 	struct stat st;
@@ -4665,9 +4709,15 @@ struct test_case {
 
 void run_one_test(const char *mount_dir, struct test_case *test_case)
 {
+	int ret;
+
 	ksft_print_msg("Running %s\n", test_case->name);
-	if (test_case->pfunc(mount_dir) == TEST_SUCCESS)
+	ret = test_case->pfunc(mount_dir);
+
+	if (ret == TEST_SUCCESS)
 		ksft_test_result_pass("%s\n", test_case->name);
+	else if (ret == TEST_SKIP)
+		ksft_test_result_skip("%s\n", test_case->name);
 	else
 		ksft_test_result_fail("%s\n", test_case->name);
 }
@@ -4731,6 +4781,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(stat_test),
 		MAKE_TEST(sysfs_test),
 		MAKE_TEST(sysfs_rename_test),
+		MAKE_TEST(stacked_mount_test),
 	};
 #undef MAKE_TEST
 

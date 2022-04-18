@@ -123,8 +123,11 @@ extern void smb2_set_related(struct smb_rqst *rqst);
  * SMB2 Worker functions - most of protocol specific implementation details
  * are contained within these calls.
  */
-extern int SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses);
+extern int SMB2_negotiate(const unsigned int xid,
+			  struct cifs_ses *ses,
+			  struct TCP_Server_Info *server);
 extern int SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
+			   struct TCP_Server_Info *server,
 			   const struct nls_table *nls_cp);
 extern int SMB2_logoff(const unsigned int xid, struct cifs_ses *ses);
 extern int SMB2_tcon(const unsigned int xid, struct cifs_ses *ses,
@@ -276,10 +279,11 @@ extern void smb2_copy_fs_info_to_kstatfs(
 	 struct kstatfs *kst);
 extern int smb311_crypto_shash_allocate(struct TCP_Server_Info *server);
 extern int smb311_update_preauth_hash(struct cifs_ses *ses,
+				      struct TCP_Server_Info *server,
 				      struct kvec *iov, int nvec);
 extern int smb2_query_info_compound(const unsigned int xid,
 				    struct cifs_tcon *tcon,
-				    __le16 *utf16_path, u32 desired_access,
+				    const char *path, u32 desired_access,
 				    u32 class, u32 type, u32 output_len,
 				    struct kvec *rsp, int *buftype,
 				    struct cifs_sb_info *cifs_sb);

@@ -76,6 +76,9 @@ configurable behaviours:
   with ``.si_code = SEGV_MTEAERR`` and ``.si_addr = 0`` (the faulting
   address is unknown).
 
+- *Asymmetric* - Reads are handled as for synchronous mode while writes
+  are handled as for asynchronous mode.
+
 The user can select the above modes, per thread, using the
 ``prctl(PR_SET_TAGGED_ADDR_CTRL, flags, 0, 0, 0)`` system call where ``flags``
 contains any number of the following values in the ``PR_MTE_TCF_MASK``
@@ -91,8 +94,9 @@ mode is specified, the program will run in that mode. If multiple
 modes are specified, the mode is selected as described in the "Per-CPU
 preferred tag checking modes" section below.
 
-The current tag check fault mode can be read using the
-``prctl(PR_GET_TAGGED_ADDR_CTRL, 0, 0, 0, 0)`` system call.
+The current tag check fault configuration can be read using the
+``prctl(PR_GET_TAGGED_ADDR_CTRL, 0, 0, 0, 0)`` system call. If
+multiple modes were requested then all will be reported.
 
 Tag checking can also be disabled for a user thread by setting the
 ``PSTATE.TCO`` bit with ``MSR TCO, #1``.
@@ -139,18 +143,25 @@ tag checking mode as the CPU's preferred tag checking mode.
 
 The preferred tag checking mode for each CPU is controlled by
 ``/sys/devices/system/cpu/cpu<N>/mte_tcf_preferred``, to which a
-privileged user may write the value ``async`` or ``sync``.  The default
-preferred mode for each CPU is ``async``.
+privileged user may write the value ``async``, ``sync`` or ``asymm``.  The
+default preferred mode for each CPU is ``async``.
 
 To allow a program to potentially run in the CPU's preferred tag
 checking mode, the user program may set multiple tag check fault mode
 bits in the ``flags`` argument to the ``prctl(PR_SET_TAGGED_ADDR_CTRL,
-flags, 0, 0, 0)`` system call. If the CPU's preferred tag checking
-mode is in the task's set of provided tag checking modes (this will
-always be the case at present because the kernel only supports two
-tag checking modes, but future kernels may support more modes), that
-mode will be selected. Otherwise, one of the modes in the task's mode
-set will be selected in a currently unspecified manner.
+flags, 0, 0, 0)`` system call. If both synchronous and asynchronous
+modes are requested then asymmetric mode may also be selected by the
+kernel. If the CPU's preferred tag checking mode is in the task's set
+of provided tag checking modes, that mode will be selected. Otherwise,
+one of the modes in the task's mode will be selected by the kernel
+from the task's mode set using the preference order:
+
+	1. Asynchronous
+	2. Asymmetric
+	3. Synchronous
+
+Note that there is no way for userspace to request multiple modes and
+also disable asymmetric mode.
 
 Initial process state
 ---------------------
@@ -212,6 +223,29 @@ address ABI control and MTE configuration of a process as per the
 ``prctl()`` options described in
 Documentation/arm64/tagged-address-abi.rst and above. The corresponding
 ``regset`` is 1 element of 8 bytes (``sizeof(long))``).
+
+Core dump support
+-----------------
+
+The allocation tags for user memory mapped with ``PROT_MTE`` are dumped
+in the core file as additional ``PT_ARM_MEMTAG_MTE`` segments. The
+program header for such segment is defined as:
+
+:``p_type``: ``PT_ARM_MEMTAG_MTE``
+:``p_flags``: 0
+:``p_offset``: segment file offset
+:``p_vaddr``: segment virtual address, same as the corresponding
+  ``PT_LOAD`` segment
+:``p_paddr``: 0
+:``p_filesz``: segment size in file, calculated as ``p_mem_sz / 32``
+  (two 4-bit tags cover 32 bytes of memory)
+:``p_memsz``: segment size in memory, same as the corresponding
+  ``PT_LOAD`` segment
+:``p_align``: 0
+
+The tags are stored in the core file at ``p_offset`` as two 4-bit tags
+in a byte. With the tag granule of 16 bytes, a 4K page requires 128
+bytes in the core file.
 
 Example of correct usage
 ========================

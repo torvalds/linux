@@ -956,6 +956,10 @@ static int vi_asic_reset(struct amdgpu_device *adev)
 {
 	int r;
 
+	/* APUs don't have full asic reset */
+	if (adev->flags & AMD_IS_APU)
+		return 0;
+
 	if (vi_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
 		dev_info(adev->dev, "BACO reset\n");
 		r = amdgpu_dpm_baco_reset(adev);
@@ -1136,7 +1140,7 @@ static void vi_program_aspm(struct amdgpu_device *adev)
 	bool bL1SS = false;
 	bool bClkReqSupport = true;
 
-	if (!amdgpu_aspm)
+	if (!amdgpu_device_should_use_aspm(adev))
 		return;
 
 	if (adev->flags & AMD_IS_APU ||

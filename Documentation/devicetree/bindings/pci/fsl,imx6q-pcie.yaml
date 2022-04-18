@@ -25,6 +25,8 @@ properties:
       - fsl,imx6qp-pcie
       - fsl,imx7d-pcie
       - fsl,imx8mq-pcie
+      - fsl,imx8mm-pcie
+      - fsl,imx8mp-pcie
 
   reg:
     items:
@@ -126,6 +128,12 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [1, 2, 3, 4]
     default: 1
+
+  phys:
+    maxItems: 1
+
+  phy-names:
+    const: pcie-phy
 
   reset-gpio:
     description: Should specify the GPIO for controlling the PCI bus device

@@ -153,8 +153,6 @@ static __u32 zoran_v4l2_calc_bufsize(struct zoran_jpg_settings *settings)
 		result <<= 1;
 	}
 
-	if (result > jpg_bufsize)
-		return jpg_bufsize;
 	if (result < 8192)
 		return 8192;
 
@@ -173,7 +171,7 @@ static int zoran_v4l_set_format(struct zoran *zr, int width, int height,
 
 	if (height < BUZ_MIN_HEIGHT || width < BUZ_MIN_WIDTH ||
 	    height > BUZ_MAX_HEIGHT || width > BUZ_MAX_WIDTH) {
-		pci_err(zr->pci_dev, "%s - wrong frame size (%dx%d)\n", __func__, width, height);
+		pci_dbg(zr->pci_dev, "%s - wrong frame size (%dx%d)\n", __func__, width, height);
 		return -EINVAL;
 	}
 
@@ -183,7 +181,7 @@ static int zoran_v4l_set_format(struct zoran *zr, int width, int height,
 
 	/* Check against available buffer size */
 	if (height * width * bpp > zr->buffer_size) {
-		pci_err(zr->pci_dev, "%s - video buffer size (%d kB) is too small\n",
+		pci_dbg(zr->pci_dev, "%s - video buffer size (%d kB) is too small\n",
 			__func__, zr->buffer_size >> 10);
 		return -EINVAL;
 	}
@@ -191,7 +189,7 @@ static int zoran_v4l_set_format(struct zoran *zr, int width, int height,
 	/* The video front end needs 4-byte alinged line sizes */
 
 	if ((bpp == 2 && (width & 1)) || (bpp == 3 && (width & 3))) {
-		pci_err(zr->pci_dev, "%s - wrong frame alignment\n", __func__);
+		pci_dbg(zr->pci_dev, "%s - wrong frame alignment\n", __func__);
 		return -EINVAL;
 	}
 
@@ -207,7 +205,7 @@ static int zoran_set_norm(struct zoran *zr, v4l2_std_id norm)
 {
 
 	if (!(norm & zr->card.norms)) {
-		pci_err(zr->pci_dev, "%s - unsupported norm %llx\n", __func__, norm);
+		pci_dbg(zr->pci_dev, "%s - unsupported norm %llx\n", __func__, norm);
 		return -EINVAL;
 	}
 
@@ -233,7 +231,7 @@ static int zoran_set_input(struct zoran *zr, int input)
 		return 0;
 
 	if (input < 0 || input >= zr->card.inputs) {
-		pci_err(zr->pci_dev, "%s - unsupported input %d\n", __func__, input);
+		pci_dbg(zr->pci_dev, "%s - unsupported input %d\n", __func__, input);
 		return -EINVAL;
 	}
 
@@ -255,8 +253,6 @@ static int zoran_querycap(struct file *file, void *__fh, struct v4l2_capability 
 	strscpy(cap->card, ZR_DEVNAME(zr), sizeof(cap->card));
 	strscpy(cap->driver, "zoran", sizeof(cap->driver));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s", pci_name(zr->pci_dev));
-	cap->device_caps = zr->video_dev->device_caps;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -402,7 +398,6 @@ static int zoran_try_fmt_vid_out(struct file *file, void *__fh,
 				V4L2_FIELD_TOP : V4L2_FIELD_BOTTOM);
 
 	fmt->fmt.pix.sizeimage = zoran_v4l2_calc_bufsize(&settings);
-	zr->buffer_size = fmt->fmt.pix.sizeimage;
 	fmt->fmt.pix.bytesperline = 0;
 	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 	return res;
@@ -437,6 +432,8 @@ static int zoran_try_fmt_vid_cap(struct file *file, void *__fh,
 	bpp = DIV_ROUND_UP(zoran_formats[i].depth, 8);
 	v4l_bound_align_image(&fmt->fmt.pix.width, BUZ_MIN_WIDTH, BUZ_MAX_WIDTH, bpp == 2 ? 1 : 2,
 		&fmt->fmt.pix.height, BUZ_MIN_HEIGHT, BUZ_MAX_HEIGHT, 0, 0);
+	fmt->fmt.pix.bytesperline = fmt->fmt.pix.width * bpp;
+	fmt->fmt.pix.sizeimage = fmt->fmt.pix.bytesperline * fmt->fmt.pix.height;
 	return 0;
 }
 
@@ -535,7 +532,7 @@ static int zoran_s_fmt_vid_cap(struct file *file, void *__fh,
 		if (fmt->fmt.pix.pixelformat == zoran_formats[i].fourcc)
 			break;
 	if (i == NUM_FORMATS) {
-		pci_err(zr->pci_dev, "VIDIOC_S_FMT - unknown/unsupported format 0x%x\n",
+		pci_dbg(zr->pci_dev, "VIDIOC_S_FMT - unknown/unsupported format 0x%x\n",
 			fmt->fmt.pix.pixelformat);
 		/* TODO do not return here to fix the TRY_FMT cannot handle an invalid pixelformat*/
 		return -EINVAL;
@@ -581,6 +578,9 @@ static int zoran_s_std(struct file *file, void *__fh, v4l2_std_id std)
 {
 	struct zoran *zr = video_drvdata(file);
 	int res = 0;
+
+	if (zr->norm == std)
+		return 0;
 
 	if (zr->running != ZORAN_MAP_MODE_NONE)
 		return -EBUSY;
@@ -666,7 +666,7 @@ static int zoran_g_selection(struct file *file, void *__fh, struct v4l2_selectio
 
 	if (sel->type != V4L2_BUF_TYPE_VIDEO_OUTPUT &&
 	    sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		pci_err(zr->pci_dev, "%s invalid selection type combination\n", __func__);
+		pci_dbg(zr->pci_dev, "%s invalid selection type combination\n", __func__);
 		return -EINVAL;
 	}
 
@@ -712,7 +712,7 @@ static int zoran_s_selection(struct file *file, void *__fh, struct v4l2_selectio
 		return -EINVAL;
 
 	if (zr->map_mode == ZORAN_MAP_MODE_RAW) {
-		pci_err(zr->pci_dev, "VIDIOC_S_SELECTION - subcapture only supported for compressed capture\n");
+		pci_dbg(zr->pci_dev, "VIDIOC_S_SELECTION - subcapture only supported for compressed capture\n");
 		return -EINVAL;
 	}
 
@@ -734,14 +734,6 @@ static int zoran_s_selection(struct file *file, void *__fh, struct v4l2_selectio
 	return res;
 }
 
-static int zoran_g_parm(struct file *file, void *priv, struct v4l2_streamparm *parm)
-{
-	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	return 0;
-}
-
 /*
  * Output is disabled temporarily
  * Zoran is picky about jpeg data it accepts. At least it seems to unsupport COM and APPn.
@@ -749,7 +741,6 @@ static int zoran_g_parm(struct file *file, void *priv, struct v4l2_streamparm *p
  */
 static const struct v4l2_ioctl_ops zoran_ioctl_ops = {
 	.vidioc_querycap		    = zoran_querycap,
-	.vidioc_g_parm			    = zoran_g_parm,
 	.vidioc_s_selection		    = zoran_s_selection,
 	.vidioc_g_selection		    = zoran_g_selection,
 	.vidioc_enum_input		    = zoran_enum_input,
@@ -785,8 +776,6 @@ static const struct v4l2_file_operations zoran_fops = {
 	.unlocked_ioctl = video_ioctl2,
 	.open		= v4l2_fh_open,
 	.release	= vb2_fop_release,
-	.read		= vb2_fop_read,
-	.write		= vb2_fop_write,
 	.mmap		= vb2_fop_mmap,
 	.poll		= vb2_fop_poll,
 };
@@ -869,6 +858,10 @@ int zr_set_buf(struct zoran *zr)
 		vbuf = &buf->vbuf;
 
 		buf->vbuf.field = V4L2_FIELD_INTERLACED;
+		if (BUZ_MAX_HEIGHT < (zr->v4l_settings.height * 2))
+			buf->vbuf.field = V4L2_FIELD_INTERLACED;
+		else
+			buf->vbuf.field = V4L2_FIELD_TOP;
 		vb2_set_plane_payload(&buf->vbuf.vb2_buf, 0, zr->buffer_size);
 		vb2_buffer_done(&buf->vbuf.vb2_buf, VB2_BUF_STATE_DONE);
 		zr->inuse[0] = NULL;
@@ -889,6 +882,7 @@ int zr_set_buf(struct zoran *zr)
 		return -EINVAL;
 	}
 	list_del(&buf->queue);
+	zr->buf_in_reserve--;
 	spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
 
 	vbuf = &buf->vbuf;
@@ -928,9 +922,10 @@ static int zr_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 		zr->stat_com[j] = cpu_to_le32(1);
 		zr->inuse[j] = NULL;
 	}
+	zr->vbseq = 0;
 
 	if (zr->map_mode != ZORAN_MAP_MODE_RAW) {
-		pci_info(zr->pci_dev, "START JPG\n");
+		pci_dbg(zr->pci_dev, "START JPG\n");
 		zr36057_restart(zr);
 		zoran_init_hardware(zr);
 		if (zr->map_mode == ZORAN_MAP_MODE_JPG_REC)
@@ -944,7 +939,7 @@ static int zr_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 		return 0;
 	}
 
-	pci_info(zr->pci_dev, "START RAW\n");
+	pci_dbg(zr->pci_dev, "START RAW\n");
 	zr36057_restart(zr);
 	zoran_init_hardware(zr);
 
@@ -994,7 +989,7 @@ static void zr_vb2_stop_streaming(struct vb2_queue *vq)
 	}
 	spin_unlock_irqrestore(&zr->queued_bufs_lock, flags);
 	if (zr->buf_in_reserve)
-		pci_err(zr->pci_dev, "Buffer remaining %d\n", zr->buf_in_reserve);
+		pci_dbg(zr->pci_dev, "Buffer remaining %d\n", zr->buf_in_reserve);
 	zr->map_mode = ZORAN_MAP_MODE_RAW;
 }
 
@@ -1008,7 +1003,7 @@ static const struct vb2_ops zr_video_qops = {
 	.wait_finish            = vb2_ops_wait_finish,
 };
 
-int zoran_queue_init(struct zoran *zr, struct vb2_queue *vq)
+int zoran_queue_init(struct zoran *zr, struct vb2_queue *vq, int dir)
 {
 	int err;
 
@@ -1016,8 +1011,9 @@ int zoran_queue_init(struct zoran *zr, struct vb2_queue *vq)
 	INIT_LIST_HEAD(&zr->queued_bufs);
 
 	vq->dev = &zr->pci_dev->dev;
-	vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	vq->io_modes = VB2_USERPTR | VB2_DMABUF | VB2_MMAP | VB2_READ | VB2_WRITE;
+	vq->type = dir;
+
+	vq->io_modes = VB2_DMABUF | VB2_MMAP | VB2_READ | VB2_WRITE;
 	vq->drv_priv = zr;
 	vq->buf_struct_size = sizeof(struct zr_buffer);
 	vq->ops = &zr_video_qops;

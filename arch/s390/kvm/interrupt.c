@@ -1335,7 +1335,8 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 	VCPU_EVENT(vcpu, 4, "enabled wait: %llu ns", sltime);
 no_timer:
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
-	kvm_vcpu_block(vcpu);
+	kvm_vcpu_halt(vcpu);
+	vcpu->valid_wakeup = false;
 	__unset_cpu_idle(vcpu);
 	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 
@@ -1900,13 +1901,12 @@ static int __inject_io(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 	isc = int_word_to_isc(inti->io.io_int_word);
 
 	/*
-	 * Do not make use of gisa in protected mode. We do not use the lock
-	 * checking variant as this is just a performance optimization and we
-	 * do not hold the lock here. This is ok as the code will pick
-	 * interrupts from both "lists" for delivery.
+	 * We do not use the lock checking variant as this is just a
+	 * performance optimization and we do not hold the lock here.
+	 * This is ok as the code will pick interrupts from both "lists"
+	 * for delivery.
 	 */
-	if (!kvm_s390_pv_get_handle(kvm) &&
-	    gi->origin && inti->type & KVM_S390_INT_IO_AI_MASK) {
+	if (gi->origin && inti->type & KVM_S390_INT_IO_AI_MASK) {
 		VM_EVENT(kvm, 4, "%s isc %1u", "inject: I/O (AI/gisa)", isc);
 		gisa_set_ipm_gisc(gi->origin, isc);
 		kfree(inti);
@@ -2113,6 +2113,13 @@ int kvm_s390_is_stop_irq_pending(struct kvm_vcpu *vcpu)
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 
 	return test_bit(IRQ_PEND_SIGP_STOP, &li->pending_irqs);
+}
+
+int kvm_s390_is_restart_irq_pending(struct kvm_vcpu *vcpu)
+{
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+
+	return test_bit(IRQ_PEND_RESTART, &li->pending_irqs);
 }
 
 void kvm_s390_clear_stop_irq(struct kvm_vcpu *vcpu)
@@ -2659,7 +2666,7 @@ static int flic_ais_mode_set_all(struct kvm *kvm, struct kvm_device_attr *attr)
 static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
 	int r = 0;
-	unsigned int i;
+	unsigned long i;
 	struct kvm_vcpu *vcpu;
 
 	switch (attr->group) {
@@ -3163,9 +3170,33 @@ void kvm_s390_gisa_init(struct kvm *kvm)
 	VM_EVENT(kvm, 3, "gisa 0x%pK initialized", gi->origin);
 }
 
+void kvm_s390_gisa_enable(struct kvm *kvm)
+{
+	struct kvm_s390_gisa_interrupt *gi = &kvm->arch.gisa_int;
+	struct kvm_vcpu *vcpu;
+	unsigned long i;
+	u32 gisa_desc;
+
+	if (gi->origin)
+		return;
+	kvm_s390_gisa_init(kvm);
+	gisa_desc = kvm_s390_get_gisa_desc(kvm);
+	if (!gisa_desc)
+		return;
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		mutex_lock(&vcpu->mutex);
+		vcpu->arch.sie_block->gd = gisa_desc;
+		vcpu->arch.sie_block->eca |= ECA_AIV;
+		VCPU_EVENT(vcpu, 3, "AIV gisa format-%u enabled for cpu %03u",
+			   vcpu->arch.sie_block->gd & 0x3, vcpu->vcpu_id);
+		mutex_unlock(&vcpu->mutex);
+	}
+}
+
 void kvm_s390_gisa_destroy(struct kvm *kvm)
 {
 	struct kvm_s390_gisa_interrupt *gi = &kvm->arch.gisa_int;
+	struct kvm_s390_gisa *gisa = gi->origin;
 
 	if (!gi->origin)
 		return;
@@ -3176,6 +3207,25 @@ void kvm_s390_gisa_destroy(struct kvm *kvm)
 		cpu_relax();
 	hrtimer_cancel(&gi->timer);
 	gi->origin = NULL;
+	VM_EVENT(kvm, 3, "gisa 0x%pK destroyed", gisa);
+}
+
+void kvm_s390_gisa_disable(struct kvm *kvm)
+{
+	struct kvm_s390_gisa_interrupt *gi = &kvm->arch.gisa_int;
+	struct kvm_vcpu *vcpu;
+	unsigned long i;
+
+	if (!gi->origin)
+		return;
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		mutex_lock(&vcpu->mutex);
+		vcpu->arch.sie_block->eca &= ~ECA_AIV;
+		vcpu->arch.sie_block->gd = 0U;
+		mutex_unlock(&vcpu->mutex);
+		VCPU_EVENT(vcpu, 3, "AIV disabled for cpu %03u", vcpu->vcpu_id);
+	}
+	kvm_s390_gisa_destroy(kvm);
 }
 
 /**

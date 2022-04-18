@@ -138,11 +138,6 @@ MODULE_PARM_DESC(use_mmio, "Use MMIO (1) or PIO(0) to access the NIC. "
 module_param(rx_copybreak, int, 0);
 module_param(use_mmio, int, 0);
 
-#if defined(NETIF_F_TSO) && MAX_SKB_FRAGS > 32
-#warning Typhoon only supports 32 entries in its SG list for TSO, disabling TSO
-#undef NETIF_F_TSO
-#endif
-
 #if TXLO_ENTRIES <= (2 * MAX_SKB_FRAGS)
 #error TX ring too small!
 #endif
@@ -2261,9 +2256,28 @@ out:
 	return mode;
 }
 
+#if MAX_SKB_FRAGS > 32
+
+#include <net/vxlan.h>
+
+static netdev_features_t typhoon_features_check(struct sk_buff *skb,
+						struct net_device *dev,
+						netdev_features_t features)
+{
+	if (skb_shinfo(skb)->nr_frags > 32 && skb_is_gso(skb))
+		features &= ~NETIF_F_GSO_MASK;
+
+	features = vlan_features_check(skb, features);
+	return vxlan_features_check(skb, features);
+}
+#endif
+
 static const struct net_device_ops typhoon_netdev_ops = {
 	.ndo_open		= typhoon_open,
 	.ndo_stop		= typhoon_close,
+#if MAX_SKB_FRAGS > 32
+	.ndo_features_check	= typhoon_features_check,
+#endif
 	.ndo_start_xmit		= typhoon_start_tx,
 	.ndo_set_rx_mode	= typhoon_set_rx_mode,
 	.ndo_tx_timeout		= typhoon_tx_timeout,
@@ -2278,6 +2292,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *dev;
 	struct typhoon *tp;
 	int card_id = (int) ent->driver_data;
+	u8 addr[ETH_ALEN] __aligned(4);
 	void __iomem *ioaddr;
 	void *shared;
 	dma_addr_t shared_dma;
@@ -2409,8 +2424,9 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto error_out_reset;
 	}
 
-	*(__be16 *)&dev->dev_addr[0] = htons(le16_to_cpu(xp_resp[0].parm1));
-	*(__be32 *)&dev->dev_addr[2] = htonl(le32_to_cpu(xp_resp[0].parm2));
+	*(__be16 *)&addr[0] = htons(le16_to_cpu(xp_resp[0].parm1));
+	*(__be32 *)&addr[2] = htonl(le32_to_cpu(xp_resp[0].parm2));
+	eth_hw_addr_set(dev, addr);
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		err_msg = "Could not obtain valid ethernet address, aborting";

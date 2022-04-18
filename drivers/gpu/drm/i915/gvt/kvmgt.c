@@ -46,6 +46,8 @@
 
 #include <linux/nospec.h>
 
+#include <drm/drm_edid.h>
+
 #include "i915_drv.h"
 #include "gvt.h"
 
@@ -186,14 +188,29 @@ static ssize_t description_show(struct mdev_type *mtype,
 		       type->weight);
 }
 
+static ssize_t name_show(struct mdev_type *mtype,
+			 struct mdev_type_attribute *attr, char *buf)
+{
+	struct intel_vgpu_type *type;
+	struct intel_gvt *gvt = kdev_to_i915(mtype_get_parent_dev(mtype))->gvt;
+
+	type = &gvt->types[mtype_get_type_group_id(mtype)];
+	if (!type)
+		return 0;
+
+	return sprintf(buf, "%s\n", type->name);
+}
+
 static MDEV_TYPE_ATTR_RO(available_instances);
 static MDEV_TYPE_ATTR_RO(device_api);
 static MDEV_TYPE_ATTR_RO(description);
+static MDEV_TYPE_ATTR_RO(name);
 
 static struct attribute *gvt_type_attrs[] = {
 	&mdev_type_attr_available_instances.attr,
 	&mdev_type_attr_device_api.attr,
 	&mdev_type_attr_description.attr,
+	&mdev_type_attr_name.attr,
 	NULL,
 };
 

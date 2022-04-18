@@ -1411,13 +1411,11 @@ static int ads7846_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ads7846_remove(struct spi_device *spi)
+static void ads7846_remove(struct spi_device *spi)
 {
 	struct ads7846 *ts = spi_get_drvdata(spi);
 
 	ads7846_stop(ts);
-
-	return 0;
 }
 
 static struct spi_driver ads7846_driver = {

@@ -76,6 +76,7 @@ struct goodix_chip_data {
 struct goodix_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
+	struct input_dev *input_pen;
 	const struct goodix_chip_data *chip;
 	const char *firmware_name;
 	struct touchscreen_properties prop;
@@ -93,6 +94,7 @@ struct goodix_ts_data {
 	u16 version;
 	bool reset_controller_at_probe;
 	bool load_cfg_from_disk;
+	int pen_input_registered;
 	struct completion firmware_loading_complete;
 	unsigned long irq_flags;
 	enum goodix_irq_pin_access_method irq_pin_access_method;

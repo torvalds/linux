@@ -6,14 +6,6 @@
  * Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#include "sched.h"
-
-#include <linux/sched/cpufreq.h>
-#include <trace/events/power.h>
-#include <trace/hooks/sched.h>
-
 #define IOWAIT_BOOST_MIN	(SCHED_CAPACITY_SCALE / 8)
 
 struct sugov_tunables {
@@ -104,15 +96,9 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
 				   unsigned int next_freq)
 {
-	bool should_update = true;
-
 	if (sg_policy->need_freq_update)
 		sg_policy->need_freq_update = cpufreq_driver_test_flags(CPUFREQ_NEED_UPDATE_LIMITS);
 	else if (sg_policy->next_freq == next_freq)
-		return false;
-
-	trace_android_rvh_set_sugov_update(sg_policy, next_freq, &should_update);
-	if (!should_update)
 		return false;
 
 	sg_policy->next_freq = next_freq;
@@ -157,14 +143,9 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 	struct cpufreq_policy *policy = sg_policy->policy;
 	unsigned int freq = arch_scale_freq_invariant() ?
 				policy->cpuinfo.max_freq : policy->cur;
-	unsigned long next_freq = 0;
 
 	util = map_util_perf(util);
-	trace_android_vh_map_util_freq(util, freq, max, &next_freq);
-	if (next_freq)
-		freq = next_freq;
-	else
-		freq = map_util_freq(util, freq, max);
+	freq = map_util_freq(util, freq, max);
 
 	if (freq == sg_policy->cached_raw_freq && !sg_policy->need_freq_update)
 		return sg_policy->next_freq;
@@ -301,6 +282,7 @@ static void sugov_iowait_apply(struct sugov_cpu *sg_cpu, u64 time)
 	 * into the same scale so we can compare.
 	 */
 	boost = (sg_cpu->iowait_boost * sg_cpu->max) >> SCHED_CAPACITY_SHIFT;
+	boost = uclamp_rq_util_with(cpu_rq(sg_cpu->cpu), boost, NULL);
 	if (sg_cpu->util < boost)
 		sg_cpu->util = boost;
 }
@@ -360,8 +342,11 @@ static void sugov_update_single_freq(struct update_util_data *hook, u64 time,
 	/*
 	 * Do not reduce the frequency if the CPU has not been idle
 	 * recently, as the reduction is likely to be premature then.
+	 *
+	 * Except when the rq is capped by uclamp_max.
 	 */
-	if (sugov_cpu_is_busy(sg_cpu) && next_f < sg_policy->next_freq) {
+	if (!uclamp_rq_is_capped(cpu_rq(sg_cpu->cpu)) &&
+	    sugov_cpu_is_busy(sg_cpu) && next_f < sg_policy->next_freq) {
 		next_f = sg_policy->next_freq;
 
 		/* Restore cached freq as next_freq has changed */
@@ -407,8 +392,11 @@ static void sugov_update_single_perf(struct update_util_data *hook, u64 time,
 	/*
 	 * Do not reduce the target performance level if the CPU has not been
 	 * idle recently, as the reduction is likely to be premature then.
+	 *
+	 * Except when the rq is capped by uclamp_max.
 	 */
-	if (sugov_cpu_is_busy(sg_cpu) && sg_cpu->util < prev_util)
+	if (!uclamp_rq_is_capped(cpu_rq(sg_cpu->cpu)) &&
+	    sugov_cpu_is_busy(sg_cpu) && sg_cpu->util < prev_util)
 		sg_cpu->util = prev_util;
 
 	cpufreq_driver_adjust_perf(sg_cpu->cpu, map_util_perf(sg_cpu->bw_dl),
@@ -551,7 +539,7 @@ ATTRIBUTE_GROUPS(sugov);
 
 static void sugov_tunables_free(struct kobject *kobj)
 {
-	struct gov_attr_set *attr_set = container_of(kobj, struct gov_attr_set, kobj);
+	struct gov_attr_set *attr_set = to_gov_attr_set(kobj);
 
 	kfree(to_sugov_tunables(attr_set));
 }
@@ -608,7 +596,6 @@ static int sugov_kthread_create(struct sugov_policy *sg_policy)
 	if (policy->fast_switch_enabled)
 		return 0;
 
-	trace_android_vh_set_sugov_sched_attr(&attr);
 	kthread_init_work(&sg_policy->work, sugov_work);
 	kthread_init_worker(&sg_policy->worker);
 	thread = kthread_create(kthread_worker_fn, &sg_policy->worker,

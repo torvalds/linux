@@ -411,6 +411,7 @@ verified:
  * ext4_read_block_bitmap_nowait()
  * @sb:			super block
  * @block_group:	given block group
+ * @ignore_locked:	ignore locked buffers
  *
  * Read the bitmap for a given block_group,and validate the
  * bits for block/inode/inode tables are set in the bitmaps

@@ -90,7 +90,6 @@ typedef struct svc_fh {
 						 * operation
 						 */
 	int			fh_flags;	/* FH flags */
-#ifdef CONFIG_NFSD_V3
 	bool			fh_post_saved;	/* post-op attrs saved */
 	bool			fh_pre_saved;	/* pre-op attrs saved */
 
@@ -107,7 +106,6 @@ typedef struct svc_fh {
 	/* Post-op attributes saved in fh_unlock */
 	struct kstat		fh_post_attr;	/* full attrs after operation */
 	u64			fh_post_change; /* nfsv4 change; see above */
-#endif /* CONFIG_NFSD_V3 */
 } svc_fh;
 #define NFSD4_FH_FOREIGN (1<<0)
 #define SET_FH_FLAG(c, f) ((c)->fh_flags |= (f))
@@ -283,13 +281,12 @@ static inline u32 knfsd_fh_hash(const struct knfsd_fh *fh)
 }
 #endif
 
-#ifdef CONFIG_NFSD_V3
-/*
- * The wcc data stored in current_fh should be cleared
- * between compound ops.
+/**
+ * fh_clear_pre_post_attrs - Reset pre/post attributes
+ * @fhp: file handle to be updated
+ *
  */
-static inline void
-fh_clear_wcc(struct svc_fh *fhp)
+static inline void fh_clear_pre_post_attrs(struct svc_fh *fhp)
 {
 	fhp->fh_post_saved = false;
 	fhp->fh_pre_saved = false;
@@ -323,13 +320,8 @@ static inline u64 nfsd4_change_attribute(struct kstat *stat,
 		return time_to_chattr(&stat->ctime);
 }
 
-extern void fill_pre_wcc(struct svc_fh *fhp);
-extern void fill_post_wcc(struct svc_fh *fhp);
-#else
-#define fh_clear_wcc(ignored)
-#define fill_pre_wcc(ignored)
-#define fill_post_wcc(notused)
-#endif /* CONFIG_NFSD_V3 */
+extern void fh_fill_pre_attrs(struct svc_fh *fhp);
+extern void fh_fill_post_attrs(struct svc_fh *fhp);
 
 
 /*
@@ -355,7 +347,7 @@ fh_lock_nested(struct svc_fh *fhp, unsigned int subclass)
 
 	inode = d_inode(dentry);
 	inode_lock_nested(inode, subclass);
-	fill_pre_wcc(fhp);
+	fh_fill_pre_attrs(fhp);
 	fhp->fh_locked = true;
 }
 
@@ -372,7 +364,7 @@ static inline void
 fh_unlock(struct svc_fh *fhp)
 {
 	if (fhp->fh_locked) {
-		fill_post_wcc(fhp);
+		fh_fill_post_attrs(fhp);
 		inode_unlock(d_inode(fhp->fh_dentry));
 		fhp->fh_locked = false;
 	}

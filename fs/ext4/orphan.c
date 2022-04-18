@@ -93,7 +93,7 @@ static int ext4_orphan_file_add(handle_t *handle, struct inode *inode)
  * At filesystem recovery time, we walk this list deleting unlinked
  * inodes and truncating linked inodes in ext4_orphan_cleanup().
  *
- * Orphan list manipulation functions must be called under i_mutex unless
+ * Orphan list manipulation functions must be called under i_rwsem unless
  * we are just creating the inode or deleting it.
  */
 int ext4_orphan_add(handle_t *handle, struct inode *inode)
@@ -119,7 +119,7 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	/*
 	 * Orphan handling is only valid for files with data blocks
 	 * being truncated, or files being unlinked. Note that we either
-	 * hold i_mutex, or the inode can not be referenced from outside,
+	 * hold i_rwsem, or the inode can not be referenced from outside,
 	 * so i_nlink should not be bumped due to race
 	 */
 	ASSERT((S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||

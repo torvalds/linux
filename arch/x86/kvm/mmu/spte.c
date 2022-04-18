@@ -91,7 +91,7 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
 }
 
 bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
-	       struct kvm_memory_slot *slot,
+	       const struct kvm_memory_slot *slot,
 	       unsigned int pte_access, gfn_t gfn, kvm_pfn_t pfn,
 	       u64 old_spte, bool prefetch, bool can_unsync,
 	       bool host_writable, u64 *new_spte)
@@ -102,7 +102,7 @@ bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 
 	if (sp->role.ad_disabled)
 		spte |= SPTE_TDP_AD_DISABLED_MASK;
-	else if (kvm_vcpu_ad_need_write_protect(vcpu))
+	else if (kvm_mmu_page_ad_need_write_protect(sp))
 		spte |= SPTE_TDP_AD_WRPROT_ONLY_MASK;
 
 	/*
@@ -162,7 +162,7 @@ bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		 * e.g. it's write-tracked (upper-level SPs) or has one or more
 		 * shadow pages and unsync'ing pages is not allowed.
 		 */
-		if (mmu_try_to_unsync_pages(vcpu, slot, gfn, can_unsync, prefetch)) {
+		if (mmu_try_to_unsync_pages(vcpu->kvm, slot, gfn, can_unsync, prefetch)) {
 			pgprintk("%s: found shadow page for %llx, marking ro\n",
 				 __func__, gfn);
 			wrprot = true;
@@ -192,6 +192,65 @@ out:
 	return wrprot;
 }
 
+static u64 make_spte_executable(u64 spte)
+{
+	bool is_access_track = is_access_track_spte(spte);
+
+	if (is_access_track)
+		spte = restore_acc_track_spte(spte);
+
+	spte &= ~shadow_nx_mask;
+	spte |= shadow_x_mask;
+
+	if (is_access_track)
+		spte = mark_spte_for_access_track(spte);
+
+	return spte;
+}
+
+/*
+ * Construct an SPTE that maps a sub-page of the given huge page SPTE where
+ * `index` identifies which sub-page.
+ *
+ * This is used during huge page splitting to build the SPTEs that make up the
+ * new page table.
+ */
+u64 make_huge_page_split_spte(u64 huge_spte, int huge_level, int index)
+{
+	u64 child_spte;
+	int child_level;
+
+	if (WARN_ON_ONCE(!is_shadow_present_pte(huge_spte)))
+		return 0;
+
+	if (WARN_ON_ONCE(!is_large_pte(huge_spte)))
+		return 0;
+
+	child_spte = huge_spte;
+	child_level = huge_level - 1;
+
+	/*
+	 * The child_spte already has the base address of the huge page being
+	 * split. So we just have to OR in the offset to the page at the next
+	 * lower level for the given index.
+	 */
+	child_spte |= (index * KVM_PAGES_PER_HPAGE(child_level)) << PAGE_SHIFT;
+
+	if (child_level == PG_LEVEL_4K) {
+		child_spte &= ~PT_PAGE_SIZE_MASK;
+
+		/*
+		 * When splitting to a 4K page, mark the page executable as the
+		 * NX hugepage mitigation no longer applies.
+		 */
+		if (is_nx_huge_page_enabled())
+			child_spte = make_spte_executable(child_spte);
+	}
+
+	return child_spte;
+}
+
+
 u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled)
 {
 	u64 spte = SPTE_MMU_PRESENT_MASK;
@@ -216,6 +275,7 @@ u64 kvm_mmu_changed_pte_notifier_make_spte(u64 old_spte, kvm_pfn_t new_pfn)
 
 	new_spte &= ~PT_WRITABLE_MASK;
 	new_spte &= ~shadow_host_writable_mask;
+	new_spte &= ~shadow_mmu_writable_mask;
 
 	new_spte = mark_spte_for_access_track(new_spte);
 
@@ -249,14 +309,7 @@ u64 mark_spte_for_access_track(u64 spte)
 	if (is_access_track_spte(spte))
 		return spte;
 
-	/*
-	 * Making an Access Tracking PTE will result in removal of write access
-	 * from the PTE. So, verify that we will be able to restore the write
-	 * access in the fast page fault path later on.
-	 */
-	WARN_ONCE((spte & PT_WRITABLE_MASK) &&
-		  !spte_can_locklessly_be_made_writable(spte),
-		  "kvm: Writable SPTE is not locklessly dirty-trackable\n");
+	check_spte_writable_invariants(spte);
 
 	WARN_ONCE(spte & (SHADOW_ACC_TRACK_SAVED_BITS_MASK <<
 			  SHADOW_ACC_TRACK_SAVED_BITS_SHIFT),
@@ -367,8 +420,8 @@ void kvm_mmu_reset_all_pte_masks(void)
 	shadow_acc_track_mask	= 0;
 	shadow_me_mask		= sme_me_mask;
 
-	shadow_host_writable_mask = DEFAULT_SPTE_HOST_WRITEABLE;
-	shadow_mmu_writable_mask  = DEFAULT_SPTE_MMU_WRITEABLE;
+	shadow_host_writable_mask = DEFAULT_SPTE_HOST_WRITABLE;
+	shadow_mmu_writable_mask  = DEFAULT_SPTE_MMU_WRITABLE;
 
 	/*
 	 * Set a reserved PA bit in MMIO SPTEs to generate page faults with

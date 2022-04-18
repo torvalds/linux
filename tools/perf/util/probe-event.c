@@ -332,7 +332,7 @@ static int kernel_get_module_dso(const char *module, struct dso **pdso)
 		char module_name[128];
 
 		snprintf(module_name, sizeof(module_name), "[%s]", module);
-		map = maps__find_by_name(&host_machine->kmaps, module_name);
+		map = maps__find_by_name(machine__kernel_maps(host_machine), module_name);
 		if (map) {
 			dso = map->dso;
 			goto found;
@@ -3082,6 +3082,9 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 
 	for (j = 0; j < num_matched_functions; j++) {
 		sym = syms[j];
+
+		if (sym->type != STT_FUNC)
+			continue;
 
 		/* There can be duplicated symbols in the map */
 		for (i = 0; i < j; i++)

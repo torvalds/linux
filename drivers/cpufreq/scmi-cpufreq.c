@@ -154,7 +154,7 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 	 * table and opp-shared.
 	 */
 	ret = dev_pm_opp_of_get_sharing_cpus(cpu_dev, priv->opp_shared_cpus);
-	if (ret || !cpumask_weight(priv->opp_shared_cpus)) {
+	if (ret || cpumask_empty(priv->opp_shared_cpus)) {
 		/*
 		 * Either opp-table is not set or no opp-shared was found.
 		 * Use the CPU mask from SCMI to designate CPUs sharing an OPP

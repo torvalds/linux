@@ -38,6 +38,7 @@ KBUILD_AFLAGS := $(KBUILD_AFLAGS) -D__ASSEMBLY__ \
 KCOV_INSTRUMENT		:= n
 GCOV_PROFILE := n
 UBSAN_SANITIZE := n
+KCSAN_SANITIZE			:= n
 
 # decompressor objects (linked with vmlinuz)
 vmlinuzobjs-y := $(obj)/head.o $(obj)/decompress.o $(obj)/string.o $(obj)/bswapsi.o
@@ -64,12 +65,12 @@ $(obj)/vmlinux.bin: $(KBUILD_IMAGE) FORCE
 	$(call if_changed,objcopy)
 
 tool_$(CONFIG_KERNEL_GZIP)    = gzip
-tool_$(CONFIG_KERNEL_BZIP2)   = bzip2
-tool_$(CONFIG_KERNEL_LZ4)     = lz4
-tool_$(CONFIG_KERNEL_LZMA)    = lzma
-tool_$(CONFIG_KERNEL_LZO)     = lzo
-tool_$(CONFIG_KERNEL_XZ)      = xzkern
-tool_$(CONFIG_KERNEL_ZSTD)    = zstd22
+tool_$(CONFIG_KERNEL_BZIP2)   = bzip2_with_size
+tool_$(CONFIG_KERNEL_LZ4)     = lz4_with_size
+tool_$(CONFIG_KERNEL_LZMA)    = lzma_with_size
+tool_$(CONFIG_KERNEL_LZO)     = lzo_with_size
+tool_$(CONFIG_KERNEL_XZ)      = xzkern_with_size
+tool_$(CONFIG_KERNEL_ZSTD)    = zstd22_with_size
 
 targets += vmlinux.bin.z
 

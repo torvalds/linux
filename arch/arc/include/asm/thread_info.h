@@ -27,7 +27,6 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/thread_info.h>
-#include <asm/segment.h>
 
 /*
  * low level task data that entry.S needs immediate access to
@@ -40,7 +39,6 @@ struct thread_info {
 	unsigned long flags;		/* low level flags */
 	int preempt_count;		/* 0 => preemptable, <0 => BUG */
 	struct task_struct *task;	/* main task structure */
-	mm_segment_t addr_limit;	/* thread address space */
 	__u32 cpu;			/* current CPU */
 	unsigned long thr_ptr;		/* TLS ptr */
 };
@@ -56,7 +54,6 @@ struct thread_info {
 	.flags      = 0,			\
 	.cpu        = 0,			\
 	.preempt_count  = INIT_PREEMPT_COUNT,	\
-	.addr_limit = KERNEL_DS,		\
 }
 
 static inline __attribute_const__ struct thread_info *current_thread_info(void)
@@ -99,8 +96,8 @@ static inline __attribute_const__ struct thread_info *current_thread_info(void)
 
 /*
  * _TIF_ALLWORK_MASK includes SYSCALL_TRACE, but we don't need it.
- * SYSCALL_TRACE is anyway seperately/unconditionally tested right after a
- * syscall, so all that reamins to be tested is _TIF_WORK_MASK
+ * SYSCALL_TRACE is anyway separately/unconditionally tested right after a
+ * syscall, so all that remains to be tested is _TIF_WORK_MASK
  */
 
 #endif /* _ASM_THREAD_INFO_H */

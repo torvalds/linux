@@ -703,30 +703,33 @@ static int ashmem_pin(struct ashmem_area *asma, size_t pgstart, size_t pgend,
 static int ashmem_unpin(struct ashmem_area *asma, size_t pgstart, size_t pgend,
 			struct ashmem_range **new_range)
 {
-	struct ashmem_range *range, *next;
+	struct ashmem_range *range = NULL, *iter, *next;
 	unsigned int purged = ASHMEM_NOT_PURGED;
 
 restart:
-	list_for_each_entry_safe(range, next, &asma->unpinned_list, unpinned) {
+	list_for_each_entry_safe(iter, next, &asma->unpinned_list, unpinned) {
 		/* short circuit: this is our insertion point */
-		if (range_before_page(range, pgstart))
+		if (range_before_page(iter, pgstart)) {
+			range = iter;
 			break;
+		}
 
 		/*
 		 * The user can ask us to unpin pages that are already entirely
 		 * or partially pinned. We handle those two cases here.
 		 */
-		if (page_range_subsumed_by_range(range, pgstart, pgend))
+		if (page_range_subsumed_by_range(iter, pgstart, pgend))
 			return 0;
-		if (page_range_in_range(range, pgstart, pgend)) {
-			pgstart = min(range->pgstart, pgstart);
-			pgend = max(range->pgend, pgend);
-			purged |= range->purged;
-			range_del(range);
+		if (page_range_in_range(iter, pgstart, pgend)) {
+			pgstart = min(iter->pgstart, pgstart);
+			pgend = max(iter->pgend, pgend);
+			purged |= iter->purged;
+			range_del(iter);
 			goto restart;
 		}
 	}
 
+	range = list_prepare_entry(range, &asma->unpinned_list, unpinned);
 	range_alloc(asma, range, purged, pgstart, pgend, new_range);
 	return 0;
 }

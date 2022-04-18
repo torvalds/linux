@@ -143,6 +143,34 @@ static const struct perf_pmu_test_event unc_cbo_xsnp_response_miss_eviction = {
 	.matching_pmu = "uncore_cbox_0",
 };
 
+static const struct perf_pmu_test_event uncore_hyphen = {
+	.event = {
+		.name = "event-hyphen",
+		.event = "umask=0x00,event=0xe0",
+		.desc = "Unit: uncore_cbox UNC_CBO_HYPHEN",
+		.topic = "uncore",
+		.long_desc = "UNC_CBO_HYPHEN",
+		.pmu = "uncore_cbox",
+	},
+	.alias_str = "umask=0,event=0xe0",
+	.alias_long_desc = "UNC_CBO_HYPHEN",
+	.matching_pmu = "uncore_cbox_0",
+};
+
+static const struct perf_pmu_test_event uncore_two_hyph = {
+	.event = {
+		.name = "event-two-hyph",
+		.event = "umask=0x00,event=0xc0",
+		.desc = "Unit: uncore_cbox UNC_CBO_TWO_HYPH",
+		.topic = "uncore",
+		.long_desc = "UNC_CBO_TWO_HYPH",
+		.pmu = "uncore_cbox",
+	},
+	.alias_str = "umask=0,event=0xc0",
+	.alias_long_desc = "UNC_CBO_TWO_HYPH",
+	.matching_pmu = "uncore_cbox_0",
+};
+
 static const struct perf_pmu_test_event uncore_hisi_l3c_rd_hit_cpipe = {
 	.event = {
 		.name = "uncore_hisi_l3c.rd_hit_cpipe",
@@ -188,6 +216,8 @@ static const struct perf_pmu_test_event uncore_imc_cache_hits = {
 static const struct perf_pmu_test_event *uncore_events[] = {
 	&uncore_hisi_ddrc_flux_wcmd,
 	&unc_cbo_xsnp_response_miss_eviction,
+	&uncore_hyphen,
+	&uncore_two_hyph,
 	&uncore_hisi_l3c_rd_hit_cpipe,
 	&uncore_imc_free_running_cache_miss,
 	&uncore_imc_cache_hits,
@@ -654,6 +684,8 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 		},
 		.aliases = {
 			&unc_cbo_xsnp_response_miss_eviction,
+			&uncore_hyphen,
+			&uncore_two_hyph,
 		},
 	},
 	{
@@ -962,8 +994,18 @@ static int test__parsing(struct test_suite *test __maybe_unused,
 			}
 
 			if (expr__parse(&result, ctx, pe->metric_expr)) {
-				expr_failure("Parse failed", map, pe);
-				ret++;
+				/*
+				 * Parsing failed, make numbers go from large to
+				 * small which can resolve divide by zero
+				 * issues.
+				 */
+				k = 1024;
+				hashmap__for_each_entry(ctx->ids, cur, bkt)
+					expr__add_id_val(ctx, strdup(cur->key), k--);
+				if (expr__parse(&result, ctx, pe->metric_expr)) {
+					expr_failure("Parse failed", map, pe);
+					ret++;
+				}
 			}
 		}
 	}
@@ -1022,10 +1064,20 @@ static int metric_parse_fake(const char *str)
 		}
 	}
 
-	if (expr__parse(&result, ctx, str))
-		pr_err("expr__parse failed\n");
-	else
-		ret = 0;
+	ret = 0;
+	if (expr__parse(&result, ctx, str)) {
+		/*
+		 * Parsing failed, make numbers go from large to small which can
+		 * resolve divide by zero issues.
+		 */
+		i = 1024;
+		hashmap__for_each_entry(ctx->ids, cur, bkt)
+			expr__add_id_val(ctx, strdup(cur->key), i--);
+		if (expr__parse(&result, ctx, str)) {
+			pr_err("expr__parse failed\n");
+			ret = -1;
+		}
+	}
 
 out:
 	expr__ctx_free(ctx);

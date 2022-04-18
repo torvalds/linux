@@ -823,10 +823,7 @@ EXPORT_SYMBOL_GPL(mt76x02_phy_dfs_adjust_agc);
 
 void mt76x02_dfs_init_params(struct mt76x02_dev *dev)
 {
-	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
-
-	if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
-	    dev->mt76.region != NL80211_DFS_UNSET) {
+	if (mt76_phy_dfs_state(&dev->mphy) > MT_DFS_STATE_DISABLED) {
 		mt76x02_dfs_init_sw_detector(dev);
 		mt76x02_dfs_set_bbp_params(dev);
 		/* enable debug mode */

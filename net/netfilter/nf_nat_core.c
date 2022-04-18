@@ -494,38 +494,6 @@ another_round:
 	goto another_round;
 }
 
-static bool tuple_force_port_remap(const struct nf_conntrack_tuple *tuple)
-{
-	u16 sp, dp;
-
-	switch (tuple->dst.protonum) {
-	case IPPROTO_TCP:
-		sp = ntohs(tuple->src.u.tcp.port);
-		dp = ntohs(tuple->dst.u.tcp.port);
-		break;
-	case IPPROTO_UDP:
-	case IPPROTO_UDPLITE:
-		sp = ntohs(tuple->src.u.udp.port);
-		dp = ntohs(tuple->dst.u.udp.port);
-		break;
-	default:
-		return false;
-	}
-
-	/* IANA: System port range: 1-1023,
-	 *         user port range: 1024-49151,
-	 *      private port range: 49152-65535.
-	 *
-	 * Linux default ephemeral port range is 32768-60999.
-	 *
-	 * Enforce port remapping if sport is significantly lower
-	 * than dport to prevent NAT port shadowing, i.e.
-	 * accidental match of 'new' inbound connection vs.
-	 * existing outbound one.
-	 */
-	return sp < 16384 && dp >= 32768;
-}
-
 /* Manipulate the tuple into the range given. For NF_INET_POST_ROUTING,
  * we change the source to map into the range. For NF_INET_PRE_ROUTING
  * and NF_INET_LOCAL_OUT, we change the destination to map into the
@@ -539,16 +507,10 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		 struct nf_conn *ct,
 		 enum nf_nat_manip_type maniptype)
 {
-	bool random_port = range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL;
 	const struct nf_conntrack_zone *zone;
 	struct net *net = nf_ct_net(ct);
 
 	zone = nf_ct_zone(ct);
-
-	if (maniptype == NF_NAT_MANIP_SRC &&
-	    !random_port &&
-	    !ct->local_origin)
-		random_port = tuple_force_port_remap(orig_tuple);
 
 	/* 1) If this srcip/proto/src-proto-part is currently mapped,
 	 * and that same mapping gives a unique tuple within the given
@@ -558,7 +520,8 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 * So far, we don't do local source mappings, so multiple
 	 * manips not an issue.
 	 */
-	if (maniptype == NF_NAT_MANIP_SRC && !random_port) {
+	if (maniptype == NF_NAT_MANIP_SRC &&
+	    !(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		/* try the original tuple first */
 		if (in_range(orig_tuple, range)) {
 			if (!nf_nat_used_tuple(orig_tuple, ct)) {
@@ -582,7 +545,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 */
 
 	/* Only bother mapping if it's not already in range and unique */
-	if (!random_port) {
+	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
 			if (!(range->flags & NF_NAT_RANGE_PROTO_OFFSET) &&
 			    l4proto_in_range(tuple, maniptype,
@@ -838,7 +801,7 @@ static int nf_nat_proto_remove(struct nf_conn *i, void *data)
 	return i->status & IPS_NAT_MASK ? 1 : 0;
 }
 
-static void __nf_nat_cleanup_conntrack(struct nf_conn *ct)
+static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 {
 	unsigned int h;
 
@@ -860,27 +823,13 @@ static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
 	 * will delete entry from already-freed table.
 	 */
 	if (test_and_clear_bit(IPS_SRC_NAT_DONE_BIT, &ct->status))
-		__nf_nat_cleanup_conntrack(ct);
+		nf_nat_cleanup_conntrack(ct);
 
 	/* don't delete conntrack.  Although that would make things a lot
 	 * simpler, we'd end up flushing all conntracks on nat rmmod.
 	 */
 	return 0;
 }
-
-/* No one using conntrack by the time this called. */
-static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
-{
-	if (ct->status & IPS_SRC_NAT_DONE)
-		__nf_nat_cleanup_conntrack(ct);
-}
-
-static struct nf_ct_ext_type nat_extend __read_mostly = {
-	.len		= sizeof(struct nf_conn_nat),
-	.align		= __alignof__(struct nf_conn_nat),
-	.destroy	= nf_nat_cleanup_conntrack,
-	.id		= NF_CT_EXT_NAT,
-};
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 
@@ -1173,6 +1122,7 @@ static const struct nf_nat_hook nat_hook = {
 	.decode_session		= __nf_nat_decode_session,
 #endif
 	.manip_pkt		= nf_nat_manip_pkt,
+	.remove_nat_bysrc	= nf_nat_cleanup_conntrack,
 };
 
 static int __init nf_nat_init(void)
@@ -1188,19 +1138,11 @@ static int __init nf_nat_init(void)
 	if (!nf_nat_bysource)
 		return -ENOMEM;
 
-	ret = nf_ct_extend_register(&nat_extend);
-	if (ret < 0) {
-		kvfree(nf_nat_bysource);
-		pr_err("Unable to register extension\n");
-		return ret;
-	}
-
 	for (i = 0; i < CONNTRACK_LOCKS; i++)
 		spin_lock_init(&nf_nat_locks[i]);
 
 	ret = register_pernet_subsys(&nat_net_ops);
 	if (ret < 0) {
-		nf_ct_extend_unregister(&nat_extend);
 		kvfree(nf_nat_bysource);
 		return ret;
 	}
@@ -1219,7 +1161,6 @@ static void __exit nf_nat_cleanup(void)
 
 	nf_ct_iterate_destroy(nf_nat_proto_clean, &clean);
 
-	nf_ct_extend_unregister(&nat_extend);
 	nf_ct_helper_expectfn_unregister(&follow_master_nat);
 	RCU_INIT_POINTER(nf_nat_hook, NULL);
 

@@ -22,6 +22,8 @@
 #include "counter-chrdev.h"
 #include "counter-sysfs.h"
 
+#define COUNTER_NAME	"counter"
+
 /* Provides a unique ID for each counter device */
 static DEFINE_IDA(counter_ida);
 
@@ -90,10 +92,8 @@ struct counter_device *counter_alloc(size_t sizeof_priv)
 	int err;
 
 	ch = kzalloc(sizeof(*ch) + sizeof_priv, GFP_KERNEL);
-	if (!ch) {
-		err = -ENOMEM;
-		goto err_alloc_ch;
-	}
+	if (!ch)
+		return NULL;
 
 	counter = &ch->counter;
 	dev = &counter->dev;
@@ -115,17 +115,23 @@ struct counter_device *counter_alloc(size_t sizeof_priv)
 
 	device_initialize(dev);
 
+	err = dev_set_name(dev, COUNTER_NAME "%d", dev->id);
+	if (err)
+		goto err_dev_set_name;
+
 	return counter;
 
+err_dev_set_name:
+
+	counter_chrdev_remove(counter);
 err_chrdev_add:
 
 	ida_free(&counter_ida, dev->id);
 err_ida_alloc:
 
 	kfree(ch);
-err_alloc_ch:
 
-	return ERR_PTR(err);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(counter_alloc);
 
@@ -208,12 +214,12 @@ struct counter_device *devm_counter_alloc(struct device *dev, size_t sizeof_priv
 	int err;
 
 	counter = counter_alloc(sizeof_priv);
-	if (IS_ERR(counter))
-		return counter;
+	if (!counter)
+		return NULL;
 
 	err = devm_add_action_or_reset(dev, devm_counter_put, counter);
 	if (err < 0)
-		return ERR_PTR(err);
+		return NULL;
 
 	return counter;
 }
@@ -250,7 +256,8 @@ static int __init counter_init(void)
 	if (err < 0)
 		return err;
 
-	err = alloc_chrdev_region(&counter_devt, 0, COUNTER_DEV_MAX, "counter");
+	err = alloc_chrdev_region(&counter_devt, 0, COUNTER_DEV_MAX,
+				  COUNTER_NAME);
 	if (err < 0)
 		goto err_unregister_bus;
 

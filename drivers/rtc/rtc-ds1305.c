@@ -720,7 +720,7 @@ static int ds1305_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ds1305_remove(struct spi_device *spi)
+static void ds1305_remove(struct spi_device *spi)
 {
 	struct ds1305 *ds1305 = spi_get_drvdata(spi);
 
@@ -730,8 +730,6 @@ static int ds1305_remove(struct spi_device *spi)
 		devm_free_irq(&spi->dev, spi->irq, ds1305);
 		cancel_work_sync(&ds1305->work);
 	}
-
-	return 0;
 }
 
 static struct spi_driver ds1305_driver = {

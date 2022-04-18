@@ -31,6 +31,7 @@
 #include "amdgpu_ring.h"
 #include "amdgpu_rlc.h"
 #include "soc15.h"
+#include "amdgpu_ras.h"
 
 /* GFX current status */
 #define AMDGPU_GFX_NORMAL_MODE			0x00000000L
@@ -45,12 +46,6 @@
 enum amdgpu_gfx_pipe_priority {
 	AMDGPU_GFX_PIPE_PRIO_NORMAL = AMDGPU_RING_PRIO_1,
 	AMDGPU_GFX_PIPE_PRIO_HIGH = AMDGPU_RING_PRIO_2
-};
-
-/* Argument for PPSMC_MSG_GpuChangeState */
-enum gfx_change_state {
-	sGpuChangeState_D0Entry = 1,
-	sGpuChangeState_D3Entry,
 };
 
 #define AMDGPU_GFX_QUEUE_PRIORITY_MINIMUM  0
@@ -204,16 +199,8 @@ struct amdgpu_cu_info {
 	uint32_t bitmap[4][4];
 };
 
-struct amdgpu_gfx_ras_funcs {
-	int (*ras_late_init)(struct amdgpu_device *adev);
-	void (*ras_fini)(struct amdgpu_device *adev);
-	int (*ras_error_inject)(struct amdgpu_device *adev,
-				void *inject_if);
-	int (*query_ras_error_count)(struct amdgpu_device *adev,
-				     void *ras_error_status);
-	void (*reset_ras_error_count)(struct amdgpu_device *adev);
-	void (*query_ras_error_status)(struct amdgpu_device *adev);
-	void (*reset_ras_error_status)(struct amdgpu_device *adev);
+struct amdgpu_gfx_ras {
+	struct amdgpu_ras_block_object  ras_block;
 	void (*enable_watchdog_timer)(struct amdgpu_device *adev);
 };
 
@@ -337,7 +324,7 @@ struct amdgpu_gfx {
 
 	/*ras */
 	struct ras_common_if			*ras_if;
-	const struct amdgpu_gfx_ras_funcs	*ras_funcs;
+	struct amdgpu_gfx_ras	*ras;
 };
 
 #define amdgpu_gfx_get_gpu_clock_counter(adev) (adev)->gfx.funcs->get_gpu_clock_counter((adev))
@@ -399,8 +386,7 @@ bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev, int me,
 				    int pipe, int queue);
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable);
 int amdgpu_get_gfx_off_status(struct amdgpu_device *adev, uint32_t *value);
-int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev);
-void amdgpu_gfx_ras_fini(struct amdgpu_device *adev);
+int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
 int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
 		void *err_data,
 		struct amdgpu_iv_entry *entry);
@@ -410,5 +396,4 @@ int amdgpu_gfx_cp_ecc_error_irq(struct amdgpu_device *adev,
 uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg);
 void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v);
 int amdgpu_gfx_get_num_kcq(struct amdgpu_device *adev);
-void amdgpu_gfx_state_change_set(struct amdgpu_device *adev, enum gfx_change_state state);
 #endif

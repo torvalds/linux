@@ -81,12 +81,6 @@ static int copy_code(struct pt_regs *regs, u8 *buf, unsigned long src,
 	/* The user space code from other tasks cannot be accessed. */
 	if (regs != task_pt_regs(current))
 		return -EPERM;
-	/*
-	 * Make sure userspace isn't trying to trick us into dumping kernel
-	 * memory by pointing the userspace instruction pointer at it.
-	 */
-	if (__chk_range_not_ok(src, nbytes, TASK_SIZE_MAX))
-		return -EINVAL;
 
 	/*
 	 * Even if named copy_from_user_nmi() this can be invoked from
@@ -351,7 +345,7 @@ unsigned long oops_begin(void)
 }
 NOKPROBE_SYMBOL(oops_begin);
 
-void __noreturn rewind_stack_do_exit(int signr);
+void __noreturn rewind_stack_and_make_dead(int signr);
 
 void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 {
@@ -386,7 +380,7 @@ void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 	 * reuse the task stack and that existing poisons are invalid.
 	 */
 	kasan_unpoison_task_stack(current);
-	rewind_stack_do_exit(signr);
+	rewind_stack_and_make_dead(signr);
 }
 NOKPROBE_SYMBOL(oops_end);
 

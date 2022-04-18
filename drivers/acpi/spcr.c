@@ -107,8 +107,13 @@ int __init acpi_parse_spcr(bool enable_earlycon, bool enable_console)
 		pr_info("SPCR table version %d\n", table->header.revision);
 
 	if (table->serial_port.space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
-		switch (ACPI_ACCESS_BIT_WIDTH((
-			table->serial_port.access_width))) {
+		u32 bit_width = table->serial_port.access_width;
+
+		if (bit_width > ACPI_ACCESS_BIT_MAX) {
+			pr_err("Unacceptable wide SPCR Access Width.  Defaulting to byte size\n");
+			bit_width = ACPI_ACCESS_BIT_DEFAULT;
+		}
+		switch (ACPI_ACCESS_BIT_WIDTH((bit_width))) {
 		default:
 			pr_err("Unexpected SPCR Access Width.  Defaulting to byte size\n");
 			fallthrough;

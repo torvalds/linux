@@ -272,7 +272,7 @@ static int ima_eventdigest_init_common(const u8 *digest, u32 digestsize,
 	 * digest formats:
 	 *  - DATA_FMT_DIGEST: digest
 	 *  - DATA_FMT_DIGEST_WITH_ALGO: [<hash algo>] + ':' + '\0' + digest,
-	 *    where <hash algo> is provided if the hash algoritm is not
+	 *    where <hash algo> is provided if the hash algorithm is not
 	 *    SHA1 or MD5
 	 */
 	u8 buffer[CRYPTO_MAX_ALG_NAME + 2 + IMA_MAX_DIGEST_SIZE] = { 0 };
@@ -307,10 +307,7 @@ static int ima_eventdigest_init_common(const u8 *digest, u32 digestsize,
 int ima_eventdigest_init(struct ima_event_data *event_data,
 			 struct ima_field_data *field_data)
 {
-	struct {
-		struct ima_digest_data hdr;
-		char digest[IMA_MAX_DIGEST_SIZE];
-	} hash;
+	struct ima_max_digest_data hash;
 	u8 *cur_digest = NULL;
 	u32 cur_digestsize = 0;
 	struct inode *inode;

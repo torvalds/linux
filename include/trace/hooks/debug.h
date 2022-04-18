@@ -7,7 +7,6 @@
 #if !defined(_TRACE_HOOK_DEBUG_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_HOOK_DEBUG_H
 
-#include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)

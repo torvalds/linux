@@ -819,7 +819,7 @@ static int omap_sr_probe(struct platform_device *pdev)
 {
 	struct omap_sr *sr_info;
 	struct omap_sr_data *pdata = pdev->dev.platform_data;
-	struct resource *mem, *irq;
+	struct resource *mem;
 	struct dentry *nvalue_dir;
 	int i, ret = 0;
 
@@ -844,7 +844,11 @@ static int omap_sr_probe(struct platform_device *pdev)
 	if (IS_ERR(sr_info->base))
 		return PTR_ERR(sr_info->base);
 
-	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	ret = platform_get_irq_optional(pdev, 0);
+	if (ret < 0 && ret != -ENXIO)
+		return dev_err_probe(&pdev->dev, ret, "failed to get IRQ resource\n");
+	if (ret > 0)
+		sr_info->irq = ret;
 
 	sr_info->fck = devm_clk_get(pdev->dev.parent, "fck");
 	if (IS_ERR(sr_info->fck))
@@ -869,9 +873,6 @@ static int omap_sr_probe(struct platform_device *pdev)
 	sr_info->senp_avgweight = pdata->senp_avgweight;
 	sr_info->autocomp_active = false;
 	sr_info->ip_type = pdata->ip_type;
-
-	if (irq)
-		sr_info->irq = irq->start;
 
 	sr_set_clk_length(sr_info);
 
@@ -926,7 +927,7 @@ static int omap_sr_probe(struct platform_device *pdev)
 
 	}
 
-	return ret;
+	return 0;
 
 err_debugfs:
 	debugfs_remove_recursive(sr_info->dbg_dir);

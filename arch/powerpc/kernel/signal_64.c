@@ -936,11 +936,11 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 		 * descriptor is the entry address of signal and the second
 		 * entry is the TOC value we need to use.
 		 */
-		func_descr_t __user *funct_desc_ptr =
-			(func_descr_t __user *) ksig->ka.sa.sa_handler;
+		struct func_desc __user *ptr =
+			(struct func_desc __user *)ksig->ka.sa.sa_handler;
 
-		err |= get_user(regs->ctr, &funct_desc_ptr->entry);
-		err |= get_user(regs->gpr[2], &funct_desc_ptr->toc);
+		err |= get_user(regs->ctr, &ptr->addr);
+		err |= get_user(regs->gpr[2], &ptr->toc);
 	}
 
 	/* enter the signal handler in native-endian mode */

@@ -28,6 +28,7 @@
 #include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/seq_file.h>
+#include <linux/serial.h>
 #include <linux/serial_reg.h>
 #include <linux/circ_buf.h>
 #include <linux/tty.h>
@@ -250,21 +251,7 @@ static void sdio_uart_change_speed(struct sdio_uart_port *port,
 	unsigned char cval, fcr = 0;
 	unsigned int baud, quot;
 
-	switch (termios->c_cflag & CSIZE) {
-	case CS5:
-		cval = UART_LCR_WLEN5;
-		break;
-	case CS6:
-		cval = UART_LCR_WLEN6;
-		break;
-	case CS7:
-		cval = UART_LCR_WLEN7;
-		break;
-	default:
-	case CS8:
-		cval = UART_LCR_WLEN8;
-		break;
-	}
+	cval = UART_LCR_WLEN(tty_get_char_size(termios->c_cflag));
 
 	if (termios->c_cflag & CSTOPB)
 		cval |= UART_LCR_STOP;

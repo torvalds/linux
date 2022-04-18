@@ -22,7 +22,7 @@
 
 #include "xc4000.h"
 #include "tuner-i2c.h"
-#include "tuner-xc2028-types.h"
+#include "xc2028-types.h"
 
 static int debug;
 module_param(debug, int, 0644);

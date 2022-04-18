@@ -526,7 +526,7 @@ static void rxe_drain_resp_pkts(struct rxe_qp *qp, bool notify)
 	struct rxe_queue *q = qp->sq.queue;
 
 	while ((skb = skb_dequeue(&qp->resp_pkts))) {
-		rxe_drop_ref(qp);
+		rxe_put(qp);
 		kfree_skb(skb);
 		ib_device_put(qp->ibqp.device);
 	}
@@ -548,7 +548,7 @@ static void free_pkt(struct rxe_pkt_info *pkt)
 	struct ib_device *dev = qp->ibqp.device;
 
 	kfree_skb(skb);
-	rxe_drop_ref(qp);
+	rxe_put(qp);
 	ib_device_put(dev);
 }
 
@@ -562,7 +562,7 @@ int rxe_completer(void *arg)
 	enum comp_state state;
 	int ret = 0;
 
-	rxe_add_ref(qp);
+	rxe_get(qp);
 
 	if (!qp->valid || qp->req.state == QP_STATE_ERROR ||
 	    qp->req.state == QP_STATE_RESET) {
@@ -761,7 +761,7 @@ int rxe_completer(void *arg)
 done:
 	if (pkt)
 		free_pkt(pkt);
-	rxe_drop_ref(qp);
+	rxe_put(qp);
 
 	return ret;
 }

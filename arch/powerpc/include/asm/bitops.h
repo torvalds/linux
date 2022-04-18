@@ -287,7 +287,7 @@ static inline void arch___clear_bit_unlock(int nr, volatile unsigned long *addr)
  * fls: find last (most-significant) bit set.
  * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
  */
-static inline int fls(unsigned int x)
+static __always_inline int fls(unsigned int x)
 {
 	int lz;
 
@@ -305,7 +305,7 @@ static inline int fls(unsigned int x)
  * 32-bit fls calls.
  */
 #ifdef CONFIG_PPC64
-static inline int fls64(__u64 x)
+static __always_inline int fls64(__u64 x)
 {
 	int lz;
 
@@ -327,8 +327,6 @@ unsigned long __arch_hweight64(__u64 w);
 #else
 #include <asm-generic/bitops/hweight.h>
 #endif
-
-#include <asm-generic/bitops/find.h>
 
 /* wrappers that deal with KASAN instrumentation */
 #include <asm-generic/bitops/instrumented-atomic.h>

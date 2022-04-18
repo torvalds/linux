@@ -380,6 +380,10 @@ EXPORT_SYMBOL_GPL(fscrypt_set_bio_crypt_ctx_bh);
  *
  * fscrypt_set_bio_crypt_ctx() must have already been called on the bio.
  *
+ * This function isn't required in cases where crypto-mergeability is ensured in
+ * another way, such as I/O targeting only a single file (and thus a single key)
+ * combined with fscrypt_limit_io_blocks() to ensure DUN contiguity.
+ *
  * This function also returns false if the next part of the I/O would need to
  * have a different value for the bi_skip_dm_default_key flag.
  *
@@ -437,12 +441,15 @@ bool fscrypt_mergeable_bio_bh(struct bio *bio,
 EXPORT_SYMBOL_GPL(fscrypt_mergeable_bio_bh);
 
 /**
- * fscrypt_dio_supported() - check whether a direct I/O request is unsupported
- *			     due to encryption constraints
+ * fscrypt_dio_supported() - check whether a DIO (direct I/O) request is
+ *			     supported as far as encryption is concerned
  * @iocb: the file and position the I/O is targeting
  * @iter: the I/O data segment(s)
  *
- * Return: true if direct I/O is supported
+ * Return: %true if there are no encryption constraints that prevent DIO from
+ *	   being supported; %false if DIO is unsupported.  (Note that in the
+ *	   %true case, the filesystem might have other, non-encryption-related
+ *	   constraints that prevent DIO from actually being supported.)
  */
 bool fscrypt_dio_supported(struct kiocb *iocb, struct iov_iter *iter)
 {
@@ -453,13 +460,22 @@ bool fscrypt_dio_supported(struct kiocb *iocb, struct iov_iter *iter)
 	if (!fscrypt_needs_contents_encryption(inode))
 		return true;
 
-	/* We only support direct I/O with inline crypto, not fs-layer crypto */
+	/* We only support DIO with inline crypto, not fs-layer crypto. */
 	if (!fscrypt_inode_uses_inline_crypto(inode))
 		return false;
 
 	/*
-	 * Since the granularity of encryption is filesystem blocks, the I/O
-	 * must be block aligned -- not just disk sector aligned.
+	 * Since the granularity of encryption is filesystem blocks, the file
+	 * position and total I/O length must be aligned to the filesystem block
+	 * size -- not just to the block device's logical block size as is
+	 * traditionally the case for DIO on many filesystems.
+	 *
+	 * We require that the user-provided memory buffers be filesystem block
+	 * aligned too.  It is simpler to have a single alignment value required
+	 * for all properties of the I/O, as is normally the case for DIO.
+	 * Also, allowing less aligned buffers would imply that data units could
+	 * cross bvecs, which would greatly complicate the I/O stack, which
+	 * assumes that bios can be split at any bvec boundary.
 	 */
 	if (!IS_ALIGNED(iocb->ki_pos | iov_iter_alignment(iter), blocksize))
 		return false;
@@ -472,24 +488,25 @@ EXPORT_SYMBOL_GPL(fscrypt_dio_supported);
  * fscrypt_limit_io_blocks() - limit I/O blocks to avoid discontiguous DUNs
  * @inode: the file on which I/O is being done
  * @lblk: the block at which the I/O is being started from
- * @nr_blocks: the number of blocks we want to submit starting at @pos
+ * @nr_blocks: the number of blocks we want to submit starting at @lblk
  *
- * Determine the limit to the number of blocks that can be submitted in the bio
- * targeting @pos without causing a data unit number (DUN) discontinuity.
+ * Determine the limit to the number of blocks that can be submitted in a bio
+ * targeting @lblk without causing a data unit number (DUN) discontiguity.
  *
  * This is normally just @nr_blocks, as normally the DUNs just increment along
  * with the logical blocks.  (Or the file is not encrypted.)
  *
  * In rare cases, fscrypt can be using an IV generation method that allows the
- * DUN to wrap around within logically continuous blocks, and that wraparound
+ * DUN to wrap around within logically contiguous blocks, and that wraparound
  * will occur.  If this happens, a value less than @nr_blocks will be returned
- * so that the wraparound doesn't occur in the middle of the bio.
+ * so that the wraparound doesn't occur in the middle of a bio, which would
+ * cause encryption/decryption to produce wrong results.
  *
  * Return: the actual number of blocks that can be submitted
  */
 u64 fscrypt_limit_io_blocks(const struct inode *inode, u64 lblk, u64 nr_blocks)
 {
-	const struct fscrypt_info *ci = inode->i_crypt_info;
+	const struct fscrypt_info *ci;
 	u32 dun;
 
 	if (!fscrypt_inode_uses_inline_crypto(inode))
@@ -498,6 +515,7 @@ u64 fscrypt_limit_io_blocks(const struct inode *inode, u64 lblk, u64 nr_blocks)
 	if (nr_blocks <= 1)
 		return nr_blocks;
 
+	ci = inode->i_crypt_info;
 	if (!(fscrypt_policy_flags(&ci->ci_policy) &
 	      FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32))
 		return nr_blocks;

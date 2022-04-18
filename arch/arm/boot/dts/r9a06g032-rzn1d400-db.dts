@@ -26,3 +26,8 @@
 &uart0 {
 	status = "okay";
 };
+
+&wdt0 {
+	timeout-sec = <60>;
+	status = "okay";
+};

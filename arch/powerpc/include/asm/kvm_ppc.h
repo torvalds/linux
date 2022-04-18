@@ -200,12 +200,11 @@ extern void kvmppc_core_destroy_vm(struct kvm *kvm);
 extern void kvmppc_core_free_memslot(struct kvm *kvm,
 				     struct kvm_memory_slot *slot);
 extern int kvmppc_core_prepare_memory_region(struct kvm *kvm,
-				struct kvm_memory_slot *memslot,
-				const struct kvm_userspace_memory_region *mem,
+				const struct kvm_memory_slot *old,
+				struct kvm_memory_slot *new,
 				enum kvm_mr_change change);
 extern void kvmppc_core_commit_memory_region(struct kvm *kvm,
-				const struct kvm_userspace_memory_region *mem,
-				const struct kvm_memory_slot *old,
+				struct kvm_memory_slot *old,
 				const struct kvm_memory_slot *new,
 				enum kvm_mr_change change);
 extern int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm,
@@ -274,12 +273,11 @@ struct kvmppc_ops {
 	int (*get_dirty_log)(struct kvm *kvm, struct kvm_dirty_log *log);
 	void (*flush_memslot)(struct kvm *kvm, struct kvm_memory_slot *memslot);
 	int (*prepare_memory_region)(struct kvm *kvm,
-				     struct kvm_memory_slot *memslot,
-				     const struct kvm_userspace_memory_region *mem,
+				     const struct kvm_memory_slot *old,
+				     struct kvm_memory_slot *new,
 				     enum kvm_mr_change change);
 	void (*commit_memory_region)(struct kvm *kvm,
-				     const struct kvm_userspace_memory_region *mem,
-				     const struct kvm_memory_slot *old,
+				     struct kvm_memory_slot *old,
 				     const struct kvm_memory_slot *new,
 				     enum kvm_mr_change change);
 	bool (*unmap_gfn_range)(struct kvm *kvm, struct kvm_gfn_range *range);
@@ -316,6 +314,8 @@ struct kvmppc_ops {
 	int (*svm_off)(struct kvm *kvm);
 	int (*enable_dawr1)(struct kvm *kvm);
 	bool (*hash_v3_possible)(void);
+	int (*create_vm_debugfs)(struct kvm *kvm);
+	int (*create_vcpu_debugfs)(struct kvm_vcpu *vcpu, struct dentry *debugfs_dentry);
 };
 
 extern struct kvmppc_ops *kvmppc_hv_ops;
@@ -584,6 +584,18 @@ static inline void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu)
 
 static inline bool kvm_hv_mode_active(void)		{ return false; }
 
+#endif
+
+#ifdef CONFIG_PPC_PSERIES
+static inline bool kvmhv_on_pseries(void)
+{
+	return !cpu_has_feature(CPU_FTR_HVMODE);
+}
+#else
+static inline bool kvmhv_on_pseries(void)
+{
+	return false;
+}
 #endif
 
 #ifdef CONFIG_KVM_XICS

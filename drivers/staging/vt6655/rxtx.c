@@ -1308,8 +1308,6 @@ int vnt_generate_fifo_header(struct vnt_private *priv, u32 dma_idx,
 			cpu_to_le16(ieee80211_get_hdrlen_from_skb(skb) << 10);
 
 	if (info->control.hw_key) {
-		tx_key = info->control.hw_key;
-
 		switch (info->control.hw_key->cipher) {
 		case WLAN_CIPHER_SUITE_WEP40:
 		case WLAN_CIPHER_SUITE_WEP104:

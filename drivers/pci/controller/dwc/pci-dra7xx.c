@@ -213,7 +213,7 @@ static int dra7xx_pcie_handle_msi(struct pcie_port *pp, int index)
 	if (!val)
 		return 0;
 
-	pos = find_next_bit(&val, MAX_MSI_IRQS_PER_CTRL, 0);
+	pos = find_first_bit(&val, MAX_MSI_IRQS_PER_CTRL);
 	while (pos != MAX_MSI_IRQS_PER_CTRL) {
 		generic_handle_domain_irq(pp->irq_domain,
 					  (index * MAX_MSI_IRQS_PER_CTRL) + pos);
@@ -697,16 +697,14 @@ static int dra7xx_pcie_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	char name[10];
 	struct gpio_desc *reset;
-	const struct of_device_id *match;
 	const struct dra7xx_pcie_of_data *data;
 	enum dw_pcie_device_mode mode;
 	u32 b1co_mode_sel_mask;
 
-	match = of_match_device(of_match_ptr(of_dra7xx_pcie_match), dev);
-	if (!match)
+	data = of_device_get_match_data(dev);
+	if (!data)
 		return -EINVAL;
 
-	data = (struct dra7xx_pcie_of_data *)match->data;
 	mode = (enum dw_pcie_device_mode)data->mode;
 	b1co_mode_sel_mask = data->b1co_mode_sel_mask;
 

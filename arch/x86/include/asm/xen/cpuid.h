@@ -100,6 +100,13 @@
 /* Memory mapped from other domains has valid IOMMU entries */
 #define XEN_HVM_CPUID_IOMMU_MAPPINGS   (1u << 2)
 #define XEN_HVM_CPUID_VCPU_ID_PRESENT  (1u << 3) /* vcpu id is present in EBX */
+#define XEN_HVM_CPUID_DOMID_PRESENT    (1u << 4) /* domid is present in ECX */
+/*
+ * Bits 55:49 from the IO-APIC RTE and bits 11:5 from the MSI address can be
+ * used to store high bits for the Destination ID. This expands the Destination
+ * ID field from 8 to 15 bits, allowing to target APIC IDs up 32768.
+ */
+#define XEN_HVM_CPUID_EXT_DEST_ID      (1u << 5)
 
 /*
  * Leaf 6 (0x40000x05)

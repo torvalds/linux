@@ -247,7 +247,7 @@ void of_pci_check_probe_only(void)
 	else
 		pci_clear_flags(PCI_PROBE_ONLY);
 
-	pr_info("PROBE_ONLY %sabled\n", val ? "en" : "dis");
+	pr_info("PROBE_ONLY %s\n", val ? "enabled" : "disabled");
 }
 EXPORT_SYMBOL_GPL(of_pci_check_probe_only);
 

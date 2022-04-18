@@ -122,6 +122,15 @@ static const struct intel_step_info dg2_g11_revid_step_tbl[] = {
 	[0x5] = { COMMON_GT_MEDIA_STEP(B1), .display_step = STEP_C0 },
 };
 
+static const struct intel_step_info dg2_g12_revid_step_tbl[] = {
+	[0x0] = { COMMON_GT_MEDIA_STEP(A0), .display_step = STEP_C0 },
+};
+
+static const struct intel_step_info adls_rpls_revids[] = {
+	[0x4] = { COMMON_GT_MEDIA_STEP(D0), .display_step = STEP_D0 },
+	[0xC] = { COMMON_GT_MEDIA_STEP(D0), .display_step = STEP_C0 },
+};
+
 void intel_step_init(struct drm_i915_private *i915)
 {
 	const struct intel_step_info *revids = NULL;
@@ -135,12 +144,18 @@ void intel_step_init(struct drm_i915_private *i915)
 	} else if (IS_DG2_G11(i915)) {
 		revids = dg2_g11_revid_step_tbl;
 		size = ARRAY_SIZE(dg2_g11_revid_step_tbl);
+	} else if (IS_DG2_G12(i915)) {
+		revids = dg2_g12_revid_step_tbl;
+		size = ARRAY_SIZE(dg2_g12_revid_step_tbl);
 	} else if (IS_XEHPSDV(i915)) {
 		revids = xehpsdv_revids;
 		size = ARRAY_SIZE(xehpsdv_revids);
 	} else if (IS_ALDERLAKE_P(i915)) {
 		revids = adlp_revids;
 		size = ARRAY_SIZE(adlp_revids);
+	} else if (IS_ADLS_RPLS(i915)) {
+		revids = adls_rpls_revids;
+		size = ARRAY_SIZE(adls_rpls_revids);
 	} else if (IS_ALDERLAKE_S(i915)) {
 		revids = adls_revids;
 		size = ARRAY_SIZE(adls_revids);
@@ -150,7 +165,7 @@ void intel_step_init(struct drm_i915_private *i915)
 	} else if (IS_ROCKETLAKE(i915)) {
 		revids = rkl_revids;
 		size = ARRAY_SIZE(rkl_revids);
-	} else if (IS_TGL_U(i915) || IS_TGL_Y(i915)) {
+	} else if (IS_TGL_UY(i915)) {
 		revids = tgl_uy_revids;
 		size = ARRAY_SIZE(tgl_uy_revids);
 	} else if (IS_TIGERLAKE(i915)) {

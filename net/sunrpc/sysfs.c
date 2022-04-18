@@ -93,11 +93,14 @@ static ssize_t rpc_sysfs_xprt_dstaddr_show(struct kobject *kobj,
 	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
 	ssize_t ret;
 
-	if (!xprt)
-		return 0;
+	if (!xprt) {
+		ret = sprintf(buf, "<closed>\n");
+		goto out;
+	}
 	ret = sprintf(buf, "%s\n", xprt->address_strings[RPC_DISPLAY_ADDR]);
 	xprt_put(xprt);
-	return ret + 1;
+out:
+	return ret;
 }
 
 static ssize_t rpc_sysfs_xprt_srcaddr_show(struct kobject *kobj,
@@ -105,38 +108,45 @@ static ssize_t rpc_sysfs_xprt_srcaddr_show(struct kobject *kobj,
 					   char *buf)
 {
 	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
-	struct sockaddr_storage saddr;
-	struct sock_xprt *sock;
-	ssize_t ret = -1;
-
-	if (!xprt || !xprt_connected(xprt)) {
-		xprt_put(xprt);
-		return -ENOTCONN;
-	}
-
-	sock = container_of(xprt, struct sock_xprt, xprt);
-	if (kernel_getsockname(sock->sock, (struct sockaddr *)&saddr) < 0)
-		goto out;
-
-	ret = sprintf(buf, "%pISc\n", &saddr);
-out:
-	xprt_put(xprt);
-	return ret + 1;
-}
-
-static ssize_t rpc_sysfs_xprt_info_show(struct kobject *kobj,
-					struct kobj_attribute *attr,
-					char *buf)
-{
-	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
+	size_t buflen = PAGE_SIZE;
 	ssize_t ret;
 
 	if (!xprt || !xprt_connected(xprt)) {
-		xprt_put(xprt);
-		return -ENOTCONN;
+		ret = sprintf(buf, "<closed>\n");
+	} else if (xprt->ops->get_srcaddr) {
+		ret = xprt->ops->get_srcaddr(xprt, buf, buflen);
+		if (ret > 0) {
+			if (ret < buflen - 1) {
+				buf[ret] = '\n';
+				ret++;
+				buf[ret] = '\0';
+			}
+		} else
+			ret = sprintf(buf, "<closed>\n");
+	} else
+		ret = sprintf(buf, "<not a socket>\n");
+	xprt_put(xprt);
+	return ret;
+}
+
+static ssize_t rpc_sysfs_xprt_info_show(struct kobject *kobj,
+					struct kobj_attribute *attr, char *buf)
+{
+	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
+	unsigned short srcport = 0;
+	size_t buflen = PAGE_SIZE;
+	ssize_t ret;
+
+	if (!xprt || !xprt_connected(xprt)) {
+		ret = sprintf(buf, "<closed>\n");
+		goto out;
 	}
 
-	ret = sprintf(buf, "last_used=%lu\ncur_cong=%lu\ncong_win=%lu\n"
+	if (xprt->ops->get_srcport)
+		srcport = xprt->ops->get_srcport(xprt);
+
+	ret = snprintf(buf, buflen,
+		       "last_used=%lu\ncur_cong=%lu\ncong_win=%lu\n"
 		       "max_num_slots=%u\nmin_num_slots=%u\nnum_reqs=%u\n"
 		       "binding_q_len=%u\nsending_q_len=%u\npending_q_len=%u\n"
 		       "backlog_q_len=%u\nmain_xprt=%d\nsrc_port=%u\n"
@@ -144,14 +154,12 @@ static ssize_t rpc_sysfs_xprt_info_show(struct kobject *kobj,
 		       xprt->last_used, xprt->cong, xprt->cwnd, xprt->max_reqs,
 		       xprt->min_reqs, xprt->num_reqs, xprt->binding.qlen,
 		       xprt->sending.qlen, xprt->pending.qlen,
-		       xprt->backlog.qlen, xprt->main,
-		       (xprt->xprt_class->ident == XPRT_TRANSPORT_TCP) ?
-		       get_srcport(xprt) : 0,
+		       xprt->backlog.qlen, xprt->main, srcport,
 		       atomic_long_read(&xprt->queuelen),
-		       (xprt->xprt_class->ident == XPRT_TRANSPORT_TCP) ?
-				xprt->address_strings[RPC_DISPLAY_PORT] : "0");
+		       xprt->address_strings[RPC_DISPLAY_PORT]);
+out:
 	xprt_put(xprt);
-	return ret + 1;
+	return ret;
 }
 
 static ssize_t rpc_sysfs_xprt_state_show(struct kobject *kobj,
@@ -163,10 +171,7 @@ static ssize_t rpc_sysfs_xprt_state_show(struct kobject *kobj,
 	int locked, connected, connecting, close_wait, bound, binding,
 	    closing, congested, cwnd_wait, write_space, offline, remove;
 
-	if (!xprt)
-		return 0;
-
-	if (!xprt->state) {
+	if (!(xprt && xprt->state)) {
 		ret = sprintf(buf, "state=CLOSED\n");
 	} else {
 		locked = test_bit(XPRT_LOCKED, &xprt->state);
@@ -198,7 +203,7 @@ static ssize_t rpc_sysfs_xprt_state_show(struct kobject *kobj,
 	}
 
 	xprt_put(xprt);
-	return ret + 1;
+	return ret;
 }
 
 static ssize_t rpc_sysfs_xprt_switch_info_show(struct kobject *kobj,
@@ -217,7 +222,7 @@ static ssize_t rpc_sysfs_xprt_switch_info_show(struct kobject *kobj,
 		      xprt_switch->xps_nunique_destaddr_xprts,
 		      atomic_long_read(&xprt_switch->xps_queuelen));
 	xprt_switch_put(xprt_switch);
-	return ret + 1;
+	return ret;
 }
 
 static ssize_t rpc_sysfs_xprt_dstaddr_store(struct kobject *kobj,
@@ -295,8 +300,10 @@ static ssize_t rpc_sysfs_xprt_state_change(struct kobject *kobj,
 		online = 1;
 	else if (!strncmp(buf, "remove", 6))
 		remove = 1;
-	else
-		return -EINVAL;
+	else {
+		count = -EINVAL;
+		goto out_put;
+	}
 
 	if (wait_on_bit_lock(&xprt->state, XPRT_LOCKED, TASK_KILLABLE)) {
 		count = -EINTR;
@@ -307,25 +314,28 @@ static ssize_t rpc_sysfs_xprt_state_change(struct kobject *kobj,
 		goto release_tasks;
 	}
 	if (offline) {
-		set_bit(XPRT_OFFLINE, &xprt->state);
-		spin_lock(&xps->xps_lock);
-		xps->xps_nactive--;
-		spin_unlock(&xps->xps_lock);
+		if (!test_and_set_bit(XPRT_OFFLINE, &xprt->state)) {
+			spin_lock(&xps->xps_lock);
+			xps->xps_nactive--;
+			spin_unlock(&xps->xps_lock);
+		}
 	} else if (online) {
-		clear_bit(XPRT_OFFLINE, &xprt->state);
-		spin_lock(&xps->xps_lock);
-		xps->xps_nactive++;
-		spin_unlock(&xps->xps_lock);
+		if (test_and_clear_bit(XPRT_OFFLINE, &xprt->state)) {
+			spin_lock(&xps->xps_lock);
+			xps->xps_nactive++;
+			spin_unlock(&xps->xps_lock);
+		}
 	} else if (remove) {
 		if (test_bit(XPRT_OFFLINE, &xprt->state)) {
-			set_bit(XPRT_REMOVE, &xprt->state);
-			xprt_force_disconnect(xprt);
-			if (test_bit(XPRT_CONNECTED, &xprt->state)) {
-				if (!xprt->sending.qlen &&
-				    !xprt->pending.qlen &&
-				    !xprt->backlog.qlen &&
-				    !atomic_long_read(&xprt->queuelen))
-					rpc_xprt_switch_remove_xprt(xps, xprt);
+			if (!test_and_set_bit(XPRT_REMOVE, &xprt->state)) {
+				xprt_force_disconnect(xprt);
+				if (test_bit(XPRT_CONNECTED, &xprt->state)) {
+					if (!xprt->sending.qlen &&
+					    !xprt->pending.qlen &&
+					    !xprt->backlog.qlen &&
+					    !atomic_long_read(&xprt->queuelen))
+						rpc_xprt_switch_remove_xprt(xps, xprt);
+				}
 			}
 		} else {
 			count = -EINVAL;
@@ -422,6 +432,7 @@ static struct attribute *rpc_sysfs_xprt_attrs[] = {
 	&rpc_sysfs_xprt_change_state.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(rpc_sysfs_xprt);
 
 static struct kobj_attribute rpc_sysfs_xprt_switch_info =
 	__ATTR(xprt_switch_info, 0444, rpc_sysfs_xprt_switch_info_show, NULL);
@@ -430,6 +441,7 @@ static struct attribute *rpc_sysfs_xprt_switch_attrs[] = {
 	&rpc_sysfs_xprt_switch_info.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(rpc_sysfs_xprt_switch);
 
 static struct kobj_type rpc_sysfs_client_type = {
 	.release = rpc_sysfs_client_release,
@@ -439,14 +451,14 @@ static struct kobj_type rpc_sysfs_client_type = {
 
 static struct kobj_type rpc_sysfs_xprt_switch_type = {
 	.release = rpc_sysfs_xprt_switch_release,
-	.default_attrs = rpc_sysfs_xprt_switch_attrs,
+	.default_groups = rpc_sysfs_xprt_switch_groups,
 	.sysfs_ops = &kobj_sysfs_ops,
 	.namespace = rpc_sysfs_xprt_switch_namespace,
 };
 
 static struct kobj_type rpc_sysfs_xprt_type = {
 	.release = rpc_sysfs_xprt_release,
-	.default_attrs = rpc_sysfs_xprt_attrs,
+	.default_groups = rpc_sysfs_xprt_groups,
 	.sysfs_ops = &kobj_sysfs_ops,
 	.namespace = rpc_sysfs_xprt_namespace,
 };

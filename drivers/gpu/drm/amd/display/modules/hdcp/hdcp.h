@@ -30,7 +30,7 @@
 #include "hdcp_log.h"
 
 #include <drm/drm_hdcp.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 
 enum mod_hdcp_trans_input_result {
 	UNKNOWN = 0,

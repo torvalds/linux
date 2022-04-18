@@ -51,9 +51,6 @@ MODULE_FIRMWARE("amdgpu/navi14_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/navi12_sdma.bin");
 MODULE_FIRMWARE("amdgpu/navi12_sdma1.bin");
 
-MODULE_FIRMWARE("amdgpu/cyan_skillfish_sdma.bin");
-MODULE_FIRMWARE("amdgpu/cyan_skillfish_sdma1.bin");
-
 MODULE_FIRMWARE("amdgpu/cyan_skillfish2_sdma.bin");
 MODULE_FIRMWARE("amdgpu/cyan_skillfish2_sdma1.bin");
 
@@ -264,10 +261,7 @@ static int sdma_v5_0_init_microcode(struct amdgpu_device *adev)
 		chip_name = "navi12";
 		break;
 	case IP_VERSION(5, 0, 1):
-		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2)
-			chip_name = "cyan_skillfish2";
-		else
-			chip_name = "cyan_skillfish";
+		chip_name = "cyan_skillfish2";
 		break;
 	default:
 		BUG();
@@ -1696,6 +1690,7 @@ static const struct amdgpu_ring_funcs sdma_v5_0_ring_funcs = {
 	.align_mask = 0xf,
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
+	.secure_submission_supported = true,
 	.vmhub = AMDGPU_GFXHUB_0,
 	.get_rptr = sdma_v5_0_ring_get_rptr,
 	.get_wptr = sdma_v5_0_ring_get_wptr,

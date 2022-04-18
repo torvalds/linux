@@ -315,6 +315,11 @@ S: Via Delle Palme, 9
 S: Terni 05100
 S: Italy
 
+N: Ohad Ben Cohen
+E: ohad@wizery.com
+D: Remote Processor (remoteproc) subsystem
+D: Remote Processor Messaging (rpmsg) subsystem
+
 N: Krzysztof Benedyczak
 E: golbi@mat.uni.torun.pl
 W: http://www.mat.uni.torun.pl/~golbi
@@ -889,6 +894,12 @@ D: Random console hacks and other miscellaneous stuff
 S: 3000 FORE Drive
 S: Warrendale, Pennsylvania 15086
 S: USA
+
+N: Ludovic Desroches
+E: ludovic.desroches@microchip.com
+D: Maintainer for ARM/Microchip (AT91) SoC support
+D: Author of ADC, pinctrl, XDMA and SDHCI drivers for this platform
+S: France
 
 N: Martin Devera
 E: devik@cdi.cz

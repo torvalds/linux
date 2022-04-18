@@ -106,7 +106,7 @@ void evlist__config(struct evlist *evlist, struct record_opts *opts, struct call
 	if (opts->group)
 		evlist__set_leader(evlist);
 
-	if (evlist->core.cpus->map[0] < 0)
+	if (perf_cpu_map__cpu(evlist->core.user_requested_cpus, 0).cpu < 0)
 		opts->no_inherit = true;
 
 	use_comm_exec = perf_can_comm_exec();
@@ -229,7 +229,8 @@ bool evlist__can_select_event(struct evlist *evlist, const char *str)
 {
 	struct evlist *temp_evlist;
 	struct evsel *evsel;
-	int err, fd, cpu;
+	int err, fd;
+	struct perf_cpu cpu = { .cpu = 0 };
 	bool ret = false;
 	pid_t pid = -1;
 
@@ -243,17 +244,19 @@ bool evlist__can_select_event(struct evlist *evlist, const char *str)
 
 	evsel = evlist__last(temp_evlist);
 
-	if (!evlist || perf_cpu_map__empty(evlist->core.cpus)) {
+	if (!evlist || perf_cpu_map__empty(evlist->core.user_requested_cpus)) {
 		struct perf_cpu_map *cpus = perf_cpu_map__new(NULL);
 
-		cpu =  cpus ? cpus->map[0] : 0;
+		if (cpus)
+			cpu =  perf_cpu_map__cpu(cpus, 0);
+
 		perf_cpu_map__put(cpus);
 	} else {
-		cpu = evlist->core.cpus->map[0];
+		cpu = perf_cpu_map__cpu(evlist->core.user_requested_cpus, 0);
 	}
 
 	while (1) {
-		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, -1,
+		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu.cpu, -1,
 					 perf_event_open_cloexec_flag());
 		if (fd < 0) {
 			if (pid == -1 && errno == EACCES) {

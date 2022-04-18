@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -64,34 +65,33 @@ static void kfd_device_info_set_sdma_queue_num(struct kfd_dev *kfd)
 	uint32_t sdma_version = kfd->adev->ip_versions[SDMA0_HWIP][0];
 
 	switch (sdma_version) {
-		case IP_VERSION(4, 0, 0):/* VEGA10 */
-		case IP_VERSION(4, 0, 1):/* VEGA12 */
-		case IP_VERSION(4, 1, 0):/* RAVEN */
-		case IP_VERSION(4, 1, 1):/* RAVEN */
-		case IP_VERSION(4, 1, 2):/* RENIOR */
-		case IP_VERSION(5, 2, 1):/* VANGOGH */
-		case IP_VERSION(5, 2, 3):/* YELLOW_CARP */
-			kfd->device_info.num_sdma_queues_per_engine = 2;
-			break;
-		case IP_VERSION(4, 2, 0):/* VEGA20 */
-		case IP_VERSION(4, 2, 2):/* ARCTUTUS */
-		case IP_VERSION(4, 4, 0):/* ALDEBARAN */
-		case IP_VERSION(5, 0, 0):/* NAVI10 */
-		case IP_VERSION(5, 0, 1):/* CYAN_SKILLFISH */
-		case IP_VERSION(5, 0, 2):/* NAVI14 */
-		case IP_VERSION(5, 0, 5):/* NAVI12 */
-		case IP_VERSION(5, 2, 0):/* SIENNA_CICHLID */
-		case IP_VERSION(5, 2, 2):/* NAVY_FLOUDER */
-		case IP_VERSION(5, 2, 4):/* DIMGREY_CAVEFISH */
-		case IP_VERSION(5, 2, 5):/* BEIGE_GOBY */
-			kfd->device_info.num_sdma_queues_per_engine = 8;
-			break;
-		default:
-			dev_warn(kfd_device,
-				"Default sdma queue per engine(8) is set due to "
-				"mismatch of sdma ip block(SDMA_HWIP:0x%x).\n",
-                                sdma_version);
-			kfd->device_info.num_sdma_queues_per_engine = 8;
+	case IP_VERSION(4, 0, 0):/* VEGA10 */
+	case IP_VERSION(4, 0, 1):/* VEGA12 */
+	case IP_VERSION(4, 1, 0):/* RAVEN */
+	case IP_VERSION(4, 1, 1):/* RAVEN */
+	case IP_VERSION(4, 1, 2):/* RENOIR */
+	case IP_VERSION(5, 2, 1):/* VANGOGH */
+	case IP_VERSION(5, 2, 3):/* YELLOW_CARP */
+		kfd->device_info.num_sdma_queues_per_engine = 2;
+		break;
+	case IP_VERSION(4, 2, 0):/* VEGA20 */
+	case IP_VERSION(4, 2, 2):/* ARCTURUS */
+	case IP_VERSION(4, 4, 0):/* ALDEBARAN */
+	case IP_VERSION(5, 0, 0):/* NAVI10 */
+	case IP_VERSION(5, 0, 1):/* CYAN_SKILLFISH */
+	case IP_VERSION(5, 0, 2):/* NAVI14 */
+	case IP_VERSION(5, 0, 5):/* NAVI12 */
+	case IP_VERSION(5, 2, 0):/* SIENNA_CICHLID */
+	case IP_VERSION(5, 2, 2):/* NAVY_FLOUNDER */
+	case IP_VERSION(5, 2, 4):/* DIMGREY_CAVEFISH */
+	case IP_VERSION(5, 2, 5):/* BEIGE_GOBY */
+		kfd->device_info.num_sdma_queues_per_engine = 8;
+		break;
+	default:
+		dev_warn(kfd_device,
+			"Default sdma queue per engine(8) is set due to mismatch of sdma ip block(SDMA_HWIP:0x%x).\n",
+			sdma_version);
+		kfd->device_info.num_sdma_queues_per_engine = 8;
 	}
 }
 
@@ -111,6 +111,7 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 	case IP_VERSION(10, 3, 1): /* VANGOGH */
 	case IP_VERSION(10, 3, 3): /* YELLOW_CARP */
 	case IP_VERSION(10, 1, 3): /* CYAN_SKILLFISH */
+	case IP_VERSION(10, 1, 4):
 	case IP_VERSION(10, 1, 10): /* NAVI10 */
 	case IP_VERSION(10, 1, 2): /* NAVI12 */
 	case IP_VERSION(10, 1, 1): /* NAVI14 */
@@ -308,6 +309,7 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			break;
 		/* Cyan Skillfish */
 		case IP_VERSION(10, 1, 3):
+		case IP_VERSION(10, 1, 4):
 			gfx_target_version = 100103;
 			if (!vf)
 				f2g = &gfx_v10_kfd2kgd;
@@ -437,7 +439,8 @@ static int kfd_gws_init(struct kfd_dev *kfd)
 	return ret;
 }
 
-static void kfd_smi_init(struct kfd_dev *dev) {
+static void kfd_smi_init(struct kfd_dev *dev)
+{
 	INIT_LIST_HEAD(&dev->smi_clients);
 	spin_lock_init(&dev->smi_lock);
 }
@@ -480,15 +483,10 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	}
 
 	/* Verify module parameters regarding mapped process number*/
-	if ((hws_max_conc_proc < 0)
-			|| (hws_max_conc_proc > kfd->vm_info.vmid_num_kfd)) {
-		dev_err(kfd_device,
-			"hws_max_conc_proc %d must be between 0 and %d, use %d instead\n",
-			hws_max_conc_proc, kfd->vm_info.vmid_num_kfd,
-			kfd->vm_info.vmid_num_kfd);
+	if (hws_max_conc_proc >= 0)
+		kfd->max_proc_per_quantum = min((u32)hws_max_conc_proc, kfd->vm_info.vmid_num_kfd);
+	else
 		kfd->max_proc_per_quantum = kfd->vm_info.vmid_num_kfd;
-	} else
-		kfd->max_proc_per_quantum = hws_max_conc_proc;
 
 	/* calculate max size of mqds needed for queues */
 	size = max_num_of_queues_per_device *
@@ -533,7 +531,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto kfd_doorbell_error;
 	}
 
-	kfd->hive_id = kfd->adev->gmc.xgmi.hive_id;
+	if (amdgpu_use_xgmi_p2p)
+		kfd->hive_id = kfd->adev->gmc.xgmi.hive_id;
 
 	kfd->noretry = kfd->adev->gmc.noretry;
 
@@ -570,13 +569,11 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	svm_migrate_init(kfd->adev);
 
-	if(kgd2kfd_resume_iommu(kfd))
+	if (kgd2kfd_resume_iommu(kfd))
 		goto device_iommu_error;
 
 	if (kfd_resume(kfd))
 		goto kfd_resume_error;
-
-	kfd->dbgmgr = NULL;
 
 	if (kfd_topology_add_device(kfd)) {
 		dev_err(kfd_device, "Error adding device to topology\n");

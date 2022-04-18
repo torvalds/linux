@@ -140,7 +140,7 @@ static int alignment_proc_open(struct inode *inode, struct file *file)
 static ssize_t alignment_proc_write(struct file *file,
 		const char __user *buffer, size_t count, loff_t *pos)
 {
-	int *data = PDE_DATA(file_inode(file));
+	int *data = pde_data(file_inode(file));
 	char mode;
 
 	if (count > 0) {
@@ -161,7 +161,7 @@ static const struct proc_ops alignment_proc_ops = {
 };
 
 /*
- * This needs to be done after sysctl_init, otherwise sys/ will be
+ * This needs to be done after sysctl_init_bases(), otherwise sys/ will be
  * overwritten.  Actually, this shouldn't be in sys/ at all since
  * it isn't a sysctl, and it doesn't contain sysctl information.
  * We now locate it in /proc/cpu/alignment instead.

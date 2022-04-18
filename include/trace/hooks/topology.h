@@ -7,7 +7,6 @@
 #if !defined(_TRACE_HOOK_TOPOLOGY_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_HOOK_TOPOLOGY_H
 
-#include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 #include <linux/cpumask.h>
 

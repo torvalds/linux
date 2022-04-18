@@ -270,6 +270,7 @@ struct fuse_args {
 	bool nocreds:1;
 	bool in_pages:1;
 	bool out_pages:1;
+	bool user_pages:1;
 	bool out_argvar:1;
 	bool page_zeroing:1;
 	bool page_replace:1;
@@ -404,19 +405,19 @@ struct fuse_iqueue_ops {
 	/**
 	 * Signal that a forget has been queued
 	 */
-	void (*wake_forget_and_unlock)(struct fuse_iqueue *fiq)
+	void (*wake_forget_and_unlock)(struct fuse_iqueue *fiq, bool sync)
 		__releases(fiq->lock);
 
 	/**
 	 * Signal that an INTERRUPT request has been queued
 	 */
-	void (*wake_interrupt_and_unlock)(struct fuse_iqueue *fiq)
+	void (*wake_interrupt_and_unlock)(struct fuse_iqueue *fiq, bool sync)
 		__releases(fiq->lock);
 
 	/**
 	 * Signal that a request has been queued
 	 */
-	void (*wake_pending_and_unlock)(struct fuse_iqueue *fiq)
+	void (*wake_pending_and_unlock)(struct fuse_iqueue *fiq, bool sync)
 		__releases(fiq->lock);
 
 	/**
@@ -641,7 +642,7 @@ struct fuse_conn {
 	/** Connection successful.  Only set in INIT */
 	unsigned conn_init:1;
 
-	/** Do readpages asynchronously?  Only set in INIT */
+	/** Do readahead asynchronously?  Only set in INIT */
 	unsigned async_read:1;
 
 	/** Return an unique read error after abort.  Only set in INIT */

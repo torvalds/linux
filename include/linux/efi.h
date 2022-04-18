@@ -148,6 +148,52 @@ typedef struct {
 	u32 imagesize;
 } efi_capsule_header_t;
 
+/* EFI_FIRMWARE_MANAGEMENT_CAPSULE_HEADER */
+struct efi_manage_capsule_header {
+	u32 ver;
+	u16 emb_drv_cnt;
+	u16 payload_cnt;
+	/*
+	 * Variable-size array of the size given by the sum of
+	 * emb_drv_cnt and payload_cnt.
+	 */
+	u64 offset_list[];
+} __packed;
+
+/* EFI_FIRMWARE_MANAGEMENT_CAPSULE_IMAGE_HEADER */
+struct efi_manage_capsule_image_header {
+	u32 ver;
+	efi_guid_t image_type_id;
+	u8 image_index;
+	u8 reserved_bytes[3];
+	u32 image_size;
+	u32 vendor_code_size;
+	/* hw_ins was introduced in version 2 */
+	u64 hw_ins;
+	/* capsule_support was introduced in version 3 */
+	u64 capsule_support;
+} __packed;
+
+/* WIN_CERTIFICATE */
+struct win_cert {
+	u32 len;
+	u16 rev;
+	u16 cert_type;
+};
+
+/* WIN_CERTIFICATE_UEFI_GUID */
+struct win_cert_uefi_guid {
+	struct win_cert	hdr;
+	efi_guid_t cert_type;
+	u8 cert_data[];
+};
+
+/* EFI_FIRMWARE_IMAGE_AUTHENTICATION */
+struct efi_image_auth {
+	u64 mon_count;
+	struct win_cert_uefi_guid auth_info;
+};
+
 /*
  * EFI capsule flags
  */

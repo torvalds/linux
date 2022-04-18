@@ -4,11 +4,15 @@
  * Copyright © 2014-2016 Intel Corporation
  */
 
+#include <drm/drm_cache.h>
+
 #include "i915_drv.h"
 #include "i915_gem_object.h"
 #include "i915_scatterlist.h"
 #include "i915_gem_lmem.h"
 #include "i915_gem_mman.h"
+
+#include "gt/intel_gt.h"
 
 void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 				 struct sg_table *pages,
@@ -161,21 +165,10 @@ retry:
 /* Immediately discard the backing storage */
 int i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 {
-	drm_gem_free_mmap_offset(&obj->base);
 	if (obj->ops->truncate)
 		return obj->ops->truncate(obj);
 
 	return 0;
-}
-
-/* Try to discard unwanted pages */
-void i915_gem_object_writeback(struct drm_i915_gem_object *obj)
-{
-	assert_object_held_shared(obj);
-	GEM_BUG_ON(i915_gem_object_has_pages(obj));
-
-	if (obj->ops->writeback)
-		obj->ops->writeback(obj);
 }
 
 static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
@@ -221,6 +214,14 @@ __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 
 	__i915_gem_object_reset_page_iter(obj);
 	obj->mm.page_sizes.phys = obj->mm.page_sizes.sg = 0;
+
+	if (test_and_clear_bit(I915_BO_WAS_BOUND_BIT, &obj->flags)) {
+		struct drm_i915_private *i915 = to_i915(obj->base.dev);
+		intel_wakeref_t wakeref;
+
+		with_intel_runtime_pm_if_active(&i915->runtime_pm, wakeref)
+			intel_gt_invalidate_tlbs(to_gt(i915));
+	}
 
 	return pages;
 }
@@ -356,6 +357,9 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	if (!i915_gem_object_has_struct_page(obj) &&
 	    !i915_gem_object_has_iomem(obj))
 		return ERR_PTR(-ENXIO);
+
+	if (WARN_ON_ONCE(obj->flags & I915_BO_ALLOC_GPU_ONLY))
+		return ERR_PTR(-EINVAL);
 
 	assert_object_held(obj);
 

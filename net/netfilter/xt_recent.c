@@ -551,7 +551,7 @@ static int recent_seq_open(struct inode *inode, struct file *file)
 	if (st == NULL)
 		return -ENOMEM;
 
-	st->table    = PDE_DATA(inode);
+	st->table    = pde_data(inode);
 	return 0;
 }
 
@@ -559,7 +559,7 @@ static ssize_t
 recent_mt_proc_write(struct file *file, const char __user *input,
 		     size_t size, loff_t *loff)
 {
-	struct recent_table *t = PDE_DATA(file_inode(file));
+	struct recent_table *t = pde_data(file_inode(file));
 	struct recent_entry *e;
 	char buf[sizeof("+b335:1d35:1e55:dead:c0de:1715:5afe:c0de")];
 	const char *c = buf;

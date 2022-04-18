@@ -6,13 +6,9 @@ menuconfig V4L_TEST_DRIVERS
 
 if V4L_TEST_DRIVERS
 
-source "drivers/media/test-drivers/vimc/Kconfig"
-
-source "drivers/media/test-drivers/vivid/Kconfig"
-
 config VIDEO_VIM2M
 	tristate "Virtual Memory-to-Memory Driver"
-	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on VIDEO_DEV
 	select VIDEOBUF2_VMALLOC
 	select V4L2_MEM2MEM_DEV
 	select MEDIA_CONTROLLER
@@ -22,6 +18,8 @@ config VIDEO_VIM2M
 	  framework.
 
 source "drivers/media/test-drivers/vicodec/Kconfig"
+source "drivers/media/test-drivers/vimc/Kconfig"
+source "drivers/media/test-drivers/vivid/Kconfig"
 
 endif #V4L_TEST_DRIVERS
 

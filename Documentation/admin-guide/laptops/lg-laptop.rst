@@ -38,7 +38,7 @@ FN lock.
 Battery care limit
 ------------------
 
-Writing 80/100 to /sys/devices/platform/lg-laptop/battery_care_limit
+Writing 80/100 to /sys/class/power_supply/CMB0/charge_control_end_threshold
 sets the maximum capacity to charge the battery. Limiting the charge
 reduces battery capacity loss over time.
 

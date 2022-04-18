@@ -7,13 +7,12 @@
 #include <linux/iomap.h>
 #include <linux/fiemap.h>
 #include <linux/iversion.h>
-#include <linux/backing-dev.h>
+#include <linux/sched/mm.h>
 
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include "xattr.h"
 #include "truncate.h"
-#include <trace/events/android_fs.h>
 
 #define EXT4_XATTR_SYSTEM_DATA	"data"
 #define EXT4_MIN_INLINE_DATA_SIZE	((sizeof(__le32) * EXT4_N_BLOCKS))
@@ -510,17 +509,6 @@ int ext4_readpage_inline(struct inode *inode, struct page *page)
 		return -EAGAIN;
 	}
 
-	if (trace_android_fs_dataread_start_enabled()) {
-		char *path, pathbuf[MAX_TRACE_PATHBUF_LEN];
-
-		path = android_fstrace_get_pathname(pathbuf,
-						    MAX_TRACE_PATHBUF_LEN,
-						    inode);
-		trace_android_fs_dataread_start(inode, page_offset(page),
-						PAGE_SIZE, current->pid,
-						path, current->comm);
-	}
-
 	/*
 	 * Current inline data can only exist in the 1st page,
 	 * So for all the other pages, just set them uptodate.
@@ -531,8 +519,6 @@ int ext4_readpage_inline(struct inode *inode, struct page *page)
 		zero_user_segment(page, 0, PAGE_SIZE);
 		SetPageUptodate(page);
 	}
-
-	trace_android_fs_dataread_end(inode, page_offset(page), PAGE_SIZE);
 
 	up_read(&EXT4_I(inode)->xattr_sem);
 
@@ -925,7 +911,7 @@ int ext4_da_write_inline_data_begin(struct address_space *mapping,
 				    struct page **pagep,
 				    void **fsdata)
 {
-	int ret, inline_size;
+	int ret;
 	handle_t *handle;
 	struct page *page;
 	struct ext4_iloc iloc;
@@ -942,14 +928,9 @@ retry_journal:
 		goto out;
 	}
 
-	inline_size = ext4_get_max_inline_size(inode);
-
-	ret = -ENOSPC;
-	if (inline_size >= pos + len) {
-		ret = ext4_prepare_inline_data(handle, inode, pos + len);
-		if (ret && ret != -ENOSPC)
-			goto out_journal;
-	}
+	ret = ext4_prepare_inline_data(handle, inode, pos + len);
+	if (ret && ret != -ENOSPC)
+		goto out_journal;
 
 	/*
 	 * We cannot recurse into the filesystem as the transaction
@@ -1147,7 +1128,15 @@ static void ext4_restore_inline_data(handle_t *handle, struct inode *inode,
 				     struct ext4_iloc *iloc,
 				     void *buf, int inline_size)
 {
-	ext4_create_inline_data(handle, inode, inline_size);
+	int ret;
+
+	ret = ext4_create_inline_data(handle, inode, inline_size);
+	if (ret) {
+		ext4_msg(inode->i_sb, KERN_EMERG,
+			"error restoring inline_data for inode -- potential data loss! (inode %lu, error %d)",
+			inode->i_ino, ret);
+		return;
+	}
 	ext4_write_inline_data(inode, iloc, buf, 0, inline_size);
 	ext4_set_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
 }
@@ -1794,19 +1783,20 @@ bool empty_inline_dir(struct inode *dir, int *has_inline_data)
 	void *inline_pos;
 	unsigned int offset;
 	struct ext4_dir_entry_2 *de;
-	bool ret = true;
+	bool ret = false;
 
 	err = ext4_get_inode_loc(dir, &iloc);
 	if (err) {
 		EXT4_ERROR_INODE_ERR(dir, -err,
 				     "error %d getting inode %lu block",
 				     err, dir->i_ino);
-		return true;
+		return false;
 	}
 
 	down_read(&EXT4_I(dir)->xattr_sem);
 	if (!ext4_has_inline_data(dir)) {
 		*has_inline_data = 0;
+		ret = true;
 		goto out;
 	}
 
@@ -1815,7 +1805,6 @@ bool empty_inline_dir(struct inode *dir, int *has_inline_data)
 		ext4_warning(dir->i_sb,
 			     "bad inline directory (dir #%lu) - no `..'",
 			     dir->i_ino);
-		ret = true;
 		goto out;
 	}
 
@@ -1834,16 +1823,15 @@ bool empty_inline_dir(struct inode *dir, int *has_inline_data)
 				     dir->i_ino, le32_to_cpu(de->inode),
 				     le16_to_cpu(de->rec_len), de->name_len,
 				     inline_size);
-			ret = true;
 			goto out;
 		}
 		if (le32_to_cpu(de->inode)) {
-			ret = false;
 			goto out;
 		}
 		offset += ext4_rec_len_from_disk(de->rec_len, inline_size);
 	}
 
+	ret = true;
 out:
 	up_read(&EXT4_I(dir)->xattr_sem);
 	brelse(iloc.bh);
@@ -1943,8 +1931,7 @@ int ext4_inline_data_truncate(struct inode *inode, int *has_inline)
 retry:
 			err = ext4_es_remove_extent(inode, 0, EXT_MAX_BLOCKS);
 			if (err == -ENOMEM) {
-				cond_resched();
-				congestion_wait(BLK_RW_ASYNC, HZ/50);
+				memalloc_retry_wait(GFP_ATOMIC);
 				goto retry;
 			}
 			if (err)

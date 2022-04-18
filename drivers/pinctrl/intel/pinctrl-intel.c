@@ -451,8 +451,8 @@ static void intel_gpio_set_gpio_mode(void __iomem *padcfg0)
 	value &= ~PADCFG0_PMODE_MASK;
 	value |= PADCFG0_PMODE_GPIO;
 
-	/* Disable input and output buffers */
-	value |= PADCFG0_GPIORXDIS;
+	/* Disable TX buffer and enable RX (this will be input) */
+	value &= ~PADCFG0_GPIORXDIS;
 	value |= PADCFG0_GPIOTXDIS;
 
 	/* Disable SCI/SMI/NMI generation */
@@ -496,9 +496,6 @@ static int intel_gpio_request_enable(struct pinctrl_dev *pctldev,
 	}
 
 	intel_gpio_set_gpio_mode(padcfg0);
-
-	/* Disable TX buffer and enable RX (this will be input) */
-	__intel_gpio_set_direction(padcfg0, true);
 
 	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 
@@ -1115,9 +1112,6 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned int type)
 
 	intel_gpio_set_gpio_mode(reg);
 
-	/* Disable TX buffer and enable RX (this will be input) */
-	__intel_gpio_set_direction(reg, true);
-
 	value = readl(reg);
 
 	value &= ~(PADCFG0_RXEVCFG_MASK | PADCFG0_RXINV);
@@ -1214,6 +1208,39 @@ static irqreturn_t intel_gpio_irq(int irq, void *data)
 	}
 
 	return IRQ_RETVAL(ret);
+}
+
+static void intel_gpio_irq_init(struct intel_pinctrl *pctrl)
+{
+	int i;
+
+	for (i = 0; i < pctrl->ncommunities; i++) {
+		const struct intel_community *community;
+		void __iomem *base;
+		unsigned int gpp;
+
+		community = &pctrl->communities[i];
+		base = community->regs;
+
+		for (gpp = 0; gpp < community->ngpps; gpp++) {
+			/* Mask and clear all interrupts */
+			writel(0, base + community->ie_offset + gpp * 4);
+			writel(0xffff, base + community->is_offset + gpp * 4);
+		}
+	}
+}
+
+static int intel_gpio_irq_init_hw(struct gpio_chip *gc)
+{
+	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
+
+	/*
+	 * Make sure the interrupt lines are in a proper state before
+	 * further configuration.
+	 */
+	intel_gpio_irq_init(pctrl);
+
+	return 0;
 }
 
 static int intel_gpio_add_community_ranges(struct intel_pinctrl *pctrl,
@@ -1320,6 +1347,7 @@ static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 	girq->num_parents = 0;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_bad_irq;
+	girq->init_hw = intel_gpio_irq_init_hw;
 
 	ret = devm_gpiochip_add_data(pctrl->dev, &pctrl->chip, pctrl);
 	if (ret) {
@@ -1694,26 +1722,6 @@ int intel_pinctrl_suspend_noirq(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(intel_pinctrl_suspend_noirq);
-
-static void intel_gpio_irq_init(struct intel_pinctrl *pctrl)
-{
-	size_t i;
-
-	for (i = 0; i < pctrl->ncommunities; i++) {
-		const struct intel_community *community;
-		void __iomem *base;
-		unsigned int gpp;
-
-		community = &pctrl->communities[i];
-		base = community->regs;
-
-		for (gpp = 0; gpp < community->ngpps; gpp++) {
-			/* Mask and clear all interrupts */
-			writel(0, base + community->ie_offset + gpp * 4);
-			writel(0xffff, base + community->is_offset + gpp * 4);
-		}
-	}
-}
 
 static bool intel_gpio_update_reg(void __iomem *reg, u32 mask, u32 value)
 {

@@ -1688,8 +1688,6 @@ void dml21_rq_dlg_get_dlg_reg(
 			mode_lib,
 			e2e_pipe_param,
 			num_pipes);
-	dlg_sys_param.t_srx_delay_us = mode_lib->ip.dcfclk_cstate_latency
-			/ dlg_sys_param.deepsleep_dcfclk_mhz; // TODO: Deprecated
 
 	print__dlg_sys_params_st(mode_lib, &dlg_sys_param);
 

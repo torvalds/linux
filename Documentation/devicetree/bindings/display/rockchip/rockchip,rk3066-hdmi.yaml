@@ -26,14 +26,6 @@ properties:
   clock-names:
     const: hclk
 
-  pinctrl-0:
-    maxItems: 2
-
-  pinctrl-names:
-    const: default
-    description:
-      Switch the iomux for the HPD/I2C pins to HDMI function.
-
   power-domains:
     maxItems: 1
 

@@ -342,7 +342,7 @@ static irqreturn_t do_ext_interrupt(int irq, void *dummy)
 	struct ext_int_info *p;
 	int index;
 
-	ext_code = *(struct ext_code *) &regs->int_code;
+	ext_code.int_code = regs->int_code;
 	if (ext_code.code != EXT_IRQ_CLK_COMP)
 		set_cpu_flag(CIF_NOHZ_DELAY);
 

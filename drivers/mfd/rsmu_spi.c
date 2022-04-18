@@ -220,13 +220,11 @@ static int rsmu_spi_probe(struct spi_device *client)
 	return rsmu_core_init(rsmu);
 }
 
-static int rsmu_spi_remove(struct spi_device *client)
+static void rsmu_spi_remove(struct spi_device *client)
 {
 	struct rsmu_ddata *rsmu = spi_get_drvdata(client);
 
 	rsmu_core_exit(rsmu);
-
-	return 0;
 }
 
 static const struct spi_device_id rsmu_spi_id[] = {

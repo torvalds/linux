@@ -159,27 +159,29 @@ int __fscache_begin_write_operation(struct netfs_cache_resources *cres,
 EXPORT_SYMBOL(__fscache_begin_write_operation);
 
 /**
- * fscache_set_page_dirty - Mark page dirty and pin a cache object for writeback
- * @page: The page being dirtied
+ * fscache_dirty_folio - Mark folio dirty and pin a cache object for writeback
+ * @mapping: The mapping the folio belongs to.
+ * @folio: The folio being dirtied.
  * @cookie: The cookie referring to the cache object
  *
- * Set the dirty flag on a page and pin an in-use cache object in memory when
- * dirtying a page so that writeback can later write to it.  This is intended
- * to be called from the filesystem's ->set_page_dirty() method.
+ * Set the dirty flag on a folio and pin an in-use cache object in memory
+ * so that writeback can later write to it.  This is intended
+ * to be called from the filesystem's ->dirty_folio() method.
  *
- *  Returns 1 if PG_dirty was set on the page, 0 otherwise.
+ * Return: true if the dirty flag was set on the folio, false otherwise.
  */
-int fscache_set_page_dirty(struct page *page, struct fscache_cookie *cookie)
+bool fscache_dirty_folio(struct address_space *mapping, struct folio *folio,
+				struct fscache_cookie *cookie)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = mapping->host;
 	bool need_use = false;
 
 	_enter("");
 
-	if (!__set_page_dirty_nobuffers(page))
-		return 0;
+	if (!filemap_dirty_folio(mapping, folio))
+		return false;
 	if (!fscache_cookie_valid(cookie))
-		return 1;
+		return true;
 
 	if (!(inode->i_state & I_PINNING_FSCACHE_WB)) {
 		spin_lock(&inode->i_lock);
@@ -192,9 +194,9 @@ int fscache_set_page_dirty(struct page *page, struct fscache_cookie *cookie)
 		if (need_use)
 			fscache_use_cookie(cookie, true);
 	}
-	return 1;
+	return true;
 }
-EXPORT_SYMBOL(fscache_set_page_dirty);
+EXPORT_SYMBOL(fscache_dirty_folio);
 
 struct fscache_write_request {
 	struct netfs_cache_resources cache_resources;
@@ -233,8 +235,7 @@ static void fscache_wreq_done(void *priv, ssize_t transferred_or_error,
 {
 	struct fscache_write_request *wreq = priv;
 
-	fscache_clear_page_bits(fscache_cres_cookie(&wreq->cache_resources),
-				wreq->mapping, wreq->start, wreq->len,
+	fscache_clear_page_bits(wreq->mapping, wreq->start, wreq->len,
 				wreq->set_bits);
 
 	if (wreq->term_func)
@@ -294,7 +295,7 @@ abandon_end:
 abandon_free:
 	kfree(wreq);
 abandon:
-	fscache_clear_page_bits(cookie, mapping, start, len, cond);
+	fscache_clear_page_bits(mapping, start, len, cond);
 	if (term_func)
 		term_func(term_func_priv, ret, false);
 }

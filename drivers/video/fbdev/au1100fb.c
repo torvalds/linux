@@ -239,7 +239,7 @@ int au1100fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned
 	u32 value;
 
 	fbdev = to_au1100fb_device(fbi);
-	palette = fbdev->regs->lcd_pallettebase;
+	palette = fbdev->regs->lcd_palettebase;
 
 	if (regno > (AU1100_LCD_NBR_PALETTE_ENTRIES - 1))
 		return -EINVAL;

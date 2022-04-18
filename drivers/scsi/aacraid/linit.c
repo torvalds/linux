@@ -241,10 +241,9 @@ static struct aac_driver_ident aac_drivers[] = {
 static int aac_queuecommand(struct Scsi_Host *shost,
 			    struct scsi_cmnd *cmd)
 {
-	int r = 0;
-	cmd->SCp.phase = AAC_OWNER_LOWLEVEL;
-	r = (aac_scsi_cmd(cmd) ? FAILED : 0);
-	return r;
+	aac_priv(cmd)->owner = AAC_OWNER_LOWLEVEL;
+
+	return aac_scsi_cmd(cmd) ? FAILED : 0;
 }
 
 /**
@@ -638,7 +637,7 @@ static bool fib_count_iter(struct scsi_cmnd *scmnd, void *data, bool reserved)
 {
 	struct fib_count_data *fib_count = data;
 
-	switch (scmnd->SCp.phase) {
+	switch (aac_priv(scmnd)->owner) {
 	case AAC_OWNER_FIRMWARE:
 		fib_count->fwcnt++;
 		break;
@@ -680,6 +679,7 @@ static int get_num_of_incomplete_fibs(struct aac_dev *aac)
 
 static int aac_eh_abort(struct scsi_cmnd* cmd)
 {
+	struct aac_cmd_priv *cmd_priv = aac_priv(cmd);
 	struct scsi_device * dev = cmd->device;
 	struct Scsi_Host * host = dev->host;
 	struct aac_dev * aac = (struct aac_dev *)host->hostdata;
@@ -732,7 +732,7 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 		tmf->error_length = cpu_to_le32(FW_ERROR_BUFFER_SIZE);
 
 		fib->hbacmd_size = sizeof(*tmf);
-		cmd->SCp.sent_command = 0;
+		cmd_priv->sent_command = 0;
 
 		status = aac_hba_send(HBA_IU_TYPE_SCSI_TM_REQ, fib,
 				  (fib_callback) aac_hba_callback,
@@ -744,7 +744,7 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 		}
 		/* Wait up to 15 secs for completion */
 		for (count = 0; count < 15; ++count) {
-			if (cmd->SCp.sent_command) {
+			if (cmd_priv->sent_command) {
 				ret = SUCCESS;
 				break;
 			}
@@ -784,7 +784,7 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 				(fib->callback_data == cmd)) {
 					fib->flags |=
 						FIB_CONTEXT_FLAG_TIMED_OUT;
-					cmd->SCp.phase =
+					cmd_priv->owner =
 						AAC_OWNER_ERROR_HANDLER;
 					ret = SUCCESS;
 				}
@@ -811,7 +811,7 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 					(command->device == cmd->device)) {
 					fib->flags |=
 						FIB_CONTEXT_FLAG_TIMED_OUT;
-					command->SCp.phase =
+					aac_priv(command)->owner =
 						AAC_OWNER_ERROR_HANDLER;
 					if (command == cmd)
 						ret = SUCCESS;
@@ -864,7 +864,7 @@ static u8 aac_eh_tmf_hard_reset_fib(struct aac_hba_map_info *info,
 	rst->error_length = cpu_to_le32(FW_ERROR_BUFFER_SIZE);
 	fib->hbacmd_size = sizeof(*rst);
 
-       return HBA_IU_TYPE_SATA_REQ;
+	return HBA_IU_TYPE_SATA_REQ;
 }
 
 static void aac_tmf_callback(void *context, struct fib *fibptr)
@@ -1058,7 +1058,7 @@ static int aac_eh_bus_reset(struct scsi_cmnd* cmd)
 			if (bus >= AAC_MAX_BUSES || cid >= AAC_MAX_TARGETS ||
 			    info->devtype != AAC_DEVTYPE_NATIVE_RAW) {
 				fib->flags |= FIB_CONTEXT_FLAG_EH_RESET;
-				cmd->SCp.phase = AAC_OWNER_ERROR_HANDLER;
+				aac_priv(cmd)->owner = AAC_OWNER_ERROR_HANDLER;
 			}
 		}
 	}
@@ -1507,6 +1507,7 @@ static struct scsi_host_template aac_driver_template = {
 #endif
 	.emulated			= 1,
 	.no_write_same			= 1,
+	.cmd_size			= sizeof(struct aac_cmd_priv),
 };
 
 static void __aac_shutdown(struct aac_dev * aac)

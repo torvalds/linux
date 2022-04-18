@@ -4014,10 +4014,8 @@ static struct fotg210_iso_sched *iso_sched_alloc(unsigned packets,
 		gfp_t mem_flags)
 {
 	struct fotg210_iso_sched *iso_sched;
-	int size = sizeof(*iso_sched);
 
-	size += packets * sizeof(struct fotg210_iso_packet);
-	iso_sched = kzalloc(size, mem_flags);
+	iso_sched = kzalloc(struct_size(iso_sched, packet, packets), mem_flags);
 	if (likely(iso_sched != NULL))
 		INIT_LIST_HEAD(&iso_sched->td_list);
 

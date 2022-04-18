@@ -132,7 +132,7 @@ static int idt_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct gpio_irq_chip *girq;
 	struct idt_gpio_ctrl *ctrl;
-	unsigned int parent_irq;
+	int parent_irq;
 	int ngpios;
 	int ret;
 
@@ -164,8 +164,8 @@ static int idt_gpio_probe(struct platform_device *pdev)
 			return PTR_ERR(ctrl->pic);
 
 		parent_irq = platform_get_irq(pdev, 0);
-		if (!parent_irq)
-			return -EINVAL;
+		if (parent_irq < 0)
+			return parent_irq;
 
 		girq = &ctrl->gc.irq;
 		girq->chip = &idt_gpio_irqchip;

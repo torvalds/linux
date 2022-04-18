@@ -31,7 +31,6 @@
 #include <linux/tsacct_kern.h>
 #include <linux/cn_proc.h>
 #include <linux/audit.h>
-#include <linux/tracehook.h>
 #include <linux/kmod.h>
 #include <linux/fsnotify.h>
 #include <linux/fs_struct.h>
@@ -41,6 +40,8 @@
 #include <linux/fs.h>
 #include <linux/path.h>
 #include <linux/timekeeping.h>
+#include <linux/sysctl.h>
+#include <linux/elf.h>
 
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
@@ -52,17 +53,18 @@
 
 #include <trace/events/sched.h>
 
-int core_uses_pid;
-unsigned int core_pipe_limit;
-char core_pattern[CORENAME_MAX_SIZE] = "core";
+static bool dump_vma_snapshot(struct coredump_params *cprm);
+static void free_vma_snapshot(struct coredump_params *cprm);
+
+static int core_uses_pid;
+static unsigned int core_pipe_limit;
+static char core_pattern[CORENAME_MAX_SIZE] = "core";
 static int core_name_size = CORENAME_MAX_SIZE;
 
 struct core_name {
 	char *corename;
 	int used, size;
 };
-
-/* The maximal length of core_pattern is also specified in sysctl.c */
 
 static int expand_corename(struct core_name *cn, int size)
 {
@@ -347,13 +349,13 @@ out:
 	return ispipe;
 }
 
-static int zap_process(struct task_struct *start, int exit_code, int flags)
+static int zap_process(struct task_struct *start, int exit_code)
 {
 	struct task_struct *t;
 	int nr = 0;
 
 	/* ignore all signals except SIGKILL, see prepare_signal() */
-	start->signal->flags = SIGNAL_GROUP_COREDUMP | flags;
+	start->signal->flags = SIGNAL_GROUP_EXIT;
 	start->signal->group_exit_code = exit_code;
 	start->signal->group_stop_count = 0;
 
@@ -372,13 +374,13 @@ static int zap_process(struct task_struct *start, int exit_code, int flags)
 static int zap_threads(struct task_struct *tsk,
 			struct core_state *core_state, int exit_code)
 {
+	struct signal_struct *signal = tsk->signal;
 	int nr = -EAGAIN;
 
 	spin_lock_irq(&tsk->sighand->siglock);
-	if (!signal_group_exit(tsk->signal)) {
-		tsk->signal->core_state = core_state;
-		tsk->signal->group_exit_task = tsk;
-		nr = zap_process(tsk, exit_code, 0);
+	if (!(signal->flags & SIGNAL_GROUP_EXIT) && !signal->group_exec_task) {
+		signal->core_state = core_state;
+		nr = zap_process(tsk, exit_code);
 		clear_tsk_thread_flag(tsk, TIF_SIGPENDING);
 		tsk->flags |= PF_DUMPCORE;
 		atomic_set(&core_state->nr_threads, nr);
@@ -426,8 +428,6 @@ static void coredump_finish(bool core_dumped)
 	spin_lock_irq(&current->sighand->siglock);
 	if (core_dumped && !__fatal_signal_pending(current))
 		current->signal->group_exit_code |= 0x80;
-	current->signal->group_exit_task = NULL;
-	current->signal->flags = SIGNAL_GROUP_EXIT;
 	next = current->signal->core_state->dumper.next;
 	current->signal->core_state = NULL;
 	spin_unlock_irq(&current->sighand->siglock);
@@ -534,6 +534,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		 * by any locks.
 		 */
 		.mm_flags = mm->flags,
+		.vma_meta = NULL,
 	};
 
 	audit_core_dumps(siginfo->si_signo);
@@ -748,6 +749,9 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 			pr_info("Core dump to |%s disabled\n", cn.corename);
 			goto close_fail;
 		}
+		if (!dump_vma_snapshot(&cprm))
+			goto close_fail;
+
 		file_start_write(cprm.file);
 		core_dumped = binfmt->core_dump(&cprm);
 		/*
@@ -761,6 +765,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 			dump_emit(&cprm, "", 1);
 		}
 		file_end_write(cprm.file);
+		free_vma_snapshot(&cprm);
 	}
 	if (ispipe && core_pipe_limit)
 		wait_for_dump_helpers(cprm.file);
@@ -895,6 +900,63 @@ int dump_align(struct coredump_params *cprm, int align)
 }
 EXPORT_SYMBOL(dump_align);
 
+#ifdef CONFIG_SYSCTL
+
+void validate_coredump_safety(void)
+{
+	if (suid_dumpable == SUID_DUMP_ROOT &&
+	    core_pattern[0] != '/' && core_pattern[0] != '|') {
+		pr_warn(
+"Unsafe core_pattern used with fs.suid_dumpable=2.\n"
+"Pipe handler or fully qualified core dump path required.\n"
+"Set kernel.core_pattern before fs.suid_dumpable.\n"
+		);
+	}
+}
+
+static int proc_dostring_coredump(struct ctl_table *table, int write,
+		  void *buffer, size_t *lenp, loff_t *ppos)
+{
+	int error = proc_dostring(table, write, buffer, lenp, ppos);
+
+	if (!error)
+		validate_coredump_safety();
+	return error;
+}
+
+static struct ctl_table coredump_sysctls[] = {
+	{
+		.procname	= "core_uses_pid",
+		.data		= &core_uses_pid,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "core_pattern",
+		.data		= core_pattern,
+		.maxlen		= CORENAME_MAX_SIZE,
+		.mode		= 0644,
+		.proc_handler	= proc_dostring_coredump,
+	},
+	{
+		.procname	= "core_pipe_limit",
+		.data		= &core_pipe_limit,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{ }
+};
+
+static int __init init_fs_coredump_sysctls(void)
+{
+	register_sysctl_init("kernel", coredump_sysctls);
+	return 0;
+}
+fs_initcall(init_fs_coredump_sysctls);
+#endif /* CONFIG_SYSCTL */
+
 /*
  * The purpose of always_dump_vma() is to make sure that special kernel mappings
  * that are useful for post-mortem analysis are included in every core dump.
@@ -925,6 +987,8 @@ static bool always_dump_vma(struct vm_area_struct *vma)
 
 	return false;
 }
+
+#define DUMP_SIZE_MAYBE_ELFHDR_PLACEHOLDER 1
 
 /*
  * Decide how much of @vma's contents should be included in a core dump.
@@ -985,9 +1049,20 @@ static unsigned long vma_dump_size(struct vm_area_struct *vma,
 	 * dump the first page to aid in determining what was mapped here.
 	 */
 	if (FILTER(ELF_HEADERS) &&
-	    vma->vm_pgoff == 0 && (vma->vm_flags & VM_READ) &&
-	    (READ_ONCE(file_inode(vma->vm_file)->i_mode) & 0111) != 0)
-		return PAGE_SIZE;
+	    vma->vm_pgoff == 0 && (vma->vm_flags & VM_READ)) {
+		if ((READ_ONCE(file_inode(vma->vm_file)->i_mode) & 0111) != 0)
+			return PAGE_SIZE;
+
+		/*
+		 * ELF libraries aren't always executable.
+		 * We'll want to check whether the mapping starts with the ELF
+		 * magic, but not now - we're holding the mmap lock,
+		 * so copy_from_user() doesn't work here.
+		 * Use a placeholder instead, and fix it up later in
+		 * dump_vma_snapshot().
+		 */
+		return DUMP_SIZE_MAYBE_ELFHDR_PLACEHOLDER;
+	}
 
 #undef	FILTER
 
@@ -1024,18 +1099,29 @@ static struct vm_area_struct *next_vma(struct vm_area_struct *this_vma,
 	return gate_vma;
 }
 
+static void free_vma_snapshot(struct coredump_params *cprm)
+{
+	if (cprm->vma_meta) {
+		int i;
+		for (i = 0; i < cprm->vma_count; i++) {
+			struct file *file = cprm->vma_meta[i].file;
+			if (file)
+				fput(file);
+		}
+		kvfree(cprm->vma_meta);
+		cprm->vma_meta = NULL;
+	}
+}
+
 /*
  * Under the mmap_lock, take a snapshot of relevant information about the task's
  * VMAs.
  */
-int dump_vma_snapshot(struct coredump_params *cprm, int *vma_count,
-		      struct core_vma_metadata **vma_meta,
-		      size_t *vma_data_size_ptr)
+static bool dump_vma_snapshot(struct coredump_params *cprm)
 {
 	struct vm_area_struct *vma, *gate_vma;
 	struct mm_struct *mm = current->mm;
 	int i;
-	size_t vma_data_size = 0;
 
 	/*
 	 * Once the stack expansion code is fixed to not change VMA bounds
@@ -1043,36 +1129,51 @@ int dump_vma_snapshot(struct coredump_params *cprm, int *vma_count,
 	 * mmap_lock in read mode.
 	 */
 	if (mmap_write_lock_killable(mm))
-		return -EINTR;
+		return false;
 
+	cprm->vma_data_size = 0;
 	gate_vma = get_gate_vma(mm);
-	*vma_count = mm->map_count + (gate_vma ? 1 : 0);
+	cprm->vma_count = mm->map_count + (gate_vma ? 1 : 0);
 
-	*vma_meta = kvmalloc_array(*vma_count, sizeof(**vma_meta), GFP_KERNEL);
-	if (!*vma_meta) {
+	cprm->vma_meta = kvmalloc_array(cprm->vma_count, sizeof(*cprm->vma_meta), GFP_KERNEL);
+	if (!cprm->vma_meta) {
 		mmap_write_unlock(mm);
-		return -ENOMEM;
+		return false;
 	}
 
 	for (i = 0, vma = first_vma(current, gate_vma); vma != NULL;
 			vma = next_vma(vma, gate_vma), i++) {
-		struct core_vma_metadata *m = (*vma_meta) + i;
+		struct core_vma_metadata *m = cprm->vma_meta + i;
 
 		m->start = vma->vm_start;
 		m->end = vma->vm_end;
 		m->flags = vma->vm_flags;
 		m->dump_size = vma_dump_size(vma, cprm->mm_flags);
+		m->pgoff = vma->vm_pgoff;
 
-		vma_data_size += m->dump_size;
+		m->file = vma->vm_file;
+		if (m->file)
+			get_file(m->file);
 	}
 
 	mmap_write_unlock(mm);
 
-	if (WARN_ON(i != *vma_count)) {
-		kvfree(*vma_meta);
-		return -EFAULT;
+	for (i = 0; i < cprm->vma_count; i++) {
+		struct core_vma_metadata *m = cprm->vma_meta + i;
+
+		if (m->dump_size == DUMP_SIZE_MAYBE_ELFHDR_PLACEHOLDER) {
+			char elfmag[SELFMAG];
+
+			if (copy_from_user(elfmag, (void __user *)m->start, SELFMAG) ||
+					memcmp(elfmag, ELFMAG, SELFMAG) != 0) {
+				m->dump_size = 0;
+			} else {
+				m->dump_size = PAGE_SIZE;
+			}
+		}
+
+		cprm->vma_data_size += m->dump_size;
 	}
 
-	*vma_data_size_ptr = vma_data_size;
-	return 0;
+	return true;
 }

@@ -3,9 +3,6 @@
  * Real-Time Scheduling Class (mapped to the SCHED_FIFO and SCHED_RR
  * policies)
  */
-#include "sched.h"
-
-#include "pelt.h"
 
 #include <trace/hooks/sched.h>
 
@@ -273,8 +270,6 @@ int alloc_rt_sched_group(struct task_group *tg, struct task_group *parent)
 
 #ifdef CONFIG_SMP
 
-static void pull_rt_task(struct rq *this_rq);
-
 static inline bool need_pull_rt_task(struct rq *rq, struct task_struct *prev)
 {
 	/* Try to pull RT tasks here if we lower this rq's prio */
@@ -428,15 +423,6 @@ void inc_rt_migration(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
 
 static inline
 void dec_rt_migration(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
-{
-}
-
-static inline bool need_pull_rt_task(struct rq *rq, struct task_struct *prev)
-{
-	return false;
-}
-
-static inline void pull_rt_task(struct rq *this_rq)
 {
 }
 
@@ -1568,27 +1554,6 @@ static void yield_task_rt(struct rq *rq)
 #ifdef CONFIG_SMP
 static int find_lowest_rq(struct task_struct *task);
 
-#ifdef CONFIG_RT_SOFTINT_OPTIMIZATION
-/*
- * Return whether the task on the given cpu is currently non-preemptible
- * while handling a potentially long softint, or if the task is likely
- * to block preemptions soon because it is a ksoftirq thread that is
- * handling slow softints.
- */
-bool
-task_may_not_preempt(struct task_struct *task, int cpu)
-{
-	__u32 softirqs = per_cpu(active_softirqs, cpu) |
-			local_softirq_pending();
-
-	struct task_struct *cpu_ksoftirqd = per_cpu(ksoftirqd, cpu);
-	return ((softirqs & LONG_SOFTIRQ_MASK) &&
-		(task == cpu_ksoftirqd ||
-		 task_thread_info(task)->preempt_count & SOFTIRQ_MASK));
-}
-EXPORT_SYMBOL_GPL(task_may_not_preempt);
-#endif /* CONFIG_RT_SOFTINT_OPTIMIZATION */
-
 static int
 select_task_rq_rt(struct task_struct *p, int cpu, int flags)
 {
@@ -1596,7 +1561,6 @@ select_task_rq_rt(struct task_struct *p, int cpu, int flags)
 	struct rq *rq;
 	bool test;
 	int target_cpu = -1;
-	bool may_not_preempt;
 
 	trace_android_rvh_select_task_rq_rt(p, cpu, flags & 0xF,
 					flags, &target_cpu);
@@ -1613,12 +1577,7 @@ select_task_rq_rt(struct task_struct *p, int cpu, int flags)
 	curr = READ_ONCE(rq->curr); /* unlocked access */
 
 	/*
-	 * If the current task on @p's runqueue is a softirq task,
-	 * it may run without preemption for a time that is
-	 * ill-suited for a waiting RT task. Therefore, try to
-	 * wake this RT task on another runqueue.
-	 *
-	 * Also, if the current task on @p's runqueue is an RT task, then
+	 * If the current task on @p's runqueue is an RT task, then
 	 * try to see if we can wake this RT task up on another
 	 * runqueue. Otherwise simply start this RT task
 	 * on its current runqueue.
@@ -1643,10 +1602,9 @@ select_task_rq_rt(struct task_struct *p, int cpu, int flags)
 	 * requirement of the task - which is only important on heterogeneous
 	 * systems like big.LITTLE.
 	 */
-	may_not_preempt = task_may_not_preempt(curr, cpu);
-	test = (curr && (may_not_preempt ||
-			 (unlikely(rt_task(curr)) &&
-			  (curr->nr_cpus_allowed < 2 || curr->prio <= p->prio))));
+	test = curr &&
+	       unlikely(rt_task(curr)) &&
+	       (curr->nr_cpus_allowed < 2 || curr->prio <= p->prio);
 
 	if (test || !rt_task_fits_capacity(p, cpu)) {
 		int target = find_lowest_rq(p);
@@ -1659,14 +1617,11 @@ select_task_rq_rt(struct task_struct *p, int cpu, int flags)
 			goto out_unlock;
 
 		/*
-		 * If cpu is non-preemptible, prefer remote cpu
-		 * even if it's running a higher-prio task.
-		 * Otherwise: Don't bother moving it if the destination CPU is
+		 * Don't bother moving it if the destination CPU is
 		 * not running a lower priority task.
 		 */
 		if (target != -1 &&
-		    (may_not_preempt ||
-		     p->prio < cpu_rq(target)->rt.highest_prio.curr))
+		    p->prio < cpu_rq(target)->rt.highest_prio.curr)
 			cpu = target;
 	}
 
@@ -1780,8 +1735,7 @@ static inline void set_next_task_rt(struct rq *rq, struct task_struct *p, bool f
 	rt_queue_push_tasks(rq);
 }
 
-static struct sched_rt_entity *pick_next_rt_entity(struct rq *rq,
-						   struct rt_rq *rt_rq)
+static struct sched_rt_entity *pick_next_rt_entity(struct rt_rq *rt_rq)
 {
 	struct rt_prio_array *array = &rt_rq->active;
 	struct sched_rt_entity *next = NULL;
@@ -1803,7 +1757,7 @@ static struct task_struct *_pick_next_task_rt(struct rq *rq)
 	struct rt_rq *rt_rq  = &rq->rt;
 
 	do {
-		rt_se = pick_next_rt_entity(rq, rt_rq);
+		rt_se = pick_next_rt_entity(rt_rq);
 		BUG_ON(!rt_se);
 		rt_rq = group_rt_rq(rt_se);
 	} while (rt_rq);
@@ -2083,11 +2037,33 @@ static int push_rt_task(struct rq *rq, bool pull)
 		return 0;
 
 retry:
+	/*
+	 * It's possible that the next_task slipped in of
+	 * higher priority than current. If that's the case
+	 * just reschedule current.
+	 */
+	if (unlikely(next_task->prio < rq->curr->prio)) {
+		resched_curr(rq);
+		return 0;
+	}
+
 	if (is_migration_disabled(next_task)) {
 		struct task_struct *push_task = NULL;
 		int cpu;
 
 		if (!pull || rq->push_busy)
+			return 0;
+
+		/*
+		 * Invoking find_lowest_rq() on anything but an RT task doesn't
+		 * make sense. Per the above priority check, curr has to
+		 * be of higher priority than next_task, so no need to
+		 * reschedule when bailing out.
+		 *
+		 * Note that the stoppers are masqueraded as SCHED_FIFO
+		 * (cf. sched_set_stop_task()), so we can't rely on rt_task().
+		 */
+		if (rq->curr->sched_class != &rt_sched_class)
 			return 0;
 
 		cpu = find_lowest_rq(rq->curr);
@@ -2113,16 +2089,6 @@ retry:
 
 	if (WARN_ON(next_task == rq->curr))
 		return 0;
-
-	/*
-	 * It's possible that the next_task slipped in of
-	 * higher priority than current. If that's the case
-	 * just reschedule current.
-	 */
-	if (unlikely(next_task->prio < rq->curr->prio)) {
-		resched_curr(rq);
-		return 0;
-	}
 
 	/* We might release rq lock */
 	get_task_struct(next_task);

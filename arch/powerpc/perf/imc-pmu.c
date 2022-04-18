@@ -71,7 +71,7 @@ static struct attribute *imc_format_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group imc_format_group = {
+static const struct attribute_group imc_format_group = {
 	.name = "format",
 	.attrs = imc_format_attrs,
 };
@@ -90,7 +90,7 @@ static struct attribute *trace_imc_format_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group trace_imc_format_group = {
+static const struct attribute_group trace_imc_format_group = {
 .name = "format",
 .attrs = trace_imc_format_attrs,
 };
@@ -125,7 +125,7 @@ static struct attribute *imc_pmu_cpumask_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group imc_pmu_cpumask_attr_group = {
+static const struct attribute_group imc_pmu_cpumask_attr_group = {
 	.attrs = imc_pmu_cpumask_attrs,
 };
 
@@ -1457,7 +1457,11 @@ static int trace_imc_event_init(struct perf_event *event)
 
 	event->hw.idx = -1;
 
-	event->pmu->task_ctx_nr = perf_hw_context;
+	/*
+	 * There can only be a single PMU for perf_hw_context events which is assigned to
+	 * core PMU. Hence use "perf_sw_context" for trace_imc.
+	 */
+	event->pmu->task_ctx_nr = perf_sw_context;
 	event->destroy = reset_global_refc;
 	return 0;
 }

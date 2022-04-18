@@ -55,7 +55,7 @@ static void cx23885_input_process_measurements(struct cx23885_dev *dev,
 	} while (num != 0);
 
 	if (overrun)
-		ir_raw_event_reset(kernel_ir->rc);
+		ir_raw_event_overflow(kernel_ir->rc);
 	else if (handle)
 		ir_raw_event_handle(kernel_ir->rc);
 }

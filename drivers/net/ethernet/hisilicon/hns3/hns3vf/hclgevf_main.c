@@ -321,6 +321,7 @@ static int hclgevf_get_pf_media_type(struct hclgevf_dev *hdev)
 
 static int hclgevf_alloc_tqps(struct hclgevf_dev *hdev)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	struct hclge_comm_tqp *tqp;
 	int i;
 
@@ -353,6 +354,14 @@ static int hclgevf_alloc_tqps(struct hclgevf_dev *hdev)
 					 HCLGEVF_TQP_EXT_REG_OFFSET +
 					 (i - HCLGEVF_TQP_MAX_SIZE_DEV_V2) *
 					 HCLGEVF_TQP_REG_SIZE;
+
+		/* when device supports tx push and has device memory,
+		 * the queue can execute push mode or doorbell mode on
+		 * device memory.
+		 */
+		if (test_bit(HNAE3_DEV_SUPPORT_TX_PUSH_B, ae_dev->caps))
+			tqp->q.mem_base = hdev->hw.hw.mem_base +
+					  HCLGEVF_TQP_MEM_OFFSET(hdev, i);
 
 		tqp++;
 	}
@@ -2043,8 +2052,7 @@ static irqreturn_t hclgevf_misc_irq_handle(int irq, void *data)
 		break;
 	}
 
-	if (event_cause != HCLGEVF_VECTOR0_EVENT_OTHER)
-		hclgevf_enable_vector(&hdev->misc_vector, true);
+	hclgevf_enable_vector(&hdev->misc_vector, true);
 
 	return IRQ_HANDLED;
 }
@@ -2547,8 +2555,6 @@ static void hclgevf_uninit_client_instance(struct hnae3_client *client,
 
 static int hclgevf_dev_mem_map(struct hclgevf_dev *hdev)
 {
-#define HCLGEVF_MEM_BAR		4
-
 	struct pci_dev *pdev = hdev->pdev;
 	struct hclgevf_hw *hw = &hdev->hw;
 
@@ -2855,6 +2861,11 @@ static int hclgevf_reset_hdev(struct hclgevf_dev *hdev)
 			"failed(%d) to initialize VLAN config\n", ret);
 		return ret;
 	}
+
+	/* get current port based vlan state from PF */
+	ret = hclgevf_get_port_base_vlan_filter_state(hdev);
+	if (ret)
+		return ret;
 
 	set_bit(HCLGEVF_STATE_PROMISC_CHANGED, &hdev->state);
 

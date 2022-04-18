@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2016-2018 Advanced Micro Devices, Inc.
+ * Copyright 2016-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -178,6 +179,11 @@ static int pm_set_resources_v9(struct packet_manager *pm, uint32_t *buffer,
 	return 0;
 }
 
+static inline bool pm_use_ext_eng(struct kfd_dev *dev)
+{
+	return dev->adev->ip_versions[SDMA0_HWIP][0] >= IP_VERSION(5, 2, 0);
+}
+
 static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 		struct queue *q, bool is_static)
 {
@@ -214,7 +220,7 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 	case KFD_QUEUE_TYPE_SDMA:
 	case KFD_QUEUE_TYPE_SDMA_XGMI:
 		use_static = false; /* no static queues under SDMA */
-		if (q->properties.sdma_engine_id < 2)
+		if (q->properties.sdma_engine_id < 2 && !pm_use_ext_eng(q->device))
 			packet->bitfields2.engine_sel = q->properties.sdma_engine_id +
 				engine_sel__mes_map_queues__sdma0_vi;
 		else {
@@ -246,10 +252,8 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 }
 
 static int pm_unmap_queues_v9(struct packet_manager *pm, uint32_t *buffer,
-			enum kfd_queue_type type,
 			enum kfd_unmap_queues_filter filter,
-			uint32_t filter_param, bool reset,
-			unsigned int sdma_engine)
+			uint32_t filter_param, bool reset)
 {
 	struct pm4_mes_unmap_queues *packet;
 
@@ -258,31 +262,13 @@ static int pm_unmap_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 
 	packet->header.u32All = pm_build_pm4_header(IT_UNMAP_QUEUES,
 					sizeof(struct pm4_mes_unmap_queues));
-	switch (type) {
-	case KFD_QUEUE_TYPE_COMPUTE:
-	case KFD_QUEUE_TYPE_DIQ:
-		packet->bitfields2.extended_engine_sel =
-			extended_engine_sel__mes_unmap_queues__legacy_engine_sel;
-		packet->bitfields2.engine_sel =
-			engine_sel__mes_unmap_queues__compute;
-		break;
-	case KFD_QUEUE_TYPE_SDMA:
-	case KFD_QUEUE_TYPE_SDMA_XGMI:
-		if (sdma_engine < 2) {
-			packet->bitfields2.extended_engine_sel =
-				extended_engine_sel__mes_unmap_queues__legacy_engine_sel;
-			packet->bitfields2.engine_sel =
-				engine_sel__mes_unmap_queues__sdma0 + sdma_engine;
-		} else {
-			packet->bitfields2.extended_engine_sel =
-				extended_engine_sel__mes_unmap_queues__sdma0_to_7_sel;
-			packet->bitfields2.engine_sel = sdma_engine;
-		}
-		break;
-	default:
-		WARN(1, "queue type %d", type);
-		return -EINVAL;
-	}
+
+	packet->bitfields2.extended_engine_sel = pm_use_ext_eng(pm->dqm->dev) ?
+		extended_engine_sel__mes_unmap_queues__sdma0_to_7_sel :
+		extended_engine_sel__mes_unmap_queues__legacy_engine_sel;
+
+	packet->bitfields2.engine_sel =
+		engine_sel__mes_unmap_queues__compute;
 
 	if (reset)
 		packet->bitfields2.action =
@@ -292,12 +278,6 @@ static int pm_unmap_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 			action__mes_unmap_queues__preempt_queues;
 
 	switch (filter) {
-	case KFD_UNMAP_QUEUES_FILTER_SINGLE_QUEUE:
-		packet->bitfields2.queue_sel =
-			queue_sel__mes_unmap_queues__perform_request_on_specified_queues;
-		packet->bitfields2.num_queues = 1;
-		packet->bitfields3b.doorbell_offset0 = filter_param;
-		break;
 	case KFD_UNMAP_QUEUES_FILTER_BY_PASID:
 		packet->bitfields2.queue_sel =
 			queue_sel__mes_unmap_queues__perform_request_on_pasid_queues;

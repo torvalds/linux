@@ -26,6 +26,8 @@
 #include <asm/hvcall.h>
 #include <asm/mce.h>
 
+#define __KVM_HAVE_ARCH_VCPU_DEBUGFS
+
 #define KVM_MAX_VCPUS		NR_CPUS
 #define KVM_MAX_VCORES		NR_CPUS
 
@@ -295,7 +297,6 @@ struct kvm_arch {
 	bool dawr1_enabled;
 	pgd_t *pgtable;
 	u64 process_table;
-	struct dentry *debugfs_dir;
 	struct kvm_resize_hpt *resize_hpt; /* protected by kvm->lock */
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
@@ -673,7 +674,6 @@ struct kvm_vcpu_arch {
 	u64 timing_min_duration[__NUMBER_OF_KVM_EXIT_TYPES];
 	u64 timing_max_duration[__NUMBER_OF_KVM_EXIT_TYPES];
 	u64 timing_last_exit;
-	struct dentry *debugfs_exit_timing;
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S
@@ -752,6 +752,7 @@ struct kvm_vcpu_arch {
 	u8 irq_pending; /* Used by XIVE to signal pending guest irqs */
 	u32 last_inst;
 
+	struct rcuwait wait;
 	struct rcuwait *waitp;
 	struct kvmppc_vcore *vcore;
 	int ret;
@@ -817,6 +818,7 @@ struct kvm_vcpu_arch {
 
 	/* For support of nested guests */
 	struct kvm_nested_guest *nested;
+	u64 nested_hfscr;	/* HFSCR that the L1 requested for the nested guest */
 	u32 nested_vcpu_id;
 	gpa_t nested_io_gpr;
 #endif
@@ -829,8 +831,6 @@ struct kvm_vcpu_arch {
 	struct kvmhv_tb_accumulator rm_exit;	/* real-mode exit code */
 	struct kvmhv_tb_accumulator guest_time;	/* guest execution */
 	struct kvmhv_tb_accumulator cede_time;	/* time napping inside guest */
-
-	struct dentry *debugfs_dir;
 #endif /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
 };
 
@@ -867,6 +867,5 @@ static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_exit(void) {}
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
-static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
 
 #endif /* __POWERPC_KVM_HOST_H__ */

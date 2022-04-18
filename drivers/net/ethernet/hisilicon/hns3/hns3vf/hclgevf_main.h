@@ -96,6 +96,14 @@
 
 #define HCLGEVF_RSS_IND_TBL_SIZE		512
 
+#define HCLGEVF_TQP_MEM_SIZE		0x10000
+#define HCLGEVF_MEM_BAR			4
+/* in the bar4, the first half is for roce, and the second half is for nic */
+#define HCLGEVF_NIC_MEM_OFFSET(hdev)	\
+	(pci_resource_len((hdev)->pdev, HCLGEVF_MEM_BAR) >> 1)
+#define HCLGEVF_TQP_MEM_OFFSET(hdev, i)		\
+	(HCLGEVF_NIC_MEM_OFFSET(hdev) + HCLGEVF_TQP_MEM_SIZE * (i))
+
 #define HCLGEVF_MAC_MAX_FRAME		9728
 
 #define HCLGEVF_STATS_TIMER_INTERVAL	36U

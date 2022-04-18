@@ -70,17 +70,23 @@ enum {
 /**
  * struct kernel_ethtool_ringparam - RX/TX ring configuration
  * @rx_buf_len: Current length of buffers on the rx ring.
+ * @tcp_data_split: Scatter packet headers and data to separate buffers
+ * @cqe_size: Size of TX/RX completion queue event
  */
 struct kernel_ethtool_ringparam {
 	u32	rx_buf_len;
+	u8	tcp_data_split;
+	u32	cqe_size;
 };
 
 /**
  * enum ethtool_supported_ring_param - indicator caps for setting ring params
  * @ETHTOOL_RING_USE_RX_BUF_LEN: capture for setting rx_buf_len
+ * @ETHTOOL_RING_USE_CQE_SIZE: capture for setting cqe_size
  */
 enum ethtool_supported_ring_param {
 	ETHTOOL_RING_USE_RX_BUF_LEN = BIT(0),
+	ETHTOOL_RING_USE_CQE_SIZE   = BIT(1),
 };
 
 #define __ETH_RSS_HASH_BIT(bit)	((u32)1 << (bit))
@@ -111,7 +117,7 @@ struct ethtool_link_ext_state_info {
 		enum ethtool_link_ext_substate_bad_signal_integrity bad_signal_integrity;
 		enum ethtool_link_ext_substate_cable_issue cable_issue;
 		enum ethtool_link_ext_substate_module module;
-		u8 __link_ext_substate;
+		u32 __link_ext_substate;
 	};
 };
 

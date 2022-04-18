@@ -93,21 +93,6 @@ struct getbmapx {
 #define XFS_FMR_OWN_DEFECTIVE	FMR_OWNER('X', 8) /* bad blocks */
 
 /*
- * Structure for XFS_IOC_FSSETDM.
- * For use by backup and restore programs to set the XFS on-disk inode
- * fields di_dmevmask and di_dmstate.  These must be set to exactly and
- * only values previously obtained via xfs_bulkstat!  (Specifically the
- * struct xfs_bstat fields bs_dmevmask and bs_dmstate.)
- */
-#ifndef HAVE_FSDMIDATA
-struct fsdmidata {
-	__u32		fsd_dmevmask;	/* corresponds to di_dmevmask */
-	__u16		fsd_padding;
-	__u16		fsd_dmstate;	/* corresponds to di_dmstate  */
-};
-#endif
-
-/*
  * File segment locking set data type for 64 bit access.
  * Also used for all the RESV/FREE interfaces.
  */
@@ -562,15 +547,9 @@ typedef struct xfs_fsop_handlereq {
 
 /*
  * Compound structures for passing args through Handle Request interfaces
- * xfs_fssetdm_by_handle, xfs_attrlist_by_handle, xfs_attrmulti_by_handle
- * - ioctls: XFS_IOC_FSSETDM_BY_HANDLE, XFS_IOC_ATTRLIST_BY_HANDLE, and
- *	     XFS_IOC_ATTRMULTI_BY_HANDLE
+ * xfs_attrlist_by_handle, xfs_attrmulti_by_handle
+ * - ioctls: XFS_IOC_ATTRLIST_BY_HANDLE, and XFS_IOC_ATTRMULTI_BY_HANDLE
  */
-
-typedef struct xfs_fsop_setdm_handlereq {
-	struct xfs_fsop_handlereq	hreq;	/* handle information	*/
-	struct fsdmidata		__user *data;	/* DMAPI data	*/
-} xfs_fsop_setdm_handlereq_t;
 
 /*
  * Flags passed in xfs_attr_multiop.am_flags for the attr ioctl interface.
@@ -781,15 +760,15 @@ struct xfs_scrub_metadata {
  * For 'documentation' purposed more than anything else,
  * the "cmd #" field reflects the IRIX fcntl number.
  */
-#define XFS_IOC_ALLOCSP		_IOW ('X', 10, struct xfs_flock64)
-#define XFS_IOC_FREESP		_IOW ('X', 11, struct xfs_flock64)
+/*	XFS_IOC_ALLOCSP ------- deprecated 10	 */
+/*	XFS_IOC_FREESP -------- deprecated 11	 */
 #define XFS_IOC_DIOINFO		_IOR ('X', 30, struct dioattr)
 #define XFS_IOC_FSGETXATTR	FS_IOC_FSGETXATTR
 #define XFS_IOC_FSSETXATTR	FS_IOC_FSSETXATTR
-#define XFS_IOC_ALLOCSP64	_IOW ('X', 36, struct xfs_flock64)
-#define XFS_IOC_FREESP64	_IOW ('X', 37, struct xfs_flock64)
+/*	XFS_IOC_ALLOCSP64 ----- deprecated 36	 */
+/*	XFS_IOC_FREESP64 ------ deprecated 37	 */
 #define XFS_IOC_GETBMAP		_IOWR('X', 38, struct getbmap)
-#define XFS_IOC_FSSETDM		_IOW ('X', 39, struct fsdmidata)
+/*      XFS_IOC_FSSETDM ------- deprecated 39    */
 #define XFS_IOC_RESVSP		_IOW ('X', 40, struct xfs_flock64)
 #define XFS_IOC_UNRESVSP	_IOW ('X', 41, struct xfs_flock64)
 #define XFS_IOC_RESVSP64	_IOW ('X', 42, struct xfs_flock64)
@@ -831,7 +810,7 @@ struct xfs_scrub_metadata {
 #define XFS_IOC_FREEZE		     _IOWR('X', 119, int)	/* aka FIFREEZE */
 #define XFS_IOC_THAW		     _IOWR('X', 120, int)	/* aka FITHAW */
 
-#define XFS_IOC_FSSETDM_BY_HANDLE    _IOW ('X', 121, struct xfs_fsop_setdm_handlereq)
+/*      XFS_IOC_FSSETDM_BY_HANDLE -- deprecated 121      */
 #define XFS_IOC_ATTRLIST_BY_HANDLE   _IOW ('X', 122, struct xfs_fsop_attrlist_handlereq)
 #define XFS_IOC_ATTRMULTI_BY_HANDLE  _IOW ('X', 123, struct xfs_fsop_attrmulti_handlereq)
 #define XFS_IOC_FSGEOMETRY_V4	     _IOR ('X', 124, struct xfs_fsop_geom_v4)

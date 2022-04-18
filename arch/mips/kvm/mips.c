@@ -171,25 +171,6 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	return 0;
 }
 
-void kvm_mips_free_vcpus(struct kvm *kvm)
-{
-	unsigned int i;
-	struct kvm_vcpu *vcpu;
-
-	kvm_for_each_vcpu(i, vcpu, kvm) {
-		kvm_vcpu_destroy(vcpu);
-	}
-
-	mutex_lock(&kvm->lock);
-
-	for (i = 0; i < atomic_read(&kvm->online_vcpus); i++)
-		kvm->vcpus[i] = NULL;
-
-	atomic_set(&kvm->online_vcpus, 0);
-
-	mutex_unlock(&kvm->lock);
-}
-
 static void kvm_mips_free_gpa_pt(struct kvm *kvm)
 {
 	/* It should always be safe to remove after flushing the whole range */
@@ -199,7 +180,7 @@ static void kvm_mips_free_gpa_pt(struct kvm *kvm)
 
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
-	kvm_mips_free_vcpus(kvm);
+	kvm_destroy_vcpus(kvm);
 	kvm_mips_free_gpa_pt(kvm);
 }
 
@@ -233,24 +214,19 @@ void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
-				   struct kvm_memory_slot *memslot,
-				   const struct kvm_userspace_memory_region *mem,
+				   const struct kvm_memory_slot *old,
+				   struct kvm_memory_slot *new,
 				   enum kvm_mr_change change)
 {
 	return 0;
 }
 
 void kvm_arch_commit_memory_region(struct kvm *kvm,
-				   const struct kvm_userspace_memory_region *mem,
 				   struct kvm_memory_slot *old,
 				   const struct kvm_memory_slot *new,
 				   enum kvm_mr_change change)
 {
 	int needs_flush;
-
-	kvm_debug("%s: kvm: %p slot: %d, GPA: %llx, size: %llx, QVA: %llx\n",
-		  __func__, kvm, mem->slot, mem->guest_phys_addr,
-		  mem->memory_size, mem->userspace_addr);
 
 	/*
 	 * If dirty page logging is enabled, write protect all pages in the slot
@@ -438,6 +414,24 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	return -ENOIOCTLCMD;
 }
 
+/*
+ * Actually run the vCPU, entering an RCU extended quiescent state (EQS) while
+ * the vCPU is running.
+ *
+ * This must be noinstr as instrumentation may make use of RCU, and this is not
+ * safe during the EQS.
+ */
+static int noinstr kvm_mips_vcpu_enter_exit(struct kvm_vcpu *vcpu)
+{
+	int ret;
+
+	guest_state_enter_irqoff();
+	ret = kvm_mips_callbacks->vcpu_run(vcpu);
+	guest_state_exit_irqoff();
+
+	return ret;
+}
+
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 {
 	int r = -EINTR;
@@ -458,7 +452,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 	lose_fpu(1);
 
 	local_irq_disable();
-	guest_enter_irqoff();
+	guest_timing_enter_irqoff();
 	trace_kvm_enter(vcpu);
 
 	/*
@@ -469,10 +463,23 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 	 */
 	smp_store_mb(vcpu->mode, IN_GUEST_MODE);
 
-	r = kvm_mips_callbacks->vcpu_run(vcpu);
+	r = kvm_mips_vcpu_enter_exit(vcpu);
+
+	/*
+	 * We must ensure that any pending interrupts are taken before
+	 * we exit guest timing so that timer ticks are accounted as
+	 * guest time. Transiently unmask interrupts so that any
+	 * pending interrupts are taken.
+	 *
+	 * TODO: is there a barrier which ensures that pending interrupts are
+	 * recognised? Currently this just hopes that the CPU takes any pending
+	 * interrupts between the enable and disable.
+	 */
+	local_irq_enable();
+	local_irq_disable();
 
 	trace_kvm_out(vcpu);
-	guest_exit_irqoff();
+	guest_timing_exit_irqoff();
 	local_irq_enable();
 
 out:
@@ -498,7 +505,7 @@ int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 	if (irq->cpu == -1)
 		dvcpu = vcpu;
 	else
-		dvcpu = vcpu->kvm->vcpus[irq->cpu];
+		dvcpu = kvm_get_vcpu(vcpu->kvm, irq->cpu);
 
 	if (intr == 2 || intr == 3 || intr == 4 || intr == 6) {
 		kvm_mips_callbacks->queue_io_int(dvcpu, irq);
@@ -1192,7 +1199,7 @@ static void kvm_mips_set_c0_status(void)
 /*
  * Return value is in the form (errcode<<2 | RESUME_FLAG_HOST | RESUME_FLAG_NV)
  */
-int kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
+static int __kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
 	u32 cause = vcpu->arch.host_cp0_cause;
@@ -1378,6 +1385,17 @@ int kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 		    read_c0_config5() & MIPS_CONF5_MSAEN)
 			__kvm_restore_msacsr(&vcpu->arch);
 	}
+	return ret;
+}
+
+int noinstr kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
+{
+	int ret;
+
+	guest_state_exit_irqoff();
+	ret = __kvm_mips_handle_exit(vcpu);
+	guest_state_enter_irqoff();
+
 	return ret;
 }
 

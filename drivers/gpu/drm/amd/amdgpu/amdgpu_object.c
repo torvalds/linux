@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <linux/dma-buf.h>
 
+#include <drm/drm_drv.h>
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_cache.h>
 #include "amdgpu.h"
@@ -450,7 +451,7 @@ static bool amdgpu_bo_validate_size(struct amdgpu_device *adev,
 	if (domain & AMDGPU_GEM_DOMAIN_GTT) {
 		man = ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
 
-		if (size < (man->size << PAGE_SHIFT))
+		if (size < man->size)
 			return true;
 		else
 			goto fail;
@@ -459,7 +460,7 @@ static bool amdgpu_bo_validate_size(struct amdgpu_device *adev,
 	if (domain & AMDGPU_GEM_DOMAIN_VRAM) {
 		man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
 
-		if (size < (man->size << PAGE_SHIFT))
+		if (size < man->size)
 			return true;
 		else
 			goto fail;
@@ -573,6 +574,9 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 
 	if (!amdgpu_bo_support_uswc(bo->flags))
 		bo->flags &= ~AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+
+	if (adev->ras_enabled)
+		bo->flags |= AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE;
 
 	bo->tbo.bdev = &adev->mman.bdev;
 	if (bp->domain & (AMDGPU_GEM_DOMAIN_GWS | AMDGPU_GEM_DOMAIN_OA |
@@ -1061,7 +1065,18 @@ int amdgpu_bo_init(struct amdgpu_device *adev)
  */
 void amdgpu_bo_fini(struct amdgpu_device *adev)
 {
+	int idx;
+
 	amdgpu_ttm_fini(adev);
+
+	if (drm_dev_enter(adev_to_drm(adev), &idx)) {
+
+		if (!adev->gmc.xgmi.connected_to_cpu) {
+			arch_phys_wc_del(adev->gmc.vram_mtrr);
+			arch_io_free_memtype_wc(adev->gmc.aper_base, adev->gmc.aper_size);
+		}
+		drm_dev_exit(idx);
+	}
 }
 
 /**
@@ -1269,6 +1284,7 @@ void amdgpu_bo_get_memory(struct amdgpu_bo *bo, uint64_t *vram_mem,
  */
 void amdgpu_bo_release_notify(struct ttm_buffer_object *bo)
 {
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct dma_fence *fence = NULL;
 	struct amdgpu_bo *abo;
 	int r;
@@ -1288,10 +1304,12 @@ void amdgpu_bo_release_notify(struct ttm_buffer_object *bo)
 		amdgpu_amdkfd_remove_fence_on_pt_pd_bos(abo);
 
 	if (bo->resource->mem_type != TTM_PL_VRAM ||
-	    !(abo->flags & AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE))
+	    !(abo->flags & AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE) ||
+	    adev->in_suspend || adev->shutdown)
 		return;
 
-	dma_resv_lock(bo->base.resv, NULL);
+	if (WARN_ON_ONCE(!dma_resv_trylock(bo->base.resv)))
+		return;
 
 	r = amdgpu_fill_buffer(abo, AMDGPU_POISON, bo->base.resv, &fence);
 	if (!WARN_ON(r)) {

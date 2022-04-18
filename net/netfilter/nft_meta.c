@@ -539,6 +539,7 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 		return -EOPNOTSUPP;
 	}
 
+	priv->len = len;
 	return nft_parse_register_store(ctx, tb[NFTA_META_DREG], &priv->dreg,
 					NULL, NFT_DATA_VALUE, len);
 }
@@ -664,6 +665,7 @@ int nft_meta_set_init(const struct nft_ctx *ctx,
 		return -EOPNOTSUPP;
 	}
 
+	priv->len = len;
 	err = nft_parse_register_load(tb[NFTA_META_SREG], &priv->sreg, len);
 	if (err < 0)
 		return err;
@@ -750,24 +752,21 @@ static int nft_meta_get_offload(struct nft_offload_ctx *ctx,
 	return 0;
 }
 
-static bool nft_meta_get_reduce(struct nft_regs_track *track,
-				const struct nft_expr *expr)
+bool nft_meta_get_reduce(struct nft_regs_track *track,
+			 const struct nft_expr *expr)
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 	const struct nft_meta *meta;
 
-	if (!track->regs[priv->dreg].selector ||
-	    track->regs[priv->dreg].selector->ops != expr->ops) {
-		track->regs[priv->dreg].selector = expr;
-		track->regs[priv->dreg].bitwise = NULL;
+	if (!nft_reg_track_cmp(track, expr, priv->dreg)) {
+		nft_reg_track_update(track, expr, priv->dreg, priv->len);
 		return false;
 	}
 
 	meta = nft_expr_priv(track->regs[priv->dreg].selector);
 	if (priv->key != meta->key ||
 	    priv->dreg != meta->dreg) {
-		track->regs[priv->dreg].selector = expr;
-		track->regs[priv->dreg].bitwise = NULL;
+		nft_reg_track_update(track, expr, priv->dreg, priv->len);
 		return false;
 	}
 
@@ -776,6 +775,7 @@ static bool nft_meta_get_reduce(struct nft_regs_track *track,
 
 	return nft_expr_reduce_bitwise(track, expr);
 }
+EXPORT_SYMBOL_GPL(nft_meta_get_reduce);
 
 static const struct nft_expr_ops nft_meta_get_ops = {
 	.type		= &nft_meta_type,
@@ -800,8 +800,7 @@ static bool nft_meta_set_reduce(struct nft_regs_track *track,
 		if (track->regs[i].selector->ops != &nft_meta_get_ops)
 			continue;
 
-		track->regs[i].selector = NULL;
-		track->regs[i].bitwise = NULL;
+		__nft_reg_track_cancel(track, i);
 	}
 
 	return false;

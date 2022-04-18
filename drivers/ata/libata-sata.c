@@ -191,8 +191,8 @@ EXPORT_SYMBOL_GPL(ata_tf_to_fis);
 
 void ata_tf_from_fis(const u8 *fis, struct ata_taskfile *tf)
 {
-	tf->command	= fis[2];	/* status */
-	tf->feature	= fis[3];	/* error */
+	tf->status	= fis[2];
+	tf->error	= fis[3];
 
 	tf->lbal	= fis[4];
 	tf->lbam	= fis[5];
@@ -317,7 +317,7 @@ int sata_link_resume(struct ata_link *link, const unsigned long *params,
 		 * immediately after resuming.  Delay 200ms before
 		 * debouncing.
 		 */
-		if (!(link->flags & ATA_LFLAG_NO_DB_DELAY))
+		if (!(link->flags & ATA_LFLAG_NO_DEBOUNCE_DELAY))
 			ata_msleep(link->ap, 200);
 
 		/* is SControl restored correctly? */
@@ -533,8 +533,6 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
 	u32 scontrol;
 	int rc;
 
-	DPRINTK("ENTER\n");
-
 	if (online)
 		*online = false;
 
@@ -610,7 +608,6 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
 			*online = false;
 		ata_link_err(link, "COMRESET failed (errno=%d)\n", rc);
 	}
-	DPRINTK("EXIT, rc=%d\n", rc);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(sata_link_hardreset);
@@ -876,7 +873,7 @@ static ssize_t ata_ncq_prio_enable_show(struct device *device,
 		ncq_prio_enable = dev->flags & ATA_DFLAG_NCQ_PRIO_ENABLE;
 	spin_unlock_irq(ap->lock);
 
-	return rc ? rc : snprintf(buf, 20, "%u\n", ncq_prio_enable);
+	return rc ? rc : sysfs_emit(buf, "%u\n", ncq_prio_enable);
 }
 
 static ssize_t ata_ncq_prio_enable_store(struct device *device,
@@ -972,7 +969,7 @@ ata_scsi_em_message_type_show(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct ata_port *ap = ata_shost_to_port(shost);
 
-	return snprintf(buf, 23, "%d\n", ap->em_message_type);
+	return sysfs_emit(buf, "%d\n", ap->em_message_type);
 }
 DEVICE_ATTR(em_message_type, S_IRUGO,
 		  ata_scsi_em_message_type_show, NULL);
@@ -1261,8 +1258,6 @@ int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap)
 {
 	int rc = 0;
 
-	ata_scsi_dump_cdb(ap, cmd);
-
 	if (likely(ata_dev_enabled(ap->link.device)))
 		rc = __ata_scsi_queuecmd(cmd, ap->link.device);
 	else {
@@ -1411,8 +1406,8 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
 
 	*tag = buf[0] & 0x1f;
 
-	tf->command = buf[2];
-	tf->feature = buf[3];
+	tf->status = buf[2];
+	tf->error = buf[3];
 	tf->lbal = buf[4];
 	tf->lbam = buf[5];
 	tf->lbah = buf[6];
@@ -1487,7 +1482,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 	qc->result_tf.flags = ATA_TFLAG_ISADDR | ATA_TFLAG_LBA | ATA_TFLAG_LBA48;
 	qc->err_mask |= AC_ERR_DEV | AC_ERR_NCQ;
 	if (dev->class == ATA_DEV_ZAC &&
-	    ((qc->result_tf.command & ATA_SENSE) || qc->result_tf.auxiliary)) {
+	    ((qc->result_tf.status & ATA_SENSE) || qc->result_tf.auxiliary)) {
 		char sense_key, asc, ascq;
 
 		sense_key = (qc->result_tf.auxiliary >> 16) & 0xff;

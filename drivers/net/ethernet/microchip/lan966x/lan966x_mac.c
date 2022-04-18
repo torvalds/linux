@@ -40,11 +40,12 @@ static int lan966x_mac_wait_for_completion(struct lan966x *lan966x)
 {
 	u32 val;
 
-	return readx_poll_timeout(lan966x_mac_get_status,
-		lan966x, val,
-		(ANA_MACACCESS_MAC_TABLE_CMD_GET(val)) ==
-		MACACCESS_CMD_IDLE,
-		TABLE_UPDATE_SLEEP_US, TABLE_UPDATE_TIMEOUT_US);
+	return readx_poll_timeout_atomic(lan966x_mac_get_status,
+					 lan966x, val,
+					 (ANA_MACACCESS_MAC_TABLE_CMD_GET(val)) ==
+					 MACACCESS_CMD_IDLE,
+					 TABLE_UPDATE_SLEEP_US,
+					 TABLE_UPDATE_TIMEOUT_US);
 }
 
 static void lan966x_mac_select(struct lan966x *lan966x,
@@ -345,7 +346,8 @@ static void lan966x_mac_irq_process(struct lan966x *lan966x, u32 row,
 
 			lan966x_mac_process_raw_entry(&raw_entries[column],
 						      mac, &vid, &dest_idx);
-			WARN_ON(dest_idx > lan966x->num_phys_ports);
+			if (WARN_ON(dest_idx > lan966x->num_phys_ports))
+				continue;
 
 			/* If the entry in SW is found, then there is nothing
 			 * to do
@@ -391,7 +393,8 @@ static void lan966x_mac_irq_process(struct lan966x *lan966x, u32 row,
 
 		lan966x_mac_process_raw_entry(&raw_entries[column],
 					      mac, &vid, &dest_idx);
-		WARN_ON(dest_idx > lan966x->num_phys_ports);
+		if (WARN_ON(dest_idx > lan966x->num_phys_ports))
+			continue;
 
 		mac_entry = lan966x_mac_alloc_entry(mac, vid, dest_idx);
 		if (!mac_entry)

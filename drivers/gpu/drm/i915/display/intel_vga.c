@@ -7,6 +7,7 @@
 #include <linux/vgaarb.h>
 
 #include <drm/i915_drm.h>
+#include <video/vga.h>
 
 #include "i915_drv.h"
 #include "intel_de.h"
@@ -34,9 +35,9 @@ void intel_vga_disable(struct drm_i915_private *dev_priv)
 
 	/* WaEnableVGAAccessThroughIOPort:ctg,elk,ilk,snb,ivb,vlv,hsw */
 	vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
-	outb(SR01, VGA_SR_INDEX);
-	sr1 = inb(VGA_SR_DATA);
-	outb(sr1 | 1 << 5, VGA_SR_DATA);
+	outb(0x01, VGA_SEQ_I);
+	sr1 = inb(VGA_SEQ_D);
+	outb(sr1 | VGA_SR01_SCREEN_OFF, VGA_SEQ_D);
 	vga_put(pdev, VGA_RSRC_LEGACY_IO);
 	udelay(300);
 
@@ -92,7 +93,7 @@ void intel_vga_reset_io_mem(struct drm_i915_private *i915)
 	 * and error messages.
 	 */
 	vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
-	outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
+	outb(inb(VGA_MIS_R), VGA_MIS_W);
 	vga_put(pdev, VGA_RSRC_LEGACY_IO);
 }
 

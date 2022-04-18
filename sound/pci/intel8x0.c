@@ -3109,8 +3109,8 @@ static int check_default_spdif_aclink(struct pci_dev *pci)
 	return 0;
 }
 
-static int snd_intel8x0_probe(struct pci_dev *pci,
-			      const struct pci_device_id *pci_id)
+static int __snd_intel8x0_probe(struct pci_dev *pci,
+				const struct pci_device_id *pci_id)
 {
 	struct snd_card *card;
 	struct intel8x0 *chip;
@@ -3187,6 +3187,12 @@ static int snd_intel8x0_probe(struct pci_dev *pci,
 
 	pci_set_drvdata(pci, card);
 	return 0;
+}
+
+static int snd_intel8x0_probe(struct pci_dev *pci,
+			      const struct pci_device_id *pci_id)
+{
+	return snd_card_free_on_error(&pci->dev, __snd_intel8x0_probe(pci, pci_id));
 }
 
 static struct pci_driver intel8x0_driver = {

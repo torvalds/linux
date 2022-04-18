@@ -48,7 +48,7 @@ static int hclge_mdio_write(struct mii_bus *bus, int phyid, int regnum,
 	int ret;
 
 	if (test_bit(HCLGE_COMM_STATE_CMD_DISABLE, &hdev->hw.hw.comm_state))
-		return 0;
+		return -EBUSY;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MDIO_CONFIG, false);
 
@@ -86,7 +86,7 @@ static int hclge_mdio_read(struct mii_bus *bus, int phyid, int regnum)
 	int ret;
 
 	if (test_bit(HCLGE_COMM_STATE_CMD_DISABLE, &hdev->hw.hw.comm_state))
-		return 0;
+		return -EBUSY;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MDIO_CONFIG, true);
 

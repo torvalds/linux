@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 =================
 KVM VCPU Requests
 =================
@@ -112,11 +114,10 @@ KVM_REQ_TLB_FLUSH
   choose to use the common kvm_flush_remote_tlbs() implementation will
   need to handle this VCPU request.
 
-KVM_REQ_MMU_RELOAD
+KVM_REQ_VM_DEAD
 
-  When shadow page tables are used and memory slots are removed it's
-  necessary to inform each VCPU to completely refresh the tables.  This
-  request is used for that.
+  This request informs all VCPUs that the VM is dead and unusable, e.g. due to
+  fatal error or because the VM's state has been intentionally destroyed.
 
 KVM_REQ_UNBLOCK
 
@@ -135,6 +136,16 @@ KVM_REQ_UNHALT
   in contrast to when kvm_vcpu_block() returns due to any other reason,
   such as a pending signal, which does not indicate the VCPU's halt
   emulation should stop, and therefore does not make the request.
+
+KVM_REQ_OUTSIDE_GUEST_MODE
+
+  This "request" ensures the target vCPU has exited guest mode prior to the
+  sender of the request continuing on.  No action needs be taken by the target,
+  and so no request is actually logged for the target.  This request is similar
+  to a "kick", but unlike a kick it guarantees the vCPU has actually exited
+  guest mode.  A kick only guarantees the vCPU will exit at some point in the
+  future, e.g. a previous kick may have started the process, but there's no
+  guarantee the to-be-kicked vCPU has fully exited guest mode.
 
 KVM_REQUEST_MASK
 ----------------

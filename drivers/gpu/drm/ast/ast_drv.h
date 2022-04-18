@@ -69,7 +69,6 @@ enum ast_chip {
 enum ast_tx_chip {
 	AST_TX_NONE,
 	AST_TX_SIL164,
-	AST_TX_ITE66121,
 	AST_TX_DP501,
 };
 
@@ -107,7 +106,7 @@ struct ast_cursor_plane {
 
 	struct {
 		struct drm_gem_vram_object *gbo;
-		struct dma_buf_map map;
+		struct iosys_map map;
 		u64 off;
 	} hwc[AST_DEFAULT_HWC_NUM];
 
@@ -130,15 +129,26 @@ struct ast_i2c_chan {
 	struct i2c_algo_bit_data bit;
 };
 
-struct ast_connector {
+struct ast_vga_connector {
 	struct drm_connector base;
 	struct ast_i2c_chan *i2c;
 };
 
-static inline struct ast_connector *
-to_ast_connector(struct drm_connector *connector)
+static inline struct ast_vga_connector *
+to_ast_vga_connector(struct drm_connector *connector)
 {
-	return container_of(connector, struct ast_connector, base);
+	return container_of(connector, struct ast_vga_connector, base);
+}
+
+struct ast_sil164_connector {
+	struct drm_connector base;
+	struct ast_i2c_chan *i2c;
+};
+
+static inline struct ast_sil164_connector *
+to_ast_sil164_connector(struct drm_connector *connector)
+{
+	return container_of(connector, struct ast_sil164_connector, base);
 }
 
 /*
@@ -161,8 +171,20 @@ struct ast_private {
 	struct drm_plane primary_plane;
 	struct ast_cursor_plane cursor_plane;
 	struct drm_crtc crtc;
-	struct drm_encoder encoder;
-	struct ast_connector connector;
+	union {
+		struct {
+			struct drm_encoder encoder;
+			struct ast_vga_connector vga_connector;
+		} vga;
+		struct {
+			struct drm_encoder encoder;
+			struct ast_sil164_connector sil164_connector;
+		} sil164;
+		struct {
+			struct drm_encoder encoder;
+			struct drm_connector connector;
+		} dp501;
+	} output;
 
 	bool support_wide_screen;
 	enum {
@@ -172,7 +194,6 @@ struct ast_private {
 	} config_mode;
 
 	enum ast_tx_chip tx_chip_type;
-	u8 dp501_maxclk;
 	u8 *dp501_fw_addr;
 	const struct firmware *dp501_fw;	/* dp501 fw */
 };

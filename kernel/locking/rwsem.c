@@ -30,7 +30,6 @@
 
 #ifndef CONFIG_PREEMPT_RT
 #include "lock_events.h"
-#include <trace/hooks/dtask.h>
 
 /*
  * The least significant 2 bits of the owner value has the following
@@ -1016,7 +1015,6 @@ queue:
 	wake_up_q(&wake_q);
 
 	/* wait to be given the lock */
-	trace_android_vh_rwsem_read_wait_start(sem);
 	for (;;) {
 		set_current_state(state);
 		if (!smp_load_acquire(&waiter.task)) {
@@ -1036,7 +1034,6 @@ queue:
 	}
 
 	__set_current_state(TASK_RUNNING);
-	trace_android_vh_rwsem_read_wait_finish(sem);
 	lockevent_inc(rwsem_rlock);
 	return sem;
 
@@ -1044,7 +1041,6 @@ out_nolock:
 	rwsem_del_waiter(sem, &waiter);
 	raw_spin_unlock_irq(&sem->wait_lock);
 	__set_current_state(TASK_RUNNING);
-	trace_android_vh_rwsem_read_wait_finish(sem);
 	lockevent_inc(rwsem_rlock_fail);
 	return ERR_PTR(-EINTR);
 }
@@ -1052,7 +1048,7 @@ out_nolock:
 /*
  * Wait until we successfully acquire the write lock
  */
-static struct rw_semaphore *
+static struct rw_semaphore __sched *
 rwsem_down_write_slowpath(struct rw_semaphore *sem, int state)
 {
 	long count;
@@ -1112,7 +1108,6 @@ rwsem_down_write_slowpath(struct rw_semaphore *sem, int state)
 
 wait:
 	/* wait until we successfully acquire the lock */
-	trace_android_vh_rwsem_write_wait_start(sem);
 	set_current_state(state);
 	for (;;) {
 		if (rwsem_try_write_lock(sem, &waiter)) {
@@ -1151,14 +1146,12 @@ trylock_again:
 		raw_spin_lock_irq(&sem->wait_lock);
 	}
 	__set_current_state(TASK_RUNNING);
-	trace_android_vh_rwsem_write_wait_finish(sem);
 	raw_spin_unlock_irq(&sem->wait_lock);
 	lockevent_inc(rwsem_wlock);
 	return sem;
 
 out_nolock:
 	__set_current_state(TASK_RUNNING);
-	trace_android_vh_rwsem_write_wait_finish(sem);
 	raw_spin_lock_irq(&sem->wait_lock);
 	rwsem_del_waiter(sem, &waiter);
 	if (!list_empty(&sem->wait_list))

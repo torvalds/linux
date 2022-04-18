@@ -161,6 +161,11 @@ int mei_reset(struct mei_device *dev)
 		return ret;
 	}
 
+	if (dev->dev_state != MEI_DEV_RESETTING) {
+		dev_dbg(dev->dev, "wrong state = %d on link start\n", dev->dev_state);
+		return 0;
+	}
+
 	dev_dbg(dev->dev, "link is established start sending messages.\n");
 
 	mei_set_devstate(dev, MEI_DEV_INIT_CLIENTS);

@@ -19,7 +19,14 @@ properties:
       - qcom,pmk8350-rtc
 
   reg:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: rtc
+      - const: alarm
 
   interrupts:
     maxItems: 1

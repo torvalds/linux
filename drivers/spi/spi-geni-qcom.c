@@ -898,11 +898,8 @@ static int spi_geni_probe(struct platform_device *pdev)
 		return irq;
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
-	if (ret) {
-		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
-		if (ret)
-			return dev_err_probe(dev, ret, "could not set DMA mask\n");
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "could not set DMA mask\n");
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))

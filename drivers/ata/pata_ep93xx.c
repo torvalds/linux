@@ -416,8 +416,8 @@ static void ep93xx_pata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	struct ep93xx_pata_data *drv_data = ap->host->private_data;
 
-	tf->command = ep93xx_pata_check_status(ap);
-	tf->feature = ep93xx_pata_read_reg(drv_data, IDECTRL_ADDR_FEATURE);
+	tf->status = ep93xx_pata_check_status(ap);
+	tf->error = ep93xx_pata_read_reg(drv_data, IDECTRL_ADDR_FEATURE);
 	tf->nsect = ep93xx_pata_read_reg(drv_data, IDECTRL_ADDR_NSECT);
 	tf->lbal = ep93xx_pata_read_reg(drv_data, IDECTRL_ADDR_LBAL);
 	tf->lbam = ep93xx_pata_read_reg(drv_data, IDECTRL_ADDR_LBAM);
@@ -855,7 +855,6 @@ static void ep93xx_pata_drain_fifo(struct ata_queued_cmd *qc)
 		     && count < 65536; count += 2)
 		ep93xx_pata_read_reg(drv_data, IDECTRL_ADDR_DATA);
 
-	/* Can become DEBUG later */
 	if (count)
 		ata_port_dbg(ap, "drained %d bytes to clear DRQ.\n", count);
 

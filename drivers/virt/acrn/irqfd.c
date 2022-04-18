@@ -17,7 +17,6 @@
 #include "acrn_drv.h"
 
 static LIST_HEAD(acrn_irqfd_clients);
-static DEFINE_MUTEX(acrn_irqfds_mutex);
 
 /**
  * struct hsm_irqfd - Properties of HSM irqfd

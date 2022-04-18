@@ -26,19 +26,17 @@
 #ifndef __INTEL_DISPLAY_TYPES_H__
 #define __INTEL_DISPLAY_TYPES_H__
 
-#include <linux/async.h>
 #include <linux/i2c.h>
 #include <linux/pm_qos.h>
 #include <linux/pwm.h>
 #include <linux/sched/clock.h>
 
+#include <drm/dp/drm_dp_dual_mode_helper.h>
+#include <drm/dp/drm_dp_mst_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_dp_dual_mode_helper.h>
-#include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_dsc.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
@@ -143,25 +141,6 @@ struct intel_framebuffer {
 	};
 
 	struct i915_address_space *dpt_vm;
-};
-
-struct intel_fbdev {
-	struct drm_fb_helper helper;
-	struct intel_framebuffer *fb;
-	struct i915_vma *vma;
-	unsigned long vma_flags;
-	async_cookie_t cookie;
-	int preferred_bpp;
-
-	/* Whether or not fbdev hpd processing is temporarily suspended */
-	bool hpd_suspended : 1;
-	/* Set when a hotplug was received while HPD processing was
-	 * suspended
-	 */
-	bool hpd_waiting : 1;
-
-	/* Protects hpd_suspended */
-	struct mutex hpd_lock;
 };
 
 enum intel_hotplug_state {
@@ -969,6 +948,9 @@ struct intel_crtc_state {
 	bool preload_luts;
 	bool inherited; /* state inherited from BIOS? */
 
+	/* Ask the hardware to actually async flip? */
+	bool do_async_flip;
+
 	/* Pipe source size (ie. panel fitter input size)
 	 * All planes will be positioned inside this space,
 	 * and get clipped at the edges. */
@@ -1165,6 +1147,7 @@ struct intel_crtc_state {
 
 	/* bitmask of actually visible planes (enum plane_id) */
 	u8 active_planes;
+	u8 scaled_planes;
 	u8 nv12_planes;
 	u8 c8_planes;
 
@@ -1199,11 +1182,8 @@ struct intel_crtc_state {
 	/* enable pipe big joiner? */
 	bool bigjoiner;
 
-	/* big joiner slave crtc? */
-	bool bigjoiner_slave;
-
-	/* linked crtc for bigjoiner, either slave or master */
-	struct intel_crtc *bigjoiner_linked_crtc;
+	/* big joiner pipe bitmask */
+	u8 bigjoiner_pipes;
 
 	/* Display Stream compression state */
 	struct {
@@ -1442,25 +1422,6 @@ struct intel_hdmi {
 };
 
 struct intel_dp_mst_encoder;
-/*
- * enum link_m_n_set:
- *	When platform provides two set of M_N registers for dp, we can
- *	program them and switch between them incase of DRRS.
- *	But When only one such register is provided, we have to program the
- *	required divider value on that registers itself based on the DRRS state.
- *
- * M1_N1	: Program dp_m_n on M1_N1 registers
- *			  dp_m2_n2 on M2_N2 registers (If supported)
- *
- * M2_N2	: Program dp_m2_n2 on M1_N1 registers
- *			  M2_N2 registers are not supported
- */
-
-enum link_m_n_set {
-	/* Sets the m1_n1 and m2_n2 */
-	M1_N1 = 0,
-	M2_N2
-};
 
 struct intel_dp_compliance_data {
 	unsigned long edid;

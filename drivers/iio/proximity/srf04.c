@@ -235,12 +235,12 @@ static const struct iio_chan_spec srf04_chan_spec[] = {
 };
 
 static const struct of_device_id of_srf04_match[] = {
-	{ .compatible = "devantech,srf04", .data = &srf04_cfg},
-	{ .compatible = "maxbotix,mb1000", .data = &mb_lv_cfg},
-	{ .compatible = "maxbotix,mb1010", .data = &mb_lv_cfg},
-	{ .compatible = "maxbotix,mb1020", .data = &mb_lv_cfg},
-	{ .compatible = "maxbotix,mb1030", .data = &mb_lv_cfg},
-	{ .compatible = "maxbotix,mb1040", .data = &mb_lv_cfg},
+	{ .compatible = "devantech,srf04", .data = &srf04_cfg },
+	{ .compatible = "maxbotix,mb1000", .data = &mb_lv_cfg },
+	{ .compatible = "maxbotix,mb1010", .data = &mb_lv_cfg },
+	{ .compatible = "maxbotix,mb1020", .data = &mb_lv_cfg },
+	{ .compatible = "maxbotix,mb1030", .data = &mb_lv_cfg },
+	{ .compatible = "maxbotix,mb1040", .data = &mb_lv_cfg },
 	{},
 };
 

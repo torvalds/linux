@@ -302,7 +302,7 @@ again:
 	 * found it, but truncated or holepunched or subjected to
 	 * invalidate_complete_page2 before we got the page lock (also
 	 * cases which we are happy to fail).  And we hold a reference,
-	 * so refcount care in invalidate_complete_page's remove_mapping
+	 * so refcount care in invalidate_inode_page's remove_mapping
 	 * prevents drop_caches from setting mapping to NULL beneath us.
 	 *
 	 * The case we do have to guard against is when memory pressure made
@@ -1031,7 +1031,7 @@ static void futex_cleanup(struct task_struct *tsk)
  * actually finished the futex cleanup. The worst case for this is that the
  * waiter runs through the wait loop until the state becomes visible.
  *
- * This is called from the recursive fault handling path in do_exit().
+ * This is called from the recursive fault handling path in make_task_dead().
  *
  * This is best effort. Either the futex exit code has run already or
  * not. If the OWNER_DIED bit has been set on the futex then the waiter can

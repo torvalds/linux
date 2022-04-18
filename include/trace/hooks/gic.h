@@ -9,7 +9,6 @@
 
 #include <linux/irqdomain.h>
 
-#include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
 DECLARE_HOOK(android_vh_gic_resume,

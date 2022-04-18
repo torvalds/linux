@@ -1268,6 +1268,9 @@ PAGE_SIZE multiple when read back.
 		The number of processes belonging to this cgroup
 		killed by any kind of OOM killer.
 
+          oom_group_kill
+                The number of times a group OOM has occurred.
+
   memory.events.local
 	Similar to memory.events but the fields in the file are local
 	to the cgroup i.e. not hierarchical. The file modified event
@@ -1298,6 +1301,11 @@ PAGE_SIZE multiple when read back.
 		Amount of memory used to cache filesystem data,
 		including tmpfs and shared memory.
 
+	  kernel (npn)
+		Amount of total kernel memory, including
+		(kernel_stack, pagetables, percpu, vmalloc, slab) in
+		addition to other kernel memory use cases.
+
 	  kernel_stack
 		Amount of memory allocated to kernel stacks.
 
@@ -1310,6 +1318,9 @@ PAGE_SIZE multiple when read back.
 
 	  sock (npn)
 		Amount of memory used in network transmission buffers
+
+	  vmalloc (npn)
+		Amount of memory used for vmap backed memory.
 
 	  shmem
 		Amount of cached filesystem data that is swap-backed,
@@ -2259,6 +2270,11 @@ HugeTLB Interface Files
 	Similar to hugetlb.<hugepagesize>.events but the fields in the file
 	are local to the cgroup i.e. not hierarchical. The file modified event
 	generated on this file reflects only the local events.
+
+  hugetlb.<hugepagesize>.numa_stat
+	Similar to memory.numa_stat, it shows the numa information of the
+        hugetlb pages of <hugepagesize> in this cgroup.  Only active in
+        use hugetlb pages are included.  The per-node values are in bytes.
 
 Misc
 ----

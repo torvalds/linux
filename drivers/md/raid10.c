@@ -861,7 +861,6 @@ static void flush_pending_writes(struct r10conf *conf)
 		struct bio *bio;
 
 		bio = bio_list_get(&conf->pending_bio_list);
-		conf->pending_count = 0;
 		spin_unlock_irq(&conf->device_lock);
 
 		/*
@@ -1054,16 +1053,9 @@ static sector_t choose_data_offset(struct r10bio *r10_bio,
 		return rdev->new_data_offset;
 }
 
-struct raid10_plug_cb {
-	struct blk_plug_cb	cb;
-	struct bio_list		pending;
-	int			pending_cnt;
-};
-
 static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 {
-	struct raid10_plug_cb *plug = container_of(cb, struct raid10_plug_cb,
-						   cb);
+	struct raid1_plug_cb *plug = container_of(cb, struct raid1_plug_cb, cb);
 	struct mddev *mddev = plug->cb.data;
 	struct r10conf *conf = mddev->private;
 	struct bio *bio;
@@ -1071,7 +1063,6 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	if (from_schedule || current->bio_list) {
 		spin_lock_irq(&conf->device_lock);
 		bio_list_merge(&conf->pending_bio_list, &plug->pending);
-		conf->pending_count += plug->pending_cnt;
 		spin_unlock_irq(&conf->device_lock);
 		wake_up(&conf->wait_barrier);
 		md_wakeup_thread(mddev->thread);
@@ -1208,14 +1199,13 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 
 	if (blk_queue_io_stat(bio->bi_bdev->bd_disk->queue))
 		r10_bio->start_time = bio_start_io_acct(bio);
-	read_bio = bio_clone_fast(bio, gfp, &mddev->bio_set);
+	read_bio = bio_alloc_clone(rdev->bdev, bio, gfp, &mddev->bio_set);
 
 	r10_bio->devs[slot].bio = read_bio;
 	r10_bio->devs[slot].rdev = rdev;
 
 	read_bio->bi_iter.bi_sector = r10_bio->devs[slot].addr +
 		choose_data_offset(r10_bio, rdev);
-	bio_set_dev(read_bio, rdev->bdev);
 	read_bio->bi_end_io = raid10_end_read_request;
 	bio_set_op_attrs(read_bio, op, do_sync);
 	if (test_bit(FailFast, &rdev->flags) &&
@@ -1239,7 +1229,7 @@ static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
 	const unsigned long do_fua = (bio->bi_opf & REQ_FUA);
 	unsigned long flags;
 	struct blk_plug_cb *cb;
-	struct raid10_plug_cb *plug = NULL;
+	struct raid1_plug_cb *plug = NULL;
 	struct r10conf *conf = mddev->private;
 	struct md_rdev *rdev;
 	int devnum = r10_bio->devs[n_copy].devnum;
@@ -1255,7 +1245,7 @@ static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
 	} else
 		rdev = conf->mirrors[devnum].rdev;
 
-	mbio = bio_clone_fast(bio, GFP_NOIO, &mddev->bio_set);
+	mbio = bio_alloc_clone(rdev->bdev, bio, GFP_NOIO, &mddev->bio_set);
 	if (replacement)
 		r10_bio->devs[n_copy].repl_bio = mbio;
 	else
@@ -1263,7 +1253,6 @@ static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
 
 	mbio->bi_iter.bi_sector	= (r10_bio->devs[n_copy].addr +
 				   choose_data_offset(r10_bio, rdev));
-	bio_set_dev(mbio, rdev->bdev);
 	mbio->bi_end_io	= raid10_end_write_request;
 	bio_set_op_attrs(mbio, op, do_sync | do_fua);
 	if (!replacement && test_bit(FailFast,
@@ -1282,16 +1271,14 @@ static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
 
 	cb = blk_check_plugged(raid10_unplug, mddev, sizeof(*plug));
 	if (cb)
-		plug = container_of(cb, struct raid10_plug_cb, cb);
+		plug = container_of(cb, struct raid1_plug_cb, cb);
 	else
 		plug = NULL;
 	if (plug) {
 		bio_list_add(&plug->pending, mbio);
-		plug->pending_cnt++;
 	} else {
 		spin_lock_irqsave(&conf->device_lock, flags);
 		bio_list_add(&conf->pending_bio_list, mbio);
-		conf->pending_count++;
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 		md_wakeup_thread(mddev->thread);
 	}
@@ -1812,7 +1799,8 @@ retry_discard:
 		 */
 		if (r10_bio->devs[disk].bio) {
 			struct md_rdev *rdev = conf->mirrors[disk].rdev;
-			mbio = bio_clone_fast(bio, GFP_NOIO, &mddev->bio_set);
+			mbio = bio_alloc_clone(bio->bi_bdev, bio, GFP_NOIO,
+					       &mddev->bio_set);
 			mbio->bi_end_io = raid10_end_discard_request;
 			mbio->bi_private = r10_bio;
 			r10_bio->devs[disk].bio = mbio;
@@ -1825,7 +1813,8 @@ retry_discard:
 		}
 		if (r10_bio->devs[disk].repl_bio) {
 			struct md_rdev *rrdev = conf->mirrors[disk].replacement;
-			rbio = bio_clone_fast(bio, GFP_NOIO, &mddev->bio_set);
+			rbio = bio_alloc_clone(bio->bi_bdev, bio, GFP_NOIO,
+					       &mddev->bio_set);
 			rbio->bi_end_io = raid10_end_discard_request;
 			rbio->bi_private = r10_bio;
 			r10_bio->devs[disk].repl_bio = rbio;
@@ -2422,7 +2411,7 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 		 * bi_vecs, as the read request might have corrupted these
 		 */
 		rp = get_resync_pages(tbio);
-		bio_reset(tbio);
+		bio_reset(tbio, conf->mirrors[d].rdev->bdev, REQ_OP_WRITE);
 
 		md_bio_reset_resync_pages(tbio, rp, fbio->bi_iter.bi_size);
 
@@ -2430,7 +2419,6 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 		tbio->bi_private = rp;
 		tbio->bi_iter.bi_sector = r10_bio->devs[i].addr;
 		tbio->bi_end_io = end_sync_write;
-		bio_set_op_attrs(tbio, REQ_OP_WRITE, 0);
 
 		bio_copy_data(tbio, fbio);
 
@@ -2441,7 +2429,6 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 		if (test_bit(FailFast, &conf->mirrors[d].rdev->flags))
 			tbio->bi_opf |= MD_FAILFAST;
 		tbio->bi_iter.bi_sector += conf->mirrors[d].rdev->data_offset;
-		bio_set_dev(tbio, conf->mirrors[d].rdev->bdev);
 		submit_bio_noacct(tbio);
 	}
 
@@ -2894,12 +2881,12 @@ static int narrow_write_error(struct r10bio *r10_bio, int i)
 		if (sectors > sect_to_write)
 			sectors = sect_to_write;
 		/* Write at 'sector' for 'sectors' */
-		wbio = bio_clone_fast(bio, GFP_NOIO, &mddev->bio_set);
+		wbio = bio_alloc_clone(rdev->bdev, bio, GFP_NOIO,
+				       &mddev->bio_set);
 		bio_trim(wbio, sector - bio->bi_iter.bi_sector, sectors);
 		wsector = r10_bio->devs[i].addr + (sector - r10_bio->sector);
 		wbio->bi_iter.bi_sector = wsector +
 				   choose_data_offset(r10_bio, rdev);
-		bio_set_dev(wbio, rdev->bdev);
 		bio_set_op_attrs(wbio, REQ_OP_WRITE, 0);
 
 		if (submit_bio_wait(wbio) < 0)
@@ -3160,12 +3147,12 @@ static struct r10bio *raid10_alloc_init_r10buf(struct r10conf *conf)
 	for (i = 0; i < nalloc; i++) {
 		bio = r10bio->devs[i].bio;
 		rp = bio->bi_private;
-		bio_reset(bio);
+		bio_reset(bio, NULL, 0);
 		bio->bi_private = rp;
 		bio = r10bio->devs[i].repl_bio;
 		if (bio) {
 			rp = bio->bi_private;
-			bio_reset(bio);
+			bio_reset(bio, NULL, 0);
 			bio->bi_private = rp;
 		}
 	}
@@ -4115,7 +4102,6 @@ static int raid10_run(struct mddev *mddev)
 	if (mddev->queue) {
 		blk_queue_max_discard_sectors(mddev->queue,
 					      UINT_MAX);
-		blk_queue_max_write_same_sectors(mddev->queue, 0);
 		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
 		blk_queue_io_min(mddev->queue, mddev->chunk_sectors << 9);
 		raid10_set_io_opt(conf);
@@ -4892,14 +4878,12 @@ read_more:
 		return sectors_done;
 	}
 
-	read_bio = bio_alloc_bioset(GFP_KERNEL, RESYNC_PAGES, &mddev->bio_set);
-
-	bio_set_dev(read_bio, rdev->bdev);
+	read_bio = bio_alloc_bioset(rdev->bdev, RESYNC_PAGES, REQ_OP_READ,
+				    GFP_KERNEL, &mddev->bio_set);
 	read_bio->bi_iter.bi_sector = (r10_bio->devs[r10_bio->read_slot].addr
 			       + rdev->data_offset);
 	read_bio->bi_private = r10_bio;
 	read_bio->bi_end_io = end_reshape_read;
-	bio_set_op_attrs(read_bio, REQ_OP_READ, 0);
 	r10_bio->master_bio = read_bio;
 	r10_bio->read_slot = r10_bio->devs[r10_bio->read_slot].devnum;
 

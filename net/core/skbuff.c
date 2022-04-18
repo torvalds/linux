@@ -202,7 +202,7 @@ static void __build_skb_around(struct sk_buff *skb, void *data,
 	skb->head = data;
 	skb->data = data;
 	skb_reset_tail_pointer(skb);
-	skb->end = skb->tail + size;
+	skb_set_end_offset(skb, size);
 	skb->mac_header = (typeof(skb->mac_header))~0U;
 	skb->transport_header = (typeof(skb->transport_header))~0U;
 
@@ -682,7 +682,7 @@ exit:
 	 * while trying to recycle fragments on __skb_frag_unref() we need
 	 * to make one SKB responsible for triggering the recycle path.
 	 * So disable the recycling bit if an SKB is cloned and we have
-	 * additional references to to the fragmented part of the SKB.
+	 * additional references to the fragmented part of the SKB.
 	 * Eventually the last SKB will have the recycling bit set and it's
 	 * dataref set to 0, which will trigger the recycling
 	 */
@@ -778,16 +778,17 @@ void kfree_skb_reason(struct sk_buff *skb, enum skb_drop_reason reason)
 }
 EXPORT_SYMBOL(kfree_skb_reason);
 
-void kfree_skb_list(struct sk_buff *segs)
+void kfree_skb_list_reason(struct sk_buff *segs,
+			   enum skb_drop_reason reason)
 {
 	while (segs) {
 		struct sk_buff *next = segs->next;
 
-		kfree_skb(segs);
+		kfree_skb_reason(segs, reason);
 		segs = next;
 	}
 }
-EXPORT_SYMBOL(kfree_skb_list);
+EXPORT_SYMBOL(kfree_skb_list_reason);
 
 /* Dump skb information and contents.
  *
@@ -1737,11 +1738,10 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	skb->head     = data;
 	skb->head_frag = 0;
 	skb->data    += off;
+
+	skb_set_end_offset(skb, size);
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
-	skb->end      = size;
 	off           = nhead;
-#else
-	skb->end      = skb->head + size;
 #endif
 	skb->tail	      += off;
 	skb_headers_offset_update(skb, nhead);
@@ -1788,6 +1788,38 @@ struct sk_buff *skb_realloc_headroom(struct sk_buff *skb, unsigned int headroom)
 	return skb2;
 }
 EXPORT_SYMBOL(skb_realloc_headroom);
+
+int __skb_unclone_keeptruesize(struct sk_buff *skb, gfp_t pri)
+{
+	unsigned int saved_end_offset, saved_truesize;
+	struct skb_shared_info *shinfo;
+	int res;
+
+	saved_end_offset = skb_end_offset(skb);
+	saved_truesize = skb->truesize;
+
+	res = pskb_expand_head(skb, 0, 0, pri);
+	if (res)
+		return res;
+
+	skb->truesize = saved_truesize;
+
+	if (likely(skb_end_offset(skb) == saved_end_offset))
+		return 0;
+
+	shinfo = skb_shinfo(skb);
+
+	/* We are about to change back skb->end,
+	 * we need to move skb_shinfo() to its new location.
+	 */
+	memmove(skb->head + saved_end_offset,
+		shinfo,
+		offsetof(struct skb_shared_info, frags[shinfo->nr_frags]));
+
+	skb_set_end_offset(skb, saved_end_offset);
+
+	return 0;
+}
 
 /**
  *	skb_expand_head - reallocate header of &sk_buff
@@ -2277,7 +2309,7 @@ void *__pskb_pull_tail(struct sk_buff *skb, int delta)
 		/* Free pulled out fragments. */
 		while ((list = skb_shinfo(skb)->frag_list) != insp) {
 			skb_shinfo(skb)->frag_list = list->next;
-			kfree_skb(list);
+			consume_skb(list);
 		}
 		/* And insert new clone at head. */
 		if (clone) {
@@ -3877,6 +3909,7 @@ struct sk_buff *skb_segment_list(struct sk_buff *skb,
 		list_skb = list_skb->next;
 
 		err = 0;
+		delta_truesize += nskb->truesize;
 		if (skb_shared(nskb)) {
 			tmp = skb_clone(nskb, GFP_ATOMIC);
 			if (tmp) {
@@ -3901,7 +3934,6 @@ struct sk_buff *skb_segment_list(struct sk_buff *skb,
 		tail = nskb;
 
 		delta_len += nskb->len;
-		delta_truesize += nskb->truesize;
 
 		skb_push(nskb, -skb_network_offset(nskb) + offset);
 
@@ -4731,7 +4763,7 @@ static void __skb_complete_tx_timestamp(struct sk_buff *skb,
 	if (sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID) {
 		serr->ee.ee_data = skb_shinfo(skb)->tskey;
 		if (sk_is_tcp(sk))
-			serr->ee.ee_data -= sk->sk_tskey;
+			serr->ee.ee_data -= atomic_read(&sk->sk_tskey);
 	}
 
 	err = sock_queue_err_skb(sk, skb);
@@ -4821,7 +4853,7 @@ void __skb_tstamp_tx(struct sk_buff *orig_skb,
 	if (hwtstamps)
 		*skb_hwtstamps(skb) = *hwtstamps;
 	else
-		skb->tstamp = ktime_get_real();
+		__net_timestamp(skb);
 
 	__skb_complete_tx_timestamp(skb, sk, tstype, opt_stats);
 }
@@ -5245,11 +5277,18 @@ bool skb_try_coalesce(struct sk_buff *to, struct sk_buff *from,
 	if (skb_cloned(to))
 		return false;
 
-	/* The page pool signature of struct page will eventually figure out
-	 * which pages can be recycled or not but for now let's prohibit slab
-	 * allocated and page_pool allocated SKBs from being coalesced.
+	/* In general, avoid mixing slab allocated and page_pool allocated
+	 * pages within the same SKB. However when @to is not pp_recycle and
+	 * @from is cloned, we can transition frag pages from page_pool to
+	 * reference counted.
+	 *
+	 * On the other hand, don't allow coalescing two pp_recycle SKBs if
+	 * @from is cloned, in case the SKB is using page_pool fragment
+	 * references (PP_FLAG_PAGE_FRAG). Since we only take full page
+	 * references for cloned SKBs at the moment that would result in
+	 * inconsistent reference counts.
 	 */
-	if (to->pp_recycle != from->pp_recycle)
+	if (to->pp_recycle != (from->pp_recycle && !skb_cloned(from)))
 		return false;
 
 	if (len <= skb_tailroom(to)) {
@@ -5351,7 +5390,7 @@ void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 
 	ipvs_reset(skb);
 	skb->mark = 0;
-	skb->tstamp = 0;
+	skb_clear_tstamp(skb);
 }
 EXPORT_SYMBOL_GPL(skb_scrub_packet);
 
@@ -6045,11 +6084,7 @@ static int pskb_carve_inside_header(struct sk_buff *skb, const u32 off,
 	skb->head = data;
 	skb->data = data;
 	skb->head_frag = 0;
-#ifdef NET_SKBUFF_DATA_USES_OFFSET
-	skb->end = size;
-#else
-	skb->end = skb->head + size;
-#endif
+	skb_set_end_offset(skb, size);
 	skb_set_tail_pointer(skb, skb_headlen(skb));
 	skb_headers_offset_update(skb, 0);
 	skb->cloned = 0;
@@ -6106,7 +6141,7 @@ static int pskb_carve_frag_list(struct sk_buff *skb,
 	/* Free pulled out fragments. */
 	while ((list = shinfo->frag_list) != insp) {
 		shinfo->frag_list = list->next;
-		kfree_skb(list);
+		consume_skb(list);
 	}
 	/* And insert new clone at head. */
 	if (clone) {
@@ -6187,11 +6222,7 @@ static int pskb_carve_inside_nonlinear(struct sk_buff *skb, const u32 off,
 	skb->head = data;
 	skb->head_frag = 0;
 	skb->data = data;
-#ifdef NET_SKBUFF_DATA_USES_OFFSET
-	skb->end = size;
-#else
-	skb->end = skb->head + size;
-#endif
+	skb_set_end_offset(skb, size);
 	skb_reset_tail_pointer(skb);
 	skb_headers_offset_update(skb, 0);
 	skb->cloned   = 0;

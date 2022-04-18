@@ -958,7 +958,7 @@ static void prep_ssp_v1_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_port *port = slot->port;
 	struct sas_ssp_task *ssp_task = &task->ssp_task;
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
-	struct hisi_sas_tmf_task *tmf = slot->tmf;
+	struct sas_tmf_task *tmf = slot->tmf;
 	int has_data = 0, priority = !!tmf;
 	u8 *buf_cmd, fburst = 0;
 	u32 dw1, dw2;
@@ -1200,8 +1200,7 @@ static void slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	sas_dev = device->lldd_dev;
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
-	task->task_state_flags &=
-		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
+	task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
@@ -1639,11 +1638,8 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 		idx = i * HISI_SAS_PHY_INT_NR;
 		for (j = 0; j < HISI_SAS_PHY_INT_NR; j++, idx++) {
 			irq = platform_get_irq(pdev, idx);
-			if (irq < 0) {
-				dev_err(dev, "irq init: fail map phy interrupt %d\n",
-					idx);
+			if (irq < 0)
 				return irq;
-			}
 
 			rc = devm_request_irq(dev, irq, phy_interrupts[j], 0,
 					      DRV_NAME " phy", phy);
@@ -1658,11 +1654,8 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 	idx = hisi_hba->n_phy * HISI_SAS_PHY_INT_NR;
 	for (i = 0; i < hisi_hba->queue_count; i++, idx++) {
 		irq = platform_get_irq(pdev, idx);
-		if (irq < 0) {
-			dev_err(dev, "irq init: could not map cq interrupt %d\n",
-				idx);
+		if (irq < 0)
 			return irq;
-		}
 
 		rc = devm_request_irq(dev, irq, cq_interrupt_v1_hw, 0,
 				      DRV_NAME " cq", &hisi_hba->cq[i]);
@@ -1676,11 +1669,8 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 	idx = (hisi_hba->n_phy * HISI_SAS_PHY_INT_NR) + hisi_hba->queue_count;
 	for (i = 0; i < HISI_SAS_FATAL_INT_NR; i++, idx++) {
 		irq = platform_get_irq(pdev, idx);
-		if (irq < 0) {
-			dev_err(dev, "irq init: could not map fatal interrupt %d\n",
-				idx);
+		if (irq < 0)
 			return irq;
-		}
 
 		rc = devm_request_irq(dev, irq, fatal_interrupts[i], 0,
 				      DRV_NAME " fatal", hisi_hba);

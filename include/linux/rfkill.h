@@ -308,6 +308,11 @@ static inline bool rfkill_blocked(struct rfkill *rfkill)
 	return false;
 }
 
+static inline bool rfkill_soft_blocked(struct rfkill *rfkill)
+{
+	return false;
+}
+
 static inline enum rfkill_type rfkill_find_type(const char *name)
 {
 	return RFKILL_TYPE_ALL;

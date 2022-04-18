@@ -5,8 +5,10 @@
  * Copyright (c) 2020 Western Digital Corporation or its affiliates.
  */
 
+#include <linux/bits.h>
 #include <linux/init.h>
 #include <linux/pm.h>
+#include <linux/reboot.h>
 #include <asm/sbi.h>
 #include <asm/smp.h>
 
@@ -15,8 +17,8 @@ unsigned long sbi_spec_version __ro_after_init = SBI_SPEC_VERSION_DEFAULT;
 EXPORT_SYMBOL(sbi_spec_version);
 
 static void (*__sbi_set_timer)(uint64_t stime) __ro_after_init;
-static int (*__sbi_send_ipi)(const unsigned long *hart_mask) __ro_after_init;
-static int (*__sbi_rfence)(int fid, const unsigned long *hart_mask,
+static int (*__sbi_send_ipi)(const struct cpumask *cpu_mask) __ro_after_init;
+static int (*__sbi_rfence)(int fid, const struct cpumask *cpu_mask,
 			   unsigned long start, unsigned long size,
 			   unsigned long arg4, unsigned long arg5) __ro_after_init;
 
@@ -66,6 +68,30 @@ int sbi_err_map_linux_errno(int err)
 EXPORT_SYMBOL(sbi_err_map_linux_errno);
 
 #ifdef CONFIG_RISCV_SBI_V01
+static unsigned long __sbi_v01_cpumask_to_hartmask(const struct cpumask *cpu_mask)
+{
+	unsigned long cpuid, hartid;
+	unsigned long hmask = 0;
+
+	/*
+	 * There is no maximum hartid concept in RISC-V and NR_CPUS must not be
+	 * associated with hartid. As SBI v0.1 is only kept for backward compatibility
+	 * and will be removed in the future, there is no point in supporting hartid
+	 * greater than BITS_PER_LONG (32 for RV32 and 64 for RV64). Ideally, SBI v0.2
+	 * should be used for platforms with hartid greater than BITS_PER_LONG.
+	 */
+	for_each_cpu(cpuid, cpu_mask) {
+		hartid = cpuid_to_hartid_map(cpuid);
+		if (hartid >= BITS_PER_LONG) {
+			pr_warn("Unable to send any request to hartid > BITS_PER_LONG for SBI v0.1\n");
+			break;
+		}
+		hmask |= BIT(hartid);
+	}
+
+	return hmask;
+}
+
 /**
  * sbi_console_putchar() - Writes given character to the console device.
  * @ch: The data to be written to the console.
@@ -131,33 +157,44 @@ static void __sbi_set_timer_v01(uint64_t stime_value)
 #endif
 }
 
-static int __sbi_send_ipi_v01(const unsigned long *hart_mask)
+static int __sbi_send_ipi_v01(const struct cpumask *cpu_mask)
 {
-	sbi_ecall(SBI_EXT_0_1_SEND_IPI, 0, (unsigned long)hart_mask,
+	unsigned long hart_mask;
+
+	if (!cpu_mask || cpumask_empty(cpu_mask))
+		cpu_mask = cpu_online_mask;
+	hart_mask = __sbi_v01_cpumask_to_hartmask(cpu_mask);
+
+	sbi_ecall(SBI_EXT_0_1_SEND_IPI, 0, (unsigned long)(&hart_mask),
 		  0, 0, 0, 0, 0);
 	return 0;
 }
 
-static int __sbi_rfence_v01(int fid, const unsigned long *hart_mask,
+static int __sbi_rfence_v01(int fid, const struct cpumask *cpu_mask,
 			    unsigned long start, unsigned long size,
 			    unsigned long arg4, unsigned long arg5)
 {
 	int result = 0;
+	unsigned long hart_mask;
+
+	if (!cpu_mask || cpumask_empty(cpu_mask))
+		cpu_mask = cpu_online_mask;
+	hart_mask = __sbi_v01_cpumask_to_hartmask(cpu_mask);
 
 	/* v0.2 function IDs are equivalent to v0.1 extension IDs */
 	switch (fid) {
 	case SBI_EXT_RFENCE_REMOTE_FENCE_I:
 		sbi_ecall(SBI_EXT_0_1_REMOTE_FENCE_I, 0,
-			  (unsigned long)hart_mask, 0, 0, 0, 0, 0);
+			  (unsigned long)&hart_mask, 0, 0, 0, 0, 0);
 		break;
 	case SBI_EXT_RFENCE_REMOTE_SFENCE_VMA:
 		sbi_ecall(SBI_EXT_0_1_REMOTE_SFENCE_VMA, 0,
-			  (unsigned long)hart_mask, start, size,
+			  (unsigned long)&hart_mask, start, size,
 			  0, 0, 0);
 		break;
 	case SBI_EXT_RFENCE_REMOTE_SFENCE_VMA_ASID:
 		sbi_ecall(SBI_EXT_0_1_REMOTE_SFENCE_VMA_ASID, 0,
-			  (unsigned long)hart_mask, start, size,
+			  (unsigned long)&hart_mask, start, size,
 			  arg4, 0, 0);
 		break;
 	default:
@@ -179,7 +216,7 @@ static void __sbi_set_timer_v01(uint64_t stime_value)
 		sbi_major_version(), sbi_minor_version());
 }
 
-static int __sbi_send_ipi_v01(const unsigned long *hart_mask)
+static int __sbi_send_ipi_v01(const struct cpumask *cpu_mask)
 {
 	pr_warn("IPI extension is not available in SBI v%lu.%lu\n",
 		sbi_major_version(), sbi_minor_version());
@@ -187,7 +224,7 @@ static int __sbi_send_ipi_v01(const unsigned long *hart_mask)
 	return 0;
 }
 
-static int __sbi_rfence_v01(int fid, const unsigned long *hart_mask,
+static int __sbi_rfence_v01(int fid, const struct cpumask *cpu_mask,
 			    unsigned long start, unsigned long size,
 			    unsigned long arg4, unsigned long arg5)
 {
@@ -211,37 +248,44 @@ static void __sbi_set_timer_v02(uint64_t stime_value)
 #endif
 }
 
-static int __sbi_send_ipi_v02(const unsigned long *hart_mask)
+static int __sbi_send_ipi_v02(const struct cpumask *cpu_mask)
 {
-	unsigned long hartid, hmask_val, hbase;
-	struct cpumask tmask;
+	unsigned long hartid, cpuid, hmask = 0, hbase = 0, htop = 0;
 	struct sbiret ret = {0};
 	int result;
 
-	if (!hart_mask || !(*hart_mask)) {
-		riscv_cpuid_to_hartid_mask(cpu_online_mask, &tmask);
-		hart_mask = cpumask_bits(&tmask);
-	}
+	if (!cpu_mask || cpumask_empty(cpu_mask))
+		cpu_mask = cpu_online_mask;
 
-	hmask_val = 0;
-	hbase = 0;
-	for_each_set_bit(hartid, hart_mask, NR_CPUS) {
-		if (hmask_val && ((hbase + BITS_PER_LONG) <= hartid)) {
-			ret = sbi_ecall(SBI_EXT_IPI, SBI_EXT_IPI_SEND_IPI,
-					hmask_val, hbase, 0, 0, 0, 0);
-			if (ret.error)
-				goto ecall_failed;
-			hmask_val = 0;
-			hbase = 0;
+	for_each_cpu(cpuid, cpu_mask) {
+		hartid = cpuid_to_hartid_map(cpuid);
+		if (hmask) {
+			if (hartid + BITS_PER_LONG <= htop ||
+			    hbase + BITS_PER_LONG <= hartid) {
+				ret = sbi_ecall(SBI_EXT_IPI,
+						SBI_EXT_IPI_SEND_IPI, hmask,
+						hbase, 0, 0, 0, 0);
+				if (ret.error)
+					goto ecall_failed;
+				hmask = 0;
+			} else if (hartid < hbase) {
+				/* shift the mask to fit lower hartid */
+				hmask <<= hbase - hartid;
+				hbase = hartid;
+			}
 		}
-		if (!hmask_val)
+		if (!hmask) {
 			hbase = hartid;
-		hmask_val |= 1UL << (hartid - hbase);
+			htop = hartid;
+		} else if (hartid > htop) {
+			htop = hartid;
+		}
+		hmask |= BIT(hartid - hbase);
 	}
 
-	if (hmask_val) {
+	if (hmask) {
 		ret = sbi_ecall(SBI_EXT_IPI, SBI_EXT_IPI_SEND_IPI,
-				hmask_val, hbase, 0, 0, 0, 0);
+				hmask, hbase, 0, 0, 0, 0);
 		if (ret.error)
 			goto ecall_failed;
 	}
@@ -251,11 +295,11 @@ static int __sbi_send_ipi_v02(const unsigned long *hart_mask)
 ecall_failed:
 	result = sbi_err_map_linux_errno(ret.error);
 	pr_err("%s: hbase = [%lu] hmask = [0x%lx] failed (error [%d])\n",
-	       __func__, hbase, hmask_val, result);
+	       __func__, hbase, hmask, result);
 	return result;
 }
 
-static int __sbi_rfence_v02_call(unsigned long fid, unsigned long hmask_val,
+static int __sbi_rfence_v02_call(unsigned long fid, unsigned long hmask,
 				 unsigned long hbase, unsigned long start,
 				 unsigned long size, unsigned long arg4,
 				 unsigned long arg5)
@@ -266,31 +310,31 @@ static int __sbi_rfence_v02_call(unsigned long fid, unsigned long hmask_val,
 
 	switch (fid) {
 	case SBI_EXT_RFENCE_REMOTE_FENCE_I:
-		ret = sbi_ecall(ext, fid, hmask_val, hbase, 0, 0, 0, 0);
+		ret = sbi_ecall(ext, fid, hmask, hbase, 0, 0, 0, 0);
 		break;
 	case SBI_EXT_RFENCE_REMOTE_SFENCE_VMA:
-		ret = sbi_ecall(ext, fid, hmask_val, hbase, start,
+		ret = sbi_ecall(ext, fid, hmask, hbase, start,
 				size, 0, 0);
 		break;
 	case SBI_EXT_RFENCE_REMOTE_SFENCE_VMA_ASID:
-		ret = sbi_ecall(ext, fid, hmask_val, hbase, start,
+		ret = sbi_ecall(ext, fid, hmask, hbase, start,
 				size, arg4, 0);
 		break;
 
 	case SBI_EXT_RFENCE_REMOTE_HFENCE_GVMA:
-		ret = sbi_ecall(ext, fid, hmask_val, hbase, start,
+		ret = sbi_ecall(ext, fid, hmask, hbase, start,
 				size, 0, 0);
 		break;
 	case SBI_EXT_RFENCE_REMOTE_HFENCE_GVMA_VMID:
-		ret = sbi_ecall(ext, fid, hmask_val, hbase, start,
+		ret = sbi_ecall(ext, fid, hmask, hbase, start,
 				size, arg4, 0);
 		break;
 	case SBI_EXT_RFENCE_REMOTE_HFENCE_VVMA:
-		ret = sbi_ecall(ext, fid, hmask_val, hbase, start,
+		ret = sbi_ecall(ext, fid, hmask, hbase, start,
 				size, 0, 0);
 		break;
 	case SBI_EXT_RFENCE_REMOTE_HFENCE_VVMA_ASID:
-		ret = sbi_ecall(ext, fid, hmask_val, hbase, start,
+		ret = sbi_ecall(ext, fid, hmask, hbase, start,
 				size, arg4, 0);
 		break;
 	default:
@@ -302,43 +346,49 @@ static int __sbi_rfence_v02_call(unsigned long fid, unsigned long hmask_val,
 	if (ret.error) {
 		result = sbi_err_map_linux_errno(ret.error);
 		pr_err("%s: hbase = [%lu] hmask = [0x%lx] failed (error [%d])\n",
-		       __func__, hbase, hmask_val, result);
+		       __func__, hbase, hmask, result);
 	}
 
 	return result;
 }
 
-static int __sbi_rfence_v02(int fid, const unsigned long *hart_mask,
+static int __sbi_rfence_v02(int fid, const struct cpumask *cpu_mask,
 			    unsigned long start, unsigned long size,
 			    unsigned long arg4, unsigned long arg5)
 {
-	unsigned long hmask_val, hartid, hbase;
-	struct cpumask tmask;
+	unsigned long hartid, cpuid, hmask = 0, hbase = 0, htop = 0;
 	int result;
 
-	if (!hart_mask || !(*hart_mask)) {
-		riscv_cpuid_to_hartid_mask(cpu_online_mask, &tmask);
-		hart_mask = cpumask_bits(&tmask);
-	}
+	if (!cpu_mask || cpumask_empty(cpu_mask))
+		cpu_mask = cpu_online_mask;
 
-	hmask_val = 0;
-	hbase = 0;
-	for_each_set_bit(hartid, hart_mask, NR_CPUS) {
-		if (hmask_val && ((hbase + BITS_PER_LONG) <= hartid)) {
-			result = __sbi_rfence_v02_call(fid, hmask_val, hbase,
-						       start, size, arg4, arg5);
-			if (result)
-				return result;
-			hmask_val = 0;
-			hbase = 0;
+	for_each_cpu(cpuid, cpu_mask) {
+		hartid = cpuid_to_hartid_map(cpuid);
+		if (hmask) {
+			if (hartid + BITS_PER_LONG <= htop ||
+			    hbase + BITS_PER_LONG <= hartid) {
+				result = __sbi_rfence_v02_call(fid, hmask,
+						hbase, start, size, arg4, arg5);
+				if (result)
+					return result;
+				hmask = 0;
+			} else if (hartid < hbase) {
+				/* shift the mask to fit lower hartid */
+				hmask <<= hbase - hartid;
+				hbase = hartid;
+			}
 		}
-		if (!hmask_val)
+		if (!hmask) {
 			hbase = hartid;
-		hmask_val |= 1UL << (hartid - hbase);
+			htop = hartid;
+		} else if (hartid > htop) {
+			htop = hartid;
+		}
+		hmask |= BIT(hartid - hbase);
 	}
 
-	if (hmask_val) {
-		result = __sbi_rfence_v02_call(fid, hmask_val, hbase,
+	if (hmask) {
+		result = __sbi_rfence_v02_call(fid, hmask, hbase,
 					       start, size, arg4, arg5);
 		if (result)
 			return result;
@@ -360,44 +410,44 @@ void sbi_set_timer(uint64_t stime_value)
 
 /**
  * sbi_send_ipi() - Send an IPI to any hart.
- * @hart_mask: A cpu mask containing all the target harts.
+ * @cpu_mask: A cpu mask containing all the target harts.
  *
  * Return: 0 on success, appropriate linux error code otherwise.
  */
-int sbi_send_ipi(const unsigned long *hart_mask)
+int sbi_send_ipi(const struct cpumask *cpu_mask)
 {
-	return __sbi_send_ipi(hart_mask);
+	return __sbi_send_ipi(cpu_mask);
 }
 EXPORT_SYMBOL(sbi_send_ipi);
 
 /**
  * sbi_remote_fence_i() - Execute FENCE.I instruction on given remote harts.
- * @hart_mask: A cpu mask containing all the target harts.
+ * @cpu_mask: A cpu mask containing all the target harts.
  *
  * Return: 0 on success, appropriate linux error code otherwise.
  */
-int sbi_remote_fence_i(const unsigned long *hart_mask)
+int sbi_remote_fence_i(const struct cpumask *cpu_mask)
 {
 	return __sbi_rfence(SBI_EXT_RFENCE_REMOTE_FENCE_I,
-			    hart_mask, 0, 0, 0, 0);
+			    cpu_mask, 0, 0, 0, 0);
 }
 EXPORT_SYMBOL(sbi_remote_fence_i);
 
 /**
  * sbi_remote_sfence_vma() - Execute SFENCE.VMA instructions on given remote
  *			     harts for the specified virtual address range.
- * @hart_mask: A cpu mask containing all the target harts.
+ * @cpu_mask: A cpu mask containing all the target harts.
  * @start: Start of the virtual address
  * @size: Total size of the virtual address range.
  *
  * Return: 0 on success, appropriate linux error code otherwise.
  */
-int sbi_remote_sfence_vma(const unsigned long *hart_mask,
+int sbi_remote_sfence_vma(const struct cpumask *cpu_mask,
 			   unsigned long start,
 			   unsigned long size)
 {
 	return __sbi_rfence(SBI_EXT_RFENCE_REMOTE_SFENCE_VMA,
-			    hart_mask, start, size, 0, 0);
+			    cpu_mask, start, size, 0, 0);
 }
 EXPORT_SYMBOL(sbi_remote_sfence_vma);
 
@@ -405,38 +455,38 @@ EXPORT_SYMBOL(sbi_remote_sfence_vma);
  * sbi_remote_sfence_vma_asid() - Execute SFENCE.VMA instructions on given
  * remote harts for a virtual address range belonging to a specific ASID.
  *
- * @hart_mask: A cpu mask containing all the target harts.
+ * @cpu_mask: A cpu mask containing all the target harts.
  * @start: Start of the virtual address
  * @size: Total size of the virtual address range.
  * @asid: The value of address space identifier (ASID).
  *
  * Return: 0 on success, appropriate linux error code otherwise.
  */
-int sbi_remote_sfence_vma_asid(const unsigned long *hart_mask,
+int sbi_remote_sfence_vma_asid(const struct cpumask *cpu_mask,
 				unsigned long start,
 				unsigned long size,
 				unsigned long asid)
 {
 	return __sbi_rfence(SBI_EXT_RFENCE_REMOTE_SFENCE_VMA_ASID,
-			    hart_mask, start, size, asid, 0);
+			    cpu_mask, start, size, asid, 0);
 }
 EXPORT_SYMBOL(sbi_remote_sfence_vma_asid);
 
 /**
  * sbi_remote_hfence_gvma() - Execute HFENCE.GVMA instructions on given remote
  *			   harts for the specified guest physical address range.
- * @hart_mask: A cpu mask containing all the target harts.
+ * @cpu_mask: A cpu mask containing all the target harts.
  * @start: Start of the guest physical address
  * @size: Total size of the guest physical address range.
  *
  * Return: None
  */
-int sbi_remote_hfence_gvma(const unsigned long *hart_mask,
+int sbi_remote_hfence_gvma(const struct cpumask *cpu_mask,
 			   unsigned long start,
 			   unsigned long size)
 {
 	return __sbi_rfence(SBI_EXT_RFENCE_REMOTE_HFENCE_GVMA,
-			    hart_mask, start, size, 0, 0);
+			    cpu_mask, start, size, 0, 0);
 }
 EXPORT_SYMBOL_GPL(sbi_remote_hfence_gvma);
 
@@ -444,38 +494,38 @@ EXPORT_SYMBOL_GPL(sbi_remote_hfence_gvma);
  * sbi_remote_hfence_gvma_vmid() - Execute HFENCE.GVMA instructions on given
  * remote harts for a guest physical address range belonging to a specific VMID.
  *
- * @hart_mask: A cpu mask containing all the target harts.
+ * @cpu_mask: A cpu mask containing all the target harts.
  * @start: Start of the guest physical address
  * @size: Total size of the guest physical address range.
  * @vmid: The value of guest ID (VMID).
  *
  * Return: 0 if success, Error otherwise.
  */
-int sbi_remote_hfence_gvma_vmid(const unsigned long *hart_mask,
+int sbi_remote_hfence_gvma_vmid(const struct cpumask *cpu_mask,
 				unsigned long start,
 				unsigned long size,
 				unsigned long vmid)
 {
 	return __sbi_rfence(SBI_EXT_RFENCE_REMOTE_HFENCE_GVMA_VMID,
-			    hart_mask, start, size, vmid, 0);
+			    cpu_mask, start, size, vmid, 0);
 }
 EXPORT_SYMBOL(sbi_remote_hfence_gvma_vmid);
 
 /**
  * sbi_remote_hfence_vvma() - Execute HFENCE.VVMA instructions on given remote
  *			     harts for the current guest virtual address range.
- * @hart_mask: A cpu mask containing all the target harts.
+ * @cpu_mask: A cpu mask containing all the target harts.
  * @start: Start of the current guest virtual address
  * @size: Total size of the current guest virtual address range.
  *
  * Return: None
  */
-int sbi_remote_hfence_vvma(const unsigned long *hart_mask,
+int sbi_remote_hfence_vvma(const struct cpumask *cpu_mask,
 			   unsigned long start,
 			   unsigned long size)
 {
 	return __sbi_rfence(SBI_EXT_RFENCE_REMOTE_HFENCE_VVMA,
-			    hart_mask, start, size, 0, 0);
+			    cpu_mask, start, size, 0, 0);
 }
 EXPORT_SYMBOL(sbi_remote_hfence_vvma);
 
@@ -484,22 +534,48 @@ EXPORT_SYMBOL(sbi_remote_hfence_vvma);
  * remote harts for current guest virtual address range belonging to a specific
  * ASID.
  *
- * @hart_mask: A cpu mask containing all the target harts.
+ * @cpu_mask: A cpu mask containing all the target harts.
  * @start: Start of the current guest virtual address
  * @size: Total size of the current guest virtual address range.
  * @asid: The value of address space identifier (ASID).
  *
  * Return: None
  */
-int sbi_remote_hfence_vvma_asid(const unsigned long *hart_mask,
+int sbi_remote_hfence_vvma_asid(const struct cpumask *cpu_mask,
 				unsigned long start,
 				unsigned long size,
 				unsigned long asid)
 {
 	return __sbi_rfence(SBI_EXT_RFENCE_REMOTE_HFENCE_VVMA_ASID,
-			    hart_mask, start, size, asid, 0);
+			    cpu_mask, start, size, asid, 0);
 }
 EXPORT_SYMBOL(sbi_remote_hfence_vvma_asid);
+
+static void sbi_srst_reset(unsigned long type, unsigned long reason)
+{
+	sbi_ecall(SBI_EXT_SRST, SBI_EXT_SRST_RESET, type, reason,
+		  0, 0, 0, 0);
+	pr_warn("%s: type=0x%lx reason=0x%lx failed\n",
+		__func__, type, reason);
+}
+
+static int sbi_srst_reboot(struct notifier_block *this,
+			   unsigned long mode, void *cmd)
+{
+	sbi_srst_reset((mode == REBOOT_WARM || mode == REBOOT_SOFT) ?
+		       SBI_SRST_RESET_TYPE_WARM_REBOOT :
+		       SBI_SRST_RESET_TYPE_COLD_REBOOT,
+		       SBI_SRST_RESET_REASON_NONE);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block sbi_srst_reboot_nb;
+
+static void sbi_srst_power_off(void)
+{
+	sbi_srst_reset(SBI_SRST_RESET_TYPE_SHUTDOWN,
+		       SBI_SRST_RESET_REASON_NONE);
+}
 
 /**
  * sbi_probe_extension() - Check if an SBI extension ID is supported or not.
@@ -564,11 +640,7 @@ long sbi_get_mimpid(void)
 
 static void sbi_send_cpumask_ipi(const struct cpumask *target)
 {
-	struct cpumask hartid_mask;
-
-	riscv_cpuid_to_hartid_mask(target, &hartid_mask);
-
-	sbi_send_ipi(cpumask_bits(&hartid_mask));
+	sbi_send_ipi(target);
 }
 
 static const struct riscv_ipi_ops sbi_ipi_ops = {
@@ -607,6 +679,14 @@ void __init sbi_init(void)
 			pr_info("SBI RFENCE extension detected\n");
 		} else {
 			__sbi_rfence	= __sbi_rfence_v01;
+		}
+		if ((sbi_spec_version >= sbi_mk_version(0, 3)) &&
+		    (sbi_probe_extension(SBI_EXT_SRST) > 0)) {
+			pr_info("SBI SRST extension detected\n");
+			pm_power_off = sbi_srst_power_off;
+			sbi_srst_reboot_nb.notifier_call = sbi_srst_reboot;
+			sbi_srst_reboot_nb.priority = 192;
+			register_restart_handler(&sbi_srst_reboot_nb);
 		}
 	} else {
 		__sbi_set_timer = __sbi_set_timer_v01;

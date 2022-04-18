@@ -260,9 +260,9 @@ static int xrx200_hw_receive(struct xrx200_chan *ch)
 
 	if (ctl & LTQ_DMA_EOP) {
 		ch->skb_head->protocol = eth_type_trans(ch->skb_head, net_dev);
-		netif_receive_skb(ch->skb_head);
 		net_dev->stats.rx_packets++;
 		net_dev->stats.rx_bytes += ch->skb_head->len;
+		netif_receive_skb(ch->skb_head);
 		ch->skb_head = NULL;
 		ch->skb_tail = NULL;
 		ret = XRX200_DMA_PACKET_COMPLETE;

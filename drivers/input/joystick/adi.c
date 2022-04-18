@@ -123,7 +123,7 @@ static void adi_read_packet(struct adi_port *port)
 {
 	struct adi *adi = port->adi;
 	struct gameport *gameport = port->gameport;
-	unsigned char u, v, w, x, z;
+	unsigned char u, v, w, x;
 	int t[2], s[2], i;
 	unsigned long flags;
 
@@ -136,7 +136,7 @@ static void adi_read_packet(struct adi_port *port)
 	local_irq_save(flags);
 
 	gameport_trigger(gameport);
-	v = z = gameport_read(gameport);
+	v = gameport_read(gameport);
 
 	do {
 		u = v;

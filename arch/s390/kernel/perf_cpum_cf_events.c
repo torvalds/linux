@@ -344,7 +344,7 @@ static struct attribute *cpumcf_svn_12345_pmu_event_attr[] __initdata = {
 	NULL,
 };
 
-static struct attribute *cpumcf_svn_6_pmu_event_attr[] __initdata = {
+static struct attribute *cpumcf_svn_67_pmu_event_attr[] __initdata = {
 	CPUMF_EVENT_PTR(cf_svn_12345, PRNG_FUNCTIONS),
 	CPUMF_EVENT_PTR(cf_svn_12345, PRNG_CYCLES),
 	CPUMF_EVENT_PTR(cf_svn_12345, PRNG_BLOCKED_FUNCTIONS),
@@ -715,8 +715,8 @@ __init const struct attribute_group **cpumf_cf_event_group(void)
 	case 1 ... 5:
 		csvn = cpumcf_svn_12345_pmu_event_attr;
 		break;
-	case 6:
-		csvn = cpumcf_svn_6_pmu_event_attr;
+	case 6 ... 7:
+		csvn = cpumcf_svn_67_pmu_event_attr;
 		break;
 	default:
 		csvn = none;

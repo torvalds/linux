@@ -49,27 +49,6 @@ static void radeon_bo_clear_surface_reg(struct radeon_bo *bo);
  * function are calling it.
  */
 
-static void radeon_update_memory_usage(struct ttm_buffer_object *bo,
-				       unsigned int mem_type, int sign)
-{
-	struct radeon_device *rdev = radeon_get_rdev(bo->bdev);
-
-	switch (mem_type) {
-	case TTM_PL_TT:
-		if (sign > 0)
-			atomic64_add(bo->base.size, &rdev->gtt_usage);
-		else
-			atomic64_sub(bo->base.size, &rdev->gtt_usage);
-		break;
-	case TTM_PL_VRAM:
-		if (sign > 0)
-			atomic64_add(bo->base.size, &rdev->vram_usage);
-		else
-			atomic64_sub(bo->base.size, &rdev->vram_usage);
-		break;
-	}
-}
-
 static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 {
 	struct radeon_bo *bo;
@@ -434,7 +413,9 @@ void radeon_bo_fini(struct radeon_device *rdev)
 static u64 radeon_bo_get_threshold_for_moves(struct radeon_device *rdev)
 {
 	u64 real_vram_size = rdev->mc.real_vram_size;
-	u64 vram_usage = atomic64_read(&rdev->vram_usage);
+	struct ttm_resource_manager *man =
+		ttm_manager_type(&rdev->mman.bdev, TTM_PL_VRAM);
+	u64 vram_usage = ttm_resource_manager_usage(man);
 
 	/* This function is based on the current VRAM usage.
 	 *
@@ -567,7 +548,6 @@ int radeon_bo_get_surface_reg(struct radeon_bo *bo)
 		return 0;
 
 	if (bo->surface_reg >= 0) {
-		reg = &rdev->surface_regs[bo->surface_reg];
 		i = bo->surface_reg;
 		goto out;
 	}
@@ -724,15 +704,9 @@ int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 	return radeon_bo_get_surface_reg(bo);
 }
 
-void radeon_bo_move_notify(struct ttm_buffer_object *bo,
-			   unsigned int old_type,
-			   struct ttm_resource *new_mem)
+void radeon_bo_move_notify(struct ttm_buffer_object *bo)
 {
 	struct radeon_bo *rbo;
-
-	radeon_update_memory_usage(bo, old_type, -1);
-	if (new_mem)
-		radeon_update_memory_usage(bo, new_mem->mem_type, 1);
 
 	if (!radeon_ttm_bo_is_radeon_bo(bo))
 		return;

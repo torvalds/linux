@@ -348,7 +348,7 @@ static const struct uart_ops uart_clps711x_ops = {
 };
 
 #ifdef CONFIG_SERIAL_CLPS711X_CONSOLE
-static void uart_clps711x_console_putchar(struct uart_port *port, int ch)
+static void uart_clps711x_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct clps711x_port *s = dev_get_drvdata(port->dev);
 	u32 sysflg = 0;

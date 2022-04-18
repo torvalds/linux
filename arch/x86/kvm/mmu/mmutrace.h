@@ -35,7 +35,7 @@
 			 " %snxe %sad root %u %s%c",			\
 			 __entry->mmu_valid_gen,			\
 			 __entry->gfn, role.level,			\
-			 role.gpte_is_8_bytes ? 8 : 4,			\
+			 role.has_4_byte_gpte ? 4 : 8,			\
 			 role.quadrant,					\
 			 role.direct ? " direct" : "",			\
 			 access_str[role.access],			\
@@ -414,6 +414,29 @@ TRACE_EVENT(
 		  __entry->as_id, __entry->gfn, __entry->level,
 		  __entry->old_spte, __entry->new_spte
 	)
+);
+
+TRACE_EVENT(
+	kvm_mmu_split_huge_page,
+	TP_PROTO(u64 gfn, u64 spte, int level, int errno),
+	TP_ARGS(gfn, spte, level, errno),
+
+	TP_STRUCT__entry(
+		__field(u64, gfn)
+		__field(u64, spte)
+		__field(int, level)
+		__field(int, errno)
+	),
+
+	TP_fast_assign(
+		__entry->gfn = gfn;
+		__entry->spte = spte;
+		__entry->level = level;
+		__entry->errno = errno;
+	),
+
+	TP_printk("gfn %llx spte %llx level %d errno %d",
+		  __entry->gfn, __entry->spte, __entry->level, __entry->errno)
 );
 
 #endif /* _TRACE_KVMMMU_H */

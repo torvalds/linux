@@ -241,37 +241,37 @@ static const struct devlink_health_reporter_ops bnxt_dl_fw_reporter_ops = {
 	.recover = bnxt_fw_recover,
 };
 
-void bnxt_dl_fw_reporters_create(struct bnxt *bp)
+static struct devlink_health_reporter *
+__bnxt_dl_reporter_create(struct bnxt *bp,
+			  const struct devlink_health_reporter_ops *ops)
 {
-	struct bnxt_fw_health *health = bp->fw_health;
+	struct devlink_health_reporter *reporter;
 
-	if (!health || health->fw_reporter)
-		return;
-
-	health->fw_reporter =
-		devlink_health_reporter_create(bp->dl, &bnxt_dl_fw_reporter_ops,
-					       0, bp);
-	if (IS_ERR(health->fw_reporter)) {
-		netdev_warn(bp->dev, "Failed to create FW health reporter, rc = %ld\n",
-			    PTR_ERR(health->fw_reporter));
-		health->fw_reporter = NULL;
-		bp->fw_cap &= ~BNXT_FW_CAP_ERROR_RECOVERY;
+	reporter = devlink_health_reporter_create(bp->dl, ops, 0, bp);
+	if (IS_ERR(reporter)) {
+		netdev_warn(bp->dev, "Failed to create %s health reporter, rc = %ld\n",
+			    ops->name, PTR_ERR(reporter));
+		return NULL;
 	}
+
+	return reporter;
 }
 
-void bnxt_dl_fw_reporters_destroy(struct bnxt *bp, bool all)
+void bnxt_dl_fw_reporters_create(struct bnxt *bp)
 {
-	struct bnxt_fw_health *health = bp->fw_health;
+	struct bnxt_fw_health *fw_health = bp->fw_health;
 
-	if (!health)
-		return;
+	if (fw_health && !fw_health->fw_reporter)
+		fw_health->fw_reporter = __bnxt_dl_reporter_create(bp, &bnxt_dl_fw_reporter_ops);
+}
 
-	if ((bp->fw_cap & BNXT_FW_CAP_ERROR_RECOVERY) && !all)
-		return;
+void bnxt_dl_fw_reporters_destroy(struct bnxt *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
 
-	if (health->fw_reporter) {
-		devlink_health_reporter_destroy(health->fw_reporter);
-		health->fw_reporter = NULL;
+	if (fw_health && fw_health->fw_reporter) {
+		devlink_health_reporter_destroy(fw_health->fw_reporter);
+		fw_health->fw_reporter = NULL;
 	}
 }
 
@@ -367,6 +367,16 @@ bnxt_dl_livepatch_report_err(struct bnxt *bp, struct netlink_ext_ack *extack,
 	}
 }
 
+/* Live patch status in NVM */
+#define BNXT_LIVEPATCH_NOT_INSTALLED	0
+#define BNXT_LIVEPATCH_INSTALLED	FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_INSTALL
+#define BNXT_LIVEPATCH_REMOVED		FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_ACTIVE
+#define BNXT_LIVEPATCH_MASK		(FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_INSTALL | \
+					 FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_ACTIVE)
+#define BNXT_LIVEPATCH_ACTIVATED	BNXT_LIVEPATCH_MASK
+
+#define BNXT_LIVEPATCH_STATE(flags)	((flags) & BNXT_LIVEPATCH_MASK)
+
 static int
 bnxt_dl_livepatch_activate(struct bnxt *bp, struct netlink_ext_ack *extack)
 {
@@ -374,8 +384,9 @@ bnxt_dl_livepatch_activate(struct bnxt *bp, struct netlink_ext_ack *extack)
 	struct hwrm_fw_livepatch_query_input *query_req;
 	struct hwrm_fw_livepatch_output *patch_resp;
 	struct hwrm_fw_livepatch_input *patch_req;
+	u16 flags, live_patch_state;
+	bool activated = false;
 	u32 installed = 0;
-	u16 flags;
 	u8 target;
 	int rc;
 
@@ -394,7 +405,6 @@ bnxt_dl_livepatch_activate(struct bnxt *bp, struct netlink_ext_ack *extack)
 		hwrm_req_drop(bp, query_req);
 		return rc;
 	}
-	patch_req->opcode = FW_LIVEPATCH_REQ_OPCODE_ACTIVATE;
 	patch_req->loadtype = FW_LIVEPATCH_REQ_LOADTYPE_NVM_INSTALL;
 	patch_resp = hwrm_req_hold(bp, patch_req);
 
@@ -407,12 +417,20 @@ bnxt_dl_livepatch_activate(struct bnxt *bp, struct netlink_ext_ack *extack)
 		}
 
 		flags = le16_to_cpu(query_resp->status_flags);
-		if (~flags & FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_INSTALL)
+		live_patch_state = BNXT_LIVEPATCH_STATE(flags);
+
+		if (live_patch_state == BNXT_LIVEPATCH_NOT_INSTALLED)
 			continue;
-		if ((flags & FW_LIVEPATCH_QUERY_RESP_STATUS_FLAGS_ACTIVE) &&
-		    !strncmp(query_resp->active_ver, query_resp->install_ver,
-			     sizeof(query_resp->active_ver)))
+
+		if (live_patch_state == BNXT_LIVEPATCH_ACTIVATED) {
+			activated = true;
 			continue;
+		}
+
+		if (live_patch_state == BNXT_LIVEPATCH_INSTALLED)
+			patch_req->opcode = FW_LIVEPATCH_REQ_OPCODE_ACTIVATE;
+		else if (live_patch_state == BNXT_LIVEPATCH_REMOVED)
+			patch_req->opcode = FW_LIVEPATCH_REQ_OPCODE_DEACTIVATE;
 
 		patch_req->fw_target = target;
 		rc = hwrm_req_send(bp, patch_req);
@@ -424,8 +442,13 @@ bnxt_dl_livepatch_activate(struct bnxt *bp, struct netlink_ext_ack *extack)
 	}
 
 	if (!rc && !installed) {
-		NL_SET_ERR_MSG_MOD(extack, "No live patches found");
-		rc = -ENOENT;
+		if (activated) {
+			NL_SET_ERR_MSG_MOD(extack, "Live patch already activated");
+			rc = -EEXIST;
+		} else {
+			NL_SET_ERR_MSG_MOD(extack, "No live patches found");
+			rc = -ENOENT;
+		}
 	}
 	hwrm_req_drop(bp, query_req);
 	hwrm_req_drop(bp, patch_req);

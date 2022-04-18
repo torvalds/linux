@@ -59,58 +59,39 @@ static void hns_roce_ib_srq_event(struct hns_roce_srq *srq,
 	}
 }
 
-static int hns_roce_hw_create_srq(struct hns_roce_dev *dev,
-				  struct hns_roce_cmd_mailbox *mailbox,
-				  unsigned long srq_num)
+static int alloc_srqn(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
 {
-	return hns_roce_cmd_mbox(dev, mailbox->dma, 0, srq_num, 0,
-				 HNS_ROCE_CMD_CREATE_SRQ,
-				 HNS_ROCE_CMD_TIMEOUT_MSECS);
-}
-
-static int hns_roce_hw_destroy_srq(struct hns_roce_dev *dev,
-				   struct hns_roce_cmd_mailbox *mailbox,
-				   unsigned long srq_num)
-{
-	return hns_roce_cmd_mbox(dev, 0, mailbox ? mailbox->dma : 0, srq_num,
-				 mailbox ? 0 : 1, HNS_ROCE_CMD_DESTROY_SRQ,
-				 HNS_ROCE_CMD_TIMEOUT_MSECS);
-}
-
-static int alloc_srqc(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
-{
-	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
 	struct hns_roce_ida *srq_ida = &hr_dev->srq_table.srq_ida;
-	struct ib_device *ibdev = &hr_dev->ib_dev;
-	struct hns_roce_cmd_mailbox *mailbox;
-	int ret;
 	int id;
 
 	id = ida_alloc_range(&srq_ida->ida, srq_ida->min, srq_ida->max,
 			     GFP_KERNEL);
 	if (id < 0) {
-		ibdev_err(ibdev, "failed to alloc srq(%d).\n", id);
+		ibdev_err(&hr_dev->ib_dev, "failed to alloc srq(%d).\n", id);
 		return -ENOMEM;
 	}
-	srq->srqn = (unsigned long)id;
 
-	ret = hns_roce_table_get(hr_dev, &srq_table->table, srq->srqn);
-	if (ret) {
-		ibdev_err(ibdev, "failed to get SRQC table, ret = %d.\n", ret);
-		goto err_out;
-	}
+	srq->srqn = id;
 
-	ret = xa_err(xa_store(&srq_table->xa, srq->srqn, srq, GFP_KERNEL));
-	if (ret) {
-		ibdev_err(ibdev, "failed to store SRQC, ret = %d.\n", ret);
-		goto err_put;
-	}
+	return 0;
+}
+
+static void free_srqn(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
+{
+	ida_free(&hr_dev->srq_table.srq_ida.ida, (int)srq->srqn);
+}
+
+static int hns_roce_create_srqc(struct hns_roce_dev *hr_dev,
+				struct hns_roce_srq *srq)
+{
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	struct hns_roce_cmd_mailbox *mailbox;
+	int ret;
 
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
-	if (IS_ERR_OR_NULL(mailbox)) {
+	if (IS_ERR(mailbox)) {
 		ibdev_err(ibdev, "failed to alloc mailbox for SRQC.\n");
-		ret = -ENOMEM;
-		goto err_xa;
+		return PTR_ERR(mailbox);
 	}
 
 	ret = hr_dev->hw->write_srqc(srq, mailbox->buf);
@@ -119,24 +100,44 @@ static int alloc_srqc(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
 		goto err_mbox;
 	}
 
-	ret = hns_roce_hw_create_srq(hr_dev, mailbox, srq->srqn);
-	if (ret) {
+	ret = hns_roce_create_hw_ctx(hr_dev, mailbox, HNS_ROCE_CMD_CREATE_SRQ,
+				     srq->srqn);
+	if (ret)
 		ibdev_err(ibdev, "failed to config SRQC, ret = %d.\n", ret);
-		goto err_mbox;
-	}
-
-	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
-
-	return 0;
 
 err_mbox:
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
+	return ret;
+}
+
+static int alloc_srqc(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
+{
+	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	int ret;
+
+	ret = hns_roce_table_get(hr_dev, &srq_table->table, srq->srqn);
+	if (ret) {
+		ibdev_err(ibdev, "failed to get SRQC table, ret = %d.\n", ret);
+		return ret;
+	}
+
+	ret = xa_err(xa_store(&srq_table->xa, srq->srqn, srq, GFP_KERNEL));
+	if (ret) {
+		ibdev_err(ibdev, "failed to store SRQC, ret = %d.\n", ret);
+		goto err_put;
+	}
+
+	ret = hns_roce_create_srqc(hr_dev, srq);
+	if (ret)
+		goto err_xa;
+
+	return 0;
+
 err_xa:
 	xa_erase(&srq_table->xa, srq->srqn);
 err_put:
 	hns_roce_table_put(hr_dev, &srq_table->table, srq->srqn);
-err_out:
-	ida_free(&srq_ida->ida, id);
 
 	return ret;
 }
@@ -146,7 +147,8 @@ static void free_srqc(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
 	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
 	int ret;
 
-	ret = hns_roce_hw_destroy_srq(hr_dev, NULL, srq->srqn);
+	ret = hns_roce_destroy_hw_ctx(hr_dev, HNS_ROCE_CMD_DESTROY_SRQ,
+				      srq->srqn);
 	if (ret)
 		dev_err(hr_dev->dev, "DESTROY_SRQ failed (%d) for SRQN %06lx\n",
 			ret, srq->srqn);
@@ -158,7 +160,6 @@ static void free_srqc(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
 	wait_for_completion(&srq->free);
 
 	hns_roce_table_put(hr_dev, &srq_table->table, srq->srqn);
-	ida_free(&srq_table->srq_ida.ida, (int)srq->srqn);
 }
 
 static int alloc_srq_idx(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
@@ -406,9 +407,13 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 	if (ret)
 		return ret;
 
-	ret = alloc_srqc(hr_dev, srq);
+	ret = alloc_srqn(hr_dev, srq);
 	if (ret)
 		goto err_srq_buf;
+
+	ret = alloc_srqc(hr_dev, srq);
+	if (ret)
+		goto err_srqn;
 
 	if (udata) {
 		resp.srqn = srq->srqn;
@@ -428,6 +433,8 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 
 err_srqc:
 	free_srqc(hr_dev, srq);
+err_srqn:
+	free_srqn(hr_dev, srq);
 err_srq_buf:
 	free_srq_buf(hr_dev, srq);
 
@@ -440,6 +447,7 @@ int hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 	struct hns_roce_srq *srq = to_hr_srq(ibsrq);
 
 	free_srqc(hr_dev, srq);
+	free_srqn(hr_dev, srq);
 	free_srq_buf(hr_dev, srq);
 	return 0;
 }

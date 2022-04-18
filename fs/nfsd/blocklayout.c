@@ -4,7 +4,6 @@
  */
 #include <linux/exportfs.h>
 #include <linux/iomap.h>
-#include <linux/genhd.h>
 #include <linux/slab.h>
 #include <linux/pr.h>
 

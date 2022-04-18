@@ -11,6 +11,7 @@
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <linux/uaccess.h>
+#include <asm/hwcap.h>
 
 #ifdef CONFIG_FPU
 void kvm_riscv_vcpu_fp_reset(struct kvm_vcpu *vcpu)
@@ -26,7 +27,7 @@ void kvm_riscv_vcpu_fp_reset(struct kvm_vcpu *vcpu)
 		cntx->sstatus |= SR_FS_OFF;
 }
 
-void kvm_riscv_vcpu_fp_clean(struct kvm_cpu_context *cntx)
+static void kvm_riscv_vcpu_fp_clean(struct kvm_cpu_context *cntx)
 {
 	cntx->sstatus &= ~SR_FS;
 	cntx->sstatus |= SR_FS_CLEAN;

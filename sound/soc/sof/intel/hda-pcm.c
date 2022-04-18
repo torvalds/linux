@@ -93,13 +93,12 @@ u32 hda_dsp_get_bits(struct snd_sof_dev *sdev, int sample_bits)
 int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 			  struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params,
-			  struct sof_ipc_stream_params *ipc_params)
+			  struct snd_sof_platform_stream_params *platform_params)
 {
 	struct hdac_stream *hstream = substream->runtime->private_data;
-	struct hdac_ext_stream *stream = stream_to_hdac_ext_stream(hstream);
+	struct hdac_ext_stream *hext_stream = stream_to_hdac_ext_stream(hstream);
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct snd_dma_buffer *dmab;
-	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
 	int ret;
 	u32 size, rate, bits;
 
@@ -118,7 +117,7 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 			(params->info & SNDRV_PCM_INFO_NO_PERIOD_WAKEUP) &&
 			(params->flags & SNDRV_PCM_HW_PARAMS_NO_PERIOD_WAKEUP);
 
-	ret = hda_dsp_stream_hw_params(sdev, stream, dmab, params);
+	ret = hda_dsp_stream_hw_params(sdev, hext_stream, dmab, params);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: hdac prepare failed: %d\n", ret);
 		return ret;
@@ -126,23 +125,14 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 
 	/* enable SPIB when rewinds are disabled */
 	if (hda_disable_rewinds)
-		hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_ENABLE, 0);
+		hda_dsp_stream_spib_config(sdev, hext_stream, HDA_DSP_SPIB_ENABLE, 0);
 	else
-		hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
+		hda_dsp_stream_spib_config(sdev, hext_stream, HDA_DSP_SPIB_DISABLE, 0);
 
-	/* update no_stream_position flag for ipc params */
-	if (hda && hda->no_ipc_position) {
-		/* For older ABIs set host_period_bytes to zero to inform
-		 * FW we don't want position updates. Newer versions use
-		 * no_stream_position for this purpose.
-		 */
-		if (v->abi_version < SOF_ABI_VER(3, 10, 0))
-			ipc_params->host_period_bytes = 0;
-		else
-			ipc_params->no_stream_position = 1;
-	}
+	if (hda)
+		platform_params->no_ipc_position = hda->no_ipc_position;
 
-	ipc_params->stream_tag = hstream->stream_tag;
+	platform_params->stream_tag = hstream->stream_tag;
 
 	return 0;
 }
@@ -174,9 +164,9 @@ int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 			struct snd_pcm_substream *substream, int cmd)
 {
 	struct hdac_stream *hstream = substream->runtime->private_data;
-	struct hdac_ext_stream *stream = stream_to_hdac_ext_stream(hstream);
+	struct hdac_ext_stream *hext_stream = stream_to_hdac_ext_stream(hstream);
 
-	return hda_dsp_stream_trigger(sdev, stream, cmd);
+	return hda_dsp_stream_trigger(sdev, hext_stream, cmd);
 }
 
 snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
@@ -315,6 +305,7 @@ int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 		runtime->hw.info &= ~SNDRV_PCM_INFO_PAUSE;
 
 	if (hda_always_enable_dmi_l1 ||
+	    direction == SNDRV_PCM_STREAM_PLAYBACK ||
 	    spcm->stream[substream->stream].d0i3_compatible)
 		flags |= SOF_HDA_STREAM_DMI_L1_COMPATIBLE;
 

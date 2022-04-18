@@ -10,6 +10,8 @@
 #include <linux/slab.h>
 #include <linux/sys_soc.h>
 #include <linux/memblock.h>
+#include <linux/pci.h>
+#include <linux/bug.h>
 
 #include <asm/bootinfo.h>
 #include <asm/mipsregs.h>
@@ -20,31 +22,70 @@
 
 #include "common.h"
 
-static void *detect_magic __initdata = detect_memory_region;
+#define MT7621_MEM_TEST_PATTERN         0xaa5555aa
+
+static u32 detect_magic __initdata;
+
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	struct resource_entry *entry;
+	resource_size_t mask;
+
+	entry = resource_list_first_type(&bridge->windows, IORESOURCE_MEM);
+	if (!entry) {
+		pr_err("Cannot get memory resource\n");
+		return -EINVAL;
+	}
+
+	if (mips_cps_numiocu(0)) {
+		/*
+		 * Hardware doesn't accept mask values with 1s after
+		 * 0s (e.g. 0xffef), so warn if that's happen
+		 */
+		mask = ~(entry->res->end - entry->res->start) & CM_GCR_REGn_MASK_ADDRMASK;
+		WARN_ON(mask && BIT(ffz(~mask)) - 1 != ~mask);
+
+		write_gcr_reg1_base(entry->res->start);
+		write_gcr_reg1_mask(mask | CM_GCR_REGn_MASK_CMTGT_IOCU0);
+		pr_info("PCI coherence region base: 0x%08llx, mask/settings: 0x%08llx\n",
+			(unsigned long long)read_gcr_reg1_base(),
+			(unsigned long long)read_gcr_reg1_mask());
+	}
+
+	return 0;
+}
 
 phys_addr_t mips_cpc_default_phys_base(void)
 {
 	panic("Cannot detect cpc address");
 }
 
+static bool __init mt7621_addr_wraparound_test(phys_addr_t size)
+{
+	void *dm = (void *)KSEG1ADDR(&detect_magic);
+
+	if (CPHYSADDR(dm + size) >= MT7621_LOWMEM_MAX_SIZE)
+		return true;
+	__raw_writel(MT7621_MEM_TEST_PATTERN, dm);
+	if (__raw_readl(dm) != __raw_readl(dm + size))
+		return false;
+	__raw_writel(~MT7621_MEM_TEST_PATTERN, dm);
+	return __raw_readl(dm) == __raw_readl(dm + size);
+}
+
 static void __init mt7621_memory_detect(void)
 {
-	void *dm = &detect_magic;
 	phys_addr_t size;
 
-	for (size = 32 * SZ_1M; size < 256 * SZ_1M; size <<= 1) {
-		if (!__builtin_memcmp(dm, dm + size, sizeof(detect_magic)))
-			break;
+	for (size = 32 * SZ_1M; size <= 256 * SZ_1M; size <<= 1) {
+		if (mt7621_addr_wraparound_test(size)) {
+			memblock_add(MT7621_LOWMEM_BASE, size);
+			return;
+		}
 	}
 
-	if ((size == 256 * SZ_1M) &&
-	    (CPHYSADDR(dm + size) < MT7621_LOWMEM_MAX_SIZE) &&
-	    __builtin_memcmp(dm, dm + size, sizeof(detect_magic))) {
-		memblock_add(MT7621_LOWMEM_BASE, MT7621_LOWMEM_MAX_SIZE);
-		memblock_add(MT7621_HIGHMEM_BASE, MT7621_HIGHMEM_SIZE);
-	} else {
-		memblock_add(MT7621_LOWMEM_BASE, size);
-	}
+	memblock_add(MT7621_LOWMEM_BASE, MT7621_LOWMEM_MAX_SIZE);
+	memblock_add(MT7621_HIGHMEM_BASE, MT7621_HIGHMEM_SIZE);
 }
 
 void __init ralink_of_remap(void)

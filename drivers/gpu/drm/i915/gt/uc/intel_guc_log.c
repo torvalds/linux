@@ -7,6 +7,7 @@
 
 #include "gt/intel_gt.h"
 #include "i915_drv.h"
+#include "i915_irq.h"
 #include "i915_memcpy.h"
 #include "intel_guc_log.h"
 
@@ -53,20 +54,6 @@ static int guc_action_control_log(struct intel_guc *guc, bool enable,
 	GEM_BUG_ON(verbosity > GUC_LOG_VERBOSITY_MAX);
 
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
-}
-
-static void guc_log_enable_flush_events(struct intel_guc_log *log)
-{
-	intel_guc_enable_msg(log_to_guc(log),
-			     INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER |
-			     INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED);
-}
-
-static void guc_log_disable_flush_events(struct intel_guc_log *log)
-{
-	intel_guc_disable_msg(log_to_guc(log),
-			      INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER |
-			      INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED);
 }
 
 /*
@@ -201,6 +188,8 @@ static unsigned int guc_get_log_buffer_size(enum guc_log_buffer_type type)
 		return DEBUG_BUFFER_SIZE;
 	case GUC_CRASH_DUMP_LOG_BUFFER:
 		return CRASH_BUFFER_SIZE;
+	case GUC_CAPTURE_LOG_BUFFER:
+		return CAPTURE_BUFFER_SIZE;
 	default:
 		MISSING_CASE(type);
 	}
@@ -463,14 +452,19 @@ int intel_guc_log_create(struct intel_guc_log *log)
 	 *  +-------------------------------+ 32B
 	 *  |      Debug state header       |
 	 *  +-------------------------------+ 64B
+	 *  |     Capture state header      |
+	 *  +-------------------------------+ 96B
 	 *  |                               |
 	 *  +===============================+ PAGE_SIZE (4KB)
 	 *  |        Crash Dump logs        |
 	 *  +===============================+ + CRASH_SIZE
 	 *  |          Debug logs           |
 	 *  +===============================+ + DEBUG_SIZE
+	 *  |         Capture logs          |
+	 *  +===============================+ + CAPTURE_SIZE
 	 */
-	guc_log_size = PAGE_SIZE + CRASH_BUFFER_SIZE + DEBUG_BUFFER_SIZE;
+	guc_log_size = PAGE_SIZE + CRASH_BUFFER_SIZE + DEBUG_BUFFER_SIZE +
+		       CAPTURE_BUFFER_SIZE;
 
 	vma = intel_guc_allocate_vma(guc, guc_log_size);
 	if (IS_ERR(vma)) {
@@ -592,8 +586,6 @@ int intel_guc_log_relay_start(struct intel_guc_log *log)
 	if (log->relay.started)
 		return -EEXIST;
 
-	guc_log_enable_flush_events(log);
-
 	/*
 	 * When GuC is logging without us relaying to userspace, we're ignoring
 	 * the flush notification. This means that we need to unconditionally
@@ -640,7 +632,6 @@ static void guc_log_relay_stop(struct intel_guc_log *log)
 	if (!log->relay.started)
 		return;
 
-	guc_log_disable_flush_events(log);
 	intel_synchronize_irq(i915);
 
 	flush_work(&log->relay.flush_work);
@@ -661,7 +652,8 @@ void intel_guc_log_relay_close(struct intel_guc_log *log)
 
 void intel_guc_log_handle_flush_event(struct intel_guc_log *log)
 {
-	queue_work(system_highpri_wq, &log->relay.flush_work);
+	if (log->relay.started)
+		queue_work(system_highpri_wq, &log->relay.flush_work);
 }
 
 static const char *
@@ -672,6 +664,8 @@ stringify_guc_log_type(enum guc_log_buffer_type type)
 		return "DEBUG";
 	case GUC_CRASH_DUMP_LOG_BUFFER:
 		return "CRASH";
+	case GUC_CAPTURE_LOG_BUFFER:
+		return "CAPTURE";
 	default:
 		MISSING_CASE(type);
 	}

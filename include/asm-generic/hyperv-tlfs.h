@@ -183,11 +183,18 @@ enum HV_GENERIC_SET_FORMAT {
 #define HV_HYPERCALL_RESULT_MASK	GENMASK_ULL(15, 0)
 #define HV_HYPERCALL_FAST_BIT		BIT(16)
 #define HV_HYPERCALL_VARHEAD_OFFSET	17
+#define HV_HYPERCALL_VARHEAD_MASK	GENMASK_ULL(26, 17)
+#define HV_HYPERCALL_RSVD0_MASK		GENMASK_ULL(31, 27)
 #define HV_HYPERCALL_REP_COMP_OFFSET	32
 #define HV_HYPERCALL_REP_COMP_1		BIT_ULL(32)
 #define HV_HYPERCALL_REP_COMP_MASK	GENMASK_ULL(43, 32)
+#define HV_HYPERCALL_RSVD1_MASK		GENMASK_ULL(47, 44)
 #define HV_HYPERCALL_REP_START_OFFSET	48
 #define HV_HYPERCALL_REP_START_MASK	GENMASK_ULL(59, 48)
+#define HV_HYPERCALL_RSVD2_MASK		GENMASK_ULL(63, 60)
+#define HV_HYPERCALL_RSVD_MASK		(HV_HYPERCALL_RSVD0_MASK | \
+					 HV_HYPERCALL_RSVD1_MASK | \
+					 HV_HYPERCALL_RSVD2_MASK)
 
 /* hypercall status code */
 #define HV_STATUS_SUCCESS			0
@@ -538,39 +545,6 @@ struct hv_create_vp {
 enum hv_interrupt_source {
 	HV_INTERRUPT_SOURCE_MSI = 1, /* MSI and MSI-X */
 	HV_INTERRUPT_SOURCE_IOAPIC,
-};
-
-union hv_msi_address_register {
-	u32 as_uint32;
-	struct {
-		u32 reserved1:2;
-		u32 destination_mode:1;
-		u32 redirection_hint:1;
-		u32 reserved2:8;
-		u32 destination_id:8;
-		u32 msi_base:12;
-	};
-} __packed;
-
-union hv_msi_data_register {
-	u32 as_uint32;
-	struct {
-		u32 vector:8;
-		u32 delivery_mode:3;
-		u32 reserved1:3;
-		u32 level_assert:1;
-		u32 trigger_mode:1;
-		u32 reserved2:16;
-	};
-} __packed;
-
-/* HvRetargetDeviceInterrupt hypercall */
-union hv_msi_entry {
-	u64 as_uint64;
-	struct {
-		union hv_msi_address_register address;
-		union hv_msi_data_register data;
-	} __packed;
 };
 
 union hv_ioapic_rte {

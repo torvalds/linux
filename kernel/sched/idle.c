@@ -6,9 +6,6 @@
  * (NOTE: these are not related to SCHED_IDLE batch scheduled
  *        tasks which are handled in sched/fair.c )
  */
-#include "sched.h"
-
-#include <trace/events/power.h>
 
 /* Linker adds these: start and end of __cpuidle functions */
 extern char __cpuidle_text_start[], __cpuidle_text_end[];
@@ -437,7 +434,6 @@ static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool fir
 {
 	update_idle_core(rq);
 	schedstat_inc(rq->sched_goidle);
-	queue_core_balance(rq);
 }
 
 #ifdef CONFIG_SMP

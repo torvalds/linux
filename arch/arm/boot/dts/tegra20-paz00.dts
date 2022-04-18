@@ -13,6 +13,8 @@
 	compatible = "compal,paz00", "nvidia,tegra20";
 
 	aliases {
+		mmc0 = &sdmmc4; /* eMMC */
+		mmc1 = &sdmmc1; /* MicroSD */
 		rtc0 = "/i2c@7000d000/tps6586x@34";
 		rtc1 = "/rtc@7000e000";
 		serial0 = &uarta;
@@ -558,7 +560,7 @@
 		status = "okay";
 	};
 
-	mmc@c8000000 {
+	sdmmc1: mmc@c8000000 {
 		status = "okay";
 		cd-gpios = <&gpio TEGRA_GPIO(V, 5) GPIO_ACTIVE_LOW>;
 		wp-gpios = <&gpio TEGRA_GPIO(H, 1) GPIO_ACTIVE_HIGH>;
@@ -566,7 +568,7 @@
 		bus-width = <4>;
 	};
 
-	mmc@c8000600 {
+	sdmmc4: mmc@c8000600 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;

@@ -31,7 +31,7 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
 #include "gma_display.h"
@@ -82,7 +82,6 @@ i2c_algo_dp_aux_address(struct i2c_adapter *adapter, u16 address, bool reading)
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
 	int mode = MODE_I2C_START;
-	int ret;
 
 	if (reading)
 		mode |= MODE_I2C_READ;
@@ -90,8 +89,7 @@ i2c_algo_dp_aux_address(struct i2c_adapter *adapter, u16 address, bool reading)
 		mode |= MODE_I2C_WRITE;
 	algo_data->address = address;
 	algo_data->running = true;
-	ret = i2c_algo_dp_aux_transaction(adapter, mode, 0, NULL);
-	return ret;
+	return i2c_algo_dp_aux_transaction(adapter, mode, 0, NULL);
 }
 
 /*
@@ -122,13 +120,11 @@ static int
 i2c_algo_dp_aux_put_byte(struct i2c_adapter *adapter, u8 byte)
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
-	int ret;
 
 	if (!algo_data->running)
 		return -EIO;
 
-	ret = i2c_algo_dp_aux_transaction(adapter, MODE_I2C_WRITE, byte, NULL);
-	return ret;
+	return i2c_algo_dp_aux_transaction(adapter, MODE_I2C_WRITE, byte, NULL);
 }
 
 /*
@@ -139,13 +135,11 @@ static int
 i2c_algo_dp_aux_get_byte(struct i2c_adapter *adapter, u8 *byte_ret)
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
-	int ret;
 
 	if (!algo_data->running)
 		return -EIO;
 
-	ret = i2c_algo_dp_aux_transaction(adapter, MODE_I2C_READ, 0, byte_ret);
-	return ret;
+	return i2c_algo_dp_aux_transaction(adapter, MODE_I2C_READ, 0, byte_ret);
 }
 
 static int

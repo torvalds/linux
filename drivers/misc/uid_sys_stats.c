@@ -381,7 +381,7 @@ static int uid_cputime_show(struct seq_file *m, void *v)
 
 static int uid_cputime_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, uid_cputime_show, PDE_DATA(inode));
+	return single_open(file, uid_cputime_show, pde_data(inode));
 }
 
 static const struct proc_ops uid_cputime_fops = {
@@ -556,7 +556,7 @@ static int uid_io_show(struct seq_file *m, void *v)
 
 static int uid_io_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, uid_io_show, PDE_DATA(inode));
+	return single_open(file, uid_io_show, pde_data(inode));
 }
 
 static const struct proc_ops uid_io_fops = {

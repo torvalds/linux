@@ -88,10 +88,42 @@
 /* [Rn] = Rt; (atomic) Rs = [state] */
 #define A64_STXR(sf, Rt, Rn, Rs) \
 	A64_LSX(sf, Rt, Rn, Rs, STORE_EX)
+/* [Rn] = Rt (store release); (atomic) Rs = [state] */
+#define A64_STLXR(sf, Rt, Rn, Rs) \
+	aarch64_insn_gen_load_store_ex(Rt, Rn, Rs, A64_SIZE(sf), \
+				       AARCH64_INSN_LDST_STORE_REL_EX)
 
-/* LSE atomics */
-#define A64_STADD(sf, Rn, Rs) \
-	aarch64_insn_gen_stadd(Rn, Rs, A64_SIZE(sf))
+/*
+ * LSE atomics
+ *
+ * ST{ADD,CLR,SET,EOR} is simply encoded as an alias for
+ * LDD{ADD,CLR,SET,EOR} with XZR as the destination register.
+ */
+#define A64_ST_OP(sf, Rn, Rs, op) \
+	aarch64_insn_gen_atomic_ld_op(A64_ZR, Rn, Rs, \
+		A64_SIZE(sf), AARCH64_INSN_MEM_ATOMIC_##op, \
+		AARCH64_INSN_MEM_ORDER_NONE)
+/* [Rn] <op>= Rs */
+#define A64_STADD(sf, Rn, Rs) A64_ST_OP(sf, Rn, Rs, ADD)
+#define A64_STCLR(sf, Rn, Rs) A64_ST_OP(sf, Rn, Rs, CLR)
+#define A64_STEOR(sf, Rn, Rs) A64_ST_OP(sf, Rn, Rs, EOR)
+#define A64_STSET(sf, Rn, Rs) A64_ST_OP(sf, Rn, Rs, SET)
+
+#define A64_LD_OP_AL(sf, Rt, Rn, Rs, op) \
+	aarch64_insn_gen_atomic_ld_op(Rt, Rn, Rs, \
+		A64_SIZE(sf), AARCH64_INSN_MEM_ATOMIC_##op, \
+		AARCH64_INSN_MEM_ORDER_ACQREL)
+/* Rt = [Rn] (load acquire); [Rn] <op>= Rs (store release) */
+#define A64_LDADDAL(sf, Rt, Rn, Rs) A64_LD_OP_AL(sf, Rt, Rn, Rs, ADD)
+#define A64_LDCLRAL(sf, Rt, Rn, Rs) A64_LD_OP_AL(sf, Rt, Rn, Rs, CLR)
+#define A64_LDEORAL(sf, Rt, Rn, Rs) A64_LD_OP_AL(sf, Rt, Rn, Rs, EOR)
+#define A64_LDSETAL(sf, Rt, Rn, Rs) A64_LD_OP_AL(sf, Rt, Rn, Rs, SET)
+/* Rt = [Rn] (load acquire); [Rn] = Rs (store release) */
+#define A64_SWPAL(sf, Rt, Rn, Rs) A64_LD_OP_AL(sf, Rt, Rn, Rs, SWP)
+/* Rs = CAS(Rn, Rs, Rt) (load acquire & store release) */
+#define A64_CASAL(sf, Rt, Rn, Rs) \
+	aarch64_insn_gen_cas(Rt, Rn, Rs, A64_SIZE(sf), \
+		AARCH64_INSN_MEM_ORDER_ACQREL)
 
 /* Add/subtract (immediate) */
 #define A64_ADDSUB_IMM(sf, Rd, Rn, imm12, type) \
@@ -196,6 +228,9 @@
 #define A64_ANDS(sf, Rd, Rn, Rm) A64_LOGIC_SREG(sf, Rd, Rn, Rm, AND_SETFLAGS)
 /* Rn & Rm; set condition flags */
 #define A64_TST(sf, Rn, Rm) A64_ANDS(sf, A64_ZR, Rn, Rm)
+/* Rd = ~Rm (alias of ORN with A64_ZR as Rn) */
+#define A64_MVN(sf, Rd, Rm)  \
+	A64_LOGIC_SREG(sf, Rd, A64_ZR, Rm, ORN)
 
 /* Logical (immediate) */
 #define A64_LOGIC_IMM(sf, Rd, Rn, imm, type) ({ \
@@ -218,5 +253,8 @@
 #define A64_BTI_C  A64_HINT(AARCH64_INSN_HINT_BTIC)
 #define A64_BTI_J  A64_HINT(AARCH64_INSN_HINT_BTIJ)
 #define A64_BTI_JC A64_HINT(AARCH64_INSN_HINT_BTIJC)
+
+/* DMB */
+#define A64_DMB_ISH aarch64_insn_gen_dmb(AARCH64_INSN_MB_ISH)
 
 #endif /* _BPF_JIT_H */

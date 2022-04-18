@@ -32,7 +32,6 @@
  * SOFTWARE.
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 
@@ -905,7 +904,7 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 			     enum iser_data_dir cmd_dir, sector_t *sector)
 {
 	struct iser_mem_reg *reg = &iser_task->rdma_reg[cmd_dir];
-	struct iser_fr_desc *desc = reg->mem_h;
+	struct iser_fr_desc *desc = reg->desc;
 	unsigned long sector_size = iser_task->sc->device->sector_size;
 	struct ib_mr_status mr_status;
 	int ret;

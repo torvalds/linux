@@ -159,6 +159,15 @@ struct nested_vmx {
 	bool dirty_vmcs12;
 
 	/*
+	 * Indicates whether MSR bitmap for L2 needs to be rebuilt due to
+	 * changes in MSR bitmap for L1 or switching to a different L2. Note,
+	 * this flag can only be used reliably in conjunction with a paravirt L1
+	 * which informs L0 whether any changes to MSR bitmap for L2 were done
+	 * on its side.
+	 */
+	bool force_msr_bitmap_recalc;
+
+	/*
 	 * Indicates lazily loaded guest state has not yet been decached from
 	 * vmcs02.
 	 */
@@ -308,6 +317,9 @@ struct vcpu_vmx {
 	/* Posted interrupt descriptor */
 	struct pi_desc pi_desc;
 
+	/* Used if this vCPU is waiting for PI notification wakeup. */
+	struct list_head pi_wakeup_list;
+
 	/* Support for a guest hypervisor (nested VMX) */
 	struct nested_vmx nested;
 
@@ -340,7 +352,7 @@ struct vcpu_vmx {
 	struct lbr_desc lbr_desc;
 
 	/* Save desired MSR intercept (read: pass-through) state */
-#define MAX_POSSIBLE_PASSTHROUGH_MSRS	13
+#define MAX_POSSIBLE_PASSTHROUGH_MSRS	15
 	struct {
 		DECLARE_BITMAP(read, MAX_POSSIBLE_PASSTHROUGH_MSRS);
 		DECLARE_BITMAP(write, MAX_POSSIBLE_PASSTHROUGH_MSRS);
@@ -473,19 +485,21 @@ BUILD_CONTROLS_SHADOW(pin, PIN_BASED_VM_EXEC_CONTROL)
 BUILD_CONTROLS_SHADOW(exec, CPU_BASED_VM_EXEC_CONTROL)
 BUILD_CONTROLS_SHADOW(secondary_exec, SECONDARY_VM_EXEC_CONTROL)
 
-static inline void vmx_register_cache_reset(struct kvm_vcpu *vcpu)
-{
-	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP)
-				  | (1 << VCPU_EXREG_RFLAGS)
-				  | (1 << VCPU_EXREG_PDPTR)
-				  | (1 << VCPU_EXREG_SEGMENTS)
-				  | (1 << VCPU_EXREG_CR0)
-				  | (1 << VCPU_EXREG_CR3)
-				  | (1 << VCPU_EXREG_CR4)
-				  | (1 << VCPU_EXREG_EXIT_INFO_1)
-				  | (1 << VCPU_EXREG_EXIT_INFO_2));
-	vcpu->arch.regs_dirty = 0;
-}
+/*
+ * VMX_REGS_LAZY_LOAD_SET - The set of registers that will be updated in the
+ * cache on demand.  Other registers not listed here are synced to
+ * the cache immediately after VM-Exit.
+ */
+#define VMX_REGS_LAZY_LOAD_SET	((1 << VCPU_REGS_RIP) |         \
+				(1 << VCPU_REGS_RSP) |          \
+				(1 << VCPU_EXREG_RFLAGS) |      \
+				(1 << VCPU_EXREG_PDPTR) |       \
+				(1 << VCPU_EXREG_SEGMENTS) |    \
+				(1 << VCPU_EXREG_CR0) |         \
+				(1 << VCPU_EXREG_CR3) |         \
+				(1 << VCPU_EXREG_CR4) |         \
+				(1 << VCPU_EXREG_EXIT_INFO_1) | \
+				(1 << VCPU_EXREG_EXIT_INFO_2))
 
 static inline struct kvm_vmx *to_kvm_vmx(struct kvm *kvm)
 {

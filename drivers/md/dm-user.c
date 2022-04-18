@@ -313,7 +313,6 @@ static inline size_t bio_bytes_needed_to_user(struct bio *bio)
 	case REQ_OP_FLUSH:
 	case REQ_OP_DISCARD:
 	case REQ_OP_SECURE_ERASE:
-	case REQ_OP_WRITE_SAME:
 	case REQ_OP_WRITE_ZEROES:
 		return sizeof(struct dm_user_message);
 
@@ -335,7 +334,6 @@ static inline size_t bio_bytes_needed_from_user(struct bio *bio)
 	case REQ_OP_FLUSH:
 	case REQ_OP_DISCARD:
 	case REQ_OP_SECURE_ERASE:
-	case REQ_OP_WRITE_SAME:
 	case REQ_OP_WRITE_ZEROES:
 		return sizeof(struct dm_user_message);
 
@@ -361,8 +359,6 @@ static inline long bio_type_to_user_type(struct bio *bio)
 		return DM_USER_REQ_MAP_DISCARD;
 	case REQ_OP_SECURE_ERASE:
 		return DM_USER_REQ_MAP_SECURE_ERASE;
-	case REQ_OP_WRITE_SAME:
-		return DM_USER_REQ_MAP_WRITE_SAME;
 	case REQ_OP_WRITE_ZEROES:
 		return DM_USER_REQ_MAP_WRITE_ZEROES;
 

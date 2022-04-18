@@ -13,7 +13,7 @@
 #include "dpu_hw_mdss.h"
 #include "dpu_trace.h"
 
-/**
+/*
  * Register offsets in MDSS register file for the interrupt registers
  * w.r.t. to the MDP base
  */
@@ -23,6 +23,7 @@
 #define MDP_INTF_2_OFF			0x6B000
 #define MDP_INTF_3_OFF			0x6B800
 #define MDP_INTF_4_OFF			0x6C000
+#define MDP_INTF_5_OFF			0x6C800
 #define MDP_AD4_0_OFF			0x7C000
 #define MDP_AD4_1_OFF			0x7D000
 #define MDP_AD4_INTR_EN_OFF		0x41c
@@ -53,82 +54,87 @@ struct dpu_intr_reg {
  * When making changes be sure to sync with dpu_hw_intr_reg
  */
 static const struct dpu_intr_reg dpu_intr_set[] = {
-	{
+	[MDP_SSPP_TOP0_INTR] = {
 		MDP_SSPP_TOP0_OFF+INTR_CLEAR,
 		MDP_SSPP_TOP0_OFF+INTR_EN,
 		MDP_SSPP_TOP0_OFF+INTR_STATUS
 	},
-	{
+	[MDP_SSPP_TOP0_INTR2] = {
 		MDP_SSPP_TOP0_OFF+INTR2_CLEAR,
 		MDP_SSPP_TOP0_OFF+INTR2_EN,
 		MDP_SSPP_TOP0_OFF+INTR2_STATUS
 	},
-	{
+	[MDP_SSPP_TOP0_HIST_INTR] = {
 		MDP_SSPP_TOP0_OFF+HIST_INTR_CLEAR,
 		MDP_SSPP_TOP0_OFF+HIST_INTR_EN,
 		MDP_SSPP_TOP0_OFF+HIST_INTR_STATUS
 	},
-	{
+	[MDP_INTF0_INTR] = {
 		MDP_INTF_0_OFF+INTF_INTR_CLEAR,
 		MDP_INTF_0_OFF+INTF_INTR_EN,
 		MDP_INTF_0_OFF+INTF_INTR_STATUS
 	},
-	{
+	[MDP_INTF1_INTR] = {
 		MDP_INTF_1_OFF+INTF_INTR_CLEAR,
 		MDP_INTF_1_OFF+INTF_INTR_EN,
 		MDP_INTF_1_OFF+INTF_INTR_STATUS
 	},
-	{
+	[MDP_INTF2_INTR] = {
 		MDP_INTF_2_OFF+INTF_INTR_CLEAR,
 		MDP_INTF_2_OFF+INTF_INTR_EN,
 		MDP_INTF_2_OFF+INTF_INTR_STATUS
 	},
-	{
+	[MDP_INTF3_INTR] = {
 		MDP_INTF_3_OFF+INTF_INTR_CLEAR,
 		MDP_INTF_3_OFF+INTF_INTR_EN,
 		MDP_INTF_3_OFF+INTF_INTR_STATUS
 	},
-	{
+	[MDP_INTF4_INTR] = {
 		MDP_INTF_4_OFF+INTF_INTR_CLEAR,
 		MDP_INTF_4_OFF+INTF_INTR_EN,
 		MDP_INTF_4_OFF+INTF_INTR_STATUS
 	},
-	{
+	[MDP_INTF5_INTR] = {
+		MDP_INTF_5_OFF+INTF_INTR_CLEAR,
+		MDP_INTF_5_OFF+INTF_INTR_EN,
+		MDP_INTF_5_OFF+INTF_INTR_STATUS
+	},
+	[MDP_AD4_0_INTR] = {
 		MDP_AD4_0_OFF + MDP_AD4_INTR_CLEAR_OFF,
 		MDP_AD4_0_OFF + MDP_AD4_INTR_EN_OFF,
 		MDP_AD4_0_OFF + MDP_AD4_INTR_STATUS_OFF,
 	},
-	{
+	[MDP_AD4_1_INTR] = {
 		MDP_AD4_1_OFF + MDP_AD4_INTR_CLEAR_OFF,
 		MDP_AD4_1_OFF + MDP_AD4_INTR_EN_OFF,
 		MDP_AD4_1_OFF + MDP_AD4_INTR_STATUS_OFF,
 	},
-	{
+	[MDP_INTF0_7xxx_INTR] = {
 		MDP_INTF_0_OFF_REV_7xxx+INTF_INTR_CLEAR,
 		MDP_INTF_0_OFF_REV_7xxx+INTF_INTR_EN,
 		MDP_INTF_0_OFF_REV_7xxx+INTF_INTR_STATUS
 	},
-	{
+	[MDP_INTF1_7xxx_INTR] = {
 		MDP_INTF_1_OFF_REV_7xxx+INTF_INTR_CLEAR,
 		MDP_INTF_1_OFF_REV_7xxx+INTF_INTR_EN,
 		MDP_INTF_1_OFF_REV_7xxx+INTF_INTR_STATUS
 	},
-	{
+	[MDP_INTF2_7xxx_INTR] = {
 		MDP_INTF_2_OFF_REV_7xxx+INTF_INTR_CLEAR,
 		MDP_INTF_2_OFF_REV_7xxx+INTF_INTR_EN,
 		MDP_INTF_2_OFF_REV_7xxx+INTF_INTR_STATUS
 	},
-	{
+	[MDP_INTF3_7xxx_INTR] = {
 		MDP_INTF_3_OFF_REV_7xxx+INTF_INTR_CLEAR,
 		MDP_INTF_3_OFF_REV_7xxx+INTF_INTR_EN,
 		MDP_INTF_3_OFF_REV_7xxx+INTF_INTR_STATUS
 	},
-	{
+	[MDP_INTF4_7xxx_INTR] = {
 		MDP_INTF_4_OFF_REV_7xxx+INTF_INTR_CLEAR,
 		MDP_INTF_4_OFF_REV_7xxx+INTF_INTR_EN,
 		MDP_INTF_4_OFF_REV_7xxx+INTF_INTR_STATUS
 	},
-	{
+	[MDP_INTF5_7xxx_INTR] = {
 		MDP_INTF_5_OFF_REV_7xxx+INTF_INTR_CLEAR,
 		MDP_INTF_5_OFF_REV_7xxx+INTF_INTR_EN,
 		MDP_INTF_5_OFF_REV_7xxx+INTF_INTR_STATUS
@@ -140,7 +146,7 @@ static const struct dpu_intr_reg dpu_intr_set[] = {
 
 /**
  * dpu_core_irq_callback_handler - dispatch core interrupts
- * @arg:		private data of callback handler
+ * @dpu_kms:		Pointer to DPU's KMS structure
  * @irq_idx:		interrupt index
  */
 static void dpu_core_irq_callback_handler(struct dpu_kms *dpu_kms, int irq_idx)

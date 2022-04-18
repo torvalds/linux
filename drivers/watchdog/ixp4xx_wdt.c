@@ -84,10 +84,24 @@ static int ixp4xx_wdt_set_timeout(struct watchdog_device *wdd,
 	return 0;
 }
 
+static int ixp4xx_wdt_restart(struct watchdog_device *wdd,
+                              unsigned long action, void *data)
+{
+	struct ixp4xx_wdt *iwdt = to_ixp4xx_wdt(wdd);
+
+	__raw_writel(IXP4XX_WDT_KEY, iwdt->base + IXP4XX_OSWK_OFFSET);
+	__raw_writel(0, iwdt->base + IXP4XX_OSWT_OFFSET);
+	__raw_writel(IXP4XX_WDT_COUNT_ENABLE | IXP4XX_WDT_RESET_ENABLE,
+		     iwdt->base + IXP4XX_OSWE_OFFSET);
+
+	return 0;
+}
+
 static const struct watchdog_ops ixp4xx_wdt_ops = {
 	.start = ixp4xx_wdt_start,
 	.stop = ixp4xx_wdt_stop,
 	.set_timeout = ixp4xx_wdt_set_timeout,
+	.restart = ixp4xx_wdt_restart,
 	.owner = THIS_MODULE,
 };
 

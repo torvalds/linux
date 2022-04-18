@@ -13,6 +13,13 @@
 
 #include <linux/regmap.h>
 
+enum intel_cht_wc_models {
+	INTEL_CHT_WC_UNKNOWN,
+	INTEL_CHT_WC_GPD_WIN_POCKET,
+	INTEL_CHT_WC_XIAOMI_MIPAD2,
+	INTEL_CHT_WC_LENOVO_YOGABOOK1,
+};
+
 /**
  * struct intel_soc_pmic - Intel SoC PMIC data
  * @irq: Master interrupt number of the parent PMIC device
@@ -39,6 +46,7 @@ struct intel_soc_pmic {
 	struct regmap_irq_chip_data *irq_chip_data_crit;
 	struct device *dev;
 	struct intel_scu_ipc_dev *scu;
+	enum intel_cht_wc_models cht_wc_model;
 };
 
 int intel_soc_pmic_exec_mipi_pmic_seq_element(u16 i2c_address, u32 reg_address,

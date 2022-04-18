@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * cs35l41_hda.h -- CS35L41 ALSA HDA audio driver
+ * CS35L41 ALSA HDA audio driver
  *
  * Copyright 2021 Cirrus Logic, Inc.
  *
@@ -64,6 +64,6 @@ struct cs35l41_hda {
 
 int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int irq,
 		      struct regmap *regmap);
-int cs35l41_hda_remove(struct device *dev);
+void cs35l41_hda_remove(struct device *dev);
 
 #endif /*__CS35L41_HDA_H__*/

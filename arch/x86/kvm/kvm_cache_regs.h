@@ -9,6 +9,12 @@
 	(X86_CR4_PVI | X86_CR4_DE | X86_CR4_PCE | X86_CR4_OSFXSR  \
 	 | X86_CR4_OSXMMEXCPT | X86_CR4_PGE | X86_CR4_TSD | X86_CR4_FSGSBASE)
 
+#define X86_CR0_PDPTR_BITS    (X86_CR0_CD | X86_CR0_NW | X86_CR0_PG)
+#define X86_CR4_TLBFLUSH_BITS (X86_CR4_PGE | X86_CR4_PCIDE | X86_CR4_PAE | X86_CR4_SMEP)
+#define X86_CR4_PDPTR_BITS    (X86_CR4_PGE | X86_CR4_PSE | X86_CR4_PAE | X86_CR4_SMEP)
+
+static_assert(!(KVM_POSSIBLE_CR0_GUEST_BITS & X86_CR0_PDPTR_BITS));
+
 #define BUILD_KVM_GPR_ACCESSORS(lname, uname)				      \
 static __always_inline unsigned long kvm_##lname##_read(struct kvm_vcpu *vcpu)\
 {									      \
@@ -37,6 +43,13 @@ BUILD_KVM_GPR_ACCESSORS(r14, R14)
 BUILD_KVM_GPR_ACCESSORS(r15, R15)
 #endif
 
+/*
+ * avail  dirty
+ * 0	  0	  register in VMCS/VMCB
+ * 0	  1	  *INVALID*
+ * 1	  0	  register in vcpu->arch
+ * 1	  1	  register in vcpu->arch, needs to be stored back
+ */
 static inline bool kvm_register_is_available(struct kvm_vcpu *vcpu,
 					     enum kvm_reg reg)
 {
@@ -53,13 +66,6 @@ static inline void kvm_register_mark_available(struct kvm_vcpu *vcpu,
 					       enum kvm_reg reg)
 {
 	__set_bit(reg, (unsigned long *)&vcpu->arch.regs_avail);
-}
-
-static inline void kvm_register_clear_available(struct kvm_vcpu *vcpu,
-					       enum kvm_reg reg)
-{
-	__clear_bit(reg, (unsigned long *)&vcpu->arch.regs_avail);
-	__clear_bit(reg, (unsigned long *)&vcpu->arch.regs_dirty);
 }
 
 static inline void kvm_register_mark_dirty(struct kvm_vcpu *vcpu,

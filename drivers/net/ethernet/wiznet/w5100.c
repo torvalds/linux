@@ -883,7 +883,7 @@ static void w5100_rx_work(struct work_struct *work)
 	struct sk_buff *skb;
 
 	while ((skb = w5100_rx_skb(priv->ndev)))
-		netif_rx_ni(skb);
+		netif_rx(skb);
 
 	w5100_enable_intr(priv);
 }

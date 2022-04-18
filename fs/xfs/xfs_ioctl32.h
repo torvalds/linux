@@ -142,28 +142,6 @@ typedef struct compat_xfs_fsop_attrmulti_handlereq {
 	_IOW('X', 123, struct compat_xfs_fsop_attrmulti_handlereq)
 
 #ifdef BROKEN_X86_ALIGNMENT
-/* on ia32 l_start is on a 32-bit boundary */
-typedef struct compat_xfs_flock64 {
-	__s16		l_type;
-	__s16		l_whence;
-	__s64		l_start	__attribute__((packed));
-			/* len == 0 means until end of file */
-	__s64		l_len __attribute__((packed));
-	__s32		l_sysid;
-	__u32		l_pid;
-	__s32		l_pad[4];	/* reserve area */
-} compat_xfs_flock64_t;
-
-#define XFS_IOC_ALLOCSP_32	_IOW('X', 10, struct compat_xfs_flock64)
-#define XFS_IOC_FREESP_32	_IOW('X', 11, struct compat_xfs_flock64)
-#define XFS_IOC_ALLOCSP64_32	_IOW('X', 36, struct compat_xfs_flock64)
-#define XFS_IOC_FREESP64_32	_IOW('X', 37, struct compat_xfs_flock64)
-#define XFS_IOC_RESVSP_32	_IOW('X', 40, struct compat_xfs_flock64)
-#define XFS_IOC_UNRESVSP_32	_IOW('X', 41, struct compat_xfs_flock64)
-#define XFS_IOC_RESVSP64_32	_IOW('X', 42, struct compat_xfs_flock64)
-#define XFS_IOC_UNRESVSP64_32	_IOW('X', 43, struct compat_xfs_flock64)
-#define XFS_IOC_ZERO_RANGE_32	_IOW('X', 57, struct compat_xfs_flock64)
-
 typedef struct compat_xfs_fsop_geom_v1 {
 	__u32		blocksize;	/* filesystem (data) block size */
 	__u32		rtextsize;	/* realtime extent size		*/

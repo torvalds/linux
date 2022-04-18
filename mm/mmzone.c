@@ -9,7 +9,6 @@
 #include <linux/stddef.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
-#include <trace/hooks/mm.h>
 
 struct pglist_data *first_online_pgdat(void)
 {
@@ -82,6 +81,13 @@ void lruvec_init(struct lruvec *lruvec)
 
 	for_each_lru(lru)
 		INIT_LIST_HEAD(&lruvec->lists[lru]);
+	/*
+	 * The "Unevictable LRU" is imaginary: though its size is maintained,
+	 * it is never scanned, and unevictable pages are not threaded on it
+	 * (so that their lru fields can be reused to hold mlock_count).
+	 * Poison its list head, so that any operations on it would crash.
+	 */
+	list_del(&lruvec->lists[LRU_UNEVICTABLE]);
 }
 
 #if defined(CONFIG_NUMA_BALANCING) && !defined(LAST_CPUPID_NOT_IN_PAGE_FLAGS)
@@ -90,30 +96,15 @@ int page_cpupid_xchg_last(struct page *page, int cpupid)
 	unsigned long old_flags, flags;
 	int last_cpupid;
 
+	old_flags = READ_ONCE(page->flags);
 	do {
-		old_flags = flags = page->flags;
-		last_cpupid = page_cpupid_last(page);
+		flags = old_flags;
+		last_cpupid = (flags >> LAST_CPUPID_PGSHIFT) & LAST_CPUPID_MASK;
 
 		flags &= ~(LAST_CPUPID_MASK << LAST_CPUPID_PGSHIFT);
 		flags |= (cpupid & LAST_CPUPID_MASK) << LAST_CPUPID_PGSHIFT;
-	} while (unlikely(cmpxchg(&page->flags, old_flags, flags) != old_flags));
+	} while (unlikely(!try_cmpxchg(&page->flags, &old_flags, flags)));
 
 	return last_cpupid;
 }
 #endif
-
-enum zone_type gfp_zone(gfp_t flags)
-{
-	enum zone_type z;
-	gfp_t local_flags = flags;
-	int bit;
-
-	trace_android_rvh_set_gfp_zone_flags(&local_flags);
-
-	bit = (__force int) ((local_flags) & GFP_ZONEMASK);
-
-	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
-					 ((1 << GFP_ZONES_SHIFT) - 1);
-	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
-	return z;
-}

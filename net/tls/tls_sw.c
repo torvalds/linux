@@ -1433,7 +1433,8 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 
 	if (*zc && (out_iov || out_sg)) {
 		if (out_iov)
-			n_sgout = iov_iter_npages(out_iov, INT_MAX) + 1;
+			n_sgout = 1 +
+				iov_iter_npages_cap(out_iov, INT_MAX, data_len);
 		else
 			n_sgout = sg_nents(out_sg);
 		n_sgin = skb_nsg(skb, rxm->offset + prot->prepend_size,
@@ -1495,7 +1496,7 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	if (prot->version == TLS_1_3_VERSION ||
 	    prot->cipher_type == TLS_CIPHER_CHACHA20_POLY1305)
 		memcpy(iv + iv_offset, tls_ctx->rx.iv,
-		       crypto_aead_ivsize(ctx->aead_recv));
+		       prot->iv_size + prot->salt_size);
 	else
 		memcpy(iv + iv_offset, tls_ctx->rx.iv, prot->salt_size);
 
@@ -2059,6 +2060,7 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 
 splice_read_end:
 	release_sock(sk);
+	sk_defer_free_flush(sk);
 	return copied ? : err;
 }
 

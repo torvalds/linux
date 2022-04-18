@@ -153,7 +153,7 @@ $(TESTS_STATIC): $(TESTS_IN) $(LIBPERF_A) $(LIBAPI)
 	$(QUIET_LINK)$(CC) -o $@ $^
 
 $(TESTS_SHARED): $(TESTS_IN) $(LIBAPI)
-	$(QUIET_LINK)$(CC) -o $@ -L$(if $(OUTPUT),$(OUTPUT),.) $^ -lperf
+	$(QUIET_LINK)$(CC) -o $@ -L$(or $(OUTPUT),.) $^ -lperf
 
 make-tests: libs $(TESTS_SHARED) $(TESTS_STATIC)
 

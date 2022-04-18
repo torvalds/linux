@@ -116,13 +116,15 @@ config SATA_AHCI
 	  If unsure, say N.
 
 config SATA_MOBILE_LPM_POLICY
-	int "Default SATA Link Power Management policy for mobile chipsets"
+	int "Default SATA Link Power Management policy for low power chipsets"
 	range 0 4
 	default 0
 	depends on SATA_AHCI
 	help
 	  Select the Default SATA Link Power Management (LPM) policy to use
-	  for mobile / laptop variants of chipsets / "South Bridges".
+	  for chipsets / "South Bridges" supporting low-power modes. Such
+	  chipsets are typically found on most laptops but desktops and
+	  servers now also widely use chipsets supporting low power modes.
 
 	  The value set has the following meanings:
 		0 => Keep firmware settings
@@ -146,7 +148,7 @@ config SATA_AHCI_PLATFORM
 config AHCI_BRCM
 	tristate "Broadcom AHCI SATA support"
 	depends on ARCH_BRCMSTB || BMIPS_GENERIC || ARCH_BCM_NSP || \
-		   ARCH_BCM_63XX
+		   ARCH_BCM_63XX || COMPILE_TEST
 	select SATA_HOST
 	help
 	  This option enables support for the AHCI SATA3 controller found on
@@ -156,7 +158,7 @@ config AHCI_BRCM
 
 config AHCI_DA850
 	tristate "DaVinci DA850 AHCI SATA support"
-	depends on ARCH_DAVINCI_DA850
+	depends on ARCH_DAVINCI_DA850 || COMPILE_TEST
 	select SATA_HOST
 	help
 	  This option enables support for the DaVinci DA850 SoC's
@@ -166,7 +168,7 @@ config AHCI_DA850
 
 config AHCI_DM816
 	tristate "DaVinci DM816 AHCI SATA support"
-	depends on ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	select SATA_HOST
 	help
 	  This option enables support for the DaVinci DM816 SoC's
@@ -206,7 +208,7 @@ config AHCI_CEVA
 
 config AHCI_MTK
 	tristate "MediaTek AHCI SATA support"
-	depends on ARCH_MEDIATEK
+	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select MFD_SYSCON
 	select SATA_HOST
 	help
@@ -217,7 +219,7 @@ config AHCI_MTK
 
 config AHCI_MVEBU
 	tristate "Marvell EBU AHCI SATA support"
-	depends on ARCH_MVEBU
+	depends on ARCH_MVEBU || COMPILE_TEST
 	select SATA_HOST
 	help
 	  This option enables support for the Marvebu EBU SoC's
@@ -236,7 +238,7 @@ config AHCI_OCTEON
 
 config AHCI_SUNXI
 	tristate "Allwinner sunxi AHCI SATA support"
-	depends on ARCH_SUNXI
+	depends on ARCH_SUNXI || COMPILE_TEST
 	select SATA_HOST
 	help
 	  This option enables support for the Allwinner sunxi SoC's
@@ -246,7 +248,7 @@ config AHCI_SUNXI
 
 config AHCI_TEGRA
 	tristate "NVIDIA Tegra AHCI SATA support"
-	depends on ARCH_TEGRA
+	depends on ARCH_TEGRA || COMPILE_TEST
 	select SATA_HOST
 	help
 	  This option enables support for the NVIDIA Tegra SoC's
@@ -256,7 +258,7 @@ config AHCI_TEGRA
 
 config AHCI_XGENE
 	tristate "APM X-Gene 6.0Gbps AHCI SATA host controller support"
-	depends on PHY_XGENE
+	depends on PHY_XGENE || COMPILE_TEST
 	select SATA_HOST
 	help
 	 This option enables support for APM X-Gene SoC SATA host controller.
@@ -273,7 +275,7 @@ config AHCI_QORIQ
 
 config SATA_FSL
 	tristate "Freescale 3.0Gbps SATA support"
-	depends on FSL_SOC
+	depends on FSL_SOC || COMPILE_TEST
 	select SATA_HOST
 	help
 	  This option enables support for Freescale 3.0Gbps SATA controller.
@@ -283,7 +285,7 @@ config SATA_FSL
 
 config SATA_GEMINI
 	tristate "Gemini SATA bridge support"
-	depends on ARCH_GEMINI || COMPILE_TEST
+	depends on ARCH_GEMINI || (OF && COMPILE_TEST)
 	select SATA_HOST
 	default ARCH_GEMINI
 	help
@@ -294,7 +296,7 @@ config SATA_GEMINI
 
 config SATA_AHCI_SEATTLE
 	tristate "AMD Seattle 6.0Gbps AHCI SATA host controller support"
-	depends on ARCH_SEATTLE
+	depends on ARCH_SEATTLE || COMPILE_TEST
 	select SATA_HOST
 	help
 	 This option enables support for AMD Seattle SATA host controller.
@@ -431,18 +433,6 @@ config SATA_DWC_OLD_DMA
 	help
 	  This option enables support for old device trees without the
 	  "dmas" property.
-
-config SATA_DWC_DEBUG
-	bool "Debugging driver version"
-	depends on SATA_DWC
-	help
-	  This option enables debugging output in the driver.
-
-config SATA_DWC_VDEBUG
-	bool "Verbose debug output"
-	depends on SATA_DWC_DEBUG
-	help
-	  This option enables the taskfile dumping and NCQ debugging.
 
 config SATA_HIGHBANK
 	tristate "Calxeda Highbank SATA support"
@@ -611,7 +601,7 @@ config PATA_ATP867X
 
 config PATA_BK3710
 	tristate "Palmchip BK3710 PATA support"
-	depends on ARCH_DAVINCI
+	depends on ARCH_DAVINCI || COMPILE_TEST
 	select PATA_TIMINGS
 	help
 	  This option enables support for the integrated IDE controller on
@@ -649,7 +639,7 @@ config PATA_CS5530
 
 config PATA_CS5535
 	tristate "CS5535 PATA support (Experimental)"
-	depends on PCI && X86_32
+	depends on PCI && (X86_32 || (X86_64 && COMPILE_TEST))
 	help
 	  This option enables support for the NatSemi/AMD CS5535
 	  companion chip used with the Geode processor family.
@@ -697,7 +687,7 @@ config PATA_EP93XX
 config PATA_FTIDE010
 	tristate "Faraday Technology FTIDE010 PATA support"
 	depends on OF
-	depends on ARM
+	depends on ARM || COMPILE_TEST
 	depends on SATA_GEMINI
 	help
 	  This option enables support for the Faraday FTIDE010
@@ -760,7 +750,7 @@ config PATA_ICSIDE
 
 config PATA_IMX
 	tristate "PATA support for Freescale iMX"
-	depends on ARCH_MXC
+	depends on ARCH_MXC || COMPILE_TEST
 	select PATA_TIMINGS
 	help
 	  This option enables support for the PATA host available on Freescale
@@ -981,7 +971,7 @@ config PATA_VIA
 
 config PATA_PXA
 	tristate "PXA DMA-capable PATA support"
-	depends on ARCH_PXA
+	depends on ARCH_PXA || COMPILE_TEST
 	help
 	  This option enables support for harddrive attached to PXA CPU's bus.
 
@@ -1157,7 +1147,7 @@ config PATA_RZ1000
 
 config PATA_SAMSUNG_CF
 	tristate "Samsung SoC PATA support"
-	depends on SAMSUNG_DEV_IDE
+	depends on SAMSUNG_DEV_IDE || COMPILE_TEST
 	select PATA_TIMINGS
 	help
 	  This option enables basic support for Samsung's S3C/S5P board

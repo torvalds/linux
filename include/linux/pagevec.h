@@ -111,6 +111,7 @@ static_assert(offsetof(struct pagevec, pages) ==
 static inline void folio_batch_init(struct folio_batch *fbatch)
 {
 	fbatch->nr = 0;
+	fbatch->percpu_pvec_drained = false;
 }
 
 static inline unsigned int folio_batch_count(struct folio_batch *fbatch)

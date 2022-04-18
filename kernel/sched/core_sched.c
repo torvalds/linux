@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include <linux/prctl.h>
-#include "sched.h"
-
 /*
  * A simple wrapper around refcount. An allocated sched_core_cookie's
  * address is used to compute the cookie of the task.
@@ -277,7 +274,7 @@ void __sched_core_account_forceidle(struct rq *rq)
 		rq_i = cpu_rq(i);
 		p = rq_i->core_pick ?: rq_i->curr;
 
-		if (!p->core_cookie)
+		if (p == rq_i->idle)
 			continue;
 
 		__schedstat_add(p->stats.core_forceidle_sum, delta);

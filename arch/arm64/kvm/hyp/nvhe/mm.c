@@ -8,6 +8,7 @@
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_pgtable.h>
+#include <asm/kvm_pkvm.h>
 #include <asm/spectre.h>
 
 #include <nvhe/early_alloc.h>
@@ -18,10 +19,11 @@
 
 struct kvm_pgtable pkvm_pgtable;
 hyp_spinlock_t pkvm_pgd_lock;
-u64 __io_map_base;
 
 struct memblock_region hyp_memory[HYP_MEMBLOCK_REGIONS];
 unsigned int hyp_memblock_nr;
+
+static u64 __io_map_base;
 
 static int __pkvm_create_mappings(unsigned long start, unsigned long size,
 				  unsigned long phys, enum kvm_pgtable_prot prot)
@@ -146,8 +148,10 @@ int hyp_map_vectors(void)
 	phys_addr_t phys;
 	void *bp_base;
 
-	if (!cpus_have_const_cap(ARM64_SPECTRE_V3A))
+	if (!kvm_system_needs_idmapped_vectors()) {
+		__hyp_bp_vect_base = __bp_harden_hyp_vecs;
 		return 0;
+	}
 
 	phys = __hyp_pa(__bp_harden_hyp_vecs);
 	bp_base = (void *)__pkvm_create_private_mapping(phys,

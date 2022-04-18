@@ -105,6 +105,7 @@ void uart_write_wakeup(struct uart_port *port)
 	BUG_ON(!state);
 	tty_port_tty_wakeup(&state->port);
 }
+EXPORT_SYMBOL(uart_write_wakeup);
 
 static void uart_stop(struct tty_struct *tty)
 {
@@ -144,6 +145,11 @@ uart_update_mctrl(struct uart_port *port, unsigned int set, unsigned int clear)
 	unsigned long flags;
 	unsigned int old;
 
+	if (port->rs485.flags & SER_RS485_ENABLED) {
+		set &= ~TIOCM_RTS;
+		clear &= ~TIOCM_RTS;
+	}
+
 	spin_lock_irqsave(&port->lock, flags);
 	old = port->mctrl;
 	port->mctrl = (old & ~clear) | set;
@@ -157,23 +163,10 @@ uart_update_mctrl(struct uart_port *port, unsigned int set, unsigned int clear)
 
 static void uart_port_dtr_rts(struct uart_port *uport, int raise)
 {
-	int rs485_on = uport->rs485_config &&
-		(uport->rs485.flags & SER_RS485_ENABLED);
-	int RTS_after_send = !!(uport->rs485.flags & SER_RS485_RTS_AFTER_SEND);
-
-	if (raise) {
-		if (rs485_on && RTS_after_send) {
-			uart_set_mctrl(uport, TIOCM_DTR);
-			uart_clear_mctrl(uport, TIOCM_RTS);
-		} else {
-			uart_set_mctrl(uport, TIOCM_DTR | TIOCM_RTS);
-		}
-	} else {
-		unsigned int clear = TIOCM_DTR;
-
-		clear |= (!rs485_on || RTS_after_send) ? TIOCM_RTS : 0;
-		uart_clear_mctrl(uport, clear);
-	}
+	if (raise)
+		uart_set_mctrl(uport, TIOCM_DTR | TIOCM_RTS);
+	else
+		uart_clear_mctrl(uport, TIOCM_DTR | TIOCM_RTS);
 }
 
 /*
@@ -324,8 +317,7 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 	state->xmit.buf = NULL;
 	uart_port_unlock(uport, flags);
 
-	if (xmit_buf)
-		free_page((unsigned long)xmit_buf);
+	free_page((unsigned long)xmit_buf);
 }
 
 /**
@@ -351,7 +343,6 @@ uart_update_timeout(struct uart_port *port, unsigned int cflag,
 	 */
 	port->timeout = (HZ * size) / baud + HZ/50;
 }
-
 EXPORT_SYMBOL(uart_update_timeout);
 
 /**
@@ -453,7 +444,6 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 	WARN_ON(1);
 	return 0;
 }
-
 EXPORT_SYMBOL(uart_get_baud_rate);
 
 /**
@@ -478,7 +468,6 @@ uart_get_divisor(struct uart_port *port, unsigned int baud)
 
 	return quot;
 }
-
 EXPORT_SYMBOL(uart_get_divisor);
 
 /* Caller holds port mutex */
@@ -651,6 +640,20 @@ static void uart_flush_buffer(struct tty_struct *tty)
 	uart_port_unlock(port, flags);
 	tty_port_tty_wakeup(&state->port);
 }
+
+/*
+ * This function performs low-level write of high-priority XON/XOFF
+ * character and accounting for it.
+ *
+ * Requires uart_port to implement .serial_out().
+ */
+void uart_xchar_out(struct uart_port *uport, int offset)
+{
+	serial_port_out(uport, offset, uport->x_char);
+	uport->icount.tx++;
+	uport->x_char = 0;
+}
+EXPORT_SYMBOL_GPL(uart_xchar_out);
 
 /*
  * This function is used to send a high-priority XON/XOFF character to
@@ -1075,11 +1078,6 @@ uart_tiocmset(struct tty_struct *tty, unsigned int set, unsigned int clear)
 		goto out;
 
 	if (!tty_io_error(tty)) {
-		if (uport->rs485.flags & SER_RS485_ENABLED) {
-			set &= ~TIOCM_RTS;
-			clear &= ~TIOCM_RTS;
-		}
-
 		uart_update_mctrl(uport, set, clear);
 		ret = 0;
 	}
@@ -1584,8 +1582,7 @@ static void uart_tty_port_shutdown(struct tty_port *port)
 	state->xmit.buf = NULL;
 	spin_unlock_irq(&uport->lock);
 
-	if (buf)
-		free_page((unsigned long)buf);
+	free_page((unsigned long)buf);
 
 	uart_change_pm(state, UART_PM_STATE_OFF);
 }
@@ -1928,7 +1925,7 @@ static void uart_port_spin_lock_init(struct uart_port *port)
  */
 void uart_console_write(struct uart_port *port, const char *s,
 			unsigned int count,
-			void (*putchar)(struct uart_port *, int))
+			void (*putchar)(struct uart_port *, unsigned char))
 {
 	unsigned int i;
 
@@ -2220,6 +2217,7 @@ unlock:
 
 	return 0;
 }
+EXPORT_SYMBOL(uart_suspend_port);
 
 int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 {
@@ -2305,6 +2303,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 
 	return 0;
 }
+EXPORT_SYMBOL(uart_resume_port);
 
 static inline void
 uart_report_port(struct uart_driver *drv, struct uart_port *port)
@@ -2390,6 +2389,9 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 		 */
 		spin_lock_irqsave(&port->lock, flags);
 		port->mctrl &= TIOCM_DTR;
+		if (port->rs485.flags & SER_RS485_ENABLED &&
+		    !(port->rs485.flags & SER_RS485_RTS_AFTER_SEND))
+			port->mctrl |= TIOCM_RTS;
 		port->ops->set_mctrl(port, port->mctrl);
 		spin_unlock_irqrestore(&port->lock, flags);
 
@@ -2599,6 +2601,7 @@ out_kfree:
 out:
 	return retval;
 }
+EXPORT_SYMBOL(uart_register_driver);
 
 /**
  *	uart_unregister_driver - remove a driver from the uart core layer
@@ -2622,6 +2625,7 @@ void uart_unregister_driver(struct uart_driver *drv)
 	drv->state = NULL;
 	drv->tty_driver = NULL;
 }
+EXPORT_SYMBOL(uart_unregister_driver);
 
 struct tty_driver *uart_console_device(struct console *co, int *index)
 {
@@ -2956,6 +2960,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 
 	return ret;
 }
+EXPORT_SYMBOL(uart_add_one_port);
 
 /**
  *	uart_remove_one_port - detach a driver defined port structure
@@ -3036,6 +3041,7 @@ out:
 
 	return ret;
 }
+EXPORT_SYMBOL(uart_remove_one_port);
 
 /*
  *	Are the two ports equivalent?
@@ -3211,14 +3217,6 @@ bool uart_try_toggle_sysrq(struct uart_port *port, unsigned int ch)
 }
 EXPORT_SYMBOL_GPL(uart_try_toggle_sysrq);
 #endif
-
-EXPORT_SYMBOL(uart_write_wakeup);
-EXPORT_SYMBOL(uart_register_driver);
-EXPORT_SYMBOL(uart_unregister_driver);
-EXPORT_SYMBOL(uart_suspend_port);
-EXPORT_SYMBOL(uart_resume_port);
-EXPORT_SYMBOL(uart_add_one_port);
-EXPORT_SYMBOL(uart_remove_one_port);
 
 /**
  * uart_get_rs485_mode() - retrieve rs485 properties for given uart

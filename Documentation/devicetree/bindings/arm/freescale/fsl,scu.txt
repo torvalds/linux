@@ -86,6 +86,7 @@ This binding uses the common clock binding[1].
 
 Required properties:
 - compatible:		Should be one of:
+			  "fsl,imx8dxl-clk"
 			  "fsl,imx8qm-clk"
 			  "fsl,imx8qxp-clk"
 			followed by "fsl,scu-clk"

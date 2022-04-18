@@ -7,6 +7,7 @@
 
 #include <linux/export.h>
 #include <linux/mm.h>
+#include <linux/mm_inline.h>
 #include <linux/utsname.h>
 #include <linux/mman.h>
 #include <linux/reboot.h>
@@ -42,8 +43,6 @@
 #include <linux/version.h>
 #include <linux/ctype.h>
 #include <linux/syscall_user_dispatch.h>
-#include <linux/mm.h>
-#include <linux/mempolicy.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
@@ -224,7 +223,6 @@ SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
 		niceval = MAX_NICE;
 
 	rcu_read_lock();
-	read_lock(&tasklist_lock);
 	switch (which) {
 	case PRIO_PROCESS:
 		if (who)
@@ -239,9 +237,11 @@ SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
 			pgrp = find_vpid(who);
 		else
 			pgrp = task_pgrp(current);
+		read_lock(&tasklist_lock);
 		do_each_pid_thread(pgrp, PIDTYPE_PGID, p) {
 			error = set_one_prio(p, niceval, error);
 		} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
+		read_unlock(&tasklist_lock);
 		break;
 	case PRIO_USER:
 		uid = make_kuid(cred->user_ns, who);
@@ -253,16 +253,15 @@ SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
 			if (!user)
 				goto out_unlock;	/* No processes for this user */
 		}
-		do_each_thread(g, p) {
+		for_each_process_thread(g, p) {
 			if (uid_eq(task_uid(p), uid) && task_pid_vnr(p))
 				error = set_one_prio(p, niceval, error);
-		} while_each_thread(g, p);
+		}
 		if (!uid_eq(uid, cred->uid))
 			free_uid(user);		/* For find_user() */
 		break;
 	}
 out_unlock:
-	read_unlock(&tasklist_lock);
 	rcu_read_unlock();
 out:
 	return error;
@@ -287,7 +286,6 @@ SYSCALL_DEFINE2(getpriority, int, which, int, who)
 		return -EINVAL;
 
 	rcu_read_lock();
-	read_lock(&tasklist_lock);
 	switch (which) {
 	case PRIO_PROCESS:
 		if (who)
@@ -305,11 +303,13 @@ SYSCALL_DEFINE2(getpriority, int, which, int, who)
 			pgrp = find_vpid(who);
 		else
 			pgrp = task_pgrp(current);
+		read_lock(&tasklist_lock);
 		do_each_pid_thread(pgrp, PIDTYPE_PGID, p) {
 			niceval = nice_to_rlimit(task_nice(p));
 			if (niceval > retval)
 				retval = niceval;
 		} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
+		read_unlock(&tasklist_lock);
 		break;
 	case PRIO_USER:
 		uid = make_kuid(cred->user_ns, who);
@@ -321,19 +321,18 @@ SYSCALL_DEFINE2(getpriority, int, which, int, who)
 			if (!user)
 				goto out_unlock;	/* No processes for this user */
 		}
-		do_each_thread(g, p) {
+		for_each_process_thread(g, p) {
 			if (uid_eq(task_uid(p), uid) && task_pid_vnr(p)) {
 				niceval = nice_to_rlimit(task_nice(p));
 				if (niceval > retval)
 					retval = niceval;
 			}
-		} while_each_thread(g, p);
+		}
 		if (!uid_eq(uid, cred->uid))
 			free_uid(user);		/* for find_user() */
 		break;
 	}
 out_unlock:
-	read_unlock(&tasklist_lock);
 	rcu_read_unlock();
 
 	return retval;
@@ -476,6 +475,16 @@ static int set_user(struct cred *new)
 	if (!new_user)
 		return -EAGAIN;
 
+	free_uid(new->user);
+	new->user = new_user;
+	return 0;
+}
+
+static void flag_nproc_exceeded(struct cred *new)
+{
+	if (new->ucounts == current_ucounts())
+		return;
+
 	/*
 	 * We don't fail in case of NPROC limit excess here because too many
 	 * poorly written programs don't check set*uid() return code, assuming
@@ -484,15 +493,10 @@ static int set_user(struct cred *new)
 	 * failure to the execve() stage.
 	 */
 	if (is_ucounts_overlimit(new->ucounts, UCOUNT_RLIMIT_NPROC, rlimit(RLIMIT_NPROC)) &&
-			new_user != INIT_USER &&
-			!capable(CAP_SYS_RESOURCE) && !capable(CAP_SYS_ADMIN))
+			new->user != INIT_USER)
 		current->flags |= PF_NPROC_EXCEEDED;
 	else
 		current->flags &= ~PF_NPROC_EXCEEDED;
-
-	free_uid(new->user);
-	new->user = new_user;
-	return 0;
 }
 
 /*
@@ -567,6 +571,7 @@ long __sys_setreuid(uid_t ruid, uid_t euid)
 	if (retval < 0)
 		goto error;
 
+	flag_nproc_exceeded(new);
 	return commit_creds(new);
 
 error:
@@ -629,6 +634,7 @@ long __sys_setuid(uid_t uid)
 	if (retval < 0)
 		goto error;
 
+	flag_nproc_exceeded(new);
 	return commit_creds(new);
 
 error:
@@ -708,6 +714,7 @@ long __sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
 	if (retval < 0)
 		goto error;
 
+	flag_nproc_exceeded(new);
 	return commit_creds(new);
 
 error:
@@ -1419,6 +1426,68 @@ SYSCALL_DEFINE2(setdomainname, char __user *, name, int, len)
 	return errno;
 }
 
+/* make sure you are allowed to change @tsk limits before calling this */
+static int do_prlimit(struct task_struct *tsk, unsigned int resource,
+		      struct rlimit *new_rlim, struct rlimit *old_rlim)
+{
+	struct rlimit *rlim;
+	int retval = 0;
+
+	if (resource >= RLIM_NLIMITS)
+		return -EINVAL;
+	if (new_rlim) {
+		if (new_rlim->rlim_cur > new_rlim->rlim_max)
+			return -EINVAL;
+		if (resource == RLIMIT_NOFILE &&
+				new_rlim->rlim_max > sysctl_nr_open)
+			return -EPERM;
+	}
+
+	/* Holding a refcount on tsk protects tsk->signal from disappearing. */
+	rlim = tsk->signal->rlim + resource;
+	task_lock(tsk->group_leader);
+	if (new_rlim) {
+		/*
+		 * Keep the capable check against init_user_ns until cgroups can
+		 * contain all limits.
+		 */
+		if (new_rlim->rlim_max > rlim->rlim_max &&
+				!capable(CAP_SYS_RESOURCE))
+			retval = -EPERM;
+		if (!retval)
+			retval = security_task_setrlimit(tsk, resource, new_rlim);
+	}
+	if (!retval) {
+		if (old_rlim)
+			*old_rlim = *rlim;
+		if (new_rlim)
+			*rlim = *new_rlim;
+	}
+	task_unlock(tsk->group_leader);
+
+	/*
+	 * RLIMIT_CPU handling. Arm the posix CPU timer if the limit is not
+	 * infinite. In case of RLIM_INFINITY the posix CPU timer code
+	 * ignores the rlimit.
+	 */
+	if (!retval && new_rlim && resource == RLIMIT_CPU &&
+	    new_rlim->rlim_cur != RLIM_INFINITY &&
+	    IS_ENABLED(CONFIG_POSIX_TIMERS)) {
+		/*
+		 * update_rlimit_cpu can fail if the task is exiting, but there
+		 * may be other tasks in the thread group that are not exiting,
+		 * and they need their cpu timers adjusted.
+		 *
+		 * The group_leader is the last task to be released, so if we
+		 * cannot update_rlimit_cpu on it, then the entire process is
+		 * exiting and we do not need to update at all.
+		 */
+		update_rlimit_cpu(tsk->group_leader, new_rlim->rlim_cur);
+	}
+
+	return retval;
+}
+
 SYSCALL_DEFINE2(getrlimit, unsigned int, resource, struct rlimit __user *, rlim)
 {
 	struct rlimit value;
@@ -1560,63 +1629,6 @@ static void rlim64_to_rlim(const struct rlimit64 *rlim64, struct rlimit *rlim)
 		rlim->rlim_max = RLIM_INFINITY;
 	else
 		rlim->rlim_max = (unsigned long)rlim64->rlim_max;
-}
-
-/* make sure you are allowed to change @tsk limits before calling this */
-int do_prlimit(struct task_struct *tsk, unsigned int resource,
-		struct rlimit *new_rlim, struct rlimit *old_rlim)
-{
-	struct rlimit *rlim;
-	int retval = 0;
-
-	if (resource >= RLIM_NLIMITS)
-		return -EINVAL;
-	if (new_rlim) {
-		if (new_rlim->rlim_cur > new_rlim->rlim_max)
-			return -EINVAL;
-		if (resource == RLIMIT_NOFILE &&
-				new_rlim->rlim_max > sysctl_nr_open)
-			return -EPERM;
-	}
-
-	/* protect tsk->signal and tsk->sighand from disappearing */
-	read_lock(&tasklist_lock);
-	if (!tsk->sighand) {
-		retval = -ESRCH;
-		goto out;
-	}
-
-	rlim = tsk->signal->rlim + resource;
-	task_lock(tsk->group_leader);
-	if (new_rlim) {
-		/* Keep the capable check against init_user_ns until
-		   cgroups can contain all limits */
-		if (new_rlim->rlim_max > rlim->rlim_max &&
-				!capable(CAP_SYS_RESOURCE))
-			retval = -EPERM;
-		if (!retval)
-			retval = security_task_setrlimit(tsk, resource, new_rlim);
-	}
-	if (!retval) {
-		if (old_rlim)
-			*old_rlim = *rlim;
-		if (new_rlim)
-			*rlim = *new_rlim;
-	}
-	task_unlock(tsk->group_leader);
-
-	/*
-	 * RLIMIT_CPU handling. Arm the posix CPU timer if the limit is not
-	 * infinite. In case of RLIM_INFINITY the posix CPU timer code
-	 * ignores the rlimit.
-	 */
-	 if (!retval && new_rlim && resource == RLIMIT_CPU &&
-	     new_rlim->rlim_cur != RLIM_INFINITY &&
-	     IS_ENABLED(CONFIG_POSIX_TIMERS))
-		update_rlimit_cpu(tsk, new_rlim->rlim_cur);
-out:
-	read_unlock(&tasklist_lock);
-	return retval;
 }
 
 /* rcu lock must be held */
@@ -2263,154 +2275,71 @@ int __weak arch_prctl_spec_ctrl_set(struct task_struct *t, unsigned long which,
 	return -EINVAL;
 }
 
-#ifdef CONFIG_MMU
-static int prctl_update_vma_anon_name(struct vm_area_struct *vma,
-		struct vm_area_struct **prev,
-		unsigned long start, unsigned long end,
-		const char __user *name_addr)
+#define PR_IO_FLUSHER (PF_MEMALLOC_NOIO | PF_LOCAL_THROTTLE)
+
+#ifdef CONFIG_ANON_VMA_NAME
+
+#define ANON_VMA_NAME_MAX_LEN		80
+#define ANON_VMA_NAME_INVALID_CHARS	"\\`$[]"
+
+static inline bool is_valid_name_char(char ch)
 {
-	struct mm_struct *mm = vma->vm_mm;
-	int error = 0;
-	pgoff_t pgoff;
-
-	if (name_addr == vma_get_anon_name(vma)) {
-		*prev = vma;
-		goto out;
-	}
-
-	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
-	*prev = vma_merge(mm, *prev, start, end, vma->vm_flags, vma->anon_vma,
-				vma->vm_file, pgoff, vma_policy(vma),
-				vma->vm_userfaultfd_ctx, name_addr);
-	if (*prev) {
-		vma = *prev;
-		goto success;
-	}
-
-	*prev = vma;
-
-	if (start != vma->vm_start) {
-		error = split_vma(mm, vma, start, 1);
-		if (error)
-			goto out;
-	}
-
-	if (end != vma->vm_end) {
-		error = split_vma(mm, vma, end, 0);
-		if (error)
-			goto out;
-	}
-
-success:
-	if (!vma->vm_file)
-		vma->anon_name = name_addr;
-
-out:
-	if (error == -ENOMEM)
-		error = -EAGAIN;
-	return error;
+	/* printable ascii characters, excluding ANON_VMA_NAME_INVALID_CHARS */
+	return ch > 0x1f && ch < 0x7f &&
+		!strchr(ANON_VMA_NAME_INVALID_CHARS, ch);
 }
 
-static int prctl_set_vma_anon_name(unsigned long start, unsigned long end,
-			unsigned long arg)
-{
-	unsigned long tmp;
-	struct vm_area_struct *vma, *prev;
-	int unmapped_error = 0;
-	int error = -EINVAL;
-
-	/*
-	 * If the interval [start,end) covers some unmapped address
-	 * ranges, just ignore them, but return -ENOMEM at the end.
-	 * - this matches the handling in madvise.
-	 */
-	vma = find_vma_prev(current->mm, start, &prev);
-	if (vma && start > vma->vm_start)
-		prev = vma;
-
-	for (;;) {
-		/* Still start < end. */
-		error = -ENOMEM;
-		if (!vma)
-			return error;
-
-		/* Here start < (end|vma->vm_end). */
-		if (start < vma->vm_start) {
-			unmapped_error = -ENOMEM;
-			start = vma->vm_start;
-			if (start >= end)
-				return error;
-		}
-
-		/* Here vma->vm_start <= start < (end|vma->vm_end) */
-		tmp = vma->vm_end;
-		if (end < tmp)
-			tmp = end;
-
-		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
-		error = prctl_update_vma_anon_name(vma, &prev, start, tmp,
-				(const char __user *)arg);
-		if (error)
-			return error;
-		start = tmp;
-		if (prev && start < prev->vm_end)
-			start = prev->vm_end;
-		error = unmapped_error;
-		if (start >= end)
-			return error;
-		if (prev)
-			vma = prev->vm_next;
-		else	/* madvise_remove dropped mmap_lock */
-			vma = find_vma(current->mm, start);
-	}
-}
-
-static int prctl_set_vma(unsigned long opt, unsigned long start,
-		unsigned long len_in, unsigned long arg)
+static int prctl_set_vma(unsigned long opt, unsigned long addr,
+			 unsigned long size, unsigned long arg)
 {
 	struct mm_struct *mm = current->mm;
+	const char __user *uname;
+	struct anon_vma_name *anon_name = NULL;
 	int error;
-	unsigned long len;
-	unsigned long end;
-
-	if (start & ~PAGE_MASK)
-		return -EINVAL;
-	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
-
-	/* Check to see whether len was rounded up from small -ve to zero */
-	if (len_in && !len)
-		return -EINVAL;
-
-	end = start + len;
-	if (end < start)
-		return -EINVAL;
-
-	if (end == start)
-		return 0;
-
-	mmap_write_lock(mm);
 
 	switch (opt) {
 	case PR_SET_VMA_ANON_NAME:
-		error = prctl_set_vma_anon_name(start, end, arg);
+		uname = (const char __user *)arg;
+		if (uname) {
+			char *name, *pch;
+
+			name = strndup_user(uname, ANON_VMA_NAME_MAX_LEN);
+			if (IS_ERR(name))
+				return PTR_ERR(name);
+
+			for (pch = name; *pch != '\0'; pch++) {
+				if (!is_valid_name_char(*pch)) {
+					kfree(name);
+					return -EINVAL;
+				}
+			}
+			/* anon_vma has its own copy */
+			anon_name = anon_vma_name_alloc(name);
+			kfree(name);
+			if (!anon_name)
+				return -ENOMEM;
+
+		}
+
+		mmap_write_lock(mm);
+		error = madvise_set_anon_name(mm, addr, size, anon_name);
+		mmap_write_unlock(mm);
+		anon_vma_name_put(anon_name);
 		break;
 	default:
 		error = -EINVAL;
 	}
 
-	mmap_write_unlock(mm);
-
 	return error;
 }
-#else /* CONFIG_MMU */
+
+#else /* CONFIG_ANON_VMA_NAME */
 static int prctl_set_vma(unsigned long opt, unsigned long start,
-		unsigned long len_in, unsigned long arg)
+			 unsigned long size, unsigned long arg)
 {
 	return -EINVAL;
 }
-#endif
-
-#define PR_IO_FLUSHER (PF_MEMALLOC_NOIO | PF_LOCAL_THROTTLE)
+#endif /* CONFIG_ANON_VMA_NAME */
 
 SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		unsigned long, arg4, unsigned long, arg5)
@@ -2624,9 +2553,6 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 			return -EINVAL;
 		error = arch_prctl_spec_ctrl_set(me, arg2, arg3);
 		break;
-	case PR_SET_VMA:
-		error = prctl_set_vma(arg2, arg3, arg4, arg5);
-		break;
 	case PR_PAC_RESET_KEYS:
 		if (arg3 || arg4 || arg5)
 			return -EINVAL;
@@ -2684,6 +2610,9 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		error = sched_core_share_pid(arg2, arg3, arg4, arg5);
 		break;
 #endif
+	case PR_SET_VMA:
+		error = prctl_set_vma(arg2, arg3, arg4, arg5);
+		break;
 	default:
 		error = -EINVAL;
 		break;

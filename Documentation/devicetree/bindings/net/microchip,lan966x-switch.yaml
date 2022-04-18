@@ -38,6 +38,7 @@ properties:
       - description: register based extraction
       - description: frame dma based extraction
       - description: analyzer interrupt
+      - description: ptp interrupt
 
   interrupt-names:
     minItems: 1
@@ -45,6 +46,7 @@ properties:
       - const: xtr
       - const: fdma
       - const: ana
+      - const: ptp
 
   resets:
     items:

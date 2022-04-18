@@ -32,14 +32,17 @@ enum dev_pm_opp_event {
  * @u_volt_min:	Minimum voltage in microvolts corresponding to this OPP
  * @u_volt_max:	Maximum voltage in microvolts corresponding to this OPP
  * @u_amp:	Maximum current drawn by the device in microamperes
+ * @u_watt:	Power used by the device in microwatts
  *
- * This structure stores the voltage/current values for a single power supply.
+ * This structure stores the voltage/current/power values for a single power
+ * supply.
  */
 struct dev_pm_opp_supply {
 	unsigned long u_volt;
 	unsigned long u_volt_min;
 	unsigned long u_volt_max;
 	unsigned long u_amp;
+	unsigned long u_watt;
 };
 
 /**
@@ -93,6 +96,8 @@ struct opp_table *dev_pm_opp_get_opp_table(struct device *dev);
 void dev_pm_opp_put_opp_table(struct opp_table *opp_table);
 
 unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp);
+
+unsigned long dev_pm_opp_get_power(struct dev_pm_opp *opp);
 
 unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp);
 
@@ -182,6 +187,11 @@ static inline struct opp_table *dev_pm_opp_get_opp_table_indexed(struct device *
 static inline void dev_pm_opp_put_opp_table(struct opp_table *opp_table) {}
 
 static inline unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
+{
+	return 0;
+}
+
+static inline unsigned long dev_pm_opp_get_power(struct dev_pm_opp *opp)
 {
 	return 0;
 }

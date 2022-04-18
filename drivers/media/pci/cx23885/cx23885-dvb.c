@@ -28,7 +28,7 @@
 #include "xc5000.h"
 #include "max2165.h"
 #include "tda10048.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "tuner-simple.h"
 #include "dib7000p.h"
 #include "dib0070.h"

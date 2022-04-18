@@ -292,8 +292,8 @@ static void dirty_init(struct keybuf_key *w)
 	struct dirty_io *io = w->private;
 	struct bio *bio = &io->bio;
 
-	bio_init(bio, bio->bi_inline_vecs,
-		 DIV_ROUND_UP(KEY_SIZE(&w->key), PAGE_SECTORS));
+	bio_init(bio, NULL, bio->bi_inline_vecs,
+		 DIV_ROUND_UP(KEY_SIZE(&w->key), PAGE_SECTORS), 0);
 	if (!io->dc->writeback_percent)
 		bio_set_prio(bio, IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0));
 
@@ -585,10 +585,13 @@ void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned int inode,
 
 		sectors_dirty = atomic_add_return(s,
 					d->stripe_sectors_dirty + stripe);
-		if (sectors_dirty == d->stripe_size)
-			set_bit(stripe, d->full_dirty_stripes);
-		else
-			clear_bit(stripe, d->full_dirty_stripes);
+		if (sectors_dirty == d->stripe_size) {
+			if (!test_bit(stripe, d->full_dirty_stripes))
+				set_bit(stripe, d->full_dirty_stripes);
+		} else {
+			if (test_bit(stripe, d->full_dirty_stripes))
+				clear_bit(stripe, d->full_dirty_stripes);
+		}
 
 		nr_sectors -= s;
 		stripe_offset = 0;
@@ -998,9 +1001,11 @@ void bch_sectors_dirty_init(struct bcache_device *d)
 		}
 	}
 
+	/*
+	 * Must wait for all threads to stop.
+	 */
 	wait_event_interruptible(state->wait,
-		 atomic_read(&state->started) == 0 ||
-		 test_bit(CACHE_SET_IO_DISABLE, &c->flags));
+		 atomic_read(&state->started) == 0);
 
 out:
 	kfree(state);

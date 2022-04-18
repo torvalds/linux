@@ -39,6 +39,7 @@ int __dax_driver_register(struct dax_device_driver *dax_drv,
 	__dax_driver_register(driver, THIS_MODULE, KBUILD_MODNAME)
 void dax_driver_unregister(struct dax_device_driver *dax_drv);
 void kill_dev_dax(struct dev_dax *dev_dax);
+bool static_dev_dax(struct dev_dax *dev_dax);
 
 /*
  * While run_dax() is potentially a generic operation that could be

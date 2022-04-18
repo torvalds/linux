@@ -188,6 +188,28 @@ static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 	}
 }
 
+const char *ionic_vf_attr_to_str(enum ionic_vf_attr attr)
+{
+	switch (attr) {
+	case IONIC_VF_ATTR_SPOOFCHK:
+		return "IONIC_VF_ATTR_SPOOFCHK";
+	case IONIC_VF_ATTR_TRUST:
+		return "IONIC_VF_ATTR_TRUST";
+	case IONIC_VF_ATTR_LINKSTATE:
+		return "IONIC_VF_ATTR_LINKSTATE";
+	case IONIC_VF_ATTR_MAC:
+		return "IONIC_VF_ATTR_MAC";
+	case IONIC_VF_ATTR_VLAN:
+		return "IONIC_VF_ATTR_VLAN";
+	case IONIC_VF_ATTR_RATE:
+		return "IONIC_VF_ATTR_RATE";
+	case IONIC_VF_ATTR_STATSADDR:
+		return "IONIC_VF_ATTR_STATSADDR";
+	default:
+		return "IONIC_VF_ATTR_UNKNOWN";
+	}
+}
+
 static void ionic_adminq_flush(struct ionic_lif *lif)
 {
 	struct ionic_desc_info *desc_info;
@@ -215,9 +237,13 @@ static void ionic_adminq_flush(struct ionic_lif *lif)
 void ionic_adminq_netdev_err_print(struct ionic_lif *lif, u8 opcode,
 				   u8 status, int err)
 {
+	const char *stat_str;
+
+	stat_str = (err == -ETIMEDOUT) ? "TIMEOUT" :
+					 ionic_error_to_str(status);
+
 	netdev_err(lif->netdev, "%s (%d) failed: %s (%d)\n",
-		   ionic_opcode_to_str(opcode), opcode,
-		   ionic_error_to_str(status), err);
+		   ionic_opcode_to_str(opcode), opcode, stat_str, err);
 }
 
 static int ionic_adminq_check_err(struct ionic_lif *lif,
@@ -318,6 +344,7 @@ int ionic_adminq_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx,
 		if (do_msg && !test_bit(IONIC_LIF_F_FW_RESET, lif->state))
 			netdev_err(netdev, "Posting of %s (%d) failed: %d\n",
 				   name, ctx->cmd.cmd.opcode, err);
+		ctx->comp.comp.status = IONIC_RC_ERROR;
 		return err;
 	}
 
@@ -331,11 +358,15 @@ int ionic_adminq_wait(struct ionic_lif *lif, struct ionic_admin_ctx *ctx,
 		if (remaining)
 			break;
 
-		/* interrupt the wait if FW stopped */
-		if (test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
+		/* force a check of FW status and break out if FW reset */
+		(void)ionic_heartbeat_check(lif->ionic);
+		if ((test_bit(IONIC_LIF_F_FW_RESET, lif->state) &&
+		     !lif->ionic->idev.fw_status_ready) ||
+		    test_bit(IONIC_LIF_F_FW_STOPPING, lif->state)) {
 			if (do_msg)
-				netdev_err(netdev, "%s (%d) interrupted, FW in reset\n",
-					   name, ctx->cmd.cmd.opcode);
+				netdev_warn(netdev, "%s (%d) interrupted, FW in reset\n",
+					    name, ctx->cmd.cmd.opcode);
+			ctx->comp.comp.status = IONIC_RC_ERROR;
 			return -ENXIO;
 		}
 
@@ -370,21 +401,34 @@ int ionic_adminq_post_wait_nomsg(struct ionic_lif *lif, struct ionic_admin_ctx *
 
 static void ionic_dev_cmd_clean(struct ionic *ionic)
 {
-	union __iomem ionic_dev_cmd_regs *regs = ionic->idev.dev_cmd_regs;
+	struct ionic_dev *idev = &ionic->idev;
 
-	iowrite32(0, &regs->doorbell);
-	memset_io(&regs->cmd, 0, sizeof(regs->cmd));
+	iowrite32(0, &idev->dev_cmd_regs->doorbell);
+	memset_io(&idev->dev_cmd_regs->cmd, 0, sizeof(idev->dev_cmd_regs->cmd));
 }
 
-int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_seconds)
+void ionic_dev_cmd_dev_err_print(struct ionic *ionic, u8 opcode, u8 status,
+				 int err)
+{
+	const char *stat_str;
+
+	stat_str = (err == -ETIMEDOUT) ? "TIMEOUT" :
+					 ionic_error_to_str(status);
+
+	dev_err(ionic->dev, "DEV_CMD %s (%d) error, %s (%d) failed\n",
+		ionic_opcode_to_str(opcode), opcode, stat_str, err);
+}
+
+static int __ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_seconds,
+				const bool do_msg)
 {
 	struct ionic_dev *idev = &ionic->idev;
 	unsigned long start_time;
 	unsigned long max_wait;
 	unsigned long duration;
+	int done = 0;
+	bool fw_up;
 	int opcode;
-	int hb = 0;
-	int done;
 	int err;
 
 	/* Wait for dev cmd to complete, retrying if we get EAGAIN,
@@ -394,31 +438,24 @@ int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_seconds)
 try_again:
 	opcode = readb(&idev->dev_cmd_regs->cmd.cmd.opcode);
 	start_time = jiffies;
-	do {
+	for (fw_up = ionic_is_fw_running(idev);
+	     !done && fw_up && time_before(jiffies, max_wait);
+	     fw_up = ionic_is_fw_running(idev)) {
 		done = ionic_dev_cmd_done(idev);
 		if (done)
 			break;
 		usleep_range(100, 200);
-
-		/* Don't check the heartbeat on FW_CONTROL commands as they are
-		 * notorious for interrupting the firmware's heartbeat update.
-		 */
-		if (opcode != IONIC_CMD_FW_CONTROL)
-			hb = ionic_heartbeat_check(ionic);
-	} while (!done && !hb && time_before(jiffies, max_wait));
+	}
 	duration = jiffies - start_time;
 
 	dev_dbg(ionic->dev, "DEVCMD %s (%d) done=%d took %ld secs (%ld jiffies)\n",
 		ionic_opcode_to_str(opcode), opcode,
 		done, duration / HZ, duration);
 
-	if (!done && hb) {
-		/* It is possible (but unlikely) that FW was busy and missed a
-		 * heartbeat check but is still alive and will process this
-		 * request, so don't clean the dev_cmd in this case.
-		 */
-		dev_dbg(ionic->dev, "DEVCMD %s (%d) failed - FW halted\n",
-			ionic_opcode_to_str(opcode), opcode);
+	if (!done && !fw_up) {
+		ionic_dev_cmd_clean(ionic);
+		dev_warn(ionic->dev, "DEVCMD %s (%d) interrupted - FW is down\n",
+			 ionic_opcode_to_str(opcode), opcode);
 		return -ENXIO;
 	}
 
@@ -444,14 +481,24 @@ try_again:
 		}
 
 		if (!(opcode == IONIC_CMD_FW_CONTROL && err == IONIC_RC_EAGAIN))
-			dev_err(ionic->dev, "DEV_CMD %s (%d) error, %s (%d) failed\n",
-				ionic_opcode_to_str(opcode), opcode,
-				ionic_error_to_str(err), err);
+			if (do_msg)
+				ionic_dev_cmd_dev_err_print(ionic, opcode, err,
+							    ionic_error_to_errno(err));
 
 		return ionic_error_to_errno(err);
 	}
 
 	return 0;
+}
+
+int ionic_dev_cmd_wait(struct ionic *ionic, unsigned long max_seconds)
+{
+	return __ionic_dev_cmd_wait(ionic, max_seconds, true);
+}
+
+int ionic_dev_cmd_wait_nomsg(struct ionic *ionic, unsigned long max_seconds)
+{
+	return __ionic_dev_cmd_wait(ionic, max_seconds, false);
 }
 
 int ionic_setup(struct ionic *ionic)
@@ -540,6 +587,9 @@ int ionic_reset(struct ionic *ionic)
 	struct ionic_dev *idev = &ionic->idev;
 	int err;
 
+	if (!ionic_is_fw_running(idev))
+		return 0;
+
 	mutex_lock(&ionic->dev_cmd_lock);
 	ionic_dev_cmd_reset(idev);
 	err = ionic_dev_cmd_wait(ionic, DEVCMD_TIMEOUT);
@@ -612,24 +662,23 @@ int ionic_port_init(struct ionic *ionic)
 int ionic_port_reset(struct ionic *ionic)
 {
 	struct ionic_dev *idev = &ionic->idev;
-	int err;
+	int err = 0;
 
 	if (!idev->port_info)
 		return 0;
 
-	mutex_lock(&ionic->dev_cmd_lock);
-	ionic_dev_cmd_port_reset(idev);
-	err = ionic_dev_cmd_wait(ionic, DEVCMD_TIMEOUT);
-	mutex_unlock(&ionic->dev_cmd_lock);
+	if (ionic_is_fw_running(idev)) {
+		mutex_lock(&ionic->dev_cmd_lock);
+		ionic_dev_cmd_port_reset(idev);
+		err = ionic_dev_cmd_wait(ionic, DEVCMD_TIMEOUT);
+		mutex_unlock(&ionic->dev_cmd_lock);
+	}
 
 	dma_free_coherent(ionic->dev, idev->port_info_sz,
 			  idev->port_info, idev->port_info_pa);
 
 	idev->port_info = NULL;
 	idev->port_info_pa = 0;
-
-	if (err)
-		dev_err(ionic->dev, "Failed to reset port\n");
 
 	return err;
 }

@@ -147,7 +147,7 @@ int enetc_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 	/* return all Fs if nothing was there */
 	if (enetc_mdio_rd(mdio_priv, ENETC_MDIO_CFG) & MDIO_CFG_RD_ER) {
 		dev_dbg(&bus->dev,
-			"Error while reading PHY%d reg at %d.%hhu\n",
+			"Error while reading PHY%d reg at %d.%d\n",
 			phy_id, dev_addr, regnum);
 		return 0xffff;
 	}

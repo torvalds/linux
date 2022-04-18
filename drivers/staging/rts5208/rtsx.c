@@ -159,8 +159,6 @@ static int command_abort(struct scsi_cmnd *srb)
 	struct rtsx_dev *dev = host_to_rtsx(host);
 	struct rtsx_chip *chip = dev->chip;
 
-	dev_info(&dev->pci->dev, "%s called\n", __func__);
-
 	scsi_lock(host);
 
 	/* Is this command still active? */
@@ -186,10 +184,6 @@ static int command_abort(struct scsi_cmnd *srb)
  */
 static int device_reset(struct scsi_cmnd *srb)
 {
-	struct rtsx_dev *dev = host_to_rtsx(srb->device->host);
-
-	dev_info(&dev->pci->dev, "%s called\n", __func__);
-
 	return SUCCESS;
 }
 
@@ -450,13 +444,13 @@ skip_for_abort:
 	 * after the down() -- that's necessary for the thread-shutdown
 	 * case.
 	 *
-	 * complete_and_exit() goes even further than this -- it is safe in
-	 * the case that the thread of the caller is going away (not just
-	 * the structure) -- this is necessary for the module-remove case.
-	 * This is important in preemption kernels, which transfer the flow
-	 * of execution immediately upon a complete().
+	 * kthread_complete_and_exit() goes even further than this --
+	 * it is safe in the case that the thread of the caller is going away
+	 * (not just the structure) -- this is necessary for the module-remove
+	 * case.  This is important in preemption kernels, which transfer the
+	 * flow of execution immediately upon a complete().
 	 */
-	complete_and_exit(&dev->control_exit, 0);
+	kthread_complete_and_exit(&dev->control_exit, 0);
 }
 
 static int rtsx_polling_thread(void *__dev)
@@ -501,7 +495,7 @@ static int rtsx_polling_thread(void *__dev)
 		mutex_unlock(&dev->dev_mutex);
 	}
 
-	complete_and_exit(&dev->polling_exit, 0);
+	kthread_complete_and_exit(&dev->polling_exit, 0);
 }
 
 /*
@@ -682,7 +676,7 @@ static int rtsx_scan_thread(void *__dev)
 		/* Should we unbind if no devices were detected? */
 	}
 
-	complete_and_exit(&dev->scanning_done, 0);
+	kthread_complete_and_exit(&dev->scanning_done, 0);
 }
 
 static void rtsx_init_options(struct rtsx_chip *chip)
@@ -967,8 +961,6 @@ scsi_host_alloc_fail:
 static void rtsx_remove(struct pci_dev *pci)
 {
 	struct rtsx_dev *dev = pci_get_drvdata(pci);
-
-	dev_info(&pci->dev, "%s called\n", __func__);
 
 	quiesce_and_remove_host(dev);
 	release_everything(dev);

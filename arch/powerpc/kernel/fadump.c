@@ -113,6 +113,12 @@ static int __init fadump_cma_init(void)
 	}
 
 	/*
+	 *  If CMA activation fails, keep the pages reserved, instead of
+	 *  exposing them to buddy allocator. Same as 'fadump=nocma' case.
+	 */
+	cma_reserve_pages_on_error(fadump_cma);
+
+	/*
 	 * So we now have successfully initialized cma area for fadump.
 	 */
 	pr_info("Initialized 0x%lx bytes cma area at %ldMB from 0x%lx "
@@ -544,7 +550,7 @@ int __init fadump_reserve_mem(void)
 		if (!fw_dump.nocma) {
 			fw_dump.boot_memory_size =
 				ALIGN(fw_dump.boot_memory_size,
-				      FADUMP_CMA_ALIGNMENT);
+				      CMA_MIN_ALIGNMENT_BYTES);
 		}
 #endif
 
@@ -1637,9 +1643,11 @@ int __init setup_fadump(void)
 		if (fw_dump.ops->fadump_process(&fw_dump) < 0)
 			fadump_invalidate_release_mem();
 	}
-	/* Initialize the kernel dump memory structure for FAD registration. */
-	else if (fw_dump.reserve_dump_area_size)
+	/* Initialize the kernel dump memory structure and register with f/w */
+	else if (fw_dump.reserve_dump_area_size) {
 		fw_dump.ops->fadump_init_mem_struct(&fw_dump);
+		register_fadump();
+	}
 
 	/*
 	 * In case of panic, fadump is triggered via ppc_panic_event()
@@ -1651,7 +1659,12 @@ int __init setup_fadump(void)
 
 	return 1;
 }
-subsys_initcall(setup_fadump);
+/*
+ * Use subsys_initcall_sync() here because there is dependency with
+ * crash_save_vmcoreinfo_init(), which mush run first to ensure vmcoreinfo initialization
+ * is done before regisering with f/w.
+ */
+subsys_initcall_sync(setup_fadump);
 #else /* !CONFIG_PRESERVE_FA_DUMP */
 
 /* Scan the Firmware Assisted dump configuration details. */

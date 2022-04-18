@@ -81,7 +81,7 @@ int kexec_should_crash(struct task_struct *p)
 	if (crash_kexec_post_notifiers)
 		return 0;
 	/*
-	 * There are 4 panic() calls in do_exit() path, each of which
+	 * There are 4 panic() calls in make_task_dead() path, each of which
 	 * corresponds to each of these 4 conditions.
 	 */
 	if (in_interrupt() || !p->pid || is_global_init(p) || panic_on_oops)
