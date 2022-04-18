@@ -338,7 +338,11 @@ static void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
 	void __iomem *cpu_base = gic_data_cpu_base(gic);
 
 	do {
+#ifdef CONFIG_FIQ_GLUE
+		irqstat = readl_relaxed(cpu_base + GIC_CPU_ALIAS_INTACK);
+#else
 		irqstat = readl_relaxed(cpu_base + GIC_CPU_INTACK);
+#endif
 		irqnr = irqstat & GICC_IAR_INT_ID_MASK;
 
 		if (unlikely(irqnr >= 1020))
@@ -379,9 +383,11 @@ static void gic_handle_cascade_irq(struct irq_desc *desc)
 	unsigned long status;
 
 	chained_irq_enter(chip, desc);
-
+#ifdef CONFIG_FIQ_GLUE
+	status = readl_relaxed(gic_data_cpu_base(chip_data) + GIC_CPU_ALIAS_INTACK);
+#else
 	status = readl_relaxed(gic_data_cpu_base(chip_data) + GIC_CPU_INTACK);
-
+#endif
 	gic_irq = (status & GICC_IAR_INT_ID_MASK);
 	if (gic_irq == GICC_INT_SPURIOUS)
 		goto out;
