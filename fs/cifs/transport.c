@@ -464,13 +464,12 @@ smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 		return -EIO;
 	}
 
-	tr_hdr = kmalloc(sizeof(*tr_hdr), GFP_NOFS);
+	tr_hdr = kzalloc(sizeof(*tr_hdr), GFP_NOFS);
 	if (!tr_hdr)
 		return -ENOMEM;
 
 	memset(&cur_rqst[0], 0, sizeof(cur_rqst));
 	memset(&iov, 0, sizeof(iov));
-	memset(tr_hdr, 0, sizeof(*tr_hdr));
 
 	iov.iov_base = tr_hdr;
 	iov.iov_len = sizeof(*tr_hdr);
