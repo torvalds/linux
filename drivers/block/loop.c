@@ -798,7 +798,6 @@ static void loop_config_discard(struct loop_device *lo)
 		blk_queue_max_discard_sectors(q, 0);
 		blk_queue_max_write_zeroes_sectors(q, 0);
 	}
-	q->limits.discard_alignment = 0;
 }
 
 struct loop_worker {
