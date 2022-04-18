@@ -160,7 +160,7 @@ objtool_link()
 		objtoolopt="${objtoolopt} --lto"
 	fi
 
-	if is_enabled CONFIG_VMLINUX_VALIDATION; then
+	if is_enabled CONFIG_NOINSTR_VALIDATION; then
 		objtoolopt="${objtoolopt} --noinstr"
 	fi
 

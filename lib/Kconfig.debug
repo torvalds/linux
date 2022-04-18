@@ -500,7 +500,7 @@ config STACK_VALIDATION
 	  For more information, see
 	  tools/objtool/Documentation/stack-validation.txt.
 
-config VMLINUX_VALIDATION
+config NOINSTR_VALIDATION
 	bool
 	depends on HAVE_OBJTOOL && DEBUG_ENTRY
 	select OBJTOOL
