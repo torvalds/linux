@@ -1785,7 +1785,7 @@
 
 			status = "disabled";
 
-			pcie0_lane: lanes@1c06200 {
+			pcie0_lane: phy@1c06200 {
 				reg = <0 0x1c06e00 0 0x200>, /* tx */
 				      <0 0x1c07000 0 0x200>, /* rx */
 				      <0 0x1c06200 0 0x200>, /* pcs */
@@ -1892,7 +1892,7 @@
 
 			status = "disabled";
 
-			pcie1_lane: lanes@1c0e000 {
+			pcie1_lane: phy@1c0e000 {
 				reg = <0 0x1c0e000 0 0x200>, /* tx */
 				      <0 0x1c0e200 0 0x300>, /* rx */
 				      <0 0x1c0f200 0 0x200>, /* pcs */
