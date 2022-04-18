@@ -1624,6 +1624,7 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 		hdmi_config_drm_infoframe(hdmi, connector);
 		hdmi_set_op_mode(hdmi, link_cfg, connector);
 	} else {
+		hdmi_modb(hdmi, HDCP2_BYPASS, HDCP2_BYPASS, HDCP2LOGIC_CONFIG0);
 		hdmi_modb(hdmi, OPMODE_DVI, OPMODE_DVI, LINK_CONFIG0);
 		dev_info(hdmi->dev, "%s DVI mode\n", __func__);
 	}
