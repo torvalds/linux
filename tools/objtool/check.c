@@ -3969,10 +3969,12 @@ int check(struct objtool_file *file)
 		warnings += ret;
 	}
 
-	ret = create_static_call_sections(file);
-	if (ret < 0)
-		goto out;
-	warnings += ret;
+	if (opts.static_call) {
+		ret = create_static_call_sections(file);
+		if (ret < 0)
+			goto out;
+		warnings += ret;
+	}
 
 	if (opts.retpoline) {
 		ret = create_retpoline_sites_sections(file);
