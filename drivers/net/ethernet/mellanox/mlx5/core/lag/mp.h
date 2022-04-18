@@ -18,6 +18,8 @@ struct lag_mp {
 	struct {
 		const void        *mfi; /* used in tracking fib events */
 		u32               priority;
+		u32               dst;
+		int               dst_len;
 	} fib;
 	struct workqueue_struct   *wq;
 };
