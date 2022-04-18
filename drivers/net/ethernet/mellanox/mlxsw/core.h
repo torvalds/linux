@@ -564,7 +564,9 @@ struct mlxsw_linecard {
 	char mbct_pl[MLXSW_REG_MBCT_LEN]; /* Too big for stack */
 	enum mlxsw_linecard_status_event_type status_event_type_to;
 	struct delayed_work status_event_to_dw;
-	u8 provisioned:1;
+	u8 provisioned:1,
+	   ready:1,
+	   active:1;
 	u16 hw_revision;
 	u16 ini_version;
 };

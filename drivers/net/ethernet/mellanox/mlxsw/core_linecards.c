@@ -90,6 +90,8 @@ static const char *mlxsw_linecard_type_name(struct mlxsw_linecard *linecard)
 static void mlxsw_linecard_provision_fail(struct mlxsw_linecard *linecard)
 {
 	linecard->provisioned = false;
+	linecard->ready = false;
+	linecard->active = false;
 	devlink_linecard_provision_fail(linecard->devlink_linecard);
 }
 
@@ -131,6 +133,46 @@ static void mlxsw_linecard_provision_clear(struct mlxsw_linecard *linecard)
 	devlink_linecard_provision_clear(linecard->devlink_linecard);
 }
 
+static int mlxsw_linecard_ready_set(struct mlxsw_linecard *linecard)
+{
+	struct mlxsw_core *mlxsw_core = linecard->linecards->mlxsw_core;
+	char mddc_pl[MLXSW_REG_MDDC_LEN];
+	int err;
+
+	mlxsw_reg_mddc_pack(mddc_pl, linecard->slot_index, false, true);
+	err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(mddc), mddc_pl);
+	if (err)
+		return err;
+	linecard->ready = true;
+	return 0;
+}
+
+static int mlxsw_linecard_ready_clear(struct mlxsw_linecard *linecard)
+{
+	struct mlxsw_core *mlxsw_core = linecard->linecards->mlxsw_core;
+	char mddc_pl[MLXSW_REG_MDDC_LEN];
+	int err;
+
+	mlxsw_reg_mddc_pack(mddc_pl, linecard->slot_index, false, false);
+	err = mlxsw_reg_write(mlxsw_core, MLXSW_REG(mddc), mddc_pl);
+	if (err)
+		return err;
+	linecard->ready = false;
+	return 0;
+}
+
+static void mlxsw_linecard_active_set(struct mlxsw_linecard *linecard)
+{
+	linecard->active = true;
+	devlink_linecard_activate(linecard->devlink_linecard);
+}
+
+static void mlxsw_linecard_active_clear(struct mlxsw_linecard *linecard)
+{
+	linecard->active = false;
+	devlink_linecard_deactivate(linecard->devlink_linecard);
+}
+
 static int mlxsw_linecard_status_process(struct mlxsw_linecards *linecards,
 					 struct mlxsw_linecard *linecard,
 					 const char *mddq_pl)
@@ -160,6 +202,25 @@ static int mlxsw_linecard_status_process(struct mlxsw_linecards *linecards,
 	if (provisioned && linecard->provisioned != provisioned) {
 		err = mlxsw_linecard_provision_set(linecard, card_type,
 						   hw_revision, ini_version);
+		if (err)
+			goto out;
+	}
+
+	if (ready == MLXSW_REG_MDDQ_SLOT_INFO_READY_READY && !linecard->ready) {
+		err = mlxsw_linecard_ready_set(linecard);
+		if (err)
+			goto out;
+	}
+
+	if (active && linecard->active != active)
+		mlxsw_linecard_active_set(linecard);
+
+	if (!active && linecard->active != active)
+		mlxsw_linecard_active_clear(linecard);
+
+	if (ready != MLXSW_REG_MDDQ_SLOT_INFO_READY_READY &&
+	    linecard->ready) {
+		err = mlxsw_linecard_ready_clear(linecard);
 		if (err)
 			goto out;
 	}
@@ -676,6 +737,8 @@ static void mlxsw_linecard_fini(struct mlxsw_core *mlxsw_core,
 	cancel_delayed_work_sync(&linecard->status_event_to_dw);
 	/* Make sure all scheduled events are processed */
 	mlxsw_core_flush_owq();
+	if (linecard->active)
+		mlxsw_linecard_active_clear(linecard);
 	devlink_linecard_destroy(linecard->devlink_linecard);
 	mutex_destroy(&linecard->lock);
 }
