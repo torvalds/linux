@@ -572,6 +572,11 @@ static long rga_ioctl_import_buffer(unsigned long arg, struct rga_session *sessi
 	}
 
 	for (i = 0; i < buffer_pool.size; i++) {
+		if (DEBUGGER_EN(MSG)) {
+			pr_info("import buffer info:\n");
+			rga_dump_external_buffer(&external_buffer[i]);
+		}
+
 		ret = rga_mm_import_buffer(&external_buffer[i], session);
 		if (ret == 0) {
 			pr_err("buffer[%d] mm import buffer failed! memory = 0x%lx, type = 0x%x\n",
@@ -640,6 +645,9 @@ static long rga_ioctl_release_buffer(unsigned long arg)
 	}
 
 	for (i = 0; i < buffer_pool.size; i++) {
+		if (DEBUGGER_EN(MSG))
+			pr_info("release buffer handle[%d]\n", external_buffer[i].handle);
+
 		ret = rga_mm_release_buffer(external_buffer[i].handle);
 		if (ret < 0) {
 			pr_err("buffer[%d] mm release buffer failed!\n", i);

@@ -475,6 +475,22 @@ const char *rga_get_blend_mode_str(uint16_t alpha_rop_flag,
 	}
 }
 
+const char *rga_get_memory_type_str(uint8_t type)
+{
+	switch (type) {
+	case RGA_DMA_BUFFER:
+		return "dma_fd";
+	case RGA_VIRTUAL_ADDRESS:
+		return "virt_addr";
+	case RGA_PHYSICAL_ADDRESS:
+		return "phys_addr";
+	case RGA_DMA_BUFFER_PTR:
+		return "dma_buf_ptr";
+	default:
+		return "UNF";
+	}
+}
+
 void rga_convert_addr(struct rga_img_info_t *img, bool before_vir_get_channel)
 {
 	/*

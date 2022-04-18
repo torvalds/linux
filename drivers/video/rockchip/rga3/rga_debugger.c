@@ -20,6 +20,7 @@
 #include "rga_debugger.h"
 #include "rga_drv.h"
 #include "rga_mm.h"
+#include "rga_common.h"
 
 #define RGA_DEBUGGER_ROOT_NAME "rkrga"
 
@@ -28,9 +29,10 @@
 int RGA_DEBUG_REG;
 int RGA_DEBUG_MSG;
 int RGA_DEBUG_TIME;
+int RGA_DEBUG_INT_FLAG;
+int RGA_DEBUG_MM;
 int RGA_DEBUG_CHECK_MODE;
 int RGA_DEBUG_NONUSE;
-int RGA_DEBUG_INT_FLAG;
 int RGA_DEBUG_DEBUG_MODE;
 
 static int rga_debug_show(struct seq_file *m, void *data)
@@ -39,27 +41,25 @@ static int rga_debug_show(struct seq_file *m, void *data)
 		 "MSG [%s]\n"
 		 "TIME [%s]\n"
 		 "INT [%s]\n"
+		 "MM [%s]\n"
 		 "CHECK [%s]\n"
 		 "STOP [%s]\n",
 		 STR_ENABLE(RGA_DEBUG_REG),
 		 STR_ENABLE(RGA_DEBUG_MSG),
 		 STR_ENABLE(RGA_DEBUG_TIME),
 		 STR_ENABLE(RGA_DEBUG_INT_FLAG),
+		 STR_ENABLE(RGA_DEBUG_MM),
 		 STR_ENABLE(RGA_DEBUG_CHECK_MODE),
 		 STR_ENABLE(RGA_DEBUG_NONUSE));
 
 	seq_puts(m, "\nhelp:\n");
-	seq_puts(m,
-		 " 'echo reg > debug' to enable/disable register log printing.\n");
-	seq_puts(m,
-		 " 'echo msg > debug' to enable/disable message log printing.\n");
-	seq_puts(m,
-		 " 'echo time > debug' to enable/disable time log printing.\n");
-	seq_puts(m,
-		 " 'echo int > debug' to enable/disable interruppt log printing.\n");
+	seq_puts(m, " 'echo reg > debug' to enable/disable register log printing.\n");
+	seq_puts(m, " 'echo msg > debug' to enable/disable message log printing.\n");
+	seq_puts(m, " 'echo time > debug' to enable/disable time log printing.\n");
+	seq_puts(m, " 'echo int > debug' to enable/disable interruppt log printing.\n");
+	seq_puts(m, " 'echo mm > debug' to enable/disable memory manager log printing.\n");
 	seq_puts(m, " 'echo check > debug' to enable/disable check mode.\n");
-	seq_puts(m,
-		 " 'echo stop > debug' to enable/disable stop using hardware\n");
+	seq_puts(m, " 'echo stop > debug' to enable/disable stop using hardware\n");
 
 	return 0;
 }
@@ -99,6 +99,22 @@ static ssize_t rga_debug_write(struct file *file, const char __user *ubuf,
 			RGA_DEBUG_TIME = 1;
 			pr_info("open rga test time!\n");
 		}
+	} else if (strncmp(buf, "int", 3) == 0) {
+		if (RGA_DEBUG_INT_FLAG) {
+			RGA_DEBUG_INT_FLAG = 0;
+			pr_info("close inturrupt MSG!\n");
+		} else {
+			RGA_DEBUG_INT_FLAG = 1;
+			pr_info("open inturrupt MSG!\n");
+		}
+	} else if (strncmp(buf, "mm", 2) == 0) {
+		if (RGA_DEBUG_MM) {
+			RGA_DEBUG_MM = 0;
+			pr_info("close rga mm log!\n");
+		} else {
+			RGA_DEBUG_MM = 1;
+			pr_info("open rga mm log!\n");
+		}
 	} else if (strncmp(buf, "check", 5) == 0) {
 		if (RGA_DEBUG_CHECK_MODE) {
 			RGA_DEBUG_CHECK_MODE = 0;
@@ -114,14 +130,6 @@ static ssize_t rga_debug_write(struct file *file, const char __user *ubuf,
 		} else {
 			RGA_DEBUG_NONUSE = 1;
 			pr_info("stop using rga hardware!\n");
-		}
-	} else if (strncmp(buf, "int", 3) == 0) {
-		if (RGA_DEBUG_INT_FLAG) {
-			RGA_DEBUG_INT_FLAG = 0;
-			pr_info("close inturrupt MSG!\n");
-		} else {
-			RGA_DEBUG_INT_FLAG = 1;
-			pr_info("open inturrupt MSG!\n");
 		}
 	} else if (strncmp(buf, "debug", 3) == 0) {
 		if (RGA_DEBUG_DEBUG_MODE) {
@@ -676,4 +684,14 @@ void rga_cmd_print_debug_info(struct rga_req *req)
 	pr_info("yuv2rgb mode is %x\n", req->yuv2rgb_mode);
 	pr_info("set core = %d, priority = %d, in_fence_fd = %d\n",
 		req->core, req->priority, req->in_fence_fd);
+}
+
+void rga_dump_external_buffer(struct rga_external_buffer *buffer)
+{
+	pr_info("external: memory = 0x%lx, type = %s\n",
+		(unsigned long)buffer->memory, rga_get_memory_type_str(buffer->type));
+	pr_info("param: w = %d, h = %d, f = %s, size = %d\n",
+		buffer->memory_parm.width, buffer->memory_parm.height,
+		rga_get_format_name(buffer->memory_parm.format),
+		buffer->memory_parm.size);
 }

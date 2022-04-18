@@ -40,6 +40,7 @@ int rga_mm_lookup_flag(struct rga_mm *mm_session, uint64_t handle);
 dma_addr_t rga_mm_lookup_iova(struct rga_internal_buffer *buffer, int core);
 struct sg_table *rga_mm_lookup_sgt(struct rga_internal_buffer *buffer, int core);
 
+void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer);
 void rga_mm_dump_info(struct rga_mm *session);
 
 int rga_mm_get_handle_info(struct rga_job *job);

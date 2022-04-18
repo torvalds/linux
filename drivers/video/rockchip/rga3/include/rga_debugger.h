@@ -15,9 +15,10 @@
 extern int RGA_DEBUG_REG;
 extern int RGA_DEBUG_MSG;
 extern int RGA_DEBUG_TIME;
+extern int RGA_DEBUG_INT_FLAG;
+extern int RGA_DEBUG_MM;
 extern int RGA_DEBUG_CHECK_MODE;
 extern int RGA_DEBUG_NONUSE;
-extern int RGA_DEBUG_INT_FLAG;
 
 #define DEBUGGER_EN(name) (unlikely(RGA_DEBUG_##name ? true : false))
 
@@ -129,6 +130,7 @@ static inline int rga_procfs_init(void)
 
 void rga_cmd_print_debug_info(struct rga_req *req);
 void rga_ctx_cache_cmd_debug_info(struct seq_file *m, struct rga_req *req);
+void rga_dump_external_buffer(struct rga_external_buffer *buffer);
 
 #endif /* #ifndef _RGA_DEBUGGER_H_ */
 

@@ -760,9 +760,51 @@ struct sg_table *rga_mm_lookup_sgt(struct rga_internal_buffer *buffer, int core)
 	return NULL;
 }
 
+void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer)
+{
+	int i;
+
+	pr_info("handle = %d refcount = %d mm_flag = 0x%x\n",
+		dump_buffer->handle, kref_read(&dump_buffer->refcount),
+		dump_buffer->mm_flag);
+
+	switch (dump_buffer->type) {
+	case RGA_DMA_BUFFER:
+	case RGA_DMA_BUFFER_PTR:
+		pr_info("dma_buffer:\n");
+		for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
+			pr_info("core %d: dma_buf = %p, iova = 0x%lx\n",
+				dump_buffer->dma_buffer[i].core,
+				dump_buffer->dma_buffer[i].dma_buf,
+				(unsigned long)dump_buffer->dma_buffer[i].iova);
+		}
+		break;
+	case RGA_VIRTUAL_ADDRESS:
+		pr_info("virtual address: va = 0x%lx, pages = %p, size = %ld\n",
+			(unsigned long)dump_buffer->virt_addr->addr,
+			dump_buffer->virt_addr->pages,
+			dump_buffer->virt_addr->size);
+
+		for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
+			pr_info("core %d: iova = 0x%lx, sgt = %p, size = %ld\n",
+				dump_buffer->dma_buffer[i].core,
+				(unsigned long)dump_buffer->dma_buffer[i].iova,
+				dump_buffer->dma_buffer[i].sgt,
+				dump_buffer->dma_buffer[i].size);
+		}
+		break;
+	case RGA_PHYSICAL_ADDRESS:
+		pr_info("physical address: pa = 0x%lx\n", (unsigned long)dump_buffer->phys_addr);
+		break;
+	default:
+		pr_err("Illegal external buffer!\n");
+		break;
+	}
+}
+
 void rga_mm_dump_info(struct rga_mm *mm_session)
 {
-	int id, i;
+	int id;
 	struct rga_internal_buffer *dump_buffer;
 
 	WARN_ON(!mutex_is_locked(&mm_session->lock));
@@ -773,44 +815,7 @@ void rga_mm_dump_info(struct rga_mm *mm_session)
 	pr_info("===============================================================\n");
 
 	idr_for_each_entry(&mm_session->memory_idr, dump_buffer, id) {
-		pr_info("handle = %d	refcount = %d	mm_flag = 0x%x\n",
-			dump_buffer->handle, kref_read(&dump_buffer->refcount),
-			dump_buffer->mm_flag);
-
-		switch (dump_buffer->type) {
-		case RGA_DMA_BUFFER:
-		case RGA_DMA_BUFFER_PTR:
-			pr_info("dma_buffer:\n");
-			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
-				pr_info("\t core %d:\n", dump_buffer->dma_buffer[i].core);
-				pr_info("\t\t dma_buf = %p, iova = 0x%lx\n",
-					dump_buffer->dma_buffer[i].dma_buf,
-					(unsigned long)dump_buffer->dma_buffer[i].iova);
-			}
-			break;
-		case RGA_VIRTUAL_ADDRESS:
-			pr_info("virtual address:\n");
-			pr_info("\t va = 0x%lx, pages = %p, size = %ld\n",
-				(unsigned long)dump_buffer->virt_addr->addr,
-				dump_buffer->virt_addr->pages,
-				dump_buffer->virt_addr->size);
-
-			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
-				pr_info("\t core %d:\n", dump_buffer->dma_buffer[i].core);
-				pr_info("\t\t iova = 0x%lx, sgt = %p, size = %ld\n",
-					(unsigned long)dump_buffer->dma_buffer[i].iova,
-					dump_buffer->dma_buffer[i].sgt,
-					dump_buffer->dma_buffer[i].size);
-			}
-			break;
-		case RGA_PHYSICAL_ADDRESS:
-			pr_info("physical address:\n");
-			pr_info("\t pa = 0x%lx\n", (unsigned long)dump_buffer->phys_addr);
-			break;
-		default:
-			pr_err("Illegal external buffer!\n");
-			break;
-		}
+		rga_mm_dump_buffer(dump_buffer);
 
 		pr_info("---------------------------------------------------------------\n");
 	}
@@ -1103,6 +1108,11 @@ static int rga_mm_get_buffer(struct rga_mm *mm,
 	internal_buffer = *buf;
 	kref_get(&internal_buffer->refcount);
 
+	if (DEBUGGER_EN(MM)) {
+		pr_info("handle[%d] get info:\n", (int)handle);
+		rga_mm_dump_buffer(internal_buffer);
+	}
+
 	mutex_unlock(&mm->lock);
 
 	switch (internal_buffer->type) {
@@ -1370,6 +1380,11 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 
 	mm->buffer_count++;
 
+	if (DEBUGGER_EN(MM)) {
+		pr_info("import buffer:\n");
+		rga_mm_dump_buffer(internal_buffer);
+	}
+
 	mutex_unlock(&mm->lock);
 	return internal_buffer->handle;
 
@@ -1400,6 +1415,11 @@ int rga_mm_release_buffer(uint32_t handle)
 
 		mutex_unlock(&mm->lock);
 		return -ENOENT;
+	}
+
+	if (DEBUGGER_EN(MM)) {
+		pr_info("release buffer:\n");
+		rga_mm_dump_buffer(internal_buffer);
 	}
 
 	kref_put(&internal_buffer->refcount, rga_mm_kref_release_buffer);
