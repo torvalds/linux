@@ -12,6 +12,7 @@ extern const struct option check_options[];
 struct opts {
 	/* actions: */
 	bool dump_orc;
+	bool hack_jump_label;
 	bool ibt;
 	bool mcount;
 	bool noinstr;

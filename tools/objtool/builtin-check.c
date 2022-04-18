@@ -31,8 +31,28 @@ static int parse_dump(const struct option *opt, const char *str, int unset)
 	return -1;
 }
 
+static int parse_hacks(const struct option *opt, const char *str, int unset)
+{
+	bool found = false;
+
+	/*
+	 * Use strstr() as a lazy method of checking for comma-separated
+	 * options.
+	 *
+	 * No string provided == enable all options.
+	 */
+
+	if (!str || strstr(str, "jump_label")) {
+		opts.hack_jump_label = true;
+		found = true;
+	}
+
+	return found ? 0 : -1;
+}
+
 const struct option check_options[] = {
 	OPT_GROUP("Actions:"),
+	OPT_CALLBACK_OPTARG('h', "hacks", NULL, NULL, "jump_label", "patch toolchain bugs/limitations", parse_hacks),
 	OPT_BOOLEAN('i', "ibt", &opts.ibt, "validate and annotate IBT"),
 	OPT_BOOLEAN('m', "mcount", &opts.mcount, "annotate mcount/fentry calls for ftrace"),
 	OPT_BOOLEAN('n', "noinstr", &opts.noinstr, "validate noinstr rules"),
@@ -87,14 +107,15 @@ int cmd_parse_options(int argc, const char **argv, const char * const usage[])
 
 static bool opts_valid(void)
 {
-	if (opts.ibt		||
-	    opts.mcount		||
-	    opts.noinstr	||
-	    opts.orc		||
-	    opts.retpoline	||
-	    opts.sls		||
-	    opts.stackval	||
-	    opts.static_call	||
+	if (opts.hack_jump_label	||
+	    opts.ibt			||
+	    opts.mcount			||
+	    opts.noinstr		||
+	    opts.orc			||
+	    opts.retpoline		||
+	    opts.sls			||
+	    opts.stackval		||
+	    opts.static_call		||
 	    opts.uaccess) {
 		if (opts.dump_orc) {
 			fprintf(stderr, "--dump can't be combined with other options\n");
