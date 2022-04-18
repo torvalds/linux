@@ -216,10 +216,8 @@ ENDPROC(fast_coprocessor)
 
 ENTRY(coprocessor_flush)
 
-	/* reserve 4 bytes on stack to save a0 */
-	abi_entry(4)
+	abi_entry_default
 
-	s32i	a0, a1, 0
 	movi	a4, .Lcp_regs_jump_table
 	addx8	a4, a3, a4
 	addx4	a3, a3, a4
@@ -227,10 +225,11 @@ ENTRY(coprocessor_flush)
 	beqz	a4, 1f
 	l32i	a3, a3, CP_REGS_TAB_OFFSET
 	add	a2, a2, a3
+	mov	a7, a0
 	callx0	a4
-1:	l32i	a0, a1, 0
-
-	abi_ret(4)
+	mov	a0, a7
+1:
+	abi_ret_default
 
 ENDPROC(coprocessor_flush)
 
