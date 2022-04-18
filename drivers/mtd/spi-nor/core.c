@@ -2382,12 +2382,7 @@ static void spi_nor_no_sfdp_init_params(struct spi_nor *nor)
 	 */
 	erase_mask = 0;
 	i = 0;
-	if (no_sfdp_flags & SECT_4K_PMC) {
-		erase_mask |= BIT(i);
-		spi_nor_set_erase_type(&map->erase_type[i], 4096u,
-				       SPINOR_OP_BE_4K_PMC);
-		i++;
-	} else if (no_sfdp_flags & SECT_4K) {
+	if (no_sfdp_flags & SECT_4K) {
 		erase_mask |= BIT(i);
 		spi_nor_set_erase_type(&map->erase_type[i], 4096u,
 				       SPINOR_OP_BE_4K);

@@ -29,6 +29,21 @@ static const struct spi_nor_fixups is25lp256_fixups = {
 	.post_bfpt = is25lp256_post_bfpt_fixups,
 };
 
+static void pm25lv_nor_late_init(struct spi_nor *nor)
+{
+	struct spi_nor_erase_map *map = &nor->params->erase_map;
+	int i;
+
+	/* The PM25LV series has a different 4k sector erase opcode */
+	for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++)
+		if (map->erase_type[i].size == 4096)
+			map->erase_type[i].opcode = SPINOR_OP_BE_4K_PMC;
+}
+
+static const struct spi_nor_fixups pm25lv_nor_fixups = {
+	.late_init = pm25lv_nor_late_init,
+};
+
 static const struct flash_info issi_nor_parts[] = {
 	/* ISSI */
 	{ "is25cd512",  INFO(0x7f9d20, 0, 32 * 1024,   2)
@@ -62,9 +77,13 @@ static const struct flash_info issi_nor_parts[] = {
 
 	/* PMC */
 	{ "pm25lv512",   INFO(0,        0, 32 * 1024,    2)
-		NO_SFDP_FLAGS(SECT_4K_PMC) },
+		NO_SFDP_FLAGS(SECT_4K)
+		.fixups = &pm25lv_nor_fixups
+	},
 	{ "pm25lv010",   INFO(0,        0, 32 * 1024,    4)
-		NO_SFDP_FLAGS(SECT_4K_PMC) },
+		NO_SFDP_FLAGS(SECT_4K)
+		.fixups = &pm25lv_nor_fixups
+	},
 	{ "pm25lq032",   INFO(0x7f9d46, 0, 64 * 1024,   64)
 		NO_SFDP_FLAGS(SECT_4K) },
 };

@@ -457,7 +457,6 @@ struct spi_nor_fixups {
  *                  flags are used together with the SPI_NOR_SKIP_SFDP flag.
  *   SPI_NOR_SKIP_SFDP:       skip parsing of SFDP tables.
  *   SECT_4K:                 SPINOR_OP_BE_4K works uniformly.
- *   SECT_4K_PMC:             SPINOR_OP_BE_4K_PMC works uniformly.
  *   SPI_NOR_DUAL_READ:       flash supports Dual Read.
  *   SPI_NOR_QUAD_READ:       flash supports Quad Read.
  *   SPI_NOR_OCTAL_READ:      flash supports Octal Read.
@@ -505,7 +504,6 @@ struct flash_info {
 	u8 no_sfdp_flags;
 #define SPI_NOR_SKIP_SFDP		BIT(0)
 #define SECT_4K				BIT(1)
-#define SECT_4K_PMC			BIT(2)
 #define SPI_NOR_DUAL_READ		BIT(3)
 #define SPI_NOR_QUAD_READ		BIT(4)
 #define SPI_NOR_OCTAL_READ		BIT(5)
