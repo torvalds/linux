@@ -931,7 +931,7 @@ struct io_kiocb {
 	struct io_ring_ctx		*ctx;
 	struct task_struct		*task;
 
-	struct percpu_ref		*fixed_rsrc_refs;
+	struct io_rsrc_node		*rsrc_node;
 	/* store used ubuf, so we can prevent reloading */
 	struct io_mapped_ubuf		*imu;
 
@@ -1330,20 +1330,20 @@ static inline void io_req_put_rsrc_locked(struct io_kiocb *req,
 					  struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
 {
-	struct percpu_ref *ref = req->fixed_rsrc_refs;
+	struct io_rsrc_node *node = req->rsrc_node;
 
-	if (ref) {
-		if (ref == &ctx->rsrc_node->refs)
+	if (node) {
+		if (node == ctx->rsrc_node)
 			ctx->rsrc_cached_refs++;
 		else
-			percpu_ref_put(ref);
+			percpu_ref_put(&node->refs);
 	}
 }
 
 static inline void io_req_put_rsrc(struct io_kiocb *req, struct io_ring_ctx *ctx)
 {
-	if (req->fixed_rsrc_refs)
-		percpu_ref_put(req->fixed_rsrc_refs);
+	if (req->rsrc_node)
+		percpu_ref_put(&req->rsrc_node->refs);
 }
 
 static __cold void io_rsrc_refs_drop(struct io_ring_ctx *ctx)
@@ -1366,8 +1366,8 @@ static inline void io_req_set_rsrc_node(struct io_kiocb *req,
 					struct io_ring_ctx *ctx,
 					unsigned int issue_flags)
 {
-	if (!req->fixed_rsrc_refs) {
-		req->fixed_rsrc_refs = &ctx->rsrc_node->refs;
+	if (!req->rsrc_node) {
+		req->rsrc_node = ctx->rsrc_node;
 
 		if (!(issue_flags & IO_URING_F_UNLOCKED)) {
 			lockdep_assert_held(&ctx->uring_lock);
@@ -1375,7 +1375,7 @@ static inline void io_req_set_rsrc_node(struct io_kiocb *req,
 			if (unlikely(ctx->rsrc_cached_refs < 0))
 				io_rsrc_refs_refill(ctx);
 		} else {
-			percpu_ref_get(req->fixed_rsrc_refs);
+			percpu_ref_get(&req->rsrc_node->refs);
 		}
 	}
 }
@@ -7623,7 +7623,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	req->flags = sqe_flags = READ_ONCE(sqe->flags);
 	req->cqe.user_data = READ_ONCE(sqe->user_data);
 	req->file = NULL;
-	req->fixed_rsrc_refs = NULL;
+	req->rsrc_node = NULL;
 	req->task = current;
 
 	if (unlikely(opcode >= IORING_OP_LAST)) {
