@@ -1345,7 +1345,7 @@ static inline void io_req_put_rsrc_locked(struct io_kiocb *req,
 	}
 }
 
-static inline void io_req_put_rsrc(struct io_kiocb *req, struct io_ring_ctx *ctx)
+static inline void io_req_put_rsrc(struct io_kiocb *req)
 {
 	if (req->rsrc_node)
 		io_rsrc_put_node(req->rsrc_node, 1);
@@ -2174,7 +2174,7 @@ static void __io_req_complete_post(struct io_kiocb *req, s32 res,
 				req->link = NULL;
 			}
 		}
-		io_req_put_rsrc(req, ctx);
+		io_req_put_rsrc(req);
 		/*
 		 * Selected buffer deallocation in io_clean_op() assumes that
 		 * we don't hold ->completion_lock. Clean them here to avoid
@@ -2337,7 +2337,7 @@ static __cold void io_free_req(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	io_req_put_rsrc(req, ctx);
+	io_req_put_rsrc(req);
 	io_dismantle_req(req);
 	io_put_task(req->task, 1);
 
