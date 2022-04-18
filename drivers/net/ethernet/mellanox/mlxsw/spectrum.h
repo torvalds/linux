@@ -145,9 +145,16 @@ struct mlxsw_sp_mall_entry;
 
 struct mlxsw_sp_port_mapping {
 	u8 module;
+	u8 slot_index;
 	u8 width; /* Number of lanes used by the port */
 	u8 module_width; /* Number of lanes in the module (static) */
 	u8 lane;
+};
+
+struct mlxsw_sp_port_mapping_events {
+	struct list_head queue;
+	spinlock_t queue_lock; /* protects queue */
+	struct work_struct work;
 };
 
 struct mlxsw_sp_parsing {
@@ -164,7 +171,8 @@ struct mlxsw_sp {
 	unsigned char base_mac[ETH_ALEN];
 	const unsigned char *mac_mask;
 	struct mlxsw_sp_upper *lags;
-	struct mlxsw_sp_port_mapping **port_mapping;
+	struct mlxsw_sp_port_mapping *port_mapping;
+	struct mlxsw_sp_port_mapping_events port_mapping_events;
 	struct rhashtable sample_trigger_ht;
 	struct mlxsw_sp_sb *sb;
 	struct mlxsw_sp_bridge *bridge;
