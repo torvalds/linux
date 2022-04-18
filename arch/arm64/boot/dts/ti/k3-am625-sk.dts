@@ -489,3 +489,7 @@
 &ecap2 {
 	status = "disabled";
 };
+
+&main_mcan0 {
+	status = "disabled";
+};
