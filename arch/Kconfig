@@ -1028,11 +1028,14 @@ config ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	depends on MMU
 	select ARCH_HAS_ELF_RANDOMIZE
 
+config HAVE_OBJTOOL
+	bool
+
 config HAVE_STACK_VALIDATION
 	bool
 	help
-	  Architecture supports the 'objtool check' host tool command, which
-	  performs compile-time stack metadata validation.
+	  Architecture supports objtool compile-time frame pointer rule
+	  validation.
 
 config HAVE_RELIABLE_STACKTRACE
 	bool
@@ -1302,6 +1305,7 @@ config HAVE_STATIC_CALL
 config HAVE_STATIC_CALL_INLINE
 	bool
 	depends on HAVE_STATIC_CALL
+	select OBJTOOL
 
 config HAVE_PREEMPT_DYNAMIC
 	bool
