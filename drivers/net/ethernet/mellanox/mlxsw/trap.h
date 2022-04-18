@@ -133,6 +133,8 @@ enum mlxsw_event_trap_id {
 	MLXSW_TRAP_ID_PTP_ING_FIFO = 0x2D,
 	/* PTP Egress FIFO has a new entry */
 	MLXSW_TRAP_ID_PTP_EGR_FIFO = 0x2E,
+	/* Port mapping change */
+	MLXSW_TRAP_ID_PMLPE = 0x32E,
 };
 
 #endif /* _MLXSW_TRAP_H */

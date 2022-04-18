@@ -150,6 +150,12 @@ struct mlxsw_sp_port_mapping {
 	u8 lane;
 };
 
+struct mlxsw_sp_port_mapping_events {
+	struct list_head queue;
+	spinlock_t queue_lock; /* protects queue */
+	struct work_struct work;
+};
+
 struct mlxsw_sp_parsing {
 	refcount_t parsing_depth_ref;
 	u16 parsing_depth;
@@ -165,6 +171,7 @@ struct mlxsw_sp {
 	const unsigned char *mac_mask;
 	struct mlxsw_sp_upper *lags;
 	struct mlxsw_sp_port_mapping *port_mapping;
+	struct mlxsw_sp_port_mapping_events port_mapping_events;
 	struct rhashtable sample_trigger_ht;
 	struct mlxsw_sp_sb *sb;
 	struct mlxsw_sp_bridge *bridge;
