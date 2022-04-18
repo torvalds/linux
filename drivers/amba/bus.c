@@ -478,8 +478,14 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 		goto skip_probe;
 
 	ret = amba_read_periphid(dev);
-	if (ret)
+	if (ret) {
+		if (ret != -EPROBE_DEFER) {
+			amba_device_put(dev);
+			goto err_out;
+		}
 		goto err_release;
+	}
+
 skip_probe:
 	ret = device_add(&dev->dev);
 err_release:
