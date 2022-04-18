@@ -1467,7 +1467,7 @@ static void ep0_irq(struct omap_udc *udc, u16 irq_src)
 			if (!udc->ep0_in) {
 				stat = 0;
 				/* read next OUT packet of request, maybe
-				 * reactiviting the fifo; stall on errors.
+				 * reactivating the fifo; stall on errors.
 				 */
 				stat = read_fifo(ep0, req);
 				if (!req || stat < 0) {
