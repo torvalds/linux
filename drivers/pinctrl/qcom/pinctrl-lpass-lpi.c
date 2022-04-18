@@ -51,11 +51,11 @@
 
 #define LPI_PINGROUP(id, soff, f1, f2, f3, f4)		\
 	{						\
-		.name = "gpio" #id,			\
-		.pins = gpio##id##_pins,		\
+		.group.name = "gpio" #id,			\
+		.group.pins = gpio##id##_pins,		\
 		.pin = id,				\
 		.slew_offset = soff,			\
-		.npins = ARRAY_SIZE(gpio##id##_pins),	\
+		.group.num_pins = ARRAY_SIZE(gpio##id##_pins),	\
 		.funcs = (int[]){			\
 			LPI_MUX_gpio,			\
 			LPI_MUX_##f1,			\
@@ -67,9 +67,7 @@
 	}
 
 struct lpi_pingroup {
-	const char *name;
-	const unsigned int *pins;
-	unsigned int npins;
+	struct group_desc group;
 	unsigned int pin;
 	/* Bit offset in slew register for SoundWire pins only */
 	int slew_offset;
@@ -150,20 +148,20 @@ enum sm8250_lpi_functions {
 	LPI_MUX__,
 };
 
-static const unsigned int gpio0_pins[] = { 0 };
-static const unsigned int gpio1_pins[] = { 1 };
-static const unsigned int gpio2_pins[] = { 2 };
-static const unsigned int gpio3_pins[] = { 3 };
-static const unsigned int gpio4_pins[] = { 4 };
-static const unsigned int gpio5_pins[] = { 5 };
-static const unsigned int gpio6_pins[] = { 6 };
-static const unsigned int gpio7_pins[] = { 7 };
-static const unsigned int gpio8_pins[] = { 8 };
-static const unsigned int gpio9_pins[] = { 9 };
-static const unsigned int gpio10_pins[] = { 10 };
-static const unsigned int gpio11_pins[] = { 11 };
-static const unsigned int gpio12_pins[] = { 12 };
-static const unsigned int gpio13_pins[] = { 13 };
+static int gpio0_pins[] = { 0 };
+static int gpio1_pins[] = { 1 };
+static int gpio2_pins[] = { 2 };
+static int gpio3_pins[] = { 3 };
+static int gpio4_pins[] = { 4 };
+static int gpio5_pins[] = { 5 };
+static int gpio6_pins[] = { 6 };
+static int gpio7_pins[] = { 7 };
+static int gpio8_pins[] = { 8 };
+static int gpio9_pins[] = { 9 };
+static int gpio10_pins[] = { 10 };
+static int gpio11_pins[] = { 11 };
+static int gpio12_pins[] = { 12 };
+static int gpio13_pins[] = { 13 };
 static const char * const swr_tx_clk_groups[] = { "gpio0" };
 static const char * const swr_tx_data_groups[] = { "gpio1", "gpio2", "gpio5" };
 static const char * const swr_rx_clk_groups[] = { "gpio3" };
@@ -250,38 +248,10 @@ static int lpi_gpio_write(struct lpi_pinctrl *state, unsigned int pin,
 	return 0;
 }
 
-static int lpi_gpio_get_groups_count(struct pinctrl_dev *pctldev)
-{
-	struct lpi_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-
-	return pctrl->data->ngroups;
-}
-
-static const char *lpi_gpio_get_group_name(struct pinctrl_dev *pctldev,
-					   unsigned int group)
-{
-	struct lpi_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-
-	return pctrl->data->groups[group].name;
-}
-
-static int lpi_gpio_get_group_pins(struct pinctrl_dev *pctldev,
-				   unsigned int group,
-				   const unsigned int **pins,
-				   unsigned int *num_pins)
-{
-	struct lpi_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-
-	*pins = pctrl->data->groups[group].pins;
-	*num_pins = pctrl->data->groups[group].npins;
-
-	return 0;
-}
-
 static const struct pinctrl_ops lpi_gpio_pinctrl_ops = {
-	.get_groups_count	= lpi_gpio_get_groups_count,
-	.get_group_name		= lpi_gpio_get_group_name,
-	.get_group_pins		= lpi_gpio_get_group_pins,
+	.get_groups_count	= pinctrl_generic_get_group_count,
+	.get_group_name		= pinctrl_generic_get_group_name,
+	.get_group_pins		= pinctrl_generic_get_group_pins,
 	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
@@ -582,6 +552,28 @@ static const struct gpio_chip lpi_gpio_template = {
 	.dbg_show		= lpi_gpio_dbg_show,
 };
 
+static int lpi_build_pin_desc_groups(struct lpi_pinctrl *pctrl)
+{
+	int i, ret;
+
+	for (i = 0; i < pctrl->data->npins; i++) {
+		const struct pinctrl_pin_desc *pin_info = pctrl->desc.pins + i;
+
+		ret = pinctrl_generic_add_group(pctrl->ctrl, pin_info->name,
+						  (int *)&pin_info->number, 1, NULL);
+		if (ret < 0)
+			goto err_pinctrl;
+	}
+
+	return 0;
+
+err_pinctrl:
+	for (; i > 0; i--)
+		pinctrl_generic_remove_group(pctrl->ctrl, i - 1);
+
+	return ret;
+}
+
 static int lpi_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct lpi_pinctrl_variant_data *data;
@@ -647,6 +639,10 @@ static int lpi_pinctrl_probe(struct platform_device *pdev)
 		goto err_pinctrl;
 	}
 
+	ret = lpi_build_pin_desc_groups(pctrl);
+	if (ret)
+		goto err_pinctrl;
+
 	ret = devm_gpiochip_add_data(dev, &pctrl->chip, pctrl);
 	if (ret) {
 		dev_err(pctrl->dev, "can't add gpio chip\n");
@@ -665,9 +661,13 @@ err_pinctrl:
 static int lpi_pinctrl_remove(struct platform_device *pdev)
 {
 	struct lpi_pinctrl *pctrl = platform_get_drvdata(pdev);
+	int i;
 
 	mutex_destroy(&pctrl->slew_access_lock);
 	clk_bulk_disable_unprepare(MAX_LPI_NUM_CLKS, pctrl->clks);
+
+	for (i = 0; i < pctrl->data->npins; i++)
+		pinctrl_generic_remove_group(pctrl->ctrl, i);
 
 	return 0;
 }
