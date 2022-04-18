@@ -1891,8 +1891,8 @@ static int mlxsw_sp_ports_create(struct mlxsw_sp *mlxsw_sp)
 		goto err_cpu_port_create;
 
 	for (i = 1; i < max_ports; i++) {
-		port_mapping = mlxsw_sp->port_mapping[i];
-		if (!port_mapping)
+		port_mapping = &mlxsw_sp->port_mapping[i];
+		if (!port_mapping->width)
 			continue;
 		err = mlxsw_sp_port_create(mlxsw_sp, i, false, port_mapping);
 		if (err)
@@ -1914,12 +1914,12 @@ err_cpu_port_create:
 static int mlxsw_sp_port_module_info_init(struct mlxsw_sp *mlxsw_sp)
 {
 	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
-	struct mlxsw_sp_port_mapping port_mapping;
+	struct mlxsw_sp_port_mapping *port_mapping;
 	int i;
 	int err;
 
 	mlxsw_sp->port_mapping = kcalloc(max_ports,
-					 sizeof(struct mlxsw_sp_port_mapping *),
+					 sizeof(struct mlxsw_sp_port_mapping),
 					 GFP_KERNEL);
 	if (!mlxsw_sp->port_mapping)
 		return -ENOMEM;
@@ -1928,36 +1928,20 @@ static int mlxsw_sp_port_module_info_init(struct mlxsw_sp *mlxsw_sp)
 		if (mlxsw_core_port_is_xm(mlxsw_sp->core, i))
 			continue;
 
-		err = mlxsw_sp_port_module_info_get(mlxsw_sp, i, &port_mapping);
+		port_mapping = &mlxsw_sp->port_mapping[i];
+		err = mlxsw_sp_port_module_info_get(mlxsw_sp, i, port_mapping);
 		if (err)
 			goto err_port_module_info_get;
-		if (!port_mapping.width)
-			continue;
-
-		mlxsw_sp->port_mapping[i] = kmemdup(&port_mapping,
-						    sizeof(port_mapping),
-						    GFP_KERNEL);
-		if (!mlxsw_sp->port_mapping[i]) {
-			err = -ENOMEM;
-			goto err_port_module_info_dup;
-		}
 	}
 	return 0;
 
 err_port_module_info_get:
-err_port_module_info_dup:
-	for (i--; i >= 1; i--)
-		kfree(mlxsw_sp->port_mapping[i]);
 	kfree(mlxsw_sp->port_mapping);
 	return err;
 }
 
 static void mlxsw_sp_port_module_info_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	int i;
-
-	for (i = 1; i < mlxsw_core_max_ports(mlxsw_sp->core); i++)
-		kfree(mlxsw_sp->port_mapping[i]);
 	kfree(mlxsw_sp->port_mapping);
 }
 
@@ -2007,8 +1991,8 @@ static void mlxsw_sp_port_unsplit_create(struct mlxsw_sp *mlxsw_sp,
 	for (i = 0; i < count; i++) {
 		u16 local_port = mlxsw_reg_pmtdb_port_num_get(pmtdb_pl, i);
 
-		port_mapping = mlxsw_sp->port_mapping[local_port];
-		if (!port_mapping || !mlxsw_sp_local_port_valid(local_port))
+		port_mapping = &mlxsw_sp->port_mapping[local_port];
+		if (!port_mapping->width || !mlxsw_sp_local_port_valid(local_port))
 			continue;
 		mlxsw_sp_port_create(mlxsw_sp, local_port,
 				     false, port_mapping);
