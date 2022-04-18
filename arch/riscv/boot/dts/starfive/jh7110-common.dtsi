@@ -87,8 +87,10 @@
 		sc2235-pwdn-gpios = <&gpio 15 0>;
 		sc2235-esync-gpios = <&gpio 17 0>;
 		sc2235-oen-gpios = <&gpio 18 0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&sc2235_pins>;
+		pinctrl-names = "default", "reset_low", "reset_high";
+		pinctrl-0 = <&sc2235_pins_default>;
+		pinctrl-1 = <&sc2235_reset_low>;
+		pinctrl-2 = <&sc2235_reset_high>;
 
 		port {
 			/* Parallel bus endpoint */

@@ -291,7 +291,107 @@
 		};
 	};
 
-	sc2235_pins: sc2235-pins {
+	sc2235_pins_default: sc2235-pins {
+		sc2235-1V8-pins {
+			sf,pins = <PAD_GPIO11>;
+			sf,pinmux = <PAD_GPIO11_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		sc2235-1V5-pins {
+			sf,pins = <PAD_GPIO12>;
+			sf,pinmux = <PAD_GPIO12_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		sc2235-2V8-pins {
+			sf,pins = <PAD_GPIO10>;
+			sf,pinmux = <PAD_GPIO10_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		sc2235-reset-pins {
+			sf,pins = <PAD_GPIO16>;
+			sf,pinmux = <PAD_GPIO16_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		sc2235-pwdn-pins {
+			sf,pins = <PAD_GPIO15>;
+			sf,pinmux = <PAD_GPIO15_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		sc2235-esync-pins {
+			sf,pins = <PAD_GPIO17>;
+			sf,pinmux = <PAD_GPIO17_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		sc2235-oen-pins {
+			sf,pins = <PAD_GPIO18>;
+			sf,pinmux = <PAD_GPIO18_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	sc2235_reset_low: sc2235-pins {
+		sc2235-1V8-pins {
+			sf,pins = <PAD_GPIO11>;
+			sf,pinmux = <PAD_GPIO11_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		sc2235-1V5-pins {
+			sf,pins = <PAD_GPIO12>;
+			sf,pinmux = <PAD_GPIO12_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		sc2235-2V8-pins {
+			sf,pins = <PAD_GPIO10>;
+			sf,pinmux = <PAD_GPIO10_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		sc2235-reset-pins {
+			sf,pins = <PAD_GPIO16>;
+			sf,pinmux = <PAD_GPIO16_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		sc2235-pwdn-pins {
+			sf,pins = <PAD_GPIO15>;
+			sf,pinmux = <PAD_GPIO15_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	sc2235_reset_high: sc2235-pins {
 		sc2235-1V8-pins {
 			sf,pins = <PAD_GPIO11>;
 			sf,pinmux = <PAD_GPIO11_FUNC_SEL 0>;
@@ -329,22 +429,6 @@
 			sf,pinmux = <PAD_GPIO15_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-dout = <GPO_HIGH>;
-			sf,pin-gpio-doen = <OEN_LOW>;
-		};
-
-		sc2235-esync-pins {
-			sf,pins = <PAD_GPIO17>;
-			sf,pinmux = <PAD_GPIO17_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_LOW>;
-			sf,pin-gpio-doen = <OEN_LOW>;
-		};
-
-		sc2235-oen-pins {
-			sf,pins = <PAD_GPIO18>;
-			sf,pinmux = <PAD_GPIO18_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_LOW>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
