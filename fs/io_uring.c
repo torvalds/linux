@@ -6326,11 +6326,10 @@ static bool io_poll_disarm(struct io_kiocb *req)
 	return true;
 }
 
-static int io_poll_cancel(struct io_ring_ctx *ctx, __u64 sqe_addr,
-			  bool poll_only)
+static int io_poll_cancel(struct io_ring_ctx *ctx, __u64 sqe_addr)
 	__must_hold(&ctx->completion_lock)
 {
-	struct io_kiocb *req = io_poll_find(ctx, sqe_addr, poll_only);
+	struct io_kiocb *req = io_poll_find(ctx, sqe_addr, false);
 
 	if (!req)
 		return -ENOENT;
@@ -6819,7 +6818,7 @@ static int io_try_cancel_userdata(struct io_kiocb *req, u64 sqe_addr)
 		return 0;
 
 	spin_lock(&ctx->completion_lock);
-	ret = io_poll_cancel(ctx, sqe_addr, false);
+	ret = io_poll_cancel(ctx, sqe_addr);
 	if (ret != -ENOENT)
 		goto out;
 	ret = io_timeout_cancel(ctx, sqe_addr);
