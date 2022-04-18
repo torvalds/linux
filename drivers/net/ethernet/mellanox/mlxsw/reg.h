@@ -11492,6 +11492,127 @@ mlxsw_reg_mgpir_unpack(char *payload, u8 *num_of_devices,
 		*num_of_slots = mlxsw_reg_mgpir_num_of_slots_get(payload);
 }
 
+/* MBCT - Management Binary Code Transfer Register
+ * -----------------------------------------------
+ * This register allows to transfer binary codes from the host to
+ * the management FW by transferring it by chunks of maximum 1KB.
+ */
+#define MLXSW_REG_MBCT_ID 0x9120
+#define MLXSW_REG_MBCT_LEN 0x420
+
+MLXSW_REG_DEFINE(mbct, MLXSW_REG_MBCT_ID, MLXSW_REG_MBCT_LEN);
+
+/* reg_mbct_slot_index
+ * Slot index. 0 is reserved.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mbct, slot_index, 0x00, 0, 4);
+
+/* reg_mbct_data_size
+ * Actual data field size in bytes for the current data transfer.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, mbct, data_size, 0x04, 0, 11);
+
+enum mlxsw_reg_mbct_op {
+	MLXSW_REG_MBCT_OP_ERASE_INI_IMAGE = 1,
+	MLXSW_REG_MBCT_OP_DATA_TRANSFER, /* Download */
+	MLXSW_REG_MBCT_OP_ACTIVATE,
+	MLXSW_REG_MBCT_OP_CLEAR_ERRORS = 6,
+	MLXSW_REG_MBCT_OP_QUERY_STATUS,
+};
+
+/* reg_mbct_op
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, mbct, op, 0x08, 28, 4);
+
+/* reg_mbct_last
+ * Indicates that the current data field is the last chunk of the INI.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, mbct, last, 0x08, 26, 1);
+
+/* reg_mbct_oee
+ * Opcode Event Enable. When set a BCTOE event will be sent once the opcode
+ * was executed and the fsm_state has changed.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, mbct, oee, 0x08, 25, 1);
+
+enum mlxsw_reg_mbct_status {
+	/* Partial data transfer completed successfully and ready for next
+	 * data transfer.
+	 */
+	MLXSW_REG_MBCT_STATUS_PART_DATA = 2,
+	MLXSW_REG_MBCT_STATUS_LAST_DATA,
+	MLXSW_REG_MBCT_STATUS_ERASE_COMPLETE,
+	/* Error - trying to erase INI while it being used. */
+	MLXSW_REG_MBCT_STATUS_ERROR_INI_IN_USE,
+	/* Last data transfer completed, applying magic pattern. */
+	MLXSW_REG_MBCT_STATUS_ERASE_FAILED = 7,
+	MLXSW_REG_MBCT_STATUS_INI_ERROR,
+	MLXSW_REG_MBCT_STATUS_ACTIVATION_FAILED,
+	MLXSW_REG_MBCT_STATUS_ILLEGAL_OPERATION = 11,
+};
+
+/* reg_mbct_status
+ * Status.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mbct, status, 0x0C, 24, 5);
+
+enum mlxsw_reg_mbct_fsm_state {
+	MLXSW_REG_MBCT_FSM_STATE_INI_IN_USE = 5,
+	MLXSW_REG_MBCT_FSM_STATE_ERROR,
+};
+
+/* reg_mbct_fsm_state
+ * FSM state.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mbct, fsm_state,  0x0C, 16, 4);
+
+#define MLXSW_REG_MBCT_DATA_LEN 1024
+
+/* reg_mbct_data
+ * Up to 1KB of data.
+ * Access: WO
+ */
+MLXSW_ITEM_BUF(reg, mbct, data, 0x20, MLXSW_REG_MBCT_DATA_LEN);
+
+static inline void mlxsw_reg_mbct_pack(char *payload, u8 slot_index,
+				       enum mlxsw_reg_mbct_op op, bool oee)
+{
+	MLXSW_REG_ZERO(mbct, payload);
+	mlxsw_reg_mbct_slot_index_set(payload, slot_index);
+	mlxsw_reg_mbct_op_set(payload, op);
+	mlxsw_reg_mbct_oee_set(payload, oee);
+}
+
+static inline void mlxsw_reg_mbct_dt_pack(char *payload,
+					  u16 data_size, bool last,
+					  const char *data)
+{
+	if (WARN_ON(data_size > MLXSW_REG_MBCT_DATA_LEN))
+		return;
+	mlxsw_reg_mbct_data_size_set(payload, data_size);
+	mlxsw_reg_mbct_last_set(payload, last);
+	mlxsw_reg_mbct_data_memcpy_to(payload, data);
+}
+
+static inline void
+mlxsw_reg_mbct_unpack(const char *payload, u8 *p_slot_index,
+		      enum mlxsw_reg_mbct_status *p_status,
+		      enum mlxsw_reg_mbct_fsm_state *p_fsm_state)
+{
+	if (p_slot_index)
+		*p_slot_index = mlxsw_reg_mbct_slot_index_get(payload);
+	*p_status = mlxsw_reg_mbct_status_get(payload);
+	if (p_fsm_state)
+		*p_fsm_state = mlxsw_reg_mbct_fsm_state_get(payload);
+}
+
 /* MDDQ - Management DownStream Device Query Register
  * --------------------------------------------------
  * This register allows to query the DownStream device properties. The desired
@@ -12990,6 +13111,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mtptpt),
 	MLXSW_REG(mfgd),
 	MLXSW_REG(mgpir),
+	MLXSW_REG(mbct),
 	MLXSW_REG(mddq),
 	MLXSW_REG(mddc),
 	MLXSW_REG(mfde),
