@@ -89,6 +89,11 @@ static const struct mlxsw_fw_rev mlxsw_sp3_fw_rev = {
 	"." __stringify(MLXSW_SP_FWREV_MINOR) \
 	"." __stringify(MLXSW_SP_FWREV_SUBMINOR) ".mfa2"
 
+#define MLXSW_SP_LINECARDS_INI_BUNDLE_FILENAME \
+	"mellanox/lc_ini_bundle_" \
+	__stringify(MLXSW_SP_FWREV_MINOR) "_" \
+	__stringify(MLXSW_SP_FWREV_SUBMINOR) ".bin"
+
 static const char mlxsw_sp1_driver_name[] = "mlxsw_spectrum";
 static const char mlxsw_sp2_driver_name[] = "mlxsw_spectrum2";
 static const char mlxsw_sp3_driver_name[] = "mlxsw_spectrum3";
@@ -5159,3 +5164,4 @@ MODULE_DEVICE_TABLE(pci, mlxsw_sp4_pci_id_table);
 MODULE_FIRMWARE(MLXSW_SP1_FW_FILENAME);
 MODULE_FIRMWARE(MLXSW_SP2_FW_FILENAME);
 MODULE_FIRMWARE(MLXSW_SP3_FW_FILENAME);
+MODULE_FIRMWARE(MLXSW_SP_LINECARDS_INI_BUNDLE_FILENAME);

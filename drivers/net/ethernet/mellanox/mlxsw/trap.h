@@ -133,6 +133,10 @@ enum mlxsw_event_trap_id {
 	MLXSW_TRAP_ID_PTP_ING_FIFO = 0x2D,
 	/* PTP Egress FIFO has a new entry */
 	MLXSW_TRAP_ID_PTP_EGR_FIFO = 0x2E,
+	/* Downstream Device Status Change */
+	MLXSW_TRAP_ID_DSDSC = 0x321,
+	/* Binary Code Transfer Operation Executed Event */
+	MLXSW_TRAP_ID_BCTOE = 0x322,
 	/* Port mapping change */
 	MLXSW_TRAP_ID_PMLPE = 0x32E,
 };
