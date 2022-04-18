@@ -82,18 +82,11 @@ static void run_vcpu(struct kvm_vm *vm, uint32_t vcpuid)
 
 static struct kvm_vm *create_vm(void)
 {
-	struct kvm_vm *vm;
 	uint64_t vcpu_pages = (DEFAULT_STACK_PGS) * 2;
 	uint64_t extra_pg_pages = vcpu_pages / PTES_PER_MIN_PAGE * N_VCPU;
 	uint64_t pages = DEFAULT_GUEST_PHY_PAGES + vcpu_pages + extra_pg_pages;
 
-	pages = vm_adjust_num_guest_pages(VM_MODE_DEFAULT, pages);
-	vm = vm_create(pages);
-
-	kvm_vm_elf_load(vm, program_invocation_name);
-	vm_create_irqchip(vm);
-
-	return vm;
+	return vm_create_without_vcpus(VM_MODE_DEFAULT, pages);
 }
 
 static void add_x86_vcpu(struct kvm_vm *vm, uint32_t vcpuid, bool bsp_code)
