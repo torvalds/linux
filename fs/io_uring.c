@@ -6348,7 +6348,8 @@ static struct io_kiocb *io_poll_file_find(struct io_ring_ctx *ctx,
 
 		list = &ctx->cancel_hash[i];
 		hlist_for_each_entry(req, list, hash_node) {
-			if (req->file != cd->file)
+			if (!(cd->flags & IORING_ASYNC_CANCEL_ANY) &&
+			    req->file != cd->file)
 				continue;
 			if (cd->seq == req->work.cancel_seq)
 				continue;
@@ -6374,7 +6375,7 @@ static int io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd)
 {
 	struct io_kiocb *req;
 
-	if (cd->flags & IORING_ASYNC_CANCEL_FD)
+	if (cd->flags & (IORING_ASYNC_CANCEL_FD|IORING_ASYNC_CANCEL_ANY))
 		req = io_poll_file_find(ctx, cd);
 	else
 		req = io_poll_find(ctx, false, cd);
@@ -6543,9 +6544,10 @@ static struct io_kiocb *io_timeout_extract(struct io_ring_ctx *ctx,
 	bool found = false;
 
 	list_for_each_entry(req, &ctx->timeout_list, timeout.list) {
-		if (cd->data != req->cqe.user_data)
+		if (!(cd->flags & IORING_ASYNC_CANCEL_ANY) &&
+		    cd->data != req->cqe.user_data)
 			continue;
-		if (cd->flags & IORING_ASYNC_CANCEL_ALL) {
+		if (cd->flags & (IORING_ASYNC_CANCEL_ALL|IORING_ASYNC_CANCEL_ANY)) {
 			if (cd->seq == req->work.cancel_seq)
 				continue;
 			req->work.cancel_seq = cd->seq;
@@ -6827,14 +6829,16 @@ static bool io_cancel_cb(struct io_wq_work *work, void *data)
 
 	if (req->ctx != cd->ctx)
 		return false;
-	if (cd->flags & IORING_ASYNC_CANCEL_FD) {
+	if (cd->flags & IORING_ASYNC_CANCEL_ANY) {
+		;
+	} else if (cd->flags & IORING_ASYNC_CANCEL_FD) {
 		if (req->file != cd->file)
 			return false;
 	} else {
 		if (req->cqe.user_data != cd->data)
 			return false;
 	}
-	if (cd->flags & IORING_ASYNC_CANCEL_ALL) {
+	if (cd->flags & (IORING_ASYNC_CANCEL_ALL|IORING_ASYNC_CANCEL_ANY)) {
 		if (cd->seq == req->work.cancel_seq)
 			return false;
 		req->work.cancel_seq = cd->seq;
@@ -6847,12 +6851,13 @@ static int io_async_cancel_one(struct io_uring_task *tctx,
 {
 	enum io_wq_cancel cancel_ret;
 	int ret = 0;
+	bool all;
 
 	if (!tctx || !tctx->io_wq)
 		return -ENOENT;
 
-	cancel_ret = io_wq_cancel_cb(tctx->io_wq, io_cancel_cb, cd,
-					cd->flags & IORING_ASYNC_CANCEL_ALL);
+	all = cd->flags & (IORING_ASYNC_CANCEL_ALL|IORING_ASYNC_CANCEL_ANY);
+	cancel_ret = io_wq_cancel_cb(tctx->io_wq, io_cancel_cb, cd, all);
 	switch (cancel_ret) {
 	case IO_WQ_CANCEL_OK:
 		ret = 0;
@@ -6894,6 +6899,9 @@ out:
 	return ret;
 }
 
+#define CANCEL_FLAGS	(IORING_ASYNC_CANCEL_ALL | IORING_ASYNC_CANCEL_FD | \
+			 IORING_ASYNC_CANCEL_ANY)
+
 static int io_async_cancel_prep(struct io_kiocb *req,
 				const struct io_uring_sqe *sqe)
 {
@@ -6906,10 +6914,13 @@ static int io_async_cancel_prep(struct io_kiocb *req,
 
 	req->cancel.addr = READ_ONCE(sqe->addr);
 	req->cancel.flags = READ_ONCE(sqe->cancel_flags);
-	if (req->cancel.flags & ~(IORING_ASYNC_CANCEL_ALL|IORING_ASYNC_CANCEL_FD))
+	if (req->cancel.flags & ~CANCEL_FLAGS)
 		return -EINVAL;
-	if (req->cancel.flags & IORING_ASYNC_CANCEL_FD)
+	if (req->cancel.flags & IORING_ASYNC_CANCEL_FD) {
+		if (req->cancel.flags & IORING_ASYNC_CANCEL_ANY)
+			return -EINVAL;
 		req->cancel.fd = READ_ONCE(sqe->fd);
+	}
 
 	return 0;
 }
@@ -6917,7 +6928,7 @@ static int io_async_cancel_prep(struct io_kiocb *req,
 static int __io_async_cancel(struct io_cancel_data *cd, struct io_kiocb *req,
 			     unsigned int issue_flags)
 {
-	bool cancel_all = cd->flags & IORING_ASYNC_CANCEL_ALL;
+	bool all = cd->flags & (IORING_ASYNC_CANCEL_ALL|IORING_ASYNC_CANCEL_ANY);
 	struct io_ring_ctx *ctx = cd->ctx;
 	struct io_tctx_node *node;
 	int ret, nr = 0;
@@ -6926,7 +6937,7 @@ static int __io_async_cancel(struct io_cancel_data *cd, struct io_kiocb *req,
 		ret = io_try_cancel(req, cd);
 		if (ret == -ENOENT)
 			break;
-		if (!cancel_all)
+		if (!all)
 			return ret;
 		nr++;
 	} while (1);
@@ -6939,13 +6950,13 @@ static int __io_async_cancel(struct io_cancel_data *cd, struct io_kiocb *req,
 
 		ret = io_async_cancel_one(tctx, cd);
 		if (ret != -ENOENT) {
-			if (!cancel_all)
+			if (!all)
 				break;
 			nr++;
 		}
 	}
 	io_ring_submit_unlock(ctx, issue_flags);
-	return cancel_all ? nr : ret;
+	return all ? nr : ret;
 }
 
 static int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)

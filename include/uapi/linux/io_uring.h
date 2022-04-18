@@ -193,9 +193,11 @@ enum {
  * IORING_ASYNC_CANCEL_ALL	Cancel all requests that match the given key
  * IORING_ASYNC_CANCEL_FD	Key off 'fd' for cancelation rather than the
  *				request 'user_data'
+ * IORING_ASYNC_CANCEL_ANY	Match any request
  */
 #define IORING_ASYNC_CANCEL_ALL	(1U << 0)
 #define IORING_ASYNC_CANCEL_FD	(1U << 1)
+#define IORING_ASYNC_CANCEL_ANY	(1U << 2)
 
 /*
  * IO completion data structure (Completion Queue Entry)
