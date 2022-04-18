@@ -1110,7 +1110,9 @@
   inc_node_page_state
   inc_zone_page_state
   in_egroup_p
+  __inet6_lookup_established
   inet_csk_get_port
+  __inet_lookup_established
   init_iova_domain
   init_net
   init_pseudo
@@ -2514,6 +2516,7 @@
   __task_pid_nr_ns
   __task_rq_lock
   task_rq_lock
+  tcp_hashinfo
   tcp_parse_options
   thermal_cooling_device_register
   thermal_cooling_device_unregister
