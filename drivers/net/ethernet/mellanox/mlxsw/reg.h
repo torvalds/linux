@@ -4325,6 +4325,15 @@ MLXSW_ITEM32(reg, pmlp, width, 0x00, 0, 8);
  */
 MLXSW_ITEM32_INDEXED(reg, pmlp, module, 0x04, 0, 8, 0x04, 0x00, false);
 
+/* reg_pmlp_slot_index
+ * Module number.
+ * Slot_index
+ * Slot_index = 0 represent the onboard (motherboard).
+ * In case of non-modular system only slot_index = 0 is available.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, pmlp, slot_index, 0x04, 8, 4, 0x04, 0x00, false);
+
 /* reg_pmlp_tx_lane
  * Tx Lane. When rxtx field is cleared, this field is used for Rx as well.
  * Access: RW

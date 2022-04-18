@@ -481,6 +481,15 @@ query_ini_status:
 	return 0;
 }
 
+static bool mlxsw_linecard_port_selector(void *priv, u16 local_port)
+{
+	struct mlxsw_linecard *linecard = priv;
+	struct mlxsw_core *mlxsw_core;
+
+	mlxsw_core = linecard->linecards->mlxsw_core;
+	return linecard == mlxsw_core_port_linecard_get(mlxsw_core, local_port);
+}
+
 static int mlxsw_linecard_provision(struct devlink_linecard *devlink_linecard,
 				    void *priv, const char *type,
 				    const void *type_priv,
@@ -530,6 +539,10 @@ static int mlxsw_linecard_unprovision(struct devlink_linecard *devlink_linecard,
 	mutex_lock(&linecard->lock);
 
 	mlxsw_core = linecard->linecards->mlxsw_core;
+
+	mlxsw_core_ports_remove_selected(mlxsw_core,
+					 mlxsw_linecard_port_selector,
+					 linecard);
 
 	err = mlxsw_linecard_ini_in_use_wait(mlxsw_core, linecard, extack);
 	if (err)

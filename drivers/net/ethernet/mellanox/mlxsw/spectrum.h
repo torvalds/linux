@@ -145,6 +145,7 @@ struct mlxsw_sp_mall_entry;
 
 struct mlxsw_sp_port_mapping {
 	u8 module;
+	u8 slot_index;
 	u8 width; /* Number of lanes used by the port */
 	u8 module_width; /* Number of lanes in the module (static) */
 	u8 lane;

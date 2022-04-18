@@ -236,7 +236,8 @@ void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
 
 void *mlxsw_core_port_driver_priv(struct mlxsw_core_port *mlxsw_core_port);
 int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u16 local_port,
-			 u32 port_number, bool split, u32 split_port_subnumber,
+			 u8 slot_index, u32 port_number, bool split,
+			 u32 split_port_subnumber,
 			 bool splittable, u32 lanes,
 			 const unsigned char *switch_id,
 			 unsigned char switch_id_len);
@@ -257,6 +258,9 @@ enum devlink_port_type mlxsw_core_port_type_get(struct mlxsw_core *mlxsw_core,
 struct devlink_port *
 mlxsw_core_port_devlink_port_get(struct mlxsw_core *mlxsw_core,
 				 u16 local_port);
+struct mlxsw_linecard *
+mlxsw_core_port_linecard_get(struct mlxsw_core *mlxsw_core,
+			     u16 local_port);
 bool mlxsw_core_port_is_xm(const struct mlxsw_core *mlxsw_core, u16 local_port);
 void mlxsw_core_ports_remove_selected(struct mlxsw_core *mlxsw_core,
 				      bool (*selector)(void *priv,
