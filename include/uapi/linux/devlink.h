@@ -131,6 +131,11 @@ enum devlink_command {
 	DEVLINK_CMD_RATE_NEW,
 	DEVLINK_CMD_RATE_DEL,
 
+	DEVLINK_CMD_LINECARD_GET,		/* can dump */
+	DEVLINK_CMD_LINECARD_SET,
+	DEVLINK_CMD_LINECARD_NEW,
+	DEVLINK_CMD_LINECARD_DEL,
+
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
 	DEVLINK_CMD_MAX = __DEVLINK_CMD_MAX - 1
@@ -552,6 +557,8 @@ enum devlink_attr {
 	DEVLINK_ATTR_RATE_PARENT_NODE_NAME,	/* string */
 
 	DEVLINK_ATTR_REGION_MAX_SNAPSHOTS,	/* u32 */
+
+	DEVLINK_ATTR_LINECARD_INDEX,		/* u32 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 

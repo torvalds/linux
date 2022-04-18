@@ -54,6 +54,8 @@ struct devlink {
 	struct list_head trap_list;
 	struct list_head trap_group_list;
 	struct list_head trap_policer_list;
+	struct list_head linecard_list;
+	struct mutex linecards_lock; /* protects linecard_list */
 	const struct devlink_ops *ops;
 	u64 features;
 	struct xarray snapshot_ids;
@@ -68,6 +70,13 @@ struct devlink {
 	refcount_t refcount;
 	struct completion comp;
 	char priv[] __aligned(NETDEV_ALIGN);
+};
+
+struct devlink_linecard {
+	struct list_head list;
+	struct devlink *devlink;
+	unsigned int index;
+	refcount_t refcount;
 };
 
 /**
@@ -397,6 +406,56 @@ devlink_rate_get_from_info(struct devlink *devlink, struct genl_info *info)
 		return ERR_PTR(-EINVAL);
 }
 
+static struct devlink_linecard *
+devlink_linecard_get_by_index(struct devlink *devlink,
+			      unsigned int linecard_index)
+{
+	struct devlink_linecard *devlink_linecard;
+
+	list_for_each_entry(devlink_linecard, &devlink->linecard_list, list) {
+		if (devlink_linecard->index == linecard_index)
+			return devlink_linecard;
+	}
+	return NULL;
+}
+
+static bool devlink_linecard_index_exists(struct devlink *devlink,
+					  unsigned int linecard_index)
+{
+	return devlink_linecard_get_by_index(devlink, linecard_index);
+}
+
+static struct devlink_linecard *
+devlink_linecard_get_from_attrs(struct devlink *devlink, struct nlattr **attrs)
+{
+	if (attrs[DEVLINK_ATTR_LINECARD_INDEX]) {
+		u32 linecard_index = nla_get_u32(attrs[DEVLINK_ATTR_LINECARD_INDEX]);
+		struct devlink_linecard *linecard;
+
+		mutex_lock(&devlink->linecards_lock);
+		linecard = devlink_linecard_get_by_index(devlink, linecard_index);
+		if (linecard)
+			refcount_inc(&linecard->refcount);
+		mutex_unlock(&devlink->linecards_lock);
+		if (!linecard)
+			return ERR_PTR(-ENODEV);
+		return linecard;
+	}
+	return ERR_PTR(-EINVAL);
+}
+
+static struct devlink_linecard *
+devlink_linecard_get_from_info(struct devlink *devlink, struct genl_info *info)
+{
+	return devlink_linecard_get_from_attrs(devlink, info->attrs);
+}
+
+static void devlink_linecard_put(struct devlink_linecard *linecard)
+{
+	if (refcount_dec_and_test(&linecard->refcount))
+		kfree(linecard);
+}
+
 struct devlink_sb {
 	struct list_head list;
 	unsigned int index;
@@ -617,16 +676,18 @@ devlink_region_snapshot_get_by_id(struct devlink_region *region, u32 id)
 #define DEVLINK_NL_FLAG_NEED_DEVLINK_OR_PORT	BIT(1)
 #define DEVLINK_NL_FLAG_NEED_RATE		BIT(2)
 #define DEVLINK_NL_FLAG_NEED_RATE_NODE		BIT(3)
+#define DEVLINK_NL_FLAG_NEED_LINECARD		BIT(4)
 
 /* The per devlink instance lock is taken by default in the pre-doit
  * operation, yet several commands do not require this. The global
  * devlink lock is taken and protects from disruption by user-calls.
  */
-#define DEVLINK_NL_FLAG_NO_LOCK			BIT(4)
+#define DEVLINK_NL_FLAG_NO_LOCK			BIT(5)
 
 static int devlink_nl_pre_doit(const struct genl_ops *ops,
 			       struct sk_buff *skb, struct genl_info *info)
 {
+	struct devlink_linecard *linecard;
 	struct devlink_port *devlink_port;
 	struct devlink *devlink;
 	int err;
@@ -669,6 +730,13 @@ static int devlink_nl_pre_doit(const struct genl_ops *ops,
 			goto unlock;
 		}
 		info->user_ptr[1] = rate_node;
+	} else if (ops->internal_flags & DEVLINK_NL_FLAG_NEED_LINECARD) {
+		linecard = devlink_linecard_get_from_info(devlink, info);
+		if (IS_ERR(linecard)) {
+			err = PTR_ERR(linecard);
+			goto unlock;
+		}
+		info->user_ptr[1] = linecard;
 	}
 	return 0;
 
@@ -683,9 +751,14 @@ unlock:
 static void devlink_nl_post_doit(const struct genl_ops *ops,
 				 struct sk_buff *skb, struct genl_info *info)
 {
+	struct devlink_linecard *linecard;
 	struct devlink *devlink;
 
 	devlink = info->user_ptr[0];
+	if (ops->internal_flags & DEVLINK_NL_FLAG_NEED_LINECARD) {
+		linecard = info->user_ptr[1];
+		devlink_linecard_put(linecard);
+	}
 	if (~ops->internal_flags & DEVLINK_NL_FLAG_NO_LOCK)
 		mutex_unlock(&devlink->lock);
 	devlink_put(devlink);
@@ -1962,6 +2035,132 @@ static int devlink_nl_cmd_rate_del_doit(struct sk_buff *skb,
 	kfree(rate_node->name);
 	kfree(rate_node);
 	return err;
+}
+
+static int devlink_nl_linecard_fill(struct sk_buff *msg,
+				    struct devlink *devlink,
+				    struct devlink_linecard *linecard,
+				    enum devlink_command cmd, u32 portid,
+				    u32 seq, int flags,
+				    struct netlink_ext_ack *extack)
+{
+	void *hdr;
+
+	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, flags, cmd);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	if (devlink_nl_put_handle(msg, devlink))
+		goto nla_put_failure;
+	if (nla_put_u32(msg, DEVLINK_ATTR_LINECARD_INDEX, linecard->index))
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+	return 0;
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+static void devlink_linecard_notify(struct devlink_linecard *linecard,
+				    enum devlink_command cmd)
+{
+	struct devlink *devlink = linecard->devlink;
+	struct sk_buff *msg;
+	int err;
+
+	WARN_ON(cmd != DEVLINK_CMD_LINECARD_NEW &&
+		cmd != DEVLINK_CMD_LINECARD_DEL);
+
+	if (!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED))
+		return;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return;
+
+	err = devlink_nl_linecard_fill(msg, devlink, linecard, cmd, 0, 0, 0,
+				       NULL);
+	if (err) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
+				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
+}
+
+static int devlink_nl_cmd_linecard_get_doit(struct sk_buff *skb,
+					    struct genl_info *info)
+{
+	struct devlink_linecard *linecard = info->user_ptr[1];
+	struct devlink *devlink = linecard->devlink;
+	struct sk_buff *msg;
+	int err;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	err = devlink_nl_linecard_fill(msg, devlink, linecard,
+				       DEVLINK_CMD_LINECARD_NEW,
+				       info->snd_portid, info->snd_seq, 0,
+				       info->extack);
+	if (err) {
+		nlmsg_free(msg);
+		return err;
+	}
+
+	return genlmsg_reply(msg, info);
+}
+
+static int devlink_nl_cmd_linecard_get_dumpit(struct sk_buff *msg,
+					      struct netlink_callback *cb)
+{
+	struct devlink_linecard *linecard;
+	struct devlink *devlink;
+	int start = cb->args[0];
+	unsigned long index;
+	int idx = 0;
+	int err;
+
+	mutex_lock(&devlink_mutex);
+	xa_for_each_marked(&devlinks, index, devlink, DEVLINK_REGISTERED) {
+		if (!devlink_try_get(devlink))
+			continue;
+
+		if (!net_eq(devlink_net(devlink), sock_net(msg->sk)))
+			goto retry;
+
+		mutex_lock(&devlink->linecards_lock);
+		list_for_each_entry(linecard, &devlink->linecard_list, list) {
+			if (idx < start) {
+				idx++;
+				continue;
+			}
+			err = devlink_nl_linecard_fill(msg, devlink, linecard,
+						       DEVLINK_CMD_LINECARD_NEW,
+						       NETLINK_CB(cb->skb).portid,
+						       cb->nlh->nlmsg_seq,
+						       NLM_F_MULTI,
+						       cb->extack);
+			if (err) {
+				mutex_unlock(&devlink->linecards_lock);
+				devlink_put(devlink);
+				goto out;
+			}
+			idx++;
+		}
+		mutex_unlock(&devlink->linecards_lock);
+retry:
+		devlink_put(devlink);
+	}
+out:
+	mutex_unlock(&devlink_mutex);
+
+	cb->args[0] = idx;
+	return msg->len;
 }
 
 static int devlink_nl_sb_fill(struct sk_buff *msg, struct devlink *devlink,
@@ -8589,6 +8788,7 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_RATE_TX_MAX] = { .type = NLA_U64 },
 	[DEVLINK_ATTR_RATE_NODE_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_RATE_PARENT_NODE_NAME] = { .type = NLA_NUL_STRING },
+	[DEVLINK_ATTR_LINECARD_INDEX] = { .type = NLA_U32 },
 };
 
 static const struct genl_small_ops devlink_nl_ops[] = {
@@ -8663,6 +8863,13 @@ static const struct genl_small_ops devlink_nl_ops[] = {
 		.doit = devlink_nl_cmd_port_del_doit,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NO_LOCK,
+	},
+	{
+		.cmd = DEVLINK_CMD_LINECARD_GET,
+		.doit = devlink_nl_cmd_linecard_get_doit,
+		.dumpit = devlink_nl_cmd_linecard_get_dumpit,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_LINECARD,
+		/* can be retrieved by unprivileged users */
 	},
 	{
 		.cmd = DEVLINK_CMD_SB_GET,
@@ -9043,6 +9250,7 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	write_pnet(&devlink->_net, net);
 	INIT_LIST_HEAD(&devlink->port_list);
 	INIT_LIST_HEAD(&devlink->rate_list);
+	INIT_LIST_HEAD(&devlink->linecard_list);
 	INIT_LIST_HEAD(&devlink->sb_list);
 	INIT_LIST_HEAD_RCU(&devlink->dpipe_table_list);
 	INIT_LIST_HEAD(&devlink->resource_list);
@@ -9054,6 +9262,7 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	INIT_LIST_HEAD(&devlink->trap_policer_list);
 	mutex_init(&devlink->lock);
 	mutex_init(&devlink->reporters_lock);
+	mutex_init(&devlink->linecards_lock);
 	refcount_set(&devlink->refcount, 1);
 	init_completion(&devlink->comp);
 
@@ -9080,10 +9289,14 @@ static void devlink_notify_register(struct devlink *devlink)
 	struct devlink_param_item *param_item;
 	struct devlink_trap_item *trap_item;
 	struct devlink_port *devlink_port;
+	struct devlink_linecard *linecard;
 	struct devlink_rate *rate_node;
 	struct devlink_region *region;
 
 	devlink_notify(devlink, DEVLINK_CMD_NEW);
+	list_for_each_entry(linecard, &devlink->linecard_list, list)
+		devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+
 	list_for_each_entry(devlink_port, &devlink->port_list, list)
 		devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
 
@@ -9191,6 +9404,7 @@ void devlink_free(struct devlink *devlink)
 {
 	ASSERT_DEVLINK_NOT_REGISTERED(devlink);
 
+	mutex_destroy(&devlink->linecards_lock);
 	mutex_destroy(&devlink->reporters_lock);
 	mutex_destroy(&devlink->lock);
 	WARN_ON(!list_empty(&devlink->trap_policer_list));
@@ -9203,6 +9417,7 @@ void devlink_free(struct devlink *devlink)
 	WARN_ON(!list_empty(&devlink->dpipe_table_list));
 	WARN_ON(!list_empty(&devlink->sb_list));
 	WARN_ON(!list_empty(&devlink->rate_list));
+	WARN_ON(!list_empty(&devlink->linecard_list));
 	WARN_ON(!list_empty(&devlink->port_list));
 
 	xa_destroy(&devlink->snapshot_ids);
@@ -9746,6 +9961,59 @@ static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
 
 	return 0;
 }
+
+/**
+ *	devlink_linecard_create - Create devlink linecard
+ *
+ *	@devlink: devlink
+ *	@linecard_index: driver-specific numerical identifier of the linecard
+ *
+ *	Create devlink linecard instance with provided linecard index.
+ *	Caller can use any indexing, even hw-related one.
+ */
+struct devlink_linecard *devlink_linecard_create(struct devlink *devlink,
+						 unsigned int linecard_index)
+{
+	struct devlink_linecard *linecard;
+
+	mutex_lock(&devlink->linecards_lock);
+	if (devlink_linecard_index_exists(devlink, linecard_index)) {
+		mutex_unlock(&devlink->linecards_lock);
+		return ERR_PTR(-EEXIST);
+	}
+
+	linecard = kzalloc(sizeof(*linecard), GFP_KERNEL);
+	if (!linecard) {
+		mutex_unlock(&devlink->linecards_lock);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	linecard->devlink = devlink;
+	linecard->index = linecard_index;
+	list_add_tail(&linecard->list, &devlink->linecard_list);
+	refcount_set(&linecard->refcount, 1);
+	mutex_unlock(&devlink->linecards_lock);
+	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+	return linecard;
+}
+EXPORT_SYMBOL_GPL(devlink_linecard_create);
+
+/**
+ *	devlink_linecard_destroy - Destroy devlink linecard
+ *
+ *	@linecard: devlink linecard
+ */
+void devlink_linecard_destroy(struct devlink_linecard *linecard)
+{
+	struct devlink *devlink = linecard->devlink;
+
+	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_DEL);
+	mutex_lock(&devlink->linecards_lock);
+	list_del(&linecard->list);
+	mutex_unlock(&devlink->linecards_lock);
+	devlink_linecard_put(linecard);
+}
+EXPORT_SYMBOL_GPL(devlink_linecard_destroy);
 
 int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
 			u32 size, u16 ingress_pools_count,
