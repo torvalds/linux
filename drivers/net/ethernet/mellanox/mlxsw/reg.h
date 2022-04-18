@@ -11492,6 +11492,149 @@ mlxsw_reg_mgpir_unpack(char *payload, u8 *num_of_devices,
 		*num_of_slots = mlxsw_reg_mgpir_num_of_slots_get(payload);
 }
 
+/* MDDQ - Management DownStream Device Query Register
+ * --------------------------------------------------
+ * This register allows to query the DownStream device properties. The desired
+ * information is chosen upon the query_type field and is delivered by 32B
+ * of data blocks.
+ */
+#define MLXSW_REG_MDDQ_ID 0x9161
+#define MLXSW_REG_MDDQ_LEN 0x30
+
+MLXSW_REG_DEFINE(mddq, MLXSW_REG_MDDQ_ID, MLXSW_REG_MDDQ_LEN);
+
+/* reg_mddq_sie
+ * Slot info event enable.
+ * When set to '1', each change in the slot_info.provisioned / sr_valid /
+ * active / ready will generate a DSDSC event.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mddq, sie, 0x00, 31, 1);
+
+enum mlxsw_reg_mddq_query_type {
+	MLXSW_REG_MDDQ_QUERY_TYPE_SLOT_INFO = 1,
+	MLXSW_REG_MDDQ_QUERY_TYPE_SLOT_NAME = 3,
+};
+
+/* reg_mddq_query_type
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mddq, query_type, 0x00, 16, 8);
+
+/* reg_mddq_slot_index
+ * Slot index. 0 is reserved.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mddq, slot_index, 0x00, 0, 4);
+
+/* reg_mddq_slot_info_provisioned
+ * If set, the INI file is applied and the card is provisioned.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mddq, slot_info_provisioned, 0x10, 31, 1);
+
+/* reg_mddq_slot_info_sr_valid
+ * If set, Shift Register is valid (after being provisioned) and data
+ * can be sent from the switch ASIC to the line-card CPLD over Shift-Register.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mddq, slot_info_sr_valid, 0x10, 30, 1);
+
+enum mlxsw_reg_mddq_slot_info_ready {
+	MLXSW_REG_MDDQ_SLOT_INFO_READY_NOT_READY,
+	MLXSW_REG_MDDQ_SLOT_INFO_READY_READY,
+	MLXSW_REG_MDDQ_SLOT_INFO_READY_ERROR,
+};
+
+/* reg_mddq_slot_info_lc_ready
+ * If set, the LC is powered on, matching the INI version and a new FW
+ * version can be burnt (if necessary).
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mddq, slot_info_lc_ready, 0x10, 28, 2);
+
+/* reg_mddq_slot_info_active
+ * If set, the FW has completed the MDDC.device_enable command.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mddq, slot_info_active, 0x10, 27, 1);
+
+/* reg_mddq_slot_info_hw_revision
+ * Major user-configured version number of the current INI file.
+ * Valid only when active or ready are '1'.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mddq, slot_info_hw_revision, 0x14, 16, 16);
+
+/* reg_mddq_slot_info_ini_file_version
+ * User-configured version number of the current INI file.
+ * Valid only when active or lc_ready are '1'.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mddq, slot_info_ini_file_version, 0x14, 0, 16);
+
+/* reg_mddq_slot_info_card_type
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mddq, slot_info_card_type, 0x18, 0, 8);
+
+static inline void
+__mlxsw_reg_mddq_pack(char *payload, u8 slot_index,
+		      enum mlxsw_reg_mddq_query_type query_type)
+{
+	MLXSW_REG_ZERO(mddq, payload);
+	mlxsw_reg_mddq_slot_index_set(payload, slot_index);
+	mlxsw_reg_mddq_query_type_set(payload, query_type);
+}
+
+static inline void
+mlxsw_reg_mddq_slot_info_pack(char *payload, u8 slot_index, bool sie)
+{
+	__mlxsw_reg_mddq_pack(payload, slot_index,
+			      MLXSW_REG_MDDQ_QUERY_TYPE_SLOT_INFO);
+	mlxsw_reg_mddq_sie_set(payload, sie);
+}
+
+static inline void
+mlxsw_reg_mddq_slot_info_unpack(const char *payload, u8 *p_slot_index,
+				bool *p_provisioned, bool *p_sr_valid,
+				enum mlxsw_reg_mddq_slot_info_ready *p_lc_ready,
+				bool *p_active, u16 *p_hw_revision,
+				u16 *p_ini_file_version,
+				u8 *p_card_type)
+{
+	*p_slot_index = mlxsw_reg_mddq_slot_index_get(payload);
+	*p_provisioned = mlxsw_reg_mddq_slot_info_provisioned_get(payload);
+	*p_sr_valid = mlxsw_reg_mddq_slot_info_sr_valid_get(payload);
+	*p_lc_ready = mlxsw_reg_mddq_slot_info_lc_ready_get(payload);
+	*p_active = mlxsw_reg_mddq_slot_info_active_get(payload);
+	*p_hw_revision = mlxsw_reg_mddq_slot_info_hw_revision_get(payload);
+	*p_ini_file_version = mlxsw_reg_mddq_slot_info_ini_file_version_get(payload);
+	*p_card_type = mlxsw_reg_mddq_slot_info_card_type_get(payload);
+}
+
+#define MLXSW_REG_MDDQ_SLOT_ASCII_NAME_LEN 20
+
+/* reg_mddq_slot_ascii_name
+ * Slot's ASCII name.
+ * Access: RO
+ */
+MLXSW_ITEM_BUF(reg, mddq, slot_ascii_name, 0x10,
+	       MLXSW_REG_MDDQ_SLOT_ASCII_NAME_LEN);
+
+static inline void
+mlxsw_reg_mddq_slot_name_pack(char *payload, u8 slot_index)
+{
+	__mlxsw_reg_mddq_pack(payload, slot_index,
+			      MLXSW_REG_MDDQ_QUERY_TYPE_SLOT_NAME);
+}
+
+static inline void
+mlxsw_reg_mddq_slot_name_unpack(const char *payload, char *slot_ascii_name)
+{
+	mlxsw_reg_mddq_slot_ascii_name_memcpy_from(payload, slot_ascii_name);
+}
+
 /* MFDE - Monitoring FW Debug Register
  * -----------------------------------
  */
@@ -12811,6 +12954,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mtptpt),
 	MLXSW_REG(mfgd),
 	MLXSW_REG(mgpir),
+	MLXSW_REG(mddq),
 	MLXSW_REG(mfde),
 	MLXSW_REG(tngcr),
 	MLXSW_REG(tnumt),
