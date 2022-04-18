@@ -14,6 +14,8 @@ properties:
   compatible:
     enum:
       - arm,cmn-600
+      - arm,cmn-650
+      - arm,cmn-700
       - arm,ci-700
 
   reg:
