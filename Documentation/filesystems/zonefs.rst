@@ -351,6 +351,44 @@ guaranteed that write requests can be processed. Conversely, the
 to the device on the last close() of a zone file if the zone is not full nor
 empty.
 
+Runtime sysfs attributes
+------------------------
+
+zonefs defines several sysfs attributes for mounted devices.  All attributes
+are user readable and can be found in the directory /sys/fs/zonefs/<dev>/,
+where <dev> is the name of the mounted zoned block device.
+
+The attributes defined are as follows.
+
+* **max_wro_seq_files**:  This attribute reports the maximum number of
+  sequential zone files that can be open for writing.  This number corresponds
+  to the maximum number of explicitly or implicitly open zones that the device
+  supports.  A value of 0 means that the device has no limit and that any zone
+  (any file) can be open for writing and written at any time, regardless of the
+  state of other zones.  When the *explicit-open* mount option is used, zonefs
+  will fail any open() system call requesting to open a sequential zone file for
+  writing when the number of sequential zone files already open for writing has
+  reached the *max_wro_seq_files* limit.
+* **nr_wro_seq_files**:  This attribute reports the current number of sequential
+  zone files open for writing.  When the "explicit-open" mount option is used,
+  this number can never exceed *max_wro_seq_files*.  If the *explicit-open*
+  mount option is not used, the reported number can be greater than
+  *max_wro_seq_files*.  In such case, it is the responsibility of the
+  application to not write simultaneously more than *max_wro_seq_files*
+  sequential zone files.  Failure to do so can result in write errors.
+* **max_active_seq_files**:  This attribute reports the maximum number of
+  sequential zone files that are in an active state, that is, sequential zone
+  files that are partially writen (not empty nor full) or that have a zone that
+  is explicitly open (which happens only if the *explicit-open* mount option is
+  used).  This number is always equal to the maximum number of active zones that
+  the device supports.  A value of 0 means that the mounted device has no limit
+  on the number of sequential zone files that can be active.
+* **nr_active_seq_files**:  This attributes reports the current number of
+  sequential zone files that are active. If *max_active_seq_files* is not 0,
+  then the value of *nr_active_seq_files* can never exceed the value of
+  *nr_active_seq_files*, regardless of the use of the *explicit-open* mount
+  option.
+
 Zonefs User Space Tools
 =======================
 
