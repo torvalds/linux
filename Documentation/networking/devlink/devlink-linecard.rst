@@ -66,6 +66,7 @@ The ``devlink-linecard`` mechanism supports the following line card states:
     with a line card type.
   * ``provisioning_failed``: Provisioning was not successful.
   * ``provisioned``: Line card slot is provisioned with a type.
+  * ``active``: Line card is powered-up and active.
 
 The following diagram provides a general overview of ``devlink-linecard``
 state transitions::
@@ -85,11 +86,11 @@ state transitions::
        |                                               |
        |                 +-----------------------------+
        |                 |                             |
-       |    +------------v------------+   +------------v------------+
-       |    |                         |   |                         |
-       +-----   provisioning_failed   |   |       provisioned       |
-       |    |                         |   |                         |
-       |    +------------^------------+   +------------|------------+
+       |    +------------v------------+   +------------v------------+   +-------------------------+
+       |    |                         |   |                         ---->                         |
+       +-----   provisioning_failed   |   |       provisioned       |   |         active          |
+       |    |                         |   |                         <----                         |
+       |    +------------^------------+   +------------|------------+   +-------------------------+
        |                 |                             |
        |                 |                             |
        |                 |                +------------v------------+
