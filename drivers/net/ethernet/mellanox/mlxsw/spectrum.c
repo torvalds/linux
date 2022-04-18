@@ -486,6 +486,7 @@ mlxsw_sp_port_module_info_get(struct mlxsw_sp *mlxsw_sp, u16 local_port,
 {
 	char pmlp_pl[MLXSW_REG_PMLP_LEN];
 	bool separate_rxtx;
+	u8 first_lane;
 	u8 module;
 	u8 width;
 	int err;
@@ -498,6 +499,7 @@ mlxsw_sp_port_module_info_get(struct mlxsw_sp *mlxsw_sp, u16 local_port,
 	module = mlxsw_reg_pmlp_module_get(pmlp_pl, 0);
 	width = mlxsw_reg_pmlp_width_get(pmlp_pl);
 	separate_rxtx = mlxsw_reg_pmlp_rxtx_get(pmlp_pl);
+	first_lane = mlxsw_reg_pmlp_tx_lane_get(pmlp_pl, 0);
 
 	if (width && !is_power_of_2(width)) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Unsupported module config: width value is not power of 2\n",
@@ -518,7 +520,7 @@ mlxsw_sp_port_module_info_get(struct mlxsw_sp *mlxsw_sp, u16 local_port,
 				local_port);
 			return -EINVAL;
 		}
-		if (mlxsw_reg_pmlp_tx_lane_get(pmlp_pl, i) != i) {
+		if (mlxsw_reg_pmlp_tx_lane_get(pmlp_pl, i) != i + first_lane) {
 			dev_err(mlxsw_sp->bus_info->dev, "Port %d: Unsupported module config: TX and RX lane numbers are not sequential\n",
 				local_port);
 			return -EINVAL;
