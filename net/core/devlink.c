@@ -1243,6 +1243,10 @@ static int devlink_nl_port_fill(struct sk_buff *msg,
 		goto nla_put_failure;
 	if (devlink_nl_port_function_attrs_put(msg, devlink_port, extack))
 		goto nla_put_failure;
+	if (devlink_port->linecard &&
+	    nla_put_u32(msg, DEVLINK_ATTR_LINECARD_INDEX,
+			devlink_port->linecard->index))
+		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
 	return 0;
@@ -10105,6 +10109,21 @@ void devlink_rate_nodes_destroy(struct devlink *devlink)
 }
 EXPORT_SYMBOL_GPL(devlink_rate_nodes_destroy);
 
+/**
+ *	devlink_port_linecard_set - Link port with a linecard
+ *
+ *	@devlink_port: devlink port
+ *	@linecard: devlink linecard
+ */
+void devlink_port_linecard_set(struct devlink_port *devlink_port,
+			       struct devlink_linecard *linecard)
+{
+	if (WARN_ON(devlink_port->devlink))
+		return;
+	devlink_port->linecard = linecard;
+}
+EXPORT_SYMBOL_GPL(devlink_port_linecard_set);
+
 static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
 					     char *name, size_t len)
 {
@@ -10116,7 +10135,12 @@ static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
 
 	switch (attrs->flavour) {
 	case DEVLINK_PORT_FLAVOUR_PHYSICAL:
-		n = snprintf(name, len, "p%u", attrs->phys.port_number);
+		if (devlink_port->linecard)
+			n = snprintf(name, len, "l%u",
+				     devlink_port->linecard->index);
+		if (n < len)
+			n += snprintf(name + n, len - n, "p%u",
+				      attrs->phys.port_number);
 		if (n < len && attrs->split)
 			n += snprintf(name + n, len - n, "s%u",
 				      attrs->phys.split_subport_number);
