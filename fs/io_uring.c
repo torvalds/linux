@@ -7388,8 +7388,7 @@ static inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 	struct file *file = NULL;
 	unsigned long file_ptr;
 
-	if (issue_flags & IO_URING_F_UNLOCKED)
-		mutex_lock(&ctx->uring_lock);
+	io_ring_submit_lock(ctx, issue_flags);
 
 	if (unlikely((unsigned int)fd >= ctx->nr_user_files))
 		goto out;
@@ -7401,8 +7400,7 @@ static inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 	req->flags |= (file_ptr << REQ_F_SUPPORT_NOWAIT_BIT);
 	io_req_set_rsrc_node(req, ctx, 0);
 out:
-	if (issue_flags & IO_URING_F_UNLOCKED)
-		mutex_unlock(&ctx->uring_lock);
+	io_ring_submit_unlock(ctx, issue_flags);
 	return file;
 }
 
