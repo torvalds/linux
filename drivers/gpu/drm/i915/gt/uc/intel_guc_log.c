@@ -4,6 +4,7 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/string_helpers.h>
 
 #include "gt/intel_gt.h"
 #include "i915_drv.h"
@@ -476,8 +477,8 @@ int intel_guc_log_create(struct intel_guc_log *log)
 
 	log->level = __get_default_log_level(log);
 	DRM_DEBUG_DRIVER("guc_log_level=%d (%s, verbose:%s, verbosity:%d)\n",
-			 log->level, enableddisabled(log->level),
-			 yesno(GUC_LOG_LEVEL_IS_VERBOSE(log->level)),
+			 log->level, str_enabled_disabled(log->level),
+			 str_yes_no(GUC_LOG_LEVEL_IS_VERBOSE(log->level)),
 			 GUC_LOG_LEVEL_TO_VERBOSITY(log->level));
 
 	return 0;

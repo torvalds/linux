@@ -1384,10 +1384,6 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	if (IS_ENABLED(CONFIG_BLK_DEV_BSG)) {
 		sdev->bsg_dev = scsi_bsg_register_queue(sdev);
 		if (IS_ERR(sdev->bsg_dev)) {
-			/*
-			 * We're treating error on bsg register as non-fatal, so
-			 * pretend nothing went wrong.
-			 */
 			error = PTR_ERR(sdev->bsg_dev);
 			sdev_printk(KERN_INFO, sdev,
 				    "Failed to register bsg queue, errno=%d\n",

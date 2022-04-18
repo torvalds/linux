@@ -112,6 +112,8 @@ static inline void dma_fence_chain_free(struct dma_fence_chain *chain)
  *
  * Iterate over all fences in the chain. We keep a reference to the current
  * fence while inside the loop which must be dropped when breaking out.
+ *
+ * For a deep dive iterator see dma_fence_unwrap_for_each().
  */
 #define dma_fence_chain_for_each(iter, head)	\
 	for (iter = dma_fence_get(head); iter; \

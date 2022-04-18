@@ -96,6 +96,7 @@ struct unwind_info {
 	struct perf_sample	*sample;
 	struct machine		*machine;
 	struct thread		*thread;
+	bool			 best_effort;
 };
 
 #define dw_read(ptr, type, end) ({	\
@@ -553,7 +554,8 @@ static int access_reg(unw_addr_space_t __maybe_unused as,
 
 	ret = perf_reg_value(&val, &ui->sample->user_regs, id);
 	if (ret) {
-		pr_err("unwind: can't read reg %d\n", regnum);
+		if (!ui->best_effort)
+			pr_err("unwind: can't read reg %d\n", regnum);
 		return ret;
 	}
 
@@ -666,7 +668,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 			return -1;
 
 		ret = unw_init_remote(&c, addr_space, ui);
-		if (ret)
+		if (ret && !ui->best_effort)
 			display_error(ret);
 
 		while (!ret && (unw_step(&c) > 0) && i < max_stack) {
@@ -704,12 +706,14 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 
 static int _unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			struct thread *thread,
-			struct perf_sample *data, int max_stack)
+			struct perf_sample *data, int max_stack,
+			bool best_effort)
 {
 	struct unwind_info ui = {
 		.sample       = data,
 		.thread       = thread,
 		.machine      = thread->maps->machine,
+		.best_effort  = best_effort
 	};
 
 	if (!data->user_regs.regs)

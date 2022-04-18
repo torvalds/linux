@@ -3,6 +3,8 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <linux/string_helpers.h>
+
 #include "i915_drv.h"
 #include "intel_engine_regs.h"
 #include "intel_gt_regs.h"
@@ -711,10 +713,11 @@ void intel_sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p)
 	drm_printf(p, "EU total: %u\n", sseu->eu_total);
 	drm_printf(p, "EU per subslice: %u\n", sseu->eu_per_subslice);
 	drm_printf(p, "has slice power gating: %s\n",
-		   yesno(sseu->has_slice_pg));
+		   str_yes_no(sseu->has_slice_pg));
 	drm_printf(p, "has subslice power gating: %s\n",
-		   yesno(sseu->has_subslice_pg));
-	drm_printf(p, "has EU power gating: %s\n", yesno(sseu->has_eu_pg));
+		   str_yes_no(sseu->has_subslice_pg));
+	drm_printf(p, "has EU power gating: %s\n",
+		   str_yes_no(sseu->has_eu_pg));
 }
 
 void intel_sseu_print_topology(const struct sseu_dev_info *sseu,

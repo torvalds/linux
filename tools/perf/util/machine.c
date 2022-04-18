@@ -2987,7 +2987,7 @@ static int thread__resolve_callchain_unwind(struct thread *thread,
 		return 0;
 
 	return unwind__get_entries(unwind_entry, cursor,
-				   thread, sample, max_stack);
+				   thread, sample, max_stack, false);
 }
 
 int thread__resolve_callchain(struct thread *thread,

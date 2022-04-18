@@ -14,6 +14,11 @@ struct drm_i915_private;
 struct i915_power_well;
 struct intel_encoder;
 
+/*
+ * Keep the pipe, transcoder, port (DDI_LANES,DDI_IO,AUX) domain instances
+ * consecutive, so that the pipe,transcoder,port -> power domain macros
+ * work correctly.
+ */
 enum intel_display_power_domain {
 	POWER_DOMAIN_DISPLAY_CORE,
 	POWER_DOMAIN_PIPE_A,
@@ -29,10 +34,12 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_TRANSCODER_C,
 	POWER_DOMAIN_TRANSCODER_D,
 	POWER_DOMAIN_TRANSCODER_EDP,
-	/* VDSC/joining for eDP/DSI transcoder (ICL) or pipe A (TGL) */
-	POWER_DOMAIN_TRANSCODER_VDSC_PW2,
 	POWER_DOMAIN_TRANSCODER_DSI_A,
 	POWER_DOMAIN_TRANSCODER_DSI_C,
+
+	/* VDSC/joining for eDP/DSI transcoder (ICL) or pipe A (TGL) */
+	POWER_DOMAIN_TRANSCODER_VDSC_PW2,
+
 	POWER_DOMAIN_PORT_DDI_A_LANES,
 	POWER_DOMAIN_PORT_DDI_B_LANES,
 	POWER_DOMAIN_PORT_DDI_C_LANES,
@@ -125,30 +132,6 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_NUM,
 };
 
-/*
- * i915_power_well_id:
- *
- * IDs used to look up power wells. Power wells accessed directly bypassing
- * the power domains framework must be assigned a unique ID. The rest of power
- * wells must be assigned DISP_PW_ID_NONE.
- */
-enum i915_power_well_id {
-	DISP_PW_ID_NONE,
-
-	VLV_DISP_PW_DISP2D,
-	BXT_DISP_PW_DPIO_CMN_A,
-	VLV_DISP_PW_DPIO_CMN_BC,
-	GLK_DISP_PW_DPIO_CMN_C,
-	CHV_DISP_PW_DPIO_CMN_D,
-	HSW_DISP_PW_GLOBAL,
-	SKL_DISP_PW_MISC_IO,
-	SKL_DISP_PW_1,
-	SKL_DISP_PW_2,
-	ICL_DISP_PW_3,
-	SKL_DISP_DC_OFF,
-	TGL_DISP_PW_TC_COLD_OFF,
-};
-
 #define POWER_DOMAIN_PIPE(pipe) ((pipe) + POWER_DOMAIN_PIPE_A)
 #define POWER_DOMAIN_PIPE_PANEL_FITTER(pipe) \
 		((pipe) + POWER_DOMAIN_PIPE_A_PANEL_FITTER)
@@ -232,8 +215,6 @@ intel_display_power_domain_str(enum intel_display_power_domain domain);
 
 bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				    enum intel_display_power_domain domain);
-bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
-					 enum i915_power_well_id power_well_id);
 bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				      enum intel_display_power_domain domain);
 intel_wakeref_t intel_display_power_get(struct drm_i915_private *dev_priv,

@@ -283,7 +283,7 @@ static bool intel_sdvo_read_byte(struct intel_sdvo *intel_sdvo, u8 addr, u8 *ch)
 static const struct {
 	u8 cmd;
 	const char *name;
-} __attribute__ ((packed)) sdvo_cmd_names[] = {
+} __packed sdvo_cmd_names[] = {
 	SDVO_CMD_NAME_ENTRY(RESET),
 	SDVO_CMD_NAME_ENTRY(GET_DEVICE_CAPS),
 	SDVO_CMD_NAME_ENTRY(GET_FIRMWARE_REV),
@@ -783,24 +783,22 @@ static bool intel_sdvo_get_input_timing(struct intel_sdvo *intel_sdvo,
 static bool
 intel_sdvo_create_preferred_input_timing(struct intel_sdvo *intel_sdvo,
 					 struct intel_sdvo_connector *intel_sdvo_connector,
-					 u16 clock,
-					 u16 width,
-					 u16 height)
+					 const struct drm_display_mode *mode)
 {
 	struct intel_sdvo_preferred_input_timing_args args;
 
 	memset(&args, 0, sizeof(args));
-	args.clock = clock;
-	args.width = width;
-	args.height = height;
+	args.clock = mode->clock / 10;
+	args.width = mode->hdisplay;
+	args.height = mode->vdisplay;
 	args.interlace = 0;
 
 	if (IS_LVDS(intel_sdvo_connector)) {
 		const struct drm_display_mode *fixed_mode =
-			intel_sdvo_connector->base.panel.fixed_mode;
+			intel_panel_fixed_mode(&intel_sdvo_connector->base, mode);
 
-		if (fixed_mode->hdisplay != width ||
-		    fixed_mode->vdisplay != height)
+		if (fixed_mode->hdisplay != args.width ||
+		    fixed_mode->vdisplay != args.height)
 			args.scaled = 1;
 	}
 
@@ -1236,9 +1234,7 @@ intel_sdvo_get_preferred_input_mode(struct intel_sdvo *intel_sdvo,
 
 	if (!intel_sdvo_create_preferred_input_timing(intel_sdvo,
 						      intel_sdvo_connector,
-						      mode->clock / 10,
-						      mode->hdisplay,
-						      mode->vdisplay))
+						      mode))
 		return false;
 
 	if (!intel_sdvo_get_preferred_input_timing(intel_sdvo,
@@ -1335,6 +1331,8 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 							   adjusted_mode);
 		pipe_config->sdvo_tv_clock = true;
 	} else if (IS_LVDS(intel_sdvo_connector)) {
+		const struct drm_display_mode *fixed_mode =
+			intel_panel_fixed_mode(&intel_sdvo_connector->base, mode);
 		int ret;
 
 		ret = intel_panel_compute_config(&intel_sdvo_connector->base,
@@ -1342,8 +1340,7 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 		if (ret)
 			return ret;
 
-		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo,
-							     intel_sdvo_connector->base.panel.fixed_mode))
+		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo, fixed_mode))
 			return -EINVAL;
 
 		(void) intel_sdvo_get_preferred_input_mode(intel_sdvo,
@@ -1465,7 +1462,7 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	const struct intel_sdvo_connector_state *sdvo_state =
 		to_intel_sdvo_connector_state(conn_state);
-	const struct intel_sdvo_connector *intel_sdvo_connector =
+	struct intel_sdvo_connector *intel_sdvo_connector =
 		to_intel_sdvo_connector(conn_state->connector);
 	const struct drm_display_mode *mode = &crtc_state->hw.mode;
 	struct intel_sdvo *intel_sdvo = to_sdvo(intel_encoder);
@@ -1496,11 +1493,14 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 		return;
 
 	/* lvds has a special fixed output timing. */
-	if (IS_LVDS(intel_sdvo_connector))
-		intel_sdvo_get_dtd_from_mode(&output_dtd,
-					     intel_sdvo_connector->base.panel.fixed_mode);
-	else
+	if (IS_LVDS(intel_sdvo_connector)) {
+		const struct drm_display_mode *fixed_mode =
+			intel_panel_fixed_mode(&intel_sdvo_connector->base, mode);
+
+		intel_sdvo_get_dtd_from_mode(&output_dtd, fixed_mode);
+	} else {
 		intel_sdvo_get_dtd_from_mode(&output_dtd, mode);
+	}
 	if (!intel_sdvo_set_output_timing(intel_sdvo, &output_dtd))
 		drm_info(&dev_priv->drm,
 			 "Setting output timings on %s failed\n",
@@ -2291,33 +2291,12 @@ static int intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(to_intel_connector(connector));
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	struct drm_display_mode *newmode;
 	int num_modes = 0;
 
 	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.id, connector->name);
 
-	/*
-	 * Fetch modes from VBT. For SDVO prefer the VBT mode since some
-	 * SDVO->LVDS transcoders can't cope with the EDID mode.
-	 */
-	if (dev_priv->vbt.sdvo_lvds_vbt_mode != NULL) {
-		newmode = drm_mode_duplicate(connector->dev,
-					     dev_priv->vbt.sdvo_lvds_vbt_mode);
-		if (newmode != NULL) {
-			/* Guarantee the mode is preferred */
-			newmode->type = (DRM_MODE_TYPE_PREFERRED |
-					 DRM_MODE_TYPE_DRIVER);
-			drm_mode_probed_add(connector, newmode);
-			num_modes++;
-		}
-	}
-
-	/*
-	 * Attempt to get the mode list from DDC.
-	 * Assume that the preferred modes are
-	 * arranged in priority order.
-	 */
+	num_modes += intel_panel_get_modes(to_intel_connector(connector));
 	num_modes += intel_ddc_get_modes(connector, &intel_sdvo->ddc);
 
 	return num_modes;
@@ -2747,6 +2726,8 @@ static struct intel_sdvo_connector *intel_sdvo_connector_alloc(void)
 	__drm_atomic_helper_connector_reset(&sdvo_connector->base.base,
 					    &conn_state->base.base);
 
+	INIT_LIST_HEAD(&sdvo_connector->base.panel.fixed_modes);
+
 	return sdvo_connector;
 }
 
@@ -2890,7 +2871,6 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 	struct drm_connector *connector;
 	struct intel_connector *intel_connector;
 	struct intel_sdvo_connector *intel_sdvo_connector;
-	struct drm_display_mode *mode;
 
 	DRM_DEBUG_KMS("initialising LVDS device %d\n", device);
 
@@ -2919,20 +2899,20 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 	if (!intel_sdvo_create_enhance_property(intel_sdvo, intel_sdvo_connector))
 		goto err;
 
-	intel_sdvo_get_lvds_modes(connector);
+	/*
+	 * Fetch modes from VBT. For SDVO prefer the VBT mode since some
+	 * SDVO->LVDS transcoders can't cope with the EDID mode.
+	 */
+	intel_panel_add_vbt_sdvo_fixed_mode(intel_connector);
 
-	list_for_each_entry(mode, &connector->probed_modes, head) {
-		if (mode->type & DRM_MODE_TYPE_PREFERRED) {
-			struct drm_display_mode *fixed_mode =
-				drm_mode_duplicate(connector->dev, mode);
-
-			intel_panel_init(&intel_connector->panel,
-					 fixed_mode, NULL);
-			break;
-		}
+	if (!intel_panel_preferred_fixed_mode(intel_connector)) {
+		intel_ddc_get_modes(connector, &intel_sdvo->ddc);
+		intel_panel_add_edid_fixed_modes(intel_connector, false);
 	}
 
-	if (!intel_connector->panel.fixed_mode)
+	intel_panel_init(intel_connector);
+
+	if (!intel_panel_preferred_fixed_mode(intel_connector))
 		goto err;
 
 	return true;

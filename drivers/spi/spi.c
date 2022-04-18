@@ -1130,11 +1130,15 @@ static int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg)
 
 	if (ctlr->dma_tx)
 		tx_dev = ctlr->dma_tx->device->dev;
+	else if (ctlr->dma_map_dev)
+		tx_dev = ctlr->dma_map_dev;
 	else
 		tx_dev = ctlr->dev.parent;
 
 	if (ctlr->dma_rx)
 		rx_dev = ctlr->dma_rx->device->dev;
+	else if (ctlr->dma_map_dev)
+		rx_dev = ctlr->dma_map_dev;
 	else
 		rx_dev = ctlr->dev.parent;
 
@@ -2406,7 +2410,8 @@ static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 			} else {
 				struct acpi_device *adev;
 
-				if (acpi_bus_get_device(parent_handle, &adev))
+				adev = acpi_fetch_acpi_dev(parent_handle);
+				if (!adev)
 					return -ENODEV;
 
 				ctlr = acpi_spi_find_controller_by_adev(adev);

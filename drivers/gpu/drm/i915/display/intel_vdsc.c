@@ -378,10 +378,18 @@ calculate_rc_params(struct rc_parameters *rc,
 {
 	int bpc = vdsc_cfg->bits_per_component;
 	int bpp = vdsc_cfg->bits_per_pixel >> 4;
-	int ofs_und6[] = { 0, -2, -2, -4, -6, -6, -8, -8, -8, -10, -10, -12, -12, -12, -12 };
-	int ofs_und8[] = { 2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -10, -12, -12, -12 };
-	int ofs_und12[] = { 2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -10, -12, -12, -12 };
-	int ofs_und15[] = { 10, 8, 6, 4, 2, 0, -2, -4, -6, -8, -10, -10, -12, -12, -12 };
+	static const s8 ofs_und6[] = {
+		0, -2, -2, -4, -6, -6, -8, -8, -8, -10, -10, -12, -12, -12, -12
+	};
+	static const s8 ofs_und8[] = {
+		2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -10, -12, -12, -12
+	};
+	static const s8 ofs_und12[] = {
+		2, 0, 0, -2, -4, -6, -8, -8, -8, -10, -10, -10, -12, -12, -12
+	};
+	static const s8 ofs_und15[] = {
+		10, 8, 6, 4, 2, 0, -2, -4, -6, -8, -10, -10, -12, -12, -12
+	};
 	int qp_bpc_modifier = (bpc - 8) * 2;
 	u32 res, buf_i, bpp_i;
 
@@ -579,7 +587,7 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 	u8 num_vdsc_instances = (crtc_state->dsc.dsc_split) ? 2 : 1;
 	int i = 0;
 
-	if (crtc_state->bigjoiner)
+	if (crtc_state->bigjoiner_pipes)
 		num_vdsc_instances *= 2;
 
 	/* Populate PICTURE_PARAMETER_SET_0 registers */
@@ -1113,7 +1121,7 @@ void intel_uncompressed_joiner_enable(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 dss_ctl1_val = 0;
 
-	if (crtc_state->bigjoiner && !crtc_state->dsc.compression_enable) {
+	if (crtc_state->bigjoiner_pipes && !crtc_state->dsc.compression_enable) {
 		if (intel_crtc_is_bigjoiner_slave(crtc_state))
 			dss_ctl1_val |= UNCOMPRESSED_JOINER_SLAVE;
 		else
@@ -1140,7 +1148,7 @@ void intel_dsc_enable(const struct intel_crtc_state *crtc_state)
 		dss_ctl2_val |= RIGHT_BRANCH_VDSC_ENABLE;
 		dss_ctl1_val |= JOINER_ENABLE;
 	}
-	if (crtc_state->bigjoiner) {
+	if (crtc_state->bigjoiner_pipes) {
 		dss_ctl1_val |= BIG_JOINER_ENABLE;
 		if (!intel_crtc_is_bigjoiner_slave(crtc_state))
 			dss_ctl1_val |= MASTER_BIG_JOINER_ENABLE;
@@ -1156,7 +1164,7 @@ void intel_dsc_disable(const struct intel_crtc_state *old_crtc_state)
 
 	/* Disable only if either of them is enabled */
 	if (old_crtc_state->dsc.compression_enable ||
-	    old_crtc_state->bigjoiner) {
+	    old_crtc_state->bigjoiner_pipes) {
 		intel_de_write(dev_priv, dss_ctl1_reg(crtc, old_crtc_state->cpu_transcoder), 0);
 		intel_de_write(dev_priv, dss_ctl2_reg(crtc, old_crtc_state->cpu_transcoder), 0);
 	}

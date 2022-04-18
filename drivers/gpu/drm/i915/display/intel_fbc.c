@@ -38,9 +38,12 @@
  * forcibly disable it to allow proper screen updates.
  */
 
+#include <linux/string_helpers.h>
+
 #include <drm/drm_fourcc.h>
 
 #include "i915_drv.h"
+#include "i915_utils.h"
 #include "i915_vgpu.h"
 #include "intel_cdclk.h"
 #include "intel_de.h"
@@ -87,7 +90,6 @@ struct intel_fbc {
 	 * with stolen_lock.
 	 */
 	struct mutex lock;
-	unsigned int possible_framebuffer_bits;
 	unsigned int busy_bits;
 
 	struct drm_mm_node compressed_fb;
@@ -665,6 +667,10 @@ static bool intel_fbc_is_compressing(struct intel_fbc *fbc)
 
 static void intel_fbc_nuke(struct intel_fbc *fbc)
 {
+	struct drm_i915_private *i915 = fbc->i915;
+
+	drm_WARN_ON(&i915->drm, fbc->flip_pending);
+
 	trace_intel_fbc_nuke(fbc->state.plane);
 
 	fbc->funcs->nuke(fbc);
@@ -946,6 +952,7 @@ static bool tiling_is_valid(const struct intel_plane_state *plane_state)
 	case I915_FORMAT_MOD_Y_TILED:
 	case I915_FORMAT_MOD_Yf_TILED:
 		return DISPLAY_VER(i915) >= 9;
+	case I915_FORMAT_MOD_4_TILED:
 	case I915_FORMAT_MOD_X_TILED:
 		return true;
 	default:
@@ -966,6 +973,7 @@ static void intel_fbc_update_state(struct intel_atomic_state *state,
 	struct intel_fbc_state *fbc_state = &fbc->state;
 
 	WARN_ON(plane_state->no_fbc_reason);
+	WARN_ON(fbc_state->plane && fbc_state->plane != plane);
 
 	fbc_state->plane = plane;
 
@@ -1270,6 +1278,8 @@ static void __intel_fbc_disable(struct intel_fbc *fbc)
 	__intel_fbc_cleanup_cfb(fbc);
 
 	fbc->state.plane = NULL;
+	fbc->flip_pending = false;
+	fbc->busy_bits = 0;
 }
 
 static void __intel_fbc_post_update(struct intel_fbc *fbc)
@@ -1313,7 +1323,7 @@ static unsigned int intel_fbc_get_frontbuffer_bit(struct intel_fbc *fbc)
 	if (fbc->state.plane)
 		return fbc->state.plane->frontbuffer_bit;
 	else
-		return fbc->possible_framebuffer_bits;
+		return 0;
 }
 
 static void __intel_fbc_invalidate(struct intel_fbc *fbc,
@@ -1325,11 +1335,14 @@ static void __intel_fbc_invalidate(struct intel_fbc *fbc,
 
 	mutex_lock(&fbc->lock);
 
-	fbc->busy_bits |= intel_fbc_get_frontbuffer_bit(fbc) & frontbuffer_bits;
+	frontbuffer_bits &= intel_fbc_get_frontbuffer_bit(fbc);
+	if (!frontbuffer_bits)
+		goto out;
 
-	if (fbc->state.plane && fbc->busy_bits)
-		intel_fbc_deactivate(fbc, "frontbuffer write");
+	fbc->busy_bits |= frontbuffer_bits;
+	intel_fbc_deactivate(fbc, "frontbuffer write");
 
+out:
 	mutex_unlock(&fbc->lock);
 }
 
@@ -1351,18 +1364,22 @@ static void __intel_fbc_flush(struct intel_fbc *fbc,
 {
 	mutex_lock(&fbc->lock);
 
+	frontbuffer_bits &= intel_fbc_get_frontbuffer_bit(fbc);
+	if (!frontbuffer_bits)
+		goto out;
+
 	fbc->busy_bits &= ~frontbuffer_bits;
 
 	if (origin == ORIGIN_FLIP || origin == ORIGIN_CURSOR_UPDATE)
 		goto out;
 
-	if (!fbc->busy_bits && fbc->state.plane &&
-	    (frontbuffer_bits & intel_fbc_get_frontbuffer_bit(fbc))) {
-		if (fbc->active)
-			intel_fbc_nuke(fbc);
-		else if (!fbc->flip_pending)
-			__intel_fbc_post_update(fbc);
-	}
+	if (fbc->busy_bits || fbc->flip_pending)
+		goto out;
+
+	if (fbc->active)
+		intel_fbc_nuke(fbc);
+	else
+		intel_fbc_activate(fbc);
 
 out:
 	mutex_unlock(&fbc->lock);
@@ -1500,25 +1517,6 @@ void intel_fbc_update(struct intel_atomic_state *state,
 	}
 }
 
-/**
- * intel_fbc_global_disable - globally disable FBC
- * @i915: i915 device instance
- *
- * This function disables FBC regardless of which CRTC is associated with it.
- */
-void intel_fbc_global_disable(struct drm_i915_private *i915)
-{
-	struct intel_fbc *fbc;
-	enum intel_fbc_id fbc_id;
-
-	for_each_intel_fbc(i915, fbc, fbc_id) {
-		mutex_lock(&fbc->lock);
-		if (fbc->state.plane)
-			__intel_fbc_disable(fbc);
-		mutex_unlock(&fbc->lock);
-	}
-}
-
 static void intel_fbc_underrun_work_fn(struct work_struct *work)
 {
 	struct intel_fbc *fbc = container_of(work, typeof(*fbc), underrun_work);
@@ -1640,7 +1638,7 @@ static int intel_sanitize_fbc_option(struct drm_i915_private *i915)
 static bool need_fbc_vtd_wa(struct drm_i915_private *i915)
 {
 	/* WaFbcTurnOffFbcWhenHyperVisorIsUsed:skl,bxt */
-	if (intel_vtd_active(i915) &&
+	if (i915_vtd_active(i915) &&
 	    (IS_SKYLAKE(i915) || IS_BROXTON(i915))) {
 		drm_info(&i915->drm,
 			 "Disabling framebuffer compression (FBC) to prevent screen flicker with VT-d enabled\n");
@@ -1652,11 +1650,7 @@ static bool need_fbc_vtd_wa(struct drm_i915_private *i915)
 
 void intel_fbc_add_plane(struct intel_fbc *fbc, struct intel_plane *plane)
 {
-	if (!fbc)
-		return;
-
 	plane->fbc = fbc;
-	fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
 }
 
 static struct intel_fbc *intel_fbc_create(struct drm_i915_private *i915,
@@ -1709,22 +1703,26 @@ void intel_fbc_init(struct drm_i915_private *i915)
 	drm_dbg_kms(&i915->drm, "Sanitized enable_fbc value: %d\n",
 		    i915->params.enable_fbc);
 
-	for_each_fbc_id(i915, fbc_id) {
-		struct intel_fbc *fbc;
+	for_each_fbc_id(i915, fbc_id)
+		i915->fbc[fbc_id] = intel_fbc_create(i915, fbc_id);
+}
 
-		fbc = intel_fbc_create(i915, fbc_id);
-		if (!fbc)
-			continue;
+/**
+ * intel_fbc_sanitize - Sanitize FBC
+ * @i915: the i915 device
+ *
+ * Make sure FBC is initially disabled since we have no
+ * idea eg. into which parts of stolen it might be scribbling
+ * into.
+ */
+void intel_fbc_sanitize(struct drm_i915_private *i915)
+{
+	struct intel_fbc *fbc;
+	enum intel_fbc_id fbc_id;
 
-		/*
-		 * We still don't have any sort of hardware state readout
-		 * for FBC, so deactivate it in case the BIOS activated it
-		 * to make sure software matches the hardware state.
-		 */
+	for_each_intel_fbc(i915, fbc, fbc_id) {
 		if (intel_fbc_hw_is_active(fbc))
 			intel_fbc_hw_deactivate(fbc);
-
-		i915->fbc[fbc->id] = fbc;
 	}
 }
 
@@ -1743,7 +1741,7 @@ static int intel_fbc_debugfs_status_show(struct seq_file *m, void *unused)
 	if (fbc->active) {
 		seq_puts(m, "FBC enabled\n");
 		seq_printf(m, "Compressing: %s\n",
-			   yesno(intel_fbc_is_compressing(fbc)));
+			   str_yes_no(intel_fbc_is_compressing(fbc)));
 	} else {
 		seq_printf(m, "FBC disabled: %s\n", fbc->no_fbc_reason);
 	}

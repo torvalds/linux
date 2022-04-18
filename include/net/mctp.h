@@ -36,8 +36,6 @@ struct mctp_hdr {
 #define MCTP_HDR_TAG_SHIFT	0
 #define MCTP_HDR_TAG_MASK	GENMASK(2, 0)
 
-#define MCTP_HEADER_MAXLEN	4
-
 #define MCTP_INITIAL_DEFAULT_NET	1
 
 static inline bool mctp_address_unicast(mctp_eid_t eid)

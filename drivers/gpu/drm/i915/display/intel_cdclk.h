@@ -36,6 +36,8 @@ struct intel_cdclk_state {
 	 */
 	struct intel_cdclk_config actual;
 
+	/* minimum acceptable cdclk to satisfy bandwidth requirements */
+	int bw_min_cdclk;
 	/* minimum acceptable cdclk for each pipe */
 	int min_cdclk[I915_MAX_PIPES];
 	/* minimum acceptable voltage level for each pipe */

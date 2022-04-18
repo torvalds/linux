@@ -1595,7 +1595,7 @@ static int ahci_init_msi(struct pci_dev *pdev, unsigned int n_ports,
 static void ahci_update_initial_lpm_policy(struct ata_port *ap,
 					   struct ahci_host_priv *hpriv)
 {
-	int policy = CONFIG_SATA_LPM_POLICY;
+	int policy = CONFIG_SATA_MOBILE_LPM_POLICY;
 
 
 	/* Ignore processing for chipsets that don't use policy */

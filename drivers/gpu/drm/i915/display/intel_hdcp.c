@@ -20,6 +20,7 @@
 #include "intel_connector.h"
 #include "intel_de.h"
 #include "intel_display_power.h"
+#include "intel_display_power_well.h"
 #include "intel_display_types.h"
 #include "intel_hdcp.h"
 #include "intel_pcode.h"

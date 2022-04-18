@@ -1155,6 +1155,17 @@ static void annotate_call_site(struct objtool_file *file,
 			               : arch_nop_insn(insn->len));
 
 		insn->type = sibling ? INSN_RETURN : INSN_NOP;
+
+		if (sibling) {
+			/*
+			 * We've replaced the tail-call JMP insn by two new
+			 * insn: RET; INT3, except we only have a single struct
+			 * insn here. Mark it retpoline_safe to avoid the SLS
+			 * warning, instead of adding another insn.
+			 */
+			insn->retpoline_safe = true;
+		}
+
 		return;
 	}
 
@@ -1239,11 +1250,20 @@ static bool same_function(struct instruction *insn1, struct instruction *insn2)
 	return insn1->func->pfunc == insn2->func->pfunc;
 }
 
-static bool is_first_func_insn(struct instruction *insn)
+static bool is_first_func_insn(struct objtool_file *file, struct instruction *insn)
 {
-	return insn->offset == insn->func->offset ||
-	       (insn->type == INSN_ENDBR &&
-		insn->offset == insn->func->offset + insn->len);
+	if (insn->offset == insn->func->offset)
+		return true;
+
+	if (ibt) {
+		struct instruction *prev = prev_insn_same_sym(file, insn);
+
+		if (prev && prev->type == INSN_ENDBR &&
+		    insn->offset == insn->func->offset + prev->len)
+			return true;
+	}
+
+	return false;
 }
 
 /*
@@ -1327,7 +1347,7 @@ static int add_jump_destinations(struct objtool_file *file)
 				insn->jump_dest->func->pfunc = insn->func;
 
 			} else if (!same_function(insn, insn->jump_dest) &&
-				   is_first_func_insn(insn->jump_dest)) {
+				   is_first_func_insn(file, insn->jump_dest)) {
 				/* internal sibling call (without reloc) */
 				add_call_dest(file, insn, insn->jump_dest->func, true);
 			}

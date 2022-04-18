@@ -4,6 +4,8 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include <linux/string_helpers.h>
+
 #include "i915_drv.h"
 #include "intel_gt_debugfs.h"
 #include "intel_gt_regs.h"
@@ -226,16 +228,16 @@ static void i915_print_sseu_info(struct seq_file *m,
 	if (!is_available_info)
 		return;
 
-	seq_printf(m, "  Has Pooled EU: %s\n", yesno(has_pooled_eu));
+	seq_printf(m, "  Has Pooled EU: %s\n", str_yes_no(has_pooled_eu));
 	if (has_pooled_eu)
 		seq_printf(m, "  Min EU in pool: %u\n", sseu->min_eu_in_pool);
 
 	seq_printf(m, "  Has Slice Power Gating: %s\n",
-		   yesno(sseu->has_slice_pg));
+		   str_yes_no(sseu->has_slice_pg));
 	seq_printf(m, "  Has Subslice Power Gating: %s\n",
-		   yesno(sseu->has_subslice_pg));
+		   str_yes_no(sseu->has_subslice_pg));
 	seq_printf(m, "  Has EU Power Gating: %s\n",
-		   yesno(sseu->has_eu_pg));
+		   str_yes_no(sseu->has_eu_pg));
 }
 
 /*

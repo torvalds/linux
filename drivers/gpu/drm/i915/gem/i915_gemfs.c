@@ -9,6 +9,7 @@
 
 #include "i915_drv.h"
 #include "i915_gemfs.h"
+#include "i915_utils.h"
 
 int i915_gemfs_init(struct drm_i915_private *i915)
 {
@@ -32,7 +33,7 @@ int i915_gemfs_init(struct drm_i915_private *i915)
 	 */
 
 	opts = NULL;
-	if (intel_vtd_active(i915)) {
+	if (i915_vtd_active(i915)) {
 		if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
 			opts = huge_opt;
 			drm_info(&i915->drm,

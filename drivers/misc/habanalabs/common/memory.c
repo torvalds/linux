@@ -111,10 +111,10 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 	if (contiguous) {
 		if (is_power_of_2(page_size))
-			paddr = (u64) (uintptr_t) gen_pool_dma_alloc_align(vm->dram_pg_pool,
-								total_size, NULL, page_size);
+			paddr = (uintptr_t) gen_pool_dma_alloc_align(vm->dram_pg_pool,
+								     total_size, NULL, page_size);
 		else
-			paddr = (u64) (uintptr_t) gen_pool_alloc(vm->dram_pg_pool, total_size);
+			paddr = gen_pool_alloc(vm->dram_pg_pool, total_size);
 		if (!paddr) {
 			dev_err(hdev->dev,
 				"failed to allocate %llu contiguous pages with total size of %llu\n",
@@ -150,12 +150,12 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 		for (i = 0 ; i < num_pgs ; i++) {
 			if (is_power_of_2(page_size))
 				phys_pg_pack->pages[i] =
-						(u64) gen_pool_dma_alloc_align(vm->dram_pg_pool,
-										page_size, NULL,
-										page_size);
+					(uintptr_t)gen_pool_dma_alloc_align(vm->dram_pg_pool,
+									    page_size, NULL,
+									    page_size);
 			else
-				phys_pg_pack->pages[i] = (u64) gen_pool_alloc(vm->dram_pg_pool,
-										page_size);
+				phys_pg_pack->pages[i] = gen_pool_alloc(vm->dram_pg_pool,
+									page_size);
 			if (!phys_pg_pack->pages[i]) {
 				dev_err(hdev->dev,
 					"Failed to allocate device memory (out of memory)\n");

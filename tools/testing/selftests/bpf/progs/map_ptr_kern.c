@@ -367,7 +367,7 @@ static inline int check_array_of_maps(void)
 
 	VERIFY(check_default(&array_of_maps->map, map));
 	inner_map = bpf_map_lookup_elem(array_of_maps, &key);
-	VERIFY(inner_map != 0);
+	VERIFY(inner_map != NULL);
 	VERIFY(inner_map->map.max_entries == INNER_MAX_ENTRIES);
 
 	return 1;
@@ -394,7 +394,7 @@ static inline int check_hash_of_maps(void)
 
 	VERIFY(check_default(&hash_of_maps->map, map));
 	inner_map = bpf_map_lookup_elem(hash_of_maps, &key);
-	VERIFY(inner_map != 0);
+	VERIFY(inner_map != NULL);
 	VERIFY(inner_map->map.max_entries == INNER_MAX_ENTRIES);
 
 	return 1;

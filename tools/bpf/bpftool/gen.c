@@ -828,8 +828,10 @@ codegen_maps_skeleton(struct bpf_object *obj, size_t map_cnt, bool mmaped)
 			s->map_cnt = %zu;			    \n\
 			s->map_skel_sz = sizeof(*s->maps);	    \n\
 			s->maps = (struct bpf_map_skeleton *)calloc(s->map_cnt, s->map_skel_sz);\n\
-			if (!s->maps)				    \n\
+			if (!s->maps) {				    \n\
+				err = -ENOMEM;			    \n\
 				goto err;			    \n\
+			}					    \n\
 		",
 		map_cnt
 	);
@@ -870,8 +872,10 @@ codegen_progs_skeleton(struct bpf_object *obj, size_t prog_cnt, bool populate_li
 			s->prog_cnt = %zu;			    \n\
 			s->prog_skel_sz = sizeof(*s->progs);	    \n\
 			s->progs = (struct bpf_prog_skeleton *)calloc(s->prog_cnt, s->prog_skel_sz);\n\
-			if (!s->progs)				    \n\
+			if (!s->progs) {			    \n\
+				err = -ENOMEM;			    \n\
 				goto err;			    \n\
+			}					    \n\
 		",
 		prog_cnt
 	);
@@ -1182,10 +1186,13 @@ static int do_skeleton(int argc, char **argv)
 		%1$s__create_skeleton(struct %1$s *obj)			    \n\
 		{							    \n\
 			struct bpf_object_skeleton *s;			    \n\
+			int err;					    \n\
 									    \n\
 			s = (struct bpf_object_skeleton *)calloc(1, sizeof(*s));\n\
-			if (!s)						    \n\
+			if (!s)	{					    \n\
+				err = -ENOMEM;				    \n\
 				goto err;				    \n\
+			}						    \n\
 									    \n\
 			s->sz = sizeof(*s);				    \n\
 			s->name = \"%1$s\";				    \n\
@@ -1206,7 +1213,7 @@ static int do_skeleton(int argc, char **argv)
 			return 0;					    \n\
 		err:							    \n\
 			bpf_object__destroy_skeleton(s);		    \n\
-			return -ENOMEM;					    \n\
+			return err;					    \n\
 		}							    \n\
 									    \n\
 		static inline const void *%2$s__elf_bytes(size_t *sz)	    \n\
@@ -1466,12 +1473,12 @@ static int do_subskeleton(int argc, char **argv)
 									    \n\
 			obj = (struct %1$s *)calloc(1, sizeof(*obj));	    \n\
 			if (!obj) {					    \n\
-				errno = ENOMEM;				    \n\
+				err = -ENOMEM;				    \n\
 				goto err;				    \n\
 			}						    \n\
 			s = (struct bpf_object_subskeleton *)calloc(1, sizeof(*s));\n\
 			if (!s) {					    \n\
-				errno = ENOMEM;				    \n\
+				err = -ENOMEM;				    \n\
 				goto err;				    \n\
 			}						    \n\
 			s->sz = sizeof(*s);				    \n\
@@ -1483,7 +1490,7 @@ static int do_subskeleton(int argc, char **argv)
 			s->var_cnt = %2$d;				    \n\
 			s->vars = (struct bpf_var_skeleton *)calloc(%2$d, sizeof(*s->vars));\n\
 			if (!s->vars) {					    \n\
-				errno = ENOMEM;				    \n\
+				err = -ENOMEM;				    \n\
 				goto err;				    \n\
 			}						    \n\
 		",
@@ -1538,6 +1545,7 @@ static int do_subskeleton(int argc, char **argv)
 			return obj;					    \n\
 		err:							    \n\
 			%1$s__destroy(obj);				    \n\
+			errno = -err;					    \n\
 			return NULL;					    \n\
 		}							    \n\
 									    \n\

@@ -281,6 +281,12 @@ void i915_disable_error_state(struct drm_i915_private *i915, int err);
 
 #else
 
+__printf(2, 3)
+static inline void
+i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...)
+{
+}
+
 static inline void
 i915_capture_error_state(struct intel_gt *gt, intel_engine_mask_t engine_mask)
 {
