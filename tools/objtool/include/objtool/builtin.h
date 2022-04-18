@@ -27,7 +27,6 @@ struct opts {
 	bool dryrun;
 	bool lto;
 	bool module;
-	bool no_fp;
 	bool no_unreachable;
 	bool sec_address;
 	bool stats;
