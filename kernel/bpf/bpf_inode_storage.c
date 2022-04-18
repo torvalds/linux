@@ -90,7 +90,7 @@ void bpf_inode_storage_free(struct inode *inode)
 		 */
 		bpf_selem_unlink_map(selem);
 		free_inode_storage = bpf_selem_unlink_storage_nolock(
-			local_storage, selem, false);
+			local_storage, selem, false, false);
 	}
 	raw_spin_unlock_bh(&local_storage->lock);
 	rcu_read_unlock();
@@ -149,7 +149,7 @@ static int inode_storage_delete(struct inode *inode, struct bpf_map *map)
 	if (!sdata)
 		return -ENOENT;
 
-	bpf_selem_unlink(SELEM(sdata));
+	bpf_selem_unlink(SELEM(sdata), true);
 
 	return 0;
 }
