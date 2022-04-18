@@ -7785,7 +7785,6 @@ static int raid5_run(struct mddev *mddev)
 		 */
 		stripe = stripe * PAGE_SIZE;
 		stripe = roundup_pow_of_two(stripe);
-		mddev->queue->limits.discard_alignment = stripe;
 		mddev->queue->limits.discard_granularity = stripe;
 
 		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
