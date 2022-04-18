@@ -121,6 +121,10 @@ objtool_link()
 			objtoolopt="${objtoolopt} --hacks=jump_label"
 		fi
 
+		if is_enabled CONFIG_HAVE_NOINSTR_HACK; then
+			objtoolopt="${objtoolopt} --hacks=noinstr"
+		fi
+
 		if is_enabled CONFIG_X86_KERNEL_IBT; then
 			objtoolopt="${objtoolopt} --ibt"
 		fi

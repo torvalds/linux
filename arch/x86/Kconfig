@@ -231,6 +231,7 @@ config X86
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_MOVE_PMD
 	select HAVE_MOVE_PUD
+	select HAVE_NOINSTR_HACK		if HAVE_OBJTOOL
 	select HAVE_NMI
 	select HAVE_OBJTOOL			if X86_64
 	select HAVE_OPTPROBES
