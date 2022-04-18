@@ -126,6 +126,10 @@ objtool_link()
 			objtoolopt="${objtoolopt} --orc"
 		fi
 
+		if is_enabled CONFIG_STACK_VALIDATION; then
+			objtoolopt="${objtoolopt} --stackval"
+		fi
+
 		objtoolopt="${objtoolopt} --lto"
 	fi
 

@@ -18,6 +18,7 @@ struct opts {
 	bool orc;
 	bool retpoline;
 	bool sls;
+	bool stackval;
 	bool uaccess;
 
 	/* options: */

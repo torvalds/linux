@@ -3899,25 +3899,27 @@ int check(struct objtool_file *file)
 		warnings += ret;
 	}
 
-	ret = validate_functions(file);
-	if (ret < 0)
-		goto out;
-	warnings += ret;
-
-	ret = validate_unwind_hints(file, NULL);
-	if (ret < 0)
-		goto out;
-	warnings += ret;
-
-	if (opts.ibt) {
-		ret = validate_ibt(file);
+	if (opts.stackval || opts.orc || opts.uaccess || opts.ibt || opts.sls) {
+		ret = validate_functions(file);
 		if (ret < 0)
 			goto out;
 		warnings += ret;
+
+		ret = validate_unwind_hints(file, NULL);
+		if (ret < 0)
+			goto out;
+		warnings += ret;
+
+		if (!warnings) {
+			ret = validate_reachable_instructions(file);
+			if (ret < 0)
+				goto out;
+			warnings += ret;
+		}
 	}
 
-	if (!warnings) {
-		ret = validate_reachable_instructions(file);
+	if (opts.ibt) {
+		ret = validate_ibt(file);
 		if (ret < 0)
 			goto out;
 		warnings += ret;
