@@ -847,6 +847,7 @@ struct btrfs_fs_info {
 	 * two
 	 */
 	struct btrfs_workqueue *workers;
+	struct btrfs_workqueue *hipri_workers;
 	struct btrfs_workqueue *delalloc_workers;
 	struct btrfs_workqueue *flush_workers;
 	struct btrfs_workqueue *endio_workers;
