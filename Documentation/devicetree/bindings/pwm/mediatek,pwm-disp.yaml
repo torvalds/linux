@@ -37,6 +37,9 @@ properties:
   "#pwm-cells":
     const: 2
 
+  interrupts:
+    maxItems: 1
+
   clocks:
     items:
       - description: Main Clock
