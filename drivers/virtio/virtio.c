@@ -169,7 +169,7 @@ EXPORT_SYMBOL_GPL(virtio_add_status);
 /* Do some validation, then set FEATURES_OK */
 static int virtio_features_ok(struct virtio_device *dev)
 {
-	unsigned status;
+	unsigned int status;
 	int ret;
 
 	might_sleep();

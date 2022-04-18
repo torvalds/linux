@@ -144,8 +144,8 @@ static int vm_finalize_features(struct virtio_device *vdev)
 	return 0;
 }
 
-static void vm_get(struct virtio_device *vdev, unsigned offset,
-		   void *buf, unsigned len)
+static void vm_get(struct virtio_device *vdev, unsigned int offset,
+		   void *buf, unsigned int len)
 {
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
 	void __iomem *base = vm_dev->base + VIRTIO_MMIO_CONFIG;
@@ -186,8 +186,8 @@ static void vm_get(struct virtio_device *vdev, unsigned offset,
 	}
 }
 
-static void vm_set(struct virtio_device *vdev, unsigned offset,
-		   const void *buf, unsigned len)
+static void vm_set(struct virtio_device *vdev, unsigned int offset,
+		   const void *buf, unsigned int len)
 {
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
 	void __iomem *base = vm_dev->base + VIRTIO_MMIO_CONFIG;
@@ -345,7 +345,7 @@ static void vm_del_vqs(struct virtio_device *vdev)
 	free_irq(platform_get_irq(vm_dev->pdev, 0), vm_dev);
 }
 
-static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned index,
+static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned int index,
 				  void (*callback)(struct virtqueue *vq),
 				  const char *name, bool ctx)
 {
@@ -455,7 +455,7 @@ error_available:
 	return ERR_PTR(err);
 }
 
-static int vm_find_vqs(struct virtio_device *vdev, unsigned nvqs,
+static int vm_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 		       struct virtqueue *vqs[],
 		       vq_callback_t *callbacks[],
 		       const char * const names[],
