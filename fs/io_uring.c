@@ -7134,12 +7134,8 @@ static bool io_assign_file(struct io_kiocb *req, unsigned int issue_flags)
 		req->file = io_file_get_fixed(req, req->cqe.fd, issue_flags);
 	else
 		req->file = io_file_get_normal(req, req->cqe.fd);
-	if (req->file)
-		return true;
 
-	req_set_fail(req);
-	req->cqe.res = -EBADF;
-	return false;
+	return !!req->file;
 }
 
 static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
