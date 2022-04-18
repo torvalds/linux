@@ -150,7 +150,8 @@ static void llist_abort_desc(struct idxd_wq *wq, struct idxd_irq_entry *ie,
  */
 int idxd_enqcmds(struct idxd_wq *wq, void __iomem *portal, const void *desc)
 {
-	int rc, retries = 0;
+	unsigned int retries = 0;
+	int rc;
 
 	do {
 		rc = enqcmds(portal, desc);
