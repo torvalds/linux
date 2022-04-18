@@ -355,7 +355,7 @@ static int read_sections(struct elf *elf)
 		elf_hash_add(section_name, &sec->name_hash, str_hash(sec->name));
 	}
 
-	if (stats) {
+	if (opts.stats) {
 		printf("nr_sections: %lu\n", (unsigned long)sections_nr);
 		printf("section_bits: %d\n", elf->section_bits);
 	}
@@ -475,7 +475,7 @@ static int read_symbols(struct elf *elf)
 		elf_add_symbol(elf, sym);
 	}
 
-	if (stats) {
+	if (opts.stats) {
 		printf("nr_symbols: %lu\n", (unsigned long)symbols_nr);
 		printf("symbol_bits: %d\n", elf->symbol_bits);
 	}
@@ -843,7 +843,7 @@ static int read_relocs(struct elf *elf)
 		tot_reloc += nr_reloc;
 	}
 
-	if (stats) {
+	if (opts.stats) {
 		printf("max_reloc: %lu\n", max_reloc);
 		printf("tot_reloc: %lu\n", tot_reloc);
 		printf("reloc_bits: %d\n", elf->reloc_bits);
@@ -1222,7 +1222,7 @@ int elf_write(struct elf *elf)
 	struct section *sec;
 	Elf_Scn *s;
 
-	if (dryrun)
+	if (opts.dryrun)
 		return 0;
 
 	/* Update changed relocation sections and section headers: */

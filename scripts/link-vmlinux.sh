@@ -117,8 +117,6 @@ objtool_link()
 			objtoolcmd="orc generate"
 		fi
 
-		objtoolopt="${objtoolopt} --lto"
-
 		if is_enabled CONFIG_X86_KERNEL_IBT; then
 			objtoolopt="${objtoolopt} --ibt"
 		fi
@@ -126,6 +124,8 @@ objtool_link()
 		if is_enabled CONFIG_FTRACE_MCOUNT_USE_OBJTOOL; then
 			objtoolopt="${objtoolopt} --mcount"
 		fi
+
+		objtoolopt="${objtoolopt} --lto"
 	fi
 
 	if is_enabled CONFIG_VMLINUX_VALIDATION; then
@@ -133,25 +133,33 @@ objtool_link()
 	fi
 
 	if [ -n "${objtoolopt}" ]; then
+
 		if [ -z "${objtoolcmd}" ]; then
 			objtoolcmd="check"
 		fi
-		objtoolopt="${objtoolopt} --vmlinux"
-		if ! is_enabled CONFIG_FRAME_POINTER; then
-			objtoolopt="${objtoolopt} --no-fp"
-		fi
-		if is_enabled CONFIG_GCOV_KERNEL; then
-			objtoolopt="${objtoolopt} --no-unreachable"
-		fi
+
 		if is_enabled CONFIG_RETPOLINE; then
 			objtoolopt="${objtoolopt} --retpoline"
 		fi
-		if is_enabled CONFIG_X86_SMAP; then
-			objtoolopt="${objtoolopt} --uaccess"
-		fi
+
 		if is_enabled CONFIG_SLS; then
 			objtoolopt="${objtoolopt} --sls"
 		fi
+
+		if is_enabled CONFIG_X86_SMAP; then
+			objtoolopt="${objtoolopt} --uaccess"
+		fi
+
+		if ! is_enabled CONFIG_FRAME_POINTER; then
+			objtoolopt="${objtoolopt} --no-fp"
+		fi
+
+		if is_enabled CONFIG_GCOV_KERNEL; then
+			objtoolopt="${objtoolopt} --no-unreachable"
+		fi
+
+		objtoolopt="${objtoolopt} --vmlinux"
+
 		info OBJTOOL ${1}
 		tools/objtool/objtool ${objtoolcmd} ${objtoolopt} ${1}
 	fi

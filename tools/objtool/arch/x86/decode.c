@@ -581,7 +581,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		break;
 
 	case 0xc7: /* mov imm, r/m */
-		if (!noinstr)
+		if (!opts.noinstr)
 			break;
 
 		if (insn.length == 3+4+4 && !strncmp(sec->name, ".init.text", 10)) {
