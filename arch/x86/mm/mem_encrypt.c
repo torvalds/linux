@@ -49,7 +49,7 @@ static void print_mem_encrypt_feature_info(void)
 		return;
 	}
 
-	pr_cont("AMD ");
+	pr_cont(" AMD");
 
 	/* Secure Memory Encryption */
 	if (cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT)) {
