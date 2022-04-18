@@ -972,7 +972,7 @@
 
 			snps,axi-config = <&stmmac_axi_setup>;
 			snps,pbl = <32>;
-			snps,aal = <1>;
+			snps,aal;
 
 			qcom,nss-common = <&nss_common>;
 			qcom,qsgmii-csr = <&qsgmii_csr>;
@@ -996,7 +996,7 @@
 
 			snps,axi-config = <&stmmac_axi_setup>;
 			snps,pbl = <32>;
-			snps,aal = <1>;
+			snps,aal;
 
 			qcom,nss-common = <&nss_common>;
 			qcom,qsgmii-csr = <&qsgmii_csr>;
@@ -1020,7 +1020,7 @@
 
 			snps,axi-config = <&stmmac_axi_setup>;
 			snps,pbl = <32>;
-			snps,aal = <1>;
+			snps,aal;
 
 			qcom,nss-common = <&nss_common>;
 			qcom,qsgmii-csr = <&qsgmii_csr>;
@@ -1044,7 +1044,7 @@
 
 			snps,axi-config = <&stmmac_axi_setup>;
 			snps,pbl = <32>;
-			snps,aal = <1>;
+			snps,aal;
 
 			qcom,nss-common = <&nss_common>;
 			qcom,qsgmii-csr = <&qsgmii_csr>;

@@ -907,7 +907,11 @@ struct io_kiocb {
 
 	u64				user_data;
 	u32				result;
-	u32				cflags;
+	/* fd initially, then cflags for completion */
+	union {
+		u32			cflags;
+		int			fd;
+	};
 
 	struct io_ring_ctx		*ctx;
 	struct task_struct		*task;
@@ -916,8 +920,12 @@ struct io_kiocb {
 	/* store used ubuf, so we can prevent reloading */
 	struct io_mapped_ubuf		*imu;
 
-	/* used by request caches, completion batching and iopoll */
-	struct io_wq_work_node		comp_list;
+	union {
+		/* used by request caches, completion batching and iopoll */
+		struct io_wq_work_node	comp_list;
+		/* cache ->apoll->events */
+		int apoll_events;
+	};
 	atomic_t			refs;
 	atomic_t			poll_refs;
 	struct io_task_work		io_task_work;
@@ -3183,19 +3191,18 @@ static inline void io_rw_done(struct kiocb *kiocb, ssize_t ret)
 static inline loff_t *io_kiocb_update_pos(struct io_kiocb *req)
 {
 	struct kiocb *kiocb = &req->rw.kiocb;
-	bool is_stream = req->file->f_mode & FMODE_STREAM;
 
-	if (kiocb->ki_pos == -1) {
-		if (!is_stream) {
-			req->flags |= REQ_F_CUR_POS;
-			kiocb->ki_pos = req->file->f_pos;
-			return &kiocb->ki_pos;
-		} else {
-			kiocb->ki_pos = 0;
-			return NULL;
-		}
+	if (kiocb->ki_pos != -1)
+		return &kiocb->ki_pos;
+
+	if (!(req->file->f_mode & FMODE_STREAM)) {
+		req->flags |= REQ_F_CUR_POS;
+		kiocb->ki_pos = req->file->f_pos;
+		return &kiocb->ki_pos;
 	}
-	return is_stream ? NULL : &kiocb->ki_pos;
+
+	kiocb->ki_pos = 0;
+	return NULL;
 }
 
 static void kiocb_done(struct io_kiocb *req, ssize_t ret,
@@ -4351,7 +4358,7 @@ static int io_tee(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 
 	if (sp->flags & SPLICE_F_FD_IN_FIXED)
-		in = io_file_get_fixed(req, sp->splice_fd_in, IO_URING_F_UNLOCKED);
+		in = io_file_get_fixed(req, sp->splice_fd_in, issue_flags);
 	else
 		in = io_file_get_normal(req, sp->splice_fd_in);
 	if (!in) {
@@ -4393,7 +4400,7 @@ static int io_splice(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 
 	if (sp->flags & SPLICE_F_FD_IN_FIXED)
-		in = io_file_get_fixed(req, sp->splice_fd_in, IO_URING_F_UNLOCKED);
+		in = io_file_get_fixed(req, sp->splice_fd_in, issue_flags);
 	else
 		in = io_file_get_normal(req, sp->splice_fd_in);
 	if (!in) {
@@ -5834,7 +5841,6 @@ static void io_poll_remove_entries(struct io_kiocb *req)
 static int io_poll_check_events(struct io_kiocb *req, bool locked)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_poll_iocb *poll = io_poll_get_single(req);
 	int v;
 
 	/* req->task == current here, checking PF_EXITING is safe */
@@ -5851,17 +5857,17 @@ static int io_poll_check_events(struct io_kiocb *req, bool locked)
 			return -ECANCELED;
 
 		if (!req->result) {
-			struct poll_table_struct pt = { ._key = req->cflags };
+			struct poll_table_struct pt = { ._key = req->apoll_events };
+			unsigned flags = locked ? 0 : IO_URING_F_UNLOCKED;
 
-			if (unlikely(!io_assign_file(req, IO_URING_F_UNLOCKED)))
-				req->result = -EBADF;
-			else
-				req->result = vfs_poll(req->file, &pt) & req->cflags;
+			if (unlikely(!io_assign_file(req, flags)))
+				return -EBADF;
+			req->result = vfs_poll(req->file, &pt) & req->apoll_events;
 		}
 
 		/* multishot, just fill an CQE and proceed */
-		if (req->result && !(req->cflags & EPOLLONESHOT)) {
-			__poll_t mask = mangle_poll(req->result & poll->events);
+		if (req->result && !(req->apoll_events & EPOLLONESHOT)) {
+			__poll_t mask = mangle_poll(req->result & req->apoll_events);
 			bool filled;
 
 			spin_lock(&ctx->completion_lock);
@@ -5939,7 +5945,7 @@ static void __io_poll_execute(struct io_kiocb *req, int mask, int events)
 	 * CPU. We want to avoid pulling in req->apoll->events for that
 	 * case.
 	 */
-	req->cflags = events;
+	req->apoll_events = events;
 	if (req->opcode == IORING_OP_POLL_ADD)
 		req->io_task_work.func = io_poll_task_func;
 	else
@@ -6331,7 +6337,7 @@ static int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 		return -EINVAL;
 
 	io_req_set_refcount(req);
-	req->cflags = poll->events = io_poll_parse_events(sqe, flags);
+	req->apoll_events = poll->events = io_poll_parse_events(sqe, flags);
 	return 0;
 }
 
@@ -6833,6 +6839,7 @@ static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 	up.nr = 0;
 	up.tags = 0;
 	up.resv = 0;
+	up.resv2 = 0;
 
 	io_ring_submit_lock(ctx, needs_lock);
 	ret = __io_register_rsrc_update(ctx, IORING_RSRC_FILE,
@@ -7088,9 +7095,9 @@ static bool io_assign_file(struct io_kiocb *req, unsigned int issue_flags)
 		return true;
 
 	if (req->flags & REQ_F_FIXED_FILE)
-		req->file = io_file_get_fixed(req, req->work.fd, issue_flags);
+		req->file = io_file_get_fixed(req, req->fd, issue_flags);
 	else
-		req->file = io_file_get_normal(req, req->work.fd);
+		req->file = io_file_get_normal(req, req->fd);
 	if (req->file)
 		return true;
 
@@ -7104,13 +7111,14 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 	const struct cred *creds = NULL;
 	int ret;
 
+	if (unlikely(!io_assign_file(req, issue_flags)))
+		return -EBADF;
+
 	if (unlikely((req->flags & REQ_F_CREDS) && req->creds != current_cred()))
 		creds = override_creds(req->creds);
 
 	if (!io_op_defs[req->opcode].audit_skip)
 		audit_uring_entry(req->opcode);
-	if (unlikely(!io_assign_file(req, issue_flags)))
-		return -EBADF;
 
 	switch (req->opcode) {
 	case IORING_OP_NOP:
@@ -7271,15 +7279,17 @@ static void io_wq_submit_work(struct io_wq_work *work)
 	if (timeout)
 		io_queue_linked_timeout(timeout);
 
-	if (!io_assign_file(req, issue_flags)) {
-		err = -EBADF;
-		work->flags |= IO_WQ_WORK_CANCEL;
-	}
 
 	/* either cancelled or io-wq is dying, so don't touch tctx->iowq */
 	if (work->flags & IO_WQ_WORK_CANCEL) {
+fail:
 		io_req_task_queue_fail(req, err);
 		return;
+	}
+	if (!io_assign_file(req, issue_flags)) {
+		err = -EBADF;
+		work->flags |= IO_WQ_WORK_CANCEL;
+		goto fail;
 	}
 
 	if (req->flags & REQ_F_FORCE_ASYNC) {
@@ -7628,7 +7638,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	if (io_op_defs[opcode].needs_file) {
 		struct io_submit_state *state = &ctx->submit_state;
 
-		req->work.fd = READ_ONCE(sqe->fd);
+		req->fd = READ_ONCE(sqe->fd);
 
 		/*
 		 * Plug now if we have more than 2 IO left after this, and the
@@ -10524,6 +10534,11 @@ static int io_ringfd_register(struct io_ring_ctx *ctx, void __user *__arg,
 			break;
 		}
 
+		if (reg.resv) {
+			ret = -EINVAL;
+			break;
+		}
+
 		if (reg.offset == -1U) {
 			start = 0;
 			end = IO_RINGFD_REG_MAX;
@@ -10570,7 +10585,7 @@ static int io_ringfd_unregister(struct io_ring_ctx *ctx, void __user *__arg,
 			ret = -EFAULT;
 			break;
 		}
-		if (reg.offset >= IO_RINGFD_REG_MAX) {
+		if (reg.resv || reg.offset >= IO_RINGFD_REG_MAX) {
 			ret = -EINVAL;
 			break;
 		}
@@ -10697,6 +10712,8 @@ static int io_get_ext_arg(unsigned flags, const void __user *argp, size_t *argsz
 		return -EINVAL;
 	if (copy_from_user(&arg, argp, sizeof(arg)))
 		return -EFAULT;
+	if (arg.pad)
+		return -EINVAL;
 	*sig = u64_to_user_ptr(arg.sigmask);
 	*argsz = arg.sigmask_sz;
 	*ts = u64_to_user_ptr(arg.ts);
@@ -11178,7 +11195,8 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 			IORING_FEAT_CUR_PERSONALITY | IORING_FEAT_FAST_POLL |
 			IORING_FEAT_POLL_32BITS | IORING_FEAT_SQPOLL_NONFIXED |
 			IORING_FEAT_EXT_ARG | IORING_FEAT_NATIVE_WORKERS |
-			IORING_FEAT_RSRC_TAGS | IORING_FEAT_CQE_SKIP;
+			IORING_FEAT_RSRC_TAGS | IORING_FEAT_CQE_SKIP |
+			IORING_FEAT_LINKED_FILE;
 
 	if (copy_to_user(params, p, sizeof(*p))) {
 		ret = -EFAULT;
@@ -11389,8 +11407,6 @@ static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
 	__u32 tmp;
 	int err;
 
-	if (up->resv)
-		return -EINVAL;
 	if (check_add_overflow(up->offset, nr_args, &tmp))
 		return -EOVERFLOW;
 	err = io_rsrc_node_switch_start(ctx);
@@ -11416,6 +11432,8 @@ static int io_register_files_update(struct io_ring_ctx *ctx, void __user *arg,
 	memset(&up, 0, sizeof(up));
 	if (copy_from_user(&up, arg, sizeof(struct io_uring_rsrc_update)))
 		return -EFAULT;
+	if (up.resv || up.resv2)
+		return -EINVAL;
 	return __io_register_rsrc_update(ctx, IORING_RSRC_FILE, &up, nr_args);
 }
 
@@ -11428,7 +11446,7 @@ static int io_register_rsrc_update(struct io_ring_ctx *ctx, void __user *arg,
 		return -EINVAL;
 	if (copy_from_user(&up, arg, sizeof(up)))
 		return -EFAULT;
-	if (!up.nr || up.resv)
+	if (!up.nr || up.resv || up.resv2)
 		return -EINVAL;
 	return __io_register_rsrc_update(ctx, type, &up, up.nr);
 }

@@ -143,7 +143,7 @@ static inline void put_unaligned_be48(const u64 val, void *p)
 
 static inline u64 __get_unaligned_be48(const u8 *p)
 {
-	return (u64)p[0] << 40 | (u64)p[1] << 32 | p[2] << 24 |
+	return (u64)p[0] << 40 | (u64)p[1] << 32 | (u64)p[2] << 24 |
 		p[3] << 16 | p[4] << 8 | p[5];
 }
 
