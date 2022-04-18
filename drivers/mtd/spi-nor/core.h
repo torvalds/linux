@@ -345,9 +345,10 @@ struct spi_nor_otp {
  * @writesize		Minimal writable flash unit size. Defaults to 1. Set to
  *			ECC unit size for ECC-ed flashes.
  * @page_size:		the page size of the SPI NOR flash memory.
- * @rdsr_dummy:		dummy cycles needed for Read Status Register command.
+ * @rdsr_dummy:		dummy cycles needed for Read Status Register command
+ *			in octal DTR mode.
  * @rdsr_addr_nbytes:	dummy address bytes needed for Read Status Register
- *			command.
+ *			command in octal DTR mode.
  * @hwcaps:		describes the read and page program hardware
  *			capabilities.
  * @reads:		read capabilities ordered by priority: the higher index
