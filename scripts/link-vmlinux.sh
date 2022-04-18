@@ -114,8 +114,8 @@ objtool_link()
 
 	if is_enabled CONFIG_LTO_CLANG || is_enabled CONFIG_X86_KERNEL_IBT; then
 
-		# Don't perform vmlinux validation unless explicitly requested,
-		# but run objtool on vmlinux.o now that we have an object file.
+		# For LTO and IBT, objtool doesn't run on individual
+		# translation units.  Run everything on vmlinux instead.
 
 		if is_enabled CONFIG_HAVE_JUMP_LABEL_HACK; then
 			objtoolopt="${objtoolopt} --hacks=jump_label"
@@ -156,8 +156,6 @@ objtool_link()
 		if is_enabled CONFIG_X86_SMAP; then
 			objtoolopt="${objtoolopt} --uaccess"
 		fi
-
-		objtoolopt="${objtoolopt} --lto"
 	fi
 
 	if is_enabled CONFIG_NOINSTR_VALIDATION; then
@@ -170,7 +168,7 @@ objtool_link()
 			objtoolopt="${objtoolopt} --no-unreachable"
 		fi
 
-		objtoolopt="${objtoolopt} --vmlinux"
+		objtoolopt="${objtoolopt} --link"
 
 		info OBJTOOL ${1}
 		tools/objtool/objtool ${objtoolopt} ${1}

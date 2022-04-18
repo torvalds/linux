@@ -9,6 +9,11 @@
 #include <objtool/builtin.h>
 #include <objtool/objtool.h>
 
+#define ERROR(format, ...)				\
+	fprintf(stderr,					\
+		"error: objtool: " format "\n",		\
+		##__VA_ARGS__)
+
 struct opts opts;
 
 static const char * const check_usage[] = {
@@ -73,12 +78,11 @@ const struct option check_options[] = {
 	OPT_BOOLEAN(0, "backtrace", &opts.backtrace, "unwind on error"),
 	OPT_BOOLEAN(0, "backup", &opts.backup, "create .orig files before modification"),
 	OPT_BOOLEAN(0, "dry-run", &opts.dryrun, "don't write modifications"),
-	OPT_BOOLEAN(0, "lto", &opts.lto, "whole-archive like runs"),
+	OPT_BOOLEAN(0, "link", &opts.link, "object is a linked object"),
 	OPT_BOOLEAN(0, "module", &opts.module, "object is part of a kernel module"),
 	OPT_BOOLEAN(0, "no-unreachable", &opts.no_unreachable, "skip 'unreachable instruction' warnings"),
 	OPT_BOOLEAN(0, "sec-address", &opts.sec_address, "print section addresses in warnings"),
 	OPT_BOOLEAN(0, "stats", &opts.stats, "print statistics"),
-	OPT_BOOLEAN(0, "vmlinux", &opts.vmlinux, "vmlinux.o validation"),
 
 	OPT_END(),
 };
@@ -124,7 +128,7 @@ static bool opts_valid(void)
 	    opts.static_call		||
 	    opts.uaccess) {
 		if (opts.dump_orc) {
-			fprintf(stderr, "--dump can't be combined with other options\n");
+			ERROR("--dump can't be combined with other options");
 			return false;
 		}
 
@@ -134,8 +138,32 @@ static bool opts_valid(void)
 	if (opts.dump_orc)
 		return true;
 
-	fprintf(stderr, "At least one command required\n");
+	ERROR("At least one command required");
 	return false;
+}
+
+static bool link_opts_valid(struct objtool_file *file)
+{
+	if (opts.link)
+		return true;
+
+	if (has_multiple_files(file->elf)) {
+		ERROR("Linked object detected, forcing --link");
+		opts.link = true;
+		return true;
+	}
+
+	if (opts.noinstr) {
+		ERROR("--noinstr requires --link");
+		return false;
+	}
+
+	if (opts.ibt) {
+		ERROR("--ibt requires --link");
+		return false;
+	}
+
+	return true;
 }
 
 int objtool_run(int argc, const char **argv)
@@ -155,6 +183,9 @@ int objtool_run(int argc, const char **argv)
 
 	file = objtool_open_read(objname);
 	if (!file)
+		return 1;
+
+	if (!link_opts_valid(file))
 		return 1;
 
 	ret = check(file);

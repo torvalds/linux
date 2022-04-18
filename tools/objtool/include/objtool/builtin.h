@@ -28,12 +28,11 @@ struct opts {
 	bool backtrace;
 	bool backup;
 	bool dryrun;
-	bool lto;
+	bool link;
 	bool module;
 	bool no_unreachable;
 	bool sec_address;
 	bool stats;
-	bool vmlinux;
 };
 
 extern struct opts opts;
