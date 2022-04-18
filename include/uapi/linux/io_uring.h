@@ -188,6 +188,13 @@ enum {
 #define IORING_POLL_UPDATE_USER_DATA	(1U << 2)
 
 /*
+ * ASYNC_CANCEL flags.
+ *
+ * IORING_ASYNC_CANCEL_ALL	Cancel all requests that match the given key
+ */
+#define IORING_ASYNC_CANCEL_ALL	(1U << 0)
+
+/*
  * IO completion data structure (Completion Queue Entry)
  */
 struct io_uring_cqe {
