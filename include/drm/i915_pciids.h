@@ -683,4 +683,13 @@
 	INTEL_VGA_DEVICE(0xA78A, info), \
 	INTEL_VGA_DEVICE(0xA78B, info)
 
+/* RPL-P */
+#define INTEL_RPLP_IDS(info) \
+	INTEL_VGA_DEVICE(0xA720, info), \
+	INTEL_VGA_DEVICE(0xA721, info), \
+	INTEL_VGA_DEVICE(0xA7A0, info), \
+	INTEL_VGA_DEVICE(0xA7A1, info), \
+	INTEL_VGA_DEVICE(0xA7A8, info), \
+	INTEL_VGA_DEVICE(0xA7A9, info)
+
 #endif /* _I915_PCIIDS_H */
