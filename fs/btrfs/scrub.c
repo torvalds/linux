@@ -90,7 +90,7 @@ struct scrub_bio {
 	struct scrub_sector	*sectors[SCRUB_SECTORS_PER_BIO];
 	int			sector_count;
 	int			next_free;
-	struct btrfs_work	work;
+	struct work_struct	work;
 };
 
 struct scrub_block {
@@ -110,7 +110,7 @@ struct scrub_block {
 		/* It is for the data with checksum */
 		unsigned int	data_corrected:1;
 	};
-	struct btrfs_work	work;
+	struct work_struct	work;
 };
 
 /* Used for the chunks with parity stripe such RAID5/6 */
@@ -132,7 +132,7 @@ struct scrub_parity {
 	struct list_head	sectors_list;
 
 	/* Work of parity check and repair */
-	struct btrfs_work	work;
+	struct work_struct	work;
 
 	/* Mark the parity blocks which have data */
 	unsigned long		*dbitmap;
@@ -231,7 +231,7 @@ static int scrub_sectors(struct scrub_ctx *sctx, u64 logical, u32 len,
 			 u64 gen, int mirror_num, u8 *csum,
 			 u64 physical_for_dev_replace);
 static void scrub_bio_end_io(struct bio *bio);
-static void scrub_bio_end_io_worker(struct btrfs_work *work);
+static void scrub_bio_end_io_worker(struct work_struct *work);
 static void scrub_block_complete(struct scrub_block *sblock);
 static void scrub_remap_extent(struct btrfs_fs_info *fs_info,
 			       u64 extent_logical, u32 extent_len,
@@ -242,7 +242,7 @@ static int scrub_add_sector_to_wr_bio(struct scrub_ctx *sctx,
 				      struct scrub_sector *sector);
 static void scrub_wr_submit(struct scrub_ctx *sctx);
 static void scrub_wr_bio_end_io(struct bio *bio);
-static void scrub_wr_bio_end_io_worker(struct btrfs_work *work);
+static void scrub_wr_bio_end_io_worker(struct work_struct *work);
 static void scrub_put_ctx(struct scrub_ctx *sctx);
 
 static inline int scrub_is_page_on_raid56(struct scrub_sector *sector)
@@ -587,8 +587,7 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 		sbio->index = i;
 		sbio->sctx = sctx;
 		sbio->sector_count = 0;
-		btrfs_init_work(&sbio->work, scrub_bio_end_io_worker, NULL,
-				NULL);
+		INIT_WORK(&sbio->work, scrub_bio_end_io_worker);
 
 		if (i != SCRUB_BIOS_PER_SCTX - 1)
 			sctx->bios[i]->next_free = i + 1;
@@ -1718,11 +1717,11 @@ static void scrub_wr_bio_end_io(struct bio *bio)
 	sbio->status = bio->bi_status;
 	sbio->bio = bio;
 
-	btrfs_init_work(&sbio->work, scrub_wr_bio_end_io_worker, NULL, NULL);
-	btrfs_queue_work(fs_info->scrub_wr_completion_workers, &sbio->work);
+	INIT_WORK(&sbio->work, scrub_wr_bio_end_io_worker);
+	queue_work(fs_info->scrub_wr_completion_workers, &sbio->work);
 }
 
-static void scrub_wr_bio_end_io_worker(struct btrfs_work *work)
+static void scrub_wr_bio_end_io_worker(struct work_struct *work)
 {
 	struct scrub_bio *sbio = container_of(work, struct scrub_bio, work);
 	struct scrub_ctx *sctx = sbio->sctx;
@@ -2119,10 +2118,10 @@ static void scrub_missing_raid56_end_io(struct bio *bio)
 
 	bio_put(bio);
 
-	btrfs_queue_work(fs_info->scrub_workers, &sblock->work);
+	queue_work(fs_info->scrub_workers, &sblock->work);
 }
 
-static void scrub_missing_raid56_worker(struct btrfs_work *work)
+static void scrub_missing_raid56_worker(struct work_struct *work)
 {
 	struct scrub_block *sblock = container_of(work, struct scrub_block, work);
 	struct scrub_ctx *sctx = sblock->sctx;
@@ -2212,7 +2211,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 		raid56_add_scrub_pages(rbio, sector->page, 0, sector->logical);
 	}
 
-	btrfs_init_work(&sblock->work, scrub_missing_raid56_worker, NULL, NULL);
+	INIT_WORK(&sblock->work, scrub_missing_raid56_worker);
 	scrub_block_get(sblock);
 	scrub_pending_bio_inc(sctx);
 	raid56_submit_missing_rbio(rbio);
@@ -2332,10 +2331,10 @@ static void scrub_bio_end_io(struct bio *bio)
 	sbio->status = bio->bi_status;
 	sbio->bio = bio;
 
-	btrfs_queue_work(fs_info->scrub_workers, &sbio->work);
+	queue_work(fs_info->scrub_workers, &sbio->work);
 }
 
-static void scrub_bio_end_io_worker(struct btrfs_work *work)
+static void scrub_bio_end_io_worker(struct work_struct *work)
 {
 	struct scrub_bio *sbio = container_of(work, struct scrub_bio, work);
 	struct scrub_ctx *sctx = sbio->sctx;
@@ -2765,7 +2764,7 @@ static void scrub_free_parity(struct scrub_parity *sparity)
 	kfree(sparity);
 }
 
-static void scrub_parity_bio_endio_worker(struct btrfs_work *work)
+static void scrub_parity_bio_endio_worker(struct work_struct *work)
 {
 	struct scrub_parity *sparity = container_of(work, struct scrub_parity,
 						    work);
@@ -2786,9 +2785,8 @@ static void scrub_parity_bio_endio(struct bio *bio)
 
 	bio_put(bio);
 
-	btrfs_init_work(&sparity->work, scrub_parity_bio_endio_worker, NULL,
-			NULL);
-	btrfs_queue_work(fs_info->scrub_parity_workers, &sparity->work);
+	INIT_WORK(&sparity->work, scrub_parity_bio_endio_worker);
+	queue_work(fs_info->scrub_parity_workers, &sparity->work);
 }
 
 static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
@@ -3958,22 +3956,23 @@ static void scrub_workers_put(struct btrfs_fs_info *fs_info)
 {
 	if (refcount_dec_and_mutex_lock(&fs_info->scrub_workers_refcnt,
 					&fs_info->scrub_lock)) {
-		struct btrfs_workqueue *scrub_workers = NULL;
-		struct btrfs_workqueue *scrub_wr_comp = NULL;
-		struct btrfs_workqueue *scrub_parity = NULL;
-
-		scrub_workers = fs_info->scrub_workers;
-		scrub_wr_comp = fs_info->scrub_wr_completion_workers;
-		scrub_parity = fs_info->scrub_parity_workers;
+		struct workqueue_struct *scrub_workers = fs_info->scrub_workers;
+		struct workqueue_struct *scrub_wr_comp =
+						fs_info->scrub_wr_completion_workers;
+		struct workqueue_struct *scrub_parity =
+						fs_info->scrub_parity_workers;
 
 		fs_info->scrub_workers = NULL;
 		fs_info->scrub_wr_completion_workers = NULL;
 		fs_info->scrub_parity_workers = NULL;
 		mutex_unlock(&fs_info->scrub_lock);
 
-		btrfs_destroy_workqueue(scrub_workers);
-		btrfs_destroy_workqueue(scrub_wr_comp);
-		btrfs_destroy_workqueue(scrub_parity);
+		if (scrub_workers)
+			destroy_workqueue(scrub_workers);
+		if (scrub_wr_comp)
+			destroy_workqueue(scrub_wr_comp);
+		if (scrub_parity)
+			destroy_workqueue(scrub_parity);
 	}
 }
 
@@ -3983,9 +3982,9 @@ static void scrub_workers_put(struct btrfs_fs_info *fs_info)
 static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 						int is_dev_replace)
 {
-	struct btrfs_workqueue *scrub_workers = NULL;
-	struct btrfs_workqueue *scrub_wr_comp = NULL;
-	struct btrfs_workqueue *scrub_parity = NULL;
+	struct workqueue_struct *scrub_workers = NULL;
+	struct workqueue_struct *scrub_wr_comp = NULL;
+	struct workqueue_struct *scrub_parity = NULL;
 	unsigned int flags = WQ_FREEZABLE | WQ_UNBOUND;
 	int max_active = fs_info->thread_pool_size;
 	int ret = -ENOMEM;
@@ -3993,18 +3992,16 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 	if (refcount_inc_not_zero(&fs_info->scrub_workers_refcnt))
 		return 0;
 
-	scrub_workers = btrfs_alloc_workqueue(fs_info, "scrub", flags,
-					      is_dev_replace ? 1 : max_active, 4);
+	scrub_workers = alloc_workqueue("btrfs-scrub", flags,
+					is_dev_replace ? 1 : max_active);
 	if (!scrub_workers)
 		goto fail_scrub_workers;
 
-	scrub_wr_comp = btrfs_alloc_workqueue(fs_info, "scrubwrc", flags,
-					      max_active, 2);
+	scrub_wr_comp = alloc_workqueue("btrfs-scrubwrc", flags, max_active);
 	if (!scrub_wr_comp)
 		goto fail_scrub_wr_completion_workers;
 
-	scrub_parity = btrfs_alloc_workqueue(fs_info, "scrubparity", flags,
-					     max_active, 2);
+	scrub_parity = alloc_workqueue("btrfs-scrubparity", flags, max_active);
 	if (!scrub_parity)
 		goto fail_scrub_parity_workers;
 
@@ -4025,11 +4022,11 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 	mutex_unlock(&fs_info->scrub_lock);
 
 	ret = 0;
-	btrfs_destroy_workqueue(scrub_parity);
+	destroy_workqueue(scrub_parity);
 fail_scrub_parity_workers:
-	btrfs_destroy_workqueue(scrub_wr_comp);
+	destroy_workqueue(scrub_wr_comp);
 fail_scrub_wr_completion_workers:
-	btrfs_destroy_workqueue(scrub_workers);
+	destroy_workqueue(scrub_workers);
 fail_scrub_workers:
 	return ret;
 }
