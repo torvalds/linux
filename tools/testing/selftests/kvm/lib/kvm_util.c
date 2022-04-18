@@ -258,26 +258,6 @@ struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint64_t phy_pages)
 	return vm;
 }
 
-/*
- * VM Create
- *
- * Input Args:
- *   phy_pages - Physical memory pages
- *
- * Output Args: None
- *
- * Return:
- *   Pointer to opaque structure that describes the created VM.
- *
- * Creates a VM with the default physical/virtual address widths and page size.
- * When phy_pages is non-zero, a memory region of phy_pages physical pages
- * is created and mapped starting at guest physical address 0.
- */
-struct kvm_vm *vm_create(uint64_t phy_pages)
-{
-	return __vm_create(VM_MODE_DEFAULT, phy_pages);
-}
-
 struct kvm_vm *vm_create_without_vcpus(enum vm_guest_mode mode, uint64_t pages)
 {
 	struct kvm_vm *vm;
@@ -1421,11 +1401,10 @@ vm_paddr_t addr_hva2gpa(struct kvm_vm *vm, void *hva)
  *   (without failing the test) if the guest memory is not shared (so
  *   no alias exists).
  *
- * When vm_create() and related functions are called with a shared memory
- * src_type, we also create a writable, shared alias mapping of the
- * underlying guest memory. This allows the host to manipulate guest memory
- * without mapping that memory in the guest's address space. And, for
- * userfaultfd-based demand paging, we can do so without triggering userfaults.
+ * Create a writable, shared virtual=>physical alias for the specific GPA.
+ * The primary use case is to allow the host selftest to manipulate guest
+ * memory without mapping said memory in the guest's address space. And, for
+ * userfaultfd-based demand paging, to do so without triggering userfaults.
  */
 void *addr_gpa2alias(struct kvm_vm *vm, vm_paddr_t gpa)
 {

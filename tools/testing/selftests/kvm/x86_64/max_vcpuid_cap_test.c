@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 	int ret;
 
-	vm = vm_create(0);
+	vm = vm_create_barebones();
 
 	/* Get KVM_CAP_MAX_VCPU_ID cap supported in KVM */
 	ret = vm_check_cap(vm, KVM_CAP_MAX_VCPU_ID);

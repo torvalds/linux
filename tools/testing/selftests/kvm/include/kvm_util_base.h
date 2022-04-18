@@ -248,7 +248,6 @@ void vm_enable_dirty_ring(struct kvm_vm *vm, uint32_t ring_size);
 const char *vm_guest_mode_string(uint32_t i);
 
 struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint64_t phy_pages);
-struct kvm_vm *vm_create(uint64_t phy_pages);
 void kvm_vm_free(struct kvm_vm *vmp);
 void kvm_vm_restart(struct kvm_vm *vmp);
 void kvm_vm_release(struct kvm_vm *vmp);
@@ -595,6 +594,11 @@ vm_paddr_t vm_phy_page_alloc(struct kvm_vm *vm, vm_paddr_t paddr_min,
 vm_paddr_t vm_phy_pages_alloc(struct kvm_vm *vm, size_t num,
 			      vm_paddr_t paddr_min, uint32_t memslot);
 vm_paddr_t vm_alloc_page_table(struct kvm_vm *vm);
+
+static inline struct kvm_vm *vm_create_barebones(void)
+{
+	return __vm_create(VM_MODE_DEFAULT, 0);
+}
 
 /*
  * Create a VM with reasonable defaults
