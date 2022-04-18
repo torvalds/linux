@@ -6037,9 +6037,11 @@ static int vop2_calc_dsc_clk(struct drm_crtc *crtc)
 	/* dsc_cds = crtc_clock / (cds_dat_width / bits_per_pixel)
 	 * cds_dat_width = 96;
 	 * bits_per_pixel = [8-12];
-	 * As only support 1/2/4 div, so we set dsc_cds = crtc_clock / 8;
+	 * As cds clk is div from txp clk and only support 1/2/4 div,
+	 * so when txp_clk is equal to v_pixclk, we set dsc_cds = crtc_clock / 4,
+	 * otherwise dsc_cds = crtc_clock / 8;
 	 */
-	vcstate->dsc_cds_clk_rate = v_pixclk / 8;
+	vcstate->dsc_cds_clk_rate = v_pixclk / (vcstate->dsc_txp_clk_rate == v_pixclk ? 4 : 8);
 
 	return 0;
 }
@@ -6197,6 +6199,15 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 		u64 dsc_cds_rate = vcstate->dsc_cds_clk_rate;
 		u32 v_pixclk_mhz = adjusted_mode->crtc_clock / 1000; /* video timing pixclk */
 		u32 dly_num, dsc_cds_rate_mhz, val = 0;
+		struct vop2_clk *dclk_core;
+		char clk_name[32];
+		int k = 1;
+
+		if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE)
+			k = 2;
+
+		snprintf(clk_name, sizeof(clk_name), "dclk_core%d", vp->id);
+		dclk_core = vop2_clk_get(vop2, clk_name);
 
 		if (target_bpp >> 4 < dsc->min_bits_per_pixel)
 			DRM_ERROR("Unsupported bpp less than: %d\n", dsc->min_bits_per_pixel);
@@ -6218,12 +6229,23 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 		VOP_MODULE_SET(vop2, dsc, dsc_init_dly_num, dly_num);
 
 		dsc_hsync = hsync_len / 2;
-		dsc_htotal = htotal / (1 << dsc_cds_clk->div_val);
+		/*
+		 * htotal / dclk_core = dsc_htotal /cds_clk
+		 *
+		 * dclk_core = DCLK / (1 << dclk_core->div_val)
+		 * cds_clk = txp_clk / (1 << dsc_cds_clk->div_val)
+		 * txp_clk = DCLK / (1 << dsc_txp_clk->div_val)
+		 *
+		 * dsc_htotal = htotal * (1 << dclk_core->div_val) /
+				((1 << dsc_txp_clk->div_val) * (1 << dsc_cds_clk->div_val))
+		*/
+		dsc_htotal = htotal * (1 << dclk_core->div_val) /
+				((1 << dsc_txp_clk->div_val) * (1 << dsc_cds_clk->div_val));
 		val = dsc_htotal << 16 | dsc_hsync;
 		VOP_MODULE_SET(vop2, dsc, dsc_htotal_pw, val);
 
 		dsc_hact_st = hact_st / 2;
-		dsc_hact_end = (hdisplay * target_bpp >> 4) / 24 + dsc_hact_st;
+		dsc_hact_end = (hdisplay / k * target_bpp >> 4) / 24 + dsc_hact_st;
 		val = dsc_hact_end << 16 | dsc_hact_st;
 		VOP_MODULE_SET(vop2, dsc, dsc_hact_st_end, val);
 
