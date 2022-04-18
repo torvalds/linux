@@ -11635,6 +11635,42 @@ mlxsw_reg_mddq_slot_name_unpack(const char *payload, char *slot_ascii_name)
 	mlxsw_reg_mddq_slot_ascii_name_memcpy_from(payload, slot_ascii_name);
 }
 
+/* MDDC - Management DownStream Device Control Register
+ * ----------------------------------------------------
+ * This register allows to control downstream devices and line cards.
+ */
+#define MLXSW_REG_MDDC_ID 0x9163
+#define MLXSW_REG_MDDC_LEN 0x30
+
+MLXSW_REG_DEFINE(mddc, MLXSW_REG_MDDC_ID, MLXSW_REG_MDDC_LEN);
+
+/* reg_mddc_slot_index
+ * Slot index. 0 is reserved.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mddc, slot_index, 0x00, 0, 4);
+
+/* reg_mddc_rst
+ * Reset request.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, mddc, rst, 0x04, 29, 1);
+
+/* reg_mddc_device_enable
+ * When set, FW is the manager and allowed to program the downstream device.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mddc, device_enable, 0x04, 28, 1);
+
+static inline void mlxsw_reg_mddc_pack(char *payload, u8 slot_index, bool rst,
+				       bool device_enable)
+{
+	MLXSW_REG_ZERO(mddc, payload);
+	mlxsw_reg_mddc_slot_index_set(payload, slot_index);
+	mlxsw_reg_mddc_rst_set(payload, rst);
+	mlxsw_reg_mddc_device_enable_set(payload, device_enable);
+}
+
 /* MFDE - Monitoring FW Debug Register
  * -----------------------------------
  */
@@ -12955,6 +12991,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mfgd),
 	MLXSW_REG(mgpir),
 	MLXSW_REG(mddq),
+	MLXSW_REG(mddc),
 	MLXSW_REG(mfde),
 	MLXSW_REG(tngcr),
 	MLXSW_REG(tnumt),
