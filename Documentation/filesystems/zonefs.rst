@@ -306,8 +306,15 @@ Further notes:
 Mount options
 -------------
 
-zonefs define the "errors=<behavior>" mount option to allow the user to specify
-zonefs behavior in response to I/O errors, inode size inconsistencies or zone
+zonefs defines several mount options:
+* errors=<behavior>
+* explicit-open
+
+"errors=<behavior>" option
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The "errors=<behavior>" option mount option allows the user to specify zonefs
+behavior in response to I/O errors, inode size inconsistencies or zone
 condition changes. The defined behaviors are as follow:
 
 * remount-ro (default)
@@ -325,6 +332,9 @@ is defined as invalib by the ZBC and ZAC standards, making it impossible to
 discover the amount of data that has been written to the zone. In the case of a
 read-only zone discovered at run-time, as indicated in the previous section.
 The size of the zone file is left unchanged from its last updated value.
+
+"explicit-open" option
+~~~~~~~~~~~~~~~~~~~~~~
 
 A zoned block device (e.g. an NVMe Zoned Namespace device) may have limits on
 the number of zones that can be active, that is, zones that are in the
