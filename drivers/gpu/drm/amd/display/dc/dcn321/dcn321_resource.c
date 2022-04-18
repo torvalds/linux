@@ -1899,7 +1899,6 @@ static void dcn321_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 			dcn3_21_soc.clock_limits[i].state = i;
 			dcn3_21_soc.clock_limits[i].dcfclk_mhz = dcfclk_mhz[i];
 			dcn3_21_soc.clock_limits[i].fabricclk_mhz = dcfclk_mhz[i];
-			dcn3_21_soc.clock_limits[i].dram_speed_mts = dram_speed_mts[i];
 
 			/* Fill all states with max values of all these clocks */
 			dcn3_21_soc.clock_limits[i].dispclk_mhz = max_dispclk_mhz;
@@ -1917,6 +1916,11 @@ static void dcn321_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 				dcn3_21_soc.clock_limits[i].socclk_mhz = dcn3_21_soc.clock_limits[i-1].socclk_mhz;
 			else
 				dcn3_21_soc.clock_limits[i].socclk_mhz = bw_params->clk_table.entries[i].socclk_mhz;
+
+			if (!dram_speed_mts[i] && i > 0)
+				dcn3_21_soc.clock_limits[i].dram_speed_mts = dcn3_21_soc.clock_limits[i-1].dram_speed_mts;
+			else
+				dcn3_21_soc.clock_limits[i].dram_speed_mts = dram_speed_mts[i];
 
 			/* These clocks cannot come from bw_params, always fill from dcn3_21_soc[0] */
 			/* PHYCLK_D18, PHYCLK_D32 */
