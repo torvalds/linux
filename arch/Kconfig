@@ -1038,6 +1038,9 @@ config HAVE_JUMP_LABEL_HACK
 config HAVE_NOINSTR_HACK
 	bool
 
+config HAVE_NOINSTR_VALIDATION
+	bool
+
 config HAVE_STACK_VALIDATION
 	bool
 	help
