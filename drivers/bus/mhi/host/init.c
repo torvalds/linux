@@ -547,9 +547,14 @@ int mhi_init_mmio(struct mhi_controller *mhi_cntrl)
 	mhi_cntrl->mhi_cmd[PRIMARY_CMD_RING].ring.db_addr = base + CRDB_LOWER;
 
 	/* Write to MMIO registers */
-	for (i = 0; reg_info[i].offset; i++)
-		mhi_write_reg_field(mhi_cntrl, base, reg_info[i].offset,
-				    reg_info[i].mask, reg_info[i].val);
+	for (i = 0; reg_info[i].offset; i++) {
+		ret = mhi_write_reg_field(mhi_cntrl, base, reg_info[i].offset,
+					  reg_info[i].mask, reg_info[i].val);
+		if (ret) {
+			dev_err(dev, "Unable to write to MMIO registers\n");
+			return ret;
+		}
+	}
 
 	return 0;
 }
@@ -1117,8 +1122,15 @@ int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl)
 		 */
 		mhi_alloc_bhie_table(mhi_cntrl, &mhi_cntrl->rddm_image,
 				     mhi_cntrl->rddm_size);
-		if (mhi_cntrl->rddm_image)
-			mhi_rddm_prepare(mhi_cntrl, mhi_cntrl->rddm_image);
+		if (mhi_cntrl->rddm_image) {
+			ret = mhi_rddm_prepare(mhi_cntrl,
+					       mhi_cntrl->rddm_image);
+			if (ret) {
+				mhi_free_bhie_table(mhi_cntrl,
+						    mhi_cntrl->rddm_image);
+				goto error_reg_offset;
+			}
+		}
 	}
 
 	mutex_unlock(&mhi_cntrl->pm_mutex);
