@@ -430,6 +430,7 @@ struct snd_pcm_runtime {
 #endif
 #ifndef __GENKSYMS__
 	struct mutex buffer_mutex;	/* protect for buffer changes */
+	atomic_t buffer_accessing;	/* >0: in r/w operation, <0: blocked */
 #endif
 };
 

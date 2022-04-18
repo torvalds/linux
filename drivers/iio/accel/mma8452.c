@@ -176,6 +176,7 @@ static const struct mma8452_event_regs trans_ev_regs = {
  * @enabled_events:		event flags enabled and handled by this driver
  */
 struct mma_chip_info {
+	const char *name;
 	u8 chip_id;
 	const struct iio_chan_spec *channels;
 	int num_channels;
@@ -1303,6 +1304,7 @@ enum {
 
 static const struct mma_chip_info mma_chip_info_table[] = {
 	[mma8451] = {
+		.name = "mma8451",
 		.chip_id = MMA8451_DEVICE_ID,
 		.channels = mma8451_channels,
 		.num_channels = ARRAY_SIZE(mma8451_channels),
@@ -1327,6 +1329,7 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 					MMA8452_INT_FF_MT,
 	},
 	[mma8452] = {
+		.name = "mma8452",
 		.chip_id = MMA8452_DEVICE_ID,
 		.channels = mma8452_channels,
 		.num_channels = ARRAY_SIZE(mma8452_channels),
@@ -1343,6 +1346,7 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 					MMA8452_INT_FF_MT,
 	},
 	[mma8453] = {
+		.name = "mma8453",
 		.chip_id = MMA8453_DEVICE_ID,
 		.channels = mma8453_channels,
 		.num_channels = ARRAY_SIZE(mma8453_channels),
@@ -1359,6 +1363,7 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 					MMA8452_INT_FF_MT,
 	},
 	[mma8652] = {
+		.name = "mma8652",
 		.chip_id = MMA8652_DEVICE_ID,
 		.channels = mma8652_channels,
 		.num_channels = ARRAY_SIZE(mma8652_channels),
@@ -1368,6 +1373,7 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 		.enabled_events = MMA8452_INT_FF_MT,
 	},
 	[mma8653] = {
+		.name = "mma8653",
 		.chip_id = MMA8653_DEVICE_ID,
 		.channels = mma8653_channels,
 		.num_channels = ARRAY_SIZE(mma8653_channels),
@@ -1382,6 +1388,7 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 		.enabled_events = MMA8452_INT_FF_MT,
 	},
 	[fxls8471] = {
+		.name = "fxls8471",
 		.chip_id = FXLS8471_DEVICE_ID,
 		.channels = mma8451_channels,
 		.num_channels = ARRAY_SIZE(mma8451_channels),
@@ -1525,13 +1532,6 @@ static int mma8452_probe(struct i2c_client *client,
 	struct mma8452_data *data;
 	struct iio_dev *indio_dev;
 	int ret;
-	const struct of_device_id *match;
-
-	match = of_match_device(mma8452_dt_ids, &client->dev);
-	if (!match) {
-		dev_err(&client->dev, "unknown device model\n");
-		return -ENODEV;
-	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -1540,7 +1540,14 @@ static int mma8452_probe(struct i2c_client *client,
 	data = iio_priv(indio_dev);
 	data->client = client;
 	mutex_init(&data->lock);
-	data->chip_info = match->data;
+
+	data->chip_info = device_get_match_data(&client->dev);
+	if (!data->chip_info && id) {
+		data->chip_info = &mma_chip_info_table[id->driver_data];
+	} else {
+		dev_err(&client->dev, "unknown device model\n");
+		return -ENODEV;
+	}
 
 	data->vdd_reg = devm_regulator_get(&client->dev, "vdd");
 	if (IS_ERR(data->vdd_reg))
@@ -1584,11 +1591,11 @@ static int mma8452_probe(struct i2c_client *client,
 	}
 
 	dev_info(&client->dev, "registering %s accelerometer; ID 0x%x\n",
-		 match->compatible, data->chip_info->chip_id);
+		 data->chip_info->name, data->chip_info->chip_id);
 
 	i2c_set_clientdata(client, indio_dev);
 	indio_dev->info = &mma8452_info;
-	indio_dev->name = id->name;
+	indio_dev->name = data->chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = data->chip_info->channels;
 	indio_dev->num_channels = data->chip_info->num_channels;
@@ -1814,7 +1821,7 @@ MODULE_DEVICE_TABLE(i2c, mma8452_id);
 static struct i2c_driver mma8452_driver = {
 	.driver = {
 		.name	= "mma8452",
-		.of_match_table = of_match_ptr(mma8452_dt_ids),
+		.of_match_table = mma8452_dt_ids,
 		.pm	= &mma8452_pm_ops,
 	},
 	.probe = mma8452_probe,

@@ -60,7 +60,7 @@
  *  after rcu grace period
  * @ref: kref pointer of the gw_node
  */
-static void batadv_gw_node_release(struct kref *ref)
+void batadv_gw_node_release(struct kref *ref)
 {
 	struct batadv_gw_node *gw_node;
 
@@ -68,16 +68,6 @@ static void batadv_gw_node_release(struct kref *ref)
 
 	batadv_orig_node_put(gw_node->orig_node);
 	kfree_rcu(gw_node, rcu);
-}
-
-/**
- * batadv_gw_node_put() - decrement the gw_node refcounter and possibly release
- *  it
- * @gw_node: gateway node to free
- */
-void batadv_gw_node_put(struct batadv_gw_node *gw_node)
-{
-	kref_put(&gw_node->refcount, batadv_gw_node_release);
 }
 
 /**
