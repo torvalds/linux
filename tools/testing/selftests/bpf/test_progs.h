@@ -64,6 +64,25 @@ struct test_selector {
 	int num_set_len;
 };
 
+struct test_state {
+	bool tested;
+	bool force_log;
+
+	int error_cnt;
+	int skip_cnt;
+	int subtest_skip_cnt;
+	int sub_succ_cnt;
+
+	char *subtest_name;
+	int subtest_num;
+
+	/* store counts before subtest started */
+	int old_error_cnt;
+
+	size_t log_cnt;
+	char *log_buf;
+};
+
 struct test_env {
 	struct test_selector test_selector;
 	struct test_selector subtest_selector;
@@ -76,12 +95,11 @@ struct test_env {
 	bool get_test_cnt;
 	bool list_test_names;
 
-	struct prog_test_def *test; /* current running tests */
+	struct prog_test_def *test; /* current running test */
+	struct test_state *test_state; /* current running test result */
 
 	FILE *stdout;
 	FILE *stderr;
-	char *log_buf;
-	size_t log_cnt;
 	int nr_cpus;
 
 	int succ_cnt; /* successful tests */
@@ -126,11 +144,12 @@ struct msg {
 
 extern struct test_env env;
 
-extern void test__force_log();
-extern bool test__start_subtest(const char *name);
-extern void test__skip(void);
-extern void test__fail(void);
-extern int test__join_cgroup(const char *path);
+void test__force_log(void);
+bool test__start_subtest(const char *name);
+void test__end_subtest(void);
+void test__skip(void);
+void test__fail(void);
+int test__join_cgroup(const char *path);
 
 #define PRINT_FAIL(format...)                                                  \
 	({                                                                     \

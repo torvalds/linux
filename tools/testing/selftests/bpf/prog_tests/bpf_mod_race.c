@@ -36,13 +36,13 @@ struct test_config {
 	void (*bpf_destroy)(void *);
 };
 
-enum test_state {
+enum bpf_test_state {
 	_TS_INVALID,
 	TS_MODULE_LOAD,
 	TS_MODULE_LOAD_FAIL,
 };
 
-static _Atomic enum test_state state = _TS_INVALID;
+static _Atomic enum bpf_test_state state = _TS_INVALID;
 
 static int sys_finit_module(int fd, const char *param_values, int flags)
 {
