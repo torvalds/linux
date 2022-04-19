@@ -643,7 +643,7 @@ static void fpsimd_to_sve(struct task_struct *task)
 	if (!system_supports_sve())
 		return;
 
-	vq = sve_vq_from_vl(task_get_sve_vl(task));
+	vq = sve_vq_from_vl(thread_get_cur_vl(&task->thread));
 	__fpsimd_to_sve(sst, fst, vq);
 }
 
@@ -660,7 +660,7 @@ static void fpsimd_to_sve(struct task_struct *task)
  */
 static void sve_to_fpsimd(struct task_struct *task)
 {
-	unsigned int vq;
+	unsigned int vq, vl;
 	void const *sst = task->thread.sve_state;
 	struct user_fpsimd_state *fst = &task->thread.uw.fpsimd_state;
 	unsigned int i;
@@ -669,7 +669,8 @@ static void sve_to_fpsimd(struct task_struct *task)
 	if (!system_supports_sve())
 		return;
 
-	vq = sve_vq_from_vl(task_get_sve_vl(task));
+	vl = thread_get_cur_vl(&task->thread);
+	vq = sve_vq_from_vl(vl);
 	for (i = 0; i < SVE_NUM_ZREGS; ++i) {
 		p = (__uint128_t const *)ZREG(sst, vq, i);
 		fst->vregs[i] = arm64_le128_to_cpu(*p);
@@ -718,6 +719,19 @@ void sve_alloc(struct task_struct *task)
 
 
 /*
+ * Force the FPSIMD state shared with SVE to be updated in the SVE state
+ * even if the SVE state is the current active state.
+ *
+ * This should only be called by ptrace.  task must be non-runnable.
+ * task->thread.sve_state must point to at least sve_state_size(task)
+ * bytes of allocated kernel memory.
+ */
+void fpsimd_force_sync_to_sve(struct task_struct *task)
+{
+	fpsimd_to_sve(task);
+}
+
+/*
  * Ensure that task->thread.sve_state is up to date with respect to
  * the user task, irrespective of when SVE is in use or not.
  *
@@ -727,7 +741,8 @@ void sve_alloc(struct task_struct *task)
  */
 void fpsimd_sync_to_sve(struct task_struct *task)
 {
-	if (!test_tsk_thread_flag(task, TIF_SVE))
+	if (!test_tsk_thread_flag(task, TIF_SVE) &&
+	    !thread_sm_enabled(&task->thread))
 		fpsimd_to_sve(task);
 }
 
@@ -741,7 +756,8 @@ void fpsimd_sync_to_sve(struct task_struct *task)
  */
 void sve_sync_to_fpsimd(struct task_struct *task)
 {
-	if (test_tsk_thread_flag(task, TIF_SVE))
+	if (test_tsk_thread_flag(task, TIF_SVE) ||
+	    thread_sm_enabled(&task->thread))
 		sve_to_fpsimd(task);
 }
 
@@ -766,7 +782,7 @@ void sve_sync_from_fpsimd_zeropad(struct task_struct *task)
 	if (!test_tsk_thread_flag(task, TIF_SVE))
 		return;
 
-	vq = sve_vq_from_vl(task_get_sve_vl(task));
+	vq = sve_vq_from_vl(thread_get_cur_vl(&task->thread));
 
 	memset(sst, 0, SVE_SIG_REGS_SIZE(vq));
 	__fpsimd_to_sve(sst, fst, vq);
@@ -810,8 +826,7 @@ int vec_set_vector_length(struct task_struct *task, enum vec_type type,
 	/*
 	 * To ensure the FPSIMD bits of the SVE vector registers are preserved,
 	 * write any live register state back to task_struct, and convert to a
-	 * regular FPSIMD thread.  Since the vector length can only be changed
-	 * with a syscall we can't be in streaming mode while reconfiguring.
+	 * regular FPSIMD thread.
 	 */
 	if (task == current) {
 		get_cpu_fpsimd_context();
