@@ -22,6 +22,9 @@
  */
 #include <linux/firmware.h>
 #include <linux/pci.h>
+
+#include <drm/drm_cache.h>
+
 #include "amdgpu.h"
 #include "amdgpu_atomfirmware.h"
 #include "gmc_v10_0.h"
@@ -979,6 +982,8 @@ static int gmc_v10_0_sw_init(void *handle)
 		printk(KERN_WARNING "amdgpu: No suitable DMA available.\n");
 		return r;
 	}
+
+	adev->need_swiotlb = drm_need_swiotlb(44);
 
 	r = gmc_v10_0_mc_init(adev);
 	if (r)
