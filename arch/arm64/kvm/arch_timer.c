@@ -350,15 +350,9 @@ static bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
 	return cval <= now;
 }
 
-bool kvm_timer_is_pending(struct kvm_vcpu *vcpu)
+int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
-	struct timer_map map;
-
-	get_timer_map(vcpu, &map);
-
-	return kvm_timer_should_fire(map.direct_vtimer) ||
-	       kvm_timer_should_fire(map.direct_ptimer) ||
-	       kvm_timer_should_fire(map.emul_ptimer);
+	return 0;
 }
 
 /*
