@@ -221,7 +221,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 			 &priv->rtllib->current_network.qos_data.parameters;
 		u8 pAcParam = *val;
 		u32 eACI = pAcParam;
-		union aci_aifsn *pAciAifsn = (union aci_aifsn *) &
+		union aci_aifsn *pAciAifsn = (union aci_aifsn *)&
 					      (qos_parameters->aifs[0]);
 		u8 acm = pAciAifsn->f.acm;
 		u8 AcmCtrl = rtl92e_readb(dev, AcmHwCtrl);
@@ -811,7 +811,7 @@ start:
 
 	rtl92e_config_mac(dev);
 
-	if (priv->card_8192_version > (u8) VERSION_8190_BD) {
+	if (priv->card_8192_version > (u8)VERSION_8190_BD) {
 		rtl92e_get_tx_power(dev);
 		rtl92e_set_tx_power(dev, priv->chan);
 	}
@@ -1613,9 +1613,9 @@ static void _rtl92e_query_rxphystatus(
 				total_rssi += RSSI;
 
 			if (bpacket_match_bssid) {
-				pstats->RxMIMOSignalStrength[i] = (u8) RSSI;
+				pstats->RxMIMOSignalStrength[i] = (u8)RSSI;
 				precord_stats->RxMIMOSignalStrength[i] =
-								(u8) RSSI;
+								(u8)RSSI;
 			}
 		}
 
