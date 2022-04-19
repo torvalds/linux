@@ -1202,8 +1202,7 @@ static int hns3_set_ringparam(struct net_device *ndev,
 
 	tmp_rings = hns3_backup_ringparam(priv);
 	if (!tmp_rings) {
-		netdev_err(ndev,
-			   "backup ring param failed by allocating memory fail\n");
+		netdev_err(ndev, "backup ring param failed by allocating memory fail\n");
 		return -ENOMEM;
 	}
 
@@ -1905,13 +1904,11 @@ static int hns3_set_tunable(struct net_device *netdev,
 		    (!priv->ring->tx_spare && new_tx_spare_buf_size != 0)) {
 			int ret1;
 
-			netdev_warn(netdev,
-				    "change tx spare buf size fail, revert to old value\n");
+			netdev_warn(netdev, "change tx spare buf size fail, revert to old value\n");
 			ret1 = hns3_set_tx_spare_buf_size(netdev,
 							  old_tx_spare_buf_size);
 			if (ret1) {
-				netdev_err(netdev,
-					   "revert to old tx spare buf size fail\n");
+				netdev_err(netdev, "revert to old tx spare buf size fail\n");
 				return ret1;
 			}
 
