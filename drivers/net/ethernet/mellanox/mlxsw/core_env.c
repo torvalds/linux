@@ -23,6 +23,7 @@ struct mlxsw_env_module_info {
 
 struct mlxsw_env_line_card {
 	u8 module_count;
+	bool active;
 	struct mlxsw_env_module_info module_info[];
 };
 
@@ -34,6 +35,24 @@ struct mlxsw_env {
 	struct mutex line_cards_lock; /* Protects line cards. */
 	struct mlxsw_env_line_card *line_cards[];
 };
+
+static bool __mlxsw_env_linecard_is_active(struct mlxsw_env *mlxsw_env,
+					   u8 slot_index)
+{
+	return mlxsw_env->line_cards[slot_index]->active;
+}
+
+static bool mlxsw_env_linecard_is_active(struct mlxsw_env *mlxsw_env,
+					 u8 slot_index)
+{
+	bool active;
+
+	mutex_lock(&mlxsw_env->line_cards_lock);
+	active = __mlxsw_env_linecard_is_active(mlxsw_env, slot_index);
+	mutex_unlock(&mlxsw_env->line_cards_lock);
+
+	return active;
+}
 
 static struct
 mlxsw_env_module_info *mlxsw_env_module_info_get(struct mlxsw_core *mlxsw_core,
@@ -47,8 +66,12 @@ mlxsw_env_module_info *mlxsw_env_module_info_get(struct mlxsw_core *mlxsw_core,
 static int __mlxsw_env_validate_module_type(struct mlxsw_core *core,
 					    u8 slot_index, u8 module)
 {
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(core);
 	struct mlxsw_env_module_info *module_info;
 	int err;
+
+	if (!__mlxsw_env_linecard_is_active(mlxsw_env, slot_index))
+		return 0;
 
 	module_info = mlxsw_env_module_info_get(core, slot_index, module);
 	switch (module_info->type) {
@@ -269,11 +292,17 @@ int mlxsw_env_get_module_info(struct net_device *netdev,
 			      struct mlxsw_core *mlxsw_core, u8 slot_index,
 			      int module, struct ethtool_modinfo *modinfo)
 {
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
 	u8 module_info[MLXSW_REG_MCIA_EEPROM_MODULE_INFO_SIZE];
 	u16 offset = MLXSW_REG_MCIA_EEPROM_MODULE_INFO_SIZE;
 	u8 module_rev_id, module_id, diag_mon;
 	unsigned int read_size;
 	int err;
+
+	if (!mlxsw_env_linecard_is_active(mlxsw_env, slot_index)) {
+		netdev_err(netdev, "Cannot read EEPROM of module on an inactive line card\n");
+		return -EIO;
+	}
 
 	err = mlxsw_env_validate_module_type(mlxsw_core, slot_index, module);
 	if (err) {
@@ -359,6 +388,7 @@ int mlxsw_env_get_module_eeprom(struct net_device *netdev,
 				int module, struct ethtool_eeprom *ee,
 				u8 *data)
 {
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
 	int offset = ee->offset;
 	unsigned int read_size;
 	bool qsfp, cmis;
@@ -367,6 +397,11 @@ int mlxsw_env_get_module_eeprom(struct net_device *netdev,
 
 	if (!ee->len)
 		return -EINVAL;
+
+	if (!mlxsw_env_linecard_is_active(mlxsw_env, slot_index)) {
+		netdev_err(netdev, "Cannot read EEPROM of module on an inactive line card\n");
+		return -EIO;
+	}
 
 	memset(data, 0, ee->len);
 	/* Validate module identifier value. */
@@ -428,9 +463,16 @@ mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core,
 				    const struct ethtool_module_eeprom *page,
 				    struct netlink_ext_ack *extack)
 {
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
 	u32 bytes_read = 0;
 	u16 device_addr;
 	int err;
+
+	if (!mlxsw_env_linecard_is_active(mlxsw_env, slot_index)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Cannot read EEPROM of module on an inactive line card");
+		return -EIO;
+	}
 
 	err = mlxsw_env_validate_module_type(mlxsw_core, slot_index, module);
 	if (err) {
@@ -497,6 +539,11 @@ int mlxsw_env_reset_module(struct net_device *netdev,
 	    !(req & (ETH_RESET_PHY << ETH_RESET_SHARED_SHIFT)))
 		return 0;
 
+	if (!mlxsw_env_linecard_is_active(mlxsw_env, slot_index)) {
+		netdev_err(netdev, "Cannot reset module on an inactive line card\n");
+		return -EIO;
+	}
+
 	mutex_lock(&mlxsw_env->line_cards_lock);
 
 	err = __mlxsw_env_validate_module_type(mlxsw_core, slot_index, module);
@@ -543,7 +590,7 @@ mlxsw_env_get_module_power_mode(struct mlxsw_core *mlxsw_core, u8 slot_index,
 	struct mlxsw_env_module_info *module_info;
 	char mcion_pl[MLXSW_REG_MCION_LEN];
 	u32 status_bits;
-	int err;
+	int err = 0;
 
 	mutex_lock(&mlxsw_env->line_cards_lock);
 
@@ -555,6 +602,10 @@ mlxsw_env_get_module_power_mode(struct mlxsw_core *mlxsw_core, u8 slot_index,
 
 	module_info = mlxsw_env_module_info_get(mlxsw_core, slot_index, module);
 	params->policy = module_info->power_mode_policy;
+
+	/* Avoid accessing an inactive line card, as it will result in an error. */
+	if (!__mlxsw_env_linecard_is_active(mlxsw_env, slot_index))
+		goto out;
 
 	mlxsw_reg_mcion_pack(mcion_pl, slot_index, module);
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mcion), mcion_pl);
@@ -617,7 +668,15 @@ static int __mlxsw_env_set_module_power_mode(struct mlxsw_core *mlxsw_core,
 					     bool low_power,
 					     struct netlink_ext_ack *extack)
 {
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
 	int err;
+
+	/* Avoid accessing an inactive line card, as it will result in an error.
+	 * Cached configuration will be applied by mlxsw_env_got_active() when
+	 * line card becomes active.
+	 */
+	if (!__mlxsw_env_linecard_is_active(mlxsw_env, slot_index))
+		return 0;
 
 	err = mlxsw_env_module_enable_set(mlxsw_core, slot_index, module, false);
 	if (err) {
@@ -1208,6 +1267,98 @@ mlxsw_env_module_type_set(struct mlxsw_core *mlxsw_core, u8 slot_index)
 	return 0;
 }
 
+static void
+mlxsw_env_linecard_modules_power_mode_apply(struct mlxsw_core *mlxsw_core,
+					    struct mlxsw_env *env,
+					    u8 slot_index)
+{
+	int i;
+
+	for (i = 0; i < env->line_cards[slot_index]->module_count; i++) {
+		enum ethtool_module_power_mode_policy policy;
+		struct mlxsw_env_module_info *module_info;
+		struct netlink_ext_ack extack;
+		int err;
+
+		module_info = &env->line_cards[slot_index]->module_info[i];
+		policy = module_info->power_mode_policy;
+		err = mlxsw_env_set_module_power_mode_apply(mlxsw_core,
+							    slot_index, i,
+							    policy, &extack);
+		if (err)
+			dev_err(env->bus_info->dev, "%s\n", extack._msg);
+	}
+}
+
+static void
+mlxsw_env_got_active(struct mlxsw_core *mlxsw_core, u8 slot_index, void *priv)
+{
+	struct mlxsw_env *mlxsw_env = priv;
+	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
+	int err;
+
+	mutex_lock(&mlxsw_env->line_cards_lock);
+	if (__mlxsw_env_linecard_is_active(mlxsw_env, slot_index))
+		goto out_unlock;
+
+	mlxsw_reg_mgpir_pack(mgpir_pl, slot_index);
+	err = mlxsw_reg_query(mlxsw_env->core, MLXSW_REG(mgpir), mgpir_pl);
+	if (err)
+		goto out_unlock;
+
+	mlxsw_reg_mgpir_unpack(mgpir_pl, NULL, NULL, NULL,
+			       &mlxsw_env->line_cards[slot_index]->module_count,
+			       NULL);
+
+	err = mlxsw_env_module_event_enable(mlxsw_env, slot_index);
+	if (err) {
+		dev_err(mlxsw_env->bus_info->dev, "Failed to enable port module events for line card in slot %d\n",
+			slot_index);
+		goto err_mlxsw_env_module_event_enable;
+	}
+	err = mlxsw_env_module_type_set(mlxsw_env->core, slot_index);
+	if (err) {
+		dev_err(mlxsw_env->bus_info->dev, "Failed to set modules' type for line card in slot %d\n",
+			slot_index);
+		goto err_type_set;
+	}
+
+	mlxsw_env->line_cards[slot_index]->active = true;
+	/* Apply power mode policy. */
+	mlxsw_env_linecard_modules_power_mode_apply(mlxsw_core, mlxsw_env,
+						    slot_index);
+	mutex_unlock(&mlxsw_env->line_cards_lock);
+
+	return;
+
+err_type_set:
+	mlxsw_env_module_event_disable(mlxsw_env, slot_index);
+err_mlxsw_env_module_event_enable:
+out_unlock:
+	mutex_unlock(&mlxsw_env->line_cards_lock);
+}
+
+static void
+mlxsw_env_got_inactive(struct mlxsw_core *mlxsw_core, u8 slot_index,
+		       void *priv)
+{
+	struct mlxsw_env *mlxsw_env = priv;
+
+	mutex_lock(&mlxsw_env->line_cards_lock);
+	if (!__mlxsw_env_linecard_is_active(mlxsw_env, slot_index))
+		goto out_unlock;
+	mlxsw_env->line_cards[slot_index]->active = false;
+	mlxsw_env_module_event_disable(mlxsw_env, slot_index);
+	mlxsw_env->line_cards[slot_index]->module_count = 0;
+out_unlock:
+	mutex_unlock(&mlxsw_env->line_cards_lock);
+}
+
+static struct mlxsw_linecards_event_ops mlxsw_env_event_ops = {
+	.got_active = mlxsw_env_got_active,
+	.got_inactive = mlxsw_env_got_inactive,
+};
+
 int mlxsw_env_init(struct mlxsw_core *mlxsw_core,
 		   const struct mlxsw_bus_info *bus_info,
 		   struct mlxsw_env **p_env)
@@ -1247,6 +1398,11 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core,
 	mutex_init(&env->line_cards_lock);
 	*p_env = env;
 
+	err = mlxsw_linecards_event_ops_register(env->core,
+						 &mlxsw_env_event_ops, env);
+	if (err)
+		goto err_linecards_event_ops_register;
+
 	err = mlxsw_env_temp_warn_event_register(mlxsw_core);
 	if (err)
 		goto err_temp_warn_event_register;
@@ -1271,6 +1427,8 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core,
 	if (err)
 		goto err_type_set;
 
+	env->line_cards[0]->active = true;
+
 	return 0;
 
 err_type_set:
@@ -1280,6 +1438,9 @@ err_mlxsw_env_module_event_enable:
 err_module_plug_event_register:
 	mlxsw_env_temp_warn_event_unregister(env);
 err_temp_warn_event_register:
+	mlxsw_linecards_event_ops_unregister(env->core,
+					     &mlxsw_env_event_ops, env);
+err_linecards_event_ops_register:
 	mutex_destroy(&env->line_cards_lock);
 	mlxsw_env_line_cards_free(env);
 err_mlxsw_env_line_cards_alloc:
@@ -1289,11 +1450,14 @@ err_mlxsw_env_line_cards_alloc:
 
 void mlxsw_env_fini(struct mlxsw_env *env)
 {
+	env->line_cards[0]->active = false;
 	mlxsw_env_module_event_disable(env, 0);
 	mlxsw_env_module_plug_event_unregister(env);
 	/* Make sure there is no more event work scheduled. */
 	mlxsw_core_flush_owq();
 	mlxsw_env_temp_warn_event_unregister(env);
+	mlxsw_linecards_event_ops_unregister(env->core,
+					     &mlxsw_env_event_ops, env);
 	mutex_destroy(&env->line_cards_lock);
 	mlxsw_env_line_cards_free(env);
 	kfree(env);
