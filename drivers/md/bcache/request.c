@@ -685,7 +685,7 @@ static void do_bio_hook(struct search *s,
 {
 	struct bio *bio = &s->bio.bio;
 
-	bio_init_clone(bio->bi_bdev, bio, orig_bio, GFP_NOIO);
+	bio_init_clone(orig_bio->bi_bdev, bio, orig_bio, GFP_NOIO);
 	/*
 	 * bi_end_io can be set separately somewhere else, e.g. the
 	 * variants in,
