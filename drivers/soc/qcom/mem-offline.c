@@ -521,7 +521,7 @@ static int mem_event_callback(struct notifier_block *self,
 
 		break;
 	case MEM_ONLINE:
-		delay = ktime_ms_delta(ktime_get(), cur);
+		delay = ktime_us_delta(ktime_get(), cur);
 		record_stat(sec_nr, delay, MEMORY_ONLINE);
 		cur = 0;
 		set_memblk_bitmap_online(start_addr);
@@ -546,7 +546,7 @@ static int mem_event_callback(struct notifier_block *self,
 		 * help since this is the last stage of memory hotplug.
 		 */
 
-		delay = ktime_ms_delta(ktime_get(), cur);
+		delay = ktime_us_delta(ktime_get(), cur);
 		record_stat(sec_nr, delay, MEMORY_OFFLINE);
 		cur = 0;
 		set_memblk_bitmap_offline(start_addr);
@@ -788,7 +788,7 @@ static unsigned int print_blk_residency_times(char *buf, size_t sz,
 		delta = ktime_add(delta,
 			mem_info[i + mode * idx].resident_time);
 		c += scnprintf(buf + c, sz - c, "%lus\t\t",
-				ktime_to_ms(delta) / MSEC_PER_SEC);
+				ktime_to_us(delta) / USEC_PER_SEC);
 		total_time[i + mode * idx] = delta;
 	}
 	return c;
@@ -824,26 +824,26 @@ static ssize_t show_mem_stats(struct kobject *kobj,
 		c += scnprintf(buf + c, sz - c,
 							"\tLast recd time:\t");
 		for (i = 0; i <= tot_blks; i++)
-			c += scnprintf(buf + c, sz - c, "%lums\t\t",
+			c += scnprintf(buf + c, sz - c, "%luus\t\t",
 				mem_info[i + j * idx].last_recorded_time);
 		c += scnprintf(buf + c, sz - c, "\n");
 		c += scnprintf(buf + c, sz - c,
 							"\tAvg time:\t");
 		for (i = 0; i <= tot_blks; i++)
 			c += scnprintf(buf + c, sz - c,
-				"%lums\t\t", mem_info[i + j * idx].avg_time);
+				"%luus\t\t", mem_info[i + j * idx].avg_time);
 		c += scnprintf(buf + c, sz - c, "\n");
 		c += scnprintf(buf + c, sz - c,
 							"\tBest time:\t");
 		for (i = 0; i <= tot_blks; i++)
 			c += scnprintf(buf + c, sz - c,
-				"%lums\t\t", mem_info[i + j * idx].best_time);
+				"%luus\t\t", mem_info[i + j * idx].best_time);
 		c += scnprintf(buf + c, sz - c, "\n");
 		c += scnprintf(buf + c, sz - c,
 							"\tWorst time:\t");
 		for (i = 0; i <= tot_blks; i++)
 			c += scnprintf(buf + c, sz - c,
-				"%lums\t\t", mem_info[i + j * idx].worst_time);
+				"%luus\t\t", mem_info[i + j * idx].worst_time);
 		c += scnprintf(buf + c, sz - c, "\n");
 		c += scnprintf(buf + c, sz - c,
 							"\tSuccess count:\t");
