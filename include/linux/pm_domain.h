@@ -98,7 +98,7 @@ struct genpd_power_state {
 	u64 usage;
 	u64 rejected;
 	struct fwnode_handle *fwnode;
-	ktime_t idle_time;
+	u64 idle_time;
 	void *data;
 };
 
@@ -149,8 +149,8 @@ struct generic_pm_domain {
 			    unsigned int state_count);
 	unsigned int state_count; /* number of states */
 	unsigned int state_idx; /* state that genpd will go to when off */
-	ktime_t on_time;
-	ktime_t accounting_time;
+	u64 on_time;
+	u64 accounting_time;
 	const struct genpd_lock_ops *lock_ops;
 	union {
 		struct mutex mlock;
