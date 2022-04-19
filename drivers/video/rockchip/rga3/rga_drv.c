@@ -1528,8 +1528,7 @@ static int __init rga_init(void)
 	}
 
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		if (rga_drvdata->scheduler[i]->core == RGA2_SCHEDULER_CORE0 &&
-		    rga_drvdata->scheduler[i]->data != &rga2e_1106_data) {
+		if (rga_drvdata->scheduler[i]->data->mmu == RGA_MMU) {
 			ret = rga2_mmu_base_init();
 			if (ret) {
 				pr_err("rga2 mmu base init failed!\n");

@@ -2245,9 +2245,17 @@ int rga2_init_reg(struct rga_job *job)
 		print_debug_info(&req);
 
 	/* RGA2 mmu set */
-	if ((req.mmu_info.src0_mmu_flag & 1) || (req.mmu_info.src1_mmu_flag & 1)
-		|| (req.mmu_info.dst_mmu_flag & 1)
-		|| (req.mmu_info.els_mmu_flag & 1)) {
+	if ((req.mmu_info.src0_mmu_flag & 1) || (req.mmu_info.src1_mmu_flag & 1) ||
+	    (req.mmu_info.dst_mmu_flag & 1) || (req.mmu_info.els_mmu_flag & 1)) {
+		if (scheduler->data->mmu != RGA_MMU) {
+			pr_err("core[%d] has no MMU, please use physically contiguous memory.\n",
+			       scheduler->core);
+			pr_err("mmu_flag[src, src1, dst, els] = [0x%x, 0x%x, 0x%x, 0x%x]\n",
+			       req.mmu_info.src0_mmu_flag, req.mmu_info.src1_mmu_flag,
+			       req.mmu_info.dst_mmu_flag, req.mmu_info.els_mmu_flag);
+			return -EINVAL;
+		}
+
 		ret = rga2_set_mmu_reg_info(&job->vir_page_table, &req, job);
 		if (ret < 0) {
 			pr_err("%s, [%d] set mmu info error\n", __func__,

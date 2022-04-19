@@ -273,6 +273,7 @@ const struct rga_hw_data rga3_data = {
 	.csc_y2r_mode = RGA_MODE_CSC_BT601L |
 		RGA_MODE_CSC_BT601F | RGA_MODE_CSC_BT709 |
 		RGA_MODE_CSC_BT2020,
+	.mmu = RGA_IOMMU,
 };
 
 const struct rga_hw_data rga2e_data = {
@@ -297,6 +298,7 @@ const struct rga_hw_data rga2e_data = {
 					RGA_MODE_CSC_BT709,
 	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
 					RGA_MODE_CSC_BT709,
+	.mmu = RGA_MMU,
 };
 
 const struct rga_hw_data rga2e_1106_data = {
@@ -323,4 +325,5 @@ const struct rga_hw_data rga2e_1106_data = {
 			RGA_MODE_CSC_BT709,
 	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
 			RGA_MODE_CSC_BT709,
+	.mmu = RGA_NONE_MMU,
 };
