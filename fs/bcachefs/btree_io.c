@@ -815,10 +815,10 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 		printbuf_reset(&buf);
 		if (bset_key_invalid(c, b, u.s_c, updated_range, write, &buf)) {
 			printbuf_reset(&buf);
-			pr_buf(&buf, "invalid bkey:\n  ");
-			bch2_bkey_val_to_text(&buf, c, u.s_c);
-			pr_buf(&buf, "  \n");
+			pr_buf(&buf, "invalid bkey:  ");
 			bset_key_invalid(c, b, u.s_c, updated_range, write, &buf);
+			pr_buf(&buf, "\n  ");
+			bch2_bkey_val_to_text(&buf, c, u.s_c);
 
 			btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i, "%s", buf.buf);
 
@@ -1076,10 +1076,10 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 		     !bversion_cmp(u.k->version, MAX_VERSION))) {
 			printbuf_reset(&buf);
 
-			pr_buf(&buf, "invalid bkey\n  ");
-			bch2_bkey_val_to_text(&buf, c, u.s_c);
-			pr_buf(&buf, "\n  ");
+			pr_buf(&buf, "invalid bkey: ");
 			bch2_bkey_val_invalid(c, u.s_c, READ, &buf);
+			pr_buf(&buf, "\n  ");
+			bch2_bkey_val_to_text(&buf, c, u.s_c);
 
 			btree_err(BTREE_ERR_FIXABLE, c, NULL, b, i, "%s", buf.buf);
 
