@@ -590,6 +590,8 @@ struct mlxsw_linecards {
 	const struct mlxsw_bus_info *bus_info;
 	u8 count;
 	struct mlxsw_linecard_types_info *types_info;
+	struct list_head event_ops_list;
+	struct mutex event_ops_list_lock; /* Locks accesses to event ops list */
 	struct mlxsw_linecard linecards[];
 };
 
@@ -602,5 +604,20 @@ mlxsw_linecard_get(struct mlxsw_linecards *linecards, u8 slot_index)
 int mlxsw_linecards_init(struct mlxsw_core *mlxsw_core,
 			 const struct mlxsw_bus_info *bus_info);
 void mlxsw_linecards_fini(struct mlxsw_core *mlxsw_core);
+
+typedef void mlxsw_linecards_event_op_t(struct mlxsw_core *mlxsw_core,
+					u8 slot_index, void *priv);
+
+struct mlxsw_linecards_event_ops {
+	mlxsw_linecards_event_op_t *got_active;
+	mlxsw_linecards_event_op_t *got_inactive;
+};
+
+int mlxsw_linecards_event_ops_register(struct mlxsw_core *mlxsw_core,
+				       struct mlxsw_linecards_event_ops *ops,
+				       void *priv);
+void mlxsw_linecards_event_ops_unregister(struct mlxsw_core *mlxsw_core,
+					  struct mlxsw_linecards_event_ops *ops,
+					  void *priv);
 
 #endif
