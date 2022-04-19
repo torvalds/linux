@@ -16,7 +16,16 @@
 #include <linux/bitfield.h>
 #include <linux/blk-pm.h>
 #include <linux/blkdev.h>
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/nls.h>
+#include <linux/regulator/consumer.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_dbg.h>
 #include <scsi/scsi_driver.h>
+#include <scsi/scsi_eh.h>
 #include "ufshcd.h"
 #include "ufs_quirks.h"
 #include "unipro.h"
