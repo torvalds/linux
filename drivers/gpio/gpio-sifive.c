@@ -44,7 +44,7 @@ static void sifive_gpio_set_ie(struct sifive_gpio *chip, unsigned int offset)
 	unsigned long flags;
 	unsigned int trigger;
 
-	spin_lock_irqsave(&chip->gc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&chip->gc.bgpio_lock, flags);
 	trigger = (chip->irq_state & BIT(offset)) ? chip->trigger[offset] : 0;
 	regmap_update_bits(chip->regs, SIFIVE_GPIO_RISE_IE, BIT(offset),
 			   (trigger & IRQ_TYPE_EDGE_RISING) ? BIT(offset) : 0);
@@ -54,7 +54,7 @@ static void sifive_gpio_set_ie(struct sifive_gpio *chip, unsigned int offset)
 			   (trigger & IRQ_TYPE_LEVEL_HIGH) ? BIT(offset) : 0);
 	regmap_update_bits(chip->regs, SIFIVE_GPIO_LOW_IE, BIT(offset),
 			   (trigger & IRQ_TYPE_LEVEL_LOW) ? BIT(offset) : 0);
-	spin_unlock_irqrestore(&chip->gc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&chip->gc.bgpio_lock, flags);
 }
 
 static int sifive_gpio_irq_set_type(struct irq_data *d, unsigned int trigger)
@@ -84,13 +84,13 @@ static void sifive_gpio_irq_enable(struct irq_data *d)
 	/* Switch to input */
 	gc->direction_input(gc, offset);
 
-	spin_lock_irqsave(&gc->bgpio_lock, flags);
+	raw_spin_lock_irqsave(&gc->bgpio_lock, flags);
 	/* Clear any sticky pending interrupts */
 	regmap_write(chip->regs, SIFIVE_GPIO_RISE_IP, bit);
 	regmap_write(chip->regs, SIFIVE_GPIO_FALL_IP, bit);
 	regmap_write(chip->regs, SIFIVE_GPIO_HIGH_IP, bit);
 	regmap_write(chip->regs, SIFIVE_GPIO_LOW_IP, bit);
-	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
 	/* Enable interrupts */
 	assign_bit(offset, &chip->irq_state, 1);
@@ -116,13 +116,13 @@ static void sifive_gpio_irq_eoi(struct irq_data *d)
 	u32 bit = BIT(offset);
 	unsigned long flags;
 
-	spin_lock_irqsave(&gc->bgpio_lock, flags);
+	raw_spin_lock_irqsave(&gc->bgpio_lock, flags);
 	/* Clear all pending interrupts */
 	regmap_write(chip->regs, SIFIVE_GPIO_RISE_IP, bit);
 	regmap_write(chip->regs, SIFIVE_GPIO_FALL_IP, bit);
 	regmap_write(chip->regs, SIFIVE_GPIO_HIGH_IP, bit);
 	regmap_write(chip->regs, SIFIVE_GPIO_LOW_IP, bit);
-	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
 	irq_chip_eoi_parent(d);
 }

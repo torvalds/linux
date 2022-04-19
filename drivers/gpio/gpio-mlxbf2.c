@@ -131,7 +131,7 @@ static int mlxbf2_gpio_lock_acquire(struct mlxbf2_gpio_context *gs)
 	u32 arm_gpio_lock_val;
 
 	mutex_lock(yu_arm_gpio_lock_param.lock);
-	spin_lock(&gs->gc.bgpio_lock);
+	raw_spin_lock(&gs->gc.bgpio_lock);
 
 	arm_gpio_lock_val = readl(yu_arm_gpio_lock_param.io);
 
@@ -139,7 +139,7 @@ static int mlxbf2_gpio_lock_acquire(struct mlxbf2_gpio_context *gs)
 	 * When lock active bit[31] is set, ModeX is write enabled
 	 */
 	if (YU_LOCK_ACTIVE_BIT(arm_gpio_lock_val)) {
-		spin_unlock(&gs->gc.bgpio_lock);
+		raw_spin_unlock(&gs->gc.bgpio_lock);
 		mutex_unlock(yu_arm_gpio_lock_param.lock);
 		return -EINVAL;
 	}
@@ -157,7 +157,7 @@ static void mlxbf2_gpio_lock_release(struct mlxbf2_gpio_context *gs)
 	__releases(yu_arm_gpio_lock_param.lock)
 {
 	writel(YU_ARM_GPIO_LOCK_RELEASE, yu_arm_gpio_lock_param.io);
-	spin_unlock(&gs->gc.bgpio_lock);
+	raw_spin_unlock(&gs->gc.bgpio_lock);
 	mutex_unlock(yu_arm_gpio_lock_param.lock);
 }
 
@@ -237,7 +237,7 @@ static void mlxbf2_gpio_irq_enable(struct irq_data *irqd)
 	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&gs->gc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&gs->gc.bgpio_lock, flags);
 	val = readl(gs->gpio_io + YU_GPIO_CAUSE_OR_CLRCAUSE);
 	val |= BIT(offset);
 	writel(val, gs->gpio_io + YU_GPIO_CAUSE_OR_CLRCAUSE);
@@ -245,7 +245,7 @@ static void mlxbf2_gpio_irq_enable(struct irq_data *irqd)
 	val = readl(gs->gpio_io + YU_GPIO_CAUSE_OR_EVTEN0);
 	val |= BIT(offset);
 	writel(val, gs->gpio_io + YU_GPIO_CAUSE_OR_EVTEN0);
-	spin_unlock_irqrestore(&gs->gc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&gs->gc.bgpio_lock, flags);
 }
 
 static void mlxbf2_gpio_irq_disable(struct irq_data *irqd)
@@ -256,11 +256,11 @@ static void mlxbf2_gpio_irq_disable(struct irq_data *irqd)
 	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&gs->gc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&gs->gc.bgpio_lock, flags);
 	val = readl(gs->gpio_io + YU_GPIO_CAUSE_OR_EVTEN0);
 	val &= ~BIT(offset);
 	writel(val, gs->gpio_io + YU_GPIO_CAUSE_OR_EVTEN0);
-	spin_unlock_irqrestore(&gs->gc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&gs->gc.bgpio_lock, flags);
 }
 
 static irqreturn_t mlxbf2_gpio_irq_handler(int irq, void *ptr)
@@ -307,7 +307,7 @@ mlxbf2_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&gs->gc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&gs->gc.bgpio_lock, flags);
 	if (fall) {
 		val = readl(gs->gpio_io + YU_GPIO_CAUSE_FALL_EN);
 		val |= BIT(offset);
@@ -319,7 +319,7 @@ mlxbf2_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 		val |= BIT(offset);
 		writel(val, gs->gpio_io + YU_GPIO_CAUSE_RISE_EN);
 	}
-	spin_unlock_irqrestore(&gs->gc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&gs->gc.bgpio_lock, flags);
 
 	return 0;
 }

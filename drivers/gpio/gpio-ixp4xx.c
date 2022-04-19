@@ -126,7 +126,7 @@ static int ixp4xx_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		int_reg = IXP4XX_REG_GPIT1;
 	}
 
-	spin_lock_irqsave(&g->gc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&g->gc.bgpio_lock, flags);
 
 	/* Clear the style for the appropriate pin */
 	val = __raw_readl(g->base + int_reg);
@@ -145,7 +145,7 @@ static int ixp4xx_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	val |= BIT(d->hwirq);
 	__raw_writel(val, g->base + IXP4XX_REG_GPOE);
 
-	spin_unlock_irqrestore(&g->gc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&g->gc.bgpio_lock, flags);
 
 	/* This parent only accept level high (asserted) */
 	return irq_chip_set_type_parent(d, IRQ_TYPE_LEVEL_HIGH);
