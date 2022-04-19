@@ -1279,17 +1279,11 @@ u64 vmbus_next_request_id(struct vmbus_channel *channel, u64 rqst_addr)
 }
 EXPORT_SYMBOL_GPL(vmbus_next_request_id);
 
-/*
- * vmbus_request_addr - Returns the memory address stored at @trans_id
- * in @rqstor. Uses a spin lock to avoid race conditions.
- * @channel: Pointer to the VMbus channel struct
- * @trans_id: Request id sent back from Hyper-V. Becomes the requestor's
- * next request id.
- */
-u64 vmbus_request_addr(struct vmbus_channel *channel, u64 trans_id)
+/* As in vmbus_request_addr_match() but without the requestor lock */
+u64 __vmbus_request_addr_match(struct vmbus_channel *channel, u64 trans_id,
+			       u64 rqst_addr)
 {
 	struct vmbus_requestor *rqstor = &channel->requestor;
-	unsigned long flags;
 	u64 req_addr;
 
 	/* Check rqstor has been initialized */
@@ -1300,25 +1294,60 @@ u64 vmbus_request_addr(struct vmbus_channel *channel, u64 trans_id)
 	if (!trans_id)
 		return VMBUS_RQST_ERROR;
 
-	spin_lock_irqsave(&rqstor->req_lock, flags);
-
 	/* Data corresponding to trans_id is stored at trans_id - 1 */
 	trans_id--;
 
 	/* Invalid trans_id */
-	if (trans_id >= rqstor->size || !test_bit(trans_id, rqstor->req_bitmap)) {
-		spin_unlock_irqrestore(&rqstor->req_lock, flags);
+	if (trans_id >= rqstor->size || !test_bit(trans_id, rqstor->req_bitmap))
 		return VMBUS_RQST_ERROR;
-	}
 
 	req_addr = rqstor->req_arr[trans_id];
-	rqstor->req_arr[trans_id] = rqstor->next_request_id;
-	rqstor->next_request_id = trans_id;
+	if (rqst_addr == VMBUS_RQST_ADDR_ANY || req_addr == rqst_addr) {
+		rqstor->req_arr[trans_id] = rqstor->next_request_id;
+		rqstor->next_request_id = trans_id;
 
-	/* The already held spin lock provides atomicity */
-	bitmap_clear(rqstor->req_bitmap, trans_id, 1);
+		/* The already held spin lock provides atomicity */
+		bitmap_clear(rqstor->req_bitmap, trans_id, 1);
+	}
 
-	spin_unlock_irqrestore(&rqstor->req_lock, flags);
 	return req_addr;
+}
+EXPORT_SYMBOL_GPL(__vmbus_request_addr_match);
+
+/*
+ * vmbus_request_addr_match - Clears/removes @trans_id from the @channel's
+ * requestor, provided the memory address stored at @trans_id equals @rqst_addr
+ * (or provided @rqst_addr matches the sentinel value VMBUS_RQST_ADDR_ANY).
+ *
+ * Returns the memory address stored at @trans_id, or VMBUS_RQST_ERROR if
+ * @trans_id is not contained in the requestor.
+ *
+ * Acquires and releases the requestor spin lock.
+ */
+u64 vmbus_request_addr_match(struct vmbus_channel *channel, u64 trans_id,
+			     u64 rqst_addr)
+{
+	struct vmbus_requestor *rqstor = &channel->requestor;
+	unsigned long flags;
+	u64 req_addr;
+
+	spin_lock_irqsave(&rqstor->req_lock, flags);
+	req_addr = __vmbus_request_addr_match(channel, trans_id, rqst_addr);
+	spin_unlock_irqrestore(&rqstor->req_lock, flags);
+
+	return req_addr;
+}
+EXPORT_SYMBOL_GPL(vmbus_request_addr_match);
+
+/*
+ * vmbus_request_addr - Returns the memory address stored at @trans_id
+ * in @rqstor. Uses a spin lock to avoid race conditions.
+ * @channel: Pointer to the VMbus channel struct
+ * @trans_id: Request id sent back from Hyper-V. Becomes the requestor's
+ * next request id.
+ */
+u64 vmbus_request_addr(struct vmbus_channel *channel, u64 trans_id)
+{
+	return vmbus_request_addr_match(channel, trans_id, VMBUS_RQST_ADDR_ANY);
 }
 EXPORT_SYMBOL_GPL(vmbus_request_addr);
