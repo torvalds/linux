@@ -15,7 +15,7 @@ description:
   Ethernet switch port Description
 
 allOf:
-  - $ref: "http://devicetree.org/schemas/net/ethernet-controller.yaml#"
+  - $ref: /schemas/net/ethernet-controller.yaml#
 
 properties:
   reg:
@@ -34,6 +34,8 @@ properties:
       full routing information must be given, not just the one hop
       routes to neighbouring switches
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
 
   ethernet:
     description:
@@ -51,6 +53,8 @@ properties:
       - edsa
       - ocelot
       - ocelot-8021q
+      - rtl8_4
+      - rtl8_4t
       - seville
 
   phy-handle: true

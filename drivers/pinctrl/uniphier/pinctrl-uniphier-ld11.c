@@ -461,10 +461,18 @@ static const struct pinctrl_pin_desc uniphier_ld11_pins[] = {
 			     166, UNIPHIER_PIN_PULL_DOWN),
 };
 
-static const unsigned ain1_pins[] = {151, 152, 153, 154, 155, 156, 157};
-static const int ain1_muxvals[] = {4, 4, 4, 4, 4, 4, 4};
-static const unsigned aout1_pins[] = {137, 138, 139, 140, 141, 142};
-static const int aout1_muxvals[] = {0, 0, 0, 0, 0, 0};
+static const unsigned ain1_pins[] = {151, 152, 153, 154};
+static const int ain1_muxvals[] = {4, 4, 4, 4};
+static const unsigned ain1_dat2_pins[] = {155};
+static const int ain1_dat2_muxvals[] = {4};
+static const unsigned ain1_dat4_pins[] = {156, 157};
+static const int ain1_dat4_muxvals[] = {4, 4};
+static const unsigned aout1_pins[] = {137, 138, 139, 140};
+static const int aout1_muxvals[] = {0, 0, 0, 0};
+static const unsigned aout1_dat2_pins[] = {141};
+static const int aout1_dat2_muxvals[] = {0};
+static const unsigned aout1_dat4_pins[] = {142, 143};
+static const int aout1_dat4_muxvals[] = {0, 3};
 static const unsigned ainiec1_pins[] = {150};
 static const int ainiec1_muxvals[] = {4};
 static const unsigned ainiec1b_pins[] = {141};
@@ -582,7 +590,11 @@ static const unsigned int gpio_range5_pins[] = {
 
 static const struct uniphier_pinctrl_group uniphier_ld11_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(ain1),
+	UNIPHIER_PINCTRL_GROUP(ain1_dat2),
+	UNIPHIER_PINCTRL_GROUP(ain1_dat4),
 	UNIPHIER_PINCTRL_GROUP(aout1),
+	UNIPHIER_PINCTRL_GROUP(aout1_dat2),
+	UNIPHIER_PINCTRL_GROUP(aout1_dat4),
 	UNIPHIER_PINCTRL_GROUP(ainiec1),
 	UNIPHIER_PINCTRL_GROUP(ainiec1b),
 	UNIPHIER_PINCTRL_GROUP(aoutiec1),
@@ -626,8 +638,10 @@ static const struct uniphier_pinctrl_group uniphier_ld11_groups[] = {
 	UNIPHIER_PINCTRL_GROUP_GPIO(gpio_range5),
 };
 
-static const char * const ain1_groups[] = {"ain1"};
-static const char * const aout1_groups[] = {"aout1"};
+static const char * const ain1_groups[] = {"ain1", "ain1_dat2",
+					   "ain1_dat4"};
+static const char * const aout1_groups[] = {"aout1", "aout1_dat2",
+					    "aout1_dat4"};
 static const char * const ainiec1_groups[] = {"ainiec1", "ainiec1b"};
 static const char * const aoutiec1_groups[] = {"aoutiec1"};
 static const char * const aoutiec2_groups[] = {"aoutiec2"};

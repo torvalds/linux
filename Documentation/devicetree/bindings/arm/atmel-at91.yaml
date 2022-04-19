@@ -8,7 +8,8 @@ title: Atmel AT91 device tree bindings.
 
 maintainers:
   - Alexandre Belloni <alexandre.belloni@bootlin.com>
-  - Ludovic Desroches <ludovic.desroches@microchip.com>
+  - Claudiu Beznea <claudiu.beznea@microchip.com>
+  - Nicolas Ferre <nicolas.ferre@microchip.com>
 
 description: |
   Boards with a SoC of the Atmel AT91 or SMART family shall have the following
@@ -171,6 +172,15 @@ properties:
       - description: Microchip LAN9668 PCB8290 Evaluation Board.
         items:
           - const: microchip,lan9668-pcb8290
+          - const: microchip,lan9668
+          - const: microchip,lan966
+
+      - description: Kontron KSwitch D10 MMT series
+        items:
+          - enum:
+              - kontron,kswitch-d10-mmt-8g
+              - kontron,kswitch-d10-mmt-6g-2gs
+          - const: kontron,s1921
           - const: microchip,lan9668
           - const: microchip,lan966
 

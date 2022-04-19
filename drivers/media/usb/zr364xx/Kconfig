@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config USB_ZR364XX
 	tristate "USB ZR364XX Camera support"
-	depends on VIDEO_V4L2
+	depends on VIDEO_DEV
 	select VIDEOBUF_GEN
 	select VIDEOBUF_VMALLOC
 	help

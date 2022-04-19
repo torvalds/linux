@@ -19,7 +19,6 @@
 #include <asm/sysmips.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
-#include <asm/war.h>
 #include <asm/asm-offsets.h>
 
 	.align	5
@@ -72,10 +71,10 @@ loads_done:
 	.set	pop
 
 	.section __ex_table,"a"
-	PTR	load_a4, bad_stack_a4
-	PTR	load_a5, bad_stack_a5
-	PTR	load_a6, bad_stack_a6
-	PTR	load_a7, bad_stack_a7
+	PTR_WD	load_a4, bad_stack_a4
+	PTR_WD	load_a5, bad_stack_a5
+	PTR_WD	load_a6, bad_stack_a6
+	PTR_WD	load_a7, bad_stack_a7
 	.previous
 
 	lw	t0, TI_FLAGS($28)	# syscall tracing enabled?
@@ -216,7 +215,7 @@ einval: li	v0, -ENOSYS
 #endif /* CONFIG_MIPS_MT_FPAFF */
 
 #define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, native)
-#define __SYSCALL(nr, entry) 	PTR entry
+#define __SYSCALL(nr, entry) 	PTR_WD entry
 	.align	2
 	.type	sys_call_table, @object
 EXPORT(sys_call_table)

@@ -751,18 +751,15 @@ static int wmt_mci_probe(struct platform_device *pdev)
 	struct mmc_host *mmc;
 	struct wmt_mci_priv *priv;
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *of_id =
-		of_match_device(wmt_mci_dt_ids, &pdev->dev);
 	const struct wmt_mci_caps *wmt_caps;
 	int ret;
 	int regular_irq, dma_irq;
 
-	if (!of_id || !of_id->data) {
+	wmt_caps = of_device_get_match_data(&pdev->dev);
+	if (!wmt_caps) {
 		dev_err(&pdev->dev, "Controller capabilities data missing\n");
 		return -EFAULT;
 	}
-
-	wmt_caps = of_id->data;
 
 	if (!np) {
 		dev_err(&pdev->dev, "Missing SDMMC description in devicetree\n");

@@ -246,6 +246,7 @@ enum {
 	Opt_cephx_sign_messages,
 	Opt_tcp_nodelay,
 	Opt_abort_on_full,
+	Opt_rxbounce,
 };
 
 enum {
@@ -295,6 +296,7 @@ static const struct fs_parameter_spec ceph_parameters[] = {
 	fsparam_u32	("osdkeepalive",		Opt_osdkeepalivetimeout),
 	fsparam_enum	("read_from_replica",		Opt_read_from_replica,
 			 ceph_param_read_from_replica),
+	fsparam_flag	("rxbounce",			Opt_rxbounce),
 	fsparam_enum	("ms_mode",			Opt_ms_mode,
 			 ceph_param_ms_mode),
 	fsparam_string	("secret",			Opt_secret),
@@ -584,6 +586,9 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 	case Opt_abort_on_full:
 		opt->flags |= CEPH_OPT_ABORT_ON_FULL;
 		break;
+	case Opt_rxbounce:
+		opt->flags |= CEPH_OPT_RXBOUNCE;
+		break;
 
 	default:
 		BUG();
@@ -660,6 +665,8 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 		seq_puts(m, "notcp_nodelay,");
 	if (show_all && (opt->flags & CEPH_OPT_ABORT_ON_FULL))
 		seq_puts(m, "abort_on_full,");
+	if (opt->flags & CEPH_OPT_RXBOUNCE)
+		seq_puts(m, "rxbounce,");
 
 	if (opt->mount_timeout != CEPH_MOUNT_TIMEOUT_DEFAULT)
 		seq_printf(m, "mount_timeout=%d,",

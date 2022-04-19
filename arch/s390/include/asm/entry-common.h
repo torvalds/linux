@@ -5,7 +5,6 @@
 #include <linux/sched.h>
 #include <linux/audit.h>
 #include <linux/randomize_kstack.h>
-#include <linux/tracehook.h>
 #include <linux/processor.h>
 #include <linux/uaccess.h>
 #include <asm/timex.h>

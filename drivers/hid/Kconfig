@@ -128,6 +128,8 @@ config HID_ACRUX_FF
 config HID_APPLE
 	tristate "Apple {i,Power,Mac}Books"
 	depends on HID
+	depends on LEDS_CLASS
+	depends on NEW_LEDS
 	default !EXPERT
 	help
 	Support for some Apple devices which less or more break
@@ -403,14 +405,25 @@ config HOLTEK_FF
 	  Say Y here if you have a Holtek On Line Grip based game controller
 	  and want to have force feedback support for it.
 
+config HID_VIVALDI_COMMON
+	tristate
+	help
+	  ChromeOS Vivaldi HID parsing support library. This is a hidden
+	  option so that drivers can use common code to parse the HID
+	  descriptors for vivaldi function row keymap.
+
 config HID_GOOGLE_HAMMER
 	tristate "Google Hammer Keyboard"
+	select HID_VIVALDI_COMMON
+	select INPUT_VIVALDIFMAP
 	depends on USB_HID && LEDS_CLASS && CROS_EC
 	help
 	Say Y here if you have a Google Hammer device.
 
 config HID_VIVALDI
 	tristate "Vivaldi Keyboard"
+	select HID_VIVALDI_COMMON
+	select INPUT_VIVALDIFMAP
 	depends on HID
 	help
 	  Say Y here if you want to enable support for Vivaldi keyboards.
@@ -929,6 +942,13 @@ config PLAYSTATION_FF
 	  Say Y here if you would like to enable force feedback support for
 	  PlayStation game controllers.
 
+config HID_RAZER
+	tristate "Razer non-fully HID-compliant devices"
+	depends on HID
+	help
+	Support for Razer devices that are not fully compliant with the
+	HID standard.
+
 config HID_PRIMAX
 	tristate "Primax non-fully HID-compliant devices"
 	depends on HID
@@ -983,6 +1003,16 @@ config HID_SEMITEK
 	- Tronsmart TK09R
 	- Woo-dy
 	- X-Bows Nature/Knight
+
+config HID_SIGMAMICRO
+	tristate "SiGma Micro-based keyboards"
+	depends on USB_HID
+	help
+	  Support for keyboards that use the SiGma Micro (a.k.a SigmaChip) IC.
+
+	  Supported devices:
+	  - Landslides KR-700
+	  - Rapoo V500
 
 config HID_SONY
 	tristate "Sony PS2/3/4 accessories"

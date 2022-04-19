@@ -763,9 +763,9 @@ struct mlx5_cache_ent {
 
 	char                    name[4];
 	u32                     order;
-	u32			xlt;
 	u32			access_mode;
 	u32			page;
+	unsigned int		ndescs;
 
 	u8 disabled:1;
 	u8 fill_to_high_water:1;
@@ -788,7 +788,6 @@ struct mlx5_cache_ent {
 	u32                     miss;
 
 	struct mlx5_ib_dev     *dev;
-	struct work_struct	work;
 	struct delayed_work	dwork;
 };
 
@@ -1344,7 +1343,8 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev);
 int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev);
 
 struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
-				       unsigned int entry, int access_flags);
+				       struct mlx5_cache_ent *ent,
+				       int access_flags);
 
 int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
 			    struct ib_mr_status *mr_status);
@@ -1537,12 +1537,6 @@ static inline int get_uars_per_sys_page(struct mlx5_ib_dev *dev, bool lib_suppor
 {
 	return lib_support && MLX5_CAP_GEN(dev->mdev, uar_4k) ?
 				MLX5_UARS_IN_PAGE : 1;
-}
-
-static inline int get_num_static_uars(struct mlx5_ib_dev *dev,
-				      struct mlx5_bfreg_info *bfregi)
-{
-	return get_uars_per_sys_page(dev, bfregi->lib_uar_4k) * bfregi->num_static_sys_pages;
 }
 
 extern void *xlt_emergency_page;

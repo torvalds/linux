@@ -144,12 +144,7 @@ static int system_opcode_insn(struct kvm_vcpu *vcpu,
 {
 	if ((insn & INSN_MASK_WFI) == INSN_MATCH_WFI) {
 		vcpu->stat.wfi_exit_stat++;
-		if (!kvm_arch_vcpu_runnable(vcpu)) {
-			srcu_read_unlock(&vcpu->kvm->srcu, vcpu->arch.srcu_idx);
-			kvm_vcpu_halt(vcpu);
-			vcpu->arch.srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-			kvm_clear_request(KVM_REQ_UNHALT, vcpu);
-		}
+		kvm_riscv_vcpu_wfi(vcpu);
 		vcpu->arch.guest_context.sepc += INSN_LEN(insn);
 		return 1;
 	}
@@ -451,6 +446,21 @@ static int stage2_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		return ret;
 
 	return 1;
+}
+
+/**
+ * kvm_riscv_vcpu_wfi -- Emulate wait for interrupt (WFI) behaviour
+ *
+ * @vcpu: The VCPU pointer
+ */
+void kvm_riscv_vcpu_wfi(struct kvm_vcpu *vcpu)
+{
+	if (!kvm_arch_vcpu_runnable(vcpu)) {
+		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->arch.srcu_idx);
+		kvm_vcpu_halt(vcpu);
+		vcpu->arch.srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+		kvm_clear_request(KVM_REQ_UNHALT, vcpu);
+	}
 }
 
 /**

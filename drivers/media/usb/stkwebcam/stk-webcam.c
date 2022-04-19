@@ -114,6 +114,13 @@ static const struct dmi_system_id stk_upside_down_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "A6VM")
 		}
 	},
+	{
+		.ident = "ASUS A6JC",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "A6JC")
+		}
+	},
 	{}
 };
 

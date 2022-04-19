@@ -42,7 +42,7 @@
 #define CAMSS_RES_MAX 17
 
 struct resources {
-	char *regulator[CAMSS_RES_MAX];
+	char *regulators[CAMSS_RES_MAX];
 	char *clock[CAMSS_RES_MAX];
 	u32 clock_rate[CAMSS_RES_MAX][CAMSS_RES_MAX];
 	char *reg[CAMSS_RES_MAX];
@@ -54,6 +54,16 @@ struct resources_ispif {
 	char *clock_for_reset[CAMSS_RES_MAX];
 	char *reg[CAMSS_RES_MAX];
 	char *interrupt;
+};
+
+struct icc_bw_tbl {
+	u32 avg;
+	u32 peak;
+};
+
+struct resources_icc {
+	char *name;
+	struct icc_bw_tbl icc_bw_tbl;
 };
 
 enum pm_domain {
@@ -69,6 +79,12 @@ enum camss_version {
 	CAMSS_8x96,
 	CAMSS_660,
 	CAMSS_845,
+	CAMSS_8250,
+};
+
+enum icc_count {
+	ICC_DEFAULT_COUNT = 0,
+	ICC_SM8250_COUNT = 4,
 };
 
 struct camss {
@@ -87,6 +103,8 @@ struct camss {
 	atomic_t ref_count;
 	struct device *genpd[PM_DOMAIN_GEN2_COUNT];
 	struct device_link *genpd_link[PM_DOMAIN_GEN2_COUNT];
+	struct icc_path *icc_path[ICC_SM8250_COUNT];
+	struct icc_bw_tbl icc_bw_tbl[ICC_SM8250_COUNT];
 };
 
 struct camss_camera_interface {

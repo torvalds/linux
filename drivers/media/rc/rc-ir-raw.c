@@ -35,8 +35,6 @@ static int ir_raw_event_thread(void *data)
 				    !is_transition(&ev, &raw->prev_ev))
 					dev_warn_once(&dev->dev, "two consecutive events of type %s",
 						      TO_STR(ev.pulse));
-				if (raw->prev_ev.reset && ev.pulse == 0)
-					dev_warn_once(&dev->dev, "timing event after reset should be pulse");
 			}
 			list_for_each_entry(handler, &ir_raw_handler_list, list)
 				if (dev->enabled_protocols &

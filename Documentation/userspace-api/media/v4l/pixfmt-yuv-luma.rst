@@ -75,8 +75,8 @@ are often referred to as greyscale formats.
       - ``V4L2_PIX_FMT_Y10P``
       - 'Y10P'
 
-      - Y'\ :sub:`0`\ [7:0]
-      - Y'\ :sub:`1`\ [9:8]
+      - Y'\ :sub:`0`\ [9:2]
+      - Y'\ :sub:`1`\ [9:2]
       - Y'\ :sub:`2`\ [9:2]
       - Y'\ :sub:`3`\ [9:2]
       - Y'\ :sub:`3`\ [1:0] Y'\ :sub:`2`\ [1:0] Y'\ :sub:`1`\ [1:0] Y'\ :sub:`0`\ [1:0]

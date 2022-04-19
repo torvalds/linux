@@ -1199,7 +1199,7 @@ static void wmi_evt_eapol_rx(struct wil6210_vif *vif, int id, void *d, int len)
 	eth->h_proto = cpu_to_be16(ETH_P_PAE);
 	skb_put_data(skb, evt->eapol, eapol_len);
 	skb->protocol = eth_type_trans(skb, ndev);
-	if (likely(netif_rx_ni(skb) == NET_RX_SUCCESS)) {
+	if (likely(netif_rx(skb) == NET_RX_SUCCESS)) {
 		ndev->stats.rx_packets++;
 		ndev->stats.rx_bytes += sz;
 		if (stats) {

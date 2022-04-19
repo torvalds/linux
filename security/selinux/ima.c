@@ -29,7 +29,7 @@ static char *selinux_ima_collect_state(struct selinux_state *state)
 	buf_len = strlen("initialized=0;enforcing=0;checkreqprot=0;") + 1;
 
 	len = strlen(on);
-	for (i = 0; i < __POLICYDB_CAPABILITY_MAX; i++)
+	for (i = 0; i < __POLICYDB_CAP_MAX; i++)
 		buf_len += strlen(selinux_policycap_names[i]) + len;
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
@@ -54,7 +54,7 @@ static char *selinux_ima_collect_state(struct selinux_state *state)
 	rc = strlcat(buf, checkreqprot_get(state) ? on : off, buf_len);
 	WARN_ON(rc >= buf_len);
 
-	for (i = 0; i < __POLICYDB_CAPABILITY_MAX; i++) {
+	for (i = 0; i < __POLICYDB_CAP_MAX; i++) {
 		rc = strlcat(buf, selinux_policycap_names[i], buf_len);
 		WARN_ON(rc >= buf_len);
 
@@ -77,7 +77,7 @@ void selinux_ima_measure_state_locked(struct selinux_state *state)
 	size_t policy_len;
 	int rc = 0;
 
-	WARN_ON(!mutex_is_locked(&state->policy_mutex));
+	lockdep_assert_held(&state->policy_mutex);
 
 	state_str = selinux_ima_collect_state(state);
 	if (!state_str) {
@@ -117,7 +117,7 @@ void selinux_ima_measure_state_locked(struct selinux_state *state)
  */
 void selinux_ima_measure_state(struct selinux_state *state)
 {
-	WARN_ON(mutex_is_locked(&state->policy_mutex));
+	lockdep_assert_not_held(&state->policy_mutex);
 
 	mutex_lock(&state->policy_mutex);
 	selinux_ima_measure_state_locked(state);

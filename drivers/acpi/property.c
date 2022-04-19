@@ -541,7 +541,8 @@ acpi_device_data_of_node(const struct fwnode_handle *fwnode)
 	if (is_acpi_device_node(fwnode)) {
 		const struct acpi_device *adev = to_acpi_device_node(fwnode);
 		return &adev->data;
-	} else if (is_acpi_data_node(fwnode)) {
+	}
+	if (is_acpi_data_node(fwnode)) {
 		const struct acpi_data_node *dn = to_acpi_data_node(fwnode);
 		return &dn->data;
 	}
@@ -685,7 +686,7 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 	 */
 	if (obj->type == ACPI_TYPE_LOCAL_REFERENCE) {
 		if (index)
-			return -EINVAL;
+			return -ENOENT;
 
 		device = acpi_fetch_acpi_dev(obj->reference.handle);
 		if (!device)
@@ -739,14 +740,19 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 					return -EINVAL;
 			}
 
-			/* assume following integer elements are all args */
+			/*
+			 * Assume the following integer elements are all args.
+			 * Stop counting on the first reference or end of the
+			 * package arguments. In case of neither reference,
+			 * nor integer, return an error, we can't parse it.
+			 */
 			for (i = 0; element + i < end && i < num_args; i++) {
 				int type = element[i].type;
 
+				if (type == ACPI_TYPE_LOCAL_REFERENCE)
+					break;
 				if (type == ACPI_TYPE_INTEGER)
 					nargs++;
-				else if (type == ACPI_TYPE_LOCAL_REFERENCE)
-					break;
 				else
 					return -EINVAL;
 			}
@@ -950,7 +956,7 @@ static int acpi_data_prop_read(const struct acpi_device_data *data,
 
 	if (proptype != DEV_PROP_STRING && nval > obj->package.count)
 		return -EOVERFLOW;
-	else if (nval <= 0)
+	if (nval == 0)
 		return -EINVAL;
 
 	items = obj->package.elements;
@@ -1012,14 +1018,10 @@ struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 	const struct list_head *head;
 	struct list_head *next;
 
-	if (!child || is_acpi_device_node(child)) {
+	if ((!child || is_acpi_device_node(child)) && adev) {
 		struct acpi_device *child_adev;
 
-		if (adev)
-			head = &adev->children;
-		else
-			goto nondev;
-
+		head = &adev->children;
 		if (list_empty(head))
 			goto nondev;
 
@@ -1089,7 +1091,8 @@ acpi_node_get_parent(const struct fwnode_handle *fwnode)
 	if (is_acpi_data_node(fwnode)) {
 		/* All data nodes have parent pointer so just return that */
 		return to_acpi_data_node(fwnode)->parent;
-	} else if (is_acpi_device_node(fwnode)) {
+	}
+	if (is_acpi_device_node(fwnode)) {
 		struct device *dev = to_acpi_device_node(fwnode)->dev.parent;
 
 		if (dev)

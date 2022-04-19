@@ -554,7 +554,6 @@ static void max3100_shutdown(struct uart_port *port)
 		del_timer_sync(&s->timer);
 
 	if (s->workqueue) {
-		flush_workqueue(s->workqueue);
 		destroy_workqueue(s->workqueue);
 		s->workqueue = NULL;
 	}
@@ -805,7 +804,7 @@ static int max3100_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int max3100_remove(struct spi_device *spi)
+static void max3100_remove(struct spi_device *spi)
 {
 	struct max3100_port *s = spi_get_drvdata(spi);
 	int i;
@@ -828,13 +827,12 @@ static int max3100_remove(struct spi_device *spi)
 	for (i = 0; i < MAX_MAX3100; i++)
 		if (max3100s[i]) {
 			mutex_unlock(&max3100s_lock);
-			return 0;
+			return;
 		}
 	pr_debug("removing max3100 driver\n");
 	uart_unregister_driver(&max3100_uart_driver);
 
 	mutex_unlock(&max3100s_lock);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

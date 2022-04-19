@@ -3,6 +3,7 @@
 
 #include "ice.h"
 #include "ice_lib.h"
+#include "ice_trace.h"
 
 #define E810_OUT_PROP_DELAY_NS 1
 
@@ -1533,9 +1534,12 @@ exit:
 static int ice_ptp_adjtime_nonatomic(struct ptp_clock_info *info, s64 delta)
 {
 	struct timespec64 now, then;
+	int ret;
 
 	then = ns_to_timespec64(delta);
-	ice_ptp_gettimex64(info, &now, NULL);
+	ret = ice_ptp_gettimex64(info, &now, NULL);
+	if (ret)
+		return ret;
 	now = timespec64_add(now, then);
 
 	return ice_ptp_settime64(info, (const struct timespec64 *)&now);
@@ -2060,10 +2064,14 @@ static void ice_ptp_tx_tstamp_work(struct kthread_work *work)
 		struct sk_buff *skb;
 		int err;
 
+		ice_trace(tx_tstamp_fw_req, tx->tstamps[idx].skb, idx);
+
 		err = ice_read_phy_tstamp(hw, tx->quad, phy_idx,
 					  &raw_tstamp);
 		if (err)
 			continue;
+
+		ice_trace(tx_tstamp_fw_done, tx->tstamps[idx].skb, idx);
 
 		/* Check if the timestamp is invalid or stale */
 		if (!(raw_tstamp & ICE_PTP_TS_VALID) ||
@@ -2089,6 +2097,8 @@ static void ice_ptp_tx_tstamp_work(struct kthread_work *work)
 		/* Extend the timestamp using cached PHC time */
 		tstamp = ice_ptp_extend_40b_ts(pf, raw_tstamp);
 		shhwtstamps.hwtstamp = ns_to_ktime(tstamp);
+
+		ice_trace(tx_tstamp_complete, skb, idx);
 
 		skb_tstamp_tx(skb, &shhwtstamps);
 		dev_kfree_skb_any(skb);
@@ -2128,6 +2138,7 @@ s8 ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb)
 		tx->tstamps[idx].start = jiffies;
 		tx->tstamps[idx].skb = skb_get(skb);
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+		ice_trace(tx_tstamp_request, skb, idx);
 	}
 
 	spin_unlock(&tx->lock);

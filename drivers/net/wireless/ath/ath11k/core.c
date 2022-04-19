@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -97,6 +98,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.wakeup_mhi = false,
 		.supports_rssi_stats = false,
 		.fw_wmi_diag_event = false,
+		.current_cc_support = false,
+		.dbr_debug_support = true,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
@@ -161,6 +164,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.wakeup_mhi = false,
 		.supports_rssi_stats = false,
 		.fw_wmi_diag_event = false,
+		.current_cc_support = false,
+		.dbr_debug_support = true,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -224,6 +229,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.wakeup_mhi = true,
 		.supports_rssi_stats = true,
 		.fw_wmi_diag_event = true,
+		.current_cc_support = true,
+		.dbr_debug_support = false,
 	},
 	{
 		.name = "qcn9074 hw1.0",
@@ -287,6 +294,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.wakeup_mhi = false,
 		.supports_rssi_stats = false,
 		.fw_wmi_diag_event = false,
+		.current_cc_support = false,
+		.dbr_debug_support = true,
 	},
 	{
 		.name = "wcn6855 hw2.0",
@@ -350,6 +359,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.wakeup_mhi = true,
 		.supports_rssi_stats = true,
 		.fw_wmi_diag_event = true,
+		.current_cc_support = true,
+		.dbr_debug_support = false,
 	},
 	{
 		.name = "wcn6855 hw2.1",
@@ -412,6 +423,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.wakeup_mhi = true,
 		.supports_rssi_stats = true,
 		.fw_wmi_diag_event = true,
+		.current_cc_support = true,
+		.dbr_debug_support = false,
 	},
 };
 
@@ -1404,6 +1417,8 @@ EXPORT_SYMBOL(ath11k_core_deinit);
 
 void ath11k_core_free(struct ath11k_base *ab)
 {
+	destroy_workqueue(ab->workqueue);
+
 	kfree(ab);
 }
 EXPORT_SYMBOL(ath11k_core_free);

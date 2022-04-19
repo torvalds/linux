@@ -547,7 +547,7 @@ struct gpio_sim_bank {
 	 *
 	 * So we need to store the pointer to the parent struct here. We can
 	 * dereference it anywhere we need with no checks and no locking as
-	 * it's guaranteed to survive the childred and protected by configfs
+	 * it's guaranteed to survive the children and protected by configfs
 	 * locks.
 	 *
 	 * Same for other structures.
@@ -568,6 +568,11 @@ static struct gpio_sim_bank *to_gpio_sim_bank(struct config_item *item)
 	struct config_group *group = to_config_group(item);
 
 	return container_of(group, struct gpio_sim_bank, group);
+}
+
+static bool gpio_sim_bank_has_label(struct gpio_sim_bank *bank)
+{
+	return bank->label && *bank->label;
 }
 
 static struct gpio_sim_device *
@@ -770,9 +775,15 @@ static int gpio_sim_add_hogs(struct gpio_sim_device *dev)
 			 * point the device doesn't exist yet and so dev_name()
 			 * is not available.
 			 */
-			hog->chip_label = kasprintf(GFP_KERNEL,
-						    "gpio-sim.%u-%s", dev->id,
-						    fwnode_get_name(bank->swnode));
+			if (gpio_sim_bank_has_label(bank))
+				hog->chip_label = kstrdup(bank->label,
+							  GFP_KERNEL);
+			else
+				hog->chip_label = kasprintf(GFP_KERNEL,
+							"gpio-sim.%u-%s",
+							dev->id,
+							fwnode_get_name(
+								bank->swnode));
 			if (!hog->chip_label) {
 				gpio_sim_remove_hogs(dev);
 				return -ENOMEM;
@@ -816,7 +827,7 @@ gpio_sim_make_bank_swnode(struct gpio_sim_bank *bank,
 
 	properties[prop_idx++] = PROPERTY_ENTRY_U32("ngpios", bank->num_lines);
 
-	if (bank->label)
+	if (gpio_sim_bank_has_label(bank))
 		properties[prop_idx++] = PROPERTY_ENTRY_STRING("gpio-sim,label",
 							       bank->label);
 
@@ -1311,7 +1322,7 @@ static void gpio_sim_hog_config_item_release(struct config_item *item)
 	kfree(hog);
 }
 
-struct configfs_item_operations gpio_sim_hog_config_item_ops = {
+static struct configfs_item_operations gpio_sim_hog_config_item_ops = {
 	.release	= gpio_sim_hog_config_item_release,
 };
 

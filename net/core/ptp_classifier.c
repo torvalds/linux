@@ -137,6 +137,18 @@ struct ptp_header *ptp_parse_header(struct sk_buff *skb, unsigned int type)
 }
 EXPORT_SYMBOL_GPL(ptp_parse_header);
 
+bool ptp_msg_is_sync(struct sk_buff *skb, unsigned int type)
+{
+	struct ptp_header *hdr;
+
+	hdr = ptp_parse_header(skb, type);
+	if (!hdr)
+		return false;
+
+	return ptp_get_msgtype(hdr, type) == PTP_MSGTYPE_SYNC;
+}
+EXPORT_SYMBOL_GPL(ptp_msg_is_sync);
+
 void __init ptp_classifier_init(void)
 {
 	static struct sock_filter ptp_filter[] __initdata = {

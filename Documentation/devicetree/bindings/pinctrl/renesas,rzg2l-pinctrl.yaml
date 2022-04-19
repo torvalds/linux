@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/pinctrl/renesas,rzg2l-pinctrl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Renesas RZ/G2L combined Pin and GPIO controller
+title: Renesas RZ/{G2L,V2L} combined Pin and GPIO controller
 
 maintainers:
   - Geert Uytterhoeven <geert+renesas@glider.be>
   - Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>
 
 description:
-  The Renesas SoCs of the RZ/G2L series feature a combined Pin and GPIO
+  The Renesas SoCs of the RZ/{G2L,V2L} series feature a combined Pin and GPIO
   controller.
   Pin multiplexing and GPIO configuration is performed on a per-pin basis.
   Each port features up to 8 pins, each of them configurable for GPIO function
@@ -20,8 +20,15 @@ description:
 
 properties:
   compatible:
-    enum:
-      - renesas,r9a07g044-pinctrl # RZ/G2{L,LC}
+    oneOf:
+      - items:
+          - enum:
+              - renesas,r9a07g044-pinctrl # RZ/G2{L,LC}
+
+      - items:
+          - enum:
+              - renesas,r9a07g054-pinctrl     # RZ/V2L
+          - const: renesas,r9a07g044-pinctrl  # RZ/G2{L,LC} fallback for RZ/V2L
 
   reg:
     maxItems: 1
@@ -76,6 +83,7 @@ additionalProperties:
         output-impedance-ohms:
           enum: [ 33, 50, 66, 100 ]
         power-source:
+          description: I/O voltage in millivolt.
           enum: [ 1800, 2500, 3300 ]
         slew-rate: true
         gpio-hog: true

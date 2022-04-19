@@ -51,7 +51,7 @@ For example::
         [root@f32 ~]# cd /sys/kernel/tracing/
         [root@f32 tracing]# echo osnoise > current_tracer
 
-It is possible to follow the trace by reading the trace trace file::
+It is possible to follow the trace by reading the trace file::
 
         [root@f32 tracing]# cat trace
         # tracer: osnoise
@@ -108,7 +108,7 @@ The tracer has a set of options inside the osnoise directory, they are:
    option.
  - tracing_threshold: the minimum delta between two time() reads to be
    considered as noise, in us. When set to 0, the default value will
-   will be used, which is currently 5 us.
+   be used, which is currently 5 us.
 
 Additional Tracing
 ------------------

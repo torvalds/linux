@@ -437,13 +437,13 @@ static int sbprof_tb_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static ssize_t sbprof_tb_read(struct file *filp, char *buf,
+static ssize_t sbprof_tb_read(struct file *filp, char __user *buf,
 			      size_t size, loff_t *offp)
 {
 	int cur_sample, sample_off, cur_count, sample_left;
 	char *src;
 	int   count   =	 0;
-	char *dest    =	 buf;
+	char __user *dest    =	 buf;
 	long  cur_off = *offp;
 
 	if (!access_ok(buf, size))
@@ -512,7 +512,7 @@ static long sbprof_tb_ioctl(struct file *filp,
 		if (err)
 			break;
 
-		err = put_user(TB_FULL, (int *) arg);
+		err = put_user(TB_FULL, (int __user *) arg);
 		break;
 	}
 

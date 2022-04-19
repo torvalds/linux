@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/module.h>
 #include <linux/sched/signal.h>
 
 #include <linux/init.h>

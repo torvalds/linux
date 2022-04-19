@@ -266,14 +266,12 @@ static int cr0014114_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int cr0014114_remove(struct spi_device *spi)
+static void cr0014114_remove(struct spi_device *spi)
 {
 	struct cr0014114 *priv = spi_get_drvdata(spi);
 
 	cancel_delayed_work_sync(&priv->work);
 	mutex_destroy(&priv->lock);
-
-	return 0;
 }
 
 static const struct of_device_id cr0014114_dt_ids[] = {

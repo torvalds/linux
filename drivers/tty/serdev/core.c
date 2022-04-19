@@ -704,13 +704,10 @@ static const struct acpi_device_id serdev_acpi_devices_blacklist[] = {
 static acpi_status acpi_serdev_add_device(acpi_handle handle, u32 level,
 					  void *data, void **return_value)
 {
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	struct serdev_controller *ctrl = data;
-	struct acpi_device *adev;
 
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
-
-	if (acpi_device_enumerated(adev))
+	if (!adev || acpi_device_enumerated(adev))
 		return AE_OK;
 
 	/* Skip if black listed */

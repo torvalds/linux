@@ -106,7 +106,7 @@ void evlist__config(struct evlist *evlist, struct record_opts *opts, struct call
 	if (opts->group)
 		evlist__set_leader(evlist);
 
-	if (perf_cpu_map__cpu(evlist->core.cpus, 0).cpu < 0)
+	if (perf_cpu_map__cpu(evlist->core.user_requested_cpus, 0).cpu < 0)
 		opts->no_inherit = true;
 
 	use_comm_exec = perf_can_comm_exec();
@@ -244,7 +244,7 @@ bool evlist__can_select_event(struct evlist *evlist, const char *str)
 
 	evsel = evlist__last(temp_evlist);
 
-	if (!evlist || perf_cpu_map__empty(evlist->core.cpus)) {
+	if (!evlist || perf_cpu_map__empty(evlist->core.user_requested_cpus)) {
 		struct perf_cpu_map *cpus = perf_cpu_map__new(NULL);
 
 		if (cpus)
@@ -252,7 +252,7 @@ bool evlist__can_select_event(struct evlist *evlist, const char *str)
 
 		perf_cpu_map__put(cpus);
 	} else {
-		cpu = perf_cpu_map__cpu(evlist->core.cpus, 0);
+		cpu = perf_cpu_map__cpu(evlist->core.user_requested_cpus, 0);
 	}
 
 	while (1) {

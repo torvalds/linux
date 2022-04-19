@@ -423,7 +423,7 @@ static int cw1200_spi_probe(struct spi_device *func)
 }
 
 /* Disconnect Function to be called by SPI stack when device is disconnected */
-static int cw1200_spi_disconnect(struct spi_device *func)
+static void cw1200_spi_disconnect(struct spi_device *func)
 {
 	struct hwbus_priv *self = spi_get_drvdata(func);
 
@@ -435,8 +435,6 @@ static int cw1200_spi_disconnect(struct spi_device *func)
 		}
 	}
 	cw1200_spi_off(dev_get_platdata(&func->dev));
-
-	return 0;
 }
 
 static int __maybe_unused cw1200_spi_suspend(struct device *dev)

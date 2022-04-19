@@ -6,6 +6,8 @@
  * NORMAL/BATCH tasks.
  */
 
+#include <linux/sched.h>
+
 #define MAX_DL_PRIO		0
 
 static inline int dl_prio(int prio)

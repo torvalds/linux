@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/samsung,pinctrl-gpio-bank.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S3C/S5P/Exynos SoC pin controller - gpio bank
+
+maintainers:
+  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Sylwester Nawrocki <s.nawrocki@samsung.com>
+  - Tomasz Figa <tomasz.figa@gmail.com>
+
+description: |
+  This is a part of device tree bindings for Samsung S3C/S5P/Exynos SoC pin
+  controller.
+
+  GPIO bank description for Samsung S3C/S5P/Exynos SoC pin controller.
+
+  See also Documentation/devicetree/bindings/pinctrl/samsung,pinctrl.yaml for
+  additional information and example.
+
+properties:
+  '#gpio-cells':
+    const: 2
+
+  gpio-controller: true
+
+  '#interrupt-cells':
+    description:
+      For GPIO banks supporting external GPIO interrupts or external wake-up
+      interrupts.
+    const: 2
+
+  interrupt-controller:
+    description:
+      For GPIO banks supporting external GPIO interrupts or external wake-up
+      interrupts.
+
+  interrupts:
+    description:
+      For GPIO banks supporting direct external wake-up interrupts (without
+      multiplexing).  Number of interrupts must match number of wake-up capable
+      pins of this bank.
+    minItems: 1
+    maxItems: 8
+
+required:
+  - '#gpio-cells'
+  - gpio-controller
+
+additionalProperties: false

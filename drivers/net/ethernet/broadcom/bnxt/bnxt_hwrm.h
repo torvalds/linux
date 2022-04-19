@@ -90,7 +90,7 @@ static inline unsigned int hwrm_total_timeout(unsigned int n)
 }
 
 
-#define HWRM_VALID_BIT_DELAY_USEC	150
+#define HWRM_VALID_BIT_DELAY_USEC	50000
 
 static inline bool bnxt_cfa_hwrm_message(u16 req_type)
 {

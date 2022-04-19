@@ -538,6 +538,18 @@
         "Unit": "IIO"
     },
     {
+        "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 0-3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC2",
+        "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.ALL_PARTS",
+        "FCMask": "0x4",
+        "PerPkg": "1",
+        "PortMask": "0x0f",
+        "PublicDescription": "PCIe Completion Buffer Inserts of completions with data: Part 0-3",
+        "UMask": "0x03",
+        "Unit": "IIO"
+    },
+    {
         "BriefDescription": "PCIe Completion Buffer Inserts of completions with data: Part 0",
         "Counter": "0,1,2,3",
         "EventCode": "0xC2",
@@ -583,6 +595,17 @@
         "PortMask": "0x08",
         "PublicDescription": "PCIe Completion Buffer Inserts of completions with data: Part 3",
         "UMask": "0x03",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "PCIe Completion Buffer occupancy of completions with data: Part 0-3",
+        "Counter": "2,3",
+        "EventCode": "0xD5",
+        "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.ALL_PARTS",
+        "FCMask": "0x04",
+        "PerPkg": "1",
+        "PublicDescription": "PCIe Completion Buffer occupancy of completions with data: Part 0-3",
+        "UMask": "0x0f",
         "Unit": "IIO"
     },
     {

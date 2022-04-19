@@ -411,6 +411,8 @@ extern int powersave_nap;	/* set if nap mode can be used in idle loop */
 extern void power7_idle_type(unsigned long type);
 extern void arch300_idle_type(unsigned long stop_psscr_val,
 			      unsigned long stop_psscr_mask);
+void pnv_power9_force_smt4_catch(void);
+void pnv_power9_force_smt4_release(void);
 
 extern int fix_alignment(struct pt_regs *);
 
@@ -426,6 +428,12 @@ extern int fix_alignment(struct pt_regs *);
 #endif
 
 int do_mathemu(struct pt_regs *regs);
+
+/* VMX copying */
+int enter_vmx_usercopy(void);
+int exit_vmx_usercopy(void);
+int enter_vmx_ops(void);
+void *exit_vmx_ops(void *dest);
 
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */

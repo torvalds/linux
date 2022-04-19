@@ -16,23 +16,21 @@
 #include "hif_api_general.h"
 
 struct wfx_dev;
-struct hwbus_ops;
+struct wfx_hwbus_ops;
 
 struct wfx_platform_data {
 	/* Keyset and ".sec" extension will be appended to this string */
 	const char *file_fw;
 	const char *file_pds;
 	struct gpio_desc *gpio_wakeup;
-	/* if true HIF D_out is sampled on the rising edge of the clock
-	 * (intended to be used in 50Mhz SDIO)
+	/* if true HIF D_out is sampled on the rising edge of the clock (intended to be used in
+	 * 50Mhz SDIO)
 	 */
 	bool use_rising_clk;
 };
 
-struct wfx_dev *wfx_init_common(struct device *dev,
-				const struct wfx_platform_data *pdata,
-				const struct hwbus_ops *hwbus_ops,
-				void *hwbus_priv);
+struct wfx_dev *wfx_init_common(struct device *dev, const struct wfx_platform_data *pdata,
+				const struct wfx_hwbus_ops *hwbus_ops, void *hwbus_priv);
 
 int wfx_probe(struct wfx_dev *wdev);
 void wfx_release(struct wfx_dev *wdev);

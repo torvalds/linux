@@ -14,6 +14,7 @@
 #include <linux/ctype.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
+
 #include "vector_user.h"
 
 /* Queue structure specially adapted for multiple enqueue/dequeue
@@ -72,6 +73,7 @@ struct vector_private {
 	struct list_head list;
 	spinlock_t lock;
 	struct net_device *dev;
+	struct napi_struct		napi	____cacheline_aligned;
 
 	int unit;
 
@@ -115,7 +117,6 @@ struct vector_private {
 
 	spinlock_t stats_lock;
 
-	struct tasklet_struct tx_poll;
 	bool rexmit_scheduled;
 	bool opened;
 	bool in_write_poll;

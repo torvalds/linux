@@ -260,30 +260,6 @@ enum bup_vch_sel {
 #define BUS_PP_PRECHG_CURRENT_MASK		0x0E
 #define BUS_POWER_PATH_PRECHG_ENA		0x01
 
-/*
- * ADC for the battery thermistor.
- * When using the AB8500_ADC_THERM_BATCTRL the battery ID resistor is combined
- * with a NTC resistor to both identify the battery and to measure its
- * temperature. Different phone manufactures uses different techniques to both
- * identify the battery and to read its temperature.
- */
-enum ab8500_adc_therm {
-	AB8500_ADC_THERM_BATCTRL,
-	AB8500_ADC_THERM_BATTEMP,
-};
-
-/**
- * struct ab8500_res_to_temp - defines one point in a temp to res curve. To
- * be used in battery packs that combines the identification resistor with a
- * NTC resistor.
- * @temp:			battery pack temperature in Celsius
- * @resist:			NTC resistor net total resistance
- */
-struct ab8500_res_to_temp {
-	int temp;
-	int resist;
-};
-
 /* Forward declaration */
 struct ab8500_fg;
 
@@ -352,36 +328,6 @@ struct ab8500_maxim_parameters {
 };
 
 /**
- * struct ab8500_battery_type - different batteries supported
- * @resis_high:			battery upper resistance limit
- * @resis_low:			battery lower resistance limit
- * @maint_a_cur_lvl:		charger current in maintenance A state in mA
- * @maint_a_vol_lvl:		charger voltage in maintenance A state in mV
- * @maint_a_chg_timer_h:	charge time in maintenance A state
- * @maint_b_cur_lvl:		charger current in maintenance B state in mA
- * @maint_b_vol_lvl:		charger voltage in maintenance B state in mV
- * @maint_b_chg_timer_h:	charge time in maintenance B state
- * @low_high_cur_lvl:		charger current in temp low/high state in mA
- * @low_high_vol_lvl:		charger voltage in temp low/high state in mV'
- * @n_r_t_tbl_elements:		number of elements in r_to_t_tbl
- * @r_to_t_tbl:			table containing resistance to temp points
- */
-struct ab8500_battery_type {
-	int resis_high;
-	int resis_low;
-	int maint_a_cur_lvl;
-	int maint_a_vol_lvl;
-	int maint_a_chg_timer_h;
-	int maint_b_cur_lvl;
-	int maint_b_vol_lvl;
-	int maint_b_chg_timer_h;
-	int low_high_cur_lvl;
-	int low_high_vol_lvl;
-	int n_temp_tbl_elements;
-	const struct ab8500_res_to_temp *r_to_t_tbl;
-};
-
-/**
  * struct ab8500_bm_capacity_levels - ab8500 capacity level data
  * @critical:		critical capacity level in percent
  * @low:		low capacity level in percent
@@ -421,9 +367,7 @@ struct ab8500_bm_charger_parameters {
  * @usb_safety_tmr_h	safety timer for usb charger
  * @bkup_bat_v		voltage which we charge the backup battery with
  * @bkup_bat_i		current which we charge the backup battery with
- * @no_maintenance	indicates that maintenance charging is disabled
  * @capacity_scaling    indicates whether capacity scaling is to be used
- * @ab8500_adc_therm	placement of thermistor, batctrl or battemp adc
  * @chg_unknown_bat	flag to enable charging of unknown batteries
  * @enable_overshoot	flag to enable VBAT overshoot control
  * @auto_trig		flag to enable auto adc trigger
@@ -431,10 +375,8 @@ struct ab8500_bm_charger_parameters {
  * @interval_charging	charge alg cycle period time when charging (sec)
  * @interval_not_charging charge alg cycle period time when not charging (sec)
  * @temp_hysteresis	temperature hysteresis
- * @gnd_lift_resistance	Battery ground to phone ground resistance (mOhm)
  * @maxi		maximization parameters
  * @cap_levels		capacity in percent for the different capacity levels
- * @bat_type		table of supported battery types
  * @chg_params		charger parameters
  * @fg_params		fuel gauge parameters
  */
@@ -447,39 +389,18 @@ struct ab8500_bm_data {
 	int usb_safety_tmr_h;
 	int bkup_bat_v;
 	int bkup_bat_i;
-	bool no_maintenance;
 	bool capacity_scaling;
 	bool chg_unknown_bat;
 	bool enable_overshoot;
 	bool auto_trig;
-	enum ab8500_adc_therm adc_therm;
 	int fg_res;
 	int interval_charging;
 	int interval_not_charging;
 	int temp_hysteresis;
-	int gnd_lift_resistance;
 	const struct ab8500_maxim_parameters *maxi;
 	const struct ab8500_bm_capacity_levels *cap_levels;
-	struct ab8500_battery_type *bat_type;
 	const struct ab8500_bm_charger_parameters *chg_params;
 	const struct ab8500_fg_parameters *fg_params;
-};
-
-enum {
-	NTC_EXTERNAL = 0,
-	NTC_INTERNAL,
-};
-
-/**
- * struct res_to_temp - defines one point in a temp to res curve. To
- * be used in battery packs that combines the identification resistor with a
- * NTC resistor.
- * @temp:			battery pack temperature in Celsius
- * @resist:			NTC resistor net total resistance
- */
-struct res_to_temp {
-	int temp;
-	int resist;
 };
 
 /* Forward declaration */

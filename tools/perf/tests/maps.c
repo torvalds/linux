@@ -35,7 +35,6 @@ static int check_maps(struct map_def *merged, unsigned int size, struct maps *ma
 
 static int test__maps__merge_in(struct test_suite *t __maybe_unused, int subtest __maybe_unused)
 {
-	struct maps maps;
 	unsigned int i;
 	struct map_def bpf_progs[] = {
 		{ "bpf_prog_1", 200, 300 },
@@ -63,8 +62,9 @@ static int test__maps__merge_in(struct test_suite *t __maybe_unused, int subtest
 	};
 	struct map *map_kcore1, *map_kcore2, *map_kcore3;
 	int ret;
+	struct maps *maps = maps__new(NULL);
 
-	maps__init(&maps, NULL);
+	TEST_ASSERT_VAL("failed to create maps", maps);
 
 	for (i = 0; i < ARRAY_SIZE(bpf_progs); i++) {
 		struct map *map;
@@ -74,7 +74,7 @@ static int test__maps__merge_in(struct test_suite *t __maybe_unused, int subtest
 
 		map->start = bpf_progs[i].start;
 		map->end   = bpf_progs[i].end;
-		maps__insert(&maps, map);
+		maps__insert(maps, map);
 		map__put(map);
 	}
 
@@ -99,25 +99,25 @@ static int test__maps__merge_in(struct test_suite *t __maybe_unused, int subtest
 	map_kcore3->start = 880;
 	map_kcore3->end   = 1100;
 
-	ret = maps__merge_in(&maps, map_kcore1);
+	ret = maps__merge_in(maps, map_kcore1);
 	TEST_ASSERT_VAL("failed to merge map", !ret);
 
-	ret = check_maps(merged12, ARRAY_SIZE(merged12), &maps);
+	ret = check_maps(merged12, ARRAY_SIZE(merged12), maps);
 	TEST_ASSERT_VAL("merge check failed", !ret);
 
-	ret = maps__merge_in(&maps, map_kcore2);
+	ret = maps__merge_in(maps, map_kcore2);
 	TEST_ASSERT_VAL("failed to merge map", !ret);
 
-	ret = check_maps(merged12, ARRAY_SIZE(merged12), &maps);
+	ret = check_maps(merged12, ARRAY_SIZE(merged12), maps);
 	TEST_ASSERT_VAL("merge check failed", !ret);
 
-	ret = maps__merge_in(&maps, map_kcore3);
+	ret = maps__merge_in(maps, map_kcore3);
 	TEST_ASSERT_VAL("failed to merge map", !ret);
 
-	ret = check_maps(merged3, ARRAY_SIZE(merged3), &maps);
+	ret = check_maps(merged3, ARRAY_SIZE(merged3), maps);
 	TEST_ASSERT_VAL("merge check failed", !ret);
 
-	maps__exit(&maps);
+	maps__delete(maps);
 	return TEST_OK;
 }
 

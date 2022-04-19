@@ -265,11 +265,6 @@ static struct platform_driver *const mcde_component_drivers[] = {
 	&mcde_dsi_driver,
 };
 
-static int mcde_compare_dev(struct device *dev, void *data)
-{
-	return dev == data;
-}
-
 static int mcde_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -399,7 +394,7 @@ static int mcde_probe(struct platform_device *pdev)
 
 		while ((d = platform_find_device_by_driver(p, drv))) {
 			put_device(p);
-			component_match_add(dev, &match, mcde_compare_dev, d);
+			component_match_add(dev, &match, component_compare_dev, d);
 			p = d;
 		}
 		put_device(p);
@@ -490,6 +485,9 @@ static struct platform_driver *const component_drivers[] = {
 static int __init mcde_drm_register(void)
 {
 	int ret;
+
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
 
 	ret = platform_register_drivers(component_drivers,
 					ARRAY_SIZE(component_drivers));

@@ -6,6 +6,7 @@
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt.h"
 
+#include "gem/i915_gem_internal.h"
 #include "gem/selftests/igt_gem_utils.h"
 
 #include "igt_spinner.h"

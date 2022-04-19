@@ -28,7 +28,6 @@
 
 #include "rcar_du_drv.h"
 #include "rcar_du_kms.h"
-#include "rcar_du_of.h"
 #include "rcar_du_regs.h"
 
 /* -----------------------------------------------------------------------------
@@ -634,6 +633,9 @@ static int rcar_du_probe(struct platform_device *pdev)
 	unsigned int mask;
 	int ret;
 
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	/* Allocate and initialize the R-Car device structure. */
 	rcdu = devm_drm_dev_alloc(&pdev->dev, &rcar_du_driver,
 				  struct rcar_du_device, ddev);
@@ -699,19 +701,7 @@ static struct platform_driver rcar_du_platform_driver = {
 	},
 };
 
-static int __init rcar_du_init(void)
-{
-	rcar_du_of_init(rcar_du_of_table);
-
-	return platform_driver_register(&rcar_du_platform_driver);
-}
-module_init(rcar_du_init);
-
-static void __exit rcar_du_exit(void)
-{
-	platform_driver_unregister(&rcar_du_platform_driver);
-}
-module_exit(rcar_du_exit);
+module_platform_driver(rcar_du_platform_driver);
 
 MODULE_AUTHOR("Laurent Pinchart <laurent.pinchart@ideasonboard.com>");
 MODULE_DESCRIPTION("Renesas R-Car Display Unit DRM Driver");

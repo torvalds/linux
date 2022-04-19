@@ -59,32 +59,18 @@ extern long long __ashldi3(long long, int);
 extern long long __lshrdi3(long long, int);
 extern int __divsi3(int, int);
 extern int __modsi3(int, int);
-extern long long __muldi3(long long, long long);
 extern int __mulsi3(int, int);
 extern unsigned int __udivsi3(unsigned int, unsigned int);
 extern unsigned int __umodsi3(unsigned int, unsigned int);
-extern unsigned long long __umoddi3(unsigned long long, unsigned long long);
-extern unsigned long long __udivdi3(unsigned long long, unsigned long long);
-extern int __ucmpdi2(int, int);
 
 EXPORT_SYMBOL(__ashldi3);
 EXPORT_SYMBOL(__ashrdi3);
 EXPORT_SYMBOL(__lshrdi3);
 EXPORT_SYMBOL(__divsi3);
 EXPORT_SYMBOL(__modsi3);
-EXPORT_SYMBOL(__muldi3);
 EXPORT_SYMBOL(__mulsi3);
 EXPORT_SYMBOL(__udivsi3);
 EXPORT_SYMBOL(__umodsi3);
-EXPORT_SYMBOL(__udivdi3);
-EXPORT_SYMBOL(__umoddi3);
-EXPORT_SYMBOL(__ucmpdi2);
-
-void __xtensa_libgcc_window_spill(void)
-{
-	BUG();
-}
-EXPORT_SYMBOL(__xtensa_libgcc_window_spill);
 
 unsigned int __sync_fetch_and_and_4(volatile void *p, unsigned int v)
 {

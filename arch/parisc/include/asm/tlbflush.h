@@ -17,7 +17,7 @@ int __flush_tlb_range(unsigned long sid,
 	unsigned long start, unsigned long end);
 
 #define flush_tlb_range(vma, start, end) \
-	__flush_tlb_range((vma)->vm_mm->context, start, end)
+	__flush_tlb_range((vma)->vm_mm->context.space_id, start, end)
 
 #define flush_tlb_kernel_range(start, end) \
 	__flush_tlb_range(0, start, end)

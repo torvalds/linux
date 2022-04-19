@@ -4,22 +4,22 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
+#include <net/inet_dscp.h>
 #include <net/ip_fib.h>
 #include <net/nexthop.h>
 
 struct fib_alias {
 	struct hlist_node	fa_list;
 	struct fib_info		*fa_info;
-	u8			fa_tos;
+	dscp_t			fa_dscp;
 	u8			fa_type;
 	u8			fa_state;
 	u8			fa_slen;
 	u32			tb_id;
 	s16			fa_default;
-	u8			offload:1,
-				trap:1,
-				offload_failed:1,
-				unused:5;
+	u8			offload;
+	u8			trap;
+	u8			offload_failed;
 	struct rcu_head		rcu;
 };
 
