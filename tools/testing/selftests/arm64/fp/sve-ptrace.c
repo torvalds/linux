@@ -26,6 +26,10 @@
 #define NT_ARM_SVE 0x405
 #endif
 
+#ifndef NT_ARM_SSVE
+#define NT_ARM_SSVE 0x40b
+#endif
+
 struct vec_type {
 	const char *name;
 	unsigned long hwcap_type;
@@ -41,6 +45,13 @@ static const struct vec_type vec_types[] = {
 		.hwcap = HWCAP_SVE,
 		.regset = NT_ARM_SVE,
 		.prctl_set = PR_SVE_SET_VL,
+	},
+	{
+		.name = "Streaming SVE",
+		.hwcap_type = AT_HWCAP2,
+		.hwcap = HWCAP2_SME,
+		.regset = NT_ARM_SSVE,
+		.prctl_set = PR_SME_SET_VL,
 	},
 };
 
