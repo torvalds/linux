@@ -3546,7 +3546,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 	 * or a PAE 3-level page table. In either case we need to be aware that
 	 * the shadow page table may be a PAE or a long mode page table.
 	 */
-	pm_mask = PT_PRESENT_MASK | shadow_me_mask;
+	pm_mask = PT_PRESENT_MASK | shadow_me_value;
 	if (mmu->root_role.level >= PT64_ROOT_4LEVEL) {
 		pm_mask |= PT_ACCESSED_MASK | PT_WRITABLE_MASK | PT_USER_MASK;
 
@@ -4531,8 +4531,16 @@ static void reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
 		return;
 
 	for (i = context->root_role.level; --i >= 0;) {
-		shadow_zero_check->rsvd_bits_mask[0][i] &= ~shadow_me_mask;
-		shadow_zero_check->rsvd_bits_mask[1][i] &= ~shadow_me_mask;
+		/*
+		 * So far shadow_me_value is a constant during KVM's life
+		 * time.  Bits in shadow_me_value are allowed to be set.
+		 * Bits in shadow_me_mask but not in shadow_me_value are
+		 * not allowed to be set.
+		 */
+		shadow_zero_check->rsvd_bits_mask[0][i] |= shadow_me_mask;
+		shadow_zero_check->rsvd_bits_mask[1][i] |= shadow_me_mask;
+		shadow_zero_check->rsvd_bits_mask[0][i] &= ~shadow_me_value;
+		shadow_zero_check->rsvd_bits_mask[1][i] &= ~shadow_me_value;
 	}
 
 }
@@ -5624,7 +5632,7 @@ static int __kvm_mmu_create(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
 	if (!tdp_enabled)
 		set_memory_decrypted((unsigned long)mmu->pae_root, 1);
 	else
-		WARN_ON_ONCE(shadow_me_mask);
+		WARN_ON_ONCE(shadow_me_value);
 
 	for (i = 0; i < 4; ++i)
 		mmu->pae_root[i] = INVALID_PAE_ROOT;

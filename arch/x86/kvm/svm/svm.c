@@ -4892,6 +4892,9 @@ static __init int svm_hardware_setup(void)
 			  get_npt_level(), PG_LEVEL_1G);
 	pr_info("kvm: Nested Paging %sabled\n", npt_enabled ? "en" : "dis");
 
+	/* Setup shadow_me_value and shadow_me_mask */
+	kvm_mmu_set_me_spte_mask(sme_me_mask, sme_me_mask);
+
 	/* Note, SEV setup consumes npt_enabled. */
 	sev_hardware_setup();
 

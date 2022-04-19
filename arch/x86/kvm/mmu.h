@@ -90,6 +90,7 @@ static inline gfn_t kvm_mmu_max_gfn(void)
 }
 
 void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 mmio_mask, u64 access_mask);
+void kvm_mmu_set_me_spte_mask(u64 me_value, u64 me_mask);
 void kvm_mmu_set_ept_masks(bool has_ad_bits, bool has_exec_only);
 
 void kvm_init_mmu(struct kvm_vcpu *vcpu);
