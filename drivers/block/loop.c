@@ -1,54 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/drivers/block/loop.c
- *
- *  Written by Theodore Ts'o, 3/29/93
- *
  * Copyright 1993 by Theodore Ts'o.
- *
- * DES encryption plus some minor changes by Werner Almesberger, 30-MAY-1993
- * more DES encryption plus IDEA encryption by Nicholas J. Leon, June 20, 1996
- *
- * Modularized and updated for 1.1.16 kernel - Mitch Dsouza 28th May 1994
- * Adapted for 1.3.59 kernel - Andries Brouwer, 1 Feb 1996
- *
- * Fixed do_loop_request() re-entrancy - Vincent.Renardias@waw.com Mar 20, 1997
- *
- * Added devfs support - Richard Gooch <rgooch@atnf.csiro.au> 16-Jan-1998
- *
- * Handle sparse backing files correctly - Kenn Humborg, Jun 28, 1998
- *
- * Loadable modules and other fixes by AK, 1998
- *
- * Make real block number available to downstream transfer functions, enables
- * CBC (and relatives) mode encryption requiring unique IVs per data block.
- * Reed H. Petty, rhp@draper.net
- *
- * Maximum number of loop devices now dynamic via max_loop module parameter.
- * Russell Kroll <rkroll@exploits.org> 19990701
- *
- * Maximum number of loop devices when compiled-in now selectable by passing
- * max_loop=<1-255> to the kernel on boot.
- * Erik I. Bolsø, <eriki@himolde.no>, Oct 31, 1999
- *
- * Completely rewrite request handling to be make_request_fn style and
- * non blocking, pushing work to a helper thread. Lots of fixes from
- * Al Viro too.
- * Jens Axboe <axboe@suse.de>, Nov 2000
- *
- * Support up to 256 loop devices
- * Heinz Mauelshagen <mge@sistina.com>, Feb 2002
- *
- * Support for falling back on the write file operation when the address space
- * operations write_begin is not available on the backing filesystem.
- * Anton Altaparmakov, 16 Feb 2005
- *
- * Still To Fix:
- * - Advisory locking is ignored here.
- * - Should use an own CAP_* category instead of CAP_SYS_ADMIN
- *
  */
-
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/sched.h>
