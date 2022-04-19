@@ -29,7 +29,16 @@ struct rockchip_opp_data {
 			       u32 rm);
 };
 
+struct pvtpll_opp_table {
+	unsigned long rate;
+	unsigned long u_volt;
+	unsigned long u_volt_min;
+	unsigned long u_volt_max;
+};
+
 struct rockchip_opp_info {
+	struct device *dev;
+	struct pvtpll_opp_table *opp_table;
 	const struct rockchip_opp_data *data;
 	struct volt_rm_table *volt_rm_tbl;
 	struct regmap *grf;
@@ -38,6 +47,9 @@ struct rockchip_opp_info {
 	struct clk *scmi_clk;
 	/* The threshold frequency for set intermediate rate */
 	unsigned long intermediate_threshold_freq;
+	unsigned int pvtpll_avg_offset;
+	unsigned int pvtpll_min_rate;
+	unsigned int pvtpll_volt_step;
 	int num_clks;
 	/* The read margin for low voltage */
 	u32 low_rm;
@@ -50,6 +62,7 @@ int rockchip_of_get_leakage(struct device *dev, char *lkg_name, int *leakage);
 void rockchip_of_get_lkg_sel(struct device *dev, struct device_node *np,
 			     char *lkg_name, int process,
 			     int *volt_sel, int *scale_sel);
+void rockchip_pvtpll_calibrate_opp(struct rockchip_opp_info *info);
 void rockchip_of_get_pvtm_sel(struct device *dev, struct device_node *np,
 			      char *reg_name, int process,
 			      int *volt_sel, int *scale_sel);
@@ -96,6 +109,10 @@ static inline void rockchip_of_get_lkg_sel(struct device *dev,
 					   struct device_node *np,
 					   char *lkg_name, int process,
 					   int *volt_sel, int *scale_sel)
+{
+}
+
+static inline void rockchip_pvtpll_calibrate_opp(struct rockchip_opp_info *info)
 {
 }
 

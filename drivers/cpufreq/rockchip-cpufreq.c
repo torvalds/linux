@@ -445,6 +445,8 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 	if (!dev)
 		return -ENODEV;
 
+	opp_info->dev = dev;
+
 	if (of_find_property(dev->of_node, "cpu-supply", NULL))
 		reg_name = "cpu";
 	else if (of_find_property(dev->of_node, "cpu0-supply", NULL))
@@ -458,6 +460,11 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 		return -ENOENT;
 	}
 
+	opp_info->grf = syscon_regmap_lookup_by_phandle(np,
+							"rockchip,grf");
+	if (IS_ERR(opp_info->grf))
+		opp_info->grf = NULL;
+
 	ret = dev_pm_opp_of_get_sharing_cpus(dev, &cluster->cpus);
 	if (ret) {
 		dev_err(dev, "Failed to get sharing cpus\n");
@@ -470,10 +477,6 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 	if (opp_info->data && opp_info->data->set_read_margin) {
 		opp_info->current_rm = UINT_MAX;
 		opp_info->target_rm = UINT_MAX;
-		opp_info->grf = syscon_regmap_lookup_by_phandle(np,
-								"rockchip,grf");
-		if (IS_ERR(opp_info->grf))
-			opp_info->grf = NULL;
 		opp_info->dsu_grf =
 			syscon_regmap_lookup_by_phandle(np, "rockchip,dsu-grf");
 		if (IS_ERR(opp_info->dsu_grf))
@@ -531,6 +534,7 @@ int rockchip_cpufreq_adjust_power_scale(struct device *dev)
 	if (!cluster)
 		return -EINVAL;
 	rockchip_adjust_power_scale(dev, cluster->scale);
+	rockchip_pvtpll_calibrate_opp(&cluster->opp_info);
 
 	return 0;
 }
