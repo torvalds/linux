@@ -30,6 +30,7 @@ config DRM_I915
 	select VMAP_PFN
 	select DRM_TTM
 	select DRM_BUDDY
+	select AUXILIARY_BUS
 	help
 	  Choose this option if you have a system that has "Intel Graphics
 	  Media Accelerator" or "HD Graphics" integrated graphics,
