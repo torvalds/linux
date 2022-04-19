@@ -90,21 +90,21 @@
 		pinctrl-0 = <&pinctrl_leds>;
 
 		led-0 {
-			label = "LED_DI0_DEBUG_0";
+			label = "debug0";
 			function = LED_FUNCTION_HEARTBEAT;
 			gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
 		led-1 {
-			label = "LED_DI0_DEBUG_1";
+			label = "debug1";
 			function = LED_FUNCTION_DISK;
 			gpios = <&gpio4 17 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "disk-activity";
 		};
 
 		led-2 {
-			label = "POWER_LED";
+			label = "power_led";
 			function = LED_FUNCTION_POWER;
 			gpios = <&gpio2 24 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
