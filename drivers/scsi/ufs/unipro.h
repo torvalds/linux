@@ -103,7 +103,7 @@
 #define UNIPRO_CB_OFFSET(x)			(0x8000 | x)
 
 /*
- * PHY Adpater attributes
+ * PHY Adapter attributes
  */
 #define PA_ACTIVETXDATALANES	0x1560
 #define PA_ACTIVERXDATALANES	0x1580
