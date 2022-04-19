@@ -1761,6 +1761,57 @@ static struct console stm32_console = {
 #define STM32_SERIAL_CONSOLE NULL
 #endif /* CONFIG_SERIAL_STM32_CONSOLE */
 
+#ifdef CONFIG_SERIAL_EARLYCON
+static void early_stm32_usart_console_putchar(struct uart_port *port, unsigned char ch)
+{
+	struct stm32_usart_info *info = port->private_data;
+
+	while (!(readl_relaxed(port->membase + info->ofs.isr) & USART_SR_TXE))
+		cpu_relax();
+
+	writel_relaxed(ch, port->membase + info->ofs.tdr);
+}
+
+static void early_stm32_serial_write(struct console *console, const char *s, unsigned int count)
+{
+	struct earlycon_device *device = console->data;
+	struct uart_port *port = &device->port;
+
+	uart_console_write(port, s, count, early_stm32_usart_console_putchar);
+}
+
+static int __init early_stm32_h7_serial_setup(struct earlycon_device *device, const char *options)
+{
+	if (!(device->port.membase || device->port.iobase))
+		return -ENODEV;
+	device->port.private_data = &stm32h7_info;
+	device->con->write = early_stm32_serial_write;
+	return 0;
+}
+
+static int __init early_stm32_f7_serial_setup(struct earlycon_device *device, const char *options)
+{
+	if (!(device->port.membase || device->port.iobase))
+		return -ENODEV;
+	device->port.private_data = &stm32f7_info;
+	device->con->write = early_stm32_serial_write;
+	return 0;
+}
+
+static int __init early_stm32_f4_serial_setup(struct earlycon_device *device, const char *options)
+{
+	if (!(device->port.membase || device->port.iobase))
+		return -ENODEV;
+	device->port.private_data = &stm32f4_info;
+	device->con->write = early_stm32_serial_write;
+	return 0;
+}
+
+OF_EARLYCON_DECLARE(stm32, "st,stm32h7-uart", early_stm32_h7_serial_setup);
+OF_EARLYCON_DECLARE(stm32, "st,stm32f7-uart", early_stm32_f7_serial_setup);
+OF_EARLYCON_DECLARE(stm32, "st,stm32-uart", early_stm32_f4_serial_setup);
+#endif /* CONFIG_SERIAL_EARLYCON */
+
 static struct uart_driver stm32_usart_driver = {
 	.driver_name	= DRIVER_NAME,
 	.dev_name	= STM32_SERIAL_NAME,
