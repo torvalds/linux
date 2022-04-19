@@ -1640,10 +1640,16 @@ static void stm32_usart_console_putchar(struct uart_port *port, unsigned char ch
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
+	u32 isr;
+	int ret;
 
-	while (!(readl_relaxed(port->membase + ofs->isr) & USART_SR_TXE))
-		cpu_relax();
-
+	ret = readl_relaxed_poll_timeout_atomic(port->membase + ofs->isr, isr,
+						(isr & USART_SR_TXE), 100,
+						STM32_USART_TIMEOUT_USEC);
+	if (ret != 0) {
+		dev_err(port->dev, "Error while sending data in UART TX : %d\n", ret);
+		return;
+	}
 	writel_relaxed(ch, port->membase + ofs->tdr);
 }
 
