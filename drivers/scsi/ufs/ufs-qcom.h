@@ -239,10 +239,7 @@ int ufs_qcom_testbus_config(struct ufs_qcom_host *host);
 
 static inline bool ufs_qcom_cap_qunipro(struct ufs_qcom_host *host)
 {
-	if (host->caps & UFS_QCOM_CAP_QUNIPRO)
-		return true;
-	else
-		return false;
+	return host->caps & UFS_QCOM_CAP_QUNIPRO;
 }
 
 /* ufs-qcom-ice.c */
