@@ -440,6 +440,7 @@ struct dc_clocks {
 	bool prev_p_state_change_support;
 	bool fclk_prev_p_state_change_support;
 	int num_ways;
+	bool fw_based_mclk_switching;
 	int prev_num_ways;
 	enum dtm_pstate dtm_level;
 	int max_supported_dppclk_khz;
