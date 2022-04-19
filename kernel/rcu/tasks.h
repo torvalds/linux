@@ -326,17 +326,6 @@ static void call_rcu_tasks_generic(struct rcu_head *rhp, rcu_callback_t func,
 		irq_work_queue(&rtpcp->rtp_irq_work);
 }
 
-// Wait for a grace period for the specified flavor of Tasks RCU.
-static void synchronize_rcu_tasks_generic(struct rcu_tasks *rtp)
-{
-	/* Complain if the scheduler has not started.  */
-	RCU_LOCKDEP_WARN(rcu_scheduler_active == RCU_SCHEDULER_INACTIVE,
-			 "synchronize_rcu_tasks called too soon");
-
-	/* Wait for the grace period. */
-	wait_rcu_gp(rtp->call_func);
-}
-
 // RCU callback function for rcu_barrier_tasks_generic().
 static void rcu_barrier_tasks_generic_cb(struct rcu_head *rhp)
 {
@@ -556,6 +545,17 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		// Paranoid sleep to keep this from entering a tight loop.
 		schedule_timeout_idle(rtp->gp_sleep);
 	}
+}
+
+// Wait for a grace period for the specified flavor of Tasks RCU.
+static void synchronize_rcu_tasks_generic(struct rcu_tasks *rtp)
+{
+	/* Complain if the scheduler has not started.  */
+	RCU_LOCKDEP_WARN(rcu_scheduler_active == RCU_SCHEDULER_INACTIVE,
+			 "synchronize_rcu_tasks called too soon");
+
+	/* Wait for the grace period. */
+	wait_rcu_gp(rtp->call_func);
 }
 
 /* Spawn RCU-tasks grace-period kthread. */
