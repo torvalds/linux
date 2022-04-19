@@ -5914,19 +5914,6 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 	snprintf(clk_name, sizeof(clk_name), "dclk_out%d", vp->id);
 	dclk_out = vop2_clk_get(vop2, clk_name);
 
-	if (vcstate->dsc_enable) {
-		if ((vcstate->dsc_txp_clk_rate >= dclk_core_rate) &&
-		    (vcstate->dsc_txp_clk_rate >= if_pixclk->rate)) {
-			dsc_txp_clk_is_biggest = true;
-			if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) {
-				vop2_set_dsc_clk(crtc, 0);
-				vop2_set_dsc_clk(crtc, 1);
-			} else {
-				vop2_set_dsc_clk(crtc, dsc_id);
-			}
-		}
-	}
-
 	/*
 	 * HDMI use 1:1 dclk for rgb/yuv444, 1:2 for yuv420 when
 	 * pixclk <= 600
@@ -5943,6 +5930,19 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 			    (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE))
 				v_pixclk = v_pixclk >> 1;
 			clk_set_rate(dclk->hw.clk, v_pixclk);
+		}
+	}
+
+	if (vcstate->dsc_enable) {
+		if ((vcstate->dsc_txp_clk_rate >= dclk_core_rate) &&
+		    (vcstate->dsc_txp_clk_rate >= if_pixclk->rate)) {
+			dsc_txp_clk_is_biggest = true;
+			if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) {
+				vop2_set_dsc_clk(crtc, 0);
+				vop2_set_dsc_clk(crtc, 1);
+			} else {
+				vop2_set_dsc_clk(crtc, dsc_id);
+			}
 		}
 	}
 
