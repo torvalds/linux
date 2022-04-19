@@ -121,6 +121,7 @@ struct msm_drm_private {
 	struct drm_device *dev;
 
 	struct msm_kms *kms;
+	int (*kms_init)(struct drm_device *dev);
 
 	/* subordinate devices, if present: */
 	struct platform_device *gpu_pdev;
@@ -407,10 +408,6 @@ static inline void msm_dp_debugfs_init(struct msm_dp *dp_display,
 }
 
 #endif
-
-#define KMS_MDP4 4
-#define KMS_MDP5 5
-#define KMS_DPU  3
 
 void msm_mdp4_register(void);
 void msm_mdp4_unregister(void);
