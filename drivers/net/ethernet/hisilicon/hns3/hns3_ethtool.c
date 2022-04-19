@@ -1106,6 +1106,36 @@ static int hns3_check_ringparam(struct net_device *ndev,
 	return 0;
 }
 
+static bool
+hns3_is_ringparam_changed(struct net_device *ndev,
+			  struct ethtool_ringparam *param,
+			  struct kernel_ethtool_ringparam *kernel_param,
+			  struct hns3_ring_param *old_ringparam,
+			  struct hns3_ring_param *new_ringparam)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = priv->ae_handle;
+	u16 queue_num = h->kinfo.num_tqps;
+
+	new_ringparam->tx_desc_num = ALIGN(param->tx_pending,
+					   HNS3_RING_BD_MULTIPLE);
+	new_ringparam->rx_desc_num = ALIGN(param->rx_pending,
+					   HNS3_RING_BD_MULTIPLE);
+	old_ringparam->tx_desc_num = priv->ring[0].desc_num;
+	old_ringparam->rx_desc_num = priv->ring[queue_num].desc_num;
+	old_ringparam->rx_buf_len = priv->ring[queue_num].buf_size;
+	new_ringparam->rx_buf_len = kernel_param->rx_buf_len;
+
+	if (old_ringparam->tx_desc_num == new_ringparam->tx_desc_num &&
+	    old_ringparam->rx_desc_num == new_ringparam->rx_desc_num &&
+	    old_ringparam->rx_buf_len == new_ringparam->rx_buf_len) {
+		netdev_info(ndev, "ringparam not changed\n");
+		return false;
+	}
+
+	return true;
+}
+
 static int hns3_change_rx_buf_len(struct net_device *ndev, u32 rx_buf_len)
 {
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
@@ -1151,14 +1181,11 @@ static int hns3_set_ringparam(struct net_device *ndev,
 			      struct kernel_ethtool_ringparam *kernel_param,
 			      struct netlink_ext_ack *extack)
 {
+	struct hns3_ring_param old_ringparam, new_ringparam;
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_ring *tmp_rings;
 	bool if_running = netif_running(ndev);
-	u32 old_tx_desc_num, new_tx_desc_num;
-	u32 old_rx_desc_num, new_rx_desc_num;
-	u16 queue_num = h->kinfo.num_tqps;
-	u32 old_rx_buf_len;
 	int ret, i;
 
 	ret = hns3_check_ringparam(ndev, param, kernel_param);
@@ -1169,15 +1196,8 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	if (ret)
 		return ret;
 
-	/* Hardware requires that its descriptors must be multiple of eight */
-	new_tx_desc_num = ALIGN(param->tx_pending, HNS3_RING_BD_MULTIPLE);
-	new_rx_desc_num = ALIGN(param->rx_pending, HNS3_RING_BD_MULTIPLE);
-	old_tx_desc_num = priv->ring[0].desc_num;
-	old_rx_desc_num = priv->ring[queue_num].desc_num;
-	old_rx_buf_len = priv->ring[queue_num].buf_size;
-	if (old_tx_desc_num == new_tx_desc_num &&
-	    old_rx_desc_num == new_rx_desc_num &&
-	    kernel_param->rx_buf_len == old_rx_buf_len)
+	if (!hns3_is_ringparam_changed(ndev, param, kernel_param,
+				       &old_ringparam, &new_ringparam))
 		return 0;
 
 	tmp_rings = hns3_backup_ringparam(priv);
@@ -1188,24 +1208,25 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	}
 
 	netdev_info(ndev,
-		    "Changing Tx/Rx ring depth from %u/%u to %u/%u, Changing rx buffer len from %d to %d\n",
-		    old_tx_desc_num, old_rx_desc_num,
-		    new_tx_desc_num, new_rx_desc_num,
-		    old_rx_buf_len, kernel_param->rx_buf_len);
+		    "Changing Tx/Rx ring depth from %u/%u to %u/%u, Changing rx buffer len from %u to %u\n",
+		    old_ringparam.tx_desc_num, old_ringparam.rx_desc_num,
+		    new_ringparam.tx_desc_num, new_ringparam.rx_desc_num,
+		    old_ringparam.rx_buf_len, new_ringparam.rx_buf_len);
 
 	if (if_running)
 		ndev->netdev_ops->ndo_stop(ndev);
 
-	hns3_change_all_ring_bd_num(priv, new_tx_desc_num, new_rx_desc_num);
-	hns3_change_rx_buf_len(ndev, kernel_param->rx_buf_len);
+	hns3_change_all_ring_bd_num(priv, new_ringparam.tx_desc_num,
+				    new_ringparam.rx_desc_num);
+	hns3_change_rx_buf_len(ndev, new_ringparam.rx_buf_len);
 	ret = hns3_init_all_ring(priv);
 	if (ret) {
 		netdev_err(ndev, "set ringparam fail, revert to old value(%d)\n",
 			   ret);
 
-		hns3_change_rx_buf_len(ndev, old_rx_buf_len);
-		hns3_change_all_ring_bd_num(priv, old_tx_desc_num,
-					    old_rx_desc_num);
+		hns3_change_rx_buf_len(ndev, old_ringparam.rx_buf_len);
+		hns3_change_all_ring_bd_num(priv, old_ringparam.tx_desc_num,
+					    old_ringparam.rx_desc_num);
 		for (i = 0; i < h->kinfo.num_tqps * 2; i++)
 			memcpy(&priv->ring[i], &tmp_rings[i],
 			       sizeof(struct hns3_enet_ring));

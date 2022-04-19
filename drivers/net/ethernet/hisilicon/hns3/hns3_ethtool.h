@@ -28,4 +28,10 @@ struct hns3_ethtool_link_ext_state_mapping {
 	u8 link_ext_substate;
 };
 
+struct hns3_ring_param {
+	u32 tx_desc_num;
+	u32 rx_desc_num;
+	u32 rx_buf_len;
+};
+
 #endif
