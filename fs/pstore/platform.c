@@ -143,22 +143,21 @@ static void pstore_timer_kick(void)
 	mod_timer(&pstore_timer, jiffies + msecs_to_jiffies(pstore_update_ms));
 }
 
-static bool pstore_cannot_block_path(enum kmsg_dump_reason reason)
+/*
+ * Should pstore_dump() wait for a concurrent pstore_dump()? If
+ * not, the current pstore_dump() will report a failure to dump
+ * and return.
+ */
+static bool pstore_cannot_wait(enum kmsg_dump_reason reason)
 {
-	/*
-	 * In case of NMI path, pstore shouldn't be blocked
-	 * regardless of reason.
-	 */
+	/* In NMI path, pstore shouldn't block regardless of reason. */
 	if (in_nmi())
 		return true;
 
 	switch (reason) {
 	/* In panic case, other cpus are stopped by smp_send_stop(). */
 	case KMSG_DUMP_PANIC:
-	/*
-	 * Emergency restart shouldn't be blocked by spinning on
-	 * pstore_info::buf_lock.
-	 */
+	/* Emergency restart shouldn't be blocked. */
 	case KMSG_DUMP_EMERG:
 		return true;
 	default:
@@ -389,19 +388,21 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 	unsigned long	total = 0;
 	const char	*why;
 	unsigned int	part = 1;
-	unsigned long	flags = 0;
 	int		ret;
 
 	why = kmsg_dump_reason_str(reason);
 
-	if (pstore_cannot_block_path(reason)) {
-		if (!spin_trylock_irqsave(&psinfo->buf_lock, flags)) {
-			pr_err("dump skipped in %s path because of concurrent dump\n",
-					in_nmi() ? "NMI" : why);
+	if (down_trylock(&psinfo->buf_lock)) {
+		/* Failed to acquire lock: give up if we cannot wait. */
+		if (pstore_cannot_wait(reason)) {
+			pr_err("dump skipped in %s path: may corrupt error record\n",
+				in_nmi() ? "NMI" : why);
 			return;
 		}
-	} else {
-		spin_lock_irqsave(&psinfo->buf_lock, flags);
+		if (down_interruptible(&psinfo->buf_lock)) {
+			pr_err("could not grab semaphore?!\n");
+			return;
+		}
 	}
 
 	oopscount++;
@@ -463,7 +464,8 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		total += record.size;
 		part++;
 	}
-	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
+
+	up(&psinfo->buf_lock);
 }
 
 static struct kmsg_dumper pstore_dumper = {
@@ -589,7 +591,7 @@ int pstore_register(struct pstore_info *psi)
 		psi->write_user = pstore_write_user_compat;
 	psinfo = psi;
 	mutex_init(&psinfo->read_mutex);
-	spin_lock_init(&psinfo->buf_lock);
+	sema_init(&psinfo->buf_lock, 1);
 
 	if (psi->flags & PSTORE_FLAGS_DMESG)
 		allocate_buf_for_compression();
