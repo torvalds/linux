@@ -95,6 +95,13 @@
 			gpios = <&gpio2 24 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
+
+		led-3 {
+			label = "isb_led";
+			function = LED_FUNCTION_POWER;
+			gpios = <&gpio4 31 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
 	};
 
 	reg_1v8: regulator-1v8 {
@@ -574,6 +581,8 @@
 			MX6QDL_PAD_DI0_PIN15__GPIO4_IO17		0x1b0b0
 			/* POWER_LED */
 			MX6QDL_PAD_EIM_CS1__GPIO2_IO24			0x1b0b0
+			/* ISB_LED */
+			MX6QDL_PAD_DISP0_DAT10__GPIO4_IO31		0x1b0b0
 		>;
 	};
 
