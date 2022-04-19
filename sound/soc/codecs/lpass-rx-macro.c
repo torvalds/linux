@@ -3566,12 +3566,16 @@ static int rx_macro_probe(struct platform_device *pdev)
 		return PTR_ERR(rx->pds);
 
 	base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	if (IS_ERR(base)) {
+		ret = PTR_ERR(base);
+		goto err;
+	}
 
 	rx->regmap = devm_regmap_init_mmio(dev, base, &rx_regmap_config);
-	if (IS_ERR(rx->regmap))
-		return PTR_ERR(rx->regmap);
+	if (IS_ERR(rx->regmap)) {
+		ret = PTR_ERR(rx->regmap);
+		goto err;
+	}
 
 	dev_set_drvdata(dev, rx);
 
@@ -3632,6 +3636,8 @@ err_mclk:
 err_dcodec:
 	clk_disable_unprepare(rx->macro);
 err:
+	lpass_macro_pds_exit(rx->pds);
+
 	return ret;
 }
 
