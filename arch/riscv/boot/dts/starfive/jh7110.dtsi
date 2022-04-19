@@ -299,11 +299,11 @@
 				<&clkgen JH7110_USB0_CLK_AXI>,
 				<&clkgen JH7110_USB0_CLK_UTMI_APB>;
 			clock-names = "app","lpm","stb","apb","axi","utmi";
-			resets = <&rstgen RSTN_U0_CDN_USB_PWEUP>,
+			resets = <&rstgen RSTN_U0_CDN_USB_PWRUP>,
 					<&rstgen RSTN_U0_CDN_USB_APB>,
 					<&rstgen RSTN_U0_CDN_USB_AXI>,
 					<&rstgen RSTN_U0_CDN_USB_UTMI_APB>;
-			reset-names = "rst_pweup","rst_apb","rst_axi","rst_utmi";
+			reset-names = "rst_pwrup","rst_apb","rst_axi","rst_utmi";
 		};
 
 		timer: timer@13050000 {
