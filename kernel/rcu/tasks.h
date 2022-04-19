@@ -495,17 +495,21 @@ static void rcu_tasks_invoke_cbs_wq(struct work_struct *wp)
 }
 
 // Wait for one grace period.
-static void rcu_tasks_one_gp(struct rcu_tasks *rtp)
+static void rcu_tasks_one_gp(struct rcu_tasks *rtp, bool midboot)
 {
 	int needgpcb;
 
 	mutex_lock(&rtp->tasks_gp_mutex);
-	set_tasks_gp_state(rtp, RTGS_WAIT_CBS);
 
 	// If there were none, wait a bit and start over.
-	rcuwait_wait_event(&rtp->cbs_wait,
-			   (needgpcb = rcu_tasks_need_gpcb(rtp)),
-			   TASK_IDLE);
+	if (unlikely(midboot)) {
+		needgpcb = 0x2;
+	} else {
+		set_tasks_gp_state(rtp, RTGS_WAIT_CBS);
+		rcuwait_wait_event(&rtp->cbs_wait,
+				   (needgpcb = rcu_tasks_need_gpcb(rtp)),
+				   TASK_IDLE);
+	}
 
 	if (needgpcb & 0x2) {
 		// Wait for one grace period.
@@ -540,7 +544,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 	for (;;) {
 		// Wait for one grace period and invoke any callbacks
 		// that are ready.
-		rcu_tasks_one_gp(rtp);
+		rcu_tasks_one_gp(rtp, false);
 
 		// Paranoid sleep to keep this from entering a tight loop.
 		schedule_timeout_idle(rtp->gp_sleep);
@@ -554,8 +558,12 @@ static void synchronize_rcu_tasks_generic(struct rcu_tasks *rtp)
 	RCU_LOCKDEP_WARN(rcu_scheduler_active == RCU_SCHEDULER_INACTIVE,
 			 "synchronize_rcu_tasks called too soon");
 
-	/* Wait for the grace period. */
-	wait_rcu_gp(rtp->call_func);
+	// If the grace-period kthread is running, use it.
+	if (READ_ONCE(rtp->kthread_ptr)) {
+		wait_rcu_gp(rtp->call_func);
+		return;
+	}
+	rcu_tasks_one_gp(rtp, true);
 }
 
 /* Spawn RCU-tasks grace-period kthread. */
