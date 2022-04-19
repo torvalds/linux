@@ -1442,7 +1442,8 @@ static void journal_write_done(struct closure *cl)
 	 * Must come before signaling write completion, for
 	 * bch2_fs_journal_stop():
 	 */
-	journal_reclaim_kick(&c->journal);
+	if (j->watermark)
+		journal_reclaim_kick(&c->journal);
 
 	/* also must come before signalling write completion: */
 	closure_debug_destroy(cl);
