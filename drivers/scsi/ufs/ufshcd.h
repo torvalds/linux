@@ -983,7 +983,7 @@ static inline bool ufshcd_is_auto_hibern8_supported(struct ufs_hba *hba)
 
 static inline bool ufshcd_is_auto_hibern8_enabled(struct ufs_hba *hba)
 {
-	return FIELD_GET(UFSHCI_AHIBERN8_TIMER_MASK, hba->ahit) ? true : false;
+	return FIELD_GET(UFSHCI_AHIBERN8_TIMER_MASK, hba->ahit);
 }
 
 static inline bool ufshcd_is_wb_allowed(struct ufs_hba *hba)
