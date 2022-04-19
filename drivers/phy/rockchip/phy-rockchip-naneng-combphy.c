@@ -38,6 +38,7 @@ struct rockchip_combphy_grfcfg {
 	struct combphy_reg pipe_rxterm_set;
 	struct combphy_reg pipe_txelec_set;
 	struct combphy_reg pipe_txcomp_set;
+	struct combphy_reg pipe_clk_24m;
 	struct combphy_reg pipe_clk_25m;
 	struct combphy_reg pipe_clk_100m;
 	struct combphy_reg pipe_phymode_sel;
@@ -733,6 +734,7 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 
 	switch (rate) {
 	case 24000000:
+		param_write(priv->phy_grf, &cfg->pipe_clk_24m, true);
 		if (priv->mode == PHY_TYPE_USB3 || priv->mode == PHY_TYPE_SATA) {
 			/* Set ssc_cnt[9:0]=0101111101 & 31.5KHz */
 			val = readl(priv->mmio + (0x0e << 2));
@@ -744,6 +746,27 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 			val &= ~GENMASK(7, 0);
 			val |= 0x5f;
 			writel(val, priv->mmio + (0x0f << 2));
+		} else if (priv->mode == PHY_TYPE_PCIE) {
+			/* PLL KVCO tuning fine */
+			val = readl(priv->mmio + (0x20 << 2));
+			val &= ~GENMASK(4, 2);
+			val |= 0x4 << 2;
+			writel(val, priv->mmio + (0x20 << 2));
+
+			/* Set up rx_trim */
+			val = 0x0;
+			writel(val, priv->mmio + (0x1b << 2));
+
+			/* Set up su_trim: T0_1 */
+			val = 0x90;
+			writel(val, priv->mmio + (0xa << 2));
+			val = 0x02;
+			writel(val, priv->mmio + (0xb << 2));
+			val = 0x57;
+			writel(val, priv->mmio + (0xd << 2));
+
+			val = 0x5f;
+			writel(val, priv->mmio + (0xf << 2));
 		}
 		break;
 	case 25000000:
@@ -792,6 +815,7 @@ static const struct rockchip_combphy_grfcfg rk3588_combphy_grfcfgs = {
 	.pipe_rxterm_set	= { 0x0000, 12, 12, 0x00, 0x01 },
 	.pipe_txelec_set	= { 0x0004, 1, 1, 0x00, 0x01 },
 	.pipe_txcomp_set	= { 0x0004, 4, 4, 0x00, 0x01 },
+	.pipe_clk_24m		= { 0x0004, 14, 13, 0x00, 0x00 },
 	.pipe_clk_25m		= { 0x0004, 14, 13, 0x00, 0x01 },
 	.pipe_clk_100m		= { 0x0004, 14, 13, 0x00, 0x02 },
 	.pipe_rxterm_sel	= { 0x0008, 8, 8, 0x00, 0x01 },
