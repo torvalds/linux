@@ -408,8 +408,8 @@
 			"CAM2_MIRROR", "", "", "SMBALERT",
 		"DEBUG_0", "DEBUG_1", "", "", "", "", "", "",
 		"SD1_DATA0", "SD1_DATA1", "SD1_CMD", "SD1_DATA2", "SD1_CLK",
-			"SD1_DATA3", "", "",
-		"", "", "", "", "", "", "", "";
+			"SD1_DATA3", "ETH_MDIO", "",
+		"", "", "", "", "", "", "", "ETH_MDC";
 };
 
 &gpio2 {
@@ -417,7 +417,7 @@
 		"YACO_WHEEL", "YACO_RADAR", "YACO_PTO", "", "", "", "", "",
 		"", "LED_PWM", "", "", "",
 			"", "", "",
-		"", "", "", "", "", "", "ISB_IN1", "ON_SWITCH",
+		"", "", "", "", "", "ISB_IN2", "ISB_nIN1", "ON_SWITCH",
 		"POWER_LED", "", "", "", "", "", "", "";
 };
 
@@ -426,18 +426,20 @@
 		"", "", "", "", "", "", "", "",
 		"", "", "", "", "", "", "", "",
 		"ECSPI1_SCLK", "ECSPI1_MISO", "ECSPI1_MOSI", "ECSPI1_SS1",
-			"CPU_ON1_FB", "USB_EXT1_OC", "USB_EXT1_PWR", "YACO_IRQ",
+			"CPU_ON1_FB", "USB_OTG_OC", "USB_OTG_PWR", "YACO_IRQ",
 		"TSS_TXD", "TSS_RXD", "", "", "", "", "YACO_BOOT0",
 			"YACO_RESET";
 };
 
 &gpio4 {
 	gpio-line-names =
-		"", "", "", "", "", "", "", "",
-		"", "", "", "", "CAN1_SR", "CAN2_SR", "CAN2_TX", "CAN2_RX",
-		"", "", "DIP1_FB", "", "VCAM_EN", "", "", "",
-		"CPU_LIGHT_ON", "", "ETH_RESET", "CPU_CONTACT_IN", "BL_EN",
-			"BL_PWM", "ETH_INTRP", "ISB_LED";
+		"", "", "", "", "", "", "UART4_TXD", "UART4_RXD",
+		"UART5_TXD", "UART5_RXD", "CAN1_TX", "CAN1_RX", "CAN1_SR",
+			"CAN2_SR", "CAN2_TX", "CAN2_RX",
+		"", "", "DIP1_FB", "", "VCAM_EN", "ON1_CTRL", "ON2_CTRL",
+			"HITCH_IN_OUT",
+		"LIGHT_ON", "", "ETH_RESET", "CONTACT_IN", "BL_EN",
+			"BL_PWM", "ETH_INT", "ISB_LED";
 };
 
 &gpio5 {
@@ -445,9 +447,28 @@
 		"", "", "", "", "", "", "", "",
 		"TSC_PENIRQ", "TSC_BUSY", "ECSPI2_MOSI", "ECSPI2_MISO",
 			"ECSPI2_SS0", "ECSPI2_SCLK", "", "",
-		"", "", "", "", "", "", "", "",
+		"", "", "ITU656_CLK", "I2S_MCLK", "ITU656_PDN", "AUDIO_RESET",
+			"I2S_BITCLK", "I2S_DOUT",
 		"I2S_LRCLK", "I2S_DIN", "I2C1_SDA", "I2C1_SCL", "YACO_AUX_RX",
 			"YACO_AUX_TX", "ITU656_D0", "ITU656_D1";
+};
+
+&gpio6 {
+	gpio-line-names =
+		"ITU656_D2", "ITU656_D3", "ITU656_D4", "ITU656_D5",
+			"ITU656_D6", "ITU656_D7", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio7 {
+	gpio-line-names =
+		"EMMC_DAT5", "EMMC_DAT4", "EMMC_CMD", "EMMC_CLK", "EMMC_DAT0",
+			"EMMC_DAT1", "EMMC_DAT2", "EMMC_DAT3",
+		"EMMC_RST", "", "", "", "CAM_DETECT", "", "", "",
+		"", "EMMC_DAT7", "EMMC_DAT6", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
 };
 
 &i2c1 {
