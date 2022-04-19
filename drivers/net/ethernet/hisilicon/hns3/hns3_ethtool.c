@@ -1415,10 +1415,32 @@ static int hns3_check_ql_coalesce_param(struct net_device *netdev,
 	return 0;
 }
 
-static int hns3_check_coalesce_para(struct net_device *netdev,
-				    struct ethtool_coalesce *cmd)
+static int
+hns3_check_cqe_coalesce_param(struct net_device *netdev,
+			      struct kernel_ethtool_coalesce *kernel_coal)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
+
+	if ((kernel_coal->use_cqe_mode_tx || kernel_coal->use_cqe_mode_rx) &&
+	    !hnae3_ae_dev_cq_supported(ae_dev)) {
+		netdev_err(netdev, "coalesced cqe mode is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int
+hns3_check_coalesce_para(struct net_device *netdev,
+			 struct ethtool_coalesce *cmd,
+			 struct kernel_ethtool_coalesce *kernel_coal)
 {
 	int ret;
+
+	ret = hns3_check_cqe_coalesce_param(netdev, kernel_coal);
+	if (ret)
+		return ret;
 
 	ret = hns3_check_gl_coalesce_para(netdev, cmd);
 	if (ret) {
@@ -1494,7 +1516,7 @@ static int hns3_set_coalesce(struct net_device *netdev,
 	if (hns3_nic_resetting(netdev))
 		return -EBUSY;
 
-	ret = hns3_check_coalesce_para(netdev, cmd);
+	ret = hns3_check_coalesce_para(netdev, cmd, kernel_coal);
 	if (ret)
 		return ret;
 

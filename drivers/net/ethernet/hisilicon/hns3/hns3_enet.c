@@ -5159,10 +5159,7 @@ static void hns3_set_cq_period_mode(struct hns3_nic_priv *priv,
 			priv->tqp_vector[i].rx_group.dim.mode = mode;
 	}
 
-	/* only device version above V3(include V3), GL can switch CQ/EQ
-	 * period mode.
-	 */
-	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3) {
+	if (hnae3_ae_dev_cq_supported(ae_dev)) {
 		u32 new_mode;
 		u64 reg;
 
