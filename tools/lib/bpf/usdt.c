@@ -10,6 +10,11 @@
 #include <linux/ptrace.h>
 #include <linux/kernel.h>
 
+/* s8 will be marked as poison while it's a reg of riscv */
+#if defined(__riscv)
+#define rv_s8 s8
+#endif
+
 #include "bpf.h"
 #include "libbpf.h"
 #include "libbpf_common.h"
@@ -1371,6 +1376,108 @@ static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec
 		arg->reg_off = 0;
 	} else if (sscanf(arg_str, " %d @ %m[a-z0-9] %n", &arg_sz, &reg_name, &len) == 2) {
 		/* Register read case, e.g., -8@x4 */
+		arg->arg_type = USDT_ARG_REG;
+		arg->val_off = 0;
+		reg_off = calc_pt_regs_off(reg_name);
+		free(reg_name);
+		if (reg_off < 0)
+			return reg_off;
+		arg->reg_off = reg_off;
+	} else {
+		pr_warn("usdt: unrecognized arg #%d spec '%s'\n", arg_num, arg_str);
+		return -EINVAL;
+	}
+
+	arg->arg_signed = arg_sz < 0;
+	if (arg_sz < 0)
+		arg_sz = -arg_sz;
+
+	switch (arg_sz) {
+	case 1: case 2: case 4: case 8:
+		arg->arg_bitshift = 64 - arg_sz * 8;
+		break;
+	default:
+		pr_warn("usdt: unsupported arg #%d (spec '%s') size: %d\n",
+			arg_num, arg_str, arg_sz);
+		return -EINVAL;
+	}
+
+	return len;
+}
+
+#elif defined(__riscv)
+
+static int calc_pt_regs_off(const char *reg_name)
+{
+	static struct {
+		const char *name;
+		size_t pt_regs_off;
+	} reg_map[] = {
+		{ "ra", offsetof(struct user_regs_struct, ra) },
+		{ "sp", offsetof(struct user_regs_struct, sp) },
+		{ "gp", offsetof(struct user_regs_struct, gp) },
+		{ "tp", offsetof(struct user_regs_struct, tp) },
+		{ "a0", offsetof(struct user_regs_struct, a0) },
+		{ "a1", offsetof(struct user_regs_struct, a1) },
+		{ "a2", offsetof(struct user_regs_struct, a2) },
+		{ "a3", offsetof(struct user_regs_struct, a3) },
+		{ "a4", offsetof(struct user_regs_struct, a4) },
+		{ "a5", offsetof(struct user_regs_struct, a5) },
+		{ "a6", offsetof(struct user_regs_struct, a6) },
+		{ "a7", offsetof(struct user_regs_struct, a7) },
+		{ "s0", offsetof(struct user_regs_struct, s0) },
+		{ "s1", offsetof(struct user_regs_struct, s1) },
+		{ "s2", offsetof(struct user_regs_struct, s2) },
+		{ "s3", offsetof(struct user_regs_struct, s3) },
+		{ "s4", offsetof(struct user_regs_struct, s4) },
+		{ "s5", offsetof(struct user_regs_struct, s5) },
+		{ "s6", offsetof(struct user_regs_struct, s6) },
+		{ "s7", offsetof(struct user_regs_struct, s7) },
+		{ "s8", offsetof(struct user_regs_struct, rv_s8) },
+		{ "s9", offsetof(struct user_regs_struct, s9) },
+		{ "s10", offsetof(struct user_regs_struct, s10) },
+		{ "s11", offsetof(struct user_regs_struct, s11) },
+		{ "t0", offsetof(struct user_regs_struct, t0) },
+		{ "t1", offsetof(struct user_regs_struct, t1) },
+		{ "t2", offsetof(struct user_regs_struct, t2) },
+		{ "t3", offsetof(struct user_regs_struct, t3) },
+		{ "t4", offsetof(struct user_regs_struct, t4) },
+		{ "t5", offsetof(struct user_regs_struct, t5) },
+		{ "t6", offsetof(struct user_regs_struct, t6) },
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(reg_map); i++) {
+		if (strcmp(reg_name, reg_map[i].name) == 0)
+			return reg_map[i].pt_regs_off;
+	}
+
+	pr_warn("usdt: unrecognized register '%s'\n", reg_name);
+	return -ENOENT;
+}
+
+static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec *arg)
+{
+	char *reg_name = NULL;
+	int arg_sz, len, reg_off;
+	long off;
+
+	if (sscanf(arg_str, " %d @ %ld ( %m[a-z0-9] ) %n", &arg_sz, &off, &reg_name, &len) == 3) {
+		/* Memory dereference case, e.g., -8@-88(s0) */
+		arg->arg_type = USDT_ARG_REG_DEREF;
+		arg->val_off = off;
+		reg_off = calc_pt_regs_off(reg_name);
+		free(reg_name);
+		if (reg_off < 0)
+			return reg_off;
+		arg->reg_off = reg_off;
+	} else if (sscanf(arg_str, " %d @ %ld %n", &arg_sz, &off, &len) == 2) {
+		/* Constant value case, e.g., 4@5 */
+		arg->arg_type = USDT_ARG_CONST;
+		arg->val_off = off;
+		arg->reg_off = 0;
+	} else if (sscanf(arg_str, " %d @ %m[a-z0-9] %n", &arg_sz, &reg_name, &len) == 2) {
+		/* Register read case, e.g., -8@a1 */
 		arg->arg_type = USDT_ARG_REG;
 		arg->val_off = 0;
 		reg_off = calc_pt_regs_off(reg_name);
