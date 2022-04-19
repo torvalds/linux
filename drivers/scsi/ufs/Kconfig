@@ -2,7 +2,6 @@
 #
 # Kernel configuration file for the UFS Host Controller
 #
-# This code is based on drivers/scsi/ufs/Kconfig
 # Copyright (C) 2011-2013 Samsung India Software Operations
 #
 # Authors:
