@@ -37,7 +37,6 @@
 #include <linux/flat.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
-#include <linux/coredump.h>
 
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
@@ -98,33 +97,12 @@ static int load_flat_shared_library(int id, struct lib_info *p);
 #endif
 
 static int load_flat_binary(struct linux_binprm *);
-#ifdef CONFIG_COREDUMP
-static int flat_core_dump(struct coredump_params *cprm);
-#endif
 
 static struct linux_binfmt flat_format = {
 	.module		= THIS_MODULE,
 	.load_binary	= load_flat_binary,
-#ifdef CONFIG_COREDUMP
-	.core_dump	= flat_core_dump,
-	.min_coredump	= PAGE_SIZE
-#endif
 };
 
-/****************************************************************************/
-/*
- * Routine writes a core dump image in the current directory.
- * Currently only a stub-function.
- */
-
-#ifdef CONFIG_COREDUMP
-static int flat_core_dump(struct coredump_params *cprm)
-{
-	pr_warn("Process %s:%d received signr %d and should have core dumped\n",
-		current->comm, current->pid, cprm->siginfo->si_signo);
-	return 1;
-}
-#endif
 
 /****************************************************************************/
 /*
