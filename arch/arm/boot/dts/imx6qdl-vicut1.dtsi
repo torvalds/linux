@@ -72,6 +72,8 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpiokeys>;
 		autorepeat;
 
 		power {
@@ -621,6 +623,13 @@
 		>;
 	};
 
+	pinctrl_gpiokeys: gpiokeygrp {
+		fsl,pins = <
+			/* nON_SWITCH */
+			MX6QDL_PAD_EIM_CS0__GPIO2_IO23			0x1b0b0
+		>;
+	};
+
 	pinctrl_hog: hoggrp {
 		fsl,pins = <
 			/* ITU656_nRESET */
@@ -631,8 +640,6 @@
 			MX6QDL_PAD_GPIO_4__GPIO1_IO04			0x130b0
 			/* CAM_nDETECT */
 			MX6QDL_PAD_GPIO_17__GPIO7_IO12			0x1b0b0
-			/* nON_SWITCH */
-			MX6QDL_PAD_EIM_CS0__GPIO2_IO23			0x1b0b0
 			/* ISB_IN1 */
 			MX6QDL_PAD_EIM_A16__GPIO2_IO22			0x130b0
 			/* ISB_nIN2 */
