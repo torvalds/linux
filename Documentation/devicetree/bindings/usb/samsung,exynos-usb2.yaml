@@ -50,6 +50,7 @@ required:
   - interrupts
   - phys
   - phy-names
+  - reg
 
 allOf:
   - $ref: usb-hcd.yaml#
