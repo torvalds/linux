@@ -168,7 +168,6 @@ to ReStructured Text format, or are simply too old.
 
    tools/index
    staging/index
-   watch_queue
 
 
 Translations

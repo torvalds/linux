@@ -18,6 +18,7 @@ it.
 
    kernel-api
    workqueue
+   watch_queue
    printk-basics
    printk-formats
    symbol-namespaces
