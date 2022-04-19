@@ -283,7 +283,7 @@ void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
 /* Write to the ring buffer. */
 int hv_ringbuffer_write(struct vmbus_channel *channel,
 			const struct kvec *kv_list, u32 kv_count,
-			u64 requestid)
+			u64 requestid, u64 *trans_id)
 {
 	int i;
 	u32 bytes_avail_towrite;
@@ -294,7 +294,7 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 	unsigned long flags;
 	struct hv_ring_buffer_info *outring_info = &channel->outbound;
 	struct vmpacket_descriptor *desc = kv_list[0].iov_base;
-	u64 rqst_id = VMBUS_NO_RQSTOR;
+	u64 __trans_id, rqst_id = VMBUS_NO_RQSTOR;
 
 	if (channel->rescind)
 		return -ENODEV;
@@ -353,7 +353,15 @@ int hv_ringbuffer_write(struct vmbus_channel *channel,
 		}
 	}
 	desc = hv_get_ring_buffer(outring_info) + old_write;
-	desc->trans_id = (rqst_id == VMBUS_NO_RQSTOR) ? requestid : rqst_id;
+	__trans_id = (rqst_id == VMBUS_NO_RQSTOR) ? requestid : rqst_id;
+	/*
+	 * Ensure the compiler doesn't generate code that reads the value of
+	 * the transaction ID from the ring buffer, which is shared with the
+	 * Hyper-V host and subject to being changed at any time.
+	 */
+	WRITE_ONCE(desc->trans_id, __trans_id);
+	if (trans_id)
+		*trans_id = __trans_id;
 
 	/* Set previous packet start */
 	prev_indices = hv_get_ring_bufferindices(outring_info);
