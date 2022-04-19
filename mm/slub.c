@@ -1021,7 +1021,7 @@ static int check_pad_bytes(struct kmem_cache *s, struct slab *slab, u8 *p)
 }
 
 /* Check the pad bytes at the end of a slab page */
-static int slab_pad_check(struct kmem_cache *s, struct slab *slab)
+static void slab_pad_check(struct kmem_cache *s, struct slab *slab)
 {
 	u8 *start;
 	u8 *fault;
@@ -1031,21 +1031,21 @@ static int slab_pad_check(struct kmem_cache *s, struct slab *slab)
 	int remainder;
 
 	if (!(s->flags & SLAB_POISON))
-		return 1;
+		return;
 
 	start = slab_address(slab);
 	length = slab_size(slab);
 	end = start + length;
 	remainder = length % s->size;
 	if (!remainder)
-		return 1;
+		return;
 
 	pad = end - remainder;
 	metadata_access_enable();
 	fault = memchr_inv(kasan_reset_tag(pad), POISON_INUSE, remainder);
 	metadata_access_disable();
 	if (!fault)
-		return 1;
+		return;
 	while (end > fault && end[-1] == POISON_INUSE)
 		end--;
 
@@ -1054,7 +1054,6 @@ static int slab_pad_check(struct kmem_cache *s, struct slab *slab)
 	print_section(KERN_ERR, "Padding ", pad, remainder);
 
 	restore_bytes(s, "slab padding", POISON_INUSE, fault, end);
-	return 0;
 }
 
 static int check_object(struct kmem_cache *s, struct slab *slab,
@@ -1642,8 +1641,7 @@ static inline int free_debug_processing(
 	void *head, void *tail, int bulk_cnt,
 	unsigned long addr) { return 0; }
 
-static inline int slab_pad_check(struct kmem_cache *s, struct slab *slab)
-			{ return 1; }
+static inline void slab_pad_check(struct kmem_cache *s, struct slab *slab) {}
 static inline int check_object(struct kmem_cache *s, struct slab *slab,
 			void *object, u8 val) { return 1; }
 static inline void add_full(struct kmem_cache *s, struct kmem_cache_node *n,
