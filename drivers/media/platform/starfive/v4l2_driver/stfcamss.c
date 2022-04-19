@@ -44,17 +44,15 @@ static const struct reg_name mem_reg_name[] = {
 #ifndef CONFIG_VIDEO_CADENCE_CSI2RX
 	{"mipi0"},
 #endif
-	//{"vclk"},
+	{"vclk"},
 	{"vrst"},
 	{"mipi1"},
 	{"sctrl"},
 	{"isp0"},
 	{"isp1"},
-	{"tclk"},
 	{"trst"},
-	{"iopad"},
 	{"pmu"},
-	//{"syscrg"},
+	{"syscrg"},
 };
 
 char *clocks[] = {
@@ -84,38 +82,53 @@ int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
 	for (i = 0; i < ARRAY_SIZE(mem_reg_name); i++) {
 		name = (char *)(&mem_reg_name[i]);
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
-		regs = devm_ioremap_resource(dev, res);
-		if (IS_ERR(regs))
-			return PTR_ERR(regs);
+		if (!res)
+			return -EINVAL;
 
-		if (!strcmp(name, "mipi0"))
-			vin->mipi0_base = regs;
-		// else if (!strcmp(name, "vclk"))
-		// 	vin->clkgen_base = regs;
-		else if (!strcmp(name, "vrst"))
-			vin->rstgen_base = regs;
-		else if (!strcmp(name, "mipi1"))
-			vin->mipi1_base = regs;
-		else if (!strcmp(name, "sctrl"))
-			vin->sysctrl_base = regs;
-		else if (!strcmp(name, "isp0"))
-			vin->isp_isp0_base = regs;
-		else if (!strcmp(name, "isp1"))
-			vin->isp_isp1_base = regs;
-		else if (!strcmp(name, "tclk"))
-			vin->vin_top_clkgen_base = regs;
-		else if (!strcmp(name, "trst"))
-			vin->vin_top_rstgen_base = regs;
-		else if (!strcmp(name, "iopad"))
-			vin->vin_top_iopad_base = regs;
-		else if (!strcmp(name,"pmu"))
-			vin->pmu_test = regs;
-		else
+		if (!strcmp(name, "mipi0")) {
+			vin->mipi0_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->mipi0_base))
+				return PTR_ERR(vin->mipi0_base);
+		} else if (!strcmp(name, "vclk")) {
+			vin->clkgen_base = ioremap(res->start, resource_size(res));
+			if (!vin->clkgen_base)
+				return -ENOMEM;
+		} else if (!strcmp(name, "vrst")) {
+			vin->rstgen_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->rstgen_base))
+				return PTR_ERR(vin->rstgen_base);
+		} else if (!strcmp(name, "mipi1")) {
+			vin->mipi1_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->mipi1_base))
+				return PTR_ERR(vin->mipi1_base);
+		} else if (!strcmp(name, "sctrl")) {
+			vin->sysctrl_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->sysctrl_base))
+				return PTR_ERR(vin->sysctrl_base);
+		} else if (!strcmp(name, "isp0")) {
+			vin->isp_isp0_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->isp_isp0_base))
+				return PTR_ERR(vin->isp_isp0_base);
+		} else if (!strcmp(name, "isp1")) {
+			vin->isp_isp1_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->isp_isp1_base))
+				return PTR_ERR(vin->isp_isp1_base);
+		} else if (!strcmp(name, "trst")) {
+			vin->vin_top_rstgen_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->vin_top_rstgen_base))
+				return PTR_ERR(vin->vin_top_rstgen_base);
+		} else if (!strcmp(name, "pmu")) {
+			vin->pmu_test = ioremap(res->start, resource_size(res));
+			if (!vin->pmu_test)
+				return -ENOMEM;
+		} else if (!strcmp(name, "syscrg")) {
+			vin->sys_crg = ioremap(res->start, resource_size(res));
+			if (!vin->sys_crg)
+				return -ENOMEM;
+		} else {
 			st_err(ST_CAMSS, "Could not match resource name\n");
+		}
 	}
-
-	vin->clkgen_base = ioremap(0x19810000, 0x10000);
-	vin->sys_crg = ioremap(0x13020000, 0x10000);
 
 	return 0;
 }
