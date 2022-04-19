@@ -86,10 +86,10 @@ int rkisp_dvbm_event(struct rkisp_device *dev, u32 event)
 		cmd = DVBM_ISP_FRM_QUARTER;
 		break;
 	case ISP3X_OUT_FRM_HALF:
-		cmd = DVBM_ISP_FRM_QUARTER;
+		cmd = DVBM_ISP_FRM_HALF;
 		break;
 	case ISP3X_OUT_FRM_END:
-		cmd = DVBM_ISP_FRM_QUARTER;
+		cmd = DVBM_ISP_FRM_THREE_QUARTERS;
 		break;
 	case CIF_MI_MP_FRAME:
 		cmd = DVBM_ISP_FRM_END;
