@@ -7494,6 +7494,27 @@ The valid bits in cap.args[0] are:
                                     generate a #UD within the guest.
 =================================== ============================================
 
+7.32 KVM_CAP_MAX_VCPU_ID
+------------------------
+
+:Architectures: x86
+:Target: VM
+:Parameters: args[0] - maximum APIC ID value set for current VM
+:Returns: 0 on success, -EINVAL if args[0] is beyond KVM_MAX_VCPU_IDS
+          supported in KVM or if it has been set.
+
+This capability allows userspace to specify maximum possible APIC ID
+assigned for current VM session prior to the creation of vCPUs, saving
+memory for data structures indexed by the APIC ID.  Userspace is able
+to calculate the limit to APIC ID values from designated
+CPU topology.
+
+The value can be changed only until KVM_ENABLE_CAP is set to a nonzero
+value or until a vCPU is created.  Upon creation of the first vCPU,
+if the value was set to zero or KVM_ENABLE_CAP was not invoked, KVM
+uses the return value of KVM_CHECK_EXTENSION(KVM_CAP_MAX_VCPU_ID) as
+the maximum APIC ID.
+
 8. Other capabilities.
 ======================
 
