@@ -383,16 +383,13 @@ static void bch2_btree_reserve_put(struct btree_update *as)
 	struct bch_fs *c = as->c;
 	struct prealloc_nodes *p;
 
-	mutex_lock(&c->btree_reserve_cache_lock);
-
 	for (p = as->prealloc_nodes;
 	     p < as->prealloc_nodes + ARRAY_SIZE(as->prealloc_nodes);
 	     p++) {
 		while (p->nr) {
 			struct btree *b = p->b[--p->nr];
 
-			six_lock_intent(&b->c.lock, NULL, NULL);
-			six_lock_write(&b->c.lock, NULL, NULL);
+			mutex_lock(&c->btree_reserve_cache_lock);
 
 			if (c->btree_reserve_cache_nr <
 			    ARRAY_SIZE(c->btree_reserve_cache)) {
@@ -406,13 +403,15 @@ static void bch2_btree_reserve_put(struct btree_update *as)
 				bch2_open_buckets_put(c, &b->ob);
 			}
 
+			mutex_unlock(&c->btree_reserve_cache_lock);
+
+			six_lock_intent(&b->c.lock, NULL, NULL);
+			six_lock_write(&b->c.lock, NULL, NULL);
 			__btree_node_free(c, b);
 			six_unlock_write(&b->c.lock);
 			six_unlock_intent(&b->c.lock);
 		}
 	}
-
-	mutex_unlock(&c->btree_reserve_cache_lock);
 }
 
 static int bch2_btree_reserve_get(struct btree_trans *trans,
