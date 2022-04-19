@@ -5,6 +5,7 @@
 
 #include "ufs-debugfs.h"
 #include "ufshcd.h"
+#include "ufshcd-priv.h"
 
 static struct dentry *ufs_debugfs_root;
 

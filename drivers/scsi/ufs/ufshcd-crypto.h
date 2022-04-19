@@ -8,6 +8,8 @@
 
 #include <scsi/scsi_cmnd.h>
 #include "ufshcd.h"
+#include "ufshcd-priv.h"
+#include "ufshci.h"
 
 #ifdef CONFIG_SCSI_UFS_CRYPTO
 
