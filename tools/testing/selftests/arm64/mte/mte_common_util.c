@@ -273,9 +273,18 @@ int mte_switch_mode(int mte_option, unsigned long incl_mask)
 {
 	unsigned long en = 0;
 
-	if (!(mte_option == MTE_SYNC_ERR || mte_option == MTE_ASYNC_ERR ||
-	      mte_option == MTE_NONE_ERR || incl_mask <= MTE_ALLOW_NON_ZERO_TAG)) {
-		ksft_print_msg("FAIL: Invalid mte config option\n");
+	switch (mte_option) {
+	case MTE_NONE_ERR:
+	case MTE_SYNC_ERR:
+	case MTE_ASYNC_ERR:
+		break;
+	default:
+		ksft_print_msg("FAIL: Invalid MTE option %x\n", mte_option);
+		return -EINVAL;
+	}
+
+	if (!(incl_mask <= MTE_ALLOW_NON_ZERO_TAG)) {
+		ksft_print_msg("FAIL: Invalid incl_mask %lx\n", incl_mask);
 		return -EINVAL;
 	}
 	en = PR_TAGGED_ADDR_ENABLE;
