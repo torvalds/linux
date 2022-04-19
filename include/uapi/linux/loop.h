@@ -1,11 +1,6 @@
 /* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
 /*
- * include/linux/loop.h
- *
- * Written by Theodore Ts'o, 3/29/93.
- *
- * Copyright 1993 by Theodore Ts'o.  Redistribution of this file is
- * permitted under the GNU General Public License.
+ * Copyright 1993 by Theodore Ts'o.
  */
 #ifndef _UAPI_LINUX_LOOP_H
 #define _UAPI_LINUX_LOOP_H
