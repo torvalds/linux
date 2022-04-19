@@ -667,10 +667,7 @@ static int smu_v13_0_7_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->CurrClock[PPCLK_FCLK];
 		break;
 	case METRICS_AVERAGE_GFXCLK:
-		if (metrics->AverageGfxActivity <= SMU_13_0_7_BUSY_THRESHOLD)
-			*value = metrics->AverageGfxclkFrequencyPostDs;
-		else
-			*value = metrics->AverageGfxclkFrequencyPreDs;
+		*value = metrics->AverageGfxclkFrequencyTarget;
 		break;
 	case METRICS_AVERAGE_FCLK:
 		if (metrics->AverageUclkActivity <= SMU_13_0_7_BUSY_THRESHOLD)
@@ -844,7 +841,7 @@ static int smu_v13_0_7_get_current_clk_freq_by_table(struct smu_context *smu,
 
 	switch (clk_id) {
 	case PPCLK_GFXCLK:
-		member_type = METRICS_CURR_GFXCLK;
+		member_type = METRICS_AVERAGE_GFXCLK;
 		break;
 	case PPCLK_UCLK:
 		member_type = METRICS_CURR_UCLK;
