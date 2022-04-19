@@ -212,8 +212,7 @@ struct msm_mdss {
 	const struct msm_mdss_funcs *funcs;
 };
 
-int mdp5_mdss_init(struct platform_device *dev);
-int dpu_mdss_init(struct platform_device *dev);
+int msm_mdss_init(struct platform_device *pdev, bool is_mdp5);
 
 #define for_each_crtc_mask(dev, crtc, crtc_mask) \
 	drm_for_each_crtc(crtc, dev) \

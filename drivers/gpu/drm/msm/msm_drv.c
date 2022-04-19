@@ -1252,10 +1252,10 @@ static int msm_pdev_probe(struct platform_device *pdev)
 
 	switch (get_mdp_ver(pdev)) {
 	case KMS_MDP5:
-		ret = mdp5_mdss_init(pdev);
+		ret = msm_mdss_init(pdev, true);
 		break;
 	case KMS_DPU:
-		ret = dpu_mdss_init(pdev);
+		ret = msm_mdss_init(pdev, false);
 		break;
 	default:
 		ret = 0;
