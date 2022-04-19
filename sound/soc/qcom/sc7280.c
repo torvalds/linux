@@ -21,7 +21,7 @@
 #include "lpass.h"
 
 #define DEFAULT_MCLK_RATE              19200000
-#define RT5682_PLL1_FREQ (48000 * 512)
+#define RT5682_PLL_FREQ (48000 * 512)
 
 struct sc7280_snd_data {
 	struct snd_soc_card card;
@@ -137,15 +137,15 @@ static int sc7280_rt5682_init(struct snd_soc_pcm_runtime *rtd)
 				SND_SOC_DAIFMT_NB_NF |
 				SND_SOC_DAIFMT_I2S);
 
-	ret = snd_soc_dai_set_pll(codec_dai, RT5682S_PLL1, RT5682S_PLL_S_BCLK1,
-					1536000, RT5682_PLL1_FREQ);
+	ret = snd_soc_dai_set_pll(codec_dai, RT5682S_PLL2, RT5682S_PLL_S_MCLK,
+					DEFAULT_MCLK_RATE, RT5682_PLL_FREQ);
 	if (ret) {
 		dev_err(rtd->dev, "can't set codec pll: %d\n", ret);
 		return ret;
 	}
 
-	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682S_SCLK_S_PLL1,
-					RT5682_PLL1_FREQ,
+	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682S_SCLK_S_PLL2,
+					RT5682_PLL_FREQ,
 					SND_SOC_CLOCK_IN);
 
 	if (ret) {
