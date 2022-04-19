@@ -247,7 +247,6 @@ static inline void vm_enable_cap(struct kvm_vm *vm, uint32_t cap, uint64_t arg0)
 void vm_enable_dirty_ring(struct kvm_vm *vm, uint32_t ring_size);
 const char *vm_guest_mode_string(uint32_t i);
 
-struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint64_t phy_pages);
 void kvm_vm_free(struct kvm_vm *vmp);
 void kvm_vm_restart(struct kvm_vm *vmp);
 void kvm_vm_release(struct kvm_vm *vmp);
@@ -595,9 +594,21 @@ vm_paddr_t vm_phy_pages_alloc(struct kvm_vm *vm, size_t num,
 			      vm_paddr_t paddr_min, uint32_t memslot);
 vm_paddr_t vm_alloc_page_table(struct kvm_vm *vm);
 
+/*
+ * ____vm_create() does KVM_CREATE_VM and little else.  __vm_create() also
+ * loads the test binary into guest memory and creates an IRQ chip (x86 only).
+ */
+struct kvm_vm *____vm_create(enum vm_guest_mode mode, uint64_t nr_pages);
+struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint64_t nr_pages);
+
 static inline struct kvm_vm *vm_create_barebones(void)
 {
-	return __vm_create(VM_MODE_DEFAULT, 0);
+	return ____vm_create(VM_MODE_DEFAULT, 0);
+}
+
+static inline struct kvm_vm *vm_create(uint64_t nr_pages)
+{
+	return __vm_create(VM_MODE_DEFAULT, nr_pages);
 }
 
 /*
@@ -628,9 +639,6 @@ struct kvm_vm *vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus,
 				    uint64_t slot0_mem_pages, uint64_t extra_mem_pages,
 				    uint32_t num_percpu_pages, void *guest_code,
 				    uint32_t vcpuids[]);
-
-/* Create a default VM without any vcpus. */
-struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t pages);
 
 /*
  * Create a VM with a single vCPU with reasonable defaults and @extra_mem_pages

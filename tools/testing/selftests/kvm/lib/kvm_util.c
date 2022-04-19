@@ -149,12 +149,12 @@ const struct vm_guest_mode_params vm_guest_mode_params[] = {
 _Static_assert(sizeof(vm_guest_mode_params)/sizeof(struct vm_guest_mode_params) == NUM_VM_MODES,
 	       "Missing new mode params?");
 
-struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint64_t phy_pages)
+struct kvm_vm *____vm_create(enum vm_guest_mode mode, uint64_t nr_pages)
 {
 	struct kvm_vm *vm;
 
 	pr_debug("%s: mode='%s' pages='%ld'\n", __func__,
-		 vm_guest_mode_string(mode), phy_pages);
+		 vm_guest_mode_string(mode), nr_pages);
 
 	vm = calloc(1, sizeof(*vm));
 	TEST_ASSERT(vm != NULL, "Insufficient Memory");
@@ -251,20 +251,20 @@ struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint64_t phy_pages)
 
 	/* Allocate and setup memory for guest. */
 	vm->vpages_mapped = sparsebit_alloc();
-	if (phy_pages != 0)
+	if (nr_pages != 0)
 		vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
-					    0, 0, phy_pages, 0);
+					    0, 0, nr_pages, 0);
 
 	return vm;
 }
 
-struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t pages)
+struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint64_t nr_pages)
 {
 	struct kvm_vm *vm;
 
-	pages = vm_adjust_num_guest_pages(mode, pages);
+	nr_pages = vm_adjust_num_guest_pages(mode, nr_pages);
 
-	vm = __vm_create(mode, pages);
+	vm = ____vm_create(mode, nr_pages);
 
 	kvm_vm_elf_load(vm, program_invocation_name);
 
@@ -323,7 +323,7 @@ struct kvm_vm *vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus,
 		    "nr_vcpus = %d too large for host, max-vcpus = %d",
 		    nr_vcpus, kvm_check_cap(KVM_CAP_MAX_VCPUS));
 
-	vm = vm_create(mode, pages);
+	vm = __vm_create(mode, pages);
 
 	for (i = 0; i < nr_vcpus; ++i) {
 		uint32_t vcpuid = vcpuids ? vcpuids[i] : i;
