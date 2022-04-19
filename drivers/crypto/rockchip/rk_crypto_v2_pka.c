@@ -155,38 +155,21 @@ enum pka_opcode {
 /********************* Private Variable Definition ***************************/
 static void __iomem *pka_base;
 
-/*
- * Turn off clang optimization temporarily. Pka_word_memcpy will be optimized
- * to memcpy, but the SRAM area of PKA can only be accessed in word, so memcpy
- * will cause panic.
- */
-#if defined(__clang__)
-
-#pragma clang optimize off
-
-#endif
-
 static void pka_word_memcpy(u32 *dst, u32 *src, u32 size)
 {
 	u32 i;
 
-	for (i = 0; i < size; i++)
-		dst[i] = src[i];
+	for (i = 0; i < size; i++, dst++)
+		writel_relaxed(src[i], (void *)dst);
 }
 
 static void pka_word_memset(u32 *buff, u32 val, u32 size)
 {
 	u32 i;
 
-	for (i = 0; i < size; i++)
-		buff[i] = val;
+	for (i = 0; i < size; i++, buff++)
+		writel_relaxed(val, (void *)buff);
 }
-
-#if defined(__clang__)
-
-#pragma clang optimize on
-
-#endif
 
 static int pka_wait_pipe_rdy(void)
 {
