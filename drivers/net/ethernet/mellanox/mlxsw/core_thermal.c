@@ -90,6 +90,7 @@ struct mlxsw_thermal_area {
 	struct mlxsw_thermal_module *tz_gearbox_arr;
 	u8 tz_gearbox_num;
 	u8 slot_index;
+	bool active;
 };
 
 struct mlxsw_thermal {
@@ -913,6 +914,64 @@ mlxsw_thermal_gearboxes_fini(struct mlxsw_thermal *thermal,
 	kfree(area->tz_gearbox_arr);
 }
 
+static void
+mlxsw_thermal_got_active(struct mlxsw_core *mlxsw_core, u8 slot_index,
+			 void *priv)
+{
+	struct mlxsw_thermal *thermal = priv;
+	struct mlxsw_thermal_area *linecard;
+	int err;
+
+	linecard = &thermal->line_cards[slot_index];
+
+	if (linecard->active)
+		return;
+
+	linecard->slot_index = slot_index;
+	err = mlxsw_thermal_modules_init(thermal->bus_info->dev, thermal->core,
+					 thermal, linecard);
+	if (err) {
+		dev_err(thermal->bus_info->dev, "Failed to configure thermal objects for line card modules in slot %d\n",
+			slot_index);
+		return;
+	}
+
+	err = mlxsw_thermal_gearboxes_init(thermal->bus_info->dev,
+					   thermal->core, thermal, linecard);
+	if (err) {
+		dev_err(thermal->bus_info->dev, "Failed to configure thermal objects for line card gearboxes in slot %d\n",
+			slot_index);
+		goto err_thermal_linecard_gearboxes_init;
+	}
+
+	linecard->active = true;
+
+	return;
+
+err_thermal_linecard_gearboxes_init:
+	mlxsw_thermal_modules_fini(thermal, linecard);
+}
+
+static void
+mlxsw_thermal_got_inactive(struct mlxsw_core *mlxsw_core, u8 slot_index,
+			   void *priv)
+{
+	struct mlxsw_thermal *thermal = priv;
+	struct mlxsw_thermal_area *linecard;
+
+	linecard = &thermal->line_cards[slot_index];
+	if (!linecard->active)
+		return;
+	linecard->active = false;
+	mlxsw_thermal_gearboxes_fini(thermal, linecard);
+	mlxsw_thermal_modules_fini(thermal, linecard);
+}
+
+static struct mlxsw_linecards_event_ops mlxsw_thermal_event_ops = {
+	.got_active = mlxsw_thermal_got_active,
+	.got_inactive = mlxsw_thermal_got_inactive,
+};
+
 int mlxsw_thermal_init(struct mlxsw_core *core,
 		       const struct mlxsw_bus_info *bus_info,
 		       struct mlxsw_thermal **p_thermal)
@@ -1018,14 +1077,25 @@ int mlxsw_thermal_init(struct mlxsw_core *core,
 	if (err)
 		goto err_thermal_gearboxes_init;
 
+	err = mlxsw_linecards_event_ops_register(core,
+						 &mlxsw_thermal_event_ops,
+						 thermal);
+	if (err)
+		goto err_linecards_event_ops_register;
+
 	err = thermal_zone_device_enable(thermal->tzdev);
 	if (err)
 		goto err_thermal_zone_device_enable;
 
+	thermal->line_cards[0].active = true;
 	*p_thermal = thermal;
 	return 0;
 
 err_thermal_zone_device_enable:
+	mlxsw_linecards_event_ops_unregister(thermal->core,
+					     &mlxsw_thermal_event_ops,
+					     thermal);
+err_linecards_event_ops_register:
 	mlxsw_thermal_gearboxes_fini(thermal, &thermal->line_cards[0]);
 err_thermal_gearboxes_init:
 	mlxsw_thermal_modules_fini(thermal, &thermal->line_cards[0]);
@@ -1049,6 +1119,10 @@ void mlxsw_thermal_fini(struct mlxsw_thermal *thermal)
 {
 	int i;
 
+	thermal->line_cards[0].active = false;
+	mlxsw_linecards_event_ops_unregister(thermal->core,
+					     &mlxsw_thermal_event_ops,
+					     thermal);
 	mlxsw_thermal_gearboxes_fini(thermal, &thermal->line_cards[0]);
 	mlxsw_thermal_modules_fini(thermal, &thermal->line_cards[0]);
 	if (thermal->tzdev) {
