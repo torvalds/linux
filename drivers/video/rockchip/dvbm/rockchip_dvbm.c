@@ -30,6 +30,7 @@ static struct dvbm_ctx *g_ctx;
 #define DVBM_DEBUG_IRQ	0x00000002
 #define DVBM_DEBUG_REG	0x00000004
 #define DVBM_DEBUG_DUMP	0x00000008
+#define DVBM_DEBUG_FRM	0x00000010
 
 #define dvbm_debug(fmt, args...)				\
 	do {							\
@@ -52,6 +53,12 @@ static struct dvbm_ctx *g_ctx;
 #define dvbm_debug_dump(fmt, args...)				\
 	do {							\
 		if (unlikely(dvbm_debug & (DVBM_DEBUG_DUMP)))	\
+			pr_info(fmt, ##args);			\
+	} while (0)
+
+#define dvbm_debug_frm(fmt, args...)				\
+	do {							\
+		if (unlikely(dvbm_debug & (DVBM_DEBUG_FRM)))	\
 			pr_info(fmt, ##args);			\
 	} while (0)
 
@@ -204,9 +211,8 @@ static void rk_dvbm_update_isp_frm_info(struct dvbm_ctx *ctx, u32 line_cnt)
 {
 	struct dvbm_isp_frm_info *frm_info = &ctx->isp_frm_info;
 
-	/* wrap frame_cnt 0 - 255 */
-	frm_info->frame_cnt = ctx->isp_frm_start % 256;
-	frm_info->line_cnt = line_cnt;
+	frm_info->line_cnt = ALIGN(line_cnt, 32);
+	dvbm_debug_frm("dvbm frame %d line %d\n", frm_info->frame_cnt, frm_info->line_cnt);
 	dvbm2enc_callback(ctx, DVBM_VEPU_NOTIFY_FRM_INFO, frm_info);
 
 }
@@ -236,6 +242,9 @@ static int rk_dvbm_setup_iobuf(struct dvbm_ctx *ctx)
 	addr_base->oful_thdc = cfg->ybuf_lstd;
 
 	ctx->isp_max_lcnt = cfg->ybuf_fstd / cfg->ybuf_lstd;
+	ctx->wrap_line = (cfg->ybuf_top - cfg->ybuf_bot) / cfg->ybuf_lstd;
+	ctx->isp_frm_info.max_line_cnt = ALIGN(ctx->isp_max_lcnt, 32);
+	ctx->isp_frm_info.wrap_line = ctx->wrap_line;
 	dvbm_debug("dma_addr 0x%08x y_lstd %d y_fstd %d\n",
 		   cfg->dma_addr, cfg->ybuf_lstd, cfg->ybuf_fstd);
 	dvbm_debug("ybot 0x%x top 0x%x cbuf bot 0x%x top 0x%x\n",
@@ -450,13 +459,14 @@ int rk_dvbm_ctrl(struct dvbm_port *port, enum dvbm_cmd cmd, void *arg)
 	} break;
 	case DVBM_ISP_FRM_START: {
 		ctx->isp_frm_start = *(u32 *)arg;
-		ctx->isp_frm_quater_cnt = 0;
+		/* wrap frame_cnt 0 - 255 */
+		ctx->isp_frm_info.frame_cnt = ctx->isp_frm_start % 256;
 		rk_dvbm_update_isp_frm_info(ctx, 0);
 		rk_dvbm_update_next_adr(ctx);
 		rk_dvbm_show_time(ctx);
 	} break;
 	case DVBM_ISP_FRM_END: {
-		u32 line_cnt = ALIGN(ctx->isp_max_lcnt, 32);
+		u32 line_cnt = ctx->isp_max_lcnt;
 
 		ctx->isp_frm_end = *(u32 *)arg;
 		rk_dvbm_update_isp_frm_info(ctx, line_cnt);
@@ -465,10 +475,19 @@ int rk_dvbm_ctrl(struct dvbm_port *port, enum dvbm_cmd cmd, void *arg)
 	case DVBM_ISP_FRM_QUARTER: {
 		u32 line_cnt;
 
-		ctx->isp_frm_quater_cnt++;
-		line_cnt = ctx->isp_frm_quater_cnt * ctx->isp_max_lcnt / 4;
-		line_cnt = ALIGN(line_cnt, 32);
+		line_cnt = ctx->isp_max_lcnt >> 2;
+		rk_dvbm_update_isp_frm_info(ctx, line_cnt);
+	} break;
+	case DVBM_ISP_FRM_HALF: {
+		u32 line_cnt;
 
+		line_cnt = ctx->isp_max_lcnt >> 1;
+		rk_dvbm_update_isp_frm_info(ctx, line_cnt);
+	} break;
+	case DVBM_ISP_FRM_THREE_QUARTERS: {
+		u32 line_cnt;
+
+		line_cnt = (ctx->isp_max_lcnt >> 2) * 3;
 		rk_dvbm_update_isp_frm_info(ctx, line_cnt);
 	} break;
 	case DVBM_VEPU_GET_ADR: {
@@ -481,7 +500,7 @@ int rk_dvbm_ctrl(struct dvbm_port *port, enum dvbm_cmd cmd, void *arg)
 		dvbm_adr->cbuf_bot = addr_base->cbuf_bot;
 		dvbm_adr->cbuf_sadr = ctx->vepu_cfg.cbuf_sadr;
 		dvbm_adr->ybuf_sadr = ctx->vepu_cfg.ybuf_sadr;
-		dvbm_adr->overflow = ctx->isp_frm_quater_cnt > 2;
+		dvbm_adr->overflow = ctx->isp_frm_info.line_cnt >= ctx->wrap_line;
 		dvbm_adr->frame_id = ctx->isp_frm_info.frame_cnt;
 		dvbm_adr->line_cnt = ctx->isp_frm_info.line_cnt;
 	} break;

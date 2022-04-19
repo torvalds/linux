@@ -19,6 +19,8 @@ enum dvbm_cmd {
 	DVBM_ISP_FRM_START,
 	DVBM_ISP_FRM_END,
 	DVBM_ISP_FRM_QUARTER,
+	DVBM_ISP_FRM_HALF,
+	DVBM_ISP_FRM_THREE_QUARTERS,
 	DVBM_ISP_CMD_BUTT,
 
 	DVBM_VEPU_CMD_BASE  = 0x10,
@@ -82,6 +84,8 @@ struct dvbm_isp_frm_cfg {
 struct dvbm_isp_frm_info {
 	u32 frame_cnt;
 	u32 line_cnt;
+	u32 wrap_line;
+	u32 max_line_cnt;
 };
 
 struct dvbm_addr_cfg {
