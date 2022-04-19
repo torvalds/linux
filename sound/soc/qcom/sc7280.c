@@ -291,13 +291,7 @@ static void sc7280_snd_shutdown(struct snd_pcm_substream *substream)
 					       SNDRV_PCM_STREAM_PLAYBACK);
 		}
 		break;
-	case MI2S_SECONDARY:
-		break;
-	case LPASS_DP_RX:
-		break;
 	default:
-		dev_err(rtd->dev, "%s: invalid dai id 0x%x\n", __func__,
-			cpu_dai->id);
 		break;
 	}
 }
@@ -312,14 +306,8 @@ static int sc7280_snd_startup(struct snd_pcm_substream *substream)
 	case MI2S_PRIMARY:
 		ret = sc7280_rt5682_init(rtd);
 		break;
-	case MI2S_SECONDARY:
-		break;
-	case LPASS_DP_RX:
-		break;
 	default:
-		dev_err(rtd->dev, "%s: invalid dai id 0x%x\n", __func__,
-			cpu_dai->id);
-		return -EINVAL;
+		break;
 	}
 	return ret;
 }
