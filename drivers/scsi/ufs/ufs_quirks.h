@@ -25,7 +25,7 @@
  */
 struct ufs_dev_quirk {
 	u16 wmanufacturerid;
-	u8 *model;
+	const u8 *model;
 	unsigned int quirk;
 };
 
