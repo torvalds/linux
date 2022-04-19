@@ -571,6 +571,6 @@ struct bpf_link * usdt_manager_attach_usdt(struct usdt_manager *man,
 					   const struct bpf_program *prog,
 					   pid_t pid, const char *path,
 					   const char *usdt_provider, const char *usdt_name,
-					   long usdt_cookie);
+					   __u64 usdt_cookie);
 
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */

@@ -10993,7 +10993,7 @@ struct bpf_link *bpf_program__attach_usdt(const struct bpf_program *prog,
 	char resolved_path[512];
 	struct bpf_object *obj = prog->obj;
 	struct bpf_link *link;
-	long usdt_cookie;
+	__u64 usdt_cookie;
 	int err;
 
 	if (!OPTS_VALID(opts, bpf_uprobe_opts))
