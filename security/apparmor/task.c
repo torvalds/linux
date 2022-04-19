@@ -285,7 +285,7 @@ int aa_may_ptrace(struct aa_label *tracer, struct aa_label *tracee,
 {
 	struct aa_profile *profile;
 	u32 xrequest = request << PTRACE_PERM_SHIFT;
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, OP_PTRACE);
+	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_PTRACE, OP_PTRACE);
 
 	return xcheck_labels(tracer, tracee, profile,
 			profile_tracer_perm(profile, tracee, request, &sa),

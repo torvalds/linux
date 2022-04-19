@@ -95,7 +95,7 @@ int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
 		  kuid_t ouid, const char *info, int error)
 {
 	int type = AUDIT_APPARMOR_AUTO;
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_TASK, op);
+	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_TASK, AA_CLASS_FILE, op);
 
 	sa.u.tsk = NULL;
 	aad(&sa)->request = request;

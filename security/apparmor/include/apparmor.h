@@ -16,7 +16,7 @@
 /*
  * Class of mediation types in the AppArmor policy db
  */
-#define AA_CLASS_ENTRY		0
+#define AA_CLASS_NONE		0
 #define AA_CLASS_UNKNOWN	1
 #define AA_CLASS_FILE		2
 #define AA_CLASS_CAP		3

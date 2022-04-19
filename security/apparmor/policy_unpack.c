@@ -100,7 +100,7 @@ static int audit_iface(struct aa_profile *new, const char *ns_name,
 		       int error)
 {
 	struct aa_profile *profile = labels_profile(aa_current_raw_label());
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, NULL);
+	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE, NULL);
 	if (e)
 		aad(&sa)->iface.pos = e->pos - e->start;
 	aad(&sa)->iface.ns = ns_name;

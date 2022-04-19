@@ -647,7 +647,8 @@ static int apparmor_setprocattr(const char *name, void *value,
 	char *command, *largs = NULL, *args = value;
 	size_t arg_size;
 	int error;
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, OP_SETPROCATTR);
+	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE,
+			  OP_SETPROCATTR);
 
 	if (size == 0)
 		return -EINVAL;

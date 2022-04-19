@@ -98,7 +98,7 @@ static int profile_signal_perm(struct aa_profile *profile,
 int aa_may_signal(struct aa_label *sender, struct aa_label *target, int sig)
 {
 	struct aa_profile *profile;
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, OP_SIGNAL);
+	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_SIGNAL, OP_SIGNAL);
 
 	aad(&sa)->signal = map_signal_num(sig);
 	aad(&sa)->unmappedsig = sig;

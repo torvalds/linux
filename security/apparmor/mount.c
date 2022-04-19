@@ -134,7 +134,7 @@ static int audit_mount(struct aa_profile *profile, const char *op,
 		       struct aa_perms *perms, const char *info, int error)
 {
 	int audit_type = AUDIT_APPARMOR_AUTO;
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, op);
+	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_MOUNT, op);
 
 	if (likely(!error)) {
 		u32 mask = perms->audit;

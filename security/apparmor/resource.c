@@ -53,7 +53,8 @@ static int audit_resource(struct aa_profile *profile, unsigned int resource,
 			  unsigned long value, struct aa_label *peer,
 			  const char *info, int error)
 {
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, OP_SETRLIMIT);
+	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_RLIMITS,
+			  OP_SETRLIMIT);
 
 	aad(&sa)->rlim.rlim = resource;
 	aad(&sa)->rlim.max = value;

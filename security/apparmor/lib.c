@@ -143,7 +143,7 @@ const char *aa_splitn_fqname(const char *fqname, size_t n, const char **ns_name,
 void aa_info_message(const char *str)
 {
 	if (audit_enabled) {
-		DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, NULL);
+		DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE, NULL);
 
 		aad(&sa)->info = str;
 		aa_audit_msg(AUDIT_APPARMOR_STATUS, &sa, NULL);

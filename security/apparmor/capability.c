@@ -148,7 +148,7 @@ int aa_capable(struct aa_label *label, int cap, unsigned int opts)
 {
 	struct aa_profile *profile;
 	int error = 0;
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_CAP, OP_CAPABLE);
+	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_CAP, AA_CLASS_CAP, OP_CAPABLE);
 
 	sa.u.cap = cap;
 	error = fn_for_each_confined(label, profile,

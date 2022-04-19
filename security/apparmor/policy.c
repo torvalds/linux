@@ -617,7 +617,7 @@ static int audit_policy(struct aa_label *label, const char *op,
 			const char *ns_name, const char *name,
 			const char *info, int error)
 {
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, op);
+	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE, op);
 
 	aad(&sa)->iface.ns = ns_name;
 	aad(&sa)->name = name;
