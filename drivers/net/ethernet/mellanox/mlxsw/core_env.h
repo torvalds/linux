@@ -60,7 +60,9 @@ int mlxsw_env_module_port_up(struct mlxsw_core *mlxsw_core, u8 slot_index,
 void mlxsw_env_module_port_down(struct mlxsw_core *mlxsw_core, u8 slot_index,
 				u8 module);
 
-int mlxsw_env_init(struct mlxsw_core *core, struct mlxsw_env **p_env);
+int mlxsw_env_init(struct mlxsw_core *core,
+		   const struct mlxsw_bus_info *bus_info,
+		   struct mlxsw_env **p_env);
 void mlxsw_env_fini(struct mlxsw_env *env);
 
 #endif

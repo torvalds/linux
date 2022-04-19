@@ -28,6 +28,7 @@ struct mlxsw_env_line_card {
 
 struct mlxsw_env {
 	struct mlxsw_core *core;
+	const struct mlxsw_bus_info *bus_info;
 	u8 max_module_count; /* Maximum number of modules per-slot. */
 	u8 num_of_slots; /* Including the main board. */
 	struct mutex line_cards_lock; /* Protects line cards. */
@@ -1194,7 +1195,9 @@ mlxsw_env_module_type_set(struct mlxsw_core *mlxsw_core, u8 slot_index)
 	return 0;
 }
 
-int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
+int mlxsw_env_init(struct mlxsw_core *mlxsw_core,
+		   const struct mlxsw_bus_info *bus_info,
+		   struct mlxsw_env **p_env)
 {
 	u8 module_count, num_of_slots, max_module_count;
 	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
@@ -1221,6 +1224,7 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core, struct mlxsw_env **p_env)
 		return -ENOMEM;
 
 	env->core = mlxsw_core;
+	env->bus_info = bus_info;
 	env->num_of_slots = num_of_slots + 1;
 	env->max_module_count = max_module_count;
 	err = mlxsw_env_line_cards_alloc(env);

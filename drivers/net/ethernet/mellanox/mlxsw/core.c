@@ -2175,7 +2175,7 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_thermal_init;
 
-	err = mlxsw_env_init(mlxsw_core, &mlxsw_core->env);
+	err = mlxsw_env_init(mlxsw_core, mlxsw_bus_info, &mlxsw_core->env);
 	if (err)
 		goto err_env_init;
 
