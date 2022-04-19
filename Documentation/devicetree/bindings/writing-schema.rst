@@ -134,6 +134,8 @@ installed first. On Debian/Ubuntu systems::
 Several executables (dt-doc-validate, dt-mk-schema, dt-validate) will be
 installed. Ensure they are in your PATH (~/.local/bin by default).
 
+Recommended is also to install yamllint (used by dtschema when present).
+
 Running checks
 ~~~~~~~~~~~~~~
 
