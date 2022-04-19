@@ -74,12 +74,14 @@ static int st_lps22df_spi_probe(struct spi_device *spi)
 
 static const struct spi_device_id st_lps22df_ids[] = {
 	{ "lps22df" },
+	{ "lps28dfw" },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, st_lps22df_ids);
 
 static const struct of_device_id st_lps22df_id_table[] = {
 	{ .compatible = "st,lps22df" },
+	{ .compatible = "st,lps28dfw" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_lps22df_id_table);
