@@ -103,7 +103,6 @@ needed).
    block/index
    cdrom/index
    cpu-freq/index
-   ide/index
    fb/index
    fpga/index
    hid/index
