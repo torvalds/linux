@@ -17,7 +17,7 @@ static int hclgevf_resp_to_errno(u16 resp_code)
 static void hclgevf_reset_mbx_resp_status(struct hclgevf_dev *hdev)
 {
 	/* this function should be called with mbx_resp.mbx_mutex held
-	 * to prtect the received_response from race condition
+	 * to protect the received_response from race condition
 	 */
 	hdev->mbx_resp.received_resp  = false;
 	hdev->mbx_resp.origin_mbx_msg = 0;
