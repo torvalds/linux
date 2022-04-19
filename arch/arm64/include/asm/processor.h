@@ -190,6 +190,14 @@ static inline unsigned int thread_get_sme_vl(struct thread_struct *thread)
 	return thread_get_vl(thread, ARM64_VEC_SME);
 }
 
+static inline unsigned int thread_get_cur_vl(struct thread_struct *thread)
+{
+	if (system_supports_sme() && (thread->svcr & SYS_SVCR_EL0_SM_MASK))
+		return thread_get_sme_vl(thread);
+	else
+		return thread_get_sve_vl(thread);
+}
+
 unsigned int task_get_vl(const struct task_struct *task, enum vec_type type);
 void task_set_vl(struct task_struct *task, enum vec_type type,
 		 unsigned long vl);
