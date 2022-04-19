@@ -144,18 +144,6 @@
 		enable-active-high;
 	};
 
-	reg_wifi: regulator-wifi {
-		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_wifi_npd>;
-		regulator-name = "wifi";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		gpio = <&gpio1 26 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		startup-delay-us = <70000>;
-	};
-
 	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "prti6q-sgtl5000";
@@ -530,26 +518,6 @@
 	status = "okay";
 };
 
-&usdhc2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc2>;
-	vmmc-supply = <&reg_wifi>;
-	non-removable;
-	cap-power-off-card;
-	keep-power-in-suspend;
-	no-1-8-v;
-	no-mmc;
-	no-sd;
-	status = "okay";
-
-	wifi {
-		compatible = "ti,wl1271";
-		interrupts-extended = <&gpio1 30 IRQ_TYPE_LEVEL_HIGH>;
-		ref-clock-frequency = "38400000";
-		tcxo-clock-frequency = "19200000";
-	};
-};
-
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
@@ -808,19 +776,6 @@
 		>;
 	};
 
-	pinctrl_usdhc2: usdhc2grp {
-		fsl,pins = <
-			MX6QDL_PAD_SD2_CMD__SD2_CMD			0x170b9
-			MX6QDL_PAD_SD2_CLK__SD2_CLK			0x100b9
-			MX6QDL_PAD_SD2_DAT0__SD2_DATA0			0x170b9
-			MX6QDL_PAD_SD2_DAT1__SD2_DATA1			0x170b9
-			MX6QDL_PAD_SD2_DAT2__SD2_DATA2			0x170b9
-			MX6QDL_PAD_SD2_DAT3__SD2_DATA3			0x170b9
-			/* WL12xx IRQ */
-			MX6QDL_PAD_ENET_TXD0__GPIO1_IO30		0x10880
-		>;
-	};
-
 	pinctrl_usdhc3: usdhc3grp {
 		fsl,pins = <
 			MX6QDL_PAD_SD3_CMD__SD3_CMD			0x17099
@@ -834,12 +789,6 @@
 			MX6QDL_PAD_SD3_DAT6__SD3_DATA6			0x17099
 			MX6QDL_PAD_SD3_DAT7__SD3_DATA7			0x17099
 			MX6QDL_PAD_SD3_RST__SD3_RESET			0x1b0b1
-		>;
-	};
-
-	pinctrl_wifi_npd: wifinpdgrp {
-		fsl,pins = <
-			MX6QDL_PAD_ENET_RXD1__GPIO1_IO26		0x1b8b0
 		>;
 	};
 };
