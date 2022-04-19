@@ -184,6 +184,11 @@ static inline unsigned int thread_get_sve_vl(struct thread_struct *thread)
 	return thread_get_vl(thread, ARM64_VEC_SVE);
 }
 
+static inline unsigned int thread_get_sme_vl(struct thread_struct *thread)
+{
+	return thread_get_vl(thread, ARM64_VEC_SME);
+}
+
 unsigned int task_get_vl(const struct task_struct *task, enum vec_type type);
 void task_set_vl(struct task_struct *task, enum vec_type type,
 		 unsigned long vl);
@@ -195,6 +200,11 @@ unsigned int task_get_vl_onexec(const struct task_struct *task,
 static inline unsigned int task_get_sve_vl(const struct task_struct *task)
 {
 	return task_get_vl(task, ARM64_VEC_SVE);
+}
+
+static inline unsigned int task_get_sme_vl(const struct task_struct *task)
+{
+	return task_get_vl(task, ARM64_VEC_SME);
 }
 
 static inline void task_set_sve_vl(struct task_struct *task, unsigned long vl)
