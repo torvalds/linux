@@ -382,8 +382,6 @@ static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
 	if (!crtc_state->active)
 		return -EINVAL;
 
-	mdp5_state = to_mdp5_plane_state(new_plane_state);
-
 	/* don't use fast path if we don't have a hwpipe allocated yet */
 	if (!mdp5_state->hwpipe)
 		return -EINVAL;
