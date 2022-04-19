@@ -86,3 +86,12 @@ SYM_FUNC_START(sve_flush_live)
 SYM_FUNC_END(sve_flush_live)
 
 #endif /* CONFIG_ARM64_SVE */
+
+#ifdef CONFIG_ARM64_SME
+
+SYM_FUNC_START(sme_get_vl)
+	_sme_rdsvl	0, 1
+	ret
+SYM_FUNC_END(sme_get_vl)
+
+#endif /* CONFIG_ARM64_SME */
