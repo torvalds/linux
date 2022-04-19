@@ -67,6 +67,11 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		rockchip,pvtpll-avg-offset = <0x4001c>;
+		rockchip,pvtpll-min-rate = <1104000>;
+		rockchip,pvtpll-volt-step = <12500>;
+		rockchip,grf = <&grf>;
+
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
 			opp-microvolt = <825000 825000 1050000>;
@@ -90,27 +95,27 @@
 		};
 		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <837500 837500 1050000>;
+			opp-microvolt = <837500 825000 1050000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1296000000 {
 			opp-hz = /bits/ 64 <1296000000>;
-			opp-microvolt = <875000 875000 1050000>;
+			opp-microvolt = <875000 825000 1050000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1416000000 {
 			opp-hz = /bits/ 64 <1416000000>;
-			opp-microvolt = <925000 925000 1050000>;
+			opp-microvolt = <925000 825000 1050000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1512000000 {
 			opp-hz = /bits/ 64 <1512000000>;
-			opp-microvolt = <975000 975000 1050000>;
+			opp-microvolt = <975000 825000 1050000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1608000000 {
 			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <1012500 1012500 1050000>;
+			opp-microvolt = <1012500 825000 1050000>;
 			clock-latency-ns = <40000>;
 		};
 	};
