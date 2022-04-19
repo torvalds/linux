@@ -1348,7 +1348,7 @@ static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 						SCALE_HW_CALIB_DEFAULT)
 	[ADC5_GEN3_VBAT_SNS_QBG]	= ADC5_CHAN_VOLT("vbat_sns", 1,
 						SCALE_HW_CALIB_DEFAULT)
-	[ADC5_GEN3_AMUX3_THM]		= ADC5_CHAN_TEMP("smb_temp", 0,
+	[ADC5_GEN3_AMUX3_THM]		= ADC5_CHAN_TEMP("smb_temp", 9,
 						SCALE_HW_CALIB_PM7_SMB_TEMP)
 	[ADC5_GEN3_CHG_TEMP]		= ADC5_CHAN_TEMP("chg_temp", 0,
 						SCALE_HW_CALIB_PM7_CHG_TEMP)
@@ -1358,9 +1358,9 @@ static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 						SCALE_HW_CALIB_DEFAULT)
 	[ADC5_GEN3_IIN_FB]		= ADC5_CHAN_CUR("iin_fb", 10,
 						SCALE_HW_CALIB_CUR)
-	[ADC5_GEN3_ICHG_SMB]		= ADC5_CHAN_CUR("ichg_smb", 11,
+	[ADC5_GEN3_ICHG_SMB]		= ADC5_CHAN_CUR("ichg_smb", 13,
 						SCALE_HW_CALIB_CUR)
-	[ADC5_GEN3_IIN_SMB]		= ADC5_CHAN_CUR("iin_smb", 10,
+	[ADC5_GEN3_IIN_SMB]		= ADC5_CHAN_CUR("iin_smb", 12,
 						SCALE_HW_CALIB_CUR)
 	[ADC5_GEN3_ICHG_FB]		= ADC5_CHAN_CUR("ichg_fb", 16,
 						SCALE_HW_CALIB_CUR_RAW)
