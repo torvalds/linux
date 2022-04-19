@@ -239,6 +239,8 @@ static inline bool sve_vq_available(unsigned int vq)
 	return vq_available(ARM64_VEC_SVE, vq);
 }
 
+size_t sve_state_size(struct task_struct const *task);
+
 #else /* ! CONFIG_ARM64_SVE */
 
 static inline void sve_alloc(struct task_struct *task) { }
@@ -278,9 +280,24 @@ static inline void vec_update_vq_map(enum vec_type t) { }
 static inline int vec_verify_vq_map(enum vec_type t) { return 0; }
 static inline void sve_setup(void) { }
 
+static inline size_t sve_state_size(struct task_struct const *task)
+{
+	return 0;
+}
+
 #endif /* ! CONFIG_ARM64_SVE */
 
 #ifdef CONFIG_ARM64_SME
+
+static inline void sme_user_disable(void)
+{
+	sysreg_clear_set(cpacr_el1, CPACR_EL1_SMEN_EL0EN, 0);
+}
+
+static inline void sme_user_enable(void)
+{
+	sysreg_clear_set(cpacr_el1, 0, CPACR_EL1_SMEN_EL0EN);
+}
 
 static inline void sme_smstart_sm(void)
 {
@@ -309,22 +326,44 @@ static inline int sme_max_virtualisable_vl(void)
 	return vec_max_virtualisable_vl(ARM64_VEC_SME);
 }
 
+extern void sme_alloc(struct task_struct *task);
 extern unsigned int sme_get_vl(void);
 extern int sme_set_current_vl(unsigned long arg);
 extern int sme_get_current_vl(void);
 
+/*
+ * Return how many bytes of memory are required to store the full SME
+ * specific state (currently just ZA) for task, given task's currently
+ * configured vector length.
+ */
+static inline size_t za_state_size(struct task_struct const *task)
+{
+	unsigned int vl = task_get_sme_vl(task);
+
+	return ZA_SIG_REGS_SIZE(sve_vq_from_vl(vl));
+}
+
 #else
+
+static inline void sme_user_disable(void) { BUILD_BUG(); }
+static inline void sme_user_enable(void) { BUILD_BUG(); }
 
 static inline void sme_smstart_sm(void) { }
 static inline void sme_smstop_sm(void) { }
 static inline void sme_smstop(void) { }
 
+static inline void sme_alloc(struct task_struct *task) { }
 static inline void sme_setup(void) { }
 static inline unsigned int sme_get_vl(void) { return 0; }
 static inline int sme_max_vl(void) { return 0; }
 static inline int sme_max_virtualisable_vl(void) { return 0; }
 static inline int sme_set_current_vl(unsigned long arg) { return -EINVAL; }
 static inline int sme_get_current_vl(void) { return -EINVAL; }
+
+static inline size_t za_state_size(struct task_struct const *task)
+{
+	return 0;
+}
 
 #endif /* ! CONFIG_ARM64_SME */
 
