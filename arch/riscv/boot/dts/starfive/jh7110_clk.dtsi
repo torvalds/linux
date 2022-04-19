@@ -105,12 +105,6 @@
 		clock-frequency = <50000000>;
 	};
 
-	uartclk: uartclk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <51200000>;
-	};
-
 	dwmmc_biuclk: dwmmc_biuclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
