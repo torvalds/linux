@@ -26,14 +26,14 @@ static __always_inline void bcr_serialize(void)
 	asm volatile(__ASM_BCR_SERIALIZE : : : "memory");
 }
 
-#define mb()		bcr_serialize()
-#define rmb()		barrier()
-#define wmb()		barrier()
-#define dma_rmb()	mb()
-#define dma_wmb()	mb()
-#define __smp_mb()	mb()
-#define __smp_rmb()	rmb()
-#define __smp_wmb()	wmb()
+#define __mb()		bcr_serialize()
+#define __rmb()		barrier()
+#define __wmb()		barrier()
+#define __dma_rmb()	__mb()
+#define __dma_wmb()	__mb()
+#define __smp_mb()	__mb()
+#define __smp_rmb()	__rmb()
+#define __smp_wmb()	__wmb()
 
 #define __smp_store_release(p, v)					\
 do {									\

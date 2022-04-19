@@ -77,6 +77,7 @@ static inline int arch_spin_trylock(arch_spinlock_t *lp)
 static inline void arch_spin_unlock(arch_spinlock_t *lp)
 {
 	typecheck(int, lp->lock);
+	kcsan_release();
 	asm_inline volatile(
 		ALTERNATIVE("", ".insn rre,0xb2fa0000,7,0", 49)	/* NIAI 7 */
 		"	sth	%1,%0\n"
