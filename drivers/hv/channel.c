@@ -1252,12 +1252,12 @@ u64 vmbus_next_request_id(struct vmbus_channel *channel, u64 rqst_addr)
 	if (!channel->rqstor_size)
 		return VMBUS_NO_RQSTOR;
 
-	spin_lock_irqsave(&rqstor->req_lock, flags);
+	lock_requestor(channel, flags);
 	current_id = rqstor->next_request_id;
 
 	/* Requestor array is full */
 	if (current_id >= rqstor->size) {
-		spin_unlock_irqrestore(&rqstor->req_lock, flags);
+		unlock_requestor(channel, flags);
 		return VMBUS_RQST_ERROR;
 	}
 
@@ -1267,7 +1267,7 @@ u64 vmbus_next_request_id(struct vmbus_channel *channel, u64 rqst_addr)
 	/* The already held spin lock provides atomicity */
 	bitmap_set(rqstor->req_bitmap, current_id, 1);
 
-	spin_unlock_irqrestore(&rqstor->req_lock, flags);
+	unlock_requestor(channel, flags);
 
 	/*
 	 * Cannot return an ID of 0, which is reserved for an unsolicited
@@ -1327,13 +1327,12 @@ EXPORT_SYMBOL_GPL(__vmbus_request_addr_match);
 u64 vmbus_request_addr_match(struct vmbus_channel *channel, u64 trans_id,
 			     u64 rqst_addr)
 {
-	struct vmbus_requestor *rqstor = &channel->requestor;
 	unsigned long flags;
 	u64 req_addr;
 
-	spin_lock_irqsave(&rqstor->req_lock, flags);
+	lock_requestor(channel, flags);
 	req_addr = __vmbus_request_addr_match(channel, trans_id, rqst_addr);
-	spin_unlock_irqrestore(&rqstor->req_lock, flags);
+	unlock_requestor(channel, flags);
 
 	return req_addr;
 }
