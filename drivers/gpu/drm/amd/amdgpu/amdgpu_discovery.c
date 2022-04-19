@@ -2152,6 +2152,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(10, 3, 3):
 	case IP_VERSION(10, 3, 6):
 	case IP_VERSION(10, 3, 7):
+	case IP_VERSION(11, 0, 1):
 		adev->flags |= AMD_IS_APU;
 		break;
 	default:
