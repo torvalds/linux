@@ -4442,8 +4442,8 @@ static bool guest_can_use_gbpages(struct kvm_vcpu *vcpu)
 			     guest_cpuid_has(vcpu, X86_FEATURE_GBPAGES);
 }
 
-static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
-				  struct kvm_mmu *context)
+static void reset_guest_rsvds_bits_mask(struct kvm_vcpu *vcpu,
+					struct kvm_mmu *context)
 {
 	__reset_rsvds_bits_mask(&context->guest_rsvd_check,
 				vcpu->arch.reserved_gpa_bits,
@@ -4742,7 +4742,7 @@ static void reset_guest_paging_metadata(struct kvm_vcpu *vcpu,
 	if (!is_cr0_pg(mmu))
 		return;
 
-	reset_rsvds_bits_mask(vcpu, mmu);
+	reset_guest_rsvds_bits_mask(vcpu, mmu);
 	update_permission_bitmask(mmu, false);
 	update_pkru_bitmask(mmu);
 }
