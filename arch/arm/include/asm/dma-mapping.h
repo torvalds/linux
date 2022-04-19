@@ -80,35 +80,6 @@ extern int arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
  *
  */
 
-/**
- * dmabounce_register_dev
- *
- * @dev: valid struct device pointer
- * @small_buf_size: size of buffers to use with small buffer pool
- * @large_buf_size: size of buffers to use with large buffer pool (can be 0)
- * @needs_bounce_fn: called to determine whether buffer needs bouncing
- *
- * This function should be called by low-level platform code to register
- * a device as requireing DMA buffer bouncing. The function will allocate
- * appropriate DMA pools for the device.
- */
-extern int dmabounce_register_dev(struct device *, unsigned long,
-		unsigned long, int (*)(struct device *, dma_addr_t, size_t));
-
-/**
- * dmabounce_unregister_dev
- *
- * @dev: valid struct device pointer
- *
- * This function should be called by low-level platform code when device
- * that was previously registered with dmabounce_register_dev is removed
- * from the system.
- *
- */
-extern void dmabounce_unregister_dev(struct device *);
-
-
-
 /*
  * The scatter list versions of the above methods.
  */
