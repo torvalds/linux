@@ -134,7 +134,9 @@ objtool_link()
 			objtoolopt="${objtoolopt} --static-call"
 		fi
 
-		objtoolopt="${objtoolopt} --uaccess"
+		if is_enabled CONFIG_HAVE_UACCESS_VALIDATION; then
+			objtoolopt="${objtoolopt} --uaccess"
+		fi
 	fi
 
 	if is_enabled CONFIG_NOINSTR_VALIDATION; then
