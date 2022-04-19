@@ -72,6 +72,7 @@ struct fl_flow_key {
 	} tp_range;
 	struct flow_dissector_key_ct ct;
 	struct flow_dissector_key_hash hash;
+	struct flow_dissector_key_num_of_vlans num_of_vlans;
 } __aligned(BITS_PER_LONG / 8); /* Ensure that we can do comparisons as longs. */
 
 struct fl_flow_mask_range {
@@ -712,6 +713,7 @@ static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
 	[TCA_FLOWER_FLAGS]		= { .type = NLA_U32 },
 	[TCA_FLOWER_KEY_HASH]		= { .type = NLA_U32 },
 	[TCA_FLOWER_KEY_HASH_MASK]	= { .type = NLA_U32 },
+	[TCA_FLOWER_KEY_NUM_OF_VLANS]	= { .type = NLA_U8 },
 
 };
 
@@ -1615,6 +1617,11 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 	fl_set_key_val(tb, key->eth.src, TCA_FLOWER_KEY_ETH_SRC,
 		       mask->eth.src, TCA_FLOWER_KEY_ETH_SRC_MASK,
 		       sizeof(key->eth.src));
+	fl_set_key_val(tb, &key->num_of_vlans,
+		       TCA_FLOWER_KEY_NUM_OF_VLANS,
+		       &mask->num_of_vlans,
+		       TCA_FLOWER_UNSPEC,
+		       sizeof(key->num_of_vlans));
 
 	if (is_vlan_key(tb[TCA_FLOWER_KEY_ETH_TYPE], &ethertype, key, mask)) {
 		fl_set_key_vlan(tb, ethertype, TCA_FLOWER_KEY_VLAN_ID,
@@ -1906,6 +1913,8 @@ static void fl_init_dissector(struct flow_dissector *dissector,
 			     FLOW_DISSECTOR_KEY_CT, ct);
 	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
 			     FLOW_DISSECTOR_KEY_HASH, hash);
+	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
+			     FLOW_DISSECTOR_KEY_NUM_OF_VLANS, num_of_vlans);
 
 	skb_flow_dissector_init(dissector, keys, cnt);
 }
@@ -2993,6 +3002,11 @@ static int fl_dump_key(struct sk_buff *skb, struct net *net,
 			    &mask->basic.n_proto, TCA_FLOWER_UNSPEC,
 			    sizeof(key->basic.n_proto)))
 		goto nla_put_failure;
+
+	if (mask->num_of_vlans.num_of_vlans) {
+		if (nla_put_u8(skb, TCA_FLOWER_KEY_NUM_OF_VLANS, key->num_of_vlans.num_of_vlans))
+			goto nla_put_failure;
+	}
 
 	if (fl_dump_key_mpls(skb, &key->mpls, &mask->mpls))
 		goto nla_put_failure;
