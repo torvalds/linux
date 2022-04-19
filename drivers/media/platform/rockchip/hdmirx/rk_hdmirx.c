@@ -208,6 +208,7 @@ struct rk_hdmirx_dev {
 	bool initialized;
 	bool freq_qos_add;
 	bool hdcp1x_enable;
+	bool get_timing;
 	u32 num_clks;
 	u32 edid_blocks_written;
 	u32 hpd_trigger_level;
@@ -1174,6 +1175,7 @@ static void hdmirx_format_change(struct rk_hdmirx_dev *hdmirx_dev)
 				&timings, false);
 	}
 
+	hdmirx_dev->get_timing = true;
 	v4l2_dbg(1, debug, v4l2_dev, "%s: queue res_chg_event\n", __func__);
 	v4l2_event_queue(&stream->vdev, &ev_src_chg);
 }
@@ -1693,6 +1695,11 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct v4l2_bt_timings *bt = &timings.bt;
 	int line_flag;
 
+	if (!hdmirx_dev->get_timing) {
+		v4l2_err(v4l2_dev, "Err, timing is invalid\n");
+		return 0;
+	}
+
 	mutex_lock(&hdmirx_dev->stream_lock);
 	stream->frame_idx = 0;
 	stream->line_flag_int_cnt = 0;
@@ -1892,6 +1899,7 @@ static void process_signal_change(struct rk_hdmirx_dev *hdmirx_dev)
 			FIFO_UNDERFLOW_INT_EN |
 			HDMIRX_AXI_ERROR_INT_EN, 0);
 	hdmirx_reset_dma(hdmirx_dev);
+	hdmirx_dev->get_timing = false;
 	schedule_delayed_work_on(hdmirx_dev->bound_cpu,
 			&hdmirx_dev->delayed_work_res_change,
 			msecs_to_jiffies(50));
@@ -2115,6 +2123,8 @@ static void dma_idle_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handled
 				vb_done->sequence = stream->frame_idx;
 				hdmirx_vb_done(stream, vb_done);
 				stream->frame_idx++;
+				if (stream->frame_idx == 30)
+					v4l2_info(v4l2_dev, "rcv frames\n");
 			}
 
 			stream->curr_buf = NULL;
@@ -2221,7 +2231,7 @@ static irqreturn_t hdmirx_dma_irq_handler(int irq, void *dev_id)
 		line_flag_int_handler(hdmirx_dev, &handled);
 
 	if (!handled)
-		v4l2_dbg(2, debug, v4l2_dev,
+		v4l2_dbg(3, debug, v4l2_dev,
 			 "%s: dma irq not handled, dma_stat1:%#x!\n",
 			 __func__, dma_stat1);
 
@@ -2285,6 +2295,7 @@ static void hdmirx_delayed_work_hotplug(struct work_struct *work)
 	bool plugin;
 
 	mutex_lock(&hdmirx_dev->work_lock);
+	hdmirx_dev->get_timing = false;
 	plugin = tx_5v_power_present(hdmirx_dev);
 	v4l2_ctrl_s_ctrl(hdmirx_dev->detect_tx_5v_ctrl, plugin);
 	v4l2_dbg(1, debug, v4l2_dev, "%s: plugin:%d\n", __func__, plugin);
