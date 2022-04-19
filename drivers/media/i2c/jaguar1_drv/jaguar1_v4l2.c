@@ -93,6 +93,7 @@ struct jaguar1_pixfmt {
 struct jaguar1_framesize {
 	u16 width;
 	u16 height;
+	struct v4l2_fract max_fps;
 	enum NC_VIVO_CH_FORMATDEF fmt_idx;
 };
 
@@ -140,22 +141,38 @@ static const struct jaguar1_framesize jaguar1_framesizes[] = {
 	{
 		.width		= 2560,
 		.height		= 1440,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 250000,
+		},
 		.fmt_idx	= AHD20_720P_25P,
 	}
 #else
 	{
 		.width		= 1280,
 		.height		= 720,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 250000,
+		},
 		.fmt_idx	= AHD20_720P_25P_EX_Btype,
 	},
 	{
 		.width		= 1920,
 		.height		= 1080,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 250000,
+		},
 		.fmt_idx	= AHD20_1080P_25P,
 	},
 	{
 		.width		= 2560,
 		.height		= 1440,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 250000,
+		},
 		.fmt_idx	= AHD20_720P_25P,
 	}
 #endif
@@ -580,6 +597,19 @@ static int jaguar1_set_fmt(struct v4l2_subdev *sd,
 	return ret;
 }
 
+static int jaguar1_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_frame_interval *fi)
+{
+	struct jaguar1 *jaguar1 = to_jaguar1(sd);
+	const struct jaguar1_framesize *size = jaguar1->frame_size;
+
+	mutex_lock(&jaguar1->mutex);
+	fi->interval = size->max_fps;
+	mutex_unlock(&jaguar1->mutex);
+
+	return 0;
+}
+
 static void jaguar1_get_module_inf(struct jaguar1 *jaguar1,
 				   struct rkmodule_inf *inf)
 {
@@ -701,6 +731,7 @@ static const struct dev_pm_ops jaguar1_pm_ops = {
 
 static const struct v4l2_subdev_video_ops jaguar1_video_ops = {
 	.s_stream = jaguar1_stream,
+	.g_frame_interval = jaguar1_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops jaguar1_subdev_pad_ops = {
