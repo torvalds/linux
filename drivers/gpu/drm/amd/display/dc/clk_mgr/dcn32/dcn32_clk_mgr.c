@@ -599,7 +599,7 @@ void dcn32_clk_mgr_construct(
 	clk_mgr->dfs_ref_freq_khz = 100000;
 
 	clk_mgr->base.dprefclk_khz = 717000; /* Changed as per DCN3.2_clock_frequency doc */
-	clk_mgr->dccg->ref_dtbclk_khz = 477800;
+	clk_mgr->dccg->ref_dtbclk_khz = 268750;
 
 	/* integer part is now VCO frequency in kHz */
 	clk_mgr->base.dentist_vco_freq_khz = 4300000;//dcn32_get_vco_frequency_from_reg(clk_mgr);
