@@ -544,13 +544,18 @@
 
 		vpu_dec: vpu_dec@130A0000 {
 			compatible = "starfive,vdec";
-			reg = <0 0x130A0000 0 0x10000>;
-			clocks = <&vdec_rootclk>;
+			reg = <0x0 0x130A0000 0x0 0x10000>;
+			interrupts = <13>;
+			clocks = <&clkgen JH7110_WAVE511_CLK_AXI>,
+				<&clkgen JH7110_WAVE511_CLK_BPU>,
+				<&clkgen JH7110_WAVE511_CLK_VCE>,
+				<&clkgen JH7110_WAVE511_CLK_APB>,
+				<&clkgen JH7110_NOC_BUS_CLK_VDEC_AXI>;
 			clock-names = "axi_clk",
 				"bpu_clk",
 				"vce_clk",
 				"apb_clk",
-				"aximem_128b";
+				"noc_bus";
 			resets = <&rstgen RSTN_U0_WAVE511_AXI>,
 				<&rstgen RSTN_U0_WAVE511_BPU>,
 				<&rstgen RSTN_U0_WAVE511_VCE>,
@@ -561,7 +566,7 @@
 				"rst_vce",
 				"rst_apb",
 				"rst_sram";
-			interrupts = <13>;
+			starfive,vdec_noc_ctrl;
 			status = "disabled";
 		};
 
