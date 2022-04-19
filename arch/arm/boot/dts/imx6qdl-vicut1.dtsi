@@ -655,10 +655,6 @@
 			MX6QDL_PAD_EIM_D20__GPIO3_IO20			0x100b0
 			/* DIP1_FB */
 			MX6QDL_PAD_DI0_PIN2__GPIO4_IO18			0x1b0b0
-
-			/* New in UT2: FIXME: ISB PWM should start off, PD */
-			/* ISB_LED_PWM */
-			MX6QDL_PAD_DISP0_DAT9__GPIO4_IO30		0x130b0
 		>;
 	};
 
