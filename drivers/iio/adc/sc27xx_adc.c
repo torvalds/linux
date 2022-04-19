@@ -12,9 +12,9 @@
 #include <linux/slab.h>
 
 /* PMIC global registers definition */
-#define SC27XX_MODULE_EN		0xc08
+#define SC2731_MODULE_EN		0xc08
 #define SC27XX_MODULE_ADC_EN		BIT(5)
-#define SC27XX_ARM_CLK_EN		0xc10
+#define SC2731_ARM_CLK_EN		0xc10
 #define SC27XX_CLK_ADC_EN		BIT(5)
 #define SC27XX_CLK_ADC_CLK_EN		BIT(6)
 
@@ -78,6 +78,23 @@ struct sc27xx_adc_data {
 	int channel_scale[SC27XX_ADC_CHANNEL_MAX];
 	u32 base;
 	int irq;
+	const struct sc27xx_adc_variant_data *var_data;
+};
+
+/*
+ * Since different PMICs of SC27xx series can have different
+ * address and ratio, we should save ratio config and base
+ * in the device data structure.
+ */
+struct sc27xx_adc_variant_data {
+	u32 module_en;
+	u32 clk_en;
+	u32 scale_shift;
+	u32 scale_mask;
+	const struct sc27xx_adc_linear_graph *bscale_cal;
+	const struct sc27xx_adc_linear_graph *sscale_cal;
+	void (*init_scale)(struct sc27xx_adc_data *data);
+	int (*get_ratio)(int channel, int scale);
 };
 
 struct sc27xx_adc_linear_graph {
@@ -130,11 +147,11 @@ static int sc27xx_adc_scale_calibration(struct sc27xx_adc_data *data,
 	size_t len;
 
 	if (big_scale) {
-		calib_graph = &sc2731_big_scale_graph_calib;
+		calib_graph = data->var_data->bscale_cal;
 		graph = &big_scale_graph;
 		cell_name = "big_scale_calib";
 	} else {
-		calib_graph = &sc2731_small_scale_graph_calib;
+		calib_graph = data->var_data->sscale_cal;
 		graph = &small_scale_graph;
 		cell_name = "small_scale_calib";
 	}
@@ -160,7 +177,7 @@ static int sc27xx_adc_scale_calibration(struct sc27xx_adc_data *data,
 	return 0;
 }
 
-static int sc27xx_adc_get_ratio(int channel, int scale)
+static int sc2731_adc_get_ratio(int channel, int scale)
 {
 	switch (channel) {
 	case 1:
@@ -183,6 +200,28 @@ static int sc27xx_adc_get_ratio(int channel, int scale)
 		return SC27XX_VOLT_RATIO(1, 1);
 	}
 	return SC27XX_VOLT_RATIO(1, 1);
+}
+
+/*
+ * According to the datasheet set specific value on some channel.
+ */
+static void sc2731_adc_scale_init(struct sc27xx_adc_data *data)
+{
+	int i;
+	/*
+	 * In the current software design, SC2731 support 2 scales,
+	 * channels 5 uses big scale, others use smale.
+	 */
+	for (i = 0; i < SC27XX_ADC_CHANNEL_MAX; i++) {
+		switch (i) {
+		case 5:
+			data->channel_scale[i] = 1;
+			break;
+		default:
+			data->channel_scale[i] = 0;
+			break;
+		}
+	}
 }
 
 static int sc27xx_adc_read(struct sc27xx_adc_data *data, int channel,
@@ -208,10 +247,11 @@ static int sc27xx_adc_read(struct sc27xx_adc_data *data, int channel,
 		goto disable_adc;
 
 	/* Configure the channel id and scale */
-	tmp = (scale << SC27XX_ADC_SCALE_SHIFT) & SC27XX_ADC_SCALE_MASK;
+	tmp = (scale << data->var_data->scale_shift) & data->var_data->scale_mask;
 	tmp |= channel & SC27XX_ADC_CHN_ID_MASK;
 	ret = regmap_update_bits(data->regmap, data->base + SC27XX_ADC_CH_CFG,
-				 SC27XX_ADC_CHN_ID_MASK | SC27XX_ADC_SCALE_MASK,
+				 SC27XX_ADC_CHN_ID_MASK |
+				 data->var_data->scale_mask,
 				 tmp);
 	if (ret)
 		goto disable_adc;
@@ -262,8 +302,9 @@ static void sc27xx_adc_volt_ratio(struct sc27xx_adc_data *data,
 				  int channel, int scale,
 				  u32 *div_numerator, u32 *div_denominator)
 {
-	u32 ratio = sc27xx_adc_get_ratio(channel, scale);
+	u32 ratio;
 
+	ratio = data->var_data->get_ratio(channel, scale);
 	*div_numerator = ratio >> SC27XX_RATIO_NUMERATOR_OFFSET;
 	*div_denominator = ratio & SC27XX_RATIO_DENOMINATOR_MASK;
 }
@@ -432,13 +473,13 @@ static int sc27xx_adc_enable(struct sc27xx_adc_data *data)
 {
 	int ret;
 
-	ret = regmap_update_bits(data->regmap, SC27XX_MODULE_EN,
+	ret = regmap_update_bits(data->regmap, data->var_data->module_en,
 				 SC27XX_MODULE_ADC_EN, SC27XX_MODULE_ADC_EN);
 	if (ret)
 		return ret;
 
 	/* Enable ADC work clock and controller clock */
-	ret = regmap_update_bits(data->regmap, SC27XX_ARM_CLK_EN,
+	ret = regmap_update_bits(data->regmap, data->var_data->clk_en,
 				 SC27XX_CLK_ADC_EN | SC27XX_CLK_ADC_CLK_EN,
 				 SC27XX_CLK_ADC_EN | SC27XX_CLK_ADC_CLK_EN);
 	if (ret)
@@ -456,10 +497,10 @@ static int sc27xx_adc_enable(struct sc27xx_adc_data *data)
 	return 0;
 
 disable_clk:
-	regmap_update_bits(data->regmap, SC27XX_ARM_CLK_EN,
+	regmap_update_bits(data->regmap, data->var_data->clk_en,
 			   SC27XX_CLK_ADC_EN | SC27XX_CLK_ADC_CLK_EN, 0);
 disable_adc:
-	regmap_update_bits(data->regmap, SC27XX_MODULE_EN,
+	regmap_update_bits(data->regmap, data->var_data->module_en,
 			   SC27XX_MODULE_ADC_EN, 0);
 
 	return ret;
@@ -470,20 +511,38 @@ static void sc27xx_adc_disable(void *_data)
 	struct sc27xx_adc_data *data = _data;
 
 	/* Disable ADC work clock and controller clock */
-	regmap_update_bits(data->regmap, SC27XX_ARM_CLK_EN,
+	regmap_update_bits(data->regmap, data->var_data->clk_en,
 			   SC27XX_CLK_ADC_EN | SC27XX_CLK_ADC_CLK_EN, 0);
 
-	regmap_update_bits(data->regmap, SC27XX_MODULE_EN,
+	regmap_update_bits(data->regmap, data->var_data->module_en,
 			   SC27XX_MODULE_ADC_EN, 0);
 }
+
+static const struct sc27xx_adc_variant_data sc2731_data = {
+	.module_en = SC2731_MODULE_EN,
+	.clk_en = SC2731_ARM_CLK_EN,
+	.scale_shift = SC27XX_ADC_SCALE_SHIFT,
+	.scale_mask = SC27XX_ADC_SCALE_MASK,
+	.bscale_cal = &sc2731_big_scale_graph_calib,
+	.sscale_cal = &sc2731_small_scale_graph_calib,
+	.init_scale = sc2731_adc_scale_init,
+	.get_ratio = sc2731_adc_get_ratio,
+};
 
 static int sc27xx_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct sc27xx_adc_data *sc27xx_data;
+	const struct sc27xx_adc_variant_data *pdata;
 	struct iio_dev *indio_dev;
 	int ret;
+
+	pdata = of_device_get_match_data(dev);
+	if (!pdata) {
+		dev_err(dev, "No matching driver data found\n");
+		return -EINVAL;
+	}
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*sc27xx_data));
 	if (!indio_dev)
@@ -520,6 +579,8 @@ static int sc27xx_adc_probe(struct platform_device *pdev)
 	}
 
 	sc27xx_data->dev = dev;
+	sc27xx_data->var_data = pdata;
+	sc27xx_data->var_data->init_scale(sc27xx_data);
 
 	ret = sc27xx_adc_enable(sc27xx_data);
 	if (ret) {
@@ -546,7 +607,7 @@ static int sc27xx_adc_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id sc27xx_adc_of_match[] = {
-	{ .compatible = "sprd,sc2731-adc", },
+	{ .compatible = "sprd,sc2731-adc", .data = &sc2731_data},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sc27xx_adc_of_match);
