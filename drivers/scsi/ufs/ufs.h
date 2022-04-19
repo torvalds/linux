@@ -415,11 +415,6 @@ enum ufs_ref_clk_freq {
 	REF_CLK_FREQ_INVAL	= -1,
 };
 
-struct ufs_ref_clk {
-	unsigned long freq_hz;
-	enum ufs_ref_clk_freq val;
-};
-
 /* Query response result code */
 enum {
 	QUERY_RESULT_SUCCESS                    = 0x00,
