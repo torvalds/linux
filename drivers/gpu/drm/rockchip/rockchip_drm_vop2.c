@@ -353,8 +353,6 @@ struct vop2_win {
 
 	struct vop2_power_domain *pd;
 
-	bool enabled;
-
 	/**
 	 * @phys_id: physical id for cluster0/1, esmart0/1, smart0/1
 	 * Will be used as a identification for some register
@@ -1588,12 +1586,11 @@ static void vop2_power_domain_off_work(struct work_struct *work)
 
 static void vop2_win_enable(struct vop2_win *win)
 {
-	if (!win->enabled) {
+	if (!VOP_WIN_GET(win->vop2, win, enable)) {
 		if (win->pd) {
 			vop2_power_domain_get(win->pd);
 			win->pd->vp_mask |= win->vp_mask;
 		}
-		win->enabled = true;
 	}
 }
 
@@ -1622,7 +1619,7 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 		win->splice_mode_right = false;
 	}
 
-	if (win->enabled) {
+	if (VOP_WIN_GET(vop2, win, enable)) {
 		VOP_WIN_SET(vop2, win, enable, 0);
 		if (win->feature & WIN_FEATURE_CLUSTER_MAIN) {
 			struct vop2_win *sub_win;
@@ -1648,7 +1645,6 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 			vop2_power_domain_put(win->pd);
 			win->pd->vp_mask &= ~win->vp_mask;
 		}
-		win->enabled = false;
 	}
 }
 
@@ -5104,6 +5100,7 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 	struct rockchip_drm_private *private = crtc->dev->dev_private;
+	struct vop2_win *win;
 
 	if (on == vp->loader_protect)
 		return 0;
@@ -5113,6 +5110,13 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 		vop2->active_vp_mask |= BIT(vp->id);
 		vop2_set_system_status(vop2);
 		vop2_initial(crtc);
+		if (crtc->primary) {
+			win = to_vop2_win(crtc->primary);
+			if (win->pd && VOP_WIN_GET(vop2, win, enable)) {
+				win->pd->ref_count++;
+				win->pd->vp_mask |= BIT(vp->id);
+			}
+		}
 		drm_crtc_vblank_on(crtc);
 		if (private->cubic_lut[vp->id].enable) {
 			dma_addr_t cubic_lut_mst;
