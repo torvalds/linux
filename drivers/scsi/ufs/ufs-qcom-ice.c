@@ -9,7 +9,6 @@
 #include <linux/platform_device.h>
 #include <linux/qcom_scm.h>
 
-#include "ufshcd-crypto.h"
 #include "ufs-qcom.h"
 
 #define AES_256_XTS_KEY_SIZE			64
