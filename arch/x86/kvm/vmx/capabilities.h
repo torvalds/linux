@@ -13,6 +13,7 @@ extern bool __read_mostly enable_ept;
 extern bool __read_mostly enable_unrestricted_guest;
 extern bool __read_mostly enable_ept_ad_bits;
 extern bool __read_mostly enable_pml;
+extern bool __read_mostly enable_ipiv;
 extern int __read_mostly pt_mode;
 
 #define PT_MODE_SYSTEM		0
@@ -281,6 +282,11 @@ static inline bool cpu_has_vmx_apicv(void)
 	return cpu_has_vmx_apic_register_virt() &&
 		cpu_has_vmx_virtual_intr_delivery() &&
 		cpu_has_vmx_posted_intr();
+}
+
+static inline bool cpu_has_vmx_ipiv(void)
+{
+	return vmcs_config.cpu_based_3rd_exec_ctrl & TERTIARY_EXEC_IPI_VIRT;
 }
 
 static inline bool cpu_has_vmx_flexpriority(void)
