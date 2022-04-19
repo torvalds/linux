@@ -44,15 +44,11 @@ static void strncmp_full_str_cmp(struct strncmp_test *skel, const char *name,
 static void test_strncmp_ret(void)
 {
 	struct strncmp_test *skel;
-	struct bpf_program *prog;
 	int err, got;
 
 	skel = strncmp_test__open();
 	if (!ASSERT_OK_PTR(skel, "strncmp_test open"))
 		return;
-
-	bpf_object__for_each_program(prog, skel->obj)
-		bpf_program__set_autoload(prog, false);
 
 	bpf_program__set_autoload(skel->progs.do_strncmp, true);
 
@@ -91,18 +87,13 @@ out:
 static void test_strncmp_bad_not_const_str_size(void)
 {
 	struct strncmp_test *skel;
-	struct bpf_program *prog;
 	int err;
 
 	skel = strncmp_test__open();
 	if (!ASSERT_OK_PTR(skel, "strncmp_test open"))
 		return;
 
-	bpf_object__for_each_program(prog, skel->obj)
-		bpf_program__set_autoload(prog, false);
-
-	bpf_program__set_autoload(skel->progs.strncmp_bad_not_const_str_size,
-				  true);
+	bpf_program__set_autoload(skel->progs.strncmp_bad_not_const_str_size, true);
 
 	err = strncmp_test__load(skel);
 	ASSERT_ERR(err, "strncmp_test load bad_not_const_str_size");
@@ -113,18 +104,13 @@ static void test_strncmp_bad_not_const_str_size(void)
 static void test_strncmp_bad_writable_target(void)
 {
 	struct strncmp_test *skel;
-	struct bpf_program *prog;
 	int err;
 
 	skel = strncmp_test__open();
 	if (!ASSERT_OK_PTR(skel, "strncmp_test open"))
 		return;
 
-	bpf_object__for_each_program(prog, skel->obj)
-		bpf_program__set_autoload(prog, false);
-
-	bpf_program__set_autoload(skel->progs.strncmp_bad_writable_target,
-				  true);
+	bpf_program__set_autoload(skel->progs.strncmp_bad_writable_target, true);
 
 	err = strncmp_test__load(skel);
 	ASSERT_ERR(err, "strncmp_test load bad_writable_target");
@@ -135,18 +121,13 @@ static void test_strncmp_bad_writable_target(void)
 static void test_strncmp_bad_not_null_term_target(void)
 {
 	struct strncmp_test *skel;
-	struct bpf_program *prog;
 	int err;
 
 	skel = strncmp_test__open();
 	if (!ASSERT_OK_PTR(skel, "strncmp_test open"))
 		return;
 
-	bpf_object__for_each_program(prog, skel->obj)
-		bpf_program__set_autoload(prog, false);
-
-	bpf_program__set_autoload(skel->progs.strncmp_bad_not_null_term_target,
-				  true);
+	bpf_program__set_autoload(skel->progs.strncmp_bad_not_null_term_target, true);
 
 	err = strncmp_test__load(skel);
 	ASSERT_ERR(err, "strncmp_test load bad_not_null_term_target");

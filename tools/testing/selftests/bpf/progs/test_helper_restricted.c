@@ -56,7 +56,7 @@ static void spin_lock_work(void)
 	}
 }
 
-SEC("raw_tp/sys_enter")
+SEC("?raw_tp/sys_enter")
 int raw_tp_timer(void *ctx)
 {
 	timer_work();
@@ -64,7 +64,7 @@ int raw_tp_timer(void *ctx)
 	return 0;
 }
 
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_nanosleep")
 int tp_timer(void *ctx)
 {
 	timer_work();
@@ -72,7 +72,7 @@ int tp_timer(void *ctx)
 	return 0;
 }
 
-SEC("kprobe/sys_nanosleep")
+SEC("?kprobe/sys_nanosleep")
 int kprobe_timer(void *ctx)
 {
 	timer_work();
@@ -80,7 +80,7 @@ int kprobe_timer(void *ctx)
 	return 0;
 }
 
-SEC("perf_event")
+SEC("?perf_event")
 int perf_event_timer(void *ctx)
 {
 	timer_work();
@@ -88,7 +88,7 @@ int perf_event_timer(void *ctx)
 	return 0;
 }
 
-SEC("raw_tp/sys_enter")
+SEC("?raw_tp/sys_enter")
 int raw_tp_spin_lock(void *ctx)
 {
 	spin_lock_work();
@@ -96,7 +96,7 @@ int raw_tp_spin_lock(void *ctx)
 	return 0;
 }
 
-SEC("tp/syscalls/sys_enter_nanosleep")
+SEC("?tp/syscalls/sys_enter_nanosleep")
 int tp_spin_lock(void *ctx)
 {
 	spin_lock_work();
@@ -104,7 +104,7 @@ int tp_spin_lock(void *ctx)
 	return 0;
 }
 
-SEC("kprobe/sys_nanosleep")
+SEC("?kprobe/sys_nanosleep")
 int kprobe_spin_lock(void *ctx)
 {
 	spin_lock_work();
@@ -112,7 +112,7 @@ int kprobe_spin_lock(void *ctx)
 	return 0;
 }
 
-SEC("perf_event")
+SEC("?perf_event")
 int perf_event_spin_lock(void *ctx)
 {
 	spin_lock_work();

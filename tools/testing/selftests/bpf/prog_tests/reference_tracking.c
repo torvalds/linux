@@ -1,21 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 
-static void toggle_object_autoload_progs(const struct bpf_object *obj,
-					 const char *name_load)
-{
-	struct bpf_program *prog;
-
-	bpf_object__for_each_program(prog, obj) {
-		const char *name = bpf_program__name(prog);
-
-		if (!strcmp(name_load, name))
-			bpf_program__set_autoload(prog, true);
-		else
-			bpf_program__set_autoload(prog, false);
-	}
-}
-
 void test_reference_tracking(void)
 {
 	const char *file = "test_sk_lookup_kern.o";
@@ -39,6 +24,7 @@ void test_reference_tracking(void)
 		goto cleanup;
 
 	bpf_object__for_each_program(prog, obj_iter) {
+		struct bpf_program *p;
 		const char *name;
 
 		name = bpf_program__name(prog);
@@ -49,7 +35,12 @@ void test_reference_tracking(void)
 		if (!ASSERT_OK_PTR(obj, "obj_open_file"))
 			goto cleanup;
 
-		toggle_object_autoload_progs(obj, name);
+		/* all programs are not loaded by default, so just set
+		 * autoload to true for the single prog under test
+		 */
+		p = bpf_object__find_program_by_name(obj, name);
+		bpf_program__set_autoload(p, true);
+
 		/* Expect verifier failure if test name has 'err' */
 		if (strncmp(name, "err_", sizeof("err_") - 1) == 0) {
 			libbpf_print_fn_t old_print_fn;

@@ -6,11 +6,10 @@
 void test_helper_restricted(void)
 {
 	int prog_i = 0, prog_cnt;
-	int duration = 0;
 
 	do {
 		struct test_helper_restricted *test;
-		int maybeOK;
+		int err;
 
 		test = test_helper_restricted__open();
 		if (!ASSERT_OK_PTR(test, "open"))
@@ -21,12 +20,11 @@ void test_helper_restricted(void)
 		for (int j = 0; j < prog_cnt; ++j) {
 			struct bpf_program *prog = *test->skeleton->progs[j].prog;
 
-			maybeOK = bpf_program__set_autoload(prog, prog_i == j);
-			ASSERT_OK(maybeOK, "set autoload");
+			bpf_program__set_autoload(prog, true);
 		}
 
-		maybeOK = test_helper_restricted__load(test);
-		CHECK(!maybeOK, test->skeleton->progs[prog_i].name, "helper isn't restricted");
+		err = test_helper_restricted__load(test);
+		ASSERT_ERR(err, "load_should_fail");
 
 		test_helper_restricted__destroy(test);
 	} while (++prog_i < prog_cnt);
