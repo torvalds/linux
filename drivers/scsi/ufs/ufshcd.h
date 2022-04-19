@@ -732,6 +732,7 @@ struct ufs_hba_monitor {
  * @utmrdl_dma_addr: UTMRDL DMA address
  * @host: Scsi_Host instance of the driver
  * @dev: device handle
+ * @ufs_device_wlun: WLUN that controls the entire UFS device.
  * @lrb: local reference block
  * @outstanding_tasks: Bits representing outstanding task requests
  * @outstanding_lock: Protects @outstanding_reqs.
@@ -799,11 +800,7 @@ struct ufs_hba {
 
 	struct Scsi_Host *host;
 	struct device *dev;
-	/*
-	 * This field is to keep a reference to "scsi_device" corresponding to
-	 * "UFS device" W-LU.
-	 */
-	struct scsi_device *sdev_ufs_device;
+	struct scsi_device *ufs_device_wlun;
 
 #ifdef CONFIG_SCSI_UFS_HWMON
 	struct device *hwmon_device;
@@ -1405,27 +1402,27 @@ static inline int ufshcd_update_ee_usr_mask(struct ufs_hba *hba,
 
 static inline int ufshcd_rpm_get_sync(struct ufs_hba *hba)
 {
-	return pm_runtime_get_sync(&hba->sdev_ufs_device->sdev_gendev);
+	return pm_runtime_get_sync(&hba->ufs_device_wlun->sdev_gendev);
 }
 
 static inline int ufshcd_rpm_put_sync(struct ufs_hba *hba)
 {
-	return pm_runtime_put_sync(&hba->sdev_ufs_device->sdev_gendev);
+	return pm_runtime_put_sync(&hba->ufs_device_wlun->sdev_gendev);
 }
 
 static inline void ufshcd_rpm_get_noresume(struct ufs_hba *hba)
 {
-	pm_runtime_get_noresume(&hba->sdev_ufs_device->sdev_gendev);
+	pm_runtime_get_noresume(&hba->ufs_device_wlun->sdev_gendev);
 }
 
 static inline int ufshcd_rpm_resume(struct ufs_hba *hba)
 {
-	return pm_runtime_resume(&hba->sdev_ufs_device->sdev_gendev);
+	return pm_runtime_resume(&hba->ufs_device_wlun->sdev_gendev);
 }
 
 static inline int ufshcd_rpm_put(struct ufs_hba *hba)
 {
-	return pm_runtime_put(&hba->sdev_ufs_device->sdev_gendev);
+	return pm_runtime_put(&hba->ufs_device_wlun->sdev_gendev);
 }
 
 #endif /* End of Header */

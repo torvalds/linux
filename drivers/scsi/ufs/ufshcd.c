@@ -540,7 +540,7 @@ static void ufshcd_print_tmrs(struct ufs_hba *hba, unsigned long bitmap)
 
 static void ufshcd_print_host_state(struct ufs_hba *hba)
 {
-	struct scsi_device *sdev_ufs = hba->sdev_ufs_device;
+	struct scsi_device *sdev_ufs = hba->ufs_device_wlun;
 
 	dev_err(hba->dev, "UFS Host state=%d\n", hba->ufshcd_state);
 	dev_err(hba->dev, "outstanding reqs=0x%lx tasks=0x%lx\n",
@@ -4195,7 +4195,7 @@ void ufshcd_auto_hibern8_update(struct ufs_hba *hba, u32 ahit)
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 
 	if (update &&
-	    !pm_runtime_suspended(&hba->sdev_ufs_device->sdev_gendev)) {
+	    !pm_runtime_suspended(&hba->ufs_device_wlun->sdev_gendev)) {
 		ufshcd_rpm_get_sync(hba);
 		ufshcd_hold(hba, false);
 		ufshcd_auto_hibern8_enable(hba);
@@ -4911,13 +4911,13 @@ static void ufshcd_setup_links(struct ufs_hba *hba, struct scsi_device *sdev)
 	 * Device wlun is the supplier & rest of the luns are consumers.
 	 * This ensures that device wlun suspends after all other luns.
 	 */
-	if (hba->sdev_ufs_device) {
+	if (hba->ufs_device_wlun) {
 		link = device_link_add(&sdev->sdev_gendev,
-				       &hba->sdev_ufs_device->sdev_gendev,
+				       &hba->ufs_device_wlun->sdev_gendev,
 				       DL_FLAG_PM_RUNTIME | DL_FLAG_RPM_ACTIVE);
 		if (!link) {
 			dev_err(&sdev->sdev_gendev, "Failed establishing link - %s\n",
-				dev_name(&hba->sdev_ufs_device->sdev_gendev));
+				dev_name(&hba->ufs_device_wlun->sdev_gendev));
 			return;
 		}
 		hba->luns_avail--;
@@ -5053,15 +5053,15 @@ static void ufshcd_slave_destroy(struct scsi_device *sdev)
 	/* Drop the reference as it won't be needed anymore */
 	if (ufshcd_scsi_to_upiu_lun(sdev->lun) == UFS_UPIU_UFS_DEVICE_WLUN) {
 		spin_lock_irqsave(hba->host->host_lock, flags);
-		hba->sdev_ufs_device = NULL;
+		hba->ufs_device_wlun = NULL;
 		spin_unlock_irqrestore(hba->host->host_lock, flags);
-	} else if (hba->sdev_ufs_device) {
+	} else if (hba->ufs_device_wlun) {
 		struct device *supplier = NULL;
 
 		/* Ensure UFS Device WLUN exists and does not disappear */
 		spin_lock_irqsave(hba->host->host_lock, flags);
-		if (hba->sdev_ufs_device) {
-			supplier = &hba->sdev_ufs_device->sdev_gendev;
+		if (hba->ufs_device_wlun) {
+			supplier = &hba->ufs_device_wlun->sdev_gendev;
 			get_device(supplier);
 		}
 		spin_unlock_irqrestore(hba->host->host_lock, flags);
@@ -6037,7 +6037,7 @@ static void ufshcd_clk_scaling_suspend(struct ufs_hba *hba, bool suspend)
 static void ufshcd_err_handling_prepare(struct ufs_hba *hba)
 {
 	ufshcd_rpm_get_sync(hba);
-	if (pm_runtime_status_suspended(&hba->sdev_ufs_device->sdev_gendev) ||
+	if (pm_runtime_status_suspended(&hba->ufs_device_wlun->sdev_gendev) ||
 	    hba->is_sys_suspended) {
 		enum ufs_pm_op pm_op;
 
@@ -6082,7 +6082,7 @@ static void ufshcd_err_handling_unprepare(struct ufs_hba *hba)
 static inline bool ufshcd_err_handling_should_stop(struct ufs_hba *hba)
 {
 	return (!hba->is_powered || hba->shutting_down ||
-		!hba->sdev_ufs_device ||
+		!hba->ufs_device_wlun ||
 		hba->ufshcd_state == UFSHCD_STATE_ERROR ||
 		(!(hba->saved_err || hba->saved_uic_err || hba->force_reset ||
 		   ufshcd_is_link_broken(hba))));
@@ -6101,7 +6101,7 @@ static void ufshcd_recover_pm_error(struct ufs_hba *hba)
 	 * Set RPM status of wlun device to RPM_ACTIVE,
 	 * this also clears its runtime error.
 	 */
-	ret = pm_runtime_set_active(&hba->sdev_ufs_device->sdev_gendev);
+	ret = pm_runtime_set_active(&hba->ufs_device_wlun->sdev_gendev);
 
 	/* hba device might have a runtime error otherwise */
 	if (ret)
@@ -7495,20 +7495,20 @@ static int ufshcd_scsi_add_wlus(struct ufs_hba *hba)
 	int ret = 0;
 	struct scsi_device *sdev_boot, *sdev_rpmb;
 
-	hba->sdev_ufs_device = __scsi_add_device(hba->host, 0, 0,
+	hba->ufs_device_wlun = __scsi_add_device(hba->host, 0, 0,
 		ufshcd_upiu_wlun_to_scsi_wlun(UFS_UPIU_UFS_DEVICE_WLUN), NULL);
-	if (IS_ERR(hba->sdev_ufs_device)) {
-		ret = PTR_ERR(hba->sdev_ufs_device);
-		hba->sdev_ufs_device = NULL;
+	if (IS_ERR(hba->ufs_device_wlun)) {
+		ret = PTR_ERR(hba->ufs_device_wlun);
+		hba->ufs_device_wlun = NULL;
 		goto out;
 	}
-	scsi_device_put(hba->sdev_ufs_device);
+	scsi_device_put(hba->ufs_device_wlun);
 
 	sdev_rpmb = __scsi_add_device(hba->host, 0, 0,
 		ufshcd_upiu_wlun_to_scsi_wlun(UFS_UPIU_RPMB_WLUN), NULL);
 	if (IS_ERR(sdev_rpmb)) {
 		ret = PTR_ERR(sdev_rpmb);
-		goto remove_sdev_ufs_device;
+		goto remove_ufs_device_wlun;
 	}
 	ufshcd_blk_pm_runtime_init(sdev_rpmb);
 	scsi_device_put(sdev_rpmb);
@@ -7523,8 +7523,8 @@ static int ufshcd_scsi_add_wlus(struct ufs_hba *hba)
 	}
 	goto out;
 
-remove_sdev_ufs_device:
-	scsi_remove_device(hba->sdev_ufs_device);
+remove_ufs_device_wlun:
+	scsi_remove_device(hba->ufs_device_wlun);
 out:
 	return ret;
 }
@@ -8660,7 +8660,7 @@ static int ufshcd_set_dev_pwr_mode(struct ufs_hba *hba,
 	int ret, retries;
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
-	sdp = hba->sdev_ufs_device;
+	sdp = hba->ufs_device_wlun;
 	if (sdp) {
 		ret = scsi_device_get(sdp);
 		if (!ret && !scsi_device_online(sdp)) {
@@ -9224,7 +9224,7 @@ static void ufshcd_wl_shutdown(struct device *dev)
 	ufshcd_rpm_get_sync(hba);
 	scsi_device_quiesce(sdev);
 	shost_for_each_device(sdev, hba->host) {
-		if (sdev == hba->sdev_ufs_device)
+		if (sdev == hba->ufs_device_wlun)
 			continue;
 		scsi_device_quiesce(sdev);
 	}
@@ -9445,7 +9445,7 @@ EXPORT_SYMBOL(ufshcd_shutdown);
  */
 void ufshcd_remove(struct ufs_hba *hba)
 {
-	if (hba->sdev_ufs_device)
+	if (hba->ufs_device_wlun)
 		ufshcd_rpm_get_sync(hba);
 	ufs_hwmon_remove(hba);
 	ufs_bsg_remove(hba);
@@ -9773,7 +9773,7 @@ EXPORT_SYMBOL_GPL(ufshcd_resume_complete);
 
 static bool ufshcd_rpm_ok_for_spm(struct ufs_hba *hba)
 {
-	struct device *dev = &hba->sdev_ufs_device->sdev_gendev;
+	struct device *dev = &hba->ufs_device_wlun->sdev_gendev;
 	enum ufs_dev_pwr_mode dev_pwr_mode;
 	enum uic_link_state link_state;
 	unsigned long flags;
@@ -9802,7 +9802,7 @@ int __ufshcd_suspend_prepare(struct device *dev, bool rpm_ok_for_spm)
 	 * if it's runtime suspended. But ufs doesn't follow that.
 	 * Refer ufshcd_resume_complete()
 	 */
-	if (hba->sdev_ufs_device) {
+	if (hba->ufs_device_wlun) {
 		/* Prevent runtime suspend */
 		ufshcd_rpm_get_noresume(hba);
 		/*
