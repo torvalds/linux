@@ -917,12 +917,11 @@ static inline void ufshcd_hba_start(struct ufs_hba *hba)
  * ufshcd_is_hba_active - Get controller state
  * @hba: per adapter instance
  *
- * Returns false if controller is active, true otherwise
+ * Returns true if and only if the controller is active.
  */
 static inline bool ufshcd_is_hba_active(struct ufs_hba *hba)
 {
-	return (ufshcd_readl(hba, REG_CONTROLLER_ENABLE) & CONTROLLER_ENABLE)
-		? false : true;
+	return ufshcd_readl(hba, REG_CONTROLLER_ENABLE) & CONTROLLER_ENABLE;
 }
 
 u32 ufshcd_get_local_unipro_ver(struct ufs_hba *hba)
@@ -4552,7 +4551,7 @@ static int ufshcd_hba_execute_hce(struct ufs_hba *hba)
 	int retry_inner;
 
 start:
-	if (!ufshcd_is_hba_active(hba))
+	if (ufshcd_is_hba_active(hba))
 		/* change controller state to "reset state" */
 		ufshcd_hba_stop(hba);
 
@@ -4578,7 +4577,7 @@ start:
 
 	/* wait for the host controller to complete initialization */
 	retry_inner = 50;
-	while (ufshcd_is_hba_active(hba)) {
+	while (!ufshcd_is_hba_active(hba)) {
 		if (retry_inner) {
 			retry_inner--;
 		} else {
