@@ -34,6 +34,31 @@
 
 #define VIDEO_I2C_DRIVER	"video-i2c"
 
+/* Power control register */
+#define AMG88XX_REG_PCTL	0x00
+#define AMG88XX_PCTL_NORMAL		0x00
+#define AMG88XX_PCTL_SLEEP		0x10
+
+/* Reset register */
+#define AMG88XX_REG_RST		0x01
+#define AMG88XX_RST_FLAG		0x30
+#define AMG88XX_RST_INIT		0x3f
+
+/* Frame rate register */
+#define AMG88XX_REG_FPSC	0x02
+#define AMG88XX_FPSC_1FPS		BIT(0)
+
+/* Thermistor register */
+#define AMG88XX_REG_TTHL	0x0e
+
+/* Temperature register */
+#define AMG88XX_REG_T01L	0x80
+
+/* Control register */
+#define MLX90640_REG_CTL1		0x800d
+#define MLX90640_REG_CTL1_MASK		0x0380
+#define MLX90640_REG_CTL1_MASK_SHIFT	7
+
 struct video_i2c_chip;
 
 struct video_i2c_buffer {
@@ -134,31 +159,6 @@ static struct nvmem_config mlx90640_nvram_config = {
 	.size = 1664,
 	.reg_read = mlx90640_nvram_read,
 };
-
-/* Power control register */
-#define AMG88XX_REG_PCTL	0x00
-#define AMG88XX_PCTL_NORMAL		0x00
-#define AMG88XX_PCTL_SLEEP		0x10
-
-/* Reset register */
-#define AMG88XX_REG_RST		0x01
-#define AMG88XX_RST_FLAG		0x30
-#define AMG88XX_RST_INIT		0x3f
-
-/* Frame rate register */
-#define AMG88XX_REG_FPSC	0x02
-#define AMG88XX_FPSC_1FPS		BIT(0)
-
-/* Thermistor register */
-#define AMG88XX_REG_TTHL	0x0e
-
-/* Temperature register */
-#define AMG88XX_REG_T01L	0x80
-
-/* Control register */
-#define MLX90640_REG_CTL1		0x800d
-#define MLX90640_REG_CTL1_MASK		0x0380
-#define MLX90640_REG_CTL1_MASK_SHIFT	7
 
 static int amg88xx_xfer(struct video_i2c_data *data, char *buf)
 {
