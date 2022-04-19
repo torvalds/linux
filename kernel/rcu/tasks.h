@@ -48,6 +48,7 @@ struct rcu_tasks_percpu {
  * struct rcu_tasks - Definition for a Tasks-RCU-like mechanism.
  * @cbs_wait: RCU wait allowing a new callback to get kthread's attention.
  * @cbs_gbl_lock: Lock protecting callback list.
+ * @tasks_gp_mutex: Mutex protecting grace period, needed during mid-boot dead zone.
  * @kthread_ptr: This flavor's grace-period/callback-invocation kthread.
  * @gp_func: This flavor's grace-period-wait function.
  * @gp_state: Grace period's most recent state transition (debugging).
@@ -79,6 +80,7 @@ struct rcu_tasks_percpu {
 struct rcu_tasks {
 	struct rcuwait cbs_wait;
 	raw_spinlock_t cbs_gbl_lock;
+	struct mutex tasks_gp_mutex;
 	int gp_state;
 	int gp_sleep;
 	int init_fract;
@@ -119,6 +121,7 @@ static struct rcu_tasks rt_name =							\
 {											\
 	.cbs_wait = __RCUWAIT_INITIALIZER(rt_name.wait),				\
 	.cbs_gbl_lock = __RAW_SPIN_LOCK_UNLOCKED(rt_name.cbs_gbl_lock),			\
+	.tasks_gp_mutex = __MUTEX_INITIALIZER(rt_name.tasks_gp_mutex),			\
 	.gp_func = gp,									\
 	.call_func = call,								\
 	.rtpcpu = &rt_name ## __percpu,							\
@@ -502,10 +505,37 @@ static void rcu_tasks_invoke_cbs_wq(struct work_struct *wp)
 	rcu_tasks_invoke_cbs(rtp, rtpcp);
 }
 
-/* RCU-tasks kthread that detects grace periods and invokes callbacks. */
-static int __noreturn rcu_tasks_kthread(void *arg)
+// Wait for one grace period.
+static void rcu_tasks_one_gp(struct rcu_tasks *rtp)
 {
 	int needgpcb;
+
+	mutex_lock(&rtp->tasks_gp_mutex);
+	set_tasks_gp_state(rtp, RTGS_WAIT_CBS);
+
+	// If there were none, wait a bit and start over.
+	rcuwait_wait_event(&rtp->cbs_wait,
+			   (needgpcb = rcu_tasks_need_gpcb(rtp)),
+			   TASK_IDLE);
+
+	if (needgpcb & 0x2) {
+		// Wait for one grace period.
+		set_tasks_gp_state(rtp, RTGS_WAIT_GP);
+		rtp->gp_start = jiffies;
+		rcu_seq_start(&rtp->tasks_gp_seq);
+		rtp->gp_func(rtp);
+		rcu_seq_end(&rtp->tasks_gp_seq);
+	}
+
+	// Invoke callbacks.
+	set_tasks_gp_state(rtp, RTGS_INVOKE_CBS);
+	rcu_tasks_invoke_cbs(rtp, per_cpu_ptr(rtp->rtpcpu, 0));
+	mutex_unlock(&rtp->tasks_gp_mutex);
+}
+
+// RCU-tasks kthread that detects grace periods and invokes callbacks.
+static int __noreturn rcu_tasks_kthread(void *arg)
+{
 	struct rcu_tasks *rtp = arg;
 
 	/* Run on housekeeping CPUs by default.  Sysadm can move if desired. */
@@ -519,27 +549,11 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 	 * This loop is terminated by the system going down.  ;-)
 	 */
 	for (;;) {
-		set_tasks_gp_state(rtp, RTGS_WAIT_CBS);
+		// Wait for one grace period and invoke any callbacks
+		// that are ready.
+		rcu_tasks_one_gp(rtp);
 
-		/* If there were none, wait a bit and start over. */
-		rcuwait_wait_event(&rtp->cbs_wait,
-				   (needgpcb = rcu_tasks_need_gpcb(rtp)),
-				   TASK_IDLE);
-
-		if (needgpcb & 0x2) {
-			// Wait for one grace period.
-			set_tasks_gp_state(rtp, RTGS_WAIT_GP);
-			rtp->gp_start = jiffies;
-			rcu_seq_start(&rtp->tasks_gp_seq);
-			rtp->gp_func(rtp);
-			rcu_seq_end(&rtp->tasks_gp_seq);
-		}
-
-		/* Invoke callbacks. */
-		set_tasks_gp_state(rtp, RTGS_INVOKE_CBS);
-		rcu_tasks_invoke_cbs(rtp, per_cpu_ptr(rtp->rtpcpu, 0));
-
-		/* Paranoid sleep to keep this from entering a tight loop */
+		// Paranoid sleep to keep this from entering a tight loop.
 		schedule_timeout_idle(rtp->gp_sleep);
 	}
 }
