@@ -235,6 +235,7 @@ struct rcu_data {
 					 * if rdp_gp.
 					 */
 	struct list_head nocb_entry_rdp; /* rcu_data node in wakeup chain. */
+	struct rcu_data *nocb_toggling_rdp; /* rdp queued for (de-)offloading */
 
 	/* The following fields are used by CB kthread, hence new cacheline. */
 	struct rcu_data *nocb_gp_rdp ____cacheline_internodealigned_in_smp;
