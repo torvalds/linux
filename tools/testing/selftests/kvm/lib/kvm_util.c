@@ -258,7 +258,7 @@ struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint64_t phy_pages)
 	return vm;
 }
 
-struct kvm_vm *vm_create_without_vcpus(enum vm_guest_mode mode, uint64_t pages)
+struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t pages)
 {
 	struct kvm_vm *vm;
 
@@ -323,7 +323,7 @@ struct kvm_vm *vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus,
 		    "nr_vcpus = %d too large for host, max-vcpus = %d",
 		    nr_vcpus, kvm_check_cap(KVM_CAP_MAX_VCPUS));
 
-	vm = vm_create_without_vcpus(mode, pages);
+	vm = vm_create(mode, pages);
 
 	for (i = 0; i < nr_vcpus; ++i) {
 		uint32_t vcpuid = vcpuids ? vcpuids[i] : i;
