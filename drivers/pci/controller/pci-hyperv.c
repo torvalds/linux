@@ -1707,7 +1707,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 			struct pci_create_interrupt3 v3;
 		} int_pkts;
 	} __packed ctxt;
-
+	u64 trans_id;
 	u32 size;
 	int ret;
 
@@ -1769,10 +1769,10 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		goto free_int_desc;
 	}
 
-	ret = vmbus_sendpacket(hpdev->hbus->hdev->channel, &ctxt.int_pkts,
-			       size, (unsigned long)&ctxt.pci_pkt,
-			       VM_PKT_DATA_INBAND,
-			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket_getid(hpdev->hbus->hdev->channel, &ctxt.int_pkts,
+				     size, (unsigned long)&ctxt.pci_pkt,
+				     &trans_id, VM_PKT_DATA_INBAND,
+				     VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret) {
 		dev_err(&hbus->hdev->device,
 			"Sending request for interrupt failed: 0x%x",
@@ -1851,6 +1851,15 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 
 enable_tasklet:
 	tasklet_enable(&channel->callback_event);
+	/*
+	 * The completion packet on the stack becomes invalid after 'return';
+	 * remove the ID from the VMbus requestor if the identifier is still
+	 * mapped to/associated with the packet.  (The identifier could have
+	 * been 're-used', i.e., already removed and (re-)mapped.)
+	 *
+	 * Cf. hv_pci_onchannelcallback().
+	 */
+	vmbus_request_addr_match(channel, trans_id, (unsigned long)&ctxt.pci_pkt);
 free_int_desc:
 	kfree(int_desc);
 drop_reference:
@@ -2729,6 +2738,7 @@ static void hv_pci_onchannelcallback(void *context)
 	struct pci_dev_inval_block *inval;
 	struct pci_dev_incoming *dev_message;
 	struct hv_pci_dev *hpdev;
+	unsigned long flags;
 
 	buffer = kmalloc(bufferlen, GFP_ATOMIC);
 	if (!buffer)
@@ -2763,8 +2773,11 @@ static void hv_pci_onchannelcallback(void *context)
 		switch (desc->type) {
 		case VM_PKT_COMP:
 
-			req_addr = chan->request_addr_callback(chan, req_id);
+			lock_requestor(chan, flags);
+			req_addr = __vmbus_request_addr_match(chan, req_id,
+							      VMBUS_RQST_ADDR_ANY);
 			if (req_addr == VMBUS_RQST_ERROR) {
+				unlock_requestor(chan, flags);
 				dev_err(&hbus->hdev->device,
 					"Invalid transaction ID %llx\n",
 					req_id);
@@ -2772,9 +2785,17 @@ static void hv_pci_onchannelcallback(void *context)
 			}
 			comp_packet = (struct pci_packet *)req_addr;
 			response = (struct pci_response *)buffer;
+			/*
+			 * Call ->completion_func() within the critical section to make
+			 * sure that the packet pointer is still valid during the call:
+			 * here 'valid' means that there's a task still waiting for the
+			 * completion, and that the packet data is still on the waiting
+			 * task's stack.  Cf. hv_compose_msi_msg().
+			 */
 			comp_packet->completion_func(comp_packet->compl_ctxt,
 						     response,
 						     bytes_recvd);
+			unlock_requestor(chan, flags);
 			break;
 
 		case VM_PKT_DATA_INBAND:
