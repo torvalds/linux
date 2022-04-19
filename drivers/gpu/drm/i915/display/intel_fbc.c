@@ -811,6 +811,14 @@ static void intel_fbc_program_cfb(struct intel_fbc *fbc)
 	fbc->funcs->program_cfb(fbc);
 }
 
+static void intel_fbc_program_workarounds(struct intel_fbc *fbc)
+{
+	/* Wa_22014263786:icl,jsl,tgl,dg1,rkl,adls,dg2,adlp */
+	if (DISPLAY_VER(fbc->i915) >= 11)
+		intel_de_rmw(fbc->i915, ILK_DPFC_CHICKEN(fbc->id), 0,
+			     DPFC_CHICKEN_FORCE_SLB_INVALIDATION);
+}
+
 static void __intel_fbc_cleanup_cfb(struct intel_fbc *fbc)
 {
 	struct drm_i915_private *i915 = fbc->i915;
@@ -1462,6 +1470,7 @@ static void __intel_fbc_enable(struct intel_atomic_state *state,
 
 	intel_fbc_update_state(state, crtc, plane);
 
+	intel_fbc_program_workarounds(fbc);
 	intel_fbc_program_cfb(fbc);
 }
 
