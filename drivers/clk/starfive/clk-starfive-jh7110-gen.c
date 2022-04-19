@@ -368,7 +368,7 @@ static struct platform_driver clk_starfive_jh7110_driver = {
 		.of_match_table = clk_starfive_jh7110_match,
 	},
 };
-builtin_platform_driver_probe(clk_starfive_jh7110_driver, 
+builtin_platform_driver_probe(clk_starfive_jh7110_driver,
 			clk_starfive_jh7110_probe);
 
 MODULE_AUTHOR("Xingyu Wu <xingyu.wu@starfivetech.com>");

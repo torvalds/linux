@@ -28,11 +28,11 @@ static const struct jh7110_clk_data jh7110_clk_vout_data[] __initconst = {
 	JH7110__DIV(JH7110_DSI_SYS, "dsi_sys", 31, JH7110_DISP_ROOT),
 	JH7110__DIV(JH7110_TX_ESC, "tx_esc", 31, JH7110_DISP_AHB),
 	//dc8200
-	JH7110_GATE(JH7110_U0_DC8200_CLK_AXI, "u0_dc8200_clk_axi", 
+	JH7110_GATE(JH7110_U0_DC8200_CLK_AXI, "u0_dc8200_clk_axi",
 			0, JH7110_DISP_AXI),
-	JH7110_GATE(JH7110_U0_DC8200_CLK_CORE, "u0_dc8200_clk_core", 
+	JH7110_GATE(JH7110_U0_DC8200_CLK_CORE, "u0_dc8200_clk_core",
 			0, JH7110_DISP_AXI),
-	JH7110_GATE(JH7110_U0_DC8200_CLK_AHB, "u0_dc8200_clk_ahb", 
+	JH7110_GATE(JH7110_U0_DC8200_CLK_AHB, "u0_dc8200_clk_ahb",
 			0, JH7110_DISP_AHB),
 	JH7110_GMUX(JH7110_U0_DC8200_CLK_PIX0, "u0_dc8200_clk_pix0", 0, 2,
 			JH7110_DC8200_PIX0,
@@ -45,28 +45,28 @@ static const struct jh7110_clk_data jh7110_clk_vout_data[] __initconst = {
 			JH7110_U0_DC8200_CLK_PIX0_OUT,
 			JH7110_U0_DC8200_CLK_PIX1_OUT),
 	//dsiTx
-	JH7110_GATE(JH7110_U0_CDNS_DSITX_CLK_APB, "u0_cdns_dsiTx_clk_apb", 
+	JH7110_GATE(JH7110_U0_CDNS_DSITX_CLK_APB, "u0_cdns_dsiTx_clk_apb",
 			0, JH7110_DSI_SYS),
-	JH7110_GATE(JH7110_U0_CDNS_DSITX_CLK_SYS, "u0_cdns_dsiTx_clk_sys", 
+	JH7110_GATE(JH7110_U0_CDNS_DSITX_CLK_SYS, "u0_cdns_dsiTx_clk_sys",
 			0, JH7110_DSI_SYS),
 	JH7110_GMUX(JH7110_U0_CDNS_DSITX_CLK_DPI, "u0_cdns_dsiTx_clk_api", 0, 2,
 			JH7110_DC8200_PIX0,
 			JH7110_HDMITX0_PIXELCLK),
-	JH7110_GATE(JH7110_U0_CDNS_DSITX_CLK_TXESC, "u0_cdns_dsiTx_clk_txesc", 
+	JH7110_GATE(JH7110_U0_CDNS_DSITX_CLK_TXESC, "u0_cdns_dsiTx_clk_txesc",
 			0, JH7110_TX_ESC),
 	//mipitx DPHY
-	JH7110_GATE(JH7110_U0_MIPITX_DPHY_CLK_TXESC, "u0_mipitx_dphy_clk_txesc", 
+	JH7110_GATE(JH7110_U0_MIPITX_DPHY_CLK_TXESC, "u0_mipitx_dphy_clk_txesc",
 			0, JH7110_TX_ESC),
 	//hdmi
-	JH7110_GATE(JH7110_U0_HDMI_TX_CLK_MCLK, "u0_hdmi_tx_clk_mclk", 
+	JH7110_GATE(JH7110_U0_HDMI_TX_CLK_MCLK, "u0_hdmi_tx_clk_mclk",
 			0, JH7110_HDMITX0_MCLK),
-	JH7110_GATE(JH7110_U0_HDMI_TX_CLK_BCLK, "u0_hdmi_tx_clk_bclk", 
+	JH7110_GATE(JH7110_U0_HDMI_TX_CLK_BCLK, "u0_hdmi_tx_clk_bclk",
 			0, JH7110_HDMITX0_SCK),
-	JH7110_GATE(JH7110_U0_HDMI_TX_CLK_SYS, "u0_hdmi_tx_clk_sys", 
+	JH7110_GATE(JH7110_U0_HDMI_TX_CLK_SYS, "u0_hdmi_tx_clk_sys",
 			0, JH7110_DISP_APB),
 };
 
-static struct clk_hw *jh7110_vout_clk_get(struct of_phandle_args *clkspec, 
+static struct clk_hw *jh7110_vout_clk_get(struct of_phandle_args *clkspec,
 					void *data)
 {
 	struct jh7110_clk_priv *priv = data;
@@ -87,7 +87,7 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 	unsigned int idx;
 	int ret = 0;
 
-	priv = devm_kzalloc(&pdev->dev, struct_size(priv, 
+	priv = devm_kzalloc(&pdev->dev, struct_size(priv,
 				reg, JH7110_DISP_ROOT), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -99,103 +99,103 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->vout_base);
 
 	//source
-	priv->pll[PLL_OFV(JH7110_DISP_ROOT)] = 
+	priv->pll[PLL_OFV(JH7110_DISP_ROOT)] =
 			devm_clk_hw_register_fixed_factor(
-			priv->dev, "disp_root", 
-			"u0_dom_vout_top_clk_dom_vout_top_clk_vout_src", 
+			priv->dev, "disp_root",
+			"u0_dom_vout_top_clk_dom_vout_top_clk_vout_src",
 			0, 1, 1);
-	priv->pll[PLL_OFV(JH7110_DISP_AXI)] = 
+	priv->pll[PLL_OFV(JH7110_DISP_AXI)] =
 			devm_clk_hw_register_fixed_factor(
-			priv->dev, "disp_axi", 
-			"u0_dom_vout_top_clk_dom_vout_top_clk_vout_axi", 
+			priv->dev, "disp_axi",
+			"u0_dom_vout_top_clk_dom_vout_top_clk_vout_axi",
 			0, 1, 1);
-	priv->pll[PLL_OFV(JH7110_DISP_AHB)] = 
+	priv->pll[PLL_OFV(JH7110_DISP_AHB)] =
 			devm_clk_hw_register_fixed_factor(
-			priv->dev, "disp_ahb", 
-			"u0_dom_vout_top_clk_dom_vout_top_clk_vout_ahb", 
+			priv->dev, "disp_ahb",
+			"u0_dom_vout_top_clk_dom_vout_top_clk_vout_ahb",
 			0, 1, 1);
-	priv->pll[PLL_OFV(JH7110_HDMI_PHY_REF)] = 
+	priv->pll[PLL_OFV(JH7110_HDMI_PHY_REF)] =
 			devm_clk_hw_register_fixed_factor(
-			priv->dev, "hdmi_phy_ref", 
-			"u0_dom_vout_top_clk_dom_vout_top_clk_hdmiphy_ref", 
+			priv->dev, "hdmi_phy_ref",
+			"u0_dom_vout_top_clk_dom_vout_top_clk_hdmiphy_ref",
 			0, 1, 1);
-	priv->pll[PLL_OFV(JH7110_HDMITX0_MCLK)] = 
+	priv->pll[PLL_OFV(JH7110_HDMITX0_MCLK)] =
 			devm_clk_hw_register_fixed_factor(
-			priv->dev, "hdmitx0_mclk", 
-			"u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_mclk", 
+			priv->dev, "hdmitx0_mclk",
+			"u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_mclk",
 			0, 1, 1);
-	priv->pll[PLL_OFV(JH7110_HDMITX0_SCK)] = 
+	priv->pll[PLL_OFV(JH7110_HDMITX0_SCK)] =
 			devm_clk_hw_register_fixed_factor(
-			priv->dev, "hdmitx0_sck", 
-			"u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_bclk", 
+			priv->dev, "hdmitx0_sck",
+			"u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_bclk",
 			0, 1, 1);
 	
-	priv->pll[PLL_OFV(JH7110_MIPI_DPHY_REF)] = 
+	priv->pll[PLL_OFV(JH7110_MIPI_DPHY_REF)] =
 			devm_clk_hw_register_fixed_factor(
-			priv->dev, "mipi_dphy_ref", 
-			"u0_dom_vout_top_clk_dom_vout_top_clk_mipiphy_ref", 
+			priv->dev, "mipi_dphy_ref",
+			"u0_dom_vout_top_clk_dom_vout_top_clk_mipiphy_ref",
 			0, 1, 1);
 	//divider
-	priv->pll[PLL_OFV(JH7110_U0_PCLK_MUX_BIST_PCLK)] = 
+	priv->pll[PLL_OFV(JH7110_U0_PCLK_MUX_BIST_PCLK)] =
 			devm_clk_hw_register_fixed_factor(
-			priv->dev, "u0_pclk_mux_bist_pclk", 
-			"u0_dom_vout_top_clk_dom_vout_top_bist_pclk", 
+			priv->dev, "u0_pclk_mux_bist_pclk",
+			"u0_dom_vout_top_clk_dom_vout_top_bist_pclk",
 			0, 1, 1);
-	priv->pll[PLL_OFV(JH7110_DISP_APB)] = 
-			clk_hw_register_fixed_rate(priv->dev, 
+	priv->pll[PLL_OFV(JH7110_DISP_APB)] =
+			clk_hw_register_fixed_rate(priv->dev,
 			"disp_apb", NULL, 0, 51200000);
-	priv->pll[PLL_OFV(JH7110_U0_PCLK_MUX_FUNC_PCLK)] = 
-			devm_clk_hw_register_fixed_factor(priv->dev, 
+	priv->pll[PLL_OFV(JH7110_U0_PCLK_MUX_FUNC_PCLK)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
 			"u0_pclk_mux_func_pclk", "apb", 0, 1, 1);
 	//bus
-	priv->pll[PLL_OFV(JH7110_U0_DOM_VOUT_CRG_PCLK)] = 
-			devm_clk_hw_register_fixed_factor(priv->dev, 
+	priv->pll[PLL_OFV(JH7110_U0_DOM_VOUT_CRG_PCLK)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
 			"u0_dom_vout_crg_pclk", "disp_apb", 0, 1, 1);
-	priv->pll[PLL_OFV(JH7110_U0_DOM_VOUT_SYSCON_PCLK)] = 
-			devm_clk_hw_register_fixed_factor(priv->dev, 
+	priv->pll[PLL_OFV(JH7110_U0_DOM_VOUT_SYSCON_PCLK)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
 			"u0_dom_vout_syscon_pclk", "disp_apb", 0, 1, 1);
-	priv->pll[PLL_OFV(JH7110_U0_SAIF_AMBA_DOM_VOUT_AHB_DEC_CLK_AHB)] = 
-			devm_clk_hw_register_fixed_factor(priv->dev, 
-			"u0_saif_amba_dom_vout_ahb_dec_clk_ahb", 
+	priv->pll[PLL_OFV(JH7110_U0_SAIF_AMBA_DOM_VOUT_AHB_DEC_CLK_AHB)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
+			"u0_saif_amba_dom_vout_ahb_dec_clk_ahb",
 			"disp_ahb", 0, 1, 1);
-	priv->pll[PLL_OFV(JH7110_U0_AHB2APB_CLK_AHB)] = 
-			devm_clk_hw_register_fixed_factor(priv->dev, 
+	priv->pll[PLL_OFV(JH7110_U0_AHB2APB_CLK_AHB)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
 			"u0_ahb2apb_clk_ahb", "disp_ahb", 0, 1, 1);
-	priv->pll[PLL_OFV(JH7110_U0_P2P_ASYNC_CLK_APBS)] = 
-			devm_clk_hw_register_fixed_factor(priv->dev, 
+	priv->pll[PLL_OFV(JH7110_U0_P2P_ASYNC_CLK_APBS)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
 			"u0_p2p_async_clk_apbs", "disp_apb", 0, 1, 1);
 	//dsiTx
-	priv->pll[PLL_OFV(JH7110_U0_CDNS_DSITX_CLK_RXESC)] = 
-			devm_clk_hw_register_fixed_factor(priv->dev, 
-			"u0_cdns_dsiTx_clk_rxesc", 
+	priv->pll[PLL_OFV(JH7110_U0_CDNS_DSITX_CLK_RXESC)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
+			"u0_cdns_dsiTx_clk_rxesc",
 			"mipitx_dphy_rxesc", 0, 1, 1);
-	priv->pll[PLL_OFV(JH7110_U0_CDNS_DSITX_CLK_TXBYTEHS)] = 
-			devm_clk_hw_register_fixed_factor(priv->dev, 
-			"u0_cdns_dsiTx_clk_txbytehs", 
+	priv->pll[PLL_OFV(JH7110_U0_CDNS_DSITX_CLK_TXBYTEHS)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
+			"u0_cdns_dsiTx_clk_txbytehs",
 			"mipitx_dphy_txbytehs", 0, 1, 1);
 	//mipitx DPHY
-	priv->pll[PLL_OFV(JH7110_U0_MIPITX_DPHY_CLK_SYS)] = 
-			devm_clk_hw_register_fixed_factor(priv->dev, 
+	priv->pll[PLL_OFV(JH7110_U0_MIPITX_DPHY_CLK_SYS)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
 			"u0_mipitx_dphy_clk_sys", "disp_apb", 0, 1, 1);
-	priv->pll[PLL_OFV(JH7110_U0_MIPITX_DPHY_CLK_DPHY_REF)] = 
-			devm_clk_hw_register_fixed_factor(priv->dev, 
-			"u0_mipitx_dphy_clk_dphy_ref", 
+	priv->pll[PLL_OFV(JH7110_U0_MIPITX_DPHY_CLK_DPHY_REF)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
+			"u0_mipitx_dphy_clk_dphy_ref",
 			"mipi_dphy_ref", 0, 1, 1);
-	priv->pll[PLL_OFV(JH7110_U0_MIPITX_APBIF_PCLK)] = 
-			devm_clk_hw_register_fixed_factor(priv->dev, 
+	priv->pll[PLL_OFV(JH7110_U0_MIPITX_APBIF_PCLK)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
 			"u0_mipitx_apbif_pclk", "disp_apb", 0, 1, 1);
 	//hdmi
-	priv->pll[PLL_OFV(JH7110_HDMI_TX_CLK_REF)] = 
-			devm_clk_hw_register_fixed_factor(priv->dev, 
+	priv->pll[PLL_OFV(JH7110_HDMI_TX_CLK_REF)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
 			"u0_hdmi_tx_clk_ref", "hdmi_phy_ref", 0, 1, 1);
 	
-	priv->pll[PLL_OFV(JH7110_U0_DC8200_CLK_PIX0_OUT)] = 
-			devm_clk_hw_register_fixed_factor(priv->dev, 
-			"u0_dc8200_clk_pix0_out", 
+	priv->pll[PLL_OFV(JH7110_U0_DC8200_CLK_PIX0_OUT)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
+			"u0_dc8200_clk_pix0_out",
 			"u0_dc8200_clk_pix0", 0, 1, 1);
-	priv->pll[PLL_OFV(JH7110_U0_DC8200_CLK_PIX1_OUT)] = 
-			devm_clk_hw_register_fixed_factor(priv->dev, 
-			"u0_dc8200_clk_pix1_out", 
+	priv->pll[PLL_OFV(JH7110_U0_DC8200_CLK_PIX1_OUT)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
+			"u0_dc8200_clk_pix1_out",
 			"u0_dc8200_clk_pix1", 0, 1, 1);
 
 	for (idx = 0; idx < JH7110_DISP_ROOT; idx++) {
