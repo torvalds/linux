@@ -11,7 +11,3 @@
 	model = "Kverneland UT1Q Board";
 	compatible = "kvg,vicut1q", "fsl,imx6q";
 };
-
-&sata {
-	status = "okay";
-};
