@@ -1864,18 +1864,26 @@ static ssize_t ufshcd_clkgate_delay_show(struct device *dev,
 	return sysfs_emit(buf, "%lu\n", hba->clk_gating.delay_ms);
 }
 
-static ssize_t ufshcd_clkgate_delay_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+void ufshcd_clkgate_delay_set(struct device *dev, unsigned long value)
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
-	unsigned long flags, value;
-
-	if (kstrtoul(buf, 0, &value))
-		return -EINVAL;
+	unsigned long flags;
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	hba->clk_gating.delay_ms = value;
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
+}
+EXPORT_SYMBOL_GPL(ufshcd_clkgate_delay_set);
+
+static ssize_t ufshcd_clkgate_delay_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long value;
+
+	if (kstrtoul(buf, 0, &value))
+		return -EINVAL;
+
+	ufshcd_clkgate_delay_set(dev, value);
 	return count;
 }
 

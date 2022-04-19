@@ -857,7 +857,6 @@ static int ufs_mtk_pre_link(struct ufs_hba *hba)
 
 static void ufs_mtk_setup_clk_gating(struct ufs_hba *hba)
 {
-	unsigned long flags;
 	u32 ah_ms;
 
 	if (ufshcd_is_clkgating_allowed(hba)) {
@@ -866,9 +865,7 @@ static void ufs_mtk_setup_clk_gating(struct ufs_hba *hba)
 					  hba->ahit);
 		else
 			ah_ms = 10;
-		spin_lock_irqsave(hba->host->host_lock, flags);
-		hba->clk_gating.delay_ms = ah_ms + 5;
-		spin_unlock_irqrestore(hba->host->host_lock, flags);
+		ufshcd_clkgate_delay_set(hba->dev, ah_ms + 5);
 	}
 }
 
