@@ -296,8 +296,8 @@
 
 &gpio5 {
 	gpio-line-names =
-		"", "", "", "", "", "PCIE_WAKE", "PCIE_CLKREQ", "PCIE_W_DIS",
-		"PCIE_RESET", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
 		"", "", "ITU656_CLK", "I2S_MCLK", "ITU656_PDN", "AUDIO_RESET",
 			"I2S_BITCLK", "I2S_DOUT",
 		"I2S_LRCLK", "I2S_DIN", "I2C1_SDA", "I2C1_SCL", "YACO_AUX_RX",
@@ -437,10 +437,6 @@
 			};
 		};
 	};
-};
-
-&pcie {
-	status = "okay";
 };
 
 &pwm1 {
