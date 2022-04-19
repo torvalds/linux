@@ -1207,6 +1207,7 @@ static void nvme_keep_alive_work(struct work_struct *work)
 
 	rq->timeout = ctrl->kato * HZ;
 	rq->end_io_data = ctrl;
+	rq->rq_flags |= RQF_QUIET;
 	blk_execute_rq_nowait(rq, false, nvme_keep_alive_end_io);
 }
 
