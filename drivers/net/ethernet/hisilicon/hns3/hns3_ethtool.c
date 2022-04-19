@@ -1898,6 +1898,8 @@ static int hns3_set_tunable(struct net_device *netdev,
 	case ETHTOOL_TX_COPYBREAK_BUF_SIZE:
 		old_tx_spare_buf_size = h->kinfo.tx_spare_buf_size;
 		new_tx_spare_buf_size = *(u32 *)data;
+		netdev_info(netdev, "request to set tx spare buf size from %u to %u\n",
+			    old_tx_spare_buf_size, new_tx_spare_buf_size);
 		ret = hns3_set_tx_spare_buf_size(netdev, new_tx_spare_buf_size);
 		if (ret ||
 		    (!priv->ring->tx_spare && new_tx_spare_buf_size != 0)) {
@@ -1915,6 +1917,10 @@ static int hns3_set_tunable(struct net_device *netdev,
 
 			return ret;
 		}
+
+		netdev_info(netdev, "the actvie tx spare buf size is %u, due to page order\n",
+			    priv->ring->tx_spare->len);
+
 		break;
 	default:
 		ret = -EOPNOTSUPP;
