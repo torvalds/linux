@@ -29,15 +29,6 @@ struct ufs_dev_fix {
 	unsigned int quirk;
 };
 
-#define END_FIX { }
-
-/* add specific device quirk */
-#define UFS_FIX(_vendor, _model, _quirk) { \
-	.wmanufacturerid = (_vendor),\
-	.model = (_model),		   \
-	.quirk = (_quirk),		   \
-}
-
 /*
  * Some vendor's UFS device sends back to back NACs for the DL data frames
  * causing the host controller to raise the DFES error status. Sometimes
