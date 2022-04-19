@@ -1030,8 +1030,10 @@ static void fl_set_key_vlan(struct nlattr **tb,
 			VLAN_PRIORITY_MASK;
 		key_mask->vlan_priority = VLAN_PRIORITY_MASK;
 	}
-	key_val->vlan_tpid = ethertype;
-	key_mask->vlan_tpid = cpu_to_be16(~0);
+	if (ethertype) {
+		key_val->vlan_tpid = ethertype;
+		key_mask->vlan_tpid = cpu_to_be16(~0);
+	}
 	if (tb[vlan_next_eth_type_key]) {
 		key_val->vlan_eth_type =
 			nla_get_be16(tb[vlan_next_eth_type_key]);
@@ -1582,13 +1584,18 @@ static int fl_set_key_ct(struct nlattr **tb,
 }
 
 static bool is_vlan_key(struct nlattr *tb, __be16 *ethertype,
-			struct fl_flow_key *key, struct fl_flow_key *mask)
+			struct fl_flow_key *key, struct fl_flow_key *mask,
+			int vthresh)
 {
-	if (!tb)
-		return false;
+	const bool good_num_of_vlans = key->num_of_vlans.num_of_vlans > vthresh;
+
+	if (!tb) {
+		*ethertype = 0;
+		return good_num_of_vlans;
+	}
 
 	*ethertype = nla_get_be16(tb);
-	if (eth_type_vlan(*ethertype))
+	if (good_num_of_vlans || eth_type_vlan(*ethertype))
 		return true;
 
 	key->basic.n_proto = *ethertype;
@@ -1623,13 +1630,14 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 		       TCA_FLOWER_UNSPEC,
 		       sizeof(key->num_of_vlans));
 
-	if (is_vlan_key(tb[TCA_FLOWER_KEY_ETH_TYPE], &ethertype, key, mask)) {
+	if (is_vlan_key(tb[TCA_FLOWER_KEY_ETH_TYPE], &ethertype, key, mask, 0)) {
 		fl_set_key_vlan(tb, ethertype, TCA_FLOWER_KEY_VLAN_ID,
 				TCA_FLOWER_KEY_VLAN_PRIO,
 				TCA_FLOWER_KEY_VLAN_ETH_TYPE,
 				&key->vlan, &mask->vlan);
 
-		if (is_vlan_key(tb[TCA_FLOWER_KEY_VLAN_ETH_TYPE], &ethertype, key, mask)) {
+		if (is_vlan_key(tb[TCA_FLOWER_KEY_VLAN_ETH_TYPE],
+				&ethertype, key, mask, 1)) {
 			fl_set_key_vlan(tb, ethertype,
 					TCA_FLOWER_KEY_CVLAN_ID,
 					TCA_FLOWER_KEY_CVLAN_PRIO,
