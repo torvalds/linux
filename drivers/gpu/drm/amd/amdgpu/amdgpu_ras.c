@@ -1515,6 +1515,26 @@ static int amdgpu_ras_fs_fini(struct amdgpu_device *adev)
 /* ras fs end */
 
 /* ih begin */
+
+/* For the hardware that cannot enable bif ring for both ras_controller_irq
+ * and ras_err_evnet_athub_irq ih cookies, the driver has to poll status
+ * register to check whether the interrupt is triggered or not, and properly
+ * ack the interrupt if it is there
+ */
+void amdgpu_ras_interrupt_fatal_error_handler(struct amdgpu_device *adev)
+{
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__PCIE_BIF))
+		return;
+
+	if (adev->nbio.ras &&
+	    adev->nbio.ras->handle_ras_controller_intr_no_bifring)
+		adev->nbio.ras->handle_ras_controller_intr_no_bifring(adev);
+
+	if (adev->nbio.ras &&
+	    adev->nbio.ras->handle_ras_err_event_athub_intr_no_bifring)
+		adev->nbio.ras->handle_ras_err_event_athub_intr_no_bifring(adev);
+}
+
 static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *obj,
 				struct amdgpu_iv_entry *entry)
 {

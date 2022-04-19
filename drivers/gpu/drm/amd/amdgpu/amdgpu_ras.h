@@ -683,4 +683,5 @@ int amdgpu_ras_set_context(struct amdgpu_device *adev, struct amdgpu_ras *ras_co
 
 int amdgpu_ras_register_ras_block(struct amdgpu_device *adev,
 				struct amdgpu_ras_block_object *ras_block_obj);
+void amdgpu_ras_interrupt_fatal_error_handler(struct amdgpu_device *adev);
 #endif
