@@ -133,6 +133,8 @@
 #define ESR_ELx_CV		(UL(1) << 24)
 #define ESR_ELx_COND_SHIFT	(20)
 #define ESR_ELx_COND_MASK	(UL(0xF) << ESR_ELx_COND_SHIFT)
+#define ESR_ELx_WFx_ISS_RN	(UL(0x1F) << 5)
+#define ESR_ELx_WFx_ISS_RV	(UL(1) << 2)
 #define ESR_ELx_WFx_ISS_TI	(UL(3) << 0)
 #define ESR_ELx_WFx_ISS_WFxT	(UL(2) << 0)
 #define ESR_ELx_WFx_ISS_WFI	(UL(0) << 0)
