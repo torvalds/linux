@@ -639,7 +639,7 @@ EXPORT_SYMBOL_GPL(ufshcd_delay_us);
  * Return:
  * -ETIMEDOUT on error, zero on success.
  */
-int ufshcd_wait_for_register(struct ufs_hba *hba, u32 reg, u32 mask,
+static int ufshcd_wait_for_register(struct ufs_hba *hba, u32 reg, u32 mask,
 				u32 val, unsigned long interval_us,
 				unsigned long timeout_ms)
 {
