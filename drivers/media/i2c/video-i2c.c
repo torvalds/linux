@@ -9,6 +9,7 @@
  * - Melexis MLX90640 Thermal Cameras
  */
 
+#include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
 #include <linux/hwmon.h>
@@ -62,7 +63,7 @@
 
 /* Control register */
 #define MLX90640_REG_CTL1		0x800d
-#define MLX90640_REG_CTL1_MASK		0x0380
+#define MLX90640_REG_CTL1_MASK		GENMASK(9, 7)
 #define MLX90640_REG_CTL1_MASK_SHIFT	7
 
 struct video_i2c_chip;
