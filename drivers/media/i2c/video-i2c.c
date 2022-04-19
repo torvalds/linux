@@ -54,6 +54,12 @@
 /* Temperature register */
 #define AMG88XX_REG_T01L	0x80
 
+/* RAM */
+#define MLX90640_RAM_START_ADDR		0x0400
+
+/* EEPROM */
+#define MLX90640_EEPROM_START_ADDR	0x2400
+
 /* Control register */
 #define MLX90640_REG_CTL1		0x800d
 #define MLX90640_REG_CTL1_MASK		0x0380
@@ -149,7 +155,7 @@ static int mlx90640_nvram_read(void *priv, unsigned int offset, void *val,
 {
 	struct video_i2c_data *data = priv;
 
-	return regmap_bulk_read(data->regmap, 0x2400 + offset, val, bytes);
+	return regmap_bulk_read(data->regmap, MLX90640_EEPROM_START_ADDR + offset, val, bytes);
 }
 
 static struct nvmem_config mlx90640_nvram_config = {
@@ -168,7 +174,7 @@ static int amg88xx_xfer(struct video_i2c_data *data, char *buf)
 
 static int mlx90640_xfer(struct video_i2c_data *data, char *buf)
 {
-	return regmap_bulk_read(data->regmap, 0x400, buf,
+	return regmap_bulk_read(data->regmap, MLX90640_RAM_START_ADDR, buf,
 				data->chip->buffer_size);
 }
 
