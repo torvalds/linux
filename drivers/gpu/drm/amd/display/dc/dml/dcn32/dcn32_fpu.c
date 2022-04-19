@@ -30,6 +30,7 @@
 #include "display_mode_vba_util_32.h"
 // We need this includes for WATERMARKS_* defines
 #include "clk_mgr/dcn32/dcn32_smu13_driver_if.h"
+#include "dcn30/dcn30_resource.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -1597,6 +1598,10 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 	double dcfclk_from_validation = context->bw_ctx.dml.vba.DCFCLKState[vlevel][context->bw_ctx.dml.vba.maxMpcComb];
 	bool pstate_en = context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb] !=
 			dm_dram_clock_change_unsupported;
+	unsigned int dummy_latency_index = 0;
+	int maxMpcComb = context->bw_ctx.dml.vba.maxMpcComb;
+	unsigned int min_dram_speed_mts = context->bw_ctx.dml.vba.DRAMSpeed;
+	unsigned int min_dram_speed_mts_margin;
 
 	dc_assert_fp_enabled();
 
@@ -1604,6 +1609,32 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 	if (!pstate_en && dcn32_subvp_in_use(dc, context)) {
 		context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb] = dm_dram_clock_change_vblank_w_mall_sub_vp;
 		pstate_en = true;
+	}
+
+	context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
+
+	if (!pstate_en) {
+		/* only when the mclk switch can not be natural, is the fw based vblank stretch attempted */
+		context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching =
+			dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(dc, context);
+
+		if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching) {
+			dummy_latency_index = dcn30_find_dummy_latency_index_for_fw_based_mclk_switch(dc,
+				context, pipes, pipe_cnt, vlevel);
+
+			/* After calling dcn30_find_dummy_latency_index_for_fw_based_mclk_switch
+			 * we reinstate the original dram_clock_change_latency_us on the context
+			 * and all variables that may have changed up to this point, except the
+			 * newly found dummy_latency_index
+			 */
+			context->bw_ctx.dml.soc.dram_clock_change_latency_us =
+					dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
+			dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
+			maxMpcComb = context->bw_ctx.dml.vba.maxMpcComb;
+			dcfclk = context->bw_ctx.dml.vba.DCFCLKState[vlevel][context->bw_ctx.dml.vba.maxMpcComb];
+			pstate_en = context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][maxMpcComb] !=
+					dm_dram_clock_change_unsupported;
+		}
 	}
 
 	/* Set B:
@@ -1687,19 +1718,33 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 	pipes[0].clks_cfg.socclk_mhz = context->bw_ctx.dml.soc.clock_limits[vlevel].socclk_mhz;
 
 	if (dc->clk_mgr->bw_params->wm_table.nv_entries[WM_C].valid) {
-		unsigned int min_dram_speed_mts = context->bw_ctx.dml.vba.DRAMSpeed;
-		unsigned int min_dram_speed_mts_margin = 160;
+		min_dram_speed_mts = context->bw_ctx.dml.vba.DRAMSpeed;
+		min_dram_speed_mts_margin = 160;
 
-		if (context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb] ==
-				dm_dram_clock_change_unsupported)
-			min_dram_speed_mts = dc->clk_mgr->bw_params->clk_table.entries[dc->clk_mgr->bw_params->clk_table.num_entries - 1].memclk_mhz * 16;
+		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
+			dc->clk_mgr->bw_params->dummy_pstate_table[0].dummy_pstate_latency_us;
 
-		/* find largest table entry that is lower than dram speed, but lower than DPM0 still uses DPM0 */
-		for (i = 3; i > 0; i--)
-			if (min_dram_speed_mts + min_dram_speed_mts_margin > dc->clk_mgr->bw_params->dummy_pstate_table[i].dram_speed_mts)
-				break;
+		if (context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][maxMpcComb] ==
+			dm_dram_clock_change_unsupported) {
+			int min_dram_speed_mts_offset = dc->clk_mgr->bw_params->clk_table.num_entries - 1;
 
-		context->bw_ctx.dml.soc.dram_clock_change_latency_us = dc->clk_mgr->bw_params->dummy_pstate_table[i].dummy_pstate_latency_us;
+			min_dram_speed_mts =
+				dc->clk_mgr->bw_params->clk_table.entries[min_dram_speed_mts_offset].memclk_mhz * 16;
+		}
+
+		if (!context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching) {
+			/* find largest table entry that is lower than dram speed,
+			 * but lower than DPM0 still uses DPM0
+			 */
+			for (dummy_latency_index = 3; dummy_latency_index > 0; dummy_latency_index--)
+				if (min_dram_speed_mts + min_dram_speed_mts_margin >
+					dc->clk_mgr->bw_params->dummy_pstate_table[dummy_latency_index].dram_speed_mts)
+					break;
+		}
+
+		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
+			dc->clk_mgr->bw_params->dummy_pstate_table[dummy_latency_index].dummy_pstate_latency_us;
+
 		context->bw_ctx.dml.soc.fclk_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_C].dml_input.fclk_change_latency_us;
 		context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_C].dml_input.sr_enter_plus_exit_time_us;
 		context->bw_ctx.dml.soc.sr_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_C].dml_input.sr_exit_time_us;
@@ -1770,6 +1815,8 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
 				dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
 
+	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching)
+		dcn30_setup_mclk_switch_using_fw_based_vblank_stretch(dc, context);
 }
 
 static void dcn32_get_optimal_dcfclk_fclk_for_uclk(unsigned int uclk_mts,
