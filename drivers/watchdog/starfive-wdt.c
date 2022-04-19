@@ -200,13 +200,9 @@ MODULE_DEVICE_TABLE(platform, si5wdt_ids);
 
 static int si5wdt_get_clock_rate(struct stf_si5_wdt *wdt)
 {
+#ifdef CONFIG_STARFIVE_BOARD_FPGA
 	int ret;
 	u32 freq;
-
-	if (!IS_ERR(wdt->core_clk)) {
-		wdt->freq = clk_get_rate(wdt->core_clk);
-		return 0;
-	}
 
 	/* Next we try to get clock-frequency from dts.*/
 	ret = of_property_read_u32(wdt->dev->of_node, "clock-frequency", &freq);
@@ -216,6 +212,12 @@ static int si5wdt_get_clock_rate(struct stf_si5_wdt *wdt)
 	}
 	else
 		dev_err(wdt->dev, "get rate failed, need clock-frequency define in dts.\n");
+#else
+	if (!IS_ERR(wdt->core_clk)) {
+		wdt->freq = clk_get_rate(wdt->core_clk);
+		return 0;
+	}
+#endif
 
 	return -ENOENT;
 }
