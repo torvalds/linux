@@ -92,14 +92,14 @@
 		led-0 {
 			label = "debug0";
 			function = LED_FUNCTION_HEARTBEAT;
-			gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
 		led-1 {
 			label = "debug1";
 			function = LED_FUNCTION_DISK;
-			gpios = <&gpio4 17 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "disk-activity";
 		};
 
