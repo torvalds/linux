@@ -6,7 +6,7 @@
 
 /dts-v1/;
 #include "imx6dl.dtsi"
-#include "imx6qdl-victgo.dtsi"
+#include "imx6qdl-vicut1.dtsi"
 
 / {
 	model = "Kverneland TGO";
