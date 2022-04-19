@@ -340,4 +340,3 @@ module_platform_driver(cdns_ufs_pltfrm_driver);
 MODULE_AUTHOR("Jan Kotas <jank@cadence.com>");
 MODULE_DESCRIPTION("Cadence UFS host controller platform driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(UFSHCD_DRIVER_VERSION);
