@@ -201,13 +201,6 @@ struct msm_kms *dpu_kms_init(struct drm_device *dev);
 extern const struct of_device_id dpu_dt_match[];
 extern const struct of_device_id mdp5_dt_match[];
 
-struct msm_mdss;
-
-struct msm_mdss *msm_mdss_init(struct platform_device *pdev, bool is_mdp5);
-int msm_mdss_enable(struct msm_mdss *mdss);
-int msm_mdss_disable(struct msm_mdss *mdss);
-void msm_mdss_destroy(struct msm_mdss *mdss);
-
 #define for_each_crtc_mask(dev, crtc, crtc_mask) \
 	drm_for_each_crtc(crtc, dev) \
 		for_each_if (drm_crtc_mask(crtc) & (crtc_mask))

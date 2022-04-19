@@ -408,10 +408,18 @@ static inline void msm_dp_debugfs_init(struct msm_dp *dp_display,
 
 #endif
 
-void __init msm_mdp_register(void);
-void __exit msm_mdp_unregister(void);
-void __init msm_dpu_register(void);
-void __exit msm_dpu_unregister(void);
+#define KMS_MDP4 4
+#define KMS_MDP5 5
+#define KMS_DPU  3
+
+void msm_mdp4_register(void);
+void msm_mdp4_unregister(void);
+void msm_mdp_register(void);
+void msm_mdp_unregister(void);
+void msm_dpu_register(void);
+void msm_dpu_unregister(void);
+void msm_mdss_register(void);
+void msm_mdss_unregister(void);
 
 #ifdef CONFIG_DEBUG_FS
 void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);
@@ -510,5 +518,16 @@ static inline unsigned long timeout_to_jiffies(const ktime_t *timeout)
 
 	return clamp(remaining_jiffies, 0LL, (s64)INT_MAX);
 }
+
+/* Driver helpers */
+
+extern const struct component_master_ops msm_drm_ops;
+
+int msm_pm_prepare(struct device *dev);
+void msm_pm_complete(struct device *dev);
+
+int msm_drv_probe(struct device *master_dev, struct device *mdp_dev);
+void msm_drv_shutdown(struct platform_device *pdev);
+
 
 #endif /* __MSM_DRV_H__ */

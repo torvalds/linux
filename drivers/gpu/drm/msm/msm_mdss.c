@@ -10,6 +10,9 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/pm_runtime.h>
 
+#include "msm_drv.h"
+#include "msm_kms.h"
+
 /* for DPU_HW_* defines */
 #include "disp/dpu1/dpu_hw_catalog.h"
 
@@ -127,7 +130,7 @@ static int _msm_mdss_irq_domain_add(struct msm_mdss *msm_mdss)
 	return 0;
 }
 
-int msm_mdss_enable(struct msm_mdss *msm_mdss)
+static int msm_mdss_enable(struct msm_mdss *msm_mdss)
 {
 	int ret;
 
@@ -170,14 +173,14 @@ int msm_mdss_enable(struct msm_mdss *msm_mdss)
 	return ret;
 }
 
-int msm_mdss_disable(struct msm_mdss *msm_mdss)
+static int msm_mdss_disable(struct msm_mdss *msm_mdss)
 {
 	clk_bulk_disable_unprepare(msm_mdss->num_clocks, msm_mdss->clocks);
 
 	return 0;
 }
 
-void msm_mdss_destroy(struct msm_mdss *msm_mdss)
+static void msm_mdss_destroy(struct msm_mdss *msm_mdss)
 {
 	struct platform_device *pdev = to_platform_device(msm_mdss->dev);
 	int irq;
@@ -220,7 +223,7 @@ static int mdp5_mdss_parse_clock(struct platform_device *pdev, struct clk_bulk_d
 	return num_clocks;
 }
 
-struct msm_mdss *msm_mdss_init(struct platform_device *pdev, bool is_mdp5)
+static struct msm_mdss *msm_mdss_init(struct platform_device *pdev, bool is_mdp5)
 {
 	struct msm_mdss *msm_mdss;
 	int ret;
@@ -263,4 +266,168 @@ struct msm_mdss *msm_mdss_init(struct platform_device *pdev, bool is_mdp5)
 	pm_runtime_enable(&pdev->dev);
 
 	return msm_mdss;
+}
+
+static int __maybe_unused mdss_runtime_suspend(struct device *dev)
+{
+	struct msm_drm_private *priv = dev_get_drvdata(dev);
+
+	DBG("");
+
+	return msm_mdss_disable(priv->mdss);
+}
+
+static int __maybe_unused mdss_runtime_resume(struct device *dev)
+{
+	struct msm_drm_private *priv = dev_get_drvdata(dev);
+
+	DBG("");
+
+	return msm_mdss_enable(priv->mdss);
+}
+
+static int __maybe_unused mdss_pm_suspend(struct device *dev)
+{
+
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	return mdss_runtime_suspend(dev);
+}
+
+static int __maybe_unused mdss_pm_resume(struct device *dev)
+{
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	return mdss_runtime_resume(dev);
+}
+
+static const struct dev_pm_ops mdss_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(mdss_pm_suspend, mdss_pm_resume)
+	SET_RUNTIME_PM_OPS(mdss_runtime_suspend, mdss_runtime_resume, NULL)
+	.prepare = msm_pm_prepare,
+	.complete = msm_pm_complete,
+};
+
+static int get_mdp_ver(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+
+	return (int) (unsigned long) of_device_get_match_data(dev);
+}
+
+static int find_mdp_node(struct device *dev, void *data)
+{
+	return of_match_node(dpu_dt_match, dev->of_node) ||
+		of_match_node(mdp5_dt_match, dev->of_node);
+}
+
+static int mdss_probe(struct platform_device *pdev)
+{
+	struct msm_mdss *mdss;
+	struct msm_drm_private *priv;
+	int mdp_ver = get_mdp_ver(pdev);
+	struct device *mdp_dev;
+	struct device *dev = &pdev->dev;
+	int ret;
+
+	mdss = msm_mdss_init(pdev, mdp_ver == KMS_MDP5);
+	if (IS_ERR(mdss))
+		return PTR_ERR(mdss);
+
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	priv->mdss = mdss;
+	platform_set_drvdata(pdev, priv);
+
+	/*
+	 * MDP5/DPU based devices don't have a flat hierarchy. There is a top
+	 * level parent: MDSS, and children: MDP5/DPU, DSI, HDMI, eDP etc.
+	 * Populate the children devices, find the MDP5/DPU node, and then add
+	 * the interfaces to our components list.
+	 */
+	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	if (ret) {
+		DRM_DEV_ERROR(dev, "failed to populate children devices\n");
+		goto fail;
+	}
+
+	mdp_dev = device_find_child(dev, NULL, find_mdp_node);
+	if (!mdp_dev) {
+		DRM_DEV_ERROR(dev, "failed to find MDSS MDP node\n");
+		of_platform_depopulate(dev);
+		ret = -ENODEV;
+		goto fail;
+	}
+
+	/*
+	 * on MDP5 based platforms, the MDSS platform device is the component
+	 * that adds MDP5 and other display interface components to
+	 * itself.
+	 */
+	ret = msm_drv_probe(dev, mdp_dev);
+	put_device(mdp_dev);
+	if (ret)
+		goto fail;
+
+	return 0;
+
+fail:
+	of_platform_depopulate(dev);
+	msm_mdss_destroy(priv->mdss);
+
+	return ret;
+}
+
+static int mdss_remove(struct platform_device *pdev)
+{
+	struct msm_drm_private *priv = platform_get_drvdata(pdev);
+	struct msm_mdss *mdss = priv->mdss;
+
+	component_master_del(&pdev->dev, &msm_drm_ops);
+	of_platform_depopulate(&pdev->dev);
+
+	msm_mdss_destroy(mdss);
+
+	return 0;
+}
+
+static const struct of_device_id mdss_dt_match[] = {
+	{ .compatible = "qcom,mdss", .data = (void *)KMS_MDP5 },
+	{ .compatible = "qcom,msm8998-mdss", .data = (void *)KMS_DPU },
+	{ .compatible = "qcom,qcm2290-mdss", .data = (void *)KMS_DPU },
+	{ .compatible = "qcom,sdm845-mdss", .data = (void *)KMS_DPU },
+	{ .compatible = "qcom,sc7180-mdss", .data = (void *)KMS_DPU },
+	{ .compatible = "qcom,sc7280-mdss", .data = (void *)KMS_DPU },
+	{ .compatible = "qcom,sc8180x-mdss", .data = (void *)KMS_DPU },
+	{ .compatible = "qcom,sm8150-mdss", .data = (void *)KMS_DPU },
+	{ .compatible = "qcom,sm8250-mdss", .data = (void *)KMS_DPU },
+	{}
+};
+MODULE_DEVICE_TABLE(of, mdss_dt_match);
+
+static struct platform_driver mdss_platform_driver = {
+	.probe      = mdss_probe,
+	.remove     = mdss_remove,
+	.shutdown   = msm_drv_shutdown,
+	.driver     = {
+		.name   = "msm-mdss",
+		.of_match_table = mdss_dt_match,
+		.pm     = &mdss_pm_ops,
+	},
+};
+
+void __init msm_mdss_register(void)
+{
+	platform_driver_register(&mdss_platform_driver);
+}
+
+void __exit msm_mdss_unregister(void)
+{
+	platform_driver_unregister(&mdss_platform_driver);
 }
