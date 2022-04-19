@@ -20,7 +20,7 @@ static void rt_task_arrival_marker(void *unused, bool preempt,
 {
 	unsigned int cpu = raw_smp_processor_id();
 
-	if (next->policy == SCHED_FIFO)
+	if (next->policy == SCHED_FIFO && next != cpu_rq(cpu)->stop)
 		per_cpu(rt_task_arrival_time, cpu) = rq_clock_task(this_rq());
 	else
 		per_cpu(rt_task_arrival_time, cpu) = 0;
@@ -38,14 +38,12 @@ static void long_running_rt_task_notifier(void *unused, struct rq *rq)
 		return;
 
 	if (per_cpu(rt_task_arrival_time, cpu) && curr->policy != SCHED_FIFO) {
-		/* This should never happen, trying to avoid any false positives */
-		printk_deferred("Long running RT false positive detected for task %s (%d) runtime > %u now=%llu task arrival time=%llu runtime=%llu\n",
-				curr->comm, curr->pid,
-				sysctl_sched_long_running_rt_task_ms * MSEC_TO_NSEC,
-				rq_clock_task(rq),
-				per_cpu(rt_task_arrival_time, cpu),
-				rq_clock_task(rq) -
-				per_cpu(rt_task_arrival_time, cpu));
+		/*
+		 * It is possible that the scheduling policy for the current
+		 * task might get changed after task arrival time stamp is
+		 * noted during sched_switch of RT task. To avoid such false
+		 * positives, reset arrival time stamp.
+		 */
 		per_cpu(rt_task_arrival_time, cpu) = 0;
 		return;
 	}
