@@ -19,11 +19,11 @@
 #define UFS_VENDOR_WDC         0x145
 
 /**
- * ufs_dev_fix - ufs device quirk info
+ * ufs_dev_quirk - ufs device quirk info
  * @card: ufs card details
  * @quirk: device quirk
  */
-struct ufs_dev_fix {
+struct ufs_dev_quirk {
 	u16 wmanufacturerid;
 	u8 *model;
 	unsigned int quirk;
