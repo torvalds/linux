@@ -1448,23 +1448,17 @@ static int ufs_qcom_device_reset(struct ufs_hba *hba)
 
 #if IS_ENABLED(CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND)
 static void ufs_qcom_config_scaling_param(struct ufs_hba *hba,
-					  struct devfreq_dev_profile *p,
-					  void *data)
+					struct devfreq_dev_profile *p,
+					struct devfreq_simple_ondemand_data *d)
 {
-	static struct devfreq_simple_ondemand_data *d;
-
-	if (!data)
-		return;
-
-	d = (struct devfreq_simple_ondemand_data *)data;
 	p->polling_ms = 60;
 	d->upthreshold = 70;
 	d->downdifferential = 5;
 }
 #else
 static void ufs_qcom_config_scaling_param(struct ufs_hba *hba,
-					  struct devfreq_dev_profile *p,
-					  void *data)
+		struct devfreq_dev_profile *p,
+		struct devfreq_simple_ondemand_data *data)
 {
 }
 #endif

@@ -348,8 +348,8 @@ struct ufs_hba_variant_ops {
 	int	(*phy_initialization)(struct ufs_hba *);
 	int	(*device_reset)(struct ufs_hba *hba);
 	void	(*config_scaling_param)(struct ufs_hba *hba,
-					struct devfreq_dev_profile *profile,
-					void *data);
+				struct devfreq_dev_profile *profile,
+				struct devfreq_simple_ondemand_data *data);
 	int	(*program_key)(struct ufs_hba *hba,
 			       const union ufs_crypto_cfg_entry *cfg, int slot);
 	void	(*event_notify)(struct ufs_hba *hba,
@@ -1358,11 +1358,11 @@ static inline int ufshcd_vops_device_reset(struct ufs_hba *hba)
 }
 
 static inline void ufshcd_vops_config_scaling_param(struct ufs_hba *hba,
-						    struct devfreq_dev_profile
-						    *profile, void *data)
+		struct devfreq_dev_profile *p,
+		struct devfreq_simple_ondemand_data *data)
 {
 	if (hba->vops && hba->vops->config_scaling_param)
-		hba->vops->config_scaling_param(hba, profile, data);
+		hba->vops->config_scaling_param(hba, p, data);
 }
 
 extern struct ufs_pm_lvl_states ufs_pm_lvl_states[];
