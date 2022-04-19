@@ -648,24 +648,15 @@ err_module_low_power_set:
 	return err;
 }
 
-int
-mlxsw_env_set_module_power_mode(struct mlxsw_core *mlxsw_core, u8 slot_index,
-				u8 module,
-				enum ethtool_module_power_mode_policy policy,
-				struct netlink_ext_ack *extack)
+static int
+mlxsw_env_set_module_power_mode_apply(struct mlxsw_core *mlxsw_core,
+				      u8 slot_index, u8 module,
+				      enum ethtool_module_power_mode_policy policy,
+				      struct netlink_ext_ack *extack)
 {
-	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
 	struct mlxsw_env_module_info *module_info;
 	bool low_power;
 	int err = 0;
-
-	if (policy != ETHTOOL_MODULE_POWER_MODE_POLICY_HIGH &&
-	    policy != ETHTOOL_MODULE_POWER_MODE_POLICY_AUTO) {
-		NL_SET_ERR_MSG_MOD(extack, "Unsupported power mode policy");
-		return -EOPNOTSUPP;
-	}
-
-	mutex_lock(&mlxsw_env->line_cards_lock);
 
 	err = __mlxsw_env_validate_module_type(mlxsw_core, slot_index, module);
 	if (err) {
@@ -691,7 +682,29 @@ mlxsw_env_set_module_power_mode(struct mlxsw_core *mlxsw_core, u8 slot_index,
 out_set_policy:
 	module_info->power_mode_policy = policy;
 out:
+	return err;
+}
+
+int
+mlxsw_env_set_module_power_mode(struct mlxsw_core *mlxsw_core, u8 slot_index,
+				u8 module,
+				enum ethtool_module_power_mode_policy policy,
+				struct netlink_ext_ack *extack)
+{
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
+	int err;
+
+	if (policy != ETHTOOL_MODULE_POWER_MODE_POLICY_HIGH &&
+	    policy != ETHTOOL_MODULE_POWER_MODE_POLICY_AUTO) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported power mode policy");
+		return -EOPNOTSUPP;
+	}
+
+	mutex_lock(&mlxsw_env->line_cards_lock);
+	err = mlxsw_env_set_module_power_mode_apply(mlxsw_core, slot_index,
+						    module, policy, extack);
 	mutex_unlock(&mlxsw_env->line_cards_lock);
+
 	return err;
 }
 EXPORT_SYMBOL(mlxsw_env_set_module_power_mode);
