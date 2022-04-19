@@ -95,15 +95,17 @@ int nfp_app_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos,
 			__be16 vlan_proto)
 {
 	struct nfp_app *app = nfp_app_from_netdev(netdev);
+	u16 update = NFP_NET_VF_CFG_MB_UPD_VLAN;
+	bool is_proto_sup = true;
 	unsigned int vf_offset;
-	u16 vlan_tci;
+	u32 vlan_tag;
 	int err;
 
 	err = nfp_net_sriov_check(app, vf, NFP_NET_VF_CFG_MB_CAP_VLAN, "vlan");
 	if (err)
 		return err;
 
-	if (vlan_proto != htons(ETH_P_8021Q))
+	if (!eth_type_vlan(vlan_proto))
 		return -EOPNOTSUPP;
 
 	if (vlan > 4095 || qos > 7) {
@@ -112,14 +114,32 @@ int nfp_app_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos,
 		return -EINVAL;
 	}
 
-	/* Write VLAN tag to VF entry in VF config symbol */
-	vlan_tci = FIELD_PREP(NFP_NET_VF_CFG_VLAN_VID, vlan) |
-		FIELD_PREP(NFP_NET_VF_CFG_VLAN_QOS, qos);
-	vf_offset = NFP_NET_VF_CFG_MB_SZ + vf * NFP_NET_VF_CFG_SZ;
-	writew(vlan_tci, app->pf->vfcfg_tbl2 + vf_offset + NFP_NET_VF_CFG_VLAN);
+	/* Check if fw supports or not */
+	err = nfp_net_sriov_check(app, vf, NFP_NET_VF_CFG_MB_CAP_VLAN_PROTO, "vlan_proto");
+	if (err)
+		is_proto_sup = false;
 
-	return nfp_net_sriov_update(app, vf, NFP_NET_VF_CFG_MB_UPD_VLAN,
-				    "vlan");
+	if (vlan_proto != htons(ETH_P_8021Q)) {
+		if (!is_proto_sup)
+			return -EOPNOTSUPP;
+		update |= NFP_NET_VF_CFG_MB_UPD_VLAN_PROTO;
+	}
+
+	/* Write VLAN tag to VF entry in VF config symbol */
+	vlan_tag = FIELD_PREP(NFP_NET_VF_CFG_VLAN_VID, vlan) |
+		FIELD_PREP(NFP_NET_VF_CFG_VLAN_QOS, qos);
+
+	/* vlan_tag of 0 means that the configuration should be cleared and in
+	 * such circumstances setting the TPID has no meaning when
+	 * configuring firmware.
+	 */
+	if (vlan_tag && is_proto_sup)
+		vlan_tag |= FIELD_PREP(NFP_NET_VF_CFG_VLAN_PROT, ntohs(vlan_proto));
+
+	vf_offset = NFP_NET_VF_CFG_MB_SZ + vf * NFP_NET_VF_CFG_SZ;
+	writel(vlan_tag, app->pf->vfcfg_tbl2 + vf_offset + NFP_NET_VF_CFG_VLAN);
+
+	return nfp_net_sriov_update(app, vf, update, "vlan");
 }
 
 int nfp_app_set_vf_spoofchk(struct net_device *netdev, int vf, bool enable)
@@ -209,7 +229,7 @@ int nfp_app_get_vf_config(struct net_device *netdev, int vf,
 {
 	struct nfp_app *app = nfp_app_from_netdev(netdev);
 	unsigned int vf_offset;
-	u16 vlan_tci;
+	u32 vlan_tag;
 	u32 mac_hi;
 	u16 mac_lo;
 	u8 flags;
@@ -225,7 +245,7 @@ int nfp_app_get_vf_config(struct net_device *netdev, int vf,
 	mac_lo = readw(app->pf->vfcfg_tbl2 + vf_offset + NFP_NET_VF_CFG_MAC_LO);
 
 	flags = readb(app->pf->vfcfg_tbl2 + vf_offset + NFP_NET_VF_CFG_CTRL);
-	vlan_tci = readw(app->pf->vfcfg_tbl2 + vf_offset + NFP_NET_VF_CFG_VLAN);
+	vlan_tag = readl(app->pf->vfcfg_tbl2 + vf_offset + NFP_NET_VF_CFG_VLAN);
 
 	memset(ivi, 0, sizeof(*ivi));
 	ivi->vf = vf;
@@ -233,9 +253,10 @@ int nfp_app_get_vf_config(struct net_device *netdev, int vf,
 	put_unaligned_be32(mac_hi, &ivi->mac[0]);
 	put_unaligned_be16(mac_lo, &ivi->mac[4]);
 
-	ivi->vlan = FIELD_GET(NFP_NET_VF_CFG_VLAN_VID, vlan_tci);
-	ivi->qos = FIELD_GET(NFP_NET_VF_CFG_VLAN_QOS, vlan_tci);
-
+	ivi->vlan = FIELD_GET(NFP_NET_VF_CFG_VLAN_VID, vlan_tag);
+	ivi->qos = FIELD_GET(NFP_NET_VF_CFG_VLAN_QOS, vlan_tag);
+	if (!nfp_net_sriov_check(app, vf, NFP_NET_VF_CFG_MB_CAP_VLAN_PROTO, "vlan_proto"))
+		ivi->vlan_proto = htons(FIELD_GET(NFP_NET_VF_CFG_VLAN_PROT, vlan_tag));
 	ivi->spoofchk = FIELD_GET(NFP_NET_VF_CFG_CTRL_SPOOF, flags);
 	ivi->trusted = FIELD_GET(NFP_NET_VF_CFG_CTRL_TRUST, flags);
 	ivi->linkstate = FIELD_GET(NFP_NET_VF_CFG_CTRL_LINK_STATE, flags);

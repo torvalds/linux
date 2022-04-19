@@ -19,6 +19,7 @@
 #define   NFP_NET_VF_CFG_MB_CAP_SPOOF			  (0x1 << 2)
 #define   NFP_NET_VF_CFG_MB_CAP_LINK_STATE		  (0x1 << 3)
 #define   NFP_NET_VF_CFG_MB_CAP_TRUST			  (0x1 << 4)
+#define   NFP_NET_VF_CFG_MB_CAP_VLAN_PROTO		  (0x1 << 5)
 #define NFP_NET_VF_CFG_MB_RET				0x2
 #define NFP_NET_VF_CFG_MB_UPD				0x4
 #define   NFP_NET_VF_CFG_MB_UPD_MAC			  (0x1 << 0)
@@ -26,6 +27,7 @@
 #define   NFP_NET_VF_CFG_MB_UPD_SPOOF			  (0x1 << 2)
 #define   NFP_NET_VF_CFG_MB_UPD_LINK_STATE		  (0x1 << 3)
 #define   NFP_NET_VF_CFG_MB_UPD_TRUST			  (0x1 << 4)
+#define   NFP_NET_VF_CFG_MB_UPD_VLAN_PROTO		  (0x1 << 5)
 #define NFP_NET_VF_CFG_MB_VF_NUM			0x7
 
 /* VF config entry
@@ -43,6 +45,7 @@
 #define     NFP_NET_VF_CFG_LS_MODE_ENABLE		    1
 #define     NFP_NET_VF_CFG_LS_MODE_DISABLE		    2
 #define NFP_NET_VF_CFG_VLAN				0x8
+#define   NFP_NET_VF_CFG_VLAN_PROT			  0xffff0000
 #define   NFP_NET_VF_CFG_VLAN_QOS			  0xe000
 #define   NFP_NET_VF_CFG_VLAN_VID			  0x0fff
 
