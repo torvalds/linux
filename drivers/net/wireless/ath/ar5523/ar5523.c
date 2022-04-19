@@ -1500,7 +1500,7 @@ static int ar5523_load_firmware(struct usb_device *dev)
 		return -ENOENT;
 	}
 
-	txblock = kmalloc(sizeof(*txblock), GFP_KERNEL);
+	txblock = kzalloc(sizeof(*txblock), GFP_KERNEL);
 	if (!txblock)
 		goto out;
 
@@ -1512,7 +1512,6 @@ static int ar5523_load_firmware(struct usb_device *dev)
 	if (!fwbuf)
 		goto out_free_rxblock;
 
-	memset(txblock, 0, sizeof(struct ar5523_fwblock));
 	txblock->flags = cpu_to_be32(AR5523_WRITE_BLOCK);
 	txblock->total = cpu_to_be32(fw->size);
 
