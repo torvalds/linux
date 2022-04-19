@@ -577,21 +577,7 @@ static const struct dev_pm_ops mdp4_pm_ops = {
 
 static int mdp4_probe(struct platform_device *pdev)
 {
-	struct msm_drm_private *priv;
-
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	priv->kms_init = mdp4_kms_init;
-
-	platform_set_drvdata(pdev, priv);
-
-	/*
-	 * on MDP4 based platforms, the MDP platform device is the component
-	 * that adds other display interface components to itself.
-	 */
-	return msm_drv_probe(&pdev->dev, &pdev->dev);
+	return msm_drv_probe(&pdev->dev, mdp4_kms_init);
 }
 
 static int mdp4_remove(struct platform_device *pdev)

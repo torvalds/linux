@@ -380,9 +380,13 @@ static int dpu_kms_parse_data_bus_icc_path(struct dpu_kms *dpu_kms)
 	struct icc_path *path0;
 	struct icc_path *path1;
 	struct drm_device *dev = dpu_kms->dev;
+	struct device *dpu_dev = dev->dev;
+	struct device *mdss_dev = dpu_dev->parent;
 
-	path0 = of_icc_get(dev->dev, "mdp0-mem");
-	path1 = of_icc_get(dev->dev, "mdp1-mem");
+	/* Interconnects are a part of MDSS device tree binding, not the
+	 * MDP/DPU device. */
+	path0 = of_icc_get(mdss_dev, "mdp0-mem");
+	path1 = of_icc_get(mdss_dev, "mdp1-mem");
 
 	if (IS_ERR_OR_NULL(path0))
 		return PTR_ERR_OR_ZERO(path0);
@@ -837,6 +841,9 @@ static void dpu_kms_destroy(struct msm_kms *kms)
 	_dpu_kms_hw_destroy(dpu_kms);
 
 	msm_kms_destroy(&dpu_kms->base);
+
+	if (dpu_kms->rpm_enabled)
+		pm_runtime_disable(&dpu_kms->pdev->dev);
 }
 
 static irqreturn_t dpu_irq(struct msm_kms *kms)
@@ -973,12 +980,16 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 	struct iommu_domain *domain;
 	struct msm_gem_address_space *aspace;
 	struct msm_mmu *mmu;
+	struct device *dpu_dev = dpu_kms->dev->dev;
+	struct device *mdss_dev = dpu_dev->parent;
 
 	domain = iommu_domain_alloc(&platform_bus_type);
 	if (!domain)
 		return 0;
 
-	mmu = msm_iommu_new(dpu_kms->dev->dev, domain);
+	/* IOMMUs are a part of MDSS device tree binding, not the
+	 * MDP/DPU device. */
+	mmu = msm_iommu_new(mdss_dev, domain);
 	if (IS_ERR(mmu)) {
 		iommu_domain_free(domain);
 		return PTR_ERR(mmu);
@@ -1172,39 +1183,14 @@ error:
 	return rc;
 }
 
-static int dpu_kms_init(struct drm_device *dev)
+static int dpu_kms_init(struct drm_device *ddev)
 {
-	struct msm_drm_private *priv;
+	struct msm_drm_private *priv = ddev->dev_private;
+	struct device *dev = ddev->dev;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct dpu_kms *dpu_kms;
 	int irq;
-
-	if (!dev) {
-		DPU_ERROR("drm device node invalid\n");
-		return -EINVAL;
-	}
-
-	priv = dev->dev_private;
-	dpu_kms = to_dpu_kms(priv->kms);
-
-	irq = irq_of_parse_and_map(dpu_kms->pdev->dev.of_node, 0);
-	if (irq < 0) {
-		DPU_ERROR("failed to get irq: %d\n", irq);
-		return irq;
-	}
-	dpu_kms->base.irq = irq;
-
-	return 0;
-}
-
-static int dpu_bind(struct device *dev, struct device *master, void *data)
-{
-	struct msm_drm_private *priv = dev_get_drvdata(master);
-	struct platform_device *pdev = to_platform_device(dev);
-	struct drm_device *ddev = priv->dev;
-	struct dpu_kms *dpu_kms;
 	int ret = 0;
-
-	priv->kms_init = dpu_kms_init;
 
 	dpu_kms = devm_kzalloc(&pdev->dev, sizeof(*dpu_kms), GFP_KERNEL);
 	if (!dpu_kms)
@@ -1227,8 +1213,6 @@ static int dpu_bind(struct device *dev, struct device *master, void *data)
 	}
 	dpu_kms->num_clocks = ret;
 
-	platform_set_drvdata(pdev, dpu_kms);
-
 	ret = msm_kms_init(&dpu_kms->base, &kms_funcs);
 	if (ret) {
 		DPU_ERROR("failed to init kms, ret=%d\n", ret);
@@ -1242,31 +1226,25 @@ static int dpu_bind(struct device *dev, struct device *master, void *data)
 
 	priv->kms = &dpu_kms->base;
 
-	return ret;
+	irq = irq_of_parse_and_map(dpu_kms->pdev->dev.of_node, 0);
+	if (irq < 0) {
+		DPU_ERROR("failed to get irq: %d\n", irq);
+		return irq;
+	}
+	dpu_kms->base.irq = irq;
+
+	return 0;
 }
-
-static void dpu_unbind(struct device *dev, struct device *master, void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct dpu_kms *dpu_kms = platform_get_drvdata(pdev);
-
-	if (dpu_kms->rpm_enabled)
-		pm_runtime_disable(&pdev->dev);
-}
-
-static const struct component_ops dpu_ops = {
-	.bind   = dpu_bind,
-	.unbind = dpu_unbind,
-};
 
 static int dpu_dev_probe(struct platform_device *pdev)
 {
-	return component_add(&pdev->dev, &dpu_ops);
+	return msm_drv_probe(&pdev->dev, dpu_kms_init);
 }
 
 static int dpu_dev_remove(struct platform_device *pdev)
 {
-	component_del(&pdev->dev, &dpu_ops);
+	component_master_del(&pdev->dev, &msm_drm_ops);
+
 	return 0;
 }
 
@@ -1274,7 +1252,8 @@ static int __maybe_unused dpu_runtime_suspend(struct device *dev)
 {
 	int i;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct dpu_kms *dpu_kms = platform_get_drvdata(pdev);
+	struct msm_drm_private *priv = platform_get_drvdata(pdev);
+	struct dpu_kms *dpu_kms = to_dpu_kms(priv->kms);
 
 	/* Drop the performance state vote */
 	dev_pm_opp_set_rate(dev, 0);
@@ -1290,7 +1269,8 @@ static int __maybe_unused dpu_runtime_resume(struct device *dev)
 {
 	int rc = -1;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct dpu_kms *dpu_kms = platform_get_drvdata(pdev);
+	struct msm_drm_private *priv = platform_get_drvdata(pdev);
+	struct dpu_kms *dpu_kms = to_dpu_kms(priv->kms);
 	struct drm_encoder *encoder;
 	struct drm_device *ddev;
 	int i;
@@ -1320,9 +1300,11 @@ static const struct dev_pm_ops dpu_pm_ops = {
 	SET_RUNTIME_PM_OPS(dpu_runtime_suspend, dpu_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
+	.prepare = msm_pm_prepare,
+	.complete = msm_pm_complete,
 };
 
-const struct of_device_id dpu_dt_match[] = {
+static const struct of_device_id dpu_dt_match[] = {
 	{ .compatible = "qcom,msm8998-dpu", },
 	{ .compatible = "qcom,qcm2290-dpu", },
 	{ .compatible = "qcom,sdm845-dpu", },

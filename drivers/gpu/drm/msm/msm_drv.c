@@ -1007,10 +1007,10 @@ static const struct dev_pm_ops msm_pm_ops = {
  * is no external component that we need to add since LVDS is within MDP4
  * itself.
  */
-static int add_components_mdp(struct device *master_dev, struct device *mdp_dev,
+static int add_components_mdp(struct device *master_dev,
 			      struct component_match **matchptr)
 {
-	struct device_node *np = mdp_dev->of_node;
+	struct device_node *np = master_dev->of_node;
 	struct device_node *ep_node;
 
 	for_each_endpoint_of_node(np, ep_node) {
@@ -1020,7 +1020,7 @@ static int add_components_mdp(struct device *master_dev, struct device *mdp_dev,
 
 		ret = of_graph_parse_endpoint(ep_node, &ep);
 		if (ret) {
-			DRM_DEV_ERROR(mdp_dev, "unable to parse port endpoint\n");
+			DRM_DEV_ERROR(master_dev, "unable to parse port endpoint\n");
 			of_node_put(ep_node);
 			return ret;
 		}
@@ -1097,17 +1097,23 @@ const struct component_master_ops msm_drm_ops = {
 	.unbind = msm_drm_unbind,
 };
 
-int msm_drv_probe(struct device *master_dev, struct device *mdp_dev)
+int msm_drv_probe(struct device *master_dev,
+	int (*kms_init)(struct drm_device *dev))
 {
+	struct msm_drm_private *priv;
 	struct component_match *match = NULL;
 	int ret;
 
-	if (mdp_dev) {
-		/* add the MDP component itself */
-		drm_of_component_match_add(master_dev, &match, component_compare_of,
-				mdp_dev->of_node);
+	priv = devm_kzalloc(master_dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
-		ret = add_components_mdp(master_dev, mdp_dev, &match);
+	priv->kms_init = kms_init;
+	dev_set_drvdata(master_dev, priv);
+
+	/* Add mdp components if we have KMS. */
+	if (kms_init) {
+		ret = add_components_mdp(master_dev, &match);
 		if (ret)
 			return ret;
 	}
@@ -1137,14 +1143,6 @@ int msm_drv_probe(struct device *master_dev, struct device *mdp_dev)
 
 static int msm_pdev_probe(struct platform_device *pdev)
 {
-	struct msm_drm_private *priv;
-
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	platform_set_drvdata(pdev, priv);
-
 	return msm_drv_probe(&pdev->dev, NULL);
 }
 

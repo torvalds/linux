@@ -270,20 +270,20 @@ static struct msm_mdss *msm_mdss_init(struct platform_device *pdev, bool is_mdp5
 
 static int __maybe_unused mdss_runtime_suspend(struct device *dev)
 {
-	struct msm_drm_private *priv = dev_get_drvdata(dev);
+	struct msm_mdss *mdss = dev_get_drvdata(dev);
 
 	DBG("");
 
-	return msm_mdss_disable(priv->mdss);
+	return msm_mdss_disable(mdss);
 }
 
 static int __maybe_unused mdss_runtime_resume(struct device *dev)
 {
-	struct msm_drm_private *priv = dev_get_drvdata(dev);
+	struct msm_mdss *mdss = dev_get_drvdata(dev);
 
 	DBG("");
 
-	return msm_mdss_enable(priv->mdss);
+	return msm_mdss_enable(mdss);
 }
 
 static int __maybe_unused mdss_pm_suspend(struct device *dev)
@@ -306,31 +306,12 @@ static int __maybe_unused mdss_pm_resume(struct device *dev)
 static const struct dev_pm_ops mdss_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(mdss_pm_suspend, mdss_pm_resume)
 	SET_RUNTIME_PM_OPS(mdss_runtime_suspend, mdss_runtime_resume, NULL)
-	.prepare = msm_pm_prepare,
-	.complete = msm_pm_complete,
 };
-
-static int find_mdp_node(struct device *dev, void *data)
-{
-#ifdef CONFIG_DRM_MSM_DPU
-	if (of_match_node(dpu_dt_match, dev->of_node))
-		return true;
-#endif
-
-#ifdef CONFIG_DRM_MSM_MDP5
-	if (of_match_node(mdp5_dt_match, dev->of_node))
-		return true;
-#endif
-
-	return false;
-}
 
 static int mdss_probe(struct platform_device *pdev)
 {
 	struct msm_mdss *mdss;
-	struct msm_drm_private *priv;
 	bool is_mdp5 = of_device_is_compatible(pdev->dev.of_node, "qcom,mdss");
-	struct device *mdp_dev;
 	struct device *dev = &pdev->dev;
 	int ret;
 
@@ -338,14 +319,7 @@ static int mdss_probe(struct platform_device *pdev)
 	if (IS_ERR(mdss))
 		return PTR_ERR(mdss);
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	priv->mdss = mdss;
-	platform_set_drvdata(pdev, priv);
+	platform_set_drvdata(pdev, mdss);
 
 	/*
 	 * MDP5/DPU based devices don't have a flat hierarchy. There is a top
@@ -356,42 +330,17 @@ static int mdss_probe(struct platform_device *pdev)
 	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to populate children devices\n");
-		goto fail;
+		msm_mdss_destroy(mdss);
+		return ret;
 	}
-
-	mdp_dev = device_find_child(dev, NULL, find_mdp_node);
-	if (!mdp_dev) {
-		DRM_DEV_ERROR(dev, "failed to find MDSS MDP node\n");
-		of_platform_depopulate(dev);
-		ret = -ENODEV;
-		goto fail;
-	}
-
-	/*
-	 * on MDP5 based platforms, the MDSS platform device is the component
-	 * that adds MDP5 and other display interface components to
-	 * itself.
-	 */
-	ret = msm_drv_probe(dev, mdp_dev);
-	put_device(mdp_dev);
-	if (ret)
-		goto fail;
 
 	return 0;
-
-fail:
-	of_platform_depopulate(dev);
-	msm_mdss_destroy(priv->mdss);
-
-	return ret;
 }
 
 static int mdss_remove(struct platform_device *pdev)
 {
-	struct msm_drm_private *priv = platform_get_drvdata(pdev);
-	struct msm_mdss *mdss = priv->mdss;
+	struct msm_mdss *mdss = platform_get_drvdata(pdev);
 
-	component_master_del(&pdev->dev, &msm_drm_ops);
 	of_platform_depopulate(&pdev->dev);
 
 	msm_mdss_destroy(mdss);

@@ -203,6 +203,8 @@ static int mdp5_set_split_display(struct msm_kms *kms,
 							  slave_encoder);
 }
 
+static void mdp5_destroy(struct platform_device *pdev);
+
 static void mdp5_kms_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
@@ -221,6 +223,7 @@ static void mdp5_kms_destroy(struct msm_kms *kms)
 	}
 
 	mdp_kms_destroy(&mdp5_kms->base);
+	mdp5_destroy(mdp5_kms->pdev);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -544,6 +547,8 @@ static int get_clk(struct platform_device *pdev, struct clk **clkp,
 	return 0;
 }
 
+static int mdp5_init(struct platform_device *pdev, struct drm_device *dev);
+
 static int mdp5_kms_init(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -554,6 +559,8 @@ static int mdp5_kms_init(struct drm_device *dev)
 	struct msm_gem_address_space *aspace;
 	int irq, i, ret;
 	struct device *iommu_dev;
+
+	ret = mdp5_init(to_platform_device(dev->dev), dev);
 
 	/* priv->kms would have been populated by the MDP5 driver */
 	kms = priv->kms;
@@ -804,8 +811,6 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	u32 major, minor;
 	int ret;
 
-	priv->kms_init = mdp5_kms_init;
-
 	mdp5_kms = devm_kzalloc(&pdev->dev, sizeof(*mdp5_kms), GFP_KERNEL);
 	if (!mdp5_kms) {
 		ret = -ENOMEM;
@@ -915,35 +920,14 @@ fail:
 	return ret;
 }
 
-static int mdp5_bind(struct device *dev, struct device *master, void *data)
-{
-	struct msm_drm_private *priv = dev_get_drvdata(master);
-	struct drm_device *ddev = priv->dev;
-	struct platform_device *pdev = to_platform_device(dev);
-
-	DBG("");
-
-	return mdp5_init(pdev, ddev);
-}
-
-static void mdp5_unbind(struct device *dev, struct device *master,
-			void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-
-	mdp5_destroy(pdev);
-}
-
-static const struct component_ops mdp5_ops = {
-	.bind   = mdp5_bind,
-	.unbind = mdp5_unbind,
-};
-
 static int mdp5_setup_interconnect(struct platform_device *pdev)
 {
-	struct icc_path *path0 = of_icc_get(&pdev->dev, "mdp0-mem");
-	struct icc_path *path1 = of_icc_get(&pdev->dev, "mdp1-mem");
-	struct icc_path *path_rot = of_icc_get(&pdev->dev, "rotator-mem");
+	/* Interconnects are a part of MDSS device tree binding, not the
+	 * MDP5 device. */
+	struct device *mdss_dev = pdev->dev.parent;
+	struct icc_path *path0 = of_icc_get(mdss_dev, "mdp0-mem");
+	struct icc_path *path1 = of_icc_get(mdss_dev, "mdp1-mem");
+	struct icc_path *path_rot = of_icc_get(mdss_dev, "rotator-mem");
 
 	if (IS_ERR(path0))
 		return PTR_ERR(path0);
@@ -979,13 +963,13 @@ static int mdp5_dev_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return component_add(&pdev->dev, &mdp5_ops);
+	return msm_drv_probe(&pdev->dev, mdp5_kms_init);
 }
 
 static int mdp5_dev_remove(struct platform_device *pdev)
 {
 	DBG("");
-	component_del(&pdev->dev, &mdp5_ops);
+	component_master_del(&pdev->dev, &msm_drm_ops);
 	return 0;
 }
 
@@ -1011,9 +995,11 @@ static __maybe_unused int mdp5_runtime_resume(struct device *dev)
 
 static const struct dev_pm_ops mdp5_pm_ops = {
 	SET_RUNTIME_PM_OPS(mdp5_runtime_suspend, mdp5_runtime_resume, NULL)
+	.prepare = msm_pm_prepare,
+	.complete = msm_pm_complete,
 };
 
-const struct of_device_id mdp5_dt_match[] = {
+static const struct of_device_id mdp5_dt_match[] = {
 	{ .compatible = "qcom,mdp5", },
 	/* to support downstream DT files */
 	{ .compatible = "qcom,mdss_mdp", },
