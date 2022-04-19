@@ -32,8 +32,10 @@ static void hclgevf_reset_mbx_resp_status(struct hclgevf_dev *hdev)
 /* hclgevf_get_mbx_resp: used to get a response from PF after VF sends a mailbox
  * message to PF.
  * @hdev: pointer to struct hclgevf_dev
- * @resp_msg: pointer to store the original message type and response status
- * @len: the resp_msg data array length.
+ * @code0: the message opcode VF send to PF.
+ * @code1: the message sub-opcode VF send to PF.
+ * @resp_data: pointer to store response data from PF to VF.
+ * @resp_len: the length of resp_data from PF to VF.
  */
 static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 				u8 *resp_data, u16 resp_len)
