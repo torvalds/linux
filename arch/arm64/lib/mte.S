@@ -93,7 +93,7 @@ SYM_FUNC_START(mte_copy_tags_from_user)
 	mov	x3, x1
 	cbz	x2, 2f
 1:
-	user_ldst 2f, ldtrb, w4, x1, 0
+USER(2f, ldtrb	w4, [x1])
 	lsl	x4, x4, #MTE_TAG_SHIFT
 	stg	x4, [x0], #MTE_GRANULE_SIZE
 	add	x1, x1, #1
@@ -120,7 +120,7 @@ SYM_FUNC_START(mte_copy_tags_to_user)
 1:
 	ldg	x4, [x1]
 	ubfx	x4, x4, #MTE_TAG_SHIFT, #MTE_TAG_SIZE
-	user_ldst 2f, sttrb, w4, x0, 0
+USER(2f, sttrb	w4, [x0])
 	add	x0, x0, #1
 	add	x1, x1, #MTE_GRANULE_SIZE
 	subs	x2, x2, #1
