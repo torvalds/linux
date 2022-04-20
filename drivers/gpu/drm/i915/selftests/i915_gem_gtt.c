@@ -1112,10 +1112,16 @@ static int misaligned_case(struct i915_address_space *vm, struct intel_memory_re
 	expected_vma_size = round_up(size, 1 << (ffs(vma->resource->page_sizes_gtt) - 1));
 	expected_node_size = expected_vma_size;
 
-	if (NEEDS_COMPACT_PT(vm->i915) && i915_gem_object_is_lmem(obj)) {
-		/* compact-pt should expand lmem node to 2MB */
+	if (HAS_64K_PAGES(vm->i915) && i915_gem_object_is_lmem(obj)) {
+		/*
+		 * The compact-pt should expand lmem node to 2MB for the ppGTT,
+		 * for all other cases we should only expect 64K.
+		 */
 		expected_vma_size = round_up(size, I915_GTT_PAGE_SIZE_64K);
-		expected_node_size = round_up(size, I915_GTT_PAGE_SIZE_2M);
+		if (NEEDS_COMPACT_PT(vm->i915) && !i915_is_ggtt(vm))
+			expected_node_size = round_up(size, I915_GTT_PAGE_SIZE_2M);
+		else
+			expected_node_size = round_up(size, I915_GTT_PAGE_SIZE_64K);
 	}
 
 	if (vma->size != expected_vma_size || vma->node.size != expected_node_size) {
