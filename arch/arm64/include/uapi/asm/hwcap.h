@@ -79,5 +79,6 @@
 #define HWCAP2_AFP		(1 << 20)
 #define HWCAP2_RPRES		(1 << 21)
 #define HWCAP2_MTE3		(1 << 22)
+#define HWCAP2_WFXT		(1 << 23)
 
 #endif /* _UAPI__ASM_HWCAP_H */
