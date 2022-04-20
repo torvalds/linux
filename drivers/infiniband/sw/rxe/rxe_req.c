@@ -435,7 +435,7 @@ static struct sk_buff *init_req_packet(struct rxe_qp *qp,
 
 static int finish_packet(struct rxe_qp *qp, struct rxe_av *av,
 			 struct rxe_send_wqe *wqe, struct rxe_pkt_info *pkt,
-			 struct sk_buff *skb, u32 paylen)
+			 struct sk_buff *skb, u32 payload)
 {
 	int err;
 
@@ -447,19 +447,19 @@ static int finish_packet(struct rxe_qp *qp, struct rxe_av *av,
 		if (wqe->wr.send_flags & IB_SEND_INLINE) {
 			u8 *tmp = &wqe->dma.inline_data[wqe->dma.sge_offset];
 
-			memcpy(payload_addr(pkt), tmp, paylen);
+			memcpy(payload_addr(pkt), tmp, payload);
 
-			wqe->dma.resid -= paylen;
-			wqe->dma.sge_offset += paylen;
+			wqe->dma.resid -= payload;
+			wqe->dma.sge_offset += payload;
 		} else {
 			err = copy_data(qp->pd, 0, &wqe->dma,
-					payload_addr(pkt), paylen,
+					payload_addr(pkt), payload,
 					RXE_FROM_MR_OBJ);
 			if (err)
 				return err;
 		}
 		if (bth_pad(pkt)) {
-			u8 *pad = payload_addr(pkt) + paylen;
+			u8 *pad = payload_addr(pkt) + payload;
 
 			memset(pad, 0, bth_pad(pkt));
 		}
