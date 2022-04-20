@@ -1196,6 +1196,9 @@ int idxd_wq_request_irq(struct idxd_wq *wq)
 	struct idxd_irq_entry *ie;
 	int rc;
 
+	if (wq->type != IDXD_WQT_KERNEL)
+		return 0;
+
 	ie = &wq->ie;
 	ie->vector = pci_irq_vector(pdev, ie->id);
 	ie->pasid = device_pasid_enabled(idxd) ? idxd->pasid : INVALID_IOASID;
@@ -1227,7 +1230,7 @@ err_irq:
 	return rc;
 }
 
-int __drv_enable_wq(struct idxd_wq *wq)
+int drv_enable_wq(struct idxd_wq *wq)
 {
 	struct idxd_device *idxd = wq->idxd;
 	struct device *dev = &idxd->pdev->dev;
@@ -1328,8 +1331,36 @@ int __drv_enable_wq(struct idxd_wq *wq)
 	}
 
 	wq->client_count = 0;
+
+	rc = idxd_wq_request_irq(wq);
+	if (rc < 0) {
+		idxd->cmd_status = IDXD_SCMD_WQ_IRQ_ERR;
+		dev_dbg(dev, "WQ %d irq setup failed: %d\n", wq->id, rc);
+		goto err_irq;
+	}
+
+	rc = idxd_wq_alloc_resources(wq);
+	if (rc < 0) {
+		idxd->cmd_status = IDXD_SCMD_WQ_RES_ALLOC_ERR;
+		dev_dbg(dev, "WQ resource alloc failed\n");
+		goto err_res_alloc;
+	}
+
+	rc = idxd_wq_init_percpu_ref(wq);
+	if (rc < 0) {
+		idxd->cmd_status = IDXD_SCMD_PERCPU_ERR;
+		dev_dbg(dev, "percpu_ref setup failed\n");
+		goto err_ref;
+	}
+
 	return 0;
 
+err_ref:
+	idxd_wq_free_resources(wq);
+err_res_alloc:
+	idxd_wq_free_irq(wq);
+err_irq:
+	idxd_wq_unmap_portal(wq);
 err_map_portal:
 	rc = idxd_wq_disable(wq, false);
 	if (rc < 0)
@@ -1338,17 +1369,7 @@ err:
 	return rc;
 }
 
-int drv_enable_wq(struct idxd_wq *wq)
-{
-	int rc;
-
-	mutex_lock(&wq->wq_lock);
-	rc = __drv_enable_wq(wq);
-	mutex_unlock(&wq->wq_lock);
-	return rc;
-}
-
-void __drv_disable_wq(struct idxd_wq *wq)
+void drv_disable_wq(struct idxd_wq *wq)
 {
 	struct idxd_device *idxd = wq->idxd;
 	struct device *dev = &idxd->pdev->dev;
@@ -1359,19 +1380,14 @@ void __drv_disable_wq(struct idxd_wq *wq)
 		dev_warn(dev, "Clients has claim on wq %d: %d\n",
 			 wq->id, idxd_wq_refcount(wq));
 
+	idxd_wq_free_resources(wq);
 	idxd_wq_unmap_portal(wq);
-
 	idxd_wq_drain(wq);
 	idxd_wq_reset(wq);
-
+	percpu_ref_exit(&wq->wq_active);
+	idxd_wq_free_irq(wq);
+	wq->type = IDXD_WQT_NONE;
 	wq->client_count = 0;
-}
-
-void drv_disable_wq(struct idxd_wq *wq)
-{
-	mutex_lock(&wq->wq_lock);
-	__drv_disable_wq(wq);
-	mutex_unlock(&wq->wq_lock);
 }
 
 int idxd_device_drv_probe(struct idxd_dev *idxd_dev)
