@@ -692,8 +692,12 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	/*
 	 * ldr_va - load a 32-bit word from the virtual address of \sym
 	 */
-	.macro		ldr_va, rd:req, sym:req, cond
+	.macro		ldr_va, rd:req, sym:req, cond, tmp
+	.ifnb		\tmp
+	__ldst_va	ldr, \rd, \tmp, \sym, \cond
+	.else
 	__ldst_va	ldr, \rd, \rd, \sym, \cond
+	.endif
 	.endm
 
 	/*
@@ -727,9 +731,11 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	 *		  are permitted to overlap with 'rd' if != sp
 	 */
 	.macro		ldr_this_cpu, rd:req, sym:req, t1:req, t2:req
-#if __LINUX_ARM_ARCH__ >= 7 || \
-    !defined(CONFIG_ARM_HAS_GROUP_RELOCS) || \
-    (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS))
+#ifndef CONFIG_SMP
+	ldr_va		\rd, \sym, tmp=\t1
+#elif __LINUX_ARM_ARCH__ >= 7 || \
+      !defined(CONFIG_ARM_HAS_GROUP_RELOCS) || \
+      (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS))
 	this_cpu_offset	\t1
 	mov_l		\t2, \sym
 	ldr		\rd, [\t1, \t2]
