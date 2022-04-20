@@ -244,7 +244,6 @@ static void tpu_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 static int tpu_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			  int duty_ns, int period_ns, bool enabled)
 {
-	static const unsigned int prescalers[] = { 1, 4, 16, 64 };
 	struct tpu_pwm_device *tpd = pwm_get_chip_data(pwm);
 	struct tpu_device *tpu = to_tpu_device(chip);
 	unsigned int prescaler;
@@ -254,26 +253,47 @@ static int tpu_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	u32 duty;
 	int ret;
 
-	/*
-	 * Pick a prescaler to avoid overflowing the counter.
-	 * TODO: Pick the highest acceptable prescaler.
-	 */
 	clk_rate = clk_get_rate(tpu->clk);
 
-	for (prescaler = 0; prescaler < ARRAY_SIZE(prescalers); ++prescaler) {
-		period = clk_rate / prescalers[prescaler]
-		       / (NSEC_PER_SEC / period_ns);
-		if (period <= 0xffff)
-			break;
+	period = clk_rate / (NSEC_PER_SEC / period_ns);
+
+	/*
+	 * Find the minimal prescaler in [0..3] such that
+	 *
+	 *     period >> (2 * prescaler) < 0x10000
+	 *
+	 * This could be calculated using something like:
+	 *
+	 *     prescaler = max(ilog2(period) / 2, 7) - 7;
+	 *
+	 * but given there are only four allowed results and that ilog2 isn't
+	 * cheap on all platforms using a switch statement is more effective.
+	 */
+	switch (period) {
+	case 1 ... 0xffff:
+		prescaler = 0;
+		break;
+
+	case 0x10000 ... 0x3ffff:
+		prescaler = 1;
+		break;
+
+	case 0x40000 ... 0xfffff:
+		prescaler = 2;
+		break;
+
+	case 0x100000 ... 0x3fffff:
+		prescaler = 3;
+		break;
+
+	default:
+		return -EINVAL;
 	}
 
-	if (prescaler == ARRAY_SIZE(prescalers) || period == 0) {
-		dev_err(&tpu->pdev->dev, "clock rate mismatch\n");
-		return -ENOTSUPP;
-	}
+	period >>= 2 * prescaler;
 
 	if (duty_ns) {
-		duty = clk_rate / prescalers[prescaler]
+		duty = (clk_rate >> 2 * prescaler)
 		     / (NSEC_PER_SEC / duty_ns);
 		if (duty > period)
 			return -EINVAL;
@@ -283,7 +303,7 @@ static int tpu_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	dev_dbg(&tpu->pdev->dev,
 		"rate %u, prescaler %u, period %u, duty %u\n",
-		clk_rate, prescalers[prescaler], period, duty);
+		clk_rate, 1 << (2 * prescaler), period, duty);
 
 	if (tpd->prescaler == prescaler && tpd->period == period)
 		duty_only = true;
