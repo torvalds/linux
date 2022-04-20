@@ -61,9 +61,8 @@
 	.macro	pabt_helper
 	@ PABORT handler takes pt_regs in r2, fault address in r4 and psr in r5
 #ifdef MULTI_PABORT
-	ldr	ip, .LCprocfns
-	mov	lr, pc
-	ldr	pc, [ip, #PROCESSOR_PABT_FUNC]
+	ldr_va	ip, processor, offset=PROCESSOR_PABT_FUNC
+	bl_r	ip
 #else
 	bl	CPU_PABORT_HANDLER
 #endif
@@ -82,9 +81,8 @@
 	@ the fault status register in r1.  r9 must be preserved.
 	@
 #ifdef MULTI_DABORT
-	ldr	ip, .LCprocfns
-	mov	lr, pc
-	ldr	pc, [ip, #PROCESSOR_DABT_FUNC]
+	ldr_va	ip, processor, offset=PROCESSOR_DABT_FUNC
+	bl_r	ip
 #else
 	bl	CPU_DABORT_HANDLER
 #endif
@@ -302,16 +300,6 @@ __fiq_svc:
  UNWIND(.fnend		)
 ENDPROC(__fiq_svc)
 
-	.align	5
-.LCcralign:
-	.word	cr_alignment
-#ifdef MULTI_DABORT
-.LCprocfns:
-	.word	processor
-#endif
-.LCfp:
-	.word	fp_enter
-
 /*
  * Abort mode handlers
  */
@@ -370,7 +358,7 @@ ENDPROC(__fiq_abt)
  THUMB(	stmia	sp, {r0 - r12}	)
 
  ATRAP(	mrc	p15, 0, r7, c1, c0, 0)
- ATRAP(	ldr	r8, .LCcralign)
+ ATRAP(	ldr_va	r8, cr_alignment)
 
 	ldmia	r0, {r3 - r5}
 	add	r0, sp, #S_PC		@ here for interlock avoidance
@@ -378,8 +366,6 @@ ENDPROC(__fiq_abt)
 
 	str	r3, [sp]		@ save the "real" r0 copied
 					@ from the exception stack
-
- ATRAP(	ldr	r8, [r8, #0])
 
 	@
 	@ We are now ready to fill in the remaining blanks on the stack:
@@ -505,9 +491,7 @@ __und_usr_thumb:
  */
 #if __LINUX_ARM_ARCH__ < 7
 /* If the target CPU may not be Thumb-2-capable, a run-time check is needed: */
-#define NEED_CPU_ARCHITECTURE
-	ldr	r5, .LCcpu_architecture
-	ldr	r5, [r5]
+	ldr_va	r5, cpu_architecture
 	cmp	r5, #CPU_ARCH_ARMv7
 	blo	__und_usr_fault_16		@ 16bit undefined instruction
 /*
@@ -654,12 +638,6 @@ call_fpe:
 	ret.w	lr				@ CP#14 (Debug)
 	ret.w	lr				@ CP#15 (Control)
 
-#ifdef NEED_CPU_ARCHITECTURE
-	.align	2
-.LCcpu_architecture:
-	.word	__cpu_architecture
-#endif
-
 #ifdef CONFIG_NEON
 	.align	6
 
@@ -685,9 +663,8 @@ call_fpe:
 #endif
 
 do_fpe:
-	ldr	r4, .LCfp
 	add	r10, r10, #TI_FPSTATE		@ r10 = workspace
-	ldr	pc, [r4]			@ Call FP module USR entry point
+	ldr_va	pc, fp_enter, tmp=r4		@ Call FP module USR entry point
 
 /*
  * The FP module is called with these registers set:

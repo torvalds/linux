@@ -666,12 +666,11 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	__adldst_l	str, \src, \sym, \tmp, \cond
 	.endm
 
-	.macro		__ldst_va, op, reg, tmp, sym, cond
+	.macro		__ldst_va, op, reg, tmp, sym, cond, offset
 #if __LINUX_ARM_ARCH__ >= 7 || \
     !defined(CONFIG_ARM_HAS_GROUP_RELOCS) || \
     (defined(MODULE) && defined(CONFIG_ARM_MODULE_PLTS))
 	mov_l		\tmp, \sym, \cond
-	\op\cond	\reg, [\tmp]
 #else
 	/*
 	 * Avoid a literal load, by emitting a sequence of ADD/LDR instructions
@@ -683,20 +682,21 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	.reloc		.L0_\@, R_ARM_ALU_PC_G0_NC, \sym
 	.reloc		.L1_\@, R_ARM_ALU_PC_G1_NC, \sym
 	.reloc		.L2_\@, R_ARM_LDR_PC_G2, \sym
-.L0_\@: sub\cond	\tmp, pc, #8
-.L1_\@: sub\cond	\tmp, \tmp, #4
-.L2_\@: \op\cond	\reg, [\tmp, #0]
+.L0_\@: sub\cond	\tmp, pc, #8 - \offset
+.L1_\@: sub\cond	\tmp, \tmp, #4 - \offset
+.L2_\@:
 #endif
+	\op\cond	\reg, [\tmp, #\offset]
 	.endm
 
 	/*
 	 * ldr_va - load a 32-bit word from the virtual address of \sym
 	 */
-	.macro		ldr_va, rd:req, sym:req, cond, tmp
+	.macro		ldr_va, rd:req, sym:req, cond, tmp, offset=0
 	.ifnb		\tmp
-	__ldst_va	ldr, \rd, \tmp, \sym, \cond
+	__ldst_va	ldr, \rd, \tmp, \sym, \cond, \offset
 	.else
-	__ldst_va	ldr, \rd, \rd, \sym, \cond
+	__ldst_va	ldr, \rd, \rd, \sym, \cond, \offset
 	.endif
 	.endm
 
@@ -704,7 +704,7 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	 * str_va - store a 32-bit word to the virtual address of \sym
 	 */
 	.macro		str_va, rn:req, sym:req, tmp:req, cond
-	__ldst_va	str, \rn, \tmp, \sym, \cond
+	__ldst_va	str, \rn, \tmp, \sym, \cond, 0
 	.endm
 
 	/*
