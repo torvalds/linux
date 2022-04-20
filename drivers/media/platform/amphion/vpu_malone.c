@@ -1556,7 +1556,7 @@ int vpu_malone_input_frame(struct vpu_shared_addr *shared,
 	 * merge the data to next frame
 	 */
 	vbuf = to_vb2_v4l2_buffer(vb);
-	if (vpu_vb_is_codecconfig(vbuf) && (s64)vb->timestamp < 0) {
+	if (vpu_vb_is_codecconfig(vbuf)) {
 		inst->extra_size += size;
 		return 0;
 	}
