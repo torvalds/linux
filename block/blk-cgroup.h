@@ -525,8 +525,6 @@ struct blkcg_policy {
 struct blkcg {
 };
 
-#ifdef CONFIG_BLOCK
-
 static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, void *key) { return NULL; }
 static inline struct blkcg_gq *blk_queue_root_blkg(struct request_queue *q)
 { return NULL; }
@@ -554,7 +552,6 @@ static inline bool blk_cgroup_mergeable(struct request *rq, struct bio *bio) { r
 #define blk_queue_for_each_rl(rl, q)	\
 	for ((rl) = &(q)->root_rl; (rl); (rl) = NULL)
 
-#endif	/* CONFIG_BLOCK */
 #endif	/* CONFIG_BLK_CGROUP */
 
 #endif /* _BLK_CGROUP_PRIVATE_H */

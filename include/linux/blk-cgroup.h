@@ -44,15 +44,11 @@ struct cgroup_subsys_state *bio_blkcg_css(struct bio *bio);
 
 static inline void blkcg_maybe_throttle_current(void) { }
 static inline bool blk_cgroup_congested(void) { return false; }
-
-#ifdef CONFIG_BLOCK
 static inline void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay) { }
 static inline struct cgroup_subsys_state *bio_blkcg_css(struct bio *bio)
 {
 	return NULL;
 }
-#endif /* CONFIG_BLOCK */
-
 #endif	/* CONFIG_BLK_CGROUP */
 
 int blkcg_set_fc_appid(char *app_id, u64 cgrp_id, size_t app_id_len);
