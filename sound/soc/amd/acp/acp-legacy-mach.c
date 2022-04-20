@@ -131,6 +131,7 @@ static const struct platform_device_id board_ids[] = {
 };
 static struct platform_driver acp_asoc_audio = {
 	.driver = {
+		.pm = &snd_soc_pm_ops,
 		.name = "acp_mach",
 	},
 	.probe = acp_asoc_probe,
