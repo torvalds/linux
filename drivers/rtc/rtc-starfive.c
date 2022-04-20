@@ -1,20 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2021 StarFive, Inc <samin.guo@starfivetech.com>
+ * RTC driver for the StarFive JH7110 SoC
  *
- * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING
- * CUSTOMERS WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER
- * FOR THEM TO SAVE TIME. AS A RESULT, STARFIVE SHALL NOT BE HELD LIABLE
- * FOR ANY DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY
- * CLAIMS ARISING FROM THE CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE
- * BY CUSTOMERS OF THE CODING INFORMATION CONTAINED HEREIN IN CONNECTION
- * WITH THEIR PRODUCTS.
+ * Copyright (C) 2021 StarFive Technology Co., Ltd.
  */
 
 #include <asm/delay.h>
 #include <linux/bcd.h>
 #include <linux/bitfield.h>
 #include <linux/clk.h>
+#include <linux/reset.h>
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -52,8 +47,8 @@
 #define RTC_SW_CAL_VALUE_MASK	GENMASK(15, 0)
 #define RTC_SW_CAL_MAX		RTC_SW_CAL_VALUE_MASK
 #define RTC_SW_CAL_MIN		0
-#define RTC_TICKS_PER_SEC	(32768)		/* Number of ticks per second */
-#define RTC_PPB_MULT		(1000000000LL)	/* Multiplier for ppb conversions */
+#define RTC_TICKS_PER_SEC	32768		/* Number of ticks per second */
+#define RTC_PPB_MULT		1000000000LL	/* Multiplier for ppb conversions */
 
 /* RTC_HW_CAL_CFG */
 #define RTC_HW_CAL_REF_SEL_SHIFT	0
@@ -67,10 +62,10 @@
 #define RTC_IRQ_ALAEM		BIT(4)
 #define RTC_IRQ_EVT_UPDATE_PSE	BIT(31)	/* WO: Enable of update time&&date, IRQ_EVEVT only */
 #define RTC_IRQ_ALL		(RTC_IRQ_CAL_START \
-				|RTC_IRQ_CAL_FINISH \
-				|RTC_IRQ_CMP \
-				|RTC_IRQ_1SEC \
-				|RTC_IRQ_ALAEM)
+				| RTC_IRQ_CAL_FINISH \
+				| RTC_IRQ_CMP \
+				| RTC_IRQ_1SEC \
+				| RTC_IRQ_ALAEM)
 
 /* CAL_VALUE */
 #define RTC_CAL_VALUE_MASK	GENMASK(15, 0)
@@ -141,6 +136,9 @@ struct sft_rtc {
 	struct completion onesec_done;
 	struct clk *pclk;
 	struct clk *cal_clk;
+	struct reset_control *rst_apb;
+	struct reset_control *rst_cal;
+	struct reset_control *rst_osc;
 	int hw_cal_map;
 	void __iomem *regs;
 	int rtc_irq;
@@ -224,10 +222,9 @@ sft_rtc_set_cal_mode(struct sft_rtc *srtc, enum RTC_CAL_MODE mode)
 
 static int sft_rtc_get_hw_calclk(struct device *dev, unsigned long freq)
 {
-	int i, size;
+	int i;
 
-	size = ARRAY_SIZE(refclk_list);
-	for (i = 0; i < size; i++)
+	for (i = 0; i < ARRAY_SIZE(refclk_list); i++)
 		if (refclk_list[i] == freq)
 			return i;
 
@@ -275,7 +272,8 @@ static inline void sft_rtc_update_pulse(struct sft_rtc *srtc)
 static irqreturn_t sft_rtc_irq_handler(int irq, void *data)
 {
 	struct sft_rtc *srtc = data;
-	u32 irq_flags = 0, irq_mask = 0;
+	u32 irq_flags = 0;
+	u32 irq_mask = 0;
 	u32 val;
 
 	val = readl(srtc->regs + SFT_RTC_IRQ_EVEVT);
@@ -307,7 +305,6 @@ static irqreturn_t sft_rtc_irq_handler(int irq, void *data)
 	 */
 	do {
 		writel(irq_mask, srtc->regs + SFT_RTC_IRQ_EVEVT);
-
 	} while (readl(srtc->regs + SFT_RTC_IRQ_EVEVT) & irq_mask);
 
 	if (irq_flags)
@@ -338,6 +335,7 @@ static int sft_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct sft_rtc *srtc = dev_get_drvdata(dev);
 	u32 val;
+	int ret;
 
 	val = sft_rtc_time2reg(tm);
 	writel(val, srtc->regs + SFT_RTC_CFG_TIME);
@@ -349,8 +347,12 @@ static int sft_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	sft_rtc_update_pulse(srtc);
 
 	/* Ensure that data is fully written */
-	wait_for_completion_interruptible_timeout(&srtc->onesec_done,
-						usecs_to_jiffies(120));
+	ret = wait_for_completion_interruptible_timeout(&srtc->onesec_done,
+							usecs_to_jiffies(120));
+	if (ret) {
+		dev_warn(dev,
+			 "rtc wait for completion interruptible timeout.\n");
+	}
 	return 0;
 }
 
@@ -468,7 +470,7 @@ sft_rtc_hw_adjustmen(struct device *dev, unsigned int enable)
 		sft_rtc_set_cal_hw_enable(srtc, true);
 
 		wait_for_completion_interruptible_timeout(&srtc->cal_done,
-							usecs_to_jiffies(100));
+							  usecs_to_jiffies(100));
 
 		sft_rtc_irq_enable(srtc, RTC_IRQ_CAL_FINISH, false);
 	} else {
@@ -495,14 +497,13 @@ static int sft_rtc_get_cal_clk(struct device *dev, struct sft_rtc *srtc)
 	cal_clk_freq = clk_get_rate(srtc->cal_clk);
 	if (!cal_clk_freq) {
 		dev_warn(dev,
-			"get rate failed, netx try to get from dts.\n");
+			 "get rate failed, next try to get from dts.\n");
 		ret = of_property_read_u32(np, "rtc,cal-clock-freq", &freq);
-		if (!ret)
+		if (!ret) {
 			cal_clk_freq = (u64)freq;
-
-		else {
+		} else {
 			dev_err(dev,
-			"Need rtc,cal-clock-freq define in dts.\n");
+				"Need rtc,cal-clock-freq define in dts.\n");
 			goto err_disable_cal_clk;
 		}
 	}
@@ -530,7 +531,7 @@ static int sft_rtc_get_irq(struct platform_device *pdev, struct sft_rtc *srtc)
 		return -EINVAL;
 
 	ret = devm_request_irq(&pdev->dev, srtc->rtc_irq,
-				sft_rtc_irq_handler, 0,
+			       sft_rtc_irq_handler, 0,
 				KBUILD_MODNAME, srtc);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to request interrupt, %d\n", ret);
@@ -570,6 +571,30 @@ static int sft_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	srtc->rst_apb = devm_reset_control_get_exclusive(dev, "rst_apb");
+	if (IS_ERR(srtc->rst_apb)) {
+		ret = PTR_ERR(srtc->rst_apb);
+		dev_err(dev,
+			"Failed to retrieve the rtc apb reset, %d\n", ret);
+		return ret;
+	}
+
+	srtc->rst_cal = devm_reset_control_get_exclusive(dev, "rst_cal");
+	if (IS_ERR(srtc->rst_cal)) {
+		ret = PTR_ERR(srtc->rst_cal);
+		dev_err(dev,
+			"Failed to retrieve the rtc cal reset, %d\n", ret);
+		return ret;
+	}
+
+	srtc->rst_osc = devm_reset_control_get_exclusive(dev, "rst_osc");
+	if (IS_ERR(srtc->rst_osc)) {
+		ret = PTR_ERR(srtc->rst_osc);
+		dev_err(dev,
+			"Failed to retrieve the rtc osc reset, %d\n", ret);
+		return ret;
+	}
+
 	init_completion(&srtc->cal_done);
 	init_completion(&srtc->onesec_done);
 
@@ -583,6 +608,10 @@ static int sft_rtc_probe(struct platform_device *pdev)
 	ret = sft_rtc_get_cal_clk(dev, srtc);
 	if (ret)
 		goto err_disable_pclk;
+
+	reset_control_deassert(srtc->rst_osc);
+	reset_control_deassert(srtc->rst_apb);
+	reset_control_deassert(srtc->rst_cal);
 
 	ret = sft_rtc_get_irq(pdev, srtc);
 	if (ret)
@@ -678,7 +707,8 @@ static struct platform_driver starfive_rtc_driver = {
 };
 module_platform_driver(starfive_rtc_driver);
 
-MODULE_AUTHOR("samin <samin.guo@starfivetech.com>");
+MODULE_AUTHOR("Samin Guo <samin.guo@starfivetech.com>");
+MODULE_AUTHOR("Hal Feng <hal.feng@starfivetech.com>");
 MODULE_DESCRIPTION("StarFive RTC driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:starfive-rtc");
