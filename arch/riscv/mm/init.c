@@ -567,9 +567,9 @@ static void __init create_p4d_mapping(p4d_t *p4dp,
 	create_pte_mapping(__nextp, __va, __pa, __sz, __prot)
 #define fixmap_pgd_next		((uintptr_t)fixmap_pte)
 #define early_dtb_pgd_next	((uintptr_t)early_dtb_pmd)
-#define create_p4d_mapping(__pmdp, __va, __pa, __sz, __prot)
-#define create_pud_mapping(__pmdp, __va, __pa, __sz, __prot)
-#define create_pmd_mapping(__pmdp, __va, __pa, __sz, __prot)
+#define create_p4d_mapping(__pmdp, __va, __pa, __sz, __prot) do {} while(0)
+#define create_pud_mapping(__pmdp, __va, __pa, __sz, __prot) do {} while(0)
+#define create_pmd_mapping(__pmdp, __va, __pa, __sz, __prot) do {} while(0)
 #endif /* __PAGETABLE_PMD_FOLDED */
 
 void __init create_pgd_mapping(pgd_t *pgdp,
