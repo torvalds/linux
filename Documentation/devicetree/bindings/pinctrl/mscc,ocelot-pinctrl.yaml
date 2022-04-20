@@ -42,6 +42,14 @@ properties:
   "#interrupt-cells":
     const: 2
 
+  resets:
+    maxItems: 1
+
+  reset-names:
+    description: Optional shared switch reset.
+    items:
+      - const: switch
+
 patternProperties:
   '-pins$':
     type: object
