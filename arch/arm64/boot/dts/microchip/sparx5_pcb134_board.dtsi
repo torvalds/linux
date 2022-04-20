@@ -325,69 +325,69 @@
 };
 
 &gpio {
-	i2cmux_pins_i: i2cmux-pins-i {
+	i2cmux_pins_i: i2cmux-pins {
 	       pins = "GPIO_16", "GPIO_17", "GPIO_18", "GPIO_19",
 		      "GPIO_20", "GPIO_22", "GPIO_36", "GPIO_35",
 		      "GPIO_50", "GPIO_51", "GPIO_56", "GPIO_57";
 		function = "twi_scl_m";
 		output-low;
 	};
-	i2cmux_0: i2cmux-0 {
+	i2cmux_0: i2cmux-0-pins {
 		pins = "GPIO_16";
 		function = "twi_scl_m";
 		output-high;
 	};
-	i2cmux_1: i2cmux-1 {
+	i2cmux_1: i2cmux-1-pins {
 		pins = "GPIO_17";
 		function = "twi_scl_m";
 		output-high;
 	};
-	i2cmux_2: i2cmux-2 {
+	i2cmux_2: i2cmux-2-pins {
 		pins = "GPIO_18";
 		function = "twi_scl_m";
 		output-high;
 	};
-	i2cmux_3: i2cmux-3 {
+	i2cmux_3: i2cmux-3-pins {
 		pins = "GPIO_19";
 		function = "twi_scl_m";
 		output-high;
 	};
-	i2cmux_4: i2cmux-4 {
+	i2cmux_4: i2cmux-4-pins {
 		pins = "GPIO_20";
 		function = "twi_scl_m";
 		output-high;
 	};
-	i2cmux_5: i2cmux-5 {
+	i2cmux_5: i2cmux-5-pins {
 		pins = "GPIO_22";
 		function = "twi_scl_m";
 		output-high;
 	};
-	i2cmux_6: i2cmux-6 {
+	i2cmux_6: i2cmux-6-pins {
 		pins = "GPIO_36";
 		function = "twi_scl_m";
 		output-high;
 	};
-	i2cmux_7: i2cmux-7 {
+	i2cmux_7: i2cmux-7-pins {
 		pins = "GPIO_35";
 		function = "twi_scl_m";
 		output-high;
 	};
-	i2cmux_8: i2cmux-8 {
+	i2cmux_8: i2cmux-8-pins {
 		pins = "GPIO_50";
 		function = "twi_scl_m";
 		output-high;
 	};
-	i2cmux_9: i2cmux-9 {
+	i2cmux_9: i2cmux-9-pins {
 		pins = "GPIO_51";
 		function = "twi_scl_m";
 		output-high;
 	};
-	i2cmux_10: i2cmux-10 {
+	i2cmux_10: i2cmux-10-pins {
 		pins = "GPIO_56";
 		function = "twi_scl_m";
 		output-high;
 	};
-	i2cmux_11: i2cmux-11 {
+	i2cmux_11: i2cmux-11-pins {
 		pins = "GPIO_57";
 		function = "twi_scl_m";
 		output-high;
