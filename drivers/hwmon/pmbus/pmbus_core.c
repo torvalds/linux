@@ -2326,6 +2326,9 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 		data->has_status_word = true;
 	}
 
+	/* Make sure PEC is disabled, will be enabled later if needed */
+	client->flags &= ~I2C_CLIENT_PEC;
+
 	/* Enable PEC if the controller and bus supports it */
 	if (!(data->flags & PMBUS_NO_CAPABILITY)) {
 		ret = i2c_smbus_read_byte_data(client, PMBUS_CAPABILITY);
