@@ -1515,8 +1515,6 @@ out_destroy_policy:
 	for_each_cpu(j, policy->real_cpus)
 		remove_cpu_dev_symlink(policy, get_cpu_device(j));
 
-	up_write(&policy->rwsem);
-
 out_offline_policy:
 	if (cpufreq_driver->offline)
 		cpufreq_driver->offline(policy);
@@ -1524,6 +1522,9 @@ out_offline_policy:
 out_exit_policy:
 	if (cpufreq_driver->exit)
 		cpufreq_driver->exit(policy);
+
+	cpumask_clear(policy->cpus);
+	up_write(&policy->rwsem);
 
 out_free_policy:
 	cpufreq_policy_free(policy);
