@@ -503,8 +503,8 @@ static void ip_rt_fix_tos(struct flowi4 *fl4)
 	__u8 tos = RT_FL_TOS(fl4);
 
 	fl4->flowi4_tos = tos & IPTOS_RT_MASK;
-	fl4->flowi4_scope = tos & RTO_ONLINK ?
-			    RT_SCOPE_LINK : RT_SCOPE_UNIVERSE;
+	if (tos & RTO_ONLINK)
+		fl4->flowi4_scope = RT_SCOPE_LINK;
 }
 
 static void __build_flow_key(const struct net *net, struct flowi4 *fl4,
