@@ -13,6 +13,7 @@
 #include <linux/pwm.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
+#include <linux/reset.h>
 #include <linux/io.h>
 
 /* max channel of pwm */
@@ -60,6 +61,7 @@
 struct starfive_pwm_ptc_device {
 	struct pwm_chip		chip;
 	struct clk		*clk;
+	struct reset_control 	*rst;
 	void __iomem		*regs;
 	int			irq;
 	/* apb clock frequency, from dts */
@@ -207,6 +209,7 @@ static int starfive_pwm_ptc_probe(struct platform_device *pdev)
 	struct starfive_pwm_ptc_device *pwm;
 	struct pwm_chip *chip;
 	struct resource *res;
+	unsigned long clk_tree_freq;
 	int ret;
 
 #if PTC_DEBUG
@@ -230,21 +233,12 @@ static int starfive_pwm_ptc_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(node, "starfive,npwm", &chip->npwm);
 	if (ret < 0 || chip->npwm > MAX_PWM)
 		chip->npwm = MAX_PWM;
-
 #if PTC_DEBUG
 	dev_info(dev, "[%s] npwm:0x%lx....\r\n", __func__, chip->npwm);
 #endif
-	/* get apb clock frequency */
-	ret = of_property_read_u32(node, "starfive,approx-period",
-				   &pwm->approx_period);
 
-#if PTC_DEBUG
-	dev_info(dev, "[%s] approx_period:%d....\r\n",
-		 __func__, pwm->approx_period);
-#endif
 	/* get IO base address*/
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
 #if PTC_DEBUG
 	dev_info(dev, "[%s] res start:0x%lx,end:0x%lx....\r\n",
 		 __func__, res->start, res->end);
@@ -254,16 +248,48 @@ static int starfive_pwm_ptc_probe(struct platform_device *pdev)
 		dev_err(dev, "Unable to map IO resources\n");
 		return PTR_ERR(pwm->regs);
 	}
-
 #if PTC_DEBUG
 	dev_info(dev, "[%s] regs:0x%lx....\r\n", __func__, pwm->regs);
 #endif
 
+	/* get and enable clocks/resets */
 	pwm->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(pwm->clk)) {
-		dev_err(dev, "Unable to find controller clock\n");
+		dev_err(dev, "Unable to get pwm clock\n");
 		return PTR_ERR(pwm->clk);
 	}
+	pwm->rst = devm_reset_control_get_exclusive(dev, NULL);
+	if (IS_ERR(pwm->rst)) {
+		dev_err(dev, "Unable to get pwm reset\n");
+		return PTR_ERR(pwm->rst);
+	}
+
+	ret = clk_prepare_enable(pwm->clk);
+	if (ret) {
+		dev_err(dev,
+			"Failed to enable pwm clock, %d\n", ret);
+		return ret;
+	}
+	reset_control_deassert(pwm->rst);
+
+	/* get apb clock frequency */
+	ret = of_property_read_u32(node, "starfive,approx-period",
+				   &pwm->approx_period);
+	if (ret)
+		pwm->approx_period = 2000000;
+#if PTC_DEBUG
+	dev_info(dev, "[%s] approx_period:%d....\r\n",
+		 __func__, pwm->approx_period);
+#endif
+
+#ifndef HWBOARD_FPGA
+	clk_tree_freq = clk_get_rate(pwm->clk);
+	if (!clk_tree_freq)
+		dev_warn(dev,
+			"get pwm apb clock rate failed.\n");
+	else
+		pwm->approx_period = (unsigned int)clk_tree_freq;
+#endif
 
 	/*
 	 * after add, /sys/class/pwm/pwmchip0/ will appear,'0' is chip->base
@@ -290,6 +316,7 @@ static int starfive_pwm_ptc_remove(struct platform_device *dev)
 	struct starfive_pwm_ptc_device *pwm = platform_get_drvdata(dev);
 	struct pwm_chip *chip = &pwm->chip;
 
+	clk_disable_unprepare(pwm->clk);
 	pwmchip_remove(chip);
 
 	return 0;
