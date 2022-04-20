@@ -1131,8 +1131,9 @@ vector_bhb_loop8_\name:
 3:	W(b)	. + 4
 	subs	r0, r0, #1
 	bne	3b
-	dsb
-	isb
+	dsb	nsh
+	@ isb not needed due to "movs pc, lr" in the vector stub
+	@ which gives a "context synchronisation".
 	b	2b
 ENDPROC(vector_bhb_loop8_\name)
 	.previous

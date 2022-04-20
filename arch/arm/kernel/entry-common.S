@@ -164,7 +164,7 @@ ENTRY(vector_bhb_loop8_swi)
 1:	b	2f
 2:	subs	r8, r8, #1
 	bne	1b
-	dsb
+	dsb	nsh
 	isb
 	b	3f
 ENDPROC(vector_bhb_loop8_swi)
