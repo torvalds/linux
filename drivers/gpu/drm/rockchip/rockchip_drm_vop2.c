@@ -6772,6 +6772,23 @@ static int vop2_zpos_cmp(const void *a, const void *b)
 static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 				  struct drm_crtc_state *crtc_state)
 {
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2_video_port *splice_vp;
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
+
+	if (vop2_has_feature(vop2, VOP_FEATURE_SPLICE)) {
+		if (adjusted_mode->hdisplay > VOP2_MAX_VP_OUTPUT_WIDTH) {
+			vcstate->splice_mode = true;
+			splice_vp = &vop2->vps[vp_data->splice_vp_id];
+			splice_vp->splice_mode_right = true;
+			splice_vp->left_vp = vp;
+		}
+	}
+
 	return 0;
 }
 
