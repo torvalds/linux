@@ -398,10 +398,8 @@ static int tpu_probe(struct platform_device *pdev)
 		return PTR_ERR(tpu->base);
 
 	tpu->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(tpu->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
-		return PTR_ERR(tpu->clk);
-	}
+	if (IS_ERR(tpu->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(tpu->clk), "Failed to get clock\n");
 
 	/* Initialize and register the device. */
 	platform_set_drvdata(pdev, tpu);
@@ -414,9 +412,8 @@ static int tpu_probe(struct platform_device *pdev)
 
 	ret = pwmchip_add(&tpu->chip);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to register PWM chip\n");
 		pm_runtime_disable(&pdev->dev);
-		return ret;
+		return dev_err_probe(&pdev->dev, ret, "Failed to register PWM chip\n");
 	}
 
 	return 0;
