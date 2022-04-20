@@ -402,7 +402,9 @@ static int add_event_tool(struct list_head *list, int *idx,
 	if (!evsel)
 		return -ENOMEM;
 	evsel->tool_event = tool_event;
-	if (tool_event == PERF_TOOL_DURATION_TIME) {
+	if (tool_event == PERF_TOOL_DURATION_TIME
+	    || tool_event == PERF_TOOL_USER_TIME
+	    || tool_event == PERF_TOOL_SYSTEM_TIME) {
 		free((char *)evsel->unit);
 		evsel->unit = strdup("ns");
 	}
