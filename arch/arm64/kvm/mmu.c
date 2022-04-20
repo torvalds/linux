@@ -258,8 +258,8 @@ static bool kvm_host_owns_hyp_mappings(void)
 	return true;
 }
 
-static int __create_hyp_mappings(unsigned long start, unsigned long size,
-				 unsigned long phys, enum kvm_pgtable_prot prot)
+int __create_hyp_mappings(unsigned long start, unsigned long size,
+			  unsigned long phys, enum kvm_pgtable_prot prot)
 {
 	int err;
 
