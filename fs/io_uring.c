@@ -6509,9 +6509,12 @@ static struct io_kiocb *io_timeout_extract(struct io_ring_ctx *ctx,
 
 static int io_timeout_cancel(struct io_ring_ctx *ctx, __u64 user_data)
 	__must_hold(&ctx->completion_lock)
-	__must_hold(&ctx->timeout_lock)
 {
-	struct io_kiocb *req = io_timeout_extract(ctx, user_data);
+	struct io_kiocb *req;
+
+	spin_lock_irq(&ctx->timeout_lock);
+	req = io_timeout_extract(ctx, user_data);
+	spin_unlock_irq(&ctx->timeout_lock);
 
 	if (IS_ERR(req))
 		return PTR_ERR(req);
@@ -6630,9 +6633,7 @@ static int io_timeout_remove(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (!(req->timeout_rem.flags & IORING_TIMEOUT_UPDATE)) {
 		spin_lock(&ctx->completion_lock);
-		spin_lock_irq(&ctx->timeout_lock);
 		ret = io_timeout_cancel(ctx, tr->addr);
-		spin_unlock_irq(&ctx->timeout_lock);
 		spin_unlock(&ctx->completion_lock);
 	} else {
 		enum hrtimer_mode mode = io_translate_timeout_mode(tr->flags);
@@ -6818,10 +6819,7 @@ static int io_try_cancel_userdata(struct io_kiocb *req, u64 sqe_addr)
 	ret = io_poll_cancel(ctx, sqe_addr, false);
 	if (ret != -ENOENT)
 		goto out;
-
-	spin_lock_irq(&ctx->timeout_lock);
 	ret = io_timeout_cancel(ctx, sqe_addr);
-	spin_unlock_irq(&ctx->timeout_lock);
 out:
 	spin_unlock(&ctx->completion_lock);
 	return ret;
