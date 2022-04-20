@@ -522,7 +522,14 @@ static void fscache_perform_lookup(struct fscache_cookie *cookie)
 	}
 
 	fscache_see_cookie(cookie, fscache_cookie_see_active);
-	fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_ACTIVE);
+	spin_lock(&cookie->lock);
+	if (test_and_clear_bit(FSCACHE_COOKIE_DO_INVALIDATE, &cookie->flags))
+		__fscache_set_cookie_state(cookie,
+					   FSCACHE_COOKIE_STATE_INVALIDATING);
+	else
+		__fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_ACTIVE);
+	spin_unlock(&cookie->lock);
+	wake_up_cookie_state(cookie);
 	trace = fscache_access_lookup_cookie_end;
 
 out:
@@ -756,6 +763,9 @@ again_locked:
 			cookie->volume->cache->ops->withdraw_cookie(cookie);
 			spin_lock(&cookie->lock);
 		}
+
+		if (test_and_clear_bit(FSCACHE_COOKIE_DO_INVALIDATE, &cookie->flags))
+			fscache_end_cookie_access(cookie, fscache_access_invalidate_cookie_end);
 
 		switch (state) {
 		case FSCACHE_COOKIE_STATE_RELINQUISHING:
@@ -1053,6 +1063,9 @@ void __fscache_invalidate(struct fscache_cookie *cookie,
 		return;
 
 	case FSCACHE_COOKIE_STATE_LOOKING_UP:
+		__fscache_begin_cookie_access(cookie, fscache_access_invalidate_cookie);
+		set_bit(FSCACHE_COOKIE_DO_INVALIDATE, &cookie->flags);
+		fallthrough;
 	case FSCACHE_COOKIE_STATE_CREATING:
 		spin_unlock(&cookie->lock);
 		_leave(" [look %x]", cookie->inval_counter);
