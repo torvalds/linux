@@ -1032,7 +1032,7 @@ static int mlxsw_linecard_types_init(struct mlxsw_core *mlxsw_core,
 	}
 
 	types_info->ini_files = kmalloc_array(types_info->count,
-					      sizeof(struct mlxsw_linecard_ini_file),
+					      sizeof(struct mlxsw_linecard_ini_file *),
 					      GFP_KERNEL);
 	if (!types_info->ini_files) {
 		err = -ENOMEM;
