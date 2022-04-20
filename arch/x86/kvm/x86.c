@@ -9111,7 +9111,7 @@ static void kvm_apicv_init(struct kvm *kvm)
 
 	if (!enable_apicv)
 		set_or_clear_apicv_inhibit(inhibits,
-					   APICV_INHIBIT_REASON_ABSENT, true);
+					   APICV_INHIBIT_REASON_DISABLE, true);
 }
 
 static void kvm_sched_yield(struct kvm_vcpu *vcpu, unsigned long dest_id)
