@@ -223,6 +223,23 @@ struct io_overflow_cqe {
 	struct list_head list;
 };
 
+/*
+ * FFS_SCM is only available on 64-bit archs, for 32-bit we just define it as 0
+ * and define IO_URING_SCM_ALL. For this case, we use SCM for all files as we
+ * can't safely always dereference the file when the task has exited and ring
+ * cleanup is done. If a file is tracked and part of SCM, then unix gc on
+ * process exit may reap it before __io_sqe_files_unregister() is run.
+ */
+#define FFS_NOWAIT		0x1UL
+#define FFS_ISREG		0x2UL
+#if defined(CONFIG_64BIT)
+#define FFS_SCM			0x4UL
+#else
+#define IO_URING_SCM_ALL
+#define FFS_SCM			0x0UL
+#endif
+#define FFS_MASK		~(FFS_NOWAIT|FFS_ISREG|FFS_SCM)
+
 struct io_fixed_file {
 	/* file * with additional FFS_* flags */
 	unsigned long file_ptr;
@@ -1236,12 +1253,16 @@ EXPORT_SYMBOL(io_uring_get_socket);
 #if defined(CONFIG_UNIX)
 static inline bool io_file_need_scm(struct file *filp)
 {
+#if defined(IO_URING_SCM_ALL)
+	return true;
+#else
 	return !!unix_get_socket(filp);
+#endif
 }
 #else
 static inline bool io_file_need_scm(struct file *filp)
 {
-	return 0;
+	return false;
 }
 #endif
 
@@ -1650,10 +1671,6 @@ static bool req_need_defer(struct io_kiocb *req, u32 seq)
 
 	return false;
 }
-
-#define FFS_NOWAIT		0x1UL
-#define FFS_ISREG		0x2UL
-#define FFS_MASK		~(FFS_NOWAIT|FFS_ISREG)
 
 static inline bool io_req_ffs_set(struct io_kiocb *req)
 {
@@ -3197,6 +3214,8 @@ static unsigned int io_file_get_flags(struct file *file)
 		res |= FFS_ISREG;
 	if (__io_file_supports_nowait(file, mode))
 		res |= FFS_NOWAIT;
+	if (io_file_need_scm(file))
+		res |= FFS_SCM;
 	return res;
 }
 
@@ -8478,14 +8497,17 @@ static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 {
 	int i;
 
+#if !defined(IO_URING_SCM_ALL)
 	for (i = 0; i < ctx->nr_user_files; i++) {
 		struct file *file = io_file_from_index(ctx, i);
 
-		if (!file || io_file_need_scm(file))
+		if (!file)
 			continue;
-		io_fixed_file_slot(&ctx->file_table, i)->file_ptr = 0;
+		if (io_fixed_file_slot(&ctx->file_table, i)->file_ptr & FFS_SCM)
+			continue;
 		fput(file);
 	}
+#endif
 
 #if defined(CONFIG_UNIX)
 	if (ctx->ring_sock) {
