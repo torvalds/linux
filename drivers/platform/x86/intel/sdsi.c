@@ -83,7 +83,7 @@ enum sdsi_command {
 
 struct sdsi_mbox_info {
 	u64	*payload;
-	u64	*buffer;
+	void	*buffer;
 	int	size;
 };
 
@@ -165,9 +165,7 @@ static int sdsi_mbox_cmd_read(struct sdsi_priv *priv, struct sdsi_mbox_info *inf
 	total = 0;
 	loop = 0;
 	do {
-		int offset = SDSI_SIZE_MAILBOX * loop;
-		void __iomem *addr = priv->mbox_addr + offset;
-		u64 *buf = info->buffer + offset / SDSI_SIZE_CMD;
+		void *buf = info->buffer + (SDSI_SIZE_MAILBOX * loop);
 		u32 packet_size;
 
 		/* Poll on ready bit */
@@ -198,7 +196,7 @@ static int sdsi_mbox_cmd_read(struct sdsi_priv *priv, struct sdsi_mbox_info *inf
 			break;
 		}
 
-		sdsi_memcpy64_fromio(buf, addr, round_up(packet_size, SDSI_SIZE_CMD));
+		sdsi_memcpy64_fromio(buf, priv->mbox_addr, round_up(packet_size, SDSI_SIZE_CMD));
 
 		total += packet_size;
 
