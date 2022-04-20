@@ -184,6 +184,7 @@
 &usbotg {
 	phy_type = "utmi_wide";
 	disable-over-current;
+	vbus-supply = <&swbst_reg>;
 	/* Device role is not known, keep status disabled */
 };
 
