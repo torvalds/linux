@@ -490,11 +490,15 @@
 			status = "disabled";
 		};
 
+		/* unremovable emmc as mmcblk0 */
 		sdio0: sdio0@16010000 {
 			compatible = "snps,dw-mshc";
 			reg = <0x0 0x16010000 0x0 0x10000>;
-			clocks = <&dwmmc_biuclk>,<&dwmmc_ciuclk>;
+			clocks = <&clkgen JH7110_SDIO0_CLK_AHB>,
+				 <&clkgen JH7110_SDIO0_CLK_SDCARD>;
 			clock-names = "biu","ciu";
+			resets = <&rstgen RSTN_U0_DW_SDIO_AHB>;
+			reset-names = "reset";
 			interrupts = <74>;
 			fifo-depth = <32>;
 			fifo-watermark-aligned;
