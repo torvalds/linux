@@ -285,7 +285,7 @@ struct kvm_kernel_irq_routing_entry;
  * minimize the size of kvm_memory_slot.arch.gfn_track, i.e. allows allocating
  * 2 bytes per gfn instead of 4 bytes per gfn.
  *
- * Indirect upper-level shadow pages are tracked for write-protection via
+ * Upper-level shadow pages having gptes are tracked for write-protection via
  * gfn_track.  As above, gfn_track is a 16 bit counter, so KVM must not create
  * more than 2^16-1 upper-level shadow pages at a single gfn, otherwise
  * gfn_track will overflow and explosions will ensure.
@@ -331,7 +331,8 @@ union kvm_mmu_page_role {
 		unsigned smap_andnot_wp:1;
 		unsigned ad_disabled:1;
 		unsigned guest_mode:1;
-		unsigned :6;
+		unsigned passthrough:1;
+		unsigned :5;
 
 		/*
 		 * This is left at the top of the word so that
