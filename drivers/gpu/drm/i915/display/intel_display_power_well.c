@@ -11,15 +11,15 @@
 #include "intel_de.h"
 #include "intel_display_power_well.h"
 #include "intel_display_types.h"
+#include "intel_dmc.h"
 #include "intel_dpio_phy.h"
 #include "intel_dpll.h"
-#include "intel_dmc.h"
 #include "intel_hotplug.h"
 #include "intel_pcode.h"
 #include "intel_pm.h"
 #include "intel_pps.h"
-#include "intel_vga.h"
 #include "intel_tc.h"
+#include "intel_vga.h"
 #include "vlv_sideband.h"
 #include "vlv_sideband_reg.h"
 
@@ -539,18 +539,6 @@ icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 }
 
 static void
-icl_tc_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
-				  struct i915_power_well *power_well)
-{
-	enum aux_ch aux_ch = icl_aux_pw_to_ch(power_well);
-	struct intel_digital_port *dig_port = aux_ch_to_digital_port(dev_priv, aux_ch);
-
-	icl_tc_port_assert_ref_held(dev_priv, power_well, dig_port);
-
-	hsw_power_well_disable(dev_priv, power_well);
-}
-
-static void
 icl_aux_power_well_enable(struct drm_i915_private *dev_priv,
 			  struct i915_power_well *power_well)
 {
@@ -572,7 +560,7 @@ icl_aux_power_well_disable(struct drm_i915_private *dev_priv,
 	enum phy phy = icl_aux_pw_to_phy(dev_priv, power_well);
 
 	if (intel_phy_is_tc(dev_priv, phy))
-		return icl_tc_phy_aux_power_well_disable(dev_priv, power_well);
+		return hsw_power_well_disable(dev_priv, power_well);
 	else if (IS_ICELAKE(dev_priv))
 		return icl_combo_phy_aux_power_well_disable(dev_priv,
 							    power_well);
@@ -1305,8 +1293,6 @@ static void vlv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 
 	vlv_set_power_well(dev_priv, power_well, false);
 }
-
-#define POWER_DOMAIN_MASK (GENMASK_ULL(POWER_DOMAIN_NUM - 1, 0))
 
 #define BITS_SET(val, bits) (((val) & (bits)) == (bits))
 
