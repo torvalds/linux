@@ -354,6 +354,8 @@ static void avic_kick_target_vcpus(struct kvm *kvm, struct kvm_lapic *source,
 	if (!avic_kick_target_vcpus_fast(kvm, source, icrl, icrh, index))
 		return;
 
+	trace_kvm_avic_kick_vcpu_slowpath(icrh, icrl, index);
+
 	/*
 	 * Wake any target vCPUs that are blocking, i.e. waiting for a wake
 	 * event.  There's no need to signal doorbells, as hardware has handled
