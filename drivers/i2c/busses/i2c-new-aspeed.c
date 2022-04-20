@@ -212,6 +212,10 @@
 
 #define SLAVE_TRIGGER_CMD       (AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN)
 
+/* i2c timeout */
+#define AST_I2C_TIMEOUT_CLK		0x2
+#define AST_I2C_TIMEOUT_COUNT	0x8 /* i2c timeout setting (wait about 35ms) */
+
 struct ast_i2c_timing_table {
 	u32 divisor;
 	u32 timing;
@@ -466,6 +470,9 @@ static u32 aspeed_select_i2c_clock(struct aspeed_new_i2c_bus *i2c_bus)
 		scl_high = (divisor - scl_low - 2) & 0xf;
 		/* Divisor : Base Clock : tCKHighMin : tCK High : tCK Low  */
 		data = ((scl_high - 1) << 20) | (scl_high << 16) | (scl_low << 12) | (baseclk_idx);
+		/* Select time out timer */
+		data |= AST_I2CC_TOUTBASECLK(AST_I2C_TIMEOUT_CLK);
+		data |= AST_I2CC_TTIMEOUT(AST_I2C_TIMEOUT_COUNT);
 	} else {
 		for (i = 0; i < ARRAY_SIZE(aspeed_old_i2c_timing_table); i++) {
 			if ((i2c_bus->apb_clk / aspeed_old_i2c_timing_table[i].divisor) <
@@ -557,6 +564,23 @@ static void aspeed_i2c_slave_packet_irq(struct aspeed_new_i2c_bus *i2c_bus, u32 
 
 	//clear irq fisrt
 	writel(AST_I2CS_PKT_DONE, i2c_bus->reg_base + AST_I2CS_ISR);
+
+	/* Handle i2c slave timeout condition */
+	if (AST_I2CS_INACTIVE_TO & sts) {
+		uint32_t cmd = AST_I2CS_ACTIVE_ALL | AST_I2CS_PKT_MODE_EN;
+
+		/* Set slave mode */
+		if (i2c_bus->mode == DMA_MODE)
+			cmd |= AST_I2CS_RX_DMA_EN;
+		else if (i2c_bus->mode == BUFF_MODE)
+			cmd |= AST_I2CS_RX_BUFF_EN;
+		else
+			cmd &= ~AST_I2CS_PKT_MODE_EN;
+
+		writel(cmd, i2c_bus->reg_base + AST_I2CS_CMD_STS);
+
+		return;
+	}
 
 	sts &= ~(AST_I2CS_PKT_DONE | AST_I2CS_PKT_ERROR);
 
