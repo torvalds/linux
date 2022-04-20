@@ -1021,6 +1021,7 @@ static int max98390_i2c_probe(struct i2c_client *i2c)
 
 	struct max98390_priv *max98390 = NULL;
 	struct i2c_adapter *adapter = i2c->adapter;
+	struct gpio_desc *reset_gpio;
 
 	ret = i2c_check_functionality(adapter,
 		I2C_FUNC_SMBUS_BYTE
@@ -1070,6 +1071,17 @@ static int max98390_i2c_probe(struct i2c_client *i2c)
 		dev_err(&i2c->dev,
 			"Failed to allocate regmap: %d\n", ret);
 		return ret;
+	}
+
+	reset_gpio = devm_gpiod_get_optional(&i2c->dev,
+					     "reset", GPIOD_OUT_HIGH);
+
+	/* Power on device */
+	if (reset_gpio) {
+		usleep_range(1000, 2000);
+		/* bring out of reset */
+		gpiod_set_value_cansleep(reset_gpio, 0);
+		usleep_range(1000, 2000);
 	}
 
 	/* Check Revision ID */
