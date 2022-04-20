@@ -1670,7 +1670,7 @@ static int aspeed_new_i2c_probe(struct platform_device *pdev)
 
 	ret = i2c_add_adapter(&i2c_bus->adap);
 	if (ret < 0)
-		goto free_irq;
+		goto unmap;
 
 	dev_info(i2c_bus->dev, "NEW-I2C: %s [%d]: adapter [%d khz] mode [%d]\n",
 		 pdev->dev.of_node->name, i2c_bus->adap.nr, i2c_bus->bus_frequency / 1000,
