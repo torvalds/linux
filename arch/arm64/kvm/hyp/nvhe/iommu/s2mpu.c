@@ -397,9 +397,25 @@ static u32 host_mmio_reg_access_mask(size_t off, bool is_write)
 	/* Allow EL1 IRQ handler to clear interrupts. */
 	case REG_NS_INTERRUPT_CLEAR:
 		return write_only & ALL_VIDS_BITMAP;
+	/* Allow reading number of sets used by MPTC. */
+	case REG_NS_INFO:
+		return read_only & INFO_NUM_SET_MASK;
 	/* Allow EL1 IRQ handler to read bitmap of pending interrupts. */
 	case REG_NS_FAULT_STATUS:
 		return read_only & ALL_VIDS_BITMAP;
+	/*
+	 * Allow reading MPTC entries for debugging. That involves:
+	 *   - writing (set,way) to READ_MPTC
+	 *   - reading READ_MPTC_*
+	 */
+	case REG_NS_READ_MPTC:
+		return write_only & READ_MPTC_MASK;
+	case REG_NS_READ_MPTC_TAG_PPN:
+		return read_only & READ_MPTC_TAG_PPN_MASK;
+	case REG_NS_READ_MPTC_TAG_OTHERS:
+		return read_only & READ_MPTC_TAG_OTHERS_MASK;
+	case REG_NS_READ_MPTC_DATA:
+		return read_only;
 	}
 
 	/* Allow reading L1ENTRY registers for debugging. */
