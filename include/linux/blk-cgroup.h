@@ -14,16 +14,11 @@
  * 	              Nauman Rafique <nauman@google.com>
  */
 
-#include <linux/cgroup.h>
-#include <linux/percpu.h>
-#include <linux/percpu_counter.h>
-#include <linux/u64_stats_sync.h>
-#include <linux/seq_file.h>
-#include <linux/radix-tree.h>
-#include <linux/blkdev.h>
-#include <linux/atomic.h>
-#include <linux/kthread.h>
-#include <linux/fs.h>
+#include <linux/types.h>
+
+struct bio;
+struct cgroup_subsys_state;
+struct request_queue;
 
 #define FC_APPID_LEN              129
 

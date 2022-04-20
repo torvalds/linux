@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/blkdev.h>
 #include <linux/wait.h>
 #include <linux/rbtree.h>
 #include <linux/kthread.h>

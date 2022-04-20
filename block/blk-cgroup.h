@@ -15,6 +15,8 @@
  */
 
 #include <linux/blk-cgroup.h>
+#include <linux/cgroup.h>
+#include <linux/kthread.h>
 #include <linux/blk-mq.h>
 
 struct blkcg_gq;
