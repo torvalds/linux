@@ -235,6 +235,7 @@ static struct nullb_device *null_alloc_dev(void);
 static void null_free_dev(struct nullb_device *dev);
 static void null_del_dev(struct nullb *nullb);
 static int null_add_dev(struct nullb_device *dev);
+static struct nullb *null_find_dev_by_name(const char *name);
 static void null_free_device_storage(struct nullb_device *dev, bool is_cache);
 
 static inline struct nullb_device *to_nullb_device(struct config_item *item)
@@ -562,6 +563,9 @@ static struct
 config_item *nullb_group_make_item(struct config_group *group, const char *name)
 {
 	struct nullb_device *dev;
+
+	if (null_find_dev_by_name(name))
+		return ERR_PTR(-EEXIST);
 
 	dev = null_alloc_dev();
 	if (!dev)
@@ -2062,7 +2066,13 @@ static int null_add_dev(struct nullb_device *dev)
 
 	null_config_discard(nullb);
 
-	sprintf(nullb->disk_name, "nullb%d", nullb->index);
+	if (config_item_name(&dev->item)) {
+		/* Use configfs dir name as the device name */
+		snprintf(nullb->disk_name, sizeof(nullb->disk_name),
+			 "%s", config_item_name(&dev->item));
+	} else {
+		sprintf(nullb->disk_name, "nullb%d", nullb->index);
+	}
 
 	rv = null_gendisk_register(nullb);
 	if (rv)
@@ -2089,6 +2099,22 @@ out_free_nullb:
 	dev->nullb = NULL;
 out:
 	return rv;
+}
+
+static struct nullb *null_find_dev_by_name(const char *name)
+{
+	struct nullb *nullb = NULL, *nb;
+
+	mutex_lock(&lock);
+	list_for_each_entry(nb, &nullb_list, list) {
+		if (strcmp(nb->disk_name, name) == 0) {
+			nullb = nb;
+			break;
+		}
+	}
+	mutex_unlock(&lock);
+
+	return nullb;
 }
 
 static int null_create_dev(void)
