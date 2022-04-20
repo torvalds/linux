@@ -1005,6 +1005,13 @@ static struct cftype blkcg_legacy_files[] = {
 	{ }	/* terminate */
 };
 
+#ifdef CONFIG_CGROUP_WRITEBACK
+struct list_head *blkcg_get_cgwb_list(struct cgroup_subsys_state *css)
+{
+	return &css_to_blkcg(css)->cgwb_list;
+}
+#endif
+
 /*
  * blkcg destruction is a three-stage process.
  *
@@ -1112,7 +1119,7 @@ void blkcg_unpin_online(struct cgroup_subsys_state *blkcg_css)
 static void blkcg_css_offline(struct cgroup_subsys_state *css)
 {
 	/* this prevents anyone from attaching or migrating to this blkcg */
-	wb_blkcg_offline(css_to_blkcg(css));
+	wb_blkcg_offline(css);
 
 	/* put the base online pin allowing step 2 to be triggered */
 	blkcg_unpin_online(css);

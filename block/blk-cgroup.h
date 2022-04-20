@@ -17,10 +17,38 @@
 #include <linux/blk-cgroup.h>
 #include <linux/blk-mq.h>
 
+struct blkcg_gq;
+struct blkg_policy_data;
+
+
 /* percpu_counter batch for blkg_[rw]stats, per-cpu drift doesn't matter */
 #define BLKG_STAT_CPU_BATCH	(INT_MAX / 2)
 
 #ifdef CONFIG_BLK_CGROUP
+struct blkcg {
+	struct cgroup_subsys_state	css;
+	spinlock_t			lock;
+	refcount_t			online_pin;
+
+	struct radix_tree_root		blkg_tree;
+	struct blkcg_gq	__rcu		*blkg_hint;
+	struct hlist_head		blkg_list;
+
+	struct blkcg_policy_data	*cpd[BLKCG_MAX_POLS];
+
+	struct list_head		all_blkcgs_node;
+#ifdef CONFIG_BLK_CGROUP_FC_APPID
+	char                            fc_app_id[FC_APPID_LEN];
+#endif
+#ifdef CONFIG_CGROUP_WRITEBACK
+	struct list_head		cgwb_list;
+#endif
+};
+
+static inline struct blkcg *css_to_blkcg(struct cgroup_subsys_state *css)
+{
+	return css ? container_of(css, struct blkcg, css) : NULL;
+}
 
 /*
  * A blkcg_gq (blkg) is association between a block cgroup (blkcg) and a

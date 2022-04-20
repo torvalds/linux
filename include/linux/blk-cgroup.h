@@ -37,29 +37,6 @@ enum blkg_iostat_type {
 	BLKG_IOSTAT_NR,
 };
 
-struct blkcg_gq;
-struct blkg_policy_data;
-
-struct blkcg {
-	struct cgroup_subsys_state	css;
-	spinlock_t			lock;
-	refcount_t			online_pin;
-
-	struct radix_tree_root		blkg_tree;
-	struct blkcg_gq	__rcu		*blkg_hint;
-	struct hlist_head		blkg_list;
-
-	struct blkcg_policy_data	*cpd[BLKCG_MAX_POLS];
-
-	struct list_head		all_blkcgs_node;
-#ifdef CONFIG_BLK_CGROUP_FC_APPID
-	char                            fc_app_id[FC_APPID_LEN];
-#endif
-#ifdef CONFIG_CGROUP_WRITEBACK
-	struct list_head		cgwb_list;
-#endif
-};
-
 struct blkg_iostat {
 	u64				bytes[BLKG_IOSTAT_NR];
 	u64				ios[BLKG_IOSTAT_NR];
@@ -114,11 +91,6 @@ extern struct cgroup_subsys_state * const blkcg_root_css;
 void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay);
 void blkcg_maybe_throttle_current(void);
 
-static inline struct blkcg *css_to_blkcg(struct cgroup_subsys_state *css)
-{
-	return css ? container_of(css, struct blkcg, css) : NULL;
-}
-
 /**
  * bio_blkcg - grab the blkcg associated with a bio
  * @bio: target bio
@@ -137,11 +109,9 @@ static inline struct blkcg *bio_blkcg(struct bio *bio)
 bool blk_cgroup_congested(void);
 void blkcg_pin_online(struct cgroup_subsys_state *blkcg_css);
 void blkcg_unpin_online(struct cgroup_subsys_state *blkcg_css);
+struct list_head *blkcg_get_cgwb_list(struct cgroup_subsys_state *css);
 
 #else	/* CONFIG_BLK_CGROUP */
-
-struct blkcg {
-};
 
 struct blkcg_gq {
 };
