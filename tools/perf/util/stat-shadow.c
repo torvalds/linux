@@ -26,6 +26,7 @@
 
 struct runtime_stat rt_stat;
 struct stats walltime_nsecs_stats;
+struct rusage_stats ru_stats;
 
 struct saved_value {
 	struct rb_node rb_node;
@@ -199,6 +200,7 @@ void perf_stat__reset_shadow_stats(void)
 {
 	reset_stat(&rt_stat);
 	memset(&walltime_nsecs_stats, 0, sizeof(walltime_nsecs_stats));
+	memset(&ru_stats, 0, sizeof(ru_stats));
 }
 
 void perf_stat__reset_shadow_per_stat(struct runtime_stat *st)

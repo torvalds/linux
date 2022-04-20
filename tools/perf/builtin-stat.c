@@ -216,6 +216,7 @@ static struct perf_stat_config stat_config = {
 	.run_count		= 1,
 	.metric_only_len	= METRIC_ONLY_LEN,
 	.walltime_nsecs_stats	= &walltime_nsecs_stats,
+	.ru_stats		= &ru_stats,
 	.big_num		= true,
 	.ctl_fd			= -1,
 	.ctl_fd_ack		= -1,
@@ -1010,8 +1011,10 @@ try_again_reset:
 		evlist__reset_prev_raw_counts(evsel_list);
 		runtime_stat_reset(&stat_config);
 		perf_stat__reset_shadow_per_stat(&rt_stat);
-	} else
+	} else {
 		update_stats(&walltime_nsecs_stats, t1 - t0);
+		update_rusage_stats(&ru_stats, &stat_config.ru_data);
+	}
 
 	/*
 	 * Closing a group leader splits the group, and as we only disable
