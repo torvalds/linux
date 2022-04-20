@@ -2086,12 +2086,37 @@ out:
 	return rv;
 }
 
+static int null_create_dev(void)
+{
+	struct nullb_device *dev;
+	int ret;
+
+	dev = null_alloc_dev();
+	if (!dev)
+		return -ENOMEM;
+
+	ret = null_add_dev(dev);
+	if (ret) {
+		null_free_dev(dev);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void null_destroy_dev(struct nullb *nullb)
+{
+	struct nullb_device *dev = nullb->dev;
+
+	null_del_dev(nullb);
+	null_free_dev(dev);
+}
+
 static int __init null_init(void)
 {
 	int ret = 0;
 	unsigned int i;
 	struct nullb *nullb;
-	struct nullb_device *dev;
 
 	if (g_bs > PAGE_SIZE) {
 		pr_warn("invalid block size\n");
@@ -2149,16 +2174,9 @@ static int __init null_init(void)
 	}
 
 	for (i = 0; i < nr_devices; i++) {
-		dev = null_alloc_dev();
-		if (!dev) {
-			ret = -ENOMEM;
+		ret = null_create_dev();
+		if (ret)
 			goto err_dev;
-		}
-		ret = null_add_dev(dev);
-		if (ret) {
-			null_free_dev(dev);
-			goto err_dev;
-		}
 	}
 
 	pr_info("module loaded\n");
@@ -2167,9 +2185,7 @@ static int __init null_init(void)
 err_dev:
 	while (!list_empty(&nullb_list)) {
 		nullb = list_entry(nullb_list.next, struct nullb, list);
-		dev = nullb->dev;
-		null_del_dev(nullb);
-		null_free_dev(dev);
+		null_destroy_dev(nullb);
 	}
 	unregister_blkdev(null_major, "nullb");
 err_conf:
@@ -2190,12 +2206,8 @@ static void __exit null_exit(void)
 
 	mutex_lock(&lock);
 	while (!list_empty(&nullb_list)) {
-		struct nullb_device *dev;
-
 		nullb = list_entry(nullb_list.next, struct nullb, list);
-		dev = nullb->dev;
-		null_del_dev(nullb);
-		null_free_dev(dev);
+		null_destroy_dev(nullb);
 	}
 	mutex_unlock(&lock);
 
