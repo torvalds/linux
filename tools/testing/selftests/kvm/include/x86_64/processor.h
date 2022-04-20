@@ -71,6 +71,8 @@
 #define PTE_NX_MASK             BIT_ULL(63)
 
 #define PAGE_SHIFT		12
+#define PAGE_SIZE		(1ULL << PAGE_SHIFT)
+#define PAGE_MASK		(~(PAGE_SIZE-1))
 
 #define PHYSICAL_PAGE_MASK      GENMASK_ULL(51, 12)
 #define PTE_GET_PFN(pte)        (((pte) & PHYSICAL_PAGE_MASK) >> PAGE_SHIFT)

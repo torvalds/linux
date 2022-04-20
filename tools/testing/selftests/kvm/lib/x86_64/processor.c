@@ -255,13 +255,13 @@ static uint64_t *_vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid,
 	struct kvm_cpuid_entry2 *entry;
 	struct kvm_sregs sregs;
 	int max_phy_addr;
-	/* Set the bottom 52 bits. */
-	uint64_t rsvd_mask = 0x000fffffffffffff;
+	uint64_t rsvd_mask = 0;
 
 	entry = kvm_get_supported_cpuid_index(0x80000008, 0);
 	max_phy_addr = entry->eax & 0x000000ff;
-	/* Clear the bottom bits of the reserved mask. */
-	rsvd_mask = (rsvd_mask >> max_phy_addr) << max_phy_addr;
+	/* Set the high bits in the reserved mask. */
+	if (max_phy_addr < 52)
+		rsvd_mask = GENMASK_ULL(51, max_phy_addr);
 
 	/*
 	 * SDM vol 3, fig 4-11 "Formats of CR3 and Paging-Structure Entries
@@ -271,7 +271,7 @@ static uint64_t *_vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid,
 	 */
 	vcpu_sregs_get(vm, vcpuid, &sregs);
 	if ((sregs.efer & EFER_NX) == 0) {
-		rsvd_mask |= (1ull << 63);
+		rsvd_mask |= PTE_NX_MASK;
 	}
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
@@ -549,7 +549,7 @@ vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 	if (!(pte[index[0]] & PTE_PRESENT_MASK))
 		goto unmapped_gva;
 
-	return (PTE_GET_PFN(pte[index[0]]) * vm->page_size) + (gva & 0xfffu);
+	return (PTE_GET_PFN(pte[index[0]]) * vm->page_size) + (gva & ~PAGE_MASK);
 
 unmapped_gva:
 	TEST_FAIL("No mapping for vm virtual address, gva: 0x%lx", gva);
