@@ -184,7 +184,10 @@ static void gfx_v9_4_3_set_kiq_pm4_funcs(struct amdgpu_device *adev)
 
 static void gfx_v9_4_3_init_golden_registers(struct amdgpu_device *adev)
 {
+	int i;
 
+	for (i = 2; i < adev->gfx.num_xcd; i++)
+		WREG32_SOC15(GC, i, regGRBM_MCM_ADDR, 0x4);
 }
 
 static void gfx_v9_4_3_write_data_to_reg(struct amdgpu_ring *ring, int eng_sel,
