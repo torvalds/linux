@@ -1115,7 +1115,7 @@ static const struct of_device_id mc_pcie_of_match[] = {
 	{},
 };
 
-MODULE_DEVICE_TABLE(of, mc_pcie_of_match)
+MODULE_DEVICE_TABLE(of, mc_pcie_of_match);
 
 static struct platform_driver mc_pcie_driver = {
 	.probe = pci_host_common_probe,
