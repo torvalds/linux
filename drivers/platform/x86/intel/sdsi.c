@@ -245,8 +245,8 @@ static int sdsi_mbox_cmd_write(struct sdsi_priv *priv, struct sdsi_mbox_info *in
 		  FIELD_PREP(CTRL_PACKET_SIZE, info->size);
 	writeq(control, priv->control_addr);
 
-	/* Poll on run_busy bit */
-	ret = readq_poll_timeout(priv->control_addr, control, !(control & CTRL_RUN_BUSY),
+	/* Poll on ready bit */
+	ret = readq_poll_timeout(priv->control_addr, control, control & CTRL_READY,
 				 MBOX_POLLING_PERIOD_US, MBOX_TIMEOUT_US);
 
 	if (ret)
