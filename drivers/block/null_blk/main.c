@@ -2111,19 +2111,21 @@ static int __init null_init(void)
 	}
 
 	if (g_queue_mode == NULL_Q_RQ) {
-		pr_err("legacy IO path no longer available\n");
+		pr_err("legacy IO path is no longer available\n");
 		return -EINVAL;
 	}
+
 	if (g_queue_mode == NULL_Q_MQ && g_use_per_node_hctx) {
 		if (g_submit_queues != nr_online_nodes) {
 			pr_warn("submit_queues param is set to %u.\n",
-							nr_online_nodes);
+				nr_online_nodes);
 			g_submit_queues = nr_online_nodes;
 		}
-	} else if (g_submit_queues > nr_cpu_ids)
+	} else if (g_submit_queues > nr_cpu_ids) {
 		g_submit_queues = nr_cpu_ids;
-	else if (g_submit_queues <= 0)
+	} else if (g_submit_queues <= 0) {
 		g_submit_queues = 1;
+	}
 
 	if (g_queue_mode == NULL_Q_MQ && shared_tags) {
 		ret = null_init_tag_set(NULL, &tag_set);
