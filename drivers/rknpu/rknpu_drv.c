@@ -32,6 +32,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/devfreq_cooling.h>
 #include <linux/regmap.h>
+#include <soc/rockchip/rockchip_iommu.h>
 
 #ifndef FPGA_PLATFORM
 #include <soc/rockchip/rockchip_opp_select.h>
@@ -58,6 +59,8 @@
 #endif
 
 #define POWER_DOWN_FREQ 200000000
+#define NPU_MMU_DISABLED_POLL_PERIOD_US 1000
+#define NPU_MMU_DISABLED_POLL_TIMEOUT_US 20000
 
 static int bypass_irq_handler;
 module_param(bypass_irq_handler, int, 0644);
@@ -674,6 +677,8 @@ out:
 static int rknpu_power_off(struct rknpu_device *rknpu_dev)
 {
 	struct device *dev = rknpu_dev->dev;
+	int ret;
+	bool val;
 
 	rockchip_monitor_volt_adjust_lock(rknpu_dev->mdev_info);
 
@@ -684,9 +689,20 @@ static int rknpu_power_off(struct rknpu_device *rknpu_dev)
 	 * So it may be executed after the NPU is turned off after PD/CLK/VD,
 	 * and the runtime suspend callback has a register access.
 	 * If the PD/VD/CLK is closed, the register access will crash.
-	 * So add a delay to avoid this problem.
+	 * As a workaround, it's safe to close pd stuff until iommu disabled.
+	 * If pm runtime framework can handle this issue in the future, remove
+	 * this.
 	 */
-	msleep(20);
+
+	ret = readx_poll_timeout(rockchip_iommu_is_enabled, dev, val,
+				 !val, NPU_MMU_DISABLED_POLL_PERIOD_US,
+				 NPU_MMU_DISABLED_POLL_TIMEOUT_US);
+	if (ret) {
+		dev_err(dev, "iommu still enabled\n");
+		pm_runtime_get_sync(dev);
+		rockchip_monitor_volt_adjust_unlock(rknpu_dev->mdev_info);
+		return ret;
+	}
 
 	if (rknpu_dev->multiple_domains) {
 		if (rknpu_dev->genpd_dev_npu2)
