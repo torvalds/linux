@@ -11,6 +11,9 @@
 #include <linux/init.h>
 #include "null_blk.h"
 
+#undef pr_fmt
+#define pr_fmt(fmt)	"null_blk: " fmt
+
 #define FREE_BATCH		16
 
 #define TICKS_PER_SEC		50ULL
@@ -2068,6 +2071,8 @@ static int null_add_dev(struct nullb_device *dev)
 	mutex_lock(&lock);
 	list_add_tail(&nullb->list, &nullb_list);
 	mutex_unlock(&lock);
+
+	pr_info("disk %s created\n", nullb->disk_name);
 
 	return 0;
 out_cleanup_zone:
