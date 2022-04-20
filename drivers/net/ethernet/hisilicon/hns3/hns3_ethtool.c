@@ -1106,6 +1106,36 @@ static int hns3_check_ringparam(struct net_device *ndev,
 	return 0;
 }
 
+static bool
+hns3_is_ringparam_changed(struct net_device *ndev,
+			  struct ethtool_ringparam *param,
+			  struct kernel_ethtool_ringparam *kernel_param,
+			  struct hns3_ring_param *old_ringparam,
+			  struct hns3_ring_param *new_ringparam)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = priv->ae_handle;
+	u16 queue_num = h->kinfo.num_tqps;
+
+	new_ringparam->tx_desc_num = ALIGN(param->tx_pending,
+					   HNS3_RING_BD_MULTIPLE);
+	new_ringparam->rx_desc_num = ALIGN(param->rx_pending,
+					   HNS3_RING_BD_MULTIPLE);
+	old_ringparam->tx_desc_num = priv->ring[0].desc_num;
+	old_ringparam->rx_desc_num = priv->ring[queue_num].desc_num;
+	old_ringparam->rx_buf_len = priv->ring[queue_num].buf_size;
+	new_ringparam->rx_buf_len = kernel_param->rx_buf_len;
+
+	if (old_ringparam->tx_desc_num == new_ringparam->tx_desc_num &&
+	    old_ringparam->rx_desc_num == new_ringparam->rx_desc_num &&
+	    old_ringparam->rx_buf_len == new_ringparam->rx_buf_len) {
+		netdev_info(ndev, "ringparam not changed\n");
+		return false;
+	}
+
+	return true;
+}
+
 static int hns3_change_rx_buf_len(struct net_device *ndev, u32 rx_buf_len)
 {
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
@@ -1151,14 +1181,11 @@ static int hns3_set_ringparam(struct net_device *ndev,
 			      struct kernel_ethtool_ringparam *kernel_param,
 			      struct netlink_ext_ack *extack)
 {
+	struct hns3_ring_param old_ringparam, new_ringparam;
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_ring *tmp_rings;
 	bool if_running = netif_running(ndev);
-	u32 old_tx_desc_num, new_tx_desc_num;
-	u32 old_rx_desc_num, new_rx_desc_num;
-	u16 queue_num = h->kinfo.num_tqps;
-	u32 old_rx_buf_len;
 	int ret, i;
 
 	ret = hns3_check_ringparam(ndev, param, kernel_param);
@@ -1169,43 +1196,36 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	if (ret)
 		return ret;
 
-	/* Hardware requires that its descriptors must be multiple of eight */
-	new_tx_desc_num = ALIGN(param->tx_pending, HNS3_RING_BD_MULTIPLE);
-	new_rx_desc_num = ALIGN(param->rx_pending, HNS3_RING_BD_MULTIPLE);
-	old_tx_desc_num = priv->ring[0].desc_num;
-	old_rx_desc_num = priv->ring[queue_num].desc_num;
-	old_rx_buf_len = priv->ring[queue_num].buf_size;
-	if (old_tx_desc_num == new_tx_desc_num &&
-	    old_rx_desc_num == new_rx_desc_num &&
-	    kernel_param->rx_buf_len == old_rx_buf_len)
+	if (!hns3_is_ringparam_changed(ndev, param, kernel_param,
+				       &old_ringparam, &new_ringparam))
 		return 0;
 
 	tmp_rings = hns3_backup_ringparam(priv);
 	if (!tmp_rings) {
-		netdev_err(ndev,
-			   "backup ring param failed by allocating memory fail\n");
+		netdev_err(ndev, "backup ring param failed by allocating memory fail\n");
 		return -ENOMEM;
 	}
 
 	netdev_info(ndev,
-		    "Changing Tx/Rx ring depth from %u/%u to %u/%u, Changing rx buffer len from %d to %d\n",
-		    old_tx_desc_num, old_rx_desc_num,
-		    new_tx_desc_num, new_rx_desc_num,
-		    old_rx_buf_len, kernel_param->rx_buf_len);
+		    "Changing Tx/Rx ring depth from %u/%u to %u/%u, Changing rx buffer len from %u to %u\n",
+		    old_ringparam.tx_desc_num, old_ringparam.rx_desc_num,
+		    new_ringparam.tx_desc_num, new_ringparam.rx_desc_num,
+		    old_ringparam.rx_buf_len, new_ringparam.rx_buf_len);
 
 	if (if_running)
 		ndev->netdev_ops->ndo_stop(ndev);
 
-	hns3_change_all_ring_bd_num(priv, new_tx_desc_num, new_rx_desc_num);
-	hns3_change_rx_buf_len(ndev, kernel_param->rx_buf_len);
+	hns3_change_all_ring_bd_num(priv, new_ringparam.tx_desc_num,
+				    new_ringparam.rx_desc_num);
+	hns3_change_rx_buf_len(ndev, new_ringparam.rx_buf_len);
 	ret = hns3_init_all_ring(priv);
 	if (ret) {
 		netdev_err(ndev, "set ringparam fail, revert to old value(%d)\n",
 			   ret);
 
-		hns3_change_rx_buf_len(ndev, old_rx_buf_len);
-		hns3_change_all_ring_bd_num(priv, old_tx_desc_num,
-					    old_rx_desc_num);
+		hns3_change_rx_buf_len(ndev, old_ringparam.rx_buf_len);
+		hns3_change_all_ring_bd_num(priv, old_ringparam.tx_desc_num,
+					    old_ringparam.rx_desc_num);
 		for (i = 0; i < h->kinfo.num_tqps * 2; i++)
 			memcpy(&priv->ring[i], &tmp_rings[i],
 			       sizeof(struct hns3_enet_ring));
@@ -1415,10 +1435,32 @@ static int hns3_check_ql_coalesce_param(struct net_device *netdev,
 	return 0;
 }
 
-static int hns3_check_coalesce_para(struct net_device *netdev,
-				    struct ethtool_coalesce *cmd)
+static int
+hns3_check_cqe_coalesce_param(struct net_device *netdev,
+			      struct kernel_ethtool_coalesce *kernel_coal)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
+
+	if ((kernel_coal->use_cqe_mode_tx || kernel_coal->use_cqe_mode_rx) &&
+	    !hnae3_ae_dev_cq_supported(ae_dev)) {
+		netdev_err(netdev, "coalesced cqe mode is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int
+hns3_check_coalesce_para(struct net_device *netdev,
+			 struct ethtool_coalesce *cmd,
+			 struct kernel_ethtool_coalesce *kernel_coal)
 {
 	int ret;
+
+	ret = hns3_check_cqe_coalesce_param(netdev, kernel_coal);
+	if (ret)
+		return ret;
 
 	ret = hns3_check_gl_coalesce_para(netdev, cmd);
 	if (ret) {
@@ -1494,7 +1536,7 @@ static int hns3_set_coalesce(struct net_device *netdev,
 	if (hns3_nic_resetting(netdev))
 		return -EBUSY;
 
-	ret = hns3_check_coalesce_para(netdev, cmd);
+	ret = hns3_check_coalesce_para(netdev, cmd, kernel_coal);
 	if (ret)
 		return ret;
 
@@ -1855,23 +1897,27 @@ static int hns3_set_tunable(struct net_device *netdev,
 	case ETHTOOL_TX_COPYBREAK_BUF_SIZE:
 		old_tx_spare_buf_size = h->kinfo.tx_spare_buf_size;
 		new_tx_spare_buf_size = *(u32 *)data;
+		netdev_info(netdev, "request to set tx spare buf size from %u to %u\n",
+			    old_tx_spare_buf_size, new_tx_spare_buf_size);
 		ret = hns3_set_tx_spare_buf_size(netdev, new_tx_spare_buf_size);
 		if (ret ||
 		    (!priv->ring->tx_spare && new_tx_spare_buf_size != 0)) {
 			int ret1;
 
-			netdev_warn(netdev,
-				    "change tx spare buf size fail, revert to old value\n");
+			netdev_warn(netdev, "change tx spare buf size fail, revert to old value\n");
 			ret1 = hns3_set_tx_spare_buf_size(netdev,
 							  old_tx_spare_buf_size);
 			if (ret1) {
-				netdev_err(netdev,
-					   "revert to old tx spare buf size fail\n");
+				netdev_err(netdev, "revert to old tx spare buf size fail\n");
 				return ret1;
 			}
 
 			return ret;
 		}
+
+		netdev_info(netdev, "the actvie tx spare buf size is %u, due to page order\n",
+			    priv->ring->tx_spare->len);
+
 		break;
 	default:
 		ret = -EOPNOTSUPP;

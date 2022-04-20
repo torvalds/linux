@@ -102,7 +102,7 @@ static int hclge_send_mbx_msg(struct hclge_vport *vport, u8 *msg, u16 msg_len,
 	resp_pf_to_vf->msg_len = msg_len;
 	resp_pf_to_vf->msg.code = mbx_opcode;
 
-	memcpy(&resp_pf_to_vf->msg.vf_mbx_msg_code, msg, msg_len);
+	memcpy(resp_pf_to_vf->msg.msg_data, msg, msg_len);
 
 	trace_hclge_pf_mbx_send(hdev, resp_pf_to_vf);
 

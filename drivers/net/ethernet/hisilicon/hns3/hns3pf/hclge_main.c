@@ -10449,6 +10449,9 @@ int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu)
 	/* PF's mps must be greater then VF's mps */
 	for (i = 1; i < hdev->num_alloc_vport; i++)
 		if (max_frm_size < hdev->vport[i].mps) {
+			dev_err(&hdev->pdev->dev,
+				"failed to set pf mtu for less than vport %d, mps = %u.\n",
+				i, hdev->vport[i].mps);
 			mutex_unlock(&hdev->vport_lock);
 			return -EINVAL;
 		}

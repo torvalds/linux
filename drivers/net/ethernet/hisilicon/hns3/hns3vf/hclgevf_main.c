@@ -2963,7 +2963,7 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 		goto err_config;
 	}
 
-	/* ensure vf tbl list as empty before init*/
+	/* ensure vf tbl list as empty before init */
 	ret = hclgevf_clear_vport_list(hdev);
 	if (ret) {
 		dev_err(&pdev->dev,
@@ -3315,7 +3315,7 @@ static void hclgevf_get_regs(struct hnae3_handle *handle, u32 *version,
 		for (i = 0; i < reg_um; i++)
 			*reg++ = hclgevf_read_dev(&hdev->hw,
 						  ring_reg_addr_list[i] +
-						  0x200 * j);
+						  HCLGEVF_TQP_REG_SIZE * j);
 		for (i = 0; i < separator_num; i++)
 			*reg++ = SEPARATOR_VALUE;
 	}

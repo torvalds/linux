@@ -135,10 +135,19 @@ struct hclge_vf_to_pf_msg {
 
 struct hclge_pf_to_vf_msg {
 	u16 code;
-	u16 vf_mbx_msg_code;
-	u16 vf_mbx_msg_subcode;
-	u16 resp_status;
-	u8 resp_data[HCLGE_MBX_MAX_RESP_DATA_SIZE];
+	union {
+		/* used for mbx response */
+		struct {
+			u16 vf_mbx_msg_code;
+			u16 vf_mbx_msg_subcode;
+			u16 resp_status;
+			u8 resp_data[HCLGE_MBX_MAX_RESP_DATA_SIZE];
+		};
+		/* used for general mbx */
+		struct {
+			u8 msg_data[HCLGE_MBX_MAX_MSG_SIZE];
+		};
+	};
 };
 
 struct hclge_mbx_vf_to_pf_cmd {
