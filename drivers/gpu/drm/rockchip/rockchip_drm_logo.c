@@ -657,7 +657,7 @@ static int setup_initial_state(struct drm_device *drm_dev,
 
 	if (set->sub_dev->loader_protect)
 		set->sub_dev->loader_protect(conn_state->best_encoder, true);
-	num_modes = rockchip_drm_fill_connector_modes(connector, 4096, 4096, set->force_output);
+	num_modes = rockchip_drm_fill_connector_modes(connector, 7680, 7680, set->force_output);
 	if (!num_modes) {
 		dev_err(drm_dev->dev, "connector[%s] can't found any modes\n",
 			connector->name);
