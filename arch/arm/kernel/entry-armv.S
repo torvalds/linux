@@ -1078,6 +1078,12 @@ __kuser_helper_end:
  */
 	.macro	vector_stub, name, mode, correction=0
 	.align	5
+#ifdef CONFIG_HARDEN_BRANCH_HISTORY
+vector_bhb_bpiall_\name:
+	mcr	p15, 0, r0, c7, c5, 6	@ BPIALL
+	@ isb not needed due to "movs pc, lr" in the vector stub
+	@ which gives a "context synchronisation".
+#endif
 
 vector_\name:
 	.if \correction
@@ -1129,21 +1135,6 @@ vector_bhb_loop8_\name:
 	isb
 	b	2b
 ENDPROC(vector_bhb_loop8_\name)
-
-vector_bhb_bpiall_\name:
-	.if \correction
-	sub	lr, lr, #\correction
-	.endif
-
-	@ Save r0, lr_<exception> (parent PC)
-	stmia	sp, {r0, lr}
-
-	@ bhb workaround
-	mcr	p15, 0, r0, c7, c5, 6	@ BPIALL
-	@ isb not needed due to "movs pc, lr" in the vector stub
-	@ which gives a "context synchronisation".
-	b	2b
-ENDPROC(vector_bhb_bpiall_\name)
 	.previous
 #endif
 
