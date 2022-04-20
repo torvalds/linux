@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * AMD Secure Encrypted Virtualization Nested Paging (SEV-SNP) guest request interface
+ * AMD Secure Encrypted Virtualization (SEV) guest driver interface
  *
  * Copyright (C) 2021 Advanced Micro Devices, Inc.
  *
  * Author: Brijesh Singh <brijesh.singh@amd.com>
  */
-
-#define pr_fmt(fmt) "SNP: GUEST: " fmt
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -574,7 +572,7 @@ static void free_shared_pages(void *buf, size_t sz)
 	__free_pages(virt_to_page(buf), get_order(sz));
 }
 
-static void *alloc_shared_pages(size_t sz)
+static void *alloc_shared_pages(struct device *dev, size_t sz)
 {
 	unsigned int npages = PAGE_ALIGN(sz) >> PAGE_SHIFT;
 	struct page *page;
@@ -586,7 +584,7 @@ static void *alloc_shared_pages(size_t sz)
 
 	ret = set_memory_decrypted((unsigned long)page_address(page), npages);
 	if (ret) {
-		pr_err("failed to mark page shared, ret=%d\n", ret);
+		dev_err(dev, "failed to mark page shared, ret=%d\n", ret);
 		__free_pages(page, get_order(sz));
 		return NULL;
 	}
@@ -627,10 +625,10 @@ static u8 *get_vmpck(int id, struct snp_secrets_page_layout *layout, u32 **seqno
 	return key;
 }
 
-static int __init snp_guest_probe(struct platform_device *pdev)
+static int __init sev_guest_probe(struct platform_device *pdev)
 {
 	struct snp_secrets_page_layout *layout;
-	struct snp_guest_platform_data *data;
+	struct sev_guest_platform_data *data;
 	struct device *dev = &pdev->dev;
 	struct snp_guest_dev *snp_dev;
 	struct miscdevice *misc;
@@ -639,7 +637,7 @@ static int __init snp_guest_probe(struct platform_device *pdev)
 	if (!dev->platform_data)
 		return -ENODEV;
 
-	data = (struct snp_guest_platform_data *)dev->platform_data;
+	data = (struct sev_guest_platform_data *)dev->platform_data;
 	layout = (__force void *)ioremap_encrypted(data->secrets_gpa, PAGE_SIZE);
 	if (!layout)
 		return -ENODEV;
@@ -667,15 +665,15 @@ static int __init snp_guest_probe(struct platform_device *pdev)
 	snp_dev->layout = layout;
 
 	/* Allocate the shared page used for the request and response message. */
-	snp_dev->request = alloc_shared_pages(sizeof(struct snp_guest_msg));
+	snp_dev->request = alloc_shared_pages(dev, sizeof(struct snp_guest_msg));
 	if (!snp_dev->request)
 		goto e_unmap;
 
-	snp_dev->response = alloc_shared_pages(sizeof(struct snp_guest_msg));
+	snp_dev->response = alloc_shared_pages(dev, sizeof(struct snp_guest_msg));
 	if (!snp_dev->response)
 		goto e_free_request;
 
-	snp_dev->certs_data = alloc_shared_pages(SEV_FW_BLOB_MAX_SIZE);
+	snp_dev->certs_data = alloc_shared_pages(dev, SEV_FW_BLOB_MAX_SIZE);
 	if (!snp_dev->certs_data)
 		goto e_free_response;
 
@@ -698,7 +696,7 @@ static int __init snp_guest_probe(struct platform_device *pdev)
 	if (ret)
 		goto e_free_cert_data;
 
-	dev_info(dev, "Initialized SNP guest driver (using vmpck_id %d)\n", vmpck_id);
+	dev_info(dev, "Initialized SEV guest driver (using vmpck_id %d)\n", vmpck_id);
 	return 0;
 
 e_free_cert_data:
@@ -712,7 +710,7 @@ e_unmap:
 	return ret;
 }
 
-static int __exit snp_guest_remove(struct platform_device *pdev)
+static int __exit sev_guest_remove(struct platform_device *pdev)
 {
 	struct snp_guest_dev *snp_dev = platform_get_drvdata(pdev);
 
@@ -725,16 +723,21 @@ static int __exit snp_guest_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver snp_guest_driver = {
-	.remove		= __exit_p(snp_guest_remove),
+/*
+ * This driver is a common SEV guest interface driver and meant to support
+ * any SEV guest API. As such, even though it has been introduced along with
+ * the SEV-SNP support, it is named "sev-guest".
+ */
+static struct platform_driver sev_guest_driver = {
+	.remove		= __exit_p(sev_guest_remove),
 	.driver		= {
-		.name = "snp-guest",
+		.name = "sev-guest",
 	},
 };
 
-module_platform_driver_probe(snp_guest_driver, snp_guest_probe);
+module_platform_driver_probe(sev_guest_driver, sev_guest_probe);
 
 MODULE_AUTHOR("Brijesh Singh <brijesh.singh@amd.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0.0");
-MODULE_DESCRIPTION("AMD SNP Guest Driver");
+MODULE_DESCRIPTION("AMD SEV Guest Driver");

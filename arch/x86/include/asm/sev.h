@@ -95,7 +95,7 @@ struct snp_req_data {
 	unsigned int data_npages;
 };
 
-struct snp_guest_platform_data {
+struct sev_guest_platform_data {
 	u64 secrets_gpa;
 };
 
