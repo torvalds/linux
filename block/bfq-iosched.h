@@ -1102,13 +1102,13 @@ struct bfq_group *bfqq_group(struct bfq_queue *bfqq);
 		break;							\
 	bfq_bfqq_name((bfqq), pid_str, MAX_BFQQ_NAME_LENGTH);		\
 	blk_add_cgroup_trace_msg((bfqd)->queue,				\
-			bfqg_to_blkg(bfqq_group(bfqq))->blkcg,		\
+			&bfqg_to_blkg(bfqq_group(bfqq))->blkcg->css,	\
 			"%s " fmt, pid_str, ##args);			\
 } while (0)
 
 #define bfq_log_bfqg(bfqd, bfqg, fmt, args...)	do {			\
 	blk_add_cgroup_trace_msg((bfqd)->queue,				\
-		bfqg_to_blkg(bfqg)->blkcg, fmt, ##args);		\
+		&bfqg_to_blkg(bfqg)->blkcg->css, fmt, ##args);		\
 } while (0)
 
 #else /* CONFIG_BFQ_GROUP_IOSCHED */
