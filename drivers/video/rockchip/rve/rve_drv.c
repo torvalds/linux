@@ -124,6 +124,8 @@ int rve_power_enable(struct rve_scheduler_t *scheduler)
 		}
 	}
 
+	scheduler->session.pd_refcount++;
+
 	return 0;
 
 err_enable_clk:
@@ -133,8 +135,6 @@ err_enable_clk:
 
 	pm_relax(scheduler->dev);
 	pm_runtime_put_sync_suspend(scheduler->dev);
-
-	scheduler->session.pd_refcount++;
 
 	return ret;
 }

@@ -42,6 +42,44 @@ rve_scheduler_get_running_job(struct rve_scheduler_t *scheduler)
 	return job;
 }
 
+static void rve_scheduler_set_pid_info(struct rve_job *job, ktime_t now)
+{
+	struct rve_scheduler_t *scheduler;
+	bool pid_match_flag = false;
+	ktime_t tmp = 0;
+	int pid_mark = 0, i;
+
+	scheduler = rve_job_get_scheduler(job);
+
+	for (i = 0; i < RVE_MAX_PID_INFO; i++) {
+		if (scheduler->session.pid_info[i].pid == 0)
+			scheduler->session.pid_info[i].pid = job->pid;
+
+		if (scheduler->session.pid_info[i].pid == job->pid) {
+			pid_match_flag = true;
+			scheduler->session.pid_info[i].hw_time_total +=
+				(job->hw_running_time - now);
+			break;
+		}
+	}
+
+	if (!pid_match_flag) {
+		for (i = 0; i < RVE_MAX_PID_INFO; i++) {
+			if (i == 0) {
+				tmp = scheduler->session.pid_info[i].hw_time_total;
+				continue;
+			}
+
+			if (tmp > scheduler->session.pid_info[i].hw_time_total)
+				pid_mark = i;
+		}
+
+		scheduler->session.pid_info[pid_mark].pid = job->pid;
+		scheduler->session.pid_info[pid_mark].hw_time_total +=
+					ktime_us_delta(now, job->hw_running_time);
+	}
+}
+
 struct rve_scheduler_t *rve_job_get_scheduler(struct rve_job *job)
 {
 	return job->scheduler;
@@ -135,105 +173,6 @@ static struct rve_job *rve_job_alloc(struct rve_internal_ctx_t *ctx)
 	}
 
 	return job;
-}
-
-static struct rve_internal_ctx_t *
-rve_internal_ctx_lookup(struct rve_pending_ctx_manager *ctx_manager, uint32_t id)
-{
-	struct rve_internal_ctx_t *ctx = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ctx_manager->lock, flags);
-
-	ctx = idr_find(&ctx_manager->ctx_id_idr, id);
-	if (ctx == NULL)
-		pr_err("can not find internal ctx from id[%d]", id);
-
-	spin_unlock_irqrestore(&ctx_manager->lock, flags);
-
-	return ctx;
-}
-
-/*
- * Called at driver close to release the internal ctx's id references.
- */
-static int rve_internal_ctx_free_remove_idr_cb(int id, void *ptr, void *data)
-{
-	struct rve_internal_ctx_t *ctx = ptr;
-
-	idr_remove(&rve_drvdata->pend_ctx_manager->ctx_id_idr, ctx->id);
-	kfree(ctx);
-
-	return 0;
-}
-
-static int rve_internal_ctx_free_remove_idr(struct rve_internal_ctx_t *ctx)
-{
-	struct rve_pending_ctx_manager *ctx_manager;
-	unsigned long flags;
-
-	ctx_manager = rve_drvdata->pend_ctx_manager;
-
-	spin_lock_irqsave(&ctx_manager->lock, flags);
-
-	ctx_manager->ctx_count--;
-	idr_remove(&ctx_manager->ctx_id_idr, ctx->id);
-	kfree(ctx);
-
-	spin_unlock_irqrestore(&ctx_manager->lock, flags);
-
-	return 0;
-}
-
-static int rve_internal_ctx_signal(struct rve_job *job)
-{
-	struct rve_internal_ctx_t *ctx;
-	struct rve_scheduler_t *scheduler;
-	int finished_job_count;
-	unsigned long flags;
-
-	scheduler = rve_job_get_scheduler(job);
-	if (scheduler == NULL) {
-		pr_err("failed to get scheduler, %s(%d)\n", __func__, __LINE__);
-		return -EFAULT;
-	}
-
-	ctx = rve_job_get_internal_ctx(job);
-	if (IS_ERR_OR_NULL(ctx)) {
-		pr_err("can not find internal ctx");
-		return -EINVAL;
-	}
-
-	ctx->regcmd_data = job->regcmd_data;
-
-	spin_lock_irqsave(&ctx->lock, flags);
-
-	finished_job_count = ++ctx->finished_job_count;
-
-	spin_unlock_irqrestore(&ctx->lock, flags);
-
-	if (finished_job_count >= ctx->cmd_num) {
-#ifdef CONFIG_SYNC_FILE
-		if (ctx->out_fence)
-			dma_fence_signal(ctx->out_fence);
-#endif
-
-		job->flags |= RVE_JOB_DONE;
-
-		if (job->flags & RVE_ASYNC)
-			rve_job_cleanup(job);
-
-		wake_up(&scheduler->job_done_wq);
-
-		spin_lock_irqsave(&ctx->lock, flags);
-
-		ctx->is_running = false;
-		ctx->out_fence = NULL;
-
-		spin_unlock_irqrestore(&ctx->lock, flags);
-	}
-
-	return 0;
 }
 
 static void rve_job_dump_info(struct rve_job *job)
@@ -349,44 +288,6 @@ static void rve_job_finish_and_next(struct rve_job *job, int ret)
 #ifndef RVE_PD_AWAYS_ON
 	rve_power_disable(scheduler);
 #endif
-}
-
-static void rve_scheduler_set_pid_info(struct rve_job *job, ktime_t now)
-{
-	struct rve_scheduler_t *scheduler;
-	bool pid_match_flag = false;
-	ktime_t tmp = 0;
-	int pid_mark = 0, i;
-
-	scheduler = rve_job_get_scheduler(job);
-
-	for (i = 0; i < RVE_MAX_PID_INFO; i++) {
-		if (scheduler->session.pid_info[i].pid == 0)
-			scheduler->session.pid_info[i].pid = job->pid;
-
-		if (scheduler->session.pid_info[i].pid == job->pid) {
-			pid_match_flag = true;
-			scheduler->session.pid_info[i].hw_time_total +=
-				(job->hw_running_time - now);
-			break;
-		}
-	}
-
-	if (!pid_match_flag) {
-		for (i = 0; i < RVE_MAX_PID_INFO; i++) {
-			if (i == 0) {
-				tmp = scheduler->session.pid_info[i].hw_time_total;
-				continue;
-			}
-
-			if (tmp > scheduler->session.pid_info[i].hw_time_total)
-				pid_mark = i;
-		}
-
-		scheduler->session.pid_info[pid_mark].pid = job->pid;
-		scheduler->session.pid_info[pid_mark].hw_time_total +=
-					ktime_us_delta(now, job->hw_running_time);
-	}
 }
 
 void rve_job_done(struct rve_scheduler_t *scheduler, int ret)
@@ -517,7 +418,7 @@ static struct rve_scheduler_t *rve_job_schedule(struct rve_job *job)
 	return scheduler;
 }
 
-static void rve_running_job_abort(struct rve_job *job)
+static void rve_job_abort_running(struct rve_job *job)
 {
 	unsigned long flags;
 	struct rve_scheduler_t *scheduler;
@@ -535,7 +436,7 @@ static void rve_running_job_abort(struct rve_job *job)
 	rve_job_cleanup(job);
 }
 
-static void rve_invalid_job_abort(struct rve_job *job)
+static void rve_job_abort_invalid(struct rve_job *job)
 {
 	rve_job_cleanup(job);
 }
@@ -577,7 +478,7 @@ static inline int rve_job_wait(struct rve_job *job)
 }
 
 #ifdef CONFIG_SYNC_FILE
-static void rve_input_fence_signaled(struct dma_fence *fence,
+static void rve_job_input_fence_signaled(struct dma_fence *fence,
 					 struct dma_fence_cb *_waiter)
 {
 	struct rve_fence_waiter *waiter = (struct rve_fence_waiter *)_waiter;
@@ -599,61 +500,6 @@ static void rve_input_fence_signaled(struct dma_fence *fence,
 	kfree(waiter);
 }
 #endif
-
-int rve_internal_ctx_alloc_to_get_idr_id(struct rve_session *session)
-{
-	struct rve_pending_ctx_manager *ctx_manager;
-	struct rve_internal_ctx_t *ctx;
-	unsigned long flags;
-
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (ctx == NULL) {
-		pr_err("can not kzalloc for rve_pending_ctx_manager\n");
-		return -ENOMEM;
-	}
-
-	ctx_manager = rve_drvdata->pend_ctx_manager;
-	if (ctx_manager == NULL) {
-		pr_err("rve_pending_ctx_manager is null!\n");
-		goto failed;
-	}
-
-	spin_lock_init(&ctx->lock);
-
-	/*
-	 * Get the user-visible handle using idr. Preload and perform
-	 * allocation under our spinlock.
-	 */
-
-	idr_preload(GFP_KERNEL);
-
-	spin_lock_irqsave(&ctx_manager->lock, flags);
-
-	ctx->id = idr_alloc(&ctx_manager->ctx_id_idr, ctx, 1, 0, GFP_ATOMIC);
-	if (ctx->id < 0) {
-		pr_err("idr_alloc failed");
-		spin_unlock_irqrestore(&ctx_manager->lock, flags);
-		goto failed;
-	}
-
-	ctx_manager->ctx_count++;
-
-	ctx->debug_info.pid = current->pid;
-	ctx->debug_info.timestamp = ktime_get();
-	ctx->session = session;
-
-	spin_unlock_irqrestore(&ctx_manager->lock, flags);
-
-	idr_preload_end();
-
-	kref_init(&ctx->refcount);
-
-	return ctx->id;
-
-failed:
-	kfree(ctx);
-	return -EFAULT;
-}
 
 int rve_job_config_by_user_ctx(struct rve_user_ctx_t *user_ctx)
 {
@@ -771,66 +617,6 @@ int rve_job_commit_by_user_ctx(struct rve_user_ctx_t *user_ctx)
 	return ret;
 }
 
-void rve_internal_ctx_kref_release(struct kref *ref)
-{
-	struct rve_internal_ctx_t *ctx;
-	struct rve_scheduler_t *scheduler = NULL;
-	struct rve_job *job_pos, *job_q, *job;
-	int i;
-	bool need_reset = false;
-	unsigned long flags;
-	ktime_t now = ktime_get();
-
-	ctx = container_of(ref, struct rve_internal_ctx_t, refcount);
-
-	spin_lock_irqsave(&ctx->lock, flags);
-	if (!ctx->is_running || ctx->finished_job_count >= ctx->cmd_num) {
-		spin_unlock_irqrestore(&ctx->lock, flags);
-		goto free_ctx;
-	}
-	spin_unlock_irqrestore(&ctx->lock, flags);
-
-	for (i = 0; i < rve_drvdata->num_of_scheduler; i++) {
-		scheduler = rve_drvdata->scheduler[i];
-
-		spin_lock_irqsave(&scheduler->irq_lock, flags);
-
-		list_for_each_entry_safe(job_pos, job_q, &scheduler->todo_list, head) {
-			if (ctx->id == job_pos->ctx->id) {
-				job = job_pos;
-				list_del_init(&job_pos->head);
-
-				scheduler->job_count--;
-			}
-		}
-
-		/* for load */
-		if (scheduler->running_job) {
-			job = scheduler->running_job;
-
-			if (job->ctx->id == ctx->id) {
-				scheduler->running_job = NULL;
-				scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
-				need_reset = true;
-			}
-		}
-
-		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-
-		if (need_reset) {
-			pr_err("reset core[%d] by user cancel", scheduler->core);
-			scheduler->ops->soft_reset(scheduler);
-
-			rve_job_finish_and_next(job, 0);
-		}
-	}
-
-	kfree(ctx->regcmd_data);
-
-free_ctx:
-	rve_internal_ctx_free_remove_idr(ctx);
-}
-
 int rve_job_cancel_by_user_ctx(uint32_t ctx_id)
 {
 	struct rve_pending_ctx_manager *ctx_manager;
@@ -913,7 +699,7 @@ int rve_job_commit(struct rve_internal_ctx_t *ctx)
 				/* if input fence is valid */
 			} else if (ret == 0) {
 				ret = rve_add_dma_fence_callback(job,
-					in_fence, rve_input_fence_signaled);
+					in_fence, rve_job_input_fence_signaled);
 				if (ret < 0) {
 					pr_err("%s: failed to add fence callback\n",
 						 __func__);
@@ -967,13 +753,229 @@ int rve_job_commit(struct rve_internal_ctx_t *ctx)
 	return ret;
 
 invalid_job:
-	rve_invalid_job_abort(job);
+	rve_job_abort_invalid(job);
 	return ret;
 
 /* only used by SYNC mode */
 running_job_abort:
-	rve_running_job_abort(job);
+	rve_job_abort_running(job);
 	return ret;
+}
+
+struct rve_internal_ctx_t *
+rve_internal_ctx_lookup(struct rve_pending_ctx_manager *ctx_manager, uint32_t id)
+{
+	struct rve_internal_ctx_t *ctx = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ctx_manager->lock, flags);
+
+	ctx = idr_find(&ctx_manager->ctx_id_idr, id);
+
+	spin_unlock_irqrestore(&ctx_manager->lock, flags);
+
+	if (ctx == NULL)
+		pr_err("can not find internal ctx from id[%d]", id);
+
+	return ctx;
+}
+
+/*
+ * Called at driver close to release the internal ctx's id references.
+ */
+static int rve_internal_ctx_free_remove_idr_cb(int id, void *ptr, void *data)
+{
+	struct rve_internal_ctx_t *ctx = ptr;
+
+	idr_remove(&rve_drvdata->pend_ctx_manager->ctx_id_idr, ctx->id);
+	kfree(ctx);
+
+	return 0;
+}
+
+static int rve_internal_ctx_free_remove_idr(struct rve_internal_ctx_t *ctx)
+{
+	struct rve_pending_ctx_manager *ctx_manager;
+	unsigned long flags;
+
+	ctx_manager = rve_drvdata->pend_ctx_manager;
+
+	spin_lock_irqsave(&ctx_manager->lock, flags);
+
+	ctx_manager->ctx_count--;
+	idr_remove(&ctx_manager->ctx_id_idr, ctx->id);
+
+	spin_unlock_irqrestore(&ctx_manager->lock, flags);
+
+	kfree(ctx);
+
+	return 0;
+}
+
+int rve_internal_ctx_signal(struct rve_job *job)
+{
+	struct rve_internal_ctx_t *ctx;
+	struct rve_scheduler_t *scheduler;
+	int finished_job_count;
+	unsigned long flags;
+
+	scheduler = rve_job_get_scheduler(job);
+	if (scheduler == NULL) {
+		pr_err("failed to get scheduler, %s(%d)\n", __func__, __LINE__);
+		return -EFAULT;
+	}
+
+	ctx = rve_job_get_internal_ctx(job);
+	if (IS_ERR_OR_NULL(ctx)) {
+		pr_err("can not find internal ctx");
+		return -EINVAL;
+	}
+
+	ctx->regcmd_data = job->regcmd_data;
+
+	spin_lock_irqsave(&ctx->lock, flags);
+
+	finished_job_count = ++ctx->finished_job_count;
+
+	spin_unlock_irqrestore(&ctx->lock, flags);
+
+	if (finished_job_count >= ctx->cmd_num) {
+#ifdef CONFIG_SYNC_FILE
+		if (ctx->out_fence)
+			dma_fence_signal(ctx->out_fence);
+#endif
+
+		job->flags |= RVE_JOB_DONE;
+
+		if (job->flags & RVE_ASYNC)
+			rve_job_cleanup(job);
+
+		wake_up(&scheduler->job_done_wq);
+
+		spin_lock_irqsave(&ctx->lock, flags);
+
+		ctx->is_running = false;
+		ctx->out_fence = NULL;
+
+		spin_unlock_irqrestore(&ctx->lock, flags);
+	}
+
+	return 0;
+}
+
+int rve_internal_ctx_alloc_to_get_idr_id(struct rve_session *session)
+{
+	struct rve_pending_ctx_manager *ctx_manager;
+	struct rve_internal_ctx_t *ctx;
+	unsigned long flags;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (ctx == NULL) {
+		pr_err("can not kzalloc for rve_pending_ctx_manager\n");
+		return -ENOMEM;
+	}
+
+	ctx_manager = rve_drvdata->pend_ctx_manager;
+	if (ctx_manager == NULL) {
+		pr_err("rve_pending_ctx_manager is null!\n");
+		goto failed;
+	}
+
+	spin_lock_init(&ctx->lock);
+
+	/*
+	 * Get the user-visible handle using idr. Preload and perform
+	 * allocation under our spinlock.
+	 */
+
+	idr_preload(GFP_KERNEL);
+
+	spin_lock_irqsave(&ctx_manager->lock, flags);
+
+	ctx->id = idr_alloc(&ctx_manager->ctx_id_idr, ctx, 1, 0, GFP_ATOMIC);
+	if (ctx->id < 0) {
+		pr_err("idr_alloc failed");
+		spin_unlock_irqrestore(&ctx_manager->lock, flags);
+		goto failed;
+	}
+
+	ctx_manager->ctx_count++;
+
+	ctx->debug_info.pid = current->pid;
+	ctx->debug_info.timestamp = ktime_get();
+	ctx->session = session;
+
+	spin_unlock_irqrestore(&ctx_manager->lock, flags);
+
+	idr_preload_end();
+
+	kref_init(&ctx->refcount);
+
+	return ctx->id;
+
+failed:
+	kfree(ctx);
+	return -EFAULT;
+}
+
+void rve_internal_ctx_kref_release(struct kref *ref)
+{
+	struct rve_internal_ctx_t *ctx;
+	struct rve_scheduler_t *scheduler = NULL;
+	struct rve_job *job_pos, *job_q, *job;
+	int i;
+	bool need_reset = false;
+	unsigned long flags;
+	ktime_t now = ktime_get();
+
+	ctx = container_of(ref, struct rve_internal_ctx_t, refcount);
+
+	spin_lock_irqsave(&ctx->lock, flags);
+	if (!ctx->is_running || ctx->finished_job_count >= ctx->cmd_num) {
+		spin_unlock_irqrestore(&ctx->lock, flags);
+		goto free_ctx;
+	}
+	spin_unlock_irqrestore(&ctx->lock, flags);
+
+	for (i = 0; i < rve_drvdata->num_of_scheduler; i++) {
+		scheduler = rve_drvdata->scheduler[i];
+
+		spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+		list_for_each_entry_safe(job_pos, job_q, &scheduler->todo_list, head) {
+			if (ctx->id == job_pos->ctx->id) {
+				job = job_pos;
+				list_del_init(&job_pos->head);
+
+				scheduler->job_count--;
+			}
+		}
+
+		/* for load */
+		if (scheduler->running_job) {
+			job = scheduler->running_job;
+
+			if (job->ctx->id == ctx->id) {
+				scheduler->running_job = NULL;
+				scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
+				need_reset = true;
+			}
+		}
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+		if (need_reset) {
+			pr_err("reset core[%d] by user cancel", scheduler->core);
+			scheduler->ops->soft_reset(scheduler);
+
+			rve_job_finish_and_next(job, 0);
+		}
+	}
+
+	kfree(ctx->regcmd_data);
+
+free_ctx:
+	rve_internal_ctx_free_remove_idr(ctx);
 }
 
 int rve_ctx_manager_init(struct rve_pending_ctx_manager **ctx_manager_session)

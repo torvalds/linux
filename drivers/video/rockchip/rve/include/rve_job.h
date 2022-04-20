@@ -39,6 +39,11 @@ int rve_ctx_manager_remove(struct rve_pending_ctx_manager **ctx_manager_session)
 int rve_internal_ctx_alloc_to_get_idr_id(struct rve_session *session);
 void rve_internal_ctx_kref_release(struct kref *ref);
 
+int rve_internal_ctx_signal(struct rve_job *job);
+
+struct rve_internal_ctx_t *
+rve_internal_ctx_lookup(struct rve_pending_ctx_manager *ctx_manager, uint32_t id);
+
 struct rve_job *
 rve_scheduler_get_pending_job_list(struct rve_scheduler_t *scheduler);
 
