@@ -47,14 +47,16 @@ static int igt_create_migrate(struct intel_gt *gt, enum intel_region_id src,
 {
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_memory_region *src_mr = i915->mm.regions[src];
+	struct intel_memory_region *dst_mr = i915->mm.regions[dst];
 	struct drm_i915_gem_object *obj;
 	struct i915_gem_ww_ctx ww;
 	int err = 0;
 
 	GEM_BUG_ON(!src_mr);
+	GEM_BUG_ON(!dst_mr);
 
 	/* Switch object backing-store on create */
-	obj = i915_gem_object_create_region(src_mr, PAGE_SIZE, 0, 0);
+	obj = i915_gem_object_create_region(src_mr, dst_mr->min_page_size, 0, 0);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
