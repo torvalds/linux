@@ -1094,7 +1094,8 @@ vector_\name:
 	stmia	sp, {r0, lr}		@ save r0, lr
 
 	@ Save spsr_<exception> (parent CPSR)
-2:	mrs	lr, spsr
+.Lvec_\name:
+	mrs	lr, spsr
 	str	lr, [sp, #8]		@ save spsr
 
 	@
@@ -1134,7 +1135,7 @@ vector_bhb_loop8_\name:
 	dsb	nsh
 	@ isb not needed due to "movs pc, lr" in the vector stub
 	@ which gives a "context synchronisation".
-	b	2b
+	b	.Lvec_\name
 ENDPROC(vector_bhb_loop8_\name)
 	.previous
 #endif
