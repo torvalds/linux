@@ -9,6 +9,7 @@
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -89,6 +90,7 @@ static irqreturn_t spi_clps711x_isr(int irq, void *dev_id)
 
 static int spi_clps711x_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct spi_clps711x_data *hw;
 	struct spi_master *master;
 	int irq, ret;
@@ -117,8 +119,7 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-	hw->syscon =
-		syscon_regmap_lookup_by_compatible("cirrus,ep7209-syscon3");
+	hw->syscon = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(hw->syscon)) {
 		ret = PTR_ERR(hw->syscon);
 		goto err_out;
