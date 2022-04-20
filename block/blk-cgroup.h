@@ -25,6 +25,64 @@ struct blkg_policy_data;
 #define BLKG_STAT_CPU_BATCH	(INT_MAX / 2)
 
 #ifdef CONFIG_BLK_CGROUP
+
+enum blkg_iostat_type {
+	BLKG_IOSTAT_READ,
+	BLKG_IOSTAT_WRITE,
+	BLKG_IOSTAT_DISCARD,
+
+	BLKG_IOSTAT_NR,
+};
+
+struct blkg_iostat {
+	u64				bytes[BLKG_IOSTAT_NR];
+	u64				ios[BLKG_IOSTAT_NR];
+};
+
+struct blkg_iostat_set {
+	struct u64_stats_sync		sync;
+	struct blkg_iostat		cur;
+	struct blkg_iostat		last;
+};
+
+/* association between a blk cgroup and a request queue */
+struct blkcg_gq {
+	/* Pointer to the associated request_queue */
+	struct request_queue		*q;
+	struct list_head		q_node;
+	struct hlist_node		blkcg_node;
+	struct blkcg			*blkcg;
+
+	/* all non-root blkcg_gq's are guaranteed to have access to parent */
+	struct blkcg_gq			*parent;
+
+	/* reference count */
+	struct percpu_ref		refcnt;
+
+	/* is this blkg online? protected by both blkcg and q locks */
+	bool				online;
+
+	struct blkg_iostat_set __percpu	*iostat_cpu;
+	struct blkg_iostat_set		iostat;
+
+	struct blkg_policy_data		*pd[BLKCG_MAX_POLS];
+
+	spinlock_t			async_bio_lock;
+	struct bio_list			async_bios;
+	union {
+		struct work_struct	async_bio_work;
+		struct work_struct	free_work;
+	};
+
+	atomic_t			use_delay;
+	atomic64_t			delay_nsec;
+	atomic64_t			delay_start;
+	u64				last_delay;
+	int				last_use;
+
+	struct rcu_head			rcu_head;
+};
+
 struct blkcg {
 	struct cgroup_subsys_state	css;
 	spinlock_t			lock;
@@ -173,9 +231,9 @@ static inline struct cgroup_subsys_state *blkcg_css(void)
  *
  * In order to avoid priority inversions we sometimes need to issue a bio as if
  * it were attached to the root blkg, and then backcharge to the actual owning
- * blkg.  The idea is we do bio_blkcg() to look up the actual context for the
- * bio and attach the appropriate blkg to the bio.  Then we call this helper and
- * if it is true run with the root blkg for that queue and then do any
+ * blkg.  The idea is we do bio_blkcg_css() to look up the actual context for
+ * the bio and attach the appropriate blkg to the bio.  Then we call this helper
+ * and if it is true run with the root blkg for that queue and then do any
  * backcharging to the originating cgroup once the io is complete.
  */
 static inline bool bio_issue_as_root_blkg(struct bio *bio)
@@ -462,6 +520,9 @@ struct blkcg_policy_data {
 };
 
 struct blkcg_policy {
+};
+
+struct blkcg {
 };
 
 #ifdef CONFIG_BLOCK

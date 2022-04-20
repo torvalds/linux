@@ -28,93 +28,17 @@
 #define FC_APPID_LEN              129
 
 #ifdef CONFIG_BLK_CGROUP
-
-enum blkg_iostat_type {
-	BLKG_IOSTAT_READ,
-	BLKG_IOSTAT_WRITE,
-	BLKG_IOSTAT_DISCARD,
-
-	BLKG_IOSTAT_NR,
-};
-
-struct blkg_iostat {
-	u64				bytes[BLKG_IOSTAT_NR];
-	u64				ios[BLKG_IOSTAT_NR];
-};
-
-struct blkg_iostat_set {
-	struct u64_stats_sync		sync;
-	struct blkg_iostat		cur;
-	struct blkg_iostat		last;
-};
-
-/* association between a blk cgroup and a request queue */
-struct blkcg_gq {
-	/* Pointer to the associated request_queue */
-	struct request_queue		*q;
-	struct list_head		q_node;
-	struct hlist_node		blkcg_node;
-	struct blkcg			*blkcg;
-
-	/* all non-root blkcg_gq's are guaranteed to have access to parent */
-	struct blkcg_gq			*parent;
-
-	/* reference count */
-	struct percpu_ref		refcnt;
-
-	/* is this blkg online? protected by both blkcg and q locks */
-	bool				online;
-
-	struct blkg_iostat_set __percpu	*iostat_cpu;
-	struct blkg_iostat_set		iostat;
-
-	struct blkg_policy_data		*pd[BLKCG_MAX_POLS];
-
-	spinlock_t			async_bio_lock;
-	struct bio_list			async_bios;
-	union {
-		struct work_struct	async_bio_work;
-		struct work_struct	free_work;
-	};
-
-	atomic_t			use_delay;
-	atomic64_t			delay_nsec;
-	atomic64_t			delay_start;
-	u64				last_delay;
-	int				last_use;
-
-	struct rcu_head			rcu_head;
-};
-
 extern struct cgroup_subsys_state * const blkcg_root_css;
 
 void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay);
 void blkcg_maybe_throttle_current(void);
-
-/**
- * bio_blkcg - grab the blkcg associated with a bio
- * @bio: target bio
- *
- * This returns the blkcg associated with a bio, %NULL if not associated.
- * Callers are expected to either handle %NULL or know association has been
- * done prior to calling this.
- */
-static inline struct blkcg *bio_blkcg(struct bio *bio)
-{
-	if (bio && bio->bi_blkg)
-		return bio->bi_blkg->blkcg;
-	return NULL;
-}
-
 bool blk_cgroup_congested(void);
 void blkcg_pin_online(struct cgroup_subsys_state *blkcg_css);
 void blkcg_unpin_online(struct cgroup_subsys_state *blkcg_css);
 struct list_head *blkcg_get_cgwb_list(struct cgroup_subsys_state *css);
+struct cgroup_subsys_state *bio_blkcg_css(struct bio *bio);
 
 #else	/* CONFIG_BLK_CGROUP */
-
-struct blkcg_gq {
-};
 
 #define blkcg_root_css	((struct cgroup_subsys_state *)ERR_PTR(-EINVAL))
 
@@ -123,7 +47,10 @@ static inline bool blk_cgroup_congested(void) { return false; }
 
 #ifdef CONFIG_BLOCK
 static inline void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay) { }
-static inline struct blkcg *bio_blkcg(struct bio *bio) { return NULL; }
+static inline struct cgroup_subsys_state *bio_blkcg_css(struct bio *bio)
+{
+	return NULL;
+}
 #endif /* CONFIG_BLOCK */
 
 #endif	/* CONFIG_BLK_CGROUP */

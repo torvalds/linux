@@ -783,6 +783,7 @@ void blk_trace_shutdown(struct request_queue *q)
 #ifdef CONFIG_BLK_CGROUP
 static u64 blk_trace_bio_get_cgid(struct request_queue *q, struct bio *bio)
 {
+	struct cgroup_subsys_state *blkcg_css;
 	struct blk_trace *bt;
 
 	/* We don't use the 'bt' value here except as an optimization... */
@@ -790,9 +791,10 @@ static u64 blk_trace_bio_get_cgid(struct request_queue *q, struct bio *bio)
 	if (!bt || !(blk_tracer_flags.val & TRACE_BLK_OPT_CGROUP))
 		return 0;
 
-	if (!bio->bi_blkg)
+	blkcg_css = bio_blkcg_css(bio);
+	if (!blkcg_css)
 		return 0;
-	return cgroup_id(bio_blkcg(bio)->css.cgroup);
+	return cgroup_id(blkcg_css->cgroup);
 }
 #else
 static u64 blk_trace_bio_get_cgid(struct request_queue *q, struct bio *bio)
