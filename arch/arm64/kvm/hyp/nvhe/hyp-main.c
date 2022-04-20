@@ -259,9 +259,22 @@ out:
 
 static void handle___kvm_adjust_pc(struct kvm_cpu_context *host_ctxt)
 {
-	DECLARE_REG(struct kvm_vcpu *, vcpu, host_ctxt, 1);
+	struct pkvm_hyp_vcpu *hyp_vcpu;
+	struct kvm_vcpu *host_vcpu;
 
-	__kvm_adjust_pc(kern_hyp_va(vcpu));
+	host_vcpu = get_host_hyp_vcpus(host_ctxt, 1, &hyp_vcpu);
+	if (!host_vcpu)
+		return;
+
+	if (hyp_vcpu) {
+		/* This only applies to non-protected VMs */
+		if (pkvm_hyp_vcpu_is_protected(hyp_vcpu))
+			return;
+
+		__kvm_adjust_pc(&hyp_vcpu->vcpu);
+	} else {
+		__kvm_adjust_pc(host_vcpu);
+	}
 }
 
 static void handle___kvm_flush_vm_context(struct kvm_cpu_context *host_ctxt)
