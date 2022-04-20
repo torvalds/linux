@@ -19,7 +19,7 @@
 #include <asm/memtype.h>
 #include <asm/vmx.h>
 
-static bool __read_mostly enable_mmio_caching = true;
+bool __read_mostly enable_mmio_caching = true;
 module_param_named(mmio_caching, enable_mmio_caching, bool, 0444);
 
 u64 __read_mostly shadow_host_writable_mask;
@@ -350,6 +350,9 @@ void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 mmio_mask, u64 access_mask)
 	if (WARN_ON((mmio_value & mmio_mask) != mmio_value) ||
 	    WARN_ON(mmio_value && (REMOVED_SPTE & mmio_mask) == mmio_value))
 		mmio_value = 0;
+
+	if (!mmio_value)
+		enable_mmio_caching = false;
 
 	shadow_mmio_value = mmio_value;
 	shadow_mmio_mask  = mmio_mask;

@@ -3036,7 +3036,7 @@ static bool handle_abnormal_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fa
 		 * and only if L1's MAXPHYADDR is inaccurate with respect to
 		 * the hardware's).
 		 */
-		if (unlikely(!shadow_mmio_value) ||
+		if (unlikely(!enable_mmio_caching) ||
 		    unlikely(fault->gfn > kvm_mmu_max_gfn())) {
 			*ret_val = RET_PF_EMULATE;
 			return true;
