@@ -28,6 +28,8 @@
 #include <linux/atomic.h>
 #include <linux/blk-mq.h>
 
+static struct workqueue_struct *dm_mpath_wq;
+
 #define DM_MSG_PREFIX "multipath"
 #define DM_PG_INIT_DELAY_MSECS 2000
 #define DM_PG_INIT_DELAY_DEFAULT ((unsigned int) -1)
@@ -1353,7 +1355,7 @@ static int fail_path(struct pgpath *pgpath)
 	dm_path_uevent(DM_UEVENT_PATH_FAILED, m->ti,
 		       pgpath->path.dev->name, atomic_read(&m->nr_valid_paths));
 
-	schedule_work(&m->trigger_event);
+	queue_work(dm_mpath_wq, &m->trigger_event);
 
 	enable_nopath_timeout(m);
 
@@ -2205,12 +2207,11 @@ static struct target_type multipath_target = {
 
 static int __init dm_multipath_init(void)
 {
-	int r;
+	int r = -ENOMEM;
 
 	kmultipathd = alloc_workqueue("kmpathd", WQ_MEM_RECLAIM, 0);
 	if (!kmultipathd) {
 		DMERR("failed to create workqueue kmpathd");
-		r = -ENOMEM;
 		goto bad_alloc_kmultipathd;
 	}
 
@@ -2224,8 +2225,13 @@ static int __init dm_multipath_init(void)
 						  WQ_MEM_RECLAIM);
 	if (!kmpath_handlerd) {
 		DMERR("failed to create workqueue kmpath_handlerd");
-		r = -ENOMEM;
 		goto bad_alloc_kmpath_handlerd;
+	}
+
+	dm_mpath_wq = alloc_workqueue("dm_mpath_wq", 0, 0);
+	if (!dm_mpath_wq) {
+		DMERR("failed to create workqueue dm_mpath_wq");
+		goto bad_alloc_dm_mpath_wq;
 	}
 
 	r = dm_register_target(&multipath_target);
@@ -2238,6 +2244,8 @@ static int __init dm_multipath_init(void)
 	return 0;
 
 bad_register_target:
+	destroy_workqueue(dm_mpath_wq);
+bad_alloc_dm_mpath_wq:
 	destroy_workqueue(kmpath_handlerd);
 bad_alloc_kmpath_handlerd:
 	destroy_workqueue(kmultipathd);
@@ -2247,6 +2255,7 @@ bad_alloc_kmultipathd:
 
 static void __exit dm_multipath_exit(void)
 {
+	destroy_workqueue(dm_mpath_wq);
 	destroy_workqueue(kmpath_handlerd);
 	destroy_workqueue(kmultipathd);
 

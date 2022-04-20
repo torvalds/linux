@@ -20,6 +20,8 @@
 #include <linux/dm-kcopyd.h>
 #include <linux/dm-region-hash.h>
 
+static struct workqueue_struct *dm_raid1_wq;
+
 #define DM_MSG_PREFIX "raid1"
 
 #define MAX_RECOVERY 1	/* Maximum number of regions recovered in parallel. */
@@ -251,7 +253,7 @@ static void fail_mirror(struct mirror *m, enum dm_raid1_error error_type)
 		DMWARN("All sides of mirror have failed.");
 
 out:
-	schedule_work(&ms->trigger_event);
+	queue_work(dm_raid1_wq, &ms->trigger_event);
 }
 
 static int mirror_flush(struct dm_target *ti)
@@ -1496,22 +1498,28 @@ static struct target_type mirror_target = {
 
 static int __init dm_mirror_init(void)
 {
-	int r;
+	int r = -ENOMEM;
+
+	dm_raid1_wq = alloc_workqueue("dm_raid1_wq", 0, 0);
+	if (!dm_raid1_wq)
+		goto bad_target;
 
 	r = dm_register_target(&mirror_target);
 	if (r < 0) {
-		DMERR("Failed to register mirror target");
+		destroy_workqueue(dm_raid1_wq);
 		goto bad_target;
 	}
 
 	return 0;
 
 bad_target:
+	DMERR("Failed to register mirror target");
 	return r;
 }
 
 static void __exit dm_mirror_exit(void)
 {
+	destroy_workqueue(dm_raid1_wq);
 	dm_unregister_target(&mirror_target);
 }
 
