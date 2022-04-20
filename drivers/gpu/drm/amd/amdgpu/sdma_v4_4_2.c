@@ -1253,9 +1253,10 @@ static int sdma_v4_4_2_sw_init(void *handle)
 	struct amdgpu_ring *ring;
 	int r, i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 aid_id;
 
 	/* SDMA trap event */
-	for (i = 0; i < adev->sdma.num_instances; i++) {
+	for (i = 0; i < adev->sdma.num_inst_per_aid; i++) {
 		r = amdgpu_irq_add_id(adev, sdma_v4_4_2_seq_to_irq_id(i),
 				      SDMA0_4_0__SRCID__SDMA_TRAP,
 				      &adev->sdma.trap_irq);
@@ -1264,7 +1265,7 @@ static int sdma_v4_4_2_sw_init(void *handle)
 	}
 
 	/* SDMA SRAM ECC event */
-	for (i = 0; i < adev->sdma.num_instances; i++) {
+	for (i = 0; i < adev->sdma.num_inst_per_aid; i++) {
 		r = amdgpu_irq_add_id(adev, sdma_v4_4_2_seq_to_irq_id(i),
 				      SDMA0_4_0__SRCID__SDMA_SRAM_ECC,
 				      &adev->sdma.ecc_irq);
@@ -1273,7 +1274,7 @@ static int sdma_v4_4_2_sw_init(void *handle)
 	}
 
 	/* SDMA VM_HOLE/DOORBELL_INV/POLL_TIMEOUT/SRBM_WRITE_PROTECTION event*/
-	for (i = 0; i < adev->sdma.num_instances; i++) {
+	for (i = 0; i < adev->sdma.num_inst_per_aid; i++) {
 		r = amdgpu_irq_add_id(adev, sdma_v4_4_2_seq_to_irq_id(i),
 				      SDMA0_4_0__SRCID__SDMA_VM_HOLE,
 				      &adev->sdma.vm_hole_irq);
@@ -1303,15 +1304,17 @@ static int sdma_v4_4_2_sw_init(void *handle)
 		ring = &adev->sdma.instance[i].ring;
 		ring->ring_obj = NULL;
 		ring->use_doorbell = true;
+		aid_id = adev->sdma.instance[i].aid_id;
 
 		DRM_DEBUG("SDMA %d use_doorbell being set to: [%s]\n", i,
 				ring->use_doorbell?"true":"false");
 
 		/* doorbell size is 2 dwords, get DWORD offset */
 		ring->doorbell_index = adev->doorbell_index.sdma_engine[i] << 1;
-		ring->vm_hub = AMDGPU_MMHUB0(0);
+		ring->vm_hub = AMDGPU_MMHUB0(aid_id);
 
-		sprintf(ring->name, "sdma%d", i);
+		sprintf(ring->name, "sdma%d.%d", aid_id,
+				i % adev->sdma.num_inst_per_aid);
 		r = amdgpu_ring_init(adev, ring, 1024, &adev->sdma.trap_irq,
 				     AMDGPU_SDMA_IRQ_INSTANCE0 + i,
 				     AMDGPU_RING_PRIO_DEFAULT, NULL);
@@ -1327,9 +1330,10 @@ static int sdma_v4_4_2_sw_init(void *handle)
 			 * gfx queue on the same instance
 			 */
 			ring->doorbell_index = (adev->doorbell_index.sdma_engine[i] + 1) << 1;
-			ring->vm_hub = AMDGPU_MMHUB0(0);
+			ring->vm_hub = AMDGPU_MMHUB0(aid_id);
 
-			sprintf(ring->name, "page%d", i);
+			sprintf(ring->name, "page%d.%d", aid_id,
+					i % adev->sdma.num_inst_per_aid);
 			r = amdgpu_ring_init(adev, ring, 1024,
 					     &adev->sdma.trap_irq,
 					     AMDGPU_SDMA_IRQ_INSTANCE0 + i,
@@ -1811,6 +1815,8 @@ static void sdma_v4_4_2_set_ring_funcs(struct amdgpu_device *adev)
 				&sdma_v4_4_2_page_ring_funcs;
 			adev->sdma.instance[i].page.me = i;
 		}
+
+		adev->sdma.instance[i].aid_id = i / adev->sdma.num_inst_per_aid;
 	}
 }
 
