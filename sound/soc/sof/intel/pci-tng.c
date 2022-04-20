@@ -136,7 +136,7 @@ irq:
 	return ret;
 }
 
-const struct snd_sof_dsp_ops sof_tng_ops = {
+struct snd_sof_dsp_ops sof_tng_ops = {
 	/* device init */
 	.probe		= tangier_pci_probe,
 
@@ -210,6 +210,7 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 const struct sof_intel_dsp_desc tng_chip_info = {
 	.cores_num = 1,
 	.host_managed_cores_mask = 1,
+	.hw_ip_version = SOF_INTEL_TANGIER,
 };
 
 static const struct sof_dev_desc tng_desc = {
@@ -219,9 +220,17 @@ static const struct sof_dev_desc tng_desc = {
 	.resindex_imr_base	= 0,
 	.irqindex_host_ipc	= -1,
 	.chip_info = &tng_chip_info,
-	.default_fw_path = "intel/sof",
-	.default_tplg_path = "intel/sof-tplg",
-	.default_fw_filename = "sof-byt.ri",
+	.ipc_supported_mask	= BIT(SOF_IPC),
+	.ipc_default		= SOF_IPC,
+	.default_fw_path = {
+		[SOF_IPC] = "intel/sof",
+	},
+	.default_tplg_path = {
+		[SOF_IPC] = "intel/sof-tplg",
+	},
+	.default_fw_filename = {
+		[SOF_IPC] = "sof-byt.ri",
+	},
 	.nocodec_tplg_filename = "sof-byt.tplg",
 	.ops = &sof_tng_ops,
 };

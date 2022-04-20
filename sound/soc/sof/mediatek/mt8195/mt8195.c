@@ -393,7 +393,7 @@ static struct snd_soc_dai_driver mt8195_dai[] = {
 };
 
 /* mt8195 ops */
-static const struct snd_sof_dsp_ops sof_mt8195_ops = {
+static struct snd_sof_dsp_ops sof_mt8195_ops = {
 	/* probe and remove */
 	.probe		= mt8195_dsp_probe,
 	.remove		= mt8195_dsp_remove,
@@ -440,9 +440,17 @@ static const struct snd_sof_dsp_ops sof_mt8195_ops = {
 };
 
 static const struct sof_dev_desc sof_of_mt8195_desc = {
-	.default_fw_path = "mediatek/sof",
-	.default_tplg_path = "mediatek/sof-tplg",
-	.default_fw_filename = "sof-mt8195.ri",
+	.ipc_supported_mask	= BIT(SOF_IPC),
+	.ipc_default		= SOF_IPC,
+	.default_fw_path = {
+		[SOF_IPC] = "mediatek/sof",
+	},
+	.default_tplg_path = {
+		[SOF_IPC] = "mediatek/sof-tplg",
+	},
+	.default_fw_filename = {
+		[SOF_IPC] = "sof-mt8195.ri",
+	},
 	.nocodec_tplg_filename = "sof-mt8195-nocodec.tplg",
 	.ops = &sof_mt8195_ops,
 };

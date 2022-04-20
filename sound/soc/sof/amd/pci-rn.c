@@ -54,9 +54,17 @@ static const struct sof_dev_desc renoir_desc = {
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
 	.chip_info		= &renoir_chip_info,
-	.default_fw_path	= "amd/sof",
-	.default_tplg_path	= "amd/sof-tplg",
-	.default_fw_filename	= "sof-rn.ri",
+	.ipc_supported_mask	= BIT(SOF_IPC),
+	.ipc_default		= SOF_IPC,
+	.default_fw_path = {
+		[SOF_IPC] = "amd/sof",
+	},
+	.default_tplg_path = {
+		[SOF_IPC] = "amd/sof-tplg",
+	},
+	.default_fw_filename	= {
+		[SOF_IPC] = "sof-rn.ri",
+	},
 	.nocodec_tplg_filename	= "sof-acp.tplg",
 	.ops			= &sof_renoir_ops,
 };

@@ -652,7 +652,8 @@ int sof_machine_check(struct snd_sof_dev *sdev)
 		return -ENOMEM;
 
 	mach->drv_name = "sof-nocodec";
-	sof_pdata->tplg_filename = desc->nocodec_tplg_filename;
+	if (!sof_pdata->tplg_filename)
+		sof_pdata->tplg_filename = desc->nocodec_tplg_filename;
 
 	sof_pdata->machine = mach;
 	snd_sof_set_mach_params(mach, sdev);
