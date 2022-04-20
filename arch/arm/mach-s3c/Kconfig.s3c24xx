@@ -4,9 +4,8 @@
 #		http://www.samsung.com/
 #
 # Copyright 2007 Simtec Electronics
-
 menuconfig ARCH_S3C24XX
-	bool "Samsung S3C24XX SoCs"
+	bool "Samsung S3C24XX SoCs (deprecated, see help)"
 	depends on ARCH_MULTI_V4T || ARCH_MULTI_V5
 	depends on CPU_LITTLE_ENDIAN
 	select ATAGS
@@ -21,6 +20,11 @@ menuconfig ARCH_S3C24XX
 	  and S3C2450 SoCs based systems, such as the Simtec Electronics BAST
 	  (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or the
 	  Samsung SMDK2410 development board (and derivatives).
+
+	  The platform is deprecated and scheduled for removal. Please reach to
+	  the maintainers of the platform and linux-samsung-soc@vger.kernel.org if
+	  you still use it.
+	  Without such feedback, the platform will be removed after 2022.
 
 if ARCH_S3C24XX
 
