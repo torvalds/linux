@@ -39,7 +39,7 @@
 #include <asm/irq.h>
 #include <linux/platform_data/mmc-mxcmmc.h>
 
-#include <linux/platform_data/dma-imx.h>
+#include <linux/dma/imx-dma.h>
 
 #define DRIVER_NAME "mxc-mmc"
 #define MXCMCI_TIMEOUT_MS 10000
