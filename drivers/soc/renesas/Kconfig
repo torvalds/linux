@@ -385,6 +385,10 @@ config SYSC_R8A779A0
 	bool "System Controller support for R-Car V3U" if COMPILE_TEST
 	select SYSC_RCAR_GEN4
 
+config SYSC_R8A779G0
+	bool "System Controller support for R-Car V4H" if COMPILE_TEST
+	select SYSC_RCAR_GEN4
+
 config SYSC_RMOBILE
 	bool "System Controller support for R-Mobile" if COMPILE_TEST
 
