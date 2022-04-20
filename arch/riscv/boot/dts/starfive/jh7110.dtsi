@@ -887,9 +887,9 @@
 			reg = <0x0 0x120d0000 0x0 0x10000>;
 			reg-names = "control";
 			clocks = <&pwmclk>;
-			sifive,approx-period = <1000000>;
+			starfive,approx-period = <1000000>;
 			#pwm-cells=<3>;
-			sifive,npwm = <8>;
+			starfive,npwm = <8>;
 			status = "disabled";
 		};
 
