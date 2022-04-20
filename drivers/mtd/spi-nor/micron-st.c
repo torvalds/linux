@@ -60,9 +60,6 @@ static int micron_st_nor_octal_dtr_en(struct spi_nor *nor)
 	ret = spi_nor_write_any_volatile_reg(nor, &op, nor->reg_proto);
 	if (ret)
 		return ret;
-	ret = spi_nor_wait_till_ready(nor);
-	if (ret)
-		return ret;
 
 	buf[0] = SPINOR_MT_OCT_DTR;
 	op = (struct spi_mem_op)
