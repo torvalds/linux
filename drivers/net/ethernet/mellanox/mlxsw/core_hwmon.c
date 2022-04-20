@@ -19,6 +19,7 @@
 #define MLXSW_HWMON_ATTR_PER_SENSOR 3
 #define MLXSW_HWMON_ATTR_PER_MODULE 7
 #define MLXSW_HWMON_ATTR_PER_GEARBOX 4
+#define MLXSW_HWMON_DEV_NAME_LEN_MAX 16
 
 #define MLXSW_HWMON_ATTR_COUNT (MLXSW_HWMON_SENSORS_MAX_COUNT * MLXSW_HWMON_ATTR_PER_SENSOR + \
 				MLXSW_HWMON_MODULES_MAX_COUNT * MLXSW_HWMON_ATTR_PER_MODULE + \
@@ -41,6 +42,7 @@ static int mlxsw_hwmon_get_attr_index(int index, int count)
 }
 
 struct mlxsw_hwmon_dev {
+	char name[MLXSW_HWMON_DEV_NAME_LEN_MAX];
 	struct mlxsw_hwmon *hwmon;
 	struct device *hwmon_dev;
 	struct attribute_group group;
@@ -51,6 +53,7 @@ struct mlxsw_hwmon_dev {
 	u8 sensor_count;
 	u8 module_sensor_max;
 	u8 slot_index;
+	bool active;
 };
 
 struct mlxsw_hwmon {
@@ -780,6 +783,75 @@ static int mlxsw_hwmon_gearbox_init(struct mlxsw_hwmon_dev *mlxsw_hwmon_dev)
 	return 0;
 }
 
+static void
+mlxsw_hwmon_got_active(struct mlxsw_core *mlxsw_core, u8 slot_index,
+		       void *priv)
+{
+	struct mlxsw_hwmon *hwmon = priv;
+	struct mlxsw_hwmon_dev *linecard;
+	struct device *dev;
+	int err;
+
+	dev = hwmon->bus_info->dev;
+	linecard = &hwmon->line_cards[slot_index];
+	if (linecard->active)
+		return;
+	/* For the main board, module sensor indexes start from 1, sensor index
+	 * 0 is used for the ASIC. Use the same numbering for line cards.
+	 */
+	linecard->sensor_count = 1;
+	linecard->slot_index = slot_index;
+	linecard->hwmon = hwmon;
+	err = mlxsw_hwmon_module_init(linecard);
+	if (err) {
+		dev_err(dev, "Failed to configure hwmon objects for line card modules in slot %d\n",
+			slot_index);
+		return;
+	}
+
+	err = mlxsw_hwmon_gearbox_init(linecard);
+	if (err) {
+		dev_err(dev, "Failed to configure hwmon objects for line card gearboxes in slot %d\n",
+			slot_index);
+		return;
+	}
+
+	linecard->groups[0] = &linecard->group;
+	linecard->group.attrs = linecard->attrs;
+	sprintf(linecard->name, "%s#%02u", "linecard", slot_index);
+	linecard->hwmon_dev =
+		hwmon_device_register_with_groups(dev, linecard->name,
+						  linecard, linecard->groups);
+	if (IS_ERR(linecard->hwmon_dev)) {
+		dev_err(dev, "Failed to register hwmon objects for line card in slot %d\n",
+			slot_index);
+		return;
+	}
+
+	linecard->active = true;
+}
+
+static void
+mlxsw_hwmon_got_inactive(struct mlxsw_core *mlxsw_core, u8 slot_index,
+			 void *priv)
+{
+	struct mlxsw_hwmon *hwmon = priv;
+	struct mlxsw_hwmon_dev *linecard;
+
+	linecard = &hwmon->line_cards[slot_index];
+	if (!linecard->active)
+		return;
+	linecard->active = false;
+	hwmon_device_unregister(linecard->hwmon_dev);
+	/* Reset attributes counter */
+	linecard->attrs_count = 0;
+}
+
+static struct mlxsw_linecards_event_ops mlxsw_hwmon_event_ops = {
+	.got_active = mlxsw_hwmon_got_active,
+	.got_inactive = mlxsw_hwmon_got_inactive,
+};
+
 int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 		     const struct mlxsw_bus_info *mlxsw_bus_info,
 		     struct mlxsw_hwmon **p_hwmon)
@@ -836,10 +908,19 @@ int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 		goto err_hwmon_register;
 	}
 
+	err = mlxsw_linecards_event_ops_register(mlxsw_hwmon->core,
+						 &mlxsw_hwmon_event_ops,
+						 mlxsw_hwmon);
+	if (err)
+		goto err_linecards_event_ops_register;
+
 	mlxsw_hwmon->line_cards[0].hwmon_dev = hwmon_dev;
+	mlxsw_hwmon->line_cards[0].active = true;
 	*p_hwmon = mlxsw_hwmon;
 	return 0;
 
+err_linecards_event_ops_register:
+	hwmon_device_unregister(mlxsw_hwmon->line_cards[0].hwmon_dev);
 err_hwmon_register:
 err_temp_gearbox_init:
 err_temp_module_init:
@@ -851,6 +932,9 @@ err_temp_init:
 
 void mlxsw_hwmon_fini(struct mlxsw_hwmon *mlxsw_hwmon)
 {
+	mlxsw_hwmon->line_cards[0].active = false;
+	mlxsw_linecards_event_ops_unregister(mlxsw_hwmon->core,
+					     &mlxsw_hwmon_event_ops, mlxsw_hwmon);
 	hwmon_device_unregister(mlxsw_hwmon->line_cards[0].hwmon_dev);
 	kfree(mlxsw_hwmon);
 }

@@ -95,6 +95,137 @@ static void mlxsw_linecard_provision_fail(struct mlxsw_linecard *linecard)
 	devlink_linecard_provision_fail(linecard->devlink_linecard);
 }
 
+struct mlxsw_linecards_event_ops_item {
+	struct list_head list;
+	const struct mlxsw_linecards_event_ops *event_ops;
+	void *priv;
+};
+
+static void
+mlxsw_linecard_event_op_call(struct mlxsw_linecard *linecard,
+			     mlxsw_linecards_event_op_t *op, void *priv)
+{
+	struct mlxsw_core *mlxsw_core = linecard->linecards->mlxsw_core;
+
+	if (!op)
+		return;
+	op(mlxsw_core, linecard->slot_index, priv);
+}
+
+static void
+mlxsw_linecard_active_ops_call(struct mlxsw_linecard *linecard)
+{
+	struct mlxsw_linecards *linecards = linecard->linecards;
+	struct mlxsw_linecards_event_ops_item *item;
+
+	mutex_lock(&linecards->event_ops_list_lock);
+	list_for_each_entry(item, &linecards->event_ops_list, list)
+		mlxsw_linecard_event_op_call(linecard,
+					     item->event_ops->got_active,
+					     item->priv);
+	mutex_unlock(&linecards->event_ops_list_lock);
+}
+
+static void
+mlxsw_linecard_inactive_ops_call(struct mlxsw_linecard *linecard)
+{
+	struct mlxsw_linecards *linecards = linecard->linecards;
+	struct mlxsw_linecards_event_ops_item *item;
+
+	mutex_lock(&linecards->event_ops_list_lock);
+	list_for_each_entry(item, &linecards->event_ops_list, list)
+		mlxsw_linecard_event_op_call(linecard,
+					     item->event_ops->got_inactive,
+					     item->priv);
+	mutex_unlock(&linecards->event_ops_list_lock);
+}
+
+static void
+mlxsw_linecards_event_ops_register_call(struct mlxsw_linecards *linecards,
+					const struct mlxsw_linecards_event_ops_item *item)
+{
+	struct mlxsw_linecard *linecard;
+	int i;
+
+	for (i = 0; i < linecards->count; i++) {
+		linecard = mlxsw_linecard_get(linecards, i + 1);
+		mutex_lock(&linecard->lock);
+		if (linecard->active)
+			mlxsw_linecard_event_op_call(linecard,
+						     item->event_ops->got_active,
+						     item->priv);
+		mutex_unlock(&linecard->lock);
+	}
+}
+
+static void
+mlxsw_linecards_event_ops_unregister_call(struct mlxsw_linecards *linecards,
+					  const struct mlxsw_linecards_event_ops_item *item)
+{
+	struct mlxsw_linecard *linecard;
+	int i;
+
+	for (i = 0; i < linecards->count; i++) {
+		linecard = mlxsw_linecard_get(linecards, i + 1);
+		mutex_lock(&linecard->lock);
+		if (linecard->active)
+			mlxsw_linecard_event_op_call(linecard,
+						     item->event_ops->got_inactive,
+						     item->priv);
+		mutex_unlock(&linecard->lock);
+	}
+}
+
+int mlxsw_linecards_event_ops_register(struct mlxsw_core *mlxsw_core,
+				       struct mlxsw_linecards_event_ops *ops,
+				       void *priv)
+{
+	struct mlxsw_linecards *linecards = mlxsw_core_linecards(mlxsw_core);
+	struct mlxsw_linecards_event_ops_item *item;
+
+	if (!linecards)
+		return 0;
+	item = kzalloc(sizeof(*item), GFP_KERNEL);
+	if (!item)
+		return -ENOMEM;
+	item->event_ops = ops;
+	item->priv = priv;
+
+	mutex_lock(&linecards->event_ops_list_lock);
+	list_add_tail(&item->list, &linecards->event_ops_list);
+	mutex_unlock(&linecards->event_ops_list_lock);
+	mlxsw_linecards_event_ops_register_call(linecards, item);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_linecards_event_ops_register);
+
+void mlxsw_linecards_event_ops_unregister(struct mlxsw_core *mlxsw_core,
+					  struct mlxsw_linecards_event_ops *ops,
+					  void *priv)
+{
+	struct mlxsw_linecards *linecards = mlxsw_core_linecards(mlxsw_core);
+	struct mlxsw_linecards_event_ops_item *item, *tmp;
+	bool found = false;
+
+	if (!linecards)
+		return;
+	mutex_lock(&linecards->event_ops_list_lock);
+	list_for_each_entry_safe(item, tmp, &linecards->event_ops_list, list) {
+		if (item->event_ops == ops && item->priv == priv) {
+			list_del(&item->list);
+			found = true;
+			break;
+		}
+	}
+	mutex_unlock(&linecards->event_ops_list_lock);
+
+	if (!found)
+		return;
+	mlxsw_linecards_event_ops_unregister_call(linecards, item);
+	kfree(item);
+}
+EXPORT_SYMBOL(mlxsw_linecards_event_ops_unregister);
+
 static int
 mlxsw_linecard_provision_set(struct mlxsw_linecard *linecard, u8 card_type,
 			     u16 hw_revision, u16 ini_version)
@@ -163,12 +294,14 @@ static int mlxsw_linecard_ready_clear(struct mlxsw_linecard *linecard)
 
 static void mlxsw_linecard_active_set(struct mlxsw_linecard *linecard)
 {
+	mlxsw_linecard_active_ops_call(linecard);
 	linecard->active = true;
 	devlink_linecard_activate(linecard->devlink_linecard);
 }
 
 static void mlxsw_linecard_active_clear(struct mlxsw_linecard *linecard)
 {
+	mlxsw_linecard_inactive_ops_call(linecard);
 	linecard->active = false;
 	devlink_linecard_deactivate(linecard->devlink_linecard);
 }
@@ -954,6 +1087,8 @@ int mlxsw_linecards_init(struct mlxsw_core *mlxsw_core,
 	linecards->count = slot_count;
 	linecards->mlxsw_core = mlxsw_core;
 	linecards->bus_info = bus_info;
+	INIT_LIST_HEAD(&linecards->event_ops_list);
+	mutex_init(&linecards->event_ops_list_lock);
 
 	err = mlxsw_linecard_types_init(mlxsw_core, linecards);
 	if (err)
@@ -1001,5 +1136,7 @@ void mlxsw_linecards_fini(struct mlxsw_core *mlxsw_core)
 				    ARRAY_SIZE(mlxsw_linecard_listener),
 				    mlxsw_core);
 	mlxsw_linecard_types_fini(linecards);
+	mutex_destroy(&linecards->event_ops_list_lock);
+	WARN_ON(!list_empty(&linecards->event_ops_list));
 	vfree(linecards);
 }
