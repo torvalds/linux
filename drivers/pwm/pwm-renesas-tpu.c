@@ -242,20 +242,29 @@ static void tpu_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 }
 
 static int tpu_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			  int duty_ns, int period_ns, bool enabled)
+			  u64 duty_ns, u64 period_ns, bool enabled)
 {
 	struct tpu_pwm_device *tpd = pwm_get_chip_data(pwm);
 	struct tpu_device *tpu = to_tpu_device(chip);
 	unsigned int prescaler;
 	bool duty_only = false;
 	u32 clk_rate;
-	u32 period;
+	u64 period;
 	u32 duty;
 	int ret;
 
 	clk_rate = clk_get_rate(tpu->clk);
+	if (unlikely(clk_rate > NSEC_PER_SEC)) {
+		/*
+		 * This won't happen in the nearer future, so this is only a
+		 * safeguard to prevent the following calculation from
+		 * overflowing. With this clk_rate * period_ns / NSEC_PER_SEC is
+		 * not greater than period_ns and so fits into an u64.
+		 */
+		return -EINVAL;
+	}
 
-	period = clk_rate / (NSEC_PER_SEC / period_ns);
+	period = mul_u64_u64_div_u64(clk_rate, period_ns, NSEC_PER_SEC);
 
 	/*
 	 * Find the minimal prescaler in [0..3] such that
@@ -292,18 +301,15 @@ static int tpu_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	period >>= 2 * prescaler;
 
-	if (duty_ns) {
-		duty = (clk_rate >> 2 * prescaler)
-		     / (NSEC_PER_SEC / duty_ns);
-		if (duty > period)
-			return -EINVAL;
-	} else {
+	if (duty_ns)
+		duty = mul_u64_u64_div_u64(clk_rate, duty_ns,
+					   (u64)NSEC_PER_SEC << (2 * prescaler));
+	else
 		duty = 0;
-	}
 
 	dev_dbg(&tpu->pdev->dev,
 		"rate %u, prescaler %u, period %u, duty %u\n",
-		clk_rate, 1 << (2 * prescaler), period, duty);
+		clk_rate, 1 << (2 * prescaler), (u32)period, duty);
 
 	if (tpd->prescaler == prescaler && tpd->period == period)
 		duty_only = true;
