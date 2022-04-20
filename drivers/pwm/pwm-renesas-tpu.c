@@ -408,24 +408,13 @@ static int tpu_probe(struct platform_device *pdev)
 	tpu->chip.ops = &tpu_pwm_ops;
 	tpu->chip.npwm = TPU_CHANNEL_MAX;
 
-	pm_runtime_enable(&pdev->dev);
+	ret = devm_pm_runtime_enable(&pdev->dev);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "Failed to enable runtime PM\n");
 
-	ret = pwmchip_add(&tpu->chip);
-	if (ret < 0) {
-		pm_runtime_disable(&pdev->dev);
+	ret = devm_pwmchip_add(&pdev->dev, &tpu->chip);
+	if (ret < 0)
 		return dev_err_probe(&pdev->dev, ret, "Failed to register PWM chip\n");
-	}
-
-	return 0;
-}
-
-static int tpu_remove(struct platform_device *pdev)
-{
-	struct tpu_device *tpu = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&tpu->chip);
-
-	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
@@ -444,7 +433,6 @@ MODULE_DEVICE_TABLE(of, tpu_of_table);
 
 static struct platform_driver tpu_driver = {
 	.probe		= tpu_probe,
-	.remove		= tpu_remove,
 	.driver		= {
 		.name	= "renesas-tpu-pwm",
 		.of_match_table = of_match_ptr(tpu_of_table),
