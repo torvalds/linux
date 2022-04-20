@@ -1777,7 +1777,6 @@ int ceph_mmap(struct file *file, struct vm_area_struct *vma)
 
 	if (!mapping->a_ops->readpage)
 		return -ENOEXEC;
-	file_accessed(file);
 	vma->vm_ops = &ceph_vmops;
 	return 0;
 }
