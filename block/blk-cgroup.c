@@ -2038,15 +2038,11 @@ bool blk_cgroup_congested(void)
 	bool ret = false;
 
 	rcu_read_lock();
-	css = kthread_blkcg();
-	if (!css)
-		css = task_css(current, io_cgrp_id);
-	while (css) {
+	for (css = blkcg_css(); css; css = css->parent) {
 		if (atomic_read(&css->cgroup->congestion_count)) {
 			ret = true;
 			break;
 		}
-		css = css->parent;
 	}
 	rcu_read_unlock();
 	return ret;
