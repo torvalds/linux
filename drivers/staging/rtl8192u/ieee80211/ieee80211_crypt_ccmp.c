@@ -362,7 +362,7 @@ static int ieee80211_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 	struct ieee80211_ccmp_data *data = priv;
 
 	if (len < CCMP_TK_LEN)
-		return -1;
+		return 0;
 
 	if (!data->key_set)
 		return 0;

@@ -637,7 +637,7 @@ static int ieee80211_tkip_get_key(void *key, int len, u8 *seq, void *priv)
 	struct ieee80211_tkip_data *tkey = priv;
 
 	if (len < TKIP_KEY_LEN)
-		return -1;
+		return 0;
 
 	if (!tkey->key_set)
 		return 0;
