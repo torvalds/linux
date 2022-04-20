@@ -19,6 +19,7 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 
 #include "core.h"
@@ -1912,6 +1913,7 @@ static int ocelot_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ocelot_pinctrl *info;
+	struct reset_control *reset;
 	struct regmap *pincfg;
 	void __iomem *base;
 	int ret;
@@ -1926,6 +1928,12 @@ static int ocelot_pinctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	info->desc = (struct pinctrl_desc *)device_get_match_data(dev);
+
+	reset = devm_reset_control_get_optional_shared(dev, "switch");
+	if (IS_ERR(reset))
+		return dev_err_probe(dev, PTR_ERR(reset),
+				     "Failed to get reset\n");
+	reset_control_reset(reset);
 
 	base = devm_ioremap_resource(dev,
 			platform_get_resource(pdev, IORESOURCE_MEM, 0));
