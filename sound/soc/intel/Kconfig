@@ -214,8 +214,10 @@ config SND_SOC_INTEL_AVS
 	depends on PCI && ACPI
 	depends on COMMON_CLK
 	select SND_SOC_ACPI
+	select SND_SOC_TOPOLOGY
 	select SND_HDA_EXT_CORE
 	select SND_HDA_DSP_LOADER
+	select SND_INTEL_NHLT
 	help
 	  Enable support for Intel(R) cAVS 1.5 platforms with DSP
 	  capabilities. This includes Skylake, Kabylake, Amberlake and
