@@ -633,7 +633,7 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 			cf->data[3] = CAN_ERR_PROT_LOC_ACK;
 
 		timestamp = hecc_read(priv, HECC_CANLNT);
-		err = can_rx_offload_queue_sorted(&priv->offload, skb,
+		err = can_rx_offload_queue_timestamp(&priv->offload, skb,
 						  timestamp);
 		if (err)
 			ndev->stats.rx_fifo_errors++;
@@ -668,7 +668,7 @@ static void ti_hecc_change_state(struct net_device *ndev,
 	}
 
 	timestamp = hecc_read(priv, HECC_CANLNT);
-	err = can_rx_offload_queue_sorted(&priv->offload, skb, timestamp);
+	err = can_rx_offload_queue_timestamp(&priv->offload, skb, timestamp);
 	if (err)
 		ndev->stats.rx_fifo_errors++;
 }

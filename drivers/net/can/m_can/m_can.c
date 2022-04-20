@@ -464,7 +464,7 @@ static void m_can_receive_skb(struct m_can_classdev *cdev,
 		struct net_device_stats *stats = &cdev->net->stats;
 		int err;
 
-		err = can_rx_offload_queue_sorted(&cdev->offload, skb,
+		err = can_rx_offload_queue_timestamp(&cdev->offload, skb,
 						  timestamp);
 		if (err)
 			stats->rx_fifo_errors++;

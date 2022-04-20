@@ -116,7 +116,7 @@ int can_calc_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 
 		can_update_sample_point(btc, sample_point_nominal, tseg / 2,
 					&tseg1, &tseg2, &sample_point_error);
-		if (sample_point_error > best_sample_point_error)
+		if (sample_point_error >= best_sample_point_error)
 			continue;
 
 		best_sample_point_error = sample_point_error;
