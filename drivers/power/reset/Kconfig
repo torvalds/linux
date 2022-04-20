@@ -123,6 +123,25 @@ config POWER_RESET_MSM
 	help
 	  Power off and restart support for Qualcomm boards.
 
+config POWER_RESET_QCOM_DOWNLOAD_MODE
+        tristate "MSM download mode driver"
+        depends on ARCH_QCOM
+        help
+          MSM boards support booting to special download modes after a restart.
+          These modes could be a normal restart, restarting into a
+          ramdump collection mode (CrashDump), or restarting into "emergency
+          download mode".
+
+config POWER_RESET_QCOM_DOWNLOAD_MODE_DEFAULT
+        bool "MSM download mode enabled by default"
+        help
+          A device with "download mode" enabled will upon an unexpected
+          warm-restart enter a special debug mode that allows the user to
+          "download" memory content over USB for offline postmortem analysis.
+          The feature can be enabled/disabled on the kernel command line.
+
+          Say Y here to enable "download mode" by default.
+
 config POWER_RESET_QCOM_PON
 	tristate "Qualcomm power-on driver"
 	depends on ARCH_QCOM
