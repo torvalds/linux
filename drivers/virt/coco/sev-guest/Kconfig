@@ -11,4 +11,4 @@ config SEV_GUEST
 	  userspace interface to communicate with the PSP to request the
 	  attestation report and more.
 
-	  If you choose 'M' here, this module will be called sevguest.
+	  If you choose 'M' here, this module will be called sev-guest.

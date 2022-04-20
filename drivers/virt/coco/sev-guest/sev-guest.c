@@ -25,7 +25,7 @@
 #include <asm/svm.h>
 #include <asm/sev.h>
 
-#include "sevguest.h"
+#include "sev-guest.h"
 
 #define DEVICE_NAME	"sev-guest"
 #define AAD_LEN		48
@@ -724,9 +724,9 @@ static int __exit sev_guest_remove(struct platform_device *pdev)
 }
 
 /*
- * This driver is a common SEV guest interface driver and meant to support
- * any SEV guest API. As such, even though it has been introduced along with
- * the SEV-SNP support, it is named "sev-guest".
+ * This driver is meant to be a common SEV guest interface driver and to
+ * support any SEV guest API. As such, even though it has been introduced
+ * with the SEV-SNP support, it is named "sev-guest".
  */
 static struct platform_driver sev_guest_driver = {
 	.remove		= __exit_p(sev_guest_remove),
