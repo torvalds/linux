@@ -27,15 +27,17 @@ struct rve_internal_ctx_t *rve_job_get_internal_ctx(struct rve_job *job);
 void rve_job_done(struct rve_scheduler_t *rve_scheduler, int ret);
 int rve_job_commit(struct rve_internal_ctx_t *ctx);
 
-int rve_ctx_manager_init(struct rve_pending_ctx_manager **ctx_manager_session);
-int rve_ctx_manager_remove(struct rve_pending_ctx_manager **ctx_manager_session);
-
-int rve_internal_ctx_alloc_to_get_idr_id(void);
-void rve_internal_ctx_kref_release(struct kref *ref);
-
 int rve_job_config_by_user_ctx(struct rve_user_ctx_t *user_ctx);
 int rve_job_commit_by_user_ctx(struct rve_user_ctx_t *user_ctx);
 int rve_job_cancel_by_user_ctx(uint32_t ctx_id);
+
+void rve_job_session_destroy(struct rve_session *session);
+
+int rve_ctx_manager_init(struct rve_pending_ctx_manager **ctx_manager_session);
+int rve_ctx_manager_remove(struct rve_pending_ctx_manager **ctx_manager_session);
+
+int rve_internal_ctx_alloc_to_get_idr_id(struct rve_session *session);
+void rve_internal_ctx_kref_release(struct kref *ref);
 
 struct rve_job *
 rve_scheduler_get_pending_job_list(struct rve_scheduler_t *scheduler);

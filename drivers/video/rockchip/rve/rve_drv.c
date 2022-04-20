@@ -157,12 +157,140 @@ int rve_power_disable(struct rve_scheduler_t *scheduler)
 
 #endif //RVE_PD_AWAYS_ON
 
-static long rve_ioctl_cmd_start(unsigned long arg)
+static int rve_session_manager_init(struct rve_session_manager **session_manager_ptr)
+{
+	struct rve_session_manager *session_manager = NULL;
+
+	*session_manager_ptr = kzalloc(sizeof(struct rve_session_manager), GFP_KERNEL);
+	if (*session_manager_ptr == NULL) {
+		pr_err("can not kzalloc for rve_session_manager\n");
+		return -ENOMEM;
+	}
+
+	session_manager = *session_manager_ptr;
+
+	mutex_init(&session_manager->lock);
+
+	idr_init_base(&session_manager->ctx_id_idr, 1);
+
+	return 0;
+}
+
+/*
+ * Called at driver close to release the rve session's id references.
+ */
+static int rve_session_free_remove_idr_cb(int id, void *ptr, void *data)
+{
+	struct rve_session *session = ptr;
+
+	idr_remove(&rve_drvdata->session_manager->ctx_id_idr, session->id);
+	kfree(session);
+
+	return 0;
+}
+
+static int rve_session_free_remove_idr(struct rve_session *session)
+{
+	struct rve_session_manager *session_manager;
+
+	session_manager = rve_drvdata->session_manager;
+
+	mutex_lock(&session_manager->lock);
+
+	session_manager->session_cnt--;
+	idr_remove(&session_manager->ctx_id_idr, session->id);
+
+	mutex_unlock(&session_manager->lock);
+
+	return 0;
+}
+
+static int rve_session_manager_remove(struct rve_session_manager **session_manager_ptr)
+{
+	struct rve_session_manager *session_manager = *session_manager_ptr;
+
+	mutex_lock(&session_manager->lock);
+
+	idr_for_each(&session_manager->ctx_id_idr, &rve_session_free_remove_idr_cb, session_manager);
+	idr_destroy(&session_manager->ctx_id_idr);
+
+	mutex_unlock(&session_manager->lock);
+
+	kfree(*session_manager_ptr);
+
+	*session_manager_ptr = NULL;
+
+	return 0;
+}
+
+static struct rve_session *rve_session_init(void)
+{
+	struct rve_session_manager *session_manager = NULL;
+	struct rve_session *session = kzalloc(sizeof(*session), GFP_KERNEL);
+
+	session_manager = rve_drvdata->session_manager;
+	if (session_manager == NULL) {
+		pr_err("rve_session_manager is null!\n");
+		kfree(session);
+		return NULL;
+	}
+
+	mutex_lock(&session_manager->lock);
+
+	idr_preload(GFP_KERNEL);
+	session->id = idr_alloc(&session_manager->ctx_id_idr, session, 1, 0, GFP_ATOMIC);
+	session_manager->session_cnt++;
+	idr_preload_end();
+
+	mutex_unlock(&session_manager->lock);
+
+	session->tgid = current->tgid;
+
+	return session;
+}
+
+static int rve_session_deinit(struct rve_session *session)
+{
+	pid_t pid;
+	int ctx_id;
+	struct rve_pending_ctx_manager *ctx_manager;
+	struct rve_internal_ctx_t *ctx;
+	unsigned long flags;
+
+	pid = current->pid;
+
+	ctx_manager = rve_drvdata->pend_ctx_manager;
+
+	spin_lock_irqsave(&ctx_manager->lock, flags);
+
+	idr_for_each_entry(&ctx_manager->ctx_id_idr, ctx, ctx_id) {
+
+		spin_unlock_irqrestore(&ctx_manager->lock, flags);
+
+		if (session == ctx->session) {
+			pr_err("[pid:%d] destroy ctx[%d] when the user exits", pid, ctx->id);
+			kref_put(&ctx->refcount, rve_internal_ctx_kref_release);
+		}
+
+		spin_lock_irqsave(&ctx_manager->lock, flags);
+	}
+
+	spin_unlock_irqrestore(&ctx_manager->lock, flags);
+
+	rve_job_session_destroy(session);
+
+	rve_session_free_remove_idr(session);
+	kfree(session);
+
+	return 0;
+}
+
+static long rve_ioctl_cmd_start(unsigned long arg, struct rve_session *session)
 {
 	int rve_user_ctx_id;
 	int ret = 0;
 
-	rve_user_ctx_id = rve_internal_ctx_alloc_to_get_idr_id();
+	rve_user_ctx_id = rve_internal_ctx_alloc_to_get_idr_id(session);
 
 	if (copy_to_user((void *)arg, &rve_user_ctx_id, sizeof(int)))
 		ret = -EFAULT;
@@ -269,6 +397,7 @@ static long rve_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	int i = 0;
 	struct rve_version_t driver_version;
 	struct rve_hw_versions_t hw_versions;
+	struct rve_session *session = file->private_data;
 
 	if (!rve) {
 		pr_err("rve_drvdata is null, rve is not init\n");
@@ -312,7 +441,7 @@ static long rve_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		break;
 
 	case RVE_IOC_START_CONFIG:
-		ret = rve_ioctl_cmd_start(arg);
+		ret = rve_ioctl_cmd_start(arg, session);
 
 		break;
 
@@ -383,37 +512,22 @@ static int rve_debugger_remove(struct rve_debugger **debugger_p)
 
 static int rve_open(struct inode *inode, struct file *file)
 {
+	struct rve_session *session = NULL;
+
+	session = rve_session_init();
+	if (!session)
+		return -ENOMEM;
+
+	file->private_data = (void *)session;
+
 	return nonseekable_open(inode, file);
 }
 
 static int rve_release(struct inode *inode, struct file *file)
 {
-	struct rve_pending_ctx_manager *ctx_manager;
-	struct rve_internal_ctx_t *ctx;
-	pid_t pid;
-	int ctx_id;
-	unsigned long flags;
+	struct rve_session *session = file->private_data;
 
-	pid = current->pid;
-
-	ctx_manager = rve_drvdata->pend_ctx_manager;
-
-	spin_lock_irqsave(&ctx_manager->lock, flags);
-
-	idr_for_each_entry(&ctx_manager->ctx_id_idr, ctx, ctx_id) {
-
-		spin_unlock_irqrestore(&ctx_manager->lock, flags);
-
-		if (pid == ctx->debug_info.pid) {
-			if (DEBUGGER_EN(MSG))
-				pr_info("[pid:%d] destroy ctx[%d] when the user exits", pid, ctx->id);
-			kref_put(&ctx->refcount, rve_internal_ctx_kref_release);
-		}
-
-		spin_lock_irqsave(&ctx_manager->lock, flags);
-	}
-
-	spin_unlock_irqrestore(&ctx_manager->lock, flags);
+	rve_session_deinit(session);
 
 	return 0;
 }
@@ -733,6 +847,8 @@ static int __init rve_init(void)
 
 	rve_ctx_manager_init(&rve_drvdata->pend_ctx_manager);
 
+	rve_session_manager_init(&rve_drvdata->session_manager);
+
 	rve_init_timer();
 
 #ifdef CONFIG_ROCKCHIP_RVE_DEBUGGER
@@ -751,6 +867,8 @@ static void __exit rve_exit(void)
 #endif
 
 	rve_ctx_manager_remove(&rve_drvdata->pend_ctx_manager);
+
+	rve_session_manager_remove(&rve_drvdata->session_manager);
 
 	wake_lock_destroy(&rve_drvdata->wake_lock);
 

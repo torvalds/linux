@@ -116,9 +116,16 @@ struct rve_fence_waiter {
 struct rve_scheduler_t;
 struct rve_internal_ctx_t;
 
+struct rve_session {
+	int id;
+
+	pid_t tgid;
+};
+
 struct rve_job {
 	struct list_head head;
 	struct rve_scheduler_t *scheduler;
+	struct rve_session *session;
 
 	struct rve_cmd_reg_array_t *regcmd_data;
 
@@ -220,6 +227,7 @@ struct rve_ctx_debug_info_t {
 
 struct rve_internal_ctx_t {
 	struct rve_scheduler_t *scheduler;
+	struct rve_session *session;
 
 	struct rve_cmd_reg_array_t *regcmd_data;
 	uint32_t cmd_num;
@@ -260,6 +268,14 @@ struct rve_pending_ctx_manager {
 	int ctx_count;
 };
 
+struct rve_session_manager {
+	struct mutex lock;
+
+	struct idr ctx_id_idr;
+
+	int session_cnt;
+};
+
 struct rve_drvdata_t {
 	struct rve_fence_context *fence_ctx;
 
@@ -276,6 +292,8 @@ struct rve_drvdata_t {
 
 	/* rve_job pending manager, import by RVE_IOC_START_CONFIG */
 	struct rve_pending_ctx_manager *pend_ctx_manager;
+
+	struct rve_session_manager *session_manager;
 
 #ifdef CONFIG_ROCKCHIP_RVE_DEBUGGER
 	struct rve_debugger *debugger;

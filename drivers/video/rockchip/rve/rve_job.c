@@ -75,6 +75,35 @@ static int rve_job_cleanup(struct rve_job *job)
 	return 0;
 }
 
+void rve_job_session_destroy(struct rve_session *session)
+{
+	struct rve_scheduler_t *scheduler = NULL;
+	struct rve_job *job_pos, *job_q;
+	int i;
+
+	unsigned long flags;
+
+	for (i = 0; i < rve_drvdata->num_of_scheduler; i++) {
+		scheduler = rve_drvdata->scheduler[i];
+
+		spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+		list_for_each_entry_safe(job_pos, job_q, &scheduler->todo_list, head) {
+			if (session == job_pos->session) {
+				list_del(&job_pos->head);
+
+				spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+				rve_job_free(job_pos);
+
+				spin_lock_irqsave(&scheduler->irq_lock, flags);
+			}
+		}
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+	}
+}
+
 static struct rve_job *rve_job_alloc(struct rve_internal_ctx_t *ctx)
 {
 	struct rve_job *job = NULL;
@@ -96,6 +125,7 @@ static struct rve_job *rve_job_alloc(struct rve_internal_ctx_t *ctx)
 	job->core = rve_drvdata->scheduler[0]->core;
 	job->ctx = ctx;
 	ctx->scheduler = job->scheduler;
+	job->session = ctx->session;
 
 	if (ctx->priority > 0) {
 		if (ctx->priority > RVE_SCHED_PRIORITY_MAX)
@@ -570,7 +600,7 @@ static void rve_input_fence_signaled(struct dma_fence *fence,
 }
 #endif
 
-int rve_internal_ctx_alloc_to_get_idr_id(void)
+int rve_internal_ctx_alloc_to_get_idr_id(struct rve_session *session)
 {
 	struct rve_pending_ctx_manager *ctx_manager;
 	struct rve_internal_ctx_t *ctx;
@@ -610,6 +640,7 @@ int rve_internal_ctx_alloc_to_get_idr_id(void)
 
 	ctx->debug_info.pid = current->pid;
 	ctx->debug_info.timestamp = ktime_get();
+	ctx->session = session;
 
 	spin_unlock_irqrestore(&ctx_manager->lock, flags);
 
