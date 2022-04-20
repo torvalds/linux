@@ -135,25 +135,7 @@ static inline struct blkcg *bio_blkcg(struct bio *bio)
 	return NULL;
 }
 
-static inline bool blk_cgroup_congested(void)
-{
-	struct cgroup_subsys_state *css;
-	bool ret = false;
-
-	rcu_read_lock();
-	css = kthread_blkcg();
-	if (!css)
-		css = task_css(current, io_cgrp_id);
-	while (css) {
-		if (atomic_read(&css->cgroup->congestion_count)) {
-			ret = true;
-			break;
-		}
-		css = css->parent;
-	}
-	rcu_read_unlock();
-	return ret;
-}
+bool blk_cgroup_congested(void);
 
 /**
  * blkcg_parent - get the parent of a blkcg
