@@ -1808,7 +1808,6 @@ static void blkcg_maybe_throttle_blkg(struct blkcg_gq *blkg, bool use_memdelay)
 void blkcg_maybe_throttle_current(void)
 {
 	struct request_queue *q = current->throttle_queue;
-	struct cgroup_subsys_state *css;
 	struct blkcg *blkcg;
 	struct blkcg_gq *blkg;
 	bool use_memdelay = current->use_memdelay;
@@ -1820,12 +1819,7 @@ void blkcg_maybe_throttle_current(void)
 	current->use_memdelay = false;
 
 	rcu_read_lock();
-	css = kthread_blkcg();
-	if (css)
-		blkcg = css_to_blkcg(css);
-	else
-		blkcg = css_to_blkcg(task_css(current, io_cgrp_id));
-
+	blkcg = css_to_blkcg(blkcg_css());
 	if (!blkcg)
 		goto out;
 	blkg = blkg_lookup(blkcg, q);
