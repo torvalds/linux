@@ -706,13 +706,13 @@ int ntfs_init_acl(struct user_namespace *mnt_userns, struct inode *inode,
 		inode->i_default_acl = NULL;
 	}
 
-	if (!acl)
-		inode->i_acl = NULL;
-	else {
+	if (acl) {
 		if (!err)
 			err = ntfs_set_acl_ex(mnt_userns, inode, acl,
 					      ACL_TYPE_ACCESS, true);
 		posix_acl_release(acl);
+	} else {
+		inode->i_acl = NULL;
 	}
 
 	return err;
