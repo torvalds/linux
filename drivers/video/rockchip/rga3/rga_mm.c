@@ -378,6 +378,7 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 		}
 
 		internal_buffer->dma_buffer[i].core = rga_drvdata->scheduler[i]->core;
+		internal_buffer->dma_buffer[i].dev = rga_drvdata->scheduler[i]->dev;
 
 		/* At first, check whether the physical address. */
 		if (i == 0) {
@@ -419,11 +420,11 @@ static void rga_mm_unmap_virt_addr(struct rga_internal_buffer *internal_buffer)
 	WARN_ON(internal_buffer->dma_buffer == NULL || internal_buffer->virt_addr == NULL);
 
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
-		if (rga_drvdata->scheduler[i]->core == RGA3_SCHEDULER_CORE0 ||
-		    rga_drvdata->scheduler[i]->core == RGA3_SCHEDULER_CORE1)
+		if (internal_buffer->dma_buffer[i].core == RGA3_SCHEDULER_CORE0 ||
+		    internal_buffer->dma_buffer[i].core == RGA3_SCHEDULER_CORE1)
 			rga_iommu_unmap_virt_addr(&internal_buffer->dma_buffer[i]);
 		else if (internal_buffer->dma_buffer[i].core != 0)
-			dma_unmap_sg(rga_drvdata->scheduler[i]->dev,
+			dma_unmap_sg(internal_buffer->dma_buffer[i].dev,
 				     internal_buffer->dma_buffer[i].sgt->sgl,
 				     internal_buffer->dma_buffer[i].sgt->orig_nents,
 				     DMA_BIDIRECTIONAL);
@@ -524,17 +525,18 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 		}
 
 		internal_buffer->dma_buffer[i].core = rga_drvdata->scheduler[i]->core;
+		internal_buffer->dma_buffer[i].dev = rga_drvdata->scheduler[i]->dev;
 	}
 
 	return 0;
 
 unmap_virt_addr:
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
-		if (rga_drvdata->scheduler[i]->core == RGA3_SCHEDULER_CORE0 ||
-		    rga_drvdata->scheduler[i]->core == RGA3_SCHEDULER_CORE1)
+		if (internal_buffer->dma_buffer[i].core == RGA3_SCHEDULER_CORE0 ||
+		    internal_buffer->dma_buffer[i].core == RGA3_SCHEDULER_CORE1)
 			rga_iommu_unmap_virt_addr(&internal_buffer->dma_buffer[i]);
 		else if (internal_buffer->dma_buffer[i].core != 0)
-			dma_unmap_sg(rga_drvdata->scheduler[i]->dev,
+			dma_unmap_sg(internal_buffer->dma_buffer[i].dev,
 				     internal_buffer->dma_buffer[i].sgt->sgl,
 				     internal_buffer->dma_buffer[i].sgt->orig_nents,
 				     DMA_BIDIRECTIONAL);

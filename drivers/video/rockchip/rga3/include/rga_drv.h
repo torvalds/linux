@@ -187,6 +187,8 @@ struct rga_dma_buffer {
 
 	/* The core of the mapping */
 	int core;
+
+	struct device *dev;
 };
 
 struct rga_virt_addr {
