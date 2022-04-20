@@ -20,110 +20,139 @@
 #include <linux/spi/spi-mem.h>
 #include <linux/dma-mapping.h>
 
-#define SPI_CFG0_REG                      0x0000
-#define SPI_CFG1_REG                      0x0004
-#define SPI_TX_SRC_REG                    0x0008
-#define SPI_RX_DST_REG                    0x000c
-#define SPI_TX_DATA_REG                   0x0010
-#define SPI_RX_DATA_REG                   0x0014
-#define SPI_CMD_REG                       0x0018
-#define SPI_STATUS0_REG                   0x001c
-#define SPI_PAD_SEL_REG                   0x0024
-#define SPI_CFG2_REG                      0x0028
-#define SPI_TX_SRC_REG_64                 0x002c
-#define SPI_RX_DST_REG_64                 0x0030
-#define SPI_CFG3_IPM_REG                  0x0040
+#define SPI_CFG0_REG			0x0000
+#define SPI_CFG1_REG			0x0004
+#define SPI_TX_SRC_REG			0x0008
+#define SPI_RX_DST_REG			0x000c
+#define SPI_TX_DATA_REG			0x0010
+#define SPI_RX_DATA_REG			0x0014
+#define SPI_CMD_REG			0x0018
+#define SPI_STATUS0_REG			0x001c
+#define SPI_PAD_SEL_REG			0x0024
+#define SPI_CFG2_REG			0x0028
+#define SPI_TX_SRC_REG_64		0x002c
+#define SPI_RX_DST_REG_64		0x0030
+#define SPI_CFG3_IPM_REG		0x0040
 
-#define SPI_CFG0_SCK_HIGH_OFFSET          0
-#define SPI_CFG0_SCK_LOW_OFFSET           8
-#define SPI_CFG0_CS_HOLD_OFFSET           16
-#define SPI_CFG0_CS_SETUP_OFFSET          24
-#define SPI_ADJUST_CFG0_CS_HOLD_OFFSET    0
-#define SPI_ADJUST_CFG0_CS_SETUP_OFFSET   16
+#define SPI_CFG0_SCK_HIGH_OFFSET	0
+#define SPI_CFG0_SCK_LOW_OFFSET		8
+#define SPI_CFG0_CS_HOLD_OFFSET		16
+#define SPI_CFG0_CS_SETUP_OFFSET	24
+#define SPI_ADJUST_CFG0_CS_HOLD_OFFSET	0
+#define SPI_ADJUST_CFG0_CS_SETUP_OFFSET	16
 
-#define SPI_CFG1_CS_IDLE_OFFSET           0
-#define SPI_CFG1_PACKET_LOOP_OFFSET       8
-#define SPI_CFG1_PACKET_LENGTH_OFFSET     16
-#define SPI_CFG1_GET_TICK_DLY_OFFSET      29
-#define SPI_CFG1_GET_TICK_DLY_OFFSET_V1   30
+#define SPI_CFG1_CS_IDLE_OFFSET		0
+#define SPI_CFG1_PACKET_LOOP_OFFSET	8
+#define SPI_CFG1_PACKET_LENGTH_OFFSET	16
+#define SPI_CFG1_GET_TICK_DLY_OFFSET	29
+#define SPI_CFG1_GET_TICK_DLY_OFFSET_V1	30
 
-#define SPI_CFG1_GET_TICK_DLY_MASK        0xe0000000
-#define SPI_CFG1_GET_TICK_DLY_MASK_V1     0xc0000000
+#define SPI_CFG1_GET_TICK_DLY_MASK	0xe0000000
+#define SPI_CFG1_GET_TICK_DLY_MASK_V1	0xc0000000
 
-#define SPI_CFG1_CS_IDLE_MASK             0xff
-#define SPI_CFG1_PACKET_LOOP_MASK         0xff00
-#define SPI_CFG1_PACKET_LENGTH_MASK       0x3ff0000
-#define SPI_CFG1_IPM_PACKET_LENGTH_MASK   GENMASK(31, 16)
-#define SPI_CFG2_SCK_HIGH_OFFSET          0
-#define SPI_CFG2_SCK_LOW_OFFSET           16
+#define SPI_CFG1_CS_IDLE_MASK		0xff
+#define SPI_CFG1_PACKET_LOOP_MASK	0xff00
+#define SPI_CFG1_PACKET_LENGTH_MASK	0x3ff0000
+#define SPI_CFG1_IPM_PACKET_LENGTH_MASK	GENMASK(31, 16)
+#define SPI_CFG2_SCK_HIGH_OFFSET	0
+#define SPI_CFG2_SCK_LOW_OFFSET		16
 
-#define SPI_CMD_ACT                  BIT(0)
-#define SPI_CMD_RESUME               BIT(1)
-#define SPI_CMD_RST                  BIT(2)
-#define SPI_CMD_PAUSE_EN             BIT(4)
-#define SPI_CMD_DEASSERT             BIT(5)
-#define SPI_CMD_SAMPLE_SEL           BIT(6)
-#define SPI_CMD_CS_POL               BIT(7)
-#define SPI_CMD_CPHA                 BIT(8)
-#define SPI_CMD_CPOL                 BIT(9)
-#define SPI_CMD_RX_DMA               BIT(10)
-#define SPI_CMD_TX_DMA               BIT(11)
-#define SPI_CMD_TXMSBF               BIT(12)
-#define SPI_CMD_RXMSBF               BIT(13)
-#define SPI_CMD_RX_ENDIAN            BIT(14)
-#define SPI_CMD_TX_ENDIAN            BIT(15)
-#define SPI_CMD_FINISH_IE            BIT(16)
-#define SPI_CMD_PAUSE_IE             BIT(17)
-#define SPI_CMD_IPM_NONIDLE_MODE     BIT(19)
-#define SPI_CMD_IPM_SPIM_LOOP        BIT(21)
-#define SPI_CMD_IPM_GET_TICKDLY_OFFSET    22
+#define SPI_CMD_ACT			BIT(0)
+#define SPI_CMD_RESUME			BIT(1)
+#define SPI_CMD_RST			BIT(2)
+#define SPI_CMD_PAUSE_EN		BIT(4)
+#define SPI_CMD_DEASSERT		BIT(5)
+#define SPI_CMD_SAMPLE_SEL		BIT(6)
+#define SPI_CMD_CS_POL			BIT(7)
+#define SPI_CMD_CPHA			BIT(8)
+#define SPI_CMD_CPOL			BIT(9)
+#define SPI_CMD_RX_DMA			BIT(10)
+#define SPI_CMD_TX_DMA			BIT(11)
+#define SPI_CMD_TXMSBF			BIT(12)
+#define SPI_CMD_RXMSBF			BIT(13)
+#define SPI_CMD_RX_ENDIAN		BIT(14)
+#define SPI_CMD_TX_ENDIAN		BIT(15)
+#define SPI_CMD_FINISH_IE		BIT(16)
+#define SPI_CMD_PAUSE_IE		BIT(17)
+#define SPI_CMD_IPM_NONIDLE_MODE	BIT(19)
+#define SPI_CMD_IPM_SPIM_LOOP		BIT(21)
+#define SPI_CMD_IPM_GET_TICKDLY_OFFSET	22
 
 #define SPI_CMD_IPM_GET_TICKDLY_MASK	GENMASK(24, 22)
 
 #define PIN_MODE_CFG(x)	((x) / 2)
 
-#define SPI_CFG3_IPM_HALF_DUPLEX_DIR		BIT(2)
-#define SPI_CFG3_IPM_HALF_DUPLEX_EN		BIT(3)
-#define SPI_CFG3_IPM_XMODE_EN			BIT(4)
-#define SPI_CFG3_IPM_NODATA_FLAG		BIT(5)
-#define SPI_CFG3_IPM_CMD_BYTELEN_OFFSET		8
-#define SPI_CFG3_IPM_ADDR_BYTELEN_OFFSET	12
+#define SPI_CFG3_IPM_HALF_DUPLEX_DIR	BIT(2)
+#define SPI_CFG3_IPM_HALF_DUPLEX_EN	BIT(3)
+#define SPI_CFG3_IPM_XMODE_EN		BIT(4)
+#define SPI_CFG3_IPM_NODATA_FLAG	BIT(5)
+#define SPI_CFG3_IPM_CMD_BYTELEN_OFFSET	8
+#define SPI_CFG3_IPM_ADDR_BYTELEN_OFFSET 12
 
-#define SPI_CFG3_IPM_CMD_PIN_MODE_MASK		GENMASK(1, 0)
-#define SPI_CFG3_IPM_CMD_BYTELEN_MASK		GENMASK(11, 8)
-#define SPI_CFG3_IPM_ADDR_BYTELEN_MASK		GENMASK(15, 12)
+#define SPI_CFG3_IPM_CMD_PIN_MODE_MASK	GENMASK(1, 0)
+#define SPI_CFG3_IPM_CMD_BYTELEN_MASK	GENMASK(11, 8)
+#define SPI_CFG3_IPM_ADDR_BYTELEN_MASK	GENMASK(15, 12)
 
-#define MT8173_SPI_MAX_PAD_SEL 3
+#define MT8173_SPI_MAX_PAD_SEL		3
 
-#define MTK_SPI_PAUSE_INT_STATUS 0x2
+#define MTK_SPI_PAUSE_INT_STATUS	0x2
 
-#define MTK_SPI_IDLE 0
-#define MTK_SPI_PAUSED 1
+#define MTK_SPI_MAX_FIFO_SIZE		32U
+#define MTK_SPI_PACKET_SIZE		1024
+#define MTK_SPI_IPM_PACKET_SIZE		SZ_64K
+#define MTK_SPI_IPM_PACKET_LOOP		SZ_256
 
-#define MTK_SPI_MAX_FIFO_SIZE 32U
-#define MTK_SPI_PACKET_SIZE 1024
-#define MTK_SPI_IPM_PACKET_SIZE SZ_64K
-#define MTK_SPI_IPM_PACKET_LOOP SZ_256
+#define MTK_SPI_IDLE			0
+#define MTK_SPI_PAUSED			1
 
-#define MTK_SPI_32BITS_MASK  (0xffffffff)
+#define MTK_SPI_32BITS_MASK		(0xffffffff)
 
-#define DMA_ADDR_EXT_BITS (36)
-#define DMA_ADDR_DEF_BITS (32)
+#define DMA_ADDR_EXT_BITS		(36)
+#define DMA_ADDR_DEF_BITS		(32)
 
+/**
+ * struct mtk_spi_compatible - device data structure
+ * @need_pad_sel:	Enable pad (pins) selection in SPI controller
+ * @must_tx:		Must explicitly send dummy TX bytes to do RX only transfer
+ * @enhance_timing:	Enable adjusting cfg register to enhance time accuracy
+ * @dma_ext:		DMA address extension supported
+ * @no_need_unprepare:	Don't unprepare the SPI clk during runtime
+ * @ipm_design:		Adjust/extend registers to support IPM design IP features
+ */
 struct mtk_spi_compatible {
 	bool need_pad_sel;
-	/* Must explicitly send dummy Tx bytes to do Rx only transfer */
 	bool must_tx;
-	/* some IC design adjust cfg register to enhance time accuracy */
 	bool enhance_timing;
-	/* some IC support DMA addr extension */
 	bool dma_ext;
-	/* some IC no need unprepare SPI clk */
 	bool no_need_unprepare;
-	/* IPM design adjust and extend register to support more features */
 	bool ipm_design;
 };
 
+/**
+ * struct mtk_spi - SPI driver instance
+ * @base:		Start address of the SPI controller registers
+ * @state:		SPI controller state
+ * @pad_num:		Number of pad_sel entries
+ * @pad_sel:		Groups of pins to select
+ * @parent_clk:		Parent of sel_clk
+ * @sel_clk:		SPI master mux clock
+ * @spi_clk:		Peripheral clock
+ * @spi_hclk:		AHB bus clock
+ * @cur_transfer:	Currently processed SPI transfer
+ * @xfer_len:		Number of bytes to transfer
+ * @num_xfered:		Number of transferred bytes
+ * @tx_sgl:		TX transfer scatterlist
+ * @rx_sgl:		RX transfer scatterlist
+ * @tx_sgl_len:		Size of TX DMA transfer
+ * @rx_sgl_len:		Size of RX DMA transfer
+ * @dev_comp:		Device data structure
+ * @spi_clk_hz:		Current SPI clock in Hz
+ * @spimem_done:	SPI-MEM operation completion
+ * @use_spimem:		Enables SPI-MEM
+ * @dev:		Device pointer
+ * @tx_dma:		DMA start for SPI-MEM TX
+ * @rx_dma:		DMA start for SPI-MEM RX
+ */
 struct mtk_spi {
 	void __iomem *base;
 	u32 state;
@@ -1082,19 +1111,17 @@ static const struct spi_controller_mem_ops mtk_spi_mem_ops = {
 
 static int mtk_spi_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct spi_master *master;
 	struct mtk_spi *mdata;
-	const struct of_device_id *of_id;
 	int i, irq, ret, addr_bits;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(*mdata));
-	if (!master) {
-		dev_err(&pdev->dev, "failed to alloc spi master\n");
-		return -ENOMEM;
-	}
+	master = devm_spi_alloc_master(dev, sizeof(*mdata));
+	if (!master)
+		return dev_err_probe(dev, -ENOMEM, "failed to alloc spi master\n");
 
 	master->auto_runtime_pm = true;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_node = dev->of_node;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
 
 	master->set_cs = mtk_spi_set_cs;
@@ -1105,15 +1132,8 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	master->set_cs_timing = mtk_spi_set_hw_cs_timing;
 	master->use_gpio_descriptors = true;
 
-	of_id = of_match_node(mtk_spi_of_match, pdev->dev.of_node);
-	if (!of_id) {
-		dev_err(&pdev->dev, "failed to probe of_node\n");
-		ret = -EINVAL;
-		goto err_put_master;
-	}
-
 	mdata = spi_master_get_devdata(master);
-	mdata->dev_comp = of_id->data;
+	mdata->dev_comp = device_get_match_data(dev);
 
 	if (mdata->dev_comp->enhance_timing)
 		master->mode_bits |= SPI_CS_HIGH;
@@ -1124,109 +1144,80 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		master->mode_bits |= SPI_LOOP;
 
 	if (mdata->dev_comp->ipm_design) {
-		mdata->dev = &pdev->dev;
+		mdata->dev = dev;
 		master->mem_ops = &mtk_spi_mem_ops;
 		init_completion(&mdata->spimem_done);
 	}
 
 	if (mdata->dev_comp->need_pad_sel) {
-		mdata->pad_num = of_property_count_u32_elems(
-			pdev->dev.of_node,
+		mdata->pad_num = of_property_count_u32_elems(dev->of_node,
 			"mediatek,pad-select");
-		if (mdata->pad_num < 0) {
-			dev_err(&pdev->dev,
+		if (mdata->pad_num < 0)
+			return dev_err_probe(dev, -EINVAL,
 				"No 'mediatek,pad-select' property\n");
-			ret = -EINVAL;
-			goto err_put_master;
-		}
 
-		mdata->pad_sel = devm_kmalloc_array(&pdev->dev, mdata->pad_num,
+		mdata->pad_sel = devm_kmalloc_array(dev, mdata->pad_num,
 						    sizeof(u32), GFP_KERNEL);
-		if (!mdata->pad_sel) {
-			ret = -ENOMEM;
-			goto err_put_master;
-		}
+		if (!mdata->pad_sel)
+			return -ENOMEM;
 
 		for (i = 0; i < mdata->pad_num; i++) {
-			of_property_read_u32_index(pdev->dev.of_node,
+			of_property_read_u32_index(dev->of_node,
 						   "mediatek,pad-select",
 						   i, &mdata->pad_sel[i]);
-			if (mdata->pad_sel[i] > MT8173_SPI_MAX_PAD_SEL) {
-				dev_err(&pdev->dev, "wrong pad-sel[%d]: %u\n",
-					i, mdata->pad_sel[i]);
-				ret = -EINVAL;
-				goto err_put_master;
-			}
+			if (mdata->pad_sel[i] > MT8173_SPI_MAX_PAD_SEL)
+				return dev_err_probe(dev, -EINVAL,
+						     "wrong pad-sel[%d]: %u\n",
+						     i, mdata->pad_sel[i]);
 		}
 	}
 
 	platform_set_drvdata(pdev, master);
 	mdata->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(mdata->base)) {
-		ret = PTR_ERR(mdata->base);
-		goto err_put_master;
-	}
+	if (IS_ERR(mdata->base))
+		return PTR_ERR(mdata->base);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		ret = irq;
-		goto err_put_master;
-	}
+	if (irq < 0)
+		return irq;
 
-	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	if (!dev->dma_mask)
+		dev->dma_mask = &dev->coherent_dma_mask;
 
-	ret = devm_request_irq(&pdev->dev, irq, mtk_spi_interrupt,
-			       IRQF_TRIGGER_NONE, dev_name(&pdev->dev), master);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register irq (%d)\n", ret);
-		goto err_put_master;
-	}
+	ret = devm_request_irq(dev, irq, mtk_spi_interrupt,
+			       IRQF_TRIGGER_NONE, dev_name(dev), master);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to register irq\n");
 
-	mdata->parent_clk = devm_clk_get(&pdev->dev, "parent-clk");
-	if (IS_ERR(mdata->parent_clk)) {
-		ret = PTR_ERR(mdata->parent_clk);
-		dev_err(&pdev->dev, "failed to get parent-clk: %d\n", ret);
-		goto err_put_master;
-	}
+	mdata->parent_clk = devm_clk_get(dev, "parent-clk");
+	if (IS_ERR(mdata->parent_clk))
+		return dev_err_probe(dev, PTR_ERR(mdata->parent_clk),
+				     "failed to get parent-clk\n");
 
-	mdata->sel_clk = devm_clk_get(&pdev->dev, "sel-clk");
-	if (IS_ERR(mdata->sel_clk)) {
-		ret = PTR_ERR(mdata->sel_clk);
-		dev_err(&pdev->dev, "failed to get sel-clk: %d\n", ret);
-		goto err_put_master;
-	}
+	mdata->sel_clk = devm_clk_get(dev, "sel-clk");
+	if (IS_ERR(mdata->sel_clk))
+		return dev_err_probe(dev, PTR_ERR(mdata->sel_clk), "failed to get sel-clk\n");
 
-	mdata->spi_clk = devm_clk_get(&pdev->dev, "spi-clk");
-	if (IS_ERR(mdata->spi_clk)) {
-		ret = PTR_ERR(mdata->spi_clk);
-		dev_err(&pdev->dev, "failed to get spi-clk: %d\n", ret);
-		goto err_put_master;
-	}
+	mdata->spi_clk = devm_clk_get(dev, "spi-clk");
+	if (IS_ERR(mdata->spi_clk))
+		return dev_err_probe(dev, PTR_ERR(mdata->spi_clk), "failed to get spi-clk\n");
 
-	mdata->spi_hclk = devm_clk_get_optional(&pdev->dev, "hclk");
-	if (IS_ERR(mdata->spi_hclk)) {
-		ret = PTR_ERR(mdata->spi_hclk);
-		dev_err(&pdev->dev, "failed to get hclk: %d\n", ret);
-		goto err_put_master;
-	}
+	mdata->spi_hclk = devm_clk_get_optional(dev, "hclk");
+	if (IS_ERR(mdata->spi_hclk))
+		return dev_err_probe(dev, PTR_ERR(mdata->spi_hclk), "failed to get hclk\n");
+
+	ret = clk_set_parent(mdata->sel_clk, mdata->parent_clk);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to clk_set_parent\n");
 
 	ret = clk_prepare_enable(mdata->spi_hclk);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to enable hclk (%d)\n", ret);
-		goto err_put_master;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to enable hclk\n");
 
 	ret = clk_prepare_enable(mdata->spi_clk);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to enable spi_clk (%d)\n", ret);
-		goto err_disable_spi_hclk;
-	}
-
-	ret = clk_set_parent(mdata->sel_clk, mdata->parent_clk);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to clk_set_parent (%d)\n", ret);
-		goto err_disable_spi_clk;
+		clk_disable_unprepare(mdata->spi_hclk);
+		return dev_err_probe(dev, ret, "failed to enable spi_clk\n");
 	}
 
 	mdata->spi_clk_hz = clk_get_rate(mdata->spi_clk);
@@ -1239,52 +1230,35 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		clk_disable_unprepare(mdata->spi_hclk);
 	}
 
-	pm_runtime_enable(&pdev->dev);
-
 	if (mdata->dev_comp->need_pad_sel) {
-		if (mdata->pad_num != master->num_chipselect) {
-			dev_err(&pdev->dev,
+		if (mdata->pad_num != master->num_chipselect)
+			return dev_err_probe(dev, -EINVAL,
 				"pad_num does not match num_chipselect(%d != %d)\n",
 				mdata->pad_num, master->num_chipselect);
-			ret = -EINVAL;
-			goto err_disable_runtime_pm;
-		}
 
-		if (!master->cs_gpiods && master->num_chipselect > 1) {
-			dev_err(&pdev->dev,
+		if (!master->cs_gpiods && master->num_chipselect > 1)
+			return dev_err_probe(dev, -EINVAL,
 				"cs_gpios not specified and num_chipselect > 1\n");
-			ret = -EINVAL;
-			goto err_disable_runtime_pm;
-		}
 	}
 
 	if (mdata->dev_comp->dma_ext)
 		addr_bits = DMA_ADDR_EXT_BITS;
 	else
 		addr_bits = DMA_ADDR_DEF_BITS;
-	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(addr_bits));
+	ret = dma_set_mask(dev, DMA_BIT_MASK(addr_bits));
 	if (ret)
-		dev_notice(&pdev->dev, "SPI dma_set_mask(%d) failed, ret:%d\n",
+		dev_notice(dev, "SPI dma_set_mask(%d) failed, ret:%d\n",
 			   addr_bits, ret);
 
-	ret = devm_spi_register_master(&pdev->dev, master);
+	pm_runtime_enable(dev);
+
+	ret = devm_spi_register_master(dev, master);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register master (%d)\n", ret);
-		goto err_disable_runtime_pm;
+		pm_runtime_disable(dev);
+		return dev_err_probe(dev, ret, "failed to register master\n");
 	}
 
 	return 0;
-
-err_disable_runtime_pm:
-	pm_runtime_disable(&pdev->dev);
-err_disable_spi_clk:
-	clk_disable_unprepare(mdata->spi_clk);
-err_disable_spi_hclk:
-	clk_disable_unprepare(mdata->spi_hclk);
-err_put_master:
-	spi_master_put(master);
-
-	return ret;
 }
 
 static int mtk_spi_remove(struct platform_device *pdev)
