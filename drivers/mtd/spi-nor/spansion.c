@@ -57,10 +57,6 @@ static int cypress_nor_octal_dtr_en(struct spi_nor *nor)
 	if (ret)
 		return ret;
 
-	ret = spi_nor_wait_till_ready(nor);
-	if (ret)
-		return ret;
-
 	nor->read_dummy = 24;
 
 	/* Set the octal and DTR enable bits. */
