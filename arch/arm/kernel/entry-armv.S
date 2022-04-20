@@ -1146,10 +1146,15 @@ ENDPROC(vector_bhb_loop8_\name)
 	.endm
 
 	.section .stubs, "ax", %progbits
-	@ This must be the first word
+	@ These need to remain at the start of the section so that
+	@ they are in range of the 'SWI' entries in the vector tables
+	@ located 4k down.
+.L__vector_swi:
 	.word	vector_swi
 #ifdef CONFIG_HARDEN_BRANCH_HISTORY
+.L__vector_bhb_loop8_swi:
 	.word	vector_bhb_loop8_swi
+.L__vector_bhb_bpiall_swi:
 	.word	vector_bhb_bpiall_swi
 #endif
 
@@ -1292,10 +1297,11 @@ vector_addrexcptn:
 	.globl	vector_fiq
 
 	.section .vectors, "ax", %progbits
-.L__vectors_start:
 	W(b)	vector_rst
 	W(b)	vector_und
-	W(ldr)	pc, .L__vectors_start + 0x1000
+ARM(	.reloc	., R_ARM_LDR_PC_G0, .L__vector_swi		)
+THUMB(	.reloc	., R_ARM_THM_PC12, .L__vector_swi		)
+	W(ldr)	pc, .
 	W(b)	vector_pabt
 	W(b)	vector_dabt
 	W(b)	vector_addrexcptn
@@ -1304,10 +1310,11 @@ vector_addrexcptn:
 
 #ifdef CONFIG_HARDEN_BRANCH_HISTORY
 	.section .vectors.bhb.loop8, "ax", %progbits
-.L__vectors_bhb_loop8_start:
 	W(b)	vector_rst
 	W(b)	vector_bhb_loop8_und
-	W(ldr)	pc, .L__vectors_bhb_loop8_start + 0x1004
+ARM(	.reloc	., R_ARM_LDR_PC_G0, .L__vector_bhb_loop8_swi	)
+THUMB(	.reloc	., R_ARM_THM_PC12, .L__vector_bhb_loop8_swi	)
+	W(ldr)	pc, .
 	W(b)	vector_bhb_loop8_pabt
 	W(b)	vector_bhb_loop8_dabt
 	W(b)	vector_addrexcptn
@@ -1315,10 +1322,11 @@ vector_addrexcptn:
 	W(b)	vector_bhb_loop8_fiq
 
 	.section .vectors.bhb.bpiall, "ax", %progbits
-.L__vectors_bhb_bpiall_start:
 	W(b)	vector_rst
 	W(b)	vector_bhb_bpiall_und
-	W(ldr)	pc, .L__vectors_bhb_bpiall_start + 0x1008
+ARM(	.reloc	., R_ARM_LDR_PC_G0, .L__vector_bhb_bpiall_swi	)
+THUMB(	.reloc	., R_ARM_THM_PC12, .L__vector_bhb_bpiall_swi	)
+	W(ldr)	pc, .
 	W(b)	vector_bhb_bpiall_pabt
 	W(b)	vector_bhb_bpiall_dabt
 	W(b)	vector_addrexcptn
