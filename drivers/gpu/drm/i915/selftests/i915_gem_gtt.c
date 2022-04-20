@@ -1150,7 +1150,7 @@ static int misaligned_pin(struct i915_address_space *vm,
 		flags |= PIN_GLOBAL;
 
 	for_each_memory_region(mr, vm->i915, id) {
-		u64 min_alignment = i915_vm_min_alignment(vm, (enum intel_memory_type)id);
+		u64 min_alignment = i915_vm_min_alignment(vm, mr->type);
 		u64 size = min_alignment;
 		u64 addr = round_down(hole_start + (hole_size / 2), min_alignment);
 
