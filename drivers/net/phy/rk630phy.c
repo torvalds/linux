@@ -24,6 +24,8 @@
 #define RK630_PHY_ID				0x00441400
 
 /* PAGE 0 */
+#define REG_MMD_ACCESS_CONTROL			0x0d
+#define REG_MMD_ACCESS_DATA_ADDRESS		0x0e
 #define REG_INTERRUPT_STATUS			0X10
 #define REG_INTERRUPT_MASK			0X11
 #define REG_GLOBAL_CONFIGURATION		0X13
@@ -198,6 +200,12 @@ static void rk630_phy_t22_config_init(struct phy_device *phydev)
 
 	/* Switch to page 0 */
 	phy_write(phydev, REG_PAGE_SEL, 0x0000);
+
+	/* Disable eee mode advertised */
+	phy_write(phydev, REG_MMD_ACCESS_CONTROL, 0x0007);
+	phy_write(phydev, REG_MMD_ACCESS_DATA_ADDRESS, 0x003c);
+	phy_write(phydev, REG_MMD_ACCESS_CONTROL, 0x4007);
+	phy_write(phydev, REG_MMD_ACCESS_DATA_ADDRESS, 0x0000);
 }
 
 static int rk630_phy_config_init(struct phy_device *phydev)
@@ -205,6 +213,11 @@ static int rk630_phy_config_init(struct phy_device *phydev)
 	switch (phydev->mdio.addr) {
 	case PHY_ADDR_S40:
 		rk630_phy_s40_config_init(phydev);
+		/*
+		 * Ultra Auto-Power Saving Mode (UAPS) is designed to
+		 * save power when cable is not plugged into PHY.
+		 */
+		rk630_phy_set_uaps(phydev);
 		break;
 	case PHY_ADDR_T22:
 		rk630_phy_t22_config_init(phydev);
@@ -216,11 +229,6 @@ static int rk630_phy_config_init(struct phy_device *phydev)
 	}
 
 	rk630_phy_ieee_set(phydev, true);
-	/*
-	 * Ultra Auto-Power Saving Mode (UAPS) is designed to
-	 * save power when cable is not plugged into PHY.
-	 */
-	rk630_phy_set_uaps(phydev);
 
 	return 0;
 }
