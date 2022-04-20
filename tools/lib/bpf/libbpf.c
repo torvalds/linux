@@ -7016,8 +7016,8 @@ static int bpf_object_init_progs(struct bpf_object *obj, const struct bpf_object
 			continue;
 		}
 
-		bpf_program__set_type(prog, prog->sec_def->prog_type);
-		bpf_program__set_expected_attach_type(prog, prog->sec_def->expected_attach_type);
+		prog->type = prog->sec_def->prog_type;
+		prog->expected_attach_type = prog->sec_def->expected_attach_type;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -8582,8 +8582,7 @@ int bpf_program__set_##NAME(struct bpf_program *prog)		\
 {								\
 	if (!prog)						\
 		return libbpf_err(-EINVAL);			\
-	bpf_program__set_type(prog, TYPE);			\
-	return 0;						\
+	return bpf_program__set_type(prog, TYPE);			\
 }								\
 								\
 bool bpf_program__is_##NAME(const struct bpf_program *prog)	\
@@ -9690,9 +9689,8 @@ static int bpf_prog_load_xattr2(const struct bpf_prog_load_attr *attr,
 		 * bpf_object__open guessed
 		 */
 		if (attr->prog_type != BPF_PROG_TYPE_UNSPEC) {
-			bpf_program__set_type(prog, attr->prog_type);
-			bpf_program__set_expected_attach_type(prog,
-							      attach_type);
+			prog->type = attr->prog_type;
+			prog->expected_attach_type = attach_type;
 		}
 		if (bpf_program__type(prog) == BPF_PROG_TYPE_UNSPEC) {
 			/*
