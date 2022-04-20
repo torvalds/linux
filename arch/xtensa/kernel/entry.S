@@ -2155,3 +2155,95 @@ ENTRY(ret_from_kernel_thread)
 	j		common_exception_return
 
 ENDPROC(ret_from_kernel_thread)
+
+#ifdef CONFIG_HIBERNATION
+
+	.bss
+	.align	4
+.Lsaved_regs:
+#if defined(__XTENSA_WINDOWED_ABI__)
+	.fill	2, 4
+#elif defined(__XTENSA_CALL0_ABI__)
+	.fill	6, 4
+#else
+#error Unsupported Xtensa ABI
+#endif
+	.align	XCHAL_NCP_SA_ALIGN
+.Lsaved_user_regs:
+	.fill	XTREGS_USER_SIZE, 1
+
+	.previous
+
+ENTRY(swsusp_arch_suspend)
+
+	abi_entry_default
+
+	movi		a2, .Lsaved_regs
+	movi		a3, .Lsaved_user_regs
+	s32i		a0, a2, 0
+	s32i		a1, a2, 4
+	save_xtregs_user a3 a4 a5 a6 a7 a8 0
+#if defined(__XTENSA_WINDOWED_ABI__)
+	spill_registers_kernel
+#elif defined(__XTENSA_CALL0_ABI__)
+	s32i		a12, a2, 8
+	s32i		a13, a2, 12
+	s32i		a14, a2, 16
+	s32i		a15, a2, 20
+#else
+#error Unsupported Xtensa ABI
+#endif
+	abi_call	swsusp_save
+	mov		a2, abi_rv
+	abi_ret_default
+
+ENDPROC(swsusp_arch_suspend)
+
+ENTRY(swsusp_arch_resume)
+
+	abi_entry_default
+
+#if defined(__XTENSA_WINDOWED_ABI__)
+	spill_registers_kernel
+#endif
+
+	movi		a2, restore_pblist
+	l32i		a2, a2, 0
+
+.Lcopy_pbe:
+	l32i		a3, a2, PBE_ADDRESS
+	l32i		a4, a2, PBE_ORIG_ADDRESS
+
+	__loopi		a3, a9, PAGE_SIZE, 16
+	l32i		a5, a3, 0
+	l32i		a6, a3, 4
+	l32i		a7, a3, 8
+	l32i		a8, a3, 12
+	addi		a3, a3, 16
+	s32i		a5, a4, 0
+	s32i		a6, a4, 4
+	s32i		a7, a4, 8
+	s32i		a8, a4, 12
+	addi		a4, a4, 16
+	__endl		a3, a9
+
+	l32i		a2, a2, PBE_NEXT
+	bnez		a2, .Lcopy_pbe
+
+	movi		a2, .Lsaved_regs
+	movi		a3, .Lsaved_user_regs
+	l32i		a0, a2, 0
+	l32i		a1, a2, 4
+	load_xtregs_user a3 a4 a5 a6 a7 a8 0
+#if defined(__XTENSA_CALL0_ABI__)
+	l32i		a12, a2, 8
+	l32i		a13, a2, 12
+	l32i		a14, a2, 16
+	l32i		a15, a2, 20
+#endif
+	movi		a2, 0
+	abi_ret_default
+
+ENDPROC(swsusp_arch_resume)
+
+#endif

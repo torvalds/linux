@@ -787,6 +787,9 @@ endmenu
 
 menu "Power management options"
 
+config ARCH_HIBERNATION_POSSIBLE
+	def_bool y
+
 source "kernel/power/Kconfig"
 
 endmenu

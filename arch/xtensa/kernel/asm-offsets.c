@@ -21,6 +21,7 @@
 #include <linux/ptrace.h>
 #include <linux/mm.h>
 #include <linux/kbuild.h>
+#include <linux/suspend.h>
 
 #include <asm/ptrace.h>
 #include <asm/traps.h>
@@ -148,6 +149,13 @@ int main(void)
 	DEFINE(EXC_TABLE_FAST_KERNEL,
 	       offsetof(struct exc_table, fast_kernel_handler));
 	DEFINE(EXC_TABLE_DEFAULT, offsetof(struct exc_table, default_handler));
+
+#ifdef CONFIG_HIBERNATION
+	DEFINE(PBE_ADDRESS, offsetof(struct pbe, address));
+	DEFINE(PBE_ORIG_ADDRESS, offsetof(struct pbe, orig_address));
+	DEFINE(PBE_NEXT, offsetof(struct pbe, next));
+	DEFINE(PBE_SIZE, sizeof(struct pbe));
+#endif
 
 	return 0;
 }
