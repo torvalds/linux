@@ -34,22 +34,22 @@
 
 		regulators {
 			sw1_reg: sw1 {
-				regulator-min-microvolt = <1000000>;
+				regulator-min-microvolt = <1050000>;
 				regulator-max-microvolt = <1100000>;
 				regulator-boot-on;
 				regulator-always-on;
 			};
 
 			sw2_reg: sw2 {
-				regulator-min-microvolt = <1225000>;
-				regulator-max-microvolt = <1225000>;
+				regulator-min-microvolt = <1175000>;
+				regulator-max-microvolt = <1275000>;
 				regulator-boot-on;
 				regulator-always-on;
 			};
 
 			sw3_reg: sw3 {
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1200000>;
+				regulator-min-microvolt = <1150000>;
+				regulator-max-microvolt = <1350000>;
 				regulator-boot-on;
 				regulator-always-on;
 			};
