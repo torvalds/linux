@@ -200,5 +200,6 @@ SYM_FUNC_START(__tdx_hypercall)
 .Lpanic:
 	call __tdx_hypercall_failed
 	/* __tdx_hypercall_failed never returns */
+	REACHABLE
 	jmp .Lpanic
 SYM_FUNC_END(__tdx_hypercall)
