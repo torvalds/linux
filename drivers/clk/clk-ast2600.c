@@ -1071,7 +1071,7 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 		     ASPEED_G6_DEF_MAC34_DELAY_10M);
 
 	/* MAC3/4 default pad driving strength */
-	regmap_write(map, ASPEED_G6_MAC34_DRIVING_CTRL, 0x0000000a);
+	regmap_write(map, ASPEED_G6_MAC34_DRIVING_CTRL, 0x0000000f);
 
 	regmap_read(map, ASPEED_MAC12_CLK_DLY, &reg_1g.w);
 	regmap_read(map, ASPEED_MAC12_CLK_DLY_100M, &reg_100.w);
