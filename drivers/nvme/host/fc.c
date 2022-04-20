@@ -3831,6 +3831,9 @@ process_local_list:
 	return count;
 }
 
+static DEVICE_ATTR(nvme_discovery, 0200, NULL, nvme_fc_nvme_discovery_store);
+
+#ifdef CONFIG_BLK_CGROUP_FC_APPID
 /* Parse the cgroup id from a buf and return the length of cgrpid */
 static int fc_parse_cgrpid(const char *buf, u64 *id)
 {
@@ -3898,12 +3901,14 @@ static ssize_t fc_appid_store(struct device *dev,
 		return -EINVAL;
 	return count;
 }
-static DEVICE_ATTR(nvme_discovery, 0200, NULL, nvme_fc_nvme_discovery_store);
 static DEVICE_ATTR(appid_store, 0200, NULL, fc_appid_store);
+#endif /* CONFIG_BLK_CGROUP_FC_APPID */
 
 static struct attribute *nvme_fc_attrs[] = {
 	&dev_attr_nvme_discovery.attr,
+#ifdef CONFIG_BLK_CGROUP_FC_APPID
 	&dev_attr_appid_store.attr,
+#endif
 	NULL
 };
 
