@@ -713,6 +713,18 @@ static void rtw89_pci_ops_recovery_complete(struct rtw89_dev *rtwdev)
 	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
 }
 
+static void rtw89_pci_low_power_interrupt_handler(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	int budget = NAPI_POLL_WEIGHT;
+
+	/* To prevent RXQ get stuck due to run out of budget. */
+	rtwdev->napi_budget_countdown = budget;
+
+	rtw89_pci_poll_rpq_dma(rtwdev, rtwpci, budget);
+	rtw89_pci_poll_rxq_dma(rtwdev, rtwpci, budget);
+}
+
 static irqreturn_t rtw89_pci_interrupt_threadfn(int irq, void *dev)
 {
 	struct rtw89_dev *rtwdev = dev;
@@ -733,12 +745,23 @@ static irqreturn_t rtw89_pci_interrupt_threadfn(int irq, void *dev)
 	if (unlikely(rtwpci->under_recovery))
 		return IRQ_HANDLED;
 
+	if (unlikely(rtwpci->low_power)) {
+		rtw89_pci_low_power_interrupt_handler(rtwdev);
+		goto enable_intr;
+	}
+
 	if (likely(rtwpci->running)) {
 		local_bh_disable();
 		napi_schedule(&rtwdev->napi);
 		local_bh_enable();
 	}
 
+	return IRQ_HANDLED;
+
+enable_intr:
+	spin_lock_irqsave(&rtwpci->irq_lock, flags);
+	rtw89_chip_enable_intr(rtwdev, rtwpci);
+	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
 	return IRQ_HANDLED;
 }
 
