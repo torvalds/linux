@@ -132,6 +132,10 @@ struct device;
 DECLARE_HOOK(android_vh_subpage_dma_contig_alloc,
 	TP_PROTO(bool *allow_subpage_alloc, struct device *dev, size_t *size),
 	TP_ARGS(allow_subpage_alloc, dev, size));
+struct readahead_control;
+DECLARE_HOOK(android_vh_ra_tuning_max_page,
+	TP_PROTO(struct readahead_control *ractl, unsigned long *max_page),
+	TP_ARGS(ractl, max_page));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_MM_H */
