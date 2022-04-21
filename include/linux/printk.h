@@ -170,6 +170,9 @@ extern void __printk_safe_exit(void);
 #define printk_deferred_enter __printk_safe_enter
 #define printk_deferred_exit __printk_safe_exit
 
+extern void printk_prefer_direct_enter(void);
+extern void printk_prefer_direct_exit(void);
+
 extern bool pr_flush(int timeout_ms, bool reset_on_progress);
 
 /*
@@ -219,6 +222,14 @@ static inline void printk_deferred_enter(void)
 }
 
 static inline void printk_deferred_exit(void)
+{
+}
+
+static inline void printk_prefer_direct_enter(void)
+{
+}
+
+static inline void printk_prefer_direct_exit(void)
 {
 }
 
