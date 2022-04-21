@@ -1644,7 +1644,7 @@ xlog_alloc_log(
 		iclog->ic_log = log;
 		atomic_set(&iclog->ic_refcnt, 0);
 		INIT_LIST_HEAD(&iclog->ic_callbacks);
-		iclog->ic_datap = (char *)iclog->ic_data + log->l_iclog_hsize;
+		iclog->ic_datap = (void *)iclog->ic_data + log->l_iclog_hsize;
 
 		init_waitqueue_head(&iclog->ic_force_wait);
 		init_waitqueue_head(&iclog->ic_write_wait);
@@ -3664,7 +3664,7 @@ xlog_verify_iclog(
 		if (field_offset & 0x1ff) {
 			clientid = ophead->oh_clientid;
 		} else {
-			idx = BTOBBT((char *)&ophead->oh_clientid - iclog->ic_datap);
+			idx = BTOBBT((void *)&ophead->oh_clientid - iclog->ic_datap);
 			if (idx >= (XLOG_HEADER_CYCLE_SIZE / BBSIZE)) {
 				j = idx / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
 				k = idx % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
@@ -3687,8 +3687,7 @@ xlog_verify_iclog(
 		if (field_offset & 0x1ff) {
 			op_len = be32_to_cpu(ophead->oh_len);
 		} else {
-			idx = BTOBBT((uintptr_t)&ophead->oh_len -
-				    (uintptr_t)iclog->ic_datap);
+			idx = BTOBBT((void *)&ophead->oh_len - iclog->ic_datap);
 			if (idx >= (XLOG_HEADER_CYCLE_SIZE / BBSIZE)) {
 				j = idx / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
 				k = idx % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
