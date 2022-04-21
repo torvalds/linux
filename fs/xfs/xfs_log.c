@@ -434,10 +434,9 @@ out_error:
 int
 xfs_log_reserve(
 	struct xfs_mount	*mp,
-	int		 	unit_bytes,
-	int		 	cnt,
+	int			unit_bytes,
+	int			cnt,
 	struct xlog_ticket	**ticp,
-	uint8_t		 	client,
 	bool			permanent)
 {
 	struct xlog		*log = mp->m_log;
@@ -445,15 +444,13 @@ xfs_log_reserve(
 	int			need_bytes;
 	int			error = 0;
 
-	ASSERT(client == XFS_TRANSACTION || client == XFS_LOG);
-
 	if (xlog_is_shutdown(log))
 		return -EIO;
 
 	XFS_STATS_INC(mp, xs_try_logspace);
 
 	ASSERT(*ticp == NULL);
-	tic = xlog_ticket_alloc(log, unit_bytes, cnt, client, permanent);
+	tic = xlog_ticket_alloc(log, unit_bytes, cnt, permanent);
 	*ticp = tic;
 
 	xlog_grant_push_ail(log, tic->t_cnt ? tic->t_unit_res * tic->t_cnt
@@ -947,7 +944,7 @@ xlog_unmount_write(
 	struct xlog_ticket	*tic = NULL;
 	int			error;
 
-	error = xfs_log_reserve(mp, 600, 1, &tic, XFS_LOG, 0);
+	error = xfs_log_reserve(mp, 600, 1, &tic, 0);
 	if (error)
 		goto out_err;
 
@@ -2282,35 +2279,13 @@ xlog_write_calc_vec_length(
 
 static xlog_op_header_t *
 xlog_write_setup_ophdr(
-	struct xlog		*log,
 	struct xlog_op_header	*ophdr,
-	struct xlog_ticket	*ticket,
-	uint			flags)
+	struct xlog_ticket	*ticket)
 {
 	ophdr->oh_tid = cpu_to_be32(ticket->t_tid);
-	ophdr->oh_clientid = ticket->t_clientid;
+	ophdr->oh_clientid = XFS_TRANSACTION;
 	ophdr->oh_res2 = 0;
-
-	/* are we copying a commit or unmount record? */
-	ophdr->oh_flags = flags;
-
-	/*
-	 * We've seen logs corrupted with bad transaction client ids.  This
-	 * makes sure that XFS doesn't generate them on.  Turn this into an EIO
-	 * and shut down the filesystem.
-	 */
-	switch (ophdr->oh_clientid)  {
-	case XFS_TRANSACTION:
-	case XFS_VOLUME:
-	case XFS_LOG:
-		break;
-	default:
-		xfs_warn(log->l_mp,
-			"Bad XFS transaction clientid 0x%x in ticket "PTR_FMT,
-			ophdr->oh_clientid, ticket);
-		return NULL;
-	}
-
+	ophdr->oh_flags = 0;
 	return ophdr;
 }
 
@@ -2535,11 +2510,7 @@ xlog_write(
 				if (index)
 					optype &= ~XLOG_START_TRANS;
 			} else {
-				ophdr = xlog_write_setup_ophdr(log, ptr,
-							ticket, optype);
-				if (!ophdr)
-					return -EIO;
-
+                                ophdr = xlog_write_setup_ophdr(ptr, ticket);
 				xlog_write_adv_cnt(&ptr, &len, &log_offset,
 					   sizeof(struct xlog_op_header));
 				added_ophdr = true;
@@ -3598,7 +3569,6 @@ xlog_ticket_alloc(
 	struct xlog		*log,
 	int			unit_bytes,
 	int			cnt,
-	char			client,
 	bool			permanent)
 {
 	struct xlog_ticket	*tic;
@@ -3616,7 +3586,6 @@ xlog_ticket_alloc(
 	tic->t_cnt		= cnt;
 	tic->t_ocnt		= cnt;
 	tic->t_tid		= prandom_u32();
-	tic->t_clientid		= client;
 	if (permanent)
 		tic->t_flags |= XLOG_TIC_PERM_RESERV;
 
