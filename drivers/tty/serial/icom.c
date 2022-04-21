@@ -47,7 +47,6 @@
 
 #define ICOM_DRIVER_NAME "icom"
 #define NR_PORTS	       128
-#define to_icom_adapter(d) container_of(d, struct icom_adapter, kref)
 
 static inline struct icom_port *to_icom_port(struct uart_port *port)
 {
@@ -1447,8 +1446,10 @@ static void icom_free_adapter(struct icom_adapter *icom_adapter)
 	kfree(icom_adapter);
 }
 
-static void icom_remove_adapter(struct icom_adapter *icom_adapter)
+static void icom_kref_release(struct kref *kref)
 {
+	struct icom_adapter *icom_adapter = container_of(kref,
+			struct icom_adapter, kref);
 	struct icom_port *icom_port;
 	int index;
 
@@ -1479,14 +1480,6 @@ static void icom_remove_adapter(struct icom_adapter *icom_adapter)
 	iounmap(icom_adapter->base_addr);
 	pci_release_regions(icom_adapter->pci_dev);
 	icom_free_adapter(icom_adapter);
-}
-
-static void icom_kref_release(struct kref *kref)
-{
-	struct icom_adapter *icom_adapter;
-
-	icom_adapter = to_icom_adapter(kref);
-	icom_remove_adapter(icom_adapter);
 }
 
 static int icom_probe(struct pci_dev *dev,
