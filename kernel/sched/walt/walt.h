@@ -740,6 +740,15 @@ static inline unsigned int walt_nr_rtg_high_prio(int cpu)
 	return wrq->walt_stats.nr_rtg_high_prio_tasks;
 }
 
+static inline bool task_in_related_thread_group(struct task_struct *p)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	return (rcu_access_pointer(wts->grp) != NULL);
+}
+
+extern unsigned int sysctl_sched_early_up[MAX_MARGIN_LEVELS];
+extern unsigned int sysctl_sched_early_down[MAX_MARGIN_LEVELS];
 static inline bool task_fits_capacity(struct task_struct *p,
 					long capacity,
 					int cpu)
@@ -751,19 +760,25 @@ static inline bool task_fits_capacity(struct task_struct *p,
 	/*
 	 * Derive upmigration/downmigrate margin wrt the src/dest CPU.
 	 */
-	if (src_wrq->cluster->id > dst_wrq->cluster->id)
+	if (src_wrq->cluster->id > dst_wrq->cluster->id) {
 		margin = sched_capacity_margin_down[cpu];
-	else
+		if (task_in_related_thread_group(p)) {
+			if (is_min_cluster_cpu(cpu))
+				margin = sysctl_sched_early_down[0];
+			else if (!is_max_cluster_cpu(cpu))
+				margin = sysctl_sched_early_down[1];
+		}
+	} else {
 		margin = sched_capacity_margin_up[task_cpu(p)];
+		if (task_in_related_thread_group(p)) {
+			if (is_min_cluster_cpu(task_cpu(p)))
+				margin = sysctl_sched_early_up[0];
+			else if (!is_max_cluster_cpu(task_cpu(p)))
+				margin = sysctl_sched_early_up[1];
+		}
+	}
 
 	return capacity * 1024 > uclamp_task_util(p) * margin;
-}
-
-static inline bool task_in_related_thread_group(struct task_struct *p)
-{
-	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
-	return (rcu_access_pointer(wts->grp) != NULL);
 }
 
 static inline bool task_fits_max(struct task_struct *p, int cpu)
