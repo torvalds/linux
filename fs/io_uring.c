@@ -10872,7 +10872,6 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		size_t, argsz)
 {
 	struct io_ring_ctx *ctx;
-	int submitted = 0;
 	struct fd f;
 	long ret;
 
@@ -10935,15 +10934,15 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 			if (ret)
 				goto out;
 		}
-		submitted = to_submit;
+		ret = to_submit;
 	} else if (to_submit) {
 		ret = io_uring_add_tctx_node(ctx);
 		if (unlikely(ret))
 			goto out;
 
 		mutex_lock(&ctx->uring_lock);
-		submitted = io_submit_sqes(ctx, to_submit);
-		if (submitted != to_submit) {
+		ret = io_submit_sqes(ctx, to_submit);
+		if (ret != to_submit) {
 			mutex_unlock(&ctx->uring_lock);
 			goto out;
 		}
@@ -10952,6 +10951,7 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		mutex_unlock(&ctx->uring_lock);
 	}
 	if (flags & IORING_ENTER_GETEVENTS) {
+		int ret2;
 		if (ctx->syscall_iopoll) {
 			/*
 			 * We disallow the app entering submit/complete with
@@ -10961,22 +10961,29 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 			 */
 			mutex_lock(&ctx->uring_lock);
 iopoll_locked:
-			ret = io_validate_ext_arg(flags, argp, argsz);
-			if (likely(!ret)) {
-				min_complete = min(min_complete, ctx->cq_entries);
-				ret = io_iopoll_check(ctx, min_complete);
+			ret2 = io_validate_ext_arg(flags, argp, argsz);
+			if (likely(!ret2)) {
+				min_complete = min(min_complete,
+						   ctx->cq_entries);
+				ret2 = io_iopoll_check(ctx, min_complete);
 			}
 			mutex_unlock(&ctx->uring_lock);
 		} else {
 			const sigset_t __user *sig;
 			struct __kernel_timespec __user *ts;
 
-			ret = io_get_ext_arg(flags, argp, &argsz, &ts, &sig);
-			if (unlikely(ret))
-				goto out;
-			min_complete = min(min_complete, ctx->cq_entries);
-			ret = io_cqring_wait(ctx, min_complete, sig, argsz, ts);
+			ret2 = io_get_ext_arg(flags, argp, &argsz, &ts, &sig);
+			if (likely(!ret2)) {
+				min_complete = min(min_complete,
+						   ctx->cq_entries);
+				ret2 = io_cqring_wait(ctx, min_complete, sig,
+						      argsz, ts);
+			}
 		}
+
+		if (!ret)
+			ret = ret2;
+
 	}
 
 out:
@@ -10984,7 +10991,7 @@ out:
 out_fput:
 	if (!(flags & IORING_ENTER_REGISTERED_RING))
 		fdput(f);
-	return submitted ? submitted : ret;
+	return ret;
 }
 
 #ifdef CONFIG_PROC_FS
