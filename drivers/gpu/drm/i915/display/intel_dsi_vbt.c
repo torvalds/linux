@@ -30,6 +30,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/slab.h>
+#include <linux/string_helpers.h>
 
 #include <asm/unaligned.h>
 
@@ -686,9 +687,9 @@ void intel_dsi_log_params(struct intel_dsi *intel_dsi)
 		    intel_dsi->burst_mode_ratio);
 	drm_dbg_kms(&i915->drm, "Reset timer %d\n", intel_dsi->rst_timer_val);
 	drm_dbg_kms(&i915->drm, "Eot %s\n",
-		    enableddisabled(intel_dsi->eotp_pkt));
+		    str_enabled_disabled(intel_dsi->eotp_pkt));
 	drm_dbg_kms(&i915->drm, "Clockstop %s\n",
-		    enableddisabled(!intel_dsi->clock_stop));
+		    str_enabled_disabled(!intel_dsi->clock_stop));
 	drm_dbg_kms(&i915->drm, "Mode %s\n",
 		    intel_dsi->operation_mode ? "command" : "video");
 	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK)
@@ -715,7 +716,7 @@ void intel_dsi_log_params(struct intel_dsi *intel_dsi)
 	drm_dbg_kms(&i915->drm, "HS to LP Clock Count 0x%x\n",
 		    intel_dsi->clk_hs_to_lp_count);
 	drm_dbg_kms(&i915->drm, "BTA %s\n",
-		    enableddisabled(!(intel_dsi->video_frmt_cfg_bits & DISABLE_VIDEO_BTA)));
+		    str_enabled_disabled(!(intel_dsi->video_frmt_cfg_bits & DISABLE_VIDEO_BTA)));
 }
 
 bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)

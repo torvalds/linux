@@ -2390,9 +2390,36 @@ int drm_dp_dsc_sink_supported_input_bpcs(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_S
 }
 EXPORT_SYMBOL(drm_dp_dsc_sink_supported_input_bpcs);
 
+static int drm_dp_read_lttpr_regs(struct drm_dp_aux *aux,
+				  const u8 dpcd[DP_RECEIVER_CAP_SIZE], int address,
+				  u8 *buf, int buf_size)
+{
+	/*
+	 * At least the DELL P2715Q monitor with a DPCD_REV < 0x14 returns
+	 * corrupted values when reading from the 0xF0000- range with a block
+	 * size bigger than 1.
+	 */
+	int block_size = dpcd[DP_DPCD_REV] < 0x14 ? 1 : buf_size;
+	int offset;
+	int ret;
+
+	for (offset = 0; offset < buf_size; offset += block_size) {
+		ret = drm_dp_dpcd_read(aux,
+				       address + offset,
+				       &buf[offset], block_size);
+		if (ret < 0)
+			return ret;
+
+		WARN_ON(ret != block_size);
+	}
+
+	return 0;
+}
+
 /**
  * drm_dp_read_lttpr_common_caps - read the LTTPR common capabilities
  * @aux: DisplayPort AUX channel
+ * @dpcd: DisplayPort configuration data
  * @caps: buffer to return the capability info in
  *
  * Read capabilities common to all LTTPRs.
@@ -2400,25 +2427,19 @@ EXPORT_SYMBOL(drm_dp_dsc_sink_supported_input_bpcs);
  * Returns 0 on success or a negative error code on failure.
  */
 int drm_dp_read_lttpr_common_caps(struct drm_dp_aux *aux,
+				  const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 				  u8 caps[DP_LTTPR_COMMON_CAP_SIZE])
 {
-	int ret;
-
-	ret = drm_dp_dpcd_read(aux,
-			       DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV,
-			       caps, DP_LTTPR_COMMON_CAP_SIZE);
-	if (ret < 0)
-		return ret;
-
-	WARN_ON(ret != DP_LTTPR_COMMON_CAP_SIZE);
-
-	return 0;
+	return drm_dp_read_lttpr_regs(aux, dpcd,
+				      DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV,
+				      caps, DP_LTTPR_COMMON_CAP_SIZE);
 }
 EXPORT_SYMBOL(drm_dp_read_lttpr_common_caps);
 
 /**
  * drm_dp_read_lttpr_phy_caps - read the capabilities for a given LTTPR PHY
  * @aux: DisplayPort AUX channel
+ * @dpcd: DisplayPort configuration data
  * @dp_phy: LTTPR PHY to read the capabilities for
  * @caps: buffer to return the capability info in
  *
@@ -2427,20 +2448,13 @@ EXPORT_SYMBOL(drm_dp_read_lttpr_common_caps);
  * Returns 0 on success or a negative error code on failure.
  */
 int drm_dp_read_lttpr_phy_caps(struct drm_dp_aux *aux,
+			       const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			       enum drm_dp_phy dp_phy,
 			       u8 caps[DP_LTTPR_PHY_CAP_SIZE])
 {
-	int ret;
-
-	ret = drm_dp_dpcd_read(aux,
-			       DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER(dp_phy),
-			       caps, DP_LTTPR_PHY_CAP_SIZE);
-	if (ret < 0)
-		return ret;
-
-	WARN_ON(ret != DP_LTTPR_PHY_CAP_SIZE);
-
-	return 0;
+	return drm_dp_read_lttpr_regs(aux, dpcd,
+				      DP_TRAINING_AUX_RD_INTERVAL_PHY_REPEATER(dp_phy),
+				      caps, DP_LTTPR_PHY_CAP_SIZE);
 }
 EXPORT_SYMBOL(drm_dp_read_lttpr_phy_caps);
 

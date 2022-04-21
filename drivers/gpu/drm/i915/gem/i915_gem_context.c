@@ -64,6 +64,7 @@
  *
  */
 
+#include <linux/highmem.h>
 #include <linux/log2.h>
 #include <linux/nospec.h>
 

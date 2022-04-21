@@ -16,6 +16,7 @@
 #include "intel_gt_regs.h"
 #include "i915_drv.h"
 #include "i915_scatterlist.h"
+#include "i915_utils.h"
 #include "i915_vgpu.h"
 
 #include "intel_gtt.h"
@@ -626,7 +627,7 @@ int i915_ggtt_probe_hw(struct drm_i915_private *i915)
 	if (ret)
 		return ret;
 
-	if (intel_vtd_active(i915))
+	if (i915_vtd_active(i915))
 		drm_info(&i915->drm, "VT-d active for gfx access\n");
 
 	return 0;

@@ -1502,16 +1502,27 @@ ilk_dummy_write(struct intel_uncore *uncore)
 static void
 __unclaimed_reg_debug(struct intel_uncore *uncore,
 		      const i915_reg_t reg,
-		      const bool read,
-		      const bool before)
+		      const bool read)
 {
 	if (drm_WARN(&uncore->i915->drm,
-		     check_for_unclaimed_mmio(uncore) && !before,
+		     check_for_unclaimed_mmio(uncore),
 		     "Unclaimed %s register 0x%x\n",
 		     read ? "read from" : "write to",
 		     i915_mmio_reg_offset(reg)))
 		/* Only report the first N failures */
 		uncore->i915->params.mmio_debug--;
+}
+
+static void
+__unclaimed_previous_reg_debug(struct intel_uncore *uncore,
+			       const i915_reg_t reg,
+			       const bool read)
+{
+	if (check_for_unclaimed_mmio(uncore))
+		drm_dbg(&uncore->i915->drm,
+			"Unclaimed access detected before %s register 0x%x\n",
+			read ? "read from" : "write to",
+			i915_mmio_reg_offset(reg));
 }
 
 static inline void
@@ -1526,13 +1537,13 @@ unclaimed_reg_debug(struct intel_uncore *uncore,
 	/* interrupts are disabled and re-enabled around uncore->lock usage */
 	lockdep_assert_held(&uncore->lock);
 
-	if (before)
+	if (before) {
 		spin_lock(&uncore->debug->lock);
-
-	__unclaimed_reg_debug(uncore, reg, read, before);
-
-	if (!before)
+		__unclaimed_previous_reg_debug(uncore, reg, read);
+	} else {
+		__unclaimed_reg_debug(uncore, reg, read);
 		spin_unlock(&uncore->debug->lock);
+	}
 }
 
 #define __vgpu_read(x) \

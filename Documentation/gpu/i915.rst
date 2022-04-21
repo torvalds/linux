@@ -187,19 +187,7 @@ Display Refresh Rate Switching (DRRS)
    :doc: Display Refresh Rate Switching (DRRS)
 
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
-   :functions: intel_drrs_enable
-
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
-   :functions: intel_drrs_disable
-
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
-   :functions: intel_drrs_invalidate
-
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
-   :functions: intel_drrs_flush
-
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_drrs.c
-   :functions: intel_drrs_init
+   :internal:
 
 DPIO
 ----
