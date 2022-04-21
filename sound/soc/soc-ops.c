@@ -461,7 +461,7 @@ int snd_soc_put_volsw_sx(struct snd_kcontrol *kcontrol,
 			ret = err;
 		}
 	}
-	return err;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_put_volsw_sx);
 
