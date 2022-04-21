@@ -1200,8 +1200,8 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 
 	else {
 		rphy->grf = syscon_node_to_regmap(dev->parent->of_node);
-			if (IS_ERR(rphy->grf))
-				return PTR_ERR(rphy->grf);
+		if (IS_ERR(rphy->grf))
+			return PTR_ERR(rphy->grf);
 	}
 
 	if (of_device_is_compatible(np, "rockchip,rv1108-usb2phy")) {
