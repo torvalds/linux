@@ -408,6 +408,9 @@ static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
 	if (ret)
 		return ret;
 
+	if (btrfs_ignore_prop(BTRFS_I(inode), name))
+		return 0;
+
 	trans = btrfs_start_transaction(root, 2);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);

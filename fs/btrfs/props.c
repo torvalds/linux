@@ -21,6 +21,7 @@ struct prop_handler {
 			size_t len);
 	int (*apply)(struct inode *inode, const char *value, size_t len);
 	const char *(*extract)(struct inode *inode);
+	bool (*ignore)(const struct btrfs_inode *inode);
 	int inheritable;
 };
 
@@ -72,6 +73,28 @@ int btrfs_validate_prop(const struct btrfs_inode *inode, const char *name,
 		return 0;
 
 	return handler->validate(inode, value, value_len);
+}
+
+/*
+ * Check if a property should be ignored (not set) for an inode.
+ *
+ * @inode:     The target inode.
+ * @name:      The property's name.
+ *
+ * The caller must be sure the given property name is valid, for example by
+ * having previously called btrfs_validate_prop().
+ *
+ * Returns:    true if the property should be ignored for the given inode
+ *             false if the property must not be ignored for the given inode
+ */
+bool btrfs_ignore_prop(const struct btrfs_inode *inode, const char *name)
+{
+	const struct prop_handler *handler;
+
+	handler = find_prop_handler(name, NULL);
+	ASSERT(handler != NULL);
+
+	return handler->ignore(inode);
 }
 
 int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
@@ -316,6 +339,22 @@ static int prop_compression_apply(struct inode *inode, const char *value,
 	return 0;
 }
 
+static bool prop_compression_ignore(const struct btrfs_inode *inode)
+{
+	/*
+	 * Compression only has effect for regular files, and for directories
+	 * we set it just to propagate it to new files created inside them.
+	 * Everything else (symlinks, devices, sockets, fifos) is pointless as
+	 * it will do nothing, so don't waste metadata space on a compression
+	 * xattr for anything that is neither a file nor a directory.
+	 */
+	if (!S_ISREG(inode->vfs_inode.i_mode) &&
+	    !S_ISDIR(inode->vfs_inode.i_mode))
+		return true;
+
+	return false;
+}
+
 static const char *prop_compression_extract(struct inode *inode)
 {
 	switch (BTRFS_I(inode)->prop_compress) {
@@ -336,6 +375,7 @@ static struct prop_handler prop_handlers[] = {
 		.validate = prop_compression_validate,
 		.apply = prop_compression_apply,
 		.extract = prop_compression_extract,
+		.ignore = prop_compression_ignore,
 		.inheritable = 1
 	},
 };
@@ -360,6 +400,9 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 		u64 num_bytes = 0;
 
 		if (!h->inheritable)
+			continue;
+
+		if (h->ignore(BTRFS_I(inode)))
 			continue;
 
 		value = h->extract(parent);

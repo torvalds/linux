@@ -15,6 +15,7 @@ int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
 		   int flags);
 int btrfs_validate_prop(const struct btrfs_inode *inode, const char *name,
 			const char *value, size_t value_len);
+bool btrfs_ignore_prop(const struct btrfs_inode *inode, const char *name);
 
 int btrfs_load_inode_props(struct inode *inode, struct btrfs_path *path);
 
