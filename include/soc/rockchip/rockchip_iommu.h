@@ -12,6 +12,7 @@ int rockchip_iommu_enable(struct device *dev);
 int rockchip_iommu_disable(struct device *dev);
 int rockchip_pagefault_done(struct device *master_dev);
 void __iomem *rockchip_get_iommu_base(struct device *master_dev, int idx);
+bool rockchip_iommu_is_enabled(struct device *dev);
 #else
 static inline int rockchip_iommu_enable(struct device *dev)
 {
@@ -28,6 +29,10 @@ static inline int rockchip_pagefault_done(struct device *master_dev)
 static inline void __iomem *rockchip_get_iommu_base(struct device *master_dev, int idx)
 {
 	return NULL;
+}
+static inline bool rockchip_iommu_is_enabled(struct device *dev)
+{
+	return false;
 }
 #endif
 

@@ -1382,6 +1382,18 @@ int rockchip_iommu_enable(struct device *dev)
 }
 EXPORT_SYMBOL(rockchip_iommu_enable);
 
+bool rockchip_iommu_is_enabled(struct device *dev)
+{
+	struct rk_iommu *iommu;
+
+	iommu = rk_iommu_from_dev(dev);
+	if (!iommu)
+		return false;
+
+	return rk_iommu_is_paging_enabled(iommu);
+}
+EXPORT_SYMBOL(rockchip_iommu_is_enabled);
+
 static void rk_iommu_detach_device(struct iommu_domain *domain,
 				   struct device *dev)
 {
