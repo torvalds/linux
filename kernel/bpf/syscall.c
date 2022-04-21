@@ -3030,66 +3030,45 @@ static int bpf_perf_link_attach(const union bpf_attr *attr, struct bpf_prog *pro
 }
 #endif /* CONFIG_PERF_EVENTS */
 
-#define BPF_RAW_TRACEPOINT_OPEN_LAST_FIELD raw_tracepoint.prog_fd
-
-static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
+static int bpf_raw_tp_link_attach(struct bpf_prog *prog,
+				  const char __user *user_tp_name)
 {
 	struct bpf_link_primer link_primer;
 	struct bpf_raw_tp_link *link;
 	struct bpf_raw_event_map *btp;
-	struct bpf_prog *prog;
 	const char *tp_name;
 	char buf[128];
 	int err;
-
-	if (CHECK_ATTR(BPF_RAW_TRACEPOINT_OPEN))
-		return -EINVAL;
-
-	prog = bpf_prog_get(attr->raw_tracepoint.prog_fd);
-	if (IS_ERR(prog))
-		return PTR_ERR(prog);
 
 	switch (prog->type) {
 	case BPF_PROG_TYPE_TRACING:
 	case BPF_PROG_TYPE_EXT:
 	case BPF_PROG_TYPE_LSM:
-		if (attr->raw_tracepoint.name) {
+		if (user_tp_name)
 			/* The attach point for this category of programs
 			 * should be specified via btf_id during program load.
 			 */
-			err = -EINVAL;
-			goto out_put_prog;
-		}
+			return -EINVAL;
 		if (prog->type == BPF_PROG_TYPE_TRACING &&
 		    prog->expected_attach_type == BPF_TRACE_RAW_TP) {
 			tp_name = prog->aux->attach_func_name;
 			break;
 		}
-		err = bpf_tracing_prog_attach(prog, 0, 0);
-		if (err >= 0)
-			return err;
-		goto out_put_prog;
+		return bpf_tracing_prog_attach(prog, 0, 0);
 	case BPF_PROG_TYPE_RAW_TRACEPOINT:
 	case BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE:
-		if (strncpy_from_user(buf,
-				      u64_to_user_ptr(attr->raw_tracepoint.name),
-				      sizeof(buf) - 1) < 0) {
-			err = -EFAULT;
-			goto out_put_prog;
-		}
+		if (strncpy_from_user(buf, user_tp_name, sizeof(buf) - 1) < 0)
+			return -EFAULT;
 		buf[sizeof(buf) - 1] = 0;
 		tp_name = buf;
 		break;
 	default:
-		err = -EINVAL;
-		goto out_put_prog;
+		return -EINVAL;
 	}
 
 	btp = bpf_get_raw_tracepoint(tp_name);
-	if (!btp) {
-		err = -ENOENT;
-		goto out_put_prog;
-	}
+	if (!btp)
+		return -ENOENT;
 
 	link = kzalloc(sizeof(*link), GFP_USER);
 	if (!link) {
@@ -3116,9 +3095,27 @@ static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
 
 out_put_btp:
 	bpf_put_raw_tracepoint(btp);
-out_put_prog:
-	bpf_prog_put(prog);
 	return err;
+}
+
+#define BPF_RAW_TRACEPOINT_OPEN_LAST_FIELD raw_tracepoint.prog_fd
+
+static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
+{
+	struct bpf_prog *prog;
+	int fd;
+
+	if (CHECK_ATTR(BPF_RAW_TRACEPOINT_OPEN))
+		return -EINVAL;
+
+	prog = bpf_prog_get(attr->raw_tracepoint.prog_fd);
+	if (IS_ERR(prog))
+		return PTR_ERR(prog);
+
+	fd = bpf_raw_tp_link_attach(prog, u64_to_user_ptr(attr->raw_tracepoint.name));
+	if (fd < 0)
+		bpf_prog_put(prog);
+	return fd;
 }
 
 static int bpf_prog_attach_check_attach_type(const struct bpf_prog *prog,
@@ -3189,7 +3186,13 @@ attach_type_to_prog_type(enum bpf_attach_type attach_type)
 	case BPF_CGROUP_SETSOCKOPT:
 		return BPF_PROG_TYPE_CGROUP_SOCKOPT;
 	case BPF_TRACE_ITER:
+	case BPF_TRACE_RAW_TP:
+	case BPF_TRACE_FENTRY:
+	case BPF_TRACE_FEXIT:
+	case BPF_MODIFY_RETURN:
 		return BPF_PROG_TYPE_TRACING;
+	case BPF_LSM_MAC:
+		return BPF_PROG_TYPE_LSM;
 	case BPF_SK_LOOKUP:
 		return BPF_PROG_TYPE_SK_LOOKUP;
 	case BPF_XDP:
@@ -4246,21 +4249,6 @@ err_put:
 	return err;
 }
 
-static int tracing_bpf_link_attach(const union bpf_attr *attr, bpfptr_t uattr,
-				   struct bpf_prog *prog)
-{
-	if (attr->link_create.attach_type != prog->expected_attach_type)
-		return -EINVAL;
-
-	if (prog->expected_attach_type == BPF_TRACE_ITER)
-		return bpf_iter_link_attach(attr, uattr, prog);
-	else if (prog->type == BPF_PROG_TYPE_EXT)
-		return bpf_tracing_prog_attach(prog,
-					       attr->link_create.target_fd,
-					       attr->link_create.target_btf_id);
-	return -EINVAL;
-}
-
 #define BPF_LINK_CREATE_LAST_FIELD link_create.kprobe_multi.cookies
 static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 {
@@ -4282,15 +4270,13 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 
 	switch (prog->type) {
 	case BPF_PROG_TYPE_EXT:
-		ret = tracing_bpf_link_attach(attr, uattr, prog);
-		goto out;
+		break;
 	case BPF_PROG_TYPE_PERF_EVENT:
 	case BPF_PROG_TYPE_TRACEPOINT:
 		if (attr->link_create.attach_type != BPF_PERF_EVENT) {
 			ret = -EINVAL;
 			goto out;
 		}
-		ptype = prog->type;
 		break;
 	case BPF_PROG_TYPE_KPROBE:
 		if (attr->link_create.attach_type != BPF_PERF_EVENT &&
@@ -4298,7 +4284,6 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 			ret = -EINVAL;
 			goto out;
 		}
-		ptype = prog->type;
 		break;
 	default:
 		ptype = attach_type_to_prog_type(attr->link_create.attach_type);
@@ -4309,7 +4294,7 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 		break;
 	}
 
-	switch (ptype) {
+	switch (prog->type) {
 	case BPF_PROG_TYPE_CGROUP_SKB:
 	case BPF_PROG_TYPE_CGROUP_SOCK:
 	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
@@ -4319,8 +4304,25 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
 		ret = cgroup_bpf_link_attach(attr, prog);
 		break;
+	case BPF_PROG_TYPE_EXT:
+		ret = bpf_tracing_prog_attach(prog,
+					      attr->link_create.target_fd,
+					      attr->link_create.target_btf_id);
+		break;
+	case BPF_PROG_TYPE_LSM:
 	case BPF_PROG_TYPE_TRACING:
-		ret = tracing_bpf_link_attach(attr, uattr, prog);
+		if (attr->link_create.attach_type != prog->expected_attach_type) {
+			ret = -EINVAL;
+			goto out;
+		}
+		if (prog->expected_attach_type == BPF_TRACE_RAW_TP)
+			ret = bpf_raw_tp_link_attach(prog, NULL);
+		else if (prog->expected_attach_type == BPF_TRACE_ITER)
+			ret = bpf_iter_link_attach(attr, uattr, prog);
+		else
+			ret = bpf_tracing_prog_attach(prog,
+						      attr->link_create.target_fd,
+						      attr->link_create.target_btf_id);
 		break;
 	case BPF_PROG_TYPE_FLOW_DISSECTOR:
 	case BPF_PROG_TYPE_SK_LOOKUP:
