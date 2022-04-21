@@ -25,7 +25,7 @@ static mlme_handler mlme_sta_tbl[] = {
 	NULL,
 	NULL,
 	OnBeacon,
-	OnAtim,
+	NULL,
 	OnDisassoc,
 	OnAuthClient,
 	OnDeAuth,
@@ -1476,11 +1476,6 @@ unsigned int OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame
 		receive_disconnect(padapter, GetAddr3Ptr(pframe), reason);
 	}
 	pmlmepriv->LinkDetectInfo.bBusyTraffic = false;
-	return _SUCCESS;
-}
-
-unsigned int OnAtim(struct adapter *padapter, struct recv_frame *precv_frame)
-{
 	return _SUCCESS;
 }
 
