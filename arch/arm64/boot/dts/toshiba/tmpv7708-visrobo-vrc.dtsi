@@ -40,5 +40,4 @@
 
 &i2c0 {
 	status = "okay";
-	clocks = <&clk150mhz>;
 };

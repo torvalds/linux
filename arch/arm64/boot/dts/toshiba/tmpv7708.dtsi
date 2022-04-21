@@ -284,6 +284,7 @@
 			clock-frequency = <400000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PII2C0>;
 			status = "disabled";
 		};
 
@@ -296,6 +297,7 @@
 			clock-frequency = <400000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PII2C1>;
 			status = "disabled";
 		};
 
@@ -308,6 +310,7 @@
 			clock-frequency = <400000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PII2C2>;
 			status = "disabled";
 		};
 
@@ -320,6 +323,7 @@
 			clock-frequency = <400000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PII2C3>;
 			status = "disabled";
 		};
 
@@ -332,6 +336,7 @@
 			clock-frequency = <400000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PII2C4>;
 			status = "disabled";
 		};
 
@@ -344,6 +349,7 @@
 			clock-frequency = <400000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PII2C5>;
 			status = "disabled";
 		};
 
@@ -356,6 +362,7 @@
 			clock-frequency = <400000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PII2C6>;
 			status = "disabled";
 		};
 
@@ -368,6 +375,7 @@
 			clock-frequency = <400000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PII2C7>;
 			status = "disabled";
 		};
 
@@ -380,6 +388,7 @@
 			clock-frequency = <400000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PII2C8>;
 			status = "disabled";
 		};
 
