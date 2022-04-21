@@ -578,8 +578,8 @@ static char *crypto_no_sm_algs_name[] = {
 };
 
 static char *crypto_rv1126_algs_name[] = {
-	"ecb(sm4)", "cbc(sm4)", "cfb(sm4)", "ofb(sm4)", "ctr(sm4)",
-	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ofb(aes)", "ctr(aes)",
+	"ecb(sm4)", "cbc(sm4)", "cfb(sm4)", "ofb(sm4)", "ctr(sm4)", "gcm(sm4)",
+	"ecb(aes)", "cbc(aes)", "cfb(aes)", "ofb(aes)", "ctr(aes)", "gcm(aes)",
 	"ecb(des)", "cbc(des)", "cfb(des)", "ofb(des)",
 	"ecb(des3_ede)", "cbc(des3_ede)", "cfb(des3_ede)", "ofb(des3_ede)",
 	"sha1", "sha256", "sha512", "md5", "sm3",
