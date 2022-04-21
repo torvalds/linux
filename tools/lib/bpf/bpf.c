@@ -817,7 +817,7 @@ int bpf_link_create(int prog_fd, int target_fd,
 {
 	__u32 target_btf_id, iter_info_len;
 	union bpf_attr attr;
-	int fd;
+	int fd, err;
 
 	if (!OPTS_VALID(opts, bpf_link_create_opts))
 		return libbpf_err(-EINVAL);
@@ -870,7 +870,37 @@ int bpf_link_create(int prog_fd, int target_fd,
 	}
 proceed:
 	fd = sys_bpf_fd(BPF_LINK_CREATE, &attr, sizeof(attr));
-	return libbpf_err_errno(fd);
+	if (fd >= 0)
+		return fd;
+	/* we'll get EINVAL if LINK_CREATE doesn't support attaching fentry
+	 * and other similar programs
+	 */
+	err = -errno;
+	if (err != -EINVAL)
+		return libbpf_err(err);
+
+	/* if user used features not supported by
+	 * BPF_RAW_TRACEPOINT_OPEN command, then just give up immediately
+	 */
+	if (attr.link_create.target_fd || attr.link_create.target_btf_id)
+		return libbpf_err(err);
+	if (!OPTS_ZEROED(opts, sz))
+		return libbpf_err(err);
+
+	/* otherwise, for few select kinds of programs that can be
+	 * attached using BPF_RAW_TRACEPOINT_OPEN command, try that as
+	 * a fallback for older kernels
+	 */
+	switch (attach_type) {
+	case BPF_TRACE_RAW_TP:
+	case BPF_LSM_MAC:
+	case BPF_TRACE_FENTRY:
+	case BPF_TRACE_FEXIT:
+	case BPF_MODIFY_RETURN:
+		return bpf_raw_tracepoint_open(NULL, prog_fd);
+	default:
+		return libbpf_err(err);
+	}
 }
 
 int bpf_link_detach(int link_fd)

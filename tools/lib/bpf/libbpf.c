@@ -11260,7 +11260,8 @@ static struct bpf_link *bpf_program__attach_btf_id(const struct bpf_program *pro
 		return libbpf_err_ptr(-ENOMEM);
 	link->detach = &bpf_link__detach_fd;
 
-	pfd = bpf_raw_tracepoint_open(NULL, prog_fd);
+	/* libbpf is smart enough to redirect to BPF_RAW_TRACEPOINT_OPEN on old kernels */
+	pfd = bpf_link_create(prog_fd, 0, bpf_program__expected_attach_type(prog), NULL);
 	if (pfd < 0) {
 		pfd = -errno;
 		free(link);
