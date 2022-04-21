@@ -354,6 +354,16 @@
 	pinctrl-1 = <&sdc2_off>;
 };
 
+&smbb {
+	usb-charge-current-limit = <1500000>;
+	qcom,fast-charge-safe-current = <1500000>;
+	qcom,fast-charge-current-limit = <1500000>;
+	qcom,fast-charge-safe-voltage = <4380000>;
+	qcom,fast-charge-high-threshold-voltage = <4350000>;
+	qcom,auto-recharge-threshold-voltage = <4240000>;
+	qcom,minimum-input-voltage = <4450000>;
+};
+
 &tlmm {
 	sdc1_on: sdc1-on {
 		clk {
