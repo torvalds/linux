@@ -52,6 +52,17 @@ config SCSI_UFSHCD
 
 if SCSI_UFSHCD
 
+config UFS_DBG
+	bool "Universal Flash Storage Debug Mode"
+	depends on SCSI_UFSHCD
+	help
+	This selects the debug mode for ufs vendor driver.
+	  Enables tracing for QTI ufs driver.
+	  This also enables ftrace for ufs core and SCSI.
+	  Enabling this would have an adverse performance impact on disk IO.
+
+	  If unsure, say N.
+
 config SCSI_UFSHCD_PCI
 	tristate "PCI bus based UFS Controller support"
 	depends on PCI
