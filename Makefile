@@ -545,6 +545,7 @@ export RCS_TAR_IGNORE := --exclude SCCS --exclude BitKeeper --exclude .svn \
 
 # ===========================================================================
 # Rules shared between *config targets and build targets
+CFLAGS_KERNEL	+= -D$(HWBOARD_FLAG)
 
 # Basic helpers built in scripts/basic/
 PHONY += scripts_basic
