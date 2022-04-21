@@ -21,11 +21,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 
+#include <drm/display/drm_scdc_helper.h>
 #include <drm/drm_print.h>
-#include <drm/drm_scdc_helper.h>
 
 /**
  * DOC: scdc helpers

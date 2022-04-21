@@ -42,7 +42,6 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_print.h>
-#include <drm/drm_scdc_helper.h>
 
 #include "drm_crtc_internal.h"
 

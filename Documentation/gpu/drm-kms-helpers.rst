@@ -356,13 +356,13 @@ EDID Helper Functions Reference
 SCDC Helper Functions Reference
 ===============================
 
-.. kernel-doc:: drivers/gpu/drm/drm_scdc_helper.c
+.. kernel-doc:: drivers/gpu/drm/display/drm_scdc_helper.c
    :doc: scdc helpers
 
-.. kernel-doc:: include/drm/drm_scdc_helper.h
+.. kernel-doc:: include/drm/display/drm_scdc_helper.h
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/drm_scdc_helper.c
+.. kernel-doc:: drivers/gpu/drm/display/drm_scdc_helper.c
    :export:
 
 HDMI Infoframes Helper Reference
