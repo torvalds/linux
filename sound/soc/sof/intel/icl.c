@@ -56,11 +56,18 @@ static int icl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 	int ret;
 
 	if (sdev->first_boot) {
+		struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
+
 		ret = hda_sdw_startup(sdev);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: could not startup SoundWire links\n");
 			return ret;
 		}
+
+		/* Check if IMR boot is usable */
+		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT) &&
+		    sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT)
+			hdev->imrboot_supported = true;
 	}
 
 	hda_sdw_int_enable(sdev, true);

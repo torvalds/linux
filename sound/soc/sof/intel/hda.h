@@ -210,7 +210,9 @@
 #define HDA_DSP_ROM_USER_EXCEPTION		0xBEEF0000
 #define HDA_DSP_ROM_UNEXPECTED_RESET		0xDECAF000
 #define HDA_DSP_ROM_NULL_FW_ENTRY		0x4c4c4e55
-#define HDA_DSP_IPC_PURGE_FW			0x01004000
+
+#define HDA_DSP_ROM_IPC_CONTROL			0x01000000
+#define HDA_DSP_ROM_IPC_PURGE_FW		0x00004000
 
 /* various timeout values */
 #define HDA_DSP_PU_TIMEOUT		50
@@ -416,6 +418,8 @@ enum sof_hda_D0_substate {
 
 /* represents DSP HDA controller frontend - i.e. host facing control */
 struct sof_intel_hda_dev {
+	bool imrboot_supported;
+
 	int boot_iteration;
 
 	struct hda_bus hbus;

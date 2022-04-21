@@ -99,14 +99,14 @@ out_put:
  * status on core 1, so power up core 1 also momentarily, keep it in
  * reset/stall and then turn it off
  */
-static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
+static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
-	unsigned int status;
+	unsigned int status, target_status;
+	u32 flags, ipc_hdr, j;
 	unsigned long mask;
 	char *dump_msg;
-	u32 flags, j;
 	int ret;
 
 	/* step 1: power up corex */
@@ -119,10 +119,12 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 
 	hda_ssp_set_cbp_cfp(sdev);
 
-	/* step 2: purge FW request */
-	snd_sof_dsp_write(sdev, HDA_DSP_BAR, chip->ipc_req,
-			  chip->ipc_req_mask | (HDA_DSP_IPC_PURGE_FW |
-			  ((stream_tag - 1) << 9)));
+	/* step 2: Send ROM_CONTROL command (stream_tag is ignored for IMR boot) */
+	ipc_hdr = chip->ipc_req_mask | HDA_DSP_ROM_IPC_CONTROL;
+	if (!imr_boot)
+		ipc_hdr |= HDA_DSP_ROM_IPC_PURGE_FW | ((stream_tag - 1) << 9);
+
+	snd_sof_dsp_write(sdev, HDA_DSP_BAR, chip->ipc_req, ipc_hdr);
 
 	/* step 3: unset core 0 reset state & unstall/run core 0 */
 	ret = hda_dsp_core_run(sdev, BIT(0));
@@ -169,11 +171,20 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 	/* step 6: enable IPC interrupts */
 	hda_dsp_ipc_int_enable(sdev);
 
-	/* step 7: wait for ROM init */
+	/*
+	 * step 7:
+	 * - Cold/Full boot: wait for ROM init to proceed to download the firmware
+	 * - IMR boot: wait for ROM firmware entered (firmware booted up from IMR)
+	 */
+	if (imr_boot)
+		target_status = HDA_DSP_ROM_FW_ENTERED;
+	else
+		target_status = HDA_DSP_ROM_INIT;
+
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
 					chip->rom_status_reg, status,
 					((status & HDA_DSP_ROM_STS_MASK)
-						== HDA_DSP_ROM_INIT),
+						== target_status),
 					HDA_DSP_REG_POLL_INTERVAL_US,
 					chip->rom_init_timeout *
 					USEC_PER_MSEC);
@@ -358,32 +369,11 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 
 static int hda_dsp_boot_imr(struct snd_sof_dev *sdev)
 {
-	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
-	const struct sof_intel_dsp_desc *chip = hda->desc;
-	unsigned long mask;
-	u32 j;
 	int ret;
 
-	/* power up & unstall/run the cores to run the firmware */
-	ret = hda_dsp_enable_core(sdev, chip->init_core_mask);
-	if (ret < 0) {
-		dev_err(sdev->dev, "dsp core start failed %d\n", ret);
-		return -EIO;
-	}
-
-	/* set enabled cores mask and increment ref count for cores in init_core_mask */
-	sdev->enabled_cores_mask |= chip->init_core_mask;
-	mask = sdev->enabled_cores_mask;
-	for_each_set_bit(j, &mask, SOF_MAX_DSP_NUM_CORES)
-		sdev->dsp_core_ref_count[j]++;
-
-	hda_ssp_set_cbp_cfp(sdev);
-
-	/* enable IPC interrupts */
-	hda_dsp_ipc_int_enable(sdev);
-
-	/* process wakes */
-	hda_sdw_process_wakeen(sdev);
+	ret = cl_dsp_init(sdev, 0, true);
+	if (ret >= 0)
+		hda_sdw_process_wakeen(sdev);
 
 	return ret;
 }
@@ -399,11 +389,14 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	struct snd_dma_buffer dmab;
 	int ret, ret1, i;
 
-	if ((sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT) &&
-	    !(sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT)) &&
-	    !sdev->first_boot) {
+	if (hda->imrboot_supported && !sdev->first_boot) {
 		dev_dbg(sdev->dev, "IMR restore supported, booting from IMR directly\n");
-		return hda_dsp_boot_imr(sdev);
+		hda->boot_iteration = 0;
+		ret = hda_dsp_boot_imr(sdev);
+		if (ret >= 0)
+			return ret;
+
+		dev_warn(sdev->dev, "IMR restore failed, trying to cold boot\n");
 	}
 
 	chip_info = desc->chip_info;
@@ -437,7 +430,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 			"Attempting iteration %d of Core En/ROM load...\n", i);
 
 		hda->boot_iteration = i + 1;
-		ret = cl_dsp_init(sdev, hext_stream->hstream.stream_tag);
+		ret = cl_dsp_init(sdev, hext_stream->hstream.stream_tag, false);
 
 		/* don't retry anymore if successful */
 		if (!ret)
@@ -525,12 +518,19 @@ int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
 	int ret;
 
 	if (sdev->first_boot) {
+		struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
+
 		ret = hda_sdw_startup(sdev);
 		if (ret < 0) {
 			dev_err(sdev->dev,
 				"error: could not startup SoundWire links\n");
 			return ret;
 		}
+
+		/* Check if IMR boot is usable */
+		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT) &&
+		    sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT)
+			hdev->imrboot_supported = true;
 	}
 
 	hda_sdw_int_enable(sdev, true);
