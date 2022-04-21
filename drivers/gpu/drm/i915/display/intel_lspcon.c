@@ -23,8 +23,8 @@
  *
  */
 
+#include <drm/display/drm_dp_dual_mode_helper.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/dp/drm_dp_dual_mode_helper.h>
 #include <drm/drm_edid.h>
 
 #include "intel_de.h"
