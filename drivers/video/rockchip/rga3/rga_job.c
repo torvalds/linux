@@ -281,9 +281,9 @@ static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 			goto failed;
 		}
 	} else {
-		ret = rga_dma_get_info(job);
+		ret = rga_mm_map_buffer_info(job);
 		if (ret < 0) {
-			pr_err("dma buf get failed");
+			pr_err("%s: failed to map buffer\n", __func__);
 			goto failed;
 		}
 	}
@@ -349,10 +349,12 @@ next_job:
 
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
-		if (job->flags & RGA_JOB_USE_HANDLE)
+		if (job->flags & RGA_JOB_USE_HANDLE) {
 			rga_mm_put_handle_info(job);
-		else
-			rga_dma_put_info(job);
+		} else {
+			rga_mm_unmap_buffer_info(job);
+			rga_mm_put_external_buffer(job);
+		}
 
 		if (job->use_batch_mode) {
 			rga_internal_ctx_signal(scheduler, job);
@@ -389,10 +391,12 @@ static void rga_job_finish_and_next(struct rga_scheduler_t *scheduler,
 		rga2_dma_flush_cache_for_virtual_address(&job->vir_page_table,
 			scheduler);
 
-	if (job->flags & RGA_JOB_USE_HANDLE)
+	if (job->flags & RGA_JOB_USE_HANDLE) {
 		rga_mm_put_handle_info(job);
-	else
-		rga_dma_put_info(job);
+	} else {
+		rga_mm_unmap_buffer_info(job);
+		rga_mm_put_external_buffer(job);
+	}
 
 	if (job->use_batch_mode)
 		rga_internal_ctx_signal(scheduler, job);
@@ -447,10 +451,12 @@ static void rga_job_timeout_clean(struct rga_scheduler_t *scheduler)
 
 		scheduler->ops->soft_reset(scheduler);
 
-		if (job->flags & RGA_JOB_USE_HANDLE)
+		if (job->flags & RGA_JOB_USE_HANDLE) {
 			rga_mm_put_handle_info(job);
-		else
-			rga_dma_put_info(job);
+		} else {
+			rga_mm_unmap_buffer_info(job);
+			rga_mm_put_external_buffer(job);
+		}
 
 		if (job->use_batch_mode)
 			rga_internal_ctx_signal(scheduler, job);
@@ -670,15 +676,12 @@ int rga_job_commit(struct rga_req *rga_command_base, struct rga_internal_ctx_t *
 	job->ctx_id = ctx->id;
 	job->session = ctx->session;
 
-	/*
-	 * because fd can not pass on other thread,
-	 * so need to get dma_buf first.
-	 */
-	ret = rga_dma_buf_get(job);
-	if (ret < 0) {
-		pr_err("%s: failed to get dma buf from fd\n",
-				__func__);
-		goto free_job;
+	if (!(job->flags & RGA_JOB_USE_HANDLE)) {
+		ret = rga_mm_get_external_buffer(job);
+		if (ret < 0) {
+			pr_err("%s: failed to get external buffer from job_cmd!\n", __func__);
+			goto free_job;
+		}
 	}
 
 	if (ctx->sync_mode == RGA_BLIT_ASYNC) {

@@ -260,6 +260,15 @@ struct rga_session {
 struct rga_job_buffer {
 	union {
 		struct {
+			struct rga_external_buffer *ex_y_addr;
+			struct rga_external_buffer *ex_uv_addr;
+			struct rga_external_buffer *ex_v_addr;
+		};
+		struct rga_external_buffer *ex_addr;
+	};
+
+	union {
+		struct {
 			struct rga_internal_buffer *y_addr;
 			struct rga_internal_buffer *uv_addr;
 			struct rga_internal_buffer *v_addr;
