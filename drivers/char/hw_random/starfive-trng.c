@@ -1,13 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- ******************************************************************************
- * @file  starfive-trng.c
- * @author  StarFive Technology
- * @version  V1.0
- * @date  09/08/2021
- * @brief
- ******************************************************************************
- * @copy
+ * Copyright (C) 2021 StarFive, Inc
  *
  * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
  * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
@@ -15,8 +8,6 @@
  * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
  * FROM THE CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
  * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
- *
- * COPYRIGHT 2020 Shanghai StarFive Technology Co., Ltd.
  */
 
 #include <linux/err.h>
@@ -29,6 +20,8 @@
 #include <linux/interrupt.h>
 #include <linux/random.h>
 #include <linux/delay.h>
+#include <linux/clk.h>
+#include <linux/reset.h>
 
 #include "starfive-trng.h"
 
@@ -37,6 +30,9 @@
 struct trng {
 	struct device	*dev;
 	void __iomem	*base;
+	struct clk *hclk;
+	struct clk *miscahb_clk;
+	struct reset_control *rst;
 	u32	mode;
 	u32	ctl_cmd;
 	u32	test_mode;
@@ -311,6 +307,44 @@ static int trng_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't get interrupt working.\n");
 		return ret;
 	}
+
+	rng->hclk = devm_clk_get(&pdev->dev, "hclk");
+	if (IS_ERR(rng->hclk)) {
+		ret = PTR_ERR(rng->hclk);
+		dev_err(&pdev->dev,
+			"Failed to get the trng hclk clock, %d\n", ret);
+		return ret;
+	}
+	rng->miscahb_clk = devm_clk_get(&pdev->dev, "miscahb_clk");
+	if (IS_ERR(rng->miscahb_clk)) {
+		ret = PTR_ERR(rng->miscahb_clk);
+		dev_err(&pdev->dev,
+			"Failed to get the trng miscahb_clk clock, %d\n", ret);
+		return ret;
+	}
+
+	rng->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+	if (IS_ERR(rng->rst)) {
+		ret = PTR_ERR(rng->rst);
+		dev_err(&pdev->dev,
+			"Failed to get the sec_top reset, %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(rng->hclk);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"Failed to enable the trng hclk clock, %d\n", ret);
+		return ret;
+	}
+	ret = clk_prepare_enable(rng->miscahb_clk);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"Failed to enable the trng miscahb_clk clock, %d\n", ret);
+		return ret;
+	}
+
+	reset_control_deassert(rng->rst);
 
 	rng->rng.name = pdev->name;
 	rng->rng.init = trng_init;
