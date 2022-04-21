@@ -619,22 +619,22 @@ typedef struct xfs_agi {
 
 #define XFS_AGI_CRC_OFF		offsetof(struct xfs_agi, agi_crc)
 
-#define	XFS_AGI_MAGICNUM	(1 << 0)
-#define	XFS_AGI_VERSIONNUM	(1 << 1)
-#define	XFS_AGI_SEQNO		(1 << 2)
-#define	XFS_AGI_LENGTH		(1 << 3)
-#define	XFS_AGI_COUNT		(1 << 4)
-#define	XFS_AGI_ROOT		(1 << 5)
-#define	XFS_AGI_LEVEL		(1 << 6)
-#define	XFS_AGI_FREECOUNT	(1 << 7)
-#define	XFS_AGI_NEWINO		(1 << 8)
-#define	XFS_AGI_DIRINO		(1 << 9)
-#define	XFS_AGI_UNLINKED	(1 << 10)
+#define	XFS_AGI_MAGICNUM	(1u << 0)
+#define	XFS_AGI_VERSIONNUM	(1u << 1)
+#define	XFS_AGI_SEQNO		(1u << 2)
+#define	XFS_AGI_LENGTH		(1u << 3)
+#define	XFS_AGI_COUNT		(1u << 4)
+#define	XFS_AGI_ROOT		(1u << 5)
+#define	XFS_AGI_LEVEL		(1u << 6)
+#define	XFS_AGI_FREECOUNT	(1u << 7)
+#define	XFS_AGI_NEWINO		(1u << 8)
+#define	XFS_AGI_DIRINO		(1u << 9)
+#define	XFS_AGI_UNLINKED	(1u << 10)
 #define	XFS_AGI_NUM_BITS_R1	11	/* end of the 1st agi logging region */
-#define	XFS_AGI_ALL_BITS_R1	((1 << XFS_AGI_NUM_BITS_R1) - 1)
-#define	XFS_AGI_FREE_ROOT	(1 << 11)
-#define	XFS_AGI_FREE_LEVEL	(1 << 12)
-#define	XFS_AGI_IBLOCKS		(1 << 13) /* both inobt/finobt block counters */
+#define	XFS_AGI_ALL_BITS_R1	((1u << XFS_AGI_NUM_BITS_R1) - 1)
+#define	XFS_AGI_FREE_ROOT	(1u << 11)
+#define	XFS_AGI_FREE_LEVEL	(1u << 12)
+#define	XFS_AGI_IBLOCKS		(1u << 13) /* both inobt/finobt block counters */
 #define	XFS_AGI_NUM_BITS_R2	14
 
 /* disk block (xfs_daddr_t) in the AG */
