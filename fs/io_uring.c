@@ -6266,7 +6266,9 @@ static int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 
 	if (!def->pollin && !def->pollout)
 		return IO_APOLL_ABORTED;
-	if (!file_can_poll(req->file) || (req->flags & REQ_F_POLLED))
+	if (!file_can_poll(req->file))
+		return IO_APOLL_ABORTED;
+	if ((req->flags & (REQ_F_POLLED|REQ_F_PARTIAL_IO)) == REQ_F_POLLED)
 		return IO_APOLL_ABORTED;
 
 	if (def->pollin) {
@@ -6281,8 +6283,10 @@ static int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 	}
 	if (def->poll_exclusive)
 		mask |= EPOLLEXCLUSIVE;
-	if (!(issue_flags & IO_URING_F_UNLOCKED) &&
-	    !list_empty(&ctx->apoll_cache)) {
+	if (req->flags & REQ_F_POLLED) {
+		apoll = req->apoll;
+	} else if (!(issue_flags & IO_URING_F_UNLOCKED) &&
+		   !list_empty(&ctx->apoll_cache)) {
 		apoll = list_first_entry(&ctx->apoll_cache, struct async_poll,
 						poll.wait.entry);
 		list_del_init(&apoll->poll.wait.entry);
