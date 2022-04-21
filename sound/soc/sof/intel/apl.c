@@ -43,6 +43,9 @@ int sof_apl_ops_init(struct snd_sof_dev *sdev)
 	/* ipc */
 	sof_apl_ops.send_msg	= hda_dsp_ipc_send_msg;
 
+	/* set DAI driver ops */
+	hda_set_dai_drv_ops(sdev, &sof_apl_ops);
+
 	/* debug */
 	sof_apl_ops.debug_map	= apl_dsp_debugfs;
 	sof_apl_ops.debug_map_count	= ARRAY_SIZE(apl_dsp_debugfs);
