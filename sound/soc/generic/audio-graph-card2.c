@@ -1178,8 +1178,6 @@ int audio_graph2_parse_of(struct asoc_simple_priv *priv, struct device *dev,
 	struct link_info *li;
 	int ret;
 
-	dev_warn(dev, "Audio Graph Card2 is still under Experimental stage\n");
-
 	li = devm_kzalloc(dev, sizeof(*li), GFP_KERNEL);
 	if (!li)
 		return -ENOMEM;
@@ -1244,6 +1242,9 @@ err:
 
 	if (ret < 0)
 		dev_err_probe(dev, ret, "parse error\n");
+
+	if (ret == 0)
+		dev_warn(dev, "Audio Graph Card2 is still under Experimental stage\n");
 
 	return ret;
 }
