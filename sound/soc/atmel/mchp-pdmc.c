@@ -966,6 +966,7 @@ static int mchp_pdmc_process(struct snd_pcm_substream *substream,
 
 static struct snd_dmaengine_pcm_config mchp_pdmc_config = {
 	.process = mchp_pdmc_process,
+	.prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config,
 };
 
 static int mchp_pdmc_probe(struct platform_device *pdev)
