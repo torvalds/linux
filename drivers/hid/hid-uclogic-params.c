@@ -713,7 +713,8 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 
 	/* If it's a custom keyboard interface */
 	if (bInterfaceNumber == 1) {
-		/* Keep everything intact */
+		/* Keep everything intact, but mark pen usage invalid */
+		p.pen.usage_invalid = true;
 		goto output;
 	/* Else, if it's not a pen interface */
 	} else if (bInterfaceNumber != 0) {
