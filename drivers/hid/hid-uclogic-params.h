@@ -189,7 +189,7 @@ struct uclogic_params {
 	__u8 *desc_ptr;
 	/*
 	 * Size of the common part of the replacement report descriptor.
-	 * Only valid, if "desc_ptr" is not NULL.
+	 * Only valid, if "desc_ptr" is valid and not NULL.
 	 */
 	unsigned int desc_size;
 	/*
