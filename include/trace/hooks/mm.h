@@ -141,6 +141,9 @@ DECLARE_HOOK(android_vh_rmqueue_bulk_bypass,
 	TP_PROTO(unsigned int order, struct per_cpu_pages *pcp, int migratetype,
 		struct list_head *list),
 	TP_ARGS(order, pcp, migratetype, list));
+DECLARE_HOOK(android_vh_ra_tuning_max_page,
+	TP_PROTO(struct readahead_control *ractl, unsigned long *max_page),
+	TP_ARGS(ractl, max_page));
 struct mem_cgroup;
 DECLARE_HOOK(android_vh_mem_cgroup_alloc,
 	TP_PROTO(struct mem_cgroup *memcg),
