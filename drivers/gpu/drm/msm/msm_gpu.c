@@ -391,7 +391,8 @@ static void recover_worker(struct kthread_work *work)
 	if (submit) {
 		/* Increment the fault counts */
 		submit->queue->faults++;
-		submit->aspace->faults++;
+		if (submit->aspace)
+			submit->aspace->faults++;
 
 		get_comm_cmdline(submit, &comm, &cmd);
 
