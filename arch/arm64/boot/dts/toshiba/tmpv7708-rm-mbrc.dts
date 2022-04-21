@@ -32,14 +32,10 @@
 
 &uart0 {
 	status = "okay";
-	clocks = <&uart_clk>;
-	clock-names = "apb_pclk";
 };
 
 &uart1 {
 	status = "okay";
-	clocks = <&uart_clk>;
-	clock-names = "apb_pclk";
 };
 
 &piether {

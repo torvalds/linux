@@ -129,12 +129,6 @@
 			<GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
-	uart_clk: uart-clk {
-		compatible = "fixed-clock";
-		clock-frequency = <150000000>;
-		#clock-cells = <0>;
-	};
-
 	clk25mhz: clk25mhz {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -243,6 +237,8 @@
 			interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart0_pins>;
+			clocks = <&pismu TMPV770X_CLK_PIUART0>;
+			clock-names = "apb_pclk";
 			status = "disabled";
 		};
 
@@ -252,6 +248,8 @@
 			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart1_pins>;
+			clocks = <&pismu TMPV770X_CLK_PIUART1>;
+			clock-names = "apb_pclk";
 			status = "disabled";
 		};
 
@@ -261,6 +259,8 @@
 			interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart2_pins>;
+			clocks = <&pismu TMPV770X_CLK_PIUART2>;
+			clock-names = "apb_pclk";
 			status = "disabled";
 		};
 
@@ -270,6 +270,8 @@
 			interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart3_pins>;
+			clocks = <&pismu TMPV770X_CLK_PIUART2>;
+			clock-names = "apb_pclk";
 			status = "disabled";
 		};
 
