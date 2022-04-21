@@ -124,16 +124,16 @@ static inline int xfs_bmapi_whichfork(int bmapi_flags)
 /*
  * Flags for xfs_bmap_add_extent*.
  */
-#define BMAP_LEFT_CONTIG	(1 << 0)
-#define BMAP_RIGHT_CONTIG	(1 << 1)
-#define BMAP_LEFT_FILLING	(1 << 2)
-#define BMAP_RIGHT_FILLING	(1 << 3)
-#define BMAP_LEFT_DELAY		(1 << 4)
-#define BMAP_RIGHT_DELAY	(1 << 5)
-#define BMAP_LEFT_VALID		(1 << 6)
-#define BMAP_RIGHT_VALID	(1 << 7)
-#define BMAP_ATTRFORK		(1 << 8)
-#define BMAP_COWFORK		(1 << 9)
+#define BMAP_LEFT_CONTIG	(1u << 0)
+#define BMAP_RIGHT_CONTIG	(1u << 1)
+#define BMAP_LEFT_FILLING	(1u << 2)
+#define BMAP_RIGHT_FILLING	(1u << 3)
+#define BMAP_LEFT_DELAY		(1u << 4)
+#define BMAP_RIGHT_DELAY	(1u << 5)
+#define BMAP_LEFT_VALID		(1u << 6)
+#define BMAP_RIGHT_VALID	(1u << 7)
+#define BMAP_ATTRFORK		(1u << 8)
+#define BMAP_COWFORK		(1u << 9)
 
 #define XFS_BMAP_EXT_FLAGS \
 	{ BMAP_LEFT_CONTIG,	"LC" }, \
@@ -243,7 +243,7 @@ void	xfs_bmap_map_extent(struct xfs_trans *tp, struct xfs_inode *ip,
 void	xfs_bmap_unmap_extent(struct xfs_trans *tp, struct xfs_inode *ip,
 		struct xfs_bmbt_irec *imap);
 
-static inline int xfs_bmap_fork_to_state(int whichfork)
+static inline uint32_t xfs_bmap_fork_to_state(int whichfork)
 {
 	switch (whichfork) {
 	case XFS_ATTR_FORK:
