@@ -252,10 +252,6 @@ struct icom_adapter;
 
 struct icom_port {
 	struct uart_port uart_port;
-	u8 imbed_modem;
-#define ICOM_UNKNOWN		1
-#define ICOM_RVX		2
-#define ICOM_IMBED_MODEM	3
 	unsigned char cable_id;
 	unsigned char read_status_mask;
 	unsigned char ignore_status_mask;
@@ -272,11 +268,9 @@ struct icom_port {
 	unsigned char *recv_buf;
 	dma_addr_t recv_buf_pci;
 	int next_rcv;
-	int put_length;
 	int status;
 #define ICOM_PORT_ACTIVE	1	/* Port exists. */
 #define ICOM_PORT_OFF		0	/* Port does not exist. */
-	int load_in_progress;
 	struct icom_adapter *adapter;
 };
 
@@ -1517,7 +1511,6 @@ static void icom_set_termios(struct uart_port *port,
 	writel(icom_port->statStg_pci + offset,
 	       &icom_port->dram->RcvStatusAddr);
 	icom_port->next_rcv = 0;
-	icom_port->put_length = 0;
 	*icom_port->xmitRestart = 0;
 	writel(icom_port->xmitRestart_pci,
 	       &icom_port->dram->XmitStatusAddr);
@@ -1578,7 +1571,6 @@ static int icom_init_ports(struct icom_adapter *icom_adapter)
 			icom_port = &icom_adapter->port_info[i];
 			icom_port->port = i;
 			icom_port->status = ICOM_PORT_ACTIVE;
-			icom_port->imbed_modem = ICOM_UNKNOWN;
 		}
 	} else {
 		if (subsystem_id == PCI_DEVICE_ID_IBM_ICOM_FOUR_PORT_MODEL) {
@@ -1589,26 +1581,15 @@ static int icom_init_ports(struct icom_adapter *icom_adapter)
 
 				icom_port->port = i;
 				icom_port->status = ICOM_PORT_ACTIVE;
-				icom_port->imbed_modem = ICOM_IMBED_MODEM;
 			}
 		} else {
 			icom_adapter->numb_ports = 4;
 
 			icom_adapter->port_info[0].port = 0;
 			icom_adapter->port_info[0].status = ICOM_PORT_ACTIVE;
-
-			if (subsystem_id ==
-			    PCI_DEVICE_ID_IBM_ICOM_V2_ONE_PORT_RVX_ONE_PORT_MDM) {
-				icom_adapter->port_info[0].imbed_modem = ICOM_IMBED_MODEM;
-			} else {
-				icom_adapter->port_info[0].imbed_modem = ICOM_RVX;
-			}
-
 			icom_adapter->port_info[1].status = ICOM_PORT_OFF;
-
 			icom_adapter->port_info[2].port = 2;
 			icom_adapter->port_info[2].status = ICOM_PORT_ACTIVE;
-			icom_adapter->port_info[2].imbed_modem = ICOM_RVX;
 			icom_adapter->port_info[3].status = ICOM_PORT_OFF;
 		}
 	}
