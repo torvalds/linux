@@ -551,7 +551,7 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 	struct ocelot_vcap_block *block = &ocelot->block[VCAP_IS1];
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	struct ocelot_vcap_filter *filter;
-	int err;
+	int err = 0;
 	u32 val;
 
 	list_for_each_entry(filter, &block->rules, list) {
@@ -570,7 +570,7 @@ int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port,
 	if (vlan_aware)
 		err = ocelot_del_vlan_unaware_pvid(ocelot, port,
 						   ocelot_port->bridge);
-	else
+	else if (ocelot_port->bridge)
 		err = ocelot_add_vlan_unaware_pvid(ocelot, port,
 						   ocelot_port->bridge);
 	if (err)
