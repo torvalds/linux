@@ -664,6 +664,13 @@ static int sd_zbc_check_capacity(struct scsi_disk *sdkp, unsigned char *buf,
 		return -EFBIG;
 	}
 
+	if (!is_power_of_2(zone_blocks)) {
+		sd_printk(KERN_ERR, sdkp,
+			  "Zone size %llu is not a power of two.\n",
+			  zone_blocks);
+		return -EINVAL;
+	}
+
 	*zblocks = zone_blocks;
 
 	return 0;
