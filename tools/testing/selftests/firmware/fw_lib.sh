@@ -62,7 +62,8 @@ check_setup()
 {
 	HAS_FW_LOADER_USER_HELPER="$(kconfig_has CONFIG_FW_LOADER_USER_HELPER=y)"
 	HAS_FW_LOADER_USER_HELPER_FALLBACK="$(kconfig_has CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y)"
-	HAS_FW_LOADER_COMPRESS="$(kconfig_has CONFIG_FW_LOADER_COMPRESS=y)"
+	HAS_FW_LOADER_COMPRESS_XZ="$(kconfig_has CONFIG_FW_LOADER_COMPRESS_XZ=y)"
+	HAS_FW_LOADER_COMPRESS_ZSTD="$(kconfig_has CONFIG_FW_LOADER_COMPRESS_ZSTD=y)"
 	PROC_FW_IGNORE_SYSFS_FALLBACK="0"
 	PROC_FW_FORCE_SYSFS_FALLBACK="0"
 
@@ -98,9 +99,14 @@ check_setup()
 
 	OLD_FWPATH="$(cat /sys/module/firmware_class/parameters/path)"
 
-	if [ "$HAS_FW_LOADER_COMPRESS" = "yes" ]; then
+	if [ "$HAS_FW_LOADER_COMPRESS_XZ" = "yes" ]; then
 		if ! which xz 2> /dev/null > /dev/null; then
-			HAS_FW_LOADER_COMPRESS=""
+			HAS_FW_LOADER_COMPRESS_XZ=""
+		fi
+	fi
+	if [ "$HAS_FW_LOADER_COMPRESS_ZSTD" = "yes" ]; then
+		if ! which zstd 2> /dev/null > /dev/null; then
+			HAS_FW_LOADER_COMPRESS_ZSTD=""
 		fi
 	fi
 }
