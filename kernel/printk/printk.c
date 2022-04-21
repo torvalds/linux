@@ -3667,26 +3667,26 @@ EXPORT_SYMBOL_GPL(kmsg_dump_rewind);
 #endif
 
 #ifdef CONFIG_SMP
-static atomic_t printk_cpulock_owner = ATOMIC_INIT(-1);
-static atomic_t printk_cpulock_nested = ATOMIC_INIT(0);
+static atomic_t printk_cpu_sync_owner = ATOMIC_INIT(-1);
+static atomic_t printk_cpu_sync_nested = ATOMIC_INIT(0);
 
 /**
- * __printk_wait_on_cpu_lock() - Busy wait until the printk cpu-reentrant
- *                               spinning lock is not owned by any CPU.
+ * __printk_cpu_sync_wait() - Busy wait until the printk cpu-reentrant
+ *                            spinning lock is not owned by any CPU.
  *
  * Context: Any context.
  */
-void __printk_wait_on_cpu_lock(void)
+void __printk_cpu_sync_wait(void)
 {
 	do {
 		cpu_relax();
-	} while (atomic_read(&printk_cpulock_owner) != -1);
+	} while (atomic_read(&printk_cpu_sync_owner) != -1);
 }
-EXPORT_SYMBOL(__printk_wait_on_cpu_lock);
+EXPORT_SYMBOL(__printk_cpu_sync_wait);
 
 /**
- * __printk_cpu_trylock() - Try to acquire the printk cpu-reentrant
- *                          spinning lock.
+ * __printk_cpu_sync_try_get() - Try to acquire the printk cpu-reentrant
+ *                               spinning lock.
  *
  * If no processor has the lock, the calling processor takes the lock and
  * becomes the owner. If the calling processor is already the owner of the
@@ -3695,7 +3695,7 @@ EXPORT_SYMBOL(__printk_wait_on_cpu_lock);
  * Context: Any context. Expects interrupts to be disabled.
  * Return: 1 on success, otherwise 0.
  */
-int __printk_cpu_trylock(void)
+int __printk_cpu_sync_try_get(void)
 {
 	int cpu;
 	int old;
@@ -3705,79 +3705,80 @@ int __printk_cpu_trylock(void)
 	/*
 	 * Guarantee loads and stores from this CPU when it is the lock owner
 	 * are _not_ visible to the previous lock owner. This pairs with
-	 * __printk_cpu_unlock:B.
+	 * __printk_cpu_sync_put:B.
 	 *
 	 * Memory barrier involvement:
 	 *
-	 * If __printk_cpu_trylock:A reads from __printk_cpu_unlock:B, then
-	 * __printk_cpu_unlock:A can never read from __printk_cpu_trylock:B.
+	 * If __printk_cpu_sync_try_get:A reads from __printk_cpu_sync_put:B,
+	 * then __printk_cpu_sync_put:A can never read from
+	 * __printk_cpu_sync_try_get:B.
 	 *
 	 * Relies on:
 	 *
-	 * RELEASE from __printk_cpu_unlock:A to __printk_cpu_unlock:B
+	 * RELEASE from __printk_cpu_sync_put:A to __printk_cpu_sync_put:B
 	 * of the previous CPU
 	 *    matching
-	 * ACQUIRE from __printk_cpu_trylock:A to __printk_cpu_trylock:B
-	 * of this CPU
+	 * ACQUIRE from __printk_cpu_sync_try_get:A to
+	 * __printk_cpu_sync_try_get:B of this CPU
 	 */
-	old = atomic_cmpxchg_acquire(&printk_cpulock_owner, -1,
-				     cpu); /* LMM(__printk_cpu_trylock:A) */
+	old = atomic_cmpxchg_acquire(&printk_cpu_sync_owner, -1,
+				     cpu); /* LMM(__printk_cpu_sync_try_get:A) */
 	if (old == -1) {
 		/*
 		 * This CPU is now the owner and begins loading/storing
-		 * data: LMM(__printk_cpu_trylock:B)
+		 * data: LMM(__printk_cpu_sync_try_get:B)
 		 */
 		return 1;
 
 	} else if (old == cpu) {
 		/* This CPU is already the owner. */
-		atomic_inc(&printk_cpulock_nested);
+		atomic_inc(&printk_cpu_sync_nested);
 		return 1;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL(__printk_cpu_trylock);
+EXPORT_SYMBOL(__printk_cpu_sync_try_get);
 
 /**
- * __printk_cpu_unlock() - Release the printk cpu-reentrant spinning lock.
+ * __printk_cpu_sync_put() - Release the printk cpu-reentrant spinning lock.
  *
  * The calling processor must be the owner of the lock.
  *
  * Context: Any context. Expects interrupts to be disabled.
  */
-void __printk_cpu_unlock(void)
+void __printk_cpu_sync_put(void)
 {
-	if (atomic_read(&printk_cpulock_nested)) {
-		atomic_dec(&printk_cpulock_nested);
+	if (atomic_read(&printk_cpu_sync_nested)) {
+		atomic_dec(&printk_cpu_sync_nested);
 		return;
 	}
 
 	/*
 	 * This CPU is finished loading/storing data:
-	 * LMM(__printk_cpu_unlock:A)
+	 * LMM(__printk_cpu_sync_put:A)
 	 */
 
 	/*
 	 * Guarantee loads and stores from this CPU when it was the
 	 * lock owner are visible to the next lock owner. This pairs
-	 * with __printk_cpu_trylock:A.
+	 * with __printk_cpu_sync_try_get:A.
 	 *
 	 * Memory barrier involvement:
 	 *
-	 * If __printk_cpu_trylock:A reads from __printk_cpu_unlock:B,
-	 * then __printk_cpu_trylock:B reads from __printk_cpu_unlock:A.
+	 * If __printk_cpu_sync_try_get:A reads from __printk_cpu_sync_put:B,
+	 * then __printk_cpu_sync_try_get:B reads from __printk_cpu_sync_put:A.
 	 *
 	 * Relies on:
 	 *
-	 * RELEASE from __printk_cpu_unlock:A to __printk_cpu_unlock:B
+	 * RELEASE from __printk_cpu_sync_put:A to __printk_cpu_sync_put:B
 	 * of this CPU
 	 *    matching
-	 * ACQUIRE from __printk_cpu_trylock:A to __printk_cpu_trylock:B
-	 * of the next CPU
+	 * ACQUIRE from __printk_cpu_sync_try_get:A to
+	 * __printk_cpu_sync_try_get:B of the next CPU
 	 */
-	atomic_set_release(&printk_cpulock_owner,
-			   -1); /* LMM(__printk_cpu_unlock:B) */
+	atomic_set_release(&printk_cpu_sync_owner,
+			   -1); /* LMM(__printk_cpu_sync_put:B) */
 }
-EXPORT_SYMBOL(__printk_cpu_unlock);
+EXPORT_SYMBOL(__printk_cpu_sync_put);
 #endif /* CONFIG_SMP */
