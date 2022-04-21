@@ -7873,6 +7873,8 @@ int unregister_ftrace_function(struct ftrace_ops *ops)
 EXPORT_SYMBOL_GPL(unregister_ftrace_function);
 
 #ifdef CONFIG_SYSCTL
+
+#ifdef CONFIG_DYNAMIC_FTRACE
 static void ftrace_startup_sysctl(void)
 {
 	int command;
@@ -7906,6 +7908,10 @@ static void ftrace_shutdown_sysctl(void)
 		ftrace_run_update_code(command);
 	}
 }
+#else
+# define ftrace_startup_sysctl()       do { } while (0)
+# define ftrace_shutdown_sysctl()      do { } while (0)
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 static bool is_permanent_ops_registered(void)
 {
