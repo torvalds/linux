@@ -171,13 +171,13 @@ struct statusArea {
 	/* Transmit Status Area                       */
     /**********************************************/
 	struct xmit_status_area{
-		u32 leNext;	/* Next entry in Little Endian on Adapter */
-		u32 leNextASD;
-		u32 leBuffer;	/* Buffer for entry in LE for Adapter */
-		u16 leLengthASD;
-		u16 leOffsetASD;
-		u16 leLength;	/* Length of data in segment */
-		u16 flags;
+		__le32 leNext;	/* Next entry in Little Endian on Adapter */
+		__le32 leNextASD;
+		__le32 leBuffer;	/* Buffer for entry in LE for Adapter */
+		__le16 leLengthASD;
+		__le16 leOffsetASD;
+		__le16 leLength;	/* Length of data in segment */
+		__le16 flags;
 #define SA_FLAGS_DONE           0x0080	/* Done with Segment */
 #define SA_FLAGS_CONTINUED      0x8000	/* More Segments */
 #define SA_FLAGS_IDLE           0x4000	/* Mark IDLE after frm */
@@ -189,13 +189,13 @@ struct statusArea {
 	/* Receive Status Area                        */
     /**********************************************/
 	struct {
-		u32 leNext;	/* Next entry in Little Endian on Adapter */
-		u32 leNextASD;
-		u32 leBuffer;	/* Buffer for entry in LE for Adapter */
-		u16 WorkingLength;	/* size of segment */
-		u16 reserv01;
-		u16 leLength;	/* Length of data in segment */
-		u16 flags;
+		__le32 leNext;	/* Next entry in Little Endian on Adapter */
+		__le32 leNextASD;
+		__le32 leBuffer;	/* Buffer for entry in LE for Adapter */
+		__le16 WorkingLength;	/* size of segment */
+		__le16 reserv01;
+		__le16 leLength;	/* Length of data in segment */
+		__le16 flags;
 #define SA_FL_RCV_DONE           0x0010	/* Data ready */
 #define SA_FLAGS_OVERRUN         0x0040
 #define SA_FLAGS_PARITY_ERROR    0x0080
@@ -227,7 +227,7 @@ struct icom_port {
 	int port;
 	struct statusArea *statStg;
 	dma_addr_t statStg_pci;
-	u32 *xmitRestart;
+	__le32 *xmitRestart;
 	dma_addr_t xmitRestart_pci;
 	unsigned char *xmit_buf;
 	dma_addr_t xmit_buf_pci;

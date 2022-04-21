@@ -224,7 +224,7 @@ static int get_port_memory(struct icom_port *icom_port)
 		if (index < (NUM_XBUFFS - 1)) {
 			memset(&icom_port->statStg->xmit[index], 0, sizeof(struct xmit_status_area));
 			icom_port->statStg->xmit[index].leLengthASD =
-			    (unsigned short int) cpu_to_le16(XMIT_BUFF_SZ);
+			    cpu_to_le16(XMIT_BUFF_SZ);
 			trace(icom_port, "FOD_ADDR", stgAddr);
 			trace(icom_port, "FOD_XBUFF",
 			      (unsigned long) icom_port->xmit_buf);
@@ -233,7 +233,7 @@ static int get_port_memory(struct icom_port *icom_port)
 		} else if (index == (NUM_XBUFFS - 1)) {
 			memset(&icom_port->statStg->xmit[index], 0, sizeof(struct xmit_status_area));
 			icom_port->statStg->xmit[index].leLengthASD =
-			    (unsigned short int) cpu_to_le16(XMIT_BUFF_SZ);
+			    cpu_to_le16(XMIT_BUFF_SZ);
 			trace(icom_port, "FOD_XBUFF",
 			      (unsigned long) icom_port->xmit_buf);
 			icom_port->statStg->xmit[index].leBuffer =
@@ -251,7 +251,7 @@ static int get_port_memory(struct icom_port *icom_port)
 		stgAddr = stgAddr + sizeof(icom_port->statStg->rcv[0]);
 		icom_port->statStg->rcv[index].leLength = 0;
 		icom_port->statStg->rcv[index].WorkingLength =
-		    (unsigned short int) cpu_to_le16(RCV_BUFF_SZ);
+		    cpu_to_le16(RCV_BUFF_SZ);
 		if (index < (NUM_RBUFFS - 1) ) {
 			offset = stgAddr - (unsigned long) icom_port->statStg;
 			icom_port->statStg->rcv[index].leNext =
@@ -627,7 +627,7 @@ static int icom_write(struct uart_port *port)
 
 	trace(icom_port, "WRITE", 0);
 
-	if (cpu_to_le16(icom_port->statStg->xmit[0].flags) &
+	if (le16_to_cpu(icom_port->statStg->xmit[0].flags) &
 	    SA_FLAGS_READY_TO_XMIT) {
 		trace(icom_port, "WRITE_FULL", 0);
 		return 0;
@@ -699,8 +699,7 @@ static inline void check_modem_status(struct icom_port *icom_port)
 
 static void xmit_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 {
-	unsigned short int count;
-	int i;
+	u16 count, i;
 
 	if (port_int_reg & (INT_XMIT_COMPLETED)) {
 		trace(icom_port, "XMIT_COMPLETE", 0);
@@ -709,8 +708,7 @@ static void xmit_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 		icom_port->statStg->xmit[0].flags &=
 			cpu_to_le16(~SA_FLAGS_READY_TO_XMIT);
 
-		count = (unsigned short int)
-			cpu_to_le16(icom_port->statStg->xmit[0].leLength);
+		count = le16_to_cpu(icom_port->statStg->xmit[0].leLength);
 		icom_port->uart_port.icount.tx += count;
 
 		for (i=0; i<count &&
@@ -732,7 +730,7 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 {
 	short int count, rcv_buff;
 	struct tty_port *port = &icom_port->uart_port.state->port;
-	unsigned short int status;
+	u16 status;
 	struct uart_icount *icount;
 	unsigned long offset;
 	unsigned char flag;
@@ -740,19 +738,18 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 	trace(icom_port, "RCV_COMPLETE", 0);
 	rcv_buff = icom_port->next_rcv;
 
-	status = cpu_to_le16(icom_port->statStg->rcv[rcv_buff].flags);
+	status = le16_to_cpu(icom_port->statStg->rcv[rcv_buff].flags);
 	while (status & SA_FL_RCV_DONE) {
 		int first = -1;
 
 		trace(icom_port, "FID_STATUS", status);
-		count = cpu_to_le16(icom_port->statStg->rcv[rcv_buff].leLength);
+		count = le16_to_cpu(icom_port->statStg->rcv[rcv_buff].leLength);
 
 		trace(icom_port, "RCV_COUNT", count);
 
 		trace(icom_port, "REAL_COUNT", count);
 
-		offset =
-			cpu_to_le32(icom_port->statStg->rcv[rcv_buff].leBuffer) -
+		offset = le32_to_cpu(icom_port->statStg->rcv[rcv_buff].leBuffer) -
 			icom_port->recv_buf_pci;
 
 		/* Block copy all but the last byte as this may have status */
@@ -822,13 +819,13 @@ ignore_char:
 		icom_port->statStg->rcv[rcv_buff].flags = 0;
 		icom_port->statStg->rcv[rcv_buff].leLength = 0;
 		icom_port->statStg->rcv[rcv_buff].WorkingLength =
-			(unsigned short int) cpu_to_le16(RCV_BUFF_SZ);
+			cpu_to_le16(RCV_BUFF_SZ);
 
 		rcv_buff++;
 		if (rcv_buff == NUM_RBUFFS)
 			rcv_buff = 0;
 
-		status = cpu_to_le16(icom_port->statStg->rcv[rcv_buff].flags);
+		status = le16_to_cpu(icom_port->statStg->rcv[rcv_buff].flags);
 	}
 	icom_port->next_rcv = rcv_buff;
 
@@ -933,7 +930,7 @@ static unsigned int icom_tx_empty(struct uart_port *port)
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	if (cpu_to_le16(icom_port->statStg->xmit[0].flags) &
+	if (le16_to_cpu(icom_port->statStg->xmit[0].flags) &
 	    SA_FLAGS_READY_TO_XMIT)
 		ret = TIOCSER_TEMT;
 	else
@@ -1224,7 +1221,7 @@ static void icom_set_termios(struct uart_port *port,
 		icom_port->statStg->rcv[rcv_buff].flags = 0;
 		icom_port->statStg->rcv[rcv_buff].leLength = 0;
 		icom_port->statStg->rcv[rcv_buff].WorkingLength =
-		    (unsigned short int) cpu_to_le16(RCV_BUFF_SZ);
+		    cpu_to_le16(RCV_BUFF_SZ);
 	}
 
 	for (xmit_buff = 0; xmit_buff < NUM_XBUFFS; xmit_buff++) {
