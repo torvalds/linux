@@ -19,12 +19,9 @@ static inline unsigned long walt_lb_cpu_util(int cpu)
 static void walt_detach_task(struct task_struct *p, struct rq *src_rq,
 			     struct rq *dst_rq)
 {
+	//TODO can we just replace with detach_task in fair.c??
 	deactivate_task(src_rq, p, 0);
-	double_lock_balance(src_rq, dst_rq);
-	if (!(src_rq->clock_update_flags & RQCF_UPDATED))
-		update_rq_clock(src_rq);
 	set_task_cpu(p, dst_rq->cpu);
-	double_unlock_balance(src_rq, dst_rq);
 }
 
 static void walt_attach_task(struct task_struct *p, struct rq *rq)
@@ -1002,29 +999,6 @@ done:
 	trace_walt_find_busiest_queue(dst_cpu, busiest_cpu, src_mask.bits[0]);
 }
 
-static void walt_migrate_queued_task(void *unused, struct rq *rq,
-				     struct rq_flags *rf,
-				     struct task_struct *p,
-				     int new_cpu, int *detached)
-{
-	if (unlikely(walt_disabled))
-		return;
-	/*
-	 * WALT expects both source and destination rqs to be
-	 * held when set_task_cpu() is called on a queued task.
-	 * so implementing this detach hook. unpin the lock
-	 * before detaching and repin it later to make lockdep
-	 * happy.
-	 */
-	BUG_ON(!rf);
-
-	rq_unpin_lock(rq, rf);
-	walt_detach_task(p, rq, cpu_rq(new_cpu));
-	rq_repin_lock(rq, rf);
-
-	*detached = 1;
-}
-
 /*
  * we only decide if nohz balance kick is needed or not. the
  * first CPU in the nohz.idle will come out of idle and do
@@ -1075,7 +1049,6 @@ void walt_lb_init(void)
 
 	walt_lb_rotate_work_init();
 
-	register_trace_android_rvh_migrate_queued_task(walt_migrate_queued_task, NULL);
 	register_trace_android_rvh_sched_nohz_balancer_kick(walt_nohz_balancer_kick, NULL);
 	register_trace_android_rvh_can_migrate_task(walt_can_migrate_task, NULL);
 	register_trace_android_rvh_find_busiest_queue(walt_find_busiest_queue, NULL);
