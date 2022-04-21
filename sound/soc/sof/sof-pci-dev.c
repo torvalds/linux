@@ -40,6 +40,10 @@ static int sof_pci_debug;
 module_param_named(sof_pci_debug, sof_pci_debug, int, 0444);
 MODULE_PARM_DESC(sof_pci_debug, "SOF PCI debug options (0x0 all off)");
 
+static int sof_pci_ipc_type = -1;
+module_param_named(ipc_type, sof_pci_ipc_type, int, 0444);
+MODULE_PARM_DESC(ipc_type, "SOF IPC type (0): SOF, (1) Intel CAVS");
+
 static const char *sof_dmi_override_tplg_name;
 static bool sof_dmi_use_community_key;
 
@@ -205,6 +209,23 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	sof_pdata->dev = dev;
 
 	sof_pdata->ipc_type = desc->ipc_default;
+
+	if (sof_pci_ipc_type < 0) {
+		sof_pdata->ipc_type = desc->ipc_default;
+	} else {
+		dev_info(dev, "overriding default IPC %d to requested %d\n",
+			 desc->ipc_default, sof_pci_ipc_type);
+		if (sof_pci_ipc_type >= SOF_IPC_TYPE_COUNT) {
+			dev_err(dev, "invalid request value %d\n", sof_pci_ipc_type);
+			return -EINVAL;
+		}
+		if (!(BIT(sof_pci_ipc_type) & desc->ipc_supported_mask)) {
+			dev_err(dev, "invalid request value %d, supported mask is %#x\n",
+				sof_pci_ipc_type, desc->ipc_supported_mask);
+			return -EINVAL;
+		}
+		sof_pdata->ipc_type = sof_pci_ipc_type;
+	}
 
 	if (fw_filename) {
 		sof_pdata->fw_filename = fw_filename;
