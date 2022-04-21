@@ -2763,6 +2763,11 @@ int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
 			"ASoC: Property '%s' does not exist\n",	propname);
 		return -EINVAL;
 	}
+	if (!num_widgets) {
+		dev_err(card->dev, "ASoC: Property '%s's length is zero\n",
+			propname);
+		return -EINVAL;
+	}
 	if (num_widgets & 1) {
 		dev_err(card->dev,
 			"ASoC: Property '%s' length is not even\n", propname);
@@ -2770,11 +2775,6 @@ int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
 	}
 
 	num_widgets /= 2;
-	if (!num_widgets) {
-		dev_err(card->dev, "ASoC: Property '%s's length is zero\n",
-			propname);
-		return -EINVAL;
-	}
 
 	widgets = devm_kcalloc(card->dev, num_widgets, sizeof(*widgets),
 			       GFP_KERNEL);
