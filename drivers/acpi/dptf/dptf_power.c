@@ -12,13 +12,11 @@
 /*
  * Presentation of attributes which are defined for INT3407 and INT3532.
  * They are:
- * PMAX : Maximum platform powe
+ * PMAX : Maximum platform power
  * PSRC : Platform power source
  * ARTG : Adapter rating
  * CTYP : Charger type
- * PBSS : Battery steady power
  * PROP : Rest of worst case platform Power
- * PBSS : Power Battery Steady State
  * PBSS : Power Battery Steady State
  * RBHF : High Frequency Impedance
  * VBNL : Instantaneous No-Load Voltage
