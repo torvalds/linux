@@ -38,10 +38,7 @@ static struct action_handler OnAction_tbl[] = {
 	{RTW_WLAN_CATEGORY_DLS, "ACTION_DLS", &OnAction_dls},
 	{RTW_WLAN_CATEGORY_BACK, "ACTION_BACK", &OnAction_back},
 	{RTW_WLAN_CATEGORY_PUBLIC, "ACTION_PUBLIC", on_action_public},
-	{RTW_WLAN_CATEGORY_RADIO_MEASUREMENT, "ACTION_RADIO_MEASUREMENT", &DoReserved},
-	{RTW_WLAN_CATEGORY_FT, "ACTION_FT",	&DoReserved},
 	{RTW_WLAN_CATEGORY_HT,	"ACTION_HT",	&OnAction_ht},
-	{RTW_WLAN_CATEGORY_SA_QUERY, "ACTION_SA_QUERY", &DoReserved},
 	{RTW_WLAN_CATEGORY_WMM, "ACTION_WMM", &OnAction_wmm},
 	{RTW_WLAN_CATEGORY_P2P, "ACTION_P2P", &OnAction_p2p},
 };
@@ -3956,11 +3953,6 @@ unsigned int OnAction(struct adapter *padapter, struct recv_frame *precv_frame)
 		if (category == ptable->num)
 			ptable->func(padapter, precv_frame);
 	}
-	return _SUCCESS;
-}
-
-unsigned int DoReserved(struct adapter *padapter, struct recv_frame *precv_frame)
-{
 	return _SUCCESS;
 }
 
