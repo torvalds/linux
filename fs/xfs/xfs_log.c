@@ -2210,6 +2210,58 @@ xlog_print_trans(
 	}
 }
 
+static inline void
+xlog_write_iovec(
+	struct xlog_in_core	*iclog,
+	uint32_t		*log_offset,
+	void			*data,
+	uint32_t		write_len,
+	int			*bytes_left,
+	uint32_t		*record_cnt,
+	uint32_t		*data_cnt)
+{
+	ASSERT(*log_offset % sizeof(int32_t) == 0);
+	ASSERT(write_len % sizeof(int32_t) == 0);
+
+	memcpy(iclog->ic_datap + *log_offset, data, write_len);
+	*log_offset += write_len;
+	*bytes_left -= write_len;
+	(*record_cnt)++;
+	*data_cnt += write_len;
+}
+
+/*
+ * Write log vectors into a single iclog which is guaranteed by the caller
+ * to have enough space to write the entire log vector into.
+ */
+static void
+xlog_write_full(
+	struct xfs_log_vec	*lv,
+	struct xlog_ticket	*ticket,
+	struct xlog_in_core	*iclog,
+	uint32_t		*log_offset,
+	uint32_t		*len,
+	uint32_t		*record_cnt,
+	uint32_t		*data_cnt)
+{
+	int			index;
+
+	ASSERT(*log_offset + *len <= iclog->ic_size);
+
+	/*
+	 * Ordered log vectors have no regions to write so this
+	 * loop will naturally skip them.
+	 */
+	for (index = 0; index < lv->lv_niovecs; index++) {
+		struct xfs_log_iovec	*reg = &lv->lv_iovecp[index];
+		struct xlog_op_header	*ophdr = reg->i_addr;
+
+		ophdr->oh_tid = cpu_to_be32(ticket->t_tid);
+		xlog_write_iovec(iclog, log_offset, reg->i_addr,
+				reg->i_len, len, record_cnt, data_cnt);
+	}
+}
+
 static xlog_op_header_t *
 xlog_write_setup_ophdr(
 	struct xlog_op_header	*ophdr,
@@ -2374,8 +2426,8 @@ xlog_write(
 	int			partial_copy = 0;
 	int			partial_copy_len = 0;
 	int			contwr = 0;
-	int			record_cnt = 0;
-	int			data_cnt = 0;
+	uint32_t		record_cnt = 0;
+	uint32_t		data_cnt = 0;
 	int			error = 0;
 
 	if (ticket->t_curr_res < 0) {
@@ -2395,7 +2447,6 @@ xlog_write(
 			return error;
 
 		ASSERT(log_offset <= iclog->ic_size - 1);
-		ptr = iclog->ic_datap + log_offset;
 
 		/*
 		 * If we have a context pointer, pass it the first iclog we are
@@ -2407,10 +2458,22 @@ xlog_write(
 			ctx = NULL;
 		}
 
+		/* If this is a single iclog write, go fast... */
+		if (!contwr && lv == log_vector) {
+			while (lv) {
+				xlog_write_full(lv, ticket, iclog, &log_offset,
+						 &len, &record_cnt, &data_cnt);
+				lv = lv->lv_next;
+			}
+			data_cnt = 0;
+			break;
+		}
+
 		/*
 		 * This loop writes out as many regions as can fit in the amount
 		 * of space which was allocated by xlog_state_get_iclog_space().
 		 */
+		ptr = iclog->ic_datap + log_offset;
 		while (lv && (!lv->lv_niovecs || index < lv->lv_niovecs)) {
 			struct xfs_log_iovec	*reg;
 			struct xlog_op_header	*ophdr;
