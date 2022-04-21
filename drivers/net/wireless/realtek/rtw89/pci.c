@@ -382,6 +382,10 @@ static void rtw89_pci_reclaim_txbd(struct rtw89_dev *rtwdev, struct rtw89_pci_tx
 		}
 
 		list_del_init(&txwd->list);
+
+		/* this skb has been freed by RPP */
+		if (skb_queue_len(&txwd->queue) == 0)
+			rtw89_pci_enqueue_txwd(tx_ring, txwd);
 	}
 }
 
@@ -413,18 +417,12 @@ static void rtw89_pci_release_txwd_skb(struct rtw89_dev *rtwdev,
 
 	if (!list_empty(&txwd->list)) {
 		rtw89_pci_reclaim_txbd(rtwdev, tx_ring);
-		if (!list_empty(&txwd->list)) {
+		/* In low power mode, RPP can receive before updating of TX BD.
+		 * In normal mode, it should not happen so give it a warning.
+		 */
+		if (!rtwpci->low_power && !list_empty(&txwd->list))
 			rtw89_warn(rtwdev, "queue %d txwd %d is not idle\n",
 				   txch, seq);
-			return;
-		}
-	}
-
-	/* currently, support for only one frame */
-	if (skb_queue_len(&txwd->queue) != 1) {
-		rtw89_warn(rtwdev, "empty pending queue %d page %d\n",
-			   txch, seq);
-		return;
 	}
 
 	skb_queue_walk_safe(&txwd->queue, skb, tmp) {
@@ -437,7 +435,8 @@ static void rtw89_pci_release_txwd_skb(struct rtw89_dev *rtwdev,
 		rtw89_pci_tx_status(rtwdev, tx_ring, skb, tx_status);
 	}
 
-	rtw89_pci_enqueue_txwd(tx_ring, txwd);
+	if (list_empty(&txwd->list))
+		rtw89_pci_enqueue_txwd(tx_ring, txwd);
 }
 
 static void rtw89_pci_release_rpp(struct rtw89_dev *rtwdev,
