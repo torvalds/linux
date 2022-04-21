@@ -233,6 +233,14 @@
 	};
 };
 
+&gpi_dma0 {
+	status = "okay";
+};
+
+&gpi_dma1 {
+	status = "okay";
+};
+
 &ipa {
 	status = "okay";
 	modem-init;
