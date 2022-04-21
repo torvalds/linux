@@ -34,7 +34,6 @@ void test_uprobe_autoattach(void)
 
 	/* trigger & validate shared library u[ret]probes attached by name */
 	mem = malloc(malloc_sz);
-	free(mem);
 
 	ASSERT_EQ(skel->bss->uprobe_byname_parm1, trigger_val, "check_uprobe_byname_parm1");
 	ASSERT_EQ(skel->bss->uprobe_byname_ran, 1, "check_uprobe_byname_ran");
@@ -44,6 +43,8 @@ void test_uprobe_autoattach(void)
 	ASSERT_EQ(skel->bss->uprobe_byname2_ran, 3, "check_uprobe_byname2_ran");
 	ASSERT_EQ(skel->bss->uretprobe_byname2_rc, mem, "check_uretprobe_byname2_rc");
 	ASSERT_EQ(skel->bss->uretprobe_byname2_ran, 4, "check_uretprobe_byname2_ran");
+
+	free(mem);
 cleanup:
 	test_uprobe_autoattach__destroy(skel);
 }
