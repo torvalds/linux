@@ -1675,7 +1675,6 @@ static int icom_alloc_adapter(struct icom_adapter
 	int adapter_count = 0;
 	struct icom_adapter *icom_adapter;
 	struct icom_adapter *cur_adapter_entry;
-	struct list_head *tmp;
 
 	icom_adapter = kzalloc(sizeof(struct icom_adapter), GFP_KERNEL);
 
@@ -1683,10 +1682,8 @@ static int icom_alloc_adapter(struct icom_adapter
 		return -ENOMEM;
 	}
 
-	list_for_each(tmp, &icom_adapter_head) {
-		cur_adapter_entry =
-		    list_entry(tmp, struct icom_adapter,
-			       icom_adapter_entry);
+	list_for_each_entry(cur_adapter_entry, &icom_adapter_head,
+			icom_adapter_entry) {
 		if (cur_adapter_entry->index != adapter_count) {
 			break;
 		}
@@ -1694,7 +1691,8 @@ static int icom_alloc_adapter(struct icom_adapter
 	}
 
 	icom_adapter->index = adapter_count;
-	list_add_tail(&icom_adapter->icom_adapter_entry, tmp);
+	list_add_tail(&icom_adapter->icom_adapter_entry,
+			&cur_adapter_entry->icom_adapter_entry);
 
 	*icom_adapter_ref = icom_adapter;
 	return 0;
@@ -1857,11 +1855,9 @@ probe_exit0:
 static void icom_remove(struct pci_dev *dev)
 {
 	struct icom_adapter *icom_adapter;
-	struct list_head *tmp;
 
-	list_for_each(tmp, &icom_adapter_head) {
-		icom_adapter = list_entry(tmp, struct icom_adapter,
-					  icom_adapter_entry);
+	list_for_each_entry(icom_adapter, &icom_adapter_head,
+			icom_adapter_entry) {
 		if (icom_adapter->pci_dev == dev) {
 			kref_put(&icom_adapter->kref, icom_kref_release);
 			return;
