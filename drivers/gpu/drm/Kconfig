@@ -246,6 +246,7 @@ config DRM_AMDGPU
 	depends on DRM && PCI && MMU
 	select FW_LOADER
 	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HDMI_HELPER
 	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
 	select DRM_SCHED

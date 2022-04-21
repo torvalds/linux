@@ -74,6 +74,7 @@
 #include <linux/component.h>
 
 #include <drm/display/drm_dp_mst_helper.h>
+#include <drm/display/drm_hdmi_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_atomic_helper.h>
