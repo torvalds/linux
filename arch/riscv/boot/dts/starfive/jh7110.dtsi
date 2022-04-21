@@ -909,6 +909,7 @@
 			clock-names =  "tl", "axi_mst0", "apb";
 			#interrupt-cells = <1>;
 			device_type = "pci";
+			starfive,stg-syscon = <&stg_syscon 0xc0 0xc4 0x130>;
 			bus-range = <0x0 0xff>;
 			msi-parent = <&plic>;
 			#address-cells = <3>;
@@ -923,6 +924,7 @@
 			       0x9 0xc0000000 0x0 0x10000000>;
 			reg-names = "reg", "config";
 			device_type = "pci";
+			starfive,stg-syscon = <&stg_syscon 0x270 0x274 0x2e0>;
 			bus-range = <0x0 0xff>;
 			#address-cells = <3>;
 			#size-cells = <2>;

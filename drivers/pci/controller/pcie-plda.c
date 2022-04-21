@@ -15,18 +15,21 @@
  * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
  */
 
+#include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/msi.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
-#include <linux/msi.h>
+#include <linux/regmap.h>
 #include <linux/reset.h>
-#include <linux/clk.h>
+#include <linux/slab.h>
+#include "../pci.h"
 
 
 #define PCIE_BASIC_STATUS		0x018
@@ -38,9 +41,15 @@
 #define CFG_SPACE			0x1000
 #define GEN_SETTINGS			0x80
 
+#define PCI_MISC			0xB4
+
 #define PLDA_EP_ENABLE			0
 #define PLDA_RP_ENABLE			1
+
 #define PDLA_LINK_SPEED_GEN2		BIT(12)
+#define PLDA_FUNCTION_DIS		BIT(15)
+#define PLDA_FUNC_NUM			4
+#define PLDA_PHY_FUNC_SHIFT		9
 
 #define XR3PCI_ATR_AXI4_SLV0		0x800
 #define XR3PCI_ATR_SRC_ADDR_LOW		0x0
@@ -83,12 +92,18 @@
 #define INT_INTX_MASK		(INTA | INTB | INTC | INTD)
 #define INT_MASK		(INT_INTX_MASK | INT_MSI | INT_ERRORS)
 
-
 #define INT_PCI_MSI_NR		32
 #define LINK_UP_MASK		0xff
 
-#define PCI_DEV(d)		(((d) >> 3) & 0x1f)
+/* system control */
+#define STG_SYSCON_K_RP_NEP_SHIFT		0x8
+#define STG_SYSCON_K_RP_NEP_MASK		0x100
+#define STG_SYSCON_AXI4_SLVL_ARFUNC_MASK	0x7FFF00
+#define STG_SYSCON_AXI4_SLVL_ARFUNC_SHIFT	0x8
+#define STG_SYSCON_AXI4_SLVL_AWFUNC_MASK	0x7FFF
+#define STG_SYSCON_AXI4_SLVL_AWFUNC_SHIFT	0x0
 
+#define PCI_DEV(d)		(((d) >> 3) & 0x1f)
 
 /* MSI information */
 struct plda_msi {
@@ -103,6 +118,10 @@ struct plda_pcie {
 	struct platform_device	*pdev;
 	void __iomem		*reg_base;
 	void __iomem		*config_base;
+	struct regmap *reg_syscon;
+	u32 stg_arfun;
+	u32 stg_awfun;
+	u32 stg_rp_nep;
 	int			irq;
 	struct irq_domain	*legacy_irq_domain;
 	struct pci_host_bridge  *bridge;
@@ -280,7 +299,6 @@ static void plda_pcie_handle_intx_irq(struct plda_pcie *pcie,
 		else
 			dev_err(&pcie->pdev->dev,
 				"plda_pcie_handle_intx_irq unexpected IRQ, INT%d\n", bit);
-
 	}
 }
 
@@ -325,7 +343,6 @@ static void plda_pcie_isr(struct irq_desc *desc)
 
 	chained_irq_exit(chip, desc);
 }
-
 
 #ifdef CONFIG_PCI_MSI
 static struct irq_chip plda_msi_irq_chip = {
@@ -538,7 +555,8 @@ static int plda_pcie_parse_dt(struct plda_pcie *pcie)
 {
 	struct resource *reg_res, *config_res;
 	struct platform_device *pdev = pcie->pdev;
-
+	struct of_phandle_args args;
+	int ret;
 
 	reg_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "reg");
 	if (!reg_res) {
@@ -570,7 +588,23 @@ static int plda_pcie_parse_dt(struct plda_pcie *pcie)
 		return -EINVAL;
 	}
 
-	/* clear all interrupts */
+	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
+							"starfive,stg-syscon", 3, 0, &args);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to parse starfive,stg-syscon\n");
+		return -EINVAL;
+	}
+
+	pcie->reg_syscon = syscon_node_to_regmap(args.np);
+	of_node_put(args.np);
+	if (IS_ERR(pcie->reg_syscon))
+		return PTR_ERR(pcie->reg_syscon);
+
+	pcie->stg_arfun = args.args[0];
+	pcie->stg_awfun = args.args[1];
+	pcie->stg_rp_nep = args.args[2];
+
+	/* Clear all interrupts */
 	plda_writel(pcie, 0xffffffff, ISTATUS_LOCAL);
 	plda_writel(pcie, INT_INTX_MASK | INT_ERRORS, IMASK_LOCAL);
 
@@ -581,7 +615,6 @@ static struct pci_ops plda_pcie_ops = {
 	.read           = plda_pcie_config_read,
 	.write          = plda_pcie_config_write,
 };
-
 
 void plda_set_atr_entry(void __iomem *base, phys_addr_t src_addr,
 			phys_addr_t trsl_addr, size_t window_size,
@@ -634,20 +667,20 @@ static int plda_clk_rst_init(struct plda_pcie *pcie)
 
 	pcie->num_clks = devm_clk_bulk_get_all(dev, &pcie->clks);
 	if (pcie->num_clks < 0) {
-		dev_err(dev, "failed to get pcie clocks\n");
+		dev_err(dev, "Failed to get pcie clocks\n");
 		ret = -ENODEV;
 		goto exit;
 	}
 	ret = clk_bulk_prepare_enable(pcie->num_clks, pcie->clks);
 	if (ret) {
-		dev_err(&pcie->pdev->dev, "failed to enable clocks\n");
+		dev_err(&pcie->pdev->dev, "Failed to enable clocks\n");
 		goto exit;
 	}
 
 	pcie->resets = devm_reset_control_array_get_exclusive(dev);
 	if (IS_ERR(pcie->resets)) {
 		ret = PTR_ERR(pcie->resets);
-		dev_err(dev, "failed to get pcie resets");
+		dev_err(dev, "Failed to get pcie resets");
 		goto err_clk_init;
 	}
 	ret = reset_control_deassert(pcie->resets);
@@ -665,11 +698,37 @@ static void plda_clk_rst_deinit(struct plda_pcie *pcie)
 	clk_bulk_disable_unprepare(pcie->num_clks, pcie->clks);
 }
 
-void plda_pcie_hw_init(struct plda_pcie *pcie)
+static void plda_pcie_hw_init(struct plda_pcie *pcie)
 {
 	unsigned int value;
+	int i;
 
-	/* disable 5G/s */
+	/* Disable physical functions except #0 */
+	for (i = 1; i < PLDA_FUNC_NUM; i++) {
+		regmap_update_bits(pcie->reg_syscon,
+				pcie->stg_arfun,
+				STG_SYSCON_AXI4_SLVL_ARFUNC_MASK,
+				(i << PLDA_PHY_FUNC_SHIFT) <<
+				STG_SYSCON_AXI4_SLVL_ARFUNC_SHIFT);
+		regmap_update_bits(pcie->reg_syscon,
+				pcie->stg_awfun,
+				STG_SYSCON_AXI4_SLVL_AWFUNC_MASK,
+				(i << PLDA_PHY_FUNC_SHIFT) <<
+				STG_SYSCON_AXI4_SLVL_AWFUNC_SHIFT);
+
+		value = readl(pcie->reg_base + PCI_MISC);
+		value |= PLDA_FUNCTION_DIS;
+		writel(value, pcie->reg_base + PCI_MISC);
+	}
+	regmap_update_bits(pcie->reg_syscon,
+				pcie->stg_arfun,
+				STG_SYSCON_AXI4_SLVL_ARFUNC_MASK,
+				0 << STG_SYSCON_AXI4_SLVL_ARFUNC_SHIFT);
+	regmap_update_bits(pcie->reg_syscon,
+				pcie->stg_awfun,
+				STG_SYSCON_AXI4_SLVL_AWFUNC_MASK,
+				0 << STG_SYSCON_AXI4_SLVL_AWFUNC_SHIFT);
+
 	/* Enable root port, limited to Gen1 at fpga phase */
 	value = readl(pcie->reg_base + GEN_SETTINGS);
 	value |= PLDA_RP_ENABLE;
@@ -701,21 +760,28 @@ static int plda_pcie_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pcie);
 
+	regmap_update_bits(pcie->reg_syscon,
+				pcie->stg_rp_nep,
+				STG_SYSCON_K_RP_NEP_MASK,
+				1 << STG_SYSCON_K_RP_NEP_SHIFT);
+
 	ret = plda_clk_rst_init(pcie);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to init pcie clk reset: %d\n", ret);
-		return ret;
+		dev_err(&pdev->dev, "Failed to init pcie clk reset: %d\n", ret);
+		goto exit;
 	}
 
 	ret = plda_pcie_init_irq_domain(pcie);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed creating IRQ Domain\n");
-		return ret;
+		goto exit;
 	}
 
 	bridge = devm_pci_alloc_host_bridge(dev, 0);
-	if (!bridge)
-		return -ENOMEM;
+	if (!bridge) {
+		ret = -ENOMEM;
+		goto exit;
+	}
 
 	/* Set default bus ops */
 	bridge->ops = &plda_pcie_ops;
@@ -724,22 +790,19 @@ static int plda_pcie_probe(struct platform_device *pdev)
 
 	plda_pcie_hw_init(pcie);
 
-
 	ret = pci_host_probe(bridge);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to pci host probe: %d\n", ret);
-		return ret;
+		dev_err(&pdev->dev, "Failed to pci host probe: %d\n", ret);
+		goto exit;
 	}
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		ret = plda_pcie_enable_msi(pcie, bus);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"failed to enable MSI support: %d\n", ret);
-			return ret;
-		}
+		if (ret < 0)
+			dev_err(&pdev->dev,	"Failed to enable MSI support: %d\n", ret);
 	}
 
+exit:
 	return ret;
 }
 
@@ -759,7 +822,6 @@ static const struct of_device_id plda_pcie_of_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(of, plda_pcie_of_match);
-
 
 static struct platform_driver plda_pcie_driver = {
 	.driver = {
