@@ -62,7 +62,7 @@ define_xfs_printk_level(xfs_debug, KERN_DEBUG);
 void
 xfs_alert_tag(
 	const struct xfs_mount	*mp,
-	int			panic_tag,
+	uint32_t		panic_tag,
 	const char		*fmt, ...)
 {
 	struct va_format	vaf;

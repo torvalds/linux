@@ -11,7 +11,8 @@ void xfs_emerg(const struct xfs_mount *mp, const char *fmt, ...);
 extern __printf(2, 3)
 void xfs_alert(const struct xfs_mount *mp, const char *fmt, ...);
 extern __printf(3, 4)
-void xfs_alert_tag(const struct xfs_mount *mp, int tag, const char *fmt, ...);
+void xfs_alert_tag(const struct xfs_mount *mp, uint32_t tag,
+		const char *fmt, ...);
 extern __printf(2, 3)
 void xfs_crit(const struct xfs_mount *mp, const char *fmt, ...);
 extern __printf(2, 3)
