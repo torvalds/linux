@@ -90,6 +90,62 @@ xlog_iclogs_empty(
 static int
 xfs_log_cover(struct xfs_mount *);
 
+/*
+ * We need to make sure the buffer pointer returned is naturally aligned for the
+ * biggest basic data type we put into it. We have already accounted for this
+ * padding when sizing the buffer.
+ *
+ * However, this padding does not get written into the log, and hence we have to
+ * track the space used by the log vectors separately to prevent log space hangs
+ * due to inaccurate accounting (i.e. a leak) of the used log space through the
+ * CIL context ticket.
+ *
+ * We also add space for the xlog_op_header that describes this region in the
+ * log. This prepends the data region we return to the caller to copy their data
+ * into, so do all the static initialisation of the ophdr now. Because the ophdr
+ * is not 8 byte aligned, we have to be careful to ensure that we align the
+ * start of the buffer such that the region we return to the call is 8 byte
+ * aligned and packed against the tail of the ophdr.
+ */
+void *
+xlog_prepare_iovec(
+	struct xfs_log_vec	*lv,
+	struct xfs_log_iovec	**vecp,
+	uint			type)
+{
+	struct xfs_log_iovec	*vec = *vecp;
+	struct xlog_op_header	*oph;
+	uint32_t		len;
+	void			*buf;
+
+	if (vec) {
+		ASSERT(vec - lv->lv_iovecp < lv->lv_niovecs);
+		vec++;
+	} else {
+		vec = &lv->lv_iovecp[0];
+	}
+
+	len = lv->lv_buf_len + sizeof(struct xlog_op_header);
+	if (!IS_ALIGNED(len, sizeof(uint64_t))) {
+		lv->lv_buf_len = round_up(len, sizeof(uint64_t)) -
+					sizeof(struct xlog_op_header);
+	}
+
+	vec->i_type = type;
+	vec->i_addr = lv->lv_buf + lv->lv_buf_len;
+
+	oph = vec->i_addr;
+	oph->oh_clientid = XFS_TRANSACTION;
+	oph->oh_res2 = 0;
+	oph->oh_flags = 0;
+
+	buf = vec->i_addr + sizeof(struct xlog_op_header);
+	ASSERT(IS_ALIGNED((unsigned long)buf, sizeof(uint64_t)));
+
+	*vecp = vec;
+	return buf;
+}
+
 static void
 xlog_grant_sub_space(
 	struct xlog		*log,
@@ -2232,9 +2288,9 @@ xlog_print_trans(
 }
 
 /*
- * Calculate the potential space needed by the log vector. If this is a start
- * transaction, the caller has already accounted for both opheaders in the start
- * transaction, so we don't need to account for them here.
+ * Calculate the potential space needed by the log vector. All regions contain
+ * their own opheaders and they are accounted for in region space so we don't
+ * need to add them to the vector length here.
  */
 static int
 xlog_write_calc_vec_length(
@@ -2261,18 +2317,7 @@ xlog_write_calc_vec_length(
 			xlog_tic_add_region(ticket, vecp->i_len, vecp->i_type);
 		}
 	}
-
-	/* Don't account for regions with embedded ophdrs */
-	if (optype && headers > 0) {
-		headers--;
-		if (optype & XLOG_START_TRANS) {
-			ASSERT(headers >= 1);
-			headers--;
-		}
-	}
-
 	ticket->t_res_num_ophdrs += headers;
-	len += headers * sizeof(struct xlog_op_header);
 
 	return len;
 }
@@ -2282,7 +2327,6 @@ xlog_write_setup_ophdr(
 	struct xlog_op_header	*ophdr,
 	struct xlog_ticket	*ticket)
 {
-	ophdr->oh_tid = cpu_to_be32(ticket->t_tid);
 	ophdr->oh_clientid = XFS_TRANSACTION;
 	ophdr->oh_res2 = 0;
 	ophdr->oh_flags = 0;
@@ -2500,21 +2544,25 @@ xlog_write(
 			ASSERT((unsigned long)ptr % sizeof(int32_t) == 0);
 
 			/*
-			 * The XLOG_START_TRANS has embedded ophdrs for the
-			 * start record and transaction header. They will always
-			 * be the first two regions in the lv chain. Commit and
-			 * unmount records also have embedded ophdrs.
+			 * Regions always have their ophdr at the start of the
+			 * region, except for:
+			 * - a transaction start which has a start record ophdr
+			 *   before the first region ophdr; and
+			 * - the previous region didn't fully fit into an iclog
+			 *   so needs a continuation ophdr to prepend the region
+			 *   in this new iclog.
 			 */
-			if (optype) {
-				ophdr = reg->i_addr;
-				if (index)
-					optype &= ~XLOG_START_TRANS;
-			} else {
+			ophdr = reg->i_addr;
+			if (optype && index) {
+				optype &= ~XLOG_START_TRANS;
+			} else if (partial_copy) {
                                 ophdr = xlog_write_setup_ophdr(ptr, ticket);
 				xlog_write_adv_cnt(&ptr, &len, &log_offset,
 					   sizeof(struct xlog_op_header));
 				added_ophdr = true;
 			}
+			ophdr->oh_tid = cpu_to_be32(ticket->t_tid);
+
 			len += xlog_write_setup_copy(ticket, ophdr,
 						     iclog->ic_size-log_offset,
 						     reg->i_len,
@@ -2532,20 +2580,11 @@ xlog_write(
 				ophdr->oh_len = cpu_to_be32(copy_len -
 						sizeof(struct xlog_op_header));
 			}
-			/*
-			 * Copy region.
-			 *
-			 * Commit records just log an opheader, so
-			 * we can have empty payloads with no data region to
-			 * copy.  Hence we only copy the payload if the vector
-			 * says it has data to copy.
-			 */
-			ASSERT(copy_len >= 0);
-			if (copy_len > 0) {
-				memcpy(ptr, reg->i_addr + copy_off, copy_len);
-				xlog_write_adv_cnt(&ptr, &len, &log_offset,
-						   copy_len);
-			}
+
+			ASSERT(copy_len > 0);
+			memcpy(ptr, reg->i_addr + copy_off, copy_len);
+			xlog_write_adv_cnt(&ptr, &len, &log_offset, copy_len);
+
 			if (added_ophdr)
 				copy_len += sizeof(struct xlog_op_header);
 			record_cnt++;
