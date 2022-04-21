@@ -1233,10 +1233,8 @@ static void bpf_object__elf_finish(struct bpf_object *obj)
 	if (!obj->efile.elf)
 		return;
 
-	if (obj->efile.elf) {
-		elf_end(obj->efile.elf);
-		obj->efile.elf = NULL;
-	}
+	elf_end(obj->efile.elf);
+	obj->efile.elf = NULL;
 	obj->efile.symbols = NULL;
 	obj->efile.st_ops_data = NULL;
 
