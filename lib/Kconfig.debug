@@ -1559,12 +1559,6 @@ config PROVE_NVDIMM_LOCKING
 	help
 	  Enable lockdep to validate nd_device_lock() usage.
 
-config PROVE_CXL_LOCKING
-	bool "CXL"
-	depends on CXL_BUS
-	help
-	  Enable lockdep to validate cxl_device_lock() usage.
-
 endchoice
 
 endmenu # lock debugging
