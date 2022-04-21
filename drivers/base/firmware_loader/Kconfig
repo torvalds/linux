@@ -159,20 +159,32 @@ config FW_LOADER_USER_HELPER_FALLBACK
 
 config FW_LOADER_COMPRESS
 	bool "Enable compressed firmware support"
-	select FW_LOADER_PAGED_BUF
-	select XZ_DEC
 	help
 	  This option enables the support for loading compressed firmware
 	  files. The caller of firmware API receives the decompressed file
 	  content. The compressed file is loaded as a fallback, only after
 	  loading the raw file failed at first.
 
-	  Currently only XZ-compressed files are supported, and they have to
-	  be compressed with either none or crc32 integrity check type (pass
-	  "-C crc32" option to xz command).
-
 	  Compressed firmware support does not apply to firmware images
 	  that are built into the kernel image (CONFIG_EXTRA_FIRMWARE).
+
+if FW_LOADER_COMPRESS
+config FW_LOADER_COMPRESS_XZ
+	bool "Enable XZ-compressed firmware support"
+	select FW_LOADER_PAGED_BUF
+	select XZ_DEC
+	help
+	  This option adds the support for XZ-compressed files.
+	  The files have to be compressed with either none or crc32
+	  integrity check type (pass "-C crc32" option to xz command).
+
+config FW_LOADER_COMPRESS_ZSTD
+	bool "Enable ZSTD-compressed firmware support"
+	select ZSTD_DECOMPRESS
+	help
+	  This option adds the support for ZSTD-compressed files.
+
+endif # FW_LOADER_COMPRESS
 
 config FW_CACHE
 	bool "Enable firmware caching during suspend"
