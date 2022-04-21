@@ -322,6 +322,9 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 	qp->scq			= scq;
 	qp->srq			= srq;
 
+	atomic_inc(&rcq->num_wq);
+	atomic_inc(&scq->num_wq);
+
 	rxe_qp_init_misc(rxe, qp, init);
 
 	err = rxe_qp_init_req(rxe, qp, init, udata, uresp);
@@ -341,6 +344,9 @@ err2:
 	rxe_queue_cleanup(qp->sq.queue);
 	qp->sq.queue = NULL;
 err1:
+	atomic_dec(&rcq->num_wq);
+	atomic_dec(&scq->num_wq);
+
 	qp->pd = NULL;
 	qp->rcq = NULL;
 	qp->scq = NULL;
@@ -798,10 +804,14 @@ static void rxe_qp_do_cleanup(struct work_struct *work)
 	if (qp->rq.queue)
 		rxe_queue_cleanup(qp->rq.queue);
 
+	atomic_dec(&qp->scq->num_wq);
 	if (qp->scq)
 		rxe_put(qp->scq);
+
+	atomic_dec(&qp->rcq->num_wq);
 	if (qp->rcq)
 		rxe_put(qp->rcq);
+
 	if (qp->pd)
 		rxe_put(qp->pd);
 
