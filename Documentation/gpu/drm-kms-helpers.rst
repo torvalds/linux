@@ -235,6 +235,9 @@ Display Port Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/display/drm_dp_helper.c
    :doc: dp helpers
 
+.. kernel-doc:: include/drm/display/drm_dp.h
+   :internal:
+
 .. kernel-doc:: include/drm/display/drm_dp_helper.h
    :internal:
 
