@@ -47,7 +47,7 @@
 #define ICOM_DRIVER_NAME "icom"
 #define NR_PORTS	       128
 
-static int icom_acfg_baud[] = {
+static const unsigned int icom_acfg_baud[] = {
 	300,
 	600,
 	900,
