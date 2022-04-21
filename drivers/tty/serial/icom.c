@@ -46,7 +46,6 @@
 /*#define ICOM_TRACE		 enable port trace capabilities */
 
 #define ICOM_DRIVER_NAME "icom"
-#define ICOM_VERSION_STR "1.3.1"
 #define NR_PORTS	       128
 #define ICOM_PORT ((struct icom_port *)port)
 #define to_icom_adapter(d) container_of(d, struct icom_adapter, kref)
