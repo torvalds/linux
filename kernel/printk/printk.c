@@ -394,6 +394,9 @@ static struct latched_seq clear_seq = {
 /* the maximum size of a formatted record (i.e. with prefix added per line) */
 #define CONSOLE_LOG_MAX		1024
 
+/* the maximum size for a dropped text message */
+#define DROPPED_TEXT_MAX	64
+
 /* the maximum size allowed to be reserved for a record */
 #define LOG_LINE_MAX		(CONSOLE_LOG_MAX - PREFIX_MAX)
 
@@ -1923,18 +1926,18 @@ static int console_trylock_spinning(void)
 
 /*
  * Call the specified console driver, asking it to write out the specified
- * text and length. For non-extended consoles, if any records have been
+ * text and length. If @dropped_text is non-NULL and any records have been
  * dropped, a dropped message will be written out first.
  */
-static void call_console_driver(struct console *con, const char *text, size_t len)
+static void call_console_driver(struct console *con, const char *text, size_t len,
+				char *dropped_text)
 {
-	static char dropped_text[64];
 	size_t dropped_len;
 
 	trace_console_rcuidle(text, len);
 
-	if (con->dropped && !(con->flags & CON_EXTENDED)) {
-		dropped_len = snprintf(dropped_text, sizeof(dropped_text),
+	if (con->dropped && dropped_text) {
+		dropped_len = snprintf(dropped_text, DROPPED_TEXT_MAX,
 				       "** %lu printk messages dropped **\n",
 				       con->dropped);
 		con->dropped = 0;
@@ -2296,6 +2299,7 @@ EXPORT_SYMBOL(_printk);
 #else /* CONFIG_PRINTK */
 
 #define CONSOLE_LOG_MAX		0
+#define DROPPED_TEXT_MAX	0
 #define printk_time		false
 
 #define prb_read_valid(rb, seq, r)	false
@@ -2319,7 +2323,10 @@ static ssize_t msg_print_ext_body(char *buf, size_t size,
 				  struct dev_printk_info *dev_info) { return 0; }
 static void console_lock_spinning_enable(void) { }
 static int console_lock_spinning_disable_and_check(void) { return 0; }
-static void call_console_driver(struct console *con, const char *text, size_t len) { }
+static void call_console_driver(struct console *con, const char *text, size_t len,
+				char *dropped_text)
+{
+}
 static bool suppress_message_printing(int level) { return false; }
 
 #endif /* CONFIG_PRINTK */
@@ -2644,6 +2651,14 @@ static void __console_unlock(void)
  * Print one record for the given console. The record printed is whatever
  * record is the next available record for the given console.
  *
+ * @text is a buffer of size CONSOLE_LOG_MAX.
+ *
+ * If extended messages should be printed, @ext_text is a buffer of size
+ * CONSOLE_EXT_LOG_MAX. Otherwise @ext_text must be NULL.
+ *
+ * If dropped messages should be printed, @dropped_text is a buffer of size
+ * DROPPED_TEXT_MAX. Otherwise @dropped_text must be NULL.
+ *
  * @handover will be set to true if a printk waiter has taken over the
  * console_lock, in which case the caller is no longer holding the
  * console_lock. Otherwise it is set to false.
@@ -2653,10 +2668,9 @@ static void __console_unlock(void)
  *
  * Requires the console_lock.
  */
-static bool console_emit_next_record(struct console *con, bool *handover)
+static bool console_emit_next_record(struct console *con, char *text, char *ext_text,
+				     char *dropped_text, bool *handover)
 {
-	static char ext_text[CONSOLE_EXT_LOG_MAX];
-	static char text[CONSOLE_LOG_MAX];
 	static int panic_console_dropped;
 	struct printk_info info;
 	struct printk_record r;
@@ -2664,7 +2678,7 @@ static bool console_emit_next_record(struct console *con, bool *handover)
 	char *write_text;
 	size_t len;
 
-	prb_rec_init_rd(&r, &info, text, sizeof(text));
+	prb_rec_init_rd(&r, &info, text, CONSOLE_LOG_MAX);
 
 	*handover = false;
 
@@ -2686,13 +2700,13 @@ static bool console_emit_next_record(struct console *con, bool *handover)
 		goto skip;
 	}
 
-	if (con->flags & CON_EXTENDED) {
-		write_text = &ext_text[0];
-		len = info_print_ext_header(ext_text, sizeof(ext_text), r.info);
-		len += msg_print_ext_body(ext_text + len, sizeof(ext_text) - len,
+	if (ext_text) {
+		write_text = ext_text;
+		len = info_print_ext_header(ext_text, CONSOLE_EXT_LOG_MAX, r.info);
+		len += msg_print_ext_body(ext_text + len, CONSOLE_EXT_LOG_MAX - len,
 					  &r.text_buf[0], r.info->text_len, &r.info->dev_info);
 	} else {
-		write_text = &text[0];
+		write_text = text;
 		len = record_print_text(&r, console_msg_format & MSG_FORMAT_SYSLOG, printk_time);
 	}
 
@@ -2710,7 +2724,7 @@ static bool console_emit_next_record(struct console *con, bool *handover)
 	console_lock_spinning_enable();
 
 	stop_critical_timings();	/* don't trace print latency */
-	call_console_driver(con, write_text, len);
+	call_console_driver(con, write_text, len, dropped_text);
 	start_critical_timings();
 
 	con->seq++;
@@ -2746,6 +2760,9 @@ skip:
  */
 static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handover)
 {
+	static char dropped_text[DROPPED_TEXT_MAX];
+	static char ext_text[CONSOLE_EXT_LOG_MAX];
+	static char text[CONSOLE_LOG_MAX];
 	bool any_usable = false;
 	struct console *con;
 	bool any_progress;
@@ -2763,7 +2780,16 @@ static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handove
 				continue;
 			any_usable = true;
 
-			progress = console_emit_next_record(con, handover);
+			if (con->flags & CON_EXTENDED) {
+				/* Extended consoles do not print "dropped messages". */
+				progress = console_emit_next_record(con, &text[0],
+								    &ext_text[0], NULL,
+								    handover);
+			} else {
+				progress = console_emit_next_record(con, &text[0],
+								    NULL, &dropped_text[0],
+								    handover);
+			}
 			if (*handover)
 				return false;
 
