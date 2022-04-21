@@ -378,30 +378,6 @@ xlog_grant_head_check(
 	return error;
 }
 
-static void
-xlog_tic_reset_res(xlog_ticket_t *tic)
-{
-	tic->t_res_num = 0;
-	tic->t_res_arr_sum = 0;
-	tic->t_res_num_ophdrs = 0;
-}
-
-static void
-xlog_tic_add_region(xlog_ticket_t *tic, uint len, uint type)
-{
-	if (tic->t_res_num == XLOG_TIC_LEN_MAX) {
-		/* add to overflow and start again */
-		tic->t_res_o_flow += tic->t_res_arr_sum;
-		tic->t_res_num = 0;
-		tic->t_res_arr_sum = 0;
-	}
-
-	tic->t_res_arr[tic->t_res_num].r_len = len;
-	tic->t_res_arr[tic->t_res_num].r_type = type;
-	tic->t_res_arr_sum += len;
-	tic->t_res_num++;
-}
-
 bool
 xfs_log_writable(
 	struct xfs_mount	*mp)
@@ -451,8 +427,6 @@ xfs_log_regrant(
 	xlog_grant_push_ail(log, tic->t_unit_res);
 
 	tic->t_curr_res = tic->t_unit_res;
-	xlog_tic_reset_res(tic);
-
 	if (tic->t_cnt > 0)
 		return 0;
 
@@ -2178,63 +2152,11 @@ xlog_print_tic_res(
 	struct xfs_mount	*mp,
 	struct xlog_ticket	*ticket)
 {
-	uint i;
-	uint ophdr_spc = ticket->t_res_num_ophdrs * (uint)sizeof(xlog_op_header_t);
-
-	/* match with XLOG_REG_TYPE_* in xfs_log.h */
-#define REG_TYPE_STR(type, str)	[XLOG_REG_TYPE_##type] = str
-	static char *res_type_str[] = {
-	    REG_TYPE_STR(BFORMAT, "bformat"),
-	    REG_TYPE_STR(BCHUNK, "bchunk"),
-	    REG_TYPE_STR(EFI_FORMAT, "efi_format"),
-	    REG_TYPE_STR(EFD_FORMAT, "efd_format"),
-	    REG_TYPE_STR(IFORMAT, "iformat"),
-	    REG_TYPE_STR(ICORE, "icore"),
-	    REG_TYPE_STR(IEXT, "iext"),
-	    REG_TYPE_STR(IBROOT, "ibroot"),
-	    REG_TYPE_STR(ILOCAL, "ilocal"),
-	    REG_TYPE_STR(IATTR_EXT, "iattr_ext"),
-	    REG_TYPE_STR(IATTR_BROOT, "iattr_broot"),
-	    REG_TYPE_STR(IATTR_LOCAL, "iattr_local"),
-	    REG_TYPE_STR(QFORMAT, "qformat"),
-	    REG_TYPE_STR(DQUOT, "dquot"),
-	    REG_TYPE_STR(QUOTAOFF, "quotaoff"),
-	    REG_TYPE_STR(LRHEADER, "LR header"),
-	    REG_TYPE_STR(UNMOUNT, "unmount"),
-	    REG_TYPE_STR(COMMIT, "commit"),
-	    REG_TYPE_STR(TRANSHDR, "trans header"),
-	    REG_TYPE_STR(ICREATE, "inode create"),
-	    REG_TYPE_STR(RUI_FORMAT, "rui_format"),
-	    REG_TYPE_STR(RUD_FORMAT, "rud_format"),
-	    REG_TYPE_STR(CUI_FORMAT, "cui_format"),
-	    REG_TYPE_STR(CUD_FORMAT, "cud_format"),
-	    REG_TYPE_STR(BUI_FORMAT, "bui_format"),
-	    REG_TYPE_STR(BUD_FORMAT, "bud_format"),
-	};
-	BUILD_BUG_ON(ARRAY_SIZE(res_type_str) != XLOG_REG_TYPE_MAX + 1);
-#undef REG_TYPE_STR
-
 	xfs_warn(mp, "ticket reservation summary:");
-	xfs_warn(mp, "  unit res    = %d bytes",
-		 ticket->t_unit_res);
-	xfs_warn(mp, "  current res = %d bytes",
-		 ticket->t_curr_res);
-	xfs_warn(mp, "  total reg   = %u bytes (o/flow = %u bytes)",
-		 ticket->t_res_arr_sum, ticket->t_res_o_flow);
-	xfs_warn(mp, "  ophdrs      = %u (ophdr space = %u bytes)",
-		 ticket->t_res_num_ophdrs, ophdr_spc);
-	xfs_warn(mp, "  ophdr + reg = %u bytes",
-		 ticket->t_res_arr_sum + ticket->t_res_o_flow + ophdr_spc);
-	xfs_warn(mp, "  num regions = %u",
-		 ticket->t_res_num);
-
-	for (i = 0; i < ticket->t_res_num; i++) {
-		uint r_type = ticket->t_res_arr[i].r_type;
-		xfs_warn(mp, "region[%u]: %s - %u bytes", i,
-			    ((r_type <= 0 || r_type > XLOG_REG_TYPE_MAX) ?
-			    "bad-rtype" : res_type_str[r_type]),
-			    ticket->t_res_arr[i].r_len);
-	}
+	xfs_warn(mp, "  unit res    = %d bytes", ticket->t_unit_res);
+	xfs_warn(mp, "  current res = %d bytes", ticket->t_curr_res);
+	xfs_warn(mp, "  original count  = %d", ticket->t_ocnt);
+	xfs_warn(mp, "  remaining count = %d", ticket->t_cnt);
 }
 
 /*
@@ -2299,7 +2221,6 @@ xlog_write_calc_vec_length(
 	uint			optype)
 {
 	struct xfs_log_vec	*lv;
-	int			headers = 0;
 	int			len = 0;
 	int			i;
 
@@ -2308,17 +2229,9 @@ xlog_write_calc_vec_length(
 		if (lv->lv_buf_len == XFS_LOG_VEC_ORDERED)
 			continue;
 
-		headers += lv->lv_niovecs;
-
-		for (i = 0; i < lv->lv_niovecs; i++) {
-			struct xfs_log_iovec	*vecp = &lv->lv_iovecp[i];
-
-			len += vecp->i_len;
-			xlog_tic_add_region(ticket, vecp->i_len, vecp->i_type);
-		}
+		for (i = 0; i < lv->lv_niovecs; i++)
+			len += lv->lv_iovecp[i].i_len;
 	}
-	ticket->t_res_num_ophdrs += headers;
-
 	return len;
 }
 
@@ -2377,7 +2290,6 @@ xlog_write_setup_copy(
 
 	/* account for new log op header */
 	ticket->t_curr_res -= sizeof(struct xlog_op_header);
-	ticket->t_res_num_ophdrs++;
 
 	return sizeof(struct xlog_op_header);
 }
@@ -3025,9 +2937,6 @@ restart:
 	 */
 	if (log_offset == 0) {
 		ticket->t_curr_res -= log->l_iclog_hsize;
-		xlog_tic_add_region(ticket,
-				    log->l_iclog_hsize,
-				    XLOG_REG_TYPE_LRHEADER);
 		head->h_cycle = cpu_to_be32(log->l_curr_cycle);
 		head->h_lsn = cpu_to_be64(
 			xlog_assign_lsn(log->l_curr_cycle, log->l_curr_block));
@@ -3107,7 +3016,6 @@ xfs_log_ticket_regrant(
 	xlog_grant_sub_space(log, &log->l_write_head.grant,
 					ticket->t_curr_res);
 	ticket->t_curr_res = ticket->t_unit_res;
-	xlog_tic_reset_res(ticket);
 
 	trace_xfs_log_ticket_regrant_sub(log, ticket);
 
@@ -3118,7 +3026,6 @@ xfs_log_ticket_regrant(
 		trace_xfs_log_ticket_regrant_exit(log, ticket);
 
 		ticket->t_curr_res = ticket->t_unit_res;
-		xlog_tic_reset_res(ticket);
 	}
 
 	xfs_log_ticket_put(ticket);
@@ -3627,8 +3534,6 @@ xlog_ticket_alloc(
 	tic->t_tid		= prandom_u32();
 	if (permanent)
 		tic->t_flags |= XLOG_TIC_PERM_RESERV;
-
-	xlog_tic_reset_res(tic);
 
 	return tic;
 }
