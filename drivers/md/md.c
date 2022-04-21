@@ -2647,11 +2647,11 @@ static bool does_sb_need_changing(struct mddev *mddev)
 	rdev_for_each(rdev, mddev) {
 		role = le16_to_cpu(sb->dev_roles[rdev->desc_nr]);
 		/* Device activated? */
-		if (role == 0xffff && rdev->raid_disk >=0 &&
+		if (role == MD_DISK_ROLE_SPARE && rdev->raid_disk >= 0 &&
 		    !test_bit(Faulty, &rdev->flags))
 			return true;
 		/* Device turned faulty? */
-		if (test_bit(Faulty, &rdev->flags) && (role < 0xfffd))
+		if (test_bit(Faulty, &rdev->flags) && (role < MD_DISK_ROLE_MAX))
 			return true;
 	}
 
@@ -9675,7 +9675,7 @@ static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 		role = le16_to_cpu(sb->dev_roles[rdev2->desc_nr]);
 
 		if (test_bit(Candidate, &rdev2->flags)) {
-			if (role == 0xfffe) {
+			if (role == MD_DISK_ROLE_FAULTY) {
 				pr_info("md: Removing Candidate device %s because add failed\n", bdevname(rdev2->bdev,b));
 				md_kick_rdev_from_array(rdev2);
 				continue;
@@ -9688,7 +9688,7 @@ static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 			/*
 			 * got activated except reshape is happening.
 			 */
-			if (rdev2->raid_disk == -1 && role != 0xffff &&
+			if (rdev2->raid_disk == -1 && role != MD_DISK_ROLE_SPARE &&
 			    !(le32_to_cpu(sb->feature_map) &
 			      MD_FEATURE_RESHAPE_ACTIVE)) {
 				rdev2->saved_raid_disk = role;
@@ -9705,7 +9705,8 @@ static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 			 * as faulty. The recovery is performed by the
 			 * one who initiated the error.
 			 */
-			if ((role == 0xfffe) || (role == 0xfffd)) {
+			if (role == MD_DISK_ROLE_FAULTY ||
+			    role == MD_DISK_ROLE_JOURNAL) {
 				md_error(mddev, rdev2);
 				clear_bit(Blocked, &rdev2->flags);
 			}
