@@ -15,7 +15,7 @@
 
 asflags-$(CONFIG_FULLDEBUG) := -DDEBUGGER_COMPATIBLE_CACHE=1
 
-obj-$(CONFIG_COLDFIRE)	+= cache.o clk.o device.o dma.o entry.o vectors.o
+obj-$(CONFIG_COLDFIRE)	+= cache.o clk.o device.o entry.o vectors.o
 obj-$(CONFIG_M5206)	+= m5206.o intc.o reset.o
 obj-$(CONFIG_M5206e)	+= m5206.o intc.o reset.o
 obj-$(CONFIG_M520x)	+= m520x.o intc-simr.o reset.o
