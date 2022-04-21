@@ -743,7 +743,7 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 		 * prepare_to_wait_event() pairs with the full memory barrier
 		 * within wq_has_sleeper().
 		 *
-		 * This pairs with wake_up_klogd:A.
+		 * This pairs with __wake_up_klogd:A.
 		 */
 		ret = wait_event_interruptible(log_wait,
 				prb_read_valid(prb,
@@ -1521,7 +1521,7 @@ static int syslog_print(char __user *buf, int size)
 		 * prepare_to_wait_event() pairs with the full memory barrier
 		 * within wq_has_sleeper().
 		 *
-		 * This pairs with wake_up_klogd:A.
+		 * This pairs with __wake_up_klogd:A.
 		 */
 		len = wait_event_interruptible(log_wait,
 				prb_read_valid(prb, seq, NULL)); /* LMM(syslog_print:A) */
@@ -3252,7 +3252,7 @@ static void wake_up_klogd_work_func(struct irq_work *irq_work)
 static DEFINE_PER_CPU(struct irq_work, wake_up_klogd_work) =
 	IRQ_WORK_INIT_LAZY(wake_up_klogd_work_func);
 
-void wake_up_klogd(void)
+static void __wake_up_klogd(int val)
 {
 	if (!printk_percpu_data_ready())
 		return;
@@ -3269,22 +3269,26 @@ void wake_up_klogd(void)
 	 *
 	 * This pairs with devkmsg_read:A and syslog_print:A.
 	 */
-	if (wq_has_sleeper(&log_wait)) { /* LMM(wake_up_klogd:A) */
-		this_cpu_or(printk_pending, PRINTK_PENDING_WAKEUP);
+	if (wq_has_sleeper(&log_wait) || /* LMM(__wake_up_klogd:A) */
+	    (val & PRINTK_PENDING_OUTPUT)) {
+		this_cpu_or(printk_pending, val);
 		irq_work_queue(this_cpu_ptr(&wake_up_klogd_work));
 	}
 	preempt_enable();
 }
 
+void wake_up_klogd(void)
+{
+	__wake_up_klogd(PRINTK_PENDING_WAKEUP);
+}
+
 void defer_console_output(void)
 {
-	if (!printk_percpu_data_ready())
-		return;
-
-	preempt_disable();
-	this_cpu_or(printk_pending, PRINTK_PENDING_OUTPUT);
-	irq_work_queue(this_cpu_ptr(&wake_up_klogd_work));
-	preempt_enable();
+	/*
+	 * New messages may have been added directly to the ringbuffer
+	 * using vprintk_store(), so wake any waiters as well.
+	 */
+	__wake_up_klogd(PRINTK_PENDING_WAKEUP | PRINTK_PENDING_OUTPUT);
 }
 
 void printk_trigger_flush(void)
