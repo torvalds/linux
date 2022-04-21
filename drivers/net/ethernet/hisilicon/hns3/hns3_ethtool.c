@@ -1915,7 +1915,7 @@ static int hns3_set_tunable(struct net_device *netdev,
 			return ret;
 		}
 
-		netdev_info(netdev, "the actvie tx spare buf size is %u, due to page order\n",
+		netdev_info(netdev, "the active tx spare buf size is %u, due to page order\n",
 			    priv->ring->tx_spare->len);
 
 		break;
