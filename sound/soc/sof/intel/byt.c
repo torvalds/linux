@@ -245,7 +245,6 @@ static struct snd_sof_dsp_ops sof_byt_ops = {
 
 	/* ipc */
 	.send_msg	= atom_send_msg,
-	.fw_ready	= sof_fw_ready,
 	.get_mailbox_offset = atom_get_mailbox_offset,
 	.get_window_offset = atom_get_window_offset,
 
@@ -328,7 +327,6 @@ static struct snd_sof_dsp_ops sof_cht_ops = {
 
 	/* ipc */
 	.send_msg	= atom_send_msg,
-	.fw_ready	= sof_fw_ready,
 	.get_mailbox_offset = atom_get_mailbox_offset,
 	.get_window_offset = atom_get_window_offset,
 
