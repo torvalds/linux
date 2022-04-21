@@ -512,7 +512,7 @@ xfs_fs_goingdown(
 void
 xfs_do_force_shutdown(
 	struct xfs_mount *mp,
-	int		flags,
+	uint32_t	flags,
 	char		*fname,
 	int		lnnum)
 {

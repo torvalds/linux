@@ -3829,7 +3829,7 @@ xlog_verify_iclog(
 bool
 xlog_force_shutdown(
 	struct xlog	*log,
-	int		shutdown_flags)
+	uint32_t	shutdown_flags)
 {
 	bool		log_error = (shutdown_flags & SHUTDOWN_LOG_IO_ERROR);
 
