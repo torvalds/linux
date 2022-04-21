@@ -492,7 +492,7 @@ static int run_test_case(int cgfd, const struct sock_test *test)
 			goto err;
 	}
 
-	if (attach_sock_prog(cgfd, progfd, test->attach_type) == -1) {
+	if (attach_sock_prog(cgfd, progfd, test->attach_type) < 0) {
 		if (test->result == ATTACH_REJECT)
 			goto out;
 		else
