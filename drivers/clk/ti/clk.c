@@ -131,7 +131,7 @@ int ti_clk_setup_ll_ops(struct ti_clk_ll_ops *ops)
 void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 {
 	struct ti_dt_clk *c;
-	struct device_node *node, *parent;
+	struct device_node *node, *parent, *child;
 	struct clk *clk;
 	struct of_phandle_args clkspec;
 	char buf[64];
@@ -171,10 +171,13 @@ void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 		node = of_find_node_by_name(NULL, buf);
 		if (num_args && compat_mode) {
 			parent = node;
-			node = of_get_child_by_name(parent, "clock");
-			if (!node)
-				node = of_get_child_by_name(parent, "clk");
-			of_node_put(parent);
+			child = of_get_child_by_name(parent, "clock");
+			if (!child)
+				child = of_get_child_by_name(parent, "clk");
+			if (child) {
+				of_node_put(parent);
+				node = child;
+			}
 		}
 
 		clkspec.np = node;

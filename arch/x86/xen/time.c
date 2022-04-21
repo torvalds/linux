@@ -556,6 +556,11 @@ static void xen_hvm_setup_cpu_clockevents(void)
 
 void __init xen_hvm_init_time_ops(void)
 {
+	static bool hvm_time_initialized;
+
+	if (hvm_time_initialized)
+		return;
+
 	/*
 	 * vector callback is needed otherwise we cannot receive interrupts
 	 * on cpu > 0 and at this point we don't know how many cpus are
@@ -565,7 +570,22 @@ void __init xen_hvm_init_time_ops(void)
 		return;
 
 	if (!xen_feature(XENFEAT_hvm_safe_pvclock)) {
-		pr_info("Xen doesn't support pvclock on HVM, disable pv timer");
+		pr_info_once("Xen doesn't support pvclock on HVM, disable pv timer");
+		return;
+	}
+
+	/*
+	 * Only MAX_VIRT_CPUS 'vcpu_info' are embedded inside 'shared_info'.
+	 * The __this_cpu_read(xen_vcpu) is still NULL when Xen HVM guest
+	 * boots on vcpu >= MAX_VIRT_CPUS (e.g., kexec), To access
+	 * __this_cpu_read(xen_vcpu) via xen_clocksource_read() will panic.
+	 *
+	 * The xen_hvm_init_time_ops() should be called again later after
+	 * __this_cpu_read(xen_vcpu) is available.
+	 */
+	if (!__this_cpu_read(xen_vcpu)) {
+		pr_info("Delay xen_init_time_common() as kernel is running on vcpu=%d\n",
+			xen_vcpu_nr(0));
 		return;
 	}
 
@@ -577,6 +597,8 @@ void __init xen_hvm_init_time_ops(void)
 	x86_platform.calibrate_tsc = xen_tsc_khz;
 	x86_platform.get_wallclock = xen_get_wallclock;
 	x86_platform.set_wallclock = xen_set_wallclock;
+
+	hvm_time_initialized = true;
 }
 #endif
 
