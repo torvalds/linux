@@ -1785,6 +1785,45 @@ fail:
 	return -EBUSY;
 }
 
+int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc_info = &rtwdev->mcc;
+	struct rtw89_fw_h2c_rf_get_mccch *mccch;
+	struct sk_buff *skb;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, sizeof(*mccch));
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_ctrl\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, sizeof(*mccch));
+	mccch = (struct rtw89_fw_h2c_rf_get_mccch *)skb->data;
+
+	mccch->ch_0 = cpu_to_le32(mcc_info->ch[0]);
+	mccch->ch_1 = cpu_to_le32(mcc_info->ch[1]);
+	mccch->band_0 = cpu_to_le32(mcc_info->band[0]);
+	mccch->band_1 = cpu_to_le32(mcc_info->band[1]);
+	mccch->current_channel = cpu_to_le32(rtwdev->hal.current_channel);
+	mccch->current_band_type = cpu_to_le32(rtwdev->hal.current_band_type);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_OUTSRC, H2C_CL_OUTSRC_RF_FW_NOTIFY,
+			      H2C_FUNC_OUTSRC_RF_GET_MCCCH, 0, 0,
+			      sizeof(*mccch));
+
+	if (rtw89_h2c_tx(rtwdev, skb, false)) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return -EBUSY;
+}
+EXPORT_SYMBOL(rtw89_fw_h2c_rf_ntfy_mcc);
+
 int rtw89_fw_h2c_raw_with_hdr(struct rtw89_dev *rtwdev,
 			      u8 h2c_class, u8 h2c_func, u8 *buf, u16 len,
 			      bool rack, bool dack)

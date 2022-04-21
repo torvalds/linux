@@ -2538,6 +2538,17 @@ struct rtw89_fw_h2c_rf_reg_info {
 
 #define H2C_CL_OUTSRC_RF_REG_A		0x8
 #define H2C_CL_OUTSRC_RF_REG_B		0x9
+#define H2C_CL_OUTSRC_RF_FW_NOTIFY	0xa
+#define H2C_FUNC_OUTSRC_RF_GET_MCCCH	0x2
+
+struct rtw89_fw_h2c_rf_get_mccch {
+	__le32 ch_0;
+	__le32 ch_1;
+	__le32 band_0;
+	__le32 band_1;
+	__le32 current_channel;
+	__le32 current_band_type;
+} __packed;
 
 #define RTW89_FW_RSVD_PLE_SIZE 0x800
 
@@ -2602,6 +2613,7 @@ int rtw89_fw_h2c_scan_offload(struct rtw89_dev *rtwdev,
 int rtw89_fw_h2c_rf_reg(struct rtw89_dev *rtwdev,
 			struct rtw89_fw_h2c_rf_reg_info *info,
 			u16 len, u8 page);
+int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_raw_with_hdr(struct rtw89_dev *rtwdev,
 			      u8 h2c_class, u8 h2c_func, u8 *buf, u16 len,
 			      bool rack, bool dack);

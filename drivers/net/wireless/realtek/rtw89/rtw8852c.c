@@ -1766,6 +1766,18 @@ static void rtw8852c_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
 	}
 }
 
+static void rtw8852c_rfk_init(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc_info = &rtwdev->mcc;
+
+	memset(mcc_info, 0, sizeof(*mcc_info));
+}
+
+static void rtw8852c_rfk_channel(struct rtw89_dev *rtwdev)
+{
+	rtw89_fw_h2c_rf_ntfy_mcc(rtwdev);
+}
+
 static
 void rtw8852c_set_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
 				     s8 pw_ofst, enum rtw89_mac_idx mac_idx)
@@ -1955,6 +1967,8 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.set_channel_help	= rtw8852c_set_channel_help,
 	.read_efuse		= rtw8852c_read_efuse,
 	.read_phycap		= rtw8852c_read_phycap,
+	.rfk_init		= rtw8852c_rfk_init,
+	.rfk_channel		= rtw8852c_rfk_channel,
 	.power_trim		= rtw8852c_power_trim,
 	.read_rf		= rtw89_phy_read_rf_v1,
 	.write_rf		= rtw89_phy_write_rf_v1,
