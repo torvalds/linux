@@ -1085,10 +1085,10 @@ static inline bool xfs_dinode_has_bigtime(const struct xfs_dinode *dip)
 #define XFS_DQUOT_MAGIC		0x4451		/* 'DQ' */
 #define XFS_DQUOT_VERSION	(uint8_t)0x01	/* latest version number */
 
-#define XFS_DQTYPE_USER		0x01		/* user dquot record */
-#define XFS_DQTYPE_PROJ		0x02		/* project dquot record */
-#define XFS_DQTYPE_GROUP	0x04		/* group dquot record */
-#define XFS_DQTYPE_BIGTIME	0x80		/* large expiry timestamps */
+#define XFS_DQTYPE_USER		(1u << 0)	/* user dquot record */
+#define XFS_DQTYPE_PROJ		(1u << 1)	/* project dquot record */
+#define XFS_DQTYPE_GROUP	(1u << 2)	/* group dquot record */
+#define XFS_DQTYPE_BIGTIME	(1u << 7)	/* large expiry timestamps */
 
 /* bitmask to determine if this is a user/group/project dquot */
 #define XFS_DQTYPE_REC_MASK	(XFS_DQTYPE_USER | \
