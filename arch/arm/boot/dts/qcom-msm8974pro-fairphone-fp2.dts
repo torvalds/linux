@@ -57,6 +57,21 @@
 	};
 };
 
+&blsp1_i2c2 {
+	status = "okay";
+
+	touchscreen@41 {
+		compatible = "ilitek,ili2120";
+		reg = <0x41>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <28 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&tlmm 55 GPIO_ACTIVE_LOW>;
+
+		touchscreen-size-x = <1080>;
+		touchscreen-size-y = <1920>;
+	};
+};
+
 &blsp1_uart2 {
 	status = "okay";
 };
