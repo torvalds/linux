@@ -1027,7 +1027,7 @@ static int rtw89_mac_check_cpwm_state(struct rtw89_dev *rtwdev,
 		return 0;
 
 	rpwm_req_num = rtwdev->mac.rpwm_seq_num;
-	cpwm_rsp_seq = rtw89_read16_mask(rtwdev, R_AX_CPWM,
+	cpwm_rsp_seq = rtw89_read16_mask(rtwdev, rtwdev->hci.cpwm_addr,
 					 PS_CPWM_RSP_SEQ_NUM);
 
 	if (rpwm_req_num != cpwm_rsp_seq)
@@ -1036,11 +1036,11 @@ static int rtw89_mac_check_cpwm_state(struct rtw89_dev *rtwdev,
 	rtwdev->mac.cpwm_seq_num = (rtwdev->mac.cpwm_seq_num + 1) &
 				    CPWM_SEQ_NUM_MAX;
 
-	cpwm_seq = rtw89_read16_mask(rtwdev, R_AX_CPWM, PS_CPWM_SEQ_NUM);
+	cpwm_seq = rtw89_read16_mask(rtwdev, rtwdev->hci.cpwm_addr, PS_CPWM_SEQ_NUM);
 	if (cpwm_seq != rtwdev->mac.cpwm_seq_num)
 		return -EPERM;
 
-	cpwm_status = rtw89_read16_mask(rtwdev, R_AX_CPWM, PS_CPWM_STATE);
+	cpwm_status = rtw89_read16_mask(rtwdev, rtwdev->hci.cpwm_addr, PS_CPWM_STATE);
 	if (cpwm_status != req_pwr_state)
 		return -EPERM;
 

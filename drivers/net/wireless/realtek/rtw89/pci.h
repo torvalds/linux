@@ -481,6 +481,9 @@
 #define R_AX_PCIE_RX_PREF_ADV		0x13F4
 #define B_AX_RXDMA_PREF_ADV_EN		BIT(0)
 
+#define R_AX_PCIE_HRPWM_V1		0x30C0
+#define R_AX_PCIE_CRPWM			0x30C4
+
 #define RTW89_PCI_TXBD_NUM_MAX		256
 #define RTW89_PCI_RXBD_NUM_MAX		256
 #define RTW89_PCI_TXWD_NUM_MAX		512
@@ -698,6 +701,8 @@ struct rtw89_pci_info {
 	u32 dma_busy2_reg;
 	u32 dma_busy3_reg;
 
+	u32 rpwm_addr;
+	u32 cpwm_addr;
 	const struct rtw89_pci_ch_dma_addr_set *dma_addr_set;
 
 	int (*ltr_set)(struct rtw89_dev *rtwdev, bool en);

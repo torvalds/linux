@@ -39,6 +39,8 @@ static const struct rtw89_pci_info rtw8852c_pci_info = {
 	.dma_busy2_reg		= R_AX_HAXI_DMA_BUSY2,
 	.dma_busy3_reg		= R_AX_HAXI_DMA_BUSY3,
 
+	.rpwm_addr		= R_AX_PCIE_HRPWM_V1,
+	.cpwm_addr		= R_AX_PCIE_CRPWM,
 	.dma_addr_set		= &rtw89_pci_ch_dma_addr_set_v1,
 
 	.ltr_set		= rtw89_pci_ltr_set_v1,

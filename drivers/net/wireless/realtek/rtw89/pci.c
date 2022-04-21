@@ -3486,6 +3486,7 @@ int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct ieee80211_hw *hw;
 	struct rtw89_dev *rtwdev;
 	const struct rtw89_driver_info *info;
+	const struct rtw89_pci_info *pci_info;
 	int driver_data_size;
 	int ret;
 
@@ -3496,19 +3497,20 @@ int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENOMEM;
 	}
 
+	info = (const struct rtw89_driver_info *)id->driver_data;
+	pci_info = info->bus.pci;
+
 	rtwdev = hw->priv;
 	rtwdev->hw = hw;
 	rtwdev->dev = &pdev->dev;
-	rtwdev->hci.ops = &rtw89_pci_ops;
-	rtwdev->hci.type = RTW89_HCI_TYPE_PCIE;
-	rtwdev->hci.rpwm_addr = R_AX_PCIE_HRPWM;
-	rtwdev->hci.cpwm_addr = R_AX_CPWM;
-
-	SET_IEEE80211_DEV(rtwdev->hw, &pdev->dev);
-
-	info = (const struct rtw89_driver_info *)id->driver_data;
 	rtwdev->chip = info->chip;
 	rtwdev->pci_info = info->bus.pci;
+	rtwdev->hci.ops = &rtw89_pci_ops;
+	rtwdev->hci.type = RTW89_HCI_TYPE_PCIE;
+	rtwdev->hci.rpwm_addr = pci_info->rpwm_addr;
+	rtwdev->hci.cpwm_addr = pci_info->cpwm_addr;
+
+	SET_IEEE80211_DEV(rtwdev->hw, &pdev->dev);
 
 	ret = rtw89_core_init(rtwdev);
 	if (ret) {
