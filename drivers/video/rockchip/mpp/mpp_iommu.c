@@ -196,7 +196,7 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 	if (IS_ERR(dmabuf)) {
 		ret = PTR_ERR(dmabuf);
 		mpp_err("dma_buf_get fd %d failed(%d)\n", fd, ret);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 	/* A new DMA buffer */
 	mutex_lock(&dma->list_mutex);

@@ -1675,9 +1675,9 @@ mpp_task_attach_fd(struct mpp_task *task, int fd)
 		mpp_iommu_down_read(mpp->iommu_info);
 		buffer = mpp_dma_import_fd(mpp->iommu_info, dma, fd);
 		mpp_iommu_up_read(mpp->iommu_info);
-		if (IS_ERR_OR_NULL(buffer)) {
+		if (IS_ERR(buffer)) {
 			mpp_err("can't import dma-buf %d\n", fd);
-			return ERR_PTR(-ENOMEM);
+			return ERR_CAST(buffer);
 		}
 
 		mem_region->hdl = buffer;
