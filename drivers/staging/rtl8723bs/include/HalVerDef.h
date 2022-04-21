@@ -9,16 +9,7 @@
 
 /*  hal_ic_type_e */
 enum hal_ic_type_e { /* tag_HAL_IC_Type_Definition */
-	CHIP_8192S	=	0,
-	CHIP_8188C	=	1,
-	CHIP_8192C	=	2,
-	CHIP_8192D	=	3,
-	CHIP_8723A	=	4,
-	CHIP_8188E	=	5,
-	CHIP_8812	=	6,
-	CHIP_8821	=	7,
 	CHIP_8723B	=	8,
-	CHIP_8192E	=	9,
 };
 
 /* hal_chip_type_e */
@@ -58,7 +49,6 @@ struct hal_version { /* tag_HAL_VERSION */
 	u8 			ROMVer;
 };
 
-/* VERSION_8192C			VersionID; */
 /* hal_version			VersionID; */
 
 /*  Get element */
