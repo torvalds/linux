@@ -148,6 +148,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 	bool privileged = perf_event_paranoid_check(-1);
 	struct evsel *tracking_evsel;
 	int err;
+	u64 bit;
 
 	sper->evlist = evlist;
 
@@ -244,6 +245,15 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 	 * on the opening of the event or the SPE data produced.
 	 */
 	evsel__set_sample_bit(arm_spe_evsel, DATA_SRC);
+
+	/*
+	 * The PHYS_ADDR flag does not affect the driver behaviour, it is used to
+	 * inform that the resulting output's SPE samples contain physical addresses
+	 * where applicable.
+	 */
+	bit = perf_pmu__format_bits(&arm_spe_pmu->format, "pa_enable");
+	if (arm_spe_evsel->core.attr.config & bit)
+		evsel__set_sample_bit(arm_spe_evsel, PHYS_ADDR);
 
 	/* Add dummy event to keep tracking */
 	err = parse_events(evlist, "dummy:u", NULL);
