@@ -994,10 +994,10 @@ struct btrfs_fs_info {
 
 	struct btrfs_delayed_root *delayed_root;
 
-	/* Extent buffer radix tree */
+	/* Extent buffer xarray */
 	spinlock_t buffer_lock;
 	/* Entries are eb->start / sectorsize */
-	struct radix_tree_root buffer_radix;
+	struct xarray extent_buffers;
 
 	/* next backup root to be overwritten */
 	int backup_root_index;

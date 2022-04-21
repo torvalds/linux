@@ -486,7 +486,7 @@ static int csum_dirty_subpage_buffers(struct btrfs_fs_info *fs_info,
 		uptodate = btrfs_subpage_test_uptodate(fs_info, page, cur,
 						       fs_info->nodesize);
 
-		/* A dirty eb shouldn't disappear from buffer_radix */
+		/* A dirty eb shouldn't disappear from extent_buffers */
 		if (WARN_ON(!eb))
 			return -EUCLEAN;
 
@@ -3151,7 +3151,7 @@ static int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 {
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_ATOMIC);
-	INIT_RADIX_TREE(&fs_info->buffer_radix, GFP_ATOMIC);
+	xa_init_flags(&fs_info->extent_buffers, GFP_ATOMIC);
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	INIT_LIST_HEAD(&fs_info->dead_roots);
 	INIT_LIST_HEAD(&fs_info->delayed_iputs);
