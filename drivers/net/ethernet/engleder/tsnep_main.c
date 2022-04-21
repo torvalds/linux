@@ -1091,8 +1091,7 @@ static int tsnep_mdio_init(struct tsnep_adapter *adapter)
 	retval = of_mdiobus_register(adapter->mdiobus, np);
 
 out:
-	if (np)
-		of_node_put(np);
+	of_node_put(np);
 
 	return retval;
 }
