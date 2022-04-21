@@ -61,10 +61,6 @@ xlog_sync(
 	struct xlog_in_core	*iclog);
 #if defined(DEBUG)
 STATIC void
-xlog_verify_dest_ptr(
-	struct xlog		*log,
-	void			*ptr);
-STATIC void
 xlog_verify_grant_tail(
 	struct xlog *log);
 STATIC void
@@ -77,7 +73,6 @@ xlog_verify_tail_lsn(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog);
 #else
-#define xlog_verify_dest_ptr(a,b)
 #define xlog_verify_grant_tail(a)
 #define xlog_verify_iclog(a,b,c)
 #define xlog_verify_tail_lsn(a,b)
@@ -1626,9 +1621,6 @@ xlog_alloc_log(
 				GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 		if (!iclog->ic_data)
 			goto out_free_iclog;
-#ifdef DEBUG
-		log->l_iclog_bak[i] = &iclog->ic_header;
-#endif
 		head = &iclog->ic_header;
 		memset(head, 0, sizeof(xlog_rec_header_t));
 		head->h_magicno = cpu_to_be32(XLOG_HEADER_MAGIC_NUM);
@@ -2220,6 +2212,7 @@ xlog_write_iovec(
 	uint32_t		*record_cnt,
 	uint32_t		*data_cnt)
 {
+	ASSERT(*log_offset < iclog->ic_log->l_iclog_size);
 	ASSERT(*log_offset % sizeof(int32_t) == 0);
 	ASSERT(write_len % sizeof(int32_t) == 0);
 
@@ -2313,7 +2306,6 @@ xlog_write_partial(
 	int			*contwr)
 {
 	struct xlog_in_core	*iclog = *iclogp;
-	struct xlog		*log = iclog->ic_log;
 	struct xlog_op_header	*ophdr;
 	int			index = 0;
 	uint32_t		rlen;
@@ -2352,7 +2344,6 @@ xlog_write_partial(
 		if (rlen != reg->i_len)
 			ophdr->oh_flags |= XLOG_CONTINUE_TRANS;
 
-		xlog_verify_dest_ptr(log, iclog->ic_datap + *log_offset);
 		xlog_write_iovec(iclog, log_offset, reg->i_addr,
 				rlen, len, record_cnt, data_cnt);
 
@@ -2420,7 +2411,6 @@ xlog_write_partial(
 			rlen = min_t(uint32_t, rlen, iclog->ic_size - *log_offset);
 			ophdr->oh_len = cpu_to_be32(rlen);
 
-			xlog_verify_dest_ptr(log, iclog->ic_datap + *log_offset);
 			xlog_write_iovec(iclog, log_offset,
 					reg->i_addr + reg_offset,
 					rlen, len, record_cnt, data_cnt);
@@ -3544,29 +3534,6 @@ xlog_ticket_alloc(
 }
 
 #if defined(DEBUG)
-/*
- * Make sure that the destination ptr is within the valid data region of
- * one of the iclogs.  This uses backup pointers stored in a different
- * part of the log in case we trash the log structure.
- */
-STATIC void
-xlog_verify_dest_ptr(
-	struct xlog	*log,
-	void		*ptr)
-{
-	int i;
-	int good_ptr = 0;
-
-	for (i = 0; i < log->l_iclog_bufs; i++) {
-		if (ptr >= log->l_iclog_bak[i] &&
-		    ptr <= log->l_iclog_bak[i] + log->l_iclog_size)
-			good_ptr++;
-	}
-
-	if (!good_ptr)
-		xfs_emerg(log->l_mp, "%s: invalid ptr", __func__);
-}
-
 /*
  * Check to make sure the grant write head didn't just over lap the tail.  If
  * the cycles are the same, we can't be overlapping.  Otherwise, make sure that
