@@ -78,6 +78,7 @@ struct max_input {
 	u32 w;
 	u32 h;
 	u32 fps;
+	bool is_fix;
 };
 
 struct rkisp_ispp_mode {

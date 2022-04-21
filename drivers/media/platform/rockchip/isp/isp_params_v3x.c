@@ -4212,40 +4212,165 @@ err_3dlut:
 static bool
 rkisp_params_check_bigmode_v3x(struct rkisp_isp_params_vdev *params_vdev)
 {
-	struct device *dev = params_vdev->dev->dev;
-	struct rkisp_hw_dev *hw = params_vdev->dev->hw_dev;
-	struct v4l2_rect *out_crop = &params_vdev->dev->isp_sdev.out_crop;
-	u32 width = hw->max_in.w ? hw->max_in.w : out_crop->width;
-	u32 height = hw->max_in.h ? hw->max_in.h : out_crop->height;
-	u32 size = width * height;
+	struct rkisp_device *ispdev = params_vdev->dev;
+	struct device *dev = ispdev->dev;
+	struct rkisp_hw_dev *hw = ispdev->hw_dev;
+	struct v4l2_rect *crop = &params_vdev->dev->isp_sdev.in_crop;
+	u32 width = hw->max_in.w, height = hw->max_in.h, size = width * height;
 	u32 bigmode_max_w, bigmode_max_size;
+	int k = 0, idx1[DEV_MAX] = { 0 };
+	int n = 0, idx2[DEV_MAX] = { 0 };
+	int i = 0, j = 0;
 	bool is_bigmode = false;
 
-	if (hw->dev_link_num > 2) {
+	switch (hw->dev_link_num) {
+	case 4:
 		bigmode_max_w = ISP3X_VIR4_AUTO_BIGMODE_WIDTH;
 		bigmode_max_size = ISP3X_VIR4_NOBIG_OVERFLOW_SIZE;
-		if (width > ISP3X_VIR4_MAX_WIDTH || size > ISP3X_VIR4_MAX_SIZE)
-			dev_err(dev, "%dx%d > max:2560x1536 for %d virtual isp\n",
-				width, height, hw->dev_link_num);
-	} else if (hw->dev_link_num > 1) {
+		ispdev->multi_index = ispdev->dev_id;
+		ispdev->multi_mode = 2;
+		/* internal buf of hw divided to four parts
+		 *             bigmode             nobigmode
+		 *  _________  max width:2560      max width:1280
+		 * |_sensor0_| max size:2560*1536  max size:1280*800
+		 * |_sensor1_| max size:2560*1536  max size:1280*800
+		 * |_sensor2_| max size:2560*1536  max size:1280*800
+		 * |_sensor3_| max size:2560*1536  max size:1280*800
+		 */
+		for (i = 0; i < hw->dev_num; i++) {
+			if (hw->isp_size[i].w <= ISP3X_VIR4_MAX_WIDTH &&
+			    hw->isp_size[i].size <= ISP3X_VIR4_MAX_SIZE)
+				continue;
+			dev_err(dev, "four virtual isp max:%dx1536\n",
+				hw->is_unite ? (2560 - RKMOUDLE_UNITE_EXTEND_PIXEL) * 2 : 2560);
+			is_bigmode = true;
+			break;
+		}
+		break;
+	case 3:
+		bigmode_max_w = ISP3X_VIR4_AUTO_BIGMODE_WIDTH;
+		bigmode_max_size = ISP3X_VIR4_NOBIG_OVERFLOW_SIZE;
+		ispdev->multi_index = ispdev->dev_id;
+		ispdev->multi_mode = 2;
+		/* case0:      bigmode             nobigmode
+		 *  _________  max width:2560      max width:1280
+		 * |_sensor0_| max size:2560*1536  max size:1280*800
+		 * |_sensor1_| max size:2560*1536  max size:1280*800
+		 * |_sensor2_| max size:2560*1536  max size:1280*800
+		 * |_________|
+		 *
+		 * case1:      bigmode               special reg cfg
+		 *  _________  max width:4672
+		 * | sensor0 | max size:2560*1536*2  mode=0 index=0
+		 * |_________|
+		 * |_sensor1_| max size:2560*1536    mode=2 index=2
+		 * |_sensor2_| max size:2560*1536    mode=2 index=3
+		 *             max width:2560
+		 */
+		for (i = 0; i < hw->dev_num; i++) {
+			if (!hw->isp_size[i].size) {
+				if (i < hw->dev_link_num)
+					idx2[n++] = i;
+				continue;
+			}
+			if (hw->isp_size[i].w <= ISP3X_VIR4_MAX_WIDTH &&
+			    hw->isp_size[i].size <= ISP3X_VIR4_MAX_SIZE)
+				continue;
+			idx1[k++] = i;
+		}
+		if (k) {
+			is_bigmode = true;
+			if (k != 1 ||
+			    (hw->isp_size[idx1[0]].size > ISP3X_VIR4_MAX_SIZE * 2)) {
+				dev_err(dev, "three virtual isp max:%dx1536\n",
+					hw->is_unite ? (2560 - RKMOUDLE_UNITE_EXTEND_PIXEL) * 2 : 2560);
+			} else {
+				if (idx1[0] == ispdev->dev_id) {
+					ispdev->multi_mode = 0;
+					ispdev->multi_index = 0;
+				} else {
+					ispdev->multi_mode = 2;
+					if (ispdev->multi_index == 0 ||
+					    ispdev->multi_index == 1)
+						ispdev->multi_index = 3;
+				}
+			}
+		} else if (ispdev->multi_index >= hw->dev_link_num) {
+			ispdev->multi_index = idx2[ispdev->multi_index - hw->dev_link_num];
+		}
+		break;
+	case 2:
 		bigmode_max_w = ISP3X_VIR2_AUTO_BIGMODE_WIDTH;
 		bigmode_max_size = ISP3X_VIR2_NOBIG_OVERFLOW_SIZE;
-		if (width > ISP3X_VIR2_MAX_WIDTH || size > ISP3X_VIR2_MAX_SIZE)
-			dev_err(dev, "%dx%d > max:3840x2160 for %d virtual isp\n",
-				width, height, hw->dev_link_num);
-	} else {
+		ispdev->multi_index = ispdev->dev_id;
+		ispdev->multi_mode = 1;
+		/* case0:      bigmode            nobigmode
+		 *  _________  max width:3840     max width:1920
+		 * | sensor0 | max size:3840*2160 max size:1920*1080
+		 * |_________|
+		 * | sensor1 | max size:3840*2160 max size:1920*1080
+		 * |_________|
+		 *
+		 * case1:      bigmode              special reg cfg
+		 *  _________  max width:4672
+		 * | sensor0 | max size:2560*2160*3 mode=0 index=0
+		 * |         |
+		 * |_________|
+		 * |_sensor1_| max size:2560*1536   mode=2 index=3
+		 *             max width:2560
+		 */
+		for (i = 0; i < hw->dev_num; i++) {
+			if (!hw->isp_size[i].size) {
+				if (i < hw->dev_link_num)
+					idx2[n++] = i;
+				continue;
+			}
+			if (hw->isp_size[i].w <= ISP3X_VIR2_MAX_WIDTH &&
+			    hw->isp_size[i].size <= ISP3X_VIR2_MAX_SIZE) {
+				if (hw->isp_size[i].w > ISP3X_VIR4_MAX_WIDTH ||
+				    hw->isp_size[i].size > ISP3X_VIR4_MAX_SIZE)
+					j++;
+				continue;
+			}
+			idx1[k++] = i;
+		}
+		if (k) {
+			is_bigmode = true;
+			if (k == 2 || j ||
+			    hw->isp_size[idx1[k - 1]].size > ISP3X_VIR4_MAX_SIZE * 3) {
+				dev_err(dev, "two virtual isp max:%dx2160\n",
+					hw->is_unite ? (3840 - RKMOUDLE_UNITE_EXTEND_PIXEL) * 2 : 3840);
+			} else {
+				if (idx1[0] == ispdev->dev_id) {
+					ispdev->multi_mode = 0;
+					ispdev->multi_index = 0;
+				} else {
+					ispdev->multi_mode = 2;
+					ispdev->multi_index = 3;
+				}
+			}
+		} else if (ispdev->multi_index >= hw->dev_link_num) {
+			ispdev->multi_index = idx2[ispdev->multi_index - hw->dev_link_num];
+		}
+		break;
+	default:
 		bigmode_max_w = ISP3X_AUTO_BIGMODE_WIDTH;
 		bigmode_max_size = ISP3X_NOBIG_OVERFLOW_SIZE;
+		ispdev->multi_mode = 0;
+		ispdev->multi_index = 0;
+		width = crop->width;
+		if (hw->is_unite)
+			width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		height = crop->height;
+		size = width * height;
+		break;
 	}
 
-	if (hw->is_unite) {
-		width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
-		size = width * out_crop->height;
-	}
-
-	if (width > bigmode_max_w || size > bigmode_max_size)
+	if (!is_bigmode &&
+	    (width > bigmode_max_w || size > bigmode_max_size))
 		is_bigmode = true;
-	return is_bigmode;
+
+	return ispdev->is_bigmode = is_bigmode;
 }
 
 /* Not called when the camera active, thus not isr protection. */

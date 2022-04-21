@@ -803,14 +803,20 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	if (!hw_dev)
 		return -ENOMEM;
 
+	match_data = match->data;
+	hw_dev->is_unite = match_data->unite;
 	dev_set_drvdata(dev, hw_dev);
 	hw_dev->dev = dev;
 	hw_dev->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
 	dev_info(dev, "is_thunderboot: %d\n", hw_dev->is_thunderboot);
-	hw_dev->max_in.w = 0;
-	hw_dev->max_in.h = 0;
-	hw_dev->max_in.fps = 0;
-	of_property_read_u32_array(node, "max-input", &hw_dev->max_in.w, 3);
+	memset(&hw_dev->max_in, 0, sizeof(hw_dev->max_in));
+	if (!of_property_read_u32_array(node, "max-input", &hw_dev->max_in.w, 3)) {
+		hw_dev->max_in.is_fix = true;
+		if (hw_dev->is_unite) {
+			hw_dev->max_in.w /= 2;
+			hw_dev->max_in.w += RKMOUDLE_UNITE_EXTEND_PIXEL;
+		}
+	}
 	dev_info(dev, "max input:%dx%d@%dfps\n",
 		 hw_dev->max_in.w, hw_dev->max_in.h, hw_dev->max_in.fps);
 	hw_dev->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
@@ -836,7 +842,6 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	match_data = match->data;
 	hw_dev->base_next_addr = NULL;
 	if (match_data->unite) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -971,6 +976,7 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 {
 	struct rkisp_hw_dev *hw_dev = dev_get_drvdata(dev);
 	void __iomem *base = hw_dev->base_addr;
+	struct rkisp_device *isp;
 	int mult = hw_dev->is_unite ? 2 : 1;
 	int ret, i;
 
@@ -979,15 +985,33 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 		return ret;
 
 	enable_sys_clk(hw_dev);
-
+	memset(hw_dev->isp_size, 0, sizeof(hw_dev->isp_size));
+	if (!hw_dev->max_in.is_fix) {
+		hw_dev->max_in.w = 0;
+		hw_dev->max_in.h = 0;
+	}
 	for (i = 0; i < hw_dev->dev_num; i++) {
-		struct rkisp_device *isp = hw_dev->isp[i];
 		void *buf;
+		u32 w, h;
 
+		isp = hw_dev->isp[i];
 		if (!isp || (isp && !isp->is_hw_link))
 			continue;
 		if (hw_dev->dev_link_num++)
 			hw_dev->is_single = false;
+		w = isp->isp_sdev.in_crop.width;
+		h = isp->isp_sdev.in_crop.height;
+		if (hw_dev->is_unite)
+			w = w / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		hw_dev->isp_size[i].w = w;
+		hw_dev->isp_size[i].h = h;
+		hw_dev->isp_size[i].size = w * h;
+		if (!hw_dev->max_in.is_fix) {
+			if (hw_dev->max_in.w < w)
+				hw_dev->max_in.w = w;
+			if (hw_dev->max_in.h < h)
+				hw_dev->max_in.h = h;
+		}
 		buf = isp->sw_base_addr;
 		memset(buf, 0, RKISP_ISP_SW_MAX_SIZE * mult);
 		memcpy_fromio(buf, base, RKISP_ISP_SW_REG_SIZE);
@@ -997,6 +1021,12 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 			memcpy_fromio(buf, base, RKISP_ISP_SW_REG_SIZE);
 		}
 		default_sw_reg_flag(hw_dev->isp[i]);
+	}
+	for (i = 0; i < hw_dev->dev_num; i++) {
+		isp = hw_dev->isp[i];
+		if (!isp || (isp && !isp->is_hw_link))
+			continue;
+		rkisp_params_check_bigmode(&isp->params_vdev);
 	}
 	hw_dev->monitor.is_en = rkisp_monitor;
 	return 0;

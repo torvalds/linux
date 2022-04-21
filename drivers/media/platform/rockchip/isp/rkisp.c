@@ -617,31 +617,15 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 		/* sensor mode & index */
 		if (dev->isp_ver == ISP_V21 || dev->isp_ver == ISP_V30 ||
 		    dev->isp_ver == ISP_V32) {
-			u32 mode = hw->dev_link_num >= 3 ? 2 : hw->dev_link_num - 1;
-			u32 index = dev->dev_id;
-
-			if (index >= hw->dev_link_num) {
-				int i, num = 0, off[4] = { 0 };
-				struct rkisp_device *isp;
-
-				for (i = 0; i < hw->dev_link_num; i++) {
-					isp = hw->isp[i];
-					if (isp && isp->is_hw_link)
-						continue;
-					off[num++] = i;
-				}
-				if (num == 1)
-					index = off[0];
-				else
-					index = off[index - hw->dev_link_num];
-			}
 			val = rkisp_read_reg_cache(dev, ISP_ACQ_H_OFFS);
-			val |= ISP21_SENSOR_MODE(mode) | ISP21_SENSOR_INDEX(index);
+			val |= ISP21_SENSOR_MODE(dev->multi_mode) |
+			       ISP21_SENSOR_INDEX(dev->multi_index);
 			writel(val, hw->base_addr + ISP_ACQ_H_OFFS);
 			if (hw->is_unite)
 				writel(val, hw->base_next_addr + ISP_ACQ_H_OFFS);
 			v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
-				 "sensor mode:%d index:%d | 0x%x\n", mode, index, val);
+				 "sensor mode:%d index:%d | 0x%x\n",
+				 dev->multi_mode, dev->multi_index, val);
 		}
 		is_upd = true;
 	}
@@ -3120,7 +3104,7 @@ static int rkisp_get_info(struct rkisp_device *dev, struct rkisp_isp_info *info)
 		mode = RKISP_ISP_COMPR;
 	info->compr_bit = bit;
 
-	if (rkisp_params_check_bigmode(&dev->params_vdev))
+	if (dev->is_bigmode)
 		mode |= RKISP_ISP_BIGMODE;
 	info->mode = mode;
 	if (dev->hw_dev->is_unite)

@@ -947,8 +947,7 @@ static void restrict_rsz_resolution(struct rkisp_stream *stream,
 		max_rsz->width = t->out_fmt.width / 4;
 		max_rsz->height = t->out_fmt.height / 4;
 	} else if (stream->id == RKISP_STREAM_LUMA) {
-		bool bigmode = rkisp_params_check_bigmode(&dev->params_vdev);
-		u32 div = bigmode ? 32 : 16;
+		u32 div = dev->is_bigmode ? 32 : 16;
 
 		max_rsz->width = input_win->width / div;
 		max_rsz->height = input_win->height / div;

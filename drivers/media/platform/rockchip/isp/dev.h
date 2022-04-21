@@ -246,5 +246,8 @@ struct rkisp_device {
 	bool is_bigmode;
 
 	struct rkisp_vicap_input vicap_in;
+
+	u8 multi_mode;
+	u8 multi_index;
 };
 #endif
