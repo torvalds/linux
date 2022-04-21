@@ -42,6 +42,10 @@ static const struct rtw89_pci_info rtw8852a_pci_info = {
 
 	.ltr_set		= rtw89_pci_ltr_set,
 	.fill_txaddr_info	= rtw89_pci_fill_txaddr_info,
+	.config_intr_mask	= rtw89_pci_config_intr_mask,
+	.enable_intr		= rtw89_pci_enable_intr,
+	.disable_intr		= rtw89_pci_disable_intr,
+	.recognize_intrs	= rtw89_pci_recognize_intrs,
 };
 
 static const struct rtw89_driver_info rtw89_8852ae_info = {

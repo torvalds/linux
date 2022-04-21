@@ -612,9 +612,9 @@ static void rtw89_pci_isr_rxd_unavail(struct rtw89_dev *rtwdev,
 	}
 }
 
-static void rtw89_pci_recognize_intrs(struct rtw89_dev *rtwdev,
-				      struct rtw89_pci *rtwpci,
-				      struct rtw89_pci_isrs *isrs)
+void rtw89_pci_recognize_intrs(struct rtw89_dev *rtwdev,
+			       struct rtw89_pci *rtwpci,
+			       struct rtw89_pci_isrs *isrs)
 {
 	isrs->halt_c2h_isrs = rtw89_read32(rtwdev, R_AX_HISR0) & rtwpci->halt_c2h_intrs;
 	isrs->isrs[0] = rtw89_read32(rtwdev, R_AX_PCIE_HISR00) & rtwpci->intrs[0];
@@ -624,6 +624,28 @@ static void rtw89_pci_recognize_intrs(struct rtw89_dev *rtwdev,
 	rtw89_write32(rtwdev, R_AX_PCIE_HISR00, isrs->isrs[0]);
 	rtw89_write32(rtwdev, R_AX_PCIE_HISR10, isrs->isrs[1]);
 }
+EXPORT_SYMBOL(rtw89_pci_recognize_intrs);
+
+void rtw89_pci_recognize_intrs_v1(struct rtw89_dev *rtwdev,
+				  struct rtw89_pci *rtwpci,
+				  struct rtw89_pci_isrs *isrs)
+{
+	isrs->ind_isrs = rtw89_read32(rtwdev, R_AX_PCIE_HISR00_V1) & rtwpci->ind_intrs;
+	isrs->halt_c2h_isrs = isrs->ind_isrs & B_AX_HS0ISR_IND_INT_EN ?
+			      rtw89_read32(rtwdev, R_AX_HISR0) & rtwpci->halt_c2h_intrs : 0;
+	isrs->isrs[0] = isrs->ind_isrs & B_AX_HCI_AXIDMA_INT_EN ?
+			rtw89_read32(rtwdev, R_AX_HAXI_HISR00) & rtwpci->intrs[0] : 0;
+	isrs->isrs[1] = isrs->ind_isrs & B_AX_HS1ISR_IND_INT_EN ?
+			rtw89_read32(rtwdev, R_AX_HISR1) & rtwpci->intrs[1] : 0;
+
+	if (isrs->halt_c2h_isrs)
+		rtw89_write32(rtwdev, R_AX_HISR0, isrs->halt_c2h_isrs);
+	if (isrs->isrs[0])
+		rtw89_write32(rtwdev, R_AX_HAXI_HISR00, isrs->isrs[0]);
+	if (isrs->isrs[1])
+		rtw89_write32(rtwdev, R_AX_HISR1, isrs->isrs[1]);
+}
+EXPORT_SYMBOL(rtw89_pci_recognize_intrs_v1);
 
 static void rtw89_pci_clear_isr0(struct rtw89_dev *rtwdev, u32 isr00)
 {
@@ -631,21 +653,39 @@ static void rtw89_pci_clear_isr0(struct rtw89_dev *rtwdev, u32 isr00)
 	rtw89_write32(rtwdev, R_AX_PCIE_HISR00, isr00);
 }
 
-static void rtw89_pci_enable_intr(struct rtw89_dev *rtwdev,
-				  struct rtw89_pci *rtwpci)
+void rtw89_pci_enable_intr(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci)
 {
 	rtw89_write32(rtwdev, R_AX_HIMR0, rtwpci->halt_c2h_intrs);
 	rtw89_write32(rtwdev, R_AX_PCIE_HIMR00, rtwpci->intrs[0]);
 	rtw89_write32(rtwdev, R_AX_PCIE_HIMR10, rtwpci->intrs[1]);
 }
+EXPORT_SYMBOL(rtw89_pci_enable_intr);
 
-static void rtw89_pci_disable_intr(struct rtw89_dev *rtwdev,
-				   struct rtw89_pci *rtwpci)
+void rtw89_pci_disable_intr(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci)
 {
 	rtw89_write32(rtwdev, R_AX_HIMR0, 0);
 	rtw89_write32(rtwdev, R_AX_PCIE_HIMR00, 0);
 	rtw89_write32(rtwdev, R_AX_PCIE_HIMR10, 0);
 }
+EXPORT_SYMBOL(rtw89_pci_disable_intr);
+
+void rtw89_pci_enable_intr_v1(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci)
+{
+	rtw89_write32(rtwdev, R_AX_PCIE_HIMR00_V1, rtwpci->ind_intrs);
+	rtw89_write32(rtwdev, R_AX_HIMR0, rtwpci->halt_c2h_intrs);
+	rtw89_write32(rtwdev, R_AX_HAXI_HIMR00, rtwpci->intrs[0]);
+	rtw89_write32(rtwdev, R_AX_HIMR1, rtwpci->intrs[1]);
+}
+EXPORT_SYMBOL(rtw89_pci_enable_intr_v1);
+
+void rtw89_pci_disable_intr_v1(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci)
+{
+	rtw89_write32(rtwdev, R_AX_PCIE_HIMR00_V1, 0);
+	rtw89_write32(rtwdev, R_AX_HIMR0, 0);
+	rtw89_write32(rtwdev, R_AX_HAXI_HIMR00, 0);
+	rtw89_write32(rtwdev, R_AX_HIMR1, 0);
+}
+EXPORT_SYMBOL(rtw89_pci_disable_intr_v1);
 
 static void rtw89_pci_ops_recovery_start(struct rtw89_dev *rtwdev)
 {
@@ -653,9 +693,9 @@ static void rtw89_pci_ops_recovery_start(struct rtw89_dev *rtwdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&rtwpci->irq_lock, flags);
-	rtwpci->under_recovery = true;
-	rtw89_write32(rtwdev, R_AX_PCIE_HIMR00, 0);
-	rtw89_write32(rtwdev, R_AX_PCIE_HIMR10, 0);
+	rtw89_chip_disable_intr(rtwdev, rtwpci);
+	rtw89_chip_config_intr_mask(rtwdev, RTW89_PCI_INTR_MASK_RECOVERY_START);
+	rtw89_chip_enable_intr(rtwdev, rtwpci);
 	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
 }
 
@@ -665,8 +705,9 @@ static void rtw89_pci_ops_recovery_complete(struct rtw89_dev *rtwdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&rtwpci->irq_lock, flags);
-	rtwpci->under_recovery = false;
-	rtw89_pci_enable_intr(rtwdev, rtwpci);
+	rtw89_chip_disable_intr(rtwdev, rtwpci);
+	rtw89_chip_config_intr_mask(rtwdev, RTW89_PCI_INTR_MASK_RECOVERY_COMPLETE);
+	rtw89_chip_enable_intr(rtwdev, rtwpci);
 	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
 }
 
@@ -678,7 +719,7 @@ static irqreturn_t rtw89_pci_interrupt_threadfn(int irq, void *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&rtwpci->irq_lock, flags);
-	rtw89_pci_recognize_intrs(rtwdev, rtwpci, &isrs);
+	rtw89_chip_recognize_intrs(rtwdev, rtwpci, &isrs);
 	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
 
 	if (unlikely(isrs.isrs[0] & B_AX_RDU_INT))
@@ -716,7 +757,7 @@ static irqreturn_t rtw89_pci_interrupt_handler(int irq, void *dev)
 		goto exit;
 	}
 
-	rtw89_pci_disable_intr(rtwdev, rtwpci);
+	rtw89_chip_disable_intr(rtwdev, rtwpci);
 exit:
 	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
 
@@ -1313,17 +1354,32 @@ static void rtw89_pci_ops_reset(struct rtw89_dev *rtwdev)
 	spin_unlock_bh(&rtwpci->trx_lock);
 }
 
-static int rtw89_pci_ops_start(struct rtw89_dev *rtwdev)
+static void rtw89_pci_enable_intr_lock(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 	unsigned long flags;
 
-	rtw89_core_napi_start(rtwdev);
-
 	spin_lock_irqsave(&rtwpci->irq_lock, flags);
 	rtwpci->running = true;
-	rtw89_pci_enable_intr(rtwdev, rtwpci);
+	rtw89_chip_enable_intr(rtwdev, rtwpci);
 	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
+}
+
+static void rtw89_pci_disable_intr_lock(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rtwpci->irq_lock, flags);
+	rtwpci->running = false;
+	rtw89_chip_disable_intr(rtwdev, rtwpci);
+	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
+}
+
+static int rtw89_pci_ops_start(struct rtw89_dev *rtwdev)
+{
+	rtw89_core_napi_start(rtwdev);
+	rtw89_pci_enable_intr_lock(rtwdev);
 
 	return 0;
 }
@@ -1332,13 +1388,8 @@ static void rtw89_pci_ops_stop(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 	struct pci_dev *pdev = rtwpci->pdev;
-	unsigned long flags;
 
-	spin_lock_irqsave(&rtwpci->irq_lock, flags);
-	rtwpci->running = false;
-	rtw89_pci_disable_intr(rtwdev, rtwpci);
-	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
-
+	rtw89_pci_disable_intr_lock(rtwdev);
 	synchronize_irq(pdev->irq);
 	rtw89_core_napi_stop(rtwdev);
 }
@@ -2924,22 +2975,81 @@ static void rtw89_pci_clear_resource(struct rtw89_dev *rtwdev,
 				skb_queue_len(&rtwpci->h2c_queue), true);
 }
 
-static void rtw89_pci_default_intr_mask(struct rtw89_dev *rtwdev)
+void rtw89_pci_config_intr_mask(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 
 	rtwpci->halt_c2h_intrs = B_AX_HALT_C2H_INT_EN | 0;
+
+	if (rtwpci->under_recovery) {
+		rtwpci->intrs[0] = 0;
+		rtwpci->intrs[1] = 0;
+	} else {
+		rtwpci->intrs[0] = B_AX_TXDMA_STUCK_INT_EN |
+				   B_AX_RXDMA_INT_EN |
+				   B_AX_RXP1DMA_INT_EN |
+				   B_AX_RPQDMA_INT_EN |
+				   B_AX_RXDMA_STUCK_INT_EN |
+				   B_AX_RDU_INT_EN |
+				   B_AX_RPQBD_FULL_INT_EN |
+				   B_AX_HS0ISR_IND_INT_EN;
+
+		rtwpci->intrs[1] = B_AX_HC10ISR_IND_INT_EN;
+	}
+}
+EXPORT_SYMBOL(rtw89_pci_config_intr_mask);
+
+static void rtw89_pci_recovery_intr_mask_v1(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+
+	rtwpci->ind_intrs = B_AX_HS0ISR_IND_INT_EN;
+	rtwpci->halt_c2h_intrs = B_AX_HALT_C2H_INT_EN;
+	rtwpci->intrs[0] = 0;
+	rtwpci->intrs[1] = 0;
+}
+
+static void rtw89_pci_default_intr_mask_v1(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+
+	rtwpci->ind_intrs = B_AX_HCI_AXIDMA_INT_EN |
+			    B_AX_HS1ISR_IND_INT_EN |
+			    B_AX_HS0ISR_IND_INT_EN;
+	rtwpci->halt_c2h_intrs = B_AX_HALT_C2H_INT_EN;
 	rtwpci->intrs[0] = B_AX_TXDMA_STUCK_INT_EN |
 			   B_AX_RXDMA_INT_EN |
 			   B_AX_RXP1DMA_INT_EN |
 			   B_AX_RPQDMA_INT_EN |
 			   B_AX_RXDMA_STUCK_INT_EN |
 			   B_AX_RDU_INT_EN |
-			   B_AX_RPQBD_FULL_INT_EN |
-			   B_AX_HS0ISR_IND_INT_EN;
-
-	rtwpci->intrs[1] = B_AX_HC10ISR_IND_INT_EN;
+			   B_AX_RPQBD_FULL_INT_EN;
+	rtwpci->intrs[1] = B_AX_GPIO18_INT_EN;
 }
+
+static void rtw89_pci_low_power_intr_mask_v1(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+
+	rtwpci->ind_intrs = B_AX_HS1ISR_IND_INT_EN |
+			    B_AX_HS0ISR_IND_INT_EN;
+	rtwpci->halt_c2h_intrs = B_AX_HALT_C2H_INT_EN;
+	rtwpci->intrs[0] = 0;
+	rtwpci->intrs[1] = B_AX_GPIO18_INT_EN;
+}
+
+void rtw89_pci_config_intr_mask_v1(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+
+	if (rtwpci->under_recovery)
+		rtw89_pci_recovery_intr_mask_v1(rtwdev);
+	else if (rtwpci->low_power)
+		rtw89_pci_low_power_intr_mask_v1(rtwdev);
+	else
+		rtw89_pci_default_intr_mask_v1(rtwdev);
+}
+EXPORT_SYMBOL(rtw89_pci_config_intr_mask_v1);
 
 static int rtw89_pci_request_irq(struct rtw89_dev *rtwdev,
 				 struct pci_dev *pdev)
@@ -2963,7 +3073,7 @@ static int rtw89_pci_request_irq(struct rtw89_dev *rtwdev,
 		goto err_free_vector;
 	}
 
-	rtw89_pci_default_intr_mask(rtwdev);
+	rtw89_chip_config_intr_mask(rtwdev, RTW89_PCI_INTR_MASK_RESET);
 
 	return 0;
 
@@ -3285,7 +3395,7 @@ static int rtw89_pci_napi_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget && napi_complete_done(napi, work_done)) {
 		spin_lock_irqsave(&rtwpci->irq_lock, flags);
 		if (likely(rtwpci->running))
-			rtw89_pci_enable_intr(rtwdev, rtwpci);
+			rtw89_chip_enable_intr(rtwdev, rtwpci);
 		spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
 	}
 
