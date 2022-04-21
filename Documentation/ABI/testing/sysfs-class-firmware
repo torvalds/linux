@@ -1,0 +1,32 @@
+What: 		/sys/class/firmware/.../data
+Date:		July 2022
+KernelVersion:	5.19
+Contact:	Russ Weight <russell.h.weight@intel.com>
+Description:	The data sysfs file is used for firmware-fallback and for
+		firmware uploads. Cat a firmware image to this sysfs file
+		after you echo 1 to the loading sysfs file. When the firmware
+		image write is complete, echo 0 to the loading sysfs file. This
+		sequence will signal the completion of the firmware write and
+		signal the lower-level driver that the firmware data is
+		available.
+
+What: 		/sys/class/firmware/.../loading
+Date:		July 2022
+KernelVersion:	5.19
+Contact:	Russ Weight <russell.h.weight@intel.com>
+Description:	The loading sysfs file is used for both firmware-fallback and
+		for firmware uploads. Echo 1 onto the loading file to indicate
+		you are writing a firmware file to the data sysfs node. Echo
+		-1 onto this file to abort the data write or echo 0 onto this
+		file to indicate that the write is complete. For firmware
+		uploads, the zero value also triggers the transfer of the
+		firmware data to the lower-level device driver.
+
+What: 		/sys/class/firmware/.../timeout
+Date:		July 2022
+KernelVersion:	5.19
+Contact:	Russ Weight <russell.h.weight@intel.com>
+Description:	This file supports the timeout mechanism for firmware
+		fallback.  This file has no affect on firmware uploads. For
+		more information on timeouts please see the documentation
+		for firmware fallback.

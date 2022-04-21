@@ -6,8 +6,8 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-#include "firmware.h"
 #include "sysfs.h"
+#include "sysfs_upload.h"
 
 /*
  * sysfs support for firmware loader
@@ -94,6 +94,10 @@ static void fw_dev_release(struct device *dev)
 {
 	struct fw_sysfs *fw_sysfs = to_fw_sysfs(dev);
 
+	if (fw_sysfs->fw_upload_priv) {
+		free_fw_priv(fw_sysfs->fw_priv);
+		kfree(fw_sysfs->fw_upload_priv);
+	}
 	kfree(fw_sysfs);
 }
 
@@ -199,6 +203,14 @@ static ssize_t firmware_loading_store(struct device *dev,
 				written = rc;
 			} else {
 				fw_state_done(fw_priv);
+
+				/*
+				 * If this is a user-initiated firmware upload
+				 * then start the upload in a worker thread now.
+				 */
+				rc = fw_upload_start(fw_sysfs);
+				if (rc)
+					written = rc;
 			}
 			break;
 		}
@@ -208,6 +220,9 @@ static ssize_t firmware_loading_store(struct device *dev,
 		fallthrough;
 	case -1:
 		fw_load_abort(fw_sysfs);
+		if (fw_sysfs->fw_upload_priv)
+			fw_state_init(fw_sysfs->fw_priv);
+
 		break;
 	}
 out:
@@ -215,7 +230,7 @@ out:
 	return written;
 }
 
-static DEVICE_ATTR(loading, 0644, firmware_loading_show, firmware_loading_store);
+DEVICE_ATTR(loading, 0644, firmware_loading_show, firmware_loading_store);
 
 static void firmware_rw_data(struct fw_priv *fw_priv, char *buffer,
 			     loff_t offset, size_t count, bool read)

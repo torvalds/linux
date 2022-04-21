@@ -202,5 +202,19 @@ config FW_CACHE
 
 	  If unsure, say Y.
 
+config FW_UPLOAD
+	bool "Enable users to initiate firmware updates using sysfs"
+	select FW_LOADER_SYSFS
+	select FW_LOADER_PAGED_BUF
+	help
+	  Enabling this option will allow device drivers to expose a persistent
+	  sysfs interface that allows firmware updates to be initiated from
+	  userspace. For example, FPGA based PCIe cards load firmware and FPGA
+	  images from local FLASH when the card boots. The images in FLASH may
+	  be updated with new images provided by the user. Enable this device
+	  to support cards that rely on user-initiated updates for firmware files.
+
+	  If unsure, say N.
+
 endif # FW_LOADER
 endmenu

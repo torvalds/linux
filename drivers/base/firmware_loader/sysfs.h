@@ -4,9 +4,12 @@
 
 #include <linux/device.h>
 
+#include "firmware.h"
+
 MODULE_IMPORT_NS(FIRMWARE_LOADER_PRIVATE);
 
 extern struct firmware_fallback_config fw_fallback_config;
+extern struct device_attribute dev_attr_loading;
 
 #ifdef CONFIG_FW_LOADER_USER_HELPER
 /**
@@ -73,6 +76,7 @@ struct fw_sysfs {
 	struct device dev;
 	struct fw_priv *fw_priv;
 	struct firmware *fw;
+	void *fw_upload_priv;
 };
 
 static inline struct fw_sysfs *to_fw_sysfs(struct device *dev)
