@@ -818,7 +818,7 @@ config SERIAL_PIC32
 
 config SERIAL_PIC32_CONSOLE
 	bool "PIC32 serial console support"
-	depends on SERIAL_PIC32
+	depends on SERIAL_PIC32=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  If you have a PIC32, this driver supports the putting a console on one
