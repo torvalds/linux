@@ -18,6 +18,8 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/extcon-provider.h>
+#include <linux/gpio/consumer.h>
+#include <linux/of_gpio.h>
 
 #define BQ256XX_MANUFACTURER "Texas Instruments"
 
@@ -145,6 +147,8 @@
 
 #define BQ256XX_REG_RST		BIT(7)
 
+#define BQ256XX_MAX_INPUT_VOLTAGE_UV	5400000
+
 /**
  * struct bq256xx_init_data -
  * @ichg: fast charge current
@@ -261,6 +265,8 @@ struct bq256xx_device {
 
 	bool irq_waiting;
 	bool resume_completed;
+	/* debug_board_gpio to deteect the debug board*/
+	int debug_board_gpio;
 };
 
 /**
@@ -1544,6 +1550,30 @@ static int bq256xx_power_supply_init(struct bq256xx_device *bq,
 	return 0;
 }
 
+static int bq256xx_debug_board_detect(struct bq256xx_device *bq)
+{
+	int ret = 0;
+
+	if (!of_find_property(bq->dev->of_node, "debugboard-detect-gpio", NULL))
+		return ret;
+
+	bq->debug_board_gpio = of_get_named_gpio(bq->dev->of_node,
+					     "debugboard-detect-gpio", 0);
+	if (IS_ERR(&bq->debug_board_gpio)) {
+		ret = PTR_ERR(&bq->debug_board_gpio);
+		dev_err(bq->dev, "Failed to initialize debugboard_detecte gpio\n");
+		return ret;
+	}
+	gpio_direction_input(bq->debug_board_gpio);
+	if (gpio_get_value(bq->debug_board_gpio)) {
+		bq->init_data.vindpm = BQ256XX_MAX_INPUT_VOLTAGE_UV;
+		dev_info(bq->dev,
+		"debug_board detected, setting vindpm to %d\n", bq->init_data.vindpm);
+	}
+
+	return ret;
+}
+
 static int bq256xx_hw_init(struct bq256xx_device *bq)
 {
 	struct power_supply_battery_info *bat_info;
@@ -1598,6 +1628,10 @@ static int bq256xx_hw_init(struct bq256xx_device *bq)
 		bq->init_data.vbatreg_max =
 			bat_info->constant_charge_voltage_max_uv;
 	}
+
+	ret = bq256xx_debug_board_detect(bq);
+	if (ret)
+		return ret;
 
 	ret = bq->chip_info->bq256xx_set_vindpm(bq, bq->init_data.vindpm);
 	if (ret)
