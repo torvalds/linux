@@ -155,21 +155,13 @@ static bool gmc_v11_0_use_invalidate_semaphore(struct amdgpu_device *adev,
 		(!amdgpu_sriov_vf(adev)));
 }
 
-static bool gmc_v11_0_get_atc_vmid_pasid_mapping_info(
+static bool gmc_v11_0_get_vmid_pasid_mapping_info(
 					struct amdgpu_device *adev,
 					uint8_t vmid, uint16_t *p_pasid)
 {
-#if 0 // TODO:
-	uint32_t value;
+	*p_pasid = RREG32(SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_0_LUT) + vmid) & 0xffff;
 
-	value = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATC_VMID0_PASID_MAPPING)
-		     + vmid);
-	*p_pasid = value & ATC_VMID0_PASID_MAPPING__PASID_MASK;
-
-	return !!(value & ATC_VMID0_PASID_MAPPING__VALID_MASK);
-#else
-	return 0;
-#endif
+	return !!(*p_pasid);
 }
 
 /*
@@ -340,7 +332,7 @@ static int gmc_v11_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 
 	for (vmid = 1; vmid < 16; vmid++) {
 
-		ret = gmc_v11_0_get_atc_vmid_pasid_mapping_info(adev, vmid,
+		ret = gmc_v11_0_get_vmid_pasid_mapping_info(adev, vmid,
 				&queried_pasid);
 		if (ret	&& queried_pasid == pasid) {
 			if (all_hub) {
