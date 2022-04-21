@@ -2066,6 +2066,7 @@ static const struct rtw89_chip_ops rtw8852a_chip_ops = {
 	.ctrl_btg		= rtw8852a_ctrl_btg,
 	.query_ppdu		= rtw8852a_query_ppdu,
 	.bb_ctrl_btc_preagc	= rtw8852a_bb_ctrl_btc_preagc,
+	.cfg_txrx_path		= NULL,
 	.set_txpwr_ul_tb_offset	= rtw8852a_set_txpwr_ul_tb_offset,
 	.pwr_on_func		= NULL,
 	.pwr_off_func		= NULL,

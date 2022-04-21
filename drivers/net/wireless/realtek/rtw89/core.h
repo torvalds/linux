@@ -2104,6 +2104,7 @@ struct rtw89_chip_ops {
 			   struct rtw89_rx_phy_ppdu *phy_ppdu,
 			   struct ieee80211_rx_status *status);
 	void (*bb_ctrl_btc_preagc)(struct rtw89_dev *rtwdev, bool bt_en);
+	void (*cfg_txrx_path)(struct rtw89_dev *rtwdev);
 	void (*set_txpwr_ul_tb_offset)(struct rtw89_dev *rtwdev,
 				       s8 pw_ofst, enum rtw89_mac_idx mac_idx);
 	int (*pwr_on_func)(struct rtw89_dev *rtwdev);
@@ -3631,6 +3632,14 @@ static inline void rtw89_chip_bb_ctrl_btc_preagc(struct rtw89_dev *rtwdev,
 
 	if (chip->ops->bb_ctrl_btc_preagc)
 		chip->ops->bb_ctrl_btc_preagc(rtwdev, bt_en);
+}
+
+static inline void rtw89_chip_cfg_txrx_path(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->cfg_txrx_path)
+		chip->ops->cfg_txrx_path(rtwdev);
 }
 
 static inline

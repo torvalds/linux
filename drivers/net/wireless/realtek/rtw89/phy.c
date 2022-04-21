@@ -3592,6 +3592,7 @@ void rtw89_phy_dm_init(struct rtw89_dev *rtwdev)
 	rtw89_load_txpwr_table(rtwdev, chip->byr_table);
 	rtw89_chip_set_txpwr_ctrl(rtwdev);
 	rtw89_chip_power_trim(rtwdev);
+	rtw89_chip_cfg_txrx_path(rtwdev);
 }
 
 void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
