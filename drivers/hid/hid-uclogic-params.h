@@ -62,8 +62,8 @@ struct uclogic_params_pen_subreport {
  */
 struct uclogic_params_pen {
 	/*
-	 * Pointer to report descriptor describing the inputs.
-	 * Allocated with kmalloc.
+	 * Pointer to report descriptor part describing the pen inputs.
+	 * Allocated with kmalloc. NULL if the part is not specified.
 	 */
 	__u8 *desc_ptr;
 	/*
@@ -101,8 +101,8 @@ struct uclogic_params_pen {
  */
 struct uclogic_params_frame {
 	/*
-	 * Pointer to report descriptor describing the inputs.
-	 * Allocated with kmalloc.
+	 * Pointer to report descriptor part describing the frame inputs.
+	 * Allocated with kmalloc. NULL if the part is not specified.
 	 */
 	__u8 *desc_ptr;
 	/*
