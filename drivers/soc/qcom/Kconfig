@@ -182,6 +182,24 @@ config QCOM_SMSM
 	  Say yes here to support the Qualcomm Shared Memory State Machine.
 	  The state machine is represented by bits in shared memory.
 
+config QCOM_SECURE_BUFFER
+	tristate "Helper functions for secure buffers through TZ"
+	depends on QCOM_SCM
+	help
+	  Enable for targets that need to call into TZ to secure
+	  memory buffers. This ensures that only the correct clients can
+	  use this memory and no unauthorized access is made to the
+	  buffer.
+
+config HYP_ASSIGN_DEBUG
+	bool "Enable caller tracking for hyp-assign"
+	depends on QCOM_SECURE_BUFFER
+	help
+	  Track all pages which are in the hyp-assigned state. Enable
+	  additional error checking on hyp-assign based on this state.
+	  Detects double-assign and double-unassign scenarios.
+	  If unsure, say 'N' here.
+
 config QCOM_SOCINFO
 	tristate "Qualcomm socinfo driver"
 	depends on QCOM_SMEM
