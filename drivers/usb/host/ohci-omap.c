@@ -25,6 +25,11 @@
 #include <linux/module.h>
 #include <linux/usb/otg.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/usb-omap1.h>
+#include <linux/soc/ti/omap1-usb.h>
+#include <linux/soc/ti/omap1-mux.h>
+#include <linux/soc/ti/omap1-soc.h>
+#include <linux/soc/ti/omap1-io.h>
 #include <linux/signal.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -33,12 +38,6 @@
 
 #include <asm/io.h>
 #include <asm/mach-types.h>
-
-#include <mach/mux.h>
-
-#include <mach/hardware.h>
-#include <mach/usb.h>
-
 
 #define DRIVER_DESC "OHCI OMAP driver"
 
@@ -66,31 +65,6 @@ static void omap_ohci_clock_power(struct ohci_omap_priv *priv, int on)
 		clk_disable(priv->usb_host_ck);
 		clk_disable(priv->usb_dc_ck);
 	}
-}
-
-/*
- * Board specific gang-switched transceiver power on/off.
- * NOTE:  OSK supplies power from DC, not battery.
- */
-static int omap_ohci_transceiver_power(struct ohci_omap_priv *priv, int on)
-{
-	if (on) {
-		if (machine_is_omap_innovator() && cpu_is_omap1510())
-			__raw_writeb(__raw_readb(INNOVATOR_FPGA_CAM_USB_CONTROL)
-				| ((1 << 5/*usb1*/) | (1 << 3/*usb2*/)),
-			       INNOVATOR_FPGA_CAM_USB_CONTROL);
-		else if (priv->power)
-			gpiod_set_value_cansleep(priv->power, 0);
-	} else {
-		if (machine_is_omap_innovator() && cpu_is_omap1510())
-			__raw_writeb(__raw_readb(INNOVATOR_FPGA_CAM_USB_CONTROL)
-				& ~((1 << 5/*usb1*/) | (1 << 3/*usb2*/)),
-			       INNOVATOR_FPGA_CAM_USB_CONTROL);
-		else if (priv->power)
-			gpiod_set_value_cansleep(priv->power, 1);
-	}
-
-	return 0;
 }
 
 #ifdef	CONFIG_USB_OTG
@@ -203,7 +177,11 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 	}
 
 	/* FIXME hub_wq hub requests should manage power switching */
-	omap_ohci_transceiver_power(priv, 1);
+	if (config->transceiver_power)
+		return config->transceiver_power(1);
+
+	if (priv->power)
+		gpiod_set_value_cansleep(priv->power, 0);
 
 	/* board init will have already handled HMC and mux setup.
 	 * any external transceiver should already be initialized

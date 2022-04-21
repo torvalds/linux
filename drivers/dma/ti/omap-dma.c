@@ -699,6 +699,11 @@ static void omap_dma_put_lch(struct omap_dmadev *od, int lch)
 	mutex_unlock(&od->lch_lock);
 }
 
+static inline bool omap_dma_legacy(struct omap_dmadev *od)
+{
+	return IS_ENABLED(CONFIG_ARCH_OMAP1) && od->legacy;
+}
+
 static int omap_dma_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct omap_dmadev *od = to_omap_dma_dev(chan->device);
@@ -706,7 +711,7 @@ static int omap_dma_alloc_chan_resources(struct dma_chan *chan)
 	struct device *dev = od->ddev.dev;
 	int ret;
 
-	if (od->legacy) {
+	if (omap_dma_legacy(od)) {
 		ret = omap_request_dma(c->dma_sig, "DMA engine",
 				       omap_dma_callback, c, &c->dma_ch);
 	} else {
@@ -718,7 +723,7 @@ static int omap_dma_alloc_chan_resources(struct dma_chan *chan)
 	if (ret >= 0) {
 		omap_dma_assign(od, c, c->dma_ch);
 
-		if (!od->legacy) {
+		if (!omap_dma_legacy(od)) {
 			unsigned val;
 
 			spin_lock_irq(&od->irq_lock);
@@ -757,7 +762,7 @@ static void omap_dma_free_chan_resources(struct dma_chan *chan)
 	struct omap_dmadev *od = to_omap_dma_dev(chan->device);
 	struct omap_chan *c = to_omap_dma_chan(chan);
 
-	if (!od->legacy) {
+	if (!omap_dma_legacy(od)) {
 		spin_lock_irq(&od->irq_lock);
 		od->irq_enable_mask &= ~BIT(c->dma_ch);
 		omap_dma_glbl_write(od, IRQENABLE_L1, od->irq_enable_mask);
@@ -768,7 +773,7 @@ static void omap_dma_free_chan_resources(struct dma_chan *chan)
 	od->lch_map[c->dma_ch] = NULL;
 	vchan_free_chan_resources(&c->vc);
 
-	if (od->legacy)
+	if (omap_dma_legacy(od))
 		omap_free_dma(c->dma_ch);
 	else
 		omap_dma_put_lch(od, c->dma_ch);
@@ -1674,12 +1679,14 @@ static int omap_dma_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "omap_system_dma_plat_info is missing");
 			return -ENODEV;
 		}
-	} else {
+	} else if (IS_ENABLED(CONFIG_ARCH_OMAP1)) {
 		od->cfg = &default_cfg;
 
 		od->plat = omap_get_plat_info();
 		if (!od->plat)
 			return -EPROBE_DEFER;
+	} else {
+		return -ENODEV;
 	}
 
 	od->reg_map = od->plat->reg_map;
@@ -1855,7 +1862,7 @@ static int omap_dma_remove(struct platform_device *pdev)
 
 	dma_async_device_unregister(&od->ddev);
 
-	if (!od->legacy) {
+	if (!omap_dma_legacy(od)) {
 		/* Disable all interrupts */
 		omap_dma_glbl_write(od, IRQENABLE_L0, 0);
 	}

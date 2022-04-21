@@ -7,7 +7,8 @@
 
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-omap.h>
-#include <mach/mux.h>
+
+#include "mux.h"
 #include "soc.h"
 
 #define OMAP_I2C_SIZE		0x3f

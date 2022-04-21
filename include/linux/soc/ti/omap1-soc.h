@@ -14,14 +14,6 @@
 #ifndef __ASM_ARCH_OMAP_CPU_H
 #define __ASM_ARCH_OMAP_CPU_H
 
-#include <asm/irq.h>
-#include <mach/hardware.h>
-#include <mach/irqs.h>
-
-#ifndef __ASSEMBLY__
-
-#include <linux/bitops.h>
-
 /*
  * Test if multicore OMAP support is needed
  */
@@ -176,20 +168,7 @@ IS_OMAP_TYPE(1710, 0x1710)
 #define cpu_is_omap1621()		0
 #define cpu_is_omap1710()		0
 
-/* These are needed to compile common code */
-#ifdef CONFIG_ARCH_OMAP1
-#define cpu_is_omap242x()		0
-#define cpu_is_omap2430()		0
-#define cpu_is_omap243x()		0
-#define cpu_is_omap24xx()		0
-#define cpu_is_omap34xx()		0
-#define cpu_is_omap44xx()		0
-#define soc_is_omap54xx()		0
-#define soc_is_dra7xx()			0
-#define soc_is_am33xx()			0
 #define cpu_class_is_omap1()		1
-#define cpu_class_is_omap2()		0
-#endif
 
 /*
  * Whether we have MULTI_OMAP1 or not, we still need to distinguish
@@ -216,5 +195,4 @@ IS_OMAP_TYPE(1710, 0x1710)
 # define cpu_is_omap1710()		is_omap1710()
 #endif
 
-#endif	/* __ASSEMBLY__ */
 #endif

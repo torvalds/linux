@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * arch/arm/plat-omap/include/mach/tc.h
- *
  * OMAP Traffic Controller
  *
  * Copyright (C) 2004 Nokia Corporation
