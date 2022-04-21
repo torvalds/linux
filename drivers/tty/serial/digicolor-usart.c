@@ -381,7 +381,7 @@ static const struct uart_ops digicolor_uart_ops = {
 	.request_port	= digicolor_uart_request_port,
 };
 
-static void digicolor_uart_console_putchar(struct uart_port *port, int ch)
+static void digicolor_uart_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	while (digicolor_uart_tx_full(port))
 		cpu_relax();

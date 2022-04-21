@@ -177,9 +177,7 @@ static void adjust_psw_addr(psw_t *psw, unsigned long len)
 	__typeof__(*(ptr)) input;			\
 	int __rc = 0;					\
 							\
-	if (!test_facility(34))				\
-		__rc = EMU_ILLEGAL_OP;			\
-	else if ((u64 __force)ptr & mask)		\
+	if ((u64 __force)ptr & mask)			\
 		__rc = EMU_SPECIFICATION;		\
 	else if (get_user(input, ptr))			\
 		__rc = EMU_ADDRESSING;			\
@@ -194,9 +192,7 @@ static void adjust_psw_addr(psw_t *psw, unsigned long len)
 	__typeof__(ptr) __ptr = (ptr);			\
 	int __rc = 0;					\
 							\
-	if (!test_facility(34))				\
-		__rc = EMU_ILLEGAL_OP;			\
-	else if ((u64 __force)__ptr & mask)		\
+	if ((u64 __force)__ptr & mask)			\
 		__rc = EMU_SPECIFICATION;		\
 	else if (put_user(*(input), __ptr))		\
 		__rc = EMU_ADDRESSING;			\
@@ -213,9 +209,7 @@ static void adjust_psw_addr(psw_t *psw, unsigned long len)
 	__typeof__(*(ptr)) input;			\
 	int __rc = 0;					\
 							\
-	if (!test_facility(34))				\
-		__rc = EMU_ILLEGAL_OP;			\
-	else if ((u64 __force)ptr & mask)		\
+	if ((u64 __force)ptr & mask)			\
 		__rc = EMU_SPECIFICATION;		\
 	else if (get_user(input, ptr))			\
 		__rc = EMU_ADDRESSING;			\
@@ -327,10 +321,6 @@ static void handle_insn_ril(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		break;
 	case 0xc6:
 		switch (insn->opc1) {
-		case 0x02: /* pfdrl */
-			if (!test_facility(34))
-				rc = EMU_ILLEGAL_OP;
-			break;
 		case 0x04: /* cghrl */
 			rc = emu_cmp_ril(regs, (s16 __user *)uptr, &rx->s64);
 			break;

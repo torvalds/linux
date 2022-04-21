@@ -45,6 +45,8 @@
 #define WM8960_DISOP     0x40
 #define WM8960_DRES_MASK 0x30
 
+#define WM8960_DSCH_TOUT	600 /* discharge timeout, ms */
+
 static bool is_pll_freq_available(unsigned int source, unsigned int target);
 static int wm8960_set_pll(struct snd_soc_component *component,
 		unsigned int freq_in, unsigned int freq_out);
@@ -133,6 +135,7 @@ struct wm8960_priv {
 	int freq_in;
 	bool is_stream_in_use[2];
 	struct wm8960_data pdata;
+	ktime_t dsch_start;
 };
 
 #define wm8960_reset(c)	regmap_write(c, WM8960_RESET, 0)
@@ -898,6 +901,7 @@ static int wm8960_set_bias_level_out3(struct snd_soc_component *component,
 	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
 	u16 pm2 = snd_soc_component_read(component, WM8960_POWER2);
 	int ret;
+	ktime_t tout;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -944,6 +948,11 @@ static int wm8960_set_bias_level_out3(struct snd_soc_component *component,
 
 	case SND_SOC_BIAS_STANDBY:
 		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+			/* ensure discharge is complete */
+			tout = WM8960_DSCH_TOUT - ktime_ms_delta(ktime_get(), wm8960->dsch_start);
+			if (tout > 0)
+				msleep(tout);
+
 			regcache_sync(wm8960->regmap);
 
 			/* Enable anti-pop features */
@@ -973,9 +982,9 @@ static int wm8960_set_bias_level_out3(struct snd_soc_component *component,
 			     WM8960_POBCTRL | WM8960_SOFT_ST |
 			     WM8960_BUFDCOPEN | WM8960_BUFIOEN);
 
-		/* Disable VMID and VREF, let them discharge */
+		/* Disable VMID and VREF, mark discharge */
 		snd_soc_component_write(component, WM8960_POWER1, 0);
-		msleep(600);
+		wm8960->dsch_start = ktime_get();
 		break;
 	}
 

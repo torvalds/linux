@@ -71,6 +71,7 @@ struct kprobe_ctlblk {
 
 void arch_remove_kprobe(struct kprobe *p);
 void __kretprobe_trampoline(void);
+void trampoline_probe_handler(struct pt_regs *regs);
 
 int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 int kprobe_exceptions_notify(struct notifier_block *self,

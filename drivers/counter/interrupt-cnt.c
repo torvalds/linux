@@ -26,9 +26,12 @@ struct interrupt_cnt_priv {
 
 static irqreturn_t interrupt_cnt_isr(int irq, void *dev_id)
 {
-	struct interrupt_cnt_priv *priv = dev_id;
+	struct counter_device *counter = dev_id;
+	struct interrupt_cnt_priv *priv = counter_priv(counter);
 
 	atomic_inc(&priv->count);
+
+	counter_push_event(counter, COUNTER_EVENT_CHANGE_OF_STATE, 0);
 
 	return IRQ_HANDLED;
 }
@@ -209,7 +212,7 @@ static int interrupt_cnt_probe(struct platform_device *pdev)
 	irq_set_status_flags(priv->irq, IRQ_NOAUTOEN);
 	ret = devm_request_irq(dev, priv->irq, interrupt_cnt_isr,
 			       IRQF_TRIGGER_RISING | IRQF_NO_THREAD,
-			       dev_name(dev), priv);
+			       dev_name(dev), counter);
 	if (ret)
 		return ret;
 

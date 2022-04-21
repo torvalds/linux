@@ -260,7 +260,7 @@ static struct platform_driver jz4780_bch_driver = {
 	.probe		= jz4780_bch_probe,
 	.driver	= {
 		.name	= "jz4780-bch",
-		.of_match_table = of_match_ptr(jz4780_bch_dt_match),
+		.of_match_table = jz4780_bch_dt_match,
 	},
 };
 module_platform_driver(jz4780_bch_driver);

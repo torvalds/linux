@@ -36,8 +36,8 @@ int amdgpu_reset_init(struct amdgpu_device *adev)
 {
 	int ret = 0;
 
-	switch (adev->asic_type) {
-	case CHIP_ALDEBARAN:
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 2):
 		ret = aldebaran_reset_init(adev);
 		break;
 	default:
@@ -51,8 +51,8 @@ int amdgpu_reset_fini(struct amdgpu_device *adev)
 {
 	int ret = 0;
 
-	switch (adev->asic_type) {
-	case CHIP_ALDEBARAN:
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 2):
 		ret = aldebaran_reset_fini(adev);
 		break;
 	default:
@@ -96,3 +96,59 @@ int amdgpu_reset_perform_reset(struct amdgpu_device *adev,
 	return reset_handler->restore_hwcontext(adev->reset_cntl,
 						reset_context);
 }
+
+
+void amdgpu_reset_destroy_reset_domain(struct kref *ref)
+{
+	struct amdgpu_reset_domain *reset_domain = container_of(ref,
+								struct amdgpu_reset_domain,
+								refcount);
+	if (reset_domain->wq)
+		destroy_workqueue(reset_domain->wq);
+
+	kvfree(reset_domain);
+}
+
+struct amdgpu_reset_domain *amdgpu_reset_create_reset_domain(enum amdgpu_reset_domain_type type,
+							     char *wq_name)
+{
+	struct amdgpu_reset_domain *reset_domain;
+
+	reset_domain = kvzalloc(sizeof(struct amdgpu_reset_domain), GFP_KERNEL);
+	if (!reset_domain) {
+		DRM_ERROR("Failed to allocate amdgpu_reset_domain!");
+		return NULL;
+	}
+
+	reset_domain->type = type;
+	kref_init(&reset_domain->refcount);
+
+	reset_domain->wq = create_singlethread_workqueue(wq_name);
+	if (!reset_domain->wq) {
+		DRM_ERROR("Failed to allocate wq for amdgpu_reset_domain!");
+		amdgpu_reset_put_reset_domain(reset_domain);
+		return NULL;
+
+	}
+
+	atomic_set(&reset_domain->in_gpu_reset, 0);
+	init_rwsem(&reset_domain->sem);
+
+	return reset_domain;
+}
+
+void amdgpu_device_lock_reset_domain(struct amdgpu_reset_domain *reset_domain)
+{
+	atomic_set(&reset_domain->in_gpu_reset, 1);
+	down_write(&reset_domain->sem);
+}
+
+
+void amdgpu_device_unlock_reset_domain(struct amdgpu_reset_domain *reset_domain)
+{
+	atomic_set(&reset_domain->in_gpu_reset, 0);
+	up_write(&reset_domain->sem);
+}
+
+
+

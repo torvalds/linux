@@ -308,7 +308,6 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 
 	dev->status = STATUS_STREAMING;
 
-	INIT_WORK(&dev->worker, hdpvr_transmit_buffers);
 	schedule_work(&dev->worker);
 
 	v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
@@ -1164,6 +1163,9 @@ int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
 	struct v4l2_ctrl_handler *hdl = &dev->hdl;
 	bool ac3 = dev->flags & HDPVR_FLAG_AC3_CAP;
 	int res;
+
+	// initialize dev->worker
+	INIT_WORK(&dev->worker, hdpvr_transmit_buffers);
 
 	dev->cur_std = V4L2_STD_525_60;
 	dev->width = 720;

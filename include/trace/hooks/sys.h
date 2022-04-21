@@ -5,7 +5,6 @@
 #define TRACE_INCLUDE_PATH trace/hooks
 #if !defined(_TRACE_HOOK_SYS_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_HOOK_SYS_H
-#include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
 struct task_struct;

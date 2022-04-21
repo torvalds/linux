@@ -68,8 +68,7 @@
 #define HPRE_REG_RD_INTVRL_US		10
 #define HPRE_REG_RD_TMOUT_US		1000
 #define HPRE_DBGFS_VAL_MAX_LEN		20
-#define HPRE_PCI_DEVICE_ID		0xa258
-#define HPRE_PCI_VF_DEVICE_ID		0xa259
+#define PCI_DEVICE_ID_HUAWEI_HPRE_PF	0xa258
 #define HPRE_QM_USR_CFG_MASK		GENMASK(31, 1)
 #define HPRE_QM_AXI_CFG_MASK		GENMASK(15, 0)
 #define HPRE_QM_VFG_AX_MASK		GENMASK(7, 0)
@@ -111,8 +110,8 @@
 static const char hpre_name[] = "hisi_hpre";
 static struct dentry *hpre_debugfs_root;
 static const struct pci_device_id hpre_dev_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, HPRE_PCI_DEVICE_ID) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, HPRE_PCI_VF_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, PCI_DEVICE_ID_HUAWEI_HPRE_PF) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, PCI_DEVICE_ID_HUAWEI_HPRE_VF) },
 	{ 0, }
 };
 
@@ -242,7 +241,7 @@ MODULE_PARM_DESC(uacce_mode, UACCE_MODE_DESC);
 
 static int pf_q_num_set(const char *val, const struct kernel_param *kp)
 {
-	return q_num_set(val, kp, HPRE_PCI_DEVICE_ID);
+	return q_num_set(val, kp, PCI_DEVICE_ID_HUAWEI_HPRE_PF);
 }
 
 static const struct kernel_param_ops hpre_pf_q_num_ops = {
@@ -921,7 +920,7 @@ static int hpre_debugfs_init(struct hisi_qm *qm)
 	qm->debug.sqe_mask_len = HPRE_SQE_MASK_LEN;
 	hisi_qm_debug_init(qm);
 
-	if (qm->pdev->device == HPRE_PCI_DEVICE_ID) {
+	if (qm->pdev->device == PCI_DEVICE_ID_HUAWEI_HPRE_PF) {
 		ret = hpre_ctrl_debug_init(qm);
 		if (ret)
 			goto failed_to_create;
@@ -958,7 +957,7 @@ static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 	qm->sqe_size = HPRE_SQE_SIZE;
 	qm->dev_name = hpre_name;
 
-	qm->fun_type = (pdev->device == HPRE_PCI_DEVICE_ID) ?
+	qm->fun_type = (pdev->device == PCI_DEVICE_ID_HUAWEI_HPRE_PF) ?
 			QM_HW_PF : QM_HW_VF;
 	if (qm->fun_type == QM_HW_PF) {
 		qm->qp_base = HPRE_PF_DEF_Q_BASE;
@@ -1190,6 +1189,12 @@ static struct pci_driver hpre_pci_driver = {
 	.shutdown		= hisi_qm_dev_shutdown,
 	.driver.pm		= &hpre_pm_ops,
 };
+
+struct pci_driver *hisi_hpre_get_pf_driver(void)
+{
+	return &hpre_pci_driver;
+}
+EXPORT_SYMBOL_GPL(hisi_hpre_get_pf_driver);
 
 static void hpre_register_debugfs(void)
 {

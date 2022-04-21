@@ -43,7 +43,7 @@
 #include <linux/tty.h>
 #include <linux/binfmts.h>
 #include <linux/extable.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 
 #include <asm/setup.h>
 #include <linux/uaccess.h>
@@ -1109,5 +1109,5 @@ void do_notify_resume(struct pt_regs *regs)
 		do_signal(regs);
 
 	if (test_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+		resume_user_mode_work(regs);
 }

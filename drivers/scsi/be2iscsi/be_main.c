@@ -218,7 +218,7 @@ static char const *cqe_desc[] = {
 
 static int beiscsi_eh_abort(struct scsi_cmnd *sc)
 {
-	struct iscsi_task *abrt_task = (struct iscsi_task *)sc->SCp.ptr;
+	struct iscsi_task *abrt_task = iscsi_cmd(sc)->task;
 	struct iscsi_cls_session *cls_session;
 	struct beiscsi_io_task *abrt_io_task;
 	struct beiscsi_conn *beiscsi_conn;
@@ -403,6 +403,7 @@ static struct scsi_host_template beiscsi_sht = {
 	.cmd_per_lun = BEISCSI_CMD_PER_LUN,
 	.vendor_id = SCSI_NL_VID_TYPE_PCI | BE_VENDOR_ID,
 	.track_queue_depth = 1,
+	.cmd_size = sizeof(struct iscsi_cmd),
 };
 
 static struct scsi_transport_template *beiscsi_scsi_transport;

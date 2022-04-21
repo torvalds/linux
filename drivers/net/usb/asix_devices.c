@@ -450,7 +450,6 @@ static int ax88772a_hw_reset(struct usbnet *dev, int in_pm)
 	struct asix_data *data = (struct asix_data *)&dev->data;
 	struct asix_common_private *priv = dev->driver_priv;
 	u16 rx_ctl, phy14h, phy15h, phy16h;
-	u8 chipcode = 0;
 	int ret;
 
 	ret = asix_write_gpio(dev, AX_GPIO_RSE, 5, in_pm);
@@ -493,12 +492,7 @@ static int ax88772a_hw_reset(struct usbnet *dev, int in_pm)
 		goto out;
 	}
 
-	ret = asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG, 0,
-			    0, 1, &chipcode, in_pm);
-	if (ret < 0)
-		goto out;
-
-	if ((chipcode & AX_CHIPCODE_MASK) == AX_AX88772B_CHIPCODE) {
+	if (priv->chipcode == AX_AX88772B_CHIPCODE) {
 		ret = asix_write_cmd(dev, AX_QCTCTRL, 0x8000, 0x8001,
 				     0, NULL, in_pm);
 		if (ret < 0) {
@@ -506,7 +500,7 @@ static int ax88772a_hw_reset(struct usbnet *dev, int in_pm)
 				   ret);
 			goto out;
 		}
-	} else if ((chipcode & AX_CHIPCODE_MASK) == AX_AX88772A_CHIPCODE) {
+	} else if (priv->chipcode == AX_AX88772A_CHIPCODE) {
 		/* Check if the PHY registers have default settings */
 		phy14h = asix_mdio_read_nopm(dev->net, dev->mii.phy_id,
 					     AX88772A_PHY14H);
@@ -625,22 +619,8 @@ static void ax88772_resume(struct usbnet *dev)
 	int i;
 
 	for (i = 0; i < 3; i++)
-		if (!ax88772_hw_reset(dev, 1))
+		if (!priv->reset(dev, 1))
 			break;
-
-	if (netif_running(dev->net))
-		phy_start(priv->phydev);
-}
-
-static void ax88772a_resume(struct usbnet *dev)
-{
-	struct asix_common_private *priv = dev->driver_priv;
-	int i;
-
-	for (i = 0; i < 3; i++) {
-		if (!ax88772a_hw_reset(dev, 1))
-			break;
-	}
 
 	if (netif_running(dev->net))
 		phy_start(priv->phydev);
@@ -681,15 +661,16 @@ static int ax88772_init_phy(struct usbnet *dev)
 	struct asix_common_private *priv = dev->driver_priv;
 	int ret;
 
-	snprintf(priv->phy_name, sizeof(priv->phy_name), PHY_ID_FMT,
-		 priv->mdio->id, priv->phy_addr);
+	priv->phydev = mdiobus_get_phy(priv->mdio, priv->phy_addr);
+	if (!priv->phydev) {
+		netdev_err(dev->net, "Could not find PHY\n");
+		return -ENODEV;
+	}
 
-	priv->phydev = phy_connect(dev->net, priv->phy_name, &asix_adjust_link,
-				   PHY_INTERFACE_MODE_INTERNAL);
-	if (IS_ERR(priv->phydev)) {
-		netdev_err(dev->net, "Could not connect to PHY device %s\n",
-			   priv->phy_name);
-		ret = PTR_ERR(priv->phydev);
+	ret = phy_connect_direct(dev->net, priv->phydev, &asix_adjust_link,
+				 PHY_INTERFACE_MODE_INTERNAL);
+	if (ret) {
+		netdev_err(dev->net, "Could not connect PHY\n");
 		return ret;
 	}
 
@@ -698,13 +679,29 @@ static int ax88772_init_phy(struct usbnet *dev)
 
 	phy_attached_info(priv->phydev);
 
+	if (priv->embd_phy)
+		return 0;
+
+	/* In case main PHY is not the embedded PHY and MAC is RMII clock
+	 * provider, we need to suspend embedded PHY by keeping PLL enabled
+	 * (AX_SWRESET_IPPD == 0).
+	 */
+	priv->phydev_int = mdiobus_get_phy(priv->mdio, AX_EMBD_PHY_ADDR);
+	if (!priv->phydev_int) {
+		netdev_err(dev->net, "Could not find internal PHY\n");
+		return -ENODEV;
+	}
+
+	priv->phydev_int->mac_managed_pm = 1;
+	phy_suspend(priv->phydev_int);
+
 	return 0;
 }
 
 static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 {
-	u8 buf[ETH_ALEN] = {0}, chipcode = 0;
 	struct asix_common_private *priv;
+	u8 buf[ETH_ALEN] = {0};
 	int ret, i;
 
 	priv = devm_kzalloc(&dev->udev->dev, sizeof(*priv), GFP_KERNEL);
@@ -753,14 +750,25 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 		return ret;
 
 	priv->phy_addr = ret;
-	priv->embd_phy = ((priv->phy_addr & 0x1f) == 0x10);
+	priv->embd_phy = ((priv->phy_addr & 0x1f) == AX_EMBD_PHY_ADDR);
 
-	asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG, 0, 0, 1, &chipcode, 0);
-	chipcode &= AX_CHIPCODE_MASK;
+	ret = asix_read_cmd(dev, AX_CMD_STATMNGSTS_REG, 0, 0, 1,
+			    &priv->chipcode, 0);
+	if (ret < 0) {
+		netdev_dbg(dev->net, "Failed to read STATMNGSTS_REG: %d\n", ret);
+		return ret;
+	}
 
-	ret = (chipcode == AX_AX88772_CHIPCODE) ? ax88772_hw_reset(dev, 0) :
-						  ax88772a_hw_reset(dev, 0);
+	priv->chipcode &= AX_CHIPCODE_MASK;
 
+	priv->resume = ax88772_resume;
+	priv->suspend = ax88772_suspend;
+	if (priv->chipcode == AX_AX88772_CHIPCODE)
+		priv->reset = ax88772_hw_reset;
+	else
+		priv->reset = ax88772a_hw_reset;
+
+	ret = priv->reset(dev, 0);
 	if (ret < 0) {
 		netdev_dbg(dev->net, "Failed to reset AX88772: %d\n", ret);
 		return ret;
@@ -775,13 +783,6 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	priv->presvd_phy_bmcr = 0;
 	priv->presvd_phy_advertise = 0;
-	if (chipcode == AX_AX88772_CHIPCODE) {
-		priv->resume = ax88772_resume;
-		priv->suspend = ax88772_suspend;
-	} else {
-		priv->resume = ax88772a_resume;
-		priv->suspend = ax88772_suspend;
-	}
 
 	ret = ax88772_init_mdio(dev);
 	if (ret)
@@ -858,7 +859,6 @@ static int marvell_phy_init(struct usbnet *dev)
 		reg = asix_mdio_read(dev->net, dev->mii.phy_id,
 			MII_MARVELL_LED_CTRL);
 		netdev_dbg(dev->net, "MII_MARVELL_LED_CTRL (2) = 0x%04x\n", reg);
-		reg &= 0xfc0f;
 	}
 
 	return 0;
@@ -920,11 +920,21 @@ static int ax88178_reset(struct usbnet *dev)
 	int gpio0 = 0;
 	u32 phyid;
 
-	asix_read_cmd(dev, AX_CMD_READ_GPIOS, 0, 0, 1, &status, 0);
+	ret = asix_read_cmd(dev, AX_CMD_READ_GPIOS, 0, 0, 1, &status, 0);
+	if (ret < 0) {
+		netdev_dbg(dev->net, "Failed to read GPIOS: %d\n", ret);
+		return ret;
+	}
+
 	netdev_dbg(dev->net, "GPIO Status: 0x%04x\n", status);
 
 	asix_write_cmd(dev, AX_CMD_WRITE_ENABLE, 0, 0, 0, NULL, 0);
-	asix_read_cmd(dev, AX_CMD_READ_EEPROM, 0x0017, 0, 2, &eeprom, 0);
+	ret = asix_read_cmd(dev, AX_CMD_READ_EEPROM, 0x0017, 0, 2, &eeprom, 0);
+	if (ret < 0) {
+		netdev_dbg(dev->net, "Failed to read EEPROM: %d\n", ret);
+		return ret;
+	}
+
 	asix_write_cmd(dev, AX_CMD_WRITE_DISABLE, 0, 0, 0, NULL, 0);
 
 	netdev_dbg(dev->net, "EEPROM index 0x17 is 0x%04x\n", eeprom);

@@ -285,6 +285,10 @@ struct drm_crtc_state {
 	 * Lookup table for converting pixel data after the color conversion
 	 * matrix @ctm.  See drm_crtc_enable_color_mgmt(). The blob (if not
 	 * NULL) is an array of &struct drm_color_lut.
+	 *
+	 * Note that for mostly historical reasons stemming from Xorg heritage,
+	 * this is also used to store the color map (also sometimes color lut,
+	 * CLUT or color palette) for indexed formats like DRM_FORMAT_C8.
 	 */
 	struct drm_property_blob *gamma_lut;
 
@@ -1075,12 +1079,18 @@ struct drm_crtc {
 	/**
 	 * @gamma_size: Size of legacy gamma ramp reported to userspace. Set up
 	 * by calling drm_mode_crtc_set_gamma_size().
+	 *
+	 * Note that atomic drivers need to instead use
+	 * &drm_crtc_state.gamma_lut. See drm_crtc_enable_color_mgmt().
 	 */
 	uint32_t gamma_size;
 
 	/**
 	 * @gamma_store: Gamma ramp values used by the legacy SETGAMMA and
 	 * GETGAMMA IOCTls. Set up by calling drm_mode_crtc_set_gamma_size().
+	 *
+	 * Note that atomic drivers need to instead use
+	 * &drm_crtc_state.gamma_lut. See drm_crtc_enable_color_mgmt().
 	 */
 	uint16_t *gamma_store;
 
@@ -1135,14 +1145,12 @@ struct drm_crtc {
 	 */
 	spinlock_t commit_lock;
 
-#ifdef CONFIG_DEBUG_FS
 	/**
 	 * @debugfs_entry:
 	 *
 	 * Debugfs directory for this CRTC.
 	 */
 	struct dentry *debugfs_entry;
-#endif
 
 	/**
 	 * @crc:

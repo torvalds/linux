@@ -802,7 +802,7 @@ static void __init dz_init_ports(void)
  * restored.  Welcome to the world of PDP-11!
  * -------------------------------------------------------------------
  */
-static void dz_console_putchar(struct uart_port *uport, int ch)
+static void dz_console_putchar(struct uart_port *uport, unsigned char ch)
 {
 	struct dz_port *dport = to_dport(uport);
 	unsigned long flags;

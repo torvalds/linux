@@ -389,7 +389,7 @@ mwifiex_set_wmm_params(struct mwifiex_private *priv,
 {
 	const u8 *vendor_ie;
 	const u8 *wmm_ie;
-	u8 wmm_oui[] = {0x00, 0x50, 0xf2, 0x02};
+	static const u8 wmm_oui[] = {0x00, 0x50, 0xf2, 0x02};
 
 	vendor_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
 					    WLAN_OUI_TYPE_MICROSOFT_WMM,

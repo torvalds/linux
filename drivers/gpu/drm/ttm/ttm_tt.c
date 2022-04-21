@@ -406,18 +406,18 @@ void ttm_tt_mgr_init(unsigned long num_pages, unsigned long num_dma32_pages)
 }
 
 static void ttm_kmap_iter_tt_map_local(struct ttm_kmap_iter *iter,
-				       struct dma_buf_map *dmap,
+				       struct iosys_map *dmap,
 				       pgoff_t i)
 {
 	struct ttm_kmap_iter_tt *iter_tt =
 		container_of(iter, typeof(*iter_tt), base);
 
-	dma_buf_map_set_vaddr(dmap, kmap_local_page_prot(iter_tt->tt->pages[i],
-							 iter_tt->prot));
+	iosys_map_set_vaddr(dmap, kmap_local_page_prot(iter_tt->tt->pages[i],
+						       iter_tt->prot));
 }
 
 static void ttm_kmap_iter_tt_unmap_local(struct ttm_kmap_iter *iter,
-					 struct dma_buf_map *map)
+					 struct iosys_map *map)
 {
 	kunmap_local(map->vaddr);
 }

@@ -19,6 +19,7 @@ static inline struct mount_info *get_mount_info(struct super_block *sb)
 {
 	struct mount_info *result = sb->s_fs_info;
 
+	WARN_ON(!result);
 	return result;
 }
 

@@ -6,11 +6,28 @@
 
 #include "mstar-infinity.dtsi"
 
+&cpu0_opp_table {
+		opp-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <1000000>;
+			clock-latency-ns = <300000>;
+		};
+
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <1000000>;
+			clock-latency-ns = <300000>;
+		};
+};
+
 &cpus {
 	cpu1: cpu@1 {
 		device_type = "cpu";
 		compatible = "arm,cortex-a7";
+		operating-points-v2 = <&cpu0_opp_table>;
 		reg = <0x1>;
+		clocks = <&cpupll>;
+		clock-names = "cpuclk";
 	};
 };
 

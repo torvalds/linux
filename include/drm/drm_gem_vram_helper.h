@@ -12,7 +12,7 @@
 #include <drm/ttm/ttm_bo_driver.h>
 
 #include <linux/container_of.h>
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 
 struct drm_mode_create_dumb;
 struct drm_plane;
@@ -51,7 +51,7 @@ struct vm_area_struct;
  */
 struct drm_gem_vram_object {
 	struct ttm_buffer_object bo;
-	struct dma_buf_map map;
+	struct iosys_map map;
 
 	/**
 	 * @vmap_use_count:
@@ -97,8 +97,9 @@ void drm_gem_vram_put(struct drm_gem_vram_object *gbo);
 s64 drm_gem_vram_offset(struct drm_gem_vram_object *gbo);
 int drm_gem_vram_pin(struct drm_gem_vram_object *gbo, unsigned long pl_flag);
 int drm_gem_vram_unpin(struct drm_gem_vram_object *gbo);
-int drm_gem_vram_vmap(struct drm_gem_vram_object *gbo, struct dma_buf_map *map);
-void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo, struct dma_buf_map *map);
+int drm_gem_vram_vmap(struct drm_gem_vram_object *gbo, struct iosys_map *map);
+void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo,
+			 struct iosys_map *map);
 
 int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 				  struct drm_device *dev,

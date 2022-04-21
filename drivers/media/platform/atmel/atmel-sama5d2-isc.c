@@ -88,6 +88,30 @@ static const struct isc_format sama5d2_controller_formats[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_Y10,
 	},
+	{
+		.fourcc		= V4L2_PIX_FMT_SBGGR8,
+	},
+	{
+		.fourcc		= V4L2_PIX_FMT_SGBRG8,
+	},
+	{
+		.fourcc		= V4L2_PIX_FMT_SGRBG8,
+	},
+	{
+		.fourcc		= V4L2_PIX_FMT_SRGGB8,
+	},
+	{
+		.fourcc		= V4L2_PIX_FMT_SBGGR10,
+	},
+	{
+		.fourcc		= V4L2_PIX_FMT_SGBRG10,
+	},
+	{
+		.fourcc		= V4L2_PIX_FMT_SGRBG10,
+	},
+	{
+		.fourcc		= V4L2_PIX_FMT_SRGGB10,
+	},
 };
 
 /* This is a list of formats that the ISC can receive as *input* */

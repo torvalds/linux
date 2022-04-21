@@ -61,7 +61,7 @@ static void pwm_imx1_clk_disable_unprepare(struct pwm_chip *chip)
 }
 
 static int pwm_imx1_config(struct pwm_chip *chip,
-			   struct pwm_device *pwm, int duty_ns, int period_ns)
+			   struct pwm_device *pwm, u64 duty_ns, u64 period_ns)
 {
 	struct pwm_imx1_chip *imx = to_pwm_imx1_chip(chip);
 	u32 max, p;
@@ -84,7 +84,7 @@ static int pwm_imx1_config(struct pwm_chip *chip,
 	 * (/2 .. /16).
 	 */
 	max = readl(imx->mmio_base + MX1_PWMP);
-	p = max * duty_ns / period_ns;
+	p = mul_u64_u64_div_u64(max, duty_ns, period_ns);
 
 	writel(max - p, imx->mmio_base + MX1_PWMS);
 
@@ -120,10 +120,33 @@ static void pwm_imx1_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	pwm_imx1_clk_disable_unprepare(chip);
 }
 
+static int pwm_imx1_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			  const struct pwm_state *state)
+{
+	int err;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			pwm_imx1_disable(chip, pwm);
+
+		return 0;
+	}
+
+	err = pwm_imx1_config(chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		return pwm_imx1_enable(chip, pwm);
+
+	return 0;
+}
+
 static const struct pwm_ops pwm_imx1_ops = {
-	.enable = pwm_imx1_enable,
-	.disable = pwm_imx1_disable,
-	.config = pwm_imx1_config,
+	.apply = pwm_imx1_apply,
 	.owner = THIS_MODULE,
 };
 

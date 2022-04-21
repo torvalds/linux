@@ -18,7 +18,8 @@
 #include <linux/reset.h>
 #include <linux/workqueue.h>
 
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
+#include <drm/dp/drm_dp_aux_bus.h>
 #include <drm/drm_panel.h>
 
 #include "dp.h"
@@ -279,7 +280,6 @@ static void tegra_dpaux_hotplug(struct work_struct *work)
 static irqreturn_t tegra_dpaux_irq(int irq, void *data)
 {
 	struct tegra_dpaux *dpaux = data;
-	irqreturn_t ret = IRQ_HANDLED;
 	u32 value;
 
 	/* clear interrupts */
@@ -296,7 +296,7 @@ static irqreturn_t tegra_dpaux_irq(int irq, void *data)
 	if (value & DPAUX_INTR_AUX_DONE)
 		complete(&dpaux->complete);
 
-	return ret;
+	return IRQ_HANDLED;
 }
 
 enum tegra_dpaux_functions {
@@ -569,6 +569,12 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	mutex_lock(&dpaux_lock);
 	list_add_tail(&dpaux->list, &dpaux_list);
 	mutex_unlock(&dpaux_lock);
+
+	err = devm_of_dp_aux_populate_ep_devices(&dpaux->aux);
+	if (err < 0) {
+		dev_err(dpaux->dev, "failed to populate AUX bus: %d\n", err);
+		return err;
+	}
 
 	return 0;
 }

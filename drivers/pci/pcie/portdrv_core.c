@@ -166,6 +166,9 @@ static int pcie_init_service_irqs(struct pci_dev *dev, int *irqs, int mask)
 {
 	int ret, i;
 
+	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++)
+		irqs[i] = -1;
+
 	/*
 	 * If we support PME but can't use MSI/MSI-X for it, we have to
 	 * fall back to INTx or other interrupts, e.g., a system shared
@@ -314,10 +317,8 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
  */
 int pcie_port_device_register(struct pci_dev *dev)
 {
-	int status, capabilities, irq_services, i, nr_service;
-	int irqs[PCIE_PORT_DEVICE_MAXSERVICES] = {
-		[0 ... PCIE_PORT_DEVICE_MAXSERVICES-1] = -1
-	};
+	int status, capabilities, i, nr_service;
+	int irqs[PCIE_PORT_DEVICE_MAXSERVICES];
 
 	/* Enable PCI Express port device */
 	status = pci_enable_device(dev);
@@ -330,32 +331,18 @@ int pcie_port_device_register(struct pci_dev *dev)
 		return 0;
 
 	pci_set_master(dev);
-
-	irq_services = 0;
-	if (IS_ENABLED(CONFIG_PCIE_PME))
-		irq_services |= PCIE_PORT_SERVICE_PME;
-	if (IS_ENABLED(CONFIG_PCIEAER))
-		irq_services |= PCIE_PORT_SERVICE_AER;
-	if (IS_ENABLED(CONFIG_HOTPLUG_PCI_PCIE))
-		irq_services |= PCIE_PORT_SERVICE_HP;
-	if (IS_ENABLED(CONFIG_PCIE_DPC))
-		irq_services |= PCIE_PORT_SERVICE_DPC;
-	irq_services &= capabilities;
-
-	if (irq_services) {
-		/*
-		 * Initialize service IRQs. Don't use service devices that
-		 * require interrupts if there is no way to generate them.
-		 * However, some drivers may have a polling mode (e.g.
-		 * pciehp_poll_mode) that can be used in the absence of IRQs.
-		 * Allow them to determine if that is to be used.
-		 */
-		status = pcie_init_service_irqs(dev, irqs, irq_services);
-		if (status) {
-			irq_services &= PCIE_PORT_SERVICE_HP;
-			if (!irq_services)
-				goto error_disable;
-		}
+	/*
+	 * Initialize service irqs. Don't use service devices that
+	 * require interrupts if there is no way to generate them.
+	 * However, some drivers may have a polling mode (e.g. pciehp_poll_mode)
+	 * that can be used in the absence of irqs.  Allow them to determine
+	 * if that is to be used.
+	 */
+	status = pcie_init_service_irqs(dev, irqs, capabilities);
+	if (status) {
+		capabilities &= PCIE_PORT_SERVICE_HP;
+		if (!capabilities)
+			goto error_disable;
 	}
 
 	/* Allocate child services if any */

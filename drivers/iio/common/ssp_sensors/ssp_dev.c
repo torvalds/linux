@@ -7,9 +7,10 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/mfd/core.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_platform.h>
+#include <linux/property.h>
+
 #include "ssp.h"
 
 #define SSP_WDT_TIME			10000
@@ -204,7 +205,7 @@ u32 ssp_get_sensor_delay(struct ssp_data *data, enum ssp_sensor_type type)
 {
 	return data->delay_buf[type];
 }
-EXPORT_SYMBOL(ssp_get_sensor_delay);
+EXPORT_SYMBOL_NS(ssp_get_sensor_delay, IIO_SSP_SENSORS);
 
 /**
  * ssp_enable_sensor() - enables data acquisition for sensor
@@ -266,7 +267,7 @@ int ssp_enable_sensor(struct ssp_data *data, enum ssp_sensor_type type,
 derror:
 	return ret;
 }
-EXPORT_SYMBOL(ssp_enable_sensor);
+EXPORT_SYMBOL_NS(ssp_enable_sensor, IIO_SSP_SENSORS);
 
 /**
  * ssp_change_delay() - changes data acquisition for sensor
@@ -297,7 +298,7 @@ int ssp_change_delay(struct ssp_data *data, enum ssp_sensor_type type,
 
 	return 0;
 }
-EXPORT_SYMBOL(ssp_change_delay);
+EXPORT_SYMBOL_NS(ssp_change_delay, IIO_SSP_SENSORS);
 
 /**
  * ssp_disable_sensor() - disables sensor
@@ -334,7 +335,7 @@ int ssp_disable_sensor(struct ssp_data *data, enum ssp_sensor_type type)
 
 	return 0;
 }
-EXPORT_SYMBOL(ssp_disable_sensor);
+EXPORT_SYMBOL_NS(ssp_disable_sensor, IIO_SSP_SENSORS);
 
 static irqreturn_t ssp_irq_thread_fn(int irq, void *dev_id)
 {
@@ -425,7 +426,6 @@ int ssp_queue_ssp_refresh_task(struct ssp_data *data, unsigned int delay)
 				  msecs_to_jiffies(delay));
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id ssp_of_match[] = {
 	{
 		.compatible	= "samsung,sensorhub-rinato",
@@ -441,8 +441,6 @@ MODULE_DEVICE_TABLE(of, ssp_of_match);
 static struct ssp_data *ssp_parse_dt(struct device *dev)
 {
 	struct ssp_data *data;
-	struct device_node *node = dev->of_node;
-	const struct of_device_id *match;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -461,22 +459,12 @@ static struct ssp_data *ssp_parse_dt(struct device *dev)
 	if (IS_ERR(data->mcu_reset_gpiod))
 		return NULL;
 
-	match = of_match_node(ssp_of_match, node);
-	if (!match)
-		return NULL;
-
-	data->sensorhub_info = match->data;
+	data->sensorhub_info = device_get_match_data(dev);
 
 	dev_set_drvdata(dev, data);
 
 	return data;
 }
-#else
-static struct ssp_data *ssp_parse_dt(struct device *pdev)
-{
-	return NULL;
-}
-#endif
 
 /**
  * ssp_register_consumer() - registers iio consumer in ssp framework
@@ -490,7 +478,7 @@ void ssp_register_consumer(struct iio_dev *indio_dev, enum ssp_sensor_type type)
 
 	data->sensor_devs[type] = indio_dev;
 }
-EXPORT_SYMBOL(ssp_register_consumer);
+EXPORT_SYMBOL_NS(ssp_register_consumer, IIO_SSP_SENSORS);
 
 static int ssp_probe(struct spi_device *spi)
 {
@@ -586,7 +574,7 @@ err_setup_irq:
 	return ret;
 }
 
-static int ssp_remove(struct spi_device *spi)
+static void ssp_remove(struct spi_device *spi)
 {
 	struct ssp_data *data = spi_get_drvdata(spi);
 
@@ -608,11 +596,8 @@ static int ssp_remove(struct spi_device *spi)
 	mutex_destroy(&data->pending_lock);
 
 	mfd_remove_devices(&spi->dev);
-
-	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int ssp_suspend(struct device *dev)
 {
 	int ret;
@@ -661,18 +646,15 @@ static int ssp_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-static const struct dev_pm_ops ssp_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ssp_suspend, ssp_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(ssp_pm_ops, ssp_suspend, ssp_resume);
 
 static struct spi_driver ssp_driver = {
 	.probe = ssp_probe,
 	.remove = ssp_remove,
 	.driver = {
-		.pm = &ssp_pm_ops,
-		.of_match_table = of_match_ptr(ssp_of_match),
+		.pm = pm_sleep_ptr(&ssp_pm_ops),
+		.of_match_table = ssp_of_match,
 		.name = "sensorhub"
 	},
 };

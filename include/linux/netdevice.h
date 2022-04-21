@@ -28,6 +28,7 @@
 #include <linux/prefetch.h>
 #include <asm/cache.h>
 #include <asm/byteorder.h>
+#include <asm/local.h>
 
 #include <linux/percpu.h>
 #include <linux/rculist.h>
@@ -194,6 +195,14 @@ struct net_device_stats {
 	unsigned long	tx_compressed;
 };
 
+/* per-cpu stats, allocated on demand.
+ * Try to fit them in a single cache line, for dev_get_stats() sake.
+ */
+struct net_device_core_stats {
+	local_t		rx_dropped;
+	local_t		tx_dropped;
+	local_t		rx_nohandler;
+} __aligned(4 * sizeof(local_t));
 
 #include <linux/cache.h>
 #include <linux/skbuff.h>
@@ -1735,12 +1744,8 @@ enum netdev_ml_priv_type {
  *	@stats:		Statistics struct, which was left as a legacy, use
  *			rtnl_link_stats64 instead
  *
- *	@rx_dropped:	Dropped packets by core network,
+ *	@core_stats:	core networking counters,
  *			do not use this in drivers
- *	@tx_dropped:	Dropped packets by core network,
- *			do not use this in drivers
- *	@rx_nohandler:	nohandler dropped packets by core network on
- *			inactive devices, do not use this in drivers
  *	@carrier_up_count:	Number of times the carrier has been up
  *	@carrier_down_count:	Number of times the carrier has been down
  *
@@ -1894,6 +1899,8 @@ enum netdev_ml_priv_type {
  *	@garp_port:	GARP
  *	@mrp_port:	MRP
  *
+ *	@dm_private:	Drop monitor private
+ *
  *	@dev:		Class/net/name entry
  *	@sysfs_groups:	Space for optional device, statistics and wireless
  *			sysfs groups
@@ -1948,6 +1955,9 @@ enum netdev_ml_priv_type {
  *	@dev_addr_shadow:	Copy of @dev_addr to catch direct writes.
  *	@linkwatch_dev_tracker:	refcount tracker used by linkwatch.
  *	@watchdog_dev_tracker:	refcount tracker used by watchdog.
+ *	@dev_registered_tracker:	tracker for reference held while
+ *					registered
+ *	@offload_xstats_l3:	L3 HW stats for this netdevice.
  *
  *	FIXME: cleanup struct net_device such that network protocol info
  *	moves out.
@@ -2020,9 +2030,7 @@ struct net_device {
 
 	struct net_device_stats	stats; /* not used by modern drivers */
 
-	atomic_long_t		rx_dropped;
-	atomic_long_t		tx_dropped;
-	atomic_long_t		rx_nohandler;
+	struct net_device_core_stats __percpu *core_stats;
 
 	/* Stats to monitor link on/off, flapping */
 	atomic_t		carrier_up_count;
@@ -2158,7 +2166,7 @@ struct net_device {
 	struct netdev_queue	*_tx ____cacheline_aligned_in_smp;
 	unsigned int		num_tx_queues;
 	unsigned int		real_num_tx_queues;
-	struct Qdisc		*qdisc;
+	struct Qdisc __rcu	*qdisc;
 	unsigned int		tx_queue_len;
 	spinlock_t		tx_global_lock;
 
@@ -2234,7 +2242,9 @@ struct net_device {
 #if IS_ENABLED(CONFIG_MRP)
 	struct mrp_port __rcu	*mrp_port;
 #endif
-
+#if IS_ENABLED(CONFIG_NET_DROP_MONITOR)
+	struct dm_hw_stat_delta __rcu *dm_private;
+#endif
 	struct device		dev;
 	const struct attribute_group *sysfs_groups[4];
 	const struct attribute_group *sysfs_rx_queue_group;
@@ -2282,6 +2292,8 @@ struct net_device {
 	u8 dev_addr_shadow[MAX_ADDR_LEN];
 	netdevice_tracker	linkwatch_dev_tracker;
 	netdevice_tracker	watchdog_dev_tracker;
+	netdevice_tracker	dev_registered_tracker;
+	struct rtnl_hw_stats64	*offload_xstats_l3;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
@@ -2548,6 +2560,7 @@ struct packet_type {
 					      struct net_device *);
 	bool			(*id_match)(struct packet_type *ptype,
 					    struct sock *sk);
+	struct net		*af_packet_net;
 	void			*af_packet_priv;
 	struct list_head	list;
 };
@@ -2721,6 +2734,10 @@ enum netdev_cmd {
 	NETDEV_CVLAN_FILTER_DROP_INFO,
 	NETDEV_SVLAN_FILTER_PUSH_INFO,
 	NETDEV_SVLAN_FILTER_DROP_INFO,
+	NETDEV_OFFLOAD_XSTATS_ENABLE,
+	NETDEV_OFFLOAD_XSTATS_DISABLE,
+	NETDEV_OFFLOAD_XSTATS_REPORT_USED,
+	NETDEV_OFFLOAD_XSTATS_REPORT_DELTA,
 };
 const char *netdev_cmd_to_name(enum netdev_cmd cmd);
 
@@ -2770,6 +2787,42 @@ struct netdev_notifier_pre_changeaddr_info {
 	struct netdev_notifier_info info; /* must be first */
 	const unsigned char *dev_addr;
 };
+
+enum netdev_offload_xstats_type {
+	NETDEV_OFFLOAD_XSTATS_TYPE_L3 = 1,
+};
+
+struct netdev_notifier_offload_xstats_info {
+	struct netdev_notifier_info info; /* must be first */
+	enum netdev_offload_xstats_type type;
+
+	union {
+		/* NETDEV_OFFLOAD_XSTATS_REPORT_DELTA */
+		struct netdev_notifier_offload_xstats_rd *report_delta;
+		/* NETDEV_OFFLOAD_XSTATS_REPORT_USED */
+		struct netdev_notifier_offload_xstats_ru *report_used;
+	};
+};
+
+int netdev_offload_xstats_enable(struct net_device *dev,
+				 enum netdev_offload_xstats_type type,
+				 struct netlink_ext_ack *extack);
+int netdev_offload_xstats_disable(struct net_device *dev,
+				  enum netdev_offload_xstats_type type);
+bool netdev_offload_xstats_enabled(const struct net_device *dev,
+				   enum netdev_offload_xstats_type type);
+int netdev_offload_xstats_get(struct net_device *dev,
+			      enum netdev_offload_xstats_type type,
+			      struct rtnl_hw_stats64 *stats, bool *used,
+			      struct netlink_ext_ack *extack);
+void
+netdev_offload_xstats_report_delta(struct netdev_notifier_offload_xstats_rd *rd,
+				   const struct rtnl_hw_stats64 *stats);
+void
+netdev_offload_xstats_report_used(struct netdev_notifier_offload_xstats_ru *ru);
+void netdev_offload_xstats_push_delta(struct net_device *dev,
+				      enum netdev_offload_xstats_type type,
+				      const struct rtnl_hw_stats64 *stats);
 
 static inline void netdev_notifier_info_init(struct netdev_notifier_info *info,
 					     struct net_device *dev)
@@ -3613,7 +3666,6 @@ static inline unsigned int get_netdev_rx_queue_index(
 }
 #endif
 
-#define DEFAULT_MAX_NUM_RSS_QUEUES	(8)
 int netif_get_num_default_rss_queues(void);
 
 enum skb_free_reason {
@@ -3668,8 +3720,8 @@ u32 bpf_prog_run_generic_xdp(struct sk_buff *skb, struct xdp_buff *xdp,
 void generic_xdp_tx(struct sk_buff *skb, struct bpf_prog *xdp_prog);
 int do_xdp_generic(struct bpf_prog *xdp_prog, struct sk_buff *skb);
 int netif_rx(struct sk_buff *skb);
-int netif_rx_ni(struct sk_buff *skb);
-int netif_rx_any_context(struct sk_buff *skb);
+int __netif_rx(struct sk_buff *skb);
+
 int netif_receive_skb(struct sk_buff *skb);
 int netif_receive_skb_core(struct sk_buff *skb);
 void netif_receive_skb_list_internal(struct list_head *head);
@@ -3791,13 +3843,42 @@ static __always_inline bool __is_skb_forwardable(const struct net_device *dev,
 	return false;
 }
 
+struct net_device_core_stats *netdev_core_stats_alloc(struct net_device *dev);
+
+static inline struct net_device_core_stats *dev_core_stats(struct net_device *dev)
+{
+	/* This READ_ONCE() pairs with the write in netdev_core_stats_alloc() */
+	struct net_device_core_stats __percpu *p = READ_ONCE(dev->core_stats);
+
+	if (likely(p))
+		return this_cpu_ptr(p);
+
+	return netdev_core_stats_alloc(dev);
+}
+
+#define DEV_CORE_STATS_INC(FIELD)						\
+static inline void dev_core_stats_##FIELD##_inc(struct net_device *dev)		\
+{										\
+	struct net_device_core_stats *p;					\
+										\
+	preempt_disable();							\
+	p = dev_core_stats(dev);						\
+										\
+	if (p)									\
+		local_inc(&p->FIELD);						\
+	preempt_enable();							\
+}
+DEV_CORE_STATS_INC(rx_dropped)
+DEV_CORE_STATS_INC(tx_dropped)
+DEV_CORE_STATS_INC(rx_nohandler)
+
 static __always_inline int ____dev_forward_skb(struct net_device *dev,
 					       struct sk_buff *skb,
 					       const bool check_mtu)
 {
 	if (skb_orphan_frags(skb, GFP_ATOMIC) ||
 	    unlikely(!__is_skb_forwardable(dev, skb, check_mtu))) {
-		atomic_long_inc(&dev->rx_dropped);
+		dev_core_stats_rx_dropped_inc(dev);
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
@@ -3816,14 +3897,7 @@ extern unsigned int	netdev_budget_usecs;
 /* Called by rtnetlink.c:rtnl_unlock() */
 void netdev_run_todo(void);
 
-/**
- *	dev_put - release reference to device
- *	@dev: network device
- *
- * Release reference to device to allow it to be freed.
- * Try using dev_put_track() instead.
- */
-static inline void dev_put(struct net_device *dev)
+static inline void __dev_put(struct net_device *dev)
 {
 	if (dev) {
 #ifdef CONFIG_PCPU_DEV_REFCNT
@@ -3834,14 +3908,7 @@ static inline void dev_put(struct net_device *dev)
 	}
 }
 
-/**
- *	dev_hold - get reference to device
- *	@dev: network device
- *
- * Hold reference to device to keep it from being freed.
- * Try using dev_hold_track() instead.
- */
-static inline void dev_hold(struct net_device *dev)
+static inline void __dev_hold(struct net_device *dev)
 {
 	if (dev) {
 #ifdef CONFIG_PCPU_DEV_REFCNT
@@ -3852,11 +3919,24 @@ static inline void dev_hold(struct net_device *dev)
 	}
 }
 
+static inline void __netdev_tracker_alloc(struct net_device *dev,
+					  netdevice_tracker *tracker,
+					  gfp_t gfp)
+{
+#ifdef CONFIG_NET_DEV_REFCNT_TRACKER
+	ref_tracker_alloc(&dev->refcnt_tracker, tracker, gfp);
+#endif
+}
+
+/* netdev_tracker_alloc() can upgrade a prior untracked reference
+ * taken by dev_get_by_name()/dev_get_by_index() to a tracked one.
+ */
 static inline void netdev_tracker_alloc(struct net_device *dev,
 					netdevice_tracker *tracker, gfp_t gfp)
 {
 #ifdef CONFIG_NET_DEV_REFCNT_TRACKER
-	ref_tracker_alloc(&dev->refcnt_tracker, tracker, gfp);
+	refcount_dec(&dev->refcnt_tracker.no_tracker);
+	__netdev_tracker_alloc(dev, tracker, gfp);
 #endif
 }
 
@@ -3872,8 +3952,8 @@ static inline void dev_hold_track(struct net_device *dev,
 				  netdevice_tracker *tracker, gfp_t gfp)
 {
 	if (dev) {
-		dev_hold(dev);
-		netdev_tracker_alloc(dev, tracker, gfp);
+		__dev_hold(dev);
+		__netdev_tracker_alloc(dev, tracker, gfp);
 	}
 }
 
@@ -3882,8 +3962,32 @@ static inline void dev_put_track(struct net_device *dev,
 {
 	if (dev) {
 		netdev_tracker_free(dev, tracker);
-		dev_put(dev);
+		__dev_put(dev);
 	}
+}
+
+/**
+ *	dev_hold - get reference to device
+ *	@dev: network device
+ *
+ * Hold reference to device to keep it from being freed.
+ * Try using dev_hold_track() instead.
+ */
+static inline void dev_hold(struct net_device *dev)
+{
+	dev_hold_track(dev, NULL, GFP_ATOMIC);
+}
+
+/**
+ *	dev_put - release reference to device
+ *	@dev: network device
+ *
+ * Release reference to device to allow it to be freed.
+ * Try using dev_put_track() instead.
+ */
+static inline void dev_put(struct net_device *dev)
+{
+	dev_put_track(dev, NULL);
 }
 
 static inline void dev_replace_track(struct net_device *odev,
@@ -3894,11 +3998,11 @@ static inline void dev_replace_track(struct net_device *odev,
 	if (odev)
 		netdev_tracker_free(odev, tracker);
 
-	dev_hold(ndev);
-	dev_put(odev);
+	__dev_hold(ndev);
+	__dev_put(odev);
 
 	if (ndev)
-		netdev_tracker_alloc(ndev, tracker, gfp);
+		__netdev_tracker_alloc(ndev, tracker, gfp);
 }
 
 /* Carrier loss detection, dial on demand. The functions netif_carrier_on
@@ -4497,16 +4601,6 @@ bool netdev_has_upper_dev(struct net_device *dev, struct net_device *upper_dev);
 struct net_device *netdev_upper_get_next_dev_rcu(struct net_device *dev,
 						     struct list_head **iter);
 
-#ifdef CONFIG_LOCKDEP
-static LIST_HEAD(net_unlink_list);
-
-static inline void net_unlink_todo(struct net_device *dev)
-{
-	if (list_empty(&dev->unlink_list))
-		list_add_tail(&dev->unlink_list, &net_unlink_list);
-}
-#endif
-
 /* iterate through upper list, must be called under RCU read lock */
 #define netdev_for_each_upper_dev_rcu(dev, updev, iter) \
 	for (iter = &(dev)->adj_list.upper, \
@@ -4601,6 +4695,8 @@ int skb_csum_hwoffload_help(struct sk_buff *skb,
 
 struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
 				  netdev_features_t features, bool tx_path);
+struct sk_buff *skb_eth_gso_segment(struct sk_buff *skb,
+				    netdev_features_t features, __be16 type);
 struct sk_buff *skb_mac_gso_segment(struct sk_buff *skb,
 				    netdev_features_t features);
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -9,105 +9,91 @@
 
 #include <linux/pci.h>
 
-long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
+static ssize_t clk_max_freq_mhz_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct cpucp_packet pkt;
-	u32 used_pll_idx;
-	u64 result;
+	struct hl_device *hdev = dev_get_drvdata(dev);
+	long value;
+
+	if (!hl_device_operational(hdev, NULL))
+		return -ENODEV;
+
+	value = hl_fw_get_frequency(hdev, hdev->asic_prop.clk_pll_index, false);
+	if (value < 0)
+		return value;
+
+	hdev->asic_prop.max_freq_value = value;
+
+	return sprintf(buf, "%lu\n", (value / 1000 / 1000));
+}
+
+static ssize_t clk_max_freq_mhz_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
 	int rc;
+	u64 value;
 
-	rc = get_used_pll_index(hdev, pll_index, &used_pll_idx);
-	if (rc)
-		return rc;
+	if (!hl_device_operational(hdev, NULL)) {
+		count = -ENODEV;
+		goto fail;
+	}
 
-	memset(&pkt, 0, sizeof(pkt));
+	rc = kstrtoull(buf, 0, &value);
+	if (rc) {
+		count = -EINVAL;
+		goto fail;
+	}
 
-	if (curr)
-		pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_CURR_GET <<
-						CPUCP_PKT_CTL_OPCODE_SHIFT);
+	hdev->asic_prop.max_freq_value = value * 1000 * 1000;
+
+	hl_fw_set_frequency(hdev, hdev->asic_prop.clk_pll_index, hdev->asic_prop.max_freq_value);
+
+fail:
+	return count;
+}
+
+static ssize_t clk_cur_freq_mhz_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+	long value;
+
+	if (!hl_device_operational(hdev, NULL))
+		return -ENODEV;
+
+	value = hl_fw_get_frequency(hdev, hdev->asic_prop.clk_pll_index, true);
+	if (value < 0)
+		return value;
+
+	return sprintf(buf, "%lu\n", (value / 1000 / 1000));
+}
+
+static DEVICE_ATTR_RW(clk_max_freq_mhz);
+static DEVICE_ATTR_RO(clk_cur_freq_mhz);
+
+static struct attribute *hl_dev_clk_attrs[] = {
+	&dev_attr_clk_max_freq_mhz.attr,
+	&dev_attr_clk_cur_freq_mhz.attr,
+};
+
+static ssize_t vrm_ver_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+	struct cpucp_info *cpucp_info;
+
+	cpucp_info = &hdev->asic_prop.cpucp_info;
+
+	if (cpucp_info->infineon_second_stage_version)
+		return sprintf(buf, "%#04x %#04x\n", le32_to_cpu(cpucp_info->infineon_version),
+				le32_to_cpu(cpucp_info->infineon_second_stage_version));
 	else
-		pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_GET <<
-						CPUCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.pll_index = cpu_to_le32((u32)used_pll_idx);
-
-	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, &result);
-
-	if (rc) {
-		dev_err(hdev->dev,
-			"Failed to get frequency of PLL %d, error %d\n",
-			used_pll_idx, rc);
-		return rc;
-	}
-
-	return (long) result;
+		return sprintf(buf, "%#04x\n", le32_to_cpu(cpucp_info->infineon_version));
 }
 
-void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
-{
-	struct cpucp_packet pkt;
-	u32 used_pll_idx;
-	int rc;
+static DEVICE_ATTR_RO(vrm_ver);
 
-	rc = get_used_pll_index(hdev, pll_index, &used_pll_idx);
-	if (rc)
-		return;
-
-	memset(&pkt, 0, sizeof(pkt));
-
-	pkt.ctl = cpu_to_le32(CPUCP_PACKET_FREQUENCY_SET <<
-					CPUCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.pll_index = cpu_to_le32((u32)used_pll_idx);
-	pkt.value = cpu_to_le64(freq);
-
-	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, NULL);
-
-	if (rc)
-		dev_err(hdev->dev,
-			"Failed to set frequency to PLL %d, error %d\n",
-			used_pll_idx, rc);
-}
-
-u64 hl_get_max_power(struct hl_device *hdev)
-{
-	struct cpucp_packet pkt;
-	u64 result;
-	int rc;
-
-	memset(&pkt, 0, sizeof(pkt));
-
-	pkt.ctl = cpu_to_le32(CPUCP_PACKET_MAX_POWER_GET <<
-				CPUCP_PKT_CTL_OPCODE_SHIFT);
-
-	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, &result);
-
-	if (rc) {
-		dev_err(hdev->dev, "Failed to get max power, error %d\n", rc);
-		return (u64) rc;
-	}
-
-	return result;
-}
-
-void hl_set_max_power(struct hl_device *hdev)
-{
-	struct cpucp_packet pkt;
-	int rc;
-
-	memset(&pkt, 0, sizeof(pkt));
-
-	pkt.ctl = cpu_to_le32(CPUCP_PACKET_MAX_POWER_SET <<
-				CPUCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.value = cpu_to_le64(hdev->max_power);
-
-	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, NULL);
-
-	if (rc)
-		dev_err(hdev->dev, "Failed to set max power, error %d\n", rc);
-}
+static struct attribute *hl_dev_vrm_attrs[] = {
+	&dev_attr_vrm_ver.attr,
+};
 
 static ssize_t uboot_ver_show(struct device *dev, struct device_attribute *attr,
 				char *buf)
@@ -158,20 +144,6 @@ static ssize_t cpucp_ver_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%s\n", hdev->asic_prop.cpucp_info.cpucp_version);
 }
 
-static ssize_t infineon_ver_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct hl_device *hdev = dev_get_drvdata(dev);
-
-	if (hdev->asic_prop.cpucp_info.infineon_second_stage_version)
-		return sprintf(buf, "%#04x %#04x\n",
-			le32_to_cpu(hdev->asic_prop.cpucp_info.infineon_version),
-			le32_to_cpu(hdev->asic_prop.cpucp_info.infineon_second_stage_version));
-	else
-		return sprintf(buf, "%#04x\n",
-			le32_to_cpu(hdev->asic_prop.cpucp_info.infineon_version));
-}
-
 static ssize_t fuse_ver_show(struct device *dev, struct device_attribute *attr,
 				char *buf)
 {
@@ -186,6 +158,14 @@ static ssize_t thermal_ver_show(struct device *dev,
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%s", hdev->asic_prop.cpucp_info.thermal_version);
+}
+
+static ssize_t fw_os_ver_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s", hdev->asic_prop.cpucp_info.fw_os_version);
 }
 
 static ssize_t preboot_btl_ver_show(struct device *dev,
@@ -323,7 +303,9 @@ static ssize_t max_power_show(struct device *dev, struct device_attribute *attr,
 	if (!hl_device_operational(hdev, NULL))
 		return -ENODEV;
 
-	val = hl_get_max_power(hdev);
+	val = hl_fw_get_max_power(hdev);
+	if (val < 0)
+		return val;
 
 	return sprintf(buf, "%lu\n", val);
 }
@@ -348,7 +330,7 @@ static ssize_t max_power_store(struct device *dev,
 	}
 
 	hdev->max_power = value;
-	hl_set_max_power(hdev);
+	hl_fw_set_max_power(hdev);
 
 out:
 	return count;
@@ -394,7 +376,6 @@ static DEVICE_ATTR_RO(device_type);
 static DEVICE_ATTR_RO(fuse_ver);
 static DEVICE_ATTR_WO(hard_reset);
 static DEVICE_ATTR_RO(hard_reset_cnt);
-static DEVICE_ATTR_RO(infineon_ver);
 static DEVICE_ATTR_RW(max_power);
 static DEVICE_ATTR_RO(pci_addr);
 static DEVICE_ATTR_RO(preboot_btl_ver);
@@ -403,6 +384,7 @@ static DEVICE_ATTR_RO(soft_reset_cnt);
 static DEVICE_ATTR_RO(status);
 static DEVICE_ATTR_RO(thermal_ver);
 static DEVICE_ATTR_RO(uboot_ver);
+static DEVICE_ATTR_RO(fw_os_ver);
 
 static struct bin_attribute bin_attr_eeprom = {
 	.attr = {.name = "eeprom", .mode = (0444)},
@@ -420,13 +402,13 @@ static struct attribute *hl_dev_attrs[] = {
 	&dev_attr_fuse_ver.attr,
 	&dev_attr_hard_reset.attr,
 	&dev_attr_hard_reset_cnt.attr,
-	&dev_attr_infineon_ver.attr,
 	&dev_attr_max_power.attr,
 	&dev_attr_pci_addr.attr,
 	&dev_attr_preboot_btl_ver.attr,
 	&dev_attr_status.attr,
 	&dev_attr_thermal_ver.attr,
 	&dev_attr_uboot_ver.attr,
+	&dev_attr_fw_os_ver.attr,
 	NULL,
 };
 
@@ -441,10 +423,12 @@ static struct attribute_group hl_dev_attr_group = {
 };
 
 static struct attribute_group hl_dev_clks_attr_group;
+static struct attribute_group hl_dev_vrm_attr_group;
 
 static const struct attribute_group *hl_dev_attr_groups[] = {
 	&hl_dev_attr_group,
 	&hl_dev_clks_attr_group,
+	&hl_dev_vrm_attr_group,
 	NULL,
 };
 
@@ -463,13 +447,23 @@ static const struct attribute_group *hl_dev_inference_attr_groups[] = {
 	NULL,
 };
 
+void hl_sysfs_add_dev_clk_attr(struct hl_device *hdev, struct attribute_group *dev_clk_attr_grp)
+{
+	dev_clk_attr_grp->attrs = hl_dev_clk_attrs;
+}
+
+void hl_sysfs_add_dev_vrm_attr(struct hl_device *hdev, struct attribute_group *dev_vrm_attr_grp)
+{
+	dev_vrm_attr_grp->attrs = hl_dev_vrm_attrs;
+}
+
 int hl_sysfs_init(struct hl_device *hdev)
 {
 	int rc;
 
 	hdev->max_power = hdev->asic_prop.max_power_default;
 
-	hdev->asic_funcs->add_device_attr(hdev, &hl_dev_clks_attr_group);
+	hdev->asic_funcs->add_device_attr(hdev, &hl_dev_clks_attr_group, &hl_dev_vrm_attr_group);
 
 	rc = device_add_groups(hdev->dev, hl_dev_attr_groups);
 	if (rc) {

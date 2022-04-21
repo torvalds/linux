@@ -2418,13 +2418,11 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 		iscsi_host_remove(qedi->shost);
 
 		if (qedi->tmf_thread) {
-			flush_workqueue(qedi->tmf_thread);
 			destroy_workqueue(qedi->tmf_thread);
 			qedi->tmf_thread = NULL;
 		}
 
 		if (qedi->offload_thread) {
-			flush_workqueue(qedi->offload_thread);
 			destroy_workqueue(qedi->offload_thread);
 			qedi->offload_thread = NULL;
 		}

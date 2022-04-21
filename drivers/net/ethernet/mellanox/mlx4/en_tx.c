@@ -42,7 +42,6 @@
 #include <linux/tcp.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
-#include <linux/moduleparam.h>
 #include <linux/indirect_call_wrapper.h>
 
 #include "mlx4_en.h"

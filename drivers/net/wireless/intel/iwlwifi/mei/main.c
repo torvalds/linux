@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2022 Intel Corporation
  */
 
 #include <linux/etherdevice.h>
@@ -146,6 +146,7 @@ struct iwl_mei_filters {
  * @csme_taking_ownership: true when CSME is taking ownership. Used to remember
  *	to send CSME_OWNERSHIP_CONFIRMED when the driver completes its down
  *	flow.
+ * @link_prot_state: true when we are in link protection PASSIVE
  * @csa_throttle_end_wk: used when &csa_throttled is true
  * @data_q_lock: protects the access to the data queues which are
  *	accessed without the mutex.
@@ -165,6 +166,7 @@ struct iwl_mei {
 	bool amt_enabled;
 	bool csa_throttled;
 	bool csme_taking_ownership;
+	bool link_prot_state;
 	struct delayed_work csa_throttle_end_wk;
 	spinlock_t data_q_lock;
 
@@ -229,8 +231,6 @@ static int iwl_mei_alloc_shared_mem(struct mei_cl_device *cldev)
 	if (IS_ERR(mem->ctrl)) {
 		int ret = PTR_ERR(mem->ctrl);
 
-		dev_err(&cldev->dev, "Couldn't allocate the shared memory: %d\n",
-			ret);
 		mem->ctrl = NULL;
 
 		return ret;
@@ -312,7 +312,7 @@ static ssize_t iwl_mei_write_cyclic_buf(struct mei_cl_device *cldev,
 		memcpy(q_head + wr, hdr, tx_sz);
 	} else {
 		memcpy(q_head + wr, hdr, q_sz - wr);
-		memcpy(q_head, (u8 *)hdr + q_sz - wr, tx_sz - (q_sz - wr));
+		memcpy(q_head, (const u8 *)hdr + q_sz - wr, tx_sz - (q_sz - wr));
 	}
 
 	WRITE_ONCE(notif_q->wr_ptr, cpu_to_le32((wr + tx_sz) % q_sz));
@@ -432,7 +432,7 @@ void iwl_mei_add_data_to_ring(struct sk_buff *skb, bool cb_tx)
 	u32 q_sz;
 	u32 rd;
 	u32 wr;
-	void *q_head;
+	u8 *q_head;
 
 	if (!iwl_mei_global_cldev)
 		return;
@@ -668,6 +668,8 @@ iwl_mei_handle_conn_status(struct mei_cl_device *cldev,
 	ether_addr_copy(conn_info.bssid, status->conn_info.bssid);
 
 	iwl_mei_cache.ops->me_conn_status(iwl_mei_cache.priv, &conn_info);
+
+	mei->link_prot_state = status->link_prot_state;
 
 	/*
 	 * Update the Rfkill state in case the host does not own the device:
@@ -1663,9 +1665,11 @@ int iwl_mei_register(void *priv, const struct iwl_mei_ops *ops)
 			mei_cldev_get_drvdata(iwl_mei_global_cldev);
 
 		/* we have already a SAP connection */
-		if (iwl_mei_is_connected())
+		if (iwl_mei_is_connected()) {
 			iwl_mei_send_sap_msg(mei->cldev,
 					     SAP_MSG_NOTIF_WIFIDR_UP);
+			ops->rfkill(priv, mei->link_prot_state);
+		}
 	}
 	ret = 0;
 
@@ -1784,6 +1788,8 @@ static void iwl_mei_dbgfs_unregister(struct iwl_mei *mei) {}
 
 #endif /* CONFIG_DEBUG_FS */
 
+#define ALLOC_SHARED_MEM_RETRY_MAX_NUM	3
+
 /*
  * iwl_mei_probe - the probe function called by the mei bus enumeration
  *
@@ -1795,6 +1801,7 @@ static void iwl_mei_dbgfs_unregister(struct iwl_mei *mei) {}
 static int iwl_mei_probe(struct mei_cl_device *cldev,
 			 const struct mei_cl_device_id *id)
 {
+	int alloc_retry = ALLOC_SHARED_MEM_RETRY_MAX_NUM;
 	struct iwl_mei *mei;
 	int ret;
 
@@ -1812,15 +1819,31 @@ static int iwl_mei_probe(struct mei_cl_device *cldev,
 	mei_cldev_set_drvdata(cldev, mei);
 	mei->cldev = cldev;
 
-	/*
-	 * The CSME firmware needs to boot the internal WLAN client. Wait here
-	 * so that the DMA map request will succeed.
-	 */
-	msleep(20);
+	do {
+		ret = iwl_mei_alloc_shared_mem(cldev);
+		if (!ret)
+			break;
+		/*
+		 * The CSME firmware needs to boot the internal WLAN client.
+		 * This can take time in certain configurations (usually
+		 * upon resume and when the whole CSME firmware is shut down
+		 * during suspend).
+		 *
+		 * Wait a bit before retrying and hope we'll succeed next time.
+		 */
 
-	ret = iwl_mei_alloc_shared_mem(cldev);
-	if (ret)
+		dev_dbg(&cldev->dev,
+			"Couldn't allocate the shared memory: %d, attempt %d / %d\n",
+			ret, alloc_retry, ALLOC_SHARED_MEM_RETRY_MAX_NUM);
+		msleep(100);
+		alloc_retry--;
+	} while (alloc_retry);
+
+	if (ret) {
+		dev_err(&cldev->dev, "Couldn't allocate the shared memory: %d\n",
+			ret);
 		goto free;
+	}
 
 	iwl_mei_init_shared_mem(mei);
 
@@ -1980,7 +2003,11 @@ static void iwl_mei_remove(struct mei_cl_device *cldev)
 }
 
 static const struct mei_cl_device_id iwl_mei_tbl[] = {
-	{ KBUILD_MODNAME, MEI_WLAN_UUID, MEI_CL_VERSION_ANY},
+	{
+		.name = KBUILD_MODNAME,
+		.uuid = MEI_WLAN_UUID,
+		.version = MEI_CL_VERSION_ANY,
+	},
 
 	/* required last entry */
 	{ }

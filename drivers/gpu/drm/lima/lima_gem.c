@@ -2,6 +2,7 @@
 /* Copyright 2017-2019 Qiang Yu <yuq825@gmail.com> */
 
 #include <linux/mm.h>
+#include <linux/iosys-map.h>
 #include <linux/sync_file.h>
 #include <linux/pagemap.h>
 #include <linux/shmem_fs.h>
@@ -182,7 +183,7 @@ static int lima_gem_pin(struct drm_gem_object *obj)
 	return drm_gem_shmem_pin(&bo->base);
 }
 
-static int lima_gem_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
+static int lima_gem_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
 	struct lima_bo *bo = to_lima_bo(obj);
 
@@ -213,6 +214,7 @@ static const struct drm_gem_object_funcs lima_gem_funcs = {
 	.vmap = lima_gem_vmap,
 	.vunmap = drm_gem_shmem_object_vunmap,
 	.mmap = lima_gem_mmap,
+	.vm_ops = &drm_gem_shmem_vm_ops,
 };
 
 struct drm_gem_object *lima_gem_create_object(struct drm_device *dev, size_t size)

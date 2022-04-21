@@ -112,7 +112,7 @@
 };
 
 &pinctrl_1 {
-	gpio_home_key: home-key {
+	gpio_home_key: home-key-pins {
 		samsung,pins = "gpx2-2";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};

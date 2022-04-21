@@ -80,3 +80,4 @@ module_i2c_driver(bmc150_magn_driver);
 MODULE_AUTHOR("Daniel Baluta <daniel.baluta@intel.com");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("BMC150 I2C magnetometer driver");
+MODULE_IMPORT_NS(IIO_BMC150_MAGN);

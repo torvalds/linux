@@ -15,7 +15,7 @@
 #define EX(insn,reg,addr,handler)			\
 9:	insn	reg, addr;				\
 	.section __ex_table,"a";			\
-	PTR	9b, handler;				\
+	PTR_WD	9b, handler;				\
 	.previous
 
 /*
@@ -59,7 +59,7 @@ LEAF(__strncpy_from_user_asm)
 	jr		ra
 
 	.section	__ex_table,"a"
-	PTR		1b, .Lfault
+	PTR_WD		1b, .Lfault
 	.previous
 
 	EXPORT_SYMBOL(__strncpy_from_user_asm)

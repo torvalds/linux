@@ -50,11 +50,16 @@ static int jpeg_v3_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->asic_type != CHIP_YELLOW_CARP) {
-		u32 harvest = RREG32_SOC15(JPEG, 0, mmCC_UVD_HARVESTING);
+	u32 harvest;
 
+	switch (adev->ip_versions[UVD_HWIP][0]) {
+	case IP_VERSION(3, 1, 1):
+		break;
+	default:
+		harvest = RREG32_SOC15(JPEG, 0, mmCC_UVD_HARVESTING);
 		if (harvest & CC_UVD_HARVESTING__UVD_DISABLE_MASK)
 			return -ENOENT;
+		break;
 	}
 
 	adev->jpeg.num_jpeg_inst = 1;

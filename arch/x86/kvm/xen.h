@@ -24,6 +24,12 @@ int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc);
 void kvm_xen_init_vm(struct kvm *kvm);
 void kvm_xen_destroy_vm(struct kvm *kvm);
 
+int kvm_xen_set_evtchn_fast(struct kvm_kernel_irq_routing_entry *e,
+			    struct kvm *kvm);
+int kvm_xen_setup_evtchn(struct kvm *kvm,
+			 struct kvm_kernel_irq_routing_entry *e,
+			 const struct kvm_irq_routing_entry *ue);
+
 static inline bool kvm_xen_msr_enabled(struct kvm *kvm)
 {
 	return static_branch_unlikely(&kvm_xen_enabled.key) &&
@@ -134,6 +140,9 @@ struct compat_shared_info {
 	struct compat_arch_shared_info arch;
 };
 
+#define COMPAT_EVTCHN_2L_NR_CHANNELS (8 *				\
+				      sizeof_field(struct compat_shared_info, \
+						   evtchn_pending))
 struct compat_vcpu_runstate_info {
     int state;
     uint64_t state_entry_time;

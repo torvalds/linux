@@ -956,7 +956,9 @@ static int __init parse_numa_properties(void)
 			of_node_put(cpu);
 		}
 
-		node_set_online(nid);
+		/* node_set_online() is an UB if 'nid' is negative */
+		if (likely(nid >= 0))
+			node_set_online(nid);
 	}
 
 	get_n_mem_cells(&n_mem_addr_cells, &n_mem_size_cells);
@@ -1434,7 +1436,7 @@ int find_and_online_cpu_nid(int cpu)
 	if (new_nid < 0 || !node_possible(new_nid))
 		new_nid = first_online_node;
 
-	if (NODE_DATA(new_nid) == NULL) {
+	if (!node_online(new_nid)) {
 #ifdef CONFIG_MEMORY_HOTPLUG
 		/*
 		 * Need to ensure that NODE_DATA is initialized for a node from

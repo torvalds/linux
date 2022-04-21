@@ -154,5 +154,8 @@ static struct platform_driver tps68470_gpio_driver = {
 	},
 	.probe = tps68470_gpio_probe,
 };
+module_platform_driver(tps68470_gpio_driver);
 
-builtin_platform_driver(tps68470_gpio_driver)
+MODULE_ALIAS("platform:tps68470-gpio");
+MODULE_DESCRIPTION("GPIO driver for TPS68470 PMIC");
+MODULE_LICENSE("GPL v2");

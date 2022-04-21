@@ -33,6 +33,25 @@ enum uclogic_params_pen_inrange {
 extern const char *uclogic_params_pen_inrange_to_str(
 			enum uclogic_params_pen_inrange inrange);
 
+
+/*
+ * Pen report's subreport data.
+ */
+struct uclogic_params_pen_subreport {
+	/*
+	 * The value of the second byte of the pen report indicating this
+	 * subreport. If zero, the subreport should be considered invalid and
+	 * not matched.
+	 */
+	__u8 value;
+
+	/*
+	 * The ID to be assigned to the report, if the second byte of the pen
+	 * report is equal to "value". Only valid if "value" is not zero.
+	 */
+	__u8 id;
+};
+
 /*
  * Tablet interface's pen input parameters.
  *
@@ -54,6 +73,8 @@ struct uclogic_params_pen {
 	unsigned int desc_size;
 	/* Report ID, if reports should be tweaked, zero if not */
 	unsigned int id;
+	/* The list of subreports */
+	struct uclogic_params_pen_subreport subreport_list[1];
 	/* Type of in-range reporting, only valid if "id" is not zero */
 	enum uclogic_params_pen_inrange inrange;
 	/*
@@ -62,6 +83,12 @@ struct uclogic_params_pen {
 	 * Only valid if "id" is not zero.
 	 */
 	bool fragmented_hires;
+	/*
+	 * True if the pen reports tilt in bytes at offset 10 (X) and 11 (Y),
+	 * and the Y tilt direction is flipped.
+	 * Only valid if "id" is not zero.
+	 */
+	bool tilt_y_flipped;
 };
 
 /*
@@ -133,27 +160,15 @@ struct uclogic_params {
 	 */
 	unsigned int desc_size;
 	/*
-	 * True, if pen usage in report descriptor is invalid, when present.
-	 * Only valid, if "invalid" is false.
-	 */
-	bool pen_unused;
-	/*
 	 * Pen parameters and optional report descriptor part.
-	 * Only valid if "pen_unused" is valid and false.
+	 * Only valid, if "invalid" is false.
 	 */
 	struct uclogic_params_pen pen;
 	/*
-	 * Frame control parameters and optional report descriptor part.
-	 * Only valid, if "invalid" is false.
+	 * The list of frame control parameters and optional report descriptor
+	 * parts. Only valid, if "invalid" is false.
 	 */
-	struct uclogic_params_frame frame;
-	/*
-	 * Bitmask matching frame controls "sub-report" flag in the second
-	 * byte of the pen report, or zero if it's not expected.
-	 * Only valid if both "pen" and "frame" are valid, and "frame.id" is
-	 * not zero.
-	 */
-	__u8 pen_frame_flag;
+	struct uclogic_params_frame frame_list[1];
 };
 
 /* Initialize a tablet interface and discover its parameters */
@@ -162,39 +177,40 @@ extern int uclogic_params_init(struct uclogic_params *params,
 
 /* Tablet interface parameters *printf format string */
 #define UCLOGIC_PARAMS_FMT_STR \
-		".invalid = %s\n"                   \
-		".desc_ptr = %p\n"                  \
-		".desc_size = %u\n"                 \
-		".pen_unused = %s\n"                \
-		".pen.desc_ptr = %p\n"              \
-		".pen.desc_size = %u\n"             \
-		".pen.id = %u\n"                    \
-		".pen.inrange = %s\n"               \
-		".pen.fragmented_hires = %s\n"      \
-		".frame.desc_ptr = %p\n"            \
-		".frame.desc_size = %u\n"           \
-		".frame.id = %u\n"                  \
-		".frame.re_lsb = %u\n"              \
-		".frame.dev_id_byte = %u\n"         \
-		".pen_frame_flag = 0x%02x\n"
+		".invalid = %s\n"                               \
+		".desc_ptr = %p\n"                              \
+		".desc_size = %u\n"                             \
+		".pen.desc_ptr = %p\n"                          \
+		".pen.desc_size = %u\n"                         \
+		".pen.id = %u\n"                                \
+		".pen.subreport_list[0] = {0x%02hhx, %hhu}\n"   \
+		".pen.inrange = %s\n"                           \
+		".pen.fragmented_hires = %s\n"                  \
+		".pen.tilt_y_flipped = %s\n"                    \
+		".frame_list[0].desc_ptr = %p\n"                \
+		".frame_list[0].desc_size = %u\n"               \
+		".frame_list[0].id = %u\n"                      \
+		".frame_list[0].re_lsb = %u\n"                  \
+		".frame_list[0].dev_id_byte = %u\n"
 
 /* Tablet interface parameters *printf format arguments */
 #define UCLOGIC_PARAMS_FMT_ARGS(_params) \
 		((_params)->invalid ? "true" : "false"),                    \
 		(_params)->desc_ptr,                                        \
 		(_params)->desc_size,                                       \
-		((_params)->pen_unused ? "true" : "false"),                 \
 		(_params)->pen.desc_ptr,                                    \
 		(_params)->pen.desc_size,                                   \
 		(_params)->pen.id,                                          \
+		(_params)->pen.subreport_list[0].value,                     \
+		(_params)->pen.subreport_list[0].id,                        \
 		uclogic_params_pen_inrange_to_str((_params)->pen.inrange),  \
 		((_params)->pen.fragmented_hires ? "true" : "false"),       \
-		(_params)->frame.desc_ptr,                                  \
-		(_params)->frame.desc_size,                                 \
-		(_params)->frame.id,                                        \
-		(_params)->frame.re_lsb,                                    \
-		(_params)->frame.dev_id_byte,                               \
-		(_params)->pen_frame_flag
+		((_params)->pen.tilt_y_flipped ? "true" : "false"),         \
+		(_params)->frame_list[0].desc_ptr,                          \
+		(_params)->frame_list[0].desc_size,                         \
+		(_params)->frame_list[0].id,                                \
+		(_params)->frame_list[0].re_lsb,                            \
+		(_params)->frame_list[0].dev_id_byte
 
 /* Get a replacement report descriptor for a tablet's interface. */
 extern int uclogic_params_get_desc(const struct uclogic_params *params,

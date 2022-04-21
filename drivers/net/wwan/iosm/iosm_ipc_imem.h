@@ -317,6 +317,7 @@ enum ipc_phase {
  * @tdupdate_timer:		Delay the TD update doorbell.
  * @fast_update_timer:		forced head pointer update delay timer.
  * @td_alloc_timer:		Timer for DL pipe TD allocation retry
+ * @adb_timer:			Timer for finishing the ADB.
  * @rom_exit_code:		Mapped boot rom exit code.
  * @enter_runtime:		1 means the transition to runtime phase was
  *				executed.
@@ -340,6 +341,7 @@ enum ipc_phase {
  * @ev_mux_net_transmit_pending:0 means inform the IPC tasklet to pass
  * @reset_det_n:		Reset detect flag
  * @pcie_wake_n:		Pcie wake flag
+ * @debugfs_wwan_dir:		WWAN Debug FS directory entry
  * @debugfs_dir:		Debug FS directory for driver-specific entries
  */
 struct iosm_imem {
@@ -364,6 +366,7 @@ struct iosm_imem {
 	struct hrtimer tdupdate_timer;
 	struct hrtimer fast_update_timer;
 	struct hrtimer td_alloc_timer;
+	struct hrtimer adb_timer;
 	enum rom_exit_code rom_exit_code;
 	u32 enter_runtime;
 	struct completion ul_pend_sem;
@@ -382,6 +385,7 @@ struct iosm_imem {
 	   reset_det_n:1,
 	   pcie_wake_n:1;
 #ifdef CONFIG_WWAN_DEBUGFS
+	struct dentry *debugfs_wwan_dir;
 	struct dentry *debugfs_dir;
 #endif
 };
@@ -593,4 +597,7 @@ void ipc_imem_channel_init(struct iosm_imem *ipc_imem, enum ipc_ctype ctype,
  * Returns: 0 on success, -1 on failure
  */
 int ipc_imem_devlink_trigger_chip_info(struct iosm_imem *ipc_imem);
+
+void ipc_imem_adb_timer_start(struct iosm_imem *ipc_imem);
+
 #endif

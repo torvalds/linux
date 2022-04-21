@@ -15,6 +15,8 @@
 struct ptp {
 	struct pci_dev *pdev;
 	void __iomem *reg_base;
+	u64 (*read_ptp_tstmp)(struct ptp *ptp);
+	spinlock_t ptp_lock; /* lock */
 	u32 clock_rate;
 };
 

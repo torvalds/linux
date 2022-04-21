@@ -241,15 +241,13 @@ static int soc_device_match_one(struct device *dev, void *arg)
 const struct soc_device_attribute *soc_device_match(
 	const struct soc_device_attribute *matches)
 {
-	int ret = 0;
+	int ret;
 
 	if (!matches)
 		return NULL;
 
-	while (!ret) {
-		if (!(matches->machine || matches->family ||
-		      matches->revision || matches->soc_id))
-			break;
+	while (matches->machine || matches->family || matches->revision ||
+	       matches->soc_id) {
 		ret = bus_for_each_dev(&soc_bus_type, NULL, (void *)matches,
 				       soc_device_match_one);
 		if (ret < 0 && early_soc_dev_attr)
@@ -257,10 +255,10 @@ const struct soc_device_attribute *soc_device_match(
 						    matches);
 		if (ret < 0)
 			return NULL;
-		if (!ret)
-			matches++;
-		else
+		if (ret)
 			return matches;
+
+		matches++;
 	}
 	return NULL;
 }

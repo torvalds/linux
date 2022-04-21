@@ -1068,7 +1068,7 @@ struct brcmf_mkeep_alive_pkt_le {
 	__le32  period_msec;
 	__le16  len_bytes;
 	u8   keep_alive_id;
-	u8   data[0];
+	u8   data[];
 } __packed;
 
 #endif /* FWIL_TYPES_H_ */

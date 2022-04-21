@@ -577,8 +577,8 @@ static int rproc_handle_vdev(struct rproc *rproc, void *ptr,
 					   dma_get_mask(rproc->dev.parent));
 	if (ret) {
 		dev_warn(dev,
-			 "Failed to set DMA mask %llx. Trying to continue... %x\n",
-			 dma_get_mask(rproc->dev.parent), ret);
+			 "Failed to set DMA mask %llx. Trying to continue... (%pe)\n",
+			 dma_get_mask(rproc->dev.parent), ERR_PTR(ret));
 	}
 
 	/* parse the vrings */
@@ -2061,16 +2061,18 @@ EXPORT_SYMBOL(rproc_boot);
  *   which means that the @rproc handle stays valid even after rproc_shutdown()
  *   returns, and users can still use it with a subsequent rproc_boot(), if
  *   needed.
+ *
+ * Return: 0 on success, and an appropriate error value otherwise
  */
-void rproc_shutdown(struct rproc *rproc)
+int rproc_shutdown(struct rproc *rproc)
 {
 	struct device *dev = &rproc->dev;
-	int ret;
+	int ret = 0;
 
 	ret = mutex_lock_interruptible(&rproc->lock);
 	if (ret) {
 		dev_err(dev, "can't lock rproc %s: %d\n", rproc->name, ret);
-		return;
+		return ret;
 	}
 
 	/* if the remote proc is still needed, bail out */
@@ -2097,6 +2099,7 @@ void rproc_shutdown(struct rproc *rproc)
 	rproc->table_ptr = NULL;
 out:
 	mutex_unlock(&rproc->lock);
+	return ret;
 }
 EXPORT_SYMBOL(rproc_shutdown);
 

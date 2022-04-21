@@ -251,14 +251,12 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector, int silent)
 	ClearPageDirty(page);
 	lock_page(page);
 
-	bio = bio_alloc(GFP_NOFS, 1);
+	bio = bio_alloc(sb->s_bdev, 1, REQ_OP_READ | REQ_META, GFP_NOFS);
 	bio->bi_iter.bi_sector = sector * (sb->s_blocksize >> 9);
-	bio_set_dev(bio, sb->s_bdev);
 	bio_add_page(bio, page, PAGE_SIZE, 0);
 
 	bio->bi_end_io = end_bio_io_page;
 	bio->bi_private = page;
-	bio_set_op_attrs(bio, REQ_OP_READ, REQ_META);
 	submit_bio(bio);
 	wait_on_page_locked(page);
 	bio_put(bio);

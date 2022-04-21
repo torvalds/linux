@@ -549,7 +549,7 @@ Pagecache
 ~~~~~~~~~
 
 For filesystems using Linux's pagecache, the ``->readpage()`` and
-``->readpages()`` methods must be modified to verify pages before they
+``->readahead()`` methods must be modified to verify pages before they
 are marked Uptodate.  Merely hooking ``->read_iter()`` would be
 insufficient, since ``->read_iter()`` is not used for memory maps.
 
@@ -611,7 +611,7 @@ workqueue, and then the workqueue work does the decryption or
 verification.  Finally, pages where no decryption or verity error
 occurred are marked Uptodate, and the pages are unlocked.
 
-Files on ext4 and f2fs may contain holes.  Normally, ``->readpages()``
+Files on ext4 and f2fs may contain holes.  Normally, ``->readahead()``
 simply zeroes holes and sets the corresponding pages Uptodate; no bios
 are issued.  To prevent this case from bypassing fs-verity, these
 filesystems use fsverity_verify_page() to verify hole pages.
@@ -778,7 +778,7 @@ weren't already directly answered in other parts of this document.
     - To prevent bypassing verification, pages must not be marked
       Uptodate until they've been verified.  Currently, each
       filesystem is responsible for marking pages Uptodate via
-      ``->readpages()``.  Therefore, currently it's not possible for
+      ``->readahead()``.  Therefore, currently it's not possible for
       the VFS to do the verification on its own.  Changing this would
       require significant changes to the VFS and all filesystems.
 

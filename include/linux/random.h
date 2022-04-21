@@ -1,9 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*
- * include/linux/random.h
- *
- * Include file for the random number generator.
- */
+
 #ifndef _LINUX_RANDOM_H
 #define _LINUX_RANDOM_H
 
@@ -14,14 +10,10 @@
 
 #include <uapi/linux/random.h>
 
-struct random_ready_callback {
-	struct list_head list;
-	void (*func)(struct random_ready_callback *rdy);
-	struct module *owner;
-};
+struct notifier_block;
 
-extern void add_device_randomness(const void *, unsigned int);
-extern void add_bootloader_randomness(const void *, unsigned int);
+extern void add_device_randomness(const void *, size_t);
+extern void add_bootloader_randomness(const void *, size_t);
 
 #if defined(LATENT_ENTROPY_PLUGIN) && !defined(__CHECKER__)
 static inline void add_latent_entropy(void)
@@ -36,14 +28,24 @@ static inline void add_latent_entropy(void) {}
 extern void add_input_randomness(unsigned int type, unsigned int code,
 				 unsigned int value) __latent_entropy;
 extern void add_interrupt_randomness(int irq) __latent_entropy;
+extern void add_hwgenerator_randomness(const void *buffer, size_t count,
+				       size_t entropy);
+#if IS_ENABLED(CONFIG_VMGENID)
+extern void add_vmfork_randomness(const void *unique_vm_id, size_t size);
+extern int register_random_vmfork_notifier(struct notifier_block *nb);
+extern int unregister_random_vmfork_notifier(struct notifier_block *nb);
+#else
+static inline int register_random_vmfork_notifier(struct notifier_block *nb) { return 0; }
+static inline int unregister_random_vmfork_notifier(struct notifier_block *nb) { return 0; }
+#endif
 
-extern void get_random_bytes(void *buf, int nbytes);
+extern void get_random_bytes(void *buf, size_t nbytes);
 extern int wait_for_random_bytes(void);
 extern int __init rand_initialize(void);
 extern bool rng_is_initialized(void);
-extern int add_random_ready_callback(struct random_ready_callback *rdy);
-extern void del_random_ready_callback(struct random_ready_callback *rdy);
-extern int __must_check get_random_bytes_arch(void *buf, int nbytes);
+extern int register_random_ready_notifier(struct notifier_block *nb);
+extern int unregister_random_ready_notifier(struct notifier_block *nb);
+extern size_t __must_check get_random_bytes_arch(void *buf, size_t nbytes);
 
 #ifndef MODULE
 extern const struct file_operations random_fops, urandom_fops;
@@ -87,7 +89,7 @@ static inline unsigned long get_random_canary(void)
 
 /* Calls wait_for_random_bytes() and then calls get_random_bytes(buf, nbytes).
  * Returns the result of the call to wait_for_random_bytes. */
-static inline int get_random_bytes_wait(void *buf, int nbytes)
+static inline int get_random_bytes_wait(void *buf, size_t nbytes)
 {
 	int ret = wait_for_random_bytes();
 	get_random_bytes(buf, nbytes);
@@ -156,6 +158,11 @@ static inline bool __init arch_get_random_long_early(unsigned long *v)
 	WARN_ON(system_state != SYSTEM_BOOTING);
 	return arch_get_random_long(v);
 }
+#endif
+
+#ifdef CONFIG_SMP
+extern int random_prepare_cpu(unsigned int cpu);
+extern int random_online_cpu(unsigned int cpu);
 #endif
 
 #endif /* _LINUX_RANDOM_H */

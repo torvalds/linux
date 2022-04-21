@@ -241,6 +241,7 @@ static inline void paging_init(void) { }
  * The pmd contains the kernel virtual address of the pte page.
  */
 #define pmd_page_vaddr(pmd) ((unsigned long)(pmd_val(pmd) & PAGE_MASK))
+#define pmd_pfn(pmd) (__pa(pmd_val(pmd)) >> PAGE_SHIFT)
 #define pmd_page(pmd) virt_to_page(pmd_val(pmd))
 
 /*
@@ -410,6 +411,10 @@ extern  void update_mmu_cache(struct vm_area_struct * vma,
 			      unsigned long address, pte_t *ptep);
 
 typedef pte_t *pte_addr_t;
+
+void update_mmu_tlb(struct vm_area_struct *vma,
+		    unsigned long address, pte_t *ptep);
+#define __HAVE_ARCH_UPDATE_MMU_TLB
 
 #endif /* !defined (__ASSEMBLY__) */
 

@@ -18,9 +18,7 @@ unsigned int failed_tests;
 unsigned int total_tests;
 
 /* Tests will be based on this version. */
-#define latest_maj 12
-#define latest_min 1
-#define latest_rev 0
+#define UTF8_LATEST	UNICODE_AGE(12, 1, 0)
 
 #define _test(cond, func, line, fmt, ...) do {				\
 		total_tests++;						\
@@ -160,18 +158,22 @@ static const struct {
 	}
 };
 
-static void check_utf8_nfdi(void)
+static ssize_t utf8len(const struct unicode_map *um, enum utf8_normalization n,
+		const char *s)
+{
+	return utf8nlen(um, n, s, (size_t)-1);
+}
+
+static int utf8cursor(struct utf8cursor *u8c, const struct unicode_map *um,
+		enum utf8_normalization n, const char *s)
+{
+	return utf8ncursor(u8c, um, n, s, (unsigned int)-1);
+}
+
+static void check_utf8_nfdi(struct unicode_map *um)
 {
 	int i;
 	struct utf8cursor u8c;
-	const struct utf8data *data;
-
-	data = utf8nfdi(UNICODE_AGE(latest_maj, latest_min, latest_rev));
-	if (!data) {
-		pr_err("%s: Unable to load utf8-%d.%d.%d. Skipping.\n",
-		       __func__, latest_maj, latest_min, latest_rev);
-		return;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(nfdi_test_data); i++) {
 		int len = strlen(nfdi_test_data[i].str);
@@ -179,10 +181,11 @@ static void check_utf8_nfdi(void)
 		int j = 0;
 		unsigned char c;
 
-		test((utf8len(data, nfdi_test_data[i].str) == nlen));
-		test((utf8nlen(data, nfdi_test_data[i].str, len) == nlen));
+		test((utf8len(um, UTF8_NFDI, nfdi_test_data[i].str) == nlen));
+		test((utf8nlen(um, UTF8_NFDI, nfdi_test_data[i].str, len) ==
+			nlen));
 
-		if (utf8cursor(&u8c, data, nfdi_test_data[i].str) < 0)
+		if (utf8cursor(&u8c, um, UTF8_NFDI, nfdi_test_data[i].str) < 0)
 			pr_err("can't create cursor\n");
 
 		while ((c = utf8byte(&u8c)) > 0) {
@@ -196,18 +199,10 @@ static void check_utf8_nfdi(void)
 	}
 }
 
-static void check_utf8_nfdicf(void)
+static void check_utf8_nfdicf(struct unicode_map *um)
 {
 	int i;
 	struct utf8cursor u8c;
-	const struct utf8data *data;
-
-	data = utf8nfdicf(UNICODE_AGE(latest_maj, latest_min, latest_rev));
-	if (!data) {
-		pr_err("%s: Unable to load utf8-%d.%d.%d. Skipping.\n",
-		       __func__, latest_maj, latest_min, latest_rev);
-		return;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(nfdicf_test_data); i++) {
 		int len = strlen(nfdicf_test_data[i].str);
@@ -215,10 +210,13 @@ static void check_utf8_nfdicf(void)
 		int j = 0;
 		unsigned char c;
 
-		test((utf8len(data, nfdicf_test_data[i].str) == nlen));
-		test((utf8nlen(data, nfdicf_test_data[i].str, len) == nlen));
+		test((utf8len(um, UTF8_NFDICF, nfdicf_test_data[i].str) ==
+				nlen));
+		test((utf8nlen(um, UTF8_NFDICF, nfdicf_test_data[i].str, len) ==
+				nlen));
 
-		if (utf8cursor(&u8c, data, nfdicf_test_data[i].str) < 0)
+		if (utf8cursor(&u8c, um, UTF8_NFDICF,
+				nfdicf_test_data[i].str) < 0)
 			pr_err("can't create cursor\n");
 
 		while ((c = utf8byte(&u8c)) > 0) {
@@ -232,16 +230,9 @@ static void check_utf8_nfdicf(void)
 	}
 }
 
-static void check_utf8_comparisons(void)
+static void check_utf8_comparisons(struct unicode_map *table)
 {
 	int i;
-	struct unicode_map *table = utf8_load("12.1.0");
-
-	if (IS_ERR(table)) {
-		pr_err("%s: Unable to load utf8 %d.%d.%d. Skipping.\n",
-		       __func__, latest_maj, latest_min, latest_rev);
-		return;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(nfdi_test_data); i++) {
 		const struct qstr s1 = {.name = nfdi_test_data[i].str,
@@ -262,42 +253,49 @@ static void check_utf8_comparisons(void)
 		test_f(!utf8_strncasecmp(table, &s1, &s2),
 		       "%s %s comparison mismatch\n", s1.name, s2.name);
 	}
-
-	utf8_unload(table);
 }
 
-static void check_supported_versions(void)
+static void check_supported_versions(struct unicode_map *um)
 {
 	/* Unicode 7.0.0 should be supported. */
-	test(utf8version_is_supported(7, 0, 0));
+	test(utf8version_is_supported(um, UNICODE_AGE(7, 0, 0)));
 
 	/* Unicode 9.0.0 should be supported. */
-	test(utf8version_is_supported(9, 0, 0));
+	test(utf8version_is_supported(um, UNICODE_AGE(9, 0, 0)));
 
 	/* Unicode 1x.0.0 (the latest version) should be supported. */
-	test(utf8version_is_supported(latest_maj, latest_min, latest_rev));
+	test(utf8version_is_supported(um, UTF8_LATEST));
 
 	/* Next versions don't exist. */
-	test(!utf8version_is_supported(13, 0, 0));
-	test(!utf8version_is_supported(0, 0, 0));
-	test(!utf8version_is_supported(-1, -1, -1));
+	test(!utf8version_is_supported(um, UNICODE_AGE(13, 0, 0)));
+	test(!utf8version_is_supported(um, UNICODE_AGE(0, 0, 0)));
+	test(!utf8version_is_supported(um, UNICODE_AGE(-1, -1, -1)));
 }
 
 static int __init init_test_ucd(void)
 {
+	struct unicode_map *um;
+
 	failed_tests = 0;
 	total_tests = 0;
 
-	check_supported_versions();
-	check_utf8_nfdi();
-	check_utf8_nfdicf();
-	check_utf8_comparisons();
+	um = utf8_load(UTF8_LATEST);
+	if (IS_ERR(um)) {
+		pr_err("%s: Unable to load utf8 table.\n", __func__);
+		return PTR_ERR(um);
+	}
+
+	check_supported_versions(um);
+	check_utf8_nfdi(um);
+	check_utf8_nfdicf(um);
+	check_utf8_comparisons(um);
 
 	if (!failed_tests)
 		pr_info("All %u tests passed\n", total_tests);
 	else
 		pr_err("%u out of %u tests failed\n", failed_tests,
 		       total_tests);
+	utf8_unload(um);
 	return 0;
 }
 

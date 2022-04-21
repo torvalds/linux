@@ -484,7 +484,7 @@
 };
 
 &pinctrl_1 {
-	hsic_reset: hsic-reset {
+	hsic_reset: hsic-reset-pins {
 		samsung,pins = "gpm2-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;

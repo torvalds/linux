@@ -263,14 +263,14 @@ int mlx5e_rep_tc_init(struct mlx5e_rep_priv *rpriv)
 	INIT_LIST_HEAD(&uplink_priv->unready_flows);
 
 	/* init shared tc flow table */
-	err = mlx5e_tc_esw_init(&uplink_priv->tc_ht);
+	err = mlx5e_tc_esw_init(uplink_priv);
 	return err;
 }
 
 void mlx5e_rep_tc_cleanup(struct mlx5e_rep_priv *rpriv)
 {
 	/* delete shared tc flow table */
-	mlx5e_tc_esw_cleanup(&rpriv->uplink_priv.tc_ht);
+	mlx5e_tc_esw_cleanup(&rpriv->uplink_priv);
 	mutex_destroy(&rpriv->uplink_priv.unready_flows_lock);
 }
 

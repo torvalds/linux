@@ -218,8 +218,10 @@ static inline int tcf_exts_init(struct tcf_exts *exts, struct net *net,
 #ifdef CONFIG_NET_CLS_ACT
 	exts->type = 0;
 	exts->nr_actions = 0;
+	/* Note: we do not own yet a reference on net.
+	 * This reference might be taken later from tcf_exts_get_net().
+	 */
 	exts->net = net;
-	netns_tracker_alloc(net, &exts->ns_tracker, GFP_KERNEL);
 	exts->actions = kcalloc(TCA_ACT_MAX_PRIO, sizeof(struct tc_action *),
 				GFP_KERNEL);
 	if (!exts->actions)
@@ -1025,5 +1027,16 @@ struct tc_fifo_qopt_offload {
 		struct tc_qopt_offload_stats stats;
 	};
 };
+
+#ifdef CONFIG_NET_CLS_ACT
+DECLARE_STATIC_KEY_FALSE(tc_skb_ext_tc);
+void tc_skb_ext_tc_enable(void);
+void tc_skb_ext_tc_disable(void);
+#define tc_skb_ext_tc_enabled() static_branch_unlikely(&tc_skb_ext_tc)
+#else /* CONFIG_NET_CLS_ACT */
+static inline void tc_skb_ext_tc_enable(void) { }
+static inline void tc_skb_ext_tc_disable(void) { }
+#define tc_skb_ext_tc_enabled() false
+#endif
 
 #endif

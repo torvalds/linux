@@ -208,7 +208,7 @@ static void snd_echo_midi_output_write(struct timer_list *t)
 
 	/* No interrupts are involved: we have to check at regular intervals
 	if the card's output buffer has room for new data. */
-	sent = bytes = 0;
+	sent = 0;
 	spin_lock_irqsave(&chip->lock, flags);
 	chip->midi_full = 0;
 	if (!snd_rawmidi_transmit_empty(chip->midi_out)) {

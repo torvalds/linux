@@ -102,12 +102,6 @@ LIRC features
     The driver supports setting the receive carrier frequency using
     :ref:`ioctl LIRC_SET_REC_CARRIER <LIRC_SET_REC_CARRIER>`.
 
-.. _LIRC-CAN-SET-REC-DUTY-CYCLE-RANGE:
-
-``LIRC_CAN_SET_REC_DUTY_CYCLE_RANGE``
-
-    Unused. Kept just to avoid breaking uAPI.
-
 .. _LIRC-CAN-SET-REC-CARRIER-RANGE:
 
 ``LIRC_CAN_SET_REC_CARRIER_RANGE``
@@ -129,12 +123,6 @@ LIRC features
     The driver supports
     :ref:`ioctl LIRC_SET_REC_TIMEOUT <LIRC_SET_REC_TIMEOUT>`.
 
-.. _LIRC-CAN-SET-REC-FILTER:
-
-``LIRC_CAN_SET_REC_FILTER``
-
-    Unused. Kept just to avoid breaking uAPI.
-
 .. _LIRC-CAN-MEASURE-CARRIER:
 
 ``LIRC_CAN_MEASURE_CARRIER``
@@ -148,12 +136,6 @@ LIRC features
 
     The driver supports learning mode using
     :ref:`ioctl LIRC_SET_WIDEBAND_RECEIVER <LIRC_SET_WIDEBAND_RECEIVER>`.
-
-.. _LIRC-CAN-NOTIFY-DECODE:
-
-``LIRC_CAN_NOTIFY_DECODE``
-
-    Unused. Kept just to avoid breaking uAPI.
 
 .. _LIRC-CAN-SEND-RAW:
 

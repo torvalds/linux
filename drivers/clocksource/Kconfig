@@ -617,15 +617,6 @@ config CLKSRC_ST_LPC
 	  Enable this option to use the Low Power controller timer
 	  as clocksource.
 
-config ATCPIT100_TIMER
-	bool "ATCPIT100 timer driver"
-	depends on NDS32 || COMPILE_TEST
-	depends on HAS_IOMEM
-	select TIMER_OF
-	default NDS32
-	help
-	  This option enables support for the Andestech ATCPIT100 timers.
-
 config RISCV_TIMER
 	bool "Timer for the RISC-V platform" if COMPILE_TEST
 	depends on GENERIC_SCHED_CLOCK && RISCV && RISCV_SBI
@@ -713,7 +704,6 @@ config INGENIC_OST
 config MICROCHIP_PIT64B
 	bool "Microchip PIT64B support"
 	depends on OF || COMPILE_TEST
-	select CLKSRC_MMIO
 	select TIMER_OF
 	help
 	  This option enables Microchip PIT64B timer for Atmel

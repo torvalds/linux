@@ -16,7 +16,6 @@
 
 #define pr_fmt(fmt)	"OF: " fmt
 
-#include <linux/bitmap.h>
 #include <linux/console.h>
 #include <linux/ctype.h>
 #include <linux/cpu.h>
@@ -1420,14 +1419,17 @@ int of_phandle_iterator_args(struct of_phandle_iterator *it,
 	return count;
 }
 
-static int __of_parse_phandle_with_args(const struct device_node *np,
-					const char *list_name,
-					const char *cells_name,
-					int cell_count, int index,
-					struct of_phandle_args *out_args)
+int __of_parse_phandle_with_args(const struct device_node *np,
+				 const char *list_name,
+				 const char *cells_name,
+				 int cell_count, int index,
+				 struct of_phandle_args *out_args)
 {
 	struct of_phandle_iterator it;
 	int rc, cur_index = 0;
+
+	if (index < 0)
+		return -EINVAL;
 
 	/* Loop over the phandles until all the requested entry is found */
 	of_for_each_phandle(&it, rc, np, list_name, cells_name, cell_count) {
@@ -1471,82 +1473,7 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 	of_node_put(it.node);
 	return rc;
 }
-
-/**
- * of_parse_phandle - Resolve a phandle property to a device_node pointer
- * @np: Pointer to device node holding phandle property
- * @phandle_name: Name of property holding a phandle value
- * @index: For properties holding a table of phandles, this is the index into
- *         the table
- *
- * Return: The device_node pointer with refcount incremented.  Use
- * of_node_put() on it when done.
- */
-struct device_node *of_parse_phandle(const struct device_node *np,
-				     const char *phandle_name, int index)
-{
-	struct of_phandle_args args;
-
-	if (index < 0)
-		return NULL;
-
-	if (__of_parse_phandle_with_args(np, phandle_name, NULL, 0,
-					 index, &args))
-		return NULL;
-
-	return args.np;
-}
-EXPORT_SYMBOL(of_parse_phandle);
-
-/**
- * of_parse_phandle_with_args() - Find a node pointed by phandle in a list
- * @np:		pointer to a device tree node containing a list
- * @list_name:	property name that contains a list
- * @cells_name:	property name that specifies phandles' arguments count
- * @index:	index of a phandle to parse out
- * @out_args:	optional pointer to output arguments structure (will be filled)
- *
- * This function is useful to parse lists of phandles and their arguments.
- * Returns 0 on success and fills out_args, on error returns appropriate
- * errno value.
- *
- * Caller is responsible to call of_node_put() on the returned out_args->np
- * pointer.
- *
- * Example::
- *
- *  phandle1: node1 {
- *	#list-cells = <2>;
- *  };
- *
- *  phandle2: node2 {
- *	#list-cells = <1>;
- *  };
- *
- *  node3 {
- *	list = <&phandle1 1 2 &phandle2 3>;
- *  };
- *
- * To get a device_node of the ``node2`` node you may call this:
- * of_parse_phandle_with_args(node3, "list", "#list-cells", 1, &args);
- */
-int of_parse_phandle_with_args(const struct device_node *np, const char *list_name,
-				const char *cells_name, int index,
-				struct of_phandle_args *out_args)
-{
-	int cell_count = -1;
-
-	if (index < 0)
-		return -EINVAL;
-
-	/* If cells_name is NULL we assume a cell count of 0 */
-	if (!cells_name)
-		cell_count = 0;
-
-	return __of_parse_phandle_with_args(np, list_name, cells_name,
-					    cell_count, index, out_args);
-}
-EXPORT_SYMBOL(of_parse_phandle_with_args);
+EXPORT_SYMBOL(__of_parse_phandle_with_args);
 
 /**
  * of_parse_phandle_with_args_map() - Find a node pointed by phandle in a list and remap it
@@ -1731,47 +1658,6 @@ free:
 	return ret;
 }
 EXPORT_SYMBOL(of_parse_phandle_with_args_map);
-
-/**
- * of_parse_phandle_with_fixed_args() - Find a node pointed by phandle in a list
- * @np:		pointer to a device tree node containing a list
- * @list_name:	property name that contains a list
- * @cell_count: number of argument cells following the phandle
- * @index:	index of a phandle to parse out
- * @out_args:	optional pointer to output arguments structure (will be filled)
- *
- * This function is useful to parse lists of phandles and their arguments.
- * Returns 0 on success and fills out_args, on error returns appropriate
- * errno value.
- *
- * Caller is responsible to call of_node_put() on the returned out_args->np
- * pointer.
- *
- * Example::
- *
- *  phandle1: node1 {
- *  };
- *
- *  phandle2: node2 {
- *  };
- *
- *  node3 {
- *  	list = <&phandle1 0 2 &phandle2 2 3>;
- *  };
- *
- * To get a device_node of the ``node2`` node you may call this:
- * of_parse_phandle_with_fixed_args(node3, "list", 2, 1, &args);
- */
-int of_parse_phandle_with_fixed_args(const struct device_node *np,
-				const char *list_name, int cell_count,
-				int index, struct of_phandle_args *out_args)
-{
-	if (index < 0)
-		return -EINVAL;
-	return __of_parse_phandle_with_args(np, list_name, NULL, cell_count,
-					   index, out_args);
-}
-EXPORT_SYMBOL(of_parse_phandle_with_fixed_args);
 
 /**
  * of_count_phandle_with_args() - Find the number of phandles references in a property
@@ -2104,59 +1990,6 @@ int of_alias_get_id(struct device_node *np, const char *stem)
 	return id;
 }
 EXPORT_SYMBOL_GPL(of_alias_get_id);
-
-/**
- * of_alias_get_alias_list - Get alias list for the given device driver
- * @matches:	Array of OF device match structures to search in
- * @stem:	Alias stem of the given device_node
- * @bitmap:	Bitmap field pointer
- * @nbits:	Maximum number of alias IDs which can be recorded in bitmap
- *
- * The function travels the lookup table to record alias ids for the given
- * device match structures and alias stem.
- *
- * Return:	0 or -ENOSYS when !CONFIG_OF or
- *		-EOVERFLOW if alias ID is greater then allocated nbits
- */
-int of_alias_get_alias_list(const struct of_device_id *matches,
-			     const char *stem, unsigned long *bitmap,
-			     unsigned int nbits)
-{
-	struct alias_prop *app;
-	int ret = 0;
-
-	/* Zero bitmap field to make sure that all the time it is clean */
-	bitmap_zero(bitmap, nbits);
-
-	mutex_lock(&of_mutex);
-	pr_debug("%s: Looking for stem: %s\n", __func__, stem);
-	list_for_each_entry(app, &aliases_lookup, link) {
-		pr_debug("%s: stem: %s, id: %d\n",
-			 __func__, app->stem, app->id);
-
-		if (strcmp(app->stem, stem) != 0) {
-			pr_debug("%s: stem comparison didn't pass %s\n",
-				 __func__, app->stem);
-			continue;
-		}
-
-		if (of_match_node(matches, app->np)) {
-			pr_debug("%s: Allocated ID %d\n", __func__, app->id);
-
-			if (app->id >= nbits) {
-				pr_warn("%s: ID %d >= than bitmap field %d\n",
-					__func__, app->id, nbits);
-				ret = -EOVERFLOW;
-			} else {
-				set_bit(app->id, bitmap);
-			}
-		}
-	}
-	mutex_unlock(&of_mutex);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(of_alias_get_alias_list);
 
 /**
  * of_alias_get_highest_id - Get highest alias id for the given stem

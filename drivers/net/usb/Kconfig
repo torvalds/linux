@@ -358,6 +358,7 @@ config USB_NET_SMSC95XX
 	select BITREVERSE
 	select CRC16
 	select CRC32
+	imply NET_SELFTESTS
 	help
 	  This option adds support for SMSC LAN95XX based USB 2.0
 	  10/100 Ethernet adapters.

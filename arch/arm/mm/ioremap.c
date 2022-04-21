@@ -117,16 +117,21 @@ EXPORT_SYMBOL(ioremap_page);
 
 void __check_vmalloc_seq(struct mm_struct *mm)
 {
-	unsigned int seq;
+	int seq;
 
 	do {
-		seq = init_mm.context.vmalloc_seq;
+		seq = atomic_read(&init_mm.context.vmalloc_seq);
 		memcpy(pgd_offset(mm, VMALLOC_START),
 		       pgd_offset_k(VMALLOC_START),
 		       sizeof(pgd_t) * (pgd_index(VMALLOC_END) -
 					pgd_index(VMALLOC_START)));
-		mm->context.vmalloc_seq = seq;
-	} while (seq != init_mm.context.vmalloc_seq);
+		/*
+		 * Use a store-release so that other CPUs that observe the
+		 * counter's new value are guaranteed to see the results of the
+		 * memcpy as well.
+		 */
+		atomic_set_release(&mm->context.vmalloc_seq, seq);
+	} while (seq != atomic_read(&init_mm.context.vmalloc_seq));
 }
 
 #if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
@@ -157,7 +162,7 @@ static void unmap_area_sections(unsigned long virt, unsigned long size)
 			 * Note: this is still racy on SMP machines.
 			 */
 			pmd_clear(pmdp);
-			init_mm.context.vmalloc_seq++;
+			atomic_inc_return_release(&init_mm.context.vmalloc_seq);
 
 			/*
 			 * Free the page table, if there was one.
@@ -174,8 +179,7 @@ static void unmap_area_sections(unsigned long virt, unsigned long size)
 	 * Ensure that the active_mm is up to date - we want to
 	 * catch any use-after-iounmap cases.
 	 */
-	if (current->active_mm->context.vmalloc_seq != init_mm.context.vmalloc_seq)
-		__check_vmalloc_seq(current->active_mm);
+	check_vmalloc_seq(current->active_mm);
 
 	flush_tlb_kernel_range(virt, end);
 }
@@ -459,16 +463,20 @@ void pci_ioremap_set_mem_type(int mem_type)
 	pci_ioremap_mem_type = mem_type;
 }
 
-int pci_ioremap_io(unsigned int offset, phys_addr_t phys_addr)
+int pci_remap_iospace(const struct resource *res, phys_addr_t phys_addr)
 {
-	BUG_ON(offset + SZ_64K - 1 > IO_SPACE_LIMIT);
+	unsigned long vaddr = (unsigned long)PCI_IOBASE + res->start;
 
-	return ioremap_page_range(PCI_IO_VIRT_BASE + offset,
-				  PCI_IO_VIRT_BASE + offset + SZ_64K,
-				  phys_addr,
+	if (!(res->flags & IORESOURCE_IO))
+		return -EINVAL;
+
+	if (res->end > IO_SPACE_LIMIT)
+		return -EINVAL;
+
+	return ioremap_page_range(vaddr, vaddr + resource_size(res), phys_addr,
 				  __pgprot(get_mem_type(pci_ioremap_mem_type)->prot_pte));
 }
-EXPORT_SYMBOL_GPL(pci_ioremap_io);
+EXPORT_SYMBOL(pci_remap_iospace);
 
 void __iomem *pci_remap_cfgspace(resource_size_t res_cookie, size_t size)
 {

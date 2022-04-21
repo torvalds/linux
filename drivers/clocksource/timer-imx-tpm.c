@@ -32,8 +32,8 @@
 #define TPM_C0SC_CHF_MASK		(0x1 << 7)
 #define TPM_C0V				0x24
 
-static int counter_width;
-static void __iomem *timer_base;
+static int counter_width __ro_after_init;
+static void __iomem *timer_base __ro_after_init;
 
 static inline void tpm_timer_disable(void)
 {
@@ -73,12 +73,12 @@ static unsigned long tpm_read_current_timer(void)
 {
 	return tpm_read_counter();
 }
-#endif
 
 static u64 notrace tpm_read_sched_clock(void)
 {
 	return tpm_read_counter();
 }
+#endif
 
 static int tpm_set_next_event(unsigned long delta,
 				struct clock_event_device *evt)
@@ -127,9 +127,9 @@ static irqreturn_t tpm_timer_interrupt(int irq, void *dev_id)
 static struct timer_of to_tpm = {
 	.flags = TIMER_OF_IRQ | TIMER_OF_BASE | TIMER_OF_CLOCK,
 	.clkevt = {
-		.name			= "i.MX7ULP TPM Timer",
+		.name			= "i.MX TPM Timer",
 		.rating			= 200,
-		.features		= CLOCK_EVT_FEAT_ONESHOT,
+		.features		= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_DYNIRQ,
 		.set_state_shutdown	= tpm_set_state_shutdown,
 		.set_state_oneshot	= tpm_set_state_oneshot,
 		.set_next_event		= tpm_set_next_event,
@@ -137,7 +137,7 @@ static struct timer_of to_tpm = {
 	},
 	.of_irq = {
 		.handler		= tpm_timer_interrupt,
-		.flags			= IRQF_TIMER | IRQF_IRQPOLL,
+		.flags			= IRQF_TIMER,
 	},
 	.of_clk = {
 		.name = "per",
@@ -150,10 +150,10 @@ static int __init tpm_clocksource_init(void)
 	tpm_delay_timer.read_current_timer = &tpm_read_current_timer;
 	tpm_delay_timer.freq = timer_of_rate(&to_tpm) >> 3;
 	register_current_timer_delay(&tpm_delay_timer);
-#endif
 
 	sched_clock_register(tpm_read_sched_clock, counter_width,
 			     timer_of_rate(&to_tpm) >> 3);
+#endif
 
 	return clocksource_mmio_init(timer_base + TPM_CNT,
 				     "imx-tpm",

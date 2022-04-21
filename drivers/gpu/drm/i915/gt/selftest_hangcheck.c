@@ -6,7 +6,9 @@
 #include <linux/kthread.h>
 
 #include "gem/i915_gem_context.h"
+#include "gem/i915_gem_internal.h"
 
+#include "i915_gem_evict.h"
 #include "intel_gt.h"
 #include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
@@ -1382,7 +1384,7 @@ static int evict_vma(void *data)
 	complete(&arg->completion);
 
 	mutex_lock(&vm->mutex);
-	err = i915_gem_evict_for_node(vm, &evict, 0);
+	err = i915_gem_evict_for_node(vm, NULL, &evict, 0);
 	mutex_unlock(&vm->mutex);
 
 	return err;

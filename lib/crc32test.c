@@ -675,7 +675,7 @@ static int __init crc32c_test(void)
 
 	/* pre-warm the cache */
 	for (i = 0; i < 100; i++) {
-		bytes += 2*test[i].length;
+		bytes += test[i].length;
 
 		crc ^= __crc32c_le(test[i].crc, test_buf +
 		    test[i].start, test[i].length);

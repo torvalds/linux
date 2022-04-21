@@ -381,7 +381,7 @@
 				status = "disabled";
 			};
 
-			sha@f8034000 {
+			sha: crypto@f8034000 {
 				compatible = "atmel,at91sam9g46-sha";
 				reg = <0xf8034000 0x100>;
 				interrupts = <42 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -391,7 +391,7 @@
 				clock-names = "sha_clk";
 			};
 
-			aes@f8038000 {
+			aes: crypto@f8038000 {
 				compatible = "atmel,at91sam9g46-aes";
 				reg = <0xf8038000 0x100>;
 				interrupts = <43 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -402,7 +402,7 @@
 				clock-names = "aes_clk";
 			};
 
-			tdes@f803c000 {
+			tdes: crypto@f803c000 {
 				compatible = "atmel,at91sam9g46-tdes";
 				reg = <0xf803c000 0x100>;
 				interrupts = <44 IRQ_TYPE_LEVEL_HIGH 0>;

@@ -61,3 +61,4 @@ module_i2c_driver(bma400_i2c_driver);
 MODULE_AUTHOR("Dan Robertson <dan@dlrobertson.com>");
 MODULE_DESCRIPTION("Bosch BMA400 triaxial acceleration sensor (I2C)");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_BMA400);

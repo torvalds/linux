@@ -871,7 +871,8 @@ static void dw_mipi_dsi_clear_err(struct dw_mipi_dsi *dsi)
 	dsi_write(dsi, DSI_INT_MSK1, 0);
 }
 
-static void dw_mipi_dsi_bridge_post_disable(struct drm_bridge *bridge)
+static void dw_mipi_dsi_bridge_post_atomic_disable(struct drm_bridge *bridge,
+						   struct drm_bridge_state *old_bridge_state)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 	const struct dw_mipi_dsi_phy_ops *phy_ops = dsi->plat_data->phy_ops;
@@ -978,7 +979,8 @@ static void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
 		dw_mipi_dsi_mode_set(dsi->slave, adjusted_mode);
 }
 
-static void dw_mipi_dsi_bridge_enable(struct drm_bridge *bridge)
+static void dw_mipi_dsi_bridge_atomic_enable(struct drm_bridge *bridge,
+					     struct drm_bridge_state *old_bridge_state)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 
@@ -998,7 +1000,10 @@ dw_mipi_dsi_bridge_mode_valid(struct drm_bridge *bridge,
 	enum drm_mode_status mode_status = MODE_OK;
 
 	if (pdata->mode_valid)
-		mode_status = pdata->mode_valid(pdata->priv_data, mode);
+		mode_status = pdata->mode_valid(pdata->priv_data, mode,
+						dsi->mode_flags,
+						dw_mipi_dsi_get_lanes(dsi),
+						dsi->format);
 
 	return mode_status;
 }
@@ -1032,11 +1037,14 @@ static int dw_mipi_dsi_bridge_attach(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs dw_mipi_dsi_bridge_funcs = {
-	.mode_set     = dw_mipi_dsi_bridge_mode_set,
-	.enable	      = dw_mipi_dsi_bridge_enable,
-	.post_disable = dw_mipi_dsi_bridge_post_disable,
-	.mode_valid   = dw_mipi_dsi_bridge_mode_valid,
-	.attach	      = dw_mipi_dsi_bridge_attach,
+	.atomic_duplicate_state	= drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state	= drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset		= drm_atomic_helper_bridge_reset,
+	.atomic_enable		= dw_mipi_dsi_bridge_atomic_enable,
+	.atomic_post_disable	= dw_mipi_dsi_bridge_post_atomic_disable,
+	.mode_set		= dw_mipi_dsi_bridge_mode_set,
+	.mode_valid		= dw_mipi_dsi_bridge_mode_valid,
+	.attach			= dw_mipi_dsi_bridge_attach,
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -1199,6 +1207,7 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 	ret = mipi_dsi_host_register(&dsi->dsi_host);
 	if (ret) {
 		dev_err(dev, "Failed to register MIPI host: %d\n", ret);
+		pm_runtime_disable(dev);
 		dw_mipi_dsi_debugfs_remove(dsi);
 		return ERR_PTR(ret);
 	}

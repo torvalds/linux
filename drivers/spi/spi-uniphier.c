@@ -726,7 +726,7 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev, "failed to get TX DMA capacities: %d\n",
 				ret);
-			goto out_disable_clk;
+			goto out_release_dma;
 		}
 		dma_tx_burst = caps.max_burst;
 	}
@@ -735,7 +735,7 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 	if (IS_ERR_OR_NULL(master->dma_rx)) {
 		if (PTR_ERR(master->dma_rx) == -EPROBE_DEFER) {
 			ret = -EPROBE_DEFER;
-			goto out_disable_clk;
+			goto out_release_dma;
 		}
 		master->dma_rx = NULL;
 		dma_rx_burst = INT_MAX;
@@ -744,7 +744,7 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev, "failed to get RX DMA capacities: %d\n",
 				ret);
-			goto out_disable_clk;
+			goto out_release_dma;
 		}
 		dma_rx_burst = caps.max_burst;
 	}
@@ -753,9 +753,19 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret)
-		goto out_disable_clk;
+		goto out_release_dma;
 
 	return 0;
+
+out_release_dma:
+	if (!IS_ERR_OR_NULL(master->dma_rx)) {
+		dma_release_channel(master->dma_rx);
+		master->dma_rx = NULL;
+	}
+	if (!IS_ERR_OR_NULL(master->dma_tx)) {
+		dma_release_channel(master->dma_tx);
+		master->dma_tx = NULL;
+	}
 
 out_disable_clk:
 	clk_disable_unprepare(priv->clk);

@@ -181,7 +181,6 @@ static struct clk * const disable_clks[] __initconst = {
 	&__clk_0_47, /* ssi.0 */
 	&__clk_0_49, /* rng */
 	&__clk_0_50, /* ssi.1 */
-	&__clk_0_51, /* eSDHC */
 	&__clk_0_53, /* enet-fec */
 	&__clk_0_54, /* enet-fec */
 	&__clk_0_55, /* switch.0 */

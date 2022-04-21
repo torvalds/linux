@@ -481,8 +481,8 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 		BPF_EMIT_CALL(BPF_FUNC_redirect_map),
 		BPF_EXIT_INSN(),
 	};
-	size_t insns_cnt[] = {sizeof(prog) / sizeof(struct bpf_insn),
-			      sizeof(prog_redirect_flags) / sizeof(struct bpf_insn),
+	size_t insns_cnt[] = {ARRAY_SIZE(prog),
+			      ARRAY_SIZE(prog_redirect_flags),
 	};
 	struct bpf_insn *progs[] = {prog, prog_redirect_flags};
 	enum xsk_prog option = get_xsk_prog();
@@ -1193,11 +1193,22 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 
 int xsk_umem__delete(struct xsk_umem *umem)
 {
+	struct xdp_mmap_offsets off;
+	int err;
+
 	if (!umem)
 		return 0;
 
 	if (umem->refcount)
 		return -EBUSY;
+
+	err = xsk_get_mmap_offsets(umem->fd, &off);
+	if (!err && umem->fill_save && umem->comp_save) {
+		munmap(umem->fill_save->ring - off.fr.desc,
+		       off.fr.desc + umem->config.fill_size * sizeof(__u64));
+		munmap(umem->comp_save->ring - off.cr.desc,
+		       off.cr.desc + umem->config.comp_size * sizeof(__u64));
+	}
 
 	close(umem->fd);
 	free(umem);

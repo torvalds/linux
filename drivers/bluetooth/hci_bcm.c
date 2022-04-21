@@ -20,6 +20,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 #include <linux/tty.h>
 #include <linux/interrupt.h>
 #include <linux/dmi.h>
@@ -870,7 +871,23 @@ unlock:
 #endif
 
 /* Some firmware reports an IRQ which does not work (wrong pin in fw table?) */
+static struct gpiod_lookup_table asus_tf103c_irq_gpios = {
+	.dev_id = "serial0-0",
+	.table = {
+		GPIO_LOOKUP("INT33FC:02", 17, "host-wakeup-alt", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
 static const struct dmi_system_id bcm_broken_irq_dmi_table[] = {
+	{
+		.ident = "Asus TF103C",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TF103C"),
+		},
+		.driver_data = &asus_tf103c_irq_gpios,
+	},
 	{
 		.ident = "Meegopad T08",
 		.matches = {
@@ -1027,7 +1044,8 @@ static struct clk *bcm_get_txco(struct device *dev)
 
 static int bcm_get_resources(struct bcm_device *dev)
 {
-	const struct dmi_system_id *dmi_id;
+	const struct dmi_system_id *broken_irq_dmi_id;
+	const char *irq_con_id = "host-wakeup";
 	int err;
 
 	dev->name = dev_name(dev->dev);
@@ -1083,23 +1101,33 @@ static int bcm_get_resources(struct bcm_device *dev)
 	if (err)
 		return err;
 
+	broken_irq_dmi_id = dmi_first_match(bcm_broken_irq_dmi_table);
+	if (broken_irq_dmi_id && broken_irq_dmi_id->driver_data) {
+		gpiod_add_lookup_table(broken_irq_dmi_id->driver_data);
+		irq_con_id = "host-wakeup-alt";
+		dev->irq_active_low = false;
+		dev->irq = 0;
+	}
+
 	/* IRQ can be declared in ACPI table as Interrupt or GpioInt */
 	if (dev->irq <= 0) {
 		struct gpio_desc *gpio;
 
-		gpio = devm_gpiod_get_optional(dev->dev, "host-wakeup",
-					       GPIOD_IN);
+		gpio = devm_gpiod_get_optional(dev->dev, irq_con_id, GPIOD_IN);
 		if (IS_ERR(gpio))
 			return PTR_ERR(gpio);
 
 		dev->irq = gpiod_to_irq(gpio);
 	}
 
-	dmi_id = dmi_first_match(bcm_broken_irq_dmi_table);
-	if (dmi_id) {
-		dev_info(dev->dev, "%s: Has a broken IRQ config, disabling IRQ support / runtime-pm\n",
-			 dmi_id->ident);
-		dev->irq = 0;
+	if (broken_irq_dmi_id) {
+		if (broken_irq_dmi_id->driver_data) {
+			gpiod_remove_lookup_table(broken_irq_dmi_id->driver_data);
+		} else {
+			dev_info(dev->dev, "%s: Has a broken IRQ config, disabling IRQ support / runtime-pm\n",
+				 broken_irq_dmi_id->ident);
+			dev->irq = 0;
+		}
 	}
 
 	dev_dbg(dev->dev, "BCM irq: %d\n", dev->irq);
@@ -1513,6 +1541,8 @@ static const struct of_device_id bcm_bluetooth_of_match[] = {
 	{ .compatible = "brcm,bcm4330-bt" },
 	{ .compatible = "brcm,bcm4334-bt" },
 	{ .compatible = "brcm,bcm4345c5" },
+	{ .compatible = "brcm,bcm43430a0-bt" },
+	{ .compatible = "brcm,bcm43430a1-bt" },
 	{ .compatible = "brcm,bcm43438-bt", .data = &bcm43438_device_data },
 	{ .compatible = "brcm,bcm43540-bt", .data = &bcm4354_device_data },
 	{ .compatible = "brcm,bcm4335a0" },

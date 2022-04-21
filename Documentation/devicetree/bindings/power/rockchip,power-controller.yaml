@@ -129,6 +129,8 @@ $defs:
 
       pm_qos:
         $ref: /schemas/types.yaml#/definitions/phandle-array
+        items:
+          maxItems: 1
         description: |
           A number of phandles to qos blocks which need to be saved and restored
           while power domain switches state.

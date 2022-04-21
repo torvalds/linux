@@ -8,7 +8,6 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: SiFive PWM controller
 
 maintainers:
-  - Yash Shah <yash.shah@sifive.com>
   - Sagar Kadam <sagar.kadam@sifive.com>
   - Paul Walmsley <paul.walmsley@sifive.com>
 
@@ -21,6 +20,9 @@ description:
   numbers can be found here -
 
   https://github.com/sifive/sifive-blocks/tree/master/src/main/scala/devices/pwm
+
+allOf:
+  - $ref: pwm.yaml#
 
 properties:
   compatible:
@@ -55,7 +57,6 @@ required:
   - compatible
   - reg
   - clocks
-  - "#pwm-cells"
   - interrupts
 
 additionalProperties: false

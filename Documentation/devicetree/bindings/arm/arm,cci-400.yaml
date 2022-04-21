@@ -119,6 +119,11 @@ examples:
           arm,hbi = <0x249>;
           interrupt-parent = <&gic>;
 
+          gic: interrupt-controller {
+              interrupt-controller;
+              #interrupt-cells = <3>;
+          };
+
           /*
            * This CCI node corresponds to a CCI component whose control
            * registers sits at address 0x000000002c090000.

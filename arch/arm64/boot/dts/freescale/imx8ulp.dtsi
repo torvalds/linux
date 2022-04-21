@@ -132,7 +132,7 @@
 
 			scmi_sensor: protocol@15 {
 				reg = <0x15>;
-				#thermal-sensor-cells = <0>;
+				#thermal-sensor-cells = <1>;
 			};
 		};
 	};

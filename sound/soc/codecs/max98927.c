@@ -16,6 +16,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_gpio.h>
 #include <sound/tlv.h>
 #include "max98927.h"
@@ -147,12 +148,13 @@ static int max98927_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 	dev_dbg(component->dev, "%s: fmt 0x%08X\n", __func__, fmt);
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
+		max98927->provider = false;
 		mode = MAX98927_PCM_MASTER_MODE_SLAVE;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
-		max98927->master = true;
+	case SND_SOC_DAIFMT_CBP_CFP:
+		max98927->provider = true;
 		mode = MAX98927_PCM_MASTER_MODE_MASTER;
 		break;
 	default:
@@ -269,7 +271,7 @@ static int max98927_set_clock(struct max98927_priv *max98927,
 	int blr_clk_ratio = params_channels(params) * max98927->ch_size;
 	int value;
 
-	if (max98927->master) {
+	if (max98927->provider) {
 		int i;
 		/* match rate to closest value */
 		for (i = 0; i < ARRAY_SIZE(rate_table); i++) {

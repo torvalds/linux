@@ -37,6 +37,7 @@
  *  bits the chip supports.
  */
 
+#include <linux/bitops.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -118,6 +119,7 @@ struct pca955x {
 	struct pca955x_led *leds;
 	struct pca955x_chipdef	*chipdef;
 	struct i2c_client	*client;
+	unsigned long active_pins;
 #ifdef CONFIG_LEDS_PCA955X_GPIO
 	struct gpio_chip gpio;
 #endif
@@ -360,12 +362,15 @@ static int pca955x_read_input(struct i2c_client *client, int n, u8 *val)
 static int pca955x_gpio_request_pin(struct gpio_chip *gc, unsigned int offset)
 {
 	struct pca955x *pca955x = gpiochip_get_data(gc);
-	struct pca955x_led *led = &pca955x->leds[offset];
 
-	if (led->type == PCA955X_TYPE_GPIO)
-		return 0;
+	return test_and_set_bit(offset, &pca955x->active_pins) ? -EBUSY : 0;
+}
 
-	return -EBUSY;
+static void pca955x_gpio_free_pin(struct gpio_chip *gc, unsigned int offset)
+{
+	struct pca955x *pca955x = gpiochip_get_data(gc);
+
+	clear_bit(offset, &pca955x->active_pins);
 }
 
 static int pca955x_set_value(struct gpio_chip *gc, unsigned int offset,
@@ -424,7 +429,7 @@ pca955x_get_pdata(struct i2c_client *client, struct pca955x_chipdef *chip)
 	int count;
 
 	count = device_get_child_node_count(&client->dev);
-	if (!count || count > chip->bits)
+	if (count > chip->bits)
 		return ERR_PTR(-ENODEV);
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
@@ -489,7 +494,6 @@ static int pca955x_probe(struct i2c_client *client)
 	struct i2c_adapter *adapter;
 	int i, err;
 	struct pca955x_platform_data *pdata;
-	int ngpios = 0;
 	bool set_default_label = false;
 	bool keep_pwm = false;
 	char default_label[8];
@@ -567,9 +571,7 @@ static int pca955x_probe(struct i2c_client *client)
 
 		switch (pca955x_led->type) {
 		case PCA955X_TYPE_NONE:
-			break;
 		case PCA955X_TYPE_GPIO:
-			ngpios++;
 			break;
 		case PCA955X_TYPE_LED:
 			led = &pca955x_led->led_cdev;
@@ -613,6 +615,8 @@ static int pca955x_probe(struct i2c_client *client)
 			if (err)
 				return err;
 
+			set_bit(i, &pca955x->active_pins);
+
 			/*
 			 * For default-state == "keep", let the core update the
 			 * brightness from the hardware, then check the
@@ -650,31 +654,30 @@ static int pca955x_probe(struct i2c_client *client)
 		return err;
 
 #ifdef CONFIG_LEDS_PCA955X_GPIO
-	if (ngpios) {
-		pca955x->gpio.label = "gpio-pca955x";
-		pca955x->gpio.direction_input = pca955x_gpio_direction_input;
-		pca955x->gpio.direction_output = pca955x_gpio_direction_output;
-		pca955x->gpio.set = pca955x_gpio_set_value;
-		pca955x->gpio.get = pca955x_gpio_get_value;
-		pca955x->gpio.request = pca955x_gpio_request_pin;
-		pca955x->gpio.can_sleep = 1;
-		pca955x->gpio.base = -1;
-		pca955x->gpio.ngpio = ngpios;
-		pca955x->gpio.parent = &client->dev;
-		pca955x->gpio.owner = THIS_MODULE;
+	pca955x->gpio.label = "gpio-pca955x";
+	pca955x->gpio.direction_input = pca955x_gpio_direction_input;
+	pca955x->gpio.direction_output = pca955x_gpio_direction_output;
+	pca955x->gpio.set = pca955x_gpio_set_value;
+	pca955x->gpio.get = pca955x_gpio_get_value;
+	pca955x->gpio.request = pca955x_gpio_request_pin;
+	pca955x->gpio.free = pca955x_gpio_free_pin;
+	pca955x->gpio.can_sleep = 1;
+	pca955x->gpio.base = -1;
+	pca955x->gpio.ngpio = chip->bits;
+	pca955x->gpio.parent = &client->dev;
+	pca955x->gpio.owner = THIS_MODULE;
 
-		err = devm_gpiochip_add_data(&client->dev, &pca955x->gpio,
-					     pca955x);
-		if (err) {
-			/* Use data->gpio.dev as a flag for freeing gpiochip */
-			pca955x->gpio.parent = NULL;
-			dev_warn(&client->dev, "could not add gpiochip\n");
-			return err;
-		}
-		dev_info(&client->dev, "gpios %i...%i\n",
-			 pca955x->gpio.base, pca955x->gpio.base +
-			 pca955x->gpio.ngpio - 1);
+	err = devm_gpiochip_add_data(&client->dev, &pca955x->gpio,
+				     pca955x);
+	if (err) {
+		/* Use data->gpio.dev as a flag for freeing gpiochip */
+		pca955x->gpio.parent = NULL;
+		dev_warn(&client->dev, "could not add gpiochip\n");
+		return err;
 	}
+	dev_info(&client->dev, "gpios %i...%i\n",
+		 pca955x->gpio.base, pca955x->gpio.base +
+		 pca955x->gpio.ngpio - 1);
 #endif
 
 	return 0;

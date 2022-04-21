@@ -284,6 +284,7 @@ int dcdbas_smi_request(struct smi_cmd *smi_cmd)
 
 	return ret;
 }
+EXPORT_SYMBOL(dcdbas_smi_request);
 
 /**
  * smi_request_store:
@@ -351,7 +352,6 @@ out:
 	mutex_unlock(&smi_data_lock);
 	return ret;
 }
-EXPORT_SYMBOL(dcdbas_smi_request);
 
 /**
  * host_control_smi: generate host control SMI

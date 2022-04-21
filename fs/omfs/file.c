@@ -372,7 +372,8 @@ const struct inode_operations omfs_file_inops = {
 };
 
 const struct address_space_operations omfs_aops = {
-	.set_page_dirty = __set_page_dirty_buffers,
+	.dirty_folio = block_dirty_folio,
+	.invalidate_folio = block_invalidate_folio,
 	.readpage = omfs_readpage,
 	.readahead = omfs_readahead,
 	.writepage = omfs_writepage,

@@ -406,6 +406,7 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 	return (unsigned long)pmd_val(pmd);
 }
 
+#define pmd_pfn(pmd)		(__pa(pmd_val(pmd)) >> PAGE_SHIFT)
 #define pmd_page(pmd)		(virt_to_page(pmd_val(pmd)))
 
 #ifdef CONFIG_X2TLB

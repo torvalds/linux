@@ -106,6 +106,8 @@ config DRM_PANEL_EDP
 	depends on PM
 	select VIDEOMODE_HELPERS
 	select DRM_DP_AUX_BUS
+	select DRM_DP_HELPER
+	select DRM_KMS_HELPER
 	help
 	  DRM panel driver for dumb eDP panels that need at most a regulator and
 	  a GPIO to be powered up. Optionally a backlight can be attached so
@@ -291,6 +293,18 @@ config DRM_PANEL_NOVATEK_NT35510
 	  Say Y here if you want to enable support for the panels built
 	  around the Novatek NT35510 display controller, such as some
 	  Hydis panels.
+
+config DRM_PANEL_NOVATEK_NT35560
+	tristate "Novatek NT35560 DSI command mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
+	help
+	  Say Y here if you want to enable the Novatek NT35560 display
+	  controller. This panel supports DSI in both command and video
+	  mode. This supports several panels such as Sony ACX424AKM and
+	  ACX424AKP.
 
 config DRM_PANEL_NOVATEK_NT35950
 	tristate "Novatek NT35950 DSI panel"
@@ -591,17 +605,6 @@ config DRM_PANEL_SITRONIX_ST7789V
 	help
 	  Say Y here if you want to enable support for the Sitronix
 	  ST7789V controller for 240x320 LCD panels
-
-config DRM_PANEL_SONY_ACX424AKP
-	tristate "Sony ACX424AKP DSI command mode panel"
-	depends on OF
-	depends on DRM_MIPI_DSI
-	depends on BACKLIGHT_CLASS_DEVICE
-	select VIDEOMODE_HELPERS
-	help
-	  Say Y here if you want to enable the Sony ACX424 display
-	  panel. This panel supports DSI in both command and video
-	  mode.
 
 config DRM_PANEL_SONY_ACX565AKM
 	tristate "Sony ACX565AKM panel"

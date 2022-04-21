@@ -5,10 +5,14 @@
 
 #include <linux/log2.h>
 
+#include "gem/i915_gem_internal.h"
+
 #include "gen6_ppgtt.h"
 #include "i915_scatterlist.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
+#include "intel_gt_regs.h"
+#include "intel_engine_regs.h"
 #include "intel_gt.h"
 
 /* Write pde (index) from the page directory @pd to the page table @pt */
@@ -104,17 +108,17 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 }
 
 static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
-				      struct i915_vma *vma,
+				      struct i915_vma_resource *vma_res,
 				      enum i915_cache_level cache_level,
 				      u32 flags)
 {
 	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct i915_page_directory * const pd = ppgtt->pd;
-	unsigned int first_entry = vma->node.start / I915_GTT_PAGE_SIZE;
+	unsigned int first_entry = vma_res->start / I915_GTT_PAGE_SIZE;
 	unsigned int act_pt = first_entry / GEN6_PTES;
 	unsigned int act_pte = first_entry % GEN6_PTES;
 	const u32 pte_encode = vm->pte_encode(0, cache_level, flags);
-	struct sgt_dma iter = sgt_dma(vma);
+	struct sgt_dma iter = sgt_dma(vma_res);
 	gen6_pte_t *vaddr;
 
 	GEM_BUG_ON(!pd->entry[act_pt]);
@@ -140,7 +144,7 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 		}
 	} while (1);
 
-	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
+	vma_res->page_sizes_gtt = I915_GTT_PAGE_SIZE;
 }
 
 static void gen6_flush_pd(struct gen6_ppgtt *ppgtt, u64 start, u64 end)
@@ -271,13 +275,13 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 
 static void pd_vma_bind(struct i915_address_space *vm,
 			struct i915_vm_pt_stash *stash,
-			struct i915_vma *vma,
+			struct i915_vma_resource *vma_res,
 			enum i915_cache_level cache_level,
 			u32 unused)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
-	struct gen6_ppgtt *ppgtt = vma->private;
-	u32 ggtt_offset = i915_ggtt_offset(vma) / I915_GTT_PAGE_SIZE;
+	struct gen6_ppgtt *ppgtt = vma_res->private;
+	u32 ggtt_offset = vma_res->start / I915_GTT_PAGE_SIZE;
 
 	ppgtt->pp_dir = ggtt_offset * sizeof(gen6_pte_t) << 10;
 	ppgtt->pd_addr = (gen6_pte_t __iomem *)ggtt->gsm + ggtt_offset;
@@ -285,9 +289,10 @@ static void pd_vma_bind(struct i915_address_space *vm,
 	gen6_flush_pd(ppgtt, 0, ppgtt->base.vm.total);
 }
 
-static void pd_vma_unbind(struct i915_address_space *vm, struct i915_vma *vma)
+static void pd_vma_unbind(struct i915_address_space *vm,
+			  struct i915_vma_resource *vma_res)
 {
-	struct gen6_ppgtt *ppgtt = vma->private;
+	struct gen6_ppgtt *ppgtt = vma_res->private;
 	struct i915_page_directory * const pd = ppgtt->base.pd;
 	struct i915_page_table *pt;
 	unsigned int pde;

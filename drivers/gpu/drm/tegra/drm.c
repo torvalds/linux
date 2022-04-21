@@ -1410,6 +1410,9 @@ static int __init host1x_drm_init(void)
 {
 	int err;
 
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	err = host1x_driver_register(&host1x_drm_driver);
 	if (err < 0)
 		return err;

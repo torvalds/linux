@@ -151,7 +151,16 @@
 static __always_inline int
 arch_atomic_read_acquire(const atomic_t *v)
 {
-	return smp_load_acquire(&(v)->counter);
+	int ret;
+
+	if (__native_word(atomic_t)) {
+		ret = smp_load_acquire(&(v)->counter);
+	} else {
+		ret = arch_atomic_read(v);
+		__atomic_acquire_fence();
+	}
+
+	return ret;
 }
 #define arch_atomic_read_acquire arch_atomic_read_acquire
 #endif
@@ -160,7 +169,12 @@ arch_atomic_read_acquire(const atomic_t *v)
 static __always_inline void
 arch_atomic_set_release(atomic_t *v, int i)
 {
-	smp_store_release(&(v)->counter, i);
+	if (__native_word(atomic_t)) {
+		smp_store_release(&(v)->counter, i);
+	} else {
+		__atomic_release_fence();
+		arch_atomic_set(v, i);
+	}
 }
 #define arch_atomic_set_release arch_atomic_set_release
 #endif
@@ -1258,7 +1272,16 @@ arch_atomic_dec_if_positive(atomic_t *v)
 static __always_inline s64
 arch_atomic64_read_acquire(const atomic64_t *v)
 {
-	return smp_load_acquire(&(v)->counter);
+	s64 ret;
+
+	if (__native_word(atomic64_t)) {
+		ret = smp_load_acquire(&(v)->counter);
+	} else {
+		ret = arch_atomic64_read(v);
+		__atomic_acquire_fence();
+	}
+
+	return ret;
 }
 #define arch_atomic64_read_acquire arch_atomic64_read_acquire
 #endif
@@ -1267,7 +1290,12 @@ arch_atomic64_read_acquire(const atomic64_t *v)
 static __always_inline void
 arch_atomic64_set_release(atomic64_t *v, s64 i)
 {
-	smp_store_release(&(v)->counter, i);
+	if (__native_word(atomic64_t)) {
+		smp_store_release(&(v)->counter, i);
+	} else {
+		__atomic_release_fence();
+		arch_atomic64_set(v, i);
+	}
 }
 #define arch_atomic64_set_release arch_atomic64_set_release
 #endif
@@ -2358,4 +2386,4 @@ arch_atomic64_dec_if_positive(atomic64_t *v)
 #endif
 
 #endif /* _LINUX_ATOMIC_FALLBACK_H */
-// cca554917d7ea73d5e3e7397dd70c484cad9b2c4
+// 8e2cc06bc0d2c0967d2f8424762bd48555ee40ae

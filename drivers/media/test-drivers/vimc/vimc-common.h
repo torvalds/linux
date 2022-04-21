@@ -35,6 +35,13 @@
 
 #define VIMC_PIX_FMT_MAX_CODES 8
 
+extern unsigned int vimc_allocator;
+
+enum vimc_allocator_type {
+	VIMC_ALLOCATOR_VMALLOC = 0,
+	VIMC_ALLOCATOR_DMA_CONTIG = 1,
+};
+
 /**
  * vimc_colorimetry_clamp - Adjust colorimetry parameters
  *

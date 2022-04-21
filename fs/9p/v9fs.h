@@ -9,6 +9,7 @@
 #define FS_9P_V9FS_H
 
 #include <linux/backing-dev.h>
+#include <linux/netfs.h>
 
 /**
  * enum p9_session_flags - option flags for each 9P session
@@ -108,14 +109,15 @@ struct v9fs_session_info {
 #define V9FS_INO_INVALID_ATTR 0x01
 
 struct v9fs_inode {
-#ifdef CONFIG_9P_FSCACHE
-	struct fscache_cookie *fscache;
-#endif
+	struct {
+		/* These must be contiguous */
+		struct inode	vfs_inode;	/* the VFS's inode record */
+		struct netfs_i_context netfs_ctx; /* Netfslib context */
+	};
 	struct p9_qid qid;
 	unsigned int cache_validity;
 	struct p9_fid *writeback_fid;
 	struct mutex v_mutex;
-	struct inode vfs_inode;
 };
 
 static inline struct v9fs_inode *V9FS_I(const struct inode *inode)
@@ -126,7 +128,7 @@ static inline struct v9fs_inode *V9FS_I(const struct inode *inode)
 static inline struct fscache_cookie *v9fs_inode_cookie(struct v9fs_inode *v9inode)
 {
 #ifdef CONFIG_9P_FSCACHE
-	return v9inode->fscache;
+	return netfs_i_cookie(&v9inode->vfs_inode);
 #else
 	return NULL;
 #endif
@@ -163,6 +165,7 @@ extern struct inode *v9fs_inode_from_fid(struct v9fs_session_info *v9ses,
 extern const struct inode_operations v9fs_dir_inode_operations_dotl;
 extern const struct inode_operations v9fs_file_inode_operations_dotl;
 extern const struct inode_operations v9fs_symlink_inode_operations_dotl;
+extern const struct netfs_request_ops v9fs_req_ops;
 extern struct inode *v9fs_inode_from_fid_dotl(struct v9fs_session_info *v9ses,
 					      struct p9_fid *fid,
 					      struct super_block *sb, int new);

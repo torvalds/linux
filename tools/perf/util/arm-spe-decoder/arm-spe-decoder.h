@@ -33,6 +33,7 @@ struct arm_spe_record {
 	enum arm_spe_sample_type type;
 	int err;
 	u32 op;
+	u32 latency;
 	u64 from_ip;
 	u64 to_ip;
 	u64 timestamp;

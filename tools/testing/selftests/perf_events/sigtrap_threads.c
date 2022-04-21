@@ -44,9 +44,10 @@ static struct {
 } ctx;
 
 /* Unique value to check si_perf_data is correctly set from perf_event_attr::sig_data. */
-#define TEST_SIG_DATA(addr) (~(unsigned long)(addr))
+#define TEST_SIG_DATA(addr, id) (~(unsigned long)(addr) + id)
 
-static struct perf_event_attr make_event_attr(bool enabled, volatile void *addr)
+static struct perf_event_attr make_event_attr(bool enabled, volatile void *addr,
+					      unsigned long id)
 {
 	struct perf_event_attr attr = {
 		.type		= PERF_TYPE_BREAKPOINT,
@@ -60,7 +61,7 @@ static struct perf_event_attr make_event_attr(bool enabled, volatile void *addr)
 		.inherit_thread = 1, /* ... but only cloned with CLONE_THREAD. */
 		.remove_on_exec = 1, /* Required by sigtrap. */
 		.sigtrap	= 1, /* Request synchronous SIGTRAP on event. */
-		.sig_data	= TEST_SIG_DATA(addr),
+		.sig_data	= TEST_SIG_DATA(addr, id),
 	};
 	return attr;
 }
@@ -110,7 +111,7 @@ FIXTURE(sigtrap_threads)
 
 FIXTURE_SETUP(sigtrap_threads)
 {
-	struct perf_event_attr attr = make_event_attr(false, &ctx.iterate_on);
+	struct perf_event_attr attr = make_event_attr(false, &ctx.iterate_on, 0);
 	struct sigaction action = {};
 	int i;
 
@@ -165,7 +166,7 @@ TEST_F(sigtrap_threads, enable_event)
 	EXPECT_EQ(ctx.tids_want_signal, 0);
 	EXPECT_EQ(ctx.first_siginfo.si_addr, &ctx.iterate_on);
 	EXPECT_EQ(ctx.first_siginfo.si_perf_type, PERF_TYPE_BREAKPOINT);
-	EXPECT_EQ(ctx.first_siginfo.si_perf_data, TEST_SIG_DATA(&ctx.iterate_on));
+	EXPECT_EQ(ctx.first_siginfo.si_perf_data, TEST_SIG_DATA(&ctx.iterate_on, 0));
 
 	/* Check enabled for parent. */
 	ctx.iterate_on = 0;
@@ -175,7 +176,7 @@ TEST_F(sigtrap_threads, enable_event)
 /* Test that modification propagates to all inherited events. */
 TEST_F(sigtrap_threads, modify_and_enable_event)
 {
-	struct perf_event_attr new_attr = make_event_attr(true, &ctx.iterate_on);
+	struct perf_event_attr new_attr = make_event_attr(true, &ctx.iterate_on, 42);
 
 	EXPECT_EQ(ioctl(self->fd, PERF_EVENT_IOC_MODIFY_ATTRIBUTES, &new_attr), 0);
 	run_test_threads(_metadata, self);
@@ -184,7 +185,7 @@ TEST_F(sigtrap_threads, modify_and_enable_event)
 	EXPECT_EQ(ctx.tids_want_signal, 0);
 	EXPECT_EQ(ctx.first_siginfo.si_addr, &ctx.iterate_on);
 	EXPECT_EQ(ctx.first_siginfo.si_perf_type, PERF_TYPE_BREAKPOINT);
-	EXPECT_EQ(ctx.first_siginfo.si_perf_data, TEST_SIG_DATA(&ctx.iterate_on));
+	EXPECT_EQ(ctx.first_siginfo.si_perf_data, TEST_SIG_DATA(&ctx.iterate_on, 42));
 
 	/* Check enabled for parent. */
 	ctx.iterate_on = 0;
@@ -204,7 +205,7 @@ TEST_F(sigtrap_threads, signal_stress)
 	EXPECT_EQ(ctx.tids_want_signal, 0);
 	EXPECT_EQ(ctx.first_siginfo.si_addr, &ctx.iterate_on);
 	EXPECT_EQ(ctx.first_siginfo.si_perf_type, PERF_TYPE_BREAKPOINT);
-	EXPECT_EQ(ctx.first_siginfo.si_perf_data, TEST_SIG_DATA(&ctx.iterate_on));
+	EXPECT_EQ(ctx.first_siginfo.si_perf_data, TEST_SIG_DATA(&ctx.iterate_on, 0));
 }
 
 TEST_HARNESS_MAIN

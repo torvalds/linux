@@ -175,7 +175,7 @@ static void __init kasan_early_pgtable_populate(unsigned long address,
 						page = kasan_early_alloc_segment();
 						memset(page, 0, _SEGMENT_SIZE);
 					}
-					pmd_val(*pm_dir) = __pa(page) | sgt_prot;
+					set_pmd(pm_dir, __pmd(__pa(page) | sgt_prot));
 					address = (address + PMD_SIZE) & PMD_MASK;
 					continue;
 				}
@@ -194,16 +194,16 @@ static void __init kasan_early_pgtable_populate(unsigned long address,
 			switch (mode) {
 			case POPULATE_ONE2ONE:
 				page = (void *)address;
-				pte_val(*pt_dir) = __pa(page) | pgt_prot;
+				set_pte(pt_dir, __pte(__pa(page) | pgt_prot));
 				break;
 			case POPULATE_MAP:
 				page = kasan_early_alloc_pages(0);
 				memset(page, 0, PAGE_SIZE);
-				pte_val(*pt_dir) = __pa(page) | pgt_prot;
+				set_pte(pt_dir, __pte(__pa(page) | pgt_prot));
 				break;
 			case POPULATE_ZERO_SHADOW:
 				page = kasan_early_shadow_page;
-				pte_val(*pt_dir) = __pa(page) | pgt_prot_zero;
+				set_pte(pt_dir, __pte(__pa(page) | pgt_prot_zero));
 				break;
 			case POPULATE_SHALLOW:
 				/* should never happen */

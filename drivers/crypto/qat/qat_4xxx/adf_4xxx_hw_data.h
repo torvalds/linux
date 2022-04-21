@@ -39,20 +39,6 @@
 #define ADF_4XXX_NUM_RINGS_PER_BANK	2
 #define ADF_4XXX_NUM_BANKS_PER_VF	4
 
-/* Error source registers */
-#define ADF_4XXX_ERRSOU0	(0x41A200)
-#define ADF_4XXX_ERRSOU1	(0x41A204)
-#define ADF_4XXX_ERRSOU2	(0x41A208)
-#define ADF_4XXX_ERRSOU3	(0x41A20C)
-
-/* Error source mask registers */
-#define ADF_4XXX_ERRMSK0	(0x41A210)
-#define ADF_4XXX_ERRMSK1	(0x41A214)
-#define ADF_4XXX_ERRMSK2	(0x41A218)
-#define ADF_4XXX_ERRMSK3	(0x41A21C)
-
-#define ADF_4XXX_VFLNOTIFY	BIT(7)
-
 /* Arbiter configuration */
 #define ADF_4XXX_ARB_CONFIG			(BIT(31) | BIT(6) | BIT(0))
 #define ADF_4XXX_ARB_OFFSET			(0x0)
@@ -62,16 +48,6 @@
 #define ADF_4XXX_ADMINMSGUR_OFFSET	(0x500574)
 #define ADF_4XXX_ADMINMSGLR_OFFSET	(0x500578)
 #define ADF_4XXX_MAILBOX_BASE_OFFSET	(0x600970)
-
-/* Power management */
-#define ADF_4XXX_PM_POLL_DELAY_US	20
-#define ADF_4XXX_PM_POLL_TIMEOUT_US	USEC_PER_SEC
-#define ADF_4XXX_PM_STATUS		(0x50A00C)
-#define ADF_4XXX_PM_INTERRUPT		(0x50A028)
-#define ADF_4XXX_PM_DRV_ACTIVE		BIT(20)
-#define ADF_4XXX_PM_INIT_STATE		BIT(21)
-/* Power management source in ERRSOU2 and ERRMSK2 */
-#define ADF_4XXX_PM_SOU			BIT(18)
 
 /* Firmware Binaries */
 #define ADF_4XXX_FW		"qat_4xxx.bin"

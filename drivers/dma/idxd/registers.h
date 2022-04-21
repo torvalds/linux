@@ -64,9 +64,9 @@ union wq_cap_reg {
 union group_cap_reg {
 	struct {
 		u64 num_groups:8;
-		u64 total_tokens:8;
-		u64 token_en:1;
-		u64 token_limit:1;
+		u64 total_rdbufs:8;	/* formerly total_tokens */
+		u64 rdbuf_ctrl:1;	/* formerly token_en */
+		u64 rdbuf_limit:1;	/* formerly token_limit */
 		u64 rsvd:46;
 	};
 	u64 bits;
@@ -110,7 +110,7 @@ union offsets_reg {
 #define IDXD_GENCFG_OFFSET		0x80
 union gencfg_reg {
 	struct {
-		u32 token_limit:8;
+		u32 rdbuf_limit:8;
 		u32 rsvd:4;
 		u32 user_int_en:1;
 		u32 rsvd2:19;
@@ -158,6 +158,7 @@ enum idxd_device_reset_type {
 #define IDXD_INTC_OCCUPY			0x04
 #define IDXD_INTC_PERFMON_OVFL		0x08
 #define IDXD_INTC_HALT_STATE		0x10
+#define IDXD_INTC_INT_HANDLE_REVOKED	0x80000000
 
 #define IDXD_CMD_OFFSET			0xa0
 union idxd_command_reg {
@@ -287,10 +288,10 @@ union group_flags {
 		u32 tc_a:3;
 		u32 tc_b:3;
 		u32 rsvd:1;
-		u32 use_token_limit:1;
-		u32 tokens_reserved:8;
+		u32 use_rdbuf_limit:1;
+		u32 rdbufs_reserved:8;
 		u32 rsvd2:4;
-		u32 tokens_allowed:8;
+		u32 rdbufs_allowed:8;
 		u32 rsvd3:4;
 	};
 	u32 bits;

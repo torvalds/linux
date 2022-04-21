@@ -3,7 +3,7 @@
  * Copyright 2018 Noralf Trønnes
  */
 
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -309,9 +309,10 @@ err_delete:
  *	0 on success, or a negative errno code otherwise.
  */
 int
-drm_client_buffer_vmap(struct drm_client_buffer *buffer, struct dma_buf_map *map_copy)
+drm_client_buffer_vmap(struct drm_client_buffer *buffer,
+		       struct iosys_map *map_copy)
 {
-	struct dma_buf_map *map = &buffer->map;
+	struct iosys_map *map = &buffer->map;
 	int ret;
 
 	/*
@@ -342,7 +343,7 @@ EXPORT_SYMBOL(drm_client_buffer_vmap);
  */
 void drm_client_buffer_vunmap(struct drm_client_buffer *buffer)
 {
-	struct dma_buf_map *map = &buffer->map;
+	struct iosys_map *map = &buffer->map;
 
 	drm_gem_vunmap(buffer->gem, map);
 }

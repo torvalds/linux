@@ -79,7 +79,11 @@
  * indicate whether or not the userland FPSIMD state of the current task is
  * present in the registers. The flag is set unless the FPSIMD registers of this
  * CPU currently contain the most recent userland FPSIMD state of the current
- * task.
+ * task. If the task is behaving as a VMM, then this is will be managed by
+ * KVM which will clear it to indicate that the vcpu FPSIMD state is currently
+ * loaded on the CPU, allowing the state to be saved if a FPSIMD-aware
+ * softirq kicks in. Upon vcpu_put(), KVM will save the vcpu FP state and
+ * flag the register state as invalid.
  *
  * In order to allow softirq handlers to use FPSIMD, kernel_neon_begin() may
  * save the task's FPSIMD context back to task_struct from softirq context.
@@ -344,7 +348,13 @@ static void task_fpsimd_load(void)
 
 /*
  * Ensure FPSIMD/SVE storage in memory for the loaded context is up to
- * date with respect to the CPU registers.
+ * date with respect to the CPU registers. Note carefully that the
+ * current context is the context last bound to the CPU stored in
+ * last, if KVM is involved this may be the guest VM context rather
+ * than the host thread for the VM pointed to by current. This means
+ * that we must always reference the state storage via last rather
+ * than via current, other than the TIF_ flags which KVM will
+ * carefully maintain for us.
  */
 static void fpsimd_save(void)
 {

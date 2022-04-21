@@ -268,7 +268,7 @@ static int receive(struct sk_buff *skb, struct net_device *dev,
 
 	err = caifd->layer.up->receive(caifd->layer.up, pkt);
 
-	/* For -EILSEQ the packet is not freed so so it now */
+	/* For -EILSEQ the packet is not freed so free it now */
 	if (err == -EILSEQ)
 		cfpkt_destroy(pkt);
 

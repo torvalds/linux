@@ -190,6 +190,7 @@ static const struct sparx5_main_io_resource sparx5_main_iomap[] =  {
 	{ TARGET_ASM,                0x10600000, 1 }, /* 0x610600000 */
 	{ TARGET_GCB,                0x11010000, 2 }, /* 0x611010000 */
 	{ TARGET_QS,                 0x11030000, 2 }, /* 0x611030000 */
+	{ TARGET_PTP,                0x11040000, 2 }, /* 0x611040000 */
 	{ TARGET_ANA_ACL,            0x11050000, 2 }, /* 0x611050000 */
 	{ TARGET_LRN,                0x11060000, 2 }, /* 0x611060000 */
 	{ TARGET_VCAP_SUPER,         0x11080000, 2 }, /* 0x611080000 */
@@ -291,7 +292,6 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 	/* Create a phylink for PHY management.  Also handles SFPs */
 	spx5_port->phylink_config.dev = &spx5_port->ndev->dev;
 	spx5_port->phylink_config.type = PHYLINK_NETDEV;
-	spx5_port->phylink_config.pcs_poll = true;
 	spx5_port->phylink_config.mac_capabilities = MAC_ASYM_PAUSE |
 		MAC_SYM_PAUSE | MAC_10 | MAC_100 | MAC_1000FD |
 		MAC_2500FD | MAC_5000FD | MAC_10000FD | MAC_25000FD;
@@ -328,7 +328,6 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 		return PTR_ERR(phylink);
 
 	spx5_port->phylink = phylink;
-	phylink_set_pcs(phylink, &spx5_port->phylink_pcs);
 
 	return 0;
 }
@@ -627,6 +626,9 @@ static int sparx5_start(struct sparx5 *sparx5)
 	/* Init MAC table, ageing */
 	sparx5_mact_init(sparx5);
 
+	/* Init PGID table arbitrator */
+	sparx5_pgid_init(sparx5);
+
 	/* Setup VLANs */
 	sparx5_vlan_init(sparx5);
 
@@ -694,6 +696,18 @@ static int sparx5_start(struct sparx5 *sparx5)
 	} else {
 		sparx5->xtr_irq = -ENXIO;
 	}
+
+	if (sparx5->ptp_irq >= 0) {
+		err = devm_request_threaded_irq(sparx5->dev, sparx5->ptp_irq,
+						NULL, sparx5_ptp_irq_handler,
+						IRQF_ONESHOT, "sparx5-ptp",
+						sparx5);
+		if (err)
+			sparx5->ptp_irq = -ENXIO;
+
+		sparx5->ptp = 1;
+	}
+
 	return err;
 }
 
@@ -810,6 +824,7 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 
 	sparx5->fdma_irq = platform_get_irq_byname(sparx5->pdev, "fdma");
 	sparx5->xtr_irq = platform_get_irq_byname(sparx5->pdev, "xtr");
+	sparx5->ptp_irq = platform_get_irq_byname(sparx5->pdev, "ptp");
 
 	/* Read chip ID to check CPU interface */
 	sparx5->chip_id = spx5_rd(sparx5, GCB_CHIP_ID);
@@ -848,6 +863,12 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 		dev_err(sparx5->dev, "Start failed\n");
 		goto cleanup_ports;
 	}
+
+	err = sparx5_ptp_init(sparx5);
+	if (err) {
+		dev_err(sparx5->dev, "PTP failed\n");
+		goto cleanup_ports;
+	}
 	goto cleanup_config;
 
 cleanup_ports:
@@ -871,6 +892,7 @@ static int mchp_sparx5_remove(struct platform_device *pdev)
 		disable_irq(sparx5->fdma_irq);
 		sparx5->fdma_irq = -ENXIO;
 	}
+	sparx5_ptp_deinit(sparx5);
 	sparx5_fdma_stop(sparx5);
 	sparx5_cleanup_ports(sparx5);
 	/* Unregister netdevs */

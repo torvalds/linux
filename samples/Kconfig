@@ -14,7 +14,13 @@ config SAMPLE_TRACE_EVENTS
 	tristate "Build trace_events examples -- loadable modules only"
 	depends on EVENT_TRACING && m
 	help
-	  This build trace event example modules.
+	  This builds the trace event example module.
+
+config SAMPLE_TRACE_CUSTOM_EVENTS
+	tristate "Build custom trace event example -- loadable modules only"
+	depends on EVENT_TRACING && m
+	help
+	  This builds the custom trace event example module.
 
 config SAMPLE_TRACE_PRINTK
         tristate "Build trace_printk module - tests various trace_printk formats"
@@ -72,6 +78,13 @@ config SAMPLE_HW_BREAKPOINT
 	depends on HAVE_HW_BREAKPOINT && m
 	help
 	  This builds kernel hardware breakpoint example modules.
+
+config SAMPLE_FPROBE
+	tristate "Build fprobe examples -- loadable modules only"
+	depends on FPROBE && m
+	help
+	  This builds a fprobe example module. This module has an option 'symbol'.
+	  You can specify a probed symbol or symbols separated with ','.
 
 config SAMPLE_KFIFO
 	tristate "Build kfifo examples -- loadable modules only"

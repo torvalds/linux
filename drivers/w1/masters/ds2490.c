@@ -219,10 +219,8 @@ static void ds_dump_status(struct ds_device *dev, unsigned char *buf, int count)
 {
 	int i;
 
-	pr_info("0x%x: count=%d, status: ", dev->ep[EP_STATUS], count);
-	for (i = 0; i < count; ++i)
-		pr_info("%02x ", buf[i]);
-	pr_info("\n");
+	dev_info(&dev->udev->dev, "ep_status=0x%x, count=%d, status=%*phC",
+		dev->ep[EP_STATUS], count, count, buf);
 
 	if (count >= 16) {
 		ds_print_msg(buf, "enable flag", 0);
@@ -331,7 +329,7 @@ static int ds_recv_data(struct ds_device *dev, unsigned char *buf, int size)
 	err = usb_bulk_msg(dev->udev, usb_rcvbulkpipe(dev->udev, dev->ep[EP_DATA_IN]),
 				buf, size, &count, 1000);
 	if (err < 0) {
-		pr_info("Clearing ep0x%x.\n", dev->ep[EP_DATA_IN]);
+		dev_info(&dev->udev->dev, "Clearing ep0x%x.\n", dev->ep[EP_DATA_IN]);
 		usb_clear_halt(dev->udev, usb_rcvbulkpipe(dev->udev, dev->ep[EP_DATA_IN]));
 		ds_recv_status(dev, NULL, true);
 		return err;

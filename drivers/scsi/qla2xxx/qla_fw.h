@@ -1706,7 +1706,7 @@ struct qla_flt_header {
 	__le16	length;
 	__le16	checksum;
 	__le16	unused;
-	struct qla_flt_region region[0];
+	struct qla_flt_region region[];
 };
 
 #define FLT_REGION_SIZE		16

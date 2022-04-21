@@ -16,7 +16,7 @@ typedef int (*bpf_counter_evsel_op)(struct evsel *evsel);
 typedef int (*bpf_counter_evsel_target_op)(struct evsel *evsel,
 					   struct target *target);
 typedef int (*bpf_counter_evsel_install_pe_op)(struct evsel *evsel,
-					       int cpu,
+					       int cpu_map_idx,
 					       int fd);
 
 struct bpf_counter_ops {
@@ -40,7 +40,7 @@ int bpf_counter__enable(struct evsel *evsel);
 int bpf_counter__disable(struct evsel *evsel);
 int bpf_counter__read(struct evsel *evsel);
 void bpf_counter__destroy(struct evsel *evsel);
-int bpf_counter__install_pe(struct evsel *evsel, int cpu, int fd);
+int bpf_counter__install_pe(struct evsel *evsel, int cpu_map_idx, int fd);
 
 #else /* HAVE_BPF_SKEL */
 

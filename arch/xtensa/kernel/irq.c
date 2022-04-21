@@ -36,9 +36,8 @@ asmlinkage void do_IRQ(int hwirq, struct pt_regs *regs)
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	/* Debugging check for stack overflow: is there less than 1KB free? */
 	{
-		unsigned long sp;
+		unsigned long sp = current_stack_pointer;
 
-		__asm__ __volatile__ ("mov %0, a1\n" : "=a" (sp));
 		sp &= THREAD_SIZE - 1;
 
 		if (unlikely(sp < (sizeof(thread_info) + 1024)))

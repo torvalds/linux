@@ -80,7 +80,7 @@ static int stop_timer;
  * This cannot be solved by letting the RX DMA disabled until a
  * request gets queued because there may be other OUT packets
  * in the FIFO (important for not blocking control traffic).
- * The value of set_rde controls the correspondig timer.
+ * The value of set_rde controls the corresponding timer.
  *
  * set_rde -1 == not used, means it is alloed to be set to 0 or 1
  * set_rde  0 == do not touch RDE, do no start the RDE timer

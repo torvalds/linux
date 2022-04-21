@@ -139,30 +139,42 @@ MODULE_PARM_DESC(usbfs_memory_mb,
 /* Hard limit, necessary to avoid arithmetic overflow */
 #define USBFS_XFER_MAX         (UINT_MAX / 2 - 1000000)
 
-static atomic64_t usbfs_memory_usage;	/* Total memory currently allocated */
+static DEFINE_SPINLOCK(usbfs_memory_usage_lock);
+static u64 usbfs_memory_usage;	/* Total memory currently allocated */
 
 /* Check whether it's okay to allocate more memory for a transfer */
 static int usbfs_increase_memory_usage(u64 amount)
 {
-	u64 lim;
+	u64 lim, total_mem;
+	unsigned long flags;
+	int ret;
 
 	lim = READ_ONCE(usbfs_memory_mb);
 	lim <<= 20;
 
-	atomic64_add(amount, &usbfs_memory_usage);
+	ret = 0;
+	spin_lock_irqsave(&usbfs_memory_usage_lock, flags);
+	total_mem = usbfs_memory_usage + amount;
+	if (lim > 0 && total_mem > lim)
+		ret = -ENOMEM;
+	else
+		usbfs_memory_usage = total_mem;
+	spin_unlock_irqrestore(&usbfs_memory_usage_lock, flags);
 
-	if (lim > 0 && atomic64_read(&usbfs_memory_usage) > lim) {
-		atomic64_sub(amount, &usbfs_memory_usage);
-		return -ENOMEM;
-	}
-
-	return 0;
+	return ret;
 }
 
 /* Memory for a transfer is being deallocated */
 static void usbfs_decrease_memory_usage(u64 amount)
 {
-	atomic64_sub(amount, &usbfs_memory_usage);
+	unsigned long flags;
+
+	spin_lock_irqsave(&usbfs_memory_usage_lock, flags);
+	if (amount > usbfs_memory_usage)
+		usbfs_memory_usage = 0;
+	else
+		usbfs_memory_usage -= amount;
+	spin_unlock_irqrestore(&usbfs_memory_usage_lock, flags);
 }
 
 static int connected(struct usb_dev_state *ps)

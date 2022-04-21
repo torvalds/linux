@@ -12,20 +12,23 @@
 
 struct wfx_dev;
 
+/* Caution: in the functions below, 'buf' will used with a DMA. So, it must be kmalloc'd (do not use
+ * stack allocated buffers). In doubt, enable CONFIG_DEBUG_SG to detect badly located buffer.
+ */
 int wfx_data_read(struct wfx_dev *wdev, void *buf, size_t buf_len);
 int wfx_data_write(struct wfx_dev *wdev, const void *buf, size_t buf_len);
 
-int sram_buf_read(struct wfx_dev *wdev, u32 addr, void *buf, size_t len);
-int sram_buf_write(struct wfx_dev *wdev, u32 addr, const void *buf, size_t len);
+int wfx_sram_buf_read(struct wfx_dev *wdev, u32 addr, void *buf, size_t len);
+int wfx_sram_buf_write(struct wfx_dev *wdev, u32 addr, const void *buf, size_t len);
 
-int ahb_buf_read(struct wfx_dev *wdev, u32 addr, void *buf, size_t len);
-int ahb_buf_write(struct wfx_dev *wdev, u32 addr, const void *buf, size_t len);
+int wfx_ahb_buf_read(struct wfx_dev *wdev, u32 addr, void *buf, size_t len);
+int wfx_ahb_buf_write(struct wfx_dev *wdev, u32 addr, const void *buf, size_t len);
 
-int sram_reg_read(struct wfx_dev *wdev, u32 addr, u32 *val);
-int sram_reg_write(struct wfx_dev *wdev, u32 addr, u32 val);
+int wfx_sram_reg_read(struct wfx_dev *wdev, u32 addr, u32 *val);
+int wfx_sram_reg_write(struct wfx_dev *wdev, u32 addr, u32 val);
 
-int ahb_reg_read(struct wfx_dev *wdev, u32 addr, u32 *val);
-int ahb_reg_write(struct wfx_dev *wdev, u32 addr, u32 val);
+int wfx_ahb_reg_read(struct wfx_dev *wdev, u32 addr, u32 *val);
+int wfx_ahb_reg_write(struct wfx_dev *wdev, u32 addr, u32 val);
 
 #define CFG_ERR_SPI_FRAME          0x00000001 /* only with SPI */
 #define CFG_ERR_SDIO_BUF_MISMATCH  0x00000001 /* only with SDIO */
@@ -55,21 +58,21 @@ int ahb_reg_write(struct wfx_dev *wdev, u32 addr, u32 val);
 #define CFG_DEVICE_ID_MAJOR        0x07000000
 #define CFG_DEVICE_ID_RESERVED     0x78000000
 #define CFG_DEVICE_ID_TYPE         0x80000000
-int config_reg_read(struct wfx_dev *wdev, u32 *val);
-int config_reg_write(struct wfx_dev *wdev, u32 val);
-int config_reg_write_bits(struct wfx_dev *wdev, u32 mask, u32 val);
+int wfx_config_reg_read(struct wfx_dev *wdev, u32 *val);
+int wfx_config_reg_write(struct wfx_dev *wdev, u32 val);
+int wfx_config_reg_write_bits(struct wfx_dev *wdev, u32 mask, u32 val);
 
 #define CTRL_NEXT_LEN_MASK   0x00000FFF
 #define CTRL_WLAN_WAKEUP     0x00001000
 #define CTRL_WLAN_READY      0x00002000
-int control_reg_read(struct wfx_dev *wdev, u32 *val);
-int control_reg_write(struct wfx_dev *wdev, u32 val);
-int control_reg_write_bits(struct wfx_dev *wdev, u32 mask, u32 val);
+int wfx_control_reg_read(struct wfx_dev *wdev, u32 *val);
+int wfx_control_reg_write(struct wfx_dev *wdev, u32 val);
+int wfx_control_reg_write_bits(struct wfx_dev *wdev, u32 mask, u32 val);
 
 #define IGPR_RW          0x80000000
 #define IGPR_INDEX       0x7F000000
 #define IGPR_VALUE       0x00FFFFFF
-int igpr_reg_read(struct wfx_dev *wdev, int index, u32 *val);
-int igpr_reg_write(struct wfx_dev *wdev, int index, u32 val);
+int wfx_igpr_reg_read(struct wfx_dev *wdev, int index, u32 *val);
+int wfx_igpr_reg_write(struct wfx_dev *wdev, int index, u32 val);
 
 #endif

@@ -312,7 +312,7 @@ ENTRY(chacha20_vx_4x)
 	VPERM	XC0,XC0,XC0,BEPERM
 	VPERM	XD0,XD0,XD0,BEPERM
 
-	.insn	rilu,0xc20e00000000,LEN,0x40	# clgfi LEN,0x40
+	clgfi	LEN,0x40
 	jl	.Ltail_4x
 
 	VLM	XT0,XT3,0,INP,0
@@ -339,7 +339,7 @@ ENTRY(chacha20_vx_4x)
 	VPERM	XC0,XC0,XC0,BEPERM
 	VPERM	XD0,XD0,XD0,BEPERM
 
-	.insn	rilu,0xc20e00000000,LEN,0x40	# clgfi LEN,0x40
+	clgfi	LEN,0x40
 	jl	.Ltail_4x
 
 	VLM	XT0,XT3,0,INP,0
@@ -366,7 +366,7 @@ ENTRY(chacha20_vx_4x)
 	VPERM	XC0,XC0,XC0,BEPERM
 	VPERM	XD0,XD0,XD0,BEPERM
 
-	.insn	rilu,0xc20e00000000,LEN,0x40	# clgfi LEN,0x40
+	clgfi	LEN,0x40
 	jl	.Ltail_4x
 
 	VLM	XT0,XT3,0,INP,0
@@ -472,7 +472,7 @@ ENDPROC(chacha20_vx_4x)
 #define T3		%v30
 
 ENTRY(chacha20_vx)
-	.insn	rilu,0xc20e00000000,LEN,256	# clgfi LEN,256
+	clgfi	LEN,256
 	jle	chacha20_vx_4x
 	stmg	%r6,%r7,6*8(SP)
 
@@ -725,7 +725,7 @@ ENTRY(chacha20_vx)
 	VPERM	C0,C0,C0,BEPERM
 	VPERM	D0,D0,D0,BEPERM
 
-	.insn	rilu,0xc20e00000000,LEN,0x40	# clgfi LEN,0x40
+	clgfi	LEN,0x40
 	jl	.Ltail_vx
 
 	VAF	D2,D2,T2		# +K[3]+2
@@ -754,7 +754,7 @@ ENTRY(chacha20_vx)
 	VPERM	C0,C1,C1,BEPERM
 	VPERM	D0,D1,D1,BEPERM
 
-	.insn	rilu,0xc20e00000000,LEN,0x40	# clgfi LEN,0x40
+	clgfi	LEN,0x40
 	jl	.Ltail_vx
 
 	VLM	A1,D1,0,INP,0
@@ -780,7 +780,7 @@ ENTRY(chacha20_vx)
 	VPERM	C0,C2,C2,BEPERM
 	VPERM	D0,D2,D2,BEPERM
 
-	.insn	rilu,0xc20e00000000,LEN,0x40	# clgfi LEN,0x40
+	clgfi	LEN,0x40
 	jl	.Ltail_vx
 
 	VLM	A1,D1,0,INP,0
@@ -807,7 +807,7 @@ ENTRY(chacha20_vx)
 	VPERM	C0,C3,C3,BEPERM
 	VPERM	D0,D3,D3,BEPERM
 
-	.insn	rilu,0xc20e00000000,LEN,0x40	# clgfi LEN,0x40
+	clgfi	LEN,0x40
 	jl	.Ltail_vx
 
 	VAF	D3,D2,T1		# K[3]+4
@@ -837,7 +837,7 @@ ENTRY(chacha20_vx)
 	VPERM	C0,C4,C4,BEPERM
 	VPERM	D0,D4,D4,BEPERM
 
-	.insn	rilu,0xc20e00000000,LEN,0x40	# clgfi LEN,0x40
+	clgfi	LEN,0x40
 	jl	.Ltail_vx
 
 	VLM	A1,D1,0,INP,0
@@ -864,7 +864,7 @@ ENTRY(chacha20_vx)
 	VPERM	C0,C5,C5,BEPERM
 	VPERM	D0,D5,D5,BEPERM
 
-	.insn	rilu,0xc20e00000000,LEN,0x40	# clgfi LEN,0x40
+	clgfi	LEN,0x40
 	jl	.Ltail_vx
 
 	VLM	A1,D1,0,INP,0

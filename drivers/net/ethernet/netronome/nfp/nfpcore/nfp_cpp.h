@@ -32,10 +32,6 @@
 
 #define PCI_64BIT_BAR_COUNT             3
 
-/* NFP hardware vendor/device ids.
- */
-#define PCI_DEVICE_ID_NETRONOME_NFP3800	0x3800
-
 #define NFP_CPP_NUM_TARGETS             16
 /* Max size of area it should be safe to request */
 #define NFP_CPP_SAFE_AREA_SIZE		SZ_2M

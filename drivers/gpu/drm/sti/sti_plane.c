@@ -112,12 +112,6 @@ static int sti_plane_get_default_zpos(enum drm_plane_type type)
 	return 0;
 }
 
-void sti_plane_reset(struct drm_plane *plane)
-{
-	drm_atomic_helper_plane_reset(plane);
-	plane->state->zpos = sti_plane_get_default_zpos(plane->type);
-}
-
 static void sti_plane_attach_zorder_property(struct drm_plane *drm_plane,
 					     enum drm_plane_type type)
 {

@@ -426,7 +426,7 @@ static void qeth_setup_ccw(struct ccw1 *ccw, u8 cmd_code, u8 flags, u32 len,
 	ccw->cmd_code = cmd_code;
 	ccw->flags = flags | CCW_FLAG_SLI;
 	ccw->count = len;
-	ccw->cda = (__u32) __pa(data);
+	ccw->cda = (__u32)virt_to_phys(data);
 }
 
 static int __qeth_issue_next_read(struct qeth_card *card)

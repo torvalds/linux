@@ -689,7 +689,7 @@ static int cw_bat_probe(struct i2c_client *client)
 	if (ret) {
 		/* Allocate an empty battery */
 		cw_bat->battery = devm_kzalloc(&client->dev,
-					       sizeof(cw_bat->battery),
+					       sizeof(*cw_bat->battery),
 					       GFP_KERNEL);
 		if (!cw_bat->battery)
 			return -ENOMEM;

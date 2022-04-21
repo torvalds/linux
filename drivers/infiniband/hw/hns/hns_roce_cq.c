@@ -100,12 +100,39 @@ static void free_cqn(struct hns_roce_dev *hr_dev, unsigned long cqn)
 	mutex_unlock(&cq_table->bank_mutex);
 }
 
+static int hns_roce_create_cqc(struct hns_roce_dev *hr_dev,
+			       struct hns_roce_cq *hr_cq,
+			       u64 *mtts, dma_addr_t dma_handle)
+{
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	struct hns_roce_cmd_mailbox *mailbox;
+	int ret;
+
+	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
+	if (IS_ERR(mailbox)) {
+		ibdev_err(ibdev, "failed to alloc mailbox for CQC.\n");
+		return PTR_ERR(mailbox);
+	}
+
+	hr_dev->hw->write_cqc(hr_dev, hr_cq, mailbox->buf, mtts, dma_handle);
+
+	ret = hns_roce_create_hw_ctx(hr_dev, mailbox, HNS_ROCE_CMD_CREATE_CQC,
+				     hr_cq->cqn);
+	if (ret)
+		ibdev_err(ibdev,
+			  "failed to send create cmd for CQ(0x%lx), ret = %d.\n",
+			  hr_cq->cqn, ret);
+
+	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
+
+	return ret;
+}
+
 static int alloc_cqc(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 {
 	struct hns_roce_cq_table *cq_table = &hr_dev->cq_table;
 	struct ib_device *ibdev = &hr_dev->ib_dev;
-	struct hns_roce_cmd_mailbox *mailbox;
-	u64 mtts[MTT_MIN_COUNT] = { 0 };
+	u64 mtts[MTT_MIN_COUNT] = {};
 	dma_addr_t dma_handle;
 	int ret;
 
@@ -121,7 +148,7 @@ static int alloc_cqc(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 	if (ret) {
 		ibdev_err(ibdev, "failed to get CQ(0x%lx) context, ret = %d.\n",
 			  hr_cq->cqn, ret);
-		goto err_out;
+		return ret;
 	}
 
 	ret = xa_err(xa_store(&cq_table->array, hr_cq->cqn, hr_cq, GFP_KERNEL));
@@ -130,41 +157,17 @@ static int alloc_cqc(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 		goto err_put;
 	}
 
-	/* Allocate mailbox memory */
-	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
-	if (IS_ERR(mailbox)) {
-		ret = PTR_ERR(mailbox);
+	ret = hns_roce_create_cqc(hr_dev, hr_cq, mtts, dma_handle);
+	if (ret)
 		goto err_xa;
-	}
-
-	hr_dev->hw->write_cqc(hr_dev, hr_cq, mailbox->buf, mtts, dma_handle);
-
-	/* Send mailbox to hw */
-	ret = hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, hr_cq->cqn, 0,
-			HNS_ROCE_CMD_CREATE_CQC, HNS_ROCE_CMD_TIMEOUT_MSECS);
-	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
-	if (ret) {
-		ibdev_err(ibdev,
-			  "failed to send create cmd for CQ(0x%lx), ret = %d.\n",
-			  hr_cq->cqn, ret);
-		goto err_xa;
-	}
-
-	hr_cq->cons_index = 0;
-	hr_cq->arm_sn = 1;
-
-	refcount_set(&hr_cq->refcount, 1);
-	init_completion(&hr_cq->free);
 
 	return 0;
 
 err_xa:
 	xa_erase(&cq_table->array, hr_cq->cqn);
-
 err_put:
 	hns_roce_table_put(hr_dev, &cq_table->table, hr_cq->cqn);
 
-err_out:
 	return ret;
 }
 
@@ -174,9 +177,8 @@ static void free_cqc(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 	struct device *dev = hr_dev->dev;
 	int ret;
 
-	ret = hns_roce_cmd_mbox(hr_dev, 0, 0, hr_cq->cqn, 1,
-				HNS_ROCE_CMD_DESTROY_CQC,
-				HNS_ROCE_CMD_TIMEOUT_MSECS);
+	ret = hns_roce_destroy_hw_ctx(hr_dev, HNS_ROCE_CMD_DESTROY_CQC,
+				      hr_cq->cqn);
 	if (ret)
 		dev_err(dev, "DESTROY_CQ failed (%d) for CQN %06lx\n", ret,
 			hr_cq->cqn);
@@ -412,6 +414,11 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 		if (ret)
 			goto err_cqc;
 	}
+
+	hr_cq->cons_index = 0;
+	hr_cq->arm_sn = 1;
+	refcount_set(&hr_cq->refcount, 1);
+	init_completion(&hr_cq->free);
 
 	return 0;
 

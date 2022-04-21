@@ -150,7 +150,7 @@ static struct attribute *initiate_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group initiate_attr_group = {
+static const struct attribute_group initiate_attr_group = {
 	.attrs = initiate_attrs,
 };
 

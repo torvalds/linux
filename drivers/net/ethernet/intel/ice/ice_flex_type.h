@@ -162,6 +162,7 @@ struct ice_meta_sect {
 
 #define ICE_SID_RXPARSER_MARKER_PTYPE	55
 #define ICE_SID_RXPARSER_BOOST_TCAM	56
+#define ICE_SID_RXPARSER_METADATA_INIT	58
 #define ICE_SID_TXPARSER_BOOST_TCAM	66
 
 #define ICE_SID_XLT0_PE			80
@@ -416,6 +417,8 @@ enum ice_tunnel_type {
 	TNL_VXLAN = 0,
 	TNL_GENEVE,
 	TNL_GRETAP,
+	TNL_GTPC,
+	TNL_GTPU,
 	__TNL_TYPE_CNT,
 	TNL_LAST = 0xFF,
 	TNL_ALL = 0xFF,
@@ -440,6 +443,19 @@ struct ice_tunnel_table {
 	struct ice_tunnel_entry tbl[ICE_TUNNEL_MAX_ENTRIES];
 	u16 count;
 	u16 valid_count[__TNL_TYPE_CNT];
+};
+
+struct ice_dvm_entry {
+	u16 boost_addr;
+	u16 enable;
+	struct ice_boost_tcam_entry *boost_entry;
+};
+
+#define ICE_DVM_MAX_ENTRIES	48
+
+struct ice_dvm_table {
+	struct ice_dvm_entry tbl[ICE_DVM_MAX_ENTRIES];
+	u16 count;
 };
 
 struct ice_pkg_es {
@@ -659,7 +675,35 @@ enum ice_prof_type {
 	ICE_PROF_NON_TUN = 0x1,
 	ICE_PROF_TUN_UDP = 0x2,
 	ICE_PROF_TUN_GRE = 0x4,
-	ICE_PROF_TUN_ALL = 0x6,
+	ICE_PROF_TUN_GTPU = 0x8,
+	ICE_PROF_TUN_GTPC = 0x10,
+	ICE_PROF_TUN_ALL = 0x1E,
 	ICE_PROF_ALL = 0xFF,
+};
+
+/* Number of bits/bytes contained in meta init entry. Note, this should be a
+ * multiple of 32 bits.
+ */
+#define ICE_META_INIT_BITS	192
+#define ICE_META_INIT_DW_CNT	(ICE_META_INIT_BITS / (sizeof(__le32) * \
+				 BITS_PER_BYTE))
+
+/* The meta init Flag field starts at this bit */
+#define ICE_META_FLAGS_ST		123
+
+/* The entry and bit to check for Double VLAN Mode (DVM) support */
+#define ICE_META_VLAN_MODE_ENTRY	0
+#define ICE_META_FLAG_VLAN_MODE		60
+#define ICE_META_VLAN_MODE_BIT		(ICE_META_FLAGS_ST + \
+					 ICE_META_FLAG_VLAN_MODE)
+
+struct ice_meta_init_entry {
+	__le32 bm[ICE_META_INIT_DW_CNT];
+};
+
+struct ice_meta_init_section {
+	__le16 count;
+	__le16 offset;
+	struct ice_meta_init_entry entry;
 };
 #endif /* _ICE_FLEX_TYPE_H_ */

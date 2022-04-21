@@ -139,6 +139,7 @@
 		gcc: clock-controller@900000 {
 			compatible = "qcom,gcc-mdm9615";
 			#clock-cells = <1>;
+			#power-domain-cells = <1>;
 			#reset-cells = <1>;
 			reg = <0x900000 0x4000>;
 		};
@@ -151,7 +152,7 @@
 		};
 
 		l2cc: clock-controller@2011000 {
-			compatible = "syscon";
+			compatible = "qcom,kpss-gcc", "syscon";
 			reg = <0x02011000 0x1000>;
 		};
 

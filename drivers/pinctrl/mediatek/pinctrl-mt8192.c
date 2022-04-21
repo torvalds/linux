@@ -1381,14 +1381,9 @@ static const struct mtk_pin_soc mt8192_data = {
 };
 
 static const struct of_device_id mt8192_pinctrl_of_match[] = {
-	{ .compatible = "mediatek,mt8192-pinctrl", },
+	{ .compatible = "mediatek,mt8192-pinctrl", .data = &mt8192_data },
 	{ }
 };
-
-static int mt8192_pinctrl_probe(struct platform_device *pdev)
-{
-	return mtk_paris_pinctrl_probe(pdev, &mt8192_data);
-}
 
 static struct platform_driver mt8192_pinctrl_driver = {
 	.driver = {
@@ -1396,7 +1391,7 @@ static struct platform_driver mt8192_pinctrl_driver = {
 		.of_match_table = mt8192_pinctrl_of_match,
 		.pm = &mtk_paris_pinctrl_pm_ops,
 	},
-	.probe = mt8192_pinctrl_probe,
+	.probe = mtk_paris_pinctrl_probe,
 };
 
 static int __init mt8192_pinctrl_init(void)

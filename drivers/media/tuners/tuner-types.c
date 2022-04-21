@@ -1831,7 +1831,7 @@ struct tunertype tuners[] = {
 	},
 	[TUNER_XC2028] = { /* Xceive 2028 */
 		.name   = "Xceive xc2028/xc3028 tuner",
-		/* see tuner-xc2028.c for details */
+		/* see xc2028.c for details */
 	},
 	[TUNER_THOMSON_FE6600] = { /* Thomson PAL / DVB-T */
 		.name   = "Thomson FE6600",

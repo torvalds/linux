@@ -181,10 +181,59 @@ static int fu740_pcie_start_link(struct dw_pcie *pci)
 {
 	struct device *dev = pci->dev;
 	struct fu740_pcie *afp = dev_get_drvdata(dev);
+	u8 cap_exp = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
+	int ret;
+	u32 orig, tmp;
+
+	/*
+	 * Force 2.5GT/s when starting the link, due to some devices not
+	 * probing at higher speeds. This happens with the PCIe switch
+	 * on the Unmatched board when U-Boot has not initialised the PCIe.
+	 * The fix in U-Boot is to force 2.5GT/s, which then gets cleared
+	 * by the soft reset done by this driver.
+	 */
+	dev_dbg(dev, "cap_exp at %x\n", cap_exp);
+	dw_pcie_dbi_ro_wr_en(pci);
+
+	tmp = dw_pcie_readl_dbi(pci, cap_exp + PCI_EXP_LNKCAP);
+	orig = tmp & PCI_EXP_LNKCAP_SLS;
+	tmp &= ~PCI_EXP_LNKCAP_SLS;
+	tmp |= PCI_EXP_LNKCAP_SLS_2_5GB;
+	dw_pcie_writel_dbi(pci, cap_exp + PCI_EXP_LNKCAP, tmp);
 
 	/* Enable LTSSM */
 	writel_relaxed(0x1, afp->mgmt_base + PCIEX8MGMT_APP_LTSSM_ENABLE);
-	return 0;
+
+	ret = dw_pcie_wait_for_link(pci);
+	if (ret) {
+		dev_err(dev, "error: link did not start\n");
+		goto err;
+	}
+
+	tmp = dw_pcie_readl_dbi(pci, cap_exp + PCI_EXP_LNKCAP);
+	if ((tmp & PCI_EXP_LNKCAP_SLS) != orig) {
+		dev_dbg(dev, "changing speed back to original\n");
+
+		tmp &= ~PCI_EXP_LNKCAP_SLS;
+		tmp |= orig;
+		dw_pcie_writel_dbi(pci, cap_exp + PCI_EXP_LNKCAP, tmp);
+
+		tmp = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
+		tmp |= PORT_LOGIC_SPEED_CHANGE;
+		dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, tmp);
+
+		ret = dw_pcie_wait_for_link(pci);
+		if (ret) {
+			dev_err(dev, "error: link did not start at new speed\n");
+			goto err;
+		}
+	}
+
+	ret = 0;
+err:
+	WARN_ON(ret);	/* we assume that errors will be very rare */
+	dw_pcie_dbi_ro_wr_dis(pci);
+	return ret;
 }
 
 static int fu740_pcie_host_init(struct pcie_port *pp)
@@ -224,7 +273,7 @@ static int fu740_pcie_host_init(struct pcie_port *pp)
 	/* Clear hold_phy_rst */
 	writel_relaxed(0x0, afp->mgmt_base + PCIEX8MGMT_APP_HOLD_PHY_RST);
 	/* Enable pcieauxclk */
-	ret = clk_prepare_enable(afp->pcie_aux);
+	clk_prepare_enable(afp->pcie_aux);
 	/* Set RC mode */
 	writel_relaxed(0x4, afp->mgmt_base + PCIEX8MGMT_DEVICE_TYPE);
 
@@ -259,11 +308,11 @@ static int fu740_pcie_probe(struct platform_device *pdev)
 		return PTR_ERR(afp->mgmt_base);
 
 	/* Fetch GPIOs */
-	afp->reset = devm_gpiod_get_optional(dev, "reset-gpios", GPIOD_OUT_LOW);
+	afp->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(afp->reset))
 		return dev_err_probe(dev, PTR_ERR(afp->reset), "unable to get reset-gpios\n");
 
-	afp->pwren = devm_gpiod_get_optional(dev, "pwren-gpios", GPIOD_OUT_LOW);
+	afp->pwren = devm_gpiod_get_optional(dev, "pwren", GPIOD_OUT_LOW);
 	if (IS_ERR(afp->pwren))
 		return dev_err_probe(dev, PTR_ERR(afp->pwren), "unable to get pwren-gpios\n");
 

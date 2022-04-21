@@ -6,7 +6,6 @@
 
 #include <net/pkt_cls.h>
 
-struct prestera_switch;
 struct prestera_flow_block;
 
 int prestera_flower_replace(struct prestera_flow_block *block,

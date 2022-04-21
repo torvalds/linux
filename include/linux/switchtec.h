@@ -337,8 +337,6 @@ enum {
 	NTB_CTRL_REQ_ID_EN = 1 << 0,
 
 	NTB_CTRL_LUT_EN = 1 << 0,
-
-	NTB_PART_CTRL_ID_PROT_DIS = 1 << 0,
 };
 
 struct ntb_ctrl_regs {

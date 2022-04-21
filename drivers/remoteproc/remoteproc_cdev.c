@@ -42,7 +42,7 @@ static ssize_t rproc_cdev_write(struct file *filp, const char __user *buf, size_
 		    rproc->state != RPROC_ATTACHED)
 			return -EINVAL;
 
-		rproc_shutdown(rproc);
+		ret = rproc_shutdown(rproc);
 	} else if (!strncmp(cmd, "detach", len)) {
 		if (rproc->state != RPROC_ATTACHED)
 			return -EINVAL;

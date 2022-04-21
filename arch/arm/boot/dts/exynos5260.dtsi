@@ -113,78 +113,206 @@
 			compatible = "samsung,exynos5260-clock-top";
 			reg = <0x10010000 0x10000>;
 			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&clock_mif MIF_DOUT_MEM_PLL>,
+				 <&clock_mif MIF_DOUT_BUS_PLL>,
+				 <&clock_mif MIF_DOUT_MEDIA_PLL>;
+			clock-names = "fin_pll",
+				      "dout_mem_pll",
+				      "dout_bus_pll",
+				      "dout_media_pll";
 		};
 
 		clock_peri: clock-controller@10200000 {
 			compatible = "samsung,exynos5260-clock-peri";
 			reg = <0x10200000 0x10000>;
 			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&ioclk_pcm>,
+				 <&ioclk_i2s>,
+				 <&ioclk_spdif>,
+				 <&fin_pll>,
+				 <&clock_top TOP_DOUT_ACLK_PERI_66>,
+				 <&clock_top TOP_DOUT_SCLK_PERI_UART0>,
+				 <&clock_top TOP_DOUT_SCLK_PERI_UART1>,
+				 <&clock_top TOP_DOUT_SCLK_PERI_UART2>,
+				 <&clock_top TOP_DOUT_SCLK_PERI_SPI0_B>,
+				 <&clock_top TOP_DOUT_SCLK_PERI_SPI1_B>,
+				 <&clock_top TOP_DOUT_SCLK_PERI_SPI2_B>,
+				 <&clock_top TOP_DOUT_ACLK_PERI_AUD>;
+			clock-names = "fin_pll",
+				      "ioclk_pcm_extclk",
+				      "ioclk_i2s_cdclk",
+				      "ioclk_spdif_extclk",
+				      "phyclk_hdmi_phy_ref_cko",
+				      "dout_aclk_peri_66",
+				      "dout_sclk_peri_uart0",
+				      "dout_sclk_peri_uart1",
+				      "dout_sclk_peri_uart2",
+				      "dout_sclk_peri_spi0_b",
+				      "dout_sclk_peri_spi1_b",
+				      "dout_sclk_peri_spi2_b",
+				      "dout_aclk_peri_aud";
 		};
 
 		clock_egl: clock-controller@10600000 {
 			compatible = "samsung,exynos5260-clock-egl";
 			reg = <0x10600000 0x10000>;
 			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&clock_mif MIF_DOUT_BUS_PLL>;
+			clock-names = "fin_pll",
+				      "dout_bus_pll";
 		};
 
 		clock_kfc: clock-controller@10700000 {
 			compatible = "samsung,exynos5260-clock-kfc";
 			reg = <0x10700000 0x10000>;
 			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&clock_mif MIF_DOUT_MEDIA_PLL>;
+			clock-names = "fin_pll",
+				      "dout_media_pll";
 		};
 
 		clock_g2d: clock-controller@10a00000 {
 			compatible = "samsung,exynos5260-clock-g2d";
 			reg = <0x10A00000 0x10000>;
 			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&clock_top TOP_DOUT_ACLK_G2D_333>;
+			clock-names = "fin_pll",
+				      "dout_aclk_g2d_333";
 		};
 
 		clock_mif: clock-controller@10ce0000 {
 			compatible = "samsung,exynos5260-clock-mif";
 			reg = <0x10CE0000 0x10000>;
 			#clock-cells = <1>;
+			clocks = <&fin_pll>;
+			clock-names = "fin_pll";
 		};
 
 		clock_mfc: clock-controller@11090000 {
 			compatible = "samsung,exynos5260-clock-mfc";
 			reg = <0x11090000 0x10000>;
 			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&clock_top TOP_DOUT_ACLK_MFC_333>;
+			clock-names = "fin_pll",
+				      "dout_aclk_mfc_333";
 		};
 
 		clock_g3d: clock-controller@11830000 {
 			compatible = "samsung,exynos5260-clock-g3d";
 			reg = <0x11830000 0x10000>;
 			#clock-cells = <1>;
+			clocks = <&fin_pll>;
+			clock-names = "fin_pll";
 		};
 
 		clock_fsys: clock-controller@122e0000 {
 			compatible = "samsung,exynos5260-clock-fsys";
 			reg = <0x122E0000 0x10000>;
 			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&clock_top TOP_DOUT_ACLK_FSYS_200>;
+			clock-names = "fin_pll",
+				      "phyclk_usbhost20_phy_phyclock",
+				      "phyclk_usbhost20_phy_freeclk",
+				      "phyclk_usbhost20_phy_clk48mohci",
+				      "phyclk_usbdrd30_udrd30_pipe_pclk",
+				      "phyclk_usbdrd30_udrd30_phyclock",
+				      "dout_aclk_fsys_200";
 		};
 
 		clock_aud: clock-controller@128c0000 {
 			compatible = "samsung,exynos5260-clock-aud";
 			reg = <0x128C0000 0x10000>;
 			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&clock_top TOP_FOUT_AUD_PLL>,
+				 <&ioclk_i2s>,
+				 <&ioclk_pcm>;
+			clock-names = "fin_pll",
+				      "fout_aud_pll",
+				      "ioclk_i2s_cdclk",
+				      "ioclk_pcm_extclk";
 		};
 
 		clock_isp: clock-controller@133c0000 {
 			compatible = "samsung,exynos5260-clock-isp";
 			reg = <0x133C0000 0x10000>;
 			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&clock_top TOP_DOUT_ACLK_ISP1_266>,
+				 <&clock_top TOP_DOUT_ACLK_ISP1_400>,
+				 <&clock_top TOP_MOUT_ACLK_ISP1_266>;
+			clock-names = "fin_pll",
+				      "dout_aclk_isp1_266",
+				      "dout_aclk_isp1_400",
+				      "mout_aclk_isp1_266";
 		};
 
 		clock_gscl: clock-controller@13f00000 {
 			compatible = "samsung,exynos5260-clock-gscl";
 			reg = <0x13F00000 0x10000>;
 			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&clock_top TOP_DOUT_ACLK_GSCL_400>,
+				 <&clock_top TOP_DOUT_ACLK_GSCL_333>;
+			clock-names = "fin_pll",
+				      "dout_aclk_gscl_400",
+				      "dout_aclk_gscl_333";
 		};
 
 		clock_disp: clock-controller@14550000 {
 			compatible = "samsung,exynos5260-clock-disp";
 			reg = <0x14550000 0x10000>;
 			#clock-cells = <1>;
+			clocks = <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&fin_pll>,
+				 <&ioclk_spdif>,
+				 <&clock_top TOP_DOUT_ACLK_PERI_AUD>,
+				 <&clock_top TOP_DOUT_ACLK_DISP_222>,
+				 <&clock_top TOP_DOUT_SCLK_DISP_PIXEL>,
+				 <&clock_top TOP_DOUT_ACLK_DISP_333>;
+			clock-names = "fin_pll",
+				      "phyclk_dptx_phy_ch3_txd_clk",
+				      "phyclk_dptx_phy_ch2_txd_clk",
+				      "phyclk_dptx_phy_ch1_txd_clk",
+				      "phyclk_dptx_phy_ch0_txd_clk",
+				      "phyclk_hdmi_phy_tmds_clko",
+				      "phyclk_hdmi_phy_ref_clko",
+				      "phyclk_hdmi_phy_pixel_clko",
+				      "phyclk_hdmi_link_o_tmds_clkhi",
+				      "phyclk_mipi_dphy_4l_m_txbyte_clkhs",
+				      "phyclk_dptx_phy_o_ref_clk_24m",
+				      "phyclk_dptx_phy_clk_div2",
+				      "phyclk_mipi_dphy_4l_m_rxclkesc0",
+				      "phyclk_hdmi_phy_ref_cko",
+				      "ioclk_spdif_extclk",
+				      "dout_aclk_peri_aud",
+				      "dout_aclk_disp_222",
+				      "dout_sclk_disp_pixel",
+				      "dout_aclk_disp_333";
 		};
 
 		gic: interrupt-controller@10481000 {

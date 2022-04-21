@@ -322,7 +322,6 @@ Again:
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
-	task->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
 	if (unlikely((task->task_state_flags & SAS_TASK_STATE_ABORTED))) {
 		struct completion *completion = ascb->completion;
@@ -532,7 +531,6 @@ int asd_execute_task(struct sas_task *task, gfp_t gfp_flags)
 	struct sas_task *t = task;
 	struct asd_ascb *ascb = NULL, *a;
 	struct asd_ha_struct *asd_ha = task->dev->port->ha->lldd_ha;
-	unsigned long flags;
 
 	res = asd_can_queue(asd_ha, 1);
 	if (res)
@@ -575,10 +573,6 @@ int asd_execute_task(struct sas_task *task, gfp_t gfp_flags)
 		}
 		if (res)
 			goto out_err_unmap;
-
-		spin_lock_irqsave(&t->task_state_lock, flags);
-		t->task_state_flags |= SAS_TASK_AT_INITIATOR;
-		spin_unlock_irqrestore(&t->task_state_lock, flags);
 	}
 	list_del_init(&alist);
 
@@ -597,9 +591,6 @@ out_err_unmap:
 			if (a == b)
 				break;
 			t = a->uldd_task;
-			spin_lock_irqsave(&t->task_state_lock, flags);
-			t->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
-			spin_unlock_irqrestore(&t->task_state_lock, flags);
 			switch (t->task_proto) {
 			case SAS_PROTOCOL_SATA:
 			case SAS_PROTOCOL_STP:

@@ -98,10 +98,21 @@ config ENCRYPTED_KEYS
 	select CRYPTO_RNG
 	help
 	  This option provides support for create/encrypting/decrypting keys
-	  in the kernel.  Encrypted keys are kernel generated random numbers,
-	  which are encrypted/decrypted with a 'master' symmetric key. The
-	  'master' key can be either a trusted-key or user-key type.
-	  Userspace only ever sees/stores encrypted blobs.
+	  in the kernel.  Encrypted keys are instantiated using kernel
+	  generated random numbers or provided decrypted data, and are
+	  encrypted/decrypted with a 'master' symmetric key. The 'master'
+	  key can be either a trusted-key or user-key type. Only encrypted
+	  blobs are ever output to Userspace.
+
+	  If you are unsure as to whether this is required, answer N.
+
+config USER_DECRYPTED_DATA
+	bool "Allow encrypted keys with user decrypted data"
+	depends on ENCRYPTED_KEYS
+	help
+	  This option provides support for instantiating encrypted keys using
+	  user-provided decrypted data.  The decrypted data must be hex-ascii
+	  encoded.
 
 	  If you are unsure as to whether this is required, answer N.
 

@@ -72,6 +72,9 @@ static int rtw_ops_config(struct ieee80211_hw *hw, u32 changed)
 	struct rtw_dev *rtwdev = hw->priv;
 	int ret = 0;
 
+	/* let previous ips work finish to ensure we don't leave ips twice */
+	cancel_work_sync(&rtwdev->ips_work);
+
 	mutex_lock(&rtwdev->mutex);
 
 	rtw_leave_lps_deep(rtwdev);
@@ -205,7 +208,7 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 
 	mutex_unlock(&rtwdev->mutex);
 
-	rtw_info(rtwdev, "start vif %pM on port %d\n", vif->addr, rtwvif->port);
+	rtw_dbg(rtwdev, RTW_DBG_STATE, "start vif %pM on port %d\n", vif->addr, rtwvif->port);
 	return 0;
 }
 
@@ -216,7 +219,7 @@ static void rtw_ops_remove_interface(struct ieee80211_hw *hw,
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 	u32 config = 0;
 
-	rtw_info(rtwdev, "stop vif %pM on port %d\n", vif->addr, rtwvif->port);
+	rtw_dbg(rtwdev, RTW_DBG_STATE, "stop vif %pM on port %d\n", vif->addr, rtwvif->port);
 
 	mutex_lock(&rtwdev->mutex);
 
@@ -242,8 +245,8 @@ static int rtw_ops_change_interface(struct ieee80211_hw *hw,
 {
 	struct rtw_dev *rtwdev = hw->priv;
 
-	rtw_info(rtwdev, "change vif %pM (%d)->(%d), p2p (%d)->(%d)\n",
-		 vif->addr, vif->type, type, vif->p2p, p2p);
+	rtw_dbg(rtwdev, RTW_DBG_STATE, "change vif %pM (%d)->(%d), p2p (%d)->(%d)\n",
+		vif->addr, vif->type, type, vif->p2p, p2p);
 
 	rtw_ops_remove_interface(hw, vif);
 
@@ -614,7 +617,7 @@ static void rtw_ops_sw_scan_complete(struct ieee80211_hw *hw,
 	struct rtw_dev *rtwdev = hw->priv;
 
 	mutex_lock(&rtwdev->mutex);
-	rtw_core_scan_complete(rtwdev, vif);
+	rtw_core_scan_complete(rtwdev, vif, false);
 	mutex_unlock(&rtwdev->mutex);
 }
 

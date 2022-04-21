@@ -24,7 +24,8 @@
  * Register to setting ok count whose unit based on hardware sampling period
  * indicating IR receiving completion and then making IRQ fires
  */
-#define MTK_OK_COUNT(x)		  (((x) & GENMASK(23, 16)) << 16)
+#define MTK_OK_COUNT_MASK	  (GENMASK(22, 16))
+#define MTK_OK_COUNT(x)		  ((x) << 16)
 
 /* Bit to enable IR hardware function */
 #define MTK_IR_EN		  BIT(0)
@@ -202,25 +203,24 @@ static inline void mtk_irq_enable(struct mtk_ir *ir, u32 mask)
 
 static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
 {
-	struct mtk_ir *ir = dev_id;
-	u8  wid = 0;
-	u32 i, j, val;
 	struct ir_raw_event rawir = {};
+	struct mtk_ir *ir = dev_id;
+	u32 i, j, val;
+	u8 wid;
 
 	/*
-	 * Reset decoder state machine explicitly is required
-	 * because 1) the longest duration for space MTK IR hardware
-	 * could record is not safely long. e.g  12ms if rx resolution
-	 * is 46us by default. There is still the risk to satisfying
-	 * every decoder to reset themselves through long enough
-	 * trailing spaces and 2) the IRQ handler guarantees that
-	 * start of IR message is always contained in and starting
-	 * from register mtk_chkdata_reg(ir, i).
+	 * Each pulse and space is encoded as a single byte, each byte
+	 * alternating between pulse and space. If a pulse or space is longer
+	 * than can be encoded in a single byte, it is encoded as the maximum
+	 * value 0xff.
+	 *
+	 * If a space is longer than ok_count (about 23ms), the value is
+	 * encoded as zero, and all following bytes are zero. Any IR that
+	 * follows will be presented in the next interrupt.
+	 *
+	 * If there are more than 68 (=MTK_CHKDATA_SZ * 4) pulses and spaces,
+	 * then the only the first 68 will be presented; the rest is lost.
 	 */
-	ir_raw_event_reset(ir->rc);
-
-	/* First message must be pulse */
-	rawir.pulse = false;
 
 	/* Handle all pulse and space IR controller captures */
 	for (i = 0 ; i < MTK_CHKDATA_SZ ; i++) {
@@ -228,7 +228,8 @@ static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
 		dev_dbg(ir->dev, "@reg%d=0x%08x\n", i, val);
 
 		for (j = 0 ; j < 4 ; j++) {
-			wid = (val & (MTK_WIDTH_MASK << j * 8)) >> j * 8;
+			wid = val & MTK_WIDTH_MASK;
+			val >>= 8;
 			rawir.pulse = !rawir.pulse;
 			rawir.duration = wid * (MTK_IR_SAMPLE + 1);
 			ir_raw_event_store_with_filter(ir->rc, &rawir);
@@ -268,7 +269,7 @@ static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
 static const struct mtk_ir_data mt7623_data = {
 	.regs = mt7623_regs,
 	.fields = mt7623_fields,
-	.ok_count = 0xf,
+	.ok_count = 3,
 	.hw_period = 0xff,
 	.div	= 4,
 };
@@ -276,7 +277,7 @@ static const struct mtk_ir_data mt7623_data = {
 static const struct mtk_ir_data mt7622_data = {
 	.regs = mt7622_regs,
 	.fields = mt7622_fields,
-	.ok_count = 0xf,
+	.ok_count = 3,
 	.hw_period = 0xffff,
 	.div	= 32,
 };
@@ -400,7 +401,7 @@ static int mtk_ir_probe(struct platform_device *pdev)
 	mtk_w32_mask(ir, MTK_DG_CNT(1), MTK_DG_CNT_MASK, MTK_IRTHD);
 
 	/* Enable IR and PWM */
-	val = mtk_r32(ir, MTK_CONFIG_HIGH_REG);
+	val = mtk_r32(ir, MTK_CONFIG_HIGH_REG) & ~MTK_OK_COUNT_MASK;
 	val |= MTK_OK_COUNT(ir->data->ok_count) |  MTK_PWM_EN | MTK_IR_EN;
 	mtk_w32(ir, val, MTK_CONFIG_HIGH_REG);
 

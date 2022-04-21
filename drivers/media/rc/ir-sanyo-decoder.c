@@ -51,8 +51,8 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u8 command, not_command;
 
 	if (!is_timing_event(ev)) {
-		if (ev.reset) {
-			dev_dbg(&dev->dev, "SANYO event reset received. reset to state 0\n");
+		if (ev.overflow) {
+			dev_dbg(&dev->dev, "SANYO event overflow received. reset to state 0\n");
 			data->state = STATE_INACTIVE;
 		}
 		return 0;

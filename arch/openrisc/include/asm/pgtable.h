@@ -361,6 +361,7 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 	pmd_val(*pmdp) = _KERNPG_TABLE | (unsigned long) ptep;
 }
 
+#define pmd_pfn(pmd)		(pmd_val(pmd) >> PAGE_SHIFT)
 #define pmd_page(pmd)		(pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
 
 static inline unsigned long pmd_page_vaddr(pmd_t pmd)

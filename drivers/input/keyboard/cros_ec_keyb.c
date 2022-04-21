@@ -15,6 +15,7 @@
 #include <linux/bitops.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/input/vivaldi-fmap.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/notifier.h>
@@ -26,8 +27,6 @@
 #include <linux/platform_data/cros_ec_proto.h>
 
 #include <asm/unaligned.h>
-
-#define MAX_NUM_TOP_ROW_KEYS   15
 
 /**
  * struct cros_ec_keyb - Structure representing EC keyboard device
@@ -44,9 +43,7 @@
  * @idev: The input device for the matrix keys.
  * @bs_idev: The input device for non-matrix buttons and switches (or NULL).
  * @notifier: interrupt event notifier for transport devices
- * @function_row_physmap: An array of the encoded rows/columns for the top
- *                        row function keys, in an order from left to right
- * @num_function_row_keys: The number of top row keys in a custom keyboard
+ * @vdata: vivaldi function row data
  */
 struct cros_ec_keyb {
 	unsigned int rows;
@@ -64,8 +61,7 @@ struct cros_ec_keyb {
 	struct input_dev *bs_idev;
 	struct notifier_block notifier;
 
-	u16 function_row_physmap[MAX_NUM_TOP_ROW_KEYS];
-	size_t num_function_row_keys;
+	struct vivaldi_data vdata;
 };
 
 /**
@@ -537,9 +533,9 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 	int err;
 	struct property *prop;
 	const __be32 *p;
-	u16 *physmap;
+	u32 *physmap;
 	u32 key_pos;
-	int row, col;
+	unsigned int row, col, scancode, n_physmap;
 
 	err = matrix_keypad_parse_properties(dev, &ckdev->rows, &ckdev->cols);
 	if (err)
@@ -591,20 +587,21 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 	ckdev->idev = idev;
 	cros_ec_keyb_compute_valid_keys(ckdev);
 
-	physmap = ckdev->function_row_physmap;
+	physmap = ckdev->vdata.function_row_physmap;
+	n_physmap = 0;
 	of_property_for_each_u32(dev->of_node, "function-row-physmap",
 				 prop, p, key_pos) {
-		if (ckdev->num_function_row_keys == MAX_NUM_TOP_ROW_KEYS) {
+		if (n_physmap == VIVALDI_MAX_FUNCTION_ROW_KEYS) {
 			dev_warn(dev, "Only support up to %d top row keys\n",
-				 MAX_NUM_TOP_ROW_KEYS);
+				 VIVALDI_MAX_FUNCTION_ROW_KEYS);
 			break;
 		}
 		row = KEY_ROW(key_pos);
 		col = KEY_COL(key_pos);
-		*physmap = MATRIX_SCAN_CODE(row, col, ckdev->row_shift);
-		physmap++;
-		ckdev->num_function_row_keys++;
+		scancode = MATRIX_SCAN_CODE(row, col, ckdev->row_shift);
+		physmap[n_physmap++] = scancode;
 	}
+	ckdev->vdata.num_function_row_keys = n_physmap;
 
 	err = input_register_device(ckdev->idev);
 	if (err) {
@@ -619,18 +616,10 @@ static ssize_t function_row_physmap_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	ssize_t size = 0;
-	int i;
-	struct cros_ec_keyb *ckdev = dev_get_drvdata(dev);
-	u16 *physmap = ckdev->function_row_physmap;
+	const struct cros_ec_keyb *ckdev = dev_get_drvdata(dev);
+	const struct vivaldi_data *data = &ckdev->vdata;
 
-	for (i = 0; i < ckdev->num_function_row_keys; i++)
-		size += scnprintf(buf + size, PAGE_SIZE - size,
-				  "%s%02X", size ? " " : "", physmap[i]);
-	if (size)
-		size += scnprintf(buf + size, PAGE_SIZE - size, "\n");
-
-	return size;
+	return vivaldi_function_row_physmap_show(data, buf);
 }
 
 static DEVICE_ATTR_RO(function_row_physmap);
@@ -648,7 +637,7 @@ static umode_t cros_ec_keyb_attr_is_visible(struct kobject *kobj,
 	struct cros_ec_keyb *ckdev = dev_get_drvdata(dev);
 
 	if (attr == &dev_attr_function_row_physmap.attr &&
-	    !ckdev->num_function_row_keys)
+	    !ckdev->vdata.num_function_row_keys)
 		return 0;
 
 	return attr->mode;

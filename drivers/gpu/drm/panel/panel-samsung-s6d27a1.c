@@ -291,12 +291,11 @@ static int s6d27a1_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int s6d27a1_remove(struct spi_device *spi)
+static void s6d27a1_remove(struct spi_device *spi)
 {
 	struct s6d27a1 *ctx = spi_get_drvdata(spi);
 
 	drm_panel_remove(&ctx->panel);
-	return 0;
 }
 
 static const struct of_device_id s6d27a1_match[] = {

@@ -32,30 +32,28 @@ int dsa_tag_8021q_register(struct dsa_switch *ds, __be16 proto);
 
 void dsa_tag_8021q_unregister(struct dsa_switch *ds);
 
+int dsa_tag_8021q_bridge_join(struct dsa_switch *ds, int port,
+			      struct dsa_bridge bridge);
+
+void dsa_tag_8021q_bridge_leave(struct dsa_switch *ds, int port,
+				struct dsa_bridge bridge);
+
 struct sk_buff *dsa_8021q_xmit(struct sk_buff *skb, struct net_device *netdev,
 			       u16 tpid, u16 tci);
 
-void dsa_8021q_rcv(struct sk_buff *skb, int *source_port, int *switch_id);
+void dsa_8021q_rcv(struct sk_buff *skb, int *source_port, int *switch_id,
+		   int *vbid);
 
-int dsa_tag_8021q_bridge_tx_fwd_offload(struct dsa_switch *ds, int port,
-					struct dsa_bridge bridge);
+struct net_device *dsa_tag_8021q_find_port_by_vbid(struct net_device *master,
+						   int vbid);
 
-void dsa_tag_8021q_bridge_tx_fwd_unoffload(struct dsa_switch *ds, int port,
-					   struct dsa_bridge bridge);
+u16 dsa_tag_8021q_bridge_vid(unsigned int bridge_num);
 
-u16 dsa_8021q_bridge_tx_fwd_offload_vid(unsigned int bridge_num);
-
-u16 dsa_tag_8021q_tx_vid(const struct dsa_port *dp);
-
-u16 dsa_tag_8021q_rx_vid(const struct dsa_port *dp);
+u16 dsa_tag_8021q_standalone_vid(const struct dsa_port *dp);
 
 int dsa_8021q_rx_switch_id(u16 vid);
 
 int dsa_8021q_rx_source_port(u16 vid);
-
-bool vid_is_dsa_8021q_rxvlan(u16 vid);
-
-bool vid_is_dsa_8021q_txvlan(u16 vid);
 
 bool vid_is_dsa_8021q(u16 vid);
 

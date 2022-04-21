@@ -45,10 +45,6 @@
 #include "xprt_rdma.h"
 #include <trace/events/rpcrdma.h>
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-# define RPCDBG_FACILITY	RPCDBG_TRANS
-#endif
-
 static void frwr_cid_init(struct rpcrdma_ep *ep,
 			  struct rpcrdma_mr *mr)
 {
@@ -134,7 +130,7 @@ int frwr_mr_init(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 	if (IS_ERR(frmr))
 		goto out_mr_err;
 
-	sg = kmalloc_array(depth, sizeof(*sg), GFP_NOFS);
+	sg = kmalloc_array(depth, sizeof(*sg), GFP_KERNEL);
 	if (!sg)
 		goto out_list_err;
 

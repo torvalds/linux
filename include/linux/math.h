@@ -2,6 +2,7 @@
 #ifndef _LINUX_MATH_H
 #define _LINUX_MATH_H
 
+#include <linux/types.h>
 #include <asm/div64.h>
 #include <uapi/linux/kernel.h>
 
@@ -105,6 +106,17 @@
 	_tmp;						\
 }							\
 )
+
+#define __STRUCT_FRACT(type)				\
+struct type##_fract {					\
+	__##type numerator;				\
+	__##type denominator;				\
+};
+__STRUCT_FRACT(s16)
+__STRUCT_FRACT(u16)
+__STRUCT_FRACT(s32)
+__STRUCT_FRACT(u32)
+#undef __STRUCT_FRACT
 
 /*
  * Multiplies an integer by a fraction, while avoiding unnecessary

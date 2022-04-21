@@ -235,7 +235,6 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <0x41>;
-					irq-over-gpio;
 					irq-gpios = <&gpiopinctrl 29 0x4>;
 					id = <0>;
 					blocks = <0x5>;

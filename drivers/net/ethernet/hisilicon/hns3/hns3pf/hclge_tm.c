@@ -1225,7 +1225,7 @@ static int hclge_tm_pri_dwrr_cfg(struct hclge_dev *hdev)
 		ret = hclge_tm_ets_tc_dwrr_cfg(hdev);
 		if (ret == -EOPNOTSUPP) {
 			dev_warn(&hdev->pdev->dev,
-				 "fw %08x does't support ets tc weight cmd\n",
+				 "fw %08x doesn't support ets tc weight cmd\n",
 				 hdev->fw_version);
 			ret = 0;
 		}

@@ -407,12 +407,11 @@ static int ws2401_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ws2401_remove(struct spi_device *spi)
+static void ws2401_remove(struct spi_device *spi)
 {
 	struct ws2401 *ws = spi_get_drvdata(spi);
 
 	drm_panel_remove(&ws->panel);
-	return 0;
 }
 
 /*

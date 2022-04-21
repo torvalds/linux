@@ -170,7 +170,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 #else
 	if (flags & FUSE_IOCTL_COMPAT) {
 		inarg.flags |= FUSE_IOCTL_32BIT;
-#ifdef CONFIG_X86_X32
+#ifdef CONFIG_X86_X32_ABI
 		if (in_x32_syscall())
 			inarg.flags |= FUSE_IOCTL_COMPAT_X32;
 #endif
@@ -394,9 +394,12 @@ static int fuse_priv_ioctl(struct inode *inode, struct fuse_file *ff,
 	args.out_args[1].value = ptr;
 
 	err = fuse_simple_request(fm, &args);
-	if (!err && outarg.flags & FUSE_IOCTL_RETRY)
-		err = -EIO;
-
+	if (!err) {
+		if (outarg.result < 0)
+			err = outarg.result;
+		else if (outarg.flags & FUSE_IOCTL_RETRY)
+			err = -EIO;
+	}
 	return err;
 }
 

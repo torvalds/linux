@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only or Apache-2.0 */
 /*
  * WF200 hardware interface definitions
  *
@@ -8,19 +8,13 @@
 #ifndef WFX_HIF_API_GENERAL_H
 #define WFX_HIF_API_GENERAL_H
 
-#ifdef __KERNEL__
 #include <linux/types.h>
 #include <linux/if_ether.h>
-#else
-#include <net/ethernet.h>
-#include <stdint.h>
-#define __packed __attribute__((__packed__))
-#endif
 
 #define HIF_ID_IS_INDICATION      0x80
 #define HIF_COUNTER_MAX           7
 
-struct hif_msg {
+struct wfx_hif_msg {
 	__le16 len;
 	u8     id;
 	u8     reserved:1;
@@ -30,7 +24,7 @@ struct hif_msg {
 	u8     body[];
 } __packed;
 
-enum hif_general_requests_ids {
+enum wfx_hif_general_requests_ids {
 	HIF_REQ_ID_CONFIGURATION        = 0x09,
 	HIF_REQ_ID_CONTROL_GPIO         = 0x26,
 	HIF_REQ_ID_SET_SL_MAC_KEY       = 0x27,
@@ -43,7 +37,7 @@ enum hif_general_requests_ids {
 	HIF_REQ_ID_SHUT_DOWN            = 0x32,
 };
 
-enum hif_general_confirmations_ids {
+enum wfx_hif_general_confirmations_ids {
 	HIF_CNF_ID_CONFIGURATION        = 0x09,
 	HIF_CNF_ID_CONTROL_GPIO         = 0x26,
 	HIF_CNF_ID_SET_SL_MAC_KEY       = 0x27,
@@ -56,7 +50,7 @@ enum hif_general_confirmations_ids {
 	HIF_CNF_ID_SHUT_DOWN            = 0x32,
 };
 
-enum hif_general_indications_ids {
+enum wfx_hif_general_indications_ids {
 	HIF_IND_ID_EXCEPTION            = 0xe0,
 	HIF_IND_ID_STARTUP              = 0xe1,
 	HIF_IND_ID_WAKEUP               = 0xe2,
@@ -87,7 +81,7 @@ enum hif_general_indications_ids {
 #define HIF_STATUS_ROLLBACK_SUCCESS                (cpu_to_le32(0x1234))
 #define HIF_STATUS_ROLLBACK_FAIL                   (cpu_to_le32(0x1256))
 
-enum hif_api_rate_index {
+enum wfx_hif_api_rate_index {
 	API_RATE_INDEX_B_1MBPS     = 0,
 	API_RATE_INDEX_B_2MBPS     = 1,
 	API_RATE_INDEX_B_5P5MBPS   = 2,
@@ -113,17 +107,13 @@ enum hif_api_rate_index {
 	API_RATE_NUM_ENTRIES       = 22
 };
 
-struct hif_ind_startup {
-	/* As the others, this struct is interpreted as little endian by the
-	 * device. However, this struct is also used by the driver. We prefer to
-	 * declare it in native order and doing byte swap on reception.
-	 */
+struct wfx_hif_ind_startup {
 	__le32 status;
-	u16    hardware_id;
+	__le16 hardware_id;
 	u8     opn[14];
 	u8     uid[8];
-	u16    num_inp_ch_bufs;
-	u16    size_inp_ch_buf;
+	__le16 num_inp_ch_bufs;
+	__le16 size_inp_ch_buf;
 	u8     num_links_ap;
 	u8     num_interfaces;
 	u8     mac_addr[2][ETH_ALEN];
@@ -144,23 +134,23 @@ struct hif_ind_startup {
 	u8     phy1_region:3;
 	u8     phy0_region:3;
 	u8     otp_phy_ver:2;
-	u32    supported_rate_mask;
+	__le32 supported_rate_mask;
 	u8     firmware_label[128];
 } __packed;
 
-struct hif_ind_wakeup {
+struct wfx_hif_ind_wakeup {
 } __packed;
 
-struct hif_req_configuration {
+struct wfx_hif_req_configuration {
 	__le16 length;
 	u8     pds_data[];
 } __packed;
 
-struct hif_cnf_configuration {
+struct wfx_hif_cnf_configuration {
 	__le32 status;
 } __packed;
 
-enum hif_gpio_mode {
+enum wfx_hif_gpio_mode {
 	HIF_GPIO_MODE_D0       = 0x0,
 	HIF_GPIO_MODE_D1       = 0x1,
 	HIF_GPIO_MODE_OD0      = 0x2,
@@ -170,24 +160,24 @@ enum hif_gpio_mode {
 	HIF_GPIO_MODE_READ     = 0x6
 };
 
-struct hif_req_control_gpio {
+struct wfx_hif_req_control_gpio {
 	u8     gpio_label;
 	u8     gpio_mode;
 } __packed;
 
-struct hif_cnf_control_gpio {
+struct wfx_hif_cnf_control_gpio {
 	__le32 status;
 	__le32 value;
 } __packed;
 
-enum hif_generic_indication_type {
+enum wfx_hif_generic_indication_type {
 	HIF_GENERIC_INDICATION_TYPE_RAW                = 0x0,
 	HIF_GENERIC_INDICATION_TYPE_STRING             = 0x1,
 	HIF_GENERIC_INDICATION_TYPE_RX_STATS           = 0x2,
 	HIF_GENERIC_INDICATION_TYPE_TX_POWER_LOOP_INFO = 0x3,
 };
 
-struct hif_rx_stats {
+struct wfx_hif_rx_stats {
 	__le32 nb_rx_frame;
 	__le32 nb_crc_frame;
 	__le32 per_total;
@@ -203,7 +193,7 @@ struct hif_rx_stats {
 	s8     current_temp;
 } __packed;
 
-struct hif_tx_power_loop_info {
+struct wfx_hif_tx_power_loop_info {
 	__le16 tx_gain_dig;
 	__le16 tx_gain_pa;
 	__le16 target_pout; /* signed value */
@@ -213,15 +203,15 @@ struct hif_tx_power_loop_info {
 	u8     reserved;
 } __packed;
 
-struct hif_ind_generic {
+struct wfx_hif_ind_generic {
 	__le32 type;
 	union {
-		struct hif_rx_stats rx_stats;
-		struct hif_tx_power_loop_info tx_power_loop_info;
+		struct wfx_hif_rx_stats rx_stats;
+		struct wfx_hif_tx_power_loop_info tx_power_loop_info;
 	} data;
 } __packed;
 
-enum hif_error {
+enum wfx_hif_error {
 	HIF_ERROR_FIRMWARE_ROLLBACK           = 0x00,
 	HIF_ERROR_FIRMWARE_DEBUG_ENABLED      = 0x01,
 	HIF_ERROR_SLK_OUTDATED_SESSION_KEY    = 0x02,
@@ -242,17 +232,17 @@ enum hif_error {
 	HIF_ERROR_SLK_UNCONFIGURED            = 0x11,
 };
 
-struct hif_ind_error {
+struct wfx_hif_ind_error {
 	__le32 type;
 	u8     data[];
 } __packed;
 
-struct hif_ind_exception {
+struct wfx_hif_ind_exception {
 	__le32 type;
 	u8     data[];
 } __packed;
 
-enum hif_secure_link_state {
+enum wfx_hif_secure_link_state {
 	SEC_LINK_UNAVAILABLE = 0x0,
 	SEC_LINK_RESERVED    = 0x1,
 	SEC_LINK_EVAL        = 0x2,

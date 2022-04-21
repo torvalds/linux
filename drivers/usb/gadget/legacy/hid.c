@@ -134,7 +134,7 @@ static int hid_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget *gadget = cdev->gadget;
 	struct list_head *tmp;
-	struct hidg_func_node *n, *m;
+	struct hidg_func_node *n = NULL, *m, *iter_n;
 	struct f_hid_opts *hid_opts;
 	int status, funcs = 0;
 
@@ -144,18 +144,19 @@ static int hid_bind(struct usb_composite_dev *cdev)
 	if (!funcs)
 		return -ENODEV;
 
-	list_for_each_entry(n, &hidg_func_list, node) {
-		n->fi = usb_get_function_instance("hid");
-		if (IS_ERR(n->fi)) {
-			status = PTR_ERR(n->fi);
+	list_for_each_entry(iter_n, &hidg_func_list, node) {
+		iter_n->fi = usb_get_function_instance("hid");
+		if (IS_ERR(iter_n->fi)) {
+			status = PTR_ERR(iter_n->fi);
+			n = iter_n;
 			goto put;
 		}
-		hid_opts = container_of(n->fi, struct f_hid_opts, func_inst);
-		hid_opts->subclass = n->func->subclass;
-		hid_opts->protocol = n->func->protocol;
-		hid_opts->report_length = n->func->report_length;
-		hid_opts->report_desc_length = n->func->report_desc_length;
-		hid_opts->report_desc = n->func->report_desc;
+		hid_opts = container_of(iter_n->fi, struct f_hid_opts, func_inst);
+		hid_opts->subclass = iter_n->func->subclass;
+		hid_opts->protocol = iter_n->func->protocol;
+		hid_opts->report_length = iter_n->func->report_length;
+		hid_opts->report_desc_length = iter_n->func->report_desc_length;
+		hid_opts->report_desc = iter_n->func->report_desc;
 	}
 
 

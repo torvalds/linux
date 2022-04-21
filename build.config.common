@@ -1,6 +1,5 @@
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.constants
 
-BRANCH=android-mainline
 KMI_GENERATION=0
 
 LLVM=1

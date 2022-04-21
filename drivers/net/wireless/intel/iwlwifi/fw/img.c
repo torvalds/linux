@@ -2,13 +2,16 @@
 /*
  * Copyright(c) 2019 - 2021 Intel Corporation
  */
-
+#include <fw/api/commands.h>
 #include "img.h"
 
-u8 iwl_fw_lookup_cmd_ver(const struct iwl_fw *fw, u8 grp, u8 cmd, u8 def)
+u8 iwl_fw_lookup_cmd_ver(const struct iwl_fw *fw, u32 cmd_id, u8 def)
 {
 	const struct iwl_fw_cmd_version *entry;
 	unsigned int i;
+	/* prior to LONG_GROUP, we never used this CMD version API */
+	u8 grp = iwl_cmd_groupid(cmd_id) ?: LONG_GROUP;
+	u8 cmd = iwl_cmd_opcode(cmd_id);
 
 	if (!fw->ucode_capa.cmd_versions ||
 	    !fw->ucode_capa.n_cmd_versions)

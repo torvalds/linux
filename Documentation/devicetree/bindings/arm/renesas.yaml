@@ -421,6 +421,15 @@ properties:
               - renesas,r9a07g044l2 # Dual Cortex-A55 RZ/G2L
           - const: renesas,r9a07g044
 
+      - description: RZ/V2L (R9A07G054)
+        items:
+          - enum:
+              - renesas,smarc-evk # SMARC EVK
+          - enum:
+              - renesas,r9a07g054l1 # Single Cortex-A55 RZ/V2L
+              - renesas,r9a07g054l2 # Dual Cortex-A55 RZ/V2L
+          - const: renesas,r9a07g054
+
 additionalProperties: true
 
 ...

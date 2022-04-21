@@ -45,6 +45,11 @@ i915_gem_object_create_region(struct intel_memory_region *mem,
 
 	GEM_BUG_ON(flags & ~I915_BO_ALLOC_FLAGS);
 
+	if (WARN_ON_ONCE(flags & I915_BO_ALLOC_GPU_ONLY &&
+			 (flags & I915_BO_ALLOC_CPU_CLEAR ||
+			  flags & I915_BO_ALLOC_PM_EARLY)))
+		return ERR_PTR(-EINVAL);
+
 	if (!mem)
 		return ERR_PTR(-ENODEV);
 
@@ -66,6 +71,17 @@ i915_gem_object_create_region(struct intel_memory_region *mem,
 	obj = i915_gem_object_alloc();
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * Anything smaller than the min_page_size can't be freely inserted into
+	 * the GTT, due to alignemnt restrictions. For such special objects,
+	 * make sure we force memcpy based suspend-resume. In the future we can
+	 * revisit this, either by allowing special mis-aligned objects in the
+	 * migration path, or by mapping all of LMEM upfront using cheap 1G
+	 * GTT entries.
+	 */
+	if (default_page_size < mem->min_page_size)
+		flags |= I915_BO_ALLOC_PM_EARLY;
 
 	err = mem->ops->init_object(mem, obj, size, page_size, flags);
 	if (err)

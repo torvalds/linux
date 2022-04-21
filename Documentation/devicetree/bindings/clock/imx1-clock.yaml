@@ -40,12 +40,3 @@ examples:
         compatible = "fsl,imx1-ccm";
         reg = <0x0021b000 0x1000>;
     };
-
-    pwm@208000 {
-        #pwm-cells = <2>;
-        compatible = "fsl,imx1-pwm";
-        reg = <0x00208000 0x1000>;
-        interrupts = <34>;
-        clocks = <&clks IMX1_CLK_DUMMY>, <&clks IMX1_CLK_PER1>;
-        clock-names = "ipg", "per";
-    };

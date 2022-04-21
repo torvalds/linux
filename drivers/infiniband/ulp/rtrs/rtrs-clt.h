@@ -134,6 +134,7 @@ struct rtrs_clt_path {
 	struct rtrs_clt_io_req	*reqs;
 	struct delayed_work	reconnect_dwork;
 	struct work_struct	close_work;
+	struct work_struct	err_recovery_work;
 	unsigned int		reconnect_attempts;
 	bool			established;
 	struct rtrs_rbuf	*rbufs;

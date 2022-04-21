@@ -449,6 +449,7 @@ config RANDOM_TRUST_BOOTLOADER
 	device randomness. Say Y here to assume the entropy provided by the
 	booloader is trustworthy so it will be added to the kernel's entropy
 	pool. Otherwise, say N here so it will be regarded as device input that
-	only mixes the entropy pool.
+	only mixes the entropy pool. This can also be configured at boot with
+	"random.trust_bootloader=on/off".
 
 endmenu

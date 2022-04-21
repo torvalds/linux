@@ -43,7 +43,7 @@ static void mlx5e_build_xsk_cparam(struct mlx5_core_dev *mdev,
 				   struct mlx5e_channel_param *cparam)
 {
 	mlx5e_build_rq_param(mdev, params, xsk, q_counter, &cparam->rq);
-	mlx5e_build_xdpsq_param(mdev, params, &cparam->xdp_sq);
+	mlx5e_build_xdpsq_param(mdev, params, xsk, &cparam->xdp_sq);
 }
 
 static int mlx5e_init_xsk_rq(struct mlx5e_channel *c,

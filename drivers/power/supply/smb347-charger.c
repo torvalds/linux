@@ -1488,8 +1488,7 @@ static const struct regmap_config smb347_regmap = {
 	.max_register	= SMB347_MAX_REGISTER,
 	.volatile_reg	= smb347_volatile_reg,
 	.readable_reg	= smb347_readable_reg,
-	.cache_type	= REGCACHE_FLAT,
-	.num_reg_defaults_raw = SMB347_MAX_REGISTER,
+	.cache_type	= REGCACHE_RBTREE,
 };
 
 static const struct regulator_ops smb347_usb_vbus_regulator_ops = {

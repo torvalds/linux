@@ -253,12 +253,12 @@ static int gemini_sata_bridge_init(struct sata_gemini *sg)
 
 	ret = clk_prepare_enable(sg->sata0_pclk);
 	if (ret) {
-		pr_err("failed to enable SATA0 PCLK\n");
+		dev_err(dev, "failed to enable SATA0 PCLK\n");
 		return ret;
 	}
 	ret = clk_prepare_enable(sg->sata1_pclk);
 	if (ret) {
-		pr_err("failed to enable SATA1 PCLK\n");
+		dev_err(dev, "failed to enable SATA1 PCLK\n");
 		clk_disable_unprepare(sg->sata0_pclk);
 		return ret;
 	}
@@ -419,10 +419,8 @@ static int gemini_sata_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id gemini_sata_of_match[] = {
-	{
-		.compatible = "cortina,gemini-sata-bridge",
-	},
-	{},
+	{ .compatible = "cortina,gemini-sata-bridge", },
+	{ /* sentinel */ }
 };
 
 static struct platform_driver gemini_sata_driver = {

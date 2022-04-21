@@ -25,6 +25,11 @@ void blacklist_binary(const char *source, const void *data, size_t len);
 efi_element_handler_t get_handler_for_db(const efi_guid_t *sig_type);
 
 /*
+ * Return the handler for particular signature list types found in the mok.
+ */
+efi_element_handler_t get_handler_for_mok(const efi_guid_t *sig_type);
+
+/*
  * Return the handler for particular signature list types found in the dbx.
  */
 efi_element_handler_t get_handler_for_dbx(const efi_guid_t *sig_type);

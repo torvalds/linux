@@ -593,7 +593,6 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 {
 	struct spi_qup *controller = dev_id;
 	u32 opflags, qup_err, spi_err;
-	unsigned long flags;
 	int error = 0;
 
 	qup_err = readl_relaxed(controller->base + QUP_ERROR_FLAGS);
@@ -625,10 +624,10 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 		error = -EIO;
 	}
 
-	spin_lock_irqsave(&controller->lock, flags);
+	spin_lock(&controller->lock);
 	if (!controller->error)
 		controller->error = error;
-	spin_unlock_irqrestore(&controller->lock, flags);
+	spin_unlock(&controller->lock);
 
 	if (spi_qup_is_dma_xfer(controller->mode)) {
 		writel_relaxed(opflags, controller->base + QUP_OPERATIONAL);

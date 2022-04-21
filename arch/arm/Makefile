@@ -160,6 +160,7 @@ textofs-$(CONFIG_ARCH_AXXIA) := 0x00308000
 # Machine directory name.  This list is sorted alphanumerically
 # by CONFIG_* macro name.
 machine-$(CONFIG_ARCH_ACTIONS)		+= actions
+machine-$(CONFIG_ARCH_AIROHA)		+= airoha
 machine-$(CONFIG_ARCH_ALPINE)		+= alpine
 machine-$(CONFIG_ARCH_ARTPEC)		+= artpec
 machine-$(CONFIG_ARCH_ASPEED)           += aspeed
@@ -275,6 +276,14 @@ endif
 
 ifeq ($(CONFIG_STACKPROTECTOR_PER_TASK),y)
 prepare: stack_protector_prepare
+ifeq ($(CONFIG_CC_HAVE_STACKPROTECTOR_TLS),y)
+stack_protector_prepare: prepare0
+	$(eval KBUILD_CFLAGS += \
+		-mstack-protector-guard=tls \
+		-mstack-protector-guard-offset=$(shell	\
+			awk '{if ($$2 == "TSK_STACK_CANARY") print $$3;}'\
+				include/generated/asm-offsets.h))
+else
 stack_protector_prepare: prepare0
 	$(eval SSP_PLUGIN_CFLAGS := \
 		-fplugin-arg-arm_ssp_per_task_plugin-offset=$(shell	\
@@ -282,6 +291,7 @@ stack_protector_prepare: prepare0
 				include/generated/asm-offsets.h))
 	$(eval KBUILD_CFLAGS += $(SSP_PLUGIN_CFLAGS))
 	$(eval GCC_PLUGINS_CFLAGS += $(SSP_PLUGIN_CFLAGS))
+endif
 endif
 
 all:	$(notdir $(KBUILD_IMAGE))

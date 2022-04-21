@@ -166,7 +166,7 @@ usb_acpi_get_companion_for_port(struct usb_port *port_dev)
 		if (!parent_handle)
 			return NULL;
 
-		acpi_bus_get_device(parent_handle, &adev);
+		adev = acpi_fetch_acpi_dev(parent_handle);
 		port1 = port_dev->portnum;
 	}
 

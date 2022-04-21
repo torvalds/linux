@@ -17,6 +17,7 @@
 		mmc1 = &usdhc2;
 		/delete-property/ mmc2;
 		/delete-property/ mmc3;
+		rtc0 = &rtc0;
 	};
 
 	chosen {
@@ -39,18 +40,21 @@
 			label = "s6";
 			linux,code = <KEY_F6>;
 			gpios = <&gpio7 13 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 
 		button2 {
 			label = "s7";
 			linux,code = <KEY_F7>;
 			gpios = <&gpio7 12 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 
 		button3 {
 			label = "s8";
 			linux,code = <KEY_F8>;
 			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 	};
 
@@ -82,6 +86,8 @@
 
 	reg_pcie: regulator-pcie {
 		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_regpcie>;
 		regulator-name = "supply-pcie";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -392,7 +398,6 @@
 
 	pinctrl_hog: hoggrp {
 		fsl,pins = <
-			/* LCD.CONTRAST -> Rev 0100 only, not used on Rev.0200*/
 			MX6QDL_PAD_DI0_PIN4__GPIO4_IO20 0x0001b099
 
 			MX6QDL_PAD_ENET_RXD1__GPIO1_IO26 0x0001b099
@@ -433,8 +438,6 @@
 			MX6QDL_PAD_SD4_DAT3__GPIO2_IO11 0x001b0f0 /* #PCIE.WAKE */
 			MX6QDL_PAD_NANDF_CLE__GPIO6_IO07 0x001b0f0 /* #PCIE.RST */
 			MX6QDL_PAD_NANDF_CS0__GPIO6_IO11 0x001b0f0 /* #PCIE.DIS */
-			/* HYS = 1, DSE = 110, PUE+PKE, SPEED = HIGH (11)*/
-			MX6QDL_PAD_NANDF_D0__GPIO2_IO00 0x00130f0 /* PCIE.PWR_EN */
 		>;
 	};
 
@@ -456,6 +459,13 @@
 		fsl,pins = <
 			/* 100 k PD, DSE 120 OHM, SPPEED LO */
 			MX6QDL_PAD_SD4_DAT2__PWM4_OUT 0x00003050
+		>;
+	};
+
+	pinctrl_regpcie: regpciegrp {
+		fsl,pins = <
+			/* HYS = 1, DSE = 110, PUE+PKE, SPEED = HIGH (11)*/
+			MX6QDL_PAD_NANDF_D0__GPIO2_IO00 0x00130f0 /* PCIE.PWR_EN */
 		>;
 	};
 

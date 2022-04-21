@@ -652,12 +652,12 @@ static int pcm512x_dai_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
 
-	switch (pcm512x->fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-	case SND_SOC_DAIFMT_CBM_CFS:
+	switch (pcm512x->fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
+	case SND_SOC_DAIFMT_CBP_CFC:
 		return pcm512x_dai_startup_master(substream, dai);
 
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		return pcm512x_dai_startup_slave(substream, dai);
 
 	default:
@@ -1202,8 +1202,8 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	if ((pcm512x->fmt & SND_SOC_DAIFMT_MASTER_MASK) ==
-	    SND_SOC_DAIFMT_CBS_CFS) {
+	if ((pcm512x->fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) ==
+	    SND_SOC_DAIFMT_CBC_CFC) {
 		ret = regmap_update_bits(pcm512x->regmap, PCM512x_ERROR_DETECT,
 					 PCM512x_DCAS, 0);
 		if (ret != 0) {
@@ -1340,21 +1340,21 @@ static int pcm512x_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	int afmt;
 	int offset = 0;
 	int clock_output;
-	int master_mode;
+	int provider_mode;
 	int ret;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		clock_output = 0;
-		master_mode = 0;
+		provider_mode = 0;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		clock_output = PCM512x_BCKO | PCM512x_LRKO;
-		master_mode = PCM512x_RLRK | PCM512x_RBCK;
+		provider_mode = PCM512x_RLRK | PCM512x_RBCK;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
+	case SND_SOC_DAIFMT_CBP_CFC:
 		clock_output = PCM512x_BCKO;
-		master_mode = PCM512x_RBCK;
+		provider_mode = PCM512x_RBCK;
 		break;
 	default:
 		return -EINVAL;
@@ -1370,9 +1370,9 @@ static int pcm512x_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	ret = regmap_update_bits(pcm512x->regmap, PCM512x_MASTER_MODE,
 				 PCM512x_RLRK | PCM512x_RBCK,
-				 master_mode);
+				 provider_mode);
 	if (ret != 0) {
-		dev_err(component->dev, "Failed to enable master mode: %d\n", ret);
+		dev_err(component->dev, "Failed to enable provider mode: %d\n", ret);
 		return ret;
 	}
 

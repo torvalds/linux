@@ -28,10 +28,10 @@ void erofs_put_metabuf(struct erofs_buf *buf)
 	buf->page = NULL;
 }
 
-void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,
-			erofs_blk_t blkaddr, enum erofs_kmap_type type)
+void *erofs_bread(struct erofs_buf *buf, struct inode *inode,
+		  erofs_blk_t blkaddr, enum erofs_kmap_type type)
 {
-	struct address_space *const mapping = sb->s_bdev->bd_inode->i_mapping;
+	struct address_space *const mapping = inode->i_mapping;
 	erofs_off_t offset = blknr_to_addr(blkaddr);
 	pgoff_t index = offset >> PAGE_SHIFT;
 	struct page *page = buf->page;
@@ -58,6 +58,12 @@ void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,
 	if (type == EROFS_NO_KMAP)
 		return NULL;
 	return buf->base + (offset & ~PAGE_MASK);
+}
+
+void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,
+			 erofs_blk_t blkaddr, enum erofs_kmap_type type)
+{
+	return erofs_bread(buf, sb->s_bdev->bd_inode, blkaddr, type);
 }
 
 static int erofs_map_blocks_flatmode(struct inode *inode,
@@ -252,12 +258,10 @@ static int erofs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		return ret;
 
 	iomap->offset = map.m_la;
-	if (flags & IOMAP_DAX) {
+	if (flags & IOMAP_DAX)
 		iomap->dax_dev = mdev.m_daxdev;
-		iomap->offset += mdev.m_dax_part_off;
-	} else {
+	else
 		iomap->bdev = mdev.m_bdev;
-	}
 	iomap->length = map.m_llen;
 	iomap->flags = 0;
 	iomap->private = NULL;
@@ -284,6 +288,8 @@ static int erofs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	} else {
 		iomap->type = IOMAP_MAPPED;
 		iomap->addr = mdev.m_pa;
+		if (flags & IOMAP_DAX)
+			iomap->addr += mdev.m_dax_part_off;
 	}
 	return 0;
 }

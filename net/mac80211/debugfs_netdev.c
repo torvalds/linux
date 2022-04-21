@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2006	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -77,8 +77,6 @@ static ssize_t ieee80211_if_fmt_##name(					\
 		IEEE80211_IF_FMT(name, field, "%#x\n")
 #define IEEE80211_IF_FMT_LHEX(name, field)				\
 		IEEE80211_IF_FMT(name, field, "%#lx\n")
-#define IEEE80211_IF_FMT_SIZE(name, field)				\
-		IEEE80211_IF_FMT(name, field, "%zd\n")
 
 #define IEEE80211_IF_FMT_HEXARRAY(name, field)				\
 static ssize_t ieee80211_if_fmt_##name(					\

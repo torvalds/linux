@@ -10,7 +10,7 @@ static __always_inline int bpf_send_signal_test(void *ctx)
 {
 	int ret;
 
-	if (status != 0 || sig == 0 || pid == 0)
+	if (status != 0 || pid == 0)
 		return 0;
 
 	if ((bpf_get_current_pid_tgid() >> 32) == pid) {

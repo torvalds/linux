@@ -40,6 +40,11 @@ config ARCH_RMOBILE
 	select SYS_SUPPORTS_SH_TMU
 	select SYSC_RMOBILE
 
+config ARCH_RZG2L
+	bool
+	select PM
+	select PM_GENERIC_DOMAINS
+
 config ARCH_RZN1
 	bool
 	select ARM_AMBA
@@ -293,8 +298,15 @@ config ARCH_R8A774B1
 
 config ARCH_R9A07G044
 	bool "ARM64 Platform support for RZ/G2L"
+	select ARCH_RZG2L
 	help
 	  This enables support for the Renesas RZ/G2L SoC variants.
+
+config ARCH_R9A07G054
+	bool "ARM64 Platform support for RZ/V2L"
+	select ARCH_RZG2L
+	help
+	  This enables support for the Renesas RZ/V2L SoC variants.
 
 endif # ARM64
 

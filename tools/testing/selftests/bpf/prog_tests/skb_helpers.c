@@ -9,22 +9,22 @@ void test_skb_helpers(void)
 		.gso_segs = 8,
 		.gso_size = 10,
 	};
-	struct bpf_prog_test_run_attr tattr = {
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
 		.data_in = &pkt_v4,
 		.data_size_in = sizeof(pkt_v4),
 		.ctx_in = &skb,
 		.ctx_size_in = sizeof(skb),
 		.ctx_out = &skb,
 		.ctx_size_out = sizeof(skb),
-	};
+	);
 	struct bpf_object *obj;
-	int err;
+	int err, prog_fd;
 
-	err = bpf_prog_test_load("./test_skb_helpers.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
-			    &tattr.prog_fd);
-	if (CHECK_ATTR(err, "load", "err %d errno %d\n", err, errno))
+	err = bpf_prog_test_load("./test_skb_helpers.o",
+				 BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
+	if (!ASSERT_OK(err, "load"))
 		return;
-	err = bpf_prog_test_run_xattr(&tattr);
-	CHECK_ATTR(err, "len", "err %d errno %d\n", err, errno);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "test_run");
 	bpf_object__close(obj);
 }

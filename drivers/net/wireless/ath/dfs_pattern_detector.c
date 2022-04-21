@@ -197,7 +197,7 @@ static void channel_detector_exit(struct dfs_pattern_detector *dpd,
 static struct channel_detector *
 channel_detector_create(struct dfs_pattern_detector *dpd, u16 freq)
 {
-	u32 sz, i;
+	u32 i;
 	struct channel_detector *cd;
 
 	cd = kmalloc(sizeof(*cd), GFP_ATOMIC);
@@ -206,8 +206,8 @@ channel_detector_create(struct dfs_pattern_detector *dpd, u16 freq)
 
 	INIT_LIST_HEAD(&cd->head);
 	cd->freq = freq;
-	sz = sizeof(cd->detectors) * dpd->num_radar_types;
-	cd->detectors = kzalloc(sz, GFP_ATOMIC);
+	cd->detectors = kmalloc_array(dpd->num_radar_types,
+				      sizeof(*cd->detectors), GFP_ATOMIC);
 	if (cd->detectors == NULL)
 		goto fail;
 

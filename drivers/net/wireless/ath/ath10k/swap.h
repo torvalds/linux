@@ -17,7 +17,7 @@ struct ath10k_fw_file;
 struct ath10k_swap_code_seg_tlv {
 	__le32 address;
 	__le32 length;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct ath10k_swap_code_seg_tail {

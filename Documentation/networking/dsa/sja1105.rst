@@ -293,6 +293,33 @@ of dropped frames, which is a sum of frames dropped due to timing violations,
 lack of destination ports and MTU enforcement checks). Byte-level counters are
 not available.
 
+Limitations
+===========
+
+The SJA1105 switch family always performs VLAN processing. When configured as
+VLAN-unaware, frames carry a different VLAN tag internally, depending on
+whether the port is standalone or under a VLAN-unaware bridge.
+
+The virtual link keys are always fixed at {MAC DA, VLAN ID, VLAN PCP}, but the
+driver asks for the VLAN ID and VLAN PCP when the port is under a VLAN-aware
+bridge. Otherwise, it fills in the VLAN ID and PCP automatically, based on
+whether the port is standalone or in a VLAN-unaware bridge, and accepts only
+"VLAN-unaware" tc-flower keys (MAC DA).
+
+The existing tc-flower keys that are offloaded using virtual links are no
+longer operational after one of the following happens:
+
+- port was standalone and joins a bridge (VLAN-aware or VLAN-unaware)
+- port is part of a bridge whose VLAN awareness state changes
+- port was part of a bridge and becomes standalone
+- port was standalone, but another port joins a VLAN-aware bridge and this
+  changes the global VLAN awareness state of the bridge
+
+The driver cannot veto all these operations, and it cannot update/remove the
+existing tc-flower filters either. So for proper operation, the tc-flower
+filters should be installed only after the forwarding configuration of the port
+has been made, and removed by user space before making any changes to it.
+
 Device Tree bindings and board design
 =====================================
 

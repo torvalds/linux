@@ -112,6 +112,13 @@ static __always_inline __wsum csum_add(__wsum csum, __wsum addend)
 #endif
 }
 
+#define HAVE_ARCH_CSUM_SHIFT
+static __always_inline __wsum csum_shift(__wsum sum, int offset)
+{
+	/* rotate sum to align it with a 16b boundary */
+	return (__force __wsum)rol32((__force u32)sum, (offset & 1) << 3);
+}
+
 /*
  * This is a version of ip_compute_csum() optimized for IP headers,
  * which always checksum on 4 octet boundaries.  ihl is the number

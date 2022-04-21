@@ -391,14 +391,14 @@ static long rtc_dev_ioctl(struct file *file,
 		}
 
 		switch(param.param) {
-			long offset;
 		case RTC_PARAM_FEATURES:
 			if (param.index != 0)
 				err = -EINVAL;
 			param.uvalue = rtc->features[0];
 			break;
 
-		case RTC_PARAM_CORRECTION:
+		case RTC_PARAM_CORRECTION: {
+			long offset;
 			mutex_unlock(&rtc->ops_lock);
 			if (param.index != 0)
 				return -EINVAL;
@@ -407,7 +407,7 @@ static long rtc_dev_ioctl(struct file *file,
 			if (err == 0)
 				param.svalue = offset;
 			break;
-
+		}
 		default:
 			if (rtc->ops->param_get)
 				err = rtc->ops->param_get(rtc->dev.parent, &param);

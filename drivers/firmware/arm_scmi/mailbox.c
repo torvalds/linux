@@ -140,7 +140,8 @@ static int mailbox_send_message(struct scmi_chan_info *cinfo,
 	return ret;
 }
 
-static void mailbox_mark_txdone(struct scmi_chan_info *cinfo, int ret)
+static void mailbox_mark_txdone(struct scmi_chan_info *cinfo, int ret,
+				struct scmi_xfer *__unused)
 {
 	struct scmi_mailbox *smbox = cinfo->transport_info;
 

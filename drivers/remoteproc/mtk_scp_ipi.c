@@ -23,7 +23,7 @@
  *
  * Register an ipi function to receive ipi interrupt from SCP.
  *
- * Returns 0 if ipi registers successfully, -error on error.
+ * Return: 0 if ipi registers successfully, -error on error.
  */
 int scp_ipi_register(struct mtk_scp *scp,
 		     u32 id,
@@ -150,7 +150,7 @@ EXPORT_SYMBOL_GPL(scp_ipi_unlock);
  * When the processing completes, IPI handler registered
  * by scp_ipi_register will be called in interrupt context.
  *
- * Returns 0 if sending data successfully, -error on error.
+ * Return: 0 if sending data successfully, -error on error.
  **/
 int scp_ipi_send(struct mtk_scp *scp, u32 id, void *buf, unsigned int len,
 		 unsigned int wait)

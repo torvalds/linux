@@ -100,7 +100,7 @@ In-kernel interface
 .. kernel-doc:: include/linux/vgaarb.h
    :internal:
 
-.. kernel-doc:: drivers/gpu/vga/vgaarb.c
+.. kernel-doc:: drivers/pci/vgaarb.c
    :export:
 
 libpciaccess

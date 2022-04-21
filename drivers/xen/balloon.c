@@ -59,6 +59,7 @@
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/moduleparam.h>
+#include <linux/jiffies.h>
 
 #include <asm/page.h>
 #include <asm/tlb.h>
@@ -794,7 +795,7 @@ static int __init balloon_wait_finish(void)
 		if (balloon_state == BP_ECANCELED) {
 			pr_warn_once("Initial ballooning failed, %ld pages need to be freed.\n",
 				     -credit);
-			if (jiffies - last_changed >= HZ * balloon_boot_timeout)
+			if (time_is_before_eq_jiffies(last_changed + HZ * balloon_boot_timeout))
 				panic("Initial ballooning failed!\n");
 		}
 

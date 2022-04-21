@@ -195,11 +195,6 @@ void cpu_cache_init(void)
 
 		r4k_cache_init();
 	}
-	if (cpu_has_tx39_cache) {
-		extern void __weak tx39_cache_init(void);
-
-		tx39_cache_init();
-	}
 
 	if (cpu_has_octeon_cache) {
 		extern void __weak octeon_cache_init(void);

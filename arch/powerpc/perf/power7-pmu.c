@@ -405,7 +405,7 @@ static struct attribute *power7_events_attr[] = {
 	NULL
 };
 
-static struct attribute_group power7_pmu_events_group = {
+static const struct attribute_group power7_pmu_events_group = {
 	.name = "events",
 	.attrs = power7_events_attr,
 };
@@ -417,7 +417,7 @@ static struct attribute *power7_pmu_format_attr[] = {
 	NULL,
 };
 
-static struct attribute_group power7_pmu_format_group = {
+static const struct attribute_group power7_pmu_format_group = {
 	.name = "format",
 	.attrs = power7_pmu_format_attr,
 };

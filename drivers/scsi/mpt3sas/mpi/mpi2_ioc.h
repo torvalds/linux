@@ -537,7 +537,7 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REPLY {
 	U16 Event;		/*0x14 */
 	U16 Reserved4;		/*0x16 */
 	U32 EventContext;	/*0x18 */
-	U32 EventData[1];	/*0x1C */
+	U32 EventData[];	/*0x1C */
 } MPI2_EVENT_NOTIFICATION_REPLY, *PTR_MPI2_EVENT_NOTIFICATION_REPLY,
 	Mpi2EventNotificationReply_t,
 	*pMpi2EventNotificationReply_t;
@@ -639,7 +639,7 @@ typedef struct _MPI2_EVENT_DATA_HOST_MESSAGE {
 	U8 Reserved1;		/*0x01 */
 	U16 Reserved2;		/*0x02 */
 	U32 Reserved3;		/*0x04 */
-	U32 HostData[1];	/*0x08 */
+	U32 HostData[];		/*0x08 */
 } MPI2_EVENT_DATA_HOST_MESSAGE, *PTR_MPI2_EVENT_DATA_HOST_MESSAGE,
 	Mpi2EventDataHostMessage_t, *pMpi2EventDataHostMessage_t;
 
@@ -1397,7 +1397,7 @@ typedef struct _MPI2_SEND_HOST_MESSAGE_REQUEST {
 	U32 Reserved8;		/*0x18 */
 	U32 Reserved9;		/*0x1C */
 	U32 Reserved10;		/*0x20 */
-	U32 HostData[1];	/*0x24 */
+	U32 HostData[];		/*0x24 */
 } MPI2_SEND_HOST_MESSAGE_REQUEST,
 	*PTR_MPI2_SEND_HOST_MESSAGE_REQUEST,
 	Mpi2SendHostMessageRequest_t,

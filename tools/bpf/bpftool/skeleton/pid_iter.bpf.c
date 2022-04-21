@@ -38,6 +38,17 @@ static __always_inline __u32 get_obj_id(void *ent, enum bpf_obj_type type)
 	}
 }
 
+/* could be used only with BPF_LINK_TYPE_PERF_EVENT links */
+static __u64 get_bpf_cookie(struct bpf_link *link)
+{
+	struct bpf_perf_link *perf_link;
+	struct perf_event *event;
+
+	perf_link = container_of(link, struct bpf_perf_link, link);
+	event = BPF_CORE_READ(perf_link, perf_file, private_data);
+	return BPF_CORE_READ(event, bpf_cookie);
+}
+
 SEC("iter/task_file")
 int iter(struct bpf_iter__task_file *ctx)
 {
@@ -69,10 +80,21 @@ int iter(struct bpf_iter__task_file *ctx)
 	if (file->f_op != fops)
 		return 0;
 
+	__builtin_memset(&e, 0, sizeof(e));
 	e.pid = task->tgid;
 	e.id = get_obj_id(file->private_data, obj_type);
-	bpf_probe_read_kernel(&e.comm, sizeof(e.comm),
-			      task->group_leader->comm);
+
+	if (obj_type == BPF_OBJ_LINK) {
+		struct bpf_link *link = (struct bpf_link *) file->private_data;
+
+		if (BPF_CORE_READ(link, type) == BPF_LINK_TYPE_PERF_EVENT) {
+			e.has_bpf_cookie = true;
+			e.bpf_cookie = get_bpf_cookie(link);
+		}
+	}
+
+	bpf_probe_read_kernel_str(&e.comm, sizeof(e.comm),
+				  task->group_leader->comm);
 	bpf_seq_write(ctx->meta->seq, &e, sizeof(e));
 
 	return 0;

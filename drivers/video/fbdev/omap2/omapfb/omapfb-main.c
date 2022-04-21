@@ -1854,7 +1854,6 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 	}
 
 	if (fbdev->auto_update_wq != NULL) {
-		flush_workqueue(fbdev->auto_update_wq);
 		destroy_workqueue(fbdev->auto_update_wq);
 		fbdev->auto_update_wq = NULL;
 	}

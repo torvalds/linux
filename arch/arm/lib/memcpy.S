@@ -42,16 +42,13 @@
 	strb\cond \reg, [\ptr], #1
 	.endm
 
-	.macro enter reg1 reg2
-	stmdb sp!, {r0, \reg1, \reg2}
+	.macro enter regs:vararg
+UNWIND( .save	{r0, \regs}		)
+	stmdb sp!, {r0, \regs}
 	.endm
 
-	.macro usave reg1 reg2
-	UNWIND(	.save	{r0, \reg1, \reg2}	)
-	.endm
-
-	.macro exit reg1 reg2
-	ldmfd sp!, {r0, \reg1, \reg2}
+	.macro exit regs:vararg
+	ldmfd sp!, {r0, \regs}
 	.endm
 
 	.text

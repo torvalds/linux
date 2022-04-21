@@ -1412,7 +1412,7 @@ MODULE_DEVICE_TABLE(of, rnandc_id_table);
 static struct platform_driver rnandc_driver = {
 	.driver = {
 		.name = "renesas-nandc",
-		.of_match_table = of_match_ptr(rnandc_id_table),
+		.of_match_table = rnandc_id_table,
 	},
 	.probe = rnandc_probe,
 	.remove = rnandc_remove,

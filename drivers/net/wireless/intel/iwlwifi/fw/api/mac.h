@@ -413,10 +413,11 @@ enum iwl_he_pkt_ext_constellations {
 };
 
 #define MAX_HE_SUPP_NSS	2
-#define MAX_HE_CHANNEL_BW_INDX	4
+#define MAX_CHANNEL_BW_INDX_API_D_VER_2	4
+#define MAX_CHANNEL_BW_INDX_API_D_VER_3	5
 
 /**
- * struct iwl_he_pkt_ext - QAM thresholds
+ * struct iwl_he_pkt_ext_v1 - QAM thresholds
  * The required PPE is set via HE Capabilities IE, per Nss x BW x MCS
  * The IE is organized in the following way:
  * Support for Nss x BW (or RU) matrix:
@@ -435,9 +436,34 @@ enum iwl_he_pkt_ext_constellations {
  *	Nss (0-siso, 1-mimo2) x BW (0-20MHz, 1-40MHz, 2-80MHz, 3-160MHz) x
  *		(0-low_th, 1-high_th)
  */
-struct iwl_he_pkt_ext {
-	u8 pkt_ext_qam_th[MAX_HE_SUPP_NSS][MAX_HE_CHANNEL_BW_INDX][2];
-} __packed; /* PKT_EXT_DOT11AX_API_S */
+struct iwl_he_pkt_ext_v1 {
+	u8 pkt_ext_qam_th[MAX_HE_SUPP_NSS][MAX_CHANNEL_BW_INDX_API_D_VER_2][2];
+} __packed; /* PKT_EXT_DOT11AX_API_S_VER_1 */
+
+/**
+ * struct iwl_he_pkt_ext_v2 - QAM thresholds
+ * The required PPE is set via HE Capabilities IE, per Nss x BW x MCS
+ * The IE is organized in the following way:
+ * Support for Nss x BW (or RU) matrix:
+ *	(0=SISO, 1=MIMO2) x (0-20MHz, 1-40MHz, 2-80MHz, 3-160MHz)
+ * Each entry contains 2 QAM thresholds for 8us and 16us:
+ *	0=BPSK, 1=QPSK, 2=16QAM, 3=64QAM, 4=256QAM, 5=1024QAM, 6=RES, 7=NONE
+ * i.e. QAM_th1 < QAM_th2 such if TX uses QAM_tx:
+ *	QAM_tx < QAM_th1            --> PPE=0us
+ *	QAM_th1 <= QAM_tx < QAM_th2 --> PPE=8us
+ *	QAM_th2 <= QAM_tx           --> PPE=16us
+ * @pkt_ext_qam_th: QAM thresholds
+ *	For each Nss/Bw define 2 QAM thrsholds (0..5)
+ *	For rates below the low_th, no need for PPE
+ *	For rates between low_th and high_th, need 8us PPE
+ *	For rates equal or higher then the high_th, need 16us PPE
+ *	Nss (0-siso, 1-mimo2) x
+ *	BW (0-20MHz, 1-40MHz, 2-80MHz, 3-160MHz, 4-320MHz) x
+ *	(0-low_th, 1-high_th)
+ */
+struct iwl_he_pkt_ext_v2 {
+	u8 pkt_ext_qam_th[MAX_HE_SUPP_NSS][MAX_CHANNEL_BW_INDX_API_D_VER_3][2];
+} __packed; /* PKT_EXT_DOT11AX_API_S_VER_2 */
 
 /**
  * enum iwl_he_sta_ctxt_flags - HE STA context flags
@@ -464,6 +490,11 @@ struct iwl_he_pkt_ext {
  * @STA_CTXT_HE_RU_2MHZ_BLOCK: indicates that 26-tone RU OFDMA transmission are
  *      not allowed (as there are OBSS that might classify such transmissions as
  *      radar pulses).
+ * @STA_CTXT_HE_NDP_FEEDBACK_ENABLED: mark support for NDP feedback and change
+ *	of threshold
+ * @STA_CTXT_EHT_PUNCTURE_MASK_VALID: indicates the puncture_mask field is valid
+ * @STA_CTXT_EHT_LONG_PPE_ENABLED: indicates the PPE requirement should be
+ *	extended to 20us for BW > 160Mhz or for MCS w/ 4096-QAM.
  */
 enum iwl_he_sta_ctxt_flags {
 	STA_CTXT_HE_REF_BSSID_VALID		= BIT(4),
@@ -477,6 +508,9 @@ enum iwl_he_sta_ctxt_flags {
 	STA_CTXT_HE_MU_EDCA_CW			= BIT(12),
 	STA_CTXT_HE_NIC_NOT_ACK_ENABLED		= BIT(13),
 	STA_CTXT_HE_RU_2MHZ_BLOCK		= BIT(14),
+	STA_CTXT_HE_NDP_FEEDBACK_ENABLED	= BIT(15),
+	STA_CTXT_EHT_PUNCTURE_MASK_VALID	= BIT(16),
+	STA_CTXT_EHT_LONG_PPE_ENABLED		= BIT(17),
 };
 
 /**
@@ -551,7 +585,7 @@ struct iwl_he_sta_context_cmd_v1 {
 	u8 frag_min_size;
 
 	/* The below fields are set via PPE thresholds element */
-	struct iwl_he_pkt_ext pkt_ext;
+	struct iwl_he_pkt_ext_v1 pkt_ext;
 
 	/* The below fields are set via HE-Operation IE */
 	u8 bss_color;
@@ -568,7 +602,7 @@ struct iwl_he_sta_context_cmd_v1 {
 } __packed; /* STA_CONTEXT_DOT11AX_API_S_VER_1 */
 
 /**
- * struct iwl_he_sta_context_cmd - configure FW to work with HE AP
+ * struct iwl_he_sta_context_cmd_v2 - configure FW to work with HE AP
  * @sta_id: STA id
  * @tid_limit: max num of TIDs in TX HE-SU multi-TID agg
  *	0 - bad value, 1 - multi-tid not supported, 2..8 - tid limit
@@ -599,7 +633,7 @@ struct iwl_he_sta_context_cmd_v1 {
  * @bssid_count: actual number of VAPs in the MultiBSS Set
  * @reserved4: alignment
  */
-struct iwl_he_sta_context_cmd {
+struct iwl_he_sta_context_cmd_v2 {
 	u8 sta_id;
 	u8 tid_limit;
 	u8 reserved1;
@@ -619,7 +653,7 @@ struct iwl_he_sta_context_cmd {
 	u8 frag_min_size;
 
 	/* The below fields are set via PPE thresholds element */
-	struct iwl_he_pkt_ext pkt_ext;
+	struct iwl_he_pkt_ext_v1 pkt_ext;
 
 	/* The below fields are set via HE-Operation IE */
 	u8 bss_color;
@@ -630,6 +664,81 @@ struct iwl_he_sta_context_cmd {
 	u8 rand_alloc_ecwmin;
 	u8 rand_alloc_ecwmax;
 	__le16 reserved3;
+
+	/* The below fields are set via MU EDCA parameter set element */
+	struct iwl_he_backoff_conf trig_based_txf[AC_NUM];
+
+	u8 max_bssid_indicator;
+	u8 bssid_index;
+	u8 ema_ap;
+	u8 profile_periodicity;
+	u8 bssid_count;
+	u8 reserved4[3];
+} __packed; /* STA_CONTEXT_DOT11AX_API_S_VER_2 */
+
+/**
+ * struct iwl_he_sta_context_cmd_v3 - configure FW to work with HE AP
+ * @sta_id: STA id
+ * @tid_limit: max num of TIDs in TX HE-SU multi-TID agg
+ *	0 - bad value, 1 - multi-tid not supported, 2..8 - tid limit
+ * @reserved1: reserved byte for future use
+ * @reserved2: reserved byte for future use
+ * @flags: see %iwl_11ax_sta_ctxt_flags
+ * @ref_bssid_addr: reference BSSID used by the AP
+ * @reserved0: reserved 2 bytes for aligning the ref_bssid_addr field to 8 bytes
+ * @htc_flags: which features are supported in HTC
+ * @frag_flags: frag support in A-MSDU
+ * @frag_level: frag support level
+ * @frag_max_num: max num of "open" MSDUs in the receiver (in power of 2)
+ * @frag_min_size: min frag size (except last frag)
+ * @pkt_ext: optional, exists according to PPE-present bit in the HE-PHY capa
+ * @bss_color: 11ax AP ID that is used in the HE SIG-A to mark inter BSS frame
+ * @htc_trig_based_pkt_ext: default PE in 4us units
+ * @frame_time_rts_th: HE duration RTS threshold, in units of 32us
+ * @rand_alloc_ecwmin: random CWmin = 2**ECWmin-1
+ * @rand_alloc_ecwmax: random CWmax = 2**ECWmax-1
+ * @puncture_mask: puncture mask for EHT
+ * @trig_based_txf: MU EDCA Parameter set for the trigger based traffic queues
+ * @max_bssid_indicator: indicator of the max bssid supported on the associated
+ *	bss
+ * @bssid_index: index of the associated VAP
+ * @ema_ap: AP supports enhanced Multi BSSID advertisement
+ * @profile_periodicity: number of Beacon periods that are needed to receive the
+ *	complete VAPs info
+ * @bssid_count: actual number of VAPs in the MultiBSS Set
+ * @reserved4: alignment
+ */
+struct iwl_he_sta_context_cmd_v3 {
+	u8 sta_id;
+	u8 tid_limit;
+	u8 reserved1;
+	u8 reserved2;
+	__le32 flags;
+
+	/* The below fields are set via Multiple BSSID IE */
+	u8 ref_bssid_addr[6];
+	__le16 reserved0;
+
+	/* The below fields are set via HE-capabilities IE */
+	__le32 htc_flags;
+
+	u8 frag_flags;
+	u8 frag_level;
+	u8 frag_max_num;
+	u8 frag_min_size;
+
+	/* The below fields are set via PPE thresholds element */
+	struct iwl_he_pkt_ext_v2 pkt_ext;
+
+	/* The below fields are set via HE-Operation IE */
+	u8 bss_color;
+	u8 htc_trig_based_pkt_ext;
+	__le16 frame_time_rts_th;
+
+	/* Random access parameter set (i.e. RAPS) */
+	u8 rand_alloc_ecwmin;
+	u8 rand_alloc_ecwmax;
+	__le16 puncture_mask;
 
 	/* The below fields are set via MU EDCA parameter set element */
 	struct iwl_he_backoff_conf trig_based_txf[AC_NUM];

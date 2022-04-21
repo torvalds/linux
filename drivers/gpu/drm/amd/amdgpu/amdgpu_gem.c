@@ -222,15 +222,9 @@ static void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	if (!bo_va || --bo_va->ref_count)
 		goto out_unlock;
 
-	amdgpu_vm_bo_rmv(adev, bo_va);
+	amdgpu_vm_bo_del(adev, bo_va);
 	if (!amdgpu_vm_ready(vm))
 		goto out_unlock;
-
-	fence = dma_resv_excl_fence(bo->tbo.base.resv);
-	if (fence) {
-		amdgpu_bo_fence(bo, fence, true);
-		fence = NULL;
-	}
 
 	r = amdgpu_vm_clear_freed(adev, vm, &fence);
 	if (r || !fence)
@@ -263,9 +257,6 @@ static int amdgpu_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_str
 	if (is_cow_mapping(vma->vm_flags) &&
 	    !(vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC)))
 		vma->vm_flags &= ~VM_MAYWRITE;
-
-	if (bo->kfd_bo)
-		vma->vm_flags |= VM_DONTCOPY;
 
 	return drm_gem_ttm_mmap(obj, vma);
 }

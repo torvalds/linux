@@ -9,10 +9,7 @@
 system_certificate_list:
 __cert_list_start:
 __module_cert_start:
-#if defined(CONFIG_MODULE_SIG) || (defined(CONFIG_IMA_APPRAISE_MODSIG) \
-			       && defined(CONFIG_MODULES))
 	.incbin "certs/signing_key.x509"
-#endif
 __module_cert_end:
 	.incbin "certs/x509_certificate_list"
 __cert_list_end:

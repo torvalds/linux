@@ -78,8 +78,12 @@ int iwl_trans_init(struct iwl_trans *trans)
 	if (WARN_ON(trans->trans_cfg->gen2 && txcmd_size >= txcmd_align))
 		return -EINVAL;
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
-		trans->txqs.bc_tbl_size = sizeof(struct iwl_gen3_bc_tbl);
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+		trans->txqs.bc_tbl_size =
+			sizeof(struct iwl_gen3_bc_tbl_entry) * TFD_QUEUE_BC_SIZE_GEN3_BZ;
+	else if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+		trans->txqs.bc_tbl_size =
+			sizeof(struct iwl_gen3_bc_tbl_entry) * TFD_QUEUE_BC_SIZE_GEN3_AX210;
 	else
 		trans->txqs.bc_tbl_size = sizeof(struct iwlagn_scd_bc_tbl);
 	/*
@@ -203,10 +207,10 @@ IWL_EXPORT_SYMBOL(iwl_trans_send_cmd);
 static int iwl_hcmd_names_cmp(const void *key, const void *elt)
 {
 	const struct iwl_hcmd_names *name = elt;
-	u8 cmd1 = *(u8 *)key;
+	const u8 *cmd1 = key;
 	u8 cmd2 = name->cmd_id;
 
-	return (cmd1 - cmd2);
+	return (*cmd1 - cmd2);
 }
 
 const char *iwl_get_cmd_string(struct iwl_trans *trans, u32 id)

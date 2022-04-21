@@ -89,23 +89,11 @@ static inline unsigned int *nf_ct_timeout_lookup(const struct nf_conn *ct)
 }
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-int nf_conntrack_timeout_init(void);
-void nf_conntrack_timeout_fini(void);
 void nf_ct_untimeout(struct net *net, struct nf_ct_timeout *timeout);
 int nf_ct_set_timeout(struct net *net, struct nf_conn *ct, u8 l3num, u8 l4num,
 		      const char *timeout_name);
 void nf_ct_destroy_timeout(struct nf_conn *ct);
 #else
-static inline int nf_conntrack_timeout_init(void)
-{
-        return 0;
-}
-
-static inline void nf_conntrack_timeout_fini(void)
-{
-        return;
-}
-
 static inline int nf_ct_set_timeout(struct net *net, struct nf_conn *ct,
 				    u8 l3num, u8 l4num,
 				    const char *timeout_name)
@@ -120,8 +108,12 @@ static inline void nf_ct_destroy_timeout(struct nf_conn *ct)
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-extern struct nf_ct_timeout *(*nf_ct_timeout_find_get_hook)(struct net *net, const char *name);
-extern void (*nf_ct_timeout_put_hook)(struct nf_ct_timeout *timeout);
+struct nf_ct_timeout_hooks {
+	struct nf_ct_timeout *(*timeout_find_get)(struct net *net, const char *name);
+	void (*timeout_put)(struct nf_ct_timeout *timeout);
+};
+
+extern const struct nf_ct_timeout_hooks *nf_ct_timeout_hook;
 #endif
 
 #endif /* _NF_CONNTRACK_TIMEOUT_H */

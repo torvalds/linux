@@ -2470,6 +2470,6 @@ struct nvm_meta_bin_t {
 	u32 version;
 #define NVM_META_BIN_VERSION 1
 	u32 num_options;
-	u32 options[0];
+	u32 options[];
 };
 #endif

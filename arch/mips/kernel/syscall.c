@@ -122,8 +122,8 @@ static inline int mips_atomic_set(unsigned long addr, unsigned long new)
 		"	j	3b					\n"
 		"	.previous					\n"
 		"	.section __ex_table,\"a\"			\n"
-		"	"STR(PTR)"	1b, 4b				\n"
-		"	"STR(PTR)"	2b, 4b				\n"
+		"	"STR(PTR_WD)"	1b, 4b				\n"
+		"	"STR(PTR_WD)"	2b, 4b				\n"
 		"	.previous					\n"
 		"	.set	pop					\n"
 		: [old] "=&r" (old),
@@ -152,8 +152,8 @@ static inline int mips_atomic_set(unsigned long addr, unsigned long new)
 		"	j	3b					\n"
 		"	.previous					\n"
 		"	.section __ex_table,\"a\"			\n"
-		"	"STR(PTR)"	1b, 5b				\n"
-		"	"STR(PTR)"	2b, 5b				\n"
+		"	"STR(PTR_WD)"	1b, 5b				\n"
+		"	"STR(PTR_WD)"	2b, 5b				\n"
 		"	.previous					\n"
 		"	.set	pop					\n"
 		: [old] "=&r" (old),

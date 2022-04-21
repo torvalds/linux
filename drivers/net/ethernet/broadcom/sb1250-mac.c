@@ -2183,9 +2183,7 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 		ea_reg >>= 8;
 	}
 
-	for (i = 0; i < 6; i++) {
-		dev->dev_addr[i] = eaddr[i];
-	}
+	eth_hw_addr_set(dev, eaddr);
 
 	/*
 	 * Initialize context (get pointers to registers and stuff), then

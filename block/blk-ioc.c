@@ -280,7 +280,6 @@ int set_task_ioprio(struct task_struct *task, int ioprio)
 
 		task_lock(task);
 		if (task->flags & PF_EXITING) {
-			err = -ESRCH;
 			kmem_cache_free(iocontext_cachep, ioc);
 			goto out;
 		}
@@ -292,7 +291,7 @@ int set_task_ioprio(struct task_struct *task, int ioprio)
 	task->io_context->ioprio = ioprio;
 out:
 	task_unlock(task);
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(set_task_ioprio);
 

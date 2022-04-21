@@ -2,7 +2,7 @@
 //
 // tegra210_ahub.c - Tegra210 AHUB driver
 //
-// Copyright (c) 2020 NVIDIA CORPORATION.  All rights reserved.
+// Copyright (c) 2020-2022, NVIDIA CORPORATION.  All rights reserved.
 
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -624,6 +624,34 @@ MUX_ENUM_CTRL_DECL_186(t186_mixer18_tx, 0x27);
 MUX_ENUM_CTRL_DECL_186(t186_mixer19_tx, 0x28);
 MUX_ENUM_CTRL_DECL_186(t186_mixer110_tx, 0x29);
 
+/* Controls for t234 */
+MUX_ENUM_CTRL_DECL_234(t234_mvc1_tx, 0x44);
+MUX_ENUM_CTRL_DECL_234(t234_mvc2_tx, 0x45);
+MUX_ENUM_CTRL_DECL_234(t234_amx11_tx, 0x48);
+MUX_ENUM_CTRL_DECL_234(t234_amx12_tx, 0x49);
+MUX_ENUM_CTRL_DECL_234(t234_amx13_tx, 0x4a);
+MUX_ENUM_CTRL_DECL_234(t234_amx14_tx, 0x4b);
+MUX_ENUM_CTRL_DECL_234(t234_amx21_tx, 0x4c);
+MUX_ENUM_CTRL_DECL_234(t234_amx22_tx, 0x4d);
+MUX_ENUM_CTRL_DECL_234(t234_amx23_tx, 0x4e);
+MUX_ENUM_CTRL_DECL_234(t234_amx24_tx, 0x4f);
+MUX_ENUM_CTRL_DECL_234(t234_amx31_tx, 0x50);
+MUX_ENUM_CTRL_DECL_234(t234_amx32_tx, 0x51);
+MUX_ENUM_CTRL_DECL_234(t234_amx33_tx, 0x52);
+MUX_ENUM_CTRL_DECL_234(t234_amx34_tx, 0x53);
+MUX_ENUM_CTRL_DECL_234(t234_adx1_tx, 0x58);
+MUX_ENUM_CTRL_DECL_234(t234_adx2_tx, 0x59);
+MUX_ENUM_CTRL_DECL_234(t234_adx3_tx, 0x5a);
+MUX_ENUM_CTRL_DECL_234(t234_adx4_tx, 0x5b);
+MUX_ENUM_CTRL_DECL_234(t234_amx41_tx, 0x5c);
+MUX_ENUM_CTRL_DECL_234(t234_amx42_tx, 0x5d);
+MUX_ENUM_CTRL_DECL_234(t234_amx43_tx, 0x5e);
+MUX_ENUM_CTRL_DECL_234(t234_amx44_tx, 0x5f);
+MUX_ENUM_CTRL_DECL_234(t234_admaif17_tx, 0x60);
+MUX_ENUM_CTRL_DECL_234(t234_admaif18_tx, 0x61);
+MUX_ENUM_CTRL_DECL_234(t234_admaif19_tx, 0x62);
+MUX_ENUM_CTRL_DECL_234(t234_admaif20_tx, 0x63);
+
 /*
  * The number of entries in, and order of, this array is closely tied to the
  * calculation of tegra210_ahub_codec.num_dapm_widgets near the end of
@@ -754,6 +782,102 @@ static const struct snd_soc_dapm_widget tegra186_ahub_widgets[] = {
 	WIDGETS("ADX2", t186_adx2_tx),
 	WIDGETS("ADX3", t186_adx3_tx),
 	WIDGETS("ADX4", t186_adx4_tx),
+	TX_WIDGETS("ADX1 TX1"),
+	TX_WIDGETS("ADX1 TX2"),
+	TX_WIDGETS("ADX1 TX3"),
+	TX_WIDGETS("ADX1 TX4"),
+	TX_WIDGETS("ADX2 TX1"),
+	TX_WIDGETS("ADX2 TX2"),
+	TX_WIDGETS("ADX2 TX3"),
+	TX_WIDGETS("ADX2 TX4"),
+	TX_WIDGETS("ADX3 TX1"),
+	TX_WIDGETS("ADX3 TX2"),
+	TX_WIDGETS("ADX3 TX3"),
+	TX_WIDGETS("ADX3 TX4"),
+	TX_WIDGETS("ADX4 TX1"),
+	TX_WIDGETS("ADX4 TX2"),
+	TX_WIDGETS("ADX4 TX3"),
+	TX_WIDGETS("ADX4 TX4"),
+	WIDGETS("MIXER1 RX1", t186_mixer11_tx),
+	WIDGETS("MIXER1 RX2", t186_mixer12_tx),
+	WIDGETS("MIXER1 RX3", t186_mixer13_tx),
+	WIDGETS("MIXER1 RX4", t186_mixer14_tx),
+	WIDGETS("MIXER1 RX5", t186_mixer15_tx),
+	WIDGETS("MIXER1 RX6", t186_mixer16_tx),
+	WIDGETS("MIXER1 RX7", t186_mixer17_tx),
+	WIDGETS("MIXER1 RX8", t186_mixer18_tx),
+	WIDGETS("MIXER1 RX9", t186_mixer19_tx),
+	WIDGETS("MIXER1 RX10", t186_mixer110_tx),
+	TX_WIDGETS("MIXER1 TX1"),
+	TX_WIDGETS("MIXER1 TX2"),
+	TX_WIDGETS("MIXER1 TX3"),
+	TX_WIDGETS("MIXER1 TX4"),
+	TX_WIDGETS("MIXER1 TX5"),
+};
+
+static const struct snd_soc_dapm_widget tegra234_ahub_widgets[] = {
+	WIDGETS("ADMAIF1", t186_admaif1_tx),
+	WIDGETS("ADMAIF2", t186_admaif2_tx),
+	WIDGETS("ADMAIF3", t186_admaif3_tx),
+	WIDGETS("ADMAIF4", t186_admaif4_tx),
+	WIDGETS("ADMAIF5", t186_admaif5_tx),
+	WIDGETS("ADMAIF6", t186_admaif6_tx),
+	WIDGETS("ADMAIF7", t186_admaif7_tx),
+	WIDGETS("ADMAIF8", t186_admaif8_tx),
+	WIDGETS("ADMAIF9", t186_admaif9_tx),
+	WIDGETS("ADMAIF10", t186_admaif10_tx),
+	WIDGETS("ADMAIF11", t186_admaif11_tx),
+	WIDGETS("ADMAIF12", t186_admaif12_tx),
+	WIDGETS("ADMAIF13", t186_admaif13_tx),
+	WIDGETS("ADMAIF14", t186_admaif14_tx),
+	WIDGETS("ADMAIF15", t186_admaif15_tx),
+	WIDGETS("ADMAIF16", t186_admaif16_tx),
+	WIDGETS("ADMAIF17", t234_admaif17_tx),
+	WIDGETS("ADMAIF18", t234_admaif18_tx),
+	WIDGETS("ADMAIF19", t234_admaif19_tx),
+	WIDGETS("ADMAIF20", t234_admaif20_tx),
+	WIDGETS("I2S1", t186_i2s1_tx),
+	WIDGETS("I2S2", t186_i2s2_tx),
+	WIDGETS("I2S3", t186_i2s3_tx),
+	WIDGETS("I2S4", t186_i2s4_tx),
+	WIDGETS("I2S5", t186_i2s5_tx),
+	WIDGETS("I2S6", t186_i2s6_tx),
+	TX_WIDGETS("DMIC1"),
+	TX_WIDGETS("DMIC2"),
+	TX_WIDGETS("DMIC3"),
+	TX_WIDGETS("DMIC4"),
+	WIDGETS("DSPK1", t186_dspk1_tx),
+	WIDGETS("DSPK2", t186_dspk2_tx),
+	WIDGETS("SFC1", t186_sfc1_tx),
+	WIDGETS("SFC2", t186_sfc2_tx),
+	WIDGETS("SFC3", t186_sfc3_tx),
+	WIDGETS("SFC4", t186_sfc4_tx),
+	WIDGETS("MVC1", t234_mvc1_tx),
+	WIDGETS("MVC2", t234_mvc2_tx),
+	WIDGETS("AMX1 RX1", t234_amx11_tx),
+	WIDGETS("AMX1 RX2", t234_amx12_tx),
+	WIDGETS("AMX1 RX3", t234_amx13_tx),
+	WIDGETS("AMX1 RX4", t234_amx14_tx),
+	WIDGETS("AMX2 RX1", t234_amx21_tx),
+	WIDGETS("AMX2 RX2", t234_amx22_tx),
+	WIDGETS("AMX2 RX3", t234_amx23_tx),
+	WIDGETS("AMX2 RX4", t234_amx24_tx),
+	WIDGETS("AMX3 RX1", t234_amx31_tx),
+	WIDGETS("AMX3 RX2", t234_amx32_tx),
+	WIDGETS("AMX3 RX3", t234_amx33_tx),
+	WIDGETS("AMX3 RX4", t234_amx34_tx),
+	WIDGETS("AMX4 RX1", t234_amx41_tx),
+	WIDGETS("AMX4 RX2", t234_amx42_tx),
+	WIDGETS("AMX4 RX3", t234_amx43_tx),
+	WIDGETS("AMX4 RX4", t234_amx44_tx),
+	TX_WIDGETS("AMX1"),
+	TX_WIDGETS("AMX2"),
+	TX_WIDGETS("AMX3"),
+	TX_WIDGETS("AMX4"),
+	WIDGETS("ADX1", t234_adx1_tx),
+	WIDGETS("ADX2", t234_adx2_tx),
+	WIDGETS("ADX3", t234_adx3_tx),
+	WIDGETS("ADX4", t234_adx4_tx),
 	TX_WIDGETS("ADX1 TX1"),
 	TX_WIDGETS("ADX1 TX2"),
 	TX_WIDGETS("ADX1 TX3"),
@@ -1027,6 +1151,13 @@ static const struct snd_soc_component_driver tegra186_ahub_component = {
 	.num_dapm_routes = ARRAY_SIZE(tegra186_ahub_routes),
 };
 
+static const struct snd_soc_component_driver tegra234_ahub_component = {
+	.dapm_widgets		= tegra234_ahub_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(tegra234_ahub_widgets),
+	.dapm_routes		= tegra186_ahub_routes,
+	.num_dapm_routes	= ARRAY_SIZE(tegra186_ahub_routes),
+};
+
 static const struct regmap_config tegra210_ahub_regmap_config = {
 	.reg_bits		= 32,
 	.val_bits		= 32,
@@ -1067,9 +1198,22 @@ static const struct tegra_ahub_soc_data soc_data_tegra186 = {
 	.reg_count	= TEGRA186_XBAR_UPDATE_MAX_REG,
 };
 
+static const struct tegra_ahub_soc_data soc_data_tegra234 = {
+	.cmpnt_drv	= &tegra234_ahub_component,
+	.dai_drv	= tegra186_ahub_dais,
+	.num_dais	= ARRAY_SIZE(tegra186_ahub_dais),
+	.regmap_config	= &tegra186_ahub_regmap_config,
+	.mask[0]	= TEGRA186_XBAR_REG_MASK_0,
+	.mask[1]	= TEGRA186_XBAR_REG_MASK_1,
+	.mask[2]	= TEGRA186_XBAR_REG_MASK_2,
+	.mask[3]	= TEGRA186_XBAR_REG_MASK_3,
+	.reg_count	= TEGRA186_XBAR_UPDATE_MAX_REG,
+};
+
 static const struct of_device_id tegra_ahub_of_match[] = {
 	{ .compatible = "nvidia,tegra210-ahub", .data = &soc_data_tegra210 },
 	{ .compatible = "nvidia,tegra186-ahub", .data = &soc_data_tegra186 },
+	{ .compatible = "nvidia,tegra234-ahub", .data = &soc_data_tegra234 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, tegra_ahub_of_match);

@@ -251,6 +251,43 @@ int adf_send_admin_init(struct adf_accel_dev *accel_dev)
 }
 EXPORT_SYMBOL_GPL(adf_send_admin_init);
 
+/**
+ * adf_init_admin_pm() - Function sends PM init message to FW
+ * @accel_dev: Pointer to acceleration device.
+ * @idle_delay: QAT HW idle time before power gating is initiated.
+ *		000 - 64us
+ *		001 - 128us
+ *		010 - 256us
+ *		011 - 512us
+ *		100 - 1ms
+ *		101 - 2ms
+ *		110 - 4ms
+ *		111 - 8ms
+ *
+ * Function sends to the FW the admin init message for the PM state
+ * configuration.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+int adf_init_admin_pm(struct adf_accel_dev *accel_dev, u32 idle_delay)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct icp_qat_fw_init_admin_resp resp = {0};
+	struct icp_qat_fw_init_admin_req req = {0};
+	u32 ae_mask = hw_data->admin_ae_mask;
+
+	if (!accel_dev->admin) {
+		dev_err(&GET_DEV(accel_dev), "adf_admin is not available\n");
+		return -EFAULT;
+	}
+
+	req.cmd_id = ICP_QAT_FW_PM_STATE_CONFIG;
+	req.idle_filter = idle_delay;
+
+	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
+}
+EXPORT_SYMBOL_GPL(adf_init_admin_pm);
+
 int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 {
 	struct adf_admin_comms *admin;

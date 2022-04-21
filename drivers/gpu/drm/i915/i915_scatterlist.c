@@ -5,10 +5,9 @@
  */
 
 #include "i915_scatterlist.h"
-
-#include "i915_buddy.h"
 #include "i915_ttm_buddy_manager.h"
 
+#include <drm/drm_buddy.h>
 #include <drm/drm_mm.h>
 
 #include <linux/slab.h>
@@ -153,9 +152,9 @@ struct i915_refct_sgt *i915_rsgt_from_buddy_resource(struct ttm_resource *res,
 	struct i915_ttm_buddy_resource *bman_res = to_ttm_buddy_resource(res);
 	const u64 size = res->num_pages << PAGE_SHIFT;
 	const u64 max_segment = rounddown(UINT_MAX, PAGE_SIZE);
-	struct i915_buddy_mm *mm = bman_res->mm;
+	struct drm_buddy *mm = bman_res->mm;
 	struct list_head *blocks = &bman_res->blocks;
-	struct i915_buddy_block *block;
+	struct drm_buddy_block *block;
 	struct i915_refct_sgt *rsgt;
 	struct scatterlist *sg;
 	struct sg_table *st;
@@ -181,8 +180,8 @@ struct i915_refct_sgt *i915_rsgt_from_buddy_resource(struct ttm_resource *res,
 	list_for_each_entry(block, blocks, link) {
 		u64 block_size, offset;
 
-		block_size = min_t(u64, size, i915_buddy_block_size(mm, block));
-		offset = i915_buddy_block_offset(block);
+		block_size = min_t(u64, size, drm_buddy_block_size(mm, block));
+		offset = drm_buddy_block_offset(block);
 
 		while (block_size) {
 			u64 len;

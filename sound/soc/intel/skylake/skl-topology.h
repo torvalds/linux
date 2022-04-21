@@ -164,7 +164,7 @@ struct skl_base_cfg_ext {
 	u8 reserved[8];
 	u32 priv_param_length;
 	/* Input pin formats followed by output ones. */
-	struct skl_pin_format pins_fmt[0];
+	struct skl_pin_format pins_fmt[];
 } __packed;
 
 struct skl_algo_cfg {

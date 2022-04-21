@@ -41,6 +41,7 @@ properties:
               - amlogic,meson8b-usb
               - amlogic,meson-gxbb-usb
               - amlogic,meson-g12a-usb
+              - intel,socfpga-agilex-hsotg
           - const: snps,dwc2
       - const: amcc,dwc-otg
       - const: apm,apm82181-dwc-otg
@@ -53,6 +54,7 @@ properties:
           - const: st,stm32mp15-hsotg
           - const: snps,dwc2
       - const: samsung,s3c6400-hsotg
+      - const: intel,socfpga-agilex-hsotg
 
   reg:
     maxItems: 1
@@ -66,6 +68,13 @@ properties:
   clock-names:
     items:
       - const: otg
+
+  disable-over-current:
+    type: boolean
+    description: whether to disable detection of over-current condition.
+
+  iommus:
+    maxItems: 1
 
   resets:
     items:

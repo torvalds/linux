@@ -12,7 +12,7 @@
 #define __XEN_DRM_FRONT_GEM_H
 
 struct dma_buf_attachment;
-struct dma_buf_map;
+struct iosys_map;
 struct drm_device;
 struct drm_gem_object;
 struct sg_table;
@@ -32,9 +32,9 @@ struct page **xen_drm_front_gem_get_pages(struct drm_gem_object *obj);
 void xen_drm_front_gem_free_object_unlocked(struct drm_gem_object *gem_obj);
 
 int xen_drm_front_gem_prime_vmap(struct drm_gem_object *gem_obj,
-				 struct dma_buf_map *map);
+				 struct iosys_map *map);
 
 void xen_drm_front_gem_prime_vunmap(struct drm_gem_object *gem_obj,
-				    struct dma_buf_map *map);
+				    struct iosys_map *map);
 
 #endif /* __XEN_DRM_FRONT_GEM_H */

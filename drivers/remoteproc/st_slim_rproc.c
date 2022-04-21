@@ -216,7 +216,7 @@ static const struct rproc_ops slim_rproc_ops = {
  * obtains and enables any clocks required by the SLIM core and also
  * ioremaps the various IO.
  *
- * Returns st_slim_rproc pointer or PTR_ERR() on error.
+ * Return: st_slim_rproc pointer or PTR_ERR() on error.
  */
 
 struct st_slim_rproc *st_slim_rproc_alloc(struct platform_device *pdev,

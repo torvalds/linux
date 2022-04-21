@@ -455,7 +455,8 @@ static ap_func_t *ap_jumptable[NR_AP_SM_STATES][NR_AP_SM_EVENTS] = {
 
 enum ap_sm_wait ap_sm_event(struct ap_queue *aq, enum ap_sm_event event)
 {
-	if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
+	if (aq->config && !aq->chkstop &&
+	    aq->dev_state > AP_DEV_STATE_UNINITIATED)
 		return ap_jumptable[aq->sm_state][event](aq);
 	else
 		return AP_SM_WAIT_NONE;
@@ -615,6 +616,20 @@ static ssize_t config_show(struct device *dev,
 
 static DEVICE_ATTR_RO(config);
 
+static ssize_t chkstop_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	int rc;
+
+	spin_lock_bh(&aq->lock);
+	rc = scnprintf(buf, PAGE_SIZE, "%d\n", aq->chkstop ? 1 : 0);
+	spin_unlock_bh(&aq->lock);
+	return rc;
+}
+
+static DEVICE_ATTR_RO(chkstop);
+
 #ifdef CONFIG_ZCRYPT_DEBUG
 static ssize_t states_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
@@ -729,6 +744,7 @@ static struct attribute *ap_queue_dev_attrs[] = {
 	&dev_attr_reset.attr,
 	&dev_attr_interrupt.attr,
 	&dev_attr_config.attr,
+	&dev_attr_chkstop.attr,
 #ifdef CONFIG_ZCRYPT_DEBUG
 	&dev_attr_states.attr,
 	&dev_attr_last_err_rc.attr,
@@ -915,6 +931,7 @@ void ap_queue_init_state(struct ap_queue *aq)
 	spin_lock_bh(&aq->lock);
 	aq->dev_state = AP_DEV_STATE_OPERATING;
 	aq->sm_state = AP_SM_STATE_RESET_START;
+	aq->last_err_rc = 0;
 	ap_wait(ap_sm_event(aq, AP_SM_EVENT_POLL));
 	spin_unlock_bh(&aq->lock);
 }

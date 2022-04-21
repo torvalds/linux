@@ -16,7 +16,6 @@
 #include <asm/pnv-pci.h>
 #include <asm/opal.h>
 #include <asm/smp.h>
-#include <asm/asm-prototypes.h>
 #include <asm/xive.h>
 #include <asm/xive-regs.h>
 

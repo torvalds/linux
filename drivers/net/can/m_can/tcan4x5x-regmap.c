@@ -12,7 +12,7 @@
 #define TCAN4X5X_SPI_INSTRUCTION_WRITE (0x61 << 24)
 #define TCAN4X5X_SPI_INSTRUCTION_READ (0x41 << 24)
 
-#define TCAN4X5X_MAX_REGISTER 0x8ffc
+#define TCAN4X5X_MAX_REGISTER 0x87fc
 
 static int tcan4x5x_regmap_gather_write(void *context,
 					const void *reg, size_t reg_len,

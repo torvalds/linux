@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -34,7 +35,7 @@
 #include "kfd_priv.h"
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <asm/processor.h>
+#include <linux/processor.h>
 
 /*
  * The primary memory I/O features being added for revisions of gfxip

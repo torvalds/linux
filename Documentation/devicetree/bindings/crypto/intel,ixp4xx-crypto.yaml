@@ -22,19 +22,28 @@ properties:
 
   intel,npe-handle:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
-    maxItems: 1
+    items:
+      - items:
+          - description: phandle to the NPE this crypto engine
+          - description: the NPE instance number
     description: phandle to the NPE this crypto engine is using, the cell
       describing the NPE instance to be used.
 
   queue-rx:
     $ref: /schemas/types.yaml#/definitions/phandle-array
-    maxItems: 1
+    items:
+      - items:
+          - description: phandle to the RX queue on the NPE
+          - description: the queue instance number
     description: phandle to the RX queue on the NPE, the cell describing
       the queue instance to be used.
 
   queue-txready:
     $ref: /schemas/types.yaml#/definitions/phandle-array
-    maxItems: 1
+    items:
+      - items:
+          - description: phandle to the TX READY queue on the NPE
+          - description: the queue instance number
     description: phandle to the TX READY queue on the NPE, the cell describing
       the queue instance to be used.
 

@@ -474,7 +474,7 @@ static int asoc_dmic_probe(struct platform_device *pdev)
 
 	dmic->fclk = devm_clk_get(dmic->dev, "fck");
 	if (IS_ERR(dmic->fclk)) {
-		dev_err(dmic->dev, "cant get fck\n");
+		dev_err(dmic->dev, "can't get fck\n");
 		return -ENODEV;
 	}
 

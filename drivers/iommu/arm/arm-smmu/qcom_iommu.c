@@ -590,19 +590,21 @@ static int qcom_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 static const struct iommu_ops qcom_iommu_ops = {
 	.capable	= qcom_iommu_capable,
 	.domain_alloc	= qcom_iommu_domain_alloc,
-	.domain_free	= qcom_iommu_domain_free,
-	.attach_dev	= qcom_iommu_attach_dev,
-	.detach_dev	= qcom_iommu_detach_dev,
-	.map		= qcom_iommu_map,
-	.unmap		= qcom_iommu_unmap,
-	.flush_iotlb_all = qcom_iommu_flush_iotlb_all,
-	.iotlb_sync	= qcom_iommu_iotlb_sync,
-	.iova_to_phys	= qcom_iommu_iova_to_phys,
 	.probe_device	= qcom_iommu_probe_device,
 	.release_device	= qcom_iommu_release_device,
 	.device_group	= generic_device_group,
 	.of_xlate	= qcom_iommu_of_xlate,
 	.pgsize_bitmap	= SZ_4K | SZ_64K | SZ_1M | SZ_16M,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev	= qcom_iommu_attach_dev,
+		.detach_dev	= qcom_iommu_detach_dev,
+		.map		= qcom_iommu_map,
+		.unmap		= qcom_iommu_unmap,
+		.flush_iotlb_all = qcom_iommu_flush_iotlb_all,
+		.iotlb_sync	= qcom_iommu_iotlb_sync,
+		.iova_to_phys	= qcom_iommu_iova_to_phys,
+		.free		= qcom_iommu_domain_free,
+	}
 };
 
 static int qcom_iommu_sec_ptbl_init(struct device *dev)
@@ -827,20 +829,20 @@ static int qcom_iommu_device_probe(struct platform_device *pdev)
 	ret = devm_of_platform_populate(dev);
 	if (ret) {
 		dev_err(dev, "Failed to populate iommu contexts\n");
-		return ret;
+		goto err_pm_disable;
 	}
 
 	ret = iommu_device_sysfs_add(&qcom_iommu->iommu, dev, NULL,
 				     dev_name(dev));
 	if (ret) {
 		dev_err(dev, "Failed to register iommu in sysfs\n");
-		return ret;
+		goto err_pm_disable;
 	}
 
 	ret = iommu_device_register(&qcom_iommu->iommu, &qcom_iommu_ops, dev);
 	if (ret) {
 		dev_err(dev, "Failed to register iommu\n");
-		return ret;
+		goto err_pm_disable;
 	}
 
 	bus_set_iommu(&platform_bus_type, &qcom_iommu_ops);
@@ -852,6 +854,10 @@ static int qcom_iommu_device_probe(struct platform_device *pdev)
 	}
 
 	return 0;
+
+err_pm_disable:
+	pm_runtime_disable(dev);
+	return ret;
 }
 
 static int qcom_iommu_device_remove(struct platform_device *pdev)

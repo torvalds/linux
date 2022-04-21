@@ -29,6 +29,9 @@ struct fbcon_display {
     /* Filled in by the low-level console driver */
     const u_char *fontdata;
     int userfont;                   /* != 0 if fontdata kmalloc()ed */
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_LEGACY_ACCELERATION
+    u_short scrollmode;             /* Scroll Method, use fb_scrollmode() */
+#endif
     u_short inverse;                /* != 0 text black on white as default */
     short yscroll;                  /* Hardware scrolling */
     int vrows;                      /* number of virtual rows */
@@ -51,6 +54,8 @@ struct fbcon_display {
 };
 
 struct fbcon_ops {
+	void (*bmove)(struct vc_data *vc, struct fb_info *info, int sy,
+		      int sx, int dy, int dx, int height, int width);
 	void (*clear)(struct vc_data *vc, struct fb_info *info, int sy,
 		      int sx, int height, int width);
 	void (*putcs)(struct vc_data *vc, struct fb_info *info,
@@ -148,6 +153,73 @@ static inline int attr_col_ec(int shift, struct vc_data *vc,
 
 #define attr_bgcol_ec(bgshift, vc, info) attr_col_ec(bgshift, vc, info, 0)
 #define attr_fgcol_ec(fgshift, vc, info) attr_col_ec(fgshift, vc, info, 1)
+
+    /*
+     *  Scroll Method
+     */
+
+/* There are several methods fbcon can use to move text around the screen:
+ *
+ *                     Operation   Pan    Wrap
+ *---------------------------------------------
+ * SCROLL_MOVE         copyarea    No     No
+ * SCROLL_PAN_MOVE     copyarea    Yes    No
+ * SCROLL_WRAP_MOVE    copyarea    No     Yes
+ * SCROLL_REDRAW       imageblit   No     No
+ * SCROLL_PAN_REDRAW   imageblit   Yes    No
+ * SCROLL_WRAP_REDRAW  imageblit   No     Yes
+ *
+ * (SCROLL_WRAP_REDRAW is not implemented yet)
+ *
+ * In general, fbcon will choose the best scrolling
+ * method based on the rule below:
+ *
+ * Pan/Wrap > accel imageblit > accel copyarea >
+ * soft imageblit > (soft copyarea)
+ *
+ * Exception to the rule: Pan + accel copyarea is
+ * preferred over Pan + accel imageblit.
+ *
+ * The above is typical for PCI/AGP cards. Unless
+ * overridden, fbcon will never use soft copyarea.
+ *
+ * If you need to override the above rule, set the
+ * appropriate flags in fb_info->flags.  For example,
+ * to prefer copyarea over imageblit, set
+ * FBINFO_READS_FAST.
+ *
+ * Other notes:
+ * + use the hardware engine to move the text
+ *    (hw-accelerated copyarea() and fillrect())
+ * + use hardware-supported panning on a large virtual screen
+ * + amifb can not only pan, but also wrap the display by N lines
+ *    (i.e. visible line i = physical line (i+N) % yres).
+ * + read what's already rendered on the screen and
+ *     write it in a different place (this is cfb_copyarea())
+ * + re-render the text to the screen
+ *
+ * Whether to use wrapping or panning can only be figured out at
+ * runtime (when we know whether our font height is a multiple
+ * of the pan/wrap step)
+ *
+ */
+
+#define SCROLL_MOVE	   0x001
+#define SCROLL_PAN_MOVE	   0x002
+#define SCROLL_WRAP_MOVE   0x003
+#define SCROLL_REDRAW	   0x004
+#define SCROLL_PAN_REDRAW  0x005
+
+static inline u_short fb_scrollmode(struct fbcon_display *fb)
+{
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_LEGACY_ACCELERATION
+	return fb->scrollmode;
+#else
+	/* hardcoded to SCROLL_REDRAW if acceleration was disabled. */
+	return SCROLL_REDRAW;
+#endif
+}
+
 
 #ifdef CONFIG_FB_TILEBLITTING
 extern void fbcon_set_tileops(struct vc_data *vc, struct fb_info *info);

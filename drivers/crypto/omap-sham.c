@@ -2045,7 +2045,7 @@ static struct attribute *omap_sham_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group omap_sham_attr_group = {
+static const struct attribute_group omap_sham_attr_group = {
 	.attrs = omap_sham_attrs,
 };
 

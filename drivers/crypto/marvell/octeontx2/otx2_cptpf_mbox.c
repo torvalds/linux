@@ -18,9 +18,12 @@ static int forward_to_af(struct otx2_cptpf_dev *cptpf,
 	struct mbox_msghdr *msg;
 	int ret;
 
+	mutex_lock(&cptpf->lock);
 	msg = otx2_mbox_alloc_msg(&cptpf->afpf_mbox, 0, size);
-	if (msg == NULL)
+	if (msg == NULL) {
+		mutex_unlock(&cptpf->lock);
 		return -ENOMEM;
+	}
 
 	memcpy((uint8_t *)msg + sizeof(struct mbox_msghdr),
 	       (uint8_t *)req + sizeof(struct mbox_msghdr), size);
@@ -29,15 +32,19 @@ static int forward_to_af(struct otx2_cptpf_dev *cptpf,
 	msg->sig = req->sig;
 	msg->ver = req->ver;
 
-	otx2_mbox_msg_send(&cptpf->afpf_mbox, 0);
-	ret = otx2_mbox_wait_for_rsp(&cptpf->afpf_mbox, 0);
+	ret = otx2_cpt_sync_mbox_msg(&cptpf->afpf_mbox);
+	/* Error code -EIO indicate there is a communication failure
+	 * to the AF. Rest of the error codes indicate that AF processed
+	 * VF messages and set the error codes in response messages
+	 * (if any) so simply forward responses to VF.
+	 */
 	if (ret == -EIO) {
-		dev_err(&cptpf->pdev->dev, "RVU MBOX timeout.\n");
+		dev_warn(&cptpf->pdev->dev,
+			 "AF not responding to VF%d messages\n", vf->vf_id);
+		mutex_unlock(&cptpf->lock);
 		return ret;
-	} else if (ret) {
-		dev_err(&cptpf->pdev->dev, "RVU MBOX error: %d.\n", ret);
-		return -EFAULT;
 	}
+	mutex_unlock(&cptpf->lock);
 	return 0;
 }
 
@@ -204,6 +211,10 @@ void otx2_cptpf_vfpf_mbox_handler(struct work_struct *work)
 		if (err == -ENOMEM || err == -EIO)
 			break;
 		offset = msg->next_msgoff;
+		/* Write barrier required for VF responses which are handled by
+		 * PF driver and not forwarded to AF.
+		 */
+		smp_wmb();
 	}
 	/* Send mbox responses to VF */
 	if (mdev->num_msgs)
@@ -350,6 +361,8 @@ void otx2_cptpf_afpf_mbox_handler(struct work_struct *work)
 			process_afpf_mbox_msg(cptpf, msg);
 
 		offset = msg->next_msgoff;
+		/* Sync VF response ready to be sent */
+		smp_wmb();
 		mdev->msgs_acked++;
 	}
 	otx2_mbox_reset(afpf_mbox, 0);

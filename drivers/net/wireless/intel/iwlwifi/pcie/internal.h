@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2003-2015, 2018-2021 Intel Corporation
+ * Copyright (C) 2003-2015, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -104,6 +104,18 @@ struct iwl_rx_completion_desc {
 } __packed;
 
 /**
+ * struct iwl_rx_completion_desc_bz - Bz completion descriptor
+ * @rbid: unique tag of the received buffer
+ * @flags: flags (0: fragmented, all others: reserved)
+ * @reserved: reserved
+ */
+struct iwl_rx_completion_desc_bz {
+	__le16 rbid;
+	u8 flags;
+	u8 reserved[1];
+} __packed;
+
+/**
  * struct iwl_rxq - Rx queue
  * @id: queue index
  * @bd: driver's pointer to buffer of receive buffer descriptors (rbd).
@@ -133,11 +145,7 @@ struct iwl_rxq {
 	int id;
 	void *bd;
 	dma_addr_t bd_dma;
-	union {
-		void *used_bd;
-		__le32 *bd_32;
-		struct iwl_rx_completion_desc *cd;
-	};
+	void *used_bd;
 	dma_addr_t used_bd_dma;
 	u32 read;
 	u32 write;
@@ -262,6 +270,20 @@ enum iwl_pcie_fw_reset_state {
 };
 
 /**
+ * enum wl_pcie_imr_status - imr dma transfer state
+ * @IMR_D2S_IDLE: default value of the dma transfer
+ * @IMR_D2S_REQUESTED: dma transfer requested
+ * @IMR_D2S_COMPLETED: dma transfer completed
+ * @IMR_D2S_ERROR: dma transfer error
+ */
+enum iwl_pcie_imr_status {
+	IMR_D2S_IDLE,
+	IMR_D2S_REQUESTED,
+	IMR_D2S_COMPLETED,
+	IMR_D2S_ERROR,
+};
+
+/**
  * struct iwl_trans_pcie - PCIe transport specific data
  * @rxq: all the RX queue data
  * @rx_pool: initial pool of iwl_rx_mem_buffer for all the queues
@@ -319,6 +341,8 @@ enum iwl_pcie_fw_reset_state {
  * @alloc_page_lock: spinlock for the page allocator
  * @alloc_page: allocated page to still use parts of
  * @alloc_page_used: how much of the allocated page was already used (bytes)
+ * @imr_status: imr dma state machine
+ * @wait_queue_head_t: imr wait queue for dma completion
  * @rf_name: name/version of the CRF, if any
  */
 struct iwl_trans_pcie {
@@ -363,7 +387,7 @@ struct iwl_trans_pcie {
 
 	/* PCI bus related data */
 	struct pci_dev *pci_dev;
-	void __iomem *hw_base;
+	u8 __iomem *hw_base;
 
 	bool ucode_write_complete;
 	bool sx_complete;
@@ -414,7 +438,8 @@ struct iwl_trans_pcie {
 	bool fw_reset_handshake;
 	enum iwl_pcie_fw_reset_state fw_reset_state;
 	wait_queue_head_t fw_reset_waitq;
-
+	enum iwl_pcie_imr_status imr_status;
+	wait_queue_head_t imr_waitq;
 	char rf_name[32];
 };
 
@@ -809,4 +834,9 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 			       struct iwl_host_cmd *cmd);
 int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 			  struct iwl_host_cmd *cmd);
+void iwl_trans_pcie_copy_imr_fh(struct iwl_trans *trans,
+				u32 dst_addr, u64 src_addr, u32 byte_cnt);
+int iwl_trans_pcie_copy_imr(struct iwl_trans *trans,
+			    u32 dst_addr, u64 src_addr, u32 byte_cnt);
+
 #endif /* __iwl_trans_int_pcie_h__ */

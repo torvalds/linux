@@ -393,10 +393,8 @@ static int sja1105_init_l2_lookup_params(struct sja1105_private *priv)
 		.start_dynspc = 0,
 		/* 2^8 + 2^5 + 2^3 + 2^2 + 2^1 + 1 in Koopman notation */
 		.poly = 0x97,
-		/* This selects between Independent VLAN Learning (IVL) and
-		 * Shared VLAN Learning (SVL)
-		 */
-		.shared_learn = true,
+		/* Always use Independent VLAN Learning (IVL) */
+		.shared_learn = false,
 		/* Don't discard management traffic based on ENFPORT -
 		 * we don't perform SMAC port enforcement anyway, so
 		 * what we are setting here doesn't matter.
@@ -1358,37 +1356,16 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 	return sja1105_clocking_setup_port(priv, port);
 }
 
-/* The SJA1105 MAC programming model is through the static config (the xMII
- * Mode table cannot be dynamically reconfigured), and we have to program
- * that early (earlier than PHYLINK calls us, anyway).
- * So just error out in case the connected PHY attempts to change the initial
- * system interface MII protocol from what is defined in the DT, at least for
- * now.
- */
-static bool sja1105_phy_mode_mismatch(struct sja1105_private *priv, int port,
-				      phy_interface_t interface)
+static struct phylink_pcs *
+sja1105_mac_select_pcs(struct dsa_switch *ds, int port, phy_interface_t iface)
 {
-	return priv->phy_mode[port] != interface;
-}
-
-static void sja1105_mac_config(struct dsa_switch *ds, int port,
-			       unsigned int mode,
-			       const struct phylink_link_state *state)
-{
-	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct sja1105_private *priv = ds->priv;
-	struct dw_xpcs *xpcs;
-
-	if (sja1105_phy_mode_mismatch(priv, port, state->interface)) {
-		dev_err(ds->dev, "Changing PHY mode to %s not supported!\n",
-			phy_modes(state->interface));
-		return;
-	}
-
-	xpcs = priv->xpcs[port];
+	struct dw_xpcs *xpcs = priv->xpcs[port];
 
 	if (xpcs)
-		phylink_set_pcs(dp->pl, &xpcs->pcs);
+		return &xpcs->pcs;
+
+	return NULL;
 }
 
 static void sja1105_mac_link_down(struct dsa_switch *ds, int port,
@@ -1412,48 +1389,53 @@ static void sja1105_mac_link_up(struct dsa_switch *ds, int port,
 	sja1105_inhibit_tx(priv, BIT(port), false);
 }
 
-static void sja1105_phylink_validate(struct dsa_switch *ds, int port,
-				     unsigned long *supported,
-				     struct phylink_link_state *state)
+static void sja1105_phylink_get_caps(struct dsa_switch *ds, int port,
+				     struct phylink_config *config)
 {
-	/* Construct a new mask which exhaustively contains all link features
-	 * supported by the MAC, and then apply that (logical AND) to what will
-	 * be sent to the PHY for "marketing".
-	 */
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_xmii_params_entry *mii;
+	phy_interface_t phy_mode;
 
-	mii = priv->static_config.tables[BLK_IDX_XMII_PARAMS].entries;
-
-	/* include/linux/phylink.h says:
-	 *     When @state->interface is %PHY_INTERFACE_MODE_NA, phylink
-	 *     expects the MAC driver to return all supported link modes.
+	/* This driver does not make use of the speed, duplex, pause or the
+	 * advertisement in its mac_config, so it is safe to mark this driver
+	 * as non-legacy.
 	 */
-	if (state->interface != PHY_INTERFACE_MODE_NA &&
-	    sja1105_phy_mode_mismatch(priv, port, state->interface)) {
-		linkmode_zero(supported);
-		return;
+	config->legacy_pre_march2020 = false;
+
+	phy_mode = priv->phy_mode[port];
+	if (phy_mode == PHY_INTERFACE_MODE_SGMII ||
+	    phy_mode == PHY_INTERFACE_MODE_2500BASEX) {
+		/* Changing the PHY mode on SERDES ports is possible and makes
+		 * sense, because that is done through the XPCS. We allow
+		 * changes between SGMII and 2500base-X.
+		 */
+		if (priv->info->supports_sgmii[port])
+			__set_bit(PHY_INTERFACE_MODE_SGMII,
+				  config->supported_interfaces);
+
+		if (priv->info->supports_2500basex[port])
+			__set_bit(PHY_INTERFACE_MODE_2500BASEX,
+				  config->supported_interfaces);
+	} else {
+		/* The SJA1105 MAC programming model is through the static
+		 * config (the xMII Mode table cannot be dynamically
+		 * reconfigured), and we have to program that early.
+		 */
+		__set_bit(phy_mode, config->supported_interfaces);
 	}
 
 	/* The MAC does not support pause frames, and also doesn't
 	 * support half-duplex traffic modes.
 	 */
-	phylink_set(mask, Autoneg);
-	phylink_set(mask, MII);
-	phylink_set(mask, 10baseT_Full);
-	phylink_set(mask, 100baseT_Full);
-	phylink_set(mask, 100baseT1_Full);
+	config->mac_capabilities = MAC_10FD | MAC_100FD;
+
+	mii = priv->static_config.tables[BLK_IDX_XMII_PARAMS].entries;
 	if (mii->xmii_mode[port] == XMII_MODE_RGMII ||
 	    mii->xmii_mode[port] == XMII_MODE_SGMII)
-		phylink_set(mask, 1000baseT_Full);
-	if (priv->info->supports_2500basex[port]) {
-		phylink_set(mask, 2500baseT_Full);
-		phylink_set(mask, 2500baseX_Full);
-	}
+		config->mac_capabilities |= MAC_1000FD;
 
-	linkmode_and(supported, supported, mask);
-	linkmode_and(state->advertising, state->advertising, mask);
+	if (priv->info->supports_2500basex[port])
+		config->mac_capabilities |= MAC_2500FD;
 }
 
 static int
@@ -1819,17 +1801,45 @@ int sja1105pqrs_fdb_del(struct dsa_switch *ds, int port,
 }
 
 static int sja1105_fdb_add(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid)
+			   const unsigned char *addr, u16 vid,
+			   struct dsa_db db)
 {
 	struct sja1105_private *priv = ds->priv;
+
+	if (!vid) {
+		switch (db.type) {
+		case DSA_DB_PORT:
+			vid = dsa_tag_8021q_standalone_vid(db.dp);
+			break;
+		case DSA_DB_BRIDGE:
+			vid = dsa_tag_8021q_bridge_vid(db.bridge.num);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+	}
 
 	return priv->info->fdb_add_cmd(ds, port, addr, vid);
 }
 
 static int sja1105_fdb_del(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid)
+			   const unsigned char *addr, u16 vid,
+			   struct dsa_db db)
 {
 	struct sja1105_private *priv = ds->priv;
+
+	if (!vid) {
+		switch (db.type) {
+		case DSA_DB_PORT:
+			vid = dsa_tag_8021q_standalone_vid(db.dp);
+			break;
+		case DSA_DB_BRIDGE:
+			vid = dsa_tag_8021q_bridge_vid(db.bridge.num);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+	}
 
 	return priv->info->fdb_del_cmd(ds, port, addr, vid);
 }
@@ -1837,7 +1847,6 @@ static int sja1105_fdb_del(struct dsa_switch *ds, int port,
 static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 			    dsa_fdb_dump_cb_t *cb, void *data)
 {
-	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct sja1105_private *priv = ds->priv;
 	struct device *dev = ds->dev;
 	int i;
@@ -1874,7 +1883,7 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 		u64_to_ether_addr(l2_lookup.macaddr, macaddr);
 
 		/* We need to hide the dsa_8021q VLANs from the user. */
-		if (!dsa_port_is_vlan_filtering(dp))
+		if (vid_is_dsa_8021q(l2_lookup.vlanid))
 			l2_lookup.vlanid = 0;
 		rc = cb(macaddr, l2_lookup.vlanid, l2_lookup.lockeds, data);
 		if (rc)
@@ -1885,7 +1894,15 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 
 static void sja1105_fast_age(struct dsa_switch *ds, int port)
 {
+	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct sja1105_private *priv = ds->priv;
+	struct dsa_db db = {
+		.type = DSA_DB_BRIDGE,
+		.bridge = {
+			.dev = dsa_port_bridge_dev_get(dp),
+			.num = dsa_port_bridge_num_get(dp),
+		},
+	};
 	int i;
 
 	for (i = 0; i < SJA1105_MAX_L2_LOOKUP_COUNT; i++) {
@@ -1913,7 +1930,7 @@ static void sja1105_fast_age(struct dsa_switch *ds, int port)
 
 		u64_to_ether_addr(l2_lookup.macaddr, macaddr);
 
-		rc = sja1105_fdb_del(ds, port, macaddr, l2_lookup.vlanid);
+		rc = sja1105_fdb_del(ds, port, macaddr, l2_lookup.vlanid, db);
 		if (rc) {
 			dev_err(ds->dev,
 				"Failed to delete FDB entry %pM vid %lld: %pe\n",
@@ -1924,15 +1941,17 @@ static void sja1105_fast_age(struct dsa_switch *ds, int port)
 }
 
 static int sja1105_mdb_add(struct dsa_switch *ds, int port,
-			   const struct switchdev_obj_port_mdb *mdb)
+			   const struct switchdev_obj_port_mdb *mdb,
+			   struct dsa_db db)
 {
-	return sja1105_fdb_add(ds, port, mdb->addr, mdb->vid);
+	return sja1105_fdb_add(ds, port, mdb->addr, mdb->vid, db);
 }
 
 static int sja1105_mdb_del(struct dsa_switch *ds, int port,
-			   const struct switchdev_obj_port_mdb *mdb)
+			   const struct switchdev_obj_port_mdb *mdb,
+			   struct dsa_db db)
 {
-	return sja1105_fdb_del(ds, port, mdb->addr, mdb->vid);
+	return sja1105_fdb_del(ds, port, mdb->addr, mdb->vid, db);
 }
 
 /* Common function for unicast and broadcast flood configuration.
@@ -2075,7 +2094,8 @@ static void sja1105_bridge_stp_state_set(struct dsa_switch *ds, int port,
 
 static int sja1105_bridge_join(struct dsa_switch *ds, int port,
 			       struct dsa_bridge bridge,
-			       bool *tx_fwd_offload)
+			       bool *tx_fwd_offload,
+			       struct netlink_ext_ack *extack)
 {
 	int rc;
 
@@ -2083,7 +2103,7 @@ static int sja1105_bridge_join(struct dsa_switch *ds, int port,
 	if (rc)
 		return rc;
 
-	rc = dsa_tag_8021q_bridge_tx_fwd_offload(ds, port, bridge);
+	rc = dsa_tag_8021q_bridge_join(ds, port, bridge);
 	if (rc) {
 		sja1105_bridge_member(ds, port, bridge, false);
 		return rc;
@@ -2097,7 +2117,7 @@ static int sja1105_bridge_join(struct dsa_switch *ds, int port,
 static void sja1105_bridge_leave(struct dsa_switch *ds, int port,
 				 struct dsa_bridge bridge)
 {
-	dsa_tag_8021q_bridge_tx_fwd_unoffload(ds, port, bridge);
+	dsa_tag_8021q_bridge_leave(ds, port, bridge);
 	sja1105_bridge_member(ds, port, bridge, false);
 }
 
@@ -2357,7 +2377,6 @@ sja1105_get_tag_protocol(struct dsa_switch *ds, int port,
 int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 			   struct netlink_ext_ack *extack)
 {
-	struct sja1105_l2_lookup_params_entry *l2_lookup_params;
 	struct sja1105_general_params_entry *general_params;
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_table *table;
@@ -2394,28 +2413,6 @@ int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 	 */
 	general_params->incl_srcpt1 = enabled;
 	general_params->incl_srcpt0 = enabled;
-
-	/* VLAN filtering => independent VLAN learning.
-	 * No VLAN filtering (or best effort) => shared VLAN learning.
-	 *
-	 * In shared VLAN learning mode, untagged traffic still gets
-	 * pvid-tagged, and the FDB table gets populated with entries
-	 * containing the "real" (pvid or from VLAN tag) VLAN ID.
-	 * However the switch performs a masked L2 lookup in the FDB,
-	 * effectively only looking up a frame's DMAC (and not VID) for the
-	 * forwarding decision.
-	 *
-	 * This is extremely convenient for us, because in modes with
-	 * vlan_filtering=0, dsa_8021q actually installs unique pvid's into
-	 * each front panel port. This is good for identification but breaks
-	 * learning badly - the VID of the learnt FDB entry is unique, aka
-	 * no frames coming from any other port are going to have it. So
-	 * for forwarding purposes, this is as though learning was broken
-	 * (all frames get flooded).
-	 */
-	table = &priv->static_config.tables[BLK_IDX_L2_LOOKUP_PARAMS];
-	l2_lookup_params = table->entries;
-	l2_lookup_params->shared_learn = !enabled;
 
 	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_is_unused_port(ds, port))
@@ -2525,7 +2522,7 @@ static int sja1105_bridge_vlan_add(struct dsa_switch *ds, int port,
 	 */
 	if (vid_is_dsa_8021q(vlan->vid)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Range 1024-3071 reserved for dsa_8021q operation");
+				   "Range 3072-4095 reserved for dsa_8021q operation");
 		return -EBUSY;
 	}
 
@@ -2850,7 +2847,7 @@ static int sja1105_mirror_apply(struct sja1105_private *priv, int from, int to,
 
 static int sja1105_mirror_add(struct dsa_switch *ds, int port,
 			      struct dsa_mall_mirror_tc_entry *mirror,
-			      bool ingress)
+			      bool ingress, struct netlink_ext_ack *extack)
 {
 	return sja1105_mirror_apply(ds->priv, port, mirror->to_local_port,
 				    ingress, true);
@@ -3102,6 +3099,7 @@ static int sja1105_setup(struct dsa_switch *ds)
 	 */
 	ds->vlan_filtering_is_global = true;
 	ds->untag_bridge_pvid = true;
+	ds->fdb_isolation = true;
 	/* tag_8021q has 3 bits for the VBID, and the value 0 is reserved */
 	ds->max_num_bridges = 7;
 
@@ -3152,8 +3150,8 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.set_ageing_time	= sja1105_set_ageing_time,
 	.port_change_mtu	= sja1105_change_mtu,
 	.port_max_mtu		= sja1105_get_max_mtu,
-	.phylink_validate	= sja1105_phylink_validate,
-	.phylink_mac_config	= sja1105_mac_config,
+	.phylink_get_caps	= sja1105_phylink_get_caps,
+	.phylink_mac_select_pcs	= sja1105_mac_select_pcs,
 	.phylink_mac_link_up	= sja1105_mac_link_up,
 	.phylink_mac_link_down	= sja1105_mac_link_down,
 	.get_strings		= sja1105_get_strings,
@@ -3346,18 +3344,16 @@ static int sja1105_probe(struct spi_device *spi)
 	return dsa_register_switch(priv->ds);
 }
 
-static int sja1105_remove(struct spi_device *spi)
+static void sja1105_remove(struct spi_device *spi)
 {
 	struct sja1105_private *priv = spi_get_drvdata(spi);
 
 	if (!priv)
-		return 0;
+		return;
 
 	dsa_unregister_switch(priv->ds);
 
 	spi_set_drvdata(spi, NULL);
-
-	return 0;
 }
 
 static void sja1105_shutdown(struct spi_device *spi)

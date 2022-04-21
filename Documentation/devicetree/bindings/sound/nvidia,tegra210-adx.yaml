@@ -30,6 +30,7 @@ properties:
       - const: nvidia,tegra210-adx
       - items:
           - enum:
+              - nvidia,tegra234-adx
               - nvidia,tegra194-adx
               - nvidia,tegra186-adx
           - const: nvidia,tegra210-adx

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_COBALT
 	tristate "Cisco Cobalt support"
-	depends on VIDEO_V4L2 && I2C
+	depends on VIDEO_DEV && I2C
 	depends on PCI_MSI && MTD_COMPLEX_MAPPINGS
 	depends on (GPIOLIB && DRM_I2C_ADV7511=n) || COMPILE_TEST
 	depends on SND

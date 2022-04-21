@@ -6,13 +6,15 @@
  * Author: Matt Ranostay <matt.ranostay@konsulko.com>
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/property.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
+
 #include <linux/iio/iio.h>
 
 #define ATLAS_EZO_DRV_NAME		"atlas-ezo-sensor"
@@ -33,7 +35,7 @@ struct atlas_ezo_device {
 
 struct atlas_ezo_data {
 	struct i2c_client *client;
-	struct atlas_ezo_device *chip;
+	const struct atlas_ezo_device *chip;
 
 	/* lock to avoid multiple concurrent read calls */
 	struct mutex lock;
@@ -184,17 +186,17 @@ static const struct iio_info atlas_info = {
 };
 
 static const struct i2c_device_id atlas_ezo_id[] = {
-	{ "atlas-co2-ezo", ATLAS_CO2_EZO },
-	{ "atlas-o2-ezo", ATLAS_O2_EZO },
-	{ "atlas-hum-ezo", ATLAS_HUM_EZO },
+	{ "atlas-co2-ezo", (kernel_ulong_t)&atlas_ezo_devices[ATLAS_CO2_EZO] },
+	{ "atlas-o2-ezo", (kernel_ulong_t)&atlas_ezo_devices[ATLAS_O2_EZO] },
+	{ "atlas-hum-ezo", (kernel_ulong_t)&atlas_ezo_devices[ATLAS_HUM_EZO] },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, atlas_ezo_id);
 
 static const struct of_device_id atlas_ezo_dt_ids[] = {
-	{ .compatible = "atlas,co2-ezo", .data = (void *)ATLAS_CO2_EZO, },
-	{ .compatible = "atlas,o2-ezo", .data = (void *)ATLAS_O2_EZO, },
-	{ .compatible = "atlas,hum-ezo", .data = (void *)ATLAS_HUM_EZO, },
+	{ .compatible = "atlas,co2-ezo", .data = &atlas_ezo_devices[ATLAS_CO2_EZO], },
+	{ .compatible = "atlas,o2-ezo", .data = &atlas_ezo_devices[ATLAS_O2_EZO], },
+	{ .compatible = "atlas,hum-ezo", .data = &atlas_ezo_devices[ATLAS_HUM_EZO], },
 	{}
 };
 MODULE_DEVICE_TABLE(of, atlas_ezo_dt_ids);
@@ -202,20 +204,20 @@ MODULE_DEVICE_TABLE(of, atlas_ezo_dt_ids);
 static int atlas_ezo_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id)
 {
+	const struct atlas_ezo_device *chip;
 	struct atlas_ezo_data *data;
-	struct atlas_ezo_device *chip;
-	const struct of_device_id *of_id;
 	struct iio_dev *indio_dev;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 
-	of_id = of_match_device(atlas_ezo_dt_ids, &client->dev);
-	if (!of_id)
-		chip = &atlas_ezo_devices[id->driver_data];
+	if (dev_fwnode(&client->dev))
+		chip = device_get_match_data(&client->dev);
 	else
-		chip = &atlas_ezo_devices[(unsigned long)of_id->data];
+		chip = (const struct atlas_ezo_device *)id->driver_data;
+	if (!chip)
+		return -EINVAL;
 
 	indio_dev->info = &atlas_info;
 	indio_dev->name = ATLAS_EZO_DRV_NAME;

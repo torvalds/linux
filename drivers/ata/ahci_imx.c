@@ -811,7 +811,7 @@ static const struct of_device_id imx_ahci_of_match[] = {
 	{ .compatible = "fsl,imx6q-ahci", .data = (void *)AHCI_IMX6Q },
 	{ .compatible = "fsl,imx6qp-ahci", .data = (void *)AHCI_IMX6QP },
 	{ .compatible = "fsl,imx8qm-ahci", .data = (void *)AHCI_IMX8QM },
-	{},
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx_ahci_of_match);
 

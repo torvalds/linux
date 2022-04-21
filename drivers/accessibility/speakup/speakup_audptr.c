@@ -126,20 +126,22 @@ static void synth_flush(struct spk_synth *synth)
 
 static void synth_version(struct spk_synth *synth)
 {
-	unsigned char test = 0;
-	char synth_id[40] = "";
+	unsigned i;
+	char synth_id[33];
 
 	synth->synth_immediate(synth, "\x05[Q]");
-	synth_id[test] = synth->io_ops->synth_in(synth);
-	if (synth_id[test] == 'A') {
-		do {
-			/* read version string from synth */
-			synth_id[++test] = synth->io_ops->synth_in(synth);
-		} while (synth_id[test] != '\n' && test < 32);
-		synth_id[++test] = 0x00;
+	synth_id[0] = synth->io_ops->synth_in(synth);
+	if (synth_id[0] != 'A')
+		return;
+
+	for (i = 1; i < sizeof(synth_id) - 1; i++) {
+		/* read version string from synth */
+		synth_id[i] = synth->io_ops->synth_in(synth);
+		if (synth_id[i] == '\n')
+			break;
 	}
-	if (synth_id[0] == 'A')
-		pr_info("%s version: %s", synth->long_name, synth_id);
+	synth_id[i] = '\0';
+	pr_info("%s version: %s", synth->long_name, synth_id);
 }
 
 static int synth_probe(struct spk_synth *synth)

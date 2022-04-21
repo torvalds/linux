@@ -62,6 +62,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/hashtable.h>
 #include <linux/percpu.h>
+#include <linux/sysctl.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/filelock.h>
@@ -88,8 +89,37 @@ static int target_leasetype(struct file_lock *fl)
 	return fl->fl_type;
 }
 
-int leases_enable = 1;
-int lease_break_time = 45;
+static int leases_enable = 1;
+static int lease_break_time = 45;
+
+#ifdef CONFIG_SYSCTL
+static struct ctl_table locks_sysctls[] = {
+	{
+		.procname	= "leases-enable",
+		.data		= &leases_enable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#ifdef CONFIG_MMU
+	{
+		.procname	= "lease-break-time",
+		.data		= &lease_break_time,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif /* CONFIG_MMU */
+	{}
+};
+
+static int __init init_fs_locks_sysctls(void)
+{
+	register_sysctl_init("fs", locks_sysctls);
+	return 0;
+}
+early_initcall(init_fs_locks_sysctls);
+#endif /* CONFIG_SYSCTL */
 
 /*
  * The global file_lock_list is only used for displaying /proc/locks, so we

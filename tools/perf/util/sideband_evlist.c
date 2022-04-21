@@ -114,7 +114,8 @@ int evlist__start_sb_thread(struct evlist *evlist, struct target *target)
 	}
 
 	evlist__for_each_entry(evlist, counter) {
-		if (evsel__open(counter, evlist->core.cpus, evlist->core.threads) < 0)
+		if (evsel__open(counter, evlist->core.user_requested_cpus,
+				evlist->core.threads) < 0)
 			goto out_delete_evlist;
 	}
 

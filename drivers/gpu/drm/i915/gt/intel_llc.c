@@ -7,8 +7,10 @@
 #include <linux/cpufreq.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_gt.h"
 #include "intel_llc.h"
+#include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
 
 struct ia_constants {
@@ -140,11 +142,10 @@ static void gen6_update_ring_freq(struct intel_llc *llc)
 		unsigned int ia_freq, ring_freq;
 
 		calc_ia_freq(llc, gpu_freq, &consts, &ia_freq, &ring_freq);
-		sandybridge_pcode_write(i915,
-					GEN6_PCODE_WRITE_MIN_FREQ_TABLE,
-					ia_freq << GEN6_PCODE_FREQ_IA_RATIO_SHIFT |
-					ring_freq << GEN6_PCODE_FREQ_RING_RATIO_SHIFT |
-					gpu_freq);
+		snb_pcode_write(i915, GEN6_PCODE_WRITE_MIN_FREQ_TABLE,
+				ia_freq << GEN6_PCODE_FREQ_IA_RATIO_SHIFT |
+				ring_freq << GEN6_PCODE_FREQ_RING_RATIO_SHIFT |
+				gpu_freq);
 	}
 }
 

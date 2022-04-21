@@ -43,6 +43,12 @@ void br_set_state(struct net_bridge_port *p, unsigned int state)
 		return;
 
 	p->state = state;
+	if (br_opt_get(p->br, BROPT_MST_ENABLED)) {
+		err = br_mst_set_state(p, 0, state, NULL);
+		if (err)
+			br_warn(p->br, "error setting MST state on port %u(%s)\n",
+				p->port_no, netdev_name(p->dev));
+	}
 	err = switchdev_port_attr_set(p->dev, &attr, NULL);
 	if (err && err != -EOPNOTSUPP)
 		br_warn(p->br, "error setting offload STP state on port %u(%s)\n",

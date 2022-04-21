@@ -227,9 +227,54 @@ struct vxlan_config {
 	enum ifla_vxlan_df	df;
 };
 
+enum {
+	VXLAN_VNI_STATS_RX,
+	VXLAN_VNI_STATS_RX_DROPS,
+	VXLAN_VNI_STATS_RX_ERRORS,
+	VXLAN_VNI_STATS_TX,
+	VXLAN_VNI_STATS_TX_DROPS,
+	VXLAN_VNI_STATS_TX_ERRORS,
+};
+
+struct vxlan_vni_stats {
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 rx_drops;
+	u64 rx_errors;
+	u64 tx_packets;
+	u64 tx_bytes;
+	u64 tx_drops;
+	u64 tx_errors;
+};
+
+struct vxlan_vni_stats_pcpu {
+	struct vxlan_vni_stats stats;
+	struct u64_stats_sync syncp;
+};
+
 struct vxlan_dev_node {
 	struct hlist_node hlist;
 	struct vxlan_dev *vxlan;
+};
+
+struct vxlan_vni_node {
+	struct rhash_head vnode;
+	struct vxlan_dev_node hlist4; /* vni hash table for IPv4 socket */
+#if IS_ENABLED(CONFIG_IPV6)
+	struct vxlan_dev_node hlist6; /* vni hash table for IPv6 socket */
+#endif
+	struct list_head vlist;
+	__be32 vni;
+	union vxlan_addr remote_ip; /* default remote ip for this vni */
+	struct vxlan_vni_stats_pcpu __percpu *stats;
+
+	struct rcu_head rcu;
+};
+
+struct vxlan_vni_group {
+	struct rhashtable	vni_hash;
+	struct list_head	vni_list;
+	u32			num_vnis;
 };
 
 /* Pseudo network device */
@@ -254,6 +299,8 @@ struct vxlan_dev {
 
 	struct vxlan_config	cfg;
 
+	struct vxlan_vni_group  __rcu *vnigrp;
+
 	struct hlist_head fdb_head[FDB_HASH_SIZE];
 };
 
@@ -274,6 +321,7 @@ struct vxlan_dev {
 #define VXLAN_F_GPE			0x4000
 #define VXLAN_F_IPV6_LINKLOCAL		0x8000
 #define VXLAN_F_TTL_INHERIT		0x10000
+#define VXLAN_F_VNIFILTER               0x20000
 
 /* Flags that are used in the receive path. These flags must match in
  * order for a socket to be shareable
@@ -283,7 +331,8 @@ struct vxlan_dev {
 					 VXLAN_F_UDP_ZERO_CSUM6_RX |	\
 					 VXLAN_F_REMCSUM_RX |		\
 					 VXLAN_F_REMCSUM_NOPARTIAL |	\
-					 VXLAN_F_COLLECT_METADATA)
+					 VXLAN_F_COLLECT_METADATA |	\
+					 VXLAN_F_VNIFILTER)
 
 /* Flags that can be set together with VXLAN_F_GPE. */
 #define VXLAN_F_ALLOWED_GPE		(VXLAN_F_GPE |			\
@@ -292,7 +341,8 @@ struct vxlan_dev {
 					 VXLAN_F_UDP_ZERO_CSUM_TX |	\
 					 VXLAN_F_UDP_ZERO_CSUM6_TX |	\
 					 VXLAN_F_UDP_ZERO_CSUM6_RX |	\
-					 VXLAN_F_COLLECT_METADATA)
+					 VXLAN_F_COLLECT_METADATA  |	\
+					 VXLAN_F_VNIFILTER)
 
 struct net_device *vxlan_dev_create(struct net *net, const char *name,
 				    u8 name_assign_type, struct vxlan_config *conf);

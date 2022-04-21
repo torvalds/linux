@@ -692,7 +692,7 @@ EXPORT_SYMBOL_GPL(devres_release_group);
 
 /*
  * Custom devres actions allow inserting a simple function call
- * into the teadown sequence.
+ * into the teardown sequence.
  */
 
 struct action_devres {
@@ -916,7 +916,7 @@ void *devm_krealloc(struct device *dev, void *ptr, size_t new_size, gfp_t gfp)
 
 	/*
 	 * We can copy the memory contents after releasing the lock as we're
-	 * no longer modyfing the list links.
+	 * no longer modifying the list links.
 	 */
 	memcpy(new_dr->data, old_dr->data,
 	       total_old_size - offsetof(struct devres, data));

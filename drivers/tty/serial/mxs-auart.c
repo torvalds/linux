@@ -1305,7 +1305,7 @@ static const struct uart_ops mxs_auart_ops = {
 static struct mxs_auart_port *auart_port[MXS_AUART_PORTS];
 
 #ifdef CONFIG_SERIAL_MXS_AUART_CONSOLE
-static void mxs_auart_console_putchar(struct uart_port *port, int ch)
+static void mxs_auart_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct mxs_auart_port *s = to_auart_port(port);
 	unsigned int to = 1000;

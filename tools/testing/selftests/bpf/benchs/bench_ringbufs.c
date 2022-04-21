@@ -151,7 +151,7 @@ static struct ringbuf_bench *ringbuf_setup_skeleton(void)
 		/* record data + header take 16 bytes */
 		skel->rodata->wakeup_data_size = args.sample_rate * 16;
 
-	bpf_map__resize(skel->maps.ringbuf, args.ringbuf_sz);
+	bpf_map__set_max_entries(skel->maps.ringbuf, args.ringbuf_sz);
 
 	if (ringbuf_bench__load(skel)) {
 		fprintf(stderr, "failed to load skeleton\n");

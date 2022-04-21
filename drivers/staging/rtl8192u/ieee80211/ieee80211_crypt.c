@@ -214,7 +214,7 @@ out:
 	return ret;
 }
 
-void __exit ieee80211_crypto_deinit(void)
+void ieee80211_crypto_deinit(void)
 {
 	struct list_head *ptr, *n;
 

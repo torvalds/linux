@@ -63,7 +63,7 @@ static void falcon_copy_firmware_image(struct falcon *falcon,
 
 	/* copy the whole thing taking into account endianness */
 	for (i = 0; i < firmware->size / sizeof(u32); i++)
-		virt[i] = le32_to_cpu(((u32 *)firmware->data)[i]);
+		virt[i] = le32_to_cpu(((__le32 *)firmware->data)[i]);
 }
 
 static int falcon_parse_firmware_image(struct falcon *falcon)

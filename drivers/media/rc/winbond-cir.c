@@ -470,7 +470,7 @@ wbcir_irq_handler(int irqno, void *cookie)
 		/* RX overflow? (read clears bit) */
 		if (inb(data->sbase + WBCIR_REG_SP3_LSR) & WBCIR_RX_OVERRUN) {
 			data->rxstate = WBCIR_RXSTATE_ERROR;
-			ir_raw_event_reset(data->dev);
+			ir_raw_event_overflow(data->dev);
 		}
 
 		/* TX underflow? */

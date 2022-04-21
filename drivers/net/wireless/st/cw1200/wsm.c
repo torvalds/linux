@@ -537,7 +537,7 @@ int wsm_set_tx_queue_params(struct cw1200_common *priv,
 {
 	int ret;
 	struct wsm_buf *buf = &priv->wsm_cmd_buf;
-	u8 queue_id_to_wmm_aci[] = {3, 2, 0, 1};
+	static const u8 queue_id_to_wmm_aci[] = { 3, 2, 0, 1 };
 
 	wsm_cmd_lock(priv);
 

@@ -24,22 +24,11 @@
 #include <asm/machdep.h>
 #include <asm/mce.h>
 #include <asm/nmi.h>
-#include <asm/asm-prototypes.h>
 
 #include "setup.h"
 
-static void machine_check_process_queued_event(struct irq_work *work);
-static void machine_check_ue_irq_work(struct irq_work *work);
 static void machine_check_ue_event(struct machine_check_event *evt);
 static void machine_process_ue_event(struct work_struct *work);
-
-static struct irq_work mce_event_process_work = {
-        .func = machine_check_process_queued_event,
-};
-
-static struct irq_work mce_ue_event_irq_work = {
-	.func = machine_check_ue_irq_work,
-};
 
 static DECLARE_WORK(mce_ue_event_work, machine_process_ue_event);
 
@@ -87,6 +76,13 @@ static void mce_set_error_info(struct machine_check_event *mce,
 	default:
 		break;
 	}
+}
+
+void mce_irq_work_queue(void)
+{
+	/* Raise decrementer interrupt */
+	arch_irq_work_raise();
+	set_mce_pending_irq_work();
 }
 
 /*
@@ -217,7 +213,7 @@ void release_mce_event(void)
 	get_mce_event(NULL, true);
 }
 
-static void machine_check_ue_irq_work(struct irq_work *work)
+static void machine_check_ue_work(void)
 {
 	schedule_work(&mce_ue_event_work);
 }
@@ -239,7 +235,7 @@ static void machine_check_ue_event(struct machine_check_event *evt)
 	       evt, sizeof(*evt));
 
 	/* Queue work to process this event later. */
-	irq_work_queue(&mce_ue_event_irq_work);
+	mce_irq_work_queue();
 }
 
 /*
@@ -249,7 +245,6 @@ void machine_check_queue_event(void)
 {
 	int index;
 	struct machine_check_event evt;
-	unsigned long msr;
 
 	if (!get_mce_event(&evt, MCE_EVENT_RELEASE))
 		return;
@@ -263,20 +258,7 @@ void machine_check_queue_event(void)
 	memcpy(&local_paca->mce_info->mce_event_queue[index],
 	       &evt, sizeof(evt));
 
-	/*
-	 * Queue irq work to process this event later. Before
-	 * queuing the work enable translation for non radix LPAR,
-	 * as irq_work_queue may try to access memory outside RMO
-	 * region.
-	 */
-	if (!radix_enabled() && firmware_has_feature(FW_FEATURE_LPAR)) {
-		msr = mfmsr();
-		mtmsr(msr | MSR_IR | MSR_DR);
-		irq_work_queue(&mce_event_process_work);
-		mtmsr(msr);
-	} else {
-		irq_work_queue(&mce_event_process_work);
-	}
+	mce_irq_work_queue();
 }
 
 void mce_common_process_ue(struct pt_regs *regs,
@@ -338,7 +320,7 @@ static void machine_process_ue_event(struct work_struct *work)
  * process pending MCE event from the mce event queue. This function will be
  * called during syscall exit.
  */
-static void machine_check_process_queued_event(struct irq_work *work)
+static void machine_check_process_queued_event(void)
 {
 	int index;
 	struct machine_check_event *evt;
@@ -360,6 +342,27 @@ static void machine_check_process_queued_event(struct irq_work *work)
 		}
 		machine_check_print_event_info(evt, false, false);
 		local_paca->mce_info->mce_queue_count--;
+	}
+}
+
+void set_mce_pending_irq_work(void)
+{
+	local_paca->mce_pending_irq_work = 1;
+}
+
+void clear_mce_pending_irq_work(void)
+{
+	local_paca->mce_pending_irq_work = 0;
+}
+
+void mce_run_irq_context_handlers(void)
+{
+	if (unlikely(local_paca->mce_pending_irq_work)) {
+		if (ppc_md.machine_check_log_err)
+			ppc_md.machine_check_log_err();
+		machine_check_process_queued_event();
+		machine_check_ue_work();
+		clear_mce_pending_irq_work();
 	}
 }
 
@@ -401,14 +404,14 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 	static const char *mc_ra_types[] = {
 		"Indeterminate",
 		"Instruction fetch (bad)",
-		"Instruction fetch (foreign)",
+		"Instruction fetch (foreign/control memory)",
 		"Page table walk ifetch (bad)",
-		"Page table walk ifetch (foreign)",
+		"Page table walk ifetch (foreign/control memory)",
 		"Load (bad)",
 		"Store (bad)",
 		"Page table walk Load/Store (bad)",
-		"Page table walk Load/Store (foreign)",
-		"Load/Store (foreign)",
+		"Page table walk Load/Store (foreign/control memory)",
+		"Load/Store (foreign/control memory)",
 	};
 	static const char *mc_link_types[] = {
 		"Indeterminate",

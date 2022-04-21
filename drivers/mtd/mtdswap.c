@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/genhd.h>
+#include <linux/blkdev.h>
 #include <linux/swap.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>

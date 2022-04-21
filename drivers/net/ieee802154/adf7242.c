@@ -1304,7 +1304,7 @@ err_alloc_wq:
 	return ret;
 }
 
-static int adf7242_remove(struct spi_device *spi)
+static void adf7242_remove(struct spi_device *spi)
 {
 	struct adf7242_local *lp = spi_get_drvdata(spi);
 
@@ -1316,8 +1316,6 @@ static int adf7242_remove(struct spi_device *spi)
 	ieee802154_unregister_hw(lp->hw);
 	mutex_destroy(&lp->bmux);
 	ieee802154_free_hw(lp->hw);
-
-	return 0;
 }
 
 static const struct of_device_id adf7242_of_match[] = {

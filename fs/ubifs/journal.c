@@ -1207,9 +1207,9 @@ out_free:
  * @sync: non-zero if the write-buffer has to be synchronized
  *
  * This function implements the re-name operation which may involve writing up
- * to 4 inodes and 2 directory entries. It marks the written inodes as clean
- * and returns zero on success. In case of failure, a negative error code is
- * returned.
+ * to 4 inodes(new inode, whiteout inode, old and new parent directory inodes)
+ * and 2 directory entries. It marks the written inodes as clean and returns
+ * zero on success. In case of failure, a negative error code is returned.
  */
 int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		     const struct inode *old_inode,
@@ -1222,14 +1222,15 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	void *p;
 	union ubifs_key key;
 	struct ubifs_dent_node *dent, *dent2;
-	int err, dlen1, dlen2, ilen, lnum, offs, len, orphan_added = 0;
+	int err, dlen1, dlen2, ilen, wlen, lnum, offs, len, orphan_added = 0;
 	int aligned_dlen1, aligned_dlen2, plen = UBIFS_INO_NODE_SZ;
 	int last_reference = !!(new_inode && new_inode->i_nlink == 0);
 	int move = (old_dir != new_dir);
-	struct ubifs_inode *new_ui;
+	struct ubifs_inode *new_ui, *whiteout_ui;
 	u8 hash_old_dir[UBIFS_HASH_ARR_SZ];
 	u8 hash_new_dir[UBIFS_HASH_ARR_SZ];
 	u8 hash_new_inode[UBIFS_HASH_ARR_SZ];
+	u8 hash_whiteout_inode[UBIFS_HASH_ARR_SZ];
 	u8 hash_dent1[UBIFS_HASH_ARR_SZ];
 	u8 hash_dent2[UBIFS_HASH_ARR_SZ];
 
@@ -1249,9 +1250,20 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	} else
 		ilen = 0;
 
+	if (whiteout) {
+		whiteout_ui = ubifs_inode(whiteout);
+		ubifs_assert(c, mutex_is_locked(&whiteout_ui->ui_mutex));
+		ubifs_assert(c, whiteout->i_nlink == 1);
+		ubifs_assert(c, !whiteout_ui->dirty);
+		wlen = UBIFS_INO_NODE_SZ;
+		wlen += whiteout_ui->data_len;
+	} else
+		wlen = 0;
+
 	aligned_dlen1 = ALIGN(dlen1, 8);
 	aligned_dlen2 = ALIGN(dlen2, 8);
-	len = aligned_dlen1 + aligned_dlen2 + ALIGN(ilen, 8) + ALIGN(plen, 8);
+	len = aligned_dlen1 + aligned_dlen2 + ALIGN(ilen, 8) +
+	      ALIGN(wlen, 8) + ALIGN(plen, 8);
 	if (move)
 		len += plen;
 
@@ -1313,6 +1325,15 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		p += ALIGN(ilen, 8);
 	}
 
+	if (whiteout) {
+		pack_inode(c, p, whiteout, 0);
+		err = ubifs_node_calc_hash(c, p, hash_whiteout_inode);
+		if (err)
+			goto out_release;
+
+		p += ALIGN(wlen, 8);
+	}
+
 	if (!move) {
 		pack_inode(c, p, old_dir, 1);
 		err = ubifs_node_calc_hash(c, p, hash_old_dir);
@@ -1352,6 +1373,9 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		if (new_inode)
 			ubifs_wbuf_add_ino_nolock(&c->jheads[BASEHD].wbuf,
 						  new_inode->i_ino);
+		if (whiteout)
+			ubifs_wbuf_add_ino_nolock(&c->jheads[BASEHD].wbuf,
+						  whiteout->i_ino);
 	}
 	release_head(c, BASEHD);
 
@@ -1368,8 +1392,6 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		err = ubifs_tnc_add_nm(c, &key, lnum, offs, dlen2, hash_dent2, old_nm);
 		if (err)
 			goto out_ro;
-
-		ubifs_delete_orphan(c, whiteout->i_ino);
 	} else {
 		err = ubifs_add_dirt(c, lnum, dlen2);
 		if (err)
@@ -1388,6 +1410,15 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		if (err)
 			goto out_ro;
 		offs += ALIGN(ilen, 8);
+	}
+
+	if (whiteout) {
+		ino_key_init(c, &key, whiteout->i_ino);
+		err = ubifs_tnc_add(c, &key, lnum, offs, wlen,
+				    hash_whiteout_inode);
+		if (err)
+			goto out_ro;
+		offs += ALIGN(wlen, 8);
 	}
 
 	ino_key_init(c, &key, old_dir->i_ino);
@@ -1410,6 +1441,11 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		new_ui->synced_i_size = new_ui->ui_size;
 		spin_unlock(&new_ui->ui_lock);
 	}
+	/*
+	 * No need to mark whiteout inode clean.
+	 * Whiteout doesn't have non-zero size, no need to update
+	 * synced_i_size for whiteout_ui.
+	 */
 	mark_inode_clean(c, ubifs_inode(old_dir));
 	if (move)
 		mark_inode_clean(c, ubifs_inode(new_dir));

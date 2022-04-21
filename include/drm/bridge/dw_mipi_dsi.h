@@ -51,7 +51,9 @@ struct dw_mipi_dsi_plat_data {
 	unsigned int max_data_lanes;
 
 	enum drm_mode_status (*mode_valid)(void *priv_data,
-					   const struct drm_display_mode *mode);
+					   const struct drm_display_mode *mode,
+					   unsigned long mode_flags,
+					   u32 lanes, u32 format);
 
 	const struct dw_mipi_dsi_phy_ops *phy_ops;
 	const struct dw_mipi_dsi_host_ops *host_ops;

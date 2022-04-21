@@ -198,6 +198,15 @@ The glob (~) accepts a wild card character (\*,?) and character classes
   prev_comm ~ "*sh*"
   prev_comm ~ "ba*sh"
 
+If the field is a pointer that points into user space (for example
+"filename" from sys_enter_openat), then you have to append ".ustring" to the
+field name::
+
+  filename.ustring ~ "password"
+
+As the kernel will have to know how to retrieve the memory that the pointer
+is at from user space.
+
 5.2 Setting filters
 -------------------
 
@@ -229,6 +238,16 @@ an error message can be seen by looking at the filter e.g.::
 Currently the caret ('^') for an error always appears at the beginning of
 the filter string; the error message should still be useful though
 even without more accurate position info.
+
+5.2.1 Filter limitations
+------------------------
+
+If a filter is placed on a string pointer ``(char *)`` that does not point
+to a string on the ring buffer, but instead points to kernel or user space
+memory, then, for safety reasons, at most 1024 bytes of the content is
+copied onto a temporary buffer to do the compare. If the copy of the memory
+faults (the pointer points to memory that should not be accessed), then the
+string compare will be treated as not matching.
 
 5.3 Clearing filters
 --------------------

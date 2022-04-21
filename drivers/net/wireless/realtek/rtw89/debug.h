@@ -23,6 +23,7 @@ enum rtw89_debug_mask {
 	RTW89_DBG_FW = BIT(12),
 	RTW89_DBG_BTC = BIT(13),
 	RTW89_DBG_BF = BIT(14),
+	RTW89_DBG_HW_SCAN = BIT(15),
 };
 
 enum rtw89_debug_mac_reg_sel {

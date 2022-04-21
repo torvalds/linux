@@ -149,6 +149,11 @@ static const struct mmc_fixup __maybe_unused sdio_fixup_methods[] = {
 static const struct mmc_fixup __maybe_unused sdio_card_init_methods[] = {
 	SDIO_FIXUP_COMPATIBLE("ti,wl1251", wl1251_quirk, 0),
 
+	SDIO_FIXUP_COMPATIBLE("silabs,wf200", add_quirk,
+			      MMC_QUIRK_BROKEN_BYTE_MODE_512 |
+			      MMC_QUIRK_LENIENT_FN0 |
+			      MMC_QUIRK_BLKSZ_FOR_BYTE_MODE),
+
 	END_FIXUP
 };
 

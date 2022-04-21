@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -217,8 +217,8 @@ u64 goya_get_max_power(struct hl_device *hdev);
 void goya_set_max_power(struct hl_device *hdev, u64 value);
 
 void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
-void goya_add_device_attr(struct hl_device *hdev,
-			struct attribute_group *dev_attr_grp);
+void goya_add_device_attr(struct hl_device *hdev, struct attribute_group *dev_clk_attr_grp,
+				struct attribute_group *dev_vrm_attr_grp);
 int goya_cpucp_info_get(struct hl_device *hdev);
 int goya_debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, void *data);
 void goya_halt_coresight(struct hl_device *hdev, struct hl_ctx *ctx);

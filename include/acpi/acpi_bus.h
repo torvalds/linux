@@ -480,6 +480,8 @@ void acpi_initialize_hp_context(struct acpi_device *adev,
 /* acpi_device.dev.bus == &acpi_bus_type */
 extern struct bus_type acpi_bus_type;
 
+int acpi_bus_for_each_dev(int (*fn)(struct device *, void *), void *data);
+
 /*
  * Events
  * ------
@@ -507,7 +509,6 @@ extern int unregister_acpi_notifier(struct notifier_block *);
  * External Functions
  */
 
-int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device);
 struct acpi_device *acpi_fetch_acpi_dev(acpi_handle handle);
 acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta);

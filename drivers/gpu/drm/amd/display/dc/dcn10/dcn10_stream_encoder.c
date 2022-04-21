@@ -902,19 +902,6 @@ void enc1_stream_encoder_stop_dp_info_packets(
 
 }
 
-void enc1_stream_encoder_reset_fifo(
-	struct stream_encoder *enc)
-{
-	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
-
-	/* set DIG_START to 0x1 to reset FIFO */
-	REG_UPDATE(DIG_FE_CNTL, DIG_START, 1);
-	udelay(100);
-
-	/* write 0 to take the FIFO out of reset */
-	REG_UPDATE(DIG_FE_CNTL, DIG_START, 0);
-}
-
 void enc1_stream_encoder_dp_blank(
 	struct dc_link *link,
 	struct stream_encoder *enc)
@@ -1600,8 +1587,6 @@ static const struct stream_encoder_funcs dcn10_str_enc_funcs = {
 		enc1_stream_encoder_send_immediate_sdp_message,
 	.stop_dp_info_packets =
 		enc1_stream_encoder_stop_dp_info_packets,
-	.reset_fifo =
-		enc1_stream_encoder_reset_fifo,
 	.dp_blank =
 		enc1_stream_encoder_dp_blank,
 	.dp_unblank =

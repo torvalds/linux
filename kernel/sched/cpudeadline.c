@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  kernel/sched/cpudl.c
+ *  kernel/sched/cpudeadline.c
  *
  *  Global CPU deadline management
  *
  *  Author: Juri Lelli <j.lelli@sssup.it>
  */
-#include "sched.h"
 
 static inline int parent(int i)
 {

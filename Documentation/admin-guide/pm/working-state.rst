@@ -15,3 +15,4 @@ Working-State Power Management
    cpufreq_drivers
    intel_epb
    intel-speed-select
+   intel_uncore_frequency_scaling

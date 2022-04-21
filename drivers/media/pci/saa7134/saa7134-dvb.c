@@ -26,7 +26,7 @@
 #include "mt352_priv.h" /* FIXME */
 #include "tda1004x.h"
 #include "nxt200x.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "xc5000.h"
 
 #include "tda10086.h"

@@ -598,7 +598,7 @@ static const struct uart_ops lqasc_pops = {
 
 #ifdef CONFIG_SERIAL_LANTIQ_CONSOLE
 static void
-lqasc_console_putchar(struct uart_port *port, int ch)
+lqasc_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	int fifofree;
 

@@ -992,17 +992,13 @@ static int read_partial_message_section(struct ceph_connection *con,
 
 static int read_partial_msg_data(struct ceph_connection *con)
 {
-	struct ceph_msg *msg = con->in_msg;
-	struct ceph_msg_data_cursor *cursor = &msg->cursor;
+	struct ceph_msg_data_cursor *cursor = &con->in_msg->cursor;
 	bool do_datacrc = !ceph_test_opt(from_msgr(con->msgr), NOCRC);
 	struct page *page;
 	size_t page_offset;
 	size_t length;
 	u32 crc = 0;
 	int ret;
-
-	if (!msg->num_data_items)
-		return -EIO;
 
 	if (do_datacrc)
 		crc = con->in_data_crc;
@@ -1027,6 +1023,46 @@ static int read_partial_msg_data(struct ceph_connection *con)
 	}
 	if (do_datacrc)
 		con->in_data_crc = crc;
+
+	return 1;	/* must return > 0 to indicate success */
+}
+
+static int read_partial_msg_data_bounce(struct ceph_connection *con)
+{
+	struct ceph_msg_data_cursor *cursor = &con->in_msg->cursor;
+	struct page *page;
+	size_t off, len;
+	u32 crc;
+	int ret;
+
+	if (unlikely(!con->bounce_page)) {
+		con->bounce_page = alloc_page(GFP_NOIO);
+		if (!con->bounce_page) {
+			pr_err("failed to allocate bounce page\n");
+			return -ENOMEM;
+		}
+	}
+
+	crc = con->in_data_crc;
+	while (cursor->total_resid) {
+		if (!cursor->resid) {
+			ceph_msg_data_advance(cursor, 0);
+			continue;
+		}
+
+		page = ceph_msg_data_next(cursor, &off, &len, NULL);
+		ret = ceph_tcp_recvpage(con->sock, con->bounce_page, 0, len);
+		if (ret <= 0) {
+			con->in_data_crc = crc;
+			return ret;
+		}
+
+		crc = crc32c(crc, page_address(con->bounce_page), ret);
+		memcpy_to_page(page, off, page_address(con->bounce_page), ret);
+
+		ceph_msg_data_advance(cursor, ret);
+	}
+	con->in_data_crc = crc;
 
 	return 1;	/* must return > 0 to indicate success */
 }
@@ -1141,7 +1177,13 @@ static int read_partial_message(struct ceph_connection *con)
 
 	/* (page) data */
 	if (data_len) {
-		ret = read_partial_msg_data(con);
+		if (!m->num_data_items)
+			return -EIO;
+
+		if (ceph_test_opt(from_msgr(con->msgr), RXBOUNCE))
+			ret = read_partial_msg_data_bounce(con);
+		else
+			ret = read_partial_msg_data(con);
 		if (ret <= 0)
 			return ret;
 	}

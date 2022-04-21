@@ -429,7 +429,7 @@ lpfc_config_msi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
 
 	/*
-	 * SLI-3, Message Signaled Interrupt Fearure.
+	 * SLI-3, Message Signaled Interrupt Feature.
 	 */
 
 	/* Multi-message attention configuration */

@@ -15,10 +15,6 @@
  *                    Michael Trimarchi <michael@amarulasolutions.com>,
  *                    Fabio Checconi <fchecconi@gmail.com>
  */
-#include "sched.h"
-#include "pelt.h"
-
-struct dl_bandwidth def_dl_bandwidth;
 
 static inline struct task_struct *dl_task_of(struct sched_dl_entity *dl_se)
 {
@@ -130,6 +126,21 @@ static inline bool dl_bw_visited(int cpu, u64 gen)
 	rd->visit_gen = gen;
 	return false;
 }
+
+static inline
+void __dl_update(struct dl_bw *dl_b, s64 bw)
+{
+	struct root_domain *rd = container_of(dl_b, struct root_domain, dl_bw);
+	int i;
+
+	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held(),
+			 "sched RCU must be held");
+	for_each_cpu_and(i, rd->span, cpu_active_mask) {
+		struct rq *rq = cpu_rq(i);
+
+		rq->dl.extra_bw += bw;
+	}
+}
 #else
 static inline struct dl_bw *dl_bw_of(int i)
 {
@@ -150,7 +161,36 @@ static inline bool dl_bw_visited(int cpu, u64 gen)
 {
 	return false;
 }
+
+static inline
+void __dl_update(struct dl_bw *dl_b, s64 bw)
+{
+	struct dl_rq *dl = container_of(dl_b, struct dl_rq, dl_bw);
+
+	dl->extra_bw += bw;
+}
 #endif
+
+static inline
+void __dl_sub(struct dl_bw *dl_b, u64 tsk_bw, int cpus)
+{
+	dl_b->total_bw -= tsk_bw;
+	__dl_update(dl_b, (s32)tsk_bw / cpus);
+}
+
+static inline
+void __dl_add(struct dl_bw *dl_b, u64 tsk_bw, int cpus)
+{
+	dl_b->total_bw += tsk_bw;
+	__dl_update(dl_b, -((s32)tsk_bw / cpus));
+}
+
+static inline bool
+__dl_overflow(struct dl_bw *dl_b, unsigned long cap, u64 old_bw, u64 new_bw)
+{
+	return dl_b->bw != -1 &&
+	       cap_scale(dl_b->bw, cap) < dl_b->total_bw - old_bw + new_bw;
+}
 
 static inline
 void __add_running_bw(u64 dl_bw, struct dl_rq *dl_rq)
@@ -408,7 +448,7 @@ static inline int is_leftmost(struct task_struct *p, struct dl_rq *dl_rq)
 {
 	struct sched_dl_entity *dl_se = &p->dl;
 
-	return dl_rq->root.rb_leftmost == &dl_se->rb_node;
+	return rb_first_cached(&dl_rq->root) == &dl_se->rb_node;
 }
 
 static void init_dl_rq_bw_ratio(struct dl_rq *dl_rq);
@@ -423,12 +463,10 @@ void init_dl_bandwidth(struct dl_bandwidth *dl_b, u64 period, u64 runtime)
 void init_dl_bw(struct dl_bw *dl_b)
 {
 	raw_spin_lock_init(&dl_b->lock);
-	raw_spin_lock(&def_dl_bandwidth.dl_runtime_lock);
 	if (global_rt_runtime() == RUNTIME_INF)
 		dl_b->bw = -1;
 	else
 		dl_b->bw = to_ratio(global_rt_period(), global_rt_runtime());
-	raw_spin_unlock(&def_dl_bandwidth.dl_runtime_lock);
 	dl_b->total_bw = 0;
 }
 
@@ -680,15 +718,6 @@ void inc_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 
 static inline
 void dec_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
-{
-}
-
-static inline bool need_pull_dl_task(struct rq *rq, struct task_struct *prev)
-{
-	return false;
-}
-
-static inline void pull_dl_task(struct rq *rq)
 {
 }
 
@@ -1393,6 +1422,9 @@ void init_dl_inactive_task_timer(struct sched_dl_entity *dl_se)
 	timer->function = inactive_task_timer;
 }
 
+#define __node_2_dle(node) \
+	rb_entry((node), struct sched_dl_entity, rb_node)
+
 #ifdef CONFIG_SMP
 
 static void inc_dl_deadline(struct dl_rq *dl_rq, u64 deadline)
@@ -1422,10 +1454,9 @@ static void dec_dl_deadline(struct dl_rq *dl_rq, u64 deadline)
 		cpudl_clear(&rq->rd->cpudl, rq->cpu);
 		cpupri_set(&rq->rd->cpupri, rq->cpu, rq->rt.highest_prio.curr);
 	} else {
-		struct rb_node *leftmost = dl_rq->root.rb_leftmost;
-		struct sched_dl_entity *entry;
+		struct rb_node *leftmost = rb_first_cached(&dl_rq->root);
+		struct sched_dl_entity *entry = __node_2_dle(leftmost);
 
-		entry = rb_entry(leftmost, struct sched_dl_entity, rb_node);
 		dl_rq->earliest_dl.curr = entry->deadline;
 		cpudl_set(&rq->rd->cpudl, rq->cpu, entry->deadline);
 	}
@@ -1465,9 +1496,6 @@ void dec_dl_tasks(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 	dec_dl_deadline(dl_rq, dl_se->deadline);
 	dec_dl_migration(dl_se, dl_rq);
 }
-
-#define __node_2_dle(node) \
-	rb_entry((node), struct sched_dl_entity, rb_node)
 
 static inline bool __dl_less(struct rb_node *a, const struct rb_node *b)
 {
@@ -1931,15 +1959,14 @@ static void set_next_task_dl(struct rq *rq, struct task_struct *p, bool first)
 	deadline_queue_push_tasks(rq);
 }
 
-static struct sched_dl_entity *pick_next_dl_entity(struct rq *rq,
-						   struct dl_rq *dl_rq)
+static struct sched_dl_entity *pick_next_dl_entity(struct dl_rq *dl_rq)
 {
 	struct rb_node *left = rb_first_cached(&dl_rq->root);
 
 	if (!left)
 		return NULL;
 
-	return rb_entry(left, struct sched_dl_entity, rb_node);
+	return __node_2_dle(left);
 }
 
 static struct task_struct *pick_task_dl(struct rq *rq)
@@ -1951,7 +1978,7 @@ static struct task_struct *pick_task_dl(struct rq *rq)
 	if (!sched_dl_runnable(rq))
 		return NULL;
 
-	dl_se = pick_next_dl_entity(rq, dl_rq);
+	dl_se = pick_next_dl_entity(dl_rq);
 	BUG_ON(!dl_se);
 	p = dl_task_of(dl_se);
 
@@ -2034,15 +2061,17 @@ static int pick_dl_task(struct rq *rq, struct task_struct *p, int cpu)
  */
 static struct task_struct *pick_earliest_pushable_dl_task(struct rq *rq, int cpu)
 {
-	struct rb_node *next_node = rq->dl.pushable_dl_tasks_root.rb_leftmost;
 	struct task_struct *p = NULL;
+	struct rb_node *next_node;
 
 	if (!has_pushable_dl_tasks(rq))
 		return NULL;
 
+	next_node = rb_first_cached(&rq->dl.pushable_dl_tasks_root);
+
 next_node:
 	if (next_node) {
-		p = rb_entry(next_node, struct task_struct, pushable_dl_tasks);
+		p = __node_2_pdl(next_node);
 
 		if (pick_dl_task(rq, p, cpu))
 			return p;
@@ -2208,8 +2237,7 @@ static struct task_struct *pick_next_pushable_dl_task(struct rq *rq)
 	if (!has_pushable_dl_tasks(rq))
 		return NULL;
 
-	p = rb_entry(rq->dl.pushable_dl_tasks_root.rb_leftmost,
-		     struct task_struct, pushable_dl_tasks);
+	p = __node_2_pdl(rb_first_cached(&rq->dl.pushable_dl_tasks_root));
 
 	BUG_ON(rq->cpu != task_cpu(p));
 	BUG_ON(task_current(rq, p));
@@ -2240,12 +2268,6 @@ static int push_dl_task(struct rq *rq)
 		return 0;
 
 retry:
-	if (is_migration_disabled(next_task))
-		return 0;
-
-	if (WARN_ON(next_task == rq->curr))
-		return 0;
-
 	/*
 	 * If next_task preempts rq->curr, and rq->curr
 	 * can move away, it makes sense to just reschedule
@@ -2257,6 +2279,12 @@ retry:
 		resched_curr(rq);
 		return 0;
 	}
+
+	if (is_migration_disabled(next_task))
+		return 0;
+
+	if (WARN_ON(next_task == rq->curr))
+		return 0;
 
 	/* We might release rq lock */
 	get_task_struct(next_task);
@@ -2731,9 +2759,6 @@ void sched_dl_do_global(void)
 	int cpu;
 	unsigned long flags;
 
-	def_dl_bandwidth.dl_period = global_rt_period();
-	def_dl_bandwidth.dl_runtime = global_rt_runtime();
-
 	if (global_rt_runtime() != RUNTIME_INF)
 		new_bw = to_ratio(global_rt_period(), global_rt_runtime());
 
@@ -2955,41 +2980,6 @@ bool dl_param_changed(struct task_struct *p, const struct sched_attr *attr)
 }
 
 #ifdef CONFIG_SMP
-int dl_task_can_attach(struct task_struct *p, const struct cpumask *cs_cpus_allowed)
-{
-	unsigned long flags, cap;
-	unsigned int dest_cpu;
-	struct dl_bw *dl_b;
-	bool overflow;
-	int ret;
-
-	dest_cpu = cpumask_any_and(cpu_active_mask, cs_cpus_allowed);
-
-	rcu_read_lock_sched();
-	dl_b = dl_bw_of(dest_cpu);
-	raw_spin_lock_irqsave(&dl_b->lock, flags);
-	cap = dl_bw_capacity(dest_cpu);
-	overflow = __dl_overflow(dl_b, cap, 0, p->dl.dl_bw);
-	if (overflow) {
-		ret = -EBUSY;
-	} else {
-		/*
-		 * We reserve space for this task in the destination
-		 * root_domain, as we can't fail after this point.
-		 * We will free resources in the source root_domain
-		 * later on (see set_cpus_allowed_dl()).
-		 */
-		int cpus = dl_bw_cpus(dest_cpu);
-
-		__dl_add(dl_b, p->dl.dl_bw, cpus);
-		ret = 0;
-	}
-	raw_spin_unlock_irqrestore(&dl_b->lock, flags);
-	rcu_read_unlock_sched();
-
-	return ret;
-}
-
 int dl_cpuset_cpumask_can_shrink(const struct cpumask *cur,
 				 const struct cpumask *trial)
 {
@@ -3011,7 +3001,7 @@ int dl_cpuset_cpumask_can_shrink(const struct cpumask *cur,
 	return ret;
 }
 
-bool dl_cpu_busy(unsigned int cpu)
+int dl_cpu_busy(int cpu, struct task_struct *p)
 {
 	unsigned long flags, cap;
 	struct dl_bw *dl_b;
@@ -3021,11 +3011,22 @@ bool dl_cpu_busy(unsigned int cpu)
 	dl_b = dl_bw_of(cpu);
 	raw_spin_lock_irqsave(&dl_b->lock, flags);
 	cap = dl_bw_capacity(cpu);
-	overflow = __dl_overflow(dl_b, cap, 0, 0);
+	overflow = __dl_overflow(dl_b, cap, 0, p ? p->dl.dl_bw : 0);
+
+	if (!overflow && p) {
+		/*
+		 * We reserve space for this task in the destination
+		 * root_domain, as we can't fail after this point.
+		 * We will free resources in the source root_domain
+		 * later on (see set_cpus_allowed_dl()).
+		 */
+		__dl_add(dl_b, p->dl.dl_bw, dl_bw_cpus(cpu));
+	}
+
 	raw_spin_unlock_irqrestore(&dl_b->lock, flags);
 	rcu_read_unlock_sched();
 
-	return overflow;
+	return overflow ? -EBUSY : 0;
 }
 #endif
 

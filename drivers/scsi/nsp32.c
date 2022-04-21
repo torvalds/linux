@@ -273,6 +273,7 @@ static struct scsi_host_template nsp32_template = {
 	.eh_abort_handler		= nsp32_eh_abort,
 	.eh_host_reset_handler		= nsp32_eh_host_reset,
 /*	.highmem_io			= 1, */
+	.cmd_size			= sizeof(struct nsp32_cmd_priv),
 };
 
 #include "nsp32_io.h"
@@ -946,13 +947,8 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt)
 	show_command(SCpnt);
 
 	data->CurrentSC      = SCpnt;
-	SCpnt->SCp.Status    = SAM_STAT_CHECK_CONDITION;
+	nsp32_priv(SCpnt)->status = SAM_STAT_CHECK_CONDITION;
 	scsi_set_resid(SCpnt, scsi_bufflen(SCpnt));
-
-	SCpnt->SCp.ptr		    = (char *)scsi_sglist(SCpnt);
-	SCpnt->SCp.this_residual    = scsi_bufflen(SCpnt);
-	SCpnt->SCp.buffer	    = NULL;
-	SCpnt->SCp.buffers_residual = 0;
 
 	/* initialize data */
 	data->msgout_len	= 0;
@@ -1376,7 +1372,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 		case BUSPHASE_STATUS:
 			nsp32_dbg(NSP32_DEBUG_INTR, "fifo/status");
 
-			SCpnt->SCp.Status = nsp32_read1(base, SCSI_CSB_IN);
+			nsp32_priv(SCpnt)->status = nsp32_read1(base, SCSI_CSB_IN);
 
 			break;
 		default:
@@ -1687,18 +1683,18 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 		/* MsgIn 00: Command Complete */
 		nsp32_dbg(NSP32_DEBUG_BUSFREE, "command complete");
 
-		SCpnt->SCp.Status  = nsp32_read1(base, SCSI_CSB_IN);
+		nsp32_priv(SCpnt)->status  = nsp32_read1(base, SCSI_CSB_IN);
 		nsp32_dbg(NSP32_DEBUG_BUSFREE,
 			  "normal end stat=0x%x resid=0x%x\n",
-			  SCpnt->SCp.Status, scsi_get_resid(SCpnt));
+			  nsp32_priv(SCpnt)->status, scsi_get_resid(SCpnt));
 		SCpnt->result = (DID_OK << 16) |
-			(SCpnt->SCp.Status << 0);
+			(nsp32_priv(SCpnt)->status << 0);
 		nsp32_scsi_done(SCpnt);
 		/* All operation is done */
 		return TRUE;
 	} else if (execph & MSGIN_04_VALID) {
 		/* MsgIn 04: Disconnect */
-		SCpnt->SCp.Status  = nsp32_read1(base, SCSI_CSB_IN);
+		nsp32_priv(SCpnt)->status = nsp32_read1(base, SCSI_CSB_IN);
 
 		nsp32_dbg(NSP32_DEBUG_BUSFREE, "disconnect");
 		return TRUE;
@@ -1706,8 +1702,6 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 		/* Unexpected bus free */
 		nsp32_msg(KERN_WARNING, "unexpected bus free occurred");
 
-		/* DID_ERROR? */
-		//SCpnt->result   = (DID_OK << 16) | (SCpnt->SCp.Status << 0);
 		SCpnt->result = DID_ERROR << 16;
 		nsp32_scsi_done(SCpnt);
 		return TRUE;

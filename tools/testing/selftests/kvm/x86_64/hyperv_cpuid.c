@@ -49,16 +49,13 @@ static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
 			  bool evmcs_expected)
 {
 	int i;
-	int nent = 9;
+	int nent_expected = 10;
 	u32 test_val;
 
-	if (evmcs_expected)
-		nent += 1; /* 0x4000000A */
-
-	TEST_ASSERT(hv_cpuid_entries->nent == nent,
+	TEST_ASSERT(hv_cpuid_entries->nent == nent_expected,
 		    "KVM_GET_SUPPORTED_HV_CPUID should return %d entries"
-		    " with evmcs=%d (returned %d)",
-		    nent, evmcs_expected, hv_cpuid_entries->nent);
+		    " (returned %d)",
+		    nent_expected, hv_cpuid_entries->nent);
 
 	for (i = 0; i < hv_cpuid_entries->nent; i++) {
 		struct kvm_cpuid_entry2 *entry = &hv_cpuid_entries->entries[i];
@@ -67,9 +64,6 @@ static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
 			    (entry->function <= 0x40000082),
 			    "function %x is our of supported range",
 			    entry->function);
-
-		TEST_ASSERT(evmcs_expected || (entry->function != 0x4000000A),
-			    "0x4000000A leaf should not be reported");
 
 		TEST_ASSERT(entry->index == 0,
 			    ".index field should be zero");
@@ -97,8 +91,20 @@ static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
 				    "NoNonArchitecturalCoreSharing bit"
 				    " doesn't reflect SMT setting");
 			break;
-		}
+		case 0x4000000A:
+			TEST_ASSERT(entry->eax & (1UL << 19),
+				    "Enlightened MSR-Bitmap should always be supported"
+				    " 0x40000000.EAX: %x", entry->eax);
+			if (evmcs_expected)
+				TEST_ASSERT((entry->eax & 0xffff) == 0x101,
+				    "Supported Enlightened VMCS version range is supposed to be 1:1"
+				    " 0x40000000.EAX: %x", entry->eax);
 
+			break;
+		default:
+			break;
+
+		}
 		/*
 		 * If needed for debug:
 		 * fprintf(stdout,
@@ -107,7 +113,6 @@ static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
 		 *	entry->edx);
 		 */
 	}
-
 }
 
 void test_hv_cpuid_e2big(struct kvm_vm *vm, bool system)

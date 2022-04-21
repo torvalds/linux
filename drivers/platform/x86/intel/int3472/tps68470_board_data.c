@@ -100,7 +100,8 @@ static struct gpiod_lookup_table surface_go_tps68470_gpios = {
 	.dev_id = "i2c-INT347A:00",
 	.table = {
 		GPIO_LOOKUP("tps68470-gpio", 9, "reset", GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP("tps68470-gpio", 7, "powerdown", GPIO_ACTIVE_LOW)
+		GPIO_LOOKUP("tps68470-gpio", 7, "powerdown", GPIO_ACTIVE_LOW),
+		{ }
 	}
 };
 

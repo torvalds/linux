@@ -262,7 +262,7 @@ void vivid_fillbuff_tch(struct vivid_dev *dev, struct vivid_buffer *buf)
 
 	__s16 *tch_buf = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 
-	buf->vb.sequence = dev->touch_cap_seq_count;
+	buf->vb.sequence = dev->touch_cap_with_seq_wrap_count;
 	test_pattern = (buf->vb.sequence / TCH_SEQ_COUNT) % TEST_CASE_MAX;
 	test_pat_idx = buf->vb.sequence % TCH_SEQ_COUNT;
 

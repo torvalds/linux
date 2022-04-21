@@ -96,16 +96,6 @@ struct ksmbd_file {
 
 	int				durable_timeout;
 
-	/* for SMB1 */
-	int				pid;
-
-	/* conflict lock fail count for SMB1 */
-	unsigned int			cflock_cnt;
-	/* last lock failure start offset for SMB1 */
-	unsigned long long		llock_fstart;
-
-	int				dirent_offset;
-
 	/* if ls is happening on directory, below is valid*/
 	struct ksmbd_readdir_data	readdir_data;
 	int				dot_dotdot[2];

@@ -91,14 +91,6 @@ static inline bool is_trbe_running(u64 trbsr)
 #define TRBE_FILL_MODE_WRAP		1
 #define TRBE_FILL_MODE_CIRCULAR_BUFFER	3
 
-static inline void set_trbe_disabled(void)
-{
-	u64 trblimitr = read_sysreg_s(SYS_TRBLIMITR_EL1);
-
-	trblimitr &= ~TRBLIMITR_ENABLE;
-	write_sysreg_s(trblimitr, SYS_TRBLIMITR_EL1);
-}
-
 static inline bool get_trbe_flag_update(u64 trbidr)
 {
 	return trbidr & TRBIDR_FLAG;

@@ -208,13 +208,9 @@ struct nfit_mem {
 	struct nvdimm *nvdimm;
 	struct acpi_nfit_memory_map *memdev_dcr;
 	struct acpi_nfit_memory_map *memdev_pmem;
-	struct acpi_nfit_memory_map *memdev_bdw;
 	struct acpi_nfit_control_region *dcr;
-	struct acpi_nfit_data_region *bdw;
 	struct acpi_nfit_system_address *spa_dcr;
-	struct acpi_nfit_system_address *spa_bdw;
 	struct acpi_nfit_interleave *idt_dcr;
-	struct acpi_nfit_interleave *idt_bdw;
 	struct kernfs_node *flags_attr;
 	struct nfit_flush *nfit_flush;
 	struct list_head list;
@@ -266,8 +262,6 @@ struct acpi_nfit_desc {
 	unsigned long family_dsm_mask[NVDIMM_BUS_FAMILY_MAX + 1];
 	unsigned int platform_cap;
 	unsigned int scrub_tmo;
-	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
-			void *iobuf, u64 len, int rw);
 	enum nvdimm_fwa_state fwa_state;
 	enum nvdimm_fwa_capability fwa_cap;
 	int fwa_count;

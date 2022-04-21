@@ -14,10 +14,10 @@ cflags-y	+= -fno-common -pipe -fno-builtin -mmedium-calls -D__linux__
 tune-mcpu-def-$(CONFIG_ISA_ARCOMPACT)	:= -mcpu=arc700
 tune-mcpu-def-$(CONFIG_ISA_ARCV2)	:= -mcpu=hs38
 
-ifeq ($(CONFIG_ARC_TUNE_MCPU),"")
+ifeq ($(CONFIG_ARC_TUNE_MCPU),)
 cflags-y				+= $(tune-mcpu-def-y)
 else
-tune-mcpu				:= $(shell echo $(CONFIG_ARC_TUNE_MCPU))
+tune-mcpu				:= $(CONFIG_ARC_TUNE_MCPU)
 ifneq ($(call cc-option,$(tune-mcpu)),)
 cflags-y				+= $(tune-mcpu)
 else

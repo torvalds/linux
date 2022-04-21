@@ -91,6 +91,20 @@ const char *iwl_rs_pretty_bw(int bw)
 }
 IWL_EXPORT_SYMBOL(iwl_rs_pretty_bw);
 
+static u32 iwl_legacy_rate_to_fw_idx(u32 rate_n_flags)
+{
+	int rate = rate_n_flags & RATE_LEGACY_RATE_MSK_V1;
+	int idx;
+	bool ofdm = !(rate_n_flags & RATE_MCS_CCK_MSK_V1);
+	int offset = ofdm ? IWL_FIRST_OFDM_RATE : 0;
+	int last = ofdm ? IWL_RATE_COUNT_LEGACY : IWL_FIRST_OFDM_RATE;
+
+	for (idx = offset; idx < last; idx++)
+		if (iwl_fw_rate_idx_to_plcp(idx) == rate)
+			return idx - offset;
+	return IWL_RATE_INVALID;
+}
+
 u32 iwl_new_rate_from_v1(u32 rate_v1)
 {
 	u32 rate_v2 = 0;
@@ -144,7 +158,10 @@ u32 iwl_new_rate_from_v1(u32 rate_v1)
 	} else {
 		u32 legacy_rate = iwl_legacy_rate_to_fw_idx(rate_v1);
 
-		WARN_ON(legacy_rate < 0);
+		if (WARN_ON_ONCE(legacy_rate == IWL_RATE_INVALID))
+			legacy_rate = (rate_v1 & RATE_MCS_CCK_MSK_V1) ?
+				IWL_FIRST_CCK_RATE : IWL_FIRST_OFDM_RATE;
+
 		rate_v2 |= legacy_rate;
 		if (!(rate_v1 & RATE_MCS_CCK_MSK_V1))
 			rate_v2 |= RATE_MCS_LEGACY_OFDM_MSK;
@@ -171,20 +188,6 @@ u32 iwl_new_rate_from_v1(u32 rate_v1)
 	return rate_v2;
 }
 IWL_EXPORT_SYMBOL(iwl_new_rate_from_v1);
-
-u32 iwl_legacy_rate_to_fw_idx(u32 rate_n_flags)
-{
-	int rate = rate_n_flags & RATE_LEGACY_RATE_MSK_V1;
-	int idx;
-	bool ofdm = !(rate_n_flags & RATE_MCS_CCK_MSK_V1);
-	int offset = ofdm ? IWL_FIRST_OFDM_RATE : 0;
-	int last = ofdm ? IWL_RATE_COUNT_LEGACY : IWL_FIRST_OFDM_RATE;
-
-	for (idx = offset; idx < last; idx++)
-		if (iwl_fw_rate_idx_to_plcp(idx) == rate)
-			return idx - offset;
-	return -1;
-}
 
 int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 {

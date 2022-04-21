@@ -61,17 +61,3 @@ MODULE_PARM_DESC(edid_firmware,
 		 "DEPRECATED. Use drm.edid_firmware module parameter instead.");
 
 #endif
-
-static int __init drm_kms_helper_init(void)
-{
-	return drm_dp_aux_dev_init();
-}
-
-static void __exit drm_kms_helper_exit(void)
-{
-	/* Call exit functions from specific kms helpers here */
-	drm_dp_aux_dev_exit();
-}
-
-module_init(drm_kms_helper_init);
-module_exit(drm_kms_helper_exit);

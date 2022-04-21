@@ -461,7 +461,7 @@ enum {
 #define AC_DE_ELDV			(1<<1)
 #define AC_DE_IA			(1<<2)
 
-/* device device types (0x0-0xf) */
+/* device types (0x0-0xf) */
 enum {
 	AC_JACK_LINE_OUT,
 	AC_JACK_SPEAKER,

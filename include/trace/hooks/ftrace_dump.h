@@ -10,7 +10,6 @@
 #include <linux/trace_seq.h>
 #include <linux/trace_events.h>
 
-#include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)

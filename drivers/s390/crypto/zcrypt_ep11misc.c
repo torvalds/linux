@@ -1109,7 +1109,7 @@ static int ep11_wrapkey(u16 card, u16 domain,
 	if (kb->head.type == TOKTYPE_NON_CCA &&
 	    kb->head.version == TOKVER_EP11_AES) {
 		has_header = true;
-		keysize = kb->head.len < keysize ? kb->head.len : keysize;
+		keysize = min_t(size_t, kb->head.len, keysize);
 	}
 
 	/* request cprb and payload */

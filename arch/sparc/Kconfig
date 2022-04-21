@@ -46,7 +46,6 @@ config SPARC
 	select LOCKDEP_SMALL if LOCKDEP
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
-	select SET_FS
 	select TRACE_IRQFLAGS_SUPPORT
 
 config SPARC32
@@ -62,6 +61,7 @@ config SPARC32
 
 config SPARC64
 	def_bool 64BIT
+	select ALTERNATE_USER_ADDRESS_SPACE
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_KRETPROBES
@@ -97,6 +97,9 @@ config SPARC64
 	select PCI_DOMAINS if PCI
 	select ARCH_HAS_GIGANTIC_PAGE
 	select HAVE_SOFTIRQ_ON_OWN_STACK
+	select HAVE_SETUP_PER_CPU_AREA
+	select NEED_PER_CPU_EMBED_FIRST_CHUNK
+	select NEED_PER_CPU_PAGE_FIRST_CHUNK
 
 config ARCH_PROC_KCORE_TEXT
 	def_bool y
@@ -122,15 +125,6 @@ config ARCH_HIBERNATION_POSSIBLE
 config AUDIT_ARCH
 	bool
 	default y
-
-config HAVE_SETUP_PER_CPU_AREA
-	def_bool y if SPARC64
-
-config NEED_PER_CPU_EMBED_FIRST_CHUNK
-	def_bool y if SPARC64
-
-config NEED_PER_CPU_PAGE_FIRST_CHUNK
-	def_bool y if SPARC64
 
 config MMU
 	bool

@@ -4,6 +4,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
+#include <scsi/scsi_cmnd.h>
 
 #define MEGARAID_VERSION	\
 	"v2.00.4 (Release Date: Thu Feb 9 08:51:30 EST 2006)\n"
@@ -756,8 +757,28 @@ struct private_bios_data {
 #define CACHED_IO		0
 #define DIRECT_IO		1
 
+struct megaraid_cmd_priv {
+	struct list_head entry;
+};
 
-#define SCSI_LIST(scp) ((struct list_head *)(&(scp)->SCp))
+#define SCSI_LIST(scp)							\
+	(&((struct megaraid_cmd_priv *)scsi_cmd_priv(scp))->entry)
+
+struct scsi_cmd_and_priv {
+	struct scsi_cmnd	 cmd;
+	struct megaraid_cmd_priv priv;
+};
+
+static inline struct scsi_cmnd *
+megaraid_to_scsi_cmd(struct megaraid_cmd_priv *cmd_priv)
+{
+	/* See also scsi_mq_setup_tags() */
+	BUILD_BUG_ON(sizeof(struct scsi_cmd_and_priv) !=
+		     sizeof(struct scsi_cmnd) +
+		     sizeof(struct megaraid_cmd_priv));
+
+	return &container_of(cmd_priv, struct scsi_cmd_and_priv, priv)->cmd;
+}
 
 /*
  * Each controller's soft state

@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 /asn1_compiler
 /bin2c
-/extract-cert
 /insert-sys-cert
 /kallsyms
 /module.lds

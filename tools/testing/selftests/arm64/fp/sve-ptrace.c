@@ -21,8 +21,6 @@
 
 #include "../../kselftest.h"
 
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
-
 /* <linux/elf.h> and <sys/auxv.h> don't like each other, so: */
 #ifndef NT_ARM_SVE
 #define NT_ARM_SVE 0x405
@@ -261,7 +259,7 @@ static void ptrace_sve_fpsimd(pid_t child, const struct vec_type *type)
 	}
 
 	ksft_test_result((sve->flags & SVE_PT_REGS_MASK) == SVE_PT_REGS_FPSIMD,
-			 "Set FPSIMD registers via %s\n", type->name);
+			 "Got FPSIMD registers via %s\n", type->name);
 	if ((sve->flags & SVE_PT_REGS_MASK) != SVE_PT_REGS_FPSIMD)
 		goto out;
 
@@ -489,6 +487,8 @@ static int do_parent(pid_t child)
 	unsigned int vq, vl;
 	bool vl_supported;
 
+	ksft_print_msg("Parent is %d, child is %d\n", getpid(), child);
+
 	/* Attach to the child */
 	while (1) {
 		int sig;
@@ -557,7 +557,14 @@ static int do_parent(pid_t child)
 		}
 
 		/* prctl() flags */
-		ptrace_set_get_inherit(child, &vec_types[i]);
+		if (getauxval(vec_types[i].hwcap_type) & vec_types[i].hwcap) {
+			ptrace_set_get_inherit(child, &vec_types[i]);
+		} else {
+			ksft_test_result_skip("%s SVE_PT_VL_INHERIT set\n",
+					      vec_types[i].name);
+			ksft_test_result_skip("%s SVE_PT_VL_INHERIT cleared\n",
+					      vec_types[i].name);
+		}
 
 		/* Step through every possible VQ */
 		for (vq = SVE_VQ_MIN; vq <= SVE_VQ_MAX; vq++) {

@@ -217,12 +217,6 @@ static inline bool rsk_drop_req(const struct request_sock *req)
 	return false;
 }
 
-static inline void mptcp_parse_option(const struct sk_buff *skb,
-				      const unsigned char *ptr, int opsize,
-				      struct tcp_options_received *opt_rx)
-{
-}
-
 static inline bool mptcp_syn_options(struct sock *sk, const struct sk_buff *skb,
 				     unsigned int *size,
 				     struct mptcp_out_options *opts)

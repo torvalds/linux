@@ -403,29 +403,8 @@ int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd);
 int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 		       const struct ieee80211_tx_queue_params *params);
 void mt7615_mcu_rx_event(struct mt7615_dev *dev, struct sk_buff *skb);
-int mt7615_mcu_rdd_cmd(struct mt7615_dev *dev,
-		       enum mt7615_rdd_cmd cmd, u8 index,
-		       u8 rx_sel, u8 val);
 int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev);
 int mt7615_mcu_fw_log_2_host(struct mt7615_dev *dev, u8 ctrl);
-
-static inline bool is_mt7622(struct mt76_dev *dev)
-{
-	if (!IS_ENABLED(CONFIG_MT7622_WMAC))
-		return false;
-
-	return mt76_chip(dev) == 0x7622;
-}
-
-static inline bool is_mt7615(struct mt76_dev *dev)
-{
-	return mt76_chip(dev) == 0x7615 || mt76_chip(dev) == 0x7611;
-}
-
-static inline bool is_mt7611(struct mt76_dev *dev)
-{
-	return mt76_chip(dev) == 0x7611;
-}
 
 static inline void mt7615_irq_enable(struct mt7615_dev *dev, u32 mask)
 {
@@ -530,6 +509,7 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 void mt7615_tx_worker(struct mt76_worker *w);
 void mt7615_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e);
 void mt7615_tx_token_put(struct mt7615_dev *dev);
+bool mt7615_rx_check(struct mt76_dev *mdev, void *data, int len);
 void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb);
 void mt7615_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps);
@@ -579,6 +559,7 @@ void mt7663_usb_sdio_tx_complete_skb(struct mt76_dev *mdev,
 				     struct mt76_queue_entry *e);
 int mt7663_usb_sdio_register_device(struct mt7615_dev *dev);
 int mt7663u_mcu_init(struct mt7615_dev *dev);
+int mt7663u_mcu_power_on(struct mt7615_dev *dev);
 
 /* sdio */
 int mt7663s_mcu_init(struct mt7615_dev *dev);

@@ -25,7 +25,9 @@ static bool __cachefiles_mark_inode_in_use(struct cachefiles_object *object,
 		trace_cachefiles_mark_active(object, inode);
 		can_use = true;
 	} else {
-		pr_notice("cachefiles: Inode already in use: %pd\n", dentry);
+		trace_cachefiles_mark_failed(object, inode);
+		pr_notice("cachefiles: Inode already in use: %pd (B=%lx)\n",
+			  dentry, inode->i_ino);
 	}
 
 	return can_use;
@@ -55,6 +57,16 @@ static void __cachefiles_unmark_inode_in_use(struct cachefiles_object *object,
 	trace_cachefiles_mark_inactive(object, inode);
 }
 
+static void cachefiles_do_unmark_inode_in_use(struct cachefiles_object *object,
+					      struct dentry *dentry)
+{
+	struct inode *inode = d_backing_inode(dentry);
+
+	inode_lock(inode);
+	__cachefiles_unmark_inode_in_use(object, dentry);
+	inode_unlock(inode);
+}
+
 /*
  * Unmark a backing inode and tell cachefilesd that there's something that can
  * be culled.
@@ -66,9 +78,7 @@ void cachefiles_unmark_inode_in_use(struct cachefiles_object *object,
 	struct inode *inode = file_inode(file);
 
 	if (inode) {
-		inode_lock(inode);
-		__cachefiles_unmark_inode_in_use(object, file->f_path.dentry);
-		inode_unlock(inode);
+		cachefiles_do_unmark_inode_in_use(object, file->f_path.dentry);
 
 		if (!test_bit(CACHEFILES_OBJECT_USING_TMPFILE, &object->flags)) {
 			atomic_long_add(inode->i_blocks, &cache->b_released);
@@ -101,6 +111,7 @@ retry:
 		subdir = lookup_one_len(dirname, dir, strlen(dirname));
 	else
 		subdir = ERR_PTR(ret);
+	trace_cachefiles_lookup(NULL, dir, subdir);
 	if (IS_ERR(subdir)) {
 		trace_cachefiles_vfs_error(NULL, d_backing_inode(dir),
 					   PTR_ERR(subdir),
@@ -135,6 +146,7 @@ retry:
 						   cachefiles_trace_mkdir_error);
 			goto mkdir_error;
 		}
+		trace_cachefiles_mkdir(dir, subdir);
 
 		if (unlikely(d_unhashed(subdir))) {
 			cachefiles_put_directory(subdir);
@@ -233,7 +245,7 @@ static int cachefiles_unlink(struct cachefiles_cache *cache,
 	};
 	int ret;
 
-	trace_cachefiles_unlink(object, dentry, why);
+	trace_cachefiles_unlink(object, d_inode(dentry)->i_ino, why);
 	ret = security_path_unlink(&path, dentry);
 	if (ret < 0) {
 		cachefiles_io_error(cache, "Unlink security error");
@@ -386,7 +398,7 @@ try_again:
 			.new_dir	= d_inode(cache->graveyard),
 			.new_dentry	= grave,
 		};
-		trace_cachefiles_rename(object, rep, grave, why);
+		trace_cachefiles_rename(object, d_inode(rep)->i_ino, why);
 		ret = cachefiles_inject_read_error();
 		if (ret == 0)
 			ret = vfs_rename(&rd);
@@ -480,7 +492,7 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 				object, d_backing_inode(path.dentry), ret,
 				cachefiles_trace_trunc_error);
 			file = ERR_PTR(ret);
-			goto out_dput;
+			goto out_unuse;
 		}
 	}
 
@@ -490,15 +502,20 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 		trace_cachefiles_vfs_error(object, d_backing_inode(path.dentry),
 					   PTR_ERR(file),
 					   cachefiles_trace_open_error);
-		goto out_dput;
+		goto out_unuse;
 	}
 	if (unlikely(!file->f_op->read_iter) ||
 	    unlikely(!file->f_op->write_iter)) {
 		fput(file);
 		pr_notice("Cache does not support read_iter and write_iter\n");
 		file = ERR_PTR(-EINVAL);
+		goto out_unuse;
 	}
 
+	goto out_dput;
+
+out_unuse:
+	cachefiles_do_unmark_inode_in_use(object, path.dentry);
 out_dput:
 	dput(path.dentry);
 out:
@@ -586,14 +603,16 @@ static bool cachefiles_open_file(struct cachefiles_object *object,
 check_failed:
 	fscache_cookie_lookup_negative(object->cookie);
 	cachefiles_unmark_inode_in_use(object, file);
-	if (ret == -ESTALE) {
-		fput(file);
-		dput(dentry);
+	fput(file);
+	dput(dentry);
+	if (ret == -ESTALE)
 		return cachefiles_create_file(object);
-	}
+	return false;
+
 error_fput:
 	fput(file);
 error:
+	cachefiles_do_unmark_inode_in_use(object, dentry);
 	dput(dentry);
 	return false;
 }
@@ -617,7 +636,7 @@ bool cachefiles_look_up_object(struct cachefiles_object *object)
 						  object->d_name_len);
 	else
 		dentry = ERR_PTR(ret);
-	trace_cachefiles_lookup(object, dentry);
+	trace_cachefiles_lookup(object, fan, dentry);
 	if (IS_ERR(dentry)) {
 		if (dentry == ERR_PTR(-ENOENT))
 			goto new_file;

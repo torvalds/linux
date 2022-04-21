@@ -221,7 +221,7 @@ static inline void fsverity_enqueue_verify_work(struct work_struct *work)
  *
  * This checks whether ->i_verity_info has been set.
  *
- * Filesystems call this from ->readpages() to check whether the pages need to
+ * Filesystems call this from ->readahead() to check whether the pages need to
  * be verified or not.  Don't use IS_VERITY() for this purpose; it's subject to
  * a race condition where the file is being read concurrently with
  * FS_IOC_ENABLE_VERITY completing.  (S_VERITY is set before ->i_verity_info.)

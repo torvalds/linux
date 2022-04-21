@@ -23,7 +23,7 @@ struct gb_module {
 
 	bool disconnected;
 
-	struct gb_interface *interfaces[0];
+	struct gb_interface *interfaces[];
 };
 #define to_gb_module(d) container_of(d, struct gb_module, dev)
 

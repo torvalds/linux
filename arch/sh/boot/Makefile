@@ -19,12 +19,12 @@ CONFIG_ZERO_PAGE_OFFSET	?= 0x00001000
 CONFIG_ENTRY_OFFSET	?= 0x00001000
 CONFIG_PHYSICAL_START	?= $(CONFIG_MEMORY_START)
 
-suffix-y := bin
-suffix-$(CONFIG_KERNEL_GZIP)	:= gz
-suffix-$(CONFIG_KERNEL_BZIP2)	:= bz2
-suffix-$(CONFIG_KERNEL_LZMA)	:= lzma
-suffix-$(CONFIG_KERNEL_XZ)	:= xz
-suffix-$(CONFIG_KERNEL_LZO)	:= lzo
+suffix_y := bin
+suffix_$(CONFIG_KERNEL_GZIP)	:= gz
+suffix_$(CONFIG_KERNEL_BZIP2)	:= bz2
+suffix_$(CONFIG_KERNEL_LZMA)	:= lzma
+suffix_$(CONFIG_KERNEL_XZ)	:= xz
+suffix_$(CONFIG_KERNEL_LZO)	:= lzo
 
 targets := zImage vmlinux.srec romImage uImage uImage.srec uImage.gz \
 	   uImage.bz2 uImage.lzma uImage.xz uImage.lzo uImage.bin \
@@ -106,10 +106,10 @@ OBJCOPYFLAGS_uImage.srec := -I binary -O srec
 $(obj)/uImage.srec: $(obj)/uImage FORCE
 	$(call if_changed,objcopy)
 
-$(obj)/uImage: $(obj)/uImage.$(suffix-y)
+$(obj)/uImage: $(obj)/uImage.$(suffix_y)
 	@ln -sf $(notdir $<) $@
 	@echo '  Image $@ is ready'
 
 export CONFIG_PAGE_OFFSET CONFIG_MEMORY_START CONFIG_BOOT_LINK_OFFSET \
        CONFIG_PHYSICAL_START CONFIG_ZERO_PAGE_OFFSET CONFIG_ENTRY_OFFSET \
-       KERNEL_MEMORY suffix-y
+       KERNEL_MEMORY suffix_y

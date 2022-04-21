@@ -121,6 +121,8 @@ properties:
 
   qcom,bcm-voters:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     description: |
       List of phandles to qcom,bcm-voter nodes that are required by
       this interconnect to send RPMh commands.

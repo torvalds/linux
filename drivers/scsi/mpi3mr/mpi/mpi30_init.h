@@ -55,6 +55,9 @@ struct mpi3_scsi_io_request {
 #define MPI3_SCSIIO_FLAGS_DATADIRECTION_READ                (0x00080000)
 #define MPI3_SCSIIO_FLAGS_DMAOPERATION_MASK                 (0x00030000)
 #define MPI3_SCSIIO_FLAGS_DMAOPERATION_HOST_PI              (0x00010000)
+#define MPI3_SCSIIO_FLAGS_DIVERT_REASON_MASK                (0x000000f0)
+#define MPI3_SCSIIO_FLAGS_DIVERT_REASON_IO_THROTTLING       (0x00000010)
+#define MPI3_SCSIIO_FLAGS_DIVERT_REASON_PROD_SPECIFIC       (0x00000080)
 #define MPI3_SCSIIO_METASGL_INDEX                           (3)
 struct mpi3_scsi_io_reply {
 	__le16                     host_tag;

@@ -176,7 +176,7 @@ static const struct visconti_clk_gate_table clk_gate_tables[] = {
 	{ TMPV770X_CLK_WRCK, "wrck",
 		clks_parent_data, ARRAY_SIZE(clks_parent_data),
 		0, 0x68, 0x168, 9, 32,
-		-1, }, /* No reset */
+		NO_RESET, },
 	{ TMPV770X_CLK_PICKMON, "pickmon",
 		clks_parent_data, ARRAY_SIZE(clks_parent_data),
 		0, 0x10, 0x110, 8, 4,

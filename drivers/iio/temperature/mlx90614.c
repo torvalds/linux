@@ -600,7 +600,6 @@ static const struct of_device_id mlx90614_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mlx90614_of_match);
 
-#ifdef CONFIG_PM_SLEEP
 static int mlx90614_pm_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
@@ -630,9 +629,7 @@ static int mlx90614_pm_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-#ifdef CONFIG_PM
 static int mlx90614_pm_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
@@ -648,19 +645,18 @@ static int mlx90614_pm_runtime_resume(struct device *dev)
 
 	return mlx90614_wakeup(data);
 }
-#endif
 
 static const struct dev_pm_ops mlx90614_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(mlx90614_pm_suspend, mlx90614_pm_resume)
-	SET_RUNTIME_PM_OPS(mlx90614_pm_runtime_suspend,
-			   mlx90614_pm_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(mlx90614_pm_suspend, mlx90614_pm_resume)
+	RUNTIME_PM_OPS(mlx90614_pm_runtime_suspend,
+		       mlx90614_pm_runtime_resume, NULL)
 };
 
 static struct i2c_driver mlx90614_driver = {
 	.driver = {
 		.name	= "mlx90614",
 		.of_match_table = mlx90614_of_match,
-		.pm	= &mlx90614_pm_ops,
+		.pm	= pm_ptr(&mlx90614_pm_ops),
 	},
 	.probe = mlx90614_probe,
 	.remove = mlx90614_remove,

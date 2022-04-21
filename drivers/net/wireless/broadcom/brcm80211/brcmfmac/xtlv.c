@@ -4,6 +4,8 @@
  */
 
 #include <asm/unaligned.h>
+
+#include <linux/math.h>
 #include <linux/string.h>
 #include <linux/bug.h>
 

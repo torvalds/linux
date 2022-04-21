@@ -95,12 +95,6 @@ static int __init mpc86xx_hpcn_probe(void)
 	if (of_machine_is_compatible("fsl,mpc8641hpcn"))
 		return 1;	/* Looks good */
 
-	/* Be nice and don't give silent boot death.  Delete this in 2.6.27 */
-	if (of_machine_is_compatible("mpc86xx")) {
-		pr_warn("WARNING: your dts/dtb is old. You must update before the next kernel release.\n");
-		return 1;
-	}
-
 	return 0;
 }
 

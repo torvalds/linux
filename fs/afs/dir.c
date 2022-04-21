@@ -42,10 +42,11 @@ static int afs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 		      struct dentry *old_dentry, struct inode *new_dir,
 		      struct dentry *new_dentry, unsigned int flags);
 static int afs_dir_releasepage(struct page *page, gfp_t gfp_flags);
-static void afs_dir_invalidatepage(struct page *page, unsigned int offset,
-				   unsigned int length);
+static void afs_dir_invalidate_folio(struct folio *folio, size_t offset,
+				   size_t length);
 
-static int afs_dir_set_page_dirty(struct page *page)
+static bool afs_dir_dirty_folio(struct address_space *mapping,
+		struct folio *folio)
 {
 	BUG(); /* This should never happen. */
 }
@@ -73,9 +74,9 @@ const struct inode_operations afs_dir_inode_operations = {
 };
 
 const struct address_space_operations afs_dir_aops = {
-	.set_page_dirty	= afs_dir_set_page_dirty,
+	.dirty_folio	= afs_dir_dirty_folio,
 	.releasepage	= afs_dir_releasepage,
-	.invalidatepage	= afs_dir_invalidatepage,
+	.invalidate_folio = afs_dir_invalidate_folio,
 };
 
 const struct dentry_operations afs_fs_dentry_operations = {
@@ -2019,13 +2020,12 @@ static int afs_dir_releasepage(struct page *subpage, gfp_t gfp_flags)
 /*
  * Invalidate part or all of a folio.
  */
-static void afs_dir_invalidatepage(struct page *subpage, unsigned int offset,
-				   unsigned int length)
+static void afs_dir_invalidate_folio(struct folio *folio, size_t offset,
+				   size_t length)
 {
-	struct folio *folio = page_folio(subpage);
 	struct afs_vnode *dvnode = AFS_FS_I(folio_inode(folio));
 
-	_enter("{%lu},%u,%u", folio_index(folio), offset, length);
+	_enter("{%lu},%zu,%zu", folio->index, offset, length);
 
 	BUG_ON(!folio_test_locked(folio));
 

@@ -14,15 +14,11 @@
 #include <asm/page.h>
 #include <asm/tlbdebug.h>
 
-extern int r3k_have_wired_reg;
-
 void dump_tlb_regs(void)
 {
 	pr_info("Index    : %0x\n", read_c0_index());
 	pr_info("EntryHi  : %0lx\n", read_c0_entryhi());
 	pr_info("EntryLo  : %0lx\n", read_c0_entrylo0());
-	if (r3k_have_wired_reg)
-		pr_info("Wired    : %0x\n", read_c0_wired());
 }
 
 static void dump_tlb(int first, int last)

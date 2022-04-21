@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
 /* Copyright (c) 2015 - 2021 Intel Corporation */
 #include "osdep.h"
-#include "status.h"
 #include "hmc.h"
 #include "defs.h"
 #include "type.h"
 #include "protos.h"
 #include "pble.h"
 
-static enum irdma_status_code
-add_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc);
+static int add_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc);
 
 /**
  * irdma_destroy_pble_prm - destroy prm during module unload
@@ -35,13 +33,12 @@ void irdma_destroy_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc)
  * @dev: irdma_sc_dev struct
  * @pble_rsrc: pble resources
  */
-enum irdma_status_code
-irdma_hmc_init_pble(struct irdma_sc_dev *dev,
-		    struct irdma_hmc_pble_rsrc *pble_rsrc)
+int irdma_hmc_init_pble(struct irdma_sc_dev *dev,
+			struct irdma_hmc_pble_rsrc *pble_rsrc)
 {
 	struct irdma_hmc_info *hmc_info;
 	u32 fpm_idx = 0;
-	enum irdma_status_code status = 0;
+	int status = 0;
 
 	hmc_info = dev->hmc_info;
 	pble_rsrc->dev = dev;
@@ -60,7 +57,7 @@ irdma_hmc_init_pble(struct irdma_sc_dev *dev,
 	INIT_LIST_HEAD(&pble_rsrc->pinfo.clist);
 	if (add_pble_prm(pble_rsrc)) {
 		irdma_destroy_pble_prm(pble_rsrc);
-		status = IRDMA_ERR_NO_MEMORY;
+		status = -ENOMEM;
 	}
 
 	return status;
@@ -84,12 +81,11 @@ static void get_sd_pd_idx(struct irdma_hmc_pble_rsrc *pble_rsrc,
  * @pble_rsrc: pble resource ptr
  * @info: page info for sd
  */
-static enum irdma_status_code
-add_sd_direct(struct irdma_hmc_pble_rsrc *pble_rsrc,
-	      struct irdma_add_page_info *info)
+static int add_sd_direct(struct irdma_hmc_pble_rsrc *pble_rsrc,
+			 struct irdma_add_page_info *info)
 {
 	struct irdma_sc_dev *dev = pble_rsrc->dev;
-	enum irdma_status_code ret_code = 0;
+	int ret_code = 0;
 	struct sd_pd_idx *idx = &info->idx;
 	struct irdma_chunk *chunk = info->chunk;
 	struct irdma_hmc_info *hmc_info = info->hmc_info;
@@ -137,9 +133,8 @@ static u32 fpm_to_idx(struct irdma_hmc_pble_rsrc *pble_rsrc, u64 addr)
  * @pble_rsrc: pble resource management
  * @info: page info for sd
  */
-static enum irdma_status_code
-add_bp_pages(struct irdma_hmc_pble_rsrc *pble_rsrc,
-	     struct irdma_add_page_info *info)
+static int add_bp_pages(struct irdma_hmc_pble_rsrc *pble_rsrc,
+			struct irdma_add_page_info *info)
 {
 	struct irdma_sc_dev *dev = pble_rsrc->dev;
 	u8 *addr;
@@ -148,13 +143,13 @@ add_bp_pages(struct irdma_hmc_pble_rsrc *pble_rsrc,
 	struct irdma_hmc_sd_entry *sd_entry = info->sd_entry;
 	struct irdma_hmc_info *hmc_info = info->hmc_info;
 	struct irdma_chunk *chunk = info->chunk;
-	enum irdma_status_code status = 0;
+	int status = 0;
 	u32 rel_pd_idx = info->idx.rel_pd_idx;
 	u32 pd_idx = info->idx.pd_idx;
 	u32 i;
 
 	if (irdma_pble_get_paged_mem(chunk, info->pages))
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	status = irdma_add_sd_table_entry(dev->hw, hmc_info, info->idx.sd_idx,
 					  IRDMA_SD_TYPE_PAGED,
@@ -207,8 +202,7 @@ static enum irdma_sd_entry_type irdma_get_type(struct irdma_sc_dev *dev,
  * add_pble_prm - add a sd entry for pble resoure
  * @pble_rsrc: pble resource management
  */
-static enum irdma_status_code
-add_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc)
+static int add_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc)
 {
 	struct irdma_sc_dev *dev = pble_rsrc->dev;
 	struct irdma_hmc_sd_entry *sd_entry;
@@ -216,22 +210,22 @@ add_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc)
 	struct irdma_chunk *chunk;
 	struct irdma_add_page_info info;
 	struct sd_pd_idx *idx = &info.idx;
-	enum irdma_status_code ret_code = 0;
+	int ret_code = 0;
 	enum irdma_sd_entry_type sd_entry_type;
 	u64 sd_reg_val = 0;
 	struct irdma_virt_mem chunkmem;
 	u32 pages;
 
 	if (pble_rsrc->unallocated_pble < PBLE_PER_PAGE)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	if (pble_rsrc->next_fpm_addr & 0xfff)
-		return IRDMA_ERR_INVALID_PAGE_DESC_INDEX;
+		return -EINVAL;
 
 	chunkmem.size = sizeof(*chunk);
 	chunkmem.va = kzalloc(chunkmem.size, GFP_KERNEL);
 	if (!chunkmem.va)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	chunk = chunkmem.va;
 	chunk->chunkmem = chunkmem;
@@ -337,9 +331,8 @@ static void free_lvl2(struct irdma_hmc_pble_rsrc *pble_rsrc,
  * @pble_rsrc: pble resource management
  * @palloc: level 2 pble allocation
  */
-static enum irdma_status_code
-get_lvl2_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
-	      struct irdma_pble_alloc *palloc)
+static int get_lvl2_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
+			 struct irdma_pble_alloc *palloc)
 {
 	u32 lf4k, lflast, total, i;
 	u32 pblcnt = PBLE_PER_PAGE;
@@ -347,7 +340,7 @@ get_lvl2_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 	struct irdma_pble_level2 *lvl2 = &palloc->level2;
 	struct irdma_pble_info *root = &lvl2->root;
 	struct irdma_pble_info *leaf;
-	enum irdma_status_code ret_code;
+	int ret_code;
 	u64 fpm_addr;
 
 	/* number of full 512 (4K) leafs) */
@@ -359,7 +352,7 @@ get_lvl2_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 	lvl2->leafmem.size = (sizeof(*leaf) * total);
 	lvl2->leafmem.va = kzalloc(lvl2->leafmem.size, GFP_KERNEL);
 	if (!lvl2->leafmem.va)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	lvl2->leaf = lvl2->leafmem.va;
 	leaf = lvl2->leaf;
@@ -368,7 +361,7 @@ get_lvl2_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 	if (ret_code) {
 		kfree(lvl2->leafmem.va);
 		lvl2->leaf = NULL;
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 	}
 
 	root->idx = fpm_to_idx(pble_rsrc, fpm_addr);
@@ -397,7 +390,7 @@ get_lvl2_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 error:
 	free_lvl2(pble_rsrc, palloc);
 
-	return IRDMA_ERR_NO_MEMORY;
+	return -ENOMEM;
 }
 
 /**
@@ -405,11 +398,10 @@ error:
  * @pble_rsrc: pble resource management
  * @palloc: level 1 pble allocation
  */
-static enum irdma_status_code
-get_lvl1_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
-	      struct irdma_pble_alloc *palloc)
+static int get_lvl1_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
+			 struct irdma_pble_alloc *palloc)
 {
-	enum irdma_status_code ret_code;
+	int ret_code;
 	u64 fpm_addr;
 	struct irdma_pble_info *lvl1 = &palloc->level1;
 
@@ -417,7 +409,7 @@ get_lvl1_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 				       palloc->total_cnt << 3, &lvl1->addr,
 				       &fpm_addr);
 	if (ret_code)
-		return IRDMA_ERR_NO_MEMORY;
+		return -ENOMEM;
 
 	palloc->level = PBLE_LEVEL_1;
 	lvl1->idx = fpm_to_idx(pble_rsrc, fpm_addr);
@@ -433,11 +425,10 @@ get_lvl1_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
  * @palloc: contains all inforamtion regarding pble (idx + pble addr)
  * @level1_only: flag for a level 1 PBLE
  */
-static enum irdma_status_code
-get_lvl1_lvl2_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
-		   struct irdma_pble_alloc *palloc, bool level1_only)
+static int get_lvl1_lvl2_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
+			      struct irdma_pble_alloc *palloc, bool level1_only)
 {
-	enum irdma_status_code status = 0;
+	int status = 0;
 
 	status = get_lvl1_pble(pble_rsrc, palloc);
 	if (!status || level1_only || palloc->total_cnt <= PBLE_PER_PAGE)
@@ -455,11 +446,11 @@ get_lvl1_lvl2_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
  * @pble_cnt: #of pbles requested
  * @level1_only: true if only pble level 1 to acquire
  */
-enum irdma_status_code irdma_get_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
-				      struct irdma_pble_alloc *palloc,
-				      u32 pble_cnt, bool level1_only)
+int irdma_get_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
+		   struct irdma_pble_alloc *palloc, u32 pble_cnt,
+		   bool level1_only)
 {
-	enum irdma_status_code status = 0;
+	int status = 0;
 	int max_sds = 0;
 	int i;
 

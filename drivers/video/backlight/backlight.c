@@ -710,8 +710,7 @@ static void devm_backlight_release(void *data)
 {
 	struct backlight_device *bd = data;
 
-	if (bd)
-		put_device(&bd->dev);
+	put_device(&bd->dev);
 }
 
 /**
@@ -737,11 +736,10 @@ struct backlight_device *devm_of_find_backlight(struct device *dev)
 	bd = of_find_backlight(dev);
 	if (IS_ERR_OR_NULL(bd))
 		return bd;
-	ret = devm_add_action(dev, devm_backlight_release, bd);
-	if (ret) {
-		put_device(&bd->dev);
+	ret = devm_add_action_or_reset(dev, devm_backlight_release, bd);
+	if (ret)
 		return ERR_PTR(ret);
-	}
+
 	return bd;
 }
 EXPORT_SYMBOL(devm_of_find_backlight);

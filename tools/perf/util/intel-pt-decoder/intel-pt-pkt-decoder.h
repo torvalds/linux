@@ -56,6 +56,9 @@ enum intel_pt_pkt_type {
 	INTEL_PT_BIP,
 	INTEL_PT_BEP,
 	INTEL_PT_BEP_IP,
+	INTEL_PT_CFE,
+	INTEL_PT_CFE_IP,
+	INTEL_PT_EVD,
 };
 
 struct intel_pt_pkt {

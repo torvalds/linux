@@ -1600,7 +1600,7 @@ static const struct uart_ops pch_uart_ops = {
 
 #ifdef CONFIG_SERIAL_PCH_UART_CONSOLE
 
-static void pch_console_putchar(struct uart_port *port, int ch)
+static void pch_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct eg20t_port *priv =
 		container_of(port, struct eg20t_port, port);

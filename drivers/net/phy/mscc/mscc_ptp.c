@@ -1212,7 +1212,7 @@ static bool vsc85xx_rxtstamp(struct mii_timestamper *mii_ts,
 		ts.tv_sec--;
 
 	shhwtstamps->hwtstamp = ktime_set(ts.tv_sec, ns);
-	netif_rx_ni(skb);
+	netif_rx(skb);
 
 	return true;
 }

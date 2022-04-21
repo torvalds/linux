@@ -80,7 +80,7 @@ static int ahci_octeon_remove(struct platform_device *pdev)
 
 static const struct of_device_id octeon_ahci_match[] = {
 	{ .compatible = "cavium,octeon-7130-sata-uctl", },
-	{},
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, octeon_ahci_match);
 

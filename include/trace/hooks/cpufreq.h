@@ -8,7 +8,6 @@
 #define _TRACE_HOOK_CPUFREQ_H
 
 #include <linux/cpufreq.h>
-#include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
 DECLARE_RESTRICTED_HOOK(android_rvh_show_max_freq,

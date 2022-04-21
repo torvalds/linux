@@ -950,7 +950,6 @@ static int ov5693_set_fmt(struct v4l2_subdev *sd,
 	unsigned int width, height;
 	unsigned int hblank;
 	int exposure_max;
-	int ret = 0;
 
 	crop = __ov5693_get_pad_crop(ov5693, state, format->pad, format->which);
 
@@ -982,13 +981,13 @@ static int ov5693_set_fmt(struct v4l2_subdev *sd,
 	format->format = *fmt;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		return ret;
+		return 0;
 
 	mutex_lock(&ov5693->lock);
 
-	ov5693->mode.binning_x = hratio > 1 ? true : false;
+	ov5693->mode.binning_x = hratio > 1;
 	ov5693->mode.inc_x_odd = hratio > 1 ? 3 : 1;
-	ov5693->mode.binning_y = vratio > 1 ? true : false;
+	ov5693->mode.binning_y = vratio > 1;
 	ov5693->mode.inc_y_odd = vratio > 1 ? 3 : 1;
 
 	ov5693->mode.vts = __ov5693_calc_vts(fmt->height);
@@ -1012,7 +1011,7 @@ static int ov5693_set_fmt(struct v4l2_subdev *sd,
 				     exposure_max));
 
 	mutex_unlock(&ov5693->lock);
-	return ret;
+	return 0;
 }
 
 static int ov5693_get_selection(struct v4l2_subdev *sd,

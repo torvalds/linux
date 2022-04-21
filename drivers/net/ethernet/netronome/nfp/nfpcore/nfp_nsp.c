@@ -513,7 +513,7 @@ nfp_nsp_command_buf_dma_sg(struct nfp_nsp *nsp,
 	dma_size = BIT_ULL(dma_order);
 	nseg = DIV_ROUND_UP(max_size, chunk_size);
 
-	chunks = kzalloc(array_size(sizeof(*chunks), nseg), GFP_KERNEL);
+	chunks = kcalloc(nseg, sizeof(*chunks), GFP_KERNEL);
 	if (!chunks)
 		return -ENOMEM;
 

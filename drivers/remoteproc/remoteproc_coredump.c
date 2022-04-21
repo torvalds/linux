@@ -166,7 +166,7 @@ static void rproc_copy_segment(struct rproc *rproc, void *dest,
 			memset(dest, 0xff, size);
 		} else {
 			if (is_iomem)
-				memcpy_fromio(dest, ptr, size);
+				memcpy_fromio(dest, (void const __iomem *)ptr, size);
 			else
 				memcpy(dest, ptr, size);
 		}

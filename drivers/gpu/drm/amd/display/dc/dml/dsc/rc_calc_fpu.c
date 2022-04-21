@@ -68,7 +68,7 @@ static void get_qp_set(qp_set qps, enum colour_mode cm, enum bits_per_comp bpc,
 	int sel = table_hash(mode, bpc, max_min);
 	int table_size = 0;
 	int index;
-	const struct qp_entry *table = 0L;
+	const struct qp_entry *table = NULL;
 
 	// alias enum
 	enum { min = DAL_MM_MIN, max = DAL_MM_MAX };

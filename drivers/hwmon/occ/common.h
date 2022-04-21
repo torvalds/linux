@@ -119,6 +119,8 @@ struct occ {
 	u8 prev_stat;
 	u8 prev_ext_stat;
 	u8 prev_occs_present;
+	u8 prev_ips_status;
+	u8 prev_mode;
 };
 
 int occ_setup(struct occ *occ, const char *name);

@@ -67,7 +67,7 @@ struct net_dev_context {
 	struct list_head list;
 };
 
-static struct list_head net_devices = LIST_HEAD_INIT(net_devices);
+static LIST_HEAD(net_devices);
 static DEFINE_MUTEX(probe_disc_mt); /* ch->linked = true, most_nd_open */
 static DEFINE_SPINLOCK(list_lock); /* list_head, ch->linked = false, dev_hold */
 static struct most_component comp;

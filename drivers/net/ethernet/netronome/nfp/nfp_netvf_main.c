@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/etherdevice.h>
 
+#include "nfpcore/nfp_dev.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 #include "nfp_main.h"
@@ -36,11 +37,14 @@ struct nfp_net_vf {
 
 static const char nfp_net_driver_name[] = "nfp_netvf";
 
-#define PCI_DEVICE_NFP6000VF		0x6003
 static const struct pci_device_id nfp_netvf_pci_device_ids[] = {
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_NFP6000VF,
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP3800_VF,
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
-	  PCI_ANY_ID, 0,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP3800_VF,
+	},
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP6000_VF,
+	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000_VF,
 	},
 	{ 0, } /* Required last entry. */
 };
@@ -65,6 +69,7 @@ static void nfp_netvf_get_mac_addr(struct nfp_net *nn)
 static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *pci_id)
 {
+	const struct nfp_dev_info *dev_info;
 	struct nfp_net_fw_version fw_ver;
 	int max_tx_rings, max_rx_rings;
 	u32 tx_bar_off, rx_bar_off;
@@ -77,6 +82,8 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	u32 startq;
 	int stride;
 	int err;
+
+	dev_info = &nfp_dev_info[pci_id->driver_data];
 
 	vf = kzalloc(sizeof(*vf), GFP_KERNEL);
 	if (!vf)
@@ -95,8 +102,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	err = dma_set_mask_and_coherent(&pdev->dev,
-					DMA_BIT_MASK(NFP_NET_MAX_DMA_BITS));
+	err = dma_set_mask_and_coherent(&pdev->dev, dev_info->dma_mask);
 	if (err)
 		goto err_pci_regions;
 
@@ -116,9 +122,11 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	}
 
 	nfp_net_get_fw_version(&fw_ver, ctrl_bar);
-	if (fw_ver.resv || fw_ver.class != NFP_NET_CFG_VERSION_CLASS_GENERIC) {
+	if (fw_ver.extend & NFP_NET_CFG_VERSION_RESERVED_MASK ||
+	    fw_ver.class != NFP_NET_CFG_VERSION_CLASS_GENERIC) {
 		dev_err(&pdev->dev, "Unknown Firmware ABI %d.%d.%d.%d\n",
-			fw_ver.resv, fw_ver.class, fw_ver.major, fw_ver.minor);
+			fw_ver.extend, fw_ver.class,
+			fw_ver.major, fw_ver.minor);
 		err = -EINVAL;
 		goto err_ctrl_unmap;
 	}
@@ -138,7 +146,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 			break;
 		default:
 			dev_err(&pdev->dev, "Unsupported Firmware ABI %d.%d.%d.%d\n",
-				fw_ver.resv, fw_ver.class,
+				fw_ver.extend, fw_ver.class,
 				fw_ver.major, fw_ver.minor);
 			err = -EINVAL;
 			goto err_ctrl_unmap;
@@ -167,19 +175,19 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	}
 
 	startq = readl(ctrl_bar + NFP_NET_CFG_START_TXQ);
-	tx_bar_off = NFP_PCIE_QUEUE(startq);
+	tx_bar_off = nfp_qcp_queue_offset(dev_info, startq);
 	startq = readl(ctrl_bar + NFP_NET_CFG_START_RXQ);
-	rx_bar_off = NFP_PCIE_QUEUE(startq);
+	rx_bar_off = nfp_qcp_queue_offset(dev_info, startq);
 
 	/* Allocate and initialise the netdev */
-	nn = nfp_net_alloc(pdev, ctrl_bar, true, max_tx_rings, max_rx_rings);
+	nn = nfp_net_alloc(pdev, dev_info, ctrl_bar, true,
+			   max_tx_rings, max_rx_rings);
 	if (IS_ERR(nn)) {
 		err = PTR_ERR(nn);
 		goto err_ctrl_unmap;
 	}
 	vf->nn = nn;
 
-	nn->fw_ver = fw_ver;
 	nn->dp.is_vf = 1;
 	nn->stride_tx = stride;
 	nn->stride_rx = stride;

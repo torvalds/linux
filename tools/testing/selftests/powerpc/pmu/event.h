@@ -22,11 +22,17 @@ struct event {
 		u64 running;
 		u64 enabled;
 	} result;
+	/*
+	 * mmap buffer used while recording sample.
+	 * Accessed as "struct perf_event_mmap_page"
+	 */
+	void *mmap_buffer;
 };
 
 void event_init(struct event *e, u64 config);
 void event_init_named(struct event *e, u64 config, char *name);
 void event_init_opts(struct event *e, u64 config, int type, char *name);
+void event_init_sampling(struct event *e, u64 config);
 int event_open_with_options(struct event *e, pid_t pid, int cpu, int group_fd);
 int event_open_with_group(struct event *e, int group_fd);
 int event_open_with_pid(struct event *e, pid_t pid);

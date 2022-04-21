@@ -119,6 +119,8 @@ struct ingenic_chip_info {
 	unsigned int num_functions;
 
 	const u32 *pull_ups, *pull_downs;
+
+	const struct regmap_access_table *access_table;
 };
 
 struct ingenic_pinctrl {
@@ -2179,6 +2181,17 @@ static const struct function_desc x1000_functions[] = {
 	{ "mac", x1000_mac_groups, ARRAY_SIZE(x1000_mac_groups), },
 };
 
+static const struct regmap_range x1000_access_ranges[] = {
+	regmap_reg_range(0x000, 0x400 - 4),
+	regmap_reg_range(0x700, 0x800 - 4),
+};
+
+/* shared with X1500 */
+static const struct regmap_access_table x1000_access_table = {
+	.yes_ranges = x1000_access_ranges,
+	.n_yes_ranges = ARRAY_SIZE(x1000_access_ranges),
+};
+
 static const struct ingenic_chip_info x1000_chip_info = {
 	.num_chips = 4,
 	.reg_offset = 0x100,
@@ -2189,6 +2202,7 @@ static const struct ingenic_chip_info x1000_chip_info = {
 	.num_functions = ARRAY_SIZE(x1000_functions),
 	.pull_ups = x1000_pull_ups,
 	.pull_downs = x1000_pull_downs,
+	.access_table = &x1000_access_table,
 };
 
 static int x1500_uart0_data_pins[] = { 0x4a, 0x4b, };
@@ -2300,6 +2314,7 @@ static const struct ingenic_chip_info x1500_chip_info = {
 	.num_functions = ARRAY_SIZE(x1500_functions),
 	.pull_ups = x1000_pull_ups,
 	.pull_downs = x1000_pull_downs,
+	.access_table = &x1000_access_table,
 };
 
 static const u32 x1830_pull_ups[4] = {
@@ -2506,6 +2521,16 @@ static const struct function_desc x1830_functions[] = {
 	{ "mac", x1830_mac_groups, ARRAY_SIZE(x1830_mac_groups), },
 };
 
+static const struct regmap_range x1830_access_ranges[] = {
+	regmap_reg_range(0x0000, 0x4000 - 4),
+	regmap_reg_range(0x7000, 0x8000 - 4),
+};
+
+static const struct regmap_access_table x1830_access_table = {
+	.yes_ranges = x1830_access_ranges,
+	.n_yes_ranges = ARRAY_SIZE(x1830_access_ranges),
+};
+
 static const struct ingenic_chip_info x1830_chip_info = {
 	.num_chips = 4,
 	.reg_offset = 0x1000,
@@ -2516,6 +2541,7 @@ static const struct ingenic_chip_info x1830_chip_info = {
 	.num_functions = ARRAY_SIZE(x1830_functions),
 	.pull_ups = x1830_pull_ups,
 	.pull_downs = x1830_pull_downs,
+	.access_table = &x1830_access_table,
 };
 
 static const u32 x2000_pull_ups[5] = {
@@ -2969,6 +2995,17 @@ static const struct function_desc x2000_functions[] = {
 	{ "otg", x2000_otg_groups, ARRAY_SIZE(x2000_otg_groups), },
 };
 
+static const struct regmap_range x2000_access_ranges[] = {
+	regmap_reg_range(0x000, 0x500 - 4),
+	regmap_reg_range(0x700, 0x800 - 4),
+};
+
+/* shared with X2100 */
+static const struct regmap_access_table x2000_access_table = {
+	.yes_ranges = x2000_access_ranges,
+	.n_yes_ranges = ARRAY_SIZE(x2000_access_ranges),
+};
+
 static const struct ingenic_chip_info x2000_chip_info = {
 	.num_chips = 5,
 	.reg_offset = 0x100,
@@ -2979,6 +3016,7 @@ static const struct ingenic_chip_info x2000_chip_info = {
 	.num_functions = ARRAY_SIZE(x2000_functions),
 	.pull_ups = x2000_pull_ups,
 	.pull_downs = x2000_pull_downs,
+	.access_table = &x2000_access_table,
 };
 
 static const u32 x2100_pull_ups[5] = {
@@ -3189,6 +3227,7 @@ static const struct ingenic_chip_info x2100_chip_info = {
 	.num_functions = ARRAY_SIZE(x2100_functions),
 	.pull_ups = x2100_pull_ups,
 	.pull_downs = x2100_pull_downs,
+	.access_table = &x2000_access_table,
 };
 
 static u32 ingenic_gpio_read_reg(struct ingenic_gpio_chip *jzgc, u8 reg)
@@ -4168,7 +4207,12 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	regmap_config = ingenic_pinctrl_regmap_config;
-	regmap_config.max_register = chip_info->num_chips * chip_info->reg_offset;
+	if (chip_info->access_table) {
+		regmap_config.rd_table = chip_info->access_table;
+		regmap_config.wr_table = chip_info->access_table;
+	} else {
+		regmap_config.max_register = chip_info->num_chips * chip_info->reg_offset - 4;
+	}
 
 	jzpc->map = devm_regmap_init_mmio(dev, base, &regmap_config);
 	if (IS_ERR(jzpc->map)) {

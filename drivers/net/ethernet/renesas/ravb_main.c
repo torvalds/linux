@@ -475,7 +475,7 @@ static int ravb_ring_init(struct net_device *ndev, int q)
 		goto error;
 
 	for (i = 0; i < priv->num_rx_ring[q]; i++) {
-		skb = netdev_alloc_skb(ndev, info->max_rx_len);
+		skb = __netdev_alloc_skb(ndev, info->max_rx_len, GFP_KERNEL);
 		if (!skb)
 			goto error;
 		ravb_set_buffer_align(skb);
@@ -1432,11 +1432,7 @@ static int ravb_phy_init(struct net_device *ndev)
 	 * at this time.
 	 */
 	if (soc_device_match(r8a7795es10)) {
-		err = phy_set_max_speed(phydev, SPEED_100);
-		if (err) {
-			netdev_err(ndev, "failed to limit PHY to 100Mbit/s\n");
-			goto err_phy_disconnect;
-		}
+		phy_set_max_speed(phydev, SPEED_100);
 
 		netdev_info(ndev, "limited PHY to 100Mbit/s\n");
 	}
@@ -1457,8 +1453,6 @@ static int ravb_phy_init(struct net_device *ndev)
 
 	return 0;
 
-err_phy_disconnect:
-	phy_disconnect(phydev);
 err_deregister_fixed_link:
 	if (of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);
@@ -2854,7 +2848,6 @@ static int ravb_wol_restore(struct net_device *ndev)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
 	const struct ravb_hw_info *info = priv->info;
-	int ret;
 
 	if (info->nc_queues)
 		napi_enable(&priv->napi[RAVB_NC]);
@@ -2863,9 +2856,7 @@ static int ravb_wol_restore(struct net_device *ndev)
 	/* Disable MagicPacket */
 	ravb_modify(ndev, ECMR, ECMR_MPDE, 0);
 
-	ret = ravb_close(ndev);
-	if (ret < 0)
-		return ret;
+	ravb_close(ndev);
 
 	return disable_irq_wake(priv->emac_irq);
 }

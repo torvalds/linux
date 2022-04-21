@@ -17,7 +17,7 @@
 void __noreturn kunit_try_catch_throw(struct kunit_try_catch *try_catch)
 {
 	try_catch->try_result = -EFAULT;
-	complete_and_exit(try_catch->try_completion, -EFAULT);
+	kthread_complete_and_exit(try_catch->try_completion, -EFAULT);
 }
 EXPORT_SYMBOL_GPL(kunit_try_catch_throw);
 
@@ -27,7 +27,7 @@ static int kunit_generic_run_threadfn_adapter(void *data)
 
 	try_catch->try(try_catch->context);
 
-	complete_and_exit(try_catch->try_completion, 0);
+	kthread_complete_and_exit(try_catch->try_completion, 0);
 }
 
 static unsigned long kunit_test_timeout(void)
@@ -52,7 +52,7 @@ static unsigned long kunit_test_timeout(void)
 	 * If tests timeout due to exceeding sysctl_hung_task_timeout_secs,
 	 * the task will be killed and an oops generated.
 	 */
-	return 300 * MSEC_PER_SEC; /* 5 min */
+	return 300 * msecs_to_jiffies(MSEC_PER_SEC); /* 5 min */
 }
 
 void kunit_try_catch_run(struct kunit_try_catch *try_catch, void *context)
@@ -78,6 +78,7 @@ void kunit_try_catch_run(struct kunit_try_catch *try_catch, void *context)
 	if (time_remaining == 0) {
 		kunit_err(test, "try timed out\n");
 		try_catch->try_result = -ETIMEDOUT;
+		kthread_stop(task_struct);
 	}
 
 	exit_code = try_catch->try_result;

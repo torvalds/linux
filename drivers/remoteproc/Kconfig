@@ -180,6 +180,7 @@ config QCOM_Q6V5_ADSP
 	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
 	depends on QCOM_SYSMON || QCOM_SYSMON=n
 	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
+	depends on QCOM_AOSS_QMP || QCOM_AOSS_QMP=n
 	select MFD_SYSCON
 	select QCOM_PIL_INFO
 	select QCOM_MDT_LOADER
@@ -199,6 +200,7 @@ config QCOM_Q6V5_MSS
 	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
 	depends on QCOM_SYSMON || QCOM_SYSMON=n
 	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
+	depends on QCOM_AOSS_QMP || QCOM_AOSS_QMP=n
 	select MFD_SYSCON
 	select QCOM_MDT_LOADER
 	select QCOM_PIL_INFO
@@ -218,6 +220,7 @@ config QCOM_Q6V5_PAS
 	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
 	depends on QCOM_SYSMON || QCOM_SYSMON=n
 	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
+	depends on QCOM_AOSS_QMP || QCOM_AOSS_QMP=n
 	select MFD_SYSCON
 	select QCOM_PIL_INFO
 	select QCOM_MDT_LOADER
@@ -239,6 +242,7 @@ config QCOM_Q6V5_WCSS
 	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
 	depends on QCOM_SYSMON || QCOM_SYSMON=n
 	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
+	depends on QCOM_AOSS_QMP || QCOM_AOSS_QMP=n
 	select MFD_SYSCON
 	select QCOM_MDT_LOADER
 	select QCOM_PIL_INFO
@@ -282,6 +286,17 @@ config QCOM_WCNSS_PIL
 	  firmware and boot the core on e.g. MSM8974, MSM8916. The firmware is
 	  verified and booted with the help of the Peripheral Authentication
 	  System (PAS) in TrustZone.
+
+config RCAR_REMOTEPROC
+	tristate "Renesas R-Car Gen3 remoteproc support"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	  Say y here to support R-Car realtime processor via the
+	  remote processor framework. An ELF firmware can be loaded
+	  thanks to sysfs remoteproc entries. The remote processor
+	  can be started and stopped.
+	  This can be either built-in or a loadable module.
+	  If compiled as module (M), the module name is rcar_rproc.
 
 config ST_REMOTEPROC
 	tristate "ST remoteproc support"

@@ -19,13 +19,11 @@
 #include "internal.h"
 
 static int afs_file_mmap(struct file *file, struct vm_area_struct *vma);
-static int afs_readpage(struct file *file, struct page *page);
 static int afs_symlink_readpage(struct file *file, struct page *page);
-static void afs_invalidatepage(struct page *page, unsigned int offset,
-			       unsigned int length);
+static void afs_invalidate_folio(struct folio *folio, size_t offset,
+			       size_t length);
 static int afs_releasepage(struct page *page, gfp_t gfp_flags);
 
-static void afs_readahead(struct readahead_control *ractl);
 static ssize_t afs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter);
 static void afs_vm_open(struct vm_area_struct *area);
 static void afs_vm_close(struct vm_area_struct *area);
@@ -52,12 +50,12 @@ const struct inode_operations afs_file_inode_operations = {
 };
 
 const struct address_space_operations afs_file_aops = {
-	.readpage	= afs_readpage,
-	.readahead	= afs_readahead,
-	.set_page_dirty	= afs_set_page_dirty,
-	.launder_page	= afs_launder_page,
+	.readpage	= netfs_readpage,
+	.readahead	= netfs_readahead,
+	.dirty_folio	= afs_dirty_folio,
+	.launder_folio	= afs_launder_folio,
 	.releasepage	= afs_releasepage,
-	.invalidatepage	= afs_invalidatepage,
+	.invalidate_folio = afs_invalidate_folio,
 	.write_begin	= afs_write_begin,
 	.write_end	= afs_write_end,
 	.writepage	= afs_writepage,
@@ -67,7 +65,7 @@ const struct address_space_operations afs_file_aops = {
 const struct address_space_operations afs_symlink_aops = {
 	.readpage	= afs_symlink_readpage,
 	.releasepage	= afs_releasepage,
-	.invalidatepage	= afs_invalidatepage,
+	.invalidate_folio = afs_invalidate_folio,
 };
 
 static const struct vm_operations_struct afs_vm_ops = {
@@ -240,7 +238,7 @@ void afs_put_read(struct afs_read *req)
 static void afs_fetch_data_notify(struct afs_operation *op)
 {
 	struct afs_read *req = op->fetch.req;
-	struct netfs_read_subrequest *subreq = req->subreq;
+	struct netfs_io_subrequest *subreq = req->subreq;
 	int error = op->error;
 
 	if (error == -ECONNABORTED)
@@ -310,7 +308,7 @@ int afs_fetch_data(struct afs_vnode *vnode, struct afs_read *req)
 	return afs_do_sync_operation(op);
 }
 
-static void afs_req_issue_op(struct netfs_read_subrequest *subreq)
+static void afs_issue_read(struct netfs_io_subrequest *subreq)
 {
 	struct afs_vnode *vnode = AFS_FS_I(subreq->rreq->inode);
 	struct afs_read *fsreq;
@@ -359,19 +357,13 @@ static int afs_symlink_readpage(struct file *file, struct page *page)
 	return ret;
 }
 
-static void afs_init_rreq(struct netfs_read_request *rreq, struct file *file)
+static int afs_init_request(struct netfs_io_request *rreq, struct file *file)
 {
 	rreq->netfs_priv = key_get(afs_file_key(file));
+	return 0;
 }
 
-static bool afs_is_cache_enabled(struct inode *inode)
-{
-	struct fscache_cookie *cookie = afs_vnode_cache(AFS_FS_I(inode));
-
-	return fscache_cookie_enabled(cookie) && cookie->cache_priv;
-}
-
-static int afs_begin_cache_operation(struct netfs_read_request *rreq)
+static int afs_begin_cache_operation(struct netfs_io_request *rreq)
 {
 #ifdef CONFIG_AFS_FSCACHE
 	struct afs_vnode *vnode = AFS_FS_I(rreq->inode);
@@ -396,26 +388,13 @@ static void afs_priv_cleanup(struct address_space *mapping, void *netfs_priv)
 	key_put(netfs_priv);
 }
 
-const struct netfs_read_request_ops afs_req_ops = {
-	.init_rreq		= afs_init_rreq,
-	.is_cache_enabled	= afs_is_cache_enabled,
+const struct netfs_request_ops afs_req_ops = {
+	.init_request		= afs_init_request,
 	.begin_cache_operation	= afs_begin_cache_operation,
 	.check_write_begin	= afs_check_write_begin,
-	.issue_op		= afs_req_issue_op,
+	.issue_read		= afs_issue_read,
 	.cleanup		= afs_priv_cleanup,
 };
-
-static int afs_readpage(struct file *file, struct page *page)
-{
-	struct folio *folio = page_folio(page);
-
-	return netfs_readpage(file, folio, &afs_req_ops, NULL);
-}
-
-static void afs_readahead(struct readahead_control *ractl)
-{
-	netfs_readahead(ractl, &afs_req_ops, NULL);
-}
 
 int afs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
@@ -427,8 +406,8 @@ int afs_write_inode(struct inode *inode, struct writeback_control *wbc)
  * Adjust the dirty region of the page on truncation or full invalidation,
  * getting rid of the markers altogether if the region is entirely invalidated.
  */
-static void afs_invalidate_dirty(struct folio *folio, unsigned int offset,
-				 unsigned int length)
+static void afs_invalidate_dirty(struct folio *folio, size_t offset,
+				 size_t length)
 {
 	struct afs_vnode *vnode = AFS_FS_I(folio_inode(folio));
 	unsigned long priv;
@@ -485,16 +464,14 @@ full_invalidate:
  * - release a page and clean up its private data if offset is 0 (indicating
  *   the entire page)
  */
-static void afs_invalidatepage(struct page *page, unsigned int offset,
-			       unsigned int length)
+static void afs_invalidate_folio(struct folio *folio, size_t offset,
+			       size_t length)
 {
-	struct folio *folio = page_folio(page);
+	_enter("{%lu},%zu,%zu", folio->index, offset, length);
 
-	_enter("{%lu},%u,%u", folio_index(folio), offset, length);
+	BUG_ON(!folio_test_locked(folio));
 
-	BUG_ON(!PageLocked(page));
-
-	if (PagePrivate(page))
+	if (folio_get_private(folio))
 		afs_invalidate_dirty(folio, offset, length);
 
 	folio_wait_fscache(folio);

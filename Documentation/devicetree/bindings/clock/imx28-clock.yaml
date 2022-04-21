@@ -106,12 +106,3 @@ examples:
         reg = <0x80040000 0x2000>;
         #clock-cells = <1>;
     };
-
-    serial@8006a000 {
-        compatible = "fsl,imx28-auart";
-        reg = <0x8006a000 0x2000>;
-        interrupts = <112>;
-        dmas = <&dma_apbx 8>, <&dma_apbx 9>;
-        dma-names = "rx", "tx";
-        clocks = <&clks 45>;
-    };

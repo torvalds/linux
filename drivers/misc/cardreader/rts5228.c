@@ -91,7 +91,7 @@ static int rts5228_optimize_phy(struct rtsx_pcr *pcr)
 	return rtsx_pci_write_phy_register(pcr, 0x07, 0x8F40);
 }
 
-static void rts5228_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
+static void rts5228_force_power_down(struct rtsx_pcr *pcr, u8 pm_state, bool runtime)
 {
 	/* Set relink_time to 0 */
 	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 1, MASK_8_BIT_DEF, 0);
@@ -101,6 +101,14 @@ static void rts5228_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
 
 	rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3,
 			D3_DELINK_MODE_EN, D3_DELINK_MODE_EN);
+
+	if (!runtime) {
+		rtsx_pci_write_register(pcr, RTS5228_AUTOLOAD_CFG1,
+				CD_RESUME_EN_MASK, 0);
+		rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x01, 0x00);
+		rtsx_pci_write_register(pcr, RTS5228_REG_PME_FORCE_CTL,
+				FORCE_PM_CONTROL | FORCE_PM_VALUE, FORCE_PM_CONTROL);
+	}
 
 	rtsx_pci_write_register(pcr, FPDCTL,
 		SSC_POWER_DOWN, SSC_POWER_DOWN);
@@ -480,9 +488,18 @@ static int rts5228_extra_init_hw(struct rtsx_pcr *pcr)
 				 FORCE_CLKREQ_DELINK_MASK, FORCE_CLKREQ_HIGH);
 
 	rtsx_pci_write_register(pcr, PWD_SUSPEND_EN, 0xFF, 0xFB);
-	rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x10, 0x00);
-	rtsx_pci_write_register(pcr, RTS5228_REG_PME_FORCE_CTL,
-			FORCE_PM_CONTROL | FORCE_PM_VALUE, FORCE_PM_CONTROL);
+
+	if (pcr->rtd3_en) {
+		rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x01, 0x01);
+		rtsx_pci_write_register(pcr, RTS5228_REG_PME_FORCE_CTL,
+				FORCE_PM_CONTROL | FORCE_PM_VALUE,
+				FORCE_PM_CONTROL | FORCE_PM_VALUE);
+	} else {
+		rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x01, 0x00);
+		rtsx_pci_write_register(pcr, RTS5228_REG_PME_FORCE_CTL,
+				FORCE_PM_CONTROL | FORCE_PM_VALUE, FORCE_PM_CONTROL);
+	}
+	rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, D3_DELINK_MODE_EN, 0x00);
 
 	return 0;
 }

@@ -39,7 +39,7 @@ struct pcm186x_priv {
 	unsigned int sysclk;
 	unsigned int tdm_offset;
 	bool is_tdm_mode;
-	bool is_master_mode;
+	bool is_provider_mode;
 };
 
 static const DECLARE_TLV_DB_SCALE(pcm186x_pga_tlv, -1200, 50, 0);
@@ -340,8 +340,8 @@ static int pcm186x_hw_params(struct snd_pcm_substream *substream,
 				    PCM186X_PCM_CFG_TDM_LRCK_MODE);
 	}
 
-	/* Only configure clock dividers in master mode. */
-	if (priv->is_master_mode) {
+	/* Only configure clock dividers in provider mode. */
+	if (priv->is_provider_mode) {
 		div_bck = priv->sysclk / (div_lrck * rate);
 
 		dev_dbg(component->dev,
@@ -364,18 +364,17 @@ static int pcm186x_set_fmt(struct snd_soc_dai *dai, unsigned int format)
 
 	dev_dbg(component->dev, "%s() format=0x%x\n", __func__, format);
 
-	/* set master/slave audio interface */
-	switch (format & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (format & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		if (!priv->sysclk) {
-			dev_err(component->dev, "operating in master mode requires sysclock to be configured\n");
+			dev_err(component->dev, "operating in provider mode requires sysclock to be configured\n");
 			return -EINVAL;
 		}
 		clk_ctrl |= PCM186X_CLK_CTRL_MST_MODE;
-		priv->is_master_mode = true;
+		priv->is_provider_mode = true;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		priv->is_master_mode = false;
+	case SND_SOC_DAIFMT_CBC_CFC:
+		priv->is_provider_mode = false;
 		break;
 	default:
 		dev_err(component->dev, "Invalid DAI master/slave interface\n");

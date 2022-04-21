@@ -142,10 +142,11 @@ static struct attribute *nfs_netns_client_attrs[] = {
 	&nfs_netns_client_id.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(nfs_netns_client);
 
 static struct kobj_type nfs_netns_client_type = {
 	.release = nfs_netns_client_release,
-	.default_attrs = nfs_netns_client_attrs,
+	.default_groups = nfs_netns_client_groups,
 	.sysfs_ops = &kobj_sysfs_ops,
 	.namespace = nfs_netns_client_namespace,
 };

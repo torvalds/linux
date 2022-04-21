@@ -263,7 +263,7 @@ static int process_measurement(struct file *file, const struct cred *cred,
 		/* reset appraisal flags if ima_inode_post_setattr was called */
 		iint->flags &= ~(IMA_APPRAISE | IMA_APPRAISED |
 				 IMA_APPRAISE_SUBMASK | IMA_APPRAISED_SUBMASK |
-				 IMA_ACTION_FLAGS);
+				 IMA_NONACTION_FLAGS);
 
 	/*
 	 * Re-evaulate the file if either the xattr has changed or the
@@ -418,6 +418,7 @@ int ima_file_mmap(struct file *file, unsigned long prot)
 
 /**
  * ima_file_mprotect - based on policy, limit mprotect change
+ * @vma: vm_area_struct protection is set to
  * @prot: contains the protection that will be applied by the kernel.
  *
  * Files can be mmap'ed read/write and later changed to execute to circumvent
@@ -519,19 +520,37 @@ int ima_file_check(struct file *file, int mask)
 }
 EXPORT_SYMBOL_GPL(ima_file_check);
 
-static int __ima_inode_hash(struct inode *inode, char *buf, size_t buf_size)
+static int __ima_inode_hash(struct inode *inode, struct file *file, char *buf,
+			    size_t buf_size)
 {
-	struct integrity_iint_cache *iint;
-	int hash_algo;
+	struct integrity_iint_cache *iint = NULL, tmp_iint;
+	int rc, hash_algo;
 
-	if (!ima_policy_flag)
-		return -EOPNOTSUPP;
+	if (ima_policy_flag) {
+		iint = integrity_iint_find(inode);
+		if (iint)
+			mutex_lock(&iint->mutex);
+	}
 
-	iint = integrity_iint_find(inode);
+	if ((!iint || !(iint->flags & IMA_COLLECTED)) && file) {
+		if (iint)
+			mutex_unlock(&iint->mutex);
+
+		memset(&tmp_iint, 0, sizeof(tmp_iint));
+		tmp_iint.inode = inode;
+		mutex_init(&tmp_iint.mutex);
+
+		rc = ima_collect_measurement(&tmp_iint, file, NULL, 0,
+					     ima_hash_algo, NULL);
+		if (rc < 0)
+			return -EOPNOTSUPP;
+
+		iint = &tmp_iint;
+		mutex_lock(&iint->mutex);
+	}
+
 	if (!iint)
 		return -EOPNOTSUPP;
-
-	mutex_lock(&iint->mutex);
 
 	/*
 	 * ima_file_hash can be called when ima_collect_measurement has still
@@ -551,12 +570,14 @@ static int __ima_inode_hash(struct inode *inode, char *buf, size_t buf_size)
 	hash_algo = iint->ima_hash->algo;
 	mutex_unlock(&iint->mutex);
 
+	if (iint == &tmp_iint)
+		kfree(iint->ima_hash);
+
 	return hash_algo;
 }
 
 /**
- * ima_file_hash - return the stored measurement if a file has been hashed and
- * is in the iint cache.
+ * ima_file_hash - return a measurement of the file
  * @file: pointer to the file
  * @buf: buffer in which to store the hash
  * @buf_size: length of the buffer
@@ -569,7 +590,7 @@ static int __ima_inode_hash(struct inode *inode, char *buf, size_t buf_size)
  * The file hash returned is based on the entire file, including the appended
  * signature.
  *
- * If IMA is disabled or if no measurement is available, return -EOPNOTSUPP.
+ * If the measurement cannot be performed, return -EOPNOTSUPP.
  * If the parameters are incorrect, return -EINVAL.
  */
 int ima_file_hash(struct file *file, char *buf, size_t buf_size)
@@ -577,7 +598,7 @@ int ima_file_hash(struct file *file, char *buf, size_t buf_size)
 	if (!file)
 		return -EINVAL;
 
-	return __ima_inode_hash(file_inode(file), buf, buf_size);
+	return __ima_inode_hash(file_inode(file), file, buf, buf_size);
 }
 EXPORT_SYMBOL_GPL(ima_file_hash);
 
@@ -604,14 +625,14 @@ int ima_inode_hash(struct inode *inode, char *buf, size_t buf_size)
 	if (!inode)
 		return -EINVAL;
 
-	return __ima_inode_hash(inode, buf, buf_size);
+	return __ima_inode_hash(inode, NULL, buf, buf_size);
 }
 EXPORT_SYMBOL_GPL(ima_inode_hash);
 
 /**
  * ima_post_create_tmpfile - mark newly created tmpfile as new
- * @mnt_userns:	user namespace of the mount the inode was found from
- * @file : newly created tmpfile
+ * @mnt_userns: user namespace of the mount the inode was found from
+ * @inode: inode of the newly created tmpfile
  *
  * No measuring, appraising or auditing of newly created tmpfiles is needed.
  * Skip calling process_measurement(), but indicate which newly, created
@@ -643,7 +664,7 @@ void ima_post_create_tmpfile(struct user_namespace *mnt_userns,
 
 /**
  * ima_post_path_mknod - mark as a new inode
- * @mnt_userns:	user namespace of the mount the inode was found from
+ * @mnt_userns: user namespace of the mount the inode was found from
  * @dentry: newly created dentry
  *
  * Mark files created via the mknodat syscall as new, so that the
@@ -764,7 +785,7 @@ int ima_post_read_file(struct file *file, void *buf, loff_t size,
  *	      call to ima_post_load_data().
  *
  * Callers of this LSM hook can not measure, appraise, or audit the
- * data provided by userspace.  Enforce policy rules requring a file
+ * data provided by userspace.  Enforce policy rules requiring a file
  * signature (eg. kexec'ed kernel image).
  *
  * For permission return 0, otherwise return -EACCES.
@@ -814,8 +835,8 @@ int ima_load_data(enum kernel_load_data_id id, bool contents)
  * ima_post_load_data - appraise decision based on policy
  * @buf: pointer to in memory file contents
  * @size: size of in memory file contents
- * @id: kernel load data caller identifier
- * @description: @id-specific description of contents
+ * @load_id: kernel load data caller identifier
+ * @description: @load_id-specific description of contents
  *
  * Measure/appraise/audit in memory buffer based on policy.  Policy rules
  * are written in terms of a policy identifier.
@@ -874,10 +895,7 @@ int process_buffer_measurement(struct user_namespace *mnt_userns,
 					    .buf = buf,
 					    .buf_len = size};
 	struct ima_template_desc *template;
-	struct {
-		struct ima_digest_data hdr;
-		char digest[IMA_MAX_DIGEST_SIZE];
-	} hash = {};
+	struct ima_max_digest_data hash;
 	char digest_hash[IMA_MAX_DIGEST_SIZE];
 	int digest_hash_len = hash_digest_size[ima_hash_algo];
 	int violation = 0;

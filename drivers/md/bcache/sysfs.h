@@ -9,7 +9,7 @@ struct kobj_type type ## _ktype = {					\
 		.show	= type ## _show,				\
 		.store	= type ## _store				\
 	}),								\
-	.default_attrs	= type ## _files				\
+	.default_groups	= type ## _groups				\
 }
 
 #define SHOW(fn)							\

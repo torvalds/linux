@@ -51,6 +51,7 @@ struct vdevice_status {
 struct usb_shadow {
 	struct xenusb_urb_request req;
 	struct urb *urb;
+	bool in_flight;
 };
 
 struct xenhcd_info {
@@ -589,14 +590,12 @@ static void xenhcd_gnttab_map(struct xenhcd_info *info, void *addr, int length,
 			      int nr_pages, int flags)
 {
 	grant_ref_t ref;
-	unsigned long buffer_mfn;
 	unsigned int offset;
 	unsigned int len = length;
 	unsigned int bytes;
 	int i;
 
 	for (i = 0; i < nr_pages; i++) {
-		buffer_mfn = PFN_DOWN(arbitrary_virt_to_machine(addr).maddr);
 		offset = offset_in_page(addr);
 
 		bytes = PAGE_SIZE - offset;
@@ -605,7 +604,7 @@ static void xenhcd_gnttab_map(struct xenhcd_info *info, void *addr, int length,
 
 		ref = gnttab_claim_grant_reference(gref_head);
 		gnttab_grant_foreign_access_ref(ref, info->xbdev->otherend_id,
-						buffer_mfn, flags);
+						virt_to_gfn(addr), flags);
 		seg[i].gref = ref;
 		seg[i].offset = (__u16)offset;
 		seg[i].length = (__u16)bytes;
@@ -716,18 +715,27 @@ static int xenhcd_map_urb_for_request(struct xenhcd_info *info, struct urb *urb,
 	return 0;
 }
 
-static void xenhcd_gnttab_done(struct usb_shadow *shadow)
+static void xenhcd_gnttab_done(struct xenhcd_info *info, unsigned int id)
 {
+	struct usb_shadow *shadow = info->shadow + id;
 	int nr_segs = 0;
 	int i;
+
+	if (!shadow->in_flight) {
+		xenhcd_set_error(info, "Illegal request id");
+		return;
+	}
+	shadow->in_flight = false;
 
 	nr_segs = shadow->req.nr_buffer_segs;
 
 	if (xenusb_pipeisoc(shadow->req.pipe))
 		nr_segs += shadow->req.u.isoc.nr_frame_desc_segs;
 
-	for (i = 0; i < nr_segs; i++)
-		gnttab_end_foreign_access(shadow->req.seg[i].gref, 0, 0UL);
+	for (i = 0; i < nr_segs; i++) {
+		if (!gnttab_try_end_foreign_access(shadow->req.seg[i].gref))
+			xenhcd_set_error(info, "backend didn't release grant");
+	}
 
 	shadow->req.nr_buffer_segs = 0;
 	shadow->req.u.isoc.nr_frame_desc_segs = 0;
@@ -802,6 +810,7 @@ static int xenhcd_do_request(struct xenhcd_info *info, struct urb_priv *urbp)
 
 	info->urb_ring.req_prod_pvt++;
 	info->shadow[id].urb = urb;
+	info->shadow[id].in_flight = true;
 
 	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&info->urb_ring, notify);
 	if (notify)
@@ -841,7 +850,9 @@ static void xenhcd_cancel_all_enqueued_urbs(struct xenhcd_info *info)
 	list_for_each_entry_safe(urbp, tmp, &info->in_progress_list, list) {
 		req_id = urbp->req_id;
 		if (!urbp->unlinked) {
-			xenhcd_gnttab_done(&info->shadow[req_id]);
+			xenhcd_gnttab_done(info, req_id);
+			if (info->error)
+				return;
 			if (urbp->urb->status == -EINPROGRESS)
 				/* not dequeued */
 				xenhcd_giveback_urb(info, urbp->urb,
@@ -928,10 +939,27 @@ static int xenhcd_unlink_urb(struct xenhcd_info *info, struct urb_priv *urbp)
 	return ret;
 }
 
-static int xenhcd_urb_request_done(struct xenhcd_info *info)
+static void xenhcd_res_to_urb(struct xenhcd_info *info,
+			      struct xenusb_urb_response *res, struct urb *urb)
+{
+	if (unlikely(!urb))
+		return;
+
+	if (res->actual_length > urb->transfer_buffer_length)
+		urb->actual_length = urb->transfer_buffer_length;
+	else if (res->actual_length < 0)
+		urb->actual_length = 0;
+	else
+		urb->actual_length = res->actual_length;
+	urb->error_count = res->error_count;
+	urb->start_frame = res->start_frame;
+	xenhcd_giveback_urb(info, urb, res->status);
+}
+
+static int xenhcd_urb_request_done(struct xenhcd_info *info,
+				   unsigned int *eoiflag)
 {
 	struct xenusb_urb_response res;
-	struct urb *urb;
 	RING_IDX i, rp;
 	__u16 id;
 	int more_to_do = 0;
@@ -942,8 +970,7 @@ static int xenhcd_urb_request_done(struct xenhcd_info *info)
 	rp = info->urb_ring.sring->rsp_prod;
 	if (RING_RESPONSE_PROD_OVERFLOW(&info->urb_ring, rp)) {
 		xenhcd_set_error(info, "Illegal index on urb-ring");
-		spin_unlock_irqrestore(&info->lock, flags);
-		return 0;
+		goto err;
 	}
 	rmb(); /* ensure we see queued responses up to "rp" */
 
@@ -952,21 +979,19 @@ static int xenhcd_urb_request_done(struct xenhcd_info *info)
 		id = res.id;
 		if (id >= XENUSB_URB_RING_SIZE) {
 			xenhcd_set_error(info, "Illegal data on urb-ring");
-			continue;
+			goto err;
 		}
 
 		if (likely(xenusb_pipesubmit(info->shadow[id].req.pipe))) {
-			xenhcd_gnttab_done(&info->shadow[id]);
-			urb = info->shadow[id].urb;
-			if (likely(urb)) {
-				urb->actual_length = res.actual_length;
-				urb->error_count = res.error_count;
-				urb->start_frame = res.start_frame;
-				xenhcd_giveback_urb(info, urb, res.status);
-			}
+			xenhcd_gnttab_done(info, id);
+			if (info->error)
+				goto err;
+			xenhcd_res_to_urb(info, &res, info->shadow[id].urb);
 		}
 
 		xenhcd_add_id_to_freelist(info, id);
+
+		*eoiflag = 0;
 	}
 	info->urb_ring.rsp_cons = i;
 
@@ -978,9 +1003,13 @@ static int xenhcd_urb_request_done(struct xenhcd_info *info)
 	spin_unlock_irqrestore(&info->lock, flags);
 
 	return more_to_do;
+
+ err:
+	spin_unlock_irqrestore(&info->lock, flags);
+	return 0;
 }
 
-static int xenhcd_conn_notify(struct xenhcd_info *info)
+static int xenhcd_conn_notify(struct xenhcd_info *info, unsigned int *eoiflag)
 {
 	struct xenusb_conn_response res;
 	struct xenusb_conn_request *req;
@@ -1025,6 +1054,8 @@ static int xenhcd_conn_notify(struct xenhcd_info *info)
 				       info->conn_ring.req_prod_pvt);
 		req->id = id;
 		info->conn_ring.req_prod_pvt++;
+
+		*eoiflag = 0;
 	}
 
 	if (rc != info->conn_ring.req_prod_pvt)
@@ -1047,14 +1078,19 @@ static int xenhcd_conn_notify(struct xenhcd_info *info)
 static irqreturn_t xenhcd_int(int irq, void *dev_id)
 {
 	struct xenhcd_info *info = (struct xenhcd_info *)dev_id;
+	unsigned int eoiflag = XEN_EOI_FLAG_SPURIOUS;
 
-	if (unlikely(info->error))
+	if (unlikely(info->error)) {
+		xen_irq_lateeoi(irq, XEN_EOI_FLAG_SPURIOUS);
 		return IRQ_HANDLED;
+	}
 
-	while (xenhcd_urb_request_done(info) | xenhcd_conn_notify(info))
+	while (xenhcd_urb_request_done(info, &eoiflag) |
+	       xenhcd_conn_notify(info, &eoiflag))
 		/* Yield point for this unbounded loop. */
 		cond_resched();
 
+	xen_irq_lateeoi(irq, eoiflag);
 	return IRQ_HANDLED;
 }
 
@@ -1065,14 +1101,14 @@ static void xenhcd_destroy_rings(struct xenhcd_info *info)
 	info->irq = 0;
 
 	if (info->urb_ring_ref != GRANT_INVALID_REF) {
-		gnttab_end_foreign_access(info->urb_ring_ref, 0,
+		gnttab_end_foreign_access(info->urb_ring_ref,
 					  (unsigned long)info->urb_ring.sring);
 		info->urb_ring_ref = GRANT_INVALID_REF;
 	}
 	info->urb_ring.sring = NULL;
 
 	if (info->conn_ring_ref != GRANT_INVALID_REF) {
-		gnttab_end_foreign_access(info->conn_ring_ref, 0,
+		gnttab_end_foreign_access(info->conn_ring_ref,
 					  (unsigned long)info->conn_ring.sring);
 		info->conn_ring_ref = GRANT_INVALID_REF;
 	}
@@ -1131,9 +1167,9 @@ static int xenhcd_setup_rings(struct xenbus_device *dev,
 		goto fail;
 	}
 
-	err = bind_evtchn_to_irq(info->evtchn);
+	err = bind_evtchn_to_irq_lateeoi(info->evtchn);
 	if (err <= 0) {
-		xenbus_dev_fatal(dev, err, "bind_evtchn_to_irq");
+		xenbus_dev_fatal(dev, err, "bind_evtchn_to_irq_lateeoi");
 		goto fail;
 	}
 
@@ -1486,6 +1522,7 @@ static struct usb_hcd *xenhcd_create_hcd(struct xenbus_device *dev)
 	for (i = 0; i < XENUSB_URB_RING_SIZE; i++) {
 		info->shadow[i].req.id = i + 1;
 		info->shadow[i].urb = NULL;
+		info->shadow[i].in_flight = false;
 	}
 	info->shadow[XENUSB_URB_RING_SIZE - 1].req.id = 0x0fff;
 

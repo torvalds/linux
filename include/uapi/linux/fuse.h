@@ -968,7 +968,7 @@ struct fuse_notify_retrieve_in {
 #define FUSE_DEV_IOC_CLONE		_IOR(FUSE_DEV_IOC_MAGIC, 0, uint32_t)
 /* 127 is reserved for the V1 interface implementation in Android (deprecated) */
 /* 126 is reserved for the V2 interface implementation in Android */
-#define FUSE_DEV_IOC_PASSTHROUGH_OPEN	_IOW(FUSE_DEV_IOC_MAGIC, 126, __u32)
+#define FUSE_DEV_IOC_PASSTHROUGH_OPEN	_IOW(FUSE_DEV_IOC_MAGIC, 126, uint32_t)
 
 struct fuse_lseek_in {
 	uint64_t	fh;

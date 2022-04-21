@@ -92,7 +92,7 @@ enum {
  */
 
 /* PowerISA v2.07 format attribute structure*/
-extern struct attribute_group isa207_pmu_format_group;
+extern const struct attribute_group isa207_pmu_format_group;
 
 /* Table of alternatives, sorted by column 0 */
 static const unsigned int event_alternatives[][MAX_ALT] = {
@@ -182,7 +182,7 @@ static struct attribute *power8_events_attr[] = {
 	NULL
 };
 
-static struct attribute_group power8_pmu_events_group = {
+static const struct attribute_group power8_pmu_events_group = {
 	.name = "events",
 	.attrs = power8_events_attr,
 };

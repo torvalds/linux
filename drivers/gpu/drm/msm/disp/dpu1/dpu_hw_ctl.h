@@ -62,6 +62,13 @@ struct dpu_hw_ctl_ops {
 	void (*trigger_start)(struct dpu_hw_ctl *ctx);
 
 	/**
+	 * check if the ctl is started
+	 * @ctx       : ctl path ctx pointer
+	 * @Return: true if started, false if stopped
+	 */
+	bool (*is_started)(struct dpu_hw_ctl *ctx);
+
+	/**
 	 * kickoff prepare is in progress hw operation for sw
 	 * controlled interfaces: DSI cmd mode and WB interface
 	 * are SW controlled

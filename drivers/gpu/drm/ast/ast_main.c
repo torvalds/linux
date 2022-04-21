@@ -209,6 +209,8 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 			if (ast->chip == AST2500 &&
 			    scu_rev == 0x100)           /* ast2510 */
 				ast->support_wide_screen = true;
+			if (ast->chip == AST2600)		/* ast2600 */
+				ast->support_wide_screen = true;
 		}
 		break;
 	}

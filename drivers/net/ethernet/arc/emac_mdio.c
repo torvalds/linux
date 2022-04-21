@@ -132,6 +132,7 @@ int arc_mdio_probe(struct arc_emac_priv *priv)
 {
 	struct arc_emac_mdio_bus_data *data = &priv->bus_data;
 	struct device_node *np = priv->dev->of_node;
+	const char *name = "Synopsys MII Bus";
 	struct mii_bus *bus;
 	int error;
 
@@ -142,7 +143,7 @@ int arc_mdio_probe(struct arc_emac_priv *priv)
 	priv->bus = bus;
 	bus->priv = priv;
 	bus->parent = priv->dev;
-	bus->name = "Synopsys MII Bus";
+	bus->name = name;
 	bus->read = &arc_mdio_read;
 	bus->write = &arc_mdio_write;
 	bus->reset = &arc_mdio_reset;
@@ -167,7 +168,7 @@ int arc_mdio_probe(struct arc_emac_priv *priv)
 	if (error) {
 		mdiobus_free(bus);
 		return dev_err_probe(priv->dev, error,
-				     "cannot register MDIO bus %s\n", bus->name);
+				     "cannot register MDIO bus %s\n", name);
 	}
 
 	return 0;

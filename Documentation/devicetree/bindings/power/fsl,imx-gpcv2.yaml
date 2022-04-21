@@ -28,6 +28,7 @@ properties:
       - fsl,imx8mn-gpc
       - fsl,imx8mq-gpc
       - fsl,imx8mm-gpc
+      - fsl,imx8mp-gpc
 
   reg:
     maxItems: 1
@@ -57,6 +58,7 @@ properties:
               include/dt-bindings/power/imx7-power.h for fsl,imx7d-gpc and
               include/dt-bindings/power/imx8m-power.h for fsl,imx8mq-gpc
               include/dt-bindings/power/imx8mm-power.h for fsl,imx8mm-gpc
+              include/dt-bindings/power/imx8mp-power.h for fsl,imx8mp-gpc
             maxItems: 1
 
           clocks:

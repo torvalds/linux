@@ -187,7 +187,7 @@ int mpl115_probe(struct device *dev, const char *name,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_GPL(mpl115_probe);
+EXPORT_SYMBOL_NS_GPL(mpl115_probe, IIO_MPL115);
 
 MODULE_AUTHOR("Peter Meerwald <pmeerw@pmeerw.net>");
 MODULE_DESCRIPTION("Freescale MPL115 pressure/temperature driver");

@@ -191,18 +191,6 @@ config S3C64XX_DEV_SPI0
 	  Compile in platform device definitions for S3C64XX's type
 	  SPI controller 0
 
-config S3C64XX_DEV_SPI1
-	bool
-	help
-	  Compile in platform device definitions for S3C64XX's type
-	  SPI controller 1
-
-config S3C64XX_DEV_SPI2
-	bool
-	help
-	  Compile in platform device definitions for S3C64XX's type
-	  SPI controller 2
-
 config SAMSUNG_DEV_TS
 	bool
 	help

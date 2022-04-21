@@ -3,6 +3,7 @@
 #define _ASM_X86_IRQ_STACK_H
 
 #include <linux/ptrace.h>
+#include <linux/objtool.h>
 
 #include <asm/processor.h>
 
@@ -99,7 +100,8 @@
 }
 
 #define ASM_CALL_ARG0							\
-	"call %P[__func]				\n"
+	"call %P[__func]				\n"		\
+	ASM_REACHABLE
 
 #define ASM_CALL_ARG1							\
 	"movq	%[arg1], %%rdi				\n"		\

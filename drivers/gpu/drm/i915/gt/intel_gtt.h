@@ -27,7 +27,10 @@
 
 #include "gt/intel_reset.h"
 #include "i915_selftest.h"
+#include "i915_vma_resource.h"
 #include "i915_vma_types.h"
+#include "i915_params.h"
+#include "intel_memory_region.h"
 
 #define I915_GFP_ALLOW_FAIL (GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN)
 
@@ -88,6 +91,8 @@ typedef u64 gen8_pte_t;
 #define GEN12_PPGTT_PTE_LM	BIT_ULL(11)
 
 #define GEN12_GGTT_PTE_LM	BIT_ULL(1)
+
+#define GEN12_PDE_64K BIT(6)
 
 /*
  * Cacheability Control is a 4-bit value. The low three bits are stored in bits
@@ -157,6 +162,7 @@ struct i915_page_table {
 		atomic_t used;
 		struct i915_page_table *stash;
 	};
+	bool is_compact;
 };
 
 struct i915_page_directory {
@@ -194,13 +200,21 @@ void *__px_vaddr(struct drm_i915_gem_object *p);
 struct i915_vm_pt_stash {
 	/* preallocated chains of page tables/directories */
 	struct i915_page_table *pt[2];
+	/*
+	 * Optionally override the alignment/size of the physical page that
+	 * contains each PT. If not set defaults back to the usual
+	 * I915_GTT_PAGE_SIZE_4K. This does not influence the other paging
+	 * structures. MUST be a power-of-two. ONLY applicable on discrete
+	 * platforms.
+	 */
+	int pt_sz;
 };
 
 struct i915_vma_ops {
 	/* Map an object into an address space with the given cache flags. */
 	void (*bind_vma)(struct i915_address_space *vm,
 			 struct i915_vm_pt_stash *stash,
-			 struct i915_vma *vma,
+			 struct i915_vma_resource *vma_res,
 			 enum i915_cache_level cache_level,
 			 u32 flags);
 	/*
@@ -208,7 +222,8 @@ struct i915_vma_ops {
 	 * setting the valid PTE entries to a reserved scratch page.
 	 */
 	void (*unbind_vma)(struct i915_address_space *vm,
-			   struct i915_vma *vma);
+			   struct i915_vma_resource *vma_res);
+
 };
 
 struct i915_address_space {
@@ -221,6 +236,7 @@ struct i915_address_space {
 	struct device *dma;
 	u64 total;		/* size addr space maps (ex. 2GB for ggtt) */
 	u64 reserved;		/* size addr space reserved */
+	u64 min_alignment[INTEL_MEMORY_STOLEN_LOCAL + 1];
 
 	unsigned int bind_async_flags;
 
@@ -263,6 +279,9 @@ struct i915_address_space {
 	/* Flags used when creating page-table objects for this vm */
 	unsigned long lmem_pt_obj_flags;
 
+	/* Interval tree for pending unbind vma resources */
+	struct rb_root_cached pending_unbind;
+
 	struct drm_i915_gem_object *
 		(*alloc_pt_dma)(struct i915_address_space *vm, int sz);
 	struct drm_i915_gem_object *
@@ -285,7 +304,7 @@ struct i915_address_space {
 			    enum i915_cache_level cache_level,
 			    u32 flags);
 	void (*insert_entries)(struct i915_address_space *vm,
-			       struct i915_vma *vma,
+			       struct i915_vma_resource *vma_res,
 			       enum i915_cache_level cache_level,
 			       u32 flags);
 	void (*cleanup)(struct i915_address_space *vm);
@@ -377,6 +396,25 @@ static inline bool
 i915_vm_has_scratch_64K(struct i915_address_space *vm)
 {
 	return vm->scratch_order == get_order(I915_GTT_PAGE_SIZE_64K);
+}
+
+static inline u64 i915_vm_min_alignment(struct i915_address_space *vm,
+					enum intel_memory_type type)
+{
+	/* avoid INTEL_MEMORY_MOCK overflow */
+	if ((int)type >= ARRAY_SIZE(vm->min_alignment))
+		type = INTEL_MEMORY_SYSTEM;
+
+	return vm->min_alignment[type];
+}
+
+static inline u64 i915_vm_obj_min_alignment(struct i915_address_space *vm,
+					    struct drm_i915_gem_object  *obj)
+{
+	struct intel_memory_region *mr = READ_ONCE(obj->mm.region);
+	enum intel_memory_type type = mr ? mr->type : INTEL_MEMORY_SYSTEM;
+
+	return i915_vm_min_alignment(vm, type);
 }
 
 static inline bool
@@ -565,7 +603,7 @@ void free_scratch(struct i915_address_space *vm);
 
 struct drm_i915_gem_object *alloc_pt_dma(struct i915_address_space *vm, int sz);
 struct drm_i915_gem_object *alloc_pt_lmem(struct i915_address_space *vm, int sz);
-struct i915_page_table *alloc_pt(struct i915_address_space *vm);
+struct i915_page_table *alloc_pt(struct i915_address_space *vm, int sz);
 struct i915_page_directory *alloc_pd(struct i915_address_space *vm);
 struct i915_page_directory *__alloc_pd(int npde);
 
@@ -600,11 +638,11 @@ void gen6_ggtt_invalidate(struct i915_ggtt *ggtt);
 
 void ppgtt_bind_vma(struct i915_address_space *vm,
 		    struct i915_vm_pt_stash *stash,
-		    struct i915_vma *vma,
+		    struct i915_vma_resource *vma_res,
 		    enum i915_cache_level cache_level,
 		    u32 flags);
 void ppgtt_unbind_vma(struct i915_address_space *vm,
-		      struct i915_vma *vma);
+		      struct i915_vma_resource *vma_res);
 
 void gtt_write_workarounds(struct intel_gt *gt);
 
@@ -627,8 +665,8 @@ __vm_create_scratch_for_read_pinned(struct i915_address_space *vm, unsigned long
 static inline struct sgt_dma {
 	struct scatterlist *sg;
 	dma_addr_t dma, max;
-} sgt_dma(struct i915_vma *vma) {
-	struct scatterlist *sg = vma->pages->sgl;
+} sgt_dma(struct i915_vma_resource *vma_res) {
+	struct scatterlist *sg = vma_res->bi.pages->sgl;
 	dma_addr_t addr = sg_dma_address(sg);
 
 	return (struct sgt_dma){ sg, addr, addr + sg_dma_len(sg) };

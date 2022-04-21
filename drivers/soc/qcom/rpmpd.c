@@ -138,6 +138,22 @@ static const struct rpmpd_desc mdm9607_desc = {
 	.max_state = RPM_SMD_LEVEL_TURBO,
 };
 
+/* msm8226 RPM Power Domains */
+DEFINE_RPMPD_PAIR(msm8226, vddcx, vddcx_ao, SMPA, CORNER, 1);
+DEFINE_RPMPD_VFC(msm8226, vddcx_vfc, SMPA, 1);
+
+static struct rpmpd *msm8226_rpmpds[] = {
+	[MSM8226_VDDCX] =	&msm8226_vddcx,
+	[MSM8226_VDDCX_AO] =	&msm8226_vddcx_ao,
+	[MSM8226_VDDCX_VFC] =	&msm8226_vddcx_vfc,
+};
+
+static const struct rpmpd_desc msm8226_desc = {
+	.rpmpds = msm8226_rpmpds,
+	.num_pds = ARRAY_SIZE(msm8226_rpmpds),
+	.max_state = MAX_CORNER_RPMPD_STATE,
+};
+
 /* msm8939 RPM Power Domains */
 DEFINE_RPMPD_PAIR(msm8939, vddmd, vddmd_ao, SMPA, CORNER, 1);
 DEFINE_RPMPD_VFC(msm8939, vddmd_vfc, SMPA, 1);
@@ -436,6 +452,7 @@ static const struct rpmpd_desc qcm2290_desc = {
 
 static const struct of_device_id rpmpd_match_table[] = {
 	{ .compatible = "qcom,mdm9607-rpmpd", .data = &mdm9607_desc },
+	{ .compatible = "qcom,msm8226-rpmpd", .data = &msm8226_desc },
 	{ .compatible = "qcom,msm8916-rpmpd", .data = &msm8916_desc },
 	{ .compatible = "qcom,msm8939-rpmpd", .data = &msm8939_desc },
 	{ .compatible = "qcom,msm8953-rpmpd", .data = &msm8953_desc },
@@ -610,6 +627,9 @@ static int rpmpd_probe(struct platform_device *pdev)
 
 	data->domains = devm_kcalloc(&pdev->dev, num, sizeof(*data->domains),
 				     GFP_KERNEL);
+	if (!data->domains)
+		return -ENOMEM;
+
 	data->num_domains = num;
 
 	for (i = 0; i < num; i++) {

@@ -75,7 +75,6 @@ struct r10conf {
 
 	/* queue pending writes and submit them on unplug */
 	struct bio_list		pending_bio_list;
-	int			pending_count;
 
 	spinlock_t		resync_lock;
 	atomic_t		nr_pending;

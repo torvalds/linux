@@ -240,7 +240,7 @@ struct id_index_entry {
 struct perf_record_id_index {
 	struct perf_event_header header;
 	__u64			 nr;
-	struct id_index_entry	 entries[0];
+	struct id_index_entry	 entries[];
 };
 
 struct perf_record_auxtrace_info {

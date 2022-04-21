@@ -51,7 +51,7 @@ struct machine {
 	struct vdso_info  *vdso_info;
 	struct perf_env   *env;
 	struct dsos	  dsos;
-	struct maps	  kmaps;
+	struct maps	  *kmaps;
 	struct map	  *vmlinux_map;
 	u64		  kernel_start;
 	pid_t		  *current_tid;
@@ -83,7 +83,7 @@ struct map *machine__kernel_map(struct machine *machine)
 static inline
 struct maps *machine__kernel_maps(struct machine *machine)
 {
-	return &machine->kmaps;
+	return machine->kmaps;
 }
 
 int machine__get_kernel_start(struct machine *machine);
@@ -208,6 +208,7 @@ static inline bool machine__is_host(struct machine *machine)
 }
 
 bool machine__is(struct machine *machine, const char *arch);
+bool machine__normalized_is(struct machine *machine, const char *arch);
 int machine__nr_cpus_avail(struct machine *machine);
 
 struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid);
@@ -222,7 +223,7 @@ static inline
 struct symbol *machine__find_kernel_symbol(struct machine *machine, u64 addr,
 					   struct map **mapp)
 {
-	return maps__find_symbol(&machine->kmaps, addr, mapp);
+	return maps__find_symbol(machine->kmaps, addr, mapp);
 }
 
 static inline
@@ -230,7 +231,7 @@ struct symbol *machine__find_kernel_symbol_by_name(struct machine *machine,
 						   const char *name,
 						   struct map **mapp)
 {
-	return maps__find_symbol_by_name(&machine->kmaps, name, mapp);
+	return maps__find_symbol_by_name(machine->kmaps, name, mapp);
 }
 
 int arch__fix_module_text_start(u64 *start, u64 *size, const char *name);

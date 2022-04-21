@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #ifndef __iwl_dbg_tlv_h__
 #define __iwl_dbg_tlv_h__
@@ -9,6 +9,8 @@
 #include <linux/types.h>
 #include <fw/file.h>
 #include <fw/api/dbg-tlv.h>
+
+#define IWL_DBG_TLV_MAX_PRESET 15
 
 /**
  * struct iwl_dbg_tlv_node - debug TLV node

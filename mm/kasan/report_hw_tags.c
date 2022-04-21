@@ -17,6 +17,7 @@
 
 void *kasan_find_first_bad_addr(void *addr, size_t size)
 {
+	/* Return the same value regardless of whether addr_has_metadata(). */
 	return kasan_reset_tag(addr);
 }
 

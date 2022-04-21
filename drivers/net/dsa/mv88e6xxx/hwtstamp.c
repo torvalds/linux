@@ -301,7 +301,7 @@ static void mv88e6xxx_get_rxts(struct mv88e6xxx_chip *chip,
 			shwt->hwtstamp = ns_to_ktime(ns);
 			status &= ~MV88E6XXX_PTP_TS_VALID;
 		}
-		netif_rx_ni(skb);
+		netif_rx(skb);
 	}
 }
 

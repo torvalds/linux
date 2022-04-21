@@ -188,7 +188,8 @@ static sector_t bfs_bmap(struct address_space *mapping, sector_t block)
 }
 
 const struct address_space_operations bfs_aops = {
-	.set_page_dirty	= __set_page_dirty_buffers,
+	.dirty_folio	= block_dirty_folio,
+	.invalidate_folio = block_invalidate_folio,
 	.readpage	= bfs_readpage,
 	.writepage	= bfs_writepage,
 	.write_begin	= bfs_write_begin,

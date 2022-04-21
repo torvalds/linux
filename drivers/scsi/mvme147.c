@@ -11,8 +11,12 @@
 #include <asm/mvme147hw.h>
 #include <asm/irq.h>
 
-#include "scsi.h"
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_tcq.h>
 #include "wd33c93.h"
 #include "mvme147.h"
 
@@ -29,10 +33,11 @@ static irqreturn_t mvme147_intr(int irq, void *data)
 
 static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 {
+	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(cmd);
 	struct Scsi_Host *instance = cmd->device->host;
 	struct WD33C93_hostdata *hdata = shost_priv(instance);
 	unsigned char flags = 0x01;
-	unsigned long addr = virt_to_bus(cmd->SCp.ptr);
+	unsigned long addr = virt_to_bus(scsi_pointer->ptr);
 
 	/* setup dma direction */
 	if (!dir_in)
@@ -43,14 +48,14 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 
 	if (dir_in) {
 		/* invalidate any cache */
-		cache_clear(addr, cmd->SCp.this_residual);
+		cache_clear(addr, scsi_pointer->this_residual);
 	} else {
 		/* push any dirty cache */
-		cache_push(addr, cmd->SCp.this_residual);
+		cache_push(addr, scsi_pointer->this_residual);
 	}
 
 	/* start DMA */
-	m147_pcc->dma_bcr = cmd->SCp.this_residual | (1 << 24);
+	m147_pcc->dma_bcr = scsi_pointer->this_residual | (1 << 24);
 	m147_pcc->dma_dadr = addr;
 	m147_pcc->dma_cntrl = flags;
 
@@ -77,6 +82,7 @@ static struct scsi_host_template mvme147_host_template = {
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= CMD_PER_LUN,
+	.cmd_size		= sizeof(struct scsi_pointer),
 };
 
 static struct Scsi_Host *mvme147_shost;

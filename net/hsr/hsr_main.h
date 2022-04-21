@@ -45,23 +45,10 @@
 /* PRP V1 life redundancy box MAC address */
 #define PRP_TLV_REDBOX_MAC		   30
 
-/* HSR Tag.
- * As defined in IEC-62439-3:2010, the HSR tag is really { ethertype = 0x88FB,
- * path, LSDU_size, sequence Nr }. But we let eth_header() create { h_dest,
- * h_source, h_proto = 0x88FB }, and add { path, LSDU_size, sequence Nr,
- * encapsulated protocol } instead.
- *
- * Field names as defined in the IEC:2010 standard for HSR.
- */
-struct hsr_tag {
-	__be16		path_and_LSDU_size;
-	__be16		sequence_nr;
-	__be16		encap_proto;
-} __packed;
-
-#define HSR_HLEN	6
-
 #define HSR_V1_SUP_LSDUSIZE		52
+
+#define HSR_HSIZE_SHIFT	8
+#define HSR_HSIZE	BIT(HSR_HSIZE_SHIFT)
 
 /* The helper functions below assumes that 'path' occupies the 4 most
  * significant bits of the 16-bit field shared by 'path' and 'LSDU_size' (or
@@ -201,8 +188,8 @@ struct hsr_proto_ops {
 struct hsr_priv {
 	struct rcu_head		rcu_head;
 	struct list_head	ports;
-	struct list_head	node_db;	/* Known HSR nodes */
-	struct list_head	self_node_db;	/* MACs of slaves */
+	struct hlist_head	node_db[HSR_HSIZE];	/* Known HSR nodes */
+	struct hlist_head	self_node_db;	/* MACs of slaves */
 	struct timer_list	announce_timer;	/* Supervision frame dispatch */
 	struct timer_list	prune_timer;
 	int announce_count;
@@ -212,6 +199,8 @@ struct hsr_priv {
 	spinlock_t seqnr_lock;	/* locking for sequence_nr */
 	spinlock_t list_lock;	/* locking for node list */
 	struct hsr_proto_ops	*proto_ops;
+	u32 hash_buckets;
+	u32 hash_seed;
 #define PRP_LAN_ID	0x5     /* 0x1010 for A and 0x1011 for B. Bit 0 is set
 				 * based on SLAVE_A or SLAVE_B
 				 */
@@ -257,11 +246,6 @@ static inline struct prp_rct *skb_get_PRP_rct(struct sk_buff *skb)
 static inline u16 prp_get_skb_sequence_nr(struct prp_rct *rct)
 {
 	return ntohs(rct->sequence_nr);
-}
-
-static inline u16 get_prp_lan_id(struct prp_rct *rct)
-{
-	return ntohs(rct->lan_id_and_LSDU_size) >> 12;
 }
 
 /* assume there is a valid rct */

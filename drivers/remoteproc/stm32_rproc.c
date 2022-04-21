@@ -494,7 +494,7 @@ static int stm32_rproc_stop(struct rproc *rproc)
 	int err, idx;
 
 	/* request shutdown of the remote processor */
-	if (rproc->state != RPROC_OFFLINE) {
+	if (rproc->state != RPROC_OFFLINE && rproc->state != RPROC_CRASHED) {
 		idx = stm32_rproc_mbox_idx(rproc, STM32_MBX_SHUTDOWN);
 		if (idx >= 0 && ddata->mb[idx].chan) {
 			err = mbox_send_message(ddata->mb[idx].chan, "detach");
