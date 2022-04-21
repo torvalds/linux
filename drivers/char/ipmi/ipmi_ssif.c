@@ -1076,7 +1076,7 @@ static void start_next_msg(struct ssif_info *ssif_info, unsigned long *flags)
 static void sender(void                *send_info,
 		   struct ipmi_smi_msg *msg)
 {
-	struct ssif_info *ssif_info = (struct ssif_info *) send_info;
+	struct ssif_info *ssif_info = send_info;
 	unsigned long oflags, *flags;
 
 	BUG_ON(ssif_info->waiting_msg);
@@ -1113,7 +1113,7 @@ static int get_smi_info(void *send_info, struct ipmi_smi_info *data)
  */
 static void request_events(void *send_info)
 {
-	struct ssif_info *ssif_info = (struct ssif_info *) send_info;
+	struct ssif_info *ssif_info = send_info;
 	unsigned long oflags, *flags;
 
 	if (!ssif_info->has_event_buffer)
@@ -1130,7 +1130,7 @@ static void request_events(void *send_info)
  */
 static void ssif_set_need_watch(void *send_info, unsigned int watch_mask)
 {
-	struct ssif_info *ssif_info = (struct ssif_info *) send_info;
+	struct ssif_info *ssif_info = send_info;
 	unsigned long oflags, *flags;
 	long timeout = 0;
 
