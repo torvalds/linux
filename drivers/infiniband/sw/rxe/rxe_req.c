@@ -606,7 +606,8 @@ int rxe_requester(void *arg)
 	struct rxe_ah *ah;
 	struct rxe_av *av;
 
-	rxe_get(qp);
+	if (!rxe_get(qp))
+		return -EAGAIN;
 
 next_wqe:
 	if (unlikely(!qp->valid || qp->req.state == QP_STATE_ERROR))
