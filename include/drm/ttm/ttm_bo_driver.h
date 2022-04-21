@@ -245,7 +245,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			      struct ttm_resource *new_mem);
 
 /**
- * ttm_bo_move_accel_cleanup.
+ * ttm_bo_move_sync_cleanup.
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @new_mem: struct ttm_resource indicating where to move.
@@ -253,13 +253,8 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
  * Special case of ttm_bo_move_accel_cleanup where the bo is guaranteed
  * by the caller to be idle. Typically used after memcpy buffer moves.
  */
-static inline void ttm_bo_move_sync_cleanup(struct ttm_buffer_object *bo,
-					    struct ttm_resource *new_mem)
-{
-	int ret = ttm_bo_move_accel_cleanup(bo, NULL, true, false, new_mem);
-
-	WARN_ON(ret);
-}
+void ttm_bo_move_sync_cleanup(struct ttm_buffer_object *bo,
+			      struct ttm_resource *new_mem);
 
 /**
  * ttm_bo_pipeline_gutting.

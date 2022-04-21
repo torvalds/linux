@@ -228,7 +228,6 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 
 	atomic_inc(&ttm_glob.bo_count);
 	INIT_LIST_HEAD(&fbo->base.ddestroy);
-	fbo->base.moving = NULL;
 	drm_vma_node_reset(&fbo->base.base.vma_node);
 
 	kref_init(&fbo->base.kref);
@@ -500,14 +499,12 @@ static int ttm_bo_move_to_ghost(struct ttm_buffer_object *bo,
 	 * operation has completed.
 	 */
 
-	dma_fence_put(bo->moving);
-	bo->moving = dma_fence_get(fence);
-
 	ret = ttm_buffer_object_transfer(bo, &ghost_obj);
 	if (ret)
 		return ret;
 
-	dma_resv_add_excl_fence(&ghost_obj->base._resv, fence);
+	dma_resv_add_fence(&ghost_obj->base._resv, fence,
+			   DMA_RESV_USAGE_KERNEL);
 
 	/**
 	 * If we're not moving to fixed memory, the TTM object
@@ -545,9 +542,6 @@ static void ttm_bo_move_pipeline_evict(struct ttm_buffer_object *bo,
 	spin_unlock(&from->move_lock);
 
 	ttm_resource_free(bo, &bo->resource);
-
-	dma_fence_put(bo->moving);
-	bo->moving = dma_fence_get(fence);
 }
 
 int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
@@ -561,7 +555,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	struct ttm_resource_manager *man = ttm_manager_type(bdev, new_mem->mem_type);
 	int ret = 0;
 
-	dma_resv_add_excl_fence(bo->base.resv, fence);
+	dma_resv_add_fence(bo->base.resv, fence, DMA_RESV_USAGE_KERNEL);
 	if (!evict)
 		ret = ttm_bo_move_to_ghost(bo, fence, man->use_tt);
 	else if (!from->use_tt && pipeline)
@@ -577,6 +571,21 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_move_accel_cleanup);
+
+void ttm_bo_move_sync_cleanup(struct ttm_buffer_object *bo,
+			      struct ttm_resource *new_mem)
+{
+	struct ttm_device *bdev = bo->bdev;
+	struct ttm_resource_manager *man = ttm_manager_type(bdev, new_mem->mem_type);
+	int ret;
+
+	ret = ttm_bo_wait_free_node(bo, man->use_tt);
+	if (WARN_ON(ret))
+		return;
+
+	ttm_bo_assign_mem(bo, new_mem);
+}
+EXPORT_SYMBOL(ttm_bo_move_sync_cleanup);
 
 /**
  * ttm_bo_pipeline_gutting - purge the contents of a bo

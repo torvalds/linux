@@ -219,7 +219,12 @@ int radeon_bo_create(struct radeon_device *rdev,
 int radeon_bo_kmap(struct radeon_bo *bo, void **ptr)
 {
 	bool is_iomem;
-	int r;
+	long r;
+
+	r = dma_resv_wait_timeout(bo->tbo.base.resv, DMA_RESV_USAGE_KERNEL,
+				  false, MAX_SCHEDULE_TIMEOUT);
+	if (r < 0)
+		return r;
 
 	if (bo->kptr) {
 		if (ptr) {
@@ -791,8 +796,6 @@ void radeon_bo_fence(struct radeon_bo *bo, struct radeon_fence *fence,
 		return;
 	}
 
-	if (shared)
-		dma_resv_add_shared_fence(resv, &fence->base);
-	else
-		dma_resv_add_excl_fence(resv, &fence->base);
+	dma_resv_add_fence(resv, &fence->base, shared ?
+			   DMA_RESV_USAGE_READ : DMA_RESV_USAGE_WRITE);
 }

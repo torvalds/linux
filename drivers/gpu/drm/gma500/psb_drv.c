@@ -396,9 +396,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		gma_encoder = gma_attached_encoder(connector);
 
-		switch (gma_encoder->type) {
-		case INTEL_OUTPUT_LVDS:
-		case INTEL_OUTPUT_MIPI:
+		if (gma_encoder->type == INTEL_OUTPUT_LVDS ||
+		    gma_encoder->type == INTEL_OUTPUT_MIPI) {
 			ret = gma_backlight_init(dev);
 			break;
 		}

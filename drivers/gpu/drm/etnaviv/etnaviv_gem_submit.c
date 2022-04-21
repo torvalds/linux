@@ -202,14 +202,10 @@ static void submit_attach_object_fences(struct etnaviv_gem_submit *submit)
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct drm_gem_object *obj = &submit->bos[i].obj->base;
+		bool write = submit->bos[i].flags & ETNA_SUBMIT_BO_WRITE;
 
-		if (submit->bos[i].flags & ETNA_SUBMIT_BO_WRITE)
-			dma_resv_add_excl_fence(obj->resv,
-							  submit->out_fence);
-		else
-			dma_resv_add_shared_fence(obj->resv,
-							    submit->out_fence);
-
+		dma_resv_add_fence(obj->resv, submit->out_fence, write ?
+				   DMA_RESV_USAGE_WRITE : DMA_RESV_USAGE_READ);
 		submit_unlock_object(submit, i);
 	}
 }

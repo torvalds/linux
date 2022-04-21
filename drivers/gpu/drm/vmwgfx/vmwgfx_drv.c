@@ -1385,6 +1385,23 @@ static void vmw_remove(struct pci_dev *pdev)
 	vmw_driver_unload(dev);
 }
 
+static void vmw_debugfs_resource_managers_init(struct vmw_private *vmw)
+{
+	struct drm_minor *minor = vmw->drm.primary;
+	struct dentry *root = minor->debugfs_root;
+
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&vmw->bdev, TTM_PL_SYSTEM),
+					    root, "system_ttm");
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&vmw->bdev, TTM_PL_VRAM),
+					    root, "vram_ttm");
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&vmw->bdev, VMW_PL_GMR),
+					    root, "gmr_ttm");
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&vmw->bdev, VMW_PL_MOB),
+					    root, "mob_ttm");
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&vmw->bdev, VMW_PL_SYSTEM),
+					    root, "system_mob_ttm");
+}
+
 static unsigned long
 vmw_get_unmapped_area(struct file *file, unsigned long uaddr,
 		      unsigned long len, unsigned long pgoff,
@@ -1632,6 +1649,7 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_unload;
 
 	vmw_debugfs_gem_init(vmw);
+	vmw_debugfs_resource_managers_init(vmw);
 
 	return 0;
 out_unload:

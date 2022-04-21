@@ -644,3 +644,37 @@ ttm_kmap_iter_linear_io_fini(struct ttm_kmap_iter_linear_io *iter_io,
 
 	ttm_mem_io_free(bdev, mem);
 }
+
+#if defined(CONFIG_DEBUG_FS)
+
+static int ttm_resource_manager_show(struct seq_file *m, void *unused)
+{
+	struct ttm_resource_manager *man =
+		(struct ttm_resource_manager *)m->private;
+	struct drm_printer p = drm_seq_file_printer(m);
+	ttm_resource_manager_debug(man, &p);
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(ttm_resource_manager);
+
+#endif
+
+/**
+ * ttm_resource_manager_create_debugfs - Create debugfs entry for specified
+ * resource manager.
+ * @man: The TTM resource manager for which the debugfs stats file be creates
+ * @parent: debugfs directory in which the file will reside
+ * @name: The filename to create.
+ *
+ * This function setups up a debugfs file that can be used to look
+ * at debug statistics of the specified ttm_resource_manager.
+ */
+void ttm_resource_manager_create_debugfs(struct ttm_resource_manager *man,
+					 struct dentry * parent,
+					 const char *name)
+{
+#if defined(CONFIG_DEBUG_FS)
+	debugfs_create_file(name, 0444, parent, man, &ttm_resource_manager_fops);
+#endif
+}
+EXPORT_SYMBOL(ttm_resource_manager_create_debugfs);

@@ -116,7 +116,8 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 						obj->base.resv, NULL, true,
 						i915_fence_timeout(i915),
 						I915_FENCE_GFP);
-		dma_resv_add_excl_fence(obj->base.resv, &clflush->base.dma);
+		dma_resv_add_fence(obj->base.resv, &clflush->base.dma,
+				   DMA_RESV_USAGE_KERNEL);
 		dma_fence_work_commit(&clflush->base);
 		/*
 		 * We must have successfully populated the pages(since we are
