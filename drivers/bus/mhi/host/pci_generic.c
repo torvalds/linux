@@ -371,7 +371,7 @@ static const struct mhi_pci_dev_info mhi_foxconn_sdx55_info = {
 	.sideband_wake = false,
 };
 
-static const struct mhi_channel_config mhi_mv31_channels[] = {
+static const struct mhi_channel_config mhi_mv3x_channels[] = {
 	MHI_CHANNEL_CONFIG_UL(0, "LOOPBACK", 64, 0),
 	MHI_CHANNEL_CONFIG_DL(1, "LOOPBACK", 64, 0),
 	/* MBIM Control Channel */
@@ -382,25 +382,33 @@ static const struct mhi_channel_config mhi_mv31_channels[] = {
 	MHI_CHANNEL_CONFIG_HW_DL(101, "IP_HW0_MBIM", 512, 3),
 };
 
-static struct mhi_event_config mhi_mv31_events[] = {
+static struct mhi_event_config mhi_mv3x_events[] = {
 	MHI_EVENT_CONFIG_CTRL(0, 256),
 	MHI_EVENT_CONFIG_DATA(1, 256),
 	MHI_EVENT_CONFIG_HW_DATA(2, 1024, 100),
 	MHI_EVENT_CONFIG_HW_DATA(3, 1024, 101),
 };
 
-static const struct mhi_controller_config modem_mv31_config = {
+static const struct mhi_controller_config modem_mv3x_config = {
 	.max_channels = 128,
 	.timeout_ms = 20000,
-	.num_channels = ARRAY_SIZE(mhi_mv31_channels),
-	.ch_cfg = mhi_mv31_channels,
-	.num_events = ARRAY_SIZE(mhi_mv31_events),
-	.event_cfg = mhi_mv31_events,
+	.num_channels = ARRAY_SIZE(mhi_mv3x_channels),
+	.ch_cfg = mhi_mv3x_channels,
+	.num_events = ARRAY_SIZE(mhi_mv3x_events),
+	.event_cfg = mhi_mv3x_events,
 };
 
 static const struct mhi_pci_dev_info mhi_mv31_info = {
 	.name = "cinterion-mv31",
-	.config = &modem_mv31_config,
+	.config = &modem_mv3x_config,
+	.bar_num = MHI_PCI_DEFAULT_BAR_NUM,
+	.dma_data_width = 32,
+	.mru_default = 32768,
+};
+
+static const struct mhi_pci_dev_info mhi_mv32_info = {
+	.name = "cinterion-mv32",
+	.config = &modem_mv3x_config,
 	.bar_num = MHI_PCI_DEFAULT_BAR_NUM,
 	.dma_data_width = 32,
 	.mru_default = 32768,
@@ -476,6 +484,12 @@ static const struct pci_device_id mhi_pci_id_table[] = {
 	/* MV31-W (Cinterion) */
 	{ PCI_DEVICE(0x1269, 0x00b3),
 		.driver_data = (kernel_ulong_t) &mhi_mv31_info },
+	/* MV32-WA (Cinterion) */
+	{ PCI_DEVICE(0x1269, 0x00ba),
+		.driver_data = (kernel_ulong_t) &mhi_mv32_info },
+	/* MV32-WB (Cinterion) */
+	{ PCI_DEVICE(0x1269, 0x00bb),
+		.driver_data = (kernel_ulong_t) &mhi_mv32_info },
 	{  }
 };
 MODULE_DEVICE_TABLE(pci, mhi_pci_id_table);
