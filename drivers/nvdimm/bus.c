@@ -334,6 +334,8 @@ struct nvdimm_bus *nvdimm_to_bus(struct nvdimm *nvdimm)
 }
 EXPORT_SYMBOL_GPL(nvdimm_to_bus);
 
+static struct lock_class_key nvdimm_bus_key;
+
 struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 		struct nvdimm_bus_descriptor *nd_desc)
 {
@@ -360,6 +362,7 @@ struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 	nvdimm_bus->dev.bus = &nvdimm_bus_type;
 	nvdimm_bus->dev.of_node = nd_desc->of_node;
 	device_initialize(&nvdimm_bus->dev);
+	lockdep_set_class(&nvdimm_bus->dev.mutex, &nvdimm_bus_key);
 	device_set_pm_not_required(&nvdimm_bus->dev);
 	rc = dev_set_name(&nvdimm_bus->dev, "ndbus%d", nvdimm_bus->id);
 	if (rc)
@@ -511,7 +514,7 @@ static void nd_async_device_unregister(void *d, async_cookie_t cookie)
 	put_device(dev);
 }
 
-void __nd_device_register(struct device *dev)
+void nd_device_register(struct device *dev)
 {
 	if (!dev)
 		return;
@@ -536,12 +539,6 @@ void __nd_device_register(struct device *dev)
 
 	async_schedule_dev_domain(nd_async_device_register, dev,
 				  &nd_async_domain);
-}
-
-void nd_device_register(struct device *dev)
-{
-	device_initialize(dev);
-	__nd_device_register(dev);
 }
 EXPORT_SYMBOL(nd_device_register);
 
@@ -724,6 +721,8 @@ static void ndctl_release(struct device *dev)
 	kfree(dev);
 }
 
+static struct lock_class_key nvdimm_ndctl_key;
+
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus)
 {
 	dev_t devt = MKDEV(nvdimm_bus_major, nvdimm_bus->id);
@@ -734,6 +733,7 @@ int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus)
 	if (!dev)
 		return -ENOMEM;
 	device_initialize(dev);
+	lockdep_set_class(&dev->mutex, &nvdimm_ndctl_key);
 	device_set_pm_not_required(dev);
 	dev->class = nd_class;
 	dev->parent = &nvdimm_bus->dev;

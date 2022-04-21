@@ -570,6 +570,8 @@ bool is_nvdimm(struct device *dev)
 	return dev->type == &nvdimm_device_type;
 }
 
+static struct lock_class_key nvdimm_key;
+
 struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 		void *provider_data, const struct attribute_group **groups,
 		unsigned long flags, unsigned long cmd_mask, int num_flush,
@@ -613,6 +615,8 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 	/* get security state and extended (master) state */
 	nvdimm->sec.flags = nvdimm_security_flags(nvdimm, NVDIMM_USER);
 	nvdimm->sec.ext_flags = nvdimm_security_flags(nvdimm, NVDIMM_MASTER);
+	device_initialize(dev);
+	lockdep_set_class(&dev->mutex, &nvdimm_key);
 	nd_device_register(dev);
 
 	return nvdimm;

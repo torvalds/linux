@@ -1830,6 +1830,8 @@ static struct device *nd_namespace_pmem_create(struct nd_region *nd_region)
 	return dev;
 }
 
+static struct lock_class_key nvdimm_namespace_key;
+
 void nd_region_create_ns_seed(struct nd_region *nd_region)
 {
 	WARN_ON(!is_nvdimm_bus_locked(&nd_region->dev));
@@ -1845,8 +1847,12 @@ void nd_region_create_ns_seed(struct nd_region *nd_region)
 	 */
 	if (!nd_region->ns_seed)
 		dev_err(&nd_region->dev, "failed to create namespace\n");
-	else
+	else {
+		device_initialize(nd_region->ns_seed);
+		lockdep_set_class(&nd_region->ns_seed->mutex,
+				  &nvdimm_namespace_key);
 		nd_device_register(nd_region->ns_seed);
+	}
 }
 
 void nd_region_create_dax_seed(struct nd_region *nd_region)
@@ -2200,6 +2206,8 @@ int nd_region_register_namespaces(struct nd_region *nd_region, int *err)
 		if (id < 0)
 			break;
 		dev_set_name(dev, "namespace%d.%d", nd_region->id, id);
+		device_initialize(dev);
+		lockdep_set_class(&dev->mutex, &nvdimm_namespace_key);
 		nd_device_register(dev);
 	}
 	if (i)

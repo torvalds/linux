@@ -178,6 +178,8 @@ bool is_nd_btt(struct device *dev)
 }
 EXPORT_SYMBOL(is_nd_btt);
 
+static struct lock_class_key nvdimm_btt_key;
+
 static struct device *__nd_btt_create(struct nd_region *nd_region,
 				      unsigned long lbasize, uuid_t *uuid,
 				      struct nd_namespace_common *ndns)
@@ -205,6 +207,7 @@ static struct device *__nd_btt_create(struct nd_region *nd_region,
 	dev->parent = &nd_region->dev;
 	dev->type = &nd_btt_device_type;
 	device_initialize(&nd_btt->dev);
+	lockdep_set_class(&nd_btt->dev.mutex, &nvdimm_btt_key);
 	if (ndns && !__nd_attach_ndns(&nd_btt->dev, ndns, &nd_btt->ndns)) {
 		dev_dbg(&ndns->dev, "failed, already claimed by %s\n",
 				dev_name(ndns->claim));
@@ -225,7 +228,7 @@ struct device *nd_btt_create(struct nd_region *nd_region)
 {
 	struct device *dev = __nd_btt_create(nd_region, 0, NULL, NULL);
 
-	__nd_device_register(dev);
+	nd_device_register(dev);
 	return dev;
 }
 
@@ -324,7 +327,7 @@ static int __nd_btt_probe(struct nd_btt *nd_btt,
 	if (!nd_btt->uuid)
 		return -ENOMEM;
 
-	__nd_device_register(&nd_btt->dev);
+	nd_device_register(&nd_btt->dev);
 
 	return 0;
 }

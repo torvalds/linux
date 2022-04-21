@@ -291,6 +291,8 @@ bool is_nd_pfn(struct device *dev)
 }
 EXPORT_SYMBOL(is_nd_pfn);
 
+static struct lock_class_key nvdimm_pfn_key;
+
 struct device *nd_pfn_devinit(struct nd_pfn *nd_pfn,
 		struct nd_namespace_common *ndns)
 {
@@ -303,6 +305,7 @@ struct device *nd_pfn_devinit(struct nd_pfn *nd_pfn,
 	nd_pfn->align = nd_pfn_default_alignment();
 	dev = &nd_pfn->dev;
 	device_initialize(&nd_pfn->dev);
+	lockdep_set_class(&nd_pfn->dev.mutex, &nvdimm_pfn_key);
 	if (ndns && !__nd_attach_ndns(&nd_pfn->dev, ndns, &nd_pfn->ndns)) {
 		dev_dbg(&ndns->dev, "failed, already claimed by %s\n",
 				dev_name(ndns->claim));
@@ -346,7 +349,7 @@ struct device *nd_pfn_create(struct nd_region *nd_region)
 	nd_pfn = nd_pfn_alloc(nd_region);
 	dev = nd_pfn_devinit(nd_pfn, NULL);
 
-	__nd_device_register(dev);
+	nd_device_register(dev);
 	return dev;
 }
 
@@ -643,7 +646,7 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 		nd_detach_ndns(pfn_dev, &nd_pfn->ndns);
 		put_device(pfn_dev);
 	} else
-		__nd_device_register(pfn_dev);
+		nd_device_register(pfn_dev);
 
 	return rc;
 }

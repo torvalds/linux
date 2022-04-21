@@ -949,6 +949,8 @@ static unsigned long default_align(struct nd_region *nd_region)
 	return align;
 }
 
+static struct lock_class_key nvdimm_region_key;
+
 static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 		struct nd_region_desc *ndr_desc,
 		const struct device_type *dev_type, const char *caller)
@@ -1035,6 +1037,8 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	else
 		nd_region->flush = NULL;
 
+	device_initialize(dev);
+	lockdep_set_class(&dev->mutex, &nvdimm_region_key);
 	nd_device_register(dev);
 
 	return nd_region;
