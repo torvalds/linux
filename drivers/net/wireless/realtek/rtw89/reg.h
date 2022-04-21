@@ -3048,10 +3048,17 @@
 #define B_AX_BT_CNT_RST_V1 BIT(1)
 #define B_AX_BT_CNT_EN BIT(0)
 
+#define R_BTC_BT_CNT_HIGH 0xDA14
+#define R_BTC_BT_CNT_LOW 0xDA18
+
 #define R_AX_BTC_FUNC_EN 0xDA20
 #define R_AX_BTC_FUNC_EN_C1 0xFA20
 #define B_AX_PTA_WL_TX_EN BIT(1)
 #define B_AX_PTA_EDCCA_EN BIT(0)
+
+#define R_BTC_COEX_WL_REQ 0xDA24
+#define B_BTC_TX_BCN_HI BIT(22)
+#define B_BTC_RSP_ACK_HI BIT(10)
 
 #define R_BTC_BREAK_TABLE 0xDA2C
 #define BTC_BREAK_PARAM 0xf0ffffff
