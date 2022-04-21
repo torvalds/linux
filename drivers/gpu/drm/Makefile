@@ -58,7 +58,7 @@ obj-$(CONFIG_DRM_TTM_HELPER) += drm_ttm_helper.o
 #
 
 drm_kms_helper-y := drm_bridge_connector.o drm_crtc_helper.o \
-		drm_dsc.o drm_encoder_slave.o drm_flip_work.o drm_hdcp.o \
+		drm_encoder_slave.o drm_flip_work.o drm_hdcp.o \
 		drm_probe_helper.o \
 		drm_plane_helper.o drm_atomic_helper.o \
 		drm_kms_helper_common.o \

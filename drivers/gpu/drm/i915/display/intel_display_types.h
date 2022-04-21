@@ -33,9 +33,9 @@
 
 #include <drm/display/drm_dp_dual_mode_helper.h>
 #include <drm/display/drm_dp_mst_helper.h>
+#include <drm/display/drm_dsc.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_dsc.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_probe_helper.h>

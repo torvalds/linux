@@ -13,8 +13,8 @@
 #include <linux/byteorder/generic.h>
 
 #include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_dsc_helper.h>
 #include <drm/drm_print.h>
-#include <drm/drm_dsc.h>
 
 /**
  * DOC: dsc helpers

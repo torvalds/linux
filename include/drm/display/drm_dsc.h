@@ -8,7 +8,7 @@
 #ifndef DRM_DSC_H_
 #define DRM_DSC_H_
 
-#include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_dp.h>
 
 /* VESA Display Stream Compression DSC 1.2 constants */
 #define DSC_NUM_BUF_RANGES			15
@@ -601,11 +601,5 @@ struct drm_dsc_pps_infoframe {
 	struct dp_sdp_header pps_header;
 	struct drm_dsc_picture_parameter_set pps_payload;
 } __packed;
-
-void drm_dsc_dp_pps_header_init(struct dp_sdp_header *pps_header);
-int drm_dsc_dp_rc_buffer_size(u8 rc_buffer_block_size, u8 rc_buffer_size);
-void drm_dsc_pps_payload_pack(struct drm_dsc_picture_parameter_set *pps_sdp,
-				const struct drm_dsc_config *dsc_cfg);
-int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg);
 
 #endif /* _DRM_DSC_H_ */

@@ -23,6 +23,8 @@
  *
  */
 
+#include <drm/display/drm_dsc_helper.h>
+
 #include "reg_helper.h"
 #include "dcn20_dsc.h"
 #include "dsc/dscc_types.h"
