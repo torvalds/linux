@@ -188,21 +188,6 @@ int snd_sof_ipc_valid(struct snd_sof_dev *sdev)
 }
 EXPORT_SYMBOL(snd_sof_ipc_valid);
 
-int sof_ipc_init_msg_memory(struct snd_sof_dev *sdev)
-{
-	struct snd_sof_ipc_msg *msg;
-
-	msg = &sdev->ipc->msg;
-
-	msg->reply_data = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
-	if (!msg->reply_data)
-		return -ENOMEM;
-
-	sdev->ipc->max_payload_size = SOF_IPC_MSG_MAX_SIZE;
-
-	return 0;
-}
-
 struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_ipc *ipc;

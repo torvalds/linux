@@ -181,11 +181,6 @@ struct snd_sof_dsp_ops {
 	int (*load_firmware)(struct snd_sof_dev *sof_dev); /* mandatory */
 	int (*load_module)(struct snd_sof_dev *sof_dev,
 			   struct snd_sof_mod_hdr *hdr); /* optional */
-	/*
-	 * FW ready checks for ABI compatibility and creates
-	 * memory windows at first boot
-	 */
-	int (*fw_ready)(struct snd_sof_dev *sdev, u32 msg_id); /* mandatory */
 
 	/* connect pcm substream to a host stream */
 	int (*pcm_open)(struct snd_sof_dev *sdev,
@@ -614,7 +609,7 @@ int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, void *msg_data, size_t msg
 			     void *reply_data, size_t reply_bytes);
 int sof_ipc_send_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
 		     size_t reply_bytes);
-int sof_ipc_init_msg_memory(struct snd_sof_dev *sdev);
+
 static inline void snd_sof_ipc_process_reply(struct snd_sof_dev *sdev, u32 msg_id)
 {
 	snd_sof_ipc_get_reply(sdev);
@@ -684,8 +679,6 @@ int sof_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_type,
 		    u32 offset, void *src, size_t size);
 int sof_block_read(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_type,
 		   u32 offset, void *dest, size_t size);
-
-int sof_fw_ready(struct snd_sof_dev *sdev, u32 msg_id);
 
 int sof_ipc_msg_data(struct snd_sof_dev *sdev,
 		     struct snd_pcm_substream *substream,
