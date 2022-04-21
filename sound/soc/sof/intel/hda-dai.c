@@ -336,7 +336,12 @@ static int hda_dai_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
 			     struct snd_soc_dai *dai)
 {
+	struct hdac_ext_stream *hext_stream =
+				snd_soc_dai_get_dma_data(dai, substream);
 	int ret;
+
+	if (hext_stream && hext_stream->link_prepared)
+		return 0;
 
 	ret = hda_link_dma_hw_params(substream, params);
 	if (ret < 0)
