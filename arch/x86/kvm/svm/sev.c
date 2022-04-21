@@ -2226,9 +2226,18 @@ int sev_cpu_init(struct svm_cpu_data *sd)
  * Pages used by hardware to hold guest encrypted state must be flushed before
  * returning them to the system.
  */
-static void sev_flush_guest_memory(struct vcpu_svm *svm, void *va,
-				   unsigned long len)
+static void sev_flush_encrypted_page(struct kvm_vcpu *vcpu, void *va)
 {
+	int asid = to_kvm_svm(vcpu->kvm)->sev_info.asid;
+
+	/*
+	 * Note!  The address must be a kernel address, as regular page walk
+	 * checks are performed by VM_PAGE_FLUSH, i.e. operating on a user
+	 * address is non-deterministic and unsafe.  This function deliberately
+	 * takes a pointer to deter passing in a user address.
+	 */
+	unsigned long addr = (unsigned long)va;
+
 	/*
 	 * If hardware enforced cache coherency for encrypted mappings of the
 	 * same physical page is supported, nothing to do.
@@ -2237,40 +2246,16 @@ static void sev_flush_guest_memory(struct vcpu_svm *svm, void *va,
 		return;
 
 	/*
-	 * If the VM Page Flush MSR is supported, use it to flush the page
-	 * (using the page virtual address and the guest ASID).
+	 * VM Page Flush takes a host virtual address and a guest ASID.  Fall
+	 * back to WBINVD if this faults so as not to make any problems worse
+	 * by leaving stale encrypted data in the cache.
 	 */
-	if (boot_cpu_has(X86_FEATURE_VM_PAGE_FLUSH)) {
-		struct kvm_sev_info *sev;
-		unsigned long va_start;
-		u64 start, stop;
+	if (WARN_ON_ONCE(wrmsrl_safe(MSR_AMD64_VM_PAGE_FLUSH, addr | asid)))
+		goto do_wbinvd;
 
-		/* Align start and stop to page boundaries. */
-		va_start = (unsigned long)va;
-		start = (u64)va_start & PAGE_MASK;
-		stop = PAGE_ALIGN((u64)va_start + len);
+	return;
 
-		if (start < stop) {
-			sev = &to_kvm_svm(svm->vcpu.kvm)->sev_info;
-
-			while (start < stop) {
-				wrmsrl(MSR_AMD64_VM_PAGE_FLUSH,
-				       start | sev->asid);
-
-				start += PAGE_SIZE;
-			}
-
-			return;
-		}
-
-		WARN(1, "Address overflow, using WBINVD\n");
-	}
-
-	/*
-	 * Hardware should always have one of the above features,
-	 * but if not, use WBINVD and issue a warning.
-	 */
-	WARN_ONCE(1, "Using WBINVD to flush guest memory\n");
+do_wbinvd:
 	wbinvd_on_all_cpus();
 }
 
@@ -2284,7 +2269,8 @@ void sev_free_vcpu(struct kvm_vcpu *vcpu)
 	svm = to_svm(vcpu);
 
 	if (vcpu->arch.guest_state_protected)
-		sev_flush_guest_memory(svm, svm->sev_es.vmsa, PAGE_SIZE);
+		sev_flush_encrypted_page(vcpu, svm->sev_es.vmsa);
+
 	__free_page(virt_to_page(svm->sev_es.vmsa));
 
 	if (svm->sev_es.ghcb_sa_free)
