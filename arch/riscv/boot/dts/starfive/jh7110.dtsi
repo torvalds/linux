@@ -509,8 +509,11 @@
 		sdio1: sdio1@16020000 {
 			compatible = "snps,dw-mshc";
 			reg = <0x0 0x16020000 0x0 0x10000>;
-			clocks = <&dwmmc_biuclk>,<&dwmmc_ciuclk>;
+			clocks = <&clkgen JH7110_SDIO1_CLK_AHB>,
+				 <&clkgen JH7110_SDIO1_CLK_SDCARD>;
 			clock-names = "biu","ciu";
+			resets = <&rstgen RSTN_U1_DW_SDIO_AHB>;
+			reset-names = "reset";
 			interrupts = <75>;
 			fifo-depth = <32>;
 			fifo-watermark-aligned;
