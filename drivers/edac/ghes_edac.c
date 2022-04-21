@@ -38,7 +38,7 @@ static struct ghes_pvt *ghes_pvt;
  * This driver's representation of the system hardware, as collected
  * from DMI.
  */
-struct ghes_hw_desc {
+static struct ghes_hw_desc {
 	int num_dimms;
 	struct dimm_info *dimms;
 } ghes_hw;
