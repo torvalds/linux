@@ -133,7 +133,6 @@
 
 #define rxrpc_timer_traces \
 	EM(rxrpc_timer_begin,			"Begin ") \
-	EM(rxrpc_timer_expired,			"*EXPR*") \
 	EM(rxrpc_timer_exp_ack,			"ExpAck") \
 	EM(rxrpc_timer_exp_hard,		"ExpHrd") \
 	EM(rxrpc_timer_exp_idle,		"ExpIdl") \
@@ -1010,6 +1009,47 @@ TRACE_EVENT(rxrpc_timer,
 	    TP_printk("c=%08x %s a=%ld la=%ld r=%ld xr=%ld xq=%ld xt=%ld t=%ld",
 		      __entry->call,
 		      __print_symbolic(__entry->why, rxrpc_timer_traces),
+		      __entry->ack_at - __entry->now,
+		      __entry->ack_lost_at - __entry->now,
+		      __entry->resend_at - __entry->now,
+		      __entry->expect_rx_by - __entry->now,
+		      __entry->expect_req_by - __entry->now,
+		      __entry->expect_term_by - __entry->now,
+		      __entry->timer - __entry->now)
+	    );
+
+TRACE_EVENT(rxrpc_timer_expired,
+	    TP_PROTO(struct rxrpc_call *call, unsigned long now),
+
+	    TP_ARGS(call, now),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,			call		)
+		    __field(long,				now		)
+		    __field(long,				ack_at		)
+		    __field(long,				ack_lost_at	)
+		    __field(long,				resend_at	)
+		    __field(long,				ping_at		)
+		    __field(long,				expect_rx_by	)
+		    __field(long,				expect_req_by	)
+		    __field(long,				expect_term_by	)
+		    __field(long,				timer		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call		= call->debug_id;
+		    __entry->now		= now;
+		    __entry->ack_at		= call->ack_at;
+		    __entry->ack_lost_at	= call->ack_lost_at;
+		    __entry->resend_at		= call->resend_at;
+		    __entry->expect_rx_by	= call->expect_rx_by;
+		    __entry->expect_req_by	= call->expect_req_by;
+		    __entry->expect_term_by	= call->expect_term_by;
+		    __entry->timer		= call->timer.expires;
+			   ),
+
+	    TP_printk("c=%08x EXPIRED a=%ld la=%ld r=%ld xr=%ld xq=%ld xt=%ld t=%ld",
+		      __entry->call,
 		      __entry->ack_at - __entry->now,
 		      __entry->ack_lost_at - __entry->now,
 		      __entry->resend_at - __entry->now,

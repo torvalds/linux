@@ -52,7 +52,7 @@ static void rxrpc_call_timer_expired(struct timer_list *t)
 	_enter("%d", call->debug_id);
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
-		trace_rxrpc_timer(call, rxrpc_timer_expired, jiffies);
+		trace_rxrpc_timer_expired(call, jiffies);
 		__rxrpc_queue_call(call);
 	} else {
 		rxrpc_put_call(call, rxrpc_call_put);
