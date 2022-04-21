@@ -393,15 +393,16 @@ static u32 host_mmio_reg_access_mask(size_t off, bool is_write)
 	const u32 write_only = is_write ? read_write : no_access;
 	u32 masked_off;
 
-	/* IRQ handler can clear interrupts. */
-	if (off == REG_NS_INTERRUPT_CLEAR)
+	switch (off) {
+	/* Allow EL1 IRQ handler to clear interrupts. */
+	case REG_NS_INTERRUPT_CLEAR:
 		return write_only & ALL_VIDS_BITMAP;
-
-	/* IRQ handler can read bitmap of pending interrupts. */
-	if (off == REG_NS_FAULT_STATUS)
+	/* Allow EL1 IRQ handler to read bitmap of pending interrupts. */
+	case REG_NS_FAULT_STATUS:
 		return read_only & ALL_VIDS_BITMAP;
+	}
 
-	/* IRQ handler can read fault information. */
+	/* Allow EL1 IRQ handler to read fault information. */
 	masked_off = off & ~REG_NS_FAULT_VID_MASK;
 	if ((masked_off == REG_NS_FAULT_PA_LOW(0)) ||
 	    (masked_off == REG_NS_FAULT_PA_HIGH(0)) ||
