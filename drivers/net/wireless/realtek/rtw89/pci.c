@@ -412,9 +412,12 @@ static void rtw89_pci_release_txwd_skb(struct rtw89_dev *rtwdev,
 	u8 txch = tx_ring->txch;
 
 	if (!list_empty(&txwd->list)) {
-		rtw89_warn(rtwdev, "queue %d txwd %d is not idle\n",
-			   txch, seq);
-		return;
+		rtw89_pci_reclaim_txbd(rtwdev, tx_ring);
+		if (!list_empty(&txwd->list)) {
+			rtw89_warn(rtwdev, "queue %d txwd %d is not idle\n",
+				   txch, seq);
+			return;
+		}
 	}
 
 	/* currently, support for only one frame */
@@ -458,7 +461,6 @@ static void rtw89_pci_release_rpp(struct rtw89_dev *rtwdev,
 	}
 
 	tx_ring = &rtwpci->tx_rings[txch];
-	rtw89_pci_reclaim_txbd(rtwdev, tx_ring);
 	wd_ring = &tx_ring->wd_ring;
 	txwd = &wd_ring->pages[seq];
 
@@ -915,6 +917,10 @@ static u32 __rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 		if (!cnt)
 			goto out_unlock;
 		rtw89_pci_release_tx(rtwdev, rx_ring, cnt);
+
+		bd_cnt = rtw89_pci_get_avail_txbd_num(tx_ring);
+		if (bd_cnt == 0)
+			rtw89_pci_reclaim_txbd(rtwdev, tx_ring);
 	}
 
 	bd_cnt = rtw89_pci_get_avail_txbd_num(tx_ring);
