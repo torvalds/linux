@@ -43,7 +43,8 @@ void xfs_printk_level(const char *kern_level, const struct xfs_mount *mp,
 })
 
 extern __printf(3, 4)
-void _xfs_alert_tag(const struct xfs_mount *mp, int tag, const char *fmt, ...);
+void _xfs_alert_tag(const struct xfs_mount *mp, uint32_t tag,
+		const char *fmt, ...);
 
 #define xfs_printk_ratelimited(func, dev, fmt, ...)			\
 do {									\

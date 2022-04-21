@@ -751,20 +751,20 @@ xfs_btree_lastrec(
  */
 void
 xfs_btree_offsets(
-	int64_t		fields,		/* bitmask of fields */
+	uint32_t	fields,		/* bitmask of fields */
 	const short	*offsets,	/* table of field offsets */
 	int		nbits,		/* number of bits to inspect */
 	int		*first,		/* output: first byte offset */
 	int		*last)		/* output: last byte offset */
 {
 	int		i;		/* current bit number */
-	int64_t		imask;		/* mask for current bit number */
+	uint32_t	imask;		/* mask for current bit number */
 
 	ASSERT(fields != 0);
 	/*
 	 * Find the lowest bit, so the first byte offset.
 	 */
-	for (i = 0, imask = 1LL; ; i++, imask <<= 1) {
+	for (i = 0, imask = 1u; ; i++, imask <<= 1) {
 		if (imask & fields) {
 			*first = offsets[i];
 			break;
@@ -773,7 +773,7 @@ xfs_btree_offsets(
 	/*
 	 * Find the highest bit, so the last byte offset.
 	 */
-	for (i = nbits - 1, imask = 1LL << i; ; i--, imask >>= 1) {
+	for (i = nbits - 1, imask = 1u << i; ; i--, imask >>= 1) {
 		if (imask & fields) {
 			*last = offsets[i + 1] - 1;
 			break;
@@ -1456,7 +1456,7 @@ void
 xfs_btree_log_block(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	struct xfs_buf		*bp,	/* buffer containing btree block */
-	int			fields)	/* mask of fields: XFS_BB_... */
+	uint32_t		fields)	/* mask of fields: XFS_BB_... */
 {
 	int			first;	/* first byte offset logged */
 	int			last;	/* last byte offset logged */

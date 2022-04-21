@@ -525,26 +525,26 @@ typedef struct xfs_agf {
 
 #define XFS_AGF_CRC_OFF		offsetof(struct xfs_agf, agf_crc)
 
-#define	XFS_AGF_MAGICNUM	0x00000001
-#define	XFS_AGF_VERSIONNUM	0x00000002
-#define	XFS_AGF_SEQNO		0x00000004
-#define	XFS_AGF_LENGTH		0x00000008
-#define	XFS_AGF_ROOTS		0x00000010
-#define	XFS_AGF_LEVELS		0x00000020
-#define	XFS_AGF_FLFIRST		0x00000040
-#define	XFS_AGF_FLLAST		0x00000080
-#define	XFS_AGF_FLCOUNT		0x00000100
-#define	XFS_AGF_FREEBLKS	0x00000200
-#define	XFS_AGF_LONGEST		0x00000400
-#define	XFS_AGF_BTREEBLKS	0x00000800
-#define	XFS_AGF_UUID		0x00001000
-#define	XFS_AGF_RMAP_BLOCKS	0x00002000
-#define	XFS_AGF_REFCOUNT_BLOCKS	0x00004000
-#define	XFS_AGF_REFCOUNT_ROOT	0x00008000
-#define	XFS_AGF_REFCOUNT_LEVEL	0x00010000
-#define	XFS_AGF_SPARE64		0x00020000
+#define	XFS_AGF_MAGICNUM	(1u << 0)
+#define	XFS_AGF_VERSIONNUM	(1u << 1)
+#define	XFS_AGF_SEQNO		(1u << 2)
+#define	XFS_AGF_LENGTH		(1u << 3)
+#define	XFS_AGF_ROOTS		(1u << 4)
+#define	XFS_AGF_LEVELS		(1u << 5)
+#define	XFS_AGF_FLFIRST		(1u << 6)
+#define	XFS_AGF_FLLAST		(1u << 7)
+#define	XFS_AGF_FLCOUNT		(1u << 8)
+#define	XFS_AGF_FREEBLKS	(1u << 9)
+#define	XFS_AGF_LONGEST		(1u << 10)
+#define	XFS_AGF_BTREEBLKS	(1u << 11)
+#define	XFS_AGF_UUID		(1u << 12)
+#define	XFS_AGF_RMAP_BLOCKS	(1u << 13)
+#define	XFS_AGF_REFCOUNT_BLOCKS	(1u << 14)
+#define	XFS_AGF_REFCOUNT_ROOT	(1u << 15)
+#define	XFS_AGF_REFCOUNT_LEVEL	(1u << 16)
+#define	XFS_AGF_SPARE64		(1u << 17)
 #define	XFS_AGF_NUM_BITS	18
-#define	XFS_AGF_ALL_BITS	((1 << XFS_AGF_NUM_BITS) - 1)
+#define	XFS_AGF_ALL_BITS	((1u << XFS_AGF_NUM_BITS) - 1)
 
 #define XFS_AGF_FLAGS \
 	{ XFS_AGF_MAGICNUM,	"MAGICNUM" }, \
@@ -619,22 +619,22 @@ typedef struct xfs_agi {
 
 #define XFS_AGI_CRC_OFF		offsetof(struct xfs_agi, agi_crc)
 
-#define	XFS_AGI_MAGICNUM	(1 << 0)
-#define	XFS_AGI_VERSIONNUM	(1 << 1)
-#define	XFS_AGI_SEQNO		(1 << 2)
-#define	XFS_AGI_LENGTH		(1 << 3)
-#define	XFS_AGI_COUNT		(1 << 4)
-#define	XFS_AGI_ROOT		(1 << 5)
-#define	XFS_AGI_LEVEL		(1 << 6)
-#define	XFS_AGI_FREECOUNT	(1 << 7)
-#define	XFS_AGI_NEWINO		(1 << 8)
-#define	XFS_AGI_DIRINO		(1 << 9)
-#define	XFS_AGI_UNLINKED	(1 << 10)
+#define	XFS_AGI_MAGICNUM	(1u << 0)
+#define	XFS_AGI_VERSIONNUM	(1u << 1)
+#define	XFS_AGI_SEQNO		(1u << 2)
+#define	XFS_AGI_LENGTH		(1u << 3)
+#define	XFS_AGI_COUNT		(1u << 4)
+#define	XFS_AGI_ROOT		(1u << 5)
+#define	XFS_AGI_LEVEL		(1u << 6)
+#define	XFS_AGI_FREECOUNT	(1u << 7)
+#define	XFS_AGI_NEWINO		(1u << 8)
+#define	XFS_AGI_DIRINO		(1u << 9)
+#define	XFS_AGI_UNLINKED	(1u << 10)
 #define	XFS_AGI_NUM_BITS_R1	11	/* end of the 1st agi logging region */
-#define	XFS_AGI_ALL_BITS_R1	((1 << XFS_AGI_NUM_BITS_R1) - 1)
-#define	XFS_AGI_FREE_ROOT	(1 << 11)
-#define	XFS_AGI_FREE_LEVEL	(1 << 12)
-#define	XFS_AGI_IBLOCKS		(1 << 13) /* both inobt/finobt block counters */
+#define	XFS_AGI_ALL_BITS_R1	((1u << XFS_AGI_NUM_BITS_R1) - 1)
+#define	XFS_AGI_FREE_ROOT	(1u << 11)
+#define	XFS_AGI_FREE_LEVEL	(1u << 12)
+#define	XFS_AGI_IBLOCKS		(1u << 13) /* both inobt/finobt block counters */
 #define	XFS_AGI_NUM_BITS_R2	14
 
 /* disk block (xfs_daddr_t) in the AG */
@@ -1085,10 +1085,10 @@ static inline bool xfs_dinode_has_bigtime(const struct xfs_dinode *dip)
 #define XFS_DQUOT_MAGIC		0x4451		/* 'DQ' */
 #define XFS_DQUOT_VERSION	(uint8_t)0x01	/* latest version number */
 
-#define XFS_DQTYPE_USER		0x01		/* user dquot record */
-#define XFS_DQTYPE_PROJ		0x02		/* project dquot record */
-#define XFS_DQTYPE_GROUP	0x04		/* group dquot record */
-#define XFS_DQTYPE_BIGTIME	0x80		/* large expiry timestamps */
+#define XFS_DQTYPE_USER		(1u << 0)	/* user dquot record */
+#define XFS_DQTYPE_PROJ		(1u << 1)	/* project dquot record */
+#define XFS_DQTYPE_GROUP	(1u << 2)	/* group dquot record */
+#define XFS_DQTYPE_BIGTIME	(1u << 7)	/* large expiry timestamps */
 
 /* bitmask to determine if this is a user/group/project dquot */
 #define XFS_DQTYPE_REC_MASK	(XFS_DQTYPE_USER | \
