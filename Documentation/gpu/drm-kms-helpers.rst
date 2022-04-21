@@ -226,7 +226,7 @@ Panel Self Refresh Helper Reference
 HDCP Helper Functions Reference
 ===============================
 
-.. kernel-doc:: drivers/gpu/drm/drm_hdcp.c
+.. kernel-doc:: drivers/gpu/drm/display/drm_hdcp_helper.c
    :export:
 
 Display Port Helper Functions Reference

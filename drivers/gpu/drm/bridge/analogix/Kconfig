@@ -35,6 +35,7 @@ config DRM_ANALOGIX_ANX7625
 	depends on DRM
 	depends on OF
 	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HDCP_HELPER
 	select DRM_DISPLAY_HELPER
 	select DRM_DP_AUX_BUS
 	select DRM_MIPI_DSI
