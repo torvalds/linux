@@ -4,11 +4,13 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/irqdesc.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 
 #include "msm_drv.h"
 #include "msm_kms.h"
@@ -193,6 +195,32 @@ static void msm_mdss_destroy(struct msm_mdss *msm_mdss)
 	irq_set_chained_handler_and_data(irq, NULL, NULL);
 }
 
+static int msm_mdss_reset(struct device *dev)
+{
+	struct reset_control *reset;
+
+	reset = reset_control_get_optional_exclusive(dev, NULL);
+	if (!reset) {
+		/* Optional reset not specified */
+		return 0;
+	} else if (IS_ERR(reset)) {
+		return dev_err_probe(dev, PTR_ERR(reset),
+				     "failed to acquire mdss reset\n");
+	}
+
+	reset_control_assert(reset);
+	/*
+	 * Tests indicate that reset has to be held for some period of time,
+	 * make it one frame in a typical system
+	 */
+	msleep(20);
+	reset_control_deassert(reset);
+
+	reset_control_put(reset);
+
+	return 0;
+}
+
 /*
  * MDP5 MDSS uses at most three specified clocks.
  */
@@ -228,6 +256,10 @@ static struct msm_mdss *msm_mdss_init(struct platform_device *pdev, bool is_mdp5
 	struct msm_mdss *msm_mdss;
 	int ret;
 	int irq;
+
+	ret = msm_mdss_reset(&pdev->dev);
+	if (ret)
+		return ERR_PTR(ret);
 
 	msm_mdss = devm_kzalloc(&pdev->dev, sizeof(*msm_mdss), GFP_KERNEL);
 	if (!msm_mdss)
