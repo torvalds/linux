@@ -58,7 +58,6 @@
 
 &wdt {
 	status = "okay";
-	clocks = <&wdt_clk>;
 };
 
 &gpio {

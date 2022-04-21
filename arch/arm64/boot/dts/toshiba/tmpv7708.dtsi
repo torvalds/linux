@@ -171,12 +171,6 @@
 		clock-output-names = "extclk100mhz";
 	};
 
-	wdt_clk: wdt-clk {
-		compatible = "fixed-clock";
-		clock-frequency = <150000000>;
-		#clock-cells = <0>;
-	};
-
 	osc2_clk: osc2-clk {
 		compatible = "fixed-clock";
 		clock-frequency = <20000000>;
@@ -490,6 +484,7 @@
 		wdt: wdt@28330000 {
 			compatible = "toshiba,visconti-wdt";
 			reg = <0 0x28330000 0 0x1000>;
+			clocks = <&pismu TMPV770X_CLK_WDTCLK>;
 			status = "disabled";
 		};
 
