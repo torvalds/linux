@@ -6132,6 +6132,29 @@ void print_version()
 	fprintf(outf, "turbostat version 2022.04.16 - Len Brown <lenb@kernel.org>\n");
 }
 
+#define COMMAND_LINE_SIZE 2048
+
+void print_bootcmd(void)
+{
+	char bootcmd[COMMAND_LINE_SIZE];
+	FILE *fp;
+	int ret;
+
+	memset(bootcmd, 0, COMMAND_LINE_SIZE);
+	fp = fopen("/proc/cmdline", "r");
+	if (!fp)
+		return;
+
+	ret = fread(bootcmd, sizeof(char), COMMAND_LINE_SIZE - 1, fp);
+	if (ret) {
+		bootcmd[ret] = '\0';
+		/* the last character is already '\n' */
+		fprintf(outf, "Kernel command line: %s", bootcmd);
+	}
+
+	fclose(fp);
+}
+
 int add_counter(unsigned int msr_num, char *path, char *name,
 		unsigned int width, enum counter_scope scope,
 		enum counter_type type, enum counter_format format, int flags)
@@ -6603,8 +6626,10 @@ int main(int argc, char **argv)
 	outf = stderr;
 	cmdline(argc, argv);
 
-	if (!quiet)
+	if (!quiet) {
 		print_version();
+		print_bootcmd();
+	}
 
 	probe_sysfs();
 
