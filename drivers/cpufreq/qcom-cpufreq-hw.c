@@ -602,14 +602,12 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 		base = devm_ioremap(dev, res->start, resource_size(res));
 		if (!base) {
 			dev_err(dev, "failed to map resource %pR\n", res);
-			ret = -ENOMEM;
-			goto release_region;
+			return -ENOMEM;
 		}
 
 		data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 		if (!data) {
-			ret = -ENOMEM;
-			goto unmap_base;
+			return -ENOMEM;
 		}
 
 		data->soc_data = of_device_get_match_data(&pdev->dev);
@@ -664,12 +662,7 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 
 	return 0;
 error:
-	kfree(data);
 	policy->driver_data = NULL;
-unmap_base:
-	iounmap(base);
-release_region:
-	release_mem_region(res->start, resource_size(res));
 	return ret;
 }
 
