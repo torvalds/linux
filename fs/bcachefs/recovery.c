@@ -147,7 +147,7 @@ static void journal_iters_fix(struct bch_fs *c)
 
 	/*
 	 * If an iterator points one after the key we just inserted,
-	 * and the key we just inserted compares >= the iterator's position,
+	 * and the key we just inserted compares > the iterator's position,
 	 * decrement the iterator so it points at the key we just inserted:
 	 */
 	list_for_each_entry(iter, &c->journal_iters, journal.list)
@@ -155,7 +155,7 @@ static void journal_iters_fix(struct bch_fs *c)
 		    iter->last &&
 		    iter->b->c.btree_id == n->btree_id &&
 		    iter->b->c.level	== n->level &&
-		    bpos_cmp(n->k->k.p, iter->unpacked.p) >= 0)
+		    bpos_cmp(n->k->k.p, iter->unpacked.p) > 0)
 			iter->journal.idx = keys->gap - 1;
 }
 
