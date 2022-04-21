@@ -2327,6 +2327,17 @@ static void rtw8852c_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 	rtw8852c_ctrl_tx_path_tmac(rtwdev, RF_PATH_AB, RTW89_MAC_0);
 }
 
+static u8 rtw8852c_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path)
+{
+	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x1);
+	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x0);
+	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x1);
+
+	fsleep(200);
+
+	return rtw89_read_rf(rtwdev, rf_path, RR_TM, RR_TM_VAL);
+}
+
 static void rtw8852c_ctrl_btg(struct rtw89_dev *rtwdev, bool btg)
 {
 	if (btg) {
@@ -2487,6 +2498,7 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.set_txpwr		= rtw8852c_set_txpwr,
 	.set_txpwr_ctrl		= rtw8852c_set_txpwr_ctrl,
 	.init_txpwr_unit	= rtw8852c_init_txpwr_unit,
+	.get_thermal		= rtw8852c_get_thermal,
 	.read_rf		= rtw89_phy_read_rf_v1,
 	.write_rf		= rtw89_phy_write_rf_v1,
 	.set_txpwr_ul_tb_offset	= rtw8852c_set_txpwr_ul_tb_offset,
