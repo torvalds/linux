@@ -2440,6 +2440,38 @@ static void rtw8852c_btc_init_cfg(struct rtw89_dev *rtwdev)
 	btc->cx.wl.status.map.init_ok = true;
 }
 
+static void rtw8852c_fill_freq_with_ppdu(struct rtw89_dev *rtwdev,
+					 struct rtw89_rx_phy_ppdu *phy_ppdu,
+					 struct ieee80211_rx_status *status)
+{
+	u8 chan_idx = phy_ppdu->chan_idx;
+	enum nl80211_band band;
+	u8 ch;
+
+	if (chan_idx == 0)
+		return;
+
+	rtw8852c_decode_chan_idx(rtwdev, chan_idx, &ch, &band);
+	status->freq = ieee80211_channel_to_frequency(ch, band);
+	status->band = band;
+}
+
+static void rtw8852c_query_ppdu(struct rtw89_dev *rtwdev,
+				struct rtw89_rx_phy_ppdu *phy_ppdu,
+				struct ieee80211_rx_status *status)
+{
+	u8 path;
+	s8 *rx_power = phy_ppdu->rssi;
+
+	status->signal = max_t(s8, rx_power[RF_PATH_A], rx_power[RF_PATH_B]);
+	for (path = 0; path < rtwdev->chip->rf_path_num; path++) {
+		status->chains |= BIT(path);
+		status->chain_signal[path] = rx_power[path];
+	}
+	if (phy_ppdu->valid)
+		rtw8852c_fill_freq_with_ppdu(rtwdev, phy_ppdu, status);
+}
+
 static int rtw8852c_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
 {
 	int ret;
@@ -2499,6 +2531,7 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.set_txpwr_ctrl		= rtw8852c_set_txpwr_ctrl,
 	.init_txpwr_unit	= rtw8852c_init_txpwr_unit,
 	.get_thermal		= rtw8852c_get_thermal,
+	.query_ppdu		= rtw8852c_query_ppdu,
 	.read_rf		= rtw89_phy_read_rf_v1,
 	.write_rf		= rtw89_phy_write_rf_v1,
 	.set_txpwr_ul_tb_offset	= rtw8852c_set_txpwr_ul_tb_offset,
