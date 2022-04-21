@@ -170,7 +170,7 @@ __die_if_kernel(const char *str, struct pt_regs *regs, long err)
  * Unhandled Exceptions. Kill user task or panic if in kernel space.
  */
 
-void do_unhandled(struct pt_regs *regs, unsigned long exccause)
+void do_unhandled(struct pt_regs *regs)
 {
 	__die_if_kernel("Caught unhandled exception - should not happen",
 			regs, SIGKILL);
@@ -180,7 +180,7 @@ void do_unhandled(struct pt_regs *regs, unsigned long exccause)
 			    "(pid = %d, pc = %#010lx) - should not happen\n"
 			    "\tEXCCAUSE is %ld\n",
 			    current->comm, task_pid_nr(current), regs->pc,
-			    exccause);
+			    regs->exccause);
 	force_sig(SIGILL);
 }
 
@@ -360,7 +360,8 @@ static void do_debug(struct pt_regs *regs)
 
 /* Set exception C handler - for temporary use when probing exceptions */
 
-void * __init trap_set_handler(int cause, void *handler)
+xtensa_exception_handler *
+__init trap_set_handler(int cause, xtensa_exception_handler *handler)
 {
 	void *previous = per_cpu(exc_table, 0).default_handler[cause];
 

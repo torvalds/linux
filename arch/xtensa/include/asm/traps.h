@@ -12,6 +12,8 @@
 
 #include <asm/ptrace.h>
 
+typedef void xtensa_exception_handler(struct pt_regs *regs);
+
 /*
  * Per-CPU exception handling data structure.
  * EXCSAVE1 points to it.
@@ -30,15 +32,11 @@ struct exc_table {
 	/* Fast kernel exception handlers */
 	void *fast_kernel_handler[EXCCAUSE_N];
 	/* Default C-Handlers */
-	void *default_handler[EXCCAUSE_N];
+	xtensa_exception_handler *default_handler[EXCCAUSE_N];
 };
 
-/*
- * handler must be either of the following:
- *  void (*)(struct pt_regs *regs);
- *  void (*)(struct pt_regs *regs, unsigned long exccause);
- */
-extern void * __init trap_set_handler(int cause, void *handler);
+xtensa_exception_handler *
+__init trap_set_handler(int cause, xtensa_exception_handler *handler);
 
 asmlinkage void fast_illegal_instruction_user(void);
 asmlinkage void fast_syscall_user(void);
@@ -54,7 +52,7 @@ asmlinkage void system_call(struct pt_regs *regs);
 
 void do_IRQ(int hwirq, struct pt_regs *regs);
 void do_page_fault(struct pt_regs *regs);
-void do_unhandled(struct pt_regs *regs, unsigned long exccause);
+void do_unhandled(struct pt_regs *regs);
 
 /* Initialize minimal exc_table structure sufficient for basic paging */
 static inline void __init early_trap_init(void)
