@@ -155,6 +155,7 @@ struct amd_sriov_msg_pf2vf_info_header {
 	uint32_t reserved[2];
 };
 
+#define AMD_SRIOV_MSG_PF2VF_INFO_FILLED_SIZE (48)
 struct amd_sriov_msg_pf2vf_info {
 	/* header contains size and version */
 	struct amd_sriov_msg_pf2vf_info_header header;
@@ -203,10 +204,10 @@ struct amd_sriov_msg_pf2vf_info {
 	} mm_bw_management[AMD_SRIOV_MSG_RESERVE_VCN_INST];
 	/* UUID info */
 	struct amd_sriov_msg_uuid_info uuid_info;
-	/* pcie atomic Ops info */
-	uint32_t pcie_atomic_ops_enabled_flags;
+	/* PCIE atomic ops support flag */
+	uint32_t pcie_atomic_ops_support_flags;
 	/* reserved */
-	uint32_t reserved[256 - 48];
+	uint32_t reserved[256 - AMD_SRIOV_MSG_PF2VF_INFO_FILLED_SIZE];
 };
 
 struct amd_sriov_msg_vf2pf_info_header {
@@ -218,6 +219,7 @@ struct amd_sriov_msg_vf2pf_info_header {
 	uint32_t reserved[2];
 };
 
+#define AMD_SRIOV_MSG_VF2PF_INFO_FILLED_SIZE (70)
 struct amd_sriov_msg_vf2pf_info {
 	/* header contains size and version */
 	struct amd_sriov_msg_vf2pf_info_header header;
@@ -263,7 +265,7 @@ struct amd_sriov_msg_vf2pf_info {
 	uint64_t dummy_page_addr;
 
 	/* reserved */
-	uint32_t reserved[256 - 70];
+	uint32_t reserved[256 - AMD_SRIOV_MSG_VF2PF_INFO_FILLED_SIZE];
 };
 
 /* mailbox message send from guest to host  */
