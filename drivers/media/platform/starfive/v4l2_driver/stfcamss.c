@@ -69,6 +69,10 @@ char *resets[] = {
 	"rst_sys_clk",
 	"rst_axird",
 	"rst_axiwr",
+	"rst_pixel_clk_if0",
+	"rst_pixel_clk_if1",
+	"rst_pixel_clk_if2",
+	"rst_pixel_clk_if3",
 };
 
 int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)

@@ -141,28 +141,6 @@ static int stf_vin_clk_enable(struct stf_vin2_dev *vin_dev)
 
 	reg_set_bit(vin->clkgen_base,   CLK_U0_VIN_CLK_P_AXIWR, CLK_U0_VIN_MUX_SEL, 0x1<<24);
 
-#if 0
-    //disable first, need to check mipi config on EVB
-    reg_set_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL, BIT(3)|BIT(2)|BIT(1)|BIT(0), 0x3<<0);
-    reg_set_bit(vin->clkgen_base, CLK_U0_ISPV2_TOP_WRAPPER_CLK_C, BIT(24), 0x0<<24);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF0, BIT(31), 0x1<<31);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF1, BIT(31), 0x1<<31);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF2, BIT(31), 0x1<<31);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF3, BIT(31), 0x1<<31);
-
-
-    reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE,
-        BIT(4)|BIT(9));
-
-    reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE,
-        BIT(5)|BIT(6)|BIT(7)|BIT(8)|BIT(10));
-
-    reg_set_bit(vin->clkgen_base,	CLK_U0_VIN_CLK_P_AXIWR,	BIT(24), 0x0<<24);
-    reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE, BIT(11));
-#endif
 	return 0;
 }
 
@@ -186,20 +164,6 @@ static int stf_vin_clk_disable(struct stf_vin2_dev *vin_dev)
 #endif
 
 	reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PCLK, CLK_U0_VIN_PCLK_ICG, 0x0);
-
-#if 0
-    //disable first, need to check mipi config on EVB
-    reg_assert_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE,
-        BIT(6)|BIT(7)|BIT(8));
-
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PCLK, BIT(31), 0x0<<31);
-
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF0, BIT(31), 0x0<<31);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF1, BIT(31), 0x0<<31);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF2, BIT(31), 0x0<<31);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF3, BIT(31), 0x0<<31);
-#endif
 
 	return 0;
 }
@@ -290,11 +254,11 @@ static void stf_vin_power_on(struct stf_vin2_dev *vin_dev,	int enable)
 	} else {
 
 #ifdef CONFIG_RESET_STARFIVE_JH7110
-			reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_N].rst);
-			reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rst);
+		reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_N].rst);
+		reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rst);
 #else
-			reg_assert_rst(vin->sys_crg, 0x2FCU, 0x30cu, BIT(9));
-			reg_assert_rst(vin->sys_crg, 0x2FCU, 0x30cu, BIT(10));
+		reg_assert_rst(vin->sys_crg, 0x2FCU, 0x30cu, BIT(9));
+		reg_assert_rst(vin->sys_crg, 0x2FCU, 0x30cu, BIT(10));
 #endif
 
 #ifdef CONFIG_CLK_STARFIVE_JH7110

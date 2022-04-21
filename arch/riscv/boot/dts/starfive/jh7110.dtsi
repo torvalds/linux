@@ -595,19 +595,24 @@
 			reg-names = "mipi0", "vclk", "vrst", "mipi1", "sctrl",
 				"isp0", "isp1", "trst", "pmu", "syscrg";
 			clocks = <&clkgen JH7110_ISP_TOP_CLK_ISPCORE_2X>,
-					<&clkgen JH7110_ISP_TOP_CLK_ISP_AXI>;
+				<&clkgen JH7110_ISP_TOP_CLK_ISP_AXI>;
 			clock-names = "clk_ispcore_2x", "clk_isp_axi";
 			resets = <&rstgen RSTN_U0_DOM_ISP_TOP_N>,
-					<&rstgen RSTN_U0_DOM_ISP_TOP_AXI>,
-					<&rstgen RSTN_U0_ISPV2_TOP_WRAPPER_P>,
-					<&rstgen RSTN_U0_ISPV2_TOP_WRAPPER_C>,
-					<&rstgen RSTN_U0_VIN_N_PCLK>,
-					<&rstgen RSTN_U0_VIN_N_SYS_CLK>,
-					<&rstgen RSTN_U0_VIN_P_AXIRD>,
-					<&rstgen RSTN_U0_VIN_P_AXIWR>;
+				<&rstgen RSTN_U0_DOM_ISP_TOP_AXI>,
+				<&rstgen RSTN_U0_ISPV2_TOP_WRAPPER_P>,
+				<&rstgen RSTN_U0_ISPV2_TOP_WRAPPER_C>,
+				<&rstgen RSTN_U0_VIN_N_PCLK>,
+				<&rstgen RSTN_U0_VIN_N_SYS_CLK>,
+				<&rstgen RSTN_U0_VIN_P_AXIRD>,
+				<&rstgen RSTN_U0_VIN_P_AXIWR>,
+				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF0>,
+				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF1>,
+				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF2>,
+				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF3>;
 			reset-names = "rst_isp_top_n", "rst_isp_top_axi", "rst_wrapper_p",
-						"rst_wrapper_c", "rst_pclk", "rst_sys_clk",
-						"rst_axird", "rst_axiwr";
+				"rst_wrapper_c", "rst_pclk", "rst_sys_clk", "rst_axird",
+				"rst_axiwr", "rst_pixel_clk_if0", "rst_pixel_clk_if1",
+				"rst_pixel_clk_if2", "rst_pixel_clk_if3";
 			interrupts = <92 87 86>;
 			status = "disabled";
 		};
