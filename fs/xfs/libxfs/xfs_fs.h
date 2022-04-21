@@ -699,34 +699,34 @@ struct xfs_scrub_metadata {
 #define XFS_SCRUB_TYPE_NR	25
 
 /* i: Repair this metadata. */
-#define XFS_SCRUB_IFLAG_REPAIR		(1 << 0)
+#define XFS_SCRUB_IFLAG_REPAIR		(1u << 0)
 
 /* o: Metadata object needs repair. */
-#define XFS_SCRUB_OFLAG_CORRUPT		(1 << 1)
+#define XFS_SCRUB_OFLAG_CORRUPT		(1u << 1)
 
 /*
  * o: Metadata object could be optimized.  It's not corrupt, but
  *    we could improve on it somehow.
  */
-#define XFS_SCRUB_OFLAG_PREEN		(1 << 2)
+#define XFS_SCRUB_OFLAG_PREEN		(1u << 2)
 
 /* o: Cross-referencing failed. */
-#define XFS_SCRUB_OFLAG_XFAIL		(1 << 3)
+#define XFS_SCRUB_OFLAG_XFAIL		(1u << 3)
 
 /* o: Metadata object disagrees with cross-referenced metadata. */
-#define XFS_SCRUB_OFLAG_XCORRUPT	(1 << 4)
+#define XFS_SCRUB_OFLAG_XCORRUPT	(1u << 4)
 
 /* o: Scan was not complete. */
-#define XFS_SCRUB_OFLAG_INCOMPLETE	(1 << 5)
+#define XFS_SCRUB_OFLAG_INCOMPLETE	(1u << 5)
 
 /* o: Metadata object looked funny but isn't corrupt. */
-#define XFS_SCRUB_OFLAG_WARNING		(1 << 6)
+#define XFS_SCRUB_OFLAG_WARNING		(1u << 6)
 
 /*
  * o: IFLAG_REPAIR was set but metadata object did not need fixing or
  *    optimization and has therefore not been altered.
  */
-#define XFS_SCRUB_OFLAG_NO_REPAIR_NEEDED (1 << 7)
+#define XFS_SCRUB_OFLAG_NO_REPAIR_NEEDED (1u << 7)
 
 #define XFS_SCRUB_FLAGS_IN	(XFS_SCRUB_IFLAG_REPAIR)
 #define XFS_SCRUB_FLAGS_OUT	(XFS_SCRUB_OFLAG_CORRUPT | \
