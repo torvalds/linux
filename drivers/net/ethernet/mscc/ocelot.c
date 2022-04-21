@@ -629,6 +629,13 @@ int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
 {
 	int err;
 
+	/* Ignore VID 0 added to our RX filter by the 8021q module, since
+	 * that collides with OCELOT_STANDALONE_PVID and changes it from
+	 * egress-untagged to egress-tagged.
+	 */
+	if (!vid)
+		return 0;
+
 	err = ocelot_vlan_member_add(ocelot, port, vid, untagged);
 	if (err)
 		return err;
@@ -650,6 +657,9 @@ int ocelot_vlan_del(struct ocelot *ocelot, int port, u16 vid)
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	bool del_pvid = false;
 	int err;
+
+	if (!vid)
+		return 0;
 
 	if (ocelot_port->pvid_vlan && ocelot_port->pvid_vlan->vid == vid)
 		del_pvid = true;
