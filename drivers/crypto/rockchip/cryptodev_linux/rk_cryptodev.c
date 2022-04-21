@@ -262,6 +262,10 @@ static int get_dmafd_sgtbl(int dma_fd, unsigned int dma_len, enum dma_data_direc
 		goto error;
 	}
 
+	/*
+	 * DMA_TO_DEVICE  : cache clean for input data
+	 * DMA_FROM_DEVICE: cache invalidate for output data
+	 */
 	*sg_tbl = dma_buf_map_attachment(*dma_attach, dir);
 	if (IS_ERR(*sg_tbl)) {
 		derr(1, "sg_tbl error! ret = %d", (int)PTR_ERR(*sg_tbl));
@@ -269,8 +273,9 @@ static int get_dmafd_sgtbl(int dma_fd, unsigned int dma_len, enum dma_data_direc
 		goto error;
 	}
 
-	/* insure user data flush to ddr */
-	dma_sync_sg_for_cpu(crypto_dev, (*sg_tbl)->sgl, (*sg_tbl)->nents, DMA_FROM_DEVICE);
+	/* cache invalidate for input data */
+	if (dir == DMA_TO_DEVICE)
+		dma_sync_sg_for_cpu(crypto_dev, (*sg_tbl)->sgl, (*sg_tbl)->nents, DMA_FROM_DEVICE);
 
 	return 0;
 error:
@@ -298,9 +303,14 @@ static int put_dmafd_sgtbl(int dma_fd, enum dma_data_direction dir,
 	if (!sg_tbl || !dma_attach || !dmabuf)
 		return -EINVAL;
 
-	/* insure ddr data flush to cache */
-	dma_sync_sg_for_device(crypto_dev, sg_tbl->sgl, sg_tbl->nents, DMA_TO_DEVICE);
+	/* cache clean for output data */
+	if (dir == DMA_FROM_DEVICE)
+		dma_sync_sg_for_device(crypto_dev, sg_tbl->sgl, sg_tbl->nents, DMA_TO_DEVICE);
 
+	/*
+	 * DMA_TO_DEVICE  : do nothing for input data
+	 * DMA_FROM_DEVICE: cache invalidate for output data
+	 */
 	dma_buf_unmap_attachment(dma_attach, sg_tbl, dir);
 	dma_buf_detach(dmabuf, dma_attach);
 	dma_buf_put(dmabuf);
@@ -914,7 +924,7 @@ exit:
 				sg_tbl_out, dma_attach_out, dma_buf_out);
 
 	if (dma_buf_auth)
-		put_dmafd_sgtbl(caop->auth_fd, DMA_FROM_DEVICE,
+		put_dmafd_sgtbl(caop->auth_fd, DMA_TO_DEVICE,
 				sg_tbl_auth, dma_attach_auth, dma_buf_auth);
 
 	return ret;

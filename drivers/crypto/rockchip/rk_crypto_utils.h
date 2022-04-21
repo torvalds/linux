@@ -44,6 +44,8 @@ bool rk_crypto_check_align(struct scatterlist *src_sg, size_t src_nents,
 			   struct scatterlist *dst_sg, size_t dst_nents,
 			   int align_mask);
 
+bool rk_crypto_check_dmafd(struct scatterlist *sgl, size_t nents);
+
 u64 rk_crypto_hw_desc_maxlen(struct scatterlist *sg, u64 len, u32 *max_nents);
 
 int rk_crypto_hw_desc_alloc(struct device *dev, struct rk_hw_desc *hw_desc);

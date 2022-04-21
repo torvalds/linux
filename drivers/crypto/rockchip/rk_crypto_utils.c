@@ -116,6 +116,22 @@ bool rk_crypto_check_align(struct scatterlist *src_sg, size_t src_nents,
 	return true;
 }
 
+bool rk_crypto_check_dmafd(struct scatterlist *sgl, size_t nents)
+{
+	struct scatterlist *src_tmp = NULL;
+	unsigned int i;
+
+	for_each_sg(sgl, src_tmp, nents, i) {
+		if (!src_tmp)
+			return false;
+
+		if (src_tmp->length && !sg_dma_address(src_tmp))
+			return false;
+	}
+
+	return true;
+}
+
 void rk_crypto_dump_hw_desc(struct rk_hw_desc *hw_desc)
 {
 	struct crypto_lli_desc *cur_lli = NULL;

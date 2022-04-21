@@ -348,6 +348,18 @@ int rk_ahash_start(struct rk_crypto_dev *rk_dev)
 		/* Concatenate old data to the header */
 		sg_init_table(ctx->hash_sg, ARRAY_SIZE(ctx->hash_sg));
 		sg_set_buf(ctx->hash_sg, ctx->hash_tmp, ctx->hash_tmp_len);
+
+		if (rk_crypto_check_dmafd(req->src, sg_nents_for_len(req->src, req->nbytes))) {
+			CRYPTO_TRACE("is hash dmafd");
+			if (!dma_map_sg(rk_dev->dev, &ctx->hash_sg[0], 1, DMA_TO_DEVICE)) {
+				dev_err(rk_dev->dev, "[%s:%d] dma_map_sg(hash_sg)  error\n",
+					__func__, __LINE__);
+				ret = -ENOMEM;
+				goto exit;
+			}
+			ctx->hash_tmp_mapped = true;
+		}
+
 		sg_chain(ctx->hash_sg, ARRAY_SIZE(ctx->hash_sg), req->src);
 
 		src_sg = &ctx->hash_sg[0];
@@ -417,6 +429,9 @@ int rk_ahash_crypto_rx(struct rk_crypto_dev *rk_dev)
 		 * transmission.
 		 */
 		struct crypto_ahash *tfm;
+
+		if (ctx->hash_tmp_mapped)
+			dma_unmap_sg(rk_dev->dev, &ctx->hash_sg[0], 1, DMA_TO_DEVICE);
 
 		/* only final will get result */
 		if (!(rctx->flag & RK_FLAG_FINAL))

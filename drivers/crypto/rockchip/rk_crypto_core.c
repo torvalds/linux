@@ -117,12 +117,16 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 		CRYPTO_TRACE("src_nents = %u, dst_nents = %u", src_nents, dst_nents);
 	}
 
-	if (alg_ctx->left_bytes == alg_ctx->total)
+	if (alg_ctx->left_bytes == alg_ctx->total) {
 		alg_ctx->aligned = rk_crypto_check_align(sg_src, src_nents, sg_dst, dst_nents,
 							 alg_ctx->align_size);
+		alg_ctx->is_dma  = rk_crypto_check_dmafd(sg_src, src_nents) &&
+				   rk_crypto_check_dmafd(sg_dst, dst_nents);
+	}
 
-	CRYPTO_TRACE("aligned = %d, total = %u, left_bytes = %u, assoclen = %u\n",
-		     alg_ctx->aligned, alg_ctx->total, alg_ctx->left_bytes, alg_ctx->assoclen);
+	CRYPTO_TRACE("aligned = %d, is_dma = %d, total = %u, left_bytes = %u, assoclen = %u\n",
+		     alg_ctx->aligned, alg_ctx->is_dma, alg_ctx->total,
+		     alg_ctx->left_bytes, alg_ctx->assoclen);
 
 	if (alg_ctx->aligned) {
 		u32 nents;
@@ -137,7 +141,7 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 		alg_ctx->map_nents   = nents;
 		alg_ctx->left_bytes -= count;
 
-		if (!dma_map_sg(dev, sg_src, nents, DMA_TO_DEVICE)) {
+		if (!alg_ctx->is_dma && !dma_map_sg(dev, sg_src, nents, DMA_TO_DEVICE)) {
 			dev_err(dev, "[%s:%d] dma_map_sg(src)  error\n",
 				__func__, __LINE__);
 			ret = -EINVAL;
@@ -146,7 +150,7 @@ static int rk_load_data(struct rk_crypto_dev *rk_dev,
 		alg_ctx->addr_in = sg_dma_address(sg_src);
 
 		if (sg_dst) {
-			if (!dma_map_sg(dev, sg_dst, nents, DMA_FROM_DEVICE)) {
+			if (!alg_ctx->is_dma && !dma_map_sg(dev, sg_dst, nents, DMA_FROM_DEVICE)) {
 				dev_err(dev,
 					"[%s:%d] dma_map_sg(dst)  error\n",
 					__func__, __LINE__);
@@ -219,11 +223,17 @@ static int rk_unload_data(struct rk_crypto_dev *rk_dev)
 	nents = alg_ctx->map_nents;
 
 	sg_in = alg_ctx->aligned ? alg_ctx->sg_src : &alg_ctx->sg_tmp;
-	dma_unmap_sg(rk_dev->dev, sg_in, nents, DMA_TO_DEVICE);
+
+	/* only is dma buffer and aligned will skip unmap */
+	if (!alg_ctx->is_dma || !alg_ctx->aligned)
+		dma_unmap_sg(rk_dev->dev, sg_in, nents, DMA_TO_DEVICE);
 
 	if (alg_ctx->sg_dst) {
 		sg_out = alg_ctx->aligned ? alg_ctx->sg_dst : &alg_ctx->sg_tmp;
-		dma_unmap_sg(rk_dev->dev, sg_out, nents, DMA_FROM_DEVICE);
+
+		/* only is dma buffer and aligned will skip unmap */
+		if (!alg_ctx->is_dma || !alg_ctx->aligned)
+			dma_unmap_sg(rk_dev->dev, sg_out, nents, DMA_FROM_DEVICE);
 	}
 
 	if (!alg_ctx->aligned && alg_ctx->req_dst) {
