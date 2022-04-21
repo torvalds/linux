@@ -97,7 +97,7 @@ struct pglist_data __refdata contig_page_data;
 EXPORT_SYMBOL(contig_page_data);
 #endif
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+#if defined(CONFIG_ROCKCHIP_THUNDER_BOOT) && defined(CONFIG_SMP)
 static unsigned long defer_start __initdata;
 static unsigned long defer_end __initdata;
 
@@ -1933,7 +1933,7 @@ static void __init __free_pages_memory(unsigned long start, unsigned long end)
 	}
 }
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+#if defined(CONFIG_ROCKCHIP_THUNDER_BOOT) && defined(CONFIG_SMP)
 int __init defer_free_memblock(void *unused)
 {
 	if (defer_start == 0)
@@ -1965,7 +1965,7 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
 	if (start_pfn >= end_pfn)
 		return 0;
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+#if defined(CONFIG_ROCKCHIP_THUNDER_BOOT) && defined(CONFIG_SMP)
 	if ((end - start) > defer_free_block_size) {
 		defer_start = start_pfn;
 		defer_end = end_pfn;
