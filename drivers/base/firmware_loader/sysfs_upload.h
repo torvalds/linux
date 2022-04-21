@@ -37,6 +37,11 @@ struct fw_upload_priv {
 };
 
 #ifdef CONFIG_FW_UPLOAD
+extern struct device_attribute dev_attr_status;
+extern struct device_attribute dev_attr_error;
+extern struct device_attribute dev_attr_cancel;
+extern struct device_attribute dev_attr_remaining_size;
+
 int fw_upload_start(struct fw_sysfs *fw_sysfs);
 umode_t fw_upload_is_visible(struct kobject *kobj, struct attribute *attr, int n);
 #else

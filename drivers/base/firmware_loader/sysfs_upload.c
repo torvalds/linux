@@ -11,6 +11,127 @@
  * Support for user-space to initiate a firmware upload to a device.
  */
 
+static const char * const fw_upload_prog_str[] = {
+	[FW_UPLOAD_PROG_IDLE]	      = "idle",
+	[FW_UPLOAD_PROG_RECEIVING]    = "receiving",
+	[FW_UPLOAD_PROG_PREPARING]    = "preparing",
+	[FW_UPLOAD_PROG_TRANSFERRING] = "transferring",
+	[FW_UPLOAD_PROG_PROGRAMMING]  = "programming"
+};
+
+static const char * const fw_upload_err_str[] = {
+	[FW_UPLOAD_ERR_NONE]	     = "none",
+	[FW_UPLOAD_ERR_HW_ERROR]     = "hw-error",
+	[FW_UPLOAD_ERR_TIMEOUT]	     = "timeout",
+	[FW_UPLOAD_ERR_CANCELED]     = "user-abort",
+	[FW_UPLOAD_ERR_BUSY]	     = "device-busy",
+	[FW_UPLOAD_ERR_INVALID_SIZE] = "invalid-file-size",
+	[FW_UPLOAD_ERR_RW_ERROR]     = "read-write-error",
+	[FW_UPLOAD_ERR_WEAROUT]	     = "flash-wearout",
+};
+
+static const char *fw_upload_progress(struct device *dev,
+				      enum fw_upload_prog prog)
+{
+	const char *status = "unknown-status";
+
+	if (prog < FW_UPLOAD_PROG_MAX)
+		status = fw_upload_prog_str[prog];
+	else
+		dev_err(dev, "Invalid status during secure update: %d\n", prog);
+
+	return status;
+}
+
+static const char *fw_upload_error(struct device *dev,
+				   enum fw_upload_err err_code)
+{
+	const char *error = "unknown-error";
+
+	if (err_code < FW_UPLOAD_ERR_MAX)
+		error = fw_upload_err_str[err_code];
+	else
+		dev_err(dev, "Invalid error code during secure update: %d\n",
+			err_code);
+
+	return error;
+}
+
+static ssize_t
+status_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct fw_upload_priv *fwlp = to_fw_sysfs(dev)->fw_upload_priv;
+
+	return sysfs_emit(buf, "%s\n", fw_upload_progress(dev, fwlp->progress));
+}
+DEVICE_ATTR_RO(status);
+
+static ssize_t
+error_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct fw_upload_priv *fwlp = to_fw_sysfs(dev)->fw_upload_priv;
+	int ret;
+
+	mutex_lock(&fwlp->lock);
+
+	if (fwlp->progress != FW_UPLOAD_PROG_IDLE)
+		ret = -EBUSY;
+	else if (!fwlp->err_code)
+		ret = 0;
+	else
+		ret = sysfs_emit(buf, "%s:%s\n",
+				 fw_upload_progress(dev, fwlp->err_progress),
+				 fw_upload_error(dev, fwlp->err_code));
+
+	mutex_unlock(&fwlp->lock);
+
+	return ret;
+}
+DEVICE_ATTR_RO(error);
+
+static ssize_t cancel_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct fw_upload_priv *fwlp = to_fw_sysfs(dev)->fw_upload_priv;
+	int ret = count;
+	bool cancel;
+
+	if (kstrtobool(buf, &cancel) || !cancel)
+		return -EINVAL;
+
+	mutex_lock(&fwlp->lock);
+	if (fwlp->progress == FW_UPLOAD_PROG_IDLE)
+		ret = -ENODEV;
+
+	fwlp->ops->cancel(fwlp->fw_upload);
+	mutex_unlock(&fwlp->lock);
+
+	return ret;
+}
+DEVICE_ATTR_WO(cancel);
+
+static ssize_t remaining_size_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct fw_upload_priv *fwlp = to_fw_sysfs(dev)->fw_upload_priv;
+
+	return sysfs_emit(buf, "%u\n", fwlp->remaining_size);
+}
+DEVICE_ATTR_RO(remaining_size);
+
+umode_t
+fw_upload_is_visible(struct kobject *kobj, struct attribute *attr, int n)
+{
+	static struct fw_sysfs *fw_sysfs;
+
+	fw_sysfs = to_fw_sysfs(kobj_to_dev(kobj));
+
+	if (fw_sysfs->fw_upload_priv || attr == &dev_attr_loading.attr)
+		return attr->mode;
+
+	return 0;
+}
+
 static void fw_upload_update_progress(struct fw_upload_priv *fwlp,
 				      enum fw_upload_prog new_progress)
 {

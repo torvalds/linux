@@ -371,6 +371,12 @@ static struct bin_attribute firmware_attr_data = {
 
 static struct attribute *fw_dev_attrs[] = {
 	&dev_attr_loading.attr,
+#ifdef CONFIG_FW_UPLOAD
+	&dev_attr_cancel.attr,
+	&dev_attr_status.attr,
+	&dev_attr_error.attr,
+	&dev_attr_remaining_size.attr,
+#endif
 	NULL
 };
 
@@ -382,6 +388,9 @@ static struct bin_attribute *fw_dev_bin_attrs[] = {
 static const struct attribute_group fw_dev_attr_group = {
 	.attrs = fw_dev_attrs,
 	.bin_attrs = fw_dev_bin_attrs,
+#ifdef CONFIG_FW_UPLOAD
+	.is_visible = fw_upload_is_visible,
+#endif
 };
 
 static const struct attribute_group *fw_dev_attr_groups[] = {
