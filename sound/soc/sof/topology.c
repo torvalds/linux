@@ -1012,15 +1012,18 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 	struct snd_soc_dai *cpu_dai;
 	int i;
 
+	if (!w->sname) {
+		dev_err(scomp->dev, "Widget %s does not have stream\n", w->name);
+		return -EINVAL;
+	}
+
 	list_for_each_entry(rtd, &card->rtd_list, list) {
 		dev_vdbg(scomp->dev, "tplg: check widget: %s stream: %s dai stream: %s\n",
 			 w->name,  w->sname, rtd->dai_link->stream_name);
 
-		if (!w->sname || !rtd->dai_link->stream_name)
-			continue;
-
 		/* does stream match DAI link ? */
-		if (strcmp(w->sname, rtd->dai_link->stream_name))
+		if (!rtd->dai_link->stream_name ||
+		    strcmp(w->sname, rtd->dai_link->stream_name))
 			continue;
 
 		switch (w->id) {
