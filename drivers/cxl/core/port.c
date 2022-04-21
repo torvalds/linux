@@ -391,6 +391,8 @@ static int devm_cxl_link_uport(struct device *host, struct cxl_port *port)
 	return devm_add_action_or_reset(host, cxl_unlink_uport, port);
 }
 
+static struct lock_class_key cxl_port_key;
+
 static struct cxl_port *cxl_port_alloc(struct device *uport,
 				       resource_size_t component_reg_phys,
 				       struct cxl_port *parent_port)
@@ -415,9 +417,10 @@ static struct cxl_port *cxl_port_alloc(struct device *uport,
 	 * description.
 	 */
 	dev = &port->dev;
-	if (parent_port)
+	if (parent_port) {
 		dev->parent = &parent_port->dev;
-	else
+		port->depth = parent_port->depth + 1;
+	} else
 		dev->parent = uport;
 
 	port->uport = uport;
@@ -427,6 +430,7 @@ static struct cxl_port *cxl_port_alloc(struct device *uport,
 	INIT_LIST_HEAD(&port->endpoints);
 
 	device_initialize(dev);
+	lockdep_set_class_and_subclass(&dev->mutex, &cxl_port_key, port->depth);
 	device_set_pm_not_required(dev);
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_port_type;
@@ -457,8 +461,6 @@ struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 	if (IS_ERR(port))
 		return port;
 
-	if (parent_port)
-		port->depth = parent_port->depth + 1;
 	dev = &port->dev;
 	if (is_cxl_memdev(uport))
 		rc = dev_set_name(dev, "endpoint%d", port->id);
@@ -1173,6 +1175,8 @@ static int decoder_populate_targets(struct cxl_decoder *cxld,
 	return rc;
 }
 
+static struct lock_class_key cxl_decoder_key;
+
 /**
  * cxl_decoder_alloc - Allocate a new CXL decoder
  * @port: owning port of this decoder
@@ -1214,6 +1218,7 @@ static struct cxl_decoder *cxl_decoder_alloc(struct cxl_port *port,
 	seqlock_init(&cxld->target_lock);
 	dev = &cxld->dev;
 	device_initialize(dev);
+	lockdep_set_class(&dev->mutex, &cxl_decoder_key);
 	device_set_pm_not_required(dev);
 	dev->parent = &port->dev;
 	dev->bus = &cxl_bus_type;
