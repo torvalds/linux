@@ -256,6 +256,7 @@ static bool ceph_netfs_issue_op_inline(struct netfs_io_subrequest *subreq)
 	struct iov_iter iter;
 	ssize_t err = 0;
 	size_t len;
+	int mode;
 
 	__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
 	__clear_bit(NETFS_SREQ_COPY_TO_CACHE, &subreq->flags);
@@ -264,7 +265,8 @@ static bool ceph_netfs_issue_op_inline(struct netfs_io_subrequest *subreq)
 		goto out;
 
 	/* We need to fetch the inline data. */
-	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, USE_ANY_MDS);
+	mode = ceph_try_to_choose_auth_mds(inode, CEPH_STAT_CAP_INLINE_DATA);
+	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, mode);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto out;
