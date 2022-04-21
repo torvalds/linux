@@ -62,6 +62,11 @@ struct uclogic_params_pen_subreport {
  */
 struct uclogic_params_pen {
 	/*
+	 * True if pen usage is invalid for this interface and should be
+	 * ignored, false otherwise.
+	 */
+	bool usage_invalid;
+	/*
 	 * Pointer to report descriptor part describing the pen inputs.
 	 * Allocated with kmalloc. NULL if the part is not specified.
 	 */
@@ -214,6 +219,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 	".desc_ptr = %p\n"                  \
 	".desc_size = %u\n"                 \
 	".pen = {\n"                        \
+	"\t.usage_invalid = %s\n"           \
 	"\t.desc_ptr = %p\n"                \
 	"\t.desc_size = %u\n"               \
 	"\t.id = %u\n"                      \
@@ -270,6 +276,7 @@ extern int uclogic_params_init(struct uclogic_params *params,
 	((_params)->invalid ? "true" : "false"),                    \
 	(_params)->desc_ptr,                                        \
 	(_params)->desc_size,                                       \
+	((_params)->pen.usage_invalid ? "true" : "false"),          \
 	(_params)->pen.desc_ptr,                                    \
 	(_params)->pen.desc_size,                                   \
 	(_params)->pen.id,                                          \

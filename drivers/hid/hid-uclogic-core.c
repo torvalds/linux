@@ -81,6 +81,24 @@ static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	return rdesc;
 }
 
+static int uclogic_input_mapping(struct hid_device *hdev,
+				 struct hid_input *hi,
+				 struct hid_field *field,
+				 struct hid_usage *usage,
+				 unsigned long **bit,
+				 int *max)
+{
+	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
+	struct uclogic_params *params = &drvdata->params;
+
+	/* Discard invalid pen usages */
+	if (params->pen.usage_invalid && (field->application == HID_DG_PEN))
+		return -1;
+
+	/* Let hid-core decide what to do */
+	return 0;
+}
+
 static int uclogic_input_configured(struct hid_device *hdev,
 		struct hid_input *hi)
 {
@@ -515,6 +533,7 @@ static struct hid_driver uclogic_driver = {
 	.remove = uclogic_remove,
 	.report_fixup = uclogic_report_fixup,
 	.raw_event = uclogic_raw_event,
+	.input_mapping = uclogic_input_mapping,
 	.input_configured = uclogic_input_configured,
 #ifdef CONFIG_PM
 	.resume	          = uclogic_resume,
