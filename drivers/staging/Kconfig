@@ -85,4 +85,6 @@ source "drivers/staging/fieldbus/Kconfig"
 source "drivers/staging/qlge/Kconfig"
 
 
+source "drivers/staging/vme/devices/Kconfig"
+
 endif # STAGING
