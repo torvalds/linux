@@ -204,7 +204,9 @@ int bch2_check_lrus(struct bch_fs *c, bool initial)
 
 	for_each_btree_key(&trans, iter, BTREE_ID_lru, POS_MIN,
 			   BTREE_ITER_PREFETCH, k, ret) {
-		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+		ret = __bch2_trans_do(&trans, NULL, NULL,
+				      BTREE_INSERT_NOFAIL|
+				      BTREE_INSERT_LAZY_RW,
 			bch2_check_lru_key(&trans, &iter, initial));
 		if (ret)
 			break;

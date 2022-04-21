@@ -382,7 +382,8 @@ int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
 				return -EINVAL;
 			}
 
-			if (!a.v->io_time[READ]) {
+			if (!a.v->io_time[READ] &&
+			    test_bit(BCH_FS_CHECK_ALLOC_TO_LRU_REFS_DONE, &c->flags)) {
 				pr_buf(err, "cached bucket with read_time == 0");
 				return -EINVAL;
 			}
@@ -587,7 +588,6 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 	if (new_a->data_type == BCH_DATA_cached &&
 	    !new_a->io_time[READ])
 		new_a->io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
-
 
 	old_lru = alloc_lru_idx(old_a);
 	new_lru = alloc_lru_idx(*new_a);
@@ -1088,6 +1088,7 @@ static int invalidate_one_bucket(struct btree_trans *trans, struct bch_dev *ca)
 
 	bch2_trans_iter_init(trans, &lru_iter, BTREE_ID_lru,
 			     POS(ca->dev_idx, 0), 0);
+next_lru:
 	k = bch2_btree_iter_peek(&lru_iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -1096,9 +1097,20 @@ static int invalidate_one_bucket(struct btree_trans *trans, struct bch_dev *ca)
 	if (!k.k || k.k->p.inode != ca->dev_idx)
 		goto out;
 
-	if (bch2_trans_inconsistent_on(k.k->type != KEY_TYPE_lru, trans,
-				       "non lru key in lru btree"))
-		goto out;
+	if (k.k->type != KEY_TYPE_lru) {
+		pr_buf(&buf, "non lru key in lru btree:\n  ");
+		bch2_bkey_val_to_text(&buf, c, k);
+
+		if (!test_bit(BCH_FS_CHECK_LRUS_DONE, &c->flags)) {
+			bch_err(c, "%s", buf.buf);
+			bch2_btree_iter_advance(&lru_iter);
+			goto next_lru;
+		} else {
+			bch2_trans_inconsistent(trans, "%s", buf.buf);
+			ret = -EINVAL;
+			goto out;
+		}
+	}
 
 	idx	= k.k->p.offset;
 	bucket	= le64_to_cpu(bkey_s_c_to_lru(k).v->idx);
@@ -1111,13 +1123,19 @@ static int invalidate_one_bucket(struct btree_trans *trans, struct bch_dev *ca)
 
 	if (idx != alloc_lru_idx(a->v)) {
 		pr_buf(&buf, "alloc key does not point back to lru entry when invalidating bucket:\n  ");
-
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&a->k_i));
 		pr_buf(&buf, "\n  ");
 		bch2_bkey_val_to_text(&buf, c, k);
-		bch2_trans_inconsistent(trans, "%s", buf.buf);
-		ret = -EINVAL;
-		goto out;
+
+		if (!test_bit(BCH_FS_CHECK_LRUS_DONE, &c->flags)) {
+			bch_err(c, "%s", buf.buf);
+			bch2_btree_iter_advance(&lru_iter);
+			goto next_lru;
+		} else {
+			bch2_trans_inconsistent(trans, "%s", buf.buf);
+			ret = -EINVAL;
+			goto out;
+		}
 	}
 
 	SET_BCH_ALLOC_V4_NEED_INC_GEN(&a->v, false);
