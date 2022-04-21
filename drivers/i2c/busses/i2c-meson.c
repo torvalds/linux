@@ -520,8 +520,10 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	meson_i2c_set_mask(i2c, REG_SLAVE_ADDR,
 			   REG_SLV_SDA_FILTER_MASK | REG_SLV_SCL_FILTER_MASK, 0);
 
-	if (!i2c->data->set_clk_div)
+	if (!i2c->data->set_clk_div) {
+		clk_disable_unprepare(i2c->clk);
 		return -EINVAL;
+	}
 	i2c->data->set_clk_div(i2c, timings.bus_freq_hz);
 
 	ret = i2c_add_adapter(&i2c->adap);
