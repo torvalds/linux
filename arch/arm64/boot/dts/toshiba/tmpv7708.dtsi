@@ -129,20 +129,6 @@
 			<GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
-	clk25mhz: clk25mhz {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <25000000>;
-		clock-output-names = "clk25mhz";
-	};
-
-	clk600mhz: clk600mhz {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <600000000>;
-		clock-output-names = "clk600mhz";
-	};
-
 	extclk100mhz: extclk100mhz {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -520,6 +506,8 @@
 				 0 0 0 3 &gic GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH
 				 0 0 0 4 &gic GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>;
 			max-link-speed = <2>;
+			clocks = <&extclk100mhz>, <&pismu TMPV770X_CLK_PCIE_MSTR>, <&pismu TMPV770X_CLK_PCIE_AUX>;
+			clock-names = "ref", "core", "aux";
 			status = "disabled";
 		};
 	};
