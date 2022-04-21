@@ -33,7 +33,6 @@ static mlme_handler mlme_sta_tbl[] = {
 };
 
 static struct action_handler OnAction_tbl[] = {
-	{RTW_WLAN_CATEGORY_QOS, "ACTION_QOS", &OnAction_qos},
 	{RTW_WLAN_CATEGORY_DLS, "ACTION_DLS", &OnAction_dls},
 	{RTW_WLAN_CATEGORY_BACK, "ACTION_BACK", &OnAction_back},
 	{RTW_WLAN_CATEGORY_PUBLIC, "ACTION_PUBLIC", on_action_public},
@@ -1472,11 +1471,6 @@ unsigned int OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame
 		receive_disconnect(padapter, GetAddr3Ptr(pframe), reason);
 	}
 	pmlmepriv->LinkDetectInfo.bBusyTraffic = false;
-	return _SUCCESS;
-}
-
-unsigned int OnAction_qos(struct adapter *padapter, struct recv_frame *precv_frame)
-{
 	return _SUCCESS;
 }
 
