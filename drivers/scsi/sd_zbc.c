@@ -50,6 +50,12 @@ static unsigned int sd_zbc_get_zone_wp_offset(struct blk_zone *zone)
 	}
 }
 
+/* Whether or not a SCSI zone descriptor describes a gap zone. */
+static bool sd_zbc_is_gap_zone(const u8 buf[64])
+{
+	return (buf[0] & 0xf) == ZBC_ZONE_TYPE_GAP;
+}
+
 /**
  * sd_zbc_parse_report - Parse a SCSI zone descriptor
  * @sdkp: SCSI disk pointer.
@@ -69,7 +75,11 @@ static int sd_zbc_parse_report(struct scsi_disk *sdkp, const u8 buf[64],
 {
 	struct scsi_device *sdp = sdkp->device;
 	struct blk_zone zone = { 0 };
+	sector_t start_lba, gran;
 	int ret;
+
+	if (WARN_ON_ONCE(sd_zbc_is_gap_zone(buf)))
+		return -EINVAL;
 
 	zone.type = buf[0] & 0x0f;
 	zone.cond = (buf[1] >> 4) & 0xf;
@@ -78,9 +88,27 @@ static int sd_zbc_parse_report(struct scsi_disk *sdkp, const u8 buf[64],
 	if (buf[1] & 0x02)
 		zone.non_seq = 1;
 
-	zone.len = logical_to_sectors(sdp, get_unaligned_be64(&buf[8]));
-	zone.capacity = zone.len;
-	zone.start = logical_to_sectors(sdp, get_unaligned_be64(&buf[16]));
+	start_lba = get_unaligned_be64(&buf[16]);
+	zone.start = logical_to_sectors(sdp, start_lba);
+	zone.capacity = logical_to_sectors(sdp, get_unaligned_be64(&buf[8]));
+	zone.len = zone.capacity;
+	if (sdkp->zone_starting_lba_gran) {
+		gran = logical_to_sectors(sdp, sdkp->zone_starting_lba_gran);
+		if (zone.len > gran) {
+			sd_printk(KERN_ERR, sdkp,
+				  "Invalid zone at LBA %llu with capacity %llu and length %llu; granularity = %llu\n",
+				  start_lba,
+				  sectors_to_logical(sdp, zone.capacity),
+				  sectors_to_logical(sdp, zone.len),
+				  sectors_to_logical(sdp, gran));
+			return -EINVAL;
+		}
+		/*
+		 * Use the starting LBA granularity instead of the zone length
+		 * obtained from the REPORT ZONES command.
+		 */
+		zone.len = gran;
+	}
 	if (zone.cond == ZBC_ZONE_COND_FULL)
 		zone.wp = zone.start + zone.len;
 	else
@@ -227,6 +255,7 @@ int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
 	sector_t lba = sectors_to_logical(sdkp->device, sector);
 	unsigned int nr, i;
 	unsigned char *buf;
+	u64 zone_length, start_lba;
 	size_t offset, buflen = 0;
 	int zone_idx = 0;
 	int ret;
@@ -255,14 +284,36 @@ int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
 
 		for (i = 0; i < nr && zone_idx < nr_zones; i++) {
 			offset += 64;
+			start_lba = get_unaligned_be64(&buf[offset + 16]);
+			zone_length = get_unaligned_be64(&buf[offset + 8]);
+			if ((zone_idx == 0 &&
+			    (lba < start_lba ||
+			     lba >= start_lba + zone_length)) ||
+			    (zone_idx > 0 && start_lba != lba) ||
+			    start_lba + zone_length < start_lba) {
+				sd_printk(KERN_ERR, sdkp,
+					  "Zone %d at LBA %llu is invalid: %llu + %llu\n",
+					  zone_idx, lba, start_lba, zone_length);
+				ret = -EINVAL;
+				goto out;
+			}
+			lba = start_lba + zone_length;
+			if (sd_zbc_is_gap_zone(&buf[offset])) {
+				if (sdkp->zone_starting_lba_gran)
+					continue;
+				sd_printk(KERN_ERR, sdkp,
+					  "Gap zone without constant LBA offsets\n");
+				ret = -EINVAL;
+				goto out;
+			}
+
 			ret = sd_zbc_parse_report(sdkp, buf + offset, zone_idx,
 						  cb, data);
 			if (ret)
 				goto out;
+
 			zone_idx++;
 		}
-
-		lba += sdkp->zone_info.zone_blocks * i;
 	}
 
 	ret = zone_idx;
@@ -579,6 +630,7 @@ unsigned int sd_zbc_complete(struct scsi_cmnd *cmd, unsigned int good_bytes,
 static int sd_zbc_check_zoned_characteristics(struct scsi_disk *sdkp,
 					      unsigned char *buf)
 {
+	u64 zone_starting_lba_gran;
 
 	if (scsi_get_vpd_page(sdkp->device, 0xb6, buf, 64)) {
 		sd_printk(KERN_NOTICE, sdkp,
@@ -600,6 +652,29 @@ static int sd_zbc_check_zoned_characteristics(struct scsi_disk *sdkp,
 	sdkp->zones_optimal_open = 0;
 	sdkp->zones_optimal_nonseq = 0;
 	sdkp->zones_max_open = get_unaligned_be32(&buf[16]);
+	/* Check zone alignment method */
+	switch (buf[23] & 0xf) {
+	case 0:
+	case ZBC_CONSTANT_ZONE_LENGTH:
+		/* Use zone length */
+		break;
+	case ZBC_CONSTANT_ZONE_START_OFFSET:
+		zone_starting_lba_gran = get_unaligned_be64(&buf[24]);
+		if (zone_starting_lba_gran == 0 ||
+		    !is_power_of_2(zone_starting_lba_gran) ||
+		    logical_to_sectors(sdkp->device, zone_starting_lba_gran) >
+		    UINT_MAX) {
+			sd_printk(KERN_ERR, sdkp,
+				  "Invalid zone starting LBA granularity %llu\n",
+				  zone_starting_lba_gran);
+			return -ENODEV;
+		}
+		sdkp->zone_starting_lba_gran = zone_starting_lba_gran;
+		break;
+	default:
+		sd_printk(KERN_ERR, sdkp, "Invalid zone alignment method\n");
+		return -ENODEV;
+	}
 
 	/*
 	 * Check for unconstrained reads: host-managed devices with
@@ -654,14 +729,18 @@ static int sd_zbc_check_capacity(struct scsi_disk *sdkp, unsigned char *buf,
 		}
 	}
 
-	/* Get the size of the first reported zone */
-	rec = buf + 64;
-	zone_blocks = get_unaligned_be64(&rec[8]);
-	if (logical_to_sectors(sdkp->device, zone_blocks) > UINT_MAX) {
-		if (sdkp->first_scan)
-			sd_printk(KERN_NOTICE, sdkp,
-				  "Zone size too large\n");
-		return -EFBIG;
+	if (sdkp->zone_starting_lba_gran == 0) {
+		/* Get the size of the first reported zone */
+		rec = buf + 64;
+		zone_blocks = get_unaligned_be64(&rec[8]);
+		if (logical_to_sectors(sdkp->device, zone_blocks) > UINT_MAX) {
+			if (sdkp->first_scan)
+				sd_printk(KERN_NOTICE, sdkp,
+					  "Zone size too large\n");
+			return -EFBIG;
+		}
+	} else {
+		zone_blocks = sdkp->zone_starting_lba_gran;
 	}
 
 	if (!is_power_of_2(zone_blocks)) {

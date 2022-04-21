@@ -99,6 +99,11 @@ struct scsi_disk {
 	u32		zones_optimal_open;
 	u32		zones_optimal_nonseq;
 	u32		zones_max_open;
+	/*
+	 * Either zero or a power of two. If not zero it means that the offset
+	 * between zone starting LBAs is constant.
+	 */
+	u32		zone_starting_lba_gran;
 	u32		*zones_wp_offset;
 	spinlock_t	zones_wp_offset_lock;
 	u32		*rev_wp_offset;
