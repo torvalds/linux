@@ -4366,6 +4366,13 @@ rkisp_params_set_meshbuf_size_v32(struct rkisp_isp_params_vdev *params_vdev,
 	rkisp_init_mesh_buf(params_vdev, meshsize);
 }
 
+static void
+rkisp_params_free_meshbuf_v32(struct rkisp_isp_params_vdev *params_vdev,
+			      u64 module_id)
+{
+	rkisp_deinit_mesh_buf(params_vdev, module_id);
+}
+
 static int
 rkisp_params_info2ddr_cfg_v32(struct rkisp_isp_params_vdev *params_vdev, void *arg)
 {
@@ -4687,6 +4694,7 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.param_cfgsram = rkisp_params_cfgsram_v32,
 	.get_meshbuf_inf = rkisp_params_get_meshbuf_inf_v32,
 	.set_meshbuf_size = rkisp_params_set_meshbuf_size_v32,
+	.free_meshbuf = rkisp_params_free_meshbuf_v32,
 	.stream_stop = rkisp_params_stream_stop_v32,
 	.fop_release = rkisp_params_fop_release_v32,
 	.check_bigmode = rkisp_params_check_bigmode_v32,

@@ -3145,6 +3145,9 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKISP_CMD_INFO2DDR:
 		ret = rkisp_params_info2ddr_cfg(&isp_dev->params_vdev, arg);
 		break;
+	case RKISP_CMD_MESHBUF_FREE:
+		rkisp_params_meshbuf_free(&isp_dev->params_vdev, *(u64 *)arg);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -3167,6 +3170,7 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 	struct isp2x_buf_idxfd idxfd;
 	struct rkisp_info2ddr info2ddr;
 	long ret = 0;
+	u64 module_id;
 
 	if (!up && cmd != RKISP_CMD_FREE_SHARED_BUF)
 		return -EINVAL;
@@ -3237,6 +3241,11 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = rkisp_ioctl(sd, cmd, &info2ddr);
 		if (!ret && copy_to_user(up, &info2ddr, sizeof(info2ddr)))
 			ret = -EFAULT;
+		break;
+	case RKISP_CMD_MESHBUF_FREE:
+		if (copy_from_user(&module_id, up, sizeof(module_id)))
+			return -EFAULT;
+		ret = rkisp_ioctl(sd, cmd, &module_id);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
