@@ -711,8 +711,12 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 	iface = to_usb_interface(hdev->dev.parent);
 	bInterfaceNumber = iface->cur_altsetting->desc.bInterfaceNumber;
 
-	/* If it's not a pen interface */
-	if (bInterfaceNumber != 0) {
+	/* If it's a custom keyboard interface */
+	if (bInterfaceNumber == 1) {
+		/* Keep everything intact */
+		goto output;
+	/* Else, if it's not a pen interface */
+	} else if (bInterfaceNumber != 0) {
 		uclogic_params_init_invalid(&p);
 		goto output;
 	}
