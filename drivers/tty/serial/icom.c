@@ -47,7 +47,6 @@
 #define ICOM_DRIVER_NAME "icom"
 #define NR_PORTS	       128
 
-#define BAUD_TABLE_LIMIT	((sizeof(icom_acfg_baud)/sizeof(int)) - 1)
 static int icom_acfg_baud[] = {
 	300,
 	600,
@@ -71,6 +70,7 @@ static int icom_acfg_baud[] = {
 	307200,
 	460800,
 };
+#define BAUD_TABLE_LIMIT	(ARRAY_SIZE(icom_acfg_baud) - 1)
 
 struct icom_regs {
 	u32 control;		/* Adapter Control Register     */
