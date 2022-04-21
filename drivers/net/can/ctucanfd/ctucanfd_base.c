@@ -31,7 +31,6 @@
 #include <linux/can/error.h>
 #include <linux/can/led.h>
 #include <linux/pm_runtime.h>
-#include <linux/version.h>
 
 #include "ctucanfd.h"
 #include "ctucanfd_kregs.h"
