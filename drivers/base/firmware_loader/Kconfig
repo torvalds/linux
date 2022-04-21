@@ -29,6 +29,9 @@ if FW_LOADER
 config FW_LOADER_PAGED_BUF
 	bool
 
+config FW_LOADER_SYSFS
+	bool
+
 config EXTRA_FIRMWARE
 	string "Build named firmware blobs into the kernel binary"
 	help
@@ -72,6 +75,7 @@ config EXTRA_FIRMWARE_DIR
 
 config FW_LOADER_USER_HELPER
 	bool "Enable the firmware sysfs fallback mechanism"
+	select FW_LOADER_SYSFS
 	select FW_LOADER_PAGED_BUF
 	help
 	  This option enables a sysfs loading facility to enable firmware
