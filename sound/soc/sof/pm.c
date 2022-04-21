@@ -194,7 +194,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 
 	/* prepare for streams to be resumed properly upon resume */
 	if (!runtime_suspend) {
-		ret = sof_set_hw_params_upon_resume(sdev->dev);
+		ret = snd_sof_dsp_hw_params_upon_resume(sdev);
 		if (ret < 0) {
 			dev_err(sdev->dev,
 				"error: setting hw_params flag during suspend %d\n",
