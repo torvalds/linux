@@ -416,10 +416,12 @@ xfs_lockdep_subclass_ok(
  * parent locking. Care must be taken to ensure we don't overrun the subclass
  * storage fields in the class mask we build.
  */
-static inline int
-xfs_lock_inumorder(int lock_mode, int subclass)
+static inline uint
+xfs_lock_inumorder(
+	uint	lock_mode,
+	uint	subclass)
 {
-	int	class = 0;
+	uint	class = 0;
 
 	ASSERT(!(lock_mode & (XFS_ILOCK_PARENT | XFS_ILOCK_RTBITMAP |
 			      XFS_ILOCK_RTSUM)));
@@ -464,7 +466,10 @@ xfs_lock_inodes(
 	int			inodes,
 	uint			lock_mode)
 {
-	int			attempts = 0, i, j, try_lock;
+	int			attempts = 0;
+	uint			i;
+	int			j;
+	bool			try_lock;
 	struct xfs_log_item	*lp;
 
 	/*
@@ -489,9 +494,9 @@ xfs_lock_inodes(
 	} else if (lock_mode & XFS_MMAPLOCK_EXCL)
 		ASSERT(!(lock_mode & XFS_ILOCK_EXCL));
 
-	try_lock = 0;
-	i = 0;
 again:
+	try_lock = false;
+	i = 0;
 	for (; i < inodes; i++) {
 		ASSERT(ips[i]);
 
@@ -506,7 +511,7 @@ again:
 			for (j = (i - 1); j >= 0 && !try_lock; j--) {
 				lp = &ips[j]->i_itemp->ili_item;
 				if (lp && test_bit(XFS_LI_IN_AIL, &lp->li_flags))
-					try_lock++;
+					try_lock = true;
 			}
 		}
 
@@ -546,8 +551,6 @@ again:
 		if ((attempts % 5) == 0) {
 			delay(1); /* Don't just spin the CPU */
 		}
-		i = 0;
-		try_lock = 0;
 		goto again;
 	}
 }
