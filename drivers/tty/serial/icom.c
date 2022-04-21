@@ -1532,15 +1532,6 @@ static const char *icom_type(struct uart_port *port)
 	return "icom";
 }
 
-static void icom_release_port(struct uart_port *port)
-{
-}
-
-static int icom_request_port(struct uart_port *port)
-{
-	return 0;
-}
-
 static void icom_config_port(struct uart_port *port, int flags)
 {
 	port->type = PORT_ICOM;
@@ -1559,8 +1550,6 @@ static const struct uart_ops icom_ops = {
 	.shutdown = icom_close,
 	.set_termios = icom_set_termios,
 	.type = icom_type,
-	.release_port = icom_release_port,
-	.request_port = icom_request_port,
 	.config_port = icom_config_port,
 };
 
