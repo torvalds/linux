@@ -765,9 +765,11 @@ int rxe_qp_chk_destroy(struct rxe_qp *qp)
 	return 0;
 }
 
-/* called by the destroy qp verb */
-void rxe_qp_destroy(struct rxe_qp *qp)
+/* called when the last reference to the qp is dropped */
+static void rxe_qp_do_cleanup(struct work_struct *work)
 {
+	struct rxe_qp *qp = container_of(work, typeof(*qp), cleanup_work.work);
+
 	qp->valid = 0;
 	qp->qp_timeout_jiffies = 0;
 	rxe_cleanup_task(&qp->resp.task);
@@ -786,12 +788,6 @@ void rxe_qp_destroy(struct rxe_qp *qp)
 		__rxe_do_task(&qp->comp.task);
 		__rxe_do_task(&qp->req.task);
 	}
-}
-
-/* called when the last reference to the qp is dropped */
-static void rxe_qp_do_cleanup(struct work_struct *work)
-{
-	struct rxe_qp *qp = container_of(work, typeof(*qp), cleanup_work.work);
 
 	if (qp->sq.queue)
 		rxe_queue_cleanup(qp->sq.queue);

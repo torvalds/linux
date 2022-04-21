@@ -485,7 +485,6 @@ static int rxe_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	if (ret)
 		return ret;
 
-	rxe_qp_destroy(qp);
 	rxe_put(qp);
 	return 0;
 }
