@@ -449,6 +449,9 @@ struct sof_intel_hda_dev {
 
 	/* FW clock config, 0:HPRO, 1:LPRO */
 	bool clk_config_lpro;
+
+	/* Intel NHLT information */
+	struct nhlt_acpi_table *nhlt;
 };
 
 static inline struct hdac_bus *sof_to_bus(struct snd_sof_dev *s)

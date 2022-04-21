@@ -599,14 +599,13 @@ static int hda_init(struct snd_sof_dev *sdev)
 
 static int check_dmic_num(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
 	struct nhlt_acpi_table *nhlt;
 	int dmic_num = 0;
 
-	nhlt = intel_nhlt_init(sdev->dev);
-	if (nhlt) {
+	nhlt = hdev->nhlt;
+	if (nhlt)
 		dmic_num = intel_nhlt_get_dmic_geo(sdev->dev, nhlt);
-		intel_nhlt_free(nhlt);
-	}
 
 	/* allow for module parameter override */
 	if (dmic_num_override != -1) {
@@ -626,10 +625,11 @@ static int check_dmic_num(struct snd_sof_dev *sdev)
 
 static int check_nhlt_ssp_mask(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
 	struct nhlt_acpi_table *nhlt;
 	int ssp_mask = 0;
 
-	nhlt = intel_nhlt_init(sdev->dev);
+	nhlt = hdev->nhlt;
 	if (!nhlt)
 		return ssp_mask;
 
@@ -638,7 +638,6 @@ static int check_nhlt_ssp_mask(struct snd_sof_dev *sdev)
 		if (ssp_mask)
 			dev_info(sdev->dev, "NHLT_DEVICE_I2S detected, ssp_mask %#x\n", ssp_mask);
 	}
-	intel_nhlt_free(nhlt);
 
 	return ssp_mask;
 }
@@ -999,6 +998,8 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 
 	INIT_DELAYED_WORK(&hdev->d0i3_work, hda_dsp_d0i3_work);
 
+	hdev->nhlt = intel_nhlt_init(sdev->dev);
+
 	return 0;
 
 free_ipc_irq:
@@ -1024,6 +1025,10 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 	const struct sof_intel_dsp_desc *chip = hda->desc;
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
+	struct nhlt_acpi_table *nhlt = hda->nhlt;
+
+	if (nhlt)
+		intel_nhlt_free(nhlt);
 
 	/* cancel any attempt for DSP D0I3 */
 	cancel_delayed_work_sync(&hda->d0i3_work);
