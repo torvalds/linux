@@ -456,6 +456,7 @@ static int hda_dai_suspend(struct hdac_bus *bus)
 	struct hdac_stream *s;
 	const char *name;
 	int stream_tag;
+	int ret;
 
 	/* set internal flag for BE */
 	list_for_each_entry(s, &bus->stream_list, list) {
@@ -468,20 +469,32 @@ static int hda_dai_suspend(struct hdac_bus *bus)
 		 * explicitly during suspend.
 		 */
 		if (hext_stream->link_substream) {
+			struct snd_soc_dai *cpu_dai;
+			struct snd_soc_dai *codec_dai;
+
 			rtd = asoc_substream_to_rtd(hext_stream->link_substream);
-			name = asoc_rtd_to_codec(rtd, 0)->component->name;
+			cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+			codec_dai = asoc_rtd_to_codec(rtd, 0);
+			name = codec_dai->component->name;
 			link = snd_hdac_ext_bus_get_link(bus, name);
 			if (!link)
 				return -EINVAL;
 
+			/*
+			 * we don't need to call snd_hdac_ext_link_stream_clear(he_stream)
+			 * since we can only reach this case in the pause_push state, and
+			 * the TRIGGER_PAUSE_PUSH already stops the DMA
+			 */
+			if (hdac_stream(hext_stream)->direction == SNDRV_PCM_STREAM_PLAYBACK) {
+				stream_tag = hdac_stream(hext_stream)->stream_tag;
+				snd_hdac_ext_link_clear_stream_id(link, stream_tag);
+			}
 			hext_stream->link_prepared = 0;
 
-			if (hdac_stream(hext_stream)->direction ==
-				SNDRV_PCM_STREAM_CAPTURE)
-				continue;
-
-			stream_tag = hdac_stream(hext_stream)->stream_tag;
-			snd_hdac_ext_link_clear_stream_id(link, stream_tag);
+			/* for consistency with TRIGGER_SUSPEND we free DAI resources */
+			ret = hda_dai_hw_free_ipc(hdac_stream(hext_stream)->direction, cpu_dai);
+			if (ret < 0)
+				return ret;
 		}
 	}
 
