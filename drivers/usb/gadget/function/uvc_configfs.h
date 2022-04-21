@@ -46,6 +46,7 @@ struct uvcg_format {
 	struct config_group	group;
 	enum uvcg_format_type	type;
 	unsigned		linked;
+	struct list_head	frames;
 	unsigned		num_frames;
 	__u8			bmaControls[UVCG_STREAMING_CONTROL_SIZE];
 };
@@ -72,6 +73,11 @@ static inline struct uvcg_streaming_header *to_uvcg_streaming_header(struct conf
 {
 	return container_of(item, struct uvcg_streaming_header, item);
 }
+
+struct uvcg_frame_ptr {
+	struct uvcg_frame	*frm;
+	struct list_head	entry;
+};
 
 struct uvcg_frame {
 	struct config_item	item;
