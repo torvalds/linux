@@ -827,6 +827,8 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
 		goto unlock;
 
 	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
+	if (!hw)
+		goto unlock;
 	hw->node = np;
 	hw->regs = regs;
 	hw->eth = eth;
