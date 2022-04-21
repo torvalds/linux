@@ -282,6 +282,7 @@ struct dw_dp {
 	struct drm_connector connector;
 	struct drm_encoder encoder;
 	struct drm_dp_aux aux;
+	struct drm_bridge *next_bridge;
 
 	struct dw_dp_link link;
 	struct dw_dp_video video;
@@ -679,11 +680,16 @@ static int dw_dp_connector_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	int num_modes = 0;
 
-	edid = drm_bridge_get_edid(&dp->bridge, connector);
-	if (edid) {
-		drm_connector_update_edid_property(connector, edid);
-		num_modes = drm_add_edid_modes(connector, edid);
-		kfree(edid);
+	if (dp->next_bridge)
+		num_modes = drm_bridge_get_modes(dp->next_bridge, connector);
+
+	if (!num_modes) {
+		edid = drm_bridge_get_edid(&dp->bridge, connector);
+		if (edid) {
+			drm_connector_update_edid_property(connector, edid);
+			num_modes = drm_add_edid_modes(connector, edid);
+			kfree(edid);
+		}
 	}
 
 	if (!di->color_formats)
@@ -2021,20 +2027,12 @@ static void dw_dp_loader_protect(struct drm_encoder *encoder, bool on)
 	}
 }
 
-static int dw_dp_bridge_attach(struct drm_bridge *bridge,
-			       enum drm_bridge_attach_flags flags)
+static int dw_dp_connector_init(struct dw_dp *dp)
 {
-	struct dw_dp *dp = bridge_to_dp(bridge);
 	struct drm_connector *connector = &dp->connector;
+	struct drm_bridge *bridge = &dp->bridge;
+	struct drm_property *prop;
 	int ret;
-
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
-		return 0;
-
-	if (!bridge->encoder) {
-		DRM_DEV_ERROR(dp->dev, "Parent encoder object not found");
-		return -ENODEV;
-	}
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->ycbcr_420_allowed = true;
@@ -2052,12 +2050,87 @@ static int dw_dp_bridge_attach(struct drm_bridge *bridge,
 
 	drm_connector_attach_encoder(connector, bridge->encoder);
 
+	prop = drm_property_create_enum(connector->dev, 0, RK_IF_PROP_COLOR_DEPTH,
+					color_depth_enum_list,
+					ARRAY_SIZE(color_depth_enum_list));
+	if (!prop) {
+		DRM_DEV_ERROR(dp->dev, "create color depth prop for dp%d failed\n", dp->id);
+		return -ENOMEM;
+	}
+	dp->color_depth_property = prop;
+	drm_object_attach_property(&connector->base, prop, 0);
+
+	prop = drm_property_create_enum(connector->dev, 0, RK_IF_PROP_COLOR_FORMAT,
+					color_format_enum_list,
+					ARRAY_SIZE(color_format_enum_list));
+	if (!prop) {
+		DRM_DEV_ERROR(dp->dev, "create color format prop for dp%d failed\n", dp->id);
+		return -ENOMEM;
+	}
+	dp->color_format_property = prop;
+	drm_object_attach_property(&connector->base, prop, 0);
+
+	prop = drm_property_create_range(connector->dev, 0, RK_IF_PROP_COLOR_DEPTH_CAPS,
+					 0, 1 << RK_IF_DEPTH_MAX);
+	if (!prop) {
+		DRM_DEV_ERROR(dp->dev, "create color depth caps prop for dp%d failed\n", dp->id);
+		return -ENOMEM;
+	}
+	dp->color_depth_capacity = prop;
+	drm_object_attach_property(&connector->base, prop, 0);
+
+	prop = drm_property_create_range(connector->dev, 0, RK_IF_PROP_COLOR_FORMAT_CAPS,
+					 0, 1 << RK_IF_FORMAT_MAX);
+	if (!prop) {
+		DRM_DEV_ERROR(dp->dev, "create color format caps prop for dp%d failed\n", dp->id);
+		return -ENOMEM;
+	}
+	dp->color_format_capacity = prop;
+	drm_object_attach_property(&connector->base, prop, 0);
+
 	dp->sub_dev.connector = connector;
 	dp->sub_dev.of_node = dp->dev->of_node;
 	dp->sub_dev.loader_protect = dw_dp_loader_protect;
 	rockchip_drm_register_sub_dev(&dp->sub_dev);
 
 	return 0;
+}
+
+static int dw_dp_bridge_attach(struct drm_bridge *bridge,
+			       enum drm_bridge_attach_flags flags)
+{
+	struct dw_dp *dp = bridge_to_dp(bridge);
+	int ret;
+
+	if (!bridge->encoder) {
+		DRM_DEV_ERROR(dp->dev, "Parent encoder object not found");
+		return -ENODEV;
+	}
+
+	ret = drm_of_find_panel_or_bridge(bridge->of_node, 1, 0, NULL,
+					  &dp->next_bridge);
+	if (ret < 0 && ret != -ENODEV)
+		return ret;
+
+	if (dp->next_bridge) {
+		struct drm_bridge *next_bridge = dp->next_bridge;
+
+		ret = drm_bridge_attach(bridge->encoder, next_bridge, bridge,
+					next_bridge->ops & DRM_BRIDGE_OP_MODES ?
+					DRM_BRIDGE_ATTACH_NO_CONNECTOR : 0);
+		if (ret) {
+			DRM_DEV_ERROR(dp->dev, "failed to attach next bridge: %d\n", ret);
+			return ret;
+		}
+
+		if (!(next_bridge->ops & DRM_BRIDGE_OP_MODES))
+			return 0;
+	}
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+		return 0;
+
+	return dw_dp_connector_init(dp);
 }
 
 static void dw_dp_bridge_detach(struct drm_bridge *bridge)
@@ -2184,36 +2257,49 @@ static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 	dw_dp_reset(dp);
 }
 
-static enum drm_connector_status dw_dp_detect_dpcd(struct dw_dp *dp)
+static bool dw_dp_detect_dpcd(struct dw_dp *dp)
 {
 	int ret;
 
 	ret = phy_power_on(dp->phy);
 	if (ret)
-		return ret;
+		return false;
 
 	ret = dw_dp_link_probe(dp);
 	if (ret) {
 		phy_power_off(dp->phy);
 		dev_err(dp->dev, "failed to probe DP link: %d\n", ret);
-		return connector_status_disconnected;
+		return false;
 	}
 
 	phy_power_off(dp->phy);
 
-	return connector_status_connected;
+	return true;
 }
 
 static enum drm_connector_status dw_dp_bridge_detect(struct drm_bridge *bridge)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
-	enum drm_connector_status status;
+	enum drm_connector_status status = connector_status_connected;
 
-	if (dw_dp_detect(dp))
-		status = dw_dp_detect_dpcd(dp);
-	else
+	if (!dw_dp_detect(dp)) {
 		status = connector_status_disconnected;
+		goto out;
+	}
 
+	if (!dw_dp_detect_dpcd(dp)) {
+		status = connector_status_disconnected;
+		goto out;
+	}
+
+	if (dp->next_bridge) {
+		struct drm_bridge *next_bridge = dp->next_bridge;
+
+		if (next_bridge->ops & DRM_BRIDGE_OP_DETECT)
+			status = drm_bridge_detect(next_bridge);
+	}
+
+out:
 	if (status == connector_status_connected) {
 		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, true);
 		dw_dp_audio_handle_plugged_change(&dp->audio, true);
@@ -2852,51 +2938,6 @@ static void dw_dp_aux_unregister(void *data)
 	drm_dp_aux_unregister(&dp->aux);
 }
 
-static int dw_dp_attach_properties(struct drm_connector *connector, struct dw_dp *dp)
-{
-	struct drm_property *prop;
-
-	prop = drm_property_create_enum(connector->dev, 0, RK_IF_PROP_COLOR_DEPTH,
-					color_depth_enum_list,
-					ARRAY_SIZE(color_depth_enum_list));
-	if (!prop) {
-		dev_err(dp->dev, "create color depth prop for dp%d failed\n", dp->id);
-		return -ENOMEM;
-	}
-	dp->color_depth_property = prop;
-	drm_object_attach_property(&connector->base, prop, 0);
-
-	prop = drm_property_create_enum(connector->dev, 0, RK_IF_PROP_COLOR_FORMAT,
-					color_format_enum_list,
-					ARRAY_SIZE(color_format_enum_list));
-	if (!prop) {
-		dev_err(dp->dev, "create color format prop for dp%d failed\n", dp->id);
-		return -ENOMEM;
-	}
-	dp->color_format_property = prop;
-	drm_object_attach_property(&connector->base, prop, 0);
-
-	prop = drm_property_create_range(connector->dev, 0, RK_IF_PROP_COLOR_DEPTH_CAPS,
-					 0, 1 << RK_IF_DEPTH_MAX);
-	if (!prop) {
-		dev_err(dp->dev, "create color depth caps prop for dp%d failed\n", dp->id);
-		return -ENOMEM;
-	}
-	dp->color_depth_capacity = prop;
-	drm_object_attach_property(&connector->base, prop, 0);
-
-	prop = drm_property_create_range(connector->dev, 0, RK_IF_PROP_COLOR_FORMAT_CAPS,
-					 0, 1 << RK_IF_FORMAT_MAX);
-	if (!prop) {
-		dev_err(dp->dev, "create color format caps prop for dp%d failed\n", dp->id);
-		return -ENOMEM;
-	}
-	dp->color_format_capacity = prop;
-	drm_object_attach_property(&connector->base, prop, 0);
-
-	return 0;
-}
-
 static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 {
 	struct dw_dp *dp = dev_get_drvdata(dev);
@@ -2917,16 +2958,15 @@ static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 			dev_err(dev, "failed to attach bridge: %d\n", ret);
 			return ret;
 		}
-
-		ret = dw_dp_attach_properties(&dp->connector, dp);
-		if (ret)
-			return ret;
 	}
 
 	if (dp->right) {
 		struct dw_dp *secondary = dp->right;
+		struct drm_bridge *last_bridge =
+			list_last_entry(&encoder->bridge_chain,
+					struct drm_bridge, chain_node);
 
-		ret = drm_bridge_attach(encoder, &secondary->bridge, bridge,
+		ret = drm_bridge_attach(encoder, &secondary->bridge, last_bridge,
 					DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 		if (ret)
 			return ret;
