@@ -475,6 +475,310 @@ static int sof_ipc3_set_get_data(struct snd_sof_dev *sdev, void *data, size_t da
 	return ret;
 }
 
+static int sof_ipc3_get_ext_windows(struct snd_sof_dev *sdev,
+				    const struct sof_ipc_ext_data_hdr *ext_hdr)
+{
+	const struct sof_ipc_window *w =
+		container_of(ext_hdr, struct sof_ipc_window, ext_hdr);
+
+	if (w->num_windows == 0 || w->num_windows > SOF_IPC_MAX_ELEMS)
+		return -EINVAL;
+
+	if (sdev->info_window) {
+		if (memcmp(sdev->info_window, w, ext_hdr->hdr.size)) {
+			dev_err(sdev->dev, "mismatch between window descriptor from extended manifest and mailbox");
+			return -EINVAL;
+		}
+		return 0;
+	}
+
+	/* keep a local copy of the data */
+	sdev->info_window = devm_kmemdup(sdev->dev, w, ext_hdr->hdr.size, GFP_KERNEL);
+	if (!sdev->info_window)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int sof_ipc3_get_cc_info(struct snd_sof_dev *sdev,
+				const struct sof_ipc_ext_data_hdr *ext_hdr)
+{
+	int ret;
+
+	const struct sof_ipc_cc_version *cc =
+		container_of(ext_hdr, struct sof_ipc_cc_version, ext_hdr);
+
+	if (sdev->cc_version) {
+		if (memcmp(sdev->cc_version, cc, cc->ext_hdr.hdr.size)) {
+			dev_err(sdev->dev,
+				"Receive diverged cc_version descriptions");
+			return -EINVAL;
+		}
+		return 0;
+	}
+
+	dev_dbg(sdev->dev,
+		"Firmware info: used compiler %s %d:%d:%d%s used optimization flags %s\n",
+		cc->name, cc->major, cc->minor, cc->micro, cc->desc, cc->optim);
+
+	/* create read-only cc_version debugfs to store compiler version info */
+	/* use local copy of the cc_version to prevent data corruption */
+	if (sdev->first_boot) {
+		sdev->cc_version = devm_kmalloc(sdev->dev, cc->ext_hdr.hdr.size,
+						GFP_KERNEL);
+
+		if (!sdev->cc_version)
+			return -ENOMEM;
+
+		memcpy(sdev->cc_version, cc, cc->ext_hdr.hdr.size);
+		ret = snd_sof_debugfs_buf_item(sdev, sdev->cc_version,
+					       cc->ext_hdr.hdr.size,
+					       "cc_version", 0444);
+
+		/* errors are only due to memory allocation, not debugfs */
+		if (ret < 0) {
+			dev_err(sdev->dev, "snd_sof_debugfs_buf_item failed\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+/* parse the extended FW boot data structures from FW boot message */
+static int ipc3_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 offset)
+{
+	struct sof_ipc_ext_data_hdr *ext_hdr;
+	void *ext_data;
+	int ret = 0;
+
+	ext_data = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!ext_data)
+		return -ENOMEM;
+
+	/* get first header */
+	snd_sof_dsp_block_read(sdev, SOF_FW_BLK_TYPE_SRAM, offset, ext_data,
+			       sizeof(*ext_hdr));
+	ext_hdr = ext_data;
+
+	while (ext_hdr->hdr.cmd == SOF_IPC_FW_READY) {
+		/* read in ext structure */
+		snd_sof_dsp_block_read(sdev, SOF_FW_BLK_TYPE_SRAM,
+				       offset + sizeof(*ext_hdr),
+				       (void *)((u8 *)ext_data + sizeof(*ext_hdr)),
+				       ext_hdr->hdr.size - sizeof(*ext_hdr));
+
+		dev_dbg(sdev->dev, "found ext header type %d size 0x%x\n",
+			ext_hdr->type, ext_hdr->hdr.size);
+
+		/* process structure data */
+		switch (ext_hdr->type) {
+		case SOF_IPC_EXT_WINDOW:
+			ret = sof_ipc3_get_ext_windows(sdev, ext_hdr);
+			break;
+		case SOF_IPC_EXT_CC_INFO:
+			ret = sof_ipc3_get_cc_info(sdev, ext_hdr);
+			break;
+		case SOF_IPC_EXT_UNUSED:
+		case SOF_IPC_EXT_PROBE_INFO:
+		case SOF_IPC_EXT_USER_ABI_INFO:
+			/* They are supported but we don't do anything here */
+			break;
+		default:
+			dev_info(sdev->dev, "unknown ext header type %d size 0x%x\n",
+				 ext_hdr->type, ext_hdr->hdr.size);
+			ret = 0;
+			break;
+		}
+
+		if (ret < 0) {
+			dev_err(sdev->dev, "Failed to parse ext data type %d\n",
+				ext_hdr->type);
+			break;
+		}
+
+		/* move to next header */
+		offset += ext_hdr->hdr.size;
+		snd_sof_dsp_block_read(sdev, SOF_FW_BLK_TYPE_SRAM, offset, ext_data,
+				       sizeof(*ext_hdr));
+		ext_hdr = ext_data;
+	}
+
+	kfree(ext_data);
+	return ret;
+}
+
+static void ipc3_get_windows(struct snd_sof_dev *sdev)
+{
+	struct sof_ipc_window_elem *elem;
+	u32 outbox_offset = 0;
+	u32 stream_offset = 0;
+	u32 inbox_offset = 0;
+	u32 outbox_size = 0;
+	u32 stream_size = 0;
+	u32 inbox_size = 0;
+	u32 debug_size = 0;
+	u32 debug_offset = 0;
+	int window_offset;
+	int i;
+
+	if (!sdev->info_window) {
+		dev_err(sdev->dev, "%s: No window info present\n", __func__);
+		return;
+	}
+
+	for (i = 0; i < sdev->info_window->num_windows; i++) {
+		elem = &sdev->info_window->window[i];
+
+		window_offset = snd_sof_dsp_get_window_offset(sdev, elem->id);
+		if (window_offset < 0) {
+			dev_warn(sdev->dev, "No offset for window %d\n", elem->id);
+			continue;
+		}
+
+		switch (elem->type) {
+		case SOF_IPC_REGION_UPBOX:
+			inbox_offset = window_offset + elem->offset;
+			inbox_size = elem->size;
+			snd_sof_debugfs_add_region_item(sdev, SOF_FW_BLK_TYPE_SRAM,
+							inbox_offset,
+							elem->size, "inbox",
+							SOF_DEBUGFS_ACCESS_D0_ONLY);
+			break;
+		case SOF_IPC_REGION_DOWNBOX:
+			outbox_offset = window_offset + elem->offset;
+			outbox_size = elem->size;
+			snd_sof_debugfs_add_region_item(sdev, SOF_FW_BLK_TYPE_SRAM,
+							outbox_offset,
+							elem->size, "outbox",
+							SOF_DEBUGFS_ACCESS_D0_ONLY);
+			break;
+		case SOF_IPC_REGION_TRACE:
+			snd_sof_debugfs_add_region_item(sdev, SOF_FW_BLK_TYPE_SRAM,
+							window_offset + elem->offset,
+							elem->size, "etrace",
+							SOF_DEBUGFS_ACCESS_D0_ONLY);
+			break;
+		case SOF_IPC_REGION_DEBUG:
+			debug_offset = window_offset + elem->offset;
+			debug_size = elem->size;
+			snd_sof_debugfs_add_region_item(sdev, SOF_FW_BLK_TYPE_SRAM,
+							window_offset + elem->offset,
+							elem->size, "debug",
+							SOF_DEBUGFS_ACCESS_D0_ONLY);
+			break;
+		case SOF_IPC_REGION_STREAM:
+			stream_offset = window_offset + elem->offset;
+			stream_size = elem->size;
+			snd_sof_debugfs_add_region_item(sdev, SOF_FW_BLK_TYPE_SRAM,
+							stream_offset,
+							elem->size, "stream",
+							SOF_DEBUGFS_ACCESS_D0_ONLY);
+			break;
+		case SOF_IPC_REGION_REGS:
+			snd_sof_debugfs_add_region_item(sdev, SOF_FW_BLK_TYPE_SRAM,
+							window_offset + elem->offset,
+							elem->size, "regs",
+							SOF_DEBUGFS_ACCESS_D0_ONLY);
+			break;
+		case SOF_IPC_REGION_EXCEPTION:
+			sdev->dsp_oops_offset = window_offset + elem->offset;
+			snd_sof_debugfs_add_region_item(sdev, SOF_FW_BLK_TYPE_SRAM,
+							window_offset + elem->offset,
+							elem->size, "exception",
+							SOF_DEBUGFS_ACCESS_D0_ONLY);
+			break;
+		default:
+			dev_err(sdev->dev, "%s: Illegal window info: %u\n",
+				__func__, elem->type);
+			return;
+		}
+	}
+
+	if (outbox_size == 0 || inbox_size == 0) {
+		dev_err(sdev->dev, "%s: Illegal mailbox window\n", __func__);
+		return;
+	}
+
+	sdev->dsp_box.offset = inbox_offset;
+	sdev->dsp_box.size = inbox_size;
+
+	sdev->host_box.offset = outbox_offset;
+	sdev->host_box.size = outbox_size;
+
+	sdev->stream_box.offset = stream_offset;
+	sdev->stream_box.size = stream_size;
+
+	sdev->debug_box.offset = debug_offset;
+	sdev->debug_box.size = debug_size;
+
+	dev_dbg(sdev->dev, " mailbox upstream 0x%x - size 0x%x\n",
+		inbox_offset, inbox_size);
+	dev_dbg(sdev->dev, " mailbox downstream 0x%x - size 0x%x\n",
+		outbox_offset, outbox_size);
+	dev_dbg(sdev->dev, " stream region 0x%x - size 0x%x\n",
+		stream_offset, stream_size);
+	dev_dbg(sdev->dev, " debug region 0x%x - size 0x%x\n",
+		debug_offset, debug_size);
+}
+
+static int ipc3_init_reply_data_buffer(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_ipc_msg *msg = &sdev->ipc->msg;
+
+	msg->reply_data = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
+	if (!msg->reply_data)
+		return -ENOMEM;
+
+	sdev->ipc->max_payload_size = SOF_IPC_MSG_MAX_SIZE;
+
+	return 0;
+}
+
+static int ipc3_fw_ready(struct snd_sof_dev *sdev, u32 cmd)
+{
+	struct sof_ipc_fw_ready *fw_ready = &sdev->fw_ready;
+	int offset;
+	int ret;
+
+	/* mailbox must be on 4k boundary */
+	offset = snd_sof_dsp_get_mailbox_offset(sdev);
+	if (offset < 0) {
+		dev_err(sdev->dev, "%s: no mailbox offset\n", __func__);
+		return offset;
+	}
+
+	dev_dbg(sdev->dev, "DSP is ready 0x%8.8x offset 0x%x\n", cmd, offset);
+
+	/* no need to re-check version/ABI for subsequent boots */
+	if (!sdev->first_boot)
+		return 0;
+
+	/*
+	 * copy data from the DSP FW ready offset
+	 * Subsequent error handling is not needed for BLK_TYPE_SRAM
+	 */
+	ret = snd_sof_dsp_block_read(sdev, SOF_FW_BLK_TYPE_SRAM, offset, fw_ready,
+				     sizeof(*fw_ready));
+	if (ret) {
+		dev_err(sdev->dev,
+			"Unable to read fw_ready, read from TYPE_SRAM failed\n");
+		return ret;
+	}
+
+	/* make sure ABI version is compatible */
+	ret = snd_sof_ipc_valid(sdev);
+	if (ret < 0)
+		return ret;
+
+	/* now check for extended data */
+	ipc3_fw_parse_ext_data(sdev, offset + sizeof(struct sof_ipc_fw_ready));
+
+	ipc3_get_windows(sdev);
+
+	return ipc3_init_reply_data_buffer(sdev);
+}
+
 /* IPC stream position. */
 static void ipc3_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 {
@@ -633,7 +937,7 @@ static void sof_ipc3_rx_msg(struct snd_sof_dev *sdev)
 	case SOF_IPC_FW_READY:
 		/* check for FW boot completion */
 		if (sdev->fw_state == SOF_FW_BOOT_IN_PROGRESS) {
-			err = sof_ops(sdev)->fw_ready(sdev, cmd);
+			err = ipc3_fw_ready(sdev, cmd);
 			if (err < 0)
 				sof_set_fw_state(sdev, SOF_FW_BOOT_READY_FAILED);
 			else
