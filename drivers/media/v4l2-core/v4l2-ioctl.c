@@ -3159,6 +3159,9 @@ static int video_get_user(void __user *arg, void *parg, unsigned int cmd,
 			.m.userptr	= vb32.m.userptr,
 			.length		= vb32.length,
 			.request_fd	= vb32.request_fd,
+#if defined(CONFIG_ARCH_ROCKCHIP) && IS_ENABLED(CONFIG_USB_F_UVC)
+			.reserved2	= vb32.reserved2,
+#endif
 		};
 
 		if (cmd == VIDIOC_QUERYBUF_TIME32)

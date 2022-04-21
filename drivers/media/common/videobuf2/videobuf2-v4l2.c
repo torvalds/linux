@@ -295,6 +295,12 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 		}
 
 		planes[0].data_offset = 0;
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_COMPAT_32BIT_TIME) && \
+	IS_ENABLED(CONFIG_USB_F_UVC)
+		if (b->memory == VB2_MEMORY_DMABUF)
+			planes[0].data_offset = b->reserved2;
+#endif
+
 		if (V4L2_TYPE_IS_OUTPUT(b->type)) {
 			if (b->bytesused == 0)
 				vb2_warn_zero_bytesused(vb);

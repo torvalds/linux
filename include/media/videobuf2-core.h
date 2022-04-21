@@ -1177,6 +1177,22 @@ vb2_plane_size(struct vb2_buffer *vb, unsigned int plane_no)
 	return 0;
 }
 
+#if defined(CONFIG_ARCH_ROCKCHIP) && IS_ENABLED(CONFIG_USB_F_UVC)
+/**
+ * vb2_plane_data_offset() - return plane data_offset in bytes.
+ * @vb:		pointer to &struct vb2_buffer to which the plane in
+ *		question belongs to.
+ * @plane_no:	plane number for which size should be returned.
+ */
+static inline unsigned long
+vb2_plane_data_offset(struct vb2_buffer *vb, unsigned int plane_no)
+{
+	if (plane_no < vb->num_planes)
+		return vb->planes[plane_no].data_offset;
+	return 0;
+}
+#endif
+
 /**
  * vb2_start_streaming_called() - return streaming status of driver.
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
