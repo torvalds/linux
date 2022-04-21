@@ -743,7 +743,7 @@ static irqreturn_t rtw89_pci_interrupt_threadfn(int irq, void *dev)
 		rtw89_ser_notify(rtwdev, rtw89_mac_get_err_status(rtwdev));
 
 	if (unlikely(rtwpci->under_recovery))
-		return IRQ_HANDLED;
+		goto enable_intr;
 
 	if (unlikely(rtwpci->low_power)) {
 		rtw89_pci_low_power_interrupt_handler(rtwdev);
