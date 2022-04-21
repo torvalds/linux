@@ -394,6 +394,13 @@ static u32 host_mmio_reg_access_mask(size_t off, bool is_write)
 	u32 masked_off;
 
 	switch (off) {
+	/* Allow reading control registers for debugging. */
+	case REG_NS_CTRL0:
+		return read_only & CTRL0_MASK;
+	case REG_NS_CTRL1:
+		return read_only & CTRL1_MASK;
+	case REG_NS_CFG:
+		return read_only & CFG_MASK;
 	/* Allow EL1 IRQ handler to clear interrupts. */
 	case REG_NS_INTERRUPT_CLEAR:
 		return write_only & ALL_VIDS_BITMAP;
