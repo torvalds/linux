@@ -606,6 +606,9 @@ static int iep2_run(struct mpp_dev *mpp,
 			  | IEP2_REG_BUS_ERROR_EN
 			  | IEP2_REG_TIMEOUT_EN);
 
+	/* flush tlb before starting hardware */
+	mpp_iommu_flush_tlb(mpp->iommu_info);
+
 	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
 
 	/* Last, flush the registers */

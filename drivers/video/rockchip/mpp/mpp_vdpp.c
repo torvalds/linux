@@ -335,6 +335,9 @@ static int vdpp_run(struct mpp_dev *mpp,
 		}
 	}
 
+	/* flush tlb before starting hardware */
+	mpp_iommu_flush_tlb(mpp->iommu_info);
+
 	/* init current task */
 	mpp->cur_task = mpp_task;
 
