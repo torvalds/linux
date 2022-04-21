@@ -31,9 +31,12 @@ MODULE_IMPORT_NS(TEST_FIRMWARE);
 #define TEST_FIRMWARE_NAME	"test-firmware.bin"
 #define TEST_FIRMWARE_NUM_REQS	4
 #define TEST_FIRMWARE_BUF_SIZE	SZ_1K
+#define TEST_UPLOAD_MAX_SIZE	SZ_2K
+#define TEST_UPLOAD_BLK_SIZE	37	/* Avoid powers of two in testing */
 
 static DEFINE_MUTEX(test_fw_mutex);
 static const struct firmware *test_firmware;
+static LIST_HEAD(test_upload_list);
 
 struct test_batched_req {
 	u8 idx;
@@ -63,6 +66,7 @@ struct test_batched_req {
  * @reqs: stores all requests information
  * @read_fw_idx: index of thread from which we want to read firmware results
  *	from through the read_fw trigger.
+ * @upload_name: firmware name to be used with upload_read sysfs node
  * @test_result: a test may use this to collect the result from the call
  *	of the request_firmware*() calls used in their tests. In order of
  *	priority we always keep first any setup error. If no setup errors were
@@ -101,6 +105,7 @@ struct test_config {
 	bool send_uevent;
 	u8 num_requests;
 	u8 read_fw_idx;
+	char *upload_name;
 
 	/*
 	 * These below don't belong her but we'll move them once we create
@@ -112,7 +117,27 @@ struct test_config {
 			    struct device *device);
 };
 
+struct test_firmware_upload {
+	char *name;
+	struct list_head node;
+	char *buf;
+	size_t size;
+	bool cancel_request;
+	struct fw_upload *fwl;
+};
+
 static struct test_config *test_fw_config;
+
+static struct test_firmware_upload *upload_lookup_name(const char *name)
+{
+	struct test_firmware_upload *tst;
+
+	list_for_each_entry(tst, &test_upload_list, node)
+		if (strncmp(name, tst->name, strlen(tst->name)) == 0)
+			return tst;
+
+	return NULL;
+}
 
 static ssize_t test_fw_misc_read(struct file *f, char __user *buf,
 				 size_t size, loff_t *offset)
@@ -198,6 +223,7 @@ static int __test_firmware_config_init(void)
 	test_fw_config->req_firmware = request_firmware;
 	test_fw_config->test_result = 0;
 	test_fw_config->reqs = NULL;
+	test_fw_config->upload_name = NULL;
 
 	return 0;
 
@@ -277,6 +303,13 @@ static ssize_t config_show(struct device *dev,
 			test_fw_config->sync_direct ? "true" : "false");
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"read_fw_idx:\t%u\n", test_fw_config->read_fw_idx);
+	if (test_fw_config->upload_name)
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+				"upload_name:\t%s\n",
+				test_fw_config->upload_name);
+	else
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+				"upload_name:\tEMTPY\n");
 
 	mutex_unlock(&test_fw_mutex);
 
@@ -391,6 +424,32 @@ static ssize_t config_name_show(struct device *dev,
 	return config_test_show_str(buf, test_fw_config->name);
 }
 static DEVICE_ATTR_RW(config_name);
+
+static ssize_t config_upload_name_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct test_firmware_upload *tst;
+	int ret = count;
+
+	mutex_lock(&test_fw_mutex);
+	tst = upload_lookup_name(buf);
+	if (tst)
+		test_fw_config->upload_name = tst->name;
+	else
+		ret = -EINVAL;
+	mutex_unlock(&test_fw_mutex);
+
+	return ret;
+}
+
+static ssize_t config_upload_name_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	return config_test_show_str(buf, test_fw_config->upload_name);
+}
+static DEVICE_ATTR_RW(config_upload_name);
 
 static ssize_t config_num_requests_store(struct device *dev,
 					 struct device_attribute *attr,
@@ -989,6 +1048,167 @@ out:
 }
 static DEVICE_ATTR_WO(trigger_batched_requests_async);
 
+static void upload_release(struct test_firmware_upload *tst)
+{
+	firmware_upload_unregister(tst->fwl);
+	kfree(tst->buf);
+	kfree(tst->name);
+	kfree(tst);
+}
+
+static void upload_release_all(void)
+{
+	struct test_firmware_upload *tst, *tmp;
+
+	list_for_each_entry_safe(tst, tmp, &test_upload_list, node) {
+		list_del(&tst->node);
+		upload_release(tst);
+	}
+	test_fw_config->upload_name = NULL;
+}
+
+static enum fw_upload_err test_fw_upload_prepare(struct fw_upload *fwl,
+						 const u8 *data, u32 size)
+{
+	struct test_firmware_upload *tst = fwl->dd_handle;
+
+	tst->cancel_request = false;
+
+	if (!size || size > TEST_UPLOAD_MAX_SIZE)
+		return FW_UPLOAD_ERR_INVALID_SIZE;
+
+	memset(tst->buf, 0, TEST_UPLOAD_MAX_SIZE);
+	tst->size = size;
+
+	return FW_UPLOAD_ERR_NONE;
+}
+
+static enum fw_upload_err test_fw_upload_write(struct fw_upload *fwl,
+					       const u8 *data, u32 offset,
+					       u32 size, u32 *written)
+{
+	struct test_firmware_upload *tst = fwl->dd_handle;
+	u32 blk_size;
+
+	if (tst->cancel_request)
+		return FW_UPLOAD_ERR_CANCELED;
+
+	blk_size = min_t(u32, TEST_UPLOAD_BLK_SIZE, size);
+	memcpy(tst->buf + offset, data + offset, blk_size);
+
+	*written = blk_size;
+	return FW_UPLOAD_ERR_NONE;
+}
+
+static enum fw_upload_err test_fw_upload_complete(struct fw_upload *fwl)
+{
+	struct test_firmware_upload *tst = fwl->dd_handle;
+
+	if (tst->cancel_request)
+		return FW_UPLOAD_ERR_CANCELED;
+
+	return FW_UPLOAD_ERR_NONE;
+}
+
+static void test_fw_upload_cancel(struct fw_upload *fwl)
+{
+	struct test_firmware_upload *tst = fwl->dd_handle;
+
+	tst->cancel_request = true;
+}
+
+static const struct fw_upload_ops upload_test_ops = {
+	.prepare = test_fw_upload_prepare,
+	.write = test_fw_upload_write,
+	.poll_complete = test_fw_upload_complete,
+	.cancel = test_fw_upload_cancel,
+};
+
+static ssize_t upload_register_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct test_firmware_upload *tst;
+	struct fw_upload *fwl;
+	char *name;
+	int ret;
+
+	name = kstrndup(buf, count, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+
+	mutex_lock(&test_fw_mutex);
+	tst = upload_lookup_name(name);
+	if (tst) {
+		ret = -EEXIST;
+		goto free_name;
+	}
+
+	tst = kzalloc(sizeof(*tst), GFP_KERNEL);
+	if (!tst) {
+		ret = -ENOMEM;
+		goto free_name;
+	}
+
+	tst->name = name;
+	tst->buf = kzalloc(TEST_UPLOAD_MAX_SIZE, GFP_KERNEL);
+	if (!tst->buf) {
+		ret = -ENOMEM;
+		goto free_tst;
+	}
+
+	fwl = firmware_upload_register(THIS_MODULE, dev, tst->name,
+				       &upload_test_ops, tst);
+	if (IS_ERR(fwl)) {
+		ret = PTR_ERR(fwl);
+		goto free_buf;
+	}
+
+	tst->fwl = fwl;
+	list_add_tail(&tst->node, &test_upload_list);
+	mutex_unlock(&test_fw_mutex);
+	return count;
+
+free_buf:
+	kfree(tst->buf);
+
+free_tst:
+	kfree(tst);
+
+free_name:
+	mutex_unlock(&test_fw_mutex);
+	kfree(name);
+
+	return ret;
+}
+static DEVICE_ATTR_WO(upload_register);
+
+static ssize_t upload_unregister_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	struct test_firmware_upload *tst;
+	int ret = count;
+
+	mutex_lock(&test_fw_mutex);
+	tst = upload_lookup_name(buf);
+	if (!tst) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (test_fw_config->upload_name == tst->name)
+		test_fw_config->upload_name = NULL;
+
+	list_del(&tst->node);
+	upload_release(tst);
+
+out:
+	mutex_unlock(&test_fw_mutex);
+	return ret;
+}
+static DEVICE_ATTR_WO(upload_unregister);
+
 static ssize_t test_result_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -1051,6 +1271,42 @@ out:
 }
 static DEVICE_ATTR_RO(read_firmware);
 
+static ssize_t upload_read_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct test_firmware_upload *tst;
+	int ret = -EINVAL;
+
+	if (!test_fw_config->upload_name) {
+		pr_err("Set config_upload_name before using upload_read\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&test_fw_mutex);
+	list_for_each_entry(tst, &test_upload_list, node)
+		if (tst->name == test_fw_config->upload_name)
+			break;
+
+	if (tst->name != test_fw_config->upload_name) {
+		pr_err("Firmware name not found: %s\n",
+		       test_fw_config->upload_name);
+		goto out;
+	}
+
+	if (tst->size > PAGE_SIZE) {
+		pr_err("Testing interface must use PAGE_SIZE firmware for now\n");
+		goto out;
+	}
+
+	memcpy(buf, tst->buf, tst->size);
+	ret = tst->size;
+out:
+	mutex_unlock(&test_fw_mutex);
+	return ret;
+}
+static DEVICE_ATTR_RO(upload_read);
+
 #define TEST_FW_DEV_ATTR(name)          &dev_attr_##name.attr
 
 static struct attribute *test_dev_attrs[] = {
@@ -1066,6 +1322,7 @@ static struct attribute *test_dev_attrs[] = {
 	TEST_FW_DEV_ATTR(config_sync_direct),
 	TEST_FW_DEV_ATTR(config_send_uevent),
 	TEST_FW_DEV_ATTR(config_read_fw_idx),
+	TEST_FW_DEV_ATTR(config_upload_name),
 
 	/* These don't use the config at all - they could be ported! */
 	TEST_FW_DEV_ATTR(trigger_request),
@@ -1082,6 +1339,9 @@ static struct attribute *test_dev_attrs[] = {
 	TEST_FW_DEV_ATTR(release_all_firmware),
 	TEST_FW_DEV_ATTR(test_result),
 	TEST_FW_DEV_ATTR(read_firmware),
+	TEST_FW_DEV_ATTR(upload_read),
+	TEST_FW_DEV_ATTR(upload_register),
+	TEST_FW_DEV_ATTR(upload_unregister),
 	NULL,
 };
 
@@ -1128,6 +1388,7 @@ static void __exit test_firmware_exit(void)
 	mutex_lock(&test_fw_mutex);
 	release_firmware(test_firmware);
 	misc_deregister(&test_fw_misc_device);
+	upload_release_all();
 	__test_firmware_config_free();
 	kfree(test_fw_config);
 	mutex_unlock(&test_fw_mutex);
