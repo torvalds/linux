@@ -697,6 +697,7 @@ static inline bool hda_common_check_sdw_irq(struct snd_sof_dev *sdev)
 
 /* common dai driver */
 extern struct snd_soc_dai_driver skl_dai[];
+int hda_dsp_dais_suspend(struct snd_sof_dev *sdev);
 
 /*
  * Platform Specific HW abstraction Ops.
