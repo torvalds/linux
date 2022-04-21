@@ -929,6 +929,9 @@ void pkvm_reset_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 		/* PC: IPA of pvmfw base */
 		*vcpu_pc(&hyp_vcpu->vcpu) = entry;
 		hyp_vm->pvmfw_entry_vcpu = NULL;
+
+		/* Auto enroll MMIO guard */
+		set_bit(KVM_ARCH_FLAG_MMIO_GUARD, &hyp_vm->kvm.arch.flags);
 	}
 
 	reset_state->reset = false;
