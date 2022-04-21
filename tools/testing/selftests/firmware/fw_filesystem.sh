@@ -437,6 +437,32 @@ test_request_partial_firmware_into_buf()
 	echo "OK"
 }
 
+do_tests ()
+{
+	mode="$1"
+	suffix="$2"
+
+	for i in $(seq 1 5); do
+		test_batched_request_firmware$suffix $i $mode
+	done
+
+	for i in $(seq 1 5); do
+		test_batched_request_firmware_into_buf$suffix $i $mode
+	done
+
+	for i in $(seq 1 5); do
+		test_batched_request_firmware_direct$suffix $i $mode
+	done
+
+	for i in $(seq 1 5); do
+		test_request_firmware_nowait_uevent$suffix $i $mode
+	done
+
+	for i in $(seq 1 5); do
+		test_request_firmware_nowait_custom$suffix $i $mode
+	done
+}
+
 # Only continue if batched request triggers are present on the
 # test-firmware driver
 test_config_present
@@ -444,25 +470,7 @@ test_config_present
 # test with the file present
 echo
 echo "Testing with the file present..."
-for i in $(seq 1 5); do
-	test_batched_request_firmware $i normal
-done
-
-for i in $(seq 1 5); do
-	test_batched_request_firmware_into_buf $i normal
-done
-
-for i in $(seq 1 5); do
-	test_batched_request_firmware_direct $i normal
-done
-
-for i in $(seq 1 5); do
-	test_request_firmware_nowait_uevent $i normal
-done
-
-for i in $(seq 1 5); do
-	test_request_firmware_nowait_custom $i normal
-done
+do_tests normal
 
 # Partial loads cannot use fallback, so do not repeat tests.
 test_request_partial_firmware_into_buf 0 10
@@ -474,25 +482,7 @@ test_request_partial_firmware_into_buf 2 10
 # a hung task, which would require a hard reset.
 echo
 echo "Testing with the file missing..."
-for i in $(seq 1 5); do
-	test_batched_request_firmware_nofile $i
-done
-
-for i in $(seq 1 5); do
-	test_batched_request_firmware_into_buf_nofile $i
-done
-
-for i in $(seq 1 5); do
-	test_batched_request_firmware_direct_nofile $i
-done
-
-for i in $(seq 1 5); do
-	test_request_firmware_nowait_uevent_nofile $i
-done
-
-for i in $(seq 1 5); do
-	test_request_firmware_nowait_custom_nofile $i
-done
+do_tests nofile _nofile
 
 # Partial loads cannot use fallback, so do not repeat tests.
 test_request_partial_firmware_into_buf_nofile 0 10
@@ -508,49 +498,13 @@ $RUN_XZ -k $FW_INTO_BUF
 config_set_name $NAME
 echo
 echo "Testing with both plain and xz files present..."
-for i in $(seq 1 5); do
-	test_batched_request_firmware $i both
-done
-
-for i in $(seq 1 5); do
-	test_batched_request_firmware_into_buf $i both
-done
-
-for i in $(seq 1 5); do
-	test_batched_request_firmware_direct $i both
-done
-
-for i in $(seq 1 5); do
-	test_request_firmware_nowait_uevent $i both
-done
-
-for i in $(seq 1 5); do
-	test_request_firmware_nowait_custom $i both
-done
+do_tests both
 
 # test with only xz file present
 mv "$FW" "${FW}-orig"
 mv "$FW_INTO_BUF" "${FW_INTO_BUF}-orig"
 echo
 echo "Testing with only xz file present..."
-for i in $(seq 1 5); do
-	test_batched_request_firmware $i xzonly
-done
-
-for i in $(seq 1 5); do
-	test_batched_request_firmware_into_buf $i xzonly
-done
-
-for i in $(seq 1 5); do
-	test_batched_request_firmware_direct $i xzonly
-done
-
-for i in $(seq 1 5); do
-	test_request_firmware_nowait_uevent $i xzonly
-done
-
-for i in $(seq 1 5); do
-	test_request_firmware_nowait_custom $i xzonly
-done
+do_tests xzonly
 
 exit 0
