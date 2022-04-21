@@ -1,4 +1,4 @@
-#include "qcom-msm8974.dtsi"
+#include "qcom-msm8974pro.dtsi"
 #include "qcom-pm8841.dtsi"
 #include "qcom-pm8941.dtsi"
 #include <dt-bindings/input/input.h>
