@@ -1096,22 +1096,6 @@ DEFINE_DQUOT_EVENT(xfs_dqflush_done);
 DEFINE_DQUOT_EVENT(xfs_trans_apply_dquot_deltas_before);
 DEFINE_DQUOT_EVENT(xfs_trans_apply_dquot_deltas_after);
 
-#define XFS_QMOPT_FLAGS \
-	{ XFS_QMOPT_UQUOTA,		"UQUOTA" }, \
-	{ XFS_QMOPT_PQUOTA,		"PQUOTA" }, \
-	{ XFS_QMOPT_FORCE_RES,		"FORCE_RES" }, \
-	{ XFS_QMOPT_SBVERSION,		"SBVERSION" }, \
-	{ XFS_QMOPT_GQUOTA,		"GQUOTA" }, \
-	{ XFS_QMOPT_INHERIT,		"INHERIT" }, \
-	{ XFS_QMOPT_RES_REGBLKS,	"RES_REGBLKS" }, \
-	{ XFS_QMOPT_RES_RTBLKS,		"RES_RTBLKS" }, \
-	{ XFS_QMOPT_BCOUNT,		"BCOUNT" }, \
-	{ XFS_QMOPT_ICOUNT,		"ICOUNT" }, \
-	{ XFS_QMOPT_RTBCOUNT,		"RTBCOUNT" }, \
-	{ XFS_QMOPT_DELBCOUNT,		"DELBCOUNT" }, \
-	{ XFS_QMOPT_DELRTBCOUNT,	"DELRTBCOUNT" }, \
-	{ XFS_QMOPT_RES_INOS,		"RES_INOS" }
-
 TRACE_EVENT(xfs_trans_mod_dquot,
 	TP_PROTO(struct xfs_trans *tp, struct xfs_dquot *dqp,
 		 unsigned int field, int64_t delta),
