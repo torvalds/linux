@@ -9,6 +9,15 @@
 #include "reg.h"
 #include "rtw8852c.h"
 
+static const struct rtw89_pci_bd_idx_addr rtw8852c_bd_idx_addr_low_power = {
+	.tx_bd_addrs = {R_AX_DRV_FW_HSK_0, R_AX_DRV_FW_HSK_1, R_AX_DRV_FW_HSK_2,
+			R_AX_DRV_FW_HSK_3, 0, 0,
+			0, 0, R_AX_DRV_FW_HSK_4,
+			0, 0, 0,
+			R_AX_DRV_FW_HSK_5},
+	.rx_bd_addrs = {R_AX_DRV_FW_HSK_6, R_AX_DRV_FW_HSK_7},
+};
+
 static const struct rtw89_pci_info rtw8852c_pci_info = {
 	.txbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_trunc_mode	= MAC_AX_BD_TRUNC,
@@ -41,6 +50,7 @@ static const struct rtw89_pci_info rtw8852c_pci_info = {
 
 	.rpwm_addr		= R_AX_PCIE_HRPWM_V1,
 	.cpwm_addr		= R_AX_PCIE_CRPWM,
+	.bd_idx_addr_low_power	= &rtw8852c_bd_idx_addr_low_power,
 	.dma_addr_set		= &rtw89_pci_ch_dma_addr_set_v1,
 
 	.ltr_set		= rtw89_pci_ltr_set_v1,

@@ -919,6 +919,21 @@ u32 __rtw89_pci_check_and_reclaim_tx_fwcmd_resource(struct rtw89_dev *rtwdev)
 	return cnt;
 }
 
+static
+u32 __rtw89_pci_check_and_reclaim_tx_resource_noio(struct rtw89_dev *rtwdev,
+						   u8 txch)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct rtw89_pci_tx_ring *tx_ring = &rtwpci->tx_rings[txch];
+	u32 cnt;
+
+	spin_lock_bh(&rtwpci->trx_lock);
+	cnt = rtw89_pci_get_avail_txbd_num(tx_ring);
+	spin_unlock_bh(&rtwpci->trx_lock);
+
+	return cnt;
+}
+
 static u32 __rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 						     u8 txch)
 {
@@ -961,6 +976,9 @@ out_unlock:
 static u32 rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 						   u8 txch)
 {
+	if (rtwdev->hci.paused)
+		return __rtw89_pci_check_and_reclaim_tx_resource_noio(rtwdev, txch);
+
 	if (txch == RTW89_TXCH_CH12)
 		return __rtw89_pci_check_and_reclaim_tx_fwcmd_resource(rtwdev);
 
@@ -969,12 +987,17 @@ static u32 rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 
 static void __rtw89_pci_tx_kick_off(struct rtw89_dev *rtwdev, struct rtw89_pci_tx_ring *tx_ring)
 {
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 	struct rtw89_pci_dma_ring *bd_ring = &tx_ring->bd_ring;
 	u32 host_idx, addr;
+
+	spin_lock_bh(&rtwpci->trx_lock);
 
 	addr = bd_ring->addr.idx;
 	host_idx = bd_ring->wp;
 	rtw89_write16(rtwdev, addr, host_idx);
+
+	spin_unlock_bh(&rtwpci->trx_lock);
 }
 
 static void rtw89_pci_tx_bd_ring_update(struct rtw89_dev *rtwdev, struct rtw89_pci_tx_ring *tx_ring,
@@ -995,9 +1018,27 @@ static void rtw89_pci_ops_tx_kick_off(struct rtw89_dev *rtwdev, u8 txch)
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 	struct rtw89_pci_tx_ring *tx_ring = &rtwpci->tx_rings[txch];
 
-	spin_lock_bh(&rtwpci->trx_lock);
+	if (rtwdev->hci.paused) {
+		set_bit(txch, rtwpci->kick_map);
+		return;
+	}
+
 	__rtw89_pci_tx_kick_off(rtwdev, tx_ring);
-	spin_unlock_bh(&rtwpci->trx_lock);
+}
+
+static void rtw89_pci_tx_kick_off_pending(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct rtw89_pci_tx_ring *tx_ring;
+	int txch;
+
+	for (txch = 0; txch < RTW89_TXCH_NUM; txch++) {
+		if (!test_and_clear_bit(txch, rtwpci->kick_map))
+			continue;
+
+		tx_ring = &rtwpci->tx_rings[txch];
+		__rtw89_pci_tx_kick_off(rtwdev, tx_ring);
+	}
 }
 
 static void __pci_flush_txch(struct rtw89_dev *rtwdev, u8 txch, bool drop)
@@ -1421,6 +1462,62 @@ static void rtw89_pci_ops_stop(struct rtw89_dev *rtwdev)
 	rtw89_pci_disable_intr_lock(rtwdev);
 	synchronize_irq(pdev->irq);
 	rtw89_core_napi_stop(rtwdev);
+}
+
+static void rtw89_pci_ops_pause(struct rtw89_dev *rtwdev, bool pause)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct pci_dev *pdev = rtwpci->pdev;
+
+	if (pause) {
+		rtw89_pci_disable_intr_lock(rtwdev);
+		synchronize_irq(pdev->irq);
+		if (test_bit(RTW89_FLAG_NAPI_RUNNING, rtwdev->flags))
+			napi_synchronize(&rtwdev->napi);
+	} else {
+		rtw89_pci_enable_intr_lock(rtwdev);
+		rtw89_pci_tx_kick_off_pending(rtwdev);
+	}
+}
+
+static
+void rtw89_pci_switch_bd_idx_addr(struct rtw89_dev *rtwdev, bool low_power)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_bd_idx_addr *bd_idx_addr = info->bd_idx_addr_low_power;
+	const struct rtw89_pci_ch_dma_addr_set *dma_addr_set = info->dma_addr_set;
+	struct rtw89_pci_tx_ring *tx_ring;
+	struct rtw89_pci_rx_ring *rx_ring;
+	int i;
+
+	if (WARN(!bd_idx_addr, "only HCI with low power mode needs this\n"))
+		return;
+
+	for (i = 0; i < RTW89_TXCH_NUM; i++) {
+		tx_ring = &rtwpci->tx_rings[i];
+		tx_ring->bd_ring.addr.idx = low_power ?
+					    bd_idx_addr->tx_bd_addrs[i] :
+					    dma_addr_set->tx[i].idx;
+	}
+
+	for (i = 0; i < RTW89_RXCH_NUM; i++) {
+		rx_ring = &rtwpci->rx_rings[i];
+		rx_ring->bd_ring.addr.idx = low_power ?
+					    bd_idx_addr->rx_bd_addrs[i] :
+					    dma_addr_set->rx[i].idx;
+	}
+}
+
+static void rtw89_pci_ops_switch_mode(struct rtw89_dev *rtwdev, bool low_power)
+{
+	enum rtw89_pci_intr_mask_cfg cfg;
+
+	WARN(!rtwdev->hci.paused, "HCI isn't paused\n");
+
+	cfg = low_power ? RTW89_PCI_INTR_MASK_LOW_POWER : RTW89_PCI_INTR_MASK_NORMAL;
+	rtw89_chip_config_intr_mask(rtwdev, cfg);
+	rtw89_pci_switch_bd_idx_addr(rtwdev, low_power);
 }
 
 static void rtw89_pci_ops_write32(struct rtw89_dev *rtwdev, u32 addr, u32 data);
@@ -3488,6 +3585,8 @@ static const struct rtw89_hci_ops rtw89_pci_ops = {
 	.reset		= rtw89_pci_ops_reset,
 	.start		= rtw89_pci_ops_start,
 	.stop		= rtw89_pci_ops_stop,
+	.pause		= rtw89_pci_ops_pause,
+	.switch_mode	= rtw89_pci_ops_switch_mode,
 	.recalc_int_mit = rtw89_pci_recalc_int_mit,
 
 	.read8		= rtw89_pci_ops_read8,

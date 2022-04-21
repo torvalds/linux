@@ -2036,6 +2036,8 @@ struct rtw89_hci_ops {
 	void (*reset)(struct rtw89_dev *rtwdev);
 	int (*start)(struct rtw89_dev *rtwdev);
 	void (*stop)(struct rtw89_dev *rtwdev);
+	void (*pause)(struct rtw89_dev *rtwdev, bool pause);
+	void (*switch_mode)(struct rtw89_dev *rtwdev, bool low_power);
 	void (*recalc_int_mit)(struct rtw89_dev *rtwdev);
 
 	u8 (*read8)(struct rtw89_dev *rtwdev, u32 addr);
@@ -2067,6 +2069,7 @@ struct rtw89_hci_info {
 	enum rtw89_hci_type type;
 	u32 rpwm_addr;
 	u32 cpwm_addr;
+	bool paused;
 };
 
 struct rtw89_chip_ops {
@@ -2428,6 +2431,7 @@ struct rtw89_chip_info {
 	u8 rf_para_dlink_num;
 	const struct rtw89_btc_rf_trx_para *rf_para_dlink;
 	u8 ps_mode_supported;
+	u8 low_power_hci_modes;
 
 	u32 h2c_cctl_func_id;
 	u32 hci_func_en_addr;
@@ -3165,6 +3169,16 @@ static inline void rtw89_hci_stop(struct rtw89_dev *rtwdev)
 static inline int rtw89_hci_deinit(struct rtw89_dev *rtwdev)
 {
 	return rtwdev->hci.ops->deinit(rtwdev);
+}
+
+static inline void rtw89_hci_pause(struct rtw89_dev *rtwdev, bool pause)
+{
+	rtwdev->hci.ops->pause(rtwdev, pause);
+}
+
+static inline void rtw89_hci_switch_mode(struct rtw89_dev *rtwdev, bool low_power)
+{
+	rtwdev->hci.ops->switch_mode(rtwdev, low_power);
 }
 
 static inline void rtw89_hci_recalc_int_mit(struct rtw89_dev *rtwdev)

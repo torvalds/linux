@@ -202,6 +202,15 @@
 #define B_AX_PCIE_DBG_STE_INT BIT(13)
 
 /* TX/RX */
+#define R_AX_DRV_FW_HSK_0	0x01B0
+#define R_AX_DRV_FW_HSK_1	0x01B4
+#define R_AX_DRV_FW_HSK_2	0x01B8
+#define R_AX_DRV_FW_HSK_3	0x01BC
+#define R_AX_DRV_FW_HSK_4	0x01C0
+#define R_AX_DRV_FW_HSK_5	0x01C4
+#define R_AX_DRV_FW_HSK_6	0x01C8
+#define R_AX_DRV_FW_HSK_7	0x01CC
+
 #define R_AX_RXQ_RXBD_IDX	0x1050
 #define R_AX_RPQ_RXBD_IDX	0x1054
 #define R_AX_ACH0_TXBD_IDX	0x1058
@@ -658,6 +667,11 @@ enum rtw89_pci_intr_mask_cfg {
 struct rtw89_pci_isrs;
 struct rtw89_pci;
 
+struct rtw89_pci_bd_idx_addr {
+	u32 tx_bd_addrs[RTW89_TXCH_NUM];
+	u32 rx_bd_addrs[RTW89_RXCH_NUM];
+};
+
 struct rtw89_pci_ch_dma_addr {
 	u32 num;
 	u32 idx;
@@ -703,6 +717,7 @@ struct rtw89_pci_info {
 
 	u32 rpwm_addr;
 	u32 cpwm_addr;
+	const struct rtw89_pci_bd_idx_addr *bd_idx_addr_low_power;
 	const struct rtw89_pci_ch_dma_addr_set *dma_addr_set;
 
 	int (*ltr_set)(struct rtw89_dev *rtwdev, bool en);
@@ -880,6 +895,7 @@ struct rtw89_pci {
 	struct rtw89_pci_rx_ring rx_rings[RTW89_RXCH_NUM];
 	struct sk_buff_head h2c_queue;
 	struct sk_buff_head h2c_release_queue;
+	DECLARE_BITMAP(kick_map, RTW89_TXCH_NUM);
 
 	u32 ind_intrs;
 	u32 halt_c2h_intrs;
