@@ -328,6 +328,17 @@ int perf_evsel__read(struct perf_evsel *evsel, int cpu_map_idx, int thread,
 	return 0;
 }
 
+static int perf_evsel__ioctl(struct perf_evsel *evsel, int ioc, void *arg,
+			     int cpu_map_idx, int thread)
+{
+	int *fd = FD(evsel, cpu_map_idx, thread);
+
+	if (fd == NULL || *fd < 0)
+		return -1;
+
+	return ioctl(*fd, ioc, arg);
+}
+
 static int perf_evsel__run_ioctl(struct perf_evsel *evsel,
 				 int ioc,  void *arg,
 				 int cpu_map_idx)
@@ -335,13 +346,7 @@ static int perf_evsel__run_ioctl(struct perf_evsel *evsel,
 	int thread;
 
 	for (thread = 0; thread < xyarray__max_y(evsel->fd); thread++) {
-		int err;
-		int *fd = FD(evsel, cpu_map_idx, thread);
-
-		if (fd == NULL || *fd < 0)
-			return -1;
-
-		err = ioctl(*fd, ioc, arg);
+		int err = perf_evsel__ioctl(evsel, ioc, arg, cpu_map_idx, thread);
 
 		if (err)
 			return err;
