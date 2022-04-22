@@ -568,7 +568,7 @@ static ssize_t ffs_ep0_read(struct file *file, char __user *buf,
 		spin_unlock_irq(&ffs->ev.waitq.lock);
 
 		if (likely(len)) {
-			data = kmalloc(len, GFP_KERNEL);
+			data = kmalloc(ALIGN(len, cache_line_size()), GFP_KERNEL);
 			if (unlikely(!data)) {
 				ret = -ENOMEM;
 				goto done_mutex;
@@ -799,7 +799,7 @@ static inline void *ffs_alloc_buffer(struct ffs_io_data *io_data,
 	if (io_data->use_sg)
 		return ffs_build_sg_list(&io_data->sgt, data_len);
 
-	return kmalloc(data_len, GFP_KERNEL);
+	return kmalloc(ALIGN(data_len, cache_line_size()), GFP_KERNEL);
 }
 
 static inline void ffs_free_buffer(struct ffs_io_data *io_data)
