@@ -1471,7 +1471,7 @@ static struct gdsc mdss_gdsc = {
 		.name = "mdss_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
-	.flags = HW_CTRL,
+	.flags = 0,
 };
 
 static struct clk_regmap *disp_cc_sm8250_clocks[] = {
