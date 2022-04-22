@@ -36,7 +36,8 @@ properties:
       # order when present.
       - description: The HDMI CEC controller main clock
       - description: Power for GRF IO
-      - description: External clock for some HDMI PHY
+      - description: External clock for some HDMI PHY (old clock name, deprecated)
+      - description: External clock for some HDMI PHY (new name)
 
   clock-names:
     minItems: 2
@@ -47,10 +48,14 @@ properties:
           - cec
           - grf
           - vpll
+          - ref
       - enum:
           - grf
           - vpll
-      - const: vpll
+          - ref
+      - enum:
+          - vpll
+          - ref
 
   ddc-i2c-bus:
     $ref: /schemas/types.yaml#/definitions/phandle
