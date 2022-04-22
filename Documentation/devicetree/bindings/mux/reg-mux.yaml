@@ -96,7 +96,6 @@ examples:
 
     #include <dt-bindings/mux/mux.h>
     syscon@1000 {
-        compatible = "fsl,imx7d-iomuxc-gpr", "fsl,imx6q-iomuxc-gpr", "syscon", "simple-mfd";
         reg = <0x1000 0x100>;
 
         mux2: mux-controller {
