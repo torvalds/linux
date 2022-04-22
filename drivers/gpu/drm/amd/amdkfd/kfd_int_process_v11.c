@@ -26,6 +26,7 @@
 #include "kfd_device_queue_manager.h"
 #include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
 #include "kfd_smi_events.h"
+#include "kfd_debug.h"
 
 /*
  * GFX11 SQ Interrupts
@@ -238,7 +239,7 @@ static bool event_interrupt_isr_v11(struct kfd_node *dev,
 	client_id = SOC15_CLIENT_ID_FROM_IH_ENTRY(ih_ring_entry);
 	/* Only handle interrupts from KFD VMIDs */
 	vmid = SOC15_VMID_FROM_IH_ENTRY(ih_ring_entry);
-	if (/*!KFD_IRQ_IS_FENCE(client_id, source_id) &&*/
+	if (!KFD_IRQ_IS_FENCE(client_id, source_id) &&
 	    (vmid < dev->vm_info.first_vmid_kfd ||
 	    vmid > dev->vm_info.last_vmid_kfd))
 		return false;
@@ -267,7 +268,7 @@ static bool event_interrupt_isr_v11(struct kfd_node *dev,
 		source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG ||
 		source_id == SOC15_INTSRC_CP_BAD_OPCODE ||
 		source_id == SOC21_INTSRC_SDMA_TRAP ||
-		/* KFD_IRQ_IS_FENCE(client_id, source_id) || */
+		KFD_IRQ_IS_FENCE(client_id, source_id) ||
 		(((client_id == SOC21_IH_CLIENTID_VMC) ||
 		 ((client_id == SOC21_IH_CLIENTID_GFX) &&
 		  (source_id == UTCL2_1_0__SRCID__FAULT))) &&
@@ -279,7 +280,7 @@ static void event_interrupt_wq_v11(struct kfd_node *dev,
 {
 	uint16_t source_id, client_id, ring_id, pasid, vmid;
 	uint32_t context_id0, context_id1;
-	uint8_t sq_int_enc, sq_int_errtype;
+	uint8_t sq_int_enc, sq_int_priv, sq_int_errtype;
 	struct kfd_vm_fault_info info = {0};
 	struct kfd_hsa_memory_exception_data exception_data;
 
@@ -312,9 +313,9 @@ static void event_interrupt_wq_v11(struct kfd_node *dev,
 		exception_data.failure.ReadOnly = info.prot_write ? 1 : 0;
 		exception_data.failure.imprecise = 0;
 
-		/*kfd_set_dbg_ev_from_interrupt(dev, pasid, -1,
+		kfd_set_dbg_ev_from_interrupt(dev, pasid, -1,
 					      KFD_EC_MASK(EC_DEVICE_MEMORY_VIOLATION),
-					      &exception_data, sizeof(exception_data));*/
+					      &exception_data, sizeof(exception_data));
 		kfd_smi_event_update_vmfault(dev, pasid);
 
 	/* GRBM, SDMA, SE, PMM */
@@ -324,11 +325,11 @@ static void event_interrupt_wq_v11(struct kfd_node *dev,
 		/* CP */
 		if (source_id == SOC15_INTSRC_CP_END_OF_PIPE)
 			kfd_signal_event_interrupt(pasid, context_id0, 32);
-		/*else if (source_id == SOC15_INTSRC_CP_BAD_OPCODE)
+		else if (source_id == SOC15_INTSRC_CP_BAD_OPCODE)
 			kfd_set_dbg_ev_from_interrupt(dev, pasid,
 				KFD_CTXID0_DOORBELL_ID(context_id0),
 				KFD_EC_MASK(KFD_CTXID0_CP_BAD_OP_ECODE(context_id0)),
-				NULL, 0);*/
+				NULL, 0);
 
 		/* SDMA */
 		else if (source_id == SOC21_INTSRC_SDMA_TRAP)
@@ -348,6 +349,13 @@ static void event_interrupt_wq_v11(struct kfd_node *dev,
 				break;
 			case SQ_INTERRUPT_WORD_ENCODING_INST:
 				print_sq_intr_info_inst(context_id0, context_id1);
+				sq_int_priv = REG_GET_FIELD(context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID0, PRIV);
+				if (sq_int_priv && (kfd_set_dbg_ev_from_interrupt(dev, pasid,
+						KFD_CTXID0_DOORBELL_ID(context_id0),
+						KFD_CTXID0_TRAP_CODE(context_id0),
+						NULL, 0)))
+					return;
 				break;
 			case SQ_INTERRUPT_WORD_ENCODING_ERROR:
 				print_sq_intr_info_error(context_id0, context_id1);
@@ -366,8 +374,8 @@ static void event_interrupt_wq_v11(struct kfd_node *dev,
 			kfd_signal_event_interrupt(pasid, context_id0 & 0xffffff, 24);
 		}
 
-	/*} else if (KFD_IRQ_IS_FENCE(client_id, source_id)) {
-		kfd_process_close_interrupt_drain(pasid);*/
+	} else if (KFD_IRQ_IS_FENCE(client_id, source_id)) {
+		kfd_process_close_interrupt_drain(pasid);
 	}
 }
 

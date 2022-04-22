@@ -125,6 +125,64 @@ bool kfd_dbg_ev_raise(uint64_t event_mask,
 	return is_subscribed;
 }
 
+/* set pending event queue entry from ring entry  */
+bool kfd_set_dbg_ev_from_interrupt(struct kfd_node *dev,
+				   unsigned int pasid,
+				   uint32_t doorbell_id,
+				   uint64_t trap_mask,
+				   void *exception_data,
+				   size_t exception_data_size)
+{
+	struct kfd_process *p;
+	bool signaled_to_debugger_or_runtime = false;
+
+	p = kfd_lookup_process_by_pasid(pasid);
+
+	if (!p)
+		return false;
+
+	if (!kfd_dbg_ev_raise(trap_mask, p, dev, doorbell_id, true,
+			      exception_data, exception_data_size)) {
+		struct process_queue_manager *pqm;
+		struct process_queue_node *pqn;
+
+		if (!!(trap_mask & KFD_EC_MASK_QUEUE) &&
+		       p->runtime_info.runtime_state == DEBUG_RUNTIME_STATE_ENABLED) {
+			mutex_lock(&p->mutex);
+
+			pqm = &p->pqm;
+			list_for_each_entry(pqn, &pqm->queues,
+							process_queue_list) {
+
+				if (!(pqn->q && pqn->q->device == dev &&
+				      pqn->q->doorbell_id == doorbell_id))
+					continue;
+
+				kfd_send_exception_to_runtime(p, pqn->q->properties.queue_id,
+							      trap_mask);
+
+				signaled_to_debugger_or_runtime = true;
+
+				break;
+			}
+
+			mutex_unlock(&p->mutex);
+		} else if (trap_mask & KFD_EC_MASK(EC_DEVICE_MEMORY_VIOLATION)) {
+			kfd_dqm_evict_pasid(dev->dqm, p->pasid);
+			kfd_signal_vm_fault_event(dev, p->pasid, NULL,
+							exception_data);
+
+			signaled_to_debugger_or_runtime = true;
+		}
+	} else {
+		signaled_to_debugger_or_runtime = true;
+	}
+
+	kfd_unref_process(p);
+
+	return signaled_to_debugger_or_runtime;
+}
+
 int kfd_dbg_send_exception_to_runtime(struct kfd_process *p,
 					unsigned int dev_id,
 					unsigned int queue_id,
@@ -281,6 +339,31 @@ void kfd_dbg_trap_deactivate(struct kfd_process *target, bool unwind, int unwind
 	kfd_dbg_set_workaround(target, false);
 }
 
+static void kfd_dbg_clean_exception_status(struct kfd_process *target)
+{
+	struct process_queue_manager *pqm;
+	struct process_queue_node *pqn;
+	int i;
+
+	for (i = 0; i < target->n_pdds; i++) {
+		struct kfd_process_device *pdd = target->pdds[i];
+
+		kfd_process_drain_interrupts(pdd);
+
+		pdd->exception_status = 0;
+	}
+
+	pqm = &target->pqm;
+	list_for_each_entry(pqn, &pqm->queues, process_queue_list) {
+		if (!pqn->q)
+			continue;
+
+		pqn->q->properties.exception_status = 0;
+	}
+
+	target->exception_status = 0;
+}
+
 int kfd_dbg_trap_disable(struct kfd_process *target)
 {
 	if (!target->debug_trap_enabled)
@@ -304,6 +387,7 @@ int kfd_dbg_trap_disable(struct kfd_process *target)
 	}
 
 	target->debug_trap_enabled = false;
+	kfd_dbg_clean_exception_status(target);
 	kfd_unref_process(target);
 
 	return 0;
