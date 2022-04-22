@@ -6,6 +6,7 @@ Kernel driver asus_ec_sensors
 Supported boards:
  * PRIME X570-PRO,
  * Pro WS X570-ACE,
+ * ProArt X570-CREATOR WIFI
  * ROG CROSSHAIR VIII DARK HERO,
  * ROG CROSSHAIR VIII HERO (WI-FI)
  * ROG CROSSHAIR VIII FORMULA,
