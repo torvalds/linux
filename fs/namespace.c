@@ -4058,10 +4058,22 @@ static int mount_setattr_prepare(struct mount_kattr *kattr, struct mount *mnt)
 	if (err) {
 		struct mount *p;
 
-		for (p = mnt; p != m; p = next_mnt(p, mnt)) {
+		/*
+		 * If we had to call mnt_hold_writers() MNT_WRITE_HOLD will
+		 * be set in @mnt_flags. The loop unsets MNT_WRITE_HOLD for all
+		 * mounts and needs to take care to include the first mount.
+		 */
+		for (p = mnt; p; p = next_mnt(p, mnt)) {
 			/* If we had to hold writers unblock them. */
 			if (p->mnt.mnt_flags & MNT_WRITE_HOLD)
 				mnt_unhold_writers(p);
+
+			/*
+			 * We're done once the first mount we changed got
+			 * MNT_WRITE_HOLD unset.
+			 */
+			if (p == m)
+				break;
 		}
 	}
 	return err;
