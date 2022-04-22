@@ -68,6 +68,7 @@
 #define AML_UART_BAUD_MASK		0x7fffff
 #define AML_UART_BAUD_USE		BIT(23)
 #define AML_UART_BAUD_XTAL		BIT(24)
+#define AML_UART_BAUD_XTAL_DIV2		BIT(27)
 
 #define AML_UART_PORT_NUM		12
 #define AML_UART_PORT_OFFSET		6
@@ -79,6 +80,10 @@
 static struct uart_driver meson_uart_driver;
 
 static struct uart_port *meson_ports[AML_UART_PORT_NUM];
+
+struct meson_uart_data {
+	bool has_xtal_div2;
+};
 
 static void meson_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
@@ -293,13 +298,20 @@ static int meson_uart_startup(struct uart_port *port)
 
 static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 {
-	u32 val;
+	const struct meson_uart_data *private_data = port->private_data;
+	u32 val = 0;
 
 	while (!meson_uart_tx_empty(port))
 		cpu_relax();
 
 	if (port->uartclk == 24000000) {
-		val = DIV_ROUND_CLOSEST(port->uartclk / 3, baud) - 1;
+		unsigned int xtal_div = 3;
+
+		if (private_data && private_data->has_xtal_div2) {
+			xtal_div = 2;
+			val |= AML_UART_BAUD_XTAL_DIV2;
+		}
+		val |= DIV_ROUND_CLOSEST(port->uartclk / xtal_div, baud) - 1;
 		val |= AML_UART_BAUD_XTAL;
 	} else {
 		val =  DIV_ROUND_CLOSEST(port->uartclk / 4, baud) - 1;
@@ -749,6 +761,7 @@ static int meson_uart_probe(struct platform_device *pdev)
 	port->x_char = 0;
 	port->ops = &meson_uart_ops;
 	port->fifosize = fifosize;
+	port->private_data = (void *)device_get_match_data(&pdev->dev);
 
 	meson_ports[pdev->id] = port;
 	platform_set_drvdata(pdev, port);
