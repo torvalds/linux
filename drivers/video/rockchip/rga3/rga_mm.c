@@ -947,6 +947,11 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 
 	img_size = rga_image_size_cal(img->vir_w, img->vir_h, img->format,
 				      &yrgb_size, &uv_size, &v_size);
+	if (img_size <= 0) {
+		pr_err("Image size cal error! width = %d, height = %d, format = %s\n",
+		       img->vir_w, img->vir_h, rga_get_format_name(img->format));
+		return -EINVAL;
+	}
 
 	/* using third-address */
 	if (job_buf->uv_addr) {
@@ -962,21 +967,22 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 		v_count = RGA_GET_PAGE_COUNT(v_size + v_offset);
 		page_count = yrgb_count + uv_count + v_count;
 
-		if (page_count < 0) {
-			pr_err("page count cal error!\n");
+		if (page_count <= 0) {
+			pr_err("page count cal error! yrba = %d, uv = %d, v = %d\n",
+			       yrgb_count, uv_count, v_count);
 			return -EFAULT;
 		}
 
 		order = get_order(page_count * sizeof(uint32_t *));
 		page_table = (uint32_t *)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
 		if (page_table == NULL) {
-			pr_err("%s can not alloc pages for pages\n", __func__);
+			pr_err("%s can not alloc pages for pages, order = %d\n", __func__, order);
 			return -ENOMEM;
 		}
 
 		sgt = rga_mm_lookup_sgt(job_buf->y_addr, job->core);
 		if (sgt == NULL) {
-			pr_err("rga2 cannot get sgt from handle!\n");
+			pr_err("rga2 cannot get sgt from internal buffer!\n");
 			ret = -EINVAL;
 			goto err_free_page_table;
 		}
@@ -984,7 +990,7 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 
 		sgt = rga_mm_lookup_sgt(job_buf->uv_addr, job->core);
 		if (sgt == NULL) {
-			pr_err("rga2 cannot get sgt from handle!\n");
+			pr_err("rga2 cannot get sgt from internal buffer!\n");
 			ret = -EINVAL;
 			goto err_free_page_table;
 		}
@@ -992,7 +998,7 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 
 		sgt = rga_mm_lookup_sgt(job_buf->v_addr, job->core);
 		if (sgt == NULL) {
-			pr_err("rga2 cannot get sgt from handle!\n");
+			pr_err("rga2 cannot get sgt from internal buffer!\n");
 			ret = -EINVAL;
 			goto err_free_page_table;
 		}
@@ -1007,20 +1013,21 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 
 		page_count = RGA_GET_PAGE_COUNT(img_size + img_offset);
 		if (page_count < 0) {
-			pr_err("page count cal error!\n");
+			pr_err("page count cal error! yrba = %d, uv = %d, v = %d\n",
+			       yrgb_count, uv_count, v_count);
 			return -EFAULT;
 		}
 
 		order = get_order(page_count * sizeof(uint32_t *));
 		page_table = (uint32_t *)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
 		if (page_table == NULL) {
-			pr_err("%s can not alloc pages for pages\n", __func__);
+			pr_err("%s can not alloc pages for pages, order = %d\n", __func__, order);
 			return -ENOMEM;
 		}
 
 		sgt = rga_mm_lookup_sgt(job_buf->addr, job->core);
 		if (sgt == NULL) {
-			pr_err("rga2 cannot get sgt from handle!\n");
+			pr_err("rga2 cannot get sgt from internal buffer!\n");
 			ret = -EINVAL;
 			goto err_free_page_table;
 		}
@@ -1268,8 +1275,13 @@ static int rga_mm_get_channel_handle_info(struct rga_mm *mm,
 	}
 
 	if (job->core == RGA2_SCHEDULER_CORE0 &&
-	    rga_mm_is_need_mmu(job->core, job_buf->addr))
-		rga_mm_set_mmu_base(job, img, job_buf);
+	    rga_mm_is_need_mmu(job->core, job_buf->addr)) {
+		ret = rga_mm_set_mmu_base(job, img, job_buf);
+		if (ret < 0) {
+			pr_err("Can't set RGA2 MMU_BASE from handle!\n");
+			return ret;
+		}
+	}
 
 	return 0;
 }
@@ -1416,8 +1428,14 @@ static int rga_mm_map_channel_job_buffer(struct rga_job *job,
 	job_buffer->addr = buffer;
 
 	if (job->core == RGA2_SCHEDULER_CORE0 &&
-	    rga_mm_is_need_mmu(job->core, job_buffer->addr))
-		rga_mm_set_mmu_base(job, img, job_buffer);
+	    rga_mm_is_need_mmu(job->core, job_buffer->addr)) {
+		ret = rga_mm_set_mmu_base(job, img, job_buffer);
+		if (ret < 0) {
+			pr_err("Can't set RGA2 MMU_BASE!\n");
+			job_buffer->addr = NULL;
+			goto error_unmap_buffer;
+		}
+	}
 
 	return 0;
 

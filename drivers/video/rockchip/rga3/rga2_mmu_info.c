@@ -568,6 +568,11 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 
 	if (Src0MemSize) {
 		if (job->src_buffer.addr) {
+			if (!job->src_buffer.page_table) {
+				pr_err("src mmu base is NULL!\n");
+				return -EFAULT;
+			}
+
 			rga2_dma_sync_flush_range(job->src_buffer.page_table,
 						  (job->src_buffer.page_table +
 						   job->src_buffer.page_count),
@@ -614,6 +619,11 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 
 	if (Src1MemSize) {
 		if (job->src1_buffer.y_addr) {
+			if (!job->src1_buffer.page_table) {
+				pr_err("src1 mmu base is NULL!\n");
+				return -EFAULT;
+			}
+
 			rga2_dma_sync_flush_range(job->src1_buffer.page_table,
 						  (job->src1_buffer.page_table +
 						   job->src1_buffer.page_count),
@@ -655,6 +665,11 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_mmu_other_t *reg,
 		else
 			map_flag = MMU_MAP_INVALID;
 		if (job->dst_buffer.addr) {
+			if (!job->dst_buffer.page_table) {
+				pr_err("dst mmu base is NULL!\n");
+				return -EFAULT;
+			}
+
 			rga2_dma_sync_flush_range(job->dst_buffer.page_table,
 						  (job->dst_buffer.page_table +
 						   job->dst_buffer.page_count),
@@ -953,6 +968,11 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_mmu_other_t *reg,
 
 		if (DstMemSize) {
 			if (job->dst_buffer.addr) {
+				if (!job->dst_buffer.page_table) {
+					pr_err("dst mmu base is NULL!\n");
+					return -EFAULT;
+				}
+
 				rga2_dma_sync_flush_range(job->dst_buffer.page_table,
 							  (job->dst_buffer.page_table +
 							   job->dst_buffer.page_count),
