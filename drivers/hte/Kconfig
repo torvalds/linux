@@ -23,4 +23,11 @@ config HTE_TEGRA194
 	  systems-on-chip. The driver supports 352 LIC IRQs and 39 AON GPIOs
 	  lines for timestamping in realtime.
 
+config HTE_TEGRA194_TEST
+        tristate "NVIDIA Tegra194 HTE Test"
+        depends on HTE_TEGRA194
+        help
+	  The NVIDIA Tegra194 GTE test driver demonstrates how to use HTE
+	  framework to timestamp GPIO and LIC IRQ lines.
+
 endif
