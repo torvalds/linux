@@ -2273,6 +2273,8 @@ static inline void __io_req_complete(struct io_kiocb *req, unsigned issue_flags,
 
 static inline void io_req_complete(struct io_kiocb *req, s32 res)
 {
+	if (res < 0)
+		req_set_fail(req);
 	__io_req_complete(req, 0, res, 0);
 }
 
@@ -4200,8 +4202,6 @@ static int io_renameat(struct io_kiocb *req, unsigned int issue_flags)
 				ren->newpath, ren->flags);
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
-	if (ret < 0)
-		req_set_fail(req);
 	io_req_complete(req, ret);
 	return 0;
 }
@@ -4222,9 +4222,6 @@ static void io_xattr_finish(struct io_kiocb *req, int ret)
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 
 	__io_xattr_finish(req);
-	if (ret < 0)
-		req_set_fail(req);
-
 	io_req_complete(req, ret);
 }
 
@@ -4500,8 +4497,6 @@ static int io_unlinkat(struct io_kiocb *req, unsigned int issue_flags)
 		ret = do_unlinkat(un->dfd, un->filename);
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
-	if (ret < 0)
-		req_set_fail(req);
 	io_req_complete(req, ret);
 	return 0;
 }
@@ -4543,8 +4538,6 @@ static int io_mkdirat(struct io_kiocb *req, unsigned int issue_flags)
 	ret = do_mkdirat(mkd->dfd, mkd->filename, mkd->mode);
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
-	if (ret < 0)
-		req_set_fail(req);
 	io_req_complete(req, ret);
 	return 0;
 }
@@ -4592,8 +4585,6 @@ static int io_symlinkat(struct io_kiocb *req, unsigned int issue_flags)
 	ret = do_symlinkat(sl->oldpath, sl->new_dfd, sl->newpath);
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
-	if (ret < 0)
-		req_set_fail(req);
 	io_req_complete(req, ret);
 	return 0;
 }
@@ -4643,8 +4634,6 @@ static int io_linkat(struct io_kiocb *req, unsigned int issue_flags)
 				lnk->newpath, lnk->flags);
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
-	if (ret < 0)
-		req_set_fail(req);
 	io_req_complete(req, ret);
 	return 0;
 }
@@ -4680,8 +4669,6 @@ static int io_shutdown(struct io_kiocb *req, unsigned int issue_flags)
 		return -ENOTSOCK;
 
 	ret = __sys_shutdown_sock(sock, req->shutdown.how);
-	if (ret < 0)
-		req_set_fail(req);
 	io_req_complete(req, ret);
 	return 0;
 #else
@@ -4742,7 +4729,7 @@ static int io_tee(struct io_kiocb *req, unsigned int issue_flags)
 done:
 	if (ret != sp->len)
 		req_set_fail(req);
-	io_req_complete(req, ret);
+	__io_req_complete(req, 0, ret, 0);
 	return 0;
 }
 
@@ -4787,7 +4774,7 @@ static int io_splice(struct io_kiocb *req, unsigned int issue_flags)
 done:
 	if (ret != sp->len)
 		req_set_fail(req);
-	io_req_complete(req, ret);
+	__io_req_complete(req, 0, ret, 0);
 	return 0;
 }
 
@@ -4879,8 +4866,6 @@ static int io_fsync(struct io_kiocb *req, unsigned int issue_flags)
 	ret = vfs_fsync_range(req->file, req->sync.off,
 				end > 0 ? end : LLONG_MAX,
 				req->sync.flags & IORING_FSYNC_DATASYNC);
-	if (ret < 0)
-		req_set_fail(req);
 	io_req_complete(req, ret);
 	return 0;
 }
@@ -4909,9 +4894,7 @@ static int io_fallocate(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 	ret = vfs_fallocate(req->file, req->sync.mode, req->sync.off,
 				req->sync.len);
-	if (ret < 0)
-		req_set_fail(req);
-	else
+	if (ret >= 0)
 		fsnotify_modify(req->file);
 	io_req_complete(req, ret);
 	return 0;
@@ -5323,8 +5306,6 @@ static int io_madvise(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 
 	ret = do_madvise(current->mm, ma->addr, ma->len, ma->advice);
-	if (ret < 0)
-		req_set_fail(req);
 	io_req_complete(req, ret);
 	return 0;
 #else
@@ -5410,9 +5391,6 @@ static int io_statx(struct io_kiocb *req, unsigned int issue_flags)
 
 	ret = do_statx(ctx->dfd, ctx->filename, ctx->flags, ctx->mask,
 		       ctx->buffer);
-
-	if (ret < 0)
-		req_set_fail(req);
 	io_req_complete(req, ret);
 	return 0;
 }
@@ -5512,8 +5490,6 @@ static int io_sync_file_range(struct io_kiocb *req, unsigned int issue_flags)
 
 	ret = sync_file_range(req->file, req->sync.off, req->sync.len,
 				req->sync.flags);
-	if (ret < 0)
-		req_set_fail(req);
 	io_req_complete(req, ret);
 	return 0;
 }
