@@ -75,6 +75,23 @@ properties:
           - const: st,stm32mp157
 
       - items:
+          - const: st,stm32mp157a-dk1-scmi
+          - const: st,stm32mp157a-dk1
+          - const: st,stm32mp157
+      - items:
+          - const: st,stm32mp157c-dk2-scmi
+          - const: st,stm32mp157c-dk2
+          - const: st,stm32mp157
+      - items:
+          - const: st,stm32mp157c-ed1-scmi
+          - const: st,stm32mp157c-ed1
+          - const: st,stm32mp157
+      - items:
+          - const: st,stm32mp157c-ev1
+          - const: st,stm32mp157c-ed1
+          - const: st,stm32mp157
+      - items:
+          - const: st,stm32mp157c-ev1-scmi
           - const: st,stm32mp157c-ev1
           - const: st,stm32mp157c-ed1
           - const: st,stm32mp157
