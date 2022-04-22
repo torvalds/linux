@@ -1812,7 +1812,6 @@ __mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *ct_priv,
 
 	ct_flow = kzalloc(sizeof(*ct_flow), GFP_KERNEL);
 	if (!ct_flow) {
-		kfree(ct_flow);
 		return ERR_PTR(-ENOMEM);
 	}
 
