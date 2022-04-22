@@ -143,13 +143,6 @@
 		clock-output-names = "clk125mhz";
 	};
 
-	clk150mhz: clk150mhz {
-		compatible = "fixed-clock";
-		clock-frequency = <150000000>;
-		#clock-cells = <0>;
-		clock-output-names = "clk150mhz";
-	};
-
 	clk300mhz: clk300mhz {
 		compatible = "fixed-clock";
 		clock-frequency = <300000000>;
@@ -395,6 +388,8 @@
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PISPI1>;
+			clock-names = "apb_pclk";
 			status = "disabled";
 		};
 
@@ -407,6 +402,8 @@
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PISPI1>;
+			clock-names = "apb_pclk";
 			status = "disabled";
 		};
 
@@ -419,6 +416,8 @@
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PISPI2>;
+			clock-names = "apb_pclk";
 			status = "disabled";
 		};
 
@@ -431,6 +430,8 @@
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PISPI3>;
+			clock-names = "apb_pclk";
 			status = "disabled";
 		};
 
@@ -443,6 +444,8 @@
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PISPI4>;
+			clock-names = "apb_pclk";
 			status = "disabled";
 		};
 
@@ -455,6 +458,8 @@
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PISPI5>;
+			clock-names = "apb_pclk";
 			status = "disabled";
 		};
 
@@ -467,6 +472,8 @@
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&pismu TMPV770X_CLK_PISPI6>;
+			clock-names = "apb_pclk";
 			status = "disabled";
 		};
 
