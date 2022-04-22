@@ -868,6 +868,15 @@ mac_get()
 	ip -j link show dev $if_name | jq -r '.[]["address"]'
 }
 
+ipv6_lladdr_get()
+{
+	local if_name=$1
+
+	ip -j addr show dev $if_name | \
+		jq -r '.[]["addr_info"][] | select(.scope == "link").local' | \
+		head -1
+}
+
 bridge_ageing_time_get()
 {
 	local bridge=$1
