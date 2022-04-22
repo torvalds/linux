@@ -87,6 +87,7 @@
 			reg = <0x4000c000 0x1000>;
 			status = "okay";
 			#clock-cells = <1>;
+			#power-domain-cells = <0>;
 
 			clocks = <&ext_mclk>, <&ext_rtc_clk>,
 					<&ext_jtag_clk>, <&ext_rgmii_ref>;
