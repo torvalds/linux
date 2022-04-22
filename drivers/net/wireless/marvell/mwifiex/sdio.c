@@ -408,6 +408,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8977 = {
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8997 = {
 	.firmware = SD8997_DEFAULT_FW_NAME,
+	.firmware_sdiouart = SD8997_SDIOUART_FW_NAME,
 	.reg = &mwifiex_reg_sd8997,
 	.max_ports = 32,
 	.mp_agg_pkt_limit = 16,
@@ -3176,3 +3177,4 @@ MODULE_FIRMWARE(SD8887_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8977_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8987_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8997_DEFAULT_FW_NAME);
+MODULE_FIRMWARE(SD8997_SDIOUART_FW_NAME);
