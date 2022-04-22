@@ -49,6 +49,10 @@ struct rockchip_drm_private {
 	struct drm_mm mm;
 };
 
+struct rockchip_encoder {
+	struct drm_encoder encoder;
+};
+
 int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 				   struct device *dev);
 void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
@@ -66,4 +70,10 @@ extern struct platform_driver rockchip_dp_driver;
 extern struct platform_driver rockchip_lvds_driver;
 extern struct platform_driver vop_platform_driver;
 extern struct platform_driver rk3066_hdmi_driver;
+
+static inline struct rockchip_encoder *to_rockchip_encoder(struct drm_encoder *encoder)
+{
+	return container_of(encoder, struct rockchip_encoder, encoder);
+}
+
 #endif /* _ROCKCHIP_DRM_DRV_H_ */

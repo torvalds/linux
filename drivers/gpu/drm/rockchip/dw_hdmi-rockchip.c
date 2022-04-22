@@ -67,7 +67,7 @@ struct rockchip_hdmi_chip_data {
 struct rockchip_hdmi {
 	struct device *dev;
 	struct regmap *regmap;
-	struct drm_encoder encoder;
+	struct rockchip_encoder encoder;
 	const struct rockchip_hdmi_chip_data *chip_data;
 	struct clk *vpll_clk;
 	struct clk *grf_clk;
@@ -75,7 +75,12 @@ struct rockchip_hdmi {
 	struct phy *phy;
 };
 
-#define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
+static struct rockchip_hdmi *to_rockchip_hdmi(struct drm_encoder *encoder)
+{
+	struct rockchip_encoder *rkencoder = to_rockchip_encoder(encoder);
+
+	return container_of(rkencoder, struct rockchip_hdmi, encoder);
+}
 
 static const struct dw_hdmi_mpll_config rockchip_mpll_cfg[] = {
 	{
@@ -511,7 +516,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	hdmi->dev = &pdev->dev;
 	hdmi->chip_data = plat_data->phy_data;
 	plat_data->phy_data = hdmi;
-	encoder = &hdmi->encoder;
+	encoder = &hdmi->encoder.encoder;
 
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
 	/*
