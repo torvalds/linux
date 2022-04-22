@@ -139,6 +139,7 @@ needed).
    mhi/index
    tty/index
    peci/index
+   hte/index
 
 Architecture-agnostic documentation
 -----------------------------------
