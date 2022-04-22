@@ -406,12 +406,12 @@ struct rockchip_pin_ctrl {
 
 	int	(*soc_data_init)(struct rockchip_pinctrl *info);
 
-	void	(*pull_calc_reg)(struct rockchip_pin_bank *bank,
-				    int pin_num, struct regmap **regmap,
-				    int *reg, u8 *bit);
-	void	(*drv_calc_reg)(struct rockchip_pin_bank *bank,
-				    int pin_num, struct regmap **regmap,
-				    int *reg, u8 *bit);
+	int	(*pull_calc_reg)(struct rockchip_pin_bank *bank,
+				 int pin_num, struct regmap **regmap,
+				 int *reg, u8 *bit);
+	int	(*drv_calc_reg)(struct rockchip_pin_bank *bank,
+				int pin_num, struct regmap **regmap,
+				int *reg, u8 *bit);
 	int	(*schmitt_calc_reg)(struct rockchip_pin_bank *bank,
 				    int pin_num, struct regmap **regmap,
 				    int *reg, u8 *bit);
