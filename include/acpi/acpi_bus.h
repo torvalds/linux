@@ -482,7 +482,7 @@ extern struct bus_type acpi_bus_type;
 
 int acpi_bus_for_each_dev(int (*fn)(struct device *, void *), void *data);
 int acpi_dev_for_each_child(struct acpi_device *adev,
-			    int (*fn)(struct device *, void *), void *data);
+			    int (*fn)(struct acpi_device *, void *), void *data);
 
 /*
  * Events

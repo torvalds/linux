@@ -425,11 +425,8 @@ bool acpi_bus_power_manageable(acpi_handle handle)
 }
 EXPORT_SYMBOL(acpi_bus_power_manageable);
 
-static int acpi_power_up_if_adr_present(struct device *dev, void *not_used)
+static int acpi_power_up_if_adr_present(struct acpi_device *adev, void *not_used)
 {
-	struct acpi_device *adev;
-
-	adev = to_acpi_device(dev);
 	if (!(adev->flags.power_manageable && adev->pnp.type.bus_address))
 		return 0;
 
