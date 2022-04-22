@@ -2827,6 +2827,18 @@ static void commit_planes_do_stream_update(struct dc *dc,
 	}
 }
 
+static bool dc_dmub_should_send_dirty_rect_cmd(struct dc *dc, struct dc_stream_state *stream)
+{
+	if (stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1)
+		return true;
+
+	if (stream->link->psr_settings.psr_version == DC_PSR_VERSION_1 &&
+	    dc->debug.enable_sw_cntl_psr)
+		return true;
+
+	return false;
+}
+
 void dc_dmub_update_dirty_rect(struct dc *dc,
 			       int surface_count,
 			       struct dc_stream_state *stream,
@@ -2839,7 +2851,7 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 	unsigned int i, j;
 	unsigned int panel_inst = 0;
 
-	if (stream->link->psr_settings.psr_version != DC_PSR_VERSION_SU_1)
+	if (!dc_dmub_should_send_dirty_rect_cmd(dc, stream))
 		return;
 
 	if (!dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))

@@ -3330,6 +3330,23 @@ static bool dcn10_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 	return false;
 }
 
+static bool dcn10_dmub_should_update_cursor_data(
+		struct pipe_ctx *pipe_ctx,
+		struct dc_debug_options *debug)
+{
+	if (pipe_ctx->plane_state->address.type == PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
+		return false;
+
+	if (pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1)
+		return true;
+
+	if (pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_1 &&
+	    debug->enable_sw_cntl_psr)
+		return true;
+
+	return false;
+}
+
 static void dcn10_dmub_update_cursor_data(
 		struct pipe_ctx *pipe_ctx,
 		struct hubp *hubp,
@@ -3351,13 +3368,8 @@ static void dcn10_dmub_update_cursor_data(
 
 	struct dc_debug_options *debug = &hubp->ctx->dc->debug;
 
-	if (!debug->enable_sw_cntl_psr && pipe_ctx->stream->link->psr_settings.psr_version != DC_PSR_VERSION_SU_1)
+	if (!dcn10_dmub_should_update_cursor_data(pipe_ctx, debug))
 		return;
-
-	if (pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED ||
-		pipe_ctx->plane_state->address.type == PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
-		return;
-
 	/**
 	 * if cur_pos == NULL means the caller is from cursor_set_attribute
 	 * then driver use previous cursor position data
