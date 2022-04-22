@@ -61,7 +61,7 @@
 
 /* On-module Bluetooth */
 &uart4 {
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_bt_uart>;
 	status = "okay";
