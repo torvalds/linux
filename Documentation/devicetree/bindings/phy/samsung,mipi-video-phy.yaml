@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Samsung S5P/Exynos SoC MIPI CSIS/DSIM DPHY
 
 maintainers:
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
   - Marek Szyprowski <m.szyprowski@samsung.com>
   - Sylwester Nawrocki <s.nawrocki@samsung.com>
 
