@@ -23,6 +23,7 @@ struct dw8250_port_data {
 
 struct dw8250_platform_data {
 	u8 usr_reg;
+	u32 cpr_val;
 	unsigned int quirks;
 };
 

@@ -89,6 +89,8 @@ EXPORT_SYMBOL_GPL(dw8250_do_set_termios);
 
 void dw8250_setup_port(struct uart_port *p)
 {
+	struct dw8250_port_data *pd = p->private_data;
+	struct dw8250_data *data = to_dw8250_data(pd);
 	struct uart_8250_port *up = up_to_u8250p(p);
 	u32 reg;
 
@@ -108,14 +110,16 @@ void dw8250_setup_port(struct uart_port *p)
 	dw8250_writel_ext(p, DW_UART_DLF, 0);
 
 	if (reg) {
-		struct dw8250_port_data *d = p->private_data;
-
-		d->dlf_size = fls(reg);
+		pd->dlf_size = fls(reg);
 		p->get_divisor = dw8250_get_divisor;
 		p->set_divisor = dw8250_set_divisor;
 	}
 
 	reg = dw8250_readl_ext(p, DW_UART_CPR);
+	if (!reg) {
+		reg = data->pdata->cpr_val;
+		dev_dbg(p->dev, "CPR is not available, using 0x%08x instead\n", reg);
+	}
 	if (!reg)
 		return;
 
