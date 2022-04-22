@@ -1874,4 +1874,5 @@ config SND_SOC_TPA6130A2
 	depends on I2C
 
 source "sound/soc/codecs/aw87xxx/Kconfig"
+source "sound/soc/codecs/aw883xx/Kconfig"
 endmenu
