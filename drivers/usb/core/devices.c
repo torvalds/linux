@@ -228,8 +228,6 @@ static char *usb_dump_interface(int speed, char *start, char *end,
 
 	start = usb_dump_interface_descriptor(start, end, intfc, iface, setno);
 	for (i = 0; i < desc->desc.bNumEndpoints; i++) {
-		if (start > end)
-			return start;
 		start = usb_dump_endpoint_descriptor(speed,
 				start, end, &desc->endpoint[i].desc);
 	}
@@ -302,8 +300,6 @@ static char *usb_dump_config(int speed, char *start, char *end,
 		intfc = config->intf_cache[i];
 		interface = config->interface[i];
 		for (j = 0; j < intfc->num_altsetting; j++) {
-			if (start > end)
-				return start;
 			start = usb_dump_interface(speed,
 				start, end, intfc, interface, j);
 		}
@@ -369,19 +365,11 @@ static char *usb_dump_desc(char *start, char *end, struct usb_device *dev)
 {
 	int i;
 
-	if (start > end)
-		return start;
-
 	start = usb_dump_device_descriptor(start, end, &dev->descriptor);
-
-	if (start > end)
-		return start;
 
 	start = usb_dump_device_strings(start, end, dev);
 
 	for (i = 0; i < dev->descriptor.bNumConfigurations; i++) {
-		if (start > end)
-			return start;
 		start = usb_dump_config(dev->speed,
 				start, end, dev->config + i,
 				/* active ? */
