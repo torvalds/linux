@@ -116,7 +116,9 @@ static void perf_stat_evsel_id_init(struct evsel *evsel)
 	/* ps->id is 0 hence PERF_STAT_EVSEL_ID__NONE by default */
 
 	for (i = 0; i < PERF_STAT_EVSEL_ID__MAX; i++) {
-		if (!strcmp(evsel__name(evsel), id_str[i])) {
+		if (!strcmp(evsel__name(evsel), id_str[i]) ||
+		    (strstr(evsel__name(evsel), id_str[i]) && evsel->pmu_name
+		     && strstr(evsel__name(evsel), evsel->pmu_name))) {
 			ps->id = i;
 			break;
 		}
