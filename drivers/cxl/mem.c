@@ -138,6 +138,11 @@ out:
 	return retval;
 }
 
+static void enable_suspend(void *data)
+{
+	cxl_mem_active_dec();
+}
+
 static int cxl_mem_probe(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
@@ -194,7 +199,22 @@ static int cxl_mem_probe(struct device *dev)
 out:
 	cxl_device_unlock(&parent_port->dev);
 	put_device(&parent_port->dev);
-	return rc;
+
+	/*
+	 * The kernel may be operating out of CXL memory on this device,
+	 * there is no spec defined way to determine whether this device
+	 * preserves contents over suspend, and there is no simple way
+	 * to arrange for the suspend image to avoid CXL memory which
+	 * would setup a circular dependency between PCI resume and save
+	 * state restoration.
+	 *
+	 * TODO: support suspend when all the regions this device is
+	 * hosting are locked and covered by the system address map,
+	 * i.e. platform firmware owns restoring the HDM configuration
+	 * that it locked.
+	 */
+	cxl_mem_active_inc();
+	return devm_add_action_or_reset(dev, enable_suspend, NULL);
 }
 
 static struct cxl_driver cxl_mem_driver = {

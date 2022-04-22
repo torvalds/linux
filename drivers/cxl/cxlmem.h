@@ -353,6 +353,17 @@ int cxl_mem_create_range_info(struct cxl_dev_state *cxlds);
 struct cxl_dev_state *cxl_dev_state_create(struct device *dev);
 void set_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds);
 void clear_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds);
+#ifdef CONFIG_CXL_SUSPEND
+void cxl_mem_active_inc(void);
+void cxl_mem_active_dec(void);
+#else
+static inline void cxl_mem_active_inc(void)
+{
+}
+static inline void cxl_mem_active_dec(void)
+{
+}
+#endif
 
 struct cxl_hdm {
 	struct cxl_component_regs regs;
