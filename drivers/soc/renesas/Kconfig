@@ -47,6 +47,8 @@ config ARCH_RZG2L
 
 config ARCH_RZN1
 	bool
+	select PM
+	select PM_GENERIC_DOMAINS
 	select ARM_AMBA
 
 if ARM && ARCH_RENESAS
