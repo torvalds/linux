@@ -81,12 +81,6 @@
 		clock-frequency = <49500000>;
 	};
 
-	jpuclk: jpuclk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <204800000>;
-	};
-
 	venc_rootclk: venc_rootclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
