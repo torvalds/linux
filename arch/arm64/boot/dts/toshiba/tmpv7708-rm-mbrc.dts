@@ -42,8 +42,6 @@
 	status = "okay";
 	phy-handle = <&phy0>;
 	phy-mode = "rgmii-id";
-	clocks = <&clk300mhz>, <&clk125mhz>;
-	clock-names = "stmmaceth", "phy_ref_clk";
 
 	mdio0 {
 		#address-cells = <1>;

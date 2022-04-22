@@ -136,20 +136,6 @@
 		clock-output-names = "clk25mhz";
 	};
 
-	clk125mhz: clk125mhz {
-		compatible = "fixed-clock";
-		clock-frequency = <125000000>;
-		#clock-cells = <0>;
-		clock-output-names = "clk125mhz";
-	};
-
-	clk300mhz: clk300mhz {
-		compatible = "fixed-clock";
-		clock-frequency = <300000000>;
-		#clock-cells = <0>;
-		clock-output-names = "clk300mhz";
-	};
-
 	clk600mhz: clk600mhz {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -485,6 +471,8 @@
 			snps,txpbl = <4>;
 			snps,rxpbl = <4>;
 			snps,tso;
+			clocks = <&pismu TMPV770X_CLK_PIETHER_BUS>, <&pismu TMPV770X_CLK_PIETHER_125M>;
+			clock-names = "stmmaceth", "phy_ref_clk";
 			status = "disabled";
 		};
 
