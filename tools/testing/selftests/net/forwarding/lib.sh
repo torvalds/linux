@@ -27,6 +27,7 @@ INTERFACE_TIMEOUT=${INTERFACE_TIMEOUT:=600}
 LOW_AGEING_TIME=${LOW_AGEING_TIME:=1000}
 REQUIRE_JQ=${REQUIRE_JQ:=yes}
 REQUIRE_MZ=${REQUIRE_MZ:=yes}
+REQUIRE_MTOOLS=${REQUIRE_MTOOLS:=no}
 STABLE_MAC_ADDRS=${STABLE_MAC_ADDRS:=no}
 TCPDUMP_EXTRA_FLAGS=${TCPDUMP_EXTRA_FLAGS:=}
 
@@ -160,6 +161,12 @@ if [[ "$REQUIRE_JQ" = "yes" ]]; then
 fi
 if [[ "$REQUIRE_MZ" = "yes" ]]; then
 	require_command $MZ
+fi
+if [[ "$REQUIRE_MTOOLS" = "yes" ]]; then
+	# https://github.com/vladimiroltean/mtools/
+	# patched for IPv6 support
+	require_command msend
+	require_command mreceive
 fi
 
 if [[ ! -v NUM_NETIFS ]]; then
@@ -1546,6 +1553,37 @@ brmcast_check_sg_state()
 				 .flags[] == \"blocked\")" &>/dev/null
 		check_err_fail $should_fail $? "Entry $src has blocked flag"
 	done
+}
+
+mc_join()
+{
+	local if_name=$1
+	local group=$2
+	local vrf_name=$(master_name_get $if_name)
+
+	# We don't care about actual reception, just about joining the
+	# IP multicast group and adding the L2 address to the device's
+	# MAC filtering table
+	ip vrf exec $vrf_name \
+		mreceive -g $group -I $if_name > /dev/null 2>&1 &
+	mreceive_pid=$!
+
+	sleep 1
+}
+
+mc_leave()
+{
+	kill "$mreceive_pid" && wait "$mreceive_pid"
+}
+
+mc_send()
+{
+	local if_name=$1
+	local groups=$2
+	local vrf_name=$(master_name_get $if_name)
+
+	ip vrf exec $vrf_name \
+		msend -g $groups -I $if_name -c 1 > /dev/null 2>&1
 }
 
 start_ip_monitor()
