@@ -208,6 +208,7 @@
 #define PKTSCHED_GCP_TX_EN				BIT(3)
 #define PKTSCHED_AUDS_TX_EN				BIT(2)
 #define PKTSCHED_ACR_TX_EN				BIT(1)
+#define PKTSCHED_NULL_TX_EN				BIT(0)
 #define PKTSCHED_PKT_CONTROL0				0xaac
 #define PKTSCHED_PKT_SEND				0xab0
 #define PKTSCHED_PKT_STATUS0				0xab4

@@ -1429,6 +1429,7 @@ static void hdmi_set_op_mode(struct dw_hdmi_qp *hdmi,
 			     const struct drm_connector *connector)
 {
 	int frl_rate;
+	int i;
 
 	/* set sink frl mode disable and wait sink ready */
 	hdmi_writel(hdmi, 0, FLT_CONFIG0);
@@ -1439,6 +1440,7 @@ static void hdmi_set_op_mode(struct dw_hdmi_qp *hdmi,
 	 * or the signal may not be recognized.
 	 */
 	msleep(200);
+
 	if (!link_cfg->frl_mode) {
 		dev_info(hdmi->dev, "dw hdmi qp use tmds mode\n");
 		hdmi_modb(hdmi, 0, OPMODE_FRL, LINK_CONFIG0);
@@ -1456,6 +1458,12 @@ static void hdmi_set_op_mode(struct dw_hdmi_qp *hdmi,
 
 	frl_rate = link_cfg->frl_lanes * link_cfg->rate_per_lane;
 	hdmi_start_flt(hdmi, frl_rate);
+
+	for (i = 0; i < 50; i++) {
+		hdmi_modb(hdmi, PKTSCHED_NULL_TX_EN, PKTSCHED_NULL_TX_EN, PKTSCHED_PKT_EN);
+		mdelay(1);
+		hdmi_modb(hdmi, 0, PKTSCHED_NULL_TX_EN, PKTSCHED_PKT_EN);
+	}
 }
 
 static unsigned long
