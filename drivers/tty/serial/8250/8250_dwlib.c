@@ -3,7 +3,6 @@
 
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_core.h>
@@ -31,21 +30,6 @@
 
 /* Helper for FIFO size calculation */
 #define DW_UART_CPR_FIFO_SIZE(a)	(((a >> 16) & 0xff) * 16)
-
-static inline u32 dw8250_readl_ext(struct uart_port *p, int offset)
-{
-	if (p->iotype == UPIO_MEM32BE)
-		return ioread32be(p->membase + offset);
-	return readl(p->membase + offset);
-}
-
-static inline void dw8250_writel_ext(struct uart_port *p, int offset, u32 reg)
-{
-	if (p->iotype == UPIO_MEM32BE)
-		iowrite32be(reg, p->membase + offset);
-	else
-		writel(reg, p->membase + offset);
-}
 
 /*
  * divisor = div(I) + div(F)
