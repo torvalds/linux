@@ -96,6 +96,12 @@ static int rockchip_p3phy_rk3568_init(struct rockchip_p3phy_priv *priv)
 
 	reset_control_deassert(priv->p30phy);
 
+	udelay(10);
+	/* Updata RX VCO calibration controls */
+	writel(0x2800, priv->mmio + (0x104a << 2));
+	writel(0x2800, priv->mmio + (0x114a << 2));
+	udelay(10);
+
 	ret = regmap_read_poll_timeout(priv->phy_grf,
 				       GRF_PCIE30PHY_STATUS0,
 				       reg, SRAM_INIT_DONE(reg),
