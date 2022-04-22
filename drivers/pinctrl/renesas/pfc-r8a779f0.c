@@ -257,7 +257,28 @@ enum {
 };
 
 static const u16 pinmux_data[] = {
+/* Using GP_1_[0-9] requires disabling I2C in MOD_SEL1 */
+#define GP_1_0_FN	GP_1_0_FN,	FN_SEL_I2C0_0
+#define GP_1_1_FN	GP_1_1_FN,	FN_SEL_I2C0_0
+#define GP_1_2_FN	GP_1_2_FN,	FN_SEL_I2C1_0
+#define GP_1_3_FN	GP_1_3_FN,	FN_SEL_I2C1_0
+#define GP_1_4_FN	GP_1_4_FN,	FN_SEL_I2C2_0
+#define GP_1_5_FN	GP_1_5_FN,	FN_SEL_I2C2_0
+#define GP_1_6_FN	GP_1_6_FN,	FN_SEL_I2C3_0
+#define GP_1_7_FN	GP_1_7_FN,	FN_SEL_I2C3_0
+#define GP_1_8_FN	GP_1_8_FN,	FN_SEL_I2C4_0
+#define GP_1_9_FN	GP_1_9_FN,	FN_SEL_I2C4_0
 	PINMUX_DATA_GP_ALL(),
+#undef GP_1_0_FN
+#undef GP_1_1_FN
+#undef GP_1_2_FN
+#undef GP_1_3_FN
+#undef GP_1_4_FN
+#undef GP_1_5_FN
+#undef GP_1_6_FN
+#undef GP_1_7_FN
+#undef GP_1_8_FN
+#undef GP_1_9_FN
 
 	PINMUX_SINGLE(SD_WP),
 	PINMUX_SINGLE(SD_CD),
