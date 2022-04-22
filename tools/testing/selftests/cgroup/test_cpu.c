@@ -2,6 +2,8 @@
 
 #define _GNU_SOURCE
 #include <linux/limits.h>
+#include <sys/sysinfo.h>
+#include <sys/wait.h>
 #include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -10,9 +12,17 @@
 #include "../kselftest.h"
 #include "cgroup_util.h"
 
+enum hog_clock_type {
+	// Count elapsed time using the CLOCK_PROCESS_CPUTIME_ID clock.
+	CPU_HOG_CLOCK_PROCESS,
+	// Count elapsed time using system wallclock time.
+	CPU_HOG_CLOCK_WALL,
+};
+
 struct cpu_hog_func_param {
 	int nprocs;
 	struct timespec ts;
+	enum hog_clock_type clock_type;
 };
 
 /*
@@ -118,7 +128,12 @@ static int hog_cpus_timed(const char *cgroup, void *arg)
 		(struct cpu_hog_func_param *)arg;
 	struct timespec ts_run = param->ts;
 	struct timespec ts_remaining = ts_run;
+	struct timespec ts_start;
 	int i, ret;
+
+	ret = clock_gettime(CLOCK_MONOTONIC, &ts_start);
+	if (ret != 0)
+		return ret;
 
 	for (i = 0; i < param->nprocs; i++) {
 		pthread_t tid;
@@ -135,9 +150,19 @@ static int hog_cpus_timed(const char *cgroup, void *arg)
 		if (ret && errno != EINTR)
 			return ret;
 
-		ret = clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts_total);
-		if (ret != 0)
-			return ret;
+		if (param->clock_type == CPU_HOG_CLOCK_PROCESS) {
+			ret = clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts_total);
+			if (ret != 0)
+				return ret;
+		} else {
+			struct timespec ts_current;
+
+			ret = clock_gettime(CLOCK_MONOTONIC, &ts_current);
+			if (ret != 0)
+				return ret;
+
+			ts_total = timespec_sub(&ts_current, &ts_start);
+		}
 
 		ts_remaining = timespec_sub(&ts_run, &ts_total);
 	}
@@ -176,6 +201,7 @@ static int test_cpucg_stats(const char *root)
 			.tv_sec = usage_seconds,
 			.tv_nsec = 0,
 		},
+		.clock_type = CPU_HOG_CLOCK_PROCESS,
 	};
 	if (cg_run(cpucg, hog_cpus_timed, (void *)&param))
 		goto cleanup;
@@ -197,6 +223,108 @@ cleanup:
 	return ret;
 }
 
+/*
+ * First, this test creates the following hierarchy:
+ * A
+ * A/B     cpu.weight = 50
+ * A/C     cpu.weight = 100
+ * A/D     cpu.weight = 150
+ *
+ * A separate process is then created for each child cgroup which spawns as
+ * many threads as there are cores, and hogs each CPU as much as possible
+ * for some time interval.
+ *
+ * Once all of the children have exited, we verify that each child cgroup
+ * was given proportional runtime as informed by their cpu.weight.
+ */
+static int test_cpucg_weight_overprovisioned(const char *root)
+{
+	struct child {
+		char *cgroup;
+		pid_t pid;
+		long usage;
+	};
+	int ret = KSFT_FAIL, i;
+	char *parent = NULL;
+	struct child children[3] = {NULL};
+	long usage_seconds = 10;
+
+	parent = cg_name(root, "cpucg_test_0");
+	if (!parent)
+		goto cleanup;
+
+	if (cg_create(parent))
+		goto cleanup;
+
+	if (cg_write(parent, "cgroup.subtree_control", "+cpu"))
+		goto cleanup;
+
+	for (i = 0; i < ARRAY_SIZE(children); i++) {
+		children[i].cgroup = cg_name_indexed(parent, "cpucg_child", i);
+		if (!children[i].cgroup)
+			goto cleanup;
+
+		if (cg_create(children[i].cgroup))
+			goto cleanup;
+
+		if (cg_write_numeric(children[i].cgroup, "cpu.weight",
+					50 * (i + 1)))
+			goto cleanup;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(children); i++) {
+		struct cpu_hog_func_param param = {
+			.nprocs = get_nprocs(),
+			.ts = {
+				.tv_sec = usage_seconds,
+				.tv_nsec = 0,
+			},
+			.clock_type = CPU_HOG_CLOCK_WALL,
+		};
+		pid_t pid = cg_run_nowait(children[i].cgroup, hog_cpus_timed,
+				(void *)&param);
+		if (pid <= 0)
+			goto cleanup;
+		children[i].pid = pid;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(children); i++) {
+		int retcode;
+
+		waitpid(children[i].pid, &retcode, 0);
+		if (!WIFEXITED(retcode))
+			goto cleanup;
+		if (WEXITSTATUS(retcode))
+			goto cleanup;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(children); i++)
+		children[i].usage = cg_read_key_long(children[i].cgroup,
+				"cpu.stat", "usage_usec");
+
+	for (i = 0; i < ARRAY_SIZE(children) - 1; i++) {
+		long delta;
+
+		if (children[i + 1].usage <= children[i].usage)
+			goto cleanup;
+
+		delta = children[i + 1].usage - children[i].usage;
+		if (!values_close(delta, children[0].usage, 35))
+			goto cleanup;
+	}
+
+	ret = KSFT_PASS;
+cleanup:
+	for (i = 0; i < ARRAY_SIZE(children); i++) {
+		cg_destroy(children[i].cgroup);
+		free(children[i].cgroup);
+	}
+	cg_destroy(parent);
+	free(parent);
+
+	return ret;
+}
+
 #define T(x) { x, #x }
 struct cpucg_test {
 	int (*fn)(const char *root);
@@ -204,6 +332,7 @@ struct cpucg_test {
 } tests[] = {
 	T(test_cpucg_subtree_control),
 	T(test_cpucg_stats),
+	T(test_cpucg_weight_overprovisioned),
 };
 #undef T
 
