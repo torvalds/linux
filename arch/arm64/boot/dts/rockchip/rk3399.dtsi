@@ -1907,7 +1907,7 @@
 			 <&cru SCLK_HDMI_CEC>,
 			 <&cru PCLK_VIO_GRF>,
 			 <&cru PLL_VPLL>;
-		clock-names = "iahb", "isfr", "cec", "grf", "vpll";
+		clock-names = "iahb", "isfr", "cec", "grf", "ref";
 		power-domains = <&power RK3399_PD_HDCP>;
 		reg-io-width = <4>;
 		rockchip,grf = <&grf>;
