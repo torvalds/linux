@@ -1998,6 +1998,15 @@ static int mpp_iommu_handle(struct iommu_domain *iommu,
 	return 0;
 }
 
+void mpp_reg_show(struct mpp_dev *mpp, u32 offset)
+{
+	if (!mpp)
+		return;
+
+	dev_err(mpp->dev, "reg[%03d]: %04x: 0x%08x\n",
+		offset >> 2, offset, mpp_read_relaxed(mpp, offset));
+}
+
 /* The device will do more probing work after this */
 int mpp_dev_probe(struct mpp_dev *mpp,
 		  struct platform_device *pdev)

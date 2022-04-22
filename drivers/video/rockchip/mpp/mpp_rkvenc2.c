@@ -1626,6 +1626,9 @@ static int rkvenc2_task_default_process(struct mpp_dev *mpp,
 	return ret;
 }
 
+#define RKVENC2_TIMEOUT_DUMP_REG_START	(0x5100)
+#define RKVENC2_TIMEOUT_DUMP_REG_END	(0x5160)
+
 static void rkvenc2_task_timeout_process(struct mpp_session *session,
 					 struct mpp_task *task)
 {
@@ -1635,6 +1638,18 @@ static void rkvenc2_task_timeout_process(struct mpp_session *session,
 	mpp_err("session %d:%d count %d task %d ref %d timeout\n",
 		session->pid, session->index, atomic_read(&session->task_count),
 		task->task_id, kref_read(&task->ref));
+
+	if (task->mpp) {
+		struct mpp_dev *mpp = task->mpp;
+		u32 start = RKVENC2_TIMEOUT_DUMP_REG_START;
+		u32 end = RKVENC2_TIMEOUT_DUMP_REG_END;
+		u32 offset;
+
+		dev_err(mpp->dev, "core %d dump timeout status:\n", mpp->core_id);
+
+		for (offset = start; offset < end; offset += sizeof(u32))
+			mpp_reg_show(mpp, offset);
+	}
 
 	rkvenc2_task_pop_pending(task);
 }
