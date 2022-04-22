@@ -161,8 +161,9 @@ static struct cmn2asic_mapping smu_v13_0_7_workload_map[PP_SMC_POWER_PROFILE_COU
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_POWERSAVING,		WORKLOAD_PPLIB_POWER_SAVING_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VIDEO,		WORKLOAD_PPLIB_VIDEO_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VR,			WORKLOAD_PPLIB_VR_BIT),
-	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_CUSTOM_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_COMPUTE_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_WINDOW3D,		WORKLOAD_PPLIB_WINDOW_3D_BIT),
 };
 
 static const uint8_t smu_v13_0_7_throttler_map[] = {
@@ -1322,6 +1323,134 @@ static int smu_v13_0_7_enable_mgpu_fan_boost(struct smu_context *smu)
 					       NULL);
 }
 
+static int smu_v13_0_7_get_power_profile_mode(struct smu_context *smu, char *buf)
+{
+	DpmActivityMonitorCoeffIntExternal_t activity_monitor_external[PP_SMC_POWER_PROFILE_COUNT];
+	uint32_t i, j, size = 0;
+	int16_t workload_type = 0;
+	int result = 0;
+
+	if (!buf)
+		return -EINVAL;
+
+	size += sysfs_emit_at(buf, size, "                              ");
+	for (i = 0; i <= PP_SMC_POWER_PROFILE_WINDOW3D; i++)
+		size += sysfs_emit_at(buf, size, "%-14s%s", amdgpu_pp_profile_name[i],
+			(i == smu->power_profile_mode) ? "* " : "  ");
+
+	size += sysfs_emit_at(buf, size, "\n");
+
+	for (i = 0; i <= PP_SMC_POWER_PROFILE_WINDOW3D; i++) {
+		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+		workload_type = smu_cmn_to_asic_specific_index(smu,
+							       CMN2ASIC_MAPPING_WORKLOAD,
+							       i);
+		if (workload_type < 0)
+			return -EINVAL;
+
+		result = smu_cmn_update_table(smu,
+					  SMU_TABLE_ACTIVITY_MONITOR_COEFF, workload_type,
+					  (void *)(&activity_monitor_external[i]), false);
+		if (result) {
+			dev_err(smu->adev->dev, "[%s] Failed to get activity monitor!", __func__);
+			return result;
+		}
+	}
+
+#define PRINT_DPM_MONITOR(field)									\
+do {													\
+	size += sysfs_emit_at(buf, size, "%-30s", #field);						\
+	for (j = 0; j <= PP_SMC_POWER_PROFILE_WINDOW3D; j++)						\
+		size += sysfs_emit_at(buf, size, "%-16d", activity_monitor_external[j].DpmActivityMonitorCoeffInt.field);		\
+	size += sysfs_emit_at(buf, size, "\n");								\
+} while (0)
+
+	PRINT_DPM_MONITOR(Gfx_ActiveHystLimit);
+	PRINT_DPM_MONITOR(Gfx_IdleHystLimit);
+	PRINT_DPM_MONITOR(Gfx_FPS);
+	PRINT_DPM_MONITOR(Gfx_MinActiveFreqType);
+	PRINT_DPM_MONITOR(Gfx_BoosterFreqType);
+	PRINT_DPM_MONITOR(Gfx_MinActiveFreq);
+	PRINT_DPM_MONITOR(Gfx_BoosterFreq);
+	PRINT_DPM_MONITOR(Fclk_ActiveHystLimit);
+	PRINT_DPM_MONITOR(Fclk_IdleHystLimit);
+	PRINT_DPM_MONITOR(Fclk_FPS);
+	PRINT_DPM_MONITOR(Fclk_MinActiveFreqType);
+	PRINT_DPM_MONITOR(Fclk_BoosterFreqType);
+	PRINT_DPM_MONITOR(Fclk_MinActiveFreq);
+	PRINT_DPM_MONITOR(Fclk_BoosterFreq);
+#undef PRINT_DPM_MONITOR
+
+	return size;
+}
+
+static int smu_v13_0_7_set_power_profile_mode(struct smu_context *smu, long *input, uint32_t size)
+{
+
+	DpmActivityMonitorCoeffIntExternal_t activity_monitor_external;
+	DpmActivityMonitorCoeffInt_t *activity_monitor =
+		&(activity_monitor_external.DpmActivityMonitorCoeffInt);
+	int workload_type, ret = 0;
+
+	smu->power_profile_mode = input[size];
+
+	if (smu->power_profile_mode > PP_SMC_POWER_PROFILE_WINDOW3D) {
+		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", smu->power_profile_mode);
+		return -EINVAL;
+	}
+
+	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+
+		ret = smu_cmn_update_table(smu,
+				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
+				       (void *)(&activity_monitor_external), false);
+		if (ret) {
+			dev_err(smu->adev->dev, "[%s] Failed to get activity monitor!", __func__);
+			return ret;
+		}
+
+		switch (input[0]) {
+		case 0: /* Gfxclk */
+			activity_monitor->Gfx_ActiveHystLimit = input[1];
+			activity_monitor->Gfx_IdleHystLimit = input[2];
+			activity_monitor->Gfx_FPS = input[3];
+			activity_monitor->Gfx_MinActiveFreqType = input[4];
+			activity_monitor->Gfx_BoosterFreqType = input[5];
+			activity_monitor->Gfx_MinActiveFreq = input[6];
+			activity_monitor->Gfx_BoosterFreq = input[7];
+			break;
+		case 1: /* Fclk */
+			activity_monitor->Fclk_ActiveHystLimit = input[1];
+			activity_monitor->Fclk_IdleHystLimit = input[2];
+			activity_monitor->Fclk_FPS = input[3];
+			activity_monitor->Fclk_MinActiveFreqType = input[4];
+			activity_monitor->Fclk_BoosterFreqType = input[5];
+			activity_monitor->Fclk_MinActiveFreq = input[6];
+			activity_monitor->Fclk_BoosterFreq = input[7];
+			break;
+		}
+
+		ret = smu_cmn_update_table(smu,
+				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
+				       (void *)(&activity_monitor_external), true);
+		if (ret) {
+			dev_err(smu->adev->dev, "[%s] Failed to set activity monitor!", __func__);
+			return ret;
+		}
+	}
+
+	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+	workload_type = smu_cmn_to_asic_specific_index(smu,
+						       CMN2ASIC_MAPPING_WORKLOAD,
+						       smu->power_profile_mode);
+	if (workload_type < 0)
+		return -EINVAL;
+	smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
+				    1 << workload_type, NULL);
+
+	return ret;
+}
+
 static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.get_allowed_feature_mask = smu_v13_0_7_get_allowed_feature_mask,
 	.set_default_dpm_table = smu_v13_0_7_set_default_dpm_table,
@@ -1365,6 +1494,8 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.get_fan_control_mode = smu_v13_0_get_fan_control_mode,
 	.set_fan_control_mode = smu_v13_0_set_fan_control_mode,
 	.enable_mgpu_fan_boost = smu_v13_0_7_enable_mgpu_fan_boost,
+	.get_power_profile_mode = smu_v13_0_7_get_power_profile_mode,
+	.set_power_profile_mode = smu_v13_0_7_set_power_profile_mode,
 };
 
 void smu_v13_0_7_set_ppt_funcs(struct smu_context *smu)

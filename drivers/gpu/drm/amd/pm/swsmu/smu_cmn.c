@@ -497,7 +497,7 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 		return mapping.map_to;
 
 	case CMN2ASIC_MAPPING_WORKLOAD:
-		if (index > PP_SMC_POWER_PROFILE_CUSTOM ||
+		if (index > PP_SMC_POWER_PROFILE_WINDOW3D ||
 		    !smu->workload_map)
 			return -EINVAL;
 

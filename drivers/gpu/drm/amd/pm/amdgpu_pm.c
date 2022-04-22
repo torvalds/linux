@@ -89,7 +89,8 @@ const char * const amdgpu_pp_profile_name[] = {
 	"VIDEO",
 	"VR",
 	"COMPUTE",
-	"CUSTOM"
+	"CUSTOM",
+	"WINDOW_3D",
 };
 
 /**
