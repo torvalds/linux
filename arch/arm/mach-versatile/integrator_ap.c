@@ -145,10 +145,6 @@ struct amba_pl010_data ap_uart_data = {
 	.set_mctrl = integrator_uart_set_mctrl,
 };
 
-void __init ap_init_early(void)
-{
-}
-
 static void __init ap_init_irq_of(void)
 {
 	cm_init();
@@ -193,7 +189,6 @@ static const char * ap_dt_board_compat[] = {
 DT_MACHINE_START(INTEGRATOR_AP_DT, "ARM Integrator/AP (Device Tree)")
 	.reserve	= integrator_reserve,
 	.map_io		= ap_map_io,
-	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq_of,
 	.init_machine	= ap_init_of,
 	.dt_compat      = ap_dt_board_compat,
