@@ -599,12 +599,30 @@
 		};
 
 		vpu_enc: vpu_enc@130B0000 {
-			compatible = "cnm,cnm420l-vpu";
+			compatible = "starfive,venc";
 			reg = <0x0 0x130B0000 0x0 0x10000>;
-			reg-names = "control";
-			clocks = <&venc_rootclk>;
-			clock-names = "vcodec";
 			interrupts = <15>;
+			clocks = <&clkgen JH7110_WAVE420L_CLK_AXI>,
+				<&clkgen JH7110_WAVE420L_CLK_BPU>,
+				<&clkgen JH7110_WAVE420L_CLK_VCE>,
+				<&clkgen JH7110_WAVE420L_CLK_APB>,
+				<&clkgen JH7110_NOC_BUS_CLK_VENC_AXI>;
+			clock-names = "axi_clk",
+				"bpu_clk",
+				"vce_clk",
+				"apb_clk",
+				"noc_bus";
+			resets = <&rstgen RSTN_U0_WAVE420L_AXI>,
+				<&rstgen RSTN_U0_WAVE420L_BPU>,
+				<&rstgen RSTN_U0_WAVE420L_VCE>,
+				<&rstgen RSTN_U0_WAVE420L_APB>,
+				<&rstgen RSTN_U1_AXIMEM_128B_AXI>;
+			reset-names = "rst_axi",
+				"rst_bpu",
+				"rst_vce",
+				"rst_apb",
+				"rst_sram";
+			starfive,venc_noc_ctrl;
 			status = "disabled";
 		};
 
