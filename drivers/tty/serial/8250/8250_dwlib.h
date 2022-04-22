@@ -22,6 +22,7 @@ struct dw8250_port_data {
 };
 
 struct dw8250_platform_data {
+	u8 usr_reg;
 	unsigned int quirks;
 };
 
@@ -29,7 +30,6 @@ struct dw8250_data {
 	struct dw8250_port_data	data;
 	const struct dw8250_platform_data *pdata;
 
-	u8			usr_reg;
 	int			msr_mask_on;
 	int			msr_mask_off;
 	struct clk		*clk;
