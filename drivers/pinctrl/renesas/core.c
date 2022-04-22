@@ -1007,7 +1007,18 @@ static void __init sh_pfc_compare_groups(const char *drvname,
 static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 {
 	const struct pinmux_drive_reg *drive_regs = info->drive_regs;
+#define drive_nfields	ARRAY_SIZE(drive_regs->fields)
+#define drive_ofs(i)	drive_regs[(i) / drive_nfields]
+#define drive_reg(i)	drive_ofs(i).reg
+#define drive_bit(i)	((i) % drive_nfields)
+#define drive_field(i)	drive_ofs(i).fields[drive_bit(i)]
 	const struct pinmux_bias_reg *bias_regs = info->bias_regs;
+#define bias_npins	ARRAY_SIZE(bias_regs->pins)
+#define bias_ofs(i)	bias_regs[(i) / bias_npins]
+#define bias_puen(i)	bias_ofs(i).puen
+#define bias_pud(i)	bias_ofs(i).pud
+#define bias_bit(i)	((i) % bias_npins)
+#define bias_pin(i)	bias_ofs(i).pins[bias_bit(i)]
 	const char *drvname = info->name;
 	unsigned int *refcnts;
 	unsigned int i, j, k;
@@ -1076,17 +1087,17 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 			if (!drive_regs) {
 				sh_pfc_err_once(drive, "SH_PFC_PIN_CFG_DRIVE_STRENGTH flag set but drive_regs missing\n");
 			} else {
-				for (j = 0; drive_regs[j / 8].reg; j++) {
-					if (!drive_regs[j / 8].fields[j % 8].pin &&
-					    !drive_regs[j / 8].fields[j % 8].offset &&
-					    !drive_regs[j / 8].fields[j % 8].size)
+				for (j = 0; drive_reg(j); j++) {
+					if (!drive_field(j).pin &&
+					    !drive_field(j).offset &&
+					    !drive_field(j).size)
 						continue;
 
-					if (drive_regs[j / 8].fields[j % 8].pin == pin->pin)
+					if (drive_field(j).pin == pin->pin)
 						break;
 				}
 
-				if (!drive_regs[j / 8].reg)
+				if (!drive_reg(j))
 					sh_pfc_err("pin %s: SH_PFC_PIN_CFG_DRIVE_STRENGTH flag set but not in drive_regs\n",
 						   pin->name);
 			}
@@ -1164,20 +1175,17 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	for (i = 0; drive_regs && drive_regs[i].reg; i++)
 		sh_pfc_check_drive_reg(info, &drive_regs[i]);
 
-	for (i = 0; drive_regs && drive_regs[i / 8].reg; i++) {
-		if (!drive_regs[i / 8].fields[i % 8].pin &&
-		    !drive_regs[i / 8].fields[i % 8].offset &&
-		    !drive_regs[i / 8].fields[i % 8].size)
+	for (i = 0; drive_regs && drive_reg(i); i++) {
+		if (!drive_field(i).pin && !drive_field(i).offset &&
+		    !drive_field(i).size)
 			continue;
 
 		for (j = 0; j < i; j++) {
-			if (drive_regs[i / 8].fields[i % 8].pin ==
-			    drive_regs[j / 8].fields[j % 8].pin &&
-			    drive_regs[j / 8].fields[j % 8].offset &&
-			    drive_regs[j / 8].fields[j % 8].size) {
-				sh_pfc_err("drive_reg 0x%x:%u/0x%x:%u: pin conflict\n",
-					   drive_regs[i / 8].reg, i % 8,
-					   drive_regs[j / 8].reg, j % 8);
+			if (drive_field(i).pin == drive_field(j).pin &&
+			    drive_field(j).offset && drive_field(j).size) {
+				sh_pfc_err("drive_reg 0x%x:%zu/0x%x:%zu: pin conflict\n",
+					   drive_reg(i), drive_bit(i),
+					   drive_reg(j), drive_bit(j));
 			}
 		}
 	}
@@ -1186,26 +1194,23 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 	for (i = 0; bias_regs && (bias_regs[i].puen || bias_regs[i].pud); i++)
 		sh_pfc_check_bias_reg(info, &bias_regs[i]);
 
-	for (i = 0; bias_regs &&
-		    (bias_regs[i / 32].puen || bias_regs[i / 32].pud); i++) {
-		if (bias_regs[i / 32].pins[i % 32] == SH_PFC_PIN_NONE)
+	for (i = 0; bias_regs && (bias_puen(i) || bias_pud(i)); i++) {
+		if (bias_pin(i) == SH_PFC_PIN_NONE)
 			continue;
 
 		for (j = 0; j < i; j++) {
-			if (bias_regs[i / 32].pins[i % 32] !=
-			    bias_regs[j / 32].pins[j % 32])
+			if (bias_pin(i) != bias_pin(j))
 				continue;
 
-			if (bias_regs[i / 32].puen && bias_regs[j / 32].puen)
-				sh_pfc_err("bias_reg 0x%x:%u/0x%x:%u: pin conflict\n",
-					   bias_regs[i / 32].puen, i % 32,
-					   bias_regs[j / 32].puen, j % 32);
-			if (bias_regs[i / 32].pud && bias_regs[j / 32].pud)
-				sh_pfc_err("bias_reg 0x%x:%u/0x%x:%u: pin conflict\n",
-					   bias_regs[i / 32].pud, i % 32,
-					   bias_regs[j / 32].pud, j % 32);
+			if (bias_puen(i) && bias_puen(j))
+				sh_pfc_err("bias_reg 0x%x:%zu/0x%x:%zu: pin conflict\n",
+					   bias_puen(i), bias_bit(i),
+					   bias_puen(j), bias_bit(j));
+			if (bias_pud(i) && bias_pud(j))
+				sh_pfc_err("bias_reg 0x%x:%zu/0x%x:%zu: pin conflict\n",
+					   bias_pud(i), bias_bit(i),
+					   bias_pud(j), bias_bit(j));
 		}
-
 	}
 
 	/* Check ioctrl registers */

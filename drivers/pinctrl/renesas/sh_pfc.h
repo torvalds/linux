@@ -132,9 +132,8 @@ struct pinmux_cfg_reg {
 	.reg = r, .reg_width = r_width,					\
 	.field_width = f_width + BUILD_BUG_ON_ZERO(r_width % f_width) +	\
 	BUILD_BUG_ON_ZERO(sizeof((const u16 []) { ids }) / sizeof(u16) != \
-			  (r_width / f_width) * (1 << f_width)),	\
-	.enum_ids = (const u16 [(r_width / f_width) * (1 << f_width)])	\
-		{ ids }
+			  (r_width / f_width) << f_width),		\
+	.enum_ids = (const u16 [(r_width / f_width) << f_width]) { ids }
 
 /*
  * Describe a config register consisting of several fields of different widths
@@ -162,7 +161,7 @@ struct pinmux_drive_reg_field {
 
 struct pinmux_drive_reg {
 	u32 reg;
-	const struct pinmux_drive_reg_field fields[8];
+	const struct pinmux_drive_reg_field fields[10];
 };
 
 #define PINMUX_DRIVE_REG(name, r) \

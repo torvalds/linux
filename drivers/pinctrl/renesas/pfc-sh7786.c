@@ -10,7 +10,6 @@
  *  Copyright (C) 2008  Magnus Damm
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <cpu/sh7786.h>
 
