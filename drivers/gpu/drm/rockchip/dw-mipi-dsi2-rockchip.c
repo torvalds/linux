@@ -470,13 +470,13 @@ static void dw_mipi_dsi2_encoder_disable(struct drm_encoder *encoder)
 	s->output_if &= ~(dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0);
 }
 
-static void dw_mipi_dsi2_set_lane_rate(struct dw_mipi_dsi2 *dsi2)
+static void dw_mipi_dsi2_get_lane_rate(struct dw_mipi_dsi2 *dsi2)
 {
 	struct device *dev = dsi2->dev;
 	const struct drm_display_mode *mode = &dsi2->mode;
-	unsigned long max_lane_rate;
-	unsigned long lane_rate, hs_clk_rate, target_pclk;
-	unsigned int value;
+	u64 max_lane_rate;
+	u64 lane_rate, target_pclk;
+	u32 value;
 	int bpp, lanes;
 	u64 tmp;
 
@@ -489,9 +489,17 @@ static void dw_mipi_dsi2_set_lane_rate(struct dw_mipi_dsi2 *dsi2)
 	if (bpp < 0)
 		bpp = 24;
 
-	/* optional override of the desired bandwidth */
+	/*
+	 * optional override of the desired bandwidth
+	 * High-Speed mode: Differential and terminated: 80Mbps ~ 4500 Mbps.
+	 */
 	if (!of_property_read_u32(dev->of_node, "rockchip,lane-rate", &value)) {
-		lane_rate = value * MSEC_PER_SEC;
+		if (value >= 80000 && value <= 4500000)
+			lane_rate = value * MSEC_PER_SEC;
+		else if (value >= 80 && value <= 4500)
+			lane_rate = value * USEC_PER_SEC;
+		else
+			lane_rate = 80 * USEC_PER_SEC;
 	} else {
 		tmp = (u64)mode->clock * 1000 * bpp;
 		do_div(tmp, lanes);
@@ -522,6 +530,14 @@ static void dw_mipi_dsi2_set_lane_rate(struct dw_mipi_dsi2 *dsi2)
 	target_pclk = DIV_ROUND_CLOSEST_ULL(lane_rate * lanes, bpp);
 	phy_mipi_dphy_get_default_config(target_pclk, bpp, lanes,
 					 &dsi2->phy_opts.mipi_dphy);
+	if (dsi2->slave)
+		phy_mipi_dphy_get_default_config(target_pclk, bpp, lanes,
+						 &dsi2->slave->phy_opts.mipi_dphy);
+}
+
+static void dw_mipi_dsi2_set_lane_rate(struct dw_mipi_dsi2 *dsi2)
+{
+	unsigned long hs_clk_rate;
 
 	if (dsi2->dcphy)
 		if (!dsi2->c_option)
@@ -827,6 +843,8 @@ static void dw_mipi_dsi2_enable(struct dw_mipi_dsi2 *dsi2)
 static void dw_mipi_dsi2_encoder_enable(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi2 *dsi2 = encoder_to_dsi2(encoder);
+
+	dw_mipi_dsi2_get_lane_rate(dsi2);
 
 	if (dsi2->dcphy)
 		dw_mipi_dsi2_set_lane_rate(dsi2);
