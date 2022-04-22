@@ -558,7 +558,7 @@ void noinstr __sev_es_nmi_complete(void)
 	__sev_put_ghcb(&state);
 }
 
-static u64 get_jump_table_addr(void)
+static u64 __init get_jump_table_addr(void)
 {
 	struct ghcb_state state;
 	unsigned long flags;
@@ -1077,7 +1077,7 @@ void snp_set_wakeup_secondary_cpu(void)
 	apic->wakeup_secondary_cpu = wakeup_cpu_via_vmgexit;
 }
 
-int sev_es_setup_ap_jump_table(struct real_mode_header *rmh)
+int __init sev_es_setup_ap_jump_table(struct real_mode_header *rmh)
 {
 	u16 startup_cs, startup_ip;
 	phys_addr_t jump_table_pa;
@@ -2171,7 +2171,7 @@ static struct platform_device sev_guest_device = {
 	.id		= -1,
 };
 
-static u64 get_secrets_page(void)
+static u64 __init get_secrets_page(void)
 {
 	u64 pa_data = boot_params.cc_blob_address;
 	struct cc_blob_sev_info info;
