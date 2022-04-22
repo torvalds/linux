@@ -127,6 +127,7 @@ struct perf_stat_config {
 	bool			 ru_display;
 	bool			 big_num;
 	bool			 no_merge;
+	bool			 hybrid_merge;
 	bool			 walltime_run_table;
 	bool			 all_kernel;
 	bool			 all_user;
