@@ -2653,15 +2653,18 @@ static void __vunmap(const void *addr, int deallocate_pages)
 	vm_remove_mappings(area, deallocate_pages);
 
 	if (deallocate_pages) {
-		unsigned int page_order = vm_area_page_order(area);
-		int i, step = 1U << page_order;
+		int i;
 
-		for (i = 0; i < area->nr_pages; i += step) {
+		for (i = 0; i < area->nr_pages; i++) {
 			struct page *page = area->pages[i];
 
 			BUG_ON(!page);
-			mod_memcg_page_state(page, MEMCG_VMALLOC, -step);
-			__free_pages(page, page_order);
+			mod_memcg_page_state(page, MEMCG_VMALLOC, -1);
+			/*
+			 * High-order allocs for huge vmallocs are split, so
+			 * can be freed as an array of order-0 allocations
+			 */
+			__free_pages(page, 0);
 			cond_resched();
 		}
 		atomic_long_sub(area->nr_pages, &nr_vmalloc_pages);
@@ -2914,12 +2917,7 @@ vm_area_alloc_pages(gfp_t gfp, int nid,
 			if (nr != nr_pages_request)
 				break;
 		}
-	} else
-		/*
-		 * Compound pages required for remap_vmalloc_page if
-		 * high-order pages.
-		 */
-		gfp |= __GFP_COMP;
+	}
 
 	/* High-order pages or fallback path if "bulk" fails. */
 
@@ -2933,6 +2931,15 @@ vm_area_alloc_pages(gfp_t gfp, int nid,
 			page = alloc_pages_node(nid, gfp, order);
 		if (unlikely(!page))
 			break;
+		/*
+		 * Higher order allocations must be able to be treated as
+		 * indepdenent small pages by callers (as they can with
+		 * small-page vmallocs). Some drivers do their own refcounting
+		 * on vmalloc_to_page() pages, some use page->mapping,
+		 * page->lru, etc.
+		 */
+		if (order)
+			split_page(page, order);
 
 		/*
 		 * Careful, we allocate and map page-order pages, but
@@ -2992,11 +2999,10 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 
 	atomic_long_add(area->nr_pages, &nr_vmalloc_pages);
 	if (gfp_mask & __GFP_ACCOUNT) {
-		int i, step = 1U << page_order;
+		int i;
 
-		for (i = 0; i < area->nr_pages; i += step)
-			mod_memcg_page_state(area->pages[i], MEMCG_VMALLOC,
-					     step);
+		for (i = 0; i < area->nr_pages; i++)
+			mod_memcg_page_state(area->pages[i], MEMCG_VMALLOC, 1);
 	}
 
 	/*
