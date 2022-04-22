@@ -19,6 +19,12 @@ enum hog_clock_type {
 	CPU_HOG_CLOCK_WALL,
 };
 
+struct cpu_hogger {
+	char *cgroup;
+	pid_t pid;
+	long usage;
+};
+
 struct cpu_hog_func_param {
 	int nprocs;
 	struct timespec ts;
@@ -223,31 +229,15 @@ cleanup:
 	return ret;
 }
 
-/*
- * First, this test creates the following hierarchy:
- * A
- * A/B     cpu.weight = 50
- * A/C     cpu.weight = 100
- * A/D     cpu.weight = 150
- *
- * A separate process is then created for each child cgroup which spawns as
- * many threads as there are cores, and hogs each CPU as much as possible
- * for some time interval.
- *
- * Once all of the children have exited, we verify that each child cgroup
- * was given proportional runtime as informed by their cpu.weight.
- */
-static int test_cpucg_weight_overprovisioned(const char *root)
+static int
+run_cpucg_weight_test(
+		const char *root,
+		pid_t (*spawn_child)(const struct cpu_hogger *child),
+		int (*validate)(const struct cpu_hogger *children, int num_children))
 {
-	struct child {
-		char *cgroup;
-		pid_t pid;
-		long usage;
-	};
 	int ret = KSFT_FAIL, i;
 	char *parent = NULL;
-	struct child children[3] = {NULL};
-	long usage_seconds = 10;
+	struct cpu_hogger children[3] = {NULL};
 
 	parent = cg_name(root, "cpucg_test_0");
 	if (!parent)
@@ -273,16 +263,7 @@ static int test_cpucg_weight_overprovisioned(const char *root)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(children); i++) {
-		struct cpu_hog_func_param param = {
-			.nprocs = get_nprocs(),
-			.ts = {
-				.tv_sec = usage_seconds,
-				.tv_nsec = 0,
-			},
-			.clock_type = CPU_HOG_CLOCK_WALL,
-		};
-		pid_t pid = cg_run_nowait(children[i].cgroup, hog_cpus_timed,
-				(void *)&param);
+		pid_t pid = spawn_child(&children[i]);
 		if (pid <= 0)
 			goto cleanup;
 		children[i].pid = pid;
@@ -302,16 +283,8 @@ static int test_cpucg_weight_overprovisioned(const char *root)
 		children[i].usage = cg_read_key_long(children[i].cgroup,
 				"cpu.stat", "usage_usec");
 
-	for (i = 0; i < ARRAY_SIZE(children) - 1; i++) {
-		long delta;
-
-		if (children[i + 1].usage <= children[i].usage)
-			goto cleanup;
-
-		delta = children[i + 1].usage - children[i].usage;
-		if (!values_close(delta, children[0].usage, 35))
-			goto cleanup;
-	}
+	if (validate(children, ARRAY_SIZE(children)))
+		goto cleanup;
 
 	ret = KSFT_PASS;
 cleanup:
@@ -325,6 +298,111 @@ cleanup:
 	return ret;
 }
 
+static pid_t weight_hog_ncpus(const struct cpu_hogger *child, int ncpus)
+{
+	long usage_seconds = 10;
+	struct cpu_hog_func_param param = {
+		.nprocs = ncpus,
+		.ts = {
+			.tv_sec = usage_seconds,
+			.tv_nsec = 0,
+		},
+		.clock_type = CPU_HOG_CLOCK_WALL,
+	};
+	return cg_run_nowait(child->cgroup, hog_cpus_timed, (void *)&param);
+}
+
+static pid_t weight_hog_all_cpus(const struct cpu_hogger *child)
+{
+	return weight_hog_ncpus(child, get_nprocs());
+}
+
+static int
+overprovision_validate(const struct cpu_hogger *children, int num_children)
+{
+	int ret = KSFT_FAIL, i;
+
+	for (i = 0; i < num_children - 1; i++) {
+		long delta;
+
+		if (children[i + 1].usage <= children[i].usage)
+			goto cleanup;
+
+		delta = children[i + 1].usage - children[i].usage;
+		if (!values_close(delta, children[0].usage, 35))
+			goto cleanup;
+	}
+
+	ret = KSFT_PASS;
+cleanup:
+	return ret;
+}
+
+/*
+ * First, this test creates the following hierarchy:
+ * A
+ * A/B     cpu.weight = 50
+ * A/C     cpu.weight = 100
+ * A/D     cpu.weight = 150
+ *
+ * A separate process is then created for each child cgroup which spawns as
+ * many threads as there are cores, and hogs each CPU as much as possible
+ * for some time interval.
+ *
+ * Once all of the children have exited, we verify that each child cgroup
+ * was given proportional runtime as informed by their cpu.weight.
+ */
+static int test_cpucg_weight_overprovisioned(const char *root)
+{
+	return run_cpucg_weight_test(root, weight_hog_all_cpus,
+			overprovision_validate);
+}
+
+static pid_t weight_hog_one_cpu(const struct cpu_hogger *child)
+{
+	return weight_hog_ncpus(child, 1);
+}
+
+static int
+underprovision_validate(const struct cpu_hogger *children, int num_children)
+{
+	int ret = KSFT_FAIL, i;
+
+	for (i = 0; i < num_children - 1; i++) {
+		if (!values_close(children[i + 1].usage, children[0].usage, 15))
+			goto cleanup;
+	}
+
+	ret = KSFT_PASS;
+cleanup:
+	return ret;
+}
+
+/*
+ * First, this test creates the following hierarchy:
+ * A
+ * A/B     cpu.weight = 50
+ * A/C     cpu.weight = 100
+ * A/D     cpu.weight = 150
+ *
+ * A separate process is then created for each child cgroup which spawns a
+ * single thread that hogs a CPU. The testcase is only run on systems that
+ * have at least one core per-thread in the child processes.
+ *
+ * Once all of the children have exited, we verify that each child cgroup
+ * had roughly the same runtime despite having different cpu.weight.
+ */
+static int test_cpucg_weight_underprovisioned(const char *root)
+{
+	// Only run the test if there are enough cores to avoid overprovisioning
+	// the system.
+	if (get_nprocs() < 4)
+		return KSFT_SKIP;
+
+	return run_cpucg_weight_test(root, weight_hog_one_cpu,
+			underprovision_validate);
+}
+
 #define T(x) { x, #x }
 struct cpucg_test {
 	int (*fn)(const char *root);
@@ -333,6 +411,7 @@ struct cpucg_test {
 	T(test_cpucg_subtree_control),
 	T(test_cpucg_stats),
 	T(test_cpucg_weight_overprovisioned),
+	T(test_cpucg_weight_underprovisioned),
 };
 #undef T
 
