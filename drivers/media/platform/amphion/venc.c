@@ -682,6 +682,12 @@ static int venc_ctrl_init(struct vpu_inst *inst)
 			       ~(1 << V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME),
 			       V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME);
 
+	if (inst->ctrl_handler.error) {
+		ret = inst->ctrl_handler.error;
+		v4l2_ctrl_handler_free(&inst->ctrl_handler);
+		return ret;
+	}
+
 	ret = v4l2_ctrl_handler_setup(&inst->ctrl_handler);
 	if (ret) {
 		dev_err(inst->dev, "[%d] setup ctrls fail, ret = %d\n", inst->id, ret);

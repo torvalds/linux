@@ -162,6 +162,12 @@ static int vdec_ctrl_init(struct vpu_inst *inst)
 	if (ctrl)
 		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
+	if (inst->ctrl_handler.error) {
+		ret = inst->ctrl_handler.error;
+		v4l2_ctrl_handler_free(&inst->ctrl_handler);
+		return ret;
+	}
+
 	ret = v4l2_ctrl_handler_setup(&inst->ctrl_handler);
 	if (ret) {
 		dev_err(inst->dev, "[%d] setup ctrls fail, ret = %d\n", inst->id, ret);
