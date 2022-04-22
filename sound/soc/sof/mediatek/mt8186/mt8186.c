@@ -304,6 +304,30 @@ static int mt8186_dsp_remove(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+static int mt8186_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
+{
+	sof_hifixdsp_shutdown(sdev);
+	adsp_sram_power_off(sdev);
+	adsp_clock_off(sdev);
+
+	return 0;
+}
+
+static int mt8186_dsp_resume(struct snd_sof_dev *sdev)
+{
+	int ret;
+
+	ret = adsp_clock_on(sdev);
+	if (ret) {
+		dev_err(sdev->dev, "adsp_clock_on fail!\n");
+		return ret;
+	}
+
+	adsp_sram_power_on(sdev);
+
+	return ret;
+}
+
 /* on mt8186 there is 1 to 1 match between type and BAR idx */
 static int mt8186_get_bar_index(struct snd_sof_dev *sdev, u32 type)
 {
@@ -337,6 +361,10 @@ static struct snd_sof_dsp_ops sof_mt8186_ops = {
 
 	/* Firmware ops */
 	.dsp_arch_ops = &sof_xtensa_arch_ops,
+
+	/* PM */
+	.suspend	= mt8186_dsp_suspend,
+	.resume		= mt8186_dsp_resume,
 
 	/* ALSA HW info flags */
 	.hw_info =	SNDRV_PCM_INFO_MMAP |
