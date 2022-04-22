@@ -1422,11 +1422,13 @@ static int refresh_tcon(struct cifs_ses **sessions, struct cifs_tcon *tcon, bool
 	struct TCP_Server_Info *server = tcon->ses->server;
 
 	mutex_lock(&server->refpath_lock);
-	if (strcasecmp(server->leaf_fullpath, server->origin_fullpath))
-		__refresh_tcon(server->leaf_fullpath + 1, sessions, tcon, force_refresh);
+	if (server->origin_fullpath) {
+		if (server->leaf_fullpath && strcasecmp(server->leaf_fullpath,
+							server->origin_fullpath))
+			__refresh_tcon(server->leaf_fullpath + 1, sessions, tcon, force_refresh);
+		__refresh_tcon(server->origin_fullpath + 1, sessions, tcon, force_refresh);
+	}
 	mutex_unlock(&server->refpath_lock);
-
-	__refresh_tcon(server->origin_fullpath + 1, sessions, tcon, force_refresh);
 
 	return 0;
 }
@@ -1530,11 +1532,14 @@ static void refresh_mounts(struct cifs_ses **sessions)
 		list_del_init(&tcon->ulist);
 
 		mutex_lock(&server->refpath_lock);
-		if (strcasecmp(server->leaf_fullpath, server->origin_fullpath))
-			__refresh_tcon(server->leaf_fullpath + 1, sessions, tcon, false);
+		if (server->origin_fullpath) {
+			if (server->leaf_fullpath && strcasecmp(server->leaf_fullpath,
+								server->origin_fullpath))
+				__refresh_tcon(server->leaf_fullpath + 1, sessions, tcon, false);
+			__refresh_tcon(server->origin_fullpath + 1, sessions, tcon, false);
+		}
 		mutex_unlock(&server->refpath_lock);
 
-		__refresh_tcon(server->origin_fullpath + 1, sessions, tcon, false);
 		cifs_put_tcon(tcon);
 	}
 }
