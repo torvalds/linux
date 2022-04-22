@@ -210,6 +210,9 @@ struct fsnotify_group {
 	unsigned int priority;
 	bool shutdown;		/* group is being shut down, don't queue more events */
 
+#define FSNOTIFY_GROUP_USER	0x01 /* user allocated group */
+	int flags;
+
 	/* stores all fastpath marks assoc with this group so they can be cleaned on unregister */
 	struct mutex mark_mutex;	/* protect marks_list */
 	atomic_t user_waits;		/* Number of tasks waiting for user
@@ -543,8 +546,9 @@ static inline void fsnotify_update_flags(struct dentry *dentry)
 /* called from fsnotify listeners, such as fanotify or dnotify */
 
 /* create a new group */
-extern struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops);
-extern struct fsnotify_group *fsnotify_alloc_user_group(const struct fsnotify_ops *ops);
+extern struct fsnotify_group *fsnotify_alloc_group(
+				const struct fsnotify_ops *ops,
+				int flags);
 /* get reference to a group */
 extern void fsnotify_get_group(struct fsnotify_group *group);
 /* drop reference on a group from fsnotify_alloc_group */
