@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig HTE
+	bool "Hardware Timestamping Engine (HTE) Support"
+	help
+	  Hardware Timestamping Engine (HTE) Support.
+
+	  Some devices provide a hardware timestamping engine which can
+	  timestamp certain device lines/signals in realtime. It comes with a
+	  benefit for the applications needing accurate timestamping event with
+	  less jitter. This framework provides a generic interface to such HTE
+	  providers and consumer devices.
+
+	  If unsure, say no.
+
