@@ -3783,7 +3783,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			len = 0;
 		}
 
-		if (count >= limit)
+		if ((count >= limit - 1) && limit > 1)
 			break;
 
 read_again:
@@ -4810,6 +4810,10 @@ static void stmmac_napi_add(struct net_device *dev)
 
 	for (queue = 0; queue < maxq; queue++) {
 		struct stmmac_channel *ch = &priv->channel[queue];
+		int rx_budget = (priv->plat->dma_rx_size < NAPI_POLL_WEIGHT) ?
+				priv->plat->dma_rx_size : NAPI_POLL_WEIGHT;
+		int tx_budget = (priv->plat->dma_tx_size < NAPI_POLL_WEIGHT) ?
+				priv->plat->dma_tx_size : NAPI_POLL_WEIGHT;
 
 		ch->priv_data = priv;
 		ch->index = queue;
@@ -4817,12 +4821,11 @@ static void stmmac_napi_add(struct net_device *dev)
 
 		if (queue < priv->plat->rx_queues_to_use) {
 			netif_napi_add(dev, &ch->rx_napi, stmmac_napi_poll_rx,
-				       NAPI_POLL_WEIGHT);
+				       rx_budget);
 		}
 		if (queue < priv->plat->tx_queues_to_use) {
 			netif_tx_napi_add(dev, &ch->tx_napi,
-					  stmmac_napi_poll_tx,
-					  NAPI_POLL_WEIGHT);
+					  stmmac_napi_poll_tx, tx_budget);
 		}
 	}
 }
