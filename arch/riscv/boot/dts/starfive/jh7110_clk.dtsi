@@ -81,12 +81,6 @@
 		clock-frequency = <49500000>;
 	};
 
-	venc_rootclk: venc_rootclk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <245760000>;
-	};
-
 	gmac_bus_clk: gmac_bus_clk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
