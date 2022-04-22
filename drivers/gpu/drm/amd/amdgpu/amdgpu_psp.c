@@ -752,14 +752,12 @@ static int psp_tmr_terminate(struct psp_context *psp)
 	void **pptr;
 
 	ret = psp_tmr_unload(psp);
-	if (ret)
-		return ret;
 
 	/* free TMR memory buffer */
 	pptr = amdgpu_sriov_vf(psp->adev) ? &tmr_buf : NULL;
 	amdgpu_bo_free_kernel(&psp->tmr_bo, &psp->tmr_mc_addr, pptr);
 
-	return 0;
+	return ret;
 }
 
 int psp_get_fw_attestation_records_addr(struct psp_context *psp,
@@ -1101,15 +1099,13 @@ int psp_xgmi_terminate(struct psp_context *psp)
 		return 0;
 
 	ret = psp_ta_unload(psp, &psp->xgmi_context.context);
-	if (ret)
-		return ret;
 
 	psp->xgmi_context.context.initialized = false;
 
 	/* free xgmi shared memory */
 	psp_ta_free_shared_buf(&psp->xgmi_context.context.mem_context);
 
-	return 0;
+	return ret;
 }
 
 int psp_xgmi_initialize(struct psp_context *psp, bool set_extended_data, bool load_ta)
@@ -1466,15 +1462,13 @@ int psp_ras_terminate(struct psp_context *psp)
 		return 0;
 
 	ret = psp_ta_unload(psp, &psp->ras_context.context);
-	if (ret)
-		return ret;
 
 	psp->ras_context.context.initialized = false;
 
 	/* free ras shared memory */
 	psp_ta_free_shared_buf(&psp->ras_context.context.mem_context);
 
-	return 0;
+	return ret;
 }
 
 static int psp_ras_initialize(struct psp_context *psp)
@@ -1657,15 +1651,15 @@ static int psp_hdcp_terminate(struct psp_context *psp)
 		return 0;
 
 	if (!psp->hdcp_context.context.initialized) {
-		if (psp->hdcp_context.context.mem_context.shared_buf)
+		if (psp->hdcp_context.context.mem_context.shared_buf) {
+			ret = 0;
 			goto out;
-		else
+		} else {
 			return 0;
+		}
 	}
 
 	ret = psp_ta_unload(psp, &psp->hdcp_context.context);
-	if (ret)
-		return ret;
 
 	psp->hdcp_context.context.initialized = false;
 
@@ -1673,7 +1667,7 @@ out:
 	/* free hdcp shared memory */
 	psp_ta_free_shared_buf(&psp->hdcp_context.context.mem_context);
 
-	return 0;
+	return ret;
 }
 // HDCP end
 
@@ -1734,15 +1728,15 @@ static int psp_dtm_terminate(struct psp_context *psp)
 		return 0;
 
 	if (!psp->dtm_context.context.initialized) {
-		if (psp->dtm_context.context.mem_context.shared_buf)
+		if (psp->dtm_context.context.mem_context.shared_buf) {
+			ret = 0;
 			goto out;
-		else
+		} else {
 			return 0;
+		}
 	}
 
 	ret = psp_ta_unload(psp, &psp->dtm_context.context);
-	if (ret)
-		return ret;
 
 	psp->dtm_context.context.initialized = false;
 
@@ -1750,7 +1744,7 @@ out:
 	/* free dtm shared memory */
 	psp_ta_free_shared_buf(&psp->dtm_context.context.mem_context);
 
-	return 0;
+	return ret;
 }
 // DTM end
 
@@ -1922,8 +1916,6 @@ static int psp_securedisplay_terminate(struct psp_context *psp)
 		return 0;
 
 	ret = psp_ta_unload(psp, &psp->securedisplay_context.context);
-	if (ret)
-		return ret;
 
 	psp->securedisplay_context.context.initialized = false;
 
