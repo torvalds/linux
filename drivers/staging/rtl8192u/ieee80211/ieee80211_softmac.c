@@ -1461,13 +1461,13 @@ void ieee80211_softmac_check_all_nets(struct ieee80211_device *ieee)
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
 
-static inline u16 auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
+static inline int auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
 {
 	struct ieee80211_authentication *a;
 	u8 *t;
 	if (skb->len < (sizeof(struct ieee80211_authentication) - sizeof(struct ieee80211_info_element))) {
 		IEEE80211_DEBUG_MGMT("invalid len in auth resp: %d\n", skb->len);
-		return 0xcafe;
+		return -EINVAL;
 	}
 	*challenge = NULL;
 	a = (struct ieee80211_authentication *)skb->data;
@@ -1482,7 +1482,12 @@ static inline u16 auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
 		}
 	}
 
-	return le16_to_cpu(a->status);
+	if (a->status) {
+		IEEE80211_DEBUG_MGMT("auth_parse() failed\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int auth_rq_parse(struct sk_buff *skb, u8 *dest)
@@ -1829,7 +1834,7 @@ static void ieee80211_check_auth_response(struct ieee80211_device *ieee,
 {
 	/* default support N mode, disable halfNmode */
 	bool bSupportNmode = true, bHalfSupportNmode = false;
-	u16 errcode;
+	int errcode;
 	u8 *challenge;
 	int chlen = 0;
 	u32 iotAction;
@@ -1878,7 +1883,7 @@ static void ieee80211_check_auth_response(struct ieee80211_device *ieee,
 		}
 	} else {
 		ieee->softmac_stats.rx_auth_rs_err++;
-		IEEE80211_DEBUG_MGMT("Auth response status code 0x%x", errcode);
+		IEEE80211_DEBUG_MGMT("Auth response status code %d\n", errcode);
 		ieee80211_associate_abort(ieee);
 	}
 }
