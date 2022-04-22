@@ -434,7 +434,7 @@
 			reg = <0x0 0x12020000 0x0 0x10000>;
 			reg-io-width = <4>;
 			reg-shift = <2>;
-			cclocks = <&clkgen JH7110_UART5_CLK_CORE>,
+			clocks = <&clkgen JH7110_UART5_CLK_CORE>,
 					<&clkgen JH7110_UART5_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
 			resets = <&rstgen RSTN_U5_DW_UART_APB>;
@@ -660,13 +660,63 @@
 			snps,blen = <256 128 64 32 0 0 0>;
 		};
 
-		gmac0: gmac0@16030000 {
-			compatible = "snps,dwc-qos-ethernet-5.10a";
+		gmac0: ethernet@16030000 {
+			compatible = "starfive,jh7110-eqos-5.20";
 			reg = <0x0 0x16030000 0x0 0x10000>;
-			clocks = <&gmac_bus_clk>, <&gmac_rxtx_clk>, <&gmac_bus_clk>,<&gmac_ptp_clk>;
-			clock-names = "stmmaceth","phy_ref_clk", "apb_pclk","ptp_ref";
-			interrupts = <7>;
-			phy-reset-gpios = <&gpio 63 0>;
+			clock-names = "gtx",
+				"tx",
+				"ptp_ref",
+				"stmmaceth",
+				"pclk";
+			clocks = <&clkgen JH7110_GMAC0_GTXCLK>,
+				<&clkgen JH7110_U0_GMAC5_CLK_TX>,
+				<&clkgen JH7110_GMAC0_PTP>,
+				<&clkgen JH7110_U0_GMAC5_CLK_AHB>,
+				<&clkgen JH7110_U0_GMAC5_CLK_AXI>;
+			resets = <&rstgen RSTN_U0_DW_GMAC5_AXI64_AHB>,
+					<&rstgen RSTN_U0_DW_GMAC5_AXI64_AXI>;
+			reset-names = "ahb", "stmmaceth";
+			interrupts = <7>, <6>, <5> ;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+			max-frame-size = <9000>;
+			phy-mode = "rgmii-id";
+			snps,multicast-filter-bins = <256>;
+			snps,perfect-filter-entries = <128>;
+			rx-fifo-depth = <262144>;
+			tx-fifo-depth = <131072>;
+			snps,fixed-burst;
+			snps,no-pbl-x8;
+			snps,force_thresh_dma_mode;
+			snps,axi-config = <&stmmac_axi_setup>;
+			snps,tso;
+			snps,en-tx-lpi-clockgating;
+			snps,en-lpi;
+			snps,write-requests = <2>;
+			snps,read-requests = <16>;
+			snps,burst-map = <0x7>;
+			snps,txpbl = <16>;
+			snps,rxpbl = <16>;
+			status = "disabled";
+		};
+
+		gmac1: ethernet@16040000 {
+			compatible = "starfive,jh7110-eqos-5.20";
+			reg = <0x0 0x16040000 0x0 0x10000>;
+			clock-names = "gtx",
+				"tx",
+				"ptp_ref",
+				"stmmaceth",
+				"pclk";
+			clocks = <&clkgen JH7110_GMAC1_GTXCLK>,
+				<&clkgen JH7110_GMAC5_CLK_TX>,
+				<&clkgen JH7110_GMAC5_CLK_PTP>,
+				<&clkgen JH7110_GMAC5_CLK_AHB>,
+				<&clkgen JH7110_GMAC5_CLK_AXI>;
+			resets = <&rstgen RSTN_U1_DW_GMAC5_AXI64_H_N>,
+					<&rstgen RSTN_U1_DW_GMAC5_AXI64_A_I>;
+			reset-names = "ahb", "stmmaceth";
+			interrupts = <78>, <77>, <76> ;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 			max-frame-size = <9000>;
 			phy-mode = "rgmii-id";
 			snps,multicast-filter-bins = <256>;
