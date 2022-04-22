@@ -175,7 +175,7 @@ rkisp_stats_get_rawaf_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 		return -ENODATA;
 	}
 
-	if (!pbuf)
+	if (!pbuf || stats_vdev->af_meas_done_next)
 		goto out;
 
 	af = &pbuf->params.rawaf;
@@ -187,25 +187,42 @@ rkisp_stats_get_rawaf_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	af->highlit_cnt_winb = isp3_stats_read(stats_vdev, ISP3X_RAWAF_HIGHLIT_CNT_WINB);
 
 out:
-	isp3_module_done(stats_vdev, ISP3X_RAWAF_CTRL, ctrl);
+	/* af should not clean mease done during isp working for af_ae_mode */
+	stats_vdev->af_meas_done_next = false;
+	if ((ctrl & ISP3X_RAWAF_AE_MODE) &&
+	    (isp3_stats_read(stats_vdev, ISP3X_DPCC0_BASE) & ISP3X_DPCC_WORKING))
+		stats_vdev->af_meas_done_next = true;
+	else
+		isp3_module_done(stats_vdev, ISP3X_RAWAF_CTRL, ctrl);
 	return 0;
 }
 
 static int
 rkisp_stats_get_rawaebig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
-				  struct isp32_rawaebig_stat1 *ae, u32 blk_no)
+				  struct rkisp32_isp_stat_buffer *pbuf,
+				  u32 blk_no)
 {
-	u32 i, base, addr, ctrl;
+	struct isp32_rawaebig_stat1 *ae = NULL;
+	u32 i, base, addr, ctrl, meas_type;
 
 	switch (blk_no) {
 	case 1:
 		base = RAWAE_BIG2_BASE;
+		meas_type = ISP32_STAT_RAWAE1;
+		if (pbuf)
+			ae = &pbuf->params.rawae1_1;
 		break;
 	case 2:
 		base = RAWAE_BIG3_BASE;
+		meas_type = ISP32_STAT_RAWAE2;
+		if (pbuf)
+			ae = &pbuf->params.rawae2_1;
 		break;
 	default:
 		base = RAWAE_BIG1_BASE;
+		meas_type = ISP32_STAT_RAWAE3;
+		if (pbuf)
+			ae = &pbuf->params.rawae3_1;
 		break;
 	}
 
@@ -217,7 +234,7 @@ rkisp_stats_get_rawaebig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 		return -ENODATA;
 	}
 
-	if (!ae)
+	if (!ae || stats_vdev->ae_meas_done_next)
 		goto out;
 
 	for (i = 0; i < ISP32_RAWAEBIG_SUBWIN_NUM; i++) {
@@ -229,27 +246,40 @@ rkisp_stats_get_rawaebig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 		ae->sumb[i] = isp3_stats_read(stats_vdev, addr);
 	}
 
+	pbuf->meas_type |= meas_type;
+
 out:
-	isp3_module_done(stats_vdev, base + ISP3X_RAWAE_BIG_CTRL, ctrl);
+	/* ae should not clean mease done during isp working for af_ae_mode */
+	if (blk_no == 0 && stats_vdev->af_meas_done_next) {
+		stats_vdev->ae_meas_done_next = true;
+	} else {
+		isp3_module_done(stats_vdev, base + ISP3X_RAWAE_BIG_CTRL, ctrl);
+		if (blk_no == 0)
+			stats_vdev->ae_meas_done_next = false;
+	}
 	return 0;
 }
 
 static int
 rkisp_stats_get_rawhstbig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
-				   struct isp2x_rawhistbig_stat *hst, u32 blk_no)
+				   struct rkisp32_isp_stat_buffer *pbuf,
+				   u32 blk_no)
 {
-	u32 addr, ctrl;
+	u32 addr, ctrl, meas_type;
 
 	switch (blk_no) {
 	case 1:
 		addr = ISP3X_RAWHIST_BIG2_BASE;
+		meas_type = ISP32_STAT_RAWHST1;
 		break;
 	case 2:
 		addr = ISP3X_RAWHIST_BIG3_BASE;
+		meas_type = ISP32_STAT_RAWHST2;
 		break;
 	case 0:
 	default:
 		addr = ISP3X_RAWHIST_BIG1_BASE;
+		meas_type = ISP32_STAT_RAWHST3;
 		break;
 	}
 
@@ -261,9 +291,10 @@ rkisp_stats_get_rawhstbig_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 		return -ENODATA;
 	}
 
-	if (!hst)
+	if (!pbuf)
 		goto out;
 
+	pbuf->meas_type |= meas_type;
 out:
 	isp3_module_done(stats_vdev, addr + ISP3X_RAWHIST_BIG_CTRL, ctrl);
 	return 0;
@@ -273,108 +304,42 @@ static int
 rkisp_stats_get_rawae1_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 				struct rkisp32_isp_stat_buffer *pbuf)
 {
-	int ret = 0;
-
-	if (!pbuf) {
-		rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, NULL, 1);
-	} else {
-		ret = rkisp_stats_get_rawaebig_meas_ddr(stats_vdev,
-							&pbuf->params.rawae1_1, 1);
-		if (!ret)
-			pbuf->meas_type |= ISP32_STAT_RAWAE1;
-	}
-
-	return ret;
+	return rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, pbuf, 1);
 }
 
 static int
 rkisp_stats_get_rawhst1_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 				 struct rkisp32_isp_stat_buffer *pbuf)
 {
-	int ret = 0;
-
-	if (!pbuf) {
-		rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, NULL, 1);
-	} else {
-		ret = rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev,
-							 &pbuf->params.rawhist1, 1);
-		if (!ret)
-			pbuf->meas_type |= ISP32_STAT_RAWHST1;
-	}
-
-	return ret;
+	return rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, pbuf, 1);
 }
 
 static int
 rkisp_stats_get_rawae2_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 				struct rkisp32_isp_stat_buffer *pbuf)
 {
-	int ret = 0;
-
-	if (!pbuf) {
-		rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, NULL, 2);
-	} else {
-		ret = rkisp_stats_get_rawaebig_meas_ddr(stats_vdev,
-							&pbuf->params.rawae2_1, 2);
-		if (!ret)
-			pbuf->meas_type |= ISP32_STAT_RAWAE2;
-	}
-
-	return ret;
+	return rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, pbuf, 2);
 }
 
 static int
 rkisp_stats_get_rawhst2_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 				 struct rkisp32_isp_stat_buffer *pbuf)
 {
-	int ret = 0;
-
-	if (!pbuf) {
-		rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, NULL, 2);
-	} else {
-		ret = rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev,
-							 &pbuf->params.rawhist2, 2);
-		if (!ret)
-			pbuf->meas_type |= ISP32_STAT_RAWHST2;
-	}
-
-	return ret;
+	return rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, pbuf, 2);
 }
 
 static int
 rkisp_stats_get_rawae3_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 				struct rkisp32_isp_stat_buffer *pbuf)
 {
-	int ret = 0;
-
-	if (!pbuf) {
-		rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, NULL, 0);
-	} else {
-		ret = rkisp_stats_get_rawaebig_meas_ddr(stats_vdev,
-							&pbuf->params.rawae3_1, 0);
-		if (!ret)
-			pbuf->meas_type |= ISP32_STAT_RAWAE3;
-	}
-
-	return ret;
+	return rkisp_stats_get_rawaebig_meas_ddr(stats_vdev, pbuf, 0);
 }
 
 static int
 rkisp_stats_get_rawhst3_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 				 struct rkisp32_isp_stat_buffer *pbuf)
 {
-	int ret = 0;
-
-	if (!pbuf) {
-		rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, NULL, 0);
-	} else {
-		ret = rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev,
-							 &pbuf->params.rawhist3, 0);
-		if (!ret)
-			pbuf->meas_type |= ISP32_STAT_RAWHST3;
-	}
-
-	return ret;
+	return rkisp_stats_get_rawhstbig_meas_ddr(stats_vdev, pbuf, 0);
 }
 
 static int
@@ -580,10 +545,12 @@ rkisp_stats_send_meas_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 	if (meas_work->isp3a_ris & ISP3X_3A_RAWAWB)
 		ret |= ops->get_rawawb_meas(stats_vdev, cur_stat_buf);
 
-	if (meas_work->isp3a_ris & ISP3X_3A_RAWAF)
+	if (meas_work->isp3a_ris & ISP3X_3A_RAWAF ||
+	    stats_vdev->af_meas_done_next)
 		ret |= ops->get_rawaf_meas(stats_vdev, cur_stat_buf);
 
-	if (meas_work->isp3a_ris & ISP3X_3A_RAWAE_BIG)
+	if (meas_work->isp3a_ris & ISP3X_3A_RAWAE_BIG ||
+	    stats_vdev->ae_meas_done_next)
 		ret |= ops->get_rawae3_meas(stats_vdev, cur_stat_buf);
 
 	if (meas_work->isp3a_ris & ISP3X_3A_RAWHIST_BIG)

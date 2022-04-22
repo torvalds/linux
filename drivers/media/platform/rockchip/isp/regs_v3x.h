@@ -2116,6 +2116,7 @@
 #define ISP3X_GAIN_2DDR_mode(a)		(((a) & 0x3) << 25)
 
 /* DPCC */
+#define ISP3X_DPCC_WORKING		BIT(30)
 
 /* CCM */
 #define ISP3X_CCM_HIGHY_ADJ_DIS		BIT(1)

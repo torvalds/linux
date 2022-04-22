@@ -72,6 +72,9 @@ struct rkisp_isp_stats_vdev {
 	struct rkisp_dummy_buffer tmp_statsbuf;
 	struct rkisp_buffer *cur_buf;
 	struct rkisp_buffer *nxt_buf;
+
+	bool af_meas_done_next;
+	bool ae_meas_done_next;
 };
 
 void rkisp_stats_rdbk_enable(struct rkisp_isp_stats_vdev *stats_vdev, bool en);

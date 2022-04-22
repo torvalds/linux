@@ -192,6 +192,9 @@ static void rkisp_stats_vb2_stop_streaming(struct vb2_queue *vq)
 		stats_vdev->nxt_buf = NULL;
 	}
 	spin_unlock_irqrestore(&stats_vdev->rd_lock, flags);
+
+	stats_vdev->ae_meas_done_next = false;
+	stats_vdev->af_meas_done_next = false;
 }
 
 static int
