@@ -5226,7 +5226,7 @@ static void bond_sk_to_flow(struct sock *sk, struct flow_keys *flow)
 	switch (sk->sk_family) {
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		if (sk->sk_ipv6only ||
+		if (ipv6_only_sock(sk) ||
 		    ipv6_addr_type(&sk->sk_v6_daddr) != IPV6_ADDR_MAPPED) {
 			flow->control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 			flow->addrs.v6addrs.src = inet6_sk(sk)->saddr;

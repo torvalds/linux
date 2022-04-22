@@ -892,7 +892,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 		SOCK_DEBUG(sk, "connect: ipv4 mapped\n");
 
-		if (__ipv6_only_sock(sk))
+		if (ipv6_only_sock(sk))
 			return -ENETUNREACH;
 
 		sin.sin_family = AF_INET;

@@ -230,7 +230,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		u32 exthdrlen = icsk->icsk_ext_hdr_len;
 		struct sockaddr_in sin;
 
-		if (__ipv6_only_sock(sk))
+		if (ipv6_only_sock(sk))
 			return -ENETUNREACH;
 
 		sin.sin_family = AF_INET;
