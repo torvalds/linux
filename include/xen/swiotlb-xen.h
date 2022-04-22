@@ -10,12 +10,6 @@ void xen_dma_sync_for_cpu(struct device *dev, dma_addr_t handle,
 void xen_dma_sync_for_device(struct device *dev, dma_addr_t handle,
 			     size_t size, enum dma_data_direction dir);
 
-#ifdef CONFIG_SWIOTLB_XEN
-int xen_swiotlb_fixup(void *buf, unsigned long nslabs);
-#else
-#define xen_swiotlb_fixup NULL
-#endif
-
 extern const struct dma_map_ops xen_swiotlb_dma_ops;
 
 #endif /* __LINUX_SWIOTLB_XEN_H */
