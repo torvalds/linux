@@ -205,7 +205,7 @@ static void show_msi_interrupt(struct seq_file *p, int irq)
 	unsigned long flags;
 	int cpu;
 
-	irq_lock_sparse();
+	rcu_read_lock();
 	desc = irq_to_desc(irq);
 	if (!desc)
 		goto out;
@@ -224,7 +224,7 @@ static void show_msi_interrupt(struct seq_file *p, int irq)
 	seq_putc(p, '\n');
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 out:
-	irq_unlock_sparse();
+	rcu_read_unlock();
 }
 
 /*
