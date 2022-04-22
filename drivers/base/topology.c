@@ -155,9 +155,7 @@ static struct attribute *default_attrs[] = {
 static umode_t topology_is_visible(struct kobject *kobj,
 				   struct attribute *attr, int unused)
 {
-	struct device *dev = kobj_to_dev(kobj);
-
-	if (attr == &dev_attr_ppin.attr && !topology_ppin(dev->id))
+	if (attr == &dev_attr_ppin.attr && !topology_ppin(kobj_to_dev(kobj)->id))
 		return 0;
 
 	return attr->mode;
