@@ -29,6 +29,12 @@ config ROCKCHIP_VOP
 	  This selects support for the VOP driver. You should enable it
 	  on older SoCs.
 
+config ROCKCHIP_VOP2
+	bool "Rockchip VOP2 driver"
+	help
+	  This selects support for the VOP2 driver. The VOP2 hardware is
+	  first found on the RK3568.
+
 config ROCKCHIP_ANALOGIX_DP
 	bool "Rockchip specific extensions for Analogix DP driver"
 	depends on ROCKCHIP_VOP

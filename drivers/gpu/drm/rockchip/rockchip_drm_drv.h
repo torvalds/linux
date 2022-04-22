@@ -18,7 +18,7 @@
 
 #define ROCKCHIP_MAX_FB_BUFFER	3
 #define ROCKCHIP_MAX_CONNECTOR	2
-#define ROCKCHIP_MAX_CRTC	2
+#define ROCKCHIP_MAX_CRTC	4
 
 struct drm_device;
 struct drm_connector;
@@ -31,6 +31,9 @@ struct rockchip_crtc_state {
 	int output_bpc;
 	int output_flags;
 	bool enable_afbc;
+	u32 bus_format;
+	u32 bus_flags;
+	int color_space;
 };
 #define to_rockchip_crtc_state(s) \
 		container_of(s, struct rockchip_crtc_state, base)
@@ -72,6 +75,7 @@ extern struct platform_driver rockchip_dp_driver;
 extern struct platform_driver rockchip_lvds_driver;
 extern struct platform_driver vop_platform_driver;
 extern struct platform_driver rk3066_hdmi_driver;
+extern struct platform_driver vop2_platform_driver;
 
 static inline struct rockchip_encoder *to_rockchip_encoder(struct drm_encoder *encoder)
 {
