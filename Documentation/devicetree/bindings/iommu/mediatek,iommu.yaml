@@ -173,13 +173,3 @@ examples:
                              <&larb3>, <&larb4>, <&larb5>;
             #iommu-cells = <1>;
     };
-
-  - |
-    #include <dt-bindings/memory/mt8173-larb-port.h>
-
-    /* Example for a client device */
-    display {
-           compatible = "mediatek,mt8173-disp";
-           iommus = <&iommu M4U_PORT_DISP_OVL0>,
-                    <&iommu M4U_PORT_DISP_RDMA0>;
-     };
