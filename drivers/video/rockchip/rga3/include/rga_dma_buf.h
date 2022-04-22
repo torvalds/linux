@@ -15,8 +15,8 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		      unsigned long v_addr, int format, uint32_t w,
 		      uint32_t h, unsigned long *StartAddr, unsigned long *size);
 
-int rga_dma_buf_get(struct rga_job *job);
-void rga_get_dma_buf(struct rga_job *job);
+int rga_virtual_memory_check(void *vaddr, u32 w, u32 h, u32 format, int fd);
+int rga_dma_memory_check(struct rga_dma_buffer *rga_dma_buffer, struct rga_img_info_t *img);
 
 int rga_iommu_map_virt_addr(struct rga_memory_parm *memory_parm,
 			    struct rga_dma_buffer *virt_dma_buf,
@@ -29,9 +29,6 @@ int rga_dma_map_buf(struct dma_buf *dma_buf, struct rga_dma_buffer *rga_dma_buff
 int rga_dma_map_fd(int fd, struct rga_dma_buffer *rga_dma_buffer,
 		   enum dma_data_direction dir, struct device *rga_dev);
 void rga_dma_unmap_buf(struct rga_dma_buffer *rga_dma_buffer);
-
-int rga_dma_get_info(struct rga_job *job);
-void rga_dma_put_info(struct rga_job *job);
 
 #endif /* #ifndef __RGA3_DMA_BUF_H__ */
 
