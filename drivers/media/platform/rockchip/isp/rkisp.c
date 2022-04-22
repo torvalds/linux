@@ -3324,6 +3324,7 @@ int rkisp_register_isp_subdev(struct rkisp_device *isp_dev,
 	struct v4l2_subdev *sd = &isp_sdev->sd;
 	int ret;
 
+	mutex_init(&isp_dev->buf_lock);
 	spin_lock_init(&isp_dev->cmsk_lock);
 	spin_lock_init(&isp_dev->rdbk_lock);
 	ret = kfifo_alloc(&isp_dev->rdbk_kfifo,
