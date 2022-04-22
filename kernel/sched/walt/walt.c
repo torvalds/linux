@@ -1121,6 +1121,17 @@ static void fixup_busy_time(struct task_struct *p, int new_cpu)
 	old_window_start = update_window_start(dest_rq, wallclock, TASK_UPDATE);
 	run_walt_irq_work_rollover(old_window_start, dest_rq);
 
+	if (wts->window_start != src_wrq->window_start)
+		WALT_BUG(WALT_BUG_WALT, p,
+				"CPU%d: %s task %s(%d)'s ws=%llu not equal to src_rq %d's ws=%llu",
+				__func__, raw_smp_processor_id(), p->comm, p->pid,
+				wts->window_start, src_rq->cpu, src_wrq->window_start);
+	if (wts->window_start != dest_wrq->window_start)
+		WALT_BUG(WALT_BUG_WALT, p,
+				"CPU%d: %s task %s(%d)'s ws=%llu not equal to dest_rq %d's ws=%llu",
+				__func__, raw_smp_processor_id(), p->comm, p->pid,
+				wts->window_start, dest_rq->cpu, dest_wrq->window_start);
+
 	update_task_cpu_cycles(p, new_cpu, wallclock);
 
 	new_task = is_new_task(p);
@@ -1715,9 +1726,10 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 	 * Handle per-task window rollover. We don't care about the
 	 * idle task.
 	 */
-	if (!is_idle_task(p)) {
-		if (new_window)
+	if (new_window) {
+		if (!is_idle_task(p))
 			rollover_task_window(p, full_window);
+		wts->window_start = window_start;
 	}
 
 	new_task = is_new_task(p);
@@ -1735,6 +1747,12 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 		nt_curr_runnable_sum = &cpu_time->nt_curr_runnable_sum;
 		nt_prev_runnable_sum = &cpu_time->nt_prev_runnable_sum;
 	}
+
+	if (wts->window_start != wrq->window_start)
+		WALT_BUG(WALT_BUG_WALT, p,
+				"CPU%d: %s task %s(%d)'s ws=%llu not equal to rq %d's ws=%llu",
+				__func__, raw_smp_processor_id(), p->comm, p->pid,
+				wts->window_start, rq->cpu, wrq->window_start);
 
 	if (!new_window) {
 		/*
@@ -2302,6 +2320,9 @@ static void walt_update_task_ravg(struct task_struct *p, struct rq *rq, int even
 
 	old_window_start = update_window_start(rq, wallclock, event);
 
+	if (!wts->window_start)
+		wts->window_start = wrq->window_start;
+
 	if (!wts->mark_start) {
 		update_task_cpu_cycles(p, cpu_of(rq), wallclock);
 		goto done;
@@ -2355,6 +2376,7 @@ static void init_new_task_load(struct task_struct *p)
 	INIT_LIST_HEAD(&wts->grp_list);
 
 	wts->mark_start = 0;
+	wts->window_start = 0;
 	wts->sum = 0;
 	wts->curr_window = 0;
 	wts->prev_window = 0;
@@ -3332,6 +3354,13 @@ static void transfer_busy_time(struct rq *rq,
 	wallclock = walt_sched_clock();
 
 	walt_update_task_ravg(p, rq, TASK_UPDATE, wallclock, 0);
+
+	if (wts->window_start != wrq->window_start)
+		WALT_BUG(WALT_BUG_WALT, p,
+				"CPU%d: %s event=%d task %s(%d)'s ws=%llu not equal to rq %d's ws=%llu",
+				__func__, raw_smp_processor_id(), event, p->comm, p->pid,
+				wts->window_start, rq->cpu, wrq->window_start);
+
 	new_task = is_new_task(p);
 
 	cpu_time = &wrq->grp_time;

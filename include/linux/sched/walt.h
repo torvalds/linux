@@ -100,6 +100,7 @@ struct walt_task_struct {
 	 * 0 = nothing, 1 = enqueued, 2 = dequeued
 	 */
 	u64				mark_start;
+	u64				window_start;
 	u32				sum, demand;
 	u32				coloc_demand;
 	u32				sum_history[RAVG_HIST_SIZE];
