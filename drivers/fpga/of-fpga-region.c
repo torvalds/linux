@@ -189,9 +189,9 @@ static int child_regions_with_firmware(struct device_node *overlay)
  *   fpga_image_info struct if there is an image to program.
  *   error code for invalid overlay.
  */
-static struct fpga_image_info *of_fpga_region_parse_ov(
-						struct fpga_region *region,
-						struct device_node *overlay)
+static struct fpga_image_info *
+of_fpga_region_parse_ov(struct fpga_region *region,
+			struct device_node *overlay)
 {
 	struct device *dev = &region->dev;
 	struct fpga_image_info *info;

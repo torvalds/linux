@@ -148,11 +148,12 @@ static int fpga_mgr_write_init_buf(struct fpga_manager *mgr,
 	int ret;
 
 	mgr->state = FPGA_MGR_STATE_WRITE_INIT;
-	if (!mgr->mops->initial_header_size)
+	if (!mgr->mops->initial_header_size) {
 		ret = fpga_mgr_write_init(mgr, info, NULL, 0);
-	else
-		ret = fpga_mgr_write_init(
-		    mgr, info, buf, min(mgr->mops->initial_header_size, count));
+	} else {
+		count = min(mgr->mops->initial_header_size, count);
+		ret = fpga_mgr_write_init(mgr, info, buf, count);
+	}
 
 	if (ret) {
 		dev_err(&mgr->dev, "Error preparing FPGA for writing\n");
