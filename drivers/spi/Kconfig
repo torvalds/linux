@@ -419,10 +419,10 @@ config SPI_IMX
 	  This enables support for the Freescale i.MX SPI controllers.
 
 config SPI_INGENIC
-	tristate "Ingenic JZ47xx SoCs SPI controller"
+	tristate "Ingenic SoCs SPI controller"
 	depends on MACH_INGENIC || COMPILE_TEST
 	help
-	  This enables support for the Ingenic JZ47xx SoCs SPI controller.
+	  This enables support for the Ingenic SoCs SPI controller.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called spi-ingenic.
