@@ -350,7 +350,7 @@ union dmub_fw_boot_options {
 		uint32_t power_optimization: 1;
 		uint32_t diag_env: 1; /* 1 if diagnostic environment */
 		uint32_t gpint_scratch8: 1; /* 1 if GPINT is in scratch8*/
-		uint32_t usb4_cm_version: 1; /**< USB4 CM Version */
+		uint32_t usb4_cm_version: 1; /**< 1 CM support */
 
 		uint32_t reserved : 17; /**< reserved */
 	} bits; /**< boot bits */
@@ -654,6 +654,10 @@ enum dmub_cmd_type {
 	 * Command type used for getting usbc cable ID
 	 */
 	DMUB_CMD_GET_USBC_CABLE_ID = 81,
+	/**
+	 * Command type used to query HPD state.
+	 */
+	DMUB_CMD__QUERY_HPD_STATE = 82,
 	/**
 	 * Command type used for all VBIOS interface commands.
 	 */
@@ -1351,6 +1355,30 @@ struct set_config_reply_control_data {
 struct dmub_rb_cmd_dp_set_config_reply {
 	struct dmub_cmd_header header;
 	struct set_config_reply_control_data set_config_reply_control;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__QUERY_HPD_STATE command.
+ */
+struct dmub_cmd_hpd_state_query_data {
+	uint8_t instance; /**< HPD instance or DPIA instance */
+	uint8_t result; /**< For returning HPD state */
+	enum aux_channel_type ch_type; /**< enum aux_channel_type */
+	enum aux_return_code_type status; /**< for returning the status of command */
+};
+
+/**
+ * Definition of a DMUB_CMD__QUERY_HPD_STATE command.
+ */
+struct dmub_rb_cmd_query_hpd_state {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__QUERY_HPD_STATE command.
+	 */
+	struct dmub_cmd_hpd_state_query_data data;
 };
 
 /*
@@ -2757,6 +2785,11 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD_GET_USBC_CABLE_ID command.
 	 */
 	struct dmub_rb_cmd_get_usbc_cable_id cable_id;
+
+	/**
+	 * Definition of a DMUB_CMD__QUERY_HPD_STATE command.
+	 */
+	struct dmub_rb_cmd_query_hpd_state query_hpd;
 };
 
 /**
