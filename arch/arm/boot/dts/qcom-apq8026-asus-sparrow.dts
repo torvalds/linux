@@ -59,6 +59,10 @@
 	};
 };
 
+&adsp {
+	status = "okay";
+};
+
 &blsp1_uart1 {
 	status = "okay";
 
