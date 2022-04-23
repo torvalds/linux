@@ -3056,19 +3056,20 @@ static bool page_fault_can_be_fast(struct kvm_page_fault *fault)
 
 	/*
 	 * #PF can be fast if:
-	 * 1. The shadow page table entry is not present, which could mean that
-	 *    the fault is potentially caused by access tracking (if enabled).
-	 * 2. The shadow page table entry is present and the fault
-	 *    is caused by write-protect, that means we just need change the W
-	 *    bit of the spte which can be done out of mmu-lock.
 	 *
-	 * However, if access tracking is disabled we know that a non-present
-	 * page must be a genuine page fault where we have to create a new SPTE.
-	 * So, if access tracking is disabled, we return true only for write
-	 * accesses to a present page.
+	 * 1. The shadow page table entry is not present and A/D bits are
+	 *    disabled _by KVM_, which could mean that the fault is potentially
+	 *    caused by access tracking (if enabled).  If A/D bits are enabled
+	 *    by KVM, but disabled by L1 for L2, KVM is forced to disable A/D
+	 *    bits for L2 and employ access tracking, but the fast page fault
+	 *    mechanism only supports direct MMUs.
+	 * 2. The shadow page table entry is present, the access is a write,
+	 *    and no reserved bits are set (MMIO SPTEs cannot be "fixed"), i.e.
+	 *    the fault was caused by a write-protection violation.  If the
+	 *    SPTE is MMU-writable (determined later), the fault can be fixed
+	 *    by setting the Writable bit, which can be done out of mmu_lock.
 	 */
-
-	return shadow_acc_track_mask != 0 || (fault->write && fault->present);
+	return !kvm_ad_enabled() || (fault->write && fault->present);
 }
 
 /*
@@ -3183,13 +3184,25 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 
 		new_spte = spte;
 
-		if (is_access_track_spte(spte))
+		/*
+		 * KVM only supports fixing page faults outside of MMU lock for
+		 * direct MMUs, nested MMUs are always indirect, and KVM always
+		 * uses A/D bits for non-nested MMUs.  Thus, if A/D bits are
+		 * enabled, the SPTE can't be an access-tracked SPTE.
+		 */
+		if (unlikely(!kvm_ad_enabled()) && is_access_track_spte(spte))
 			new_spte = restore_acc_track_spte(new_spte);
 
 		/*
-		 * Currently, to simplify the code, write-protection can
-		 * be removed in the fast path only if the SPTE was
-		 * write-protected for dirty-logging or access tracking.
+		 * To keep things simple, only SPTEs that are MMU-writable can
+		 * be made fully writable outside of mmu_lock, e.g. only SPTEs
+		 * that were write-protected for dirty-logging or access
+		 * tracking are handled here.  Don't bother checking if the
+		 * SPTE is writable to prioritize running with A/D bits enabled.
+		 * The is_access_allowed() check above handles the common case
+		 * of the fault being spurious, and the SPTE is known to be
+		 * shadow-present, i.e. except for access tracking restoration
+		 * making the new SPTE writable, the check is wasteful.
 		 */
 		if (fault->write && is_mmu_writable_spte(spte)) {
 			new_spte |= PT_WRITABLE_MASK;
@@ -4794,7 +4807,7 @@ kvm_calc_tdp_mmu_root_page_role(struct kvm_vcpu *vcpu,
 	role.efer_nx = true;
 	role.smm = cpu_role.base.smm;
 	role.guest_mode = cpu_role.base.guest_mode;
-	role.ad_disabled = (shadow_accessed_mask == 0);
+	role.ad_disabled = !kvm_ad_enabled();
 	role.level = kvm_mmu_get_tdp_level(vcpu);
 	role.direct = true;
 	role.has_4_byte_gpte = false;

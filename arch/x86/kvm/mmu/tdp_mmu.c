@@ -1136,7 +1136,7 @@ static int tdp_mmu_link_sp(struct kvm *kvm, struct tdp_iter *iter,
 			   struct kvm_mmu_page *sp, bool account_nx,
 			   bool shared)
 {
-	u64 spte = make_nonleaf_spte(sp->spt, !shadow_accessed_mask);
+	u64 spte = make_nonleaf_spte(sp->spt, !kvm_ad_enabled());
 	int ret = 0;
 
 	if (shared) {
