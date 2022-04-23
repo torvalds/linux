@@ -248,10 +248,10 @@ static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 		.req_level = PG_LEVEL_4K,
 		.goal_level = PG_LEVEL_4K,
 	};
-#ifdef CONFIG_RETPOLINE
-	if (fault.is_tdp)
+
+	if (IS_ENABLED(CONFIG_RETPOLINE) && fault.is_tdp)
 		return kvm_tdp_page_fault(vcpu, &fault);
-#endif
+
 	return vcpu->arch.mmu->page_fault(vcpu, &fault);
 }
 
