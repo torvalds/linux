@@ -176,18 +176,18 @@
 		};
 
 		aon_syscon: aon_syscon@17010000 {
-				compatible = "syscon";
-				reg = <0x0 0x17010000 0x0 0x1000>;
+			compatible = "syscon";
+			reg = <0x0 0x17010000 0x0 0x1000>;
 		};
 
 		stg_syscon: stg_syscon@10240000 {
-				compatible = "syscon";
-				reg = <0x0 0x10240000 0x0 0x1000>;
+			compatible = "syscon";
+			reg = <0x0 0x10240000 0x0 0x1000>;
 		};
 
 		sys_syscon: sys_syscon@13030000 {
-				compatible = "syscon";
-				reg = <0x0 0x13030000 0x0 0x1000>;
+			compatible = "syscon";
+			reg = <0x0 0x13030000 0x0 0x1000>;
 		};
 
 		clint: clint@2000000 {
