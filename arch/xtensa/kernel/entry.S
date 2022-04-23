@@ -1882,7 +1882,11 @@ ENTRY(fast_store_prohibited)
 	j	8b
 
 2:	/* If there was a problem, handle fault in C */
-
+	rsr	a1, excvaddr
+	pdtlb	a0, a1
+	bbci.l	a0, DTLB_HIT_BIT, 1f
+	idtlb	a0
+1:
 	rsr	a3, depc	# still holds a2
 	s32i	a3, a2, PT_AREG2
 	mov	a1, a2
