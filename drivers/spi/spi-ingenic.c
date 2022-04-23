@@ -380,7 +380,7 @@ static int spi_ingenic_probe(struct platform_device *pdev)
 	struct spi_controller *ctlr;
 	struct ingenic_spi *priv;
 	void __iomem *base;
-	int ret;
+	int num_cs, ret;
 
 	pdata = of_device_get_match_data(dev);
 	if (!pdata) {
@@ -416,6 +416,9 @@ static int spi_ingenic_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->flen_field))
 		return PTR_ERR(priv->flen_field);
 
+	if (device_property_read_u32(dev, "num-cs", &num_cs))
+		num_cs = 2;
+
 	platform_set_drvdata(pdev, ctlr);
 
 	ctlr->prepare_transfer_hardware = spi_ingenic_prepare_hardware;
@@ -429,7 +432,9 @@ static int spi_ingenic_probe(struct platform_device *pdev)
 	ctlr->bits_per_word_mask = pdata->bits_per_word_mask;
 	ctlr->min_speed_hz = 7200;
 	ctlr->max_speed_hz = 54000000;
-	ctlr->num_chipselect = 2;
+	ctlr->use_gpio_descriptors = true;
+	ctlr->max_native_cs = 2;
+	ctlr->num_chipselect = num_cs;
 	ctlr->dev.of_node = pdev->dev.of_node;
 
 	if (spi_ingenic_request_dma(ctlr, dev))
