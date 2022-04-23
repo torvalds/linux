@@ -7,7 +7,7 @@
 #include <asm/sections.h>
 #include <asm/mem_detect.h>
 #include <asm/sparsemem.h>
-#include "compressed/decompressor.h"
+#include "decompressor.h"
 #include "boot.h"
 
 struct mem_detect_info __bootdata(mem_detect);
