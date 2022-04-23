@@ -1225,7 +1225,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pdesc->LINIP = 0;
 	pdesc->CmdInit = 1;
 	pdesc->Offset = sizeof(struct tx_fwinfo_8190pci) + 8;
-	pdesc->PktSize = (u16)skb->len-sizeof(struct tx_fwinfo_8190pci);
+	pdesc->PktSize = skb->len - sizeof(struct tx_fwinfo_8190pci);
 
 	pdesc->SecCAMID = 0;
 	pdesc->RATid = cb_desc->RATRIndex;
@@ -1298,8 +1298,7 @@ void  rtl92e_fill_tx_cmd_desc(struct net_device *dev, struct tx_desc_cmd *entry,
 
 		entry_tmp->CmdInit = DESC_PACKET_TYPE_NORMAL;
 		entry_tmp->Offset = sizeof(struct tx_fwinfo_8190pci) + 8;
-		entry_tmp->PktSize = (u16)(cb_desc->pkt_size +
-				      entry_tmp->Offset);
+		entry_tmp->PktSize = cb_desc->pkt_size + entry_tmp->Offset;
 		entry_tmp->QueueSelect = QSLT_CMD;
 		entry_tmp->TxFWInfoSize = 0x08;
 		entry_tmp->RATid = DESC_PACKET_TYPE_INIT;
