@@ -1100,6 +1100,7 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 
 	/* If a MMIO SPTE is installed, the MMIO will need to be emulated. */
 	if (unlikely(is_mmio_spte(new_spte))) {
+		vcpu->stat.pf_mmio_spte_created++;
 		trace_mark_mmio_spte(rcu_dereference(iter->sptep), iter->gfn,
 				     new_spte);
 		ret = RET_PF_EMULATE;
@@ -1107,13 +1108,6 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 		trace_kvm_mmu_set_spte(iter->level, iter->gfn,
 				       rcu_dereference(iter->sptep));
 	}
-
-	/*
-	 * Increase pf_fixed in both RET_PF_EMULATE and RET_PF_FIXED to be
-	 * consistent with legacy MMU behavior.
-	 */
-	if (ret != RET_PF_SPURIOUS)
-		vcpu->stat.pf_fixed++;
 
 	return ret;
 }

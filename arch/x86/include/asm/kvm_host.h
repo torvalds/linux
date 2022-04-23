@@ -1269,7 +1269,12 @@ struct kvm_vm_stat {
 
 struct kvm_vcpu_stat {
 	struct kvm_vcpu_stat_generic generic;
+	u64 pf_taken;
 	u64 pf_fixed;
+	u64 pf_emulate;
+	u64 pf_spurious;
+	u64 pf_fast;
+	u64 pf_mmio_spte_created;
 	u64 pf_guest;
 	u64 tlb_flush;
 	u64 invlpg;
