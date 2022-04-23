@@ -136,7 +136,7 @@ static inline u16 Hi16(u32 val)
 
 static inline u16 Mk16(u8 hi, u8 lo)
 {
-	return lo | (((u16)hi) << 8);
+	return lo | (hi << 8);
 }
 
 
