@@ -1175,7 +1175,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pTxFwInfo = (struct tx_fwinfo_8190pci *)skb->data;
 	memset(pTxFwInfo, 0, sizeof(struct tx_fwinfo_8190pci));
 	pTxFwInfo->TxHT = (cb_desc->data_rate & 0x80) ? 1 : 0;
-	pTxFwInfo->TxRate = _rtl92e_rate_mgn_to_hw((u8)cb_desc->data_rate);
+	pTxFwInfo->TxRate = _rtl92e_rate_mgn_to_hw(cb_desc->data_rate);
 	pTxFwInfo->EnableCPUDur = cb_desc->bTxEnableFwCalcDur;
 	pTxFwInfo->Short = _rtl92e_query_is_short(pTxFwInfo->TxHT,
 						  pTxFwInfo->TxRate, cb_desc);
@@ -1194,7 +1194,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pTxFwInfo->CtsEnable = (cb_desc->bCTSEnable) ? 1 : 0;
 	pTxFwInfo->RtsSTBC = (cb_desc->bRTSSTBC) ? 1 : 0;
 	pTxFwInfo->RtsHT = (cb_desc->rts_rate&0x80) ? 1 : 0;
-	pTxFwInfo->RtsRate = _rtl92e_rate_mgn_to_hw((u8)cb_desc->rts_rate);
+	pTxFwInfo->RtsRate = _rtl92e_rate_mgn_to_hw(cb_desc->rts_rate);
 	pTxFwInfo->RtsBandwidth = 0;
 	pTxFwInfo->RtsSubcarrier = cb_desc->RTSSC;
 	pTxFwInfo->RtsShort = (pTxFwInfo->RtsHT == 0) ?
@@ -1707,8 +1707,7 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 		slide_rssi_index = 0;
 
 	tmp_val = priv->stats.slide_rssi_total/slide_rssi_statistics;
-	priv->stats.signal_strength = rtl92e_translate_to_dbm(priv,
-							      (u8)tmp_val);
+	priv->stats.signal_strength = rtl92e_translate_to_dbm(priv, tmp_val);
 	curr_st->rssi = priv->stats.signal_strength;
 	if (!prev_st->bPacketMatchBSSID) {
 		if (!prev_st->bToSelfBA)
@@ -2034,7 +2033,7 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 	pDrvInfo = (struct rx_fwinfo *)(skb->data + stats->RxBufShift);
 
 	stats->rate = _rtl92e_rate_hw_to_mgn((bool)pDrvInfo->RxHT,
-					     (u8)pDrvInfo->RxRate);
+					     pDrvInfo->RxRate);
 	stats->bShortPreamble = pDrvInfo->SPLCP;
 
 	_rtl92e_update_received_rate_histogram_stats(dev, stats);

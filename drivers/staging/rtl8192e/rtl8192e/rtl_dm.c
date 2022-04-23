@@ -2513,5 +2513,5 @@ static void _rtl92e_dm_send_rssi_to_fw(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	rtl92e_writeb(dev, DRIVER_RSSI, (u8)priv->undecorated_smoothed_pwdb);
+	rtl92e_writeb(dev, DRIVER_RSSI, priv->undecorated_smoothed_pwdb);
 }

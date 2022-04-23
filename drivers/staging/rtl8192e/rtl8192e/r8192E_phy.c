@@ -933,7 +933,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 				break;
 			case CmdID_WritePortUchar:
 				rtl92e_writeb(dev, CurrentCmd->Para1,
-					      (u8)CurrentCmd->Para2);
+					      CurrentCmd->Para2);
 				break;
 			case CmdID_RF_WriteReg:
 				for (eRFPath = 0; eRFPath <
