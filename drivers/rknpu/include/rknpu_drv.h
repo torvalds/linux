@@ -29,10 +29,10 @@
 
 #define DRIVER_NAME "rknpu"
 #define DRIVER_DESC "RKNPU driver"
-#define DRIVER_DATE "20220328"
+#define DRIVER_DATE "20220428"
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 7
-#define DRIVER_PATCHLEVEL 0
+#define DRIVER_PATCHLEVEL 2
 
 #define LOG_TAG "RKNPU"
 
@@ -135,6 +135,7 @@ struct rknpu_device {
 	struct device *genpd_dev_npu2;
 	bool multiple_domains;
 	atomic_t power_refcount;
+	atomic_t cmdline_power_refcount;
 	struct delayed_work power_off_work;
 	struct workqueue_struct *power_off_wq;
 	bool is_powered;
@@ -142,5 +143,7 @@ struct rknpu_device {
 	struct hrtimer timer;
 	ktime_t kt;
 };
+
+int rknpu_action(struct rknpu_device *rknpu_dev, struct rknpu_action *args);
 
 #endif /* __LINUX_RKNPU_DRV_H_ */

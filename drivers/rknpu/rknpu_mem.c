@@ -40,13 +40,13 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 	if (args.flags & RKNPU_MEM_NON_CONTIGUOUS) {
 		LOG_ERROR("%s: malloc iommu memory unsupported in current!\n",
 			  __func__);
-		ret = -EFAULT;
+		ret = -EINVAL;
 		return ret;
 	}
 
 	rknpu_obj = kzalloc(sizeof(*rknpu_obj), GFP_KERNEL);
 	if (!rknpu_obj)
-		return PTR_ERR(rknpu_obj);
+		return -ENOMEM;
 
 	if (args.handle > 0) {
 		fd = args.handle;
@@ -64,8 +64,10 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 		dmabuf = rk_dma_heap_buffer_alloc(rknpu_dev->heap, args.size,
 						  O_CLOEXEC | O_RDWR, 0x0,
 						  dev_name(rknpu_dev->dev));
-		if (IS_ERR(dmabuf))
-			return PTR_ERR(dmabuf);
+		if (IS_ERR(dmabuf)) {
+			ret = PTR_ERR(dmabuf);
+			goto err_free_obj;
+		}
 
 		rknpu_obj->dmabuf = dmabuf;
 		rknpu_obj->owner = 1;
@@ -85,6 +87,7 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 
 	table = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
 	if (IS_ERR(table)) {
+		dma_buf_detach(dmabuf, attachment);
 		ret = PTR_ERR(table);
 		goto err_free_dma_buf;
 	}
@@ -92,21 +95,26 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 	for_each_sgtable_sg(table, sgl, i) {
 		phys = sg_dma_address(sgl);
 		page = sg_page(sgl);
-		LOG_DEBUG("%s, %d, phys = %pad, length = 0x%x\n", __func__,
-			  __LINE__, &phys, sg_dma_len(sgl));
 		length = sg_dma_len(sgl);
+		LOG_DEBUG("%s, %d, phys = %pad, length = 0x%x\n", __func__,
+			  __LINE__, &phys, length);
 	}
 
 	page_count = length >> PAGE_SHIFT;
 	pages = kmalloc_array(page_count, sizeof(struct page), GFP_KERNEL);
+	if (!pages) {
+		ret = -ENOMEM;
+		goto err_detach_dma_buf;
+	}
+
 	for (i = 0; i < page_count; i++)
 		pages[i] = &page[i];
 
 	rknpu_obj->kv_addr = vmap(pages, page_count, VM_MAP, PAGE_KERNEL);
-	kfree(pages);
-
-	dma_buf_unmap_attachment(attachment, table, DMA_BIDIRECTIONAL);
-	dma_buf_detach(dmabuf, attachment);
+	if (!rknpu_obj->kv_addr) {
+		ret = -ENOMEM;
+		goto err_free_pages;
+	}
 
 	rknpu_obj->size = PAGE_ALIGN(args.size);
 	rknpu_obj->dma_addr = phys;
@@ -126,18 +134,35 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 				  sizeof(struct rknpu_mem_create)))) {
 		LOG_ERROR("%s: copy_to_user failed\n", __func__);
 		ret = -EFAULT;
-		goto err_free_dma_buf;
+		goto err_unmap_kv_addr;
 	}
+
+	kfree(pages);
+	dma_buf_unmap_attachment(attachment, table, DMA_BIDIRECTIONAL);
+	dma_buf_detach(dmabuf, attachment);
+
 	return 0;
 
+err_unmap_kv_addr:
+	vunmap(rknpu_obj->kv_addr);
+	rknpu_obj->kv_addr = NULL;
+
+err_free_pages:
+	kfree(pages);
+
+err_detach_dma_buf:
+	dma_buf_unmap_attachment(attachment, table, DMA_BIDIRECTIONAL);
+	dma_buf_detach(dmabuf, attachment);
+
 err_free_dma_buf:
-	dma_buf_put(dmabuf);
 	if (rknpu_obj->owner)
 		rk_dma_heap_buffer_free(dmabuf);
-	return ret;
+	else
+		dma_buf_put(dmabuf);
 
 err_free_obj:
 	kfree(rknpu_obj);
+
 	return ret;
 }
 
@@ -156,8 +181,9 @@ int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 	}
 
 	if (!kern_addr_valid(args.obj_addr)) {
-		LOG_ERROR("%s: invalid params, unknown obj_addr\n", __func__);
-		ret = -EFAULT;
+		LOG_ERROR("%s: invalid obj_addr: %#llx\n", __func__,
+			  (__u64)(uintptr_t)args.obj_addr);
+		ret = -EINVAL;
 		return ret;
 	}
 
@@ -169,6 +195,12 @@ int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 		(__u64)rknpu_obj->dma_addr);
 
 	vunmap(rknpu_obj->kv_addr);
+	rknpu_obj->kv_addr = NULL;
+
+	if (rknpu_obj->owner)
+		rk_dma_heap_buffer_free(dmabuf);
+	else
+		dma_buf_put(dmabuf);
 
 	kfree(rknpu_obj);
 
@@ -186,6 +218,13 @@ int rknpu_mem_sync_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 				    sizeof(struct rknpu_mem_sync)))) {
 		LOG_ERROR("%s: copy_from_user failed\n", __func__);
 		ret = -EFAULT;
+		return ret;
+	}
+
+	if (!kern_addr_valid(args.obj_addr)) {
+		LOG_ERROR("%s: invalid obj_addr: %#llx\n", __func__,
+			  (__u64)(uintptr_t)args.obj_addr);
+		ret = -EINVAL;
 		return ret;
 	}
 

@@ -39,9 +39,23 @@ static int rknpu_core_index(int core_mask)
 
 static int rknpu_core_mask(int core_index)
 {
-	int core_mask[3] = { RKNPU_CORE0_MASK, RKNPU_CORE1_MASK,
-			     RKNPU_CORE2_MASK };
-	return core_mask[core_index];
+	int core_mask = RKNPU_CORE_AUTO_MASK;
+
+	switch (core_index) {
+	case 0:
+		core_mask = RKNPU_CORE0_MASK;
+		break;
+	case 1:
+		core_mask = RKNPU_CORE1_MASK;
+		break;
+	case 2:
+		core_mask = RKNPU_CORE2_MASK;
+		break;
+	default:
+		break;
+	}
+
+	return core_mask;
 }
 
 static int rknn_get_task_number(struct rknpu_job *job, int core_index)
@@ -577,12 +591,9 @@ static void rknpu_job_timeout_clean(struct rknpu_device *rknpu_dev,
 	}
 }
 
-#ifdef CONFIG_ROCKCHIP_RKNPU_DRM_GEM
-int rknpu_submit_ioctl(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv)
+static int rknpu_submit(struct rknpu_device *rknpu_dev,
+			struct rknpu_submit *args)
 {
-	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev->dev);
-	struct rknpu_submit *args = data;
 	struct rknpu_job *job = NULL;
 	int ret = -EINVAL;
 
@@ -676,13 +687,22 @@ int rknpu_submit_ioctl(struct drm_device *dev, void *data,
 
 	return ret;
 }
+
+#ifdef CONFIG_ROCKCHIP_RKNPU_DRM_GEM
+int rknpu_submit_ioctl(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv)
+{
+	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev->dev);
+	struct rknpu_submit *args = data;
+
+	return rknpu_submit(rknpu_dev, args);
+}
 #endif
 
 #ifdef CONFIG_ROCKCHIP_RKNPU_DMA_HEAP
 int rknpu_submit_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 {
 	struct rknpu_submit args;
-	struct rknpu_job *job = NULL;
 	int ret = -EINVAL;
 
 	if (unlikely(copy_from_user(&args, (struct rknpu_submit *)data,
@@ -692,93 +712,7 @@ int rknpu_submit_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 		return ret;
 	}
 
-	if (args.task_number == 0) {
-		LOG_ERROR("invalid rknpu task number!\n");
-		return -EINVAL;
-	}
-
-	job = rknpu_job_alloc(rknpu_dev, &args);
-	if (!job) {
-		LOG_ERROR("failed to allocate rknpu job!\n");
-		return -ENOMEM;
-	}
-
-	if (args.flags & RKNPU_JOB_FENCE_IN) {
-#ifdef CONFIG_ROCKCHIP_RKNPU_FENCE
-		struct dma_fence *in_fence;
-
-		in_fence = sync_file_get_fence(args.fence_fd);
-
-		if (!in_fence) {
-			LOG_ERROR("invalid fence in fd, fd = %d\n",
-				  args.fence_fd);
-			return -EINVAL;
-		}
-		args.fence_fd = -1;
-
-		/*
-		 * Wait if the fence is from a foreign context, or if the fence
-		 * array contains any fence from a foreign context.
-		 */
-		ret = 0;
-		if (!dma_fence_match_context(in_fence,
-					     rknpu_dev->fence_ctx->context))
-			ret = dma_fence_wait_timeout(in_fence, true,
-						     args.timeout);
-		dma_fence_put(in_fence);
-		if (ret < 0) {
-			if (ret != -ERESTARTSYS)
-				LOG_ERROR("Error (%d) waiting for fence!\n",
-					  ret);
-
-			return ret;
-		}
-#else
-		LOG_ERROR(
-			"failed to use rknpu fence, please enable rknpu fence config!\n");
-		rknpu_job_free(job);
-		return -EINVAL;
-#endif
-	}
-
-	if (args.flags & RKNPU_JOB_FENCE_OUT) {
-#ifdef CONFIG_ROCKCHIP_RKNPU_FENCE
-		ret = rknpu_fence_alloc(job);
-		if (ret) {
-			rknpu_job_free(job);
-			return ret;
-		}
-		job->args->fence_fd = rknpu_fence_get_fd(job);
-		args.fence_fd = job->args->fence_fd;
-#else
-		LOG_ERROR(
-			"failed to use rknpu fence, please enable rknpu fence config!\n");
-		rknpu_job_free(job);
-		return -EINVAL;
-#endif
-	}
-
-	if (args.flags & RKNPU_JOB_NONBLOCK) {
-		job->flags |= RKNPU_JOB_ASYNC;
-		rknpu_job_timeout_clean(rknpu_dev, job->args->core_mask);
-		rknpu_job_schedule(job);
-		ret = job->ret;
-		if (ret) {
-			rknpu_job_abort(job);
-			return ret;
-		}
-	} else {
-		rknpu_job_schedule(job);
-		if (args.flags & RKNPU_JOB_PC)
-			job->ret = rknpu_job_wait(job);
-
-		args.task_counter = job->args->task_counter;
-		ret = job->ret;
-		if (!ret)
-			rknpu_job_cleanup(job);
-		else
-			rknpu_job_abort(job);
-	}
+	ret = rknpu_submit(rknpu_dev, &args);
 
 	if (unlikely(copy_to_user((struct rknpu_submit *)data, &args,
 				  sizeof(struct rknpu_submit)))) {

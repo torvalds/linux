@@ -287,8 +287,6 @@ struct rknpu_action {
 #define RKNPU_IOR(nr, type) _IOR(RKNPU_IOC_MAGIC, nr, type)
 #define RKNPU_IOWR(nr, type) _IOWR(RKNPU_IOC_MAGIC, nr, type)
 
-#if defined(__arm__) || defined(__aarch64__)
-
 #include <drm/drm.h>
 
 #define DRM_IOCTL_RKNPU_ACTION                                                 \
@@ -312,7 +310,5 @@ struct rknpu_action {
 #define IOCTL_RKNPU_MEM_DESTROY                                                \
 	RKNPU_IOWR(RKNPU_MEM_DESTROY, struct rknpu_mem_destroy)
 #define IOCTL_RKNPU_MEM_SYNC RKNPU_IOWR(RKNPU_MEM_SYNC, struct rknpu_mem_sync)
-
-#endif
 
 #endif

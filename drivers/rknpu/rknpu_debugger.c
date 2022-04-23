@@ -64,9 +64,67 @@ static int rknpu_load_show(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int rknpu_power_show(struct seq_file *m, void *data)
+{
+	struct rknpu_debugger_node *node = m->private;
+	struct rknpu_debugger *debugger = node->debugger;
+	struct rknpu_device *rknpu_dev =
+		container_of(debugger, struct rknpu_device, debugger);
+
+	if (rknpu_dev->is_powered)
+		seq_puts(m, "on\n");
+	else
+		seq_puts(m, "off\n");
+
+	return 0;
+}
+
+static ssize_t rknpu_power_set(struct file *file, const char __user *ubuf,
+			       size_t len, loff_t *offp)
+{
+	struct seq_file *priv = file->private_data;
+	struct rknpu_debugger_node *node = priv->private;
+	struct rknpu_debugger *debugger = node->debugger;
+	struct rknpu_device *rknpu_dev =
+		container_of(debugger, struct rknpu_device, debugger);
+	struct rknpu_action args;
+	char buf[10];
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len - 1] = '\0';
+
+	if (strcmp(buf, "on") == 0) {
+		atomic_inc(&rknpu_dev->cmdline_power_refcount);
+		args.flags = RKNPU_POWER_ON;
+		rknpu_action(rknpu_dev, &args);
+		LOG_INFO("rknpu power is on!");
+	} else if (strcmp(buf, "off") == 0) {
+		if (rknpu_dev->is_powered &&
+		    atomic_dec_if_positive(
+			    &rknpu_dev->cmdline_power_refcount) >= 0) {
+			atomic_sub(
+				atomic_read(&rknpu_dev->cmdline_power_refcount),
+				&rknpu_dev->power_refcount);
+			atomic_set(&rknpu_dev->cmdline_power_refcount, 0);
+			args.flags = RKNPU_POWER_OFF;
+			rknpu_action(rknpu_dev, &args);
+		}
+		if (!rknpu_dev->is_powered)
+			LOG_INFO("rknpu power is off!");
+	} else {
+		LOG_ERROR("rknpu power node params is invalid!");
+	}
+
+	return len;
+}
+
 struct rknpu_debugger_list rknpu_debugger_root_list[] = {
 	{ "driver_version", rknpu_version_show, NULL, NULL },
 	{ "load", rknpu_load_show, NULL, NULL },
+	{ "power", rknpu_power_show, rknpu_power_set, NULL }
 };
 
 static ssize_t rknpu_debugger_write(struct file *file, const char __user *ubuf,

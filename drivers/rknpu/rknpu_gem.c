@@ -56,14 +56,13 @@ static int rknpu_gem_get_pages(struct rknpu_gem_object *rknpu_obj)
 		goto free_sgt;
 	}
 
-	dma_sync_sg_for_device(drm->dev, rknpu_obj->sgt->sgl,
-			       rknpu_obj->sgt->nents, DMA_TO_DEVICE);
-
 	if (rknpu_obj->flags & RKNPU_MEM_KERNEL_MAPPING) {
 		rknpu_obj->cookie = vmap(rknpu_obj->pages, rknpu_obj->num_pages,
 					 VM_MAP, PAGE_KERNEL);
-		if (!rknpu_obj->cookie)
+		if (!rknpu_obj->cookie) {
+			ret = -ENOMEM;
 			goto unmap_sg;
+		}
 		rknpu_obj->kv_addr = rknpu_obj->cookie;
 	}
 
@@ -97,8 +96,10 @@ static void rknpu_gem_put_pages(struct rknpu_gem_object *rknpu_obj)
 {
 	struct drm_device *drm = rknpu_obj->base.dev;
 
-	if (rknpu_obj->flags & RKNPU_MEM_KERNEL_MAPPING)
+	if (rknpu_obj->flags & RKNPU_MEM_KERNEL_MAPPING) {
 		vunmap(rknpu_obj->kv_addr);
+		rknpu_obj->kv_addr = NULL;
+	}
 
 	dma_unmap_sg(drm->dev, rknpu_obj->sgt->sgl, rknpu_obj->sgt->nents,
 		     DMA_BIDIRECTIONAL);
