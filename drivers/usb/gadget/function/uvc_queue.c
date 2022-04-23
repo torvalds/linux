@@ -70,7 +70,11 @@ static int uvc_buffer_prepare(struct vb2_buffer *vb)
 		return -ENODEV;
 
 	buf->state = UVC_BUF_STATE_QUEUED;
+#ifdef CONFIG_ARCH_ROCKCHIP
+	buf->mem = vb2_plane_vaddr(vb, 0) + vb2_plane_data_offset(vb, 0);
+#else
 	buf->mem = vb2_plane_vaddr(vb, 0);
+#endif
 	buf->length = vb2_plane_size(vb, 0);
 	if (vb->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		buf->bytesused = 0;
