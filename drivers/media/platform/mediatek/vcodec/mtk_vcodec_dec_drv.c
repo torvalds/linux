@@ -400,6 +400,9 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 	}
 
 	if (dev->vdec_pdata->uses_stateless_api) {
+		v4l2_disable_ioctl(vfd_dec, VIDIOC_DECODER_CMD);
+		v4l2_disable_ioctl(vfd_dec, VIDIOC_TRY_DECODER_CMD);
+
 		dev->mdev_dec.dev = &pdev->dev;
 		strscpy(dev->mdev_dec.model, MTK_VCODEC_DEC_NAME,
 			sizeof(dev->mdev_dec.model));
