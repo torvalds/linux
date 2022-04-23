@@ -7481,6 +7481,7 @@ static bool brmcf_use_iso3166_ccode_fallback(struct brcmf_pub *drvr)
 {
 	switch (drvr->bus_if->chip) {
 	case BRCM_CC_4345_CHIP_ID:
+	case BRCM_CC_43602_CHIP_ID:
 		return true;
 	default:
 		return false;
