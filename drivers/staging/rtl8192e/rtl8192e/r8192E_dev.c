@@ -321,7 +321,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 
 		usValue = rtl92e_eeprom_read(dev,
 					     (u16)(EEPROM_Customer_ID>>1)) >> 8;
-		priv->eeprom_CustomerID = (u8)(usValue & 0xff);
+		priv->eeprom_CustomerID = usValue & 0xff;
 		usValue = rtl92e_eeprom_read(dev,
 					     EEPROM_ICVersion_ChannelPlan>>1);
 		priv->eeprom_ChannelPlan = usValue&0xff;
@@ -399,9 +399,9 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 			priv->EEPROMLegacyHTTxPowerDiff);
 
 		if (!priv->AutoloadFailFlag)
-			priv->EEPROMThermalMeter = (u8)(((rtl92e_eeprom_read(dev,
+			priv->EEPROMThermalMeter = ((rtl92e_eeprom_read(dev,
 						   (EEPROM_ThermalMeter>>1))) &
-						   0xff00)>>8);
+						   0xff00) >> 8;
 		else
 			priv->EEPROMThermalMeter = EEPROM_Default_ThermalMeter;
 		RT_TRACE(COMP_INIT, "ThermalMeter = %d\n",
@@ -413,8 +413,8 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 				usValue = rtl92e_eeprom_read(dev,
 					  EEPROM_TxPwDiff_CrystalCap >> 1);
 				priv->EEPROMAntPwDiff = usValue & 0x0fff;
-				priv->EEPROMCrystalCap = (u8)((usValue & 0xf000)
-							 >> 12);
+				priv->EEPROMCrystalCap = (usValue & 0xf000)
+							 >> 12;
 			} else {
 				priv->EEPROMAntPwDiff =
 					 EEPROM_Default_AntTxPowerDiff;
@@ -894,9 +894,8 @@ start:
 
 			for (i = 0; i < TxBBGainTableLength; i++) {
 				if (tmpRegA == dm_tx_bb_gain[i]) {
-					priv->rfa_txpowertrackingindex = (u8)i;
-					priv->rfa_txpowertrackingindex_real =
-						 (u8)i;
+					priv->rfa_txpowertrackingindex = i;
+					priv->rfa_txpowertrackingindex_real = i;
 					priv->rfa_txpowertracking_default =
 						 priv->rfa_txpowertrackingindex;
 					break;
@@ -908,7 +907,7 @@ start:
 
 			for (i = 0; i < CCKTxBBGainTableLength; i++) {
 				if (TempCCk == dm_cck_tx_bb_gain[i][0]) {
-					priv->CCKPresentAttentuation_20Mdefault = (u8)i;
+					priv->CCKPresentAttentuation_20Mdefault = i;
 					break;
 				}
 			}
@@ -1303,7 +1302,7 @@ void  rtl92e_fill_tx_cmd_desc(struct net_device *dev, struct tx_desc_cmd *entry,
 				      entry_tmp->Offset);
 		entry_tmp->QueueSelect = QSLT_CMD;
 		entry_tmp->TxFWInfoSize = 0x08;
-		entry_tmp->RATid = (u8)DESC_PACKET_TYPE_INIT;
+		entry_tmp->RATid = DESC_PACKET_TYPE_INIT;
 	}
 	entry->TxBufferSize = skb->len;
 	entry->TxBuffAddr = mapping;
@@ -1613,9 +1612,8 @@ static void _rtl92e_query_rxphystatus(
 				total_rssi += RSSI;
 
 			if (bpacket_match_bssid) {
-				pstats->RxMIMOSignalStrength[i] = (u8)RSSI;
-				precord_stats->RxMIMOSignalStrength[i] =
-								(u8)RSSI;
+				pstats->RxMIMOSignalStrength[i] = RSSI;
+				precord_stats->RxMIMOSignalStrength[i] = RSSI;
 			}
 		}
 
@@ -1661,14 +1659,14 @@ static void _rtl92e_query_rxphystatus(
 
 	if (is_cck_rate) {
 		pstats->SignalStrength = precord_stats->SignalStrength =
-					 (u8)(_rtl92e_signal_scale_mapping(priv,
-					 (long)pwdb_all));
+					 _rtl92e_signal_scale_mapping(priv,
+					 (long)pwdb_all);
 
 	} else {
 		if (rf_rx_num != 0)
 			pstats->SignalStrength = precord_stats->SignalStrength =
-					 (u8)(_rtl92e_signal_scale_mapping(priv,
-					 (long)(total_rssi /= rf_rx_num)));
+					 _rtl92e_signal_scale_mapping(priv,
+					 (long)(total_rssi /= rf_rx_num));
 	}
 }
 

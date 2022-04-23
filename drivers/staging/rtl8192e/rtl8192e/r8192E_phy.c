@@ -1299,17 +1299,17 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 			    DIG_ALGO_BY_FALSE_ALARM)
 				rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x8);
 			priv->initgain_backup.xaagccore1 =
-				 (u8)rtl92e_get_bb_reg(dev, rOFDM0_XAAGCCore1,
-						       BitMask);
+				 rtl92e_get_bb_reg(dev, rOFDM0_XAAGCCore1,
+						   BitMask);
 			priv->initgain_backup.xbagccore1 =
-				 (u8)rtl92e_get_bb_reg(dev, rOFDM0_XBAGCCore1,
-						       BitMask);
+				 rtl92e_get_bb_reg(dev, rOFDM0_XBAGCCore1,
+						   BitMask);
 			priv->initgain_backup.xcagccore1 =
-				 (u8)rtl92e_get_bb_reg(dev, rOFDM0_XCAGCCore1,
-						       BitMask);
+				 rtl92e_get_bb_reg(dev, rOFDM0_XCAGCCore1,
+						   BitMask);
 			priv->initgain_backup.xdagccore1 =
-				 (u8)rtl92e_get_bb_reg(dev, rOFDM0_XDAGCCore1,
-						       BitMask);
+				 rtl92e_get_bb_reg(dev, rOFDM0_XDAGCCore1,
+						   BitMask);
 			BitMask = bMaskByte2;
 			priv->initgain_backup.cca = (u8)rtl92e_get_bb_reg(dev,
 						    rCCK0_CCA, BitMask);
