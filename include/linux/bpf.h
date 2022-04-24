@@ -375,7 +375,15 @@ enum bpf_type_flag {
 	/* Indicates that the argument will be released. */
 	OBJ_RELEASE		= BIT(5 + BPF_BASE_TYPE_BITS),
 
-	__BPF_TYPE_LAST_FLAG	= OBJ_RELEASE,
+	/* PTR is not trusted. This is only used with PTR_TO_BTF_ID, to mark
+	 * unreferenced and referenced kptr loaded from map value using a load
+	 * instruction, so that they can only be dereferenced but not escape the
+	 * BPF program into the kernel (i.e. cannot be passed as arguments to
+	 * kfunc or bpf helpers).
+	 */
+	PTR_UNTRUSTED		= BIT(6 + BPF_BASE_TYPE_BITS),
+
+	__BPF_TYPE_LAST_FLAG	= PTR_UNTRUSTED,
 };
 
 /* Max number of base types. */
