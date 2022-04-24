@@ -590,6 +590,16 @@ config SPI_MTK_NOR
 	  SPI interface as well as several SPI NOR specific instructions
 	  via SPI MEM interface.
 
+config SPI_MTK_SNFI
+	tristate "MediaTek SPI NAND Flash Interface"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on MTD_NAND_ECC_MEDIATEK
+	help
+	  This enables support for SPI-NAND mode on the MediaTek NAND
+	  Flash Interface found on MediaTek ARM SoCs. This controller
+	  is implemented as a SPI-MEM controller with pipelined ECC
+	  capcability.
+
 config SPI_NPCM_FIU
 	tristate "Nuvoton NPCM FLASH Interface Unit"
 	depends on ARCH_NPCM || COMPILE_TEST
