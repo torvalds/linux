@@ -3551,10 +3551,14 @@ static int map_kptr_match_type(struct bpf_verifier_env *env,
 	 *                    // to match type
 	 *
 	 * In the kptr_ref case, check_func_arg_reg_off already ensures reg->off
-	 * is zero.
+	 * is zero. We must also ensure that btf_struct_ids_match does not walk
+	 * the struct to match type against first member of struct, i.e. reject
+	 * second case from above. Hence, when type is BPF_KPTR_REF, we set
+	 * strict mode to true for type match.
 	 */
 	if (!btf_struct_ids_match(&env->log, reg->btf, reg->btf_id, reg->off,
-				  off_desc->kptr.btf, off_desc->kptr.btf_id))
+				  off_desc->kptr.btf, off_desc->kptr.btf_id,
+				  off_desc->type == BPF_KPTR_REF))
 		goto bad_type;
 	return 0;
 bad_type:
@@ -5593,6 +5597,13 @@ static int check_reg_type(struct bpf_verifier_env *env, u32 regno,
 
 found:
 	if (reg->type == PTR_TO_BTF_ID) {
+		/* For bpf_sk_release, it needs to match against first member
+		 * 'struct sock_common', hence make an exception for it. This
+		 * allows bpf_sk_release to work for multiple socket types.
+		 */
+		bool strict_type_match = arg_type_is_release(arg_type) &&
+					 meta->func_id != BPF_FUNC_sk_release;
+
 		if (!arg_btf_id) {
 			if (!compatible->btf_id) {
 				verbose(env, "verifier internal error: missing arg compatible BTF ID\n");
@@ -5605,7 +5616,8 @@ found:
 			if (map_kptr_match_type(env, meta->kptr_off_desc, reg, regno))
 				return -EACCES;
 		} else if (!btf_struct_ids_match(&env->log, reg->btf, reg->btf_id, reg->off,
-						 btf_vmlinux, *arg_btf_id)) {
+						 btf_vmlinux, *arg_btf_id,
+						 strict_type_match)) {
 			verbose(env, "R%d is of type %s but %s is expected\n",
 				regno, kernel_type_name(reg->btf, reg->btf_id),
 				kernel_type_name(btf_vmlinux, *arg_btf_id));

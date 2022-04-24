@@ -5746,7 +5746,8 @@ static bool btf_types_are_same(const struct btf *btf1, u32 id1,
 
 bool btf_struct_ids_match(struct bpf_verifier_log *log,
 			  const struct btf *btf, u32 id, int off,
-			  const struct btf *need_btf, u32 need_type_id)
+			  const struct btf *need_btf, u32 need_type_id,
+			  bool strict)
 {
 	const struct btf_type *type;
 	enum bpf_type_flag flag;
@@ -5755,7 +5756,12 @@ bool btf_struct_ids_match(struct bpf_verifier_log *log,
 	/* Are we already done? */
 	if (off == 0 && btf_types_are_same(btf, id, need_btf, need_type_id))
 		return true;
-
+	/* In case of strict type match, we do not walk struct, the top level
+	 * type match must succeed. When strict is true, off should have already
+	 * been 0.
+	 */
+	if (strict)
+		return false;
 again:
 	type = btf_type_by_id(btf, id);
 	if (!type)
@@ -6197,7 +6203,7 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 				return -EINVAL;
 			}
 			if (!btf_struct_ids_match(log, btf, ref_id, 0, off_desc->kptr.btf,
-						  off_desc->kptr.btf_id)) {
+						  off_desc->kptr.btf_id, true)) {
 				bpf_log(log, "kernel function %s args#%d expected pointer to %s %s\n",
 					func_name, i, btf_type_str(ref_t), ref_tname);
 				return -EINVAL;
@@ -6250,7 +6256,7 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 			reg_ref_tname = btf_name_by_offset(reg_btf,
 							   reg_ref_t->name_off);
 			if (!btf_struct_ids_match(log, reg_btf, reg_ref_id,
-						  reg->off, btf, ref_id)) {
+						  reg->off, btf, ref_id, rel && reg->ref_obj_id)) {
 				bpf_log(log, "kernel function %s args#%d expected pointer to %s %s but R%d has a pointer to %s %s\n",
 					func_name, i,
 					btf_type_str(ref_t), ref_tname,

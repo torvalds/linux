@@ -1748,7 +1748,8 @@ int btf_struct_access(struct bpf_verifier_log *log, const struct btf *btf,
 		      u32 *next_btf_id, enum bpf_type_flag *flag);
 bool btf_struct_ids_match(struct bpf_verifier_log *log,
 			  const struct btf *btf, u32 id, int off,
-			  const struct btf *need_btf, u32 need_type_id);
+			  const struct btf *need_btf, u32 need_type_id,
+			  bool strict);
 
 int btf_distill_func_proto(struct bpf_verifier_log *log,
 			   struct btf *btf,
