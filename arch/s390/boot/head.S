@@ -33,11 +33,13 @@
 #define EP_OFFSET	0x10008
 #define EP_STRING	"S390EP"
 
+#define IPL_START	0x200
+
 __HEAD
 
 #define IPL_BS	0x730
 	.org	0
-	.long	0x00080000,0x80000000+iplstart	# The first 24 bytes are loaded
+	.long	0x00080000,0x80000000+IPL_START	# The first 24 bytes are loaded
 	.long	0x02000018,0x60000050		# by ipl to addresses 0-23.
 	.long	0x02000068,0x60000050		# (a PSW and two CCWs).
 	.fill	80-24,1,0x40			# bytes 24-79 are discarded !!
@@ -63,7 +65,7 @@ __HEAD
 	.long	0x020006e0,0x20000050
 
 	.org	__LC_RST_NEW_PSW		# 0x1a0
-	.quad	0,iplstart
+	.quad	0,IPL_START
 	.org	__LC_EXT_NEW_PSW		# 0x1b0
 	.quad	0x0002000180000000,0x1b0	# disabled wait
 	.org	__LC_PGM_NEW_PSW		# 0x1d0
@@ -71,8 +73,9 @@ __HEAD
 	.org	__LC_IO_NEW_PSW			# 0x1f0
 	.quad	0x0002000180000000,0x1f0	# disabled wait
 
-	.org	0x200
-
+	.org	IPL_START
+ipl_start:
+	j	.Liplcont
 #
 # subroutine to wait for end I/O
 #
@@ -158,7 +161,7 @@ __HEAD
 	.endr
 	.long	0x02200050,0x00000000
 
-iplstart:
+.Liplcont:
 	mvi	__LC_AR_MODE_ID,1	# set esame flag
 	slr	%r0,%r0			# set cpuid to zero
 	lhi	%r1,2			# mode 2 = esame (dump)
