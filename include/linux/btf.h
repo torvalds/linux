@@ -45,6 +45,8 @@ struct btf_id_dtor_kfunc {
 	u32 kfunc_btf_id;
 };
 
+typedef void (*btf_dtor_kfunc_t)(void *);
+
 extern const struct file_operations btf_fops;
 
 void btf_get(struct btf *btf);

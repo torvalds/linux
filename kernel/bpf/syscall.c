@@ -507,8 +507,11 @@ void bpf_map_free_kptr_off_tab(struct bpf_map *map)
 
 	if (!map_value_has_kptrs(map))
 		return;
-	for (i = 0; i < tab->nr_off; i++)
+	for (i = 0; i < tab->nr_off; i++) {
+		if (tab->off[i].kptr.module)
+			module_put(tab->off[i].kptr.module);
 		btf_put(tab->off[i].kptr.btf);
+	}
 	kfree(tab);
 	map->kptr_off_tab = NULL;
 }
@@ -525,8 +528,18 @@ struct bpf_map_value_off *bpf_map_copy_kptr_off_tab(const struct bpf_map *map)
 	if (!new_tab)
 		return ERR_PTR(-ENOMEM);
 	/* Do a deep copy of the kptr_off_tab */
-	for (i = 0; i < tab->nr_off; i++)
+	for (i = 0; i < tab->nr_off; i++) {
 		btf_get(tab->off[i].kptr.btf);
+		if (tab->off[i].kptr.module && !try_module_get(tab->off[i].kptr.module)) {
+			while (i--) {
+				if (tab->off[i].kptr.module)
+					module_put(tab->off[i].kptr.module);
+				btf_put(tab->off[i].kptr.btf);
+			}
+			kfree(new_tab);
+			return ERR_PTR(-ENXIO);
+		}
+	}
 	return new_tab;
 }
 
@@ -546,6 +559,33 @@ bool bpf_map_equal_kptr_off_tab(const struct bpf_map *map_a, const struct bpf_ma
 	return !memcmp(tab_a, tab_b, size);
 }
 
+/* Caller must ensure map_value_has_kptrs is true. Note that this function can
+ * be called on a map value while the map_value is visible to BPF programs, as
+ * it ensures the correct synchronization, and we already enforce the same using
+ * the bpf_kptr_xchg helper on the BPF program side for referenced kptrs.
+ */
+void bpf_map_free_kptrs(struct bpf_map *map, void *map_value)
+{
+	struct bpf_map_value_off *tab = map->kptr_off_tab;
+	unsigned long *btf_id_ptr;
+	int i;
+
+	for (i = 0; i < tab->nr_off; i++) {
+		struct bpf_map_value_off_desc *off_desc = &tab->off[i];
+		unsigned long old_ptr;
+
+		btf_id_ptr = map_value + off_desc->offset;
+		if (off_desc->type == BPF_KPTR_UNREF) {
+			u64 *p = (u64 *)btf_id_ptr;
+
+			WRITE_ONCE(p, 0);
+			continue;
+		}
+		old_ptr = xchg(btf_id_ptr, 0);
+		off_desc->kptr.dtor((void *)old_ptr);
+	}
+}
+
 /* called from workqueue */
 static void bpf_map_free_deferred(struct work_struct *work)
 {
@@ -553,9 +593,10 @@ static void bpf_map_free_deferred(struct work_struct *work)
 
 	security_bpf_map_free(map);
 	kfree(map->off_arr);
-	bpf_map_free_kptr_off_tab(map);
 	bpf_map_release_memcg(map);
-	/* implementation dependent freeing */
+	/* implementation dependent freeing, map_free callback also does
+	 * bpf_map_free_kptr_off_tab, if needed.
+	 */
 	map->ops->map_free(map);
 }
 

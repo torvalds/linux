@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/percpu-refcount.h>
 #include <linux/bpfptr.h>
+#include <linux/btf.h>
 
 struct bpf_verifier_env;
 struct bpf_verifier_log;
@@ -173,6 +174,8 @@ struct bpf_map_value_off_desc {
 	enum bpf_kptr_type type;
 	struct {
 		struct btf *btf;
+		struct module *module;
+		btf_dtor_kfunc_t dtor;
 		u32 btf_id;
 	} kptr;
 };
@@ -1447,6 +1450,7 @@ struct bpf_map_value_off_desc *bpf_map_kptr_off_contains(struct bpf_map *map, u3
 void bpf_map_free_kptr_off_tab(struct bpf_map *map);
 struct bpf_map_value_off *bpf_map_copy_kptr_off_tab(const struct bpf_map *map);
 bool bpf_map_equal_kptr_off_tab(const struct bpf_map *map_a, const struct bpf_map *map_b);
+void bpf_map_free_kptrs(struct bpf_map *map, void *map_value);
 
 struct bpf_map *bpf_map_get(u32 ufd);
 struct bpf_map *bpf_map_get_with_uref(u32 ufd);
