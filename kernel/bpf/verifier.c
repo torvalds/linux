@@ -245,6 +245,7 @@ struct bpf_call_arg_meta {
 	struct bpf_map *map_ptr;
 	bool raw_mode;
 	bool pkt_access;
+	u8 release_regno;
 	int regno;
 	int access_size;
 	int mem_size;
@@ -469,17 +470,6 @@ static bool arg_type_may_be_refcounted(enum bpf_arg_type type)
 static bool type_may_be_null(u32 type)
 {
 	return type & PTR_MAYBE_NULL;
-}
-
-/* Determine whether the function releases some resources allocated by another
- * function call. The first reference type argument will be assumed to be
- * released by release_reference().
- */
-static bool is_release_function(enum bpf_func_id func_id)
-{
-	return func_id == BPF_FUNC_sk_release ||
-	       func_id == BPF_FUNC_ringbuf_submit ||
-	       func_id == BPF_FUNC_ringbuf_discard;
 }
 
 static bool may_be_acquire_function(enum bpf_func_id func_id)
@@ -5326,6 +5316,11 @@ static bool arg_type_is_int_ptr(enum bpf_arg_type type)
 	       type == ARG_PTR_TO_LONG;
 }
 
+static bool arg_type_is_release(enum bpf_arg_type type)
+{
+	return type & OBJ_RELEASE;
+}
+
 static int int_ptr_type_to_size(enum bpf_arg_type type)
 {
 	if (type == ARG_PTR_TO_INT)
@@ -5536,11 +5531,10 @@ found:
 
 int check_func_arg_reg_off(struct bpf_verifier_env *env,
 			   const struct bpf_reg_state *reg, int regno,
-			   enum bpf_arg_type arg_type,
-			   bool is_release_func)
+			   enum bpf_arg_type arg_type)
 {
-	bool fixed_off_ok = false, release_reg;
 	enum bpf_reg_type type = reg->type;
+	bool fixed_off_ok = false;
 
 	switch ((u32)type) {
 	case SCALAR_VALUE:
@@ -5558,7 +5552,7 @@ int check_func_arg_reg_off(struct bpf_verifier_env *env,
 		/* Some of the argument types nevertheless require a
 		 * zero register offset.
 		 */
-		if (arg_type != ARG_PTR_TO_ALLOC_MEM)
+		if (base_type(arg_type) != ARG_PTR_TO_ALLOC_MEM)
 			return 0;
 		break;
 	/* All the rest must be rejected, except PTR_TO_BTF_ID which allows
@@ -5566,19 +5560,17 @@ int check_func_arg_reg_off(struct bpf_verifier_env *env,
 	 */
 	case PTR_TO_BTF_ID:
 		/* When referenced PTR_TO_BTF_ID is passed to release function,
-		 * it's fixed offset must be 0. We rely on the property that
-		 * only one referenced register can be passed to BPF helpers and
-		 * kfuncs. In the other cases, fixed offset can be non-zero.
+		 * it's fixed offset must be 0.	In the other cases, fixed offset
+		 * can be non-zero.
 		 */
-		release_reg = is_release_func && reg->ref_obj_id;
-		if (release_reg && reg->off) {
+		if (arg_type_is_release(arg_type) && reg->off) {
 			verbose(env, "R%d must have zero offset when passed to release func\n",
 				regno);
 			return -EINVAL;
 		}
-		/* For release_reg == true, fixed_off_ok must be false, but we
-		 * already checked and rejected reg->off != 0 above, so set to
-		 * true to allow fixed offset for all other cases.
+		/* For arg is release pointer, fixed_off_ok must be false, but
+		 * we already checked and rejected reg->off != 0 above, so set
+		 * to true to allow fixed offset for all other cases.
 		 */
 		fixed_off_ok = true;
 		break;
@@ -5637,14 +5629,24 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 arg,
 	if (err)
 		return err;
 
-	err = check_func_arg_reg_off(env, reg, regno, arg_type, is_release_function(meta->func_id));
+	err = check_func_arg_reg_off(env, reg, regno, arg_type);
 	if (err)
 		return err;
 
 skip_type_check:
-	/* check_func_arg_reg_off relies on only one referenced register being
-	 * allowed for BPF helpers.
-	 */
+	if (arg_type_is_release(arg_type)) {
+		if (!reg->ref_obj_id && !register_is_null(reg)) {
+			verbose(env, "R%d must be referenced when passed to release function\n",
+				regno);
+			return -EINVAL;
+		}
+		if (meta->release_regno) {
+			verbose(env, "verifier internal error: more than one release argument\n");
+			return -EFAULT;
+		}
+		meta->release_regno = regno;
+	}
+
 	if (reg->ref_obj_id) {
 		if (meta->ref_obj_id) {
 			verbose(env, "verifier internal error: more than one arg with ref_obj_id R%d %u %u\n",
@@ -6151,7 +6153,8 @@ static bool check_btf_id_ok(const struct bpf_func_proto *fn)
 	return true;
 }
 
-static int check_func_proto(const struct bpf_func_proto *fn, int func_id)
+static int check_func_proto(const struct bpf_func_proto *fn, int func_id,
+			    struct bpf_call_arg_meta *meta)
 {
 	return check_raw_mode_ok(fn) &&
 	       check_arg_pair_ok(fn) &&
@@ -6835,7 +6838,7 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 	memset(&meta, 0, sizeof(meta));
 	meta.pkt_access = fn->pkt_access;
 
-	err = check_func_proto(fn, func_id);
+	err = check_func_proto(fn, func_id, &meta);
 	if (err) {
 		verbose(env, "kernel subsystem misconfigured func %s#%d\n",
 			func_id_name(func_id), func_id);
@@ -6868,16 +6871,23 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 			return err;
 	}
 
-	if (is_release_function(func_id)) {
-		err = release_reference(env, meta.ref_obj_id);
+	regs = cur_regs(env);
+
+	if (meta.release_regno) {
+		err = -EINVAL;
+		if (meta.ref_obj_id)
+			err = release_reference(env, meta.ref_obj_id);
+		/* meta.ref_obj_id can only be 0 if register that is meant to be
+		 * released is NULL, which must be > R0.
+		 */
+		else if (register_is_null(&regs[meta.release_regno]))
+			err = 0;
 		if (err) {
 			verbose(env, "func %s#%d reference has not been acquired before\n",
 				func_id_name(func_id), func_id);
 			return err;
 		}
 	}
-
-	regs = cur_regs(env);
 
 	switch (func_id) {
 	case BPF_FUNC_tail_call:
