@@ -203,7 +203,7 @@ sched_clock_register(u64 (*read)(void), int bits, unsigned long rate)
 		r = DIV_ROUND_CLOSEST(r, 1000000);
 		r_unit = 'M';
 	} else {
-		if (r >= 1000) {
+		if (r >= 4000) {
 			r = DIV_ROUND_CLOSEST(r, 1000);
 			r_unit = 'k';
 		} else {
