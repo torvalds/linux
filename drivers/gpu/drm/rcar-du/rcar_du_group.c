@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * rcar_du_group.c  --  R-Car Display Unit Channels Pair
+ * R-Car Display Unit Channels Pair
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *

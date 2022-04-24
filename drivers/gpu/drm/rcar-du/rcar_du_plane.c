@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * rcar_du_plane.c  --  R-Car Display Unit Planes
+ * R-Car Display Unit Planes
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *

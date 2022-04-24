@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * rcar_du_drv.h  --  R-Car Display Unit DRM driver
+ * R-Car Display Unit DRM driver
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
