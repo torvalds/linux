@@ -64,14 +64,22 @@ __HEAD
 	.long	0x02000690,0x60000050
 	.long	0x020006e0,0x20000050
 
-	.org	__LC_RST_NEW_PSW		# 0x1a0
+# The restart psw points to ipl_entry, which allows to load a kernel image
+# into memory and starting it by a psw restart on any cpu.
+# All other default psw new locations contain a disabled wait psw where the
+# address indicates which psw was loaded.
+	.org	__LC_RST_NEW_PSW
 	.quad	0,IPL_START
-	.org	__LC_EXT_NEW_PSW		# 0x1b0
-	.quad	0x0002000180000000,0x1b0	# disabled wait
-	.org	__LC_PGM_NEW_PSW		# 0x1d0
-	.quad	0x0002000180000000,0x1d0	# disabled wait
-	.org	__LC_IO_NEW_PSW			# 0x1f0
-	.quad	0x0002000180000000,0x1f0	# disabled wait
+	.org	__LC_EXT_NEW_PSW
+	.quad	0x0002000180000000,__LC_EXT_NEW_PSW
+	.org	__LC_SVC_NEW_PSW
+	.quad	0x0002000180000000,__LC_SVC_NEW_PSW
+	.org	__LC_PGM_NEW_PSW
+	.quad	0x0002000180000000,__LC_PGM_NEW_PSW
+	.org	__LC_MCK_NEW_PSW
+	.quad	0x0002000180000000,__LC_MCK_NEW_PSW
+	.org	__LC_IO_NEW_PSW
+	.quad	0x0002000180000000,__LC_IO_NEW_PSW
 
 	.org	IPL_START
 ipl_start:
