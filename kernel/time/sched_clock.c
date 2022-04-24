@@ -202,13 +202,11 @@ sched_clock_register(u64 (*read)(void), int bits, unsigned long rate)
 	if (r >= 4000000) {
 		r = DIV_ROUND_CLOSEST(r, 1000000);
 		r_unit = 'M';
+	} else if (r >= 4000) {
+		r = DIV_ROUND_CLOSEST(r, 1000);
+		r_unit = 'k';
 	} else {
-		if (r >= 4000) {
-			r = DIV_ROUND_CLOSEST(r, 1000);
-			r_unit = 'k';
-		} else {
-			r_unit = ' ';
-		}
+		r_unit = ' ';
 	}
 
 	/* Calculate the ns resolution of this counter */
