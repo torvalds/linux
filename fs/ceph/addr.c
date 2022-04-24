@@ -606,8 +606,10 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 				    CEPH_OSD_OP_WRITE, CEPH_OSD_FLAG_WRITE, snapc,
 				    ceph_wbc.truncate_seq, ceph_wbc.truncate_size,
 				    true);
-	if (IS_ERR(req))
+	if (IS_ERR(req)) {
+		redirty_page_for_writepage(wbc, page);
 		return PTR_ERR(req);
+	}
 
 	set_page_writeback(page);
 	if (caching)
