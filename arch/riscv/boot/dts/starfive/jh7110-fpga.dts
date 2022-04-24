@@ -11,3 +11,11 @@
 	model = "StarFive JH7110 FPGA";
 	compatible = "starfive,jh7110-fpga", "starfive,jh7110";
 };
+
+&timer {
+	clock-frequency = <2000000>;
+};
+
+&wdog {
+	clock-frequency = <2000000>;
+};
