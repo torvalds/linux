@@ -2560,6 +2560,7 @@ int main(int argc, char **argv)
 
 	for (mod = modules; mod; mod = mod->next) {
 		char fname[PATH_MAX];
+		int ret;
 
 		if (mod->is_vmlinux || mod->from_dump)
 			continue;
@@ -2578,7 +2579,12 @@ int main(int argc, char **argv)
 		add_moddevtable(&buf, mod);
 		add_srcversion(&buf, mod);
 
-		sprintf(fname, "%s.mod.c", mod->name);
+		ret = snprintf(fname, sizeof(fname), "%s.mod.c", mod->name);
+		if (ret >= sizeof(fname)) {
+			error("%s: too long path was truncated\n", fname);
+			continue;
+		}
+
 		write_if_changed(&buf, fname);
 	}
 
