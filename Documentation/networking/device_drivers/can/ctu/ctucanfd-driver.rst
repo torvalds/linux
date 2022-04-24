@@ -536,7 +536,7 @@ CTU CAN FD Driver Sources Reference
 CTU CAN FD IP Core and Driver Development Acknowledgment
 ---------------------------------------------------------
 
-* Odrej Ille <illeondr@fel.cvut.cz>
+* Odrej Ille <ondrej.ille@gmail.com>
 
   * started the project as student at Department of Measurement, FEE, CTU
   * invested great amount of personal time and enthusiasm to the project over years
