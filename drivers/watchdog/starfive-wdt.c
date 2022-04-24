@@ -200,7 +200,7 @@ MODULE_DEVICE_TABLE(platform, si5wdt_ids);
 
 static int si5wdt_get_clock_rate(struct stf_si5_wdt *wdt)
 {
-#ifdef CONFIG_STARFIVE_BOARD_FPGA
+#ifdef HWBOARD_FPGA
 	int ret;
 	u32 freq;
 
