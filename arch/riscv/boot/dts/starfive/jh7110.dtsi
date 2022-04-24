@@ -325,9 +325,17 @@
 			compatible = "starfive,si5-timers";
 			reg = <0x0 0x13050000 0x0 0x10000>;
 			interrupts = <69>, <70>, <71> ,<72>;
-			interrupt-names = "timer0", "timer1", "timer2", "timer3";
+			interrupt-names = "timer0", "timer1",
+					  "timer2", "timer3";
+			clocks = <&clkgen JH7110_TIMER_CLK_TIMER0>,
+				 <&clkgen JH7110_TIMER_CLK_TIMER1>,
+				 <&clkgen JH7110_TIMER_CLK_TIMER2>,
+				 <&clkgen JH7110_TIMER_CLK_TIMER3>,
+				 <&clkgen JH7110_TIMER_CLK_APB>;
+			clock-names = "timer0", "timer1",
+				      "timer2", "timer3", "apb_clk";
 			clock-frequency = <2000000>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		wdog: wdog@13070000 {
@@ -337,10 +345,10 @@
 			interrupt-names = "wdog";
 			clock-frequency = <2000000>;
 			clocks = <&clkgen JH7110_DSKIT_WDT_CLK_WDT>,
-				<&clkgen JH7110_DSKIT_WDT_CLK_APB>;
+				 <&clkgen JH7110_DSKIT_WDT_CLK_APB>;
 			clock-names = "core_clk", "apb_clk";
 			resets = <&rstgen RSTN_U0_DSKIT_WDT_APB>,
-				<&rstgen RSTN_U0_DSKIT_WDT_CORE>;
+				 <&rstgen RSTN_U0_DSKIT_WDT_CORE>;
 			reset-names = "rst_apb", "rst_core";
 			timeout-sec = <15>;
 			status = "okay";

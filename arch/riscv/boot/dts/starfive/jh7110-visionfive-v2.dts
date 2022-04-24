@@ -11,3 +11,7 @@
 	model = "StarFive VisionFive V2";
 	compatible = "starfive,visionfive-v2", "starfive,jh7110";
 };
+
+&timer {
+	clock-frequency = <24000000>;
+};
