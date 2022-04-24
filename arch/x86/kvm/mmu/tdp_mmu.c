@@ -51,7 +51,7 @@ void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm)
 	if (!kvm->arch.tdp_mmu_enabled)
 		return;
 
-	flush_workqueue(kvm->arch.tdp_mmu_zap_wq);
+	/* Also waits for any queued work items.  */
 	destroy_workqueue(kvm->arch.tdp_mmu_zap_wq);
 
 	WARN_ON(!list_empty(&kvm->arch.tdp_mmu_pages));

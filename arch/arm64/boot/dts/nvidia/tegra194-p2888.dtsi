@@ -174,19 +174,19 @@
 					gpio4 {
 						pins = "gpio4";
 						function = "32k-out1";
-						drive-push-pull = <1>;
+						drive-push-pull;
 					};
 
 					gpio6 {
 						pins = "gpio6";
 						function = "gpio";
-						drive-push-pull = <1>;
+						drive-push-pull;
 					};
 
 					gpio7 {
 						pins = "gpio7";
 						function = "gpio";
-						drive-push-pull = <0>;
+						drive-push-pull;
 					};
 				};
 

@@ -58,9 +58,8 @@ patternProperties:
           The value (two's complement) to be programmed in the channel specific N correction register.
           For remote channels only.
         $ref: /schemas/types.yaml#/definitions/int32
-        items:
-          minimum: -128
-          maximum: 127
+        minimum: -128
+        maximum: 127
 
     required:
       - reg
