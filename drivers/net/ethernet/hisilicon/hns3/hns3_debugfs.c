@@ -562,12 +562,12 @@ static void hns3_dbg_tx_spare_info(struct hns3_enet_ring *ring, char *buf,
 
 	for (i = 0; i < ring_num; i++) {
 		j = 0;
-		sprintf(result[j++], "%8u", i);
-		sprintf(result[j++], "%9u", ring->tx_copybreak);
-		sprintf(result[j++], "%3u", tx_spare->len);
-		sprintf(result[j++], "%3u", tx_spare->next_to_use);
-		sprintf(result[j++], "%3u", tx_spare->next_to_clean);
-		sprintf(result[j++], "%3u", tx_spare->last_to_clean);
+		sprintf(result[j++], "%u", i);
+		sprintf(result[j++], "%u", ring->tx_copybreak);
+		sprintf(result[j++], "%u", tx_spare->len);
+		sprintf(result[j++], "%u", tx_spare->next_to_use);
+		sprintf(result[j++], "%u", tx_spare->next_to_clean);
+		sprintf(result[j++], "%u", tx_spare->last_to_clean);
 		sprintf(result[j++], "%pad", &tx_spare->dma);
 		hns3_dbg_fill_content(content, sizeof(content),
 				      tx_spare_info_items,
@@ -598,35 +598,35 @@ static void hns3_dump_rx_queue_info(struct hns3_enet_ring *ring,
 	u32 base_add_l, base_add_h;
 	u32 j = 0;
 
-	sprintf(result[j++], "%8u", index);
+	sprintf(result[j++], "%u", index);
 
-	sprintf(result[j++], "%6u", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_RX_RING_BD_NUM_REG));
 
-	sprintf(result[j++], "%6u", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_RX_RING_BD_LEN_REG));
 
-	sprintf(result[j++], "%4u", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_RX_RING_TAIL_REG));
 
-	sprintf(result[j++], "%4u", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_RX_RING_HEAD_REG));
 
-	sprintf(result[j++], "%6u", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_RX_RING_FBDNUM_REG));
 
-	sprintf(result[j++], "%6u", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_RX_RING_PKTNUM_RECORD_REG));
-	sprintf(result[j++], "%9u", ring->rx_copybreak);
+	sprintf(result[j++], "%u", ring->rx_copybreak);
 
-	sprintf(result[j++], "%7s", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%s", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_EN_REG) ? "on" : "off");
 
 	if (hnae3_ae_dev_tqp_txrx_indep_supported(ae_dev))
-		sprintf(result[j++], "%10s", readl_relaxed(ring->tqp->io_base +
+		sprintf(result[j++], "%s", readl_relaxed(ring->tqp->io_base +
 			HNS3_RING_RX_EN_REG) ? "on" : "off");
 	else
-		sprintf(result[j++], "%10s", "NA");
+		sprintf(result[j++], "%s", "NA");
 
 	base_add_h = readl_relaxed(ring->tqp->io_base +
 					HNS3_RING_RX_RING_BASEADDR_H_REG);
@@ -700,36 +700,36 @@ static void hns3_dump_tx_queue_info(struct hns3_enet_ring *ring,
 	u32 base_add_l, base_add_h;
 	u32 j = 0;
 
-	sprintf(result[j++], "%8u", index);
-	sprintf(result[j++], "%6u", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%u", index);
+	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_TX_RING_BD_NUM_REG));
 
-	sprintf(result[j++], "%2u", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_TX_RING_TC_REG));
 
-	sprintf(result[j++], "%4u", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_TX_RING_TAIL_REG));
 
-	sprintf(result[j++], "%4u", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_TX_RING_HEAD_REG));
 
-	sprintf(result[j++], "%6u", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_TX_RING_FBDNUM_REG));
 
-	sprintf(result[j++], "%6u", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_TX_RING_OFFSET_REG));
 
-	sprintf(result[j++], "%6u", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_TX_RING_PKTNUM_RECORD_REG));
 
-	sprintf(result[j++], "%7s", readl_relaxed(ring->tqp->io_base +
+	sprintf(result[j++], "%s", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_EN_REG) ? "on" : "off");
 
 	if (hnae3_ae_dev_tqp_txrx_indep_supported(ae_dev))
-		sprintf(result[j++], "%10s", readl_relaxed(ring->tqp->io_base +
+		sprintf(result[j++], "%s", readl_relaxed(ring->tqp->io_base +
 			HNS3_RING_TX_EN_REG) ? "on" : "off");
 	else
-		sprintf(result[j++], "%10s", "NA");
+		sprintf(result[j++], "%s", "NA");
 
 	base_add_h = readl_relaxed(ring->tqp->io_base +
 					HNS3_RING_TX_RING_BASEADDR_H_REG);
@@ -848,15 +848,15 @@ static void hns3_dump_rx_bd_info(struct hns3_nic_priv *priv,
 {
 	unsigned int j = 0;
 
-	sprintf(result[j++], "%5d", idx);
+	sprintf(result[j++], "%d", idx);
 	sprintf(result[j++], "%#x", le32_to_cpu(desc->rx.l234_info));
-	sprintf(result[j++], "%7u", le16_to_cpu(desc->rx.pkt_len));
-	sprintf(result[j++], "%4u", le16_to_cpu(desc->rx.size));
+	sprintf(result[j++], "%u", le16_to_cpu(desc->rx.pkt_len));
+	sprintf(result[j++], "%u", le16_to_cpu(desc->rx.size));
 	sprintf(result[j++], "%#x", le32_to_cpu(desc->rx.rss_hash));
-	sprintf(result[j++], "%5u", le16_to_cpu(desc->rx.fd_id));
-	sprintf(result[j++], "%8u", le16_to_cpu(desc->rx.vlan_tag));
-	sprintf(result[j++], "%15u", le16_to_cpu(desc->rx.o_dm_vlan_id_fb));
-	sprintf(result[j++], "%11u", le16_to_cpu(desc->rx.ot_vlan_tag));
+	sprintf(result[j++], "%u", le16_to_cpu(desc->rx.fd_id));
+	sprintf(result[j++], "%u", le16_to_cpu(desc->rx.vlan_tag));
+	sprintf(result[j++], "%u", le16_to_cpu(desc->rx.o_dm_vlan_id_fb));
+	sprintf(result[j++], "%u", le16_to_cpu(desc->rx.ot_vlan_tag));
 	sprintf(result[j++], "%#x", le32_to_cpu(desc->rx.bd_base_info));
 	if (test_bit(HNS3_NIC_STATE_RXD_ADV_LAYOUT_ENABLE, &priv->state)) {
 		u32 ol_info = le32_to_cpu(desc->rx.ol_info);
@@ -930,19 +930,19 @@ static void hns3_dump_tx_bd_info(struct hns3_nic_priv *priv,
 {
 	unsigned int j = 0;
 
-	sprintf(result[j++], "%6d", idx);
+	sprintf(result[j++], "%d", idx);
 	sprintf(result[j++], "%#llx", le64_to_cpu(desc->addr));
-	sprintf(result[j++], "%5u", le16_to_cpu(desc->tx.vlan_tag));
-	sprintf(result[j++], "%5u", le16_to_cpu(desc->tx.send_size));
+	sprintf(result[j++], "%u", le16_to_cpu(desc->tx.vlan_tag));
+	sprintf(result[j++], "%u", le16_to_cpu(desc->tx.send_size));
 	sprintf(result[j++], "%#x",
 		le32_to_cpu(desc->tx.type_cs_vlan_tso_len));
-	sprintf(result[j++], "%5u", le16_to_cpu(desc->tx.outer_vlan_tag));
-	sprintf(result[j++], "%5u", le16_to_cpu(desc->tx.tv));
-	sprintf(result[j++], "%10u",
+	sprintf(result[j++], "%u", le16_to_cpu(desc->tx.outer_vlan_tag));
+	sprintf(result[j++], "%u", le16_to_cpu(desc->tx.tv));
+	sprintf(result[j++], "%u",
 		le32_to_cpu(desc->tx.ol_type_vlan_len_msec));
 	sprintf(result[j++], "%#x", le32_to_cpu(desc->tx.paylen_ol4cs));
 	sprintf(result[j++], "%#x", le16_to_cpu(desc->tx.bdtp_fe_sc_vld_ra_ri));
-	sprintf(result[j++], "%5u", le16_to_cpu(desc->tx.mss_hw_csum));
+	sprintf(result[j++], "%u", le16_to_cpu(desc->tx.mss_hw_csum));
 }
 
 static int hns3_dbg_tx_bd_info(struct hns3_dbg_data *d, char *buf, int len)
