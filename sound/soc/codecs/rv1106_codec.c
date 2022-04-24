@@ -465,9 +465,6 @@ static int rv1106_codec_adc_mode_put(struct snd_kcontrol *kcontrol,
 		return 0;
 	}
 
-	rv1106_codec_adc_disable(rv1106);
-	rv1106_codec_adc_enable(rv1106);
-
 	return 0;
 }
 
@@ -1437,7 +1434,7 @@ static int rv1106_codec_adc_enable(struct rv1106_codec_priv *rv1106)
 			   L(lr, ACODEC_ADC_L_WORK) |
 			   R(lr, ACODEC_ADC_R_WORK),
 			   L(lr, ACODEC_ADC_L_WORK) |
-			   R(lr, ACODEC_ADC_L_WORK));
+			   R(lr, ACODEC_ADC_R_WORK));
 
 	/* vendor step 9 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL6,
