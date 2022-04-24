@@ -805,6 +805,8 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		if (DEBUGGER_EN(MSG))
 			rga_cmd_print_debug_info(&req_rga);
 
+		memset(&ctx, 0x0, sizeof(ctx));
+
 		ctx.sync_mode = cmd;
 		ctx.use_batch_mode = false;
 		ctx.session = session;
