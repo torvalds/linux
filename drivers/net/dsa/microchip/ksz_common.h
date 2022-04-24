@@ -165,6 +165,8 @@ int ksz_port_bridge_join(struct dsa_switch *ds, int port,
 			 struct netlink_ext_ack *extack);
 void ksz_port_bridge_leave(struct dsa_switch *ds, int port,
 			   struct dsa_bridge bridge);
+void ksz_port_stp_state_set(struct dsa_switch *ds, int port,
+			    u8 state, int reg);
 void ksz_port_fast_age(struct dsa_switch *ds, int port);
 int ksz_port_fdb_dump(struct dsa_switch *ds, int port, dsa_fdb_dump_cb_t *cb,
 		      void *data);
@@ -291,6 +293,11 @@ static inline void ksz_regmap_unlock(void *__mtx)
 	struct mutex *mtx = __mtx;
 	mutex_unlock(mtx);
 }
+
+/* STP State Defines */
+#define PORT_TX_ENABLE			BIT(2)
+#define PORT_RX_ENABLE			BIT(1)
+#define PORT_LEARN_DISABLE		BIT(0)
 
 /* Regmap tables generation */
 #define KSZ_SPI_OP_RD		3

@@ -1027,40 +1027,7 @@ static void ksz8_cfg_port_member(struct ksz_device *dev, int port, u8 member)
 
 static void ksz8_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 {
-	struct ksz_device *dev = ds->priv;
-	struct ksz_port *p;
-	u8 data;
-
-	ksz_pread8(dev, port, P_STP_CTRL, &data);
-	data &= ~(PORT_TX_ENABLE | PORT_RX_ENABLE | PORT_LEARN_DISABLE);
-
-	switch (state) {
-	case BR_STATE_DISABLED:
-		data |= PORT_LEARN_DISABLE;
-		break;
-	case BR_STATE_LISTENING:
-		data |= (PORT_RX_ENABLE | PORT_LEARN_DISABLE);
-		break;
-	case BR_STATE_LEARNING:
-		data |= PORT_RX_ENABLE;
-		break;
-	case BR_STATE_FORWARDING:
-		data |= (PORT_TX_ENABLE | PORT_RX_ENABLE);
-		break;
-	case BR_STATE_BLOCKING:
-		data |= PORT_LEARN_DISABLE;
-		break;
-	default:
-		dev_err(ds->dev, "invalid STP state: %d\n", state);
-		return;
-	}
-
-	ksz_pwrite8(dev, port, P_STP_CTRL, data);
-
-	p = &dev->ports[port];
-	p->stp_state = state;
-
-	ksz_update_port_member(dev, port);
+	ksz_port_stp_state_set(ds, port, state, P_STP_CTRL);
 }
 
 static void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
