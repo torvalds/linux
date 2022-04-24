@@ -1262,9 +1262,6 @@ static int check_pending_gadget_drivers(struct usb_udc *udc)
  * device.
  * @gadget: the gadget to be initialized.
  * @release: a gadget release function.
- *
- * Returns zero on success, negative errno otherwise.
- * Calls the gadget release function in the latter case.
  */
 void usb_initialize_gadget(struct device *parent, struct usb_gadget *gadget,
 		void (*release)(struct device *dev))
@@ -1441,11 +1438,10 @@ static void usb_gadget_remove_driver(struct usb_udc *udc)
 }
 
 /**
- * usb_del_gadget - deletes @udc from udc_list
- * @gadget: the gadget to be removed.
+ * usb_del_gadget - deletes a gadget and unregisters its udc
+ * @gadget: the gadget to be deleted.
  *
- * This will call usb_gadget_unregister_driver() if
- * the @udc is still busy.
+ * This will unbind @gadget, if it is bound.
  * It will not do a final usb_put_gadget().
  */
 void usb_del_gadget(struct usb_gadget *gadget)
@@ -1476,8 +1472,8 @@ void usb_del_gadget(struct usb_gadget *gadget)
 EXPORT_SYMBOL_GPL(usb_del_gadget);
 
 /**
- * usb_del_gadget_udc - deletes @udc from udc_list
- * @gadget: the gadget to be removed.
+ * usb_del_gadget_udc - unregisters a gadget
+ * @gadget: the gadget to be unregistered.
  *
  * Calls usb_del_gadget() and does a final usb_put_gadget().
  */
