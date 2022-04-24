@@ -2147,11 +2147,16 @@ static void check_exports(struct module *mod)
 	for (s = mod->unres; s; s = s->next) {
 		const char *basename;
 		exp = find_symbol(s->name);
-		if (!exp || exp->module == mod) {
+		if (!exp) {
 			if (!s->weak && nr_unresolved++ < MAX_UNRESOLVED_REPORTS)
 				modpost_log(warn_unresolved ? LOG_WARN : LOG_ERROR,
 					    "\"%s\" [%s.ko] undefined!\n",
 					    s->name, mod->name);
+			continue;
+		}
+		if (exp->module == mod) {
+			error("\"%s\" [%s.ko] was exported without definition\n",
+			      s->name, mod->name);
 			continue;
 		}
 		basename = strrchr(mod->name, '/');
