@@ -69,8 +69,6 @@ required:
   - reset-names
   - starfive,sys-syscon
   - syscon,can_or_canfd
-  - syscon,canfd-shift
-  - syscon,canfd-mask
 additionalProperties:false
 
 examples:
