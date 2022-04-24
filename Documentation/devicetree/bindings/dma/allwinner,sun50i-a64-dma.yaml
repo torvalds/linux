@@ -20,9 +20,11 @@ properties:
 
   compatible:
     oneOf:
-      - const: allwinner,sun50i-a64-dma
-      - const: allwinner,sun50i-a100-dma
-      - const: allwinner,sun50i-h6-dma
+      - enum:
+          - allwinner,sun20i-d1-dma
+          - allwinner,sun50i-a64-dma
+          - allwinner,sun50i-a100-dma
+          - allwinner,sun50i-h6-dma
       - items:
           - const: allwinner,sun8i-r40-dma
           - const: allwinner,sun50i-a64-dma
@@ -58,6 +60,7 @@ if:
   properties:
     compatible:
       enum:
+        - allwinner,sun20i-d1-dma
         - allwinner,sun50i-a100-dma
         - allwinner,sun50i-h6-dma
 
