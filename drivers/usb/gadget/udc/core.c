@@ -1308,10 +1308,6 @@ int usb_add_gadget(struct usb_gadget *gadget)
 	if (ret)
 		goto err_put_udc;
 
-	ret = device_add(&gadget->dev);
-	if (ret)
-		goto err_put_udc;
-
 	udc->gadget = gadget;
 	gadget->udc = udc;
 
@@ -1327,14 +1323,21 @@ int usb_add_gadget(struct usb_gadget *gadget)
 	usb_gadget_set_state(gadget, USB_STATE_NOTATTACHED);
 	udc->vbus = true;
 
+	ret = device_add(&gadget->dev);
+	if (ret)
+		goto err_del_udc;
+
 	/* pick up one of pending gadget drivers */
 	ret = check_pending_gadget_drivers(udc);
 	if (ret)
-		goto err_del_udc;
+		goto err_del_gadget;
 
 	mutex_unlock(&udc_lock);
 
 	return 0;
+
+ err_del_gadget:
+	device_del(&gadget->dev);
 
  err_del_udc:
 	flush_work(&gadget->work);
@@ -1343,8 +1346,6 @@ int usb_add_gadget(struct usb_gadget *gadget)
  err_unlist_udc:
 	list_del(&udc->list);
 	mutex_unlock(&udc_lock);
-
-	device_del(&gadget->dev);
 
  err_put_udc:
 	put_device(&udc->dev);
@@ -1469,8 +1470,8 @@ void usb_del_gadget(struct usb_gadget *gadget)
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_REMOVE);
 	flush_work(&gadget->work);
-	device_unregister(&udc->dev);
 	device_del(&gadget->dev);
+	device_unregister(&udc->dev);
 }
 EXPORT_SYMBOL_GPL(usb_del_gadget);
 
