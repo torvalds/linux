@@ -596,8 +596,8 @@
 		rockchip,reboot-freq = <1416000>;
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <0>;
-		rockchip,low-temp-min-volt = <725000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <750000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -735,8 +735,8 @@
 		rockchip,reboot-freq = <1800000>;		/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <0>;
-		rockchip,low-temp-min-volt = <725000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <750000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -898,8 +898,8 @@
 		rockchip,reboot-freq = <1800000>;		/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <0>;
-		rockchip,low-temp-min-volt = <725000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <750000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -1639,8 +1639,8 @@
 		intermediate-threshold-freq = <400000>;	/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <0>;
-		rockchip,low-temp-min-volt = <725000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <750000>;
 
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
@@ -2615,8 +2615,8 @@
 		rockchip,init-freq = <1000000>;		/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <0>;
-		rockchip,low-temp-min-volt = <725000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <750000>;
 
 		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
