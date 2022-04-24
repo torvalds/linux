@@ -11270,7 +11270,7 @@ static struct bpf_link *bpf_program__attach_btf_id(const struct bpf_program *pro
 		return libbpf_err_ptr(pfd);
 	}
 	link->fd = pfd;
-	return (struct bpf_link *)link;
+	return link;
 }
 
 struct bpf_link *bpf_program__attach_trace(const struct bpf_program *prog)
