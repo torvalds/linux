@@ -28,6 +28,7 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
    highmem
    ksm
    frontswap
+   hmm
    hwpoison
    hugetlbfs_reserv
    memory-model
@@ -44,7 +45,6 @@ TODO:待引用文档集被翻译完毕后请及时修改此处）
 TODOLIST:
 * arch_pgtable_helpers
 * free_page_reporting
-* hmm
 * hugetlbfs_reserv
 * numa
 * page_migration
