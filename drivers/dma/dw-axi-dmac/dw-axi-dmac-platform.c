@@ -27,6 +27,7 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/reset.h>
 
 #include "dw-axi-dmac.h"
 #include "../dmaengine.h"
@@ -1491,6 +1492,20 @@ static int dw_probe(struct platform_device *pdev)
 	chip->cfgr_clk = devm_clk_get(chip->dev, "cfgr-clk");
 	if (IS_ERR(chip->cfgr_clk))
 		return PTR_ERR(chip->cfgr_clk);
+
+	chip->rst_core = devm_reset_control_get_exclusive(&pdev->dev, "rst_axi");
+	if (IS_ERR(chip->rst_core)) {
+		dev_err(&pdev->dev, "%s: failed to get rst_core reset control\n", __func__);
+                return PTR_ERR(chip->rst_core);
+   }
+	chip->rst_cfgr = devm_reset_control_get_exclusive(&pdev->dev, "rst_ahb");
+	if (IS_ERR(chip->rst_cfgr)) {
+		dev_err(&pdev->dev, "%s: failed to get rst_cfgr reset control\n", __func__);
+                return PTR_ERR(chip->rst_cfgr);
+    }
+
+	reset_control_deassert(chip->rst_core);
+	reset_control_deassert(chip->rst_cfgr);
 
 	ret = parse_device_properties(chip);
 	if (ret)
