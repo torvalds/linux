@@ -20,9 +20,6 @@
 
 /* For memory mapped IO */
 
-#define VNSvInPortW(dwIOAddress, pwData) \
-	(*(pwData) = ioread16(dwIOAddress))
-
 #define VNSvInPortD(dwIOAddress, pdwData) \
 	(*(pdwData) = ioread32(dwIOAddress))
 
