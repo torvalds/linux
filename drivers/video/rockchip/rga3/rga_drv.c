@@ -205,7 +205,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 	if (DEBUGGER_EN(MSG))
 		rga_cmd_print_debug_info(&mpi_cmd);
 
-	ret = rga_job_mpi_commit(&mpi_cmd, mpi_job, ctx);
+	ret = rga_job_mpi_commit(&mpi_cmd, ctx);
 	if (ret < 0) {
 		if (ret == -ERESTARTSYS) {
 			if (DEBUGGER_EN(MSG))

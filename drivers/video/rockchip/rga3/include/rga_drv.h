@@ -137,33 +137,6 @@ struct rga_iommu_dma_cookie {
 	struct iova_domain  iovad;
 };
 
-/*
- * legacy: Wait for the import process to completely replace the current
- * dma_map and remove it
- */
-struct rga_dma_buffer_t {
-	/* DMABUF information */
-	struct dma_buf *dma_buf;
-	struct dma_buf_attachment *attach;
-	struct sg_table *sgt;
-
-	dma_addr_t iova;
-	unsigned long size;
-	void *vaddr;
-	enum dma_data_direction dir;
-
-	/* It indicates whether the buffer is cached */
-	bool cached;
-
-	struct list_head link;
-	struct kref refcount;
-
-	struct iommu_domain *domain;
-	struct rga_iommu_dma_cookie *cookie;
-
-	bool use_viraddr;
-};
-
 struct rga_dma_buffer {
 	/* DMABUF information */
 	struct dma_buf *dma_buf;
@@ -232,23 +205,6 @@ struct rga_internal_buffer {
 	struct rga_session *session;
 };
 
-/*
- * yqw add:
- * In order to use the virtual address to refresh the cache,
- * it may be merged into sgt later.
- */
-struct rga2_mmu_other_t {
-	uint32_t *MMU_src0_base;
-	uint32_t *MMU_src1_base;
-	uint32_t *MMU_dst_base;
-	uint32_t MMU_src0_count;
-	uint32_t MMU_src1_count;
-	uint32_t MMU_dst_count;
-
-	uint32_t MMU_len;
-	bool MMU_map;
-};
-
 struct rga_scheduler_t;
 
 struct rga_session {
@@ -292,26 +248,14 @@ struct rga_job {
 	struct rga_full_csc full_csc;
 	struct rga_pre_intr_info pre_intr_info;
 
-	struct rga_dma_buffer_t *rga_dma_buffer_src0;
-	struct rga_dma_buffer_t *rga_dma_buffer_src1;
-	struct rga_dma_buffer_t *rga_dma_buffer_dst;
-	/* used by rga2 */
-	struct rga_dma_buffer_t *rga_dma_buffer_els;
-
 	struct rga_job_buffer src_buffer;
 	struct rga_job_buffer src1_buffer;
 	struct rga_job_buffer dst_buffer;
 	/* used by rga2 */
 	struct rga_job_buffer els_buffer;
 
-	struct dma_buf *dma_buf_src0;
-	struct dma_buf *dma_buf_src1;
-	struct dma_buf *dma_buf_dst;
-	struct dma_buf *dma_buf_els;
-
 	/* for rga2 virtual_address */
 	struct mm_struct *mm;
-	struct rga2_mmu_other_t vir_page_table;
 
 	struct dma_fence *out_fence;
 	struct dma_fence *in_fence;

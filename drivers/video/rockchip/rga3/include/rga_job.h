@@ -28,8 +28,7 @@ void rga_job_session_destroy(struct rga_session *session);
 void rga_job_done(struct rga_scheduler_t *scheduler, int ret);
 int rga_job_commit(struct rga_req *rga_command_base, struct rga_internal_ctx_t *ctx);
 
-int rga_job_mpi_commit(struct rga_req *rga_command_base,
-		       struct rga_mpi_job_t *mpi_job, struct rga_internal_ctx_t *ctx);
+int rga_job_mpi_commit(struct rga_req *rga_command_base, struct rga_internal_ctx_t *ctx);
 
 int rga_job_assign(struct rga_job *job);
 

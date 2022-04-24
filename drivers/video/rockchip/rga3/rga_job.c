@@ -774,8 +774,7 @@ running_job_abort:
 	return ret;
 }
 
-int rga_job_mpi_commit(struct rga_req *rga_command_base,
-		       struct rga_mpi_job_t *mpi_job, struct rga_internal_ctx_t *ctx)
+int rga_job_mpi_commit(struct rga_req *rga_command_base, struct rga_internal_ctx_t *ctx)
 {
 	struct rga_job *job = NULL;
 	struct rga_scheduler_t *scheduler = NULL;
@@ -785,12 +784,6 @@ int rga_job_mpi_commit(struct rga_req *rga_command_base,
 	if (!job) {
 		pr_err("failed to alloc rga job!\n");
 		return -ENOMEM;
-	}
-
-	if (mpi_job != NULL) {
-		job->dma_buf_src0 = mpi_job->dma_buf_src0;
-		job->dma_buf_src1 = mpi_job->dma_buf_src1;
-		job->dma_buf_dst = mpi_job->dma_buf_dst;
 	}
 
 	job->ctx_id = ctx->id;
