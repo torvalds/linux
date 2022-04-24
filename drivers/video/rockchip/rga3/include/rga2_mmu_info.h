@@ -12,15 +12,6 @@
  */
 #define RGA2_PHY_PAGE_SIZE	 (((8192 * 8192 * 4) / 4096) + 1)
 
-enum {
-	MMU_MAP_CLEAN		= 1 << 0,
-	MMU_MAP_INVALID		= 1 << 1,
-	MMU_MAP_MASK		= 0x03,
-	MMU_UNMAP_CLEAN		= 1 << 2,
-	MMU_UNMAP_INVALID	= 1 << 3,
-	MMU_UNMAP_MASK		= 0x0c,
-};
-
 struct rga2_mmu_info_t {
 	int32_t front;
 	int32_t back;
@@ -35,11 +26,14 @@ struct rga2_mmu_info_t {
 	u8 pages_order;
 };
 
-void rga2_dma_flush_cache_for_virtual_address(struct rga2_mmu_other_t *reg,
-		struct rga_scheduler_t *scheduler);
+int rga2_user_memory_check(struct page **pages, u32 w, u32 h, u32 format, int flag);
 
-int rga2_set_mmu_reg_info(struct rga2_mmu_other_t *reg,
-		struct rga2_req *req, struct rga_job *job);
+int rga2_set_mmu_base(struct rga_job *job, struct rga2_req *req);
+
+unsigned int *rga2_mmu_buf_get(uint32_t size);
+
+int rga2_mmu_base_init(void);
+void rga2_mmu_base_free(void);
 
 #endif
 

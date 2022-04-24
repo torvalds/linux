@@ -19,8 +19,6 @@
 #include "rga2_mmu_info.h"
 #include "rga_debugger.h"
 
-struct rga2_mmu_info_t rga2_mmu_info;
-
 struct rga_drvdata_t *rga_drvdata;
 
 /* set hrtimer */
@@ -1429,72 +1427,6 @@ static struct platform_driver rga2_driver = {
 		 .of_match_table = of_match_ptr(rga2_dt_ids),
 		 },
 };
-
-static int rga2_mmu_base_init(void)
-{
-	int order = 0;
-	uint32_t *buf_p;
-	uint32_t *buf;
-
-	/*
-	 * malloc pre scale mid buf mmu table:
-	 * RGA2_PHY_PAGE_SIZE * channel_num * address_size
-	 */
-	order = get_order(RGA2_PHY_PAGE_SIZE * 3 * sizeof(buf_p));
-	buf_p = (uint32_t *) __get_free_pages(GFP_KERNEL | GFP_DMA32, order);
-	if (buf_p == NULL) {
-		pr_err("Can not alloc pages for mmu_page_table\n");
-		return -ENOMEM;
-	}
-
-	rga2_mmu_info.buf_order = order;
-
-	order = get_order(RGA2_PHY_PAGE_SIZE * sizeof(struct page *));
-	rga2_mmu_info.pages =
-		(struct page **)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
-	if (rga2_mmu_info.pages == NULL) {
-		pr_err("Can not alloc pages for rga2_mmu_info.pages\n");
-		goto err_free_buf_virtual;
-	}
-
-	rga2_mmu_info.pages_order = order;
-
-#if (defined(CONFIG_ARM) && defined(CONFIG_ARM_LPAE))
-	buf =
-		(uint32_t *) (uint32_t)
-		virt_to_phys((void *)((unsigned long)buf_p));
-#else
-	buf = (uint32_t *) virt_to_phys((void *)((unsigned long)buf_p));
-#endif
-	rga2_mmu_info.buf_virtual = buf_p;
-	rga2_mmu_info.buf = buf;
-	rga2_mmu_info.front = 0;
-	rga2_mmu_info.back = RGA2_PHY_PAGE_SIZE * 3;
-	rga2_mmu_info.size = RGA2_PHY_PAGE_SIZE * 3;
-
-	return 0;
-
-err_free_buf_virtual:
-	free_pages((unsigned long)buf_p, rga2_mmu_info.buf_order);
-	rga2_mmu_info.buf_order = 0;
-
-	return -ENOMEM;
-}
-
-static void rga2_mmu_base_free(void)
-{
-	if (rga2_mmu_info.buf_virtual != NULL) {
-		free_pages((unsigned long)rga2_mmu_info.buf_virtual, rga2_mmu_info.buf_order);
-		rga2_mmu_info.buf_virtual = NULL;
-		rga2_mmu_info.buf_order = 0;
-	}
-
-	if (rga2_mmu_info.pages != NULL) {
-		free_pages((unsigned long)rga2_mmu_info.pages, rga2_mmu_info.pages_order);
-		rga2_mmu_info.pages = NULL;
-		rga2_mmu_info.pages_order = 0;
-	}
-}
 
 static int __init rga_init(void)
 {

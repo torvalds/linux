@@ -12,6 +12,7 @@
 #include "rga_mm.h"
 #include "rga_dma_buf.h"
 #include "rga_common.h"
+#include "rga2_mmu_info.h"
 
 static void rga_current_mm_read_lock(struct mm_struct *mm)
 {
@@ -935,7 +936,7 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 	int uv_count = 0;
 	int v_count = 0;
 	int page_count = 0;
-	int order;
+	int order = 0;
 	uint32_t *page_table = NULL;
 	struct sg_table *sgt = NULL;
 
@@ -973,11 +974,20 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 			return -EFAULT;
 		}
 
-		order = get_order(page_count * sizeof(uint32_t *));
-		page_table = (uint32_t *)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
-		if (page_table == NULL) {
-			pr_err("%s can not alloc pages for pages, order = %d\n", __func__, order);
-			return -ENOMEM;
+		if (job->flags & RGA_JOB_USE_HANDLE) {
+			order = get_order(page_count * sizeof(uint32_t *));
+			page_table = (uint32_t *)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
+			if (page_table == NULL) {
+				pr_err("%s can not alloc pages for pages, order = %d\n",
+				       __func__, order);
+				return -ENOMEM;
+			}
+		} else {
+			page_table = rga2_mmu_buf_get(page_count);
+			if (page_table == NULL) {
+				pr_err("mmu_buf get error!\n");
+				return -EFAULT;
+			}
 		}
 
 		sgt = rga_mm_lookup_sgt(job_buf->y_addr, job->core);
@@ -1018,11 +1028,20 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 			return -EFAULT;
 		}
 
-		order = get_order(page_count * sizeof(uint32_t *));
-		page_table = (uint32_t *)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
-		if (page_table == NULL) {
-			pr_err("%s can not alloc pages for pages, order = %d\n", __func__, order);
-			return -ENOMEM;
+		if (job->flags & RGA_JOB_USE_HANDLE) {
+			order = get_order(page_count * sizeof(uint32_t *));
+			page_table = (uint32_t *)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
+			if (page_table == NULL) {
+				pr_err("%s can not alloc pages for pages, order = %d\n",
+				       __func__, order);
+				return -ENOMEM;
+			}
+		} else {
+			page_table = rga2_mmu_buf_get(page_count);
+			if (page_table == NULL) {
+				pr_err("mmu_buf get error!\n");
+				return -EFAULT;
+			}
 		}
 
 		sgt = rga_mm_lookup_sgt(job_buf->addr, job->core);
@@ -1044,7 +1063,8 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 	return 0;
 
 err_free_page_table:
-	free_pages((unsigned long)page_table, order);
+	if (job->flags & RGA_JOB_USE_HANDLE)
+		free_pages((unsigned long)page_table, order);
 	return ret;
 }
 
@@ -1380,8 +1400,7 @@ static void rga_mm_unmap_channel_job_buffer(struct rga_job *job,
 	rga_mm_unmap_buffer(job_buffer->addr);
 	kfree(job_buffer->addr);
 
-	if (job_buffer->page_table && job_buffer->order)
-		free_pages((unsigned long)job_buffer->page_table, job_buffer->order);
+	job_buffer->page_table = NULL;
 }
 
 static int rga_mm_map_channel_job_buffer(struct rga_job *job,

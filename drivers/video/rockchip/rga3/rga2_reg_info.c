@@ -2213,7 +2213,6 @@ int rga2_init_reg(struct rga_job *job)
 {
 	struct rga2_req req;
 	int ret = 0;
-	struct rga2_mmu_info_t *tbuf = &rga2_mmu_info;
 	struct rga_scheduler_t *scheduler = NULL;
 
 	scheduler = rga_job_get_scheduler(job);
@@ -2256,24 +2255,13 @@ int rga2_init_reg(struct rga_job *job)
 			return -EINVAL;
 		}
 
-		ret = rga2_set_mmu_reg_info(&job->vir_page_table, &req, job);
+		ret = rga2_set_mmu_base(job, &req);
 		if (ret < 0) {
 			pr_err("%s, [%d] set mmu info error\n", __func__,
 				 __LINE__);
 			return -EFAULT;
 		}
 	}
-
-	mutex_lock(&rga_drvdata->lock);
-
-	if (job->vir_page_table.MMU_len && tbuf) {
-		if (tbuf->back + job->vir_page_table.MMU_len > 2 * tbuf->size)
-			tbuf->back = job->vir_page_table.MMU_len + tbuf->size;
-		else
-			tbuf->back += job->vir_page_table.MMU_len;
-	}
-
-	mutex_unlock(&rga_drvdata->lock);
 
 	if (rga2_gen_reg_info((uint8_t *)job->cmd_reg, &req) == -1) {
 		pr_err("gen reg info error\n");

@@ -387,10 +387,6 @@ static void rga_job_finish_and_next(struct rga_scheduler_t *scheduler,
 			ktime_us_delta(now, job->timestamp));
 	}
 
-	if (job->core == RGA2_SCHEDULER_CORE0)
-		rga2_dma_flush_cache_for_virtual_address(&job->vir_page_table,
-			scheduler);
-
 	if (job->flags & RGA_JOB_USE_HANDLE) {
 		rga_mm_put_handle_info(job);
 	} else {
