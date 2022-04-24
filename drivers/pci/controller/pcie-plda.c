@@ -28,55 +28,51 @@
 
 
 
-#define PCIE_BASIC_STATUS	0x018
-#define PCIE_CFGNUM		0x140
-#define IMASK_LOCAL		0x180
-#define ISTATUS_LOCAL		0x184
-#define IMSI_ADDR		0x190
-#define ISTATUS_MSI		0x194
-#define CFG_SPACE		0x1000
-#define GEN_SETTINGS         0x80
+#define PCIE_BASIC_STATUS		0x018
+#define PCIE_CFGNUM			0x140
+#define IMASK_LOCAL			0x180
+#define ISTATUS_LOCAL			0x184
+#define IMSI_ADDR			0x190
+#define ISTATUS_MSI			0x194
+#define CFG_SPACE			0x1000
+#define GEN_SETTINGS			0x80
 
-#define XR3PCI_ATR_PCIE_WIN0		0x600
-#define XR3PCI_ATR_PCIE_WIN1		0x700
+#define PLDA_EP_ENABLE			0
+#define PLDA_RP_ENABLE			1
+#define PDLA_LINK_SPEED_GEN2		BIT(12)
+
 #define XR3PCI_ATR_AXI4_SLV0		0x800
-
-#define XR3PCI_ATR_TABLE_SIZE		0x20
 #define XR3PCI_ATR_SRC_ADDR_LOW		0x0
 #define XR3PCI_ATR_SRC_ADDR_HIGH	0x4
 #define XR3PCI_ATR_TRSL_ADDR_LOW	0x8
 #define XR3PCI_ATR_TRSL_ADDR_HIGH	0xc
 #define XR3PCI_ATR_TRSL_PARAM		0x10
-
+#define XR3PCI_ATR_SRC_WIN_SIZE_SHIFT	1
+#define XR3PCI_ATR_SRC_ADDR_MASK	0xfffff000
+#define XR3PCI_ATR_TRSL_ADDR_MASK	0xfffff000
 /* IDs used in the XR3PCI_ATR_TRSL_PARAM */
-#define XR3PCI_ATR_TRSLID_AXIDEVICE	(0x420004)
-#define XR3PCI_ATR_TRSLID_AXIMEMORY	(0x4e0004)  /* Write-through, read/write allocate */
-#define XR3PCI_ATR_TRSLID_PCIE_CONF	(0x000001)
-#define XR3PCI_ATR_TRSLID_PCIE_IO	(0x020000)
-#define XR3PCI_ATR_TRSLID_PCIE_MEMORY	(0x000000)
+#define XR3PCI_ATR_TRSLID_PCIE_MEMORY	0x0
+#define XR3PCI_ATR_TRSL_DIR		BIT(22)
 
+#define CFGNUM_DEVFN_SHIFT		0
+#define CFGNUM_BUS_SHIFT		8
+#define CFGNUM_BE_SHIFT			16
+#define CFGNUM_FBE_SHIFT		20
 
-#define PCIE_MEM_BASE_ADDR      0x40000000//ddr space
-#define PCIE_MEM_SIZE_1G           30
-#define PCIE_MEM_SIZE_2G           31
-#define PCIE_MEM_SIZE_4G           32
+#define ECAM_BUS_SHIFT			20
+#define ECAM_DEV_SHIFT			15
+#define ECAM_FUNC_SHIFT			12
 
-
-
-#define CFGNUM_DEVFN_SHIFT	0
-#define CFGNUM_BUS_SHIFT	8
-#define CFGNUM_BE_SHIFT		16
-#define CFGNUM_FBE_SHIFT	20
-
-#define INT_AXI_POST_ERROR	BIT(16)
-#define INT_AXI_FETCH_ERROR	BIT(17)
-#define INT_AXI_DISCARD_ERROR	BIT(18)
-#define INT_PCIE_POST_ERROR	BIT(20)
-#define INT_PCIE_FETCH_ERROR	BIT(21)
-#define INT_PCIE_DISCARD_ERROR	BIT(22)
-#define INT_ERRORS		(INT_AXI_POST_ERROR | INT_AXI_FETCH_ERROR |    \
+#define INT_AXI_POST_ERROR		BIT(16)
+#define INT_AXI_FETCH_ERROR		BIT(17)
+#define INT_AXI_DISCARD_ERROR		BIT(18)
+#define INT_PCIE_POST_ERROR		BIT(20)
+#define INT_PCIE_FETCH_ERROR		BIT(21)
+#define INT_PCIE_DISCARD_ERROR		BIT(22)
+#define INT_ERRORS		(INT_AXI_POST_ERROR | INT_AXI_FETCH_ERROR | \
 				 INT_AXI_DISCARD_ERROR | INT_PCIE_POST_ERROR | \
 				 INT_PCIE_FETCH_ERROR | INT_PCIE_DISCARD_ERROR)
+
 #define INTA_OFFSET		24
 #define INTA			BIT(24)
 #define INTB			BIT(25)
@@ -90,30 +86,16 @@
 #define INT_PCI_MSI_NR		32
 #define LINK_UP_MASK		0xff
 
-#define DWORD_MASK		3
-
-
 #define PCI_DEV(d)		(((d) >> 3) & 0x1f)
-#define PCI_FUNC(d)		(((d) ) & 0x7)
 
 
-#define PLDA_PCIE0_MEM_BASE 0x900000000
-#define PLDA_PCIE0_CONFIG_BASE 0x940000000
-
-#define PLDA_PCIE1_MEM_BASE 0x980000000
-#define PLDA_PCIE1_CONFIG_BASE 0x9c0000000
-
-#define PLDA_PCIE0_MMIO_BASE 0x30000000
-
-#define PLDA_PCIE_MEM_SIZE 30 
-#define PLDA_PCIE_CONFIG_SIZE 27
-#define PLDA_PCIE_MMIO_SIZE 27
-
-struct plda_msi {			/* MSI information */
+/* MSI information */
+struct plda_msi {
 	DECLARE_BITMAP(used, INT_PCI_MSI_NR);
 	struct irq_domain *msi_domain;
 	struct irq_domain *inner_domain;
-	struct mutex lock;		/* protect bitmap variable */
+	/* Protect bitmap variable */
+	struct mutex lock;
 };
 
 struct plda_pcie {
@@ -172,12 +154,12 @@ static int _plda_pcie_config_read(struct plda_pcie *pcie, unsigned char busno,
 	void __iomem *addr;
 
 	addr = pcie->config_base;
-	addr += (busno << 20);
-	addr += (PCI_DEV(devfn) << 15);
-	addr += (PCI_FUNC(devfn) << 12);
+	addr += (busno << ECAM_BUS_SHIFT);
+	addr += (PCI_DEV(devfn) << ECAM_DEV_SHIFT);
+	addr += (PCI_FUNC(devfn) << ECAM_FUNC_SHIFT);
 	addr += where;
-	
-	if(!addr )
+
+	if (!addr)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	switch (size) {
@@ -193,7 +175,7 @@ static int _plda_pcie_config_read(struct plda_pcie *pcie, unsigned char busno,
 	default:
 		return PCIBIOS_SET_FAILED;
 	}
-	
+
 	return PCIBIOS_SUCCESSFUL;
 }
 
@@ -203,12 +185,12 @@ int _plda_pcie_config_write(struct plda_pcie *pcie, unsigned char busno,
 	void __iomem *addr;
 
 	addr = pcie->config_base;
-	addr += (busno << 20);
-	addr += (PCI_DEV(devfn) << 15);
-	addr += (PCI_FUNC(devfn) << 12);
+	addr += (busno << ECAM_BUS_SHIFT);
+	addr += (PCI_DEV(devfn) << ECAM_DEV_SHIFT);
+	addr += (PCI_FUNC(devfn) << ECAM_FUNC_SHIFT);
 	addr += where;
 
-	if(!addr )
+	if (!addr)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	switch (size) {
@@ -223,7 +205,7 @@ int _plda_pcie_config_write(struct plda_pcie *pcie, unsigned char busno,
 		break;
 	default:
 		return PCIBIOS_SET_FAILED;
-	}	
+	}
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -257,7 +239,7 @@ static void plda_pcie_handle_msi_irq(struct plda_pcie *pcie)
 	unsigned long status = plda_readl(pcie, ISTATUS_MSI);
 
 	for_each_set_bit(bit, &status, INT_PCI_MSI_NR) {
-		/* clear interrupts */
+		/* Clear interrupts */
 		plda_writel(pcie, 1 << bit, ISTATUS_MSI);
 
 		virq = irq_find_mapping(msi->inner_domain, bit);
@@ -266,11 +248,12 @@ static void plda_pcie_handle_msi_irq(struct plda_pcie *pcie)
 				generic_handle_irq(virq);
 			else
 				dev_err(&pcie->pdev->dev,
-					"unhandled MSI, MSI%d virq %d\n", bit,
+					"Unhandled MSI, MSI%d virq %d\n", bit,
 					virq);
 		} else
-			dev_err(&pcie->pdev->dev, "unexpected MSI, MSI%d\n",
+			dev_err(&pcie->pdev->dev, "Unexpected MSI, MSI%d\n",
 				bit);
+
 	}
 	plda_writel(pcie, INT_MSI, ISTATUS_LOCAL);
 }
@@ -284,34 +267,35 @@ static void plda_pcie_handle_intx_irq(struct plda_pcie *pcie,
 	status >>= INTA_OFFSET;
 
 	for_each_set_bit(bit, &status, PCI_NUM_INTX) {
-		/* clear interrupts */
+		/* Clear interrupts */
 		plda_writel(pcie, 1 << (bit + INTA_OFFSET), ISTATUS_LOCAL);
-		
+
 		virq = irq_find_mapping(pcie->legacy_irq_domain, bit);
 		if (virq)
 			generic_handle_irq(virq);
 		else
 			dev_err(&pcie->pdev->dev,
 				"plda_pcie_handle_intx_irq unexpected IRQ, INT%d\n", bit);
+
 	}
 }
 
 static void plda_pcie_handle_errors_irq(struct plda_pcie *pcie, u32 status)
 {
- 	if (status & INT_AXI_POST_ERROR)
-  		dev_err(&pcie->pdev->dev, "AXI post error\n");
- 	if (status & INT_AXI_FETCH_ERROR)
-  		dev_err(&pcie->pdev->dev, "AXI fetch error\n");
- 	if (status & INT_AXI_DISCARD_ERROR)
-  		dev_err(&pcie->pdev->dev, "AXI discard error\n");
- 	if (status & INT_PCIE_POST_ERROR)
-  		dev_err(&pcie->pdev->dev, "PCIe post error\n");
- 	if (status & INT_PCIE_FETCH_ERROR)
-  		dev_err(&pcie->pdev->dev, "PCIe fetch error\n");
+	if (status & INT_AXI_POST_ERROR)
+		dev_err(&pcie->pdev->dev, "AXI post error\n");
+	if (status & INT_AXI_FETCH_ERROR)
+		dev_err(&pcie->pdev->dev, "AXI fetch error\n");
+	if (status & INT_AXI_DISCARD_ERROR)
+		dev_err(&pcie->pdev->dev, "AXI discard error\n");
+	if (status & INT_PCIE_POST_ERROR)
+		dev_err(&pcie->pdev->dev, "PCIe post error\n");
+	if (status & INT_PCIE_FETCH_ERROR)
+		dev_err(&pcie->pdev->dev, "PCIe fetch error\n");
 	if (status & INT_PCIE_DISCARD_ERROR)
-  		dev_err(&pcie->pdev->dev, "PCIe discard error\n");
+		dev_err(&pcie->pdev->dev, "PCIe discard error\n");
 
- 	plda_writel(pcie, INT_ERRORS, ISTATUS_LOCAL);	
+	plda_writel(pcie, INT_ERRORS, ISTATUS_LOCAL);
 }
 
 static void plda_pcie_isr(struct irq_desc *desc)
@@ -319,11 +303,11 @@ static void plda_pcie_isr(struct irq_desc *desc)
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct plda_pcie *pcie;
 	u32 status;
-	 
+
 	chained_irq_enter(chip, desc);
 	pcie = irq_desc_get_handler_data(desc);
-	
-	status = plda_readl(pcie, ISTATUS_LOCAL);	
+
+	status = plda_readl(pcie, ISTATUS_LOCAL);
 	while ((status = (plda_readl(pcie, ISTATUS_LOCAL) & INT_MASK))) {
 		if (status & INT_INTX_MASK)
 			plda_pcie_handle_intx_irq(pcie, status);
@@ -334,7 +318,7 @@ static void plda_pcie_isr(struct irq_desc *desc)
 		if (status & INT_ERRORS)
 			plda_pcie_handle_errors_irq(pcie, status);
 	}
-	
+
 	chained_irq_exit(chip, desc);
 }
 
@@ -362,8 +346,8 @@ static void plda_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	msg->address_hi = upper_32_bits(msi_addr);
 	msg->data = data->hwirq;
 
-	printk("msi#%d address_hi %#x address_lo %#x\n",
-		(int)data->hwirq, msg->address_hi, msg->address_lo);	
+	dev_info(&pcie->pdev->dev, "msi#%d address_hi %#x address_lo %#x\n",
+		(int)data->hwirq, msg->address_hi, msg->address_lo);
 }
 
 static int plda_msi_set_affinity(struct irq_data *irq_data,
@@ -414,7 +398,7 @@ static void plda_msi_free(struct irq_domain *domain, unsigned int virq,
 	mutex_lock(&msi->lock);
 
 	if (!test_bit(data->hwirq, msi->used))
-		dev_err(&pcie->pdev->dev, "trying to free unused MSI#%lu\n",
+		dev_err(&pcie->pdev->dev, "Trying to free unused MSI#%lu\n",
 			data->hwirq);
 	else
 		__clear_bit(data->hwirq, msi->used);
@@ -458,7 +442,7 @@ static void plda_pcie_free_irq_domain(struct plda_pcie *pcie)
 
 	if (pcie->legacy_irq_domain) {
 		for (i = 0; i < PCI_NUM_INTX; i++) {
-			irq = irq_find_mapping(pcie->legacy_irq_domain, i );
+			irq = irq_find_mapping(pcie->legacy_irq_domain, i);
 			if (irq > 0)
 				irq_dispose_mapping(irq);
 		}
@@ -479,13 +463,13 @@ static int plda_pcie_init_msi_irq_domain(struct plda_pcie *pcie)
 	msi->inner_domain = irq_domain_add_linear(NULL, INT_PCI_MSI_NR,
 						  &dev_msi_domain_ops, pcie);
 	if (!msi->inner_domain) {
-		dev_err(&pcie->pdev->dev, "failed to create dev IRQ domain\n");
+		dev_err(&pcie->pdev->dev, "Failed to create dev IRQ domain\n");
 		return -ENOMEM;
 	}
 	msi->msi_domain = pci_msi_create_irq_domain(fwn, &plda_msi_domain_info,
 						    msi->inner_domain);
 	if (!msi->msi_domain) {
-		dev_err(&pcie->pdev->dev, "failed to create msi IRQ domain\n");
+		dev_err(&pcie->pdev->dev, "Failed to create msi IRQ domain\n");
 		irq_domain_remove(msi->inner_domain);
 		return -ENOMEM;
 	}
@@ -518,7 +502,7 @@ static int plda_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 
 static const struct irq_domain_ops intx_domain_ops = {
 	.map = plda_pcie_intx_map,
-	.xlate = pci_irqd_intx_xlate,		
+	.xlate = pci_irqd_intx_xlate,
 };
 
 static int plda_pcie_init_irq_domain(struct plda_pcie *pcie)
@@ -527,11 +511,11 @@ static int plda_pcie_init_irq_domain(struct plda_pcie *pcie)
 	struct device_node *node = dev->of_node;
 	int ret;
 
-	if (pci_msi_enabled()){
+	if (pci_msi_enabled()) {
 		ret = plda_pcie_init_msi_irq_domain(pcie);
-		if(ret != 0)
+		if (ret != 0)
 			return -ENOMEM;
-	}	
+	}
 
 	/* Setup INTx */
 	pcie->legacy_irq_domain = irq_domain_add_linear(node, PCI_NUM_INTX,
@@ -542,50 +526,50 @@ static int plda_pcie_init_irq_domain(struct plda_pcie *pcie)
 		return -ENOMEM;
 	}
 
-	irq_set_chained_handler_and_data(pcie->irq, plda_pcie_isr, pcie);  
+	irq_set_chained_handler_and_data(pcie->irq, plda_pcie_isr, pcie);
 	return 0;
 }
 
 static int plda_pcie_parse_dt(struct plda_pcie *pcie)
 {
-	struct resource *reg_res,*config_res;
+	struct resource *reg_res, *config_res;
 	struct platform_device *pdev = pcie->pdev;
 
 
 	reg_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "reg");
 	if (!reg_res) {
-		dev_err(&pdev->dev, "missing required reg address range");
+		dev_err(&pdev->dev, "Missing required reg address range\n");
 		return -ENODEV;
 	}
-	
+
 	pcie->reg_base = devm_ioremap_resource(&pdev->dev, reg_res);
-	if (IS_ERR(pcie->reg_base)){
-		dev_err(&pdev->dev, "failed to map reg memory\n");
+	if (IS_ERR(pcie->reg_base)) {
+		dev_err(&pdev->dev, "Failed to map reg memory\n");
 		return PTR_ERR(pcie->reg_base);
 	}
 
 	config_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
 	if (!config_res) {
-		dev_err(&pdev->dev, "missing required config address range");
+		dev_err(&pdev->dev, "Missing required config address range");
 		return -ENODEV;
 	}
-	
+
 	pcie->config_base = devm_ioremap_resource(&pdev->dev, config_res);
 	if (IS_ERR(pcie->config_base)){
-		dev_err(&pdev->dev, "failed to map config memory\n");
+		dev_err(&pdev->dev, "Failed to map config memory\n");
 		return PTR_ERR(pcie->config_base);
 	}
 	
 	pcie->irq = platform_get_irq(pdev, 0);
 	if (pcie->irq <= 0) {
-		dev_err(&pdev->dev, "failed to get IRQ: %d\n", pcie->irq);
+		dev_err(&pdev->dev, "Failed to get IRQ: %d\n", pcie->irq);
 		return -EINVAL;
 	}
 
 	/* clear all interrupts */
 	plda_writel(pcie, 0xffffffff, ISTATUS_LOCAL);
 	plda_writel(pcie, INT_INTX_MASK | INT_ERRORS, IMASK_LOCAL);
-	
+
 	return 0;
 }
 
@@ -595,48 +579,63 @@ static struct pci_ops plda_pcie_ops = {
 };
 
 
-void plda_set_atr_entry(unsigned long base, unsigned long src_addr,
-			unsigned long trsl_addr, int window_size,
+void plda_set_atr_entry(void __iomem *base, phys_addr_t src_addr,
+			phys_addr_t trsl_addr, size_t window_size,
 			int trsl_param)
 {
 	/* X3PCI_ATR_SRC_ADDR_LOW:
-	     - bit 0: enable entry,
-	     - bits 1-6: ATR window size: total size in bytes: 2^(ATR_WSIZE + 1)
-	     - bits 7-11: reserved
-	     - bits 12-31: start of source address
-	*/
-	writel((u32)(src_addr & 0xfffff000) | (window_size - 1) << 1 | 1,
-	       base + XR3PCI_ATR_SRC_ADDR_LOW);
-	writel((u32)(src_addr >> 32), base + XR3PCI_ATR_SRC_ADDR_HIGH);
-	writel((u32)(trsl_addr & 0xfffff000), base + XR3PCI_ATR_TRSL_ADDR_LOW);
-	writel((u32)(trsl_addr >> 32), base + XR3PCI_ATR_TRSL_ADDR_HIGH);
+	 *   - bit 0: enable entry,
+	 *   - bits 1-6: ATR window size: total size in bytes: 2^(ATR_WSIZE + 1)
+	 *   - bits 7-11: reserved
+	 *   - bits 12-31: start of source address
+	 */
+	writel((lower_32_bits(src_addr) & XR3PCI_ATR_SRC_ADDR_MASK) |
+			(fls(window_size) - 1) << XR3PCI_ATR_SRC_WIN_SIZE_SHIFT | 1,
+			base + XR3PCI_ATR_SRC_ADDR_LOW);
+	writel(upper_32_bits(src_addr), base + XR3PCI_ATR_SRC_ADDR_HIGH);
+	writel((lower_32_bits(trsl_addr) & XR3PCI_ATR_TRSL_ADDR_MASK),
+			base + XR3PCI_ATR_TRSL_ADDR_LOW);
+	writel(upper_32_bits(trsl_addr), base + XR3PCI_ATR_TRSL_ADDR_HIGH);
 	writel(trsl_param, base + XR3PCI_ATR_TRSL_PARAM);
 
-	printk("ATR entry: 0x%010lx %s 0x%010lx [0x%010llx] (param: 0x%06x)\n",
-	       src_addr, (trsl_param & 0x400000) ? "<-" : "->", trsl_addr,
-	       ((u64)1) << window_size, trsl_param);
+	pr_info("ATR entry: 0x%010llx %s 0x%010llx [0x%010llx] (param: 0x%06x)\n",
+	       src_addr, (trsl_param & XR3PCI_ATR_TRSL_DIR) ? "<-" : "->",
+	       trsl_addr, ((u64)1) << fls(window_size), trsl_param);
 }
-			
+
+static int plda_pcie_setup_windows(struct plda_pcie *pcie)
+{
+	void __iomem *bridge_base_addr = pcie->reg_base + XR3PCI_ATR_AXI4_SLV0;
+	struct pci_host_bridge *bridge = pcie->bridge;
+	struct resource_entry *entry;
+	u64 pci_addr;
+
+	resource_list_for_each_entry(entry, &bridge->windows) {
+		if (resource_type(entry->res) == IORESOURCE_MEM) {
+			pci_addr = entry->res->start - entry->offset;
+			plda_set_atr_entry(bridge_base_addr,
+						entry->res->start, pci_addr,
+						resource_size(entry->res),
+						XR3PCI_ATR_TRSLID_PCIE_MEMORY);
+		}
+	}
+
+	return 0;
+}
+
 
 void plda_pcie_hw_init(struct plda_pcie *pcie)
 {
-	unsigned int value;	
-	unsigned long base;
-	unsigned int primary_bus = 0;
+	unsigned int value;
 
-	/* add credits */
-    value = readl(pcie->reg_base + GEN_SETTINGS);
-    value |= 0x1;
-    value &= ~(1 << 12);//disable 5G/s
-    writel(value, pcie->reg_base + GEN_SETTINGS);
+	/* disable 5G/s */
+	/* Enable root port, limited to Gen1 at fpga phase */
+	value = readl(pcie->reg_base + GEN_SETTINGS);
+	value |= PLDA_RP_ENABLE;
+	value &= ~PDLA_LINK_SPEED_GEN2;
+	writel(value, pcie->reg_base + GEN_SETTINGS);
 
-	/* setup CPU to PCIe address translation table */
-	base = pcie->reg_base + XR3PCI_ATR_AXI4_SLV0;
-
-	/* setup config space translation */
-	plda_set_atr_entry(base,PLDA_PCIE0_MMIO_BASE,PLDA_PCIE0_MMIO_BASE, PLDA_PCIE_MMIO_SIZE,
-			     XR3PCI_ATR_TRSLID_PCIE_MEMORY);		
-
+	plda_pcie_setup_windows(pcie);
 }
 
 static int plda_pcie_probe(struct platform_device *pdev)
@@ -644,10 +643,8 @@ static int plda_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct plda_pcie *pcie;
 	struct pci_bus *bus;
-	struct pci_bus *child;
-	struct pci_host_bridge *bridge;	
+	struct pci_host_bridge *bridge;
 	int ret;
-	u32 status;
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
@@ -677,16 +674,16 @@ static int plda_pcie_probe(struct platform_device *pdev)
 	bridge->ops = &plda_pcie_ops;
 	bridge->sysdata = pcie;
 	pcie->bridge = bridge;
-	
+
 	plda_pcie_hw_init(pcie);
 
 
 	ret = pci_host_probe(bridge);
-	if(ret < 0){
-		dev_err(&pdev->dev,"failed to pci host probe: %d\n", ret);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to pci host probe: %d\n", ret);
 		return ret;
 	}
-	
+
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		ret = plda_pcie_enable_msi(pcie, bus);
 		if (ret < 0) {
@@ -714,7 +711,7 @@ static const struct of_device_id plda_pcie_of_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(of, plda_pcie_of_match);
-	
+
 
 static struct platform_driver plda_pcie_driver = {
 	.driver = {
@@ -728,4 +725,5 @@ module_platform_driver(plda_pcie_driver);
 
 MODULE_DESCRIPTION("StarFive JH7110 PCIe host driver");
 MODULE_AUTHOR("ke.zhu <ke.zhu@starfivetech.com>");
+MODULE_AUTHOR("Mason Huo <mason.huo@starfivetech.com>");
 MODULE_LICENSE("GPL v2");
