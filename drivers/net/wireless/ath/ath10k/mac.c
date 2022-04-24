@@ -4118,11 +4118,10 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 		peer = ath10k_peer_find(ar, vdev_id, peer_addr);
 		spin_unlock_bh(&ar->data_lock);
 
-		if (peer)
+		if (peer) {
 			ath10k_warn(ar, "peer %pM on vdev %d already present\n",
 				    peer_addr, vdev_id);
-
-		if (!peer) {
+		} else {
 			ret = ath10k_peer_create(ar, NULL, NULL, vdev_id,
 						 peer_addr,
 						 WMI_PEER_TYPE_DEFAULT);
