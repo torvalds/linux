@@ -331,6 +331,8 @@ Reading of fan types causes erratic fan behaviour.      Studio XPS 8000
 
                                                         Inspiron 580
 
+                                                        Inspiron 3505
+
 Fan-related SMM calls take too long (about 500ms).      Inspiron 7720
 
                                                         Vostro 3360
