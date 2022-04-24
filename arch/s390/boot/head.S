@@ -69,7 +69,7 @@ __HEAD
 	.org	__LC_EXT_NEW_PSW		# 0x1b0
 	.quad	0x0002000180000000,0x1b0	# disabled wait
 	.org	__LC_PGM_NEW_PSW		# 0x1d0
-	.quad	0x0000000180000000,startup_pgm_check_handler
+	.quad	0x0002000180000000,0x1d0	# disabled wait
 	.org	__LC_IO_NEW_PSW			# 0x1f0
 	.quad	0x0002000180000000,0x1f0	# disabled wait
 
