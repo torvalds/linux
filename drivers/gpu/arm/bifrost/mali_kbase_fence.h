@@ -104,7 +104,7 @@ static inline void kbase_fence_out_remove(struct kbase_jd_atom *katom)
 
 #if defined(CONFIG_SYNC_FILE)
 /**
- * kbase_fence_out_remove() - Removes the input fence from atom
+ * kbase_fence_in_remove() - Removes the input fence from atom
  * @katom: Atom to remove input fence for
  *
  * This will also release the reference to this fence which the atom keeps

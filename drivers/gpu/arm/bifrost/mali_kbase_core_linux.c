@@ -1009,9 +1009,9 @@ static int kbase_api_get_cpu_gpu_timeinfo(struct kbase_context *kctx,
 		union kbase_ioctl_get_cpu_gpu_timeinfo *timeinfo)
 {
 	u32 flags = timeinfo->in.request_flags;
-	struct timespec64 ts;
-	u64 timestamp;
-	u64 cycle_cnt;
+	struct timespec64 ts = { 0 };
+	u64 timestamp = 0;
+	u64 cycle_cnt = 0;
 
 	kbase_pm_context_active(kctx->kbdev);
 
@@ -1040,11 +1040,7 @@ static int kbase_api_get_cpu_gpu_timeinfo(struct kbase_context *kctx,
 static int kbase_api_hwcnt_set(struct kbase_context *kctx,
 		struct kbase_ioctl_hwcnt_values *values)
 {
-	gpu_model_set_dummy_prfcnt_sample(
-			(u32 __user *)(uintptr_t)values->data,
-			values->size);
-
-	return 0;
+	return gpu_model_set_dummy_prfcnt_user_sample(u64_to_user_ptr(values->data), values->size);
 }
 #endif /* CONFIG_MALI_BIFROST_NO_MALI */
 
@@ -3223,12 +3219,14 @@ static ssize_t gpuinfo_show(struct device *dev,
 	u32 gpu_id;
 	unsigned int product_id, product_id_mask;
 	unsigned int i;
+	struct kbase_gpu_props *gpu_props;
 
 	kbdev = to_kbase_device(dev);
 	if (!kbdev)
 		return -ENODEV;
 
-	gpu_id = kbdev->gpu_props.props.raw_props.gpu_id;
+	gpu_props = &kbdev->gpu_props;
+	gpu_id = gpu_props->props.raw_props.gpu_id;
 	product_id = gpu_id >> KBASE_GPU_ID_VERSION_PRODUCT_ID_SHIFT;
 	product_id_mask = GPU_ID2_PRODUCT_MODEL >> KBASE_GPU_ID_VERSION_PRODUCT_ID_SHIFT;
 
@@ -3241,6 +3239,32 @@ static ssize_t gpuinfo_show(struct device *dev,
 			break;
 		}
 	}
+
+#if MALI_USE_CSF
+	if ((product_id & product_id_mask) ==
+	    ((GPU_ID2_PRODUCT_TTUX >> KBASE_GPU_ID_VERSION_PRODUCT_ID_SHIFT) & product_id_mask)) {
+		const bool rt_supported =
+			GPU_FEATURES_RAY_TRACING_GET(gpu_props->props.raw_props.gpu_features);
+		const u8 nr_cores = gpu_props->num_cores;
+
+		/* Mali-TTUX_B(ig) if 10 < number of cores with ray tracing supproted.
+		 * Mali-TTUX if 10 < number of cores without ray tracing supported.
+		 * Mali-TTUX if 7 <= number of cores <= 10 regardless ray tracing.
+		 * Mali-LTUX if number of cores < 7.
+		 */
+		if ((nr_cores > 10) && rt_supported)
+			product_name = "Mali-TTUX_B";
+		else if (nr_cores >= 7)
+			product_name = "Mali-TTUX";
+
+		if (nr_cores < 7) {
+			dev_warn(kbdev->dev, "nr_cores(%u) GPU ID must be LTUX", nr_cores);
+			product_name = "Mali-LTUX";
+		} else
+			dev_dbg(kbdev->dev, "GPU ID_Name: %s, nr_cores(%u)\n", product_name,
+				nr_cores);
+	}
+#endif /* MALI_USE_CSF */
 
 	return scnprintf(buf, PAGE_SIZE, "%s %d cores r%dp%d 0x%04X\n", product_name,
 			 kbdev->gpu_props.num_cores,
@@ -3313,6 +3337,46 @@ static ssize_t dvfs_period_show(struct device *dev,
 }
 
 static DEVICE_ATTR_RW(dvfs_period);
+
+int kbase_pm_lowest_gpu_freq_init(struct kbase_device *kbdev)
+{
+	/* Uses default reference frequency defined in below macro */
+	u64 lowest_freq_khz = DEFAULT_REF_TIMEOUT_FREQ_KHZ;
+
+	/* Only check lowest frequency in cases when OPPs are used and
+	 * present in the device tree.
+	 */
+#ifdef CONFIG_PM_OPP
+	struct dev_pm_opp *opp_ptr;
+	unsigned long found_freq = 0;
+
+	/* find lowest frequency OPP */
+	opp_ptr = dev_pm_opp_find_freq_ceil(kbdev->dev, &found_freq);
+	if (IS_ERR(opp_ptr)) {
+		dev_err(kbdev->dev, "No OPPs found in device tree! Scaling timeouts using %llu kHz",
+			(unsigned long long)lowest_freq_khz);
+	} else {
+#if KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE
+		dev_pm_opp_put(opp_ptr); /* decrease OPP refcount */
+#endif
+		/* convert found frequency to KHz */
+		found_freq /= 1000;
+
+		/* If lowest frequency in OPP table is still higher
+		 * than the reference, then keep the reference frequency
+		 * as the one to use for scaling .
+		 */
+		if (found_freq < lowest_freq_khz)
+			lowest_freq_khz = found_freq;
+	}
+#else
+	dev_err(kbdev->dev, "No operating-points-v2 node or operating-points property in DT");
+#endif
+
+	kbdev->lowest_gpu_freq_khz = lowest_freq_khz;
+	dev_dbg(kbdev->dev, "Lowest frequency identified is %llu kHz", kbdev->lowest_gpu_freq_khz);
+	return 0;
+}
 
 /**
  * pm_poweroff_store - Store callback for the pm_poweroff sysfs file.
@@ -4623,18 +4687,18 @@ static int type##_quirks_set(void *data, u64 val) \
 	kbdev = (struct kbase_device *)data; \
 	kbdev->hw_quirks_##type = (u32)val; \
 	trigger_reset(kbdev); \
-	return 0;\
+	return 0; \
 } \
 \
 static int type##_quirks_get(void *data, u64 *val) \
 { \
-	struct kbase_device *kbdev;\
-	kbdev = (struct kbase_device *)data;\
-	*val = kbdev->hw_quirks_##type;\
-	return 0;\
+	struct kbase_device *kbdev; \
+	kbdev = (struct kbase_device *)data; \
+	*val = kbdev->hw_quirks_##type; \
+	return 0; \
 } \
-DEFINE_SIMPLE_ATTRIBUTE(fops_##type##_quirks, type##_quirks_get,\
-		type##_quirks_set, "%llu\n")
+DEFINE_DEBUGFS_ATTRIBUTE(fops_##type##_quirks, type##_quirks_get, \
+			 type##_quirks_set, "%llu\n")
 
 MAKE_QUIRK_ACCESSORS(sc);
 MAKE_QUIRK_ACCESSORS(tiler);
@@ -4664,8 +4728,7 @@ static int kbase_device_debugfs_reset_write(void *data, u64 wait_for_reset)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_trigger_reset,
-		NULL, &kbase_device_debugfs_reset_write, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_trigger_reset, NULL, &kbase_device_debugfs_reset_write, "%llu\n");
 
 /**
  * debugfs_protected_debug_mode_read - "protected_debug_mode" debugfs read
@@ -5170,6 +5233,66 @@ static ssize_t idle_hysteresis_time_show(struct device *dev,
 }
 
 static DEVICE_ATTR_RW(idle_hysteresis_time);
+
+/**
+ * mcu_shader_pwroff_timeout_show - Get the MCU shader Core power-off time value.
+ *
+ * @dev:  The device this sysfs file is for.
+ * @attr: The attributes of the sysfs file.
+ * @buf:  The output buffer for the sysfs file contents
+ *
+ * Get the internally recorded MCU shader Core power-off (nominal) timeout value.
+ * The unit of the value is in micro-seconds.
+ *
+ * Return: The number of bytes output to @buf if the
+ *         function succeeded. A Negative value on failure.
+ */
+static ssize_t mcu_shader_pwroff_timeout_show(struct device *dev, struct device_attribute *attr,
+					      char *const buf)
+{
+	struct kbase_device *kbdev = dev_get_drvdata(dev);
+	u32 pwroff;
+
+	if (!kbdev)
+		return -ENODEV;
+
+	pwroff = kbase_csf_firmware_get_mcu_core_pwroff_time(kbdev);
+	return scnprintf(buf, PAGE_SIZE, "%u\n", pwroff);
+}
+
+/**
+ * mcu_shader_pwroff_timeout_store - Set the MCU shader core power-off time value.
+ *
+ * @dev:   The device with sysfs file is for
+ * @attr:  The attributes of the sysfs file
+ * @buf:   The value written to the sysfs file
+ * @count: The number of bytes to write to the sysfs file
+ *
+ * The duration value (unit: micro-seconds) for configuring MCU Shader Core
+ * timer, when the shader cores' power transitions are delegated to the
+ * MCU (normal operational mode)
+ *
+ * Return: @count if the function succeeded. An error code on failure.
+ */
+static ssize_t mcu_shader_pwroff_timeout_store(struct device *dev, struct device_attribute *attr,
+					       const char *buf, size_t count)
+{
+	struct kbase_device *kbdev = dev_get_drvdata(dev);
+	u32 dur;
+
+	if (!kbdev)
+		return -ENODEV;
+
+	if (kstrtouint(buf, 0, &dur))
+		return -EINVAL;
+
+	kbase_csf_firmware_set_mcu_core_pwroff_time(kbdev, dur);
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(mcu_shader_pwroff_timeout);
+
 #endif /* MALI_USE_CSF */
 
 static struct attribute *kbase_scheduling_attrs[] = {
@@ -5200,6 +5323,7 @@ static struct attribute *kbase_attrs[] = {
 	&dev_attr_csg_scheduling_period.attr,
 	&dev_attr_fw_timeout.attr,
 	&dev_attr_idle_hysteresis_time.attr,
+	&dev_attr_mcu_shader_pwroff_timeout.attr,
 #endif /* !MALI_USE_CSF */
 	&dev_attr_power_policy.attr,
 	&dev_attr_core_mask.attr,
@@ -5437,13 +5561,8 @@ static int kbase_device_resume(struct device *dev)
 
 #ifdef CONFIG_MALI_BIFROST_DEVFREQ
 	dev_dbg(dev, "Callback %s\n", __func__);
-	if (kbdev->devfreq) {
-		mutex_lock(&kbdev->pm.lock);
-		if (kbdev->pm.active_count > 0)
-			kbase_devfreq_enqueue_work(kbdev, DEVFREQ_WORK_RESUME);
-		mutex_unlock(&kbdev->pm.lock);
-		flush_workqueue(kbdev->devfreq_queue.workq);
-	}
+	if (kbdev->devfreq)
+		kbase_devfreq_enqueue_work(kbdev, DEVFREQ_WORK_RESUME);
 #endif
 	return 0;
 }

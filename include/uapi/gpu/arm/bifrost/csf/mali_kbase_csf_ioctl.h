@@ -56,10 +56,12 @@
  * - Added new Base memory allocation interface
  * 1.10:
  * - First release of new HW performance counters interface.
+ * 1.11:
+ * - Dummy model (no mali) backend will now clear HWC values after each sample
  */
 
 #define BASE_UK_VERSION_MAJOR 1
-#define BASE_UK_VERSION_MINOR 10
+#define BASE_UK_VERSION_MINOR 11
 
 /**
  * struct kbase_ioctl_version_check - Check version compatibility between
@@ -263,7 +265,7 @@ union kbase_ioctl_cs_queue_group_create {
 		__u8 compute_max;
 		__u8 padding[3];
 		/**
-		 * @reserved: Reserved
+		 * @in.reserved: Reserved
 		 */
 		__u64 reserved;
 	} in;

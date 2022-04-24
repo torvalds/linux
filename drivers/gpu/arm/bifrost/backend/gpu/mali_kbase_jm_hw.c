@@ -281,7 +281,7 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 	/* Write an approximate start timestamp.
 	 * It's approximate because there might be a job in the HEAD register.
 	 */
-	katom->start_timestamp = ktime_get();
+	katom->start_timestamp = ktime_get_raw();
 
 	/* GO ! */
 	dev_dbg(kbdev->dev, "JS: Submitting atom %pK from ctx %pK to js[%d] with head=0x%llx",
@@ -397,7 +397,7 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 
 	KBASE_KTRACE_ADD_JM(kbdev, JM_IRQ, NULL, NULL, 0, done);
 
-	end_timestamp = ktime_get();
+	end_timestamp = ktime_get_raw();
 
 	while (done) {
 		u32 failed = done >> 16;
@@ -590,7 +590,7 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 			failed = done >> 16;
 			finished = (done & 0xFFFF) | failed;
 			if (done)
-				end_timestamp = ktime_get();
+				end_timestamp = ktime_get_raw();
 		} while (finished & (1 << i));
 
 		kbasep_job_slot_update_head_start_timestamp(kbdev, i,
@@ -1054,7 +1054,7 @@ static void kbasep_reset_timeout_worker(struct work_struct *data)
 {
 	unsigned long flags;
 	struct kbase_device *kbdev;
-	ktime_t end_timestamp = ktime_get();
+	ktime_t end_timestamp = ktime_get_raw();
 	struct kbasep_js_device_data *js_devdata;
 	bool silent = false;
 	u32 max_loops = KBASE_CLEAN_CACHE_MAX_LOOPS;

@@ -87,16 +87,13 @@ struct kbase_kinstr_prfcnt_sample {
 
 /**
  * struct kbase_kinstr_prfcnt_sample_array - Array of sample data.
- * @page_addr:    Address of allocated pages. A single allocation is used
+ * @user_buf:     Address of allocated userspace buffer. A single allocation is used
  *                for all Dump Buffers in the array.
- * @page_order:   The allocation order of the pages, the order is on a
- *                logarithmic scale.
  * @sample_count: Number of allocated samples.
  * @samples:      Non-NULL pointer to the array of Dump Buffers.
  */
 struct kbase_kinstr_prfcnt_sample_array {
-	u64 page_addr;
-	unsigned int page_order;
+	u8 *user_buf;
 	size_t sample_count;
 	struct kbase_kinstr_prfcnt_sample *samples;
 };
@@ -392,7 +389,10 @@ kbase_hwcnt_metadata_block_type_to_prfcnt_block_type(u64 type)
 		block_type = PRFCNT_BLOCK_TYPE_MEMORY;
 		break;
 
-	case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED:
+	case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE_UNDEFINED:
+	case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC_UNDEFINED:
+	case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER_UNDEFINED:
+	case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS_UNDEFINED:
 	default:
 		block_type = PRFCNT_BLOCK_TYPE_RESERVED;
 		break;
@@ -426,7 +426,7 @@ static bool kbase_kinstr_is_block_type_reserved(const struct kbase_hwcnt_metadat
 int kbasep_kinstr_prfcnt_set_block_meta_items(struct kbase_hwcnt_enable_map *enable_map,
 					      struct kbase_hwcnt_dump_buffer *dst,
 					      struct prfcnt_metadata **block_meta_base,
-					      u64 base_addr, u8 counter_set)
+					      u8 *base_addr, u8 counter_set)
 {
 	size_t grp, blk, blk_inst;
 	struct prfcnt_metadata **ptr_md = block_meta_base;
@@ -437,7 +437,7 @@ int kbasep_kinstr_prfcnt_set_block_meta_items(struct kbase_hwcnt_enable_map *ena
 
 	metadata = dst->metadata;
 	kbase_hwcnt_metadata_for_each_block(metadata, grp, blk, blk_inst) {
-		u64 *dst_blk;
+		u8 *dst_blk;
 
 		/* Skip unavailable or non-enabled blocks */
 		if (kbase_kinstr_is_block_type_reserved(metadata, grp, blk) ||
@@ -445,7 +445,7 @@ int kbasep_kinstr_prfcnt_set_block_meta_items(struct kbase_hwcnt_enable_map *ena
 		    !kbase_hwcnt_enable_map_block_enabled(enable_map, grp, blk, blk_inst))
 			continue;
 
-		dst_blk = kbase_hwcnt_dump_buffer_block_instance(dst, grp, blk, blk_inst);
+		dst_blk = (u8 *)kbase_hwcnt_dump_buffer_block_instance(dst, grp, blk, blk_inst);
 		(*ptr_md)->hdr.item_type = PRFCNT_SAMPLE_META_TYPE_BLOCK;
 		(*ptr_md)->hdr.item_version = PRFCNT_READER_API_VERSION;
 		(*ptr_md)->u.block_md.block_type =
@@ -455,7 +455,7 @@ int kbasep_kinstr_prfcnt_set_block_meta_items(struct kbase_hwcnt_enable_map *ena
 		(*ptr_md)->u.block_md.block_idx = (u8)blk_inst;
 		(*ptr_md)->u.block_md.set = counter_set;
 		(*ptr_md)->u.block_md.block_state = BLOCK_STATE_UNKNOWN;
-		(*ptr_md)->u.block_md.values_offset = (u32)((u64)(uintptr_t)dst_blk - base_addr);
+		(*ptr_md)->u.block_md.values_offset = (u32)(dst_blk - base_addr);
 
 		/* update the buf meta data block pointer to next item */
 		(*ptr_md)++;
@@ -501,7 +501,7 @@ static void kbasep_kinstr_prfcnt_set_sample_metadata(
 	/* Dealing with counter blocks */
 	ptr_md++;
 	if (WARN_ON(kbasep_kinstr_prfcnt_set_block_meta_items(&cli->enable_map, dump_buf, &ptr_md,
-							      cli->sample_arr.page_addr,
+							      cli->sample_arr.user_buf,
 							      cli->config.counter_set)))
 		return;
 
@@ -1011,12 +1011,8 @@ kbasep_kinstr_prfcnt_get_sample(struct kbase_kinstr_prfcnt_client *cli,
 	}
 
 	read_idx %= cli->sample_arr.sample_count;
-	sample_offset_bytes =
-		(u64)(uintptr_t)cli->sample_arr.samples[read_idx].sample_meta -
-		(u64)(uintptr_t)cli->sample_arr.page_addr;
-	sample_meta =
-		(struct prfcnt_metadata *)cli->sample_arr.samples[read_idx]
-			.sample_meta;
+	sample_meta = cli->sample_arr.samples[read_idx].sample_meta;
+	sample_offset_bytes = (u8 *)sample_meta - cli->sample_arr.user_buf;
 
 	/* Verify that a valid sample has been dumped in the read_idx.
 	 * There are situations where this may not be the case,
@@ -1061,8 +1057,7 @@ kbasep_kinstr_prfcnt_put_sample(struct kbase_kinstr_prfcnt_client *cli,
 
 	read_idx %= cli->sample_arr.sample_count;
 	sample_offset_bytes =
-		(u64)(uintptr_t)cli->sample_arr.samples[read_idx].sample_meta -
-		(u64)(uintptr_t)cli->sample_arr.page_addr;
+		(u8 *)cli->sample_arr.samples[read_idx].sample_meta - cli->sample_arr.user_buf;
 
 	if (sample_access->sample_offset_bytes != sample_offset_bytes) {
 		err = -EINVAL;
@@ -1154,40 +1149,15 @@ static int kbasep_kinstr_prfcnt_hwcnt_reader_mmap(struct file *filp,
 						  struct vm_area_struct *vma)
 {
 	struct kbase_kinstr_prfcnt_client *cli;
-	unsigned long vm_size, size, addr, pfn, offset;
 
 	if (!filp || !vma)
 		return -EINVAL;
-	cli = filp->private_data;
 
+	cli = filp->private_data;
 	if (!cli)
 		return -EINVAL;
 
-	vm_size = vma->vm_end - vma->vm_start;
-
-	/* The mapping is allowed to span the entirety of the page allocation,
-	 * not just the chunk where the dump buffers are allocated.
-	 * This accommodates the corner case where the combined size of the
-	 * dump buffers is smaller than a single page.
-	 * This does not pose a security risk as the pages are zeroed on
-	 * allocation, and anything out of bounds of the dump buffers is never
-	 * written to.
-	 */
-	size = (1ull << cli->sample_arr.page_order) * PAGE_SIZE;
-
-	if (vma->vm_pgoff > (size >> PAGE_SHIFT))
-		return -EINVAL;
-
-	offset = vma->vm_pgoff << PAGE_SHIFT;
-
-	if (vm_size > size - offset)
-		return -EINVAL;
-
-	addr = __pa(cli->sample_arr.page_addr + offset);
-	pfn = addr >> PAGE_SHIFT;
-
-	return remap_pfn_range(vma, vma->vm_start, pfn, vm_size,
-			       vma->vm_page_prot);
+	return remap_vmalloc_range(vma, cli->sample_arr.user_buf, 0);
 }
 
 static void kbasep_kinstr_prfcnt_sample_array_free(
@@ -1196,8 +1166,8 @@ static void kbasep_kinstr_prfcnt_sample_array_free(
 	if (!sample_arr)
 		return;
 
-	kfree((void *)sample_arr->samples);
-	kfree((void *)(size_t)sample_arr->page_addr);
+	kfree(sample_arr->samples);
+	vfree(sample_arr->user_buf);
 	memset(sample_arr, 0, sizeof(*sample_arr));
 }
 
@@ -1431,8 +1401,6 @@ void kbase_kinstr_prfcnt_term(struct kbase_kinstr_prfcnt_context *kinstr_ctx)
 	if (!kinstr_ctx)
 		return;
 
-	cancel_work_sync(&kinstr_ctx->dump_work);
-
 	/* Non-zero client count implies client leak */
 	if (WARN_ON(kinstr_ctx->client_count > 0)) {
 		struct kbase_kinstr_prfcnt_client *pos, *n;
@@ -1443,6 +1411,8 @@ void kbase_kinstr_prfcnt_term(struct kbase_kinstr_prfcnt_context *kinstr_ctx)
 			kbasep_kinstr_prfcnt_client_destroy(pos);
 		}
 	}
+
+	cancel_work_sync(&kinstr_ctx->dump_work);
 
 	WARN_ON(kinstr_ctx->client_count > 0);
 	kfree(kinstr_ctx);
@@ -1518,8 +1488,6 @@ static int kbasep_kinstr_prfcnt_sample_array_alloc(struct kbase_kinstr_prfcnt_cl
 	struct kbase_kinstr_prfcnt_sample_array *sample_arr = &cli->sample_arr;
 	struct kbase_kinstr_prfcnt_sample *samples;
 	size_t sample_idx;
-	u64 addr;
-	unsigned int order;
 	size_t dump_buf_bytes;
 	size_t clk_cnt_buf_bytes;
 	size_t sample_meta_bytes;
@@ -1542,16 +1510,13 @@ static int kbasep_kinstr_prfcnt_sample_array_alloc(struct kbase_kinstr_prfcnt_cl
 	if (!samples)
 		return -ENOMEM;
 
-	order = get_order(sample_size * buffer_count);
-	addr = (u64)(uintptr_t)kzalloc(sample_size * buffer_count, GFP_KERNEL);
+	sample_arr->user_buf = vmalloc_user(sample_size * buffer_count);
 
-	if (!addr) {
-		kfree((void *)samples);
+	if (!sample_arr->user_buf) {
+		kfree(samples);
 		return -ENOMEM;
 	}
 
-	sample_arr->page_addr = addr;
-	sample_arr->page_order = order;
 	sample_arr->sample_count = buffer_count;
 	sample_arr->samples = samples;
 
@@ -1565,12 +1530,11 @@ static int kbasep_kinstr_prfcnt_sample_array_alloc(struct kbase_kinstr_prfcnt_cl
 		/* Internal layout in a sample buffer: [sample metadata, dump_buf, clk_cnt_buf]. */
 		samples[sample_idx].dump_buf.metadata = metadata;
 		samples[sample_idx].sample_meta =
-			(struct prfcnt_metadata *)(uintptr_t)(
-				addr + sample_meta_offset);
+			(struct prfcnt_metadata *)(sample_arr->user_buf + sample_meta_offset);
 		samples[sample_idx].dump_buf.dump_buf =
-			(u64 *)(uintptr_t)(addr + dump_buf_offset);
+			(u64 *)(sample_arr->user_buf + dump_buf_offset);
 		samples[sample_idx].dump_buf.clk_cnt_buf =
-			(u64 *)(uintptr_t)(addr + clk_cnt_buf_offset);
+			(u64 *)(sample_arr->user_buf + clk_cnt_buf_offset);
 	}
 
 	return 0;
@@ -2015,7 +1979,6 @@ static int kbasep_kinstr_prfcnt_enum_info_count(
 	struct kbase_kinstr_prfcnt_context *kinstr_ctx,
 	struct kbase_ioctl_kinstr_prfcnt_enum_info *enum_info)
 {
-	int err = 0;
 	uint32_t count = 0;
 	size_t block_info_count = 0;
 	const struct kbase_hwcnt_metadata *metadata;
@@ -2036,7 +1999,7 @@ static int kbasep_kinstr_prfcnt_enum_info_count(
 	enum_info->info_item_size = sizeof(struct prfcnt_enum_item);
 	kinstr_ctx->info_item_count = count;
 
-	return err;
+	return 0;
 }
 
 static int kbasep_kinstr_prfcnt_enum_info_list(
@@ -2149,15 +2112,10 @@ int kbase_kinstr_prfcnt_setup(struct kbase_kinstr_prfcnt_context *kinstr_ctx,
 	}
 
 	bytes = item_count * sizeof(*req_arr);
-	req_arr = kmalloc(bytes, GFP_KERNEL);
+	req_arr = memdup_user(u64_to_user_ptr(setup->in.requests_ptr), bytes);
 
-	if (!req_arr)
-		return -ENOMEM;
-
-	if (copy_from_user(req_arr, u64_to_user_ptr(setup->in.requests_ptr), bytes)) {
-		err = -EFAULT;
-		goto free_buf;
-	}
+	if (IS_ERR(req_arr))
+		return PTR_ERR(req_arr);
 
 	err = kbasep_kinstr_prfcnt_client_create(kinstr_ctx, setup, &cli, req_arr);
 

@@ -19,7 +19,7 @@
  *
  */
 
-/**
+/*
  * Kernel-wide include for common macros and types.
  */
 

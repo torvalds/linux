@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2012-2015, 2017, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2015, 2017, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -65,7 +65,7 @@ struct kbasep_debug_assert_cb {
 #endif
 
 /**
- * KBASEP_DEBUG_ASSERT_OUT(trace, function, ...) - (Private) system printing
+ * KBASEP_DEBUG_ASSERT_OUT() - (Private) system printing
  * function associated to the @ref KBASE_DEBUG_ASSERT_MSG event.
  * @trace: location in the code from where the message is printed
  * @function: function from where the message is printed
@@ -125,7 +125,7 @@ struct kbasep_debug_assert_cb {
 #endif				/* KBASE_DEBUG_DISABLE_ASSERTS */
 
 /**
- * KBASE_DEBUG_CODE( X ) - Executes the code inside the macro only in debug mode
+ * KBASE_DEBUG_CODE() - Executes the code inside the macro only in debug mode
  * @X: Code to compile only in debug mode.
  */
 #ifdef CONFIG_MALI_BIFROST_DEBUG

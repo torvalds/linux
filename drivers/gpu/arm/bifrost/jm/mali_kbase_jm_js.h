@@ -618,7 +618,7 @@ bool kbase_js_atom_blocked_on_x_dep(struct kbase_jd_atom *katom);
 void kbase_js_sched(struct kbase_device *kbdev, int js_mask);
 
 /**
- * kbase_jd_zap_context - Attempt to deschedule a context that is being
+ * kbase_js_zap_context - Attempt to deschedule a context that is being
  *                        destroyed
  * @kctx: Context pointer
  *

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2017-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -136,6 +136,9 @@ bob_defaults {
     mali_hw_errata_1485982_use_clock_alternative: {
         kbuild_options: ["CONFIG_MALI_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE=y"],
     },
+    platform_is_fpga: {
+        kbuild_options: ["CONFIG_MALI_IS_FPGA=y"],
+    },
     kbuild_options: [
         "CONFIG_MALI_PLATFORM_NAME={{.mali_platform_name}}",
         "MALI_CUSTOMER_RELEASE={{.release}}",
@@ -156,7 +159,7 @@ bob_defaults {
         // is an umbrella feature that would be open for inappropriate use
         // (catch-all for experimental CS code without separating it into
         // different features).
-        "MALI_INCREMENTAL_RENDERING={{.incremental_rendering}}",
+        "MALI_INCREMENTAL_RENDERING_JM={{.incremental_rendering_jm}}",
         "MALI_GPU_TIMESTAMP_CORRECTION={{.gpu_timestamp_correction}}",
         "MALI_BASE_CSF_PERFORMANCE_TESTS={{.base_csf_performance_tests}}",
         "MALI_GPU_TIMESTAMP_INTERPOLATION={{.gpu_timestamp_interpolation}}",

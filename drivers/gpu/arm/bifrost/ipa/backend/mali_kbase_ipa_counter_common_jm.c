@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2017-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -31,7 +31,7 @@
 #define DEFAULT_MIN_SAMPLE_CYCLES 10000
 
 /**
- * read_hwcnt() - read a counter value
+ * kbase_ipa_read_hwcnt() - read a counter value
  * @model_data:		pointer to model data
  * @offset:		offset, in bytes, into vinstr buffer
  *

@@ -1048,7 +1048,7 @@ page_fault_retry:
 				(u64)new_pages);
 		trace_mali_mmu_page_fault_grow(region, fault, new_pages);
 
-#if MALI_INCREMENTAL_RENDERING
+#if MALI_INCREMENTAL_RENDERING_JM
 		/* Switch to incremental rendering if we have nearly run out of
 		 * memory in a JIT memory allocation.
 		 */

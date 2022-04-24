@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -138,8 +138,8 @@ enum kbase_ktrace_code {
 };
 
 /**
- * struct kbase_ktrace - object representing a trace message added to trace
- *                      buffer trace_rbuf in &kbase_device
+ * struct kbase_ktrace_msg - object representing a trace message added to trace
+ *                           buffer trace_rbuf in &kbase_device
  * @timestamp: CPU timestamp at which the trace message was added.
  * @thread_id: id of the thread in the context of which trace message was
  *             added.

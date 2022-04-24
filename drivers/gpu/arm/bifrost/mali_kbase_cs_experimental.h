@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -30,9 +30,9 @@
  */
 static inline void mali_kbase_print_cs_experimental(void)
 {
-#if MALI_INCREMENTAL_RENDERING
-	pr_info("mali_kbase: INCREMENTAL_RENDERING (experimental) enabled");
-#endif /* MALI_INCREMENTAL_RENDERING */
+#if MALI_INCREMENTAL_RENDERING_JM
+	pr_info("mali_kbase: INCREMENTAL_RENDERING_JM (experimental) enabled");
+#endif /* MALI_INCREMENTAL_RENDERING_JM */
 }
 
 #endif /* _KBASE_CS_EXPERIMENTAL_H_ */

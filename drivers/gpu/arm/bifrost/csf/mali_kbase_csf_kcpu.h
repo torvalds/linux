@@ -184,7 +184,7 @@ struct kbase_suspend_copy_buffer {
 };
 
 /**
- * struct base_kcpu_command_group_suspend - structure which contains
+ * struct kbase_kcpu_command_group_suspend_info - structure which contains
  *		suspend buffer data captured for a suspended queue group.
  *
  * @sus_buf:		Pointer to the structure which contains details of the
@@ -198,7 +198,7 @@ struct kbase_kcpu_command_group_suspend_info {
 
 
 /**
- * struct kbase_cpu_command - Command which is to be part of the kernel
+ * struct kbase_kcpu_command - Command which is to be part of the kernel
  *                            command queue
  *
  * @type:	Type of the command.

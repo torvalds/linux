@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -1079,7 +1079,7 @@ static bool jd_submit_atom(struct kbase_context *const kctx,
 	/* Create a new atom. */
 	jd_trace_atom_submit(kctx, katom, &katom->sched_priority);
 
-#if !MALI_INCREMENTAL_RENDERING
+#if !MALI_INCREMENTAL_RENDERING_JM
 	/* Reject atoms for incremental rendering if not supported */
 	if (katom->core_req &
 	(BASE_JD_REQ_START_RENDERPASS|BASE_JD_REQ_END_RENDERPASS)) {
@@ -1089,7 +1089,7 @@ static bool jd_submit_atom(struct kbase_context *const kctx,
 		katom->event_code = BASE_JD_EVENT_JOB_INVALID;
 		return jd_done_nolock(katom, true);
 	}
-#endif /* !MALI_INCREMENTAL_RENDERING */
+#endif /* !MALI_INCREMENTAL_RENDERING_JM */
 
 	if (katom->core_req & BASE_JD_REQ_END_RENDERPASS) {
 		WARN_ON(katom->jc != 0);

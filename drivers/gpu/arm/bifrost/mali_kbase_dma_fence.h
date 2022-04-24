@@ -88,7 +88,7 @@ int kbase_dma_fence_wait(struct kbase_jd_atom *katom,
 			 struct kbase_dma_fence_resv_info *info);
 
 /**
- * kbase_dma_fence_cancel_ctx() - Cancel all dma-fences blocked atoms on kctx
+ * kbase_dma_fence_cancel_all_atoms() - Cancel all dma-fences blocked atoms on kctx
  * @kctx: Pointer to kbase context
  *
  * This function will cancel and clean up all katoms on @kctx that is waiting

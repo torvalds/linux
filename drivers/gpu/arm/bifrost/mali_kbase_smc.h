@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2015, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -49,7 +49,7 @@
 u64 kbase_invoke_smc_fid(u32 fid, u64 arg0, u64 arg1, u64 arg2);
 
 /**
- * kbase_invoke_smc_fid - Perform a secure monitor call
+ * kbase_invoke_smc - Perform a secure monitor call
  * @oen: Owning Entity number (SIP, STD etc).
  * @function_number: The function number within the OEN.
  * @smc64: use SMC64 calling convention instead of SMC32.

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -1520,5 +1520,34 @@
 	(((reg_val) & ~GLB_REQ_ITER_TRACE_ENABLE_MASK) |                       \
 	 (((value) << GLB_REQ_ITER_TRACE_ENABLE_SHIFT) &                       \
 	  GLB_REQ_ITER_TRACE_ENABLE_MASK))
+
+/* GLB_PRFCNT_CONFIG register */
+#define GLB_PRFCNT_CONFIG_SIZE_SHIFT (0)
+#define GLB_PRFCNT_CONFIG_SIZE_MASK (0xFF << GLB_PRFCNT_CONFIG_SIZE_SHIFT)
+#define GLB_PRFCNT_CONFIG_SIZE_GET(reg_val)                                                        \
+	(((reg_val)&GLB_PRFCNT_CONFIG_SIZE_MASK) >> GLB_PRFCNT_CONFIG_SIZE_SHIFT)
+#define GLB_PRFCNT_CONFIG_SIZE_SET(reg_val, value)                                                 \
+	(((reg_val) & ~GLB_PRFCNT_CONFIG_SIZE_MASK) |                                              \
+	 (((value) << GLB_PRFCNT_CONFIG_SIZE_SHIFT) & GLB_PRFCNT_CONFIG_SIZE_MASK))
+#define GLB_PRFCNT_CONFIG_SET_SELECT_SHIFT GPU_U(8)
+#define GLB_PRFCNT_CONFIG_SET_SELECT_MASK (GPU_U(0x3) << GLB_PRFCNT_CONFIG_SET_SELECT_SHIFT)
+#define GLB_PRFCNT_CONFIG_SET_SELECT_GET(reg_val)                                                  \
+	(((reg_val)&GLB_PRFCNT_CONFIG_SET_SELECT_MASK) >> GLB_PRFCNT_CONFIG_SET_SELECT_SHIFT)
+#define GLB_PRFCNT_CONFIG_SET_SELECT_SET(reg_val, value)                                           \
+	(((reg_val) & ~GLB_PRFCNT_CONFIG_SET_SELECT_MASK) |                                        \
+	 (((value) << GLB_PRFCNT_CONFIG_SET_SELECT_SHIFT) & GLB_PRFCNT_CONFIG_SET_SELECT_MASK))
+
+/* GLB_PRFCNT_SIZE register */
+#define GLB_PRFCNT_SIZE_HARDWARE_SIZE_SET_MOD(value) ((value) >> 8)
+#define GLB_PRFCNT_SIZE_HARDWARE_SIZE_GET_MOD(value) ((value) << 8)
+#define GLB_PRFCNT_SIZE_HARDWARE_SIZE_SHIFT GPU_U(0)
+#define GLB_PRFCNT_SIZE_HARDWARE_SIZE_MASK (GPU_U(0xFFFF) << GLB_PRFCNT_SIZE_HARDWARE_SIZE_SHIFT)
+#define GLB_PRFCNT_SIZE_HARDWARE_SIZE_GET(reg_val)                                                 \
+	(GLB_PRFCNT_SIZE_HARDWARE_SIZE_GET_MOD(((reg_val)&GLB_PRFCNT_SIZE_HARDWARE_SIZE_MASK) >>   \
+					       GLB_PRFCNT_SIZE_HARDWARE_SIZE_SHIFT))
+#define GLB_PRFCNT_SIZE_HARDWARE_SIZE_SET(reg_val, value)                                          \
+	(((reg_val) & ~GLB_PRFCNT_SIZE_HARDWARE_SIZE_MASK) |                                       \
+	 ((GLB_PRFCNT_SIZE_HARDWARE_SIZE_SET_MOD(value) << GLB_PRFCNT_SIZE_HARDWARE_SIZE_SHIFT) &  \
+	  GLB_PRFCNT_SIZE_HARDWARE_SIZE_MASK))
 
 #endif /* _KBASE_CSF_REGISTERS_H_ */

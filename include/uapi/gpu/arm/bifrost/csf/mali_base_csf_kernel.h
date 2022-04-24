@@ -207,9 +207,7 @@
 	((BASE_MEM_COOKIE_BASE - BASEP_MEM_CSF_USER_IO_PAGES_HANDLE) >> \
 	 LOCAL_PAGE_SHIFT)
 
-/**
- * Valid set of just-in-time memory allocation flags
- */
+/* Valid set of just-in-time memory allocation flags */
 #define BASE_JIT_ALLOC_VALID_FLAGS ((__u8)0)
 
 /* Flags to pass to ::base_context_init.

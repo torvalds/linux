@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -72,7 +72,7 @@ int kbase_csf_tiler_heap_init(struct kbase_context *kctx,
 	u64 *first_chunk_va);
 
 /**
- * kbasep_cs_tiler_heap_term - Terminate a chunked tiler memory heap.
+ * kbase_csf_tiler_heap_term - Terminate a chunked tiler memory heap.
  *
  * @kctx: Pointer to the kbase context in which the tiler heap was initialized.
  * @gpu_heap_va: The GPU virtual address of the context that was set up for the

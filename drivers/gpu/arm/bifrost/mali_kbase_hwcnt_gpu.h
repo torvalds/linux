@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,6 +22,7 @@
 #ifndef _KBASE_HWCNT_GPU_H_
 #define _KBASE_HWCNT_GPU_H_
 
+#include <linux/bug.h>
 #include <linux/types.h>
 
 struct kbase_device;
@@ -60,33 +61,40 @@ enum kbase_hwcnt_gpu_group_type {
 /**
  * enum kbase_hwcnt_gpu_v5_block_type - GPU V5 hardware counter block types,
  *                                      used to identify metadata blocks.
- * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED: Undefined block (e.g. if a
- *                                                counter set that a block
- *                                                doesn't support is used).
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE:        Front End block (Job manager
  *                                                or CSF HW).
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE2:       Secondary Front End block (Job
  *                                                manager or CSF HW).
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE3:       Tertiary Front End block (Job
  *                                                manager or CSF HW).
+ * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE_UNDEFINED: Undefined Front End block
+ *                                                   (e.g. if a counter set that
+ *                                                   a block doesn't support is
+ *                                                   used).
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER:     Tiler block.
+ * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER_UNDEFINED: Undefined Tiler block.
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC:        Shader Core block.
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC2:       Secondary Shader Core block.
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC3:       Tertiary Shader Core block.
+ * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC_UNDEFINED: Undefined Shader Core block.
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS:    Memsys block.
  * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS2:   Secondary Memsys block.
+ * @KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS_UNDEFINED: Undefined Memsys block.
  */
 enum kbase_hwcnt_gpu_v5_block_type {
-	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED,
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE,
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE2,
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE3,
+	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE_UNDEFINED,
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER,
+	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER_UNDEFINED,
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC,
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC2,
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC3,
+	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC_UNDEFINED,
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS,
 	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS2,
+	KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS_UNDEFINED,
 };
 
 /**
@@ -186,6 +194,27 @@ struct kbase_hwcnt_curr_config {
 	size_t num_l2_slices;
 	u64 shader_present;
 };
+
+/**
+ * kbase_hwcnt_is_block_type_undefined() - Check if a block type is undefined.
+ *
+ * @grp_type: Hardware counter group type.
+ * @blk_type: Hardware counter block type.
+ *
+ * Return: true if the block type is undefined, else false.
+ */
+static inline bool kbase_hwcnt_is_block_type_undefined(const uint64_t grp_type,
+						       const uint64_t blk_type)
+{
+	/* Warn on unknown group type */
+	if (WARN_ON(grp_type != KBASE_HWCNT_GPU_GROUP_TYPE_V5))
+		return false;
+
+	return (blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE_UNDEFINED ||
+		blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER_UNDEFINED ||
+		blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC_UNDEFINED ||
+		blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS_UNDEFINED);
+}
 
 /**
  * kbase_hwcnt_jm_metadata_create() - Create hardware counter metadata for the

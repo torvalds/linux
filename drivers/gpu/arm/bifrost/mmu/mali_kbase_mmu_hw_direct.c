@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -129,7 +129,7 @@ static int lock_region(struct kbase_gpu_props const *gpu_props, u64 pfn, u32 num
 static int wait_ready(struct kbase_device *kbdev,
 		unsigned int as_nr)
 {
-	unsigned int max_loops = KBASE_AS_INACTIVE_MAX_LOOPS;
+	u32 max_loops = KBASE_AS_INACTIVE_MAX_LOOPS;
 
 	/* Wait for the MMU status to indicate there is no active command. */
 	while (--max_loops &&

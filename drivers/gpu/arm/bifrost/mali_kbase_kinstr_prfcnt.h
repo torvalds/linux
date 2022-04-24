@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -124,7 +124,7 @@ size_t kbasep_kinstr_prfcnt_get_sample_md_count(const struct kbase_hwcnt_metadat
 int kbasep_kinstr_prfcnt_set_block_meta_items(struct kbase_hwcnt_enable_map *enable_map,
 					      struct kbase_hwcnt_dump_buffer *dst,
 					      struct prfcnt_metadata **block_meta_base,
-					      u64 base_addr, u8 counter_set);
+					      u8 *base_addr, u8 counter_set);
 
 /**
  * kbasep_kinstr_prfcnt_client_create() - Create a kinstr_prfcnt client.

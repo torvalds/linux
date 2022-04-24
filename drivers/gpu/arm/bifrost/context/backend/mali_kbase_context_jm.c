@@ -36,11 +36,13 @@
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 #include <mali_kbase_debug_mem_view.h>
+#include <mali_kbase_debug_mem_zones.h>
 #include <mali_kbase_mem_pool_debugfs.h>
 
 void kbase_context_debugfs_init(struct kbase_context *const kctx)
 {
 	kbase_debug_mem_view_init(kctx);
+	kbase_debug_mem_zones_init(kctx);
 	kbase_mem_pool_debugfs_init(kctx->kctx_dentry, kctx);
 	kbase_jit_debugfs_init(kctx);
 	kbasep_jd_debugfs_ctx_init(kctx);

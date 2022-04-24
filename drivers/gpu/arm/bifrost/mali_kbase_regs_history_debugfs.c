@@ -158,11 +158,8 @@ static int regs_history_size_set(void *data, u64 val)
 	return kbase_io_history_resize(h, (u16)val);
 }
 
-
-DEFINE_SIMPLE_ATTRIBUTE(regs_history_size_fops,
-		regs_history_size_get,
-		regs_history_size_set,
-		"%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(regs_history_size_fops, regs_history_size_get, regs_history_size_set,
+			 "%llu\n");
 
 /**
  * regs_history_show - show callback for the register access history file.

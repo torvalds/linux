@@ -187,7 +187,8 @@ static int force_scheduler_to_exit_sleep(struct kbase_device *kbdev)
 		goto out;
 	}
 
-	if (suspend_active_groups_on_powerdown(kbdev, true))
+	ret = suspend_active_groups_on_powerdown(kbdev, true);
+	if (ret)
 		goto out;
 
 	kbase_pm_lock(kbdev);
@@ -580,12 +581,15 @@ static bool queue_group_scheduled_locked(struct kbase_queue_group *group)
  *
  * This function waits for the GPU to exit protected mode which is confirmed
  * when active_protm_grp is set to NULL.
+ *
+ * Return: true on success, false otherwise.
  */
-static void scheduler_wait_protm_quit(struct kbase_device *kbdev)
+static bool scheduler_wait_protm_quit(struct kbase_device *kbdev)
 {
 	struct kbase_csf_scheduler *const scheduler = &kbdev->csf.scheduler;
 	long wt = kbase_csf_timeout_in_jiffies(kbdev->csf.fw_timeout_ms);
 	long remaining;
+	bool success = true;
 
 	lockdep_assert_held(&scheduler->lock);
 
@@ -595,13 +599,17 @@ static void scheduler_wait_protm_quit(struct kbase_device *kbdev)
 	remaining = wait_event_timeout(kbdev->csf.event_wait,
 			!kbase_csf_scheduler_protected_mode_in_use(kbdev), wt);
 
-	if (!remaining)
+	if (!remaining) {
 		dev_warn(kbdev->dev, "[%llu] Timeout (%d ms), protm_quit wait skipped",
 			kbase_backend_get_cycle_cnt(kbdev),
 			kbdev->csf.fw_timeout_ms);
+		success = false;
+	}
 
 	KBASE_KTRACE_ADD(kbdev, SCHEDULER_WAIT_PROTM_QUIT_DONE, NULL,
 			 jiffies_to_msecs(remaining));
+
+	return success;
 }
 
 /**
@@ -611,13 +619,39 @@ static void scheduler_wait_protm_quit(struct kbase_device *kbdev)
  *
  * This function sends a ping request to the firmware and waits for the GPU
  * to exit protected mode.
+ *
+ * If the GPU does not exit protected mode, it is considered as hang.
+ * A GPU reset would then be triggered.
  */
 static void scheduler_force_protm_exit(struct kbase_device *kbdev)
 {
+	unsigned long flags;
+
 	lockdep_assert_held(&kbdev->csf.scheduler.lock);
 
 	kbase_csf_firmware_ping(kbdev);
-	scheduler_wait_protm_quit(kbdev);
+
+	if (scheduler_wait_protm_quit(kbdev))
+		return;
+
+	dev_err(kbdev->dev, "Possible GPU hang in Protected mode");
+
+	spin_lock_irqsave(&kbdev->csf.scheduler.interrupt_lock, flags);
+	if (kbdev->csf.scheduler.active_protm_grp) {
+		dev_err(kbdev->dev,
+			"Group-%d of context %d_%d ran in protected mode for too long on slot %d",
+			kbdev->csf.scheduler.active_protm_grp->handle,
+			kbdev->csf.scheduler.active_protm_grp->kctx->tgid,
+			kbdev->csf.scheduler.active_protm_grp->kctx->id,
+			kbdev->csf.scheduler.active_protm_grp->csg_nr);
+	}
+	spin_unlock_irqrestore(&kbdev->csf.scheduler.interrupt_lock, flags);
+
+	/* The GPU could be stuck in Protected mode. To prevent a hang,
+	 * a GPU reset is performed.
+	 */
+	if (kbase_prepare_to_reset_gpu(kbdev, RESET_FLAGS_NONE))
+		kbase_reset_gpu(kbdev);
 }
 
 /**
@@ -3553,6 +3587,12 @@ static void scheduler_group_check_protm_enter(struct kbase_device *const kbdev,
 
 	lockdep_assert_held(&scheduler->lock);
 
+	/* This lock is taken to prevent the issuing of MMU command during the
+	 * transition to protected mode. This helps avoid the scenario where the
+	 * entry to protected mode happens with a memory region being locked and
+	 * the same region is then accessed by the GPU in protected mode.
+	 */
+	mutex_lock(&kbdev->mmu_hw_mutex);
 	spin_lock_irqsave(&scheduler->interrupt_lock, flags);
 
 	/* Check if the previous transition to enter & exit the protected
@@ -3611,12 +3651,52 @@ static void scheduler_group_check_protm_enter(struct kbase_device *const kbdev,
 				spin_unlock_irqrestore(&scheduler->interrupt_lock, flags);
 
 				kbase_csf_wait_protected_mode_enter(kbdev);
+				mutex_unlock(&kbdev->mmu_hw_mutex);
+
+				scheduler->protm_enter_time = ktime_get_raw();
+
 				return;
 			}
 		}
 	}
 
 	spin_unlock_irqrestore(&scheduler->interrupt_lock, flags);
+	mutex_unlock(&kbdev->mmu_hw_mutex);
+}
+
+/**
+ * scheduler_check_pmode_progress - Check if protected mode execution is progressing
+ *
+ * @kbdev:     Pointer to the GPU device.
+ *
+ * This function is called when the GPU is in protected mode.
+ *
+ * It will check if the time spent in protected mode is less
+ * than CSF_SCHED_PROTM_PROGRESS_TIMEOUT. If not, a PROTM_EXIT
+ * request is sent to the FW.
+ */
+static void scheduler_check_pmode_progress(struct kbase_device *kbdev)
+{
+	u64 protm_spent_time_ms;
+	u64 protm_progress_timeout =
+		kbase_get_timeout_ms(kbdev, CSF_SCHED_PROTM_PROGRESS_TIMEOUT);
+	s64 diff_ms_signed =
+		ktime_ms_delta(ktime_get_raw(), kbdev->csf.scheduler.protm_enter_time);
+
+	if (diff_ms_signed < 0)
+		return;
+
+	lockdep_assert_held(&kbdev->csf.scheduler.lock);
+
+	protm_spent_time_ms = (u64)diff_ms_signed;
+	if (protm_spent_time_ms < protm_progress_timeout)
+		return;
+
+	dev_dbg(kbdev->dev, "Protected mode progress timeout: %llu >= %llu",
+		protm_spent_time_ms, protm_progress_timeout);
+
+	/* Prompt the FW to exit protected mode */
+	scheduler_force_protm_exit(kbdev);
 }
 
 static void scheduler_apply(struct kbase_device *kbdev)
@@ -4293,7 +4373,7 @@ static void gpu_idle_worker(struct work_struct *work)
 				 kbase_csf_ktrace_gpu_cycle_cnt(kbdev));
 #ifdef KBASE_PM_RUNTIME
 		if (kbase_pm_gpu_sleep_allowed(kbdev) &&
-		    scheduler->total_runnable_grps)
+		    kbase_csf_scheduler_get_nr_active_csgs(kbdev))
 			scheduler_sleep_on_idle(kbdev);
 		else
 #endif
@@ -4551,6 +4631,10 @@ redo_local_tock:
 		new_val = atomic_dec_return(&scheduler->non_idle_offslot_grps);
 		KBASE_KTRACE_ADD_CSF_GRP(kbdev, SCHEDULER_NONIDLE_OFFSLOT_DEC,
 					 protm_grp, new_val);
+
+		spin_unlock_irqrestore(&scheduler->interrupt_lock, flags);
+
+		scheduler_check_pmode_progress(kbdev);
 	} else if (scheduler->top_grp) {
 		if (protm_grp)
 			dev_dbg(kbdev->dev, "Scheduler drop protm exec: group-%d",
@@ -4604,11 +4688,9 @@ redo_local_tock:
 				goto redo_local_tock;
 			}
 		}
-
-		return;
+	} else {
+		spin_unlock_irqrestore(&scheduler->interrupt_lock, flags);
 	}
-
-	spin_unlock_irqrestore(&scheduler->interrupt_lock, flags);
 }
 
 /**
@@ -5576,11 +5658,6 @@ static void check_sync_update_in_sleep_mode(struct kbase_device *kbdev)
 			continue;
 
 		if (check_sync_update_for_on_slot_group(group)) {
-			/* As sync update has been performed for an on-slot
-			 * group, when MCU is in sleep state, ring the doorbell
-			 * so that FW can re-evaluate the SYNC_WAIT on wakeup.
-			 */
-			kbase_csf_ring_doorbell(kbdev, CSF_KERNEL_DOORBELL_NR);
 			scheduler_wakeup(kbdev, true);
 			return;
 		}

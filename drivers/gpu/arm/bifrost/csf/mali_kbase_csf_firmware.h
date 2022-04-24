@@ -324,24 +324,13 @@ u32 kbase_csf_firmware_global_input_read(
 u32 kbase_csf_firmware_global_output(
 	const struct kbase_csf_global_iface *iface, u32 offset);
 
-/* Calculate the offset to the Hw doorbell page corresponding to the
- * doorbell number.
+/**
+ * kbase_csf_ring_doorbell() - Ring the doorbell
+ *
+ * @kbdev:       An instance of the GPU platform device
+ * @doorbell_nr: Index of the HW doorbell page
  */
-static u32 csf_doorbell_offset(int doorbell_nr)
-{
-	WARN_ON(doorbell_nr >= CSF_NUM_DOORBELL);
-
-	return CSF_HW_DOORBELL_PAGE_OFFSET +
-		(doorbell_nr * CSF_HW_DOORBELL_PAGE_SIZE);
-}
-
-static inline void kbase_csf_ring_doorbell(struct kbase_device *kbdev,
-					   int doorbell_nr)
-{
-	WARN_ON(doorbell_nr >= CSF_NUM_DOORBELL);
-
-	kbase_reg_write(kbdev, csf_doorbell_offset(doorbell_nr), (u32)1);
-}
+void kbase_csf_ring_doorbell(struct kbase_device *kbdev, int doorbell_nr);
 
 /**
  * kbase_csf_read_firmware_memory - Read a value in a GPU address
@@ -454,8 +443,8 @@ void kbase_csf_enter_protected_mode(struct kbase_device *kbdev);
  *
  * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  *
- * This function needs to be called after kbase_csf_wait_protected_mode_enter()
- * to wait for the protected mode entry to complete. GPU reset is triggered if
+ * This function needs to be called after kbase_csf_enter_protected_mode() to
+ * wait for the GPU to actually enter protected mode. GPU reset is triggered if
  * the wait is unsuccessful.
  */
 void kbase_csf_wait_protected_mode_enter(struct kbase_device *kbdev);
@@ -523,9 +512,9 @@ bool kbase_csf_firmware_is_mcu_in_sleep(struct kbase_device *kbdev);
 #endif
 
 /**
- * kbase_trigger_firmware_reload - Trigger the reboot of MCU firmware, for the
- *                                 cold boot case firmware image would be
- *                                 reloaded from filesystem into memory.
+ * kbase_csf_firmware_trigger_reload() - Trigger the reboot of MCU firmware, for
+ *                                       the cold boot case firmware image would
+ *                                       be reloaded from filesystem into memory.
  *
  * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
@@ -738,18 +727,18 @@ u32 kbase_csf_firmware_get_gpu_idle_hysteresis_time(struct kbase_device *kbdev);
 u32 kbase_csf_firmware_set_gpu_idle_hysteresis_time(struct kbase_device *kbdev, u32 dur);
 
 /**
- * kbase_csf_firmware_get_mcu_core_pwroff_time - Get the MCU core power-off
+ * kbase_csf_firmware_get_mcu_core_pwroff_time - Get the MCU shader Core power-off
  *                                               time value
  *
  * @kbdev:   Instance of a GPU platform device that implements a CSF interface.
  *
- * Return: the internally recorded MCU core power-off (nominal) value. The unit
+ * Return: the internally recorded MCU shader Core power-off (nominal) timeout value. The unit
  *         of the value is in micro-seconds.
  */
 u32 kbase_csf_firmware_get_mcu_core_pwroff_time(struct kbase_device *kbdev);
 
 /**
- * kbase_csf_firmware_set_mcu_core_pwroff_time - Set the MCU core power-off
+ * kbase_csf_firmware_set_mcu_core_pwroff_time - Set the MCU shader Core power-off
  *                                               time value
  *
  * @kbdev:   Instance of a GPU platform device that implements a CSF interface.
@@ -766,7 +755,7 @@ u32 kbase_csf_firmware_get_mcu_core_pwroff_time(struct kbase_device *kbdev);
  * returned value is the source configuration flag, and it is set to '1'
  * when CYCLE_COUNTER alternative source is used.
  *
- * The configured MCU core power-off timer will only have effect when the host
+ * The configured MCU shader Core power-off timer will only have effect when the host
  * driver has delegated the shader cores' power management to MCU.
  *
  * Return: the actual internal core power-off timer value in register defined

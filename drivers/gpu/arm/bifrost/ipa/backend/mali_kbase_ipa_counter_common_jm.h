@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2017-2018, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2018, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -83,7 +83,7 @@ struct kbase_ipa_model_vinstr_data {
 };
 
 /**
- * struct ipa_group - represents a single IPA group
+ * struct kbase_ipa_group - represents a single IPA group
  * @name:               name of the IPA group
  * @default_value:      default value of coefficient for IPA group.
  *                      Coefficients are interpreted as fractions where the
@@ -152,7 +152,7 @@ s64 kbase_ipa_single_counter(
 	s32 coeff, u32 counter);
 
 /**
- * attach_vinstr() - attach a vinstr_buffer to an IPA model.
+ * kbase_ipa_attach_vinstr() - attach a vinstr_buffer to an IPA model.
  * @model_data:		pointer to model data
  *
  * Attach a vinstr_buffer to an IPA model. The vinstr_buffer
@@ -164,7 +164,7 @@ s64 kbase_ipa_single_counter(
 int kbase_ipa_attach_vinstr(struct kbase_ipa_model_vinstr_data *model_data);
 
 /**
- * detach_vinstr() - detach a vinstr_buffer from an IPA model.
+ * kbase_ipa_detach_vinstr() - detach a vinstr_buffer from an IPA model.
  * @model_data:		pointer to model data
  *
  * Detach a vinstr_buffer from an IPA model.

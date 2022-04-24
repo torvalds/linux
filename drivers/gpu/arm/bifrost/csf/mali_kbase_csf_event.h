@@ -30,8 +30,8 @@ struct kbase_csf_event;
 enum kbase_csf_event_callback_action;
 
 /**
- * kbase_csf_event_callback_action - type for callback functions to be
- *                                   called upon CSF events.
+ * kbase_csf_event_callback - type for callback functions to be
+ *                            called upon CSF events.
  * @param:   Generic parameter to pass to the callback function.
  *
  * This is the type of callback functions that can be registered

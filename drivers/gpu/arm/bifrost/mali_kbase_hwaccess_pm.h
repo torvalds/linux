@@ -209,7 +209,7 @@ int kbase_pm_list_policies(struct kbase_device *kbdev,
 	const struct kbase_pm_policy * const **list);
 
 /**
- * kbase_protected_most_enable - Enable protected mode
+ * kbase_pm_protected_mode_enable() - Enable protected mode
  *
  * @kbdev: Address of the instance of a GPU platform device.
  *
@@ -218,7 +218,7 @@ int kbase_pm_list_policies(struct kbase_device *kbdev,
 int kbase_pm_protected_mode_enable(struct kbase_device *kbdev);
 
 /**
- * kbase_protected_mode_disable - Disable protected mode
+ * kbase_pm_protected_mode_disable() - Disable protected mode
  *
  * @kbdev: Address of the instance of a GPU platform device.
  *

@@ -800,7 +800,7 @@ bool kbase_pm_no_runnables_sched_suspendable(struct kbase_device *kbdev)
 
 /**
  * kbase_pm_no_mcu_core_pwroff - Check whether the PM is required to keep the
- *                               MCU core powered in accordance to the active
+ *                               MCU shader Core powered in accordance to the active
  *                               power management policy
  *
  * @kbdev: Device pointer

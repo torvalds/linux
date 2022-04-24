@@ -39,7 +39,7 @@ const struct list_head *kbase_device_get_list(void);
 void kbase_device_put_list(const struct list_head *dev_list);
 
 /**
- * Kbase_increment_device_id - increment device id.
+ * kbase_increment_device_id - increment device id.
  *
  * Used to increment device id on successful initialization of the device.
  */

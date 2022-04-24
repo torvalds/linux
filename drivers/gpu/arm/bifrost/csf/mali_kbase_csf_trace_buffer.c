@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -28,12 +28,6 @@
 
 #include <linux/list.h>
 #include <linux/mman.h>
-
-#if IS_ENABLED(CONFIG_DEBUG_FS)
-#if (KERNEL_VERSION(4, 7, 0) > LINUX_VERSION_CODE)
-#define DEFINE_DEBUGFS_ATTRIBUTE DEFINE_SIMPLE_ATTRIBUTE
-#endif
-#endif
 
 /**
  * struct firmware_trace_buffer - Trace Buffer within the MCU firmware
@@ -662,10 +656,9 @@ static ssize_t kbasep_csf_firmware_trace_debugfs_read(struct file *file,
 	return -EFAULT;
 }
 
-
-DEFINE_SIMPLE_ATTRIBUTE(kbase_csf_firmware_trace_enable_mask_fops,
-		kbase_csf_firmware_trace_enable_mask_read,
-		kbase_csf_firmware_trace_enable_mask_write, "%llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(kbase_csf_firmware_trace_enable_mask_fops,
+			 kbase_csf_firmware_trace_enable_mask_read,
+			 kbase_csf_firmware_trace_enable_mask_write, "%llx\n");
 
 static const struct file_operations kbasep_csf_firmware_trace_debugfs_fops = {
 	.owner = THIS_MODULE,

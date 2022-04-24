@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -135,7 +135,7 @@ struct kbasep_pm_metrics {
  *           or removed from a GPU slot.
  *  @active_cl_ctx: number of CL jobs active on the GPU. Array is per-device.
  *  @active_gl_ctx: number of GL jobs active on the GPU. Array is per-slot.
- *  @lock: spinlock protecting the kbasep_pm_metrics_data structure
+ *  @lock: spinlock protecting the kbasep_pm_metrics_state structure
  *  @platform_data: pointer to data controlled by platform specific code
  *  @kbdev: pointer to kbase device for which metrics are collected
  *  @values: The current values of the power management metrics. The
@@ -497,7 +497,7 @@ struct kbase_pm_backend_data {
 };
 
 #if MALI_USE_CSF
-/* CSF PM flag, signaling that the MCU CORE should be kept on */
+/* CSF PM flag, signaling that the MCU shader Core should be kept on */
 #define  CSF_DYNAMIC_PM_CORE_KEEP_ON (1 << 0)
 /* CSF PM flag, signaling no scheduler suspension on idle groups */
 #define CSF_DYNAMIC_PM_SCHED_IGNORE_IDLE (1 << 1)

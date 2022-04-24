@@ -49,6 +49,7 @@
 #endif
 #include <mmu/mali_kbase_mmu.h>
 #include <asm/arch_timer.h>
+#include <linux/delay.h>
 
 #define MALI_MAX_FIRMWARE_NAME_LEN ((size_t)20)
 
@@ -57,7 +58,7 @@ module_param_string(fw_name, fw_name, sizeof(fw_name), 0644);
 MODULE_PARM_DESC(fw_name, "firmware image");
 
 /* The waiting time for firmware to boot */
-static unsigned int csf_firmware_boot_timeout_ms = 500;
+static unsigned int csf_firmware_boot_timeout_ms;
 module_param(csf_firmware_boot_timeout_ms, uint, 0444);
 MODULE_PARM_DESC(csf_firmware_boot_timeout_ms,
 		 "Maximum time to wait for firmware to boot.");
@@ -249,9 +250,14 @@ static void stop_csf_firmware(struct kbase_device *kbdev)
 
 static void wait_for_firmware_boot(struct kbase_device *kbdev)
 {
-	const long wait_timeout =
-		kbase_csf_timeout_in_jiffies(csf_firmware_boot_timeout_ms);
+	long wait_timeout;
 	long remaining;
+
+	if (!csf_firmware_boot_timeout_ms)
+		csf_firmware_boot_timeout_ms =
+			kbase_get_timeout_ms(kbdev, CSF_FIRMWARE_BOOT_TIMEOUT);
+
+	wait_timeout = kbase_csf_timeout_in_jiffies(csf_firmware_boot_timeout_ms);
 
 	/* Firmware will generate a global interface interrupt once booting
 	 * is complete
@@ -427,24 +433,17 @@ static int reload_fw_image(struct kbase_device *kbdev)
 {
 	const u32 magic = FIRMWARE_HEADER_MAGIC;
 	struct kbase_csf_firmware_interface *interface;
-	const struct firmware *firmware;
+	struct kbase_csf_mcu_fw *const mcu_fw = &kbdev->csf.fw;
 	int ret = 0;
 
-	if (request_firmware(&firmware, fw_name, kbdev->dev) != 0) {
-		dev_err(kbdev->dev,
-			"Failed to reload firmware image '%s'\n",
-			fw_name);
-		return -ENOENT;
-	}
-
-	/* Do couple of basic sanity checks */
-	if (firmware->size < FIRMWARE_HEADER_LENGTH) {
-		dev_err(kbdev->dev, "Firmware image unexpectedly too small\n");
+	if (WARN_ON(mcu_fw->data == NULL)) {
+		dev_err(kbdev->dev, "Firmware image copy not loaded\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (memcmp(firmware->data, &magic, sizeof(magic)) != 0) {
+	/* Do a basic sanity check on MAGIC signature */
+	if (memcmp(mcu_fw->data, &magic, sizeof(magic)) != 0) {
 		dev_err(kbdev->dev, "Incorrect magic value, firmware image could have been corrupted\n");
 		ret = -EINVAL;
 		goto out;
@@ -459,16 +458,14 @@ static int reload_fw_image(struct kbase_device *kbdev)
 				continue;
 		}
 
-		load_fw_image_section(kbdev, firmware->data, interface->phys,
-			interface->num_pages, interface->flags,
-			interface->data_start, interface->data_end);
+		load_fw_image_section(kbdev, mcu_fw->data, interface->phys, interface->num_pages,
+				      interface->flags, interface->data_start, interface->data_end);
 	}
 
 	kbdev->csf.firmware_full_reload_needed = false;
 
 	kbase_csf_firmware_reload_trace_buffers_data(kbdev);
 out:
-	release_firmware(firmware);
 	return ret;
 }
 
@@ -538,8 +535,8 @@ static inline bool entry_find_large_page_to_reuse(
  * Return: 0 if successful, negative error code on failure
  */
 static int parse_memory_setup_entry(struct kbase_device *kbdev,
-		const struct firmware *fw,
-		const u32 *entry, unsigned int size)
+				    const struct kbase_csf_mcu_fw *const fw, const u32 *entry,
+				    unsigned int size)
 {
 	int ret = 0;
 	const u32 flags = entry[0];
@@ -770,7 +767,8 @@ out:
  * @size:  Size (in bytes) of the section
  */
 static int parse_timeline_metadata_entry(struct kbase_device *kbdev,
-	const struct firmware *fw, const u32 *entry, unsigned int size)
+					 const struct kbase_csf_mcu_fw *const fw, const u32 *entry,
+					 unsigned int size)
 {
 	const u32 data_start = entry[0];
 	const u32 data_size = entry[1];
@@ -828,9 +826,8 @@ static int parse_timeline_metadata_entry(struct kbase_device *kbdev,
  *
  * Return: 0 if successful, negative error code on failure
  */
-static int load_firmware_entry(struct kbase_device *kbdev,
-		const struct firmware *fw,
-		u32 offset, u32 header)
+static int load_firmware_entry(struct kbase_device *kbdev, const struct kbase_csf_mcu_fw *const fw,
+			       u32 offset, u32 header)
 {
 	const unsigned int type = entry_type(header);
 	unsigned int size = entry_size(header);
@@ -1295,6 +1292,26 @@ u32 kbase_csf_firmware_global_output(
 KBASE_EXPORT_TEST_API(kbase_csf_firmware_global_output);
 
 /**
+ * csf_doorbell_offset() - Calculate the offset to the CSF host doorbell
+ * @doorbell_nr: Doorbell number
+ *
+ * Return: CSF host register offset for the specified doorbell number.
+ */
+static u32 csf_doorbell_offset(int doorbell_nr)
+{
+	WARN_ON(doorbell_nr < 0);
+	WARN_ON(doorbell_nr >= CSF_NUM_DOORBELL);
+
+	return CSF_HW_DOORBELL_PAGE_OFFSET + (doorbell_nr * CSF_HW_DOORBELL_PAGE_SIZE);
+}
+
+void kbase_csf_ring_doorbell(struct kbase_device *kbdev, int doorbell_nr)
+{
+	kbase_reg_write(kbdev, csf_doorbell_offset(doorbell_nr), (u32)1);
+}
+EXPORT_SYMBOL(kbase_csf_ring_doorbell);
+
+/**
  * handle_internal_firmware_fatal - Handler for CS internal firmware fault.
  *
  * @kbdev:  Pointer to kbase device
@@ -1673,8 +1690,9 @@ static u32 convert_dur_to_idle_count(struct kbase_device *kbdev, const u32 dur_m
 			dev_warn(kbdev->dev, "No GPU clock, unexpected intregration issue!");
 		spin_unlock(&kbdev->pm.clk_rtm.lock);
 
-		dev_info(kbdev->dev, "Can't get the timestamp frequency, "
-			 "use cycle counter format with firmware idle hysteresis!");
+		dev_info(
+			kbdev->dev,
+			"Can't get the timestamp frequency, use cycle counter format with firmware idle hysteresis!");
 	}
 
 	/* Formula for dur_val = ((dur_ms/1000) * freq_HZ) >> 10) */
@@ -1784,8 +1802,9 @@ static u32 convert_dur_to_core_pwroff_count(struct kbase_device *kbdev, const u3
 			dev_warn(kbdev->dev, "No GPU clock, unexpected integration issue!");
 		spin_unlock(&kbdev->pm.clk_rtm.lock);
 
-		dev_info(kbdev->dev, "Can't get the timestamp frequency, "
-			 "use cycle counter with MCU Core Poweroff timer!");
+		dev_info(
+			kbdev->dev,
+			"Can't get the timestamp frequency, use cycle counter with MCU shader Core Poweroff timer!");
 	}
 
 	/* Formula for dur_val = ((dur_us/1e6) * freq_HZ) >> 10) */
@@ -1809,7 +1828,14 @@ static u32 convert_dur_to_core_pwroff_count(struct kbase_device *kbdev, const u3
 
 u32 kbase_csf_firmware_get_mcu_core_pwroff_time(struct kbase_device *kbdev)
 {
-	return kbdev->csf.mcu_core_pwroff_dur_us;
+	u32 pwroff;
+	unsigned long flags;
+
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	pwroff = kbdev->csf.mcu_core_pwroff_dur_us;
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+
+	return pwroff;
 }
 
 u32 kbase_csf_firmware_set_mcu_core_pwroff_time(struct kbase_device *kbdev, u32 dur)
@@ -1822,7 +1848,7 @@ u32 kbase_csf_firmware_set_mcu_core_pwroff_time(struct kbase_device *kbdev, u32 
 	kbdev->csf.mcu_core_pwroff_dur_count = pwroff;
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
-	dev_dbg(kbdev->dev, "MCU Core Poweroff input update: 0x%.8x", pwroff);
+	dev_dbg(kbdev->dev, "MCU shader Core Poweroff input update: 0x%.8x", pwroff);
 
 	return pwroff;
 }
@@ -1921,12 +1947,15 @@ int kbase_csf_firmware_early_init(struct kbase_device *kbdev)
 
 	mutex_init(&kbdev->csf.reg_lock);
 
+	kbdev->csf.fw = (struct kbase_csf_mcu_fw){ .data = NULL };
+
 	return 0;
 }
 
 int kbase_csf_firmware_init(struct kbase_device *kbdev)
 {
 	const struct firmware *firmware = NULL;
+	struct kbase_csf_mcu_fw *const mcu_fw = &kbdev->csf.fw;
 	const u32 magic = FIRMWARE_HEADER_MAGIC;
 	u8 version_major, version_minor;
 	u32 version_hash;
@@ -1953,7 +1982,7 @@ int kbase_csf_firmware_init(struct kbase_device *kbdev)
 	if (ret != 0) {
 		dev_err(kbdev->dev,
 			"Failed to setup the rb tree for managing shared interface segment\n");
-		goto error;
+		goto err_out;
 	}
 
 	if (request_firmware(&firmware, fw_name, kbdev->dev) != 0) {
@@ -1961,43 +1990,59 @@ int kbase_csf_firmware_init(struct kbase_device *kbdev)
 				"Failed to load firmware image '%s'\n",
 				fw_name);
 		ret = -ENOENT;
-		goto error;
+	} else {
+		/* Try to save a copy and then release the loaded firmware image */
+		mcu_fw->size = firmware->size;
+		mcu_fw->data = vmalloc((unsigned long)mcu_fw->size);
+
+		if (mcu_fw->data == NULL) {
+			ret = -ENOMEM;
+		} else {
+			memcpy(mcu_fw->data, firmware->data, mcu_fw->size);
+			dev_dbg(kbdev->dev, "Firmware image (%zu-bytes) retained in csf.fw\n",
+				mcu_fw->size);
+		}
+
+		release_firmware(firmware);
 	}
 
-	if (firmware->size < FIRMWARE_HEADER_LENGTH) {
+	/* If error in loading or saving the image, branches to error out */
+	if (ret)
+		goto err_out;
+
+	if (mcu_fw->size < FIRMWARE_HEADER_LENGTH) {
 		dev_err(kbdev->dev, "Firmware too small\n");
 		ret = -EINVAL;
-		goto error;
+		goto err_out;
 	}
 
-	if (memcmp(firmware->data, &magic, sizeof(magic)) != 0) {
+	if (memcmp(mcu_fw->data, &magic, sizeof(magic)) != 0) {
 		dev_err(kbdev->dev, "Incorrect firmware magic\n");
 		ret = -EINVAL;
-		goto error;
+		goto err_out;
 	}
 
-	version_minor = firmware->data[4];
-	version_major = firmware->data[5];
+	version_minor = mcu_fw->data[4];
+	version_major = mcu_fw->data[5];
 
 	if (version_major != FIRMWARE_HEADER_VERSION) {
 		dev_err(kbdev->dev,
 				"Firmware header version %d.%d not understood\n",
 				version_major, version_minor);
 		ret = -EINVAL;
-		goto error;
+		goto err_out;
 	}
 
-	memcpy(&version_hash, &firmware->data[8], sizeof(version_hash));
+	memcpy(&version_hash, &mcu_fw->data[8], sizeof(version_hash));
 
 	dev_notice(kbdev->dev, "Loading Mali firmware 0x%x", version_hash);
 
-	memcpy(&entry_end_offset, &firmware->data[0x10],
-			sizeof(entry_end_offset));
+	memcpy(&entry_end_offset, &mcu_fw->data[0x10], sizeof(entry_end_offset));
 
-	if (entry_end_offset > firmware->size) {
+	if (entry_end_offset > mcu_fw->size) {
 		dev_err(kbdev->dev, "Firmware image is truncated\n");
 		ret = -EINVAL;
-		goto error;
+		goto err_out;
 	}
 
 	entry_offset = FIRMWARE_HEADER_LENGTH;
@@ -2005,15 +2050,14 @@ int kbase_csf_firmware_init(struct kbase_device *kbdev)
 		u32 header;
 		unsigned int size;
 
-		memcpy(&header, &firmware->data[entry_offset], sizeof(header));
+		memcpy(&header, &mcu_fw->data[entry_offset], sizeof(header));
 
 		size = entry_size(header);
 
-		ret = load_firmware_entry(kbdev, firmware, entry_offset,
-				header);
+		ret = load_firmware_entry(kbdev, mcu_fw, entry_offset, header);
 		if (ret != 0) {
 			dev_err(kbdev->dev, "Failed to load firmware image\n");
-			goto error;
+			goto err_out;
 		}
 		entry_offset += size;
 	}
@@ -2021,19 +2065,19 @@ int kbase_csf_firmware_init(struct kbase_device *kbdev)
 	if (!kbdev->csf.shared_interface) {
 		dev_err(kbdev->dev, "Shared interface region not found\n");
 		ret = -EINVAL;
-		goto error;
+		goto err_out;
 	} else {
 		ret = setup_shared_iface_static_region(kbdev);
 		if (ret != 0) {
 			dev_err(kbdev->dev, "Failed to insert a region for shared iface entry parsed from fw image\n");
-			goto error;
+			goto err_out;
 		}
 	}
 
 	ret = kbase_csf_firmware_trace_buffers_init(kbdev);
 	if (ret != 0) {
 		dev_err(kbdev->dev, "Failed to initialize trace buffers\n");
-		goto error;
+		goto err_out;
 	}
 
 	/* Make sure L2 cache is powered up */
@@ -2046,46 +2090,44 @@ int kbase_csf_firmware_init(struct kbase_device *kbdev)
 
 	ret = parse_capabilities(kbdev);
 	if (ret != 0)
-		goto error;
+		goto err_out;
 
 	ret = kbase_csf_doorbell_mapping_init(kbdev);
 	if (ret != 0)
-		goto error;
+		goto err_out;
 
 	ret = kbase_csf_scheduler_init(kbdev);
 	if (ret != 0)
-		goto error;
+		goto err_out;
 
 	ret = kbase_csf_setup_dummy_user_reg_page(kbdev);
 	if (ret != 0)
-		goto error;
+		goto err_out;
 
 	ret = kbase_csf_timeout_init(kbdev);
 	if (ret != 0)
-		goto error;
+		goto err_out;
 
 	ret = global_init_on_boot(kbdev);
 	if (ret != 0)
-		goto error;
+		goto err_out;
 
 	ret = kbase_csf_firmware_cfg_init(kbdev);
 	if (ret != 0)
-		goto error;
+		goto err_out;
 
 	ret = kbase_device_csf_iterator_trace_init(kbdev);
 	if (ret != 0)
-		goto error;
+		goto err_out;
 
-	/* Firmware loaded successfully */
-	release_firmware(firmware);
+	/* Firmware loaded successfully, ret = 0 */
 	KBASE_KTRACE_ADD(kbdev, FIRMWARE_BOOT, NULL,
 			(((u64)version_hash) << 32) |
 			(((u64)version_major) << 8) | version_minor);
 	return 0;
 
-error:
+err_out:
 	kbase_csf_firmware_term(kbdev);
-	release_firmware(firmware);
 	return ret;
 }
 
@@ -2173,6 +2215,13 @@ void kbase_csf_firmware_term(struct kbase_device *kbdev)
 		list_del(&metadata->node);
 
 		kfree(metadata);
+	}
+
+	if (kbdev->csf.fw.data) {
+		/* Free the copy of the firmware image */
+		vfree(kbdev->csf.fw.data);
+		kbdev->csf.fw.data = NULL;
+		dev_dbg(kbdev->dev, "Free retained image csf.fw (%zu-bytes)\n", kbdev->csf.fw.size);
 	}
 
 	/* This will also free up the region allocated for the shared interface
@@ -2277,10 +2326,46 @@ void kbase_csf_enter_protected_mode(struct kbase_device *kbdev)
 
 void kbase_csf_wait_protected_mode_enter(struct kbase_device *kbdev)
 {
-	int err = wait_for_global_request(kbdev, GLB_REQ_PROTM_ENTER_MASK);
+	int err;
+
+	lockdep_assert_held(&kbdev->mmu_hw_mutex);
+
+	err = wait_for_global_request(kbdev, GLB_REQ_PROTM_ENTER_MASK);
+
+	if (!err) {
+#define WAIT_TIMEOUT 5000 /* 50ms timeout */
+#define DELAY_TIME_IN_US 10
+		const int max_iterations = WAIT_TIMEOUT;
+		int loop;
+
+		/* Wait for the GPU to actually enter protected mode */
+		for (loop = 0; loop < max_iterations; loop++) {
+			unsigned long flags;
+			bool pmode_exited;
+
+			if (kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_STATUS)) &
+			    GPU_STATUS_PROTECTED_MODE_ACTIVE)
+				break;
+
+			/* Check if GPU already exited the protected mode */
+			kbase_csf_scheduler_spin_lock(kbdev, &flags);
+			pmode_exited =
+				!kbase_csf_scheduler_protected_mode_in_use(kbdev);
+			kbase_csf_scheduler_spin_unlock(kbdev, flags);
+			if (pmode_exited)
+				break;
+
+			udelay(DELAY_TIME_IN_US);
+		}
+
+		if (loop == max_iterations) {
+			dev_err(kbdev->dev, "Timeout for actual pmode entry after PROTM_ENTER ack");
+			err = -ETIMEDOUT;
+		}
+	}
 
 	if (err) {
-		if (kbase_prepare_to_reset_gpu(kbdev, RESET_FLAGS_NONE))
+		if (kbase_prepare_to_reset_gpu(kbdev, RESET_FLAGS_HWC_UNRECOVERABLE_ERROR))
 			kbase_reset_gpu(kbdev);
 	}
 
@@ -2488,7 +2573,7 @@ int kbase_csf_firmware_mcu_shared_mapping_init(
 		gpu_map_prot =
 			KBASE_REG_MEMATTR_INDEX(AS_MEMATTR_INDEX_NON_CACHEABLE);
 		cpu_map_prot = pgprot_writecombine(cpu_map_prot);
-	};
+	}
 
 	phys = kmalloc_array(num_pages, sizeof(*phys), GFP_KERNEL);
 	if (!phys)

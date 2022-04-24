@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -368,7 +368,11 @@ static int kbasep_hwcnt_backend_csf_if_fw_ring_buf_alloc(
 
 	kfree(page_list);
 
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	fw_ring_buf->gpu_dump_base = (uintptr_t)cpu_addr;
+#else
 	fw_ring_buf->gpu_dump_base = gpu_va_base;
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 	fw_ring_buf->cpu_dump_base = cpu_addr;
 	fw_ring_buf->phys = phys;
 	fw_ring_buf->num_pages = num_pages;
@@ -378,12 +382,6 @@ static int kbasep_hwcnt_backend_csf_if_fw_ring_buf_alloc(
 	*cpu_dump_base = fw_ring_buf->cpu_dump_base;
 	*out_ring_buf =
 		(struct kbase_hwcnt_backend_csf_if_ring_buf *)fw_ring_buf;
-
-#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
-	/* The dummy model needs the CPU mapping. */
-	gpu_model_set_dummy_prfcnt_base_cpu(fw_ring_buf->cpu_dump_base, kbdev,
-					    phys, num_pages);
-#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 
 	return 0;
 
@@ -421,6 +419,14 @@ static void kbasep_hwcnt_backend_csf_if_fw_ring_buf_sync(
 
 	WARN_ON(!ctx);
 	WARN_ON(!ring_buf);
+
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	/* When using the dummy backend syncing the ring buffer is unnecessary as
+	 * the ring buffer is only accessed by the CPU. It may also cause data loss
+	 * due to cache invalidation so return early.
+	 */
+	return;
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 
 	/* The index arguments for this function form an inclusive, exclusive
 	 * range.
@@ -540,8 +546,8 @@ static void kbasep_hwcnt_backend_csf_if_fw_dump_enable(
 	global_iface = &kbdev->csf.global_iface;
 
 	/* Configure */
-	prfcnt_config = fw_ring_buf->buf_count;
-	prfcnt_config |= enable->counter_set << PRFCNT_CONFIG_SETSELECT_SHIFT;
+	prfcnt_config = GLB_PRFCNT_CONFIG_SIZE_SET(0, fw_ring_buf->buf_count);
+	prfcnt_config = GLB_PRFCNT_CONFIG_SET_SELECT_SET(prfcnt_config, enable->counter_set);
 
 	/* Configure the ring buffer base address */
 	kbase_csf_firmware_global_input(global_iface, GLB_PRFCNT_JASID,

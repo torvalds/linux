@@ -73,7 +73,7 @@ static void kbasep_add_waiting_with_timeout(struct kbase_jd_atom *katom)
 	/* Record the start time of this atom so we could cancel it at
 	 * the right time.
 	 */
-	katom->start_timestamp = ktime_get();
+	katom->start_timestamp = ktime_get_raw();
 
 	/* Add the atom to the waiting list before the timer is
 	 * (re)started to make sure that it gets processed.
@@ -388,7 +388,7 @@ void kbasep_soft_job_timeout_worker(struct timer_list *timer)
 			soft_job_timeout);
 	u32 timeout_ms = (u32)atomic_read(
 			&kctx->kbdev->js_data.soft_job_timeout_ms);
-	ktime_t cur_time = ktime_get();
+	ktime_t cur_time = ktime_get_raw();
 	bool restarting = false;
 	unsigned long lflags;
 	struct list_head *entry, *tmp;

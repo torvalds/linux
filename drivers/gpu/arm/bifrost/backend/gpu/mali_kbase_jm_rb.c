@@ -1349,11 +1349,9 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, int js,
 		} else {
 			char js_string[16];
 
-			trace_gpu_sched_switch(kbasep_make_job_slot_string(js,
-							js_string,
-							sizeof(js_string)),
-						ktime_to_ns(ktime_get()), 0, 0,
-						0);
+			trace_gpu_sched_switch(kbasep_make_job_slot_string(js, js_string,
+									   sizeof(js_string)),
+					       ktime_to_ns(ktime_get_raw()), 0, 0, 0);
 		}
 	}
 #endif

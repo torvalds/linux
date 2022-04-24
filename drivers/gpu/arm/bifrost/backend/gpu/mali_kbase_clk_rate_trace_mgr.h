@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -59,20 +59,6 @@ struct kbase_clk_data {
  * Return: 0 if success, or an error code on failure.
  */
 int kbase_clk_rate_trace_manager_init(struct kbase_device *kbdev);
-
-/**
- * kbase_init_lowest_gpu_freq() - Find the lowest frequency that the GPU can
- *                                run as using the device tree, and save this
- *                                within kbdev.
- * @kbdev: Pointer to kbase device.
- *
- * This function could be called from kbase_clk_rate_trace_manager_init,
- * but is left separate as it can be called as soon as
- * dev_pm_opp_of_add_table() has been called to initialize the OPP table.
- *
- * Return: 0 in any case.
- */
-int kbase_lowest_gpu_freq_init(struct kbase_device *kbdev);
 
 /**
  * kbase_clk_rate_trace_manager_term - Terminate GPU clock rate trace manager.

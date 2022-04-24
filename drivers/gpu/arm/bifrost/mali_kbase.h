@@ -551,6 +551,21 @@ static inline bool kbase_pm_is_active(struct kbase_device *kbdev)
 }
 
 /**
+ * kbase_pm_lowest_gpu_freq_init() - Find the lowest frequency that the GPU can
+ *                                run as using the device tree, and save this
+ *                                within kbdev.
+ * @kbdev: Pointer to kbase device.
+ *
+ * This function could be called from kbase_clk_rate_trace_manager_init,
+ * but is left separate as it can be called as soon as
+ * dev_pm_opp_of_add_table() has been called to initialize the OPP table,
+ * which occurs in power_control_init().
+ *
+ * Return: 0 in any case.
+ */
+int kbase_pm_lowest_gpu_freq_init(struct kbase_device *kbdev);
+
+/**
  * kbase_pm_metrics_start - Start the utilization metrics timer
  * @kbdev: Pointer to the kbase device for which to start the utilization
  *         metrics calculation thread.

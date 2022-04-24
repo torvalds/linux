@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -58,7 +58,7 @@ struct kbase_device;
 int kbase_csf_firmware_trace_buffers_init(struct kbase_device *kbdev);
 
 /**
- * kbase_csf_firmware_trace_buffer_term - Terminate trace buffers
+ * kbase_csf_firmware_trace_buffers_term - Terminate trace buffers
  *
  * @kbdev: Device pointer
  */
@@ -167,9 +167,8 @@ unsigned int kbase_csf_firmware_trace_buffer_read_data(
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 /**
- * kbase_csf_fw_trace_buffer_debugfs_init() - Add debugfs entries for setting
- *                                         enable mask and dumping the binary
- *                                         firmware trace buffer
+ * kbase_csf_firmware_trace_buffer_debugfs_init() - Add debugfs entries for
+ * setting enable mask and dumping the binary firmware trace buffer
  *
  * @kbdev: Pointer to the device
  */

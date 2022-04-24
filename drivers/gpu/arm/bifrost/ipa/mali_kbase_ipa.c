@@ -324,7 +324,7 @@ int kbase_ipa_init(struct kbase_device *kbdev)
 		kbdev->ipa.configured_model = default_model;
 	}
 
-	kbdev->ipa.last_sample_time = ktime_get();
+	kbdev->ipa.last_sample_time = ktime_get_raw();
 
 end:
 	if (err)
@@ -750,7 +750,7 @@ void kbase_ipa_reset_data(struct kbase_device *kbdev)
 
 	mutex_lock(&kbdev->ipa.lock);
 
-	now = ktime_get();
+	now = ktime_get_raw();
 	diff = ktime_sub(now, kbdev->ipa.last_sample_time);
 	elapsed_time = ktime_to_ms(diff);
 
@@ -765,7 +765,7 @@ void kbase_ipa_reset_data(struct kbase_device *kbdev)
 		if (model != kbdev->ipa.fallback_model)
 			model->ops->reset_counter_data(model);
 
-		kbdev->ipa.last_sample_time = ktime_get();
+		kbdev->ipa.last_sample_time = ktime_get_raw();
 	}
 
 	mutex_unlock(&kbdev->ipa.lock);

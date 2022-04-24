@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -34,8 +34,12 @@
 /* GPU_U definition */
 #ifdef __ASSEMBLER__
 #define GPU_U(x) x
+#define GPU_UL(x) x
+#define GPU_ULL(x) x
 #else
 #define GPU_U(x) x##u
+#define GPU_UL(x) x##ul
+#define GPU_ULL(x) x##ull
 #endif /* __ASSEMBLER__ */
 
 /* Begin Register Offsets */
@@ -355,8 +359,8 @@
 	 (((value) << AS_LOCKADDR_LOCKADDR_SIZE_SHIFT) &                             \
 	 AS_LOCKADDR_LOCKADDR_SIZE_MASK))
 #define AS_LOCKADDR_LOCKADDR_BASE_SHIFT GPU_U(12)
-#define AS_LOCKADDR_LOCKADDR_BASE_MASK                                         \
-	(GPU_U(0xFFFFFFFFFFFFF) << AS_LOCKADDR_LOCKADDR_BASE_SHIFT)
+#define AS_LOCKADDR_LOCKADDR_BASE_MASK                                                             \
+	(GPU_ULL(0xFFFFFFFFFFFFF) << AS_LOCKADDR_LOCKADDR_BASE_SHIFT)
 #define AS_LOCKADDR_LOCKADDR_BASE_GET(reg_val)                                 \
 	(((reg_val)&AS_LOCKADDR_LOCKADDR_BASE_MASK) >>                               \
 	 AS_LOCKADDR_LOCKADDR_BASE_SHIFT)

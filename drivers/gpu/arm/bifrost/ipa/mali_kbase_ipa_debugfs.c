@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2017-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -26,10 +26,6 @@
 #include "mali_kbase.h"
 #include "mali_kbase_ipa.h"
 #include "mali_kbase_ipa_debugfs.h"
-
-#if (KERNEL_VERSION(4, 7, 0) > LINUX_VERSION_CODE)
-#define DEFINE_DEBUGFS_ATTRIBUTE DEFINE_SIMPLE_ATTRIBUTE
-#endif
 
 struct kbase_ipa_model_param {
 	char *name;

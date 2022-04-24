@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -655,6 +655,38 @@ static void kbase_pm_enable_mcu_db_notification(struct kbase_device *kbdev)
 	val &= ~MCU_CNTRL_DOORBELL_DISABLE_MASK;
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(MCU_CONTROL), val);
 }
+
+/**
+ * wait_mcu_as_inactive - Wait for AS used by MCU FW to get configured
+ *
+ * @kbdev: Pointer to the device.
+ *
+ * This function is called to wait for the AS used by MCU FW to get configured
+ * before DB notification on MCU is enabled, as a workaround for HW issue.
+ */
+static void wait_mcu_as_inactive(struct kbase_device *kbdev)
+{
+	unsigned int max_loops = KBASE_AS_INACTIVE_MAX_LOOPS;
+
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+
+	if (!kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_TURSEHW_2716))
+		return;
+
+	/* Wait for the AS_ACTIVE_INT bit to become 0 for the AS used by MCU FW */
+	while (--max_loops &&
+	       kbase_reg_read(kbdev, MMU_AS_REG(MCU_AS_NR, AS_STATUS)) &
+			      AS_STATUS_AS_ACTIVE_INT)
+		;
+
+	if (!WARN_ON_ONCE(max_loops == 0))
+		return;
+
+	dev_err(kbdev->dev, "AS_ACTIVE_INT bit stuck for AS %d used by MCU FW", MCU_AS_NR);
+
+	if (kbase_prepare_to_reset_gpu(kbdev, 0))
+		kbase_reset_gpu(kbdev);
+}
 #endif
 
 
@@ -970,6 +1002,7 @@ static int kbase_pm_mcu_update_state(struct kbase_device *kbdev)
 		case KBASE_MCU_IN_SLEEP:
 			if (kbase_pm_is_mcu_desired(kbdev) &&
 			    backend->l2_state == KBASE_L2_ON) {
+				wait_mcu_as_inactive(kbdev);
 				KBASE_TLSTREAM_TL_KBASE_CSFFW_FW_REQUEST_WAKEUP(
 					kbdev, kbase_backend_get_cycle_cnt(kbdev));
 				kbase_pm_enable_mcu_db_notification(kbdev);
@@ -980,6 +1013,7 @@ static int kbase_pm_mcu_update_state(struct kbase_device *kbdev)
 				if (!kbdev->csf.firmware_hctl_core_pwr)
 					kbasep_pm_toggle_power_interrupt(kbdev, false);
 				backend->mcu_state = KBASE_MCU_ON_HWCNT_ENABLE;
+				kbase_csf_ring_doorbell(kbdev, CSF_KERNEL_DOORBELL_NR);
 			}
 			break;
 #endif

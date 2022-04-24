@@ -84,7 +84,7 @@ int kbasep_pm_metrics_init(struct kbase_device *kbdev)
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 	kbdev->pm.backend.metrics.kbdev = kbdev;
-	kbdev->pm.backend.metrics.time_period_start = ktime_get();
+	kbdev->pm.backend.metrics.time_period_start = ktime_get_raw();
 	kbdev->pm.backend.metrics.values.time_busy = 0;
 	kbdev->pm.backend.metrics.values.time_idle = 0;
 	kbdev->pm.backend.metrics.values.time_in_protm = 0;
@@ -112,7 +112,7 @@ int kbasep_pm_metrics_init(struct kbase_device *kbdev)
 #else
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 	kbdev->pm.backend.metrics.kbdev = kbdev;
-	kbdev->pm.backend.metrics.time_period_start = ktime_get();
+	kbdev->pm.backend.metrics.time_period_start = ktime_get_raw();
 
 	kbdev->pm.backend.metrics.gpu_active = false;
 	kbdev->pm.backend.metrics.active_cl_ctx[0] = 0;
@@ -200,7 +200,7 @@ static void kbase_pm_get_dvfs_utilisation_calc(struct kbase_device *kbdev)
 	 * elapsed time. The lock taken inside kbase_ipa_control_query()
 	 * function can cause lot of variation.
 	 */
-	now = ktime_get();
+	now = ktime_get_raw();
 
 	if (err) {
 		dev_err(kbdev->dev,
@@ -238,6 +238,7 @@ static void kbase_pm_get_dvfs_utilisation_calc(struct kbase_device *kbdev)
 			 */
 			u64 const MARGIN_NS =
 				IPA_CONTROL_TIMER_DEFAULT_VALUE_MS * NSEC_PER_MSEC * 3 / 2;
+
 			if (gpu_active_counter > (diff_ns + MARGIN_NS)) {
 				dev_info(
 					kbdev->dev,
@@ -333,7 +334,7 @@ void kbase_pm_get_dvfs_metrics(struct kbase_device *kbdev,
 #if MALI_USE_CSF
 	kbase_pm_get_dvfs_utilisation_calc(kbdev);
 #else
-	kbase_pm_get_dvfs_utilisation_calc(kbdev, ktime_get());
+	kbase_pm_get_dvfs_utilisation_calc(kbdev, ktime_get_raw());
 #endif
 
 	memset(diff, 0, sizeof(*diff));
@@ -514,7 +515,7 @@ void kbase_pm_metrics_update(struct kbase_device *kbdev, ktime_t *timestamp)
 	spin_lock_irqsave(&kbdev->pm.backend.metrics.lock, flags);
 
 	if (!timestamp) {
-		now = ktime_get();
+		now = ktime_get_raw();
 		timestamp = &now;
 	}
 

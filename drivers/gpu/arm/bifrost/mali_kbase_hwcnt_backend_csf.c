@@ -36,8 +36,13 @@
 #define BASE_MAX_NR_CLOCKS_REGULATORS 4
 #endif
 
+#if IS_ENABLED(CONFIG_MALI_IS_FPGA) && !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+/* Backend watch dog timer interval in milliseconds: 18 seconds. */
+#define HWCNT_BACKEND_WATCHDOG_TIMER_INTERVAL_MS ((u32)18000)
+#else
 /* Backend watch dog timer interval in milliseconds: 1 second. */
 #define HWCNT_BACKEND_WATCHDOG_TIMER_INTERVAL_MS ((u32)1000)
+#endif /* IS_FPGA && !NO_MALI */
 
 /**
  * enum kbase_hwcnt_backend_csf_dump_state - HWC CSF backend dumping states.
@@ -562,7 +567,7 @@ static void kbasep_hwcnt_backend_csf_accumulate_samples(
 	const size_t buf_dump_bytes = backend_csf->info->prfcnt_info.dump_bytes;
 	bool clearing_samples = backend_csf->info->prfcnt_info.clearing_samples;
 	u32 *old_sample_buf = backend_csf->old_sample_buf;
-	u32 *new_sample_buf;
+	u32 *new_sample_buf = old_sample_buf;
 
 	if (extract_index_to_start == insert_index_to_stop)
 		/* No samples to accumulate. Early out. */
@@ -1434,7 +1439,6 @@ kbasep_hwcnt_backend_csf_create(struct kbase_hwcnt_backend_csf_info *csf_info,
 	*out_backend = backend_csf;
 	return 0;
 
-	destroy_workqueue(backend_csf->hwc_dump_workq);
 err_alloc_workqueue:
 	backend_csf->info->csf_if->ring_buf_free(backend_csf->info->csf_if->ctx,
 						 backend_csf->ring_buf);

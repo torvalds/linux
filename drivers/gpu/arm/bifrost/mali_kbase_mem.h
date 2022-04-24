@@ -1733,8 +1733,8 @@ void kbase_jit_report_update_pressure(struct kbase_context *kctx,
 		unsigned int flags);
 
 /**
- * jit_trim_necessary_pages() - calculate and trim the least pages possible to
- * satisfy a new JIT allocation
+ * kbase_jit_trim_necessary_pages() - calculate and trim the least pages
+ * possible to satisfy a new JIT allocation
  *
  * @kctx: Pointer to the kbase context
  * @needed_pages: Number of JIT physical pages by which trimming is requested.
@@ -1973,7 +1973,7 @@ static inline void kbase_mem_pool_lock(struct kbase_mem_pool *pool)
 }
 
 /**
- * kbase_mem_pool_lock - Release a memory pool
+ * kbase_mem_pool_unlock - Release a memory pool
  * @pool: Memory pool to lock
  */
 static inline void kbase_mem_pool_unlock(struct kbase_mem_pool *pool)

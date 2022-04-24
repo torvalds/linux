@@ -517,8 +517,6 @@ void kbase_vinstr_term(struct kbase_vinstr_context *vctx)
 	if (!vctx)
 		return;
 
-	cancel_work_sync(&vctx->dump_work);
-
 	/* Non-zero client count implies client leak */
 	if (WARN_ON(vctx->client_count != 0)) {
 		struct kbase_vinstr_client *pos, *n;
@@ -530,6 +528,7 @@ void kbase_vinstr_term(struct kbase_vinstr_context *vctx)
 		}
 	}
 
+	cancel_work_sync(&vctx->dump_work);
 	kbase_hwcnt_gpu_metadata_narrow_destroy(vctx->metadata_user);
 
 	WARN_ON(vctx->client_count != 0);

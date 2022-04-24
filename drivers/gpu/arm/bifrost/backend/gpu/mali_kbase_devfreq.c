@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -74,8 +74,8 @@ static unsigned long get_voltage(struct kbase_device *kbdev, unsigned long freq)
 
 	opp = dev_pm_opp_find_freq_exact(kbdev->dev, freq, true);
 
-	if (IS_ERR(opp))
-		dev_err(kbdev->dev, "Failed to get opp (%ld)\n", PTR_ERR(opp));
+	if (IS_ERR_OR_NULL(opp))
+		dev_err(kbdev->dev, "Failed to get opp (%d)\n", PTR_ERR_OR_ZERO(opp));
 	else {
 		voltage = dev_pm_opp_get_voltage(opp);
 #if KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE
@@ -341,6 +341,7 @@ static int kbase_devfreq_init_freq_table(struct kbase_device *kbdev,
 				count, i);
 
 	dp->max_state = i;
+
 
 	/* Have the lowest clock as suspend clock.
 	 * It may be overridden by 'opp-mali-errata-1485982'.
@@ -674,6 +675,7 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	int err;
 	struct dev_pm_opp *opp;
 	unsigned int i;
+	bool free_devfreq_freq_table = true;
 
 	if (kbdev->nr_clocks == 0) {
 		dev_err(kbdev->dev, "Clock not available for devfreq\n");
@@ -714,11 +716,17 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 			dp->freq_table[0] / 1000;
 	};
 
-	err = kbase_devfreq_init_core_mask_table(kbdev);
+#if IS_ENABLED(CONFIG_DEVFREQ_THERMAL)
+	err = kbase_ipa_init(kbdev);
 	if (err) {
-		kbase_devfreq_term_freq_table(kbdev);
-		return err;
+		dev_err(kbdev->dev, "IPA initialization failed");
+		goto ipa_init_failed;
 	}
+#endif
+
+	err = kbase_devfreq_init_core_mask_table(kbdev);
+	if (err)
+		goto init_core_mask_table_failed;
 
 	of_property_read_u32(np, "upthreshold",
 			     &ondemand_data.upthreshold);
@@ -729,21 +737,18 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	if (IS_ERR(kbdev->devfreq)) {
 		err = PTR_ERR(kbdev->devfreq);
 		kbdev->devfreq = NULL;
-		kbase_devfreq_term_core_mask_table(kbdev);
-		kbase_devfreq_term_freq_table(kbdev);
-		dev_err(kbdev->dev, "Fail to add devfreq device(%d)\n", err);
-		return err;
+		dev_err(kbdev->dev, "Fail to add devfreq device(%d)", err);
+		goto devfreq_add_dev_failed;
 	}
+
+	/* Explicit free of freq table isn't needed after devfreq_add_device() */
+	free_devfreq_freq_table = false;
 
 	/* Initialize devfreq suspend/resume workqueue */
 	err = kbase_devfreq_work_init(kbdev);
 	if (err) {
-		if (devfreq_remove_device(kbdev->devfreq))
-			dev_err(kbdev->dev, "Fail to rm devfreq\n");
-		kbdev->devfreq = NULL;
-		kbase_devfreq_term_core_mask_table(kbdev);
-		dev_err(kbdev->dev, "Fail to init devfreq workqueue\n");
-		return err;
+		dev_err(kbdev->dev, "Fail to init devfreq workqueue");
+		goto devfreq_work_init_failed;
 	}
 
 	/* devfreq_add_device only copies a few of kbdev->dev's fields, so
@@ -754,7 +759,7 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	err = devfreq_register_opp_notifier(kbdev->dev, kbdev->devfreq);
 	if (err) {
 		dev_err(kbdev->dev,
-			"Failed to register OPP notifier (%d)\n", err);
+			"Failed to register OPP notifier (%d)", err);
 		goto opp_notifier_failed;
 	}
 
@@ -822,7 +827,6 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 					err);
 			goto cooling_reg_failed;
                }
-
 	}
 #endif
 
@@ -830,20 +834,28 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 
 #if IS_ENABLED(CONFIG_DEVFREQ_THERMAL)
 cooling_reg_failed:
-	kbase_ipa_term(kbdev);
-ipa_init_failed:
 	devfreq_unregister_opp_notifier(kbdev->dev, kbdev->devfreq);
 #endif /* CONFIG_DEVFREQ_THERMAL */
 
 opp_notifier_failed:
 	kbase_devfreq_work_term(kbdev);
 
+devfreq_work_init_failed:
 	if (devfreq_remove_device(kbdev->devfreq))
-		dev_err(kbdev->dev, "Failed to terminate devfreq (%d)\n", err);
+		dev_err(kbdev->dev, "Failed to terminate devfreq (%d)", err);
 
 	kbdev->devfreq = NULL;
 
+devfreq_add_dev_failed:
 	kbase_devfreq_term_core_mask_table(kbdev);
+
+init_core_mask_table_failed:
+#if IS_ENABLED(CONFIG_DEVFREQ_THERMAL)
+	kbase_ipa_term(kbdev);
+ipa_init_failed:
+#endif
+	if (free_devfreq_freq_table)
+		kbase_devfreq_term_freq_table(kbdev);
 
 	return err;
 }
@@ -857,10 +869,6 @@ void kbase_devfreq_term(struct kbase_device *kbdev)
 #if IS_ENABLED(CONFIG_DEVFREQ_THERMAL)
 	if (kbdev->devfreq_cooling)
 		devfreq_cooling_unregister(kbdev->devfreq_cooling);
-
-	if (!kbdev->model_data)
-		kbase_ipa_term(kbdev);
-	kfree(kbdev->model_data);
 #endif
 
 	devfreq_unregister_opp_notifier(kbdev->dev, kbdev->devfreq);
@@ -874,4 +882,10 @@ void kbase_devfreq_term(struct kbase_device *kbdev)
 		kbdev->devfreq = NULL;
 
 	kbase_devfreq_term_core_mask_table(kbdev);
+
+#if IS_ENABLED(CONFIG_DEVFREQ_THERMAL)
+	if (!kbdev->model_data)
+		kbase_ipa_term(kbdev);
+	kfree(kbdev->model_data);
+#endif
 }

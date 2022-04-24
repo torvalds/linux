@@ -342,7 +342,7 @@ static int kbasep_timeline_io_release(struct inode *inode, struct file *filp)
 	 * TIMELINE_HYSTERESIS_TIMEOUT_MS amount of time between acquire and release.
 	 * This prevents userspace from spamming acquire and release too quickly.
 	 */
-	elapsed_time = ktime_sub(ktime_get(), timeline->last_acquire_time);
+	elapsed_time = ktime_sub(ktime_get_raw(), timeline->last_acquire_time);
 	elapsed_time_ms = ktime_to_ms(elapsed_time);
 	time_to_sleep = MIN(TIMELINE_HYSTERESIS_TIMEOUT_MS,
 		TIMELINE_HYSTERESIS_TIMEOUT_MS - elapsed_time_ms);

@@ -1996,5 +1996,7 @@ static inline u64 kbase_get_lock_region_min_size_log2(struct kbase_gpu_props con
 #define KBASE_CLEAN_CACHE_MAX_LOOPS     100000
 /* Maximum number of loops polling the GPU for an AS command to complete before we assume the GPU has hung */
 #define KBASE_AS_INACTIVE_MAX_LOOPS     100000000
+/* Maximum number of loops polling the GPU PRFCNT_ACTIVE bit before we assume the GPU has hung */
+#define KBASE_PRFCNT_ACTIVE_MAX_LOOPS   100000000
 
 #endif /* _KBASE_DEFS_H_ */

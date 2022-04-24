@@ -279,9 +279,7 @@ int kbase_device_misc_init(struct kbase_device * const kbdev)
 		goto dma_set_mask_failed;
 
 
-	/* There is no limit for Mali, so set to max. We only do this if dma_parms
-	 * is already allocated by the platform.
-	 */
+	/* There is no limit for Mali, so set to max. */
 	if (kbdev->dev->dma_parms)
 		err = dma_set_max_seg_size(kbdev->dev, UINT_MAX);
 	if (err)
@@ -308,7 +306,11 @@ int kbase_device_misc_init(struct kbase_device * const kbdev)
 
 	kbdev->pm.dvfs_period = DEFAULT_PM_DVFS_PERIOD;
 
-	kbdev->reset_timeout_ms = DEFAULT_RESET_TIMEOUT_MS;
+#if MALI_USE_CSF
+	kbdev->reset_timeout_ms = kbase_get_timeout_ms(kbdev, CSF_CSG_SUSPEND_TIMEOUT);
+#else
+	kbdev->reset_timeout_ms = JM_DEFAULT_RESET_TIMEOUT_MS;
+#endif /* MALI_USE_CSF */
 
 	kbdev->mmu_mode = kbase_mmu_mode_get_aarch64();
 

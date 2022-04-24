@@ -281,7 +281,7 @@ int kbase_ipa_counter_dynamic_coeff(struct kbase_ipa_model *model, u32 *coeffp)
 	if (WARN_ON(ret))
 		return ret;
 
-	now = ktime_get();
+	now = ktime_get_raw();
 	diff = ktime_sub(now, kbdev->ipa.last_sample_time);
 	diff_ms = ktime_to_ms(diff);
 

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -19,16 +19,21 @@
  *
  */
 
-#ifndef _KBASE_PBHA_DEBUGFS_H
-#define _KBASE_PBHA_DEBUGFS_H
+#ifndef _KBASE_DEBUG_MEM_ZONES_H
+#define _KBASE_DEBUG_MEM_ZONES_H
 
 #include <mali_kbase.h>
 
 /**
- * kbase_pbha_debugfs_init - Initialize pbha debugfs directory
+ * kbase_debug_mem_zones_init() - Initialize the mem_zones sysfs file
+ * @kctx: Pointer to kernel base context
  *
- * @kbdev: Device pointer
+ * This function creates a "mem_zones" file which can be used to determine the
+ * address ranges of GPU memory zones, in the GPU Virtual-Address space.
+ *
+ * The file is cleaned up by a call to debugfs_remove_recursive() deleting the
+ * parent directory.
  */
-void kbase_pbha_debugfs_init(struct kbase_device *kbdev);
+void kbase_debug_mem_zones_init(struct kbase_context *kctx);
 
-#endif /* _KBASE_PBHA_DEBUGFS_H */
+#endif

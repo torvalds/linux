@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -68,6 +68,8 @@
 #define VALUE_SHADER_REG_LO(n) (VALUE_SHADER_BASE + ((n) << 3))     /* (RO) Counter value #n, low word */
 #define VALUE_SHADER_REG_HI(n) (VALUE_SHADER_BASE + ((n) << 3) + 4) /* (RO) Counter value #n, high word */
 
+#define AS_STATUS_AS_ACTIVE_INT 0x2
+
 /* Set to implementation defined, outer caching */
 #define AS_MEMATTR_AARCH64_OUTER_IMPL_DEF 0x88ull
 /* Set to write back memory, outer caching */
@@ -125,37 +127,12 @@
 
 #define MCU_STATUS_HALTED        (1 << 1)
 
-#define PRFCNT_BASE_LO   0x060  /* (RW) Performance counter memory
-				 * region base address, low word
-				 */
-#define PRFCNT_BASE_HI   0x064  /* (RW) Performance counter memory
-				 * region base address, high word
-				 */
-#define PRFCNT_CONFIG    0x068  /* (RW) Performance counter
-				 * configuration
-				 */
-
-#define PRFCNT_CSHW_EN   0x06C  /* (RW) Performance counter
-				 * enable for CS Hardware
-				 */
-
-#define PRFCNT_SHADER_EN 0x070  /* (RW) Performance counter enable
-				 * flags for shader cores
-				 */
-#define PRFCNT_TILER_EN  0x074  /* (RW) Performance counter enable
-				 * flags for tiler
-				 */
-#define PRFCNT_MMU_L2_EN 0x07C  /* (RW) Performance counter enable
-				 * flags for MMU/L2 cache
-				 */
-
 /* JOB IRQ flags */
 #define JOB_IRQ_GLOBAL_IF       (1 << 31)   /* Global interface interrupt received */
 
 /* GPU_COMMAND codes */
 #define GPU_COMMAND_CODE_NOP                0x00 /* No operation, nothing happens */
 #define GPU_COMMAND_CODE_RESET              0x01 /* Reset the GPU */
-#define GPU_COMMAND_CODE_PRFCNT             0x02 /* Clear or sample performance counters */
 #define GPU_COMMAND_CODE_TIME               0x03 /* Configure time sources */
 #define GPU_COMMAND_CODE_FLUSH_CACHES       0x04 /* Flush caches */
 #define GPU_COMMAND_CODE_SET_PROTECTED_MODE 0x05 /* Places the GPU in protected mode */
@@ -178,10 +155,6 @@
  * the system bus in an inconsistent state. Use only as a last resort when nothing else works.
  */
 #define GPU_COMMAND_RESET_PAYLOAD_HARD_RESET 0x02
-
-/* GPU_COMMAND_PRFCNT payloads */
-#define GPU_COMMAND_PRFCNT_PAYLOAD_SAMPLE 0x01 /* Sample performance counters */
-#define GPU_COMMAND_PRFCNT_PAYLOAD_CLEAR  0x02 /* Clear performance counters */
 
 /* GPU_COMMAND_TIME payloads */
 #define GPU_COMMAND_TIME_DISABLE 0x00 /* Disable cycle counter */
@@ -217,14 +190,6 @@
 /* Immediately reset the entire GPU. */
 #define GPU_COMMAND_HARD_RESET \
 	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_RESET, GPU_COMMAND_RESET_PAYLOAD_HARD_RESET)
-
-/* Clear all performance counters, setting them all to zero. */
-#define GPU_COMMAND_PRFCNT_CLEAR \
-	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_PRFCNT, GPU_COMMAND_PRFCNT_PAYLOAD_CLEAR)
-
-/* Sample all performance counters, writing them out to memory */
-#define GPU_COMMAND_PRFCNT_SAMPLE \
-	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_PRFCNT, GPU_COMMAND_PRFCNT_PAYLOAD_SAMPLE)
 
 /* Starts the cycle counter, and system timestamp propagation */
 #define GPU_COMMAND_CYCLE_COUNT_START \
@@ -362,7 +327,11 @@
 #define GPU_IRQ_REG_COMMON (GPU_FAULT | GPU_PROTECTED_FAULT | RESET_COMPLETED \
 			| POWER_CHANGED_ALL | MCU_STATUS_GPU_IRQ)
 
-/* GPU_CONTROL_MCU.GPU_IRQ_RAWSTAT */
-#define PRFCNT_SAMPLE_COMPLETED (1 << 16)   /* Set when performance count sample has completed */
+/* GPU_FEATURES register */
+#define GPU_FEATURES_RAY_TRACING_SHIFT GPU_U(2)
+#define GPU_FEATURES_RAY_TRACING_MASK (GPU_U(0x1) << GPU_FEATURES_RAY_TRACING_SHIFT)
+#define GPU_FEATURES_RAY_TRACING_GET(reg_val) \
+	(((reg_val)&GPU_FEATURES_RAY_TRACING_MASK) >> GPU_FEATURES_RAY_TRACING_SHIFT)
+/* End of GPU_FEATURES register */
 
 #endif /* _KBASE_GPU_REGMAP_CSF_H_ */

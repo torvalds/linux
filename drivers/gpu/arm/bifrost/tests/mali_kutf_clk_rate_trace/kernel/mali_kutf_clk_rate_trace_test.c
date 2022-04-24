@@ -831,8 +831,8 @@ static void *mali_kutf_clk_rate_trace_create_fixture(
 
 	if (g_ptr_portal_data != NULL) {
 		pr_warn("Test portal is already in use, run aborted\n");
-		kutf_test_fail(context, "Portal allows single session only");
 		spin_unlock(&kbdev->pm.clk_rtm.lock);
+		kutf_test_fail(context, "Portal allows single session only");
 		return NULL;
 	}
 

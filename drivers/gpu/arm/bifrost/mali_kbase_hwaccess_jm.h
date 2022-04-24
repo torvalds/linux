@@ -236,7 +236,7 @@ void kbase_backend_timeouts_changed(struct kbase_device *kbdev);
 int kbase_backend_slot_free(struct kbase_device *kbdev, int js);
 
 /**
- * kbase_job_check_enter_disjoint - potentially leave disjoint state
+ * kbase_job_check_leave_disjoint - potentially leave disjoint state
  * @kbdev: kbase device
  * @target_katom: atom which is finishing
  *

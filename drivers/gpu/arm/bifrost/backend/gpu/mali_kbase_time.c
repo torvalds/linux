@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2016, 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016, 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -21,6 +21,9 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_hwaccess_time.h>
+#if MALI_USE_CSF
+#include <csf/mali_kbase_csf_timeout.h>
+#endif
 #include <device/mali_kbase_device.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 #include <mali_kbase_config_defaults.h>
@@ -115,11 +118,17 @@ unsigned int kbase_get_timeout_ms(struct kbase_device *kbdev,
 	u64 timeout, nr_cycles = 0;
 	/* Default value to mean 'no cap' */
 	u64 timeout_cap = U64_MAX;
-	u64 freq_khz = kbdev->lowest_gpu_freq_khz;
+	u64 freq_khz;
+
 	/* Only for debug messages, safe default in case it's mis-maintained */
 	const char *selector_str = "(unknown)";
 
-	WARN_ON(!freq_khz);
+	if (WARN(!kbdev->lowest_gpu_freq_khz,
+		 "Lowest frequency uninitialized! Using reference frequency for scaling")) {
+		freq_khz = DEFAULT_REF_TIMEOUT_FREQ_KHZ;
+	} else {
+		freq_khz = kbdev->lowest_gpu_freq_khz;
+	}
 
 	switch (selector) {
 	case KBASE_TIMEOUT_SELECTOR_COUNT:
@@ -154,6 +163,18 @@ unsigned int kbase_get_timeout_ms(struct kbase_device *kbdev,
 		selector_str = "CSF_GPU_RESET_TIMEOUT";
 		nr_cycles = CSF_GPU_RESET_TIMEOUT_CYCLES;
 		break;
+	case CSF_CSG_SUSPEND_TIMEOUT:
+		selector_str = "CSF_CSG_SUSPEND_TIMEOUT";
+		nr_cycles = CSF_CSG_SUSPEND_TIMEOUT_CYCLES;
+		break;
+	case CSF_FIRMWARE_BOOT_TIMEOUT:
+		selector_str = "CSF_FIRMWARE_BOOT_TIMEOUT";
+		nr_cycles = CSF_FIRMWARE_BOOT_TIMEOUT_CYCLES;
+		break;
+	case CSF_SCHED_PROTM_PROGRESS_TIMEOUT:
+		selector_str = "CSF_SCHED_PROTM_PROGRESS_TIMEOUT";
+		nr_cycles = kbase_csf_timeout_get(kbdev);
+		break;
 #endif
 	}
 
@@ -169,6 +190,7 @@ unsigned int kbase_get_timeout_ms(struct kbase_device *kbdev,
 		timeout = UINT_MAX;
 	return (unsigned int)timeout;
 }
+KBASE_EXPORT_TEST_API(kbase_get_timeout_ms);
 
 u64 kbase_backend_get_cycle_cnt(struct kbase_device *kbdev)
 {

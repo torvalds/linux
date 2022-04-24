@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,6 +29,20 @@
 #include <device/mali_kbase_device.h>
 #include <backend/gpu/mali_kbase_instr_internal.h>
 
+static int wait_prfcnt_ready(struct kbase_device *kbdev)
+{
+	u32 loops;
+
+	for (loops = 0; loops < KBASE_PRFCNT_ACTIVE_MAX_LOOPS; loops++) {
+		const u32 prfcnt_active = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_STATUS)) &
+								  GPU_STATUS_PRFCNT_ACTIVE;
+		if (!prfcnt_active)
+			return 0;
+	}
+
+	dev_err(kbdev->dev, "PRFCNT_ACTIVE bit stuck\n");
+	return -EBUSY;
+}
 
 int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 					struct kbase_context *kctx,
@@ -43,20 +57,20 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 
 	/* alignment failure */
 	if ((enable->dump_buffer == 0ULL) || (enable->dump_buffer & (2048 - 1)))
-		goto out_err;
+		return err;
 
 	spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
 
 	if (kbdev->hwcnt.backend.state != KBASE_INSTR_STATE_DISABLED) {
 		/* Instrumentation is already enabled */
 		spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
-		goto out_err;
+		return err;
 	}
 
 	if (kbase_is_gpu_removed(kbdev)) {
 		/* GPU has been removed by Arbiter */
 		spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
-		goto out_err;
+		return err;
 	}
 
 	/* Enable interrupt */
@@ -81,8 +95,18 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 	prfcnt_config |= enable->counter_set << PRFCNT_CONFIG_SETSELECT_SHIFT;
 #endif
 
+	/* Wait until prfcnt config register can be written */
+	err = wait_prfcnt_ready(kbdev);
+	if (err)
+		return err;
+
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_CONFIG),
 			prfcnt_config | PRFCNT_CONFIG_MODE_OFF);
+
+	/* Wait until prfcnt is disabled before writing configuration registers */
+	err = wait_prfcnt_ready(kbdev);
+	if (err)
+		return err;
 
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_BASE_LO),
 					enable->dump_buffer & 0xFFFFFFFF);
@@ -111,12 +135,8 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 
 	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 
-	err = 0;
-
 	dev_dbg(kbdev->dev, "HW counters dumping set-up for context %pK", kctx);
-	return err;
- out_err:
-	return err;
+	return 0;
 }
 
 static void kbasep_instr_hwc_disable_hw_prfcnt(struct kbase_device *kbdev)
@@ -135,7 +155,10 @@ static void kbasep_instr_hwc_disable_hw_prfcnt(struct kbase_device *kbdev)
 
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK), irq_mask & ~PRFCNT_SAMPLE_COMPLETED);
 
-	/* Disable the counters */
+	/* Wait until prfcnt config register can be written, then disable the counters.
+	 * Return value is ignored as we are disabling anyway.
+	 */
+	wait_prfcnt_ready(kbdev);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_CONFIG), 0);
 
 	kbdev->hwcnt.kctx = NULL;
@@ -146,7 +169,6 @@ static void kbasep_instr_hwc_disable_hw_prfcnt(struct kbase_device *kbdev)
 int kbase_instr_hwcnt_disable_internal(struct kbase_context *kctx)
 {
 	unsigned long flags, pm_flags;
-	int err = -EINVAL;
 	struct kbase_device *kbdev = kctx->kbdev;
 
 	while (1) {
@@ -167,14 +189,14 @@ int kbase_instr_hwcnt_disable_internal(struct kbase_context *kctx)
 			/* Instrumentation is not enabled */
 			spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 			spin_unlock_irqrestore(&kbdev->hwaccess_lock, pm_flags);
-			return err;
+			return -EINVAL;
 		}
 
 		if (kbdev->hwcnt.kctx != kctx) {
 			/* Instrumentation has been setup for another context */
 			spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 			spin_unlock_irqrestore(&kbdev->hwaccess_lock, pm_flags);
-			return err;
+			return -EINVAL;
 		}
 
 		if (kbdev->hwcnt.backend.state == KBASE_INSTR_STATE_IDLE)
@@ -233,6 +255,11 @@ int kbase_instr_hwcnt_request_dump(struct kbase_context *kctx)
 	 */
 	kbdev->hwcnt.backend.state = KBASE_INSTR_STATE_DUMPING;
 
+	/* Wait until prfcnt is ready to request dump */
+	err = wait_prfcnt_ready(kbdev);
+	if (err)
+		goto unlock;
+
 	/* Reconfigure the dump address */
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_BASE_LO),
 					kbdev->hwcnt.addr & 0xFFFFFFFF);
@@ -248,11 +275,8 @@ int kbase_instr_hwcnt_request_dump(struct kbase_context *kctx)
 
 	dev_dbg(kbdev->dev, "HW counters dumping done for context %pK", kctx);
 
-	err = 0;
-
  unlock:
 	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
-
 	return err;
 }
 KBASE_EXPORT_SYMBOL(kbase_instr_hwcnt_request_dump);
@@ -346,21 +370,24 @@ int kbase_instr_hwcnt_clear(struct kbase_context *kctx)
 	 */
 	if (kbdev->hwcnt.kctx != kctx || kbdev->hwcnt.backend.state !=
 							KBASE_INSTR_STATE_IDLE)
-		goto out;
+		goto unlock;
 
 	if (kbase_is_gpu_removed(kbdev)) {
 		/* GPU has been removed by Arbiter */
-		goto out;
+		goto unlock;
 	}
+
+	/* Wait until prfcnt is ready to clear */
+	err = wait_prfcnt_ready(kbdev);
+	if (err)
+		goto unlock;
 
 	/* Clear the counters */
 	KBASE_KTRACE_ADD(kbdev, CORE_GPU_PRFCNT_CLEAR, NULL, 0);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
 						GPU_COMMAND_PRFCNT_CLEAR);
 
-	err = 0;
-
-out:
+unlock:
 	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 	return err;
 }

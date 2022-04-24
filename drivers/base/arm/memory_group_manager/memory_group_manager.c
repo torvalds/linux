@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 #include <linux/debugfs.h>
+#include <linux/version_compat_defs.h>
 #endif
 #include <linux/mm.h>
 #include <linux/memory_group_manager.h>
@@ -140,14 +141,10 @@ static int mgm_update_gpu_pte_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_mgm_size, mgm_size_get, NULL, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(fops_mgm_lp_size, mgm_lp_size_get, NULL, "%llu\n");
-
-DEFINE_SIMPLE_ATTRIBUTE(fops_mgm_insert_pfn, mgm_insert_pfn_get, NULL,
-	"%llu\n");
-
-DEFINE_SIMPLE_ATTRIBUTE(fops_mgm_update_gpu_pte, mgm_update_gpu_pte_get, NULL,
-	"%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_mgm_size, mgm_size_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_mgm_lp_size, mgm_lp_size_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_mgm_insert_pfn, mgm_insert_pfn_get, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_mgm_update_gpu_pte, mgm_update_gpu_pte_get, NULL, "%llu\n");
 
 static void mgm_term_debugfs(struct mgm_groups *data)
 {

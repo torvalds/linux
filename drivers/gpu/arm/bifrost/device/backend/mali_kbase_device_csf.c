@@ -191,7 +191,7 @@ static int kbase_csf_early_init(struct kbase_device *kbdev)
 }
 
 /**
- * kbase_csf_early_init - Early termination for firmware & scheduler.
+ * kbase_csf_early_term() - Early termination for firmware & scheduler.
  * @kbdev:	Device pointer
  */
 static void kbase_csf_early_term(struct kbase_device *kbdev)
@@ -283,6 +283,8 @@ static const struct kbase_device_init dev_init[] = {
 	  "Early device initialization failed" },
 	{ kbase_device_populate_max_freq, NULL,
 	  "Populating max frequency failed" },
+	{ kbase_pm_lowest_gpu_freq_init, NULL,
+	  "Lowest freq initialization failed" },
 	{ kbase_device_misc_init, kbase_device_misc_term,
 	  "Miscellaneous device initialization failed" },
 	{ kbase_device_pcm_dev_init, kbase_device_pcm_dev_term,
@@ -302,8 +304,6 @@ static const struct kbase_device_init dev_init[] = {
 	  "Timeline stream initialization failed" },
 	{ kbase_clk_rate_trace_manager_init, kbase_clk_rate_trace_manager_term,
 	  "Clock rate trace manager initialization failed" },
-	{ kbase_lowest_gpu_freq_init, NULL,
-	  "Lowest freq initialization failed" },
 	{ kbase_device_hwcnt_watchdog_if_init,
 	  kbase_device_hwcnt_watchdog_if_term,
 	  "GPU hwcnt backend watchdog interface creation failed" },

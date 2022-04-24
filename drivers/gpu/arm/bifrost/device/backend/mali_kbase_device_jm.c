@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -239,7 +239,7 @@ static const struct kbase_device_init dev_init[] = {
 	  "Timeline stream initialization failed" },
 	{ kbase_clk_rate_trace_manager_init, kbase_clk_rate_trace_manager_term,
 	  "Clock rate trace manager initialization failed" },
-	{ kbase_lowest_gpu_freq_init, NULL, "Lowest freq initialization failed" },
+	{ kbase_pm_lowest_gpu_freq_init, NULL, "Lowest freq initialization failed" },
 	{ kbase_instr_backend_init, kbase_instr_backend_term,
 	  "Instrumentation backend initialization failed" },
 	{ kbase_device_hwcnt_watchdog_if_init, kbase_device_hwcnt_watchdog_if_term,

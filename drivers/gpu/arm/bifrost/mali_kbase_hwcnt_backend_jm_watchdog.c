@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -27,7 +27,13 @@
 #include <mali_kbase_hwcnt_backend.h>
 #include <mali_kbase_hwcnt_watchdog_if.h>
 
+#if IS_ENABLED(CONFIG_MALI_IS_FPGA) && !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+/* Backend watch dog timer interval in milliseconds: 18 seconds. */
+static const u32 hwcnt_backend_watchdog_timer_interval_ms = 18000;
+#else
+/* Backend watch dog timer interval in milliseconds: 1 second. */
 static const u32 hwcnt_backend_watchdog_timer_interval_ms = 1000;
+#endif /* IS_FPGA && !NO_MALI */
 
 /*
  * IDLE_BUFFER_EMPTY -> USER_DUMPING_BUFFER_EMPTY     on dump_request.

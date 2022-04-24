@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,7 +22,6 @@
 #include "mali_kbase_hwcnt_gpu.h"
 #include "mali_kbase_hwcnt_types.h"
 
-#include <linux/bug.h>
 #include <linux/err.h>
 
 /** enum enable_map_idx - index into a block enable map that spans multiple u64 array elements
@@ -44,13 +43,13 @@ static void kbasep_get_fe_block_type(u64 *dst, enum kbase_hwcnt_set counter_set,
 		if (is_csf)
 			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE2;
 		else
-			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED;
+			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE_UNDEFINED;
 		break;
 	case KBASE_HWCNT_SET_TERTIARY:
 		if (is_csf)
 			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE3;
 		else
-			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED;
+			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE_UNDEFINED;
 		break;
 	default:
 		WARN_ON(true);
@@ -66,7 +65,7 @@ static void kbasep_get_tiler_block_type(u64 *dst,
 		break;
 	case KBASE_HWCNT_SET_SECONDARY:
 	case KBASE_HWCNT_SET_TERTIARY:
-		*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED;
+		*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER_UNDEFINED;
 		break;
 	default:
 		WARN_ON(true);
@@ -87,7 +86,7 @@ static void kbasep_get_sc_block_type(u64 *dst, enum kbase_hwcnt_set counter_set,
 		if (is_csf)
 			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC3;
 		else
-			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED;
+			*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC_UNDEFINED;
 		break;
 	default:
 		WARN_ON(true);
@@ -105,7 +104,7 @@ static void kbasep_get_memsys_block_type(u64 *dst,
 		*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS2;
 		break;
 	case KBASE_HWCNT_SET_TERTIARY:
-		*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED;
+		*dst = KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS_UNDEFINED;
 		break;
 	default:
 		WARN_ON(true);
@@ -320,7 +319,8 @@ static bool is_block_type_shader(
 
 	if (blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC ||
 	    blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC2 ||
-	    blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC3)
+	    blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC3 ||
+	    blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC_UNDEFINED)
 		is_shader = true;
 
 	return is_shader;
@@ -335,7 +335,8 @@ static bool is_block_type_l2_cache(
 	switch (grp_type) {
 	case KBASE_HWCNT_GPU_GROUP_TYPE_V5:
 		if (blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS ||
-		    blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS2)
+		    blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS2 ||
+		    blk_type == KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS_UNDEFINED)
 			is_l2_cache = true;
 		break;
 	default:
@@ -383,6 +384,8 @@ int kbase_hwcnt_jm_dump_get(struct kbase_hwcnt_dump_buffer *dst, u64 *src,
 		const bool is_l2_cache = is_block_type_l2_cache(
 			kbase_hwcnt_metadata_group_type(metadata, grp),
 			blk_type);
+		const bool is_undefined = kbase_hwcnt_is_block_type_undefined(
+			kbase_hwcnt_metadata_group_type(metadata, grp), blk_type);
 		bool hw_res_available = true;
 
 		/*
@@ -414,8 +417,23 @@ int kbase_hwcnt_jm_dump_get(struct kbase_hwcnt_dump_buffer *dst, u64 *src,
 			u64 *dst_blk = kbase_hwcnt_dump_buffer_block_instance(
 				dst, grp, blk, blk_inst);
 			const u64 *src_blk = dump_src + src_offset;
+			bool blk_powered;
 
-			if ((!is_shader_core || (core_mask & 1)) && hw_res_available) {
+			if (!is_shader_core) {
+				/* Under the current PM system, counters will
+				 * only be enabled after all non shader core
+				 * blocks are powered up.
+				 */
+				blk_powered = true;
+			} else {
+				/* Check the PM core mask to see if the shader
+				 * core is powered up.
+				 */
+				blk_powered = core_mask & 1;
+			}
+
+			if (blk_powered && !is_undefined && hw_res_available) {
+				/* Only powered and defined blocks have valid data. */
 				if (accumulate) {
 					kbase_hwcnt_dump_buffer_block_accumulate(
 						dst_blk, src_blk, hdr_cnt,
@@ -425,9 +443,18 @@ int kbase_hwcnt_jm_dump_get(struct kbase_hwcnt_dump_buffer *dst, u64 *src,
 						dst_blk, src_blk,
 						(hdr_cnt + ctr_cnt));
 				}
-			} else if (!accumulate) {
-				kbase_hwcnt_dump_buffer_block_zero(
-					dst_blk, (hdr_cnt + ctr_cnt));
+			} else {
+				/* Even though the block might be undefined, the
+				 * user has enabled counter collection for it.
+				 * We should not propagate garbage data.
+				 */
+				if (accumulate) {
+					/* No-op to preserve existing values */
+				} else {
+					/* src is garbage, so zero the dst */
+					kbase_hwcnt_dump_buffer_block_zero(dst_blk,
+									   (hdr_cnt + ctr_cnt));
+				}
 			}
 		}
 
@@ -462,6 +489,9 @@ int kbase_hwcnt_csf_dump_get(struct kbase_hwcnt_dump_buffer *dst, u64 *src,
 		const size_t ctr_cnt =
 			kbase_hwcnt_metadata_block_counters_count(metadata, grp,
 								  blk);
+		const uint64_t blk_type = kbase_hwcnt_metadata_block_type(metadata, grp, blk);
+		const bool is_undefined = kbase_hwcnt_is_block_type_undefined(
+			kbase_hwcnt_metadata_group_type(metadata, grp), blk_type);
 
 		/*
 		 * Skip block if no values in the destination block are enabled.
@@ -472,12 +502,26 @@ int kbase_hwcnt_csf_dump_get(struct kbase_hwcnt_dump_buffer *dst, u64 *src,
 				dst, grp, blk, blk_inst);
 			const u64 *src_blk = dump_src + src_offset;
 
-			if (accumulate) {
-				kbase_hwcnt_dump_buffer_block_accumulate(
-					dst_blk, src_blk, hdr_cnt, ctr_cnt);
+			if (!is_undefined) {
+				if (accumulate) {
+					kbase_hwcnt_dump_buffer_block_accumulate(dst_blk, src_blk,
+										 hdr_cnt, ctr_cnt);
+				} else {
+					kbase_hwcnt_dump_buffer_block_copy(dst_blk, src_blk,
+									   (hdr_cnt + ctr_cnt));
+				}
 			} else {
-				kbase_hwcnt_dump_buffer_block_copy(
-					dst_blk, src_blk, (hdr_cnt + ctr_cnt));
+				/* Even though the block might be undefined, the
+				 * user has enabled counter collection for it.
+				 * We should not propagate garbage data.
+				 */
+				if (accumulate) {
+					/* No-op to preserve existing values */
+				} else {
+					/* src is garbage, so zero the dst */
+					kbase_hwcnt_dump_buffer_block_zero(dst_blk,
+									   (hdr_cnt + ctr_cnt));
+				}
 			}
 		}
 
@@ -564,7 +608,10 @@ void kbase_hwcnt_gpu_enable_map_to_physical(
 					break;
 
 				switch ((enum kbase_hwcnt_gpu_v5_block_type)blk_type) {
-				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE_UNDEFINED:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC_UNDEFINED:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER_UNDEFINED:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS_UNDEFINED:
 					/* Nothing to do in this case. */
 					break;
 				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE:
@@ -664,7 +711,10 @@ void kbase_hwcnt_gpu_enable_map_from_physical(
 					break;
 
 				switch ((enum kbase_hwcnt_gpu_v5_block_type)blk_type) {
-				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_UNDEFINED:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE_UNDEFINED:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_SC_UNDEFINED:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_TILER_UNDEFINED:
+				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_MEMSYS_UNDEFINED:
 					/* Nothing to do in this case. */
 					break;
 				case KBASE_HWCNT_GPU_V5_BLOCK_TYPE_PERF_FE:
