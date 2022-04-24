@@ -3177,6 +3177,7 @@ enum {
 struct btf_field_info {
 	u32 type_id;
 	u32 off;
+	enum bpf_kptr_type type;
 };
 
 static int btf_find_struct(const struct btf *btf, const struct btf_type *t,
@@ -3193,6 +3194,7 @@ static int btf_find_struct(const struct btf *btf, const struct btf_type *t,
 static int btf_find_kptr(const struct btf *btf, const struct btf_type *t,
 			 u32 off, int sz, struct btf_field_info *info)
 {
+	enum bpf_kptr_type type;
 	u32 res_id;
 
 	/* For PTR, sz is always == 8 */
@@ -3205,7 +3207,11 @@ static int btf_find_kptr(const struct btf *btf, const struct btf_type *t,
 	/* Reject extra tags */
 	if (btf_type_is_type_tag(btf_type_by_id(btf, t->type)))
 		return -EINVAL;
-	if (strcmp("kptr", __btf_name_by_offset(btf, t->name_off)))
+	if (!strcmp("kptr", __btf_name_by_offset(btf, t->name_off)))
+		type = BPF_KPTR_UNREF;
+	else if (!strcmp("kptr_ref", __btf_name_by_offset(btf, t->name_off)))
+		type = BPF_KPTR_REF;
+	else
 		return -EINVAL;
 
 	/* Get the base type */
@@ -3216,6 +3222,7 @@ static int btf_find_kptr(const struct btf *btf, const struct btf_type *t,
 
 	info->type_id = res_id;
 	info->off = off;
+	info->type = type;
 	return BTF_FIELD_FOUND;
 }
 
@@ -3420,6 +3427,7 @@ struct bpf_map_value_off *btf_parse_kptrs(const struct btf *btf,
 		}
 
 		tab->off[i].offset = info_arr[i].off;
+		tab->off[i].type = info_arr[i].type;
 		tab->off[i].kptr.btf_id = id;
 		tab->off[i].kptr.btf = kernel_btf;
 	}
