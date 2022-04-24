@@ -74,6 +74,8 @@ static int ahci_probe(struct platform_device *pdev)
 	if (rc)
 		goto disable_resources;
 
+	device_init_wakeup(dev, true);
+
 	return 0;
 disable_resources:
 	ahci_platform_disable_resources(hpriv);
