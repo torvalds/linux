@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * hwmon driver for Aquacomputer devices (D5 Next, Farbwerk 360, Octo)
+ * hwmon driver for Aquacomputer devices (D5 Next, Farbwerk, Farbwerk 360, Octo)
  *
  * Aquacomputer devices send HID reports (with ID 0x01) every second to report
  * sensor values.
  *
  * Copyright 2021 Aleksa Savic <savicaleksa83@gmail.com>
+ * Copyright 2022 Jack Doan <me@jackdoan.com>
  */
 
 #include <linux/crc16.h>
@@ -19,14 +20,16 @@
 #include <asm/unaligned.h>
 
 #define USB_VENDOR_ID_AQUACOMPUTER	0x0c70
+#define USB_PRODUCT_ID_FARBWERK		0xf00a
 #define USB_PRODUCT_ID_D5NEXT		0xf00e
 #define USB_PRODUCT_ID_FARBWERK360	0xf010
 #define USB_PRODUCT_ID_OCTO		0xf011
 
-enum kinds { d5next, farbwerk360, octo };
+enum kinds { d5next, farbwerk, farbwerk360, octo };
 
 static const char *const aqc_device_names[] = {
 	[d5next] = "d5next",
+	[farbwerk] = "farbwerk",
 	[farbwerk360] = "farbwerk360",
 	[octo] = "octo"
 };
@@ -68,6 +71,12 @@ static u8 secondary_ctrl_report[] = {
 
 #define D5NEXT_PUMP_CURRENT		112
 #define D5NEXT_FAN_CURRENT		99
+
+/* Register offsets for the Farbwerk RGB controller */
+#define FARBWERK_NUM_SENSORS		4
+#define FARBWERK_SENSOR_START		0x2f
+#define FARBWERK_SENSOR_SIZE		0x02
+#define FARBWERK_SENSOR_DISCONNECTED	0x7FFF
 
 /* Register offsets for the Farbwerk 360 RGB controller */
 #define FARBWERK360_NUM_SENSORS		4
@@ -125,7 +134,7 @@ static const char *const label_d5next_current[] = {
 	"Fan current"
 };
 
-/* Labels for Farbwerk 360 and Octo temperature sensors */
+/* Labels for Farbwerk, Farbwerk 360 and Octo temperature sensors */
 static const char *const label_temp_sensors[] = {
 	"Sensor 1",
 	"Sensor 2",
@@ -319,6 +328,7 @@ static umode_t aqc_is_visible(const void *data, enum hwmon_sensor_types type, u3
 			if (channel == 0)
 				return 0444;
 			break;
+		case farbwerk:
 		case farbwerk360:
 		case octo:
 			return 0444;
@@ -551,8 +561,7 @@ static const struct hwmon_chip_info aqc_chip_info = {
 	.info = aqc_info,
 };
 
-static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 *data,
-			 int size)
+static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 *data, int size)
 {
 	int i, sensor_value;
 	struct aqc_data *priv;
@@ -586,6 +595,17 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 
 		priv->current_input[0] = get_unaligned_be16(data + D5NEXT_PUMP_CURRENT);
 		priv->current_input[1] = get_unaligned_be16(data + D5NEXT_FAN_CURRENT);
+		break;
+	case farbwerk:
+		/* Temperature sensor readings */
+		for (i = 0; i < FARBWERK_NUM_SENSORS; i++) {
+			sensor_value = get_unaligned_be16(data + FARBWERK_SENSOR_START +
+							  i * FARBWERK_SENSOR_SIZE);
+			if (sensor_value == FARBWERK_SENSOR_DISCONNECTED)
+				priv->temp_input[i] = -ENODATA;
+			else
+				priv->temp_input[i] = sensor_value * 10;
+		}
 		break;
 	case farbwerk360:
 		/* Temperature sensor readings */
@@ -733,6 +753,11 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->voltage_label = label_d5next_voltages;
 		priv->current_label = label_d5next_current;
 		break;
+	case USB_PRODUCT_ID_FARBWERK:
+		priv->kind = farbwerk;
+
+		priv->temp_label = label_temp_sensors;
+		break;
 	case USB_PRODUCT_ID_FARBWERK360:
 		priv->kind = farbwerk360;
 
@@ -795,6 +820,7 @@ static void aqc_remove(struct hid_device *hdev)
 
 static const struct hid_device_id aqc_table[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AQUACOMPUTER, USB_PRODUCT_ID_D5NEXT) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_AQUACOMPUTER, USB_PRODUCT_ID_FARBWERK) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AQUACOMPUTER, USB_PRODUCT_ID_FARBWERK360) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AQUACOMPUTER, USB_PRODUCT_ID_OCTO) },
 	{ }
@@ -826,4 +852,5 @@ module_exit(aqc_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Aleksa Savic <savicaleksa83@gmail.com>");
+MODULE_AUTHOR("Jack Doan <me@jackdoan.com>");
 MODULE_DESCRIPTION("Hwmon driver for Aquacomputer devices");
