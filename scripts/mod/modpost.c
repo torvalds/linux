@@ -270,6 +270,11 @@ static struct symbol *find_symbol(const char *name)
 	return NULL;
 }
 
+struct namespace_list {
+	struct namespace_list *next;
+	char namespace[];
+};
+
 static bool contains_namespace(struct namespace_list *list,
 			       const char *namespace)
 {

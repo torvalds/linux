@@ -109,11 +109,6 @@ buf_printf(struct buffer *buf, const char *fmt, ...);
 void
 buf_write(struct buffer *buf, const char *s, int len);
 
-struct namespace_list {
-	struct namespace_list *next;
-	char namespace[];
-};
-
 struct module {
 	struct module *next;
 	int gpl_compatible;
