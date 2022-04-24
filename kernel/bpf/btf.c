@@ -3166,9 +3166,16 @@ static void btf_struct_log(struct btf_verifier_env *env,
 enum btf_field_type {
 	BTF_FIELD_SPIN_LOCK,
 	BTF_FIELD_TIMER,
+	BTF_FIELD_KPTR,
+};
+
+enum {
+	BTF_FIELD_IGNORE = 0,
+	BTF_FIELD_FOUND  = 1,
 };
 
 struct btf_field_info {
+	u32 type_id;
 	u32 off;
 };
 
@@ -3176,29 +3183,57 @@ static int btf_find_struct(const struct btf *btf, const struct btf_type *t,
 			   u32 off, int sz, struct btf_field_info *info)
 {
 	if (!__btf_type_is_struct(t))
-		return 0;
+		return BTF_FIELD_IGNORE;
 	if (t->size != sz)
-		return 0;
-	if (info->off != -ENOENT)
-		/* only one such field is allowed */
-		return -E2BIG;
+		return BTF_FIELD_IGNORE;
 	info->off = off;
-	return 0;
+	return BTF_FIELD_FOUND;
+}
+
+static int btf_find_kptr(const struct btf *btf, const struct btf_type *t,
+			 u32 off, int sz, struct btf_field_info *info)
+{
+	u32 res_id;
+
+	/* For PTR, sz is always == 8 */
+	if (!btf_type_is_ptr(t))
+		return BTF_FIELD_IGNORE;
+	t = btf_type_by_id(btf, t->type);
+
+	if (!btf_type_is_type_tag(t))
+		return BTF_FIELD_IGNORE;
+	/* Reject extra tags */
+	if (btf_type_is_type_tag(btf_type_by_id(btf, t->type)))
+		return -EINVAL;
+	if (strcmp("kptr", __btf_name_by_offset(btf, t->name_off)))
+		return -EINVAL;
+
+	/* Get the base type */
+	t = btf_type_skip_modifiers(btf, t->type, &res_id);
+	/* Only pointer to struct is allowed */
+	if (!__btf_type_is_struct(t))
+		return -EINVAL;
+
+	info->type_id = res_id;
+	info->off = off;
+	return BTF_FIELD_FOUND;
 }
 
 static int btf_find_struct_field(const struct btf *btf, const struct btf_type *t,
 				 const char *name, int sz, int align,
 				 enum btf_field_type field_type,
-				 struct btf_field_info *info)
+				 struct btf_field_info *info, int info_cnt)
 {
 	const struct btf_member *member;
+	struct btf_field_info tmp;
+	int ret, idx = 0;
 	u32 i, off;
 
 	for_each_member(i, t, member) {
 		const struct btf_type *member_type = btf_type_by_id(btf,
 								    member->type);
 
-		if (strcmp(__btf_name_by_offset(btf, member_type->name_off), name))
+		if (name && strcmp(__btf_name_by_offset(btf, member_type->name_off), name))
 			continue;
 
 		off = __btf_member_bit_offset(t, member);
@@ -3212,20 +3247,38 @@ static int btf_find_struct_field(const struct btf *btf, const struct btf_type *t
 		switch (field_type) {
 		case BTF_FIELD_SPIN_LOCK:
 		case BTF_FIELD_TIMER:
-			return btf_find_struct(btf, member_type, off, sz, info);
+			ret = btf_find_struct(btf, member_type, off, sz,
+					      idx < info_cnt ? &info[idx] : &tmp);
+			if (ret < 0)
+				return ret;
+			break;
+		case BTF_FIELD_KPTR:
+			ret = btf_find_kptr(btf, member_type, off, sz,
+					    idx < info_cnt ? &info[idx] : &tmp);
+			if (ret < 0)
+				return ret;
+			break;
 		default:
 			return -EFAULT;
 		}
+
+		if (ret == BTF_FIELD_IGNORE)
+			continue;
+		if (idx >= info_cnt)
+			return -E2BIG;
+		++idx;
 	}
-	return 0;
+	return idx;
 }
 
 static int btf_find_datasec_var(const struct btf *btf, const struct btf_type *t,
 				const char *name, int sz, int align,
 				enum btf_field_type field_type,
-				struct btf_field_info *info)
+				struct btf_field_info *info, int info_cnt)
 {
 	const struct btf_var_secinfo *vsi;
+	struct btf_field_info tmp;
+	int ret, idx = 0;
 	u32 i, off;
 
 	for_each_vsi(i, t, vsi) {
@@ -3234,7 +3287,7 @@ static int btf_find_datasec_var(const struct btf *btf, const struct btf_type *t,
 
 		off = vsi->offset;
 
-		if (strcmp(__btf_name_by_offset(btf, var_type->name_off), name))
+		if (name && strcmp(__btf_name_by_offset(btf, var_type->name_off), name))
 			continue;
 		if (vsi->size != sz)
 			continue;
@@ -3244,17 +3297,33 @@ static int btf_find_datasec_var(const struct btf *btf, const struct btf_type *t,
 		switch (field_type) {
 		case BTF_FIELD_SPIN_LOCK:
 		case BTF_FIELD_TIMER:
-			return btf_find_struct(btf, var_type, off, sz, info);
+			ret = btf_find_struct(btf, var_type, off, sz,
+					      idx < info_cnt ? &info[idx] : &tmp);
+			if (ret < 0)
+				return ret;
+			break;
+		case BTF_FIELD_KPTR:
+			ret = btf_find_kptr(btf, var_type, off, sz,
+					    idx < info_cnt ? &info[idx] : &tmp);
+			if (ret < 0)
+				return ret;
+			break;
 		default:
 			return -EFAULT;
 		}
+
+		if (ret == BTF_FIELD_IGNORE)
+			continue;
+		if (idx >= info_cnt)
+			return -E2BIG;
+		++idx;
 	}
-	return 0;
+	return idx;
 }
 
 static int btf_find_field(const struct btf *btf, const struct btf_type *t,
 			  enum btf_field_type field_type,
-			  struct btf_field_info *info)
+			  struct btf_field_info *info, int info_cnt)
 {
 	const char *name;
 	int sz, align;
@@ -3270,14 +3339,19 @@ static int btf_find_field(const struct btf *btf, const struct btf_type *t,
 		sz = sizeof(struct bpf_timer);
 		align = __alignof__(struct bpf_timer);
 		break;
+	case BTF_FIELD_KPTR:
+		name = NULL;
+		sz = sizeof(u64);
+		align = 8;
+		break;
 	default:
 		return -EFAULT;
 	}
 
 	if (__btf_type_is_struct(t))
-		return btf_find_struct_field(btf, t, name, sz, align, field_type, info);
+		return btf_find_struct_field(btf, t, name, sz, align, field_type, info, info_cnt);
 	else if (btf_type_is_datasec(t))
-		return btf_find_datasec_var(btf, t, name, sz, align, field_type, info);
+		return btf_find_datasec_var(btf, t, name, sz, align, field_type, info, info_cnt);
 	return -EINVAL;
 }
 
@@ -3287,24 +3361,75 @@ static int btf_find_field(const struct btf *btf, const struct btf_type *t,
  */
 int btf_find_spin_lock(const struct btf *btf, const struct btf_type *t)
 {
-	struct btf_field_info info = { .off = -ENOENT };
+	struct btf_field_info info;
 	int ret;
 
-	ret = btf_find_field(btf, t, BTF_FIELD_SPIN_LOCK, &info);
+	ret = btf_find_field(btf, t, BTF_FIELD_SPIN_LOCK, &info, 1);
 	if (ret < 0)
 		return ret;
+	if (!ret)
+		return -ENOENT;
 	return info.off;
 }
 
 int btf_find_timer(const struct btf *btf, const struct btf_type *t)
 {
-	struct btf_field_info info = { .off = -ENOENT };
+	struct btf_field_info info;
 	int ret;
 
-	ret = btf_find_field(btf, t, BTF_FIELD_TIMER, &info);
+	ret = btf_find_field(btf, t, BTF_FIELD_TIMER, &info, 1);
 	if (ret < 0)
 		return ret;
+	if (!ret)
+		return -ENOENT;
 	return info.off;
+}
+
+struct bpf_map_value_off *btf_parse_kptrs(const struct btf *btf,
+					  const struct btf_type *t)
+{
+	struct btf_field_info info_arr[BPF_MAP_VALUE_OFF_MAX];
+	struct bpf_map_value_off *tab;
+	struct btf *kernel_btf = NULL;
+	int ret, i, nr_off;
+
+	ret = btf_find_field(btf, t, BTF_FIELD_KPTR, info_arr, ARRAY_SIZE(info_arr));
+	if (ret < 0)
+		return ERR_PTR(ret);
+	if (!ret)
+		return NULL;
+
+	nr_off = ret;
+	tab = kzalloc(offsetof(struct bpf_map_value_off, off[nr_off]), GFP_KERNEL | __GFP_NOWARN);
+	if (!tab)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < nr_off; i++) {
+		const struct btf_type *t;
+		s32 id;
+
+		/* Find type in map BTF, and use it to look up the matching type
+		 * in vmlinux or module BTFs, by name and kind.
+		 */
+		t = btf_type_by_id(btf, info_arr[i].type_id);
+		id = bpf_find_btf_id(__btf_name_by_offset(btf, t->name_off), BTF_INFO_KIND(t->info),
+				     &kernel_btf);
+		if (id < 0) {
+			ret = id;
+			goto end;
+		}
+
+		tab->off[i].offset = info_arr[i].off;
+		tab->off[i].kptr.btf_id = id;
+		tab->off[i].kptr.btf = kernel_btf;
+	}
+	tab->nr_off = nr_off;
+	return tab;
+end:
+	while (i--)
+		btf_put(tab->off[i].kptr.btf);
+	kfree(tab);
+	return ERR_PTR(ret);
 }
 
 static void __btf_struct_show(const struct btf *btf, const struct btf_type *t,
