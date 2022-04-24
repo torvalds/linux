@@ -998,6 +998,18 @@ static struct map_desc viper_io_desc[] __initdata = {
 		.length  = 0x00800000,
 		.type    = MT_DEVICE,
 	},
+	{
+		/*
+		 * ISA I/O space mapping:
+		 * -  ports 0x0000-0x0fff are PC/104
+		 * -  ports 0x10000-0x10fff are PCMCIA slot 1
+		 * -  ports 0x11000-0x11fff are PC/104
+		 */
+		.virtual = PCI_IO_VIRT_BASE,
+		.pfn     = __phys_to_pfn(0x30000000),
+		.length  = 0x1000,
+		.type    = MT_DEVICE,
+	},
 };
 
 static void __init viper_map_io(void)

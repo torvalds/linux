@@ -46,9 +46,9 @@ struct soc_pcmcia_socket {
 
 	struct resource		res_skt;
 	struct resource		res_io;
+	struct resource		res_io_io;
 	struct resource		res_mem;
 	struct resource		res_attr;
-	void __iomem		*virt_io;
 
 	struct {
 		int		gpio;
