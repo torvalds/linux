@@ -545,12 +545,21 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 		} else {
 			BUG();
 		}
+
+		if (flags & EXT4_GET_BLOCKS_CACHED_NOWAIT)
+			return retval;
 #ifdef ES_AGGRESSIVE_TEST
 		ext4_map_blocks_es_recheck(handle, inode, map,
 					   &orig_map, flags);
 #endif
 		goto found;
 	}
+	/*
+	 * In the query cache no-wait mode, nothing we can do more if we
+	 * cannot find extent in the cache.
+	 */
+	if (flags & EXT4_GET_BLOCKS_CACHED_NOWAIT)
+		return 0;
 
 	/*
 	 * Try to see if we can get the block without requesting a new
@@ -837,10 +846,12 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 	struct ext4_map_blocks map;
 	struct buffer_head *bh;
 	int create = map_flags & EXT4_GET_BLOCKS_CREATE;
+	bool nowait = map_flags & EXT4_GET_BLOCKS_CACHED_NOWAIT;
 	int err;
 
 	ASSERT((EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
 		    || handle != NULL || create == 0);
+	ASSERT(create == 0 || !nowait);
 
 	map.m_lblk = block;
 	map.m_len = 1;
@@ -850,6 +861,9 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 		return create ? ERR_PTR(-ENOSPC) : NULL;
 	if (err < 0)
 		return ERR_PTR(err);
+
+	if (nowait)
+		return sb_find_get_block(inode->i_sb, map.m_pblk);
 
 	bh = sb_getblk(inode->i_sb, map.m_pblk);
 	if (unlikely(!bh))

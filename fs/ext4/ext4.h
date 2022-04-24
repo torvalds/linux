@@ -673,6 +673,8 @@ enum {
 	/* Caller will submit data before dropping transaction handle. This
 	 * allows jbd2 to avoid submitting data before commit. */
 #define EXT4_GET_BLOCKS_IO_SUBMIT		0x0400
+	/* Caller is in the atomic contex, find extent if it has been cached */
+#define EXT4_GET_BLOCKS_CACHED_NOWAIT		0x0800
 
 /*
  * The bit position of these flags must not overlap with any of the
