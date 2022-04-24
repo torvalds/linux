@@ -100,6 +100,8 @@ struct axi_dma_chip {
 	struct clk		*cfgr_clk;
 	struct dw_axi_dma	*dw;
 	struct dma_multi	multi;
+	struct reset_control	*rst_core;
+	struct reset_control	*rst_cfgr;
 };
 
 /* LLI == Linked List Item */

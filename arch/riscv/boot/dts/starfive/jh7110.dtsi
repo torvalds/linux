@@ -445,8 +445,13 @@
 		dma: dma-controller@16050000 {
 			compatible = "starfive,axi-dma";
 			reg = <0x0 0x16050000 0x0 0x10000>;
-			clocks = <&stg_axiahb_clk>, <&stg_apbclk>;
+			clocks = <&clkgen JH7110_DMA1P_CLK_AXI>,
+				<&clkgen JH7110_DMA1P_CLK_AHB>;
 			clock-names = "core-clk", "cfgr-clk";
+			resets = <&rstgen RSTN_U0_DW_DMA1P_AXI>,
+				<&rstgen RSTN_U0_DW_DMA1P_AHB>;
+			reset-names = "rst_axi",
+				"rst_ahb";
 			interrupts = <73>;
 			#dma-cells = <2>;
 			dma-channels = <4>;
