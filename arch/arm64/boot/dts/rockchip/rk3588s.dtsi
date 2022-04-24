@@ -598,6 +598,8 @@
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
 		rockchip,low-temp-min-volt = <750000>;
+		rockchip,high-temp = <85000>;
+		rockchip,high-temp-max-freq = <1608000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -737,6 +739,8 @@
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
 		rockchip,low-temp-min-volt = <750000>;
+		rockchip,high-temp = <85000>;
+		rockchip,high-temp-max-freq = <2208000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -900,6 +904,8 @@
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
 		rockchip,low-temp-min-volt = <750000>;
+		rockchip,high-temp = <85000>;
+		rockchip,high-temp-max-freq = <2208000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -1641,6 +1647,8 @@
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
 		rockchip,low-temp-min-volt = <750000>;
+		rockchip,high-temp = <85000>;
+		rockchip,high-temp-max-freq = <800000>;
 
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
@@ -2617,6 +2625,8 @@
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
 		rockchip,low-temp-min-volt = <750000>;
+		rockchip,high-temp = <85000>;
+		rockchip,high-temp-max-freq = <800000>;
 
 		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
