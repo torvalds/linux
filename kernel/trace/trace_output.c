@@ -778,9 +778,8 @@ int register_trace_event(struct trace_event *event)
 
 		list_add_tail(&event->list, list);
 
-	} else if (event->type > __TRACE_LAST_TYPE) {
-		printk(KERN_WARNING "Need to add type to trace.h\n");
-		WARN_ON(1);
+	} else if (WARN(event->type > __TRACE_LAST_TYPE,
+			"Need to add type to trace.h")) {
 		goto out;
 	} else {
 		/* Is this event already used */
@@ -1571,13 +1570,8 @@ __init static int init_events(void)
 
 	for (i = 0; events[i]; i++) {
 		event = events[i];
-
 		ret = register_trace_event(event);
-		if (!ret) {
-			printk(KERN_WARNING "event %d failed to register\n",
-			       event->type);
-			WARN_ON_ONCE(1);
-		}
+		WARN_ONCE(!ret, "event %d failed to register", event->type);
 	}
 
 	return 0;
