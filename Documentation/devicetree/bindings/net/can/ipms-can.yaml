@@ -11,16 +11,9 @@ properties:
     const:ipms,can
 
   reg:
-    minItems: 1
+    maxItems: 1
     items:
       - description:CAN controller registers
-      - description:sys_syscon is used to enable canfd controller
-
-  reg-names:
-    minItems: 1
-    items:
-      - const:reg_base
-      - const:sys_syscon
 
   interrupts:
     maxItems: 1
@@ -28,7 +21,6 @@ properties:
   clocks:
     minItems: 1
     items:
-      - description:ipms_can_clk clock
       - description:apb_clk clock
       - description:core_clk clock
       - description:timer_clk clock
@@ -36,7 +28,6 @@ properties:
   clock-names:
     minItems: 1
     items:
-      - const:ipms_can_clk
       - const:apb_clk
       - const:core_clk
       - const:timer_clk
@@ -52,19 +43,22 @@ properties:
       - const:rst_apb
       - const:rst_core
       - const:rst_timer
-  syscon,canfd-enable:
-    type:boolean
+  starfive,sys-syscon:
+    format:
+    starfive,sys-syscon = <&arg0 arg1 arg2 arg3>
     description:
-    Use syscon,canfd-enable to control whether to enable the canfd controller.
-    When the canfd controller needs to be enabled,
-    the syscon,canfd-enable,syscon,canfd-offset, and syscon,canfd-mask attributes must be configured at the same time.
-    It is meaningless to set one of the properties separately.
-  syscon,canfd-offset:
+      arg0:arg0 is sys_syscon.
+      arg1:arg1 is syscon register offset, used to enable can2.0/canfd function, can0 is 0x10, can1 is 0x88.
+      arg2:arg2 is used to enable the register shift of the can2.0/canfd function, can0 is 0x3, can1 is 0x12.
+      arg3:arg3 is used to enable the register mask of the can2.0/canfd function, can0 is 0x8, can1 is 0x40000
+
+  syscon,can_or_canfd:
     description:
-    syscon,canfd-offset is a constant, can0 is 0x10, can1 is 0x88
-  syscon,canfd-mask:
-    description:
-    syscon,canfd-mask is a constant,can0 is 0x8,can1 is 0x40000
+    IPMS CAN-CTRL core is a serial communications controller that performs serial communication according to the CAN protocol.
+    This CAN bus interface uses the basic CAN principle and meets all constraints of the CAN-specification 2.0B active.
+    Furthermore this CAN core can be configured to meet the specification of CAN with flexible data rate CAN FD.
+    When syscon,can_or_canfd is set to 0, use CAN2.0B.
+    when syscon,can_or_canfd is set to 1, use CAN FD.
 required:
   - compatible
   - reg
@@ -73,27 +67,23 @@ required:
   - clock-names
   - resets
   - reset-names
-
-additionalProperties:
-  - syscon,canfd-enable
-  - syscon,canfd-offset
+  - starfive,sys-syscon
+  - syscon,can_or_canfd
+  - syscon,canfd-shift
   - syscon,canfd-mask
+additionalProperties:false
 
 examples:
   - |
-    ipmscan0: can@130d0000{
+    can0: can@130d0000{
     compatible = "ipms,can";
-    reg = <0x0 0x130d0000 0x0 0x1000>,
-          <0x0 0x13030000 0x0 0x10000>;
-    reg-names = "reg_base","sys_syscon";
+    reg = <0x0 0x130d0000 0x0 0x1000>;
     interrupts = <112>;
     interrupt-parent = <&plic>;
-    clocks = <&canclk>,
-             <&clkgen JH7110_CAN0_CTRL_CLK_APB>,
+    clocks = <&clkgen JH7110_CAN0_CTRL_CLK_APB>,
              <&clkgen JH7110_CAN0_CTRL_CLK_CAN>,
              <&clkgen JH7110_CAN0_CTRL_CLK_TIMER>;
-    clock-names = "ipms_can_clk",
-                  "apb_clk",
+    clock-names = "apb_clk",
                   "core_clk",
                   "timer_clk";
     resets = <&rstgen RSTN_U0_CAN_CTRL_APB>,
@@ -102,6 +92,8 @@ examples:
     reset-names = "rst_apb",
                   "rst_core",
                   "rst_timer";
+    starfive,sys-syscon = <&sys_syscon, 0x10 0x3 0x8>;
+    syscon,can_or_canfd = <0>;
     };
 
 ...
