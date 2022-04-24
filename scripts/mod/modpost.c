@@ -387,10 +387,6 @@ static void sym_update_namespace(const char *symname, const char *namespace)
 	s->namespace = namespace[0] ? NOFAIL(strdup(namespace)) : NULL;
 }
 
-/**
- * Add an exported symbol - it may have already been added without a
- * CRC, in this case just update the CRC
- **/
 static struct symbol *sym_add_exported(const char *name, struct module *mod,
 				       enum export export)
 {
