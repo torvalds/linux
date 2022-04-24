@@ -132,13 +132,12 @@ static u32 ctucan_read32_be(struct ctucan_priv *priv,
 	return ioread32be(priv->mem_base + reg);
 }
 
-static inline void ctucan_write32(struct ctucan_priv *priv, enum ctu_can_fd_can_registers reg,
-				  u32 val)
+static void ctucan_write32(struct ctucan_priv *priv, enum ctu_can_fd_can_registers reg, u32 val)
 {
 	priv->write_reg(priv, reg, val);
 }
 
-static inline u32 ctucan_read32(struct ctucan_priv *priv, enum ctu_can_fd_can_registers reg)
+static u32 ctucan_read32(struct ctucan_priv *priv, enum ctu_can_fd_can_registers reg)
 {
 	return priv->read_reg(priv, reg);
 }
@@ -485,7 +484,7 @@ static int ctucan_do_set_mode(struct net_device *ndev, enum can_mode mode)
  *
  * Return: Status of TXT buffer
  */
-static inline enum ctucan_txtb_status ctucan_get_tx_status(struct ctucan_priv *priv, u8 buf)
+static enum ctucan_txtb_status ctucan_get_tx_status(struct ctucan_priv *priv, u8 buf)
 {
 	u32 tx_status = ctucan_read32(priv, CTUCANFD_TX_STATUS);
 	enum ctucan_txtb_status status = (tx_status >> (buf * 4)) & 0x7;
