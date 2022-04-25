@@ -121,6 +121,8 @@ static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu)
 
 	run->exit_reason = KVM_EXIT_DEBUG;
 	run->debug.arch.hsr = lower_32_bits(esr);
+	run->debug.arch.hsr_high = upper_32_bits(esr);
+	run->flags = KVM_DEBUG_ARCH_HSR_HIGH_VALID;
 
 	if (ESR_ELx_EC(esr) == ESR_ELx_EC_WATCHPT_LOW)
 		run->debug.arch.far = vcpu->arch.fault.far_el2;

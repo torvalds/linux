@@ -5713,6 +5713,8 @@ affect the device's behavior. Current defined flags::
   #define KVM_RUN_X86_SMM     (1 << 0)
   /* x86, set if bus lock detected in VM */
   #define KVM_RUN_BUS_LOCK    (1 << 1)
+  /* arm64, set for KVM_EXIT_DEBUG */
+  #define KVM_DEBUG_ARCH_HSR_HIGH_VALID  (1 << 0)
 
 ::
 
