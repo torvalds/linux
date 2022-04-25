@@ -1,13 +1,13 @@
 [
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "AMX_OPS_RETIRED.BF16",
         "EventCode": "0xce",
         "EventName": "AMX_OPS_RETIRED.BF16",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "AMX_OPS_RETIRED.INT8",
         "EventCode": "0xce",
         "EventName": "AMX_OPS_RETIRED.INT8",
         "SampleAfterValue": "1000003",
@@ -54,6 +54,7 @@
         "EventCode": "0xb0",
         "EventName": "ARITH.IDIV_ACTIVE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "ARITH.IDIV_ACTIVE",
         "SampleAfterValue": "1000003",
         "UMask": "0x8"
     },
@@ -337,7 +338,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "CPU_CLK_UNHALTED.PAUSE",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xec",
@@ -347,7 +348,7 @@
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "CPU_CLK_UNHALTED.PAUSE_INST",
         "Counter": "0,1,2,3,4,5,6,7",
         "CounterMask": "1",
         "EdgeDetect": "1",
@@ -531,6 +532,17 @@
         "UMask": "0x40"
     },
     {
+        "BriefDescription": "Cycles no uop executed while RS was not empty, the SB was not full and there was no outstanding load.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xa6",
+        "EventName": "EXE_ACTIVITY.EXE_BOUND_0_PORTS",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "Number of cycles total of 0 uops executed on all ports, Reservation Station (RS) was not empty, the Store Buffer (SB) was not full and there was no outstanding load.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x80"
+    },
+    {
         "BriefDescription": "Instruction decoders utilized in a cycle",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
@@ -564,7 +576,7 @@
         "SampleAfterValue": "2000003"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INST_RETIRED.MACRO_FUSED",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc0",
@@ -595,7 +607,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INST_RETIRED.REP_ITERATION",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc0",
@@ -616,7 +628,7 @@
         "UMask": "0x80"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_MISC.MBA_STALLS",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xad",
         "EventName": "INT_MISC.MBA_STALLS",
@@ -636,7 +648,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_MISC.UNKNOWN_BRANCH_CYCLES",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xad",
@@ -660,7 +672,7 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_VEC_RETIRED.128BIT",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
@@ -670,7 +682,7 @@
         "UMask": "0x13"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_VEC_RETIRED.256BIT",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
@@ -702,7 +714,7 @@
         "UMask": "0xc"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_VEC_RETIRED.MUL_256",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
@@ -712,7 +724,7 @@
         "UMask": "0x80"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_VEC_RETIRED.SHUFFLES",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
@@ -722,7 +734,7 @@
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_VEC_RETIRED.VNNI_128",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
@@ -732,7 +744,7 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_VEC_RETIRED.VNNI_256",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
@@ -845,7 +857,7 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "MISC2_RETIRED.LFENCE",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe0",
@@ -916,7 +928,7 @@
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "TOPDOWN.MEMORY_BOUND_SLOTS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa4",
@@ -947,7 +959,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "UOPS_DECODED.DEC0_UOPS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x76",
@@ -1210,7 +1222,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "UOPS_RETIRED.HEAVY",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc2",
@@ -1220,7 +1232,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "UOPS_RETIRED.MS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc2",

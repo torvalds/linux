@@ -90,7 +90,7 @@
         "UMask": "0x1f"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "L2_LINES_OUT.NON_SILENT",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x26",
@@ -298,7 +298,7 @@
         "UMask": "0x28"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "LONGEST_LAT_CACHE.MISS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2e",
@@ -490,7 +490,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "MEM_LOAD_L3_MISS_RETIRED.REMOTE_DRAM",
         "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd3",
@@ -511,7 +511,7 @@
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "MEM_LOAD_L3_MISS_RETIRED.REMOTE_HITM",
         "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd3",
@@ -646,7 +646,7 @@
         "UMask": "0x80"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "MEM_STORE_RETIRED.L2_HIT",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x44",
@@ -853,7 +853,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that hit in the L3 or were snooped from another core's caches on the same socket.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that hit in the L3 or were snooped from another core's caches on the same socket.",
         "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.L3_HIT",
@@ -864,7 +864,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that resulted in a snoop hit a modified line in another core's caches which forwarded the data.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that resulted in a snoop hit a modified line in another core's caches which forwarded the data.",
         "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.L3_HIT.SNOOP_HITM",
@@ -875,7 +875,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that resulted in a snoop that hit in another core, which did not forward the data.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that resulted in a snoop that hit in another core, which did not forward the data.",
         "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.L3_HIT.SNOOP_HIT_NO_FWD",
@@ -886,7 +886,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that resulted in a snoop hit in another core's caches which forwarded the unmodified data to the requesting core.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that resulted in a snoop hit in another core's caches which forwarded the unmodified data to the requesting core.",
         "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.L3_HIT.SNOOP_HIT_WITH_FWD",
@@ -897,7 +897,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by a cache on a remote socket where a snoop was sent and data was returned (Modified or Not Modified).",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by a cache on a remote socket where a snoop was sent and data was returned (Modified or Not Modified).",
         "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.REMOTE_CACHE.SNOOP_FWD",
@@ -908,7 +908,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by a cache on a remote socket where a snoop hit a modified line in another core's caches which forwarded the data.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by a cache on a remote socket where a snoop hit a modified line in another core's caches which forwarded the data.",
         "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.REMOTE_CACHE.SNOOP_HITM",
@@ -919,7 +919,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by a cache on a remote socket where a snoop hit in another core's caches which forwarded the unmodified data to the requesting core.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by a cache on a remote socket where a snoop hit in another core's caches which forwarded the unmodified data to the requesting core.",
         "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.REMOTE_CACHE.SNOOP_HIT_WITH_FWD",
@@ -930,7 +930,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that hit a modified line in a distant L3 Cache or were snooped from a distant core's L1/L2 caches on this socket when the system is in SNC (sub-NUMA cluster) mode.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that hit a modified line in a distant L3 Cache or were snooped from a distant core's L1/L2 caches on this socket when the system is in SNC (sub-NUMA cluster) mode.",
         "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.SNC_CACHE.HITM",
@@ -941,7 +941,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that either hit a non-modified line in a distant L3 Cache or were snooped from a distant core's L1/L2 caches on this socket when the system is in SNC (sub-NUMA cluster) mode.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that either hit a non-modified line in a distant L3 Cache or were snooped from a distant core's L1/L2 caches on this socket when the system is in SNC (sub-NUMA cluster) mode.",
         "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.SNC_CACHE.HIT_WITH_FWD",
@@ -963,7 +963,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "OFFCORE_REQUESTS.ALL_REQUESTS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
@@ -1005,7 +1005,7 @@
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DATA_RD",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "CounterMask": "1",
@@ -1016,7 +1016,7 @@
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_RFO",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "CounterMask": "1",
@@ -1027,7 +1027,7 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "OFFCORE_REQUESTS_OUTSTANDING.DATA_RD",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x20",

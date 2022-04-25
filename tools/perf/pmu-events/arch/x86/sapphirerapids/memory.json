@@ -44,7 +44,7 @@
         "UMask": "0x3"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "MEMORY_ACTIVITY.STALLS_L2_MISS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "CounterMask": "5",
@@ -55,7 +55,7 @@
         "UMask": "0x5"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "MEMORY_ACTIVITY.STALLS_L3_MISS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "CounterMask": "9",
@@ -259,7 +259,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches.",
         "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.L3_MISS",
@@ -270,7 +270,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that missed the L3 Cache and were supplied by the local socket (DRAM or PMM), whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts PMM or DRAM accesses that are controlled by the close or distant SNC Cluster.  It does not count misses to the L3 which go to Local CXL Type 2 Memory or Local Non DRAM.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that missed the L3 Cache and were supplied by the local socket (DRAM or PMM), whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts PMM or DRAM accesses that are controlled by the close or distant SNC Cluster.  It does not count misses to the L3 which go to Local CXL Type 2 Memory or Local Non DRAM.",
         "Counter": "0,1,2,3",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.READS_TO_CORE.L3_MISS_LOCAL_SOCKET",

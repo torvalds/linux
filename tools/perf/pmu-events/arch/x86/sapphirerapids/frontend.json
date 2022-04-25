@@ -262,7 +262,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "FRONTEND_RETIRED.MS_FLOWS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc6",
@@ -291,7 +291,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "FRONTEND_RETIRED.UNKNOWN_BRANCH",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc6",

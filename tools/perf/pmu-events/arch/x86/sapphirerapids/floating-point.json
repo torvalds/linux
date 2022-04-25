@@ -1,6 +1,6 @@
 [
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "ARITH.FPDIV_ACTIVE",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "CounterMask": "1",
@@ -22,7 +22,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "ASSISTS.SSE_AVX_MIX",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc1",
@@ -32,7 +32,7 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "FP_ARITH_DISPATCHED.PORT_0",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb3",
@@ -42,7 +42,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "FP_ARITH_DISPATCHED.PORT_1",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb3",
@@ -52,7 +52,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "FP_ARITH_DISPATCHED.PORT_5",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb3",
@@ -150,7 +150,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "FP_ARITH_INST_RETIRED2.128B_PACKED_HALF",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xcf",
         "EventName": "FP_ARITH_INST_RETIRED2.128B_PACKED_HALF",
@@ -159,7 +159,7 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "FP_ARITH_INST_RETIRED2.256B_PACKED_HALF",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xcf",
         "EventName": "FP_ARITH_INST_RETIRED2.256B_PACKED_HALF",
@@ -168,7 +168,7 @@
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "FP_ARITH_INST_RETIRED2.512B_PACKED_HALF",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xcf",
@@ -178,7 +178,7 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "FP_ARITH_INST_RETIRED2.COMPLEX_SCALAR_HALF",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xcf",
         "EventName": "FP_ARITH_INST_RETIRED2.COMPLEX_SCALAR_HALF",
@@ -192,12 +192,12 @@
         "EventCode": "0xcf",
         "EventName": "FP_ARITH_INST_RETIRED2.SCALAR",
         "PEBScounters": "0,1,2,3,4,5,6,7",
-        "PublicDescription": "TBD",
+        "PublicDescription": "FP_ARITH_INST_RETIRED2.SCALAR",
         "SampleAfterValue": "100003",
         "UMask": "0x3"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "FP_ARITH_INST_RETIRED2.SCALAR_HALF",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xcf",
         "EventName": "FP_ARITH_INST_RETIRED2.SCALAR_HALF",
@@ -211,7 +211,7 @@
         "EventCode": "0xcf",
         "EventName": "FP_ARITH_INST_RETIRED2.VECTOR",
         "PEBScounters": "0,1,2,3,4,5,6,7",
-        "PublicDescription": "TBD",
+        "PublicDescription": "FP_ARITH_INST_RETIRED2.VECTOR",
         "SampleAfterValue": "100003",
         "UMask": "0x1c"
     }
