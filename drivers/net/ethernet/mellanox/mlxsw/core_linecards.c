@@ -160,7 +160,8 @@ static int mlxsw_linecard_devices_attach(struct mlxsw_linecard *linecard)
 			return err;
 		mlxsw_reg_mddq_device_info_unpack(mddq_pl, &msg_seq,
 						  &data_valid, &flash_owner,
-						  &device_index);
+						  &device_index, NULL,
+						  NULL, NULL);
 		if (!data_valid)
 			break;
 		err = mlxsw_linecard_device_attach(mlxsw_core, linecard,
