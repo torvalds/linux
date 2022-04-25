@@ -330,7 +330,7 @@ static struct attribute *mmc_disk_attrs[] = {
 static umode_t mmc_disk_attrs_is_visible(struct kobject *kobj,
 		struct attribute *a, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct mmc_blk_data *md = mmc_blk_get(dev_to_disk(dev));
 	umode_t mode = a->mode;
 
