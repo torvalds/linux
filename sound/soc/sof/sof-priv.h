@@ -364,6 +364,25 @@ struct sof_ipc_pm_ops {
 	int (*ctx_restore)(struct snd_sof_dev *sdev);
 };
 
+/**
+ * struct sof_ipc_fw_loader_ops - IPC/FW-specific loader ops
+ * @validate:		Function pointer for validating the firmware image
+ * @parse_ext_manifest:	Function pointer for parsing the manifest of the firmware
+ * @load_fw_to_dsp:	Optional function pointer for loading the firmware to the
+ *			DSP.
+ *			The function implements generic, hardware independent way
+ *			of loading the initial firmware and its modules (if any).
+ * @query_fw_configuration: Optional function pointer to query information and
+ *			configuration from the booted firmware.
+ *			Executed after the first successful firmware boot.
+ */
+struct sof_ipc_fw_loader_ops {
+	int (*validate)(struct snd_sof_dev *sdev);
+	size_t (*parse_ext_manifest)(struct snd_sof_dev *sdev);
+	int (*load_fw_to_dsp)(struct snd_sof_dev *sdev);
+	int (*query_fw_configuration)(struct snd_sof_dev *sdev);
+};
+
 struct sof_ipc_tplg_ops;
 struct sof_ipc_pcm_ops;
 
@@ -372,6 +391,7 @@ struct sof_ipc_pcm_ops;
  * @tplg:	Pointer to IPC-specific topology ops
  * @pm:		Pointer to PM ops
  * @pcm:	Pointer to PCM ops
+ * @fw_loader:	Pointer to Firmware Loader ops
  *
  * @tx_msg:	Function pointer for sending a 'short' IPC message
  * @set_get_data: Function pointer for set/get data ('large' IPC message). This
@@ -391,6 +411,7 @@ struct sof_ipc_ops {
 	const struct sof_ipc_tplg_ops *tplg;
 	const struct sof_ipc_pm_ops *pm;
 	const struct sof_ipc_pcm_ops *pcm;
+	const struct sof_ipc_fw_loader_ops *fw_loader;
 
 	int (*tx_msg)(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
 		      void *reply_data, size_t reply_bytes, bool no_pm);
