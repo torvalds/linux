@@ -13,24 +13,28 @@ config VIDEOBUF2_MEMOPS
 
 config VIDEOBUF2_CMA_SG
 	tristate
+	prompt "videobuf2 cma sg" if ROCKCHIP_MINI_KERNEL
 	depends on DMA_CMA || DMABUF_HEAPS_ROCKCHIP_CMA_HEAP
 	select VIDEOBUF2_CORE
 	select VIDEOBUF2_MEMOPS
 
 config VIDEOBUF2_DMA_CONTIG
 	tristate
+	prompt "videobuf2 dma contig" if ROCKCHIP_MINI_KERNEL
 	select VIDEOBUF2_CORE
 	select VIDEOBUF2_MEMOPS
 	select DMA_SHARED_BUFFER
 
 config VIDEOBUF2_VMALLOC
 	tristate
+	prompt "videobuf2 vmalloc" if ROCKCHIP_MINI_KERNEL
 	select VIDEOBUF2_CORE
 	select VIDEOBUF2_MEMOPS
 	select DMA_SHARED_BUFFER
 
 config VIDEOBUF2_DMA_SG
 	tristate
+	prompt "videobuf2 dma sg" if ROCKCHIP_MINI_KERNEL
 	select VIDEOBUF2_CORE
 	select VIDEOBUF2_MEMOPS
 
