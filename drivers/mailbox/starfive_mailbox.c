@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*********************************Copyright (c)*********************************************
- **
- **
  **
  **-------------------------------file info-------------------------------------------------
  ** Vrsions:      V1.0
@@ -13,7 +12,7 @@
  ** Name:         shanlong.li
  ** Versions:     V1.0
  ** Date:         2021/06/07
- ** Description:     
+ ** Description:
  **
  ** ----------------------------------------------------------------------------------------
  ******************************************************************************************/
@@ -29,73 +28,38 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
+#include <linux/reset.h>
 
 #include "mailbox.h"
 
-#define MBOX_CHAN_MAX           4
+#define MBOX_CHAN_MAX		4
 
-#define MBOX_BASE(mbox, ch)     ((mbox)->base + ((ch) * 0x10))
-#define MBOX_IRQ_REG            0x00
-#define MBOX_SET_REG            0x04
-#define MBOX_CLR_REG            0x08
-#define MBOX_CMD_REG            0x0c
-#define MBC_PEND_SMRY           0x100
+#define MBOX_BASE(mbox, ch)	((mbox)->base + ((ch) * 0x10))
+#define MBOX_IRQ_REG		0x00
+#define MBOX_SET_REG		0x04
+#define MBOX_CLR_REG		0x08
+#define MBOX_CMD_REG		0x0c
+#define MBC_PEND_SMRY		0x100
 
-static int mbox_init = 1;
-module_param(mbox_init, int, 0644);
-MODULE_PARM_DESC(mbox_init, "mbox_init on command.");
-
-static void saif_clear_rst (void __iomem* addr,void __iomem* addr_status,uint32_t mask){
-    uint32_t tmp;
-    tmp = readl(addr);
-    tmp &= ~mask;
-    writel(tmp,addr);
-    do{
-        tmp = readl(addr_status);
-    }while((tmp&mask)!=mask);
-}
-
-static void saif_set_reg(void __iomem* addr,uint32_t data,uint32_t shift,uint32_t mask){
-    uint32_t tmp;
-    tmp = readl(addr);
-    tmp &= ~mask;
-    tmp |= (data<<shift) & mask;
-    writel(tmp,addr);
-}
-
-#define _ENABLE_CLOCK_CLK_U0_MAILBOX_CLK_APB_(base) { \
-    void __iomem* clock_clk_mbox_addr = base + 0x1c4; \
-    uint32_t _clk_mbox_enable_data = 1; \
-    uint32_t _clk_mbox_enable_shift = 31; \
-    uint32_t _clk_mbox_enable_mask = 0x80000000U; \
-    saif_set_reg(clock_clk_mbox_addr,_clk_mbox_enable_data,_clk_mbox_enable_shift,_clk_mbox_enable_mask); \
-}
-
-#define _CLEAR_RESET_RSTGEN_RSTN_U0_MAILBOX_PRESETN_(base) { \
-    void __iomem* rstgen_mbox_addr = base + 0x300; \
-    void __iomem* rstgen_mbox_status0_addr = base + 0x310; \
-    uint32_t rstgen_mbox_mask = (0x1 << 4); \
-    saif_clear_rst(rstgen_mbox_addr,rstgen_mbox_status0_addr,rstgen_mbox_mask); \
-}
-
-typedef enum{
-    MAILBOX_CORE_U7 = 0,
-    MAILBOX_CORE_HIFI4,
-    MAILBOX_CORE_E2,
-    MAILBOX_CORE_RSVD0,
-    MAILBOX_CORE_NUM,
+typedef enum {
+	MAILBOX_CORE_U7 = 0,
+	MAILBOX_CORE_HIFI4,
+	MAILBOX_CORE_E2,
+	MAILBOX_CORE_RSVD0,
+	MAILBOX_CORE_NUM,
 } mailbox_core_t;
 
 struct mailbox_irq_name_c{
-    int id;
-    char name[16];
+	int id;
+	char name[16];
 };
 
 static const struct mailbox_irq_name_c irq_peer_name[MBOX_CHAN_MAX] = {
-    {MAILBOX_CORE_U7,    "u74_core"},
-    {MAILBOX_CORE_HIFI4, "hifi4_core"},
-    {MAILBOX_CORE_E2,    "e24_core"},
-    {MAILBOX_CORE_RSVD0, "" },
+	{MAILBOX_CORE_U7,    "u74_core"},
+	{MAILBOX_CORE_HIFI4, "hifi4_core"},
+	{MAILBOX_CORE_E2,    "e24_core"},
+	{MAILBOX_CORE_RSVD0, "" },
 };
 
 /**
@@ -109,8 +73,8 @@ static const struct mailbox_irq_name_c irq_peer_name[MBOX_CHAN_MAX] = {
  * @core_id:    id for remote processor
  */
 struct starfive_chan_info {
-    unsigned int dst_irq;
-    mailbox_core_t core_id;
+	unsigned int dst_irq;
+	mailbox_core_t core_id;
 };
 
 /**
@@ -126,210 +90,227 @@ struct starfive_chan_info {
  * @controller:    Representation of a communication channel controller
  */
 struct starfive_mbox {
-    struct device *dev;
-    void __iomem *base;
-    struct mbox_chan chan[MBOX_CHAN_MAX];
-    struct starfive_chan_info mchan[MBOX_CHAN_MAX];
-    struct mbox_controller controller;
+	struct device *dev;
+	void __iomem *base;
+	struct mbox_chan chan[MBOX_CHAN_MAX];
+	struct starfive_chan_info mchan[MBOX_CHAN_MAX];
+	struct mbox_controller controller;
+	struct clk *clk;
+	struct reset_control *rst_rresetn;
 };
 
-static struct starfive_mbox *to_starfive_mbox(struct mbox_controller *mbox){
-    return container_of(mbox, struct starfive_mbox, controller);
+static struct starfive_mbox *to_starfive_mbox(struct mbox_controller *mbox)
+{
+	return container_of(mbox, struct starfive_mbox, controller);
 }
 
 static struct mbox_chan *
 starfive_of_mbox_index_xlate(struct mbox_controller *mbox,
-            const struct of_phandle_args *sp){
-    int ind = sp->args[0];
-    int core_id = sp->args[1];
+			const struct of_phandle_args *sp)
+{
+	struct starfive_mbox *sbox;
 
-    if (ind >= mbox->num_chans || core_id >= MAILBOX_CORE_NUM)
-        return ERR_PTR(-EINVAL);
+	int ind = sp->args[0];
+	int core_id = sp->args[1];
 
-    struct starfive_mbox *sbox = to_starfive_mbox(mbox);
-    sbox->mchan[ind].core_id = core_id;
+	if (ind >= mbox->num_chans || core_id >= MAILBOX_CORE_NUM)
+		return ERR_PTR(-EINVAL);
 
-    return &mbox->chans[ind];
+	sbox = to_starfive_mbox(mbox);
+
+	sbox->mchan[ind].core_id = core_id;
+
+	return &mbox->chans[ind];
 }
 
-static irqreturn_t starfive_rx_irq_handler(int irq, void *p){
-    struct mbox_chan *chan = p;
-    unsigned long ch = (unsigned long)chan->con_priv;
-    struct starfive_mbox *mbox = to_starfive_mbox(chan->mbox);
-    void __iomem *base = MBOX_BASE(mbox, ch);
-    u32 val;
+static irqreturn_t starfive_rx_irq_handler(int irq, void *p)
+{
+	struct mbox_chan *chan = p;
+	unsigned long ch = (unsigned long)chan->con_priv;
+	struct starfive_mbox *mbox = to_starfive_mbox(chan->mbox);
+	void __iomem *base = MBOX_BASE(mbox, ch);
+	u32 val;
 
-    val = readl(base + MBOX_CMD_REG);
-    if (!val)
-        return IRQ_NONE;
+	val = readl(base + MBOX_CMD_REG);
+	if (!val)
+		return IRQ_NONE;
 
-    mbox_chan_received_data(chan, (void *)&val);
-    writel(val, base + MBOX_CLR_REG);
-    return IRQ_HANDLED;
+	mbox_chan_received_data(chan, (void *)&val);
+	writel(val, base + MBOX_CLR_REG);
+	return IRQ_HANDLED;
 }
 
-static int starfive_mbox_check_state(struct mbox_chan *chan){
-    unsigned long ch = (unsigned long)chan->con_priv;
-    struct starfive_mbox *mbox = to_starfive_mbox(chan->mbox);
-    void __iomem *base = MBOX_BASE(mbox, ch);
-    long ret = 0;
+static int starfive_mbox_check_state(struct mbox_chan *chan)
+{
+	unsigned long ch = (unsigned long)chan->con_priv;
+	struct starfive_mbox *mbox = to_starfive_mbox(chan->mbox);
+	long ret = 0;
 
-    /* Mailbox is idle so directly bail out */
-    if (readl(mbox->base + MBC_PEND_SMRY) & BIT(ch))
-        return -EBUSY;
+	/* Mailbox is idle so directly bail out */
+	if (readl(mbox->base + MBC_PEND_SMRY) & BIT(ch))
+		return -EBUSY;
 
-    /* Ensure channel is released */
-//    writel(0x0, base + MBOX_IRQ_REG);
-//    writel(0x0, base + MBOX_CLR_REG);
+	if (mbox->mchan[ch].dst_irq > 0) {
+		dev_dbg(mbox->dev, "%s: host IRQ = %d, ch:%ld", __func__, mbox->mchan[ch].dst_irq, ch);
+		ret = devm_request_irq(mbox->dev, mbox->mchan[ch].dst_irq, starfive_rx_irq_handler,
+			IRQF_SHARED, irq_peer_name[ch].name, chan);
+		if (ret < 0)
+			dev_err(mbox->dev, "request_irq %d failed\n", mbox->mchan[ch].dst_irq);
+	}
 
-    if(mbox->mchan[ch].dst_irq > 0){
-    dev_dbg(mbox->dev, "%s: host IRQ = %d, ch:%d",__func__, mbox->mchan[ch].dst_irq,ch);
-    ret = devm_request_irq(mbox->dev, mbox->mchan[ch].dst_irq, starfive_rx_irq_handler,
-               IRQF_SHARED, irq_peer_name[ch].name, chan);
-        if (ret < 0) {
-            dev_err(mbox->dev, "request_irq %d failed\n", mbox->mchan[ch].dst_irq);
-        }
-    }
-
-    return ret;
+	return ret;
 }
 
-static int starfive_mbox_startup(struct mbox_chan *chan){
-    return starfive_mbox_check_state(chan);
+static int starfive_mbox_startup(struct mbox_chan *chan)
+{
+	return starfive_mbox_check_state(chan);
 }
 
-static void starfive_mbox_shutdown(struct mbox_chan *chan){
-    struct starfive_mbox *mbox = to_starfive_mbox(chan->mbox);
-    unsigned long ch = (unsigned long)chan->con_priv;
-    void __iomem *base = MBOX_BASE(mbox, ch);
+static void starfive_mbox_shutdown(struct mbox_chan *chan)
+{
+	struct starfive_mbox *mbox = to_starfive_mbox(chan->mbox);
+	unsigned long ch = (unsigned long)chan->con_priv;
+	void __iomem *base = MBOX_BASE(mbox, ch);
 
-    writel(0x0, base + MBOX_IRQ_REG);
-    writel(0x0, base + MBOX_CLR_REG);
-    
-    if(mbox->mchan[ch].dst_irq > 0){
-    devm_free_irq(mbox->dev,mbox->mchan[ch].dst_irq, chan);
-    }
+	writel(0x0, base + MBOX_IRQ_REG);
+	writel(0x0, base + MBOX_CLR_REG);
+
+	if (mbox->mchan[ch].dst_irq > 0)
+		devm_free_irq(mbox->dev, mbox->mchan[ch].dst_irq, chan);
 }
 
-static int starfive_mbox_send_data(struct mbox_chan *chan, void *msg){
-    unsigned long ch = (unsigned long)chan->con_priv;
-    struct starfive_mbox *mbox = to_starfive_mbox(chan->mbox);
-    struct starfive_chan_info *mchan = &mbox->mchan[ch];
-    void __iomem *base = MBOX_BASE(mbox, ch);
-    u32 *buf = msg;
+static int starfive_mbox_send_data(struct mbox_chan *chan, void *msg)
+{
+	unsigned long ch = (unsigned long)chan->con_priv;
+	struct starfive_mbox *mbox = to_starfive_mbox(chan->mbox);
+	struct starfive_chan_info *mchan = &mbox->mchan[ch];
+	void __iomem *base = MBOX_BASE(mbox, ch);
+	u32 *buf = msg;
 
-    /* Ensure channel is released */
-    if (readl(mbox->base + MBC_PEND_SMRY) & BIT(ch)){
-        pr_debug("%s:%d. busy\n",__func__,__LINE__);
-        return -EBUSY;
-    }
+	/* Ensure channel is released */
+	if (readl(mbox->base + MBC_PEND_SMRY) & BIT(ch)) {
+		pr_debug("%s:%d. busy\n", __func__, __LINE__);
+		return -EBUSY;
+	}
 
-    /* Clear mask for destination interrupt */
-    writel(BIT(mchan->core_id), base + MBOX_IRQ_REG);
+	/* Clear mask for destination interrupt */
+	writel(BIT(mchan->core_id), base + MBOX_IRQ_REG);
 
-    /* Fill message data */
-    writel(*buf, base + MBOX_SET_REG);
-    return 0;
+	/* Fill message data */
+	writel(*buf, base + MBOX_SET_REG);
+	return 0;
 }
 
 static struct mbox_chan_ops starfive_mbox_ops = {
-    .startup    = starfive_mbox_startup,
-    .send_data    = starfive_mbox_send_data,
-    .shutdown   = starfive_mbox_shutdown,
+	.startup = starfive_mbox_startup,
+	.send_data = starfive_mbox_send_data,
+	.shutdown = starfive_mbox_shutdown,
 };
 
 static const struct of_device_id starfive_mbox_of_match[] = {
-    { .compatible = "starfive,mail_box", },
-    {},
+	{ .compatible = "starfive,mail_box",},
+	{},
 };
 
 MODULE_DEVICE_TABLE(of, starfive_mbox_of_match);
-void __iomem *clk_apb_ctrl_addr;
 
-void starfive_mailbox_init(void){
-    clk_apb_ctrl_addr = ioremap(0x13020000, 0x1000);
+void starfive_mailbox_init(struct starfive_mbox *mbox)
+{
+	mbox->clk = devm_clk_get_optional(mbox->dev, "clk_apb");
+	if (IS_ERR(mbox->clk)) {
+		dev_err(mbox->dev, "failed to get mailbox\n");
+		return;
+	}
 
-    pr_debug("%s:.\n",__func__);
-    _ENABLE_CLOCK_CLK_U0_MAILBOX_CLK_APB_(clk_apb_ctrl_addr);
-    _CLEAR_RESET_RSTGEN_RSTN_U0_MAILBOX_PRESETN_(clk_apb_ctrl_addr);
+	mbox->rst_rresetn = devm_reset_control_get_exclusive(mbox->dev, "mbx_rre");
+	if (IS_ERR(mbox->rst_rresetn)) {
+		dev_err(mbox->dev, "failed to get mailbox reset\n");
+		return;
+	}
+
+	clk_prepare_enable(mbox->clk);
+	reset_control_deassert(mbox->rst_rresetn);
 }
 
-static int starfive_mbox_probe(struct platform_device *pdev){
-    struct device *dev = &pdev->dev;
-    struct starfive_mbox *mbox;
-    struct mbox_chan *chan;
-    struct resource *res;
-    unsigned long ch;
-    int err;
+static int starfive_mbox_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct starfive_mbox *mbox;
+	struct mbox_chan *chan;
+	struct resource *res;
+	unsigned long ch;
+	int err;
 
-    mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
-    if (!mbox)
-        return -ENOMEM;
+	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
+	if (!mbox)
+		return -ENOMEM;
 
-    res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-    mbox->base = devm_ioremap_resource(dev, res);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	mbox->base = devm_ioremap_resource(dev, res);
+	mbox->dev = dev;
 
-    if (IS_ERR(mbox->base))
-        return PTR_ERR(mbox->base);
+	if (IS_ERR(mbox->base))
+		return PTR_ERR(mbox->base);
 
-    if(mbox_init)
-        starfive_mailbox_init();
-    
-    mbox->dev = dev;
-    mbox->controller.dev = dev;
-    mbox->controller.chans = mbox->chan;
-    mbox->controller.num_chans = MBOX_CHAN_MAX;
-    mbox->controller.ops = &starfive_mbox_ops;
-    mbox->controller.of_xlate = starfive_of_mbox_index_xlate;
-    mbox->controller.txdone_irq = true;
-    mbox->controller.txdone_poll = false;
+	starfive_mailbox_init(mbox);
 
-    /* Initialize mailbox channel data */
-    chan = mbox->chan;
-    for(ch = 0;ch < MBOX_CHAN_MAX;ch++){
-        mbox->mchan[ch].dst_irq = 0;
-        mbox->mchan[ch].core_id = (mailbox_core_t)ch;
-        chan[ch].con_priv = (void *)ch;
-    }
-    mbox->mchan[MAILBOX_CORE_HIFI4].dst_irq = platform_get_irq(pdev, 0);
-    mbox->mchan[MAILBOX_CORE_E2].dst_irq = platform_get_irq(pdev, 1);
+	mbox->controller.dev = dev;
+	mbox->controller.chans = mbox->chan;
+	mbox->controller.num_chans = MBOX_CHAN_MAX;
+	mbox->controller.ops = &starfive_mbox_ops;
+	mbox->controller.of_xlate = starfive_of_mbox_index_xlate;
+	mbox->controller.txdone_irq = true;
+	mbox->controller.txdone_poll = false;
 
-    err = mbox_controller_register(&mbox->controller);
-    if (err) {
-        dev_err(dev, "Failed to register mailbox %d\n", err);
-        return err;
-    }
+	/* Initialize mailbox channel data */
+	chan = mbox->chan;
+	for (ch = 0; ch < MBOX_CHAN_MAX; ch++) {
+		mbox->mchan[ch].dst_irq = 0;
+		mbox->mchan[ch].core_id = (mailbox_core_t)ch;
+		chan[ch].con_priv = (void *)ch;
+	}
+	mbox->mchan[MAILBOX_CORE_HIFI4].dst_irq = platform_get_irq(pdev, 0);
+	mbox->mchan[MAILBOX_CORE_E2].dst_irq = platform_get_irq(pdev, 1);
 
-    platform_set_drvdata(pdev, mbox);
-    dev_info(dev, "Mailbox enabled\n");
-    return 0;
+	err = mbox_controller_register(&mbox->controller);
+	if (err) {
+		dev_err(dev, "Failed to register mailbox %d\n", err);
+		return err;
+	}
+
+	platform_set_drvdata(pdev, mbox);
+	dev_info(dev, "Mailbox enabled\n");
+	return 0;
 }
 
-static int starfive_mbox_remove(struct platform_device *pdev){
-    struct starfive_mbox *mbox = platform_get_drvdata(pdev);
+static int starfive_mbox_remove(struct platform_device *pdev)
+{
+	struct starfive_mbox *mbox = platform_get_drvdata(pdev);
 
-    mbox_controller_unregister(&mbox->controller);
-    if(clk_apb_ctrl_addr)
-        iounmap(clk_apb_ctrl_addr);
-    return 0;
+	mbox_controller_unregister(&mbox->controller);
+	devm_clk_put(mbox->dev, mbox->clk);
+
+	return 0;
 }
 
 static struct platform_driver starfive_mbox_driver = {
-    .probe  = starfive_mbox_probe,
-    .remove = starfive_mbox_remove,
-    .driver = {
-        .name = "mailbox",
-        .of_match_table = starfive_mbox_of_match,
-    },
+	.probe  = starfive_mbox_probe,
+	.remove = starfive_mbox_remove,
+	.driver = {
+	.name = "mailbox",
+		.of_match_table = starfive_mbox_of_match,
+	},
 };
 
-static int __init starfive_mbox_init(void){
-    return platform_driver_register(&starfive_mbox_driver);
+static int __init starfive_mbox_init(void)
+{
+	return platform_driver_register(&starfive_mbox_driver);
 }
 core_initcall(starfive_mbox_init);
 
-static void __exit starfive_mbox_exit(void){
-    platform_driver_unregister(&starfive_mbox_driver);
+static void __exit starfive_mbox_exit(void)
+{
+	platform_driver_unregister(&starfive_mbox_driver);
 }
 module_exit(starfive_mbox_exit);
 
