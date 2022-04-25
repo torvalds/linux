@@ -1183,9 +1183,9 @@ static int dpu_kms_init(struct drm_device *ddev)
 	priv->kms = &dpu_kms->base;
 
 	irq = irq_of_parse_and_map(dpu_kms->pdev->dev.of_node, 0);
-	if (irq < 0) {
-		DPU_ERROR("failed to get irq: %d\n", irq);
-		return irq;
+	if (!irq) {
+		DPU_ERROR("failed to get irq\n");
+		return -EINVAL;
 	}
 	dpu_kms->base.irq = irq;
 
