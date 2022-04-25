@@ -999,7 +999,7 @@ static umode_t etr3_is_visible(struct kobject *kobj,
 				struct attribute *attr,
 				int idx)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
 	const struct pmc_reg_map *map = pmcdev->map;
 	u32 reg;
