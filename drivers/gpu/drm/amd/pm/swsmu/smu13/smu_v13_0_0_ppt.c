@@ -256,6 +256,13 @@ smu_v13_0_0_get_allowed_feature_mask(struct smu_context *smu,
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_DCN_BIT);
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_DCFCLK_BIT);
 
+	if (adev->pm.pp_feature & PP_PCIE_DPM_MASK) {
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_LINK_BIT);
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_LCLK_BIT);
+	}
+
+	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_BACO_BIT);
+
 	return 0;
 }
 
