@@ -800,10 +800,11 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	struct rkisp_device *isp_dev;
 	int i, ret, mult = 1;
 
-	sprintf(rkisp_version, "v%02x.%02x.%02x",
-		RKISP_DRIVER_VERSION >> 16,
-		(RKISP_DRIVER_VERSION & 0xff00) >> 8,
-		RKISP_DRIVER_VERSION & 0x00ff);
+	snprintf(rkisp_version, sizeof(rkisp_version),
+		 "v%02x.%02x.%02x",
+		 RKISP_DRIVER_VERSION >> 16,
+		 (RKISP_DRIVER_VERSION & 0xff00) >> 8,
+		 RKISP_DRIVER_VERSION & 0x00ff);
 
 	dev_info(dev, "rkisp driver version: %s\n", rkisp_version);
 
@@ -827,12 +828,13 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	sprintf(isp_dev->media_dev.model, "%s%d",
-		DRIVER_NAME, isp_dev->dev_id);
+	snprintf(isp_dev->media_dev.model, sizeof(isp_dev->media_dev.model),
+		 "%s%d", DRIVER_NAME, isp_dev->dev_id);
 	if (!isp_dev->hw_dev->is_unite)
 		strscpy(isp_dev->name, dev_name(dev), sizeof(isp_dev->name));
 	else
-		strscpy(isp_dev->name, "rkisp-unite", sizeof(isp_dev->name));
+		snprintf(isp_dev->name, sizeof(isp_dev->name),
+			 "%s%d", "rkisp-unite", isp_dev->dev_id);
 	strscpy(isp_dev->media_dev.driver_name, isp_dev->name,
 		sizeof(isp_dev->media_dev.driver_name));
 

@@ -145,7 +145,8 @@ void rkisp_next_clear_reg_cache_bits(struct rkisp_device *dev, u32 reg, u32 mask
 
 void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end)
 {
-	void __iomem *base = dev->hw_dev->base_addr;
+	struct rkisp_hw_dev *hw = dev->hw_dev;
+	void __iomem *base = hw->base_addr;
 	u32 i;
 
 	if (end > RKISP_ISP_SW_REG_SIZE - 4) {
@@ -156,8 +157,13 @@ void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end)
 		u32 *val = dev->sw_base_addr + i;
 		u32 *flag = dev->sw_base_addr + i + RKISP_ISP_SW_REG_SIZE;
 
-		if (*flag == SW_REG_CACHE)
+		if (*flag == SW_REG_CACHE) {
 			writel(*val, base + i);
+			if (hw->is_unite) {
+				val = dev->sw_base_addr + i + RKISP_ISP_SW_MAX_SIZE;
+				writel(*val, hw->base_next_addr + i);
+			}
+		}
 	}
 }
 

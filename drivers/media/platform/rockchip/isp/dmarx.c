@@ -377,8 +377,13 @@ static void update_rawrd(struct rkisp_stream *stream)
 		val += stream->curr_buf->buff_addr[RKISP_PLANE_Y];
 		rkisp_write(dev, stream->config->mi.y_base_ad_init, val, false);
 		if (dev->hw_dev->is_unite) {
-			val += (stream->out_fmt.width / 2 - RKMOUDLE_UNITE_EXTEND_PIXEL) *
-				fmt->bpp[0] / 8;
+			u32 offs = stream->out_fmt.width / 2 - RKMOUDLE_UNITE_EXTEND_PIXEL;
+
+			if (stream->memory)
+				offs *= DIV_ROUND_UP(fmt->bpp[0], 8);
+			else
+				offs = offs * fmt->bpp[0] / 8;
+			val += offs;
 			rkisp_next_write(dev, stream->config->mi.y_base_ad_init, val, false);
 		}
 		stream->frame_end = false;

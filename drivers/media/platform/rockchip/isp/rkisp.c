@@ -603,10 +603,14 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 				ISP3X_BAY3D_IIRSELF_UPD | ISP3X_BAY3D_CURSELF_UPD |
 				ISP3X_BAY3D_DSSELF_UPD;
 			writel(val, hw->base_addr + MI_WR_CTRL2);
+			if (hw->is_unite)
+				writel(val, hw->base_next_addr + MI_WR_CTRL2);
 
 			val = rkisp_read(dev, ISP3X_MPFBC_CTRL, false);
 			val |= ISP3X_MPFBC_FORCE_UPD;
 			writel(val, hw->base_addr + ISP3X_MPFBC_CTRL);
+			if (hw->is_unite)
+				writel(val, hw->base_next_addr + ISP3X_MPFBC_CTRL);
 		} else if (dev->isp_ver == ISP_V32) {
 			writel(CIF_MI_INIT_SOFT_UPD, hw->base_addr + ISP3X_MI_WR_INIT);
 		}
@@ -634,6 +638,8 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 			val = rkisp_read_reg_cache(dev, ISP_ACQ_H_OFFS);
 			val |= ISP21_SENSOR_MODE(mode) | ISP21_SENSOR_INDEX(index);
 			writel(val, hw->base_addr + ISP_ACQ_H_OFFS);
+			if (hw->is_unite)
+				writel(val, hw->base_next_addr + ISP_ACQ_H_OFFS);
 			v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
 				 "sensor mode:%d index:%d | 0x%x\n", mode, index, val);
 		}
@@ -660,16 +666,16 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 	/* read 3d lut at frame end */
 	if (hw->is_single && is_upd &&
 	    rkisp_read_reg_cache(dev, ISP_3DLUT_UPDATE) & 0x1) {
-		rkisp_write(dev, ISP_3DLUT_UPDATE, 0, true);
+		rkisp_unite_write(dev, ISP_3DLUT_UPDATE, 0, true, hw->is_unite);
 		is_3dlut_upd = true;
 	}
 	if (is_upd) {
 		val = rkisp_read(dev, ISP_CTRL, false);
 		val |= CIF_ISP_CTRL_ISP_CFG_UPD;
-		rkisp_write(dev, ISP_CTRL, val, true);
+		rkisp_unite_write(dev, ISP_CTRL, val, true, hw->is_unite);
 	}
 	if (is_3dlut_upd)
-		rkisp_write(dev, ISP_3DLUT_UPDATE, 1, true);
+		rkisp_unite_write(dev, ISP_3DLUT_UPDATE, 1, true, hw->is_unite);
 
 	val = rkisp_read(dev, CSI2RX_CTRL0, true);
 	val &= ~SW_IBUF_OP_MODE(0xf);
