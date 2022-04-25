@@ -785,10 +785,8 @@ static int tas6424_i2c_remove(struct i2c_client *client)
 
 	ret = regulator_bulk_disable(ARRAY_SIZE(tas6424->supplies),
 				     tas6424->supplies);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(dev, "unable to disable supplies: %d\n", ret);
-		return ret;
-	}
 
 	return 0;
 }
