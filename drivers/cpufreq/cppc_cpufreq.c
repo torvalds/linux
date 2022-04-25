@@ -420,11 +420,52 @@ static unsigned int cppc_cpufreq_get_transition_delay_us(unsigned int cpu)
 	return cppc_get_transition_latency(cpu) / NSEC_PER_USEC;
 }
 
+static DEFINE_PER_CPU(unsigned int, efficiency_class);
+
+static int populate_efficiency_class(void)
+{
+	struct acpi_madt_generic_interrupt *gicc;
+	DECLARE_BITMAP(used_classes, 256) = {};
+	int class, cpu, index;
+
+	for_each_possible_cpu(cpu) {
+		gicc = acpi_cpu_get_madt_gicc(cpu);
+		class = gicc->efficiency_class;
+		bitmap_set(used_classes, class, 1);
+	}
+
+	if (bitmap_weight(used_classes, 256) <= 1) {
+		pr_debug("Efficiency classes are all equal (=%d). "
+			"No EM registered", class);
+		return -EINVAL;
+	}
+
+	/*
+	 * Squeeze efficiency class values on [0:#efficiency_class-1].
+	 * Values are per spec in [0:255].
+	 */
+	index = 0;
+	for_each_set_bit(class, used_classes, 256) {
+		for_each_possible_cpu(cpu) {
+			gicc = acpi_cpu_get_madt_gicc(cpu);
+			if (gicc->efficiency_class == class)
+				per_cpu(efficiency_class, cpu) = index;
+		}
+		index++;
+	}
+
+	return 0;
+}
+
 #else
 
 static unsigned int cppc_cpufreq_get_transition_delay_us(unsigned int cpu)
 {
 	return cppc_get_transition_latency(cpu) / NSEC_PER_USEC;
+}
+static int populate_efficiency_class(void)
+{
+	return 0;
 }
 #endif
 
@@ -742,6 +783,7 @@ static int __init cppc_cpufreq_init(void)
 
 	cppc_check_hisi_workaround();
 	cppc_freq_invariance_init();
+	populate_efficiency_class();
 
 	ret = cpufreq_register_driver(&cppc_cpufreq_driver);
 	if (ret)
