@@ -21,6 +21,7 @@ struct msm_dp {
 	bool audio_enabled;
 	bool power_on;
 	unsigned int connector_type;
+	bool is_edp;
 
 	hdmi_codec_plugged_cb plugged_cb;
 

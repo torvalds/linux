@@ -125,7 +125,7 @@ struct dp_parser {
 	u32 max_dp_lanes;
 	struct drm_bridge *next_bridge;
 
-	int (*parse)(struct dp_parser *parser, int connector_type);
+	int (*parse)(struct dp_parser *parser);
 };
 
 /**
@@ -140,5 +140,17 @@ struct dp_parser {
  * can be parsed using this module.
  */
 struct dp_parser *dp_parser_get(struct platform_device *pdev);
+
+/**
+ * dp_parser_find_next_bridge() - find an additional bridge to DP
+ *
+ * @parser: dp_parser data from client
+ *
+ * This function is used to find any additional bridge attached to
+ * the DP controller. The eDP interface requires a panel bridge.
+ *
+ * Return: 0 if able to get the bridge, otherwise negative errno for failure.
+ */
+int dp_parser_find_next_bridge(struct dp_parser *parser);
 
 #endif

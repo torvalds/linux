@@ -87,10 +87,23 @@ struct drm_bridge *dp_bridge_init(struct msm_dp *dp_display, struct drm_device *
 	bridge->funcs = &dp_bridge_ops;
 	bridge->type = dp_display->connector_type;
 
-	bridge->ops =
-		DRM_BRIDGE_OP_DETECT |
-		DRM_BRIDGE_OP_HPD |
-		DRM_BRIDGE_OP_MODES;
+	/*
+	 * Many ops only make sense for DP. Why?
+	 * - Detect/HPD are used by DRM to know if a display is _physically_
+	 *   there, not whether the display is powered on / finished initting.
+	 *   On eDP we assume the display is always there because you can't
+	 *   know until power is applied. If we don't implement the ops DRM will
+	 *   assume our display is always there.
+	 * - Currently eDP mode reading is driven by the panel driver. This
+	 *   allows the panel driver to properly power itself on to read the
+	 *   modes.
+	 */
+	if (!dp_display->is_edp) {
+		bridge->ops =
+			DRM_BRIDGE_OP_DETECT |
+			DRM_BRIDGE_OP_HPD |
+			DRM_BRIDGE_OP_MODES;
+	}
 
 	drm_bridge_add(bridge);
 

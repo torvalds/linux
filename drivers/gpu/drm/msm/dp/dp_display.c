@@ -10,6 +10,7 @@
 #include <linux/component.h>
 #include <linux/of_irq.h>
 #include <linux/delay.h>
+#include <drm/dp/drm_dp_aux_bus.h>
 
 #include "msm_drv.h"
 #include "msm_kms.h"
@@ -263,13 +264,12 @@ static int dp_display_bind(struct device *dev, struct device *master,
 	dp->dp_display.drm_dev = drm;
 	priv->dp[dp->id] = &dp->dp_display;
 
-	rc = dp->parser->parse(dp->parser, dp->dp_display.connector_type);
+	rc = dp->parser->parse(dp->parser);
 	if (rc) {
 		DRM_ERROR("device tree parsing failed\n");
 		goto end;
 	}
 
-	dp->dp_display.next_bridge = dp->parser->next_bridge;
 
 	dp->drm_dev = drm;
 	dp->aux->drm_dev = drm;
@@ -1288,6 +1288,8 @@ static int dp_display_probe(struct platform_device *pdev)
 	dp->name = "drm_dp";
 	dp->dp_display.connector_type = desc->connector_type;
 	dp->wide_bus_en = desc->wide_bus_en;
+	dp->dp_display.is_edp =
+		(dp->dp_display.connector_type == DRM_MODE_CONNECTOR_eDP);
 
 	rc = dp_init_sub_modules(dp);
 	if (rc) {
@@ -1481,7 +1483,8 @@ void msm_dp_irq_postinstall(struct msm_dp *dp_display)
 
 	dp = container_of(dp_display, struct dp_display_private, dp_display);
 
-	dp_add_event(dp, EV_HPD_INIT_SETUP, 0, 100);
+	if (!dp_display->is_edp)
+		dp_add_event(dp, EV_HPD_INIT_SETUP, 0, 100);
 }
 
 bool msm_dp_wide_bus_available(const struct msm_dp *dp_display)
@@ -1512,6 +1515,64 @@ void msm_dp_debugfs_init(struct msm_dp *dp_display, struct drm_minor *minor)
 	}
 }
 
+static int dp_display_get_next_bridge(struct msm_dp *dp)
+{
+	int rc;
+	struct dp_display_private *dp_priv;
+	struct device_node *aux_bus;
+	struct device *dev;
+
+	dp_priv = container_of(dp, struct dp_display_private, dp_display);
+	dev = &dp_priv->pdev->dev;
+	aux_bus = of_get_child_by_name(dev->of_node, "aux-bus");
+
+	if (aux_bus && dp->is_edp) {
+		dp_display_host_init(dp_priv);
+		dp_catalog_ctrl_hpd_config(dp_priv->catalog);
+		dp_display_host_phy_init(dp_priv);
+		enable_irq(dp_priv->irq);
+
+		/*
+		 * The code below assumes that the panel will finish probing
+		 * by the time devm_of_dp_aux_populate_ep_devices() returns.
+		 * This isn't a great assumption since it will fail if the
+		 * panel driver is probed asynchronously but is the best we
+		 * can do without a bigger driver reorganization.
+		 */
+		rc = devm_of_dp_aux_populate_ep_devices(dp_priv->aux);
+		of_node_put(aux_bus);
+		if (rc)
+			goto error;
+	} else if (dp->is_edp) {
+		DRM_ERROR("eDP aux_bus not found\n");
+		return -ENODEV;
+	}
+
+	/*
+	 * External bridges are mandatory for eDP interfaces: one has to
+	 * provide at least an eDP panel (which gets wrapped into panel-bridge).
+	 *
+	 * For DisplayPort interfaces external bridges are optional, so
+	 * silently ignore an error if one is not present (-ENODEV).
+	 */
+	rc = dp_parser_find_next_bridge(dp_priv->parser);
+	if (!dp->is_edp && rc == -ENODEV)
+		return 0;
+
+	if (!rc) {
+		dp->next_bridge = dp_priv->parser->next_bridge;
+		return 0;
+	}
+
+error:
+	if (dp->is_edp) {
+		disable_irq(dp_priv->irq);
+		dp_display_host_phy_exit(dp_priv);
+		dp_display_host_deinit(dp_priv);
+	}
+	return rc;
+}
+
 int msm_dp_modeset_init(struct msm_dp *dp_display, struct drm_device *dev,
 			struct drm_encoder *encoder)
 {
@@ -1534,6 +1595,10 @@ int msm_dp_modeset_init(struct msm_dp *dp_display, struct drm_device *dev,
 	}
 
 	dp_display->encoder = encoder;
+
+	ret = dp_display_get_next_bridge(dp_display);
+	if (ret)
+		return ret;
 
 	dp_display->bridge = dp_bridge_init(dp_display, dev, encoder);
 	if (IS_ERR(dp_display->bridge)) {
