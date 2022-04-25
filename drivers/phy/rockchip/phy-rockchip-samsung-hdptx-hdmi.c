@@ -1487,6 +1487,19 @@ static int hdptx_ropll_tmds_mode_config(struct rockchip_hdptx_phy *hdptx, u32 ra
 	hdptx_write(hdptx, LANE_REG061F, 0x15);
 	hdptx_write(hdptx, LANE_REG0620, 0xa0);
 
+	hdptx_write(hdptx, LANE_REG0303, 0x2f);
+	hdptx_write(hdptx, LANE_REG0403, 0x2f);
+	hdptx_write(hdptx, LANE_REG0503, 0x2f);
+	hdptx_write(hdptx, LANE_REG0603, 0x2f);
+	hdptx_write(hdptx, LANE_REG0305, 0x03);
+	hdptx_write(hdptx, LANE_REG0405, 0x03);
+	hdptx_write(hdptx, LANE_REG0505, 0x03);
+	hdptx_write(hdptx, LANE_REG0605, 0x03);
+	hdptx_write(hdptx, LANE_REG0306, 0x1c);
+	hdptx_write(hdptx, LANE_REG0406, 0x1c);
+	hdptx_write(hdptx, LANE_REG0506, 0x1c);
+	hdptx_write(hdptx, LANE_REG0606, 0x1c);
+
 	if (hdptx->earc_en)
 		hdptx_earc_config(hdptx);
 
@@ -1934,6 +1947,28 @@ static int hdptx_lcpll_frl_mode_config(struct rockchip_hdptx_phy *hdptx, u32 rat
 	hdptx_write(hdptx, LANE_REG061B, 0x01);
 	hdptx_write(hdptx, LANE_REG061F, 0x15);
 	hdptx_write(hdptx, LANE_REG0620, 0xa0);
+
+	hdptx_write(hdptx, LANE_REG0303, 0x2f);
+	hdptx_write(hdptx, LANE_REG0403, 0x2f);
+	hdptx_write(hdptx, LANE_REG0503, 0x2f);
+	hdptx_write(hdptx, LANE_REG0603, 0x2f);
+	hdptx_write(hdptx, LANE_REG0305, 0x03);
+	hdptx_write(hdptx, LANE_REG0405, 0x03);
+	hdptx_write(hdptx, LANE_REG0505, 0x03);
+	hdptx_write(hdptx, LANE_REG0605, 0x03);
+	hdptx_write(hdptx, LANE_REG0306, 0xfc);
+	hdptx_write(hdptx, LANE_REG0406, 0xfc);
+	hdptx_write(hdptx, LANE_REG0506, 0xfc);
+	hdptx_write(hdptx, LANE_REG0606, 0xfc);
+
+	hdptx_write(hdptx, LANE_REG0305, 0x4f);
+	hdptx_write(hdptx, LANE_REG0405, 0x4f);
+	hdptx_write(hdptx, LANE_REG0505, 0x4f);
+	hdptx_write(hdptx, LANE_REG0605, 0x4f);
+	hdptx_write(hdptx, LANE_REG0304, 0x14);
+	hdptx_write(hdptx, LANE_REG0404, 0x14);
+	hdptx_write(hdptx, LANE_REG0504, 0x14);
+	hdptx_write(hdptx, LANE_REG0604, 0x14);
 
 	if (hdptx->earc_en)
 		hdptx_earc_config(hdptx);
