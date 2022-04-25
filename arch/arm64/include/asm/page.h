@@ -43,6 +43,19 @@ typedef struct page *pgtable_t;
 
 extern int pfn_valid(unsigned long);
 
+#ifdef CONFIG_ARM64_ERRATUM_2454944_DEBUG
+#include <asm/cpufeature.h>
+
+void page_check_nc(struct page *page, int order);
+
+static inline void arch_free_page(struct page *page, int order)
+{
+	if (cpus_have_const_cap(ARM64_WORKAROUND_NO_DMA_ALIAS))
+		page_check_nc(page, order);
+}
+#define HAVE_ARCH_FREE_PAGE
+#endif
+
 #include <asm/memory.h>
 
 #endif /* !__ASSEMBLY__ */

@@ -125,9 +125,13 @@ SYM_CODE_END(primary_entry)
 SYM_CODE_START_LOCAL(preserve_boot_args)
 	mov	x21, x0				// x21=FDT
 
-	adr_l	x0, boot_args			// record the contents of
-	stp	x21, x1, [x0]			// x0 .. x3 at kernel entry
-	stp	x2, x3, [x0, #16]
+	adr_l	x0, boot_args
+#ifdef CONFIG_ARM64_ERRATUM_2454944
+	dc	ivac, x0			// Cortex-A510 CWG is 64 bytes, so plenty
+	dsb	sy
+#endif
+	stp	x21, x1, [x0]			// record the contents of
+	stp	x2, x3, [x0, #16]		// x0 .. x3 at kernel entry
 
 	dmb	sy				// needed before dc ivac with
 						// MMU off
@@ -282,8 +286,17 @@ SYM_FUNC_START_LOCAL(__create_page_tables)
 	 * the kernel image, and thus are clean to the PoC per the boot
 	 * protocol.
 	 */
+#ifndef CONFIG_ARM64_ERRATUM_2454944
 	adrp	x0, init_pg_dir
 	adrp	x1, init_pg_end
+#else
+	/*
+	 * However if we can't even trust "clean" cache lines shadowing rodata,
+	 * then nuke the entire image. It's the only way to be sure.
+	 */
+	adrp	x0, _text
+	adrp	x1, _end
+#endif
 	sub	x1, x1, x0
 	bl	__inval_dcache_area
 
@@ -531,6 +544,10 @@ SYM_FUNC_END(init_kernel_el)
  */
 SYM_FUNC_START_LOCAL(set_cpu_boot_mode_flag)
 	adr_l	x1, __boot_cpu_mode
+#ifdef CONFIG_ARM64_ERRATUM_2454944
+	dc	ivac, x1
+	dsb	sy
+#endif
 	cmp	w0, #BOOT_CPU_MODE_EL2
 	b.ne	1f
 	add	x1, x1, #4

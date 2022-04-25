@@ -72,7 +72,8 @@
 #define ARM64_WORKAROUND_TSB_FLUSH_FAILURE	61
 #define ARM64_SPECTRE_BHB			62
 
-/* kabi: reserve 63 - 76 for future cpu capabilities */
+/* kabi: reserve 63 - 74 for future cpu capabilities */
+#define ARM64_WORKAROUND_NO_DMA_ALIAS		75
 #define ARM64_NCAPS				76
 
 #endif /* __ASM_CPUCAPS_H */

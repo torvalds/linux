@@ -556,6 +556,14 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		ERRATA_MIDR_RANGE_LIST(tsb_flush_fail_cpus),
 	},
 #endif
+#ifdef CONFIG_ARM64_ERRATUM_2454944
+	{
+		.desc = "ARM erratum 2454944",
+		.capability = ARM64_WORKAROUND_NO_DMA_ALIAS,
+		ERRATA_MIDR_RANGE(MIDR_CORTEX_A510, 0, 0, 1, 1),
+		MIDR_FIXED(MIDR_CPU_VAR_REV(1, 1), BIT(25)),
+	},
+#endif
 	{
 	}
 };
