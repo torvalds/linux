@@ -4810,10 +4810,12 @@ static void stmmac_napi_add(struct net_device *dev)
 
 	for (queue = 0; queue < maxq; queue++) {
 		struct stmmac_channel *ch = &priv->channel[queue];
-		int rx_budget = (priv->plat->dma_rx_size < NAPI_POLL_WEIGHT) ?
-				priv->plat->dma_rx_size : NAPI_POLL_WEIGHT;
-		int tx_budget = (priv->plat->dma_tx_size < NAPI_POLL_WEIGHT) ?
-				priv->plat->dma_tx_size : NAPI_POLL_WEIGHT;
+		int rx_budget = ((priv->plat->dma_rx_size < NAPI_POLL_WEIGHT) &&
+				 (priv->plat->dma_rx_size > 0)) ?
+				 priv->plat->dma_rx_size : NAPI_POLL_WEIGHT;
+		int tx_budget = ((priv->plat->dma_tx_size < NAPI_POLL_WEIGHT) &&
+				 (priv->plat->dma_tx_size > 0)) ?
+				 priv->plat->dma_tx_size : NAPI_POLL_WEIGHT;
 
 		ch->priv_data = priv;
 		ch->index = queue;
