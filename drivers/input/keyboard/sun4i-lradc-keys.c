@@ -14,6 +14,7 @@
  * there are no boards known to use channel 1.
  */
 
+#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/input.h>
@@ -25,6 +26,7 @@
 #include <linux/pm_wakeirq.h>
 #include <linux/pm_wakeup.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 
 #define LRADC_CTRL		0x00
@@ -60,10 +62,12 @@
 /* struct lradc_variant - Describe sun4i-a10-lradc-keys hardware variant
  * @divisor_numerator:		The numerator of lradc Vref internally divisor
  * @divisor_denominator:	The denominator of lradc Vref internally divisor
+ * @has_clock_reset:		If the binding requires a clock and reset
  */
 struct lradc_variant {
 	u8 divisor_numerator;
 	u8 divisor_denominator;
+	bool has_clock_reset;
 };
 
 static const struct lradc_variant lradc_variant_a10 = {
@@ -85,6 +89,8 @@ struct sun4i_lradc_data {
 	struct device *dev;
 	struct input_dev *input;
 	void __iomem *base;
+	struct clk *clk;
+	struct reset_control *reset;
 	struct regulator *vref_supply;
 	struct sun4i_lradc_keymap *chan0_map;
 	const struct lradc_variant *variant;
@@ -142,6 +148,14 @@ static int sun4i_lradc_open(struct input_dev *dev)
 	if (error)
 		return error;
 
+	error = reset_control_deassert(lradc->reset);
+	if (error)
+		goto err_disable_reg;
+
+	error = clk_prepare_enable(lradc->clk);
+	if (error)
+		goto err_assert_reset;
+
 	lradc->vref = regulator_get_voltage(lradc->vref_supply) *
 		      lradc->variant->divisor_numerator /
 		      lradc->variant->divisor_denominator;
@@ -155,6 +169,13 @@ static int sun4i_lradc_open(struct input_dev *dev)
 	writel(CHAN0_KEYUP_IRQ | CHAN0_KEYDOWN_IRQ, lradc->base + LRADC_INTC);
 
 	return 0;
+
+err_assert_reset:
+	reset_control_assert(lradc->reset);
+err_disable_reg:
+	regulator_disable(lradc->vref_supply);
+
+	return error;
 }
 
 static void sun4i_lradc_close(struct input_dev *dev)
@@ -166,6 +187,8 @@ static void sun4i_lradc_close(struct input_dev *dev)
 		SAMPLE_RATE(2), lradc->base + LRADC_CTRL);
 	writel(0, lradc->base + LRADC_INTC);
 
+	clk_disable_unprepare(lradc->clk);
+	reset_control_assert(lradc->reset);
 	regulator_disable(lradc->vref_supply);
 }
 
@@ -242,6 +265,16 @@ static int sun4i_lradc_probe(struct platform_device *pdev)
 	if (!lradc->variant) {
 		dev_err(&pdev->dev, "Missing sun4i-a10-lradc-keys variant\n");
 		return -EINVAL;
+	}
+
+	if (lradc->variant->has_clock_reset) {
+		lradc->clk = devm_clk_get(dev, NULL);
+		if (IS_ERR(lradc->clk))
+			return PTR_ERR(lradc->clk);
+
+		lradc->reset = devm_reset_control_get_exclusive(dev, NULL);
+		if (IS_ERR(lradc->reset))
+			return PTR_ERR(lradc->reset);
 	}
 
 	lradc->vref_supply = devm_regulator_get(dev, "vref");
