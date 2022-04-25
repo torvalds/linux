@@ -2305,10 +2305,8 @@ err:
 	return NULL;
 }
 
-static void irdma_cm_node_free_cb(struct rcu_head *rcu_head)
+static void irdma_destroy_connection(struct irdma_cm_node *cm_node)
 {
-	struct irdma_cm_node *cm_node =
-			    container_of(rcu_head, struct irdma_cm_node, rcu_head);
 	struct irdma_cm_core *cm_core = cm_node->cm_core;
 	struct irdma_qp *iwqp;
 	struct irdma_cm_info nfo;
@@ -2356,7 +2354,6 @@ static void irdma_cm_node_free_cb(struct rcu_head *rcu_head)
 	}
 
 	cm_core->cm_free_ah(cm_node);
-	kfree(cm_node);
 }
 
 /**
@@ -2384,8 +2381,9 @@ void irdma_rem_ref_cm_node(struct irdma_cm_node *cm_node)
 
 	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 
-	/* wait for all list walkers to exit their grace period */
-	call_rcu(&cm_node->rcu_head, irdma_cm_node_free_cb);
+	irdma_destroy_connection(cm_node);
+
+	kfree_rcu(cm_node, rcu_head);
 }
 
 /**
