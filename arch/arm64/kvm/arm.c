@@ -145,11 +145,14 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	int ret;
 
+	if (type & ~KVM_VM_TYPE_MASK)
+		return -EINVAL;
+
 	ret = kvm_share_hyp(kvm, kvm + 1);
 	if (ret)
 		return ret;
 
-	ret = pkvm_init_host_vm(kvm);
+	ret = pkvm_init_host_vm(kvm, type);
 	if (ret)
 		goto err_unshare_kvm;
 
