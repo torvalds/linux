@@ -64,8 +64,8 @@ properties:
               - st,stm32mp157c-ed1
               - st,stm32mp157a-dk1
               - st,stm32mp157c-dk2
-
           - const: st,stm32mp157
+
       - items:
           - const: st,stm32mp157c-ev1
           - const: st,stm32mp157c-ed1
@@ -110,6 +110,7 @@ properties:
           - const: oct,stm32mp15xx-osd32
           - enum:
               - st,stm32mp157
+
       - description: Odyssey STM32MP1 SoM based Boards
         items:
           - enum:
