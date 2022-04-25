@@ -36,31 +36,6 @@ nf_ct_ecache_find(const struct nf_conn *ct)
 #endif
 }
 
-static inline struct nf_conntrack_ecache *
-nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp)
-{
-#ifdef CONFIG_NF_CONNTRACK_EVENTS
-	struct net *net = nf_ct_net(ct);
-	struct nf_conntrack_ecache *e;
-
-	if (!ctmask && !expmask && net->ct.sysctl_events) {
-		ctmask = ~0;
-		expmask = ~0;
-	}
-	if (!ctmask && !expmask)
-		return NULL;
-
-	e = nf_ct_ext_add(ct, NF_CT_EXT_ECACHE, gfp);
-	if (e) {
-		e->ctmask  = ctmask;
-		e->expmask = expmask;
-	}
-	return e;
-#else
-	return NULL;
-#endif
-}
-
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 
 /* This structure is passed to event handler */
@@ -89,6 +64,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct);
 int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,
 				  u32 portid, int report);
 
+bool nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp);
 #else
 
 static inline void nf_ct_deliver_cached_events(const struct nf_conn *ct)
@@ -103,6 +79,10 @@ static inline int nf_conntrack_eventmask_report(unsigned int eventmask,
 	return 0;
 }
 
+static inline bool nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp)
+{
+	return false;
+}
 #endif
 
 static inline void

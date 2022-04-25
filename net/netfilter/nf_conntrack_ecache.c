@@ -297,6 +297,28 @@ void nf_conntrack_ecache_work(struct net *net, enum nf_ct_ecache_state state)
 	}
 }
 
+bool nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp)
+{
+	struct net *net = nf_ct_net(ct);
+	struct nf_conntrack_ecache *e;
+
+	if (!ctmask && !expmask && net->ct.sysctl_events) {
+		ctmask = ~0;
+		expmask = ~0;
+	}
+	if (!ctmask && !expmask)
+		return false;
+
+	e = nf_ct_ext_add(ct, NF_CT_EXT_ECACHE, gfp);
+	if (e) {
+		e->ctmask  = ctmask;
+		e->expmask = expmask;
+	}
+
+	return e != NULL;
+}
+EXPORT_SYMBOL_GPL(nf_ct_ecache_ext_add);
+
 #define NF_CT_EVENTS_DEFAULT 1
 static int nf_ct_events __read_mostly = NF_CT_EVENTS_DEFAULT;
 

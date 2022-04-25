@@ -1698,7 +1698,9 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	struct nf_conn *ct;
 	struct nf_conn_help *help;
 	struct nf_conntrack_tuple repl_tuple;
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
 	struct nf_conntrack_ecache *ecache;
+#endif
 	struct nf_conntrack_expect *exp = NULL;
 	const struct nf_conntrack_zone *zone;
 	struct nf_conn_timeout *timeout_ext;
@@ -1731,10 +1733,16 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	nf_ct_tstamp_ext_add(ct, GFP_ATOMIC);
 	nf_ct_labels_ext_add(ct);
 
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
 	ecache = tmpl ? nf_ct_ecache_find(tmpl) : NULL;
-	nf_ct_ecache_ext_add(ct, ecache ? ecache->ctmask : 0,
-				 ecache ? ecache->expmask : 0,
-			     GFP_ATOMIC);
+
+	if (!nf_ct_ecache_ext_add(ct, ecache ? ecache->ctmask : 0,
+				  ecache ? ecache->expmask : 0,
+				  GFP_ATOMIC)) {
+		nf_conntrack_free(ct);
+		return ERR_PTR(-ENOMEM);
+	}
+#endif
 
 	cnet = nf_ct_pernet(net);
 	if (cnet->expect_count) {
