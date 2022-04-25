@@ -14,21 +14,6 @@ properties:
     const: "/"
   compatible:
     oneOf:
-      - description: DH STM32MP1 SoM based Boards
-        items:
-          - enum:
-              - arrow,stm32mp157a-avenger96 # Avenger96
-              - dh,stm32mp153c-dhcom-drc02
-              - dh,stm32mp157c-dhcom-pdk2
-              - dh,stm32mp157c-dhcom-picoitx
-          - enum:
-              - dh,stm32mp153c-dhcom-som
-              - dh,stm32mp157a-dhcor-som
-              - dh,stm32mp157c-dhcom-som
-          - enum:
-              - st,stm32mp153
-              - st,stm32mp157
-
       - description: emtrion STM32MP1 Argon based Boards
         items:
           - const: emtrion,stm32mp157c-emsbc-argon
@@ -65,6 +50,13 @@ properties:
           - enum:
               - st,stm32mp135f-dk
           - const: st,stm32mp135
+
+      - description: DH STM32MP153 SoM based Boards
+        items:
+          - const: dh,stm32mp153c-dhcom-drc02
+          - const: dh,stm32mp153c-dhcom-som
+          - const: st,stm32mp153
+
       - items:
           - enum:
               - shiratech,stm32mp157a-iot-box # IoT Box
@@ -77,6 +69,21 @@ properties:
       - items:
           - const: st,stm32mp157c-ev1
           - const: st,stm32mp157c-ed1
+          - const: st,stm32mp157
+
+      - description: DH STM32MP1 SoM based Boards
+        items:
+          - enum:
+              - arrow,stm32mp157a-avenger96 # Avenger96
+          - const: dh,stm32mp157a-dhcor-som
+          - const: st,stm32mp157
+
+      - description: DH STM32MP1 SoM based Boards
+        items:
+          - enum:
+              - dh,stm32mp157c-dhcom-pdk2
+              - dh,stm32mp157c-dhcom-picoitx
+          - const: dh,stm32mp157c-dhcom-som
           - const: st,stm32mp157
 
       - description: Engicam i.Core STM32MP1 SoM based Boards
