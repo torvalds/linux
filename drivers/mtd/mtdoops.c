@@ -16,6 +16,7 @@
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/timekeeping.h>
 #include <linux/mtd/mtd.h>
 #include <linux/kmsg_dump.h>
 
@@ -37,11 +38,13 @@ module_param(dump_oops, int, 0600);
 MODULE_PARM_DESC(dump_oops,
 		"set to 1 to dump oopses, 0 to only dump panics (default 1)");
 
-#define MTDOOPS_KERNMSG_MAGIC 0x5d005d00
+#define MTDOOPS_KERNMSG_MAGIC_v1 0x5d005d00  /* Original */
+#define MTDOOPS_KERNMSG_MAGIC_v2 0x5d005e00  /* Adds the timestamp */
 
 struct mtdoops_hdr {
 	u32 seq;
 	u32 magic;
+	ktime_t timestamp;
 } __packed;
 
 static struct mtdoops_context {
@@ -191,7 +194,8 @@ static void mtdoops_write(struct mtdoops_context *cxt, int panic)
 	/* Add mtdoops header to the buffer */
 	hdr = (struct mtdoops_hdr *)cxt->oops_buf;
 	hdr->seq = cxt->nextcount;
-	hdr->magic = MTDOOPS_KERNMSG_MAGIC;
+	hdr->magic = MTDOOPS_KERNMSG_MAGIC_v2;
+	hdr->timestamp = ktime_get_real();
 
 	if (panic) {
 		ret = mtd_panic_write(mtd, cxt->nextpage * record_size,
@@ -247,7 +251,9 @@ static void find_next_position(struct mtdoops_context *cxt)
 
 		if (hdr.seq == 0xffffffff && hdr.magic == 0xffffffff)
 			mark_page_unused(cxt, page);
-		if (hdr.seq == 0xffffffff || hdr.magic != MTDOOPS_KERNMSG_MAGIC)
+		if (hdr.seq == 0xffffffff ||
+		    (hdr.magic != MTDOOPS_KERNMSG_MAGIC_v1 &&
+		     hdr.magic != MTDOOPS_KERNMSG_MAGIC_v2))
 			continue;
 		if (maxcount == 0xffffffff) {
 			maxcount = hdr.seq;
