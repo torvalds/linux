@@ -421,6 +421,134 @@ static unsigned int cppc_cpufreq_get_transition_delay_us(unsigned int cpu)
 }
 
 static DEFINE_PER_CPU(unsigned int, efficiency_class);
+static void cppc_cpufreq_register_em(struct cpufreq_policy *policy);
+
+/* Create an artificial performance state every CPPC_EM_CAP_STEP capacity unit. */
+#define CPPC_EM_CAP_STEP	(20)
+/* Increase the cost value by CPPC_EM_COST_STEP every performance state. */
+#define CPPC_EM_COST_STEP	(1)
+/* Add a cost gap correspnding to the energy of 4 CPUs. */
+#define CPPC_EM_COST_GAP	(4 * SCHED_CAPACITY_SCALE * CPPC_EM_COST_STEP \
+				/ CPPC_EM_CAP_STEP)
+
+static unsigned int get_perf_level_count(struct cpufreq_policy *policy)
+{
+	struct cppc_perf_caps *perf_caps;
+	unsigned int min_cap, max_cap;
+	struct cppc_cpudata *cpu_data;
+	int cpu = policy->cpu;
+
+	cpu_data = policy->driver_data;
+	perf_caps = &cpu_data->perf_caps;
+	max_cap = arch_scale_cpu_capacity(cpu);
+	min_cap = div_u64(max_cap * perf_caps->lowest_perf, perf_caps->highest_perf);
+	if ((min_cap == 0) || (max_cap < min_cap))
+		return 0;
+	return 1 + max_cap / CPPC_EM_CAP_STEP - min_cap / CPPC_EM_CAP_STEP;
+}
+
+/*
+ * The cost is defined as:
+ *   cost = power * max_frequency / frequency
+ */
+static inline unsigned long compute_cost(int cpu, int step)
+{
+	return CPPC_EM_COST_GAP * per_cpu(efficiency_class, cpu) +
+			step * CPPC_EM_COST_STEP;
+}
+
+static int cppc_get_cpu_power(struct device *cpu_dev,
+		unsigned long *power, unsigned long *KHz)
+{
+	unsigned long perf_step, perf_prev, perf, perf_check;
+	unsigned int min_step, max_step, step, step_check;
+	unsigned long prev_freq = *KHz;
+	unsigned int min_cap, max_cap;
+	struct cpufreq_policy *policy;
+
+	struct cppc_perf_caps *perf_caps;
+	struct cppc_cpudata *cpu_data;
+
+	policy = cpufreq_cpu_get_raw(cpu_dev->id);
+	cpu_data = policy->driver_data;
+	perf_caps = &cpu_data->perf_caps;
+	max_cap = arch_scale_cpu_capacity(cpu_dev->id);
+	min_cap = div_u64(max_cap * perf_caps->lowest_perf,
+			perf_caps->highest_perf);
+
+	perf_step = CPPC_EM_CAP_STEP * perf_caps->highest_perf / max_cap;
+	min_step = min_cap / CPPC_EM_CAP_STEP;
+	max_step = max_cap / CPPC_EM_CAP_STEP;
+
+	perf_prev = cppc_cpufreq_khz_to_perf(cpu_data, *KHz);
+	step = perf_prev / perf_step;
+
+	if (step > max_step)
+		return -EINVAL;
+
+	if (min_step == max_step) {
+		step = max_step;
+		perf = perf_caps->highest_perf;
+	} else if (step < min_step) {
+		step = min_step;
+		perf = perf_caps->lowest_perf;
+	} else {
+		step++;
+		if (step == max_step)
+			perf = perf_caps->highest_perf;
+		else
+			perf = step * perf_step;
+	}
+
+	*KHz = cppc_cpufreq_perf_to_khz(cpu_data, perf);
+	perf_check = cppc_cpufreq_khz_to_perf(cpu_data, *KHz);
+	step_check = perf_check / perf_step;
+
+	/*
+	 * To avoid bad integer approximation, check that new frequency value
+	 * increased and that the new frequency will be converted to the
+	 * desired step value.
+	 */
+	while ((*KHz == prev_freq) || (step_check != step)) {
+		perf++;
+		*KHz = cppc_cpufreq_perf_to_khz(cpu_data, perf);
+		perf_check = cppc_cpufreq_khz_to_perf(cpu_data, *KHz);
+		step_check = perf_check / perf_step;
+	}
+
+	/*
+	 * With an artificial EM, only the cost value is used. Still the power
+	 * is populated such as 0 < power < EM_MAX_POWER. This allows to add
+	 * more sense to the artificial performance states.
+	 */
+	*power = compute_cost(cpu_dev->id, step);
+
+	return 0;
+}
+
+static int cppc_get_cpu_cost(struct device *cpu_dev, unsigned long KHz,
+		unsigned long *cost)
+{
+	unsigned long perf_step, perf_prev;
+	struct cppc_perf_caps *perf_caps;
+	struct cpufreq_policy *policy;
+	struct cppc_cpudata *cpu_data;
+	unsigned int max_cap;
+	int step;
+
+	policy = cpufreq_cpu_get_raw(cpu_dev->id);
+	cpu_data = policy->driver_data;
+	perf_caps = &cpu_data->perf_caps;
+	max_cap = arch_scale_cpu_capacity(cpu_dev->id);
+
+	perf_prev = cppc_cpufreq_khz_to_perf(cpu_data, KHz);
+	perf_step = CPPC_EM_CAP_STEP * perf_caps->highest_perf / max_cap;
+	step = perf_prev / perf_step;
+
+	*cost = compute_cost(cpu_dev->id, step);
+
+	return 0;
+}
 
 static int populate_efficiency_class(void)
 {
@@ -453,8 +581,21 @@ static int populate_efficiency_class(void)
 		}
 		index++;
 	}
+	cppc_cpufreq_driver.register_em = cppc_cpufreq_register_em;
 
 	return 0;
+}
+
+static void cppc_cpufreq_register_em(struct cpufreq_policy *policy)
+{
+	struct cppc_cpudata *cpu_data;
+	struct em_data_callback em_cb =
+		EM_ADV_DATA_CB(cppc_get_cpu_power, cppc_get_cpu_cost);
+
+	cpu_data = policy->driver_data;
+	em_dev_register_perf_domain(get_cpu_device(policy->cpu),
+			get_perf_level_count(policy), &em_cb,
+			cpu_data->shared_cpu_map, 0);
 }
 
 #else
@@ -466,6 +607,9 @@ static unsigned int cppc_cpufreq_get_transition_delay_us(unsigned int cpu)
 static int populate_efficiency_class(void)
 {
 	return 0;
+}
+static void cppc_cpufreq_register_em(struct cpufreq_policy *policy)
+{
 }
 #endif
 
