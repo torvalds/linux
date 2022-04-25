@@ -405,12 +405,12 @@ void arch_scale_freq_tick(void)
 unsigned int arch_freq_get_on_cpu(int cpu)
 {
 	struct aperfmperf *s = per_cpu_ptr(&cpu_samples, cpu);
+	unsigned int seq, freq;
 	unsigned long last;
-	unsigned int seq;
 	u64 acnt, mcnt;
 
 	if (!cpu_feature_enabled(X86_FEATURE_APERFMPERF))
-		return 0;
+		goto fallback;
 
 	do {
 		seq = raw_read_seqcount_begin(&s->seq);
@@ -424,9 +424,13 @@ unsigned int arch_freq_get_on_cpu(int cpu)
 	 * which covers idle and NOHZ full CPUs.
 	 */
 	if (!mcnt || (jiffies - last) > MAX_SAMPLE_AGE)
-		return 0;
+		goto fallback;
 
 	return div64_u64((cpu_khz * acnt), mcnt);
+
+fallback:
+	freq = cpufreq_quick_get(cpu);
+	return freq ? freq : cpu_khz;
 }
 
 static int __init bp_init_aperfmperf(void)

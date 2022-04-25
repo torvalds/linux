@@ -86,12 +86,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (cpu_has(c, X86_FEATURE_TSC)) {
 		unsigned int freq = arch_freq_get_on_cpu(cpu);
 
-		if (!freq)
-			freq = cpufreq_quick_get(cpu);
-		if (!freq)
-			freq = cpu_khz;
-		seq_printf(m, "cpu MHz\t\t: %u.%03u\n",
-			   freq / 1000, (freq % 1000));
+		seq_printf(m, "cpu MHz\t\t: %u.%03u\n", freq / 1000, (freq % 1000));
 	}
 
 	/* Cache size */
