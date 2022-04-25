@@ -7,6 +7,7 @@
 #include <linux/libnvdimm.h>
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
+#include <linux/log2.h>
 #include <linux/io.h>
 
 /**
@@ -89,6 +90,31 @@ static inline int cxl_to_ways(u8 eniw, unsigned int *val)
 		return -EINVAL;
 	}
 
+	return 0;
+}
+
+static inline int granularity_to_cxl(int g, u16 *ig)
+{
+	if (g > SZ_16K || g < 256 || !is_power_of_2(g))
+		return -EINVAL;
+	*ig = ilog2(g) - 8;
+	return 0;
+}
+
+static inline int ways_to_cxl(int ways, u8 *iw)
+{
+	if (ways > 16)
+		return -EINVAL;
+	if (is_power_of_2(ways)) {
+		*iw = ilog2(ways);
+		return 0;
+	}
+	if (ways % 3)
+		return -EINVAL;
+	ways /= 3;
+	if (!is_power_of_2(ways))
+		return -EINVAL;
+	*iw = ilog2(ways) + 8;
 	return 0;
 }
 
@@ -298,11 +324,14 @@ struct cxl_root_decoder {
 /*
  * enum cxl_config_state - State machine for region configuration
  * @CXL_CONFIG_IDLE: Any sysfs attribute can be written freely
+ * @CXL_CONFIG_INTERLEAVE_ACTIVE: region size has been set, no more
+ * changes to interleave_ways or interleave_granularity
  * @CXL_CONFIG_ACTIVE: All targets have been added the region is now
  * active
  */
 enum cxl_config_state {
 	CXL_CONFIG_IDLE,
+	CXL_CONFIG_INTERLEAVE_ACTIVE,
 	CXL_CONFIG_ACTIVE,
 };
 
@@ -310,12 +339,16 @@ enum cxl_config_state {
  * struct cxl_region_params - region settings
  * @state: allow the driver to lockdown further parameter changes
  * @uuid: unique id for persistent regions
+ * @interleave_ways: number of endpoints in the region
+ * @interleave_granularity: capacity each endpoint contributes to a stripe
  *
  * State transitions are protected by the cxl_region_rwsem
  */
 struct cxl_region_params {
 	enum cxl_config_state state;
 	uuid_t uuid;
+	int interleave_ways;
+	int interleave_granularity;
 };
 
 /**

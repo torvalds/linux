@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/uuid.h>
 #include <linux/idr.h>
+#include <cxlmem.h>
 #include <cxl.h>
 #include "core.h"
 
@@ -21,6 +22,8 @@
  *
  * Region configuration has ordering constraints. UUID may be set at any time
  * but is only visible for persistent regions.
+ * 1. Interleave granularity
+ * 2. Interleave size
  */
 
 /*
@@ -122,8 +125,135 @@ static umode_t cxl_region_visible(struct kobject *kobj, struct attribute *a,
 	return a->mode;
 }
 
+static ssize_t interleave_ways_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	ssize_t rc;
+
+	rc = down_read_interruptible(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+	rc = sysfs_emit(buf, "%d\n", p->interleave_ways);
+	up_read(&cxl_region_rwsem);
+
+	return rc;
+}
+
+static ssize_t interleave_ways_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t len)
+{
+	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(dev->parent);
+	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	int rc, val;
+	u8 iw;
+
+	rc = kstrtoint(buf, 0, &val);
+	if (rc)
+		return rc;
+
+	rc = ways_to_cxl(val, &iw);
+	if (rc)
+		return rc;
+
+	/*
+	 * Even for x3, x9, and x12 interleaves the region interleave must be a
+	 * power of 2 multiple of the host bridge interleave.
+	 */
+	if (!is_power_of_2(val / cxld->interleave_ways) ||
+	    (val % cxld->interleave_ways)) {
+		dev_dbg(&cxlr->dev, "invalid interleave: %d\n", val);
+		return -EINVAL;
+	}
+
+	rc = down_write_killable(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+	if (p->state >= CXL_CONFIG_INTERLEAVE_ACTIVE) {
+		rc = -EBUSY;
+		goto out;
+	}
+
+	p->interleave_ways = val;
+out:
+	up_write(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+	return len;
+}
+static DEVICE_ATTR_RW(interleave_ways);
+
+static ssize_t interleave_granularity_show(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	ssize_t rc;
+
+	rc = down_read_interruptible(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+	rc = sysfs_emit(buf, "%d\n", p->interleave_granularity);
+	up_read(&cxl_region_rwsem);
+
+	return rc;
+}
+
+static ssize_t interleave_granularity_store(struct device *dev,
+					    struct device_attribute *attr,
+					    const char *buf, size_t len)
+{
+	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(dev->parent);
+	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	int rc, val;
+	u16 ig;
+
+	rc = kstrtoint(buf, 0, &val);
+	if (rc)
+		return rc;
+
+	rc = granularity_to_cxl(val, &ig);
+	if (rc)
+		return rc;
+
+	/*
+	 * Disallow region granularity less than root granularity to
+	 * simplify the implementation. Otherwise, region's with a
+	 * granularity less than the root interleave result in needing
+	 * multiple endpoints to support a single slot in the
+	 * interleave.
+	 */
+	if (val < cxld->interleave_granularity)
+		return -EINVAL;
+
+	rc = down_write_killable(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+	if (p->state >= CXL_CONFIG_INTERLEAVE_ACTIVE) {
+		rc = -EBUSY;
+		goto out;
+	}
+
+	p->interleave_granularity = val;
+out:
+	up_write(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+	return len;
+}
+static DEVICE_ATTR_RW(interleave_granularity);
+
 static struct attribute *cxl_region_attrs[] = {
 	&dev_attr_uuid.attr,
+	&dev_attr_interleave_ways.attr,
+	&dev_attr_interleave_granularity.attr,
 	NULL,
 };
 
@@ -216,6 +346,8 @@ static struct cxl_region *devm_cxl_add_region(struct cxl_root_decoder *cxlrd,
 					      enum cxl_decoder_type type)
 {
 	struct cxl_port *port = to_cxl_port(cxlrd->cxlsd.cxld.dev.parent);
+	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
+	struct cxl_region_params *p;
 	struct cxl_region *cxlr;
 	struct device *dev;
 	int rc;
@@ -223,8 +355,10 @@ static struct cxl_region *devm_cxl_add_region(struct cxl_root_decoder *cxlrd,
 	cxlr = cxl_region_alloc(cxlrd, id);
 	if (IS_ERR(cxlr))
 		return cxlr;
+	p = &cxlr->params;
 	cxlr->mode = mode;
 	cxlr->type = type;
+	p->interleave_granularity = cxld->interleave_granularity;
 
 	dev = &cxlr->dev;
 	rc = dev_set_name(dev, "region%d", id);

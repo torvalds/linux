@@ -303,3 +303,24 @@ Description:
 		(RW) Write a unique identifier for the region. This field must
 		be set for persistent regions and it must not conflict with the
 		UUID of another region.
+
+
+What:		/sys/bus/cxl/devices/regionZ/interleave_granularity
+Date:		May, 2022
+KernelVersion:	v5.20
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RW) Set the number of consecutive bytes each device in the
+		interleave set will claim. The possible interleave granularity
+		values are determined by the CXL spec and the participating
+		devices.
+
+
+What:		/sys/bus/cxl/devices/regionZ/interleave_ways
+Date:		May, 2022
+KernelVersion:	v5.20
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RW) Configures the number of devices participating in the
+		region is set by writing this value. Each device will provide
+		1/interleave_ways of storage for the region.
