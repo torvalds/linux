@@ -623,7 +623,6 @@ static inline void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 {
 	sdev->ipc->ops->rx_msg(sdev);
 }
-int snd_sof_ipc_valid(struct snd_sof_dev *sdev);
 int sof_ipc_tx_message(struct snd_sof_ipc *ipc, void *msg_data, size_t msg_bytes,
 		       void *reply_data, size_t reply_bytes);
 int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, void *msg_data, size_t msg_bytes,
