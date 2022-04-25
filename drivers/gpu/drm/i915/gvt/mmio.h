@@ -72,7 +72,6 @@ struct intel_gvt_mmio_info {
 const struct intel_engine_cs *
 intel_gvt_render_mmio_to_engine(struct intel_gvt *gvt, unsigned int reg);
 unsigned long intel_gvt_get_device_type(struct intel_gvt *gvt);
-bool intel_gvt_match_device(struct intel_gvt *gvt, unsigned long device);
 
 int intel_gvt_setup_mmio_info(struct intel_gvt *gvt);
 void intel_gvt_clean_mmio_info(struct intel_gvt *gvt);
