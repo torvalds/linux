@@ -834,12 +834,43 @@ static void mlxsw_linecard_types_get(struct devlink_linecard *devlink_linecard,
 	*type_priv = ini_file;
 }
 
+static int
+mlxsw_linecard_info_get(struct devlink_linecard *devlink_linecard, void *priv,
+			struct devlink_info_req *req,
+			struct netlink_ext_ack *extack)
+{
+	struct mlxsw_linecard *linecard = priv;
+	char buf[32];
+	int err;
+
+	mutex_lock(&linecard->lock);
+	if (!linecard->provisioned) {
+		err = 0;
+		goto unlock;
+	}
+
+	sprintf(buf, "%d", linecard->hw_revision);
+	err = devlink_info_version_fixed_put(req, "hw.revision", buf);
+	if (err)
+		goto unlock;
+
+	sprintf(buf, "%d", linecard->ini_version);
+	err = devlink_info_version_running_put(req, "ini.version", buf);
+	if (err)
+		goto unlock;
+
+unlock:
+	mutex_unlock(&linecard->lock);
+	return err;
+}
+
 static const struct devlink_linecard_ops mlxsw_linecard_ops = {
 	.provision = mlxsw_linecard_provision,
 	.unprovision = mlxsw_linecard_unprovision,
 	.same_provision = mlxsw_linecard_same_provision,
 	.types_count = mlxsw_linecard_types_count,
 	.types_get = mlxsw_linecard_types_get,
+	.info_get = mlxsw_linecard_info_get,
 };
 
 struct mlxsw_linecard_status_event {
