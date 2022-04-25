@@ -307,8 +307,20 @@ bool bch2_extent_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 			    lp.crc.uncompressed_size +
 			    rp.crc.uncompressed_size > (c->opts.encoded_extent_max >> 9))
 				return false;
+		}
 
-			if (lp.crc.uncompressed_size + rp.crc.uncompressed_size >
+		en_l = extent_entry_next(en_l);
+		en_r = extent_entry_next(en_r);
+	}
+
+	en_l = l_ptrs.start;
+	en_r = r_ptrs.start;
+	while (en_l < l_ptrs.end && en_r < r_ptrs.end) {
+		if (extent_entry_is_crc(en_l)) {
+			struct bch_extent_crc_unpacked crc_l = bch2_extent_crc_unpack(l.k, entry_to_crc(en_l));
+			struct bch_extent_crc_unpacked crc_r = bch2_extent_crc_unpack(r.k, entry_to_crc(en_r));
+
+			if (crc_l.uncompressed_size + crc_r.uncompressed_size >
 			    bch2_crc_field_size_max[extent_entry_type(en_l)])
 				return false;
 		}
