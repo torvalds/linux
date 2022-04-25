@@ -76,6 +76,9 @@ int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 	/* ipc */
 	sof_tgl_ops.send_msg	= cnl_ipc_send_msg;
 
+	/* set DAI driver ops */
+	hda_set_dai_drv_ops(sdev, &sof_tgl_ops);
+
 	/* debug */
 	sof_tgl_ops.debug_map	= tgl_dsp_debugfs;
 	sof_tgl_ops.debug_map_count	= ARRAY_SIZE(tgl_dsp_debugfs);

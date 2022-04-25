@@ -413,42 +413,6 @@ bool snd_sof_stream_suspend_ignored(struct snd_sof_dev *sdev)
 	return false;
 }
 
-int sof_set_hw_params_upon_resume(struct device *dev)
-{
-	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
-	struct snd_pcm_substream *substream;
-	struct snd_sof_pcm *spcm;
-	snd_pcm_state_t state;
-	int dir;
-
-	/*
-	 * SOF requires hw_params to be set-up internally upon resume.
-	 * So, set the flag to indicate this for those streams that
-	 * have been suspended.
-	 */
-	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		for_each_pcm_streams(dir) {
-			/*
-			 * do not reset hw_params upon resume for streams that
-			 * were kept running during suspend
-			 */
-			if (spcm->stream[dir].suspend_ignored)
-				continue;
-
-			substream = spcm->stream[dir].substream;
-			if (!substream || !substream->runtime)
-				continue;
-
-			state = substream->runtime->status->state;
-			if (state == SNDRV_PCM_STATE_SUSPENDED)
-				spcm->prepared[dir] = false;
-		}
-	}
-
-	/* set internal flag for BE */
-	return snd_sof_dsp_hw_params_upon_resume(sdev);
-}
-
 int sof_pcm_stream_free(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream,
 			struct snd_sof_pcm *spcm, int dir, bool free_widget_list)
 {

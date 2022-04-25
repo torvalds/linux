@@ -697,6 +697,7 @@ static inline bool hda_common_check_sdw_irq(struct snd_sof_dev *sdev)
 
 /* common dai driver */
 extern struct snd_soc_dai_driver skl_dai[];
+int hda_dsp_dais_suspend(struct snd_sof_dev *sdev);
 
 /*
  * Platform Specific HW abstraction Ops.
@@ -760,5 +761,7 @@ int hda_ctrl_dai_widget_free(struct snd_soc_dapm_widget *w, unsigned int quirk_f
 #define SOF_HDA_POSITION_QUIRK_USE_DPIB_DDR_UPDATE	(2) /* recommended with VC0 or VC1 */
 
 extern int sof_hda_position_quirk;
+
+void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops);
 
 #endif

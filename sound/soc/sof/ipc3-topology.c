@@ -2247,6 +2247,18 @@ static int sof_ipc3_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verif
 	list_for_each_entry(sroute, &sdev->route_list, list)
 		sroute->setup = false;
 
+	/*
+	 * before suspending, make sure the refcounts are all zeroed out. There's no way
+	 * to recover at this point but this will help root cause bad sequences leading to
+	 * more issues on resume
+	 */
+	list_for_each_entry(swidget, &sdev->widget_list, list) {
+		if (swidget->use_count != 0) {
+			dev_err(sdev->dev, "%s: widget %s is still in use: count %d\n",
+				__func__, swidget->widget->name, swidget->use_count);
+		}
+	}
+
 	return 0;
 }
 

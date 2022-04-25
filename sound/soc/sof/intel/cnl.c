@@ -261,6 +261,9 @@ int sof_cnl_ops_init(struct snd_sof_dev *sdev)
 	/* ipc */
 	sof_cnl_ops.send_msg	= cnl_ipc_send_msg;
 
+	/* set DAI driver ops */
+	hda_set_dai_drv_ops(sdev, &sof_cnl_ops);
+
 	/* debug */
 	sof_cnl_ops.debug_map	= cnl_dsp_debugfs;
 	sof_cnl_ops.debug_map_count	= ARRAY_SIZE(cnl_dsp_debugfs);

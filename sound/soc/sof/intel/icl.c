@@ -127,6 +127,9 @@ int sof_icl_ops_init(struct snd_sof_dev *sdev)
 	/* dsp core get/put */
 	sof_icl_ops.core_get = hda_dsp_core_get;
 
+	/* set DAI driver ops */
+	hda_set_dai_drv_ops(sdev, &sof_icl_ops);
+
 	return 0;
 };
 EXPORT_SYMBOL_NS(sof_icl_ops_init, SND_SOC_SOF_INTEL_HDA_COMMON);
