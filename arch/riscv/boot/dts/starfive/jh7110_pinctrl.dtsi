@@ -515,6 +515,12 @@
 	status = "okay";
 };
 
+&ptc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_ch0_pins>;
+	status = "okay";
+};
+
 &sdio0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins>;
