@@ -87,9 +87,9 @@ struct stfcamss {
 	int isp_num;
 	struct stf_isp_dev *isp_dev;   // subdev
 	struct v4l2_async_notifier notifier;
-	struct stfcamss_clk *sys_clk;
+	struct clk_bulk_data *sys_clk;
 	int nclks;
-	struct stfcamss_rst *sys_rst;
+	struct reset_control_bulk_data *sys_rst;
 	int nrsts;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_entry;

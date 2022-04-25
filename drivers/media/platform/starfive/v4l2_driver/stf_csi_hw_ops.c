@@ -80,12 +80,12 @@ static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
     reg_set_bit(vin->clkgen_base, CLK_U0_VIN_CLK_P_AXIWR, BIT(24), 0x0<<24);
 
 #ifdef CONFIG_RESET_STARFIVE_JH7110
-	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF0].rst);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF1].rst);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF2].rst);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF3].rst);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIRD].rst);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rst);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF0].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF1].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF2].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF3].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
 #else
     reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
 		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE,
@@ -106,12 +106,12 @@ static int stf_csi_clk_disable(struct stf_csi_dev *csi_dev)
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 
 #ifdef CONFIG_RESET_STARFIVE_JH7110
-	reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rst);
-	reset_control_assert(stfcamss->sys_rst[STFRST_AXIRD].rst);
-	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF3].rst);
-	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF2].rst);
-	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF1].rst);	
-	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF0].rst);
+	reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF3].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF2].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF1].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF0].rstc);
 #else
     reg_assert_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
 		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE,

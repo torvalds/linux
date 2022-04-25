@@ -55,24 +55,24 @@ static const struct reg_name mem_reg_name[] = {
 	{"syscrg"},
 };
 
-char *clocks[] = {
-	"clk_ispcore_2x",
-	"clk_isp_axi",
+static struct clk_bulk_data stfcamss_clocks[] = {
+	{ .id = "clk_ispcore_2x" },
+	{ .id = "clk_isp_axi" },
 };
 
-char *resets[] = {
-	"rst_isp_top_n",
-	"rst_isp_top_axi",
-	"rst_wrapper_p",
-	"rst_wrapper_c",
-	"rst_pclk",
-	"rst_sys_clk",
-	"rst_axird",
-	"rst_axiwr",
-	"rst_pixel_clk_if0",
-	"rst_pixel_clk_if1",
-	"rst_pixel_clk_if2",
-	"rst_pixel_clk_if3",
+static struct reset_control_bulk_data stfcamss_resets[] = {
+	{ .id = "rst_isp_top_n" },
+	{ .id = "rst_isp_top_axi" },
+	{ .id = "rst_wrapper_p" },
+	{ .id = "rst_wrapper_c" },
+	{ .id = "rst_pclk" },
+	{ .id = "rst_sys_clk" },
+	{ .id = "rst_axird" },
+	{ .id = "rst_axiwr" },
+	{ .id = "rst_pixel_clk_if0" },
+	{ .id = "rst_pixel_clk_if1" },
+	{ .id = "rst_pixel_clk_if2" },
+	{ .id = "rst_pixel_clk_if3" },
 };
 
 int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
@@ -1035,47 +1035,22 @@ static int stfcamss_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_CLK_STARFIVE_JH7110
-	stfcamss->nclks = ARRAY_SIZE(clocks);
-	stfcamss->sys_clk = devm_kzalloc(dev, stfcamss->nclks * sizeof(*stfcamss->sys_clk),
-			GFP_KERNEL);
-	if (!stfcamss->sys_clk) {
-		ret = -ENOMEM;
-		goto err_cam;
-	}
+	stfcamss->nclks = ARRAY_SIZE(stfcamss_clocks);
+	stfcamss->sys_clk = stfcamss_clocks;
 
-	for (i = 0; i < stfcamss->nclks; i++) {
-		struct stfcamss_clk *clock = &stfcamss->sys_clk[i];
-		clock->clk = devm_clk_get(dev, clocks[i]);
-		if (IS_ERR(clock->clk)) {
-			st_err(ST_CAMSS, "get %s clocks name failed\n", clocks[i]);
-			return PTR_ERR(clock->clk);
-		}
-		st_debug(ST_CAMSS, "get %s clocks name: \n", clocks[i]);
-
-		clock->name = clocks[i];
-	}
+	ret = devm_clk_bulk_get(dev, stfcamss->nclks, stfcamss->sys_clk);
+	if (ret)
+		st_err(ST_CAMSS, "faied to get clk controls\n");
 #endif
 
 #ifdef CONFIG_RESET_STARFIVE_JH7110
-	stfcamss->nrsts = ARRAY_SIZE(resets);
-	stfcamss->sys_rst = devm_kzalloc(dev, stfcamss->nrsts * sizeof(*stfcamss->sys_rst),
-			GFP_KERNEL);
-	if (!stfcamss->sys_rst) {
-		ret = -ENOMEM;
-		goto err_cam;
-	}
+	stfcamss->nrsts = ARRAY_SIZE(stfcamss_resets);
+	stfcamss->sys_rst = stfcamss_resets;
 
-	for (i = 0; i < stfcamss->nrsts; i++) {
-		struct stfcamss_rst *reset = &stfcamss->sys_rst[i];
-		reset->rst = devm_reset_control_get_exclusive(dev, resets[i]);
-		if (IS_ERR(reset->rst)) {
-			st_err(ST_CAMSS, "get %s resets name failed\n", resets[i]);
-			return PTR_ERR(reset->rst);
-		}
-		st_debug(ST_CAMSS, "get %s resets name: \n", resets[i]);
-
-		reset->name = resets[i];
-	}
+	ret = devm_reset_control_bulk_get_exclusive(dev, stfcamss->nrsts,
+		stfcamss->sys_rst);
+	if (ret)
+		st_err(ST_CAMSS, "faied to get reset controls\n");
 #endif
 
 	ret = stfcamss_get_mem_res(pdev, vin);
