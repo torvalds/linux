@@ -505,6 +505,10 @@
 		i2c6: i2c@12060000 {
 			compatible = "snps,designware-i2c";
 			reg = <0x0 0x12060000 0x0 0x10000>;
+			clocks = <&clkgen JH7110_I2C6_CLK_CORE>,
+				 <&clkgen JH7110_I2C6_CLK_APB>;
+			clock-names = "ref", "pclk";
+			resets = <&rstgen RSTN_U6_DW_I2C_APB>;
 			interrupts = <51>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -514,6 +518,10 @@
 		i2c0: i2c@10030000 {
 			compatible = "snps,designware-i2c";
 			reg = <0x0 0x10030000 0x0 0x10000>;
+			clocks = <&clkgen JH7110_I2C0_CLK_CORE>,
+				 <&clkgen JH7110_I2C0_CLK_APB>;
+			clock-names = "ref", "pclk";
+			resets = <&rstgen RSTN_U0_DW_I2C_APB>;
 			interrupts = <35>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -523,6 +531,10 @@
 		i2c1: i2c@10040000 {
 			compatible = "snps,designware-i2c";
 			reg = <0x0 0x10040000 0x0 0x10000>;
+			clocks = <&clkgen JH7110_I2C1_CLK_CORE>,
+				 <&clkgen JH7110_I2C1_CLK_APB>;
+			clock-names = "ref", "pclk";
+			resets = <&rstgen RSTN_U1_DW_I2C_APB>;
 			interrupts = <36>;
 			#address-cells = <1>;
 			#size-cells = <0>;
