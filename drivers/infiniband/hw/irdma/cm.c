@@ -3465,12 +3465,6 @@ static void irdma_cm_disconn_true(struct irdma_qp *iwqp)
 	}
 
 	cm_id = iwqp->cm_id;
-	/* make sure we havent already closed this connection */
-	if (!cm_id) {
-		spin_unlock_irqrestore(&iwqp->lock, flags);
-		return;
-	}
-
 	original_hw_tcp_state = iwqp->hw_tcp_state;
 	original_ibqp_state = iwqp->ibqp_state;
 	last_ae = iwqp->last_aeq;
@@ -3492,11 +3486,11 @@ static void irdma_cm_disconn_true(struct irdma_qp *iwqp)
 			disconn_status = -ECONNRESET;
 	}
 
-	if ((original_hw_tcp_state == IRDMA_TCP_STATE_CLOSED ||
-	     original_hw_tcp_state == IRDMA_TCP_STATE_TIME_WAIT ||
-	     last_ae == IRDMA_AE_RDMAP_ROE_BAD_LLP_CLOSE ||
-	     last_ae == IRDMA_AE_BAD_CLOSE ||
-	     last_ae == IRDMA_AE_LLP_CONNECTION_RESET || iwdev->rf->reset)) {
+	if (original_hw_tcp_state == IRDMA_TCP_STATE_CLOSED ||
+	    original_hw_tcp_state == IRDMA_TCP_STATE_TIME_WAIT ||
+	    last_ae == IRDMA_AE_RDMAP_ROE_BAD_LLP_CLOSE ||
+	    last_ae == IRDMA_AE_BAD_CLOSE ||
+	    last_ae == IRDMA_AE_LLP_CONNECTION_RESET || iwdev->rf->reset || !cm_id) {
 		issue_close = 1;
 		iwqp->cm_id = NULL;
 		qp->term_flags = 0;
