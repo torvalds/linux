@@ -317,6 +317,11 @@ static const struct usb_device_id blacklist_table[] = {
 						     BTUSB_WIDEBAND_SPEECH |
 						     BTUSB_VALID_LE_STATES },
 
+	/* QCA WCN785x chipset */
+	{ USB_DEVICE(0x0cf3, 0xe700), .driver_info = BTUSB_QCA_WCN6855 |
+						     BTUSB_WIDEBAND_SPEECH |
+						     BTUSB_VALID_LE_STATES },
+
 	/* Broadcom BCM2035 */
 	{ USB_DEVICE(0x0a5c, 0x2009), .driver_info = BTUSB_BCM92035 },
 	{ USB_DEVICE(0x0a5c, 0x200a), .driver_info = BTUSB_WRONG_SCO_MTU },
@@ -3037,6 +3042,7 @@ static const struct qca_device_info qca_devices_table[] = {
 	{ 0x00130100, 40, 4, 16 }, /* WCN6855 1.0 */
 	{ 0x00130200, 40, 4, 16 }, /* WCN6855 2.0 */
 	{ 0x00130201, 40, 4, 16 }, /* WCN6855 2.1 */
+	{ 0x00190200, 40, 4, 16 }, /* WCN785x 2.0 */
 };
 
 static int btusb_qca_send_vendor_req(struct usb_device *udev, u8 request,
@@ -3327,11 +3333,11 @@ static int btusb_setup_qca(struct hci_dev *hdev)
 		if (err < 0)
 			return err;
 
-		/* WCN6855 2.1 will reset to apply firmware downloaded here, so
+		/* WCN6855 2.1 and later will reset to apply firmware downloaded here, so
 		 * wait ~100ms for reset Done then go ahead, otherwise, it maybe
 		 * cause potential enable failure.
 		 */
-		if (info->rom_version == 0x00130201)
+		if (info->rom_version >= 0x00130201)
 			msleep(QCA_BT_RESET_WAIT_MS);
 	}
 
