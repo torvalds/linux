@@ -17,9 +17,6 @@
 #define MT8183_MUTEX0_MOD0			0x30
 #define MT8183_MUTEX0_SOF0			0x2c
 
-#define MT8195_DISP_MUTEX0_MOD0			0x30
-#define MT8195_DISP_MUTEX0_SOF			0x2c
-
 #define DISP_REG_MUTEX_EN(n)			(0x20 + 0x20 * (n))
 #define DISP_REG_MUTEX(n)			(0x24 + 0x20 * (n))
 #define DISP_REG_MUTEX_RST(n)			(0x28 + 0x20 * (n))
@@ -422,8 +419,8 @@ static const struct mtk_mutex_data mt8192_mutex_driver_data = {
 static const struct mtk_mutex_data mt8195_mutex_driver_data = {
 	.mutex_mod = mt8195_mutex_mod,
 	.mutex_sof = mt8195_mutex_sof,
-	.mutex_mod_reg = MT8195_DISP_MUTEX0_MOD0,
-	.mutex_sof_reg = MT8195_DISP_MUTEX0_SOF,
+	.mutex_mod_reg = MT8183_MUTEX0_MOD0,
+	.mutex_sof_reg = MT8183_MUTEX0_SOF0,
 };
 
 struct mtk_mutex *mtk_mutex_get(struct device *dev)
