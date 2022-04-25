@@ -1244,23 +1244,14 @@ static int binder_alloc_do_buffer_copy(struct binder_alloc *alloc,
 		unsigned long size;
 		struct page *page;
 		pgoff_t pgoff;
-		void *tmpptr;
-		void *base_ptr;
 
 		page = binder_alloc_get_page(alloc, buffer,
 					     buffer_offset, &pgoff);
 		size = min_t(size_t, bytes, PAGE_SIZE - pgoff);
-		base_ptr = kmap_atomic(page);
-		tmpptr = base_ptr + pgoff;
 		if (to_buffer)
-			memcpy(tmpptr, ptr, size);
+			memcpy_to_page(page, pgoff, ptr, size);
 		else
-			memcpy(ptr, tmpptr, size);
-		/*
-		 * kunmap_atomic() takes care of flushing the cache
-		 * if this device has VIVT cache arch
-		 */
-		kunmap_atomic(base_ptr);
+			memcpy_from_page(ptr, page, pgoff, size);
 		bytes -= size;
 		pgoff = 0;
 		ptr = ptr + size;
