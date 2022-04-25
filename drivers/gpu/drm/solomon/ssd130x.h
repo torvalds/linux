@@ -86,7 +86,7 @@ struct ssd130x_device {
 extern const struct ssd130x_deviceinfo ssd130x_variants[];
 
 struct ssd130x_device *ssd130x_probe(struct device *dev, struct regmap *regmap);
-int ssd130x_remove(struct ssd130x_device *ssd130x);
+void ssd130x_remove(struct ssd130x_device *ssd130x);
 void ssd130x_shutdown(struct ssd130x_device *ssd130x);
 
 #endif /* __SSD1307X_H__ */
