@@ -152,6 +152,7 @@ unprovision_test()
 
 LC_16X100G_TYPE="16x100G"
 LC_16X100G_PORT_COUNT=16
+LC_16X100G_DEVICE_COUNT=4
 
 supported_types_check()
 {
@@ -175,6 +176,26 @@ supported_types_check()
 	done
 	[ $lc_16x100_found = true ]
 	check_err $? "16X100G not found between supported types of linecard $lc"
+}
+
+lc_devices_check()
+{
+	local lc=$1
+	local expected_device_count=$2
+	local device_count
+	local device
+
+	device_count=$(devlink lc show $DEVLINK_DEV lc $lc -j | \
+		       jq -e -r ".[][][].devices |length")
+	check_err $? "Failed to get linecard $lc device count"
+	[ $device_count != 0 ]
+	check_err $? "No device found on linecard $lc"
+	[ $device_count == $expected_device_count ]
+	check_err $? "Unexpected device count on linecard $lc (got $expected_device_count, expected $device_count)"
+	for (( device=0; device<device_count; device++ ))
+	do
+		log_info "Linecard $lc device $device"
+	done
 }
 
 ports_check()
@@ -206,6 +227,7 @@ provision_test()
 		unprovision_one $lc
 	fi
 	provision_one $lc $LC_16X100G_TYPE
+	lc_devices_check $lc $LC_16X100G_DEVICE_COUNT
 	ports_check $lc $LC_16X100G_PORT_COUNT
 	log_test "Provision"
 }
