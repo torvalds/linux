@@ -465,8 +465,85 @@ static const struct sys_reg_desc pvm_sys_reg_descs[] = {
 	/* Performance Monitoring Registers are restricted. */
 };
 
+/* A structure to track reset values for system registers in protected vcpus. */
+struct sys_reg_desc_reset {
+	/* Index into sys_reg[]. */
+	int reg;
+
+	/* Reset function. */
+	void (*reset)(struct kvm_vcpu *, const struct sys_reg_desc_reset *);
+
+	/* Reset value. */
+	u64 value;
+};
+
+static void reset_actlr(struct kvm_vcpu *vcpu, const struct sys_reg_desc_reset *r)
+{
+	__vcpu_sys_reg(vcpu, r->reg) = read_sysreg(actlr_el1);
+}
+
+static void reset_amair_el1(struct kvm_vcpu *vcpu, const struct sys_reg_desc_reset *r)
+{
+	__vcpu_sys_reg(vcpu, r->reg) = read_sysreg(amair_el1);
+}
+
+static void reset_mpidr(struct kvm_vcpu *vcpu, const struct sys_reg_desc_reset *r)
+{
+	__vcpu_sys_reg(vcpu, r->reg) = calculate_mpidr(vcpu);
+}
+
+static void reset_value(struct kvm_vcpu *vcpu, const struct sys_reg_desc_reset *r)
+{
+	__vcpu_sys_reg(vcpu, r->reg) = r->value;
+}
+
+/* Specify the register's reset value. */
+#define RESET_VAL(REG, RESET_VAL) {  REG, reset_value, RESET_VAL }
+
+/* Specify a function that calculates the register's reset value. */
+#define RESET_FUNC(REG, RESET_FUNC) {  REG, RESET_FUNC, 0 }
+
 /*
- * Checks that the sysreg table is unique and in-order.
+ * Architected system registers reset values for Protected VMs.
+ * Important: Must be sorted ascending by REG (index into sys_reg[])
+ */
+static const struct sys_reg_desc_reset pvm_sys_reg_reset_vals[] = {
+	RESET_FUNC(MPIDR_EL1, reset_mpidr),
+	RESET_VAL(SCTLR_EL1, 0x00C50078),
+	RESET_FUNC(ACTLR_EL1, reset_actlr),
+	RESET_VAL(CPACR_EL1, 0),
+	RESET_VAL(ZCR_EL1, 0),
+	RESET_VAL(TCR_EL1, 0),
+	RESET_VAL(VBAR_EL1, 0),
+	RESET_VAL(CONTEXTIDR_EL1, 0),
+	RESET_FUNC(AMAIR_EL1, reset_amair_el1),
+	RESET_VAL(CNTKCTL_EL1, 0),
+	RESET_VAL(MDSCR_EL1, 0),
+	RESET_VAL(MDCCINT_EL1, 0),
+	RESET_VAL(DISR_EL1, 0),
+	RESET_VAL(PMCCFILTR_EL0, 0),
+	RESET_VAL(PMUSERENR_EL0, 0),
+};
+
+/*
+ * Sets system registers to reset value
+ *
+ * This function finds the right entry and sets the registers on the protected
+ * vcpu to their architecturally defined reset values.
+ */
+void kvm_reset_pvm_sys_regs(struct kvm_vcpu *vcpu)
+{
+	unsigned long i;
+
+	for (i = 0; i < ARRAY_SIZE(pvm_sys_reg_reset_vals); i++) {
+		const struct sys_reg_desc_reset *r = &pvm_sys_reg_reset_vals[i];
+
+		r->reset(vcpu, r);
+	}
+}
+
+/*
+ * Checks that the sysreg tables are unique and in-order.
  *
  * Returns 0 if the table is consistent, or 1 otherwise.
  */
@@ -476,6 +553,11 @@ int kvm_check_pvm_sysreg_table(void)
 
 	for (i = 1; i < ARRAY_SIZE(pvm_sys_reg_descs); i++) {
 		if (cmp_sys_reg(&pvm_sys_reg_descs[i-1], &pvm_sys_reg_descs[i]) >= 0)
+			return 1;
+	}
+
+	for (i = 1; i < ARRAY_SIZE(pvm_sys_reg_reset_vals); i++) {
+		if (pvm_sys_reg_reset_vals[i-1].reg >= pvm_sys_reg_reset_vals[i].reg)
 			return 1;
 	}
 
