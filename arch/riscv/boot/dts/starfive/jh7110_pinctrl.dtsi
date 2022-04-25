@@ -503,7 +503,7 @@
 	status = "okay";
 };
 
-&ipmscan0 {
+&can0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&can0_pins>;
 	status = "okay";

@@ -768,18 +768,14 @@
 			status = "disabled";
 		};
 
-		ipmscan0: can@130d0000 {
+		can0: can@130d0000 {
 			compatible = "ipms,can";
-			reg = <0x0 0x130d0000 0x0 0x1000>,
-				<0x0 0x13030000 0x0 0x10000>;
-			reg-names = "reg_base","sys_syscon";
+			reg = <0x0 0x130d0000 0x0 0x1000>;
 			interrupts = <112>;
-			clocks = <&canclk>,
-				<&clkgen JH7110_CAN0_CTRL_CLK_APB>,
+			clocks = <&clkgen JH7110_CAN0_CTRL_CLK_APB>,
 				<&clkgen JH7110_CAN0_CTRL_CLK_CAN>,
 				<&clkgen JH7110_CAN0_CTRL_CLK_TIMER>;
-			clock-names = "ipms_can_clk",
-					"apb_clk",
+			clock-names = "apb_clk",
 					"core_clk",
 					"timer_clk";
 			resets = <&rstgen RSTN_U0_CAN_CTRL_APB>,
@@ -788,21 +784,19 @@
 			reset-names = "rst_apb",
 					"rst_core",
 					"rst_timer";
+			starfive,sys-syscon = <&sys_syscon 0x10 0x3 0x8>;
+			syscon,can_or_canfd = <0>;
 			status = "disabled";
 		};
 
-		ipmscan1: can@130c0000 {
+		can1: can@130e0000 {
 			compatible = "ipms,can";
-			reg = <0x0 0x130c0000 0x0 0x1000>,
-				<0x0 0x13030000 0x0 0x10000>;
-			reg-names = "reg_base","sys_syscon";
+			reg = <0x0 0x130e0000 0x0 0x1000>;
 			interrupts = <113>;
-			clocks = <&canclk>,
-				<&clkgen JH7110_CAN1_CTRL_CLK_APB>,
+			clocks = <&clkgen JH7110_CAN1_CTRL_CLK_APB>,
 				<&clkgen JH7110_CAN1_CTRL_CLK_CAN>,
 				<&clkgen JH7110_CAN1_CTRL_CLK_TIMER>;
-			clock-names = "ipms_can_clk",
-					"apb_clk",
+			clock-names = "apb_clk",
 					"core_clk",
 					"timer_clk";
 			resets = <&rstgen RSTN_U1_CAN_CTRL_APB>,
@@ -811,6 +805,8 @@
 			reset-names = "rst_apb",
 					"rst_core",
 					"rst_timer";
+			starfive,sys-syscon = <&sys_syscon 0x88 0x12 0x40000>;
+			syscon,can_or_canfd = <0>;
 			status = "disabled";
 		};
 

@@ -30,6 +30,8 @@
 #include <linux/can/led.h>
 #include <linux/pm_runtime.h>
 #include <linux/of_device.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #define DRIVER_NAME "ipms_canfd"
 
@@ -160,23 +162,25 @@ enum canfd_reg_bitchange {
 #define XMIT_SEP_PRIO			2
 #define XMIT_PTB_MODE			3
 
+enum  IPMS_CAN_TYPE {
+	IPMS_CAN_TYPY_CAN 	= 0,
+	IPMS_CAN_TYPE_CANFD,
+};
+
 struct ipms_canfd_priv {
 	struct can_priv can;
 	struct napi_struct napi;
 	struct device *dev;
+	struct regmap *reg_syscon;
 	void __iomem *reg_base;
-	void __iomem *syscon_base;
 	u32 (*read_reg)(const struct ipms_canfd_priv *priv, enum canfd_device_reg reg);
 	void (*write_reg)(const struct ipms_canfd_priv *priv, enum canfd_device_reg reg, u32 val);
 	struct clk *can_clk;
-	unsigned int tx_mode;
+	u32 tx_mode;
+	struct reset_control *resets;
 	struct clk_bulk_data *clks;
 	int nr_clks;
-	struct reset_control_bulk_data *resets;
-	int nr_rstcs;
-	unsigned int syscon_offset;
-	unsigned int syscon_mask;
-	bool enable_canfd;
+	u32 can_or_canfd;
 };
 
 static struct can_bittiming_const canfd_bittiming_const = {
@@ -202,18 +206,6 @@ static struct can_bittiming_const canfd_data_bittiming_const = {
 	.brp_min = 1,
 	.brp_max = 512,
 	.brp_inc = 1,
-};
-
-struct reset_control_bulk_data can_resets[] = {
-	{ .id = "rst_apb" },
-	{ .id = "rst_core" },
-	{ .id = "rst_timer" },
-};
-
-struct clk_bulk_data can_clks[] = {
-	{ .id = "apb_clk" },
-	{ .id = "core_clk" },
-	{ .id = "timer_clk" },
 };
 
 static void canfd_write_reg_le(const struct ipms_canfd_priv *priv,
@@ -323,7 +315,7 @@ static int canfd_device_driver_bittime_configuration(struct net_device *ndev)
 
 	priv->write_reg(priv, CANFD_S_SEG_1_OFFSET, bittiming_temp);
 
-	if (priv->enable_canfd) {
+	if (priv->can_or_canfd == IPMS_CAN_TYPE_CANFD) {
 		dat_bittiming = ((dbt->phase_seg1 + dbt->prop_seg + 1 - 2) << SEG_1_SHIFT) |
 				((dbt->phase_seg2 - 1) << SEG_2_SHIFT) |
 				((dbt->sjw - 1) << SJW_SHIFT) |
@@ -589,7 +581,7 @@ static netdev_tx_t canfd_driver_start_xmit(struct sk_buff *skb, struct net_devic
 		ctl = can_fd_len2dlc(cf->len);
 
 		/* transmit can fd frame */
-		if (priv->enable_canfd) {
+		if (priv->can_or_canfd == IPMS_CAN_TYPE_CANFD) {
 			if (can_is_canfd_skb(skb)) {
 				if (cf->can_id & CAN_EFF_FLAG)
 					ctl |= CAN_FD_SET_IDE_MASK;
@@ -976,7 +968,7 @@ static int canfd_driver_open(struct net_device *ndev)
 	/* Register interrupt handler */
 	ret = request_irq(ndev->irq, canfd_interrupt, IRQF_SHARED, ndev->name, ndev);
 	if (ret) {
-		netdev_err(ndev, "request_irq err: %d\n", ret);
+		netdev_err(ndev, "Request_irq err: %d\n", ret);
 		goto exit_irq;
 	}
 
@@ -998,38 +990,44 @@ exit_irq:
 	return ret;
 }
 
-static int canfd_control_enable(struct ipms_canfd_priv *priv)
+static int canfd_control_parse_dt(struct ipms_canfd_priv *priv)
 {
-	u32 value;
+	struct of_phandle_args args;
+	u32 syscon_mask, syscon_shift;
+	u32 can_or_canfd;
+	u32 syscon_offset, regval;
+	int ret;
 
-	value = readl(priv->syscon_base + priv->syscon_offset);
-	writel(value | priv->syscon_mask, priv->syscon_base + priv->syscon_offset);
+	ret = of_parse_phandle_with_fixed_args(priv->dev->of_node,
+						"starfive,sys-syscon", 3, 0, &args);
+	if (ret) {
+		dev_err(priv->dev, "Failed to parse starfive,sys-syscon\n");
+		return -EINVAL;
+	}
 
+	priv->reg_syscon = syscon_node_to_regmap(args.np);
+	of_node_put(args.np);
+	if (IS_ERR(priv->reg_syscon))
+		return PTR_ERR(priv->reg_syscon);
+
+	syscon_offset = args.args[0];
+	syscon_shift  = args.args[1];
+	syscon_mask   = args.args[2];
+
+	ret = device_property_read_u32(priv->dev, "syscon,can_or_canfd", &can_or_canfd);
+	if (ret)
+		goto exit_parse;
+
+	priv->can_or_canfd = can_or_canfd;
+
+	/* enable can2.0/canfd function */
+	regval = can_or_canfd << syscon_shift;
+	ret = regmap_update_bits(priv->reg_syscon, syscon_offset, syscon_mask, regval);
+	if (ret)
+		return ret;
 	return 0;
-}
-
-static int canfd_control_parse_dt(struct platform_device *pdev, struct ipms_canfd_priv *priv)
-{
-	struct resource *res_syscon;
-
-	priv->enable_canfd = false;
-	res_syscon = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sys_syscon");
-	priv->syscon_base = ioremap(res_syscon->start, resource_size(res_syscon));
-	if (IS_ERR(priv->syscon_base))
-		return PTR_ERR(priv->syscon_base);
-
-	if (!(device_property_read_u32(priv->dev, "syscon,canfd-offset", &priv->syscon_offset)))
-		priv->enable_canfd = true;
-
-	if (!(device_property_read_u32(priv->dev, "syscon,canfd-mask", &priv->syscon_mask)))
-		priv->enable_canfd = priv->enable_canfd && true;
-
-	if (device_property_read_bool(priv->dev, "syscon,canfd-enable"))
-		priv->enable_canfd = priv->enable_canfd && true;
-	else
-		priv->enable_canfd = priv->enable_canfd && false;
-
-	return 0;
+exit_parse:
+	return ret;
 }
 
 static const struct net_device_ops canfd_netdev_ops = {
@@ -1046,7 +1044,7 @@ static int canfd_driver_probe(struct platform_device *pdev)
 	void __iomem *addr;
 	int ret;
 
-	addr = devm_platform_ioremap_resource_byname(pdev, "reg_base");
+	addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(addr)) {
 		ret = PTR_ERR(addr);
 		goto exit;
@@ -1061,55 +1059,46 @@ static int canfd_driver_probe(struct platform_device *pdev)
 	priv = netdev_priv(ndev);
 	priv->dev = &pdev->dev;
 
-	ret = canfd_control_parse_dt(pdev, priv);
+	ret = canfd_control_parse_dt(priv);
 	if (ret)
-		goto exit;
-
-	if (priv->enable_canfd)
-		canfd_control_enable(priv);
-
-	priv->clks = can_clks;
-	priv->resets = can_resets;
-	priv->nr_clks = ARRAY_SIZE(can_clks);
-	priv->nr_rstcs = ARRAY_SIZE(can_resets);
-	ret = devm_reset_control_bulk_get_exclusive(&pdev->dev, priv->nr_rstcs, priv->resets);
-	if (ret) {
-		dev_err(priv->dev, "failed to get can reset controls\n");
 		goto free_exit;
-	}
 
-	ret = devm_clk_bulk_get(&pdev->dev, priv->nr_clks, priv->clks);
-	if (ret) {
-		dev_err(priv->dev, "failed to get can clk controls\n");
+	priv->nr_clks = devm_clk_bulk_get_all(priv->dev, &priv->clks);
+	if (priv->nr_clks < 0) {
+		dev_err(priv->dev, "Failed to get can clocks\n");
+		ret = -ENODEV;
 		goto free_exit;
 	}
 
 	ret = clk_bulk_prepare_enable(priv->nr_clks, priv->clks);
 	if (ret) {
-		dev_err(priv->dev, "enable clk error.\n");
+		dev_err(priv->dev, "Failed to enable clocks\n");
 		goto free_exit;
 	}
 
-	ret = reset_control_bulk_deassert(priv->nr_rstcs, priv->resets);
-	if (ret) {
-		dev_err(priv->dev, "deassert can error.\n");
+	priv->resets = devm_reset_control_array_get_exclusive(priv->dev);
+	if (IS_ERR(priv->resets)) {
+		ret = PTR_ERR(priv->resets);
+		dev_err(priv->dev, "Failed to get can resets");
 		goto clk_exit;
 	}
 
+	ret = reset_control_deassert(priv->resets);
+	if (ret)
+		goto clk_exit;
 	priv->can.bittiming_const = &canfd_bittiming_const;
 	priv->can.data_bittiming_const = &canfd_data_bittiming_const;
 	priv->can.do_set_mode = canfd_do_set_mode;
 
 	/* in user space the execution mode can be chosen */
-	if (priv->enable_canfd)
+	if (priv->can_or_canfd == IPMS_CAN_TYPE_CANFD)
 		priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK | CAN_CTRLMODE_FD;
 	else
 		priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK;
-
 	priv->reg_base = addr;
 	priv->write_reg = canfd_write_reg_le;
 	priv->read_reg = canfd_read_reg_le;
-	priv->can_clk = devm_clk_get(&pdev->dev, "ipms_can_clk");
+	priv->can_clk = devm_clk_get(&pdev->dev, "core_clk");
 	if (IS_ERR(priv->can_clk)) {
 		dev_err(&pdev->dev, "Device clock not found.\n");
 		ret = PTR_ERR(priv->can_clk);
@@ -1117,7 +1106,6 @@ static int canfd_driver_probe(struct platform_device *pdev)
 	}
 
 	priv->can.clock.freq = clk_get_rate(priv->can_clk);
-
 	ndev->irq = platform_get_irq(pdev, 0);
 
 	/* we support local echo */
@@ -1128,7 +1116,6 @@ static int canfd_driver_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	netif_napi_add(ndev, &priv->napi, canfd_rx_poll, 16);
-
 	ret = register_candev(ndev);
 	if (ret) {
 		dev_err(&pdev->dev, "Fail to register failed (err=%d)\n", ret);
@@ -1141,11 +1128,10 @@ static int canfd_driver_probe(struct platform_device *pdev)
 	return 0;
 
 reset_exit:
-	reset_control_bulk_assert(priv->nr_rstcs, priv->resets);
+	reset_control_assert(priv->resets);
 clk_exit:
 	clk_bulk_disable_unprepare(priv->nr_clks, priv->clks);
 free_exit:
-	iounmap(priv->syscon_base);
 	free_candev(ndev);
 exit:
 	return ret;
@@ -1156,10 +1142,9 @@ static int canfd_driver_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct ipms_canfd_priv *priv = netdev_priv(ndev);
 
-	reset_control_bulk_assert(priv->nr_rstcs, priv->resets);
+	reset_control_assert(priv->resets);
 	clk_bulk_disable_unprepare(priv->nr_clks, priv->clks);
 
-	iounmap(priv->syscon_base);
 	unregister_candev(ndev);
 	netif_napi_del(&priv->napi);
 	free_candev(ndev);

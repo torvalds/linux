@@ -269,11 +269,11 @@
     status = "okay";
 };
 
-&ipmscan0 {
+&can0 {
     status = "okay";
 };
 
-&ipmscan1 {
+&can1 {
     status = "okay";
 };
 
