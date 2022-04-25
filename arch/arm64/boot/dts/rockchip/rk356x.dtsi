@@ -266,7 +266,7 @@
 			 <&cru ACLK_USB3OTG0>;
 		clock-names = "ref_clk", "suspend_clk",
 			      "bus_clk";
-		dr_mode = "host";
+		dr_mode = "otg";
 		phy_type = "utmi_wide";
 		power-domains = <&power RK3568_PD_PIPE>;
 		resets = <&cru SRST_USB3OTG0>;
