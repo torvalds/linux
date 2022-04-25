@@ -40,3 +40,9 @@ config DMABUF_RK_HEAPS_DEBUG
 	depends on DMABUF_HEAPS_ROCKCHIP
 	help
 	  Choose this option to enable dma-buf RockChip heap debug.
+
+config DMABUF_RK_HEAPS_DEBUG_PRINT
+	bool "DMA-BUF RockChip Heap Debug print log enable"
+	depends on DMABUF_HEAPS_ROCKCHIP
+	help
+	  Choose this option to enable dma-buf RockChip heap debug.

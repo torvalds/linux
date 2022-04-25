@@ -16,7 +16,7 @@
 #include <linux/dma-buf.h>
 #include <linux/rk-dma-heap.h>
 
-#if defined(CONFIG_DMABUF_RK_HEAPS_DEBUG)
+#if defined(CONFIG_DMABUF_RK_HEAPS_DEBUG_PRINT)
 #define dma_heap_print(fmt, ...)	\
 	printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
 #else
