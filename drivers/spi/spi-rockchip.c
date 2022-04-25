@@ -173,6 +173,7 @@ struct rockchip_spi {
 
 	struct clk *spiclk;
 	struct clk *apb_pclk;
+	struct clk *sclk_in;
 
 	void __iomem *regs;
 	dma_addr_t dma_addr_rx;
@@ -800,6 +801,13 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		goto err_put_ctlr;
 	}
 
+	rs->sclk_in = devm_clk_get_optional(&pdev->dev, "sclk_in");
+	if (IS_ERR(rs->sclk_in)) {
+		dev_err(&pdev->dev, "Failed to get sclk_in\n");
+		ret = PTR_ERR(rs->sclk_in);
+		goto err_put_ctlr;
+	}
+
 	ret = clk_prepare_enable(rs->apb_pclk);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to enable apb_pclk\n");
@@ -812,16 +820,22 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		goto err_disable_apbclk;
 	}
 
+	ret = clk_prepare_enable(rs->sclk_in);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to enable sclk_in\n");
+		goto err_disable_spiclk;
+	}
+
 	spi_enable_chip(rs, false);
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
-		goto err_disable_spiclk;
+		goto err_disable_sclk_in;
 
 	ret = devm_request_threaded_irq(&pdev->dev, ret, rockchip_spi_isr, NULL,
 			IRQF_ONESHOT, dev_name(&pdev->dev), ctlr);
 	if (ret)
-		goto err_disable_spiclk;
+		goto err_disable_sclk_in;
 
 	rs->dev = &pdev->dev;
 	rs->freq = clk_get_rate(rs->spiclk);
@@ -847,7 +861,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	if (!rs->fifo_len) {
 		dev_err(&pdev->dev, "Failed to get fifo length\n");
 		ret = -EINVAL;
-		goto err_disable_spiclk;
+		goto err_disable_sclk_in;
 	}
 
 	pm_runtime_set_active(&pdev->dev);
@@ -947,6 +961,8 @@ err_free_dma_tx:
 		dma_release_channel(ctlr->dma_tx);
 err_disable_pm_runtime:
 	pm_runtime_disable(&pdev->dev);
+err_disable_sclk_in:
+	clk_disable_unprepare(rs->sclk_in);
 err_disable_spiclk:
 	clk_disable_unprepare(rs->spiclk);
 err_disable_apbclk:
@@ -964,6 +980,7 @@ static int rockchip_spi_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 
+	clk_disable_unprepare(rs->sclk_in);
 	clk_disable_unprepare(rs->spiclk);
 	clk_disable_unprepare(rs->apb_pclk);
 
