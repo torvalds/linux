@@ -34,7 +34,6 @@ struct snd_sof_dsp_ops sof_hda_common_ops = {
 	.mailbox_write	= sof_mailbox_write,
 
 	/* ipc */
-	.fw_ready	= sof_fw_ready,
 	.get_mailbox_offset = hda_dsp_ipc_get_mailbox_offset,
 	.get_window_offset = hda_dsp_ipc_get_window_offset,
 

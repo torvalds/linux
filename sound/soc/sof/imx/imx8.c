@@ -504,7 +504,6 @@ static struct snd_sof_dsp_ops sof_imx8_ops = {
 
 	/* ipc */
 	.send_msg	= imx8_send_msg,
-	.fw_ready	= sof_fw_ready,
 	.get_mailbox_offset	= imx8_get_mailbox_offset,
 	.get_window_offset	= imx8_get_window_offset,
 
@@ -567,7 +566,6 @@ static struct snd_sof_dsp_ops sof_imx8x_ops = {
 
 	/* ipc */
 	.send_msg	= imx8_send_msg,
-	.fw_ready	= sof_fw_ready,
 	.get_mailbox_offset	= imx8_get_mailbox_offset,
 	.get_window_offset	= imx8_get_window_offset,
 

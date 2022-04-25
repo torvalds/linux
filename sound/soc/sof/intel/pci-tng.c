@@ -164,7 +164,6 @@ struct snd_sof_dsp_ops sof_tng_ops = {
 
 	/* ipc */
 	.send_msg	= atom_send_msg,
-	.fw_ready	= sof_fw_ready,
 	.get_mailbox_offset = atom_get_mailbox_offset,
 	.get_window_offset = atom_get_window_offset,
 
