@@ -95,7 +95,7 @@
 
 #define GAUDI_NUM_OF_QM_ARB_ERR_CAUSE	3
 
-#define GAUDI_ARB_WDT_TIMEOUT		0x1000000
+#define GAUDI_ARB_WDT_TIMEOUT		0xEE6b27FF /* 8 seconds */
 
 #define GAUDI_CLK_GATE_DEBUGFS_MASK	(\
 		BIT(GAUDI_ENGINE_ID_MME_0) |\
@@ -2811,9 +2811,8 @@ static void gaudi_init_pci_dma_qman(struct hl_device *hdev, int dma_id,
 		WREG32(mmDMA0_QM_ARB_ERR_MSG_EN + dma_qm_offset,
 				QM_ARB_ERR_MSG_EN_MASK);
 
-		/* Increase ARB WDT to support streams architecture */
-		WREG32(mmDMA0_QM_ARB_SLV_CHOISE_WDT + dma_qm_offset,
-				GAUDI_ARB_WDT_TIMEOUT);
+		/* Set timeout to maximum */
+		WREG32(mmDMA0_QM_ARB_SLV_CHOISE_WDT + dma_qm_offset, GAUDI_ARB_WDT_TIMEOUT);
 
 		WREG32(mmDMA0_QM_GLBL_PROT + dma_qm_offset,
 				QMAN_EXTERNAL_MAKE_TRUSTED);
@@ -2990,9 +2989,8 @@ static void gaudi_init_hbm_dma_qman(struct hl_device *hdev, int dma_id,
 		WREG32(mmDMA0_QM_ARB_ERR_MSG_EN + dma_qm_offset,
 				QM_ARB_ERR_MSG_EN_MASK);
 
-		/* Increase ARB WDT to support streams architecture */
-		WREG32(mmDMA0_QM_ARB_SLV_CHOISE_WDT + dma_qm_offset,
-				GAUDI_ARB_WDT_TIMEOUT);
+		/* Set timeout to maximum */
+		WREG32(mmDMA0_QM_ARB_SLV_CHOISE_WDT + dma_qm_offset, GAUDI_ARB_WDT_TIMEOUT);
 
 		WREG32(mmDMA0_QM_GLBL_CFG1 + dma_qm_offset, 0);
 		WREG32(mmDMA0_QM_GLBL_PROT + dma_qm_offset,
@@ -3127,9 +3125,8 @@ static void gaudi_init_mme_qman(struct hl_device *hdev, u32 mme_offset,
 		WREG32(mmMME0_QM_ARB_ERR_MSG_EN + mme_offset,
 				QM_ARB_ERR_MSG_EN_MASK);
 
-		/* Increase ARB WDT to support streams architecture */
-		WREG32(mmMME0_QM_ARB_SLV_CHOISE_WDT + mme_offset,
-				GAUDI_ARB_WDT_TIMEOUT);
+		/* Set timeout to maximum */
+		WREG32(mmMME0_QM_ARB_SLV_CHOISE_WDT + mme_offset, GAUDI_ARB_WDT_TIMEOUT);
 
 		WREG32(mmMME0_QM_GLBL_CFG1 + mme_offset, 0);
 		WREG32(mmMME0_QM_GLBL_PROT + mme_offset,
@@ -3261,9 +3258,8 @@ static void gaudi_init_tpc_qman(struct hl_device *hdev, u32 tpc_offset,
 		WREG32(mmTPC0_QM_ARB_ERR_MSG_EN + tpc_offset,
 				QM_ARB_ERR_MSG_EN_MASK);
 
-		/* Increase ARB WDT to support streams architecture */
-		WREG32(mmTPC0_QM_ARB_SLV_CHOISE_WDT + tpc_offset,
-				GAUDI_ARB_WDT_TIMEOUT);
+		/* Set timeout to maximum */
+		WREG32(mmTPC0_QM_ARB_SLV_CHOISE_WDT + tpc_offset, GAUDI_ARB_WDT_TIMEOUT);
 
 		WREG32(mmTPC0_QM_GLBL_CFG1 + tpc_offset, 0);
 		WREG32(mmTPC0_QM_GLBL_PROT + tpc_offset,
@@ -3412,9 +3408,8 @@ static void gaudi_init_nic_qman(struct hl_device *hdev, u32 nic_offset,
 		WREG32(mmNIC0_QM0_ARB_ERR_MSG_EN + nic_offset,
 				QM_ARB_ERR_MSG_EN_MASK);
 
-		/* Increase ARB WDT to support streams architecture */
-		WREG32(mmNIC0_QM0_ARB_SLV_CHOISE_WDT + nic_offset,
-				GAUDI_ARB_WDT_TIMEOUT);
+		/* Set timeout to maximum */
+		WREG32(mmNIC0_QM0_ARB_SLV_CHOISE_WDT + nic_offset, GAUDI_ARB_WDT_TIMEOUT);
 
 		WREG32(mmNIC0_QM0_GLBL_CFG1 + nic_offset, 0);
 		WREG32(mmNIC0_QM0_GLBL_PROT + nic_offset,
