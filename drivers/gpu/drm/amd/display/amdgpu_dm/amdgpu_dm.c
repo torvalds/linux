@@ -83,7 +83,6 @@
 #include <drm/drm_vblank.h>
 #include <drm/drm_audio_component.h>
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "ivsrcid/dcn/irqsrcs_dcn_1_0.h"
 
 #include "dcn/dcn_1_0_offset.h"
@@ -92,7 +91,6 @@
 #include "vega10_ip_offset.h"
 
 #include "soc15_common.h"
-#endif
 
 #include "modules/inc/mod_freesync.h"
 #include "modules/power/power_helpers.h"
@@ -603,7 +601,6 @@ static void dm_crtc_high_irq(void *interrupt_params)
 	spin_unlock_irqrestore(&adev_to_drm(adev)->event_lock, flags);
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 /**
  * dm_dcn_vertical_interrupt0_high_irq() - Handles OTG Vertical interrupt0 for
@@ -827,7 +824,6 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 	if (count > DMUB_TRACE_MAX_READ)
 		DRM_DEBUG_DRIVER("Warning : count > DMUB_TRACE_MAX_READ");
 }
-#endif /* CONFIG_DRM_AMD_DC_DCN */
 
 static int dm_set_clockgating_state(void *handle,
 		  enum amd_clockgating_state state)
@@ -1125,9 +1121,7 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	switch (adev->ip_versions[DCE_HWIP][0]) {
 	case IP_VERSION(3, 1, 3): /* Only for this asic hw internal rev B0 */
 		hw_params.dpia_supported = true;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		hw_params.disable_dpia = adev->dm.dc->debug.dpia_debug.bits.disable_dpia;
-#endif
 		break;
 	default:
 		break;
@@ -1189,7 +1183,6 @@ static void dm_dmub_hw_resume(struct amdgpu_device *adev)
 	}
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 static void mmhub_read_system_context(struct amdgpu_device *adev, struct dc_phy_addr_space_config *pa_config)
 {
 	uint64_t pt_base;
@@ -1244,8 +1237,7 @@ static void mmhub_read_system_context(struct amdgpu_device *adev, struct dc_phy_
 	pa_config->is_hvm_enabled = 0;
 
 }
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+
 static void vblank_control_worker(struct work_struct *work)
 {
 	struct vblank_control_work *vblank_work =
@@ -1281,8 +1273,6 @@ static void vblank_control_worker(struct work_struct *work)
 
 	kfree(vblank_work);
 }
-
-#endif
 
 static void dm_handle_hpd_rx_offload_work(struct work_struct *work)
 {
@@ -1410,9 +1400,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	mutex_init(&adev->dm.dc_lock);
 	mutex_init(&adev->dm.audio_lock);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	spin_lock_init(&adev->dm.vblank_lock);
-#endif
 
 	if(amdgpu_dm_irq_init(adev)) {
 		DRM_ERROR("amdgpu: failed to initialize DM IRQ support.\n");
@@ -1505,12 +1493,10 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	if (amdgpu_dc_feature_mask & DC_EDP_NO_POWER_SEQUENCING)
 		init_data.flags.edp_no_power_sequencing = true;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN
 	if (amdgpu_dc_feature_mask & DC_DISABLE_LTTPR_DP1_4A)
 		init_data.flags.allow_lttpr_non_transparent_mode.bits.DP1_4A = true;
 	if (amdgpu_dc_feature_mask & DC_DISABLE_LTTPR_DP2_0)
 		init_data.flags.allow_lttpr_non_transparent_mode.bits.DP2_0 = true;
-#endif
 
 	init_data.flags.seamless_boot_edp_requested = false;
 
@@ -1566,7 +1552,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		goto error;
 	}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if ((adev->flags & AMD_IS_APU) && (adev->asic_type >= CHIP_CARRIZO)) {
 		struct dc_phy_addr_space_config pa_config;
 
@@ -1575,7 +1560,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		// Call the DC init_memory func
 		dc_setup_system_context(adev->dm.dc, &pa_config);
 	}
-#endif
 
 	adev->dm.freesync_module = mod_freesync_create(adev->dm.dc);
 	if (!adev->dm.freesync_module) {
@@ -1587,14 +1571,12 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	amdgpu_dm_init_color_mod();
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (adev->dm.dc->caps.max_links > 0) {
 		adev->dm.vblank_control_workqueue =
 			create_singlethread_workqueue("dm_vblank_control_workqueue");
 		if (!adev->dm.vblank_control_workqueue)
 			DRM_ERROR("amdgpu: failed to initialize vblank_workqueue.\n");
 	}
-#endif
 
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	if (adev->dm.dc->caps.max_links > 0 && adev->family >= AMDGPU_FAMILY_RV) {
@@ -1626,7 +1608,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		}
 
 		amdgpu_dm_outbox_init(adev);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		if (!register_dmub_notify_callback(adev, DMUB_NOTIFICATION_AUX_REPLY,
 			dmub_aux_setconfig_callback, false)) {
 			DRM_ERROR("amdgpu: fail to register dmub aux callback");
@@ -1640,7 +1621,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 			DRM_ERROR("amdgpu: fail to register dmub hpd callback");
 			goto error;
 		}
-#endif /* CONFIG_DRM_AMD_DC_DCN */
 	}
 
 	if (amdgpu_dm_initialize_drm_device(adev)) {
@@ -1687,12 +1667,10 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 {
 	int i;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (adev->dm.vblank_control_workqueue) {
 		destroy_workqueue(adev->dm.vblank_control_workqueue);
 		adev->dm.vblank_control_workqueue = NULL;
 	}
-#endif
 
 	for (i = 0; i < adev->dm.display_indexes_num; i++) {
 		drm_encoder_cleanup(&adev->dm.mst_encoders[i].base);
@@ -2403,9 +2381,7 @@ static int dm_suspend(void *handle)
 	if (amdgpu_in_reset(adev)) {
 		mutex_lock(&dm->dc_lock);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		dc_allow_idle_optimizations(adev->dm.dc, false);
-#endif
 
 		dm->cached_dc_state = dc_copy_state(dm->dc->current_state);
 
@@ -3558,7 +3534,6 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 	return 0;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 /* Register IRQ sources and initialize IRQ callbacks */
 static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 {
@@ -3747,7 +3722,6 @@ static int register_outbox_irq_handlers(struct amdgpu_device *adev)
 
 	return 0;
 }
-#endif
 
 /*
  * Acquires the lock for the atomic state object and returns
@@ -4251,7 +4225,6 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			goto fail;
 		}
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* Use Outbox interrupt */
 	switch (adev->ip_versions[DCE_HWIP][0]) {
 	case IP_VERSION(3, 0, 0):
@@ -4284,7 +4257,6 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			break;
 		}
 	}
-#endif
 
 	/* Disable vblank IRQs aggressively for power-saving. */
 	adev_to_drm(adev)->vblank_disable_immediate = true;
@@ -4380,7 +4352,6 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		}
 		break;
 	default:
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		switch (adev->ip_versions[DCE_HWIP][0]) {
 		case IP_VERSION(1, 0, 0):
 		case IP_VERSION(1, 0, 1):
@@ -4406,7 +4377,6 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 					adev->ip_versions[DCE_HWIP][0]);
 			goto fail;
 		}
-#endif
 		break;
 	}
 
@@ -4555,7 +4525,7 @@ static int dm_early_init(void *handle)
 		adev->mode_info.num_dig = 6;
 		break;
 	default:
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+
 		switch (adev->ip_versions[DCE_HWIP][0]) {
 		case IP_VERSION(2, 0, 2):
 		case IP_VERSION(3, 0, 0):
@@ -4592,7 +4562,6 @@ static int dm_early_init(void *handle)
 					adev->ip_versions[DCE_HWIP][0]);
 			return -EINVAL;
 		}
-#endif
 		break;
 	}
 
@@ -6646,10 +6615,8 @@ static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_device *adev = drm_to_adev(crtc->dev);
 	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(crtc->state);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct amdgpu_display_manager *dm = &adev->dm;
 	struct vblank_control_work *work;
-#endif
 	int rc = 0;
 
 	if (enable) {
@@ -6672,7 +6639,6 @@ static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 	if (amdgpu_in_reset(adev))
 		return 0;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (dm->vblank_control_workqueue) {
 		work = kzalloc(sizeof(*work), GFP_ATOMIC);
 		if (!work)
@@ -6690,7 +6656,6 @@ static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
 
 		queue_work(dm->vblank_control_workqueue, &work->work);
 	}
-#endif
 
 	return 0;
 }
@@ -9365,14 +9330,12 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	/* Update the planes if changed or disable if we don't have any. */
 	if ((planes_count || acrtc_state->active_planes == 0) &&
 		acrtc_state->stream) {
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		/*
 		 * If PSR or idle optimizations are enabled then flush out
 		 * any pending work before hardware programming.
 		 */
 		if (dm->vblank_control_workqueue)
 			flush_workqueue(dm->vblank_control_workqueue);
-#endif
 
 		bundle->stream_update.stream = acrtc_state->stream;
 		if (new_pcrtc_state->mode_changed) {
@@ -9705,21 +9668,18 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	if (dc_state) {
 		/* if there mode set or reset, disable eDP PSR */
 		if (mode_set_reset_required) {
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 			if (dm->vblank_control_workqueue)
 				flush_workqueue(dm->vblank_control_workqueue);
-#endif
+
 			amdgpu_dm_psr_disable_all(dm);
 		}
 
 		dm_enable_per_frame_crtc_master_sync(dc_state);
 		mutex_lock(&dm->dc_lock);
 		WARN_ON(!dc_commit_state(dm->dc, dc_state));
-#if defined(CONFIG_DRM_AMD_DC_DCN)
                /* Allow idle optimization when vblank count is 0 for display off */
                if (dm->active_vblank_irq_count == 0)
                    dc_allow_idle_optimizations(dm->dc,true);
-#endif
 		mutex_unlock(&dm->dc_lock);
 	}
 
