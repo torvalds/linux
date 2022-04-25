@@ -680,6 +680,7 @@ static int soc21_common_set_powergating_state(void *handle,
 
 	switch (adev->ip_versions[LSDMA_HWIP][0]) {
 	case IP_VERSION(6, 0, 0):
+	case IP_VERSION(6, 0, 2):
 		adev->lsdma.funcs->update_memory_power_gating(adev,
 				state == AMD_PG_STATE_GATE);
 		break;
