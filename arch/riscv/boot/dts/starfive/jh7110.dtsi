@@ -359,8 +359,13 @@
 			reg = <0x0 0x17040000 0x0 0x10000>;
 			interrupts = <10>, <11>, <12>;
 			interrupt-names = "rtc_ms_pulse", "rtc_sec_pulse", "rtc";
-			clocks = <&rtc_hmsclk>, <&oscclk>;
+			clocks = <&clkgen JH7110_RTC_HMS_CLK_APB>,
+				 <&clkgen JH7110_RTC_HMS_CLK_CAL>;
 			clock-names = "pclk", "cal_clk";
+			resets = <&rstgen RSTN_U0_RTC_HMS_APB>,
+				 <&rstgen RSTN_U0_RTC_HMS_CAL>,
+				 <&rstgen RSTN_U0_RTC_HMS_OSC32K>;
+			reset-names = "rst_apb", "rst_cal", "rst_osc";
 			rtc,cal-clock-freq = <1000000>;
 			status = "okay";
 		};
