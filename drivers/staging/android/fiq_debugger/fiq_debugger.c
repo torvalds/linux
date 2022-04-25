@@ -1209,10 +1209,14 @@ static int fiq_tty_write(struct tty_struct *tty, const unsigned char *buf, int c
 		return count;
 
 	fiq_debugger_uart_enable(state);
+#ifndef CONFIG_RK_CONSOLE_THREAD
 	spin_lock_irq(&state->console_lock);
+#endif
 	for (i = 0; i < count; i++)
 		fiq_debugger_putc(state, *buf++);
+#ifndef CONFIG_RK_CONSOLE_THREAD
 	spin_unlock_irq(&state->console_lock);
+#endif
 	fiq_debugger_uart_disable(state);
 
 	return count;
