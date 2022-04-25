@@ -59,7 +59,7 @@ struct amdgpu_doorbell_index {
 	uint32_t gfx_ring1;
 	uint32_t gfx_userqueue_start;
 	uint32_t gfx_userqueue_end;
-	uint32_t sdma_engine[8];
+	uint32_t sdma_engine[16];
 	uint32_t mes_ring0;
 	uint32_t mes_ring1;
 	uint32_t ih;
@@ -83,9 +83,6 @@ struct amdgpu_doorbell_index {
 	};
 	uint32_t first_non_cp;
 	uint32_t last_non_cp;
-	uint32_t xcc1_kiq_start;
-	uint32_t xcc1_mec_ring0_start;
-	uint32_t aid1_sdma_start;
 	uint32_t max_assignment;
 	/* Per engine SDMA doorbell size in dword */
 	uint32_t sdma_doorbell_range;
@@ -311,6 +308,33 @@ typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
 	AMDGPU_DOORBELL64_MAX_ASSIGNMENT          = 0xFF,
 	AMDGPU_DOORBELL64_INVALID                 = 0xFFFF
 } AMDGPU_DOORBELL64_ASSIGNMENT;
+
+typedef enum _AMDGPU_DOORBELL_ASSIGNMENT_LAYOUT1
+{
+	/* KIQ: 0~7 for maximum 8 XCD */
+	AMDGPU_DOORBELL_LAYOUT1_KIQ_START               = 0x000,
+	AMDGPU_DOORBELL_LAYOUT1_HIQ                     = 0x008,
+	AMDGPU_DOORBELL_LAYOUT1_DIQ                     = 0x009,
+	/* Compute: 0x0A ~ 0x49 */
+	AMDGPU_DOORBELL_LAYOUT1_MEC_RING_START          = 0x00A,
+	AMDGPU_DOORBELL_LAYOUT1_MEC_RING_END            = 0x049,
+	AMDGPU_DOORBELL_LAYOUT1_USERQUEUE_START         = 0x04A,
+	AMDGPU_DOORBELL_LAYOUT1_USERQUEUE_END           = 0x0C9,
+	/* SDMA: 0x100 ~ 0x19F */
+	AMDGPU_DOORBELL_LAYOUT1_sDMA_ENGINE_START       = 0x100,
+	AMDGPU_DOORBELL_LAYOUT1_sDMA_ENGINE_END         = 0x19F,
+	/* IH: 0x1A0 ~ 0x1AF */
+	AMDGPU_DOORBELL_LAYOUT1_IH                      = 0x1A0,
+	/* VCN: 0x1B0 ~ 0x1C2 */
+	AMDGPU_DOORBELL_LAYOUT1_VCN_START               = 0x1B0,
+	AMDGPU_DOORBELL_LAYOUT1_VCN_END                 = 0x1C2,
+
+	AMDGPU_DOORBELL_LAYOUT1_FIRST_NON_CP            = AMDGPU_DOORBELL_LAYOUT1_sDMA_ENGINE_START,
+	AMDGPU_DOORBELL_LAYOUT1_LAST_NON_CP             = AMDGPU_DOORBELL_LAYOUT1_VCN_END,
+
+	AMDGPU_DOORBELL_LAYOUT1_MAX_ASSIGNMENT          = 0x1C2,
+	AMDGPU_DOORBELL_LAYOUT1_INVALID                 = 0xFFFF
+} AMDGPU_DOORBELL_ASSIGNMENT_LAYOUT1;
 
 u32 amdgpu_mm_rdoorbell(struct amdgpu_device *adev, u32 index);
 void amdgpu_mm_wdoorbell(struct amdgpu_device *adev, u32 index, u32 v);

@@ -1310,14 +1310,7 @@ static int sdma_v4_4_2_sw_init(void *handle)
 				ring->use_doorbell?"true":"false");
 
 		/* doorbell size is 2 dwords, get DWORD offset */
-		if (aid_id > 0)
-			ring->doorbell_index =
-				(adev->doorbell_index.aid1_sdma_start << 1)
-				+ adev->doorbell_index.sdma_doorbell_range
-				* (i - adev->sdma.num_inst_per_aid);
-		else
-			ring->doorbell_index =
-				adev->doorbell_index.sdma_engine[i] << 1;
+		ring->doorbell_index = adev->doorbell_index.sdma_engine[i] << 1;
 		ring->vm_hub = AMDGPU_MMHUB0(aid_id);
 
 		sprintf(ring->name, "sdma%d.%d", aid_id,
@@ -1336,14 +1329,8 @@ static int sdma_v4_4_2_sw_init(void *handle)
 			/* doorbell index of page queue is assigned right after
 			 * gfx queue on the same instance
 			 */
-			if (aid_id > 0)
-				ring->doorbell_index =
-					((adev->doorbell_index.aid1_sdma_start + 1) << 1)
-					+ adev->doorbell_index.sdma_doorbell_range
-					* (i - adev->sdma.num_inst_per_aid);
-			else
-				ring->doorbell_index =
-					(adev->doorbell_index.sdma_engine[i] + 1) << 1;
+			ring->doorbell_index =
+				(adev->doorbell_index.sdma_engine[i] + 1) << 1;
 			ring->vm_hub = AMDGPU_MMHUB0(aid_id);
 
 			sprintf(ring->name, "page%d.%d", aid_id,
