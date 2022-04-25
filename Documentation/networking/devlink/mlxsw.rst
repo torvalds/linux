@@ -76,6 +76,21 @@ The ``mlxsw`` driver reports the following versions for line cards
      - running
      - Version of line card INI loaded
 
+Line card device info versions
+==============================
+
+The ``mlxsw`` driver reports the following versions for line card devices
+
+.. list-table:: devlink line card device info versions implemented
+   :widths: 5 5 90
+
+   * - Name
+     - Type
+     - Description
+   * - ``fw.version``
+     - running
+     - Three digit firmware version
+
 Driver-specific Traps
 =====================
 
