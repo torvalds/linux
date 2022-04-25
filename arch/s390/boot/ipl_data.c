@@ -44,7 +44,7 @@ struct ipl_lowcore {
  * that to succeed the two initial CCWs, and the 0x40 fill bytes must
  * be present.
  */
-struct ipl_lowcore ipl_lowcore __section(".ipldata") = {
+static struct ipl_lowcore ipl_lowcore __used __section(".ipldata") = {
 	.ipl_psw = { .mask = PSW32_MASK_BASE, .addr = PSW32_ADDR_AMODE | IPL_START },
 	.ccwpgm = {
 		[ 0] = CCW0(CCW_CMD_READ_IPL, 0x018, 0x50, CCW_FLAG_SLI | CCW_FLAG_CC),

@@ -23,6 +23,10 @@ SECTIONS
 		HEAD_TEXT
 		_ehead = . ;
 	}
+	. = PARMAREA;
+	.parmarea : {
+		*(.parmarea)
+	}
 	.text :	{
 		_text = .;	/* Text */
 		*(.text)

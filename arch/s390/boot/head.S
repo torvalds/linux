@@ -333,23 +333,3 @@ SYM_CODE_START_LOCAL(startup_pgm_check_handler)
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r8)
 	lpswe	__LC_RETURN_PSW		# disabled wait
 SYM_CODE_END(startup_pgm_check_handler)
-
-#
-# params at 10400 (setup.h)
-# Must be keept in sync with struct parmarea in setup.h
-#
-	.org	PARMAREA - IPL_START
-SYM_DATA_START(parmarea)
-	.quad	0			# IPL_DEVICE
-	.quad	0			# INITRD_START
-	.quad	0			# INITRD_SIZE
-	.quad	0			# OLDMEM_BASE
-	.quad	0			# OLDMEM_SIZE
-	.quad	kernel_version		# points to kernel version string
-	.quad	COMMAND_LINE_SIZE
-
-	.org	COMMAND_LINE - IPL_START
-	.byte	"root=/dev/ram0 ro"
-	.byte	0
-	.org	PARMAREA+__PARMAREA_SIZE - IPL_START
-SYM_DATA_END(parmarea)
