@@ -3897,6 +3897,8 @@ static void guc_default_vfuncs(struct intel_engine_cs *engine)
 	 */
 
 	engine->emit_bb_start = gen8_emit_bb_start;
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+		engine->emit_bb_start = gen125_emit_bb_start;
 }
 
 static void rcs_submission_override(struct intel_engine_cs *engine)

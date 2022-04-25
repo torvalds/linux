@@ -148,6 +148,7 @@
 		(REG_FIELD_PREP(CMD_CCTL_WRITE_OVERRIDE_MASK, (write) << 1) | \
 		 REG_FIELD_PREP(CMD_CCTL_READ_OVERRIDE_MASK, (read) << 1))
 
+#define RING_PREDICATE_RESULT(base)		_MMIO((base) + 0x3b8) /* gen12+ */
 #define MI_PREDICATE_RESULT_2(base)		_MMIO((base) + 0x3bc)
 #define   LOWER_SLICE_ENABLED			(1 << 0)
 #define   LOWER_SLICE_DISABLED			(0 << 0)

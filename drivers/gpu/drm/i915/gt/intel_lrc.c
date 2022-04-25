@@ -904,6 +904,24 @@ check_redzone(const void *vaddr, const struct intel_engine_cs *engine)
 			     engine->name);
 }
 
+static u32 context_wa_bb_offset(const struct intel_context *ce)
+{
+	return PAGE_SIZE * ce->wa_bb_page;
+}
+
+static u32 *context_indirect_bb(const struct intel_context *ce)
+{
+	void *ptr;
+
+	GEM_BUG_ON(!ce->wa_bb_page);
+
+	ptr = ce->lrc_reg_state;
+	ptr -= LRC_STATE_OFFSET; /* back to start of context image */
+	ptr += context_wa_bb_offset(ce);
+
+	return ptr;
+}
+
 void lrc_init_state(struct intel_context *ce,
 		    struct intel_engine_cs *engine,
 		    void *state)
@@ -922,11 +940,44 @@ void lrc_init_state(struct intel_context *ce,
 	/* Clear the ppHWSP (inc. per-context counters) */
 	memset(state, 0, PAGE_SIZE);
 
+	/* Clear the indirect wa and storage */
+	if (ce->wa_bb_page)
+		memset(state + context_wa_bb_offset(ce), 0, PAGE_SIZE);
+
 	/*
 	 * The second page of the context object contains some registers which
 	 * must be set up prior to the first execution.
 	 */
 	__lrc_init_regs(state + LRC_STATE_OFFSET, ce, engine, inhibit);
+}
+
+u32 lrc_indirect_bb(const struct intel_context *ce)
+{
+	return i915_ggtt_offset(ce->state) + context_wa_bb_offset(ce);
+}
+
+static u32 *setup_predicate_disable_wa(const struct intel_context *ce, u32 *cs)
+{
+	/* If predication is active, this will be noop'ed */
+	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT | (4 - 2);
+	*cs++ = lrc_indirect_bb(ce) + DG2_PREDICATE_RESULT_WA;
+	*cs++ = 0;
+	*cs++ = 0; /* No predication */
+
+	/* predicated end, only terminates if SET_PREDICATE_RESULT:0 is clear */
+	*cs++ = MI_BATCH_BUFFER_END | BIT(15);
+	*cs++ = MI_SET_PREDICATE | MI_SET_PREDICATE_DISABLE;
+
+	/* Instructions are no longer predicated (disabled), we can proceed */
+	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT | (4 - 2);
+	*cs++ = lrc_indirect_bb(ce) + DG2_PREDICATE_RESULT_WA;
+	*cs++ = 0;
+	*cs++ = 1; /* enable predication before the next BB */
+
+	*cs++ = MI_BATCH_BUFFER_END;
+	GEM_BUG_ON(offset_in_page(cs) > DG2_PREDICATE_RESULT_WA);
+
+	return cs;
 }
 
 static struct i915_vma *
@@ -1240,24 +1291,6 @@ gen12_emit_indirect_ctx_xcs(const struct intel_context *ce, u32 *cs)
 	return cs;
 }
 
-static u32 context_wa_bb_offset(const struct intel_context *ce)
-{
-	return PAGE_SIZE * ce->wa_bb_page;
-}
-
-static u32 *context_indirect_bb(const struct intel_context *ce)
-{
-	void *ptr;
-
-	GEM_BUG_ON(!ce->wa_bb_page);
-
-	ptr = ce->lrc_reg_state;
-	ptr -= LRC_STATE_OFFSET; /* back to start of context image */
-	ptr += context_wa_bb_offset(ce);
-
-	return ptr;
-}
-
 static void
 setup_indirect_ctx_bb(const struct intel_context *ce,
 		      const struct intel_engine_cs *engine,
@@ -1271,9 +1304,11 @@ setup_indirect_ctx_bb(const struct intel_context *ce,
 	while ((unsigned long)cs % CACHELINE_BYTES)
 		*cs++ = MI_NOOP;
 
+	GEM_BUG_ON(cs - start > DG2_PREDICATE_RESULT_BB / sizeof(*start));
+	setup_predicate_disable_wa(ce, start + DG2_PREDICATE_RESULT_BB / sizeof(*start));
+
 	lrc_setup_indirect_ctx(ce->lrc_reg_state, engine,
-			       i915_ggtt_offset(ce->state) +
-			       context_wa_bb_offset(ce),
+			       lrc_indirect_bb(ce),
 			       (cs - start) * sizeof(*cs));
 }
 
