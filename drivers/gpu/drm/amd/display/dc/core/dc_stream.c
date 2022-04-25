@@ -333,7 +333,6 @@ bool dc_stream_set_cursor_attributes(
 	dc = stream->ctx->dc;
 	stream->cursor_attributes = *attributes;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dc_z10_restore(dc);
 	/* disable idle optimizations while updating cursor */
 	if (dc->idle_optimizations_allowed) {
@@ -341,7 +340,6 @@ bool dc_stream_set_cursor_attributes(
 		reset_idle_optimizations = true;
 	}
 
-#endif
 	program_cursor_attributes(dc, stream, attributes);
 
 	/* re-enable idle optimizations if necessary */
@@ -405,7 +403,6 @@ bool dc_stream_set_cursor_position(
 	}
 
 	dc = stream->ctx->dc;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dc_z10_restore(dc);
 
 	/* disable idle optimizations if enabling cursor */
@@ -414,7 +411,6 @@ bool dc_stream_set_cursor_position(
 		reset_idle_optimizations = true;
 	}
 
-#endif
 	stream->cursor_position = *position;
 
 	program_cursor_position(dc, stream, position);

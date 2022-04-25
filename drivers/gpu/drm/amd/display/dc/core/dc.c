@@ -1674,7 +1674,6 @@ static uint8_t get_stream_mask(struct dc *dc, struct dc_state *context)
 	return stream_mask;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 void dc_z10_restore(const struct dc *dc)
 {
 	if (dc->hwss.z10_restore)
@@ -1686,7 +1685,7 @@ void dc_z10_save_init(struct dc *dc)
 	if (dc->hwss.z10_save_init)
 		dc->hwss.z10_save_init(dc);
 }
-#endif
+
 /*
  * Applies given context to HW and copy it into current context.
  * It's up to the user to release the src context afterwards.
@@ -1700,10 +1699,8 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	struct dc_stream_state *dc_streams[MAX_STREAMS] = {0};
 	struct dc_state *old_state;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dc_z10_restore(dc);
 	dc_allow_idle_optimizations(dc, false);
-#endif
 
 	for (i = 0; i < context->stream_count; i++)
 		dc_streams[i] =  context->streams[i];
@@ -2839,9 +2836,7 @@ static void commit_planes_for_stream(struct dc *dc,
 	struct pipe_ctx *top_pipe_to_program = NULL;
 	bool should_lock_all_pipes = (update_type != UPDATE_TYPE_FAST);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dc_z10_restore(dc);
-#endif
 
 	if (get_seamless_boot_stream_count(context) > 0 && surface_count > 0) {
 		/* Optimize seamless boot flag keeps clocks and watermarks high until
@@ -3298,9 +3293,8 @@ void dc_set_power_state(
 	case DC_ACPI_CM_POWER_STATE_D0:
 		dc_resource_state_construct(dc, dc->current_state);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		dc_z10_restore(dc);
-#endif
+
 		if (dc->ctx->dmub_srv)
 			dc_dmub_srv_wait_phy_init(dc->ctx->dmub_srv);
 

@@ -879,9 +879,7 @@ static bool should_prepare_phy_clocks_for_link_verification(const struct dc *dc,
 
 static void prepare_phy_clocks_for_destructive_link_verification(const struct dc *dc)
 {
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dc_z10_restore(dc);
-#endif
 	clk_mgr_exit_optimized_pwr_state(dc, dc->clk_mgr);
 }
 
@@ -3098,10 +3096,8 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, const bool *allow_active
 	if (allow_active && link->psr_settings.psr_allow_active != *allow_active) {
 		link->psr_settings.psr_allow_active = *allow_active;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		if (!link->psr_settings.psr_allow_active)
 			dc_z10_restore(dc);
-#endif
 
 		if (psr != NULL && link->psr_settings.psr_feature_enabled) {
 			psr->funcs->psr_enable(psr, link->psr_settings.psr_allow_active, wait, panel_inst);
