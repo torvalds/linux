@@ -3255,6 +3255,7 @@ static int dw_hdmi_rockchip_probe(struct platform_device *pdev)
 	if (!plat_data)
 		return -ENOMEM;
 
+	plat_data->id = hdmi->id;
 	hdmi->plat_data = plat_data;
 	hdmi->chip_data = plat_data->phy_data;
 

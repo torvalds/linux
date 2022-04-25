@@ -2630,7 +2630,10 @@ static const struct file_operations dw_hdmi_status_fops = {
 
 static void dw_hdmi_register_debugfs(struct device *dev, struct dw_hdmi_qp *hdmi)
 {
-	hdmi->debugfs_dir = debugfs_create_dir("dw-hdmi", NULL);
+	u8 buf[11];
+
+	snprintf(buf, sizeof(buf), "dw-hdmi%d", hdmi->plat_data->id);
+	hdmi->debugfs_dir = debugfs_create_dir(buf, NULL);
 	if (IS_ERR(hdmi->debugfs_dir)) {
 		dev_err(dev, "failed to create debugfs dir!\n");
 		return;

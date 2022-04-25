@@ -179,6 +179,7 @@ struct dw_hdmi_plat_data {
 	unsigned long input_bus_format;
 	unsigned long input_bus_encoding;
 	unsigned int max_tmdsclk;
+	int id;
 	bool use_drm_infoframe;
 	bool ycbcr_420_allowed;
 	bool unsupported_yuv_input;
