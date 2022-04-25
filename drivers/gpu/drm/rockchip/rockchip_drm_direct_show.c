@@ -131,8 +131,9 @@ int rockchip_drm_direct_show_alloc_buffer(struct drm_device *drm,
 		mutex_unlock(&drm->object_name_lock);
 		goto err_gem_free;
 	}
-	get_dma_buf(dmabuf);
-	drm_gem_object_get(obj);
+	obj->dma_buf = dmabuf;
+	get_dma_buf(obj->dma_buf);
+	drm_gem_dmabuf_release(obj->dma_buf);
 	mutex_unlock(&drm->object_name_lock);
 
 	dmabuf_fd = dma_buf_fd(dmabuf, 0);
@@ -149,7 +150,7 @@ int rockchip_drm_direct_show_alloc_buffer(struct drm_device *drm,
 err_free_dmabuf:
 	dma_buf_put(dmabuf);
 err_gem_free:
-	rockchip_gem_free_object(&rk_obj->base);
+	drm_gem_object_put(&rk_obj->base);
 
 	return -ENOMEM;
 }
@@ -157,13 +158,18 @@ err_gem_free:
 void rockchip_drm_direct_show_free_buffer(struct drm_device *drm,
 					  struct rockchip_drm_direct_show_buffer *buffer)
 {
-	struct dma_buf *dmabuf;
+	struct drm_gem_object *obj = &buffer->rk_gem_obj->base;
 
-	DRM_DS_DBG("free buffer: 0x%p, dma buf fd:%d\n", buffer->rk_gem_obj, buffer->dmabuf_fd);
-	dmabuf = dma_buf_get(buffer->dmabuf_fd);
-	dma_buf_put(dmabuf);
-	__close_fd(current->files, buffer->dmabuf_fd);
-	rockchip_gem_free_object(&buffer->rk_gem_obj->base);
+	DRM_DS_DBG("free buffer: 0x%p\n", buffer->rk_gem_obj);
+
+	mutex_lock(&drm->object_name_lock);
+	if (obj->dma_buf) {
+		dma_buf_put(obj->dma_buf);
+		obj->dma_buf = NULL;
+	}
+	mutex_unlock(&drm->object_name_lock);
+
+	drm_gem_object_put(obj);
 }
 
 struct drm_plane *rockchip_drm_direct_show_get_plane(struct drm_device *drm, char *name)

@@ -101,7 +101,7 @@ static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
 	return 0;
 
 out:
-	rockchip_gem_free_object(&rk_obj->base);
+	drm_gem_object_put(&rk_obj->base);
 	return ret;
 }
 
