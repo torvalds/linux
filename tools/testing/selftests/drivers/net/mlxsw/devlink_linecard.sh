@@ -178,6 +178,22 @@ supported_types_check()
 	check_err $? "16X100G not found between supported types of linecard $lc"
 }
 
+lc_info_check()
+{
+	local lc=$1
+	local fixed_hw_revision
+	local running_ini_version
+
+	fixed_hw_revision=$(devlink lc -v info $DEVLINK_DEV lc $lc -j | \
+			    jq -e -r '.[][][].versions.fixed."hw.revision"')
+	check_err $? "Failed to get linecard $lc fixed.hw.revision"
+	log_info "Linecard $lc fixed.hw.revision: \"$fixed_hw_revision\""
+	running_ini_version=$(devlink lc -v info $DEVLINK_DEV lc $lc -j | \
+			      jq -e -r '.[][][].versions.running."ini.version"')
+	check_err $? "Failed to get linecard $lc running.ini.version"
+	log_info "Linecard $lc running.ini.version: \"$running_ini_version\""
+}
+
 lc_devices_check()
 {
 	local lc=$1
@@ -228,6 +244,7 @@ provision_test()
 	fi
 	provision_one $lc $LC_16X100G_TYPE
 	lc_devices_check $lc $LC_16X100G_DEVICE_COUNT
+	lc_info_check $lc
 	ports_check $lc $LC_16X100G_PORT_COUNT
 	log_test "Provision"
 }
