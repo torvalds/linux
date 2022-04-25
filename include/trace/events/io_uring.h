@@ -506,7 +506,7 @@ TRACE_EVENT(io_uring_req_failed,
 		__field( u16,			personality	)
 		__field( u32,			file_index	)
 		__field( u64,			pad1		)
-		__field( u64,			pad2		)
+		__field( u64,			addr3		)
 		__field( int,			error		)
 	),
 
@@ -525,14 +525,15 @@ TRACE_EVENT(io_uring_req_failed,
 		__entry->personality	= sqe->personality;
 		__entry->file_index	= sqe->file_index;
 		__entry->pad1		= sqe->__pad2[0];
-		__entry->pad2		= sqe->__pad2[1];
+		__entry->addr3		= sqe->addr3;
 		__entry->error		= error;
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, "
 		  "op %d, flags 0x%x, prio=%d, off=%llu, addr=%llu, "
 		  "len=%u, rw_flags=0x%x, buf_index=%d, "
-		  "personality=%d, file_index=%d, pad=0x%llx/%llx, error=%d",
+		  "personality=%d, file_index=%d, pad=0x%llx, addr3=%llx, "
+		  "error=%d",
 		  __entry->ctx, __entry->req, __entry->user_data,
 		  __entry->opcode, __entry->flags, __entry->ioprio,
 		  (unsigned long long)__entry->off,
@@ -540,7 +541,7 @@ TRACE_EVENT(io_uring_req_failed,
 		  __entry->op_flags,
 		  __entry->buf_index, __entry->personality, __entry->file_index,
 		  (unsigned long long) __entry->pad1,
-		  (unsigned long long) __entry->pad2, __entry->error)
+		  (unsigned long long) __entry->addr3, __entry->error)
 );
 
 
