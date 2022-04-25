@@ -1948,9 +1948,12 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 			status = serial8250_rx_chars(up, status);
 	}
 	serial8250_modem_status(up);
-	if ((!up->dma || up->dma->tx_err) && (status & UART_LSR_THRE) &&
-		(up->ier & UART_IER_THRI))
-		serial8250_tx_chars(up);
+	if ((status & UART_LSR_THRE) && (up->ier & UART_IER_THRI)) {
+		if (!up->dma || up->dma->tx_err)
+			serial8250_tx_chars(up);
+		else
+			__stop_tx(up);
+	}
 
 	uart_unlock_and_check_sysrq_irqrestore(port, flags);
 

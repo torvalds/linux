@@ -34,7 +34,7 @@ static void __dma_tx_complete(void *param)
 		uart_write_wakeup(&p->port);
 
 	ret = serial8250_tx_dma(p);
-	if (ret)
+	if (ret || !dma->tx_running)
 		serial8250_set_THRI(p);
 
 	spin_unlock_irqrestore(&p->port.lock, flags);
@@ -80,7 +80,6 @@ int serial8250_tx_dma(struct uart_8250_port *p)
 
 	if (uart_tx_stopped(&p->port) || uart_circ_empty(xmit)) {
 		/* We have been called from __dma_tx_complete() */
-		serial8250_rpm_put_tx(p);
 		return 0;
 	}
 
