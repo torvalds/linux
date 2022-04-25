@@ -175,6 +175,9 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 	dev_dbg(sdev->dev, "firmware boot complete\n");
 	sof_set_fw_state(sdev, SOF_FW_BOOT_COMPLETE);
 
+	if (sdev->first_boot && sdev->ipc->ops->fw_loader->query_fw_configuration)
+		return sdev->ipc->ops->fw_loader->query_fw_configuration(sdev);
+
 	return 0;
 }
 EXPORT_SYMBOL(snd_sof_run_firmware);
