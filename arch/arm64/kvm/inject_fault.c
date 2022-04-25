@@ -18,7 +18,7 @@ static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr
 {
 	unsigned long cpsr = *vcpu_cpsr(vcpu);
 	bool is_aarch32 = vcpu_mode_is_32bit(vcpu);
-	u32 esr = 0;
+	u64 esr = 0;
 
 	vcpu->arch.flags |= (KVM_ARM64_EXCEPT_AA64_EL1		|
 			     KVM_ARM64_EXCEPT_AA64_ELx_SYNC	|
@@ -50,7 +50,7 @@ static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr
 
 static void inject_undef64(struct kvm_vcpu *vcpu)
 {
-	u32 esr = (ESR_ELx_EC_UNKNOWN << ESR_ELx_EC_SHIFT);
+	u64 esr = (ESR_ELx_EC_UNKNOWN << ESR_ELx_EC_SHIFT);
 
 	vcpu->arch.flags |= (KVM_ARM64_EXCEPT_AA64_EL1		|
 			     KVM_ARM64_EXCEPT_AA64_ELx_SYNC	|
