@@ -1427,6 +1427,7 @@ static void dw_mci_queue_request(struct dw_mci *host, struct dw_mci_slot *slot,
 	}
 }
 
+static bool dw_mci_reset(struct dw_mci *host);
 static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
@@ -1446,7 +1447,17 @@ static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		return;
 	}
 
+	if (host->is_rv1106_sd) {
+		u32 reg;
+
+		readl_poll_timeout(host->regs + SDMMC_STATUS, reg,
+				   reg & BIT(2), USEC_PER_MSEC, 500 * USEC_PER_MSEC);
+	}
+
 	spin_lock_bh(&host->lock);
+
+	if (host->is_rv1106_sd)
+		dw_mci_reset(host);
 
 	dw_mci_queue_request(host, slot, mrq);
 
@@ -1868,9 +1879,6 @@ static void dw_mci_request_end(struct dw_mci *host, struct mmc_request *mrq)
 	}
 
 	spin_unlock(&host->lock);
-
-	if (host->is_rv1106_sd)
-		dw_mci_reset(host);
 
 	mmc_request_done(prev_mmc, mrq);
 	spin_lock(&host->lock);
@@ -2830,17 +2838,8 @@ rv1106_sd:
 			if (!test_bit(EVENT_DATA_ERROR, &host->pending_events))
 				host->dma_ops->complete((void *)host);
 
-			if (host->is_rv1106_sd && (pending & SDMMC_IDMAC_INT_TI)) {
-				/*
-				 * The last desc contain dump data, controller won't issue,
-				 * controller will auto gate clk and it will not affect FIFO
-				 * status. So busy check here can mostly block 2 cycles of
-				 * hclk from simulation, it's not a big deal.
-				 */
-				while ((mci_readl(host, STATUS) & BIT(2)) != BIT(2))
-					;
+			if (host->is_rv1106_sd && (pending & SDMMC_IDMAC_INT_TI))
 				goto rv1106_sd;
-			}
 		}
 	}
 
