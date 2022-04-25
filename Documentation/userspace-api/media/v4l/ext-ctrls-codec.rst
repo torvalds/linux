@@ -1197,10 +1197,10 @@ enum v4l2_mpeg_video_intra_refresh_period_type -
 
     * - ``V4L2_MPEG_VIDEO_INTRA_REFRESH_PERIOD_TYPE_RANDOM``
       - The whole frame is completely refreshed randomly
-      after the specified period.
+        after the specified period.
     * - ``V4L2_MPEG_VIDEO_INTRA_REFRESH_PERIOD_TYPE_CYCLIC``
       - The whole frame MBs are completely refreshed in cyclic order
-      after the specified period.
+        after the specified period.
 
 ``V4L2_CID_MPEG_VIDEO_INTRA_REFRESH_PERIOD (integer)``
     Intra macroblock refresh period. This sets the period to refresh
