@@ -87,11 +87,101 @@ static const char *mlxsw_linecard_type_name(struct mlxsw_linecard *linecard)
 	return linecard->name;
 }
 
+struct mlxsw_linecard_device {
+	struct list_head list;
+	u8 index;
+	struct mlxsw_linecard *linecard;
+	struct devlink_linecard_device *devlink_device;
+};
+
+static int mlxsw_linecard_device_attach(struct mlxsw_core *mlxsw_core,
+					struct mlxsw_linecard *linecard,
+					u8 device_index, bool flash_owner)
+{
+	struct mlxsw_linecard_device *device;
+	int err;
+
+	device = kzalloc(sizeof(*device), GFP_KERNEL);
+	if (!device)
+		return -ENOMEM;
+	device->index = device_index;
+	device->linecard = linecard;
+
+	device->devlink_device = devlink_linecard_device_create(linecard->devlink_linecard,
+								device_index, NULL);
+	if (IS_ERR(device->devlink_device)) {
+		err = PTR_ERR(device->devlink_device);
+		goto err_devlink_linecard_device_attach;
+	}
+
+	list_add_tail(&device->list, &linecard->device_list);
+	return 0;
+
+err_devlink_linecard_device_attach:
+	kfree(device);
+	return err;
+}
+
+static void mlxsw_linecard_device_detach(struct mlxsw_core *mlxsw_core,
+					 struct mlxsw_linecard *linecard,
+					 struct mlxsw_linecard_device *device)
+{
+	list_del(&device->list);
+	devlink_linecard_device_destroy(linecard->devlink_linecard,
+					device->devlink_device);
+	kfree(device);
+}
+
+static void mlxsw_linecard_devices_detach(struct mlxsw_linecard *linecard)
+{
+	struct mlxsw_core *mlxsw_core = linecard->linecards->mlxsw_core;
+	struct mlxsw_linecard_device *device, *tmp;
+
+	list_for_each_entry_safe(device, tmp, &linecard->device_list, list)
+		mlxsw_linecard_device_detach(mlxsw_core, linecard, device);
+}
+
+static int mlxsw_linecard_devices_attach(struct mlxsw_linecard *linecard)
+{
+	struct mlxsw_core *mlxsw_core = linecard->linecards->mlxsw_core;
+	u8 msg_seq = 0;
+	int err;
+
+	do {
+		char mddq_pl[MLXSW_REG_MDDQ_LEN];
+		bool flash_owner;
+		bool data_valid;
+		u8 device_index;
+
+		mlxsw_reg_mddq_device_info_pack(mddq_pl, linecard->slot_index,
+						msg_seq);
+		err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mddq), mddq_pl);
+		if (err)
+			return err;
+		mlxsw_reg_mddq_device_info_unpack(mddq_pl, &msg_seq,
+						  &data_valid, &flash_owner,
+						  &device_index);
+		if (!data_valid)
+			break;
+		err = mlxsw_linecard_device_attach(mlxsw_core, linecard,
+						   device_index, flash_owner);
+		if (err)
+			goto rollback;
+	} while (msg_seq);
+
+	return 0;
+
+rollback:
+	mlxsw_linecard_devices_detach(linecard);
+	return err;
+}
+
 static void mlxsw_linecard_provision_fail(struct mlxsw_linecard *linecard)
 {
 	linecard->provisioned = false;
 	linecard->ready = false;
 	linecard->active = false;
+	mlxsw_linecard_devices_detach(linecard);
 	devlink_linecard_provision_fail(linecard->devlink_linecard);
 }
 
@@ -232,6 +322,7 @@ mlxsw_linecard_provision_set(struct mlxsw_linecard *linecard, u8 card_type,
 {
 	struct mlxsw_linecards *linecards = linecard->linecards;
 	const char *type;
+	int err;
 
 	type = mlxsw_linecard_types_lookup(linecards, card_type);
 	mlxsw_linecard_status_event_done(linecard,
@@ -249,6 +340,11 @@ mlxsw_linecard_provision_set(struct mlxsw_linecard *linecard, u8 card_type,
 			return PTR_ERR(type);
 		}
 	}
+	err = mlxsw_linecard_devices_attach(linecard);
+	if (err) {
+		mlxsw_linecard_provision_fail(linecard);
+		return err;
+	}
 	linecard->provisioned = true;
 	linecard->hw_revision = hw_revision;
 	linecard->ini_version = ini_version;
@@ -261,6 +357,7 @@ static void mlxsw_linecard_provision_clear(struct mlxsw_linecard *linecard)
 	mlxsw_linecard_status_event_done(linecard,
 					 MLXSW_LINECARD_STATUS_EVENT_TYPE_UNPROVISION);
 	linecard->provisioned = false;
+	mlxsw_linecard_devices_detach(linecard);
 	devlink_linecard_provision_clear(linecard->devlink_linecard);
 }
 
@@ -840,6 +937,7 @@ static int mlxsw_linecard_init(struct mlxsw_core *mlxsw_core,
 	linecard->slot_index = slot_index;
 	linecard->linecards = linecards;
 	mutex_init(&linecard->lock);
+	INIT_LIST_HEAD(&linecard->device_list);
 
 	devlink_linecard = devlink_linecard_create(priv_to_devlink(mlxsw_core),
 						   slot_index, &mlxsw_linecard_ops,
@@ -885,6 +983,7 @@ static void mlxsw_linecard_fini(struct mlxsw_core *mlxsw_core,
 	mlxsw_core_flush_owq();
 	if (linecard->active)
 		mlxsw_linecard_active_clear(linecard);
+	mlxsw_linecard_devices_detach(linecard);
 	devlink_linecard_destroy(linecard->devlink_linecard);
 	mutex_destroy(&linecard->lock);
 }

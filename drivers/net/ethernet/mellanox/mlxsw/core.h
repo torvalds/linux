@@ -581,6 +581,7 @@ struct mlxsw_linecard {
 	   active:1;
 	u16 hw_revision;
 	u16 ini_version;
+	struct list_head device_list;
 };
 
 struct mlxsw_linecard_types_info;
