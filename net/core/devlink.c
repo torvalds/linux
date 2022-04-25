@@ -83,10 +83,11 @@ struct devlink_linecard {
 	const struct devlink_linecard_ops *ops;
 	void *priv;
 	enum devlink_linecard_state state;
-	struct mutex state_lock; /* Protects state */
+	struct mutex state_lock; /* Protects state and device_list */
 	const char *type;
 	struct devlink_linecard_type *types;
 	unsigned int types_count;
+	struct list_head device_list;
 };
 
 /**
@@ -2058,6 +2059,55 @@ struct devlink_linecard_type {
 	const void *priv;
 };
 
+struct devlink_linecard_device {
+	struct list_head list;
+	unsigned int index;
+};
+
+static int
+devlink_nl_linecard_device_fill(struct sk_buff *msg,
+				struct devlink_linecard_device *linecard_device)
+{
+	struct nlattr *attr;
+
+	attr = nla_nest_start(msg, DEVLINK_ATTR_LINECARD_DEVICE);
+	if (!attr)
+		return -EMSGSIZE;
+	if (nla_put_u32(msg, DEVLINK_ATTR_LINECARD_DEVICE_INDEX,
+			linecard_device->index)) {
+		nla_nest_cancel(msg, attr);
+		return -EMSGSIZE;
+	}
+	nla_nest_end(msg, attr);
+
+	return 0;
+}
+
+static int devlink_nl_linecard_devices_fill(struct sk_buff *msg,
+					    struct devlink_linecard *linecard)
+{
+	struct devlink_linecard_device *linecard_device;
+	struct nlattr *attr;
+	int err;
+
+	if (list_empty(&linecard->device_list))
+		return 0;
+
+	attr = nla_nest_start(msg, DEVLINK_ATTR_LINECARD_DEVICE_LIST);
+	if (!attr)
+		return -EMSGSIZE;
+	list_for_each_entry(linecard_device, &linecard->device_list, list) {
+		err = devlink_nl_linecard_device_fill(msg, linecard_device);
+		if (err) {
+			nla_nest_cancel(msg, attr);
+			return err;
+		}
+	}
+	nla_nest_end(msg, attr);
+
+	return 0;
+}
+
 static int devlink_nl_linecard_fill(struct sk_buff *msg,
 				    struct devlink *devlink,
 				    struct devlink_linecard *linecard,
@@ -2068,6 +2118,7 @@ static int devlink_nl_linecard_fill(struct sk_buff *msg,
 	struct devlink_linecard_type *linecard_type;
 	struct nlattr *attr;
 	void *hdr;
+	int err;
 	int i;
 
 	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, flags, cmd);
@@ -2099,6 +2150,10 @@ static int devlink_nl_linecard_fill(struct sk_buff *msg,
 		}
 		nla_nest_end(msg, attr);
 	}
+
+	err = devlink_nl_linecard_devices_fill(msg, linecard);
+	if (err)
+		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
 	return 0;
@@ -10264,6 +10319,7 @@ devlink_linecard_create(struct devlink *devlink, unsigned int linecard_index,
 	linecard->priv = priv;
 	linecard->state = DEVLINK_LINECARD_STATE_UNPROVISIONED;
 	mutex_init(&linecard->state_lock);
+	INIT_LIST_HEAD(&linecard->device_list);
 
 	err = devlink_linecard_types_init(linecard);
 	if (err) {
@@ -10291,6 +10347,7 @@ void devlink_linecard_destroy(struct devlink_linecard *linecard)
 	struct devlink *devlink = linecard->devlink;
 
 	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_DEL);
+	WARN_ON(!list_empty(&linecard->device_list));
 	mutex_lock(&devlink->linecards_lock);
 	list_del(&linecard->list);
 	devlink_linecard_types_fini(linecard);
@@ -10298,6 +10355,50 @@ void devlink_linecard_destroy(struct devlink_linecard *linecard)
 	devlink_linecard_put(linecard);
 }
 EXPORT_SYMBOL_GPL(devlink_linecard_destroy);
+
+/**
+ *	devlink_linecard_device_create - Create a device on linecard
+ *
+ *	@linecard: devlink linecard
+ *	@device_index: index of the linecard device
+ *
+ *	Return: Line card device structure or an ERR_PTR() encoded error code.
+ */
+struct devlink_linecard_device *
+devlink_linecard_device_create(struct devlink_linecard *linecard,
+			       unsigned int device_index)
+{
+	struct devlink_linecard_device *linecard_device;
+
+	linecard_device = kzalloc(sizeof(*linecard_device), GFP_KERNEL);
+	if (!linecard_device)
+		return ERR_PTR(-ENOMEM);
+	linecard_device->index = device_index;
+	mutex_lock(&linecard->state_lock);
+	list_add_tail(&linecard_device->list, &linecard->device_list);
+	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+	mutex_unlock(&linecard->state_lock);
+	return linecard_device;
+}
+EXPORT_SYMBOL_GPL(devlink_linecard_device_create);
+
+/**
+ *	devlink_linecard_device_destroy - Destroy device on linecard
+ *
+ *	@linecard: devlink linecard
+ *	@linecard_device: devlink linecard device
+ */
+void
+devlink_linecard_device_destroy(struct devlink_linecard *linecard,
+				struct devlink_linecard_device *linecard_device)
+{
+	mutex_lock(&linecard->state_lock);
+	list_del(&linecard_device->list);
+	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
+	mutex_unlock(&linecard->state_lock);
+	kfree(linecard_device);
+}
+EXPORT_SYMBOL_GPL(devlink_linecard_device_destroy);
 
 /**
  *	devlink_linecard_provision_set - Set provisioning on linecard
@@ -10331,6 +10432,7 @@ EXPORT_SYMBOL_GPL(devlink_linecard_provision_set);
 void devlink_linecard_provision_clear(struct devlink_linecard *linecard)
 {
 	mutex_lock(&linecard->state_lock);
+	WARN_ON(!list_empty(&linecard->device_list));
 	linecard->state = DEVLINK_LINECARD_STATE_UNPROVISIONED;
 	linecard->type = NULL;
 	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);

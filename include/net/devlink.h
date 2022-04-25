@@ -1578,6 +1578,13 @@ struct devlink_linecard *
 devlink_linecard_create(struct devlink *devlink, unsigned int linecard_index,
 			const struct devlink_linecard_ops *ops, void *priv);
 void devlink_linecard_destroy(struct devlink_linecard *linecard);
+struct devlink_linecard_device;
+struct devlink_linecard_device *
+devlink_linecard_device_create(struct devlink_linecard *linecard,
+			       unsigned int device_index);
+void
+devlink_linecard_device_destroy(struct devlink_linecard *linecard,
+				struct devlink_linecard_device *linecard_device);
 void devlink_linecard_provision_set(struct devlink_linecard *linecard,
 				    const char *type);
 void devlink_linecard_provision_clear(struct devlink_linecard *linecard);
