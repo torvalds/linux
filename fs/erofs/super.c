@@ -372,6 +372,8 @@ static int erofs_read_superblock(struct super_block *sb)
 
 	if (erofs_sb_has_ztailpacking(sbi))
 		erofs_info(sb, "EXPERIMENTAL compressed inline data feature in use. Use at your own risk!");
+	if (erofs_is_fscache_mode(sb))
+		erofs_info(sb, "EXPERIMENTAL fscache-based on-demand read feature in use. Use at your own risk!");
 out:
 	erofs_put_metabuf(&buf);
 	return ret;
@@ -400,6 +402,7 @@ enum {
 	Opt_dax,
 	Opt_dax_enum,
 	Opt_device,
+	Opt_fsid,
 	Opt_err
 };
 
@@ -424,6 +427,7 @@ static const struct fs_parameter_spec erofs_fs_parameters[] = {
 	fsparam_flag("dax",             Opt_dax),
 	fsparam_enum("dax",		Opt_dax_enum, erofs_dax_param_enums),
 	fsparam_string("device",	Opt_device),
+	fsparam_string("fsid",		Opt_fsid),
 	{}
 };
 
@@ -518,6 +522,16 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 			return ret;
 		}
 		++ctx->devs->extra_devices;
+		break;
+	case Opt_fsid:
+#ifdef CONFIG_EROFS_FS_ONDEMAND
+		kfree(ctx->opt.fsid);
+		ctx->opt.fsid = kstrdup(param->string, GFP_KERNEL);
+		if (!ctx->opt.fsid)
+			return -ENOMEM;
+#else
+		errorfc(fc, "fsid option not supported");
+#endif
 		break;
 	default:
 		return -ENOPARAM;
@@ -643,6 +657,7 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sb->s_fs_info = sbi;
 	sbi->opt = ctx->opt;
+	ctx->opt.fsid = NULL;
 	sbi->devs = ctx->devs;
 	ctx->devs = NULL;
 
@@ -730,6 +745,11 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 
 static int erofs_fc_get_tree(struct fs_context *fc)
 {
+	struct erofs_fs_context *ctx = fc->fs_private;
+
+	if (IS_ENABLED(CONFIG_EROFS_FS_ONDEMAND) && ctx->opt.fsid)
+		return get_tree_nodev(fc, erofs_fc_fill_super);
+
 	return get_tree_bdev(fc, erofs_fc_fill_super);
 }
 
@@ -779,6 +799,7 @@ static void erofs_fc_free(struct fs_context *fc)
 	struct erofs_fs_context *ctx = fc->fs_private;
 
 	erofs_free_dev_context(ctx->devs);
+	kfree(ctx->opt.fsid);
 	kfree(ctx);
 }
 
@@ -819,7 +840,10 @@ static void erofs_kill_sb(struct super_block *sb)
 
 	WARN_ON(sb->s_magic != EROFS_SUPER_MAGIC);
 
-	kill_block_super(sb);
+	if (erofs_is_fscache_mode(sb))
+		generic_shutdown_super(sb);
+	else
+		kill_block_super(sb);
 
 	sbi = EROFS_SB(sb);
 	if (!sbi)
@@ -829,6 +853,7 @@ static void erofs_kill_sb(struct super_block *sb)
 	fs_put_dax(sbi->dax_dev);
 	erofs_fscache_unregister_cookie(&sbi->s_fscache);
 	erofs_fscache_unregister_fs(sb);
+	kfree(sbi->opt.fsid);
 	kfree(sbi);
 	sb->s_fs_info = NULL;
 }
@@ -978,6 +1003,10 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",dax=always");
 	if (test_opt(opt, DAX_NEVER))
 		seq_puts(seq, ",dax=never");
+#ifdef CONFIG_EROFS_FS_ONDEMAND
+	if (opt->fsid)
+		seq_printf(seq, ",fsid=%s", opt->fsid);
+#endif
 	return 0;
 }
 
