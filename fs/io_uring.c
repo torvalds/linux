@@ -8667,9 +8667,9 @@ static void io_free_file_tables(struct io_file_table *table)
 
 static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 {
+#if !defined(IO_URING_SCM_ALL)
 	int i;
 
-#if !defined(IO_URING_SCM_ALL)
 	for (i = 0; i < ctx->nr_user_files; i++) {
 		struct file *file = io_file_from_index(ctx, i);
 
