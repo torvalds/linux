@@ -2206,3 +2206,78 @@ int smu_v13_0_gfx_ulv_control(struct smu_context *smu,
 
 	return ret;
 }
+
+bool smu_v13_0_baco_is_support(struct smu_context *smu)
+{
+	struct smu_baco_context *smu_baco = &smu->smu_baco;
+
+	if (amdgpu_sriov_vf(smu->adev) ||
+	    !smu_baco->platform_support)
+		return false;
+
+	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_BACO_BIT) &&
+	    !smu_cmn_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
+		return false;
+
+	return true;
+}
+
+enum smu_baco_state smu_v13_0_baco_get_state(struct smu_context *smu)
+{
+	struct smu_baco_context *smu_baco = &smu->smu_baco;
+
+	return smu_baco->state;
+}
+
+int smu_v13_0_baco_set_state(struct smu_context *smu,
+			     enum smu_baco_state state)
+{
+	struct smu_baco_context *smu_baco = &smu->smu_baco;
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+
+	if (smu_v13_0_baco_get_state(smu) == state)
+		return 0;
+
+	if (state == SMU_BACO_STATE_ENTER) {
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_EnterBaco,
+						      0,
+						      NULL);
+	} else {
+		ret = smu_cmn_send_smc_msg(smu,
+					   SMU_MSG_ExitBaco,
+					   NULL);
+		if (ret)
+			return ret;
+
+		/* clear vbios scratch 6 and 7 for coming asic reinit */
+		WREG32(adev->bios_scratch_reg_offset + 6, 0);
+		WREG32(adev->bios_scratch_reg_offset + 7, 0);
+	}
+
+	if (!ret)
+		smu_baco->state = state;
+
+	return ret;
+}
+
+int smu_v13_0_baco_enter(struct smu_context *smu)
+{
+	int ret = 0;
+
+	ret = smu_v13_0_baco_set_state(smu,
+				       SMU_BACO_STATE_ENTER);
+	if (ret)
+		return ret;
+
+	msleep(10);
+
+	return ret;
+}
+
+int smu_v13_0_baco_exit(struct smu_context *smu)
+{
+	return smu_v13_0_baco_set_state(smu,
+					SMU_BACO_STATE_EXIT);
+}

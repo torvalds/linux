@@ -95,6 +95,7 @@ static struct cmn2asic_msg_mapping smu_v13_0_0_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(UseDefaultPPTable,		PPSMC_MSG_UseDefaultPPTable,           0),
 	MSG_MAP(RunDcBtc,			PPSMC_MSG_RunDcBtc,                    0),
 	MSG_MAP(EnterBaco,			PPSMC_MSG_EnterBaco,                   0),
+	MSG_MAP(ExitBaco,			PPSMC_MSG_ExitBaco,                    0),
 	MSG_MAP(SetSoftMinByFreq,		PPSMC_MSG_SetSoftMinByFreq,            1),
 	MSG_MAP(SetSoftMaxByFreq,		PPSMC_MSG_SetSoftMaxByFreq,            1),
 	MSG_MAP(SetHardMinByFreq,		PPSMC_MSG_SetHardMinByFreq,            1),
@@ -150,6 +151,7 @@ static struct cmn2asic_mapping smu_v13_0_0_feature_mask_map[SMU_FEATURE_COUNT] =
 	[SMU_FEATURE_DS_MP0CLK_BIT] = {1, FEATURE_SOC_MPCLK_DS_BIT},
 	[SMU_FEATURE_DS_MP1CLK_BIT] = {1, FEATURE_BACO_MPCLK_DS_BIT},
 	[SMU_FEATURE_GFX_ULV_BIT] = {1, FEATURE_GFX_ULV_BIT},
+	[SMU_FEATURE_BACO_BIT] = {1, FEATURE_BACO_BIT},
 };
 
 static struct cmn2asic_mapping smu_v13_0_0_table_map[SMU_TABLE_COUNT] = {
@@ -1595,6 +1597,11 @@ static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.set_tool_table_location = smu_v13_0_set_tool_table_location,
 	.deep_sleep_control = smu_v13_0_deep_sleep_control,
 	.gfx_ulv_control = smu_v13_0_gfx_ulv_control,
+	.baco_is_support = smu_v13_0_baco_is_support,
+	.baco_get_state = smu_v13_0_baco_get_state,
+	.baco_set_state = smu_v13_0_baco_set_state,
+	.baco_enter = smu_v13_0_baco_enter,
+	.baco_exit = smu_v13_0_baco_exit,
 };
 
 void smu_v13_0_0_set_ppt_funcs(struct smu_context *smu)
