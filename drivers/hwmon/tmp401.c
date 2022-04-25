@@ -604,7 +604,7 @@ static int tmp401_init_client(struct tmp401_data *data)
 			return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int tmp401_detect(struct i2c_client *client,
