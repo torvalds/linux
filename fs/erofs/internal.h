@@ -74,6 +74,7 @@ struct erofs_mount_opts {
 	unsigned int max_sync_decompress_pages;
 #endif
 	unsigned int mount_opt;
+	char *fsid;
 };
 
 struct erofs_dev_context {
@@ -146,6 +147,9 @@ struct erofs_sb_info {
 	/* sysfs support */
 	struct kobject s_kobj;		/* /sys/fs/erofs/<devname> */
 	struct completion s_kobj_unregister;
+
+	/* fscache support */
+	struct fscache_volume *volume;
 };
 
 #define EROFS_SB(sb) ((struct erofs_sb_info *)(sb)->s_fs_info)
@@ -592,6 +596,18 @@ static inline int z_erofs_load_lzma_config(struct super_block *sb,
 	return 0;
 }
 #endif	/* !CONFIG_EROFS_FS_ZIP */
+
+/* fscache.c */
+#ifdef CONFIG_EROFS_FS_ONDEMAND
+int erofs_fscache_register_fs(struct super_block *sb);
+void erofs_fscache_unregister_fs(struct super_block *sb);
+#else
+static inline int erofs_fscache_register_fs(struct super_block *sb)
+{
+	return 0;
+}
+static inline void erofs_fscache_unregister_fs(struct super_block *sb) {}
+#endif
 
 #define EFSCORRUPTED    EUCLEAN         /* Filesystem is corrupted */
 
