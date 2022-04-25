@@ -46,6 +46,10 @@ struct mlx5_crypto_dek_pool {
 	bool syncing;
 	struct list_head wait_for_free;
 	struct work_struct sync_work;
+
+	spinlock_t destroy_lock; /* protect destroy_list */
+	struct list_head destroy_list;
+	struct work_struct destroy_work;
 };
 
 struct mlx5_crypto_dek_bulk {
@@ -351,13 +355,15 @@ static void mlx5_crypto_dek_bulk_free(struct mlx5_crypto_dek_bulk *bulk)
 }
 
 static void mlx5_crypto_dek_pool_remove_bulk(struct mlx5_crypto_dek_pool *pool,
-					     struct mlx5_crypto_dek_bulk *bulk)
+					     struct mlx5_crypto_dek_bulk *bulk,
+					     bool delay)
 {
 	pool->num_deks -= bulk->num_deks;
 	pool->avail_deks -= bulk->avail_deks;
 	pool->in_use_deks -= bulk->in_use_deks;
 	list_del(&bulk->entry);
-	mlx5_crypto_dek_bulk_free(bulk);
+	if (!delay)
+		mlx5_crypto_dek_bulk_free(bulk);
 }
 
 static struct mlx5_crypto_dek_bulk *
@@ -500,6 +506,23 @@ static void mlx5_crypto_dek_bulk_reset_synced(struct mlx5_crypto_dek_pool *pool,
 	}
 }
 
+static void mlx5_crypto_dek_bulk_handle_avail(struct mlx5_crypto_dek_pool *pool,
+					      struct mlx5_crypto_dek_bulk *bulk,
+					      struct list_head *destroy_list)
+{
+	mlx5_crypto_dek_pool_remove_bulk(pool, bulk, true);
+	list_add(&bulk->entry, destroy_list);
+}
+
+static void mlx5_crypto_dek_pool_splice_destroy_list(struct mlx5_crypto_dek_pool *pool,
+						     struct list_head *list,
+						     struct list_head *head)
+{
+	spin_lock(&pool->destroy_lock);
+	list_splice_init(list, head);
+	spin_unlock(&pool->destroy_lock);
+}
+
 static void mlx5_crypto_dek_pool_free_wait_keys(struct mlx5_crypto_dek_pool *pool)
 {
 	struct mlx5_crypto_dek *dek, *next;
@@ -512,16 +535,18 @@ static void mlx5_crypto_dek_pool_free_wait_keys(struct mlx5_crypto_dek_pool *poo
 
 /* For all the bulks in each list, reset the bits while sync.
  * Move them to different lists according to the number of available DEKs.
+ * Destrory all the idle bulks for now.
  * And free DEKs in the waiting list at the end of this func.
  */
 static void mlx5_crypto_dek_pool_reset_synced(struct mlx5_crypto_dek_pool *pool)
 {
 	struct mlx5_crypto_dek_bulk *bulk, *tmp;
+	LIST_HEAD(destroy_list);
 
 	list_for_each_entry_safe(bulk, tmp, &pool->partial_list, entry) {
 		mlx5_crypto_dek_bulk_reset_synced(pool, bulk);
 		if (MLX5_CRYPTO_DEK_BULK_IDLE(bulk))
-			list_move(&bulk->entry, &pool->avail_list);
+			mlx5_crypto_dek_bulk_handle_avail(pool, bulk, &destroy_list);
 	}
 
 	list_for_each_entry_safe(bulk, tmp, &pool->full_list, entry) {
@@ -531,7 +556,7 @@ static void mlx5_crypto_dek_pool_reset_synced(struct mlx5_crypto_dek_pool *pool)
 			continue;
 
 		if (MLX5_CRYPTO_DEK_BULK_IDLE(bulk))
-			list_move(&bulk->entry, &pool->avail_list);
+			mlx5_crypto_dek_bulk_handle_avail(pool, bulk, &destroy_list);
 		else
 			list_move(&bulk->entry, &pool->partial_list);
 	}
@@ -541,10 +566,16 @@ static void mlx5_crypto_dek_pool_reset_synced(struct mlx5_crypto_dek_pool *pool)
 		bulk->avail_start = 0;
 		bulk->avail_deks = bulk->num_deks;
 		pool->avail_deks += bulk->num_deks;
+		mlx5_crypto_dek_bulk_handle_avail(pool, bulk, &destroy_list);
 	}
-	list_splice_init(&pool->sync_list, &pool->avail_list);
 
 	mlx5_crypto_dek_pool_free_wait_keys(pool);
+
+	if (!list_empty(&destroy_list)) {
+		mlx5_crypto_dek_pool_splice_destroy_list(pool, &destroy_list,
+							 &pool->destroy_list);
+		schedule_work(&pool->destroy_work);
+	}
 }
 
 static void mlx5_crypto_dek_sync_work_fn(struct work_struct *work)
@@ -620,6 +651,25 @@ void mlx5_crypto_dek_destroy(struct mlx5_crypto_dek_pool *dek_pool,
 	}
 }
 
+static void mlx5_crypto_dek_free_destroy_list(struct list_head *destroy_list)
+{
+	struct mlx5_crypto_dek_bulk *bulk, *tmp;
+
+	list_for_each_entry_safe(bulk, tmp, destroy_list, entry)
+		mlx5_crypto_dek_bulk_free(bulk);
+}
+
+static void mlx5_crypto_dek_destroy_work_fn(struct work_struct *work)
+{
+	struct mlx5_crypto_dek_pool *pool =
+		container_of(work, struct mlx5_crypto_dek_pool, destroy_work);
+	LIST_HEAD(destroy_list);
+
+	mlx5_crypto_dek_pool_splice_destroy_list(pool, &pool->destroy_list,
+						 &destroy_list);
+	mlx5_crypto_dek_free_destroy_list(&destroy_list);
+}
+
 struct mlx5_crypto_dek_pool *
 mlx5_crypto_dek_pool_create(struct mlx5_core_dev *mdev, int key_purpose)
 {
@@ -639,6 +689,9 @@ mlx5_crypto_dek_pool_create(struct mlx5_core_dev *mdev, int key_purpose)
 	INIT_LIST_HEAD(&pool->sync_list);
 	INIT_LIST_HEAD(&pool->wait_for_free);
 	INIT_WORK(&pool->sync_work, mlx5_crypto_dek_sync_work_fn);
+	spin_lock_init(&pool->destroy_lock);
+	INIT_LIST_HEAD(&pool->destroy_list);
+	INIT_WORK(&pool->destroy_work, mlx5_crypto_dek_destroy_work_fn);
 
 	return pool;
 }
@@ -648,20 +701,23 @@ void mlx5_crypto_dek_pool_destroy(struct mlx5_crypto_dek_pool *pool)
 	struct mlx5_crypto_dek_bulk *bulk, *tmp;
 
 	cancel_work_sync(&pool->sync_work);
+	cancel_work_sync(&pool->destroy_work);
 
 	mlx5_crypto_dek_pool_free_wait_keys(pool);
 
 	list_for_each_entry_safe(bulk, tmp, &pool->avail_list, entry)
-		mlx5_crypto_dek_pool_remove_bulk(pool, bulk);
+		mlx5_crypto_dek_pool_remove_bulk(pool, bulk, false);
 
 	list_for_each_entry_safe(bulk, tmp, &pool->full_list, entry)
-		mlx5_crypto_dek_pool_remove_bulk(pool, bulk);
+		mlx5_crypto_dek_pool_remove_bulk(pool, bulk, false);
 
 	list_for_each_entry_safe(bulk, tmp, &pool->sync_list, entry)
-		mlx5_crypto_dek_pool_remove_bulk(pool, bulk);
+		mlx5_crypto_dek_pool_remove_bulk(pool, bulk, false);
 
 	list_for_each_entry_safe(bulk, tmp, &pool->partial_list, entry)
-		mlx5_crypto_dek_pool_remove_bulk(pool, bulk);
+		mlx5_crypto_dek_pool_remove_bulk(pool, bulk, false);
+
+	mlx5_crypto_dek_free_destroy_list(&pool->destroy_list);
 
 	mutex_destroy(&pool->lock);
 
