@@ -284,12 +284,11 @@ static void rk_cma_heap_remove_dmabuf_list(struct dma_buf *dmabuf)
 	list_for_each_entry(buf, &heap->dmabuf_list, node) {
 		if (buf->dmabuf == dmabuf) {
 			dma_heap_print("<%s> free dmabuf<ino-%ld>@[%pa-%pa] to heap-<%s>\n",
-				       buf->orig_alloc,
+				       dmabuf->name,
 				       dmabuf->file->f_inode->i_ino,
 				       &buf->start, &buf->end,
 				       rk_dma_heap_get_name(heap));
 			list_del(&buf->node);
-			kfree(buf->orig_alloc);
 			kfree(buf);
 			break;
 		}
@@ -303,7 +302,6 @@ static int rk_cma_heap_add_dmabuf_list(struct dma_buf *dmabuf, const char *name)
 	struct rk_cma_heap_buffer *buffer = dmabuf->priv;
 	struct rk_cma_heap *cma_heap = buffer->heap;
 	struct rk_dma_heap *heap = cma_heap->heap;
-	const char *name_tmp;
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
@@ -311,17 +309,6 @@ static int rk_cma_heap_add_dmabuf_list(struct dma_buf *dmabuf, const char *name)
 
 	INIT_LIST_HEAD(&buf->node);
 	buf->dmabuf = dmabuf;
-	if (!name)
-		name_tmp = current->comm;
-	else
-		name_tmp = name;
-
-	buf->orig_alloc = kstrndup(name_tmp, RK_DMA_HEAP_NAME_LEN, GFP_KERNEL);
-	if (!buf->orig_alloc) {
-		kfree(buf);
-		return -ENOMEM;
-	}
-
 	buf->start = buffer->phys;
 	buf->end = buf->start + buffer->len - 1;
 	mutex_lock(&heap->dmabuf_lock);
@@ -329,7 +316,7 @@ static int rk_cma_heap_add_dmabuf_list(struct dma_buf *dmabuf, const char *name)
 	mutex_unlock(&heap->dmabuf_lock);
 
 	dma_heap_print("<%s> alloc dmabuf<ino-%ld>@[%pa-%pa] from heap-<%s>\n",
-		       buf->orig_alloc, dmabuf->file->f_inode->i_ino,
+		       dmabuf->name, dmabuf->file->f_inode->i_ino,
 		       &buf->start, &buf->end, rk_dma_heap_get_name(heap));
 
 	return 0;
