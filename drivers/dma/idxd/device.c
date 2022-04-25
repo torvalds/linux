@@ -184,7 +184,7 @@ int idxd_wq_enable(struct idxd_wq *wq)
 
 	if (wq->state == IDXD_WQ_ENABLED) {
 		dev_dbg(dev, "WQ %d already enabled\n", wq->id);
-		return -ENXIO;
+		return 0;
 	}
 
 	idxd_cmd_exec(idxd, IDXD_CMD_ENABLE_WQ, wq->id, &status);
