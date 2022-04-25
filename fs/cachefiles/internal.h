@@ -290,6 +290,7 @@ extern int cachefiles_ondemand_copen(struct cachefiles_cache *cache,
 				     char *args);
 
 extern int cachefiles_ondemand_init_object(struct cachefiles_object *object);
+extern void cachefiles_ondemand_clean_object(struct cachefiles_object *object);
 
 #else
 static inline ssize_t cachefiles_ondemand_daemon_read(struct cachefiles_cache *cache,
@@ -301,6 +302,10 @@ static inline ssize_t cachefiles_ondemand_daemon_read(struct cachefiles_cache *c
 static inline int cachefiles_ondemand_init_object(struct cachefiles_object *object)
 {
 	return 0;
+}
+
+static inline void cachefiles_ondemand_clean_object(struct cachefiles_object *object)
+{
 }
 #endif
 

@@ -229,6 +229,12 @@ ssize_t cachefiles_ondemand_daemon_read(struct cachefiles_cache *cache,
 		goto err_put_fd;
 	}
 
+	/* CLOSE request has no reply */
+	if (msg->opcode == CACHEFILES_OP_CLOSE) {
+		xa_erase(&cache->reqs, id);
+		complete(&req->done);
+	}
+
 	return n;
 
 err_put_fd:
@@ -300,6 +306,13 @@ static int cachefiles_ondemand_send_req(struct cachefiles_object *object,
 		/* coupled with the barrier in cachefiles_flush_reqs() */
 		smp_mb();
 
+		if (opcode != CACHEFILES_OP_OPEN && object->ondemand_id <= 0) {
+			WARN_ON_ONCE(object->ondemand_id == 0);
+			xas_unlock(&xas);
+			ret = -EIO;
+			goto out;
+		}
+
 		xas.xa_index = 0;
 		xas_find_marked(&xas, UINT_MAX, XA_FREE_MARK);
 		if (xas.xa_node == XAS_RESTART)
@@ -356,6 +369,25 @@ static int cachefiles_ondemand_init_open_req(struct cachefiles_req *req,
 	return 0;
 }
 
+static int cachefiles_ondemand_init_close_req(struct cachefiles_req *req,
+					      void *private)
+{
+	struct cachefiles_object *object = req->object;
+	int object_id = object->ondemand_id;
+
+	/*
+	 * It's possible that object id is still 0 if the cookie looking up
+	 * phase failed before OPEN request has ever been sent. Also avoid
+	 * sending CLOSE request for CACHEFILES_ONDEMAND_ID_CLOSED, which means
+	 * anon_fd has already been closed.
+	 */
+	if (object_id <= 0)
+		return -ENOENT;
+
+	req->msg.object_id = object_id;
+	return 0;
+}
+
 int cachefiles_ondemand_init_object(struct cachefiles_object *object)
 {
 	struct fscache_cookie *cookie = object->cookie;
@@ -378,4 +410,10 @@ int cachefiles_ondemand_init_object(struct cachefiles_object *object)
 
 	return cachefiles_ondemand_send_req(object, CACHEFILES_OP_OPEN,
 			data_len, cachefiles_ondemand_init_open_req, NULL);
+}
+
+void cachefiles_ondemand_clean_object(struct cachefiles_object *object)
+{
+	cachefiles_ondemand_send_req(object, CACHEFILES_OP_CLOSE, 0,
+			cachefiles_ondemand_init_close_req, NULL);
 }
