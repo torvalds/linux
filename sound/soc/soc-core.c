@@ -2587,6 +2587,11 @@ int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->dev		= dev;
 	component->driver	= driver;
 
+#ifdef CONFIG_DEBUG_FS
+	if (!component->debugfs_prefix)
+		component->debugfs_prefix = driver->debugfs_prefix;
+#endif
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_initialize);
