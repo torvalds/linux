@@ -506,12 +506,19 @@ static void mlx5_crypto_dek_bulk_reset_synced(struct mlx5_crypto_dek_pool *pool,
 	}
 }
 
-static void mlx5_crypto_dek_bulk_handle_avail(struct mlx5_crypto_dek_pool *pool,
+/* Return true if the bulk is reused, false if destroyed with delay */
+static bool mlx5_crypto_dek_bulk_handle_avail(struct mlx5_crypto_dek_pool *pool,
 					      struct mlx5_crypto_dek_bulk *bulk,
 					      struct list_head *destroy_list)
 {
+	if (list_empty(&pool->avail_list)) {
+		list_move(&bulk->entry, &pool->avail_list);
+		return true;
+	}
+
 	mlx5_crypto_dek_pool_remove_bulk(pool, bulk, true);
 	list_add(&bulk->entry, destroy_list);
+	return false;
 }
 
 static void mlx5_crypto_dek_pool_splice_destroy_list(struct mlx5_crypto_dek_pool *pool,
@@ -535,7 +542,7 @@ static void mlx5_crypto_dek_pool_free_wait_keys(struct mlx5_crypto_dek_pool *poo
 
 /* For all the bulks in each list, reset the bits while sync.
  * Move them to different lists according to the number of available DEKs.
- * Destrory all the idle bulks for now.
+ * Destrory all the idle bulks, except one for quick service.
  * And free DEKs in the waiting list at the end of this func.
  */
 static void mlx5_crypto_dek_pool_reset_synced(struct mlx5_crypto_dek_pool *pool)
@@ -562,11 +569,12 @@ static void mlx5_crypto_dek_pool_reset_synced(struct mlx5_crypto_dek_pool *pool)
 	}
 
 	list_for_each_entry_safe(bulk, tmp, &pool->sync_list, entry) {
-		memset(bulk->need_sync, 0, BITS_TO_BYTES(bulk->num_deks));
-		bulk->avail_start = 0;
 		bulk->avail_deks = bulk->num_deks;
 		pool->avail_deks += bulk->num_deks;
-		mlx5_crypto_dek_bulk_handle_avail(pool, bulk, &destroy_list);
+		if (mlx5_crypto_dek_bulk_handle_avail(pool, bulk, &destroy_list)) {
+			memset(bulk->need_sync, 0, BITS_TO_BYTES(bulk->num_deks));
+			bulk->avail_start = 0;
+		}
 	}
 
 	mlx5_crypto_dek_pool_free_wait_keys(pool);
