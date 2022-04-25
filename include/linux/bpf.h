@@ -148,8 +148,7 @@ struct bpf_map_ops {
 				     bpf_callback_t callback_fn,
 				     void *callback_ctx, u64 flags);
 
-	/* BTF name and id of struct allocated by map_alloc */
-	const char * const map_btf_name;
+	/* BTF id of struct allocated by map_alloc */
 	int *map_btf_id;
 
 	/* bpf_iter info used to open a seq_file */

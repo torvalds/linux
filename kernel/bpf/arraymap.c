@@ -11,6 +11,7 @@
 #include <linux/perf_event.h>
 #include <uapi/linux/btf.h>
 #include <linux/rcupdate_trace.h>
+#include <linux/btf_ids.h>
 
 #include "map_in_map.h"
 
@@ -690,7 +691,7 @@ static int bpf_for_each_array_elem(struct bpf_map *map, bpf_callback_t callback_
 	return num_elems;
 }
 
-static int array_map_btf_id;
+BTF_ID_LIST_SINGLE(array_map_btf_ids, struct, bpf_array)
 const struct bpf_map_ops array_map_ops = {
 	.map_meta_equal = array_map_meta_equal,
 	.map_alloc_check = array_map_alloc_check,
@@ -711,12 +712,10 @@ const struct bpf_map_ops array_map_ops = {
 	.map_update_batch = generic_map_update_batch,
 	.map_set_for_each_callback_args = map_set_for_each_callback_args,
 	.map_for_each_callback = bpf_for_each_array_elem,
-	.map_btf_name = "bpf_array",
-	.map_btf_id = &array_map_btf_id,
+	.map_btf_id = &array_map_btf_ids[0],
 	.iter_seq_info = &iter_seq_info,
 };
 
-static int percpu_array_map_btf_id;
 const struct bpf_map_ops percpu_array_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = array_map_alloc_check,
@@ -732,8 +731,7 @@ const struct bpf_map_ops percpu_array_map_ops = {
 	.map_update_batch = generic_map_update_batch,
 	.map_set_for_each_callback_args = map_set_for_each_callback_args,
 	.map_for_each_callback = bpf_for_each_array_elem,
-	.map_btf_name = "bpf_array",
-	.map_btf_id = &percpu_array_map_btf_id,
+	.map_btf_id = &array_map_btf_ids[0],
 	.iter_seq_info = &iter_seq_info,
 };
 
@@ -1112,7 +1110,6 @@ static void prog_array_map_free(struct bpf_map *map)
  * Thus, prog_array_map cannot be used as an inner_map
  * and map_meta_equal is not implemented.
  */
-static int prog_array_map_btf_id;
 const struct bpf_map_ops prog_array_map_ops = {
 	.map_alloc_check = fd_array_map_alloc_check,
 	.map_alloc = prog_array_map_alloc,
@@ -1128,8 +1125,7 @@ const struct bpf_map_ops prog_array_map_ops = {
 	.map_fd_sys_lookup_elem = prog_fd_array_sys_lookup_elem,
 	.map_release_uref = prog_array_map_clear,
 	.map_seq_show_elem = prog_array_map_seq_show_elem,
-	.map_btf_name = "bpf_array",
-	.map_btf_id = &prog_array_map_btf_id,
+	.map_btf_id = &array_map_btf_ids[0],
 };
 
 static struct bpf_event_entry *bpf_event_entry_gen(struct file *perf_file,
@@ -1218,7 +1214,6 @@ static void perf_event_fd_array_map_free(struct bpf_map *map)
 	fd_array_map_free(map);
 }
 
-static int perf_event_array_map_btf_id;
 const struct bpf_map_ops perf_event_array_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = fd_array_map_alloc_check,
@@ -1231,8 +1226,7 @@ const struct bpf_map_ops perf_event_array_map_ops = {
 	.map_fd_put_ptr = perf_event_fd_array_put_ptr,
 	.map_release = perf_event_fd_array_release,
 	.map_check_btf = map_check_no_btf,
-	.map_btf_name = "bpf_array",
-	.map_btf_id = &perf_event_array_map_btf_id,
+	.map_btf_id = &array_map_btf_ids[0],
 };
 
 #ifdef CONFIG_CGROUPS
@@ -1255,7 +1249,6 @@ static void cgroup_fd_array_free(struct bpf_map *map)
 	fd_array_map_free(map);
 }
 
-static int cgroup_array_map_btf_id;
 const struct bpf_map_ops cgroup_array_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = fd_array_map_alloc_check,
@@ -1267,8 +1260,7 @@ const struct bpf_map_ops cgroup_array_map_ops = {
 	.map_fd_get_ptr = cgroup_fd_array_get_ptr,
 	.map_fd_put_ptr = cgroup_fd_array_put_ptr,
 	.map_check_btf = map_check_no_btf,
-	.map_btf_name = "bpf_array",
-	.map_btf_id = &cgroup_array_map_btf_id,
+	.map_btf_id = &array_map_btf_ids[0],
 };
 #endif
 
@@ -1342,7 +1334,6 @@ static int array_of_map_gen_lookup(struct bpf_map *map,
 	return insn - insn_buf;
 }
 
-static int array_of_maps_map_btf_id;
 const struct bpf_map_ops array_of_maps_map_ops = {
 	.map_alloc_check = fd_array_map_alloc_check,
 	.map_alloc = array_of_map_alloc,
@@ -1355,6 +1346,5 @@ const struct bpf_map_ops array_of_maps_map_ops = {
 	.map_fd_sys_lookup_elem = bpf_map_fd_sys_lookup_elem,
 	.map_gen_lookup = array_of_map_gen_lookup,
 	.map_check_btf = map_check_no_btf,
-	.map_btf_name = "bpf_array",
-	.map_btf_id = &array_of_maps_map_btf_id,
+	.map_btf_id = &array_map_btf_ids[0],
 };
