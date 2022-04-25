@@ -1033,6 +1033,10 @@
 		mailbox_contrl0: mailbox@0 {
 			compatible = "starfive,mail_box";
 			reg = <0x0 0x13060000 0x0 0x0001000>;
+			clocks = <&clkgen JH7110_MAILBOX_CLK_APB>;
+			clock-names = "clk_apb";
+			resets = <&rstgen RSTN_U0_MAILBOX_RRESETN>;
+			reset-names = "mbx_rre";
 			interrupts = <26 27>;
 			#mbox-cells = <2>;
 			status = "disabled";
