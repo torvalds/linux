@@ -3967,6 +3967,7 @@ static int kvmhv_vcpu_entry_p9_nested(struct kvm_vcpu *vcpu, u64 time_limit, uns
 
 	kvmhv_save_hv_regs(vcpu, &hvregs);
 	hvregs.lpcr = lpcr;
+	hvregs.amor = ~0;
 	vcpu->arch.regs.msr = vcpu->arch.shregs.msr;
 	hvregs.version = HV_GUEST_STATE_VERSION;
 	if (vcpu->arch.nested) {
