@@ -590,6 +590,9 @@ int drm_fb_blit_toio(void __iomem *dst, unsigned int dst_pitch, uint32_t dst_for
 		}
 	}
 
+	drm_warn_once(fb->dev, "No conversion helper from %p4cc to %p4cc found.\n",
+		      &fb_format, &dst_format);
+
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_fb_blit_toio);
