@@ -5127,12 +5127,10 @@ void dp_retrieve_lttpr_cap(struct dc_link *link)
 	else
 		link->lttpr_support = LTTPR_CHECK_EXT_SUPPORT;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* Check DP tunnel LTTPR mode debug option. */
 	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
 	    link->dc->debug.dpia_debug.bits.force_non_lttpr)
 		link->lttpr_support = LTTPR_UNSUPPORTED;
-#endif
 
 	if (link->lttpr_support > LTTPR_UNSUPPORTED) {
 		/* By reading LTTPR capability, RX assumes that we will enable
@@ -5626,9 +5624,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 		 * only if required.
 		 */
 		if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 				!link->dc->debug.dpia_debug.bits.disable_force_tbt3_work_around &&
-#endif
 				link->dpcd_caps.is_branch_dev &&
 				link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_90CC24 &&
 				link->dpcd_caps.branch_hw_revision == DP_BRANCH_HW_REV_10 &&
