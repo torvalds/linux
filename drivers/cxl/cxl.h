@@ -341,6 +341,7 @@ enum cxl_config_state {
  * @uuid: unique id for persistent regions
  * @interleave_ways: number of endpoints in the region
  * @interleave_granularity: capacity each endpoint contributes to a stripe
+ * @res: allocated iomem capacity for this region
  *
  * State transitions are protected by the cxl_region_rwsem
  */
@@ -349,6 +350,7 @@ struct cxl_region_params {
 	uuid_t uuid;
 	int interleave_ways;
 	int interleave_granularity;
+	struct resource *res;
 };
 
 /**

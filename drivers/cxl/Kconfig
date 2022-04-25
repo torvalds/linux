@@ -106,6 +106,9 @@ config CXL_SUSPEND
 config CXL_REGION
 	bool
 	default CXL_BUS
+	# For MAX_PHYSMEM_BITS
+	depends on SPARSEMEM
 	select MEMREGION
+	select GET_FREE_REGION
 
 endif

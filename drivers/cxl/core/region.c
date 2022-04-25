@@ -250,10 +250,152 @@ out:
 }
 static DEVICE_ATTR_RW(interleave_granularity);
 
+static ssize_t resource_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	u64 resource = -1ULL;
+	ssize_t rc;
+
+	rc = down_read_interruptible(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+	if (p->res)
+		resource = p->res->start;
+	rc = sysfs_emit(buf, "%#llx\n", resource);
+	up_read(&cxl_region_rwsem);
+
+	return rc;
+}
+static DEVICE_ATTR_RO(resource);
+
+static int alloc_hpa(struct cxl_region *cxlr, resource_size_t size)
+{
+	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
+	struct cxl_region_params *p = &cxlr->params;
+	struct resource *res;
+	u32 remainder = 0;
+
+	lockdep_assert_held_write(&cxl_region_rwsem);
+
+	/* Nothing to do... */
+	if (p->res && resource_size(res) == size)
+		return 0;
+
+	/* To change size the old size must be freed first */
+	if (p->res)
+		return -EBUSY;
+
+	if (p->state >= CXL_CONFIG_INTERLEAVE_ACTIVE)
+		return -EBUSY;
+
+	/* ways, granularity and uuid (if PMEM) need to be set before HPA */
+	if (!p->interleave_ways || !p->interleave_granularity ||
+	    (cxlr->mode == CXL_DECODER_PMEM && uuid_is_null(&p->uuid)))
+		return -ENXIO;
+
+	div_u64_rem(size, SZ_256M * p->interleave_ways, &remainder);
+	if (remainder)
+		return -EINVAL;
+
+	res = alloc_free_mem_region(cxlrd->res, size, SZ_256M,
+				    dev_name(&cxlr->dev));
+	if (IS_ERR(res)) {
+		dev_dbg(&cxlr->dev, "failed to allocate HPA: %ld\n",
+			PTR_ERR(res));
+		return PTR_ERR(res);
+	}
+
+	p->res = res;
+	p->state = CXL_CONFIG_INTERLEAVE_ACTIVE;
+
+	return 0;
+}
+
+static void cxl_region_iomem_release(struct cxl_region *cxlr)
+{
+	struct cxl_region_params *p = &cxlr->params;
+
+	if (device_is_registered(&cxlr->dev))
+		lockdep_assert_held_write(&cxl_region_rwsem);
+	if (p->res) {
+		remove_resource(p->res);
+		kfree(p->res);
+		p->res = NULL;
+	}
+}
+
+static int free_hpa(struct cxl_region *cxlr)
+{
+	struct cxl_region_params *p = &cxlr->params;
+
+	lockdep_assert_held_write(&cxl_region_rwsem);
+
+	if (!p->res)
+		return 0;
+
+	if (p->state >= CXL_CONFIG_ACTIVE)
+		return -EBUSY;
+
+	cxl_region_iomem_release(cxlr);
+	p->state = CXL_CONFIG_IDLE;
+	return 0;
+}
+
+static ssize_t size_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t len)
+{
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	u64 val;
+	int rc;
+
+	rc = kstrtou64(buf, 0, &val);
+	if (rc)
+		return rc;
+
+	rc = down_write_killable(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+
+	if (val)
+		rc = alloc_hpa(cxlr, val);
+	else
+		rc = free_hpa(cxlr);
+	up_write(&cxl_region_rwsem);
+
+	if (rc)
+		return rc;
+
+	return len;
+}
+
+static ssize_t size_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	u64 size = 0;
+	ssize_t rc;
+
+	rc = down_read_interruptible(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+	if (p->res)
+		size = resource_size(p->res);
+	rc = sysfs_emit(buf, "%#llx\n", size);
+	up_read(&cxl_region_rwsem);
+
+	return rc;
+}
+static DEVICE_ATTR_RW(size);
+
 static struct attribute *cxl_region_attrs[] = {
 	&dev_attr_uuid.attr,
 	&dev_attr_interleave_ways.attr,
 	&dev_attr_interleave_granularity.attr,
+	&dev_attr_resource.attr,
+	&dev_attr_size.attr,
 	NULL,
 };
 
@@ -299,7 +441,11 @@ static struct cxl_region *to_cxl_region(struct device *dev)
 
 static void unregister_region(void *dev)
 {
-	device_unregister(dev);
+	struct cxl_region *cxlr = to_cxl_region(dev);
+
+	device_del(dev);
+	cxl_region_iomem_release(cxlr);
+	put_device(dev);
 }
 
 static struct lock_class_key cxl_region_key;
@@ -451,3 +597,5 @@ static ssize_t delete_region_store(struct device *dev,
 	return len;
 }
 DEVICE_ATTR_WO(delete_region);
+
+MODULE_IMPORT_NS(CXL);

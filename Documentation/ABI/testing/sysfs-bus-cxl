@@ -324,3 +324,32 @@ Description:
 		(RW) Configures the number of devices participating in the
 		region is set by writing this value. Each device will provide
 		1/interleave_ways of storage for the region.
+
+
+What:		/sys/bus/cxl/devices/regionZ/size
+Date:		May, 2022
+KernelVersion:	v5.20
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RW) System physical address space to be consumed by the region.
+		When written trigger the driver to allocate space out of the
+		parent root decoder's address space. When read the size of the
+		address space is reported and should match the span of the
+		region's resource attribute. Size shall be set after the
+		interleave configuration parameters. Once set it cannot be
+		changed, only freed by writing 0. The kernel makes no guarantees
+		that data is maintained over an address space freeing event, and
+		there is no guarantee that a free followed by an allocate
+		results in the same address being allocated.
+
+
+What:		/sys/bus/cxl/devices/regionZ/resource
+Date:		May, 2022
+KernelVersion:	v5.20
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) A region is a contiguous partition of a CXL root decoder
+		address space. Region capacity is allocated by writing to the
+		size attribute, the resulting physical address space determined
+		by the driver is reflected here. It is therefore not useful to
+		read this before writing a value to the size attribute.
