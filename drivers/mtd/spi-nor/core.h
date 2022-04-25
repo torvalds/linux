@@ -261,6 +261,7 @@ struct spi_nor_otp {
  *                      flashes that have peculiarities to the SPI NOR standard
  *                      e.g. different opcodes, specific address calculation,
  *                      page size, etc.
+ * @ready:		checks if the SPI NOR flash is ready.
  * @locking_ops:	SPI NOR locking methods.
  * @otp:		SPI NOR OTP methods.
  */
@@ -283,6 +284,7 @@ struct spi_nor_flash_parameter {
 	int (*set_4byte_addr_mode)(struct spi_nor *nor, bool enable);
 	u32 (*convert_addr)(struct spi_nor *nor, u32 addr);
 	int (*setup)(struct spi_nor *nor, const struct spi_nor_hwcaps *hwcaps);
+	int (*ready)(struct spi_nor *nor);
 
 	const struct spi_nor_locking_ops *locking_ops;
 };
@@ -512,6 +514,7 @@ int spi_nor_write_sr(struct spi_nor *nor, const u8 *sr, size_t len);
 int spi_nor_write_sr_and_check(struct spi_nor *nor, u8 sr1);
 int spi_nor_write_16bit_cr_and_check(struct spi_nor *nor, u8 cr);
 
+void spi_nor_clear_sr(struct spi_nor *nor);
 int spi_nor_xread_sr(struct spi_nor *nor, u8 *sr);
 ssize_t spi_nor_read_data(struct spi_nor *nor, loff_t from, size_t len,
 			  u8 *buf);

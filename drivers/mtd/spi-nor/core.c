@@ -653,7 +653,7 @@ static int spi_nor_xsr_ready(struct spi_nor *nor)
  * spi_nor_clear_sr() - Clear the Status Register.
  * @nor:	pointer to 'struct spi_nor'.
  */
-static void spi_nor_clear_sr(struct spi_nor *nor)
+void spi_nor_clear_sr(struct spi_nor *nor)
 {
 	int ret;
 
@@ -785,12 +785,13 @@ static int spi_nor_fsr_ready(struct spi_nor *nor)
 }
 
 /**
- * spi_nor_ready() - Query the flash to see if it is ready for new commands.
+ * spi_nor_default_ready() - Query the flash to see if it is ready for new
+ * commands.
  * @nor:	pointer to 'struct spi_nor'.
  *
  * Return: 1 if ready, 0 if not ready, -errno on errors.
  */
-static int spi_nor_ready(struct spi_nor *nor)
+static int spi_nor_default_ready(struct spi_nor *nor)
 {
 	int sr, fsr;
 
@@ -826,7 +827,7 @@ static int spi_nor_wait_till_ready_with_timeout(struct spi_nor *nor,
 		if (time_after_eq(jiffies, deadline))
 			timeout = 1;
 
-		ret = spi_nor_ready(nor);
+		ret = nor->params->ready(nor);
 		if (ret < 0)
 			return ret;
 		if (ret)
@@ -2537,6 +2538,7 @@ static void spi_nor_info_init_params(struct spi_nor *nor)
 	params->quad_enable = spi_nor_sr2_bit1_quad_enable;
 	params->set_4byte_addr_mode = spansion_set_4byte_addr_mode;
 	params->setup = spi_nor_default_setup;
+	params->ready = spi_nor_default_ready;
 	params->otp.org = &info->otp_org;
 
 	/* Default to 16-bit Write Status (01h) Command */
