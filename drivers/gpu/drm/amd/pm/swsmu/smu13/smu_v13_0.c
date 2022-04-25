@@ -210,6 +210,13 @@ int smu_v13_0_init_pptable_microcode(struct smu_context *smu)
 	} else {
 		pptable_id = smu->smu_table.boot_values.pp_table_id;
 
+		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 7) &&
+			pptable_id == 3667)
+			pptable_id = 36671;
+
+		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 7) &&
+			pptable_id == 3688)
+			pptable_id = 36881;
 		/*
 		 * Temporary solution for SMU V13.0.0:
 		 *   - use 99991 signed pptable when SCPM enabled
@@ -445,9 +452,6 @@ int smu_v13_0_setup_pptable(struct smu_context *smu)
 		 */
 		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 0))
 			pptable_id = 9999;
-
-		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 7))
-			pptable_id = 8888;
 	}
 
 	/* force using vbios pptable in sriov mode */
