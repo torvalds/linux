@@ -136,7 +136,7 @@
 #define ESR_ELx_WFx_ISS_TI	(UL(1) << 0)
 #define ESR_ELx_WFx_ISS_WFI	(UL(0) << 0)
 #define ESR_ELx_WFx_ISS_WFE	(UL(1) << 0)
-#define ESR_ELx_xVC_IMM_MASK	((1UL << 16) - 1)
+#define ESR_ELx_xVC_IMM_MASK	((UL(1) << 16) - 1)
 
 #define DISR_EL1_IDS		(UL(1) << 24)
 /*
