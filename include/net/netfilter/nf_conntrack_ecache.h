@@ -36,6 +36,15 @@ nf_ct_ecache_find(const struct nf_conn *ct)
 #endif
 }
 
+static inline bool nf_ct_ecache_exist(const struct nf_conn *ct)
+{
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	return nf_ct_ext_exist(ct, NF_CT_EXT_ECACHE);
+#else
+	return false;
+#endif
+}
+
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 
 /* This structure is passed to event handler */
@@ -108,30 +117,20 @@ nf_conntrack_event_report(enum ip_conntrack_events event, struct nf_conn *ct,
 			  u32 portid, int report)
 {
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-	const struct net *net = nf_ct_net(ct);
-
-	if (!rcu_access_pointer(net->ct.nf_conntrack_event_cb))
-		return 0;
-
-	return nf_conntrack_eventmask_report(1 << event, ct, portid, report);
-#else
-	return 0;
+	if (nf_ct_ecache_exist(ct))
+		return nf_conntrack_eventmask_report(1 << event, ct, portid, report);
 #endif
+	return 0;
 }
 
 static inline int
 nf_conntrack_event(enum ip_conntrack_events event, struct nf_conn *ct)
 {
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-	const struct net *net = nf_ct_net(ct);
-
-	if (!rcu_access_pointer(net->ct.nf_conntrack_event_cb))
-		return 0;
-
-	return nf_conntrack_eventmask_report(1 << event, ct, 0, 0);
-#else
-	return 0;
+	if (nf_ct_ecache_exist(ct))
+		return nf_conntrack_eventmask_report(1 << event, ct, 0, 0);
 #endif
+	return 0;
 }
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
