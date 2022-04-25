@@ -122,6 +122,8 @@
  *  VERSION     : 01-00-48
  *  14 Apr 2022 : 1. Ignoring error from tc956xmac_hw_setup in tc956xmac_open API.
  *  VERSION     : 01-00-49
+ *  25 Apr 2022 : 1. Perform platform remove after MDIO deregistration.
+ *  VERSION     : 01-00-50
  */
 
 #include <linux/clk.h>
@@ -11606,9 +11608,6 @@ int tc956xmac_dvr_remove(struct device *dev)
 #endif
 	tc956xmac_stop_all_dma(priv);
 
-	if (tc956x_platform_remove(priv)) {
-		dev_err(priv->device, "Platform remove error\n");
-	}
 	tc956xmac_mac_set(priv, priv->ioaddr, false);
 	netif_carrier_off(ndev);
 	unregister_netdev(ndev);
@@ -11625,6 +11624,11 @@ int tc956xmac_dvr_remove(struct device *dev)
 		priv->hw->pcs != TC956XMAC_PCS_TBI &&
 		priv->hw->pcs != TC956XMAC_PCS_RTBI)
 		tc956xmac_mdio_unregister(ndev);
+
+	if (tc956x_platform_remove(priv)) {
+		dev_err(priv->device, "Platform remove error\n");
+	}
+
 #ifndef TC956X
 	destroy_workqueue(priv->wq);
 #endif
