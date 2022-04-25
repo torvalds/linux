@@ -2916,6 +2916,9 @@ static void btree_trans_verify_sorted(struct btree_trans *trans)
 	struct btree_path *path, *prev = NULL;
 	unsigned i;
 
+	if (!bch2_debug_check_iterators)
+		return;
+
 	trans_for_each_path_inorder(trans, path, i) {
 		if (prev && btree_path_cmp(prev, path) > 0) {
 			bch2_dump_trans_paths_updates(trans);
