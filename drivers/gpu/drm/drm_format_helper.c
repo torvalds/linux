@@ -411,6 +411,47 @@ void drm_fb_xrgb8888_to_rgb888_toio(void __iomem *dst, unsigned int dst_pitch,
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb888_toio);
 
+static void drm_fb_rgb888_to_xrgb8888_line(void *dbuf, const void *sbuf, unsigned int pixels)
+{
+	u32 *dbuf32 = dbuf;
+	const u8 *sbuf8 = sbuf;
+	unsigned int x;
+
+	for (x = 0; x < pixels; x++) {
+		u8 r = *sbuf8++;
+		u8 g = *sbuf8++;
+		u8 b = *sbuf8++;
+		*dbuf32++ = 0xff000000 | (r << 16) | (g << 8) | b;
+	}
+}
+
+static void drm_fb_rgb888_to_xrgb8888_toio(void __iomem *dst, unsigned int dst_pitch,
+					   const void *vaddr, const struct drm_framebuffer *fb,
+					   const struct drm_rect *clip)
+{
+	size_t linepixels = drm_rect_width(clip);
+	size_t dst_len = linepixels * 4;
+	unsigned int y, lines = drm_rect_height(clip);
+	void *dbuf;
+
+	if (!dst_pitch)
+		dst_pitch = dst_len;
+
+	dbuf = kmalloc(dst_len, GFP_KERNEL);
+	if (!dbuf)
+		return;
+
+	vaddr += clip_offset(clip, fb->pitches[0], 3);
+	for (y = 0; y < lines; y++) {
+		drm_fb_rgb888_to_xrgb8888_line(dbuf, vaddr, linepixels);
+		memcpy_toio(dst, dbuf, dst_len);
+		vaddr += fb->pitches[0];
+		dst += dst_pitch;
+	}
+
+	kfree(dbuf);
+}
+
 static void drm_fb_xrgb8888_to_xrgb2101010_line(u32 *dbuf, const u32 *sbuf,
 						unsigned int pixels)
 {
@@ -581,6 +622,11 @@ int drm_fb_blit_toio(void __iomem *dst, unsigned int dst_pitch, uint32_t dst_for
 	} else if (dst_format == DRM_FORMAT_RGB888) {
 		if (fb_format == DRM_FORMAT_XRGB8888) {
 			drm_fb_xrgb8888_to_rgb888_toio(dst, dst_pitch, vmap, fb, clip);
+			return 0;
+		}
+	} else if (dst_format == DRM_FORMAT_XRGB8888) {
+		if (fb_format == DRM_FORMAT_RGB888) {
+			drm_fb_rgb888_to_xrgb8888_toio(dst, dst_pitch, vmap, fb, clip);
 			return 0;
 		}
 	} else if (dst_format == DRM_FORMAT_XRGB2101010) {
