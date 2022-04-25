@@ -676,44 +676,61 @@ SYSCALL_DEFINE5(fsetxattr, int, fd, const char __user *, name,
 /*
  * Extended attribute GET operations
  */
-static ssize_t
-getxattr(struct user_namespace *mnt_userns, struct dentry *d,
-	 const char __user *name, void __user *value, size_t size)
+ssize_t
+do_getxattr(struct user_namespace *mnt_userns, struct dentry *d,
+	struct xattr_ctx *ctx)
 {
 	ssize_t error;
-	void *kvalue = NULL;
-	char kname[XATTR_NAME_MAX + 1];
+	char *kname = ctx->kname->name;
 
-	error = strncpy_from_user(kname, name, sizeof(kname));
-	if (error == 0 || error == sizeof(kname))
-		error = -ERANGE;
-	if (error < 0)
-		return error;
-
-	if (size) {
-		if (size > XATTR_SIZE_MAX)
-			size = XATTR_SIZE_MAX;
-		kvalue = kvzalloc(size, GFP_KERNEL);
-		if (!kvalue)
+	if (ctx->size) {
+		if (ctx->size > XATTR_SIZE_MAX)
+			ctx->size = XATTR_SIZE_MAX;
+		ctx->kvalue = kvzalloc(ctx->size, GFP_KERNEL);
+		if (!ctx->kvalue)
 			return -ENOMEM;
 	}
 
-	error = vfs_getxattr(mnt_userns, d, kname, kvalue, size);
+	error = vfs_getxattr(mnt_userns, d, kname, ctx->kvalue, ctx->size);
 	if (error > 0) {
 		if ((strcmp(kname, XATTR_NAME_POSIX_ACL_ACCESS) == 0) ||
 		    (strcmp(kname, XATTR_NAME_POSIX_ACL_DEFAULT) == 0))
 			posix_acl_fix_xattr_to_user(mnt_userns, d_inode(d),
-						    kvalue, error);
-		if (size && copy_to_user(value, kvalue, error))
+							ctx->kvalue, error);
+		if (ctx->size && copy_to_user(ctx->value, ctx->kvalue, error))
 			error = -EFAULT;
-	} else if (error == -ERANGE && size >= XATTR_SIZE_MAX) {
+	} else if (error == -ERANGE && ctx->size >= XATTR_SIZE_MAX) {
 		/* The file system tried to returned a value bigger
 		   than XATTR_SIZE_MAX bytes. Not possible. */
 		error = -E2BIG;
 	}
 
-	kvfree(kvalue);
+	return error;
+}
 
+static ssize_t
+getxattr(struct user_namespace *mnt_userns, struct dentry *d,
+	 const char __user *name, void __user *value, size_t size)
+{
+	ssize_t error;
+	struct xattr_name kname;
+	struct xattr_ctx ctx = {
+		.value    = value,
+		.kvalue   = NULL,
+		.size     = size,
+		.kname    = &kname,
+		.flags    = 0,
+	};
+
+	error = strncpy_from_user(kname.name, name, sizeof(kname.name));
+	if (error == 0 || error == sizeof(kname.name))
+		error = -ERANGE;
+	if (error < 0)
+		return error;
+
+	error =  do_getxattr(mnt_userns, d, &ctx);
+
+	kvfree(ctx.kvalue);
 	return error;
 }
 
