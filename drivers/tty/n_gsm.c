@@ -945,18 +945,21 @@ static int gsm_dlci_modem_output(struct gsm_mux *gsm, struct gsm_dlci *dlci,
 {
 	u8 *dp = NULL;
 	struct gsm_msg *msg;
-	int size;
+	int size = 0;
 
 	/* for modem bits without break data */
-	if (dlci->adaption == 1) {
-		size = 0;
-	} else if (dlci->adaption == 2) {
-		size = 1;
+	switch (dlci->adaption) {
+	case 1: /* Unstructured */
+		break;
+	case 2: /* Unstructured with modem bits. */
+		size++;
 		if (brk > 0)
 			size++;
-	} else {
+		break;
+	default:
 		pr_err("%s: unsupported adaption %d\n", __func__,
 		       dlci->adaption);
+		return -EINVAL;
 	}
 
 	msg = gsm_data_alloc(gsm, dlci->addr, size, gsm->ftype);
