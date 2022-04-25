@@ -484,7 +484,7 @@ int erofs_getattr(struct user_namespace *mnt_userns, const struct path *path,
 /* namei.c */
 extern const struct inode_operations erofs_dir_iops;
 
-int erofs_namei(struct inode *dir, struct qstr *name,
+int erofs_namei(struct inode *dir, const struct qstr *name,
 		erofs_nid_t *nid, unsigned int *d_type);
 
 /* dir.c */

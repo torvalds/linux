@@ -13,6 +13,7 @@
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
 #include <linux/dax.h>
+#include <linux/exportfs.h>
 #include "xattr.h"
 
 #define CREATE_TRACE_POINTS
@@ -577,6 +578,44 @@ static int erofs_init_managed_cache(struct super_block *sb)
 static int erofs_init_managed_cache(struct super_block *sb) { return 0; }
 #endif
 
+static struct inode *erofs_nfs_get_inode(struct super_block *sb,
+					 u64 ino, u32 generation)
+{
+	return erofs_iget(sb, ino, false);
+}
+
+static struct dentry *erofs_fh_to_dentry(struct super_block *sb,
+		struct fid *fid, int fh_len, int fh_type)
+{
+	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
+				    erofs_nfs_get_inode);
+}
+
+static struct dentry *erofs_fh_to_parent(struct super_block *sb,
+		struct fid *fid, int fh_len, int fh_type)
+{
+	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
+				    erofs_nfs_get_inode);
+}
+
+static struct dentry *erofs_get_parent(struct dentry *child)
+{
+	erofs_nid_t nid;
+	unsigned int d_type;
+	int err;
+
+	err = erofs_namei(d_inode(child), &dotdot_name, &nid, &d_type);
+	if (err)
+		return ERR_PTR(err);
+	return d_obtain_alias(erofs_iget(child->d_sb, nid, d_type == FT_DIR));
+}
+
+static const struct export_operations erofs_export_ops = {
+	.fh_to_dentry = erofs_fh_to_dentry,
+	.fh_to_parent = erofs_fh_to_parent,
+	.get_parent = erofs_get_parent,
+};
+
 static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct inode *inode;
@@ -619,6 +658,7 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sb->s_op = &erofs_sops;
 	sb->s_xattr = erofs_xattr_handlers;
+	sb->s_export_op = &erofs_export_ops;
 
 	if (test_opt(&sbi->opt, POSIX_ACL))
 		sb->s_flags |= SB_POSIXACL;
