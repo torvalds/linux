@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"PMIC_GLINK: %s: " fmt, __func__
@@ -30,6 +30,8 @@
  * @channel_name:	Glink channel name used by rpmsg device
  * @client_idr:		idr list for the clients
  * @client_lock:	mutex lock when idr APIs are used on client_idr
+ * @rpdev_sem:		read-write semaphore to synchronize glink channel
+ *			availability and rpmsg transactions
  * @rx_lock:		spinlock to be used when rx_list is modified
  * @rx_work:		worker for handling rx messages
  * @init_work:		worker to instantiate child devices under pdev
@@ -59,6 +61,7 @@ struct pmic_glink_dev {
 	const char		*channel_name;
 	struct idr		client_idr;
 	struct mutex		client_lock;
+	struct rw_semaphore	rpdev_sem;
 	spinlock_t		rx_lock;
 	struct work_struct	rx_work;
 	struct work_struct	init_work;
@@ -234,14 +237,18 @@ int pmic_glink_write(struct pmic_glink_client *client, void *data,
 	if (!client || !client->pgdev || !client->name)
 		return -ENODEV;
 
+	down_read(&client->pgdev->rpdev_sem);
+
 	if (!client->pgdev->rpdev || !atomic_read(&client->pgdev->state)) {
 		pr_err("Error in sending data for client %s\n", client->name);
+		up_read(&client->pgdev->rpdev_sem);
 		return -ENOTCONN;
 	}
 
 	mutex_lock(&client->lock);
 	rc = rpmsg_send(client->pgdev->rpdev->ept, data, len);
 	mutex_unlock(&client->lock);
+	up_read(&client->pgdev->rpdev_sem);
 
 	if (rc < 0)
 		pr_err("Failed to send data [%*ph] for client %s, rc=%d\n",
@@ -454,8 +461,10 @@ static void pmic_glink_rpmsg_remove(struct rpmsg_device *rpdev)
 		return;
 	}
 
+	down_write(&pgdev->rpdev_sem);
 	atomic_set(&pgdev->state, 0);
 	pgdev->rpdev = NULL;
+	up_write(&pgdev->rpdev_sem);
 	pr_debug("%s removed\n", rpdev->id.name);
 }
 
@@ -469,9 +478,11 @@ static int pmic_glink_rpmsg_probe(struct rpmsg_device *rpdev)
 		return -EPROBE_DEFER;
 	}
 
+	down_write(&pgdev->rpdev_sem);
 	dev_set_drvdata(&rpdev->dev, pgdev);
 	pgdev->rpdev = rpdev;
 	atomic_set(&pgdev->state, 1);
+	up_write(&pgdev->rpdev_sem);
 	schedule_work(&pgdev->init_work);
 	pr_debug("%s probed\n", rpdev->id.name);
 
@@ -619,6 +630,7 @@ static int pmic_glink_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	init_rwsem(&pgdev->rpdev_sem);
 	INIT_WORK(&pgdev->rx_work, pmic_glink_rx_work);
 	INIT_WORK(&pgdev->init_work, pmic_glink_init_work);
 	INIT_LIST_HEAD(&pgdev->client_dev_list);
