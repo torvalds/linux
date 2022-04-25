@@ -29,6 +29,14 @@ struct mtk_adsp_chip_info {
 	void __iomem *shared_dram; /* part of  va_dram */
 	phys_addr_t adsp_bootup_addr;
 	int dram_offset; /*dram offset between system and dsp view*/
+
+	phys_addr_t pa_secreg;
+	u32 secregsize;
+	void __iomem *va_secreg;
+
+	phys_addr_t pa_busreg;
+	u32 busregsize;
+	void __iomem *va_busreg;
 };
 
 struct adsp_priv {

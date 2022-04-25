@@ -21,6 +21,15 @@ config SND_SOC_SOF_MTK_COMMON
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
 
+config SND_SOC_SOF_MT8186
+	tristate "SOF support for MT8186 audio DSP"
+	select SND_SOC_SOF_MTK_COMMON
+	help
+	  This adds support for Sound Open Firmware for Mediatek platforms
+	  using the mt8186 processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
 config SND_SOC_SOF_MT8195
 	tristate "SOF support for MT8195 audio DSP"
 	select SND_SOC_SOF_MTK_COMMON
