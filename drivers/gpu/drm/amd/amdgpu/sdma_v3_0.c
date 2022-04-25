@@ -389,14 +389,14 @@ static void sdma_v3_0_ring_set_wptr(struct amdgpu_ring *ring)
 	if (ring->use_doorbell) {
 		u32 *wb = (u32 *)&adev->wb.wb[ring->wptr_offs];
 		/* XXX check if swapping is necessary on BE */
-		WRITE_ONCE(*wb, (lower_32_bits(ring->wptr) << 2));
-		WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr) << 2);
+		WRITE_ONCE(*wb, ring->wptr << 2);
+		WDOORBELL32(ring->doorbell_index, ring->wptr << 2);
 	} else if (ring->use_pollmem) {
 		u32 *wb = (u32 *)&adev->wb.wb[ring->wptr_offs];
 
-		WRITE_ONCE(*wb, (lower_32_bits(ring->wptr) << 2));
+		WRITE_ONCE(*wb, ring->wptr << 2);
 	} else {
-		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[ring->me], lower_32_bits(ring->wptr) << 2);
+		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[ring->me], ring->wptr << 2);
 	}
 }
 
