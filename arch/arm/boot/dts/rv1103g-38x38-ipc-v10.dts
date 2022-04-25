@@ -5,7 +5,7 @@
 
 /dts-v1/;
 
-#include "rv1106.dtsi"
+#include "rv1103.dtsi"
 #include "rv1106-evb.dtsi"
 #include "rv1106-ipc.dtsi"
 
