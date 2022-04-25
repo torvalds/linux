@@ -2309,6 +2309,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 
 	switch (adev->ip_versions[LSDMA_HWIP][0]) {
 	case IP_VERSION(6, 0, 0):
+	case IP_VERSION(6, 0, 2):
 		adev->lsdma.funcs = &lsdma_v6_0_funcs;
 		break;
 	default:
