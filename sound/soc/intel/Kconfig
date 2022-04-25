@@ -218,7 +218,7 @@ config SND_SOC_INTEL_AVS
 	select SND_SOC_TOPOLOGY
 	select SND_HDA_EXT_CORE
 	select SND_HDA_DSP_LOADER
-	select SND_INTEL_NHLT
+	select SND_INTEL_DSP_CONFIG
 	help
 	  Enable support for Intel(R) cAVS 1.5 platforms with DSP
 	  capabilities. This includes Skylake, Kabylake, Amberlake and
