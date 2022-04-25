@@ -151,6 +151,7 @@ struct devlink_port_new_attrs {
 };
 
 struct devlink_info_req;
+struct devlink_linecard_device;
 
 /**
  * struct devlink_linecard_ops - Linecard operations
@@ -171,6 +172,7 @@ struct devlink_info_req;
  * @types_count: callback to get number of supported types
  * @types_get: callback to get next type in list
  * @info_get: callback to get linecard info
+ * @device_info_get: callback to get linecard device info
  */
 struct devlink_linecard_ops {
 	int (*provision)(struct devlink_linecard *linecard, void *priv,
@@ -188,6 +190,9 @@ struct devlink_linecard_ops {
 	int (*info_get)(struct devlink_linecard *linecard, void *priv,
 			struct devlink_info_req *req,
 			struct netlink_ext_ack *extack);
+	int (*device_info_get)(struct devlink_linecard_device *device,
+			       void *priv, struct devlink_info_req *req,
+			       struct netlink_ext_ack *extack);
 };
 
 struct devlink_sb_pool_info {
@@ -1583,10 +1588,9 @@ struct devlink_linecard *
 devlink_linecard_create(struct devlink *devlink, unsigned int linecard_index,
 			const struct devlink_linecard_ops *ops, void *priv);
 void devlink_linecard_destroy(struct devlink_linecard *linecard);
-struct devlink_linecard_device;
 struct devlink_linecard_device *
 devlink_linecard_device_create(struct devlink_linecard *linecard,
-			       unsigned int device_index);
+			       unsigned int device_index, void *priv);
 void
 devlink_linecard_device_destroy(struct devlink_linecard *linecard,
 				struct devlink_linecard_device *linecard_device);

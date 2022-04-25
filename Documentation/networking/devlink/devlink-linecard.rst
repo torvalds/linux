@@ -14,7 +14,7 @@ system. Following operations are provided:
   * Get a list of supported line card types.
   * Provision of a slot with specific line card type.
   * Get and monitor of line card state and its change.
-  * Get information about line card versions.
+  * Get information about line card versions and devices.
 
 Line card according to the type may contain one or more gearboxes
 to mux the lanes with certain speed to multiple ports with lanes

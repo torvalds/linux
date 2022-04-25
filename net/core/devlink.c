@@ -2062,6 +2062,7 @@ struct devlink_linecard_type {
 struct devlink_linecard_device {
 	struct list_head list;
 	unsigned int index;
+	void *priv;
 };
 
 static int
@@ -2429,6 +2430,68 @@ struct devlink_info_req {
 };
 
 static int
+devlink_nl_linecard_device_info_fill(struct sk_buff *msg,
+				     struct devlink_linecard *linecard,
+				     struct devlink_linecard_device *linecard_device,
+				     struct netlink_ext_ack *extack)
+{
+	struct nlattr *attr;
+
+	attr = nla_nest_start(msg, DEVLINK_ATTR_LINECARD_DEVICE);
+	if (!attr)
+		return -EMSGSIZE;
+	if (nla_put_u32(msg, DEVLINK_ATTR_LINECARD_DEVICE_INDEX,
+			linecard_device->index)) {
+		nla_nest_cancel(msg, attr);
+		return -EMSGSIZE;
+	}
+	if (linecard->ops->device_info_get) {
+		struct devlink_info_req req;
+		int err;
+
+		req.msg = msg;
+		err = linecard->ops->device_info_get(linecard_device,
+						     linecard_device->priv,
+						     &req, extack);
+		if (err) {
+			nla_nest_cancel(msg, attr);
+			return err;
+		}
+	}
+	nla_nest_end(msg, attr);
+
+	return 0;
+}
+
+static int devlink_nl_linecard_devices_info_fill(struct sk_buff *msg,
+						 struct devlink_linecard *linecard,
+						 struct netlink_ext_ack *extack)
+{
+	struct devlink_linecard_device *linecard_device;
+	struct nlattr *attr;
+	int err;
+
+	if (list_empty(&linecard->device_list))
+		return 0;
+
+	attr = nla_nest_start(msg, DEVLINK_ATTR_LINECARD_DEVICE_LIST);
+	if (!attr)
+		return -EMSGSIZE;
+	list_for_each_entry(linecard_device, &linecard->device_list, list) {
+		err = devlink_nl_linecard_device_info_fill(msg, linecard,
+							   linecard_device,
+							   extack);
+		if (err) {
+			nla_nest_cancel(msg, attr);
+			return err;
+		}
+	}
+	nla_nest_end(msg, attr);
+
+	return 0;
+}
+
+static int
 devlink_nl_linecard_info_fill(struct sk_buff *msg, struct devlink *devlink,
 			      struct devlink_linecard *linecard,
 			      enum devlink_command cmd, u32 portid,
@@ -2450,6 +2513,10 @@ devlink_nl_linecard_info_fill(struct sk_buff *msg, struct devlink *devlink,
 
 	req.msg = msg;
 	err = linecard->ops->info_get(linecard, linecard->priv, &req, extack);
+	if (err)
+		goto nla_put_failure;
+
+	err = devlink_nl_linecard_devices_info_fill(msg, linecard, extack);
 	if (err)
 		goto nla_put_failure;
 
@@ -10483,12 +10550,13 @@ EXPORT_SYMBOL_GPL(devlink_linecard_destroy);
  *
  *	@linecard: devlink linecard
  *	@device_index: index of the linecard device
+ *	@priv: user priv pointer
  *
  *	Return: Line card device structure or an ERR_PTR() encoded error code.
  */
 struct devlink_linecard_device *
 devlink_linecard_device_create(struct devlink_linecard *linecard,
-			       unsigned int device_index)
+			       unsigned int device_index, void *priv)
 {
 	struct devlink_linecard_device *linecard_device;
 
@@ -10496,6 +10564,7 @@ devlink_linecard_device_create(struct devlink_linecard *linecard,
 	if (!linecard_device)
 		return ERR_PTR(-ENOMEM);
 	linecard_device->index = device_index;
+	linecard_device->priv = priv;
 	mutex_lock(&linecard->state_lock);
 	list_add_tail(&linecard_device->list, &linecard->device_list);
 	devlink_linecard_notify(linecard, DEVLINK_CMD_LINECARD_NEW);
