@@ -1263,7 +1263,7 @@ err_power_down:
 }
 EXPORT_SYMBOL(mpu3050_common_probe);
 
-int mpu3050_common_remove(struct device *dev)
+void mpu3050_common_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct mpu3050 *mpu3050 = iio_priv(indio_dev);
@@ -1276,8 +1276,6 @@ int mpu3050_common_remove(struct device *dev)
 		free_irq(mpu3050->irq, mpu3050);
 	iio_device_unregister(indio_dev);
 	mpu3050_power_down(mpu3050);
-
-	return 0;
 }
 EXPORT_SYMBOL(mpu3050_common_remove);
 
