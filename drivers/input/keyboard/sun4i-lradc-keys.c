@@ -80,6 +80,12 @@ static const struct lradc_variant r_lradc_variant_a83t = {
 	.divisor_denominator = 4
 };
 
+static const struct lradc_variant lradc_variant_r329 = {
+	.divisor_numerator = 3,
+	.divisor_denominator = 4,
+	.has_clock_reset = true,
+};
+
 struct sun4i_lradc_keymap {
 	u32 voltage;
 	u32 keycode;
@@ -337,6 +343,8 @@ static const struct of_device_id sun4i_lradc_of_match[] = {
 		.data = &lradc_variant_a10 },
 	{ .compatible = "allwinner,sun8i-a83t-r-lradc",
 		.data = &r_lradc_variant_a83t },
+	{ .compatible = "allwinner,sun50i-r329-lradc",
+		.data = &lradc_variant_r329 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_lradc_of_match);
