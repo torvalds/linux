@@ -13,3 +13,9 @@
 	model = "Rockchip RV1103G IPC38 V10 Board";
 	compatible = "rockchip,rv1103g-38x38-ipc-v10", "rockchip,rv1103";
 };
+
+&pwm3 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm3m2_pins>;
+	status = "okay";
+};
