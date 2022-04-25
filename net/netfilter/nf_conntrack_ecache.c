@@ -302,12 +302,27 @@ bool nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp
 	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_ecache *e;
 
-	if (!ctmask && !expmask && net->ct.sysctl_events) {
-		ctmask = ~0;
-		expmask = ~0;
+	switch (net->ct.sysctl_events) {
+	case 0:
+		 /* assignment via template / ruleset? ignore sysctl. */
+		if (ctmask || expmask)
+			break;
+		return true;
+	case 2: /* autodetect: no event listener, don't allocate extension. */
+		if (!READ_ONCE(net->ct.ctnetlink_has_listener))
+			return true;
+		fallthrough;
+	case 1:
+		/* always allocate an extension. */
+		if (!ctmask && !expmask) {
+			ctmask = ~0;
+			expmask = ~0;
+		}
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return true;
 	}
-	if (!ctmask && !expmask)
-		return false;
 
 	e = nf_ct_ext_add(ct, NF_CT_EXT_ECACHE, gfp);
 	if (e) {
@@ -319,7 +334,7 @@ bool nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp
 }
 EXPORT_SYMBOL_GPL(nf_ct_ecache_ext_add);
 
-#define NF_CT_EVENTS_DEFAULT 1
+#define NF_CT_EVENTS_DEFAULT 2
 static int nf_ct_events __read_mostly = NF_CT_EVENTS_DEFAULT;
 
 void nf_conntrack_ecache_pernet_init(struct net *net)

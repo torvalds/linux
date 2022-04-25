@@ -1736,7 +1736,8 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 	ecache = tmpl ? nf_ct_ecache_find(tmpl) : NULL;
 
-	if (!nf_ct_ecache_ext_add(ct, ecache ? ecache->ctmask : 0,
+	if ((ecache || net->ct.sysctl_events) &&
+	    !nf_ct_ecache_ext_add(ct, ecache ? ecache->ctmask : 0,
 				  ecache ? ecache->expmask : 0,
 				  GFP_ATOMIC)) {
 		nf_conntrack_free(ct);
