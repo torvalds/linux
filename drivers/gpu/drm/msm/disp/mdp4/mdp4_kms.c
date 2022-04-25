@@ -21,7 +21,6 @@ static int mdp4_hw_init(struct msm_kms *kms)
 	struct drm_device *dev = mdp4_kms->dev;
 	u32 dmap_cfg, vg_cfg;
 	unsigned long clk;
-	int ret = 0;
 
 	pm_runtime_get_sync(dev->dev);
 
@@ -72,7 +71,7 @@ static int mdp4_hw_init(struct msm_kms *kms)
 
 	pm_runtime_put_sync(dev->dev);
 
-	return ret;
+	return 0;
 }
 
 static void mdp4_enable_commit(struct msm_kms *kms)
