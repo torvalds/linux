@@ -220,6 +220,12 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 		return NULL;
 	}
 
+	if (!ops->fw_loader || !ops->fw_loader->validate ||
+	    !ops->fw_loader->parse_ext_manifest) {
+		dev_err(sdev->dev, "Missing IPC firmware loading ops\n");
+		return NULL;
+	}
+
 	if (!ops->pcm) {
 		dev_err(sdev->dev, "Missing IPC PCM ops\n");
 		return NULL;
