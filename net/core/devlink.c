@@ -2424,6 +2424,125 @@ static int devlink_nl_cmd_linecard_set_doit(struct sk_buff *skb,
 	return 0;
 }
 
+struct devlink_info_req {
+	struct sk_buff *msg;
+};
+
+static int
+devlink_nl_linecard_info_fill(struct sk_buff *msg, struct devlink *devlink,
+			      struct devlink_linecard *linecard,
+			      enum devlink_command cmd, u32 portid,
+			      u32 seq, int flags, struct netlink_ext_ack *extack)
+{
+	struct devlink_info_req req;
+	void *hdr;
+	int err;
+
+	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, flags, cmd);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	err = -EMSGSIZE;
+	if (devlink_nl_put_handle(msg, devlink))
+		goto nla_put_failure;
+	if (nla_put_u32(msg, DEVLINK_ATTR_LINECARD_INDEX, linecard->index))
+		goto nla_put_failure;
+
+	req.msg = msg;
+	err = linecard->ops->info_get(linecard, linecard->priv, &req, extack);
+	if (err)
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+	return 0;
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return err;
+}
+
+static int devlink_nl_cmd_linecard_info_get_doit(struct sk_buff *skb,
+						 struct genl_info *info)
+{
+	struct devlink_linecard *linecard = info->user_ptr[1];
+	struct devlink *devlink = linecard->devlink;
+	struct sk_buff *msg;
+	int err;
+
+	if (!linecard->ops->info_get)
+		return -EOPNOTSUPP;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	mutex_lock(&linecard->state_lock);
+	err = devlink_nl_linecard_info_fill(msg, devlink, linecard,
+					    DEVLINK_CMD_LINECARD_INFO_GET,
+					    info->snd_portid, info->snd_seq, 0,
+					    info->extack);
+	mutex_unlock(&linecard->state_lock);
+	if (err) {
+		nlmsg_free(msg);
+		return err;
+	}
+
+	return genlmsg_reply(msg, info);
+}
+
+static int devlink_nl_cmd_linecard_info_get_dumpit(struct sk_buff *msg,
+						   struct netlink_callback *cb)
+{
+	struct devlink_linecard *linecard;
+	struct devlink *devlink;
+	int start = cb->args[0];
+	unsigned long index;
+	int idx = 0;
+	int err = 0;
+
+	mutex_lock(&devlink_mutex);
+	xa_for_each_marked(&devlinks, index, devlink, DEVLINK_REGISTERED) {
+		if (!devlink_try_get(devlink))
+			continue;
+
+		if (!net_eq(devlink_net(devlink), sock_net(msg->sk)))
+			goto retry;
+
+		mutex_lock(&devlink->linecards_lock);
+		list_for_each_entry(linecard, &devlink->linecard_list, list) {
+			if (idx < start || !linecard->ops->info_get) {
+				idx++;
+				continue;
+			}
+			mutex_lock(&linecard->state_lock);
+			err = devlink_nl_linecard_info_fill(msg, devlink, linecard,
+							    DEVLINK_CMD_LINECARD_INFO_GET,
+							    NETLINK_CB(cb->skb).portid,
+							    cb->nlh->nlmsg_seq,
+							    NLM_F_MULTI,
+							    cb->extack);
+			mutex_unlock(&linecard->state_lock);
+			if (err) {
+				mutex_unlock(&devlink->linecards_lock);
+				devlink_put(devlink);
+				goto out;
+			}
+			idx++;
+		}
+		mutex_unlock(&devlink->linecards_lock);
+retry:
+		devlink_put(devlink);
+	}
+out:
+	mutex_unlock(&devlink_mutex);
+
+	if (err != -EMSGSIZE)
+		return err;
+
+	cb->args[0] = idx;
+	return msg->len;
+}
+
 static int devlink_nl_sb_fill(struct sk_buff *msg, struct devlink *devlink,
 			      struct devlink_sb *devlink_sb,
 			      enum devlink_command cmd, u32 portid,
@@ -6416,10 +6535,6 @@ out_dev:
 	return err;
 }
 
-struct devlink_info_req {
-	struct sk_buff *msg;
-};
-
 int devlink_info_driver_name_put(struct devlink_info_req *req, const char *name)
 {
 	return nla_put_string(req->msg, DEVLINK_ATTR_INFO_DRIVER_NAME, name);
@@ -9138,6 +9253,13 @@ static const struct genl_small_ops devlink_nl_ops[] = {
 		.doit = devlink_nl_cmd_linecard_set_doit,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_LINECARD,
+	},
+	{
+		.cmd = DEVLINK_CMD_LINECARD_INFO_GET,
+		.doit = devlink_nl_cmd_linecard_info_get_doit,
+		.dumpit = devlink_nl_cmd_linecard_info_get_dumpit,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_LINECARD,
+		/* can be retrieved by unprivileged users */
 	},
 	{
 		.cmd = DEVLINK_CMD_SB_GET,
