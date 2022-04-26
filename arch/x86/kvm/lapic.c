@@ -1648,10 +1648,10 @@ static void __kvm_wait_lapic_expire(struct kvm_vcpu *vcpu)
 	tsc_deadline = apic->lapic_timer.expired_tscdeadline;
 	apic->lapic_timer.expired_tscdeadline = 0;
 	guest_tsc = kvm_read_l1_tsc(vcpu, rdtsc());
-	apic->lapic_timer.advance_expire_delta = guest_tsc - tsc_deadline;
+	trace_kvm_wait_lapic_expire(vcpu->vcpu_id, guest_tsc - tsc_deadline);
 
 	if (lapic_timer_advance_dynamic) {
-		adjust_lapic_timer_advance(vcpu, apic->lapic_timer.advance_expire_delta);
+		adjust_lapic_timer_advance(vcpu, guest_tsc - tsc_deadline);
 		/*
 		 * If the timer fired early, reread the TSC to account for the
 		 * overhead of the above adjustment to avoid waiting longer
