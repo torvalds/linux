@@ -76,6 +76,88 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
+
+		pmi8950_smbcharger: smbchager@1000 {
+			compatible = "qcom,pmi8996-smbchg";
+			reg = <0x1000>;
+			interrupts = <2 0x10 0 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x10 1 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x10 2 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x10 3 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x10 4 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x10 5 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x10 6 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x10 7 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x11 0 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x11 1 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x11 3 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x12 0 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x12 1 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x12 2 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x12 3 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x12 4 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x12 5 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x12 6 IRQ_TYPE_EDGE_BOTH>,
+					<2 0x12 7 IRQ_TYPE_EDGE_BOTH>,
+					<0x2 0x13 0x0 IRQ_TYPE_EDGE_BOTH>,
+					<0x2 0x13 0x1 IRQ_TYPE_EDGE_BOTH>,
+					<0x2 0x13 0x2 IRQ_TYPE_EDGE_BOTH>,
+					<0x2 0x13 0x5 IRQ_TYPE_EDGE_BOTH>,
+					<0x2 0x14 0x0 IRQ_TYPE_EDGE_BOTH>,
+					<0x2 0x14 0x1 IRQ_TYPE_EDGE_BOTH>,
+					<0x2 0x16 0x0 IRQ_TYPE_EDGE_BOTH>,
+					<0x2 0x16 0x1 IRQ_TYPE_EDGE_BOTH>,
+					<0x2 0x16 0x2 IRQ_TYPE_EDGE_BOTH>,
+					<0x2 0x16 0x3 IRQ_TYPE_EDGE_BOTH>,
+					<0x2 0x16 0x4 IRQ_TYPE_EDGE_BOTH>,
+					<0x2 0x16 0x5 IRQ_TYPE_EDGE_BOTH>;
+
+			interrupt-names = "chg-error",
+					"chg-inhibit",
+					"chg-prechg-sft",
+					"chg-complete-chg-sft",
+					"chg-p2f-thr",
+					"chg-rechg-thr",
+					"chg-taper-thr",
+					"chg-tcc-thr",
+					"otg-fail",
+					"otg-oc",
+					"usbid-change",
+					"batt-hot",
+					"batt-warm",
+					"batt-cold",
+					"batt-cool",
+					"batt-ov",
+					"batt-low",
+					"batt-missing",
+					"batt-term-missing",
+					"usbin-uv",
+					"usbin-ov",
+					"usbin-src-det",
+					"aicl-done",
+					"dcin-uv",
+					"dcin-ov",
+					"power-ok",
+					"temp-shutdown",
+					"wdog-timeout",
+					"flash-fail",
+					"otst2",
+					"otst3";
+			status = "disabled";
+
+			chg_otg: chg_otg {};
+		};
+
+		pmi8950_fg: fuel-gauge@4000 {
+			compatible = "qcom,pmi8996-fg";
+			reg = <0x4000>;
+
+			interrupts = <0x2 0x40 0x4 IRQ_TYPE_EDGE_RISING>,
+				     <0x2 0x44 0x0 IRQ_TYPE_EDGE_BOTH>;
+			interrupt-names = "soc-delta", "mem-avail";
+
+			status = "okay";
+		};
 	};
 
 	pmic@3 {
