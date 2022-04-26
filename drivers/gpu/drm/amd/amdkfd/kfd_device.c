@@ -53,6 +53,7 @@ extern const struct kfd2kgd_calls arcturus_kfd2kgd;
 extern const struct kfd2kgd_calls aldebaran_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v10_kfd2kgd;
 extern const struct kfd2kgd_calls gfx_v10_3_kfd2kgd;
+extern const struct kfd2kgd_calls gfx_v11_kfd2kgd;
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 				unsigned int chunk_size);
@@ -60,7 +61,7 @@ static void kfd_gtt_sa_fini(struct kfd_dev *kfd);
 
 static int kfd_resume(struct kfd_dev *kfd);
 
-static void kfd_device_info_set_sdma_queue_num(struct kfd_dev *kfd)
+static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 {
 	uint32_t sdma_version = kfd->adev->ip_versions[SDMA0_HWIP][0];
 
@@ -85,6 +86,7 @@ static void kfd_device_info_set_sdma_queue_num(struct kfd_dev *kfd)
 	case IP_VERSION(5, 2, 2):/* NAVY_FLOUNDER */
 	case IP_VERSION(5, 2, 4):/* DIMGREY_CAVEFISH */
 	case IP_VERSION(5, 2, 5):/* BEIGE_GOBY */
+	case IP_VERSION(6, 0, 0):
 		kfd->device_info.num_sdma_queues_per_engine = 8;
 		break;
 	default:
@@ -92,6 +94,17 @@ static void kfd_device_info_set_sdma_queue_num(struct kfd_dev *kfd)
 			"Default sdma queue per engine(8) is set due to mismatch of sdma ip block(SDMA_HWIP:0x%x).\n",
 			sdma_version);
 		kfd->device_info.num_sdma_queues_per_engine = 8;
+	}
+
+	switch (sdma_version) {
+	case IP_VERSION(6, 0, 0):
+		/* Reserve 1 for paging and 1 for gfx */
+		kfd->device_info.num_reserved_sdma_queues_per_engine = 2;
+		/* BIT(0)=engine-0 queue-0; BIT(1)=engine-1 queue-0; BIT(2)=engine-0 queue-1; ... */
+		kfd->device_info.reserved_sdma_queues_bitmap = 0xFULL;
+		break;
+	default:
+		break;
 	}
 }
 
@@ -121,6 +134,9 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 	case IP_VERSION(10, 3, 5): /* BEIGE_GOBY */
 		kfd->device_info.event_interrupt_class = &event_interrupt_class_v9;
 		break;
+	case IP_VERSION(11, 0, 0):
+		kfd->device_info.event_interrupt_class = &event_interrupt_class_v11;
+		break;
 	default:
 		dev_warn(kfd_device, "v9 event interrupt handler is set due to "
 			"mismatch of gc ip block(GC_HWIP:0x%x).\n", gc_version);
@@ -145,7 +161,7 @@ static void kfd_device_info_init(struct kfd_dev *kfd,
 		kfd->device_info.ih_ring_entry_size = 8 * sizeof(uint32_t);
 		kfd->device_info.supports_cwsr = true;
 
-		kfd_device_info_set_sdma_queue_num(kfd);
+		kfd_device_info_set_sdma_info(kfd);
 
 		kfd_device_info_set_event_interrupt_class(kfd);
 
@@ -345,6 +361,10 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			gfx_target_version = 100305;
 			if (!vf)
 				f2g = &gfx_v10_3_kfd2kgd;
+			break;
+		case IP_VERSION(11, 0, 0):
+			gfx_target_version = 110000;
+			f2g = &gfx_v11_kfd2kgd;
 			break;
 		default:
 			break;

@@ -215,7 +215,8 @@ amdgpu-y += \
 	amdgpu_amdkfd_arcturus.o \
 	amdgpu_amdkfd_aldebaran.o \
 	amdgpu_amdkfd_gfx_v10.o \
-	amdgpu_amdkfd_gfx_v10_3.o
+	amdgpu_amdkfd_gfx_v10_3.o \
+	amdgpu_amdkfd_gfx_v11.o
 
 ifneq ($(CONFIG_DRM_AMDGPU_CIK),)
 amdgpu-y += amdgpu_amdkfd_gfx_v7.o

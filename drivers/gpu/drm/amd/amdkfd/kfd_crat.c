@@ -1315,6 +1315,8 @@ static int fill_in_l2_l3_pcache(struct crat_subtype_cache *pcache,
 	return 1;
 }
 
+#define KFD_MAX_CACHE_TYPES 6
+
 static int kfd_fill_gpu_cache_info_from_gfx_config(struct kfd_dev *kdev,
 						   struct kfd_gpu_cache_info *pcache_info)
 {
@@ -1408,6 +1410,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 			int *num_of_entries)
 {
 	struct kfd_gpu_cache_info *pcache_info;
+	struct kfd_gpu_cache_info cache_info[KFD_MAX_CACHE_TYPES];
 	int num_of_cache_types = 0;
 	int i, j, k;
 	int ct = 0;
@@ -1515,6 +1518,11 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		case IP_VERSION(10, 3, 3):
 			pcache_info = yellow_carp_cache_info;
 			num_of_cache_types = ARRAY_SIZE(yellow_carp_cache_info);
+			break;
+		case IP_VERSION(11, 0, 0):
+			pcache_info = cache_info;
+			num_of_cache_types =
+				kfd_fill_gpu_cache_info_from_gfx_config(kdev, pcache_info);
 			break;
 		default:
 			return -EINVAL;
