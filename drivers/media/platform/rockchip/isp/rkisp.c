@@ -1529,15 +1529,6 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 
 	/* interrupt mask */
 	irq_mask |= CIF_ISP_FRAME | CIF_ISP_V_START | CIF_ISP_PIC_SIZE_ERROR;
-	if (dev->cap_dev.wrap_line) {
-		irq_mask |= ISP3X_OUT_FRM_QUARTER | ISP3X_OUT_FRM_HALF |
-			    ISP3X_OUT_FRM_END;
-		/* line to irq */
-		rkisp_write(dev, ISP32_ISP_IRQ_CFG0,
-			    (in_crop->height / 2) << 16 | in_crop->height / 4, false);
-		rkisp_write(dev, ISP32_ISP_IRQ_CFG1,
-			    in_crop->height / 4 * 3, false);
-	}
 	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21 ||
 	    dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32)
 		irq_mask |= ISP2X_LSC_LUT_ERR;
