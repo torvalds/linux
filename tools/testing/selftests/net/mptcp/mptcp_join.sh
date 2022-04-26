@@ -1013,6 +1013,7 @@ chk_csum_nr()
 	local csum_ns2=${2:-0}
 	local count
 	local dump_stats
+	local extra_msg=""
 	local allow_multi_errors_ns1=0
 	local allow_multi_errors_ns2=0
 
@@ -1028,6 +1029,9 @@ chk_csum_nr()
 	printf "%-${nr_blank}s %s" " " "sum"
 	count=$(ip netns exec $ns1 nstat -as | grep MPTcpExtDataCsumErr | awk '{print $2}')
 	[ -z "$count" ] && count=0
+	if [ "$count" != "$csum_ns1" ]; then
+		extra_msg="$extra_msg ns1=$count"
+	fi
 	if { [ "$count" != $csum_ns1 ] && [ $allow_multi_errors_ns1 -eq 0 ]; } ||
 	   { [ "$count" -lt $csum_ns1 ] && [ $allow_multi_errors_ns1 -eq 1 ]; }; then
 		echo "[fail] got $count data checksum error[s] expected $csum_ns1"
@@ -1039,15 +1043,20 @@ chk_csum_nr()
 	echo -n " - csum  "
 	count=$(ip netns exec $ns2 nstat -as | grep MPTcpExtDataCsumErr | awk '{print $2}')
 	[ -z "$count" ] && count=0
+	if [ "$count" != "$csum_ns2" ]; then
+		extra_msg="$extra_msg ns2=$count"
+	fi
 	if { [ "$count" != $csum_ns2 ] && [ $allow_multi_errors_ns2 -eq 0 ]; } ||
 	   { [ "$count" -lt $csum_ns2 ] && [ $allow_multi_errors_ns2 -eq 1 ]; }; then
 		echo "[fail] got $count data checksum error[s] expected $csum_ns2"
 		fail_test
 		dump_stats=1
 	else
-		echo "[ ok ]"
+		echo -n "[ ok ]"
 	fi
 	[ "${dump_stats}" = 1 ] && dump_stats
+
+	echo "$extra_msg"
 }
 
 chk_fail_nr()
