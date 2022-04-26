@@ -321,7 +321,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	if (thread_za_enabled(&src->thread)) {
 		dst->thread.sve_state = kzalloc(sve_state_size(src),
 						GFP_KERNEL);
-		if (!dst->thread.za_state)
+		if (!dst->thread.sve_state)
 			return -ENOMEM;
 		dst->thread.za_state = kmemdup(src->thread.za_state,
 					       za_state_size(src),
