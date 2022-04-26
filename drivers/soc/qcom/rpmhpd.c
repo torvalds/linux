@@ -180,6 +180,36 @@ static struct rpmhpd mxc_ao = {
 	.res_name = "mxc.lvl",
 };
 
+static struct rpmhpd nsp = {
+	.pd = { .name = "nsp", },
+	.res_name = "nsp.lvl",
+};
+
+static struct rpmhpd qphy = {
+	.pd = { .name = "qphy", },
+	.res_name = "qphy.lvl",
+};
+
+/* SA8540P RPMH powerdomains */
+static struct rpmhpd *sa8540p_rpmhpds[] = {
+	[SC8280XP_CX] = &cx,
+	[SC8280XP_CX_AO] = &cx_ao,
+	[SC8280XP_EBI] = &ebi,
+	[SC8280XP_GFX] = &gfx,
+	[SC8280XP_LCX] = &lcx,
+	[SC8280XP_LMX] = &lmx,
+	[SC8280XP_MMCX] = &mmcx,
+	[SC8280XP_MMCX_AO] = &mmcx_ao,
+	[SC8280XP_MX] = &mx,
+	[SC8280XP_MX_AO] = &mx_ao,
+	[SC8280XP_NSP] = &nsp,
+};
+
+static const struct rpmhpd_desc sa8540p_desc = {
+	.rpmhpds = sa8540p_rpmhpds,
+	.num_pds = ARRAY_SIZE(sa8540p_rpmhpds),
+};
+
 /* SDM845 RPMH powerdomains */
 static struct rpmhpd *sdm845_rpmhpds[] = {
 	[SDM845_CX] = &cx_w_mx_parent,
@@ -378,10 +408,33 @@ static const struct rpmhpd_desc sc8180x_desc = {
 	.num_pds = ARRAY_SIZE(sc8180x_rpmhpds),
 };
 
+/* SC8280xp RPMH powerdomains */
+static struct rpmhpd *sc8280xp_rpmhpds[] = {
+	[SC8280XP_CX] = &cx,
+	[SC8280XP_CX_AO] = &cx_ao,
+	[SC8280XP_EBI] = &ebi,
+	[SC8280XP_GFX] = &gfx,
+	[SC8280XP_LCX] = &lcx,
+	[SC8280XP_LMX] = &lmx,
+	[SC8280XP_MMCX] = &mmcx,
+	[SC8280XP_MMCX_AO] = &mmcx_ao,
+	[SC8280XP_MX] = &mx,
+	[SC8280XP_MX_AO] = &mx_ao,
+	[SC8280XP_NSP] = &nsp,
+	[SC8280XP_QPHY] = &qphy,
+};
+
+static const struct rpmhpd_desc sc8280xp_desc = {
+	.rpmhpds = sc8280xp_rpmhpds,
+	.num_pds = ARRAY_SIZE(sc8280xp_rpmhpds),
+};
+
 static const struct of_device_id rpmhpd_match_table[] = {
+	{ .compatible = "qcom,sa8540p-rpmhpd", .data = &sa8540p_desc },
 	{ .compatible = "qcom,sc7180-rpmhpd", .data = &sc7180_desc },
 	{ .compatible = "qcom,sc7280-rpmhpd", .data = &sc7280_desc },
 	{ .compatible = "qcom,sc8180x-rpmhpd", .data = &sc8180x_desc },
+	{ .compatible = "qcom,sc8280xp-rpmhpd", .data = &sc8280xp_desc },
 	{ .compatible = "qcom,sdm845-rpmhpd", .data = &sdm845_desc },
 	{ .compatible = "qcom,sdx55-rpmhpd", .data = &sdx55_desc},
 	{ .compatible = "qcom,sdx65-rpmhpd", .data = &sdx65_desc},
