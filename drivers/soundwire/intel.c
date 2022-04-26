@@ -799,12 +799,11 @@ static int intel_startup(struct snd_pcm_substream *substream,
 	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
 	int ret;
 
-	ret = pm_runtime_get_sync(cdns->dev);
+	ret = pm_runtime_resume_and_get(cdns->dev);
 	if (ret < 0 && ret != -EACCES) {
 		dev_err_ratelimited(cdns->dev,
-				    "pm_runtime_get_sync failed in %s, ret %d\n",
+				    "pm_runtime_resume_and_get failed in %s, ret %d\n",
 				    __func__, ret);
-		pm_runtime_put_noidle(cdns->dev);
 		return ret;
 	}
 	return 0;
