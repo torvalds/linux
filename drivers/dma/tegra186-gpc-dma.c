@@ -829,10 +829,6 @@ static int get_transfer_param(struct tegra_dma_channel *tdc,
 		*slave_bw = tdc->dma_sconfig.src_addr_width;
 		*csr = TEGRA_GPCDMA_CSR_DMA_IO2MEM_FC;
 		return 0;
-	case DMA_MEM_TO_MEM:
-		*burst_size = tdc->dma_sconfig.src_addr_width;
-		*csr = TEGRA_GPCDMA_CSR_DMA_MEM2MEM;
-		return 0;
 	default:
 		dev_err(tdc2dev(tdc), "DMA direction is not supported\n");
 	}
