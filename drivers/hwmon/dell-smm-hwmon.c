@@ -1373,8 +1373,6 @@ static int __init dell_smm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mutex_init(&data->i8k_mutex);
-	data->i8k_fan_mult = I8K_FAN_MULT;
-	data->i8k_fan_max = I8K_FAN_HIGH;
 	platform_set_drvdata(pdev, data);
 
 	if (dmi_check_system(i8k_blacklist_fan_support_dmi_table)) {
@@ -1409,7 +1407,9 @@ static int __init dell_smm_probe(struct platform_device *pdev)
 			fan_max = conf->fan_max;
 	}
 
-	data->i8k_fan_max = fan_max ? : I8K_FAN_HIGH;	/* Must not be 0 */
+	/* All options must not be 0 */
+	data->i8k_fan_mult = fan_mult ? : I8K_FAN_MULT;
+	data->i8k_fan_max = fan_max ? : I8K_FAN_HIGH;
 	data->i8k_pwm_mult = DIV_ROUND_UP(255, data->i8k_fan_max);
 
 	fan_control = dmi_first_match(i8k_whitelist_fan_control);
@@ -1420,9 +1420,6 @@ static int __init dell_smm_probe(struct platform_device *pdev)
 		data->auto_fan = control->auto_fan;
 		dev_info(&pdev->dev, "enabling support for setting automatic/manual fan control\n");
 	}
-
-	if (fan_mult)
-		data->i8k_fan_mult = fan_mult;
 
 	ret = dell_smm_init_hwmon(&pdev->dev);
 	if (ret)
