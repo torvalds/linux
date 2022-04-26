@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+/*
+ * otp_eeprom driver
+ *
+ * V0.0X01.0X01
+ * 1. fix table_size.
+ * 2. fix ioctl return value.
+ * 3. add version control.
+ */
 
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -11,8 +19,10 @@
 #include <linux/seq_file.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <linux/version.h>
 #include "otp_eeprom.h"
 
+#define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x01)
 #define DEVICE_NAME			"otp_eeprom"
 
 static inline struct eeprom_device
@@ -233,15 +243,18 @@ static int otp_read_data(struct eeprom_device *eeprom_dev)
 
 	if (otp_ptr->total_checksum) {
 		eeprom_dev->otp = otp_ptr;
+		dev_info(dev, "get otp successful\n");
 	} else {
 		eeprom_dev->otp = NULL;
 		kfree(otp_ptr);
+		dev_warn(&client->dev, "otp is NULL!\n");
 	}
 
 	return 0;
 err:
 	eeprom_dev->otp = NULL;
 	kfree(otp_ptr);
+	dev_warn(&client->dev, "@%s read otp err!\n", __func__);
 	return -EINVAL;
 }
 
@@ -455,7 +468,7 @@ static void rkotp_read_lsc(struct eeprom_device *eeprom_dev,
 		checksum += temp;
 		base_addr += 1;
 	}
-	otp_ptr->lsc_data.table_size = 17 * 17;
+	otp_ptr->lsc_data.table_size = LSC_DATA_SIZE;
 #ifdef DEBUG
 	w = 17 * 2;
 	h = 17 * 4;
@@ -666,8 +679,7 @@ static int rkotp_read_data(struct eeprom_device *eeprom_dev)
 	base_addr = RKOTP_REG_START;
 	otp_ptr->flag = 0;
 	for (i = 0; i < RKOTP_MAX_MODULE; i++) {
-		ret = read_reg_otp(client, base_addr,
-			1, &id);
+		read_reg_otp(client, base_addr, 1, &id);
 		dev_info(dev, "show block id %d, addr 0x%x\n", id, base_addr);
 		switch (id) {
 		case RKOTP_INFO_ID:
@@ -709,12 +721,14 @@ static int rkotp_read_data(struct eeprom_device *eeprom_dev)
 	}
 	if (otp_ptr->flag) {
 		eeprom_dev->otp = otp_ptr;
-		dev_info(dev, "get otp successful\n");
+		dev_info(dev, "rkotp read successful!\n");
 	} else {
 		eeprom_dev->otp = NULL;
 		kfree(otp_ptr);
+		dev_warn(&client->dev, "otp is NULL!\n");
+		ret = -1;
 	}
-	return 0;
+	return ret;
 }
 
 static int otp_read(struct eeprom_device *eeprom_dev)
@@ -727,6 +741,10 @@ static int otp_read(struct eeprom_device *eeprom_dev)
 		otp_read_data(eeprom_dev);
 	else if (vendor_flag == 0x40)
 		rkotp_read_data(eeprom_dev);
+	else {
+		dev_warn(&client->dev, "no vendor flag infos!\n");
+		return -1;
+	}
 	return 0;
 }
 
@@ -735,12 +753,18 @@ static long eeprom_ioctl(struct v4l2_subdev *sd,
 {
 	struct eeprom_device *eeprom_dev =
 		sd_to_eeprom(sd);
-	if (!eeprom_dev->otp)
-		otp_read(eeprom_dev);
+	long ret = 0;
+
+	if (!eeprom_dev->otp) {
+		if (otp_read(eeprom_dev))
+			ret = -EFAULT;
+	}
 	if (arg && eeprom_dev->otp)
 		memcpy(arg, eeprom_dev->otp,
 			sizeof(struct otp_info));
-	return 0;
+	else
+		ret = -EFAULT;
+	return ret;
 }
 
 #ifdef CONFIG_PROC_FS
@@ -932,7 +956,11 @@ static int eeprom_probe(struct i2c_client *client,
 {
 	struct eeprom_device *eeprom_dev;
 
-	dev_info(&client->dev, "probing...\n");
+	dev_info(&client->dev, "driver version: %02x.%02x.%02x",
+		 DRIVER_VERSION >> 16,
+		 (DRIVER_VERSION & 0xff00) >> 8,
+		 DRIVER_VERSION & 0x00ff);
+
 	eeprom_dev = devm_kzalloc(&client->dev,
 		sizeof(*eeprom_dev),
 		GFP_KERNEL);
