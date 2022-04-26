@@ -899,10 +899,10 @@ retry:
 	ret = gfs2_glock_nq(gh);
 	if (ret)
 		goto out_uninit;
-retry_under_glock:
 	/* Silently fall back to buffered I/O when writing beyond EOF */
 	if (iocb->ki_pos + iov_iter_count(from) > i_size_read(&ip->i_inode))
 		goto out;
+retry_under_glock:
 
 	from->nofault = true;
 	ret = iomap_dio_rw(iocb, from, &gfs2_iomap_ops, NULL,
