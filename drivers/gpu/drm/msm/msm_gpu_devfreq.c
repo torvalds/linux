@@ -69,7 +69,7 @@ static void get_raw_dev_status(struct msm_gpu *gpu,
 	df->time = time;
 
 	busy_time *= USEC_PER_SEC;
-	do_div(busy_time, sample_rate);
+	busy_time = div64_ul(busy_time, sample_rate);
 	if (WARN_ON(busy_time > ~0LU))
 		busy_time = ~0LU;
 
