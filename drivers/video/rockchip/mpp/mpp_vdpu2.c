@@ -224,8 +224,11 @@ static int vdpu_process_reg_fd(struct mpp_session *session,
 			offset = task->reg[idx] >> 10 << 4;
 		}
 		mem_region = mpp_task_attach_fd(&task->mpp_task, fd);
-		if (IS_ERR(mem_region))
+		if (IS_ERR(mem_region)) {
+			mpp_err("reg[%3d]: %08x fd %d attach failed\n",
+				idx, task->reg[idx], fd);
 			return -EFAULT;
+		}
 
 		iova = mem_region->iova;
 		mpp_debug(DEBUG_IOMMU, "DMV[%3d]: %3d => %pad + offset %10d\n",

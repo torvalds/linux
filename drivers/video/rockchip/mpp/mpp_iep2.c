@@ -266,8 +266,8 @@ static int iep2_process_reg_fd(struct mpp_session *session,
 
 		mem_region = mpp_task_attach_fd(&task->mpp_task, usr_fd);
 		if (IS_ERR(mem_region)) {
-			mpp_debug(DEBUG_IOMMU, "reg[%3d]: %08x failed\n",
-				  iep2_addr_rnum[i], paddr[i]);
+			mpp_err("reg[%03d]: %08x failed\n",
+				iep2_addr_rnum[i], paddr[i]);
 			return PTR_ERR(mem_region);
 		}
 

@@ -593,6 +593,7 @@ static int fill_scaling_list_pps(struct rkvdec_task *task,
 		mem_region = mpp_task_attach_fd(&task->mpp_task,
 						scaling_fd);
 		if (IS_ERR(mem_region)) {
+			mpp_err("scaling list fd %d attach failed\n", scaling_fd);
 			ret = PTR_ERR(mem_region);
 			goto done;
 		}
@@ -727,8 +728,11 @@ static int rkvdec_process_reg_fd(struct mpp_session *session,
 			offset = task->reg[idx] >> 10 << 4;
 		}
 		mem_region = mpp_task_attach_fd(&task->mpp_task, fd);
-		if (IS_ERR(mem_region))
+		if (IS_ERR(mem_region)) {
+			mpp_err("reg[%03d]: %08x fd %d attach failed\n",
+				idx, task->reg[idx], fd);
 			return -EFAULT;
+		}
 
 		iova = mem_region->iova;
 		task->reg[idx] = iova + offset;
