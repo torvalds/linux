@@ -187,10 +187,9 @@ int snd_sof_bytes_ext_volatile_get(struct snd_kcontrol *kcontrol, unsigned int _
 	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 	int ret, err;
 
-	ret = pm_runtime_get_sync(scomp->dev);
+	ret = pm_runtime_resume_and_get(scomp->dev);
 	if (ret < 0 && ret != -EACCES) {
 		dev_err_ratelimited(scomp->dev, "%s: failed to resume %d\n", __func__, ret);
-		pm_runtime_put_noidle(scomp->dev);
 		return ret;
 	}
 
