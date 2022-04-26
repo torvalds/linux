@@ -246,7 +246,7 @@ static int occ_verify_checksum(struct occ *occ, struct occ_response *resp,
 	if (checksum != checksum_resp) {
 		dev_err(occ->dev, "Bad checksum: %04x!=%04x\n", checksum,
 			checksum_resp);
-		return -EBADMSG;
+		return -EBADE;
 	}
 
 	return 0;
@@ -575,8 +575,11 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 	dev_dbg(dev, "resp_status=%02x resp_data_len=%d\n",
 		resp->return_status, resp_data_length);
 
-	occ->client_response_size = resp_data_length + 7;
 	rc = occ_verify_checksum(occ, resp, resp_data_length);
+	if (rc)
+		goto done;
+
+	occ->client_response_size = resp_data_length + 7;
 
  done:
 	*resp_len = occ->client_response_size;
