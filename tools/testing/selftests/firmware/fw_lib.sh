@@ -64,6 +64,7 @@ check_setup()
 	HAS_FW_LOADER_USER_HELPER_FALLBACK="$(kconfig_has CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y)"
 	HAS_FW_LOADER_COMPRESS_XZ="$(kconfig_has CONFIG_FW_LOADER_COMPRESS_XZ=y)"
 	HAS_FW_LOADER_COMPRESS_ZSTD="$(kconfig_has CONFIG_FW_LOADER_COMPRESS_ZSTD=y)"
+	HAS_FW_UPLOAD="$(kconfig_has CONFIG_FW_UPLOAD=y)"
 	PROC_FW_IGNORE_SYSFS_FALLBACK="0"
 	PROC_FW_FORCE_SYSFS_FALLBACK="0"
 
@@ -116,6 +117,12 @@ verify_reqs()
 	if [ "$TEST_REQS_FW_SYSFS_FALLBACK" = "yes" ]; then
 		if [ ! "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
 			echo "usermode helper disabled so ignoring test"
+			exit 0
+		fi
+	fi
+	if [ "$TEST_REQS_FW_UPLOAD" = "yes" ]; then
+		if [ ! "$HAS_FW_UPLOAD" = "yes" ]; then
+			echo "firmware upload disabled so ignoring test"
 			exit 0
 		fi
 	fi
