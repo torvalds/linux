@@ -190,6 +190,8 @@ struct drm_dp_link_caps {
 struct drm_dp_link_train_set {
 	unsigned int voltage_swing[4];
 	unsigned int pre_emphasis[4];
+	bool voltage_max_reached[4];
+	bool pre_max_reached[4];
 };
 
 struct drm_dp_link_train {
@@ -909,9 +911,15 @@ static int dw_dp_phy_update_vs_emph(struct dw_dp *dp, unsigned int rate, unsigne
 	if (ret)
 		return ret;
 
-	for (i = 0; i < lanes; i++)
+	for (i = 0; i < lanes; i++) {
 		buf[i] = (vs[i] << DP_TRAIN_VOLTAGE_SWING_SHIFT) |
 			 (pe[i] << DP_TRAIN_PRE_EMPHASIS_SHIFT);
+		if (train_set->voltage_max_reached[i])
+			buf[i] |= DP_TRAIN_MAX_SWING_REACHED;
+		if (train_set->pre_max_reached[i])
+			buf[i] |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
+	}
+
 	ret = drm_dp_dpcd_write(&dp->aux, DP_TRAINING_LANE0_SET, buf, lanes);
 	if (ret < 0)
 		return ret;
@@ -1007,6 +1015,12 @@ static void dw_dp_link_train_init(struct drm_dp_link_train *train)
 
 		request->pre_emphasis[i] = 0;
 		adjust->pre_emphasis[i] = 0;
+
+		request->voltage_max_reached[i] = false;
+		adjust->voltage_max_reached[i] = false;
+
+		request->pre_max_reached[i] = false;
+		adjust->pre_max_reached[i] = false;
 	}
 
 	train->clock_recovered = false;
@@ -1061,20 +1075,49 @@ static int dw_dp_link_train_set_pattern(struct dw_dp *dp, u32 pattern)
 	return 0;
 }
 
+static u8 dw_dp_voltage_max(u8 preemph)
+{
+	switch (preemph & DP_TRAIN_PRE_EMPHASIS_MASK) {
+	case DP_TRAIN_PRE_EMPH_LEVEL_0:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
+	case DP_TRAIN_PRE_EMPH_LEVEL_1:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
+	case DP_TRAIN_PRE_EMPH_LEVEL_2:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_1;
+	case DP_TRAIN_PRE_EMPH_LEVEL_3:
+	default:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_0;
+	}
+}
+
 static void dw_dp_link_get_adjustments(struct dw_dp_link *link,
 				       u8 status[DP_LINK_STATUS_SIZE])
 {
 	struct drm_dp_link_train_set *adjust = &link->train.adjust;
+	u8 v = 0;
+	u8 p = 0;
 	unsigned int i;
 
 	for (i = 0; i < link->lanes; i++) {
-		adjust->voltage_swing[i] =
-			drm_dp_get_adjust_request_voltage(status, i) >>
-				DP_TRAIN_VOLTAGE_SWING_SHIFT;
-
-		adjust->pre_emphasis[i] =
-			drm_dp_get_adjust_request_pre_emphasis(status, i) >>
-				DP_TRAIN_PRE_EMPHASIS_SHIFT;
+		v = drm_dp_get_adjust_request_voltage(status, i);
+		p = drm_dp_get_adjust_request_pre_emphasis(status, i);
+		if (p >=  DP_TRAIN_PRE_EMPH_LEVEL_3) {
+			adjust->pre_emphasis[i] = DP_TRAIN_PRE_EMPH_LEVEL_3 >>
+						  DP_TRAIN_PRE_EMPHASIS_SHIFT;
+			adjust->pre_max_reached[i] = true;
+		} else {
+			adjust->pre_emphasis[i] = p >> DP_TRAIN_PRE_EMPHASIS_SHIFT;
+			adjust->pre_max_reached[i] = false;
+		}
+		v = min(v, dw_dp_voltage_max(p));
+		if (v >= DP_TRAIN_VOLTAGE_SWING_LEVEL_3) {
+			adjust->voltage_swing[i] = DP_TRAIN_VOLTAGE_SWING_LEVEL_3 >>
+						   DP_TRAIN_VOLTAGE_SWING_SHIFT;
+			adjust->voltage_max_reached[i] = true;
+		} else {
+			adjust->voltage_swing[i] = v >> DP_TRAIN_VOLTAGE_SWING_SHIFT;
+			adjust->voltage_max_reached[i] = false;
+		}
 	}
 }
 
@@ -1084,13 +1127,19 @@ static void dw_dp_link_train_adjust(struct drm_dp_link_train *train)
 	struct drm_dp_link_train_set *adjust = &train->adjust;
 	unsigned int i;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 4; i++) {
 		if (request->voltage_swing[i] != adjust->voltage_swing[i])
 			request->voltage_swing[i] = adjust->voltage_swing[i];
+		if (request->voltage_max_reached[i] != adjust->voltage_max_reached[i])
+			request->voltage_max_reached[i] = adjust->voltage_max_reached[i];
+	}
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 4; i++) {
 		if (request->pre_emphasis[i] != adjust->pre_emphasis[i])
 			request->pre_emphasis[i] = adjust->pre_emphasis[i];
+		if (request->pre_max_reached[i] != adjust->pre_max_reached[i])
+			request->pre_max_reached[i] = adjust->pre_max_reached[i];
+	}
 }
 
 static int dw_dp_link_clock_recovery(struct dw_dp *dp)
