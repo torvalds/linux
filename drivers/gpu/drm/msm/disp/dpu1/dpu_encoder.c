@@ -1013,9 +1013,18 @@ static void dpu_encoder_virt_atomic_mode_set(struct drm_encoder *drm_enc,
 		if (phys->intf_idx >= INTF_0 && phys->intf_idx < INTF_MAX)
 			phys->hw_intf = dpu_rm_get_intf(&dpu_kms->rm, phys->intf_idx);
 
-		if (!phys->hw_intf) {
+		if (phys->wb_idx >= WB_0 && phys->wb_idx < WB_MAX)
+			phys->hw_wb = dpu_rm_get_wb(&dpu_kms->rm, phys->wb_idx);
+
+		if (!phys->hw_intf && !phys->hw_wb) {
 			DPU_ERROR_ENC(dpu_enc,
-				      "no intf block assigned at idx: %d\n", i);
+				      "no intf or wb block assigned at idx: %d\n", i);
+			return;
+		}
+
+		if (phys->hw_intf && phys->hw_wb) {
+			DPU_ERROR_ENC(dpu_enc,
+					"invalid phys both intf and wb block at idx: %d\n", i);
 			return;
 		}
 
@@ -1163,14 +1172,33 @@ static enum dpu_intf dpu_encoder_get_intf(struct dpu_mdss_cfg *catalog,
 {
 	int i = 0;
 
-	for (i = 0; i < catalog->intf_count; i++) {
-		if (catalog->intf[i].type == type
-		    && catalog->intf[i].controller_id == controller_id) {
-			return catalog->intf[i].id;
+	if (type != INTF_WB) {
+		for (i = 0; i < catalog->intf_count; i++) {
+			if (catalog->intf[i].type == type
+				&& catalog->intf[i].controller_id == controller_id) {
+				return catalog->intf[i].id;
+			}
 		}
 	}
 
 	return INTF_MAX;
+}
+
+static enum dpu_wb dpu_encoder_get_wb(struct dpu_mdss_cfg *catalog,
+		enum dpu_intf_type type, u32 controller_id)
+{
+	int i = 0;
+
+	if (type != INTF_WB)
+		goto end;
+
+	for (i = 0; i < catalog->wb_count; i++) {
+		if (catalog->wb[i].id == controller_id)
+			return catalog->wb[i].id;
+	}
+
+end:
+	return WB_MAX;
 }
 
 static void dpu_encoder_vblank_callback(struct drm_encoder *drm_enc,
@@ -1887,16 +1915,32 @@ void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc)
 
 	dpu_encoder_helper_reset_mixers(phys_enc);
 
-	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
-		if (dpu_enc->phys_encs[i] && phys_enc->hw_intf->ops.bind_pingpong_blk)
-			phys_enc->hw_intf->ops.bind_pingpong_blk(
-					dpu_enc->phys_encs[i]->hw_intf, false,
-					dpu_enc->phys_encs[i]->hw_pp->idx);
+	/*
+	 * TODO: move the once-only operation like CTL flush/trigger
+	 * into dpu_encoder_virt_disable() and all operations which need
+	 * to be done per phys encoder into the phys_disable() op.
+	 */
+	if (phys_enc->hw_wb) {
+		/* disable the PP block */
+		if (phys_enc->hw_wb->ops.bind_pingpong_blk)
+			phys_enc->hw_wb->ops.bind_pingpong_blk(phys_enc->hw_wb, false,
+					phys_enc->hw_pp->idx);
 
-		/* mark INTF flush as pending */
-		if (phys_enc->hw_ctl->ops.update_pending_flush_intf)
-			phys_enc->hw_ctl->ops.update_pending_flush_intf(phys_enc->hw_ctl,
-					dpu_enc->phys_encs[i]->hw_intf->idx);
+		/* mark WB flush as pending */
+		if (phys_enc->hw_ctl->ops.update_pending_flush_wb)
+			phys_enc->hw_ctl->ops.update_pending_flush_wb(ctl, phys_enc->hw_wb->idx);
+	} else {
+		for (i = 0; i < dpu_enc->num_phys_encs; i++) {
+			if (dpu_enc->phys_encs[i] && phys_enc->hw_intf->ops.bind_pingpong_blk)
+				phys_enc->hw_intf->ops.bind_pingpong_blk(
+						dpu_enc->phys_encs[i]->hw_intf, false,
+						dpu_enc->phys_encs[i]->hw_pp->idx);
+
+			/* mark INTF flush as pending */
+			if (phys_enc->hw_ctl->ops.update_pending_flush_intf)
+				phys_enc->hw_ctl->ops.update_pending_flush_intf(phys_enc->hw_ctl,
+						dpu_enc->phys_encs[i]->hw_intf->idx);
+		}
 	}
 
 	/* reset the merge 3D HW block */
@@ -2112,6 +2156,9 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 	case DRM_MODE_ENCODER_TMDS:
 		intf_type = INTF_DP;
 		break;
+	case DRM_MODE_ENCODER_VIRTUAL:
+		intf_type = INTF_WB;
+		break;
 	}
 
 	WARN_ON(disp_info->num_of_h_tiles < 1);
@@ -2149,8 +2196,23 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 		phys_params.intf_idx = dpu_encoder_get_intf(dpu_kms->catalog,
 													intf_type,
 													controller_id);
-		if (phys_params.intf_idx == INTF_MAX) {
-			DPU_ERROR_ENC(dpu_enc, "could not get intf: type %d, id %d\n",
+
+		phys_params.wb_idx = dpu_encoder_get_wb(dpu_kms->catalog,
+				intf_type, controller_id);
+		/*
+		 * The phys_params might represent either an INTF or a WB unit, but not
+		 * both of them at the same time.
+		 */
+		if ((phys_params.intf_idx == INTF_MAX) &&
+				(phys_params.wb_idx == WB_MAX)) {
+			DPU_ERROR_ENC(dpu_enc, "could not get intf or wb: type %d, id %d\n",
+						  intf_type, controller_id);
+			ret = -EINVAL;
+		}
+
+		if ((phys_params.intf_idx != INTF_MAX) &&
+				(phys_params.wb_idx != WB_MAX)) {
+			DPU_ERROR_ENC(dpu_enc, "both intf and wb present: type %d, id %d\n",
 						  intf_type, controller_id);
 			ret = -EINVAL;
 		}
