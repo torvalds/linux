@@ -323,6 +323,8 @@ const struct cal_format_info *cal_format_by_code(u32 code);
 
 void cal_quickdump_regs(struct cal_dev *cal);
 
+int cal_camerarx_get_remote_frame_desc(struct cal_camerarx *phy,
+				       struct v4l2_mbus_frame_desc *desc);
 void cal_camerarx_disable(struct cal_camerarx *phy);
 void cal_camerarx_i913_errata(struct cal_camerarx *phy);
 struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
