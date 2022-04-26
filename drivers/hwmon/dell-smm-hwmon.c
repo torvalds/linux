@@ -50,7 +50,7 @@
 #define I8K_SMM_GET_DELL_SIG2	0xffa3
 
 #define I8K_FAN_MULT		30
-#define I8K_FAN_MAX_RPM		30000
+#define I8K_FAN_RPM_THRESHOLD	1000
 #define I8K_MAX_TEMP		127
 
 #define I8K_FN_NONE		0x00
@@ -326,7 +326,7 @@ static int __init i8k_get_fan_nominal_speed(const struct dell_smm_data *data, u8
 	if (data->disallow_fan_support)
 		return -EINVAL;
 
-	return i8k_smm(&regs) ? : (regs.eax & 0xffff) * data->i8k_fan_mult;
+	return i8k_smm(&regs) ? : (regs.eax & 0xffff);
 }
 
 /*
@@ -776,6 +776,7 @@ static int dell_smm_read(struct device *dev, enum hwmon_sensor_types type, u32 a
 			 long *val)
 {
 	struct dell_smm_data *data = dev_get_drvdata(dev);
+	int mult = data->i8k_fan_mult;
 	int ret;
 
 	switch (type) {
@@ -804,11 +805,11 @@ static int dell_smm_read(struct device *dev, enum hwmon_sensor_types type, u32 a
 
 			return 0;
 		case hwmon_fan_min:
-			*val = data->fan_nominal_speed[channel][0];
+			*val = data->fan_nominal_speed[channel][0] * mult;
 
 			return 0;
 		case hwmon_fan_max:
-			*val = data->fan_nominal_speed[channel][data->i8k_fan_max];
+			*val = data->fan_nominal_speed[channel][data->i8k_fan_max] * mult;
 
 			return 0;
 		case hwmon_fan_target:
@@ -819,7 +820,7 @@ static int dell_smm_read(struct device *dev, enum hwmon_sensor_types type, u32 a
 			if (ret > data->i8k_fan_max)
 				ret = data->i8k_fan_max;
 
-			*val = data->fan_nominal_speed[channel][ret];
+			*val = data->fan_nominal_speed[channel][ret] * mult;
 
 			return 0;
 		default:
@@ -1071,6 +1072,13 @@ static int __init dell_smm_init_hwmon(struct device *dev)
 				break;
 			}
 			data->fan_nominal_speed[i][state] = err;
+			/*
+			 * Autodetect fan multiplier based on nominal rpm if multiplier
+			 * was not specified as module param or in DMI. If fan reports
+			 * rpm value too high then set multiplier to 1.
+			 */
+			if (!fan_mult && err > I8K_FAN_RPM_THRESHOLD)
+				data->i8k_fan_mult = 1;
 		}
 	}
 
@@ -1359,7 +1367,6 @@ static int __init dell_smm_probe(struct platform_device *pdev)
 	struct dell_smm_data *data;
 	const struct dmi_system_id *id, *fan_control;
 	int ret;
-	u8 fan;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct dell_smm_data), GFP_KERNEL);
 	if (!data)
@@ -1414,24 +1421,8 @@ static int __init dell_smm_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "enabling support for setting automatic/manual fan control\n");
 	}
 
-	if (!fan_mult) {
-		/*
-		 * Autodetect fan multiplier based on nominal rpm
-		 * If fan reports rpm value too high then set multiplier to 1
-		 */
-		for (fan = 0; fan < DELL_SMM_NO_FANS; ++fan) {
-			ret = i8k_get_fan_nominal_speed(data, fan, data->i8k_fan_max);
-			if (ret < 0)
-				continue;
-
-			if (ret > I8K_FAN_MAX_RPM)
-				data->i8k_fan_mult = 1;
-			break;
-		}
-	} else {
-		/* Fan multiplier was specified in module param or in dmi */
+	if (fan_mult)
 		data->i8k_fan_mult = fan_mult;
-	}
 
 	ret = dell_smm_init_hwmon(&pdev->dev);
 	if (ret)
