@@ -327,6 +327,10 @@ struct snd_sof_widget {
 	struct snd_soc_component *scomp;
 	int comp_id;
 	int pipeline_id;
+	/*
+	 * complete flag is used to indicate that pipeline set up is complete for scheduler type
+	 * widgets. It is unused for all other widget types.
+	 */
 	int complete;
 	int use_count; /* use_count will be protected by the PCM mutex held by the core */
 	int core;

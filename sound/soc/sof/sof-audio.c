@@ -58,8 +58,6 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 			err = ret;
 	}
 
-	swidget->complete = 0;
-
 	/*
 	 * free the scheduler widget (same as pipe_widget) associated with the current swidget.
 	 * skip for static pipelines
@@ -68,6 +66,7 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 		ret = sof_widget_free(sdev, swidget->pipe_widget);
 		if (ret < 0 && !err)
 			err = ret;
+		swidget->pipe_widget->complete = 0;
 	}
 
 	if (!err)
