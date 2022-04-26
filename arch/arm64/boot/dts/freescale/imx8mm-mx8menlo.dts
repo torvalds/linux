@@ -71,7 +71,20 @@
 &ecspi2 {
 	pinctrl-0 = <&pinctrl_ecspi2 &pinctrl_gpio1>;
 	cs-gpios = <&gpio5 13 GPIO_ACTIVE_LOW>, <&gpio3 4 GPIO_ACTIVE_LOW>;
-	status = "disabled";
+	status = "okay";
+
+	spidev@0 {
+		compatible = "menlo,m53cpld";
+		reg = <0>;
+		spi-max-frequency = <25000000>;
+	};
+
+	spidev@1 {
+		compatible = "menlo,m53cpld";
+		reg = <1>;
+		spi-max-frequency = <25000000>;
+	};
+
 };
 
 &ethphy0 {
