@@ -34,6 +34,9 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 	if (--swidget->use_count)
 		return 0;
 
+	/* reset route setup status for all routes that contain this widget */
+	sof_reset_route_setup_status(sdev, swidget);
+
 	/* continue to disable core even if IPC fails */
 	if (tplg_ops->widget_free)
 		err = tplg_ops->widget_free(sdev, swidget);
@@ -50,8 +53,6 @@ int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 			err = ret;
 	}
 
-	/* reset route setup status for all routes that contain this widget */
-	sof_reset_route_setup_status(sdev, swidget);
 	swidget->complete = 0;
 
 	/*
