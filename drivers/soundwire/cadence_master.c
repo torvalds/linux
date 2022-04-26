@@ -386,12 +386,11 @@ static int cdns_parity_error_injection(void *data, u64 value)
 	 * Resume Master device. If this results in a bus reset, the
 	 * Slave devices will re-attach and be re-enumerated.
 	 */
-	ret = pm_runtime_get_sync(bus->dev);
+	ret = pm_runtime_resume_and_get(bus->dev);
 	if (ret < 0 && ret != -EACCES) {
 		dev_err_ratelimited(cdns->dev,
-				    "pm_runtime_get_sync failed in %s, ret %d\n",
+				    "pm_runtime_resume_and_get failed in %s, ret %d\n",
 				    __func__, ret);
-		pm_runtime_put_noidle(bus->dev);
 		return ret;
 	}
 
