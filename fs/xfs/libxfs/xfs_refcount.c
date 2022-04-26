@@ -886,8 +886,13 @@ xfs_refcount_still_have_space(
 {
 	unsigned long			overhead;
 
-	overhead = cur->bc_ag.refc.shape_changes *
-			xfs_allocfree_log_count(cur->bc_mp, 1);
+	/*
+	 * Worst case estimate: full splits of the free space and rmap btrees
+	 * to handle each of the shape changes to the refcount btree.
+	 */
+	overhead = xfs_allocfree_log_count(cur->bc_mp,
+				cur->bc_ag.refc.shape_changes);
+	overhead += cur->bc_mp->m_refc_maxlevels;
 	overhead *= cur->bc_mp->m_sb.sb_blocksize;
 
 	/*

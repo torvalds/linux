@@ -56,8 +56,7 @@ xfs_calc_buf_res(
  * Per-extent log reservation for the btree changes involved in freeing or
  * allocating an extent.  In classic XFS there were two trees that will be
  * modified (bnobt + cntbt).  With rmap enabled, there are three trees
- * (rmapbt).  With reflink, there are four trees (refcountbt).  The number of
- * blocks reserved is based on the formula:
+ * (rmapbt).  The number of blocks reserved is based on the formula:
  *
  * num trees * ((2 blocks/level * max depth) - 1)
  *
@@ -73,10 +72,21 @@ xfs_allocfree_log_count(
 	blocks = num_ops * 2 * (2 * mp->m_alloc_maxlevels - 1);
 	if (xfs_has_rmapbt(mp))
 		blocks += num_ops * (2 * mp->m_rmap_maxlevels - 1);
-	if (xfs_has_reflink(mp))
-		blocks += num_ops * (2 * mp->m_refc_maxlevels - 1);
 
 	return blocks;
+}
+
+/*
+ * Per-extent log reservation for refcount btree changes.  These are never done
+ * in the same transaction as an allocation or a free, so we compute them
+ * separately.
+ */
+static unsigned int
+xfs_refcountbt_block_count(
+	struct xfs_mount	*mp,
+	unsigned int		num_ops)
+{
+	return num_ops * (2 * mp->m_refc_maxlevels - 1);
 }
 
 /*
@@ -233,6 +243,28 @@ xfs_rtalloc_log_count(
  * register overflow from temporaries in the calculations.
  */
 
+/*
+ * Compute the log reservation required to handle the refcount update
+ * transaction.  Refcount updates are always done via deferred log items.
+ *
+ * This is calculated as:
+ * Data device refcount updates (t1):
+ *    the agfs of the ags containing the blocks: nr_ops * sector size
+ *    the refcount btrees: nr_ops * 1 trees * (2 * max depth - 1) * block size
+ */
+static unsigned int
+xfs_calc_refcountbt_reservation(
+	struct xfs_mount	*mp,
+	unsigned int		nr_ops)
+{
+	unsigned int		blksz = XFS_FSB_TO_B(mp, 1);
+
+	if (!xfs_has_reflink(mp))
+		return 0;
+
+	return xfs_calc_buf_res(nr_ops, mp->m_sb.sb_sectsize) +
+	       xfs_calc_buf_res(xfs_refcountbt_block_count(mp, nr_ops), blksz);
+}
 
 /*
  * In a write transaction we can allocate a maximum of 2
@@ -255,12 +287,14 @@ xfs_rtalloc_log_count(
  *    the agfls of the ags containing the blocks: 2 * sector size
  *    the super block free block counter: sector size
  *    the allocation btrees: 2 exts * 2 trees * (2 * max depth - 1) * block size
+ * And any refcount updates that happen in a separate transaction (t4).
  */
 STATIC uint
 xfs_calc_write_reservation(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	bool			for_minlogsize)
 {
-	unsigned int		t1, t2, t3;
+	unsigned int		t1, t2, t3, t4;
 	unsigned int		blksz = XFS_FSB_TO_B(mp, 1);
 
 	t1 = xfs_calc_inode_res(mp, 1) +
@@ -282,7 +316,36 @@ xfs_calc_write_reservation(
 	t3 = xfs_calc_buf_res(5, mp->m_sb.sb_sectsize) +
 	     xfs_calc_buf_res(xfs_allocfree_log_count(mp, 2), blksz);
 
-	return XFS_DQUOT_LOGRES(mp) + max3(t1, t2, t3);
+	/*
+	 * In the early days of reflink, we included enough reservation to log
+	 * two refcountbt splits for each transaction.  The codebase runs
+	 * refcountbt updates in separate transactions now, so to compute the
+	 * minimum log size, add the refcountbtree splits back to t1 and t3 and
+	 * do not account them separately as t4.  Reflink did not support
+	 * realtime when the reservations were established, so no adjustment to
+	 * t2 is needed.
+	 */
+	if (for_minlogsize) {
+		unsigned int	adj = 0;
+
+		if (xfs_has_reflink(mp))
+			adj = xfs_calc_buf_res(
+					xfs_refcountbt_block_count(mp, 2),
+					blksz);
+		t1 += adj;
+		t3 += adj;
+		return XFS_DQUOT_LOGRES(mp) + max3(t1, t2, t3);
+	}
+
+	t4 = xfs_calc_refcountbt_reservation(mp, 1);
+	return XFS_DQUOT_LOGRES(mp) + max(t4, max3(t1, t2, t3));
+}
+
+unsigned int
+xfs_calc_write_reservation_minlogsize(
+	struct xfs_mount	*mp)
+{
+	return xfs_calc_write_reservation(mp, true);
 }
 
 /*
@@ -304,12 +367,14 @@ xfs_calc_write_reservation(
  *    the realtime summary: 2 exts * 1 block
  *    worst case split in allocation btrees per extent assuming 2 extents:
  *		2 exts * 2 trees * (2 * max depth - 1) * block size
+ * And any refcount updates that happen in a separate transaction (t4).
  */
 STATIC uint
 xfs_calc_itruncate_reservation(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	bool			for_minlogsize)
 {
-	unsigned int		t1, t2, t3;
+	unsigned int		t1, t2, t3, t4;
 	unsigned int		blksz = XFS_FSB_TO_B(mp, 1);
 
 	t1 = xfs_calc_inode_res(mp, 1) +
@@ -326,7 +391,33 @@ xfs_calc_itruncate_reservation(
 		t3 = 0;
 	}
 
-	return XFS_DQUOT_LOGRES(mp) + max3(t1, t2, t3);
+	/*
+	 * In the early days of reflink, we included enough reservation to log
+	 * four refcountbt splits in the same transaction as bnobt/cntbt
+	 * updates.  The codebase runs refcountbt updates in separate
+	 * transactions now, so to compute the minimum log size, add the
+	 * refcount btree splits back here and do not compute them separately
+	 * as t4.  Reflink did not support realtime when the reservations were
+	 * established, so do not adjust t3.
+	 */
+	if (for_minlogsize) {
+		if (xfs_has_reflink(mp))
+			t2 += xfs_calc_buf_res(
+					xfs_refcountbt_block_count(mp, 4),
+					blksz);
+
+		return XFS_DQUOT_LOGRES(mp) + max3(t1, t2, t3);
+	}
+
+	t4 = xfs_calc_refcountbt_reservation(mp, 2);
+	return XFS_DQUOT_LOGRES(mp) + max(t4, max3(t1, t2, t3));
+}
+
+unsigned int
+xfs_calc_itruncate_reservation_minlogsize(
+	struct xfs_mount	*mp)
+{
+	return xfs_calc_itruncate_reservation(mp, true);
 }
 
 /*
@@ -792,11 +883,19 @@ xfs_calc_qm_setqlim_reservation(void)
  */
 STATIC uint
 xfs_calc_qm_dqalloc_reservation(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	bool			for_minlogsize)
 {
-	return xfs_calc_write_reservation(mp) +
+	return xfs_calc_write_reservation(mp, for_minlogsize) +
 		xfs_calc_buf_res(1,
 			XFS_FSB_TO_B(mp, XFS_DQUOT_CLUSTER_SIZE_FSB) - 1);
+}
+
+unsigned int
+xfs_calc_qm_dqalloc_reservation_minlogsize(
+	struct xfs_mount	*mp)
+{
+	return xfs_calc_qm_dqalloc_reservation(mp, true);
 }
 
 /*
@@ -821,11 +920,11 @@ xfs_trans_resv_calc(
 	 * The following transactions are logged in physical format and
 	 * require a permanent reservation on space.
 	 */
-	resp->tr_write.tr_logres = xfs_calc_write_reservation(mp);
+	resp->tr_write.tr_logres = xfs_calc_write_reservation(mp, false);
 	resp->tr_write.tr_logcount = XFS_WRITE_LOG_COUNT;
 	resp->tr_write.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
-	resp->tr_itruncate.tr_logres = xfs_calc_itruncate_reservation(mp);
+	resp->tr_itruncate.tr_logres = xfs_calc_itruncate_reservation(mp, false);
 	resp->tr_itruncate.tr_logcount = XFS_ITRUNCATE_LOG_COUNT;
 	resp->tr_itruncate.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
@@ -882,7 +981,8 @@ xfs_trans_resv_calc(
 	resp->tr_growrtalloc.tr_logcount = XFS_DEFAULT_PERM_LOG_COUNT;
 	resp->tr_growrtalloc.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
-	resp->tr_qm_dqalloc.tr_logres = xfs_calc_qm_dqalloc_reservation(mp);
+	resp->tr_qm_dqalloc.tr_logres = xfs_calc_qm_dqalloc_reservation(mp,
+			false);
 	resp->tr_qm_dqalloc.tr_logcount = XFS_WRITE_LOG_COUNT;
 	resp->tr_qm_dqalloc.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 

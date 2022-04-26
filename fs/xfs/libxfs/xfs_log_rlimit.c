@@ -80,6 +80,18 @@ xfs_log_calc_trans_resv_for_minlogblocks(
 		resv->tr_qm_dqalloc.tr_logcount = XFS_WRITE_LOG_COUNT;
 	}
 
+	/*
+	 * In the early days of reflink, we did not use deferred refcount
+	 * update log items, so log reservations must be recomputed using the
+	 * old calculations.
+	 */
+	resv->tr_write.tr_logres =
+			xfs_calc_write_reservation_minlogsize(mp);
+	resv->tr_itruncate.tr_logres =
+			xfs_calc_itruncate_reservation_minlogsize(mp);
+	resv->tr_qm_dqalloc.tr_logres =
+			xfs_calc_qm_dqalloc_reservation_minlogsize(mp);
+
 	/* Put everything back the way it was.  This goes at the end. */
 	mp->m_rmap_maxlevels = rmap_maxlevels;
 }
