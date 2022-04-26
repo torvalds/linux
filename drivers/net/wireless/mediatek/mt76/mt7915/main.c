@@ -622,8 +622,10 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
 		mt7915_update_bss_color(hw, vif, &info->he_bss_color);
 
 	if (changed & (BSS_CHANGED_BEACON |
-		       BSS_CHANGED_BEACON_ENABLED))
-		mt7915_mcu_add_beacon(hw, vif, info->enable_beacon);
+		       BSS_CHANGED_BEACON_ENABLED |
+		       BSS_CHANGED_UNSOL_BCAST_PROBE_RESP |
+		       BSS_CHANGED_FILS_DISCOVERY))
+		mt7915_mcu_add_beacon(hw, vif, info->enable_beacon, changed);
 
 	mutex_unlock(&dev->mt76.mutex);
 }
@@ -636,7 +638,7 @@ mt7915_channel_switch_beacon(struct ieee80211_hw *hw,
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 
 	mutex_lock(&dev->mt76.mutex);
-	mt7915_mcu_add_beacon(hw, vif, true);
+	mt7915_mcu_add_beacon(hw, vif, true, BSS_CHANGED_BEACON);
 	mutex_unlock(&dev->mt76.mutex);
 }
 

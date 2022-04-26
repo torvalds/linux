@@ -1892,6 +1892,7 @@ mt7915_mcu_beacon_cont(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 	u8 *buf;
 	int len = sizeof(*cont) + MT_TXD_SIZE + skb->len;
 
+	len = (len & 0x3) ? ((len | 0x3) + 1) : len;
 	tlv = mt7915_mcu_add_nested_subtlv(rskb, BSS_INFO_BCN_CONTENT,
 					   len, &bcn->sub_ntlv, &bcn->len);
 
@@ -1910,7 +1911,7 @@ mt7915_mcu_beacon_cont(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 
 	buf = (u8 *)tlv + sizeof(*cont);
 	mt7915_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, 0, NULL,
-			      true);
+			      BSS_CHANGED_BEACON);
 	memcpy(buf + MT_TXD_SIZE, skb->data, skb->len);
 }
 
@@ -1992,8 +1993,71 @@ mt7915_mcu_beacon_check_caps(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 	}
 }
 
-int mt7915_mcu_add_beacon(struct ieee80211_hw *hw,
-			  struct ieee80211_vif *vif, int en)
+static void
+mt7915_mcu_beacon_inband_discov(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+				struct sk_buff *rskb, struct bss_info_bcn *bcn,
+				u32 changed)
+{
+#define OFFLOAD_TX_MODE_SU	BIT(0)
+#define OFFLOAD_TX_MODE_MU	BIT(1)
+	struct ieee80211_hw *hw = mt76_hw(dev);
+	struct mt7915_phy *phy = mt7915_hw_phy(hw);
+	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
+	struct cfg80211_chan_def *chandef = &mvif->phy->mt76->chandef;
+	enum nl80211_band band = chandef->chan->band;
+	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
+	struct bss_info_inband_discovery *discov;
+	struct ieee80211_tx_info *info;
+	struct sk_buff *skb = NULL;
+	struct tlv *tlv;
+	bool ext_phy = phy != &dev->phy;
+	u8 *buf, interval;
+	int len;
+
+	if (changed & BSS_CHANGED_FILS_DISCOVERY &&
+	    vif->bss_conf.fils_discovery.max_interval) {
+		interval = vif->bss_conf.fils_discovery.max_interval;
+		skb = ieee80211_get_fils_discovery_tmpl(hw, vif);
+	} else if (changed & BSS_CHANGED_UNSOL_BCAST_PROBE_RESP &&
+		   vif->bss_conf.unsol_bcast_probe_resp_interval) {
+		interval = vif->bss_conf.unsol_bcast_probe_resp_interval;
+		skb = ieee80211_get_unsol_bcast_probe_resp_tmpl(hw, vif);
+	}
+
+	if (!skb)
+		return;
+
+	info = IEEE80211_SKB_CB(skb);
+	info->control.vif = vif;
+	info->band = band;
+
+	if (ext_phy)
+		info->hw_queue |= MT_TX_HW_QUEUE_EXT_PHY;
+
+	len = sizeof(*discov) + MT_TXD_SIZE + skb->len;
+	len = (len & 0x3) ? ((len | 0x3) + 1) : len;
+
+	tlv = mt7915_mcu_add_nested_subtlv(rskb, BSS_INFO_BCN_DISCOV,
+					   len, &bcn->sub_ntlv, &bcn->len);
+	discov = (struct bss_info_inband_discovery *)tlv;
+	discov->tx_mode = OFFLOAD_TX_MODE_SU;
+	/* 0: UNSOL PROBE RESP, 1: FILS DISCOV */
+	discov->tx_type = !!(changed & BSS_CHANGED_FILS_DISCOVERY);
+	discov->tx_interval = interval;
+	discov->prob_rsp_len = cpu_to_le16(MT_TXD_SIZE + skb->len);
+	discov->enable = true;
+
+	buf = (u8 *)tlv + sizeof(*discov);
+
+	mt7915_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, 0, NULL,
+			      changed);
+	memcpy(buf + MT_TXD_SIZE, skb->data, skb->len);
+
+	dev_kfree_skb(skb);
+}
+
+int mt7915_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			  int en, u32 changed)
 {
 #define MAX_BEACON_SIZE 512
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
@@ -2043,6 +2107,11 @@ int mt7915_mcu_add_beacon(struct ieee80211_hw *hw,
 	mt7915_mcu_beacon_mbss(rskb, skb, vif, bcn, &offs);
 	mt7915_mcu_beacon_cont(dev, vif, rskb, skb, bcn, &offs);
 	dev_kfree_skb(skb);
+
+	if (changed & BSS_CHANGED_UNSOL_BCAST_PROBE_RESP ||
+	    changed & BSS_CHANGED_FILS_DISCOVERY)
+		mt7915_mcu_beacon_inband_discov(dev, vif, rskb,
+						bcn, changed);
 
 out:
 	return mt76_mcu_skb_send_msg(&phy->dev->mt76, rskb,
