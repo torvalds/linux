@@ -717,11 +717,34 @@ static inline void cal_irq_wdma_end(struct cal_ctx *ctx)
 
 static void cal_irq_handle_wdma(struct cal_ctx *ctx, bool start, bool end)
 {
-	if (end)
-		cal_irq_wdma_end(ctx);
+	/*
+	 * CAL HW interrupts are inherently racy. If we get both start and end
+	 * interrupts, we don't know what has happened: did the DMA for a single
+	 * frame start and end, or did one frame end and a new frame start?
+	 *
+	 * Usually for normal pixel frames we get the interrupts separately. If
+	 * we do get both, we have to guess. The assumption in the code below is
+	 * that the active vertical area is larger than the blanking vertical
+	 * area, and thus it is more likely that we get the end of the old frame
+	 * and the start of a new frame.
+	 *
+	 * However, for embedded data, which is only a few lines high, we always
+	 * get both interrupts. Here the assumption is that we get both for the
+	 * same frame.
+	 */
+	if (ctx->v_fmt.fmt.pix.height < 10) {
+		if (start)
+			cal_irq_wdma_start(ctx);
 
-	if (start)
-		cal_irq_wdma_start(ctx);
+		if (end)
+			cal_irq_wdma_end(ctx);
+	} else {
+		if (end)
+			cal_irq_wdma_end(ctx);
+
+		if (start)
+			cal_irq_wdma_start(ctx);
+	}
 }
 
 static irqreturn_t cal_irq(int irq_cal, void *data)
