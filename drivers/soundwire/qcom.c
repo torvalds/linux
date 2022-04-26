@@ -516,6 +516,7 @@ static irqreturn_t qcom_swrm_wake_irq_handler(int irq, void *dev_id)
 				    "pm_runtime_get_sync failed in %s, ret %d\n",
 				    __func__, ret);
 		pm_runtime_put_noidle(swrm->dev);
+		return ret;
 	}
 
 	if (swrm->wake_irq > 0) {
@@ -1258,6 +1259,7 @@ static int swrm_reg_show(struct seq_file *s_file, void *data)
 				    "pm_runtime_get_sync failed in %s, ret %d\n",
 				    __func__, ret);
 		pm_runtime_put_noidle(swrm->dev);
+		return ret;
 	}
 
 	for (reg = 0; reg <= SWR_MSTR_MAX_REG_ADDR; reg += 4) {
