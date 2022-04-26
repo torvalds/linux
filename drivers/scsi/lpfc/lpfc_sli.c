@@ -22283,7 +22283,7 @@ lpfc_sli_prep_wqe(struct lpfc_hba *phba, struct lpfc_iocbq *job)
 				bf_set(wqe_ct, &wqe->els_req.wqe_com, 1);
 				bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
 				       phba->vpi_ids[job->vport->vpi]);
-			} else if (pcmd && ndlp) {
+			} else if (pcmd) {
 				bf_set(wqe_ct, &wqe->els_req.wqe_com, 0);
 				bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
 				       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
