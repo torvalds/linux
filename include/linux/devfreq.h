@@ -309,7 +309,7 @@ enum devfreq_parent_dev_type {
  * @this:		the devfreq instance of own device.
  * @nb:			the notifier block for DEVFREQ_TRANSITION_NOTIFIER or
  *			CPUFREQ_TRANSITION_NOTIFIER list.
- * @parent_cpu_data:	the state min/max/current frequency of all online cpu's.
+ * @cpu_data_list:	the list of cpu frequency data for all cpufreq_policy.
  *
  * The devfreq_passive_data have to set the devfreq instance of parent
  * device with governors except for the passive governor. But, don't need to
@@ -329,7 +329,7 @@ struct devfreq_passive_data {
 	/* For passive governor's internal use. Don't need to set them */
 	struct devfreq *this;
 	struct notifier_block nb;
-	struct devfreq_cpu_data *parent_cpu_data[NR_CPUS];
+	struct list_head cpu_data_list;
 };
 #endif
 

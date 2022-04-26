@@ -49,6 +49,7 @@
 
 /**
  * struct devfreq_cpu_data - Hold the per-cpu data
+ * @node:	list node
  * @dev:	reference to cpu device.
  * @first_cpu:	the cpumask of the first cpu of a policy.
  * @opp_table:	reference to cpu opp table.
@@ -60,6 +61,8 @@
  * This is auto-populated by the governor.
  */
 struct devfreq_cpu_data {
+	struct list_head node;
+
 	struct device *dev;
 	unsigned int first_cpu;
 
