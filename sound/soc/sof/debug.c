@@ -229,9 +229,8 @@ static int memory_info_update(struct snd_sof_dev *sdev, char *buf, size_t buff_s
 	if (!reply)
 		return -ENOMEM;
 
-	ret = pm_runtime_get_sync(sdev->dev);
+	ret = pm_runtime_resume_and_get(sdev->dev);
 	if (ret < 0 && ret != -EACCES) {
-		pm_runtime_put_noidle(sdev->dev);
 		dev_err(sdev->dev, "error: enabling device failed: %d\n", ret);
 		goto error;
 	}
