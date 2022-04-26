@@ -159,9 +159,10 @@ static ssize_t ta_if_load_debugfs_write(struct file *fp, const char *buf, size_t
 	ta_bin = kzalloc(ta_bin_len, GFP_KERNEL);
 	if (!ta_bin)
 		ret = -ENOMEM;
-	ret = copy_from_user((void *)ta_bin, &buf[copy_pos], ta_bin_len);
-	if (ret)
+	if (copy_from_user((void *)ta_bin, &buf[copy_pos], ta_bin_len)) {
+		ret = -EFAULT;
 		goto err_free_bin;
+	}
 
 	ret = psp_ras_terminate(psp);
 	if (ret) {
@@ -180,11 +181,14 @@ static ssize_t ta_if_load_debugfs_write(struct file *fp, const char *buf, size_t
 	if (ret || context.resp_status) {
 		dev_err(adev->dev, "TA load via debugfs failed (%d) status %d\n",
 			 ret, context.resp_status);
+		if (!ret)
+			ret = -EINVAL;
 		goto err_free_bin;
 	}
 
 	context.initialized = true;
-	ret = copy_to_user((char *)buf, (void *)&context.session_id, sizeof(uint32_t));
+	if (copy_to_user((char *)buf, (void *)&context.session_id, sizeof(uint32_t)))
+		ret = -EFAULT;
 
 err_free_bin:
 	kfree(ta_bin);
@@ -251,9 +255,10 @@ static ssize_t ta_if_invoke_debugfs_write(struct file *fp, const char *buf, size
 	shared_buf = kzalloc(shared_buf_len, GFP_KERNEL);
 	if (!shared_buf)
 		ret = -ENOMEM;
-	ret = copy_from_user((void *)shared_buf, &buf[copy_pos], shared_buf_len);
-	if (ret)
+	if (copy_from_user((void *)shared_buf, &buf[copy_pos], shared_buf_len)) {
+		ret = -EFAULT;
 		goto err_free_shared_buf;
+	}
 
 	context.session_id = ta_id;
 
@@ -264,10 +269,13 @@ static ssize_t ta_if_invoke_debugfs_write(struct file *fp, const char *buf, size
 	if (ret || context.resp_status) {
 		dev_err(adev->dev, "TA invoke via debugfs failed (%d) status %d\n",
 			 ret, context.resp_status);
+		if (!ret)
+			ret = -EINVAL;
 		goto err_free_ta_shared_buf;
 	}
 
-	ret = copy_to_user((char *)buf, context.mem_context.shared_buf, shared_buf_len);
+	if (copy_to_user((char *)buf, context.mem_context.shared_buf, shared_buf_len))
+		ret = -EFAULT;
 
 err_free_ta_shared_buf:
 	psp_ta_free_shared_buf(&context.mem_context);
