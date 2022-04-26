@@ -2348,7 +2348,7 @@ static inline bool __io_fill_cqe_req_filled(struct io_ring_ctx *ctx,
 	struct io_uring_cqe *cqe;
 
 	trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
-				req->cqe.res, req->cqe.flags);
+				req->cqe.res, req->cqe.flags, 0, 0);
 
 	/*
 	 * If we can't get a cq entry, userspace overflowed the
@@ -2372,7 +2372,7 @@ static inline bool __io_fill_cqe32_req_filled(struct io_ring_ctx *ctx,
 	u64 extra2 = req->extra2;
 
 	trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
-				req->cqe.res, req->cqe.flags);
+				req->cqe.res, req->cqe.flags, extra1, extra2);
 
 	/*
 	 * If we can't get a cq entry, userspace overflowed the
@@ -2393,7 +2393,7 @@ static inline bool __io_fill_cqe32_req_filled(struct io_ring_ctx *ctx,
 
 static inline bool __io_fill_cqe_req(struct io_kiocb *req, s32 res, u32 cflags)
 {
-	trace_io_uring_complete(req->ctx, req, req->cqe.user_data, res, cflags);
+	trace_io_uring_complete(req->ctx, req, req->cqe.user_data, res, cflags, 0, 0);
 	return __io_fill_cqe(req->ctx, req->cqe.user_data, res, cflags);
 }
 
@@ -2408,7 +2408,8 @@ static inline void __io_fill_cqe32_req(struct io_kiocb *req, s32 res, u32 cflags
 	if (req->flags & REQ_F_CQE_SKIP)
 		return;
 
-	trace_io_uring_complete(ctx, req, req->cqe.user_data, res, cflags);
+	trace_io_uring_complete(ctx, req, req->cqe.user_data, res, cflags,
+				extra1, extra2);
 
 	/*
 	 * If we can't get a cq entry, userspace overflowed the
@@ -2432,7 +2433,7 @@ static noinline bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data,
 				     s32 res, u32 cflags)
 {
 	ctx->cq_extra++;
-	trace_io_uring_complete(ctx, NULL, user_data, res, cflags);
+	trace_io_uring_complete(ctx, NULL, user_data, res, cflags, 0, 0);
 	return __io_fill_cqe(ctx, user_data, res, cflags);
 }
 
