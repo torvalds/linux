@@ -78,11 +78,6 @@ extern int xfs_refcount_recover_cow_leftovers(struct xfs_mount *mp,
  */
 #define XFS_REFCOUNT_ITEM_OVERHEAD	32
 
-static inline xfs_fileoff_t xfs_refcount_max_unmap(int log_res)
-{
-	return (log_res * 3 / 4) / XFS_REFCOUNT_ITEM_OVERHEAD;
-}
-
 extern int xfs_refcount_has_record(struct xfs_btree_cur *cur,
 		xfs_agblock_t bno, xfs_extlen_t len, bool *exists);
 union xfs_btree_rec;
