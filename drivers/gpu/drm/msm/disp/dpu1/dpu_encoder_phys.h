@@ -150,6 +150,7 @@ struct dpu_encoder_phys_ops {
  * @INTR_IDX_PINGPONG: Pingpong done unterrupt for cmd mode panel
  * @INTR_IDX_UNDERRUN: Underrun unterrupt for video and cmd mode panel
  * @INTR_IDX_RDPTR:    Readpointer done unterrupt for cmd mode panel
+ * @INTR_IDX_WB_DONE:  Writeback fone interrupt for virtual connector
  */
 enum dpu_intr_idx {
 	INTR_IDX_VSYNC,
@@ -157,6 +158,7 @@ enum dpu_intr_idx {
 	INTR_IDX_UNDERRUN,
 	INTR_IDX_CTL_START,
 	INTR_IDX_RDPTR,
+	INTR_IDX_WB_DONE,
 	INTR_IDX_MAX,
 };
 
@@ -226,6 +228,27 @@ static inline int dpu_encoder_phys_inc_pending(struct dpu_encoder_phys *phys)
 }
 
 /**
+ * struct dpu_encoder_phys_wb - sub-class of dpu_encoder_phys to handle command
+ *	mode specific operations
+ * @base:	Baseclass physical encoder structure
+ * @wbirq_refcount:     Reference count of writeback interrupt
+ * @wb_done_timeout_cnt: number of wb done irq timeout errors
+ * @wb_cfg:  writeback block config to store fb related details
+ * @wb_conn: backpointer to writeback connector
+ * @wb_job: backpointer to current writeback job
+ * @dest:   dpu buffer layout for current writeback output buffer
+ */
+struct dpu_encoder_phys_wb {
+	struct dpu_encoder_phys base;
+	atomic_t wbirq_refcount;
+	int wb_done_timeout_cnt;
+	struct dpu_hw_wb_cfg wb_cfg;
+	struct drm_writeback_connector *wb_conn;
+	struct drm_writeback_job *wb_job;
+	struct dpu_hw_fmt_layout dest;
+};
+
+/**
  * struct dpu_encoder_phys_cmd - sub-class of dpu_encoder_phys to handle command
  *	mode specific operations
  * @base:	Baseclass physical encoder structure
@@ -292,6 +315,13 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
  * Return: Error code or newly allocated encoder
  */
 struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
+		struct dpu_enc_phys_init_params *p);
+
+/**
+ * dpu_encoder_phys_wb_init - initialize writeback encoder
+ * @init:	Pointer to init info structure with initialization params
+ */
+struct dpu_encoder_phys *dpu_encoder_phys_wb_init(
 		struct dpu_enc_phys_init_params *p);
 
 /**
