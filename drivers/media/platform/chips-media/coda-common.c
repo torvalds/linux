@@ -1653,13 +1653,18 @@ static void set_default_params(struct coda_ctx *ctx)
 	csize = coda_estimate_sizeimage(ctx, usize, max_w, max_h);
 
 	ctx->params.codec_mode = ctx->codec->mode;
-	if (ctx->cvd->src_formats[0] == V4L2_PIX_FMT_JPEG)
-		ctx->colorspace = V4L2_COLORSPACE_JPEG;
-	else
+	if (ctx->cvd->src_formats[0] == V4L2_PIX_FMT_JPEG ||
+	    ctx->cvd->dst_formats[0] == V4L2_PIX_FMT_JPEG) {
+		ctx->colorspace = V4L2_COLORSPACE_SRGB;
+		ctx->xfer_func = V4L2_XFER_FUNC_SRGB;
+		ctx->ycbcr_enc = V4L2_YCBCR_ENC_601;
+		ctx->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	} else {
 		ctx->colorspace = V4L2_COLORSPACE_REC709;
-	ctx->xfer_func = V4L2_XFER_FUNC_DEFAULT;
-	ctx->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
-	ctx->quantization = V4L2_QUANTIZATION_DEFAULT;
+		ctx->xfer_func = V4L2_XFER_FUNC_DEFAULT;
+		ctx->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
+		ctx->quantization = V4L2_QUANTIZATION_DEFAULT;
+	}
 	ctx->params.framerate = 30;
 
 	/* Default formats for output and input queues */
