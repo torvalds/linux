@@ -8,6 +8,7 @@
 #include <linux/mm.h>
 
 #include <kvm/arm_hypercalls.h>
+#include <kvm/arm_psci.h>
 
 #include <asm/kvm_emulate.h>
 
@@ -388,6 +389,23 @@ static int pkvm_vcpu_init_ptrauth(struct pkvm_hyp_vcpu *hyp_vcpu)
 	return ret;
 }
 
+static void pkvm_vcpu_init_psci(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct vcpu_reset_state *reset_state = &hyp_vcpu->vcpu.arch.reset_state;
+
+	if (test_bit(KVM_ARM_VCPU_POWER_OFF, hyp_vcpu->vcpu.arch.features)) {
+		reset_state->reset = false;
+		hyp_vcpu->power_state = PSCI_0_2_AFFINITY_LEVEL_OFF;
+	} else {
+		struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+
+		reset_state->pc = READ_ONCE(host_vcpu->arch.ctxt.regs.pc);
+		reset_state->r0 = READ_ONCE(host_vcpu->arch.ctxt.regs.regs[0]);
+		reset_state->reset = true;
+		hyp_vcpu->power_state = PSCI_0_2_AFFINITY_LEVEL_ON_PENDING;
+	}
+}
+
 static void unpin_host_vcpu(struct kvm_vcpu *host_vcpu)
 {
 	if (host_vcpu)
@@ -488,6 +506,7 @@ static int init_pkvm_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu,
 
 	pkvm_vcpu_init_traps(hyp_vcpu);
 	kvm_reset_pvm_sys_regs(&hyp_vcpu->vcpu);
+	pkvm_vcpu_init_psci(hyp_vcpu);
 done:
 	if (ret)
 		unpin_host_vcpu(host_vcpu);
@@ -807,6 +826,284 @@ err_unlock:
 }
 
 /*
+ * This function sets the registers on the vcpu to their architecturally defined
+ * reset values.
+ *
+ * Note: Can only be called by the vcpu on itself, after it has been turned on.
+ */
+void pkvm_reset_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct vcpu_reset_state *reset_state = &hyp_vcpu->vcpu.arch.reset_state;
+
+	WARN_ON(!reset_state->reset);
+
+	pkvm_vcpu_init_ptrauth(hyp_vcpu);
+	kvm_reset_vcpu_core(&hyp_vcpu->vcpu);
+	kvm_reset_pvm_sys_regs(&hyp_vcpu->vcpu);
+
+	/* Must be done after reseting sys registers. */
+	kvm_reset_vcpu_psci(&hyp_vcpu->vcpu, reset_state);
+
+	reset_state->reset = false;
+
+	hyp_vcpu->exit_code = 0;
+
+	WARN_ON(hyp_vcpu->power_state != PSCI_0_2_AFFINITY_LEVEL_ON_PENDING);
+	WRITE_ONCE(hyp_vcpu->vcpu.arch.mp_state.mp_state, KVM_MP_STATE_RUNNABLE);
+	WRITE_ONCE(hyp_vcpu->power_state, PSCI_0_2_AFFINITY_LEVEL_ON);
+}
+
+struct pkvm_hyp_vcpu *pkvm_mpidr_to_hyp_vcpu(struct pkvm_hyp_vm *hyp_vm,
+					     u64 mpidr)
+{
+	int i;
+
+	mpidr &= MPIDR_HWID_BITMASK;
+
+	for (i = 0; i < hyp_vm->nr_vcpus; i++) {
+		struct pkvm_hyp_vcpu *hyp_vcpu = hyp_vm->vcpus[i];
+
+		if (mpidr == kvm_vcpu_get_mpidr_aff(&hyp_vcpu->vcpu))
+			return hyp_vcpu;
+	}
+
+	return NULL;
+}
+
+/*
+ * Returns true if the hypervisor has handled the PSCI call, and control should
+ * go back to the guest, or false if the host needs to do some additional work
+ * (i.e., wake up the vcpu).
+ */
+static bool pvm_psci_vcpu_on(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct pkvm_hyp_vm *hyp_vm = pkvm_hyp_vcpu_to_hyp_vm(hyp_vcpu);
+	struct vcpu_reset_state *reset_state;
+	struct pkvm_hyp_vcpu *target;
+	unsigned long cpu_id, ret;
+	int power_state;
+
+	cpu_id = smccc_get_arg1(&hyp_vcpu->vcpu);
+	if (!kvm_psci_valid_affinity(&hyp_vcpu->vcpu, cpu_id)) {
+		ret = PSCI_RET_INVALID_PARAMS;
+		goto error;
+	}
+
+	target = pkvm_mpidr_to_hyp_vcpu(hyp_vm, cpu_id);
+	if (!target) {
+		ret = PSCI_RET_INVALID_PARAMS;
+		goto error;
+	}
+
+	/*
+	 * Make sure the requested vcpu is not on to begin with.
+	 * Atomic to avoid race between vcpus trying to power on the same vcpu.
+	 */
+	power_state = cmpxchg(&target->power_state,
+			      PSCI_0_2_AFFINITY_LEVEL_OFF,
+			      PSCI_0_2_AFFINITY_LEVEL_ON_PENDING);
+	switch (power_state) {
+	case PSCI_0_2_AFFINITY_LEVEL_ON_PENDING:
+		ret = PSCI_RET_ON_PENDING;
+		goto error;
+	case PSCI_0_2_AFFINITY_LEVEL_ON:
+		ret = PSCI_RET_ALREADY_ON;
+		goto error;
+	case PSCI_0_2_AFFINITY_LEVEL_OFF:
+		break;
+	default:
+		ret = PSCI_RET_INTERNAL_FAILURE;
+		goto error;
+	}
+
+	reset_state = &target->vcpu.arch.reset_state;
+	reset_state->pc = smccc_get_arg2(&hyp_vcpu->vcpu);
+	reset_state->r0 = smccc_get_arg3(&hyp_vcpu->vcpu);
+	/* Propagate caller endianness */
+	reset_state->be = kvm_vcpu_is_be(&hyp_vcpu->vcpu);
+	reset_state->reset = true;
+
+	/*
+	 * Return to the host, which should make the KVM_REQ_VCPU_RESET request
+	 * as well as kvm_vcpu_wake_up() to schedule the vcpu.
+	 */
+	return false;
+
+error:
+	/* If there's an error go back straight to the guest. */
+	smccc_set_retval(&hyp_vcpu->vcpu, ret, 0, 0, 0);
+	return true;
+}
+
+static bool pvm_psci_vcpu_affinity_info(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	unsigned long target_affinity_mask, target_affinity, lowest_affinity_level;
+	struct pkvm_hyp_vm *hyp_vm = pkvm_hyp_vcpu_to_hyp_vm(hyp_vcpu);
+	struct kvm_vcpu *vcpu = &hyp_vcpu->vcpu;
+	unsigned long mpidr, ret;
+	int i, matching_cpus = 0;
+
+	target_affinity = smccc_get_arg1(vcpu);
+	lowest_affinity_level = smccc_get_arg2(vcpu);
+	if (!kvm_psci_valid_affinity(vcpu, target_affinity)) {
+		ret = PSCI_RET_INVALID_PARAMS;
+		goto done;
+	}
+
+	/* Determine target affinity mask */
+	target_affinity_mask = psci_affinity_mask(lowest_affinity_level);
+	if (!target_affinity_mask) {
+		ret = PSCI_RET_INVALID_PARAMS;
+		goto done;
+	}
+
+	/* Ignore other bits of target affinity */
+	target_affinity &= target_affinity_mask;
+	ret = PSCI_0_2_AFFINITY_LEVEL_OFF;
+
+	/*
+	 * If at least one vcpu matching target affinity is ON then return ON,
+	 * then if at least one is PENDING_ON then return PENDING_ON.
+	 * Otherwise, return OFF.
+	 */
+	for (i = 0; i < hyp_vm->nr_vcpus; i++) {
+		struct pkvm_hyp_vcpu *target = hyp_vm->vcpus[i];
+
+		mpidr = kvm_vcpu_get_mpidr_aff(&target->vcpu);
+
+		if ((mpidr & target_affinity_mask) == target_affinity) {
+			int power_state;
+
+			matching_cpus++;
+			power_state = READ_ONCE(target->power_state);
+			switch (power_state) {
+			case PSCI_0_2_AFFINITY_LEVEL_ON_PENDING:
+				ret = PSCI_0_2_AFFINITY_LEVEL_ON_PENDING;
+				break;
+			case PSCI_0_2_AFFINITY_LEVEL_ON:
+				ret = PSCI_0_2_AFFINITY_LEVEL_ON;
+				goto done;
+			case PSCI_0_2_AFFINITY_LEVEL_OFF:
+				break;
+			default:
+				ret = PSCI_RET_INTERNAL_FAILURE;
+				goto done;
+			}
+		}
+	}
+
+	if (!matching_cpus)
+		ret = PSCI_RET_INVALID_PARAMS;
+
+done:
+	/* Nothing to be handled by the host. Go back to the guest. */
+	smccc_set_retval(vcpu, ret, 0, 0, 0);
+	return true;
+}
+
+/*
+ * Returns true if the hypervisor has handled the PSCI call, and control should
+ * go back to the guest, or false if the host needs to do some additional work
+ * (e.g., turn off and update vcpu scheduling status).
+ */
+static bool pvm_psci_vcpu_off(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *vcpu = &hyp_vcpu->vcpu;
+
+	WARN_ON(vcpu->arch.mp_state.mp_state == KVM_MP_STATE_STOPPED);
+	WARN_ON(hyp_vcpu->power_state != PSCI_0_2_AFFINITY_LEVEL_ON);
+
+	WRITE_ONCE(vcpu->arch.mp_state.mp_state, KVM_MP_STATE_STOPPED);
+	WRITE_ONCE(hyp_vcpu->power_state, PSCI_0_2_AFFINITY_LEVEL_OFF);
+
+	/* Return to the host so that it can finish powering off the vcpu. */
+	return false;
+}
+
+static bool pvm_psci_version(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	/* Nothing to be handled by the host. Go back to the guest. */
+	smccc_set_retval(&hyp_vcpu->vcpu, KVM_ARM_PSCI_1_1, 0, 0, 0);
+	return true;
+}
+
+static bool pvm_psci_not_supported(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	/* Nothing to be handled by the host. Go back to the guest. */
+	smccc_set_retval(&hyp_vcpu->vcpu, PSCI_RET_NOT_SUPPORTED, 0, 0, 0);
+	return true;
+}
+
+static bool pvm_psci_features(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *vcpu = &hyp_vcpu->vcpu;
+	u32 feature = smccc_get_arg1(vcpu);
+	unsigned long val;
+
+	switch (feature) {
+	case PSCI_0_2_FN_PSCI_VERSION:
+	case PSCI_0_2_FN_CPU_SUSPEND:
+	case PSCI_0_2_FN64_CPU_SUSPEND:
+	case PSCI_0_2_FN_CPU_OFF:
+	case PSCI_0_2_FN_CPU_ON:
+	case PSCI_0_2_FN64_CPU_ON:
+	case PSCI_0_2_FN_AFFINITY_INFO:
+	case PSCI_0_2_FN64_AFFINITY_INFO:
+	case PSCI_0_2_FN_SYSTEM_OFF:
+	case PSCI_0_2_FN_SYSTEM_RESET:
+	case PSCI_1_0_FN_PSCI_FEATURES:
+	case PSCI_1_1_FN_SYSTEM_RESET2:
+	case PSCI_1_1_FN64_SYSTEM_RESET2:
+	case ARM_SMCCC_VERSION_FUNC_ID:
+		val = PSCI_RET_SUCCESS;
+		break;
+	default:
+		val = PSCI_RET_NOT_SUPPORTED;
+		break;
+	}
+
+	/* Nothing to be handled by the host. Go back to the guest. */
+	smccc_set_retval(vcpu, val, 0, 0, 0);
+	return true;
+}
+
+static bool pkvm_handle_psci(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *vcpu = &hyp_vcpu->vcpu;
+	u32 psci_fn = smccc_get_function(vcpu);
+
+	switch (psci_fn) {
+	case PSCI_0_2_FN_CPU_ON:
+		kvm_psci_narrow_to_32bit(vcpu);
+		fallthrough;
+	case PSCI_0_2_FN64_CPU_ON:
+		return pvm_psci_vcpu_on(hyp_vcpu);
+	case PSCI_0_2_FN_CPU_OFF:
+		return pvm_psci_vcpu_off(hyp_vcpu);
+	case PSCI_0_2_FN_AFFINITY_INFO:
+		kvm_psci_narrow_to_32bit(vcpu);
+		fallthrough;
+	case PSCI_0_2_FN64_AFFINITY_INFO:
+		return pvm_psci_vcpu_affinity_info(hyp_vcpu);
+	case PSCI_0_2_FN_PSCI_VERSION:
+		return pvm_psci_version(hyp_vcpu);
+	case PSCI_1_0_FN_PSCI_FEATURES:
+		return pvm_psci_features(hyp_vcpu);
+	case PSCI_0_2_FN_SYSTEM_RESET:
+	case PSCI_0_2_FN_CPU_SUSPEND:
+	case PSCI_0_2_FN64_CPU_SUSPEND:
+	case PSCI_0_2_FN_SYSTEM_OFF:
+	case PSCI_1_1_FN_SYSTEM_RESET2:
+	case PSCI_1_1_FN64_SYSTEM_RESET2:
+		return false; /* Handled by the host. */
+	default:
+		break;
+	}
+
+	return pvm_psci_not_supported(hyp_vcpu);
+}
+
+/*
  * Handler for protected VM HVC calls.
  *
  * Returns true if the hypervisor has handled the exit, and control should go
@@ -815,6 +1112,9 @@ err_unlock:
 bool kvm_handle_pvm_hvc64(struct kvm_vcpu *vcpu, u64 *exit_code)
 {
 	u32 fn = smccc_get_function(vcpu);
+	struct pkvm_hyp_vcpu *hyp_vcpu;
+
+	hyp_vcpu = container_of(vcpu, struct pkvm_hyp_vcpu, vcpu);
 
 	switch (fn) {
 	case ARM_SMCCC_VERSION_FUNC_ID:
@@ -822,6 +1122,6 @@ bool kvm_handle_pvm_hvc64(struct kvm_vcpu *vcpu, u64 *exit_code)
 		smccc_set_retval(vcpu, ARM_SMCCC_VERSION_1_1, 0, 0, 0);
 		return true;
 	default:
-		return false;
+		return pkvm_handle_psci(hyp_vcpu);
 	}
 }

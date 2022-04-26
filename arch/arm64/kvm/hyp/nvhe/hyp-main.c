@@ -21,6 +21,7 @@
 #include <nvhe/trap_handler.h>
 
 #include <linux/irqchip/arm-gic-v3.h>
+#include <uapi/linux/psci.h>
 
 #include "../../sys_regs.h"
 
@@ -48,7 +49,37 @@ static void handle_pvm_entry_wfx(struct pkvm_hyp_vcpu *hyp_vcpu)
 
 static void handle_pvm_entry_hvc64(struct pkvm_hyp_vcpu *hyp_vcpu)
 {
+	u32 psci_fn = smccc_get_function(&hyp_vcpu->vcpu);
 	u64 ret = READ_ONCE(hyp_vcpu->host_vcpu->arch.ctxt.regs.regs[0]);
+
+	switch (psci_fn) {
+	case PSCI_0_2_FN_CPU_ON:
+	case PSCI_0_2_FN64_CPU_ON:
+		/*
+		 * Check whether the cpu_on request to the host was successful.
+		 * If not, reset the vcpu state from ON_PENDING to OFF.
+		 * This could happen if this vcpu attempted to turn on the other
+		 * vcpu while the other one is in the process of turning itself
+		 * off.
+		 */
+		if (ret != PSCI_RET_SUCCESS) {
+			unsigned long cpu_id = smccc_get_arg1(&hyp_vcpu->vcpu);
+			struct pkvm_hyp_vcpu *target_vcpu;
+			struct pkvm_hyp_vm *hyp_vm;
+
+			hyp_vm = pkvm_hyp_vcpu_to_hyp_vm(hyp_vcpu);
+			target_vcpu = pkvm_mpidr_to_hyp_vcpu(hyp_vm, cpu_id);
+
+			if (target_vcpu && READ_ONCE(target_vcpu->power_state) == PSCI_0_2_AFFINITY_LEVEL_ON_PENDING)
+				WRITE_ONCE(target_vcpu->power_state, PSCI_0_2_AFFINITY_LEVEL_OFF);
+
+			ret = PSCI_RET_INTERNAL_FAILURE;
+		}
+
+		break;
+	default:
+		break;
+	}
 
 	vcpu_set_reg(&hyp_vcpu->vcpu, 0, ret);
 }
@@ -189,13 +220,45 @@ static void handle_pvm_exit_sys64(struct pkvm_hyp_vcpu *hyp_vcpu)
 static void handle_pvm_exit_hvc64(struct pkvm_hyp_vcpu *hyp_vcpu)
 {
 	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
-	int i;
+	int n, i;
+
+	switch (smccc_get_function(&hyp_vcpu->vcpu)) {
+	/*
+	 * CPU_ON takes 3 arguments, however, to wake up the target vcpu the
+	 * host only needs to know the target's cpu_id, which is passed as the
+	 * first argument. The processing of the reset state is done at hyp.
+	 */
+	case PSCI_0_2_FN_CPU_ON:
+	case PSCI_0_2_FN64_CPU_ON:
+		n = 2;
+		break;
+
+	case PSCI_0_2_FN_CPU_OFF:
+	case PSCI_0_2_FN_SYSTEM_OFF:
+	case PSCI_0_2_FN_SYSTEM_RESET:
+	case PSCI_0_2_FN_CPU_SUSPEND:
+	case PSCI_0_2_FN64_CPU_SUSPEND:
+		n = 1;
+		break;
+
+	case PSCI_1_1_FN_SYSTEM_RESET2:
+	case PSCI_1_1_FN64_SYSTEM_RESET2:
+		n = 3;
+		break;
+
+	/*
+	 * The rest are either blocked or handled by HYP, so we should
+	 * really never be here.
+	 */
+	default:
+		BUG();
+	}
 
 	WRITE_ONCE(host_vcpu->arch.fault.esr_el2,
 		   hyp_vcpu->vcpu.arch.fault.esr_el2);
 
 	/* Pass the hvc function id (r0) as well as any potential arguments. */
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < n; i++) {
 		WRITE_ONCE(host_vcpu->arch.ctxt.regs.regs[i],
 			   vcpu_get_reg(&hyp_vcpu->vcpu, i));
 	}
@@ -407,6 +470,9 @@ static void flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
 	hyp_entry_exit_handler_fn ec_handler;
 	u8 esr_ec;
+
+	if (READ_ONCE(hyp_vcpu->power_state) == PSCI_0_2_AFFINITY_LEVEL_ON_PENDING)
+		pkvm_reset_vcpu(hyp_vcpu);
 
 	/*
 	 * If we deal with a non-protected guest and the state is potentially
