@@ -78,6 +78,27 @@ static inline void idxd_prep_desc_common(struct idxd_wq *wq,
 }
 
 static struct dma_async_tx_descriptor *
+idxd_dma_prep_interrupt(struct dma_chan *c, unsigned long flags)
+{
+	struct idxd_wq *wq = to_idxd_wq(c);
+	u32 desc_flags;
+	struct idxd_desc *desc;
+
+	if (wq->state != IDXD_WQ_ENABLED)
+		return NULL;
+
+	op_flag_setup(flags, &desc_flags);
+	desc = idxd_alloc_desc(wq, IDXD_OP_BLOCK);
+	if (IS_ERR(desc))
+		return NULL;
+
+	idxd_prep_desc_common(wq, desc->hw, DSA_OPCODE_NOOP,
+			      0, 0, 0, desc->compl_dma, desc_flags);
+	desc->txd.flags = flags;
+	return &desc->txd;
+}
+
+static struct dma_async_tx_descriptor *
 idxd_dma_submit_memcpy(struct dma_chan *c, dma_addr_t dma_dest,
 		       dma_addr_t dma_src, size_t len, unsigned long flags)
 {
@@ -186,6 +207,7 @@ int idxd_register_dma_device(struct idxd_device *idxd)
 	dma_cap_set(DMA_COMPLETION_NO_ORDER, dma->cap_mask);
 	dma->device_release = idxd_dma_release;
 
+	dma->device_prep_dma_interrupt = idxd_dma_prep_interrupt;
 	if (idxd->hw.opcap.bits[0] & IDXD_OPCAP_MEMMOVE) {
 		dma_cap_set(DMA_MEMCPY, dma->cap_mask);
 		dma->device_prep_dma_memcpy = idxd_dma_submit_memcpy;
