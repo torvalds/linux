@@ -1294,8 +1294,8 @@ scripts_unifdef: scripts_basic
 # Install
 
 # Many distributions have the custom install script, /sbin/installkernel.
-# If DKMS is installed, 'make install' will eventually recuses back
-# to the this Makefile to build and install external modules.
+# If DKMS is installed, 'make install' will eventually recurse back
+# to this Makefile to build and install external modules.
 # Cancel sub_make_done so that options such as M=, V=, etc. are parsed.
 
 install: sub_make_done :=
