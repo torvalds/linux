@@ -292,6 +292,17 @@ int test__join_cgroup(const char *path);
 	___ok;								\
 })
 
+#define ASSERT_HAS_SUBSTR(str, substr, name) ({				\
+	static int duration = 0;					\
+	const char *___str = str;					\
+	const char *___substr = substr;					\
+	bool ___ok = strstr(___str, ___substr) != NULL;			\
+	CHECK(!___ok, (name),						\
+	      "unexpected %s: '%s' is not a substring of '%s'\n",	\
+	      (name), ___substr, ___str);				\
+	___ok;								\
+})
+
 #define ASSERT_OK(res, name) ({						\
 	static int duration = 0;					\
 	long long ___res = (res);					\
