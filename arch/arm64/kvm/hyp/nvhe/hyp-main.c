@@ -20,6 +20,14 @@
 
 #include <linux/irqchip/arm-gic-v3.h>
 
+/*
+ * Host FPSIMD state. Written to when the guest accesses its own FPSIMD state,
+ * and read when the guest state is live and we need to switch back to the host.
+ *
+ * Only valid when (fp_state == FP_STATE_GUEST_OWNED) in the hyp vCPU structure.
+ */
+static DEFINE_PER_CPU(struct user_fpsimd_state, loaded_host_fpsimd_state);
+
 DEFINE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
 
 void __kvm_hyp_host_forward_smc(struct kvm_cpu_context *host_ctxt);
@@ -185,12 +193,8 @@ static void flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 
 	hyp_vcpu->vcpu.arch.hcr_el2	= host_vcpu->arch.hcr_el2;
 	hyp_vcpu->vcpu.arch.mdcr_el2	= host_vcpu->arch.mdcr_el2;
-	hyp_vcpu->vcpu.arch.cptr_el2	= host_vcpu->arch.cptr_el2;
-
-	hyp_vcpu->vcpu.arch.fp_state	= host_vcpu->arch.fp_state;
 
 	hyp_vcpu->vcpu.arch.debug_ptr	= kern_hyp_va(host_vcpu->arch.debug_ptr);
-	hyp_vcpu->vcpu.arch.host_fpsimd_state = host_vcpu->arch.host_fpsimd_state;
 
 	hyp_vcpu->vcpu.arch.vsesr_el2	= host_vcpu->arch.vsesr_el2;
 
@@ -224,9 +228,6 @@ static void sync_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu, u32 exit_reason)
 	host_vcpu->arch.ctxt		= hyp_vcpu->vcpu.arch.ctxt;
 
 	host_vcpu->arch.hcr_el2		= hyp_vcpu->vcpu.arch.hcr_el2;
-	host_vcpu->arch.cptr_el2	= hyp_vcpu->vcpu.arch.cptr_el2;
-
-	host_vcpu->arch.fp_state	= hyp_vcpu->vcpu.arch.fp_state;
 
 	sync_hyp_vgic_state(hyp_vcpu);
 	sync_hyp_timer_state(hyp_vcpu);
@@ -249,6 +250,40 @@ static void sync_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu, u32 exit_reason)
 
 	vcpu_clear_flag(host_vcpu, PC_UPDATE_REQ);
 	hyp_vcpu->exit_code = exit_reason;
+}
+
+static void __hyp_sve_save_guest(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *vcpu = &hyp_vcpu->vcpu;
+
+	__sve_save_state(vcpu_sve_pffr(vcpu), &vcpu->arch.ctxt.fp_regs.fpsr);
+	__vcpu_sys_reg(vcpu, ZCR_EL1) = read_sysreg_el1(SYS_ZCR);
+	sve_cond_update_zcr_vq(vcpu_sve_max_vq(vcpu) - 1, SYS_ZCR_EL1);
+}
+
+static void fpsimd_host_restore(void)
+{
+	sysreg_clear_set(cptr_el2, CPTR_EL2_TZ | CPTR_EL2_TFP, 0);
+	isb();
+
+	if (unlikely(is_protected_kvm_enabled())) {
+		struct pkvm_hyp_vcpu *hyp_vcpu = pkvm_get_loaded_hyp_vcpu();
+		struct user_fpsimd_state *host_fpsimd_state;
+
+		host_fpsimd_state = this_cpu_ptr(&loaded_host_fpsimd_state);
+
+		if (vcpu_has_sve(&hyp_vcpu->vcpu))
+			__hyp_sve_save_guest(hyp_vcpu);
+		else
+			__fpsimd_save_state(&hyp_vcpu->vcpu.arch.ctxt.fp_regs);
+
+		__fpsimd_restore_state(host_fpsimd_state);
+
+		hyp_vcpu->vcpu.arch.fp_state = FP_STATE_HOST_OWNED;
+	}
+
+	if (system_supports_sve())
+		sve_cond_update_zcr_vq(ZCR_ELx_LEN_MASK, SYS_ZCR_EL2);
 }
 
 static void handle___pkvm_vcpu_load(struct kvm_cpu_context *host_ctxt)
@@ -277,6 +312,9 @@ static void handle___pkvm_vcpu_load(struct kvm_cpu_context *host_ctxt)
 		*last_ran = hyp_vcpu->vcpu.vcpu_id;
 	}
 
+	hyp_vcpu->vcpu.arch.host_fpsimd_state = this_cpu_ptr(&loaded_host_fpsimd_state);
+	hyp_vcpu->vcpu.arch.fp_state = FP_STATE_HOST_OWNED;
+
 	if (pkvm_hyp_vcpu_is_protected(hyp_vcpu)) {
 		/* Propagate WFx trapping flags, trap ptrauth */
 		hyp_vcpu->vcpu.arch.hcr_el2 &= ~(HCR_TWE | HCR_TWI |
@@ -295,6 +333,9 @@ static void handle___pkvm_vcpu_put(struct kvm_cpu_context *host_ctxt)
 	hyp_vcpu = pkvm_get_loaded_hyp_vcpu();
 	if (hyp_vcpu) {
 		struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+
+		if (hyp_vcpu->vcpu.arch.fp_state == FP_STATE_GUEST_OWNED)
+			fpsimd_host_restore();
 
 		if (!pkvm_hyp_vcpu_is_protected(hyp_vcpu) &&
 		    !vcpu_get_flag(host_vcpu, PKVM_HOST_STATE_DIRTY)) {
@@ -315,6 +356,9 @@ static void handle___pkvm_vcpu_sync_state(struct kvm_cpu_context *host_ctxt)
 	hyp_vcpu = pkvm_get_loaded_hyp_vcpu();
 	if (!hyp_vcpu || pkvm_hyp_vcpu_is_protected(hyp_vcpu))
 		return;
+
+	if (hyp_vcpu->vcpu.arch.fp_state == FP_STATE_GUEST_OWNED)
+		fpsimd_host_restore();
 
 	__sync_hyp_vcpu(hyp_vcpu);
 }
@@ -362,6 +406,19 @@ static void handle___kvm_vcpu_run(struct kvm_cpu_context *host_ctxt)
 		ret = __kvm_vcpu_run(&hyp_vcpu->vcpu);
 
 		sync_hyp_vcpu(hyp_vcpu, ret);
+
+		if (hyp_vcpu->vcpu.arch.fp_state == FP_STATE_GUEST_OWNED) {
+			/*
+			 * The guest has used the FP, trap all accesses
+			 * from the host (both FP and SVE).
+			 */
+			u64 reg = CPTR_EL2_TFP;
+
+			if (system_supports_sve())
+				reg |= CPTR_EL2_TZ;
+
+			sysreg_clear_set(cptr_el2, 0, reg);
+		}
 	} else {
 		/* The host is fully trusted, run its vCPU directly. */
 		ret = __kvm_vcpu_run(host_vcpu);
@@ -706,10 +763,9 @@ void handle_trap(struct kvm_cpu_context *host_ctxt)
 	case ESR_ELx_EC_SMC64:
 		handle_host_smc(host_ctxt);
 		break;
+	case ESR_ELx_EC_FP_ASIMD:
 	case ESR_ELx_EC_SVE:
-		sysreg_clear_set(cptr_el2, CPTR_EL2_TZ, 0);
-		isb();
-		sve_cond_update_zcr_vq(ZCR_ELx_LEN_MASK, SYS_ZCR_EL2);
+		fpsimd_host_restore();
 		break;
 	case ESR_ELx_EC_IABT_LOW:
 	case ESR_ELx_EC_DABT_LOW:
