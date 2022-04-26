@@ -298,6 +298,21 @@ struct dpu_drm_scaler_v2 {
 	struct dpu_drm_de_v1 de;
 };
 
+/**
+ * struct dpu_hw_cdp_cfg : CDP configuration
+ * @enable: true to enable CDP
+ * @ubwc_meta_enable: true to enable ubwc metadata preload
+ * @tile_amortize_enable: true to enable amortization control for tile format
+ * @preload_ahead: number of request to preload ahead
+ *	DPU_*_CDP_PRELOAD_AHEAD_32,
+ *	DPU_*_CDP_PRELOAD_AHEAD_64
+ */
+struct dpu_hw_cdp_cfg {
+	bool enable;
+	bool ubwc_meta_enable;
+	bool tile_amortize_enable;
+	u32 preload_ahead;
+};
 
 u32 *dpu_hw_util_get_log_mask_ptr(void);
 
