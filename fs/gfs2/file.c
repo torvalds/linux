@@ -840,6 +840,7 @@ retry:
 	pagefault_enable();
 	if (ret <= 0 && ret != -EFAULT)
 		goto out_unlock;
+	/* No increment (+=) because iomap_dio_rw returns a cumulative value. */
 	if (ret > 0)
 		read = ret;
 
@@ -854,6 +855,7 @@ out_unlock:
 		gfs2_glock_dq(gh);
 out_uninit:
 	gfs2_holder_uninit(gh);
+	/* User space doesn't expect partial success. */
 	if (ret < 0)
 		return ret;
 	return read;
@@ -906,6 +908,7 @@ retry:
 		if (ret != -EFAULT)
 			goto out_unlock;
 	}
+	/* No increment (+=) because iomap_dio_rw returns a cumulative value. */
 	if (ret > 0)
 		written = ret;
 
@@ -920,6 +923,7 @@ out_unlock:
 		gfs2_glock_dq(gh);
 out_uninit:
 	gfs2_holder_uninit(gh);
+	/* User space doesn't expect partial success. */
 	if (ret < 0)
 		return ret;
 	return written;
