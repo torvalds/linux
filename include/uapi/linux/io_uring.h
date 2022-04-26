@@ -214,6 +214,16 @@ enum {
 #define IORING_ASYNC_CANCEL_ANY	(1U << 2)
 
 /*
+ * send/sendmsg and recv/recvmsg flags (sqe->addr2)
+ *
+ * IORING_RECVSEND_POLL_FIRST	If set, instead of first attempting to send
+ *				or receive and arm poll if that yields an
+ *				-EAGAIN result, arm poll upfront and skip
+ *				the initial transfer attempt.
+ */
+#define IORING_RECVSEND_POLL_FIRST	(1U << 0)
+
+/*
  * IO completion data structure (Completion Queue Entry)
  */
 struct io_uring_cqe {
