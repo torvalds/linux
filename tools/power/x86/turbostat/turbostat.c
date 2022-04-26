@@ -2976,7 +2976,7 @@ int get_thread_siblings(struct cpu_topology *thiscpu)
 				}
 			}
 		}
-	} while (!strncmp(&character, ",", 1));
+	} while (character == ',');
 	fclose(filep);
 
 	return CPU_COUNT_S(size, thiscpu->put_ids);
