@@ -36,8 +36,10 @@
 #define SOF_DAI_CLK_INTEL_SSP_BCLK	1
 
 enum sof_widget_op {
-	SOF_WIDGET_FREE,
+	SOF_WIDGET_PREPARE,
 	SOF_WIDGET_SETUP,
+	SOF_WIDGET_FREE,
+	SOF_WIDGET_UNPREPARE,
 };
 
 /*
@@ -129,6 +131,8 @@ struct sof_ipc_tplg_control_ops {
  * @token_list: List of token ID's that should be parsed for the widget
  * @token_list_size: number of elements in token_list
  * @bind_event: Function pointer for binding events to the widget
+ * @ipc_prepare: Optional op for preparing a widget for set up
+ * @ipc_unprepare: Optional op for unpreparing a widget
  */
 struct sof_ipc_tplg_widget_ops {
 	int (*ipc_setup)(struct snd_sof_widget *swidget);
@@ -137,6 +141,11 @@ struct sof_ipc_tplg_widget_ops {
 	int token_list_size;
 	int (*bind_event)(struct snd_soc_component *scomp, struct snd_sof_widget *swidget,
 			  u16 event_type);
+	int (*ipc_prepare)(struct snd_sof_widget *swidget,
+			   struct snd_pcm_hw_params *fe_params,
+			   struct snd_sof_platform_stream_params *platform_params,
+			   struct snd_pcm_hw_params *source_params, int dir);
+	void (*ipc_unprepare)(struct snd_sof_widget *swidget);
 };
 
 /**
@@ -332,6 +341,11 @@ struct snd_sof_widget {
 	 * widgets. It is unused for all other widget types.
 	 */
 	int complete;
+	/*
+	 * the prepared flag is used to indicate that a widget has been prepared for getting set
+	 * up in the DSP.
+	 */
+	bool prepared;
 	int use_count; /* use_count will be protected by the PCM mutex held by the core */
 	int core;
 	int id; /* id is the DAPM widget type */
@@ -491,7 +505,10 @@ int sof_route_setup(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *wsourc
 		    struct snd_soc_dapm_widget *wsink);
 
 /* PCM */
-int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int dir);
+int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
+			  struct snd_pcm_hw_params *fe_params,
+			  struct snd_sof_platform_stream_params *platform_params,
+			  int dir);
 int sof_widget_list_free(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int dir);
 int sof_pcm_dsp_pcm_free(struct snd_pcm_substream *substream, struct snd_sof_dev *sdev,
 			 struct snd_sof_pcm *spcm);

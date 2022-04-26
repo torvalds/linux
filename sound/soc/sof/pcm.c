@@ -84,7 +84,8 @@ EXPORT_SYMBOL(snd_sof_pcm_period_elapsed);
 
 static int
 sof_pcm_setup_connected_widgets(struct snd_sof_dev *sdev, struct snd_soc_pcm_runtime *rtd,
-				struct snd_sof_pcm *spcm, int dir)
+				struct snd_sof_pcm *spcm, struct snd_pcm_hw_params *params,
+				struct snd_sof_platform_stream_params *platform_params, int dir)
 {
 	struct snd_soc_dai *dai;
 	int ret, j;
@@ -103,7 +104,7 @@ sof_pcm_setup_connected_widgets(struct snd_sof_dev *sdev, struct snd_soc_pcm_run
 
 		spcm->stream[dir].list = list;
 
-		ret = sof_widget_list_setup(sdev, spcm, dir);
+		ret = sof_widget_list_setup(sdev, spcm, params, platform_params, dir);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: failed widget list set up for pcm %d dir %d\n",
 				spcm->pcm.pcm_id, dir);
@@ -159,7 +160,8 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 
 	/* if this is a repeated hw_params without hw_free, skip setting up widgets */
 	if (!spcm->stream[substream->stream].list) {
-		ret = sof_pcm_setup_connected_widgets(sdev, rtd, spcm, substream->stream);
+		ret = sof_pcm_setup_connected_widgets(sdev, rtd, spcm, params, &platform_params,
+						      substream->stream);
 		if (ret < 0)
 			return ret;
 	}
