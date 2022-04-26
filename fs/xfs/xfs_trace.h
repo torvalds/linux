@@ -3534,6 +3534,25 @@ DEFINE_EVENT(xfs_trans_resv_class, name, \
 DEFINE_TRANS_RESV_EVENT(xfs_trans_resv_calc);
 DEFINE_TRANS_RESV_EVENT(xfs_trans_resv_calc_minlogsize);
 
+TRACE_EVENT(xfs_log_get_max_trans_res,
+	TP_PROTO(struct xfs_mount *mp, const struct xfs_trans_res *res),
+	TP_ARGS(mp, res),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(uint, logres)
+		__field(int, logcount)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->logres = res->tr_logres;
+		__entry->logcount = res->tr_logcount;
+	),
+	TP_printk("dev %d:%d logres %u logcount %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->logres,
+		  __entry->logcount)
+);
+
 DECLARE_EVENT_CLASS(xfs_trans_class,
 	TP_PROTO(struct xfs_trans *tp, unsigned long caller_ip),
 	TP_ARGS(tp, caller_ip),

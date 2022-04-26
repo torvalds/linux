@@ -76,6 +76,7 @@ xfs_log_get_max_trans_res(
 		*max_resp = resv.tr_attrsetm;	/* struct copy */
 		max_resp->tr_logres = attr_space;
 	}
+	trace_xfs_log_get_max_trans_res(mp, max_resp);
 }
 
 /*

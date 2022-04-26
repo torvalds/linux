@@ -32,7 +32,6 @@ static void
 xfs_trans_trace_reservations(
 	struct xfs_mount	*mp)
 {
-	struct xfs_trans_res	resv;
 	struct xfs_trans_res	*res;
 	struct xfs_trans_res	*end_res;
 	int			i;
@@ -41,8 +40,6 @@ xfs_trans_trace_reservations(
 	end_res = (struct xfs_trans_res *)(M_RES(mp) + 1);
 	for (i = 0; res < end_res; i++, res++)
 		trace_xfs_trans_resv_calc(mp, i, res);
-	xfs_log_get_max_trans_res(mp, &resv);
-	trace_xfs_trans_resv_calc(mp, -1, &resv);
 }
 #else
 # define xfs_trans_trace_reservations(mp)
