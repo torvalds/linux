@@ -792,6 +792,10 @@ void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer)
 				dump_buffer->dma_buffer[i].dma_buf,
 				(unsigned long)dump_buffer->dma_buffer[i].iova);
 		}
+
+		if (dump_buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS)
+			pr_info("is contiguous, pa = 0x%lx\n",
+				(unsigned long)dump_buffer->phys_addr);
 		break;
 	case RGA_VIRTUAL_ADDRESS:
 		pr_info("virtual address: va = 0x%lx, pages = %p, size = %ld\n",
@@ -863,6 +867,7 @@ static int rga_mm_set_mmu_flag(struct rga_job *job)
 	els_mmu_en = rga_mm_is_need_mmu(job->core, job->els_buffer.addr);
 
 	mmu_info = &job->rga_command_base.mmu_info;
+	memset(mmu_info, 0x0, sizeof(*mmu_info));
 	if (src_mmu_en)
 		mmu_info->mmu_flag |= (0x1 << 8);
 	if (src1_mmu_en)
