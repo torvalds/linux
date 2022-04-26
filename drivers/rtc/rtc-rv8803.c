@@ -64,6 +64,7 @@ struct rv8803_data {
 	struct rtc_device *rtc;
 	struct mutex flags_lock;
 	u8 ctrl;
+	u8 backup;
 	enum rv8803_type type;
 };
 
@@ -498,16 +499,30 @@ static int rx8900_trickle_charger_init(struct rv8803_data *rv8803)
 	if (err < 0)
 		return err;
 
-	flags = ~(RX8900_FLAG_VDETOFF | RX8900_FLAG_SWOFF) & (u8)err;
-
-	if (of_property_read_bool(node, "epson,vdet-disable"))
-		flags |= RX8900_FLAG_VDETOFF;
-
-	if (of_property_read_bool(node, "trickle-diode-disable"))
-		flags |= RX8900_FLAG_SWOFF;
+	flags = (u8)err;
+	flags &= ~(RX8900_FLAG_VDETOFF | RX8900_FLAG_SWOFF);
+	flags |= rv8803->backup;
 
 	return i2c_smbus_write_byte_data(rv8803->client, RX8900_BACKUP_CTRL,
 					 flags);
+}
+
+/* configure registers with values different than the Power-On reset defaults */
+static int rv8803_regs_configure(struct rv8803_data *rv8803)
+{
+	int err;
+
+	err = rv8803_write_reg(rv8803->client, RV8803_EXT, RV8803_EXT_WADA);
+	if (err)
+		return err;
+
+	err = rx8900_trickle_charger_init(rv8803);
+	if (err) {
+		dev_err(&rv8803->client->dev, "failed to init charger\n");
+		return err;
+	}
+
+	return 0;
 }
 
 static int rv8803_probe(struct i2c_client *client,
@@ -576,15 +591,15 @@ static int rv8803_probe(struct i2c_client *client,
 	if (!client->irq)
 		clear_bit(RTC_FEATURE_ALARM, rv8803->rtc->features);
 
-	err = rv8803_write_reg(rv8803->client, RV8803_EXT, RV8803_EXT_WADA);
+	if (of_property_read_bool(client->dev.of_node, "epson,vdet-disable"))
+		rv8803->backup |= RX8900_FLAG_VDETOFF;
+
+	if (of_property_read_bool(client->dev.of_node, "trickle-diode-disable"))
+		rv8803->backup |= RX8900_FLAG_SWOFF;
+
+	err = rv8803_regs_configure(rv8803);
 	if (err)
 		return err;
-
-	err = rx8900_trickle_charger_init(rv8803);
-	if (err) {
-		dev_err(&client->dev, "failed to init charger\n");
-		return err;
-	}
 
 	rv8803->rtc->ops = &rv8803_rtc_ops;
 	rv8803->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
