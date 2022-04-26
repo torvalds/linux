@@ -314,7 +314,7 @@ static int en7523_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	np_base = devm_platform_ioremap_resource(pdev, 1);
-	if (IS_ERR(base))
+	if (IS_ERR(np_base))
 		return PTR_ERR(np_base);
 
 	clk_data = devm_kzalloc(&pdev->dev,
