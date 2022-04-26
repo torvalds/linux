@@ -38,6 +38,53 @@ xfs_log_calc_max_attrsetm_res(
 }
 
 /*
+ * Compute an alternate set of log reservation sizes for use exclusively with
+ * minimum log size calculations.
+ */
+static void
+xfs_log_calc_trans_resv_for_minlogblocks(
+	struct xfs_mount	*mp,
+	struct xfs_trans_resv	*resv)
+{
+	unsigned int		rmap_maxlevels = mp->m_rmap_maxlevels;
+
+	/*
+	 * In the early days of rmap+reflink, we always set the rmap maxlevels
+	 * to 9 even if the AG was small enough that it would never grow to
+	 * that height.  Transaction reservation sizes influence the minimum
+	 * log size calculation, which influences the size of the log that mkfs
+	 * creates.  Use the old value here to ensure that newly formatted
+	 * small filesystems will mount on older kernels.
+	 */
+	if (xfs_has_rmapbt(mp) && xfs_has_reflink(mp))
+		mp->m_rmap_maxlevels = XFS_OLD_REFLINK_RMAP_MAXLEVELS;
+
+	xfs_trans_resv_calc(mp, resv);
+
+	if (xfs_has_reflink(mp)) {
+		/*
+		 * In the early days of reflink, typical log operation counts
+		 * were greatly overestimated.
+		 */
+		resv->tr_write.tr_logcount = XFS_WRITE_LOG_COUNT_REFLINK;
+		resv->tr_itruncate.tr_logcount =
+				XFS_ITRUNCATE_LOG_COUNT_REFLINK;
+		resv->tr_qm_dqalloc.tr_logcount = XFS_WRITE_LOG_COUNT_REFLINK;
+	} else if (xfs_has_rmapbt(mp)) {
+		/*
+		 * In the early days of non-reflink rmap, the impact of rmapbt
+		 * updates on log counts were not taken into account at all.
+		 */
+		resv->tr_write.tr_logcount = XFS_WRITE_LOG_COUNT;
+		resv->tr_itruncate.tr_logcount = XFS_ITRUNCATE_LOG_COUNT;
+		resv->tr_qm_dqalloc.tr_logcount = XFS_WRITE_LOG_COUNT;
+	}
+
+	/* Put everything back the way it was.  This goes at the end. */
+	mp->m_rmap_maxlevels = rmap_maxlevels;
+}
+
+/*
  * Iterate over the log space reservation table to figure out and return
  * the maximum one in terms of the pre-calculated values which were done
  * at mount time.
@@ -47,7 +94,7 @@ xfs_log_get_max_trans_res(
 	struct xfs_mount	*mp,
 	struct xfs_trans_res	*max_resp)
 {
-	struct xfs_trans_resv	resv;
+	struct xfs_trans_resv	resv = {};
 	struct xfs_trans_res	*resp;
 	struct xfs_trans_res	*end_resp;
 	unsigned int		i;
@@ -56,7 +103,7 @@ xfs_log_get_max_trans_res(
 
 	attr_space = xfs_log_calc_max_attrsetm_res(mp);
 
-	memcpy(&resv, M_RES(mp), sizeof(struct xfs_trans_resv));
+	xfs_log_calc_trans_resv_for_minlogblocks(mp, &resv);
 
 	resp = (struct xfs_trans_res *)&resv;
 	end_resp = (struct xfs_trans_res *)(&resv + 1);

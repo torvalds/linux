@@ -815,36 +815,18 @@ xfs_trans_resv_calc(
 	struct xfs_mount	*mp,
 	struct xfs_trans_resv	*resp)
 {
-	unsigned int		rmap_maxlevels = mp->m_rmap_maxlevels;
-
-	/*
-	 * In the early days of rmap+reflink, we always set the rmap maxlevels
-	 * to 9 even if the AG was small enough that it would never grow to
-	 * that height.  Transaction reservation sizes influence the minimum
-	 * log size calculation, which influences the size of the log that mkfs
-	 * creates.  Use the old value here to ensure that newly formatted
-	 * small filesystems will mount on older kernels.
-	 */
-	if (xfs_has_rmapbt(mp) && xfs_has_reflink(mp))
-		mp->m_rmap_maxlevels = XFS_OLD_REFLINK_RMAP_MAXLEVELS;
+	int			logcount_adj = 0;
 
 	/*
 	 * The following transactions are logged in physical format and
 	 * require a permanent reservation on space.
 	 */
 	resp->tr_write.tr_logres = xfs_calc_write_reservation(mp);
-	if (xfs_has_reflink(mp))
-		resp->tr_write.tr_logcount = XFS_WRITE_LOG_COUNT_REFLINK;
-	else
-		resp->tr_write.tr_logcount = XFS_WRITE_LOG_COUNT;
+	resp->tr_write.tr_logcount = XFS_WRITE_LOG_COUNT;
 	resp->tr_write.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
 	resp->tr_itruncate.tr_logres = xfs_calc_itruncate_reservation(mp);
-	if (xfs_has_reflink(mp))
-		resp->tr_itruncate.tr_logcount =
-				XFS_ITRUNCATE_LOG_COUNT_REFLINK;
-	else
-		resp->tr_itruncate.tr_logcount = XFS_ITRUNCATE_LOG_COUNT;
+	resp->tr_itruncate.tr_logcount = XFS_ITRUNCATE_LOG_COUNT;
 	resp->tr_itruncate.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
 	resp->tr_rename.tr_logres = xfs_calc_rename_reservation(mp);
@@ -901,10 +883,7 @@ xfs_trans_resv_calc(
 	resp->tr_growrtalloc.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
 	resp->tr_qm_dqalloc.tr_logres = xfs_calc_qm_dqalloc_reservation(mp);
-	if (xfs_has_reflink(mp))
-		resp->tr_qm_dqalloc.tr_logcount = XFS_WRITE_LOG_COUNT_REFLINK;
-	else
-		resp->tr_qm_dqalloc.tr_logcount = XFS_WRITE_LOG_COUNT;
+	resp->tr_qm_dqalloc.tr_logcount = XFS_WRITE_LOG_COUNT;
 	resp->tr_qm_dqalloc.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
 
 	/*
@@ -931,6 +910,19 @@ xfs_trans_resv_calc(
 	resp->tr_growrtzero.tr_logres = xfs_calc_growrtzero_reservation(mp);
 	resp->tr_growrtfree.tr_logres = xfs_calc_growrtfree_reservation(mp);
 
-	/* Put everything back the way it was.  This goes at the end. */
-	mp->m_rmap_maxlevels = rmap_maxlevels;
+	/*
+	 * Add one logcount for BUI items that appear with rmap or reflink,
+	 * one logcount for refcount intent items, and one logcount for rmap
+	 * intent items.
+	 */
+	if (xfs_has_reflink(mp) || xfs_has_rmapbt(mp))
+		logcount_adj++;
+	if (xfs_has_reflink(mp))
+		logcount_adj++;
+	if (xfs_has_rmapbt(mp))
+		logcount_adj++;
+
+	resp->tr_itruncate.tr_logcount += logcount_adj;
+	resp->tr_write.tr_logcount += logcount_adj;
+	resp->tr_qm_dqalloc.tr_logcount += logcount_adj;
 }
