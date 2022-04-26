@@ -667,6 +667,16 @@ static void dpu_encoder_phys_wb_cleanup_wb_job(struct dpu_encoder_phys *phys_enc
 	wb_enc->wb_conn = NULL;
 }
 
+static bool dpu_encoder_phys_wb_is_valid_for_commit(struct dpu_encoder_phys *phys_enc)
+{
+	struct dpu_encoder_phys_wb *wb_enc = to_dpu_encoder_phys_wb(phys_enc);
+
+	if (wb_enc->wb_job)
+		return true;
+	else
+		return false;
+}
+
 /**
  * dpu_encoder_phys_wb_init_ops - initialize writeback operations
  * @ops:	Pointer to encoder operation table
@@ -687,6 +697,8 @@ static void dpu_encoder_phys_wb_init_ops(struct dpu_encoder_phys_ops *ops)
 	ops->prepare_wb_job = dpu_encoder_phys_wb_prepare_wb_job;
 	ops->cleanup_wb_job = dpu_encoder_phys_wb_cleanup_wb_job;
 	ops->irq_control = dpu_encoder_phys_wb_irq_ctrl;
+	ops->is_valid_for_commit = dpu_encoder_phys_wb_is_valid_for_commit;
+
 }
 
 /**

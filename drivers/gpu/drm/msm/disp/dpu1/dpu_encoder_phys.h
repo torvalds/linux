@@ -142,6 +142,7 @@ struct dpu_encoder_phys_ops {
 			struct drm_writeback_job *job);
 	void (*cleanup_wb_job)(struct dpu_encoder_phys *phys_enc,
 			struct drm_writeback_job *job);
+	bool (*is_valid_for_commit)(struct dpu_encoder_phys *phys_enc);
 };
 
 /**
