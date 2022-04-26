@@ -367,7 +367,6 @@ xfs_rmap_lookup_le_range_helper(
 		return 0;
 
 	*info->irec = *rec;
-	*info->stat = 1;
 	return -ECANCELED;
 }
 
@@ -388,6 +387,7 @@ xfs_rmap_lookup_le_range(
 	int			*stat)
 {
 	struct xfs_find_left_neighbor_info	info;
+	int			found = 0;
 	int			error;
 
 	info.high.rm_startblock = bno;
@@ -400,20 +400,44 @@ xfs_rmap_lookup_le_range(
 	info.high.rm_blockcount = 0;
 	*stat = 0;
 	info.irec = irec;
-	info.stat = stat;
 
-	trace_xfs_rmap_lookup_le_range(cur->bc_mp,
-			cur->bc_ag.pag->pag_agno, bno, 0, owner, offset, flags);
-	error = xfs_rmap_query_range(cur, &info.high, &info.high,
-			xfs_rmap_lookup_le_range_helper, &info);
-	if (error == -ECANCELED)
-		error = 0;
-	if (*stat)
-		trace_xfs_rmap_lookup_le_range_result(cur->bc_mp,
-				cur->bc_ag.pag->pag_agno, irec->rm_startblock,
-				irec->rm_blockcount, irec->rm_owner,
-				irec->rm_offset, irec->rm_flags);
-	return error;
+	trace_xfs_rmap_lookup_le_range(cur->bc_mp, cur->bc_ag.pag->pag_agno,
+			bno, 0, owner, offset, flags);
+
+	/*
+	 * Historically, we always used the range query to walk every reverse
+	 * mapping that could possibly overlap the key that the caller asked
+	 * for, and filter out the ones that don't.  That is very slow when
+	 * there are a lot of records.
+	 *
+	 * However, there are two scenarios where the classic btree search can
+	 * produce correct results -- if the index contains a record that is an
+	 * exact match for the lookup key; and if there are no other records
+	 * between the record we want and the key we supplied.
+	 *
+	 * As an optimization, try a non-overlapped lookup first.  This makes
+	 * scrub run much faster on most filesystems because bmbt records are
+	 * usually an exact match for rmap records.  If we don't find what we
+	 * want, we fall back to the overlapped query.
+	 */
+	error = xfs_rmap_lookup_le(cur, bno, owner, offset, flags, irec,
+			&found);
+	if (error)
+		return error;
+	if (found)
+		error = xfs_rmap_lookup_le_range_helper(cur, irec, &info);
+	if (!error)
+		error = xfs_rmap_query_range(cur, &info.high, &info.high,
+				xfs_rmap_lookup_le_range_helper, &info);
+	if (error != -ECANCELED)
+		return error;
+
+	*stat = 1;
+	trace_xfs_rmap_lookup_le_range_result(cur->bc_mp,
+			cur->bc_ag.pag->pag_agno, irec->rm_startblock,
+			irec->rm_blockcount, irec->rm_owner, irec->rm_offset,
+			irec->rm_flags);
+	return 0;
 }
 
 /*
