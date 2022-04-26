@@ -2102,7 +2102,7 @@ static void dpu_encoder_early_unregister(struct drm_encoder *encoder)
 }
 
 static int dpu_encoder_virt_add_phys_encs(
-		u32 display_caps,
+		struct msm_display_info *disp_info,
 		struct dpu_encoder_virt *dpu_enc,
 		struct dpu_enc_phys_init_params *params)
 {
@@ -2121,7 +2121,7 @@ static int dpu_encoder_virt_add_phys_encs(
 		return -EINVAL;
 	}
 
-	if (display_caps & MSM_DISPLAY_CAP_VID_MODE) {
+	if (disp_info->capabilities & MSM_DISPLAY_CAP_VID_MODE) {
 		enc = dpu_encoder_phys_vid_init(params);
 
 		if (IS_ERR_OR_NULL(enc)) {
@@ -2134,12 +2134,25 @@ static int dpu_encoder_virt_add_phys_encs(
 		++dpu_enc->num_phys_encs;
 	}
 
-	if (display_caps & MSM_DISPLAY_CAP_CMD_MODE) {
+	if (disp_info->capabilities & MSM_DISPLAY_CAP_CMD_MODE) {
 		enc = dpu_encoder_phys_cmd_init(params);
 
 		if (IS_ERR_OR_NULL(enc)) {
 			DPU_ERROR_ENC(dpu_enc, "failed to init cmd enc: %ld\n",
 				PTR_ERR(enc));
+			return enc == NULL ? -EINVAL : PTR_ERR(enc);
+		}
+
+		dpu_enc->phys_encs[dpu_enc->num_phys_encs] = enc;
+		++dpu_enc->num_phys_encs;
+	}
+
+	if (disp_info->intf_type == DRM_MODE_ENCODER_VIRTUAL) {
+		enc = dpu_encoder_phys_wb_init(params);
+
+		if (IS_ERR_OR_NULL(enc)) {
+			DPU_ERROR_ENC(dpu_enc, "failed to init wb enc: %ld\n",
+					PTR_ERR(enc));
 			return enc == NULL ? -EINVAL : PTR_ERR(enc);
 		}
 
@@ -2252,9 +2265,8 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 		}
 
 		if (!ret) {
-			ret = dpu_encoder_virt_add_phys_encs(disp_info->capabilities,
-												 dpu_enc,
-												 &phys_params);
+			ret = dpu_encoder_virt_add_phys_encs(disp_info,
+					dpu_enc, &phys_params);
 			if (ret)
 				DPU_ERROR_ENC(dpu_enc, "failed to add phys encs\n");
 		}
@@ -2371,8 +2383,9 @@ struct drm_encoder *dpu_encoder_init(struct drm_device *dev,
 	if (!dpu_enc)
 		return ERR_PTR(-ENOMEM);
 
+
 	rc = drm_encoder_init(dev, &dpu_enc->base, &dpu_encoder_funcs,
-			drm_enc_mode, NULL);
+							  drm_enc_mode, NULL);
 	if (rc) {
 		devm_kfree(dev->dev, dpu_enc);
 		return ERR_PTR(rc);
