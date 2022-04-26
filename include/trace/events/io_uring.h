@@ -530,7 +530,7 @@ TRACE_EVENT(io_uring_req_failed,
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, "
-		  "op %d, flags 0x%x, prio=%d, off=%llu, addr=%llu, "
+		  "opcode %d, flags 0x%x, prio=%d, off=%llu, addr=%llu, "
 		  "len=%u, rw_flags=0x%x, buf_index=%d, "
 		  "personality=%d, file_index=%d, pad=0x%llx, addr3=%llx, "
 		  "error=%d",
