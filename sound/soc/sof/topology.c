@@ -1721,14 +1721,16 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 		return -ENOMEM;
 	}
 
-	/* parse one set of DAI link tokens */
-	ret = sof_copy_tuples(sdev, private->array, le32_to_cpu(private->size),
-			      SOF_DAI_LINK_TOKENS, 1, slink->tuples,
-			      num_tuples, &slink->num_tuples);
-	if (ret < 0) {
-		dev_err(scomp->dev, "failed to parse %s for dai link %s\n",
-			token_list[SOF_DAI_LINK_TOKENS].name, link->name);
-		goto err;
+	if (token_list[SOF_DAI_LINK_TOKENS].tokens) {
+		/* parse one set of DAI link tokens */
+		ret = sof_copy_tuples(sdev, private->array, le32_to_cpu(private->size),
+				      SOF_DAI_LINK_TOKENS, 1, slink->tuples,
+				      num_tuples, &slink->num_tuples);
+		if (ret < 0) {
+			dev_err(scomp->dev, "failed to parse %s for dai link %s\n",
+				token_list[SOF_DAI_LINK_TOKENS].name, link->name);
+			goto err;
+		}
 	}
 
 	/* nothing more to do if there are no DAI type-specific tokens defined */
