@@ -137,6 +137,13 @@ static int rv8803_write_regs(const struct i2c_client *client,
 	return ret;
 }
 
+static int rv8803_regs_configure(struct rv8803_data *rv8803);
+
+static int rv8803_regs_reset(struct rv8803_data *rv8803)
+{
+	return rv8803_regs_configure(rv8803);
+}
+
 static irqreturn_t rv8803_handle_irq(int irq, void *dev_id)
 {
 	struct i2c_client *client = dev_id;
@@ -268,6 +275,12 @@ static int rv8803_set_time(struct device *dev, struct rtc_time *tm)
 	if (flags < 0) {
 		mutex_unlock(&rv8803->flags_lock);
 		return flags;
+	}
+
+	if (flags & RV8803_FLAG_V2F) {
+		ret = rv8803_regs_reset(rv8803);
+		if (ret)
+			return ret;
 	}
 
 	ret = rv8803_write_reg(rv8803->client, RV8803_FLAG,
