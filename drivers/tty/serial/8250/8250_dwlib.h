@@ -20,6 +20,9 @@ struct dw8250_port_data {
 
 	/* Hardware configuration */
 	u8			dlf_size;
+
+	/* RS485 variables */
+	bool			hw_rs485_support;
 };
 
 struct dw8250_platform_data {
