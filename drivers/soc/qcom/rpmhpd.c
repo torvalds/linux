@@ -613,10 +613,8 @@ static int rpmhpd_probe(struct platform_device *pdev)
 	data->num_domains = num_pds;
 
 	for (i = 0; i < num_pds; i++) {
-		if (!rpmhpds[i]) {
-			dev_warn(dev, "rpmhpds[%d] is empty\n", i);
+		if (!rpmhpds[i])
 			continue;
-		}
 
 		rpmhpds[i]->dev = dev;
 		rpmhpds[i]->addr = cmd_db_read_addr(rpmhpds[i]->res_name);
