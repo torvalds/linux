@@ -8229,7 +8229,7 @@ static int io_sq_thread(void *data)
 				 * Ensure the store of the wakeup flag is not
 				 * reordered with the load of the SQ tail
 				 */
-				smp_mb();
+				smp_mb__after_atomic();
 
 				if (io_sqring_entries(ctx)) {
 					needs_sched = false;
