@@ -984,8 +984,8 @@ tegra_dma_prep_slave_sg(struct dma_chan *dc, struct scatterlist *sgl,
 {
 	struct tegra_dma_channel *tdc = to_tegra_dma_chan(dc);
 	unsigned int max_dma_count = tdc->tdma->chip_data->max_dma_count;
+	enum dma_slave_buswidth slave_bw = DMA_SLAVE_BUSWIDTH_UNDEFINED;
 	u32 csr, mc_seq, apb_ptr = 0, mmio_seq = 0;
-	enum dma_slave_buswidth slave_bw;
 	struct tegra_dma_sg_req *sg_req;
 	struct tegra_dma_desc *dma_desc;
 	struct scatterlist *sg;
@@ -1102,12 +1102,12 @@ tegra_dma_prep_dma_cyclic(struct dma_chan *dc, dma_addr_t buf_addr, size_t buf_l
 			  size_t period_len, enum dma_transfer_direction direction,
 			  unsigned long flags)
 {
+	enum dma_slave_buswidth slave_bw = DMA_SLAVE_BUSWIDTH_UNDEFINED;
+	u32 csr, mc_seq, apb_ptr = 0, mmio_seq = 0, burst_size;
+	unsigned int max_dma_count, len, period_count, i;
 	struct tegra_dma_channel *tdc = to_tegra_dma_chan(dc);
 	struct tegra_dma_desc *dma_desc;
 	struct tegra_dma_sg_req *sg_req;
-	enum dma_slave_buswidth slave_bw;
-	u32 csr, mc_seq, apb_ptr = 0, mmio_seq = 0, burst_size;
-	unsigned int max_dma_count, len, period_count, i;
 	dma_addr_t mem = buf_addr;
 	int ret;
 
