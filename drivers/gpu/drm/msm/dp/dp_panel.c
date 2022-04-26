@@ -151,15 +151,6 @@ static int dp_panel_update_modes(struct drm_connector *connector,
 	return rc;
 }
 
-void dp_panel_add_fail_safe_mode(struct drm_connector *connector)
-{
-	/* fail safe edid */
-	mutex_lock(&connector->dev->mode_config.mutex);
-	if (drm_add_modes_noedid(connector, 640, 480))
-		drm_set_preferred_mode(connector, 640, 480);
-	mutex_unlock(&connector->dev->mode_config.mutex);
-}
-
 int dp_panel_read_sink_caps(struct dp_panel *dp_panel,
 	struct drm_connector *connector)
 {
@@ -215,8 +206,6 @@ int dp_panel_read_sink_caps(struct dp_panel *dp_panel,
 			rc = -ETIMEDOUT;
 			goto end;
 		}
-
-		dp_panel_add_fail_safe_mode(connector);
 	}
 
 	if (panel->aux_cfg_update_done) {
