@@ -49,6 +49,9 @@
 #define I8K_SMM_GET_DELL_SIG1	0xfea3
 #define I8K_SMM_GET_DELL_SIG2	0xffa3
 
+/* in usecs */
+#define DELL_SMM_MAX_DURATION  250000
+
 #define I8K_FAN_MULT		30
 #define I8K_FAN_RPM_THRESHOLD	1000
 #define I8K_MAX_TEMP		127
@@ -238,6 +241,9 @@ static int i8k_smm_func(void *par)
 	duration = ktime_us_delta(ktime_get(), calltime);
 	pr_debug("smm(0x%.4x 0x%.4x) = 0x%.4x  (took %7lld usecs)\n", eax, ebx,
 		 (rc ? 0xffff : regs->eax & 0xffff), duration);
+
+	if (duration > DELL_SMM_MAX_DURATION)
+		pr_warn_once("SMM call took %lld usecs!\n", duration);
 
 	return rc;
 }
