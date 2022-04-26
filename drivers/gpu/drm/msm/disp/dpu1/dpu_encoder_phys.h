@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  */
 
@@ -349,5 +350,11 @@ int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
 		int irq,
 		void (*func)(void *arg, int irq_idx),
 		struct dpu_encoder_wait_info *wait_info);
+
+/**
+ * dpu_encoder_helper_phys_cleanup - helper to cleanup dpu pipeline
+ * @phys_enc: Pointer to physical encoder structure
+ */
+void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc);
 
 #endif /* __dpu_encoder_phys_H__ */

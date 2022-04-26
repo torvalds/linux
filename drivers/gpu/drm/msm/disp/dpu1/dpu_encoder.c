@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2014-2018, 2020-2021 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
+ * Copyright (c) 2014-2018, 2020-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
@@ -22,6 +24,7 @@
 #include "dpu_hw_ctl.h"
 #include "dpu_hw_dspp.h"
 #include "dpu_hw_dsc.h"
+#include "dpu_hw_merge3d.h"
 #include "dpu_formats.h"
 #include "dpu_encoder_phys.h"
 #include "dpu_crtc.h"
@@ -1836,6 +1839,86 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc)
 	}
 
 	DPU_ATRACE_END("encoder_kickoff");
+}
+
+static void dpu_encoder_helper_reset_mixers(struct dpu_encoder_phys *phys_enc)
+{
+	struct dpu_hw_mixer_cfg mixer;
+	int i, num_lm;
+	u32 flush_mask = 0;
+	struct dpu_global_state *global_state;
+	struct dpu_hw_blk *hw_lm[2];
+	struct dpu_hw_mixer *hw_mixer[2];
+	struct dpu_hw_ctl *ctl = phys_enc->hw_ctl;
+
+	memset(&mixer, 0, sizeof(mixer));
+
+	/* reset all mixers for this encoder */
+	if (phys_enc->hw_ctl->ops.clear_all_blendstages)
+		phys_enc->hw_ctl->ops.clear_all_blendstages(phys_enc->hw_ctl);
+
+	global_state = dpu_kms_get_existing_global_state(phys_enc->dpu_kms);
+
+	num_lm = dpu_rm_get_assigned_resources(&phys_enc->dpu_kms->rm, global_state,
+		phys_enc->parent->base.id, DPU_HW_BLK_LM, hw_lm, ARRAY_SIZE(hw_lm));
+
+	for (i = 0; i < num_lm; i++) {
+		hw_mixer[i] = to_dpu_hw_mixer(hw_lm[i]);
+		flush_mask = phys_enc->hw_ctl->ops.get_bitmask_mixer(ctl, hw_mixer[i]->idx);
+		if (phys_enc->hw_ctl->ops.update_pending_flush)
+			phys_enc->hw_ctl->ops.update_pending_flush(ctl, flush_mask);
+
+		/* clear all blendstages */
+		if (phys_enc->hw_ctl->ops.setup_blendstage)
+			phys_enc->hw_ctl->ops.setup_blendstage(ctl, hw_mixer[i]->idx, NULL);
+	}
+}
+
+void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc)
+{
+	struct dpu_hw_ctl *ctl = phys_enc->hw_ctl;
+	struct dpu_hw_intf_cfg intf_cfg = { 0 };
+	int i;
+	struct dpu_encoder_virt *dpu_enc;
+
+	dpu_enc = to_dpu_encoder_virt(phys_enc->parent);
+
+	phys_enc->hw_ctl->ops.reset(ctl);
+
+	dpu_encoder_helper_reset_mixers(phys_enc);
+
+	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
+		if (dpu_enc->phys_encs[i] && phys_enc->hw_intf->ops.bind_pingpong_blk)
+			phys_enc->hw_intf->ops.bind_pingpong_blk(
+					dpu_enc->phys_encs[i]->hw_intf, false,
+					dpu_enc->phys_encs[i]->hw_pp->idx);
+
+		/* mark INTF flush as pending */
+		if (phys_enc->hw_ctl->ops.update_pending_flush_intf)
+			phys_enc->hw_ctl->ops.update_pending_flush_intf(phys_enc->hw_ctl,
+					dpu_enc->phys_encs[i]->hw_intf->idx);
+	}
+
+	/* reset the merge 3D HW block */
+	if (phys_enc->hw_pp->merge_3d) {
+		phys_enc->hw_pp->merge_3d->ops.setup_3d_mode(phys_enc->hw_pp->merge_3d,
+				BLEND_3D_NONE);
+		if (phys_enc->hw_ctl->ops.update_pending_flush_merge_3d)
+			phys_enc->hw_ctl->ops.update_pending_flush_merge_3d(ctl,
+					phys_enc->hw_pp->merge_3d->idx);
+	}
+
+	intf_cfg.stream_sel = 0; /* Don't care value for video mode */
+	intf_cfg.mode_3d = dpu_encoder_helper_get_3d_blend_mode(phys_enc);
+	if (phys_enc->hw_pp->merge_3d)
+		intf_cfg.merge_3d = phys_enc->hw_pp->merge_3d->idx;
+
+	if (ctl->ops.reset_intf_cfg)
+		ctl->ops.reset_intf_cfg(ctl, &intf_cfg);
+
+	ctl->ops.trigger_flush(ctl);
+	ctl->ops.trigger_start(ctl);
+	ctl->ops.clear_pending_flush(ctl);
 }
 
 void dpu_encoder_prepare_commit(struct drm_encoder *drm_enc)
