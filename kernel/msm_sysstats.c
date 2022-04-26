@@ -379,6 +379,8 @@ static int sysstats_all_pids_of_name(struct sk_buff *skb, struct netlink_callbac
 		goto out;
 
 	comm = nla_strdup_cust(nla, GFP_KERNEL);
+	if (!comm)
+		goto out;
 
 	iter.tgid = cb->args[0];
 	iter.task = NULL;
