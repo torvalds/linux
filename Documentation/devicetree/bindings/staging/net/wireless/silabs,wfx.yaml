@@ -39,6 +39,7 @@ properties:
   compatible:
     items:
       - enum:
+          - prt,prtt1c-wfm200 # Protonic PRTT1C Board
           - silabs,brd4001a # WGM160P Evaluation Board
           - silabs,brd8022a # WF200 Evaluation Board
           - silabs,brd8023a # WFM200 Evaluation Board
