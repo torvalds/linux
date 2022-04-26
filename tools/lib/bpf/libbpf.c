@@ -5749,15 +5749,15 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 				return -EINVAL;
 			insn = &prog->insns[insn_idx];
 
-			if (prog->obj->gen_loader) {
-				err = record_relo_core(prog, rec, insn_idx);
-				if (err) {
-					pr_warn("prog '%s': relo #%d: failed to record relocation: %d\n",
-						prog->name, i, err);
-					goto out;
-				}
-				continue;
+			err = record_relo_core(prog, rec, insn_idx);
+			if (err) {
+				pr_warn("prog '%s': relo #%d: failed to record relocation: %d\n",
+					prog->name, i, err);
+				goto out;
 			}
+
+			if (prog->obj->gen_loader)
+				continue;
 
 			err = bpf_core_resolve_relo(prog, rec, i, obj->btf, cand_cache, &targ_res);
 			if (err) {
@@ -6299,7 +6299,6 @@ bpf_object__relocate_calls(struct bpf_object *obj, struct bpf_program *prog)
 	if (err)
 		return err;
 
-
 	return 0;
 }
 
@@ -6360,8 +6359,7 @@ bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 				err);
 			return err;
 		}
-		if (obj->gen_loader)
-			bpf_object__sort_relos(obj);
+		bpf_object__sort_relos(obj);
 	}
 
 	/* Before relocating calls pre-process relocations and mark
@@ -6421,8 +6419,7 @@ bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 			return err;
 		}
 	}
-	if (!obj->gen_loader)
-		bpf_object__free_relocs(obj);
+
 	return 0;
 }
 
@@ -7014,8 +7011,8 @@ bpf_object__load_progs(struct bpf_object *obj, int log_level)
 		if (err)
 			return err;
 	}
-	if (obj->gen_loader)
-		bpf_object__free_relocs(obj);
+
+	bpf_object__free_relocs(obj);
 	return 0;
 }
 
