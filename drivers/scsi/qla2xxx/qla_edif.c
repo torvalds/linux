@@ -657,7 +657,6 @@ qla_edif_app_chk_sa_update(scsi_qla_host_t *vha, fc_port_t *fcport,
 static int
 qla_edif_app_authok(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 {
-	int32_t			rval = 0;
 	struct auth_complete_cmd appplogiok;
 	struct app_plogi_reply	appplogireply = {0};
 	struct fc_bsg_reply	*bsg_reply = bsg_job->reply;
@@ -758,7 +757,7 @@ errstate_exit:
 							       &appplogireply,
 							       sizeof(struct app_plogi_reply));
 
-	return rval;
+	return 0;
 }
 
 /**
