@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  */
 
 #ifndef _DPU_HW_CATALOG_H
@@ -211,6 +213,42 @@ enum {
 	DPU_INTF_TE,
 	DPU_DATA_HCTL_EN,
 	DPU_INTF_MAX
+};
+
+/**
+  * WB sub-blocks and features
+  * @DPU_WB_LINE_MODE        Writeback module supports line/linear mode
+  * @DPU_WB_BLOCK_MODE       Writeback module supports block mode read
+  * @DPU_WB_CHROMA_DOWN,     Writeback chroma down block,
+  * @DPU_WB_DOWNSCALE,       Writeback integer downscaler,
+  * @DPU_WB_DITHER,          Dither block
+  * @DPU_WB_TRAFFIC_SHAPER,  Writeback traffic shaper bloc
+  * @DPU_WB_UBWC,            Writeback Universal bandwidth compression
+  * @DPU_WB_YUV_CONFIG       Writeback supports output of YUV colorspace
+  * @DPU_WB_PIPE_ALPHA       Writeback supports pipe alpha
+  * @DPU_WB_XY_ROI_OFFSET    Writeback supports x/y-offset of out ROI in
+  *                          the destination image
+  * @DPU_WB_QOS,             Writeback supports QoS control, danger/safe/creq
+  * @DPU_WB_QOS_8LVL,        Writeback supports 8-level QoS control
+  * @DPU_WB_CDP              Writeback supports client driven prefetch
+  * @DPU_WB_INPUT_CTRL       Writeback supports from which pp block input pixel
+  *                          data arrives.
+  * @DPU_WB_CROP             CWB supports cropping
+  * @DPU_WB_MAX              maximum value
+  */
+enum {
+	DPU_WB_LINE_MODE = 0x1,
+	DPU_WB_BLOCK_MODE,
+	DPU_WB_UBWC,
+	DPU_WB_YUV_CONFIG,
+	DPU_WB_PIPE_ALPHA,
+	DPU_WB_XY_ROI_OFFSET,
+	DPU_WB_QOS,
+	DPU_WB_QOS_8LVL,
+	DPU_WB_CDP,
+	DPU_WB_INPUT_CTRL,
+	DPU_WB_CROP,
+	DPU_WB_MAX
 };
 
 /**
@@ -460,6 +498,7 @@ enum dpu_clk_ctrl_type {
 	DPU_CLK_CTRL_CURSOR1,
 	DPU_CLK_CTRL_INLINE_ROT0_SSPP,
 	DPU_CLK_CTRL_REG_DMA,
+	DPU_CLK_CTRL_WB2,
 	DPU_CLK_CTRL_MAX,
 };
 
@@ -605,6 +644,28 @@ struct dpu_intf_cfg  {
 	u32 prog_fetch_lines_worst_case;
 	s32 intr_underrun;
 	s32 intr_vsync;
+};
+
+/**
+ * struct dpu_wb_cfg - information of writeback blocks
+ * @DPU_HW_BLK_INFO:    refer to the description above for DPU_HW_BLK_INFO
+ * @vbif_idx:           vbif client index
+ * @maxlinewidth:       max line width supported by writeback block
+ * @xin_id:             bus client identifier
+ * @intr_wb_done:       interrupt index for WB_DONE
+ * @format_list:	    list of formats supported by this writeback block
+ * @num_formats:	    number of formats supported by this writeback block
+ * @clk_ctrl:	        clock control identifier
+ */
+struct dpu_wb_cfg {
+	DPU_HW_BLK_INFO;
+	u8 vbif_idx;
+	u32 maxlinewidth;
+	u32 xin_id;
+	s32 intr_wb_done;
+	const u32 *format_list;
+	u32 num_formats;
+	enum dpu_clk_ctrl_type clk_ctrl;
 };
 
 /**
@@ -791,6 +852,9 @@ struct dpu_mdss_cfg {
 
 	u32 vbif_count;
 	const struct dpu_vbif_cfg *vbif;
+
+	u32 wb_count;
+	const struct dpu_wb_cfg *wb;
 
 	u32 reg_dma_count;
 	struct dpu_reg_dma_cfg dma_cfg;

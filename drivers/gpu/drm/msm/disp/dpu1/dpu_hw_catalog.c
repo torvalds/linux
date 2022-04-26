@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
@@ -120,6 +121,16 @@
 			  BIT(MDP_AD4_0_INTR) | \
 			  BIT(MDP_AD4_1_INTR))
 
+#define WB_SM8250_MASK (BIT(DPU_WB_LINE_MODE) | \
+			 BIT(DPU_WB_UBWC) | \
+			 BIT(DPU_WB_YUV_CONFIG) | \
+			 BIT(DPU_WB_PIPE_ALPHA) | \
+			 BIT(DPU_WB_XY_ROI_OFFSET) | \
+			 BIT(DPU_WB_QOS) | \
+			 BIT(DPU_WB_QOS_8LVL) | \
+			 BIT(DPU_WB_CDP) | \
+			 BIT(DPU_WB_INPUT_CTRL))
+
 #define DEFAULT_PIXEL_RAM_SIZE		(50 * 1024)
 #define DEFAULT_DPU_LINE_WIDTH		2048
 #define DEFAULT_DPU_OUTPUT_LINE_WIDTH	2560
@@ -209,6 +220,40 @@ static const uint32_t plane_formats_yuv[] = {
 static const u32 rotation_v2_formats[] = {
 	DRM_FORMAT_NV12,
 	/* TODO add formats after validation */
+};
+
+static const uint32_t wb2_formats[] = {
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_BGR565,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGBX5551,
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_RGBA4444,
+	DRM_FORMAT_RGBX4444,
+	DRM_FORMAT_XRGB4444,
+	DRM_FORMAT_BGR565,
+	DRM_FORMAT_BGR888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR1555,
+	DRM_FORMAT_BGRA5551,
+	DRM_FORMAT_XBGR1555,
+	DRM_FORMAT_BGRX5551,
+	DRM_FORMAT_ABGR4444,
+	DRM_FORMAT_BGRA4444,
+	DRM_FORMAT_BGRX4444,
+	DRM_FORMAT_XBGR4444,
 };
 
 /*************************************************************
@@ -448,6 +493,8 @@ static const struct dpu_mdp_cfg sm8250_mdp[] = {
 			.reg_off = 0x2C4, .bit_off = 8},
 	.clk_ctrls[DPU_CLK_CTRL_REG_DMA] = {
 			.reg_off = 0x2BC, .bit_off = 20},
+	.clk_ctrls[DPU_CLK_CTRL_WB2] = {
+			.reg_off = 0x3B8, .bit_off = 24},
 	},
 };
 
@@ -1235,6 +1282,29 @@ static const struct dpu_intf_cfg qcm2290_intf[] = {
 };
 
 /*************************************************************
+ * Writeback blocks config
+ *************************************************************/
+#define WB_BLK(_name, _id, _base, _features, _clk_ctrl, \
+		__xin_id, vbif_id, _reg, _wb_done_bit) \
+	{ \
+	.name = _name, .id = _id, \
+	.base = _base, .len = 0x2c8, \
+	.features = _features, \
+	.format_list = wb2_formats, \
+	.num_formats = ARRAY_SIZE(wb2_formats), \
+	.clk_ctrl = _clk_ctrl, \
+	.xin_id = __xin_id, \
+	.vbif_idx = vbif_id, \
+	.maxlinewidth = DEFAULT_DPU_LINE_WIDTH, \
+	.intr_wb_done = DPU_IRQ_IDX(_reg, _wb_done_bit) \
+	}
+
+static const struct dpu_wb_cfg sm8250_wb[] = {
+	WB_BLK("wb_2", WB_2, 0x65000, WB_SM8250_MASK, DPU_CLK_CTRL_WB2, 6,
+			VBIF_RT, MDP_SSPP_TOP0_INTR, 4),
+};
+
+/*************************************************************
  * VBIF sub blocks config
  *************************************************************/
 /* VBIF QOS remap */
@@ -1832,6 +1902,8 @@ static void sm8250_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.intf = sm8150_intf,
 		.vbif_count = ARRAY_SIZE(sdm845_vbif),
 		.vbif = sdm845_vbif,
+		.wb_count = ARRAY_SIZE(sm8250_wb),
+		.wb = sm8250_wb,
 		.reg_dma_count = 1,
 		.dma_cfg = sm8250_regdma,
 		.perf = sm8250_perf_data,
