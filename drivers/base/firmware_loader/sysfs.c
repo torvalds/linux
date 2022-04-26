@@ -7,7 +7,6 @@
 #include <linux/types.h>
 
 #include "sysfs.h"
-#include "sysfs_upload.h"
 
 /*
  * sysfs support for firmware loader
