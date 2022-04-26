@@ -259,6 +259,8 @@ static void em_cpufreq_update_efficiencies(struct device *dev)
 			found++;
 	}
 
+	cpufreq_cpu_put(policy);
+
 	if (!found)
 		return;
 
