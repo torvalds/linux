@@ -6,9 +6,7 @@
 /* Default "unsigned long" context */
 typedef unsigned long mm_context_t;
 #else
-typedef struct {
-	unsigned long		end_brk;
-} mm_context_t;
+#include <asm-generic/mmu.h>
 #endif
 
 #endif
