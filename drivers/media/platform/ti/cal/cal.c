@@ -715,22 +715,33 @@ static inline void cal_irq_wdma_end(struct cal_ctx *ctx)
 	}
 }
 
+static void cal_irq_handle_wdma(struct cal_ctx *ctx, bool start, bool end)
+{
+	if (end)
+		cal_irq_wdma_end(ctx);
+
+	if (start)
+		cal_irq_wdma_start(ctx);
+}
+
 static irqreturn_t cal_irq(int irq_cal, void *data)
 {
 	struct cal_dev *cal = data;
-	u32 status;
+	u32 status[3];
+	unsigned int i;
 
-	status = cal_read(cal, CAL_HL_IRQSTATUS(0));
-	if (status) {
-		unsigned int i;
+	for (i = 0; i < 3; ++i) {
+		status[i] = cal_read(cal, CAL_HL_IRQSTATUS(i));
+		if (status[i])
+			cal_write(cal, CAL_HL_IRQSTATUS(i), status[i]);
+	}
 
-		cal_write(cal, CAL_HL_IRQSTATUS(0), status);
-
-		if (status & CAL_HL_IRQ_OCPO_ERR_MASK)
+	if (status[0]) {
+		if (status[0] & CAL_HL_IRQ_OCPO_ERR_MASK)
 			dev_err_ratelimited(cal->dev, "OCPO ERROR\n");
 
 		for (i = 0; i < cal->data->num_csi2_phy; ++i) {
-			if (status & CAL_HL_IRQ_CIO_MASK(i)) {
+			if (status[0] & CAL_HL_IRQ_CIO_MASK(i)) {
 				u32 cio_stat = cal_read(cal,
 							CAL_CSI2_COMPLEXIO_IRQSTATUS(i));
 
@@ -741,7 +752,7 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 					  cio_stat);
 			}
 
-			if (status & CAL_HL_IRQ_VC_MASK(i)) {
+			if (status[0] & CAL_HL_IRQ_VC_MASK(i)) {
 				u32 vc_stat = cal_read(cal, CAL_CSI2_VC_IRQSTATUS(i));
 
 				dev_err_ratelimited(cal->dev,
@@ -753,32 +764,12 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 		}
 	}
 
-	/* Check which DMA just finished */
-	status = cal_read(cal, CAL_HL_IRQSTATUS(1));
-	if (status) {
-		unsigned int i;
+	for (i = 0; i < cal->num_contexts; ++i) {
+		bool end = !!(status[1] & CAL_HL_IRQ_WDMA_END_MASK(i));
+		bool start = !!(status[2] & CAL_HL_IRQ_WDMA_START_MASK(i));
 
-		/* Clear Interrupt status */
-		cal_write(cal, CAL_HL_IRQSTATUS(1), status);
-
-		for (i = 0; i < cal->num_contexts; ++i) {
-			if (status & CAL_HL_IRQ_WDMA_END_MASK(i))
-				cal_irq_wdma_end(cal->ctx[i]);
-		}
-	}
-
-	/* Check which DMA just started */
-	status = cal_read(cal, CAL_HL_IRQSTATUS(2));
-	if (status) {
-		unsigned int i;
-
-		/* Clear Interrupt status */
-		cal_write(cal, CAL_HL_IRQSTATUS(2), status);
-
-		for (i = 0; i < cal->num_contexts; ++i) {
-			if (status & CAL_HL_IRQ_WDMA_START_MASK(i))
-				cal_irq_wdma_start(cal->ctx[i]);
-		}
+		if (start || end)
+			cal_irq_handle_wdma(cal->ctx[i], start, end);
 	}
 
 	return IRQ_HANDLED;
