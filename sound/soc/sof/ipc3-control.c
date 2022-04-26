@@ -694,6 +694,23 @@ static int sof_ipc3_widget_kcontrol_setup(struct snd_sof_dev *sdev,
 	return 0;
 }
 
+static int
+sof_ipc3_set_up_volume_table(struct snd_sof_control *scontrol, int tlv[SOF_TLV_ITEMS], int size)
+{
+	int i;
+
+	/* init the volume table */
+	scontrol->volume_table = kcalloc(size, sizeof(u32), GFP_KERNEL);
+	if (!scontrol->volume_table)
+		return -ENOMEM;
+
+	/* populate the volume table */
+	for (i = 0; i < size ; i++)
+		scontrol->volume_table[i] = vol_compute_gain(i, tlv);
+
+	return 0;
+}
+
 const struct sof_ipc_tplg_control_ops tplg_ipc3_control_ops = {
 	.volume_put = sof_ipc3_volume_put,
 	.volume_get = sof_ipc3_volume_get,
@@ -708,4 +725,5 @@ const struct sof_ipc_tplg_control_ops tplg_ipc3_control_ops = {
 	.bytes_ext_volatile_get = sof_ipc3_bytes_ext_volatile_get,
 	.update = sof_ipc3_control_update,
 	.widget_kcontrol_setup = sof_ipc3_widget_kcontrol_setup,
+	.set_up_volume_table = sof_ipc3_set_up_volume_table,
 };

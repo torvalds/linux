@@ -39,6 +39,8 @@
  */
 #define VOLUME_FWL	16
 
+#define SOF_TLV_ITEMS 3
+
 struct snd_sof_widget;
 struct snd_sof_route;
 struct snd_sof_control;
@@ -88,6 +90,9 @@ struct sof_ipc_tplg_control_ops {
 	void (*update)(struct snd_sof_dev *sdev, void *ipc_control_message);
 	/* Optional callback to setup kcontrols associated with an swidget */
 	int (*widget_kcontrol_setup)(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
+	/* mandatory callback to set up volume table for volume kcontrols */
+	int (*set_up_volume_table)(struct snd_sof_control *scontrol, int tlv[SOF_TLV_ITEMS],
+				   int size);
 };
 
 /**
@@ -463,4 +468,5 @@ int sof_update_ipc_object(struct snd_soc_component *scomp, void *object, enum so
 			  size_t object_size, int token_instance_num);
 int sof_pcm_setup_connected_widgets(struct snd_sof_dev *sdev, struct snd_soc_pcm_runtime *rtd,
 				    struct snd_sof_pcm *spcm, int dir);
+u32 vol_compute_gain(u32 value, int *tlv);
 #endif
