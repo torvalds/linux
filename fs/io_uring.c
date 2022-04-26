@@ -3056,8 +3056,12 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 			struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    comp_list);
 
-			if (!(req->flags & REQ_F_CQE_SKIP))
-				__io_fill_cqe_req_filled(ctx, req);
+			if (!(req->flags & REQ_F_CQE_SKIP)) {
+				if (!(ctx->flags & IORING_SETUP_CQE32))
+					__io_fill_cqe_req_filled(ctx, req);
+				else
+					__io_fill_cqe32_req_filled(ctx, req);
+			}
 		}
 
 		io_commit_cqring(ctx);
