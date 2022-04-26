@@ -7,6 +7,8 @@
 #include <linux/kvm_host.h>
 #include <linux/mm.h>
 
+#include <kvm/arm_hypercalls.h>
+
 #include <asm/kvm_emulate.h>
 
 #include <nvhe/mem_protect.h>
@@ -802,4 +804,24 @@ int __pkvm_teardown_vm(pkvm_handle_t handle)
 err_unlock:
 	hyp_spin_unlock(&vm_table_lock);
 	return err;
+}
+
+/*
+ * Handler for protected VM HVC calls.
+ *
+ * Returns true if the hypervisor has handled the exit, and control should go
+ * back to the guest, or false if it hasn't.
+ */
+bool kvm_handle_pvm_hvc64(struct kvm_vcpu *vcpu, u64 *exit_code)
+{
+	u32 fn = smccc_get_function(vcpu);
+
+	switch (fn) {
+	case ARM_SMCCC_VERSION_FUNC_ID:
+		/* Nothing to be handled by the host. Go back to the guest. */
+		smccc_set_retval(vcpu, ARM_SMCCC_VERSION_1_1, 0, 0, 0);
+		return true;
+	default:
+		return false;
+	}
 }

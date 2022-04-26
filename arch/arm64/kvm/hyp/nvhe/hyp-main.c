@@ -4,6 +4,8 @@
  * Author: Andrew Scull <ascull@google.com>
  */
 
+#include <kvm/arm_hypercalls.h>
+
 #include <hyp/adjust_pc.h>
 
 #include <asm/pgtable-types.h>
@@ -42,6 +44,13 @@ static void handle_pvm_entry_wfx(struct pkvm_hyp_vcpu *hyp_vcpu)
 		vcpu_clear_flag(&hyp_vcpu->vcpu, PC_UPDATE_REQ);
 		kvm_incr_pc(&hyp_vcpu->vcpu);
 	}
+}
+
+static void handle_pvm_entry_hvc64(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	u64 ret = READ_ONCE(hyp_vcpu->host_vcpu->arch.ctxt.regs.regs[0]);
+
+	vcpu_set_reg(&hyp_vcpu->vcpu, 0, ret);
 }
 
 static void handle_pvm_entry_sys64(struct pkvm_hyp_vcpu *hyp_vcpu)
@@ -177,6 +186,21 @@ static void handle_pvm_exit_sys64(struct pkvm_hyp_vcpu *hyp_vcpu)
 	}
 }
 
+static void handle_pvm_exit_hvc64(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+	int i;
+
+	WRITE_ONCE(host_vcpu->arch.fault.esr_el2,
+		   hyp_vcpu->vcpu.arch.fault.esr_el2);
+
+	/* Pass the hvc function id (r0) as well as any potential arguments. */
+	for (i = 0; i < 8; i++) {
+		WRITE_ONCE(host_vcpu->arch.ctxt.regs.regs[i],
+			   vcpu_get_reg(&hyp_vcpu->vcpu, i));
+	}
+}
+
 static void handle_pvm_exit_iabt(struct pkvm_hyp_vcpu *hyp_vcpu)
 {
 	WRITE_ONCE(hyp_vcpu->host_vcpu->arch.fault.esr_el2,
@@ -250,6 +274,7 @@ static void handle_vm_exit_abt(struct pkvm_hyp_vcpu *hyp_vcpu)
 static const hyp_entry_exit_handler_fn entry_hyp_pvm_handlers[] = {
 	[0 ... ESR_ELx_EC_MAX]		= NULL,
 	[ESR_ELx_EC_WFx]		= handle_pvm_entry_wfx,
+	[ESR_ELx_EC_HVC64]		= handle_pvm_entry_hvc64,
 	[ESR_ELx_EC_SYS64]		= handle_pvm_entry_sys64,
 	[ESR_ELx_EC_IABT_LOW]		= handle_pvm_entry_iabt,
 	[ESR_ELx_EC_DABT_LOW]		= handle_pvm_entry_dabt,
@@ -258,6 +283,7 @@ static const hyp_entry_exit_handler_fn entry_hyp_pvm_handlers[] = {
 static const hyp_entry_exit_handler_fn exit_hyp_pvm_handlers[] = {
 	[0 ... ESR_ELx_EC_MAX]		= NULL,
 	[ESR_ELx_EC_WFx]		= handle_pvm_exit_wfx,
+	[ESR_ELx_EC_HVC64]		= handle_pvm_exit_hvc64,
 	[ESR_ELx_EC_SYS64]		= handle_pvm_exit_sys64,
 	[ESR_ELx_EC_IABT_LOW]		= handle_pvm_exit_iabt,
 	[ESR_ELx_EC_DABT_LOW]		= handle_pvm_exit_dabt,
