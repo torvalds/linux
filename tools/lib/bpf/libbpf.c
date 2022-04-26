@@ -6828,10 +6828,6 @@ retry_load:
 		pr_warn("prog '%s': -- BEGIN PROG LOAD LOG --\n%s-- END PROG LOAD LOG --\n",
 			prog->name, log_buf);
 	}
-	if (insns_cnt >= BPF_MAXINSNS) {
-		pr_warn("prog '%s': program too large (%d insns), at most %d insns\n",
-			prog->name, insns_cnt, BPF_MAXINSNS);
-	}
 
 out:
 	if (own_log_buf)
