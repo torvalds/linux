@@ -1064,6 +1064,7 @@ static void __init rv1106_grf_clk_init(struct device_node *np)
 }
 CLK_OF_DECLARE(rv1106_grf_cru, "rockchip,rv1106-grf-cru", rv1106_grf_clk_init);
 
+#ifdef MODULE
 struct clk_rv1106_inits {
 	void (*inits)(struct device_node *np);
 };
@@ -1115,3 +1116,4 @@ builtin_platform_driver_probe(clk_rv1106_driver, clk_rv1106_probe);
 
 MODULE_DESCRIPTION("Rockchip RV1106 Clock Driver");
 MODULE_LICENSE("GPL");
+#endif /* MODULE */
