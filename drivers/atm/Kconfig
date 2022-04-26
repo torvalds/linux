@@ -146,26 +146,6 @@ config ATM_ENI_BURST_RX_2W
 	  try this if you have disabled 4W and 8W bursts. Enabling 2W if 4W or
 	  8W are also set may or may not improve throughput.
 
-config ATM_ZATM
-	tristate "ZeitNet ZN1221/ZN1225"
-	depends on PCI && VIRT_TO_BUS
-	help
-	  Driver for the ZeitNet ZN1221 (MMF) and ZN1225 (UTP-5) 155 Mbps ATM
-	  adapters.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called zatm.
-
-config ATM_ZATM_DEBUG
-	bool "Enable extended debugging"
-	depends on ATM_ZATM
-	help
-	  Extended debugging records various events and displays that list
-	  when an inconsistency is detected. This mechanism is faster than
-	  generally using printks, but still has some impact on performance.
-	  Note that extended debugging may create certain race conditions
-	  itself. Enable this ONLY if you suspect problems with the driver.
-
 config ATM_NICSTAR
 	tristate "IDT 77201 (NICStAR) (ForeRunnerLE)"
 	depends on PCI
