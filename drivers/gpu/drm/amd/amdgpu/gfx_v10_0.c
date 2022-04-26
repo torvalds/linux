@@ -3818,19 +3818,39 @@ static int gfx_v10_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	struct dma_fence *f = NULL;
 	unsigned index;
 	uint64_t gpu_addr;
-	uint32_t tmp;
+	volatile uint32_t *cpu_ptr;
 	long r;
 
-	r = amdgpu_device_wb_get(adev, &index);
-	if (r)
-		return r;
-
-	gpu_addr = adev->wb.gpu_addr + (index * 4);
-	adev->wb.wb[index] = cpu_to_le32(0xCAFEDEAD);
 	memset(&ib, 0, sizeof(ib));
-	r = amdgpu_ib_get(adev, NULL, 20, AMDGPU_IB_POOL_DIRECT, &ib);
-	if (r)
-		goto err1;
+
+	if (ring->is_mes_queue) {
+		uint32_t padding, offset;
+
+		offset = amdgpu_mes_ctx_get_offs(ring, AMDGPU_MES_CTX_IB_OFFS);
+		padding = amdgpu_mes_ctx_get_offs(ring,
+						  AMDGPU_MES_CTX_PADDING_OFFS);
+
+		ib.gpu_addr = amdgpu_mes_ctx_get_offs_gpu_addr(ring, offset);
+		ib.ptr = amdgpu_mes_ctx_get_offs_cpu_addr(ring, offset);
+
+		gpu_addr = amdgpu_mes_ctx_get_offs_gpu_addr(ring, padding);
+		cpu_ptr = amdgpu_mes_ctx_get_offs_cpu_addr(ring, padding);
+		*cpu_ptr = cpu_to_le32(0xCAFEDEAD);
+	} else {
+		r = amdgpu_device_wb_get(adev, &index);
+		if (r)
+			return r;
+
+		gpu_addr = adev->wb.gpu_addr + (index * 4);
+		adev->wb.wb[index] = cpu_to_le32(0xCAFEDEAD);
+		cpu_ptr = &adev->wb.wb[index];
+
+		r = amdgpu_ib_get(adev, NULL, 20, AMDGPU_IB_POOL_DIRECT, &ib);
+		if (r) {
+			DRM_ERROR("amdgpu: failed to get ib (%ld).\n", r);
+			goto err1;
+		}
+	}
 
 	ib.ptr[0] = PACKET3(PACKET3_WRITE_DATA, 3);
 	ib.ptr[1] = WRITE_DATA_DST_SEL(5) | WR_CONFIRM;
@@ -3851,13 +3871,13 @@ static int gfx_v10_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		goto err2;
 	}
 
-	tmp = adev->wb.wb[index];
-	if (tmp == 0xDEADBEEF)
+	if (le32_to_cpu(*cpu_ptr) == 0xDEADBEEF)
 		r = 0;
 	else
 		r = -EINVAL;
 err2:
-	amdgpu_ib_free(adev, &ib, NULL);
+	if (!ring->is_mes_queue)
+		amdgpu_ib_free(adev, &ib, NULL);
 	dma_fence_put(f);
 err1:
 	amdgpu_device_wb_free(adev, index);
