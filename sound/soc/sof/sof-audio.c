@@ -253,29 +253,135 @@ static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 	return 0;
 }
 
+/*
+ * free all widgets in the sink path starting from the source widget
+ * (DAI type for capture, AIF type for playback)
+ */
+static int sof_free_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *widget,
+				    int dir)
+{
+	struct snd_soc_dapm_path *p;
+	int err;
+	int ret = 0;
+
+	/* free all widgets even in case of error to keep use counts balanced */
+	snd_soc_dapm_widget_for_each_sink_path(widget, p) {
+		if (!p->walking && p->sink->dobj.private && widget->dobj.private) {
+			p->walking = true;
+			if (WIDGET_IS_AIF_OR_DAI(widget->id)) {
+				err = sof_widget_free(sdev, widget->dobj.private);
+				if (err < 0)
+					ret = err;
+			}
+
+			err = sof_widget_free(sdev, p->sink->dobj.private);
+			if (err < 0)
+				ret = err;
+
+			err = sof_free_widgets_in_path(sdev, p->sink, dir);
+			if (err < 0)
+				ret = err;
+			p->walking = false;
+		}
+	}
+
+	return ret;
+}
+
+/*
+ * set up all widgets in the sink path starting from the source widget
+ * (DAI type for capture, AIF type for playback).
+ * The error path in this function ensures that all successfully set up widgets getting freed.
+ */
+static int sof_set_up_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *widget,
+				      int dir)
+{
+	struct snd_soc_dapm_path *p;
+	int ret;
+
+	snd_soc_dapm_widget_for_each_sink_path(widget, p) {
+		if (!p->walking && p->sink->dobj.private && widget->dobj.private) {
+			p->walking = true;
+			if (WIDGET_IS_AIF_OR_DAI(widget->id)) {
+				ret = sof_widget_setup(sdev, widget->dobj.private);
+				if (ret < 0)
+					goto out;
+			}
+
+			ret = sof_widget_setup(sdev, p->sink->dobj.private);
+			if (ret < 0) {
+				if (WIDGET_IS_AIF_OR_DAI(widget->id))
+					sof_widget_free(sdev, widget->dobj.private);
+				goto out;
+			}
+
+			ret = sof_set_up_widgets_in_path(sdev, p->sink, dir);
+			if (ret < 0) {
+				if (WIDGET_IS_AIF_OR_DAI(widget->id))
+					sof_widget_free(sdev, widget->dobj.private);
+				sof_widget_free(sdev, p->sink->dobj.private);
+			}
+out:
+			p->walking = false;
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int
+sof_setup_or_free_widgets_in_order(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget_list *list,
+				   bool dir, enum sof_widget_op op)
+{
+	struct snd_soc_dapm_widget *widget;
+	int ret, i;
+
+	for_each_dapm_widgets(list, i, widget) {
+		/* starting widget for playback is AIF type */
+		if (dir == SNDRV_PCM_STREAM_PLAYBACK && !WIDGET_IS_AIF(widget->id))
+			continue;
+
+		/* starting widget for capture is DAI type */
+		if (dir == SNDRV_PCM_STREAM_CAPTURE && !WIDGET_IS_DAI(widget->id))
+			continue;
+
+		switch (op) {
+		case SOF_WIDGET_SETUP:
+			ret = sof_set_up_widgets_in_path(sdev, widget, dir);
+			break;
+		case SOF_WIDGET_FREE:
+			ret = sof_free_widgets_in_path(sdev, widget, dir);
+			break;
+		default:
+			dev_err(sdev->dev, "Invalid widget op %d\n", op);
+			return -EINVAL;
+		}
+		if (ret < 0) {
+			dev_err(sdev->dev, "Failed to %s connected widgets\n",
+				op == SOF_WIDGET_SETUP ? "set up" : "free");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int dir)
 {
 	const struct sof_ipc_tplg_ops *ipc_tplg_ops = sdev->ipc->ops->tplg;
 	struct snd_soc_dapm_widget_list *list = spcm->stream[dir].list;
 	struct snd_soc_dapm_widget *widget;
-	int i, ret, num_widgets;
+	int i, ret;
 
 	/* nothing to set up */
 	if (!list)
 		return 0;
 
-	/* set up widgets in the list */
-	for_each_dapm_widgets(list, num_widgets, widget) {
-		struct snd_sof_widget *swidget = widget->dobj.private;
-
-		if (!swidget)
-			continue;
-
-		/* set up the widget */
-		ret = sof_widget_setup(sdev, swidget);
-		if (ret < 0)
-			goto widget_free;
-	}
+	ret = sof_setup_or_free_widgets_in_order(sdev, list, dir, SOF_WIDGET_SETUP);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * error in setting pipeline connections will result in route status being reset for
@@ -316,18 +422,7 @@ int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, in
 	return 0;
 
 widget_free:
-	/* free all widgets that have been set up successfully */
-	for_each_dapm_widgets(list, i, widget) {
-		struct snd_sof_widget *swidget = widget->dobj.private;
-
-		if (!swidget)
-			continue;
-
-		if (!num_widgets--)
-			break;
-
-		sof_widget_free(sdev, swidget);
-	}
+	sof_setup_or_free_widgets_in_order(sdev, list, dir, SOF_WIDGET_FREE);
 
 	return ret;
 }
@@ -335,37 +430,18 @@ widget_free:
 int sof_widget_list_free(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int dir)
 {
 	struct snd_soc_dapm_widget_list *list = spcm->stream[dir].list;
-	struct snd_soc_dapm_widget *widget;
-	int i, ret;
-	int ret1 = 0;
+	int ret;
 
 	/* nothing to free */
 	if (!list)
 		return 0;
 
-	/*
-	 * Free widgets in the list. This can fail but continue freeing other widgets to keep
-	 * use_counts balanced.
-	 */
-	for_each_dapm_widgets(list, i, widget) {
-		struct snd_sof_widget *swidget = widget->dobj.private;
-
-		if (!swidget)
-			continue;
-
-		/*
-		 * free widget and its pipe_widget. Either of these can fail, but free as many as
-		 * possible before freeing the list and returning the error.
-		 */
-		ret = sof_widget_free(sdev, swidget);
-		if (ret < 0)
-			ret1 = ret;
-	}
+	ret = sof_setup_or_free_widgets_in_order(sdev, list, dir, SOF_WIDGET_FREE);
 
 	snd_soc_dapm_dai_free_widgets(&list);
 	spcm->stream[dir].list = NULL;
 
-	return ret1;
+	return ret;
 }
 
 /*

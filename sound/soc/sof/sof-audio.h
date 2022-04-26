@@ -29,9 +29,16 @@
 #define DMA_CHAN_INVALID	0xFFFFFFFF
 
 #define WIDGET_IS_DAI(id) ((id) == snd_soc_dapm_dai_in || (id) == snd_soc_dapm_dai_out)
+#define WIDGET_IS_AIF(id) ((id) == snd_soc_dapm_aif_in || (id) == snd_soc_dapm_aif_out)
+#define WIDGET_IS_AIF_OR_DAI(id) (WIDGET_IS_DAI(id) || WIDGET_IS_AIF(id))
 
 #define SOF_DAI_CLK_INTEL_SSP_MCLK	0
 #define SOF_DAI_CLK_INTEL_SSP_BCLK	1
+
+enum sof_widget_op {
+	SOF_WIDGET_FREE,
+	SOF_WIDGET_SETUP,
+};
 
 /*
  * Volume fractional word length define to 16 sets
