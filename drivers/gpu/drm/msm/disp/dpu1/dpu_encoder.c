@@ -38,18 +38,6 @@
 #define DPU_ERROR_ENC(e, fmt, ...) DPU_ERROR("enc%d " fmt,\
 		(e) ? (e)->base.base.id : -1, ##__VA_ARGS__)
 
-#define DPU_DEBUG_PHYS(p, fmt, ...) DRM_DEBUG_ATOMIC("enc%d intf%d pp%d " fmt,\
-		(p) ? (p)->parent->base.id : -1, \
-		(p) ? (p)->intf_idx - INTF_0 : -1, \
-		(p) ? ((p)->hw_pp ? (p)->hw_pp->idx - PINGPONG_0 : -1) : -1, \
-		##__VA_ARGS__)
-
-#define DPU_ERROR_PHYS(p, fmt, ...) DPU_ERROR("enc%d intf%d pp%d " fmt,\
-		(p) ? (p)->parent->base.id : -1, \
-		(p) ? (p)->intf_idx - INTF_0 : -1, \
-		(p) ? ((p)->hw_pp ? (p)->hw_pp->idx - PINGPONG_0 : -1) : -1, \
-		##__VA_ARGS__)
-
 /*
  * Two to anticipate panels that can do cmd/vid dynamic switching
  * plan is to create all possible physical encoder types, and switch between
@@ -263,12 +251,30 @@ static void _dpu_encoder_setup_dither(struct dpu_hw_pingpong *hw_pp, unsigned bp
 	hw_pp->ops.setup_dither(hw_pp, &dither_cfg);
 }
 
+static char *dpu_encoder_helper_get_intf_type(enum dpu_intf_mode intf_mode)
+{
+	switch (intf_mode) {
+	case INTF_MODE_VIDEO:
+		return "INTF_MODE_VIDEO";
+	case INTF_MODE_CMD:
+		return "INTF_MODE_CMD";
+	case INTF_MODE_WB_BLOCK:
+		return "INTF_MODE_WB_BLOCK";
+	case INTF_MODE_WB_LINE:
+		return "INTF_MODE_WB_LINE";
+	default:
+		return "INTF_MODE_UNKNOWN";
+	}
+}
+
 void dpu_encoder_helper_report_irq_timeout(struct dpu_encoder_phys *phys_enc,
 		enum dpu_intr_idx intr_idx)
 {
-	DRM_ERROR("irq timeout id=%u, intf=%d, pp=%d, intr=%d\n",
-		  DRMID(phys_enc->parent), phys_enc->intf_idx - INTF_0,
-		  phys_enc->hw_pp->idx - PINGPONG_0, intr_idx);
+	DRM_ERROR("irq timeout id=%u, intf_mode=%s intf=%d wb=%d, pp=%d, intr=%d\n",
+			DRMID(phys_enc->parent),
+			dpu_encoder_helper_get_intf_type(phys_enc->intf_mode),
+			phys_enc->intf_idx - INTF_0, phys_enc->wb_idx - WB_0,
+			phys_enc->hw_pp->idx - PINGPONG_0, intr_idx);
 
 	if (phys_enc->parent_ops->handle_frame_done)
 		phys_enc->parent_ops->handle_frame_done(
@@ -2049,22 +2055,12 @@ static int _dpu_encoder_status_show(struct seq_file *s, void *data)
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
 		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
 
-		seq_printf(s, "intf:%d    vsync:%8d     underrun:%8d    ",
-				phys->intf_idx - INTF_0,
+		seq_printf(s, "intf:%d  wb:%d  vsync:%8d     underrun:%8d    ",
+				phys->intf_idx - INTF_0, phys->wb_idx - WB_0,
 				atomic_read(&phys->vsync_cnt),
 				atomic_read(&phys->underrun_cnt));
 
-		switch (phys->intf_mode) {
-		case INTF_MODE_VIDEO:
-			seq_puts(s, "mode: video\n");
-			break;
-		case INTF_MODE_CMD:
-			seq_puts(s, "mode: command\n");
-			break;
-		default:
-			seq_puts(s, "mode: ???\n");
-			break;
-		}
+		seq_printf(s, "mode: %s\n", dpu_encoder_helper_get_intf_type(phys->intf_mode));
 	}
 	mutex_unlock(&dpu_enc->enc_lock);
 
