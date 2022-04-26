@@ -1354,8 +1354,9 @@ static void dpu_encoder_frame_done_callback(
 			 * suppress frame_done without waiter,
 			 * likely autorefresh
 			 */
-			trace_dpu_enc_frame_done_cb_not_busy(DRMID(drm_enc),
-					event, ready_phys->intf_idx);
+			trace_dpu_enc_frame_done_cb_not_busy(DRMID(drm_enc), event,
+					dpu_encoder_helper_get_intf_type(ready_phys->intf_mode),
+					ready_phys->intf_idx, ready_phys->wb_idx);
 			return;
 		}
 
@@ -1433,9 +1434,11 @@ static void _dpu_encoder_trigger_flush(struct drm_encoder *drm_enc,
 	if (ctl->ops.get_pending_flush)
 		ret = ctl->ops.get_pending_flush(ctl);
 
-	trace_dpu_enc_trigger_flush(DRMID(drm_enc), phys->intf_idx,
-				    pending_kickoff_cnt, ctl->idx,
-				    extra_flush_bits, ret);
+	trace_dpu_enc_trigger_flush(DRMID(drm_enc),
+			dpu_encoder_helper_get_intf_type(phys->intf_mode),
+			phys->intf_idx, phys->wb_idx,
+			pending_kickoff_cnt, ctl->idx,
+			extra_flush_bits, ret);
 }
 
 /**
