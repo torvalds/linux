@@ -392,7 +392,7 @@
 
 &i2c2 {
 	/* IMX8MM ERRATA e7805 -- I2C is limited to 384 kHz due to SoC bug */
-	clock-frequency = <320000>;
+	clock-frequency = <100000>;
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c2>;
 	pinctrl-1 = <&pinctrl_i2c2_gpio>;
