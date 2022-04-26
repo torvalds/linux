@@ -51,6 +51,14 @@ properties:
               - st,stm32mp135f-dk
           - const: st,stm32mp135
 
+      - description: ST STM32MP151 based Boards
+        items:
+          - enum:
+              - prt,prtt1a   # Protonic PRTT1A
+              - prt,prtt1c   # Protonic PRTT1C
+              - prt,prtt1s   # Protonic PRTT1S
+          - const: st,stm32mp151
+
       - description: DH STM32MP153 SoM based Boards
         items:
           - const: dh,stm32mp153c-dhcom-drc02
