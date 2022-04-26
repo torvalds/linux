@@ -140,6 +140,14 @@ struct dpu_hw_ctl_ops {
 	void (*setup_intf_cfg)(struct dpu_hw_ctl *ctx,
 		struct dpu_hw_intf_cfg *cfg);
 
+	/**
+	 * reset ctl_path interface config
+	 * @ctx    : ctl path ctx pointer
+	 * @cfg    : interface config structure pointer
+	 */
+	void (*reset_intf_cfg)(struct dpu_hw_ctl *ctx,
+			struct dpu_hw_intf_cfg *cfg);
+
 	int (*reset)(struct dpu_hw_ctl *c);
 
 	/*

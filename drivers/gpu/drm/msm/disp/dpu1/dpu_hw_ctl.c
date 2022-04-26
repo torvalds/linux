@@ -563,6 +563,37 @@ static void dpu_hw_ctl_intf_cfg(struct dpu_hw_ctl *ctx,
 	DPU_REG_WRITE(c, CTL_TOP, intf_cfg);
 }
 
+static void dpu_hw_ctl_reset_intf_cfg_v1(struct dpu_hw_ctl *ctx,
+		struct dpu_hw_intf_cfg *cfg)
+{
+	struct dpu_hw_blk_reg_map *c = &ctx->hw;
+	u32 intf_active = 0;
+	u32 merge3d_active = 0;
+
+	/*
+	 * This API resets each portion of the CTL path namely,
+	 * clearing the sspps staged on the lm, merge_3d block,
+	 * interfaces etc to ensure clean teardown of the pipeline.
+	 * This will be used for writeback to begin with to have a
+	 * proper teardown of the writeback session but upon further
+	 * validation, this can be extended to all interfaces.
+	 */
+	if (cfg->merge_3d) {
+		merge3d_active = DPU_REG_READ(c, CTL_MERGE_3D_ACTIVE);
+		merge3d_active &= ~BIT(cfg->merge_3d - MERGE_3D_0);
+		DPU_REG_WRITE(c, CTL_MERGE_3D_ACTIVE,
+				merge3d_active);
+	}
+
+	dpu_hw_ctl_clear_all_blendstages(ctx);
+
+	if (cfg->intf) {
+		intf_active = DPU_REG_READ(c, CTL_INTF_ACTIVE);
+		intf_active &= ~BIT(cfg->intf - INTF_0);
+		DPU_REG_WRITE(c, CTL_INTF_ACTIVE, intf_active);
+	}
+}
+
 static void dpu_hw_ctl_set_fetch_pipe_active(struct dpu_hw_ctl *ctx,
 	unsigned long *fetch_active)
 {
@@ -586,6 +617,7 @@ static void _setup_ctl_ops(struct dpu_hw_ctl_ops *ops,
 	if (cap & BIT(DPU_CTL_ACTIVE_CFG)) {
 		ops->trigger_flush = dpu_hw_ctl_trigger_flush_v1;
 		ops->setup_intf_cfg = dpu_hw_ctl_intf_cfg_v1;
+		ops->reset_intf_cfg = dpu_hw_ctl_reset_intf_cfg_v1;
 		ops->update_pending_flush_intf =
 			dpu_hw_ctl_update_pending_flush_intf_v1;
 		ops->update_pending_flush_merge_3d =
