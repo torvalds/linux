@@ -5,7 +5,9 @@
   __arch_copy_from_user
   __arch_copy_to_user
   arm64_const_caps_ready
+  arm64_use_ng_mappings
   __arm_smccc_smc
+  atomic_notifier_call_chain
   blk_mq_rq_cpu
   bpf_trace_run5
   bus_set_iommu
@@ -52,6 +54,10 @@
   cpufreq_cpu_put
   cpu_hwcap_keys
   cpu_hwcaps
+  cpu_latency_qos_add_request
+  cpu_latency_qos_remove_request
+  cpu_latency_qos_request_active
+  cpu_latency_qos_update_request
   cpumask_next
   cpu_number
   __cpu_online_mask
@@ -66,13 +72,17 @@
   debugfs_lookup
   debugfs_remove
   delayed_work_timer_fn
+  destroy_workqueue
   dev_driver_string
   _dev_err
+  dev_fwnode
   dev_get_regmap
   device_create_file
+  device_init_wakeup
   device_link_add
   device_match_fwnode
   device_property_read_u16_array
+  device_wakeup_disable
   _dev_info
   devm_add_action
   devm_clk_bulk_get_all
@@ -81,6 +91,7 @@
   devm_clk_register
   devm_free_irq
   devm_gpiod_get_optional
+  devm_ioremap
   devm_ioremap_resource
   devm_kfree
   devm_kmalloc
@@ -94,6 +105,7 @@
   devm_platform_ioremap_resource
   __devm_regmap_init_mmio_clk
   devm_regulator_get
+  devm_regulator_get_optional
   devm_regulator_register
   devm_regulator_register_notifier
   devm_request_threaded_irq
@@ -101,6 +113,7 @@
   __devm_reset_control_get
   devm_reset_controller_register
   devm_thermal_of_cooling_device_register
+  devm_usb_get_phy_by_node
   _dev_notice
   dev_pm_opp_add
   dev_pm_qos_add_request
@@ -108,13 +121,16 @@
   dev_pm_qos_update_request
   _dev_warn
   disable_irq
+  disable_irq_nosync
   divider_get_val
   divider_recalc_rate
   divider_ro_round_rate_parent
   divider_round_rate_parent
   dma_alloc_attrs
   dma_free_attrs
+  dma_get_sgtable_attrs
   dma_map_page_attrs
+  dma_map_resource
   dma_set_coherent_mask
   dma_set_mask
   dma_sync_single_for_cpu
@@ -124,9 +140,16 @@
   driver_find_device
   enable_irq
   event_triggers_call
+  extcon_get_edev_by_phandle
+  extcon_get_edev_name
+  extcon_get_property
+  extcon_get_state
+  extcon_register_notifier
   _find_first_bit
   _find_next_bit
+  flush_delayed_work
   flush_work
+  flush_workqueue
   free_io_pgtable_ops
   free_pages
   freq_qos_add_request
@@ -154,12 +177,16 @@
   gpiochip_lock_as_irq
   gpiochip_remove
   gpiochip_unlock_as_irq
+  gpiod_direction_output
+  gpiod_get_value
   gpiod_set_value_cansleep
+  gpiod_to_irq
   handle_bad_irq
   handle_edge_irq
   handle_fasteoi_ack_irq
   handle_fasteoi_irq
   handle_level_irq
+  hrtimer_active
   icc_put
   icc_set_bw
   idr_alloc_u32
@@ -177,6 +204,8 @@
   iommu_fwspec_free
   iommu_group_ref_get
   iommu_present
+  __ioremap
+  iounmap
   irq_chip_disable_parent
   irq_chip_enable_parent
   irq_chip_eoi_parent
@@ -191,7 +220,10 @@
   irq_get_irq_data
   irq_modify_status
   __irq_resolve_mapping
+  irq_set_irqchip_state
+  irq_set_irq_type
   irq_set_irq_wake
+  irq_to_desc
   is_vmalloc_addr
   jiffies
   kfree
@@ -202,14 +234,18 @@
   kstrtobool
   kstrtouint
   ktime_get
+  ktime_get_mono_fast_ns
   __list_add_valid
   __list_del_entry_valid
+  match_string
   memcpy
   memcpy
+  memremap
   memset
   memset
   memset
   memstart_addr
+  memunmap
   module_layout
   module_put
   msleep
@@ -239,11 +275,14 @@
   of_get_property
   of_get_regulator_init_data
   of_icc_get
+  of_irq_get
   of_match_device
   of_match_node
   of_parse_phandle
   of_parse_phandle_with_args
   of_phy_simple_xlate
+  of_platform_depopulate
+  of_platform_populate
   of_property_count_elems_of_size
   of_property_match_string
   of_property_read_string
@@ -252,6 +291,7 @@
   of_prop_next_u32
   param_ops_bool
   param_ops_int
+  param_ops_uint
   param_ops_uint
   pci_bus_type
   pci_device_group
@@ -270,9 +310,13 @@
   pinctrl_force_sleep
   pinctrl_utils_free_map
   platform_bus_type
+  platform_device_put
+  platform_device_register_full
+  platform_device_unregister
   __platform_driver_register
   platform_driver_unregister
   platform_get_irq
+  platform_get_irq_byname
   platform_get_resource
   platform_get_resource_byname
   pm_clk_add
@@ -284,6 +328,9 @@
   pm_genpd_init
   pm_genpd_remove_subdomain
   pm_power_off
+  pm_relax
+  pm_runtime_allow
+  pm_runtime_barrier
   __pm_runtime_disable
   pm_runtime_enable
   pm_runtime_forbid
@@ -296,6 +343,8 @@
   __pm_runtime_set_status
   __pm_runtime_suspend
   __pm_runtime_use_autosuspend
+  pm_stay_awake
+  pm_wakeup_dev_event
   preempt_schedule_notrace
   print_hex_dump
   print_hex_dump
@@ -314,6 +363,7 @@
   _raw_spin_unlock_irqrestore
   rdev_get_drvdata
   reboot_mode
+  register_kretprobe
   register_restart_handler
   regmap_mmio_detach_clk
   regmap_read
@@ -323,14 +373,19 @@
   regulator_count_voltages
   regulator_disable
   regulator_enable
+  regulator_is_enabled
+  regulator_register_notifier
+  regulator_set_current_limit
   regulator_set_load
   regulator_set_load
   regulator_set_voltage
+  regulator_unregister_notifier
   report_iommu_fault
   reset_control_assert
   reset_control_assert
   reset_control_deassert
   reset_control_deassert
+  sched_set_normal
   scnprintf
   __scsi_iterate_devices
   seq_lseek
@@ -338,6 +393,8 @@
   seq_puts
   seq_read
   seq_release
+  sg_free_table
+  sg_next
   simple_attr_open
   simple_attr_release
   single_open
@@ -354,10 +411,13 @@
   strcmp
   strcpy
   strlen
+  strnstr
   strscpy
   __sw_hweight64
   syscon_regmap_lookup_by_phandle
   sysfs_create_group
+  sysfs_streq
+  system_wq
   system_wq
   trace_event_buffer_commit
   trace_event_buffer_reserve
@@ -410,7 +470,21 @@
   ufshcd_system_suspend
   ufshcd_uic_hibern8_enter
   ufshcd_uic_hibern8_exit
+  unregister_kretprobe
   unregister_restart_handler
+  usb_add_phy_dev
+  usb_decode_ctrl
+  usb_gadget_wakeup
+  usb_phy_set_charger_current
+  usb_register_notify
+  usb_remove_phy
+  usb_role_switch_find_by_fwnode
+  usb_role_switch_get_drvdata
+  usb_role_switch_register
+  usb_role_switch_set_role
+  usb_role_switch_unregister
+  usb_speed_string
+  usb_unregister_notify
   usleep_range_state
   usleep_range_state
   vabits_actual
