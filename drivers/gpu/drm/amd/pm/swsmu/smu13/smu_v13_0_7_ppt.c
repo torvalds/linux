@@ -668,7 +668,7 @@ static int smu_v13_0_7_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->CurrClock[PPCLK_FCLK];
 		break;
 	case METRICS_AVERAGE_GFXCLK:
-		*value = metrics->AverageGfxclkFrequencyTarget;
+		*value = metrics->AverageGfxclkFrequencyPreDs;
 		break;
 	case METRICS_AVERAGE_FCLK:
 		if (metrics->AverageUclkActivity <= SMU_13_0_7_BUSY_THRESHOLD)
