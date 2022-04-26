@@ -217,12 +217,14 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 			 desc->ipc_default, sof_pci_ipc_type);
 		if (sof_pci_ipc_type >= SOF_IPC_TYPE_COUNT) {
 			dev_err(dev, "invalid request value %d\n", sof_pci_ipc_type);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 		if (!(BIT(sof_pci_ipc_type) & desc->ipc_supported_mask)) {
 			dev_err(dev, "invalid request value %d, supported mask is %#x\n",
 				sof_pci_ipc_type, desc->ipc_supported_mask);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 		sof_pdata->ipc_type = sof_pci_ipc_type;
 	}
@@ -291,6 +293,8 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 
 	/* call sof helper for DSP hardware probe */
 	ret = snd_sof_device_probe(dev, sof_pdata);
+
+out:
 	if (ret)
 		pci_release_regions(pci);
 
