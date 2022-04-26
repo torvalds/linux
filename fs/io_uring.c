@@ -2506,6 +2506,8 @@ static void ctx_flush_and_put(struct io_ring_ctx *ctx, bool *locked)
 {
 	if (!ctx)
 		return;
+	if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
+		atomic_andnot(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
 	if (*locked) {
 		io_submit_flush_completions(ctx);
 		mutex_unlock(&ctx->uring_lock);
@@ -2645,6 +2647,9 @@ static void io_req_task_work_add(struct io_kiocb *req, bool priority)
 	/* task_work already pending, we're done */
 	if (running)
 		return;
+
+	if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
+		atomic_or(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
 
 	if (likely(!task_work_add(tsk, &tctx->task_work, ctx->notify_method)))
 		return;
@@ -11333,12 +11338,15 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 	ret = -EINVAL;
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
 		/* IPI related flags don't make sense with SQPOLL */
-		if (ctx->flags & IORING_SETUP_COOP_TASKRUN)
+		if (ctx->flags & (IORING_SETUP_COOP_TASKRUN |
+				  IORING_SETUP_TASKRUN_FLAG))
 			goto err;
 		ctx->notify_method = TWA_SIGNAL_NO_IPI;
 	} else if (ctx->flags & IORING_SETUP_COOP_TASKRUN) {
 		ctx->notify_method = TWA_SIGNAL_NO_IPI;
 	} else {
+		if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
+			goto err;
 		ctx->notify_method = TWA_SIGNAL;
 	}
 
@@ -11440,10 +11448,10 @@ static long io_uring_setup(u32 entries, struct io_uring_params __user *params)
 			IORING_SETUP_SQ_AFF | IORING_SETUP_CQSIZE |
 			IORING_SETUP_CLAMP | IORING_SETUP_ATTACH_WQ |
 			IORING_SETUP_R_DISABLED | IORING_SETUP_SUBMIT_ALL |
-			IORING_SETUP_COOP_TASKRUN))
+			IORING_SETUP_COOP_TASKRUN | IORING_SETUP_TASKRUN_FLAG))
 		return -EINVAL;
 
-	return  io_uring_create(entries, &p, params);
+	return io_uring_create(entries, &p, params);
 }
 
 SYSCALL_DEFINE2(io_uring_setup, u32, entries,
