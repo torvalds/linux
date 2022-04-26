@@ -48,6 +48,26 @@ enum sof_widget_op {
 
 #define SOF_TLV_ITEMS 3
 
+static inline u32 mixer_to_ipc(unsigned int value, u32 *volume_map, int size)
+{
+	if (value >= size)
+		return volume_map[size - 1];
+
+	return volume_map[value];
+}
+
+static inline u32 ipc_to_mixer(u32 value, u32 *volume_map, int size)
+{
+	int i;
+
+	for (i = 0; i < size; i++) {
+		if (volume_map[i] >= value)
+			return i;
+	}
+
+	return i - 1;
+}
+
 struct snd_sof_widget;
 struct snd_sof_route;
 struct snd_sof_control;
