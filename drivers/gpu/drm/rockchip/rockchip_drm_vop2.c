@@ -1878,28 +1878,6 @@ static bool vop2_output_yc_swap(uint32_t bus_format)
 	}
 }
 
-static bool is_yuv_support(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV15:
-	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV20:
-	case DRM_FORMAT_NV24:
-	case DRM_FORMAT_NV30:
-	case DRM_FORMAT_YUYV:
-	case DRM_FORMAT_YVYU:
-	case DRM_FORMAT_UYVY:
-	case DRM_FORMAT_VYUY:
-	case DRM_FORMAT_YUV420_8BIT:
-	case DRM_FORMAT_YUV420_10BIT:
-	case DRM_FORMAT_Y210:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static bool is_yuv_output(uint32_t bus_format)
 {
 	switch (bus_format) {
@@ -2392,7 +2370,7 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 {
 	struct drm_plane_state *pstate = &vpstate->base;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(vp->rockchip_crtc.crtc.state);
-	int is_input_yuv = is_yuv_support(pstate->fb->format->format);
+	int is_input_yuv = pstate->fb->format->is_yuv;
 	int is_output_yuv = vcstate->yuv_overlay;
 	int input_csc = vpstate->color_space;
 	int output_csc = vcstate->color_space;
@@ -2696,7 +2674,7 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	fb = conn_state->writeback_job->fb;
 	DRM_DEV_DEBUG(vp->vop2->dev, "%d x % d\n", fb->width, fb->height);
 
-	if (!is_yuv_support(fb->format->format) && is_yuv_output(vcstate->bus_format)) {
+	if (!fb->format->is_yuv && is_yuv_output(vcstate->bus_format)) {
 		DRM_ERROR("YUV2RGB is not supported by writeback\n");
 		return -EINVAL;
 	}
@@ -2839,7 +2817,7 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 		fifo_throd = fb->pitches[0] >> 4;
 		if (fifo_throd >= vop2->data->wb->fifo_depth)
 			fifo_throd = vop2->data->wb->fifo_depth;
-		r2y = is_yuv_support(fb->format->format) && (!is_yuv_output(vcstate->bus_format));
+		r2y = fb->format->is_yuv && (!is_yuv_output(vcstate->bus_format));
 
 		/*
 		 * the vp_id register config done immediately
@@ -4618,7 +4596,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		planlist->dump_info.AFBC_flag = AFBC_flag;
 		planlist->dump_info.area_id = win->area_id;
 		planlist->dump_info.win_id = win->win_id;
-		planlist->dump_info.yuv_format = is_yuv_support(fb->format->format);
+		planlist->dump_info.yuv_format = fb->format->is_yuv;
 		planlist->dump_info.num_pages = num_pages;
 		planlist->dump_info.pages = pages;
 		planlist->dump_info.offset = vpstate->offset;
