@@ -86,7 +86,7 @@ static ssize_t serial_number_show(struct device *dev,
 	struct mhi_device *mhi_dev = to_mhi_device(dev);
 	struct mhi_controller *mhi_cntrl = mhi_dev->mhi_cntrl;
 
-	return snprintf(buf, PAGE_SIZE, "Serial Number: %u\n",
+	return sysfs_emit(buf, "Serial Number: %u\n",
 			mhi_cntrl->serial_number);
 }
 static DEVICE_ATTR_RO(serial_number);
@@ -100,9 +100,8 @@ static ssize_t oem_pk_hash_show(struct device *dev,
 	int i, cnt = 0;
 
 	for (i = 0; i < ARRAY_SIZE(mhi_cntrl->oem_pk_hash); i++)
-		cnt += snprintf(buf + cnt, PAGE_SIZE - cnt,
-				"OEMPKHASH[%d]: 0x%x\n", i,
-				mhi_cntrl->oem_pk_hash[i]);
+		cnt += sysfs_emit_at(buf, cnt, "OEMPKHASH[%d]: 0x%x\n",
+				i, mhi_cntrl->oem_pk_hash[i]);
 
 	return cnt;
 }
