@@ -80,6 +80,7 @@ msm-$(CONFIG_DRM_MSM_DPU) += \
 	disp/dpu1/dpu_plane.o \
 	disp/dpu1/dpu_rm.o \
 	disp/dpu1/dpu_vbif.o \
+	disp/dpu1/dpu_writeback.o
 
 msm-$(CONFIG_DRM_MSM_MDSS) += \
 	msm_mdss.o \
