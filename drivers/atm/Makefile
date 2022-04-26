@@ -26,7 +26,6 @@ endif
 
 obj-$(CONFIG_ATM_DUMMY)		+= adummy.o
 obj-$(CONFIG_ATM_TCP)		+= atmtcp.o
-obj-$(CONFIG_ATM_FIRESTREAM)	+= firestream.o
 obj-$(CONFIG_ATM_LANAI)		+= lanai.o
 
 obj-$(CONFIG_ATM_HE)		+= he.o
