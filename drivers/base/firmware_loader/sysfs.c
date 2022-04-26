@@ -110,7 +110,6 @@ static struct class firmware_class = {
 	.dev_release	= fw_dev_release,
 };
 
-#ifdef CONFIG_FW_LOADER_USER_HELPER
 int register_sysfs_loader(void)
 {
 	int ret = class_register(&firmware_class);
@@ -125,7 +124,6 @@ void unregister_sysfs_loader(void)
 	unregister_firmware_config_sysctl();
 	class_unregister(&firmware_class);
 }
-#endif
 
 static ssize_t firmware_loading_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
