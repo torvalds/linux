@@ -1207,7 +1207,7 @@ int bpf_core_calc_relo_insn(const char *prog_name,
 	}
 
 	/* libbpf doesn't support candidate search for anonymous types */
-	if (str_is_empty(spec_str)) {
+	if (str_is_empty(local_name)) {
 		pr_warn("prog '%s': relo #%d: <%s> (%d) relocation doesn't support anonymous types\n",
 			prog_name, relo_idx, core_relo_kind_str(relo->kind), relo->kind);
 		return -EOPNOTSUPP;
