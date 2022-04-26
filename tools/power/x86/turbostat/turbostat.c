@@ -2035,9 +2035,9 @@ int get_core_throt_cnt(int cpu, unsigned long long *cnt)
 	if (!fp)
 		return -1;
 	ret = fscanf(fp, "%lld", &tmp);
+	fclose(fp);
 	if (ret != 1)
 		return -1;
-	fclose(fp);
 	*cnt = tmp;
 
 	return 0;
