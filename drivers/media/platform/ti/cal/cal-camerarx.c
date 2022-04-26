@@ -871,6 +871,7 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 	phy->cal = cal;
 	phy->instance = instance;
 
+	spin_lock_init(&phy->vc_lock);
 	mutex_init(&phy->mutex);
 
 	phy->res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
