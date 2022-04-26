@@ -55,6 +55,7 @@ struct cmd_struct {
 };
 
 static struct cmd_struct commands[] = {
+	{ "archive",	NULL,	0 },
 	{ "buildid-cache", cmd_buildid_cache, 0 },
 	{ "buildid-list", cmd_buildid_list, 0 },
 	{ "config",	cmd_config,	0 },
@@ -62,6 +63,7 @@ static struct cmd_struct commands[] = {
 	{ "diff",	cmd_diff,	0 },
 	{ "evlist",	cmd_evlist,	0 },
 	{ "help",	cmd_help,	0 },
+	{ "iostat",	NULL,	0 },
 	{ "kallsyms",	cmd_kallsyms,	0 },
 	{ "list",	cmd_list,	0 },
 	{ "record",	cmd_record,	0 },
@@ -360,6 +362,8 @@ static void handle_internal_command(int argc, const char **argv)
 
 	for (i = 0; i < ARRAY_SIZE(commands); i++) {
 		struct cmd_struct *p = commands+i;
+		if (p->fn == NULL)
+			continue;
 		if (strcmp(p->cmd, cmd))
 			continue;
 		exit(run_builtin(p, argc, argv));
@@ -434,7 +438,7 @@ void pthread__unblock_sigwinch(void)
 static int libperf_print(enum libperf_print_level level,
 			 const char *fmt, va_list ap)
 {
-	return eprintf(level, verbose, fmt, ap);
+	return veprintf(level, verbose, fmt, ap);
 }
 
 int main(int argc, const char **argv)

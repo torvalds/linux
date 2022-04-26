@@ -528,6 +528,31 @@ unlock:
 }
 
 /**
+ * drm_dp_dpcd_probe() - probe a given DPCD address with a 1-byte read access
+ * @aux: DisplayPort AUX channel (SST)
+ * @offset: address of the register to probe
+ *
+ * Probe the provided DPCD address by reading 1 byte from it. The function can
+ * be used to trigger some side-effect the read access has, like waking up the
+ * sink, without the need for the read-out value.
+ *
+ * Returns 0 if the read access suceeded, or a negative error code on failure.
+ */
+int drm_dp_dpcd_probe(struct drm_dp_aux *aux, unsigned int offset)
+{
+	u8 buffer;
+	int ret;
+
+	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, &buffer, 1);
+	WARN_ON(ret == 0);
+
+	drm_dp_dump_access(aux, DP_AUX_NATIVE_READ, offset, &buffer, ret);
+
+	return ret < 0 ? ret : 0;
+}
+EXPORT_SYMBOL(drm_dp_dpcd_probe);
+
+/**
  * drm_dp_dpcd_read() - read a series of bytes from the DPCD
  * @aux: DisplayPort AUX channel (SST or MST)
  * @offset: address of the (first) register to read
@@ -559,10 +584,9 @@ ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 	 * monitor doesn't power down exactly after the throw away read.
 	 */
 	if (!aux->is_remote) {
-		ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, DP_DPCD_REV,
-					 buffer, 1);
-		if (ret != 1)
-			goto out;
+		ret = drm_dp_dpcd_probe(aux, DP_DPCD_REV);
+		if (ret < 0)
+			return ret;
 	}
 
 	if (aux->is_remote)
@@ -571,7 +595,6 @@ ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 		ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset,
 					 buffer, size);
 
-out:
 	drm_dp_dump_access(aux, DP_AUX_NATIVE_READ, offset, buffer, ret);
 	return ret;
 }

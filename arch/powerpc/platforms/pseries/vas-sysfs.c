@@ -99,6 +99,7 @@ static struct attribute *vas_def_capab_attrs[] = {
 	&nr_used_credits_attribute.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(vas_def_capab);
 
 static struct attribute *vas_qos_capab_attrs[] = {
 	&nr_total_credits_attribute.attr,
@@ -106,6 +107,7 @@ static struct attribute *vas_qos_capab_attrs[] = {
 	&update_total_credits_attribute.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(vas_qos_capab);
 
 static ssize_t vas_type_show(struct kobject *kobj, struct attribute *attr,
 			     char *buf)
@@ -154,13 +156,13 @@ static const struct sysfs_ops vas_sysfs_ops = {
 static struct kobj_type vas_def_attr_type = {
 		.release	=	vas_type_release,
 		.sysfs_ops      =       &vas_sysfs_ops,
-		.default_attrs  =       vas_def_capab_attrs,
+		.default_groups	=	vas_def_capab_groups,
 };
 
 static struct kobj_type vas_qos_attr_type = {
 		.release	=	vas_type_release,
 		.sysfs_ops	=	&vas_sysfs_ops,
-		.default_attrs	=	vas_qos_capab_attrs,
+		.default_groups	=	vas_qos_capab_groups,
 };
 
 static char *vas_caps_kobj_name(struct vas_caps_entry *centry,

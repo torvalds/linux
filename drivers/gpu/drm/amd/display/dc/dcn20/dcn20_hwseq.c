@@ -1857,6 +1857,7 @@ void dcn20_optimize_bandwidth(
 		struct dc_state *context)
 {
 	struct hubbub *hubbub = dc->res_pool->hubbub;
+	int i;
 
 	/* program dchubbub watermarks */
 	hubbub->funcs->program_watermarks(hubbub,
@@ -1873,6 +1874,17 @@ void dcn20_optimize_bandwidth(
 			dc->clk_mgr,
 			context,
 			true);
+	if (dc_extended_blank_supported(dc) && context->bw_ctx.bw.dcn.clk.zstate_support == DCN_ZSTATE_SUPPORT_ALLOW) {
+		for (i = 0; i < dc->res_pool->pipe_count; ++i) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+			if (pipe_ctx->stream && pipe_ctx->plane_res.hubp->funcs->program_extended_blank
+				&& pipe_ctx->stream->adjust.v_total_min == pipe_ctx->stream->adjust.v_total_max
+				&& pipe_ctx->stream->adjust.v_total_max > pipe_ctx->stream->timing.v_total)
+					pipe_ctx->plane_res.hubp->funcs->program_extended_blank(pipe_ctx->plane_res.hubp,
+						pipe_ctx->dlg_regs.optimized_min_dst_y_next_start);
+		}
+	}
 	/* increase compbuf size */
 	if (hubbub->funcs->program_compbuf_size)
 		hubbub->funcs->program_compbuf_size(hubbub, context->bw_ctx.bw.dcn.compbuf_size_kb, true);

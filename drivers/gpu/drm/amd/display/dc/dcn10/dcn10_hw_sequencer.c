@@ -1497,15 +1497,11 @@ void dcn10_init_hw(struct dc *dc)
 			link->link_status.link_active = true;
 	}
 
-	/* Power gate DSCs */
-	if (!is_optimized_init_done) {
-		for (i = 0; i < res_pool->res_cap->num_dsc; i++)
-			if (hws->funcs.dsc_pg_control != NULL)
-				hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
-	}
-
 	/* we want to turn off all dp displays before doing detection */
 	dc_link_blank_all_dp_displays(dc);
+
+	if (hws->funcs.enable_power_gating_plane)
+		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	/* If taking control over from VBIOS, we may want to optimize our first
 	 * mode set, so we need to skip powering down pipes until we know which
@@ -1559,8 +1555,6 @@ void dcn10_init_hw(struct dc *dc)
 
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
-	if (hws->funcs.enable_power_gating_plane)
-		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	if (dc->clk_mgr->funcs->notify_wm_ranges)
 		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
@@ -2056,7 +2050,7 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	int i, master = -1, embedded = -1;
-	struct dc_crtc_timing hw_crtc_timing[MAX_PIPES] = {0};
+	struct dc_crtc_timing *hw_crtc_timing;
 	uint64_t phase[MAX_PIPES];
 	uint64_t modulo[MAX_PIPES];
 	unsigned int pclk;
@@ -2066,6 +2060,10 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 	uint16_t embedded_v_total;
 	uint32_t dp_ref_clk_100hz =
 		dc->res_pool->dp_clock_source->ctx->dc->clk_mgr->dprefclk_khz*10;
+
+	hw_crtc_timing = kcalloc(MAX_PIPES, sizeof(*hw_crtc_timing), GFP_KERNEL);
+	if (!hw_crtc_timing)
+		return master;
 
 	if (dc->config.vblank_alignment_dto_params &&
 		dc->res_pool->dp_clock_source->funcs->override_dp_pix_clk) {
@@ -2130,6 +2128,8 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 		}
 
 	}
+
+	kfree(hw_crtc_timing);
 	return master;
 }
 

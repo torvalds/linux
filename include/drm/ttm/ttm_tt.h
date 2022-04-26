@@ -140,6 +140,7 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
  * @bo: The buffer object we create the ttm for.
  * @page_flags: Page flags as identified by TTM_TT_FLAG_XX flags.
  * @caching: the desired caching state of the pages
+ * @extra_pages: Extra pages needed for the driver.
  *
  * Create a struct ttm_tt to back data with system memory pages.
  * No pages are actually allocated.
@@ -147,7 +148,8 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
  * NULL: Out of memory.
  */
 int ttm_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
-		uint32_t page_flags, enum ttm_caching caching);
+		uint32_t page_flags, enum ttm_caching caching,
+		unsigned long extra_pages);
 int ttm_sg_tt_init(struct ttm_tt *ttm_dma, struct ttm_buffer_object *bo,
 		   uint32_t page_flags, enum ttm_caching caching);
 

@@ -433,7 +433,7 @@ static void tilcdc_crtc_set_mode(struct drm_crtc *crtc)
 
 	set_scanout(crtc, fb);
 
-	crtc->hwmode = crtc->state->adjusted_mode;
+	drm_mode_copy(&crtc->hwmode, &crtc->state->adjusted_mode);
 
 	tilcdc_crtc->hvtotal_us =
 		tilcdc_mode_hvtotal(&crtc->hwmode);

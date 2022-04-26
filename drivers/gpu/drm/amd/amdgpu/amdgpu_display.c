@@ -200,8 +200,7 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 		goto unpin;
 	}
 
-	/* TODO: Unify this with other drivers */
-	r = dma_resv_get_fences(new_abo->tbo.base.resv, true,
+	r = dma_resv_get_fences(new_abo->tbo.base.resv, DMA_RESV_USAGE_WRITE,
 				&work->shared_count,
 				&work->shared);
 	if (unlikely(r != 0)) {

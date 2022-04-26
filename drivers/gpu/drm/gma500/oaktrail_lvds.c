@@ -85,7 +85,7 @@ static void oaktrail_lvds_mode_set(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
-	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector = NULL;
 	struct drm_crtc *crtc = encoder->crtc;
 	u32 lvds_port;
@@ -112,21 +112,22 @@ static void oaktrail_lvds_mode_set(struct drm_encoder *encoder,
 	REG_WRITE(LVDS, lvds_port);
 
 	/* Find the connector we're trying to set up */
-	list_for_each_entry(connector, &mode_config->connector_list, head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->encoder && connector->encoder->crtc == crtc)
 			break;
 	}
 
-	if (list_entry_is_head(connector, &mode_config->connector_list, head)) {
+	if (!connector) {
+		drm_connector_list_iter_end(&conn_iter);
 		DRM_ERROR("Couldn't find connector when setting mode");
 		gma_power_end(dev);
 		return;
 	}
 
-	drm_object_property_get_value(
-		&connector->base,
-		dev->mode_config.scaling_mode_property,
-		&v);
+	drm_object_property_get_value( &connector->base,
+		dev->mode_config.scaling_mode_property, &v);
+	drm_connector_list_iter_end(&conn_iter);
 
 	if (v == DRM_MODE_SCALE_NO_SCALE)
 		REG_WRITE(PFIT_CONTROL, 0);
@@ -400,7 +401,6 @@ void oaktrail_lvds_init(struct drm_device *dev,
 out:
 	mutex_unlock(&dev->mode_config.mutex);
 
-	drm_connector_register(connector);
 	return;
 
 failed_find:

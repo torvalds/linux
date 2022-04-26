@@ -259,16 +259,21 @@ v3d_lock_bo_reservations(struct v3d_job *job,
 		return ret;
 
 	for (i = 0; i < job->bo_count; i++) {
+		ret = dma_resv_reserve_fences(job->bo[i]->resv, 1);
+		if (ret)
+			goto fail;
+
 		ret = drm_sched_job_add_implicit_dependencies(&job->base,
 							      job->bo[i], true);
-		if (ret) {
-			drm_gem_unlock_reservations(job->bo, job->bo_count,
-						    acquire_ctx);
-			return ret;
-		}
+		if (ret)
+			goto fail;
 	}
 
 	return 0;
+
+fail:
+	drm_gem_unlock_reservations(job->bo, job->bo_count, acquire_ctx);
+	return ret;
 }
 
 /**
@@ -545,8 +550,8 @@ v3d_attach_fences_and_unlock_reservation(struct drm_file *file_priv,
 
 	for (i = 0; i < job->bo_count; i++) {
 		/* XXX: Use shared fences for read-only objects. */
-		dma_resv_add_excl_fence(job->bo[i]->resv,
-					job->done_fence);
+		dma_resv_add_fence(job->bo[i]->resv, job->done_fence,
+				   DMA_RESV_USAGE_WRITE);
 	}
 
 	drm_gem_unlock_reservations(job->bo, job->bo_count, acquire_ctx);

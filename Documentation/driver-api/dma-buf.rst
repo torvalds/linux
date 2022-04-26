@@ -185,6 +185,12 @@ DMA Fence Chain
 .. kernel-doc:: include/linux/dma-fence-chain.h
    :internal:
 
+DMA Fence unwrap
+~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: include/linux/dma-fence-unwrap.h
+   :internal:
+
 DMA Fence uABI/Sync File
 ~~~~~~~~~~~~~~~~~~~~~~~~
 

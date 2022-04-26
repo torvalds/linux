@@ -526,9 +526,8 @@ int virtio_device_restore(struct virtio_device *dev)
 			goto err;
 	}
 
-	/* If restore didn't do it, mark device DRIVER_OK ourselves. */
-	if (!(dev->config->get_status(dev) & VIRTIO_CONFIG_S_DRIVER_OK))
-		virtio_device_ready(dev);
+	/* Finally, tell the device we're all set */
+	virtio_add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
 
 	virtio_config_enable(dev);
 

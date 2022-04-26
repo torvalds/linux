@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
- * Copyright 2009-2021 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2022 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -66,6 +66,11 @@
 #define VMWGFX_PCI_ID_SVGA3              0x0406
 
 /*
+ * This has to match get_count_order(SVGA_IRQFLAG_MAX)
+ */
+#define VMWGFX_MAX_NUM_IRQS 6
+
+/*
  * Perhaps we should have sysfs entries for these.
  */
 #define VMWGFX_NUM_GB_CONTEXT 256
@@ -101,6 +106,7 @@ struct vmw_fpriv {
  * struct vmw_buffer_object - TTM buffer object with vmwgfx additions
  * @base: The TTM buffer object
  * @res_tree: RB tree of resources using this buffer object as a backing MOB
+ * @base_mapped_count: ttm BO mapping count; used by KMS atomic helpers.
  * @cpu_writers: Number of synccpu write grabs. Protected by reservation when
  * increased. May be decreased without reservation.
  * @dx_query_ctx: DX context if this buffer object is used as a DX query MOB
@@ -111,6 +117,9 @@ struct vmw_fpriv {
 struct vmw_buffer_object {
 	struct ttm_buffer_object base;
 	struct rb_root res_tree;
+	/* For KMS atomic helpers: ttm bo mapping count */
+	atomic_t base_mapped_count;
+
 	atomic_t cpu_writers;
 	/* Not ref-counted.  Protected by binding_mutex */
 	struct vmw_resource *dx_query_ctx;
@@ -528,6 +537,8 @@ struct vmw_private {
 	bool has_mob;
 	spinlock_t hw_lock;
 	bool assume_16bpp;
+	u32 irqs[VMWGFX_MAX_NUM_IRQS];
+	u32 num_irq_vectors;
 
 	enum vmw_sm_type sm_type;
 
@@ -1154,7 +1165,7 @@ bool vmw_cmd_describe(const void *buf, u32 *size, char const **cmd);
  * IRQs and wating - vmwgfx_irq.c
  */
 
-extern int vmw_irq_install(struct drm_device *dev, int irq);
+extern int vmw_irq_install(struct vmw_private *dev_priv);
 extern void vmw_irq_uninstall(struct drm_device *dev);
 extern bool vmw_seqno_passed(struct vmw_private *dev_priv,
 				uint32_t seqno);
@@ -1677,6 +1688,14 @@ static inline void vmw_irq_status_write(struct vmw_private *vmw,
 		vmw_write(vmw, SVGA_REG_IRQ_STATUS, status);
 	else
 		outl(status, vmw->io_start + SVGA_IRQSTATUS_PORT);
+}
+
+static inline bool vmw_has_fences(struct vmw_private *vmw)
+{
+	if ((vmw->capabilities & (SVGA_CAP_COMMAND_BUFFERS |
+				  SVGA_CAP_CMD_BUFFERS_2)) != 0)
+		return true;
+	return (vmw_fifo_caps(vmw) & SVGA_FIFO_CAP_FENCE) != 0;
 }
 
 #endif

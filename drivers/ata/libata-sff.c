@@ -1634,7 +1634,7 @@ EXPORT_SYMBOL_GPL(ata_sff_interrupt);
 
 void ata_sff_lost_interrupt(struct ata_port *ap)
 {
-	u8 status;
+	u8 status = 0;
 	struct ata_queued_cmd *qc;
 
 	/* Only one outstanding command per SFF channel */

@@ -168,7 +168,8 @@ static int visionox_rm69299_get_modes(struct drm_panel *panel,
 	struct visionox_rm69299 *ctx = panel_to_ctx(panel);
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_create(connector->dev);
+	mode = drm_mode_duplicate(connector->dev,
+				  &visionox_rm69299_1080x2248_60hz);
 	if (!mode) {
 		dev_err(ctx->panel.dev, "failed to create a new display mode\n");
 		return 0;
@@ -176,7 +177,6 @@ static int visionox_rm69299_get_modes(struct drm_panel *panel,
 
 	connector->display_info.width_mm = 74;
 	connector->display_info.height_mm = 131;
-	drm_mode_copy(mode, &visionox_rm69299_1080x2248_60hz);
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 	drm_mode_probed_add(connector, mode);
 
