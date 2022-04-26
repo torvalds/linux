@@ -1361,9 +1361,9 @@ static int rkisp_stream_start(struct rkisp_stream *stream)
 	if (stream->id == RKISP_STREAM_MPDS || stream->id == RKISP_STREAM_BPDS)
 		goto end;
 
-	async = (stream->id == RKISP_STREAM_MP) ?
-		dev->cap_dev.stream[RKISP_STREAM_SP].streaming :
-		dev->cap_dev.stream[RKISP_STREAM_MP].streaming;
+	async = (dev->cap_dev.stream[RKISP_STREAM_MP].streaming ||
+		 dev->cap_dev.stream[RKISP_STREAM_SP].streaming ||
+		 dev->cap_dev.stream[RKISP_STREAM_BP].streaming);
 
 	/*
 	 * can't be async now, otherwise the latter started stream fails to
