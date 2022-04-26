@@ -802,7 +802,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
  * bio we were passed and then call the bio end_io calls
  */
 void btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
-				  int mirror_num, unsigned long bio_flags)
+				  int mirror_num)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct extent_map_tree *em_tree;
@@ -853,13 +853,13 @@ void btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	em_len = em->len;
 	em_start = em->start;
 
-	free_extent_map(em);
-	em = NULL;
-
 	cb->len = bio->bi_iter.bi_size;
 	cb->compressed_len = compressed_len;
-	cb->compress_type = extent_compress_type(bio_flags);
+	cb->compress_type = em->compress_type;
 	cb->orig_bio = bio;
+
+	free_extent_map(em);
+	em = NULL;
 
 	cb->nr_pages = DIV_ROUND_UP(compressed_len, PAGE_SIZE);
 	cb->compressed_pages = kcalloc(cb->nr_pages, sizeof(struct page *), GFP_NOFS);

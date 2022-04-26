@@ -2606,8 +2606,7 @@ void btrfs_submit_data_bio(struct inode *inode, struct bio *bio,
 			 * the bio if there were any errors, so just return
 			 * here.
 			 */
-			btrfs_submit_compressed_read(inode, bio, mirror_num,
-						     bio_flags);
+			btrfs_submit_compressed_read(inode, bio, mirror_num);
 			return;
 		} else {
 			/*
