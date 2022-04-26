@@ -151,6 +151,9 @@ int ksz9477_switch_register(struct ksz_device *dev);
 
 void ksz_update_port_member(struct ksz_device *dev, int port);
 void ksz_init_mib_timer(struct ksz_device *dev);
+void ksz_r_mib_stats64(struct ksz_device *dev, int port);
+void ksz_get_stats64(struct dsa_switch *ds, int port,
+		     struct rtnl_link_stats64 *s);
 
 /* Common DSA access functions */
 
