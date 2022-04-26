@@ -9,6 +9,7 @@
 #include "dpu_hw_ctl.h"
 #include "dpu_hw_pingpong.h"
 #include "dpu_hw_intf.h"
+#include "dpu_hw_wb.h"
 #include "dpu_hw_dspp.h"
 #include "dpu_hw_merge3d.h"
 #include "dpu_hw_dsc.h"
@@ -86,6 +87,9 @@ int dpu_rm_destroy(struct dpu_rm *rm)
 			dpu_hw_dsc_destroy(hw);
 		}
 	}
+
+	for (i = 0; i < ARRAY_SIZE(rm->hw_wb); i++)
+		dpu_hw_wb_destroy(rm->hw_wb[i]);
 
 	return 0;
 }
@@ -184,6 +188,24 @@ int dpu_rm_init(struct dpu_rm *rm,
 			goto fail;
 		}
 		rm->hw_intf[intf->id - INTF_0] = hw;
+	}
+
+	for (i = 0; i < cat->wb_count; i++) {
+		struct dpu_hw_wb *hw;
+		const struct dpu_wb_cfg *wb = &cat->wb[i];
+
+		if (wb->id < WB_0 || wb->id >= WB_MAX) {
+			DPU_ERROR("skip intf %d with invalid id\n", wb->id);
+			continue;
+		}
+
+		hw = dpu_hw_wb_init(wb->id, mmio, cat);
+		if (IS_ERR(hw)) {
+			rc = PTR_ERR(hw);
+			DPU_ERROR("failed wb object creation: err %d\n", rc);
+			goto fail;
+		}
+		rm->hw_wb[wb->id - WB_0] = hw;
 	}
 
 	for (i = 0; i < cat->ctl_count; i++) {
