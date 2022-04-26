@@ -287,10 +287,12 @@ static int array_map_get_next_key(struct bpf_map *map, void *key, void *next_key
 	return 0;
 }
 
-static void check_and_free_timer_in_array(struct bpf_array *arr, void *val)
+static void check_and_free_fields(struct bpf_array *arr, void *val)
 {
-	if (unlikely(map_value_has_timer(&arr->map)))
+	if (map_value_has_timer(&arr->map))
 		bpf_timer_cancel_and_free(val + arr->map.timer_off);
+	if (map_value_has_kptrs(&arr->map))
+		bpf_map_free_kptrs(&arr->map, val);
 }
 
 /* Called from syscall or from eBPF program */
@@ -327,7 +329,7 @@ static int array_map_update_elem(struct bpf_map *map, void *key, void *value,
 			copy_map_value_locked(map, val, value, false);
 		else
 			copy_map_value(map, val, value);
-		check_and_free_timer_in_array(array, val);
+		check_and_free_fields(array, val);
 	}
 	return 0;
 }
@@ -386,7 +388,8 @@ static void array_map_free_timers(struct bpf_map *map)
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	int i;
 
-	if (likely(!map_value_has_timer(map)))
+	/* We don't reset or free kptr on uref dropping to zero. */
+	if (!map_value_has_timer(map))
 		return;
 
 	for (i = 0; i < array->map.max_entries; i++)
@@ -398,6 +401,13 @@ static void array_map_free_timers(struct bpf_map *map)
 static void array_map_free(struct bpf_map *map)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	int i;
+
+	if (map_value_has_kptrs(map)) {
+		for (i = 0; i < array->map.max_entries; i++)
+			bpf_map_free_kptrs(map, array->value + array->elem_size * i);
+		bpf_map_free_kptr_off_tab(map);
+	}
 
 	if (array->map.map_type == BPF_MAP_TYPE_PERCPU_ARRAY)
 		bpf_array_free_percpu(array);
