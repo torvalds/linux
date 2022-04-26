@@ -8766,7 +8766,6 @@ F:	kernel/time/timer_*.c
 HIGH-SPEED SCC DRIVER FOR AX.25
 L:	linux-hams@vger.kernel.org
 S:	Orphan
-F:	drivers/net/hamradio/dmascc.c
 F:	drivers/net/hamradio/scc.c
 
 HIGHPOINT ROCKETRAID 3xxx RAID DRIVER
