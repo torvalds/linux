@@ -5626,6 +5626,22 @@ static int record_relo_core(struct bpf_program *prog,
 	return 0;
 }
 
+static const struct bpf_core_relo *find_relo_core(struct bpf_program *prog, int insn_idx)
+{
+	struct reloc_desc *relo;
+	int i;
+
+	for (i = 0; i < prog->nr_reloc; i++) {
+		relo = &prog->reloc_desc[i];
+		if (relo->type != RELO_CORE || relo->insn_idx != insn_idx)
+			continue;
+
+		return relo->core_relo;
+	}
+
+	return NULL;
+}
+
 static int bpf_core_resolve_relo(struct bpf_program *prog,
 				 const struct bpf_core_relo *relo,
 				 int relo_idx,
@@ -6696,6 +6712,8 @@ static int libbpf_prepare_prog_load(struct bpf_program *prog,
 	return 0;
 }
 
+static void fixup_verifier_log(struct bpf_program *prog, char *buf, size_t buf_sz);
+
 static int bpf_object_load_prog_instance(struct bpf_object *obj, struct bpf_program *prog,
 					 struct bpf_insn *insns, int insns_cnt,
 					 const char *license, __u32 kern_version,
@@ -6842,6 +6860,10 @@ retry_load:
 		goto retry_load;
 
 	ret = -errno;
+
+	/* post-process verifier log to improve error descriptions */
+	fixup_verifier_log(prog, log_buf, log_buf_size);
+
 	cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
 	pr_warn("prog '%s': BPF program load failed: %s\n", prog->name, cp);
 	pr_perm_msg(ret);
@@ -6855,6 +6877,128 @@ out:
 	if (own_log_buf)
 		free(log_buf);
 	return ret;
+}
+
+static char *find_prev_line(char *buf, char *cur)
+{
+	char *p;
+
+	if (cur == buf) /* end of a log buf */
+		return NULL;
+
+	p = cur - 1;
+	while (p - 1 >= buf && *(p - 1) != '\n')
+		p--;
+
+	return p;
+}
+
+static void patch_log(char *buf, size_t buf_sz, size_t log_sz,
+		      char *orig, size_t orig_sz, const char *patch)
+{
+	/* size of the remaining log content to the right from the to-be-replaced part */
+	size_t rem_sz = (buf + log_sz) - (orig + orig_sz);
+	size_t patch_sz = strlen(patch);
+
+	if (patch_sz != orig_sz) {
+		/* If patch line(s) are longer than original piece of verifier log,
+		 * shift log contents by (patch_sz - orig_sz) bytes to the right
+		 * starting from after to-be-replaced part of the log.
+		 *
+		 * If patch line(s) are shorter than original piece of verifier log,
+		 * shift log contents by (orig_sz - patch_sz) bytes to the left
+		 * starting from after to-be-replaced part of the log
+		 *
+		 * We need to be careful about not overflowing available
+		 * buf_sz capacity. If that's the case, we'll truncate the end
+		 * of the original log, as necessary.
+		 */
+		if (patch_sz > orig_sz) {
+			if (orig + patch_sz >= buf + buf_sz) {
+				/* patch is big enough to cover remaining space completely */
+				patch_sz -= (orig + patch_sz) - (buf + buf_sz) + 1;
+				rem_sz = 0;
+			} else if (patch_sz - orig_sz > buf_sz - log_sz) {
+				/* patch causes part of remaining log to be truncated */
+				rem_sz -= (patch_sz - orig_sz) - (buf_sz - log_sz);
+			}
+		}
+		/* shift remaining log to the right by calculated amount */
+		memmove(orig + patch_sz, orig + orig_sz, rem_sz);
+	}
+
+	memcpy(orig, patch, patch_sz);
+}
+
+static void fixup_log_failed_core_relo(struct bpf_program *prog,
+				       char *buf, size_t buf_sz, size_t log_sz,
+				       char *line1, char *line2, char *line3)
+{
+	/* Expected log for failed and not properly guarded CO-RE relocation:
+	 * line1 -> 123: (85) call unknown#195896080
+	 * line2 -> invalid func unknown#195896080
+	 * line3 -> <anything else or end of buffer>
+	 *
+	 * "123" is the index of the instruction that was poisoned. We extract
+	 * instruction index to find corresponding CO-RE relocation and
+	 * replace this part of the log with more relevant information about
+	 * failed CO-RE relocation.
+	 */
+	const struct bpf_core_relo *relo;
+	struct bpf_core_spec spec;
+	char patch[512], spec_buf[256];
+	int insn_idx, err;
+
+	if (sscanf(line1, "%d: (%*d) call unknown#195896080\n", &insn_idx) != 1)
+		return;
+
+	relo = find_relo_core(prog, insn_idx);
+	if (!relo)
+		return;
+
+	err = bpf_core_parse_spec(prog->name, prog->obj->btf, relo, &spec);
+	if (err)
+		return;
+
+	bpf_core_format_spec(spec_buf, sizeof(spec_buf), &spec);
+	snprintf(patch, sizeof(patch),
+		 "%d: <invalid CO-RE relocation>\n"
+		 "failed to resolve CO-RE relocation %s\n",
+		 insn_idx, spec_buf);
+
+	patch_log(buf, buf_sz, log_sz, line1, line3 - line1, patch);
+}
+
+static void fixup_verifier_log(struct bpf_program *prog, char *buf, size_t buf_sz)
+{
+	/* look for familiar error patterns in last N lines of the log */
+	const size_t max_last_line_cnt = 10;
+	char *prev_line, *cur_line, *next_line;
+	size_t log_sz;
+	int i;
+
+	if (!buf)
+		return;
+
+	log_sz = strlen(buf) + 1;
+	next_line = buf + log_sz - 1;
+
+	for (i = 0; i < max_last_line_cnt; i++, next_line = cur_line) {
+		cur_line = find_prev_line(buf, next_line);
+		if (!cur_line)
+			return;
+
+		/* failed CO-RE relocation case */
+		if (str_has_pfx(cur_line, "invalid func unknown#195896080\n")) {
+			prev_line = find_prev_line(buf, cur_line);
+			if (!prev_line)
+				continue;
+
+			fixup_log_failed_core_relo(prog, buf, buf_sz, log_sz,
+						   prev_line, cur_line, next_line);
+			return;
+		}
+	}
 }
 
 static int bpf_program_record_relos(struct bpf_program *prog)

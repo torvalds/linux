@@ -178,9 +178,9 @@ static bool core_relo_is_enumval_based(enum bpf_core_relo_kind kind)
  * Enum value-based relocations (ENUMVAL_EXISTS/ENUMVAL_VALUE) use access
  * string to specify enumerator's value index that need to be relocated.
  */
-static int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
-			       const struct bpf_core_relo *relo,
-			       struct bpf_core_spec *spec)
+int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
+			const struct bpf_core_relo *relo,
+			struct bpf_core_spec *spec)
 {
 	int access_idx, parsed_len, i;
 	struct bpf_core_accessor *acc;
@@ -1054,7 +1054,7 @@ poison:
  * [<type-id>] (<type-name>) + <raw-spec> => <offset>@<spec>,
  * where <spec> is a C-syntax view of recorded field access, e.g.: x.a[3].b
  */
-static int bpf_core_format_spec(char *buf, size_t buf_sz, const struct bpf_core_spec *spec)
+int bpf_core_format_spec(char *buf, size_t buf_sz, const struct bpf_core_spec *spec)
 {
 	const struct btf_type *t;
 	const struct btf_enum *e;
