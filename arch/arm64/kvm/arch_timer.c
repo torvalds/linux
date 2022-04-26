@@ -88,7 +88,9 @@ static u64 timer_get_offset(struct arch_timer_context *ctxt)
 
 	switch(arch_timer_ctx_index(ctxt)) {
 	case TIMER_VTIMER:
-		return __vcpu_sys_reg(vcpu, CNTVOFF_EL2);
+		if (likely(!kvm_vm_is_protected(vcpu->kvm)))
+			return __vcpu_sys_reg(vcpu, CNTVOFF_EL2);
+		fallthrough;
 	default:
 		return 0;
 	}
@@ -767,6 +769,9 @@ static void update_vtimer_cntvoff(struct kvm_vcpu *vcpu, u64 cntvoff)
 	unsigned long i;
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_vcpu *tmp;
+
+	if (unlikely(kvm_vm_is_protected(vcpu->kvm)))
+		cntvoff = 0;
 
 	mutex_lock(&kvm->lock);
 	kvm_for_each_vcpu(i, tmp, kvm)
