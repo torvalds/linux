@@ -40,6 +40,12 @@ description: |+
   override the pin's existing bias (pull-up/pull-down) and value (high/low) when
   IO isolation is active.
 
+  Support for I2C PMIC Voltage Scaling
+  ====================================
+  It is possible to pass the name of a binary file to load into the CM3 memory.
+  The binary data is the I2C sequences for the CM3 to send out to the PMIC
+  during low power mode entry.
+
 properties:
   compatible:
     enum:
@@ -66,6 +72,10 @@ properties:
       channel for communication. Must point to appropriate
       mbox_wkupm3 child node.
     maxItems: 1
+
+  firmware-name:
+    description:
+      Name of binary file with I2C sequences for PMIC voltage scaling
 
   ti,vtt-gpio-pin:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -117,6 +127,7 @@ examples:
            ti,rproc = <&wkup_m3>;
            mboxes = <&am335x_mailbox &mbox_wkupm3>;
            ti,vtt-gpio-pin = <7>;
+           firmware-name = "am335x-evm-scale-data.bin";
         };
     };
 
@@ -157,6 +168,7 @@ examples:
            ti,rproc = <&wkup_m3>;
            mboxes = <&am437x_mailbox &mbox_wkupm3>;
            ti,set-io-isolation;
+           firmware-name = "am43x-evm-scale-data.bin";
         };
     };
 
