@@ -1366,8 +1366,15 @@ static int hdmi_set_frl_mask(int frl_rate)
 static int hdmi_start_flt(struct dw_hdmi_qp *hdmi, u8 rate)
 {
 	u8 val;
+	u32 value;
 	u8 ffe_lv = 0;
-	int i = 0, stat;
+	int i = 0;
+	bool ltsp = false;
+
+	hdmi_modb(hdmi, AVP_DATAPATH_VIDEO_SWDISABLE,
+		  AVP_DATAPATH_VIDEO_SWDISABLE, GLOBAL_SWDISABLE);
+	/* clear flt flags */
+	drm_scdc_writeb(hdmi->ddc, 0x10, 0xff);
 
 	/* FLT_READY & FFE_LEVELS read */
 	for (i = 0; i < 20; i++) {
@@ -1382,43 +1389,59 @@ static int hdmi_start_flt(struct dw_hdmi_qp *hdmi, u8 rate)
 		return -EINVAL;
 	}
 
-	hdmi_modb(hdmi, SCDC_UPD_FLAGS_RD_IRQ, SCDC_UPD_FLAGS_RD_IRQ,
-		  MAINUNIT_1_INT_MASK_N);
-	hdmi_modb(hdmi, SCDC_UPD_FLAGS_POLL_EN | SCDC_UPD_FLAGS_AUTO_CLR,
-		  SCDC_UPD_FLAGS_POLL_EN | SCDC_UPD_FLAGS_AUTO_CLR,
-		  SCDC_CONFIG0);
-
 	/* max ffe level 3 */
-	val = 3 << 4 | hdmi_set_frl_mask(rate);
+	val = 0 << 4 | hdmi_set_frl_mask(rate);
 	drm_scdc_writeb(hdmi->ddc, 0x31, val);
 
 	/* select FRL_RATE & FFE_LEVELS */
 	hdmi_writel(hdmi, ffe_lv, FLT_CONFIG0);
+	i = 500;
+	while (i--) {
+		usleep_range(3000, 4000);
+		drm_scdc_readb(hdmi->ddc, 0x10, &val);
 
-	/* Start LTS_3 state in source DUT */
-	reinit_completion(&hdmi->flt_cmp);
-	hdmi_modb(hdmi, FLT_EXIT_TO_LTSP_IRQ, FLT_EXIT_TO_LTSP_IRQ,
-		  MAINUNIT_1_INT_MASK_N);
-	hdmi_writel(hdmi, 1, FLT_CONTROL0);
+		if (!(val & 0x30))
+			continue;
 
-	/* wait for completed link training at source side */
-	stat = wait_for_completion_timeout(&hdmi->flt_cmp, HZ * 2);
-	if (!stat) {
-		dev_err(hdmi->dev, "wait lts3 finish time out\n");
-		hdmi_modb(hdmi, 0, SCDC_UPD_FLAGS_POLL_EN |
-			  SCDC_UPD_FLAGS_AUTO_CLR, SCDC_CONFIG0);
-		hdmi_modb(hdmi, 0, SCDC_UPD_FLAGS_RD_IRQ,
-			  MAINUNIT_1_INT_MASK_N);
-		return -EAGAIN;
+		if (val & BIT(5)) {
+			u8 reg_val, ln0, ln1, ln2, ln3;
+
+			drm_scdc_readb(hdmi->ddc, 0x41, &reg_val);
+			ln0 = reg_val & 0xf;
+			ln1 = (reg_val >> 4) & 0xf;
+
+			drm_scdc_readb(hdmi->ddc, 0x42, &reg_val);
+			ln2 = reg_val & 0xf;
+			ln3 = (reg_val >> 4) & 0xf;
+
+			if (!ln0 && !ln1 && !ln2 && !ln3) {
+				dev_info(hdmi->dev, "goto ltsp\n");
+				ltsp = true;
+				hdmi_writel(hdmi, 0, FLT_CONFIG1);
+			} else if ((ln0 == 0xf) | (ln1 == 0xf) | (ln2 == 0xf) | (ln3 == 0xf)) {
+				dev_err(hdmi->dev, "goto lts4\n");
+				break;
+			} else if ((ln0 == 0xe) | (ln1 == 0xe) | (ln2 == 0xe) | (ln3 == 0xe)) {
+				dev_info(hdmi->dev, "goto ffe\n");
+				break;
+			} else {
+				value = (ln3 << 16) | (ln2 << 12) | (ln1 << 8) | (ln0 << 4) | 0xf;
+				hdmi_writel(hdmi, value, FLT_CONFIG1);
+			}
+		}
+
+		drm_scdc_writeb(hdmi->ddc, 0x10, val);
+
+		if ((val & BIT(4)) && ltsp) {
+			hdmi_modb(hdmi, 0, AVP_DATAPATH_VIDEO_SWDISABLE, GLOBAL_SWDISABLE);
+			dev_info(hdmi->dev, "flt success\n");
+			break;
+		}
 	}
 
-	if (!(hdmi->flt_intr & FLT_EXIT_TO_LTSP_IRQ)) {
-		dev_err(hdmi->dev, "not to ltsp\n");
-		hdmi_modb(hdmi, 0, SCDC_UPD_FLAGS_POLL_EN |
-			  SCDC_UPD_FLAGS_AUTO_CLR, SCDC_CONFIG0);
-		hdmi_modb(hdmi, 0, SCDC_UPD_FLAGS_RD_IRQ,
-			  MAINUNIT_1_INT_MASK_N);
-		return -EINVAL;
+	if (i < 0) {
+		dev_err(hdmi->dev, "flt time out\n");
+		return -ETIMEDOUT;
 	}
 
 	return 0;
