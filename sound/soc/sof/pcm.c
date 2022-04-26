@@ -150,6 +150,12 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 	dev_dbg(component->dev, "pcm: hw params stream %d dir %d\n",
 		spcm->pcm.pcm_id, substream->stream);
 
+	ret = snd_sof_pcm_platform_hw_params(sdev, substream, params, &platform_params);
+	if (ret < 0) {
+		dev_err(component->dev, "platform hw params failed\n");
+		return ret;
+	}
+
 	/* if this is a repeated hw_params without hw_free, skip setting up widgets */
 	if (!spcm->stream[substream->stream].list) {
 		ret = sof_pcm_setup_connected_widgets(sdev, rtd, spcm, substream->stream);
@@ -164,12 +170,6 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 
 		if (ret < 0)
 			return ret;
-	}
-
-	ret = snd_sof_pcm_platform_hw_params(sdev, substream, params, &platform_params);
-	if (ret < 0) {
-		dev_err(component->dev, "platform hw params failed\n");
-		return ret;
 	}
 
 	if (pcm_ops->hw_params) {
