@@ -12,6 +12,27 @@
 / {
 	model = "Qualcomm Technologies, Inc. sc7280 CRD platform (rev5+)";
 	compatible = "google,hoglin", "qcom,sc7280";
+
+	/* FIXED REGULATORS */
+
+	/*
+	 * On most herobrine boards PPVAR_SYS directly provides VREG_EDP_BL.
+	 * However, on CRD there's an extra regulator in the way. Since this
+	 * is expected to be uncommon, we'll leave the "vreg_edp_bl" label
+	 * in the baseboard herobrine.dtsi point at "ppvar_sys" and then
+	 * make a "_crd" specific version here.
+	 */
+	vreg_edp_bl_crd: vreg-edp-bl-crd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_edp_bl_crd";
+
+		gpio = <&pm8350c_gpios 6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&edp_bl_reg_en>;
+
+		vin-supply = <&ppvar_sys>;
+	};
 };
 
 /* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
@@ -81,6 +102,14 @@ ap_ts_pen_1v8: &i2c13 {
 	};
 };
 
+&mdss_edp {
+	status = "okay";
+};
+
+&mdss_edp_phy {
+	status = "okay";
+};
+
 /* For nvme */
 &pcie1 {
 	status = "okay";
@@ -89,6 +118,10 @@ ap_ts_pen_1v8: &i2c13 {
 /* For nvme */
 &pcie1_phy {
 	status = "okay";
+};
+
+&pm8350c_pwm_backlight {
+	power-supply = <&vreg_edp_bl_crd>;
 };
 
 /* For eMMC */
@@ -121,6 +154,13 @@ ap_ts_pen_1v8: &i2c13 {
 			  "PMIC_EDP_BL_EN",
 			  "PMIC_EDP_BL_PWM",
 			  "";
+
+	edp_bl_reg_en: edp-bl-reg-en {
+		pins = "gpio6";
+		function = "normal";
+		bias-disable;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
+	};
 };
 
 &tlmm {

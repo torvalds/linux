@@ -58,6 +58,14 @@ ap_tp_i2c: &i2c0 {
 	status = "okay";
 };
 
+&mdss_edp {
+	status = "okay";
+};
+
+&mdss_edp_phy {
+	status = "okay";
+};
+
 /* For nvme */
 &pcie1 {
 	status = "okay";

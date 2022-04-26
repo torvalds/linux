@@ -367,6 +367,11 @@ vreg_edp_3p3: &pp3300_left_in_mlb {};
 
 /* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
 
+&edp_panel {
+	/* Our board provides power to the qcard for the eDP panel. */
+	power-supply = <&vreg_edp_3p3>;
+};
+
 ap_sar_sensor_i2c: &i2c1 {
 	clock-frequency = <400000>;
 	status = "disabled";
@@ -420,6 +425,14 @@ ap_i2c_tpm: &i2c14 {
 	};
 };
 
+&mdss {
+	status = "okay";
+};
+
+&mdss_mdp {
+	status = "okay";
+};
+
 /* NVMe drive, enabled on a per-board basis */
 &pcie1 {
 	pinctrl-names = "default";
@@ -427,6 +440,17 @@ ap_i2c_tpm: &i2c14 {
 
 	perst-gpio = <&tlmm 2 GPIO_ACTIVE_LOW>;
 	vddpe-3v3-supply = <&pp3300_ssd>;
+};
+
+&pm8350c_pwm {
+	status = "okay";
+};
+
+&pm8350c_pwm_backlight {
+	status = "okay";
+
+	/* Our board provides power to the qcard for the backlight */
+	power-supply = <&vreg_edp_bl>;
 };
 
 &pmk8350_rtc {
