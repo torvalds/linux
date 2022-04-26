@@ -254,7 +254,7 @@ static ssize_t ta_if_invoke_debugfs_write(struct file *fp, const char *buf, size
 
 	shared_buf = kzalloc(shared_buf_len, GFP_KERNEL);
 	if (!shared_buf)
-		ret = -ENOMEM;
+		return -ENOMEM;
 	if (copy_from_user((void *)shared_buf, &buf[copy_pos], shared_buf_len)) {
 		ret = -EFAULT;
 		goto err_free_shared_buf;
