@@ -11327,12 +11327,20 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 		ctx->user = get_uid(current_user());
 
 	/*
-	 * For SQPOLL, we just need a wakeup, always.
+	 * For SQPOLL, we just need a wakeup, always. For !SQPOLL, if
+	 * COOP_TASKRUN is set, then IPIs are never needed by the app.
 	 */
-	if (ctx->flags & IORING_SETUP_SQPOLL)
+	ret = -EINVAL;
+	if (ctx->flags & IORING_SETUP_SQPOLL) {
+		/* IPI related flags don't make sense with SQPOLL */
+		if (ctx->flags & IORING_SETUP_COOP_TASKRUN)
+			goto err;
 		ctx->notify_method = TWA_SIGNAL_NO_IPI;
-	else
+	} else if (ctx->flags & IORING_SETUP_COOP_TASKRUN) {
+		ctx->notify_method = TWA_SIGNAL_NO_IPI;
+	} else {
 		ctx->notify_method = TWA_SIGNAL;
+	}
 
 	/*
 	 * This is just grabbed for accounting purposes. When a process exits,
@@ -11431,7 +11439,8 @@ static long io_uring_setup(u32 entries, struct io_uring_params __user *params)
 	if (p.flags & ~(IORING_SETUP_IOPOLL | IORING_SETUP_SQPOLL |
 			IORING_SETUP_SQ_AFF | IORING_SETUP_CQSIZE |
 			IORING_SETUP_CLAMP | IORING_SETUP_ATTACH_WQ |
-			IORING_SETUP_R_DISABLED | IORING_SETUP_SUBMIT_ALL))
+			IORING_SETUP_R_DISABLED | IORING_SETUP_SUBMIT_ALL |
+			IORING_SETUP_COOP_TASKRUN))
 		return -EINVAL;
 
 	return  io_uring_create(entries, &p, params);
