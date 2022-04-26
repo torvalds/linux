@@ -461,8 +461,8 @@ static int mtk_cpufreq_init(struct cpufreq_policy *policy)
 
 	info = mtk_cpu_dvfs_info_lookup(policy->cpu);
 	if (!info) {
-		dev_err(info->cpu_dev,
-			"dvfs info for cpu%d is not initialized.\n", policy->cpu);
+		pr_err("dvfs info for cpu%d is not initialized.\n",
+			policy->cpu);
 		return -EINVAL;
 	}
 
