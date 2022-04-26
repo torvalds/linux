@@ -2069,7 +2069,11 @@ static noinline struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx)
 {
 	struct io_rings *rings = ctx->rings;
 	unsigned int off = ctx->cached_cq_tail & (ctx->cq_entries - 1);
+	unsigned int shift = 0;
 	unsigned int free, queued, len;
+
+	if (ctx->flags & IORING_SETUP_CQE32)
+		shift = 1;
 
 	/* userspace may cheat modifying the tail, be safe and do min */
 	queued = min(__io_cqring_events(ctx), ctx->cq_entries);
@@ -2082,15 +2086,26 @@ static noinline struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx)
 	ctx->cached_cq_tail++;
 	ctx->cqe_cached = &rings->cqes[off];
 	ctx->cqe_sentinel = ctx->cqe_cached + len;
-	return ctx->cqe_cached++;
+	ctx->cqe_cached++;
+	return &rings->cqes[off << shift];
 }
 
 static inline struct io_uring_cqe *io_get_cqe(struct io_ring_ctx *ctx)
 {
 	if (likely(ctx->cqe_cached < ctx->cqe_sentinel)) {
+		struct io_uring_cqe *cqe = ctx->cqe_cached;
+
+		if (ctx->flags & IORING_SETUP_CQE32) {
+			unsigned int off = ctx->cqe_cached - ctx->rings->cqes;
+
+			cqe += off;
+		}
+
 		ctx->cached_cq_tail++;
-		return ctx->cqe_cached++;
+		ctx->cqe_cached++;
+		return cqe;
 	}
+
 	return __io_get_cqe(ctx);
 }
 
