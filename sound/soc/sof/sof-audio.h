@@ -330,7 +330,12 @@ struct snd_sof_widget {
 	int complete;
 	int use_count; /* use_count will be protected by the PCM mutex held by the core */
 	int core;
-	int id;
+	int id; /* id is the DAPM widget type */
+	/*
+	 * Instance ID is set dynamically when the widget gets set up in the FW. It should be
+	 * unique for each module type across all pipelines. This will not be used in SOF_IPC.
+	 */
+	int instance_id;
 
 	/*
 	 * Flag indicating if the widget should be set up dynamically when a PCM is opened.
@@ -345,6 +350,7 @@ struct snd_sof_widget {
 	struct snd_soc_dapm_widget *widget;
 	struct list_head list;	/* list in sdev widget list */
 	struct snd_sof_widget *pipe_widget;
+	void *module_info;
 
 	const guid_t uuid;
 
