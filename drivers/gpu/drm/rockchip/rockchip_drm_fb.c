@@ -49,9 +49,19 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 	}
 }
 
+static int rockchip_drm_gem_fb_create_handle(struct drm_framebuffer *fb,
+					     struct drm_file *file,
+					     unsigned int *handle)
+{
+	if (is_rockchip_logo_fb(fb))
+		return -EOPNOTSUPP;
+
+	return drm_gem_fb_create_handle(fb, file, handle);
+}
+
 static const struct drm_framebuffer_funcs rockchip_drm_fb_funcs = {
 	.destroy       = rockchip_drm_fb_destroy,
-	.create_handle = drm_gem_fb_create_handle,
+	.create_handle = rockchip_drm_gem_fb_create_handle,
 };
 
 struct drm_framebuffer *
