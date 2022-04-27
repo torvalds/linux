@@ -39,6 +39,7 @@ properties:
       - description: frame dma based extraction
       - description: analyzer interrupt
       - description: ptp interrupt
+      - description: ptp external interrupt
 
   interrupt-names:
     minItems: 1
@@ -47,6 +48,7 @@ properties:
       - const: fdma
       - const: ana
       - const: ptp
+      - const: ptp-ext
 
   resets:
     items:

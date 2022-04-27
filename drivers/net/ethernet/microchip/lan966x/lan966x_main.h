@@ -56,6 +56,7 @@
 
 #define LAN966X_PHC_COUNT		3
 #define LAN966X_PHC_PORT		0
+#define LAN966X_PHC_PINS_NUM		7
 
 #define IFH_REW_OP_NOOP			0x0
 #define IFH_REW_OP_ONE_STEP_PTP		0x3
@@ -177,6 +178,7 @@ struct lan966x_stat_layout {
 struct lan966x_phc {
 	struct ptp_clock *clock;
 	struct ptp_clock_info info;
+	struct ptp_pin_desc pins[LAN966X_PHC_PINS_NUM];
 	struct hwtstamp_config hwtstamp_config;
 	struct lan966x *lan966x;
 	u8 index;
@@ -231,6 +233,7 @@ struct lan966x {
 	int ana_irq;
 	int ptp_irq;
 	int fdma_irq;
+	int ptp_ext_irq;
 
 	/* worqueue for fdb */
 	struct workqueue_struct *fdb_work;
@@ -392,6 +395,7 @@ int lan966x_ptp_txtstamp_request(struct lan966x_port *port,
 void lan966x_ptp_txtstamp_release(struct lan966x_port *port,
 				  struct sk_buff *skb);
 irqreturn_t lan966x_ptp_irq_handler(int irq, void *args);
+irqreturn_t lan966x_ptp_ext_irq_handler(int irq, void *args);
 
 int lan966x_fdma_xmit(struct sk_buff *skb, __be32 *ifh, struct net_device *dev);
 int lan966x_fdma_change_mtu(struct lan966x *lan966x);

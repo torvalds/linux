@@ -692,6 +692,9 @@ static void lan966x_cleanup_ports(struct lan966x *lan966x)
 
 	if (lan966x->ptp_irq)
 		devm_free_irq(lan966x->dev, lan966x->ptp_irq, lan966x);
+
+	if (lan966x->ptp_ext_irq)
+		devm_free_irq(lan966x->dev, lan966x->ptp_ext_irq, lan966x);
 }
 
 static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
@@ -1056,6 +1059,20 @@ static int lan966x_probe(struct platform_device *pdev)
 			return dev_err_probe(&pdev->dev, err, "Unable to use fdma irq");
 
 		lan966x->fdma = true;
+	}
+
+	if (lan966x->ptp) {
+		lan966x->ptp_ext_irq = platform_get_irq_byname(pdev, "ptp-ext");
+		if (lan966x->ptp_ext_irq > 0) {
+			err = devm_request_threaded_irq(&pdev->dev,
+							lan966x->ptp_ext_irq, NULL,
+							lan966x_ptp_ext_irq_handler,
+							IRQF_ONESHOT,
+							"ptp-ext irq", lan966x);
+			if (err)
+				return dev_err_probe(&pdev->dev, err,
+						     "Unable to use ptp-ext irq");
+		}
 	}
 
 	/* init switch */

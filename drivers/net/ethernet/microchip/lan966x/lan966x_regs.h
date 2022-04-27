@@ -684,6 +684,24 @@ enum lan966x_target {
 /*      FDMA:FDMA:FDMA_ERRORS */
 #define FDMA_ERRORS               __REG(TARGET_FDMA, 0, 1, 8, 0, 1, 428, 412, 0, 1, 4)
 
+/*      PTP:PTP_CFG:PTP_PIN_INTR */
+#define PTP_PIN_INTR              __REG(TARGET_PTP, 0, 1, 512, 0, 1, 16, 0, 0, 1, 4)
+
+#define PTP_PIN_INTR_INTR_PTP                    GENMASK(7, 0)
+#define PTP_PIN_INTR_INTR_PTP_SET(x)\
+	FIELD_PREP(PTP_PIN_INTR_INTR_PTP, x)
+#define PTP_PIN_INTR_INTR_PTP_GET(x)\
+	FIELD_GET(PTP_PIN_INTR_INTR_PTP, x)
+
+/*      PTP:PTP_CFG:PTP_PIN_INTR_ENA */
+#define PTP_PIN_INTR_ENA          __REG(TARGET_PTP, 0, 1, 512, 0, 1, 16, 4, 0, 1, 4)
+
+#define PTP_PIN_INTR_ENA_INTR_ENA                GENMASK(7, 0)
+#define PTP_PIN_INTR_ENA_INTR_ENA_SET(x)\
+	FIELD_PREP(PTP_PIN_INTR_ENA_INTR_ENA, x)
+#define PTP_PIN_INTR_ENA_INTR_ENA_GET(x)\
+	FIELD_GET(PTP_PIN_INTR_ENA_INTR_ENA, x)
+
 /*      PTP:PTP_CFG:PTP_DOM_CFG */
 #define PTP_DOM_CFG               __REG(TARGET_PTP, 0, 1, 512, 0, 1, 16, 12, 0, 1, 4)
 
@@ -717,6 +735,12 @@ enum lan966x_target {
 #define PTP_PIN_CFG_PIN_SYNC_GET(x)\
 	FIELD_GET(PTP_PIN_CFG_PIN_SYNC, x)
 
+#define PTP_PIN_CFG_PIN_SELECT                   GENMASK(23, 21)
+#define PTP_PIN_CFG_PIN_SELECT_SET(x)\
+	FIELD_PREP(PTP_PIN_CFG_PIN_SELECT, x)
+#define PTP_PIN_CFG_PIN_SELECT_GET(x)\
+	FIELD_GET(PTP_PIN_CFG_PIN_SELECT, x)
+
 #define PTP_PIN_CFG_PIN_DOM                      GENMASK(17, 16)
 #define PTP_PIN_CFG_PIN_DOM_SET(x)\
 	FIELD_PREP(PTP_PIN_CFG_PIN_DOM, x)
@@ -743,6 +767,22 @@ enum lan966x_target {
 	FIELD_PREP(PTP_TOD_NSEC_TOD_NSEC, x)
 #define PTP_TOD_NSEC_TOD_NSEC_GET(x)\
 	FIELD_GET(PTP_TOD_NSEC_TOD_NSEC, x)
+
+/*      PTP:PTP_PINS:WF_HIGH_PERIOD */
+#define PTP_WF_HIGH_PERIOD(g)     __REG(TARGET_PTP,\
+					0, 1, 0, g, 8, 64, 24, 0, 1, 4)
+
+#define PTP_WF_HIGH_PERIOD_PIN_WFH(x)            ((x) & GENMASK(29, 0))
+#define PTP_WF_HIGH_PERIOD_PIN_WFH_M             GENMASK(29, 0)
+#define PTP_WF_HIGH_PERIOD_PIN_WFH_X(x)          ((x) & GENMASK(29, 0))
+
+/*      PTP:PTP_PINS:WF_LOW_PERIOD */
+#define PTP_WF_LOW_PERIOD(g)      __REG(TARGET_PTP,\
+					0, 1, 0, g, 8, 64, 28, 0, 1, 4)
+
+#define PTP_WF_LOW_PERIOD_PIN_WFL(x)             ((x) & GENMASK(29, 0))
+#define PTP_WF_LOW_PERIOD_PIN_WFL_M              GENMASK(29, 0)
+#define PTP_WF_LOW_PERIOD_PIN_WFL_X(x)           ((x) & GENMASK(29, 0))
 
 /*      PTP:PTP_TS_FIFO:PTP_TWOSTEP_CTRL */
 #define PTP_TWOSTEP_CTRL          __REG(TARGET_PTP, 0, 1, 612, 0, 1, 12, 0, 0, 1, 4)
