@@ -740,12 +740,6 @@ lpfc_bsg_rport_els(struct bsg_job *job)
 		readl(phba->HCregaddr); /* flush */
 	}
 
-	cmdiocbq->ndlp = lpfc_nlp_get(ndlp);
-	if (!cmdiocbq->ndlp) {
-		rc = -EIO;
-		goto linkdown_err;
-	}
-
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, cmdiocbq, 0);
 	if (rc == IOCB_SUCCESS) {
 		spin_lock_irqsave(&phba->hbalock, flags);
