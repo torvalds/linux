@@ -2874,7 +2874,6 @@ static int rcu_torture_read_exit_child(void *trsp_in)
 // Parent kthread which creates and destroys read-exit child kthreads.
 static int rcu_torture_read_exit(void *unused)
 {
-	int count = 0;
 	bool errexit = false;
 	int i;
 	struct task_struct *tsp;
@@ -2886,34 +2885,28 @@ static int rcu_torture_read_exit(void *unused)
 
 	// Each pass through this loop does one read-exit episode.
 	do {
-		if (++count > read_exit_burst) {
-			VERBOSE_TOROUT_STRING("rcu_torture_read_exit: End of episode");
-			rcu_barrier(); // Wait for task_struct free, avoid OOM.
-			for (i = 0; i < read_exit_delay; i++) {
-				schedule_timeout_uninterruptible(HZ);
-				if (READ_ONCE(read_exit_child_stop))
-					break;
+		VERBOSE_TOROUT_STRING("rcu_torture_read_exit: Start of episode");
+		for (i = 0; i < read_exit_burst; i++) {
+			if (READ_ONCE(read_exit_child_stop))
+				break;
+			stutter_wait("rcu_torture_read_exit");
+			// Spawn child.
+			tsp = kthread_run(rcu_torture_read_exit_child,
+					  &trs, "%s", "rcu_torture_read_exit_child");
+			if (IS_ERR(tsp)) {
+				TOROUT_ERRSTRING("out of memory");
+				errexit = true;
+				break;
 			}
-			if (!READ_ONCE(read_exit_child_stop))
-				VERBOSE_TOROUT_STRING("rcu_torture_read_exit: Start of episode");
-			count = 0;
+			cond_resched();
+			kthread_stop(tsp);
+			n_read_exits++;
 		}
-		if (READ_ONCE(read_exit_child_stop))
-			break;
-		// Spawn child.
-		tsp = kthread_run(rcu_torture_read_exit_child,
-				     &trs, "%s",
-				     "rcu_torture_read_exit_child");
-		if (IS_ERR(tsp)) {
-			TOROUT_ERRSTRING("out of memory");
-			errexit = true;
-			tsp = NULL;
-			break;
-		}
-		cond_resched();
-		kthread_stop(tsp);
-		n_read_exits ++;
-		stutter_wait("rcu_torture_read_exit");
+		VERBOSE_TOROUT_STRING("rcu_torture_read_exit: End of episode");
+		rcu_barrier(); // Wait for task_struct free, avoid OOM.
+		i = 0;
+		for (; !errexit && !READ_ONCE(read_exit_child_stop) && i < read_exit_delay; i++)
+			schedule_timeout_uninterruptible(HZ);
 	} while (!errexit && !READ_ONCE(read_exit_child_stop));
 
 	// Clean up and exit.
