@@ -421,33 +421,6 @@ void ctrl_alt_del(void)
 static char poweroff_cmd[POWEROFF_CMD_PATH_LEN] = "/sbin/poweroff";
 static const char reboot_cmd[] = "/sbin/reboot";
 
-#ifdef CONFIG_SYSCTL
-static struct ctl_table kern_reboot_table[] = {
-	{
-		.procname       = "poweroff_cmd",
-		.data           = &poweroff_cmd,
-		.maxlen         = POWEROFF_CMD_PATH_LEN,
-		.mode           = 0644,
-		.proc_handler   = proc_dostring,
-	},
-	{
-		.procname       = "ctrl-alt-del",
-		.data           = &C_A_D,
-		.maxlen         = sizeof(int),
-		.mode           = 0644,
-		.proc_handler   = proc_dointvec,
-	},
-	{ }
-};
-
-static void __init kernel_reboot_sysctls_init(void)
-{
-	register_sysctl_init("kernel", kern_reboot_table);
-}
-#else
-#define kernel_reboot_sysctls_init() do { } while (0)
-#endif /* CONFIG_SYSCTL */
-
 static int run_cmd(const char *cmd)
 {
 	char **argv;
@@ -894,6 +867,33 @@ static struct attribute *reboot_attrs[] = {
 #endif
 	NULL,
 };
+
+#ifdef CONFIG_SYSCTL
+static struct ctl_table kern_reboot_table[] = {
+	{
+		.procname       = "poweroff_cmd",
+		.data           = &poweroff_cmd,
+		.maxlen         = POWEROFF_CMD_PATH_LEN,
+		.mode           = 0644,
+		.proc_handler   = proc_dostring,
+	},
+	{
+		.procname       = "ctrl-alt-del",
+		.data           = &C_A_D,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec,
+	},
+	{ }
+};
+
+static void __init kernel_reboot_sysctls_init(void)
+{
+	register_sysctl_init("kernel", kern_reboot_table);
+}
+#else
+#define kernel_reboot_sysctls_init() do { } while (0)
+#endif /* CONFIG_SYSCTL */
 
 static const struct attribute_group reboot_attr_group = {
 	.attrs = reboot_attrs,
