@@ -13,8 +13,10 @@ Required properties:
 - #dma-cells : Has to be 1. imx-dma does not support anything else.
 
 Optional properties:
-- #dma-channels : Number of DMA channels supported. Should be 16.
-- #dma-requests : Number of DMA requests supported.
+- dma-channels : Number of DMA channels supported. Should be 16.
+- #dma-channels : deprecated
+- dma-requests : Number of DMA requests supported.
+- #dma-requests : deprecated
 
 Example:
 
@@ -23,7 +25,7 @@ Example:
 		reg = <0x10001000 0x1000>;
 		interrupts = <32 33>;
 		#dma-cells = <1>;
-		#dma-channels = <16>;
+		dma-channels = <16>;
 	};
 
 
