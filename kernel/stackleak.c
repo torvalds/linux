@@ -70,7 +70,7 @@ late_initcall(stackleak_sysctls_init);
 #define skip_erasing()	false
 #endif /* CONFIG_STACKLEAK_RUNTIME_DISABLE */
 
-static __always_inline void __stackleak_erase(void)
+static __always_inline void __stackleak_erase(bool on_task_stack)
 {
 	const unsigned long task_stack_low = stackleak_task_low_bound(current);
 	const unsigned long task_stack_high = stackleak_task_high_bound(current);
@@ -96,7 +96,7 @@ static __always_inline void __stackleak_erase(void)
 	 * function has a fixed-size stack frame, and the current stack pointer
 	 * doesn't change while we write poison.
 	 */
-	if (on_thread_stack())
+	if (on_task_stack)
 		erase_high = current_stack_pointer;
 	else
 		erase_high = task_stack_high;
@@ -110,12 +110,41 @@ static __always_inline void __stackleak_erase(void)
 	current->lowest_stack = task_stack_high;
 }
 
+/*
+ * Erase and poison the portion of the task stack used since the last erase.
+ * Can be called from the task stack or an entry stack when the task stack is
+ * no longer in use.
+ */
 asmlinkage void noinstr stackleak_erase(void)
 {
 	if (skip_erasing())
 		return;
 
-	__stackleak_erase();
+	__stackleak_erase(on_thread_stack());
+}
+
+/*
+ * Erase and poison the portion of the task stack used since the last erase.
+ * Can only be called from the task stack.
+ */
+asmlinkage void noinstr stackleak_erase_on_task_stack(void)
+{
+	if (skip_erasing())
+		return;
+
+	__stackleak_erase(true);
+}
+
+/*
+ * Erase and poison the portion of the task stack used since the last erase.
+ * Can only be called from a stack other than the task stack.
+ */
+asmlinkage void noinstr stackleak_erase_off_task_stack(void)
+{
+	if (skip_erasing())
+		return;
+
+	__stackleak_erase(false);
 }
 
 void __used __no_caller_saved_registers noinstr stackleak_track_stack(void)
