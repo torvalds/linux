@@ -578,7 +578,7 @@ void ceph_evict_inode(struct inode *inode)
 
 	__ceph_remove_caps(ci);
 
-	if (__ceph_has_any_quota(ci))
+	if (__ceph_has_quota(ci, QUOTA_GET_ANY))
 		ceph_adjust_quota_realms_count(inode, false);
 
 	/*
