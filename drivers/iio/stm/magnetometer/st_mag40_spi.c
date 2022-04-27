@@ -123,6 +123,9 @@ static int __maybe_unused st_mag40_spi_resume(struct device *dev)
 static const struct dev_pm_ops st_mag40_spi_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(st_mag40_spi_suspend, st_mag40_spi_resume)
 };
+#define ST_MAG40_PM_OPS		(&st_mag40_spi_pm_ops)
+#else /* CONFIG_PM */
+#define ST_MAG40_PM_OPS		NULL
 #endif /* CONFIG_PM */
 
 static const struct spi_device_id st_mag40_ids[] = {
@@ -168,9 +171,7 @@ static struct spi_driver st_mag40_spi_driver = {
 	.driver = {
 		   .owner = THIS_MODULE,
 		   .name = ST_MAG40_DEV_NAME,
-#ifdef CONFIG_PM
-		   .pm = &st_mag40_spi_pm_ops,
-#endif /* CONFIG_PM */
+		   .pm = ST_MAG40_PM_OPS,
 #ifdef CONFIG_OF
 		   .of_match_table = st_mag40_id_table,
 #endif /* CONFIG_OF */

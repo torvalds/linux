@@ -2712,7 +2712,7 @@ void st_ism330dlc_common_remove(struct ism330dlc_data *cdata, int irq)
 EXPORT_SYMBOL(st_ism330dlc_common_remove);
 
 #ifdef CONFIG_PM
-int st_ism330dlc_common_suspend(struct ism330dlc_data *cdata)
+int __maybe_unused st_ism330dlc_common_suspend(struct ism330dlc_data *cdata)
 {
 	int err, i;
 	u8 tmp_sensors_enabled;
@@ -2740,7 +2740,7 @@ int st_ism330dlc_common_suspend(struct ism330dlc_data *cdata)
 }
 EXPORT_SYMBOL(st_ism330dlc_common_suspend);
 
-int st_ism330dlc_common_resume(struct ism330dlc_data *cdata)
+int __maybe_unused st_ism330dlc_common_resume(struct ism330dlc_data *cdata)
 {
 	int err, i;
 	struct ism330dlc_sensor_data *sdata;

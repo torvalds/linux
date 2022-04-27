@@ -1248,13 +1248,13 @@ void ism303dac_common_remove(struct ism303dac_data *cdata, int irq)
 EXPORT_SYMBOL(ism303dac_common_remove);
 
 #ifdef CONFIG_PM
-int ism303dac_common_suspend(struct ism303dac_data *cdata)
+int __maybe_unused ism303dac_common_suspend(struct ism303dac_data *cdata)
 {
 	return 0;
 }
 EXPORT_SYMBOL(ism303dac_common_suspend);
 
-int ism303dac_common_resume(struct ism303dac_data *cdata)
+int __maybe_unused ism303dac_common_resume(struct ism303dac_data *cdata)
 {
 	return 0;
 }

@@ -135,14 +135,14 @@ static int st_lsm6ds3h_spi_remove(struct spi_device *spi)
 }
 
 #ifdef CONFIG_PM
-static int st_lsm6ds3h_suspend(struct device *dev)
+static int __maybe_unused st_lsm6ds3h_suspend(struct device *dev)
 {
 	struct lsm6ds3h_data *cdata = spi_get_drvdata(to_spi_device(dev));
 
 	return st_lsm6ds3h_common_suspend(cdata);
 }
 
-static int st_lsm6ds3h_resume(struct device *dev)
+static int __maybe_unused st_lsm6ds3h_resume(struct device *dev)
 {
 	struct lsm6ds3h_data *cdata = spi_get_drvdata(to_spi_device(dev));
 

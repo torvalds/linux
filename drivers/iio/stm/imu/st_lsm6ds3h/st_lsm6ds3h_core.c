@@ -3042,7 +3042,7 @@ void st_lsm6ds3h_common_remove(struct lsm6ds3h_data *cdata, int irq)
 EXPORT_SYMBOL(st_lsm6ds3h_common_remove);
 
 #ifdef CONFIG_PM
-int st_lsm6ds3h_common_suspend(struct lsm6ds3h_data *cdata)
+int __maybe_unused st_lsm6ds3h_common_suspend(struct lsm6ds3h_data *cdata)
 {
 	int err, i;
 	u8 tmp_sensors_enabled;
@@ -3085,7 +3085,7 @@ int st_lsm6ds3h_common_suspend(struct lsm6ds3h_data *cdata)
 }
 EXPORT_SYMBOL(st_lsm6ds3h_common_suspend);
 
-int st_lsm6ds3h_common_resume(struct lsm6ds3h_data *cdata)
+int __maybe_unused st_lsm6ds3h_common_resume(struct lsm6ds3h_data *cdata)
 {
 	int err, i;
 	struct lsm6ds3h_sensor_data *sdata;

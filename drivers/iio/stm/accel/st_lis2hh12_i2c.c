@@ -95,14 +95,14 @@ static int lis2hh12_i2c_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-static int lis2hh12_suspend(struct device *dev)
+static int __maybe_unused lis2hh12_suspend(struct device *dev)
 {
 	struct lis2hh12_data *cdata = i2c_get_clientdata(to_i2c_client(dev));
 
 	return lis2hh12_common_suspend(cdata);
 }
 
-static int lis2hh12_resume(struct device *dev)
+static int __maybe_unused lis2hh12_resume(struct device *dev)
 {
 	struct lis2hh12_data *cdata = i2c_get_clientdata(to_i2c_client(dev));
 

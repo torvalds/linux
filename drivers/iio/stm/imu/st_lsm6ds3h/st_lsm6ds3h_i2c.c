@@ -114,14 +114,14 @@ static int st_lsm6ds3h_i2c_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-static int st_lsm6ds3h_suspend(struct device *dev)
+static int __maybe_unused st_lsm6ds3h_suspend(struct device *dev)
 {
 	struct lsm6ds3h_data *cdata = i2c_get_clientdata(to_i2c_client(dev));
 
 	return st_lsm6ds3h_common_suspend(cdata);
 }
 
-static int st_lsm6ds3h_resume(struct device *dev)
+static int __maybe_unused st_lsm6ds3h_resume(struct device *dev)
 {
 	struct lsm6ds3h_data *cdata = i2c_get_clientdata(to_i2c_client(dev));
 

@@ -125,14 +125,14 @@ static int lis2hh12_spi_remove(struct spi_device *spi)
 }
 
 #ifdef CONFIG_PM
-static int lis2hh12_suspend(struct device *dev)
+static int __maybe_unused lis2hh12_suspend(struct device *dev)
 {
 	struct lis2hh12_data *cdata = spi_get_drvdata(to_spi_device(dev));
 
 	return lis2hh12_common_suspend(cdata);
 }
 
-static int lis2hh12_resume(struct device *dev)
+static int __maybe_unused lis2hh12_resume(struct device *dev)
 {
 	struct lis2hh12_data *cdata = spi_get_drvdata(to_spi_device(dev));
 

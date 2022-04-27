@@ -891,14 +891,14 @@ void lis2hh12_common_remove(struct lis2hh12_data *cdata, int irq)
 EXPORT_SYMBOL(lis2hh12_common_remove);
 
 #ifdef CONFIG_PM
-int lis2hh12_common_suspend(struct lis2hh12_data *cdata)
+int __maybe_unused lis2hh12_common_suspend(struct lis2hh12_data *cdata)
 {
 	return 0;
 }
 
 EXPORT_SYMBOL(lis2hh12_common_suspend);
 
-int lis2hh12_common_resume(struct lis2hh12_data *cdata)
+int __maybe_unused lis2hh12_common_resume(struct lis2hh12_data *cdata)
 {
 	return 0;
 }
