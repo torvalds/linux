@@ -24,12 +24,7 @@
 #include "amdgpu.h"
 #include "amdgpu_psp_ta.h"
 
-static const char *TA_IF_FS_NAME = "ta_if";
-
-struct dentry *dir;
-static struct dentry *ta_load_debugfs_dentry;
-static struct dentry *ta_unload_debugfs_dentry;
-static struct dentry *ta_invoke_debugfs_dentry;
+#if defined(CONFIG_DEBUG_FS)
 
 static ssize_t ta_if_load_debugfs_write(struct file *fp, const char *buf,
 					    size_t len, loff_t *off);
@@ -37,7 +32,6 @@ static ssize_t ta_if_unload_debugfs_write(struct file *fp, const char *buf,
 					    size_t len, loff_t *off);
 static ssize_t ta_if_invoke_debugfs_write(struct file *fp, const char *buf,
 					    size_t len, loff_t *off);
-
 
 static uint32_t get_bin_version(const uint8_t *bin)
 {
@@ -74,19 +68,19 @@ static bool is_ta_type_valid(enum ta_type_id ta_type)
 }
 
 static const struct file_operations ta_load_debugfs_fops = {
-	.write   = ta_if_load_debugfs_write,
+	.write  = ta_if_load_debugfs_write,
 	.llseek = default_llseek,
 	.owner  = THIS_MODULE
 };
 
 static const struct file_operations ta_unload_debugfs_fops = {
-	.write   = ta_if_unload_debugfs_write,
+	.write  = ta_if_unload_debugfs_write,
 	.llseek = default_llseek,
 	.owner  = THIS_MODULE
 };
 
 static const struct file_operations ta_invoke_debugfs_fops = {
-	.write   = ta_if_invoke_debugfs_write,
+	.write  = ta_if_invoke_debugfs_write,
 	.llseek = default_llseek,
 	.owner  = THIS_MODULE
 };
@@ -286,31 +280,25 @@ err_free_shared_buf:
 	return ret;
 }
 
-static struct dentry *amdgpu_ta_if_debugfs_create(struct amdgpu_device *adev)
+void amdgpu_ta_if_debugfs_init(struct amdgpu_device *adev)
 {
 	struct drm_minor *minor = adev_to_drm(adev)->primary;
 
-	dir = debugfs_create_dir(TA_IF_FS_NAME, minor->debugfs_root);
+	struct dentry *dir = debugfs_create_dir("ta_if", minor->debugfs_root);
 
-	ta_load_debugfs_dentry = debugfs_create_file("ta_load", 0200, dir, adev,
-						     &ta_load_debugfs_fops);
+	debugfs_create_file("ta_load", 0200, dir, adev,
+				     &ta_load_debugfs_fops);
 
-	ta_unload_debugfs_dentry = debugfs_create_file("ta_unload", 0200, dir,
-						     adev, &ta_unload_debugfs_fops);
+	debugfs_create_file("ta_unload", 0200, dir,
+				     adev, &ta_unload_debugfs_fops);
 
-	ta_invoke_debugfs_dentry = debugfs_create_file("ta_invoke", 0200, dir,
-						     adev, &ta_invoke_debugfs_fops);
-	return dir;
+	debugfs_create_file("ta_invoke", 0200, dir,
+				     adev, &ta_invoke_debugfs_fops);
 }
 
+#else
 void amdgpu_ta_if_debugfs_init(struct amdgpu_device *adev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	dir = amdgpu_ta_if_debugfs_create(adev);
-#endif
-}
 
-void amdgpu_ta_if_debugfs_remove(void)
-{
-	debugfs_remove_recursive(dir);
 }
+#endif
