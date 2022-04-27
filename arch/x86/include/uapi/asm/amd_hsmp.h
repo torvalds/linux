@@ -31,9 +31,22 @@ enum hsmp_message_ids {
 	HSMP_GET_CCLK_THROTTLE_LIMIT,	/* 10h Get CCLK frequency limit in socket */
 	HSMP_GET_C0_PERCENT,		/* 11h Get average C0 residency in socket */
 	HSMP_SET_NBIO_DPM_LEVEL,	/* 12h Set max/min LCLK DPM Level for a given NBIO */
-					/* 13h Reserved */
-	HSMP_GET_DDR_BANDWIDTH = 0x14,	/* 14h Get theoretical maximum and current DDR Bandwidth */
-	HSMP_GET_TEMP_MONITOR,		/* 15h Get per-DIMM temperature and refresh rates */
+	HSMP_GET_NBIO_DPM_LEVEL,	/* 13h Get LCLK DPM level min and max for a given NBIO */
+	HSMP_GET_DDR_BANDWIDTH,		/* 14h Get theoretical maximum and current DDR Bandwidth */
+	HSMP_GET_TEMP_MONITOR,		/* 15h Get socket temperature */
+	HSMP_GET_DIMM_TEMP_RANGE,	/* 16h Get per-DIMM temperature range and refresh rate */
+	HSMP_GET_DIMM_POWER,		/* 17h Get per-DIMM power consumption */
+	HSMP_GET_DIMM_THERMAL,		/* 18h Get per-DIMM thermal sensors */
+	HSMP_GET_SOCKET_FREQ_LIMIT,	/* 19h Get current active frequency per socket */
+	HSMP_GET_CCLK_CORE_LIMIT,	/* 1Ah Get CCLK frequency limit per core */
+	HSMP_GET_RAILS_SVI,		/* 1Bh Get SVI-based Telemetry for all rails */
+	HSMP_GET_SOCKET_FMAX_FMIN,	/* 1Ch Get Fmax and Fmin per socket */
+	HSMP_GET_IOLINK_BANDWITH,	/* 1Dh Get current bandwidth on IO Link */
+	HSMP_GET_XGMI_BANDWITH,		/* 1Eh Get current bandwidth on xGMI Link */
+	HSMP_SET_GMI3_WIDTH,		/* 1Fh Set max and min GMI3 Link width */
+	HSMP_SET_PCI_RATE,		/* 20h Control link rate on PCIe devices */
+	HSMP_SET_POWER_MODE,		/* 21h Select power efficiency profile policy */
+	HSMP_SET_PSTATE_MAX_MIN,	/* 22h Set the max and min DF P-State  */
 	HSMP_MSG_ID_MAX,
 };
 
@@ -175,8 +188,12 @@ static const struct hsmp_msg_desc hsmp_msg_desc_table[] = {
 	 */
 	{1, 0, HSMP_SET},
 
-	/* RESERVED message */
-	{0, 0, HSMP_RSVD},
+	/*
+	 * HSMP_GET_NBIO_DPM_LEVEL, num_args = 1, response_sz = 1
+	 * input: args[0] = nbioid[23:16]
+	 * output: args[0] = max dpm level[15:8] + min dpm level[7:0]
+	 */
+	{1, 1, HSMP_GET},
 
 	/*
 	 * HSMP_GET_DDR_BANDWIDTH, num_args = 0, response_sz = 1
@@ -191,6 +208,93 @@ static const struct hsmp_msg_desc hsmp_msg_desc_table[] = {
 	 * [7:5] fractional part
 	 */
 	{0, 1, HSMP_GET},
+
+	/*
+	 * HSMP_GET_DIMM_TEMP_RANGE, num_args = 1, response_sz = 1
+	 * input: args[0] = DIMM address[7:0]
+	 * output: args[0] = refresh rate[3] + temperature range[2:0]
+	 */
+	{1, 1, HSMP_GET},
+
+	/*
+	 * HSMP_GET_DIMM_POWER, num_args = 1, response_sz = 1
+	 * input: args[0] = DIMM address[7:0]
+	 * output: args[0] = DIMM power in mW[31:17] + update rate in ms[16:8] +
+	 * DIMM address[7:0]
+	 */
+	{1, 1, HSMP_GET},
+
+	/*
+	 * HSMP_GET_DIMM_THERMAL, num_args = 1, response_sz = 1
+	 * input: args[0] = DIMM address[7:0]
+	 * output: args[0] = temperature in degree celcius[31:21] + update rate in ms[16:8] +
+	 * DIMM address[7:0]
+	 */
+	{1, 1, HSMP_GET},
+
+	/*
+	 * HSMP_GET_SOCKET_FREQ_LIMIT, num_args = 0, response_sz = 1
+	 * output: args[0] = frequency in MHz[31:16] + frequency source[15:0]
+	 */
+	{0, 1, HSMP_GET},
+
+	/*
+	 * HSMP_GET_CCLK_CORE_LIMIT, num_args = 1, response_sz = 1
+	 * input: args[0] = apic id [31:0]
+	 * output: args[0] = frequency in MHz[31:0]
+	 */
+	{1, 1, HSMP_GET},
+
+	/*
+	 * HSMP_GET_RAILS_SVI, num_args = 0, response_sz = 1
+	 * output: args[0] = power in mW[31:0]
+	 */
+	{0, 1, HSMP_GET},
+
+	/*
+	 * HSMP_GET_SOCKET_FMAX_FMIN, num_args = 0, response_sz = 1
+	 * output: args[0] = fmax in MHz[31:16] + fmin in MHz[15:0]
+	 */
+	{0, 1, HSMP_GET},
+
+	/*
+	 * HSMP_GET_IOLINK_BANDWITH, num_args = 1, response_sz = 1
+	 * input: args[0] = link id[15:8] + bw type[2:0]
+	 * output: args[0] = io bandwidth in Mbps[31:0]
+	 */
+	{1, 1, HSMP_GET},
+
+	/*
+	 * HSMP_GET_XGMI_BANDWITH, num_args = 1, response_sz = 1
+	 * input: args[0] = link id[15:8] + bw type[2:0]
+	 * output: args[0] = xgmi bandwidth in Mbps[31:0]
+	 */
+	{1, 1, HSMP_GET},
+
+	/*
+	 * HSMP_SET_GMI3_WIDTH, num_args = 1, response_sz = 0
+	 * input: args[0] = min link width[15:8] + max link width[7:0]
+	 */
+	{1, 0, HSMP_SET},
+
+	/*
+	 * HSMP_SET_PCI_RATE, num_args = 1, response_sz = 1
+	 * input: args[0] = link rate control value
+	 * output: args[0] = previous link rate control value
+	 */
+	{1, 1, HSMP_SET},
+
+	/*
+	 * HSMP_SET_POWER_MODE, num_args = 1, response_sz = 0
+	 * input: args[0] = power efficiency mode[2:0]
+	 */
+	{1, 0, HSMP_SET},
+
+	/*
+	 * HSMP_SET_PSTATE_MAX_MIN, num_args = 1, response_sz = 0
+	 * input: args[0] = min df pstate[15:8] + max df pstate[7:0]
+	 */
+	{1, 0, HSMP_SET},
 };
 
 /* Reset to default packing */
