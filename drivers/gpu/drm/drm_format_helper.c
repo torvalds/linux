@@ -100,6 +100,26 @@ void drm_fb_memcpy_toio(void __iomem *dst, unsigned int dst_pitch, const void *v
 }
 EXPORT_SYMBOL(drm_fb_memcpy_toio);
 
+static void drm_fb_swab16_line(void *dbuf, const void *sbuf, unsigned int pixels)
+{
+	u16 *dbuf16 = dbuf;
+	const u16 *sbuf16 = sbuf;
+	const u16 *send16 = sbuf16 + pixels;
+
+	while (sbuf16 < send16)
+		*dbuf16++ = swab16(*sbuf16++);
+}
+
+static void drm_fb_swab32_line(void *dbuf, const void *sbuf, unsigned int pixels)
+{
+	u32 *dbuf32 = dbuf;
+	const u32 *sbuf32 = sbuf;
+	const u32 *send32 = sbuf32 + pixels;
+
+	while (sbuf32 < send32)
+		*dbuf32++ = swab32(*sbuf32++);
+}
+
 /**
  * drm_fb_swab - Swap bytes into clip buffer
  * @dst: Destination buffer
@@ -120,12 +140,11 @@ void drm_fb_swab(void *dst, unsigned int dst_pitch, const void *src,
 		 bool cached)
 {
 	u8 cpp = fb->format->cpp[0];
-	size_t len = drm_rect_width(clip) * cpp;
-	const u16 *src16;
-	const u32 *src32;
-	u16 *dst16;
-	u32 *dst32;
-	unsigned int x, y;
+	unsigned long linepixels = drm_rect_width(clip);
+	size_t len = linepixels * cpp;
+	const void *sbuf;
+	void *dbuf;
+	unsigned int y;
 	void *buf = NULL;
 
 	if (WARN_ON_ONCE(cpp != 2 && cpp != 4))
@@ -133,31 +152,22 @@ void drm_fb_swab(void *dst, unsigned int dst_pitch, const void *src,
 
 	if (!dst_pitch)
 		dst_pitch = len;
+	src += clip_offset(clip, fb->pitches[0], cpp);
 
 	if (!cached)
 		buf = kmalloc(len, GFP_KERNEL);
 
-	src += clip_offset(clip, fb->pitches[0], cpp);
-
 	for (y = clip->y1; y < clip->y2; y++) {
-		if (buf) {
-			memcpy(buf, src, len);
-			src16 = buf;
-			src32 = buf;
-		} else {
-			src16 = src;
-			src32 = src;
-		}
+		if (buf)
+			sbuf = memcpy(buf, src, len);
+		else
+			sbuf = src;
+		dbuf = dst + clip->x1 * cpp;
 
-		dst16 = dst;
-		dst32 = dst;
-
-		for (x = clip->x1; x < clip->x2; x++) {
-			if (cpp == 4)
-				*dst32++ = swab32(*src32++);
-			else
-				*dst16++ = swab16(*src16++);
-		}
+		if (cpp == 4)
+			drm_fb_swab32_line(dbuf, sbuf, linepixels);
+		else
+			drm_fb_swab16_line(dbuf, sbuf, linepixels);
 
 		src += fb->pitches[0];
 		dst += dst_pitch;
