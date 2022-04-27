@@ -211,7 +211,7 @@ static int mt8186_run(struct snd_sof_dev *sdev)
 
 	adsp_bootup_addr = SRAM_PHYS_BASE_FROM_DSP_VIEW;
 	dev_dbg(sdev->dev, "HIFIxDSP boot from base : 0x%08X\n", adsp_bootup_addr);
-	sof_hifixdsp_boot_sequence(sdev, adsp_bootup_addr);
+	mt8186_sof_hifixdsp_boot_sequence(sdev, adsp_bootup_addr);
 
 	return 0;
 }
@@ -284,9 +284,9 @@ static int mt8186_dsp_probe(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	ret = adsp_clock_on(sdev);
+	ret = mt8186_adsp_clock_on(sdev);
 	if (ret) {
-		dev_err(sdev->dev, "adsp_clock_on fail!\n");
+		dev_err(sdev->dev, "mt8186_adsp_clock_on fail!\n");
 		return ret;
 	}
 
@@ -297,18 +297,18 @@ static int mt8186_dsp_probe(struct snd_sof_dev *sdev)
 
 static int mt8186_dsp_remove(struct snd_sof_dev *sdev)
 {
-	sof_hifixdsp_shutdown(sdev);
+	mt8186_sof_hifixdsp_shutdown(sdev);
 	adsp_sram_power_off(sdev);
-	adsp_clock_off(sdev);
+	mt8186_adsp_clock_off(sdev);
 
 	return 0;
 }
 
 static int mt8186_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 {
-	sof_hifixdsp_shutdown(sdev);
+	mt8186_sof_hifixdsp_shutdown(sdev);
 	adsp_sram_power_off(sdev);
-	adsp_clock_off(sdev);
+	mt8186_adsp_clock_off(sdev);
 
 	return 0;
 }
@@ -317,9 +317,9 @@ static int mt8186_dsp_resume(struct snd_sof_dev *sdev)
 {
 	int ret;
 
-	ret = adsp_clock_on(sdev);
+	ret = mt8186_adsp_clock_on(sdev);
 	if (ret) {
-		dev_err(sdev->dev, "adsp_clock_on fail!\n");
+		dev_err(sdev->dev, "mt8186_adsp_clock_on fail!\n");
 		return ret;
 	}
 

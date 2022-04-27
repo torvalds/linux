@@ -74,7 +74,7 @@ static void adsp_disable_all_clock(struct snd_sof_dev *sdev)
 	clk_disable_unprepare(priv->clk[CLK_TOP_AUDIODSP]);
 }
 
-int adsp_clock_on(struct snd_sof_dev *sdev)
+int mt8186_adsp_clock_on(struct snd_sof_dev *sdev)
 {
 	struct device *dev = sdev->dev;
 	int ret;
@@ -92,7 +92,7 @@ int adsp_clock_on(struct snd_sof_dev *sdev)
 	return 0;
 }
 
-void adsp_clock_off(struct snd_sof_dev *sdev)
+void mt8186_adsp_clock_off(struct snd_sof_dev *sdev)
 {
 	snd_sof_dsp_write(sdev, DSP_REG_BAR, ADSP_CK_EN, 0);
 	snd_sof_dsp_write(sdev, DSP_REG_BAR, ADSP_UART_CTRL, 0);
