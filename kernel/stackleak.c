@@ -70,16 +70,13 @@ late_initcall(stackleak_sysctls_init);
 #define skip_erasing()	false
 #endif /* CONFIG_STACKLEAK_RUNTIME_DISABLE */
 
-asmlinkage void noinstr stackleak_erase(void)
+static __always_inline void __stackleak_erase(void)
 {
 	/* It would be nice not to have 'kstack_ptr' and 'boundary' on stack */
 	unsigned long kstack_ptr = current->lowest_stack;
 	unsigned long boundary = (unsigned long)end_of_stack(current);
 	unsigned int poison_count = 0;
 	const unsigned int depth = STACKLEAK_SEARCH_DEPTH / sizeof(unsigned long);
-
-	if (skip_erasing())
-		return;
 
 	/* Check that 'lowest_stack' value is sane */
 	if (unlikely(kstack_ptr - boundary >= THREAD_SIZE))
@@ -123,6 +120,14 @@ asmlinkage void noinstr stackleak_erase(void)
 
 	/* Reset the 'lowest_stack' value for the next syscall */
 	current->lowest_stack = current_top_of_stack() - THREAD_SIZE/64;
+}
+
+asmlinkage void noinstr stackleak_erase(void)
+{
+	if (skip_erasing())
+		return;
+
+	__stackleak_erase();
 }
 
 void __used __no_caller_saved_registers noinstr stackleak_track_stack(void)
