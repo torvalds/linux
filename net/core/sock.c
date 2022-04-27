@@ -1311,6 +1311,9 @@ set_sndbuf:
 
 		__sock_set_mark(sk, val);
 		break;
+	case SO_RCVMARK:
+		sock_valbool_flag(sk, SOCK_RCVMARK, valbool);
+		break;
 
 	case SO_RXQ_OVFL:
 		sock_valbool_flag(sk, SOCK_RXQ_OVFL, valbool);
@@ -1735,6 +1738,10 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 
 	case SO_MARK:
 		v.val = sk->sk_mark;
+		break;
+
+	case SO_RCVMARK:
+		v.val = sock_flag(sk, SOCK_RCVMARK);
 		break;
 
 	case SO_RXQ_OVFL:
