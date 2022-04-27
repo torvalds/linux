@@ -16,7 +16,7 @@
  */
 #define LAN966X_1PPB_FORMAT		3480517749LL
 
-#define TOD_ACC_PIN		0x5
+#define TOD_ACC_PIN		0x7
 
 enum {
 	PTP_PIN_ACTION_IDLE = 0,
