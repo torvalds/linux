@@ -18689,13 +18689,11 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 	       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
 	bf_set(wqe_cmnd, &icmd->generic.wqe_com, CMD_XMIT_BLS_RSP64_CX);
 
-
 	/* Xmit CT abts response on exchange <xid> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "1200 Send BLS cmd x%x on oxid x%x Data: x%x\n",
 			 ctiocb->abort_rctl, oxid, phba->link_state);
 
-	lpfc_sli_prep_wqe(phba, ctiocb);
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, ctiocb, 0);
 	if (rc == IOCB_ERROR) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
