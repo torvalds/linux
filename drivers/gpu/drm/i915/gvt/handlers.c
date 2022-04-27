@@ -71,7 +71,7 @@ unsigned long intel_gvt_get_device_type(struct intel_gvt *gvt)
 	return 0;
 }
 
-bool intel_gvt_match_device(struct intel_gvt *gvt,
+static bool intel_gvt_match_device(struct intel_gvt *gvt,
 		unsigned long device)
 {
 	return intel_gvt_get_device_type(gvt) & device;
