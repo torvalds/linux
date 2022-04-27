@@ -1581,11 +1581,9 @@ static void __init spr_idle_state_table_update(void)
 	unsigned long long msr;
 
 	/* Check if user prefers C1E over C1. */
-	if (preferred_states_mask & BIT(2)) {
-		if (preferred_states_mask & BIT(1))
-			/* Both can't be enabled, stick to the defaults. */
-			return;
-
+	if ((preferred_states_mask & BIT(2)) &&
+	    !(preferred_states_mask & BIT(1))) {
+		/* Disable C1 and enable C1E. */
 		spr_cstates[0].flags |= CPUIDLE_FLAG_UNUSABLE;
 		spr_cstates[1].flags &= ~CPUIDLE_FLAG_UNUSABLE;
 
