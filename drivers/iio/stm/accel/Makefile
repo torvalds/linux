@@ -28,3 +28,9 @@ obj-$(CONFIG_IIO_ST_ISM303DAC_ACCEL_SPI) += st_ism303dac_accel_spi.o
 
 st-lis3dhh-y := st_lis3dhh.o st_lis3dhh_buffer.o
 obj-$(CONFIG_IIO_ST_LIS3DHH) += st-lis3dhh.o
+
+lis2hh12-y += st_lis2hh12_core.o st_lis2hh12_buffer.o st_lis2hh12_trigger.o
+obj-$(CONFIG_IIO_ST_LIS2HH12) += lis2hh12.o
+obj-$(CONFIG_IIO_ST_LIS2HH12_I2C) += st_lis2hh12_i2c.o
+obj-$(CONFIG_IIO_ST_LIS2HH12_SPI) += st_lis2hh12_spi.o
+
