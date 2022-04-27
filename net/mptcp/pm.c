@@ -287,11 +287,27 @@ void mptcp_pm_mp_fail_received(struct sock *sk, u64 fail_seq)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
 	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
+	struct sock *s = (struct sock *)msk;
 
 	pr_debug("fail_seq=%llu", fail_seq);
 
-	if (!mptcp_has_another_subflow(sk) && READ_ONCE(msk->allow_infinite_fallback))
+	if (mptcp_has_another_subflow(sk) || !READ_ONCE(msk->allow_infinite_fallback))
+		return;
+
+	if (!READ_ONCE(subflow->mp_fail_response_expect)) {
+		pr_debug("send MP_FAIL response and infinite map");
+
+		subflow->send_mp_fail = 1;
+		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPFAILTX);
 		subflow->send_infinite_map = 1;
+	} else if (s && inet_sk_state_load(s) != TCP_CLOSE) {
+		pr_debug("MP_FAIL response received");
+
+		mptcp_data_lock(s);
+		if (inet_sk_state_load(s) != TCP_CLOSE)
+			sk_stop_timer(s, &s->sk_timer);
+		mptcp_data_unlock(s);
+	}
 }
 
 /* path manager helpers */
