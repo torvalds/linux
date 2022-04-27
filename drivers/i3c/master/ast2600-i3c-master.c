@@ -245,6 +245,8 @@
 #define SCL_EXT_TERMN_LCNT_TIMING	0xcc
 #define SDA_HOLD_SWITCH_DLY_TIMING	0xd0
 #define SDA_TX_HOLD			GENMASK(18, 16)
+#define   SDA_TX_HOLD_MIN		0b001
+#define   SDA_TX_HOLD_MAX		0b111
 #define SDA_PP_OD_SWITCH_DLY		GENMASK(10, 8)
 #define SDA_OD_PP_SWITCH_DLY		GENMASK(2, 0)
 #define BUS_FREE_TIMING			0xd4
@@ -293,6 +295,7 @@
 #define I3C_BUS_JESD300_PP_TLOW_MIN_NS	35
 #define I3C_BUS_JESD300_PP_THIGH_MIN_NS	35
 #define I3C_BUS_EXT_TERMN_CNT		4
+#define JESD403_TIMED_RESET_NS_DEF	52428800
 
 #define XFER_TIMEOUT (msecs_to_jiffies(1000))
 
@@ -370,6 +373,17 @@ struct aspeed_i3c_master {
 				 const struct i3c_slave_payload *payload);
 	} slave_data;
 	struct completion sir_complete;
+
+	struct {
+		unsigned long core_rate;
+		unsigned long core_period;
+		u32 i3c_od_scl_freq;
+		u32 i3c_od_scl_low;
+		u32 i3c_od_scl_high;
+		u32 i3c_pp_scl_freq;
+		u32 i3c_pp_scl_low;
+		u32 i3c_pp_scl_high;
+	} timing;
 };
 
 struct aspeed_i3c_i2c_dev_data {
@@ -930,11 +944,8 @@ static int aspeed_i3c_clk_cfg(struct aspeed_i3c_master *master)
 	u32 scl_timing;
 	u16 hcnt, lcnt;
 
-	core_rate = clk_get_rate(master->core_clk);
-	if (!core_rate)
-		return -EINVAL;
-
-	core_period = DIV_ROUND_UP(1000000000, core_rate);
+	core_rate = master->timing.core_rate;
+	core_period = master->timing.core_period;
 
 	/* I3C PP mode */
 	if (master->base.jdec_spd) {
@@ -1005,13 +1016,6 @@ static int aspeed_i3c_clk_cfg(struct aspeed_i3c_master *master)
 	ast_clrsetbits(master->regs + SCL_EXT_TERMN_LCNT_TIMING, GENMASK(3, 0),
 		      I3C_BUS_EXT_TERMN_CNT);
 
-	/*
-	 * SCL low time for timed-reset, set 52.4288 ms to ensure all devices
-	 * are back to I2C mode
-	 */
-	scl_timing = DIV_ROUND_UP(52428800, core_period);
-	writel(scl_timing, master->regs + SCL_LOW_MST_EXT_TIMEOUT);
-
 	return 0;
 }
 
@@ -1021,11 +1025,8 @@ static int aspeed_i2c_clk_cfg(struct aspeed_i3c_master *master)
 	u16 hcnt, lcnt;
 	u32 scl_timing;
 
-	core_rate = clk_get_rate(master->core_clk);
-	if (!core_rate)
-		return -EINVAL;
-
-	core_period = DIV_ROUND_UP(1000000000, core_rate);
+	core_rate = master->timing.core_rate;
+	core_period = master->timing.core_period;
 
 	lcnt = DIV_ROUND_UP(I3C_BUS_I2C_FMP_TLOW_MIN_NS, core_period);
 	hcnt = DIV_ROUND_UP(core_rate, I3C_BUS_I2C_FM_PLUS_SCL_RATE) - lcnt;
@@ -2056,6 +2057,49 @@ static int aspeed_i3c_master_send_sir(struct i3c_master_controller *m,
 	return 0;
 }
 
+static int aspeed_i3c_master_timing_config(struct aspeed_i3c_master *master,
+					   struct device_node *np)
+{
+	u32 val, reg;
+	u32 timed_reset_scl_low_ns;
+	u32 sda_tx_hold_ns;
+
+	master->timing.core_rate = clk_get_rate(master->core_clk);
+	if (!master->timing.core_rate) {
+		dev_err(master->dev, "core clock rate not found\n");
+		return -EINVAL;
+	}
+
+	/* core_period is in nanosecond */
+	master->timing.core_period =
+		DIV_ROUND_UP(1000000000, master->timing.core_rate);
+
+	/* setup default timing configuration */
+	sda_tx_hold_ns = SDA_TX_HOLD_MIN * master->timing.core_period;
+	timed_reset_scl_low_ns = JESD403_TIMED_RESET_NS_DEF;
+
+	/* parse configurations from DT */
+	if (!of_property_read_u32(np, "sda-tx-hold-ns", &val))
+		sda_tx_hold_ns = val;
+
+	if (!of_property_read_u32(np, "timed-reset-scl-low-ns", &val))
+		timed_reset_scl_low_ns = val;
+
+	val = clamp((u32)DIV_ROUND_CLOSEST(sda_tx_hold_ns,
+					   master->timing.core_period),
+		    (u32)SDA_TX_HOLD_MIN, (u32)SDA_TX_HOLD_MAX);
+	reg = readl(master->regs + SDA_HOLD_SWITCH_DLY_TIMING);
+	reg &= ~SDA_TX_HOLD;
+	reg |= FIELD_PREP(SDA_TX_HOLD, val);
+	writel(reg, master->regs + SDA_HOLD_SWITCH_DLY_TIMING);
+
+	val = DIV_ROUND_CLOSEST(timed_reset_scl_low_ns,
+				master->timing.core_period);
+	writel(val, master->regs + SCL_LOW_MST_EXT_TIMEOUT);
+
+	return 0;
+}
+
 static const struct i3c_master_controller_ops aspeed_i3c_ops = {
 	.bus_init = aspeed_i3c_master_bus_init,
 	.bus_cleanup = aspeed_i3c_master_bus_cleanup,
@@ -2085,7 +2129,6 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 	struct aspeed_i3c_master *master;
 	struct device_node *np;
 	int ret, irq;
-	u32 val;
 
 	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
 	if (!master)
@@ -2134,12 +2177,9 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 	else
 		master->secondary = false;
 
-	if (!of_property_read_u32(np, "sda-tx-hold", &val)) {
-		ret = readl(master->regs + SDA_HOLD_SWITCH_DLY_TIMING);
-		ret &= ~SDA_TX_HOLD;
-		ret |= FIELD_PREP(SDA_TX_HOLD, val);
-		writel(ret, master->regs + SDA_HOLD_SWITCH_DLY_TIMING);
-	}
+	ret = aspeed_i3c_master_timing_config(master, np);
+	if (ret)
+		goto err_assert_rst;
 
 	/* Information regarding the FIFOs/QUEUEs depth */
 	ret = readl(master->regs + QUEUE_STATUS_LEVEL);
