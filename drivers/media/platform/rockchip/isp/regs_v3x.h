@@ -2078,6 +2078,9 @@
 /* BLS */
 #define ISP32_BLS_BLS2_EN		BIT(5)
 
+/* BAY3D */
+#define ISP32_BAY3D_BWSAVING(a)		(((a) & 0x1) << 13)
+
 /* GIC */
 
 /* LDCH */

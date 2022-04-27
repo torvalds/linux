@@ -3251,10 +3251,9 @@ isp_bay3d_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	priv_val = (struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
 	value = isp3_param_read(params_vdev, ISP3X_BAY3D_CTRL);
-	value &= ISP32_MODULE_EN;
+	value &= (ISP32_MODULE_EN | ISP32_BAY3D_BWSAVING(1));
 
-	value |= !!arg->bwsaving_en << 13 |
-		 !!arg->loswitch_protect << 12 |
+	value |= !!arg->loswitch_protect << 12 |
 		 !!arg->glbpk_en << 11 |
 		 !!arg->logaus3_bypass_en << 10 |
 		 !!arg->logaus5_bypass_en << 9 |
@@ -3266,6 +3265,16 @@ isp_bay3d_config(struct rkisp_isp_params_vdev *params_vdev,
 		 //!!arg->lobypass_en << 3 |
 		 !!arg->hibypass_en << 2 |
 		 !!arg->bypass_en << 1;
+	if (!(value & ISP32_MODULE_EN)) {
+		value &= ~ISP32_BAY3D_BWSAVING(1);
+		if (arg->bwsaving_en)
+			value |= ISP32_BAY3D_BWSAVING(1);
+	} else if ((value & ISP32_BAY3D_BWSAVING(1)) !=
+		   ISP32_BAY3D_BWSAVING(!!arg->bwsaving_en)) {
+		v4l2_warn(&params_vdev->dev->v4l2_dev,
+			  "bwsaving to %d no support change for bay3d en\n",
+			  arg->bwsaving_en);
+	}
 	isp3_param_write(params_vdev, value, ISP3X_BAY3D_CTRL);
 
 	value = !!arg->wgtmix_opt_en << 12 |
