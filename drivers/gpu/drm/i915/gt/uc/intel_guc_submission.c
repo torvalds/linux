@@ -1200,20 +1200,6 @@ static u32 gpm_timestamp_shift(struct intel_gt *gt)
 	return 3 - shift;
 }
 
-static u64 gpm_timestamp(struct intel_gt *gt)
-{
-	u32 lo, hi, old_hi, loop = 0;
-
-	hi = intel_uncore_read(gt->uncore, MISC_STATUS1);
-	do {
-		lo = intel_uncore_read(gt->uncore, MISC_STATUS0);
-		old_hi = hi;
-		hi = intel_uncore_read(gt->uncore, MISC_STATUS1);
-	} while (old_hi != hi && loop++ < 2);
-
-	return ((u64)hi << 32) | lo;
-}
-
 static void guc_update_pm_timestamp(struct intel_guc *guc, ktime_t *now)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
@@ -1223,7 +1209,8 @@ static void guc_update_pm_timestamp(struct intel_guc *guc, ktime_t *now)
 	lockdep_assert_held(&guc->timestamp.lock);
 
 	gt_stamp_hi = upper_32_bits(guc->timestamp.gt_stamp);
-	gpm_ts = gpm_timestamp(gt) >> guc->timestamp.shift;
+	gpm_ts = intel_uncore_read64_2x32(gt->uncore, MISC_STATUS0,
+					  MISC_STATUS1) >> guc->timestamp.shift;
 	gt_stamp_lo = lower_32_bits(gpm_ts);
 	*now = ktime_get();
 
