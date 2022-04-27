@@ -73,40 +73,38 @@ late_initcall(stackleak_sysctls_init);
 static __always_inline void __stackleak_erase(void)
 {
 	const unsigned long task_stack_low = stackleak_task_low_bound(current);
-
-	/* It would be nice not to have 'kstack_ptr' and 'boundary' on stack */
-	unsigned long kstack_ptr = current->lowest_stack;
-	unsigned long boundary = task_stack_low;
+	unsigned long erase_low = current->lowest_stack;
+	unsigned long erase_high;
 	unsigned int poison_count = 0;
 	const unsigned int depth = STACKLEAK_SEARCH_DEPTH / sizeof(unsigned long);
 
 	/* Search for the poison value in the kernel stack */
-	while (kstack_ptr > boundary && poison_count <= depth) {
-		if (*(unsigned long *)kstack_ptr == STACKLEAK_POISON)
+	while (erase_low > task_stack_low && poison_count <= depth) {
+		if (*(unsigned long *)erase_low == STACKLEAK_POISON)
 			poison_count++;
 		else
 			poison_count = 0;
 
-		kstack_ptr -= sizeof(unsigned long);
+		erase_low -= sizeof(unsigned long);
 	}
 
 #ifdef CONFIG_STACKLEAK_METRICS
-	current->prev_lowest_stack = kstack_ptr;
+	current->prev_lowest_stack = erase_low;
 #endif
 
 	/*
-	 * Now write the poison value to the kernel stack. Start from
-	 * 'kstack_ptr' and move up till the new 'boundary'. We assume that
-	 * the stack pointer doesn't change when we write poison.
+	 * Now write the poison value to the kernel stack between 'erase_low'
+	 * and 'erase_high'. We assume that the stack pointer doesn't change
+	 * when we write poison.
 	 */
 	if (on_thread_stack())
-		boundary = current_stack_pointer;
+		erase_high = current_stack_pointer;
 	else
-		boundary = current_top_of_stack();
+		erase_high = current_top_of_stack();
 
-	while (kstack_ptr < boundary) {
-		*(unsigned long *)kstack_ptr = STACKLEAK_POISON;
-		kstack_ptr += sizeof(unsigned long);
+	while (erase_low < erase_high) {
+		*(unsigned long *)erase_low = STACKLEAK_POISON;
+		erase_low += sizeof(unsigned long);
 	}
 
 	/* Reset the 'lowest_stack' value for the next syscall */
