@@ -74,20 +74,10 @@ static __always_inline void __stackleak_erase(void)
 {
 	const unsigned long task_stack_low = stackleak_task_low_bound(current);
 	const unsigned long task_stack_high = stackleak_task_high_bound(current);
-	unsigned long erase_low = current->lowest_stack;
-	unsigned long erase_high;
-	unsigned int poison_count = 0;
-	const unsigned int depth = STACKLEAK_SEARCH_DEPTH / sizeof(unsigned long);
+	unsigned long erase_low, erase_high;
 
-	/* Search for the poison value in the kernel stack */
-	while (erase_low > task_stack_low && poison_count <= depth) {
-		if (*(unsigned long *)erase_low == STACKLEAK_POISON)
-			poison_count++;
-		else
-			poison_count = 0;
-
-		erase_low -= sizeof(unsigned long);
-	}
+	erase_low = stackleak_find_top_of_poison(task_stack_low,
+						 current->lowest_stack);
 
 #ifdef CONFIG_STACKLEAK_METRICS
 	current->prev_lowest_stack = erase_low;
