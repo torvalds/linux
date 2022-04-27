@@ -108,6 +108,16 @@ static int prestera_flower_parse_actions(struct prestera_flow_block *block,
 
 			rule->re_arg.trap.valid = 1;
 			break;
+		case FLOW_ACTION_POLICE:
+			if (rule->re_arg.police.valid)
+				return -EEXIST;
+
+			rule->re_arg.police.valid = 1;
+			rule->re_arg.police.rate =
+				act->police.rate_bytes_ps;
+			rule->re_arg.police.burst = act->police.burst;
+			rule->re_arg.police.ingress = true;
+			break;
 		case FLOW_ACTION_GOTO:
 			err = prestera_flower_parse_goto_action(block, rule,
 								chain_index,
