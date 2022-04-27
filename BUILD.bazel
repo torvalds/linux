@@ -20,7 +20,20 @@ package(
 load("//build/kernel/kleaf:constants.bzl", "aarch64_gz_outs")
 load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
 
-define_common_kernels()
+define_common_kernels(target_configs = {
+    "kernel_aarch64": {
+        "module_outs": [
+            "drivers/block/zram/zram.ko",
+            "mm/zsmalloc.ko",
+        ],
+    },
+    "kernel_aarch64_debug": {
+        "module_outs": [
+            "drivers/block/zram/zram.ko",
+            "mm/zsmalloc.ko",
+        ],
+    },
+})
 
 # Sync with build.config.db845c
 define_db845c(
