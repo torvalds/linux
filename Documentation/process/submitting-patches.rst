@@ -227,9 +227,10 @@ Select the recipients for your patch
 You should always copy the appropriate subsystem maintainer(s) on any patch
 to code that they maintain; look through the MAINTAINERS file and the
 source code revision history to see who those maintainers are.  The
-script scripts/get_maintainer.pl can be very useful at this step.  If you
-cannot find a maintainer for the subsystem you are working on, Andrew
-Morton (akpm@linux-foundation.org) serves as a maintainer of last resort.
+script scripts/get_maintainer.pl can be very useful at this step (pass paths to
+your patches as arguments to scripts/get_maintainer.pl).  If you cannot find a
+maintainer for the subsystem you are working on, Andrew Morton
+(akpm@linux-foundation.org) serves as a maintainer of last resort.
 
 You should also normally choose at least one mailing list to receive a copy
 of your patch set.  linux-kernel@vger.kernel.org should be used by default
