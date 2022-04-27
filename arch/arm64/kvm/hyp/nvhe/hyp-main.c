@@ -20,6 +20,8 @@
 
 #include <linux/irqchip/arm-gic-v3.h>
 
+#include "../../sys_regs.h"
+
 /*
  * Host FPSIMD state. Written to when the guest accesses its own FPSIMD state,
  * and read when the guest state is live and we need to switch back to the host.
@@ -33,6 +35,192 @@ DEFINE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
 void __kvm_hyp_host_forward_smc(struct kvm_cpu_context *host_ctxt);
 
 typedef void (*hyp_entry_exit_handler_fn)(struct pkvm_hyp_vcpu *);
+
+static void handle_pvm_entry_wfx(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	if (vcpu_get_flag(hyp_vcpu->host_vcpu, INCREMENT_PC)) {
+		vcpu_clear_flag(&hyp_vcpu->vcpu, PC_UPDATE_REQ);
+		kvm_incr_pc(&hyp_vcpu->vcpu);
+	}
+}
+
+static void handle_pvm_entry_sys64(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+
+	/* Exceptions have priority on anything else */
+	if (vcpu_get_flag(host_vcpu, PENDING_EXCEPTION)) {
+		/* Exceptions caused by this should be undef exceptions. */
+		u32 esr = (ESR_ELx_EC_UNKNOWN << ESR_ELx_EC_SHIFT);
+
+		__vcpu_sys_reg(&hyp_vcpu->vcpu, ESR_EL1) = esr;
+		kvm_pend_exception(&hyp_vcpu->vcpu, EXCEPT_AA64_EL1_SYNC);
+		return;
+	}
+
+	if (vcpu_get_flag(host_vcpu, INCREMENT_PC)) {
+		vcpu_clear_flag(&hyp_vcpu->vcpu, PC_UPDATE_REQ);
+		kvm_incr_pc(&hyp_vcpu->vcpu);
+	}
+
+	if (!esr_sys64_to_params(hyp_vcpu->vcpu.arch.fault.esr_el2).is_write) {
+		/* r0 as transfer register between the guest and the host. */
+		u64 rt_val = READ_ONCE(host_vcpu->arch.ctxt.regs.regs[0]);
+		int rt = kvm_vcpu_sys_get_rt(&hyp_vcpu->vcpu);
+
+		vcpu_set_reg(&hyp_vcpu->vcpu, rt, rt_val);
+	}
+}
+
+static void handle_pvm_entry_iabt(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	unsigned long cpsr = *vcpu_cpsr(&hyp_vcpu->vcpu);
+	u32 esr = ESR_ELx_IL;
+
+	if (!vcpu_get_flag(hyp_vcpu->host_vcpu, PENDING_EXCEPTION))
+		return;
+
+	/*
+	 * If the host wants to inject an exception, get syndrom and
+	 * fault address.
+	 */
+	if ((cpsr & PSR_MODE_MASK) == PSR_MODE_EL0t)
+		esr |= (ESR_ELx_EC_IABT_LOW << ESR_ELx_EC_SHIFT);
+	else
+		esr |= (ESR_ELx_EC_IABT_CUR << ESR_ELx_EC_SHIFT);
+
+	esr |= ESR_ELx_FSC_EXTABT;
+
+	__vcpu_sys_reg(&hyp_vcpu->vcpu, ESR_EL1) = esr;
+	__vcpu_sys_reg(&hyp_vcpu->vcpu, FAR_EL1) =
+		kvm_vcpu_get_hfar(&hyp_vcpu->vcpu);
+
+	/* Tell the run loop that we want to inject something */
+	kvm_pend_exception(&hyp_vcpu->vcpu, EXCEPT_AA64_EL1_SYNC);
+}
+
+static void handle_pvm_entry_dabt(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+	bool pc_update;
+
+	/* Exceptions have priority over anything else */
+	if (vcpu_get_flag(host_vcpu, PENDING_EXCEPTION)) {
+		unsigned long cpsr = *vcpu_cpsr(&hyp_vcpu->vcpu);
+		u32 esr = ESR_ELx_IL;
+
+		if ((cpsr & PSR_MODE_MASK) == PSR_MODE_EL0t)
+			esr |= (ESR_ELx_EC_DABT_LOW << ESR_ELx_EC_SHIFT);
+		else
+			esr |= (ESR_ELx_EC_DABT_CUR << ESR_ELx_EC_SHIFT);
+
+		esr |= ESR_ELx_FSC_EXTABT;
+
+		__vcpu_sys_reg(&hyp_vcpu->vcpu, ESR_EL1) = esr;
+		__vcpu_sys_reg(&hyp_vcpu->vcpu, FAR_EL1) =
+			kvm_vcpu_get_hfar(&hyp_vcpu->vcpu);
+
+		/* Tell the run loop that we want to inject something */
+		kvm_pend_exception(&hyp_vcpu->vcpu, EXCEPT_AA64_EL1_SYNC);
+
+		/* Cancel potential in-flight MMIO */
+		hyp_vcpu->vcpu.mmio_needed = false;
+		return;
+	}
+
+	/* Handle PC increment on MMIO */
+	pc_update = (hyp_vcpu->vcpu.mmio_needed &&
+		     vcpu_get_flag(host_vcpu, INCREMENT_PC));
+	if (pc_update) {
+		vcpu_clear_flag(&hyp_vcpu->vcpu, PC_UPDATE_REQ);
+		kvm_incr_pc(&hyp_vcpu->vcpu);
+	}
+
+	/* If we were doing an MMIO read access, update the register*/
+	if (pc_update && !kvm_vcpu_dabt_iswrite(&hyp_vcpu->vcpu)) {
+		/* r0 as transfer register between the guest and the host. */
+		u64 rd_val = READ_ONCE(host_vcpu->arch.ctxt.regs.regs[0]);
+		int rd = kvm_vcpu_dabt_get_rd(&hyp_vcpu->vcpu);
+
+		vcpu_set_reg(&hyp_vcpu->vcpu, rd, rd_val);
+	}
+
+	hyp_vcpu->vcpu.mmio_needed = false;
+}
+
+static void handle_pvm_exit_wfx(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	WRITE_ONCE(hyp_vcpu->host_vcpu->arch.ctxt.regs.pstate,
+		   hyp_vcpu->vcpu.arch.ctxt.regs.pstate & PSR_MODE_MASK);
+	WRITE_ONCE(hyp_vcpu->host_vcpu->arch.fault.esr_el2,
+		   hyp_vcpu->vcpu.arch.fault.esr_el2);
+}
+
+static void handle_pvm_exit_sys64(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+	u32 esr_el2 = hyp_vcpu->vcpu.arch.fault.esr_el2;
+
+	/* r0 as transfer register between the guest and the host. */
+	WRITE_ONCE(host_vcpu->arch.fault.esr_el2,
+		   esr_el2 & ~ESR_ELx_SYS64_ISS_RT_MASK);
+
+	/* The mode is required for the host to emulate some sysregs */
+	WRITE_ONCE(host_vcpu->arch.ctxt.regs.pstate,
+		   hyp_vcpu->vcpu.arch.ctxt.regs.pstate & PSR_MODE_MASK);
+
+	if (esr_sys64_to_params(esr_el2).is_write) {
+		int rt = kvm_vcpu_sys_get_rt(&hyp_vcpu->vcpu);
+		u64 rt_val = vcpu_get_reg(&hyp_vcpu->vcpu, rt);
+
+		WRITE_ONCE(host_vcpu->arch.ctxt.regs.regs[0], rt_val);
+	}
+}
+
+static void handle_pvm_exit_iabt(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	WRITE_ONCE(hyp_vcpu->host_vcpu->arch.fault.esr_el2,
+		   hyp_vcpu->vcpu.arch.fault.esr_el2);
+	WRITE_ONCE(hyp_vcpu->host_vcpu->arch.fault.hpfar_el2,
+		   hyp_vcpu->vcpu.arch.fault.hpfar_el2);
+}
+
+static void handle_pvm_exit_dabt(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+
+	/*
+	 * For now, we treat all data aborts as MMIO since we have no knowledge
+	 * of the memslot configuration at EL2.
+	 */
+	hyp_vcpu->vcpu.mmio_needed = true;
+
+	if (hyp_vcpu->vcpu.mmio_needed) {
+		/* r0 as transfer register between the guest and the host. */
+		WRITE_ONCE(host_vcpu->arch.fault.esr_el2,
+			   hyp_vcpu->vcpu.arch.fault.esr_el2 & ~ESR_ELx_SRT_MASK);
+
+		if (kvm_vcpu_dabt_iswrite(&hyp_vcpu->vcpu)) {
+			int rt = kvm_vcpu_dabt_get_rd(&hyp_vcpu->vcpu);
+			u64 rt_val = vcpu_get_reg(&hyp_vcpu->vcpu, rt);
+
+			WRITE_ONCE(host_vcpu->arch.ctxt.regs.regs[0], rt_val);
+		}
+	} else {
+		WRITE_ONCE(host_vcpu->arch.fault.esr_el2,
+			   hyp_vcpu->vcpu.arch.fault.esr_el2 & ~ESR_ELx_ISV);
+	}
+
+	WRITE_ONCE(host_vcpu->arch.ctxt.regs.pstate,
+		   hyp_vcpu->vcpu.arch.ctxt.regs.pstate & PSR_MODE_MASK);
+	WRITE_ONCE(host_vcpu->arch.fault.far_el2,
+		   hyp_vcpu->vcpu.arch.fault.far_el2 & GENMASK(11, 0));
+	WRITE_ONCE(host_vcpu->arch.fault.hpfar_el2,
+		   hyp_vcpu->vcpu.arch.fault.hpfar_el2);
+	WRITE_ONCE(__vcpu_sys_reg(host_vcpu, SCTLR_EL1),
+		   __vcpu_sys_reg(&hyp_vcpu->vcpu, SCTLR_EL1) &
+			(SCTLR_ELx_EE | SCTLR_EL1_E0E));
+}
 
 static void handle_vm_entry_generic(struct pkvm_hyp_vcpu *hyp_vcpu)
 {
@@ -58,6 +246,22 @@ static void handle_vm_exit_abt(struct pkvm_hyp_vcpu *hyp_vcpu)
 	WRITE_ONCE(host_vcpu->arch.fault.disr_el1,
 		   hyp_vcpu->vcpu.arch.fault.disr_el1);
 }
+
+static const hyp_entry_exit_handler_fn entry_hyp_pvm_handlers[] = {
+	[0 ... ESR_ELx_EC_MAX]		= NULL,
+	[ESR_ELx_EC_WFx]		= handle_pvm_entry_wfx,
+	[ESR_ELx_EC_SYS64]		= handle_pvm_entry_sys64,
+	[ESR_ELx_EC_IABT_LOW]		= handle_pvm_entry_iabt,
+	[ESR_ELx_EC_DABT_LOW]		= handle_pvm_entry_dabt,
+};
+
+static const hyp_entry_exit_handler_fn exit_hyp_pvm_handlers[] = {
+	[0 ... ESR_ELx_EC_MAX]		= NULL,
+	[ESR_ELx_EC_WFx]		= handle_pvm_exit_wfx,
+	[ESR_ELx_EC_SYS64]		= handle_pvm_exit_sys64,
+	[ESR_ELx_EC_IABT_LOW]		= handle_pvm_exit_iabt,
+	[ESR_ELx_EC_DABT_LOW]		= handle_pvm_exit_dabt,
+};
 
 static const hyp_entry_exit_handler_fn entry_hyp_vm_handlers[] = {
 	[0 ... ESR_ELx_EC_MAX]		= handle_vm_entry_generic,
@@ -209,7 +413,12 @@ static void flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 		break;
 	case ARM_EXCEPTION_TRAP:
 		esr_ec = ESR_ELx_EC(kvm_vcpu_get_esr(&hyp_vcpu->vcpu));
-		ec_handler = entry_hyp_vm_handlers[esr_ec];
+
+		if (pkvm_hyp_vcpu_is_protected(hyp_vcpu))
+			ec_handler = entry_hyp_pvm_handlers[esr_ec];
+		else
+			ec_handler = entry_hyp_vm_handlers[esr_ec];
+
 		if (ec_handler)
 			ec_handler(hyp_vcpu);
 		break;
@@ -238,7 +447,12 @@ static void sync_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu, u32 exit_reason)
 		break;
 	case ARM_EXCEPTION_TRAP:
 		esr_ec = ESR_ELx_EC(kvm_vcpu_get_esr(&hyp_vcpu->vcpu));
-		ec_handler = exit_hyp_vm_handlers[esr_ec];
+
+		if (pkvm_hyp_vcpu_is_protected(hyp_vcpu))
+			ec_handler = exit_hyp_pvm_handlers[esr_ec];
+		else
+			ec_handler = exit_hyp_vm_handlers[esr_ec];
+
 		if (ec_handler)
 			ec_handler(hyp_vcpu);
 		break;
