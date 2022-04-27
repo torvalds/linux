@@ -107,6 +107,7 @@ struct occ {
 	struct attribute_group group;
 	const struct attribute_group *groups[2];
 
+	bool active;
 	int error;                      /* final transfer error after retry */
 	int last_error;			/* latest transfer error */
 	unsigned int error_count;       /* number of xfr errors observed */
@@ -124,9 +125,11 @@ struct occ {
 	u8 prev_mode;
 };
 
-int occ_setup(struct occ *occ, const char *name);
+int occ_active(struct occ *occ, bool active);
+int occ_setup(struct occ *occ);
 int occ_setup_sysfs(struct occ *occ);
 void occ_shutdown(struct occ *occ);
+void occ_shutdown_sysfs(struct occ *occ);
 void occ_sysfs_poll_done(struct occ *occ);
 int occ_update_response(struct occ *occ);
 
