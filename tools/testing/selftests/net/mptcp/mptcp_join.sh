@@ -70,6 +70,7 @@ init_partial()
 		ip netns add $netns || exit $ksft_skip
 		ip -net $netns link set lo up
 		ip netns exec $netns sysctl -q net.mptcp.enabled=1
+		ip netns exec $netns sysctl -q net.mptcp.pm_type=0
 		ip netns exec $netns sysctl -q net.ipv4.conf.all.rp_filter=0
 		ip netns exec $netns sysctl -q net.ipv4.conf.default.rp_filter=0
 		if [ $checksum -eq 1 ]; then
@@ -1611,6 +1612,13 @@ wait_attempt_fail()
 	return 1
 }
 
+set_userspace_pm()
+{
+	local ns=$1
+
+	ip netns exec $ns sysctl -q net.mptcp.pm_type=1
+}
+
 subflows_tests()
 {
 	if reset "no JOIN"; then
@@ -2698,6 +2706,63 @@ fail_tests()
 	fi
 }
 
+userspace_tests()
+{
+	# userspace pm type prevents add_addr
+	if reset "userspace pm type prevents add_addr"; then
+		set_userspace_pm $ns1
+		pm_nl_set_limits $ns1 0 2
+		pm_nl_set_limits $ns2 0 2
+		pm_nl_add_endpoint $ns1 10.0.2.1 flags signal
+		run_tests $ns1 $ns2 10.0.1.1
+		chk_join_nr 0 0 0
+		chk_add_nr 0 0
+	fi
+
+	# userspace pm type rejects join
+	if reset "userspace pm type rejects join"; then
+		set_userspace_pm $ns1
+		pm_nl_set_limits $ns1 1 1
+		pm_nl_set_limits $ns2 1 1
+		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
+		run_tests $ns1 $ns2 10.0.1.1
+		chk_join_nr 1 1 0
+	fi
+
+	# userspace pm type does not send join
+	if reset "userspace pm type does not send join"; then
+		set_userspace_pm $ns2
+		pm_nl_set_limits $ns1 1 1
+		pm_nl_set_limits $ns2 1 1
+		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
+		run_tests $ns1 $ns2 10.0.1.1
+		chk_join_nr 0 0 0
+	fi
+
+	# userspace pm type prevents mp_prio
+	if reset "userspace pm type prevents mp_prio"; then
+		set_userspace_pm $ns1
+		pm_nl_set_limits $ns1 1 1
+		pm_nl_set_limits $ns2 1 1
+		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
+		run_tests $ns1 $ns2 10.0.1.1 0 0 0 slow backup
+		chk_join_nr 1 1 0
+		chk_prio_nr 0 0
+	fi
+
+	# userspace pm type prevents rm_addr
+	if reset "userspace pm type prevents rm_addr"; then
+		set_userspace_pm $ns1
+		set_userspace_pm $ns2
+		pm_nl_set_limits $ns1 0 1
+		pm_nl_set_limits $ns2 0 1
+		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
+		run_tests $ns1 $ns2 10.0.1.1 0 0 -1 slow
+		chk_join_nr 0 0 0
+		chk_rm_nr 0 0
+	fi
+}
+
 implicit_tests()
 {
 	# userspace pm type prevents add_addr
@@ -2767,6 +2832,7 @@ all_tests_sorted=(
 	m@fullmesh_tests
 	z@fastclose_tests
 	F@fail_tests
+	u@userspace_tests
 	I@implicit_tests
 )
 
