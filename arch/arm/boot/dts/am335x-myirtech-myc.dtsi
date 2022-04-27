@@ -131,9 +131,6 @@
 		gpmc,wr-data-mux-bus-ns = <0>;
 		ti,elm-id = <&elm>;
 		ti,nand-ecc-opt = "bch8";
-
-		#address-cells = <1>;
-		#size-cells = <1>;
 	};
 };
 
