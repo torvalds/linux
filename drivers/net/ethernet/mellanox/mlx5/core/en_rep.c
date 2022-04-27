@@ -604,10 +604,16 @@ bool mlx5e_eswitch_vf_rep(const struct net_device *netdev)
 	return netdev->netdev_ops == &mlx5e_netdev_ops_rep;
 }
 
+/* One indirect TIR set for outer. Inner not supported in reps. */
+#define REP_NUM_INDIR_TIRS MLX5E_NUM_INDIR_TIRS
+
 static int mlx5e_rep_max_nch_limit(struct mlx5_core_dev *mdev)
 {
-	return (1 << MLX5_CAP_GEN(mdev, log_max_tir)) /
-		mlx5_eswitch_get_total_vports(mdev);
+	int max_tir_num = 1 << MLX5_CAP_GEN(mdev, log_max_tir);
+	int num_vports = mlx5_eswitch_get_total_vports(mdev);
+
+	return (max_tir_num - mlx5e_get_pf_num_tirs(mdev)
+		- (num_vports * REP_NUM_INDIR_TIRS)) / num_vports;
 }
 
 static void mlx5e_build_rep_params(struct net_device *netdev)

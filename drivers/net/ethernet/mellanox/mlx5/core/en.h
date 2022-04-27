@@ -1220,6 +1220,7 @@ mlx5e_tx_mpwqe_supported(struct mlx5_core_dev *mdev)
 		MLX5_CAP_ETH(mdev, enhanced_multi_pkt_send_wqe);
 }
 
+int mlx5e_get_pf_num_tirs(struct mlx5_core_dev *mdev);
 int mlx5e_priv_init(struct mlx5e_priv *priv,
 		    const struct mlx5e_profile *profile,
 		    struct net_device *netdev,
