@@ -1848,6 +1848,10 @@ void clk_trion_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 	regmap_update_bits(regmap, PLL_MODE(pll), PLL_UPDATE_BYPASS,
 			   PLL_UPDATE_BYPASS);
 
+	if (pll->flags & SUPPORTS_FSM_LEGACY_MODE)
+		regmap_update_bits(regmap, PLL_MODE(pll), PLL_FSM_LEGACY_MODE,
+						PLL_FSM_LEGACY_MODE);
+
 	/* Disable PLL output */
 	regmap_update_bits(regmap, PLL_MODE(pll),  PLL_OUTCTRL, 0);
 
