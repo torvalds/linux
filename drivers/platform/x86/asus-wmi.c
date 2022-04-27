@@ -2227,9 +2227,10 @@ static int fan_curve_check_present(struct asus_wmi *asus, bool *available,
 
 	err = fan_curve_get_factory_default(asus, fan_dev);
 	if (err) {
-		if (err == -ENODEV || err == -ENODATA)
-			return 0;
-		return err;
+		pr_debug("fan_curve_get_factory_default(0x%08x) failed: %d\n",
+			 fan_dev, err);
+		/* Don't cause probe to fail on devices without fan-curves */
+		return 0;
 	}
 
 	*available = true;
