@@ -36,7 +36,7 @@
 #include "mpp_common.h"
 #include "mpp_iommu.h"
 
-#define MPP_WORK_TIMEOUT_DELAY		(200)
+#define MPP_WORK_TIMEOUT_DELAY		(500)
 #define MPP_WAIT_TIMEOUT_DELAY		(2000)
 
 /* Use 'v' as magic number */

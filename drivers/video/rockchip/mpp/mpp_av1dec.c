@@ -472,6 +472,7 @@ free_task:
 
 #define AV1_L2_CACHE_SHAPER_CTRL	0x20
 #define AV1_L2_CACHE_SHAPER_EN		BIT(0)
+#define AV1_L2_CACHE_INT_MASK		0x30
 #define AV1_L2_CACHE_PP0_Y_CONFIG0	0x84
 #define AV1_L2_CACHE_PP0_Y_CONFIG2	0x8c
 #define AV1_L2_CACHE_PP0_Y_CONFIG3	0x90
@@ -526,6 +527,9 @@ static int av1dec_set_l2_cache(struct av1dec_dev *dec, struct av1dec_task *task)
 
 		val = line_cnt | (max_h << 16);
 		writel_relaxed(val, dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_PP0_U_CONFIG3);
+		/* mask cache irq */
+		writel_relaxed(0xf, dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_INT_MASK);
+
 		/* shaper enable */
 		writel_relaxed(AV1_L2_CACHE_SHAPER_EN,
 			       dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_SHAPER_CTRL);
