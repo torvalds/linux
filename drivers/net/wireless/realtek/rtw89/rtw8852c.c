@@ -2553,7 +2553,7 @@ do {								\
 	default:
 		val = arg.gnt_bt.data;
 		break;
-	};
+	}
 
 	__write_ctrl(R_AX_PWR_COEXT_CTRL, B_AX_TXAGC_BT_MASK, val,
 		     B_AX_TXAGC_BT_EN, arg.ctrl_gnt_bt != 0xffff);
