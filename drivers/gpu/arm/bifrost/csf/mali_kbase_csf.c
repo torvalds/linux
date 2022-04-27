@@ -1990,15 +1990,20 @@ static int handle_oom_event(struct kbase_queue_group *const group,
 	u32 pending_frag_count;
 	u64 new_chunk_ptr;
 	int err;
+	bool frag_end_err = false;
 
 	if ((frag_end > vt_end) || (vt_end >= vt_start)) {
-		dev_warn(kctx->kbdev->dev, "Invalid Heap statistics provided by firmware: vt_start %d, vt_end %d, frag_end %d\n",
+		frag_end_err = true;
+		dev_dbg(kctx->kbdev->dev, "Invalid Heap statistics provided by firmware: vt_start %d, vt_end %d, frag_end %d\n",
 			 vt_start, vt_end, frag_end);
-		return -EINVAL;
 	}
-
-	renderpasses_in_flight = vt_start - frag_end;
-	pending_frag_count = vt_end - frag_end;
+	if (frag_end_err) {
+		renderpasses_in_flight = 1;
+		pending_frag_count = 1;
+	} else {
+		renderpasses_in_flight = vt_start - frag_end;
+		pending_frag_count = vt_end - frag_end;
+	}
 
 	err = kbase_csf_tiler_heap_alloc_new_chunk(kctx,
 		gpu_heap_va, renderpasses_in_flight, pending_frag_count, &new_chunk_ptr);
