@@ -56,6 +56,9 @@ static char *mutex_path_override;
 
 #define MAX_IDENTICAL_BOARD_VARIATIONS	2
 
+/* Moniker for the ACPI global lock (':' is not allowed in ASL identifiers) */
+#define ACPI_GLOBAL_LOCK_PSEUDO_PATH	":GLOBAL_LOCK"
+
 typedef union {
 	u32 value;
 	struct {
@@ -166,6 +169,14 @@ static const struct ec_sensor_info known_ec_sensors[] = {
 struct ec_board_info {
 	const char *board_names[MAX_IDENTICAL_BOARD_VARIATIONS];
 	unsigned long sensors;
+	/*
+	 * Defines which mutex to use for guarding access to the state and the
+	 * hardware. Can be either a full path to an AML mutex or the
+	 * pseudo-path ACPI_GLOBAL_LOCK_PSEUDO_PATH to use the global ACPI lock,
+	 * or left empty to use a regular mutex object, in which case access to
+	 * the hardware is not guarded.
+	 */
+	const char *mutex_path;
 };
 
 static const struct ec_board_info board_info[] = {
@@ -173,6 +184,7 @@ static const struct ec_board_info board_info[] = {
 		.board_names = {"PRIME X570-PRO"},
 		.sensors = SENSOR_SET_TEMP_CHIPSET_CPU_MB | SENSOR_TEMP_VRM |
 			SENSOR_TEMP_T_SENSOR | SENSOR_FAN_CHIPSET,
+		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	},
 	{
 		.board_names = {"ProArt X570-CREATOR WIFI"},
@@ -185,6 +197,7 @@ static const struct ec_board_info board_info[] = {
 		.sensors = SENSOR_SET_TEMP_CHIPSET_CPU_MB | SENSOR_TEMP_VRM |
 			SENSOR_TEMP_T_SENSOR | SENSOR_FAN_CHIPSET |
 			SENSOR_CURR_CPU | SENSOR_IN_CPU_CORE,
+		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	},
 	{
 		.board_names = {"ROG CROSSHAIR VIII DARK HERO"},
@@ -193,6 +206,7 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_TEMP_VRM | SENSOR_SET_TEMP_WATER |
 			SENSOR_FAN_CPU_OPT | SENSOR_FAN_WATER_FLOW |
 			SENSOR_CURR_CPU | SENSOR_IN_CPU_CORE,
+		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	},
 	{
 		.board_names = {"ROG CROSSHAIR VIII FORMULA"},
@@ -200,6 +214,7 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_TEMP_T_SENSOR | SENSOR_TEMP_VRM |
 			SENSOR_FAN_CPU_OPT | SENSOR_FAN_CHIPSET |
 			SENSOR_CURR_CPU | SENSOR_IN_CPU_CORE,
+		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	},
 	{
 		.board_names = {
@@ -212,6 +227,7 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_FAN_CPU_OPT | SENSOR_FAN_CHIPSET |
 			SENSOR_FAN_WATER_FLOW | SENSOR_CURR_CPU |
 			SENSOR_IN_CPU_CORE,
+		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	},
 	{
 		.board_names = {"ROG CROSSHAIR VIII IMPACT"},
@@ -219,12 +235,14 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_TEMP_T_SENSOR | SENSOR_TEMP_VRM |
 			SENSOR_FAN_CHIPSET | SENSOR_CURR_CPU |
 			SENSOR_IN_CPU_CORE,
+		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	},
 	{
 		.board_names = {"ROG STRIX B550-E GAMING"},
 		.sensors = SENSOR_SET_TEMP_CHIPSET_CPU_MB |
 			SENSOR_TEMP_T_SENSOR | SENSOR_TEMP_VRM |
 			SENSOR_FAN_CPU_OPT,
+		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	},
 	{
 		.board_names = {"ROG STRIX B550-I GAMING"},
@@ -232,6 +250,7 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_TEMP_T_SENSOR | SENSOR_TEMP_VRM |
 			SENSOR_FAN_VRM_HS | SENSOR_CURR_CPU |
 			SENSOR_IN_CPU_CORE,
+		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	},
 	{
 		.board_names = {"ROG STRIX X570-E GAMING"},
@@ -239,17 +258,20 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_TEMP_T_SENSOR | SENSOR_TEMP_VRM |
 			SENSOR_FAN_CHIPSET | SENSOR_CURR_CPU |
 			SENSOR_IN_CPU_CORE,
+		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	},
 	{
 		.board_names = {"ROG STRIX X570-F GAMING"},
 		.sensors = SENSOR_SET_TEMP_CHIPSET_CPU_MB |
 			SENSOR_TEMP_T_SENSOR | SENSOR_FAN_CHIPSET,
+		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	},
 	{
 		.board_names = {"ROG STRIX X570-I GAMING"},
 		.sensors = SENSOR_TEMP_T_SENSOR | SENSOR_FAN_VRM_HS |
 			SENSOR_FAN_CHIPSET | SENSOR_CURR_CPU |
 			SENSOR_IN_CPU_CORE,
+		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	},
 	{}
 };
@@ -258,6 +280,46 @@ struct ec_sensor {
 	unsigned int info_index;
 	s32 cached_value;
 };
+
+struct lock_data {
+	union {
+		acpi_handle aml;
+		/* global lock handle */
+		u32 glk;
+	} mutex;
+	bool (*lock)(struct lock_data *data);
+	bool (*unlock)(struct lock_data *data);
+};
+
+/*
+ * The next function pairs implement options for locking access to the
+ * state and the EC
+ */
+static bool lock_via_acpi_mutex(struct lock_data *data)
+{
+	/*
+	 * ASUS DSDT does not specify that access to the EC has to be guarded,
+	 * but firmware does access it via ACPI
+	 */
+	return ACPI_SUCCESS(acpi_acquire_mutex(data->mutex.aml,
+					       NULL, ACPI_LOCK_DELAY_MS));
+}
+
+static bool unlock_acpi_mutex(struct lock_data *data)
+{
+	return ACPI_SUCCESS(acpi_release_mutex(data->mutex.aml, NULL));
+}
+
+static bool lock_via_global_acpi_lock(struct lock_data *data)
+{
+	return ACPI_SUCCESS(acpi_acquire_global_lock(ACPI_LOCK_DELAY_MS,
+						     &data->mutex.glk));
+}
+
+static bool unlock_global_acpi_lock(struct lock_data *data)
+{
+	return ACPI_SUCCESS(acpi_release_global_lock(data->mutex.glk));
+}
 
 struct ec_sensors_data {
 	const struct ec_board_info *board_info;
@@ -269,7 +331,7 @@ struct ec_sensors_data {
 	u8 banks[ASUS_EC_MAX_BANK + 1];
 	/* in jiffies */
 	unsigned long last_updated;
-	acpi_handle aml_mutex;
+	struct lock_data lock_data;
 	/* number of board EC sensors */
 	u8 nr_sensors;
 	/*
@@ -373,23 +435,36 @@ static void __init fill_ec_registers(struct ec_sensors_data *ec)
 	}
 }
 
-static acpi_handle __init asus_hw_access_mutex(struct device *dev)
+static int __init setup_lock_data(struct device *dev)
 {
 	const char *mutex_path;
-	acpi_handle res;
 	int status;
+	struct ec_sensors_data *state = dev_get_drvdata(dev);
 
 	mutex_path = mutex_path_override ?
-		mutex_path_override : ASUS_HW_ACCESS_MUTEX_ASMX;
+		mutex_path_override : state->board_info->mutex_path;
 
-	status = acpi_get_handle(NULL, (acpi_string)mutex_path, &res);
-	if (ACPI_FAILURE(status)) {
-		dev_err(dev,
-			"Could not get hardware access guard mutex '%s': error %d",
-			mutex_path, status);
-		return NULL;
+	if (!mutex_path || !strlen(mutex_path)) {
+		dev_err(dev, "Hardware access guard mutex name is empty");
+		return -EINVAL;
 	}
-	return res;
+	if (!strcmp(mutex_path, ACPI_GLOBAL_LOCK_PSEUDO_PATH)) {
+		state->lock_data.mutex.glk = 0;
+		state->lock_data.lock = lock_via_global_acpi_lock;
+		state->lock_data.unlock = unlock_global_acpi_lock;
+	} else {
+		status = acpi_get_handle(NULL, (acpi_string)mutex_path,
+					 &state->lock_data.mutex.aml);
+		if (ACPI_FAILURE(status)) {
+			dev_err(dev,
+				"Failed to get hardware access guard AML mutex '%s': error %d",
+				mutex_path, status);
+			return -ENOENT;
+		}
+		state->lock_data.lock = lock_via_acpi_mutex;
+		state->lock_data.unlock = unlock_acpi_mutex;
+	}
+	return 0;
 }
 
 static int asus_ec_bank_switch(u8 bank, u8 *old)
@@ -492,15 +567,9 @@ static int update_ec_sensors(const struct device *dev,
 {
 	int status;
 
-	/*
-	 * ASUS DSDT does not specify that access to the EC has to be guarded,
-	 * but firmware does access it via ACPI
-	 */
-	if (ACPI_FAILURE(acpi_acquire_mutex(ec->aml_mutex, NULL,
-					    ACPI_LOCK_DELAY_MS))) {
-		dev_err(dev, "Failed to acquire AML mutex");
-		status = -EBUSY;
-		goto cleanup;
+	if (!ec->lock_data.lock(&ec->lock_data)) {
+		dev_warn(dev, "Failed to acquire mutex");
+		return -EBUSY;
 	}
 
 	status = asus_ec_block_read(dev, ec);
@@ -508,10 +577,10 @@ static int update_ec_sensors(const struct device *dev,
 	if (!status) {
 		update_sensor_values(ec, ec->read_buffer);
 	}
-	if (ACPI_FAILURE(acpi_release_mutex(ec->aml_mutex, NULL))) {
-		dev_err(dev, "Failed to release AML mutex");
-	}
-cleanup:
+
+	if (!ec->lock_data.unlock(&ec->lock_data))
+		dev_err(dev, "Failed to release mutex");
+
 	return status;
 }
 
@@ -651,6 +720,7 @@ static int __init asus_ec_probe(struct platform_device *pdev)
 	enum hwmon_sensor_types type;
 	struct device *hwdev;
 	unsigned int i;
+	int status;
 
 	pboard_info = get_board_info();
 	if (!pboard_info)
@@ -667,6 +737,11 @@ static int __init asus_ec_probe(struct platform_device *pdev)
 	ec_data->sensors = devm_kcalloc(dev, ec_data->nr_sensors,
 					sizeof(struct ec_sensor), GFP_KERNEL);
 
+	status = setup_lock_data(dev);
+	if (status) {
+		dev_err(dev, "Failed to setup state/EC locking: %d", status);
+		return status;
+	}
 	setup_sensor_data(ec_data);
 	ec_data->registers = devm_kcalloc(dev, ec_data->nr_registers,
 					  sizeof(u16), GFP_KERNEL);
@@ -677,8 +752,6 @@ static int __init asus_ec_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	fill_ec_registers(ec_data);
-
-	ec_data->aml_mutex = asus_hw_access_mutex(dev);
 
 	for (i = 0; i < ec_data->nr_sensors; ++i) {
 		si = get_sensor_info(ec_data, i);

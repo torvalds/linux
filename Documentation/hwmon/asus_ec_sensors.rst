@@ -53,3 +53,5 @@ Module Parameters
 		the path is mostly identical for them). If ASUS changes this path
 		in a future BIOS update, this parameter can be used to override
 		the stored in the driver value until it gets updated.
+		A special string ":GLOBAL_LOCK" can be passed to use the ACPI
+		global lock instead of a dedicated mutex.
