@@ -73,6 +73,7 @@ late_initcall(stackleak_sysctls_init);
 static __always_inline void __stackleak_erase(void)
 {
 	const unsigned long task_stack_low = stackleak_task_low_bound(current);
+	const unsigned long task_stack_high = stackleak_task_high_bound(current);
 	unsigned long erase_low = current->lowest_stack;
 	unsigned long erase_high;
 	unsigned int poison_count = 0;
@@ -93,14 +94,22 @@ static __always_inline void __stackleak_erase(void)
 #endif
 
 	/*
-	 * Now write the poison value to the kernel stack between 'erase_low'
-	 * and 'erase_high'. We assume that the stack pointer doesn't change
-	 * when we write poison.
+	 * Write poison to the task's stack between 'erase_low' and
+	 * 'erase_high'.
+	 *
+	 * If we're running on a different stack (e.g. an entry trampoline
+	 * stack) we can erase everything below the pt_regs at the top of the
+	 * task stack.
+	 *
+	 * If we're running on the task stack itself, we must not clobber any
+	 * stack used by this function and its caller. We assume that this
+	 * function has a fixed-size stack frame, and the current stack pointer
+	 * doesn't change while we write poison.
 	 */
 	if (on_thread_stack())
 		erase_high = current_stack_pointer;
 	else
-		erase_high = current_top_of_stack();
+		erase_high = task_stack_high;
 
 	while (erase_low < erase_high) {
 		*(unsigned long *)erase_low = STACKLEAK_POISON;
@@ -108,7 +117,7 @@ static __always_inline void __stackleak_erase(void)
 	}
 
 	/* Reset the 'lowest_stack' value for the next syscall */
-	current->lowest_stack = current_top_of_stack() - THREAD_SIZE/64;
+	current->lowest_stack = task_stack_high;
 }
 
 asmlinkage void noinstr stackleak_erase(void)
