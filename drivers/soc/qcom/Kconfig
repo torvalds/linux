@@ -271,6 +271,103 @@ config QCOM_LOGBUF_VENDOR_HOOKS
 	  debugging issues which are manifestation
 	  of failure during initial bootup.
 
+config QCOM_WDT_CORE
+	tristate "Qualcomm Technologies, Inc. Watchdog Support"
+	depends on ARCH_QCOM
+	help
+	   This enables the watchdog framework for Qualcomm Technologies, Inc.
+	   devices. It causes a kernel panic if the watchdog times out. It allows
+	   for the detection of cpu hangs and deadlocks. It does not run during the
+	   bootup process, so it will not catch any early lockups. Enabling this
+	   only enables the framework, an individual Qualcomm Technologies, Inc.
+	   watchdog module must be loaded along with this for watchdog
+	   functionality.
+
+config QCOM_SOC_WATCHDOG
+	tristate "Qualcomm Technologies, Inc. Soc Watchdog"
+	depends on QCOM_WDT_CORE
+	help
+	  This enables the Qualcomm Technologies, Inc. watchdog module for the
+	  Soc. It provides an interface to perform watchdog actions such as
+	  setting the bark/bite time and also petting the hardware watchdog. To
+	  utilize this the Qualcomm Technologies, Inc. watchdog framework must
+	  also be enabled.
+
+config QCOM_IRQ_STAT
+	bool "QCOM IRQ stats"
+	depends on QCOM_WDT_CORE
+	help
+	  This give irq stats for top hitter at
+	  watchdog pet, watchdog bark and kernel panics.
+	  This provides additional debug information
+	  for irq counts on cpu and ipi counts.
+
+config QCOM_FORCE_WDOG_BITE_ON_PANIC
+	bool "QCOM force watchdog bite on panic"
+	depends on QCOM_WDT_CORE
+	help
+	  This forces a watchdog bite when the device restarts
+	  due to a kernel panic. On certain MSM SoCs,
+	  this provides additional debugging
+	  information.
+
+config QCOM_WDOG_BITE_EARLY_PANIC
+	bool "QCOM early panic watchdog bite"
+	depends on QCOM_WDT_CORE && QCOM_FORCE_WDOG_BITE_ON_PANIC
+	help
+	  This forces a watchdog bite early in panic sequence. On certain
+	  MSM SoCs, this provides us additional debugging information at the
+	  context of the crash. If this option is disabled, then bite occurs
+	  later in panic, which permits more of the restart sequence to run
+	  (e.g. more dmesg to flushed to console).
+
+config QCOM_WATCHDOG_BARK_TIME
+	depends on QCOM_WDT_CORE
+	int "Qualcomm Technologies, Inc. Watchdog bark time in ms"
+	default 11000
+	range 11000 11000
+	help
+	  The amount of time, in milliseconds, that should elapse after
+	  a watchdog timer reset before a bark interrupt is sent from the
+	  watchdog.
+
+config QCOM_WATCHDOG_PET_TIME
+	depends on QCOM_WDT_CORE
+	int "Qualcomm Technologies, Inc. Watchdog pet time in ms"
+	default 9360
+	range 9360 9360
+	help
+	  The amount of time, in milliseconds, that should elapse before
+	  a watchdog pet is initiated to reset the watchdog timer to 0.
+
+config QCOM_WATCHDOG_IPI_PING
+	depends on QCOM_WDT_CORE
+	bool "Qualcomm Technologies, Inc. Watchdog ipi ping"
+	default y
+	help
+	  This boolean flag gives the watchdog driver the ability to send a
+	  keep-alive ping to other cpu's if it is set to 1. Otherwise, when
+	  it is set to 0 no keep alive pings will be sent.
+
+config QCOM_WATCHDOG_WAKEUP_ENABLE
+	depends on QCOM_WDT_CORE
+	bool "Qualcomm Technologies, Inc. Watchdog wakeup enable"
+	default y
+	help
+	  This boolean flag allows the non secure watchdog counter to freeze
+	  and unfreeze automatically across the system suspend and resume
+	  path.
+
+config QCOM_WATCHDOG_USERSPACE_PET
+	depends on QCOM_WDT_CORE
+	bool "Qualcomm Technologies, Inc. Watchdog user pet enable"
+	default n
+	help
+	  This boolean flag allows enabling the userspace-watchdog feature.
+	  This feature requires userspace to pet the watchdog every in an
+	  interval that matches the time set in the pet-time config.
+	  The feature is supported through device sysfs files.
+
 config QCOM_WCNSS_CTRL
 	tristate "Qualcomm WCNSS control driver"
 	depends on ARCH_QCOM || COMPILE_TEST

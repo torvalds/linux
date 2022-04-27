@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menuconfig GUNYAH_DRIVERS
+	bool "Gunyah Virtualization drivers"
+	depends on ARM64
+	help
+	  The Gunyah drivers are the helper interfaces that runs on the
+	  virtual machines that provides support such as memory/device
+	  sharing, IRQ sharing, IPC/signalling mechanisms, and so on.
+
+	  Say Y here to enable the drivers needed to work on Gunyah
+	  virtualization environment.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if GUNYAH_DRIVERS
+
+config GH_VIRT_WATCHDOG
+	tristate "Gunyah Virtual Watchdog Driver"
+	depends on QCOM_WDT_CORE
+	help
+	  This enables the Qualcomm Technologies, Inc. watchdog module for
+	  the Gunyah hypervisor. It provides an interface to perform watchdog
+	  actions such as setting the bark/bite time and also petting the
+	  watchdog in the hypervisor.
+
+endif
