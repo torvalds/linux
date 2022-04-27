@@ -415,7 +415,7 @@ void mptcp_pm_subflow_chk_stale(const struct mptcp_sock *msk, struct sock *ssk)
 
 void mptcp_pm_data_reset(struct mptcp_sock *msk)
 {
-	bool subflows_allowed = !!mptcp_pm_get_subflows_max(msk);
+	u8 pm_type = mptcp_get_pm_type(sock_net((struct sock *)msk));
 	struct mptcp_pm_data *pm = &msk->pm;
 
 	pm->add_addr_signaled = 0;
@@ -424,17 +424,29 @@ void mptcp_pm_data_reset(struct mptcp_sock *msk)
 	pm->subflows = 0;
 	pm->rm_list_tx.nr = 0;
 	pm->rm_list_rx.nr = 0;
-	WRITE_ONCE(pm->pm_type, MPTCP_PM_TYPE_KERNEL);
-	/* pm->work_pending must be only be set to 'true' when
-	 * pm->pm_type is set to MPTCP_PM_TYPE_KERNEL
-	 */
-	WRITE_ONCE(pm->work_pending,
-		   (!!mptcp_pm_get_local_addr_max(msk) && subflows_allowed) ||
-		   !!mptcp_pm_get_add_addr_signal_max(msk));
+	WRITE_ONCE(pm->pm_type, pm_type);
+
+	if (pm_type == MPTCP_PM_TYPE_KERNEL) {
+		bool subflows_allowed = !!mptcp_pm_get_subflows_max(msk);
+
+		/* pm->work_pending must be only be set to 'true' when
+		 * pm->pm_type is set to MPTCP_PM_TYPE_KERNEL
+		 */
+		WRITE_ONCE(pm->work_pending,
+			   (!!mptcp_pm_get_local_addr_max(msk) &&
+			    subflows_allowed) ||
+			   !!mptcp_pm_get_add_addr_signal_max(msk));
+		WRITE_ONCE(pm->accept_addr,
+			   !!mptcp_pm_get_add_addr_accept_max(msk) &&
+			   subflows_allowed);
+		WRITE_ONCE(pm->accept_subflow, subflows_allowed);
+	} else {
+		WRITE_ONCE(pm->work_pending, 0);
+		WRITE_ONCE(pm->accept_addr, 0);
+		WRITE_ONCE(pm->accept_subflow, 0);
+	}
+
 	WRITE_ONCE(pm->addr_signal, 0);
-	WRITE_ONCE(pm->accept_addr,
-		   !!mptcp_pm_get_add_addr_accept_max(msk) && subflows_allowed);
-	WRITE_ONCE(pm->accept_subflow, subflows_allowed);
 	WRITE_ONCE(pm->remote_deny_join_id0, false);
 	pm->status = 0;
 	bitmap_fill(msk->pm.id_avail_bitmap, MPTCP_PM_MAX_ADDR_ID + 1);
