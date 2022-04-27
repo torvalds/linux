@@ -249,7 +249,7 @@ CLOCK
   devm_clk_bulk_get()
   devm_clk_bulk_get_all()
   devm_clk_bulk_get_optional()
-  devm_get_clk_from_childl()
+  devm_get_clk_from_child()
   devm_clk_hw_register()
   devm_of_clk_add_hw_provider()
   devm_clk_hw_register_clkdev()
