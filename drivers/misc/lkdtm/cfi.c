@@ -59,7 +59,7 @@ static void lkdtm_CFI_FORWARD_PROTO(void)
 #endif
 
 #define no_pac_addr(addr)      \
-	((__force __typeof__(addr))((__force u64)(addr) | PAGE_OFFSET))
+	((__force __typeof__(addr))((uintptr_t)(addr) | PAGE_OFFSET))
 
 /* The ultimate ROP gadget. */
 static noinline __no_ret_protection
