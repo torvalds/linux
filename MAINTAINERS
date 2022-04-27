@@ -12954,12 +12954,14 @@ M:	Samuel Mendoza-Jonas <sam@mendozajonas.com>
 S:	Maintained
 F:	net/ncsi/
 
-NCT6775 HARDWARE MONITOR DRIVER
+NCT6775 HARDWARE MONITOR DRIVER - CORE & PLATFORM DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	Documentation/hwmon/nct6775.rst
-F:	drivers/hwmon/nct6775.c
+F:	drivers/hwmon/nct6775-core.c
+F:	drivers/hwmon/nct6775-platform.c
+F:	drivers/hwmon/nct6775.h
 
 NETDEVSIM
 M:	Jakub Kicinski <kuba@kernel.org>
