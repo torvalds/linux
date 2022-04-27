@@ -5,6 +5,7 @@
 #include <linux/compat.h>
 #include <linux/socket.h>
 #include <linux/syscalls.h>
+#include <asm/ptrace.h>
 
 /* Macro that masks the high order bit of an 32 bit pointer and converts it*/
 /*       to a 64 bit pointer */
@@ -32,15 +33,9 @@ typedef struct
 	freg_t32	fprs[__NUM_FPRS];              
 } _s390_fp_regs32;
 
-typedef struct 
-{
-        __u32   mask;
-        __u32	addr;
-} _psw_t32 __attribute__ ((aligned(8)));
-
 typedef struct
 {
-	_psw_t32	psw;
+	psw_t32		psw;
 	__u32		gprs[__NUM_GPRS];
 	__u32		acrs[__NUM_ACRS];
 } _s390_regs_common32;
