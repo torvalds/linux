@@ -229,8 +229,7 @@ void drm_fb_xrgb8888_to_rgb332(void *dst, unsigned int dst_pitch, const void *sr
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb332);
 
 static void drm_fb_xrgb8888_to_rgb565_line(u16 *dbuf, const u32 *sbuf,
-					   unsigned int pixels,
-					   bool swab)
+					   unsigned int pixels)
 {
 	unsigned int x;
 	u16 val16;
@@ -239,10 +238,21 @@ static void drm_fb_xrgb8888_to_rgb565_line(u16 *dbuf, const u32 *sbuf,
 		val16 = ((sbuf[x] & 0x00F80000) >> 8) |
 			((sbuf[x] & 0x0000FC00) >> 5) |
 			((sbuf[x] & 0x000000F8) >> 3);
-		if (swab)
-			dbuf[x] = swab16(val16);
-		else
-			dbuf[x] = val16;
+		dbuf[x] = val16;
+	}
+}
+
+static void drm_fb_xrgb8888_to_rgb565_swab_line(u16 *dbuf, const u32 *sbuf,
+						unsigned int pixels)
+{
+	unsigned int x;
+	u16 val16;
+
+	for (x = 0; x < pixels; x++) {
+		val16 = ((sbuf[x] & 0x00F80000) >> 8) |
+			((sbuf[x] & 0x0000FC00) >> 5) |
+			((sbuf[x] & 0x000000F8) >> 3);
+		dbuf[x] = swab16(val16);
 	}
 }
 
@@ -282,7 +292,10 @@ void drm_fb_xrgb8888_to_rgb565(void *dst, unsigned int dst_pitch, const void *va
 	vaddr += clip_offset(clip, fb->pitches[0], sizeof(u32));
 	for (y = 0; y < lines; y++) {
 		memcpy(sbuf, vaddr, src_len);
-		drm_fb_xrgb8888_to_rgb565_line(dst, sbuf, linepixels, swab);
+		if (swab)
+			drm_fb_xrgb8888_to_rgb565_swab_line(dst, sbuf, linepixels);
+		else
+			drm_fb_xrgb8888_to_rgb565_line(dst, sbuf, linepixels);
 		vaddr += fb->pitches[0];
 		dst += dst_pitch;
 	}
@@ -321,7 +334,10 @@ void drm_fb_xrgb8888_to_rgb565_toio(void __iomem *dst, unsigned int dst_pitch,
 
 	vaddr += clip_offset(clip, fb->pitches[0], sizeof(u32));
 	for (y = 0; y < lines; y++) {
-		drm_fb_xrgb8888_to_rgb565_line(dbuf, vaddr, linepixels, swab);
+		if (swab)
+			drm_fb_xrgb8888_to_rgb565_swab_line(dbuf, vaddr, linepixels);
+		else
+			drm_fb_xrgb8888_to_rgb565_line(dbuf, vaddr, linepixels);
 		memcpy_toio(dst, dbuf, dst_len);
 		vaddr += fb->pitches[0];
 		dst += dst_pitch;
