@@ -212,7 +212,7 @@ static int handle_netlink(struct nl_cache_ops *unused,
 
 	default:
 		return THERMAL_ERROR;
-	};
+	}
 
 	return ret;
 }
