@@ -389,7 +389,6 @@ static int enum_fmt(const struct mxc_jpeg_fmt *mxc_formats, int n,
 	if (i >= n)
 		return -EINVAL;
 
-	strscpy(f->description, mxc_formats[i].name, sizeof(f->description));
 	f->pixelformat = mxc_formats[i].fourcc;
 
 	return 0;
@@ -1646,7 +1645,6 @@ static int mxc_jpeg_enum_fmt_vid_cap(struct file *file, void *priv,
 		if (f->index)
 			return -EINVAL;
 		f->pixelformat = q_data->fmt->fourcc;
-		strscpy(f->description, q_data->fmt->name, sizeof(f->description));
 		return 0;
 	}
 }
