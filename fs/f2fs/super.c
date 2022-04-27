@@ -3658,6 +3658,10 @@ static int init_blkz_info(struct f2fs_sb_info *sbi, int devi)
 		return 0;
 
 	zone_sectors = bdev_zone_sectors(bdev);
+	if (!is_power_of_2(zone_sectors)) {
+		f2fs_err(sbi, "F2FS does not support non power of 2 zone sizes\n");
+		return -EINVAL;
+	}
 
 	if (sbi->blocks_per_blkz && sbi->blocks_per_blkz !=
 				SECTOR_TO_BLOCK(zone_sectors))
