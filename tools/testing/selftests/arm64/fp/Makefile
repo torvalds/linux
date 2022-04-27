@@ -2,14 +2,13 @@
 
 CFLAGS += -I../../../../../usr/include/
 TEST_GEN_PROGS := sve-ptrace sve-probe-vls vec-syscfg za-fork za-ptrace
-TEST_PROGS_EXTENDED := fp-pidbench fpsimd-test fpsimd-stress \
+TEST_GEN_PROGS_EXTENDED := fp-pidbench fpsimd-test \
 	rdvl-sme rdvl-sve \
-	sve-test sve-stress \
-	ssve-test ssve-stress \
-	za-test za-stress \
+	sve-test \
+	ssve-test \
+	za-test \
 	vlset
-
-all: $(TEST_GEN_PROGS) $(TEST_PROGS_EXTENDED)
+TEST_PROGS_EXTENDED := fpsimd-stress sve-stress ssve-stress za-stress
 
 # Build with nolibc to avoid effects due to libc's clone() support
 fp-pidbench: fp-pidbench.S asm-utils.o
