@@ -3249,6 +3249,7 @@ static int dwc3_gadget_ep_cleanup_completed_request(struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event,
 		struct dwc3_request *req, int status)
 {
+	struct dwc3 *dwc = dep->dwc;
 	int ret;
 
 	if (req->request.num_mapped_sgs)
@@ -3267,6 +3268,28 @@ static int dwc3_gadget_ep_cleanup_completed_request(struct dwc3_ep *dep,
 		ret = dwc3_gadget_ep_reclaim_trb_linear(dep, req, event,
 				status);
 		req->needs_extra_trb = false;
+	}
+
+	/*
+	 * If MISS ISOC happens, we need to move the req from started_list
+	 * to cancelled_list, then unmap the req and clear the HWO of trb.
+	 * Later in the dwc3_gadget_endpoint_trbs_complete(), it will move
+	 * the req from the cancelled_list to the pending_list, and restart
+	 * the req for isoc transfer.
+	 */
+	if (status == -EXDEV && usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
+		req->remaining = 0;
+		req->needs_extra_trb = false;
+		dwc3_gadget_move_cancelled_request(req, DWC3_REQUEST_STATUS_DEQUEUED);
+		if (req->trb) {
+			usb_gadget_unmap_request_by_dev(dwc->sysdev,
+							&req->request,
+							req->direction);
+			req->trb->ctrl &= ~DWC3_TRB_CTRL_HWO;
+			req->trb = NULL;
+		}
+		ret = 0;
+		goto out;
 	}
 
 	dwc3_gadget_giveback(dep, req, status);
@@ -3324,6 +3347,7 @@ static bool dwc3_gadget_endpoint_trbs_complete(struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event, int status)
 {
 	struct dwc3		*dwc = dep->dwc;
+	struct dwc3_request     *req, *tmp;
 	bool			no_started_trb = true;
 
 	if (!dep->endpoint.desc)
@@ -3333,6 +3357,29 @@ static bool dwc3_gadget_endpoint_trbs_complete(struct dwc3_ep *dep,
 
 	if (dep->flags & DWC3_EP_END_TRANSFER_PENDING)
 		goto out;
+
+	/*
+	 * If MISS ISOC happens, we need to do the following three steps
+	 * to restart the reqs in the cancelled_list and pending_list
+	 * in order.
+	 * Step1. Move all the reqs from pending_list to the tail of
+	 *        cancelled_list.
+	 * Step2. Move all the reqs from cancelled_list to the tail
+	 *        of pending_list.
+	 * Step3. Stop and restart an isoc transfer.
+	 */
+	if (usb_endpoint_xfer_isoc(dep->endpoint.desc) && status == -EXDEV &&
+	    !list_empty(&dep->cancelled_list) &&
+	    !list_empty(&dep->pending_list)) {
+		list_for_each_entry_safe(req, tmp, &dep->pending_list, list)
+			dwc3_gadget_move_cancelled_request(req, DWC3_REQUEST_STATUS_DEQUEUED);
+	}
+
+	if (usb_endpoint_xfer_isoc(dep->endpoint.desc) && status == -EXDEV &&
+	    !list_empty(&dep->cancelled_list)) {
+		list_for_each_entry_safe(req, tmp, &dep->cancelled_list, list)
+			dwc3_gadget_move_queued_request(req);
+	}
 
 	if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
 		list_empty(&dep->started_list) &&
