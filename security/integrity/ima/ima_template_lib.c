@@ -370,7 +370,7 @@ out:
 int ima_eventdigest_ng_init(struct ima_event_data *event_data,
 			    struct ima_field_data *field_data)
 {
-	u8 *cur_digest = NULL, hash_algo = HASH_ALGO_SHA1;
+	u8 *cur_digest = NULL, hash_algo = ima_hash_algo;
 	u32 cur_digestsize = 0;
 
 	if (event_data->violation)	/* recording a violation. */
