@@ -245,6 +245,7 @@ an involved disclosed party. The current ambassadors list:
 
   ============= ========================================================
   AMD		Tom Lendacky <tom.lendacky@amd.com>
+  Ampere	Darren Hart <darren@os.amperecomputing.com>
   ARM		Grant Likely <grant.likely@arm.com>
   IBM Power	Anton Blanchard <anton@linux.ibm.com>
   IBM Z		Christian Borntraeger <borntraeger@de.ibm.com>
