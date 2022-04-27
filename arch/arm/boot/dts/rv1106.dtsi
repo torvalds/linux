@@ -1203,12 +1203,16 @@
 
 		mtl_rx_setup: rx-queues-config {
 			snps,rx-queues-to-use = <1>;
-			queue0 {};
+			queue0 {
+				status = "okay";
+			};
 		};
 
 		mtl_tx_setup: tx-queues-config {
 			snps,tx-queues-to-use = <1>;
-			queue0 {};
+			queue0 {
+				status = "okay";
+			};
 		};
 	};
 
