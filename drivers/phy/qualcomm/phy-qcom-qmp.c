@@ -5587,7 +5587,7 @@ static int qcom_qmp_phy_reset_init(struct device *dev, const struct qmp_phy_cfg 
 		struct reset_control *rst;
 		const char *name = cfg->reset_list[i];
 
-		rst = devm_reset_control_get(dev, name);
+		rst = devm_reset_control_get_exclusive(dev, name);
 		if (IS_ERR(rst)) {
 			dev_err(dev, "failed to get %s reset\n", name);
 			return PTR_ERR(rst);
@@ -5985,7 +5985,7 @@ int qcom_qmp_phy_create(struct device *dev, struct device_node *np, int id,
 	/* Get lane reset, if any */
 	if (cfg->has_lane_rst) {
 		snprintf(prop_name, sizeof(prop_name), "lane%d", id);
-		qphy->lane_rst = of_reset_control_get(np, prop_name);
+		qphy->lane_rst = of_reset_control_get_exclusive(np, prop_name);
 		if (IS_ERR(qphy->lane_rst)) {
 			dev_err(dev, "failed to get lane%d reset\n", id);
 			return PTR_ERR(qphy->lane_rst);
