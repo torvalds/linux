@@ -7,6 +7,7 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
+#include <linux/clk-provider.h>
 
 static int vin_rstgen_assert_reset(struct stf_vin_dev *vin)
 {
@@ -103,43 +104,32 @@ static int stf_vin_clk_init(struct stf_vin2_dev *vin_dev)
 
 static int stf_vin_clk_enable(struct stf_vin2_dev *vin_dev)
 {
-
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
-#ifdef CONFIG_RESET_STARFIVE_JH7110
-	reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_WRAPPER_C].rstc);
-	reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_WRAPPER_P].rstc);
-	reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_PCLK].rstc);
-	reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_SYS_CLK].rstc);
-	reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_AXIRD].rstc);
-	reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_AXIWR].rstc);
+	struct stfcamss *stfcamss = vin_dev->stfcamss;
+
+	reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_C].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_P].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_PCLK].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_SYS_CLK].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
+
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PCLK].clk);
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk);
+
+#ifdef HWBOARD_FPGA
+	clk_set_rate(stfcamss->sys_clk[STFCLK_APB_FUNC].clk, 51200000);
+	clk_set_rate(stfcamss->sys_clk[STFCLK_SYS_CLK].clk, 307200000);
 #else
-	reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE,
-		RST_U0_ISPV2_TOP_WRAPPER_RST_P);
-	reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE,
-		RST_U0_ISPV2_TOP_WRAPPER_RST_C);
-	reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE,
-		RSTN_U0_VIN_RST_N_PCLK
-		| RSTN_U0_VIN_RST_P_AXIRD
-		| RSTN_U0_VIN_RST_N_SYS_CLK);
-	reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE, RSTN_U0_VIN_RST_P_AXIWR);
-#endif
 	reg_set_bit(vin->clkgen_base, CLK_DOM4_APB_FUNC, CLK_MUX_SEL, 0x8);
-	reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PCLK, CLK_U0_VIN_PCLK_ICG, 0x1<<31);
 	reg_set_bit(vin->clkgen_base, CLK_U0_VIN_SYS_CLK, CLK_MUX_SEL, 0x2);
-	reg_set_bit(vin->clkgen_base, CLK_U0_ISPV2_TOP_WRAPPER_CLK_C, CLK_U0_ISPV2_CLK_ICG, 0x1<<31);
+#endif
 
-	reg_set_bit(vin->clkgen_base, CLK_U0_ISPV2_TOP_WRAPPER_CLK_C, CLK_U0_ISPV2_MUX_SEL, 0x0);
-
-	reg_set_bit(vin->clkgen_base, CLK_DVP_INV, CLK_POLARITY, 0x0);
-	reg_set_bit(vin->clkgen_base, CLK_U0_ISPV2_TOP_WRAPPER_CLK_C, CLK_U0_ISPV2_MUX_SEL, 0x1<<24);
-
-	reg_set_bit(vin->clkgen_base,	CLK_U0_VIN_CLK_P_AXIWR,	CLK_U0_VIN_MUX_SEL, 0x0);
-
-	reg_set_bit(vin->clkgen_base,   CLK_U0_VIN_CLK_P_AXIWR, CLK_U0_VIN_MUX_SEL, 0x1<<24);
+	clk_set_phase(stfcamss->sys_clk[STFCLK_DVP_INV].clk, 0);
+	clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
+		stfcamss->sys_clk[STFCLK_DVP_INV].clk);
+	clk_set_parent(stfcamss->sys_clk[STFCLK_AXIWR].clk,
+		stfcamss->sys_clk[STFCLK_DVP_INV].clk);
 
 	return 0;
 }
@@ -147,23 +137,15 @@ static int stf_vin_clk_enable(struct stf_vin2_dev *vin_dev)
 
 static int stf_vin_clk_disable(struct stf_vin2_dev *vin_dev)
 {
-
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+	struct stfcamss *stfcamss = vin_dev->stfcamss;
 
-#ifdef CONFIG_RESET_STARFIVE_JH7110
-	reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_PCLK].rstc);
-	reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_SYS_CLK].rstc);
-	reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_AXIRD].rstc);
-	reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_AXIWR].rstc);
-#else
-	reg_assert_rst(vin->clkgen_base,SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE, RSTN_U0_VIN_RST_N_PCLK
-		| RSTN_U0_VIN_RST_N_SYS_CLK
-		| RSTN_U0_VIN_RST_P_AXIRD
-		| RSTN_U0_VIN_RST_P_AXIWR);
-#endif
+	reset_control_assert(stfcamss->sys_rst[STFRST_PCLK].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_SYS_CLK].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
 
-	reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PCLK, CLK_U0_VIN_PCLK_ICG, 0x0);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PCLK].clk);
 
 	return 0;
 }
@@ -177,7 +159,6 @@ static int stf_vin_config_set(struct stf_vin2_dev *vin_dev)
 
 static int stf_vin_wr_stream_set(struct stf_vin2_dev *vin_dev, int on)
 {
-
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 
 	print_reg(ST_VIN, vin->sysctrl_base, SYSCONSAIF_SYSCFG_20);
@@ -198,8 +179,6 @@ static int stf_vin_wr_stream_set(struct stf_vin2_dev *vin_dev, int on)
 static void stf_vin_wr_irq_enable(struct stf_vin2_dev *vin_dev,
 		int enable)
 {
-
-
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 	unsigned int value = 0;
 
@@ -220,60 +199,6 @@ static void stf_vin_wr_irq_enable(struct stf_vin2_dev *vin_dev,
 		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28, 
 			U0_VIN_CNFG_AXIWR0_MASK, 
 			value);
-	}
-
-}
-
-static void stf_vin_power_on(struct stf_vin2_dev *vin_dev,	int enable)
-{
-	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
-	u32 reg = 0;
-	
-	if(enable){
-		reg_write(vin->pmu_test, SW_DEST_POWER_ON, (0x1<<5));
-		reg_write(vin->pmu_test, SW_ENCOURAGE, 0xff);
- 		reg_write(vin->pmu_test, SW_ENCOURAGE, 0x05);
-		reg_write(vin->pmu_test, SW_ENCOURAGE, 0x50);
-
-#ifdef CONFIG_CLK_STARFIVE_JH7110
-		clk_prepare_enable(vin_dev->stfcamss->sys_clk[STFCLK_ISPCORE_2X].clk);
-		clk_prepare_enable(vin_dev->stfcamss->sys_clk[STFCLK_ISP_AXI].clk);
-#else
-		reg_set_highest_bit(vin->sys_crg, 0xCCU);
-		reg_set_highest_bit(vin->sys_crg, 0xD0U);
-#endif
-
-#ifdef CONFIG_RESET_STARFIVE_JH7110
-		reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_N].rstc);
-		reset_control_deassert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rstc);
-#else
-		reg_clear_rst(vin->sys_crg, 0x2FCU, 0x30CU, (0x1 << 9));
-		reg_clear_rst(vin->sys_crg, 0x2FCU, 0x30CU, (0x1 << 10));
-#endif
-
-	} else {
-
-#ifdef CONFIG_RESET_STARFIVE_JH7110
-		reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_N].rstc);
-		reset_control_assert(vin_dev->stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rstc);
-#else
-		reg_assert_rst(vin->sys_crg, 0x2FCU, 0x30cu, BIT(9));
-		reg_assert_rst(vin->sys_crg, 0x2FCU, 0x30cu, BIT(10));
-#endif
-
-#ifdef CONFIG_CLK_STARFIVE_JH7110
-		clk_disable_unprepare(vin_dev->stfcamss->sys_clk[STFCLK_ISPCORE_2X].clk);
-		clk_disable_unprepare(vin_dev->stfcamss->sys_clk[STFCLK_ISP_AXI].clk);
-#else
-		reg_set_bit(vin->sys_crg, 0xccu, BIT(31), 0x0);
-		reg_set_bit(vin->sys_crg, 0xd0u, BIT(31), 0x0);
-#endif
-
-		reg_write(vin->pmu_test, SW_DEST_POWER_ON, (0x1<<5));
-		//reg_write(vin->pmu_test, SW_DEST_POWER_OFF, (0x1<<5));	//changhuang modify 01-12
-		reg_write(vin->pmu_test, SW_ENCOURAGE, 0xff);
-		reg_write(vin->pmu_test, SW_ENCOURAGE, 0x0a);
-		reg_write(vin->pmu_test, SW_ENCOURAGE, 0xa0);
 	}
 }
 
@@ -373,7 +298,6 @@ struct vin_hw_ops vin_ops = {
 	.vin_config_set        = stf_vin_config_set,
 	.vin_wr_stream_set     = stf_vin_wr_stream_set,
 	.vin_wr_irq_enable     = stf_vin_wr_irq_enable,
-	.vin_power_on		   = stf_vin_power_on,
 	.wr_rd_set_addr        = stf_vin_wr_rd_set_addr,
 	.vin_wr_set_ping_addr  = stf_vin_wr_set_ping_addr,
 	.vin_wr_set_pong_addr  = stf_vin_wr_set_pong_addr,

@@ -56,13 +56,20 @@ static const struct reg_name mem_reg_name[] = {
 };
 
 static struct clk_bulk_data stfcamss_clocks[] = {
-	{ .id = "clk_ispcore_2x" },
-	{ .id = "clk_isp_axi" },
+	{ .id = "clk_apb_func" },
+	{ .id = "clk_pclk" },
+	{ .id = "clk_sys_clk" },
+	{ .id = "clk_wrapper_clk_c" },
+	{ .id = "clk_dvp_inv" },
+	{ .id = "clk_axiwr" },
+	{ .id = "clk_mipi_rx0_pxl" },
+	{ .id = "clk_pixel_clk_if0" },
+	{ .id = "clk_pixel_clk_if1" },
+	{ .id = "clk_pixel_clk_if2" },
+	{ .id = "clk_pixel_clk_if3" },
 };
 
 static struct reset_control_bulk_data stfcamss_resets[] = {
-	{ .id = "rst_isp_top_n" },
-	{ .id = "rst_isp_top_axi" },
 	{ .id = "rst_wrapper_p" },
 	{ .id = "rst_wrapper_c" },
 	{ .id = "rst_pclk" },
@@ -1034,24 +1041,24 @@ static int stfcamss_probe(struct platform_device *pdev)
 		goto err_cam;
 	}
 
-#ifdef CONFIG_CLK_STARFIVE_JH7110
 	stfcamss->nclks = ARRAY_SIZE(stfcamss_clocks);
 	stfcamss->sys_clk = stfcamss_clocks;
 
 	ret = devm_clk_bulk_get(dev, stfcamss->nclks, stfcamss->sys_clk);
-	if (ret)
+	if (ret) {
 		st_err(ST_CAMSS, "faied to get clk controls\n");
-#endif
+		return ret;
+	}
 
-#ifdef CONFIG_RESET_STARFIVE_JH7110
 	stfcamss->nrsts = ARRAY_SIZE(stfcamss_resets);
 	stfcamss->sys_rst = stfcamss_resets;
 
 	ret = devm_reset_control_bulk_get_exclusive(dev, stfcamss->nrsts,
 		stfcamss->sys_rst);
-	if (ret)
+	if (ret) {
 		st_err(ST_CAMSS, "faied to get reset controls\n");
-#endif
+		return ret;
+	}
 
 	ret = stfcamss_get_mem_res(pdev, vin);
 	if (ret) {

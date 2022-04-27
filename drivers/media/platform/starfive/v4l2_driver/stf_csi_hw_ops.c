@@ -66,36 +66,33 @@ exit:
 
 	return 0;
 }
+
 static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
 {
 	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 
-    reg_set_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL, BIT(3)|BIT(2)|BIT(1)|BIT(0), 0x3<<0);
-    reg_set_bit(vin->clkgen_base, CLK_U0_ISPV2_TOP_WRAPPER_CLK_C, BIT(24), 0x0<<24);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF0, BIT(31), 0x1<<31);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF1, BIT(31), 0x1<<31);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF2, BIT(31), 0x1<<31);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF3, BIT(31), 0x1<<31);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_CLK_P_AXIWR, BIT(24), 0x0<<24);
-
-#ifdef CONFIG_RESET_STARFIVE_JH7110
 	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF0].rstc);
 	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF1].rstc);
 	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF2].rstc);
 	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF3].rstc);
 	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
 	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
+
+#ifdef HWBOARD_FPGA
+	clk_set_rate(stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk, 204800000);
 #else
-    reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE,
-        BIT(4)|BIT(9));
-    reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE,
-        BIT(5)|BIT(6)|BIT(7)|BIT(8)|BIT(10));
-    reg_clear_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE, BIT(11));
+	reg_set_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL, BIT(3)|BIT(2)|BIT(1)|BIT(0), 0x3<<0);
 #endif
+
+	clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
+		stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF0].clk);
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF1].clk);
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF2].clk);
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF3].clk);
+	clk_set_parent(stfcamss->sys_clk[STFCLK_AXIWR].clk,
+		stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
 
 	return 0;
 }
@@ -105,25 +102,18 @@ static int stf_csi_clk_disable(struct stf_csi_dev *csi_dev)
 	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 
-#ifdef CONFIG_RESET_STARFIVE_JH7110
 	reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
 	reset_control_assert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
 	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF3].rstc);
 	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF2].rstc);
 	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF1].rstc);
 	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF0].rstc);
-#else
-    reg_assert_rst(vin->clkgen_base, SOFTWARE_RESET_ASSERT0_ASSERT_SET,
-		SOFTWARE_RESET_ASSERT0_ASSERT_SET_STATE,
-        BIT(6)|BIT(7)|BIT(8));
-#endif
 
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PCLK, BIT(31), 0x0<<31);
-
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF0, BIT(31), 0x0<<31);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF1, BIT(31), 0x0<<31);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF2, BIT(31), 0x0<<31);
-    reg_set_bit(vin->clkgen_base, CLK_U0_VIN_PIXEL_CLK_IF3, BIT(31), 0x0<<31);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PCLK].clk);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF0].clk);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF1].clk);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF2].clk);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF3].clk);
 
 	return 0;
 }

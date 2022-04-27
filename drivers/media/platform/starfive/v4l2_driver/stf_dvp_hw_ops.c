@@ -9,70 +9,6 @@ static int stf_dvp_clk_init(struct stf_dvp_dev *dvp_dev)
 	return 0;
 }
 
-#define U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR                        0x13040000
-void reg_phy_write(uint32_t addr,uint32_t reg,uint32_t val)
-{
-    uint32_t tmp;
-
-   iowrite32(val, ioremap(addr + reg, 4));
-}
-
-void stf_dvp_io_pad_config(struct stf_vin_dev *vin)
-{
-	/*
-	 * pin: 21 ~ 35
-	 * iomux
-	 * SCFG_funcshare_pad_ctrl
-	 */
-#if 0
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x0174U, 0x1);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a0U, 0x10);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b4U, 0x200000);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x0178U, 0x1);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a0U, 0x90);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b4U, 0x240000);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x017cU, 0x1);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a0U, 0x490);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b4U, 0x248000);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x0180U, 0x1);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a0U, 0x02a0);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b0U, 0x800);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x0184U, 0x1);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a0U, 0x12490);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b0U, 0x100800);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x0188U, 0x1);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a0U, 0x92490);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b0U, 0x900800);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x018cU, 0x1);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a0U, 0x492490);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b0U, 0x4900800);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x0190U, 0x1);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a0U, 0x2492490);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b0U, 0x24900800);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x0194U, 0x1);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a0U, 0x12492490);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b4U, 0x248001);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x0198U, 0x1);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a4U, 0x2);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b4U, 0x248009);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x019cU, 0x1);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a4U, 0x12);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b4U, 0x248049);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x01a0U, 0x1);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a4U, 0x92);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b4U, 0x248249);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x01a4U, 0x1);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a4U, 0x492);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b4U, 0x249249);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x01a8U, 0x1);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a4U, 0x2492);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b0U, 0x24904800);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x01acU, 0x11);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02a4U, 0x12492);
-	reg_phy_write(U0_SYS_IOMUX__SAIF_BD_APBS__BASE_ADDR, 0x02b0U, 0x24924800);
-#endif
-}
-
 static int stf_dvp_config_set(struct stf_dvp_dev *dvp_dev)
 {
 
@@ -88,8 +24,6 @@ static int stf_dvp_config_set(struct stf_dvp_dev *dvp_dev)
 	data_shift = dvp_dev->dvp->data_shift;
 	st_info(ST_DVP, "%s, polarities = 0x%x, flags = 0x%x\n",
 			__func__, polarities, flags);
-
-	stf_dvp_io_pad_config(vin);
 
 	if (flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)
 		polarities |= BIT(1);

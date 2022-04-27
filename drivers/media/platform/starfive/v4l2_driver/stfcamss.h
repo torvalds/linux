@@ -42,15 +42,22 @@ enum port_num {
 };
 
 enum stf_clk_num {
-	STFCLK_ISPCORE_2X = 0,
-	STFCLK_ISP_AXI,
+	STFCLK_APB_FUNC = 0,
+	STFCLK_PCLK,
+	STFCLK_SYS_CLK,
+	STFCLK_WRAPPER_CLK_C,
+	STFCLK_DVP_INV,
+	STFCLK_AXIWR,
+	STFCLK_MIPI_RX0_PXL,
+	STFCLK_PIXEL_CLK_IF0,
+	STFCLK_PIXEL_CLK_IF1,
+	STFCLK_PIXEL_CLK_IF2,
+	STFCLK_PIXEL_CLK_IF3,
 	STFCLK_NUM
 };
 
 enum stf_rst_num {
-	STFRST_ISP_TOP_N = 0,
-	STFRST_ISP_TOP_AXI,
-	STFRST_WRAPPER_P,
+	STFRST_WRAPPER_P = 0,
 	STFRST_WRAPPER_C,
 	STFRST_PCLK,
 	STFRST_SYS_CLK,
@@ -61,16 +68,6 @@ enum stf_rst_num {
 	STFRST_PIXEL_CLK_IF2,
 	STFRST_PIXEL_CLK_IF3,
 	STFRST_NUM
-};
-
-struct stfcamss_clk {
-	struct clk *clk;
-	const char *name;
-};
-
-struct stfcamss_rst {
-	struct reset_control *rst;
-	const char *name;
 };
 
 struct stfcamss {

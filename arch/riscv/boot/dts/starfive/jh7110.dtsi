@@ -9,6 +9,7 @@
 #include <dt-bindings/reset/starfive-jh7110.h>
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 #include <dt-bindings/clock/starfive-jh7110-vout.h>
+#include <dt-bindings/clock/starfive-jh7110-isp.h>
 
 / {
 	compatible = "starfive,jh7110";
@@ -594,12 +595,23 @@
 				<0x0 0x13020000 0x0 0x10000>;
 			reg-names = "mipi0", "vclk", "vrst", "mipi1", "sctrl",
 				"isp0", "isp1", "trst", "pmu", "syscrg";
-			clocks = <&clkgen JH7110_ISP_TOP_CLK_ISPCORE_2X>,
-				<&clkgen JH7110_ISP_TOP_CLK_ISP_AXI>;
-			clock-names = "clk_ispcore_2x", "clk_isp_axi";
-			resets = <&rstgen RSTN_U0_DOM_ISP_TOP_N>,
-				<&rstgen RSTN_U0_DOM_ISP_TOP_AXI>,
-				<&rstgen RSTN_U0_ISPV2_TOP_WRAPPER_P>,
+			clocks = <&clkisp JH7110_DOM4_APB_FUNC>,
+				<&clkisp JH7110_U0_VIN_PCLK>,
+				<&clkisp JH7110_U0_VIN_SYS_CLK>,
+				<&clkisp JH7110_U0_ISPV2_TOP_WRAPPER_CLK_C>,
+				<&clkisp JH7110_DVP_INV>,
+				<&clkisp JH7110_U0_VIN_CLK_P_AXIWR>,
+				<&clkisp JH7110_MIPI_RX0_PXL>,
+				<&clkisp JH7110_U0_VIN_PIXEL_CLK_IF0>,
+				<&clkisp JH7110_U0_VIN_PIXEL_CLK_IF1>,
+				<&clkisp JH7110_U0_VIN_PIXEL_CLK_IF2>,
+				<&clkisp JH7110_U0_VIN_PIXEL_CLK_IF3>;
+			clock-names = "clk_apb_func", "clk_pclk", "clk_sys_clk",
+				"clk_wrapper_clk_c", "clk_dvp_inv", "clk_axiwr",
+				"clk_mipi_rx0_pxl", "clk_pixel_clk_if0",
+				"clk_pixel_clk_if1", "clk_pixel_clk_if2",
+				"clk_pixel_clk_if3";
+			resets = <&rstgen RSTN_U0_ISPV2_TOP_WRAPPER_P>,
 				<&rstgen RSTN_U0_ISPV2_TOP_WRAPPER_C>,
 				<&rstgen RSTN_U0_VIN_N_PCLK>,
 				<&rstgen RSTN_U0_VIN_N_SYS_CLK>,
@@ -609,10 +621,9 @@
 				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF1>,
 				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF2>,
 				<&rstgen RSTN_U0_VIN_N_PIXEL_CLK_IF3>;
-			reset-names = "rst_isp_top_n", "rst_isp_top_axi", "rst_wrapper_p",
-				"rst_wrapper_c", "rst_pclk", "rst_sys_clk", "rst_axird",
-				"rst_axiwr", "rst_pixel_clk_if0", "rst_pixel_clk_if1",
-				"rst_pixel_clk_if2", "rst_pixel_clk_if3";
+			reset-names = "rst_wrapper_p", "rst_wrapper_c", "rst_pclk",
+				"rst_sys_clk", "rst_axird", "rst_axiwr", "rst_pixel_clk_if0",
+				"rst_pixel_clk_if1", "rst_pixel_clk_if2", "rst_pixel_clk_if3";
 			interrupts = <92 87 86>;
 			status = "disabled";
 		};
