@@ -135,8 +135,13 @@ enum ec_sensors {
 #define SENSOR_TEMP_WATER_IN BIT(ec_sensor_temp_water_in)
 #define SENSOR_TEMP_WATER_OUT BIT(ec_sensor_temp_water_out)
 
+enum board_family {
+	family_unknown,
+	family_amd_500_series,
+};
+
 /* All the known sensors for ASUS EC controllers */
-static const struct ec_sensor_info known_ec_sensors[] = {
+static const struct ec_sensor_info sensors_family_amd_500[] = {
 	[ec_sensor_temp_chipset] =
 		EC_SENSOR("Chipset", hwmon_temp, 1, 0x00, 0x3a),
 	[ec_sensor_temp_cpu] = EC_SENSOR("CPU", hwmon_temp, 1, 0x00, 0x3b),
@@ -177,6 +182,7 @@ struct ec_board_info {
 	 * the hardware is not guarded.
 	 */
 	const char *mutex_path;
+	enum board_family family;
 };
 
 static const struct ec_board_info board_info[] = {
@@ -185,6 +191,7 @@ static const struct ec_board_info board_info[] = {
 		.sensors = SENSOR_SET_TEMP_CHIPSET_CPU_MB | SENSOR_TEMP_VRM |
 			SENSOR_TEMP_T_SENSOR | SENSOR_FAN_CHIPSET,
 		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
+		.family = family_amd_500_series,
 	},
 	{
 		.board_names = {"ProArt X570-CREATOR WIFI"},
@@ -198,6 +205,7 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_TEMP_T_SENSOR | SENSOR_FAN_CHIPSET |
 			SENSOR_CURR_CPU | SENSOR_IN_CPU_CORE,
 		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
+		.family = family_amd_500_series,
 	},
 	{
 		.board_names = {"ROG CROSSHAIR VIII DARK HERO"},
@@ -207,6 +215,7 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_FAN_CPU_OPT | SENSOR_FAN_WATER_FLOW |
 			SENSOR_CURR_CPU | SENSOR_IN_CPU_CORE,
 		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
+		.family = family_amd_500_series,
 	},
 	{
 		.board_names = {"ROG CROSSHAIR VIII FORMULA"},
@@ -215,6 +224,7 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_FAN_CPU_OPT | SENSOR_FAN_CHIPSET |
 			SENSOR_CURR_CPU | SENSOR_IN_CPU_CORE,
 		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
+		.family = family_amd_500_series,
 	},
 	{
 		.board_names = {
@@ -228,6 +238,7 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_FAN_WATER_FLOW | SENSOR_CURR_CPU |
 			SENSOR_IN_CPU_CORE,
 		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
+		.family = family_amd_500_series,
 	},
 	{
 		.board_names = {"ROG CROSSHAIR VIII IMPACT"},
@@ -236,6 +247,7 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_FAN_CHIPSET | SENSOR_CURR_CPU |
 			SENSOR_IN_CPU_CORE,
 		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
+		.family = family_amd_500_series,
 	},
 	{
 		.board_names = {"ROG STRIX B550-E GAMING"},
@@ -243,6 +255,7 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_TEMP_T_SENSOR | SENSOR_TEMP_VRM |
 			SENSOR_FAN_CPU_OPT,
 		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
+		.family = family_amd_500_series,
 	},
 	{
 		.board_names = {"ROG STRIX B550-I GAMING"},
@@ -251,6 +264,7 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_FAN_VRM_HS | SENSOR_CURR_CPU |
 			SENSOR_IN_CPU_CORE,
 		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
+		.family = family_amd_500_series,
 	},
 	{
 		.board_names = {"ROG STRIX X570-E GAMING"},
@@ -259,12 +273,14 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_FAN_CHIPSET | SENSOR_CURR_CPU |
 			SENSOR_IN_CPU_CORE,
 		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
+		.family = family_amd_500_series,
 	},
 	{
 		.board_names = {"ROG STRIX X570-F GAMING"},
 		.sensors = SENSOR_SET_TEMP_CHIPSET_CPU_MB |
 			SENSOR_TEMP_T_SENSOR | SENSOR_FAN_CHIPSET,
 		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
+		.family = family_amd_500_series,
 	},
 	{
 		.board_names = {"ROG STRIX X570-I GAMING"},
@@ -272,6 +288,7 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_FAN_CHIPSET | SENSOR_CURR_CPU |
 			SENSOR_IN_CPU_CORE,
 		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
+		.family = family_amd_500_series,
 	},
 	{}
 };
@@ -323,6 +340,7 @@ static bool unlock_global_acpi_lock(struct lock_data *data)
 
 struct ec_sensors_data {
 	const struct ec_board_info *board_info;
+	const struct ec_sensor_info *sensors_info;
 	struct ec_sensor *sensors;
 	/* EC registers to read from */
 	u16 *registers;
@@ -365,7 +383,7 @@ static bool is_sensor_data_signed(const struct ec_sensor_info *si)
 static const struct ec_sensor_info *
 get_sensor_info(const struct ec_sensors_data *state, int index)
 {
-	return &known_ec_sensors[state->sensors[index].info_index];
+	return state->sensors_info + state->sensors[index].info_index;
 }
 
 static int find_ec_sensor_index(const struct ec_sensors_data *ec,
@@ -403,9 +421,9 @@ static void __init setup_sensor_data(struct ec_sensors_data *ec)
 		s->info_index = i;
 		s->cached_value = 0;
 		ec->nr_registers +=
-			known_ec_sensors[s->info_index].addr.components.size;
+			ec->sensors_info[s->info_index].addr.components.size;
 		bank_found = false;
-		bank = known_ec_sensors[s->info_index].addr.components.bank;
+		bank = ec->sensors_info[s->info_index].addr.components.bank;
 		for (j = 0; j < ec->nr_banks; j++) {
 			if (ec->banks[j] == bank) {
 				bank_found = true;
@@ -556,7 +574,7 @@ static void update_sensor_values(struct ec_sensors_data *ec, u8 *data)
 
 	sensor_end = ec->sensors + ec->nr_sensors;
 	for (s = ec->sensors; s != sensor_end; s++) {
-		si = &known_ec_sensors[s->info_index];
+		si = ec->sensors_info + s->info_index;
 		s->cached_value = get_sensor_value(si, data);
 		data += si->addr.components.size;
 	}
@@ -733,6 +751,17 @@ static int __init asus_ec_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, ec_data);
 	ec_data->board_info = pboard_info;
+
+	switch (ec_data->board_info->family) {
+	case family_amd_500_series:
+		ec_data->sensors_info = sensors_family_amd_500;
+		break;
+	default:
+		dev_err(dev, "Unknown board family: %d",
+			ec_data->board_info->family);
+		return -EINVAL;
+	}
+
 	ec_data->nr_sensors = hweight_long(ec_data->board_info->sensors);
 	ec_data->sensors = devm_kcalloc(dev, ec_data->nr_sensors,
 					sizeof(struct ec_sensor), GFP_KERNEL);
@@ -742,6 +771,7 @@ static int __init asus_ec_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to setup state/EC locking: %d", status);
 		return status;
 	}
+
 	setup_sensor_data(ec_data);
 	ec_data->registers = devm_kcalloc(dev, ec_data->nr_registers,
 					  sizeof(u16), GFP_KERNEL);
