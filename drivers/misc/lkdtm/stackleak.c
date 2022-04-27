@@ -11,7 +11,20 @@
 #include "lkdtm.h"
 #include <linux/stackleak.h>
 
-void lkdtm_STACKLEAK_ERASING(void)
+/*
+ * Check that stackleak tracks the lowest stack pointer and erases the stack
+ * below this as expected.
+ *
+ * To prevent the lowest stack pointer changing during the test, IRQs are
+ * masked and instrumentation of this function is disabled. We assume that the
+ * compiler will create a fixed-size stack frame for this function.
+ *
+ * Any non-inlined function may make further use of the stack, altering the
+ * lowest stack pointer and/or clobbering poison values. To avoid spurious
+ * failures we must avoid printing until the end of the test or have already
+ * encountered a failure condition.
+ */
+static void noinstr check_stackleak_irqoff(void)
 {
 	const unsigned long task_stack_base = (unsigned long)task_stack_page(current);
 	const unsigned long task_stack_low = stackleak_task_low_bound(current);
@@ -80,4 +93,13 @@ void lkdtm_STACKLEAK_ERASING(void)
 	} else {
 		pr_info("OK: the rest of the thread stack is properly erased\n");
 	}
+}
+
+void lkdtm_STACKLEAK_ERASING(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	check_stackleak_irqoff();
+	local_irq_restore(flags);
 }
