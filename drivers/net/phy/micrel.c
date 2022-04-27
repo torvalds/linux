@@ -2729,6 +2729,10 @@ static void lan8814_ptp_init(struct phy_device *phydev)
 	struct kszphy_ptp_priv *ptp_priv = &priv->ptp_priv;
 	u32 temp;
 
+	if (!IS_ENABLED(CONFIG_PTP_1588_CLOCK) ||
+	    !IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING))
+		return;
+
 	lanphy_write_page_reg(phydev, 5, TSU_HARD_RESET, TSU_HARD_RESET_);
 
 	temp = lanphy_read_page_reg(phydev, 5, PTP_TX_MOD);
@@ -2766,6 +2770,10 @@ static void lan8814_ptp_init(struct phy_device *phydev)
 static int lan8814_ptp_probe_once(struct phy_device *phydev)
 {
 	struct lan8814_shared_priv *shared = phydev->shared->priv;
+
+	if (!IS_ENABLED(CONFIG_PTP_1588_CLOCK) ||
+	    !IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING))
+		return 0;
 
 	/* Initialise shared lock for clock*/
 	mutex_init(&shared->shared_lock);
@@ -2842,10 +2850,6 @@ static int lan8814_probe(struct phy_device *phydev)
 	priv->led_mode = -1;
 
 	phydev->priv = priv;
-
-	if (!IS_ENABLED(CONFIG_PTP_1588_CLOCK) ||
-	    !IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING))
-		return 0;
 
 	/* Strap-in value for PHY address, below register read gives starting
 	 * phy address value
