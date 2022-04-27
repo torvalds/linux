@@ -36,6 +36,25 @@ static void noinstr check_stackleak_irqoff(void)
 	bool test_failed = false;
 
 	/*
+	 * Check that the current and lowest recorded stack pointer values fall
+	 * within the expected task stack boundaries. These tests should never
+	 * fail unless the boundaries are incorrect or we're clobbering the
+	 * STACK_END_MAGIC, and in either casee something is seriously wrong.
+	 */
+	if (current_sp < task_stack_low || current_sp >= task_stack_high) {
+		pr_err("FAIL: current_stack_pointer (0x%lx) outside of task stack bounds [0x%lx..0x%lx]\n",
+		       current_sp, task_stack_low, task_stack_high - 1);
+		test_failed = true;
+		goto out;
+	}
+	if (lowest_sp < task_stack_low || lowest_sp >= task_stack_high) {
+		pr_err("FAIL: current->lowest_stack (0x%lx) outside of task stack bounds [0x%lx..0x%lx]\n",
+		       lowest_sp, task_stack_low, task_stack_high - 1);
+		test_failed = true;
+		goto out;
+	}
+
+	/*
 	 * Depending on what has run prior to this test, the lowest recorded
 	 * stack pointer could be above or below the current stack pointer.
 	 * Start from the lowest of the two.
@@ -87,6 +106,7 @@ static void noinstr check_stackleak_irqoff(void)
 		poison_high - task_stack_low,
 		task_stack_low - task_stack_base);
 
+out:
 	if (test_failed) {
 		pr_err("FAIL: the thread stack is NOT properly erased!\n");
 		pr_expected_config(CONFIG_GCC_PLUGIN_STACKLEAK);
