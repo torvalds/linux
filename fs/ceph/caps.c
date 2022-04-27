@@ -1911,6 +1911,7 @@ void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 	struct rb_node *p;
 	bool queue_invalidate = false;
 	bool tried_invalidate = false;
+	bool queue_writeback = false;
 
 	if (session)
 		ceph_get_mds_session(session);
@@ -2063,10 +2064,27 @@ retry:
 		}
 
 		/* completed revocation? going down and there are no caps? */
-		if (revoking && (revoking & cap_used) == 0) {
-			dout("completed revocation of %s\n",
-			     ceph_cap_string(cap->implemented & ~cap->issued));
-			goto ack;
+		if (revoking) {
+			if ((revoking & cap_used) == 0) {
+				dout("completed revocation of %s\n",
+				      ceph_cap_string(cap->implemented & ~cap->issued));
+				goto ack;
+			}
+
+			/*
+			 * If the "i_wrbuffer_ref" was increased by mmap or generic
+			 * cache write just before the ceph_check_caps() is called,
+			 * the Fb capability revoking will fail this time. Then we
+			 * must wait for the BDI's delayed work to flush the dirty
+			 * pages and to release the "i_wrbuffer_ref", which will cost
+			 * at most 5 seconds. That means the MDS needs to wait at
+			 * most 5 seconds to finished the Fb capability's revocation.
+			 *
+			 * Let's queue a writeback for it.
+			 */
+			if (S_ISREG(inode->i_mode) && ci->i_wrbuffer_ref &&
+			    (revoking & CEPH_CAP_FILE_BUFFER))
+				queue_writeback = true;
 		}
 
 		/* want more caps from mds? */
@@ -2136,6 +2154,8 @@ ack:
 	spin_unlock(&ci->i_ceph_lock);
 
 	ceph_put_mds_session(session);
+	if (queue_writeback)
+		ceph_queue_writeback(inode);
 	if (queue_invalidate)
 		ceph_queue_invalidate(inode);
 }
