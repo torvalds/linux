@@ -36,6 +36,10 @@ ap_h1_spi: &spi0 {};
 	realtek,dmic-clk-driving-high = "true";
 };
 
+&ap_tp_i2c {
+	status = "okay";
+};
+
 &cpu6_alert0 {
 	temperature = <60000>;
 };

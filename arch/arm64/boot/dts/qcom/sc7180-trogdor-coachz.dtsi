@@ -111,10 +111,6 @@ ap_ts_pen_1v8: &i2c4 {
 	};
 };
 
-&i2c7 {
-	status = "disabled";
-};
-
 &i2c9 {
 	status = "disabled";
 };

@@ -727,7 +727,6 @@ ap_sar_sensor_i2c: &i2c5 {
 };
 
 ap_tp_i2c: &i2c7 {
-	status = "okay";
 	clock-frequency = <400000>;
 
 	trackpad: trackpad@15 {
