@@ -4,6 +4,7 @@
 #include <asm/thread_info.h>
 #include <asm/page.h>
 #include <asm/sclp.h>
+#include "boot.h"
 
 OUTPUT_FORMAT("elf64-s390", "elf64-s390", "elf64-s390")
 OUTPUT_ARCH(s390:64-bit)
@@ -13,6 +14,10 @@ ENTRY(startup)
 SECTIONS
 {
 	. = 0;
+	.ipldata : {
+		*(.ipldata)
+	}
+	. = IPL_START;
 	.head.text : {
 		_head = . ;
 		HEAD_TEXT
