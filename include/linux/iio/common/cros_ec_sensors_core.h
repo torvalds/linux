@@ -41,7 +41,6 @@ typedef irqreturn_t (*cros_ec_sensors_capture_t)(int irq, void *p);
  * @param:			motion sensor parameters structure
  * @resp:			motion sensor response structure
  * @type:			type of motion sensor
- * @loc:			location where the motion sensor is placed
  * @range_updated:		True if the range of the sensor has been
  *				updated.
  * @curr_range:			If updated, the current range value.
@@ -67,7 +66,6 @@ struct cros_ec_sensors_core_state {
 	struct ec_response_motion_sense *resp;
 
 	enum motionsensor_type type;
-	enum motionsensor_location loc;
 
 	bool range_updated;
 	int curr_range;

@@ -145,8 +145,6 @@ static int cros_ec_baro_probe(struct platform_device *pdev)
 
 	indio_dev->info = &cros_ec_baro_info;
 	state = iio_priv(indio_dev);
-	state->core.type = state->core.resp->info.type;
-	state->core.loc = state->core.resp->info.location;
 	channel = state->channels;
 	/* Common part */
 	channel->info_mask_separate = BIT(IIO_CHAN_INFO_RAW);
