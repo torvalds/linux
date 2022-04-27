@@ -248,9 +248,7 @@ exit:
 void rtw_free_mlme_priv(struct mlme_priv *pmlmepriv)
 {
 	rtw_free_mlme_priv_ie_data(pmlmepriv);
-
-	if (pmlmepriv)
-		vfree(pmlmepriv->free_bss_buf);
+	vfree(pmlmepriv->free_bss_buf);
 }
 
 struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv)
