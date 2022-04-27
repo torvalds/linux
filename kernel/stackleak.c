@@ -78,10 +78,6 @@ static __always_inline void __stackleak_erase(void)
 	unsigned int poison_count = 0;
 	const unsigned int depth = STACKLEAK_SEARCH_DEPTH / sizeof(unsigned long);
 
-	/* Check that 'lowest_stack' value is sane */
-	if (unlikely(kstack_ptr - boundary >= THREAD_SIZE))
-		kstack_ptr = boundary;
-
 	/* Search for the poison value in the kernel stack */
 	while (kstack_ptr > boundary && poison_count <= depth) {
 		if (*(unsigned long *)kstack_ptr == STACKLEAK_POISON)
