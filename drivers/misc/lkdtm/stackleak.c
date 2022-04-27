@@ -53,13 +53,6 @@ void lkdtm_STACKLEAK_ERASING(void)
 			found = 0;
 	}
 
-	if (found <= check_depth) {
-		pr_err("FAIL: the erased part is not found (checked %lu bytes)\n",
-						i * sizeof(unsigned long));
-		test_failed = true;
-		goto end;
-	}
-
 	pr_info("the erased part begins after %lu not poisoned bytes\n",
 				(i - found) * sizeof(unsigned long));
 
