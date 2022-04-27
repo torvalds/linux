@@ -1462,11 +1462,23 @@ config SENSORS_NCT6683
 	  This driver can also be built as a module. If so, the module
 	  will be called nct6683.
 
+config SENSORS_NCT6775_CORE
+	tristate
+	select REGMAP
+	help
+	  This module contains common code shared by the platform and
+	  i2c versions of the nct6775 driver; it is not useful on its
+	  own.
+
+	  If built as a module, the module will be called
+	  nct6775-core.
+
 config SENSORS_NCT6775
-	tristate "Nuvoton NCT6775F and compatibles"
+	tristate "Platform driver for Nuvoton NCT6775F and compatibles"
 	depends on !PPC
 	depends on ACPI_WMI || ACPI_WMI=n
 	select HWMON_VID
+	select SENSORS_NCT6775_CORE
 	help
 	  If you say yes here you get support for the hardware monitoring
 	  functionality of the Nuvoton NCT6106D, NCT6775F, NCT6776F, NCT6779D,
