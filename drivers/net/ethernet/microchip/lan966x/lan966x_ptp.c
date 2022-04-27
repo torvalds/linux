@@ -493,6 +493,158 @@ static int lan966x_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
+static int lan966x_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
+			      enum ptp_pin_function func, unsigned int chan)
+{
+	struct lan966x_phc *phc = container_of(ptp, struct lan966x_phc, info);
+	struct lan966x *lan966x = phc->lan966x;
+	struct ptp_clock_info *info;
+	int i;
+
+	/* Currently support only 1 channel */
+	if (chan != 0)
+		return -1;
+
+	switch (func) {
+	case PTP_PF_NONE:
+	case PTP_PF_PEROUT:
+		break;
+	default:
+		return -1;
+	}
+
+	/* The PTP pins are shared by all the PHC. So it is required to see if
+	 * the pin is connected to another PHC. The pin is connected to another
+	 * PHC if that pin already has a function on that PHC.
+	 */
+	for (i = 0; i < LAN966X_PHC_COUNT; ++i) {
+		info = &lan966x->phc[i].info;
+
+		/* Ignore the check with ourself */
+		if (ptp == info)
+			continue;
+
+		if (info->pin_config[pin].func == PTP_PF_PEROUT)
+			return -1;
+	}
+
+	return 0;
+}
+
+static int lan966x_ptp_perout(struct ptp_clock_info *ptp,
+			      struct ptp_clock_request *rq, int on)
+{
+	struct lan966x_phc *phc = container_of(ptp, struct lan966x_phc, info);
+	struct lan966x *lan966x = phc->lan966x;
+	struct timespec64 ts_phase, ts_period;
+	unsigned long flags;
+	s64 wf_high, wf_low;
+	bool pps = false;
+	int pin;
+
+	if (rq->perout.flags & ~(PTP_PEROUT_DUTY_CYCLE |
+				 PTP_PEROUT_PHASE))
+		return -EOPNOTSUPP;
+
+	pin = ptp_find_pin(phc->clock, PTP_PF_PEROUT, rq->perout.index);
+	if (pin == -1 || pin >= LAN966X_PHC_PINS_NUM)
+		return -EINVAL;
+
+	if (!on) {
+		spin_lock_irqsave(&lan966x->ptp_clock_lock, flags);
+		lan_rmw(PTP_PIN_CFG_PIN_ACTION_SET(PTP_PIN_ACTION_IDLE) |
+			PTP_PIN_CFG_PIN_DOM_SET(phc->index) |
+			PTP_PIN_CFG_PIN_SYNC_SET(0),
+			PTP_PIN_CFG_PIN_ACTION |
+			PTP_PIN_CFG_PIN_DOM |
+			PTP_PIN_CFG_PIN_SYNC,
+			lan966x, PTP_PIN_CFG(pin));
+		spin_unlock_irqrestore(&lan966x->ptp_clock_lock, flags);
+		return 0;
+	}
+
+	if (rq->perout.period.sec == 1 &&
+	    rq->perout.period.nsec == 0)
+		pps = true;
+
+	if (rq->perout.flags & PTP_PEROUT_PHASE) {
+		ts_phase.tv_sec = rq->perout.phase.sec;
+		ts_phase.tv_nsec = rq->perout.phase.nsec;
+	} else {
+		ts_phase.tv_sec = rq->perout.start.sec;
+		ts_phase.tv_nsec = rq->perout.start.nsec;
+	}
+
+	if (ts_phase.tv_sec || (ts_phase.tv_nsec && !pps)) {
+		dev_warn(lan966x->dev,
+			 "Absolute time not supported!\n");
+		return -EINVAL;
+	}
+
+	if (rq->perout.flags & PTP_PEROUT_DUTY_CYCLE) {
+		struct timespec64 ts_on;
+
+		ts_on.tv_sec = rq->perout.on.sec;
+		ts_on.tv_nsec = rq->perout.on.nsec;
+
+		wf_high = timespec64_to_ns(&ts_on);
+	} else {
+		wf_high = 5000;
+	}
+
+	if (pps) {
+		spin_lock_irqsave(&lan966x->ptp_clock_lock, flags);
+		lan_wr(PTP_WF_LOW_PERIOD_PIN_WFL(ts_phase.tv_nsec),
+		       lan966x, PTP_WF_LOW_PERIOD(pin));
+		lan_wr(PTP_WF_HIGH_PERIOD_PIN_WFH(wf_high),
+		       lan966x, PTP_WF_HIGH_PERIOD(pin));
+		lan_rmw(PTP_PIN_CFG_PIN_ACTION_SET(PTP_PIN_ACTION_CLOCK) |
+			PTP_PIN_CFG_PIN_DOM_SET(phc->index) |
+			PTP_PIN_CFG_PIN_SYNC_SET(3),
+			PTP_PIN_CFG_PIN_ACTION |
+			PTP_PIN_CFG_PIN_DOM |
+			PTP_PIN_CFG_PIN_SYNC,
+			lan966x, PTP_PIN_CFG(pin));
+		spin_unlock_irqrestore(&lan966x->ptp_clock_lock, flags);
+		return 0;
+	}
+
+	ts_period.tv_sec = rq->perout.period.sec;
+	ts_period.tv_nsec = rq->perout.period.nsec;
+
+	wf_low = timespec64_to_ns(&ts_period);
+	wf_low -= wf_high;
+
+	spin_lock_irqsave(&lan966x->ptp_clock_lock, flags);
+	lan_wr(PTP_WF_LOW_PERIOD_PIN_WFL(wf_low),
+	       lan966x, PTP_WF_LOW_PERIOD(pin));
+	lan_wr(PTP_WF_HIGH_PERIOD_PIN_WFH(wf_high),
+	       lan966x, PTP_WF_HIGH_PERIOD(pin));
+	lan_rmw(PTP_PIN_CFG_PIN_ACTION_SET(PTP_PIN_ACTION_CLOCK) |
+		PTP_PIN_CFG_PIN_DOM_SET(phc->index) |
+		PTP_PIN_CFG_PIN_SYNC_SET(0),
+		PTP_PIN_CFG_PIN_ACTION |
+		PTP_PIN_CFG_PIN_DOM |
+		PTP_PIN_CFG_PIN_SYNC,
+		lan966x, PTP_PIN_CFG(pin));
+	spin_unlock_irqrestore(&lan966x->ptp_clock_lock, flags);
+
+	return 0;
+}
+
+static int lan966x_ptp_enable(struct ptp_clock_info *ptp,
+			      struct ptp_clock_request *rq, int on)
+{
+	switch (rq->type) {
+	case PTP_CLK_REQ_PEROUT:
+		return lan966x_ptp_perout(ptp, rq, on);
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static struct ptp_clock_info lan966x_ptp_clock_info = {
 	.owner		= THIS_MODULE,
 	.name		= "lan966x ptp",
@@ -501,6 +653,10 @@ static struct ptp_clock_info lan966x_ptp_clock_info = {
 	.settime64	= lan966x_ptp_settime64,
 	.adjtime	= lan966x_ptp_adjtime,
 	.adjfine	= lan966x_ptp_adjfine,
+	.verify		= lan966x_ptp_verify,
+	.enable		= lan966x_ptp_enable,
+	.n_per_out	= LAN966X_PHC_PINS_NUM,
+	.n_pins		= LAN966X_PHC_PINS_NUM,
 };
 
 static int lan966x_ptp_phc_init(struct lan966x *lan966x,
@@ -508,8 +664,19 @@ static int lan966x_ptp_phc_init(struct lan966x *lan966x,
 				struct ptp_clock_info *clock_info)
 {
 	struct lan966x_phc *phc = &lan966x->phc[index];
+	struct ptp_pin_desc *p;
+	int i;
+
+	for (i = 0; i < LAN966X_PHC_PINS_NUM; i++) {
+		p = &phc->pins[i];
+
+		snprintf(p->name, sizeof(p->name), "pin%d", i);
+		p->index = i;
+		p->func = PTP_PF_NONE;
+	}
 
 	phc->info = *clock_info;
+	phc->info.pin_config = &phc->pins[0];
 	phc->clock = ptp_clock_register(&phc->info, lan966x->dev);
 	if (IS_ERR(phc->clock))
 		return PTR_ERR(phc->clock);

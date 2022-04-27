@@ -56,6 +56,7 @@
 
 #define LAN966X_PHC_COUNT		3
 #define LAN966X_PHC_PORT		0
+#define LAN966X_PHC_PINS_NUM		7
 
 #define IFH_REW_OP_NOOP			0x0
 #define IFH_REW_OP_ONE_STEP_PTP		0x3
@@ -177,6 +178,7 @@ struct lan966x_stat_layout {
 struct lan966x_phc {
 	struct ptp_clock *clock;
 	struct ptp_clock_info info;
+	struct ptp_pin_desc pins[LAN966X_PHC_PINS_NUM];
 	struct hwtstamp_config hwtstamp_config;
 	struct lan966x *lan966x;
 	u8 index;
