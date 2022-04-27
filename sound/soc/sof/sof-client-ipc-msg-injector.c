@@ -83,10 +83,9 @@ static ssize_t sof_msg_inject_dfs_write(struct file *file, const char __user *bu
 	if (size != count)
 		return size > 0 ? -EFAULT : size;
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0 && ret != -EACCES) {
 		dev_err_ratelimited(dev, "debugfs write failed to resume %d\n", ret);
-		pm_runtime_put_noidle(dev);
 		return ret;
 	}
 
