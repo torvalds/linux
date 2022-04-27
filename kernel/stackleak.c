@@ -72,9 +72,11 @@ late_initcall(stackleak_sysctls_init);
 
 static __always_inline void __stackleak_erase(void)
 {
+	const unsigned long task_stack_low = stackleak_task_low_bound(current);
+
 	/* It would be nice not to have 'kstack_ptr' and 'boundary' on stack */
 	unsigned long kstack_ptr = current->lowest_stack;
-	unsigned long boundary = (unsigned long)end_of_stack(current);
+	unsigned long boundary = task_stack_low;
 	unsigned int poison_count = 0;
 	const unsigned int depth = STACKLEAK_SEARCH_DEPTH / sizeof(unsigned long);
 
@@ -87,13 +89,6 @@ static __always_inline void __stackleak_erase(void)
 
 		kstack_ptr -= sizeof(unsigned long);
 	}
-
-	/*
-	 * One 'long int' at the bottom of the thread stack is reserved and
-	 * should not be poisoned (see CONFIG_SCHED_STACK_END_CHECK=y).
-	 */
-	if (kstack_ptr == boundary)
-		kstack_ptr += sizeof(unsigned long);
 
 #ifdef CONFIG_STACKLEAK_METRICS
 	current->prev_lowest_stack = kstack_ptr;
@@ -140,8 +135,7 @@ void __used __no_caller_saved_registers noinstr stackleak_track_stack(void)
 	/* 'lowest_stack' should be aligned on the register width boundary */
 	sp = ALIGN(sp, sizeof(unsigned long));
 	if (sp < current->lowest_stack &&
-	    sp >= (unsigned long)task_stack_page(current) +
-						sizeof(unsigned long)) {
+	    sp >= stackleak_task_low_bound(current)) {
 		current->lowest_stack = sp;
 	}
 }
