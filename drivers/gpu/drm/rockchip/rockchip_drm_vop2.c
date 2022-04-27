@@ -1414,17 +1414,20 @@ static inline void rk3588_vop2_cfg_done(struct drm_crtc *crtc)
 static inline void vop2_wb_cfg_done(struct vop2_video_port *vp)
 {
 	struct vop2 *vop2 = vp->vop2;
-	uint32_t val = RK3568_VOP2_WB_CFG_DONE | (RK3568_VOP2_WB_CFG_DONE << 16);
+	uint32_t val = RK3568_VOP2_WB_CFG_DONE | (RK3568_VOP2_WB_CFG_DONE << 16) |
+		       RK3568_VOP2_GLB_CFG_DONE_EN;
 	uint32_t done_bits;
 	unsigned long flags;
 
-	spin_lock_irqsave(&vop2->irq_lock, flags);
-	done_bits = vop2_pending_done_bits(vp);
-
-	val |=  RK3568_VOP2_GLB_CFG_DONE_EN | done_bits;
-
-	vop2_writel(vop2, 0, val);
-	spin_unlock_irqrestore(&vop2->irq_lock, flags);
+	if (vop2->version == VOP_VERSION_RK3568) {
+		spin_lock_irqsave(&vop2->irq_lock, flags);
+		done_bits = vop2_pending_done_bits(vp);
+		val |= done_bits;
+		vop2_writel(vop2, 0, val);
+		spin_unlock_irqrestore(&vop2->irq_lock, flags);
+	} else {
+		vop2_writel(vop2, 0, val);
+	}
 
 }
 
