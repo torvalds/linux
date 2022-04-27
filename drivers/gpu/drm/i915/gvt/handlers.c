@@ -2916,7 +2916,7 @@ static int init_mmio_block_handlers(struct intel_gvt *gvt)
 	block = find_mmio_block(gvt, VGT_PVINFO_PAGE);
 	if (!block) {
 		WARN(1, "fail to assign handlers to mmio block %x\n",
-		     i915_mmio_reg_offset(block->offset));
+		     i915_mmio_reg_offset(gvt->mmio.mmio_block->offset));
 		return -ENODEV;
 	}
 
