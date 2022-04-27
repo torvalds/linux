@@ -1,0 +1,15 @@
+#	select ARM_AMBA
+
+config CRYPTO_DEV_JH7110_ENCRYPT
+	tristate "Encryption acceleration support on jh7110"
+	depends on RISCV
+	select CRYPTO_ENGINE
+	select CRYPTO_RSA
+	select CRYPTO_LIB_DES
+	select CRYPTO_SKCIPHER
+	select AMBA_PL08X
+	default m
+	help
+	  Support for SIFIVE JH7110 cryptographic acceleration instructions on riscv64 CPU.
+	  This module supports acceleration for AES and GHASH in hardware. If you
+	  choose 'M' here, this module will be called jh7110-crypto.

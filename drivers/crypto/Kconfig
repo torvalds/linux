@@ -923,6 +923,8 @@ config CRYPTO_DEV_CCREE
 
 source "drivers/crypto/hisilicon/Kconfig"
 
+source "drivers/crypto/starfive/Kconfig"
+
 source "drivers/crypto/amlogic/Kconfig"
 
 config CRYPTO_DEV_SA2UL
