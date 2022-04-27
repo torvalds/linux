@@ -16,6 +16,7 @@
 #include <linux/math64.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
@@ -995,6 +996,10 @@ static int __init r9a06g032_clocks_probe(struct platform_device *pdev)
 		return error;
 
 	sysctrl_priv = clocks;
+
+	error = of_platform_populate(np, NULL, NULL, dev);
+	if (error)
+		dev_err(dev, "Failed to populate children (%d)\n", error);
 
 	return 0;
 }
