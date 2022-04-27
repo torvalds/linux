@@ -32,6 +32,7 @@
 #include <linux/ptp_clock.h>
 #include <linux/ptp_classify.h>
 #include <linux/net_tstamp.h>
+#include <linux/gpio/consumer.h>
 
 /* Operation Mode Strap Override */
 #define MII_KSZPHY_OMSO				0x16
@@ -2837,6 +2838,21 @@ static int lan8814_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int lan8814_release_coma_mode(struct phy_device *phydev)
+{
+	struct gpio_desc *gpiod;
+
+	gpiod = devm_gpiod_get_optional(&phydev->mdio.dev, "coma-mode",
+					GPIOD_OUT_HIGH_OPEN_DRAIN);
+	if (IS_ERR(gpiod))
+		return PTR_ERR(gpiod);
+
+	gpiod_set_consumer_name(gpiod, "LAN8814 coma mode");
+	gpiod_set_value_cansleep(gpiod, 0);
+
+	return 0;
+}
+
 static int lan8814_probe(struct phy_device *phydev)
 {
 	struct kszphy_priv *priv;
@@ -2859,6 +2875,10 @@ static int lan8814_probe(struct phy_device *phydev)
 			      addr, sizeof(struct lan8814_shared_priv));
 
 	if (phy_package_init_once(phydev)) {
+		err = lan8814_release_coma_mode(phydev);
+		if (err)
+			return err;
+
 		err = lan8814_ptp_probe_once(phydev);
 		if (err)
 			return err;
