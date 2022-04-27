@@ -1748,10 +1748,6 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	unsigned long flags;
 	int ret;
 
-	if (host->plat->ios_handler &&
-		host->plat->ios_handler(mmc_dev(mmc), ios))
-			dev_err(mmc_dev(mmc), "platform ios_handler failed\n");
-
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
 		if (!IS_ERR(mmc->supply.vmmc))
