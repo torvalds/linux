@@ -177,16 +177,19 @@ void drm_fb_swab(void *dst, unsigned int dst_pitch, const void *src,
 }
 EXPORT_SYMBOL(drm_fb_swab);
 
-static void drm_fb_xrgb8888_to_rgb332_line(u8 *dbuf, const __le32 *sbuf, unsigned int pixels)
+static void drm_fb_xrgb8888_to_rgb332_line(void *dbuf, const void *sbuf, unsigned int pixels,
+					   bool swab)
 {
+	u8 *dbuf8 = dbuf;
+	const __le32 *sbuf32 = sbuf;
 	unsigned int x;
 	u32 pix;
 
 	for (x = 0; x < pixels; x++) {
-		pix = le32_to_cpu(sbuf[x]);
-		dbuf[x] = ((pix & 0x00e00000) >> 16) |
-			  ((pix & 0x0000e000) >> 11) |
-			  ((pix & 0x000000c0) >> 6);
+		pix = le32_to_cpu(sbuf32[x]);
+		dbuf8[x] = ((pix & 0x00e00000) >> 16) |
+			   ((pix & 0x0000e000) >> 11) |
+			   ((pix & 0x000000c0) >> 6);
 	}
 }
 
@@ -219,7 +222,7 @@ void drm_fb_xrgb8888_to_rgb332(void *dst, unsigned int dst_pitch, const void *sr
 	src += clip_offset(clip, fb->pitches[0], sizeof(u32));
 	for (y = 0; y < drm_rect_height(clip); y++) {
 		memcpy(sbuf, src, src_len);
-		drm_fb_xrgb8888_to_rgb332_line(dst, sbuf, width);
+		drm_fb_xrgb8888_to_rgb332_line(dst, sbuf, width, false);
 		src += fb->pitches[0];
 		dst += dst_pitch;
 	}
@@ -228,31 +231,34 @@ void drm_fb_xrgb8888_to_rgb332(void *dst, unsigned int dst_pitch, const void *sr
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb332);
 
-static void drm_fb_xrgb8888_to_rgb565_line(u16 *dbuf, const u32 *sbuf,
-					   unsigned int pixels)
+static void drm_fb_xrgb8888_to_rgb565_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
+	u16 *dbuf16 = dbuf;
+	const u32 *sbuf32 = sbuf;
 	unsigned int x;
 	u16 val16;
 
 	for (x = 0; x < pixels; x++) {
-		val16 = ((sbuf[x] & 0x00F80000) >> 8) |
-			((sbuf[x] & 0x0000FC00) >> 5) |
-			((sbuf[x] & 0x000000F8) >> 3);
-		dbuf[x] = val16;
+		val16 = ((sbuf32[x] & 0x00F80000) >> 8) |
+			((sbuf32[x] & 0x0000FC00) >> 5) |
+			((sbuf32[x] & 0x000000F8) >> 3);
+		dbuf16[x] = val16;
 	}
 }
 
-static void drm_fb_xrgb8888_to_rgb565_swab_line(u16 *dbuf, const u32 *sbuf,
+static void drm_fb_xrgb8888_to_rgb565_swab_line(void *dbuf, const void *sbuf,
 						unsigned int pixels)
 {
+	u16 *dbuf16 = dbuf;
+	const u32 *sbuf32 = sbuf;
 	unsigned int x;
 	u16 val16;
 
 	for (x = 0; x < pixels; x++) {
-		val16 = ((sbuf[x] & 0x00F80000) >> 8) |
-			((sbuf[x] & 0x0000FC00) >> 5) |
-			((sbuf[x] & 0x000000F8) >> 3);
-		dbuf[x] = swab16(val16);
+		val16 = ((sbuf32[x] & 0x00F80000) >> 8) |
+			((sbuf32[x] & 0x0000FC00) >> 5) |
+			((sbuf32[x] & 0x000000F8) >> 3);
+		dbuf16[x] = swab16(val16);
 	}
 }
 
@@ -347,15 +353,16 @@ void drm_fb_xrgb8888_to_rgb565_toio(void __iomem *dst, unsigned int dst_pitch,
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb565_toio);
 
-static void drm_fb_xrgb8888_to_rgb888_line(u8 *dbuf, const u32 *sbuf,
-					   unsigned int pixels)
+static void drm_fb_xrgb8888_to_rgb888_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
+	u8 *dbuf8 = dbuf;
+	const u32 *sbuf32 = sbuf;
 	unsigned int x;
 
 	for (x = 0; x < pixels; x++) {
-		*dbuf++ = (sbuf[x] & 0x000000FF) >>  0;
-		*dbuf++ = (sbuf[x] & 0x0000FF00) >>  8;
-		*dbuf++ = (sbuf[x] & 0x00FF0000) >> 16;
+		*dbuf8++ = (sbuf32[x] & 0x000000FF) >>  0;
+		*dbuf8++ = (sbuf32[x] & 0x0000FF00) >>  8;
+		*dbuf8++ = (sbuf32[x] & 0x00FF0000) >> 16;
 	}
 }
 
@@ -521,17 +528,18 @@ static void drm_fb_rgb888_to_xrgb8888_toio(void __iomem *dst, unsigned int dst_p
 	kfree(dbuf);
 }
 
-static void drm_fb_xrgb8888_to_xrgb2101010_line(u32 *dbuf, const u32 *sbuf,
-						unsigned int pixels)
+static void drm_fb_xrgb8888_to_xrgb2101010_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
+	u32 *dbuf32 = dbuf;
+	const u32 *sbuf32 = sbuf;
 	unsigned int x;
 	u32 val32;
 
 	for (x = 0; x < pixels; x++) {
-		val32 = ((sbuf[x] & 0x000000FF) << 2) |
-			((sbuf[x] & 0x0000FF00) << 4) |
-			((sbuf[x] & 0x00FF0000) << 6);
-		*dbuf++ = val32 | ((val32 >> 8) & 0x00300C03);
+		val32 = ((sbuf32[x] & 0x000000FF) << 2) |
+			((sbuf32[x] & 0x0000FF00) << 4) |
+			((sbuf32[x] & 0x00FF0000) << 6);
+		*dbuf32++ = val32 | ((val32 >> 8) & 0x00300C03);
 	}
 }
 
@@ -576,18 +584,20 @@ void drm_fb_xrgb8888_to_xrgb2101010_toio(void __iomem *dst,
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_xrgb2101010_toio);
 
-static void drm_fb_xrgb8888_to_gray8_line(u8 *dst, const u32 *src, unsigned int pixels)
+static void drm_fb_xrgb8888_to_gray8_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
+	u8 *dbuf8 = dbuf;
+	const u32 *sbuf32 = sbuf;
 	unsigned int x;
 
 	for (x = 0; x < pixels; x++) {
-		u8 r = (*src & 0x00ff0000) >> 16;
-		u8 g = (*src & 0x0000ff00) >> 8;
-		u8 b =  *src & 0x000000ff;
+		u8 r = (*sbuf32 & 0x00ff0000) >> 16;
+		u8 g = (*sbuf32 & 0x0000ff00) >> 8;
+		u8 b =  *sbuf32 & 0x000000ff;
 
 		/* ITU BT.601: Y = 0.299 R + 0.587 G + 0.114 B */
-		*dst++ = (3 * r + 6 * g + b) / 10;
-		src++;
+		*dbuf8++ = (3 * r + 6 * g + b) / 10;
+		sbuf32++;
 	}
 }
 
@@ -716,17 +726,20 @@ int drm_fb_blit_toio(void __iomem *dst, unsigned int dst_pitch, uint32_t dst_for
 EXPORT_SYMBOL(drm_fb_blit_toio);
 
 
-static void drm_fb_gray8_to_mono_line(u8 *dst, const u8 *src, unsigned int pixels)
+static void drm_fb_gray8_to_mono_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
+	u8 *dbuf8 = dbuf;
+	const u8 *sbuf8 = sbuf;
+
 	while (pixels) {
 		unsigned int i, bits = min(pixels, 8U);
 		u8 byte = 0;
 
 		for (i = 0; i < bits; i++, pixels--) {
-			if (*src++ >= 128)
+			if (*sbuf8++ >= 128)
 				byte |= BIT(i);
 		}
-		*dst++ = byte;
+		*dbuf8++ = byte;
 	}
 }
 
