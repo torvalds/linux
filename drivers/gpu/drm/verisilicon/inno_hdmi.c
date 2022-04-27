@@ -14,6 +14,8 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
+#include <linux/component.h>
+#include<linux/reset.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
@@ -52,6 +54,10 @@ struct inno_hdmi {
 
 	int irq;
 	struct clk *pclk;
+	struct clk *sys_clk;
+	struct clk *mclk;
+	struct clk *bclk;
+	struct reset_control *tx_rst;
 	void __iomem *regs;
 
 	struct drm_connector	connector;
@@ -825,16 +831,62 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	if (IS_ERR(hdmi->regs))
 		return PTR_ERR(hdmi->regs);
 
-	hdmi->pclk = devm_clk_get(hdmi->dev, "pclk");
-	if (IS_ERR(hdmi->pclk)) {
-		DRM_DEV_ERROR(hdmi->dev, "Unable to get HDMI pclk clk\n");
-		return PTR_ERR(hdmi->pclk);
+//	hdmi->pclk = devm_clk_get(hdmi->dev, "pclk");
+//	if (IS_ERR(hdmi->pclk)) {
+//		DRM_DEV_ERROR(hdmi->dev, "Unable to get HDMI pclk clk\n");
+//		return PTR_ERR(hdmi->pclk);
+//	}
+
+	hdmi->sys_clk = devm_clk_get(hdmi->dev, "sysclk");
+	if (IS_ERR(hdmi->sys_clk)) {
+		DRM_DEV_ERROR(hdmi->dev, "Unable to get HDMI sysclk clk\n");
+		return PTR_ERR(hdmi->sys_clk);
+	}
+	hdmi->mclk = devm_clk_get(hdmi->dev, "mclk");
+	if (IS_ERR(hdmi->mclk)) {
+		DRM_DEV_ERROR(hdmi->dev, "Unable to get HDMI mclk clk\n");
+		return PTR_ERR(hdmi->mclk);
+	}
+	hdmi->bclk = devm_clk_get(hdmi->dev, "bclk");
+	if (IS_ERR(hdmi->bclk)) {
+		DRM_DEV_ERROR(hdmi->dev, "Unable to get HDMI bclk clk\n");
+		return PTR_ERR(hdmi->bclk);
+	}
+	hdmi->tx_rst = reset_control_get_exclusive(&pdev->dev, "hdmi_tx");
+	if (IS_ERR(hdmi->tx_rst)) {
+		DRM_DEV_ERROR(hdmi->dev, "Unable to get HDMI tx rst\n");
+		return PTR_ERR(hdmi->tx_rst);
 	}
 
-	ret = clk_prepare_enable(hdmi->pclk);
+//	ret = clk_prepare_enable(hdmi->pclk);
+//	if (ret) {
+//		DRM_DEV_ERROR(hdmi->dev,
+//			      "Cannot enable HDMI pclk clock: %d\n", ret);
+//		return ret;
+//	}
+
+	ret = clk_prepare_enable(hdmi->sys_clk);
 	if (ret) {
 		DRM_DEV_ERROR(hdmi->dev,
-			      "Cannot enable HDMI pclk clock: %d\n", ret);
+			      "Cannot enable HDMI sys clock: %d\n", ret);
+		return ret;
+	}
+	ret = clk_prepare_enable(hdmi->mclk);
+	if (ret) {
+		DRM_DEV_ERROR(hdmi->dev,
+			      "Cannot enable HDMI mclk clock: %d\n", ret);
+		return ret;
+	}
+	ret = clk_prepare_enable(hdmi->bclk);
+	if (ret) {
+		DRM_DEV_ERROR(hdmi->dev,
+			      "Cannot enable HDMI bclk clock: %d\n", ret);
+		return ret;
+	}
+
+	ret = reset_control_deassert(hdmi->tx_rst);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert tx_rst\n");
 		return ret;
 	}
 
@@ -884,7 +936,7 @@ err_cleanup_hdmi:
 err_put_adapter:
 	i2c_put_adapter(hdmi->ddc);
 err_disable_clk:
-	clk_disable_unprepare(hdmi->pclk);
+	//clk_disable_unprepare(hdmi->pclk);
 	return ret;
 }
 
@@ -897,7 +949,17 @@ static void inno_hdmi_unbind(struct device *dev, struct device *master,
 	hdmi->encoder.funcs->destroy(&hdmi->encoder);
 
 	i2c_put_adapter(hdmi->ddc);
-	clk_disable_unprepare(hdmi->pclk);
+	int ret;
+
+	ret = reset_control_assert(hdmi->tx_rst);
+	if (ret < 0)
+		dev_err(dev, "failed to assert tx_rst\n");
+
+	clk_disable_unprepare(hdmi->sys_clk);
+	clk_disable_unprepare(hdmi->mclk);
+	clk_disable_unprepare(hdmi->bclk);
+
+//	clk_disable_unprepare(hdmi->pclk);
 }
 
 static const struct component_ops inno_hdmi_ops = {

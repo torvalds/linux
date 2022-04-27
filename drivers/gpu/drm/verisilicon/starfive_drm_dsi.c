@@ -469,7 +469,180 @@ struct cdns_dsi {
 	struct clk *dsi_sys_clk;
 	bool link_initialized;
 	struct phy *dphy;
+	//struct clk *sys_clk;
+	struct clk *apb_clk;
+	struct clk *txesc_clk;
+	struct clk *dpi_clk;
+	struct reset_control *dpi_rst;
+	struct reset_control *apb_rst;
+	struct reset_control *rxesc_rst;
+	struct reset_control *sys_rst;
+	struct reset_control *txbytehs_rst;
+	struct reset_control *txesc_rst;
 };
+
+//clk op func----------//
+static int  cdns_dsi_clock_enable(struct cdns_dsi *dsi, struct device *dev)
+{
+	int ret;
+	/*clk_prepare_enable(dsi->sys_clk);*/
+	ret = clk_prepare_enable(dsi->dsi_sys_clk);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable dsi_sys_clk\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(dsi->apb_clk);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable apb_clk\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(dsi->txesc_clk);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable txesc_clk\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(dsi->dpi_clk);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable dpi_clk\n");
+		return ret;
+	}
+
+	return ret;
+}
+
+static void  cdns_dsi_clock_disable(struct cdns_dsi *dsi)
+{
+	//clk_disable_unprepare(dsi->sys_clk);
+	clk_disable_unprepare(dsi->dsi_sys_clk);
+	clk_disable_unprepare(dsi->apb_clk);
+	clk_disable_unprepare(dsi->txesc_clk);
+	clk_disable_unprepare(dsi->dpi_clk);
+}
+
+//rst op func--------//
+static int cdns_dsi_resets_deassert(struct cdns_dsi *dsi, struct device *dev)
+{
+	int ret;
+
+	ret = reset_control_deassert(dsi->sys_rst);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert sys_rst\n");
+		return ret;
+	}
+	ret = reset_control_deassert(dsi->txbytehs_rst);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert txbytehs_rst\n");
+		return ret;
+	}
+	ret = reset_control_deassert(dsi->apb_rst);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert apb_rst\n");
+		return ret;
+	}
+	ret = reset_control_deassert(dsi->txesc_rst);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert txesc_rst\n");
+		return ret;
+	}
+	ret = reset_control_deassert(dsi->rxesc_rst);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert rxesc_rst\n");
+		return ret;
+	}
+	ret = reset_control_deassert(dsi->dpi_rst);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert rxesc_rst\n");
+		return ret;
+	}
+
+	return ret;
+}
+
+static int cdns_dsi_resets_assert(struct cdns_dsi *dsi, struct device *dev)
+{
+	int ret;
+
+	ret = reset_control_assert(dsi->sys_rst);
+	if (ret < 0) {
+		dev_err(dev, "failed to assert sys_rst\n");
+		return ret;
+	}
+	ret = reset_control_assert(dsi->txbytehs_rst);
+	if (ret < 0) {
+		dev_err(dev, "failed to assert txbytehs_rst\n");
+		return ret;
+	}
+	ret = reset_control_assert(dsi->apb_rst);
+	if (ret < 0) {
+		dev_err(dev, "failed to assert apb_rst\n");
+		return ret;
+	}
+	ret = reset_control_assert(dsi->txesc_rst);
+	if (ret < 0) {
+		dev_err(dev, "failed to assert txesc_rst\n");
+		return ret;
+	}
+	ret = reset_control_assert(dsi->rxesc_rst);
+	if (ret < 0) {
+		dev_err(dev, "failed to assert rxesc_rst\n");
+		return ret;
+	}
+	ret = reset_control_assert(dsi->dpi_rst);
+	if (ret < 0) {
+		dev_err(dev, "failed to assert dpi_rst\n");
+		return ret;
+	}
+
+	return ret;
+}
+
+//get clock func
+static int cdns_dsi_get_clock(struct platform_device *pdev, struct cdns_dsi *dsi)
+{
+	int ret;
+
+	dsi->dsi_sys_clk = devm_clk_get(&pdev->dev, "sys");
+	if (IS_ERR(dsi->dsi_sys_clk))
+		return PTR_ERR(dsi->dsi_sys_clk);
+	dsi->apb_clk = devm_clk_get(&pdev->dev, "apb");
+	if (IS_ERR(dsi->apb_clk))
+		return PTR_ERR(dsi->apb_clk);
+	dsi->txesc_clk = devm_clk_get(&pdev->dev, "txesc");
+	if (IS_ERR(dsi->txesc_clk))
+		return PTR_ERR(dsi->txesc_clk);
+	dsi->dpi_clk = devm_clk_get(&pdev->dev, "dpi");
+	if (IS_ERR(dsi->dpi_clk))
+		return PTR_ERR(dsi->dpi_clk);
+
+	return ret;
+}
+
+//get reset func
+static int cdns_dsi_get_reset(struct platform_device *pdev, struct cdns_dsi *dsi)
+{
+	int ret;
+
+	dsi->dpi_rst = reset_control_get_exclusive(&pdev->dev, "dsi_dpi");
+	if (IS_ERR(dsi->dpi_rst))
+		return PTR_ERR(dsi->dpi_rst);
+	dsi->apb_rst = reset_control_get_exclusive(&pdev->dev, "dsi_apb");
+	if (IS_ERR(dsi->apb_rst))
+		return PTR_ERR(dsi->apb_rst);
+	dsi->rxesc_rst = reset_control_get_exclusive(&pdev->dev, "dsi_rxesc");
+	if (IS_ERR(dsi->rxesc_rst))
+		return PTR_ERR(dsi->rxesc_rst);
+	dsi->sys_rst = reset_control_get_exclusive(&pdev->dev, "dsi_sys");
+	if (IS_ERR(dsi->sys_rst))
+		return PTR_ERR(dsi->sys_rst);
+	dsi->txbytehs_rst = reset_control_get_exclusive(&pdev->dev, "dsi_txbytehs");
+	if (IS_ERR(dsi->txbytehs_rst))
+		return PTR_ERR(dsi->txbytehs_rst);
+	dsi->txesc_rst = reset_control_get_exclusive(&pdev->dev, "dsi_txesc");
+	if (IS_ERR(dsi->txesc_rst))
+		return PTR_ERR(dsi->txesc_rst);
+
+	return ret;
+}
 
 static inline struct cdns_dsi *input_to_dsi(struct cdns_dsi_input *input)
 {
@@ -1208,9 +1381,31 @@ static int starfive_dsi_bind(struct device *dev, struct device *master, void *da
 	if (IS_ERR(dsi->regs))
 		return PTR_ERR(dsi->regs);
 
+	ret = cdns_dsi_get_clock(pdev, dsi);//get clock res
+	if (ret) {
+		dev_err(&pdev->dev, "failed to get clock\n");
+		return ret;
+	}
+	ret = cdns_dsi_get_reset(pdev, dsi);//get reset res
+	if (ret) {
+		dev_err(&pdev->dev, "failed to get reset\n");
+		return ret;
+	}
+
 	dsi->dphy = devm_phy_get(&pdev->dev, "dphy");
 	if (IS_ERR(dsi->dphy))
 		return PTR_ERR(dsi->dphy);
+
+	ret = cdns_dsi_clock_enable(dsi, dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable clock\n");
+		return ret;
+	}
+	ret = cdns_dsi_resets_deassert(dsi, dev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to deassert reset\n");
+		return ret;
+	}
 
 	val = readl(dsi->regs + ID_REG);
 
@@ -1269,6 +1464,14 @@ static void starfive_dsi_unbind(struct device *dev, struct device *master, void 
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct cdns_dsi *dsi = platform_get_drvdata(pdev);
+
+	int ret;
+
+	ret = cdns_dsi_resets_assert(dsi, dev);
+	if (ret < 0)
+		dev_err(dev, "failed to assert reset\n");
+
+	cdns_dsi_clock_disable(dsi);
 
 	exit_seeed_panel();
 	mipi_dsi_host_unregister(&dsi->base);
