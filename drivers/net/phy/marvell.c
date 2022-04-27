@@ -961,7 +961,21 @@ static int m88e1111_config_init(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	return genphy_soft_reset(phydev);
+	err = genphy_soft_reset(phydev);
+	if (err < 0)
+		return err;
+
+	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
+		/* If the HWCFG_MODE was changed from another mode (such as
+		 * 1000BaseX) to SGMII, the state of the support bits may have
+		 * also changed now that the PHY has been reset.
+		 * Update the PHY abilities accordingly.
+		 */
+		err = genphy_read_abilities(phydev);
+		linkmode_or(phydev->advertising, phydev->advertising,
+			    phydev->supported);
+	}
+	return err;
 }
 
 static int m88e1111_get_downshift(struct phy_device *phydev, u8 *data)
