@@ -1024,10 +1024,13 @@ static int device_kill_open_processes(struct hl_device *hdev, u32 timeout, bool 
 
 			put_task_struct(task);
 		} else {
-			dev_warn(hdev->dev,
-				"Can't get task struct for PID so giving up on killing process\n");
-			mutex_unlock(fd_lock);
-			return -ETIME;
+			/*
+			 * If we got here, it means that process was killed from outside the driver
+			 * right after it started looping on fd_list and before get_pid_task, thus
+			 * we don't need to kill it.
+			 */
+			dev_dbg(hdev->dev,
+				"Can't get task struct for user process, assuming process was killed from outside the driver\n");
 		}
 	}
 
