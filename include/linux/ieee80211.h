@@ -2046,25 +2046,38 @@ struct ieee80211_eht_cap_elem {
 	u8 optional[];
 } __packed;
 
+#define IEEE80211_EHT_OPER_INFO_PRESENT	                        0x1
+#define IEEE80211_EHT_OPER_DISABLED_SUBCHANNEL_BITMAP_PRESENT	0x2
+
 /**
  * struct ieee80211_eht_operation - eht operation element
  *
  * This structure is the "EHT Operation Element" fields as
- * described in P802.11be_D1.4 section 9.4.2.311
+ * described in P802.11be_D1.5 section 9.4.2.311
  *
- * FIXME: The spec is unclear how big the fields are, and doesn't
- *	  indicate the "Disabled Subchannel Bitmap Present" in the
- *	  structure (Figure 9-1002a) at all ...
+ * @params: EHT operation element parameters. See &IEEE80211_EHT_OPER_*
+ * @optional: optional parts
  */
 struct ieee80211_eht_operation {
-	u8 chan_width;
-	u8 ccfs;
-	u8 present_bm;
-
-	u8 disable_subchannel_bitmap[];
+	u8 params;
+	u8 optional[];
 } __packed;
 
-#define IEEE80211_EHT_OPER_DISABLED_SUBCHANNEL_BITMAP_PRESENT	0x1
+/**
+ * struct ieee80211_eht_operation_info - eht operation information
+ *
+ * @control: EHT operation information control.
+ * @ccfs0: defines a channel center frequency for a 20, 40, 80, 160, or 320 MHz
+ *     EHT BSS.
+ * @ccfs1: defines a channel center frequency for a 160 or 320 MHz EHT BSS.
+ * @optional: optional parts
+ */
+struct ieee80211_eht_operation_info {
+	u8 control;
+	u8 ccfs0;
+	u8 ccfs1;
+	u8 optional[];
+} __packed;
 
 /* 802.11ac VHT Capabilities */
 #define IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895			0x00000000
@@ -2773,10 +2786,12 @@ ieee80211_he_spr_size(const u8 *he_spr_ie)
 #define IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE2		0x08
 #define IEEE80211_EHT_MAC_CAP0_RESTRICTED_TWT			0x10
 #define IEEE80211_EHT_MAC_CAP0_SCS_TRAFFIC_DESC			0x20
-#define IEEE80211_EHT_MAC_CAP0_MAX_AMPDU_LEN_MASK		0xc0
-#define		IEEE80211_EHT_MAC_CAP0_MAX_AMPDU_LEN_3895	0
-#define		IEEE80211_EHT_MAC_CAP0_MAX_AMPDU_LEN_7991	1
-#define		IEEE80211_EHT_MAC_CAP0_MAX_AMPDU_LEN_11454	2
+#define IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_MASK		0xc0
+#define	IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_3895	        0
+#define	IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_7991	        1
+#define	IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_11454	        2
+
+#define IEEE80211_EHT_MAC_CAP1_MAX_AMPDU_LEN_MASK		0x01
 
 /* EHT PHY capabilities as defined in P802.11be_D1.4 section 9.4.2.313.3 */
 #define IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ			0x02
@@ -2949,8 +2964,13 @@ ieee80211_eht_oper_size_ok(const u8 *data, u8 len)
 	if (len < needed)
 		return false;
 
-	if (elem->present_bm & IEEE80211_EHT_OPER_DISABLED_SUBCHANNEL_BITMAP_PRESENT)
-		needed += 2;
+	if (elem->params & IEEE80211_EHT_OPER_INFO_PRESENT) {
+		needed += 3;
+
+		if (elem->params &
+		    IEEE80211_EHT_OPER_DISABLED_SUBCHANNEL_BITMAP_PRESENT)
+			needed += 2;
+	}
 
 	return len >= needed;
 }

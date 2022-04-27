@@ -3459,6 +3459,58 @@ bool ieee80211_chandef_vht_oper(struct ieee80211_hw *hw, u32 vht_cap_info,
 	return true;
 }
 
+void ieee80211_chandef_eht_oper(struct ieee80211_sub_if_data *sdata,
+				const struct ieee80211_eht_operation *eht_oper,
+				bool support_160, bool support_320,
+				struct cfg80211_chan_def *chandef)
+{
+	struct ieee80211_eht_operation_info *info = (void *)eht_oper->optional;
+
+	chandef->center_freq1 =
+		ieee80211_channel_to_frequency(info->ccfs0,
+					       chandef->chan->band);
+
+	switch (u8_get_bits(info->control,
+			    IEEE80211_EHT_OPER_CHAN_WIDTH)) {
+	case IEEE80211_EHT_OPER_CHAN_WIDTH_20MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_20;
+		break;
+	case IEEE80211_EHT_OPER_CHAN_WIDTH_40MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_40;
+		break;
+	case IEEE80211_EHT_OPER_CHAN_WIDTH_80MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_80;
+		break;
+	case IEEE80211_EHT_OPER_CHAN_WIDTH_160MHZ:
+		if (support_160) {
+			chandef->width = NL80211_CHAN_WIDTH_160;
+			chandef->center_freq1 =
+				ieee80211_channel_to_frequency(info->ccfs1,
+							       chandef->chan->band);
+		} else {
+			chandef->width = NL80211_CHAN_WIDTH_80;
+		}
+		break;
+	case IEEE80211_EHT_OPER_CHAN_WIDTH_320MHZ:
+		if (support_320) {
+			chandef->width = NL80211_CHAN_WIDTH_320;
+			chandef->center_freq1 =
+				ieee80211_channel_to_frequency(info->ccfs1,
+							       chandef->chan->band);
+		} else if (support_160) {
+			chandef->width = NL80211_CHAN_WIDTH_160;
+		} else {
+			chandef->width = NL80211_CHAN_WIDTH_80;
+
+			if (chandef->center_freq1 > chandef->chan->center_freq)
+				chandef->center_freq1 -= 40;
+			else
+				chandef->center_freq1 += 40;
+		}
+		break;
+	}
+}
+
 bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 				    const struct ieee80211_he_operation *he_oper,
 				    const struct ieee80211_eht_operation *eht_oper,
@@ -3539,7 +3591,8 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
-	if (!eht_oper) {
+	if (!eht_oper ||
+	    !(eht_oper->params & IEEE80211_EHT_OPER_INFO_PRESENT)) {
 		switch (u8_get_bits(he_6ghz_oper->control,
 				    IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH)) {
 		case IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_20MHZ:
@@ -3583,36 +3636,8 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 		support_320 =
 			eht_phy_cap & IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ;
 
-		switch (u8_get_bits(eht_oper->chan_width,
-				    IEEE80211_EHT_OPER_CHAN_WIDTH)) {
-		case IEEE80211_EHT_OPER_CHAN_WIDTH_20MHZ:
-			he_chandef.width = NL80211_CHAN_WIDTH_20;
-			break;
-		case IEEE80211_EHT_OPER_CHAN_WIDTH_40MHZ:
-			he_chandef.width = NL80211_CHAN_WIDTH_40;
-			break;
-		case IEEE80211_EHT_OPER_CHAN_WIDTH_80MHZ:
-			he_chandef.width = NL80211_CHAN_WIDTH_80;
-			break;
-		case IEEE80211_EHT_OPER_CHAN_WIDTH_160MHZ:
-			if (support_160)
-				he_chandef.width = NL80211_CHAN_WIDTH_160;
-			else
-				he_chandef.width = NL80211_CHAN_WIDTH_80;
-			break;
-		case IEEE80211_EHT_OPER_CHAN_WIDTH_320MHZ:
-			if (support_320)
-				he_chandef.width = NL80211_CHAN_WIDTH_320;
-			else if (support_160)
-				he_chandef.width = NL80211_CHAN_WIDTH_160;
-			else
-				he_chandef.width = NL80211_CHAN_WIDTH_80;
-			break;
-		}
-
-		he_chandef.center_freq1 =
-			ieee80211_channel_to_frequency(eht_oper->ccfs,
-						       NL80211_BAND_6GHZ);
+		ieee80211_chandef_eht_oper(sdata, eht_oper, support_160,
+					   support_320, &he_chandef);
 	}
 
 	if (!cfg80211_chandef_valid(&he_chandef)) {
