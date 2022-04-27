@@ -46,6 +46,9 @@ struct crypto_kpp {
 /**
  * struct kpp_alg - generic key-agreement protocol primitives
  *
+ * @set_param:		Function allows the caller to set the parameters
+ * 			separately from the key. The format of the parameters
+ * 			is protocol specific.
  * @set_secret:		Function invokes the protocol specific function to
  *			store the secret private key along with parameters.
  *			The implementation knows how to decode the buffer
