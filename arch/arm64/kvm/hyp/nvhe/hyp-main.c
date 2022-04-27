@@ -183,20 +183,21 @@ static void flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 	 * dirty (from a host perspective), copy the state back into the hyp
 	 * vcpu.
 	 */
-	if (!pkvm_hyp_vcpu_is_protected(hyp_vcpu) &&
-	    vcpu_get_flag(host_vcpu, PKVM_HOST_STATE_DIRTY)) {
-		__flush_hyp_vcpu(hyp_vcpu);
+	if (!pkvm_hyp_vcpu_is_protected(hyp_vcpu)) {
+		if (vcpu_get_flag(host_vcpu, PKVM_HOST_STATE_DIRTY))
+			__flush_hyp_vcpu(hyp_vcpu);
+
+		hyp_vcpu->vcpu.arch.sve_state = kern_hyp_va(host_vcpu->arch.sve_state);
+		hyp_vcpu->vcpu.arch.sve_max_vl = host_vcpu->arch.sve_max_vl;
+
+		hyp_vcpu->vcpu.arch.hcr_el2 = HCR_GUEST_FLAGS & ~(HCR_RW | HCR_TWI | HCR_TWE);
+		hyp_vcpu->vcpu.arch.hcr_el2 |= READ_ONCE(host_vcpu->arch.hcr_el2);
+
+		hyp_vcpu->vcpu.arch.mdcr_el2 = host_vcpu->arch.mdcr_el2;
+		hyp_vcpu->vcpu.arch.debug_ptr = kern_hyp_va(host_vcpu->arch.debug_ptr);
 	}
 
-	hyp_vcpu->vcpu.arch.sve_state	= kern_hyp_va(host_vcpu->arch.sve_state);
-	hyp_vcpu->vcpu.arch.sve_max_vl	= host_vcpu->arch.sve_max_vl;
-
-	hyp_vcpu->vcpu.arch.hcr_el2	= host_vcpu->arch.hcr_el2;
-	hyp_vcpu->vcpu.arch.mdcr_el2	= host_vcpu->arch.mdcr_el2;
-
-	hyp_vcpu->vcpu.arch.debug_ptr	= kern_hyp_va(host_vcpu->arch.debug_ptr);
-
-	hyp_vcpu->vcpu.arch.vsesr_el2	= host_vcpu->arch.vsesr_el2;
+	hyp_vcpu->vcpu.arch.vsesr_el2 = host_vcpu->arch.vsesr_el2;
 
 	flush_hyp_vgic_state(hyp_vcpu);
 	flush_hyp_timer_state(hyp_vcpu);
@@ -225,10 +226,10 @@ static void sync_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu, u32 exit_reason)
 	hyp_entry_exit_handler_fn ec_handler;
 	u8 esr_ec;
 
-	host_vcpu->arch.ctxt		= hyp_vcpu->vcpu.arch.ctxt;
-
-	host_vcpu->arch.hcr_el2		= hyp_vcpu->vcpu.arch.hcr_el2;
-
+	/*
+	 * Don't sync the vcpu GPR/sysreg state after a run. Instead,
+	 * leave it in the hyp vCPU until someone actually requires it.
+	 */
 	sync_hyp_vgic_state(hyp_vcpu);
 	sync_hyp_timer_state(hyp_vcpu);
 
