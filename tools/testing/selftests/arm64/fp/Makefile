@@ -17,28 +17,26 @@ TEST_PROGS_EXTENDED := fpsimd-stress sve-stress ssve-stress za-stress
 EXTRA_CLEAN += $(OUTPUT)/asm-utils.o $(OUTPUT)/rdvl.o $(OUTPUT)/za-fork-asm.o
 
 # Build with nolibc to avoid effects due to libc's clone() support
-fp-pidbench: fp-pidbench.S asm-utils.o
+$(OUTPUT)/fp-pidbench: fp-pidbench.S $(OUTPUT)/asm-utils.o
 	$(CC) -nostdlib $^ -o $@
-fpsimd-test: fpsimd-test.o asm-utils.o
+$(OUTPUT)/fpsimd-test: fpsimd-test.S $(OUTPUT)/asm-utils.o
 	$(CC) -nostdlib $^ -o $@
-rdvl-sme: rdvl-sme.o rdvl.o
-rdvl-sve: rdvl-sve.o rdvl.o
-sve-ptrace: sve-ptrace.o
-sve-probe-vls: sve-probe-vls.o rdvl.o
-sve-test: sve-test.o asm-utils.o
+$(OUTPUT)/rdvl-sve: rdvl-sve.c $(OUTPUT)/rdvl.o
+$(OUTPUT)/rdvl-sme: rdvl-sme.c $(OUTPUT)/rdvl.o
+$(OUTPUT)/sve-ptrace: sve-ptrace.c
+$(OUTPUT)/sve-probe-vls: sve-probe-vls.c $(OUTPUT)/rdvl.o
+$(OUTPUT)/sve-test: sve-test.S $(OUTPUT)/asm-utils.o
 	$(CC) -nostdlib $^ -o $@
-ssve-test: sve-test.S asm-utils.o
+$(OUTPUT)/ssve-test: sve-test.S $(OUTPUT)/asm-utils.o
 	$(CC) -DSSVE -nostdlib $^ -o $@
-vec-syscfg: vec-syscfg.o rdvl.o
-vlset: vlset.o
-za-fork: za-fork.o za-fork-asm.o
-	$(CC) -nostdlib -static $^ -o $@ -lgcc
-za-fork.o: za-fork.c
-	$(CC) -c -fno-asynchronous-unwind-tables -fno-ident -s -Os -nostdlib \
+$(OUTPUT)/vec-syscfg: vec-syscfg.c $(OUTPUT)/rdvl.o
+$(OUTPUT)/vlset: vlset.c
+$(OUTPUT)/za-fork: za-fork.c $(OUTPUT)/za-fork-asm.o
+	$(CC) -fno-asynchronous-unwind-tables -fno-ident -s -Os -nostdlib \
 		-include ../../../../include/nolibc/nolibc.h \
-		-ffreestanding -Wall $^ -o $@
-za-test: za-test.o asm-utils.o
+		-static -ffreestanding -Wall $^ -o $@
+$(OUTPUT)/za-ptrace: za-ptrace.c
+$(OUTPUT)/za-test: za-test.S $(OUTPUT)/asm-utils.o
 	$(CC) -nostdlib $^ -o $@
-za-ptrace: za-ptrace.o
 
 include ../../lib.mk
