@@ -67,11 +67,11 @@ module_exit(__nhc##_exit);
 struct lowpan_nhc {
 	struct rb_node	node;
 	const char	*name;
-	const u8	nexthdr;
-	const size_t	nexthdrlen;
+	u8		nexthdr;
+	size_t		nexthdrlen;
 	u8		*id;
 	u8		*idmask;
-	const size_t	idlen;
+	size_t		idlen;
 
 	void		(*idsetup)(struct lowpan_nhc *nhc);
 	int		(*uncompress)(struct sk_buff *skb, size_t needed);
