@@ -2194,12 +2194,12 @@ static bool check_sysreg_table(const struct sys_reg_desc *table, unsigned int n,
 
 	for (i = 0; i < n; i++) {
 		if (!is_32 && table[i].reg && !table[i].reset) {
-			kvm_err("sys_reg table %p entry %d lacks reset\n", table, i);
+			kvm_err("sys_reg table %pS entry %d lacks reset\n", &table[i], i);
 			return false;
 		}
 
 		if (i && cmp_sys_reg(&table[i-1], &table[i]) >= 0) {
-			kvm_err("sys_reg table %p out of order (%d)\n", table, i - 1);
+			kvm_err("sys_reg table %pS entry %d out of order\n", &table[i - 1], i - 1);
 			return false;
 		}
 	}
