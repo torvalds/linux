@@ -1,6 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config I3C_MCTP
-    tristate "I3C MCTP driver"
+    tristate "I3C Controller MCTP driver"
     depends on I3C
 help
-    Say yes here to enable the I3C MCTP driver.
+    Say yes here to enable the I3C MCTP driver for I3C HW that is
+    configured as an I3C Controller Device on the I3C Bus.
+
+config I3C_TARGET_MCTP
+    tristate "I3C Target MCTP driver"
+    depends on I3C
+help
+    Say yes here to enable the I3C MCTP driver for I3C HW that is
+    configured as an I3C Target Device on the I3C Bus.
