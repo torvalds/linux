@@ -719,6 +719,7 @@ int aa_pivotroot(struct aa_label *label, const struct path *old_path,
 			aa_put_label(target);
 			goto out;
 		}
+		aa_put_label(target);
 	} else
 		/* already audited error */
 		error = PTR_ERR(target);
