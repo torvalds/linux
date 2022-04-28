@@ -119,26 +119,26 @@ void ieee802154_configure_durations(struct wpan_phy *phy)
 
 	switch (phy->current_page) {
 	case 0:
-		if (BIT(phy->current_page) & 0x1)
+		if (BIT(phy->current_channel) & 0x1)
 			/* 868 MHz BPSK 802.15.4-2003: 20 ksym/s */
 			duration = 50 * NSEC_PER_USEC;
-		else if (phy->current_page & 0x7FE)
+		else if (BIT(phy->current_channel) & 0x7FE)
 			/* 915 MHz BPSK	802.15.4-2003: 40 ksym/s */
 			duration = 25 * NSEC_PER_USEC;
-		else if (phy->current_page & 0x7FFF800)
+		else if (BIT(phy->current_channel) & 0x7FFF800)
 			/* 2400 MHz O-QPSK 802.15.4-2006: 62.5 ksym/s */
 			duration = 16 * NSEC_PER_USEC;
 		break;
 	case 2:
-		if (BIT(phy->current_page) & 0x1)
+		if (BIT(phy->current_channel) & 0x1)
 			/* 868 MHz O-QPSK 802.15.4-2006: 25 ksym/s */
 			duration = 40 * NSEC_PER_USEC;
-		else if (phy->current_page & 0x7FE)
+		else if (BIT(phy->current_channel) & 0x7FE)
 			/* 915 MHz O-QPSK 802.15.4-2006: 62.5 ksym/s */
 			duration = 16 * NSEC_PER_USEC;
 		break;
 	case 3:
-		if (BIT(phy->current_page) & 0x3FFF)
+		if (BIT(phy->current_channel) & 0x3FFF)
 			/* 2.4 GHz CSS 802.15.4a-2007: 1/6 Msym/s */
 			duration = 6 * NSEC_PER_USEC;
 		break;
