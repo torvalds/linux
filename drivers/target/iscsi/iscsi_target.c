@@ -2350,7 +2350,7 @@ reject:
 int iscsit_logout_closesession(struct iscsit_cmd *cmd, struct iscsit_conn *conn)
 {
 	struct iscsit_conn *conn_p;
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 
 	pr_debug("Received logout request CLOSESESSION on CID: %hu"
 		" for SID: %u.\n", conn->cid, conn->sess->sid);
@@ -2380,7 +2380,7 @@ int iscsit_logout_closesession(struct iscsit_cmd *cmd, struct iscsit_conn *conn)
 int iscsit_logout_closeconnection(struct iscsit_cmd *cmd, struct iscsit_conn *conn)
 {
 	struct iscsit_conn *l_conn;
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 
 	pr_debug("Received logout request CLOSECONNECTION for CID:"
 		" %hu on CID: %hu.\n", cmd->logout_cid, conn->cid);
@@ -2427,7 +2427,7 @@ int iscsit_logout_closeconnection(struct iscsit_cmd *cmd, struct iscsit_conn *co
 
 int iscsit_logout_removeconnforrecovery(struct iscsit_cmd *cmd, struct iscsit_conn *conn)
 {
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 
 	pr_debug("Received explicit REMOVECONNFORRECOVERY logout for"
 		" CID: %hu on CID: %hu.\n", cmd->logout_cid, conn->cid);
@@ -2901,7 +2901,7 @@ iscsit_build_logout_rsp(struct iscsit_cmd *cmd, struct iscsit_conn *conn,
 {
 	struct iscsit_conn *logout_conn = NULL;
 	struct iscsi_conn_recovery *cr = NULL;
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	/*
 	 * The actual shutting down of Sessions and/or Connections
 	 * for CLOSESESSION and CLOSECONNECTION Logout Requests
@@ -4145,7 +4145,7 @@ static void iscsit_release_commands_from_conn(struct iscsit_conn *conn)
 {
 	LIST_HEAD(tmp_list);
 	struct iscsit_cmd *cmd = NULL, *cmd_tmp = NULL;
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	/*
 	 * We expect this function to only ever be called from either RX or TX
 	 * thread context via iscsit_close_connection() once the other context
@@ -4201,7 +4201,7 @@ int iscsit_close_connection(
 	struct iscsit_conn *conn)
 {
 	int conn_logout = (conn->conn_state == TARG_CONN_STATE_IN_LOGOUT);
-	struct iscsi_session	*sess = conn->sess;
+	struct iscsit_session	*sess = conn->sess;
 
 	pr_debug("Closing iSCSI connection CID %hu on SID:"
 		" %u\n", conn->cid, sess->sid);
@@ -4438,7 +4438,7 @@ int iscsit_close_connection(
  * If the iSCSI Session for the iSCSI Initiator Node exists,
  * forcefully shutdown the iSCSI NEXUS.
  */
-int iscsit_close_session(struct iscsi_session *sess, bool can_sleep)
+int iscsit_close_session(struct iscsit_session *sess, bool can_sleep)
 {
 	struct iscsi_portal_group *tpg = sess->tpg;
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
@@ -4508,7 +4508,7 @@ int iscsit_close_session(struct iscsi_session *sess, bool can_sleep)
 static void iscsit_logout_post_handler_closesession(
 	struct iscsit_conn *conn)
 {
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	int sleep = 1;
 	/*
 	 * Traditional iscsi/tcp will invoke this logic from TX thread
@@ -4557,7 +4557,7 @@ static void iscsit_logout_post_handler_diffcid(
 	u16 cid)
 {
 	struct iscsit_conn *l_conn;
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	bool conn_found = false;
 
 	if (!sess)
@@ -4649,7 +4649,7 @@ int iscsit_logout_post_handler(
 }
 EXPORT_SYMBOL(iscsit_logout_post_handler);
 
-void iscsit_fail_session(struct iscsi_session *sess)
+void iscsit_fail_session(struct iscsit_session *sess)
 {
 	struct iscsit_conn *conn;
 
@@ -4665,7 +4665,7 @@ void iscsit_fail_session(struct iscsi_session *sess)
 }
 
 void iscsit_stop_session(
-	struct iscsi_session *sess,
+	struct iscsit_session *sess,
 	int session_sleep,
 	int connection_sleep)
 {
@@ -4712,7 +4712,7 @@ void iscsit_stop_session(
 
 int iscsit_release_sessions_for_tpg(struct iscsi_portal_group *tpg, int force)
 {
-	struct iscsi_session *sess;
+	struct iscsit_session *sess;
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
 	struct se_session *se_sess, *se_sess_tmp;
 	LIST_HEAD(free_list);
@@ -4726,7 +4726,7 @@ int iscsit_release_sessions_for_tpg(struct iscsi_portal_group *tpg, int force)
 
 	list_for_each_entry_safe(se_sess, se_sess_tmp, &se_tpg->tpg_sess_list,
 			sess_list) {
-		sess = (struct iscsi_session *)se_sess->fabric_sess_ptr;
+		sess = (struct iscsit_session *)se_sess->fabric_sess_ptr;
 
 		spin_lock(&sess->conn_lock);
 		if (atomic_read(&sess->session_fall_back_to_erl0) ||
@@ -4747,7 +4747,7 @@ int iscsit_release_sessions_for_tpg(struct iscsi_portal_group *tpg, int force)
 	spin_unlock_bh(&se_tpg->session_lock);
 
 	list_for_each_entry_safe(se_sess, se_sess_tmp, &free_list, sess_list) {
-		sess = (struct iscsi_session *)se_sess->fabric_sess_ptr;
+		sess = (struct iscsit_session *)se_sess->fabric_sess_ptr;
 
 		list_del_init(&se_sess->sess_list);
 		iscsit_stop_session(sess, 1, 1);

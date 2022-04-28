@@ -105,7 +105,7 @@ extern int iscsit_response_queue(struct iscsit_conn *, struct iscsit_cmd *, int)
 /*
  * From iscsi_target_device.c
  */
-extern void iscsit_increment_maxcmdsn(struct iscsit_cmd *, struct iscsi_session *);
+extern void iscsit_increment_maxcmdsn(struct iscsit_cmd *, struct iscsit_session *);
 /*
  * From iscsi_target_erl0.c
  */

@@ -133,7 +133,7 @@ int iscsi_check_for_session_reinstatement(struct iscsit_conn *conn)
 	int sessiontype;
 	struct iscsi_param *initiatorname_param = NULL, *sessiontype_param = NULL;
 	struct iscsi_portal_group *tpg = conn->tpg;
-	struct iscsi_session *sess = NULL, *sess_p = NULL;
+	struct iscsit_session *sess = NULL, *sess_p = NULL;
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
 	struct se_session *se_sess, *se_sess_tmp;
 
@@ -204,7 +204,7 @@ int iscsi_check_for_session_reinstatement(struct iscsit_conn *conn)
 }
 
 static int iscsi_login_set_conn_values(
-	struct iscsi_session *sess,
+	struct iscsit_session *sess,
 	struct iscsit_conn *conn,
 	__be16 cid)
 {
@@ -256,11 +256,11 @@ static int iscsi_login_zero_tsih_s1(
 	struct iscsit_conn *conn,
 	unsigned char *buf)
 {
-	struct iscsi_session *sess = NULL;
+	struct iscsit_session *sess = NULL;
 	struct iscsi_login_req *pdu = (struct iscsi_login_req *)buf;
 	int ret;
 
-	sess = kzalloc(sizeof(struct iscsi_session), GFP_KERNEL);
+	sess = kzalloc(sizeof(struct iscsit_session), GFP_KERNEL);
 	if (!sess) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
@@ -340,7 +340,7 @@ static int iscsi_login_zero_tsih_s2(
 	struct iscsit_conn *conn)
 {
 	struct iscsi_node_attrib *na;
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	bool iser = false;
 
 	sess->tpg = conn->tpg;
@@ -474,7 +474,7 @@ static int iscsi_login_non_zero_tsih_s2(
 	unsigned char *buf)
 {
 	struct iscsi_portal_group *tpg = conn->tpg;
-	struct iscsi_session *sess = NULL, *sess_p = NULL;
+	struct iscsit_session *sess = NULL, *sess_p = NULL;
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
 	struct se_session *se_sess, *se_sess_tmp;
 	struct iscsi_login_req *pdu = (struct iscsi_login_req *)buf;
@@ -484,7 +484,7 @@ static int iscsi_login_non_zero_tsih_s2(
 	list_for_each_entry_safe(se_sess, se_sess_tmp, &se_tpg->tpg_sess_list,
 			sess_list) {
 
-		sess_p = (struct iscsi_session *)se_sess->fabric_sess_ptr;
+		sess_p = (struct iscsit_session *)se_sess->fabric_sess_ptr;
 		if (atomic_read(&sess_p->session_fall_back_to_erl0) ||
 		    atomic_read(&sess_p->session_logout) ||
 		    atomic_read(&sess_p->session_close) ||
@@ -552,7 +552,7 @@ int iscsi_login_post_auth_non_zero_tsih(
 {
 	struct iscsit_conn *conn_ptr = NULL;
 	struct iscsi_conn_recovery *cr = NULL;
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 
 	/*
 	 * By following item 5 in the login table,  if we have found
@@ -614,7 +614,7 @@ int iscsi_login_post_auth_non_zero_tsih(
 
 static void iscsi_post_login_start_timers(struct iscsit_conn *conn)
 {
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	/*
 	 * FIXME: Unsolicited NopIN support for ISER
 	 */
@@ -677,7 +677,7 @@ void iscsi_post_login_handler(
 	u8 zero_tsih)
 {
 	int stop_timer = 0;
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	struct se_session *se_sess = sess->se_sess;
 	struct iscsi_portal_group *tpg = sess->tpg;
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;

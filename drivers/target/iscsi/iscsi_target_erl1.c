@@ -767,7 +767,7 @@ static struct iscsi_ooo_cmdsn *iscsit_allocate_ooo_cmdsn(void)
 }
 
 static int iscsit_attach_ooo_cmdsn(
-	struct iscsi_session *sess,
+	struct iscsit_session *sess,
 	struct iscsi_ooo_cmdsn *ooo_cmdsn)
 {
 	struct iscsi_ooo_cmdsn *ooo_tail, *ooo_tmp;
@@ -815,10 +815,10 @@ static int iscsit_attach_ooo_cmdsn(
 
 /*
  *	Removes an struct iscsi_ooo_cmdsn from a session's list,
- *	called with struct iscsi_session->cmdsn_mutex held.
+ *	called with struct iscsit_session->cmdsn_mutex held.
  */
 void iscsit_remove_ooo_cmdsn(
-	struct iscsi_session *sess,
+	struct iscsit_session *sess,
 	struct iscsi_ooo_cmdsn *ooo_cmdsn)
 {
 	list_del(&ooo_cmdsn->ooo_list);
@@ -828,7 +828,7 @@ void iscsit_remove_ooo_cmdsn(
 void iscsit_clear_ooo_cmdsns_for_conn(struct iscsit_conn *conn)
 {
 	struct iscsi_ooo_cmdsn *ooo_cmdsn;
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 
 	mutex_lock(&sess->cmdsn_mutex);
 	list_for_each_entry(ooo_cmdsn, &sess->sess_ooo_cmdsn_list, ooo_list) {
@@ -840,7 +840,7 @@ void iscsit_clear_ooo_cmdsns_for_conn(struct iscsit_conn *conn)
 	mutex_unlock(&sess->cmdsn_mutex);
 }
 
-int iscsit_execute_ooo_cmdsns(struct iscsi_session *sess)
+int iscsit_execute_ooo_cmdsns(struct iscsit_session *sess)
 {
 	int ooo_count = 0;
 	struct iscsit_cmd *cmd = NULL;
@@ -994,7 +994,7 @@ int iscsit_execute_cmd(struct iscsit_cmd *cmd, int ooo)
 	return 0;
 }
 
-void iscsit_free_all_ooo_cmdsns(struct iscsi_session *sess)
+void iscsit_free_all_ooo_cmdsns(struct iscsit_session *sess)
 {
 	struct iscsi_ooo_cmdsn *ooo_cmdsn, *ooo_cmdsn_tmp;
 
@@ -1009,7 +1009,7 @@ void iscsit_free_all_ooo_cmdsns(struct iscsi_session *sess)
 }
 
 int iscsit_handle_ooo_cmdsn(
-	struct iscsi_session *sess,
+	struct iscsit_session *sess,
 	struct iscsit_cmd *cmd,
 	u32 cmdsn)
 {
@@ -1097,7 +1097,7 @@ void iscsit_handle_dataout_timeout(struct timer_list *t)
 	u32 r2t_length = 0, r2t_offset = 0;
 	struct iscsit_cmd *cmd = from_timer(cmd, t, dataout_timer);
 	struct iscsit_conn *conn = cmd->conn;
-	struct iscsi_session *sess = NULL;
+	struct iscsit_session *sess = NULL;
 	struct iscsi_node_attrib *na;
 
 	iscsit_inc_conn_usage_count(conn);
@@ -1182,7 +1182,7 @@ failure:
 void iscsit_mod_dataout_timer(struct iscsit_cmd *cmd)
 {
 	struct iscsit_conn *conn = cmd->conn;
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
 	spin_lock_bh(&cmd->dataout_timeout_lock);
@@ -1202,7 +1202,7 @@ void iscsit_start_dataout_timer(
 	struct iscsit_cmd *cmd,
 	struct iscsit_conn *conn)
 {
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
 	lockdep_assert_held(&cmd->dataout_timeout_lock);

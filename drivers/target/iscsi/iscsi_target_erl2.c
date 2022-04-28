@@ -74,7 +74,7 @@ void iscsit_create_conn_recovery_dataout_values(
 }
 
 static int iscsit_attach_active_connection_recovery_entry(
-	struct iscsi_session *sess,
+	struct iscsit_session *sess,
 	struct iscsi_conn_recovery *cr)
 {
 	spin_lock(&sess->cr_a_lock);
@@ -85,7 +85,7 @@ static int iscsit_attach_active_connection_recovery_entry(
 }
 
 static int iscsit_attach_inactive_connection_recovery_entry(
-	struct iscsi_session *sess,
+	struct iscsit_session *sess,
 	struct iscsi_conn_recovery *cr)
 {
 	spin_lock(&sess->cr_i_lock);
@@ -100,7 +100,7 @@ static int iscsit_attach_inactive_connection_recovery_entry(
 }
 
 struct iscsi_conn_recovery *iscsit_get_inactive_connection_recovery_entry(
-	struct iscsi_session *sess,
+	struct iscsit_session *sess,
 	u16 cid)
 {
 	struct iscsi_conn_recovery *cr;
@@ -117,7 +117,7 @@ struct iscsi_conn_recovery *iscsit_get_inactive_connection_recovery_entry(
 	return NULL;
 }
 
-void iscsit_free_connection_recovery_entries(struct iscsi_session *sess)
+void iscsit_free_connection_recovery_entries(struct iscsit_session *sess)
 {
 	struct iscsit_cmd *cmd, *cmd_tmp;
 	struct iscsi_conn_recovery *cr, *cr_tmp;
@@ -169,7 +169,7 @@ void iscsit_free_connection_recovery_entries(struct iscsi_session *sess)
 
 int iscsit_remove_active_connection_recovery_entry(
 	struct iscsi_conn_recovery *cr,
-	struct iscsi_session *sess)
+	struct iscsit_session *sess)
 {
 	spin_lock(&sess->cr_a_lock);
 	list_del(&cr->cr_list);
@@ -186,7 +186,7 @@ int iscsit_remove_active_connection_recovery_entry(
 
 static void iscsit_remove_inactive_connection_recovery_entry(
 	struct iscsi_conn_recovery *cr,
-	struct iscsi_session *sess)
+	struct iscsit_session *sess)
 {
 	spin_lock(&sess->cr_i_lock);
 	list_del(&cr->cr_list);
@@ -198,7 +198,7 @@ static void iscsit_remove_inactive_connection_recovery_entry(
  */
 int iscsit_remove_cmd_from_connection_recovery(
 	struct iscsit_cmd *cmd,
-	struct iscsi_session *sess)
+	struct iscsit_session *sess)
 {
 	struct iscsi_conn_recovery *cr;
 
@@ -219,7 +219,7 @@ void iscsit_discard_cr_cmds_by_expstatsn(
 {
 	u32 dropped_count = 0;
 	struct iscsit_cmd *cmd, *cmd_tmp;
-	struct iscsi_session *sess = cr->sess;
+	struct iscsit_session *sess = cr->sess;
 
 	spin_lock(&cr->conn_recovery_cmd_lock);
 	list_for_each_entry_safe(cmd, cmd_tmp,
@@ -268,7 +268,7 @@ int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsit_conn *conn)
 	u32 dropped_count = 0;
 	struct iscsit_cmd *cmd, *cmd_tmp;
 	struct iscsi_ooo_cmdsn *ooo_cmdsn, *ooo_cmdsn_tmp;
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 
 	mutex_lock(&sess->cmdsn_mutex);
 	list_for_each_entry_safe(ooo_cmdsn, ooo_cmdsn_tmp,

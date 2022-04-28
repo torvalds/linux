@@ -67,7 +67,7 @@ int iscsit_tmr_task_warm_reset(
 	struct iscsi_tmr_req *tmr_req,
 	unsigned char *buf)
 {
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
 	if (!na->tmr_warm_reset) {
@@ -87,7 +87,7 @@ int iscsit_tmr_task_cold_reset(
 	struct iscsi_tmr_req *tmr_req,
 	unsigned char *buf)
 {
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
 	if (!na->tmr_cold_reset) {
@@ -177,7 +177,7 @@ u8 iscsit_tmr_task_reassign(
 static void iscsit_task_reassign_remove_cmd(
 	struct iscsit_cmd *cmd,
 	struct iscsi_conn_recovery *cr,
-	struct iscsi_session *sess)
+	struct iscsit_session *sess)
 {
 	int ret;
 

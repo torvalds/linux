@@ -743,7 +743,7 @@ int iscsit_check_post_dataout(
 
 void iscsit_handle_time2retain_timeout(struct timer_list *t)
 {
-	struct iscsi_session *sess = from_timer(sess, t, time2retain_timer);
+	struct iscsit_session *sess = from_timer(sess, t, time2retain_timer);
 	struct iscsi_portal_group *tpg = sess->tpg;
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
 
@@ -768,7 +768,7 @@ void iscsit_handle_time2retain_timeout(struct timer_list *t)
 	iscsit_close_session(sess, false);
 }
 
-void iscsit_start_time2retain_handler(struct iscsi_session *sess)
+void iscsit_start_time2retain_handler(struct iscsit_session *sess)
 {
 	int tpg_active;
 	/*
@@ -794,7 +794,7 @@ void iscsit_start_time2retain_handler(struct iscsi_session *sess)
 		  jiffies + sess->sess_ops->DefaultTime2Retain * HZ);
 }
 
-int iscsit_stop_time2retain_timer(struct iscsi_session *sess)
+int iscsit_stop_time2retain_timer(struct iscsit_session *sess)
 {
 	struct iscsi_portal_group *tpg = sess->tpg;
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
@@ -880,7 +880,7 @@ void iscsit_cause_connection_reinstatement(struct iscsit_conn *conn, int sleep)
 }
 EXPORT_SYMBOL(iscsit_cause_connection_reinstatement);
 
-void iscsit_fall_back_to_erl0(struct iscsi_session *sess)
+void iscsit_fall_back_to_erl0(struct iscsit_session *sess)
 {
 	pr_debug("Falling back to ErrorRecoveryLevel=0 for SID:"
 			" %u\n", sess->sid);
@@ -890,7 +890,7 @@ void iscsit_fall_back_to_erl0(struct iscsi_session *sess)
 
 static void iscsit_handle_connection_cleanup(struct iscsit_conn *conn)
 {
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 
 	if ((sess->sess_ops->ErrorRecoveryLevel == 2) &&
 	    !atomic_read(&sess->session_reinstatement) &&

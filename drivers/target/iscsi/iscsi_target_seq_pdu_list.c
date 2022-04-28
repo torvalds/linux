@@ -493,7 +493,7 @@ int iscsit_build_pdu_and_seq_lists(
 	struct iscsi_pdu *pdu = NULL;
 	struct iscsi_seq *seq = NULL;
 
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	struct iscsi_node_attrib *na;
 
 	/*

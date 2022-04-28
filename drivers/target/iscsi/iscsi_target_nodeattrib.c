@@ -96,7 +96,7 @@ int iscsit_na_nopin_timeout(
 	u32 nopin_timeout)
 {
 	struct iscsi_node_attrib *a = &acl->node_attrib;
-	struct iscsi_session *sess;
+	struct iscsit_session *sess;
 	struct iscsit_conn *conn;
 	struct se_node_acl *se_nacl = &a->nacl->se_node_acl;
 	struct se_session *se_sess;

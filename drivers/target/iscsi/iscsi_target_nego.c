@@ -102,7 +102,7 @@ static u32 iscsi_handle_authentication(
 	int *out_length,
 	unsigned char *authtype)
 {
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	struct iscsi_node_auth *auth;
 	struct iscsi_node_acl *iscsi_nacl;
 	struct iscsi_portal_group *iscsi_tpg;
@@ -1059,7 +1059,7 @@ int iscsi_target_locate_portal(
 {
 	char *i_buf = NULL, *s_buf = NULL, *t_buf = NULL;
 	char *tmpbuf, *start = NULL, *end = NULL, *key, *value;
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	struct iscsi_tiqn *tiqn;
 	struct iscsi_tpg_np *tpg_np = NULL;
 	struct iscsi_login_req *login_req;
@@ -1232,7 +1232,7 @@ get_target:
 
 	/*
 	 * conn->sess->node_acl will be set when the referenced
-	 * struct iscsi_session is located from received ISID+TSIH in
+	 * struct iscsit_session is located from received ISID+TSIH in
 	 * iscsi_login_non_zero_tsih_s2().
 	 */
 	if (!login->leading_connection) {

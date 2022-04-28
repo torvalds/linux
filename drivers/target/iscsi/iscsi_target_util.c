@@ -238,7 +238,7 @@ struct iscsi_r2t *iscsit_get_holder_for_r2tsn(
 	return NULL;
 }
 
-static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cmdsn)
+static inline int iscsit_check_received_cmdsn(struct iscsit_session *sess, u32 cmdsn)
 {
 	u32 max_cmdsn;
 	int ret;
@@ -446,7 +446,7 @@ struct iscsit_cmd *iscsit_find_cmd_from_ttt(
 }
 
 int iscsit_find_cmd_for_recovery(
-	struct iscsi_session *sess,
+	struct iscsit_session *sess,
 	struct iscsit_cmd **cmd_ptr,
 	struct iscsi_conn_recovery **cr_ptr,
 	itt_t init_task_tag)
@@ -696,7 +696,7 @@ void iscsit_free_queue_reqs_for_conn(struct iscsit_conn *conn)
 
 void iscsit_release_cmd(struct iscsit_cmd *cmd)
 {
-	struct iscsi_session *sess;
+	struct iscsit_session *sess;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 
 	WARN_ON(!list_empty(&cmd->i_conn_node));
@@ -762,7 +762,7 @@ void iscsit_free_cmd(struct iscsit_cmd *cmd, bool shutdown)
 }
 EXPORT_SYMBOL(iscsit_free_cmd);
 
-bool iscsit_check_session_usage_count(struct iscsi_session *sess,
+bool iscsit_check_session_usage_count(struct iscsit_session *sess,
 				      bool can_sleep)
 {
 	spin_lock_bh(&sess->session_usage_lock);
@@ -780,7 +780,7 @@ bool iscsit_check_session_usage_count(struct iscsi_session *sess,
 	return false;
 }
 
-void iscsit_dec_session_usage_count(struct iscsi_session *sess)
+void iscsit_dec_session_usage_count(struct iscsit_session *sess)
 {
 	spin_lock_bh(&sess->session_usage_lock);
 	sess->session_usage_count--;
@@ -791,14 +791,14 @@ void iscsit_dec_session_usage_count(struct iscsi_session *sess)
 	spin_unlock_bh(&sess->session_usage_lock);
 }
 
-void iscsit_inc_session_usage_count(struct iscsi_session *sess)
+void iscsit_inc_session_usage_count(struct iscsit_session *sess)
 {
 	spin_lock_bh(&sess->session_usage_lock);
 	sess->session_usage_count++;
 	spin_unlock_bh(&sess->session_usage_lock);
 }
 
-struct iscsit_conn *iscsit_get_conn_from_cid(struct iscsi_session *sess, u16 cid)
+struct iscsit_conn *iscsit_get_conn_from_cid(struct iscsit_session *sess, u16 cid)
 {
 	struct iscsit_conn *conn;
 
@@ -816,7 +816,7 @@ struct iscsit_conn *iscsit_get_conn_from_cid(struct iscsi_session *sess, u16 cid
 	return NULL;
 }
 
-struct iscsit_conn *iscsit_get_conn_from_cid_rcfr(struct iscsi_session *sess, u16 cid)
+struct iscsit_conn *iscsit_get_conn_from_cid_rcfr(struct iscsit_session *sess, u16 cid)
 {
 	struct iscsit_conn *conn;
 
@@ -896,7 +896,7 @@ static int iscsit_add_nopin(struct iscsit_conn *conn, int want_response)
 void iscsit_handle_nopin_response_timeout(struct timer_list *t)
 {
 	struct iscsit_conn *conn = from_timer(conn, t, nopin_response_timer);
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 
 	iscsit_inc_conn_usage_count(conn);
 
@@ -921,7 +921,7 @@ void iscsit_handle_nopin_response_timeout(struct timer_list *t)
 
 void iscsit_mod_nopin_response_timer(struct iscsit_conn *conn)
 {
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
 	spin_lock_bh(&conn->nopin_timer_lock);
@@ -937,7 +937,7 @@ void iscsit_mod_nopin_response_timer(struct iscsit_conn *conn)
 
 void iscsit_start_nopin_response_timer(struct iscsit_conn *conn)
 {
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
 	spin_lock_bh(&conn->nopin_timer_lock);
@@ -994,7 +994,7 @@ void iscsit_handle_nopin_timeout(struct timer_list *t)
 
 void __iscsit_start_nopin_timer(struct iscsit_conn *conn)
 {
-	struct iscsi_session *sess = conn->sess;
+	struct iscsit_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
 	lockdep_assert_held(&conn->nopin_timer_lock);
@@ -1198,7 +1198,7 @@ int iscsit_tx_login_rsp(struct iscsit_conn *conn, u8 status_class, u8 status_det
 	return conn->conn_transport->iscsit_put_login_tx(conn, login, 0);
 }
 
-void iscsit_print_session_params(struct iscsi_session *sess)
+void iscsit_print_session_params(struct iscsit_session *sess)
 {
 	struct iscsit_conn *conn;
 
@@ -1351,7 +1351,7 @@ struct iscsi_tiqn *iscsit_snmp_get_tiqn(struct iscsit_conn *conn)
 	return tpg->tpg_tiqn;
 }
 
-void iscsit_fill_cxn_timeout_err_stats(struct iscsi_session *sess)
+void iscsit_fill_cxn_timeout_err_stats(struct iscsit_session *sess)
 {
 	struct iscsi_portal_group *tpg = sess->tpg;
 	struct iscsi_tiqn *tiqn = tpg->tpg_tiqn;

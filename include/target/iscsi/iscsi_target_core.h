@@ -482,7 +482,7 @@ struct iscsit_cmd {
 	/* Pointer to connection recovery entry */
 	struct iscsi_conn_recovery *cr;
 	/* Session the command is part of,  used for connection recovery */
-	struct iscsi_session	*sess;
+	struct iscsit_session	*sess;
 	/* list_head for connection list */
 	struct list_head	i_conn_node;
 	/* The TCM I/O descriptor that is accessed via container_of() */
@@ -598,7 +598,7 @@ struct iscsit_conn {
 	struct iscsi_portal_group *tpg;
 	struct iscsi_tpg_np	*tpg_np;
 	/* Pointer to parent session */
-	struct iscsi_session	*sess;
+	struct iscsit_session	*sess;
 	int			bitmap_id;
 	int			rx_thread_active;
 	struct task_struct	*rx_thread;
@@ -618,11 +618,11 @@ struct iscsi_conn_recovery {
 	struct list_head	conn_recovery_cmd_list;
 	spinlock_t		conn_recovery_cmd_lock;
 	struct timer_list	time2retain_timer;
-	struct iscsi_session	*sess;
+	struct iscsit_session	*sess;
 	struct list_head	cr_list;
 }  ____cacheline_aligned;
 
-struct iscsi_session {
+struct iscsit_session {
 	u8			initiator_vendor;
 	u8			isid[6];
 	enum iscsi_timer_flags_table time2retain_timer_flags;
@@ -885,7 +885,7 @@ struct iscsit_global {
 	struct iscsi_portal_group	*discovery_tpg;
 };
 
-static inline u32 session_get_next_ttt(struct iscsi_session *session)
+static inline u32 session_get_next_ttt(struct iscsit_session *session)
 {
 	u32 ttt;
 

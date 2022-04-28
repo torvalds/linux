@@ -443,7 +443,7 @@ static ssize_t iscsi_nacl_param_##name##_show(struct config_item *item,	\
 		char *page)						\
 {									\
 	struct se_node_acl *se_nacl = param_to_nacl(item);		\
-	struct iscsi_session *sess;					\
+	struct iscsit_session *sess;					\
 	struct se_session *se_sess;					\
 	ssize_t rb;							\
 									\
@@ -498,7 +498,7 @@ static struct configfs_attribute *lio_target_nacl_param_attrs[] = {
 static ssize_t lio_target_nacl_info_show(struct config_item *item, char *page)
 {
 	struct se_node_acl *se_nacl = acl_to_nacl(item);
-	struct iscsi_session *sess;
+	struct iscsit_session *sess;
 	struct iscsit_conn *conn;
 	struct se_session *se_sess;
 	ssize_t rb = 0;
@@ -1347,7 +1347,7 @@ static int iscsi_get_cmd_state(struct se_cmd *se_cmd)
 
 static u32 lio_sess_get_index(struct se_session *se_sess)
 {
-	struct iscsi_session *sess = se_sess->fabric_sess_ptr;
+	struct iscsit_session *sess = se_sess->fabric_sess_ptr;
 
 	return sess->session_index;
 }
@@ -1357,7 +1357,7 @@ static u32 lio_sess_get_initiator_sid(
 	unsigned char *buf,
 	u32 size)
 {
-	struct iscsi_session *sess = se_sess->fabric_sess_ptr;
+	struct iscsit_session *sess = se_sess->fabric_sess_ptr;
 	/*
 	 * iSCSI Initiator Session Identifier from RFC-3720.
 	 */
@@ -1468,11 +1468,11 @@ static int lio_tpg_check_prot_fabric_only(
 
 /*
  * This function calls iscsit_inc_session_usage_count() on the
- * struct iscsi_session in question.
+ * struct iscsit_session in question.
  */
 static void lio_tpg_close_session(struct se_session *se_sess)
 {
-	struct iscsi_session *sess = se_sess->fabric_sess_ptr;
+	struct iscsit_session *sess = se_sess->fabric_sess_ptr;
 	struct se_portal_group *se_tpg = &sess->tpg->tpg_se_tpg;
 
 	spin_lock_bh(&se_tpg->session_lock);
