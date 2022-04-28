@@ -46,6 +46,11 @@
 			alloc-ranges = <0x0 0xa0000000 0x0 0x20000000>;
 			linux,cma-default;
 		};
+
+		e24_mem: e24@c0000000 {
+			no-map;
+			reg = <0x0 0xc0110000 0x0 0xf0000>;
+		};
 	};
 };
 
@@ -374,4 +379,8 @@
 			};
 		};
 	};
+};
+
+&co_process {
+	status = "okay";
 };
