@@ -1955,7 +1955,7 @@ static int tc_probe_edp_bridge_endpoint(struct tc_data *tc)
 		tc->bridge.ops |= DRM_BRIDGE_OP_DETECT;
 	tc->bridge.ops |= DRM_BRIDGE_OP_EDID;
 
-	return ret;
+	return 0;
 }
 
 static int tc_probe_bridge_endpoint(struct tc_data *tc)
