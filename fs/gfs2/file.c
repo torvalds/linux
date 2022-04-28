@@ -998,8 +998,6 @@ retry_under_glock:
 		if (leftover != window_size) {
 			if (gfs2_holder_queued(&gh))
 				goto retry_under_glock;
-			if (written)
-				goto out_uninit;
 			goto retry;
 		}
 	}
@@ -1076,8 +1074,6 @@ retry_under_glock:
 			from->count = min(from->count, window_size - leftover);
 			if (gfs2_holder_queued(gh))
 				goto retry_under_glock;
-			if (read && !(iocb->ki_flags & IOCB_DIRECT))
-				goto out_uninit;
 			goto retry;
 		}
 	}
