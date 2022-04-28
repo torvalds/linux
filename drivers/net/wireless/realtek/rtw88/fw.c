@@ -649,7 +649,7 @@ void rtw_fw_beacon_filter_config(struct rtw_dev *rtwdev, bool connect,
 	s32 threshold = bss_conf->cqm_rssi_thold + rssi_offset;
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
 
-	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_BCN_FILTER) || !si)
+	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_BCN_FILTER))
 		return;
 
 	if (!connect) {
@@ -659,6 +659,10 @@ void rtw_fw_beacon_filter_config(struct rtw_dev *rtwdev, bool connect,
 
 		return;
 	}
+
+	if (!si)
+		return;
+
 	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_BCN_FILTER_OFFLOAD_P0);
 	ether_addr_copy(&h2c_pkt[1], bss_conf->bssid);
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
