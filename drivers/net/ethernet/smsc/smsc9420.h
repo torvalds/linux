@@ -15,7 +15,6 @@
 /* interrupt deassertion in multiples of 10us */
 #define INT_DEAS_TIME			(50)
 
-#define NAPI_WEIGHT			(64)
 #define SMSC_BAR			(3)
 
 #ifdef __BIG_ENDIAN
