@@ -221,7 +221,6 @@ int pmc_atom_read(int offset, u32 *value)
 	*value = pmc_reg_read(pmc, offset);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(pmc_atom_read);
 
 static void pmc_power_off(void)
 {
