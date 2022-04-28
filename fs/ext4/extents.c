@@ -4699,14 +4699,16 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 
 	ext4_fc_start_update(inode);
 
+	inode_lock(inode);
+	ret = ext4_convert_inline_data(inode);
+	inode_unlock(inode);
+	if (ret)
+		goto exit;
+
 	if (mode & FALLOC_FL_PUNCH_HOLE) {
 		ret = ext4_punch_hole(file, offset, len);
 		goto exit;
 	}
-
-	ret = ext4_convert_inline_data(inode);
-	if (ret)
-		goto exit;
 
 	if (mode & FALLOC_FL_COLLAPSE_RANGE) {
 		ret = ext4_collapse_range(file, offset, len);
