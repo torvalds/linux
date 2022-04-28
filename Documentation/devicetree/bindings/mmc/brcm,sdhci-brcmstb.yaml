@@ -31,7 +31,7 @@ properties:
           - const: brcm,sdhci-brcmstb
 
   reg:
-    minItems: 2
+    maxItems: 2
 
   reg-names:
     items:
