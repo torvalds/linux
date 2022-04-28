@@ -2537,8 +2537,8 @@ static void imon_disconnect(struct usb_interface *interface)
 		usb_kill_urb(ictx->rx_urb_intf1);
 		usb_put_dev(ictx->usbdev_intf1);
 		if (ictx->display_type == IMON_DISPLAY_TYPE_VGA) {
-			input_unregister_device(ictx->touch);
 			del_timer_sync(&ictx->ttimer);
+			input_unregister_device(ictx->touch);
 		}
 	}
 
