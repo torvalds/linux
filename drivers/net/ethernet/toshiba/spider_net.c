@@ -2270,7 +2270,7 @@ spider_net_setup_netdev(struct spider_net_card *card)
 	timer_setup(&card->aneg_timer, spider_net_link_phy, 0);
 
 	netif_napi_add(netdev, &card->napi,
-		       spider_net_poll, SPIDER_NET_NAPI_WEIGHT);
+		       spider_net_poll, NAPI_POLL_WEIGHT);
 
 	spider_net_setup_netdev_ops(netdev);
 
