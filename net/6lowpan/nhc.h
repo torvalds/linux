@@ -24,7 +24,7 @@
 #define LOWPAN_NHC(__nhc, _name, _nexthdr,	\
 		   _hdrlen, _id, _idmask,	\
 		   _uncompress, _compress)	\
-static struct lowpan_nhc __nhc = {		\
+static const struct lowpan_nhc __nhc = {	\
 	.name		= _name,		\
 	.nexthdr	= _nexthdr,		\
 	.nexthdrlen	= _hdrlen,		\
@@ -116,14 +116,14 @@ int lowpan_nhc_do_uncompression(struct sk_buff *skb,
  *
  * @nhc: nhc which should be add.
  */
-int lowpan_nhc_add(struct lowpan_nhc *nhc);
+int lowpan_nhc_add(const struct lowpan_nhc *nhc);
 
 /**
  * lowpan_nhc_del - delete a next header compression from framework
  *
  * @nhc: nhc which should be delete.
  */
-void lowpan_nhc_del(struct lowpan_nhc *nhc);
+void lowpan_nhc_del(const struct lowpan_nhc *nhc);
 
 /**
  * lowpan_nhc_init - adding all default nhcs

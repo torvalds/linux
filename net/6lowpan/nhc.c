@@ -12,12 +12,12 @@
 
 #include "nhc.h"
 
-static struct lowpan_nhc *lowpan_nexthdr_nhcs[NEXTHDR_MAX + 1];
+static const struct lowpan_nhc *lowpan_nexthdr_nhcs[NEXTHDR_MAX + 1];
 static DEFINE_SPINLOCK(lowpan_nhc_lock);
 
-static struct lowpan_nhc *lowpan_nhc_by_nhcid(struct sk_buff *skb)
+static const struct lowpan_nhc *lowpan_nhc_by_nhcid(struct sk_buff *skb)
 {
-	struct lowpan_nhc *nhc;
+	const struct lowpan_nhc *nhc;
 	int i;
 	u8 id;
 
@@ -41,7 +41,7 @@ static struct lowpan_nhc *lowpan_nhc_by_nhcid(struct sk_buff *skb)
 int lowpan_nhc_check_compression(struct sk_buff *skb,
 				 const struct ipv6hdr *hdr, u8 **hc_ptr)
 {
-	struct lowpan_nhc *nhc;
+	const struct lowpan_nhc *nhc;
 	int ret = 0;
 
 	spin_lock_bh(&lowpan_nhc_lock);
@@ -59,7 +59,7 @@ int lowpan_nhc_do_compression(struct sk_buff *skb, const struct ipv6hdr *hdr,
 			      u8 **hc_ptr)
 {
 	int ret;
-	struct lowpan_nhc *nhc;
+	const struct lowpan_nhc *nhc;
 
 	spin_lock_bh(&lowpan_nhc_lock);
 
@@ -102,7 +102,7 @@ int lowpan_nhc_do_uncompression(struct sk_buff *skb,
 				const struct net_device *dev,
 				struct ipv6hdr *hdr)
 {
-	struct lowpan_nhc *nhc;
+	const struct lowpan_nhc *nhc;
 	int ret;
 
 	spin_lock_bh(&lowpan_nhc_lock);
@@ -138,7 +138,7 @@ int lowpan_nhc_do_uncompression(struct sk_buff *skb,
 	return 0;
 }
 
-int lowpan_nhc_add(struct lowpan_nhc *nhc)
+int lowpan_nhc_add(const struct lowpan_nhc *nhc)
 {
 	int ret = 0;
 
@@ -156,7 +156,7 @@ out:
 }
 EXPORT_SYMBOL(lowpan_nhc_add);
 
-void lowpan_nhc_del(struct lowpan_nhc *nhc)
+void lowpan_nhc_del(const struct lowpan_nhc *nhc)
 {
 	spin_lock_bh(&lowpan_nhc_lock);
 
