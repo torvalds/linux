@@ -1343,27 +1343,57 @@ void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv)
 	mlx5e_ethtool_cleanup_steering(priv);
 }
 
+static int mlx5e_fs_vlan_alloc(struct mlx5e_flow_steering *fs)
+{
+	fs->vlan = kvzalloc(sizeof(*fs->vlan), GFP_KERNEL);
+	if (!fs->vlan)
+		return -ENOMEM;
+	return 0;
+}
+
+static void mlx5e_fs_vlan_free(struct mlx5e_flow_steering *fs)
+{
+	kvfree(fs->vlan);
+}
+
+static int mlx5e_fs_tc_alloc(struct mlx5e_flow_steering *fs)
+{
+	fs->tc = mlx5e_tc_table_alloc();
+	if (IS_ERR(fs->tc))
+		return -ENOMEM;
+	return 0;
+}
+
+static void mlx5e_fs_tc_free(struct mlx5e_flow_steering *fs)
+{
+	mlx5e_tc_table_free(fs->tc);
+}
+
 int mlx5e_fs_init(struct mlx5e_priv *priv)
 {
-	priv->fs.vlan = kvzalloc(sizeof(*priv->fs.vlan), GFP_KERNEL);
-	if (!priv->fs.vlan)
-		goto err;
+	int err;
 
-	priv->fs.tc = mlx5e_tc_table_alloc();
-	if (IS_ERR(priv->fs.tc))
-		goto err_free_vlan;
+	if (mlx5e_profile_feature_cap(priv->profile, FS_VLAN)) {
+		err = mlx5e_fs_vlan_alloc(&priv->fs);
+		if (err)
+			goto err;
+	}
+
+	if (mlx5e_profile_feature_cap(priv->profile, FS_TC)) {
+		err = mlx5e_fs_tc_alloc(&priv->fs);
+		if (err)
+			goto err_free_vlan;
+	}
 
 	return 0;
 err_free_vlan:
-	kvfree(priv->fs.vlan);
-	priv->fs.vlan = NULL;
+	mlx5e_fs_vlan_free(&priv->fs);
 err:
 	return -ENOMEM;
 }
 
 void mlx5e_fs_cleanup(struct mlx5e_priv *priv)
 {
-	mlx5e_tc_table_free(priv->fs.tc);
-	kvfree(priv->fs.vlan);
-	priv->fs.vlan = NULL;
+	mlx5e_fs_tc_free(&priv->fs);
+	mlx5e_fs_vlan_free(&priv->fs);
 }

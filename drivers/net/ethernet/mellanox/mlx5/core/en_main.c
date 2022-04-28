@@ -5242,7 +5242,9 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.stats_grps_num	   = mlx5e_nic_stats_grps_num,
 	.features          = BIT(MLX5E_PROFILE_FEATURE_PTP_RX) |
 		BIT(MLX5E_PROFILE_FEATURE_PTP_TX) |
-		BIT(MLX5E_PROFILE_FEATURE_QOS_HTB),
+		BIT(MLX5E_PROFILE_FEATURE_QOS_HTB) |
+		BIT(MLX5E_PROFILE_FEATURE_FS_VLAN) |
+		BIT(MLX5E_PROFILE_FEATURE_FS_TC),
 };
 
 static int mlx5e_profile_max_num_channels(struct mlx5_core_dev *mdev,
