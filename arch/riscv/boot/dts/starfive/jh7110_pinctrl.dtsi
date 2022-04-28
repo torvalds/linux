@@ -455,6 +455,150 @@
 			sf,padmux = <U0_DOM_ISP_TOP_U0_VIN_DVP_DATA_C11_FUNC_SEL 1>;
 		};
 	};
+
+	rgb_pad_pins: rgb-pad-pins {
+		rgb-0-pins {
+			sf,pins = <PAD_GPIO36>;
+			sf,pinmux = <PAD_GPIO36_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-1-pins {
+			sf,pins = <PAD_GPIO37>;
+			sf,pinmux = <PAD_GPIO37_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-2-pins {
+			sf,pins = <PAD_GPIO38>;
+			sf,pinmux = <PAD_GPIO38_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-3-pins {
+			sf,pins = <PAD_GPIO39>;
+			sf,pinmux = <PAD_GPIO39_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-4-pins {
+			sf,pins = <PAD_GPIO40>;
+			sf,pinmux = <PAD_GPIO40_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-5-pins {
+			sf,pins = <PAD_GPIO41>;
+			sf,pinmux = <PAD_GPIO41_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-6-pins {
+			sf,pins = <PAD_GPIO42>;
+			sf,pinmux = <PAD_GPIO42_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-7-pins {
+			sf,pins = <PAD_GPIO43>;
+			sf,pinmux = <PAD_GPIO43_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-8-pins {
+			sf,pins = <PAD_GPIO44>;
+			sf,pinmux = <PAD_GPIO44_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-9-pins {
+			sf,pins = <PAD_GPIO45>;
+			sf,pinmux = <PAD_GPIO45_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-10-pins {
+			sf,pins = <PAD_GPIO46>;
+			sf,pinmux = <PAD_GPIO46_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-11-pins {
+			sf,pins = <PAD_GPIO47>;
+			sf,pinmux = <PAD_GPIO47_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-12-pins {
+			sf,pins = <PAD_GPIO48>;
+			sf,pinmux = <PAD_GPIO48_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-13-pins {
+			sf,pins = <PAD_GPIO49>;
+			sf,pinmux = <PAD_GPIO49_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-14-pins {
+			sf,pins = <PAD_GPIO50>;
+			sf,pinmux = <PAD_GPIO50_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		//rgb-15-pins {
+		//	sf,pins = <PAD_GPIO51>;
+		//	sf,pinmux = <PAD_GPIO51_FUNC_SEL 1>;
+		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		//	PAD_GPIO51_FUNC_SEL
+		//};
+		//rgb-16-pins {
+		//	sf,pins = <PAD_GPIO52>;
+		//	sf,pinmux = <PAD_GPIO52_FUNC_SEL 1>;
+		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		//};
+		rgb-17-pins {
+			sf,pins = <PAD_GPIO53>;
+			sf,pinmux = <PAD_GPIO53_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-18-pins {
+			sf,pins = <PAD_GPIO54>;
+			sf,pinmux = <PAD_GPIO54_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-19-pins {
+			sf,pins = <PAD_GPIO55>;
+			sf,pinmux = <PAD_GPIO38_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-20-pins {
+			sf,pins = <PAD_GPIO55>;
+			sf,pinmux = <PAD_GPIO56_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		//rgb-21-pins {
+		//	sf,pins = <PAD_GPIO57>;
+		//	sf,pinmux = <PAD_GPIO57_FUNC_SEL 1>;
+		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		//};
+		//rgb-22-pins {
+		//	sf,pins = <PAD_GPIO58>;
+		//	sf,pinmux = <PAD_GPIO58_FUNC_SEL 1>;
+		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		//};
+		rgb-23-pins {
+			sf,pins = <PAD_GPIO59>;
+			sf,pinmux = <PAD_GPIO59_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-24-pins {
+			sf,pins = <PAD_GPIO60>;
+			sf,pinmux = <PAD_GPIO60_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		//rgb-25-pins {
+		//	sf,pins = <PAD_GPIO61>;
+		//	sf,pinmux = <PAD_GPIO61_FUNC_SEL 1>;
+		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		//};
+		//rgb-26-pins {
+		//	sf,pins = <PAD_GPIO62>;
+		//	sf,pinmux = <PAD_GPIO62_FUNC_SEL 1>;
+		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		//};
+		//rgb-27-pins {
+		//	sf,pins = <PAD_GPIO63>;
+		//	sf,pinmux = <PAD_GPIO63_FUNC_SEL 1>;
+		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		//};
+	};
 };
 
 &gpioa {

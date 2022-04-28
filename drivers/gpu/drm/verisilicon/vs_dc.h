@@ -39,10 +39,14 @@ struct vs_dc {
     struct dc_dec400l   dec400l;
 #endif
 
-    struct clk      *core_clk;
-    struct clk      *pix_clk;
-    struct clk      *axi_clk;
-    unsigned int     pix_clk_rate; /* in KHz */
+	void __iomem 	*pmu_base;
+
+	unsigned int	 pix_clk_rate; /* in KHz */
+
+	struct reset_control *resets;
+	struct clk_bulk_data *clks;
+	int num_clks;
+
 
     bool            first_frame;
 

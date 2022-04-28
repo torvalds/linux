@@ -163,8 +163,6 @@ static int vs_gem_alloc_buf(struct vs_gem_object *vs_obj)
 	printk("====> %s, %d.vs_obj->get_pages = %d\n", __func__, __LINE__,vs_obj->get_pages);
 
     if (!vs_obj->get_pages) {
-		
-		printk("====> %s, %d.\n", __func__, __LINE__);
         ret = dma_get_sgtable_attrs(to_dma_dev(dev), &sgt,
                         vs_obj->cookie, vs_obj->dma_addr,
                         vs_obj->size, vs_obj->dma_attrs);
@@ -172,16 +170,12 @@ static int vs_gem_alloc_buf(struct vs_gem_object *vs_obj)
             DRM_DEV_ERROR(dev->dev, "failed to get sgtable.\n");
             goto err_mem_free;
         }
-		printk("====> %s, %d.\n", __func__, __LINE__);
-
-		
 
         if (drm_prime_sg_to_page_array(&sgt, vs_obj->pages,nr_pages)) {
             DRM_DEV_ERROR(dev->dev, "invalid sgtable.\n");
             ret = -EINVAL;
             goto err_sgt_free;
         }
-		printk("====> %s, %d.\n", __func__, __LINE__);
 
         sg_free_table(&sgt);
     }

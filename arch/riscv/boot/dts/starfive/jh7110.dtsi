@@ -254,7 +254,7 @@
 				"mipitx_dphy_rxesc",
 				"mipitx_dphy_txbytehs";
 			#clock-cells = <1>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		clkisp: clock-controller@19810000 {
@@ -1089,27 +1089,156 @@
 			status = "disabled";
 		};
 
-		encoder: display-encoder {
-			compatible = "starfive,display-encoder";
+		dssctrl: dssctrl@295B0000 {
+			compatible = "verisilicon,dss-ctrl", "syscon";
+			reg = <0 0x295B0000 0 0x90>;
+		};
+
+		hdmi_output: hdmi-output {
+			compatible = "verisilicon,hdmi-encoder";
+			verisilicon,dss-syscon = <&dssctrl>;
+			verisilicon,mux-mask = <0x70 0x380>;
+			verisilicon,mux-val = <0x40 0x280>;
 			status = "disabled";
 		};
 
-		dc8200@29400000 {
+		dc8200: dc8200@29400000 {
 			compatible = "verisilicon,dc8200";
-			reg = <0x0 0x29400000 0x0 0x100>,<0x0 0x29400800 0x0 0x2000>;
+			reg = <0x0 0x29400000 0x0 0x100>,
+			      <0x0 0x29400800 0x0 0x2000>,
+			      <0x0 0x17030000 0x0 0x1000>;
 			interrupts = <95>;
+			status = "disabled";
+			clocks = <&clkgen JH7110_NOC_BUS_CLK_CPU_AXI>,
+				<&clkgen JH7110_NOC_BUS_CLK_AXICFG0_AXI>,
+				<&clkgen JH7110_NOC_BUS_CLK_GPU_AXI>,
+				<&clkgen JH7110_NOC_BUS_CLK_VDEC_AXI>,
+				<&clkgen JH7110_NOC_BUS_CLK_VENC_AXI>,
+				<&clkgen JH7110_NOC_BUS_CLK_DISP_AXI>,
+				<&clkgen JH7110_NOC_BUS_CLK_ISP_AXI>,
+				<&clkgen JH7110_NOC_BUS_CLK_STG_AXI>,
+				<&clkgen JH7110_VOUT_SRC>,
+				<&clkgen JH7110_VOUT_TOP_CLK_VOUT_AXI>,
+				<&clkgen JH7110_AHB1>,
+				<&clkgen JH7110_VOUT_TOP_CLK_VOUT_AHB>,
+				<&clkgen JH7110_VOUT_TOP_CLK_HDMITX0_MCLK>,
+				<&clkgen JH7110_I2STX_4CH0_BCLK_MST>,
+
+				<&clkvout JH7110_U0_DC8200_CLK_PIX0>,
+				<&clkvout JH7110_U0_DC8200_CLK_PIX1>,
+				<&clkvout JH7110_U0_DC8200_CLK_AXI>,
+				<&clkvout JH7110_U0_DC8200_CLK_CORE>,
+				<&clkvout JH7110_U0_DC8200_CLK_AHB>;
+			clock-names = "noc_cpu","noc_cfg0","noc_gpu","noc_vdec","noc_venc",
+						  "noc_disp","noc_isp","noc_stg","vout_src",
+						  "top_vout_axi","ahb1","top_vout_ahb",
+						  "top_vout_hdmiTX0","i2stx","pix_clk","vout_pix1",
+						  "axi_clk","core_clk","vout_ahb";
+
+			resets = <&rstgen RSTN_U0_DOM_VOUT_TOP_SRC>,
+				<&rstgen RSTN_U0_DC8200_AXI>,
+				<&rstgen RSTN_U0_DC8200_AHB>,
+				<&rstgen RSTN_U0_DC8200_CORE>,
+				<&rstgen RSTN_U0_NOC_BUS_CPU_AXI_N>,
+				<&rstgen RSTN_U0_NOC_BUS_AXICFG0_AXI_N>,
+				<&rstgen RSTN_U0_NOC_BUS_APB_BUS_N>,
+				<&rstgen RSTN_U0_NOC_BUS_GPU_AXI_N>,
+				<&rstgen RSTN_U0_NOC_BUS_VDEC_AXI_N>,
+				<&rstgen RSTN_U0_JTAG2APB_PRESETN>,
+				<&rstgen RSTN_U0_NOC_BUS_DISP_AXI_N>,
+				<&rstgen RSTN_U0_NOC_BUS_ISP_AXI_N>,
+				<&rstgen RSTN_U0_NOC_BUS_STG_AXI_N>,
+				<&rstgen RSTN_U0_NOC_BUS_DDRC_N>;
+			reset-names = "rst_vout_src","rst_axi","rst_ahb","rst_core",
+					"rst_noc_cpu","rst_noc_axicfg0","rst_noc_apb",
+					"rst_noc_gpu","rst_noc_vdec","rst_jtag2apb",
+					"rst_noc_disp","rst_noc_isp","rst_noc_stg","rst_noc_ddrc";
+
+
+		};
+
+		mipi_dphy: mipi-dphy@295e0000{
+			compatible = "starfive,jh7100-mipi-dphy-tx";
+			reg = <0x0 0x295e0000 0x0 0x10000>;
+			/*clocks = <&uartclk>, <&apb2clk>;*/
+			/*clock-names = "baudclk", "apb_pclk";*/
+			clocks = <&clkvout JH7110_U0_MIPITX_DPHY_CLK_TXESC>;
+			clock-names = "dphy_txesc";
+			resets = <&rstgen RSTN_U0_MIPITX_DPHY_SYS>,
+					<&rstgen RSTN_U0_MIPITX_DPHY_TXBYTEHS>;
+			reset-names = "dphy_sys",
+						"dphy_txbytehs";
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		 mipi_dsi: mipi@295d0000 {
+			compatible = "cdns,dsi";
+			reg = <0x0 0x295d0000 0x0 0x10000>;
+			reg-names = "dsi";
+			/*clocks = <&apb1clk>, <&apb2clk>;*/
+			/*clock-names = "dsi_p_clk", "dsi_sys_clk";*/
+			clocks = <&clkvout JH7110_U0_CDNS_DSITX_CLK_SYS>,
+					<&clkvout JH7110_U0_CDNS_DSITX_CLK_APB>,
+					<&clkvout JH7110_U0_CDNS_DSITX_CLK_TXESC>,
+					<&clkvout JH7110_U0_CDNS_DSITX_CLK_DPI>;
+			clock-names = "sys",
+						"apb",
+						"txesc",
+						"dpi";
+			resets = <&rstgen RSTN_U0_CDNS_DSITX_DPI>,
+					<&rstgen RSTN_U0_CDNS_DSITX_APB>,
+					<&rstgen RSTN_U0_CDNS_DSITX_RXESC>,
+					<&rstgen RSTN_U0_CDNS_DSITX_SYS>,
+					<&rstgen RSTN_U0_CDNS_DSITX_TXBYTEHS>,
+					<&rstgen RSTN_U0_CDNS_DSITX_TXESC>;
+			reset-names = "dsi_dpi",
+						"dsi_apb",
+						"dsi_rxesc",
+						"dsi_sys",
+						"dsi_txbytehs",
+						"dsi_txesc";
+			phys = <&mipi_dphy>;
+			phy-names = "dphy";
+			status = "disabled";
 
 			port {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				dc_out_dpi0: endpoint@0 {
-					/*reg = <0>;
-					remote-endpoint = <&hdmi_input>;*/
+				dsi_out_port: endpoint {
+					/*remote-endpoint = <&panel_dsi_port>;*/
 				};
-				dc_out_dpi1: endpoint@1 {
-					/*reg = <1>;
-					remote-endpoint = <&vd_input>;*/
-				};
+			};
+
+			mipi_panel: panel@0 {
+				/*compatible = "";*/
+				status = "disabled";
+			};
+		};
+
+		hdmi: hdmi@29590000 {
+			compatible = "rockchip,rk3036-inno-hdmi";
+			reg = <0x29590000 0x4000>;
+			/*interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;*/
+			/*clocks = <&cru  PCLK_HDMI>;*/
+			/*clock-names = "pclk";*/
+			/*pinctrl-names = "default";*/
+			/*pinctrl-0 = <&hdmi_ctl>;*/
+			status = "disabled";
+			clocks = <&clkvout JH7110_U0_HDMI_TX_CLK_SYS>,
+					<&clkvout JH7110_U0_HDMI_TX_CLK_MCLK>,
+					<&clkvout JH7110_U0_HDMI_TX_CLK_BCLK>;
+			clock-names = "sysclk",
+						"mclk",
+						"bclk";
+			resets = <&rstgen RSTN_U0_HDMI_TX_HDMI>;
+			reset-names = "hdmi_tx";
+
+			hdmi_in: port {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					hdmi_in_lcdc: endpoint@0 {
+							reg = <0>;
+							remote-endpoint = <&dc_out_dpi0>;
+					};
 			};
 		};
 
