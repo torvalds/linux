@@ -153,6 +153,12 @@ static int psp_early_init(void *handle)
 	return 0;
 }
 
+void psp_ta_free_shared_buf(struct ta_mem_context *mem_ctx)
+{
+	amdgpu_bo_free_kernel(&mem_ctx->shared_bo, &mem_ctx->shared_mc_addr,
+			      &mem_ctx->shared_buf);
+}
+
 static void psp_free_shared_bufs(struct psp_context *psp)
 {
 	void *tmr_buf;
@@ -1001,12 +1007,6 @@ int psp_ta_init_shared_buf(struct psp_context *psp,
 				      &mem_ctx->shared_bo,
 				      &mem_ctx->shared_mc_addr,
 				      &mem_ctx->shared_buf);
-}
-
-void psp_ta_free_shared_buf(struct ta_mem_context *mem_ctx)
-{
-	amdgpu_bo_free_kernel(&mem_ctx->shared_bo, &mem_ctx->shared_mc_addr,
-			      &mem_ctx->shared_buf);
 }
 
 static void psp_prep_ta_invoke_indirect_cmd_buf(struct psp_gfx_cmd_resp *cmd,
@@ -2409,18 +2409,18 @@ static int psp_load_fw(struct amdgpu_device *adev)
 
 	ret = psp_load_non_psp_fw(psp);
 	if (ret)
-		goto failed;
+		goto failed1;
 
 	ret = psp_asd_initialize(psp);
 	if (ret) {
 		DRM_ERROR("PSP load asd failed!\n");
-		return ret;
+		goto failed1;
 	}
 
 	ret = psp_rl_load(adev);
 	if (ret) {
 		DRM_ERROR("PSP load RL failed!\n");
-		return ret;
+		goto failed1;
 	}
 
 	if (amdgpu_sriov_vf(adev) && amdgpu_in_reset(adev)) {
@@ -2464,12 +2464,15 @@ static int psp_load_fw(struct amdgpu_device *adev)
 
 	return 0;
 
+failed1:
+	psp_free_shared_bufs(psp);
 failed:
 	/*
 	 * all cleanup jobs (xgmi terminate, ras terminate,
 	 * ring destroy, cmd/fence/fw buffers destory,
 	 * psp->cmd destory) are delayed to psp_hw_fini
 	 */
+	psp_ring_destroy(psp, PSP_RING_TYPE__KM);
 	return ret;
 }
 
