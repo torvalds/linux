@@ -64,6 +64,8 @@ struct btrfs_iget_args {
 struct btrfs_dio_data {
 	ssize_t submitted;
 	struct extent_changeset *data_reserved;
+	bool data_space_reserved;
+	bool nocow_done;
 };
 
 struct btrfs_rename_ctx {
@@ -7481,6 +7483,8 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 			ret = PTR_ERR(em2);
 			goto out;
 		}
+
+		dio_data->nocow_done = true;
 	} else {
 		/* Our caller expects us to free the input extent map. */
 		free_extent_map(em);
@@ -7489,10 +7493,19 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 		if (nowait)
 			return -EAGAIN;
 
-		/* We have to COW, so need to reserve metadata and data space. */
-		ret = btrfs_delalloc_reserve_space(BTRFS_I(inode),
-						   &dio_data->data_reserved,
-						   start, len);
+		/*
+		 * If we could not allocate data space before locking the file
+		 * range and we can't do a NOCOW write, then we have to fail.
+		 */
+		if (!dio_data->data_space_reserved)
+			return -ENOSPC;
+
+		/*
+		 * We have to COW and we have already reserved data space before,
+		 * so now we reserve only metadata.
+		 */
+		ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode), len, len,
+						      false);
 		if (ret < 0)
 			goto out;
 		space_reserved = true;
@@ -7505,10 +7518,8 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 		*map = em;
 		len = min(len, em->len - (start - em->start));
 		if (len < prev_len)
-			btrfs_delalloc_release_space(BTRFS_I(inode),
-						     dio_data->data_reserved,
-						     start + len, prev_len - len,
-						     true);
+			btrfs_delalloc_release_metadata(BTRFS_I(inode),
+							prev_len - len, true);
 	}
 
 	/*
@@ -7526,15 +7537,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 out:
 	if (ret && space_reserved) {
 		btrfs_delalloc_release_extents(BTRFS_I(inode), len);
-		if (can_nocow) {
-			btrfs_delalloc_release_metadata(BTRFS_I(inode), len, true);
-		} else {
-			btrfs_delalloc_release_space(BTRFS_I(inode),
-						     dio_data->data_reserved,
-						     start, len, true);
-			extent_changeset_free(dio_data->data_reserved);
-			dio_data->data_reserved = NULL;
-		}
+		btrfs_delalloc_release_metadata(BTRFS_I(inode), len, true);
 	}
 	return ret;
 }
@@ -7551,6 +7554,7 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 	const bool write = !!(flags & IOMAP_WRITE);
 	int ret = 0;
 	u64 len = length;
+	const u64 data_alloc_len = length;
 	bool unlock_extents = false;
 
 	if (!write)
@@ -7603,6 +7607,25 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 
 	iomap->private = dio_data;
 
+	/*
+	 * We always try to allocate data space and must do it before locking
+	 * the file range, to avoid deadlocks with concurrent writes to the same
+	 * range if the range has several extents and the writes don't expand the
+	 * current i_size (the inode lock is taken in shared mode). If we fail to
+	 * allocate data space here we continue and later, after locking the
+	 * file range, we fail with ENOSPC only if we figure out we can not do a
+	 * NOCOW write.
+	 */
+	if (write && !(flags & IOMAP_NOWAIT)) {
+		ret = btrfs_check_data_free_space(BTRFS_I(inode),
+						  &dio_data->data_reserved,
+						  start, data_alloc_len);
+		if (!ret)
+			dio_data->data_space_reserved = true;
+		else if (ret && !(BTRFS_I(inode)->flags &
+				  (BTRFS_INODE_NODATACOW | BTRFS_INODE_PREALLOC)))
+			goto err;
+	}
 
 	/*
 	 * If this errors out it's because we couldn't invalidate pagecache for
@@ -7677,6 +7700,24 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 		unlock_extents = true;
 		/* Recalc len in case the new em is smaller than requested */
 		len = min(len, em->len - (start - em->start));
+		if (dio_data->data_space_reserved) {
+			u64 release_offset;
+			u64 release_len = 0;
+
+			if (dio_data->nocow_done) {
+				release_offset = start;
+				release_len = data_alloc_len;
+			} else if (len < data_alloc_len) {
+				release_offset = start + len;
+				release_len = data_alloc_len - len;
+			}
+
+			if (release_len > 0)
+				btrfs_free_reserved_data_space(BTRFS_I(inode),
+							       dio_data->data_reserved,
+							       release_offset,
+							       release_len);
+		}
 	} else {
 		/*
 		 * We need to unlock only the end area that we aren't using.
@@ -7721,6 +7762,13 @@ unlock_err:
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, lockstart, lockend,
 			     &cached_state);
 err:
+	if (dio_data->data_space_reserved) {
+		btrfs_free_reserved_data_space(BTRFS_I(inode),
+					       dio_data->data_reserved,
+					       start, data_alloc_len);
+		extent_changeset_free(dio_data->data_reserved);
+	}
+
 	kfree(dio_data);
 
 	return ret;
