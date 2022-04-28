@@ -3557,10 +3557,9 @@ static int drm_dp_send_dpcd_read(struct drm_dp_mst_topology_mgr *mgr,
 	if (ret < 0)
 		goto fail_free;
 
-	/* DPCD read should never be NACKed */
 	if (txmsg->reply.reply_type == 1) {
-		drm_err(mgr->dev, "mstb %p port %d: DPCD read on addr 0x%x for %d bytes NAKed\n",
-			mstb, port->port_num, offset, size);
+		drm_dbg_kms(mgr->dev, "mstb %p port %d: DPCD read on addr 0x%x for %d bytes NAKed\n",
+			    mstb, port->port_num, offset, size);
 		ret = -EIO;
 		goto fail_free;
 	}
