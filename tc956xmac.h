@@ -149,6 +149,9 @@
  *  VERSION     : 01-00-49
  *  25 Apr 2022 : 1. Version update 
  *  VERSION     : 01-00-50
+ *  29 Apr 2022 : 1. Added variable for tracking port release status and Lock for syncing linkdown, port rlease and release of offloaded DMA channels
+ *		  2. Version update.
+ *  VERSION     : 01-00-51
  */
 
 #ifndef __TC956XMAC_H__
@@ -204,7 +207,7 @@
 #define IRQ_DEV_NAME(x)		(((x) == RM_PF0_ID) ? ("eth0") : ("eth1"))
 #define WOL_IRQ_DEV_NAME(x)	(((x) == RM_PF0_ID) ? ("eth0_wol") : ("eth1_wol"))
 
-#define DRV_MODULE_VERSION	"V_01-00-50"
+#define DRV_MODULE_VERSION	"V_01-00-51"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -690,7 +693,9 @@ struct tc956xmac_priv {
 	u32 pm_saved_linkdown_rst; /* Save and restore Resets during link-down sequence */
 	u32 pm_saved_linkdown_clk; /* Save and restore Clocks during link-down sequence */
 	bool port_link_down; /* Flag to save per port link down state */
-
+	bool port_release; /* Flag to notify appropriate sequence of link down & up */
+	struct mutex port_ld_release_lock; /* Mutex lock to handle (set and clear) flag to notify 
+						appropriate sequence of link down & up */
 	struct tc956x_gpio_config saved_gpio_config[GPIO_12 + 1]; /* Only GPIO0- GPIO06, GPI010-GPIO12 are used */
 };
 
@@ -1057,4 +1062,5 @@ static inline int tc956x_platform_resume(struct tc956xmac_priv *priv) { return 0
 
 int tc956x_GPIO_OutputConfigPin(struct tc956xmac_priv *priv, u32 gpio_pin, u8 out_value);
 int tc956x_gpio_restore_configuration(struct tc956xmac_priv *priv);
+void tc956xmac_link_change_set_power(struct tc956xmac_priv *priv, enum TC956X_PORT_LINK_CHANGE_STATE state);
 #endif /* __TC956XMAC_H__ */

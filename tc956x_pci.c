@@ -160,6 +160,9 @@
  *  VERSION     : 01-00-49
  *  25 Apr 2022 : 1. Version update
  *  VERSION     : 01-00-50
+ *  29 Apr 2022 : 1. Module parameter added for selecting Power saving at Link down and default is disabled
+ *		  2. Version update
+ *  VERSION     : 01-00-51
  */
 
 #include <linux/clk-provider.h>
@@ -224,7 +227,9 @@ static unsigned int mac1_txq1_size = TX_QUEUE1_SIZE;
 unsigned int mac0_en_lp_pause_frame_cnt = DISABLE;
 unsigned int mac1_en_lp_pause_frame_cnt = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 5, 0};
+unsigned int mac_power_save_at_link_down = DISABLE;
+
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 5, 1};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
@@ -2390,6 +2395,7 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 		NMSGPR_INFO(&pdev->dev, "mac0_txq0_size = %d \n", mac0_txq0_size);
 		NMSGPR_INFO(&pdev->dev, "mac0_txq1_size = %d \n", mac0_txq1_size);
 		NMSGPR_INFO(&pdev->dev, "mac0_en_lp_pause_frame_cnt = %d \n", mac0_en_lp_pause_frame_cnt);
+		NMSGPR_INFO(&pdev->dev, "mac_power_save_at_link_down = %d \n", mac_power_save_at_link_down);
 	} else if (plat->port_num == RM_PF1_ID) {
 		NMSGPR_INFO(&pdev->dev, "mac1_force_speed_mode = %d \n", mac1_force_speed_mode);
 		NMSGPR_INFO(&pdev->dev, "mac1_force_config_speed = %d \n", mac1_force_config_speed);
@@ -3656,6 +3662,11 @@ module_param(mac1_force_config_speed, uint, 0444);
 MODULE_PARM_DESC(mac1_force_config_speed,
 		 "Configure MAC1 force speed - default is 3,\
 		 [0: 10G, 1: 5G, 2: 2.5G, 3: 1G, 4: 100M, 5: 10M]");
+
+module_param(mac_power_save_at_link_down, uint, 0444);
+MODULE_PARM_DESC(mac_power_save_at_link_down,
+		 "Enable Power saving during Link down - default is 0,\
+		 [0: DISABLE, 1: ENABLE]");
 
 MODULE_DESCRIPTION("TC956X PCI Express Ethernet Network Driver");
 MODULE_AUTHOR("Toshiba Electronic Devices & Storage Corporation");

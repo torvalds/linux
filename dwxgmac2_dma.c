@@ -42,6 +42,9 @@
  *  VERSION     : 01-00-30
  *  02 Feb 2022 : 1. Tx Queue flushed and checked for status after Tx DMA stop
  *  VERSION     : 01-00-40
+ *  29 Apr 2022 : 1. Checking for DMA status update as stop after TX DMA stop
+ *  		  2. Checking for Tx MTL Queue Read/Write contollers in idle state after TX DMA stop
+ *  VERSION     : 01-00-51
  */
 
 #include <linux/iopoll.h>
@@ -378,6 +381,31 @@ static void dwxgmac2_dma_stop_tx(struct tc956xmac_priv *priv,
 	value &= ~XGMAC_TXST;
 	writel(value, ioaddr + XGMAC_DMA_CH_TX_CONTROL(chan));
 
+	/*Check whether Tx DMA is in stop state */
+	limit = 10000;
+	while (limit--) {
+		if ((readl(ioaddr + XGMAC_DMA_CH_STATUS(chan)) & XGMAC_TPS))
+			break;
+		udelay(1);
+	}
+	if (limit == -1)
+		KPRINT_ERR("Tx DMA (%d) is not in stop state\n",chan);
+
+	DBGPR_FUNC(priv->device, "%s DMA chnl status : 0x%x, chnl : %d, limit [%d]\n", __func__, readl(ioaddr + XGMAC_DMA_CH_STATUS(chan)),chan, limit);
+
+	/*Check whether MTL Tx Read/Write controller is in Idle state */
+	limit = 10000;
+	while (limit--) {
+		if (!(readl(ioaddr + XGMAC_MTL_TXQ_Debug(chan)) & (XGMAC_MTL_DEBUG_TWCSTS | 
+			XGMAC_MTL_DEBUG_TRCSTS_MASK)))
+			break;
+		udelay(1);
+	}
+	if (limit == -1)
+		KPRINT_ERR("MTL Tx Read/Write controller (%d) is not in idle state\n",chan);
+
+	DBGPR_FUNC(priv->device, "%s MTL TXQ status : 0x%x, chnl : %d, limit [%d]\n", __func__, readl(ioaddr + XGMAC_MTL_TXQ_Debug(chan)),chan, limit);
+
 	/* Flush the Tx Queue */
 	value = readl(ioaddr + XGMAC_MTL_TXQ_OPMODE(chan));
 	value |= XGMAC_FTQ;
@@ -390,7 +418,7 @@ static void dwxgmac2_dma_stop_tx(struct tc956xmac_priv *priv,
 			break;
 		udelay(1);
 	}
-	if (limit == 0)
+	if (limit == -1)
 		KPRINT_ERR("Tx Queue did not get time to empty after flush operation\n");
 
 	DBGPR_FUNC(priv->device, "%s MTL TXQ status after flush: 0x%x, limit [%d]\n", __func__, readl(ioaddr + XGMAC_MTL_TXQ_Debug(chan)), limit);

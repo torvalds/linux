@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 25 Apr 2022
+Release Date: 29 Apr 2022
 
-Release Version: V_01-00-50 : Limited-tested version
+Release Version: V_01-00-51 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -253,6 +253,17 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 	If invalid values are passed as kernel module parameter, the default value will be selected.
 	Note: It is required to enable kernel module parameter "mac0_filter_phy_pause/mac1_filter_phy_pause" along with this module parameter to count link partner pause frames.
+
+16. Please use the below command to insert the kernel module for power saving at Link Down state:
+
+	#insmod tc956x_pcie_eth.ko mac_power_save_at_link_down=x
+
+	argument info:
+		mac_power_save_at_link_down: Common for both PORT0 & PORT1
+		x = [0: DISABLE (default), 1: ENABLE]
+
+	If invalid values are passed as kernel module parameter, the default value will be selected.
+
 # Release Versions:
 
 ## TC956X_Host_Driver_20210326_V_01-00:
@@ -491,3 +502,10 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 ## TC956X_Host_Driver_20220425_V_01-00-50:
 1. Perform platform remove after MDIO deregistration.
+
+## TC956X_Host_Driver_20220429_V_01-00-51:
+1. Checking for DMA status update as stop after TX DMA stop.
+2. Checking for Tx MTL Queue Read/Write contollers in idle state after TX DMA stop.
+3. Triggering Power saving at Link down after releasing of Offloaded DMA channels.
+4. Added kernel Module parameter for selecting Power saving at Link down and default is disabled.
+5. Added Lock for syncing linkdown, port rlease and release of offloaded DMA channels.
