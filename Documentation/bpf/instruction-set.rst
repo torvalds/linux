@@ -130,7 +130,7 @@ Byte swap instructions
 The byte swap instructions use an instruction class of ``BFP_ALU`` and a 4-bit
 code field of ``BPF_END``.
 
-The byte swap instructions instructions operate on the destination register
+The byte swap instructions operate on the destination register
 only and do not use a separate source register or immediate value.
 
 The 1-bit source operand field in the opcode is used to to select what byte
