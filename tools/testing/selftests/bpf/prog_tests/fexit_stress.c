@@ -53,7 +53,7 @@ void test_fexit_stress(void)
 					    &trace_opts);
 		if (!ASSERT_GE(fexit_fd[i], 0, "fexit load"))
 			goto out;
-		link_fd[i] = bpf_raw_tracepoint_open(NULL, fexit_fd[i]);
+		link_fd[i] = bpf_link_create(fexit_fd[i], 0, BPF_TRACE_FEXIT, NULL);
 		if (!ASSERT_GE(link_fd[i], 0, "fexit attach"))
 			goto out;
 	}

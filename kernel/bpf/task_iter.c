@@ -99,7 +99,6 @@ static int __task_seq_show(struct seq_file *seq, struct task_struct *task,
 	if (!prog)
 		return 0;
 
-	meta.seq = seq;
 	ctx.meta = &meta;
 	ctx.task = task;
 	return bpf_iter_run_prog(prog, &ctx);

@@ -7,7 +7,6 @@
 #include "sock_example.h"
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <sys/resource.h>
 
 struct pair {
 	__u64 packets;

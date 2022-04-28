@@ -10,6 +10,7 @@
 #include <linux/seq_file.h>
 #include <linux/refcount.h>
 #include <linux/mutex.h>
+#include <linux/btf_ids.h>
 
 enum bpf_struct_ops_state {
 	BPF_STRUCT_OPS_STATE_INIT,
@@ -263,7 +264,7 @@ int bpf_struct_ops_map_sys_lookup_elem(struct bpf_map *map, void *key,
 	/* No lock is needed.  state and refcnt do not need
 	 * to be updated together under atomic context.
 	 */
-	uvalue = (struct bpf_struct_ops_value *)value;
+	uvalue = value;
 	memcpy(uvalue, st_map->uvalue, map->value_size);
 	uvalue->state = state;
 	refcount_set(&uvalue->refcnt, refcount_read(&kvalue->refcnt));
@@ -353,7 +354,7 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	if (err)
 		return err;
 
-	uvalue = (struct bpf_struct_ops_value *)value;
+	uvalue = value;
 	err = check_zero_holes(t, uvalue->data);
 	if (err)
 		return err;
@@ -612,7 +613,7 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 	return map;
 }
 
-static int bpf_struct_ops_map_btf_id;
+BTF_ID_LIST_SINGLE(bpf_struct_ops_map_btf_ids, struct, bpf_struct_ops_map)
 const struct bpf_map_ops bpf_struct_ops_map_ops = {
 	.map_alloc_check = bpf_struct_ops_map_alloc_check,
 	.map_alloc = bpf_struct_ops_map_alloc,
@@ -622,8 +623,7 @@ const struct bpf_map_ops bpf_struct_ops_map_ops = {
 	.map_delete_elem = bpf_struct_ops_map_delete_elem,
 	.map_update_elem = bpf_struct_ops_map_update_elem,
 	.map_seq_show_elem = bpf_struct_ops_map_seq_show_elem,
-	.map_btf_name = "bpf_struct_ops_map",
-	.map_btf_id = &bpf_struct_ops_map_btf_id,
+	.map_btf_id = &bpf_struct_ops_map_btf_ids[0],
 };
 
 /* "const void *" because some subsystem is

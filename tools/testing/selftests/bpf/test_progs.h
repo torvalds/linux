@@ -25,6 +25,7 @@ typedef __u16 __sum16;
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/param.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <linux/bpf.h>
@@ -37,7 +38,6 @@ typedef __u16 __sum16;
 #include <bpf/bpf_endian.h>
 #include "trace_helpers.h"
 #include "testing_helpers.h"
-#include "flow_dissector_load.h"
 
 enum verbosity {
 	VERBOSE_NONE,
@@ -46,16 +46,41 @@ enum verbosity {
 	VERBOSE_SUPER,
 };
 
-struct str_set {
-	const char **strs;
+struct test_filter {
+	char *name;
+	char **subtests;
+	int subtest_cnt;
+};
+
+struct test_filter_set {
+	struct test_filter *tests;
 	int cnt;
 };
 
 struct test_selector {
-	struct str_set whitelist;
-	struct str_set blacklist;
+	struct test_filter_set whitelist;
+	struct test_filter_set blacklist;
 	bool *num_set;
 	int num_set_len;
+};
+
+struct test_state {
+	bool tested;
+	bool force_log;
+
+	int error_cnt;
+	int skip_cnt;
+	int subtest_skip_cnt;
+	int sub_succ_cnt;
+
+	char *subtest_name;
+	int subtest_num;
+
+	/* store counts before subtest started */
+	int old_error_cnt;
+
+	size_t log_cnt;
+	char *log_buf;
 };
 
 struct test_env {
@@ -70,12 +95,11 @@ struct test_env {
 	bool get_test_cnt;
 	bool list_test_names;
 
-	struct prog_test_def *test; /* current running tests */
+	struct prog_test_def *test; /* current running test */
+	struct test_state *test_state; /* current running test result */
 
 	FILE *stdout;
 	FILE *stderr;
-	char *log_buf;
-	size_t log_cnt;
 	int nr_cpus;
 
 	int succ_cnt; /* successful tests */
@@ -120,11 +144,12 @@ struct msg {
 
 extern struct test_env env;
 
-extern void test__force_log();
-extern bool test__start_subtest(const char *name);
-extern void test__skip(void);
-extern void test__fail(void);
-extern int test__join_cgroup(const char *path);
+void test__force_log(void);
+bool test__start_subtest(const char *name);
+void test__end_subtest(void);
+void test__skip(void);
+void test__fail(void);
+int test__join_cgroup(const char *path);
 
 #define PRINT_FAIL(format...)                                                  \
 	({                                                                     \
@@ -264,6 +289,17 @@ extern int test__join_cgroup(const char *path);
 	CHECK(!___ok, (name),						\
 	      "unexpected %s: actual '%.*s' != expected '%.*s'\n",	\
 	      (name), ___len, ___act, ___len, ___exp);			\
+	___ok;								\
+})
+
+#define ASSERT_HAS_SUBSTR(str, substr, name) ({				\
+	static int duration = 0;					\
+	const char *___str = str;					\
+	const char *___substr = substr;					\
+	bool ___ok = strstr(___str, ___substr) != NULL;			\
+	CHECK(!___ok, (name),						\
+	      "unexpected %s: '%s' is not a substring of '%s'\n",	\
+	      (name), ___substr, ___str);				\
 	___ok;								\
 })
 

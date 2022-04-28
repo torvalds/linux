@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <sys/sysinfo.h>
 
-#include "bpf_rlimit.h"
 #include "bpf_util.h"
 #include "cgroup_helpers.h"
 #include "testing_helpers.h"
@@ -51,6 +50,9 @@ int main(int argc, char **argv)
 		printf("Not enough memory for per-cpu area (%d cpus)\n", nproc);
 		goto err;
 	}
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	map_fd = bpf_map_create(BPF_MAP_TYPE_CGROUP_STORAGE, NULL, sizeof(key),
 				sizeof(value), 0, NULL);
