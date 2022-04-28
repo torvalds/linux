@@ -3317,8 +3317,8 @@ int dw_mci_probe(struct dw_mci *host)
 	}
 
 #ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
-	if (host->slot->mmc->caps2 & MMC_CAP2_NO_SD &&
-	    host->slot->mmc->caps2 & MMC_CAP2_NO_SDIO) {
+	if (device_property_read_bool(host->dev, "no-sd") &&
+	    device_property_read_bool(host->dev, "no-sdio")) {
 		if (readl_poll_timeout(host->regs + SDMMC_STATUS,
 				fifo_size,
 				!(fifo_size & (BIT(10) | GENMASK(7, 4))),
