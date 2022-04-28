@@ -1007,6 +1007,7 @@
 #define GEN12_VD_TLB_INV_CR			_MMIO(0xcedc)
 #define GEN12_VE_TLB_INV_CR			_MMIO(0xcee0)
 #define GEN12_BLT_TLB_INV_CR			_MMIO(0xcee4)
+#define GEN12_COMPCTX_TLB_INV_CR		_MMIO(0xcf04)
 
 #define GEN12_MERT_MOD_CTRL			_MMIO(0xcf28)
 #define RENDER_MOD_CTRL				_MMIO(0xcf2c)
