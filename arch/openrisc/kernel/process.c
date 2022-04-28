@@ -52,6 +52,8 @@ void machine_restart(char *cmd)
 {
 	do_kernel_restart(cmd);
 
+	__asm__("l.nop 13");
+
 	/* Give a grace period for failure to restart of 1s */
 	mdelay(1000);
 
