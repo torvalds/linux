@@ -8853,22 +8853,22 @@ static const struct bpf_sec_def section_defs[] = {
 	SEC_DEF("socket",		SOCKET_FILTER, 0, SEC_NONE | SEC_SLOPPY_PFX),
 	SEC_DEF("sk_reuseport/migrate",	SK_REUSEPORT, BPF_SK_REUSEPORT_SELECT_OR_MIGRATE, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
 	SEC_DEF("sk_reuseport",		SK_REUSEPORT, BPF_SK_REUSEPORT_SELECT, SEC_ATTACHABLE | SEC_SLOPPY_PFX),
-	SEC_DEF("kprobe/",		KPROBE,	0, SEC_NONE, attach_kprobe),
+	SEC_DEF("kprobe+",		KPROBE,	0, SEC_NONE, attach_kprobe),
 	SEC_DEF("uprobe+",		KPROBE,	0, SEC_NONE, attach_uprobe),
-	SEC_DEF("kretprobe/",		KPROBE, 0, SEC_NONE, attach_kprobe),
+	SEC_DEF("kretprobe+",		KPROBE, 0, SEC_NONE, attach_kprobe),
 	SEC_DEF("uretprobe+",		KPROBE, 0, SEC_NONE, attach_uprobe),
-	SEC_DEF("kprobe.multi/",	KPROBE,	BPF_TRACE_KPROBE_MULTI, SEC_NONE, attach_kprobe_multi),
-	SEC_DEF("kretprobe.multi/",	KPROBE,	BPF_TRACE_KPROBE_MULTI, SEC_NONE, attach_kprobe_multi),
+	SEC_DEF("kprobe.multi+",	KPROBE,	BPF_TRACE_KPROBE_MULTI, SEC_NONE, attach_kprobe_multi),
+	SEC_DEF("kretprobe.multi+",	KPROBE,	BPF_TRACE_KPROBE_MULTI, SEC_NONE, attach_kprobe_multi),
 	SEC_DEF("usdt+",		KPROBE,	0, SEC_NONE, attach_usdt),
 	SEC_DEF("tc",			SCHED_CLS, 0, SEC_NONE),
 	SEC_DEF("classifier",		SCHED_CLS, 0, SEC_NONE | SEC_SLOPPY_PFX | SEC_DEPRECATED),
 	SEC_DEF("action",		SCHED_ACT, 0, SEC_NONE | SEC_SLOPPY_PFX),
-	SEC_DEF("tracepoint/",		TRACEPOINT, 0, SEC_NONE, attach_tp),
-	SEC_DEF("tp/",			TRACEPOINT, 0, SEC_NONE, attach_tp),
-	SEC_DEF("raw_tracepoint/",	RAW_TRACEPOINT, 0, SEC_NONE, attach_raw_tp),
-	SEC_DEF("raw_tp/",		RAW_TRACEPOINT, 0, SEC_NONE, attach_raw_tp),
-	SEC_DEF("raw_tracepoint.w/",	RAW_TRACEPOINT_WRITABLE, 0, SEC_NONE, attach_raw_tp),
-	SEC_DEF("raw_tp.w/",		RAW_TRACEPOINT_WRITABLE, 0, SEC_NONE, attach_raw_tp),
+	SEC_DEF("tracepoint+",		TRACEPOINT, 0, SEC_NONE, attach_tp),
+	SEC_DEF("tp+",			TRACEPOINT, 0, SEC_NONE, attach_tp),
+	SEC_DEF("raw_tracepoint+",	RAW_TRACEPOINT, 0, SEC_NONE, attach_raw_tp),
+	SEC_DEF("raw_tp+",		RAW_TRACEPOINT, 0, SEC_NONE, attach_raw_tp),
+	SEC_DEF("raw_tracepoint.w+",	RAW_TRACEPOINT_WRITABLE, 0, SEC_NONE, attach_raw_tp),
+	SEC_DEF("raw_tp.w+",		RAW_TRACEPOINT_WRITABLE, 0, SEC_NONE, attach_raw_tp),
 	SEC_DEF("tp_btf/",		TRACING, BPF_TRACE_RAW_TP, SEC_ATTACH_BTF, attach_trace),
 	SEC_DEF("fentry/",		TRACING, BPF_TRACE_FENTRY, SEC_ATTACH_BTF, attach_trace),
 	SEC_DEF("fmod_ret/",		TRACING, BPF_MODIFY_RETURN, SEC_ATTACH_BTF, attach_trace),
@@ -10595,6 +10595,12 @@ static int attach_kprobe(const struct bpf_program *prog, long cookie, struct bpf
 	char *func;
 	int n;
 
+	*link = NULL;
+
+	/* no auto-attach for SEC("kprobe") and SEC("kretprobe") */
+	if (strcmp(prog->sec_name, "kprobe") == 0 || strcmp(prog->sec_name, "kretprobe") == 0)
+		return 0;
+
 	opts.retprobe = str_has_pfx(prog->sec_name, "kretprobe/");
 	if (opts.retprobe)
 		func_name = prog->sec_name + sizeof("kretprobe/") - 1;
@@ -10624,6 +10630,13 @@ static int attach_kprobe_multi(const struct bpf_program *prog, long cookie, stru
 	const char *spec;
 	char *pattern;
 	int n;
+
+	*link = NULL;
+
+	/* no auto-attach for SEC("kprobe.multi") and SEC("kretprobe.multi") */
+	if (strcmp(prog->sec_name, "kprobe.multi") == 0 ||
+	    strcmp(prog->sec_name, "kretprobe.multi") == 0)
+		return 0;
 
 	opts.retprobe = str_has_pfx(prog->sec_name, "kretprobe.multi/");
 	if (opts.retprobe)
@@ -11329,6 +11342,12 @@ static int attach_tp(const struct bpf_program *prog, long cookie, struct bpf_lin
 	if (!sec_name)
 		return -ENOMEM;
 
+	*link = NULL;
+
+	/* no auto-attach for SEC("tp") or SEC("tracepoint") */
+	if (strcmp(prog->sec_name, "tp") == 0 || strcmp(prog->sec_name, "tracepoint") == 0)
+		return 0;
+
 	/* extract "tp/<category>/<name>" or "tracepoint/<category>/<name>" */
 	if (str_has_pfx(prog->sec_name, "tp/"))
 		tp_cat = sec_name + sizeof("tp/") - 1;
@@ -11380,20 +11399,34 @@ struct bpf_link *bpf_program__attach_raw_tracepoint(const struct bpf_program *pr
 static int attach_raw_tp(const struct bpf_program *prog, long cookie, struct bpf_link **link)
 {
 	static const char *const prefixes[] = {
-		"raw_tp/",
-		"raw_tracepoint/",
-		"raw_tp.w/",
-		"raw_tracepoint.w/",
+		"raw_tp",
+		"raw_tracepoint",
+		"raw_tp.w",
+		"raw_tracepoint.w",
 	};
 	size_t i;
 	const char *tp_name = NULL;
 
+	*link = NULL;
+
 	for (i = 0; i < ARRAY_SIZE(prefixes); i++) {
-		if (str_has_pfx(prog->sec_name, prefixes[i])) {
-			tp_name = prog->sec_name + strlen(prefixes[i]);
-			break;
-		}
+		size_t pfx_len;
+
+		if (!str_has_pfx(prog->sec_name, prefixes[i]))
+			continue;
+
+		pfx_len = strlen(prefixes[i]);
+		/* no auto-attach case of, e.g., SEC("raw_tp") */
+		if (prog->sec_name[pfx_len] == '\0')
+			return 0;
+
+		if (prog->sec_name[pfx_len] != '/')
+			continue;
+
+		tp_name = prog->sec_name + pfx_len + 1;
+		break;
 	}
+
 	if (!tp_name) {
 		pr_warn("prog '%s': invalid section name '%s'\n",
 			prog->name, prog->sec_name);
