@@ -1179,6 +1179,7 @@ struct rtw_chip_info {
 	bool rx_ldpc;
 	bool tx_stbc;
 	u8 max_power_index;
+	u8 ampdu_density;
 
 	u16 fw_fifo_addr[RTW_FW_FIFO_MAX];
 	const struct rtw_fwcd_segs *fwcd_segs;

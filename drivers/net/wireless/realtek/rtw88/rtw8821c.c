@@ -1923,6 +1923,7 @@ struct rtw_chip_info rtw8821c_hw_spec = {
 	.iqk_threshold = 8,
 	.bfer_su_max_num = 2,
 	.bfer_mu_max_num = 1,
+	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_2,
 
 	.coex_para_ver = 0x19092746,
 	.bt_desired_ver = 0x46,
