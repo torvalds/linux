@@ -36,10 +36,9 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/common.h>
-#include <mach/mux.h>
-#include <mach/da8xx.h>
-
+#include "common.h"
+#include "mux.h"
+#include "da8xx.h"
 #include "irqs.h"
 
 #define DA830_EVM_PHY_ID		""

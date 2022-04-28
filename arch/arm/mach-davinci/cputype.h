@@ -16,7 +16,7 @@
 #ifndef _ASM_ARCH_CPU_H
 #define _ASM_ARCH_CPU_H
 
-#include <mach/common.h>
+#include "common.h"
 
 struct davinci_id {
 	u8	variant;	/* JTAG ID bits 31:28 */

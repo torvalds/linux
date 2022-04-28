@@ -37,10 +37,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/common.h>
-#include <mach/mux.h>
-#include <mach/serial.h>
-
 #include <linux/platform_data/i2c-davinci.h>
 #include <linux/platform_data/mtd-davinci.h>
 #include <linux/platform_data/mmc-davinci.h>
@@ -49,6 +45,9 @@
 #include <linux/platform_data/ti-aemif.h>
 
 #include "davinci.h"
+#include "common.h"
+#include "mux.h"
+#include "serial.h"
 #include "irqs.h"
 
 #define DM644X_EVM_PHY_ID		"davinci_mdio-0:01"

@@ -13,7 +13,7 @@
 
 #include <asm/memory.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 
 #define DAVINCI_UART0_BASE	(IO_PHYS + 0x20000)
 #define DAVINCI_UART1_BASE	(IO_PHYS + 0x20400)
