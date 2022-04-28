@@ -4351,7 +4351,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	}
 	ll_config->tx_steering_type = TX_MULTIQ_STEERING;
 	ll_config->intr_type = MSI_X;
-	ll_config->napi_weight = NEW_NAPI_WEIGHT;
+	ll_config->napi_weight = NAPI_POLL_WEIGHT;
 	ll_config->rth_steering = RTH_STEERING;
 
 	/* get the default configuration parameters */
