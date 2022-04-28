@@ -155,10 +155,13 @@ static const char * const nvme_statuses[] = {
 	[NVME_SC_COMPARE_FAILED] = "Compare Failure",
 	[NVME_SC_ACCESS_DENIED] = "Access Denied",
 	[NVME_SC_UNWRITTEN_BLOCK] = "Deallocated or Unwritten Logical Block",
+	[NVME_SC_INTERNAL_PATH_ERROR] = "Internal Pathing Error",
 	[NVME_SC_ANA_PERSISTENT_LOSS] = "Asymmetric Access Persistent Loss",
 	[NVME_SC_ANA_INACCESSIBLE] = "Asymmetric Access Inaccessible",
 	[NVME_SC_ANA_TRANSITION] = "Asymmetric Access Transition",
+	[NVME_SC_CTRL_PATH_ERROR] = "Controller Pathing Error",
 	[NVME_SC_HOST_PATH_ERROR] = "Host Pathing Error",
+	[NVME_SC_HOST_ABORTED_CMD] = "Host Aborted Command",
 };
 
 const unsigned char *nvme_get_error_status_str(u16 status)
