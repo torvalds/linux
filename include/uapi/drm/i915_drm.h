@@ -203,6 +203,15 @@ enum drm_i915_gem_engine_class {
 	 */
 	I915_ENGINE_CLASS_VIDEO_ENHANCE	= 3,
 
+	/**
+	 * @I915_ENGINE_CLASS_COMPUTE:
+	 *
+	 * Compute engines support a subset of the instructions available
+	 * on render engines:  compute engines support Compute (GPGPU) and
+	 * programmable media workloads, but do not support the 3D pipeline.
+	 */
+	I915_ENGINE_CLASS_COMPUTE	= 4,
+
 	/* Values in this enum should be kept compact. */
 
 	/**
