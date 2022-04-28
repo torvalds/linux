@@ -66,34 +66,33 @@ exit:
 
 	return 0;
 }
+
 static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
 {
 	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
+	struct stfcamss *stfcamss = csi_dev->stfcamss;
 
-#if 0
-	// reg_set_highest_bit(vin->clkgen_base, CLK_CSI2RX0_APB_CTRL);
-	apb_clk_set(vin, 1);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF0].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF1].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF2].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF3].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
 
-	if (csi_dev->id == 0) {
-		reg_set_bit(vin->clkgen_base,
-				CLK_MIPI_RX0_PXL_CTRL,
-				0x1F, 0x3);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_0_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_1_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_2_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_3_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_SYS0_CTRL);
-	} else {
-		reg_set_bit(vin->clkgen_base,
-				CLK_MIPI_RX1_PXL_CTRL,
-				0x1F, 0x3);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_0_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_1_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_2_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_3_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_SYS1_CTRL);
-	}
+#ifdef HWBOARD_FPGA
+	clk_set_rate(stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk, 204800000);
+#else
+	reg_set_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL, BIT(3)|BIT(2)|BIT(1)|BIT(0), 0x3<<0);
 #endif
+
+	clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
+		stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF0].clk);
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF1].clk);
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF2].clk);
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF3].clk);
+	clk_set_parent(stfcamss->sys_clk[STFCLK_AXIWR].clk,
+		stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
 
 	return 0;
 }
@@ -101,25 +100,20 @@ static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
 static int stf_csi_clk_disable(struct stf_csi_dev *csi_dev)
 {
 	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
+	struct stfcamss *stfcamss = csi_dev->stfcamss;
 
-#if 0
-	// reg_clr_highest_bit(vin->clkgen_base, CLK_CSI2RX0_APB_CTRL);
-	apb_clk_set(vin, 0);
+	reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF3].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF2].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF1].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF0].rstc);
 
-	if (csi_dev->id == 0) {
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_0_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_1_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_2_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_3_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_SYS0_CTRL);
-	} else {
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_0_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_1_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_2_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_3_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_SYS1_CTRL);
-	}
-#endif
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PCLK].clk);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF0].clk);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF1].clk);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF2].clk);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF3].clk);
 
 	return 0;
 }

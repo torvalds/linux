@@ -2,7 +2,6 @@
 /*
  * Copyright (C) 2021 StarFive Technology Co., Ltd.
  */
-#include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
@@ -18,7 +17,6 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/reset.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 #include <linux/uaccess.h>
@@ -52,11 +50,36 @@ static const struct reg_name mem_reg_name[] = {
 	{"sctrl"},
 	{"isp0"},
 	{"isp1"},
-	{"tclk"},
 	{"trst"},
-	{"iopad"},
 	{"pmu"},
 	{"syscrg"},
+};
+
+static struct clk_bulk_data stfcamss_clocks[] = {
+	{ .id = "clk_apb_func" },
+	{ .id = "clk_pclk" },
+	{ .id = "clk_sys_clk" },
+	{ .id = "clk_wrapper_clk_c" },
+	{ .id = "clk_dvp_inv" },
+	{ .id = "clk_axiwr" },
+	{ .id = "clk_mipi_rx0_pxl" },
+	{ .id = "clk_pixel_clk_if0" },
+	{ .id = "clk_pixel_clk_if1" },
+	{ .id = "clk_pixel_clk_if2" },
+	{ .id = "clk_pixel_clk_if3" },
+};
+
+static struct reset_control_bulk_data stfcamss_resets[] = {
+	{ .id = "rst_wrapper_p" },
+	{ .id = "rst_wrapper_c" },
+	{ .id = "rst_pclk" },
+	{ .id = "rst_sys_clk" },
+	{ .id = "rst_axird" },
+	{ .id = "rst_axiwr" },
+	{ .id = "rst_pixel_clk_if0" },
+	{ .id = "rst_pixel_clk_if1" },
+	{ .id = "rst_pixel_clk_if2" },
+	{ .id = "rst_pixel_clk_if3" },
 };
 
 int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
@@ -70,36 +93,52 @@ int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
 	for (i = 0; i < ARRAY_SIZE(mem_reg_name); i++) {
 		name = (char *)(&mem_reg_name[i]);
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
-		regs = devm_ioremap_resource(dev, res);
-		if (IS_ERR(regs))
-			return PTR_ERR(regs);
+		if (!res)
+			return -EINVAL;
 
-		if (!strcmp(name, "mipi0"))
-			vin->mipi0_base = regs;
-		else if (!strcmp(name, "vclk"))
-			vin->clkgen_base = regs;
-		else if (!strcmp(name, "vrst"))
-			vin->rstgen_base = regs;
-		else if (!strcmp(name, "mipi1"))
-			vin->mipi1_base = regs;
-		else if (!strcmp(name, "sctrl"))
-			vin->sysctrl_base = regs;
-		else if (!strcmp(name, "isp0"))
-			vin->isp_isp0_base = regs;
-		else if (!strcmp(name, "isp1"))
-			vin->isp_isp1_base = regs;
-		else if (!strcmp(name, "tclk"))
-			vin->vin_top_clkgen_base = regs;
-		else if (!strcmp(name, "trst"))
-			vin->vin_top_rstgen_base = regs;
-		else if (!strcmp(name, "iopad"))
-			vin->vin_top_iopad_base = regs;
-		else if (!strcmp(name,"pmu"))
-			vin->pmu_test = regs;
-		else if (!strcmp(name,"syscrg")) 
-			vin->sys_crg = regs;
-		else
+		if (!strcmp(name, "mipi0")) {
+			vin->mipi0_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->mipi0_base))
+				return PTR_ERR(vin->mipi0_base);
+		} else if (!strcmp(name, "vclk")) {
+			vin->clkgen_base = ioremap(res->start, resource_size(res));
+			if (!vin->clkgen_base)
+				return -ENOMEM;
+		} else if (!strcmp(name, "vrst")) {
+			vin->rstgen_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->rstgen_base))
+				return PTR_ERR(vin->rstgen_base);
+		} else if (!strcmp(name, "mipi1")) {
+			vin->mipi1_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->mipi1_base))
+				return PTR_ERR(vin->mipi1_base);
+		} else if (!strcmp(name, "sctrl")) {
+			vin->sysctrl_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->sysctrl_base))
+				return PTR_ERR(vin->sysctrl_base);
+		} else if (!strcmp(name, "isp0")) {
+			vin->isp_isp0_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->isp_isp0_base))
+				return PTR_ERR(vin->isp_isp0_base);
+		} else if (!strcmp(name, "isp1")) {
+			vin->isp_isp1_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->isp_isp1_base))
+				return PTR_ERR(vin->isp_isp1_base);
+		} else if (!strcmp(name, "trst")) {
+			vin->vin_top_rstgen_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->vin_top_rstgen_base))
+				return PTR_ERR(vin->vin_top_rstgen_base);
+		} else if (!strcmp(name, "pmu")) {
+			vin->pmu_test = ioremap(res->start, resource_size(res));
+			if (!vin->pmu_test)
+				return -ENOMEM;
+		} else if (!strcmp(name, "syscrg")) {
+			vin->sys_crg = ioremap(res->start, resource_size(res));
+			if (!vin->sys_crg)
+				return -ENOMEM;
+		} else {
 			st_err(ST_CAMSS, "Could not match resource name\n");
+		}
 	}
 
 	return 0;
@@ -919,7 +958,7 @@ static int stfcamss_probe(struct platform_device *pdev)
 	struct device_node *node;
 	struct resource res_mem;
 	struct device *dev = &pdev->dev;
-	int ret = 0, num_subdevs;
+	int ret = 0, i, num_subdevs;
 
 	printk("stfcamss probe enter!\n");
 
@@ -1000,6 +1039,25 @@ static int stfcamss_probe(struct platform_device *pdev)
 	if (vin->isp1_irq <= 0) {
 		st_err(ST_CAMSS, "Could not get isp1 irq\n");
 		goto err_cam;
+	}
+
+	stfcamss->nclks = ARRAY_SIZE(stfcamss_clocks);
+	stfcamss->sys_clk = stfcamss_clocks;
+
+	ret = devm_clk_bulk_get(dev, stfcamss->nclks, stfcamss->sys_clk);
+	if (ret) {
+		st_err(ST_CAMSS, "faied to get clk controls\n");
+		return ret;
+	}
+
+	stfcamss->nrsts = ARRAY_SIZE(stfcamss_resets);
+	stfcamss->sys_rst = stfcamss_resets;
+
+	ret = devm_reset_control_bulk_get_exclusive(dev, stfcamss->nrsts,
+		stfcamss->sys_rst);
+	if (ret) {
+		st_err(ST_CAMSS, "faied to get reset controls\n");
+		return ret;
 	}
 
 	ret = stfcamss_get_mem_res(pdev, vin);
