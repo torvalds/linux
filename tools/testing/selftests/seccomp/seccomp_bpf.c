@@ -4297,6 +4297,115 @@ TEST_F(O_SUSPEND_SECCOMP, seize)
 	ASSERT_EQ(EPERM, errno);
 }
 
+static char get_proc_stat(int pid)
+{
+	char proc_path[100] = {0};
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t nread;
+	char status;
+	FILE *f;
+	int i;
+
+	snprintf(proc_path, sizeof(proc_path), "/proc/%d/stat", pid);
+	f = fopen(proc_path, "r");
+	if (f == NULL)
+		ksft_exit_fail_msg("%s - Could not open %s\n",
+				   strerror(errno), proc_path);
+
+	for (i = 0; i < 3; i++) {
+		nread = getdelim(&line, &len, ' ', f);
+		if (nread <= 0)
+			ksft_exit_fail_msg("Failed to read status: %s\n",
+					   strerror(errno));
+	}
+
+	status = *line;
+	free(line);
+	fclose(f);
+
+	return status;
+}
+
+TEST(user_notification_fifo)
+{
+	struct seccomp_notif_resp resp = {};
+	struct seccomp_notif req = {};
+	int i, status, listener;
+	pid_t pid, pids[3];
+	__u64 baseid;
+	long ret;
+	/* 100 ms */
+	struct timespec delay = { .tv_nsec = 100000000 };
+
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret) {
+		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+	}
+
+	/* Setup a listener */
+	listener = user_notif_syscall(__NR_getppid,
+				      SECCOMP_FILTER_FLAG_NEW_LISTENER);
+	ASSERT_GE(listener, 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		ret = syscall(__NR_getppid);
+		exit(ret != USER_NOTIF_MAGIC);
+	}
+
+	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
+	baseid = req.id + 1;
+
+	resp.id = req.id;
+	resp.error = 0;
+	resp.val = USER_NOTIF_MAGIC;
+
+	/* check that we make sure flags == 0 */
+	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), 0);
+
+	EXPECT_EQ(waitpid(pid, &status, 0), pid);
+	EXPECT_EQ(true, WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	/* Start children, and generate notifications */
+	for (i = 0; i < ARRAY_SIZE(pids); i++) {
+		pid = fork();
+		if (pid == 0) {
+			ret = syscall(__NR_getppid);
+			exit(ret != USER_NOTIF_MAGIC);
+		}
+		pids[i] = pid;
+	}
+
+	/* This spins until all of the children are sleeping */
+restart_wait:
+	for (i = 0; i < ARRAY_SIZE(pids); i++) {
+		if (get_proc_stat(pids[i]) != 'S') {
+			nanosleep(&delay, NULL);
+			goto restart_wait;
+		}
+	}
+
+	/* Read the notifications in order (and respond) */
+	for (i = 0; i < ARRAY_SIZE(pids); i++) {
+		memset(&req, 0, sizeof(req));
+		EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
+		EXPECT_EQ(req.id, baseid + i);
+		resp.id = req.id;
+		EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), 0);
+	}
+
+	/* Make sure notifications were received */
+	for (i = 0; i < ARRAY_SIZE(pids); i++) {
+		EXPECT_EQ(waitpid(pids[i], &status, 0), pids[i]);
+		EXPECT_EQ(true, WIFEXITED(status));
+		EXPECT_EQ(0, WEXITSTATUS(status));
+	}
+}
+
 /*
  * TODO:
  * - expand NNP testing
