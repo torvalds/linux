@@ -967,6 +967,10 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	call->acks_first_seq = first_soft_ack;
 	call->acks_prev_seq = prev_pkt;
 
+	if (buf.ack.reason != RXRPC_ACK_PING &&
+	    after(acked_serial, call->acks_highest_serial))
+		call->acks_highest_serial = acked_serial;
+
 	/* Parse rwind and mtu sizes if provided. */
 	if (buf.info.rxMTU)
 		rxrpc_input_ackinfo(call, skb, &buf.info);
