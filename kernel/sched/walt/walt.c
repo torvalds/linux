@@ -1111,38 +1111,6 @@ static void fixup_busy_time(struct task_struct *p, int new_cpu)
 		double_rq_unlock(src_rq, dest_rq);
 }
 
-static void set_window_start(struct rq *rq)
-{
-	static int sync_cpu_available;
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
-	struct walt_rq *sync_wrq;
-	struct walt_task_struct *wts = (struct walt_task_struct *) rq->curr->android_vendor_data1;
-
-	if (likely(wrq->window_start))
-		return;
-
-	if (!sync_cpu_available) {
-		wrq->window_start = 1;
-		sync_cpu_available = 1;
-		atomic64_set(&walt_irq_work_lastq_ws, wrq->window_start);
-		walt_load_reported_window =
-					atomic64_read(&walt_irq_work_lastq_ws);
-
-	} else {
-		struct rq *sync_rq = cpu_rq(cpumask_any(cpu_online_mask));
-
-		sync_wrq = (struct walt_rq *) sync_rq->android_vendor_data1;
-		raw_spin_unlock(&rq->__lock);
-		double_rq_lock(rq, sync_rq);
-		wrq->window_start = sync_wrq->window_start;
-		wrq->curr_runnable_sum = wrq->prev_runnable_sum = 0;
-		wrq->nt_curr_runnable_sum = wrq->nt_prev_runnable_sum = 0;
-		raw_spin_unlock(&sync_rq->__lock);
-	}
-
-	wts->mark_start = wrq->window_start;
-}
-
 #define INC_STEP 8
 #define DEC_STEP 2
 #define CONSISTENT_THRES 16
@@ -3970,15 +3938,8 @@ static void android_rvh_update_cpu_capacity(void *unused, int cpu, unsigned long
 
 static void android_rvh_sched_cpu_starting(void *unused, int cpu)
 {
-	unsigned long flags;
-	struct rq *rq = cpu_rq(cpu);
-
 	if (unlikely(walt_disabled))
 		return;
-	raw_spin_lock_irqsave(&rq->__lock, flags);
-	set_window_start(rq);
-	raw_spin_unlock_irqrestore(&rq->__lock, flags);
-
 	clear_walt_request(cpu);
 }
 
@@ -4218,10 +4179,10 @@ static void android_rvh_tick_entry(void *unused, struct rq *rq)
 {
 	u64 wallclock;
 
-	lockdep_assert_held(&rq->__lock);
 	if (unlikely(walt_disabled))
 		return;
-	set_window_start(rq);
+
+	lockdep_assert_held(&rq->__lock);
 	wallclock = walt_rq_clock(rq);
 
 	walt_update_task_ravg(rq->curr, rq, TASK_UPDATE, wallclock, 0);
