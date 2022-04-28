@@ -6,6 +6,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/limits.h>
 #include <linux/sort.h>
 
 #include "protocols.h"
@@ -128,12 +129,13 @@ static int scmi_clock_attributes_get(const struct scmi_protocol_handle *ph,
 
 	ret = ph->xops->do_xfer(ph, t);
 	if (!ret) {
+		u32 latency = 0;
 		attributes = le32_to_cpu(attr->attributes);
 		strlcpy(clk->name, attr->name, SCMI_MAX_STR_SIZE);
 		/* Is optional field clock_enable_latency provided ? */
 		if (t->rx.len == sizeof(*attr))
-			clk->enable_latency =
-				le32_to_cpu(attr->clock_enable_latency);
+			latency = le32_to_cpu(attr->clock_enable_latency);
+		clk->enable_latency = latency ? : U32_MAX;
 	}
 
 	ph->xops->xfer_put(ph, t);
