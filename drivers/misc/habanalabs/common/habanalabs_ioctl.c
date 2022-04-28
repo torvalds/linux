@@ -116,6 +116,25 @@ static int hw_events_info(struct hl_device *hdev, bool aggregate,
 	return copy_to_user(out, arr, min(max_size, size)) ? -EFAULT : 0;
 }
 
+static int events_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	int rc;
+	u32 max_size = args->return_size;
+	u64 events_mask;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((max_size < sizeof(u64)) || (!out))
+		return -EINVAL;
+
+	mutex_lock(&hpriv->notifier_event.lock);
+	events_mask = hpriv->notifier_event.events_mask;
+	hpriv->notifier_event.events_mask = 0;
+	mutex_unlock(&hpriv->notifier_event.lock);
+
+	rc = copy_to_user(out, &events_mask, sizeof(u64));
+	return rc;
+}
+
 static int dram_usage_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
 	struct hl_device *hdev = hpriv->hdev;
@@ -614,6 +633,43 @@ static int dev_mem_alloc_page_sizes_info(struct hl_fpriv *hpriv, struct hl_info_
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }
 
+static int eventfd_register(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	int rc;
+
+	/* check if there is already a registered on that process */
+	mutex_lock(&hpriv->notifier_event.lock);
+	if (hpriv->notifier_event.eventfd) {
+		mutex_unlock(&hpriv->notifier_event.lock);
+		return -EINVAL;
+	}
+
+	hpriv->notifier_event.eventfd = eventfd_ctx_fdget(args->eventfd);
+	if (IS_ERR(hpriv->notifier_event.eventfd)) {
+		rc = PTR_ERR(hpriv->notifier_event.eventfd);
+		hpriv->notifier_event.eventfd = 0;
+		mutex_unlock(&hpriv->notifier_event.lock);
+		return rc;
+	}
+
+	mutex_unlock(&hpriv->notifier_event.lock);
+	return 0;
+}
+
+static int eventfd_unregister(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	mutex_lock(&hpriv->notifier_event.lock);
+	if (!hpriv->notifier_event.eventfd) {
+		mutex_unlock(&hpriv->notifier_event.lock);
+		return -EINVAL;
+	}
+
+	eventfd_ctx_put(hpriv->notifier_event.eventfd);
+	hpriv->notifier_event.eventfd = 0;
+	mutex_unlock(&hpriv->notifier_event.lock);
+	return 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -667,6 +723,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	case HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES:
 		return dev_mem_alloc_page_sizes_info(hpriv, args);
 
+	case HL_INFO_GET_EVENTS:
+		return events_info(hpriv, args);
+
 	default:
 		break;
 	}
@@ -716,6 +775,12 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_DRAM_PENDING_ROWS:
 		return dram_pending_rows_info(hpriv, args);
+
+	case HL_INFO_REGISTER_EVENTFD:
+		return eventfd_register(hpriv, args);
+
+	case HL_INFO_UNREGISTER_EVENTFD:
+		return eventfd_unregister(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

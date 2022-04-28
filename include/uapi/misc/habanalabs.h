@@ -349,6 +349,9 @@ enum hl_server_type {
  *                            Razwi initiator.
  *                            Razwi cause, was it a page fault or MMU access error.
  * HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES - Retrieve valid page sizes for device memory allocation
+ * HL_INFO_REGISTER_EVENTFD   - Register eventfd for event notifications.
+ * HL_INFO_UNREGISTER_EVENTFD - Unregister eventfd
+ * HL_INFO_GET_EVENTS         - Retrieve the last occurred events
  */
 #define HL_INFO_HW_IP_INFO			0
 #define HL_INFO_HW_EVENTS			1
@@ -374,6 +377,9 @@ enum hl_server_type {
 #define HL_INFO_CS_TIMEOUT_EVENT		24
 #define HL_INFO_RAZWI_EVENT			25
 #define HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES	26
+#define HL_INFO_REGISTER_EVENTFD		28
+#define HL_INFO_UNREGISTER_EVENTFD		29
+#define HL_INFO_GET_EVENTS			30
 
 #define HL_INFO_VERSION_MAX_LEN			128
 #define HL_INFO_CARD_NAME_MAX_LEN		16
@@ -679,6 +685,7 @@ enum gaudi_dcores {
  * @period_ms: Period value, in milliseconds, for utilization rate in range 100ms - 1000ms in 100 ms
  *             resolution. Currently not in use.
  * @pll_index: Index as defined in hl_<asic type>_pll_index enumeration.
+ * @eventfd: event file descriptor for event notifications.
  * @pad: Padding to 64 bit.
  */
 struct hl_info_args {
@@ -691,6 +698,7 @@ struct hl_info_args {
 		__u32 ctx_id;
 		__u32 period_ms;
 		__u32 pll_index;
+		__u32 eventfd;
 	};
 
 	__u32 pad;
@@ -1389,6 +1397,13 @@ struct hl_debug_args {
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
 };
+
+/*
+ * Notifier event values - for the notification mechanism and the HL_INFO_GET_EVENTS command
+ *
+ * HL_NOTIFIER_EVENT_TPC_ASSERT - Indicates TPC assert event
+ */
+#define HL_NOTIFIER_EVENT_TPC_ASSERT  (1 << 0)
 
 /*
  * Various information operations such as:

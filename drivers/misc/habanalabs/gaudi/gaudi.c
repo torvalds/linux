@@ -7879,7 +7879,6 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_MMU_PAGE_FAULT:
 	case GAUDI_EVENT_MMU_WR_PERM:
 	case GAUDI_EVENT_RAZWI_OR_ADC:
-	case GAUDI_EVENT_TPC0_QM ... GAUDI_EVENT_TPC7_QM:
 	case GAUDI_EVENT_MME0_QM ... GAUDI_EVENT_MME2_QM:
 	case GAUDI_EVENT_DMA0_QM ... GAUDI_EVENT_DMA7_QM:
 		fallthrough;
@@ -7897,6 +7896,19 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 		gaudi_print_irq_info(hdev, event_type, true);
 		gaudi_handle_qman_err(hdev, event_type);
 		hl_fw_unmask_irq(hdev, event_type);
+		break;
+
+	case GAUDI_EVENT_TPC0_QM ... GAUDI_EVENT_TPC7_QM:
+		gaudi_print_irq_info(hdev, event_type, true);
+		gaudi_handle_qman_err(hdev, event_type);
+		hl_fw_unmask_irq(hdev, event_type);
+
+		/* In TPC QM event, notify on TPC assertion. While there isn't
+		 * a specific event for assertion yet, the FW generates QM event.
+		 * The SW upper layer will inspect an internal mapped area to indicate
+		 * if the event is a tpc assertion or tpc QM.
+		 */
+		hl_notifier_event_send_all(hdev, HL_NOTIFIER_EVENT_TPC_ASSERT);
 		break;
 
 	case GAUDI_EVENT_RAZWI_OR_ADC_SW:

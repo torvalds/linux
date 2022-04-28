@@ -21,6 +21,7 @@
 #include <linux/hashtable.h>
 #include <linux/debugfs.h>
 #include <linux/rwsem.h>
+#include <linux/eventfd.h>
 #include <linux/bitfield.h>
 #include <linux/genalloc.h>
 #include <linux/sched/signal.h>
@@ -1932,6 +1933,18 @@ struct hl_debug_params {
 	bool enable;
 };
 
+/**
+ * struct hl_notifier_event - holds the notifier data structure
+ * @eventfd: the event file descriptor to raise the notifications
+ * @lock: mutex lock to protect the notifier data flows
+ * @events_mask: indicates the bitmap events
+ */
+struct hl_notifier_event {
+	struct eventfd_ctx	*eventfd;
+	struct mutex		lock;
+	u64			events_mask;
+};
+
 /*
  * FILE PRIVATE STRUCTURE
  */
@@ -1943,24 +1956,25 @@ struct hl_debug_params {
  * @taskpid: current process ID.
  * @ctx: current executing context. TODO: remove for multiple ctx per process
  * @ctx_mgr: context manager to handle multiple context for this FD.
- * @cb_mgr: command buffer manager to handle multiple buffers for this FD.
  * @mem_mgr: manager descriptor for memory exportable via mmap
+ * @notifier_event: notifier eventfd towards user process
  * @debugfs_list: list of relevant ASIC debugfs.
  * @dev_node: node in the device list of file private data
  * @refcount: number of related contexts.
  * @restore_phase_mutex: lock for context switch and restore phase.
  */
 struct hl_fpriv {
-	struct hl_device	*hdev;
-	struct file		*filp;
-	struct pid		*taskpid;
-	struct hl_ctx		*ctx;
-	struct hl_ctx_mgr	ctx_mgr;
-	struct hl_mem_mgr	mem_mgr;
-	struct list_head	debugfs_list;
-	struct list_head	dev_node;
-	struct kref		refcount;
-	struct mutex		restore_phase_mutex;
+	struct hl_device		*hdev;
+	struct file			*filp;
+	struct pid			*taskpid;
+	struct hl_ctx			*ctx;
+	struct hl_ctx_mgr		ctx_mgr;
+	struct hl_mem_mgr		mem_mgr;
+	struct hl_notifier_event	notifier_event;
+	struct list_head		debugfs_list;
+	struct list_head		dev_node;
+	struct kref			refcount;
+	struct mutex			restore_phase_mutex;
 };
 
 
@@ -2676,8 +2690,8 @@ struct hl_reset_info {
  * @state_dump_specs: constants and dictionaries needed to dump system state.
  * @multi_cs_completion: array of multi-CS completion.
  * @clk_throttling: holds information about current/previous clock throttling events
- * @reset_info: holds current device reset information.
  * @last_error: holds information about last session in which CS timeout or razwi error occurred.
+ * @reset_info: holds current device reset information.
  * @stream_master_qid_arr: pointer to array with QIDs of master streams.
  * @fw_major_version: major version of current loaded preboot
  * @dram_used_mem: current DRAM memory consumption.
@@ -3070,6 +3084,8 @@ int hl_device_utilization(struct hl_device *hdev, u32 *utilization);
 
 int hl_build_hwmon_channel_info(struct hl_device *hdev,
 		struct cpucp_sensor *sensors_arr);
+
+void hl_notifier_event_send_all(struct hl_device *hdev, u64 event);
 
 int hl_sysfs_init(struct hl_device *hdev);
 void hl_sysfs_fini(struct hl_device *hdev);

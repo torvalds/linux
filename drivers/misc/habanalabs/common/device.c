@@ -285,6 +285,14 @@ static void hpriv_release(struct kref *ref)
 
 	hdev->compute_ctx_in_release = 0;
 
+	/* release the eventfd */
+	if (hpriv->notifier_event.eventfd) {
+		eventfd_ctx_put(hpriv->notifier_event.eventfd);
+		hpriv->notifier_event.eventfd = 0;
+	}
+
+	mutex_destroy(&hpriv->notifier_event.lock);
+
 	kfree(hpriv);
 }
 
@@ -355,6 +363,13 @@ static int hl_device_release_ctrl(struct inode *inode, struct file *filp)
 	list_del(&hpriv->dev_node);
 	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 out:
+	/* release the eventfd */
+	if (hpriv->notifier_event.eventfd) {
+		eventfd_ctx_put(hpriv->notifier_event.eventfd);
+		hpriv->notifier_event.eventfd = 0;
+	}
+
+	mutex_destroy(&hpriv->notifier_event.lock);
 	put_pid(hpriv->taskpid);
 
 	kfree(hpriv);
@@ -1504,6 +1519,43 @@ out_err:
 	hdev->reset_info.in_reset = 0;
 
 	return rc;
+}
+
+static void hl_notifier_event_send(struct hl_notifier_event *notifier_event, u64 event)
+{
+	mutex_lock(&notifier_event->lock);
+	notifier_event->events_mask |= event;
+	if (notifier_event->eventfd)
+		eventfd_signal(notifier_event->eventfd, 1);
+
+	mutex_unlock(&notifier_event->lock);
+}
+
+/*
+ * hl_notifier_event_send_all - notify all user processes via eventfd
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @event: the occurred event
+ * Returns 0 for success or an error on failure.
+ */
+void hl_notifier_event_send_all(struct hl_device *hdev, u64 event)
+{
+	struct hl_fpriv	*hpriv;
+
+	mutex_lock(&hdev->fpriv_list_lock);
+
+	list_for_each_entry(hpriv, &hdev->fpriv_list, dev_node)
+		hl_notifier_event_send(&hpriv->notifier_event, event);
+
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	/* control device */
+	mutex_lock(&hdev->fpriv_ctrl_list_lock);
+
+	list_for_each_entry(hpriv, &hdev->fpriv_ctrl_list, dev_node)
+		hl_notifier_event_send(&hpriv->notifier_event, event);
+
+	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 }
 
 /*
