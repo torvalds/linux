@@ -11,7 +11,7 @@ Key-agreement Protocol Primitives (KPP) Cipher API
    :doc: Generic Key-agreement Protocol Primitives API
 
 .. kernel-doc:: include/crypto/kpp.h
-   :functions: crypto_alloc_kpp crypto_free_kpp crypto_kpp_set_secret crypto_kpp_generate_public_key crypto_kpp_compute_shared_secret crypto_kpp_maxsize
+   :functions: crypto_alloc_kpp crypto_free_kpp crypto_kpp_set_params crypto_kpp_set_secret crypto_kpp_generate_public_key crypto_kpp_compute_shared_secret crypto_kpp_maxsize
 
 Key-agreement Protocol Primitives (KPP) Cipher Request Handle
 -------------------------------------------------------------

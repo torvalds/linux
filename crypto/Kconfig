@@ -201,7 +201,7 @@ config CRYPTO_AUTHENC
 
 config CRYPTO_TEST
 	tristate "Testing module"
-	depends on m || EXPERT
+	depends on m
 	select CRYPTO_MANAGER
 	help
 	  Quick & dirty crypto test module.
@@ -209,6 +209,11 @@ config CRYPTO_TEST
 config CRYPTO_SIMD
 	tristate
 	select CRYPTO_CRYPTD
+
+config CRYPTO_GLUE_HELPER_X86
+	tristate
+	depends on X86
+	select CRYPTO_SKCIPHER
 
 config CRYPTO_ENGINE
 	tristate
@@ -241,16 +246,6 @@ config CRYPTO_ECDH
 	select CRYPTO_RNG_DEFAULT
 	help
 	  Generic implementation of the ECDH algorithm
-
-config CRYPTO_ECDSA
-	tristate "ECDSA (NIST P192, P256 etc.) algorithm"
-	select CRYPTO_ECC
-	select CRYPTO_AKCIPHER
-	select ASN1
-	help
-	  Elliptic Curve Digital Signature Algorithm (NIST P192, P256 etc.)
-	  is A NIST cryptographic standard algorithm. Only signature verification
-	  is implemented.
 
 config CRYPTO_ECRDSA
 	tristate "EC-RDSA (GOST 34.10) algorithm"
@@ -777,7 +772,7 @@ config CRYPTO_POLY1305_X86_64
 
 config CRYPTO_POLY1305_MIPS
 	tristate "Poly1305 authenticator algorithm (MIPS optimized)"
-	depends on MIPS
+	depends on CPU_MIPS32 || (CPU_MIPS64 && 64BIT)
 	select CRYPTO_ARCH_HAVE_LIB_POLY1305
 
 config CRYPTO_MD4
@@ -827,6 +822,19 @@ config CRYPTO_MICHAEL_MIC
 	  should not be used for other purposes because of the weakness
 	  of the algorithm.
 
+config CRYPTO_RMD128
+	tristate "RIPEMD-128 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  RIPEMD-128 (ISO/IEC 10118-3:2004).
+
+	  RIPEMD-128 is a 128-bit cryptographic hash function. It should only
+	  be used as a secure replacement for RIPEMD. For other use cases,
+	  RIPEMD-160 should be used.
+
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <https://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
+
 config CRYPTO_RMD160
 	tristate "RIPEMD-160 digest algorithm"
 	select CRYPTO_HASH
@@ -840,6 +848,30 @@ config CRYPTO_RMD160
 
 	  It's speed is comparable to SHA1 and there are no known attacks
 	  against RIPEMD-160.
+
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <https://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
+
+config CRYPTO_RMD256
+	tristate "RIPEMD-256 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  RIPEMD-256 is an optional extension of RIPEMD-128 with a
+	  256 bit hash. It is intended for applications that require
+	  longer hash-results, without needing a larger security level
+	  (than RIPEMD-128).
+
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <https://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
+
+config CRYPTO_RMD320
+	tristate "RIPEMD-320 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  RIPEMD-320 is an optional extension of RIPEMD-160 with a
+	  320 bit hash. It is intended for applications that require
+	  longer hash-results, without needing a larger security level
+	  (than RIPEMD-160).
 
 	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
 	  See <https://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
@@ -1019,6 +1051,19 @@ config CRYPTO_STREEBOG
 	  https://tc26.ru/upload/iblock/fed/feddbb4d26b685903faa2ba11aea43f6.pdf
 	  https://tools.ietf.org/html/rfc6986
 
+config CRYPTO_TGR192
+	tristate "Tiger digest algorithms"
+	select CRYPTO_HASH
+	help
+	  Tiger hash algorithm 192, 160 and 128-bit hashes
+
+	  Tiger is a hash function optimized for 64-bit processors while
+	  still having decent performance on 32-bit processors.
+	  Tiger was developed by Ross Anderson and Eli Biham.
+
+	  See also:
+	  <https://www.cs.technion.ac.il/~biham/Reports/Tiger/>.
+
 config CRYPTO_WP512
 	tristate "Whirlpool digest algorithms"
 	select CRYPTO_HASH
@@ -1088,6 +1133,7 @@ config CRYPTO_AES_NI_INTEL
 	select CRYPTO_LIB_AES
 	select CRYPTO_ALGAPI
 	select CRYPTO_SKCIPHER
+	select CRYPTO_GLUE_HELPER_X86 if 64BIT
 	select CRYPTO_SIMD
 	help
 	  Use Intel AES-NI instructions for AES algorithm.
@@ -1210,7 +1256,6 @@ config CRYPTO_BLOWFISH_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_BLOWFISH_COMMON
-	imply CRYPTO_CTR
 	help
 	  Blowfish cipher algorithm (x86_64), by Bruce Schneier.
 
@@ -1223,6 +1268,7 @@ config CRYPTO_BLOWFISH_X86_64
 
 config CRYPTO_CAMELLIA
 	tristate "Camellia cipher algorithms"
+	depends on CRYPTO
 	select CRYPTO_ALGAPI
 	help
 	  Camellia cipher algorithms module.
@@ -1238,8 +1284,9 @@ config CRYPTO_CAMELLIA
 config CRYPTO_CAMELLIA_X86_64
 	tristate "Camellia cipher algorithm (x86_64)"
 	depends on X86 && 64BIT
+	depends on CRYPTO
 	select CRYPTO_SKCIPHER
-	imply CRYPTO_CTR
+	select CRYPTO_GLUE_HELPER_X86
 	help
 	  Camellia cipher algorithm module (x86_64).
 
@@ -1254,10 +1301,12 @@ config CRYPTO_CAMELLIA_X86_64
 config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 	tristate "Camellia cipher algorithm (x86_64/AES-NI/AVX)"
 	depends on X86 && 64BIT
+	depends on CRYPTO
 	select CRYPTO_SKCIPHER
 	select CRYPTO_CAMELLIA_X86_64
+	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SIMD
-	imply CRYPTO_XTS
+	select CRYPTO_XTS
 	help
 	  Camellia cipher algorithm module (x86_64/AES-NI/AVX).
 
@@ -1272,6 +1321,7 @@ config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 config CRYPTO_CAMELLIA_AESNI_AVX2_X86_64
 	tristate "Camellia cipher algorithm (x86_64/AES-NI/AVX2)"
 	depends on X86 && 64BIT
+	depends on CRYPTO
 	select CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 	help
 	  Camellia cipher algorithm module (x86_64/AES-NI/AVX2).
@@ -1287,6 +1337,7 @@ config CRYPTO_CAMELLIA_AESNI_AVX2_X86_64
 config CRYPTO_CAMELLIA_SPARC64
 	tristate "Camellia cipher algorithm (SPARC64)"
 	depends on SPARC64
+	depends on CRYPTO
 	select CRYPTO_ALGAPI
 	select CRYPTO_SKCIPHER
 	help
@@ -1321,7 +1372,6 @@ config CRYPTO_CAST5_AVX_X86_64
 	select CRYPTO_CAST5
 	select CRYPTO_CAST_COMMON
 	select CRYPTO_SIMD
-	imply CRYPTO_CTR
 	help
 	  The CAST5 encryption algorithm (synonymous with CAST-128) is
 	  described in RFC2144.
@@ -1343,9 +1393,9 @@ config CRYPTO_CAST6_AVX_X86_64
 	select CRYPTO_SKCIPHER
 	select CRYPTO_CAST6
 	select CRYPTO_CAST_COMMON
+	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SIMD
-	imply CRYPTO_XTS
-	imply CRYPTO_CTR
+	select CRYPTO_XTS
 	help
 	  The CAST6 encryption algorithm (synonymous with CAST-256) is
 	  described in RFC2612.
@@ -1375,7 +1425,6 @@ config CRYPTO_DES3_EDE_X86_64
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_DES
-	imply CRYPTO_CTR
 	help
 	  Triple DES EDE (FIPS 46-3) algorithm.
 
@@ -1404,6 +1453,18 @@ config CRYPTO_KHAZAD
 
 	  See also:
 	  <http://www.larc.usp.br/~pbarreto/KhazadPage.html>
+
+config CRYPTO_SALSA20
+	tristate "Salsa20 stream cipher algorithm"
+	select CRYPTO_SKCIPHER
+	help
+	  Salsa20 stream cipher algorithm.
+
+	  Salsa20 is a stream cipher submitted to eSTREAM, the ECRYPT
+	  Stream Cipher Project. See <https://www.ecrypt.eu.org/stream/>
+
+	  The Salsa20 stream cipher algorithm is designed by Daniel J.
+	  Bernstein <djb@cr.yp.to>. See <https://cr.yp.to/snuffle.html>
 
 config CRYPTO_CHACHA20
 	tristate "ChaCha stream cipher algorithms"
@@ -1465,7 +1526,8 @@ config CRYPTO_SERPENT
 	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
 
 	  Keys are allowed to be from 0 to 256 bits in length, in steps
-	  of 8 bits.
+	  of 8 bits.  Also includes the 'Tnepres' algorithm, a reversed
+	  variant of Serpent for compatibility with old kerneli.org code.
 
 	  See also:
 	  <https://www.cl.cam.ac.uk/~rja14/serpent.html>
@@ -1474,9 +1536,9 @@ config CRYPTO_SERPENT_SSE2_X86_64
 	tristate "Serpent cipher algorithm (x86_64/SSE2)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
+	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_SIMD
-	imply CRYPTO_CTR
 	help
 	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
 
@@ -1493,9 +1555,9 @@ config CRYPTO_SERPENT_SSE2_586
 	tristate "Serpent cipher algorithm (i586/SSE2)"
 	depends on X86 && !64BIT
 	select CRYPTO_SKCIPHER
+	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_SIMD
-	imply CRYPTO_CTR
 	help
 	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
 
@@ -1512,10 +1574,10 @@ config CRYPTO_SERPENT_AVX_X86_64
 	tristate "Serpent cipher algorithm (x86_64/AVX)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
+	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SERPENT
 	select CRYPTO_SIMD
-	imply CRYPTO_XTS
-	imply CRYPTO_CTR
+	select CRYPTO_XTS
 	help
 	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
 
@@ -1547,7 +1609,6 @@ config CRYPTO_SERPENT_AVX2_X86_64
 config CRYPTO_SM4
 	tristate "SM4 cipher algorithm"
 	select CRYPTO_ALGAPI
-	select CRYPTO_LIB_SM4
 	help
 	  SM4 cipher algorithms (OSCCA GB/T 32907-2016).
 
@@ -1567,49 +1628,6 @@ config CRYPTO_SM4
 	  The input, output, and key of SMS4 are each 128 bits.
 
 	  See also: <https://eprint.iacr.org/2008/329.pdf>
-
-	  If unsure, say N.
-
-config CRYPTO_SM4_AESNI_AVX_X86_64
-	tristate "SM4 cipher algorithm (x86_64/AES-NI/AVX)"
-	depends on X86 && 64BIT
-	select CRYPTO_SKCIPHER
-	select CRYPTO_SIMD
-	select CRYPTO_ALGAPI
-	select CRYPTO_LIB_SM4
-	help
-	  SM4 cipher algorithms (OSCCA GB/T 32907-2016) (x86_64/AES-NI/AVX).
-
-	  SM4 (GBT.32907-2016) is a cryptographic standard issued by the
-	  Organization of State Commercial Administration of China (OSCCA)
-	  as an authorized cryptographic algorithms for the use within China.
-
-	  This is SM4 optimized implementation using AES-NI/AVX/x86_64
-	  instruction set for block cipher. Through two affine transforms,
-	  we can use the AES S-Box to simulate the SM4 S-Box to achieve the
-	  effect of instruction acceleration.
-
-	  If unsure, say N.
-
-config CRYPTO_SM4_AESNI_AVX2_X86_64
-	tristate "SM4 cipher algorithm (x86_64/AES-NI/AVX2)"
-	depends on X86 && 64BIT
-	select CRYPTO_SKCIPHER
-	select CRYPTO_SIMD
-	select CRYPTO_ALGAPI
-	select CRYPTO_LIB_SM4
-	select CRYPTO_SM4_AESNI_AVX_X86_64
-	help
-	  SM4 cipher algorithms (OSCCA GB/T 32907-2016) (x86_64/AES-NI/AVX2).
-
-	  SM4 (GBT.32907-2016) is a cryptographic standard issued by the
-	  Organization of State Commercial Administration of China (OSCCA)
-	  as an authorized cryptographic algorithms for the use within China.
-
-	  This is SM4 optimized implementation using AES-NI/AVX2/x86_64
-	  instruction set for block cipher. Through two affine transforms,
-	  we can use the AES S-Box to simulate the SM4 S-Box to achieve the
-	  effect of instruction acceleration.
 
 	  If unsure, say N.
 
@@ -1657,7 +1675,6 @@ config CRYPTO_TWOFISH_586
 	depends on (X86 || UML_X86) && !64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_TWOFISH_COMMON
-	imply CRYPTO_CTR
 	help
 	  Twofish cipher algorithm.
 
@@ -1674,7 +1691,6 @@ config CRYPTO_TWOFISH_X86_64
 	depends on (X86 || UML_X86) && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_TWOFISH_COMMON
-	imply CRYPTO_CTR
 	help
 	  Twofish cipher algorithm (x86_64).
 
@@ -1692,6 +1708,7 @@ config CRYPTO_TWOFISH_X86_64_3WAY
 	select CRYPTO_SKCIPHER
 	select CRYPTO_TWOFISH_COMMON
 	select CRYPTO_TWOFISH_X86_64
+	select CRYPTO_GLUE_HELPER_X86
 	help
 	  Twofish cipher algorithm (x86_64, 3-way parallel).
 
@@ -1710,11 +1727,11 @@ config CRYPTO_TWOFISH_AVX_X86_64
 	tristate "Twofish cipher algorithm (x86_64/AVX)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
+	select CRYPTO_GLUE_HELPER_X86
 	select CRYPTO_SIMD
 	select CRYPTO_TWOFISH_COMMON
 	select CRYPTO_TWOFISH_X86_64
 	select CRYPTO_TWOFISH_X86_64_3WAY
-	imply CRYPTO_XTS
 	help
 	  Twofish cipher algorithm (x86_64/AVX).
 
@@ -1812,7 +1829,7 @@ config CRYPTO_DRBG_HMAC
 	bool
 	default y
 	select CRYPTO_HMAC
-	select CRYPTO_SHA512
+	select CRYPTO_SHA256
 
 config CRYPTO_DRBG_HASH
 	bool "Enable Hash DRBG"
@@ -1928,6 +1945,7 @@ config CRYPTO_USER_API_AKCIPHER
 config CRYPTO_USER_API_KPP
 	tristate "User-space interface for key protocol primitives algorithms"
 	depends on NET
+	select CRYPTO_DH
 	select CRYPTO_KPP2
 	select CRYPTO_USER_API
 	help

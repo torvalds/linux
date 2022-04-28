@@ -60,9 +60,7 @@
  *    after the final transfer signalled by LBREQ or LSREQ.  The DMAC
  *    will then move to the next LLI entry. Unsupported by PL080S.
  */
-#ifndef CONFIG_SOC_STARFIVE_JH7110
-#include <linux/amba/bus.h>
-#endif
+//#include <linux/amba/bus.h>
 #include <linux/amba/pl08x.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
@@ -76,10 +74,8 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_dma.h>
-#ifdef CONFIG_SOC_STARFIVE_JH7110
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#endif
 #include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -96,9 +92,7 @@
 	BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | \
 	BIT(DMA_SLAVE_BUSWIDTH_4_BYTES)
 
-#ifndef CONFIG_SOC_STARFIVE_JH7110
-static struct amba_driver pl08x_amba_driver;
-#endif
+//static struct amba_driver pl08x_amba_driver;
 struct pl08x_driver_data;
 
 /**
@@ -261,9 +255,7 @@ struct pl08x_dma_chan {
 	struct pl08x_txd *at;
 	struct pl08x_driver_data *host;
 	enum pl08x_dma_chan_state state;
-#ifdef CONFIG_SOC_STARFIVE_JH7110
 	int chan_id;
-#endif
 	bool slave;
 	int signal;
 	unsigned mux_use;
@@ -291,11 +283,7 @@ struct pl08x_driver_data {
 	struct dma_device memcpy;
 	bool has_slave;
 	void __iomem *base;
-#ifdef CONFIG_SOC_STARFIVE_JH7110
 	struct platform_device *adev;
-#else
-	struct amba_device *adev;
-#endif
 	const struct vendor_data *vd;
 	struct pl08x_platform_data *pd;
 	struct pl08x_phy_chan *phy_chans;
@@ -414,7 +402,8 @@ static void pl08x_write_lli(struct pl08x_driver_data *pl08x,
 			lli[PL080_LLI_LLI], lli[PL080_LLI_CCTL],
 			lli[PL080S_LLI_CCTL2], ccfg);
 	else
-		dev_vdbg(&pl08x->adev->dev,
+		//dev_vdbg(&pl08x->adev->dev,
+		dev_info(&pl08x->adev->dev,
 			"WRITE channel %d: csrc=0x%08x, cdst=0x%08x, "
 			"clli=0x%08x, cctl=0x%08x, ccfg=0x%08x\n",
 			phychan->id, lli[PL080_LLI_SRC], lli[PL080_LLI_DST],
@@ -521,6 +510,9 @@ static void pl08x_write_lli(struct pl08x_driver_data *pl08x,
 
 		writel_relaxed(val, phychan->reg_control);
 	} else {
+		/*		printk("this is debug lli[PL080_LLI_CCTL] = %x reg_control = %x  %s %s %d\n",
+		       lli[PL080_LLI_CCTL],phychan->reg_control,__FILE__,__func__,__LINE__);
+		*/
 		/* Bits are just identical */
 		writel_relaxed(lli[PL080_LLI_CCTL], phychan->reg_control);
 	}
@@ -530,6 +522,10 @@ static void pl08x_write_lli(struct pl08x_driver_data *pl08x,
 		writel_relaxed(lli[PL080S_LLI_CCTL2],
 				phychan->base + PL080S_CH_CONTROL2);
 
+	/*
+	printk("this is debug ccfg = %x reg_config = %x  %s %s %d\n",
+	       ccfg,phychan->reg_config,__FILE__,__func__,__LINE__);
+	*/
 	writel(ccfg, phychan->reg_config);
 }
 
@@ -554,14 +550,16 @@ static void pl08x_start_next_txd(struct pl08x_dma_chan *plchan)
 	/* Wait for channel inactive */
 	while (pl08x_phy_channel_busy(phychan))
 		cpu_relax();
-
+	//printk("this is debug txd->ccfg = %x  %s %s %d\n",txd->ccfg,__FILE__,__func__,__LINE__);
 	pl08x_write_lli(pl08x, phychan, &txd->llis_va[0], txd->ccfg);
 
 	/* Enable the DMA channel */
 	/* Do not access config register until channel shows as disabled */
+	//printk("this is debug en_chan = %x id = %d %s %s %d\n",readl(pl08x->base + PL080_EN_CHAN),phychan->id,__FILE__,__func__,__LINE__);
 	while (readl(pl08x->base + PL080_EN_CHAN) & BIT(phychan->id))
 		cpu_relax();
 
+	//printk("this is debug en_chan = %x id = %d %s %s %d\n",readl(pl08x->base + PL080_EN_CHAN),phychan->id,__FILE__,__func__,__LINE__);
 	/* Do not access config register until channel shows as inactive */
 	if (phychan->ftdmac020) {
 		val = readl(phychan->reg_config);
@@ -579,9 +577,17 @@ static void pl08x_start_next_txd(struct pl08x_dma_chan *plchan)
 		while ((val & PL080_CONFIG_ACTIVE) ||
 		       (val & PL080_CONFIG_ENABLE))
 			val = readl(phychan->reg_config);
-
+		//printk("this is debug val = %x  phychan->reg_config = %x  %s %s %d\n",val, phychan->reg_config,__FILE__,__func__,__LINE__);
 		writel(val | PL080_CONFIG_ENABLE, phychan->reg_config);
+#if 0
+		while(!(readl(pl08x->base + PL080_EN_CHAN) & BIT(phychan->id))){
+			printk("this is debug val = %x  phychan->reg_config = %x  %s %s %d\n",val, phychan->reg_config,__FILE__,__func__,__LINE__);
+			writel(val | PL080_CONFIG_ENABLE, phychan->reg_config);
+		}
+#endif			
 	}
+	//printk("this is debug reg_config = %x  en_chan = %x id = %d %s %s %d\n",readl(phychan->reg_config),
+	//       readl(pl08x->base + PL080_EN_CHAN),phychan->id,__FILE__,__func__,__LINE__);
 }
 
 /*
@@ -837,7 +843,8 @@ pl08x_get_phy_channel(struct pl08x_driver_data *pl08x,
 	unsigned long flags;
 	int i;
 
-#ifdef CONFIG_SOC_STARFIVE_JH7110
+	//printk("this is debug virt_chan->id = %d %s %s %d\n",virt_chan->chan_id,__FILE__,__func__,__LINE__);
+#if 1
 	ch = &pl08x->phy_chans[virt_chan->chan_id];
 
 	spin_lock_irqsave(&ch->lock, flags);
@@ -1203,6 +1210,10 @@ static void pl08x_fill_lli_for_desc(struct pl08x_driver_data *pl08x,
 
 	BUG_ON(num_llis >= MAX_NUM_TSFR_LLIS);
 
+	/*
+	printk("this is debug num_llis = %x lli_words = %x %s %s %d\n",
+		num_llis,pl08x->lli_words,__FILE__,__func__,__LINE__);
+	*/
 	/* Advance the offset to next LLI. */
 	offset += pl08x->lli_words;
 
@@ -1259,11 +1270,13 @@ static void pl08x_dump_lli(struct pl08x_driver_data *pl08x,
 			llis_va += pl08x->lli_words;
 		}
 	} else {
-		dev_vdbg(&pl08x->adev->dev,
+		//dev_vdbg(&pl08x->adev->dev,
+		dev_info(&pl08x->adev->dev,
 			"%-3s %-9s  %-10s %-10s %-10s %s\n",
 			"lli", "", "csrc", "cdst", "clli", "cctl");
 		for (i = 0; i < num_llis; i++) {
-			dev_vdbg(&pl08x->adev->dev,
+			//dev_vdbg(&pl08x->adev->dev,
+			dev_info(&pl08x->adev->dev,
 				"%3d @%p: 0x%08x 0x%08x 0x%08x 0x%08x\n",
 				i, llis_va, llis_va[PL080_LLI_SRC],
 				llis_va[PL080_LLI_DST], llis_va[PL080_LLI_LLI],
@@ -1277,6 +1290,7 @@ static inline void pl08x_dump_lli(struct pl08x_driver_data *pl08x,
 				  const u32 *llis_va, int num_llis) {}
 #endif
 
+extern u64 dw_virt_to_phys(void *vaddr);
 /*
  * This fills in the table of LLIs for the transfer descriptor
  * Note that we assume we never have to change the burst sizes
@@ -1299,6 +1313,10 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 		return 0;
 	}
 
+	/*
+	printk("this is debug txd->llis_bus = %llx pl08x->lli_buses = %x llis_va = %llx %s %s %d\n",
+	       txd->llis_bus,pl08x->lli_buses,dw_virt_to_phys(txd->llis_va),__FILE__,__func__,__LINE__);
+	*/
 	bd.txd = txd;
 	bd.lli_bus = (pl08x->lli_buses & PL08X_AHB2) ? PL080_LLI_LM_AHB2 : 0;
 	cctl = txd->cctl;
@@ -1695,6 +1713,8 @@ static u32 pl08x_select_bus(bool ftdmac020, u8 src, u8 dst)
 	if (!(src & PL08X_AHB1) || ((src & PL08X_AHB2) && !(dst & PL08X_AHB2)))
 		cctl |= src_ahb2;
 
+	//printk("this is debug dst = %x src = %x cctl = %x %s %s %d\n",dst,src,cctl,__FILE__,__func__,__LINE__);
+
 	return cctl;
 }
 
@@ -1769,9 +1789,8 @@ static void pl08x_issue_pending(struct dma_chan *chan)
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
 	unsigned long flags;
 
-#ifdef CONFIG_SOC_STARFIVE_JH7110
 	plchan->chan_id = chan->chan_id;
-#endif
+
 	spin_lock_irqsave(&plchan->vc.lock, flags);
 	if (vchan_issue_pending(&plchan->vc)) {
 		if (!plchan->phychan && plchan->state != PL08X_CHAN_WAITING)
@@ -1926,23 +1945,21 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 	struct pl08x_txd *txd;
 	struct pl08x_sg *dsg;
 	int ret;
-
+	//printk("this is debug for lophyel %s %s %d\n",__FILE__,__func__,__LINE__);
 	txd = pl08x_get_txd(plchan);
 	if (!txd) {
 		dev_err(&pl08x->adev->dev,
 			"%s no memory for descriptor\n", __func__);
 		return NULL;
 	}
-
+	//printk("this is debug for lophyel %s %s %d\n",__FILE__,__func__,__LINE__);
 	dsg = kzalloc(sizeof(struct pl08x_sg), GFP_NOWAIT);
 	if (!dsg) {
 		pl08x_free_txd(pl08x, txd);
-		dev_err(&pl08x->adev->dev,
-			"%s no memory for kzalloc\n", __func__);
 		return NULL;
 	}
 	list_add_tail(&dsg->node, &txd->dsg_list);
-
+	//printk("this is debug for lophyel %s %s %d\n",__FILE__,__func__,__LINE__);
 	dsg->src_addr = src;
 	dsg->dst_addr = dest;
 	dsg->len = len;
@@ -1956,15 +1973,13 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 			PL080_FLOW_MEM2MEM << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 		txd->cctl = pl08x_memcpy_cctl(pl08x);
 	}
-
+	//printk("this is debug for lophyel %s %s %d\n",__FILE__,__func__,__LINE__);
 	ret = pl08x_fill_llis_for_desc(plchan->host, txd);
 	if (!ret) {
 		pl08x_free_txd(pl08x, txd);
-		dev_err(&pl08x->adev->dev,
-			"%s pl08x_fill_llis_for_desc error\n", __func__);
 		return NULL;
 	}
-
+	//printk("this is debug for lophyel %s %s %d\n",__FILE__,__func__,__LINE__);
 	return vchan_tx_prep(&plchan->vc, &txd->vd, flags);
 }
 
@@ -1993,6 +2008,7 @@ static struct pl08x_txd *pl08x_init_txd(
 	 * channel target address dynamically at runtime.
 	 */
 	if (direction == DMA_MEM_TO_DEV) {
+		//printk("this is debug  %s %s %d\n",__FILE__,__func__,__LINE__);
 		cctl = PL080_CONTROL_SRC_INCR;
 		*slave_addr = plchan->cfg.dst_addr;
 		addr_width = plchan->cfg.dst_addr_width;
@@ -2000,6 +2016,7 @@ static struct pl08x_txd *pl08x_init_txd(
 		src_buses = pl08x->mem_buses;
 		dst_buses = plchan->cd->periph_buses;
 	} else if (direction == DMA_DEV_TO_MEM) {
+		//printk("this is debug  %s %s %d\n",__FILE__,__func__,__LINE__);
 		cctl = PL080_CONTROL_DST_INCR;
 		*slave_addr = plchan->cfg.src_addr;
 		addr_width = plchan->cfg.src_addr_width;
@@ -2033,6 +2050,7 @@ static struct pl08x_txd *pl08x_init_txd(
 	txd->ccfg = PL080_CONFIG_ERR_IRQ_MASK |
 		PL080_CONFIG_TC_IRQ_MASK |
 		tmp << PL080_CONFIG_FLOW_CONTROL_SHIFT;
+	//printk("this is debug cctl = %x ccfg = %x %s %s %d\n",txd->cctl,txd->ccfg,__FILE__,__func__,__LINE__);
 
 	ret = pl08x_request_mux(plchan);
 	if (ret < 0) {
@@ -2104,6 +2122,11 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 		ret = pl08x_tx_add_sg(txd, direction, slave_addr,
 				      sg_dma_address(sg),
 				      sg_dma_len(sg));
+		/*
+		printk("this is debug direction = %x slave_addr = %x addr = %x len = %x %s %s %d\n",
+		       direction,slave_addr,sg_dma_address(sg),sg_dma_len(sg),
+		       __FILE__,__func__,__LINE__);
+		*/
 		if (ret) {
 			pl08x_release_mux(plchan);
 			pl08x_free_txd(pl08x, txd);
@@ -2187,6 +2210,10 @@ static int pl08x_config(struct dma_chan *chan,
 		return -EINVAL;
 	}
 
+	/*
+	printk("this is debug chan = %x chan-id = %d plchan = %x plchan->signal = %d %s %s %d\n",
+	       chan,chan->chan_id,plchan,plchan->signal,__FILE__,__func__,__LINE__);
+	*/
 	plchan->cfg = *config;
 
 	return 0;
@@ -2230,6 +2257,7 @@ static void pl08x_synchronize(struct dma_chan *chan)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
 
+	printk("this is debug %s %s %d \n",__FILE__,__func__,__LINE__);
 	vchan_synchronize(&plchan->vc);
 }
 
@@ -2242,6 +2270,7 @@ static int pl08x_pause(struct dma_chan *chan)
 	 * Anything succeeds on channels with no physical allocation and
 	 * no queued transfers.
 	 */
+	printk("this is debug %s %s %d \n",__FILE__,__func__,__LINE__);
 	spin_lock_irqsave(&plchan->vc.lock, flags);
 	if (!plchan->phychan && !plchan->at) {
 		spin_unlock_irqrestore(&plchan->vc.lock, flags);
@@ -2265,6 +2294,7 @@ static int pl08x_resume(struct dma_chan *chan)
 	 * Anything succeeds on channels with no physical allocation and
 	 * no queued transfers.
 	 */
+	printk("this is debug %s %s %d \n",__FILE__,__func__,__LINE__);
 	spin_lock_irqsave(&plchan->vc.lock, flags);
 	if (!plchan->phychan && !plchan->at) {
 		spin_unlock_irqrestore(&plchan->vc.lock, flags);
@@ -2278,8 +2308,7 @@ static int pl08x_resume(struct dma_chan *chan)
 
 	return 0;
 }
-
-#ifndef CONFIG_SOC_STARFIVE_JH7110
+#if 0
 bool pl08x_filter_id(struct dma_chan *chan, void *chan_id)
 {
 	struct pl08x_dma_chan *plchan;
@@ -2299,7 +2328,6 @@ bool pl08x_filter_id(struct dma_chan *chan, void *chan_id)
 }
 EXPORT_SYMBOL_GPL(pl08x_filter_id);
 #endif
-
 static bool pl08x_filter_fn(struct dma_chan *chan, void *chan_id)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
@@ -2339,11 +2367,13 @@ static irqreturn_t pl08x_irq(int irq, void *dev)
 		writel(err, pl08x->base + PL080_ERR_CLEAR);
 	}
 	tc = readl(pl08x->base + PL080_TC_STATUS);
-	if (tc)
+	if (tc) {
 		writel(tc, pl08x->base + PL080_TC_CLEAR);
+	}
 
-	if (!err && !tc)
+	if (!err && !tc) {
 		return IRQ_NONE;
+	}
 
 	for (i = 0; i < pl08x->vd->channels; i++) {
 		if ((BIT(i) & err) || (BIT(i) & tc)) {
@@ -2606,11 +2636,7 @@ static struct dma_chan *pl08x_of_xlate(struct of_phandle_args *dma_spec,
 	return dma_get_slave_channel(dma_chan);
 }
 
-#ifdef CONFIG_SOC_STARFIVE_JH7110
 static int pl08x_of_probe(struct platform_device *adev,
-#else
-static int pl08x_of_probe(struct amba_device *adev,
-#endif
 			  struct pl08x_driver_data *pl08x,
 			  struct device_node *np)
 {
@@ -2731,11 +2757,7 @@ static int pl08x_of_probe(struct amba_device *adev,
 					  pl08x);
 }
 #else
-#ifdef CONFIG_SOC_STARFIVE_JH7110
 static inline int pl08x_of_probe(struct platform_device *adev,
-#else
-static inline int pl08x_of_probe(struct amba_device *adev,
-#endif
 				 struct pl08x_driver_data *pl08x,
 				 struct device_node *np)
 {
@@ -2743,69 +2765,51 @@ static inline int pl08x_of_probe(struct amba_device *adev,
 }
 #endif
 
-#ifdef CONFIG_SOC_STARFIVE_JH7110
 static int pl08x_probe(struct platform_device *adev) //, const struct amba_id *id)
-#else
-static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
-#endif
 {
 	struct pl08x_driver_data *pl08x;
-	struct device_node *np = adev->dev.of_node;
-	u32 tsfr_size;
-#ifdef CONFIG_SOC_STARFIVE_JH7110
 	struct vendor_data *vd;
+	struct device_node *np = adev->dev.of_node;
 	struct resource *res;
+	u32 tsfr_size;
 	int irq, ret = 0;
-#else
-	struct vendor_data *vd = id->data;
-	int ret = 0;
-#endif
 	int i;
 
-#ifndef CONFIG_SOC_STARFIVE_JH7110
+	//printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
+#if 0
 	ret = amba_request_regions(adev, NULL);
-	if (ret)
+	if (ret){
+		printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 		return ret;
-
+	}
 #endif
 	/* Ensure that we can do DMA */
 	ret = dma_set_mask_and_coherent(&adev->dev, DMA_BIT_MASK(32));
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-	if (ret)
+	if (ret){
+		printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 		return ret;
-#else
-	if (ret)
-		goto out_no_pl08x;
-#endif
+	}
 
 	/* Create the driver state holder */
 	pl08x = kzalloc(sizeof(*pl08x), GFP_KERNEL);
 	if (!pl08x) {
 		ret = -ENOMEM;
-#ifdef CONFIG_SOC_STARFIVE_JH7110
+		printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 		return ret;
-#else
-		goto out_no_pl08x;
-#endif
 	}
 
 	/* Assign useful pointers to the driver state */
 	pl08x->adev = adev;
-#ifdef CONFIG_SOC_STARFIVE_JH7110
 	vd = of_device_get_match_data(&adev->dev);
 	if(!vd)
 		return -ENODEV;
-#endif
 	pl08x->vd = vd;
 
-#ifdef CONFIG_SOC_STARFIVE_JH7110
 	res = platform_get_resource_byname(adev, IORESOURCE_MEM, "sec_dma");
 	pl08x->base = devm_ioremap_resource(&adev->dev, res);
-#else
-	pl08x->base = ioremap(adev->res.start, resource_size(&adev->res));
-#endif
 	if (!pl08x->base) {
 		ret = -ENOMEM;
+		printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 		goto out_no_ioremap;
 	}
 
@@ -2813,10 +2817,10 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		u32 val;
 
 		val = readl(pl08x->base + FTDMAC020_REVISION);
-		dev_info(&pl08x->adev->dev, "FTDMAC020 %d.%d rel %d\n",
+		dev_dbg(&pl08x->adev->dev, "FTDMAC020 %d.%d rel %d\n",
 			 (val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff);
 		val = readl(pl08x->base + FTDMAC020_FEATURE);
-		dev_info(&pl08x->adev->dev, "FTDMAC020 %d channels, "
+		dev_dbg(&pl08x->adev->dev, "FTDMAC020 %d channels, "
 			 "%s built-in bridge, %s, %s linked lists\n",
 			 (val >> 12) & 0x0f,
 			 (val & BIT(10)) ? "no" : "has",
@@ -2887,9 +2891,12 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	if (!pl08x->pd) {
 		if (np) {
 			ret = pl08x_of_probe(adev, pl08x, np);
-			if (ret)
+			if (ret) {
+				printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 				goto out_no_platdata;
+			}
 		} else {
+			printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 			dev_err(&adev->dev, "no platform data supplied\n");
 			ret = -EINVAL;
 			goto out_no_platdata;
@@ -2918,6 +2925,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	pl08x->pool = dma_pool_create(DRIVER_NAME, &pl08x->adev->dev,
 						tsfr_size, PL08X_ALIGN, 0);
 	if (!pl08x->pool) {
+		printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 		ret = -ENOMEM;
 		goto out_no_lli_pool;
 	}
@@ -2934,7 +2942,6 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	writel(0x000000FF, pl08x->base + PL080_TC_CLEAR);
 
 	/* Attach the interrupt handler */
-#ifdef CONFIG_SOC_STARFIVE_JH7110
 	irq = platform_get_irq(adev, 0);
 	if (irq < 0) {
 		dev_err(&adev->dev, "Cannot get IRQ resource\n");
@@ -2942,16 +2949,10 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	ret = request_irq(irq, pl08x_irq, 0, DRIVER_NAME, pl08x);
-#else
-	ret = request_irq(adev->irq[0], pl08x_irq, 0, DRIVER_NAME, pl08x);
-#endif
 	if (ret) {
+		printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 		dev_err(&adev->dev, "%s failed to request interrupt %d\n",
-#ifdef CONFIG_SOC_STARFIVE_JH7110
 			__func__, irq);
-#else
-			__func__, adev->irq[0]);
-#endif
 		goto out_no_irq;
 	}
 
@@ -2959,6 +2960,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	pl08x->phy_chans = kzalloc((vd->channels * sizeof(*pl08x->phy_chans)),
 			GFP_KERNEL);
 	if (!pl08x->phy_chans) {
+		printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 		ret = -ENOMEM;
 		goto out_no_phychans;
 	}
@@ -2978,6 +2980,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 			ch->reg_lli = ch->base + FTDMAC020_CH_LLP;
 			ch->ftdmac020 = true;
 		} else {
+			printk("this is debug i = %d  ch->base = %x  %s %s %d\n",i,ch->base,__FILE__,__func__,__LINE__);
 			ch->reg_config = ch->base + vd->config_offset;
 			ch->reg_control = ch->base + PL080_CH_CONTROL;
 			ch->reg_src = ch->base + PL080_CH_SRC_ADDR;
@@ -2999,11 +3002,12 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 
 			val = readl(ch->reg_config);
 			if (val & (PL080N_CONFIG_ITPROT | PL080N_CONFIG_SECPROT)) {
-				dev_info(&adev->dev, "physical channel %d reserved for secure access only\n", i);
+				dev_dbg(&adev->dev, "physical channel %d reserved for secure access only\n", i);
 				ch->locked = true;
 			}
 		}
 
+		//dev_dbg(&adev->dev, "physical channel %d is %s\n",
 		dev_dbg(&adev->dev, "physical channel %d is %s\n",
 			i, pl08x_phy_channel_busy(ch) ? "BUSY" : "FREE");
 	}
@@ -3012,6 +3016,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = pl08x_dma_init_virtual_channels(pl08x, &pl08x->memcpy,
 					      pl08x->vd->channels, false);
 	if (ret <= 0) {
+		printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 		dev_warn(&pl08x->adev->dev,
 			 "%s failed to enumerate memcpy channels - %d\n",
 			 __func__, ret);
@@ -3023,6 +3028,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		ret = pl08x_dma_init_virtual_channels(pl08x, &pl08x->slave,
 					pl08x->pd->num_slave_channels, true);
 		if (ret < 0) {
+			printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 			dev_warn(&pl08x->adev->dev,
 				 "%s failed to enumerate slave channels - %d\n",
 				 __func__, ret);
@@ -3032,6 +3038,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 
 	ret = dma_async_device_register(&pl08x->memcpy);
 	if (ret) {
+		printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 		dev_warn(&pl08x->adev->dev,
 			"%s failed to register memcpy as an async device - %d\n",
 			__func__, ret);
@@ -3041,6 +3048,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	if (pl08x->has_slave) {
 		ret = dma_async_device_register(&pl08x->slave);
 		if (ret) {
+			printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 			dev_warn(&pl08x->adev->dev,
 			"%s failed to register slave as an async device - %d\n",
 			__func__, ret);
@@ -3048,20 +3056,20 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		}
 	}
 
-#ifdef CONFIG_SOC_STARFIVE_JH7110
 	platform_set_drvdata(adev, pl08x);
-#else
-	amba_set_drvdata(adev, pl08x);
-#endif
 	init_pl08x_debugfs(pl08x);
-#ifdef CONFIG_SOC_STARFIVE_JH7110
+	printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
+	{
+		int loop;
+
+		for (loop = 0xfe0;loop <= 0xffc; loop += 4) {
+			dev_dbg(&pl08x->adev->dev, "periphid[0x%x] = %x ",
+				 loop,readl(pl08x->base + loop));
+		}
+	}
+	printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 	dev_dbg(&pl08x->adev->dev, "DMA: PL080  at 0x%08llx irq %d\n",
 		 (unsigned long long)res->start, irq);
-#else
-	dev_info(&pl08x->adev->dev, "DMA: PL%03x%s rev%u at 0x%08llx irq %d\n",
-		 amba_part(adev), pl08x->vd->pl080s ? "s" : "", amba_rev(adev),
-		 (unsigned long long)adev->res.start, adev->irq[0]);
-#endif
 
 	return 0;
 
@@ -3075,11 +3083,7 @@ out_no_slave:
 out_no_memcpy:
 	kfree(pl08x->phy_chans);
 out_no_phychans:
-#ifdef CONFIG_SOC_STARFIVE_JH7110
 	free_irq(irq, pl08x);
-#else
-	free_irq(adev->irq[0], pl08x);
-#endif
 out_no_irq:
 	dma_pool_destroy(pl08x->pool);
 out_no_lli_pool:
@@ -3087,11 +3091,9 @@ out_no_platdata:
 	iounmap(pl08x->base);
 out_no_ioremap:
 	kfree(pl08x);
-
-#ifndef CONFIG_SOC_STARFIVE_JH7110
-out_no_pl08x:
-	amba_release_regions(adev);
-#endif
+	//out_no_pl08x:
+	//amba_release_regions(adev);
+	printk("this is debug %s %s %d\n",__FILE__,__func__,__LINE__);
 	return ret;
 }
 
@@ -3103,26 +3105,7 @@ static struct vendor_data vendor_pl080 = {
 	.dualmaster = true,
 	.max_transfer_size = PL080_CONTROL_TRANSFER_SIZE_MASK,
 };
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-static const struct of_device_id vic7110_dma_ids[] = {
-	{ .compatible = "starfive,pl080", .data = &vendor_pl080},
-	{},
-};
-MODULE_DEVICE_TABLE(of, vic7110_dma_ids);
-
-static struct platform_driver vic7110_pl08x_driver = {
-	.probe  = pl08x_probe,
-	.driver = {
-		.name           = DRIVER_NAME,
-		.of_match_table = vic7110_dma_ids,
-	},
-};
-
-module_platform_driver(vic7110_pl08x_driver);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Huan Feng <huan.feng@starfivetech.com>");
-#else
+#if 0
 static struct vendor_data vendor_nomadik = {
 	.config_offset = PL080_CH_CONFIG,
 	.channels = 8,
@@ -3195,16 +3178,23 @@ static struct amba_driver pl08x_amba_driver = {
 	.id_table	= pl08x_ids,
 	.probe		= pl08x_probe,
 };
-
-static int __init pl08x_init(void)
-{
-	int retval;
-	retval = amba_driver_register(&pl08x_amba_driver);
-	if (retval)
-		printk(KERN_WARNING DRIVER_NAME
-		       "failed to register as an AMBA device (%d)\n",
-		       retval);
-	return retval;
-}
-subsys_initcall(pl08x_init);
 #endif
+static const struct of_device_id vic7110_dma_ids[] = {
+	{ .compatible = "starfive,pl080", .data = &vendor_pl080},
+	{},
+};
+MODULE_DEVICE_TABLE(of, vic7110_dma_ids);
+
+static struct platform_driver vic7110_pl08x_driver = {
+	.probe  = pl08x_probe,
+	.driver = {
+		.name           = DRIVER_NAME,
+		.of_match_table = vic7110_dma_ids,
+	},
+};
+
+module_platform_driver(vic7110_pl08x_driver);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Huan Feng <huan.feng@starfivetech.com>");
+MODULE_DESCRIPTION("Starfive VIC7110 CRYP DMA driver");
