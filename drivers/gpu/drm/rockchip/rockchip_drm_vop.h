@@ -552,6 +552,11 @@ struct vop2_cluster_regs {
 	struct vop_reg enable;
 	struct vop_reg afbc_enable;
 	struct vop_reg lb_mode;
+
+	struct vop_reg src_color_ctrl;
+	struct vop_reg dst_color_ctrl;
+	struct vop_reg src_alpha_ctrl;
+	struct vop_reg dst_alpha_ctrl;
 };
 
 struct vop2_scl_regs {
@@ -1037,10 +1042,6 @@ struct vop2_ctrl {
 	struct vop_reg mipi0_ds_mode;
 	struct vop_reg mipi1_ds_mode;
 
-	struct vop_reg cluster0_src_color_ctrl;
-	struct vop_reg cluster0_dst_color_ctrl;
-	struct vop_reg cluster0_src_alpha_ctrl;
-	struct vop_reg cluster0_dst_alpha_ctrl;
 	struct vop_reg src_color_ctrl;
 	struct vop_reg dst_color_ctrl;
 	struct vop_reg src_alpha_ctrl;
