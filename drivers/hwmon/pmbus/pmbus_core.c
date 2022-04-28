@@ -19,6 +19,8 @@
 #include <linux/pmbus.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/of.h>
+#include <linux/thermal.h>
 #include "pmbus.h"
 
 /*
@@ -1101,6 +1103,68 @@ static int pmbus_add_boolean(struct pmbus_data *data,
 	return pmbus_add_attribute(data, &a->dev_attr.attr);
 }
 
+/* of thermal for pmbus temperature sensors */
+struct pmbus_thermal_data {
+	struct pmbus_data *pmbus_data;
+	struct pmbus_sensor *sensor;
+};
+
+static int pmbus_thermal_get_temp(void *data, int *temp)
+{
+	struct pmbus_thermal_data *tdata = data;
+	struct pmbus_sensor *sensor = tdata->sensor;
+	struct pmbus_data *pmbus_data = tdata->pmbus_data;
+	struct i2c_client *client = to_i2c_client(pmbus_data->dev);
+	struct device *dev = pmbus_data->hwmon_dev;
+	int ret = 0;
+
+	if (!dev) {
+		/* May not even get to hwmon yet */
+		*temp = 0;
+		return 0;
+	}
+
+	mutex_lock(&pmbus_data->update_lock);
+	pmbus_update_sensor_data(client, sensor);
+	if (sensor->data < 0)
+		ret = sensor->data;
+	else
+		*temp = (int)pmbus_reg2data(pmbus_data, sensor);
+	mutex_unlock(&pmbus_data->update_lock);
+
+	return ret;
+}
+
+static const struct thermal_zone_of_device_ops pmbus_thermal_ops = {
+	.get_temp = pmbus_thermal_get_temp,
+};
+
+static int pmbus_thermal_add_sensor(struct pmbus_data *pmbus_data,
+				    struct pmbus_sensor *sensor, int index)
+{
+	struct device *dev = pmbus_data->dev;
+	struct pmbus_thermal_data *tdata;
+	struct thermal_zone_device *tzd;
+
+	tdata = devm_kzalloc(dev, sizeof(*tdata), GFP_KERNEL);
+	if (!tdata)
+		return -ENOMEM;
+
+	tdata->sensor = sensor;
+	tdata->pmbus_data = pmbus_data;
+
+	tzd = devm_thermal_zone_of_sensor_register(dev, index, tdata,
+						   &pmbus_thermal_ops);
+	/*
+	 * If CONFIG_THERMAL_OF is disabled, this returns -ENODEV,
+	 * so ignore that error but forward any other error.
+	 */
+	if (IS_ERR(tzd) && (PTR_ERR(tzd) != -ENODEV))
+		return PTR_ERR(tzd);
+
+	return 0;
+}
+
 static struct pmbus_sensor *pmbus_add_sensor(struct pmbus_data *data,
 					     const char *name, const char *type,
 					     int seq, int page, int phase,
@@ -1143,6 +1207,10 @@ static struct pmbus_sensor *pmbus_add_sensor(struct pmbus_data *data,
 
 	sensor->next = data->sensors;
 	data->sensors = sensor;
+
+	/* temperature sensors with _input values are registered with thermal */
+	if (class == PSC_TEMPERATURE && strcmp(type, "input") == 0)
+		pmbus_thermal_add_sensor(data, sensor, seq);
 
 	return sensor;
 }
