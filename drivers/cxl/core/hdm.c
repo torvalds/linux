@@ -251,8 +251,7 @@ int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 			return PTR_ERR(cxld);
 		}
 
-		rc = init_hdm_decoder(port, cxld, target_map,
-				      cxlhdm->regs.hdm_decoder, i);
+		rc = init_hdm_decoder(port, cxld, target_map, hdm, i);
 		if (rc) {
 			put_device(&cxld->dev);
 			failed++;
