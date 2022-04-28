@@ -6962,7 +6962,7 @@ static void fixup_log_failed_core_relo(struct bpf_program *prog,
 	const struct bpf_core_relo *relo;
 	struct bpf_core_spec spec;
 	char patch[512], spec_buf[256];
-	int insn_idx, err;
+	int insn_idx, err, spec_len;
 
 	if (sscanf(line1, "%d: (%*d) call unknown#195896080\n", &insn_idx) != 1)
 		return;
@@ -6975,11 +6975,11 @@ static void fixup_log_failed_core_relo(struct bpf_program *prog,
 	if (err)
 		return;
 
-	bpf_core_format_spec(spec_buf, sizeof(spec_buf), &spec);
+	spec_len = bpf_core_format_spec(spec_buf, sizeof(spec_buf), &spec);
 	snprintf(patch, sizeof(patch),
 		 "%d: <invalid CO-RE relocation>\n"
-		 "failed to resolve CO-RE relocation %s\n",
-		 insn_idx, spec_buf);
+		 "failed to resolve CO-RE relocation %s%s\n",
+		 insn_idx, spec_buf, spec_len >= sizeof(spec_buf) ? "..." : "");
 
 	patch_log(buf, buf_sz, log_sz, line1, line3 - line1, patch);
 }
