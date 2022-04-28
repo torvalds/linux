@@ -30,7 +30,7 @@ void iscsit_create_conn_recovery_datain_values(
 	__be32 exp_data_sn)
 {
 	u32 data_sn = 0;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 
 	cmd->next_burst_len = 0;
 	cmd->read_data_done = 0;
@@ -57,7 +57,7 @@ void iscsit_create_conn_recovery_dataout_values(
 	struct iscsit_cmd *cmd)
 {
 	u32 write_data_done = 0;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 
 	cmd->data_sn = 0;
 	cmd->next_burst_len = 0;
@@ -263,7 +263,7 @@ void iscsit_discard_cr_cmds_by_expstatsn(
 	}
 }
 
-int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
+int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsit_conn *conn)
 {
 	u32 dropped_count = 0;
 	struct iscsit_cmd *cmd, *cmd_tmp;
@@ -304,7 +304,7 @@ int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
 	return 0;
 }
 
-int iscsit_prepare_cmds_for_reallegiance(struct iscsi_conn *conn)
+int iscsit_prepare_cmds_for_reallegiance(struct iscsit_conn *conn)
 {
 	u32 cmd_count = 0;
 	struct iscsit_cmd *cmd, *cmd_tmp;
@@ -418,7 +418,7 @@ int iscsit_prepare_cmds_for_reallegiance(struct iscsi_conn *conn)
 	return 0;
 }
 
-int iscsit_connection_recovery_transport_reset(struct iscsi_conn *conn)
+int iscsit_connection_recovery_transport_reset(struct iscsit_conn *conn)
 {
 	atomic_set(&conn->connection_recovery, 1);
 

@@ -478,7 +478,7 @@ struct iscsit_cmd {
 	/* TMR Request when iscsi_opcode == ISCSI_OP_SCSI_TMFUNC */
 	struct iscsi_tmr_req	*tmr_req;
 	/* Connection this command is alligient to */
-	struct iscsi_conn	*conn;
+	struct iscsit_conn	*conn;
 	/* Pointer to connection recovery entry */
 	struct iscsi_conn_recovery *cr;
 	/* Session the command is part of,  used for connection recovery */
@@ -508,7 +508,7 @@ struct iscsi_tmr_req {
 	struct se_tmr_req	*se_tmr_req;
 };
 
-struct iscsi_conn {
+struct iscsit_conn {
 	wait_queue_head_t	queues_wq;
 	/* Authentication Successful for this connection */
 	u8			auth_complete;
@@ -710,7 +710,7 @@ struct iscsi_login {
 	char rsp[ISCSI_HDR_LEN];
 	char *req_buf;
 	char *rsp_buf;
-	struct iscsi_conn *conn;
+	struct iscsit_conn *conn;
 	struct iscsi_np *np;
 } ____cacheline_aligned;
 
@@ -898,9 +898,9 @@ static inline u32 session_get_next_ttt(struct iscsi_session *session)
 	return ttt;
 }
 
-extern struct iscsit_cmd *iscsit_find_cmd_from_itt(struct iscsi_conn *, itt_t);
+extern struct iscsit_cmd *iscsit_find_cmd_from_itt(struct iscsit_conn *, itt_t);
 
-extern void iscsit_thread_check_cpumask(struct iscsi_conn *conn,
+extern void iscsit_thread_check_cpumask(struct iscsit_conn *conn,
 					struct task_struct *p,
 					int mode);
 

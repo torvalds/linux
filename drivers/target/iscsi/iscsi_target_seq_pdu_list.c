@@ -208,7 +208,7 @@ static void iscsit_determine_counts_for_list(
 	u32 burstlength = 0, offset = 0;
 	u32 unsolicited_data_length = 0;
 	u32 mdsl;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 
 	if (cmd->se_cmd.data_direction == DMA_TO_DEVICE)
 		mdsl = cmd->conn->conn_ops->MaxXmitDataSegmentLength;
@@ -289,7 +289,7 @@ static int iscsit_do_build_pdu_and_seq_lists(
 	int check_immediate = 0, datapduinorder, datasequenceinorder;
 	u32 burstlength = 0, offset = 0, i = 0, mdsl;
 	u32 pdu_count = 0, seq_no = 0, unsolicited_data_length = 0;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_pdu *pdu = cmd->pdu_list;
 	struct iscsi_seq *seq = cmd->seq_list;
 
@@ -489,7 +489,7 @@ int iscsit_build_pdu_and_seq_lists(
 {
 	struct iscsi_build_list bl;
 	u32 pdu_count = 0, seq_count = 1;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_pdu *pdu = NULL;
 	struct iscsi_seq *seq = NULL;
 
@@ -587,7 +587,7 @@ struct iscsi_pdu *iscsit_get_pdu_holder_for_seq(
 	struct iscsi_seq *seq)
 {
 	u32 i;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_pdu *pdu = NULL;
 
 	if (!cmd->pdu_list) {

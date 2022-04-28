@@ -499,7 +499,7 @@ static ssize_t lio_target_nacl_info_show(struct config_item *item, char *page)
 {
 	struct se_node_acl *se_nacl = acl_to_nacl(item);
 	struct iscsi_session *sess;
-	struct iscsi_conn *conn;
+	struct iscsit_conn *conn;
 	struct se_session *se_sess;
 	ssize_t rb = 0;
 	u32 max_cmd_sn;
@@ -1367,7 +1367,7 @@ static u32 lio_sess_get_initiator_sid(
 static int lio_queue_data_in(struct se_cmd *se_cmd)
 {
 	struct iscsit_cmd *cmd = container_of(se_cmd, struct iscsit_cmd, se_cmd);
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 
 	cmd->i_state = ISTATE_SEND_DATAIN;
 	return conn->conn_transport->iscsit_queue_data_in(conn, cmd);
@@ -1376,7 +1376,7 @@ static int lio_queue_data_in(struct se_cmd *se_cmd)
 static int lio_write_pending(struct se_cmd *se_cmd)
 {
 	struct iscsit_cmd *cmd = container_of(se_cmd, struct iscsit_cmd, se_cmd);
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 
 	if (!cmd->immediate_data && !cmd->unsolicited_data)
 		return conn->conn_transport->iscsit_get_dataout(conn, cmd, false);
@@ -1387,7 +1387,7 @@ static int lio_write_pending(struct se_cmd *se_cmd)
 static int lio_queue_status(struct se_cmd *se_cmd)
 {
 	struct iscsit_cmd *cmd = container_of(se_cmd, struct iscsit_cmd, se_cmd);
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 
 	cmd->i_state = ISTATE_SEND_STATUS;
 

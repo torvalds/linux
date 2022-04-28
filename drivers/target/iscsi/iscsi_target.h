@@ -6,7 +6,7 @@
 #include <linux/spinlock.h>
 
 struct iscsit_cmd;
-struct iscsi_conn;
+struct iscsit_conn;
 struct iscsi_np;
 struct iscsi_portal_group;
 struct iscsi_session;
@@ -32,15 +32,15 @@ extern int iscsit_reset_np_thread(struct iscsi_np *, struct iscsi_tpg_np *,
 extern int iscsit_del_np(struct iscsi_np *);
 extern int iscsit_reject_cmd(struct iscsit_cmd *cmd, u8, unsigned char *);
 extern void iscsit_set_unsolicited_dataout(struct iscsit_cmd *);
-extern int iscsit_logout_closesession(struct iscsit_cmd *, struct iscsi_conn *);
-extern int iscsit_logout_closeconnection(struct iscsit_cmd *, struct iscsi_conn *);
-extern int iscsit_logout_removeconnforrecovery(struct iscsit_cmd *, struct iscsi_conn *);
-extern int iscsit_send_async_msg(struct iscsi_conn *, u16, u8, u8);
-extern int iscsit_build_r2ts_for_cmd(struct iscsi_conn *, struct iscsit_cmd *, bool recovery);
-extern void iscsit_thread_get_cpumask(struct iscsi_conn *);
+extern int iscsit_logout_closesession(struct iscsit_cmd *, struct iscsit_conn *);
+extern int iscsit_logout_closeconnection(struct iscsit_cmd *, struct iscsit_conn *);
+extern int iscsit_logout_removeconnforrecovery(struct iscsit_cmd *, struct iscsit_conn *);
+extern int iscsit_send_async_msg(struct iscsit_conn *, u16, u8, u8);
+extern int iscsit_build_r2ts_for_cmd(struct iscsit_conn *, struct iscsit_cmd *, bool recovery);
+extern void iscsit_thread_get_cpumask(struct iscsit_conn *);
 extern int iscsi_target_tx_thread(void *);
 extern int iscsi_target_rx_thread(void *);
-extern int iscsit_close_connection(struct iscsi_conn *);
+extern int iscsit_close_connection(struct iscsit_conn *);
 extern int iscsit_close_session(struct iscsi_session *, bool can_sleep);
 extern void iscsit_fail_session(struct iscsi_session *);
 extern void iscsit_stop_session(struct iscsi_session *, int, int);

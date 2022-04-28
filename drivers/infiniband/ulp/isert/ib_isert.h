@@ -173,7 +173,7 @@ struct isert_conn {
 	u64			login_rsp_dma;
 	struct iser_rx_desc	*rx_descs;
 	struct ib_recv_wr	rx_wr[ISERT_QP_MAX_RECV_DTOS];
-	struct iscsi_conn	*conn;
+	struct iscsit_conn	*conn;
 	struct list_head	node;
 	struct completion	login_comp;
 	struct completion	login_req_comp;

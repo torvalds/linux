@@ -393,7 +393,7 @@ static int
 cxgbit_tx_datain_iso(struct cxgbit_sock *csk, struct iscsit_cmd *cmd,
 		     struct iscsi_datain_req *dr)
 {
-	struct iscsi_conn *conn = csk->conn;
+	struct iscsit_conn *conn = csk->conn;
 	struct sk_buff *skb;
 	struct iscsi_datain datain;
 	struct cxgbit_iso_info iso_info;
@@ -510,7 +510,7 @@ cxgbit_tx_datain(struct cxgbit_sock *csk, struct iscsit_cmd *cmd,
 }
 
 static int
-cxgbit_xmit_datain_pdu(struct iscsi_conn *conn, struct iscsit_cmd *cmd,
+cxgbit_xmit_datain_pdu(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 		       struct iscsi_datain_req *dr,
 		       const struct iscsi_datain *datain)
 {
@@ -530,7 +530,7 @@ cxgbit_xmit_datain_pdu(struct iscsi_conn *conn, struct iscsit_cmd *cmd,
 }
 
 static int
-cxgbit_xmit_nondatain_pdu(struct iscsi_conn *conn, struct iscsit_cmd *cmd,
+cxgbit_xmit_nondatain_pdu(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 			  const void *data_buf, u32 data_buf_len)
 {
 	struct cxgbit_sock *csk = conn->context;
@@ -560,7 +560,7 @@ cxgbit_xmit_nondatain_pdu(struct iscsi_conn *conn, struct iscsit_cmd *cmd,
 }
 
 int
-cxgbit_xmit_pdu(struct iscsi_conn *conn, struct iscsit_cmd *cmd,
+cxgbit_xmit_pdu(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 		struct iscsi_datain_req *dr, const void *buf, u32 buf_len)
 {
 	if (dr)
@@ -569,7 +569,7 @@ cxgbit_xmit_pdu(struct iscsi_conn *conn, struct iscsit_cmd *cmd,
 		return cxgbit_xmit_nondatain_pdu(conn, cmd, buf, buf_len);
 }
 
-int cxgbit_validate_params(struct iscsi_conn *conn)
+int cxgbit_validate_params(struct iscsit_conn *conn)
 {
 	struct cxgbit_sock *csk = conn->context;
 	struct cxgbit_device *cdev = csk->com.cdev;
@@ -595,7 +595,7 @@ int cxgbit_validate_params(struct iscsi_conn *conn)
 
 static int cxgbit_set_digest(struct cxgbit_sock *csk)
 {
-	struct iscsi_conn *conn = csk->conn;
+	struct iscsit_conn *conn = csk->conn;
 	struct iscsi_param *param;
 
 	param = iscsi_find_param_from_key(HEADERDIGEST, conn->param_list);
@@ -627,7 +627,7 @@ static int cxgbit_set_digest(struct cxgbit_sock *csk)
 
 static int cxgbit_set_iso_npdu(struct cxgbit_sock *csk)
 {
-	struct iscsi_conn *conn = csk->conn;
+	struct iscsit_conn *conn = csk->conn;
 	struct iscsi_conn_ops *conn_ops = conn->conn_ops;
 	struct iscsi_param *param;
 	u32 mrdsl, mbl;
@@ -678,7 +678,7 @@ static int cxgbit_set_iso_npdu(struct cxgbit_sock *csk)
  */
 static int cxgbit_seq_pdu_inorder(struct cxgbit_sock *csk)
 {
-	struct iscsi_conn *conn = csk->conn;
+	struct iscsit_conn *conn = csk->conn;
 	struct iscsi_param *param;
 
 	if (conn->login->leading_connection) {
@@ -712,7 +712,7 @@ static int cxgbit_seq_pdu_inorder(struct cxgbit_sock *csk)
 	return 0;
 }
 
-static int cxgbit_set_params(struct iscsi_conn *conn)
+static int cxgbit_set_params(struct iscsit_conn *conn)
 {
 	struct cxgbit_sock *csk = conn->context;
 	struct cxgbit_device *cdev = csk->com.cdev;
@@ -771,7 +771,7 @@ enable_ddp:
 }
 
 int
-cxgbit_put_login_tx(struct iscsi_conn *conn, struct iscsi_login *login,
+cxgbit_put_login_tx(struct iscsit_conn *conn, struct iscsi_login *login,
 		    u32 length)
 {
 	struct cxgbit_sock *csk = conn->context;
@@ -834,7 +834,7 @@ cxgbit_skb_copy_to_sg(struct sk_buff *skb, struct scatterlist *sg,
 
 static struct iscsit_cmd *cxgbit_allocate_cmd(struct cxgbit_sock *csk)
 {
-	struct iscsi_conn *conn = csk->conn;
+	struct iscsit_conn *conn = csk->conn;
 	struct cxgbi_ppm *ppm = cdev2ppm(csk->com.cdev);
 	struct cxgbit_cmd *ccmd;
 	struct iscsit_cmd *cmd;
@@ -856,7 +856,7 @@ static int
 cxgbit_handle_immediate_data(struct iscsit_cmd *cmd, struct iscsi_scsi_req *hdr,
 			     u32 length)
 {
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct cxgbit_sock *csk = conn->context;
 	struct cxgbit_lro_pdu_cb *pdu_cb = cxgbit_rx_pdu_cb(csk->skb);
 
@@ -913,7 +913,7 @@ static int
 cxgbit_get_immediate_data(struct iscsit_cmd *cmd, struct iscsi_scsi_req *hdr,
 			  bool dump_payload)
 {
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	int cmdsn_ret = 0, immed_ret = IMMEDIATE_DATA_NORMAL_OPERATION;
 	/*
 	 * Special case for Unsupported SAM WRITE Opcodes and ImmediateData=Yes.
@@ -966,7 +966,7 @@ after_immediate_data:
 static int
 cxgbit_handle_scsi_cmd(struct cxgbit_sock *csk, struct iscsit_cmd *cmd)
 {
-	struct iscsi_conn *conn = csk->conn;
+	struct iscsit_conn *conn = csk->conn;
 	struct cxgbit_lro_pdu_cb *pdu_cb = cxgbit_rx_pdu_cb(csk->skb);
 	struct iscsi_scsi_req *hdr = (struct iscsi_scsi_req *)pdu_cb->hdr;
 	int rc;
@@ -995,7 +995,7 @@ cxgbit_handle_scsi_cmd(struct cxgbit_sock *csk, struct iscsit_cmd *cmd)
 static int cxgbit_handle_iscsi_dataout(struct cxgbit_sock *csk)
 {
 	struct scatterlist *sg_start;
-	struct iscsi_conn *conn = csk->conn;
+	struct iscsit_conn *conn = csk->conn;
 	struct iscsit_cmd *cmd = NULL;
 	struct cxgbit_cmd *ccmd;
 	struct cxgbi_task_tag_info *ttinfo;
@@ -1086,7 +1086,7 @@ check_payload:
 
 static int cxgbit_handle_nop_out(struct cxgbit_sock *csk, struct iscsit_cmd *cmd)
 {
-	struct iscsi_conn *conn = csk->conn;
+	struct iscsit_conn *conn = csk->conn;
 	struct cxgbit_lro_pdu_cb *pdu_cb = cxgbit_rx_pdu_cb(csk->skb);
 	struct iscsi_nopout *hdr = (struct iscsi_nopout *)pdu_cb->hdr;
 	unsigned char *ping_data = NULL;
@@ -1154,7 +1154,7 @@ out:
 static int
 cxgbit_handle_text_cmd(struct cxgbit_sock *csk, struct iscsit_cmd *cmd)
 {
-	struct iscsi_conn *conn = csk->conn;
+	struct iscsit_conn *conn = csk->conn;
 	struct cxgbit_lro_pdu_cb *pdu_cb = cxgbit_rx_pdu_cb(csk->skb);
 	struct iscsi_text *hdr = (struct iscsi_text *)pdu_cb->hdr;
 	u32 payload_length = pdu_cb->dlen;
@@ -1209,7 +1209,7 @@ static int cxgbit_target_rx_opcode(struct cxgbit_sock *csk)
 {
 	struct cxgbit_lro_pdu_cb *pdu_cb = cxgbit_rx_pdu_cb(csk->skb);
 	struct iscsi_hdr *hdr = (struct iscsi_hdr *)pdu_cb->hdr;
-	struct iscsi_conn *conn = csk->conn;
+	struct iscsit_conn *conn = csk->conn;
 	struct iscsit_cmd *cmd = NULL;
 	u8 opcode = (hdr->opcode & ISCSI_OPCODE_MASK);
 	int ret = -EINVAL;
@@ -1286,7 +1286,7 @@ reject:
 static int cxgbit_rx_opcode(struct cxgbit_sock *csk)
 {
 	struct cxgbit_lro_pdu_cb *pdu_cb = cxgbit_rx_pdu_cb(csk->skb);
-	struct iscsi_conn *conn = csk->conn;
+	struct iscsit_conn *conn = csk->conn;
 	struct iscsi_hdr *hdr = pdu_cb->hdr;
 	u8 opcode;
 
@@ -1321,7 +1321,7 @@ transport_err:
 
 static int cxgbit_rx_login_pdu(struct cxgbit_sock *csk)
 {
-	struct iscsi_conn *conn = csk->conn;
+	struct iscsit_conn *conn = csk->conn;
 	struct iscsi_login *login = conn->login;
 	struct cxgbit_lro_pdu_cb *pdu_cb = cxgbit_rx_pdu_cb(csk->skb);
 	struct iscsi_login_req *login_req;
@@ -1626,7 +1626,7 @@ out:
 	return -1;
 }
 
-int cxgbit_get_login_rx(struct iscsi_conn *conn, struct iscsi_login *login)
+int cxgbit_get_login_rx(struct iscsit_conn *conn, struct iscsi_login *login)
 {
 	struct cxgbit_sock *csk = conn->context;
 	int ret = -1;
@@ -1642,7 +1642,7 @@ int cxgbit_get_login_rx(struct iscsi_conn *conn, struct iscsi_login *login)
 	return ret;
 }
 
-void cxgbit_get_rx_pdu(struct iscsi_conn *conn)
+void cxgbit_get_rx_pdu(struct iscsit_conn *conn)
 {
 	struct cxgbit_sock *csk = conn->context;
 

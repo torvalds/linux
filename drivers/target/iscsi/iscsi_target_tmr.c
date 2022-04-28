@@ -32,7 +32,7 @@ u8 iscsit_tmr_abort_task(
 	unsigned char *buf)
 {
 	struct iscsit_cmd *ref_cmd;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_tmr_req *tmr_req = cmd->tmr_req;
 	struct se_tmr_req *se_tmr = cmd->se_cmd.se_tmr_req;
 	struct iscsi_tm *hdr = (struct iscsi_tm *) buf;
@@ -63,7 +63,7 @@ u8 iscsit_tmr_abort_task(
  *	Called from iscsit_handle_task_mgt_cmd().
  */
 int iscsit_tmr_task_warm_reset(
-	struct iscsi_conn *conn,
+	struct iscsit_conn *conn,
 	struct iscsi_tmr_req *tmr_req,
 	unsigned char *buf)
 {
@@ -83,7 +83,7 @@ int iscsit_tmr_task_warm_reset(
 }
 
 int iscsit_tmr_task_cold_reset(
-	struct iscsi_conn *conn,
+	struct iscsit_conn *conn,
 	struct iscsi_tmr_req *tmr_req,
 	unsigned char *buf)
 {
@@ -107,7 +107,7 @@ u8 iscsit_tmr_task_reassign(
 	unsigned char *buf)
 {
 	struct iscsit_cmd *ref_cmd = NULL;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_conn_recovery *cr = NULL;
 	struct iscsi_tmr_req *tmr_req = cmd->tmr_req;
 	struct se_tmr_req *se_tmr = cmd->se_cmd.se_tmr_req;
@@ -193,7 +193,7 @@ static void iscsit_task_reassign_remove_cmd(
 
 static int iscsit_task_reassign_complete_nop_out(
 	struct iscsi_tmr_req *tmr_req,
-	struct iscsi_conn *conn)
+	struct iscsit_conn *conn)
 {
 	struct iscsit_cmd *cmd = tmr_req->ref_cmd;
 	struct iscsi_conn_recovery *cr;
@@ -229,7 +229,7 @@ static int iscsit_task_reassign_complete_write(
 {
 	int no_build_r2ts = 0;
 	u32 length = 0, offset = 0;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 	/*
 	 * The Initiator must not send a R2T SNACK with a Begrun less than
@@ -299,7 +299,7 @@ static int iscsit_task_reassign_complete_read(
 	struct iscsit_cmd *cmd,
 	struct iscsi_tmr_req *tmr_req)
 {
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_datain_req *dr;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 	/*
@@ -352,7 +352,7 @@ static int iscsit_task_reassign_complete_none(
 	struct iscsit_cmd *cmd,
 	struct iscsi_tmr_req *tmr_req)
 {
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 
 	cmd->i_state = ISTATE_SEND_STATUS;
 	iscsit_add_cmd_to_response_queue(cmd, conn, cmd->i_state);
@@ -361,7 +361,7 @@ static int iscsit_task_reassign_complete_none(
 
 static int iscsit_task_reassign_complete_scsi_cmnd(
 	struct iscsi_tmr_req *tmr_req,
-	struct iscsi_conn *conn)
+	struct iscsit_conn *conn)
 {
 	struct iscsit_cmd *cmd = tmr_req->ref_cmd;
 	struct iscsi_conn_recovery *cr;
@@ -410,7 +410,7 @@ static int iscsit_task_reassign_complete_scsi_cmnd(
 
 static int iscsit_task_reassign_complete(
 	struct iscsi_tmr_req *tmr_req,
-	struct iscsi_conn *conn)
+	struct iscsit_conn *conn)
 {
 	struct iscsit_cmd *cmd;
 	int ret = 0;
@@ -451,7 +451,7 @@ static int iscsit_task_reassign_complete(
  *	Right now the only one that its really needed for is
  *	connection recovery releated TASK_REASSIGN.
  */
-int iscsit_tmr_post_handler(struct iscsit_cmd *cmd, struct iscsi_conn *conn)
+int iscsit_tmr_post_handler(struct iscsit_cmd *cmd, struct iscsit_conn *conn)
 {
 	struct iscsi_tmr_req *tmr_req = cmd->tmr_req;
 	struct se_tmr_req *se_tmr = cmd->se_cmd.se_tmr_req;
@@ -469,14 +469,14 @@ EXPORT_SYMBOL(iscsit_tmr_post_handler);
  */
 static int iscsit_task_reassign_prepare_read(
 	struct iscsi_tmr_req *tmr_req,
-	struct iscsi_conn *conn)
+	struct iscsit_conn *conn)
 {
 	return 0;
 }
 
 static void iscsit_task_reassign_prepare_unsolicited_dataout(
 	struct iscsit_cmd *cmd,
-	struct iscsi_conn *conn)
+	struct iscsit_conn *conn)
 {
 	int i, j;
 	struct iscsi_pdu *pdu = NULL;
@@ -544,7 +544,7 @@ static void iscsit_task_reassign_prepare_unsolicited_dataout(
 
 static int iscsit_task_reassign_prepare_write(
 	struct iscsi_tmr_req *tmr_req,
-	struct iscsi_conn *conn)
+	struct iscsit_conn *conn)
 {
 	struct iscsit_cmd *cmd = tmr_req->ref_cmd;
 	struct iscsi_pdu *pdu = NULL;
@@ -777,7 +777,7 @@ drop_unacknowledged_r2ts:
  */
 int iscsit_check_task_reassign_expdatasn(
 	struct iscsi_tmr_req *tmr_req,
-	struct iscsi_conn *conn)
+	struct iscsit_conn *conn)
 {
 	struct iscsit_cmd *ref_cmd = tmr_req->ref_cmd;
 

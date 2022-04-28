@@ -80,7 +80,7 @@ static struct iscsi_datain_req *iscsit_set_datain_values_yes_and_yes(
 	struct iscsi_datain *datain)
 {
 	u32 next_burst_len, read_data_done, read_data_left;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_datain_req *dr;
 
 	dr = iscsit_get_datain_req(cmd);
@@ -178,7 +178,7 @@ static struct iscsi_datain_req *iscsit_set_datain_values_no_and_yes(
 	struct iscsi_datain *datain)
 {
 	u32 offset, read_data_done, read_data_left, seq_send_order;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_datain_req *dr;
 	struct iscsi_seq *seq;
 
@@ -299,7 +299,7 @@ static struct iscsi_datain_req *iscsit_set_datain_values_yes_and_no(
 	struct iscsi_datain *datain)
 {
 	u32 next_burst_len, read_data_done, read_data_left;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_datain_req *dr;
 	struct iscsi_pdu *pdu;
 
@@ -398,7 +398,7 @@ static struct iscsi_datain_req *iscsit_set_datain_values_no_and_no(
 	struct iscsi_datain *datain)
 {
 	u32 read_data_done, read_data_left, seq_send_order;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_datain_req *dr;
 	struct iscsi_pdu *pdu;
 	struct iscsi_seq *seq = NULL;
@@ -499,7 +499,7 @@ struct iscsi_datain_req *iscsit_get_datain_values(
 	struct iscsit_cmd *cmd,
 	struct iscsi_datain *datain)
 {
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 
 	if (conn->sess->sess_ops->DataSequenceInOrder &&
 	    conn->sess->sess_ops->DataPDUInOrder)

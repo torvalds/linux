@@ -36,7 +36,7 @@
  *	to be dumped.
  */
 int iscsit_dump_data_payload(
-	struct iscsi_conn *conn,
+	struct iscsit_conn *conn,
 	u32 buf_len,
 	int dump_padding_digest)
 {
@@ -173,7 +173,7 @@ int iscsit_create_recovery_datain_values_datasequenceinorder_yes(
 	u32 data_sn = 0, data_sn_count = 0;
 	u32 pdu_start = 0, seq_no = 0;
 	u32 begrun = dr->begrun;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 
 	while (begrun > data_sn++) {
 		data_sn_count++;
@@ -220,7 +220,7 @@ int iscsit_create_recovery_datain_values_datasequenceinorder_no(
 	u32 data_sn, read_data_done = 0, seq_send_order = 0;
 	u32 begrun = dr->begrun;
 	u32 runlength = dr->runlength;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_seq *first_seq = NULL, *seq = NULL;
 
 	if (!cmd->seq_list) {
@@ -376,7 +376,7 @@ static int iscsit_handle_recovery_datain(
 	u32 begrun,
 	u32 runlength)
 {
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_datain_req *dr;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 
@@ -432,7 +432,7 @@ static int iscsit_handle_recovery_datain(
 }
 
 int iscsit_handle_recovery_datain_or_r2t(
-	struct iscsi_conn *conn,
+	struct iscsit_conn *conn,
 	unsigned char *buf,
 	itt_t init_task_tag,
 	u32 targ_xfer_tag,
@@ -465,7 +465,7 @@ int iscsit_handle_recovery_datain_or_r2t(
 
 /* #warning FIXME: Status SNACK needs to be dependent on OPCODE!!! */
 int iscsit_handle_status_snack(
-	struct iscsi_conn *conn,
+	struct iscsit_conn *conn,
 	itt_t init_task_tag,
 	u32 targ_xfer_tag,
 	u32 begrun,
@@ -529,7 +529,7 @@ int iscsit_handle_status_snack(
 }
 
 int iscsit_handle_data_ack(
-	struct iscsi_conn *conn,
+	struct iscsit_conn *conn,
 	u32 targ_xfer_tag,
 	u32 begrun,
 	u32 runlength)
@@ -584,7 +584,7 @@ int iscsit_dataout_datapduinorder_no_fbit(
 {
 	int i, send_recovery_r2t = 0, recovery = 0;
 	u32 length = 0, offset = 0, pdu_count = 0, xfer_len = 0;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_pdu *first_pdu = NULL;
 
 	/*
@@ -662,7 +662,7 @@ static int iscsit_recalculate_dataout_values(
 	u32 *r2t_length)
 {
 	int i;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_pdu *pdu = NULL;
 
 	if (conn->sess->sess_ops->DataSequenceInOrder) {
@@ -825,7 +825,7 @@ void iscsit_remove_ooo_cmdsn(
 	kmem_cache_free(lio_ooo_cache, ooo_cmdsn);
 }
 
-void iscsit_clear_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
+void iscsit_clear_ooo_cmdsns_for_conn(struct iscsit_conn *conn)
 {
 	struct iscsi_ooo_cmdsn *ooo_cmdsn;
 	struct iscsi_session *sess = conn->sess;
@@ -887,7 +887,7 @@ int iscsit_execute_ooo_cmdsns(struct iscsi_session *sess)
 int iscsit_execute_cmd(struct iscsit_cmd *cmd, int ooo)
 {
 	struct se_cmd *se_cmd = &cmd->se_cmd;
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	int lr = 0;
 
 	spin_lock_bh(&cmd->istate_lock);
@@ -1053,7 +1053,7 @@ static int iscsit_set_dataout_timeout_values(
 	u32 *offset,
 	u32 *length)
 {
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_r2t *r2t;
 
 	if (cmd->unsolicited_data) {
@@ -1096,7 +1096,7 @@ void iscsit_handle_dataout_timeout(struct timer_list *t)
 	u32 pdu_length = 0, pdu_offset = 0;
 	u32 r2t_length = 0, r2t_offset = 0;
 	struct iscsit_cmd *cmd = from_timer(cmd, t, dataout_timer);
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_session *sess = NULL;
 	struct iscsi_node_attrib *na;
 
@@ -1181,7 +1181,7 @@ failure:
 
 void iscsit_mod_dataout_timer(struct iscsit_cmd *cmd)
 {
-	struct iscsi_conn *conn = cmd->conn;
+	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
@@ -1200,7 +1200,7 @@ void iscsit_mod_dataout_timer(struct iscsit_cmd *cmd)
 
 void iscsit_start_dataout_timer(
 	struct iscsit_cmd *cmd,
-	struct iscsi_conn *conn)
+	struct iscsit_conn *conn)
 {
 	struct iscsi_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
