@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_IMG
+	bool "Imagination PowerVR GPU"
+        select DRM
+        default n
+
+source "drivers/gpu/drm/img/img-rogue/Kconfig"
+
+source "drivers/gpu/drm/img/img-drm-nulldisp/Kconfig"

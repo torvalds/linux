@@ -129,3 +129,4 @@ obj-y			+= xlnx/
 obj-y			+= gud/
 obj-$(CONFIG_DRM_HYPERV) += hyperv/
 obj-$(CONFIG_DRM_VERISILICON) += verisilicon/
+obj-$(CONFIG_DRM_IMG) += img/

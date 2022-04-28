@@ -100,7 +100,7 @@ static void starfive_pmu_int_enable(u32 mask, bool enable)
 	else
 		val &= ~mask;
 
-	pmu_writel(val, PMU_INT_MASK);
+	pmu_writel(~val, PMU_INT_MASK);
 }
 /*
  * mask the hw_evnet
@@ -116,6 +116,12 @@ static void starfive_pmu_hw_event_turn_on_mask(u32 hw_event, bool mask)
 
 	pmu_writel(val, HW_EVENT_TURN_ON_MASK);
 }
+
+void starfive_pmu_hw_event_turn_off_mask(u32 mask)
+{
+	pmu_writel(mask, HW_EVENT_TURN_OFF_MASK);
+}
+EXPORT_SYMBOL(starfive_pmu_hw_event_turn_off_mask);
 
 void starfive_power_domain_set(u32 domain, bool enable)
 {

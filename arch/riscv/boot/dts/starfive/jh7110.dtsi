@@ -842,8 +842,19 @@
 		gpu: gpu@18000000 {
 			compatible = "img-gpu";
 			reg = <0x0 0x18000000 0x0 0x100000 0x0 0x130C000 0x0 0x10000>;
-			clocks = <&gpu_core_clk>, <&gpu_sys_clk>;
-			clock-names = "gpu_core_clk","gpu_sys_clk";
+			clocks = <&gpu_core_clk>, <&gpu_sys_clk>,
+				<&clkgen JH7110_GPU_CLK_APB>,
+				<&clkgen JH7110_GPU_RTC_TOGGLE>,
+				<&clkgen JH7110_GPU_CORE_CLK>,
+				<&clkgen JH7110_GPU_SYS_CLK>,
+				<&clkgen JH7110_NOC_BUS_CLK_GPU_AXI>;
+			clock-names = "gpu_core_clk", "gpu_sys_clk",
+				"clk_apb", "clk_rtc",
+				"clk_core", "clk_sys",
+				"clk_axi";
+			resets = <&rstgen RSTN_U0_IMG_GPU_APB>,
+				<&rstgen RSTN_U0_IMG_GPU_DOMA>;
+			reset-names = "rst_apb", "rst_doma";
 			interrupts = <82>;
 			current-clock = <8000000>;
 			status = "disabled";

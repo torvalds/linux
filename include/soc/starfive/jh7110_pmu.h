@@ -101,4 +101,6 @@ void starfive_power_domain_order_on_set(u32 domain, u32 order);
  */
 void starfive_power_domain_order_off_set(u32 domain, u32 order);
 
+void starfive_pmu_hw_event_turn_off_mask(u32 mask);
+
 #endif /* __SOC_STARFIVE_JH7110_PMU_H__ */
