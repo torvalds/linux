@@ -214,6 +214,7 @@ struct mes_add_queue_input {
 	uint32_t        gws_size;
 	uint64_t	tba_addr;
 	uint64_t	tma_addr;
+	uint32_t	is_kfd_process;
 };
 
 struct mes_remove_queue_input {

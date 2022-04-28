@@ -204,6 +204,8 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 	} else
 		queue_input.wptr_addr = (uint64_t)q->properties.write_ptr;
 
+	queue_input.is_kfd_process = 1;
+
 	queue_input.paging = false;
 	queue_input.tba_addr = qpd->tba_addr;
 	queue_input.tma_addr = qpd->tma_addr;

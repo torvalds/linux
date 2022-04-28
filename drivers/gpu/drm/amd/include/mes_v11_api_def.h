@@ -226,6 +226,7 @@ union MESAPI_SET_HW_RESOURCES {
 			};
 			uint32_t	uint32_t_all;
 		};
+		uint32_t	oversubscription_timer;
 	};
 
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -265,7 +266,8 @@ union MESAPI__ADD_QUEUE {
 			uint32_t is_gang_suspended	: 1;
 			uint32_t is_tmz_queue		: 1;
 			uint32_t map_kiq_utility_queue  : 1;
-			uint32_t reserved		: 23;
+			uint32_t is_kfd_process		: 1;
+			uint32_t reserved		: 22;
 		};
 		struct MES_API_STATUS		api_status;
 		uint64_t                        tma_addr;
