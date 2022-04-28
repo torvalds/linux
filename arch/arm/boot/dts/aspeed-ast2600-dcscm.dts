@@ -15,14 +15,15 @@
 	pinctrl-0 = <&pinctrl_fwqspi_default>;
 	timing-calibration-disabled;
 	status = "okay";
+	num-cs = <1>;
 
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
 		label = "bmc";
-		spi-max-frequency = <25000000>;
-		spi-tx-bus-width = <1>;
-		spi-rx-bus-width = <1>;
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 		partitions {
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
@@ -57,7 +58,7 @@
 	};
 
 	flash@1 {
-		status = "okay";
+		status = "disabled";
 		m25p,fast-read;
 		label = "fmc0:1";
 		spi-max-frequency = <25000000>;
@@ -108,10 +109,10 @@
 	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default
 				&pinctrl_spi2cs2_default &pinctrl_qspi2_default>;
 	timing-calibration-disabled;
-	status = "okay";
+	status = "disabled";
 
 	flash@0 {
-		status = "okay";
+		status = "disabled";
 		m25p,fast-read;
 		label = "spi2:0";
 		spi-max-frequency = <25000000>;
