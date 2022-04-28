@@ -77,10 +77,12 @@ static void stdio_restore_cleanup(void)
 
 	if (env.subtest_state) {
 		fclose(env.subtest_state->stdout);
+		env.subtest_state->stdout = NULL;
 		stdout = env.test_state->stdout;
 		stderr = env.test_state->stdout;
 	} else {
 		fclose(env.test_state->stdout);
+		env.test_state->stdout = NULL;
 	}
 #endif
 }
@@ -1077,6 +1079,7 @@ static int read_prog_test_msg(int sock_fd, struct msg *msg, enum msg_type type)
 static int dispatch_thread_read_log(int sock_fd, char **log_buf, size_t *log_cnt)
 {
 	FILE *log_fp = NULL;
+	int result = 0;
 
 	log_fp = open_memstream(log_buf, log_cnt);
 	if (!log_fp)
@@ -1085,16 +1088,20 @@ static int dispatch_thread_read_log(int sock_fd, char **log_buf, size_t *log_cnt
 	while (true) {
 		struct msg msg;
 
-		if (read_prog_test_msg(sock_fd, &msg, MSG_TEST_LOG))
-			return 1;
+		if (read_prog_test_msg(sock_fd, &msg, MSG_TEST_LOG)) {
+			result = 1;
+			goto out;
+		}
 
 		fprintf(log_fp, "%s", msg.test_log.log_buf);
 		if (msg.test_log.is_last)
 			break;
 	}
+
+out:
 	fclose(log_fp);
 	log_fp = NULL;
-	return 0;
+	return result;
 }
 
 static int dispatch_thread_send_subtests(int sock_fd, struct test_state *state)
@@ -1132,7 +1139,6 @@ static void *dispatch_thread(void *ctx)
 {
 	struct dispatch_data *data = ctx;
 	int sock_fd;
-	FILE *log_fp = NULL;
 
 	sock_fd = data->sock_fd;
 
@@ -1214,8 +1220,6 @@ error:
 	if (env.debug)
 		fprintf(stderr, "[%d]: Protocol/IO error: %s.\n", data->worker_id, strerror(errno));
 
-	if (log_fp)
-		fclose(log_fp);
 done:
 	{
 		struct msg msg_exit;
@@ -1685,6 +1689,7 @@ out:
 		unload_bpf_testmod();
 
 	free_test_selector(&env.test_selector);
+	free_test_selector(&env.subtest_selector);
 	free_test_states();
 
 	if (env.succ_cnt + env.fail_cnt + env.skip_cnt == 0)
