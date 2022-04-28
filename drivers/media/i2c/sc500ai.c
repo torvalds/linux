@@ -269,6 +269,7 @@ static const struct regval sc500ai_linear_10_2880x1620_regs[] = {
 	{0x3e17, 0x80},
 	{0x4500, 0x88},
 	{0x4509, 0x20},
+	{0x4800, 0x04},
 	{0x5799, 0x00},
 	{0x59e0, 0x60},
 	{0x59e1, 0x08},
@@ -982,7 +983,6 @@ static long sc500ai_compat_ioctl32(struct v4l2_subdev *sd,
 {
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
-	struct rkmodule_awb_cfg *cfg;
 	struct rkmodule_hdr_cfg *hdr;
 	struct preisp_hdrae_exp_s *hdrae;
 	long ret = 0;
@@ -997,21 +997,12 @@ static long sc500ai_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = sc500ai_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
-		kfree(inf);
-		break;
-	case RKMODULE_AWB_CFG:
-		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
-		if (!cfg) {
-			ret = -ENOMEM;
-			return ret;
+			if (ret)
+				ret = -EFAULT;
 		}
-
-		ret = copy_from_user(cfg, up, sizeof(*cfg));
-		if (!ret)
-			ret = sc500ai_ioctl(sd, cmd, cfg);
-		kfree(cfg);
+		kfree(inf);
 		break;
 	case RKMODULE_GET_HDR_CFG:
 		hdr = kzalloc(sizeof(*hdr), GFP_KERNEL);
@@ -1021,8 +1012,11 @@ static long sc500ai_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = sc500ai_ioctl(sd, cmd, hdr);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, hdr, sizeof(*hdr));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(hdr);
 		break;
 	case RKMODULE_SET_HDR_CFG:
@@ -1032,9 +1026,10 @@ static long sc500ai_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = copy_from_user(hdr, up, sizeof(*hdr));
-		if (!ret)
-			ret = sc500ai_ioctl(sd, cmd, hdr);
+		if (copy_from_user(hdr, up, sizeof(*hdr)))
+			return -EFAULT;
+
+		ret = sc500ai_ioctl(sd, cmd, hdr);
 		kfree(hdr);
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1044,15 +1039,17 @@ static long sc500ai_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = copy_from_user(hdrae, up, sizeof(*hdrae));
-		if (!ret)
-			ret = sc500ai_ioctl(sd, cmd, hdrae);
+		if (copy_from_user(hdrae, up, sizeof(*hdrae)))
+			return -EFAULT;
+
+		ret = sc500ai_ioctl(sd, cmd, hdrae);
 		kfree(hdrae);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
-		ret = copy_from_user(&stream, up, sizeof(u32));
-		if (!ret)
-			ret = sc500ai_ioctl(sd, cmd, &stream);
+		if (copy_from_user(&stream, up, sizeof(u32)))
+			return -EFAULT;
+
+		ret = sc500ai_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
