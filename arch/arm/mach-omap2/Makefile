@@ -3,9 +3,6 @@
 # Makefile for the linux kernel.
 #
 
-ccflags-y := -I$(srctree)/$(src)/include \
-	-I$(srctree)/arch/arm/plat-omap/include
-
 # Common support
 obj-y := id.o io.o control.o devices.o fb.o pm.o \
 	 common.o dma.o omap-headsmp.o sram.o
