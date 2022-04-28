@@ -664,7 +664,7 @@ static void __init ams_delta_latch2_init(void)
 {
 	u16 latch2 = 1 << LATCH2_PIN_MODEM_NRESET | 1 << LATCH2_PIN_MODEM_CODEC;
 
-	__raw_writew(latch2, LATCH2_VIRT);
+	__raw_writew(latch2, IOMEM(LATCH2_VIRT));
 }
 
 static void __init ams_delta_init(void)

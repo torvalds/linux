@@ -53,7 +53,7 @@ static void *omap_sram_push_address(unsigned long size)
 	new_ceil = ROUND_DOWN(new_ceil, FNCPY_ALIGN);
 	omap_sram_ceil = IOMEM(new_ceil);
 
-	return (void *)omap_sram_ceil;
+	return (void __force *)omap_sram_ceil;
 }
 
 void *omap_sram_push(void *funcp, unsigned long size)
