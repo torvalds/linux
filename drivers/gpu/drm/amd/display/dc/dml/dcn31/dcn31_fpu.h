@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,23 +23,22 @@
  *
  */
 
-#ifndef _DCN316_RESOURCE_H_
-#define _DCN316_RESOURCE_H_
+#ifndef __DCN31_FPU_H__
+#define __DCN31_FPU_H__
 
-#include "core_types.h"
+#define DCN3_1_DEFAULT_DET_SIZE 384
+#define DCN3_15_DEFAULT_DET_SIZE 192
+#define DCN3_15_MIN_COMPBUF_SIZE_KB 128
+#define DCN3_16_DEFAULT_DET_SIZE 192
 
-#define TO_DCN316_RES_POOL(pool)\
-	container_of(pool, struct dcn316_resource_pool, base)
+void dcn31_calculate_wm_and_dlg_fp(
+		struct dc *dc, struct dc_state *context,
+		display_e2e_pipe_params_st *pipes,
+		int pipe_cnt,
+		int vlevel);
 
-extern struct _vcs_dpi_ip_params_st dcn3_16_ip;
-extern struct _vcs_dpi_ip_params_st dcn3_16_soc;
+void dcn31_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params);
+void dcn315_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params);
+void dcn316_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params);
 
-struct dcn316_resource_pool {
-	struct resource_pool base;
-};
-
-struct resource_pool *dcn316_create_resource_pool(
-		const struct dc_init_data *init_data,
-		struct dc *dc);
-
-#endif /* _DCN316_RESOURCE_H_ */
+#endif /* __DCN31_FPU_H__*/

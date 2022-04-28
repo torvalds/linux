@@ -49,6 +49,8 @@ enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__MP1,
 	AMDGPU_RAS_BLOCK__FUSE,
 	AMDGPU_RAS_BLOCK__MCA,
+	AMDGPU_RAS_BLOCK__VCN,
+	AMDGPU_RAS_BLOCK__JPEG,
 
 	AMDGPU_RAS_BLOCK__LAST
 };
@@ -506,6 +508,7 @@ struct amdgpu_ras_block_hw_ops {
 	void (*query_ras_error_address)(struct amdgpu_device *adev, void *ras_error_status);
 	void (*reset_ras_error_count)(struct amdgpu_device *adev);
 	void (*reset_ras_error_status)(struct amdgpu_device *adev);
+	bool (*query_poison_status)(struct amdgpu_device *adev);
 };
 
 /* work flow

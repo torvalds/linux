@@ -27,6 +27,7 @@
 #include "dc.h"
 #include "dm_helpers.h"
 #include "amdgpu_dm.h"
+#include "modules/power/power_helpers.h"
 
 #ifdef CONFIG_DRM_AMD_DC_DCN
 static bool link_supports_psrsu(struct dc_link *link)
@@ -37,6 +38,9 @@ static bool link_supports_psrsu(struct dc_link *link)
 		return false;
 
 	if (dc->ctx->dce_version < DCN_VERSION_3_1)
+		return false;
+
+	if (!is_psr_su_specific_panel(link))
 		return false;
 
 	if (!link->dpcd_caps.alpm_caps.bits.AUX_WAKE_ALPM_CAP ||
@@ -79,7 +83,10 @@ void amdgpu_dm_set_psr_caps(struct dc_link *link)
 		link->psr_settings.psr_feature_enabled = true;
 	}
 
-	DRM_INFO("PSR support:%d\n", link->psr_settings.psr_feature_enabled);
+	DRM_INFO("PSR support %d, DC PSR ver %d, sink PSR ver %d\n",
+		link->psr_settings.psr_feature_enabled,
+		link->psr_settings.psr_version,
+		link->dpcd_caps.psr_info.psr_version);
 
 }
 

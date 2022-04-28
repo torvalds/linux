@@ -91,28 +91,34 @@ enum SQ_INTERRUPT_ERROR_TYPE {
 #define KFD_SQ_INT_DATA__ERR_TYPE__SHIFT 20
 
 static void event_interrupt_poison_consumption(struct kfd_dev *dev,
-				uint16_t pasid, uint16_t source_id)
+				uint16_t pasid, uint16_t client_id)
 {
-	int ret = -EINVAL;
+	int old_poison, ret = -EINVAL;
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
 
 	if (!p)
 		return;
 
 	/* all queues of a process will be unmapped in one time */
-	if (atomic_read(&p->poison)) {
-		kfd_unref_process(p);
-		return;
-	}
-
-	atomic_set(&p->poison, 1);
+	old_poison = atomic_cmpxchg(&p->poison, 0, 1);
 	kfd_unref_process(p);
+	if (old_poison)
+		return;
 
-	switch (source_id) {
-	case SOC15_INTSRC_SQ_INTERRUPT_MSG:
+	switch (client_id) {
+	case SOC15_IH_CLIENTID_SE0SH:
+	case SOC15_IH_CLIENTID_SE1SH:
+	case SOC15_IH_CLIENTID_SE2SH:
+	case SOC15_IH_CLIENTID_SE3SH:
+	case SOC15_IH_CLIENTID_UTCL2:
 		ret = kfd_dqm_evict_pasid(dev->dqm, pasid);
 		break;
-	case SOC15_INTSRC_SDMA_ECC:
+	case SOC15_IH_CLIENTID_SDMA0:
+	case SOC15_IH_CLIENTID_SDMA1:
+	case SOC15_IH_CLIENTID_SDMA2:
+	case SOC15_IH_CLIENTID_SDMA3:
+	case SOC15_IH_CLIENTID_SDMA4:
+		break;
 	default:
 		break;
 	}
@@ -122,10 +128,17 @@ static void event_interrupt_poison_consumption(struct kfd_dev *dev,
 	/* resetting queue passes, do page retirement without gpu reset
 	 * resetting queue fails, fallback to gpu reset solution
 	 */
-	if (!ret)
+	if (!ret) {
+		dev_warn(dev->adev->dev,
+			"RAS poison consumption, unmap queue flow succeeded: client id %d\n",
+			client_id);
 		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, false);
-	else
+	} else {
+		dev_warn(dev->adev->dev,
+			"RAS poison consumption, fall back to gpu reset flow: client id %d\n",
+			client_id);
 		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, true);
+	}
 }
 
 static bool event_interrupt_isr_v9(struct kfd_dev *dev,
@@ -270,7 +283,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 					sq_intr_err);
 				if (sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST &&
 					sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_MEMVIOL) {
-					event_interrupt_poison_consumption(dev, pasid, source_id);
+					event_interrupt_poison_consumption(dev, pasid, client_id);
 					return;
 				}
 				break;
@@ -291,7 +304,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 		if (source_id == SOC15_INTSRC_SDMA_TRAP) {
 			kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28);
 		} else if (source_id == SOC15_INTSRC_SDMA_ECC) {
-			event_interrupt_poison_consumption(dev, pasid, source_id);
+			event_interrupt_poison_consumption(dev, pasid, client_id);
 			return;
 		}
 	} else if (client_id == SOC15_IH_CLIENTID_VMC ||
@@ -299,6 +312,12 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 		   client_id == SOC15_IH_CLIENTID_UTCL2) {
 		struct kfd_vm_fault_info info = {0};
 		uint16_t ring_id = SOC15_RING_ID_FROM_IH_ENTRY(ih_ring_entry);
+
+		if (client_id == SOC15_IH_CLIENTID_UTCL2 &&
+		    amdgpu_amdkfd_ras_query_utcl2_poison_status(dev->adev)) {
+			event_interrupt_poison_consumption(dev, pasid, client_id);
+			return;
+		}
 
 		info.vmid = vmid;
 		info.mc_id = client_id;

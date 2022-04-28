@@ -1930,6 +1930,19 @@ static void gfx_v9_4_2_reset_sq_timeout_status(struct amdgpu_device *adev)
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
+static bool gfx_v9_4_2_query_uctl2_poison_status(struct amdgpu_device *adev)
+{
+	u32 status = 0;
+	struct amdgpu_vmhub *hub;
+
+	hub = &adev->vmhub[AMDGPU_GFXHUB_0];
+	status = RREG32(hub->vm_l2_pro_fault_status);
+	/* reset page fault status */
+	WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
+
+	return REG_GET_FIELD(status, VM_L2_PROTECTION_FAULT_STATUS, FED);
+}
+
 struct amdgpu_ras_block_hw_ops  gfx_v9_4_2_ras_ops = {
 		.ras_error_inject = &gfx_v9_4_2_ras_error_inject,
 		.query_ras_error_count = &gfx_v9_4_2_query_ras_error_count,
@@ -1943,4 +1956,5 @@ struct amdgpu_gfx_ras gfx_v9_4_2_ras = {
 		.hw_ops = &gfx_v9_4_2_ras_ops,
 	},
 	.enable_watchdog_timer = &gfx_v9_4_2_enable_watchdog_timer,
+	.query_utcl2_poison_status = gfx_v9_4_2_query_uctl2_poison_status,
 };

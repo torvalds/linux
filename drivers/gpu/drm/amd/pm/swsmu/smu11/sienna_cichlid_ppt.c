@@ -715,6 +715,14 @@ static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 		*value = use_metrics_v3 ? metrics_v3->CurrFanSpeed :
 			use_metrics_v2 ? metrics_v2->CurrFanSpeed : metrics->CurrFanSpeed;
 		break;
+	case METRICS_UNIQUE_ID_UPPER32:
+		/* Only supported in 0x3A5300+, metrics_v3 requires 0x3A4900+ */
+		*value = use_metrics_v3 ? metrics_v3->PublicSerialNumUpper32 : 0;
+		break;
+	case METRICS_UNIQUE_ID_LOWER32:
+		/* Only supported in 0x3A5300+, metrics_v3 requires 0x3A4900+ */
+		*value = use_metrics_v3 ? metrics_v3->PublicSerialNumLower32 : 0;
+		break;
 	default:
 		*value = UINT_MAX;
 		break;
@@ -1771,6 +1779,28 @@ static int sienna_cichlid_read_sensor(struct smu_context *smu,
 	}
 
 	return ret;
+}
+
+static void sienna_cichlid_get_unique_id(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t upper32 = 0, lower32 = 0;
+
+	/* Only supported as of version 0.58.83.0 and only on Sienna Cichlid */
+	if (smu->smc_fw_version < 0x3A5300 ||
+	    smu->adev->ip_versions[MP1_HWIP][0] != IP_VERSION(11, 0, 7))
+		return;
+
+	if (sienna_cichlid_get_smu_metrics_data(smu, METRICS_UNIQUE_ID_UPPER32, &upper32))
+		goto out;
+	if (sienna_cichlid_get_smu_metrics_data(smu, METRICS_UNIQUE_ID_LOWER32, &lower32))
+		goto out;
+
+out:
+
+	adev->unique_id = ((uint64_t)upper32 << 32) | lower32;
+	if (adev->serial[0] == '\0')
+		sprintf(adev->serial, "%016llx", adev->unique_id);
 }
 
 static int sienna_cichlid_get_uclk_dpm_states(struct smu_context *smu, uint32_t *clocks_in_khz, uint32_t *num_states)
@@ -4182,6 +4212,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.get_ecc_info = sienna_cichlid_get_ecc_info,
 	.get_default_config_table_settings = sienna_cichlid_get_default_config_table_settings,
 	.set_config_table = sienna_cichlid_set_config_table,
+	.get_unique_id = sienna_cichlid_get_unique_id,
 };
 
 void sienna_cichlid_set_ppt_funcs(struct smu_context *smu)

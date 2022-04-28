@@ -1188,9 +1188,9 @@ svm_range_unmap_from_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	pr_debug("[0x%llx 0x%llx]\n", start, last);
 
-	return amdgpu_vm_bo_update_mapping(adev, adev, vm, false, true, NULL,
-					   start, last, init_pte_value, 0,
-					   NULL, NULL, fence, NULL);
+	return amdgpu_vm_update_range(adev, vm, false, true, true, NULL, start,
+				      last, init_pte_value, 0, 0, NULL, NULL,
+				      fence);
 }
 
 static int
@@ -1243,7 +1243,6 @@ svm_range_map_to_gpu(struct kfd_process_device *pdd, struct svm_range *prange,
 {
 	struct amdgpu_device *adev = pdd->dev->adev;
 	struct amdgpu_vm *vm = drm_priv_to_vm(pdd->drm_priv);
-	bool table_freed = false;
 	uint64_t pte_flags;
 	unsigned long last_start;
 	int last_domain;
@@ -1278,13 +1277,12 @@ svm_range_map_to_gpu(struct kfd_process_device *pdd, struct svm_range *prange,
 			 (last_domain == SVM_RANGE_VRAM_DOMAIN) ? 1 : 0,
 			 pte_flags);
 
-		r = amdgpu_vm_bo_update_mapping(adev, bo_adev, vm, false, false,
-						NULL, last_start,
-						prange->start + i, pte_flags,
-						last_start - prange->start,
-						NULL, dma_addr,
-						&vm->last_update,
-						&table_freed);
+		r = amdgpu_vm_update_range(adev, vm, false, false, false, NULL,
+					   last_start, prange->start + i,
+					   pte_flags,
+					   last_start - prange->start,
+					   bo_adev ? bo_adev->vm_manager.vram_base_offset : 0,
+					   NULL, dma_addr, &vm->last_update);
 
 		for (j = last_start - prange->start; j <= i; j++)
 			dma_addr[j] |= last_domain;
@@ -1306,8 +1304,6 @@ svm_range_map_to_gpu(struct kfd_process_device *pdd, struct svm_range *prange,
 	if (fence)
 		*fence = dma_fence_get(vm->last_update);
 
-	if (table_freed)
-		kfd_flush_tlb(pdd, TLB_FLUSH_LEGACY);
 out:
 	return r;
 }
@@ -1363,6 +1359,8 @@ svm_range_map_to_gpus(struct svm_range *prange, unsigned long offset,
 				break;
 			}
 		}
+
+		kfd_flush_tlb(pdd, TLB_FLUSH_LEGACY);
 	}
 
 	return r;
@@ -1372,7 +1370,7 @@ struct svm_validate_context {
 	struct kfd_process *process;
 	struct svm_range *prange;
 	bool intr;
-	unsigned long bitmap[MAX_GPU_INSTANCE];
+	DECLARE_BITMAP(bitmap, MAX_GPU_INSTANCE);
 	struct ttm_validate_buffer tv[MAX_GPU_INSTANCE];
 	struct list_head validate_list;
 	struct ww_acquire_ctx ticket;
@@ -2687,11 +2685,6 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 		pr_debug("kfd process not founded pasid 0x%x\n", pasid);
 		return 0;
 	}
-	if (!p->xnack_enabled) {
-		pr_debug("XNACK not enabled for pasid 0x%x\n", pasid);
-		r = -EFAULT;
-		goto out;
-	}
 	svms = &p->svms;
 
 	pr_debug("restoring svms 0x%p fault address 0x%llx\n", svms, addr);
@@ -2699,6 +2692,12 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 	if (atomic_read(&svms->drain_pagefaults)) {
 		pr_debug("draining retry fault, drop fault 0x%llx\n", addr);
 		r = 0;
+		goto out;
+	}
+
+	if (!p->xnack_enabled) {
+		pr_debug("XNACK not enabled for pasid 0x%x\n", pasid);
+		r = -EFAULT;
 		goto out;
 	}
 
