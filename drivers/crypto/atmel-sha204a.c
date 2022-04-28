@@ -125,8 +125,7 @@ static int atmel_sha204a_remove(struct i2c_client *client)
 		return -EBUSY;
 	}
 
-	if (i2c_priv->hwrng.priv)
-		kfree((void *)i2c_priv->hwrng.priv);
+	kfree((void *)i2c_priv->hwrng.priv);
 
 	return 0;
 }
