@@ -37,6 +37,8 @@ test_register_capture() {
   echo "Register capture test [Success]"
 }
 
+# Test for platform support and return TEST_SKIP
+[ $(uname -m) = s390x ] && exit 2
 test_per_thread
 test_register_capture
 exit $err
