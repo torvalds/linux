@@ -99,7 +99,7 @@ static inline void set_gdma_dev(int req, int dev)
 	omap_writel(l, reg);
 }
 
-#ifdef CONFIG_ARCH_OMAP1
+#if IS_ENABLED(CONFIG_FB_OMAP)
 void omap_set_dma_priority(int lch, int dst_port, int priority)
 {
 	unsigned long reg;
@@ -129,22 +129,8 @@ void omap_set_dma_priority(int lch, int dst_port, int priority)
 		omap_writel(l, reg);
 	}
 }
-#endif
-
-#ifdef CONFIG_ARCH_OMAP2PLUS
-void omap_set_dma_priority(int lch, int dst_port, int priority)
-{
-	u32 ccr;
-
-	ccr = p->dma_read(CCR, lch);
-	if (priority)
-		ccr |= (1 << 6);
-	else
-		ccr &= ~(1 << 6);
-	p->dma_write(ccr, CCR, lch);
-}
-#endif
 EXPORT_SYMBOL(omap_set_dma_priority);
+#endif
 
 #if IS_ENABLED(CONFIG_USB_OMAP)
 #ifdef CONFIG_ARCH_OMAP15XX
