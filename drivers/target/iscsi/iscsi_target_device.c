@@ -42,7 +42,7 @@ void iscsit_determine_maxcmdsn(struct iscsi_session *sess)
 	atomic_add(se_nacl->queue_depth - 1, &sess->max_cmd_sn);
 }
 
-void iscsit_increment_maxcmdsn(struct iscsi_cmd *cmd, struct iscsi_session *sess)
+void iscsit_increment_maxcmdsn(struct iscsit_cmd *cmd, struct iscsi_session *sess)
 {
 	u32 max_cmd_sn;
 

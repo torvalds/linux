@@ -87,7 +87,7 @@ int iscsit_dump_data_payload(
  *	Used for retransmitting R2Ts from a R2T SNACK request.
  */
 static int iscsit_send_recovery_r2t_for_snack(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	struct iscsi_r2t *r2t)
 {
 	/*
@@ -109,7 +109,7 @@ static int iscsit_send_recovery_r2t_for_snack(
 }
 
 static int iscsit_handle_r2t_snack(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	unsigned char *buf,
 	u32 begrun,
 	u32 runlength)
@@ -167,7 +167,7 @@ static int iscsit_handle_r2t_snack(
  *	FIXME: How is this handled for a RData SNACK?
  */
 int iscsit_create_recovery_datain_values_datasequenceinorder_yes(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	struct iscsi_datain_req *dr)
 {
 	u32 data_sn = 0, data_sn_count = 0;
@@ -213,7 +213,7 @@ int iscsit_create_recovery_datain_values_datasequenceinorder_yes(
  *	FIXME: How is this handled for a RData SNACK?
  */
 int iscsit_create_recovery_datain_values_datasequenceinorder_no(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	struct iscsi_datain_req *dr)
 {
 	int found_seq = 0, i;
@@ -224,7 +224,7 @@ int iscsit_create_recovery_datain_values_datasequenceinorder_no(
 	struct iscsi_seq *first_seq = NULL, *seq = NULL;
 
 	if (!cmd->seq_list) {
-		pr_err("struct iscsi_cmd->seq_list is NULL!\n");
+		pr_err("struct iscsit_cmd->seq_list is NULL!\n");
 		return -1;
 	}
 
@@ -371,7 +371,7 @@ done:
 }
 
 static int iscsit_handle_recovery_datain(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	unsigned char *buf,
 	u32 begrun,
 	u32 runlength)
@@ -439,7 +439,7 @@ int iscsit_handle_recovery_datain_or_r2t(
 	u32 begrun,
 	u32 runlength)
 {
-	struct iscsi_cmd *cmd;
+	struct iscsit_cmd *cmd;
 
 	cmd = iscsit_find_cmd_from_itt(conn, init_task_tag);
 	if (!cmd)
@@ -471,7 +471,7 @@ int iscsit_handle_status_snack(
 	u32 begrun,
 	u32 runlength)
 {
-	struct iscsi_cmd *cmd = NULL;
+	struct iscsit_cmd *cmd = NULL;
 	u32 last_statsn;
 	int found_cmd;
 
@@ -534,7 +534,7 @@ int iscsit_handle_data_ack(
 	u32 begrun,
 	u32 runlength)
 {
-	struct iscsi_cmd *cmd = NULL;
+	struct iscsit_cmd *cmd = NULL;
 
 	cmd = iscsit_find_cmd_from_ttt(conn, targ_xfer_tag);
 	if (!cmd) {
@@ -565,7 +565,7 @@ int iscsit_handle_data_ack(
 }
 
 static int iscsit_send_recovery_r2t(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	u32 offset,
 	u32 xfer_len)
 {
@@ -579,7 +579,7 @@ static int iscsit_send_recovery_r2t(
 }
 
 int iscsit_dataout_datapduinorder_no_fbit(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	struct iscsi_pdu *pdu)
 {
 	int i, send_recovery_r2t = 0, recovery = 0;
@@ -655,7 +655,7 @@ int iscsit_dataout_datapduinorder_no_fbit(
 }
 
 static int iscsit_recalculate_dataout_values(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	u32 pdu_offset,
 	u32 pdu_length,
 	u32 *r2t_offset,
@@ -732,7 +732,7 @@ static int iscsit_recalculate_dataout_values(
 }
 
 int iscsit_recover_dataout_sequence(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	u32 pdu_offset,
 	u32 pdu_length)
 {
@@ -843,7 +843,7 @@ void iscsit_clear_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
 int iscsit_execute_ooo_cmdsns(struct iscsi_session *sess)
 {
 	int ooo_count = 0;
-	struct iscsi_cmd *cmd = NULL;
+	struct iscsit_cmd *cmd = NULL;
 	struct iscsi_ooo_cmdsn *ooo_cmdsn, *ooo_cmdsn_tmp;
 
 	lockdep_assert_held(&sess->cmdsn_mutex);
@@ -884,7 +884,7 @@ int iscsit_execute_ooo_cmdsns(struct iscsi_session *sess)
  *	2. With no locks held directly from iscsi_handle_XXX_pdu() functions
  *	for immediate commands.
  */
-int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
+int iscsit_execute_cmd(struct iscsit_cmd *cmd, int ooo)
 {
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 	struct iscsi_conn *conn = cmd->conn;
@@ -1010,7 +1010,7 @@ void iscsit_free_all_ooo_cmdsns(struct iscsi_session *sess)
 
 int iscsit_handle_ooo_cmdsn(
 	struct iscsi_session *sess,
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	u32 cmdsn)
 {
 	int batch = 0;
@@ -1049,7 +1049,7 @@ int iscsit_handle_ooo_cmdsn(
 }
 
 static int iscsit_set_dataout_timeout_values(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	u32 *offset,
 	u32 *length)
 {
@@ -1095,7 +1095,7 @@ void iscsit_handle_dataout_timeout(struct timer_list *t)
 {
 	u32 pdu_length = 0, pdu_offset = 0;
 	u32 r2t_length = 0, r2t_offset = 0;
-	struct iscsi_cmd *cmd = from_timer(cmd, t, dataout_timer);
+	struct iscsit_cmd *cmd = from_timer(cmd, t, dataout_timer);
 	struct iscsi_conn *conn = cmd->conn;
 	struct iscsi_session *sess = NULL;
 	struct iscsi_node_attrib *na;
@@ -1179,7 +1179,7 @@ failure:
 	iscsit_dec_conn_usage_count(conn);
 }
 
-void iscsit_mod_dataout_timer(struct iscsi_cmd *cmd)
+void iscsit_mod_dataout_timer(struct iscsit_cmd *cmd)
 {
 	struct iscsi_conn *conn = cmd->conn;
 	struct iscsi_session *sess = conn->sess;
@@ -1199,7 +1199,7 @@ void iscsit_mod_dataout_timer(struct iscsi_cmd *cmd)
 }
 
 void iscsit_start_dataout_timer(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	struct iscsi_conn *conn)
 {
 	struct iscsi_session *sess = conn->sess;
@@ -1218,7 +1218,7 @@ void iscsit_start_dataout_timer(
 	mod_timer(&cmd->dataout_timer, jiffies + na->dataout_timeout * HZ);
 }
 
-void iscsit_stop_dataout_timer(struct iscsi_cmd *cmd)
+void iscsit_stop_dataout_timer(struct iscsit_cmd *cmd)
 {
 	spin_lock_bh(&cmd->dataout_timeout_lock);
 	if (!(cmd->dataout_timer_flags & ISCSI_TF_RUNNING)) {

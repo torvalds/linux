@@ -1340,7 +1340,7 @@ static struct configfs_attribute *lio_target_discovery_auth_attrs[] = {
 
 static int iscsi_get_cmd_state(struct se_cmd *se_cmd)
 {
-	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
+	struct iscsit_cmd *cmd = container_of(se_cmd, struct iscsit_cmd, se_cmd);
 
 	return cmd->i_state;
 }
@@ -1366,7 +1366,7 @@ static u32 lio_sess_get_initiator_sid(
 
 static int lio_queue_data_in(struct se_cmd *se_cmd)
 {
-	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
+	struct iscsit_cmd *cmd = container_of(se_cmd, struct iscsit_cmd, se_cmd);
 	struct iscsi_conn *conn = cmd->conn;
 
 	cmd->i_state = ISTATE_SEND_DATAIN;
@@ -1375,7 +1375,7 @@ static int lio_queue_data_in(struct se_cmd *se_cmd)
 
 static int lio_write_pending(struct se_cmd *se_cmd)
 {
-	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
+	struct iscsit_cmd *cmd = container_of(se_cmd, struct iscsit_cmd, se_cmd);
 	struct iscsi_conn *conn = cmd->conn;
 
 	if (!cmd->immediate_data && !cmd->unsolicited_data)
@@ -1386,7 +1386,7 @@ static int lio_write_pending(struct se_cmd *se_cmd)
 
 static int lio_queue_status(struct se_cmd *se_cmd)
 {
-	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
+	struct iscsit_cmd *cmd = container_of(se_cmd, struct iscsit_cmd, se_cmd);
 	struct iscsi_conn *conn = cmd->conn;
 
 	cmd->i_state = ISTATE_SEND_STATUS;
@@ -1399,7 +1399,7 @@ static int lio_queue_status(struct se_cmd *se_cmd)
 
 static void lio_queue_tm_rsp(struct se_cmd *se_cmd)
 {
-	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
+	struct iscsit_cmd *cmd = container_of(se_cmd, struct iscsit_cmd, se_cmd);
 
 	cmd->i_state = ISTATE_SEND_TASKMGTRSP;
 	iscsit_add_cmd_to_response_queue(cmd, cmd->conn, cmd->i_state);
@@ -1407,7 +1407,7 @@ static void lio_queue_tm_rsp(struct se_cmd *se_cmd)
 
 static void lio_aborted_task(struct se_cmd *se_cmd)
 {
-	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
+	struct iscsit_cmd *cmd = container_of(se_cmd, struct iscsit_cmd, se_cmd);
 
 	cmd->conn->conn_transport->iscsit_aborted_task(cmd->conn, cmd);
 }
@@ -1522,7 +1522,7 @@ static int lio_check_stop_free(struct se_cmd *se_cmd)
 
 static void lio_release_cmd(struct se_cmd *se_cmd)
 {
-	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
+	struct iscsit_cmd *cmd = container_of(se_cmd, struct iscsit_cmd, se_cmd);
 
 	pr_debug("Entering lio_release_cmd for se_cmd: %p\n", se_cmd);
 	iscsit_release_cmd(cmd);

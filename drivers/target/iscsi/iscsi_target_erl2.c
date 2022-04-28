@@ -26,7 +26,7 @@
  *	FIXME: Does RData SNACK apply here as well?
  */
 void iscsit_create_conn_recovery_datain_values(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	__be32 exp_data_sn)
 {
 	u32 data_sn = 0;
@@ -54,7 +54,7 @@ void iscsit_create_conn_recovery_datain_values(
 }
 
 void iscsit_create_conn_recovery_dataout_values(
-	struct iscsi_cmd *cmd)
+	struct iscsit_cmd *cmd)
 {
 	u32 write_data_done = 0;
 	struct iscsi_conn *conn = cmd->conn;
@@ -119,7 +119,7 @@ struct iscsi_conn_recovery *iscsit_get_inactive_connection_recovery_entry(
 
 void iscsit_free_connection_recovery_entries(struct iscsi_session *sess)
 {
-	struct iscsi_cmd *cmd, *cmd_tmp;
+	struct iscsit_cmd *cmd, *cmd_tmp;
 	struct iscsi_conn_recovery *cr, *cr_tmp;
 
 	spin_lock(&sess->cr_a_lock);
@@ -197,7 +197,7 @@ static void iscsit_remove_inactive_connection_recovery_entry(
  *	Called with cr->conn_recovery_cmd_lock help.
  */
 int iscsit_remove_cmd_from_connection_recovery(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	struct iscsi_session *sess)
 {
 	struct iscsi_conn_recovery *cr;
@@ -218,7 +218,7 @@ void iscsit_discard_cr_cmds_by_expstatsn(
 	u32 exp_statsn)
 {
 	u32 dropped_count = 0;
-	struct iscsi_cmd *cmd, *cmd_tmp;
+	struct iscsit_cmd *cmd, *cmd_tmp;
 	struct iscsi_session *sess = cr->sess;
 
 	spin_lock(&cr->conn_recovery_cmd_lock);
@@ -266,7 +266,7 @@ void iscsit_discard_cr_cmds_by_expstatsn(
 int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
 {
 	u32 dropped_count = 0;
-	struct iscsi_cmd *cmd, *cmd_tmp;
+	struct iscsit_cmd *cmd, *cmd_tmp;
 	struct iscsi_ooo_cmdsn *ooo_cmdsn, *ooo_cmdsn_tmp;
 	struct iscsi_session *sess = conn->sess;
 
@@ -307,13 +307,13 @@ int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
 int iscsit_prepare_cmds_for_reallegiance(struct iscsi_conn *conn)
 {
 	u32 cmd_count = 0;
-	struct iscsi_cmd *cmd, *cmd_tmp;
+	struct iscsit_cmd *cmd, *cmd_tmp;
 	struct iscsi_conn_recovery *cr;
 
 	/*
 	 * Allocate an struct iscsi_conn_recovery for this connection.
-	 * Each struct iscsi_cmd contains an struct iscsi_conn_recovery pointer
-	 * (struct iscsi_cmd->cr) so we need to allocate this before preparing the
+	 * Each struct iscsit_cmd contains an struct iscsi_conn_recovery pointer
+	 * (struct iscsit_cmd->cr) so we need to allocate this before preparing the
 	 * connection's command list for connection recovery.
 	 */
 	cr = kzalloc(sizeof(struct iscsi_conn_recovery), GFP_KERNEL);
@@ -393,7 +393,7 @@ int iscsit_prepare_cmds_for_reallegiance(struct iscsi_conn *conn)
 
 		transport_wait_for_tasks(&cmd->se_cmd);
 		/*
-		 * Add the struct iscsi_cmd to the connection recovery cmd list
+		 * Add the struct iscsit_cmd to the connection recovery cmd list
 		 */
 		spin_lock(&cr->conn_recovery_cmd_lock);
 		list_add_tail(&cmd->i_conn_node, &cr->conn_recovery_cmd_list);

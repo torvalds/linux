@@ -327,9 +327,9 @@ int cxgbit_l2t_send(struct cxgbit_device *, struct sk_buff *,
 		    struct l2t_entry *);
 void cxgbit_push_tx_frames(struct cxgbit_sock *);
 int cxgbit_put_login_tx(struct iscsi_conn *, struct iscsi_login *, u32);
-int cxgbit_xmit_pdu(struct iscsi_conn *, struct iscsi_cmd *,
+int cxgbit_xmit_pdu(struct iscsi_conn *, struct iscsit_cmd *,
 		    struct iscsi_datain_req *, const void *, u32);
-void cxgbit_get_r2t_ttt(struct iscsi_conn *, struct iscsi_cmd *,
+void cxgbit_get_r2t_ttt(struct iscsi_conn *, struct iscsit_cmd *,
 			struct iscsi_r2t *);
 u32 cxgbit_send_tx_flowc_wr(struct cxgbit_sock *);
 int cxgbit_ofld_send(struct cxgbit_device *, struct sk_buff *);
@@ -340,8 +340,8 @@ struct cxgbit_device *cxgbit_find_device(struct net_device *, u8 *);
 /* DDP */
 int cxgbit_ddp_init(struct cxgbit_device *);
 int cxgbit_setup_conn_pgidx(struct cxgbit_sock *, u32);
-int cxgbit_reserve_ttt(struct cxgbit_sock *, struct iscsi_cmd *);
-void cxgbit_unmap_cmd(struct iscsi_conn *, struct iscsi_cmd *);
+int cxgbit_reserve_ttt(struct cxgbit_sock *, struct iscsit_cmd *);
+void cxgbit_unmap_cmd(struct iscsi_conn *, struct iscsit_cmd *);
 
 static inline
 struct cxgbi_ppm *cdev2ppm(struct cxgbit_device *cdev)

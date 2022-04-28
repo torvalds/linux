@@ -143,7 +143,7 @@ enum tiqn_state_table {
 	TIQN_STATE_SHUTDOWN			= 2,
 };
 
-/* struct iscsi_cmd->cmd_flags */
+/* struct iscsit_cmd->cmd_flags */
 enum cmd_flags_table {
 	ICF_GOT_LAST_DATAOUT			= 0x00000001,
 	ICF_GOT_DATACK_SNACK			= 0x00000002,
@@ -157,7 +157,7 @@ enum cmd_flags_table {
 	ICF_SENDTARGETS_SINGLE			= 0x00000200,
 };
 
-/* struct iscsi_cmd->i_state */
+/* struct iscsit_cmd->i_state */
 enum cmd_i_state_table {
 	ISTATE_NO_STATE			= 0,
 	ISTATE_NEW_CMD			= 1,
@@ -297,7 +297,7 @@ struct iscsi_sess_ops {
 
 struct iscsi_queue_req {
 	int			state;
-	struct iscsi_cmd	*cmd;
+	struct iscsit_cmd	*cmd;
 	struct list_head	qr_list;
 };
 
@@ -327,7 +327,7 @@ struct iscsi_ooo_cmdsn {
 	u32			batch_count;
 	u32			cmdsn;
 	u32			exp_cmdsn;
-	struct iscsi_cmd	*cmd;
+	struct iscsit_cmd	*cmd;
 	struct list_head	ooo_list;
 } ____cacheline_aligned;
 
@@ -349,7 +349,7 @@ struct iscsi_r2t {
 	struct list_head	r2t_list;
 } ____cacheline_aligned;
 
-struct iscsi_cmd {
+struct iscsit_cmd {
 	enum iscsi_timer_flags_table dataout_timer_flags;
 	/* DataOUT timeout retries */
 	u8			dataout_timeout_retries;
@@ -405,22 +405,22 @@ struct iscsi_cmd {
 	u32			outstanding_r2ts;
 	/* Next R2T Offset when DataSequenceInOrder=Yes */
 	u32			r2t_offset;
-	/* Iovec current and orig count for iscsi_cmd->iov_data */
+	/* Iovec current and orig count for iscsit_cmd->iov_data */
 	u32			iov_data_count;
 	u32			orig_iov_data_count;
 	/* Number of miscellaneous iovecs used for IP stack calls */
 	u32			iov_misc_count;
-	/* Number of struct iscsi_pdu in struct iscsi_cmd->pdu_list */
+	/* Number of struct iscsi_pdu in struct iscsit_cmd->pdu_list */
 	u32			pdu_count;
-	/* Next struct iscsi_pdu to send in struct iscsi_cmd->pdu_list */
+	/* Next struct iscsi_pdu to send in struct iscsit_cmd->pdu_list */
 	u32			pdu_send_order;
-	/* Current struct iscsi_pdu in struct iscsi_cmd->pdu_list */
+	/* Current struct iscsi_pdu in struct iscsit_cmd->pdu_list */
 	u32			pdu_start;
-	/* Next struct iscsi_seq to send in struct iscsi_cmd->seq_list */
+	/* Next struct iscsi_seq to send in struct iscsit_cmd->seq_list */
 	u32			seq_send_order;
-	/* Number of struct iscsi_seq in struct iscsi_cmd->seq_list */
+	/* Number of struct iscsi_seq in struct iscsit_cmd->seq_list */
 	u32			seq_count;
-	/* Current struct iscsi_seq in struct iscsi_cmd->seq_list */
+	/* Current struct iscsi_seq in struct iscsit_cmd->seq_list */
 	u32			seq_no;
 	/* Lowest offset in current DataOUT sequence */
 	u32			seq_start_offset;
@@ -444,12 +444,12 @@ struct iscsi_cmd {
 	enum dma_data_direction	data_direction;
 	/* iSCSI PDU Header + CRC */
 	unsigned char		pdu[ISCSI_HDR_LEN + ISCSI_CRC_LEN];
-	/* Number of times struct iscsi_cmd is present in immediate queue */
+	/* Number of times struct iscsit_cmd is present in immediate queue */
 	atomic_t		immed_queue_count;
 	atomic_t		response_queue_count;
 	spinlock_t		datain_lock;
 	spinlock_t		dataout_timeout_lock;
-	/* spinlock for protecting struct iscsi_cmd->i_state */
+	/* spinlock for protecting struct iscsit_cmd->i_state */
 	spinlock_t		istate_lock;
 	/* spinlock for adding within command recovery entries */
 	spinlock_t		error_lock;
@@ -503,7 +503,7 @@ struct iscsi_cmd {
 struct iscsi_tmr_req {
 	bool			task_reassign:1;
 	u32			exp_data_sn;
-	struct iscsi_cmd	*ref_cmd;
+	struct iscsit_cmd	*ref_cmd;
 	struct iscsi_conn_recovery *conn_recovery;
 	struct se_tmr_req	*se_tmr_req;
 };
@@ -583,7 +583,7 @@ struct iscsi_conn {
 	cpumask_var_t		allowed_cpumask;
 	unsigned int		conn_rx_reset_cpumask:1;
 	unsigned int		conn_tx_reset_cpumask:1;
-	/* list_head of struct iscsi_cmd for this connection */
+	/* list_head of struct iscsit_cmd for this connection */
 	struct list_head	conn_cmd_list;
 	struct list_head	immed_queue_list;
 	struct list_head	response_queue_list;
@@ -898,7 +898,7 @@ static inline u32 session_get_next_ttt(struct iscsi_session *session)
 	return ttt;
 }
 
-extern struct iscsi_cmd *iscsit_find_cmd_from_itt(struct iscsi_conn *, itt_t);
+extern struct iscsit_cmd *iscsit_find_cmd_from_itt(struct iscsi_conn *, itt_t);
 
 extern void iscsit_thread_check_cpumask(struct iscsi_conn *conn,
 					struct task_struct *p,

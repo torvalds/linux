@@ -4,13 +4,13 @@
 
 #include <linux/types.h>
 
-struct iscsi_cmd;
+struct iscsit_cmd;
 struct iscsi_conn;
 struct iscsi_session;
 
-extern void iscsit_set_dataout_sequence_values(struct iscsi_cmd *);
-extern int iscsit_check_pre_dataout(struct iscsi_cmd *, unsigned char *);
-extern int iscsit_check_post_dataout(struct iscsi_cmd *, unsigned char *, u8);
+extern void iscsit_set_dataout_sequence_values(struct iscsit_cmd *);
+extern int iscsit_check_pre_dataout(struct iscsit_cmd *, unsigned char *);
+extern int iscsit_check_post_dataout(struct iscsit_cmd *, unsigned char *, u8);
 extern void iscsit_start_time2retain_handler(struct iscsi_session *);
 extern void iscsit_handle_time2retain_timeout(struct timer_list *t);
 extern int iscsit_stop_time2retain_timer(struct iscsi_session *);

@@ -24,12 +24,12 @@
 #include "iscsi_target.h"
 
 /*
- *	Used to set values in struct iscsi_cmd that iscsit_dataout_check_sequence()
+ *	Used to set values in struct iscsit_cmd that iscsit_dataout_check_sequence()
  *	checks against to determine a PDU's Offset+Length is within the current
  *	DataOUT Sequence.  Used for DataSequenceInOrder=Yes only.
  */
 void iscsit_set_dataout_sequence_values(
-	struct iscsi_cmd *cmd)
+	struct iscsit_cmd *cmd)
 {
 	struct iscsi_conn *conn = cmd->conn;
 	/*
@@ -63,7 +63,7 @@ void iscsit_set_dataout_sequence_values(
 }
 
 static int iscsit_dataout_within_command_recovery_check(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	unsigned char *buf)
 {
 	struct iscsi_conn *conn = cmd->conn;
@@ -129,7 +129,7 @@ dump:
 }
 
 static int iscsit_dataout_check_unsolicited_sequence(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	unsigned char *buf)
 {
 	u32 first_burst_len;
@@ -204,7 +204,7 @@ out:
 }
 
 static int iscsit_dataout_check_sequence(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	unsigned char *buf)
 {
 	u32 next_burst_len;
@@ -333,7 +333,7 @@ out:
 }
 
 static int iscsit_dataout_check_datasn(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	unsigned char *buf)
 {
 	u32 data_sn = 0;
@@ -384,7 +384,7 @@ dump:
 }
 
 static int iscsit_dataout_pre_datapduinorder_yes(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	unsigned char *buf)
 {
 	int dump = 0, recovery = 0;
@@ -394,7 +394,7 @@ static int iscsit_dataout_pre_datapduinorder_yes(
 
 	/*
 	 * For DataSequenceInOrder=Yes: If the offset is greater than the global
-	 * DataPDUInOrder=Yes offset counter in struct iscsi_cmd a protcol error has
+	 * DataPDUInOrder=Yes offset counter in struct iscsit_cmd a protcol error has
 	 * occurred and fail the connection.
 	 *
 	 * For DataSequenceInOrder=No: If the offset is greater than the per
@@ -446,7 +446,7 @@ dump:
 }
 
 static int iscsit_dataout_pre_datapduinorder_no(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	unsigned char *buf)
 {
 	struct iscsi_pdu *pdu;
@@ -477,7 +477,7 @@ static int iscsit_dataout_pre_datapduinorder_no(
 	return DATAOUT_NORMAL;
 }
 
-static int iscsit_dataout_update_r2t(struct iscsi_cmd *cmd, u32 offset, u32 length)
+static int iscsit_dataout_update_r2t(struct iscsit_cmd *cmd, u32 offset, u32 length)
 {
 	struct iscsi_r2t *r2t;
 
@@ -497,7 +497,7 @@ static int iscsit_dataout_update_r2t(struct iscsi_cmd *cmd, u32 offset, u32 leng
 }
 
 static int iscsit_dataout_update_datapduinorder_no(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	u32 data_sn,
 	int f_bit)
 {
@@ -530,7 +530,7 @@ static int iscsit_dataout_update_datapduinorder_no(
 }
 
 static int iscsit_dataout_post_crc_passed(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	unsigned char *buf)
 {
 	int ret, send_r2t = 0;
@@ -641,7 +641,7 @@ static int iscsit_dataout_post_crc_passed(
 }
 
 static int iscsit_dataout_post_crc_failed(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	unsigned char *buf)
 {
 	struct iscsi_conn *conn = cmd->conn;
@@ -679,7 +679,7 @@ recover:
  *	and CRC computed.
  */
 int iscsit_check_pre_dataout(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	unsigned char *buf)
 {
 	int ret;
@@ -717,7 +717,7 @@ int iscsit_check_pre_dataout(
  *	and CRC computed.
  */
 int iscsit_check_post_dataout(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	unsigned char *buf,
 	u8 data_crc_failed)
 {

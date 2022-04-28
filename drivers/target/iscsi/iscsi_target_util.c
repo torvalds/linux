@@ -32,7 +32,7 @@ extern struct list_head g_tiqn_list;
 extern spinlock_t tiqn_lock;
 
 int iscsit_add_r2t_to_list(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	u32 offset,
 	u32 xfer_len,
 	int recovery,
@@ -65,7 +65,7 @@ int iscsit_add_r2t_to_list(
 }
 
 struct iscsi_r2t *iscsit_get_r2t_for_eos(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	u32 offset,
 	u32 length)
 {
@@ -86,7 +86,7 @@ struct iscsi_r2t *iscsit_get_r2t_for_eos(
 	return NULL;
 }
 
-struct iscsi_r2t *iscsit_get_r2t_from_list(struct iscsi_cmd *cmd)
+struct iscsi_r2t *iscsit_get_r2t_from_list(struct iscsit_cmd *cmd)
 {
 	struct iscsi_r2t *r2t;
 
@@ -104,7 +104,7 @@ struct iscsi_r2t *iscsit_get_r2t_from_list(struct iscsi_cmd *cmd)
 	return NULL;
 }
 
-void iscsit_free_r2t(struct iscsi_r2t *r2t, struct iscsi_cmd *cmd)
+void iscsit_free_r2t(struct iscsi_r2t *r2t, struct iscsit_cmd *cmd)
 {
 	lockdep_assert_held(&cmd->r2t_lock);
 
@@ -112,7 +112,7 @@ void iscsit_free_r2t(struct iscsi_r2t *r2t, struct iscsi_cmd *cmd)
 	kmem_cache_free(lio_r2t_cache, r2t);
 }
 
-void iscsit_free_r2ts_from_list(struct iscsi_cmd *cmd)
+void iscsit_free_r2ts_from_list(struct iscsit_cmd *cmd)
 {
 	struct iscsi_r2t *r2t, *r2t_tmp;
 
@@ -152,9 +152,9 @@ static int iscsit_wait_for_tag(struct se_session *se_sess, int state, int *cpup)
  * May be called from software interrupt (timer) context for allocating
  * iSCSI NopINs.
  */
-struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, int state)
+struct iscsit_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, int state)
 {
-	struct iscsi_cmd *cmd;
+	struct iscsit_cmd *cmd;
 	struct se_session *se_sess = conn->sess->se_sess;
 	int size, tag, cpu;
 
@@ -164,8 +164,8 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, int state)
 	if (tag < 0)
 		return NULL;
 
-	size = sizeof(struct iscsi_cmd) + conn->conn_transport->priv_size;
-	cmd = (struct iscsi_cmd *)(se_sess->sess_cmd_map + (tag * size));
+	size = sizeof(struct iscsit_cmd) + conn->conn_transport->priv_size;
+	cmd = (struct iscsit_cmd *)(se_sess->sess_cmd_map + (tag * size));
 	memset(cmd, 0, size);
 
 	cmd->se_cmd.map_tag = tag;
@@ -187,7 +187,7 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, int state)
 EXPORT_SYMBOL(iscsit_allocate_cmd);
 
 struct iscsi_seq *iscsit_get_seq_holder_for_datain(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	u32 seq_send_order)
 {
 	u32 i;
@@ -199,12 +199,12 @@ struct iscsi_seq *iscsit_get_seq_holder_for_datain(
 	return NULL;
 }
 
-struct iscsi_seq *iscsit_get_seq_holder_for_r2t(struct iscsi_cmd *cmd)
+struct iscsi_seq *iscsit_get_seq_holder_for_r2t(struct iscsit_cmd *cmd)
 {
 	u32 i;
 
 	if (!cmd->seq_list) {
-		pr_err("struct iscsi_cmd->seq_list is NULL!\n");
+		pr_err("struct iscsit_cmd->seq_list is NULL!\n");
 		return NULL;
 	}
 
@@ -221,7 +221,7 @@ struct iscsi_seq *iscsit_get_seq_holder_for_r2t(struct iscsi_cmd *cmd)
 }
 
 struct iscsi_r2t *iscsit_get_holder_for_r2tsn(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	u32 r2t_sn)
 {
 	struct iscsi_r2t *r2t;
@@ -282,7 +282,7 @@ static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cm
  * Commands may be received out of order if MC/S is in use.
  * Ensure they are executed in CmdSN order.
  */
-int iscsit_sequence_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+int iscsit_sequence_cmd(struct iscsi_conn *conn, struct iscsit_cmd *cmd,
 			unsigned char *buf, __be32 cmdsn)
 {
 	int ret, cmdsn_ret;
@@ -333,7 +333,7 @@ int iscsit_sequence_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 }
 EXPORT_SYMBOL(iscsit_sequence_cmd);
 
-int iscsit_check_unsolicited_dataout(struct iscsi_cmd *cmd, unsigned char *buf)
+int iscsit_check_unsolicited_dataout(struct iscsit_cmd *cmd, unsigned char *buf)
 {
 	struct iscsi_conn *conn = cmd->conn;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
@@ -377,11 +377,11 @@ int iscsit_check_unsolicited_dataout(struct iscsi_cmd *cmd, unsigned char *buf)
 	return 0;
 }
 
-struct iscsi_cmd *iscsit_find_cmd_from_itt(
+struct iscsit_cmd *iscsit_find_cmd_from_itt(
 	struct iscsi_conn *conn,
 	itt_t init_task_tag)
 {
-	struct iscsi_cmd *cmd;
+	struct iscsit_cmd *cmd;
 
 	spin_lock_bh(&conn->cmd_lock);
 	list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_node) {
@@ -398,12 +398,12 @@ struct iscsi_cmd *iscsit_find_cmd_from_itt(
 }
 EXPORT_SYMBOL(iscsit_find_cmd_from_itt);
 
-struct iscsi_cmd *iscsit_find_cmd_from_itt_or_dump(
+struct iscsit_cmd *iscsit_find_cmd_from_itt_or_dump(
 	struct iscsi_conn *conn,
 	itt_t init_task_tag,
 	u32 length)
 {
-	struct iscsi_cmd *cmd;
+	struct iscsit_cmd *cmd;
 
 	spin_lock_bh(&conn->cmd_lock);
 	list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_node) {
@@ -425,11 +425,11 @@ struct iscsi_cmd *iscsit_find_cmd_from_itt_or_dump(
 }
 EXPORT_SYMBOL(iscsit_find_cmd_from_itt_or_dump);
 
-struct iscsi_cmd *iscsit_find_cmd_from_ttt(
+struct iscsit_cmd *iscsit_find_cmd_from_ttt(
 	struct iscsi_conn *conn,
 	u32 targ_xfer_tag)
 {
-	struct iscsi_cmd *cmd = NULL;
+	struct iscsit_cmd *cmd = NULL;
 
 	spin_lock_bh(&conn->cmd_lock);
 	list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_node) {
@@ -447,11 +447,11 @@ struct iscsi_cmd *iscsit_find_cmd_from_ttt(
 
 int iscsit_find_cmd_for_recovery(
 	struct iscsi_session *sess,
-	struct iscsi_cmd **cmd_ptr,
+	struct iscsit_cmd **cmd_ptr,
 	struct iscsi_conn_recovery **cr_ptr,
 	itt_t init_task_tag)
 {
-	struct iscsi_cmd *cmd = NULL;
+	struct iscsit_cmd *cmd = NULL;
 	struct iscsi_conn_recovery *cr;
 	/*
 	 * Scan through the inactive connection recovery list's command list.
@@ -498,7 +498,7 @@ int iscsit_find_cmd_for_recovery(
 }
 
 void iscsit_add_cmd_to_immediate_queue(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	struct iscsi_conn *conn,
 	u8 state)
 {
@@ -545,7 +545,7 @@ struct iscsi_queue_req *iscsit_get_cmd_from_immediate_queue(struct iscsi_conn *c
 }
 
 static void iscsit_remove_cmd_from_immediate_queue(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	struct iscsi_conn *conn)
 {
 	struct iscsi_queue_req *qr, *qr_tmp;
@@ -574,7 +574,7 @@ static void iscsit_remove_cmd_from_immediate_queue(
 }
 
 int iscsit_add_cmd_to_response_queue(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	struct iscsi_conn *conn,
 	u8 state)
 {
@@ -621,7 +621,7 @@ struct iscsi_queue_req *iscsit_get_cmd_from_response_queue(struct iscsi_conn *co
 }
 
 static void iscsit_remove_cmd_from_response_queue(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	struct iscsi_conn *conn)
 {
 	struct iscsi_queue_req *qr, *qr_tmp;
@@ -694,7 +694,7 @@ void iscsit_free_queue_reqs_for_conn(struct iscsi_conn *conn)
 	spin_unlock_bh(&conn->response_queue_lock);
 }
 
-void iscsit_release_cmd(struct iscsi_cmd *cmd)
+void iscsit_release_cmd(struct iscsit_cmd *cmd)
 {
 	struct iscsi_session *sess;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
@@ -720,7 +720,7 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 }
 EXPORT_SYMBOL(iscsit_release_cmd);
 
-void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool check_queues)
+void __iscsit_free_cmd(struct iscsit_cmd *cmd, bool check_queues)
 {
 	struct iscsi_conn *conn = cmd->conn;
 
@@ -742,7 +742,7 @@ void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool check_queues)
 		conn->conn_transport->iscsit_unmap_cmd(conn, cmd);
 }
 
-void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
+void iscsit_free_cmd(struct iscsit_cmd *cmd, bool shutdown)
 {
 	struct se_cmd *se_cmd = cmd->se_cmd.se_tfo ? &cmd->se_cmd : NULL;
 	int rc;
@@ -870,7 +870,7 @@ void iscsit_inc_conn_usage_count(struct iscsi_conn *conn)
 static int iscsit_add_nopin(struct iscsi_conn *conn, int want_response)
 {
 	u8 state;
-	struct iscsi_cmd *cmd;
+	struct iscsit_cmd *cmd;
 
 	cmd = iscsit_allocate_cmd(conn, TASK_RUNNING);
 	if (!cmd)
@@ -1041,7 +1041,7 @@ void iscsit_stop_nopin_timer(struct iscsi_conn *conn)
 }
 
 int iscsit_send_tx_data(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	struct iscsi_conn *conn,
 	int use_misc)
 {
@@ -1074,7 +1074,7 @@ send_data:
 }
 
 int iscsit_fe_sendpage_sg(
-	struct iscsi_cmd *cmd,
+	struct iscsit_cmd *cmd,
 	struct iscsi_conn *conn)
 {
 	struct scatterlist *sg = cmd->first_data_sg;
