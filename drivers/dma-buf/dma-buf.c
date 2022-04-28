@@ -1351,7 +1351,7 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 		return ret;
 
 	seq_puts(s, "\nDma-buf Objects:\n");
-	seq_printf(s, "%-8s\t%-8s\t%-8s\t%-8s\texp_name\t%-8s\n",
+	seq_printf(s, "%-8s\t%-8s\t%-8s\t%-8s\texp_name\t%-8s\tname\n",
 		   "size", "flags", "mode", "count", "ino");
 
 	list_for_each_entry(buf_obj, &db_list.head, list_node) {
@@ -1368,7 +1368,7 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 				file_count(buf_obj->file),
 				buf_obj->exp_name,
 				file_inode(buf_obj->file)->i_ino,
-				buf_obj->name ?: "");
+				buf_obj->name ?: "<none>");
 		spin_unlock(&buf_obj->name_lock);
 
 		dma_resv_describe(buf_obj->resv, s);
