@@ -406,22 +406,13 @@ static void dpu_encoder_phys_wb_irq_ctrl(
 {
 
 	struct dpu_encoder_phys_wb *wb_enc = to_dpu_encoder_phys_wb(phys);
-	int ret = 0;
-	int refcount;
 
-	refcount = atomic_read(&wb_enc->wbirq_refcount);
-
-	if (enable && atomic_inc_return(&wb_enc->wbirq_refcount) == 1) {
+	if (enable && atomic_inc_return(&wb_enc->wbirq_refcount) == 1)
 		dpu_core_irq_register_callback(phys->dpu_kms,
 				phys->irq[INTR_IDX_WB_DONE], dpu_encoder_phys_wb_done_irq, phys);
-		if (ret)
-			atomic_dec_return(&wb_enc->wbirq_refcount);
-	} else if (!enable &&
-			atomic_dec_return(&wb_enc->wbirq_refcount) == 0) {
+	else if (!enable &&
+			atomic_dec_return(&wb_enc->wbirq_refcount) == 0)
 		dpu_core_irq_unregister_callback(phys->dpu_kms, phys->irq[INTR_IDX_WB_DONE]);
-		if (ret)
-			atomic_inc_return(&wb_enc->wbirq_refcount);
-	}
 }
 
 static void dpu_encoder_phys_wb_atomic_mode_set(
