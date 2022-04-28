@@ -1395,7 +1395,7 @@ static int aspeed_i3c_master_extend_ibi_payload(struct i3c_master_controller *m,
 	if (IS_MANUF_ID_ASPEED(pid) &&
 	    (IS_PART_ID_AST2600_SERIES(pid) || IS_PART_ID_AST1030_A0(pid))) {
 		ret = i3c_master_setmrl_locked(
-			m, i3cdev->info.dyn_addr, CONFIG_AST2600_I3C_MRL,
+			m, &i3cdev->info, CONFIG_AST2600_I3C_MRL,
 			CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD);
 	}
 

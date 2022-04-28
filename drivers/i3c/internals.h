@@ -27,6 +27,12 @@ int i3c_dev_request_ibi_locked(struct i3c_dev_desc *dev,
 void i3c_dev_free_ibi_locked(struct i3c_dev_desc *dev);
 int i3c_dev_send_ccc_cmd_locked(struct i3c_dev_desc *dev, u8 ccc_id);
 int i3c_dev_getstatus_locked(struct i3c_dev_desc *dev, struct i3c_device_info *info);
+int i3c_master_getmrl_locked(struct i3c_master_controller *master, struct i3c_device_info *info);
+int i3c_master_getmwl_locked(struct i3c_master_controller *master, struct i3c_device_info *info);
+int i3c_master_setmrl_locked(struct i3c_master_controller *master,
+			     struct i3c_device_info *info, __be16 read_len, u8 ibi_len);
+int i3c_master_setmwl_locked(struct i3c_master_controller *master,
+			     struct i3c_device_info *info, __be16 write_len);
 int i3c_for_each_dev(void *data, int (*fn)(struct device *, void *));
 int i3c_dev_generate_ibi_locked(struct i3c_dev_desc *dev, const u8 *data, int len);
 int i3c_dev_control_pec(struct i3c_dev_desc *dev, bool pec);

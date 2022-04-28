@@ -1063,29 +1063,7 @@ static int i3c_master_sethid_locked(struct i3c_master_controller *master)
 	return ret;
 }
 
-int i3c_master_setmrl_locked(struct i3c_master_controller *master, u8 addr,
-			     u16 read_len, u8 ibi_len)
-{
-	struct i3c_ccc_cmd_dest dest;
-	struct i3c_ccc_mrl *mrl;
-	struct i3c_ccc_cmd cmd;
-	int ret;
-
-	mrl = i3c_ccc_cmd_dest_init(&dest, addr, sizeof(*mrl));
-	if (!mrl)
-		return -ENOMEM;
-
-	mrl->read_len = cpu_to_be16(read_len);
-	mrl->ibi_len = ibi_len;
-	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_SETMRL(addr), &dest, 1);
-	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
-	i3c_ccc_cmd_dest_cleanup(&dest);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(i3c_master_setmrl_locked);
-
-static int i3c_master_getmrl_locked(struct i3c_master_controller *master,
-				    struct i3c_device_info *info)
+int i3c_master_getmrl_locked(struct i3c_master_controller *master, struct i3c_device_info *info)
 {
 	struct i3c_ccc_cmd_dest dest;
 	struct i3c_ccc_mrl *mrl;
@@ -1126,8 +1104,7 @@ out:
 	return ret;
 }
 
-static int i3c_master_getmwl_locked(struct i3c_master_controller *master,
-				    struct i3c_device_info *info)
+int i3c_master_getmwl_locked(struct i3c_master_controller *master, struct i3c_device_info *info)
 {
 	struct i3c_ccc_cmd_dest dest;
 	struct i3c_ccc_mwl *mwl;
@@ -1151,6 +1128,52 @@ static int i3c_master_getmwl_locked(struct i3c_master_controller *master,
 	info->max_write_len = be16_to_cpu(mwl->len);
 
 out:
+	i3c_ccc_cmd_dest_cleanup(&dest);
+
+	return ret;
+}
+
+int i3c_master_setmrl_locked(struct i3c_master_controller *master,
+			     struct i3c_device_info *info, __be16 read_len, u8 ibi_len)
+{
+	struct i3c_ccc_cmd_dest dest;
+	struct i3c_ccc_cmd cmd;
+	struct i3c_ccc_mrl *mrl;
+	int ret;
+
+	mrl = i3c_ccc_cmd_dest_init(&dest, info->dyn_addr, sizeof(*mrl));
+	if (!mrl)
+		return -ENOMEM;
+
+	mrl->read_len = read_len;
+	mrl->ibi_len = ibi_len;
+	info->max_read_len = mrl->read_len;
+	info->max_ibi_len = mrl->ibi_len;
+	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_SETMRL(false), &dest, 1);
+
+	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
+	i3c_ccc_cmd_dest_cleanup(&dest);
+
+	return ret;
+}
+
+int i3c_master_setmwl_locked(struct i3c_master_controller *master,
+			     struct i3c_device_info *info, __be16 write_len)
+{
+	struct i3c_ccc_cmd_dest dest;
+	struct i3c_ccc_cmd cmd;
+	struct i3c_ccc_mwl *mwl;
+	int ret;
+
+	mwl = i3c_ccc_cmd_dest_init(&dest, info->dyn_addr, sizeof(*mwl));
+	if (!mwl)
+		return -ENOMEM;
+
+	mwl->len = write_len;
+	info->max_write_len = mwl->len;
+	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_SETMWL(false), &dest, 1);
+
+	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
 	i3c_ccc_cmd_dest_cleanup(&dest);
 
 	return ret;
