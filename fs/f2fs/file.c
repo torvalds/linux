@@ -1813,9 +1813,8 @@ static int f2fs_release_file(struct inode *inode, struct file *filp)
 			atomic_read(&inode->i_writecount) != 1)
 		return 0;
 
-	/* some remained atomic pages should discarded */
 	if (f2fs_is_atomic_file(inode))
-		f2fs_drop_inmem_pages(inode);
+		f2fs_abort_atomic_write(inode, true);
 	if (f2fs_is_volatile_file(inode)) {
 		set_inode_flag(inode, FI_DROP_CACHE);
 		filemap_fdatawrite(inode->i_mapping);
@@ -1837,8 +1836,8 @@ static int f2fs_file_flush(struct file *file, fl_owner_t id)
 	 * before dropping file lock, it needs to do in ->flush.
 	 */
 	if (f2fs_is_atomic_file(inode) &&
-			F2FS_I(inode)->inmem_task == current)
-		f2fs_drop_inmem_pages(inode);
+			F2FS_I(inode)->atomic_write_task == current)
+		f2fs_abort_atomic_write(inode, true);
 	return 0;
 }
 
@@ -2001,6 +2000,7 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 	struct user_namespace *mnt_userns = file_mnt_user_ns(filp);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct inode *pinode;
 	int ret;
 
 	if (!inode_owner_or_capable(mnt_userns, inode))
@@ -2023,11 +2023,8 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 		goto out;
 	}
 
-	if (f2fs_is_atomic_file(inode)) {
-		if (is_inode_flag_set(inode, FI_ATOMIC_REVOKE_REQUEST))
-			ret = -EINVAL;
+	if (f2fs_is_atomic_file(inode))
 		goto out;
-	}
 
 	ret = f2fs_convert_inline_inode(inode);
 	if (ret)
@@ -2048,19 +2045,33 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 		goto out;
 	}
 
+	/* Create a COW inode for atomic write */
+	pinode = f2fs_iget(inode->i_sb, fi->i_pino);
+	if (IS_ERR(pinode)) {
+		f2fs_up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+		ret = PTR_ERR(pinode);
+		goto out;
+	}
+
+	ret = f2fs_get_tmpfile(mnt_userns, pinode, &fi->cow_inode);
+	iput(pinode);
+	if (ret) {
+		f2fs_up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+		goto out;
+	}
+	f2fs_i_size_write(fi->cow_inode, i_size_read(inode));
+
 	spin_lock(&sbi->inode_lock[ATOMIC_FILE]);
-	if (list_empty(&fi->inmem_ilist))
-		list_add_tail(&fi->inmem_ilist, &sbi->inode_list[ATOMIC_FILE]);
 	sbi->atomic_files++;
 	spin_unlock(&sbi->inode_lock[ATOMIC_FILE]);
 
-	/* add inode in inmem_list first and set atomic_file */
 	set_inode_flag(inode, FI_ATOMIC_FILE);
-	clear_inode_flag(inode, FI_ATOMIC_REVOKE_REQUEST);
+	set_inode_flag(fi->cow_inode, FI_ATOMIC_FILE);
+	clear_inode_flag(fi->cow_inode, FI_INLINE_DATA);
 	f2fs_up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
 
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
-	F2FS_I(inode)->inmem_task = current;
+	F2FS_I(inode)->atomic_write_task = current;
 	stat_update_max_atomic_write(inode);
 out:
 	inode_unlock(inode);
@@ -2091,21 +2102,17 @@ static int f2fs_ioc_commit_atomic_write(struct file *filp)
 	}
 
 	if (f2fs_is_atomic_file(inode)) {
-		ret = f2fs_commit_inmem_pages(inode);
+		ret = f2fs_commit_atomic_write(inode);
 		if (ret)
 			goto err_out;
 
 		ret = f2fs_do_sync_file(filp, 0, LLONG_MAX, 0, true);
 		if (!ret)
-			f2fs_drop_inmem_pages(inode);
+			f2fs_abort_atomic_write(inode, false);
 	} else {
 		ret = f2fs_do_sync_file(filp, 0, LLONG_MAX, 1, false);
 	}
 err_out:
-	if (is_inode_flag_set(inode, FI_ATOMIC_REVOKE_REQUEST)) {
-		clear_inode_flag(inode, FI_ATOMIC_REVOKE_REQUEST);
-		ret = -EINVAL;
-	}
 	inode_unlock(inode);
 	mnt_drop_write_file(filp);
 	return ret;
@@ -2193,14 +2200,12 @@ static int f2fs_ioc_abort_volatile_write(struct file *filp)
 	inode_lock(inode);
 
 	if (f2fs_is_atomic_file(inode))
-		f2fs_drop_inmem_pages(inode);
+		f2fs_abort_atomic_write(inode, true);
 	if (f2fs_is_volatile_file(inode)) {
 		clear_inode_flag(inode, FI_VOLATILE_FILE);
 		stat_dec_volatile_write(inode);
 		ret = f2fs_do_sync_file(filp, 0, LLONG_MAX, 0, true);
 	}
-
-	clear_inode_flag(inode, FI_ATOMIC_REVOKE_REQUEST);
 
 	inode_unlock(inode);
 

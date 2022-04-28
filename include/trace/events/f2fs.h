@@ -15,10 +15,6 @@ TRACE_DEFINE_ENUM(NODE);
 TRACE_DEFINE_ENUM(DATA);
 TRACE_DEFINE_ENUM(META);
 TRACE_DEFINE_ENUM(META_FLUSH);
-TRACE_DEFINE_ENUM(INMEM);
-TRACE_DEFINE_ENUM(INMEM_DROP);
-TRACE_DEFINE_ENUM(INMEM_INVALIDATE);
-TRACE_DEFINE_ENUM(INMEM_REVOKE);
 TRACE_DEFINE_ENUM(IPU);
 TRACE_DEFINE_ENUM(OPU);
 TRACE_DEFINE_ENUM(HOT);
@@ -59,10 +55,6 @@ TRACE_DEFINE_ENUM(CP_RESIZE);
 		{ DATA,		"DATA" },				\
 		{ META,		"META" },				\
 		{ META_FLUSH,	"META_FLUSH" },				\
-		{ INMEM,	"INMEM" },				\
-		{ INMEM_DROP,	"INMEM_DROP" },				\
-		{ INMEM_INVALIDATE,	"INMEM_INVALIDATE" },		\
-		{ INMEM_REVOKE,	"INMEM_REVOKE" },			\
 		{ IPU,		"IN-PLACE" },				\
 		{ OPU,		"OUT-OF-PLACE" })
 
@@ -1283,20 +1275,6 @@ DEFINE_EVENT(f2fs__page, f2fs_set_page_dirty,
 );
 
 DEFINE_EVENT(f2fs__page, f2fs_vm_page_mkwrite,
-
-	TP_PROTO(struct page *page, int type),
-
-	TP_ARGS(page, type)
-);
-
-DEFINE_EVENT(f2fs__page, f2fs_register_inmem_page,
-
-	TP_PROTO(struct page *page, int type),
-
-	TP_ARGS(page, type)
-);
-
-DEFINE_EVENT(f2fs__page, f2fs_commit_inmem_page,
 
 	TP_PROTO(struct page *page, int type),
 

@@ -225,10 +225,10 @@ struct segment_allocation {
 
 #define MAX_SKIP_GC_COUNT			16
 
-struct inmem_pages {
+struct revoke_entry {
 	struct list_head list;
-	struct page *page;
 	block_t old_addr;		/* for revoking when fail to commit */
+	pgoff_t index;
 };
 
 struct sit_info {
