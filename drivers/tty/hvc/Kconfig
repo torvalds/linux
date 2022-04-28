@@ -87,6 +87,25 @@ config HVC_DCC
 	  driver. This console is used through a JTAG only on ARM. If you don't have
 	  a JTAG then you probably don't want this option.
 
+config HVC_DCC_SERIALIZE_SMP
+	bool "Use DCC only on CPU core 0"
+	depends on SMP && HVC_DCC
+	help
+	  This is a DEBUG option to serialize all console input and output to CPU 0.
+	  Some external debuggers, do not handle reads/writes from/to DCC on more
+	  than one CPU core. Each core has its own DCC device registers, so when a
+	  CPU core reads or writes from/to DCC, it only accesses its own DCC device.
+	  Since kernel code can run on any CPU core, every time the kernel wants to
+	  write to the console, it might write to a different DCC.
+
+	  In SMP mode, external debuggers create multiple windows, and each window
+	  shows the DCC output only from that core's DCC. The result is that
+	  console output is either lost or scattered across windows.
+
+	  Enable this option only if you are sure that you do not need features like
+	  CPU hotplug to work. For example, during early chipset bringups without
+	  debug serial console support. If unsure, say N.
+
 config HVC_RISCV_SBI
 	bool "RISC-V SBI console support"
 	depends on RISCV_SBI_V01
