@@ -22,6 +22,8 @@
 #define POLLING_TIMEOUT_MS			50
 #define MCTP_INTERRUPT_NUMBER			1
 #define RX_RING_COUNT				16
+#define I3C_MCTP_MIN_TRANSFER_SIZE		69
+#define I3C_MCTP_IBI_PAYLOAD_SIZE		2
 
 struct i3c_mctp {
 	struct i3c_device *i3c;
@@ -39,6 +41,8 @@ struct i3c_mctp {
 	/* Currently only one userspace client is supported */
 	struct i3c_mctp_client *default_client;
 	struct i3c_mctp_client *peci_client;
+	u16 max_read_len;
+	u16 max_write_len;
 };
 
 struct i3c_mctp_client {
@@ -123,6 +127,7 @@ static struct i3c_mctp_client *i3c_mctp_find_client(struct i3c_mctp *priv,
 
 static struct i3c_mctp_packet *i3c_mctp_read_packet(struct i3c_device *i3c)
 {
+	struct i3c_mctp *priv = dev_get_drvdata(i3cdev_to_dev(i3c));
 	struct i3c_mctp_packet *rx_packet;
 	struct i3c_priv_xfer xfers = {
 		.rnw = true,
@@ -136,6 +141,14 @@ static struct i3c_mctp_packet *i3c_mctp_read_packet(struct i3c_device *i3c)
 	rx_packet->size = I3C_MCTP_PACKET_SIZE;
 	xfers.len = rx_packet->size;
 	xfers.data.in = &rx_packet->data;
+
+	/* Check against packet size + PEC byte to make sure that we always try to read max */
+	if (priv->max_read_len != xfers.len + 1) {
+		dev_dbg(i3cdev_to_dev(i3c), "Length mismatch. MRL = %d, xfers.len = %d",
+			priv->max_read_len, xfers.len);
+		i3c_mctp_packet_free(rx_packet);
+		return ERR_PTR(-EINVAL);
+	}
 
 	ret = i3c_device_do_priv_xfers(i3c, &xfers, 1);
 	if (ret) {
@@ -194,6 +207,16 @@ static ssize_t i3c_mctp_write(struct file *file, const char __user *buf, size_t 
 	};
 	u8 *data;
 	int ret;
+
+	/*
+	 * Check against packet size + PEC byte
+	 * to not send more data than it was set in the probe
+	 */
+	if (priv->max_write_len < xfers.len + 1) {
+		dev_dbg(i3cdev_to_dev(i3c), "Length mismatch. MWL = %d, xfers.len = %d",
+			priv->max_write_len, xfers.len);
+		return -EINVAL;
+	}
 
 	data = memdup_user(buf, count);
 	if (IS_ERR(data))
@@ -480,8 +503,10 @@ EXPORT_SYMBOL_GPL(i3c_mctp_receive_packet);
 
 static int i3c_mctp_probe(struct i3c_device *i3cdev)
 {
-	struct i3c_mctp *priv;
+	int ibi_payload_size = I3C_MCTP_IBI_PAYLOAD_SIZE;
 	struct device *dev = i3cdev_to_dev(i3cdev);
+	struct i3c_device_info info;
+	struct i3c_mctp *priv;
 	int ret;
 
 	priv = i3c_mctp_alloc(i3cdev);
@@ -522,10 +547,36 @@ static int i3c_mctp_probe(struct i3c_device *i3cdev)
 	if (i3c_mctp_enable_ibi(i3cdev)) {
 		INIT_DELAYED_WORK(&priv->polling_work, i3c_mctp_polling_work);
 		schedule_delayed_work(&priv->polling_work, msecs_to_jiffies(POLLING_TIMEOUT_MS));
+		ibi_payload_size = 0;
 	}
+
+	i3c_device_get_info(i3cdev, &info);
+
+	ret = i3c_device_getmrl_ccc(i3cdev, &info);
+	if (ret || info.max_read_len < I3C_MCTP_MIN_TRANSFER_SIZE)
+		ret = i3c_device_setmrl_ccc(i3cdev, &info, I3C_MCTP_MIN_TRANSFER_SIZE,
+					    ibi_payload_size);
+	if (ret && info.max_read_len < I3C_MCTP_MIN_TRANSFER_SIZE) {
+		dev_err(dev, "Failed to set MRL!, ret = %d\n", ret);
+		goto error_peci;
+	}
+	priv->max_read_len = info.max_read_len;
+
+	ret = i3c_device_getmwl_ccc(i3cdev, &info);
+	if (ret || info.max_write_len < I3C_MCTP_MIN_TRANSFER_SIZE)
+		ret = i3c_device_setmwl_ccc(i3cdev, &info, I3C_MCTP_MIN_TRANSFER_SIZE);
+	if (ret && info.max_write_len < I3C_MCTP_MIN_TRANSFER_SIZE) {
+		dev_err(dev, "Failed to set MWL!, ret = %d\n", ret);
+		goto error_peci;
+	}
+	priv->max_write_len = info.max_write_len;
 
 	return 0;
 
+error_peci:
+	platform_device_unregister(priv->i3c_peci);
+	i3c_device_disable_ibi(i3cdev);
+	i3c_device_free_ibi(i3cdev);
 error:
 	cdev_del(&priv->cdev);
 error_cdev:
