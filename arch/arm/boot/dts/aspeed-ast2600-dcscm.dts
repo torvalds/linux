@@ -242,3 +242,15 @@
 &sdhci1 {
 	status = "disabled";
 };
+
+&mac0 {
+	status = "disabled";
+};
+
+&mac2 {
+	status = "disabled";
+};
+
+&mac3 {
+	status = "disabled";
+};
