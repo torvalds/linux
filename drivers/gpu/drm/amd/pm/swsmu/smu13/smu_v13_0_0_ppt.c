@@ -852,7 +852,7 @@ static int smu_v13_0_0_get_current_clk_freq_by_table(struct smu_context *smu,
 		member_type = METRICS_CURR_UCLK;
 		break;
 	case PPCLK_FCLK:
-		member_type = METRICS_AVERAGE_FCLK;
+		member_type = METRICS_CURR_FCLK;
 		break;
 	case PPCLK_SOCCLK:
 		member_type = METRICS_CURR_SOCCLK;
