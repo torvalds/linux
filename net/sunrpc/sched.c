@@ -63,6 +63,7 @@ gfp_t rpc_task_gfp_mask(void)
 		return GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN;
 	return GFP_KERNEL;
 }
+EXPORT_SYMBOL_GPL(rpc_task_gfp_mask);
 
 unsigned long
 rpc_task_timeout(const struct rpc_task *task)
