@@ -212,7 +212,7 @@ static void omap_read_persistent_clock64(struct timespec64 *ts)
  * Returns 0 upon success or negative error code upon failure.
  *
  */
-int __init omap_init_clocksource_32k(void __iomem *vbase)
+static int __init omap_init_clocksource_32k(void __iomem *vbase)
 {
 	int ret;
 

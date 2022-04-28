@@ -30,7 +30,7 @@ static struct omapfb_platform_data omapfb_config;
 
 static u64 omap_fb_dma_mask = ~(u32)0;
 
-struct resource omap_fb_resources[] = {
+static struct resource omap_fb_resources[] = {
 	{
 		.name  = "irq",
 		.start = INT_LCD_CTRL,
