@@ -98,3 +98,17 @@ int test_kretprobe(struct pt_regs *ctx)
 	kprobe_multi_check(ctx, true);
 	return 0;
 }
+
+SEC("kprobe.multi")
+int test_kprobe_manual(struct pt_regs *ctx)
+{
+	kprobe_multi_check(ctx, false);
+	return 0;
+}
+
+SEC("kretprobe.multi")
+int test_kretprobe_manual(struct pt_regs *ctx)
+{
+	kprobe_multi_check(ctx, true);
+	return 0;
+}

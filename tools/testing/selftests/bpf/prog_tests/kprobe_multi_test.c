@@ -140,14 +140,14 @@ test_attach_api(const char *pattern, struct bpf_kprobe_multi_opts *opts)
 		goto cleanup;
 
 	skel->bss->pid = getpid();
-	link1 = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe,
+	link1 = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						      pattern, opts);
 	if (!ASSERT_OK_PTR(link1, "bpf_program__attach_kprobe_multi_opts"))
 		goto cleanup;
 
 	if (opts) {
 		opts->retprobe = true;
-		link2 = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kretprobe,
+		link2 = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kretprobe_manual,
 							      pattern, opts);
 		if (!ASSERT_OK_PTR(link2, "bpf_program__attach_kprobe_multi_opts"))
 			goto cleanup;
@@ -232,7 +232,7 @@ static void test_attach_api_fails(void)
 	skel->bss->pid = getpid();
 
 	/* fail_1 - pattern and opts NULL */
-	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe,
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     NULL, NULL);
 	if (!ASSERT_ERR_PTR(link, "fail_1"))
 		goto cleanup;
@@ -246,7 +246,7 @@ static void test_attach_api_fails(void)
 	opts.cnt = ARRAY_SIZE(syms);
 	opts.cookies = NULL;
 
-	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe,
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     NULL, &opts);
 	if (!ASSERT_ERR_PTR(link, "fail_2"))
 		goto cleanup;
@@ -260,7 +260,7 @@ static void test_attach_api_fails(void)
 	opts.cnt = ARRAY_SIZE(syms);
 	opts.cookies = NULL;
 
-	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe,
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     "ksys_*", &opts);
 	if (!ASSERT_ERR_PTR(link, "fail_3"))
 		goto cleanup;
@@ -274,7 +274,7 @@ static void test_attach_api_fails(void)
 	opts.cnt = ARRAY_SIZE(syms);
 	opts.cookies = NULL;
 
-	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe,
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     "ksys_*", &opts);
 	if (!ASSERT_ERR_PTR(link, "fail_4"))
 		goto cleanup;
@@ -288,7 +288,7 @@ static void test_attach_api_fails(void)
 	opts.cnt = 0;
 	opts.cookies = cookies;
 
-	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe,
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
 						     "ksys_*", &opts);
 	if (!ASSERT_ERR_PTR(link, "fail_5"))
 		goto cleanup;
