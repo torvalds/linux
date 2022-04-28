@@ -194,6 +194,7 @@ static int hw_id_map[MAX_HWIP] = {
 	[UMC_HWIP]	= UMC_HWID,
 	[XGMI_HWIP]	= XGMI_HWID,
 	[DCI_HWIP]	= DCI_HWID,
+	[PCIE_HWIP]	= PCIE_HWID,
 };
 
 static int amdgpu_discovery_read_binary_from_vram(struct amdgpu_device *adev, uint8_t *binary)

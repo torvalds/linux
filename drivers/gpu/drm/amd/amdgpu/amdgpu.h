@@ -670,6 +670,7 @@ enum amd_hw_ip_block_type {
 	RSMU_HWIP,
 	XGMI_HWIP,
 	DCI_HWIP,
+	PCIE_HWIP,
 	MAX_HWIP
 };
 
