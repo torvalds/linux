@@ -16,24 +16,20 @@
  * @_name: const char * of common header compression name.
  * @_nexthdr: ipv6 nexthdr field for the header compression.
  * @_nexthdrlen: ipv6 nexthdr len for the reserved space.
- * @_idsetup: callback to setup id and mask values.
- * @_idlen: len for the next header id and mask, should be always the same.
+ * @_id: one byte nhc id value.
+ * @_idmask: one byte nhc id mask value.
  * @_uncompress: callback for uncompression call.
  * @_compress: callback for compression call.
  */
 #define LOWPAN_NHC(__nhc, _name, _nexthdr,	\
-		   _hdrlen, _idsetup, _idlen,	\
+		   _hdrlen, _id, _idmask,	\
 		   _uncompress, _compress)	\
-static u8 __nhc##_val[_idlen];			\
-static u8 __nhc##_mask[_idlen];			\
 static struct lowpan_nhc __nhc = {		\
 	.name		= _name,		\
 	.nexthdr	= _nexthdr,		\
 	.nexthdrlen	= _hdrlen,		\
-	.id		= __nhc##_val,		\
-	.idmask		= __nhc##_mask,		\
-	.idlen		= _idlen,		\
-	.idsetup	= _idsetup,		\
+	.id		= _id,			\
+	.idmask		= _idmask,		\
 	.uncompress	= _uncompress,		\
 	.compress	= _compress,		\
 }
@@ -53,27 +49,21 @@ module_exit(__nhc##_exit);
 /**
  * struct lowpan_nhc - hold 6lowpan next hdr compression ifnformation
  *
- * @node: holder for the rbtree.
  * @name: name of the specific next header compression
  * @nexthdr: next header value of the protocol which should be compressed.
  * @nexthdrlen: ipv6 nexthdr len for the reserved space.
- * @id: array for nhc id. Note this need to be in network byteorder.
- * @mask: array for nhc id mask. Note this need to be in network byteorder.
- * @len: the length of the next header id and mask.
- * @setup: callback to setup fill the next header id value and mask.
+ * @id: one byte nhc id value.
+ * @idmask: one byte nhc id mask value.
  * @compress: callback to do the header compression.
  * @uncompress: callback to do the header uncompression.
  */
 struct lowpan_nhc {
-	struct rb_node	node;
 	const char	*name;
 	u8		nexthdr;
 	size_t		nexthdrlen;
-	u8		*id;
-	u8		*idmask;
-	size_t		idlen;
+	u8		id;
+	u8		idmask;
 
-	void		(*idsetup)(struct lowpan_nhc *nhc);
 	int		(*uncompress)(struct sk_buff *skb, size_t needed);
 	int		(*compress)(struct sk_buff *skb, u8 **hc_ptr);
 };

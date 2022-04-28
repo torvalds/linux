@@ -12,77 +12,26 @@
 
 #include "nhc.h"
 
-static struct rb_root rb_root = RB_ROOT;
 static struct lowpan_nhc *lowpan_nexthdr_nhcs[NEXTHDR_MAX + 1];
 static DEFINE_SPINLOCK(lowpan_nhc_lock);
 
-static int lowpan_nhc_insert(struct lowpan_nhc *nhc)
+static struct lowpan_nhc *lowpan_nhc_by_nhcid(struct sk_buff *skb)
 {
-	struct rb_node **new = &rb_root.rb_node, *parent = NULL;
+	struct lowpan_nhc *nhc;
+	int i;
+	u8 id;
 
-	/* Figure out where to put new node */
-	while (*new) {
-		struct lowpan_nhc *this = rb_entry(*new, struct lowpan_nhc,
-						   node);
-		int result, len_dif, len;
+	if (!pskb_may_pull(skb, 1))
+		return NULL;
 
-		len_dif = nhc->idlen - this->idlen;
+	id = *skb->data;
 
-		if (nhc->idlen < this->idlen)
-			len = nhc->idlen;
-		else
-			len = this->idlen;
+	for (i = 0; i < NEXTHDR_MAX + 1; i++) {
+		nhc = lowpan_nexthdr_nhcs[i];
+		if (!nhc)
+			continue;
 
-		result = memcmp(nhc->id, this->id, len);
-		if (!result)
-			result = len_dif;
-
-		parent = *new;
-		if (result < 0)
-			new = &((*new)->rb_left);
-		else if (result > 0)
-			new = &((*new)->rb_right);
-		else
-			return -EEXIST;
-	}
-
-	/* Add new node and rebalance tree. */
-	rb_link_node(&nhc->node, parent, new);
-	rb_insert_color(&nhc->node, &rb_root);
-
-	return 0;
-}
-
-static void lowpan_nhc_remove(struct lowpan_nhc *nhc)
-{
-	rb_erase(&nhc->node, &rb_root);
-}
-
-static struct lowpan_nhc *lowpan_nhc_by_nhcid(const struct sk_buff *skb)
-{
-	struct rb_node *node = rb_root.rb_node;
-	const u8 *nhcid_skb_ptr = skb->data;
-
-	while (node) {
-		struct lowpan_nhc *nhc = rb_entry(node, struct lowpan_nhc,
-						  node);
-		u8 nhcid_skb_ptr_masked[LOWPAN_NHC_MAX_ID_LEN];
-		int result, i;
-
-		if (nhcid_skb_ptr + nhc->idlen > skb->data + skb->len)
-			return NULL;
-
-		/* copy and mask afterwards the nhid value from skb */
-		memcpy(nhcid_skb_ptr_masked, nhcid_skb_ptr, nhc->idlen);
-		for (i = 0; i < nhc->idlen; i++)
-			nhcid_skb_ptr_masked[i] &= nhc->idmask[i];
-
-		result = memcmp(nhcid_skb_ptr_masked, nhc->id, nhc->idlen);
-		if (result < 0)
-			node = node->rb_left;
-		else if (result > 0)
-			node = node->rb_right;
-		else
+		if ((id & nhc->idmask) == nhc->id)
 			return nhc;
 	}
 
@@ -191,16 +140,7 @@ int lowpan_nhc_do_uncompression(struct sk_buff *skb,
 
 int lowpan_nhc_add(struct lowpan_nhc *nhc)
 {
-	int ret;
-
-	if (!nhc->idlen || !nhc->idsetup)
-		return -EINVAL;
-
-	WARN_ONCE(nhc->idlen > LOWPAN_NHC_MAX_ID_LEN,
-		  "LOWPAN_NHC_MAX_ID_LEN should be updated to %zd.\n",
-		  nhc->idlen);
-
-	nhc->idsetup(nhc);
+	int ret = 0;
 
 	spin_lock_bh(&lowpan_nhc_lock);
 
@@ -208,10 +148,6 @@ int lowpan_nhc_add(struct lowpan_nhc *nhc)
 		ret = -EEXIST;
 		goto out;
 	}
-
-	ret = lowpan_nhc_insert(nhc);
-	if (ret < 0)
-		goto out;
 
 	lowpan_nexthdr_nhcs[nhc->nexthdr] = nhc;
 out:
@@ -224,7 +160,6 @@ void lowpan_nhc_del(struct lowpan_nhc *nhc)
 {
 	spin_lock_bh(&lowpan_nhc_lock);
 
-	lowpan_nhc_remove(nhc);
 	lowpan_nexthdr_nhcs[nhc->nexthdr] = NULL;
 
 	spin_unlock_bh(&lowpan_nhc_lock);
