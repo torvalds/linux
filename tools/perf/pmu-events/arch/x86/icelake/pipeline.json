@@ -453,6 +453,18 @@
         "UMask": "0x1"
     },
     {
+        "BriefDescription": "Instruction decoders utilized in a cycle",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x55",
+        "EventName": "INST_DECODED.DECODERS",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Number of decoders utilized in a cycle when the MITE (legacy decode pipeline) fetches instructions.",
+        "SampleAfterValue": "2000003",
+        "Speculative": "1",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "Number of instructions retired. Fixed Counter - architectural event",
         "CollectPEBSRecord": "2",
         "Counter": "Fixed counter 0",
