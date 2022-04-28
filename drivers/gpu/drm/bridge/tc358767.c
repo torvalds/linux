@@ -1573,7 +1573,7 @@ static int tc_probe_edp_bridge_endpoint(struct tc_data *tc)
 		tc->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
