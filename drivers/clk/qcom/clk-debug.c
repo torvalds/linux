@@ -445,6 +445,9 @@ static int clk_debug_measure_get(void *data, u64 *val)
 	int ret = 0;
 	u32 regval;
 
+	if (!measure)
+		return -EINVAL;
+
 	ret = clk_runtime_get_debug_mux(meas);
 	if (ret)
 		return ret;
