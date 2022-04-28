@@ -542,6 +542,7 @@
 			clock-names = "sec_hclk","sec_ahb";
 			resets = <&rstgen RSTN_U0_SEC_TOP_HRESETN>;
 			reset-names = "sec_hre";
+			status = "disabled";
 		};
 
 		i2c6: i2c@12060000 {
