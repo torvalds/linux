@@ -2,7 +2,7 @@
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2018 Solarflare Communications Inc.
- * Copyright 2019-2020 Xilinx Inc.
+ * Copyright 2019-2022 Xilinx Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -22,6 +22,7 @@
 #include "mcdi_filters.h"
 #include "ef100_rx.h"
 #include "ef100_tx.h"
+#include "ef100_sriov.h"
 #include "ef100_netdev.h"
 #include "rx_common.h"
 
@@ -787,6 +788,9 @@ const struct efx_nic_type ef100_pf_nic_type = {
 	.update_stats = ef100_update_stats,
 	.pull_stats = efx_mcdi_mac_pull_stats,
 	.stop_stats = efx_mcdi_mac_stop_stats,
+#ifdef CONFIG_SFC_SRIOV
+	.sriov_configure = efx_ef100_sriov_configure,
+#endif
 
 	/* Per-type bar/size configuration not used on ef100. Location of
 	 * registers is defined by extended capabilities.
