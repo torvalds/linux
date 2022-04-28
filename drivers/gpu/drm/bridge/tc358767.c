@@ -1559,7 +1559,7 @@ static int tc_probe_edp_bridge_endpoint(struct tc_data *tc)
 		tc->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
 	}
 
-	return ret;
+	return 0;
 }
 
 static void tc_clk_disable(void *data)
