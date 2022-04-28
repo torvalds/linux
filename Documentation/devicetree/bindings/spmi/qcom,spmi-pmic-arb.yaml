@@ -88,9 +88,6 @@ properties:
 required:
   - compatible
   - reg-names
-  - interrupts
-  - interrupt-names
-  - '#interrupt-cells'
   - qcom,ee
   - qcom,channel
 
