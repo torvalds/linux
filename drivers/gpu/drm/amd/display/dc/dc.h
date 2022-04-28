@@ -1129,18 +1129,6 @@ struct dc_transfer_func *dc_create_transfer_func(void);
 struct dc_3dlut *dc_create_3dlut_func(void);
 void dc_3dlut_func_release(struct dc_3dlut *lut);
 void dc_3dlut_func_retain(struct dc_3dlut *lut);
-/*
- * This structure holds a surface address.  There could be multiple addresses
- * in cases such as Stereo 3D, Planar YUV, etc.  Other per-flip attributes such
- * as frame durations and DCC format can also be set.
- */
-struct dc_flip_addrs {
-	struct dc_plane_address address;
-	unsigned int flip_timestamp_in_us;
-	bool flip_immediate;
-	/* TODO: add flip duration for FreeSync */
-	bool triplebuffer_flips;
-};
 
 void dc_post_update_surfaces_to_stream(
 		struct dc *dc);
