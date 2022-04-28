@@ -718,6 +718,7 @@ retry:
 		if (!check_l4) {
 			disable_pgtable_l5();
 			check_l4 = true;
+			memset(early_pg_dir, 0, PAGE_SIZE);
 			goto retry;
 		}
 		disable_pgtable_l4();
