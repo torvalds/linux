@@ -48,6 +48,17 @@ enum psp_shared_mem_size {
 	PSP_SECUREDISPLAY_SHARED_MEM_SIZE	= 0x4000,
 };
 
+enum ta_type_id {
+	TA_TYPE_XGMI = 1,
+	TA_TYPE_RAS,
+	TA_TYPE_HDCP,
+	TA_TYPE_DTM,
+	TA_TYPE_RAP,
+	TA_TYPE_SECUREDISPLAY,
+
+	TA_TYPE_MAX_INDEX,
+};
+
 struct psp_context;
 struct psp_xgmi_node_info;
 struct psp_xgmi_topology_info;
@@ -151,9 +162,11 @@ struct ta_mem_context {
 struct ta_context {
 	bool			initialized;
 	uint32_t		session_id;
+	uint32_t		resp_status;
 	struct ta_mem_context	mem_context;
 	struct psp_bin_desc		bin_desc;
 	enum psp_gfx_cmd_id		ta_load_type;
+	enum ta_type_id		ta_type;
 };
 
 struct ta_cp_context {
@@ -407,6 +420,18 @@ int psp_gpu_reset(struct amdgpu_device *adev);
 int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,
 			uint64_t cmd_gpu_addr, int cmd_size);
 
+int psp_ta_init_shared_buf(struct psp_context *psp,
+				  struct ta_mem_context *mem_ctx);
+void psp_ta_free_shared_buf(struct ta_mem_context *mem_ctx);
+int psp_ta_unload(struct psp_context *psp, struct ta_context *context);
+int psp_ta_load(struct psp_context *psp, struct ta_context *context);
+int psp_ta_invoke(struct psp_context *psp,
+			uint32_t ta_cmd_id,
+			struct ta_context *context);
+int psp_ta_invoke_indirect(struct psp_context *psp,
+		  uint32_t ta_cmd_id,
+		  struct ta_context *context);
+
 int psp_xgmi_initialize(struct psp_context *psp, bool set_extended_data, bool load_ta);
 int psp_xgmi_terminate(struct psp_context *psp);
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
@@ -425,6 +450,7 @@ int psp_ras_enable_features(struct psp_context *psp,
 		union ta_ras_cmd_input *info, bool enable);
 int psp_ras_trigger_error(struct psp_context *psp,
 			  struct ta_ras_trigger_error_input *info);
+int psp_ras_terminate(struct psp_context *psp);
 
 int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id);

@@ -1128,14 +1128,6 @@ err_pdd:
 	return ret;
 }
 
-static bool kfd_flush_tlb_after_unmap(struct kfd_dev *dev)
-{
-	return KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2) ||
-		(KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 1) &&
-		dev->adev->sdma.instance[0].fw_version >= 18) ||
-		KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 0);
-}
-
 static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 					struct kfd_process *p, void *data)
 {

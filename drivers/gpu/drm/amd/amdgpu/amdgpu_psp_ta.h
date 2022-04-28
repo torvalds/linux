@@ -19,17 +19,12 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: AMD
- *
  */
-#ifndef __DC_VIRTUAL_LINK_HWSS_H__
-#define __DC_VIRTUAL_LINK_HWSS_H__
 
-#include "core_types.h"
+#ifndef __AMDGPU_PSP_TA_H__
+#define __AMDGPU_PSP_TA_H__
 
-void virtual_setup_stream_encoder(struct pipe_ctx *pipe_ctx);
-void virtual_setup_stream_attribute(struct pipe_ctx *pipe_ctx);
-void virtual_reset_stream_encoder(struct pipe_ctx *pipe_ctx);
-const struct link_hwss *get_virtual_link_hwss(void);
+void amdgpu_ta_if_debugfs_init(struct amdgpu_device *adev);
+void amdgpu_ta_if_debugfs_remove(void);
 
-#endif /* __DC_VIRTUAL_LINK_HWSS_H__ */
+#endif

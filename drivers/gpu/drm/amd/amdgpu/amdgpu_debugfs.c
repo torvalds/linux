@@ -38,6 +38,7 @@
 #include "amdgpu_umr.h"
 
 #include "amdgpu_reset.h"
+#include "amdgpu_psp_ta.h"
 
 #if defined(CONFIG_DEBUG_FS)
 
@@ -1767,6 +1768,7 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 		DRM_ERROR("registering register debugfs failed (%d).\n", r);
 
 	amdgpu_debugfs_firmware_init(adev);
+	amdgpu_ta_if_debugfs_init(adev);
 
 #if defined(CONFIG_DRM_AMD_DC)
 	if (amdgpu_device_has_dc_support(adev))
