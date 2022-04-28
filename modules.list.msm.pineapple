@@ -8,3 +8,6 @@ stub-regulator.ko
 phy-qcom-ufs.ko
 phy-qcom-ufs-qrbtc-sdm845.ko
 ufs_qcom.ko
+dwc3-msm.ko
+phy-qcom-emu.ko
+phy-generic.ko

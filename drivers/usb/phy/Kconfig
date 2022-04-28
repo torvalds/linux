@@ -192,4 +192,47 @@ config JZ4770_PHY
 	  This driver provides PHY support for the USB controller found
 	  on the JZ-series and X-series SoCs from Ingenic.
 
+config USB_QCOM_EMU_PHY
+	tristate "Qualcomm Technologies, Inc. emulation USB PHY driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	select USB_PHY
+	help
+	  Enable this to support the USB transceiver used on
+	  Qualcomm Technologies, Inc. emulation platforms. It simply performs
+	  PHY initialization given a basic register write sequence.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called phy-qcom-emu.
+
+config USB_MSM_SSPHY_QMP
+	tristate "MSM SSUSB QMP PHY Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	select USB_PHY
+	help
+	  Enable this to support the SuperSpeed USB transceiver on MSM chips.
+	  This driver supports the PHY which uses the QSCRATCH-based register
+	  set for its control sequences, normally paired with newer DWC3-based
+	  SuperSpeed controllers.
+
+config MSM_HSUSB_PHY
+	tristate "MSM HSUSB PHY Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	select USB_PHY
+	help
+	  Enable this to support the HSUSB PHY on MSM chips. This driver supports
+	  the high-speed PHY which is usually paired with either the ChipIdea or
+	  Synopsys DWC3 USB IPs on MSM SOCs. This driver expects to configure the
+	  PHY with a dedicated register I/O memory region.
+
+config USB_MSM_EUSB2_PHY
+	tristate "MSM EUSB2 PHY Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	select USB_PHY
+	help
+	  Enable this to support the USB EUSB2 PHY on MSM chips. This driver
+	  supports reset and initialization sequence, and also perform required
+	  set of operations with used repeater for USB HS/FS/LS functionality.
+
+	  To compile this driver as a module, choose M here.
+
 endmenu
