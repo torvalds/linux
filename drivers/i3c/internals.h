@@ -32,4 +32,13 @@ int i3c_dev_pending_read_notify_locked(struct i3c_dev_desc *dev,
 				       struct i3c_priv_xfer *ibi_notify);
 int i3c_dev_is_ibi_enabled_locked(struct i3c_dev_desc *dev);
 int i3c_dev_control_pec(struct i3c_dev_desc *dev, bool pec);
+int i3c_master_getmrl_locked(struct i3c_master_controller *master,
+			     struct i3c_device_info *info);
+int i3c_master_getmwl_locked(struct i3c_master_controller *master,
+			     struct i3c_device_info *info);
+int i3c_master_setmrl_locked(struct i3c_master_controller *master,
+			     struct i3c_device_info *info, __be16 read_len,
+			     u8 ibi_len);
+int i3c_master_setmwl_locked(struct i3c_master_controller *master,
+			     struct i3c_device_info *info, __be16 write_len);
 #endif /* I3C_INTERNAL_H */
