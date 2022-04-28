@@ -48,15 +48,20 @@ static void long_running_rt_task_notifier(void *unused, struct rq *rq)
 		return;
 	}
 
-	if (rq_clock_task(rq) -
+	/*
+	 * Since we are called from the main tick, rq clock task must have
+	 * been updated very recently. Use it directly, instead of
+	 * update_rq_clock_task() to avoid warnings.
+	 */
+	if (rq->clock_task -
 		per_cpu(rt_task_arrival_time, cpu)
 			> sysctl_sched_long_running_rt_task_ms * MSEC_TO_NSEC) {
 		printk_deferred("RT task %s (%d) runtime > %u now=%llu task arrival time=%llu runtime=%llu\n",
 				curr->comm, curr->pid,
 				sysctl_sched_long_running_rt_task_ms * MSEC_TO_NSEC,
-				rq_clock_task(rq),
+				rq->clock_task,
 				per_cpu(rt_task_arrival_time, cpu),
-				rq_clock_task(rq) -
+				rq->clock_task -
 				per_cpu(rt_task_arrival_time, cpu));
 		BUG();
 	}
