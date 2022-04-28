@@ -4111,7 +4111,7 @@ struct netdev_queue *netdev_core_pick_tx(struct net_device *dev,
  *      the BH enable code must have IRQs enabled so that it will not deadlock.
  *          --BLG
  */
-static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
+int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 {
 	struct net_device *dev = skb->dev;
 	struct netdev_queue *txq = NULL;
@@ -4235,18 +4235,7 @@ out:
 	rcu_read_unlock_bh();
 	return rc;
 }
-
-int dev_queue_xmit(struct sk_buff *skb)
-{
-	return __dev_queue_xmit(skb, NULL);
-}
-EXPORT_SYMBOL(dev_queue_xmit);
-
-int dev_queue_xmit_accel(struct sk_buff *skb, struct net_device *sb_dev)
-{
-	return __dev_queue_xmit(skb, sb_dev);
-}
-EXPORT_SYMBOL(dev_queue_xmit_accel);
+EXPORT_SYMBOL(__dev_queue_xmit);
 
 int __dev_direct_xmit(struct sk_buff *skb, u16 queue_id)
 {
