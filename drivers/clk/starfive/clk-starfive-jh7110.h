@@ -36,6 +36,15 @@
 /* isp PLL CLOCK offset */
 #define PLL_OFI(x)	(x - JH7110_CLK_ISP_REG_END)
 
+#define GATE_FLAG_NORMAL  0
+
+enum {
+	PARENT_NUMS_1 = 1,
+	PARENT_NUMS_2,
+	PARENT_NUMS_3,
+	PARENT_NUMS_4,
+};
+
 /* clock data */
 struct jh7110_clk_data {
 	const char *name;
