@@ -1321,10 +1321,8 @@ static void *reloc_vaddr(struct i915_vma *vma,
 static void clflush_write32(u32 *addr, u32 value, unsigned int flushes)
 {
 	if (unlikely(flushes & (CLFLUSH_BEFORE | CLFLUSH_AFTER))) {
-		if (flushes & CLFLUSH_BEFORE) {
-			clflushopt(addr);
-			mb();
-		}
+		if (flushes & CLFLUSH_BEFORE)
+			drm_clflush_virt_range(addr, sizeof(*addr));
 
 		*addr = value;
 
@@ -1336,7 +1334,7 @@ static void clflush_write32(u32 *addr, u32 value, unsigned int flushes)
 		 * to ensure ordering of clflush wrt to the system.
 		 */
 		if (flushes & CLFLUSH_AFTER)
-			clflushopt(addr);
+			drm_clflush_virt_range(addr, sizeof(*addr));
 	} else
 		*addr = value;
 }
@@ -2690,6 +2688,11 @@ eb_select_engine(struct i915_execbuffer *eb)
 	if (err)
 		goto err;
 
+	if (!i915_vm_tryget(ce->vm)) {
+		err = -ENOENT;
+		goto err;
+	}
+
 	eb->context = ce;
 	eb->gt = ce->engine->gt;
 
@@ -2713,6 +2716,7 @@ eb_put_engine(struct i915_execbuffer *eb)
 {
 	struct intel_context *child;
 
+	i915_vm_put(eb->context->vm);
 	intel_gt_pm_put(eb->gt);
 	for_each_child(eb->context, child)
 		intel_context_put(child);

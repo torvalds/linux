@@ -606,6 +606,9 @@ bool i915_gem_object_can_migrate(struct drm_i915_gem_object *obj,
 	if (!mr)
 		return false;
 
+	if (!IS_ALIGNED(obj->base.size, mr->min_page_size))
+		return false;
+
 	if (obj->mm.region == mr)
 		return true;
 

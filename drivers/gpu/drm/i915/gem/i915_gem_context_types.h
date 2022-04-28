@@ -293,6 +293,12 @@ struct i915_gem_context {
 	/** @link: place with &drm_i915_private.context_list */
 	struct list_head link;
 
+	/** @client: struct i915_drm_client */
+	struct i915_drm_client *client;
+
+	/** @client_link: for linking onto &i915_drm_client.ctx_list */
+	struct list_head client_link;
+
 	/**
 	 * @ref: reference count
 	 *

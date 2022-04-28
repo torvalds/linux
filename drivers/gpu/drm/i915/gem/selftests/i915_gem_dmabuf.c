@@ -88,7 +88,7 @@ out:
 static int igt_dmabuf_import_same_driver_lmem(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct intel_memory_region *lmem = i915->mm.regions[INTEL_REGION_LMEM];
+	struct intel_memory_region *lmem = i915->mm.regions[INTEL_REGION_LMEM_0];
 	struct drm_i915_gem_object *obj;
 	struct drm_gem_object *import;
 	struct dma_buf *dmabuf;
@@ -253,10 +253,10 @@ static int igt_dmabuf_import_same_driver_lmem_smem(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct intel_memory_region *regions[2];
 
-	if (!i915->mm.regions[INTEL_REGION_LMEM])
+	if (!i915->mm.regions[INTEL_REGION_LMEM_0])
 		return 0;
 
-	regions[0] = i915->mm.regions[INTEL_REGION_LMEM];
+	regions[0] = i915->mm.regions[INTEL_REGION_LMEM_0];
 	regions[1] = i915->mm.regions[INTEL_REGION_SMEM];
 	return igt_dmabuf_import_same_driver(i915, regions, 2);
 }
