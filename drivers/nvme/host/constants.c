@@ -4,7 +4,6 @@
  * Copyright (c) 2022, Oracle and/or its affiliates
  */
 
-#include <linux/blkdev.h>
 #include "nvme.h"
 
 #ifdef CONFIG_NVME_VERBOSE_ERRORS
