@@ -146,6 +146,7 @@
 static DEFINE_MUTEX(proto_list_mutex);
 static LIST_HEAD(proto_list);
 
+static void sock_def_write_space_wfree(struct sock *sk);
 static void sock_def_write_space(struct sock *sk);
 
 /**
@@ -2333,7 +2334,7 @@ void sock_wfree(struct sk_buff *skb)
 		    sk->sk_write_space == sock_def_write_space) {
 			rcu_read_lock();
 			free = refcount_sub_and_test(len, &sk->sk_wmem_alloc);
-			sock_def_write_space(sk);
+			sock_def_write_space_wfree(sk);
 			rcu_read_unlock();
 			if (unlikely(free))
 				__sk_free(sk);
@@ -3216,6 +3217,29 @@ static void sock_def_write_space(struct sock *sk)
 	}
 
 	rcu_read_unlock();
+}
+
+/* An optimised version of sock_def_write_space(), should only be called
+ * for SOCK_RCU_FREE sockets under RCU read section and after putting
+ * ->sk_wmem_alloc.
+ */
+static void sock_def_write_space_wfree(struct sock *sk)
+{
+	/* Do not wake up a writer until he can make "significant"
+	 * progress.  --DaveM
+	 */
+	if (sock_writeable(sk)) {
+		struct socket_wq *wq = rcu_dereference(sk->sk_wq);
+
+		/* rely on refcount_sub from sock_wfree() */
+		smp_mb__after_atomic();
+		if (wq && waitqueue_active(&wq->wait))
+			wake_up_interruptible_sync_poll(&wq->wait, EPOLLOUT |
+						EPOLLWRNORM | EPOLLWRBAND);
+
+		/* Should agree with poll, otherwise some programs break */
+		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
+	}
 }
 
 static void sock_def_destruct(struct sock *sk)
