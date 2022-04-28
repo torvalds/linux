@@ -1433,36 +1433,19 @@ static int find_elf_var_offset(const struct bpf_object *obj, const char *name, _
 
 static struct bpf_map *bpf_object__add_map(struct bpf_object *obj)
 {
-	struct bpf_map *new_maps;
-	size_t new_cap;
-	int i;
+	struct bpf_map *map;
+	int err;
 
-	if (obj->nr_maps < obj->maps_cap)
-		return &obj->maps[obj->nr_maps++];
+	err = libbpf_ensure_mem((void **)&obj->maps, &obj->maps_cap,
+				sizeof(*obj->maps), obj->nr_maps + 1);
+	if (err)
+		return ERR_PTR(err);
 
-	new_cap = max((size_t)4, obj->maps_cap * 3 / 2);
-	new_maps = libbpf_reallocarray(obj->maps, new_cap, sizeof(*obj->maps));
-	if (!new_maps) {
-		pr_warn("alloc maps for object failed\n");
-		return ERR_PTR(-ENOMEM);
-	}
+	map = &obj->maps[obj->nr_maps++];
+	map->fd = -1;
+	map->inner_map_fd = -1;
 
-	obj->maps_cap = new_cap;
-	obj->maps = new_maps;
-
-	/* zero out new maps */
-	memset(obj->maps + obj->nr_maps, 0,
-	       (obj->maps_cap - obj->nr_maps) * sizeof(*obj->maps));
-	/*
-	 * fill all fd with -1 so won't close incorrect fd (fd=0 is stdin)
-	 * when failure (zclose won't close negative fd)).
-	 */
-	for (i = obj->nr_maps; i < obj->maps_cap; i++) {
-		obj->maps[i].fd = -1;
-		obj->maps[i].inner_map_fd = -1;
-	}
-
-	return &obj->maps[obj->nr_maps++];
+	return map;
 }
 
 static size_t bpf_map_mmap_sz(const struct bpf_map *map)
