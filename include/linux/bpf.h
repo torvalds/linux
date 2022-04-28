@@ -307,7 +307,9 @@ enum bpf_type_flag {
 	/* PTR may be NULL. */
 	PTR_MAYBE_NULL		= BIT(0 + BPF_BASE_TYPE_BITS),
 
-	/* MEM is read-only. */
+	/* MEM is read-only. When applied on bpf_arg, it indicates the arg is
+	 * compatible with both mutable and immutable memory.
+	 */
 	MEM_RDONLY		= BIT(1 + BPF_BASE_TYPE_BITS),
 
 	__BPF_TYPE_LAST_FLAG	= MEM_RDONLY,
