@@ -1283,7 +1283,7 @@ MODULE_DEVICE_TABLE(of, ov5645_of_match);
 
 static struct i2c_driver ov5645_i2c_driver = {
 	.driver = {
-		.of_match_table = of_match_ptr(ov5645_of_match),
+		.of_match_table = ov5645_of_match,
 		.name  = "ov5645",
 	},
 	.probe_new = ov5645_probe,
