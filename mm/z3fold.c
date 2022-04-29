@@ -345,7 +345,7 @@ static struct file_system_type z3fold_fs = {
 };
 
 static struct vfsmount *z3fold_mnt;
-static int z3fold_mount(void)
+static int __init z3fold_mount(void)
 {
 	int ret = 0;
 
