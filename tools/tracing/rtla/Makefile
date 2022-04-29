@@ -57,6 +57,41 @@ else
 DOCSRC	=	$(SRCTREE)/../../../Documentation/tools/rtla/
 endif
 
+LIBTRACEEVENT_MIN_VERSION = 1.5
+LIBTRACEFS_MIN_VERSION = 1.3
+
+TEST_LIBTRACEEVENT = $(shell sh -c "$(PKG_CONFIG) --atleast-version $(LIBTRACEEVENT_MIN_VERSION) libtraceevent > /dev/null 2>&1 || echo n")
+ifeq ("$(TEST_LIBTRACEEVENT)", "n")
+.PHONY: warning_traceevent
+warning_traceevent:
+	@echo "********************************************"
+	@echo "** NOTICE: libtraceevent version $(LIBTRACEEVENT_MIN_VERSION) or higher not found"
+	@echo "**"
+	@echo "** Consider installing the latest libtraceevent from your"
+	@echo "** distribution, e.g., 'dnf install libtraceevent' on Fedora,"
+	@echo "** or from source:"
+	@echo "**"
+	@echo "**  https://git.kernel.org/pub/scm/libs/libtrace/libtraceevent.git/ "
+	@echo "**"
+	@echo "********************************************"
+endif
+
+TEST_LIBTRACEFS = $(shell sh -c "$(PKG_CONFIG) --atleast-version $(LIBTRACEFS_MIN_VERSION) libtracefs > /dev/null 2>&1 || echo n")
+ifeq ("$(TEST_LIBTRACEFS)", "n")
+.PHONY: warning_tracefs
+warning_tracefs:
+	@echo "********************************************"
+	@echo "** NOTICE: libtracefs version $(LIBTRACEFS_MIN_VERSION) or higher not found"
+	@echo "**"
+	@echo "** Consider installing the latest libtracefs from your"
+	@echo "** distribution, e.g., 'dnf install libtracefs' on Fedora,"
+	@echo "** or from source:"
+	@echo "**"
+	@echo "**  https://git.kernel.org/pub/scm/libs/libtrace/libtracefs.git/ "
+	@echo "**"
+	@echo "********************************************"
+endif
+
 .PHONY:	all
 all:	rtla
 
