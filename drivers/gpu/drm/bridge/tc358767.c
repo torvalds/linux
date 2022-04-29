@@ -1247,10 +1247,59 @@ static int tc_main_link_disable(struct tc_data *tc)
 	return regmap_write(tc->regmap, DP0CTL, 0);
 }
 
+static int tc_dsi_rx_enable(struct tc_data *tc)
+{
+	u32 value;
+	int ret;
+
+	regmap_write(tc->regmap, PPI_D0S_CLRSIPOCOUNT, 3);
+	regmap_write(tc->regmap, PPI_D1S_CLRSIPOCOUNT, 3);
+	regmap_write(tc->regmap, PPI_D2S_CLRSIPOCOUNT, 3);
+	regmap_write(tc->regmap, PPI_D3S_CLRSIPOCOUNT, 3);
+	regmap_write(tc->regmap, PPI_D0S_ATMR, 0);
+	regmap_write(tc->regmap, PPI_D1S_ATMR, 0);
+	regmap_write(tc->regmap, PPI_TX_RX_TA, TTA_GET | TTA_SURE);
+	regmap_write(tc->regmap, PPI_LPTXTIMECNT, LPX_PERIOD);
+
+	value = ((LANEENABLE_L0EN << tc->dsi_lanes) - LANEENABLE_L0EN) |
+		LANEENABLE_CLEN;
+	regmap_write(tc->regmap, PPI_LANEENABLE, value);
+	regmap_write(tc->regmap, DSI_LANEENABLE, value);
+
+	/* Set input interface */
+	value = DP0_AUDSRC_NO_INPUT;
+	if (tc_test_pattern)
+		value |= DP0_VIDSRC_COLOR_BAR;
+	else
+		value |= DP0_VIDSRC_DSI_RX;
+	ret = regmap_write(tc->regmap, SYSCTRL, value);
+	if (ret)
+		return ret;
+
+	usleep_range(120, 150);
+
+	regmap_write(tc->regmap, PPI_STARTPPI, PPI_START_FUNCTION);
+	regmap_write(tc->regmap, DSI_STARTDSI, DSI_RX_START);
+
+	return 0;
+}
+
+static int tc_dpi_rx_enable(struct tc_data *tc)
+{
+	u32 value;
+
+	/* Set input interface */
+	value = DP0_AUDSRC_NO_INPUT;
+	if (tc_test_pattern)
+		value |= DP0_VIDSRC_COLOR_BAR;
+	else
+		value |= DP0_VIDSRC_DPI_RX;
+	return regmap_write(tc->regmap, SYSCTRL, value);
+}
+
 static int tc_dpi_stream_enable(struct tc_data *tc)
 {
 	int ret;
-	u32 value;
 
 	dev_dbg(tc->dev, "enable video stream\n");
 
@@ -1277,20 +1326,6 @@ static int tc_dpi_stream_enable(struct tc_data *tc)
 	if (ret)
 		return ret;
 
-	regmap_write(tc->regmap, PPI_D0S_CLRSIPOCOUNT, 3);
-	regmap_write(tc->regmap, PPI_D1S_CLRSIPOCOUNT, 3);
-	regmap_write(tc->regmap, PPI_D2S_CLRSIPOCOUNT, 3);
-	regmap_write(tc->regmap, PPI_D3S_CLRSIPOCOUNT, 3);
-	regmap_write(tc->regmap, PPI_D0S_ATMR, 0);
-	regmap_write(tc->regmap, PPI_D1S_ATMR, 0);
-	regmap_write(tc->regmap, PPI_TX_RX_TA, TTA_GET | TTA_SURE);
-	regmap_write(tc->regmap, PPI_LPTXTIMECNT, LPX_PERIOD);
-
-	value = ((LANEENABLE_L0EN << tc->dsi_lanes) - LANEENABLE_L0EN) |
-		LANEENABLE_CLEN;
-	regmap_write(tc->regmap, PPI_LANEENABLE, value);
-	regmap_write(tc->regmap, DSI_LANEENABLE, value);
-
 	ret = tc_set_common_video_mode(tc, &tc->mode);
 	if (ret)
 		return ret;
@@ -1299,22 +1334,7 @@ static int tc_dpi_stream_enable(struct tc_data *tc)
 	if (ret)
 		return ret;
 
-	/* Set input interface */
-	value = DP0_AUDSRC_NO_INPUT;
-	if (tc_test_pattern)
-		value |= DP0_VIDSRC_COLOR_BAR;
-	else
-		value |= DP0_VIDSRC_DSI_RX;
-	ret = regmap_write(tc->regmap, SYSCTRL, value);
-	if (ret)
-		return ret;
-
-	usleep_range(120, 150);
-
-	regmap_write(tc->regmap, PPI_STARTPPI, PPI_START_FUNCTION);
-	regmap_write(tc->regmap, DSI_STARTDSI, DSI_RX_START);
-
-	return 0;
+	return tc_dsi_rx_enable(tc);
 }
 
 static int tc_dpi_stream_disable(struct tc_data *tc)
@@ -1372,17 +1392,9 @@ static int tc_edp_stream_enable(struct tc_data *tc)
 	ret = regmap_write(tc->regmap, DP0CTL, value);
 	if (ret)
 		return ret;
-	/* Set input interface */
-	value = DP0_AUDSRC_NO_INPUT;
-	if (tc_test_pattern)
-		value |= DP0_VIDSRC_COLOR_BAR;
-	else
-		value |= DP0_VIDSRC_DPI_RX;
-	ret = regmap_write(tc->regmap, SYSCTRL, value);
-	if (ret)
-		return ret;
 
-	return 0;
+	/* Set input interface */
+	return tc_dpi_rx_enable(tc);
 }
 
 static int tc_edp_stream_disable(struct tc_data *tc)
