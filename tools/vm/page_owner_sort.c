@@ -53,15 +53,29 @@ enum CULL_BIT {
 	CULL_COMM = 1<<4,
 	CULL_STACKTRACE = 1<<5
 };
+enum ARG_TYPE {
+	ARG_TXT, ARG_COMM, ARG_STACKTRACE, ARG_ALLOC_TS, ARG_FREE_TS,
+	ARG_CULL_TIME, ARG_PAGE_NUM, ARG_PID, ARG_TGID, ARG_UNKNOWN, ARG_FREE
+};
+enum SORT_ORDER {
+	SORT_ASC = 1,
+	SORT_DESC = -1,
+};
 struct filter_condition {
-	pid_t *tgids;
-	int tgids_size;
 	pid_t *pids;
-	int pids_size;
+	pid_t *tgids;
 	char **comms;
+	int pids_size;
+	int tgids_size;
 	int comms_size;
 };
+struct sort_condition {
+	int (**cmps)(const void *, const void *);
+	int *signs;
+	int size;
+};
 static struct filter_condition fc;
+static struct sort_condition sc;
 static regex_t order_pattern;
 static regex_t pid_pattern;
 static regex_t tgid_pattern;
@@ -107,14 +121,14 @@ static int compare_num(const void *p1, const void *p2)
 {
 	const struct block_list *l1 = p1, *l2 = p2;
 
-	return l2->num - l1->num;
+	return l1->num - l2->num;
 }
 
 static int compare_page_num(const void *p1, const void *p2)
 {
 	const struct block_list *l1 = p1, *l2 = p2;
 
-	return l2->page_num - l1->page_num;
+	return l1->page_num - l2->page_num;
 }
 
 static int compare_pid(const void *p1, const void *p2)
@@ -178,6 +192,16 @@ static int compare_cull_condition(const void *p1, const void *p2)
 	if ((cull & CULL_UNRELEASE) && compare_release(p1, p2))
 		return compare_release(p1, p2);
 	return 0;
+}
+
+static int compare_sort_condition(const void *p1, const void *p2)
+{
+	int cmp = 0;
+
+	for (int i = 0; i < sc.size; ++i)
+		if (cmp == 0)
+			cmp = sc.signs[i] * sc.cmps[i](p1, p2);
+	return cmp;
 }
 
 static int search_pattern(regex_t *pattern, char *pattern_str, char *buf)
@@ -345,6 +369,29 @@ static char *get_comm(char *buf)
 	return comm_str;
 }
 
+static int get_arg_type(const char *arg)
+{
+	if (!strcmp(arg, "pid") || !strcmp(arg, "p"))
+		return ARG_PID;
+	else if (!strcmp(arg, "tgid") || !strcmp(arg, "tg"))
+		return ARG_TGID;
+	else if (!strcmp(arg, "name") || !strcmp(arg, "n"))
+		return  ARG_COMM;
+	else if (!strcmp(arg, "stacktrace") || !strcmp(arg, "st"))
+		return ARG_STACKTRACE;
+	else if (!strcmp(arg, "free") || !strcmp(arg, "f"))
+		return ARG_FREE;
+	else if (!strcmp(arg, "txt") || !strcmp(arg, "T"))
+		return ARG_TXT;
+	else if (!strcmp(arg, "free_ts") || !strcmp(arg, "ft"))
+		return ARG_FREE_TS;
+	else if (!strcmp(arg, "alloc_ts") || !strcmp(arg, "at"))
+		return ARG_ALLOC_TS;
+	else {
+		return ARG_UNKNOWN;
+	}
+}
+
 static bool match_num_list(int num, int *list, int list_size)
 {
 	for (int i = 0; i < list_size; ++i)
@@ -428,21 +475,86 @@ static bool parse_cull_args(const char *arg_str)
 	int size = 0;
 	char **args = explode(',', arg_str, &size);
 
-	for (int i = 0; i < size; ++i)
-		if (!strcmp(args[i], "pid") || !strcmp(args[i], "p"))
+	for (int i = 0; i < size; ++i) {
+		int arg_type = get_arg_type(args[i]);
+
+		if (arg_type == ARG_PID)
 			cull |= CULL_PID;
-		else if (!strcmp(args[i], "tgid") || !strcmp(args[i], "tg"))
+		else if (arg_type == ARG_TGID)
 			cull |= CULL_TGID;
-		else if (!strcmp(args[i], "name") || !strcmp(args[i], "n"))
+		else if (arg_type == ARG_COMM)
 			cull |= CULL_COMM;
-		else if (!strcmp(args[i], "stacktrace") || !strcmp(args[i], "st"))
+		else if (arg_type == ARG_STACKTRACE)
 			cull |= CULL_STACKTRACE;
-		else if (!strcmp(args[i], "free") || !strcmp(args[i], "f"))
+		else if (arg_type == ARG_FREE)
 			cull |= CULL_UNRELEASE;
 		else {
 			free_explode(args, size);
 			return false;
 		}
+	}
+	free_explode(args, size);
+	return true;
+}
+
+static void set_single_cmp(int (*cmp)(const void *, const void *), int sign)
+{
+	if (sc.signs == NULL || sc.size < 1)
+		sc.signs = calloc(1, sizeof(int));
+	sc.signs[0] = sign;
+	if (sc.cmps == NULL || sc.size < 1)
+		sc.cmps = calloc(1, sizeof(int *));
+	sc.cmps[0] = cmp;
+	sc.size = 1;
+}
+
+static bool parse_sort_args(const char *arg_str)
+{
+	int size = 0;
+
+	if (sc.size != 0) { /* reset sort_condition */
+		free(sc.signs);
+		free(sc.cmps);
+		size = 0;
+	}
+
+	char **args = explode(',', arg_str, &size);
+
+	sc.signs = calloc(size, sizeof(int));
+	sc.cmps = calloc(size, sizeof(int *));
+	for (int i = 0; i < size; ++i) {
+		int offset = 0;
+
+		sc.signs[i] = SORT_ASC;
+		if (args[i][0] == '-' || args[i][0] == '+') {
+			if (args[i][0] == '-')
+				sc.signs[i] = SORT_DESC;
+			offset = 1;
+		}
+
+		int arg_type = get_arg_type(args[i]+offset);
+
+		if (arg_type == ARG_PID)
+			sc.cmps[i] = compare_pid;
+		else if (arg_type == ARG_TGID)
+			sc.cmps[i] = compare_tgid;
+		else if (arg_type == ARG_COMM)
+			sc.cmps[i] = compare_comm;
+		else if (arg_type == ARG_STACKTRACE)
+			sc.cmps[i] = compare_stacktrace;
+		else if (arg_type == ARG_ALLOC_TS)
+			sc.cmps[i] = compare_ts;
+		else if (arg_type == ARG_FREE_TS)
+			sc.cmps[i] = compare_free_ts;
+		else if (arg_type == ARG_TXT)
+			sc.cmps[i] = compare_txt;
+		else {
+			free_explode(args, size);
+			sc.size = 0;
+			return false;
+		}
+	}
+	sc.size = size;
 	free_explode(args, size);
 	return true;
 }
@@ -485,13 +597,13 @@ static void usage(void)
 		"--pid <pidlist>\tSelect by pid. This selects the information of blocks whose process ID numbers appear in <pidlist>.\n"
 		"--tgid <tgidlist>\tSelect by tgid. This selects the information of blocks whose Thread Group ID numbers appear in <tgidlist>.\n"
 		"--name <cmdlist>\n\t\tSelect by command name. This selects the information of blocks whose command name appears in <cmdlist>.\n"
-		"--cull <rules>\tCull by user-defined rules. <rules> is a single argument in the form of a comma-separated list with some common fields predefined\n"
+		"--cull <rules>\tCull by user-defined rules.<rules> is a single argument in the form of a comma-separated list with some common fields predefined\n"
+		"--sort <order>\tSpecify sort order as: [+|-]key[,[+|-]key[,...]]\n"
 	);
 }
 
 int main(int argc, char **argv)
 {
-	int (*cmp)(const void *, const void *) = compare_num;
 	FILE *fin, *fout;
 	char *buf;
 	int ret, i, count;
@@ -502,37 +614,38 @@ int main(int argc, char **argv)
 		{ "tgid", required_argument, NULL, 2 },
 		{ "name", required_argument, NULL, 3 },
 		{ "cull",  required_argument, NULL, 4 },
+		{ "sort",  required_argument, NULL, 5 },
 		{ 0, 0, 0, 0},
 	};
 
 	while ((opt = getopt_long(argc, argv, "afmnprstP", longopts, NULL)) != -1)
 		switch (opt) {
 		case 'a':
-			cmp = compare_ts;
+			set_single_cmp(compare_ts, SORT_ASC);
 			break;
 		case 'f':
 			filter = filter | FILTER_UNRELEASE;
 			break;
 		case 'm':
-			cmp = compare_page_num;
+			set_single_cmp(compare_page_num, SORT_DESC);
 			break;
 		case 'p':
-			cmp = compare_pid;
+			set_single_cmp(compare_pid, SORT_ASC);
 			break;
 		case 'r':
-			cmp = compare_free_ts;
+			set_single_cmp(compare_free_ts, SORT_ASC);
 			break;
 		case 's':
-			cmp = compare_stacktrace;
+			set_single_cmp(compare_stacktrace, SORT_ASC);
 			break;
 		case 't':
-			cmp = compare_num;
+			set_single_cmp(compare_num, SORT_DESC);
 			break;
 		case 'P':
-			cmp = compare_tgid;
+			set_single_cmp(compare_tgid, SORT_ASC);
 			break;
 		case 'n':
-			cmp = compare_comm;
+			set_single_cmp(compare_comm, SORT_ASC);
 			break;
 		case 1:
 			filter = filter | FILTER_PID;
@@ -559,6 +672,13 @@ int main(int argc, char **argv)
 		case 4:
 			if (!parse_cull_args(optarg)) {
 				fprintf(stderr, "wrong argument after --cull option:%s\n",
+						optarg);
+				exit(1);
+			}
+			break;
+		case 5:
+			if (!parse_sort_args(optarg)) {
+				fprintf(stderr, "wrong argument after --sort option:%s\n",
 						optarg);
 				exit(1);
 			}
@@ -622,7 +742,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	qsort(list, count, sizeof(list[0]), cmp);
+	qsort(list, count, sizeof(list[0]), compare_sort_condition);
 
 	for (i = 0; i < count; i++) {
 		if (cull == 0)

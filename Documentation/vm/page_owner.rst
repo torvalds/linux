@@ -121,6 +121,14 @@ Usage
 		-r		Sort by memory release time.
 		-s		Sort by stack trace.
 		-t		Sort by times (default).
+		--sort <order>	Specify sorting order.  Sorting syntax is [+|-]key[,[+|-]key[,...]].
+				Choose a key from the **STANDARD FORMAT SPECIFIERS** section. The "+" is
+				optional since default direction is increasing numerical or lexicographic
+				order. Mixed use of abbreviated and complete-form of keys is allowed.
+
+		Examples:
+				./page_owner_sort <input> <output> --sort=n,+pid,-tgid
+				./page_owner_sort <input> <output> --sort=at
 
    additional function::
 
@@ -165,9 +173,23 @@ STANDARD FORMAT SPECIFIERS
 ==========================
 ::
 
+For --sort option:
+
+	KEY		LONG		DESCRIPTION
+	p		pid		process ID
+	tg		tgid		thread group ID
+	n		name		task command name
+	st		stacktrace	stack trace of the page allocation
+	T		txt		full text of block
+	ft		free_ts		timestamp of the page when it was released
+	at		alloc_ts	timestamp of the page when it was allocated
+
+For --curl option:
+
 	KEY		LONG		DESCRIPTION
 	p		pid		process ID
 	tg		tgid		thread group ID
 	n		name		task command name
 	f		free		whether the page has been released or not
-	st		stacktrace	stace trace of the page allocation
+	st		stacktrace	stack trace of the page allocation
+
