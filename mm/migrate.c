@@ -1434,6 +1434,14 @@ retry:
 				}
 
 				nr_failed_pages += nr_subpages;
+				/*
+				 * There might be some subpages of fail-to-migrate THPs
+				 * left in thp_split_pages list. Move them back to migration
+				 * list so that they could be put back to the right list by
+				 * the caller otherwise the page refcnt will be leaked.
+				 */
+				list_splice_init(&thp_split_pages, from);
+				nr_thp_failed += thp_retry;
 				goto out;
 			case -EAGAIN:
 				if (is_thp)
