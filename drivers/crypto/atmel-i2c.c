@@ -364,11 +364,7 @@ int atmel_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	i2c_set_clientdata(client, i2c_priv);
 
-	ret = device_sanity_check(client);
-	if (ret)
-		return ret;
-
-	return 0;
+	return device_sanity_check(client);
 }
 EXPORT_SYMBOL(atmel_i2c_probe);
 
