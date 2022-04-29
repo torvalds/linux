@@ -32,6 +32,7 @@
 #include <linux/ptp_clock.h>
 #include <linux/ptp_classify.h>
 #include <linux/net_tstamp.h>
+#include <linux/gpio/consumer.h>
 
 /* Operation Mode Strap Override */
 #define MII_KSZPHY_OMSO				0x16
@@ -2729,6 +2730,10 @@ static void lan8814_ptp_init(struct phy_device *phydev)
 	struct kszphy_ptp_priv *ptp_priv = &priv->ptp_priv;
 	u32 temp;
 
+	if (!IS_ENABLED(CONFIG_PTP_1588_CLOCK) ||
+	    !IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING))
+		return;
+
 	lanphy_write_page_reg(phydev, 5, TSU_HARD_RESET, TSU_HARD_RESET_);
 
 	temp = lanphy_read_page_reg(phydev, 5, PTP_TX_MOD);
@@ -2766,6 +2771,10 @@ static void lan8814_ptp_init(struct phy_device *phydev)
 static int lan8814_ptp_probe_once(struct phy_device *phydev)
 {
 	struct lan8814_shared_priv *shared = phydev->shared->priv;
+
+	if (!IS_ENABLED(CONFIG_PTP_1588_CLOCK) ||
+	    !IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING))
+		return 0;
 
 	/* Initialise shared lock for clock*/
 	mutex_init(&shared->shared_lock);
@@ -2829,6 +2838,21 @@ static int lan8814_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int lan8814_release_coma_mode(struct phy_device *phydev)
+{
+	struct gpio_desc *gpiod;
+
+	gpiod = devm_gpiod_get_optional(&phydev->mdio.dev, "coma-mode",
+					GPIOD_OUT_HIGH_OPEN_DRAIN);
+	if (IS_ERR(gpiod))
+		return PTR_ERR(gpiod);
+
+	gpiod_set_consumer_name(gpiod, "LAN8814 coma mode");
+	gpiod_set_value_cansleep(gpiod, 0);
+
+	return 0;
+}
+
 static int lan8814_probe(struct phy_device *phydev)
 {
 	struct kszphy_priv *priv;
@@ -2843,10 +2867,6 @@ static int lan8814_probe(struct phy_device *phydev)
 
 	phydev->priv = priv;
 
-	if (!IS_ENABLED(CONFIG_PTP_1588_CLOCK) ||
-	    !IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING))
-		return 0;
-
 	/* Strap-in value for PHY address, below register read gives starting
 	 * phy address value
 	 */
@@ -2855,6 +2875,10 @@ static int lan8814_probe(struct phy_device *phydev)
 			      addr, sizeof(struct lan8814_shared_priv));
 
 	if (phy_package_init_once(phydev)) {
+		err = lan8814_release_coma_mode(phydev);
+		if (err)
+			return err;
+
 		err = lan8814_ptp_probe_once(phydev);
 		if (err)
 			return err;
