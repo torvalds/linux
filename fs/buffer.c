@@ -2824,7 +2824,10 @@ int nobh_truncate_page(struct address_space *mapping,
 
 	/* Ok, it's mapped. Make sure it's up-to-date */
 	if (!folio_test_uptodate(folio)) {
-		err = mapping->a_ops->readpage(NULL, &folio->page);
+		if (mapping->a_ops->read_folio)
+			err = mapping->a_ops->read_folio(NULL, folio);
+		else
+			err = mapping->a_ops->readpage(NULL, &folio->page);
 		if (err) {
 			folio_put(folio);
 			goto out;

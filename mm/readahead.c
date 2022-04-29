@@ -15,7 +15,7 @@
  * explicitly requested by the application.  Readahead only ever
  * attempts to read folios that are not yet in the page cache.  If a
  * folio is present but not up-to-date, readahead will not try to read
- * it. In that case a simple ->readpage() will be requested.
+ * it. In that case a simple ->read_folio() will be requested.
  *
  * Readahead is triggered when an application read request (whether a
  * system call or a page fault) finds that the requested folio is not in
@@ -78,7 +78,7 @@
  * address space operation, for which mpage_readahead() is a canonical
  * implementation.  ->readahead() should normally initiate reads on all
  * folios, but may fail to read any or all folios without causing an I/O
- * error.  The page cache reading code will issue a ->readpage() request
+ * error.  The page cache reading code will issue a ->read_folio() request
  * for any folio which ->readahead() did not read, and only an error
  * from this will be final.
  *
@@ -110,7 +110,7 @@
  * were not fetched with readahead_folio().  This will allow a
  * subsequent synchronous readahead request to try them again.  If they
  * are left in the page cache, then they will be read individually using
- * ->readpage() which may be less efficient.
+ * ->read_folio() which may be less efficient.
  */
 
 #include <linux/kernel.h>
@@ -170,8 +170,11 @@ static void read_pages(struct readahead_control *rac)
 			}
 			folio_unlock(folio);
 		}
+	} else if (aops->read_folio) {
+		while ((folio = readahead_folio(rac)) != NULL)
+			aops->read_folio(rac->file, folio);
 	} else {
-		while ((folio = readahead_folio(rac)))
+		while ((folio = readahead_folio(rac)) != NULL)
 			aops->readpage(rac->file, &folio->page);
 	}
 
@@ -302,7 +305,8 @@ void force_page_cache_ra(struct readahead_control *ractl,
 	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
 	unsigned long max_pages, index;
 
-	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readahead))
+	if (unlikely(!mapping->a_ops->read_folio &&
+		     !mapping->a_ops->readpage && !mapping->a_ops->readahead))
 		return;
 
 	/*
