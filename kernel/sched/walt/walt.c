@@ -248,6 +248,7 @@ void walt_rq_dump(int cpu)
 			cpu, rq->nr_running, tsk->pid, tsk->comm);
 
 	printk_deferred("==========================================");
+	SCHED_PRINT(wrq->latest_clock);
 	SCHED_PRINT(wrq->window_start);
 	SCHED_PRINT(wrq->prev_window_size);
 	SCHED_PRINT(wrq->curr_runnable_sum);
