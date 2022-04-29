@@ -45,6 +45,8 @@
   clk_set_rate
   clk_sync_state
   clk_unprepare
+  complete
+  complete_all
   __const_udelay
   cpufreq_cpu_get
   cpufreq_cpu_put
@@ -80,6 +82,7 @@
   devm_free_irq
   devm_gpiod_get_optional
   devm_ioremap_resource
+  devm_kfree
   devm_kmalloc
   devm_krealloc
   devm_kstrdup
@@ -115,6 +118,7 @@
   dma_set_coherent_mask
   dma_set_mask
   dma_sync_single_for_cpu
+  dma_sync_single_for_device
   dma_unmap_page_attrs
   dput
   driver_find_device
@@ -124,12 +128,22 @@
   _find_next_bit
   flush_work
   free_io_pgtable_ops
+  free_pages
   freq_qos_add_request
   freq_qos_update_request
   generic_device_group
   generic_handle_domain_irq
   generic_iommu_put_resv_regions
+  gen_pool_add_owner
+  gen_pool_alloc_algo_owner
+  gen_pool_best_fit
+  gen_pool_create
+  gen_pool_destroy
+  gen_pool_free_owner
+  gen_pool_set_algo
+  gen_pool_virt_to_phys
   get_cpu_device
+  __get_free_pages
   gic_nonsecure_priorities
   gpiochip_add_data_with_key
   gpiochip_add_pin_range
@@ -148,6 +162,10 @@
   handle_level_irq
   icc_put
   icc_set_bw
+  idr_alloc_u32
+  idr_destroy
+  idr_find
+  __init_swait_queue_head
   init_timer_key
   iommu_alloc_resv_region
   iommu_device_register
@@ -233,6 +251,7 @@
   of_prop_next_u32
   param_ops_bool
   param_ops_int
+  param_ops_uint
   pci_bus_type
   pci_device_group
   __per_cpu_offset
@@ -293,6 +312,7 @@
   _raw_spin_lock_irqsave
   _raw_spin_unlock_irqrestore
   rdev_get_drvdata
+  reboot_mode
   register_restart_handler
   regmap_mmio_detach_clk
   regmap_read
@@ -337,6 +357,7 @@
   __sw_hweight64
   syscon_regmap_lookup_by_phandle
   sysfs_create_group
+  system_wq
   trace_event_buffer_commit
   trace_event_buffer_reserve
   trace_event_ignore_this_pid
@@ -392,4 +413,5 @@
   usleep_range_state
   usleep_range_state
   vabits_actual
+  wait_for_completion
   __warn_printk
