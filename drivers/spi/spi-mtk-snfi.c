@@ -903,7 +903,8 @@ static int mtk_snand_read_page_cache(struct mtk_snand *snf,
 	nfi_write32(snf, NFI_CON, (snf->nfi_cfg.nsectors << CON_SEC_NUM_S));
 
 	buf_dma = dma_map_single(snf->dev, buf, dma_len, DMA_FROM_DEVICE);
-	if (dma_mapping_error(snf->dev, buf_dma)) {
+	ret = dma_mapping_error(snf->dev, buf_dma);
+	if (ret) {
 		dev_err(snf->dev, "DMA mapping failed.\n");
 		goto cleanup;
 	}
@@ -1092,7 +1093,8 @@ static int mtk_snand_write_page_cache(struct mtk_snand *snf,
 
 	nfi_write32(snf, NFI_CON, (snf->nfi_cfg.nsectors << CON_SEC_NUM_S));
 	buf_dma = dma_map_single(snf->dev, snf->buf, dma_len, DMA_TO_DEVICE);
-	if (dma_mapping_error(snf->dev, buf_dma)) {
+	ret = dma_mapping_error(snf->dev, buf_dma);
+	if (ret) {
 		dev_err(snf->dev, "DMA mapping failed.\n");
 		goto cleanup;
 	}
