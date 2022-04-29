@@ -4165,8 +4165,6 @@ static int calculate_sizes(struct kmem_cache *s)
 	 */
 	s->oo = oo_make(order, size);
 	s->min = oo_make(get_order(size), size);
-	if (oo_objects(s->oo) > oo_objects(s->max))
-		s->max = s->oo;
 
 	return !!oo_objects(s->oo);
 }

@@ -105,7 +105,6 @@ struct kmem_cache {
 	struct kmem_cache_order_objects oo;
 
 	/* Allocation and freeing of slabs */
-	struct kmem_cache_order_objects max;
 	struct kmem_cache_order_objects min;
 	gfp_t allocflags;	/* gfp flags to use on each alloc */
 	int refcount;		/* Refcount for slab cache destroy */
