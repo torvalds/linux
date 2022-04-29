@@ -274,7 +274,7 @@ struct netfs_cache_ops {
 
 struct readahead_control;
 extern void netfs_readahead(struct readahead_control *);
-extern int netfs_readpage(struct file *, struct page *);
+int netfs_read_folio(struct file *, struct folio *);
 extern int netfs_write_begin(struct file *, struct address_space *,
 			     loff_t, unsigned int, struct folio **,
 			     void **);

@@ -1372,7 +1372,7 @@ out:
 }
 
 const struct address_space_operations ceph_aops = {
-	.readpage = netfs_readpage,
+	.read_folio = netfs_read_folio,
 	.readahead = netfs_readahead,
 	.writepage = ceph_writepage,
 	.writepages = ceph_writepages_start,

@@ -336,7 +336,7 @@ static bool v9fs_dirty_folio(struct address_space *mapping, struct folio *folio)
 #endif
 
 const struct address_space_operations v9fs_addr_operations = {
-	.readpage = netfs_readpage,
+	.read_folio = netfs_read_folio,
 	.readahead = netfs_readahead,
 	.dirty_folio = v9fs_dirty_folio,
 	.writepage = v9fs_vfs_writepage,
