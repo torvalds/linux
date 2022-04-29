@@ -629,8 +629,9 @@ out:
 }
 
 static int
-affs_readpage_ofs(struct file *file, struct page *page)
+affs_read_folio_ofs(struct file *file, struct folio *folio)
 {
+	struct page *page = &folio->page;
 	struct inode *inode = page->mapping->host;
 	u32 to;
 	int err;
@@ -837,7 +838,7 @@ err_bh:
 const struct address_space_operations affs_aops_ofs = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
-	.readpage = affs_readpage_ofs,
+	.read_folio = affs_read_folio_ofs,
 	//.writepage = affs_writepage_ofs,
 	.write_begin = affs_write_begin_ofs,
 	.write_end = affs_write_end_ofs
