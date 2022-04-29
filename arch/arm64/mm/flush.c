@@ -78,7 +78,7 @@ void flush_dcache_page(struct page *page)
 	/*
 	 * Only the head page's flags of HugeTLB can be cleared since the tail
 	 * vmemmap pages associated with each HugeTLB page are mapped with
-	 * read-only when CONFIG_HUGETLB_PAGE_FREE_VMEMMAP is enabled (more
+	 * read-only when CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP is enabled (more
 	 * details can refer to vmemmap_remap_pte()).  Although
 	 * __sync_icache_dcache() only set PG_dcache_clean flag on the head
 	 * page struct, there is more than one page struct with PG_dcache_clean
