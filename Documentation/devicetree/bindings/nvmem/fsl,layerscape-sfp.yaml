@@ -18,8 +18,13 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - fsl,ls1028a-sfp
+    oneOf:
+      - description: Trust architecture 2.1 SFP
+        items:
+          - const: fsl,ls1021a-sfp
+      - description: Trust architecture 3.0 SFP
+        items:
+          - const: fsl,ls1028a-sfp
 
   reg:
     maxItems: 1
