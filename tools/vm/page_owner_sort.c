@@ -39,6 +39,7 @@ struct block_list {
 	int page_num;
 	pid_t pid;
 	pid_t tgid;
+	int allocator;
 };
 enum FILTER_BIT {
 	FILTER_UNRELEASE = 1<<1,
@@ -51,11 +52,19 @@ enum CULL_BIT {
 	CULL_PID = 1<<2,
 	CULL_TGID = 1<<3,
 	CULL_COMM = 1<<4,
-	CULL_STACKTRACE = 1<<5
+	CULL_STACKTRACE = 1<<5,
+	CULL_ALLOCATOR = 1<<6
+};
+enum ALLOCATOR_BIT {
+	ALLOCATOR_CMA = 1<<1,
+	ALLOCATOR_SLAB = 1<<2,
+	ALLOCATOR_VMALLOC = 1<<3,
+	ALLOCATOR_OTHERS = 1<<4
 };
 enum ARG_TYPE {
 	ARG_TXT, ARG_COMM, ARG_STACKTRACE, ARG_ALLOC_TS, ARG_FREE_TS,
-	ARG_CULL_TIME, ARG_PAGE_NUM, ARG_PID, ARG_TGID, ARG_UNKNOWN, ARG_FREE
+	ARG_CULL_TIME, ARG_PAGE_NUM, ARG_PID, ARG_TGID, ARG_UNKNOWN, ARG_FREE,
+	ARG_ALLOCATOR
 };
 enum SORT_ORDER {
 	SORT_ASC = 1,
@@ -89,15 +98,20 @@ static int cull;
 static int filter;
 static bool debug_on;
 
-int read_block(char *buf, int buf_size, FILE *fin)
+static void set_single_cmp(int (*cmp)(const void *, const void *), int sign);
+
+int read_block(char *buf, char *ext_buf, int buf_size, FILE *fin)
 {
 	char *curr = buf, *const buf_end = buf + buf_size;
 
 	while (buf_end - curr > 1 && fgets(curr, buf_end - curr, fin)) {
-		if (*curr == '\n') /* empty line */
+		if (*curr == '\n') { /* empty line */
 			return curr - buf;
-		if (!strncmp(curr, "PFN", 3))
+		}
+		if (!strncmp(curr, "PFN", 3)) {
+			strcpy(ext_buf, curr);
 			continue;
+		}
 		curr += strlen(curr);
 	}
 
@@ -146,6 +160,13 @@ static int compare_tgid(const void *p1, const void *p2)
 	return l1->tgid - l2->tgid;
 }
 
+static int compare_allocator(const void *p1, const void *p2)
+{
+	const struct block_list *l1 = p1, *l2 = p2;
+
+	return l1->allocator - l2->allocator;
+}
+
 static int compare_comm(const void *p1, const void *p2)
 {
 	const struct block_list *l1 = p1, *l2 = p2;
@@ -192,6 +213,8 @@ static int compare_cull_condition(const void *p1, const void *p2)
 		return compare_comm(p1, p2);
 	if ((cull & CULL_UNRELEASE) && compare_release(p1, p2))
 		return compare_release(p1, p2);
+	if ((cull & CULL_ALLOCATOR) && compare_allocator(p1, p2))
+		return compare_allocator(p1, p2);
 	return 0;
 }
 
@@ -395,9 +418,40 @@ static int get_arg_type(const char *arg)
 		return ARG_FREE_TS;
 	else if (!strcmp(arg, "alloc_ts") || !strcmp(arg, "at"))
 		return ARG_ALLOC_TS;
+	else if (!strcmp(arg, "allocator") || !strcmp(arg, "ator"))
+		return ARG_ALLOCATOR;
 	else {
 		return ARG_UNKNOWN;
 	}
+}
+
+static int get_allocator(const char *buf, const char *migrate_info)
+{
+	char *tmp, *first_line, *second_line;
+	int allocator = 0;
+
+	if (strstr(migrate_info, "CMA"))
+		allocator |= ALLOCATOR_CMA;
+	if (strstr(migrate_info, "slab"))
+		allocator |= ALLOCATOR_SLAB;
+	tmp = strstr(buf, "__vmalloc_node_range");
+	if (tmp) {
+		second_line = tmp;
+		while (*tmp != '\n')
+			tmp--;
+		tmp--;
+		while (*tmp != '\n')
+			tmp--;
+		first_line = ++tmp;
+		tmp = strstr(tmp, "alloc_pages");
+		if (tmp) {
+			if (tmp && first_line <= tmp && tmp < second_line)
+				allocator |= ALLOCATOR_VMALLOC;
+		}
+	}
+	if (allocator == 0)
+		allocator = ALLOCATOR_OTHERS;
+	return allocator;
 }
 
 static bool match_num_list(int num, int *list, int list_size)
@@ -437,7 +491,7 @@ static bool is_need(char *buf)
 		return true;
 }
 
-static void add_list(char *buf, int len)
+static void add_list(char *buf, int len, char *ext_buf)
 {
 	if (list_size != 0 &&
 		len == list[list_size-1].len &&
@@ -471,6 +525,7 @@ static void add_list(char *buf, int len)
 		list[list_size].stacktrace++;
 	list[list_size].ts_nsec = get_ts_nsec(buf);
 	list[list_size].free_ts_nsec = get_free_ts_nsec(buf);
+	list[list_size].allocator = get_allocator(buf, ext_buf);
 	list_size++;
 	if (list_size % 1000 == 0) {
 		printf("loaded %d\r", list_size);
@@ -496,12 +551,16 @@ static bool parse_cull_args(const char *arg_str)
 			cull |= CULL_STACKTRACE;
 		else if (arg_type == ARG_FREE)
 			cull |= CULL_UNRELEASE;
+		else if (arg_type == ARG_ALLOCATOR)
+			cull |= CULL_ALLOCATOR;
 		else {
 			free_explode(args, size);
 			return false;
 		}
 	}
 	free_explode(args, size);
+	if (sc.size == 0)
+		set_single_cmp(compare_num, SORT_DESC);
 	return true;
 }
 
@@ -556,6 +615,8 @@ static bool parse_sort_args(const char *arg_str)
 			sc.cmps[i] = compare_free_ts;
 		else if (arg_type == ARG_TXT)
 			sc.cmps[i] = compare_txt;
+		else if (arg_type == ARG_ALLOCATOR)
+			sc.cmps[i] = compare_allocator;
 		else {
 			free_explode(args, size);
 			sc.size = 0;
@@ -588,6 +649,19 @@ static int *parse_nums_list(char *arg_str, int *list_size)
 	return list;
 }
 
+static void print_allocator(FILE *out, int allocator)
+{
+	fprintf(out, "allocated by ");
+	if (allocator & ALLOCATOR_CMA)
+		fprintf(out, "CMA ");
+	if (allocator & ALLOCATOR_SLAB)
+		fprintf(out, "SLAB ");
+	if (allocator & ALLOCATOR_VMALLOC)
+		fprintf(out, "VMALLOC ");
+	if (allocator & ALLOCATOR_OTHERS)
+		fprintf(out, "OTHERS ");
+}
+
 #define BUF_SIZE	(128 * 1024)
 
 static void usage(void)
@@ -614,8 +688,8 @@ static void usage(void)
 int main(int argc, char **argv)
 {
 	FILE *fin, *fout;
-	char *buf;
-	int ret, i, count;
+	char *buf, *ext_buf;
+	int i, count;
 	struct stat st;
 	int opt;
 	struct option longopts[] = {
@@ -724,16 +798,18 @@ int main(int argc, char **argv)
 
 	list = malloc(max_size * sizeof(*list));
 	buf = malloc(BUF_SIZE);
-	if (!list || !buf) {
+	ext_buf = malloc(BUF_SIZE);
+	if (!list || !buf || !ext_buf) {
 		fprintf(stderr, "Out of memory\n");
 		exit(1);
 	}
 
 	for ( ; ; ) {
-		ret = read_block(buf, BUF_SIZE, fin);
-		if (ret < 0)
+		int buf_len = read_block(buf, ext_buf, BUF_SIZE, fin);
+
+		if (buf_len < 0)
 			break;
-		add_list(buf, ret);
+		add_list(buf, buf_len, ext_buf);
 	}
 
 	printf("loaded %d\n", list_size);
@@ -757,9 +833,11 @@ int main(int argc, char **argv)
 	qsort(list, count, sizeof(list[0]), compare_sort_condition);
 
 	for (i = 0; i < count; i++) {
-		if (cull == 0)
-			fprintf(fout, "%d times, %d pages:\n%s\n",
-					list[i].num, list[i].page_num, list[i].txt);
+		if (cull == 0) {
+			fprintf(fout, "%d times, %d pages, ", list[i].num, list[i].page_num);
+			print_allocator(fout, list[i].allocator);
+			fprintf(fout, ":\n%s\n", list[i].txt);
+		}
 		else {
 			fprintf(fout, "%d times, %d pages",
 					list[i].num, list[i].page_num);
@@ -769,6 +847,10 @@ int main(int argc, char **argv)
 				fprintf(fout, ", TGID %d", list[i].pid);
 			if (cull & CULL_COMM || filter & FILTER_COMM)
 				fprintf(fout, ", task_comm_name: %s", list[i].comm);
+			if (cull & CULL_ALLOCATOR) {
+				fprintf(fout, ", ");
+				print_allocator(fout, list[i].allocator);
+			}
 			if (cull & CULL_UNRELEASE)
 				fprintf(fout, " (%s)",
 						list[i].free_ts_nsec ? "UNRELEASED" : "RELEASED");
