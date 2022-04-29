@@ -200,6 +200,7 @@ struct ath11k_hw_params {
 	bool fixed_bdf_addr;
 	bool fixed_mem_region;
 	bool static_window_map;
+	bool hybrid_bus_type;
 };
 
 struct ath11k_hw_ops {
