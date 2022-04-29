@@ -203,6 +203,7 @@ struct ath11k_hw_params {
 	bool hybrid_bus_type;
 	u8 dp_window_idx;
 	u8 ce_window_idx;
+	bool fixed_fw_mem;
 };
 
 struct ath11k_hw_ops {
