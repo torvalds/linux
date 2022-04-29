@@ -502,9 +502,11 @@ properties:
           - const: pine64,rockpro64
           - const: rockchip,rk3399
 
-      - description: Pine64 Quartz64 Model A
+      - description: Pine64 Quartz64 Model A/B
         items:
-          - const: pine64,quartz64-a
+          - enum:
+              - pine64,quartz64-a
+              - pine64,quartz64-b
           - const: rockchip,rk3566
 
       - description: Radxa Rock
