@@ -1910,7 +1910,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 		netif_set_gso_max_size(card->dev,
 				       PAGE_SIZE * (QETH_MAX_BUFFER_ELEMENTS(card) - 1));
 
-	netif_napi_add(card->dev, &card->napi, qeth_poll, QETH_NAPI_WEIGHT);
+	netif_napi_add(card->dev, &card->napi, qeth_poll, NAPI_POLL_WEIGHT);
 	return register_netdev(card->dev);
 }
 

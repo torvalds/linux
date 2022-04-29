@@ -364,7 +364,7 @@ void cpsw_split_res(struct cpsw_common *cpsw)
 	if (cpsw->tx_ch_num == rlim_ch_num) {
 		max_rate = consumed_rate;
 	} else if (!rlim_ch_num) {
-		ch_budget = CPSW_POLL_WEIGHT / cpsw->tx_ch_num;
+		ch_budget = NAPI_POLL_WEIGHT / cpsw->tx_ch_num;
 		bigest_rate = 0;
 		max_rate = consumed_rate;
 	} else {
@@ -379,19 +379,19 @@ void cpsw_split_res(struct cpsw_common *cpsw)
 		if (max_rate < consumed_rate)
 			max_rate *= 10;
 
-		ch_budget = (consumed_rate * CPSW_POLL_WEIGHT) / max_rate;
-		ch_budget = (CPSW_POLL_WEIGHT - ch_budget) /
+		ch_budget = (consumed_rate * NAPI_POLL_WEIGHT) / max_rate;
+		ch_budget = (NAPI_POLL_WEIGHT - ch_budget) /
 			    (cpsw->tx_ch_num - rlim_ch_num);
 		bigest_rate = (max_rate - consumed_rate) /
 			      (cpsw->tx_ch_num - rlim_ch_num);
 	}
 
 	/* split tx weight/budget */
-	budget = CPSW_POLL_WEIGHT;
+	budget = NAPI_POLL_WEIGHT;
 	for (i = 0; i < cpsw->tx_ch_num; i++) {
 		ch_rate = cpdma_chan_get_rate(txv[i].ch);
 		if (ch_rate) {
-			txv[i].budget = (ch_rate * CPSW_POLL_WEIGHT) / max_rate;
+			txv[i].budget = (ch_rate * NAPI_POLL_WEIGHT) / max_rate;
 			if (!txv[i].budget)
 				txv[i].budget++;
 			if (ch_rate > bigest_rate) {
@@ -417,7 +417,7 @@ void cpsw_split_res(struct cpsw_common *cpsw)
 		txv[bigest_rate_ch].budget += budget;
 
 	/* split rx budget */
-	budget = CPSW_POLL_WEIGHT;
+	budget = NAPI_POLL_WEIGHT;
 	ch_budget = budget / cpsw->rx_ch_num;
 	for (i = 0; i < cpsw->rx_ch_num; i++) {
 		cpsw->rxv[i].budget = ch_budget;
