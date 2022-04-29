@@ -393,6 +393,13 @@
 				gw,voltage-divider-ohms = <10000 10000>;
 			};
 
+			channel@9c {
+				gw,mode = <2>;
+				reg = <0x9c>;
+				label = "vdd_5p0";
+				gw,voltage-divider-ohms = <10000 10000>;
+			};
+
 			channel@a2 {
 				gw,mode = <2>;
 				reg = <0xa2>;
