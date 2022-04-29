@@ -95,20 +95,16 @@ bool kvm_gfn_to_pfn_cache_check(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 }
 EXPORT_SYMBOL_GPL(kvm_gfn_to_pfn_cache_check);
 
-static void gpc_release_pfn_and_khva(struct kvm *kvm, kvm_pfn_t pfn, void *khva)
+static void gpc_unmap_khva(struct kvm *kvm, kvm_pfn_t pfn, void *khva)
 {
-	/* Unmap the old page if it was mapped before, and release it */
-	if (!is_error_noslot_pfn(pfn)) {
-		if (khva) {
-			if (pfn_valid(pfn))
-				kunmap(pfn_to_page(pfn));
+	/* Unmap the old pfn/page if it was mapped before. */
+	if (!is_error_noslot_pfn(pfn) && khva) {
+		if (pfn_valid(pfn))
+			kunmap(pfn_to_page(pfn));
 #ifdef CONFIG_HAS_IOMEM
-			else
-				memunmap(khva);
+		else
+			memunmap(khva);
 #endif
-		}
-
-		kvm_release_pfn(pfn, false);
 	}
 }
 
@@ -176,10 +172,10 @@ static kvm_pfn_t hva_to_pfn_retry(struct kvm *kvm, struct gfn_to_pfn_cache *gpc)
 			 * Keep the mapping if the previous iteration reused
 			 * the existing mapping and didn't create a new one.
 			 */
-			if (new_khva == old_khva)
-				new_khva = NULL;
+			if (new_khva != old_khva)
+				gpc_unmap_khva(kvm, new_pfn, new_khva);
 
-			gpc_release_pfn_and_khva(kvm, new_pfn, new_khva);
+			kvm_release_pfn_clean(new_pfn);
 
 			cond_resched();
 		}
@@ -222,6 +218,14 @@ static kvm_pfn_t hva_to_pfn_retry(struct kvm *kvm, struct gfn_to_pfn_cache *gpc)
 	gpc->valid = true;
 	gpc->pfn = new_pfn;
 	gpc->khva = new_khva + (gpc->gpa & ~PAGE_MASK);
+
+	/*
+	 * Put the reference to the _new_ pfn.  The pfn is now tracked by the
+	 * cache and can be safely migrated, swapped, etc... as the cache will
+	 * invalidate any mappings in response to relevant mmu_notifier events.
+	 */
+	kvm_release_pfn_clean(new_pfn);
+
 	return 0;
 
 out_error:
@@ -308,7 +312,7 @@ int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 	mutex_unlock(&gpc->refresh_lock);
 
 	if (old_pfn != new_pfn)
-		gpc_release_pfn_and_khva(kvm, old_pfn, old_khva);
+		gpc_unmap_khva(kvm, old_pfn, old_khva);
 
 	return ret;
 }
@@ -337,7 +341,7 @@ void kvm_gfn_to_pfn_cache_unmap(struct kvm *kvm, struct gfn_to_pfn_cache *gpc)
 	write_unlock_irq(&gpc->lock);
 	mutex_unlock(&gpc->refresh_lock);
 
-	gpc_release_pfn_and_khva(kvm, old_pfn, old_khva);
+	gpc_unmap_khva(kvm, old_pfn, old_khva);
 }
 EXPORT_SYMBOL_GPL(kvm_gfn_to_pfn_cache_unmap);
 
