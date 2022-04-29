@@ -189,6 +189,27 @@ extern int prot_mask;
  */
 #define MPI3MR_MAX_APP_XFER_SECTORS	(2048 + 512)
 
+/**
+ * struct mpi3mr_buf_map -  local structure to
+ * track kernel and user buffers associated with an BSG
+ * structure.
+ *
+ * @bsg_buf: BSG buffer virtual address
+ * @bsg_buf_len:  BSG buffer length
+ * @kern_buf: Kernel buffer virtual address
+ * @kern_buf_len: Kernel buffer length
+ * @kern_buf_dma: Kernel buffer DMA address
+ * @data_dir: Data direction.
+ */
+struct mpi3mr_buf_map {
+	void *bsg_buf;
+	u32 bsg_buf_len;
+	void *kern_buf;
+	u32 kern_buf_len;
+	dma_addr_t kern_buf_dma;
+	u8 data_dir;
+};
+
 /* IOC State definitions */
 enum mpi3mr_iocstate {
 	MRIOC_STATE_READY = 1,
@@ -557,6 +578,7 @@ struct mpi3mr_sdev_priv_data {
  * @ioc_status: IOC status from the firmware
  * @ioc_loginfo:IOC log info from the firmware
  * @is_waiting: Is the command issued in block mode
+ * @is_sense: Is Sense data present
  * @retry_count: Retry count for retriable commands
  * @host_tag: Host tag used by the command
  * @callback: Callback for non blocking commands
@@ -572,6 +594,7 @@ struct mpi3mr_drv_cmd {
 	u16 ioc_status;
 	u32 ioc_loginfo;
 	u8 is_waiting;
+	u8 is_sense;
 	u8 retry_count;
 	u16 host_tag;
 
@@ -993,5 +1016,11 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 int mpi3mr_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num);
 void mpi3mr_bsg_init(struct mpi3mr_ioc *mrioc);
 void mpi3mr_bsg_exit(struct mpi3mr_ioc *mrioc);
+int mpi3mr_issue_tm(struct mpi3mr_ioc *mrioc, u8 tm_type,
+	u16 handle, uint lun, u16 htag, ulong timeout,
+	struct mpi3mr_drv_cmd *drv_cmd,
+	u8 *resp_code, struct scsi_cmnd *scmd);
+struct mpi3mr_tgt_dev *mpi3mr_get_tgtdev_by_handle(
+	struct mpi3mr_ioc *mrioc, u16 handle);
 
 #endif /*MPI3MR_H_INCLUDED*/

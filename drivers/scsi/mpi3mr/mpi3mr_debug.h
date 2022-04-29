@@ -125,6 +125,31 @@
 #endif /* MPT3SAS_DEBUG_H_INCLUDED */
 
 /**
+ * dprint_dump - print contents of a memory buffer
+ * @req: Pointer to a memory buffer
+ * @sz: Memory buffer size
+ * @namestr: Name String to identify the buffer type
+ */
+static inline void
+dprint_dump(void *req, int sz, const char *name_string)
+{
+	int i;
+	__le32 *mfp = (__le32 *)req;
+
+	sz = sz/4;
+	if (name_string)
+		pr_info("%s:\n\t", name_string);
+	else
+		pr_info("request:\n\t");
+	for (i = 0; i < sz; i++) {
+		if (i && ((i % 8) == 0))
+			pr_info("\n\t");
+		pr_info("%08x ", le32_to_cpu(mfp[i]));
+	}
+	pr_info("\n");
+}
+
+/**
  * dprint_dump_req - print message frame contents
  * @req: pointer to message frame
  * @sz: number of dwords
