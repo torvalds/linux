@@ -479,8 +479,9 @@ out:
 	return err;
 }
 
-static int hpfs_symlink_readpage(struct file *file, struct page *page)
+static int hpfs_symlink_read_folio(struct file *file, struct folio *folio)
 {
+	struct page *page = &folio->page;
 	char *link = page_address(page);
 	struct inode *i = page->mapping->host;
 	struct fnode *fnode;
@@ -508,7 +509,7 @@ fail:
 }
 
 const struct address_space_operations hpfs_symlink_aops = {
-	.readpage	= hpfs_symlink_readpage
+	.read_folio	= hpfs_symlink_read_folio
 };
 
 static int hpfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
