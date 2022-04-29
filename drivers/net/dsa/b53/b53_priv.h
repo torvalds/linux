@@ -21,7 +21,7 @@
 
 #include <linux/kernel.h>
 #include <linux/mutex.h>
-#include <linux/phy.h>
+#include <linux/phylink.h>
 #include <linux/etherdevice.h>
 #include <net/dsa.h>
 
@@ -29,7 +29,6 @@
 
 struct b53_device;
 struct net_device;
-struct phylink_link_state;
 
 struct b53_io_ops {
 	int (*read8)(struct b53_device *dev, u8 page, u8 reg, u8 *value);
@@ -48,13 +47,10 @@ struct b53_io_ops {
 	void (*irq_disable)(struct b53_device *dev, int port);
 	void (*phylink_get_caps)(struct b53_device *dev, int port,
 				 struct phylink_config *config);
+	struct phylink_pcs *(*phylink_mac_select_pcs)(struct b53_device *dev,
+						      int port,
+						      phy_interface_t interface);
 	u8 (*serdes_map_lane)(struct b53_device *dev, int port);
-	int (*serdes_link_state)(struct b53_device *dev, int port,
-				 struct phylink_link_state *state);
-	void (*serdes_config)(struct b53_device *dev, int port,
-			      unsigned int mode,
-			      const struct phylink_link_state *state);
-	void (*serdes_an_restart)(struct b53_device *dev, int port);
 	void (*serdes_link_set)(struct b53_device *dev, int port,
 				unsigned int mode, phy_interface_t interface,
 				bool link_up);
@@ -85,8 +81,15 @@ enum {
 	BCM7278_DEVICE_ID = 0x7278,
 };
 
+struct b53_pcs {
+	struct phylink_pcs pcs;
+	struct b53_device *dev;
+	u8 lane;
+};
+
 #define B53_N_PORTS	9
 #define B53_N_PORTS_25	6
+#define B53_N_PCS	2
 
 struct b53_port {
 	u16		vlan_ctl_mask;
@@ -143,6 +146,8 @@ struct b53_device {
 	bool vlan_enabled;
 	unsigned int num_ports;
 	struct b53_port *ports;
+
+	struct b53_pcs pcs[B53_N_PCS];
 };
 
 #define b53_for_each_port(dev, i) \
@@ -336,12 +341,9 @@ int b53_br_flags(struct dsa_switch *ds, int port,
 		 struct netlink_ext_ack *extack);
 int b53_setup_devlink_resources(struct dsa_switch *ds);
 void b53_port_event(struct dsa_switch *ds, int port);
-int b53_phylink_mac_link_state(struct dsa_switch *ds, int port,
-			       struct phylink_link_state *state);
 void b53_phylink_mac_config(struct dsa_switch *ds, int port,
 			    unsigned int mode,
 			    const struct phylink_link_state *state);
-void b53_phylink_mac_an_restart(struct dsa_switch *ds, int port);
 void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
 			       unsigned int mode,
 			       phy_interface_t interface);
