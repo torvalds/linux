@@ -17,7 +17,6 @@
 #include <linux/module.h>
 #include <net/mac80211.h>
 #include <asm/unaligned.h>
-#include <linux/version.h>
 #include <linux/sysfs.h>
 
 #include "mac.h"
