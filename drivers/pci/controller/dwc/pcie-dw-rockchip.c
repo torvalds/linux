@@ -124,7 +124,7 @@ enum rk_pcie_device_mode {
 #define PCIE_CLIENT_DBG_FIFO_TRN_HIT_D1 0x32c
 #define PCIE_CLIENT_DBG_FIFO_STATUS	0x350
 #define PCIE_CLIENT_DBG_TRANSITION_DATA	0xffff0000
-#define PCIE_CLIENT_DBF_EN		0xffff0003
+#define PCIE_CLIENT_DBF_EN		0xffff0007
 
 #define PCIE_PHY_LINKUP			BIT(0)
 #define PCIE_DATA_LINKUP		BIT(1)
@@ -174,6 +174,7 @@ struct rk_pcie {
 	bool				is_rk1808;
 	bool				is_signal_test;
 	bool				bifurcation;
+	bool				supports_clkreq;
 	struct regulator		*vpcie3v3;
 	struct irq_domain		*irq_domain;
 	int				legacy_parent_irq;
@@ -628,6 +629,13 @@ static inline void rk_pcie_set_mode(struct rk_pcie *rk_pcie)
 		rk_pcie_writel_apb(rk_pcie, 0x0, 0xf00000);
 		break;
 	case RK_PCIE_RC_TYPE:
+		if (rk_pcie->supports_clkreq) {
+			/* Application is ready to have reference clock removed */
+			rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_POWER, 0x00010001);
+		} else {
+			/* Pull down CLKREQ# to assert the connecting CLOCK_GEN OE */
+			rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_POWER, 0x30011000);
+		}
 		rk_pcie_writel_apb(rk_pcie, 0x0, 0xf00040);
 		/*
 		 * Disable order rule for CPL can't pass halted P queue.
@@ -1796,6 +1804,8 @@ static int rk_pcie_really_probe(void *p)
 			goto release_driver;
 		}
 	}
+
+	rk_pcie->supports_clkreq = device_property_read_bool(dev, "supports-clkreq");
 
 retry_regulator:
 	/* DON'T MOVE ME: must be enable before phy init */
