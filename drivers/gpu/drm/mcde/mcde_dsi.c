@@ -19,6 +19,7 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_of.h>
+#include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -38,6 +39,7 @@ struct mcde_dsi {
 	struct device *dev;
 	struct mcde *mcde;
 	struct drm_bridge bridge;
+	struct drm_panel *panel;
 	struct drm_bridge *bridge_out;
 	struct mipi_dsi_host dsi_host;
 	struct mipi_dsi_device *mdsi;
@@ -1071,7 +1073,9 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 	struct drm_device *drm = data;
 	struct mcde *mcde = to_mcde(drm);
 	struct mcde_dsi *d = dev_get_drvdata(dev);
-	struct drm_bridge *bridge;
+	struct device_node *child;
+	struct drm_panel *panel = NULL;
+	struct drm_bridge *bridge = NULL;
 
 	if (!of_get_available_child_count(dev->of_node)) {
 		dev_info(dev, "unused DSI interface\n");
@@ -1096,10 +1100,37 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 		return PTR_ERR(d->lp_clk);
 	}
 
-	bridge = devm_drm_of_get_bridge(dev, dev->of_node, 0, 0);
-	if (IS_ERR(bridge)) {
-		dev_err(dev, "error to get bridge\n");
-		return PTR_ERR(bridge);
+	/* Look for a panel as a child to this node */
+	for_each_available_child_of_node(dev->of_node, child) {
+		panel = of_drm_find_panel(child);
+		if (IS_ERR(panel)) {
+			dev_err(dev, "failed to find panel try bridge (%ld)\n",
+				PTR_ERR(panel));
+			panel = NULL;
+
+			bridge = of_drm_find_bridge(child);
+			if (!bridge) {
+				dev_err(dev, "failed to find bridge\n");
+				return -EINVAL;
+			}
+		}
+	}
+	if (panel) {
+		bridge = drm_panel_bridge_add_typed(panel,
+						    DRM_MODE_CONNECTOR_DSI);
+		if (IS_ERR(bridge)) {
+			dev_err(dev, "error adding panel bridge\n");
+			return PTR_ERR(bridge);
+		}
+		dev_info(dev, "connected to panel\n");
+		d->panel = panel;
+	} else if (bridge) {
+		/* TODO: AV8100 HDMI encoder goes here for example */
+		dev_info(dev, "connected to non-panel bridge (unsupported)\n");
+		return -ENODEV;
+	} else {
+		dev_err(dev, "no panel or bridge\n");
+		return -ENODEV;
 	}
 
 	d->bridge_out = bridge;
@@ -1122,7 +1153,8 @@ static void mcde_dsi_unbind(struct device *dev, struct device *master,
 {
 	struct mcde_dsi *d = dev_get_drvdata(dev);
 
-	drm_bridge_remove(d->bridge_out);
+	if (d->panel)
+		drm_panel_bridge_remove(d->bridge_out);
 	regmap_update_bits(d->prcmu, PRCM_DSI_SW_RESET,
 			   PRCM_DSI_SW_RESET_DSI0_SW_RESETN, 0);
 }
