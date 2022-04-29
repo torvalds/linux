@@ -133,19 +133,36 @@ static int binder_set_stop_on_user_error(const char *val,
 module_param_call(stop_on_user_error, binder_set_stop_on_user_error,
 	param_get_int, &binder_stop_on_user_error, 0644);
 
-#define binder_debug(mask, x...) \
-	do { \
-		if (binder_debug_mask & mask) \
-			pr_info_ratelimited(x); \
-	} while (0)
+static __printf(2, 3) void binder_debug(int mask, const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
 
-#define binder_user_error(x...) \
-	do { \
-		if (binder_debug_mask & BINDER_DEBUG_USER_ERROR) \
-			pr_info_ratelimited(x); \
-		if (binder_stop_on_user_error) \
-			binder_stop_on_user_error = 2; \
-	} while (0)
+	if (binder_debug_mask & mask) {
+		va_start(args, format);
+		vaf.va = &args;
+		vaf.fmt = format;
+		pr_info_ratelimited("%pV", &vaf);
+		va_end(args);
+	}
+}
+
+static __printf(1, 2) void binder_user_error(const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (binder_debug_mask & BINDER_DEBUG_USER_ERROR) {
+		va_start(args, format);
+		vaf.va = &args;
+		vaf.fmt = format;
+		pr_info_ratelimited("%pV", &vaf);
+		va_end(args);
+	}
+
+	if (binder_stop_on_user_error)
+		binder_stop_on_user_error = 2;
+}
 
 #define binder_set_extended_error(ee, _id, _command, _param) \
 	do { \
