@@ -3184,3 +3184,15 @@ void copy_highpage(struct page *to, struct page *from)
 	}
 }
 EXPORT_SYMBOL(copy_highpage);
+
+pgprot_t vm_get_page_prot(unsigned long vm_flags)
+{
+	unsigned long prot = pgprot_val(protection_map[vm_flags &
+					(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]);
+
+	if (vm_flags & VM_SPARC_ADI)
+		prot |= _PAGE_MCD_4V;
+
+	return __pgprot(prot);
+}
+EXPORT_SYMBOL(vm_get_page_prot);
