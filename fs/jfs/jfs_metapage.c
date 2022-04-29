@@ -467,8 +467,9 @@ err_out:
 	return -EIO;
 }
 
-static int metapage_readpage(struct file *fp, struct page *page)
+static int metapage_read_folio(struct file *fp, struct folio *folio)
 {
+	struct page *page = &folio->page;
 	struct inode *inode = page->mapping->host;
 	struct bio *bio = NULL;
 	int block_offset;
@@ -563,7 +564,7 @@ static void metapage_invalidate_folio(struct folio *folio, size_t offset,
 }
 
 const struct address_space_operations jfs_metapage_aops = {
-	.readpage	= metapage_readpage,
+	.read_folio	= metapage_read_folio,
 	.writepage	= metapage_writepage,
 	.releasepage	= metapage_releasepage,
 	.invalidate_folio = metapage_invalidate_folio,
