@@ -1091,15 +1091,3 @@
 		>;
 	};
 };
-
-&cpu_alert0 {
-	temperature = <95000>;
-	hysteresis = <2000>;
-	type = "passive";
-};
-
-&cpu_crit0 {
-	temperature = <105000>;
-	hysteresis = <2000>;
-	type = "critical";
-};
