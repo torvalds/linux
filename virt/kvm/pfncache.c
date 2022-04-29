@@ -157,6 +157,13 @@ int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 	if (page_offset + len > PAGE_SIZE)
 		return -EINVAL;
 
+	/*
+	 * If another task is refreshing the cache, wait for it to complete.
+	 * There is no guarantee that concurrent refreshes will see the same
+	 * gpa, memslots generation, etc..., so they must be fully serialized.
+	 */
+	mutex_lock(&gpc->refresh_lock);
+
 	write_lock_irq(&gpc->lock);
 
 	old_pfn = gpc->pfn;
@@ -248,6 +255,8 @@ int kvm_gfn_to_pfn_cache_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
  out:
 	write_unlock_irq(&gpc->lock);
 
+	mutex_unlock(&gpc->refresh_lock);
+
 	gpc_release_pfn_and_khva(kvm, old_pfn, old_khva);
 
 	return ret;
@@ -259,6 +268,7 @@ void kvm_gfn_to_pfn_cache_unmap(struct kvm *kvm, struct gfn_to_pfn_cache *gpc)
 	void *old_khva;
 	kvm_pfn_t old_pfn;
 
+	mutex_lock(&gpc->refresh_lock);
 	write_lock_irq(&gpc->lock);
 
 	gpc->valid = false;
@@ -274,6 +284,7 @@ void kvm_gfn_to_pfn_cache_unmap(struct kvm *kvm, struct gfn_to_pfn_cache *gpc)
 	gpc->pfn = KVM_PFN_ERR_FAULT;
 
 	write_unlock_irq(&gpc->lock);
+	mutex_unlock(&gpc->refresh_lock);
 
 	gpc_release_pfn_and_khva(kvm, old_pfn, old_khva);
 }
@@ -288,6 +299,7 @@ int kvm_gfn_to_pfn_cache_init(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 
 	if (!gpc->active) {
 		rwlock_init(&gpc->lock);
+		mutex_init(&gpc->refresh_lock);
 
 		gpc->khva = NULL;
 		gpc->pfn = KVM_PFN_ERR_FAULT;

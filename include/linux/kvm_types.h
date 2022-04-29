@@ -19,6 +19,7 @@ struct kvm_memslots;
 enum kvm_mr_change;
 
 #include <linux/bits.h>
+#include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/spinlock_types.h>
 
@@ -69,6 +70,7 @@ struct gfn_to_pfn_cache {
 	struct kvm_vcpu *vcpu;
 	struct list_head list;
 	rwlock_t lock;
+	struct mutex refresh_lock;
 	void *khva;
 	kvm_pfn_t pfn;
 	enum pfn_cache_usage usage;
