@@ -439,6 +439,41 @@ static void mxsfb_crtc_disable_vblank(struct drm_crtc *crtc)
 	writel(CTRL1_CUR_FRAME_DONE_IRQ, mxsfb->base + LCDC_CTRL1 + REG_CLR);
 }
 
+static int mxsfb_crtc_set_crc_source(struct drm_crtc *crtc, const char *source)
+{
+	struct mxsfb_drm_private *mxsfb;
+
+	if (!crtc)
+		return -ENODEV;
+
+	mxsfb = to_mxsfb_drm_private(crtc->dev);
+
+	if (source && strcmp(source, "auto") == 0)
+		mxsfb->crc_active = true;
+	else if (!source)
+		mxsfb->crc_active = false;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int mxsfb_crtc_verify_crc_source(struct drm_crtc *crtc,
+					const char *source, size_t *values_cnt)
+{
+	if (!crtc)
+		return -ENODEV;
+
+	if (source && strcmp(source, "auto") != 0) {
+		DRM_DEBUG_DRIVER("Unknown CRC source %s for %s\n",
+				 source, crtc->name);
+		return -EINVAL;
+	}
+
+	*values_cnt = 1;
+	return 0;
+}
+
 static const struct drm_crtc_helper_funcs mxsfb_crtc_helper_funcs = {
 	.atomic_check = mxsfb_crtc_atomic_check,
 	.atomic_flush = mxsfb_crtc_atomic_flush,
@@ -455,6 +490,19 @@ static const struct drm_crtc_funcs mxsfb_crtc_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 	.enable_vblank = mxsfb_crtc_enable_vblank,
 	.disable_vblank = mxsfb_crtc_disable_vblank,
+};
+
+static const struct drm_crtc_funcs mxsfb_crtc_with_crc_funcs = {
+	.reset = drm_atomic_helper_crtc_reset,
+	.destroy = drm_crtc_cleanup,
+	.set_config = drm_atomic_helper_set_config,
+	.page_flip = drm_atomic_helper_page_flip,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = mxsfb_crtc_enable_vblank,
+	.disable_vblank = mxsfb_crtc_disable_vblank,
+	.set_crc_source = mxsfb_crtc_set_crc_source,
+	.verify_crc_source = mxsfb_crtc_verify_crc_source,
 };
 
 /* -----------------------------------------------------------------------------
@@ -645,9 +693,16 @@ int mxsfb_kms_init(struct mxsfb_drm_private *mxsfb)
 	}
 
 	drm_crtc_helper_add(crtc, &mxsfb_crtc_helper_funcs);
-	ret = drm_crtc_init_with_planes(mxsfb->drm, crtc,
-					&mxsfb->planes.primary, NULL,
-					&mxsfb_crtc_funcs, NULL);
+	if (mxsfb->devdata->has_crc32) {
+		ret = drm_crtc_init_with_planes(mxsfb->drm, crtc,
+						&mxsfb->planes.primary, NULL,
+						&mxsfb_crtc_with_crc_funcs,
+						NULL);
+	} else {
+		ret = drm_crtc_init_with_planes(mxsfb->drm, crtc,
+						&mxsfb->planes.primary, NULL,
+						&mxsfb_crtc_funcs, NULL);
+	}
 	if (ret)
 		return ret;
 
