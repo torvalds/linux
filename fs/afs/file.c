@@ -19,7 +19,7 @@
 #include "internal.h"
 
 static int afs_file_mmap(struct file *file, struct vm_area_struct *vma);
-static int afs_symlink_readpage(struct file *file, struct page *page);
+static int afs_symlink_read_folio(struct file *file, struct folio *folio);
 static void afs_invalidate_folio(struct folio *folio, size_t offset,
 			       size_t length);
 static int afs_releasepage(struct page *page, gfp_t gfp_flags);
@@ -63,7 +63,7 @@ const struct address_space_operations afs_file_aops = {
 };
 
 const struct address_space_operations afs_symlink_aops = {
-	.readpage	= afs_symlink_readpage,
+	.read_folio	= afs_symlink_read_folio,
 	.releasepage	= afs_releasepage,
 	.invalidate_folio = afs_invalidate_folio,
 };
@@ -332,11 +332,10 @@ static void afs_issue_read(struct netfs_io_subrequest *subreq)
 	afs_put_read(fsreq);
 }
 
-static int afs_symlink_readpage(struct file *file, struct page *page)
+static int afs_symlink_read_folio(struct file *file, struct folio *folio)
 {
-	struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
+	struct afs_vnode *vnode = AFS_FS_I(folio->mapping->host);
 	struct afs_read *fsreq;
-	struct folio *folio = page_folio(page);
 	int ret;
 
 	fsreq = afs_alloc_read(GFP_NOFS);
@@ -347,13 +346,13 @@ static int afs_symlink_readpage(struct file *file, struct page *page)
 	fsreq->len	= folio_size(folio);
 	fsreq->vnode	= vnode;
 	fsreq->iter	= &fsreq->def_iter;
-	iov_iter_xarray(&fsreq->def_iter, READ, &page->mapping->i_pages,
+	iov_iter_xarray(&fsreq->def_iter, READ, &folio->mapping->i_pages,
 			fsreq->pos, fsreq->len);
 
 	ret = afs_fetch_data(fsreq->vnode, fsreq);
 	if (ret == 0)
-		SetPageUptodate(page);
-	unlock_page(page);
+		folio_mark_uptodate(folio);
+	folio_unlock(folio);
 	return ret;
 }
 
