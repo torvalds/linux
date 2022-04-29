@@ -1071,13 +1071,6 @@ config BOOTPARAM_SOFTLOCKUP_PANIC
 
 	  Say N if unsure.
 
-config BOOTPARAM_SOFTLOCKUP_PANIC_VALUE
-	int
-	depends on SOFTLOCKUP_DETECTOR
-	range 0 1
-	default 0 if !BOOTPARAM_SOFTLOCKUP_PANIC
-	default 1 if BOOTPARAM_SOFTLOCKUP_PANIC
-
 config HARDLOCKUP_DETECTOR_PERF
 	bool
 	select SOFTLOCKUP_DETECTOR
@@ -1118,13 +1111,6 @@ config BOOTPARAM_HARDLOCKUP_PANIC
 	  using the watchdog_thresh sysctl).
 
 	  Say N if unsure.
-
-config BOOTPARAM_HARDLOCKUP_PANIC_VALUE
-	int
-	depends on HARDLOCKUP_DETECTOR
-	range 0 1
-	default 0 if !BOOTPARAM_HARDLOCKUP_PANIC
-	default 1 if BOOTPARAM_HARDLOCKUP_PANIC
 
 config DETECT_HUNG_TASK
 	bool "Detect Hung Tasks"
@@ -1172,13 +1158,6 @@ config BOOTPARAM_HUNG_TASK_PANIC
 	  where a hung tasks must be resolved ASAP.
 
 	  Say N if unsure.
-
-config BOOTPARAM_HUNG_TASK_PANIC_VALUE
-	int
-	depends on DETECT_HUNG_TASK
-	range 0 1
-	default 0 if !BOOTPARAM_HUNG_TASK_PANIC
-	default 1 if BOOTPARAM_HUNG_TASK_PANIC
 
 config WQ_WATCHDOG
 	bool "Detect Workqueue Stalls"
