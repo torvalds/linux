@@ -6719,6 +6719,7 @@ F:	drivers/gpu/drm/omapdrm/
 
 DRM DRIVERS FOR V3D
 M:	Emma Anholt <emma@anholt.net>
+M:	Melissa Wen <mwen@igalia.com>
 S:	Supported
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/devicetree/bindings/gpu/brcm,bcm-v3d.yaml
