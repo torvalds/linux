@@ -895,7 +895,13 @@ again:
 	err = -ENOENT;
 	while (1) {
 		if (ptr >= end) {
-			WARN_ON(ptr > end);
+			if (ptr > end) {
+				err = -EUCLEAN;
+				btrfs_print_leaf(path->nodes[0]);
+				btrfs_crit(fs_info,
+"overrun extent record at slot %d while looking for inline extent for root %llu owner %llu offset %llu parent %llu",
+					path->slots[0], root_objectid, owner, offset, parent);
+			}
 			break;
 		}
 		iref = (struct btrfs_extent_inline_ref *)ptr;
