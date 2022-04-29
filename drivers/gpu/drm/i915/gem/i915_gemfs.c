@@ -11,16 +11,11 @@
 #include "i915_gemfs.h"
 #include "i915_utils.h"
 
-int i915_gemfs_init(struct drm_i915_private *i915)
+void i915_gemfs_init(struct drm_i915_private *i915)
 {
 	char huge_opt[] = "huge=within_size"; /* r/w */
 	struct file_system_type *type;
 	struct vfsmount *gemfs;
-	char *opts;
-
-	type = get_fs_type("tmpfs");
-	if (!type)
-		return -ENODEV;
 
 	/*
 	 * By creating our own shmemfs mountpoint, we can pass in
@@ -34,29 +29,29 @@ int i915_gemfs_init(struct drm_i915_private *i915)
 	 * regressions such a slow reads issue on Broadwell and Skylake.
 	 */
 
-	opts = NULL;
-	if (GRAPHICS_VER(i915) >= 11 || i915_vtd_active(i915)) {
-		if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
-			opts = huge_opt;
-			drm_info(&i915->drm,
-				 "Transparent Hugepage mode '%s'\n",
-				 opts);
-		} else {
-			drm_notice(&i915->drm,
-				   "Transparent Hugepage support is recommended for optimal performance%s\n",
-				   GRAPHICS_VER(i915) >= 11 ?
-				   " on this platform!" :
-				   " when IOMMU is enabled!");
-		}
-	}
+	if (GRAPHICS_VER(i915) < 11 && !i915_vtd_active(i915))
+		return;
 
-	gemfs = vfs_kern_mount(type, SB_KERNMOUNT, type->name, opts);
+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
+		goto err;
+
+	type = get_fs_type("tmpfs");
+	if (!type)
+		goto err;
+
+	gemfs = vfs_kern_mount(type, SB_KERNMOUNT, type->name, huge_opt);
 	if (IS_ERR(gemfs))
-		return PTR_ERR(gemfs);
+		goto err;
 
 	i915->mm.gemfs = gemfs;
+	drm_info(&i915->drm, "Using Transparent Hugepages\n");
+	return;
 
-	return 0;
+err:
+	drm_notice(&i915->drm,
+		   "Transparent Hugepage support is recommended for optimal performance%s\n",
+		   GRAPHICS_VER(i915) >= 11 ? " on this platform!" :
+					      " when IOMMU is enabled!");
 }
 
 void i915_gemfs_fini(struct drm_i915_private *i915)
