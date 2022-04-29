@@ -2150,11 +2150,17 @@ static int acquire_resource_from_hw_enabled_state(
 	if (!res_ctx->pipe_ctx[tg_inst].stream) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[tg_inst];
 
+		pipe_ctx->stream_res.tg = pool->timing_generators[tg_inst];
 		id_src[0] = tg_inst;
 
 		if (pipe_ctx->stream_res.tg->funcs->get_optc_source)
 			pipe_ctx->stream_res.tg->funcs->get_optc_source(pipe_ctx->stream_res.tg,
 					&numPipes, &id_src[0], &id_src[1]);
+
+		if (id_src[0] == 0xf && id_src[1] == 0xf) {
+			id_src[0] = tg_inst;
+			numPipes = 1;
+		}
 
 		for (i = 0; i < numPipes; i++) {
 			//Check if src id invalid
