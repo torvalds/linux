@@ -181,7 +181,8 @@ static void kvm_prepare_system_event(struct kvm_vcpu *vcpu, u32 type, u64 flags)
 
 	memset(&vcpu->run->system_event, 0, sizeof(vcpu->run->system_event));
 	vcpu->run->system_event.type = type;
-	vcpu->run->system_event.flags = flags;
+	vcpu->run->system_event.ndata = 1;
+	vcpu->run->system_event.data[0] = flags;
 	vcpu->run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
 }
 
