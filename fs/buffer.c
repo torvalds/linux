@@ -2791,44 +2791,28 @@ int nobh_truncate_page(struct address_space *mapping,
 			loff_t from, get_block_t *get_block)
 {
 	pgoff_t index = from >> PAGE_SHIFT;
-	unsigned offset = from & (PAGE_SIZE-1);
-	unsigned blocksize;
-	sector_t iblock;
-	unsigned length, pos;
 	struct inode *inode = mapping->host;
-	struct page *page;
+	unsigned blocksize = i_blocksize(inode);
+	struct folio *folio;
 	struct buffer_head map_bh;
+	size_t offset;
+	sector_t iblock;
 	int err;
 
-	blocksize = i_blocksize(inode);
-	length = offset & (blocksize - 1);
-
 	/* Block boundary? Nothing to do */
-	if (!length)
+	if (!(from & (blocksize - 1)))
 		return 0;
 
-	length = blocksize - length;
-	iblock = (sector_t)index << (PAGE_SHIFT - inode->i_blkbits);
-
-	page = grab_cache_page(mapping, index);
+	folio = __filemap_get_folio(mapping, index, FGP_LOCK | FGP_CREAT,
+			mapping_gfp_mask(mapping));
 	err = -ENOMEM;
-	if (!page)
+	if (!folio)
 		goto out;
 
-	if (page_has_buffers(page)) {
-has_buffers:
-		unlock_page(page);
-		put_page(page);
-		return block_truncate_page(mapping, from, get_block);
-	}
+	if (folio_buffers(folio))
+		goto has_buffers;
 
-	/* Find the buffer that contains "offset" */
-	pos = blocksize;
-	while (offset >= pos) {
-		iblock++;
-		pos += blocksize;
-	}
-
+	iblock = from >> inode->i_blkbits;
 	map_bh.b_size = blocksize;
 	map_bh.b_state = 0;
 	err = get_block(inode, iblock, &map_bh, 0);
@@ -2839,29 +2823,35 @@ has_buffers:
 		goto unlock;
 
 	/* Ok, it's mapped. Make sure it's up-to-date */
-	if (!PageUptodate(page)) {
-		err = mapping->a_ops->readpage(NULL, page);
+	if (!folio_test_uptodate(folio)) {
+		err = mapping->a_ops->readpage(NULL, &folio->page);
 		if (err) {
-			put_page(page);
+			folio_put(folio);
 			goto out;
 		}
-		lock_page(page);
-		if (!PageUptodate(page)) {
+		folio_lock(folio);
+		if (!folio_test_uptodate(folio)) {
 			err = -EIO;
 			goto unlock;
 		}
-		if (page_has_buffers(page))
+		if (folio_buffers(folio))
 			goto has_buffers;
 	}
-	zero_user(page, offset, length);
-	set_page_dirty(page);
+	offset = offset_in_folio(folio, from);
+	folio_zero_segment(folio, offset, round_up(offset, blocksize));
+	folio_mark_dirty(folio);
 	err = 0;
 
 unlock:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 out:
 	return err;
+
+has_buffers:
+	folio_unlock(folio);
+	folio_put(folio);
+	return block_truncate_page(mapping, from, get_block);
 }
 EXPORT_SYMBOL(nobh_truncate_page);
 
