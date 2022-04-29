@@ -126,6 +126,7 @@ struct mmc_blk_data {
 #define MMC_BLK_DISCARD		BIT(2)
 #define MMC_BLK_SECDISCARD	BIT(3)
 #define MMC_BLK_CQE_RECOVERY	BIT(4)
+#define MMC_BLK_TRIM		BIT(5)
 
 	/*
 	 * Only set in main mmc_blk_data associated
@@ -1092,12 +1093,13 @@ static void mmc_blk_issue_drv_op(struct mmc_queue *mq, struct request *req)
 	blk_mq_end_request(req, ret ? BLK_STS_IOERR : BLK_STS_OK);
 }
 
-static void mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
+static void mmc_blk_issue_erase_rq(struct mmc_queue *mq, struct request *req,
+				   int type, unsigned int erase_arg)
 {
 	struct mmc_blk_data *md = mq->blkdata;
 	struct mmc_card *card = md->queue.card;
 	unsigned int from, nr;
-	int err = 0, type = MMC_BLK_DISCARD;
+	int err = 0;
 	blk_status_t status = BLK_STS_OK;
 
 	if (!mmc_can_erase(card)) {
@@ -1113,13 +1115,13 @@ static void mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
 		if (card->quirks & MMC_QUIRK_INAND_CMD38) {
 			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 					 INAND_CMD38_ARG_EXT_CSD,
-					 card->erase_arg == MMC_TRIM_ARG ?
+					 erase_arg == MMC_TRIM_ARG ?
 					 INAND_CMD38_ARG_TRIM :
 					 INAND_CMD38_ARG_ERASE,
 					 card->ext_csd.generic_cmd6_time);
 		}
 		if (!err)
-			err = mmc_erase(card, from, nr, card->erase_arg);
+			err = mmc_erase(card, from, nr, erase_arg);
 	} while (err == -EIO && !mmc_blk_reset(md, card->host, type));
 	if (err)
 		status = BLK_STS_IOERR;
@@ -1127,6 +1129,19 @@ static void mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
 		mmc_blk_reset_success(md, type);
 fail:
 	blk_mq_end_request(req, status);
+}
+
+static void mmc_blk_issue_trim_rq(struct mmc_queue *mq, struct request *req)
+{
+	mmc_blk_issue_erase_rq(mq, req, MMC_BLK_TRIM, MMC_TRIM_ARG);
+}
+
+static void mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
+{
+	struct mmc_blk_data *md = mq->blkdata;
+	struct mmc_card *card = md->queue.card;
+
+	mmc_blk_issue_erase_rq(mq, req, MMC_BLK_DISCARD, card->erase_arg);
 }
 
 static void mmc_blk_issue_secdiscard_rq(struct mmc_queue *mq,
@@ -2328,6 +2343,9 @@ enum mmc_issued mmc_blk_mq_issue_rq(struct mmc_queue *mq, struct request *req)
 			break;
 		case REQ_OP_SECURE_ERASE:
 			mmc_blk_issue_secdiscard_rq(mq, req);
+			break;
+		case REQ_OP_WRITE_ZEROES:
+			mmc_blk_issue_trim_rq(mq, req);
 			break;
 		case REQ_OP_FLUSH:
 			mmc_blk_issue_flush(mq, req);

@@ -191,6 +191,8 @@ static void mmc_queue_setup_discard(struct request_queue *q,
 		q->limits.discard_granularity = SECTOR_SIZE;
 	if (mmc_can_secure_erase_trim(card))
 		blk_queue_flag_set(QUEUE_FLAG_SECERASE, q);
+	if (mmc_can_trim(card) && card->erased_byte == 0)
+		blk_queue_max_write_zeroes_sectors(q, max_discard);
 }
 
 static unsigned short mmc_get_max_segments(struct mmc_host *host)
