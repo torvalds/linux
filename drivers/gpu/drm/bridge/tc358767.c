@@ -1964,7 +1964,9 @@ static int tc_probe_bridge_endpoint(struct tc_data *tc)
 	struct of_endpoint endpoint;
 	struct device_node *node = NULL;
 	const u8 mode_dpi_to_edp = BIT(1) | BIT(2);
+	const u8 mode_dpi_to_dp = BIT(1);
 	const u8 mode_dsi_to_edp = BIT(0) | BIT(2);
+	const u8 mode_dsi_to_dp = BIT(0);
 	const u8 mode_dsi_to_dpi = BIT(0) | BIT(1);
 	u8 mode = 0;
 
@@ -1990,11 +1992,11 @@ static int tc_probe_bridge_endpoint(struct tc_data *tc)
 		mode |= BIT(endpoint.port);
 	}
 
-	if (mode == mode_dpi_to_edp)
+	if (mode == mode_dpi_to_edp || mode == mode_dpi_to_dp)
 		return tc_probe_edp_bridge_endpoint(tc);
 	else if (mode == mode_dsi_to_dpi)
 		return tc_probe_dpi_bridge_endpoint(tc);
-	else if (mode == mode_dsi_to_edp)
+	else if (mode == mode_dsi_to_edp || mode == mode_dsi_to_dp)
 		dev_warn(dev, "The mode DSI-to-(e)DP is not supported!\n");
 	else
 		dev_warn(dev, "Invalid mode (0x%x) is not supported!\n", mode);
