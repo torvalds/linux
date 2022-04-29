@@ -2788,15 +2788,16 @@ static void direct_pte_prefetch(struct kvm_vcpu *vcpu, u64 *sptep)
 static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn,
 				  const struct kvm_memory_slot *slot)
 {
+	struct page *page = pfn_to_page(pfn);
+	int level = PG_LEVEL_4K;
 	unsigned long hva;
 	unsigned long flags;
-	int level = PG_LEVEL_4K;
 	pgd_t pgd;
 	p4d_t p4d;
 	pud_t pud;
 	pmd_t pmd;
 
-	if (!PageCompound(pfn_to_page(pfn)) && !kvm_is_zone_device_pfn(pfn))
+	if (!PageCompound(page) && !kvm_is_zone_device_page(page))
 		return PG_LEVEL_4K;
 
 	/*

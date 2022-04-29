@@ -168,7 +168,7 @@ __weak void kvm_arch_guest_memory_reclaimed(struct kvm *kvm)
 {
 }
 
-bool kvm_is_zone_device_pfn(kvm_pfn_t pfn)
+bool kvm_is_zone_device_page(struct page *page)
 {
 	/*
 	 * The metadata used by is_zone_device_page() to determine whether or
@@ -176,10 +176,10 @@ bool kvm_is_zone_device_pfn(kvm_pfn_t pfn)
 	 * the device has been pinned, e.g. by get_user_pages().  WARN if the
 	 * page_count() is zero to help detect bad usage of this helper.
 	 */
-	if (!pfn_valid(pfn) || WARN_ON_ONCE(!page_count(pfn_to_page(pfn))))
+	if (WARN_ON_ONCE(!page_count(page)))
 		return false;
 
-	return is_zone_device_page(pfn_to_page(pfn));
+	return is_zone_device_page(page);
 }
 
 bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
@@ -192,7 +192,7 @@ bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
 	if (pfn_valid(pfn))
 		return PageReserved(pfn_to_page(pfn)) &&
 		       !is_zero_pfn(pfn) &&
-		       !kvm_is_zone_device_pfn(pfn);
+		       !kvm_is_zone_device_page(pfn_to_page(pfn));
 
 	return true;
 }

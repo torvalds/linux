@@ -1571,7 +1571,7 @@ void kvm_arch_sync_events(struct kvm *kvm);
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu);
 
 bool kvm_is_reserved_pfn(kvm_pfn_t pfn);
-bool kvm_is_zone_device_pfn(kvm_pfn_t pfn);
+bool kvm_is_zone_device_page(struct page *page);
 
 struct kvm_irq_ack_notifier {
 	struct hlist_node link;
