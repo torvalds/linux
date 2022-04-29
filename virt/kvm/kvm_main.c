@@ -2820,18 +2820,40 @@ struct page *kvm_vcpu_gfn_to_page(struct kvm_vcpu *vcpu, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_gfn_to_page);
 
+static bool kvm_is_ad_tracked_page(struct page *page)
+{
+	/*
+	 * Per page-flags.h, pages tagged PG_reserved "should in general not be
+	 * touched (e.g. set dirty) except by its owner".
+	 */
+	return !PageReserved(page);
+}
+
+static void kvm_set_page_dirty(struct page *page)
+{
+	if (kvm_is_ad_tracked_page(page))
+		SetPageDirty(page);
+}
+
+static void kvm_set_page_accessed(struct page *page)
+{
+	if (kvm_is_ad_tracked_page(page))
+		mark_page_accessed(page);
+}
+
 void kvm_release_page_clean(struct page *page)
 {
 	WARN_ON(is_error_page(page));
 
-	kvm_release_pfn_clean(page_to_pfn(page));
+	kvm_set_page_accessed(page);
+	put_page(page);
 }
 EXPORT_SYMBOL_GPL(kvm_release_page_clean);
 
 void kvm_release_pfn_clean(kvm_pfn_t pfn)
 {
 	if (!is_error_noslot_pfn(pfn) && !kvm_is_reserved_pfn(pfn))
-		put_page(pfn_to_page(pfn));
+		kvm_release_page_clean(pfn_to_page(pfn));
 }
 EXPORT_SYMBOL_GPL(kvm_release_pfn_clean);
 
@@ -2839,40 +2861,40 @@ void kvm_release_page_dirty(struct page *page)
 {
 	WARN_ON(is_error_page(page));
 
-	kvm_release_pfn_dirty(page_to_pfn(page));
+	kvm_set_page_dirty(page);
+	kvm_release_page_clean(page);
 }
 EXPORT_SYMBOL_GPL(kvm_release_page_dirty);
 
 void kvm_release_pfn_dirty(kvm_pfn_t pfn)
 {
-	kvm_set_pfn_dirty(pfn);
-	kvm_release_pfn_clean(pfn);
+	if (!is_error_noslot_pfn(pfn) && !kvm_is_reserved_pfn(pfn))
+		kvm_release_page_dirty(pfn_to_page(pfn));
 }
 EXPORT_SYMBOL_GPL(kvm_release_pfn_dirty);
 
-static bool kvm_is_ad_tracked_pfn(kvm_pfn_t pfn)
-{
-	if (!pfn_valid(pfn))
-		return false;
-
-	/*
-	 * Per page-flags.h, pages tagged PG_reserved "should in general not be
-	 * touched (e.g. set dirty) except by its owner".
-	 */
-	return !PageReserved(pfn_to_page(pfn));
-}
-
+/*
+ * Note, checking for an error/noslot pfn is the caller's responsibility when
+ * directly marking a page dirty/accessed.  Unlike the "release" helpers, the
+ * "set" helpers are not to be used when the pfn might point at garbage.
+ */
 void kvm_set_pfn_dirty(kvm_pfn_t pfn)
 {
-	if (kvm_is_ad_tracked_pfn(pfn))
-		SetPageDirty(pfn_to_page(pfn));
+	if (WARN_ON(is_error_noslot_pfn(pfn)))
+		return;
+
+	if (pfn_valid(pfn))
+		kvm_set_page_dirty(pfn_to_page(pfn));
 }
 EXPORT_SYMBOL_GPL(kvm_set_pfn_dirty);
 
 void kvm_set_pfn_accessed(kvm_pfn_t pfn)
 {
-	if (kvm_is_ad_tracked_pfn(pfn))
-		mark_page_accessed(pfn_to_page(pfn));
+	if (WARN_ON(is_error_noslot_pfn(pfn)))
+		return;
+
+	if (pfn_valid(pfn))
+		kvm_set_page_accessed(pfn_to_page(pfn));
 }
 EXPORT_SYMBOL_GPL(kvm_set_pfn_accessed);
 
