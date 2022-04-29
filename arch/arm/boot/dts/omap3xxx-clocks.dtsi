@@ -92,26 +92,34 @@
 		clocks = <&mcbsp5_gate_fck>, <&mcbsp5_mux_fck>;
 	};
 
-	mcbsp1_mux_fck: mcbsp1_mux_fck@4 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-mux-clock";
-		clocks = <&core_96m_fck>, <&mcbsp_clks>;
-		ti,bit-shift = <2>;
-		reg = <0x04>;
+	/* CONTROL_DEVCONF0 */
+	clock@4 {
+		compatible = "ti,clksel";
+		reg = <0x4>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		mcbsp1_mux_fck: clock-mcbsp1-mux-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-mux-clock";
+			clock-output-names = "mcbsp1_mux_fck";
+			clocks = <&core_96m_fck>, <&mcbsp_clks>;
+			ti,bit-shift = <2>;
+		};
+
+		mcbsp2_mux_fck: clock-mcbsp2-mux-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-mux-clock";
+			clock-output-names = "mcbsp2_mux_fck";
+			clocks = <&per_96m_fck>, <&mcbsp_clks>;
+			ti,bit-shift = <6>;
+		};
 	};
 
 	mcbsp1_fck: mcbsp1_fck {
 		#clock-cells = <0>;
 		compatible = "ti,composite-clock";
 		clocks = <&mcbsp1_gate_fck>, <&mcbsp1_mux_fck>;
-	};
-
-	mcbsp2_mux_fck: mcbsp2_mux_fck@4 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-mux-clock";
-		clocks = <&per_96m_fck>, <&mcbsp_clks>;
-		ti,bit-shift = <6>;
-		reg = <0x04>;
 	};
 
 	mcbsp2_fck: mcbsp2_fck {
