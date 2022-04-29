@@ -1750,8 +1750,8 @@ int smu_v13_0_get_dpm_level_count(struct smu_context *smu,
 	int ret;
 
 	ret = smu_v13_0_get_dpm_freq_by_index(smu, clk_type, 0xff, value);
-	/* FW returns 0 based max level, increment by one */
-	if (!ret && value)
+	/* SMU v13.0.2 FW returns 0 based max level, increment by one for it */
+	if((smu->adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 2)) && (!ret && value))
 		++(*value);
 
 	return ret;
