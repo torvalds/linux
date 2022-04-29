@@ -93,36 +93,51 @@
 		clock-div = <1>;
 	};
 
-	icr_ick: icr_ick@a10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&core_l4_ick>;
-		reg = <0x0a10>;
-		ti,bit-shift = <29>;
-	};
+	clock@a10 {
+		compatible = "ti,clksel";
+		reg = <0xa10>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
 
-	des2_ick: des2_ick@a10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&core_l4_ick>;
-		reg = <0x0a10>;
-		ti,bit-shift = <26>;
-	};
+		icr_ick: clock-icr-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "icr_ick";
+			clocks = <&core_l4_ick>;
+			ti,bit-shift = <29>;
+		};
 
-	mspro_ick: mspro_ick@a10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&core_l4_ick>;
-		reg = <0x0a10>;
-		ti,bit-shift = <23>;
-	};
+		des2_ick: clock-des2-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "des2_ick";
+			clocks = <&core_l4_ick>;
+			ti,bit-shift = <26>;
+		};
 
-	mailboxes_ick: mailboxes_ick@a10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&core_l4_ick>;
-		reg = <0x0a10>;
-		ti,bit-shift = <7>;
+		mspro_ick: clock-mspro-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "mspro_ick";
+			clocks = <&core_l4_ick>;
+			ti,bit-shift = <23>;
+		};
+
+		mailboxes_ick: clock-mailboxes-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "mailboxes_ick";
+			clocks = <&core_l4_ick>;
+			ti,bit-shift = <7>;
+		};
+
+		sad2d_ick: clock-sad2d-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "sad2d_ick";
+			clocks = <&l3_ick>;
+			ti,bit-shift = <3>;
+		};
 	};
 
 	ssi_l4_ick: ssi_l4_ick {
@@ -216,14 +231,6 @@
 			ti,bit-shift = <23>;
 		};
 	};
-	sad2d_ick: sad2d_ick@a10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&l3_ick>;
-		reg = <0x0a10>;
-		ti,bit-shift = <3>;
-	};
-
 	mad2d_ick: mad2d_ick@a18 {
 		#clock-cells = <0>;
 		compatible = "ti,omap3-interface-clock";

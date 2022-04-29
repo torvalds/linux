@@ -141,12 +141,19 @@
 		ti,bit-shift = <2>;
 	};
 
-	mmchs3_ick: mmchs3_ick@a10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&core_l4_ick>;
-		reg = <0x0a10>;
-		ti,bit-shift = <30>;
+	clock@a10 {
+		compatible = "ti,clksel";
+		reg = <0xa10>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		mmchs3_ick: clock-mmchs3-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "mmchs3_ick";
+			clocks = <&core_l4_ick>;
+			ti,bit-shift = <30>;
+		};
 	};
 
 	clock@a00 {

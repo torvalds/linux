@@ -43,12 +43,27 @@
 		clock-div = <2>;
 	};
 
-	hsotgusb_ick_3430es2: hsotgusb_ick_3430es2@a10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-hsotgusb-interface-clock";
-		clocks = <&core_l3_ick>;
-		reg = <0x0a10>;
-		ti,bit-shift = <4>;
+	clock@a10 {
+		compatible = "ti,clksel";
+		reg = <0xa10>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		hsotgusb_ick_3430es2: clock-hsotgusb-ick-3430es2 {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-hsotgusb-interface-clock";
+			clock-output-names = "hsotgusb_ick_3430es2";
+			clocks = <&core_l3_ick>;
+			ti,bit-shift = <4>;
+		};
+
+		ssi_ick: clock-ssi-ick-3430es2 {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-ssi-interface-clock";
+			clock-output-names = "ssi_ick_3430es2";
+			clocks = <&ssi_l4_ick>;
+			ti,bit-shift = <0>;
+		};
 	};
 
 	ssi_l4_ick: ssi_l4_ick {
@@ -57,14 +72,6 @@
 		clocks = <&l4_ick>;
 		clock-mult = <1>;
 		clock-div = <1>;
-	};
-
-	ssi_ick: ssi_ick_3430es2@a10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-ssi-interface-clock";
-		clocks = <&ssi_l4_ick>;
-		reg = <0x0a10>;
-		ti,bit-shift = <0>;
 	};
 
 	usim_gate_fck: usim_gate_fck@c00 {
