@@ -917,6 +917,7 @@
 		clock-names = "hsdma";
 		power-domains = <&scpsys MT7622_POWER_DOMAIN_ETHSYS>;
 		#dma-cells = <1>;
+		dma-requests = <3>;
 	};
 
 	eth: ethernet@1b100000 {
