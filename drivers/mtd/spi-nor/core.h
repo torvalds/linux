@@ -114,6 +114,7 @@
 		   SPI_MEM_OP_NO_ADDR,					\
 		   SPI_MEM_OP_NO_DATA)
 
+/* Keep these in sync with the list in debugfs.c */
 enum spi_nor_option_flags {
 	SNOR_F_HAS_SR_TB	= BIT(0),
 	SNOR_F_NO_OP_CHIP_ERASE	= BIT(1),
@@ -699,5 +700,11 @@ static inline struct spi_nor *mtd_to_spi_nor(struct mtd_info *mtd)
 {
 	return container_of(mtd, struct spi_nor, mtd);
 }
+
+#ifdef CONFIG_DEBUG_FS
+void spi_nor_debugfs_register(struct spi_nor *nor);
+#else
+static inline void spi_nor_debugfs_register(struct spi_nor *nor) {}
+#endif
 
 #endif /* __LINUX_MTD_SPI_NOR_INTERNAL_H */
