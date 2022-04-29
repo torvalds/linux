@@ -1873,8 +1873,6 @@ static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
 		return 0;
 
 	page = pte_page(huge_pte);
-	if (!page)
-		return 0;
 
 	md = walk->private;
 	gather_stats(page, md, pte_dirty(huge_pte), 1);
