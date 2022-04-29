@@ -950,6 +950,7 @@ struct ath11k_base {
 		struct {
 			const struct ath11k_msi_config *config;
 			u32 ep_base_data;
+			u32 irqs[32];
 			u32 addr_lo;
 			u32 addr_hi;
 		} msi;
