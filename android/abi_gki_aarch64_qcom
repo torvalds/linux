@@ -192,6 +192,7 @@
   memset
   memset
   memstart_addr
+  module_layout
   module_put
   msleep
   __mutex_init
