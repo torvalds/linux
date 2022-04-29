@@ -1215,3 +1215,49 @@ err_setup_queue:
 err_device_add:
 	kfree(mrioc->bsg_dev);
 }
+
+/**
+ * adapter_state_show - SysFS callback for adapter state show
+ * @dev: class device
+ * @attr: Device attributes
+ * @buf: Buffer to copy
+ *
+ * Return: snprintf() return after copying adapter state
+ */
+static ssize_t
+adp_state_show(struct device *dev, struct device_attribute *attr,
+	char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct mpi3mr_ioc *mrioc = shost_priv(shost);
+	enum mpi3mr_iocstate ioc_state;
+	uint8_t adp_state;
+
+	ioc_state = mpi3mr_get_iocstate(mrioc);
+	if (ioc_state == MRIOC_STATE_UNRECOVERABLE)
+		adp_state = MPI3MR_BSG_ADPSTATE_UNRECOVERABLE;
+	else if ((mrioc->reset_in_progress) || (mrioc->stop_bsgs))
+		adp_state = MPI3MR_BSG_ADPSTATE_IN_RESET;
+	else if (ioc_state == MRIOC_STATE_FAULT)
+		adp_state = MPI3MR_BSG_ADPSTATE_FAULT;
+	else
+		adp_state = MPI3MR_BSG_ADPSTATE_OPERATIONAL;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", adp_state);
+}
+
+static DEVICE_ATTR_RO(adp_state);
+
+static struct attribute *mpi3mr_host_attrs[] = {
+	&dev_attr_adp_state.attr,
+	NULL,
+};
+
+static const struct attribute_group mpi3mr_host_attr_group = {
+	.attrs = mpi3mr_host_attrs
+};
+
+const struct attribute_group *mpi3mr_host_groups[] = {
+	&mpi3mr_host_attr_group,
+	NULL,
+};
