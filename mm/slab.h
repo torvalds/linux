@@ -547,36 +547,22 @@ static inline void memcg_slab_post_alloc_hook(struct kmem_cache *s,
 	obj_cgroup_put(objcg);
 }
 
-static inline void memcg_slab_free_hook(struct kmem_cache *s_orig,
+static inline void memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab,
 					void **p, int objects)
 {
-	struct kmem_cache *s;
 	struct obj_cgroup **objcgs;
-	struct obj_cgroup *objcg;
-	struct slab *slab;
-	unsigned int off;
 	int i;
 
 	if (!memcg_kmem_enabled())
 		return;
 
+	objcgs = slab_objcgs(slab);
+	if (!objcgs)
+		return;
+
 	for (i = 0; i < objects; i++) {
-		if (unlikely(!p[i]))
-			continue;
-
-		slab = virt_to_slab(p[i]);
-		/* we could be given a kmalloc_large() object, skip those */
-		if (!slab)
-			continue;
-
-		objcgs = slab_objcgs(slab);
-		if (!objcgs)
-			continue;
-
-		if (!s_orig)
-			s = slab->slab_cache;
-		else
-			s = s_orig;
+		struct obj_cgroup *objcg;
+		unsigned int off;
 
 		off = obj_to_index(s, slab, p[i]);
 		objcg = objcgs[off];
@@ -628,7 +614,7 @@ static inline void memcg_slab_post_alloc_hook(struct kmem_cache *s,
 {
 }
 
-static inline void memcg_slab_free_hook(struct kmem_cache *s,
+static inline void memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab,
 					void **p, int objects)
 {
 }
