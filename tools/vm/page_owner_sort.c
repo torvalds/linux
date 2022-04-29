@@ -186,7 +186,7 @@ static int search_pattern(regex_t *pattern, char *pattern_str, char *buf)
 
 	err = regexec(pattern, buf, 2, pmatch, REG_NOTBOL);
 	if (err != 0 || pmatch[1].rm_so == -1) {
-		printf("no matching pattern in %s\n", buf);
+		fprintf(stderr, "no matching pattern in %s\n", buf);
 		return -1;
 	}
 	val_len = pmatch[1].rm_eo - pmatch[1].rm_so;
@@ -202,7 +202,7 @@ static void check_regcomp(regex_t *pattern, const char *regex)
 
 	err = regcomp(pattern, regex, REG_EXTENDED | REG_NEWLINE);
 	if (err != 0 || pattern->re_nsub != 1) {
-		printf("Invalid pattern %s code %d\n", regex, err);
+		fprintf(stderr, "Invalid pattern %s code %d\n", regex, err);
 		exit(1);
 	}
 }
@@ -251,7 +251,7 @@ static int get_page_num(char *buf)
 	errno = 0;
 	order_val = strtol(order_str, &endptr, 10);
 	if (order_val > 64 || errno != 0 || endptr == order_str || *endptr != '\0') {
-		printf("wrong order in follow buf:\n%s\n", buf);
+		fprintf(stderr, "wrong order in follow buf:\n%s\n", buf);
 		return 0;
 	}
 
@@ -268,7 +268,7 @@ static pid_t get_pid(char *buf)
 	errno = 0;
 	pid = strtol(pid_str, &endptr, 10);
 	if (errno != 0 || endptr == pid_str || *endptr != '\0') {
-		printf("wrong/invalid pid in follow buf:\n%s\n", buf);
+		fprintf(stderr, "wrong/invalid pid in follow buf:\n%s\n", buf);
 		return -1;
 	}
 
@@ -286,7 +286,7 @@ static pid_t get_tgid(char *buf)
 	errno = 0;
 	tgid = strtol(tgid_str, &endptr, 10);
 	if (errno != 0 || endptr == tgid_str || *endptr != '\0') {
-		printf("wrong/invalid tgid in follow buf:\n%s\n", buf);
+		fprintf(stderr, "wrong/invalid tgid in follow buf:\n%s\n", buf);
 		return -1;
 	}
 
@@ -304,7 +304,7 @@ static __u64 get_ts_nsec(char *buf)
 	errno = 0;
 	ts_nsec = strtoull(ts_nsec_str, &endptr, 10);
 	if (errno != 0 || endptr == ts_nsec_str || *endptr != '\0') {
-		printf("wrong ts_nsec in follow buf:\n%s\n", buf);
+		fprintf(stderr, "wrong ts_nsec in follow buf:\n%s\n", buf);
 		return -1;
 	}
 
@@ -321,7 +321,7 @@ static __u64 get_free_ts_nsec(char *buf)
 	errno = 0;
 	free_ts_nsec = strtoull(free_ts_nsec_str, &endptr, 10);
 	if (errno != 0 || endptr == free_ts_nsec_str || *endptr != '\0') {
-		printf("wrong free_ts_nsec in follow buf:\n%s\n", buf);
+		fprintf(stderr, "wrong free_ts_nsec in follow buf:\n%s\n", buf);
 		return -1;
 	}
 
@@ -337,7 +337,7 @@ static char *get_comm(char *buf)
 	search_pattern(&comm_pattern, comm_str, buf);
 	errno = 0;
 	if (errno != 0) {
-		printf("wrong comm in follow buf:\n%s\n", buf);
+		fprintf(stderr, "wrong comm in follow buf:\n%s\n", buf);
 		return NULL;
 	}
 
@@ -373,7 +373,7 @@ static void add_list(char *buf, int len)
 		return;
 	}
 	if (list_size == max_size) {
-		printf("max_size too small??\n");
+		fprintf(stderr, "max_size too small??\n");
 		exit(1);
 	}
 	if (!is_need(buf))
@@ -383,7 +383,7 @@ static void add_list(char *buf, int len)
 	list[list_size].comm = get_comm(buf);
 	list[list_size].txt = malloc(len+1);
 	if (!list[list_size].txt) {
-		printf("Out of memory\n");
+		fprintf(stderr, "Out of memory\n");
 		exit(1);
 	}
 	memcpy(list[list_size].txt, buf, len);
@@ -499,7 +499,8 @@ int main(int argc, char **argv)
 			errno = 0;
 			fc.pid = strtol(optarg, &endptr, 10);
 			if (errno != 0 || endptr == optarg || *endptr != '\0') {
-				printf("wrong/invalid pid in from the command line:%s\n", optarg);
+				fprintf(stderr, "wrong/invalid pid in from the command line:%s\n",
+						optarg);
 				exit(1);
 			}
 			break;
@@ -508,7 +509,8 @@ int main(int argc, char **argv)
 			errno = 0;
 			fc.tgid = strtol(optarg, &endptr, 10);
 			if (errno != 0 || endptr == optarg || *endptr != '\0') {
-				printf("wrong/invalid tgid in from the command line:%s\n", optarg);
+				fprintf(stderr, "wrong/invalid tgid in from the command line:%s\n",
+						optarg);
 				exit(1);
 			}
 			break;
@@ -519,7 +521,7 @@ int main(int argc, char **argv)
 			break;
 		case 4:
 			if (!parse_cull_args(optarg)) {
-				printf("wrong argument after --cull in from the command line:%s\n",
+				fprintf(stderr, "wrong argument after --cull option:%s\n",
 						optarg);
 				exit(1);
 			}
@@ -554,7 +556,7 @@ int main(int argc, char **argv)
 	list = malloc(max_size * sizeof(*list));
 	buf = malloc(BUF_SIZE);
 	if (!list || !buf) {
-		printf("Out of memory\n");
+		fprintf(stderr, "Out of memory\n");
 		exit(1);
 	}
 
