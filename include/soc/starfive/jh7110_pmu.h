@@ -8,28 +8,33 @@
 #ifndef __SOC_STARFIVE_JH7110_PMU_H__
 #define __SOC_STARFIVE_JH7110_PMU_H__
 
+#include <linux/bits.h>
 #include <linux/types.h>
 
 /* SW/HW Power domain id  */
-#define POWER_DOMAIN_SYSTOP		(1 << 0)
-#define POWER_DOMAIN_CPU		(1 << 1)
-#define POWER_DOMAIN_GPUA		(1 << 2)
-#define POWER_DOMAIN_VDEC		(1 << 3)
-#define POWER_DOMAIN_JPU		POWER_DOMAIN_VDEC
-#define POWER_DOMAIN_VOUT		(1 << 4)
-#define POWER_DOMAIN_ISP		(1 << 5)
-#define POWER_DOMAIN_VENC		(1 << 6)
-#define POWER_DOMAIN_GPUB		(1 << 7)
+enum PMU_POWER_DOMAIN {
+	POWER_DOMAIN_SYSTOP	= BIT(0),
+	POWER_DOMAIN_CPU	= BIT(1),
+	POWER_DOMAIN_GPUA	= BIT(2),
+	POWER_DOMAIN_VDEC	= BIT(3),
+	POWER_DOMAIN_JPU	= POWER_DOMAIN_VDEC,
+	POWER_DOMAIN_VOUT	= BIT(4),
+	POWER_DOMAIN_ISP	= BIT(5),
+	POWER_DOMAIN_VENC	= BIT(6),
+	POWER_DOMAIN_GPUB	= BIT(7),
+	POWER_DOMAIN_ALL	= GENMASK(7, 0),
+};
 
 enum PMU_HARD_EVENT {
-	RTC_EVENT = 0,
-	GMAC_EVENT,
-	RFU,
-	RGPIO0_EVENT,
-	RGPIO1_EVENT,
-	RGPIO2_EVENT,
-	RGPIO3_EVENT,
-	GPU_EVENT,
+	PMU_HW_EVENT_RTC	= BIT(0),
+	PMU_HW_EVENT_GMAC	= BIT(1),
+	PMU_HW_EVENT_RFU	= BIT(2),
+	PMU_HW_EVENT_RGPIO0	= BIT(3),
+	PMU_HW_EVENT_RGPIO1	= BIT(4),
+	PMU_HW_EVENT_RGPIO2	= BIT(5),
+	PMU_HW_EVENT_RGPIO3	= BIT(6),
+	PMU_HW_EVENT_GPU	= BIT(7),
+	PMU_HW_EVENT_ALL	= GENMASK(7, 0),
 };
 
 /*
@@ -53,14 +58,14 @@ void starfive_power_domain_set(u32 domain, bool enable);
  * @dec: power domain turn-on/off by HW envent(interrupt)
  * @domain: power domain id
  * @event: Hardware trigger event. PMU_HARD_EVENT:
-	RTC_EVENT = 0,
-	GMAC_EVENT,
-	RFU,
-	RGPIO0_EVENT,
-	RGPIO1_EVENT,
-	RGPIO2_EVENT,
-	RGPIO3_EVENT,
-	GPU_EVENT,
+	PMU_HW_EVENT_RTC,
+	PMU_HW_EVENT_GMAC,
+	PMU_HW_EVENT_RFU,
+	PMU_HW_EVENT_RGPIO0,
+	PMU_HW_EVENT_RGPIO1,
+	PMU_HW_EVENT_RGPIO2,
+	PMU_HW_EVENT_RGPIO3,
+	PMU_HW_EVENT_GPU,
  * @enable: 1:enable 0:disable
  *
  * @for example:

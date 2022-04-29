@@ -4,7 +4,6 @@
  *
  * Copyright (C) 2022 samin <samin.guo@starfivetech.com>
  */
-#include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/io.h>
@@ -45,12 +44,17 @@
 #define PCH_PACTIVE_STATUS		0x98
 
 /* pmu int status */
-#define INT_SEQ_DONE_EVENT		BIT(0)
-#define INT_HW_REQ_EVENT		BIT(1)
-#define INT_SW_FAIL_EVENT		GENMASK(3, 2)
-#define INT_HW_FAIL_EVENT		GENMASK(5, 4)
-#define INT_PCH_FAIL_EVENT		GENMASK(8, 6)
-#define PMU_INT_EVENT_ALL		GENMASK(8, 0)
+#define PMU_INT_SEQ_DONE		BIT(0)
+#define PMU_INT_HW_REQ			BIT(1)
+#define PMU_INT_SW_FAIL			GENMASK(3, 2)
+#define PMU_INT_HW_FAIL			GENMASK(5, 4)
+#define PMU_INT_PCH_FAIL		GENMASK(8, 6)
+#define PMU_INT_FAIL_MASK		(PMU_INT_SW_FAIL|\
+					PMU_INT_HW_FAIL	|\
+					PMU_INT_PCH_FAIL)
+#define PMU_INT_ALL_MASK		(PMU_INT_SEQ_DONE|\
+					PMU_INT_HW_REQ	|\
+					PMU_INT_FAIL_MASK)
 
 /* sw encourage cfg */
 #define SW_MODE_ENCOURAGE_EN_LO		0x05
@@ -96,11 +100,11 @@ static void starfive_pmu_int_enable(u32 mask, bool enable)
 	u32 val = pmu_readl(PMU_INT_MASK);
 
 	if (enable)
-		val |= mask;
-	else
 		val &= ~mask;
+	else
+		val |= mask;
 
-	pmu_writel(~val, PMU_INT_MASK);
+	pmu_writel(val, PMU_INT_MASK);
 }
 /*
  * mask the hw_evnet
@@ -128,11 +132,8 @@ void starfive_power_domain_set(u32 domain, bool enable)
 	u32 val, mode;
 	u32 encourage_lo, encourage_hi;
 
-	if (!(pmu_get_current_power_mode(domain) ^ enable)) {
-		pr_info("[pmu]domain is already  %#x %sable status.\n",
-					domain, enable ? "en" : "dis");
+	if (!(pmu_get_current_power_mode(domain) ^ enable))
 		return;
-	}
 
 	if (enable) {
 		mode = SW_TURN_ON_POWER_MODE;
@@ -144,7 +145,7 @@ void starfive_power_domain_set(u32 domain, bool enable)
 		encourage_hi = SW_MODE_ENCOURAGE_DIS_HI;
 	}
 
-	pr_info("[pmu]domain: %#x %sable\n", domain, enable ? "en" : "dis");
+	pr_debug("[pmu]domain: %#x %sable\n", domain, enable ? "en" : "dis");
 	val = pmu_readl(mode);
 	val |= domain;
 	pmu_writel(val, mode);
@@ -180,26 +181,23 @@ static irqreturn_t starfive_pmu_interrupt(int irq, void *data)
 	u32 val;
 
 	spin_lock_irqsave(&pmu->lock, flags);
-	/* disable interrupts */
-	starfive_pmu_hw_event_turn_on_mask(PMU_INT_EVENT_ALL, false);
 	val = pmu_readl(PMU_INT_STATUS);
 
-	if (val & INT_SEQ_DONE_EVENT)
-		dev_info(pmu->dev, "sequence done.\n");
-	if (val & INT_HW_REQ_EVENT)
-		dev_info(pmu->dev, "hardware encourage requestion.\n");
-	if (val & INT_SW_FAIL_EVENT)
+	if (val & PMU_INT_SEQ_DONE)
+		dev_dbg(pmu->dev, "sequence done.\n");
+	if (val & PMU_INT_HW_REQ)
+		dev_dbg(pmu->dev, "hardware encourage requestion.\n");
+	if (val & PMU_INT_SW_FAIL)
 		dev_err(pmu->dev, "software encourage fail.\n");
-	if (val & INT_HW_FAIL_EVENT)
+	if (val & PMU_INT_HW_FAIL)
 		dev_err(pmu->dev, "hardware encourage fail.\n");
-	if (val & INT_PCH_FAIL_EVENT)
+	if (val & PMU_INT_PCH_FAIL)
 		dev_err(pmu->dev, "p-channel fail event.\n");
 
 	/* clear interrupts */
 	pmu_writel(val, PMU_INT_STATUS);
 	pmu_writel(val, PMU_EVENT_STATUS);
 
-	starfive_pmu_hw_event_turn_on_mask(PMU_INT_EVENT_ALL, true);
 	spin_unlock_irqrestore(&pmu->lock, flags);
 
 	return IRQ_HANDLED;
@@ -290,14 +288,14 @@ static int starfive_pmu_probe(struct platform_device *pdev)
 		dev_err(dev, "request irq failed.\n");
 
 	spin_lock_init(&pmu->lock);
-	starfive_pmu_int_enable(PMU_INT_EVENT_ALL, true);
+	starfive_pmu_int_enable(PMU_INT_ALL_MASK, true);
 
 	return ret;
 }
 
 static int starfive_pmu_remove(struct platform_device *dev)
 {
-	starfive_pmu_int_enable(PMU_INT_EVENT_ALL, false);
+	starfive_pmu_int_enable(PMU_INT_ALL_MASK, false);
 
 	return 0;
 }
