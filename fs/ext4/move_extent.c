@@ -669,8 +669,8 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 		 * Up semaphore to avoid following problems:
 		 * a. transaction deadlock among ext4_journal_start,
 		 *    ->write_begin via pagefault, and jbd2_journal_commit
-		 * b. racing with ->readpage, ->write_begin, and ext4_get_block
-		 *    in move_extent_per_page
+		 * b. racing with ->read_folio, ->write_begin, and
+		 *    ext4_get_block in move_extent_per_page
 		 */
 		ext4_double_up_write_data_sem(orig_inode, donor_inode);
 		/* Swap original branches with new branches */
