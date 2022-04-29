@@ -72,7 +72,7 @@ unsigned long intel_gvt_get_device_type(struct intel_gvt *gvt)
 	return 0;
 }
 
-bool intel_gvt_match_device(struct intel_gvt *gvt,
+static bool intel_gvt_match_device(struct intel_gvt *gvt,
 		unsigned long device)
 {
 	return intel_gvt_get_device_type(gvt) & device;
@@ -2922,7 +2922,7 @@ static int init_mmio_block_handlers(struct intel_gvt *gvt)
 	block = find_mmio_block(gvt, VGT_PVINFO_PAGE);
 	if (!block) {
 		WARN(1, "fail to assign handlers to mmio block %x\n",
-		     i915_mmio_reg_offset(block->offset));
+		     i915_mmio_reg_offset(gvt->mmio.mmio_block->offset));
 		return -ENODEV;
 	}
 

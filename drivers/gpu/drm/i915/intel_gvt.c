@@ -309,7 +309,9 @@ EXPORT_SYMBOL_NS_GPL(__intel_context_do_pin, I915_GVT);
 EXPORT_SYMBOL_NS_GPL(__intel_context_do_unpin, I915_GVT);
 EXPORT_SYMBOL_NS_GPL(intel_ring_begin, I915_GVT);
 EXPORT_SYMBOL_NS_GPL(intel_runtime_pm_get, I915_GVT);
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 EXPORT_SYMBOL_NS_GPL(intel_runtime_pm_put, I915_GVT);
+#endif
 EXPORT_SYMBOL_NS_GPL(intel_runtime_pm_put_unchecked, I915_GVT);
 EXPORT_SYMBOL_NS_GPL(intel_uncore_forcewake_for_reg, I915_GVT);
 EXPORT_SYMBOL_NS_GPL(intel_uncore_forcewake_get, I915_GVT);
