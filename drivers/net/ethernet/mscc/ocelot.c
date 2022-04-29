@@ -3228,6 +3228,7 @@ static void ocelot_detect_features(struct ocelot *ocelot)
 
 int ocelot_init(struct ocelot *ocelot)
 {
+	const struct ocelot_stat_layout *stat;
 	char queue_name[32];
 	int i, ret;
 	u32 port;
@@ -3239,6 +3240,10 @@ int ocelot_init(struct ocelot *ocelot)
 			return ret;
 		}
 	}
+
+	ocelot->num_stats = 0;
+	for_each_stat(ocelot, stat)
+		ocelot->num_stats++;
 
 	ocelot->stats = devm_kcalloc(ocelot->dev,
 				     ocelot->num_phys_ports * ocelot->num_stats,

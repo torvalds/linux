@@ -638,6 +638,7 @@ static const struct ocelot_stat_layout vsc9959_stats_layout[] = {
 	{ .offset = 0x10F,	.name = "drop_green_prio_5", },
 	{ .offset = 0x110,	.name = "drop_green_prio_6", },
 	{ .offset = 0x111,	.name = "drop_green_prio_7", },
+	OCELOT_STAT_END
 };
 
 static const struct vcap_field vsc9959_vcap_es0_keys[] = {
@@ -2216,7 +2217,6 @@ static const struct felix_info felix_info_vsc9959 = {
 	.map			= vsc9959_regmap,
 	.ops			= &vsc9959_ops,
 	.stats_layout		= vsc9959_stats_layout,
-	.num_stats		= ARRAY_SIZE(vsc9959_stats_layout),
 	.vcap			= vsc9959_vcap_props,
 	.vcap_pol_base		= VSC9959_VCAP_POLICER_BASE,
 	.vcap_pol_max		= VSC9959_VCAP_POLICER_MAX,

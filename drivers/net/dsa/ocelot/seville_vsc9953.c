@@ -636,6 +636,7 @@ static const struct ocelot_stat_layout vsc9953_stats_layout[] = {
 	{ .offset = 0x8F,	.name = "drop_green_prio_5", },
 	{ .offset = 0x90,	.name = "drop_green_prio_6", },
 	{ .offset = 0x91,	.name = "drop_green_prio_7", },
+	OCELOT_STAT_END
 };
 
 static const struct vcap_field vsc9953_vcap_es0_keys[] = {
@@ -1086,7 +1087,6 @@ static const struct felix_info seville_info_vsc9953 = {
 	.map			= vsc9953_regmap,
 	.ops			= &vsc9953_ops,
 	.stats_layout		= vsc9953_stats_layout,
-	.num_stats		= ARRAY_SIZE(vsc9953_stats_layout),
 	.vcap			= vsc9953_vcap_props,
 	.vcap_pol_base		= VSC9953_VCAP_POLICER_BASE,
 	.vcap_pol_max		= VSC9953_VCAP_POLICER_MAX,

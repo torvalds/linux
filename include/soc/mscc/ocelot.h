@@ -105,6 +105,13 @@
 #define REG_RESERVED_ADDR		0xffffffff
 #define REG_RESERVED(reg)		REG(reg, REG_RESERVED_ADDR)
 
+#define OCELOT_STAT_FLAG_END		BIT(0)
+
+#define for_each_stat(ocelot, stat)				\
+	for ((stat) = ocelot->stats_layout;			\
+	     !((stat)->flags & OCELOT_STAT_FLAG_END);		\
+	     (stat)++)
+
 enum ocelot_target {
 	ANA = 1,
 	QS,
@@ -535,8 +542,11 @@ enum ocelot_ptp_pins {
 
 struct ocelot_stat_layout {
 	u32 offset;
+	u32 flags;
 	char name[ETH_GSTRING_LEN];
 };
+
+#define OCELOT_STAT_END { .flags = OCELOT_STAT_FLAG_END }
 
 struct ocelot_stats_region {
 	struct list_head node;
