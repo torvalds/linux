@@ -571,36 +571,6 @@ static int spansion_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
 }
 
 /**
- * spi_nor_write_ear() - Write Extended Address Register.
- * @nor:	pointer to 'struct spi_nor'.
- * @ear:	value to write to the Extended Address Register.
- *
- * Return: 0 on success, -errno otherwise.
- */
-int spi_nor_write_ear(struct spi_nor *nor, u8 ear)
-{
-	int ret;
-
-	nor->bouncebuf[0] = ear;
-
-	if (nor->spimem) {
-		struct spi_mem_op op = SPI_NOR_WREAR_OP(nor->bouncebuf);
-
-		spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
-
-		ret = spi_mem_exec_op(nor->spimem, &op);
-	} else {
-		ret = spi_nor_controller_ops_write_reg(nor, SPINOR_OP_WREAR,
-						       nor->bouncebuf, 1);
-	}
-
-	if (ret)
-		dev_dbg(nor->dev, "error %d writing EAR\n", ret);
-
-	return ret;
-}
-
-/**
  * spi_nor_sr_ready() - Query the Status Register to see if the flash is ready
  * for new commands.
  * @nor:	pointer to 'struct spi_nor'.
