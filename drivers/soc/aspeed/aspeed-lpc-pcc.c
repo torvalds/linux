@@ -70,7 +70,6 @@
 #define   PCCR2_RX_TMOUT_INT		BIT(2)
 #define   PCCR2_RX_AVAIL_INT		BIT(1)
 #define PCCR3	0x13c
-#define   PCCR3_DATA_RDY		BIT(23)
 #define   PCCR3_FIFO_DATA_MASK		GENMASK(7, 0)
 
 #define PCC_DMA_MAX_BUFSZ	(PAGE_SIZE)
