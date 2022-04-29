@@ -19,14 +19,14 @@ description: |
 properties:
   buck:
     type: object
-    $ref: regulators.yaml#
+    $ref: regulator.yaml#
     unevaluatedProperties: false
     description:
       Properties for the BUCK regulator.
 
   vbus:
     type: object
-    $ref: regulators.yaml#
+    $ref: regulator.yaml#
     unevaluatedProperties: false
     description:
       Properties for the VBUS regulator.
@@ -34,14 +34,14 @@ properties:
 patternProperties:
   "^ldo[1-3]$":
     type: object
-    $ref: regulators.yaml#
+    $ref: regulator.yaml#
     unevaluatedProperties: false
     description:
       Properties for single LDO regulator.
 
   "^usbldo[1-2]$":
     type: object
-    $ref: regulators.yaml#
+    $ref: regulator.yaml#
     unevaluatedProperties: false
     description:
       Properties for a single USBLDO regulator.
