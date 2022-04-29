@@ -113,6 +113,8 @@ static struct cmn2asic_msg_mapping smu_v13_0_7_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(DramLogSetDramAddrHigh,		PPSMC_MSG_DramLogSetDramAddrHigh,      0),
 	MSG_MAP(DramLogSetDramAddrLow,		PPSMC_MSG_DramLogSetDramAddrLow,       0),
 	MSG_MAP(DramLogSetDramSize,		PPSMC_MSG_DramLogSetDramSize,          0),
+	MSG_MAP(AllowGfxOff,			PPSMC_MSG_AllowGfxOff,                 0),
+	MSG_MAP(DisallowGfxOff,			PPSMC_MSG_DisallowGfxOff,              0),
 };
 
 static struct cmn2asic_mapping smu_v13_0_7_clk_map[SMU_CLK_COUNT] = {
@@ -1486,6 +1488,7 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.get_gpu_metrics = smu_v13_0_7_get_gpu_metrics,
 	.set_soft_freq_limited_range = smu_v13_0_set_soft_freq_limited_range,
 	.set_performance_level = smu_v13_0_set_performance_level,
+	.gfx_off_control = smu_v13_0_gfx_off_control,
 	.get_fan_speed_pwm = smu_v13_0_7_get_fan_speed_pwm,
 	.get_fan_speed_rpm = smu_v13_0_7_get_fan_speed_rpm,
 	.set_fan_speed_pwm = smu_v13_0_set_fan_speed_pwm,

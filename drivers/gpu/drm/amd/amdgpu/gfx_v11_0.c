@@ -5193,6 +5193,7 @@ static int gfx_v11_0_set_powergating_state(void *handle,
 
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 2):
 		amdgpu_gfx_off_ctrl(adev, enable);
 		break;
 	default:
