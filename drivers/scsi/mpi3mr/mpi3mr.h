@@ -55,8 +55,8 @@ extern struct list_head mrioc_list;
 extern int prot_mask;
 extern atomic64_t event_counter;
 
-#define MPI3MR_DRIVER_VERSION	"8.0.0.68.0"
-#define MPI3MR_DRIVER_RELDATE	"10-February-2022"
+#define MPI3MR_DRIVER_VERSION	"8.0.0.69.0"
+#define MPI3MR_DRIVER_RELDATE	"16-March-2022"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
