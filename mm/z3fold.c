@@ -1221,8 +1221,8 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 		return;
 	}
 	if (test_and_set_bit(NEEDS_COMPACTING, &page->private)) {
-		put_z3fold_header(zhdr);
 		clear_bit(PAGE_CLAIMED, &page->private);
+		put_z3fold_header(zhdr);
 		return;
 	}
 	if (zhdr->cpu < 0 || !cpu_online(zhdr->cpu)) {
@@ -1424,8 +1424,8 @@ next:
 			spin_unlock(&pool->lock);
 			if (list_empty(&zhdr->buddy))
 				add_to_unbuddied(pool, zhdr);
-			z3fold_page_unlock(zhdr);
 			clear_bit(PAGE_CLAIMED, &page->private);
+			z3fold_page_unlock(zhdr);
 		}
 
 		/* We started off locked to we need to lock the pool back */
@@ -1577,8 +1577,8 @@ static int z3fold_page_migrate(struct address_space *mapping, struct page *newpa
 	if (!z3fold_page_trylock(zhdr))
 		return -EAGAIN;
 	if (zhdr->mapped_count != 0 || zhdr->foreign_handles != 0) {
-		z3fold_page_unlock(zhdr);
 		clear_bit(PAGE_CLAIMED, &page->private);
+		z3fold_page_unlock(zhdr);
 		return -EBUSY;
 	}
 	if (work_pending(&zhdr->work)) {
