@@ -590,7 +590,7 @@ EXPORT_SYMBOL_GPL(ping_err);
 int ping_getfrag(void *from, char *to,
 		 int offset, int fraglen, int odd, struct sk_buff *skb)
 {
-	struct pingfakehdr *pfh = (struct pingfakehdr *)from;
+	struct pingfakehdr *pfh = from;
 
 	if (offset == 0) {
 		fraglen -= sizeof(struct icmphdr);

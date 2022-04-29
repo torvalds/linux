@@ -342,7 +342,7 @@ void icmp_out_count(struct net *net, unsigned char type)
 static int icmp_glue_bits(void *from, char *to, int offset, int len, int odd,
 			  struct sk_buff *skb)
 {
-	struct icmp_bxm *icmp_param = (struct icmp_bxm *)from;
+	struct icmp_bxm *icmp_param = from;
 	__wsum csum;
 
 	csum = skb_copy_and_csum_bits(icmp_param->skb,
