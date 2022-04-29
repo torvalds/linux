@@ -35,6 +35,7 @@ properties:
               - qcom,sdx55-sdhci
               - qcom,sm6125-sdhci
               - qcom,sm6350-sdhci
+              - qcom,sm8150-sdhci
               - qcom,sm8250-sdhci
           - enum:
               - qcom,sdhci-msm-v4 # for sdcc versions less than 5.0
