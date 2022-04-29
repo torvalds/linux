@@ -168,13 +168,20 @@
 		clock-div = <20>;
 	};
 
-	usim_mux_fck: usim_mux_fck@c40 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-mux-clock";
-		clocks = <&sys_ck>, <&sys_d2_ck>, <&omap_96m_d2_fck>, <&omap_96m_d4_fck>, <&omap_96m_d8_fck>, <&omap_96m_d10_fck>, <&dpll5_m2_d4_ck>, <&dpll5_m2_d8_ck>, <&dpll5_m2_d16_ck>, <&dpll5_m2_d20_ck>;
-		ti,bit-shift = <3>;
-		reg = <0x0c40>;
-		ti,index-starts-at-one;
+	clock@c40 {
+		compatible = "ti,clksel";
+		reg = <0xc40>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		usim_mux_fck: clock-usim-mux-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-mux-clock";
+			clock-output-names = "usim_mux_fck";
+			clocks = <&sys_ck>, <&sys_d2_ck>, <&omap_96m_d2_fck>, <&omap_96m_d4_fck>, <&omap_96m_d8_fck>, <&omap_96m_d10_fck>, <&dpll5_m2_d4_ck>, <&dpll5_m2_d8_ck>, <&dpll5_m2_d16_ck>, <&dpll5_m2_d20_ck>;
+			ti,bit-shift = <3>;
+			ti,index-starts-at-one;
+		};
 	};
 
 	usim_fck: usim_fck {

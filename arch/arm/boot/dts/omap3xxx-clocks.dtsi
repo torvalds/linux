@@ -617,14 +617,29 @@
 		};
 	};
 
-	rm_ick: rm_ick@c40 {
-		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clocks = <&l4_ick>;
-		ti,bit-shift = <1>;
-		ti,max-div = <3>;
-		reg = <0x0c40>;
-		ti,index-starts-at-one;
+	/* CM_CLKSEL_WKUP */
+	clock@c40 {
+		compatible = "ti,clksel";
+		reg = <0xc40>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		rm_ick: clock-rm-ick {
+			#clock-cells = <0>;
+			compatible = "ti,divider-clock";
+			clock-output-names = "rm_ick";
+			clocks = <&l4_ick>;
+			ti,bit-shift = <1>;
+			ti,max-div = <3>;
+			ti,index-starts-at-one;
+		};
+
+		gpt1_mux_fck: clock-gpt1-mux-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-mux-clock";
+			clock-output-names = "gpt1_mux_fck";
+			clocks = <&omap_32k_fck>, <&sys_ck>;
+		};
 	};
 
 	/* CM_FCLKEN1_CORE */
@@ -1051,13 +1066,6 @@
 			clocks = <&wkup_32k_fck>;
 			ti,bit-shift = <5>;
 		};
-	};
-
-	gpt1_mux_fck: gpt1_mux_fck@c40 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-mux-clock";
-		clocks = <&omap_32k_fck>, <&sys_ck>;
-		reg = <0x0c40>;
 	};
 
 	gpt1_fck: gpt1_fck {
