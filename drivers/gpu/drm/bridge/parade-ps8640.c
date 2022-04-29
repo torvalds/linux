@@ -542,7 +542,6 @@ static int ps8640_bridge_host_attach(struct device *dev, struct ps8640 *ps_bridg
 	struct device_node *in_ep, *dsi_node;
 	struct mipi_dsi_device *dsi;
 	struct mipi_dsi_host *host;
-	int ret;
 	const struct mipi_dsi_device_info info = { .type = "ps8640",
 						   .channel = 0,
 						   .node = NULL,
@@ -577,11 +576,7 @@ static int ps8640_bridge_host_attach(struct device *dev, struct ps8640 *ps_bridg
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->lanes = NUM_MIPI_LANES;
 
-	ret = devm_mipi_dsi_attach(dev, dsi);
-	if (ret)
-		return ret;
-
-	return 0;
+	return devm_mipi_dsi_attach(dev, dsi);
 }
 
 static int ps8640_probe(struct i2c_client *client)
