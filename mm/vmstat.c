@@ -2111,9 +2111,7 @@ void __init init_mm_internals(void)
 
 	start_shepherd_timer();
 #endif
-#if defined(CONFIG_MIGRATION) && defined(CONFIG_HOTPLUG_CPU)
 	migrate_on_reclaim_init();
-#endif
 #ifdef CONFIG_PROC_FS
 	proc_create_seq("buddyinfo", 0444, NULL, &fragmentation_op);
 	proc_create_seq("pagetypeinfo", 0400, NULL, &pagetypeinfo_op);
