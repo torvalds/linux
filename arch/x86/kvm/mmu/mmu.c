@@ -2791,14 +2791,22 @@ static void direct_pte_prefetch(struct kvm_vcpu *vcpu, u64 *sptep)
 static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn,
 				  const struct kvm_memory_slot *slot)
 {
-	struct page *page = pfn_to_page(pfn);
 	int level = PG_LEVEL_4K;
+	struct page *page;
 	unsigned long hva;
 	unsigned long flags;
 	pgd_t pgd;
 	p4d_t p4d;
 	pud_t pud;
 	pmd_t pmd;
+
+	/*
+	 * Note, @slot must be non-NULL, i.e. the caller is responsible for
+	 * ensuring @pfn isn't garbage and is backed by a memslot.
+	 */
+	page = kvm_pfn_to_refcounted_page(pfn);
+	if (!page)
+		return PG_LEVEL_4K;
 
 	if (!PageCompound(page) && !kvm_is_zone_device_page(page))
 		return PG_LEVEL_4K;
@@ -2884,7 +2892,7 @@ void kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
 	if (unlikely(fault->max_level == PG_LEVEL_4K))
 		return;
 
-	if (is_error_noslot_pfn(fault->pfn) || !kvm_pfn_to_refcounted_page(fault->pfn))
+	if (is_error_noslot_pfn(fault->pfn))
 		return;
 
 	if (kvm_slot_dirty_track_enabled(slot))
@@ -5996,7 +6004,7 @@ restart:
 		 * the guest, and the guest page table is using 4K page size
 		 * mapping if the indirect sp has level = 1.
 		 */
-		if (sp->role.direct && kvm_pfn_to_refcounted_page(pfn) &&
+		if (sp->role.direct &&
 		    sp->role.level < kvm_mmu_max_mapping_level(kvm, slot, sp->gfn,
 							       pfn, PG_LEVEL_NUM)) {
 			pte_list_remove(kvm, rmap_head, sptep);
