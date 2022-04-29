@@ -254,14 +254,87 @@
 		reg = <0x0d00>, <0x0d20>, <0x0d40>, <0x0d30>;
 	};
 
-	dpll3_m3_ck: dpll3_m3_ck@1140 {
-		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clocks = <&dpll3_ck>;
-		ti,bit-shift = <16>;
-		ti,max-div = <31>;
+	/* CM_CLKSEL1_EMU */
+	clock@1140 {
+		compatible = "ti,clksel";
 		reg = <0x1140>;
-		ti,index-starts-at-one;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		dpll3_m3_ck: clock-dpll3-m3 {
+			#clock-cells = <0>;
+			compatible = "ti,divider-clock";
+			clock-output-names = "dpll3_m3_ck";
+			clocks = <&dpll3_ck>;
+			ti,bit-shift = <16>;
+			ti,max-div = <31>;
+			ti,index-starts-at-one;
+		};
+
+		dpll4_m6_ck: clock-dpll4-m6 {
+			#clock-cells = <0>;
+			compatible = "ti,divider-clock";
+			clock-output-names = "dpll4_m6_ck";
+			clocks = <&dpll4_ck>;
+			ti,bit-shift = <24>;
+			ti,max-div = <63>;
+			ti,index-starts-at-one;
+		};
+
+		emu_src_mux_ck: clock-emu-src-mux {
+			#clock-cells = <0>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "emu_src_mux_ck";
+			clocks = <&sys_ck>, <&emu_core_alwon_ck>, <&emu_per_alwon_ck>, <&emu_mpu_alwon_ck>;
+		};
+
+		pclk_fck: clock-pclk-fck {
+			#clock-cells = <0>;
+			compatible = "ti,divider-clock";
+			clock-output-names = "pclk_fck";
+			clocks = <&emu_src_ck>;
+			ti,bit-shift = <8>;
+			ti,max-div = <7>;
+			ti,index-starts-at-one;
+		};
+
+		pclkx2_fck: clock-pclkx2-fck {
+			#clock-cells = <0>;
+			compatible = "ti,divider-clock";
+			clock-output-names = "pclkx2_fck";
+			clocks = <&emu_src_ck>;
+			ti,bit-shift = <6>;
+			ti,max-div = <3>;
+			ti,index-starts-at-one;
+		};
+
+		atclk_fck: clock-atclk-fck {
+			#clock-cells = <0>;
+			compatible = "ti,divider-clock";
+			clock-output-names = "atclk_fck";
+			clocks = <&emu_src_ck>;
+			ti,bit-shift = <4>;
+			ti,max-div = <3>;
+			ti,index-starts-at-one;
+		};
+
+		traceclk_src_fck: clock-traceclk-src-fck {
+			#clock-cells = <0>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "traceclk_src_fck";
+			clocks = <&sys_ck>, <&emu_core_alwon_ck>, <&emu_per_alwon_ck>, <&emu_mpu_alwon_ck>;
+			ti,bit-shift = <2>;
+		};
+
+		traceclk_fck: clock-traceclk-fck {
+			#clock-cells = <0>;
+			compatible = "ti,divider-clock";
+			clock-output-names = "traceclk_fck";
+			clocks = <&traceclk_src_fck>;
+			ti,bit-shift = <11>;
+			ti,max-div = <7>;
+			ti,index-starts-at-one;
+		};
 	};
 
 	dpll3_m3x2_mul_ck: dpll3_m3x2_mul_ck {
@@ -498,16 +571,6 @@
 		reg = <0x0d00>;
 		ti,set-bit-to-disable;
 		ti,set-rate-parent;
-	};
-
-	dpll4_m6_ck: dpll4_m6_ck@1140 {
-		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clocks = <&dpll4_ck>;
-		ti,bit-shift = <24>;
-		ti,max-div = <63>;
-		reg = <0x1140>;
-		ti,index-starts-at-one;
 	};
 
 	dpll4_m6x2_mul_ck: dpll4_m6x2_mul_ck {
@@ -1633,65 +1696,10 @@
 		};
 	};
 
-	emu_src_mux_ck: emu_src_mux_ck@1140 {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clocks = <&sys_ck>, <&emu_core_alwon_ck>, <&emu_per_alwon_ck>, <&emu_mpu_alwon_ck>;
-		reg = <0x1140>;
-	};
-
 	emu_src_ck: emu_src_ck {
 		#clock-cells = <0>;
 		compatible = "ti,clkdm-gate-clock";
 		clocks = <&emu_src_mux_ck>;
-	};
-
-	pclk_fck: pclk_fck@1140 {
-		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clocks = <&emu_src_ck>;
-		ti,bit-shift = <8>;
-		ti,max-div = <7>;
-		reg = <0x1140>;
-		ti,index-starts-at-one;
-	};
-
-	pclkx2_fck: pclkx2_fck@1140 {
-		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clocks = <&emu_src_ck>;
-		ti,bit-shift = <6>;
-		ti,max-div = <3>;
-		reg = <0x1140>;
-		ti,index-starts-at-one;
-	};
-
-	atclk_fck: atclk_fck@1140 {
-		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clocks = <&emu_src_ck>;
-		ti,bit-shift = <4>;
-		ti,max-div = <3>;
-		reg = <0x1140>;
-		ti,index-starts-at-one;
-	};
-
-	traceclk_src_fck: traceclk_src_fck@1140 {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clocks = <&sys_ck>, <&emu_core_alwon_ck>, <&emu_per_alwon_ck>, <&emu_mpu_alwon_ck>;
-		ti,bit-shift = <2>;
-		reg = <0x1140>;
-	};
-
-	traceclk_fck: traceclk_fck@1140 {
-		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clocks = <&traceclk_src_fck>;
-		ti,bit-shift = <11>;
-		ti,max-div = <7>;
-		reg = <0x1140>;
-		ti,index-starts-at-one;
 	};
 
 	secure_32k_fck: secure_32k_fck {
