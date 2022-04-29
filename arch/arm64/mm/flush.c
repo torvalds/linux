@@ -86,7 +86,7 @@ void flush_dcache_page(struct page *page)
 	 * is reused (more details can refer to the comments above
 	 * page_fixed_fake_head()).
 	 */
-	if (hugetlb_free_vmemmap_enabled() && PageHuge(page))
+	if (hugetlb_optimize_vmemmap_enabled() && PageHuge(page))
 		page = compound_head(page);
 
 	if (test_bit(PG_dcache_clean, &page->flags))

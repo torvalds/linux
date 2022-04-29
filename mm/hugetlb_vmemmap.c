@@ -189,8 +189,8 @@
 #define RESERVE_VMEMMAP_SIZE		(RESERVE_VMEMMAP_NR << PAGE_SHIFT)
 
 DEFINE_STATIC_KEY_MAYBE(CONFIG_HUGETLB_PAGE_FREE_VMEMMAP_DEFAULT_ON,
-			hugetlb_free_vmemmap_enabled_key);
-EXPORT_SYMBOL(hugetlb_free_vmemmap_enabled_key);
+			hugetlb_optimize_vmemmap_key);
+EXPORT_SYMBOL(hugetlb_optimize_vmemmap_key);
 
 static int __init hugetlb_vmemmap_early_param(char *buf)
 {
@@ -204,9 +204,9 @@ static int __init hugetlb_vmemmap_early_param(char *buf)
 		return -EINVAL;
 
 	if (!strcmp(buf, "on"))
-		static_branch_enable(&hugetlb_free_vmemmap_enabled_key);
+		static_branch_enable(&hugetlb_optimize_vmemmap_key);
 	else if (!strcmp(buf, "off"))
-		static_branch_disable(&hugetlb_free_vmemmap_enabled_key);
+		static_branch_disable(&hugetlb_optimize_vmemmap_key);
 	else
 		return -EINVAL;
 
@@ -282,7 +282,7 @@ void __init hugetlb_vmemmap_init(struct hstate *h)
 	BUILD_BUG_ON(__NR_USED_SUBPAGE >=
 		     RESERVE_VMEMMAP_SIZE / sizeof(struct page));
 
-	if (!hugetlb_free_vmemmap_enabled())
+	if (!hugetlb_optimize_vmemmap_enabled())
 		return;
 
 	vmemmap_pages = (nr_pages * sizeof(struct page)) >> PAGE_SHIFT;
