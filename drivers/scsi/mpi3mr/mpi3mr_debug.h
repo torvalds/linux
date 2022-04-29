@@ -23,8 +23,8 @@
 #define MPI3_DEBUG_RESET		0x00000020
 #define MPI3_DEBUG_SCSI_ERROR		0x00000040
 #define MPI3_DEBUG_REPLY		0x00000080
-#define MPI3_DEBUG_IOCTL_ERROR		0x00008000
-#define MPI3_DEBUG_IOCTL_INFO		0x00010000
+#define MPI3_DEBUG_BSG_ERROR		0x00008000
+#define MPI3_DEBUG_BSG_INFO		0x00010000
 #define MPI3_DEBUG_SCSI_INFO		0x00020000
 #define MPI3_DEBUG			0x01000000
 #define MPI3_DEBUG_SG			0x02000000
@@ -110,15 +110,15 @@
 	} while (0)
 
 
-#define dprint_ioctl_info(ioc, fmt, ...) \
+#define dprint_bsg_info(ioc, fmt, ...) \
 	do { \
-		if (ioc->logging_level & MPI3_DEBUG_IOCTL_INFO) \
+		if (ioc->logging_level & MPI3_DEBUG_BSG_INFO) \
 			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
 	} while (0)
 
-#define dprint_ioctl_err(ioc, fmt, ...) \
+#define dprint_bsg_err(ioc, fmt, ...) \
 	do { \
-		if (ioc->logging_level & MPI3_DEBUG_IOCTL_ERROR) \
+		if (ioc->logging_level & MPI3_DEBUG_BSG_ERROR) \
 			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
 	} while (0)
 

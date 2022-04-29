@@ -89,7 +89,7 @@ extern int prot_mask;
 /* Reserved Host Tag definitions */
 #define MPI3MR_HOSTTAG_INVALID		0xFFFF
 #define MPI3MR_HOSTTAG_INITCMDS		1
-#define MPI3MR_HOSTTAG_IOCTLCMDS	2
+#define MPI3MR_HOSTTAG_BSG_CMDS		2
 #define MPI3MR_HOSTTAG_BLK_TMS		5
 
 #define MPI3MR_NUM_DEVRMCMD		16
@@ -202,10 +202,10 @@ enum mpi3mr_iocstate {
 enum mpi3mr_reset_reason {
 	MPI3MR_RESET_FROM_BRINGUP = 1,
 	MPI3MR_RESET_FROM_FAULT_WATCH = 2,
-	MPI3MR_RESET_FROM_IOCTL = 3,
+	MPI3MR_RESET_FROM_APP = 3,
 	MPI3MR_RESET_FROM_EH_HOS = 4,
 	MPI3MR_RESET_FROM_TM_TIMEOUT = 5,
-	MPI3MR_RESET_FROM_IOCTL_TIMEOUT = 6,
+	MPI3MR_RESET_FROM_APP_TIMEOUT = 6,
 	MPI3MR_RESET_FROM_MUR_FAILURE = 7,
 	MPI3MR_RESET_FROM_CTLR_CLEANUP = 8,
 	MPI3MR_RESET_FROM_CIACTIV_FAULT = 9,
@@ -698,6 +698,7 @@ struct scmd_priv {
  * @chain_bitmap_sz: Chain buffer allocator bitmap size
  * @chain_bitmap: Chain buffer allocator bitmap
  * @chain_buf_lock: Chain buffer list lock
+ * @bsg_cmds: Command tracker for BSG command
  * @host_tm_cmds: Command tracker for task management commands
  * @dev_rmhs_cmds: Command tracker for device removal commands
  * @evtack_cmds: Command tracker for event ack commands
@@ -729,6 +730,10 @@ struct scmd_priv {
  * @requested_poll_qcount: User requested poll queue count
  * @bsg_dev: BSG device structure
  * @bsg_queue: Request queue for BSG device
+ * @stop_bsgs: Stop BSG request flag
+ * @logdata_buf: Circular buffer to store log data entries
+ * @logdata_buf_idx: Index of entry in buffer to store
+ * @logdata_entry_sz: log data entry size
  */
 struct mpi3mr_ioc {
 	struct list_head list;
@@ -835,6 +840,7 @@ struct mpi3mr_ioc {
 	void *chain_bitmap;
 	spinlock_t chain_buf_lock;
 
+	struct mpi3mr_drv_cmd bsg_cmds;
 	struct mpi3mr_drv_cmd host_tm_cmds;
 	struct mpi3mr_drv_cmd dev_rmhs_cmds[MPI3MR_NUM_DEVRMCMD];
 	struct mpi3mr_drv_cmd evtack_cmds[MPI3MR_NUM_EVTACKCMD];
@@ -872,6 +878,10 @@ struct mpi3mr_ioc {
 
 	struct device *bsg_dev;
 	struct request_queue *bsg_queue;
+	u8 stop_bsgs;
+	u8 *logdata_buf;
+	u16 logdata_buf_idx;
+	u16 logdata_entry_sz;
 };
 
 /**
