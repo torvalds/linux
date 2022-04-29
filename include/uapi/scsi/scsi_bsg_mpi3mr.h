@@ -490,6 +490,14 @@ struct mpi3_nvme_encapsulated_error_reply {
 	__le32	nvme_completion_entry[4];
 };
 
+#define	MPI3MR_NVME_PRP_SIZE		8 /* PRP size */
+#define	MPI3MR_NVME_CMD_PRP1_OFFSET	24 /* PRP1 offset in NVMe cmd */
+#define	MPI3MR_NVME_CMD_PRP2_OFFSET	32 /* PRP2 offset in NVMe cmd */
+#define	MPI3MR_NVME_CMD_SGL_OFFSET	24 /* SGL offset in NVMe cmd */
+#define MPI3MR_NVME_DATA_FORMAT_PRP	0
+#define MPI3MR_NVME_DATA_FORMAT_SGL1	1
+#define MPI3MR_NVME_DATA_FORMAT_SGL2	2
+
 /* MPI3: task management related definitions */
 struct mpi3_scsi_task_mgmt_request {
 	__le16	host_tag;

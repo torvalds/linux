@@ -194,6 +194,24 @@ extern atomic64_t event_counter;
 #define MPI3MR_MAX_APP_XFER_SECTORS	(2048 + 512)
 
 /**
+ * struct mpi3mr_nvme_pt_sge -  Structure to store SGEs for NVMe
+ * Encapsulated commands.
+ *
+ * @base_addr: Physical address
+ * @length: SGE length
+ * @rsvd: Reserved
+ * @rsvd1: Reserved
+ * @sgl_type: sgl type
+ */
+struct mpi3mr_nvme_pt_sge {
+	u64 base_addr;
+	u32 length;
+	u16 rsvd;
+	u8 rsvd1;
+	u8 sgl_type;
+};
+
+/**
  * struct mpi3mr_buf_map -  local structure to
  * track kernel and user buffers associated with an BSG
  * structure.
@@ -746,6 +764,9 @@ struct scmd_priv {
  * @reset_waitq: Controller reset  wait queue
  * @prepare_for_reset: Prepare for reset event received
  * @prepare_for_reset_timeout_counter: Prepare for reset timeout
+ * @prp_list_virt: NVMe encapsulated PRP list virtual base
+ * @prp_list_dma: NVMe encapsulated PRP list DMA
+ * @prp_sz: NVME encapsulated PRP list size
  * @diagsave_timeout: Diagnostic information save timeout
  * @logging_level: Controller debug logging level
  * @flush_io_count: I/O count to flush after reset
@@ -900,6 +921,10 @@ struct mpi3mr_ioc {
 
 	u8 prepare_for_reset;
 	u16 prepare_for_reset_timeout_counter;
+
+	void *prp_list_virt;
+	dma_addr_t prp_list_dma;
+	u32 prp_sz;
 
 	u16 diagsave_timeout;
 	int logging_level;
