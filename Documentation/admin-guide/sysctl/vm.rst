@@ -62,6 +62,7 @@ Currently, these files are in /proc/sys/vm:
 - overcommit_memory
 - overcommit_ratio
 - page-cluster
+- page_lock_unfairness
 - panic_on_oom
 - percpu_pagelist_high_fraction
 - stat_interval
@@ -753,6 +754,14 @@ Lower values mean lower latencies for initial faults, but at the same time
 extra faults and I/O delays for following faults if they would have been part of
 that consecutive pages readahead would have brought in.
 
+
+page_lock_unfairness
+====================
+
+This value determines the number of times that the page lock can be
+stolen from under a waiter. After the lock is stolen the number of times
+specified in this file (default is 5), the "fair lock handoff" semantics
+will apply, and the waiter will only be awakened if the lock can be taken.
 
 panic_on_oom
 ============
