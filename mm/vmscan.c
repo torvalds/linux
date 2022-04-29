@@ -2117,8 +2117,8 @@ move:
 	 * Splice any skipped pages to the start of the LRU list. Note that
 	 * this disrupts the LRU order when reclaiming for lower zones but
 	 * we cannot splice to the tail. If we did then the SWAP_CLUSTER_MAX
-	 * scanning would soon rescan the same pages to skip and put the
-	 * system at risk of premature OOM.
+	 * scanning would soon rescan the same pages to skip and waste lots
+	 * of cpu cycles.
 	 */
 	if (!list_empty(&pages_skipped)) {
 		int zid;
