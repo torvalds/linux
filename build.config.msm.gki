@@ -25,6 +25,21 @@ TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI:-1}
 GKI_KMI_ENFORCED=1
 KMI_ENFORCED=1
 
+function sanity_check_abi() {
+	if [ -z "${GKI_BUILD_CONFIG}" ]; then
+		# When running build_abi.sh, mixed build is explicitly disabled
+		# In that case, turn on some options for trimming and strict mode
+		# which would normally be disabled because they conflict with
+		# mixed build
+		if [ "${VARIANT}" = gki ]; then
+			TRIM_NONLISTED_KMI=1
+			KMI_SYMBOL_LIST_STRICT_MODE=1
+		fi
+		return
+	fi
+}
+append_cmd POST_DEFCONFIG_CMDS 'sanity_check_abi'
+
 function build_defconfig_fragments() {
 	if [[ "${VARIANT}" =~ ^(gki|consolidate)$ ]]; then
 		apply_defconfig_fragment ${KERNEL_DIR}/arch/${ARCH}/configs/vendor/${MSM_ARCH}_GKI.config vendor/${MSM_ARCH}-gki_defconfig
