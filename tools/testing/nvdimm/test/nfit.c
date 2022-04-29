@@ -23,8 +23,6 @@
 #include "nfit_test.h"
 #include "../watermark.h"
 
-#include <asm/mce.h>
-
 /*
  * Generate an NFIT table to describe the following topology:
  *
