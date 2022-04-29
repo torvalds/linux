@@ -1359,7 +1359,7 @@ again:
 	 * make it uptodate.
 	 */
 	if (!PageUptodate(page)) {
-		btrfs_readpage(NULL, page);
+		btrfs_read_folio(NULL, page_folio(page));
 		lock_page(page);
 		if (page->mapping != mapping || !PagePrivate(page)) {
 			unlock_page(page);

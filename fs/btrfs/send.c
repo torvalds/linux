@@ -4991,7 +4991,7 @@ static int put_file_data(struct send_ctx *sctx, u64 offset, u32 len)
 		}
 
 		if (!PageUptodate(page)) {
-			btrfs_readpage(NULL, page);
+			btrfs_read_folio(NULL, page_folio(page));
 			lock_page(page);
 			if (!PageUptodate(page)) {
 				unlock_page(page);

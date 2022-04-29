@@ -1307,11 +1307,12 @@ static int prepare_uptodate_page(struct inode *inode,
 				 struct page *page, u64 pos,
 				 bool force_uptodate)
 {
+	struct folio *folio = page_folio(page);
 	int ret = 0;
 
 	if (((pos & (PAGE_SIZE - 1)) || force_uptodate) &&
 	    !PageUptodate(page)) {
-		ret = btrfs_readpage(NULL, page);
+		ret = btrfs_read_folio(NULL, folio);
 		if (ret)
 			return ret;
 		lock_page(page);
@@ -1321,7 +1322,7 @@ static int prepare_uptodate_page(struct inode *inode,
 		}
 
 		/*
-		 * Since btrfs_readpage() will unlock the page before it
+		 * Since btrfs_read_folio() will unlock the folio before it
 		 * returns, there is a window where btrfs_releasepage() can be
 		 * called to release the page.  Here we check both inode
 		 * mapping and PagePrivate() to make sure the page was not

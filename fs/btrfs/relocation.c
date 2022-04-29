@@ -1101,7 +1101,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 			continue;
 
 		/*
-		 * if we are modifying block in fs tree, wait for readpage
+		 * if we are modifying block in fs tree, wait for read_folio
 		 * to complete and drop the extent cache
 		 */
 		if (root->root_key.objectid != BTRFS_TREE_RELOC_OBJECTID) {
@@ -1563,7 +1563,7 @@ static int invalidate_extent_cache(struct btrfs_root *root,
 			end = (u64)-1;
 		}
 
-		/* the lock_extent waits for readpage to complete */
+		/* the lock_extent waits for read_folio to complete */
 		lock_extent(&BTRFS_I(inode)->io_tree, start, end);
 		btrfs_drop_extent_cache(BTRFS_I(inode), start, end, 1);
 		unlock_extent(&BTRFS_I(inode)->io_tree, start, end);
@@ -2818,7 +2818,7 @@ static noinline_for_stack int prealloc_file_extent_cluster(
 		 * Subpage can't handle page with DIRTY but without UPTODATE
 		 * bit as it can lead to the following deadlock:
 		 *
-		 * btrfs_readpage()
+		 * btrfs_read_folio()
 		 * | Page already *locked*
 		 * |- btrfs_lock_and_flush_ordered_range()
 		 *    |- btrfs_start_ordered_extent()
@@ -2972,7 +2972,7 @@ static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
 				last_index + 1 - page_index);
 
 	if (!PageUptodate(page)) {
-		btrfs_readpage(NULL, page);
+		btrfs_read_folio(NULL, page_folio(page));
 		lock_page(page);
 		if (!PageUptodate(page)) {
 			ret = -EIO;
