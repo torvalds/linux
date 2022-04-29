@@ -3674,8 +3674,17 @@ static void walt_irq_work(struct irq_work *irq_work)
 
 	cpumask_copy(&lock_cpus, cpu_possible_mask);
 
-	if (is_migration)
+	if (is_migration) {
 		irq_work_restrict_to_mig_clusters(&lock_cpus);
+
+		/*
+		 * if the notif_pending was handled by a previous
+		 * walt_irq_work invocation, there is no migration
+		 * work.
+		 */
+		if (cpumask_empty(&lock_cpus))
+			return;
+	}
 
 	for_each_cpu(cpu, &lock_cpus) {
 		if (level == 0)
