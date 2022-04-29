@@ -301,16 +301,6 @@
 		clock-frequency = <0x0>;
 	};
 
-	dpll3_m2_ck: dpll3_m2_ck@d40 {
-		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clocks = <&dpll3_ck>;
-		ti,bit-shift = <27>;
-		ti,max-div = <31>;
-		reg = <0x0d40>;
-		ti,index-starts-at-one;
-	};
-
 	core_ck: core_ck {
 		#clock-cells = <0>;
 		compatible = "fixed-factor-clock";
@@ -361,12 +351,46 @@
 		clock-div = <1>;
 	};
 
-	omap_96m_fck: omap_96m_fck@d40 {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clocks = <&cm_96m_fck>, <&sys_ck>;
-		ti,bit-shift = <6>;
-		reg = <0x0d40>;
+	/* CM_CLKSEL1_PLL */
+	clock@d40 {
+		compatible = "ti,clksel";
+		reg = <0xd40>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		dpll3_m2_ck: clock-dpll3-m2 {
+			#clock-cells = <0>;
+			compatible = "ti,divider-clock";
+			clock-output-names = "dpll3_m2_ck";
+			clocks = <&dpll3_ck>;
+			ti,bit-shift = <27>;
+			ti,max-div = <31>;
+			ti,index-starts-at-one;
+		};
+
+		omap_96m_fck: clock-omap-96m-fck {
+			#clock-cells = <0>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "omap_96m_fck";
+			clocks = <&cm_96m_fck>, <&sys_ck>;
+			ti,bit-shift = <6>;
+		};
+
+		omap_54m_fck: clock-omap-54m-fck {
+			#clock-cells = <0>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "omap_54m_fck";
+			clocks = <&dpll4_m3x2_ck>, <&sys_altclk>;
+			ti,bit-shift = <5>;
+		};
+
+		omap_48m_fck: clock-omap-48m-fck {
+			#clock-cells = <0>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "omap_48m_fck";
+			clocks = <&cm_96m_d2_fck>, <&sys_altclk>;
+			ti,bit-shift = <3>;
+		};
 	};
 
 	dpll4_m3_ck: dpll4_m3_ck@e40 {
@@ -396,28 +420,12 @@
 		ti,set-bit-to-disable;
 	};
 
-	omap_54m_fck: omap_54m_fck@d40 {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clocks = <&dpll4_m3x2_ck>, <&sys_altclk>;
-		ti,bit-shift = <5>;
-		reg = <0x0d40>;
-	};
-
 	cm_96m_d2_fck: cm_96m_d2_fck {
 		#clock-cells = <0>;
 		compatible = "fixed-factor-clock";
 		clocks = <&cm_96m_fck>;
 		clock-mult = <1>;
 		clock-div = <2>;
-	};
-
-	omap_48m_fck: omap_48m_fck@d40 {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clocks = <&cm_96m_d2_fck>, <&sys_altclk>;
-		ti,bit-shift = <3>;
-		reg = <0x0d40>;
 	};
 
 	omap_12m_fck: omap_12m_fck {
