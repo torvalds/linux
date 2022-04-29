@@ -5592,7 +5592,7 @@ static int ath11k_mac_mgmt_tx(struct ath11k *ar, struct sk_buff *skb,
 
 	skb_queue_tail(q, skb);
 	atomic_inc(&ar->num_pending_mgmt_tx);
-	queue_work(ar->ab->workqueue, &ar->wmi_mgmt_tx_work);
+	queue_work(ar->ab->workqueue_aux, &ar->wmi_mgmt_tx_work);
 
 	return 0;
 }
