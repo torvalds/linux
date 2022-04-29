@@ -2345,8 +2345,8 @@ out_clear:
  */
 static void __set_migration_target_nodes(void)
 {
-	nodemask_t next_pass	= NODE_MASK_NONE;
-	nodemask_t this_pass	= NODE_MASK_NONE;
+	nodemask_t next_pass;
+	nodemask_t this_pass;
 	nodemask_t used_targets = NODE_MASK_NONE;
 	int node, best_distance;
 
