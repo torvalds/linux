@@ -3305,7 +3305,92 @@ static int rtnl_group_changelink(const struct sk_buff *skb,
 static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
 			       const struct rtnl_link_ops *ops,
 			       struct nlattr **tb, struct nlattr **data,
-			       struct netlink_ext_ack *extack);
+			       struct netlink_ext_ack *extack)
+{
+	unsigned char name_assign_type = NET_NAME_USER;
+	struct net *net = sock_net(skb->sk);
+	struct net *dest_net, *link_net;
+	struct net_device *dev;
+	char ifname[IFNAMSIZ];
+	int err;
+
+	if (!ops->alloc && !ops->setup)
+		return -EOPNOTSUPP;
+
+	if (tb[IFLA_IFNAME]) {
+		nla_strscpy(ifname, tb[IFLA_IFNAME], IFNAMSIZ);
+	} else {
+		snprintf(ifname, IFNAMSIZ, "%s%%d", ops->kind);
+		name_assign_type = NET_NAME_ENUM;
+	}
+
+	dest_net = rtnl_link_get_net_capable(skb, net, tb, CAP_NET_ADMIN);
+	if (IS_ERR(dest_net))
+		return PTR_ERR(dest_net);
+
+	if (tb[IFLA_LINK_NETNSID]) {
+		int id = nla_get_s32(tb[IFLA_LINK_NETNSID]);
+
+		link_net = get_net_ns_by_id(dest_net, id);
+		if (!link_net) {
+			NL_SET_ERR_MSG(extack, "Unknown network namespace id");
+			err =  -EINVAL;
+			goto out;
+		}
+		err = -EPERM;
+		if (!netlink_ns_capable(skb, link_net->user_ns, CAP_NET_ADMIN))
+			goto out;
+	} else {
+		link_net = NULL;
+	}
+
+	dev = rtnl_create_link(link_net ? : dest_net, ifname,
+			       name_assign_type, ops, tb, extack);
+	if (IS_ERR(dev)) {
+		err = PTR_ERR(dev);
+		goto out;
+	}
+
+	dev->ifindex = ifm->ifi_index;
+
+	if (ops->newlink)
+		err = ops->newlink(link_net ? : net, dev, tb, data, extack);
+	else
+		err = register_netdevice(dev);
+	if (err < 0) {
+		free_netdev(dev);
+		goto out;
+	}
+
+	err = rtnl_configure_link(dev, ifm);
+	if (err < 0)
+		goto out_unregister;
+	if (link_net) {
+		err = dev_change_net_namespace(dev, dest_net, ifname);
+		if (err < 0)
+			goto out_unregister;
+	}
+	if (tb[IFLA_MASTER]) {
+		err = do_set_master(dev, nla_get_u32(tb[IFLA_MASTER]), extack);
+		if (err)
+			goto out_unregister;
+	}
+out:
+	if (link_net)
+		put_net(link_net);
+	put_net(dest_net);
+	return err;
+out_unregister:
+	if (ops->newlink) {
+		LIST_HEAD(list_kill);
+
+		ops->dellink(dev, &list_kill);
+		unregister_netdevice_many(&list_kill);
+	} else {
+		unregister_netdevice(dev);
+	}
+	goto out;
+}
 
 struct rtnl_newlink_tbs {
 	struct nlattr *tb[IFLA_MAX + 1];
@@ -3487,96 +3572,6 @@ replay:
 	}
 
 	return rtnl_newlink_create(skb, ifm, ops, tb, data, extack);
-}
-
-static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
-			       const struct rtnl_link_ops *ops,
-			       struct nlattr **tb, struct nlattr **data,
-			       struct netlink_ext_ack *extack)
-{
-	unsigned char name_assign_type = NET_NAME_USER;
-	struct net *net = sock_net(skb->sk);
-	struct net *dest_net, *link_net;
-	struct net_device *dev;
-	char ifname[IFNAMSIZ];
-	int err;
-
-	if (!ops->alloc && !ops->setup)
-		return -EOPNOTSUPP;
-
-	if (tb[IFLA_IFNAME]) {
-		nla_strscpy(ifname, tb[IFLA_IFNAME], IFNAMSIZ);
-	} else {
-		snprintf(ifname, IFNAMSIZ, "%s%%d", ops->kind);
-		name_assign_type = NET_NAME_ENUM;
-	}
-
-	dest_net = rtnl_link_get_net_capable(skb, net, tb, CAP_NET_ADMIN);
-	if (IS_ERR(dest_net))
-		return PTR_ERR(dest_net);
-
-	if (tb[IFLA_LINK_NETNSID]) {
-		int id = nla_get_s32(tb[IFLA_LINK_NETNSID]);
-
-		link_net = get_net_ns_by_id(dest_net, id);
-		if (!link_net) {
-			NL_SET_ERR_MSG(extack, "Unknown network namespace id");
-			err =  -EINVAL;
-			goto out;
-		}
-		err = -EPERM;
-		if (!netlink_ns_capable(skb, link_net->user_ns, CAP_NET_ADMIN))
-			goto out;
-	} else {
-		link_net = NULL;
-	}
-
-	dev = rtnl_create_link(link_net ? : dest_net, ifname,
-			       name_assign_type, ops, tb, extack);
-	if (IS_ERR(dev)) {
-		err = PTR_ERR(dev);
-		goto out;
-	}
-
-	dev->ifindex = ifm->ifi_index;
-
-	if (ops->newlink)
-		err = ops->newlink(link_net ? : net, dev, tb, data, extack);
-	else
-		err = register_netdevice(dev);
-	if (err < 0) {
-		free_netdev(dev);
-		goto out;
-	}
-
-	err = rtnl_configure_link(dev, ifm);
-	if (err < 0)
-		goto out_unregister;
-	if (link_net) {
-		err = dev_change_net_namespace(dev, dest_net, ifname);
-		if (err < 0)
-			goto out_unregister;
-	}
-	if (tb[IFLA_MASTER]) {
-		err = do_set_master(dev, nla_get_u32(tb[IFLA_MASTER]), extack);
-		if (err)
-			goto out_unregister;
-	}
-out:
-	if (link_net)
-		put_net(link_net);
-	put_net(dest_net);
-	return err;
-out_unregister:
-	if (ops->newlink) {
-		LIST_HEAD(list_kill);
-
-		ops->dellink(dev, &list_kill);
-		unregister_netdevice_many(&list_kill);
-	} else {
-		unregister_netdevice(dev);
-	}
-	goto out;
 }
 
 static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
