@@ -454,4 +454,121 @@ struct mpi3mr_bsg_packet {
 		struct mpi3mr_bsg_mptcmd mptcmd;
 	} cmd;
 };
+
+
+/* MPI3: NVMe Encasulation related definitions */
+#ifndef MPI3_NVME_ENCAP_CMD_MAX
+#define MPI3_NVME_ENCAP_CMD_MAX               (1)
+#endif
+
+struct mpi3_nvme_encapsulated_request {
+	__le16	host_tag;
+	__u8	ioc_use_only02;
+	__u8	function;
+	__le16	ioc_use_only04;
+	__u8	ioc_use_only06;
+	__u8	msg_flags;
+	__le16	change_count;
+	__le16	dev_handle;
+	__le16	encapsulated_command_length;
+	__le16	flags;
+	__le32	data_length;
+	__le32  reserved14[3];
+	__le32	command[MPI3_NVME_ENCAP_CMD_MAX];
+};
+
+struct mpi3_nvme_encapsulated_error_reply {
+	__le16	host_tag;
+	__u8	ioc_use_only02;
+	__u8	function;
+	__le16	ioc_use_only04;
+	__u8	ioc_use_only06;
+	__u8	msg_flags;
+	__le16	ioc_use_only08;
+	__le16	ioc_status;
+	__le32	ioc_log_info;
+	__le32	nvme_completion_entry[4];
+};
+
+/* MPI3: task management related definitions */
+struct mpi3_scsi_task_mgmt_request {
+	__le16	host_tag;
+	__u8	ioc_use_only02;
+	__u8	function;
+	__le16	ioc_use_only04;
+	__u8	ioc_use_only06;
+	__u8    msg_flags;
+	__le16	change_count;
+	__le16	dev_handle;
+	__le16	task_host_tag;
+	__u8	task_type;
+	__u8	reserved0f;
+	__le16	task_request_queue_id;
+	__le16	reserved12;
+	__le32	reserved14;
+	__u8	lun[8];
+};
+
+#define MPI3_SCSITASKMGMT_MSGFLAGS_DO_NOT_SEND_TASK_IU      (0x08)
+#define MPI3_SCSITASKMGMT_TASKTYPE_ABORT_TASK               (0x01)
+#define MPI3_SCSITASKMGMT_TASKTYPE_ABORT_TASK_SET           (0x02)
+#define MPI3_SCSITASKMGMT_TASKTYPE_TARGET_RESET             (0x03)
+#define MPI3_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET       (0x05)
+#define MPI3_SCSITASKMGMT_TASKTYPE_CLEAR_TASK_SET           (0x06)
+#define MPI3_SCSITASKMGMT_TASKTYPE_QUERY_TASK               (0x07)
+#define MPI3_SCSITASKMGMT_TASKTYPE_CLEAR_ACA                (0x08)
+#define MPI3_SCSITASKMGMT_TASKTYPE_QUERY_TASK_SET           (0x09)
+#define MPI3_SCSITASKMGMT_TASKTYPE_QUERY_ASYNC_EVENT        (0x0a)
+#define MPI3_SCSITASKMGMT_TASKTYPE_I_T_NEXUS_RESET          (0x0b)
+struct mpi3_scsi_task_mgmt_reply {
+	__le16	host_tag;
+	__u8	ioc_use_only02;
+	__u8	function;
+	__le16  ioc_use_only04;
+	__u8	ioc_use_only06;
+	__u8	msg_flags;
+	__le16	ioc_use_only08;
+	__le16	ioc_status;
+	__le32	ioc_log_info;
+	__le32	termination_count;
+	__le32	response_data;
+	__le32	reserved18;
+};
+
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_COMPLETE                (0x00)
+#define MPI3_SCSITASKMGMT_RSPCODE_INVALID_FRAME              (0x02)
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_FUNCTION_NOT_SUPPORTED  (0x04)
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_FAILED                  (0x05)
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_SUCCEEDED               (0x08)
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_INVALID_LUN             (0x09)
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_OVERLAPPED_TAG          (0x0a)
+#define MPI3_SCSITASKMGMT_RSPCODE_IO_QUEUED_ON_IOC           (0x80)
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_NVME_DENIED             (0x81)
+
+/* MPI3: PEL related definitions */
+#define MPI3_PEL_LOCALE_FLAGS_NON_BLOCKING_BOOT_EVENT   (0x0200)
+#define MPI3_PEL_LOCALE_FLAGS_BLOCKING_BOOT_EVENT       (0x0100)
+#define MPI3_PEL_LOCALE_FLAGS_PCIE                      (0x0080)
+#define MPI3_PEL_LOCALE_FLAGS_CONFIGURATION             (0x0040)
+#define MPI3_PEL_LOCALE_FLAGS_CONTROLER                 (0x0020)
+#define MPI3_PEL_LOCALE_FLAGS_SAS                       (0x0010)
+#define MPI3_PEL_LOCALE_FLAGS_EPACK                     (0x0008)
+#define MPI3_PEL_LOCALE_FLAGS_ENCLOSURE                 (0x0004)
+#define MPI3_PEL_LOCALE_FLAGS_PD                        (0x0002)
+#define MPI3_PEL_LOCALE_FLAGS_VD                        (0x0001)
+#define MPI3_PEL_CLASS_DEBUG                            (0x00)
+#define MPI3_PEL_CLASS_PROGRESS                         (0x01)
+#define MPI3_PEL_CLASS_INFORMATIONAL                    (0x02)
+#define MPI3_PEL_CLASS_WARNING                          (0x03)
+#define MPI3_PEL_CLASS_CRITICAL                         (0x04)
+#define MPI3_PEL_CLASS_FATAL                            (0x05)
+#define MPI3_PEL_CLASS_FAULT                            (0x06)
+
+/* MPI3: Function definitions */
+#define MPI3_BSG_FUNCTION_MGMT_PASSTHROUGH              (0x0a)
+#define MPI3_BSG_FUNCTION_SCSI_IO                       (0x20)
+#define MPI3_BSG_FUNCTION_SCSI_TASK_MGMT                (0x21)
+#define MPI3_BSG_FUNCTION_SMP_PASSTHROUGH               (0x22)
+#define MPI3_BSG_FUNCTION_NVME_ENCAPSULATED             (0x24)
+
 #endif
