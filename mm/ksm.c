@@ -638,6 +638,9 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
 			ksm_pages_sharing--;
 		else
 			ksm_pages_shared--;
+
+		rmap_item->mm->ksm_merging_pages--;
+
 		VM_BUG_ON(stable_node->rmap_hlist_len <= 0);
 		stable_node->rmap_hlist_len--;
 		put_anon_vma(rmap_item->anon_vma);
@@ -785,6 +788,9 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 			ksm_pages_sharing--;
 		else
 			ksm_pages_shared--;
+
+		rmap_item->mm->ksm_merging_pages--;
+
 		VM_BUG_ON(stable_node->rmap_hlist_len <= 0);
 		stable_node->rmap_hlist_len--;
 
@@ -2007,6 +2013,8 @@ static void stable_tree_append(struct rmap_item *rmap_item,
 		ksm_pages_sharing++;
 	else
 		ksm_pages_shared++;
+
+	rmap_item->mm->ksm_merging_pages++;
 }
 
 /*
