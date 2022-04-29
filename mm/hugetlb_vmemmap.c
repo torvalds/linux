@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Free some vmemmap pages of HugeTLB
+ * Optimize vmemmap pages associated with HugeTLB
  *
  * Copyright (c) 2020, Bytedance. All rights reserved.
  *
@@ -192,7 +192,7 @@ DEFINE_STATIC_KEY_MAYBE(CONFIG_HUGETLB_PAGE_FREE_VMEMMAP_DEFAULT_ON,
 			hugetlb_free_vmemmap_enabled_key);
 EXPORT_SYMBOL(hugetlb_free_vmemmap_enabled_key);
 
-static int __init early_hugetlb_free_vmemmap_param(char *buf)
+static int __init hugetlb_vmemmap_early_param(char *buf)
 {
 	/* We cannot optimize if a "struct page" crosses page boundaries. */
 	if (!is_power_of_2(sizeof(struct page))) {
@@ -212,29 +212,26 @@ static int __init early_hugetlb_free_vmemmap_param(char *buf)
 
 	return 0;
 }
-early_param("hugetlb_free_vmemmap", early_hugetlb_free_vmemmap_param);
-
-static inline unsigned long free_vmemmap_pages_size_per_hpage(struct hstate *h)
-{
-	return (unsigned long)free_vmemmap_pages_per_hpage(h) << PAGE_SHIFT;
-}
+early_param("hugetlb_free_vmemmap", hugetlb_vmemmap_early_param);
 
 /*
  * Previously discarded vmemmap pages will be allocated and remapping
  * after this function returns zero.
  */
-int alloc_huge_page_vmemmap(struct hstate *h, struct page *head)
+int hugetlb_vmemmap_alloc(struct hstate *h, struct page *head)
 {
 	int ret;
 	unsigned long vmemmap_addr = (unsigned long)head;
-	unsigned long vmemmap_end, vmemmap_reuse;
+	unsigned long vmemmap_end, vmemmap_reuse, vmemmap_pages;
 
 	if (!HPageVmemmapOptimized(head))
 		return 0;
 
-	vmemmap_addr += RESERVE_VMEMMAP_SIZE;
-	vmemmap_end = vmemmap_addr + free_vmemmap_pages_size_per_hpage(h);
-	vmemmap_reuse = vmemmap_addr - PAGE_SIZE;
+	vmemmap_addr	+= RESERVE_VMEMMAP_SIZE;
+	vmemmap_pages	= hugetlb_optimize_vmemmap_pages(h);
+	vmemmap_end	= vmemmap_addr + (vmemmap_pages << PAGE_SHIFT);
+	vmemmap_reuse	= vmemmap_addr - PAGE_SIZE;
+
 	/*
 	 * The pages which the vmemmap virtual address range [@vmemmap_addr,
 	 * @vmemmap_end) are mapped to are freed to the buddy allocator, and
@@ -250,17 +247,18 @@ int alloc_huge_page_vmemmap(struct hstate *h, struct page *head)
 	return ret;
 }
 
-void free_huge_page_vmemmap(struct hstate *h, struct page *head)
+void hugetlb_vmemmap_free(struct hstate *h, struct page *head)
 {
 	unsigned long vmemmap_addr = (unsigned long)head;
-	unsigned long vmemmap_end, vmemmap_reuse;
+	unsigned long vmemmap_end, vmemmap_reuse, vmemmap_pages;
 
-	if (!free_vmemmap_pages_per_hpage(h))
+	vmemmap_pages = hugetlb_optimize_vmemmap_pages(h);
+	if (!vmemmap_pages)
 		return;
 
-	vmemmap_addr += RESERVE_VMEMMAP_SIZE;
-	vmemmap_end = vmemmap_addr + free_vmemmap_pages_size_per_hpage(h);
-	vmemmap_reuse = vmemmap_addr - PAGE_SIZE;
+	vmemmap_addr	+= RESERVE_VMEMMAP_SIZE;
+	vmemmap_end	= vmemmap_addr + (vmemmap_pages << PAGE_SHIFT);
+	vmemmap_reuse	= vmemmap_addr - PAGE_SIZE;
 
 	/*
 	 * Remap the vmemmap virtual address range [@vmemmap_addr, @vmemmap_end)
@@ -297,8 +295,8 @@ void __init hugetlb_vmemmap_init(struct hstate *h)
 	 * hugetlbpage.rst for more details.
 	 */
 	if (likely(vmemmap_pages > RESERVE_VMEMMAP_NR))
-		h->nr_free_vmemmap_pages = vmemmap_pages - RESERVE_VMEMMAP_NR;
+		h->optimize_vmemmap_pages = vmemmap_pages - RESERVE_VMEMMAP_NR;
 
-	pr_info("can free %d vmemmap pages for %s\n", h->nr_free_vmemmap_pages,
-		h->name);
+	pr_info("can optimize %d vmemmap pages for %s\n",
+		h->optimize_vmemmap_pages, h->name);
 }
