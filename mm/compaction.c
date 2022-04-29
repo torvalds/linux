@@ -599,13 +599,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 		if (!PageBuddy(page))
 			goto isolate_fail;
 
-		/*
-		 * If we already hold the lock, we can skip some rechecking.
-		 * Note that if we hold the lock now, checked_pageblock was
-		 * already set in some previous iteration (or strict is true),
-		 * so it is correct to skip the suitable migration target
-		 * recheck as well.
-		 */
+		/* If we already hold the lock, we can skip some rechecking. */
 		if (!locked) {
 			locked = compact_lock_irqsave(&cc->zone->lock,
 								&flags, cc);
