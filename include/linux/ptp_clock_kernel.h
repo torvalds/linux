@@ -321,6 +321,10 @@ static inline int ptp_clock_index(struct ptp_clock *ptp)
 static inline int ptp_find_pin(struct ptp_clock *ptp,
 			       enum ptp_pin_function func, unsigned int chan)
 { return -1; }
+static inline int ptp_find_pin_unlocked(struct ptp_clock *ptp,
+					enum ptp_pin_function func,
+					unsigned int chan)
+{ return -1; }
 static inline int ptp_schedule_worker(struct ptp_clock *ptp,
 				      unsigned long delay)
 { return -EOPNOTSUPP; }
