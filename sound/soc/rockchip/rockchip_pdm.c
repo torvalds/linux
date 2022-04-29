@@ -418,6 +418,7 @@ static int rockchip_pdm_runtime_suspend(struct device *dev)
 {
 	struct rk_pdm_dev *pdm = dev_get_drvdata(dev);
 
+	regcache_cache_only(pdm->regmap, true);
 	clk_disable_unprepare(pdm->clk);
 	clk_disable_unprepare(pdm->hclk);
 
@@ -441,6 +442,13 @@ static int rockchip_pdm_runtime_resume(struct device *dev)
 		return ret;
 	}
 
+	regcache_cache_only(pdm->regmap, false);
+	regcache_mark_dirty(pdm->regmap);
+	ret = regcache_sync(pdm->regmap);
+	if (ret) {
+		clk_disable_unprepare(pdm->clk);
+		clk_disable_unprepare(pdm->hclk);
+	}
 	return 0;
 }
 
