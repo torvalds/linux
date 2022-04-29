@@ -133,6 +133,9 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
 		KSM_SWPIN_COPY,
 #endif
 #endif
+#ifdef CONFIG_KSM
+		COW_KSM,
+#endif
 #ifdef CONFIG_X86
 		DIRECT_MAP_LEVEL2_SPLIT,
 		DIRECT_MAP_LEVEL3_SPLIT,

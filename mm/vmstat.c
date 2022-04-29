@@ -1393,6 +1393,9 @@ const char * const vmstat_text[] = {
 	"ksm_swpin_copy",
 #endif
 #endif
+#ifdef CONFIG_KSM
+	"cow_ksm",
+#endif
 #ifdef CONFIG_X86
 	"direct_map_level2_splits",
 	"direct_map_level3_splits",
