@@ -74,7 +74,6 @@ struct vfio_group {
 	struct list_head		vfio_next;
 	struct list_head		container_next;
 	atomic_t			opened;
-	wait_queue_head_t		container_q;
 	enum vfio_group_type		type;
 	unsigned int			dev_counter;
 	struct kvm			*kvm;
@@ -363,7 +362,6 @@ static struct vfio_group *vfio_group_alloc(struct iommu_group *iommu_group,
 	refcount_set(&group->users, 1);
 	INIT_LIST_HEAD(&group->device_list);
 	mutex_init(&group->device_lock);
-	init_waitqueue_head(&group->container_q);
 	group->iommu_group = iommu_group;
 	/* put in vfio_group_release() */
 	iommu_group_ref_get(iommu_group);
@@ -684,23 +682,6 @@ void vfio_unregister_group_dev(struct vfio_device *device)
 	group->dev_counter--;
 	mutex_unlock(&group->device_lock);
 
-	/*
-	 * In order to support multiple devices per group, devices can be
-	 * plucked from the group while other devices in the group are still
-	 * in use.  The container persists with this group and those remaining
-	 * devices still attached.  If the user creates an isolation violation
-	 * by binding this device to another driver while the group is still in
-	 * use, that's their fault.  However, in the case of removing the last,
-	 * or potentially the only, device in the group there can be no other
-	 * in-use devices in the group.  The user has done their due diligence
-	 * and we should lay no claims to those devices.  In order to do that,
-	 * we need to make sure the group is detached from the container.
-	 * Without this stall, we're potentially racing with a user process
-	 * that may attempt to immediately bind this device to another driver.
-	 */
-	if (list_empty(&group->device_list))
-		wait_event(group->container_q, !group->container);
-
 	if (group->type == VFIO_NO_IOMMU || group->type == VFIO_EMULATED_IOMMU)
 		iommu_group_remove_device(device->dev);
 
@@ -945,7 +926,6 @@ static void __vfio_group_unset_container(struct vfio_group *group)
 	iommu_group_release_dma_owner(group->iommu_group);
 
 	group->container = NULL;
-	wake_up(&group->container_q);
 	list_del(&group->container_next);
 
 	/* Detaching the last group deprivileges a container, remove iommu */
