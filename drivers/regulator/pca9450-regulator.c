@@ -174,6 +174,14 @@ static int buck_set_dvs(const struct regulator_desc *desc,
 		}
 	}
 
+	if (ret == 0) {
+		struct pca9450_regulator_desc *regulator = container_of(desc,
+					struct pca9450_regulator_desc, desc);
+
+		/* Enable DVS control through PMIC_STBY_REQ for this BUCK */
+		ret = regmap_update_bits(regmap, regulator->desc.enable_reg,
+					 BUCK1_DVS_CTRL, BUCK1_DVS_CTRL);
+	}
 	return ret;
 }
 
