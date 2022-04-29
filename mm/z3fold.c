@@ -520,6 +520,8 @@ static void __release_z3fold_page(struct z3fold_header *zhdr, bool locked)
 	list_add(&zhdr->buddy, &pool->stale);
 	queue_work(pool->release_wq, &pool->work);
 	spin_unlock(&pool->stale_lock);
+
+	atomic64_dec(&pool->pages_nr);
 }
 
 static void release_z3fold_page(struct kref *ref)
@@ -737,13 +739,9 @@ static struct z3fold_header *compact_single_buddy(struct z3fold_header *zhdr)
 	return new_zhdr;
 
 out_fail:
-	if (new_zhdr) {
-		if (kref_put(&new_zhdr->refcount, release_z3fold_page_locked))
-			atomic64_dec(&pool->pages_nr);
-		else {
-			add_to_unbuddied(pool, new_zhdr);
-			z3fold_page_unlock(new_zhdr);
-		}
+	if (new_zhdr && !kref_put(&new_zhdr->refcount, release_z3fold_page_locked)) {
+		add_to_unbuddied(pool, new_zhdr);
+		z3fold_page_unlock(new_zhdr);
 	}
 	return NULL;
 
@@ -816,10 +814,8 @@ static void do_compact_page(struct z3fold_header *zhdr, bool locked)
 	list_del_init(&zhdr->buddy);
 	spin_unlock(&pool->lock);
 
-	if (kref_put(&zhdr->refcount, release_z3fold_page_locked)) {
-		atomic64_dec(&pool->pages_nr);
+	if (kref_put(&zhdr->refcount, release_z3fold_page_locked))
 		return;
-	}
 
 	if (test_bit(PAGE_STALE, &page->private) ||
 	    test_and_set_bit(PAGE_CLAIMED, &page->private)) {
@@ -829,9 +825,7 @@ static void do_compact_page(struct z3fold_header *zhdr, bool locked)
 
 	if (!zhdr->foreign_handles && buddy_single(zhdr) &&
 	    zhdr->mapped_count == 0 && compact_single_buddy(zhdr)) {
-		if (kref_put(&zhdr->refcount, release_z3fold_page_locked))
-			atomic64_dec(&pool->pages_nr);
-		else {
+		if (!kref_put(&zhdr->refcount, release_z3fold_page_locked)) {
 			clear_bit(PAGE_CLAIMED, &page->private);
 			z3fold_page_unlock(zhdr);
 		}
@@ -1089,10 +1083,8 @@ retry:
 		if (zhdr) {
 			bud = get_free_buddy(zhdr, chunks);
 			if (bud == HEADLESS) {
-				if (kref_put(&zhdr->refcount,
+				if (!kref_put(&zhdr->refcount,
 					     release_z3fold_page_locked))
-					atomic64_dec(&pool->pages_nr);
-				else
 					z3fold_page_unlock(zhdr);
 				pr_err("No free chunks in unbuddied\n");
 				WARN_ON(1);
@@ -1239,10 +1231,8 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 
 	if (!page_claimed)
 		free_handle(handle, zhdr);
-	if (kref_put(&zhdr->refcount, release_z3fold_page_locked_list)) {
-		atomic64_dec(&pool->pages_nr);
+	if (kref_put(&zhdr->refcount, release_z3fold_page_locked_list))
 		return;
-	}
 	if (page_claimed) {
 		/* the page has not been claimed by us */
 		put_z3fold_header(zhdr);
@@ -1353,9 +1343,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
 				break;
 			}
 			if (!z3fold_page_trylock(zhdr)) {
-				if (kref_put(&zhdr->refcount,
-						release_z3fold_page))
-					atomic64_dec(&pool->pages_nr);
+				kref_put(&zhdr->refcount, release_z3fold_page);
 				zhdr = NULL;
 				continue; /* can't evict at this point */
 			}
@@ -1366,10 +1354,8 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
 			 */
 			if (zhdr->foreign_handles ||
 			    test_and_set_bit(PAGE_CLAIMED, &page->private)) {
-				if (kref_put(&zhdr->refcount,
+				if (!kref_put(&zhdr->refcount,
 						release_z3fold_page_locked))
-					atomic64_dec(&pool->pages_nr);
-				else
 					z3fold_page_unlock(zhdr);
 				zhdr = NULL;
 				continue; /* can't evict such page */
@@ -1447,7 +1433,6 @@ next:
 			if (kref_put(&zhdr->refcount,
 					release_z3fold_page_locked)) {
 				kmem_cache_free(pool->c_handle, slots);
-				atomic64_dec(&pool->pages_nr);
 				return 0;
 			}
 			/*
@@ -1669,10 +1654,8 @@ static void z3fold_page_putback(struct page *page)
 	if (!list_empty(&zhdr->buddy))
 		list_del_init(&zhdr->buddy);
 	INIT_LIST_HEAD(&page->lru);
-	if (kref_put(&zhdr->refcount, release_z3fold_page_locked)) {
-		atomic64_dec(&pool->pages_nr);
+	if (kref_put(&zhdr->refcount, release_z3fold_page_locked))
 		return;
-	}
 	spin_lock(&pool->lock);
 	list_add(&page->lru, &pool->lru);
 	spin_unlock(&pool->lock);
