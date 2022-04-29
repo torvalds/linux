@@ -162,22 +162,32 @@ echo "------------------------------------------------------"
 echo "running: gup_test -u # get_user_pages_fast() benchmark"
 echo "------------------------------------------------------"
 ./gup_test -u
-if [ $? -ne 0 ]; then
+ret_val=$?
+
+if [ $ret_val -eq 0 ]; then
+	echo "[PASS]"
+elif [ $ret_val -eq $ksft_skip ]; then
+	 echo "[SKIP]"
+	 exitcode=$ksft_skip
+else
 	echo "[FAIL]"
 	exitcode=1
-else
-	echo "[PASS]"
 fi
 
 echo "------------------------------------------------------"
 echo "running: gup_test -a # pin_user_pages_fast() benchmark"
 echo "------------------------------------------------------"
 ./gup_test -a
-if [ $? -ne 0 ]; then
+ret_val=$?
+
+if [ $ret_val -eq 0 ]; then
+	echo "[PASS]"
+elif [ $ret_val -eq $ksft_skip ]; then
+	 echo "[SKIP]"
+	 exitcode=$ksft_skip
+else
 	echo "[FAIL]"
 	exitcode=1
-else
-	echo "[PASS]"
 fi
 
 echo "------------------------------------------------------------"
@@ -185,11 +195,16 @@ echo "# Dump pages 0, 19, and 4096, using pin_user_pages:"
 echo "running: gup_test -ct -F 0x1 0 19 0x1000 # dump_page() test"
 echo "------------------------------------------------------------"
 ./gup_test -ct -F 0x1 0 19 0x1000
-if [ $? -ne 0 ]; then
+ret_val=$?
+
+if [ $ret_val -eq 0 ]; then
+	echo "[PASS]"
+elif [ $ret_val -eq $ksft_skip ]; then
+	 echo "[SKIP]"
+	 exitcode=$ksft_skip
+else
 	echo "[FAIL]"
 	exitcode=1
-else
-	echo "[PASS]"
 fi
 
 echo "-------------------"
