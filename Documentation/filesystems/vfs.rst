@@ -656,7 +656,7 @@ by memory-mapping the page.  Data is written into the address space by
 the application, and then written-back to storage typically in whole
 pages, however the address_space has finer control of write sizes.
 
-The read process essentially only requires 'readpage'.  The write
+The read process essentially only requires 'read_folio'.  The write
 process is more complicated and uses write_begin/write_end or
 dirty_folio to write data into the address_space, and writepage and
 writepages to writeback data to storage.
@@ -722,7 +722,7 @@ cache in your filesystem.  The following members are defined:
 
 	struct address_space_operations {
 		int (*writepage)(struct page *page, struct writeback_control *wbc);
-		int (*readpage)(struct file *, struct page *);
+		int (*read_folio)(struct file *, struct folio *);
 		int (*writepages)(struct address_space *, struct writeback_control *);
 		bool (*dirty_folio)(struct address_space *, struct folio *);
 		void (*readahead)(struct readahead_control *);
@@ -772,14 +772,14 @@ cache in your filesystem.  The following members are defined:
 
 	See the file "Locking" for more details.
 
-``readpage``
-	called by the VM to read a page from backing store.  The page
-	will be Locked when readpage is called, and should be unlocked
-	and marked uptodate once the read completes.  If ->readpage
-	discovers that it needs to unlock the page for some reason, it
-	can do so, and then return AOP_TRUNCATED_PAGE.  In this case,
-	the page will be relocated, relocked and if that all succeeds,
-	->readpage will be called again.
+``read_folio``
+	called by the VM to read a folio from backing store.  The folio
+	will be locked when read_folio is called, and should be unlocked
+	and marked uptodate once the read completes.  If ->read_folio
+	discovers that it cannot perform the I/O at this time, it can
+        unlock the folio and return AOP_TRUNCATED_PAGE.  In this case,
+	the folio will be looked up again, relocked and if that all succeeds,
+	->read_folio will be called again.
 
 ``writepages``
 	called by the VM to write out pages associated with the

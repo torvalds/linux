@@ -237,7 +237,7 @@ address_space_operations
 prototypes::
 
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
-	int (*readpage)(struct file *, struct page *);
+	int (*read_folio)(struct file *, struct folio *);
 	int (*writepages)(struct address_space *, struct writeback_control *);
 	bool (*dirty_folio)(struct address_space *, struct folio *folio);
 	void (*readahead)(struct readahead_control *);
@@ -268,7 +268,7 @@ locking rules:
 ops			PageLocked(page)	 i_rwsem	invalidate_lock
 ======================	======================== =========	===============
 writepage:		yes, unlocks (see below)
-readpage:		yes, unlocks				shared
+read_folio:		yes, unlocks				shared
 writepages:
 dirty_folio		maybe
 readahead:		yes, unlocks				shared
@@ -289,13 +289,13 @@ swap_activate:		no
 swap_deactivate:	no
 ======================	======================== =========	===============
 
-->write_begin(), ->write_end() and ->readpage() may be called from
+->write_begin(), ->write_end() and ->read_folio() may be called from
 the request handler (/dev/loop).
 
-->readpage() unlocks the page, either synchronously or via I/O
+->read_folio() unlocks the folio, either synchronously or via I/O
 completion.
 
-->readahead() unlocks the pages that I/O is attempted on like ->readpage().
+->readahead() unlocks the folios that I/O is attempted on like ->read_folio().
 
 ->writepage() is used for two purposes: for "memory cleansing" and for
 "sync".  These are quite different operations and the behaviour may differ
