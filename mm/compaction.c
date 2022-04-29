@@ -1532,7 +1532,7 @@ fast_isolate_freepages(struct compact_control *cc)
 			 * not found, be pessimistic for direct compaction
 			 * and use the min mark.
 			 */
-			if (highest) {
+			if (highest >= min_pfn) {
 				page = pfn_to_page(highest);
 				cc->free_pfn = highest;
 			} else {
