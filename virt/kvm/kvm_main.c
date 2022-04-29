@@ -2745,9 +2745,6 @@ EXPORT_SYMBOL_GPL(gfn_to_page);
 
 void kvm_release_pfn(kvm_pfn_t pfn, bool dirty)
 {
-	if (pfn == 0)
-		return;
-
 	if (dirty)
 		kvm_release_pfn_dirty(pfn);
 	else
