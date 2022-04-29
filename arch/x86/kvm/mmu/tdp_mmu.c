@@ -1751,7 +1751,7 @@ static void zap_collapsible_spte_range(struct kvm *kvm,
 		 */
 		pfn = spte_to_pfn(iter.old_spte);
 
-		if (kvm_is_reserved_pfn(pfn))
+		if (!kvm_pfn_to_refcounted_page(pfn))
 			continue;
 
 		max_mapping_level = kvm_mmu_max_mapping_level(kvm, slot,

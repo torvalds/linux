@@ -182,19 +182,36 @@ bool kvm_is_zone_device_page(struct page *page)
 	return is_zone_device_page(page);
 }
 
-bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
+/*
+ * Returns a 'struct page' if the pfn is "valid" and backed by a refcounted
+ * page, NULL otherwise.  Note, the list of refcounted PG_reserved page types
+ * is likely incomplete, it has been compiled purely through people wanting to
+ * back guest with a certain type of memory and encountering issues.
+ */
+struct page *kvm_pfn_to_refcounted_page(kvm_pfn_t pfn)
 {
+	struct page *page;
+
+	if (!pfn_valid(pfn))
+		return NULL;
+
+	page = pfn_to_page(pfn);
+	if (!PageReserved(page))
+		return page;
+
+	/* The ZERO_PAGE(s) is marked PG_reserved, but is refcounted. */
+	if (is_zero_pfn(pfn))
+		return page;
+
 	/*
 	 * ZONE_DEVICE pages currently set PG_reserved, but from a refcounting
 	 * perspective they are "normal" pages, albeit with slightly different
 	 * usage rules.
 	 */
-	if (pfn_valid(pfn))
-		return PageReserved(pfn_to_page(pfn)) &&
-		       !is_zero_pfn(pfn) &&
-		       !kvm_is_zone_device_page(pfn_to_page(pfn));
+	if (kvm_is_zone_device_page(page))
+		return page;
 
-	return true;
+	return NULL;
 }
 
 /*
@@ -2501,9 +2518,12 @@ static bool vma_is_valid(struct vm_area_struct *vma, bool write_fault)
 
 static int kvm_try_get_pfn(kvm_pfn_t pfn)
 {
-	if (kvm_is_reserved_pfn(pfn))
+	struct page *page = kvm_pfn_to_refcounted_page(pfn);
+
+	if (!page)
 		return 1;
-	return get_page_unless_zero(pfn_to_page(pfn));
+
+	return get_page_unless_zero(page);
 }
 
 static int hva_to_pfn_remapped(struct vm_area_struct *vma,
@@ -2728,6 +2748,7 @@ EXPORT_SYMBOL_GPL(gfn_to_page_many_atomic);
  */
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 {
+	struct page *page;
 	kvm_pfn_t pfn;
 
 	pfn = gfn_to_pfn(kvm, gfn);
@@ -2735,10 +2756,11 @@ struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 	if (is_error_noslot_pfn(pfn))
 		return KVM_ERR_PTR_BAD_PAGE;
 
-	if (kvm_is_reserved_pfn(pfn))
+	page = kvm_pfn_to_refcounted_page(pfn);
+	if (!page)
 		return KVM_ERR_PTR_BAD_PAGE;
 
-	return pfn_to_page(pfn);
+	return page;
 }
 EXPORT_SYMBOL_GPL(gfn_to_page);
 
@@ -2841,8 +2863,16 @@ EXPORT_SYMBOL_GPL(kvm_release_page_clean);
 
 void kvm_release_pfn_clean(kvm_pfn_t pfn)
 {
-	if (!is_error_noslot_pfn(pfn) && !kvm_is_reserved_pfn(pfn))
-		kvm_release_page_clean(pfn_to_page(pfn));
+	struct page *page;
+
+	if (is_error_noslot_pfn(pfn))
+		return;
+
+	page = kvm_pfn_to_refcounted_page(pfn);
+	if (!page)
+		return;
+
+	kvm_release_page_clean(page);
 }
 EXPORT_SYMBOL_GPL(kvm_release_pfn_clean);
 
@@ -2857,8 +2887,16 @@ EXPORT_SYMBOL_GPL(kvm_release_page_dirty);
 
 void kvm_release_pfn_dirty(kvm_pfn_t pfn)
 {
-	if (!is_error_noslot_pfn(pfn) && !kvm_is_reserved_pfn(pfn))
-		kvm_release_page_dirty(pfn_to_page(pfn));
+	struct page *page;
+
+	if (is_error_noslot_pfn(pfn))
+		return;
+
+	page = kvm_pfn_to_refcounted_page(pfn);
+	if (!page)
+		return;
+
+	kvm_release_page_dirty(page);
 }
 EXPORT_SYMBOL_GPL(kvm_release_pfn_dirty);
 
