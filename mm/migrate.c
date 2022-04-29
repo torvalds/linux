@@ -2479,9 +2479,9 @@ static int __meminit migrate_on_reclaim_callback(struct notifier_block *self,
 
 void __init migrate_on_reclaim_init(void)
 {
-	node_demotion = kmalloc_array(nr_node_ids,
-				      sizeof(struct demotion_nodes),
-				      GFP_KERNEL);
+	node_demotion = kcalloc(nr_node_ids,
+				sizeof(struct demotion_nodes),
+				GFP_KERNEL);
 	WARN_ON(!node_demotion);
 
 	hotplug_memory_notifier(migrate_on_reclaim_callback, 100);
