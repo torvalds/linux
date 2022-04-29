@@ -2739,10 +2739,9 @@ static int sev_handle_vmgexit_msr_protocol(struct vcpu_svm *svm)
 			reason_set, reason_code);
 
 		vcpu->run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
-		vcpu->run->system_event.type = KVM_SYSTEM_EVENT_SEV_TERM |
-					       KVM_SYSTEM_EVENT_NDATA_VALID;
+		vcpu->run->system_event.type = KVM_SYSTEM_EVENT_SEV_TERM;
 		vcpu->run->system_event.ndata = 1;
-		vcpu->run->system_event.data[1] = control->ghcb_gpa;
+		vcpu->run->system_event.data[0] = control->ghcb_gpa;
 
 		return 0;
 	}

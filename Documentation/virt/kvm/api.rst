@@ -6089,21 +6089,18 @@ should put the acknowledged interrupt vector into the 'epr' field.
   #define KVM_SYSTEM_EVENT_RESET          2
   #define KVM_SYSTEM_EVENT_CRASH          3
   #define KVM_SYSTEM_EVENT_SEV_TERM       4
-  #define KVM_SYSTEM_EVENT_NDATA_VALID    (1u << 31)
 			__u32 type;
                         __u32 ndata;
-			__u64 flags;
                         __u64 data[16];
 		} system_event;
 
 If exit_reason is KVM_EXIT_SYSTEM_EVENT then the vcpu has triggered
 a system-level event using some architecture specific mechanism (hypercall
 or some special instruction). In case of ARM64, this is triggered using
-HVC instruction based PSCI call from the vcpu. The 'type' field describes
-the system-level event type. The 'flags' field describes architecture
-specific flags for the system-level event.
+HVC instruction based PSCI call from the vcpu.
 
-Valid values for bits 30:0 of 'type' are:
+The 'type' field describes the system-level event type.
+Valid values for 'type' are:
 
  - KVM_SYSTEM_EVENT_SHUTDOWN -- the guest has requested a shutdown of the
    VM. Userspace is not obliged to honour this, and if it does honour
@@ -6119,14 +6116,20 @@ Valid values for bits 30:0 of 'type' are:
  - KVM_SYSTEM_EVENT_SEV_TERM -- an AMD SEV guest requested termination.
    The guest physical address of the guest's GHCB is stored in `data[0]`.
 
-Valid flags are:
+If KVM_CAP_SYSTEM_EVENT_DATA is present, the 'data' field can contain
+architecture specific information for the system-level event.  Only
+the first `ndata` items (possibly zero) of the data array are valid.
 
- - KVM_SYSTEM_EVENT_RESET_FLAG_PSCI_RESET2 (arm64 only) -- the guest issued
-   a SYSTEM_RESET2 call according to v1.1 of the PSCI specification.
+ - for arm64, data[0] is set to KVM_SYSTEM_EVENT_RESET_FLAG_PSCI_RESET2 if
+   the guest issued a SYSTEM_RESET2 call according to v1.1 of the PSCI
+   specification.
 
-Extra data for this event is stored in the `data[]` array, up to index
-`ndata-1` included, if bit 31 is set in `type`.  The data depends on the
-`type` field.  There is no extra data if bit 31 is clear or `ndata` is zero.
+ - for RISC-V, data[0] is set to the value of the second argument of the
+   ``sbi_system_reset`` call.
+
+Previous versions of Linux defined a `flags` member in this struct.  The
+field is now aliased to `data[0]`.  Userspace can assume that it is only
+written if ndata is greater than 0.
 
 ::
 
