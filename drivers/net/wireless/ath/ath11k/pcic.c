@@ -163,7 +163,7 @@ void ath11k_pcic_write32(struct ath11k_base *ab, u32 offset, u32 value)
 	if (offset < ATH11K_PCI_WINDOW_START) {
 		iowrite32(value, ab->mem  + offset);
 	} else {
-		if (ab->bus_params.static_window_map)
+		if (ab->hw_params.static_window_map)
 			window_start = ath11k_pcic_get_window_start(ab, offset);
 		else
 			window_start = ATH11K_PCI_WINDOW_START;
@@ -198,7 +198,7 @@ u32 ath11k_pcic_read32(struct ath11k_base *ab, u32 offset)
 	if (offset < ATH11K_PCI_WINDOW_START) {
 		val = ioread32(ab->mem + offset);
 	} else {
-		if (ab->bus_params.static_window_map)
+		if (ab->hw_params.static_window_map)
 			window_start = ath11k_pcic_get_window_start(ab, offset);
 		else
 			window_start = ATH11K_PCI_WINDOW_START;

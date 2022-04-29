@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -27,13 +28,6 @@ static const struct of_device_id ath11k_ahb_of_match[] = {
 };
 
 MODULE_DEVICE_TABLE(of, ath11k_ahb_of_match);
-
-static const struct ath11k_bus_params ath11k_ahb_bus_params = {
-	.mhi_support = false,
-	.m3_fw_support = false,
-	.fixed_bdf_addr = true,
-	.fixed_mem_region = true,
-};
 
 #define ATH11K_IRQ_CE0_OFFSET 4
 
@@ -685,8 +679,7 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 	}
 
 	ab = ath11k_core_alloc(&pdev->dev, sizeof(struct ath11k_ahb),
-			       ATH11K_BUS_AHB,
-			       &ath11k_ahb_bus_params);
+			       ATH11K_BUS_AHB);
 	if (!ab) {
 		dev_err(&pdev->dev, "failed to allocate ath11k base\n");
 		return -ENOMEM;
