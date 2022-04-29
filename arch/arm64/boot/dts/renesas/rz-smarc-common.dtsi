@@ -52,7 +52,6 @@
 			    "Mic Bias", "Microphone Jack";
 
 		cpu_dai: simple-audio-card,cpu {
-			sound-dai = <&ssi0>;
 		};
 
 		codec_dai: simple-audio-card,codec {
@@ -163,13 +162,6 @@
 
 &spi1 {
 	pinctrl-0 = <&spi1_pins>;
-	pinctrl-names = "default";
-
-	status = "okay";
-};
-
-&ssi0 {
-	pinctrl-0 = <&ssi0_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
