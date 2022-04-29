@@ -170,12 +170,9 @@ static void read_pages(struct readahead_control *rac)
 			}
 			folio_unlock(folio);
 		}
-	} else if (aops->read_folio) {
-		while ((folio = readahead_folio(rac)) != NULL)
-			aops->read_folio(rac->file, folio);
 	} else {
 		while ((folio = readahead_folio(rac)) != NULL)
-			aops->readpage(rac->file, &folio->page);
+			aops->read_folio(rac->file, folio);
 	}
 
 	blk_finish_plug(&plug);
@@ -256,8 +253,8 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 	}
 
 	/*
-	 * Now start the IO.  We ignore I/O errors - if the page is not
-	 * uptodate then the caller will launch readpage again, and
+	 * Now start the IO.  We ignore I/O errors - if the folio is not
+	 * uptodate then the caller will launch read_folio again, and
 	 * will then handle the error.
 	 */
 	read_pages(ractl);
@@ -305,8 +302,7 @@ void force_page_cache_ra(struct readahead_control *ractl,
 	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
 	unsigned long max_pages, index;
 
-	if (unlikely(!mapping->a_ops->read_folio &&
-		     !mapping->a_ops->readpage && !mapping->a_ops->readahead))
+	if (unlikely(!mapping->a_ops->read_folio && !mapping->a_ops->readahead))
 		return;
 
 	/*

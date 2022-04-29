@@ -3041,7 +3041,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	/*
 	 * Read the swap header.
 	 */
-	if (!mapping->a_ops->read_folio && !mapping->a_ops->readpage) {
+	if (!mapping->a_ops->read_folio) {
 		error = -EINVAL;
 		goto bad_swap_unlock_inode;
 	}

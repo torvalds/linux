@@ -4162,7 +4162,7 @@ int shmem_zero_setup(struct vm_area_struct *vma)
  *
  * This behaves as a tmpfs "read_cache_page_gfp(mapping, index, gfp)",
  * with any new page allocations done using the specified allocation flags.
- * But read_cache_page_gfp() uses the ->readpage() method: which does not
+ * But read_cache_page_gfp() uses the ->read_folio() method: which does not
  * suit tmpfs, since it may have pages in swapcache, and needs to find those
  * for itself; although drivers/gpu/drm i915 and ttm rely upon this support.
  *

@@ -2414,15 +2414,12 @@ static int filemap_read_folio(struct file *file, struct address_space *mapping,
 
 	/*
 	 * A previous I/O error may have been due to temporary failures,
-	 * eg. multipath errors.  PG_error will be set again if readpage
+	 * eg. multipath errors.  PG_error will be set again if read_folio
 	 * fails.
 	 */
 	folio_clear_error(folio);
 	/* Start the actual read. The read will unlock the page. */
-	if (mapping->a_ops->read_folio)
-		error = mapping->a_ops->read_folio(file, folio);
-	else
-		error = mapping->a_ops->readpage(file, &folio->page);
+	error = mapping->a_ops->read_folio(file, folio);
 	if (error)
 		return error;
 
@@ -2639,7 +2636,7 @@ err:
  * @already_read: Number of bytes already read by the caller.
  *
  * Copies data from the page cache.  If the data is not currently present,
- * uses the readahead and readpage address_space operations to fetch it.
+ * uses the readahead and read_folio address_space operations to fetch it.
  *
  * Return: Total number of bytes copied, including those already read by
  * the caller.  If an error happens before any bytes are copied, returns
@@ -3450,7 +3447,7 @@ int generic_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct address_space *mapping = file->f_mapping;
 
-	if (!mapping->a_ops->read_folio && !mapping->a_ops->readpage)
+	if (!mapping->a_ops->read_folio)
 		return -ENOEXEC;
 	file_accessed(file);
 	vma->vm_ops = &generic_file_vm_ops;
@@ -3508,10 +3505,8 @@ repeat:
 filler:
 		if (filler)
 			err = filler(data, &folio->page);
-		else if (mapping->a_ops->read_folio)
-			err = mapping->a_ops->read_folio(data, folio);
 		else
-			err = mapping->a_ops->readpage(data, &folio->page);
+			err = mapping->a_ops->read_folio(data, folio);
 
 		if (err < 0) {
 			folio_put(folio);
