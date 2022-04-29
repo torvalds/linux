@@ -105,7 +105,6 @@ struct aspeed_pcie {
 	struct irq_domain *dev_domain;	//inner_domain
 	struct irq_domain *msi_domain;
 	struct mutex lock;
-	int link;
 	int hotplug_event;
 	DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_HOST_IRQS);
 };
@@ -262,12 +261,7 @@ static int aspeed_h2x_rd_conf(struct pci_bus *bus, unsigned int devfn,
 		if (!bus->number) {
 			switch (PCI_SLOT(devfn)) {
 			case 0:
-				break;
 			case 4:
-				if (!pcie->link) {
-					*val = 0xffffffff;
-					return PCIBIOS_SUCCESSFUL;
-				}
 				break;
 			default:
 				*val = 0xffffffff;
@@ -284,12 +278,7 @@ static int aspeed_h2x_rd_conf(struct pci_bus *bus, unsigned int devfn,
 		if (bus->number == 128) {
 			switch (PCI_SLOT(devfn)) {
 			case 0:
-				break;
 			case 8:
-				if (!pcie->link) {
-					*val = 0xffffffff;
-					return PCIBIOS_SUCCESSFUL;
-				}
 				break;
 			default:
 				*val = 0xffffffff;
@@ -435,8 +424,6 @@ aspeed_h2x_wr_conf(struct pci_bus *bus, unsigned int devfn,
 	}
 #endif
 
-	if (!pcie->link)
-		return PCIBIOS_SUCCESSFUL;
 
 	//printk("W b d f [%d:%d:%d] : where %x : val %x\n", bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn), where, val);
 
@@ -690,7 +677,7 @@ static void aspeed_pcie_port_init(struct aspeed_pcie *pcie)
 
 	//reset rc bridge
 	reset_control_assert(pcie->phy_rst);
-	mdelay(100);
+	ndelay(100);
 	//plda init
 	regmap_write(pcie->pciephy, ASPEED_PCIE_LOCK, PCIE_UNLOCK);
 //	regmap_write(pcie->pciephy, ASPEED_PCIE_CLASS_CODE, PCIE_CFG_CLASS_CODE(0x60000) | PCIE_CFG_REV_ID(4));
@@ -703,8 +690,7 @@ static void aspeed_pcie_port_init(struct aspeed_pcie *pcie)
 #endif
 
 	reset_control_deassert(pcie->phy_rst);
-	mdelay(50);
-
+	mdelay(500);
 
 	//clr intx isr
 	writel(0x0, pcie->reg + 0x04);
@@ -728,7 +714,6 @@ static void aspeed_pcie_port_init(struct aspeed_pcie *pcie)
 
 	regmap_read(pcie->pciephy, ASPEED_PCIE_LINK, &link_sts);
 	if (link_sts & PCIE_LINK_STS) {
-		pcie->link = 1;
 //		aspeed_pcie_set_slot_power_limit(pcie);
 		dev_info(pcie->dev, "PCIE- Link up\n");
 //		if (readl(pcie->pciereg_base
@@ -736,7 +721,6 @@ static void aspeed_pcie_port_init(struct aspeed_pcie *pcie)
 //			dev_info(pcie->dev, "PCIE- Link up : 2.5G\n");
 	} else {
 		dev_info(pcie->dev, "PCIE- Link down\n");
-		pcie->link = 0;
 	}
 }
 
