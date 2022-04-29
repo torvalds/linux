@@ -90,26 +90,6 @@ static int sof_ipc3_set_get_kcontrol_data(struct snd_sof_control *scontrol, bool
 	return iops->set_get_data(sdev, cdata, cdata->rhdr.hdr.size, set);
 }
 
-static inline u32 mixer_to_ipc(unsigned int value, u32 *volume_map, int size)
-{
-	if (value >= size)
-		return volume_map[size - 1];
-
-	return volume_map[value];
-}
-
-static inline u32 ipc_to_mixer(u32 value, u32 *volume_map, int size)
-{
-	int i;
-
-	for (i = 0; i < size; i++) {
-		if (volume_map[i] >= value)
-			return i;
-	}
-
-	return i - 1;
-}
-
 static void snd_sof_refresh_control(struct snd_sof_control *scontrol)
 {
 	struct sof_ipc_ctrl_data *cdata = scontrol->ipc_control_data;
@@ -694,6 +674,23 @@ static int sof_ipc3_widget_kcontrol_setup(struct snd_sof_dev *sdev,
 	return 0;
 }
 
+static int
+sof_ipc3_set_up_volume_table(struct snd_sof_control *scontrol, int tlv[SOF_TLV_ITEMS], int size)
+{
+	int i;
+
+	/* init the volume table */
+	scontrol->volume_table = kcalloc(size, sizeof(u32), GFP_KERNEL);
+	if (!scontrol->volume_table)
+		return -ENOMEM;
+
+	/* populate the volume table */
+	for (i = 0; i < size ; i++)
+		scontrol->volume_table[i] = vol_compute_gain(i, tlv);
+
+	return 0;
+}
+
 const struct sof_ipc_tplg_control_ops tplg_ipc3_control_ops = {
 	.volume_put = sof_ipc3_volume_put,
 	.volume_get = sof_ipc3_volume_get,
@@ -708,4 +705,5 @@ const struct sof_ipc_tplg_control_ops tplg_ipc3_control_ops = {
 	.bytes_ext_volatile_get = sof_ipc3_bytes_ext_volatile_get,
 	.update = sof_ipc3_control_update,
 	.widget_kcontrol_setup = sof_ipc3_widget_kcontrol_setup,
+	.set_up_volume_table = sof_ipc3_set_up_volume_table,
 };
