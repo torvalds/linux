@@ -3302,6 +3302,11 @@ static int rtnl_group_changelink(const struct sk_buff *skb,
 	return 0;
 }
 
+static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
+			       const struct rtnl_link_ops *ops,
+			       struct nlattr **tb, struct nlattr **data,
+			       struct netlink_ext_ack *extack);
+
 struct rtnl_newlink_tbs {
 	struct nlattr *tb[IFLA_MAX + 1];
 	struct nlattr *attr[RTNL_MAX_TYPE + 1];
@@ -3312,19 +3317,16 @@ static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  struct rtnl_newlink_tbs *tbs,
 			  struct netlink_ext_ack *extack)
 {
-	unsigned char name_assign_type = NET_NAME_USER;
 	struct nlattr *linkinfo[IFLA_INFO_MAX + 1];
 	struct nlattr ** const tb = tbs->tb;
 	const struct rtnl_link_ops *m_ops;
 	struct net_device *master_dev;
 	struct net *net = sock_net(skb->sk);
 	const struct rtnl_link_ops *ops;
-	struct net *dest_net, *link_net;
 	struct nlattr **slave_data;
 	char kind[MODULE_NAME_LEN];
 	struct net_device *dev;
 	struct ifinfomsg *ifm;
-	char ifname[IFNAMSIZ];
 	struct nlattr **data;
 	bool link_specified;
 	int err;
@@ -3483,6 +3485,21 @@ replay:
 		NL_SET_ERR_MSG(extack, "Unknown device type");
 		return -EOPNOTSUPP;
 	}
+
+	return rtnl_newlink_create(skb, ifm, ops, tb, data, extack);
+}
+
+static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
+			       const struct rtnl_link_ops *ops,
+			       struct nlattr **tb, struct nlattr **data,
+			       struct netlink_ext_ack *extack)
+{
+	unsigned char name_assign_type = NET_NAME_USER;
+	struct net *net = sock_net(skb->sk);
+	struct net *dest_net, *link_net;
+	struct net_device *dev;
+	char ifname[IFNAMSIZ];
+	int err;
 
 	if (!ops->alloc && !ops->setup)
 		return -EOPNOTSUPP;
