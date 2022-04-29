@@ -143,6 +143,17 @@ properties:
     description:
       Pre-charge input resistance in Ohm.
 
+  semtech,input-analog-gain:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 3
+    description: |
+      Defines the input antenna analog gain
+      0: x1.247
+      1: x1 (default)
+      2: x0.768
+      3: x0.552
+
 required:
   - compatible
   - reg
