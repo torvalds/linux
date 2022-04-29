@@ -297,7 +297,7 @@ static loff_t iomap_readpage_iter(const struct iomap_iter *iter,
 		/*
 		 * If the bio_alloc fails, try it again for a single page to
 		 * avoid having to deal with partial page reads.  This emulates
-		 * what do_mpage_readpage does.
+		 * what do_mpage_read_folio does.
 		 */
 		if (!ctx->bio) {
 			ctx->bio = bio_alloc(iomap->bdev, 1, REQ_OP_READ,

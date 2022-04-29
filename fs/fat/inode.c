@@ -205,9 +205,9 @@ static int fat_writepages(struct address_space *mapping,
 	return mpage_writepages(mapping, wbc, fat_get_block);
 }
 
-static int fat_readpage(struct file *file, struct page *page)
+static int fat_read_folio(struct file *file, struct folio *folio)
 {
-	return mpage_readpage(page, fat_get_block);
+	return mpage_read_folio(folio, fat_get_block);
 }
 
 static void fat_readahead(struct readahead_control *rac)
@@ -344,7 +344,7 @@ int fat_block_truncate_page(struct inode *inode, loff_t from)
 static const struct address_space_operations fat_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
-	.readpage	= fat_readpage,
+	.read_folio	= fat_read_folio,
 	.readahead	= fat_readahead,
 	.writepage	= fat_writepage,
 	.writepages	= fat_writepages,

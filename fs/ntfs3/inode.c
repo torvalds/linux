@@ -676,8 +676,9 @@ static sector_t ntfs_bmap(struct address_space *mapping, sector_t block)
 	return generic_block_bmap(mapping, block, ntfs_get_block_bmap);
 }
 
-static int ntfs_readpage(struct file *file, struct page *page)
+static int ntfs_read_folio(struct file *file, struct folio *folio)
 {
+	struct page *page = &folio->page;
 	int err;
 	struct address_space *mapping = page->mapping;
 	struct inode *inode = mapping->host;
@@ -701,7 +702,7 @@ static int ntfs_readpage(struct file *file, struct page *page)
 	}
 
 	/* Normal + sparse files. */
-	return mpage_readpage(page, ntfs_get_block);
+	return mpage_read_folio(folio, ntfs_get_block);
 }
 
 static void ntfs_readahead(struct readahead_control *rac)
@@ -1940,7 +1941,7 @@ const struct inode_operations ntfs_link_inode_operations = {
 };
 
 const struct address_space_operations ntfs_aops = {
-	.readpage	= ntfs_readpage,
+	.read_folio	= ntfs_read_folio,
 	.readahead	= ntfs_readahead,
 	.writepage	= ntfs_writepage,
 	.writepages	= ntfs_writepages,
@@ -1952,7 +1953,7 @@ const struct address_space_operations ntfs_aops = {
 };
 
 const struct address_space_operations ntfs_aops_cmpr = {
-	.readpage	= ntfs_readpage,
+	.read_folio	= ntfs_read_folio,
 	.readahead	= ntfs_readahead,
 };
 // clang-format on

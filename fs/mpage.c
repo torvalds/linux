@@ -364,20 +364,22 @@ EXPORT_SYMBOL(mpage_readahead);
 /*
  * This isn't called much at all
  */
-int mpage_readpage(struct page *page, get_block_t get_block)
+int mpage_read_folio(struct folio *folio, get_block_t get_block)
 {
 	struct mpage_readpage_args args = {
-		.page = page,
+		.page = &folio->page,
 		.nr_pages = 1,
 		.get_block = get_block,
 	};
+
+	VM_BUG_ON_FOLIO(folio_test_large(folio), folio);
 
 	args.bio = do_mpage_readpage(&args);
 	if (args.bio)
 		mpage_bio_submit(args.bio);
 	return 0;
 }
-EXPORT_SYMBOL(mpage_readpage);
+EXPORT_SYMBOL(mpage_read_folio);
 
 /*
  * Writing is not so simple.

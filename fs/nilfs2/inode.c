@@ -140,14 +140,14 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 }
 
 /**
- * nilfs_readpage() - implement readpage() method of nilfs_aops {}
+ * nilfs_read_folio() - implement read_folio() method of nilfs_aops {}
  * address_space_operations.
  * @file - file struct of the file to be read
- * @page - the page to be read
+ * @folio - the folio to be read
  */
-static int nilfs_readpage(struct file *file, struct page *page)
+static int nilfs_read_folio(struct file *file, struct folio *folio)
 {
-	return mpage_readpage(page, nilfs_get_block);
+	return mpage_read_folio(folio, nilfs_get_block);
 }
 
 static void nilfs_readahead(struct readahead_control *rac)
@@ -298,7 +298,7 @@ nilfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 
 const struct address_space_operations nilfs_aops = {
 	.writepage		= nilfs_writepage,
-	.readpage		= nilfs_readpage,
+	.read_folio		= nilfs_read_folio,
 	.writepages		= nilfs_writepages,
 	.dirty_folio		= nilfs_dirty_folio,
 	.readahead		= nilfs_readahead,

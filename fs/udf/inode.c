@@ -193,9 +193,9 @@ static int udf_writepages(struct address_space *mapping,
 	return mpage_writepages(mapping, wbc, udf_get_block);
 }
 
-static int udf_readpage(struct file *file, struct page *page)
+static int udf_read_folio(struct file *file, struct folio *folio)
 {
-	return mpage_readpage(page, udf_get_block);
+	return mpage_read_folio(folio, udf_get_block);
 }
 
 static void udf_readahead(struct readahead_control *rac)
@@ -237,7 +237,7 @@ static sector_t udf_bmap(struct address_space *mapping, sector_t block)
 const struct address_space_operations udf_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
-	.readpage	= udf_readpage,
+	.read_folio	= udf_read_folio,
 	.readahead	= udf_readahead,
 	.writepage	= udf_writepage,
 	.writepages	= udf_writepages,
