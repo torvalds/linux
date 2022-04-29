@@ -54,9 +54,12 @@ enum CULL_BIT {
 	CULL_STACKTRACE = 1<<5
 };
 struct filter_condition {
-	pid_t tgid;
-	pid_t pid;
-	char comm[TASK_COMM_LEN];
+	pid_t *tgids;
+	int tgids_size;
+	pid_t *pids;
+	int pids_size;
+	char **comms;
+	int comms_size;
 };
 static struct filter_condition fc;
 static regex_t order_pattern;
@@ -149,7 +152,6 @@ static int compare_free_ts(const void *p1, const void *p2)
 	return l1->free_ts_nsec < l2->free_ts_nsec ? -1 : 1;
 }
 
-
 static int compare_release(const void *p1, const void *p2)
 {
 	const struct block_list *l1 = p1, *l2 = p2;
@@ -160,7 +162,6 @@ static int compare_release(const void *p1, const void *p2)
 		return 0;
 	return l1->free_ts_nsec ? 1 : -1;
 }
-
 
 static int compare_cull_condition(const void *p1, const void *p2)
 {
@@ -344,22 +345,40 @@ static char *get_comm(char *buf)
 	return comm_str;
 }
 
+static bool match_num_list(int num, int *list, int list_size)
+{
+	for (int i = 0; i < list_size; ++i)
+		if (list[i] == num)
+			return true;
+	return false;
+}
+
+static bool match_str_list(const char *str, char **list, int list_size)
+{
+	for (int i = 0; i < list_size; ++i)
+		if (!strcmp(list[i], str))
+			return true;
+	return false;
+}
+
 static bool is_need(char *buf)
 {
 		if ((filter & FILTER_UNRELEASE) && get_free_ts_nsec(buf) != 0)
 			return false;
-		if ((filter & FILTER_PID) && get_pid(buf) != fc.pid)
+		if ((filter & FILTER_PID) && !match_num_list(get_pid(buf), fc.pids, fc.pids_size))
 			return false;
-		if ((filter & FILTER_TGID) && get_tgid(buf) != fc.tgid)
+		if ((filter & FILTER_TGID) &&
+			!match_num_list(get_tgid(buf), fc.tgids, fc.tgids_size))
 			return false;
 
 		char *comm = get_comm(buf);
 
 		if ((filter & FILTER_COMM) &&
-		strncmp(comm, fc.comm, TASK_COMM_LEN) != 0) {
+		!match_str_list(comm, fc.comms, fc.comms_size)) {
 			free(comm);
 			return false;
 		}
+		free(comm);
 		return true;
 }
 
@@ -428,6 +447,27 @@ static bool parse_cull_args(const char *arg_str)
 	return true;
 }
 
+static int *parse_nums_list(char *arg_str, int *list_size)
+{
+	int size = 0;
+	char **args = explode(',', arg_str, &size);
+	int *list = calloc(size, sizeof(int));
+
+	errno = 0;
+	for (int i = 0; i < size; ++i) {
+		char *endptr = NULL;
+
+		list[i] = strtol(args[i], &endptr, 10);
+		if (errno != 0 || endptr == args[i] || *endptr != '\0') {
+			free(list);
+			return NULL;
+		}
+	}
+	*list_size = size;
+	free_explode(args, size);
+	return list;
+}
+
 #define BUF_SIZE	(128 * 1024)
 
 static void usage(void)
@@ -442,9 +482,9 @@ static void usage(void)
 		"-a\t\tSort by memory allocate time.\n"
 		"-r\t\tSort by memory release time.\n"
 		"-f\t\tFilter out the information of blocks whose memory has been released.\n"
-		"--pid <PID>\tSelect by pid. This selects the information of blocks whose process ID number equals to <PID>.\n"
-		"--tgid <TGID>\tSelect by tgid. This selects the information of blocks whose Thread Group ID number equals to <TGID>.\n"
-		"--name <command>\n\t\tSelect by command name. This selects the information of blocks whose command name identical to <command>.\n"
+		"--pid <pidlist>\tSelect by pid. This selects the information of blocks whose process ID numbers appear in <pidlist>.\n"
+		"--tgid <tgidlist>\tSelect by tgid. This selects the information of blocks whose Thread Group ID numbers appear in <tgidlist>.\n"
+		"--name <cmdlist>\n\t\tSelect by command name. This selects the information of blocks whose command name appears in <cmdlist>.\n"
 		"--cull <rules>\tCull by user-defined rules. <rules> is a single argument in the form of a comma-separated list with some common fields predefined\n"
 	);
 }
@@ -453,7 +493,7 @@ int main(int argc, char **argv)
 {
 	int (*cmp)(const void *, const void *) = compare_num;
 	FILE *fin, *fout;
-	char *buf, *endptr;
+	char *buf;
 	int ret, i, count;
 	struct stat st;
 	int opt;
@@ -496,9 +536,8 @@ int main(int argc, char **argv)
 			break;
 		case 1:
 			filter = filter | FILTER_PID;
-			errno = 0;
-			fc.pid = strtol(optarg, &endptr, 10);
-			if (errno != 0 || endptr == optarg || *endptr != '\0') {
+			fc.pids = parse_nums_list(optarg, &fc.pids_size);
+			if (fc.pids == NULL) {
 				fprintf(stderr, "wrong/invalid pid in from the command line:%s\n",
 						optarg);
 				exit(1);
@@ -506,9 +545,8 @@ int main(int argc, char **argv)
 			break;
 		case 2:
 			filter = filter | FILTER_TGID;
-			errno = 0;
-			fc.tgid = strtol(optarg, &endptr, 10);
-			if (errno != 0 || endptr == optarg || *endptr != '\0') {
+			fc.tgids = parse_nums_list(optarg, &fc.tgids_size);
+			if (fc.tgids == NULL) {
 				fprintf(stderr, "wrong/invalid tgid in from the command line:%s\n",
 						optarg);
 				exit(1);
@@ -516,8 +554,7 @@ int main(int argc, char **argv)
 			break;
 		case 3:
 			filter = filter | FILTER_COMM;
-			strncpy(fc.comm, optarg, TASK_COMM_LEN);
-			fc.comm[TASK_COMM_LEN-1] = '\0';
+			fc.comms = explode(',', optarg, &fc.comms_size);
 			break;
 		case 4:
 			if (!parse_cull_args(optarg)) {
@@ -564,7 +601,6 @@ int main(int argc, char **argv)
 		ret = read_block(buf, BUF_SIZE, fin);
 		if (ret < 0)
 			break;
-
 		add_list(buf, ret);
 	}
 

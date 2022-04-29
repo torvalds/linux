@@ -129,14 +129,12 @@ Usage
 				Specify culling rules.Culling syntax is key[,key[,...]].Choose a
 				multi-letter key from the **STANDARD FORMAT SPECIFIERS** section.
 
-
 		<rules> is a single argument in the form of a comma-separated list,
 		which offers a way to specify individual culling rules.  The recognized
 		keywords are described in the **STANDARD FORMAT SPECIFIERS** section below.
 		<rules> can be specified by the sequence of keys k1,k2, ..., as described in
 		the STANDARD SORT KEYS section below. Mixed use of abbreviated and
 		complete-form of keys is allowed.
-
 
 		Examples:
 				./page_owner_sort <input> <output> --cull=stacktrace
@@ -147,9 +145,21 @@ Usage
 		-f		Filter out the information of blocks whose memory has been released.
 
 	Select:
-		--pid <PID>		Select by pid.
-		--tgid <TGID>		Select by tgid.
-		--name <command>	Select by task command name.
+		--pid <pidlist>		Select by pid. This selects the blocks whose process ID
+					numbers appear in <pidlist>.
+		--tgid <tgidlist>	Select by tgid. This selects the blocks whose thread
+					group ID numbers appear in <tgidlist>.
+		--name <cmdlist>	Select by task command name. This selects the blocks whose
+					task command name appear in <cmdlist>.
+
+		<pidlist>, <tgidlist>, <cmdlist> are single arguments in the form of a comma-separated list,
+		which offers a way to specify individual selecting rules.
+
+
+		Examples:
+				./page_owner_sort <input> <output> --pid=1
+				./page_owner_sort <input> <output> --tgid=1,2,3
+				./page_owner_sort <input> <output> --name name1,name2
 
 STANDARD FORMAT SPECIFIERS
 ==========================
