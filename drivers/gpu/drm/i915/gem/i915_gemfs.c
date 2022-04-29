@@ -28,12 +28,14 @@ int i915_gemfs_init(struct drm_i915_private *i915)
 	 *
 	 * One example, although it is probably better with a per-file
 	 * control, is selecting huge page allocations ("huge=within_size").
-	 * However, we only do so to offset the overhead of iommu lookups
-	 * due to bandwidth issues (slow reads) on Broadwell+.
+	 * However, we only do so on platforms which benefit from it, or to
+	 * offset the overhead of iommu lookups, where with latter it is a net
+	 * win even on platforms which would otherwise see some performance
+	 * regressions such a slow reads issue on Broadwell and Skylake.
 	 */
 
 	opts = NULL;
-	if (i915_vtd_active(i915)) {
+	if (GRAPHICS_VER(i915) >= 11 || i915_vtd_active(i915)) {
 		if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
 			opts = huge_opt;
 			drm_info(&i915->drm,
@@ -41,7 +43,10 @@ int i915_gemfs_init(struct drm_i915_private *i915)
 				 opts);
 		} else {
 			drm_notice(&i915->drm,
-				   "Transparent Hugepage support is recommended for optimal performance when IOMMU is enabled!\n");
+				   "Transparent Hugepage support is recommended for optimal performance%s\n",
+				   GRAPHICS_VER(i915) >= 11 ?
+				   " on this platform!" :
+				   " when IOMMU is enabled!");
 		}
 	}
 
