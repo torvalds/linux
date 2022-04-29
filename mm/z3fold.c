@@ -940,9 +940,19 @@ lookup:
 		}
 	}
 
-	if (zhdr && !zhdr->slots)
+	if (zhdr && !zhdr->slots) {
 		zhdr->slots = alloc_slots(pool, GFP_ATOMIC);
+		if (!zhdr->slots)
+			goto out_fail;
+	}
 	return zhdr;
+
+out_fail:
+	if (!kref_put(&zhdr->refcount, release_z3fold_page_locked)) {
+		add_to_unbuddied(pool, zhdr);
+		z3fold_page_unlock(zhdr);
+	}
+	return NULL;
 }
 
 /*
