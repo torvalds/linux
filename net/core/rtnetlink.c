@@ -3302,17 +3302,23 @@ static int rtnl_group_changelink(const struct sk_buff *skb,
 	return 0;
 }
 
-static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
-			  struct nlattr **attr, struct netlink_ext_ack *extack)
-{
+struct rtnl_newlink_tbs {
+	struct nlattr *tb[IFLA_MAX + 1];
+	struct nlattr *attr[RTNL_MAX_TYPE + 1];
 	struct nlattr *slave_attr[RTNL_SLAVE_MAX_TYPE + 1];
+};
+
+static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  struct rtnl_newlink_tbs *tbs,
+			  struct netlink_ext_ack *extack)
+{
 	unsigned char name_assign_type = NET_NAME_USER;
 	struct nlattr *linkinfo[IFLA_INFO_MAX + 1];
+	struct nlattr ** const tb = tbs->tb;
 	const struct rtnl_link_ops *m_ops;
 	struct net_device *master_dev;
 	struct net *net = sock_net(skb->sk);
 	const struct rtnl_link_ops *ops;
-	struct nlattr *tb[IFLA_MAX + 1];
 	struct net *dest_net, *link_net;
 	struct nlattr **slave_data;
 	char kind[MODULE_NAME_LEN];
@@ -3382,12 +3388,12 @@ replay:
 			return -EINVAL;
 
 		if (ops->maxtype && linkinfo[IFLA_INFO_DATA]) {
-			err = nla_parse_nested_deprecated(attr, ops->maxtype,
+			err = nla_parse_nested_deprecated(tbs->attr, ops->maxtype,
 							  linkinfo[IFLA_INFO_DATA],
 							  ops->policy, extack);
 			if (err < 0)
 				return err;
-			data = attr;
+			data = tbs->attr;
 		}
 		if (ops->validate) {
 			err = ops->validate(tb, data, extack);
@@ -3403,14 +3409,14 @@ replay:
 
 		if (m_ops->slave_maxtype &&
 		    linkinfo[IFLA_INFO_SLAVE_DATA]) {
-			err = nla_parse_nested_deprecated(slave_attr,
+			err = nla_parse_nested_deprecated(tbs->slave_attr,
 							  m_ops->slave_maxtype,
 							  linkinfo[IFLA_INFO_SLAVE_DATA],
 							  m_ops->slave_policy,
 							  extack);
 			if (err < 0)
 				return err;
-			slave_data = slave_attr;
+			slave_data = tbs->slave_attr;
 		}
 	}
 
@@ -3559,15 +3565,15 @@ out_unregister:
 static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
-	struct nlattr **attr;
+	struct rtnl_newlink_tbs *tbs;
 	int ret;
 
-	attr = kmalloc_array(RTNL_MAX_TYPE + 1, sizeof(*attr), GFP_KERNEL);
-	if (!attr)
+	tbs = kmalloc(sizeof(*tbs), GFP_KERNEL);
+	if (!tbs)
 		return -ENOMEM;
 
-	ret = __rtnl_newlink(skb, nlh, attr, extack);
-	kfree(attr);
+	ret = __rtnl_newlink(skb, nlh, tbs, extack);
+	kfree(tbs);
 	return ret;
 }
 
