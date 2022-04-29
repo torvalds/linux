@@ -317,7 +317,6 @@ __reset_isolation_pfn(struct zone *zone, unsigned long pfn, bool check_source,
 		}
 
 		page += (1 << PAGE_ALLOC_COSTLY_ORDER);
-		pfn += (1 << PAGE_ALLOC_COSTLY_ORDER);
 	} while (page <= end_page);
 
 	return false;
