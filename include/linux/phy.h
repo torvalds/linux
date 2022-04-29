@@ -570,6 +570,7 @@ struct macsec_ops;
  * @autoneg_complete: Flag auto negotiation of the link has completed
  * @mdix: Current crossover
  * @mdix_ctrl: User setting of crossover
+ * @pma_extable: Cached value of PMA/PMD Extended Abilities Register
  * @interrupts: Flag interrupts have been enabled
  * @interface: enum phy_interface_t value
  * @skb: Netlink message for cable diagnostics
@@ -697,6 +698,8 @@ struct phy_device {
 
 	u8 mdix;
 	u8 mdix_ctrl;
+
+	int pma_extable;
 
 	void (*phy_link_change)(struct phy_device *phydev, bool up);
 	void (*adjust_link)(struct net_device *dev);
