@@ -245,9 +245,17 @@ config HUGETLBFS
 config HUGETLB_PAGE
 	def_bool HUGETLBFS
 
+#
+# Select this config option from the architecture Kconfig, if it is preferred
+# to enable the feature of minimizing overhead of struct page associated with
+# each HugeTLB page.
+#
+config ARCH_WANT_HUGETLB_PAGE_FREE_VMEMMAP
+	bool
+
 config HUGETLB_PAGE_FREE_VMEMMAP
 	def_bool HUGETLB_PAGE
-	depends on X86_64
+	depends on ARCH_WANT_HUGETLB_PAGE_FREE_VMEMMAP
 	depends on SPARSEMEM_VMEMMAP
 
 config HUGETLB_PAGE_FREE_VMEMMAP_DEFAULT_ON
