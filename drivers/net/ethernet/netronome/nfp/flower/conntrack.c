@@ -83,6 +83,10 @@ static int nfp_ct_merge_check(struct nfp_fl_ct_flow_entry *entry1,
 				 entry2->rule->match.dissector->used_keys;
 	bool out;
 
+	if (entry1->netdev && entry2->netdev &&
+	    entry1->netdev != entry2->netdev)
+		return -EINVAL;
+
 	/* check the overlapped fields one by one, the unmasked part
 	 * should not conflict with each other.
 	 */
@@ -914,7 +918,7 @@ static int nfp_ct_do_nft_merge(struct nfp_fl_ct_zone_entry *zt,
 	/* Check that the two tc flows are also compatible with
 	 * the nft entry. No need to check the pre_ct and post_ct
 	 * entries as that was already done during pre_merge.
-	 * The nft entry does not have a netdev or chain populated, so
+	 * The nft entry does not have a chain populated, so
 	 * skip this check.
 	 */
 	err = nfp_ct_merge_check(pre_ct_entry, nft_entry);
@@ -999,8 +1003,6 @@ static int nfp_ct_do_tc_merge(struct nfp_fl_ct_zone_entry *zt,
 		pre_ct_entry = ct_entry2;
 	}
 
-	if (post_ct_entry->netdev != pre_ct_entry->netdev)
-		return -EINVAL;
 	/* Checks that the chain_index of the filter matches the
 	 * chain_index of the GOTO action.
 	 */
@@ -1114,6 +1116,20 @@ err_tc_merge_tb_init:
 	return ERR_PTR(err);
 }
 
+static struct net_device *get_netdev_from_rule(struct flow_rule *rule)
+{
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_META)) {
+		struct flow_match_meta match;
+
+		flow_rule_match_meta(rule, &match);
+		if (match.key->ingress_ifindex & match.mask->ingress_ifindex)
+			return __dev_get_by_index(&init_net,
+						  match.key->ingress_ifindex);
+	}
+
+	return NULL;
+}
+
 static struct
 nfp_fl_ct_flow_entry *nfp_fl_ct_add_flow(struct nfp_fl_ct_zone_entry *zt,
 					 struct net_device *netdev,
@@ -1154,6 +1170,9 @@ nfp_fl_ct_flow_entry *nfp_fl_ct_add_flow(struct nfp_fl_ct_zone_entry *zt,
 		entry->rule->match.dissector = &nft_match->dissector;
 		entry->rule->match.mask = &nft_match->mask;
 		entry->rule->match.key = &nft_match->key;
+
+		if (!netdev)
+			netdev = get_netdev_from_rule(entry->rule);
 	} else {
 		entry->rule->match.dissector = flow->rule->match.dissector;
 		entry->rule->match.mask = flow->rule->match.mask;
