@@ -420,7 +420,6 @@ static void free_z3fold_page(struct page *page, bool headless)
 		__ClearPageMovable(page);
 		unlock_page(page);
 	}
-	ClearPagePrivate(page);
 	__free_page(page);
 }
 
@@ -1635,7 +1634,6 @@ static int z3fold_page_migrate(struct address_space *mapping, struct page *newpa
 	INIT_LIST_HEAD(&new_zhdr->buddy);
 	new_mapping = page_mapping(page);
 	__ClearPageMovable(page);
-	ClearPagePrivate(page);
 
 	get_page(newpage);
 	z3fold_page_lock(new_zhdr);
@@ -1655,7 +1653,6 @@ static int z3fold_page_migrate(struct address_space *mapping, struct page *newpa
 
 	queue_work_on(new_zhdr->cpu, pool->compact_wq, &new_zhdr->work);
 
-	page_mapcount_reset(page);
 	clear_bit(PAGE_CLAIMED, &page->private);
 	put_page(page);
 	return 0;
