@@ -1963,6 +1963,10 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	spin_lock(&vop->reg_lock);
 
 	VOP_WIN_SET(vop, win, format, vop_plane_state->format);
+
+	VOP_WIN_SET(vop, win, interlace_read,
+		    (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) ? 1 : 0);
+
 	VOP_WIN_SET(vop, win, yrgb_vir, DIV_ROUND_UP(fb->pitches[0], 4));
 	VOP_WIN_SET(vop, win, yrgb_mst, vop_plane_state->yrgb_mst);
 

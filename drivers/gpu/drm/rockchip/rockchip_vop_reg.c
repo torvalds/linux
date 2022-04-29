@@ -1409,6 +1409,7 @@ static const struct vop_win_phy rk3366_lit_win0_data = {
 
 	.enable = VOP_REG(RK3366_LIT_WIN0_CTRL0, 0x1, 0),
 	.format = VOP_REG(RK3366_LIT_WIN0_CTRL0, 0x7, 1),
+	.interlace_read = VOP_REG(RK3366_LIT_WIN0_CTRL0, 0x1, 8),
 	.rb_swap = VOP_REG(RK3366_LIT_WIN0_CTRL0, 0x1, 12),
 	.act_info = VOP_REG(RK3366_LIT_WIN0_ACT_INFO, 0xffffffff, 0),
 	.dsp_info = VOP_REG(RK3366_LIT_WIN0_DSP_INFO, 0xffffffff, 0),
@@ -1432,6 +1433,7 @@ static const struct vop_win_phy rk3366_lit_win1_data = {
 
 	.enable = VOP_REG(RK3366_LIT_WIN1_CTRL0, 0x1, 0),
 	.format = VOP_REG(RK3366_LIT_WIN1_CTRL0, 0x7, 4),
+	.interlace_read = VOP_REG(RK3366_LIT_WIN1_CTRL0, 0x1, 8),
 	.rb_swap = VOP_REG(RK3366_LIT_WIN1_CTRL0, 0x1, 12),
 	.dsp_info = VOP_REG(RK3366_LIT_WIN1_DSP_INFO, 0xffffffff, 0),
 	.dsp_st = VOP_REG(RK3366_LIT_WIN1_DSP_ST, 0xffffffff, 0),
