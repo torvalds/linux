@@ -81,12 +81,19 @@
 		clock-div = <1>;
 	};
 
-	usim_gate_fck: usim_gate_fck@c00 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-gate-clock";
-		clocks = <&omap_96m_fck>;
-		ti,bit-shift = <9>;
-		reg = <0x0c00>;
+	clock@c00 {
+		compatible = "ti,clksel";
+		reg = <0xc00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		usim_gate_fck: clock-usim-gate-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-gate-clock";
+			clock-output-names = "usim_gate_fck";
+			clocks = <&omap_96m_fck>;
+			ti,bit-shift = <9>;
+		};
 	};
 
 	sys_d2_ck: sys_d2_ck {

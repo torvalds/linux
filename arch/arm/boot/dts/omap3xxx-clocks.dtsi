@@ -1021,12 +1021,36 @@
 		clock-frequency = <0>;
 	};
 
-	gpt1_gate_fck: gpt1_gate_fck@c00 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-gate-clock";
-		clocks = <&sys_ck>;
-		ti,bit-shift = <0>;
-		reg = <0x0c00>;
+	/* CM_FCLKEN_WKUP */
+	clock@c00 {
+		compatible = "ti,clksel";
+		reg = <0xc00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		gpt1_gate_fck: clock-gpt1-gate-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-gate-clock";
+			clock-output-names = "gpt1_gate_fck";
+			clocks = <&sys_ck>;
+			ti,bit-shift = <0>;
+		};
+
+		gpio1_dbck: clock-gpio1-dbck {
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "gpio1_dbck";
+			clocks = <&wkup_32k_fck>;
+			ti,bit-shift = <3>;
+		};
+
+		wdt2_fck: clock-wdt2-fck {
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "wdt2_fck";
+			clocks = <&wkup_32k_fck>;
+			ti,bit-shift = <5>;
+		};
 	};
 
 	gpt1_mux_fck: gpt1_mux_fck@c40 {
@@ -1048,22 +1072,6 @@
 		clocks = <&omap_32k_fck>;
 		clock-mult = <1>;
 		clock-div = <1>;
-	};
-
-	gpio1_dbck: gpio1_dbck@c00 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&wkup_32k_fck>;
-		reg = <0x0c00>;
-		ti,bit-shift = <3>;
-	};
-
-	wdt2_fck: wdt2_fck@c00 {
-		#clock-cells = <0>;
-		compatible = "ti,wait-gate-clock";
-		clocks = <&wkup_32k_fck>;
-		reg = <0x0c00>;
-		ti,bit-shift = <5>;
 	};
 
 	wdt2_ick: wdt2_ick@c10 {

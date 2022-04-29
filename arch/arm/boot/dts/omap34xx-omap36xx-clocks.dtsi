@@ -148,20 +148,27 @@
 		clock-div = <1>;
 	};
 
-	sr1_fck: sr1_fck@c00 {
-		#clock-cells = <0>;
-		compatible = "ti,wait-gate-clock";
-		clocks = <&sys_ck>;
-		reg = <0x0c00>;
-		ti,bit-shift = <6>;
-	};
+	clock@c00 {
+		compatible = "ti,clksel";
+		reg = <0xc00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
 
-	sr2_fck: sr2_fck@c00 {
-		#clock-cells = <0>;
-		compatible = "ti,wait-gate-clock";
-		clocks = <&sys_ck>;
-		reg = <0x0c00>;
-		ti,bit-shift = <7>;
+		sr1_fck: clock-sr1-fck {
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "sr1_fck";
+			clocks = <&sys_ck>;
+			ti,bit-shift = <6>;
+		};
+
+		sr2_fck: clock-sr2-fck {
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "sr2_fck";
+			clocks = <&sys_ck>;
+			ti,bit-shift = <7>;
+		};
 	};
 
 	sr_l4_ick: sr_l4_ick {
