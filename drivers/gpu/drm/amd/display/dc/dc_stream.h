@@ -550,4 +550,9 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 
 struct pipe_ctx *dc_stream_get_pipe_ctx(struct dc_stream_state *stream);
 
+void dc_dmub_update_dirty_rect(struct dc *dc,
+			       int surface_count,
+			       struct dc_stream_state *stream,
+			       struct dc_surface_update *srf_updates,
+			       struct dc_state *context);
 #endif /* DC_STREAM_H_ */
