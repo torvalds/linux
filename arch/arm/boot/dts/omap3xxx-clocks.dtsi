@@ -1186,20 +1186,156 @@
 		clock-div = <1>;
 	};
 
-	uart3_fck: uart3_fck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,wait-gate-clock";
-		clocks = <&per_48m_fck>;
+	/* CM_FCLKEN_PER */
+	clock@1000 {
+		compatible = "ti,clksel";
 		reg = <0x1000>;
-		ti,bit-shift = <11>;
-	};
+		#clock-cells = <2>;
+		#address-cells = <0>;
 
-	gpt2_gate_fck: gpt2_gate_fck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-gate-clock";
-		clocks = <&sys_ck>;
-		ti,bit-shift = <3>;
-		reg = <0x1000>;
+		uart3_fck: clock-uart3-fck {
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "uart3_fck";
+			clocks = <&per_48m_fck>;
+			ti,bit-shift = <11>;
+		};
+
+		gpt2_gate_fck: clock-gpt2-gate-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-gate-clock";
+			clock-output-names = "gpt2_gate_fck";
+			clocks = <&sys_ck>;
+			ti,bit-shift = <3>;
+		};
+
+		gpt3_gate_fck: clock-gpt3-gate-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-gate-clock";
+			clock-output-names = "gpt3_gate_fck";
+			clocks = <&sys_ck>;
+			ti,bit-shift = <4>;
+		};
+
+		gpt4_gate_fck: clock-gpt4-gate-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-gate-clock";
+			clock-output-names = "gpt4_gate_fck";
+			clocks = <&sys_ck>;
+			ti,bit-shift = <5>;
+		};
+
+		gpt5_gate_fck: clock-gpt5-gate-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-gate-clock";
+			clock-output-names = "gpt5_gate_fck";
+			clocks = <&sys_ck>;
+			ti,bit-shift = <6>;
+		};
+
+		gpt6_gate_fck: clock-gpt6-gate-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-gate-clock";
+			clock-output-names = "gpt6_gate_fck";
+			clocks = <&sys_ck>;
+			ti,bit-shift = <7>;
+		};
+
+		gpt7_gate_fck: clock-gpt7-gate-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-gate-clock";
+			clock-output-names = "gpt7_gate_fck";
+			clocks = <&sys_ck>;
+			ti,bit-shift = <8>;
+		};
+
+		gpt8_gate_fck: clock-gpt8-gate-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-gate-clock";
+			clock-output-names = "gpt8_gate_fck";
+			clocks = <&sys_ck>;
+			ti,bit-shift = <9>;
+		};
+
+		gpt9_gate_fck: clock-gpt9-gate-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-gate-clock";
+			clock-output-names = "gpt9_gate_fck";
+			clocks = <&sys_ck>;
+			ti,bit-shift = <10>;
+		};
+
+		gpio6_dbck: clock-gpio6-dbck {
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "gpio6_dbck";
+			clocks = <&per_32k_alwon_fck>;
+			ti,bit-shift = <17>;
+		};
+
+		gpio5_dbck: clock-gpio5-dbck {
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "gpio5_dbck";
+			clocks = <&per_32k_alwon_fck>;
+			ti,bit-shift = <16>;
+		};
+
+		gpio4_dbck: clock-gpio4-dbck {
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "gpio4_dbck";
+			clocks = <&per_32k_alwon_fck>;
+			ti,bit-shift = <15>;
+		};
+
+		gpio3_dbck: clock-gpio3-dbck {
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "gpio3_dbck";
+			clocks = <&per_32k_alwon_fck>;
+			ti,bit-shift = <14>;
+		};
+
+		gpio2_dbck: clock-gpio2-dbck {
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "gpio2_dbck";
+			clocks = <&per_32k_alwon_fck>;
+			ti,bit-shift = <13>;
+		};
+
+		wdt3_fck: clock-wdt3-fck {
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "wdt3_fck";
+			clocks = <&per_32k_alwon_fck>;
+			ti,bit-shift = <12>;
+		};
+
+		mcbsp2_gate_fck: clock-mcbsp2-gate-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-gate-clock";
+			clock-output-names = "mcbsp2_gate_fck";
+			clocks = <&mcbsp_clks>;
+			ti,bit-shift = <0>;
+		};
+
+		mcbsp3_gate_fck: clock-mcbsp3-gate-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-gate-clock";
+			clock-output-names = "mcbsp3_gate_fck";
+			clocks = <&mcbsp_clks>;
+			ti,bit-shift = <1>;
+		};
+
+		mcbsp4_gate_fck: clock-mcbsp4-gate-fck {
+			#clock-cells = <0>;
+			compatible = "ti,composite-gate-clock";
+			clock-output-names = "mcbsp4_gate_fck";
+			clocks = <&mcbsp_clks>;
+			ti,bit-shift = <2>;
+		};
 	};
 
 	gpt2_mux_fck: gpt2_mux_fck@1040 {
@@ -1213,14 +1349,6 @@
 		#clock-cells = <0>;
 		compatible = "ti,composite-clock";
 		clocks = <&gpt2_gate_fck>, <&gpt2_mux_fck>;
-	};
-
-	gpt3_gate_fck: gpt3_gate_fck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-gate-clock";
-		clocks = <&sys_ck>;
-		ti,bit-shift = <4>;
-		reg = <0x1000>;
 	};
 
 	gpt3_mux_fck: gpt3_mux_fck@1040 {
@@ -1237,14 +1365,6 @@
 		clocks = <&gpt3_gate_fck>, <&gpt3_mux_fck>;
 	};
 
-	gpt4_gate_fck: gpt4_gate_fck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-gate-clock";
-		clocks = <&sys_ck>;
-		ti,bit-shift = <5>;
-		reg = <0x1000>;
-	};
-
 	gpt4_mux_fck: gpt4_mux_fck@1040 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-mux-clock";
@@ -1257,14 +1377,6 @@
 		#clock-cells = <0>;
 		compatible = "ti,composite-clock";
 		clocks = <&gpt4_gate_fck>, <&gpt4_mux_fck>;
-	};
-
-	gpt5_gate_fck: gpt5_gate_fck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-gate-clock";
-		clocks = <&sys_ck>;
-		ti,bit-shift = <6>;
-		reg = <0x1000>;
 	};
 
 	gpt5_mux_fck: gpt5_mux_fck@1040 {
@@ -1281,14 +1393,6 @@
 		clocks = <&gpt5_gate_fck>, <&gpt5_mux_fck>;
 	};
 
-	gpt6_gate_fck: gpt6_gate_fck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-gate-clock";
-		clocks = <&sys_ck>;
-		ti,bit-shift = <7>;
-		reg = <0x1000>;
-	};
-
 	gpt6_mux_fck: gpt6_mux_fck@1040 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-mux-clock";
@@ -1301,14 +1405,6 @@
 		#clock-cells = <0>;
 		compatible = "ti,composite-clock";
 		clocks = <&gpt6_gate_fck>, <&gpt6_mux_fck>;
-	};
-
-	gpt7_gate_fck: gpt7_gate_fck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-gate-clock";
-		clocks = <&sys_ck>;
-		ti,bit-shift = <8>;
-		reg = <0x1000>;
 	};
 
 	gpt7_mux_fck: gpt7_mux_fck@1040 {
@@ -1325,14 +1421,6 @@
 		clocks = <&gpt7_gate_fck>, <&gpt7_mux_fck>;
 	};
 
-	gpt8_gate_fck: gpt8_gate_fck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-gate-clock";
-		clocks = <&sys_ck>;
-		ti,bit-shift = <9>;
-		reg = <0x1000>;
-	};
-
 	gpt8_mux_fck: gpt8_mux_fck@1040 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-mux-clock";
@@ -1345,14 +1433,6 @@
 		#clock-cells = <0>;
 		compatible = "ti,composite-clock";
 		clocks = <&gpt8_gate_fck>, <&gpt8_mux_fck>;
-	};
-
-	gpt9_gate_fck: gpt9_gate_fck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-gate-clock";
-		clocks = <&sys_ck>;
-		ti,bit-shift = <10>;
-		reg = <0x1000>;
 	};
 
 	gpt9_mux_fck: gpt9_mux_fck@1040 {
@@ -1375,54 +1455,6 @@
 		clocks = <&omap_32k_fck>;
 		clock-mult = <1>;
 		clock-div = <1>;
-	};
-
-	gpio6_dbck: gpio6_dbck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&per_32k_alwon_fck>;
-		reg = <0x1000>;
-		ti,bit-shift = <17>;
-	};
-
-	gpio5_dbck: gpio5_dbck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&per_32k_alwon_fck>;
-		reg = <0x1000>;
-		ti,bit-shift = <16>;
-	};
-
-	gpio4_dbck: gpio4_dbck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&per_32k_alwon_fck>;
-		reg = <0x1000>;
-		ti,bit-shift = <15>;
-	};
-
-	gpio3_dbck: gpio3_dbck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&per_32k_alwon_fck>;
-		reg = <0x1000>;
-		ti,bit-shift = <14>;
-	};
-
-	gpio2_dbck: gpio2_dbck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&per_32k_alwon_fck>;
-		reg = <0x1000>;
-		ti,bit-shift = <13>;
-	};
-
-	wdt3_fck: wdt3_fck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,wait-gate-clock";
-		clocks = <&per_32k_alwon_fck>;
-		reg = <0x1000>;
-		ti,bit-shift = <12>;
 	};
 
 	per_l4_ick: per_l4_ick {
@@ -1583,30 +1615,6 @@
 		clocks = <&per_l4_ick>;
 		reg = <0x1010>;
 		ti,bit-shift = <2>;
-	};
-
-	mcbsp2_gate_fck: mcbsp2_gate_fck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-gate-clock";
-		clocks = <&mcbsp_clks>;
-		ti,bit-shift = <0>;
-		reg = <0x1000>;
-	};
-
-	mcbsp3_gate_fck: mcbsp3_gate_fck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-gate-clock";
-		clocks = <&mcbsp_clks>;
-		ti,bit-shift = <1>;
-		reg = <0x1000>;
-	};
-
-	mcbsp4_gate_fck: mcbsp4_gate_fck@1000 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-gate-clock";
-		clocks = <&mcbsp_clks>;
-		ti,bit-shift = <2>;
-		reg = <0x1000>;
 	};
 
 	emu_src_mux_ck: emu_src_mux_ck@1140 {
