@@ -435,8 +435,7 @@ static struct sh_mobile_lcdc_sys_bus_ops sh_mobile_lcdc_sys_bus_ops = {
 	.read_data	= lcdc_sys_read_data,
 };
 
-static int sh_mobile_lcdc_sginit(struct fb_info *info,
-				  struct list_head *pagelist)
+static int sh_mobile_lcdc_sginit(struct fb_info *info, struct list_head *pagereflist)
 {
 	struct sh_mobile_lcdc_chan *ch = info->par;
 	unsigned int nr_pages_max = ch->fb_size >> PAGE_SHIFT;
@@ -445,7 +444,7 @@ static int sh_mobile_lcdc_sginit(struct fb_info *info,
 
 	sg_init_table(ch->sglist, nr_pages_max);
 
-	list_for_each_entry(pageref, pagelist, list) {
+	list_for_each_entry(pageref, pagereflist, list) {
 		struct page *page = pageref->page;
 		sg_set_page(&ch->sglist[nr_pages++], page, PAGE_SIZE, 0);
 	}
@@ -453,8 +452,7 @@ static int sh_mobile_lcdc_sginit(struct fb_info *info,
 	return nr_pages;
 }
 
-static void sh_mobile_lcdc_deferred_io(struct fb_info *info,
-				       struct list_head *pagelist)
+static void sh_mobile_lcdc_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	struct sh_mobile_lcdc_chan *ch = info->par;
 	const struct sh_mobile_lcdc_panel_cfg *panel = &ch->cfg->panel_cfg;
@@ -463,7 +461,7 @@ static void sh_mobile_lcdc_deferred_io(struct fb_info *info,
 	sh_mobile_lcdc_clk_on(ch->lcdc);
 
 	/*
-	 * It's possible to get here without anything on the pagelist via
+	 * It's possible to get here without anything on the pagereflist via
 	 * sh_mobile_lcdc_deferred_io_touch() or via a userspace fsync()
 	 * invocation. In the former case, the acceleration routines are
 	 * stepped in to when using the framebuffer console causing the
@@ -473,12 +471,12 @@ static void sh_mobile_lcdc_deferred_io(struct fb_info *info,
 	 * acceleration routines have their own methods for writing in
 	 * that still need to be updated.
 	 *
-	 * The fsync() and empty pagelist case could be optimized for,
+	 * The fsync() and empty pagereflist case could be optimized for,
 	 * but we don't bother, as any application exhibiting such
 	 * behaviour is fundamentally broken anyways.
 	 */
-	if (!list_empty(pagelist)) {
-		unsigned int nr_pages = sh_mobile_lcdc_sginit(info, pagelist);
+	if (!list_empty(pagereflist)) {
+		unsigned int nr_pages = sh_mobile_lcdc_sginit(info, pagereflist);
 
 		/* trigger panel update */
 		dma_map_sg(ch->lcdc->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);

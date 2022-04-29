@@ -433,7 +433,7 @@ static const struct fb_ops picolcdfb_ops = {
 
 
 /* Callback from deferred IO workqueue */
-static void picolcd_fb_deferred_io(struct fb_info *info, struct list_head *pagelist)
+static void picolcd_fb_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	picolcd_fb_update(info);
 }

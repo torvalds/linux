@@ -371,8 +371,7 @@ static const struct fb_ops ssd1307fb_ops = {
 	.fb_mmap	= fb_deferred_io_mmap,
 };
 
-static void ssd1307fb_deferred_io(struct fb_info *info,
-				struct list_head *pagelist)
+static void ssd1307fb_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	ssd1307fb_update_display(info->par);
 }

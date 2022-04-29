@@ -708,13 +708,12 @@ static void drm_fb_helper_memory_range_to_clip(struct fb_info *info, off_t off, 
 /**
  * drm_fb_helper_deferred_io() - fbdev deferred_io callback function
  * @info: fb_info struct pointer
- * @pagelist: list of mmap framebuffer pages that have to be flushed
+ * @pagereflist: list of mmap framebuffer pages that have to be flushed
  *
  * This function is used as the &fb_deferred_io.deferred_io
  * callback function for flushing the fbdev mmap writes.
  */
-void drm_fb_helper_deferred_io(struct fb_info *info,
-			       struct list_head *pagelist)
+void drm_fb_helper_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	unsigned long start, end, min, max;
 	struct fb_deferred_io_pageref *pageref;
@@ -722,7 +721,7 @@ void drm_fb_helper_deferred_io(struct fb_info *info,
 
 	min = ULONG_MAX;
 	max = 0;
-	list_for_each_entry(pageref, pagelist, list) {
+	list_for_each_entry(pageref, pagereflist, list) {
 		start = pageref->offset;
 		end = start + PAGE_SIZE;
 		min = min(min, start);

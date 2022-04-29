@@ -955,12 +955,10 @@ static void ufx_ops_fillrect(struct fb_info *info,
  *   Touching ANY framebuffer memory that triggers a page fault
  *   in fb_defio will cause a deadlock, when it also tries to
  *   grab the same mutex. */
-static void ufx_dpy_deferred_io(struct fb_info *info,
-				struct list_head *pagelist)
+static void ufx_dpy_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
-	struct fb_deferred_io_pageref *pageref;
-	struct fb_deferred_io *fbdefio = info->fbdefio;
 	struct ufx_data *dev = info->par;
+	struct fb_deferred_io_pageref *pageref;
 
 	if (!fb_defio)
 		return;
@@ -969,7 +967,7 @@ static void ufx_dpy_deferred_io(struct fb_info *info,
 		return;
 
 	/* walk the written page list and render each to device */
-	list_for_each_entry(pageref, &fbdefio->pagelist, list) {
+	list_for_each_entry(pageref, pagereflist, list) {
 		/* create a rectangle of full screen width that encloses the
 		 * entire dirty framebuffer page */
 		struct page *cur = pageref->page;

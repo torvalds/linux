@@ -929,13 +929,11 @@ static void broadsheetfb_dpy_update(struct broadsheetfb_par *par)
 }
 
 /* this is called back from the deferred io workqueue */
-static void broadsheetfb_dpy_deferred_io(struct fb_info *info,
-				struct list_head *pagelist)
+static void broadsheetfb_dpy_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	u16 y1 = 0, h = 0;
 	int prev_index = -1;
 	struct fb_deferred_io_pageref *pageref;
-	struct fb_deferred_io *fbdefio = info->fbdefio;
 	int h_inc;
 	u16 yres = info->var.yres;
 	u16 xres = info->var.xres;
@@ -944,7 +942,7 @@ static void broadsheetfb_dpy_deferred_io(struct fb_info *info,
 	h_inc = DIV_ROUND_UP(PAGE_SIZE , xres);
 
 	/* walk the written page list and swizzle the data */
-	list_for_each_entry(pageref, &fbdefio->pagelist, list) {
+	list_for_each_entry(pageref, pagereflist, list) {
 		struct page *cur = pageref->page;
 		if (prev_index < 0) {
 			/* just starting so assign first page */
@@ -1060,9 +1058,9 @@ static const struct fb_ops broadsheetfb_ops = {
 };
 
 static struct fb_deferred_io broadsheetfb_defio = {
-	.delay		= HZ/4,
-	.sort_pagelist	= true,
-	.deferred_io	= broadsheetfb_dpy_deferred_io,
+	.delay			= HZ/4,
+	.sort_pagereflist	= true,
+	.deferred_io		= broadsheetfb_dpy_deferred_io,
 };
 
 static int broadsheetfb_probe(struct platform_device *dev)

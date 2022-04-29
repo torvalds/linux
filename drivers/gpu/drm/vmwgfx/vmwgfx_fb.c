@@ -316,8 +316,7 @@ static int vmw_fb_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static void vmw_deferred_io(struct fb_info *info,
-			    struct list_head *pagelist)
+static void vmw_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	struct vmw_fb_par *par = info->par;
 	unsigned long start, end, min, max;
@@ -327,7 +326,7 @@ static void vmw_deferred_io(struct fb_info *info,
 
 	min = ULONG_MAX;
 	max = 0;
-	list_for_each_entry(pageref, pagelist, list) {
+	list_for_each_entry(pageref, pagereflist, list) {
 		struct page *page = pageref->page;
 		start = page->index << PAGE_SHIFT;
 		end = start + PAGE_SIZE - 1;

@@ -41,7 +41,7 @@ static struct fb_deferred_io_pageref *fb_deferred_io_pageref_get(struct fb_info 
 								 struct page *page)
 {
 	struct fb_deferred_io *fbdefio = info->fbdefio;
-	struct list_head *pos = &fbdefio->pagelist;
+	struct list_head *pos = &fbdefio->pagereflist;
 	unsigned long pgoff = offset >> PAGE_SHIFT;
 	struct fb_deferred_io_pageref *pageref, *cur;
 
@@ -63,7 +63,7 @@ static struct fb_deferred_io_pageref *fb_deferred_io_pageref_get(struct fb_info 
 	pageref->page = page;
 	pageref->offset = pgoff << PAGE_SHIFT;
 
-	if (unlikely(fbdefio->sort_pagelist)) {
+	if (unlikely(fbdefio->sort_pagereflist)) {
 		/*
 		 * We loop through the list of pagerefs before adding in
 		 * order to keep the pagerefs sorted. This has significant
@@ -71,7 +71,7 @@ static struct fb_deferred_io_pageref *fb_deferred_io_pageref_get(struct fb_info 
 		 * pages. If possible, drivers should try to work with
 		 * unsorted page lists instead.
 		 */
-		list_for_each_entry(cur, &info->fbdefio->pagelist, list) {
+		list_for_each_entry(cur, &fbdefio->pagereflist, list) {
 			if (cur->offset > pageref->offset)
 				break;
 		}
@@ -158,7 +158,7 @@ static vm_fault_t fb_deferred_io_track_page(struct fb_info *info, unsigned long 
 	mutex_lock(&fbdefio->lock);
 
 	/* first write in this cycle, notify the driver */
-	if (fbdefio->first_io && list_empty(&fbdefio->pagelist))
+	if (fbdefio->first_io && list_empty(&fbdefio->pagereflist))
 		fbdefio->first_io(info);
 
 	pageref = fb_deferred_io_pageref_get(info, offset, page);
@@ -249,18 +249,18 @@ static void fb_deferred_io_work(struct work_struct *work)
 
 	/* here we mkclean the pages, then do all deferred IO */
 	mutex_lock(&fbdefio->lock);
-	list_for_each_entry(pageref, &fbdefio->pagelist, list) {
+	list_for_each_entry(pageref, &fbdefio->pagereflist, list) {
 		struct page *cur = pageref->page;
 		lock_page(cur);
 		page_mkclean(cur);
 		unlock_page(cur);
 	}
 
-	/* driver's callback with pagelist */
-	fbdefio->deferred_io(info, &fbdefio->pagelist);
+	/* driver's callback with pagereflist */
+	fbdefio->deferred_io(info, &fbdefio->pagereflist);
 
 	/* clear the list */
-	list_for_each_entry_safe(pageref, next, &fbdefio->pagelist, list)
+	list_for_each_entry_safe(pageref, next, &fbdefio->pagereflist, list)
 		fb_deferred_io_pageref_put(pageref, info);
 
 	mutex_unlock(&fbdefio->lock);
@@ -280,7 +280,7 @@ int fb_deferred_io_init(struct fb_info *info)
 
 	mutex_init(&fbdefio->lock);
 	INIT_DELAYED_WORK(&info->deferred_work, fb_deferred_io_work);
-	INIT_LIST_HEAD(&fbdefio->pagelist);
+	INIT_LIST_HEAD(&fbdefio->pagereflist);
 	if (fbdefio->delay == 0) /* set a default of 1 s */
 		fbdefio->delay = HZ;
 

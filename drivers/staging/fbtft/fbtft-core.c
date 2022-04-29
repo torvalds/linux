@@ -322,7 +322,7 @@ static void fbtft_mkdirty(struct fb_info *info, int y, int height)
 	schedule_delayed_work(&info->deferred_work, fbdefio->delay);
 }
 
-static void fbtft_deferred_io(struct fb_info *info, struct list_head *pagelist)
+static void fbtft_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	struct fbtft_par *par = info->par;
 	unsigned int dirty_lines_start, dirty_lines_end;
@@ -340,7 +340,7 @@ static void fbtft_deferred_io(struct fb_info *info, struct list_head *pagelist)
 	spin_unlock(&par->dirty_lock);
 
 	/* Mark display lines as dirty */
-	list_for_each_entry(pageref, pagelist, list) {
+	list_for_each_entry(pageref, pagereflist, list) {
 		struct page *page = pageref->page;
 		count++;
 		index = page->index << PAGE_SHIFT;
@@ -655,9 +655,9 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 	fbops->fb_blank     =      fbtft_fb_blank;
 	fbops->fb_mmap      =      fb_deferred_io_mmap;
 
-	fbdefio->delay =           HZ / fps;
-	fbdefio->sort_pagelist =   true;
-	fbdefio->deferred_io =     fbtft_deferred_io;
+	fbdefio->delay =            HZ / fps;
+	fbdefio->sort_pagereflist = true;
+	fbdefio->deferred_io =      fbtft_deferred_io;
 	fb_deferred_io_init(info);
 
 	snprintf(info->fix.id, sizeof(info->fix.id), "%s", dev->driver->name);

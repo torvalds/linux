@@ -115,8 +115,7 @@ static void hecubafb_dpy_update(struct hecubafb_par *par)
 }
 
 /* this is called back from the deferred io workqueue */
-static void hecubafb_dpy_deferred_io(struct fb_info *info,
-				struct list_head *pagelist)
+static void hecubafb_dpy_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	hecubafb_dpy_update(info->par);
 }

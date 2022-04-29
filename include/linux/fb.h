@@ -211,9 +211,9 @@ struct fb_deferred_io_pageref {
 struct fb_deferred_io {
 	/* delay between mkwrite and deferred handler */
 	unsigned long delay;
-	bool sort_pagelist; /* sort pagelist by offset */
-	struct mutex lock; /* mutex that protects the page list */
-	struct list_head pagelist; /* list of touched pages */
+	bool sort_pagereflist; /* sort pagelist by offset */
+	struct mutex lock; /* mutex that protects the pageref list */
+	struct list_head pagereflist; /* list of pagerefs for touched pages */
 	/* callback */
 	void (*first_io)(struct fb_info *info);
 	void (*deferred_io)(struct fb_info *info, struct list_head *pagelist);
