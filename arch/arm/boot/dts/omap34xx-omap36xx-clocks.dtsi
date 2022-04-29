@@ -60,13 +60,29 @@
 		};
 	};
 
-	cam_mclk: cam_mclk@f00 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&dpll4_m5x2_ck>;
-		ti,bit-shift = <0>;
-		reg = <0x0f00>;
-		ti,set-rate-parent;
+	/* CM_FCLKEN_CAM */
+	clock@f00 {
+		compatible = "ti,clksel";
+		reg = <0xf00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		cam_mclk: clock-cam-mclk {
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "cam_mclk";
+			clocks = <&dpll4_m5x2_ck>;
+			ti,bit-shift = <0>;
+			ti,set-rate-parent;
+		};
+
+		csi2_96m_fck: clock-csi2-96m-fck {
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "csi2_96m_fck";
+			clocks = <&core_96m_fck>;
+			ti,bit-shift = <1>;
+		};
 	};
 
 	cam_ick: cam_ick@f10 {
@@ -75,14 +91,6 @@
 		clocks = <&l4_ick>;
 		reg = <0x0f10>;
 		ti,bit-shift = <0>;
-	};
-
-	csi2_96m_fck: csi2_96m_fck@f00 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&core_96m_fck>;
-		reg = <0x0f00>;
-		ti,bit-shift = <1>;
 	};
 
 	security_l3_ick: security_l3_ick {
