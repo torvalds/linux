@@ -35,9 +35,9 @@
 #include <linux/uaccess.h>
 #include <linux/uio.h>
 
+#include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/dp/drm_dp_helper.h>
-#include <drm/dp/drm_dp_mst_helper.h>
 #include <drm/drm_print.h>
 
 #include "drm_dp_helper_internal.h"

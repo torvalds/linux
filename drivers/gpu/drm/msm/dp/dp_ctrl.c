@@ -11,8 +11,9 @@
 #include <linux/phy/phy.h>
 #include <linux/phy/phy-dp.h>
 #include <linux/pm_opp.h>
+
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_fixed.h>
-#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_print.h>
 
 #include "dp_reg.h"

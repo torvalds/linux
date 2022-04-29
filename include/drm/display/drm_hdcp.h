@@ -6,8 +6,8 @@
  * Sean Paul <seanpaul@chromium.org>
  */
 
-#ifndef _DRM_HDCP_H_INCLUDED_
-#define _DRM_HDCP_H_INCLUDED_
+#ifndef _DRM_HDCP_H_
+#define _DRM_HDCP_H_
 
 #include <linux/types.h>
 
@@ -290,16 +290,6 @@ struct hdcp_srm_header {
 	__be16 srm_version;
 	u8 srm_gen_no;
 } __packed;
-
-struct drm_device;
-struct drm_connector;
-
-int drm_hdcp_check_ksvs_revoked(struct drm_device *dev,
-				u8 *ksvs, u32 ksv_count);
-int drm_connector_attach_content_protection_property(
-		struct drm_connector *connector, bool hdcp_content_type);
-void drm_hdcp_update_content_protection(struct drm_connector *connector,
-					u64 val);
 
 /* Content Type classification for HDCP2.2 vs others */
 #define DRM_MODE_HDCP_CONTENT_TYPE0		0

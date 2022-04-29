@@ -36,19 +36,6 @@ config DRM_MIPI_DSI
 	bool
 	depends on DRM
 
-config DRM_DP_AUX_BUS
-	tristate
-	depends on DRM
-	depends on OF
-
-config DRM_DP_AUX_CHARDEV
-	bool "DRM DP AUX Interface"
-	depends on DRM
-	help
-	  Choose this option to enable a /dev/drm_dp_auxN node that allows to
-	  read and write values to arbitrary DPCD registers on the DP aux
-	  channel.
-
 config DRM_DEBUG_MM
 	bool "Insert extra checks and debug info into the DRM range managers"
 	default n
@@ -68,7 +55,8 @@ config DRM_DEBUG_SELFTEST
 	depends on DRM
 	depends on DEBUG_KERNEL
 	select PRIME_NUMBERS
-	select DRM_DP_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_LIB_RANDOM
 	select DRM_KMS_HELPER
 	select DRM_BUDDY
@@ -81,12 +69,6 @@ config DRM_DEBUG_SELFTEST
 	  developers working on DRM and associated drivers.
 
 	  If in doubt, say "N".
-
-config DRM_DP_HELPER
-	tristate
-	depends on DRM
-	help
-	  DRM helpers for DisplayPort.
 
 config DRM_KMS_HELPER
 	tristate
@@ -187,16 +169,7 @@ config DRM_LOAD_EDID_FIRMWARE
 	  default case is N. Details and instructions how to build your own
 	  EDID data are given in Documentation/admin-guide/edid.rst.
 
-config DRM_DP_CEC
-	bool "Enable DisplayPort CEC-Tunneling-over-AUX HDMI support"
-	depends on DRM
-	select CEC_CORE
-	help
-	  Choose this option if you want to enable HDMI CEC support for
-	  DisplayPort/USB-C to HDMI adapters.
-
-	  Note: not all adapters support this feature, and even for those
-	  that do support this they often do not hook up the CEC pin.
+source "drivers/gpu/drm/display/Kconfig"
 
 config DRM_TTM
 	tristate
@@ -250,7 +223,8 @@ config DRM_RADEON
 	depends on DRM && PCI && MMU
 	depends on AGP || !AGP
 	select FW_LOADER
-	select DRM_DP_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HELPER
         select DRM_KMS_HELPER
         select DRM_TTM
 	select DRM_TTM_HELPER
@@ -271,7 +245,9 @@ config DRM_AMDGPU
 	tristate "AMD GPU"
 	depends on DRM && PCI && MMU
 	select FW_LOADER
-	select DRM_DP_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HDMI_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
 	select DRM_SCHED
 	select DRM_TTM

@@ -924,11 +924,9 @@ struct ssd130x_device *ssd130x_probe(struct device *dev, struct regmap *regmap)
 }
 EXPORT_SYMBOL_GPL(ssd130x_probe);
 
-int ssd130x_remove(struct ssd130x_device *ssd130x)
+void ssd130x_remove(struct ssd130x_device *ssd130x)
 {
 	drm_dev_unplug(&ssd130x->drm);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(ssd130x_remove);
 

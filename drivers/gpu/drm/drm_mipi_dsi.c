@@ -25,16 +25,16 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drm_mipi_dsi.h>
-
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
-#include <drm/drm_dsc.h>
+#include <drm/display/drm_dsc.h>
+#include <drm/drm_mipi_dsi.h>
 #include <drm/drm_print.h>
+
 #include <video/mipi_display.h>
 
 /**

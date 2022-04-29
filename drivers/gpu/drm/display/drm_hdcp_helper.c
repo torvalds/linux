@@ -13,15 +13,13 @@
 #include <linux/slab.h>
 #include <linux/firmware.h>
 
-#include <drm/drm_hdcp.h>
+#include <drm/display/drm_hdcp_helper.h>
 #include <drm/drm_sysfs.h>
 #include <drm/drm_print.h>
 #include <drm/drm_device.h>
 #include <drm/drm_property.h>
 #include <drm/drm_mode_object.h>
 #include <drm/drm_connector.h>
-
-#include "drm_internal.h"
 
 static inline void drm_hdcp_print_ksv(const u8 *ksv)
 {

@@ -32,13 +32,13 @@
 #define TRACE_SYSTEM gpu_scheduler
 #define TRACE_INCLUDE_FILE gpu_scheduler_trace
 
-TRACE_EVENT(drm_sched_job,
+DECLARE_EVENT_CLASS(drm_sched_job,
 	    TP_PROTO(struct drm_sched_job *sched_job, struct drm_sched_entity *entity),
 	    TP_ARGS(sched_job, entity),
 	    TP_STRUCT__entry(
 			     __field(struct drm_sched_entity *, entity)
 			     __field(struct dma_fence *, fence)
-			     __field(const char *, name)
+			     __string(name, sched_job->sched->name)
 			     __field(uint64_t, id)
 			     __field(u32, job_count)
 			     __field(int, hw_job_count)
@@ -48,42 +48,25 @@ TRACE_EVENT(drm_sched_job,
 			   __entry->entity = entity;
 			   __entry->id = sched_job->id;
 			   __entry->fence = &sched_job->s_fence->finished;
-			   __entry->name = sched_job->sched->name;
+			   __assign_str(name, sched_job->sched->name);
 			   __entry->job_count = spsc_queue_count(&entity->job_queue);
 			   __entry->hw_job_count = atomic_read(
 				   &sched_job->sched->hw_rq_count);
 			   ),
 	    TP_printk("entity=%p, id=%llu, fence=%p, ring=%s, job count:%u, hw job count:%d",
 		      __entry->entity, __entry->id,
-		      __entry->fence, __entry->name,
+		      __entry->fence, __get_str(name),
 		      __entry->job_count, __entry->hw_job_count)
 );
 
-TRACE_EVENT(drm_run_job,
+DEFINE_EVENT(drm_sched_job, drm_sched_job,
 	    TP_PROTO(struct drm_sched_job *sched_job, struct drm_sched_entity *entity),
-	    TP_ARGS(sched_job, entity),
-	    TP_STRUCT__entry(
-			     __field(struct drm_sched_entity *, entity)
-			     __field(struct dma_fence *, fence)
-			     __field(const char *, name)
-			     __field(uint64_t, id)
-			     __field(u32, job_count)
-			     __field(int, hw_job_count)
-			     ),
+	    TP_ARGS(sched_job, entity)
+);
 
-	    TP_fast_assign(
-			   __entry->entity = entity;
-			   __entry->id = sched_job->id;
-			   __entry->fence = &sched_job->s_fence->finished;
-			   __entry->name = sched_job->sched->name;
-			   __entry->job_count = spsc_queue_count(&entity->job_queue);
-			   __entry->hw_job_count = atomic_read(
-				   &sched_job->sched->hw_rq_count);
-			   ),
-	    TP_printk("entity=%p, id=%llu, fence=%p, ring=%s, job count:%u, hw job count:%d",
-		      __entry->entity, __entry->id,
-		      __entry->fence, __entry->name,
-		      __entry->job_count, __entry->hw_job_count)
+DEFINE_EVENT(drm_sched_job, drm_run_job,
+	    TP_PROTO(struct drm_sched_job *sched_job, struct drm_sched_entity *entity),
+	    TP_ARGS(sched_job, entity)
 );
 
 TRACE_EVENT(drm_sched_process_job,
@@ -103,7 +86,7 @@ TRACE_EVENT(drm_sched_job_wait_dep,
 	    TP_PROTO(struct drm_sched_job *sched_job, struct dma_fence *fence),
 	    TP_ARGS(sched_job, fence),
 	    TP_STRUCT__entry(
-			     __field(const char *,name)
+			     __string(name, sched_job->sched->name)
 			     __field(uint64_t, id)
 			     __field(struct dma_fence *, fence)
 			     __field(uint64_t, ctx)
@@ -111,14 +94,14 @@ TRACE_EVENT(drm_sched_job_wait_dep,
 			     ),
 
 	    TP_fast_assign(
-			   __entry->name = sched_job->sched->name;
+			   __assign_str(name, sched_job->sched->name);
 			   __entry->id = sched_job->id;
 			   __entry->fence = fence;
 			   __entry->ctx = fence->context;
 			   __entry->seqno = fence->seqno;
 			   ),
 	    TP_printk("job ring=%s, id=%llu, depends fence=%p, context=%llu, seq=%u",
-		      __entry->name, __entry->id,
+		      __get_str(name), __entry->id,
 		      __entry->fence, __entry->ctx,
 		      __entry->seqno)
 );
