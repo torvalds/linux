@@ -424,7 +424,7 @@ static void synthvid_deferred_io(struct fb_info *p,
 				 struct list_head *pagelist)
 {
 	struct hvfb_par *par = p->par;
-	struct page *page;
+	struct fb_deferred_io_pageref *pageref;
 	unsigned long start, end;
 	int y1, y2, miny, maxy;
 
@@ -437,7 +437,8 @@ static void synthvid_deferred_io(struct fb_info *p,
 	 * in synthvid_update function by clamping the y2
 	 * value to yres.
 	 */
-	list_for_each_entry(page, pagelist, lru) {
+	list_for_each_entry(pageref, pagelist, list) {
+		struct page *page = pageref->page;
 		start = page->index << PAGE_SHIFT;
 		end = start + PAGE_SIZE - 1;
 		y1 = start / p->fix.line_length;

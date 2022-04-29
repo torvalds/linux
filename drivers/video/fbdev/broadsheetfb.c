@@ -934,7 +934,7 @@ static void broadsheetfb_dpy_deferred_io(struct fb_info *info,
 {
 	u16 y1 = 0, h = 0;
 	int prev_index = -1;
-	struct page *cur;
+	struct fb_deferred_io_pageref *pageref;
 	struct fb_deferred_io *fbdefio = info->fbdefio;
 	int h_inc;
 	u16 yres = info->var.yres;
@@ -944,7 +944,8 @@ static void broadsheetfb_dpy_deferred_io(struct fb_info *info,
 	h_inc = DIV_ROUND_UP(PAGE_SIZE , xres);
 
 	/* walk the written page list and swizzle the data */
-	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
+	list_for_each_entry(pageref, &fbdefio->pagelist, list) {
+		struct page *cur = pageref->page;
 		if (prev_index < 0) {
 			/* just starting so assign first page */
 			y1 = (cur->index << PAGE_SHIFT) / xres;

@@ -469,12 +469,13 @@ static void metronomefb_dpy_deferred_io(struct fb_info *info,
 				struct list_head *pagelist)
 {
 	u16 cksum;
-	struct page *cur;
+	struct fb_deferred_io_pageref *pageref;
 	struct fb_deferred_io *fbdefio = info->fbdefio;
 	struct metronomefb_par *par = info->par;
 
 	/* walk the written page list and swizzle the data */
-	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
+	list_for_each_entry(pageref, &fbdefio->pagelist, list) {
+		struct page *cur = pageref->page;
 		cksum = metronomefb_dpy_update_page(par,
 					(cur->index << PAGE_SHIFT));
 		par->metromem_img_csum -= par->csum_table[cur->index];

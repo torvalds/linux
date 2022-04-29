@@ -717,13 +717,13 @@ void drm_fb_helper_deferred_io(struct fb_info *info,
 			       struct list_head *pagelist)
 {
 	unsigned long start, end, min, max;
-	struct page *page;
+	struct fb_deferred_io_pageref *pageref;
 	struct drm_rect damage_area;
 
 	min = ULONG_MAX;
 	max = 0;
-	list_for_each_entry(page, pagelist, lru) {
-		start = page->index << PAGE_SHIFT;
+	list_for_each_entry(pageref, pagelist, list) {
+		start = pageref->offset;
 		end = start + PAGE_SIZE;
 		min = min(min, start);
 		max = max(max, end);
