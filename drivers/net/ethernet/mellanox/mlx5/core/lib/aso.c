@@ -334,3 +334,100 @@ void mlx5_aso_destroy(struct mlx5_aso *aso)
 	mlx5_aso_destroy_cq(&aso->cq);
 	kfree(aso);
 }
+
+void mlx5_aso_build_wqe(struct mlx5_aso *aso, u8 ds_cnt,
+			struct mlx5_aso_wqe *aso_wqe,
+			u32 obj_id, u32 opc_mode)
+{
+	struct mlx5_wqe_ctrl_seg *cseg = &aso_wqe->ctrl;
+
+	cseg->opmod_idx_opcode = cpu_to_be32((opc_mode << MLX5_WQE_CTRL_WQE_OPC_MOD_SHIFT) |
+					     (aso->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) |
+					     MLX5_OPCODE_ACCESS_ASO);
+	cseg->qpn_ds     = cpu_to_be32((aso->sqn << MLX5_WQE_CTRL_QPN_SHIFT) | ds_cnt);
+	cseg->fm_ce_se   = MLX5_WQE_CTRL_CQ_UPDATE;
+	cseg->general_id = cpu_to_be32(obj_id);
+}
+
+void *mlx5_aso_get_wqe(struct mlx5_aso *aso)
+{
+	u16 pi;
+
+	pi = mlx5_wq_cyc_ctr2ix(&aso->wq, aso->pc);
+	return mlx5_wq_cyc_get_wqe(&aso->wq, pi);
+}
+
+void mlx5_aso_post_wqe(struct mlx5_aso *aso, bool with_data,
+		       struct mlx5_wqe_ctrl_seg *doorbell_cseg)
+{
+	doorbell_cseg->fm_ce_se |= MLX5_WQE_CTRL_CQ_UPDATE;
+	/* ensure wqe is visible to device before updating doorbell record */
+	dma_wmb();
+
+	if (with_data)
+		aso->pc += MLX5_ASO_WQEBBS_DATA;
+	else
+		aso->pc += MLX5_ASO_WQEBBS;
+	*aso->wq.db = cpu_to_be32(aso->pc);
+
+	/* ensure doorbell record is visible to device before ringing the
+	 * doorbell
+	 */
+	wmb();
+
+	mlx5_write64((__be32 *)doorbell_cseg, aso->uar_map);
+
+	/* Ensure doorbell is written on uar_page before poll_cq */
+	WRITE_ONCE(doorbell_cseg, NULL);
+}
+
+int mlx5_aso_poll_cq(struct mlx5_aso *aso, bool with_data, u32 interval_ms)
+{
+	struct mlx5_aso_cq *cq = &aso->cq;
+	struct mlx5_cqe64 *cqe;
+	unsigned long expires;
+
+	cqe = mlx5_cqwq_get_cqe(&cq->wq);
+
+	expires = jiffies + msecs_to_jiffies(interval_ms);
+	while (!cqe && time_is_after_jiffies(expires)) {
+		usleep_range(2, 10);
+		cqe = mlx5_cqwq_get_cqe(&cq->wq);
+	}
+
+	if (!cqe)
+		return -ETIMEDOUT;
+
+	/* sq->cc must be updated only after mlx5_cqwq_update_db_record(),
+	 * otherwise a cq overrun may occur
+	 */
+	mlx5_cqwq_pop(&cq->wq);
+
+	if (unlikely(get_cqe_opcode(cqe) != MLX5_CQE_REQ)) {
+		struct mlx5_err_cqe *err_cqe;
+
+		mlx5_core_err(cq->mdev, "Bad OP in ASOSQ CQE: 0x%x\n",
+			      get_cqe_opcode(cqe));
+
+		err_cqe = (struct mlx5_err_cqe *)cqe;
+		mlx5_core_err(cq->mdev, "vendor_err_synd=%x\n",
+			      err_cqe->vendor_err_synd);
+		mlx5_core_err(cq->mdev, "syndrome=%x\n",
+			      err_cqe->syndrome);
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       16, 1, err_cqe,
+			       sizeof(*err_cqe), false);
+	}
+
+	mlx5_cqwq_update_db_record(&cq->wq);
+
+	/* ensure cq space is freed before enabling more cqes */
+	wmb();
+
+	if (with_data)
+		aso->cc += MLX5_ASO_WQEBBS_DATA;
+	else
+		aso->cc += MLX5_ASO_WQEBBS;
+
+	return 0;
+}
