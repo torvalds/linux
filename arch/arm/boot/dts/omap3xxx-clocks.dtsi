@@ -1022,28 +1022,36 @@
 		clock-div = <1>;
 	};
 
-	dss_tv_fck: dss_tv_fck@e00 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&omap_54m_fck>;
-		reg = <0x0e00>;
-		ti,bit-shift = <2>;
-	};
+	/* CM_FCLKEN_DSS */
+	clock@e00 {
+		compatible = "ti,clksel";
+		reg = <0xe00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
 
-	dss_96m_fck: dss_96m_fck@e00 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&omap_96m_fck>;
-		reg = <0x0e00>;
-		ti,bit-shift = <2>;
-	};
+		dss_tv_fck: clock-dss-tv-fck {
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "dss_tv_fck";
+			clocks = <&omap_54m_fck>;
+			ti,bit-shift = <2>;
+		};
 
-	dss2_alwon_fck: dss2_alwon_fck@e00 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&sys_ck>;
-		reg = <0x0e00>;
-		ti,bit-shift = <1>;
+		dss_96m_fck: clock-dss-96m-fck {
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "dss_96m_fck";
+			clocks = <&omap_96m_fck>;
+			ti,bit-shift = <2>;
+		};
+
+		dss2_alwon_fck: clock-dss2-alwon-fck {
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "dss2_alwon_fck";
+			clocks = <&sys_ck>;
+			ti,bit-shift = <1>;
+		};
 	};
 
 	dummy_ck: dummy_ck {

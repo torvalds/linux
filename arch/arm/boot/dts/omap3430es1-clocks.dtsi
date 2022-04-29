@@ -170,13 +170,20 @@
 		clocks = <&usb_l4_gate_ick>, <&usb_l4_div_ick>;
 	};
 
-	dss1_alwon_fck: dss1_alwon_fck_3430es1@e00 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&dpll4_m4x2_ck>;
-		ti,bit-shift = <0>;
-		reg = <0x0e00>;
-		ti,set-rate-parent;
+	clock@e00 {
+		compatible = "ti,clksel";
+		reg = <0xe00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		dss1_alwon_fck: clock-dss1-alwon-fck-3430es1 {
+			#clock-cells = <0>;
+			compatible = "ti,gate-clock";
+			clock-output-names = "dss1_alwon_fck_3430es1";
+			clocks = <&dpll4_m4x2_ck>;
+			ti,bit-shift = <0>;
+			ti,set-rate-parent;
+		};
 	};
 
 	dss_ick: dss_ick_3430es1@e10 {
