@@ -19,6 +19,7 @@
 #define PMIC_REV4		0x103
 #define PMIC_TYPE		0x104
 #define PMIC_SUBTYPE		0x105
+#define PMIC_FAB_ID		0x1f2
 
 #define PMIC_TYPE_VALUE		0x51
 
@@ -156,6 +157,12 @@ static int pmic_spmi_load_revid(struct regmap *map, struct device *dev,
 	ret = regmap_read(map, PMIC_REV4, &pmic->major);
 	if (ret < 0)
 		return ret;
+
+	if (pmic->subtype == PMI8998_SUBTYPE || pmic->subtype == PM660_SUBTYPE) {
+		ret = regmap_read(map, PMIC_FAB_ID, &pmic->fab_id);
+		if (ret < 0)
+			return ret;
+	}
 
 	/*
 	 * In early versions of PM8941 and PM8226, the major revision number
