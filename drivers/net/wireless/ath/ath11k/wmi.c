@@ -7844,7 +7844,7 @@ static void ath11k_wmi_gtk_offload_status_event(struct ath11k_base *ab,
 	replay_ctr_be = cpu_to_be64(replay_ctr);
 
 	ieee80211_gtk_rekey_notify(arvif->vif, arvif->bssid,
-				   (void *)&replay_ctr_be, GFP_KERNEL);
+				   (void *)&replay_ctr_be, GFP_ATOMIC);
 
 	kfree(tb);
 }
