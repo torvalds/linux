@@ -6776,7 +6776,9 @@ int get_hwpoison_huge_page(struct page *page, bool *hugetlb)
 	spin_lock_irq(&hugetlb_lock);
 	if (PageHeadHuge(page)) {
 		*hugetlb = true;
-		if (HPageFreed(page) || HPageMigratable(page))
+		if (HPageFreed(page))
+			ret = 0;
+		else if (HPageMigratable(page))
 			ret = get_page_unless_zero(page);
 		else
 			ret = -EBUSY;

@@ -1517,7 +1517,9 @@ int __get_huge_page_for_hwpoison(unsigned long pfn, int flags)
 	if (flags & MF_COUNT_INCREASED) {
 		ret = 1;
 		count_increased = true;
-	} else if (HPageFreed(head) || HPageMigratable(head)) {
+	} else if (HPageFreed(head)) {
+		ret = 0;
+	} else if (HPageMigratable(head)) {
 		ret = get_page_unless_zero(head);
 		if (ret)
 			count_increased = true;
