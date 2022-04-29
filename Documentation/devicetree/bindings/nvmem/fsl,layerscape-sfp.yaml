@@ -10,7 +10,7 @@ maintainers:
   - Michael Walle <michael@walle.cc>
 
 description: |
-  SFP is the security fuse processor which among other things provide a
+  SFP is the security fuse processor which among other things provides a
   unique identifier per part.
 
 allOf:
