@@ -179,6 +179,9 @@ enum kunit_status kunit_suite_has_succeeded(struct kunit_suite *suite)
 	const struct kunit_case *test_case;
 	enum kunit_status status = KUNIT_SKIPPED;
 
+	if (suite->suite_init_err)
+		return KUNIT_FAILURE;
+
 	kunit_suite_for_each_test_case(suite, test_case) {
 		if (test_case->status == KUNIT_FAILURE)
 			return KUNIT_FAILURE;
@@ -498,6 +501,15 @@ int kunit_run_tests(struct kunit_suite *suite)
 	struct kunit_result_stats suite_stats = { 0 };
 	struct kunit_result_stats total_stats = { 0 };
 
+	if (suite->suite_init) {
+		suite->suite_init_err = suite->suite_init(suite);
+		if (suite->suite_init_err) {
+			kunit_err(suite, KUNIT_SUBTEST_INDENT
+				  "# failed to initialize (%d)", suite->suite_init_err);
+			goto suite_end;
+		}
+	}
+
 	kunit_print_suite_start(suite);
 
 	kunit_suite_for_each_test_case(suite, test_case) {
@@ -551,7 +563,11 @@ int kunit_run_tests(struct kunit_suite *suite)
 		kunit_accumulate_stats(&total_stats, param_stats);
 	}
 
+	if (suite->suite_exit)
+		suite->suite_exit(suite);
+
 	kunit_print_suite_stats(suite, suite_stats, total_stats);
+suite_end:
 	kunit_print_suite_end(suite);
 
 	return 0;
@@ -562,6 +578,7 @@ static void kunit_init_suite(struct kunit_suite *suite)
 {
 	kunit_debugfs_create_suite(suite);
 	suite->status_comment[0] = '\0';
+	suite->suite_init_err = 0;
 }
 
 int __kunit_test_suites_init(struct kunit_suite * const * const suites)
