@@ -14,6 +14,7 @@ LIST_HEAD(mrioc_list);
 DEFINE_SPINLOCK(mrioc_list_lock);
 static int mrioc_ids;
 static int warn_non_secure_ctlr;
+atomic64_t event_counter;
 
 MODULE_AUTHOR(MPI3MR_DRIVER_AUTHOR);
 MODULE_DESCRIPTION(MPI3MR_DRIVER_DESC);
@@ -1416,6 +1417,23 @@ static void mpi3mr_pcietopochg_evt_bh(struct mpi3mr_ioc *mrioc,
 }
 
 /**
+ * mpi3mr_logdata_evt_bh -  Log data event bottomhalf
+ * @mrioc: Adapter instance reference
+ * @fwevt: Firmware event reference
+ *
+ * Extracts the event data and calls application interfacing
+ * function to process the event further.
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_logdata_evt_bh(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_fwevt *fwevt)
+{
+	mpi3mr_app_save_logdata(mrioc, fwevt->event_data,
+	    fwevt->event_data_size);
+}
+
+/**
  * mpi3mr_fwevt_bh - Firmware event bottomhalf handler
  * @mrioc: Adapter instance reference
  * @fwevt: Firmware event reference
@@ -1465,6 +1483,11 @@ static void mpi3mr_fwevt_bh(struct mpi3mr_ioc *mrioc,
 	case MPI3_EVENT_PCIE_TOPOLOGY_CHANGE_LIST:
 	{
 		mpi3mr_pcietopochg_evt_bh(mrioc, fwevt);
+		break;
+	}
+	case MPI3_EVENT_LOG_DATA:
+	{
+		mpi3mr_logdata_evt_bh(mrioc, fwevt);
 		break;
 	}
 	default:
@@ -2298,6 +2321,7 @@ void mpi3mr_os_handle_events(struct mpi3mr_ioc *mrioc,
 		break;
 	}
 	case MPI3_EVENT_DEVICE_INFO_CHANGED:
+	case MPI3_EVENT_LOG_DATA:
 	{
 		process_evt_bh = 1;
 		break;
@@ -4568,6 +4592,12 @@ static struct pci_driver mpi3mr_pci_driver = {
 #endif
 };
 
+static ssize_t event_counter_show(struct device_driver *dd, char *buf)
+{
+	return sprintf(buf, "%llu\n", atomic64_read(&event_counter));
+}
+static DRIVER_ATTR_RO(event_counter);
+
 static int __init mpi3mr_init(void)
 {
 	int ret_val;
@@ -4576,6 +4606,16 @@ static int __init mpi3mr_init(void)
 	    MPI3MR_DRIVER_VERSION);
 
 	ret_val = pci_register_driver(&mpi3mr_pci_driver);
+	if (ret_val) {
+		pr_err("%s failed to load due to pci register driver failure\n",
+		    MPI3MR_DRIVER_NAME);
+		return ret_val;
+	}
+
+	ret_val = driver_create_file(&mpi3mr_pci_driver.driver,
+				     &driver_attr_event_counter);
+	if (ret_val)
+		pci_unregister_driver(&mpi3mr_pci_driver);
 
 	return ret_val;
 }
@@ -4590,6 +4630,8 @@ static void __exit mpi3mr_exit(void)
 		pr_info("Unloading %s version %s\n", MPI3MR_DRIVER_NAME,
 		    MPI3MR_DRIVER_VERSION);
 
+	driver_remove_file(&mpi3mr_pci_driver.driver,
+			   &driver_attr_event_counter);
 	pci_unregister_driver(&mpi3mr_pci_driver);
 }
 

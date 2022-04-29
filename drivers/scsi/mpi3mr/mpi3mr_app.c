@@ -12,6 +12,95 @@
 #include <uapi/scsi/scsi_bsg_mpi3mr.h>
 
 /**
+ * mpi3mr_bsg_pel_abort - sends PEL abort request
+ * @mrioc: Adapter instance reference
+ *
+ * This function sends PEL abort request to the firmware through
+ * admin request queue.
+ *
+ * Return: 0 on success, -1 on failure
+ */
+static int mpi3mr_bsg_pel_abort(struct mpi3mr_ioc *mrioc)
+{
+	struct mpi3_pel_req_action_abort pel_abort_req;
+	struct mpi3_pel_reply *pel_reply;
+	int retval = 0;
+	u16 pe_log_status;
+
+	if (mrioc->reset_in_progress) {
+		dprint_bsg_err(mrioc, "%s: reset in progress\n", __func__);
+		return -1;
+	}
+	if (mrioc->stop_bsgs) {
+		dprint_bsg_err(mrioc, "%s: bsgs are blocked\n", __func__);
+		return -1;
+	}
+
+	memset(&pel_abort_req, 0, sizeof(pel_abort_req));
+	mutex_lock(&mrioc->pel_abort_cmd.mutex);
+	if (mrioc->pel_abort_cmd.state & MPI3MR_CMD_PENDING) {
+		dprint_bsg_err(mrioc, "%s: command is in use\n", __func__);
+		mutex_unlock(&mrioc->pel_abort_cmd.mutex);
+		return -1;
+	}
+	mrioc->pel_abort_cmd.state = MPI3MR_CMD_PENDING;
+	mrioc->pel_abort_cmd.is_waiting = 1;
+	mrioc->pel_abort_cmd.callback = NULL;
+	pel_abort_req.host_tag = cpu_to_le16(MPI3MR_HOSTTAG_PEL_ABORT);
+	pel_abort_req.function = MPI3_FUNCTION_PERSISTENT_EVENT_LOG;
+	pel_abort_req.action = MPI3_PEL_ACTION_ABORT;
+	pel_abort_req.abort_host_tag = cpu_to_le16(MPI3MR_HOSTTAG_PEL_WAIT);
+
+	mrioc->pel_abort_requested = 1;
+	init_completion(&mrioc->pel_abort_cmd.done);
+	retval = mpi3mr_admin_request_post(mrioc, &pel_abort_req,
+	    sizeof(pel_abort_req), 0);
+	if (retval) {
+		retval = -1;
+		dprint_bsg_err(mrioc, "%s: admin request post failed\n",
+		    __func__);
+		mrioc->pel_abort_requested = 0;
+		goto out_unlock;
+	}
+
+	wait_for_completion_timeout(&mrioc->pel_abort_cmd.done,
+	    (MPI3MR_INTADMCMD_TIMEOUT * HZ));
+	if (!(mrioc->pel_abort_cmd.state & MPI3MR_CMD_COMPLETE)) {
+		mrioc->pel_abort_cmd.is_waiting = 0;
+		dprint_bsg_err(mrioc, "%s: command timedout\n", __func__);
+		if (!(mrioc->pel_abort_cmd.state & MPI3MR_CMD_RESET))
+			mpi3mr_soft_reset_handler(mrioc,
+			    MPI3MR_RESET_FROM_PELABORT_TIMEOUT, 1);
+		retval = -1;
+		goto out_unlock;
+	}
+	if ((mrioc->pel_abort_cmd.ioc_status & MPI3_IOCSTATUS_STATUS_MASK)
+	     != MPI3_IOCSTATUS_SUCCESS) {
+		dprint_bsg_err(mrioc,
+		    "%s: command failed, ioc_status(0x%04x) log_info(0x%08x)\n",
+		    __func__, (mrioc->pel_abort_cmd.ioc_status &
+		    MPI3_IOCSTATUS_STATUS_MASK),
+		    mrioc->pel_abort_cmd.ioc_loginfo);
+		retval = -1;
+		goto out_unlock;
+	}
+	if (mrioc->pel_abort_cmd.state & MPI3MR_CMD_REPLY_VALID) {
+		pel_reply = (struct mpi3_pel_reply *)mrioc->pel_abort_cmd.reply;
+		pe_log_status = le16_to_cpu(pel_reply->pe_log_status);
+		if (pe_log_status != MPI3_PEL_STATUS_SUCCESS) {
+			dprint_bsg_err(mrioc,
+			    "%s: command failed, pel_status(0x%04x)\n",
+			    __func__, pe_log_status);
+			retval = -1;
+		}
+	}
+
+out_unlock:
+	mrioc->pel_abort_cmd.state = MPI3MR_CMD_NOTUSED;
+	mutex_unlock(&mrioc->pel_abort_cmd.mutex);
+	return retval;
+}
+/**
  * mpi3mr_bsg_verify_adapter - verify adapter number is valid
  * @ioc_number: Adapter number
  *
@@ -107,6 +196,87 @@ static long mpi3mr_get_logdata(struct mpi3mr_ioc *mrioc,
 	return -EINVAL;
 }
 
+/**
+ * mpi3mr_bsg_pel_enable - Handler for PEL enable driver
+ * @mrioc: Adapter instance reference
+ * @job: BSG job pointer
+ *
+ * This function is the handler for PEL enable driver.
+ * Validates the application given class and locale and if
+ * requires aborts the existing PEL wait request and/or issues
+ * new PEL wait request to the firmware and returns.
+ *
+ * Return: 0 on success and proper error codes on failure.
+ */
+static long mpi3mr_bsg_pel_enable(struct mpi3mr_ioc *mrioc,
+				  struct bsg_job *job)
+{
+	long rval = -EINVAL;
+	struct mpi3mr_bsg_out_pel_enable pel_enable;
+	u8 issue_pel_wait;
+	u8 tmp_class;
+	u16 tmp_locale;
+
+	if (job->request_payload.payload_len != sizeof(pel_enable)) {
+		dprint_bsg_err(mrioc, "%s: invalid size argument\n",
+		    __func__);
+		return rval;
+	}
+
+	sg_copy_to_buffer(job->request_payload.sg_list,
+			  job->request_payload.sg_cnt,
+			  &pel_enable, sizeof(pel_enable));
+
+	if (pel_enable.pel_class > MPI3_PEL_CLASS_FAULT) {
+		dprint_bsg_err(mrioc, "%s: out of range class %d sent\n",
+			__func__, pel_enable.pel_class);
+		rval = 0;
+		goto out;
+	}
+	if (!mrioc->pel_enabled)
+		issue_pel_wait = 1;
+	else {
+		if ((mrioc->pel_class <= pel_enable.pel_class) &&
+		    !((mrioc->pel_locale & pel_enable.pel_locale) ^
+		      pel_enable.pel_locale)) {
+			issue_pel_wait = 0;
+			rval = 0;
+		} else {
+			pel_enable.pel_locale |= mrioc->pel_locale;
+
+			if (mrioc->pel_class < pel_enable.pel_class)
+				pel_enable.pel_class = mrioc->pel_class;
+
+			rval = mpi3mr_bsg_pel_abort(mrioc);
+			if (rval) {
+				dprint_bsg_err(mrioc,
+				    "%s: pel_abort failed, status(%ld)\n",
+				    __func__, rval);
+				goto out;
+			}
+			issue_pel_wait = 1;
+		}
+	}
+	if (issue_pel_wait) {
+		tmp_class = mrioc->pel_class;
+		tmp_locale = mrioc->pel_locale;
+		mrioc->pel_class = pel_enable.pel_class;
+		mrioc->pel_locale = pel_enable.pel_locale;
+		mrioc->pel_enabled = 1;
+		rval = mpi3mr_pel_get_seqnum_post(mrioc, NULL);
+		if (rval) {
+			mrioc->pel_class = tmp_class;
+			mrioc->pel_locale = tmp_locale;
+			mrioc->pel_enabled = 0;
+			dprint_bsg_err(mrioc,
+			    "%s: pel get sequence number failed, status(%ld)\n",
+			    __func__, rval);
+		}
+	}
+
+out:
+	return rval;
+}
 /**
  * mpi3mr_get_all_tgt_info - Get all target information
  * @mrioc: Adapter instance reference
@@ -371,6 +541,9 @@ static long mpi3mr_bsg_process_drv_cmds(struct bsg_job *job)
 		break;
 	case MPI3MR_DRVBSG_OPCODE_GETLOGDATA:
 		rval = mpi3mr_get_logdata(mrioc, job);
+		break;
+	case MPI3MR_DRVBSG_OPCODE_PELENABLE:
+		rval = mpi3mr_bsg_pel_enable(mrioc, job);
 		break;
 	case MPI3MR_DRVBSG_OPCODE_UNKNOWN:
 	default:
@@ -895,6 +1068,38 @@ out:
 	}
 	kfree(bsg_reply_buf);
 	return rval;
+}
+
+/**
+ * mpi3mr_app_save_logdata - Save Log Data events
+ * @mrioc: Adapter instance reference
+ * @event_data: event data associated with log data event
+ * @event_data_size: event data size to copy
+ *
+ * If log data event caching is enabled by the applicatiobns,
+ * then this function saves the log data in the circular queue
+ * and Sends async signal SIGIO to indicate there is an async
+ * event from the firmware to the event monitoring applications.
+ *
+ * Return:Nothing
+ */
+void mpi3mr_app_save_logdata(struct mpi3mr_ioc *mrioc, char *event_data,
+	u16 event_data_size)
+{
+	u32 index = mrioc->logdata_buf_idx, sz;
+	struct mpi3mr_logdata_entry *entry;
+
+	if (!(mrioc->logdata_buf))
+		return;
+
+	entry = (struct mpi3mr_logdata_entry *)
+		(mrioc->logdata_buf + (index * mrioc->logdata_entry_sz));
+	entry->valid_entry = 1;
+	sz = min(mrioc->logdata_entry_sz, event_data_size);
+	memcpy(entry->data, event_data, sz);
+	mrioc->logdata_buf_idx =
+		((++index) % MPI3MR_BSG_LOGDATA_MAX_ENTRIES);
+	atomic64_inc(&event_counter);
 }
 
 /**

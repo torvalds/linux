@@ -53,6 +53,7 @@
 extern spinlock_t mrioc_list_lock;
 extern struct list_head mrioc_list;
 extern int prot_mask;
+extern atomic64_t event_counter;
 
 #define MPI3MR_DRIVER_VERSION	"8.0.0.68.0"
 #define MPI3MR_DRIVER_RELDATE	"10-February-2022"
@@ -91,6 +92,8 @@ extern int prot_mask;
 #define MPI3MR_HOSTTAG_INVALID		0xFFFF
 #define MPI3MR_HOSTTAG_INITCMDS		1
 #define MPI3MR_HOSTTAG_BSG_CMDS		2
+#define MPI3MR_HOSTTAG_PEL_ABORT	3
+#define MPI3MR_HOSTTAG_PEL_WAIT		4
 #define MPI3MR_HOSTTAG_BLK_TMS		5
 
 #define MPI3MR_NUM_DEVRMCMD		16
@@ -152,6 +155,7 @@ extern int prot_mask;
 
 /* Command retry count definitions */
 #define MPI3MR_DEV_RMHS_RETRY_COUNT 3
+#define MPI3MR_PEL_RETRY_COUNT 3
 
 /* Default target device queue depth */
 #define MPI3MR_DEFAULT_SDEV_QD	32
@@ -748,6 +752,16 @@ struct scmd_priv {
  * @current_event: Firmware event currently in process
  * @driver_info: Driver, Kernel, OS information to firmware
  * @change_count: Topology change count
+ * @pel_enabled: Persistent Event Log(PEL) enabled or not
+ * @pel_abort_requested: PEL abort is requested or not
+ * @pel_class: PEL Class identifier
+ * @pel_locale: PEL Locale identifier
+ * @pel_cmds: Command tracker for PEL wait command
+ * @pel_abort_cmd: Command tracker for PEL abort command
+ * @pel_newest_seqnum: Newest PEL sequenece number
+ * @pel_seqnum_virt: PEL sequence number virtual address
+ * @pel_seqnum_dma: PEL sequence number DMA address
+ * @pel_seqnum_sz: PEL sequenece number size
  * @op_reply_q_offset: Operational reply queue offset with MSIx
  * @default_qcount: Total Default queues
  * @active_poll_qcount: Currently active poll queue count
@@ -894,8 +908,20 @@ struct mpi3mr_ioc {
 	struct mpi3mr_fwevt *current_event;
 	struct mpi3_driver_info_layout driver_info;
 	u16 change_count;
-	u16 op_reply_q_offset;
 
+	u8 pel_enabled;
+	u8 pel_abort_requested;
+	u8 pel_class;
+	u16 pel_locale;
+	struct mpi3mr_drv_cmd pel_cmds;
+	struct mpi3mr_drv_cmd pel_abort_cmd;
+
+	u32 pel_newest_seqnum;
+	void *pel_seqnum_virt;
+	dma_addr_t pel_seqnum_dma;
+	u32 pel_seqnum_sz;
+
+	u16 op_reply_q_offset;
 	u16 default_qcount;
 	u16 active_poll_qcount;
 	u16 requested_poll_qcount;
@@ -918,6 +944,7 @@ struct mpi3mr_ioc {
  * @send_ack: Event acknowledgment required or not
  * @process_evt: Bottomhalf processing required or not
  * @evt_ctx: Event context to send in Ack
+ * @event_data_size: size of the event data in bytes
  * @pending_at_sml: waiting for device add/remove API to complete
  * @discard: discard this event
  * @ref_count: kref count
@@ -931,6 +958,7 @@ struct mpi3mr_fwevt {
 	bool send_ack;
 	bool process_evt;
 	u32 evt_ctx;
+	u16 event_data_size;
 	bool pending_at_sml;
 	bool discard;
 	struct kref ref_count;
@@ -1022,5 +1050,11 @@ int mpi3mr_issue_tm(struct mpi3mr_ioc *mrioc, u8 tm_type,
 	u8 *resp_code, struct scsi_cmnd *scmd);
 struct mpi3mr_tgt_dev *mpi3mr_get_tgtdev_by_handle(
 	struct mpi3mr_ioc *mrioc, u16 handle);
+void mpi3mr_pel_get_seqnum_complete(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_drv_cmd *drv_cmd);
+int mpi3mr_pel_get_seqnum_post(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_drv_cmd *drv_cmd);
+void mpi3mr_app_save_logdata(struct mpi3mr_ioc *mrioc, char *event_data,
+	u16 event_data_size);
 
 #endif /*MPI3MR_H_INCLUDED*/
