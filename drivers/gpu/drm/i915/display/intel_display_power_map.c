@@ -21,7 +21,7 @@
 
 #define I915_PW_DOMAINS(...) \
 	(const struct i915_power_domain_list) \
-		__LIST(__LIST_INLINE_ELEMS(enum intel_display_power_domain, __VA_ARGS__))
+		__LIST(__LIST_INLINE_ELEMS(const enum intel_display_power_domain, __VA_ARGS__))
 
 #define I915_DECL_PW_DOMAINS(__name, ...) \
 	static const struct i915_power_domain_list __name = I915_PW_DOMAINS(__VA_ARGS__)
@@ -32,7 +32,7 @@
 
 #define I915_PW_INSTANCES(...) \
 	(const struct i915_power_well_instance_list) \
-		__LIST(__LIST_INLINE_ELEMS(struct i915_power_well_instance, __VA_ARGS__))
+		__LIST(__LIST_INLINE_ELEMS(const struct i915_power_well_instance, __VA_ARGS__))
 
 #define I915_PW(_name, _domain_list, ...) \
 	{ .name = _name, .domain_list = _domain_list, ## __VA_ARGS__ }
