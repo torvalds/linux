@@ -393,14 +393,31 @@
 		};
 	};
 
-	dpll4_m3_ck: dpll4_m3_ck@e40 {
-		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clocks = <&dpll4_ck>;
-		ti,bit-shift = <8>;
-		ti,max-div = <32>;
-		reg = <0x0e40>;
-		ti,index-starts-at-one;
+	/* CM_CLKSEL_DSS */
+	clock@e40 {
+		compatible = "ti,clksel";
+		reg = <0xe40>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		dpll4_m3_ck: clock-dpll4-m3 {
+			#clock-cells = <0>;
+			compatible = "ti,divider-clock";
+			clock-output-names = "dpll4_m3_ck";
+			clocks = <&dpll4_ck>;
+			ti,bit-shift = <8>;
+			ti,max-div = <32>;
+			ti,index-starts-at-one;
+		};
+
+		dpll4_m4_ck: clock-dpll4-m4 {
+			#clock-cells = <0>;
+			compatible = "ti,divider-clock";
+			clock-output-names = "dpll4_m4_ck";
+			clocks = <&dpll4_ck>;
+			ti,max-div = <16>;
+			ti,index-starts-at-one;
+		};
 	};
 
 	dpll4_m3x2_mul_ck: dpll4_m3x2_mul_ck {
@@ -434,15 +451,6 @@
 		clocks = <&omap_48m_fck>;
 		clock-mult = <1>;
 		clock-div = <4>;
-	};
-
-	dpll4_m4_ck: dpll4_m4_ck@e40 {
-		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clocks = <&dpll4_ck>;
-		ti,max-div = <16>;
-		reg = <0x0e40>;
-		ti,index-starts-at-one;
 	};
 
 	dpll4_m4x2_mul_ck: dpll4_m4x2_mul_ck {
