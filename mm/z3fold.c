@@ -297,9 +297,6 @@ static inline void free_handle(unsigned long handle, struct z3fold_header *zhdr)
 	int i;
 	bool is_free;
 
-	if (handle & (1 << PAGE_HEADLESS))
-		return;
-
 	if (WARN_ON(*(unsigned long *)handle == 0))
 		return;
 
