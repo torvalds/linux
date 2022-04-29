@@ -444,10 +444,8 @@ static int get_allocator(const char *buf, const char *migrate_info)
 			tmp--;
 		first_line = ++tmp;
 		tmp = strstr(tmp, "alloc_pages");
-		if (tmp) {
-			if (tmp && first_line <= tmp && tmp < second_line)
-				allocator |= ALLOCATOR_VMALLOC;
-		}
+		if (tmp && first_line <= tmp && tmp < second_line)
+			allocator |= ALLOCATOR_VMALLOC;
 	}
 	if (allocator == 0)
 		allocator = ALLOCATOR_OTHERS;
