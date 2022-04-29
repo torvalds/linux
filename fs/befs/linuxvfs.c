@@ -40,7 +40,7 @@ MODULE_LICENSE("GPL");
 
 static int befs_readdir(struct file *, struct dir_context *);
 static int befs_get_block(struct inode *, sector_t, struct buffer_head *, int);
-static int befs_readpage(struct file *file, struct page *page);
+static int befs_read_folio(struct file *file, struct folio *folio);
 static sector_t befs_bmap(struct address_space *mapping, sector_t block);
 static struct dentry *befs_lookup(struct inode *, struct dentry *,
 				  unsigned int);
@@ -87,7 +87,7 @@ static const struct inode_operations befs_dir_inode_operations = {
 };
 
 static const struct address_space_operations befs_aops = {
-	.readpage	= befs_readpage,
+	.read_folio	= befs_read_folio,
 	.bmap		= befs_bmap,
 };
 
@@ -102,16 +102,16 @@ static const struct export_operations befs_export_operations = {
 };
 
 /*
- * Called by generic_file_read() to read a page of data
+ * Called by generic_file_read() to read a folio of data
  *
  * In turn, simply calls a generic block read function and
  * passes it the address of befs_get_block, for mapping file
  * positions to disk blocks.
  */
 static int
-befs_readpage(struct file *file, struct page *page)
+befs_read_folio(struct file *file, struct folio *folio)
 {
-	return block_read_full_page(page, befs_get_block);
+	return block_read_full_folio(folio, befs_get_block);
 }
 
 static sector_t

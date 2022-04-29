@@ -309,7 +309,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 	/*
 	 * i_size might have just been updated as we grabed the meta lock.  We
 	 * might now be discovering a truncate that hit on another node.
-	 * block_read_full_page->get_block freaks out if it is asked to read
+	 * block_read_full_folio->get_block freaks out if it is asked to read
 	 * beyond the end of a file, so we check here.  Callers
 	 * (generic_file_read, vm_ops->fault) are clever enough to check i_size
 	 * and notice that the page they just read isn't needed.
@@ -326,7 +326,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 	if (oi->ip_dyn_features & OCFS2_INLINE_DATA_FL)
 		ret = ocfs2_readpage_inline(inode, page);
 	else
-		ret = block_read_full_page(page, ocfs2_get_block);
+		ret = block_read_full_folio(page_folio(page), ocfs2_get_block);
 	unlock = 0;
 
 out_alloc:
@@ -1897,7 +1897,7 @@ static int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 	/*
 	 * Take alloc sem here to prevent concurrent lookups. That way
 	 * the mapping, zeroing and tree manipulation within
-	 * ocfs2_write() will be safe against ->readpage(). This
+	 * ocfs2_write() will be safe against ->read_folio(). This
 	 * should also serve to lock out allocation from a shared
 	 * writeable region.
 	 */

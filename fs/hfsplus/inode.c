@@ -23,9 +23,9 @@
 #include "hfsplus_raw.h"
 #include "xattr.h"
 
-static int hfsplus_readpage(struct file *file, struct page *page)
+static int hfsplus_read_folio(struct file *file, struct folio *folio)
 {
-	return block_read_full_page(page, hfsplus_get_block);
+	return block_read_full_folio(folio, hfsplus_get_block);
 }
 
 static int hfsplus_writepage(struct page *page, struct writeback_control *wbc)
@@ -157,7 +157,7 @@ static int hfsplus_writepages(struct address_space *mapping,
 const struct address_space_operations hfsplus_btree_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
-	.readpage	= hfsplus_readpage,
+	.read_folio	= hfsplus_read_folio,
 	.writepage	= hfsplus_writepage,
 	.write_begin	= hfsplus_write_begin,
 	.write_end	= generic_write_end,
@@ -168,7 +168,7 @@ const struct address_space_operations hfsplus_btree_aops = {
 const struct address_space_operations hfsplus_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
-	.readpage	= hfsplus_readpage,
+	.read_folio	= hfsplus_read_folio,
 	.writepage	= hfsplus_writepage,
 	.write_begin	= hfsplus_write_begin,
 	.write_end	= generic_write_end,

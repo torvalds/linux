@@ -167,10 +167,10 @@ inline void make_le_item_head(struct item_head *ih, const struct cpu_key *key,
  * cutting the code is fine, since it really isn't in use yet and is easy
  * to add back in.  But, Vladimir has a really good idea here.  Think
  * about what happens for reading a file.  For each page,
- * The VFS layer calls reiserfs_readpage, who searches the tree to find
+ * The VFS layer calls reiserfs_read_folio, who searches the tree to find
  * an indirect item.  This indirect item has X number of pointers, where
  * X is a big number if we've done the block allocation right.  But,
- * we only use one or two of these pointers during each call to readpage,
+ * we only use one or two of these pointers during each call to read_folio,
  * needlessly researching again later on.
  *
  * The size of the cache could be dynamic based on the size of the file.
@@ -966,7 +966,7 @@ research:
 			 * it is important the set_buffer_uptodate is done
 			 * after the direct2indirect.  The buffer might
 			 * contain valid data newer than the data on disk
-			 * (read by readpage, changed, and then sent here by
+			 * (read by read_folio, changed, and then sent here by
 			 * writepage).  direct2indirect needs to know if unbh
 			 * was already up to date, so it can decide if the
 			 * data in unbh needs to be replaced with data from
@@ -2733,9 +2733,9 @@ fail:
 	goto done;
 }
 
-static int reiserfs_readpage(struct file *f, struct page *page)
+static int reiserfs_read_folio(struct file *f, struct folio *folio)
 {
-	return block_read_full_page(page, reiserfs_get_block);
+	return block_read_full_folio(folio, reiserfs_get_block);
 }
 
 static int reiserfs_writepage(struct page *page, struct writeback_control *wbc)
@@ -3421,7 +3421,7 @@ out:
 
 const struct address_space_operations reiserfs_address_space_operations = {
 	.writepage = reiserfs_writepage,
-	.readpage = reiserfs_readpage,
+	.read_folio = reiserfs_read_folio,
 	.readahead = reiserfs_readahead,
 	.releasepage = reiserfs_releasepage,
 	.invalidate_folio = reiserfs_invalidate_folio,

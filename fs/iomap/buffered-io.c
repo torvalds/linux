@@ -349,7 +349,7 @@ int iomap_read_folio(struct folio *folio, const struct iomap_ops *ops)
 	}
 
 	/*
-	 * Just like mpage_readahead and block_read_full_page, we always
+	 * Just like mpage_readahead and block_read_full_folio, we always
 	 * return 0 and just set the folio error flag on errors.  This
 	 * should be cleaned up throughout the stack eventually.
 	 */

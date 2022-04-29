@@ -38,9 +38,9 @@ static int adfs_writepage(struct page *page, struct writeback_control *wbc)
 	return block_write_full_page(page, adfs_get_block, wbc);
 }
 
-static int adfs_readpage(struct file *file, struct page *page)
+static int adfs_read_folio(struct file *file, struct folio *folio)
 {
-	return block_read_full_page(page, adfs_get_block);
+	return block_read_full_folio(folio, adfs_get_block);
 }
 
 static void adfs_write_failed(struct address_space *mapping, loff_t to)
@@ -75,7 +75,7 @@ static sector_t _adfs_bmap(struct address_space *mapping, sector_t block)
 static const struct address_space_operations adfs_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
-	.readpage	= adfs_readpage,
+	.read_folio	= adfs_read_folio,
 	.writepage	= adfs_writepage,
 	.write_begin	= adfs_write_begin,
 	.write_end	= generic_write_end,

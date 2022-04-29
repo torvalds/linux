@@ -314,7 +314,7 @@ static void decrypt_bh(struct work_struct *work)
 }
 
 /*
- * I/O completion handler for block_read_full_page() - pages
+ * I/O completion handler for block_read_full_folio() - pages
  * which come unlocked at the end of I/O.
  */
 static void end_buffer_async_read_io(struct buffer_head *bh, int uptodate)
@@ -1060,8 +1060,8 @@ __getblk_slow(struct block_device *bdev, sector_t block,
  * Also.  When blockdev buffers are explicitly read with bread(), they
  * individually become uptodate.  But their backing page remains not
  * uptodate - even if all of its buffers are uptodate.  A subsequent
- * block_read_full_page() against that page will discover all the uptodate
- * buffers, will set the page uptodate and will perform no I/O.
+ * block_read_full_folio() against that folio will discover all the uptodate
+ * buffers, will set the folio uptodate and will perform no I/O.
  */
 
 /**
@@ -2088,7 +2088,7 @@ static int __block_commit_write(struct inode *inode, struct page *page,
 
 	/*
 	 * If this is a partial write which happened to make all buffers
-	 * uptodate then we can optimize away a bogus readpage() for
+	 * uptodate then we can optimize away a bogus read_folio() for
 	 * the next read(). Here we 'discover' whether the page went
 	 * uptodate as a result of this (potentially partial) write.
 	 */
@@ -2137,12 +2137,12 @@ int block_write_end(struct file *file, struct address_space *mapping,
 
 	if (unlikely(copied < len)) {
 		/*
-		 * The buffers that were written will now be uptodate, so we
-		 * don't have to worry about a readpage reading them and
-		 * overwriting a partial write. However if we have encountered
-		 * a short write and only partially written into a buffer, it
-		 * will not be marked uptodate, so a readpage might come in and
-		 * destroy our partial write.
+		 * The buffers that were written will now be uptodate, so
+		 * we don't have to worry about a read_folio reading them
+		 * and overwriting a partial write. However if we have
+		 * encountered a short write and only partially written
+		 * into a buffer, it will not be marked uptodate, so a
+		 * read_folio might come in and destroy our partial write.
 		 *
 		 * Do the simplest thing, and just treat any short write to a
 		 * non uptodate page as a zero-length write, and force the
@@ -2245,26 +2245,28 @@ bool block_is_partially_uptodate(struct folio *folio, size_t from, size_t count)
 EXPORT_SYMBOL(block_is_partially_uptodate);
 
 /*
- * Generic "read page" function for block devices that have the normal
+ * Generic "read_folio" function for block devices that have the normal
  * get_block functionality. This is most of the block device filesystems.
- * Reads the page asynchronously --- the unlock_buffer() and
+ * Reads the folio asynchronously --- the unlock_buffer() and
  * set/clear_buffer_uptodate() functions propagate buffer state into the
- * page struct once IO has completed.
+ * folio once IO has completed.
  */
-int block_read_full_page(struct page *page, get_block_t *get_block)
+int block_read_full_folio(struct folio *folio, get_block_t *get_block)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	sector_t iblock, lblock;
 	struct buffer_head *bh, *head, *arr[MAX_BUF_PER_PAGE];
 	unsigned int blocksize, bbits;
 	int nr, i;
 	int fully_mapped = 1;
 
-	head = create_page_buffers(page, inode, 0);
+	VM_BUG_ON_FOLIO(folio_test_large(folio), folio);
+
+	head = create_page_buffers(&folio->page, inode, 0);
 	blocksize = head->b_size;
 	bbits = block_size_bits(blocksize);
 
-	iblock = (sector_t)page->index << (PAGE_SHIFT - bbits);
+	iblock = (sector_t)folio->index << (PAGE_SHIFT - bbits);
 	lblock = (i_size_read(inode)+blocksize-1) >> bbits;
 	bh = head;
 	nr = 0;
@@ -2282,10 +2284,11 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 				WARN_ON(bh->b_size != blocksize);
 				err = get_block(inode, iblock, bh, 0);
 				if (err)
-					SetPageError(page);
+					folio_set_error(folio);
 			}
 			if (!buffer_mapped(bh)) {
-				zero_user(page, i * blocksize, blocksize);
+				folio_zero_range(folio, i * blocksize,
+						blocksize);
 				if (!err)
 					set_buffer_uptodate(bh);
 				continue;
@@ -2301,16 +2304,16 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 	} while (i++, iblock++, (bh = bh->b_this_page) != head);
 
 	if (fully_mapped)
-		SetPageMappedToDisk(page);
+		folio_set_mappedtodisk(folio);
 
 	if (!nr) {
 		/*
-		 * All buffers are uptodate - we can set the page uptodate
+		 * All buffers are uptodate - we can set the folio uptodate
 		 * as well. But not if get_block() returned an error.
 		 */
-		if (!PageError(page))
-			SetPageUptodate(page);
-		unlock_page(page);
+		if (!folio_test_error(folio))
+			folio_mark_uptodate(folio);
+		folio_unlock(folio);
 		return 0;
 	}
 
@@ -2335,7 +2338,7 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(block_read_full_page);
+EXPORT_SYMBOL(block_read_full_folio);
 
 /* utility function for filesystems that need to do work on expanding
  * truncates.  Uses filesystem pagecache writes to allow the filesystem to

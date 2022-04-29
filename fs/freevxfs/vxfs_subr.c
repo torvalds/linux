@@ -38,11 +38,11 @@
 #include "vxfs_extern.h"
 
 
-static int		vxfs_readpage(struct file *, struct page *);
+static int		vxfs_read_folio(struct file *, struct folio *);
 static sector_t		vxfs_bmap(struct address_space *, sector_t);
 
 const struct address_space_operations vxfs_aops = {
-	.readpage =		vxfs_readpage,
+	.read_folio =		vxfs_read_folio,
 	.bmap =			vxfs_bmap,
 };
 
@@ -141,24 +141,23 @@ vxfs_getblk(struct inode *ip, sector_t iblock,
 }
 
 /**
- * vxfs_readpage - read one page synchronously into the pagecache
+ * vxfs_read_folio - read one page synchronously into the pagecache
  * @file:	file context (unused)
- * @page:	page frame to fill in.
+ * @folio:	folio to fill in.
  *
  * Description:
- *   The vxfs_readpage routine reads @page synchronously into the
+ *   The vxfs_read_folio routine reads @folio synchronously into the
  *   pagecache.
  *
  * Returns:
  *   Zero on success, else a negative error code.
  *
  * Locking status:
- *   @page is locked and will be unlocked.
+ *   @folio is locked and will be unlocked.
  */
-static int
-vxfs_readpage(struct file *file, struct page *page)
+static int vxfs_read_folio(struct file *file, struct folio *folio)
 {
-	return block_read_full_page(page, vxfs_getblk);
+	return block_read_full_folio(folio, vxfs_getblk);
 }
  
 /**
