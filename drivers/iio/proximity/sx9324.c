@@ -79,6 +79,7 @@
 #define SX9324_REG_AFE_CTRL8_RESFILTIN_4KOHM 0x02
 #define SX9324_REG_AFE_CTRL8_RESFILTIN_MASK GENMASK(3, 0)
 #define SX9324_REG_AFE_CTRL9		0x2d
+#define SX9324_REG_AFE_CTRL9_AGAIN_MASK			GENMASK(3, 0)
 #define SX9324_REG_AFE_CTRL9_AGAIN_1	0x08
 
 #define SX9324_REG_PROX_CTRL0		0x30
@@ -939,6 +940,27 @@ sx9324_get_default_reg(struct device *dev, int idx,
 		reg_def->def &= ~SX9324_REG_AFE_CTRL8_RESFILTIN_MASK;
 		reg_def->def |= FIELD_PREP(SX9324_REG_AFE_CTRL8_RESFILTIN_MASK,
 					   raw / 2000);
+		break;
+
+	case SX9324_REG_AFE_CTRL9:
+		ret = device_property_read_u32(dev,
+				"semtech,input-analog-gain", &raw);
+		if (ret)
+			break;
+		/*
+		 * The analog gain has the following setting:
+		 * +---------+----------------+----------------+
+		 * | dt(raw) | physical value | register value |
+		 * +---------+----------------+----------------+
+		 * |  0      |      x1.247    |      6         |
+		 * |  1      |      x1        |      8         |
+		 * |  2      |      x0.768    |     11         |
+		 * |  3      |      x0.552    |     15         |
+		 * +---------+----------------+----------------+
+		 */
+		reg_def->def &= ~SX9324_REG_AFE_CTRL9_AGAIN_MASK;
+		reg_def->def |= FIELD_PREP(SX9324_REG_AFE_CTRL9_AGAIN_MASK,
+					   6 + raw * (raw + 3) / 2);
 		break;
 
 	case SX9324_REG_ADV_CTRL5:
