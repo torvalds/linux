@@ -253,6 +253,7 @@ extern const struct ath11k_hw_ops ipq6018_ops;
 extern const struct ath11k_hw_ops qca6390_ops;
 extern const struct ath11k_hw_ops qcn9074_ops;
 extern const struct ath11k_hw_ops wcn6855_ops;
+extern const struct ath11k_hw_ops wcn6750_ops;
 
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_ipq8074;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_qca6390;
@@ -355,6 +356,12 @@ struct ath11k_hw_regs {
 	u32 hal_reo_status_ring_base_lsb;
 	u32 hal_reo_status_hp;
 
+	u32 hal_reo_cmd_ring_base_lsb;
+	u32 hal_reo_cmd_ring_hp;
+
+	u32 hal_sw2reo_ring_base_lsb;
+	u32 hal_sw2reo_ring_hp;
+
 	u32 hal_seq_wcss_umac_ce0_src_reg;
 	u32 hal_seq_wcss_umac_ce0_dst_reg;
 	u32 hal_seq_wcss_umac_ce1_src_reg;
@@ -370,12 +377,15 @@ struct ath11k_hw_regs {
 
 	u32 pcie_qserdes_sysclk_en_sel;
 	u32 pcie_pcs_osc_dtct_config_base;
+
+	u32 hal_shadow_base_addr;
 };
 
 extern const struct ath11k_hw_regs ipq8074_regs;
 extern const struct ath11k_hw_regs qca6390_regs;
 extern const struct ath11k_hw_regs qcn9074_regs;
 extern const struct ath11k_hw_regs wcn6855_regs;
+extern const struct ath11k_hw_regs wcn6750_regs;
 
 static inline const char *ath11k_bd_ie_type_str(enum ath11k_bd_ie_type type)
 {

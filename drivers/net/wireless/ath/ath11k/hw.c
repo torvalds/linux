@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
@@ -1014,6 +1015,13 @@ const struct ath11k_hw_ops wcn6855_ops = {
 	.rx_desc_mpdu_start_addr2 = ath11k_hw_wcn6855_rx_desc_mpdu_start_addr2,
 };
 
+const struct ath11k_hw_ops wcn6750_ops = {
+	.get_hw_mac_from_pdev_id = ath11k_hw_ipq8074_mac_from_pdev_id,
+	.wmi_init_config = ath11k_init_wmi_config_qca6390,
+	.mac_id_to_pdev_id = ath11k_hw_mac_id_to_pdev_id_qca6390,
+	.mac_id_to_srng_id = ath11k_hw_mac_id_to_srng_id_qca6390,
+};
+
 #define ATH11K_TX_RING_MASK_0 0x1
 #define ATH11K_TX_RING_MASK_1 0x2
 #define ATH11K_TX_RING_MASK_2 0x4
@@ -1908,9 +1916,17 @@ const struct ath11k_hw_regs ipq8074_regs = {
 	.hal_reo_tcl_ring_base_lsb = 0x000003fc,
 	.hal_reo_tcl_ring_hp = 0x00003058,
 
+	/* REO CMD ring address */
+	.hal_reo_cmd_ring_base_lsb = 0x00000194,
+	.hal_reo_cmd_ring_hp = 0x00003020,
+
 	/* REO status address */
 	.hal_reo_status_ring_base_lsb = 0x00000504,
 	.hal_reo_status_hp = 0x00003070,
+
+	/* SW2REO ring address */
+	.hal_sw2reo_ring_base_lsb = 0x000001ec,
+	.hal_sw2reo_ring_hp = 0x00003028,
 
 	/* WCSS relative address */
 	.hal_seq_wcss_umac_ce0_src_reg = 0x00a00000,
@@ -1932,6 +1948,9 @@ const struct ath11k_hw_regs ipq8074_regs = {
 	/* PCIe base address */
 	.pcie_qserdes_sysclk_en_sel = 0x0,
 	.pcie_pcs_osc_dtct_config_base = 0x0,
+
+	/* Shadow register area */
+	.hal_shadow_base_addr = 0x0,
 };
 
 const struct ath11k_hw_regs qca6390_regs = {
@@ -1979,9 +1998,17 @@ const struct ath11k_hw_regs qca6390_regs = {
 	.hal_reo_tcl_ring_base_lsb = 0x000003a4,
 	.hal_reo_tcl_ring_hp = 0x00003050,
 
+	/* REO CMD ring address */
+	.hal_reo_cmd_ring_base_lsb = 0x00000194,
+	.hal_reo_cmd_ring_hp = 0x00003020,
+
 	/* REO status address */
 	.hal_reo_status_ring_base_lsb = 0x000004ac,
 	.hal_reo_status_hp = 0x00003068,
+
+	/* SW2REO ring address */
+	.hal_sw2reo_ring_base_lsb = 0x000001ec,
+	.hal_sw2reo_ring_hp = 0x00003028,
 
 	/* WCSS relative address */
 	.hal_seq_wcss_umac_ce0_src_reg = 0x00a00000,
@@ -2003,6 +2030,9 @@ const struct ath11k_hw_regs qca6390_regs = {
 	/* PCIe base address */
 	.pcie_qserdes_sysclk_en_sel = 0x01e0c0ac,
 	.pcie_pcs_osc_dtct_config_base = 0x01e0c628,
+
+	/* Shadow register area */
+	.hal_shadow_base_addr = 0x000008fc,
 };
 
 const struct ath11k_hw_regs qcn9074_regs = {
@@ -2050,9 +2080,17 @@ const struct ath11k_hw_regs qcn9074_regs = {
 	.hal_reo_tcl_ring_base_lsb = 0x000003fc,
 	.hal_reo_tcl_ring_hp = 0x00003058,
 
+	/* REO CMD ring address */
+	.hal_reo_cmd_ring_base_lsb = 0x00000194,
+	.hal_reo_cmd_ring_hp = 0x00003020,
+
 	/* REO status address */
 	.hal_reo_status_ring_base_lsb = 0x00000504,
 	.hal_reo_status_hp = 0x00003070,
+
+	/* SW2REO ring address */
+	.hal_sw2reo_ring_base_lsb = 0x000001ec,
+	.hal_sw2reo_ring_hp = 0x00003028,
 
 	/* WCSS relative address */
 	.hal_seq_wcss_umac_ce0_src_reg = 0x01b80000,
@@ -2074,6 +2112,9 @@ const struct ath11k_hw_regs qcn9074_regs = {
 	/* PCIe base address */
 	.pcie_qserdes_sysclk_en_sel = 0x01e0e0a8,
 	.pcie_pcs_osc_dtct_config_base = 0x01e0f45c,
+
+	/* Shadow register area */
+	.hal_shadow_base_addr = 0x0,
 };
 
 const struct ath11k_hw_regs wcn6855_regs = {
@@ -2121,9 +2162,17 @@ const struct ath11k_hw_regs wcn6855_regs = {
 	.hal_reo_tcl_ring_base_lsb = 0x00000454,
 	.hal_reo_tcl_ring_hp = 0x00003060,
 
+	/* REO CMD ring address */
+	.hal_reo_cmd_ring_base_lsb = 0x00000194,
+	.hal_reo_cmd_ring_hp = 0x00003020,
+
 	/* REO status address */
 	.hal_reo_status_ring_base_lsb = 0x0000055c,
 	.hal_reo_status_hp = 0x00003078,
+
+	/* SW2REO ring address */
+	.hal_sw2reo_ring_base_lsb = 0x000001ec,
+	.hal_sw2reo_ring_hp = 0x00003028,
 
 	/* WCSS relative address */
 	.hal_seq_wcss_umac_ce0_src_reg = 0x1b80000,
@@ -2145,6 +2194,91 @@ const struct ath11k_hw_regs wcn6855_regs = {
 	/* PCIe base address */
 	.pcie_qserdes_sysclk_en_sel = 0x01e0c0ac,
 	.pcie_pcs_osc_dtct_config_base = 0x01e0c628,
+
+	/* Shadow register area */
+	.hal_shadow_base_addr = 0x000008fc,
+};
+
+const struct ath11k_hw_regs wcn6750_regs = {
+	/* SW2TCL(x) R0 ring configuration address */
+	.hal_tcl1_ring_base_lsb = 0x00000694,
+	.hal_tcl1_ring_base_msb = 0x00000698,
+	.hal_tcl1_ring_id = 0x0000069c,
+	.hal_tcl1_ring_misc = 0x000006a4,
+	.hal_tcl1_ring_tp_addr_lsb = 0x000006b0,
+	.hal_tcl1_ring_tp_addr_msb = 0x000006b4,
+	.hal_tcl1_ring_consumer_int_setup_ix0 = 0x000006c4,
+	.hal_tcl1_ring_consumer_int_setup_ix1 = 0x000006c8,
+	.hal_tcl1_ring_msi1_base_lsb = 0x000006dc,
+	.hal_tcl1_ring_msi1_base_msb = 0x000006e0,
+	.hal_tcl1_ring_msi1_data = 0x000006e4,
+	.hal_tcl2_ring_base_lsb = 0x000006ec,
+	.hal_tcl_ring_base_lsb = 0x0000079c,
+
+	/* TCL STATUS ring address */
+	.hal_tcl_status_ring_base_lsb = 0x000008a4,
+
+	/* REO2SW(x) R0 ring configuration address */
+	.hal_reo1_ring_base_lsb = 0x000001ec,
+	.hal_reo1_ring_base_msb = 0x000001f0,
+	.hal_reo1_ring_id = 0x000001f4,
+	.hal_reo1_ring_misc = 0x000001fc,
+	.hal_reo1_ring_hp_addr_lsb = 0x00000200,
+	.hal_reo1_ring_hp_addr_msb = 0x00000204,
+	.hal_reo1_ring_producer_int_setup = 0x00000210,
+	.hal_reo1_ring_msi1_base_lsb = 0x00000234,
+	.hal_reo1_ring_msi1_base_msb = 0x00000238,
+	.hal_reo1_ring_msi1_data = 0x0000023c,
+	.hal_reo2_ring_base_lsb = 0x00000244,
+	.hal_reo1_aging_thresh_ix_0 = 0x00000564,
+	.hal_reo1_aging_thresh_ix_1 = 0x00000568,
+	.hal_reo1_aging_thresh_ix_2 = 0x0000056c,
+	.hal_reo1_aging_thresh_ix_3 = 0x00000570,
+
+	/* REO2SW(x) R2 ring pointers (head/tail) address */
+	.hal_reo1_ring_hp = 0x00003028,
+	.hal_reo1_ring_tp = 0x0000302c,
+	.hal_reo2_ring_hp = 0x00003030,
+
+	/* REO2TCL R0 ring configuration address */
+	.hal_reo_tcl_ring_base_lsb = 0x000003fc,
+	.hal_reo_tcl_ring_hp = 0x00003058,
+
+	/* REO CMD ring address */
+	.hal_reo_cmd_ring_base_lsb = 0x000000e4,
+	.hal_reo_cmd_ring_hp = 0x00003010,
+
+	/* REO status address */
+	.hal_reo_status_ring_base_lsb = 0x00000504,
+	.hal_reo_status_hp = 0x00003070,
+
+	/* SW2REO ring address */
+	.hal_sw2reo_ring_base_lsb = 0x0000013c,
+	.hal_sw2reo_ring_hp = 0x00003018,
+
+	/* WCSS relative address */
+	.hal_seq_wcss_umac_ce0_src_reg = 0x01b80000,
+	.hal_seq_wcss_umac_ce0_dst_reg = 0x01b81000,
+	.hal_seq_wcss_umac_ce1_src_reg = 0x01b82000,
+	.hal_seq_wcss_umac_ce1_dst_reg = 0x01b83000,
+
+	/* WBM Idle address */
+	.hal_wbm_idle_link_ring_base_lsb = 0x00000874,
+	.hal_wbm_idle_link_ring_misc = 0x00000884,
+
+	/* SW2WBM release address */
+	.hal_wbm_release_ring_base_lsb = 0x000001ec,
+
+	/* WBM2SW release address */
+	.hal_wbm0_release_ring_base_lsb = 0x00000924,
+	.hal_wbm1_release_ring_base_lsb = 0x0000097c,
+
+	/* PCIe base address */
+	.pcie_qserdes_sysclk_en_sel = 0x0,
+	.pcie_pcs_osc_dtct_config_base = 0x0,
+
+	/* Shadow register area */
+	.hal_shadow_base_addr = 0x00000504,
 };
 
 const struct ath11k_hw_hal_params ath11k_hw_hal_params_ipq8074 = {
