@@ -78,12 +78,18 @@ static int layerscape_sfp_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(nvmem);
 }
 
+static const struct layerscape_sfp_data ls1021a_data = {
+	.size = 0x88,
+	.endian = REGMAP_ENDIAN_BIG,
+};
+
 static const struct layerscape_sfp_data ls1028a_data = {
 	.size = 0x88,
 	.endian = REGMAP_ENDIAN_LITTLE,
 };
 
 static const struct of_device_id layerscape_sfp_dt_ids[] = {
+	{ .compatible = "fsl,ls1021a-sfp", .data = &ls1021a_data },
 	{ .compatible = "fsl,ls1028a-sfp", .data = &ls1028a_data },
 	{},
 };
