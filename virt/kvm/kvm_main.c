@@ -2720,8 +2720,18 @@ int gfn_to_page_many_atomic(struct kvm_memory_slot *slot, gfn_t gfn,
 }
 EXPORT_SYMBOL_GPL(gfn_to_page_many_atomic);
 
-static struct page *kvm_pfn_to_page(kvm_pfn_t pfn)
+/*
+ * Do not use this helper unless you are absolutely certain the gfn _must_ be
+ * backed by 'struct page'.  A valid example is if the backing memslot is
+ * controlled by KVM.  Note, if the returned page is valid, it's refcount has
+ * been elevated by gfn_to_pfn().
+ */
+struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 {
+	kvm_pfn_t pfn;
+
+	pfn = gfn_to_pfn(kvm, gfn);
+
 	if (is_error_noslot_pfn(pfn))
 		return KVM_ERR_PTR_BAD_PAGE;
 
@@ -2729,15 +2739,6 @@ static struct page *kvm_pfn_to_page(kvm_pfn_t pfn)
 		return KVM_ERR_PTR_BAD_PAGE;
 
 	return pfn_to_page(pfn);
-}
-
-struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
-{
-	kvm_pfn_t pfn;
-
-	pfn = gfn_to_pfn(kvm, gfn);
-
-	return kvm_pfn_to_page(pfn);
 }
 EXPORT_SYMBOL_GPL(gfn_to_page);
 
@@ -2807,16 +2808,6 @@ void kvm_vcpu_unmap(struct kvm_vcpu *vcpu, struct kvm_host_map *map, bool dirty)
 	map->page = NULL;
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_unmap);
-
-struct page *kvm_vcpu_gfn_to_page(struct kvm_vcpu *vcpu, gfn_t gfn)
-{
-	kvm_pfn_t pfn;
-
-	pfn = kvm_vcpu_gfn_to_pfn(vcpu, gfn);
-
-	return kvm_pfn_to_page(pfn);
-}
-EXPORT_SYMBOL_GPL(kvm_vcpu_gfn_to_page);
 
 static bool kvm_is_ad_tracked_page(struct page *page)
 {
