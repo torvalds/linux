@@ -435,9 +435,10 @@ extern void calculate_sigpending(void);
 
 extern void signal_wake_up_state(struct task_struct *t, unsigned int state);
 
-static inline void signal_wake_up(struct task_struct *t, bool resume)
+static inline void signal_wake_up(struct task_struct *t, bool fatal)
 {
-	signal_wake_up_state(t, resume ? TASK_WAKEKILL : 0);
+	fatal = fatal && !(t->jobctl & JOBCTL_PTRACE_FROZEN);
+	signal_wake_up_state(t, fatal ? TASK_WAKEKILL | __TASK_TRACED : 0);
 }
 static inline void ptrace_signal_wake_up(struct task_struct *t, bool resume)
 {

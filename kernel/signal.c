@@ -2209,14 +2209,12 @@ static int ptrace_stop(int exit_code, int why, unsigned long message,
 	}
 
 	/*
-	 * schedule() will not sleep if there is a pending signal that
-	 * can awaken the task.
-	 *
-	 * After this point ptrace_signal_wake_up will clear TASK_TRACED
-	 * if ptrace_unlink happens.  Handle previous ptrace_unlinks
-	 * here to prevent ptrace_stop sleeping in schedule.
+	 * After this point ptrace_signal_wake_up or signal_wake_up
+	 * will clear TASK_TRACED if ptrace_unlink happens or a fatal
+	 * signal comes in.  Handle previous ptrace_unlinks and fatal
+	 * signals here to prevent ptrace_stop sleeping in schedule.
 	 */
-	if (!current->ptrace)
+	if (!current->ptrace || __fatal_signal_pending(current))
 		return exit_code;
 
 	set_special_state(TASK_TRACED);
@@ -2305,7 +2303,7 @@ static int ptrace_stop(int exit_code, int why, unsigned long message,
 	current->exit_code = 0;
 
 	/* LISTENING can be set only during STOP traps, clear it */
-	current->jobctl &= ~JOBCTL_LISTENING;
+	current->jobctl &= ~(JOBCTL_LISTENING | JOBCTL_PTRACE_FROZEN);
 
 	/*
 	 * Queued signals ignored us while we were stopped for tracing.
