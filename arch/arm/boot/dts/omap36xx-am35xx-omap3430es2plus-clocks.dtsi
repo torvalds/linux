@@ -149,12 +149,19 @@
 		ti,bit-shift = <30>;
 	};
 
-	mmchs3_fck: mmchs3_fck@a00 {
-		#clock-cells = <0>;
-		compatible = "ti,wait-gate-clock";
-		clocks = <&core_96m_fck>;
-		reg = <0x0a00>;
-		ti,bit-shift = <30>;
+	clock@a00 {
+		compatible = "ti,clksel";
+		reg = <0xa00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		mmchs3_fck: clock-mmchs3-fck {
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "mmchs3_fck";
+			clocks = <&core_96m_fck>;
+			ti,bit-shift = <30>;
+		};
 	};
 
 	dss1_alwon_fck: dss1_alwon_fck_3430es2@e00 {

@@ -46,28 +46,35 @@
 		ti,bit-shift = <2>;
 	};
 
-	d2d_26m_fck: d2d_26m_fck@a00 {
-		#clock-cells = <0>;
-		compatible = "ti,wait-gate-clock";
-		clocks = <&sys_ck>;
-		reg = <0x0a00>;
-		ti,bit-shift = <3>;
-	};
+	clock@a00 {
+		compatible = "ti,clksel";
+		reg = <0xa00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
 
-	fshostusb_fck: fshostusb_fck@a00 {
-		#clock-cells = <0>;
-		compatible = "ti,wait-gate-clock";
-		clocks = <&core_48m_fck>;
-		reg = <0x0a00>;
-		ti,bit-shift = <5>;
-	};
+		d2d_26m_fck: clock-d2d-26m-fck {
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "d2d_26m_fck";
+			clocks = <&sys_ck>;
+			ti,bit-shift = <3>;
+		};
 
-	ssi_ssr_gate_fck_3430es1: ssi_ssr_gate_fck_3430es1@a00 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
-		clocks = <&corex2_fck>;
-		ti,bit-shift = <0>;
-		reg = <0x0a00>;
+		fshostusb_fck: clock-fshostusb-fck {
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "fshostusb_fck";
+			clocks = <&core_48m_fck>;
+			ti,bit-shift = <5>;
+		};
+
+		ssi_ssr_gate_fck_3430es1: clock-ssi-ssr-gate-fck-3430es1 {
+			#clock-cells = <0>;
+			compatible = "ti,composite-no-wait-gate-clock";
+			clock-output-names = "ssi_ssr_gate_fck_3430es1";
+			clocks = <&corex2_fck>;
+			ti,bit-shift = <0>;
+		};
 	};
 
 	ssi_ssr_div_fck_3430es1: ssi_ssr_div_fck_3430es1@a40 {

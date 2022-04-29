@@ -5,12 +5,19 @@
  * Copyright (C) 2013 Texas Instruments, Inc.
  */
 &cm_clocks {
-	ssi_ssr_gate_fck_3430es2: ssi_ssr_gate_fck_3430es2@a00 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
-		clocks = <&corex2_fck>;
-		ti,bit-shift = <0>;
-		reg = <0x0a00>;
+	clock@a00 {
+		compatible = "ti,clksel";
+		reg = <0xa00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		ssi_ssr_gate_fck_3430es2: clock-ssi-ssr-gate-fck-3430es2 {
+			#clock-cells = <0>;
+			compatible = "ti,composite-no-wait-gate-clock";
+			clock-output-names = "ssi_ssr_gate_fck_3430es2";
+			clocks = <&corex2_fck>;
+			ti,bit-shift = <0>;
+		};
 	};
 
 	ssi_ssr_div_fck_3430es2: ssi_ssr_div_fck_3430es2@a40 {

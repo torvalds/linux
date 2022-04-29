@@ -187,14 +187,28 @@
 		ti,bit-shift = <0>;
 	};
 
-	modem_fck: modem_fck@a00 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&sys_ck>;
-		reg = <0x0a00>;
-		ti,bit-shift = <31>;
-	};
+	clock@a00 {
+		compatible = "ti,clksel";
+		reg = <0xa00>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
 
+		modem_fck: clock-modem-fck {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "modem_fck";
+			clocks = <&sys_ck>;
+			ti,bit-shift = <31>;
+		};
+
+		mspro_fck: clock-mspro-fck {
+			#clock-cells = <0>;
+			compatible = "ti,wait-gate-clock";
+			clock-output-names = "mspro_fck";
+			clocks = <&core_96m_fck>;
+			ti,bit-shift = <23>;
+		};
+	};
 	sad2d_ick: sad2d_ick@a10 {
 		#clock-cells = <0>;
 		compatible = "ti,omap3-interface-clock";
@@ -211,13 +225,6 @@
 		ti,bit-shift = <3>;
 	};
 
-	mspro_fck: mspro_fck@a00 {
-		#clock-cells = <0>;
-		compatible = "ti,wait-gate-clock";
-		clocks = <&core_96m_fck>;
-		reg = <0x0a00>;
-		ti,bit-shift = <23>;
-	};
 };
 
 &cm_clockdomains {
