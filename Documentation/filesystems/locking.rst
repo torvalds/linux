@@ -249,7 +249,7 @@ prototypes::
 				struct page *page, void *fsdata);
 	sector_t (*bmap)(struct address_space *, sector_t);
 	void (*invalidate_folio) (struct folio *, size_t start, size_t len);
-	int (*releasepage) (struct page *, int);
+	bool (*release_folio)(struct folio *, gfp_t);
 	void (*freepage)(struct page *);
 	int (*direct_IO)(struct kiocb *, struct iov_iter *iter);
 	bool (*isolate_page) (struct page *, isolate_mode_t);
@@ -270,13 +270,13 @@ ops			PageLocked(page)	 i_rwsem	invalidate_lock
 writepage:		yes, unlocks (see below)
 read_folio:		yes, unlocks				shared
 writepages:
-dirty_folio		maybe
+dirty_folio:		maybe
 readahead:		yes, unlocks				shared
 write_begin:		locks the page		 exclusive
 write_end:		yes, unlocks		 exclusive
 bmap:
 invalidate_folio:	yes					exclusive
-releasepage:		yes
+release_folio:		yes
 freepage:		yes
 direct_IO:
 isolate_page:		yes
@@ -372,10 +372,10 @@ invalidate_lock before invalidating page cache in truncate / hole punch
 path (and thus calling into ->invalidate_folio) to block races between page
 cache invalidation and page cache filling functions (fault, read, ...).
 
-->releasepage() is called when the kernel is about to try to drop the
-buffers from the page in preparation for freeing it.  It returns zero to
-indicate that the buffers are (or may be) freeable.  If ->releasepage is zero,
-the kernel assumes that the fs has no private interest in the buffers.
+->release_folio() is called when the kernel is about to try to drop the
+buffers from the folio in preparation for freeing it.  It returns false to
+indicate that the buffers are (or may be) freeable.  If ->release_folio is
+NULL, the kernel assumes that the fs has no private interest in the buffers.
 
 ->freepage() is called when the kernel is done dropping the page
 from the page cache.

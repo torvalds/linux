@@ -620,9 +620,9 @@ Writeback.
 The first can be used independently to the others.  The VM can try to
 either write dirty pages in order to clean them, or release clean pages
 in order to reuse them.  To do this it can call the ->writepage method
-on dirty pages, and ->releasepage on clean pages with PagePrivate set.
-Clean pages without PagePrivate and with no external references will be
-released without notice being given to the address_space.
+on dirty pages, and ->release_folio on clean folios with the private
+flag set.  Clean pages without PagePrivate and with no external references
+will be released without notice being given to the address_space.
 
 To achieve this functionality, pages need to be placed on an LRU with
 lru_cache_add and mark_page_active needs to be called whenever the page
@@ -734,7 +734,7 @@ cache in your filesystem.  The following members are defined:
 				 struct page *page, void *fsdata);
 		sector_t (*bmap)(struct address_space *, sector_t);
 		void (*invalidate_folio) (struct folio *, size_t start, size_t len);
-		int (*releasepage) (struct page *, int);
+		bool (*release_folio)(struct folio *, gfp_t);
 		void (*freepage)(struct page *);
 		ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter);
 		/* isolate a page for migration */
@@ -864,33 +864,32 @@ cache in your filesystem.  The following members are defined:
 	address space.  This generally corresponds to either a
 	truncation, punch hole or a complete invalidation of the address
 	space (in the latter case 'offset' will always be 0 and 'length'
-	will be folio_size()).  Any private data associated with the page
+	will be folio_size()).  Any private data associated with the folio
 	should be updated to reflect this truncation.  If offset is 0
 	and length is folio_size(), then the private data should be
-	released, because the page must be able to be completely
-	discarded.  This may be done by calling the ->releasepage
+	released, because the folio must be able to be completely
+	discarded.  This may be done by calling the ->release_folio
 	function, but in this case the release MUST succeed.
 
-``releasepage``
-	releasepage is called on PagePrivate pages to indicate that the
-	page should be freed if possible.  ->releasepage should remove
-	any private data from the page and clear the PagePrivate flag.
-	If releasepage() fails for some reason, it must indicate failure
-	with a 0 return value.  releasepage() is used in two distinct
-	though related cases.  The first is when the VM finds a clean
-	page with no active users and wants to make it a free page.  If
-	->releasepage succeeds, the page will be removed from the
-	address_space and become free.
+``release_folio``
+	release_folio is called on folios with private data to tell the
+	filesystem that the folio is about to be freed.  ->release_folio
+	should remove any private data from the folio and clear the
+	private flag.  If release_folio() fails, it should return false.
+	release_folio() is used in two distinct though related cases.
+	The first is when the VM wants to free a clean folio with no
+	active users.  If ->release_folio succeeds, the folio will be
+	removed from the address_space and be freed.
 
 	The second case is when a request has been made to invalidate
-	some or all pages in an address_space.  This can happen through
-	the fadvise(POSIX_FADV_DONTNEED) system call or by the
-	filesystem explicitly requesting it as nfs and 9fs do (when they
+	some or all folios in an address_space.  This can happen
+	through the fadvise(POSIX_FADV_DONTNEED) system call or by the
+	filesystem explicitly requesting it as nfs and 9p do (when they
 	believe the cache may be out of date with storage) by calling
 	invalidate_inode_pages2().  If the filesystem makes such a call,
-	and needs to be certain that all pages are invalidated, then its
-	releasepage will need to ensure this.  Possibly it can clear the
-	PageUptodate bit if it cannot free private data yet.
+	and needs to be certain that all folios are invalidated, then
+	its release_folio will need to ensure this.  Possibly it can
+	clear the uptodate flag if it cannot free private data yet.
 
 ``freepage``
 	freepage is called once the page is no longer visible in the
