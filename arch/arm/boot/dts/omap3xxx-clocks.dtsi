@@ -1074,52 +1074,60 @@
 		clock-div = <1>;
 	};
 
-	wdt2_ick: wdt2_ick@c10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&wkup_l4_ick>;
-		reg = <0x0c10>;
-		ti,bit-shift = <5>;
-	};
+	/* CM_ICLKEN_WKUP */
+	clock@c10 {
+		compatible = "ti,clksel";
+		reg = <0xc10>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
 
-	wdt1_ick: wdt1_ick@c10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&wkup_l4_ick>;
-		reg = <0x0c10>;
-		ti,bit-shift = <4>;
-	};
+		wdt2_ick: clock-wdt2-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "wdt2_ick";
+			clocks = <&wkup_l4_ick>;
+			ti,bit-shift = <5>;
+		};
 
-	gpio1_ick: gpio1_ick@c10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&wkup_l4_ick>;
-		reg = <0x0c10>;
-		ti,bit-shift = <3>;
-	};
+		wdt1_ick: clock-wdt1-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "wdt1_ick";
+			clocks = <&wkup_l4_ick>;
+			ti,bit-shift = <4>;
+		};
 
-	omap_32ksync_ick: omap_32ksync_ick@c10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&wkup_l4_ick>;
-		reg = <0x0c10>;
-		ti,bit-shift = <2>;
-	};
+		gpio1_ick: clock-gpio1-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "gpio1_ick";
+			clocks = <&wkup_l4_ick>;
+			ti,bit-shift = <3>;
+		};
 
-	gpt12_ick: gpt12_ick@c10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&wkup_l4_ick>;
-		reg = <0x0c10>;
-		ti,bit-shift = <1>;
-	};
+		omap_32ksync_ick: clock-omap-32ksync-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "omap_32ksync_ick";
+			clocks = <&wkup_l4_ick>;
+			ti,bit-shift = <2>;
+		};
 
-	gpt1_ick: gpt1_ick@c10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&wkup_l4_ick>;
-		reg = <0x0c10>;
-		ti,bit-shift = <0>;
+		gpt12_ick: clock-gpt12-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "gpt12_ick";
+			clocks = <&wkup_l4_ick>;
+			ti,bit-shift = <1>;
+		};
+
+		gpt1_ick: clock-gpt1-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "gpt1_ick";
+			clocks = <&wkup_l4_ick>;
+			ti,bit-shift = <0>;
+		};
 	};
 
 	per_96m_fck: per_96m_fck {

@@ -183,12 +183,19 @@
 		clocks = <&usim_gate_fck>, <&usim_mux_fck>;
 	};
 
-	usim_ick: usim_ick@c10 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&wkup_l4_ick>;
-		reg = <0x0c10>;
-		ti,bit-shift = <9>;
+	clock@c10 {
+		compatible = "ti,clksel";
+		reg = <0xc10>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		usim_ick: clock-usim-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "usim_ick";
+			clocks = <&wkup_l4_ick>;
+			ti,bit-shift = <9>;
+		};
 	};
 };
 
