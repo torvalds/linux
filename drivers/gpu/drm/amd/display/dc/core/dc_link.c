@@ -3546,7 +3546,8 @@ static enum dc_status dc_link_update_sst_payload(struct pipe_ctx *pipe_ctx,
 	}
 
 	/* slot X.Y for SST payload allocate */
-	if (allocate) {
+	if (allocate && dp_get_link_encoding_format(&link->cur_link_settings) ==
+			DP_128b_132b_ENCODING) {
 		avg_time_slots_per_mtp = calculate_sst_avg_time_slots_per_mtp(stream, link);
 
 		dc_log_vcp_x_y(link, avg_time_slots_per_mtp);
