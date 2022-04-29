@@ -231,12 +231,21 @@
 			ti,bit-shift = <23>;
 		};
 	};
-	mad2d_ick: mad2d_ick@a18 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&l3_ick>;
-		reg = <0x0a18>;
-		ti,bit-shift = <3>;
+
+	/* CM_ICLKEN3_CORE */
+	clock@a18 {
+		compatible = "ti,clksel";
+		reg = <0xa18>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		mad2d_ick: clock-mad2d-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "mad2d_ick";
+			clocks = <&l3_ick>;
+			ti,bit-shift = <3>;
+		};
 	};
 
 };

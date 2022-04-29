@@ -133,12 +133,20 @@
 		ti,bit-shift = <2>;
 	};
 
-	usbtll_ick: usbtll_ick@a18 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&core_l4_ick>;
-		reg = <0x0a18>;
-		ti,bit-shift = <2>;
+	/* CM_ICLKEN3_CORE */
+	clock@a18 {
+		compatible = "ti,clksel";
+		reg = <0xa18>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		usbtll_ick: clock-usbtll-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "usbtll_ick";
+			clocks = <&core_l4_ick>;
+			ti,bit-shift = <2>;
+		};
 	};
 
 	clock@a10 {
