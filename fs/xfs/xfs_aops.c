@@ -538,11 +538,11 @@ xfs_vm_bmap(
 }
 
 STATIC int
-xfs_vm_readpage(
+xfs_vm_read_folio(
 	struct file		*unused,
-	struct page		*page)
+	struct folio		*folio)
 {
-	return iomap_readpage(page, &xfs_read_iomap_ops);
+	return iomap_read_folio(folio, &xfs_read_iomap_ops);
 }
 
 STATIC void
@@ -564,7 +564,7 @@ xfs_iomap_swapfile_activate(
 }
 
 const struct address_space_operations xfs_address_space_operations = {
-	.readpage		= xfs_vm_readpage,
+	.read_folio		= xfs_vm_read_folio,
 	.readahead		= xfs_vm_readahead,
 	.writepages		= xfs_vm_writepages,
 	.dirty_folio		= filemap_dirty_folio,

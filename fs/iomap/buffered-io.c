@@ -320,10 +320,8 @@ done:
 	return pos - orig_pos + plen;
 }
 
-int
-iomap_readpage(struct page *page, const struct iomap_ops *ops)
+int iomap_read_folio(struct folio *folio, const struct iomap_ops *ops)
 {
-	struct folio *folio = page_folio(page);
 	struct iomap_iter iter = {
 		.inode		= folio->mapping->host,
 		.pos		= folio_pos(folio),
@@ -352,12 +350,12 @@ iomap_readpage(struct page *page, const struct iomap_ops *ops)
 
 	/*
 	 * Just like mpage_readahead and block_read_full_page, we always
-	 * return 0 and just mark the page as PageError on errors.  This
+	 * return 0 and just set the folio error flag on errors.  This
 	 * should be cleaned up throughout the stack eventually.
 	 */
 	return 0;
 }
-EXPORT_SYMBOL_GPL(iomap_readpage);
+EXPORT_SYMBOL_GPL(iomap_read_folio);
 
 static loff_t iomap_readahead_iter(const struct iomap_iter *iter,
 		struct iomap_readpage_ctx *ctx)
@@ -663,10 +661,10 @@ static size_t __iomap_write_end(struct inode *inode, loff_t pos, size_t len,
 
 	/*
 	 * The blocks that were entirely written will now be uptodate, so we
-	 * don't have to worry about a readpage reading them and overwriting a
+	 * don't have to worry about a read_folio reading them and overwriting a
 	 * partial write.  However, if we've encountered a short write and only
 	 * partially written into a block, it will not be marked uptodate, so a
-	 * readpage might come in and destroy our partial write.
+	 * read_folio might come in and destroy our partial write.
 	 *
 	 * Do the simplest thing and just treat any short write to a
 	 * non-uptodate page as a zero-length write, and force the caller to

@@ -337,9 +337,9 @@ int erofs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
  * since we dont have write or truncate flows, so no inode
  * locking needs to be held at the moment.
  */
-static int erofs_readpage(struct file *file, struct page *page)
+static int erofs_read_folio(struct file *file, struct folio *folio)
 {
-	return iomap_readpage(page, &erofs_iomap_ops);
+	return iomap_read_folio(folio, &erofs_iomap_ops);
 }
 
 static void erofs_readahead(struct readahead_control *rac)
@@ -394,7 +394,7 @@ static ssize_t erofs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 /* for uncompressed (aligned) files and raw access for other files */
 const struct address_space_operations erofs_raw_access_aops = {
-	.readpage = erofs_readpage,
+	.read_folio = erofs_read_folio,
 	.readahead = erofs_readahead,
 	.bmap = erofs_bmap,
 	.direct_IO = noop_direct_IO,
