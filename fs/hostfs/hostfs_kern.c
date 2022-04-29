@@ -434,8 +434,9 @@ static int hostfs_writepage(struct page *page, struct writeback_control *wbc)
 	return err;
 }
 
-static int hostfs_readpage(struct file *file, struct page *page)
+static int hostfs_read_folio(struct file *file, struct folio *folio)
 {
+	struct page *page = &folio->page;
 	char *buffer;
 	loff_t start = page_offset(page);
 	int bytes_read, ret = 0;
@@ -504,7 +505,7 @@ static int hostfs_write_end(struct file *file, struct address_space *mapping,
 
 static const struct address_space_operations hostfs_aops = {
 	.writepage 	= hostfs_writepage,
-	.readpage	= hostfs_readpage,
+	.read_folio	= hostfs_read_folio,
 	.dirty_folio	= filemap_dirty_folio,
 	.write_begin	= hostfs_write_begin,
 	.write_end	= hostfs_write_end,
