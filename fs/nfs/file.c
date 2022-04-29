@@ -337,7 +337,7 @@ start:
 	} else if (!once_thru &&
 		   nfs_want_read_modify_write(file, page, pos, len)) {
 		once_thru = 1;
-		ret = nfs_readpage(file, page);
+		ret = nfs_read_folio(file, page_folio(page));
 		put_page(page);
 		if (!ret)
 			goto start;
@@ -514,7 +514,7 @@ static void nfs_swap_deactivate(struct file *file)
 }
 
 const struct address_space_operations nfs_file_aops = {
-	.readpage = nfs_readpage,
+	.read_folio = nfs_read_folio,
 	.readahead = nfs_readahead,
 	.dirty_folio = filemap_dirty_folio,
 	.writepage = nfs_writepage,
