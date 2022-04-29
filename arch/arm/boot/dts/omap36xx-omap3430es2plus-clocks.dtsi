@@ -20,13 +20,20 @@
 		};
 	};
 
-	ssi_ssr_div_fck_3430es2: ssi_ssr_div_fck_3430es2@a40 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-divider-clock";
-		clocks = <&corex2_fck>;
-		ti,bit-shift = <8>;
-		reg = <0x0a40>;
-		ti,dividers = <0>, <1>, <2>, <3>, <4>, <0>, <6>, <0>, <8>;
+	clock@a40 {
+		compatible = "ti,clksel";
+		reg = <0xa40>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		ssi_ssr_div_fck_3430es2: clock-ssi-ssr-div-fck-3430es2 {
+			#clock-cells = <0>;
+			compatible = "ti,composite-divider-clock";
+			clock-output-names = "ssi_ssr_div_fck_3430es2";
+			clocks = <&corex2_fck>;
+			ti,bit-shift = <8>;
+			ti,dividers = <0>, <1>, <2>, <3>, <4>, <0>, <6>, <0>, <8>;
+		};
 	};
 
 	ssi_ssr_fck: ssi_ssr_fck_3430es2 {

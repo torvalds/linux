@@ -77,13 +77,30 @@
 		};
 	};
 
-	ssi_ssr_div_fck_3430es1: ssi_ssr_div_fck_3430es1@a40 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-divider-clock";
-		clocks = <&corex2_fck>;
-		ti,bit-shift = <8>;
-		reg = <0x0a40>;
-		ti,dividers = <0>, <1>, <2>, <3>, <4>, <0>, <6>, <0>, <8>;
+	clock@a40 {
+		compatible = "ti,clksel";
+		reg = <0xa40>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
+
+		ssi_ssr_div_fck_3430es1: clock-ssi-ssr-div-fck-3430es1 {
+			#clock-cells = <0>;
+			compatible = "ti,composite-divider-clock";
+			clock-output-names = "ssi_ssr_div_fck_3430es1";
+			clocks = <&corex2_fck>;
+			ti,bit-shift = <8>;
+			ti,dividers = <0>, <1>, <2>, <3>, <4>, <0>, <6>, <0>, <8>;
+		};
+
+		usb_l4_div_ick: clock-usb-l4-div-ick {
+			#clock-cells = <0>;
+			compatible = "ti,composite-divider-clock";
+			clock-output-names = "usb_l4_div_ick";
+			clocks = <&l4_ick>;
+			ti,bit-shift = <4>;
+			ti,max-div = <1>;
+			ti,index-starts-at-one;
+		};
 	};
 
 	ssi_ssr_fck: ssi_ssr_fck_3430es1 {
@@ -145,16 +162,6 @@
 		clocks = <&l4_ick>;
 		clock-mult = <1>;
 		clock-div = <1>;
-	};
-
-	usb_l4_div_ick: usb_l4_div_ick@a40 {
-		#clock-cells = <0>;
-		compatible = "ti,composite-divider-clock";
-		clocks = <&l4_ick>;
-		ti,bit-shift = <4>;
-		ti,max-div = <1>;
-		reg = <0x0a40>;
-		ti,index-starts-at-one;
 	};
 
 	usb_l4_ick: usb_l4_ick {
