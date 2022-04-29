@@ -1122,10 +1122,9 @@ retry:
 		__SetPageMovable(page, pool->inode->i_mapping);
 		unlock_page(page);
 	} else {
-		if (trylock_page(page)) {
-			__SetPageMovable(page, pool->inode->i_mapping);
-			unlock_page(page);
-		}
+		WARN_ON(!trylock_page(page));
+		__SetPageMovable(page, pool->inode->i_mapping);
+		unlock_page(page);
 	}
 	z3fold_page_lock(zhdr);
 
