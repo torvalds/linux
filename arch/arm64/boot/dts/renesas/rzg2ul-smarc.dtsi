@@ -27,6 +27,10 @@
 };
 #endif
 
+&cpu_dai {
+	sound-dai = <&ssi1>;
+};
+
 &i2c1 {
 	wm8978: codec@1a {
 		compatible = "wlf,wm8978";
@@ -34,6 +38,25 @@
 		reg = <0x1a>;
 	};
 };
+
+#if (SW_ET0_EN_N)
+&ssi1 {
+	pinctrl-0 = <&ssi1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+#else
+&snd_rzg2l {
+	status = "disabled";
+};
+
+&ssi1 {
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
+	status = "disabled";
+};
+#endif
 
 &vccq_sdhi1 {
 	gpios = <&pinctrl RZG2L_GPIO(6, 1) GPIO_ACTIVE_HIGH>;
