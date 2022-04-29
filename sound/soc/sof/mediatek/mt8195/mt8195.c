@@ -415,8 +415,6 @@ static struct snd_sof_dsp_ops sof_mt8195_ops = {
 	/* misc */
 	.get_bar_index	= mt8195_get_bar_index,
 
-	/* module loading */
-	.load_module	= snd_sof_parse_module_memcpy,
 	/* firmware loading */
 	.load_firmware	= snd_sof_load_firmware_memcpy,
 

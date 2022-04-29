@@ -11,6 +11,7 @@
 #include <sound/sof/control.h>
 #include "sof-priv.h"
 #include "sof-audio.h"
+#include "ipc3-priv.h"
 #include "ipc3-ops.h"
 #include "ops.h"
 
@@ -475,8 +476,8 @@ static int sof_ipc3_set_get_data(struct snd_sof_dev *sdev, void *data, size_t da
 	return ret;
 }
 
-static int sof_ipc3_get_ext_windows(struct snd_sof_dev *sdev,
-				    const struct sof_ipc_ext_data_hdr *ext_hdr)
+int sof_ipc3_get_ext_windows(struct snd_sof_dev *sdev,
+			     const struct sof_ipc_ext_data_hdr *ext_hdr)
 {
 	const struct sof_ipc_window *w =
 		container_of(ext_hdr, struct sof_ipc_window, ext_hdr);
@@ -500,8 +501,8 @@ static int sof_ipc3_get_ext_windows(struct snd_sof_dev *sdev,
 	return 0;
 }
 
-static int sof_ipc3_get_cc_info(struct snd_sof_dev *sdev,
-				const struct sof_ipc_ext_data_hdr *ext_hdr)
+int sof_ipc3_get_cc_info(struct snd_sof_dev *sdev,
+			 const struct sof_ipc_ext_data_hdr *ext_hdr)
 {
 	int ret;
 
@@ -735,6 +736,56 @@ static int ipc3_init_reply_data_buffer(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+int sof_ipc3_validate_fw_version(struct snd_sof_dev *sdev)
+{
+	struct sof_ipc_fw_ready *ready = &sdev->fw_ready;
+	struct sof_ipc_fw_version *v = &ready->version;
+
+	dev_info(sdev->dev,
+		 "Firmware info: version %d:%d:%d-%s\n",  v->major, v->minor,
+		 v->micro, v->tag);
+	dev_info(sdev->dev,
+		 "Firmware: ABI %d:%d:%d Kernel ABI %d:%d:%d\n",
+		 SOF_ABI_VERSION_MAJOR(v->abi_version),
+		 SOF_ABI_VERSION_MINOR(v->abi_version),
+		 SOF_ABI_VERSION_PATCH(v->abi_version),
+		 SOF_ABI_MAJOR, SOF_ABI_MINOR, SOF_ABI_PATCH);
+
+	if (SOF_ABI_VERSION_INCOMPATIBLE(SOF_ABI_VERSION, v->abi_version)) {
+		dev_err(sdev->dev, "incompatible FW ABI version\n");
+		return -EINVAL;
+	}
+
+	if (SOF_ABI_VERSION_MINOR(v->abi_version) > SOF_ABI_MINOR) {
+		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS)) {
+			dev_warn(sdev->dev, "FW ABI is more recent than kernel\n");
+		} else {
+			dev_err(sdev->dev, "FW ABI is more recent than kernel\n");
+			return -EINVAL;
+		}
+	}
+
+	if (ready->flags & SOF_IPC_INFO_BUILD) {
+		dev_info(sdev->dev,
+			 "Firmware debug build %d on %s-%s - options:\n"
+			 " GDB: %s\n"
+			 " lock debug: %s\n"
+			 " lock vdebug: %s\n",
+			 v->build, v->date, v->time,
+			 (ready->flags & SOF_IPC_INFO_GDB) ?
+				"enabled" : "disabled",
+			 (ready->flags & SOF_IPC_INFO_LOCKS) ?
+				"enabled" : "disabled",
+			 (ready->flags & SOF_IPC_INFO_LOCKSV) ?
+				"enabled" : "disabled");
+	}
+
+	/* copy the fw_version into debugfs at first boot */
+	memcpy(&sdev->fw_version, v, sizeof(*v));
+
+	return 0;
+}
+
 static int ipc3_fw_ready(struct snd_sof_dev *sdev, u32 cmd)
 {
 	struct sof_ipc_fw_ready *fw_ready = &sdev->fw_ready;
@@ -767,7 +818,7 @@ static int ipc3_fw_ready(struct snd_sof_dev *sdev, u32 cmd)
 	}
 
 	/* make sure ABI version is compatible */
-	ret = snd_sof_ipc_valid(sdev);
+	ret = sof_ipc3_validate_fw_version(sdev);
 	if (ret < 0)
 		return ret;
 
@@ -1019,6 +1070,7 @@ const struct sof_ipc_ops ipc3_ops = {
 	.tplg = &ipc3_tplg_ops,
 	.pm = &ipc3_pm_ops,
 	.pcm = &ipc3_pcm_ops,
+	.fw_loader = &ipc3_loader_ops,
 
 	.tx_msg = sof_ipc3_tx_msg,
 	.rx_msg = sof_ipc3_rx_msg,

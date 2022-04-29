@@ -136,9 +136,6 @@ struct snd_sof_dsp_ops sof_renoir_ops = {
 	.block_read		= acp_dsp_block_read,
 	.block_write		= acp_dsp_block_write,
 
-	/* Module loading */
-	.load_module		= snd_sof_parse_module_memcpy,
-
 	/*Firmware loading */
 	.load_firmware		= snd_sof_load_firmware_memcpy,
 	.pre_fw_run		= acp_dsp_pre_fw_run,
