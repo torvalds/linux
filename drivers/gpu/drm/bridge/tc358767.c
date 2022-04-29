@@ -309,6 +309,9 @@ struct tc_data {
 	/* do we have IRQ */
 	bool			have_irq;
 
+	/* Input connector type, DSI and not DPI. */
+	bool			input_connector_dsi;
+
 	/* HPD pin number (0 or 1) or -ENODEV */
 	int			hpd_pin;
 };
@@ -1353,8 +1356,18 @@ static int tc_edp_stream_enable(struct tc_data *tc)
 
 	dev_dbg(tc->dev, "enable video stream\n");
 
-	/* PXL PLL setup */
-	if (tc_test_pattern) {
+	/*
+	 * Pixel PLL must be enabled for DSI input mode and test pattern.
+	 *
+	 * Per TC9595XBG datasheet Revision 0.1 2018-12-27 Figure 4.18
+	 * "Clock Mode Selection and Clock Sources", either Pixel PLL
+	 * or DPI_PCLK supplies StrmClk. DPI_PCLK is only available in
+	 * case valid Pixel Clock are supplied to the chip DPI input.
+	 * In case built-in test pattern is desired OR DSI input mode
+	 * is used, DPI_PCLK is not available and thus Pixel PLL must
+	 * be used instead.
+	 */
+	if (tc->input_connector_dsi || tc_test_pattern) {
 		ret = tc_pxl_pll_en(tc, clk_get_rate(tc->refclk),
 				    1000 * tc->mode.clock);
 		if (ret)
@@ -1394,7 +1407,10 @@ static int tc_edp_stream_enable(struct tc_data *tc)
 		return ret;
 
 	/* Set input interface */
-	return tc_dpi_rx_enable(tc);
+	if (tc->input_connector_dsi)
+		return tc_dsi_rx_enable(tc);
+	else
+		return tc_dpi_rx_enable(tc);
 }
 
 static int tc_edp_stream_disable(struct tc_data *tc)
@@ -2004,14 +2020,18 @@ static int tc_probe_bridge_endpoint(struct tc_data *tc)
 		mode |= BIT(endpoint.port);
 	}
 
-	if (mode == mode_dpi_to_edp || mode == mode_dpi_to_dp)
+	if (mode == mode_dpi_to_edp || mode == mode_dpi_to_dp) {
+		tc->input_connector_dsi = false;
 		return tc_probe_edp_bridge_endpoint(tc);
-	else if (mode == mode_dsi_to_dpi)
+	} else if (mode == mode_dsi_to_dpi) {
+		tc->input_connector_dsi = true;
 		return tc_probe_dpi_bridge_endpoint(tc);
-	else if (mode == mode_dsi_to_edp || mode == mode_dsi_to_dp)
-		dev_warn(dev, "The mode DSI-to-(e)DP is not supported!\n");
-	else
-		dev_warn(dev, "Invalid mode (0x%x) is not supported!\n", mode);
+	} else if (mode == mode_dsi_to_edp || mode == mode_dsi_to_dp) {
+		tc->input_connector_dsi = true;
+		return tc_probe_edp_bridge_endpoint(tc);
+	}
+
+	dev_warn(dev, "Invalid mode (0x%x) is not supported!\n", mode);
 
 	return -EINVAL;
 }
@@ -2149,7 +2169,7 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	i2c_set_clientdata(client, tc);
 
-	if (tc->bridge.type == DRM_MODE_CONNECTOR_DPI) { /* DPI output */
+	if (tc->input_connector_dsi) {			/* DSI input */
 		ret = tc_mipi_dsi_host_attach(tc);
 		if (ret) {
 			drm_bridge_remove(&tc->bridge);
