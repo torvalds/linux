@@ -2291,7 +2291,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
 		compact_result = __compaction_suitable(zone, order, alloc_flags,
 				ac->highest_zoneidx, available);
-		if (compact_result != COMPACT_SKIPPED)
+		if (compact_result == COMPACT_CONTINUE)
 			return true;
 	}
 
