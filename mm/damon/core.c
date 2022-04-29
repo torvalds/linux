@@ -1042,7 +1042,7 @@ static int kdamond_wait_activation(struct damon_ctx *ctx)
  */
 static int kdamond_fn(void *data)
 {
-	struct damon_ctx *ctx = (struct damon_ctx *)data;
+	struct damon_ctx *ctx = data;
 	struct damon_target *t;
 	struct damon_region *r, *next;
 	unsigned int max_nr_accesses = 0;
