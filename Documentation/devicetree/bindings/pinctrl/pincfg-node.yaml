@@ -52,11 +52,19 @@ properties:
       hardware supporting it the pull strength in Ohm.
 
   drive-push-pull:
-    type: boolean
+    oneOf:
+      - type: boolean
+      - $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [ 0, 1 ]
+        deprecated: true
     description: drive actively high and low
 
   drive-open-drain:
-    type: boolean
+    oneOf:
+      - type: boolean
+      - $ref: /schemas/types.yaml#/definitions/uint32
+        const: 1    # No known cases of 0
+        deprecated: true
     description: drive with open drain
 
   drive-open-source:
