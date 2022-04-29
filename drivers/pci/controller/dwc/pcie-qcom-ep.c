@@ -474,6 +474,11 @@ static int qcom_pcie_ep_get_io_resources(struct platform_device *pdev,
 
 	pcie_ep->mmio_res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 							 "mmio");
+	if (!pcie_ep->mmio_res) {
+		dev_err(dev, "Failed to get mmio resource\n");
+		return -EINVAL;
+	}
+
 	pcie_ep->mmio = devm_pci_remap_cfg_resource(dev, pcie_ep->mmio_res);
 	if (IS_ERR(pcie_ep->mmio))
 		return PTR_ERR(pcie_ep->mmio);
