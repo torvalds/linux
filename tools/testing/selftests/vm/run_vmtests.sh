@@ -9,12 +9,12 @@ mnt=./huge
 exitcode=0
 
 #get huge pagesize and freepages from /proc/meminfo
-while read name size unit; do
+while read -r name size unit; do
 	if [ "$name" = "HugePages_Free:" ]; then
-		freepgs=$size
+		freepgs="$size"
 	fi
 	if [ "$name" = "Hugepagesize:" ]; then
-		hpgsize_KB=$size
+		hpgsize_KB="$size"
 	fi
 done < /proc/meminfo
 
@@ -30,27 +30,26 @@ needmem_KB=$((half_ufd_size_MB * 2 * 1024))
 
 #set proper nr_hugepages
 if [ -n "$freepgs" ] && [ -n "$hpgsize_KB" ]; then
-	nr_hugepgs=`cat /proc/sys/vm/nr_hugepages`
+	nr_hugepgs=$(cat /proc/sys/vm/nr_hugepages)
 	needpgs=$((needmem_KB / hpgsize_KB))
 	tries=2
-	while [ $tries -gt 0 ] && [ $freepgs -lt $needpgs ]; do
-		lackpgs=$(( $needpgs - $freepgs ))
+	while [ "$tries" -gt 0 ] && [ "$freepgs" -lt "$needpgs" ]; do
+		lackpgs=$((needpgs - freepgs))
 		echo 3 > /proc/sys/vm/drop_caches
-		echo $(( $lackpgs + $nr_hugepgs )) > /proc/sys/vm/nr_hugepages
-		if [ $? -ne 0 ]; then
+		if ! echo $((lackpgs + nr_hugepgs)) > /proc/sys/vm/nr_hugepages; then
 			echo "Please run this test as root"
 			exit $ksft_skip
 		fi
-		while read name size unit; do
+		while read -r name size unit; do
 			if [ "$name" = "HugePages_Free:" ]; then
 				freepgs=$size
 			fi
 		done < /proc/meminfo
 		tries=$((tries - 1))
 	done
-	if [ $freepgs -lt $needpgs ]; then
+	if [ "$freepgs" -lt "$needpgs" ]; then
 		printf "Not enough huge pages available (%d < %d)\n" \
-		       $freepgs $needpgs
+		       "$freepgs" "$needpgs"
 		exit 1
 	fi
 else
@@ -60,11 +59,11 @@ fi
 
 #filter 64bit architectures
 ARCH64STR="arm64 ia64 mips64 parisc64 ppc64 ppc64le riscv64 s390x sh64 sparc64 x86_64"
-if [ -z $ARCH ]; then
-  ARCH=`uname -m 2>/dev/null | sed -e 's/aarch64.*/arm64/'`
+if [ -z "$ARCH" ]; then
+	ARCH=$(uname -m 2>/dev/null | sed -e 's/aarch64.*/arm64/')
 fi
 VADDR64=0
-echo "$ARCH64STR" | grep $ARCH && VADDR64=1
+echo "$ARCH64STR" | grep "$ARCH" && VADDR64=1
 
 # Usage: run_test [test binary] [arbitrary test arguments...]
 run_test() {
@@ -85,28 +84,28 @@ run_test() {
 	fi
 }
 
-mkdir $mnt
-mount -t hugetlbfs none $mnt
+mkdir "$mnt"
+mount -t hugetlbfs none "$mnt"
 
 run_test ./hugepage-mmap
 
-shmmax=`cat /proc/sys/kernel/shmmax`
-shmall=`cat /proc/sys/kernel/shmall`
+shmmax=$(cat /proc/sys/kernel/shmmax)
+shmall=$(cat /proc/sys/kernel/shmall)
 echo 268435456 > /proc/sys/kernel/shmmax
 echo 4194304 > /proc/sys/kernel/shmall
 run_test ./hugepage-shm
-echo $shmmax > /proc/sys/kernel/shmmax
-echo $shmall > /proc/sys/kernel/shmall
+echo "$shmmax" > /proc/sys/kernel/shmmax
+echo "$shmall" > /proc/sys/kernel/shmall
 
 run_test ./map_hugetlb
 
-run_test ./hugepage-mremap $mnt/huge_mremap
-rm -f $mnt/huge_mremap
+run_test ./hugepage-mremap "$mnt"/huge_mremap
+rm -f "$mnt"/huge_mremap
 
 run_test ./hugepage-vmemmap
 
-run_test ./hugetlb-madvise $mnt/madvise-test
-rm -f $mnt/madvise-test
+run_test ./hugetlb-madvise "$mnt"/madvise-test
+rm -f "$mnt"/madvise-test
 
 echo "NOTE: The above hugetlb tests provide minimal coverage.  Use"
 echo "      https://github.com/libhugetlbfs/libhugetlbfs.git for"
@@ -124,13 +123,13 @@ run_test ./gup_test -ct -F 0x1 0 19 0x1000
 run_test ./userfaultfd anon 20 16
 # Test requires source and destination huge pages.  Size of source
 # (half_ufd_size_MB) is passed as argument to test.
-run_test ./userfaultfd hugetlb $half_ufd_size_MB 32
+run_test ./userfaultfd hugetlb "$half_ufd_size_MB" 32
 run_test ./userfaultfd shmem 20 16
 
 #cleanup
-umount $mnt
-rm -rf $mnt
-echo $nr_hugepgs > /proc/sys/vm/nr_hugepages
+umount "$mnt"
+rm -rf "$mnt"
+echo "$nr_hugepgs" > /proc/sys/vm/nr_hugepages
 
 run_test ./compaction_test
 
