@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+/ {
+	rockchip_amp: rockchip-amp {
+		compatible = "rockchip,amp";
+		clocks = <&cru CLK_TIMER_ROOT>, <&cru PCLK_TIMER>, <&cru CLK_TIMER5>,
+			<&cru CLK_CORE_MCU>, <&cru CLK_CORE_MCU_RTC>, <&cru PCLK_MAILBOX>;
+
+		status = "okay";
+	};
+};
