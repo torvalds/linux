@@ -810,11 +810,9 @@ static void dlfb_dpy_deferred_io(struct fb_info *info, struct list_head *pageref
 
 	/* walk the written page list and render each to device */
 	list_for_each_entry(pageref, pagereflist, list) {
-		struct page *cur = pageref->page;
-
 		if (dlfb_render_hline(dlfb, &urb, (char *) info->fix.smem_start,
-				  &cmd, cur->index << PAGE_SHIFT,
-				  PAGE_SIZE, &bytes_identical, &bytes_sent))
+				      &cmd, pageref->offset, PAGE_SIZE,
+				      &bytes_identical, &bytes_sent))
 			goto error;
 		bytes_rendered += PAGE_SIZE;
 	}

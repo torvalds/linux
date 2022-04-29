@@ -437,8 +437,7 @@ static void synthvid_deferred_io(struct fb_info *p, struct list_head *pagereflis
 	 * value to yres.
 	 */
 	list_for_each_entry(pageref, pagereflist, list) {
-		struct page *page = pageref->page;
-		start = page->index << PAGE_SHIFT;
+		start = pageref->offset;
 		end = start + PAGE_SIZE - 1;
 		y1 = start / p->fix.line_length;
 		y2 = end / p->fix.line_length;

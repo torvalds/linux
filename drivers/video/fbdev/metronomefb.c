@@ -473,11 +473,10 @@ static void metronomefb_dpy_deferred_io(struct fb_info *info, struct list_head *
 
 	/* walk the written page list and swizzle the data */
 	list_for_each_entry(pageref, pagereflist, list) {
-		struct page *cur = pageref->page;
-		cksum = metronomefb_dpy_update_page(par,
-					(cur->index << PAGE_SHIFT));
-		par->metromem_img_csum -= par->csum_table[cur->index];
-		par->csum_table[cur->index] = cksum;
+		unsigned long pgoffset = pageref->offset >> PAGE_SHIFT;
+		cksum = metronomefb_dpy_update_page(par, pageref->offset);
+		par->metromem_img_csum -= par->csum_table[pgoffset];
+		par->csum_table[pgoffset] = cksum;
 		par->metromem_img_csum += cksum;
 	}
 

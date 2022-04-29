@@ -327,8 +327,7 @@ static void vmw_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 	min = ULONG_MAX;
 	max = 0;
 	list_for_each_entry(pageref, pagereflist, list) {
-		struct page *page = pageref->page;
-		start = page->index << PAGE_SHIFT;
+		start = pageref->offset;
 		end = start + PAGE_SIZE - 1;
 		min = min(min, start);
 		max = max(max, end);

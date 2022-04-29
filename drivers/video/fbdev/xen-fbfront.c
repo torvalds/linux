@@ -191,8 +191,7 @@ static void xenfb_deferred_io(struct fb_info *fb_info, struct list_head *pageref
 	miny = INT_MAX;
 	maxy = 0;
 	list_for_each_entry(pageref, pagereflist, list) {
-		struct page *page = pageref->page;
-		beg = page->index << PAGE_SHIFT;
+		beg = pageref->offset;
 		end = beg + PAGE_SIZE - 1;
 		y1 = beg / fb_info->fix.line_length;
 		y2 = end / fb_info->fix.line_length;

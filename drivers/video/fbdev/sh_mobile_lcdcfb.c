@@ -445,8 +445,7 @@ static int sh_mobile_lcdc_sginit(struct fb_info *info, struct list_head *pageref
 	sg_init_table(ch->sglist, nr_pages_max);
 
 	list_for_each_entry(pageref, pagereflist, list) {
-		struct page *page = pageref->page;
-		sg_set_page(&ch->sglist[nr_pages++], page, PAGE_SIZE, 0);
+		sg_set_page(&ch->sglist[nr_pages++], pageref->page, PAGE_SIZE, 0);
 	}
 
 	return nr_pages;

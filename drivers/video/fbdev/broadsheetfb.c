@@ -932,7 +932,7 @@ static void broadsheetfb_dpy_update(struct broadsheetfb_par *par)
 static void broadsheetfb_dpy_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	u16 y1 = 0, h = 0;
-	int prev_index = -1;
+	unsigned long prev_offset = ULONG_MAX;
 	struct fb_deferred_io_pageref *pageref;
 	int h_inc;
 	u16 yres = info->var.yres;
@@ -943,22 +943,21 @@ static void broadsheetfb_dpy_deferred_io(struct fb_info *info, struct list_head 
 
 	/* walk the written page list and swizzle the data */
 	list_for_each_entry(pageref, pagereflist, list) {
-		struct page *cur = pageref->page;
-		if (prev_index < 0) {
+		if (prev_offset == ULONG_MAX) {
 			/* just starting so assign first page */
-			y1 = (cur->index << PAGE_SHIFT) / xres;
+			y1 = pageref->offset / xres;
 			h = h_inc;
-		} else if ((prev_index + 1) == cur->index) {
+		} else if ((prev_offset + PAGE_SIZE) == pageref->offset) {
 			/* this page is consecutive so increase our height */
 			h += h_inc;
 		} else {
 			/* page not consecutive, issue previous update first */
 			broadsheetfb_dpy_update_pages(info->par, y1, y1 + h);
 			/* start over with our non consecutive page */
-			y1 = (cur->index << PAGE_SHIFT) / xres;
+			y1 = pageref->offset / xres;
 			h = h_inc;
 		}
-		prev_index = cur->index;
+		prev_offset = pageref->offset;
 	}
 
 	/* if we still have any pages to update we do so now */
