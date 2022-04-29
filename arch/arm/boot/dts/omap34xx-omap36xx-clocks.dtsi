@@ -13,36 +13,51 @@
 		clock-div = <1>;
 	};
 
-	aes1_ick: aes1_ick@a14 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&security_l4_ick2>;
-		ti,bit-shift = <3>;
-		reg = <0x0a14>;
-	};
+	clock@a14 {
+		compatible = "ti,clksel";
+		reg = <0xa14>;
+		#clock-cells = <2>;
+		#address-cells = <0>;
 
-	rng_ick: rng_ick@a14 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&security_l4_ick2>;
-		reg = <0x0a14>;
-		ti,bit-shift = <2>;
-	};
+		aes1_ick: clock-aes1-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "aes1_ick";
+			clocks = <&security_l4_ick2>;
+			ti,bit-shift = <3>;
+		};
 
-	sha11_ick: sha11_ick@a14 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&security_l4_ick2>;
-		reg = <0x0a14>;
-		ti,bit-shift = <1>;
-	};
+		rng_ick: clock-rng-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "rng_ick";
+			clocks = <&security_l4_ick2>;
+			ti,bit-shift = <2>;
+		};
 
-	des1_ick: des1_ick@a14 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&security_l4_ick2>;
-		reg = <0x0a14>;
-		ti,bit-shift = <0>;
+		sha11_ick: clock-sha11-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "sha11_ick";
+			clocks = <&security_l4_ick2>;
+			ti,bit-shift = <1>;
+		};
+
+		des1_ick: clock-des1-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "des1_ick";
+			clocks = <&security_l4_ick2>;
+			ti,bit-shift = <0>;
+		};
+
+		pka_ick: clock-pka-ick {
+			#clock-cells = <0>;
+			compatible = "ti,omap3-interface-clock";
+			clock-output-names = "pka_ick";
+			clocks = <&security_l3_ick>;
+			ti,bit-shift = <4>;
+		};
 	};
 
 	cam_mclk: cam_mclk@f00 {
@@ -76,14 +91,6 @@
 		clocks = <&l3_ick>;
 		clock-mult = <1>;
 		clock-div = <1>;
-	};
-
-	pka_ick: pka_ick@a14 {
-		#clock-cells = <0>;
-		compatible = "ti,omap3-interface-clock";
-		clocks = <&security_l3_ick>;
-		reg = <0x0a14>;
-		ti,bit-shift = <4>;
 	};
 
 	icr_ick: icr_ick@a10 {
