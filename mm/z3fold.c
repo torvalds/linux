@@ -941,8 +941,7 @@ lookup:
 	}
 
 	if (zhdr && !zhdr->slots)
-		zhdr->slots = alloc_slots(pool,
-					can_sleep ? GFP_NOIO : GFP_ATOMIC);
+		zhdr->slots = alloc_slots(pool, GFP_ATOMIC);
 	return zhdr;
 }
 
