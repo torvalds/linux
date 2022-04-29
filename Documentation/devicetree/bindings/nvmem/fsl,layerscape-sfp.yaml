@@ -32,6 +32,11 @@ properties:
   clock-names:
     const: sfp
 
+  ta-prog-sfp-supply:
+    description:
+      The regulator for the TA_PROG_SFP pin. It will be enabled for programming
+      and disabled for reading.
+
 required:
   - compatible
   - reg
