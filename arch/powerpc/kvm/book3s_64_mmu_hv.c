@@ -58,7 +58,7 @@ struct kvm_resize_hpt {
 	/* Possible values and their usage:
 	 *  <0     an error occurred during allocation,
 	 *  -EBUSY allocation is in the progress,
-	 *  0      allocation made successfuly.
+	 *  0      allocation made successfully.
 	 */
 	int error;
 

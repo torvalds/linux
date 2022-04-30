@@ -67,7 +67,7 @@ struct vas_sysfs_entry {
  * Create sysfs interface:
  * /sys/devices/vas/vas0/gzip/default_capabilities
  *	This directory contains the following VAS GZIP capabilities
- *	for the defaule credit type.
+ *	for the default credit type.
  * /sys/devices/vas/vas0/gzip/default_capabilities/nr_total_credits
  *	Total number of default credits assigned to the LPAR which
  *	can be changed with DLPAR operation.

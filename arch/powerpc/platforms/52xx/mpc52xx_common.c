@@ -308,7 +308,7 @@ int mpc5200_psc_ac97_gpio_reset(int psc_number)
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
-	/* Reconfiure pin-muxing to gpio */
+	/* Reconfigure pin-muxing to gpio */
 	mux = in_be32(&simple_gpio->port_config);
 	out_be32(&simple_gpio->port_config, mux & (~gpio));
 

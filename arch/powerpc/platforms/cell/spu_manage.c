@@ -457,7 +457,7 @@ static void __init init_affinity_node(int cbe)
 
 		/*
 		 * Walk through each phandle in vicinity property of the spu
-		 * (tipically two vicinity phandles per spe node)
+		 * (typically two vicinity phandles per spe node)
 		 */
 		for (i = 0; i < (lenp / sizeof(phandle)); i++) {
 			if (vic_handles[i] == avoid_ph)

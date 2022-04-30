@@ -279,7 +279,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			   proc_freq / 1000000, proc_freq % 1000000);
 
 	/* If we are a Freescale core do a simple check so
-	 * we dont have to keep adding cases in the future */
+	 * we don't have to keep adding cases in the future */
 	if (PVR_VER(pvr) & 0x8000) {
 		switch (PVR_VER(pvr)) {
 		case 0x8000:	/* 7441/7450/7451, Voyager */

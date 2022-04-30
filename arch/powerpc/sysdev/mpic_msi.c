@@ -37,7 +37,7 @@ static int __init mpic_msi_reserve_u3_hwirqs(struct mpic *mpic)
 	/* Reserve source numbers we know are reserved in the HW.
 	 *
 	 * This is a bit of a mix of U3 and U4 reserves but that's going
-	 * to work fine, we have plenty enugh numbers left so let's just
+	 * to work fine, we have plenty enough numbers left so let's just
 	 * mark anything we don't like reserved.
 	 */
 	for (i = 0;   i < 8;   i++)

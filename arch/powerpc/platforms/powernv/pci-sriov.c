@@ -699,7 +699,7 @@ static int pnv_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 		return -ENOSPC;
 	}
 
-	/* allocate a contigious block of PEs for our VFs */
+	/* allocate a contiguous block of PEs for our VFs */
 	base_pe = pnv_ioda_alloc_pe(phb, num_vfs);
 	if (!base_pe) {
 		pci_err(pdev, "Unable to allocate PEs for %d VFs\n", num_vfs);

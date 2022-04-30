@@ -99,7 +99,7 @@ static unsigned long get_plt_size(const Elf32_Ehdr *hdr,
 
 			/* Sort the relocation information based on a symbol and
 			 * addend key. This is a stable O(n*log n) complexity
-			 * alogrithm but it will reduce the complexity of
+			 * algorithm but it will reduce the complexity of
 			 * count_relocs() to linear complexity O(n)
 			 */
 			sort((void *)hdr + sechdrs[i].sh_offset,

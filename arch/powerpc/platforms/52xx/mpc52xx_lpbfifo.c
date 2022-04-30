@@ -104,7 +104,7 @@ static void mpc52xx_lpbfifo_kick(struct mpc52xx_lpbfifo_request *req)
 		 *
 		 * Configure the watermarks so DMA will always complete correctly.
 		 * It may be worth experimenting with the ALARM value to see if
-		 * there is a performance impacit.  However, if it is wrong there
+		 * there is a performance impact.  However, if it is wrong there
 		 * is a risk of DMA not transferring the last chunk of data
 		 */
 		if (write) {

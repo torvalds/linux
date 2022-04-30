@@ -194,7 +194,7 @@ static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
 
 			/* Sort the relocation information based on a symbol and
 			 * addend key. This is a stable O(n*log n) complexity
-			 * alogrithm but it will reduce the complexity of
+			 * algorithm but it will reduce the complexity of
 			 * count_relocs() to linear complexity O(n)
 			 */
 			sort((void *)sechdrs[i].sh_addr,
@@ -361,7 +361,7 @@ static inline int create_ftrace_stub(struct ppc64_stub_entry *entry,
 	entry->jump[1] |= PPC_HA(reladdr);
 	entry->jump[2] |= PPC_LO(reladdr);
 
-	/* Eventhough we don't use funcdata in the stub, it's needed elsewhere. */
+	/* Even though we don't use funcdata in the stub, it's needed elsewhere. */
 	entry->funcdata = func_desc(addr);
 	entry->magic = STUB_MAGIC;
 

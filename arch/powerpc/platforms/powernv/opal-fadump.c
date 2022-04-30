@@ -206,7 +206,7 @@ static u64 opal_fadump_init_mem_struct(struct fw_dump *fadump_conf)
 	opal_fdm->region_cnt = cpu_to_be16(reg_cnt);
 
 	/*
-	 * Kernel metadata is passed to f/w and retrieved in capture kerenl.
+	 * Kernel metadata is passed to f/w and retrieved in capture kernel.
 	 * So, use it to save fadump header address instead of calculating it.
 	 */
 	opal_fdm->fadumphdr_addr = cpu_to_be64(be64_to_cpu(opal_fdm->rgn[0].dest) +

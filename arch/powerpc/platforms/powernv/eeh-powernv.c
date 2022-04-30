@@ -390,7 +390,7 @@ static struct eeh_dev *pnv_eeh_probe(struct pci_dev *pdev)
 	 * should be blocked until PE reset. MMIO access is dropped
 	 * by hardware certainly. In order to drop PCI config requests,
 	 * one more flag (EEH_PE_CFG_RESTRICTED) is introduced, which
-	 * will be checked in the backend for PE state retrival. If
+	 * will be checked in the backend for PE state retrieval. If
 	 * the PE becomes frozen for the first time and the flag has
 	 * been set for the PE, we will set EEH_PE_CFG_BLOCKED for
 	 * that PE to block its config space.
@@ -981,7 +981,7 @@ static int pnv_eeh_do_af_flr(struct pci_dn *pdn, int option)
 	case EEH_RESET_FUNDAMENTAL:
 		/*
 		 * Wait for Transaction Pending bit to clear. A word-aligned
-		 * test is used, so we use the conrol offset rather than status
+		 * test is used, so we use the control offset rather than status
 		 * and shift the test bit to match.
 		 */
 		pnv_eeh_wait_for_pending(pdn, "AF",
@@ -1048,7 +1048,7 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 	 * frozen state during PE reset. However, the good idea here from
 	 * benh is to keep frozen state before we get PE reset done completely
 	 * (until BAR restore). With the frozen state, HW drops illegal IO
-	 * or MMIO access, which can incur recrusive frozen PE during PE
+	 * or MMIO access, which can incur recursive frozen PE during PE
 	 * reset. The side effect is that EEH core has to clear the frozen
 	 * state explicitly after BAR restore.
 	 */
@@ -1095,8 +1095,8 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 	 * bus is behind a hotplug slot and it will use the slot provided
 	 * reset methods to prevent spurious hotplug events during the reset.
 	 *
-	 * Fundemental resets need to be handled internally to EEH since the
-	 * PCI core doesn't really have a concept of a fundemental reset,
+	 * Fundamental resets need to be handled internally to EEH since the
+	 * PCI core doesn't really have a concept of a fundamental reset,
 	 * mainly because there's no standard way to generate one. Only a
 	 * few devices require an FRESET so it should be fine.
 	 */

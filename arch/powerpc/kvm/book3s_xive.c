@@ -124,7 +124,7 @@ void kvmppc_xive_push_vcpu(struct kvm_vcpu *vcpu)
 		 * interrupt might have fired and be on its way to the
 		 * host queue while we mask it, and if we unmask it
 		 * early enough (re-cede right away), there is a
-		 * theorical possibility that it fires again, thus
+		 * theoretical possibility that it fires again, thus
 		 * landing in the target queue more than once which is
 		 * a big no-no.
 		 *
@@ -622,7 +622,7 @@ static int xive_target_interrupt(struct kvm *kvm,
 
 /*
  * Targetting rules: In order to avoid losing track of
- * pending interrupts accross mask and unmask, which would
+ * pending interrupts across mask and unmask, which would
  * allow queue overflows, we implement the following rules:
  *
  *  - Unless it was never enabled (or we run out of capacity)
@@ -1073,7 +1073,7 @@ int kvmppc_xive_clr_mapped(struct kvm *kvm, unsigned long guest_irq,
 	/*
 	 * If old_p is set, the interrupt is pending, we switch it to
 	 * PQ=11. This will force a resend in the host so the interrupt
-	 * isn't lost to whatver host driver may pick it up
+	 * isn't lost to whatever host driver may pick it up
 	 */
 	if (state->old_p)
 		xive_vm_esb_load(state->pt_data, XIVE_ESB_SET_PQ_11);

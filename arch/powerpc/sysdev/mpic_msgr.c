@@ -99,7 +99,7 @@ void mpic_msgr_disable(struct mpic_msgr *msgr)
 EXPORT_SYMBOL_GPL(mpic_msgr_disable);
 
 /* The following three functions are used to compute the order and number of
- * the message register blocks.  They are clearly very inefficent.  However,
+ * the message register blocks.  They are clearly very inefficient.  However,
  * they are called *only* a few times during device initialization.
  */
 static unsigned int mpic_msgr_number_of_blocks(void)

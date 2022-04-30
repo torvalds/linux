@@ -37,7 +37,7 @@ EXPORT_SYMBOL(fsl_lbc_ctrl_dev);
  *
  * This function converts a base address of lbc into the right format for the
  * BR register. If the SOC has eLBC then it returns 32bit physical address
- * else it convers a 34bit local bus physical address to correct format of
+ * else it converts a 34bit local bus physical address to correct format of
  * 32bit address for BR register (Example: MPC8641).
  */
 u32 fsl_lbc_addr(phys_addr_t addr_base)

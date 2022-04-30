@@ -289,7 +289,7 @@ static void __init mpc512x_setup_diu(void)
 
 	/*
 	 * We do not allocate and configure new area for bitmap buffer
-	 * because it would requere copying bitmap data (splash image)
+	 * because it would require copying bitmap data (splash image)
 	 * and so negatively affect boot time. Instead we reserve the
 	 * already configured frame buffer area so that it won't be
 	 * destroyed. The starting address of the area to reserve and

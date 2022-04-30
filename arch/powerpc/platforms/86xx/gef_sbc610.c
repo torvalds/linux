@@ -157,7 +157,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NEC, PCI_DEVICE_ID_NEC_USB,
  *
  * This function is called to determine whether the BSP is compatible with the
  * supplied device-tree, which is assumed to be the correct one for the actual
- * board. It is expected thati, in the future, a kernel may support multiple
+ * board. It is expected that, in the future, a kernel may support multiple
  * boards.
  */
 static int __init gef_sbc610_probe(void)

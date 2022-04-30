@@ -70,7 +70,7 @@ static void hotfoot_fixups(void)
 
 		printf("Fixing devtree for 4M Flash\n");
 		
-		/* First fix up the base addresse */
+		/* First fix up the base address */
 		getprop(devp, "reg", regs, sizeof(regs));
 		regs[0] = 0;
 		regs[1] = 0xffc00000;

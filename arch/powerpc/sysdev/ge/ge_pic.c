@@ -150,7 +150,7 @@ static struct irq_chip gef_pic_chip = {
 };
 
 
-/* When an interrupt is being configured, this call allows some flexibilty
+/* When an interrupt is being configured, this call allows some flexibility
  * in deciding which irq_chip structure is used
  */
 static int gef_pic_host_map(struct irq_domain *h, unsigned int virq,

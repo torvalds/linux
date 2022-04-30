@@ -582,7 +582,7 @@ static int cell_of_bus_notify(struct notifier_block *nb, unsigned long action,
 {
 	struct device *dev = data;
 
-	/* We are only intereted in device addition */
+	/* We are only interested in device addition */
 	if (action != BUS_NOTIFY_ADD_DEVICE)
 		return 0;
 

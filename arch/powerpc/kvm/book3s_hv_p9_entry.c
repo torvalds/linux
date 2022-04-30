@@ -379,7 +379,7 @@ void restore_p9_host_os_sprs(struct kvm_vcpu *vcpu,
 {
 	/*
 	 * current->thread.xxx registers must all be restored to host
-	 * values before a potential context switch, othrewise the context
+	 * values before a potential context switch, otherwise the context
 	 * switch itself will overwrite current->thread.xxx with the values
 	 * from the guest SPRs.
 	 */

@@ -398,7 +398,7 @@ static int mpc52xx_gpt_do_start(struct mpc52xx_gpt_priv *gpt, u64 period,
 		set |= MPC52xx_GPT_MODE_CONTINUOUS;
 
 	/* Determine the number of clocks in the requested period.  64 bit
-	 * arithmatic is done here to preserve the precision until the value
+	 * arithmetic is done here to preserve the precision until the value
 	 * is scaled back down into the u32 range.  Period is in 'ns', bus
 	 * frequency is in Hz. */
 	clocks = period * (u64)gpt->ipb_freq;

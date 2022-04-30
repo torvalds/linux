@@ -268,7 +268,7 @@ int kvmppc_core_emulate_op_pr(struct kvm_vcpu *vcpu,
 
 			/*
 			 * add rules to fit in ISA specification regarding TM
-			 * state transistion in TM disable/Suspended state,
+			 * state transition in TM disable/Suspended state,
 			 * and target TM state is TM inactive(00) state. (the
 			 * change should be suppressed).
 			 */

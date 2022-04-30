@@ -617,7 +617,7 @@ bool __init xive_native_init(void)
 
 	xive_tima_os = r.start;
 
-	/* Grab size of provisionning pages */
+	/* Grab size of provisioning pages */
 	xive_parse_provisioning(np);
 
 	/* Switch the XIVE to exploitation mode */

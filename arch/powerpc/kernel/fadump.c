@@ -1671,8 +1671,8 @@ int __init setup_fadump(void)
 }
 /*
  * Use subsys_initcall_sync() here because there is dependency with
- * crash_save_vmcoreinfo_init(), which mush run first to ensure vmcoreinfo initialization
- * is done before regisering with f/w.
+ * crash_save_vmcoreinfo_init(), which must run first to ensure vmcoreinfo initialization
+ * is done before registering with f/w.
  */
 subsys_initcall_sync(setup_fadump);
 #else /* !CONFIG_PRESERVE_FA_DUMP */

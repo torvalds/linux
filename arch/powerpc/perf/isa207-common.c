@@ -82,11 +82,11 @@ static unsigned long sdar_mod_val(u64 event)
 static void mmcra_sdar_mode(u64 event, unsigned long *mmcra)
 {
 	/*
-	 * MMCRA[SDAR_MODE] specifices how the SDAR should be updated in
-	 * continous sampling mode.
+	 * MMCRA[SDAR_MODE] specifies how the SDAR should be updated in
+	 * continuous sampling mode.
 	 *
 	 * Incase of Power8:
-	 * MMCRA[SDAR_MODE] will be programmed as "0b01" for continous sampling
+	 * MMCRA[SDAR_MODE] will be programmed as "0b01" for continuous sampling
 	 * mode and will be un-changed when setting MMCRA[63] (Marked events).
 	 *
 	 * Incase of Power9/power10:

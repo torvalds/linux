@@ -1338,7 +1338,7 @@ static int subpage_protection(struct mm_struct *mm, unsigned long ea)
 	spp >>= 30 - 2 * ((ea >> 12) & 0xf);
 
 	/*
-	 * 0 -> full premission
+	 * 0 -> full permission
 	 * 1 -> Read only
 	 * 2 -> no access.
 	 * We return the flag that need to be cleared.
@@ -1659,7 +1659,7 @@ DEFINE_INTERRUPT_HANDLER(do_hash_fault)
 
 	err = hash_page_mm(mm, ea, access, TRAP(regs), flags);
 	if (unlikely(err < 0)) {
-		// failed to instert a hash PTE due to an hypervisor error
+		// failed to insert a hash PTE due to an hypervisor error
 		if (user_mode(regs)) {
 			if (IS_ENABLED(CONFIG_PPC_SUBPAGE_PROT) && err == -2)
 				_exception(SIGSEGV, regs, SEGV_ACCERR, ea);

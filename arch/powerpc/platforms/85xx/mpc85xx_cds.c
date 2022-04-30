@@ -151,7 +151,7 @@ static void __init mpc85xx_cds_pci_irq_fixup(struct pci_dev *dev)
 		 */
 		case PCI_DEVICE_ID_VIA_82C586_2:
 		/* There are two USB controllers.
-		 * Identify them by functon number
+		 * Identify them by function number
 		 */
 			if (PCI_FUNC(dev->devfn) == 3)
 				dev->irq = 11;

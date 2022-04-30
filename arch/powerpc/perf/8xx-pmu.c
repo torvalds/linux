@@ -157,7 +157,7 @@ static void mpc8xx_pmu_del(struct perf_event *event, int flags)
 
 	mpc8xx_pmu_read(event);
 
-	/* If it was the last user, stop counting to avoid useles overhead */
+	/* If it was the last user, stop counting to avoid useless overhead */
 	switch (event_type(event)) {
 	case PERF_8xx_ID_CPU_CYCLES:
 		break;

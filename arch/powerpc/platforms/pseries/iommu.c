@@ -1430,7 +1430,7 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 
 		pci->table_group->tables[1] = newtbl;
 
-		/* Keep default DMA window stuct if removed */
+		/* Keep default DMA window struct if removed */
 		if (default_win_removed) {
 			tbl->it_size = 0;
 			vfree(tbl->it_map);

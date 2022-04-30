@@ -244,7 +244,7 @@ EXPORT_SYMBOL(of_create_pci_dev);
  * @dev: pci_dev structure for the bridge
  *
  * of_scan_bus() calls this routine for each PCI bridge that it finds, and
- * this routine in turn call of_scan_bus() recusively to scan for more child
+ * this routine in turn call of_scan_bus() recursively to scan for more child
  * devices.
  */
 void of_scan_pci_bridge(struct pci_dev *dev)

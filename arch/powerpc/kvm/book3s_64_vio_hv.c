@@ -453,7 +453,7 @@ static long kvmppc_rm_ua_to_hpa(struct kvm_vcpu *vcpu, unsigned long mmu_seq,
 	 * we are doing this on secondary cpus and current task there
 	 * is not the hypervisor. Also this is safe against THP in the
 	 * host, because an IPI to primary thread will wait for the secondary
-	 * to exit which will agains result in the below page table walk
+	 * to exit which will again result in the below page table walk
 	 * to finish.
 	 */
 	/* an rmap lock won't make it safe. because that just ensure hash
