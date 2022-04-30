@@ -71,7 +71,7 @@ volatile u32 *ioasic_base;
 EXPORT_SYMBOL(ioasic_base);
 
 /*
- * IRQ routing and priority tables.  Priorites are set as follows:
+ * IRQ routing and priority tables.  Priorities are set as follows:
  *
  *		KN01	KN230	KN02	KN02-BA	KN02-CA	KN03
  *
