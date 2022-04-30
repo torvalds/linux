@@ -937,7 +937,7 @@ static int lan966x_ram_init(struct lan966x *lan966x)
 
 static int lan966x_reset_switch(struct lan966x *lan966x)
 {
-	struct reset_control *switch_reset, *phy_reset;
+	struct reset_control *switch_reset;
 	int val = 0;
 	int ret;
 
@@ -946,13 +946,7 @@ static int lan966x_reset_switch(struct lan966x *lan966x)
 		return dev_err_probe(lan966x->dev, PTR_ERR(switch_reset),
 				     "Could not obtain switch reset");
 
-	phy_reset = devm_reset_control_get_shared(lan966x->dev, "phy");
-	if (IS_ERR(phy_reset))
-		return dev_err_probe(lan966x->dev, PTR_ERR(phy_reset),
-				     "Could not obtain phy reset\n");
-
 	reset_control_reset(switch_reset);
-	reset_control_reset(phy_reset);
 
 	lan_wr(SYS_RESET_CFG_CORE_ENA_SET(0), lan966x, SYS_RESET_CFG);
 	lan_wr(SYS_RAM_INIT_RAM_INIT_SET(1), lan966x, SYS_RAM_INIT);

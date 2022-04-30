@@ -53,12 +53,10 @@ properties:
   resets:
     items:
       - description: Reset controller used for switch core reset (soft reset)
-      - description: Reset controller used for releasing the phy from reset
 
   reset-names:
     items:
       - const: switch
-      - const: phy
 
   ethernet-ports:
     type: object
