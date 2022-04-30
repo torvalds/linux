@@ -284,19 +284,14 @@
 	status = "ok";
 };
 
-&pm8005_lsid1 {
-	pm8005-regulators {
-		compatible = "qcom,pm8005-regulators";
-
-		vdd_s1-supply = <&vph_pwr>;
-
-		/* VDD_GFX supply */
-		pm8005_s1: s1 {
-			regulator-min-microvolt = <524000>;
-			regulator-max-microvolt = <1088000>;
-			regulator-enable-ramp-delay = <500>;
-			regulator-always-on;
-		};
+&pm8005_regulators {
+	/* VDD_GFX supply */
+	pm8005_s1: s1 {
+		regulator-min-microvolt = <524000>;
+		regulator-max-microvolt = <1088000>;
+		regulator-enable-ramp-delay = <500>;
+		/* Hack until we rig up the gpu consumer */
+		regulator-always-on;
 	};
 };
 
