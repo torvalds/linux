@@ -21,8 +21,6 @@
 	qcom,board-id = <8 0>;
 
 	clocks {
-		compatible = "simple-bus";
-
 		div1_mclk: divclk1 {
 			compatible = "gpio-gate-clock";
 			pinctrl-0 = <&audio_mclk_pin>;
