@@ -5319,7 +5319,7 @@ static int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
 		return io_setup_async_msg(req, kmsg);
 
-	flags = req->sr_msg.msg_flags;
+	flags = sr->msg_flags;
 	if (issue_flags & IO_URING_F_NONBLOCK)
 		flags |= MSG_DONTWAIT;
 	if (flags & MSG_WAITALL)
@@ -5378,7 +5378,7 @@ static int io_send(struct io_kiocb *req, unsigned int issue_flags)
 	msg.msg_controllen = 0;
 	msg.msg_namelen = 0;
 
-	flags = req->sr_msg.msg_flags;
+	flags = sr->msg_flags;
 	if (issue_flags & IO_URING_F_NONBLOCK)
 		flags |= MSG_DONTWAIT;
 	if (flags & MSG_WAITALL)
@@ -5570,19 +5570,18 @@ static int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 		if (IS_ERR(kbuf))
 			return PTR_ERR(kbuf);
 		kmsg->fast_iov[0].iov_base = u64_to_user_ptr(kbuf->addr);
-		kmsg->fast_iov[0].iov_len = req->sr_msg.len;
-		iov_iter_init(&kmsg->msg.msg_iter, READ, kmsg->fast_iov,
-				1, req->sr_msg.len);
+		kmsg->fast_iov[0].iov_len = sr->len;
+		iov_iter_init(&kmsg->msg.msg_iter, READ, kmsg->fast_iov, 1,
+				sr->len);
 	}
 
-	flags = req->sr_msg.msg_flags;
+	flags = sr->msg_flags;
 	if (force_nonblock)
 		flags |= MSG_DONTWAIT;
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
 
-	ret = __sys_recvmsg_sock(sock, &kmsg->msg, req->sr_msg.umsg,
-					kmsg->uaddr, flags);
+	ret = __sys_recvmsg_sock(sock, &kmsg->msg, sr->umsg, kmsg->uaddr, flags);
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && force_nonblock)
 			return io_setup_async_msg(req, kmsg);
@@ -5648,7 +5647,7 @@ static int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 	msg.msg_iocb = NULL;
 	msg.msg_flags = 0;
 
-	flags = req->sr_msg.msg_flags;
+	flags = sr->msg_flags;
 	if (force_nonblock)
 		flags |= MSG_DONTWAIT;
 	if (flags & MSG_WAITALL)
