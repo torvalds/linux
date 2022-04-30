@@ -993,6 +993,7 @@ static inline bool is_new_task(struct task_struct *p)
 
 	return wts->active_time < NEW_TASK_ACTIVE_TIME;
 }
+static inline void run_walt_irq_work_rollover(u64 old_window_start, struct rq *rq);
 
 static void fixup_busy_time(struct task_struct *p, int new_cpu)
 {
@@ -1009,6 +1010,7 @@ static void fixup_busy_time(struct task_struct *p, int new_cpu)
 	struct walt_rq *dest_wrq = (struct walt_rq *) dest_rq->android_vendor_data1;
 	struct walt_rq *src_wrq = (struct walt_rq *) src_rq->android_vendor_data1;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+	u64 old_window_start;
 
 	if (!p->on_rq && READ_ONCE(p->__state) != TASK_WAKING)
 		return;
@@ -1040,7 +1042,8 @@ static void fixup_busy_time(struct task_struct *p, int new_cpu)
 	 * window boundary or if the counters will be accessed
 	 * or not.
 	 */
-	update_window_start(dest_rq, wallclock, TASK_UPDATE);
+	old_window_start = update_window_start(dest_rq, wallclock, TASK_UPDATE);
+	run_walt_irq_work_rollover(old_window_start, dest_rq);
 
 	update_task_cpu_cycles(p, new_cpu, wallclock);
 
