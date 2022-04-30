@@ -1910,10 +1910,15 @@ static void dcn321_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 			dcn3_21_soc.clock_limits[i].dscclk_mhz  = max_dispclk_mhz / 3;
 
 			/* Populate from bw_params for DTBCLK, SOCCLK */
-			if (!bw_params->clk_table.entries[i].dtbclk_mhz && i > 0)
-				dcn3_21_soc.clock_limits[i].dtbclk_mhz  = dcn3_21_soc.clock_limits[i-1].dtbclk_mhz;
-			else
+			if (i > 0) {
+				if (!bw_params->clk_table.entries[i].dtbclk_mhz) {
+					dcn3_21_soc.clock_limits[i].dtbclk_mhz = dcn3_21_soc.clock_limits[i-1].dtbclk_mhz;
+				} else {
+					dcn3_21_soc.clock_limits[i].dtbclk_mhz = bw_params->clk_table.entries[i].dtbclk_mhz;
+				}
+			} else if (bw_params->clk_table.entries[i].dtbclk_mhz) {
 				dcn3_21_soc.clock_limits[i].dtbclk_mhz  = bw_params->clk_table.entries[i].dtbclk_mhz;
+			}
 
 			if (!bw_params->clk_table.entries[i].socclk_mhz && i > 0)
 				dcn3_21_soc.clock_limits[i].socclk_mhz = dcn3_21_soc.clock_limits[i-1].socclk_mhz;

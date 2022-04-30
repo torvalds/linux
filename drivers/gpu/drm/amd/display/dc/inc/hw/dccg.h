@@ -70,7 +70,7 @@ struct dccg {
 	int ref_dppclk;
 	//int dtbclk_khz[MAX_PIPES];/* TODO needs to be removed */
 	//int audio_dtbclk_khz;/* TODO needs to be removed */
-	int ref_dtbclk_khz;/* TODO needs to be removed */
+	//int ref_dtbclk_khz;/* TODO needs to be removed */
 };
 
 struct dtbclk_dto_params {
@@ -154,6 +154,7 @@ void (*set_pixel_rate_div)(
 
 void (*set_valid_pixel_rate)(
         struct dccg *dccg,
+	int ref_dtbclk_khz,
         int otg_inst,
         int pixclk_khz);
 

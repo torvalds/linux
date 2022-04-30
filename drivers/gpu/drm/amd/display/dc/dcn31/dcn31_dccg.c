@@ -590,6 +590,7 @@ void dccg31_set_audio_dtbclk_dto(
 		phase = div_u64((((unsigned long long)modulo * params->req_audio_dtbclk_khz) + params->ref_dtbclk_khz - 1),
 			params->ref_dtbclk_khz);
 
+
 		REG_WRITE(DCCG_AUDIO_DTBCLK_DTO_MODULO, modulo);
 		REG_WRITE(DCCG_AUDIO_DTBCLK_DTO_PHASE, phase);
 

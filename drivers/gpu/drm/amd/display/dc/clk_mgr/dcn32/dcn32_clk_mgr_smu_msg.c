@@ -114,3 +114,21 @@ void dcn32_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr)
 	dcn32_smu_send_msg_with_param(clk_mgr,
 			DALSMC_MSG_TransferTableDram2Smu, TABLE_WATERMARKS, NULL);
 }
+
+/* Returns the actual frequency that was set in MHz, 0 on failure */
+unsigned int dcn32_smu_set_hard_min_by_freq(struct clk_mgr_internal *clk_mgr, uint32_t clk, uint16_t freq_mhz)
+{
+	uint32_t response = 0;
+
+	/* bits 23:16 for clock type, lower 16 bits for frequency in MHz */
+	uint32_t param = (clk << 16) | freq_mhz;
+
+	smu_print("SMU Set hard min by freq: clk = %d, freq_mhz = %d MHz\n", clk, freq_mhz);
+
+	dcn32_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_SetHardMinByFreq, param, &response);
+
+	smu_print("SMU Frequency set = %d KHz\n", response);
+
+	return response;
+}

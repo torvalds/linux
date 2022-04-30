@@ -432,7 +432,6 @@ struct dc_clocks {
 	enum dcn_zstate_support_state zstate_support;
 	bool dtbclk_en;
 	int ref_dtbclk_khz;
-	int dtbclk_khz;
 	bool fclk_p_state_change_support;
 	enum dcn_pwr_state pwr_state;
 	/*
@@ -740,11 +739,11 @@ struct dc_debug_options {
 	bool force_disable_subvp;
 	bool force_subvp_mclk_switch;
 	bool force_usr_allow;
+	/* uses value at boot and disables switch */
+	bool disable_dtb_ref_clk_switch;
 	bool apply_vendor_specific_lttpr_wa;
 	bool extended_blank_optimization;
 	union aux_wake_wa_options aux_wake_wa;
-	/* uses value at boot and disables switch */
-	bool disable_dtb_ref_clk_switch;
 	uint8_t psr_power_use_phy_fsm;
 	enum dml_hostvm_override_opts dml_hostvm_override;
 };

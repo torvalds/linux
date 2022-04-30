@@ -3306,6 +3306,7 @@ void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context, display
 	// context->bw_ctx.bw.dcn.clk.p_state_change_support |= context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching;
 	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
 	context->bw_ctx.bw.dcn.clk.dtbclk_en = is_dtbclk_required(dc, context);
+	context->bw_ctx.bw.dcn.clk.ref_dtbclk_khz = context->bw_ctx.dml.vba.DTBCLKPerState[vlevel] * 1000;
 	if (context->bw_ctx.dml.vba.FCLKChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb] == dm_fclock_change_unsupported)
 		context->bw_ctx.bw.dcn.clk.fclk_p_state_change_support = false;
 	else
@@ -3560,10 +3561,15 @@ static void dcn32_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw
 			dcn3_2_soc.clock_limits[i].dscclk_mhz  = max_dispclk_mhz / 3;
 
 			/* Populate from bw_params for DTBCLK, SOCCLK */
-			if (!bw_params->clk_table.entries[i].dtbclk_mhz && i > 0)
-				dcn3_2_soc.clock_limits[i].dtbclk_mhz  = dcn3_2_soc.clock_limits[i-1].dtbclk_mhz;
-			else
+			if (i > 0) {
+				if (!bw_params->clk_table.entries[i].dtbclk_mhz) {
+					dcn3_2_soc.clock_limits[i].dtbclk_mhz  = dcn3_2_soc.clock_limits[i-1].dtbclk_mhz;
+				} else {
+					dcn3_2_soc.clock_limits[i].dtbclk_mhz  = bw_params->clk_table.entries[i].dtbclk_mhz;
+				}
+			} else if (bw_params->clk_table.entries[i].dtbclk_mhz) {
 				dcn3_2_soc.clock_limits[i].dtbclk_mhz  = bw_params->clk_table.entries[i].dtbclk_mhz;
+			}
 
 			if (!bw_params->clk_table.entries[i].socclk_mhz && i > 0)
 				dcn3_2_soc.clock_limits[i].socclk_mhz = dcn3_2_soc.clock_limits[i-1].socclk_mhz;

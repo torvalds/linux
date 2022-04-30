@@ -179,11 +179,13 @@ void dccg32_set_dtbclk_dto(
 
 void dccg32_set_valid_pixel_rate(
 		struct dccg *dccg,
+		int ref_dtbclk_khz,
 		int otg_inst,
 		int pixclk_khz)
 {
 	struct dtbclk_dto_params dto_params = {0};
 
+	dto_params.ref_dtbclk_khz = ref_dtbclk_khz;
 	dto_params.otg_inst = otg_inst;
 	dto_params.pixclk_khz = pixclk_khz;
 
