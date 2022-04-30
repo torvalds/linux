@@ -78,7 +78,7 @@ void *memmove(void *v_dst, const void *v_src, __kernel_size_t c)
 
 		i_dst = (void *)dst;
 		/* Choose a copy scheme based on the source */
-		/* alignment relative to dstination. */
+		/* alignment relative to destination. */
 		switch ((unsigned long)src & 3) {
 		case 0x0:	/* Both byte offsets are aligned */
 
