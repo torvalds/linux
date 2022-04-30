@@ -646,7 +646,9 @@ static int isl29028_remove(struct i2c_client *client)
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 
-	return isl29028_clear_configure_reg(chip);
+	isl29028_clear_configure_reg(chip);
+
+	return 0;
 }
 
 static int __maybe_unused isl29028_suspend(struct device *dev)
