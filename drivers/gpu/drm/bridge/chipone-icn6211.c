@@ -100,7 +100,7 @@
 #define MIPI_PN_SWAP		0x87
 #define MIPI_PN_SWAP_CLK		BIT(4)
 #define MIPI_PN_SWAP_D(n)		BIT((n) & 0x3)
-#define MIPI_SOT_SYNC_BIT_(n)	(0x88 + ((n) & 0x1)) /* 0..1 */
+#define MIPI_SOT_SYNC_BIT(n)	(0x88 + ((n) & 0x1)) /* 0..1 */
 #define MIPI_ULPS_CTRL		0x8a
 #define MIPI_CLK_CHK_VAR	0x8e
 #define MIPI_CLK_CHK_INI	0x8f
@@ -115,7 +115,7 @@
 #define MIPI_T_CLK_SETTLE	0x9a
 #define MIPI_TO_HS_RX_L		0x9e
 #define MIPI_TO_HS_RX_H		0x9f
-#define MIPI_PHY_(n)		(0xa0 + ((n) & 0x7)) /* 0..5 */
+#define MIPI_PHY(n)		(0xa0 + ((n) & 0x7)) /* 0..5 */
 #define MIPI_PD_RX		0xb0
 #define MIPI_PD_TERM		0xb1
 #define MIPI_PD_HSRX		0xb2
@@ -125,13 +125,11 @@
 #define MIPI_FORCE_0		0xb6
 #define MIPI_RST_CTRL		0xb7
 #define MIPI_RST_NUM		0xb8
-#define MIPI_DBG_SET_(n)	(0xc0 + ((n) & 0xf)) /* 0..9 */
+#define MIPI_DBG_SET(n)		(0xc0 + ((n) & 0xf)) /* 0..9 */
 #define MIPI_DBG_SEL		0xe0
 #define MIPI_DBG_DATA		0xe1
 #define MIPI_ATE_TEST_SEL	0xe2
-#define MIPI_ATE_STATUS_(n)	(0xe3 + ((n) & 0x1)) /* 0..1 */
-#define MIPI_ATE_STATUS_1	0xe4
-#define ICN6211_MAX_REGISTER	MIPI_ATE_STATUS(1)
+#define MIPI_ATE_STATUS(n)	(0xe3 + ((n) & 0x1)) /* 0..1 */
 
 struct chipone {
 	struct device *dev;
@@ -155,10 +153,10 @@ static const struct regmap_range chipone_dsi_readable_ranges[] = {
 	regmap_reg_range(MIPI_CLK_CHK_VAR, MIPI_T_TA_SURE_PRE),
 	regmap_reg_range(MIPI_T_LPX_SET, MIPI_INIT_TIME_H),
 	regmap_reg_range(MIPI_T_CLK_TERM_EN, MIPI_T_CLK_SETTLE),
-	regmap_reg_range(MIPI_TO_HS_RX_L, MIPI_PHY_(5)),
+	regmap_reg_range(MIPI_TO_HS_RX_L, MIPI_PHY(5)),
 	regmap_reg_range(MIPI_PD_RX, MIPI_RST_NUM),
-	regmap_reg_range(MIPI_DBG_SET_(0), MIPI_DBG_SET_(9)),
-	regmap_reg_range(MIPI_DBG_SEL, MIPI_ATE_STATUS_(1)),
+	regmap_reg_range(MIPI_DBG_SET(0), MIPI_DBG_SET(9)),
+	regmap_reg_range(MIPI_DBG_SEL, MIPI_ATE_STATUS(1)),
 };
 
 static const struct regmap_access_table chipone_dsi_readable_table = {
@@ -172,10 +170,10 @@ static const struct regmap_range chipone_dsi_writeable_ranges[] = {
 	regmap_reg_range(MIPI_CLK_CHK_VAR, MIPI_T_TA_SURE_PRE),
 	regmap_reg_range(MIPI_T_LPX_SET, MIPI_INIT_TIME_H),
 	regmap_reg_range(MIPI_T_CLK_TERM_EN, MIPI_T_CLK_SETTLE),
-	regmap_reg_range(MIPI_TO_HS_RX_L, MIPI_PHY_(5)),
+	regmap_reg_range(MIPI_TO_HS_RX_L, MIPI_PHY(5)),
 	regmap_reg_range(MIPI_PD_RX, MIPI_RST_NUM),
-	regmap_reg_range(MIPI_DBG_SET_(0), MIPI_DBG_SET_(9)),
-	regmap_reg_range(MIPI_DBG_SEL, MIPI_ATE_STATUS_(1)),
+	regmap_reg_range(MIPI_DBG_SET(0), MIPI_DBG_SET(9)),
+	regmap_reg_range(MIPI_DBG_SEL, MIPI_ATE_STATUS(1)),
 };
 
 static const struct regmap_access_table chipone_dsi_writeable_table = {
@@ -189,7 +187,7 @@ static const struct regmap_config chipone_regmap_config = {
 	.rd_table = &chipone_dsi_readable_table,
 	.wr_table = &chipone_dsi_writeable_table,
 	.cache_type = REGCACHE_RBTREE,
-	.max_register = MIPI_ATE_STATUS_(1),
+	.max_register = MIPI_ATE_STATUS(1),
 };
 
 static int chipone_dsi_read(void *context,
