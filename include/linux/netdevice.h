@@ -2940,9 +2940,19 @@ u16 dev_pick_tx_zero(struct net_device *dev, struct sk_buff *skb,
 u16 dev_pick_tx_cpu_id(struct net_device *dev, struct sk_buff *skb,
 		       struct net_device *sb_dev);
 
-int dev_queue_xmit(struct sk_buff *skb);
-int dev_queue_xmit_accel(struct sk_buff *skb, struct net_device *sb_dev);
+int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev);
 int __dev_direct_xmit(struct sk_buff *skb, u16 queue_id);
+
+static inline int dev_queue_xmit(struct sk_buff *skb)
+{
+	return __dev_queue_xmit(skb, NULL);
+}
+
+static inline int dev_queue_xmit_accel(struct sk_buff *skb,
+				       struct net_device *sb_dev)
+{
+	return __dev_queue_xmit(skb, sb_dev);
+}
 
 static inline int dev_direct_xmit(struct sk_buff *skb, u16 queue_id)
 {
