@@ -213,10 +213,9 @@ static int bh1780_remove(struct i2c_client *client)
 	pm_runtime_put_noidle(&client->dev);
 	pm_runtime_disable(&client->dev);
 	ret = bh1780_write(bh1780, BH1780_REG_CONTROL, BH1780_POFF);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to power off\n");
-		return ret;
-	}
+	if (ret < 0)
+		dev_err(&client->dev, "failed to power off (%pe)\n",
+			ERR_PTR(ret));
 
 	return 0;
 }
