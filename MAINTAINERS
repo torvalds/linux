@@ -5987,6 +5987,12 @@ L:	linux-doc@vger.kernel.org
 S:	Maintained
 F:	Documentation/translations/it_IT
 
+DOCUMENTATION/JAPANESE
+R:	Akira Yokosawa <akiyks@gmail.com>
+L:	linux-doc@vger.kernel.org
+S:	Maintained
+F:	Documentation/translations/ja_JP
+
 DONGWOON DW9714 LENS VOICE COIL DRIVER
 M:	Sakari Ailus <sakari.ailus@linux.intel.com>
 L:	linux-media@vger.kernel.org
