@@ -608,7 +608,9 @@ static int stk8312_remove(struct i2c_client *client)
 	if (data->dready_trig)
 		iio_trigger_unregister(data->dready_trig);
 
-	return stk8312_set_mode(data, STK8312_MODE_STANDBY);
+	stk8312_set_mode(data, STK8312_MODE_STANDBY);
+
+	return 0;
 }
 
 static int stk8312_suspend(struct device *dev)
