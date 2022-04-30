@@ -190,7 +190,7 @@
 };
 
 &blsp2_i2c1 {
-	status = "ok";
+	status = "okay";
 
 	touchscreen@14 {
 		compatible = "goodix,gt9286";
@@ -206,11 +206,11 @@
 };
 
 &mmcc {
-	status = "ok";
+	status = "okay";
 };
 
 &mmss_smmu {
-	status = "ok";
+	status = "okay";
 };
 
 &pm8998_gpio {
@@ -298,11 +298,11 @@
 };
 
 &ufshc {
-	status = "ok";
+	status = "okay";
 };
 
 &ufsphy {
-	status = "ok";
+	status = "okay";
 };
 
 &usb3_dwc3 {
