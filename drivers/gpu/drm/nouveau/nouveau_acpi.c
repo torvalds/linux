@@ -391,3 +391,8 @@ bool nouveau_acpi_video_backlight_use_native(void)
 {
 	return acpi_video_backlight_use_native();
 }
+
+void nouveau_acpi_video_register_backlight(void)
+{
+	acpi_video_register_backlight();
+}
