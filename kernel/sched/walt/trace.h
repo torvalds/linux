@@ -158,9 +158,9 @@ TRACE_EVENT(sched_update_task_ravg,
 	TP_PROTO(struct task_struct *p, struct rq *rq, enum task_event evt,
 		 u64 wallclock, u64 irqtime,
 		 struct group_cpu_time *cpu_time, struct walt_rq *wrq,
-		 struct walt_task_struct *wts),
+		 struct walt_task_struct *wts, u64 walt_irq_work_lastq_ws),
 
-	TP_ARGS(p, rq, evt, wallclock, irqtime, cpu_time, wrq, wts),
+	TP_ARGS(p, rq, evt, wallclock, irqtime, cpu_time, wrq, wts, walt_irq_work_lastq_ws),
 
 	TP_STRUCT__entry(
 		__array(char,			comm, TASK_COMM_LEN)
@@ -194,6 +194,7 @@ TRACE_EVENT(sched_update_task_ravg,
 		__field(u64,			active_time)
 		__field(u32,			curr_top)
 		__field(u32,			prev_top)
+		__field(u64,			walt_irq_work_lastq_ws)
 	),
 
 	TP_fast_assign(
@@ -232,9 +233,10 @@ TRACE_EVENT(sched_update_task_ravg,
 		__entry->active_time	= wts->active_time;
 		__entry->curr_top	= wrq->curr_top;
 		__entry->prev_top	= wrq->prev_top;
+		__entry->walt_irq_work_lastq_ws	= walt_irq_work_lastq_ws;
 	),
 
-	TP_printk("wc %llu ws %llu delta %llu event %s cpu %d cur_freq %u cur_pid %d task %d (%s) ms %llu delta %llu demand %u coloc_demand: %u sum %u irqtime %llu pred_demand_scaled %u rq_cs %llu rq_ps %llu cur_window %u (%s) prev_window %u (%s) nt_cs %llu nt_ps %llu active_time %u grp_cs %lld grp_ps %lld, grp_nt_cs %llu, grp_nt_ps: %llu curr_top %u prev_top %u",
+	TP_printk("wc %llu ws %llu delta %llu event %s cpu %d cur_freq %u cur_pid %d task %d (%s) ms %llu delta %llu demand %u coloc_demand: %u sum %u irqtime %llu pred_demand_scaled %u rq_cs %llu rq_ps %llu cur_window %u (%s) prev_window %u (%s) nt_cs %llu nt_ps %llu active_time %u grp_cs %lld grp_ps %lld, grp_nt_cs %llu, grp_nt_ps: %llu curr_top %u prev_top %u global_ws %llu",
 		__entry->wallclock, __entry->win_start, __entry->delta,
 		task_event_names[__entry->evt], __entry->cpu,
 		__entry->cur_freq, __entry->cur_pid,
@@ -248,7 +250,7 @@ TRACE_EVENT(sched_update_task_ravg,
 		__entry->nt_cs, __entry->nt_ps,
 		__entry->active_time, __entry->grp_cs,
 		__entry->grp_ps, __entry->grp_nt_cs, __entry->grp_nt_ps,
-		__entry->curr_top, __entry->prev_top)
+		__entry->curr_top, __entry->prev_top, __entry->walt_irq_work_lastq_ws)
 );
 
 TRACE_EVENT(sched_update_task_ravg_mini,
@@ -256,9 +258,9 @@ TRACE_EVENT(sched_update_task_ravg_mini,
 	TP_PROTO(struct task_struct *p, struct rq *rq, enum task_event evt,
 		 u64 wallclock, u64 irqtime,
 		 struct group_cpu_time *cpu_time, struct walt_rq *wrq,
-		 struct walt_task_struct *wts),
+		 struct walt_task_struct *wts, u64 walt_irq_work_lastq_ws),
 
-	TP_ARGS(p, rq, evt, wallclock, irqtime, cpu_time, wrq, wts),
+	TP_ARGS(p, rq, evt, wallclock, irqtime, cpu_time, wrq, wts, walt_irq_work_lastq_ws),
 
 	TP_STRUCT__entry(
 		__array(char,			comm, TASK_COMM_LEN)
@@ -277,6 +279,7 @@ TRACE_EVENT(sched_update_task_ravg_mini,
 		__field(u64,			grp_ps)
 		__field(u32,			curr_window)
 		__field(u32,			prev_window)
+		__field(u64,			walt_irq_work_lastq_ws)
 	),
 
 	TP_fast_assign(
@@ -296,15 +299,17 @@ TRACE_EVENT(sched_update_task_ravg_mini,
 		__entry->grp_ps		= cpu_time ? cpu_time->prev_runnable_sum : 0;
 		__entry->curr_window	= wts->curr_window;
 		__entry->prev_window	= wts->prev_window;
+		__entry->walt_irq_work_lastq_ws	= walt_irq_work_lastq_ws;
 	),
 
-	TP_printk("wc %llu ws %llu delta %llu event %s cpu %d task %d (%s) ms %llu delta %llu demand %u rq_cs %llu rq_ps %llu cur_window %u prev_window %u grp_cs %lld grp_ps %lld",
+	TP_printk("wc %llu ws %llu delta %llu event %s cpu %d task %d (%s) ms %llu delta %llu demand %u rq_cs %llu rq_ps %llu cur_window %u prev_window %u grp_cs %lld grp_ps %lld global_ws %llu",
 		__entry->wallclock, __entry->win_start, __entry->delta,
 		task_event_names[__entry->evt], __entry->cpu,
 		__entry->pid, __entry->comm, __entry->mark_start,
 		__entry->delta_m, __entry->demand,
 		__entry->rq_cs, __entry->rq_ps, __entry->curr_window,
-		__entry->prev_window, __entry->grp_cs, __entry->grp_ps)
+		__entry->prev_window, __entry->grp_cs, __entry->grp_ps,
+		__entry->walt_irq_work_lastq_ws)
 );
 
 struct migration_sum_data;

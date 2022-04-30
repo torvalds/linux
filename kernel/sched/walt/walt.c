@@ -2215,9 +2215,9 @@ static void walt_update_task_ravg(struct task_struct *p, struct rq *rq, int even
 		wts->iowaited = p->in_iowait;
 
 	trace_sched_update_task_ravg(p, rq, event, wallclock, irqtime,
-				&wrq->grp_time, wrq, wts);
+				&wrq->grp_time, wrq, wts, atomic64_read(&walt_irq_work_lastq_ws));
 	trace_sched_update_task_ravg_mini(p, rq, event, wallclock, irqtime,
-				&wrq->grp_time, wrq, wts);
+				&wrq->grp_time, wrq, wts, atomic64_read(&walt_irq_work_lastq_ws));
 
 done:
 	wts->mark_start = wallclock;
