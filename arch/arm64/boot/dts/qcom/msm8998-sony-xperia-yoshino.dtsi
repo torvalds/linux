@@ -91,6 +91,14 @@
 		regulator-boot-on;
 	};
 
+	extcon_usb: extcon-usb {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&tlmm 38 GPIO_ACTIVE_HIGH>;
+		vbus-gpio = <&tlmm 128 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_extcon_active &usb_vbus_active>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		label = "Side buttons";
@@ -613,6 +621,13 @@
 		drive-strength = <2>;
 	};
 
+	usb_extcon_active: usb-extcon-active {
+		pins = "gpio38";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <16>;
+	};
+
 	hall_sensor0_default: acc-cover-open {
 		pins = "gpio124";
 		function = "gpio";
@@ -626,6 +641,14 @@
 		function = "gpio";
 		drive-strength = <8>;
 		bias-pull-up;
+	};
+
+	usb_vbus_active: usb-vbus-active {
+		pins = "gpio128";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+		output-low;
 	};
 
 	ts_vddio_en: ts-vddio-en-default {
@@ -658,6 +681,7 @@
 &usb3_dwc3 {
 	/* Force to peripheral until we have Type-C hooked up */
 	dr_mode = "peripheral";
+	extcon = <&extcon_usb>;
 };
 
 &usb3phy {
