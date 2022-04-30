@@ -1057,85 +1057,58 @@
 			reg = <0x03400000 0xc00000>;
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
-			#gpio-cells = <0x2>;
+			#gpio-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <0x2>;
+			#interrupt-cells = <2>;
 
-			sdc2_clk_on: sdc2_clk_on {
-				config {
+			sdc2_on: sdc2-on {
+				clk {
 					pins = "sdc2_clk";
-					bias-disable;
 					drive-strength = <16>;
-				};
-			};
-
-			sdc2_clk_off: sdc2_clk_off {
-				config {
-					pins = "sdc2_clk";
 					bias-disable;
-					drive-strength = <2>;
 				};
-			};
 
-			sdc2_cmd_on: sdc2_cmd_on {
-				config {
+				cmd {
 					pins = "sdc2_cmd";
-					bias-pull-up;
 					drive-strength = <10>;
+					bias-pull-up;
+				};
+
+				data {
+					pins = "sdc2_data";
+					drive-strength = <10>;
+					bias-pull-up;
 				};
 			};
 
-			sdc2_cmd_off: sdc2_cmd_off {
-				config {
+			sdc2_off: sdc2-off {
+				clk {
+					pins = "sdc2_clk";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				cmd {
 					pins = "sdc2_cmd";
-					bias-pull-up;
 					drive-strength = <2>;
+					bias-pull-up;
 				};
-			};
 
-			sdc2_data_on: sdc2_data_on {
-				config {
+				data {
 					pins = "sdc2_data";
-					bias-pull-up;
-					drive-strength = <10>;
-				};
-			};
-
-			sdc2_data_off: sdc2_data_off {
-				config {
-					pins = "sdc2_data";
-					bias-pull-up;
 					drive-strength = <2>;
-				};
-			};
-
-			sdc2_cd_on: sdc2_cd_on {
-				mux {
-					pins = "gpio95";
-					function = "gpio";
-				};
-
-				config {
-					pins = "gpio95";
 					bias-pull-up;
-					drive-strength = <2>;
 				};
 			};
 
-			sdc2_cd_off: sdc2_cd_off {
-				mux {
-					pins = "gpio95";
-					function = "gpio";
-				};
-
-				config {
-					pins = "gpio95";
-					bias-pull-up;
-					drive-strength = <2>;
-				};
+			sdc2_cd: sdc2-cd {
+				pins = "gpio95";
+				function = "gpio";
+				bias-pull-up;
+				drive-strength = <2>;
 			};
 
-			blsp1_uart3_on: blsp1_uart3_on {
+			blsp1_uart3_on: blsp1-uart3-on {
 				tx {
 					pins = "gpio45";
 					function = "blsp_uart3_a";
