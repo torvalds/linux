@@ -757,29 +757,28 @@ static int arcturus_get_current_clk_freq_by_table(struct smu_context *smu,
 					     value);
 }
 
-static int arcturus_print_clk_levels(struct smu_context *smu,
-			enum smu_clk_type type, char *buf)
+static int arcturus_emit_clk_levels(struct smu_context *smu,
+				    enum smu_clk_type type, char *buf, int *offset)
 {
-	int i, now, size = 0;
 	int ret = 0;
 	struct pp_clock_levels_with_latency clocks;
 	struct smu_11_0_dpm_table *single_dpm_table;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_11_0_dpm_context *dpm_context = NULL;
 	uint32_t gen_speed, lane_width;
+	uint32_t i, cur_value = 0;
 
-	smu_cmn_get_sysfs_buf(&buf, &size);
 
 	if (amdgpu_ras_intr_triggered()) {
-		size += sysfs_emit_at(buf, size, "unavailable\n");
-		return size;
+		*offset += sysfs_emit_at(buf, *offset, "unavailable\n");
+		return -EBUSY;
 	}
 
 	dpm_context = smu_dpm->dpm_context;
 
 	switch (type) {
 	case SMU_SCLK:
-		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_GFXCLK, &now);
+		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_GFXCLK, &cur_value);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current gfx clk Failed!");
 			return ret;
@@ -797,16 +796,16 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		 * And it's safe to assume that is always the current clock.
 		 */
 		for (i = 0; i < clocks.num_levels; i++)
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i,
+			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n", i,
 					clocks.data[i].clocks_in_khz / 1000,
 					(clocks.num_levels == 1) ? "*" :
 					(arcturus_freqs_in_same_level(
 					clocks.data[i].clocks_in_khz / 1000,
-					now) ? "*" : ""));
+					cur_value) ? "*" : ""));
 		break;
 
 	case SMU_MCLK:
-		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_UCLK, &now);
+		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_UCLK, &cur_value);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current mclk Failed!");
 			return ret;
@@ -820,16 +819,16 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < clocks.num_levels; i++)
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
+			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
-				now) ? "*" : ""));
+				cur_value) ? "*" : ""));
 		break;
 
 	case SMU_SOCCLK:
-		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_SOCCLK, &now);
+		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_SOCCLK, &cur_value);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current socclk Failed!");
 			return ret;
@@ -843,16 +842,16 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < clocks.num_levels; i++)
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
+			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
-				now) ? "*" : ""));
+				cur_value) ? "*" : ""));
 		break;
 
 	case SMU_FCLK:
-		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_FCLK, &now);
+		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_FCLK, &cur_value);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current fclk Failed!");
 			return ret;
@@ -866,16 +865,16 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < single_dpm_table->count; i++)
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
+			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
 				i, single_dpm_table->dpm_levels[i].value,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
-				now) ? "*" : ""));
+				cur_value) ? "*" : ""));
 		break;
 
 	case SMU_VCLK:
-		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_VCLK, &now);
+		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_VCLK, &cur_value);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current vclk Failed!");
 			return ret;
@@ -889,16 +888,16 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < single_dpm_table->count; i++)
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
+			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
 				i, single_dpm_table->dpm_levels[i].value,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
-				now) ? "*" : ""));
+				cur_value) ? "*" : ""));
 		break;
 
 	case SMU_DCLK:
-		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_DCLK, &now);
+		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_DCLK, &cur_value);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current dclk Failed!");
 			return ret;
@@ -912,18 +911,18 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		}
 
 		for (i = 0; i < single_dpm_table->count; i++)
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
+			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
 				i, single_dpm_table->dpm_levels[i].value,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
-				now) ? "*" : ""));
+				cur_value) ? "*" : ""));
 		break;
 
 	case SMU_PCIE:
 		gen_speed = smu_v11_0_get_current_pcie_link_speed_level(smu);
 		lane_width = smu_v11_0_get_current_pcie_link_width_level(smu);
-		size += sysfs_emit_at(buf, size, "0: %s %s %dMhz *\n",
+		*offset += sysfs_emit_at(buf, *offset, "0: %s %s %dMhz *\n",
 				(gen_speed == 0) ? "2.5GT/s," :
 				(gen_speed == 1) ? "5.0GT/s," :
 				(gen_speed == 2) ? "8.0GT/s," :
@@ -938,10 +937,11 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		break;
 
 	default:
+		return -EINVAL;
 		break;
 	}
 
-	return size;
+	return 0;
 }
 
 static int arcturus_upload_dpm_level(struct smu_context *smu,
@@ -2433,7 +2433,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.set_default_dpm_table = arcturus_set_default_dpm_table,
 	.populate_umd_state_clk = arcturus_populate_umd_state_clk,
 	.get_thermal_temperature_range = arcturus_get_thermal_temperature_range,
-	.print_clk_levels = arcturus_print_clk_levels,
+	.emit_clk_levels = arcturus_emit_clk_levels,
 	.force_clk_levels = arcturus_force_clk_levels,
 	.read_sensor = arcturus_read_sensor,
 	.get_fan_speed_pwm = arcturus_get_fan_speed_pwm,
