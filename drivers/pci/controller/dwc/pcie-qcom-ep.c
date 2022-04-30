@@ -704,6 +704,7 @@ static const struct of_device_id qcom_pcie_ep_match[] = {
 	{ .compatible = "qcom,sdx55-pcie-ep", },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, qcom_pcie_ep_match);
 
 static struct platform_driver qcom_pcie_ep_driver = {
 	.probe	= qcom_pcie_ep_probe,
