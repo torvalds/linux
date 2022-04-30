@@ -93,6 +93,20 @@
 	cpu-idle-states = <&BIG_CPU_SLEEP_1>;
 };
 
+/*
+ * If EFIFB is used, enabling MMCC will cause important MMSS clocks to be cleaned
+ * up, because as far as Linux is concerned - they are unused. Disable it by default
+ * on clamshell devices, as it will break them, unless either simplefb is configured to
+ * hold a vote for these clocks, or panels are brought up properly, using drm/msm.
+ */
+&mmcc {
+	status = "disabled";
+};
+
+&mmss_smmu {
+	status = "disabled";
+};
+
 &pcie0 {
 	status = "okay";
 };

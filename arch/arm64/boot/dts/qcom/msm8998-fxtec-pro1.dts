@@ -205,14 +205,6 @@
 	};
 };
 
-&mmcc {
-	status = "okay";
-};
-
-&mmss_smmu {
-	status = "okay";
-};
-
 &pm8998_gpio {
 	vol_up_pin_a: vol-up-active {
 		pins = "gpio6";
