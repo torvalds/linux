@@ -352,8 +352,7 @@ static int of_weim_notify(struct notifier_block *nb, unsigned long action,
 
 		pdev = of_find_device_by_node(rd->dn);
 		if (!pdev) {
-			dev_err(&pdev->dev,
-				"Could not find platform device for '%pOF'\n",
+			pr_err("Could not find platform device for '%pOF'\n",
 				rd->dn);
 
 			ret = notifier_from_errno(-EINVAL);
@@ -370,7 +369,7 @@ static int of_weim_notify(struct notifier_block *nb, unsigned long action,
 	return ret;
 }
 
-struct notifier_block weim_of_notifier = {
+static struct notifier_block weim_of_notifier = {
 	.notifier_call = of_weim_notify,
 };
 #endif /* IS_ENABLED(CONFIG_OF_DYNAMIC) */
