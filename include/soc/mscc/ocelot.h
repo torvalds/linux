@@ -106,7 +106,7 @@
 #define REG_RESERVED(reg)		REG(reg, REG_RESERVED_ADDR)
 
 #define for_each_stat(ocelot, stat)				\
-	for ((stat) = ocelot->stats_layout;			\
+	for ((stat) = (ocelot)->stats_layout;			\
 	     ((stat)->name[0] != '\0');				\
 	     (stat)++)
 
