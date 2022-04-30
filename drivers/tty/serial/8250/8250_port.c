@@ -1675,10 +1675,10 @@ static void serial8250_start_tx(struct uart_port *port)
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct uart_8250_em485 *em485 = up->em485;
 
-	serial8250_rpm_get_tx(up);
-
 	if (!port->x_char && uart_circ_empty(&port->state->xmit))
 		return;
+
+	serial8250_rpm_get_tx(up);
 
 	if (em485 &&
 	    em485->active_timer == &em485->start_tx_timer)
@@ -3329,7 +3329,7 @@ static void serial8250_console_restore(struct uart_8250_port *up)
 
 	serial8250_set_divisor(port, baud, quot, frac);
 	serial_port_out(port, UART_LCR, up->lcr);
-	serial8250_out_MCR(up, UART_MCR_DTR | UART_MCR_RTS);
+	serial8250_out_MCR(up, up->mcr | UART_MCR_DTR | UART_MCR_RTS);
 }
 
 /*
