@@ -40,8 +40,16 @@ struct vxlan_metadata {
 	__u32     gbp;
 };
 
-SEC("gre_set_tunnel")
-int _gre_set_tunnel(struct __sk_buff *skb)
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, __u32);
+} local_ip_map SEC(".maps");
+
+
+SEC("tc")
+int gre_set_tunnel(struct __sk_buff *skb)
 {
 	int ret;
 	struct bpf_tunnel_key key;
@@ -62,8 +70,8 @@ int _gre_set_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("gre_get_tunnel")
-int _gre_get_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int gre_get_tunnel(struct __sk_buff *skb)
 {
 	int ret;
 	struct bpf_tunnel_key key;
@@ -79,8 +87,8 @@ int _gre_get_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("ip6gretap_set_tunnel")
-int _ip6gretap_set_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int ip6gretap_set_tunnel(struct __sk_buff *skb)
 {
 	struct bpf_tunnel_key key;
 	int ret;
@@ -103,8 +111,8 @@ int _ip6gretap_set_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("ip6gretap_get_tunnel")
-int _ip6gretap_get_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int ip6gretap_get_tunnel(struct __sk_buff *skb)
 {
 	char fmt[] = "key %d remote ip6 ::%x label %x\n";
 	struct bpf_tunnel_key key;
@@ -123,8 +131,8 @@ int _ip6gretap_get_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("erspan_set_tunnel")
-int _erspan_set_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int erspan_set_tunnel(struct __sk_buff *skb)
 {
 	struct bpf_tunnel_key key;
 	struct erspan_metadata md;
@@ -166,8 +174,8 @@ int _erspan_set_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("erspan_get_tunnel")
-int _erspan_get_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int erspan_get_tunnel(struct __sk_buff *skb)
 {
 	char fmt[] = "key %d remote ip 0x%x erspan version %d\n";
 	struct bpf_tunnel_key key;
@@ -207,8 +215,8 @@ int _erspan_get_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("ip4ip6erspan_set_tunnel")
-int _ip4ip6erspan_set_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int ip4ip6erspan_set_tunnel(struct __sk_buff *skb)
 {
 	struct bpf_tunnel_key key;
 	struct erspan_metadata md;
@@ -251,8 +259,8 @@ int _ip4ip6erspan_set_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("ip4ip6erspan_get_tunnel")
-int _ip4ip6erspan_get_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int ip4ip6erspan_get_tunnel(struct __sk_buff *skb)
 {
 	char fmt[] = "ip6erspan get key %d remote ip6 ::%x erspan version %d\n";
 	struct bpf_tunnel_key key;
@@ -293,14 +301,62 @@ int _ip4ip6erspan_get_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("vxlan_set_tunnel")
-int _vxlan_set_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int vxlan_set_tunnel_dst(struct __sk_buff *skb)
 {
 	int ret;
 	struct bpf_tunnel_key key;
 	struct vxlan_metadata md;
+	__u32 index = 0;
+	__u32 *local_ip = NULL;
+
+	local_ip = bpf_map_lookup_elem(&local_ip_map, &index);
+	if (!local_ip) {
+		log_err(ret);
+		return TC_ACT_SHOT;
+	}
 
 	__builtin_memset(&key, 0x0, sizeof(key));
+	key.local_ipv4 = 0xac100164; /* 172.16.1.100 */
+	key.remote_ipv4 = *local_ip;
+	key.tunnel_id = 2;
+	key.tunnel_tos = 0;
+	key.tunnel_ttl = 64;
+
+	ret = bpf_skb_set_tunnel_key(skb, &key, sizeof(key),
+				     BPF_F_ZERO_CSUM_TX);
+	if (ret < 0) {
+		log_err(ret);
+		return TC_ACT_SHOT;
+	}
+
+	md.gbp = 0x800FF; /* Set VXLAN Group Policy extension */
+	ret = bpf_skb_set_tunnel_opt(skb, &md, sizeof(md));
+	if (ret < 0) {
+		log_err(ret);
+		return TC_ACT_SHOT;
+	}
+
+	return TC_ACT_OK;
+}
+
+SEC("tc")
+int vxlan_set_tunnel_src(struct __sk_buff *skb)
+{
+	int ret;
+	struct bpf_tunnel_key key;
+	struct vxlan_metadata md;
+	__u32 index = 0;
+	__u32 *local_ip = NULL;
+
+	local_ip = bpf_map_lookup_elem(&local_ip_map, &index);
+	if (!local_ip) {
+		ERROR(ret);
+		return TC_ACT_SHOT;
+	}
+
+	__builtin_memset(&key, 0x0, sizeof(key));
+	key.local_ipv4 = *local_ip;
 	key.remote_ipv4 = 0xac100164; /* 172.16.1.100 */
 	key.tunnel_id = 2;
 	key.tunnel_tos = 0;
@@ -323,13 +379,22 @@ int _vxlan_set_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("vxlan_get_tunnel")
-int _vxlan_get_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int vxlan_get_tunnel_src(struct __sk_buff *skb)
 {
 	int ret;
 	struct bpf_tunnel_key key;
 	struct vxlan_metadata md;
 	char fmt[] = "key %d remote ip 0x%x vxlan gbp 0x%x\n";
+	char fmt2[] = "local ip 0x%x\n";
+	__u32 index = 0;
+	__u32 *local_ip = NULL;
+
+	local_ip = bpf_map_lookup_elem(&local_ip_map, &index);
+	if (!local_ip) {
+		ERROR(ret);
+		return TC_ACT_SHOT;
+	}
 
 	ret = bpf_skb_get_tunnel_key(skb, &key, sizeof(key), 0);
 	if (ret < 0) {
@@ -343,19 +408,65 @@ int _vxlan_get_tunnel(struct __sk_buff *skb)
 		return TC_ACT_SHOT;
 	}
 
-	bpf_trace_printk(fmt, sizeof(fmt),
-			key.tunnel_id, key.remote_ipv4, md.gbp);
+	if (key.local_ipv4 != *local_ip || md.gbp != 0x800FF) {
+		bpf_printk("vxlan key %d local ip 0x%x remote ip 0x%x gbp 0x%x\n",
+			   key.tunnel_id, key.local_ipv4,
+			   key.remote_ipv4, md.gbp);
+		bpf_printk("local_ip 0x%x\n", *local_ip);
+		log_err(ret);
+		return TC_ACT_SHOT;
+	}
 
 	return TC_ACT_OK;
 }
 
-SEC("ip6vxlan_set_tunnel")
-int _ip6vxlan_set_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int ip6vxlan_set_tunnel_dst(struct __sk_buff *skb)
 {
 	struct bpf_tunnel_key key;
 	int ret;
+	__u32 index = 0;
+	__u32 *local_ip;
+
+	local_ip = bpf_map_lookup_elem(&local_ip_map, &index);
+	if (!local_ip) {
+		log_err(ret);
+		return TC_ACT_SHOT;
+	}
 
 	__builtin_memset(&key, 0x0, sizeof(key));
+	key.local_ipv6[3] = bpf_htonl(0x11); /* ::11 */
+	key.remote_ipv6[3] = bpf_htonl(*local_ip);
+	key.tunnel_id = 22;
+	key.tunnel_tos = 0;
+	key.tunnel_ttl = 64;
+
+	ret = bpf_skb_set_tunnel_key(skb, &key, sizeof(key),
+				     BPF_F_TUNINFO_IPV6);
+	if (ret < 0) {
+		log_err(ret);
+		return TC_ACT_SHOT;
+	}
+
+	return TC_ACT_OK;
+}
+
+SEC("tc")
+int ip6vxlan_set_tunnel_src(struct __sk_buff *skb)
+{
+	struct bpf_tunnel_key key;
+	int ret;
+	__u32 index = 0;
+	__u32 *local_ip;
+
+	local_ip = bpf_map_lookup_elem(&local_ip_map, &index);
+	if (!local_ip) {
+		ERROR(ret);
+		return TC_ACT_SHOT;
+	}
+
+	__builtin_memset(&key, 0x0, sizeof(key));
+	key.local_ipv6[3] = bpf_htonl(*local_ip);
 	key.remote_ipv6[3] = bpf_htonl(0x11); /* ::11 */
 	key.tunnel_id = 22;
 	key.tunnel_tos = 0;
@@ -371,12 +482,21 @@ int _ip6vxlan_set_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("ip6vxlan_get_tunnel")
-int _ip6vxlan_get_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int ip6vxlan_get_tunnel_src(struct __sk_buff *skb)
 {
 	char fmt[] = "key %d remote ip6 ::%x label %x\n";
+	char fmt2[] = "local ip6 ::%x\n";
 	struct bpf_tunnel_key key;
 	int ret;
+	__u32 index = 0;
+	__u32 *local_ip;
+
+	local_ip = bpf_map_lookup_elem(&local_ip_map, &index);
+	if (!local_ip) {
+		ERROR(ret);
+		return TC_ACT_SHOT;
+	}
 
 	ret = bpf_skb_get_tunnel_key(skb, &key, sizeof(key),
 				     BPF_F_TUNINFO_IPV6);
@@ -385,14 +505,20 @@ int _ip6vxlan_get_tunnel(struct __sk_buff *skb)
 		return TC_ACT_SHOT;
 	}
 
-	bpf_trace_printk(fmt, sizeof(fmt),
-			 key.tunnel_id, key.remote_ipv6[3], key.tunnel_label);
+	if (bpf_ntohl(key.local_ipv6[3]) != *local_ip) {
+		bpf_trace_printk(fmt, sizeof(fmt),
+				 key.tunnel_id,
+				 key.remote_ipv6[3], key.tunnel_label);
+		bpf_trace_printk(fmt2, sizeof(fmt2), key.local_ipv6[3]);
+		ERROR(ret);
+		return TC_ACT_SHOT;
+	}
 
 	return TC_ACT_OK;
 }
 
-SEC("geneve_set_tunnel")
-int _geneve_set_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int geneve_set_tunnel(struct __sk_buff *skb)
 {
 	int ret;
 	struct bpf_tunnel_key key;
@@ -429,8 +555,8 @@ int _geneve_set_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("geneve_get_tunnel")
-int _geneve_get_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int geneve_get_tunnel(struct __sk_buff *skb)
 {
 	int ret;
 	struct bpf_tunnel_key key;
@@ -452,8 +578,8 @@ int _geneve_get_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("ip6geneve_set_tunnel")
-int _ip6geneve_set_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int ip6geneve_set_tunnel(struct __sk_buff *skb)
 {
 	struct bpf_tunnel_key key;
 	struct geneve_opt gopt;
@@ -490,8 +616,8 @@ int _ip6geneve_set_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("ip6geneve_get_tunnel")
-int _ip6geneve_get_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int ip6geneve_get_tunnel(struct __sk_buff *skb)
 {
 	char fmt[] = "key %d remote ip 0x%x geneve class 0x%x\n";
 	struct bpf_tunnel_key key;
@@ -515,8 +641,8 @@ int _ip6geneve_get_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("ipip_set_tunnel")
-int _ipip_set_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int ipip_set_tunnel(struct __sk_buff *skb)
 {
 	struct bpf_tunnel_key key = {};
 	void *data = (void *)(long)skb->data;
@@ -544,8 +670,8 @@ int _ipip_set_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("ipip_get_tunnel")
-int _ipip_get_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int ipip_get_tunnel(struct __sk_buff *skb)
 {
 	int ret;
 	struct bpf_tunnel_key key;
@@ -561,8 +687,8 @@ int _ipip_get_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("ipip6_set_tunnel")
-int _ipip6_set_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int ipip6_set_tunnel(struct __sk_buff *skb)
 {
 	struct bpf_tunnel_key key = {};
 	void *data = (void *)(long)skb->data;
@@ -592,8 +718,8 @@ int _ipip6_set_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("ipip6_get_tunnel")
-int _ipip6_get_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int ipip6_get_tunnel(struct __sk_buff *skb)
 {
 	int ret;
 	struct bpf_tunnel_key key;
@@ -611,8 +737,8 @@ int _ipip6_get_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("ip6ip6_set_tunnel")
-int _ip6ip6_set_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int ip6ip6_set_tunnel(struct __sk_buff *skb)
 {
 	struct bpf_tunnel_key key = {};
 	void *data = (void *)(long)skb->data;
@@ -641,8 +767,8 @@ int _ip6ip6_set_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("ip6ip6_get_tunnel")
-int _ip6ip6_get_tunnel(struct __sk_buff *skb)
+SEC("tc")
+int ip6ip6_get_tunnel(struct __sk_buff *skb)
 {
 	int ret;
 	struct bpf_tunnel_key key;
@@ -660,8 +786,8 @@ int _ip6ip6_get_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("xfrm_get_state")
-int _xfrm_get_state(struct __sk_buff *skb)
+SEC("tc")
+int xfrm_get_state(struct __sk_buff *skb)
 {
 	struct bpf_xfrm_state x;
 	char fmt[] = "reqid %d spi 0x%x remote ip 0x%x\n";
