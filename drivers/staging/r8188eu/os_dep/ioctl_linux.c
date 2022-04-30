@@ -2363,114 +2363,6 @@ static void rtw_p2p_setDN(struct net_device *dev,
 	pwdinfo->device_name_len = wrqu->data.length - 1;
 }
 
-static void rtw_p2p_get_status(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-
-	/*	Commented by Albert 2010/10/12 */
-	/*	Because of the output size limitation, I had removed the "Role" information. */
-	/*	About the "Role" information, we will use the new private IOCTL to get the "Role" information. */
-	sprintf(extra, "\n\nStatus =%.2d\n", rtw_p2p_state(pwdinfo));
-	wrqu->data.length = strlen(extra);
-}
-
-/*	Commented by Albert 20110520 */
-/*	This function will return the config method description */
-/*	This config method description will show us which config method the remote P2P device is intended to use */
-/*	by sending the provisioning discovery request frame. */
-
-static void rtw_p2p_get_req_cm(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-
-	sprintf(extra, "\n\nCM =%s\n", pwdinfo->rx_prov_disc_info.strconfig_method_desc_of_prov_disc_req);
-	wrqu->data.length = strlen(extra);
-}
-
-static void rtw_p2p_get_role(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
-{
-	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-
-	sprintf(extra, "\n\nRole =%.2d\n", rtw_p2p_role(pwdinfo));
-	wrqu->data.length = strlen(extra);
-}
-
-static void rtw_p2p_get_peer_ifaddr(struct net_device *dev,
-				    struct iw_request_info *info,
-				    union iwreq_data *wrqu, char *extra)
-{
-	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-
-	sprintf(extra, "\nMAC %pM",
-		pwdinfo->p2p_peer_interface_addr);
-	wrqu->data.length = strlen(extra);
-}
-
-static void rtw_p2p_get_peer_devaddr(struct net_device *dev,
-				     struct iw_request_info *info,
-				     union iwreq_data *wrqu, char *extra)
-
-{
-	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-
-	sprintf(extra, "\n%pM",
-		pwdinfo->rx_prov_disc_info.peerDevAddr);
-	wrqu->data.length = strlen(extra);
-}
-
-static void rtw_p2p_get_peer_devaddr_by_invitation(struct net_device *dev,
-						   struct iw_request_info *info,
-						   union iwreq_data *wrqu,
-						   char *extra)
-
-{
-	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-
-	sprintf(extra, "\nMAC %pM",
-		pwdinfo->p2p_peer_device_addr);
-	wrqu->data.length = strlen(extra);
-}
-
-static void rtw_p2p_get_groupid(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
-
-{
-	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-
-	sprintf(extra, "\n%.2X:%.2X:%.2X:%.2X:%.2X:%.2X %s",
-		pwdinfo->groupid_info.go_device_addr[0], pwdinfo->groupid_info.go_device_addr[1],
-		pwdinfo->groupid_info.go_device_addr[2], pwdinfo->groupid_info.go_device_addr[3],
-		pwdinfo->groupid_info.go_device_addr[4], pwdinfo->groupid_info.go_device_addr[5],
-		pwdinfo->groupid_info.ssid);
-	wrqu->data.length = strlen(extra);
-}
-
-static void rtw_p2p_get_op_ch(struct net_device *dev,
-			      struct iw_request_info *info,
-			      union iwreq_data *wrqu, char *extra)
-
-{
-	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
-
-	sprintf(extra, "\n\nOp_ch =%.2d\n", pwdinfo->operating_channel);
-	wrqu->data.length = strlen(extra);
-}
-
 static int rtw_p2p_get_wps_configmethod(struct net_device *dev,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
@@ -3229,32 +3121,6 @@ static int rtw_p2p_set(struct net_device *dev,
 	return ret;
 }
 
-static int rtw_p2p_get(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-	if (!memcmp(wrqu->data.pointer, "status", 6)) {
-		rtw_p2p_get_status(dev, info, wrqu, extra);
-	} else if (!memcmp(wrqu->data.pointer, "role", 4)) {
-		rtw_p2p_get_role(dev, info, wrqu, extra);
-	} else if (!memcmp(wrqu->data.pointer, "peer_ifa", 8)) {
-		rtw_p2p_get_peer_ifaddr(dev, info, wrqu, extra);
-	} else if (!memcmp(wrqu->data.pointer, "req_cm", 6)) {
-		rtw_p2p_get_req_cm(dev, info, wrqu, extra);
-	} else if (!memcmp(wrqu->data.pointer, "peer_deva", 9)) {
-		/*	Get the P2P device address when receiving the provision discovery request frame. */
-		rtw_p2p_get_peer_devaddr(dev, info, wrqu, extra);
-	} else if (!memcmp(wrqu->data.pointer, "group_id", 8)) {
-		rtw_p2p_get_groupid(dev, info, wrqu, extra);
-	} else if (!memcmp(wrqu->data.pointer, "peer_deva_inv", 9)) {
-		/*	Get the P2P device address when receiving the P2P Invitation request frame. */
-		rtw_p2p_get_peer_devaddr_by_invitation(dev, info, wrqu, extra);
-	} else if (!memcmp(wrqu->data.pointer, "op_ch", 5)) {
-		rtw_p2p_get_op_ch(dev, info, wrqu, extra);
-	}
-	return 0;
-}
-
 static int rtw_p2p_get2(struct net_device *dev,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
@@ -3929,7 +3795,7 @@ NULL,					/* 0x03 */
 	NULL,				/* 0x0F */
 
 	rtw_p2p_set,			/* 0x10 */
-	rtw_p2p_get,			/* 0x11 */
+	NULL,				/* 0x11 */
 	rtw_p2p_get2,			/* 0x12 */
 
 	NULL,				/* 0x13 */
