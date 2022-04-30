@@ -72,8 +72,8 @@ archheaders:
 
 CLEAN_FILES += vmlinux.gz
 
-install: vmlinux.gz
-	sh $(srctree)/arch/ia64/install.sh $(KERNELRELEASE) $< System.map "$(INSTALL_PATH)"
+install:
+	sh $(srctree)/arch/ia64/install.sh $(KERNELRELEASE) vmlinux.gz System.map "$(INSTALL_PATH)"
 
 define archhelp
   echo '* compressed	- Build compressed kernel image'
