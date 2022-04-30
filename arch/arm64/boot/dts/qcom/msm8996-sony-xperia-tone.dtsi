@@ -42,11 +42,6 @@
 			ecc-size = <16>;
 		};
 
-		cont_splash_mem: memory@83401000 {
-			reg = <0 0x83401000 0 0x23ff000>;
-			no-map;
-		};
-
 		adsp_mem: adsp@8ea00000 {
 			reg = <0x0 0x8ea00000 0x0 0x1a00000>;
 			no-map;
