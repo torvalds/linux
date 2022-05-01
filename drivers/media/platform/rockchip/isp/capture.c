@@ -1134,6 +1134,10 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 	return 0;
 }
 
+struct rockit_isp_ops rockit_isp_ops = {
+	.rkisp_set_fmt = rkisp_set_fmt,
+};
+
 int rkisp_fh_open(struct file *filp)
 {
 	struct rkisp_stream *stream = video_drvdata(filp);

@@ -272,6 +272,96 @@ int rkisp_rockit_buf_done(struct rkisp_stream *stream, int cmd)
 	return 0;
 }
 
+int rkisp_rockit_pause_stream(struct rockit_cfg *input_rockit_cfg)
+{
+	struct rkisp_stream *stream = NULL;
+
+	stream = rkisp_rockit_get_stream(input_rockit_cfg);
+
+	if (stream == NULL) {
+		pr_err("the stream is NULL");
+		return -EINVAL;
+	}
+
+	rockit_isp_ops.rkisp_stream_stop(stream);
+
+	return 0;
+}
+EXPORT_SYMBOL(rkisp_rockit_pause_stream);
+
+int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg, int width, int height)
+{
+	struct rkisp_stream *stream = NULL;
+	struct rkisp_buffer *isp_buf;
+	int offset, i, ret;
+
+	stream = rkisp_rockit_get_stream(input_rockit_cfg);
+
+	if (stream == NULL) {
+		pr_err("the stream is NULL");
+		return -EINVAL;
+	}
+
+	stream->out_fmt.width = width;
+	stream->out_fmt.height = height;
+	stream->out_fmt.plane_fmt[0].bytesperline = 0;
+	ret = rockit_isp_ops.rkisp_set_fmt(stream, &stream->out_fmt, false);
+	if (ret < 0) {
+		pr_err("stream id %d config failed\n", stream->id);
+		return -EINVAL;
+	}
+
+	rkisp_dvbm_init(stream);
+
+	if (stream->curr_buf) {
+		list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
+		stream->curr_buf = NULL;
+	}
+	if (stream->next_buf) {
+		list_add_tail(&stream->next_buf->queue, &stream->buf_queue);
+		stream->next_buf = NULL;
+	}
+
+	list_for_each_entry(isp_buf, &stream->buf_queue, queue) {
+		if (stream->out_isp_fmt.mplanes == 1) {
+			for (i = 0; i < stream->out_isp_fmt.cplanes - 1; i++) {
+				height = stream->out_fmt.height;
+				offset = (i == 0) ?
+					stream->out_fmt.plane_fmt[i].bytesperline * height :
+					stream->out_fmt.plane_fmt[i].sizeimage;
+				isp_buf->buff_addr[i + 1] =
+					isp_buf->buff_addr[i] + offset;
+			}
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rkisp_rockit_config_stream);
+
+int rkisp_rockit_resume_stream(struct rockit_cfg *input_rockit_cfg)
+{
+	struct rkisp_stream *stream = NULL;
+	int ret = 0;
+
+	stream = rkisp_rockit_get_stream(input_rockit_cfg);
+
+	if (stream == NULL) {
+		pr_err("the stream is NULL");
+		return -EINVAL;
+	}
+
+	stream->streaming = true;
+	ret = rockit_isp_ops.rkisp_stream_start(stream);
+	if (ret < 0) {
+		pr_err("stream id %d start failed\n", stream->id);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rkisp_rockit_resume_stream);
+
 int rkisp_rockit_buf_free(struct rkisp_stream *stream)
 {
 	struct rkisp_rockit_buffer *isprk_buf = NULL;

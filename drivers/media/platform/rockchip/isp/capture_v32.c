@@ -1589,6 +1589,9 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 		stream->conn_id = RKISP_STREAM_MPDS;
 	}
 
+	rockit_isp_ops.rkisp_stream_start = rkisp_stream_start;
+	rockit_isp_ops.rkisp_stream_stop = rkisp_stream_stop;
+
 	node = vdev_to_node(vdev);
 	rkisp_init_vb2_queue(&node->buf_queue, stream,
 			     V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);

@@ -223,6 +223,14 @@ struct streams_ops {
 	int (*frame_start)(struct rkisp_stream *stream, u32 mis);
 };
 
+struct rockit_isp_ops {
+	int (*rkisp_stream_start)(struct rkisp_stream *stream);
+	void (*rkisp_stream_stop)(struct rkisp_stream *stream);
+	int (*rkisp_set_fmt)(struct rkisp_stream *stream,
+			   struct v4l2_pix_format_mplane *pixm,
+			   bool try);
+};
+
 /*
  * struct rkisp_stream - ISP capture video device
  *
@@ -304,6 +312,7 @@ struct rkisp_capture_device {
 
 extern struct stream_config rkisp_mp_stream_config;
 extern struct stream_config rkisp_sp_stream_config;
+extern struct rockit_isp_ops rockit_isp_ops;
 
 void rkisp_unregister_stream_vdev(struct rkisp_stream *stream);
 int rkisp_register_stream_vdev(struct rkisp_stream *stream);

@@ -7,9 +7,9 @@
 
 #include <linux/dma-buf.h>
 
-#define ROCKIT_BUF_NUM_MAX	3
-#define ROCKIT_ISP_NUM_MAX	5
-#define ROCKIT_STREAM_NUM_MAX	13
+#define ROCKIT_BUF_NUM_MAX	5
+#define ROCKIT_ISP_NUM_MAX	3
+#define ROCKIT_STREAM_NUM_MAX	12
 
 enum function_cmd {
 	ROCKIT_BUF_QUE,
@@ -77,12 +77,28 @@ struct rockit_cfg {
 void *rkisp_rockit_function_register(void *function, int cmd);
 int rkisp_rockit_get_ispdev(char **name);
 int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg);
+int rkisp_rockit_pause_stream(struct rockit_cfg *input_rockit_cfg);
+int rkisp_rockit_resume_stream(struct rockit_cfg *input_rockit_cfg);
+int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg, int width, int height);
 
 #else
 
 static inline void *rkisp_rockit_function_register(void *function, int cmd) { return NULL; }
 static inline int rkisp_rockit_get_ispdev(char **name) { return -EINVAL; }
 static inline int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
+{
+	return -EINVAL;
+}
+static inline int rkisp_rockit_pause_stream(struct rockit_cfg *input_rockit_cfg)
+{
+	return -EINVAL;
+}
+static inline int rkisp_rockit_resume_stream(struct rockit_cfg *input_rockit_cfg)
+{
+	return -EINVAL;
+}
+static inline int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
+					     int width, int height)
 {
 	return -EINVAL;
 }
