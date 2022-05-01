@@ -185,6 +185,8 @@ static struct module *new_module(const char *modname)
 	mod = NOFAIL(malloc(sizeof(*mod) + strlen(modname) + 1));
 	memset(mod, 0, sizeof(*mod));
 
+	INIT_LIST_HEAD(&mod->unresolved_symbols);
+
 	strcpy(mod->name, modname);
 	mod->is_vmlinux = (strcmp(modname, "vmlinux") == 0);
 
@@ -207,6 +209,7 @@ static struct module *new_module(const char *modname)
 
 struct symbol {
 	struct symbol *next;
+	struct list_head list;	/* link to module::unresolved_symbols */
 	struct module *module;
 	char *namespace;
 	unsigned int crc;
@@ -261,8 +264,12 @@ static struct symbol *new_symbol(const char *name, struct module *module,
 
 static void sym_add_unresolved(const char *name, struct module *mod, bool weak)
 {
-	mod->unres = alloc_symbol(name, mod->unres);
-	mod->unres->weak = weak;
+	struct symbol *sym;
+
+	sym = alloc_symbol(name, NULL);
+	sym->weak = weak;
+
+	list_add_tail(&sym->list, &mod->unresolved_symbols);
 }
 
 static struct symbol *find_symbol(const char *name)
@@ -2156,7 +2163,7 @@ static void check_exports(struct module *mod)
 {
 	struct symbol *s, *exp;
 
-	for (s = mod->unres; s; s = s->next) {
+	list_for_each_entry(s, &mod->unresolved_symbols, list) {
 		const char *basename;
 		exp = find_symbol(s->name);
 		if (!exp) {
@@ -2277,7 +2284,7 @@ static void add_versions(struct buffer *b, struct module *mod)
 	buf_printf(b, "static const struct modversion_info ____versions[]\n");
 	buf_printf(b, "__used __section(\"__versions\") = {\n");
 
-	for (s = mod->unres; s; s = s->next) {
+	list_for_each_entry(s, &mod->unresolved_symbols, list) {
 		if (!s->module)
 			continue;
 		if (!s->crc_valid) {
@@ -2303,13 +2310,14 @@ static void add_depends(struct buffer *b, struct module *mod)
 	int first = 1;
 
 	/* Clear ->seen flag of modules that own symbols needed by this. */
-	for (s = mod->unres; s; s = s->next)
+	list_for_each_entry(s, &mod->unresolved_symbols, list) {
 		if (s->module)
 			s->module->seen = s->module->is_vmlinux;
+	}
 
 	buf_printf(b, "\n");
 	buf_printf(b, "MODULE_INFO(depends, \"");
-	for (s = mod->unres; s; s = s->next) {
+	list_for_each_entry(s, &mod->unresolved_symbols, list) {
 		const char *p;
 		if (!s->module)
 			continue;
