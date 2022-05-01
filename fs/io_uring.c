@@ -410,12 +410,14 @@ struct io_ring_ctx {
 		struct io_mapped_ubuf	**user_bufs;
 
 		struct io_submit_state	submit_state;
-		struct list_head	timeout_list;
-		struct list_head	ltimeout_list;
-		struct list_head	cq_overflow_list;
+
 		struct io_buffer_list	*io_bl;
 		struct xarray		io_bl_xa;
 		struct list_head	io_buffers_cache;
+
+		struct list_head	timeout_list;
+		struct list_head	ltimeout_list;
+		struct list_head	cq_overflow_list;
 		struct list_head	apoll_cache;
 		struct xarray		personalities;
 		u32			pers_next;
