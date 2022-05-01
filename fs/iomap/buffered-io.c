@@ -452,25 +452,23 @@ bool iomap_is_partially_uptodate(struct folio *folio, size_t from, size_t count)
 }
 EXPORT_SYMBOL_GPL(iomap_is_partially_uptodate);
 
-int
-iomap_releasepage(struct page *page, gfp_t gfp_mask)
+bool iomap_release_folio(struct folio *folio, gfp_t gfp_flags)
 {
-	struct folio *folio = page_folio(page);
-
-	trace_iomap_releasepage(folio->mapping->host, folio_pos(folio),
+	trace_iomap_release_folio(folio->mapping->host, folio_pos(folio),
 			folio_size(folio));
 
 	/*
-	 * mm accommodates an old ext3 case where clean pages might not have had
-	 * the dirty bit cleared. Thus, it can send actual dirty pages to
-	 * ->releasepage() via shrink_active_list(); skip those here.
+	 * mm accommodates an old ext3 case where clean folios might
+	 * not have had the dirty bit cleared.  Thus, it can send actual
+	 * dirty folios to ->release_folio() via shrink_active_list();
+	 * skip those here.
 	 */
 	if (folio_test_dirty(folio) || folio_test_writeback(folio))
-		return 0;
+		return false;
 	iomap_page_release(folio);
-	return 1;
+	return true;
 }
-EXPORT_SYMBOL_GPL(iomap_releasepage);
+EXPORT_SYMBOL_GPL(iomap_release_folio);
 
 void iomap_invalidate_folio(struct folio *folio, size_t offset, size_t len)
 {
@@ -1483,7 +1481,7 @@ iomap_do_writepage(struct page *page, struct writeback_control *wbc, void *data)
 		 * Skip the page if it's fully outside i_size, e.g. due to a
 		 * truncate operation that's in progress. We must redirty the
 		 * page so that reclaim stops reclaiming it. Otherwise
-		 * iomap_vm_releasepage() is called on it and gets confused.
+		 * iomap_release_folio() is called on it and gets confused.
 		 *
 		 * Note that the end_index is unsigned long.  If the given
 		 * offset is greater than 16TB on a 32-bit system then if we
