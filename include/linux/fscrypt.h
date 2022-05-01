@@ -32,6 +32,7 @@
 
 union fscrypt_policy;
 struct fscrypt_info;
+struct fs_parameter;
 struct seq_file;
 
 struct fscrypt_str {
@@ -289,10 +290,19 @@ struct fscrypt_dummy_policy {
 	const union fscrypt_policy *policy;
 };
 
+int fscrypt_parse_test_dummy_encryption(const struct fs_parameter *param,
+				    struct fscrypt_dummy_policy *dummy_policy);
+bool fscrypt_dummy_policies_equal(const struct fscrypt_dummy_policy *p1,
+				  const struct fscrypt_dummy_policy *p2);
 int fscrypt_set_test_dummy_encryption(struct super_block *sb, const char *arg,
 				struct fscrypt_dummy_policy *dummy_policy);
 void fscrypt_show_test_dummy_encryption(struct seq_file *seq, char sep,
 					struct super_block *sb);
+static inline bool
+fscrypt_is_dummy_policy_set(const struct fscrypt_dummy_policy *dummy_policy)
+{
+	return dummy_policy->policy != NULL;
+}
 static inline void
 fscrypt_free_dummy_policy(struct fscrypt_dummy_policy *dummy_policy)
 {
@@ -303,6 +313,8 @@ fscrypt_free_dummy_policy(struct fscrypt_dummy_policy *dummy_policy)
 /* keyring.c */
 void fscrypt_sb_free(struct super_block *sb);
 int fscrypt_ioctl_add_key(struct file *filp, void __user *arg);
+int fscrypt_add_test_dummy_key(struct super_block *sb,
+			       const struct fscrypt_dummy_policy *dummy_policy);
 int fscrypt_ioctl_remove_key(struct file *filp, void __user *arg);
 int fscrypt_ioctl_remove_key_all_users(struct file *filp, void __user *arg);
 int fscrypt_ioctl_get_key_status(struct file *filp, void __user *arg);
@@ -477,10 +489,30 @@ static inline int fscrypt_set_context(struct inode *inode, void *fs_data)
 struct fscrypt_dummy_policy {
 };
 
+static inline int
+fscrypt_parse_test_dummy_encryption(const struct fs_parameter *param,
+				    struct fscrypt_dummy_policy *dummy_policy)
+{
+	return -EINVAL;
+}
+
+static inline bool
+fscrypt_dummy_policies_equal(const struct fscrypt_dummy_policy *p1,
+			     const struct fscrypt_dummy_policy *p2)
+{
+	return true;
+}
+
 static inline void fscrypt_show_test_dummy_encryption(struct seq_file *seq,
 						      char sep,
 						      struct super_block *sb)
 {
+}
+
+static inline bool
+fscrypt_is_dummy_policy_set(const struct fscrypt_dummy_policy *dummy_policy)
+{
+	return false;
 }
 
 static inline void
@@ -496,6 +528,13 @@ static inline void fscrypt_sb_free(struct super_block *sb)
 static inline int fscrypt_ioctl_add_key(struct file *filp, void __user *arg)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline int
+fscrypt_add_test_dummy_key(struct super_block *sb,
+			   const struct fscrypt_dummy_policy *dummy_policy)
+{
+	return 0;
 }
 
 static inline int fscrypt_ioctl_remove_key(struct file *filp, void __user *arg)
