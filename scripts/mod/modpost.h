@@ -123,9 +123,9 @@ struct module {
 	struct buffer dev_table_buf;
 	char	     srcversion[25];
 	// Missing namespace dependencies
-	struct namespace_list *missing_namespaces;
+	struct list_head missing_namespaces;
 	// Actual imported namespaces
-	struct namespace_list *imported_namespaces;
+	struct list_head imported_namespaces;
 	char name[];
 };
 

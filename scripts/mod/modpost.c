@@ -186,6 +186,8 @@ static struct module *new_module(const char *modname)
 	memset(mod, 0, sizeof(*mod));
 
 	INIT_LIST_HEAD(&mod->unresolved_symbols);
+	INIT_LIST_HEAD(&mod->missing_namespaces);
+	INIT_LIST_HEAD(&mod->imported_namespaces);
 
 	strcpy(mod->name, modname);
 	mod->is_vmlinux = (strcmp(modname, "vmlinux") == 0);
@@ -288,37 +290,32 @@ static struct symbol *find_symbol(const char *name)
 }
 
 struct namespace_list {
-	struct namespace_list *next;
+	struct list_head list;
 	char namespace[];
 };
 
-static bool contains_namespace(struct namespace_list *list,
-			       const char *namespace)
+static bool contains_namespace(struct list_head *head, const char *namespace)
 {
-	for (; list; list = list->next)
+	struct namespace_list *list;
+
+	list_for_each_entry(list, head, list) {
 		if (!strcmp(list->namespace, namespace))
 			return true;
+	}
 
 	return false;
 }
 
-static void add_namespace(struct namespace_list **list, const char *namespace)
+static void add_namespace(struct list_head *head, const char *namespace)
 {
 	struct namespace_list *ns_entry;
 
-	if (!contains_namespace(*list, namespace)) {
-		ns_entry = NOFAIL(malloc(sizeof(struct namespace_list) +
+	if (!contains_namespace(head, namespace)) {
+		ns_entry = NOFAIL(malloc(sizeof(*ns_entry) +
 					 strlen(namespace) + 1));
 		strcpy(ns_entry->namespace, namespace);
-		ns_entry->next = *list;
-		*list = ns_entry;
+		list_add_tail(&ns_entry->list, head);
 	}
-}
-
-static bool module_imports_namespace(struct module *module,
-				     const char *namespace)
-{
-	return contains_namespace(module->imported_namespaces, namespace);
 }
 
 static const struct {
@@ -2190,7 +2187,7 @@ static void check_exports(struct module *mod)
 			basename = mod->name;
 
 		if (exp->namespace &&
-		    !module_imports_namespace(mod, exp->namespace)) {
+		    !contains_namespace(&mod->imported_namespaces, exp->namespace)) {
 			modpost_log(allow_missing_ns_imports ? LOG_WARN : LOG_ERROR,
 				    "module %s uses symbol %s from namespace %s, but does not import it.\n",
 				    basename, exp->name, exp->namespace);
@@ -2489,12 +2486,12 @@ static void write_namespace_deps_files(const char *fname)
 
 	list_for_each_entry(mod, &modules, list) {
 
-		if (mod->from_dump || !mod->missing_namespaces)
+		if (mod->from_dump || list_empty(&mod->missing_namespaces))
 			continue;
 
 		buf_printf(&ns_deps_buf, "%s.ko:", mod->name);
 
-		for (ns = mod->missing_namespaces; ns; ns = ns->next)
+		list_for_each_entry(ns, &mod->missing_namespaces, list)
 			buf_printf(&ns_deps_buf, " %s", ns->namespace);
 
 		buf_printf(&ns_deps_buf, "\n");
