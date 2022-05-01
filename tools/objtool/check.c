@@ -184,6 +184,7 @@ static bool __dead_end_function(struct objtool_file *file, struct symbol *func,
 		"do_group_exit",
 		"stop_this_cpu",
 		"__invalid_creds",
+               "cpu_startup_entry",
 	};
 
 	if (!func)
@@ -3217,9 +3218,8 @@ validate_ibt_reloc(struct objtool_file *file, struct reloc *reloc)
 static void warn_noendbr(const char *msg, struct section *sec, unsigned long offset,
 			 struct instruction *dest)
 {
-	WARN_FUNC("%srelocation to !ENDBR: %s+0x%lx", sec, offset, msg,
-		  dest->func ? dest->func->name : dest->sec->name,
-		  dest->func ? dest->offset - dest->func->offset : dest->offset);
+	WARN_FUNC("%srelocation to !ENDBR: %s", sec, offset, msg,
+		  offstr(dest->sec, dest->offset));
 }
 
 static void validate_ibt_dest(struct objtool_file *file, struct instruction *insn,
@@ -3823,11 +3823,8 @@ static int validate_ibt(struct objtool_file *file)
 			struct instruction *dest;
 
 			dest = validate_ibt_reloc(file, reloc);
-			if (is_data && dest && !dest->noendbr) {
-				warn_noendbr("data ", reloc->sym->sec,
-					     reloc->sym->offset + reloc->addend,
-					     dest);
-			}
+			if (is_data && dest && !dest->noendbr)
+				warn_noendbr("data ", sec, reloc->offset, dest);
 		}
 	}
 
