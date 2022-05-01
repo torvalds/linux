@@ -185,6 +185,7 @@ static struct module *new_module(const char *modname)
 	mod = NOFAIL(malloc(sizeof(*mod) + strlen(modname) + 1));
 	memset(mod, 0, sizeof(*mod));
 
+	INIT_LIST_HEAD(&mod->exported_symbols);
 	INIT_LIST_HEAD(&mod->unresolved_symbols);
 	INIT_LIST_HEAD(&mod->missing_namespaces);
 	INIT_LIST_HEAD(&mod->imported_namespaces);
@@ -211,7 +212,7 @@ static struct module *new_module(const char *modname)
 
 struct symbol {
 	struct symbol *next;
-	struct list_head list;	/* link to module::unresolved_symbols */
+	struct list_head list;	/* link to module::exported_symbols or module::unresolved_symbols */
 	struct module *module;
 	char *namespace;
 	unsigned int crc;
@@ -413,6 +414,7 @@ static struct symbol *sym_add_exported(const char *name, struct module *mod,
 
 	if (!s) {
 		s = new_symbol(name, mod, export);
+		list_add_tail(&s->list, &mod->exported_symbols);
 	} else if (!external_module || s->module->is_vmlinux ||
 		   s->module == mod) {
 		warn("%s: '%s' exported twice. Previous export was in %s%s\n",
@@ -2456,22 +2458,17 @@ fail:
 static void write_dump(const char *fname)
 {
 	struct buffer buf = { };
-	struct symbol *symbol;
-	const char *namespace;
-	int n;
+	struct module *mod;
+	struct symbol *sym;
 
-	for (n = 0; n < SYMBOL_HASH_SIZE ; n++) {
-		symbol = symbolhash[n];
-		while (symbol) {
-			if (!symbol->module->from_dump) {
-				namespace = symbol->namespace;
-				buf_printf(&buf, "0x%08x\t%s\t%s\t%s\t%s\n",
-					   symbol->crc, symbol->name,
-					   symbol->module->name,
-					   export_str(symbol->export),
-					   namespace ? namespace : "");
-			}
-			symbol = symbol->next;
+	list_for_each_entry(mod, &modules, list) {
+		if (mod->from_dump)
+			continue;
+		list_for_each_entry(sym, &mod->exported_symbols, list) {
+			buf_printf(&buf, "0x%08x\t%s\t%s\t%s\t%s\n",
+				   sym->crc, sym->name, mod->name,
+				   export_str(sym->export),
+				   sym->namespace ?: "");
 		}
 	}
 	write_buf(&buf, fname);

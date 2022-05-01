@@ -113,6 +113,7 @@ buf_write(struct buffer *buf, const char *s, int len);
 
 struct module {
 	struct list_head list;
+	struct list_head exported_symbols;
 	struct list_head unresolved_symbols;
 	bool is_gpl_compatible;
 	bool from_dump;		/* true if module was loaded from *.symvers */
