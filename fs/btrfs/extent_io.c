@@ -5271,7 +5271,7 @@ int extent_invalidate_folio(struct extent_io_tree *tree,
 }
 
 /*
- * a helper for releasepage, this tests for areas of the page that
+ * a helper for release_folio, this tests for areas of the page that
  * are locked or under IO and drops the related state bits if it is safe
  * to drop the page.
  */
@@ -5307,7 +5307,7 @@ static int try_release_extent_state(struct extent_io_tree *tree,
 }
 
 /*
- * a helper for releasepage.  As long as there are no locked extents
+ * a helper for release_folio.  As long as there are no locked extents
  * in the range corresponding to the page, both state records and extent
  * map records are removed
  */
@@ -6001,10 +6001,10 @@ static void check_buffer_tree_ref(struct extent_buffer *eb)
 	 *
 	 * It is only cleared in two cases: freeing the last non-tree
 	 * reference to the extent_buffer when its STALE bit is set or
-	 * calling releasepage when the tree reference is the only reference.
+	 * calling release_folio when the tree reference is the only reference.
 	 *
 	 * In both cases, care is taken to ensure that the extent_buffer's
-	 * pages are not under io. However, releasepage can be concurrently
+	 * pages are not under io. However, release_folio can be concurrently
 	 * called with creating new references, which is prone to race
 	 * conditions between the calls to check_buffer_tree_ref in those
 	 * codepaths and clearing TREE_REF in try_release_extent_buffer.
@@ -6257,7 +6257,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 		/*
 		 * We can't unlock the pages just yet since the extent buffer
 		 * hasn't been properly inserted in the radix tree, this
-		 * opens a race with btree_releasepage which can free a page
+		 * opens a race with btree_release_folio which can free a page
 		 * while we are still filling in all pages for the buffer and
 		 * we could crash.
 		 */
@@ -6289,7 +6289,7 @@ again:
 
 	/*
 	 * Now it's safe to unlock the pages because any calls to
-	 * btree_releasepage will correctly detect that a page belongs to a
+	 * btree_release_folio will correctly detect that a page belongs to a
 	 * live buffer and won't free them prematurely.
 	 */
 	for (i = 0; i < num_pages; i++)
@@ -6659,7 +6659,7 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num)
 	eb->read_mirror = 0;
 	atomic_set(&eb->io_pages, num_reads);
 	/*
-	 * It is possible for releasepage to clear the TREE_REF bit before we
+	 * It is possible for release_folio to clear the TREE_REF bit before we
 	 * set io_pages. See check_buffer_tree_ref for a more detailed comment.
 	 */
 	check_buffer_tree_ref(eb);

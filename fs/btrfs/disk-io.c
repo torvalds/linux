@@ -1005,12 +1005,12 @@ static int btree_writepages(struct address_space *mapping,
 	return btree_write_cache_pages(mapping, wbc);
 }
 
-static int btree_releasepage(struct page *page, gfp_t gfp_flags)
+static bool btree_release_folio(struct folio *folio, gfp_t gfp_flags)
 {
-	if (PageWriteback(page) || PageDirty(page))
-		return 0;
+	if (folio_test_writeback(folio) || folio_test_dirty(folio))
+		return false;
 
-	return try_release_extent_buffer(page);
+	return try_release_extent_buffer(&folio->page);
 }
 
 static void btree_invalidate_folio(struct folio *folio, size_t offset,
@@ -1019,7 +1019,7 @@ static void btree_invalidate_folio(struct folio *folio, size_t offset,
 	struct extent_io_tree *tree;
 	tree = &BTRFS_I(folio->mapping->host)->io_tree;
 	extent_invalidate_folio(tree, folio, offset);
-	btree_releasepage(&folio->page, GFP_NOFS);
+	btree_release_folio(folio, GFP_NOFS);
 	if (folio_get_private(folio)) {
 		btrfs_warn(BTRFS_I(folio->mapping->host)->root->fs_info,
 			   "folio private not zero on folio %llu",
@@ -1080,7 +1080,7 @@ static bool btree_dirty_folio(struct address_space *mapping,
 
 static const struct address_space_operations btree_aops = {
 	.writepages	= btree_writepages,
-	.releasepage	= btree_releasepage,
+	.release_folio	= btree_release_folio,
 	.invalidate_folio = btree_invalidate_folio,
 #ifdef CONFIG_MIGRATION
 	.migratepage	= btree_migratepage,

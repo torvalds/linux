@@ -1323,7 +1323,7 @@ static int prepare_uptodate_page(struct inode *inode,
 
 		/*
 		 * Since btrfs_read_folio() will unlock the folio before it
-		 * returns, there is a window where btrfs_releasepage() can be
+		 * returns, there is a window where btrfs_release_folio() can be
 		 * called to release the page.  Here we check both inode
 		 * mapping and PagePrivate() to make sure the page was not
 		 * released.
