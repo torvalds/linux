@@ -250,7 +250,7 @@ prototypes::
 	sector_t (*bmap)(struct address_space *, sector_t);
 	void (*invalidate_folio) (struct folio *, size_t start, size_t len);
 	bool (*release_folio)(struct folio *, gfp_t);
-	void (*freepage)(struct page *);
+	void (*free_folio)(struct folio *);
 	int (*direct_IO)(struct kiocb *, struct iov_iter *iter);
 	bool (*isolate_page) (struct page *, isolate_mode_t);
 	int (*migratepage)(struct address_space *, struct page *, struct page *);
@@ -262,10 +262,10 @@ prototypes::
 	int (*swap_deactivate)(struct file *);
 
 locking rules:
-	All except dirty_folio and freepage may block
+	All except dirty_folio and free_folio may block
 
 ======================	======================== =========	===============
-ops			PageLocked(page)	 i_rwsem	invalidate_lock
+ops			folio locked		 i_rwsem	invalidate_lock
 ======================	======================== =========	===============
 writepage:		yes, unlocks (see below)
 read_folio:		yes, unlocks				shared
@@ -277,7 +277,7 @@ write_end:		yes, unlocks		 exclusive
 bmap:
 invalidate_folio:	yes					exclusive
 release_folio:		yes
-freepage:		yes
+free_folio:		yes
 direct_IO:
 isolate_page:		yes
 migratepage:		yes (both)
@@ -377,7 +377,7 @@ buffers from the folio in preparation for freeing it.  It returns false to
 indicate that the buffers are (or may be) freeable.  If ->release_folio is
 NULL, the kernel assumes that the fs has no private interest in the buffers.
 
-->freepage() is called when the kernel is done dropping the page
+->free_folio() is called when the kernel has dropped the folio
 from the page cache.
 
 ->launder_folio() may be called prior to releasing a folio if

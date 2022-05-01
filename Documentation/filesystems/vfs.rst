@@ -735,7 +735,7 @@ cache in your filesystem.  The following members are defined:
 		sector_t (*bmap)(struct address_space *, sector_t);
 		void (*invalidate_folio) (struct folio *, size_t start, size_t len);
 		bool (*release_folio)(struct folio *, gfp_t);
-		void (*freepage)(struct page *);
+		void (*free_folio)(struct folio *);
 		ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter);
 		/* isolate a page for migration */
 		bool (*isolate_page) (struct page *, isolate_mode_t);
@@ -891,8 +891,8 @@ cache in your filesystem.  The following members are defined:
 	its release_folio will need to ensure this.  Possibly it can
 	clear the uptodate flag if it cannot free private data yet.
 
-``freepage``
-	freepage is called once the page is no longer visible in the
+``free_folio``
+	free_folio is called once the folio is no longer visible in the
 	page cache in order to allow the cleanup of any private data.
 	Since it may be called by the memory reclaimer, it should not
 	assume that the original address_space mapping still exists, and
