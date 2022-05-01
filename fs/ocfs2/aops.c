@@ -498,11 +498,11 @@ bail:
 	return status;
 }
 
-static int ocfs2_releasepage(struct page *page, gfp_t wait)
+static bool ocfs2_release_folio(struct folio *folio, gfp_t wait)
 {
-	if (!page_has_buffers(page))
-		return 0;
-	return try_to_free_buffers(page);
+	if (!folio_buffers(folio))
+		return false;
+	return try_to_free_buffers(&folio->page);
 }
 
 static void ocfs2_figure_cluster_boundaries(struct ocfs2_super *osb,
@@ -2463,7 +2463,7 @@ const struct address_space_operations ocfs2_aops = {
 	.bmap			= ocfs2_bmap,
 	.direct_IO		= ocfs2_direct_IO,
 	.invalidate_folio	= block_invalidate_folio,
-	.releasepage		= ocfs2_releasepage,
+	.release_folio		= ocfs2_release_folio,
 	.migratepage		= buffer_migrate_page,
 	.is_partially_uptodate	= block_is_partially_uptodate,
 	.error_remove_page	= generic_error_remove_page,
