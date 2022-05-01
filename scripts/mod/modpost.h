@@ -112,7 +112,7 @@ buf_write(struct buffer *buf, const char *s, int len);
 
 struct module {
 	struct module *next;
-	int gpl_compatible;
+	bool is_gpl_compatible;
 	struct symbol *unres;
 	bool from_dump;		/* true if module was loaded from *.symvers */
 	bool is_vmlinux;

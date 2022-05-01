@@ -187,7 +187,14 @@ static struct module *new_module(const char *modname)
 	/* add to list */
 	strcpy(mod->name, modname);
 	mod->is_vmlinux = (strcmp(modname, "vmlinux") == 0);
-	mod->gpl_compatible = -1;
+
+	/*
+	 * Set mod->is_gpl_compatible to true by default. If MODULE_LICENSE()
+	 * is missing, do not check the use for EXPORT_SYMBOL_GPL() becasue
+	 * modpost will exit wiht error anyway.
+	 */
+	mod->is_gpl_compatible = true;
+
 	mod->next = modules;
 	modules = mod;
 
@@ -2012,10 +2019,8 @@ static void read_symbols(const char *modname)
 		if (!license)
 			error("missing MODULE_LICENSE() in %s\n", modname);
 		while (license) {
-			if (license_is_gpl_compatible(license))
-				mod->gpl_compatible = 1;
-			else {
-				mod->gpl_compatible = 0;
+			if (!license_is_gpl_compatible(license)) {
+				mod->is_gpl_compatible = false;
 				break;
 			}
 			license = get_next_modinfo(&info, "license", license);
@@ -2183,7 +2188,7 @@ static void check_exports(struct module *mod)
 			add_namespace(&mod->missing_namespaces, exp->namespace);
 		}
 
-		if (!mod->gpl_compatible)
+		if (!mod->is_gpl_compatible)
 			check_for_gpl_usage(exp->export, basename, exp->name);
 	}
 }
