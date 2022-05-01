@@ -1463,7 +1463,6 @@ static unsigned int __io_put_kbuf(struct io_kiocb *req, struct list_head *list)
 {
 	req->flags &= ~REQ_F_BUFFER_SELECTED;
 	list_add(&req->kbuf->list, list);
-	req->kbuf = NULL;
 
 	return IORING_CQE_F_BUFFER | (req->buf_index << IORING_CQE_BUFFER_SHIFT);
 }
@@ -1540,7 +1539,6 @@ static void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 	list_add(&buf->list, &bl->buf_list);
 	req->flags &= ~REQ_F_BUFFER_SELECTED;
 	req->buf_index = buf->bgid;
-	req->kbuf = NULL;
 
 	io_ring_submit_unlock(ctx, issue_flags);
 }
