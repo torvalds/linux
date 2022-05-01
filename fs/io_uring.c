@@ -951,6 +951,11 @@ struct io_kiocb {
 	u8				opcode;
 	/* polled IO has completed */
 	u8				iopoll_completed;
+	/*
+	 * Can be either a fixed buffer index, or used with provided buffers.
+	 * For the latter, before issue it points to the buffer group ID,
+	 * and after selection it points to the buffer ID itself.
+	 */
 	u16				buf_index;
 	unsigned int			flags;
 
@@ -1456,14 +1461,11 @@ static inline void io_req_set_rsrc_node(struct io_kiocb *req,
 
 static unsigned int __io_put_kbuf(struct io_kiocb *req, struct list_head *list)
 {
-	struct io_buffer *kbuf = req->kbuf;
-	unsigned int cflags;
-
-	cflags = IORING_CQE_F_BUFFER | (kbuf->bid << IORING_CQE_BUFFER_SHIFT);
 	req->flags &= ~REQ_F_BUFFER_SELECTED;
-	list_add(&kbuf->list, list);
+	list_add(&req->kbuf->list, list);
 	req->kbuf = NULL;
-	return cflags;
+
+	return IORING_CQE_F_BUFFER | (req->buf_index << IORING_CQE_BUFFER_SHIFT);
 }
 
 static inline unsigned int io_put_kbuf_comp(struct io_kiocb *req)
@@ -1537,6 +1539,7 @@ static void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 	bl = io_buffer_get_list(ctx, buf->bgid);
 	list_add(&buf->list, &bl->buf_list);
 	req->flags &= ~REQ_F_BUFFER_SELECTED;
+	req->buf_index = buf->bgid;
 	req->kbuf = NULL;
 
 	io_ring_submit_unlock(ctx, issue_flags);
@@ -3469,6 +3472,7 @@ static void __user *io_provided_buffer_select(struct io_kiocb *req, size_t *len,
 		*len = kbuf->len;
 	req->flags |= REQ_F_BUFFER_SELECTED;
 	req->kbuf = kbuf;
+	req->buf_index = kbuf->bid;
 	io_ring_submit_unlock(req->ctx, issue_flags);
 	return u64_to_user_ptr(kbuf->addr);
 }
