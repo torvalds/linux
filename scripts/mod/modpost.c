@@ -23,20 +23,20 @@
 #include "../../include/linux/license.h"
 
 /* Are we using CONFIG_MODVERSIONS? */
-static int modversions;
+static bool modversions;
 /* Is CONFIG_MODULE_SRCVERSION_ALL set? */
-static int all_versions;
+static bool all_versions;
 /* If we are modposting external module set to 1 */
-static int external_module;
+static bool external_module;
 /* Only warn about unresolved symbols */
-static int warn_unresolved;
+static bool warn_unresolved;
 /* How a symbol is exported */
 static int sec_mismatch_count;
-static int sec_mismatch_warn_only = true;
+static bool sec_mismatch_warn_only = true;
 /* ignore missing files */
-static int ignore_missing_files;
+static bool ignore_missing_files;
 /* If set to 1, only warn (instead of error) about missing ns imports */
-static int allow_missing_ns_imports;
+static bool allow_missing_ns_imports;
 
 static bool error_occurred;
 
@@ -202,11 +202,11 @@ static struct module *new_module(const char *modname)
 struct symbol {
 	struct symbol *next;
 	struct module *module;
-	unsigned int crc;
-	int crc_valid;
 	char *namespace;
-	unsigned int weak:1;
-	unsigned int is_static:1;  /* 1 if symbol is not global */
+	unsigned int crc;
+	bool crc_valid;
+	bool weak;
+	bool is_static;		/* true if symbol is not global */
 	enum export  export;       /* Type of export */
 	char name[];
 };
@@ -230,7 +230,7 @@ static inline unsigned int tdb_hash(const char *name)
  * Allocate a new symbols for use in the hash of exported symbols or
  * the list of unresolved symbols per module
  **/
-static struct symbol *alloc_symbol(const char *name, unsigned int weak,
+static struct symbol *alloc_symbol(const char *name, bool weak,
 				   struct symbol *next)
 {
 	struct symbol *s = NOFAIL(malloc(sizeof(*s) + strlen(name) + 1));
@@ -239,7 +239,7 @@ static struct symbol *alloc_symbol(const char *name, unsigned int weak,
 	strcpy(s->name, name);
 	s->weak = weak;
 	s->next = next;
-	s->is_static = 1;
+	s->is_static = true;
 	return s;
 }
 
@@ -250,7 +250,7 @@ static struct symbol *new_symbol(const char *name, struct module *module,
 	unsigned int hash;
 
 	hash = tdb_hash(name) % SYMBOL_HASH_SIZE;
-	symbolhash[hash] = alloc_symbol(name, 0, symbolhash[hash]);
+	symbolhash[hash] = alloc_symbol(name, false, symbolhash[hash]);
 
 	return symbolhash[hash];
 }
@@ -424,7 +424,7 @@ static void sym_set_crc(const char *name, unsigned int crc)
 		return;
 
 	s->crc = crc;
-	s->crc_valid = 1;
+	s->crc_valid = true;
 }
 
 static void *grab_file(const char *filename, size_t *size)
@@ -721,9 +721,9 @@ static void handle_symbol(struct module *mod, struct elf_info *info,
 			sym_add_exported(name, mod, export);
 		}
 		if (strcmp(symname, "init_module") == 0)
-			mod->has_init = 1;
+			mod->has_init = true;
 		if (strcmp(symname, "cleanup_module") == 0)
-			mod->has_cleanup = 1;
+			mod->has_cleanup = true;
 		break;
 	}
 }
@@ -2058,7 +2058,7 @@ static void read_symbols(const char *modname)
 						       sym->st_name));
 
 			if (s)
-				s->is_static = 0;
+				s->is_static = false;
 		}
 	}
 
@@ -2078,7 +2078,7 @@ static void read_symbols(const char *modname)
 	 * the automatic versioning doesn't pick it up, but it's really
 	 * important anyhow */
 	if (modversions)
-		mod->unres = alloc_symbol("module_layout", 0, mod->unres);
+		mod->unres = alloc_symbol("module_layout", false, mod->unres);
 }
 
 static void read_symbols_from_files(const char *filename)
@@ -2310,7 +2310,7 @@ static void add_depends(struct buffer *b, struct module *mod)
 		if (s->module->seen)
 			continue;
 
-		s->module->seen = 1;
+		s->module->seen = true;
 		p = strrchr(s->module->name, '/');
 		if (p)
 			p++;
@@ -2427,10 +2427,10 @@ static void read_dump(const char *fname)
 		mod = find_module(modname);
 		if (!mod) {
 			mod = new_module(modname);
-			mod->from_dump = 1;
+			mod->from_dump = true;
 		}
 		s = sym_add_exported(symname, mod, export_no(export));
-		s->is_static = 0;
+		s->is_static = false;
 		sym_set_crc(symname, crc);
 		sym_update_namespace(symname, namespace);
 	}
@@ -2508,7 +2508,7 @@ int main(int argc, char **argv)
 	while ((opt = getopt(argc, argv, "ei:mnT:o:awENd:")) != -1) {
 		switch (opt) {
 		case 'e':
-			external_module = 1;
+			external_module = true;
 			break;
 		case 'i':
 			*dump_read_iter =
@@ -2517,28 +2517,28 @@ int main(int argc, char **argv)
 			dump_read_iter = &(*dump_read_iter)->next;
 			break;
 		case 'm':
-			modversions = 1;
+			modversions = true;
 			break;
 		case 'n':
-			ignore_missing_files = 1;
+			ignore_missing_files = true;
 			break;
 		case 'o':
 			dump_write = optarg;
 			break;
 		case 'a':
-			all_versions = 1;
+			all_versions = true;
 			break;
 		case 'T':
 			files_source = optarg;
 			break;
 		case 'w':
-			warn_unresolved = 1;
+			warn_unresolved = true;
 			break;
 		case 'E':
 			sec_mismatch_warn_only = false;
 			break;
 		case 'N':
-			allow_missing_ns_imports = 1;
+			allow_missing_ns_imports = true;
 			break;
 		case 'd':
 			missing_namespace_deps = optarg;

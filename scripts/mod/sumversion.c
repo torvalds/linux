@@ -290,13 +290,11 @@ static int parse_file(const char *fname, struct md4_ctx *md)
 	return 1;
 }
 /* Check whether the file is a static library or not */
-static int is_static_library(const char *objfile)
+static bool is_static_library(const char *objfile)
 {
 	int len = strlen(objfile);
-	if (objfile[len - 2] == '.' && objfile[len - 1] == 'a')
-		return 1;
-	else
-		return 0;
+
+	return objfile[len - 2] == '.' && objfile[len - 1] == 'a';
 }
 
 /* We have dir/file.o.  Open dir/.file.o.cmd, look for source_ and deps_ line

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -113,11 +114,11 @@ struct module {
 	struct module *next;
 	int gpl_compatible;
 	struct symbol *unres;
-	int from_dump;  /* 1 if module was loaded from *.symvers */
-	int is_vmlinux;
-	int seen;
-	int has_init;
-	int has_cleanup;
+	bool from_dump;		/* true if module was loaded from *.symvers */
+	bool is_vmlinux;
+	bool seen;
+	bool has_init;
+	bool has_cleanup;
 	struct buffer dev_table_buf;
 	char	     srcversion[25];
 	// Missing namespace dependencies
