@@ -691,38 +691,40 @@ out:
 }
 
 /**
- * gfs2_releasepage - free the metadata associated with a page
- * @page: the page that's being released
+ * gfs2_release_folio - free the metadata associated with a folio
+ * @folio: the folio that's being released
  * @gfp_mask: passed from Linux VFS, ignored by us
  *
- * Calls try_to_free_buffers() to free the buffers and put the page if the
+ * Calls try_to_free_buffers() to free the buffers and put the folio if the
  * buffers can be released.
  *
- * Returns: 1 if the page was put or else 0
+ * Returns: true if the folio was put or else false
  */
 
-int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
+bool gfs2_release_folio(struct folio *folio, gfp_t gfp_mask)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = folio->mapping;
 	struct gfs2_sbd *sdp = gfs2_mapping2sbd(mapping);
 	struct buffer_head *bh, *head;
 	struct gfs2_bufdata *bd;
 
-	if (!page_has_buffers(page))
-		return 0;
+	head = folio_buffers(folio);
+	if (!head)
+		return false;
 
 	/*
-	 * From xfs_vm_releasepage: mm accommodates an old ext3 case where
-	 * clean pages might not have had the dirty bit cleared.  Thus, it can
-	 * send actual dirty pages to ->releasepage() via shrink_active_list().
+	 * mm accommodates an old ext3 case where clean folios might
+	 * not have had the dirty bit cleared.	Thus, it can send actual
+	 * dirty folios to ->release_folio() via shrink_active_list().
 	 *
-	 * As a workaround, we skip pages that contain dirty buffers below.
-	 * Once ->releasepage isn't called on dirty pages anymore, we can warn
-	 * on dirty buffers like we used to here again.
+	 * As a workaround, we skip folios that contain dirty buffers
+	 * below.  Once ->release_folio isn't called on dirty folios
+	 * anymore, we can warn on dirty buffers like we used to here
+	 * again.
 	 */
 
 	gfs2_log_lock(sdp);
-	head = bh = page_buffers(page);
+	bh = head;
 	do {
 		if (atomic_read(&bh->b_count))
 			goto cannot_release;
@@ -732,9 +734,9 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		if (buffer_dirty(bh) || WARN_ON(buffer_pinned(bh)))
 			goto cannot_release;
 		bh = bh->b_this_page;
-	} while(bh != head);
+	} while (bh != head);
 
-	head = bh = page_buffers(page);
+	bh = head;
 	do {
 		bd = bh->b_private;
 		if (bd) {
@@ -755,11 +757,11 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 	} while (bh != head);
 	gfs2_log_unlock(sdp);
 
-	return try_to_free_buffers(page);
+	return try_to_free_buffers(&folio->page);
 
 cannot_release:
 	gfs2_log_unlock(sdp);
-	return 0;
+	return false;
 }
 
 static const struct address_space_operations gfs2_aops = {
@@ -785,7 +787,7 @@ static const struct address_space_operations gfs2_jdata_aops = {
 	.dirty_folio = jdata_dirty_folio,
 	.bmap = gfs2_bmap,
 	.invalidate_folio = gfs2_invalidate_folio,
-	.releasepage = gfs2_releasepage,
+	.release_folio = gfs2_release_folio,
 	.is_partially_uptodate = block_is_partially_uptodate,
 	.error_remove_page = generic_error_remove_page,
 };
