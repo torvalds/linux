@@ -3180,10 +3180,10 @@ static inline int buffer_busy(struct buffer_head *bh)
 		(bh->b_state & ((1 << BH_Dirty) | (1 << BH_Lock)));
 }
 
-static int
-drop_buffers(struct page *page, struct buffer_head **buffers_to_free)
+static bool
+drop_buffers(struct folio *folio, struct buffer_head **buffers_to_free)
 {
-	struct buffer_head *head = page_buffers(page);
+	struct buffer_head *head = folio_buffers(folio);
 	struct buffer_head *bh;
 
 	bh = head;
@@ -3201,10 +3201,10 @@ drop_buffers(struct page *page, struct buffer_head **buffers_to_free)
 		bh = next;
 	} while (bh != head);
 	*buffers_to_free = head;
-	detach_page_private(page);
-	return 1;
+	folio_detach_private(folio);
+	return true;
 failed:
-	return 0;
+	return false;
 }
 
 bool try_to_free_buffers(struct folio *folio)
@@ -3218,12 +3218,12 @@ bool try_to_free_buffers(struct folio *folio)
 		return false;
 
 	if (mapping == NULL) {		/* can this still happen? */
-		ret = drop_buffers(&folio->page, &buffers_to_free);
+		ret = drop_buffers(folio, &buffers_to_free);
 		goto out;
 	}
 
 	spin_lock(&mapping->private_lock);
-	ret = drop_buffers(&folio->page, &buffers_to_free);
+	ret = drop_buffers(folio, &buffers_to_free);
 
 	/*
 	 * If the filesystem writes its buffers by hand (eg ext3)
