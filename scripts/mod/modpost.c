@@ -242,34 +242,31 @@ static inline unsigned int tdb_hash(const char *name)
  * Allocate a new symbols for use in the hash of exported symbols or
  * the list of unresolved symbols per module
  **/
-static struct symbol *alloc_symbol(const char *name, struct symbol *next)
+static struct symbol *alloc_symbol(const char *name)
 {
 	struct symbol *s = NOFAIL(malloc(sizeof(*s) + strlen(name) + 1));
 
 	memset(s, 0, sizeof(*s));
 	strcpy(s->name, name);
-	s->next = next;
 	s->is_static = true;
 	return s;
 }
 
 /* For the hash of exported symbols */
-static struct symbol *new_symbol(const char *name, struct module *module,
-				 enum export export)
+static void hash_add_symbol(struct symbol *sym)
 {
 	unsigned int hash;
 
-	hash = tdb_hash(name) % SYMBOL_HASH_SIZE;
-	symbolhash[hash] = alloc_symbol(name, symbolhash[hash]);
-
-	return symbolhash[hash];
+	hash = tdb_hash(sym->name) % SYMBOL_HASH_SIZE;
+	sym->next = symbolhash[hash];
+	symbolhash[hash] = sym;
 }
 
 static void sym_add_unresolved(const char *name, struct module *mod, bool weak)
 {
 	struct symbol *sym;
 
-	sym = alloc_symbol(name, NULL);
+	sym = alloc_symbol(name);
 	sym->weak = weak;
 
 	list_add_tail(&sym->list, &mod->unresolved_symbols);
@@ -418,10 +415,11 @@ static struct symbol *sym_add_exported(const char *name, struct module *mod,
 		      s->module->is_vmlinux ? "" : ".ko");
 	}
 
-	s = new_symbol(name, mod, export);
+	s = alloc_symbol(name);
 	s->module = mod;
 	s->export    = export;
 	list_add_tail(&s->list, &mod->exported_symbols);
+	hash_add_symbol(s);
 
 	return s;
 }
