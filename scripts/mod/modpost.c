@@ -2505,7 +2505,7 @@ static void write_namespace_deps_files(const char *fname)
 }
 
 struct dump_list {
-	struct dump_list *next;
+	struct list_head list;
 	const char *file;
 };
 
@@ -2517,8 +2517,8 @@ int main(int argc, char **argv)
 	char *dump_write = NULL, *files_source = NULL;
 	int opt;
 	int n;
-	struct dump_list *dump_read_start = NULL;
-	struct dump_list **dump_read_iter = &dump_read_start;
+	LIST_HEAD(dump_lists);
+	struct dump_list *dl, *dl2;
 
 	while ((opt = getopt(argc, argv, "ei:mnT:o:awENd:")) != -1) {
 		switch (opt) {
@@ -2526,10 +2526,9 @@ int main(int argc, char **argv)
 			external_module = true;
 			break;
 		case 'i':
-			*dump_read_iter =
-				NOFAIL(calloc(1, sizeof(**dump_read_iter)));
-			(*dump_read_iter)->file = optarg;
-			dump_read_iter = &(*dump_read_iter)->next;
+			dl = NOFAIL(malloc(sizeof(*dl)));
+			dl->file = optarg;
+			list_add_tail(&dl->list, &dump_lists);
 			break;
 		case 'm':
 			modversions = true;
@@ -2563,13 +2562,10 @@ int main(int argc, char **argv)
 		}
 	}
 
-	while (dump_read_start) {
-		struct dump_list *tmp;
-
-		read_dump(dump_read_start->file);
-		tmp = dump_read_start->next;
-		free(dump_read_start);
-		dump_read_start = tmp;
+	list_for_each_entry_safe(dl, dl2, &dump_lists, list) {
+		read_dump(dl->file);
+		list_del(&dl->list);
+		free(dl);
 	}
 
 	while (optind < argc)
