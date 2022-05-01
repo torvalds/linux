@@ -11,7 +11,7 @@
  *      CARDbAddBasicRate - Add to BasicRateSet
  *      CARDbIsOFDMinBasicRate - Check if any OFDM rate is in BasicRateSet
  *      CARDqGetTSFOffset - Calculate TSFOffset
- *      CARDbGetCurrentTSF - Read Current NIC TSF counter
+ *      vt6655_get_current_tsf - Read Current NIC TSF counter
  *      CARDqGetNextTBTT - Calculate Next Beacon TSF counter
  *      CARDvSetFirstNextTBTT - Set NIC Beacon time
  *      CARDvUpdateNextTBTT - Sync. NIC Beacon time
@@ -288,7 +288,7 @@ bool CARDbUpdateTSF(struct vnt_private *priv, unsigned char byRxRate,
 	u64 local_tsf;
 	u64 qwTSFOffset = 0;
 
-	CARDbGetCurrentTSF(priv, &local_tsf);
+	vt6655_get_current_tsf(priv, &local_tsf);
 
 	if (qwBSSTimestamp != local_tsf) {
 		qwTSFOffset = CARDqGetTSFOffset(byRxRate, qwBSSTimestamp,
@@ -322,7 +322,7 @@ bool CARDbSetBeaconPeriod(struct vnt_private *priv,
 {
 	u64 qwNextTBTT = 0;
 
-	CARDbGetCurrentTSF(priv, &qwNextTBTT); /* Get Local TSF counter */
+	vt6655_get_current_tsf(priv, &qwNextTBTT); /* Get Local TSF counter */
 
 	qwNextTBTT = CARDqGetNextTBTT(qwNextTBTT, wBeaconInterval);
 
@@ -739,7 +739,7 @@ u64 CARDqGetTSFOffset(unsigned char byRxRate, u64 qwTSF1, u64 qwTSF2)
  *
  * Return Value: true if success; otherwise false
  */
-bool CARDbGetCurrentTSF(struct vnt_private *priv, u64 *pqwCurrTSF)
+bool vt6655_get_current_tsf(struct vnt_private *priv, u64 *pqwCurrTSF)
 {
 	void __iomem *iobase = priv->port_offset;
 	unsigned short ww;
@@ -807,7 +807,7 @@ void CARDvSetFirstNextTBTT(struct vnt_private *priv,
 	void __iomem *iobase = priv->port_offset;
 	u64 qwNextTBTT = 0;
 
-	CARDbGetCurrentTSF(priv, &qwNextTBTT); /* Get Local TSF counter */
+	vt6655_get_current_tsf(priv, &qwNextTBTT); /* Get Local TSF counter */
 
 	qwNextTBTT = CARDqGetNextTBTT(qwNextTBTT, wBeaconInterval);
 	/* Set NextTBTT */
