@@ -518,16 +518,16 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 #ifdef CONFIG_EROFS_FS_ZIP
 static const struct address_space_operations managed_cache_aops;
 
-static int erofs_managed_cache_releasepage(struct page *page, gfp_t gfp_mask)
+static bool erofs_managed_cache_release_folio(struct folio *folio, gfp_t gfp)
 {
-	int ret = 1;	/* 0 - busy */
-	struct address_space *const mapping = page->mapping;
+	bool ret = true;
+	struct address_space *const mapping = folio->mapping;
 
-	DBG_BUGON(!PageLocked(page));
+	DBG_BUGON(!folio_test_locked(folio));
 	DBG_BUGON(mapping->a_ops != &managed_cache_aops);
 
-	if (PagePrivate(page))
-		ret = erofs_try_to_free_cached_page(page);
+	if (folio_test_private(folio))
+		ret = erofs_try_to_free_cached_page(&folio->page);
 
 	return ret;
 }
@@ -548,12 +548,12 @@ static void erofs_managed_cache_invalidate_folio(struct folio *folio,
 	DBG_BUGON(stop > folio_size(folio) || stop < length);
 
 	if (offset == 0 && stop == folio_size(folio))
-		while (!erofs_managed_cache_releasepage(&folio->page, GFP_NOFS))
+		while (!erofs_managed_cache_release_folio(folio, GFP_NOFS))
 			cond_resched();
 }
 
 static const struct address_space_operations managed_cache_aops = {
-	.releasepage = erofs_managed_cache_releasepage,
+	.release_folio = erofs_managed_cache_release_folio,
 	.invalidate_folio = erofs_managed_cache_invalidate_folio,
 };
 
