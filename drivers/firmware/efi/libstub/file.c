@@ -66,9 +66,27 @@ static efi_status_t efi_open_file(efi_file_protocol_t *volume,
 static efi_status_t efi_open_volume(efi_loaded_image_t *image,
 				    efi_file_protocol_t **fh)
 {
+	struct efi_vendor_dev_path *dp = image->file_path;
+	efi_guid_t li_proto = LOADED_IMAGE_PROTOCOL_GUID;
 	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
 	efi_simple_file_system_protocol_t *io;
 	efi_status_t status;
+
+	// If we are using EFI zboot, we should look for the file system
+	// protocol on the parent image's handle instead
+	if (IS_ENABLED(CONFIG_EFI_ZBOOT) &&
+	    image->parent_handle != NULL &&
+	    dp != NULL &&
+	    dp->header.type == EFI_DEV_MEDIA &&
+	    dp->header.sub_type == EFI_DEV_MEDIA_VENDOR &&
+	    !efi_guidcmp(dp->vendorguid, LINUX_EFI_ZBOOT_MEDIA_GUID)) {
+		status = efi_bs_call(handle_protocol, image->parent_handle,
+				     &li_proto, (void *)&image);
+		if (status != EFI_SUCCESS) {
+			efi_err("Failed to locate parent image handle\n");
+			return status;
+		}
+	}
 
 	status = efi_bs_call(handle_protocol, image->device_handle, &fs_proto,
 			     (void **)&io);
