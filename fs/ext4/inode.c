@@ -3253,7 +3253,7 @@ static bool ext4_release_folio(struct folio *folio, gfp_t wait)
 	if (folio_test_checked(folio))
 		return false;
 	if (journal)
-		return jbd2_journal_try_to_free_buffers(journal, &folio->page);
+		return jbd2_journal_try_to_free_buffers(journal, folio);
 	else
 		return try_to_free_buffers(&folio->page);
 }
