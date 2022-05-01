@@ -14,24 +14,24 @@ if:
     compatible:
       contains:
         const: qcom,usb-hs-phy-apq8064
-  then:
-    properties:
-      resets:
-        maxItems: 1
+then:
+  properties:
+    resets:
+      maxItems: 1
 
-      reset-names:
-        const: por
+    reset-names:
+      const: por
 
-  else:
-    properties:
-      resets:
-        minItems: 2
-        maxItems: 2
+else:
+  properties:
+    resets:
+      minItems: 2
+      maxItems: 2
 
-      reset-names:
-        items:
-          - const: phy
-          - const: por
+    reset-names:
+      items:
+        - const: phy
+        - const: por
 
 properties:
   compatible:
@@ -92,6 +92,8 @@ additionalProperties: false
 examples:
   - |
     otg: usb-controller {
+      #reset-cells = <1>;
+
       ulpi {
         phy {
           compatible = "qcom,usb-hs-phy-msm8974", "qcom,usb-hs-phy";

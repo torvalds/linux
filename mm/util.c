@@ -592,8 +592,15 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
 		return NULL;
 	}
 
-	return __vmalloc_node(size, 1, flags, node,
-			__builtin_return_address(0));
+	/*
+	 * kvmalloc() can always use VM_ALLOW_HUGE_VMAP,
+	 * since the callers already cannot assume anything
+	 * about the resulting pointer, and cannot play
+	 * protection games.
+	 */
+	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
+			flags, PAGE_KERNEL, VM_ALLOW_HUGE_VMAP,
+			node, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(kvmalloc_node);
 

@@ -636,6 +636,8 @@ static int criu_checkpoint_queue(struct kfd_process_device *pdd,
 	q_data->ctx_save_restore_area_size =
 		q->properties.ctx_save_restore_area_size;
 
+	q_data->gws = !!q->gws;
+
 	ret = pqm_checkpoint_mqd(&pdd->process->pqm, q->properties.queue_id, mqd, ctl_stack);
 	if (ret) {
 		pr_err("Failed checkpoint queue_mqd (%d)\n", ret);
@@ -743,7 +745,6 @@ static void set_queue_properties_from_criu(struct queue_properties *qp,
 					  struct kfd_criu_queue_priv_data *q_data)
 {
 	qp->is_interop = false;
-	qp->is_gws = q_data->is_gws;
 	qp->queue_percent = q_data->q_percent;
 	qp->priority = q_data->priority;
 	qp->queue_address = q_data->q_address;
@@ -826,12 +827,15 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 				NULL);
 	if (ret) {
 		pr_err("Failed to create new queue err:%d\n", ret);
-		ret = -EINVAL;
+		goto exit;
 	}
+
+	if (q_data->gws)
+		ret = pqm_set_gws(&p->pqm, q_data->q_id, pdd->dev->gws);
 
 exit:
 	if (ret)
-		pr_err("Failed to create queue (%d)\n", ret);
+		pr_err("Failed to restore queue (%d)\n", ret);
 	else
 		pr_debug("Queue id %d was restored successfully\n", queue_id);
 
