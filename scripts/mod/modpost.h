@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <elf.h>
 
+#include "list.h"
 #include "elfconfig.h"
 
 /* On BSD-alike OSes elf.h defines these according to host's word size */
@@ -111,7 +112,7 @@ void
 buf_write(struct buffer *buf, const char *s, int len);
 
 struct module {
-	struct module *next;
+	struct list_head list;
 	bool is_gpl_compatible;
 	struct symbol *unres;
 	bool from_dump;		/* true if module was loaded from *.symvers */
