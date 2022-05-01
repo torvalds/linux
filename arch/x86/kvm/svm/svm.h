@@ -229,6 +229,7 @@ struct vcpu_svm {
 
 	bool nmi_singlestep;
 	u64 nmi_singlestep_guest_rflags;
+	bool nmi_l1_to_l2;
 
 	unsigned long soft_int_csbase;
 	unsigned long soft_int_old_rip;
