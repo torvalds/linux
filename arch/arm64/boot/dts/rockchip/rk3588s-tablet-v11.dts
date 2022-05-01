@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588s-tablet-single.dtsi"
+
+/ {
+	model = "Rockchip RK3588S TABLET V11 Board";
+	compatible = "rockchip,rk3588s-tablet-v11", "rockchip,rk3588";
+};
