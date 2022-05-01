@@ -1484,22 +1484,22 @@ static int ubifs_migrate_page(struct address_space *mapping,
 }
 #endif
 
-static int ubifs_releasepage(struct page *page, gfp_t unused_gfp_flags)
+static bool ubifs_release_folio(struct folio *folio, gfp_t unused_gfp_flags)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
 	/*
 	 * An attempt to release a dirty page without budgeting for it - should
 	 * not happen.
 	 */
-	if (PageWriteback(page))
-		return 0;
-	ubifs_assert(c, PagePrivate(page));
+	if (folio_test_writeback(folio))
+		return false;
+	ubifs_assert(c, folio_test_private(folio));
 	ubifs_assert(c, 0);
-	detach_page_private(page);
-	ClearPageChecked(page);
-	return 1;
+	folio_detach_private(folio);
+	folio_clear_checked(folio);
+	return true;
 }
 
 /*
@@ -1652,7 +1652,7 @@ const struct address_space_operations ubifs_file_address_operations = {
 #ifdef CONFIG_MIGRATION
 	.migratepage	= ubifs_migrate_page,
 #endif
-	.releasepage    = ubifs_releasepage,
+	.release_folio    = ubifs_release_folio,
 };
 
 const struct inode_operations ubifs_file_inode_operations = {
