@@ -5540,7 +5540,8 @@ static size_t vop2_crtc_bandwidth(struct drm_crtc *crtc,
 		return -ENOMEM;
 
 	for_each_new_plane_in_state(state, plane, pstate, i) {
-		int act_w, act_h, cpp, afbc_fac;
+		int act_w, act_h, bpp, afbc_fac;
+		int fps = drm_mode_vrefresh(adjusted_mode);
 
 		if (!pstate || pstate->crtc != crtc || !pstate->fb)
 			continue;
@@ -5555,9 +5556,9 @@ static size_t vop2_crtc_bandwidth(struct drm_crtc *crtc,
 
 		act_w = drm_rect_width(&pstate->src) >> 16;
 		act_h = drm_rect_height(&pstate->src) >> 16;
-		cpp = pstate->fb->format->cpp[0];
+		bpp = rockchip_drm_get_bpp(pstate->fb->format);
 
-		vop_bw_info->frame_bw_mbyte += act_w * act_h / 1000 * cpp * drm_mode_vrefresh(adjusted_mode) / 1000;
+		vop_bw_info->frame_bw_mbyte += act_w * act_h / 1000 * bpp / 8 * fps / 1000;
 	}
 
 	sort(pbandwidth, cnt, sizeof(pbandwidth[0]), vop2_bandwidth_cmp, NULL);
