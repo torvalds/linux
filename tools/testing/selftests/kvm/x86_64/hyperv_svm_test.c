@@ -42,11 +42,6 @@ struct hv_enlightenments {
  */
 #define VMCB_HV_NESTED_ENLIGHTENMENTS (1U << 31)
 
-static inline void vmmcall(void)
-{
-	__asm__ __volatile__("vmmcall");
-}
-
 void l2_guest_code(void)
 {
 	GUEST_SYNC(3);

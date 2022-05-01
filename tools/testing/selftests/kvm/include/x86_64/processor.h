@@ -17,6 +17,8 @@
 
 #include "../kvm_util.h"
 
+#define NMI_VECTOR		0x02
+
 #define X86_EFLAGS_FIXED	 (1u << 1)
 
 #define X86_CR4_VME		(1ul << 0)
@@ -384,6 +386,21 @@ static inline void cpu_relax(void)
 {
 	asm volatile("rep; nop" ::: "memory");
 }
+
+#define vmmcall()		\
+	__asm__ __volatile__(	\
+		"vmmcall\n"	\
+		)
+
+#define ud2()			\
+	__asm__ __volatile__(	\
+		"ud2\n"	\
+		)
+
+#define hlt()			\
+	__asm__ __volatile__(	\
+		"hlt\n"	\
+		)
 
 bool is_intel_cpu(void);
 bool is_amd_cpu(void);

@@ -19,7 +19,6 @@
 #include "vmx.h"
 
 #define VCPU_ID		5
-#define NMI_VECTOR	2
 
 static int ud_count;
 
