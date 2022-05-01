@@ -524,29 +524,29 @@ add_failed:
 	return -EIO;
 }
 
-static int metapage_releasepage(struct page *page, gfp_t gfp_mask)
+static bool metapage_release_folio(struct folio *folio, gfp_t gfp_mask)
 {
 	struct metapage *mp;
-	int ret = 1;
+	bool ret = true;
 	int offset;
 
 	for (offset = 0; offset < PAGE_SIZE; offset += PSIZE) {
-		mp = page_to_mp(page, offset);
+		mp = page_to_mp(&folio->page, offset);
 
 		if (!mp)
 			continue;
 
-		jfs_info("metapage_releasepage: mp = 0x%p", mp);
+		jfs_info("metapage_release_folio: mp = 0x%p", mp);
 		if (mp->count || mp->nohomeok ||
 		    test_bit(META_dirty, &mp->flag)) {
 			jfs_info("count = %ld, nohomeok = %d", mp->count,
 				 mp->nohomeok);
-			ret = 0;
+			ret = false;
 			continue;
 		}
 		if (mp->lsn)
 			remove_from_logsync(mp);
-		remove_metapage(page, mp);
+		remove_metapage(&folio->page, mp);
 		INCREMENT(mpStat.pagefree);
 		free_metapage(mp);
 	}
@@ -560,13 +560,13 @@ static void metapage_invalidate_folio(struct folio *folio, size_t offset,
 
 	BUG_ON(folio_test_writeback(folio));
 
-	metapage_releasepage(&folio->page, 0);
+	metapage_release_folio(folio, 0);
 }
 
 const struct address_space_operations jfs_metapage_aops = {
 	.read_folio	= metapage_read_folio,
 	.writepage	= metapage_writepage,
-	.releasepage	= metapage_releasepage,
+	.release_folio	= metapage_release_folio,
 	.invalidate_folio = metapage_invalidate_folio,
 	.dirty_folio	= filemap_dirty_folio,
 };
