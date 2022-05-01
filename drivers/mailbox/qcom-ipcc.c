@@ -41,9 +41,10 @@ struct qcom_ipcc_chan_info {
  * @dev:		Device associated with this instance
  * @base:		Base address of the IPCC frame associated to APSS
  * @irq_domain:		The irq_domain associated with this instance
- * @chan:		The mailbox channels array
+ * @chans:		The mailbox channels array
  * @mchan:		The per-mailbox channel info array
  * @mbox:		The mailbox controller
+ * @num_chans:		Number of @chans elements
  * @irq:		Summary irq
  */
 struct qcom_ipcc {
