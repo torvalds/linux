@@ -236,14 +236,12 @@ static inline unsigned int tdb_hash(const char *name)
  * Allocate a new symbols for use in the hash of exported symbols or
  * the list of unresolved symbols per module
  **/
-static struct symbol *alloc_symbol(const char *name, bool weak,
-				   struct symbol *next)
+static struct symbol *alloc_symbol(const char *name, struct symbol *next)
 {
 	struct symbol *s = NOFAIL(malloc(sizeof(*s) + strlen(name) + 1));
 
 	memset(s, 0, sizeof(*s));
 	strcpy(s->name, name);
-	s->weak = weak;
 	s->next = next;
 	s->is_static = true;
 	return s;
@@ -256,9 +254,15 @@ static struct symbol *new_symbol(const char *name, struct module *module,
 	unsigned int hash;
 
 	hash = tdb_hash(name) % SYMBOL_HASH_SIZE;
-	symbolhash[hash] = alloc_symbol(name, false, symbolhash[hash]);
+	symbolhash[hash] = alloc_symbol(name, symbolhash[hash]);
 
 	return symbolhash[hash];
+}
+
+static void sym_add_unresolved(const char *name, struct module *mod, bool weak)
+{
+	mod->unres = alloc_symbol(name, mod->unres);
+	mod->unres->weak = weak;
 }
 
 static struct symbol *find_symbol(const char *name)
@@ -712,9 +716,8 @@ static void handle_symbol(struct module *mod, struct elf_info *info,
 			}
 		}
 
-		mod->unres = alloc_symbol(symname,
-					  ELF_ST_BIND(sym->st_info) == STB_WEAK,
-					  mod->unres);
+		sym_add_unresolved(symname, mod,
+				   ELF_ST_BIND(sym->st_info) == STB_WEAK);
 		break;
 	default:
 		/* All exported symbols */
@@ -2082,7 +2085,7 @@ static void read_symbols(const char *modname)
 	 * the automatic versioning doesn't pick it up, but it's really
 	 * important anyhow */
 	if (modversions)
-		mod->unres = alloc_symbol("module_layout", false, mod->unres);
+		sym_add_unresolved("module_layout", mod, false);
 }
 
 static void read_symbols_from_files(const char *filename)
