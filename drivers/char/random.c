@@ -53,6 +53,7 @@
 #include <linux/completion.h>
 #include <linux/uuid.h>
 #include <linux/uaccess.h>
+#include <linux/suspend.h>
 #include <crypto/chacha.h>
 #include <crypto/blake2s.h>
 #include <asm/processor.h>
@@ -970,6 +971,33 @@ static int __init parse_trust_bootloader(char *arg)
 early_param("random.trust_cpu", parse_trust_cpu);
 early_param("random.trust_bootloader", parse_trust_bootloader);
 
+static int random_pm_notification(struct notifier_block *nb, unsigned long action, void *data)
+{
+	unsigned long flags, entropy = random_get_entropy();
+
+	/*
+	 * Encode a representation of how long the system has been suspended,
+	 * in a way that is distinct from prior system suspends.
+	 */
+	ktime_t stamps[] = { ktime_get(), ktime_get_boottime(), ktime_get_real() };
+
+	spin_lock_irqsave(&input_pool.lock, flags);
+	_mix_pool_bytes(&action, sizeof(action));
+	_mix_pool_bytes(stamps, sizeof(stamps));
+	_mix_pool_bytes(&entropy, sizeof(entropy));
+	spin_unlock_irqrestore(&input_pool.lock, flags);
+
+	if (crng_ready() && (action == PM_RESTORE_PREPARE ||
+	    (action == PM_POST_SUSPEND &&
+	     !IS_ENABLED(CONFIG_PM_AUTOSLEEP) && !IS_ENABLED(CONFIG_ANDROID)))) {
+		crng_reseed(true);
+		pr_notice("crng reseeded on system resumption\n");
+	}
+	return 0;
+}
+
+static struct notifier_block pm_notifier = { .notifier_call = random_pm_notification };
+
 /*
  * The first collection of entropy occurs at system boot while interrupts
  * are still turned off. Here we push in RDSEED, a timestamp, and utsname().
@@ -1012,6 +1040,8 @@ int __init rand_initialize(void)
 		urandom_warning.interval = 0;
 		unseeded_warning.interval = 0;
 	}
+
+	WARN_ON(register_pm_notifier(&pm_notifier));
 
 	WARN(!random_get_entropy(), "Missing cycle counter and fallback timer; RNG "
 				    "entropy collection will consequently suffer.");
