@@ -617,10 +617,9 @@ static inline bool is_evtinj_soft(u32 evtinj)
 	if (!(evtinj & SVM_EVTINJ_VALID))
 		return false;
 
-	/*
-	 * Intentionally return false for SOFT events, SVM doesn't yet support
-	 * re-injecting soft interrupts.
-	 */
+	if (type == SVM_EVTINJ_TYPE_SOFT)
+		return true;
+
 	return type == SVM_EVTINJ_TYPE_EXEPT && kvm_exception_is_soft(vector);
 }
 
