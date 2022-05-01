@@ -525,10 +525,11 @@ static int f2fs_set_test_dummy_encryption(struct super_block *sb,
 		return -EINVAL;
 	}
 	f2fs_warn(sbi, "Test dummy encryption mode enabled");
-#else
-	f2fs_warn(sbi, "Test dummy encryption mount option ignored");
-#endif
 	return 0;
+#else
+	f2fs_warn(sbi, "test_dummy_encryption option not supported");
+	return -EINVAL;
+#endif
 }
 
 #ifdef CONFIG_F2FS_FS_COMPRESSION
