@@ -757,7 +757,7 @@ bool gfs2_release_folio(struct folio *folio, gfp_t gfp_mask)
 	} while (bh != head);
 	gfs2_log_unlock(sdp);
 
-	return try_to_free_buffers(&folio->page);
+	return try_to_free_buffers(folio);
 
 cannot_release:
 	gfs2_log_unlock(sdp);

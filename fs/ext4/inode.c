@@ -3255,7 +3255,7 @@ static bool ext4_release_folio(struct folio *folio, gfp_t wait)
 	if (journal)
 		return jbd2_journal_try_to_free_buffers(journal, folio);
 	else
-		return try_to_free_buffers(&folio->page);
+		return try_to_free_buffers(folio);
 }
 
 static bool ext4_inode_datasync_dirty(struct inode *inode)

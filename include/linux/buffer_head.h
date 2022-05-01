@@ -158,7 +158,7 @@ void mark_buffer_write_io_error(struct buffer_head *bh);
 void touch_buffer(struct buffer_head *bh);
 void set_bh_page(struct buffer_head *bh,
 		struct page *page, unsigned long offset);
-int try_to_free_buffers(struct page *);
+bool try_to_free_buffers(struct folio *);
 struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
 		bool retry);
 void create_empty_buffers(struct page *, unsigned long,
@@ -402,7 +402,7 @@ bool block_dirty_folio(struct address_space *mapping, struct folio *folio);
 #else /* CONFIG_BLOCK */
 
 static inline void buffer_init(void) {}
-static inline int try_to_free_buffers(struct page *page) { return 1; }
+static inline bool try_to_free_buffers(struct folio *folio) { return true; }
 static inline int inode_has_buffers(struct inode *inode) { return 0; }
 static inline void invalidate_inode_buffers(struct inode *inode) {}
 static inline int remove_inode_buffers(struct inode *inode) { return 1; }

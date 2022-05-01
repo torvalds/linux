@@ -606,7 +606,7 @@ static void release_buffer_page(struct buffer_head *bh)
 		folio_get(folio);
 		put_bh(bh);
 		if (!folio->mapping)
-			try_to_free_buffers(&folio->page);
+			try_to_free_buffers(folio);
 		folio_unlock(folio);
 		folio_put(folio);
 	} else {

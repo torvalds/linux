@@ -1181,7 +1181,7 @@ static pageout_t pageout(struct folio *folio, struct address_space *mapping)
 		 * folio->mapping == NULL while being dirty with clean buffers.
 		 */
 		if (folio_test_private(folio)) {
-			if (try_to_free_buffers(&folio->page)) {
+			if (try_to_free_buffers(folio)) {
 				folio_clear_dirty(folio);
 				pr_info("%s: orphaned folio\n", __func__);
 				return PAGE_CLEAN;

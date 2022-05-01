@@ -2175,7 +2175,7 @@ bool jbd2_journal_try_to_free_buffers(journal_t *journal, struct folio *folio)
 			goto busy;
 	} while ((bh = bh->b_this_page) != head);
 
-	ret = try_to_free_buffers(&folio->page);
+	ret = try_to_free_buffers(folio);
 busy:
 	return ret;
 }
@@ -2482,7 +2482,7 @@ int jbd2_journal_invalidate_folio(journal_t *journal, struct folio *folio,
 	} while (bh != head);
 
 	if (!partial_page) {
-		if (may_free && try_to_free_buffers(&folio->page))
+		if (may_free && try_to_free_buffers(folio))
 			J_ASSERT(!folio_buffers(folio));
 	}
 	return 0;

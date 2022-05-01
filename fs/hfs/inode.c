@@ -124,7 +124,7 @@ static bool hfs_release_folio(struct folio *folio, gfp_t mask)
 		} while (--i && nidx < tree->node_count);
 		spin_unlock(&tree->hash_lock);
 	}
-	return res ? try_to_free_buffers(&folio->page) : false;
+	return res ? try_to_free_buffers(folio) : false;
 }
 
 static ssize_t hfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)

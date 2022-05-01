@@ -3234,7 +3234,7 @@ static bool reiserfs_release_folio(struct folio *folio, gfp_t unused_gfp_flags)
 		bh = bh->b_this_page;
 	} while (bh != head);
 	if (ret)
-		ret = try_to_free_buffers(&folio->page);
+		ret = try_to_free_buffers(folio);
 	spin_unlock(&j->j_dirty_buffers_lock);
 	return ret;
 }

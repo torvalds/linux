@@ -431,7 +431,7 @@ static void clean_buffers(struct page *page, unsigned first_unmapped)
 	 * disk before we reach the platter.
 	 */
 	if (buffer_heads_over_limit && PageUptodate(page))
-		try_to_free_buffers(page);
+		try_to_free_buffers(page_folio(page));
 }
 
 /*

@@ -955,7 +955,7 @@ grow_dev_page(struct block_device *bdev, sector_t block,
 						size);
 			goto done;
 		}
-		if (!try_to_free_buffers(page))
+		if (!try_to_free_buffers(page_folio(page)))
 			goto failed;
 	}
 
@@ -3155,20 +3155,20 @@ int sync_dirty_buffer(struct buffer_head *bh)
 EXPORT_SYMBOL(sync_dirty_buffer);
 
 /*
- * try_to_free_buffers() checks if all the buffers on this particular page
+ * try_to_free_buffers() checks if all the buffers on this particular folio
  * are unused, and releases them if so.
  *
  * Exclusion against try_to_free_buffers may be obtained by either
- * locking the page or by holding its mapping's private_lock.
+ * locking the folio or by holding its mapping's private_lock.
  *
- * If the page is dirty but all the buffers are clean then we need to
- * be sure to mark the page clean as well.  This is because the page
+ * If the folio is dirty but all the buffers are clean then we need to
+ * be sure to mark the folio clean as well.  This is because the folio
  * may be against a block device, and a later reattachment of buffers
- * to a dirty page will set *all* buffers dirty.  Which would corrupt
+ * to a dirty folio will set *all* buffers dirty.  Which would corrupt
  * filesystem data on the same device.
  *
- * The same applies to regular filesystem pages: if all the buffers are
- * clean then we set the page clean and proceed.  To do that, we require
+ * The same applies to regular filesystem folios: if all the buffers are
+ * clean then we set the folio clean and proceed.  To do that, we require
  * total exclusion from block_dirty_folio().  That is obtained with
  * private_lock.
  *
@@ -3207,40 +3207,40 @@ failed:
 	return 0;
 }
 
-int try_to_free_buffers(struct page *page)
+bool try_to_free_buffers(struct folio *folio)
 {
-	struct address_space * const mapping = page->mapping;
+	struct address_space * const mapping = folio->mapping;
 	struct buffer_head *buffers_to_free = NULL;
-	int ret = 0;
+	bool ret = 0;
 
-	BUG_ON(!PageLocked(page));
-	if (PageWriteback(page))
-		return 0;
+	BUG_ON(!folio_test_locked(folio));
+	if (folio_test_writeback(folio))
+		return false;
 
 	if (mapping == NULL) {		/* can this still happen? */
-		ret = drop_buffers(page, &buffers_to_free);
+		ret = drop_buffers(&folio->page, &buffers_to_free);
 		goto out;
 	}
 
 	spin_lock(&mapping->private_lock);
-	ret = drop_buffers(page, &buffers_to_free);
+	ret = drop_buffers(&folio->page, &buffers_to_free);
 
 	/*
 	 * If the filesystem writes its buffers by hand (eg ext3)
-	 * then we can have clean buffers against a dirty page.  We
-	 * clean the page here; otherwise the VM will never notice
+	 * then we can have clean buffers against a dirty folio.  We
+	 * clean the folio here; otherwise the VM will never notice
 	 * that the filesystem did any IO at all.
 	 *
 	 * Also, during truncate, discard_buffer will have marked all
-	 * the page's buffers clean.  We discover that here and clean
-	 * the page also.
+	 * the folio's buffers clean.  We discover that here and clean
+	 * the folio also.
 	 *
 	 * private_lock must be held over this entire operation in order
 	 * to synchronise against block_dirty_folio and prevent the
 	 * dirty bit from being lost.
 	 */
 	if (ret)
-		cancel_dirty_page(page);
+		folio_cancel_dirty(folio);
 	spin_unlock(&mapping->private_lock);
 out:
 	if (buffers_to_free) {

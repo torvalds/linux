@@ -82,7 +82,7 @@ static void release_buffer_page(struct buffer_head *bh)
 
 	folio_get(folio);
 	__brelse(bh);
-	try_to_free_buffers(&folio->page);
+	try_to_free_buffers(folio);
 	folio_unlock(folio);
 	folio_put(folio);
 	return;

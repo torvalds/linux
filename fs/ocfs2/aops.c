@@ -502,7 +502,7 @@ static bool ocfs2_release_folio(struct folio *folio, gfp_t wait)
 {
 	if (!folio_buffers(folio))
 		return false;
-	return try_to_free_buffers(&folio->page);
+	return try_to_free_buffers(folio);
 }
 
 static void ocfs2_figure_cluster_boundaries(struct ocfs2_super *osb,
