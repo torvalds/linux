@@ -756,7 +756,7 @@ bool CARDbGetCurrentTSF(struct vnt_private *priv, u64 *pqwCurrTSF)
 		return false;
 	low = ioread32(iobase + MAC_REG_TSFCNTR);
 	high = ioread32(iobase + MAC_REG_TSFCNTR + 4);
-	*pqwCurrTSF = low + ((u64)high << 32);
+	*pqwCurrTSF = le64_to_cpu(low + ((u64)high << 32));
 
 	return true;
 }
