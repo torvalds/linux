@@ -28,7 +28,7 @@
 
 static int nfs_symlink_filler(void *data, struct page *page)
 {
-	struct inode *inode = data;
+	struct inode *inode = page->mapping->host;
 	int error;
 
 	error = NFS_PROTO(inode)->readlink(inode, page, 0, PAGE_SIZE);
@@ -67,7 +67,7 @@ static const char *nfs_get_link(struct dentry *dentry,
 		if (err)
 			return err;
 		page = read_cache_page(&inode->i_data, 0, nfs_symlink_filler,
-				inode);
+				NULL);
 		if (IS_ERR(page))
 			return ERR_CAST(page);
 	}
