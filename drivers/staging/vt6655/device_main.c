@@ -1603,7 +1603,7 @@ static u64 vnt_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct vnt_private *priv = hw->priv;
 	u64 tsf;
 
-	vt6655_get_current_tsf(priv, &tsf);
+	tsf = vt6655_get_current_tsf(priv);
 
 	return tsf;
 }
