@@ -3202,39 +3202,39 @@ static bool reiserfs_dirty_folio(struct address_space *mapping,
 }
 
 /*
- * Returns 1 if the page's buffers were dropped.  The page is locked.
+ * Returns true if the folio's buffers were dropped.  The folio is locked.
  *
  * Takes j_dirty_buffers_lock to protect the b_assoc_buffers list_heads
- * in the buffers at page_buffers(page).
+ * in the buffers at folio_buffers(folio).
  *
  * even in -o notail mode, we can't be sure an old mount without -o notail
  * didn't create files with tails.
  */
-static int reiserfs_releasepage(struct page *page, gfp_t unused_gfp_flags)
+static bool reiserfs_release_folio(struct folio *folio, gfp_t unused_gfp_flags)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct reiserfs_journal *j = SB_JOURNAL(inode->i_sb);
 	struct buffer_head *head;
 	struct buffer_head *bh;
-	int ret = 1;
+	bool ret = true;
 
-	WARN_ON(PageChecked(page));
+	WARN_ON(folio_test_checked(folio));
 	spin_lock(&j->j_dirty_buffers_lock);
-	head = page_buffers(page);
+	head = folio_buffers(folio);
 	bh = head;
 	do {
 		if (bh->b_private) {
 			if (!buffer_dirty(bh) && !buffer_locked(bh)) {
 				reiserfs_free_jh(bh);
 			} else {
-				ret = 0;
+				ret = false;
 				break;
 			}
 		}
 		bh = bh->b_this_page;
 	} while (bh != head);
 	if (ret)
-		ret = try_to_free_buffers(page);
+		ret = try_to_free_buffers(&folio->page);
 	spin_unlock(&j->j_dirty_buffers_lock);
 	return ret;
 }
@@ -3423,7 +3423,7 @@ const struct address_space_operations reiserfs_address_space_operations = {
 	.writepage = reiserfs_writepage,
 	.read_folio = reiserfs_read_folio,
 	.readahead = reiserfs_readahead,
-	.releasepage = reiserfs_releasepage,
+	.release_folio = reiserfs_release_folio,
 	.invalidate_folio = reiserfs_invalidate_folio,
 	.write_begin = reiserfs_write_begin,
 	.write_end = reiserfs_write_end,
