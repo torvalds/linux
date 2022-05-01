@@ -490,9 +490,9 @@ static bool orangefs_release_folio(struct folio *folio, gfp_t foo)
 	return !folio_test_private(folio);
 }
 
-static void orangefs_freepage(struct page *page)
+static void orangefs_free_folio(struct folio *folio)
 {
-	kfree(detach_page_private(page));
+	kfree(folio_detach_private(folio));
 }
 
 static int orangefs_launder_folio(struct folio *folio)
@@ -637,7 +637,7 @@ static const struct address_space_operations orangefs_address_operations = {
 	.write_end = orangefs_write_end,
 	.invalidate_folio = orangefs_invalidate_folio,
 	.release_folio = orangefs_release_folio,
-	.freepage = orangefs_freepage,
+	.free_folio = orangefs_free_folio,
 	.launder_folio = orangefs_launder_folio,
 	.direct_IO = orangefs_direct_IO,
 };
