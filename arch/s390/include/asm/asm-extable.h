@@ -26,16 +26,16 @@
 	stringify_in_c(.long	(_target) - .;)				\
 	stringify_in_c(.short	(_type);)				\
 	stringify_in_c(.macro extable_reg reg;)				\
-	stringify_in_c(.set found, 0;)					\
-	stringify_in_c(.set regnr, 0;)					\
+	stringify_in_c(.set .Lfound, 0;)				\
+	stringify_in_c(.set .Lregnr, 0;)				\
 	stringify_in_c(.irp rs,r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13,r14,r15;) \
 	stringify_in_c(.ifc "\reg", "%%\rs";)				\
-	stringify_in_c(.set found, 1;)					\
-	stringify_in_c(.short regnr;)					\
+	stringify_in_c(.set .Lfound, 1;)				\
+	stringify_in_c(.short .Lregnr;)					\
 	stringify_in_c(.endif;)						\
-	stringify_in_c(.set regnr, regnr+1;)				\
+	stringify_in_c(.set .Lregnr, .Lregnr+1;)			\
 	stringify_in_c(.endr;)						\
-	stringify_in_c(.ifne (found != 1);)				\
+	stringify_in_c(.ifne (.Lfound != 1);)				\
 	stringify_in_c(.error "extable_reg: bad register argument";)	\
 	stringify_in_c(.endif;)						\
 	stringify_in_c(.endm;)						\
