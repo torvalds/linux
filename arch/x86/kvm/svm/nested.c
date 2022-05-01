@@ -609,6 +609,21 @@ static void nested_vmcb02_prepare_save(struct vcpu_svm *svm, struct vmcb *vmcb12
 	}
 }
 
+static inline bool is_evtinj_soft(u32 evtinj)
+{
+	u32 type = evtinj & SVM_EVTINJ_TYPE_MASK;
+	u8 vector = evtinj & SVM_EVTINJ_VEC_MASK;
+
+	if (!(evtinj & SVM_EVTINJ_VALID))
+		return false;
+
+	/*
+	 * Intentionally return false for SOFT events, SVM doesn't yet support
+	 * re-injecting soft interrupts.
+	 */
+	return type == SVM_EVTINJ_TYPE_EXEPT && kvm_exception_is_soft(vector);
+}
+
 static void nested_vmcb02_prepare_control(struct vcpu_svm *svm,
 					  unsigned long vmcb12_rip)
 {
@@ -676,6 +691,16 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm,
 		vmcb02->control.next_rip    = svm->nested.ctl.next_rip;
 	else if (boot_cpu_has(X86_FEATURE_NRIPS))
 		vmcb02->control.next_rip    = vmcb12_rip;
+
+	if (is_evtinj_soft(vmcb02->control.event_inj)) {
+		svm->soft_int_injected = true;
+		svm->soft_int_csbase = svm->vmcb->save.cs.base;
+		svm->soft_int_old_rip = vmcb12_rip;
+		if (svm->nrips_enabled)
+			svm->soft_int_next_rip = svm->nested.ctl.next_rip;
+		else
+			svm->soft_int_next_rip = vmcb12_rip;
+	}
 
 	vmcb02->control.virt_ext            = vmcb01->control.virt_ext &
 					      LBR_CTL_ENABLE_MASK;
@@ -849,6 +874,7 @@ int nested_svm_vmrun(struct kvm_vcpu *vcpu)
 
 out_exit_err:
 	svm->nested.nested_run_pending = 0;
+	svm->soft_int_injected = false;
 
 	svm->vmcb->control.exit_code    = SVM_EXIT_ERR;
 	svm->vmcb->control.exit_code_hi = 0;
