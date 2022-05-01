@@ -112,7 +112,7 @@ static int jffs2_do_readpage_nolock (struct inode *inode, struct page *pg)
 
 int jffs2_do_readpage_unlock(void *data, struct page *pg)
 {
-	int ret = jffs2_do_readpage_nolock(data, pg);
+	int ret = jffs2_do_readpage_nolock(pg->mapping->host, pg);
 	unlock_page(pg);
 	return ret;
 }
@@ -124,7 +124,7 @@ static int jffs2_read_folio(struct file *file, struct folio *folio)
 	int ret;
 
 	mutex_lock(&f->sem);
-	ret = jffs2_do_readpage_unlock(folio->mapping->host, &folio->page);
+	ret = jffs2_do_readpage_unlock(file, &folio->page);
 	mutex_unlock(&f->sem);
 	return ret;
 }
