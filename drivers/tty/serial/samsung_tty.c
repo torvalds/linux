@@ -2826,6 +2826,7 @@ static const struct s3c24xx_serial_drv_data s5l_serial_drv_data = {
 		.num_clks	= 1,
 		.clksel_mask	= 0,
 		.clksel_shift	= 0,
+		.ucon_mask	= APPLE_S5L_UCON_MASK,
 	},
 	.def_cfg = {
 		.ucon		= APPLE_S5L_UCON_DEFAULT,
