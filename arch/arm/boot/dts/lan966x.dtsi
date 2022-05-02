@@ -84,6 +84,68 @@
 		#size-cells = <1>;
 		ranges;
 
+		switch: switch@e0000000 {
+			compatible = "microchip,lan966x-switch";
+			reg = <0xe0000000 0x0100000>,
+			      <0xe2000000 0x0800000>;
+			reg-names = "cpu", "gcb";
+			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "xtr", "fdma", "ana", "ptp",
+					  "ptp-ext";
+			resets = <&reset 0>;
+			reset-names = "switch";
+			status = "disabled";
+
+			ethernet-ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port0: port@0 {
+					reg = <0>;
+					status = "disabled";
+				};
+
+				port1: port@1 {
+					reg = <1>;
+					status = "disabled";
+				};
+
+				port2: port@2 {
+					reg = <2>;
+					status = "disabled";
+				};
+
+				port3: port@3 {
+					reg = <3>;
+					status = "disabled";
+				};
+
+				port4: port@4 {
+					reg = <4>;
+					status = "disabled";
+				};
+
+				port5: port@5 {
+					reg = <5>;
+					status = "disabled";
+				};
+
+				port6: port@6 {
+					reg = <6>;
+					status = "disabled";
+				};
+
+				port7: port@7 {
+					reg = <7>;
+					status = "disabled";
+				};
+			};
+		};
+
 		flx0: flexcom@e0040000 {
 			compatible = "atmel,sama5d2-flexcom";
 			reg = <0xe0040000 0x100>;
