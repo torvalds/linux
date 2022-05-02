@@ -45,14 +45,6 @@
 #define CTUCAN_WITHOUT_CTUCAN_ID  0
 #define CTUCAN_WITH_CTUCAN_ID     1
 
-static bool use_msi = true;
-module_param(use_msi, bool, 0444);
-MODULE_PARM_DESC(use_msi, "PCIe implementation use MSI interrupts. Default: 1 (yes)");
-
-static bool pci_use_second = true;
-module_param(pci_use_second, bool, 0444);
-MODULE_PARM_DESC(pci_use_second, "Use the second CAN core on PCIe card. Default: 1 (yes)");
-
 struct ctucan_pci_board_data {
 	void __iomem *bar0_base;
 	void __iomem *cra_base;
@@ -117,13 +109,11 @@ static int ctucan_pci_probe(struct pci_dev *pdev,
 		goto err_disable_device;
 	}
 
-	if (use_msi) {
-		ret = pci_enable_msi(pdev);
-		if (!ret) {
-			dev_info(dev, "MSI enabled\n");
-			pci_set_master(pdev);
-			msi_ok = 1;
-		}
+	ret = pci_enable_msi(pdev);
+	if (!ret) {
+		dev_info(dev, "MSI enabled\n");
+		pci_set_master(pdev);
+		msi_ok = 1;
 	}
 
 	dev_info(dev, "ctucan BAR0 0x%08llx 0x%08llx\n",
@@ -184,7 +174,7 @@ static int ctucan_pci_probe(struct pci_dev *pdev,
 
 	core_i++;
 
-	while (pci_use_second && (core_i < num_cores)) {
+	while (core_i < num_cores) {
 		addr += 0x4000;
 		ret = ctucan_probe_common(dev, addr, irq, ntxbufs, 100000000,
 					  0, ctucan_pci_set_drvdata);
