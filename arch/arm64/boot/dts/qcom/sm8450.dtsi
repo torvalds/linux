@@ -2853,6 +2853,16 @@
 			reg = <0x0 0x17100000 0x0 0x10000>,     /* GICD */
 			      <0x0 0x17180000 0x0 0x200000>;    /* GICR * 8 */
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+
+			gic_its: msi-controller@17140000 {
+				compatible = "arm,gic-v3-its";
+				reg = <0x0 0x17140000 0x0 0x20000>;
+				msi-controller;
+				#msi-cells = <1>;
+			};
 		};
 
 		timer@17420000 {
