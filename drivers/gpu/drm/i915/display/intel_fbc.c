@@ -1037,7 +1037,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	struct intel_crtc *crtc = to_intel_crtc(plane_state->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(plane_state->hw.crtc);
 	const struct intel_crtc_state *crtc_state;
 	struct intel_fbc *fbc = plane->fbc;
 

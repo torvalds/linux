@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm Atheros AR7xxx/AR9xxx DDR controller
 
 maintainers:
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 description: |
   The DDR controller of the AR7xxx and AR9xxx families provides an interface to

@@ -360,16 +360,20 @@ static int dm_update_zone_wp_offset(struct mapped_device *md, unsigned int zno,
 	return 0;
 }
 
+struct orig_bio_details {
+	unsigned int op;
+	unsigned int nr_sectors;
+};
+
 /*
  * First phase of BIO mapping for targets with zone append emulation:
  * check all BIO that change a zone writer pointer and change zone
  * append operations into regular write operations.
  */
 static bool dm_zone_map_bio_begin(struct mapped_device *md,
-				  struct bio *orig_bio, struct bio *clone)
+				  unsigned int zno, struct bio *clone)
 {
 	sector_t zsectors = blk_queue_zone_sectors(md->queue);
-	unsigned int zno = bio_zone_no(orig_bio);
 	unsigned int zwp_offset = READ_ONCE(md->zwp_offset[zno]);
 
 	/*
@@ -384,7 +388,7 @@ static bool dm_zone_map_bio_begin(struct mapped_device *md,
 		WRITE_ONCE(md->zwp_offset[zno], zwp_offset);
 	}
 
-	switch (bio_op(orig_bio)) {
+	switch (bio_op(clone)) {
 	case REQ_OP_ZONE_RESET:
 	case REQ_OP_ZONE_FINISH:
 		return true;
@@ -401,9 +405,8 @@ static bool dm_zone_map_bio_begin(struct mapped_device *md,
 		 * target zone.
 		 */
 		clone->bi_opf = REQ_OP_WRITE | REQ_NOMERGE |
-			(orig_bio->bi_opf & (~REQ_OP_MASK));
-		clone->bi_iter.bi_sector =
-			orig_bio->bi_iter.bi_sector + zwp_offset;
+			(clone->bi_opf & (~REQ_OP_MASK));
+		clone->bi_iter.bi_sector += zwp_offset;
 		break;
 	default:
 		DMWARN_LIMIT("Invalid BIO operation");
@@ -423,11 +426,10 @@ static bool dm_zone_map_bio_begin(struct mapped_device *md,
  * data written to a zone. Note that at this point, the remapped clone BIO
  * may already have completed, so we do not touch it.
  */
-static blk_status_t dm_zone_map_bio_end(struct mapped_device *md,
-					struct bio *orig_bio,
+static blk_status_t dm_zone_map_bio_end(struct mapped_device *md, unsigned int zno,
+					struct orig_bio_details *orig_bio_details,
 					unsigned int nr_sectors)
 {
-	unsigned int zno = bio_zone_no(orig_bio);
 	unsigned int zwp_offset = READ_ONCE(md->zwp_offset[zno]);
 
 	/* The clone BIO may already have been completed and failed */
@@ -435,7 +437,7 @@ static blk_status_t dm_zone_map_bio_end(struct mapped_device *md,
 		return BLK_STS_IOERR;
 
 	/* Update the zone wp offset */
-	switch (bio_op(orig_bio)) {
+	switch (orig_bio_details->op) {
 	case REQ_OP_ZONE_RESET:
 		WRITE_ONCE(md->zwp_offset[zno], 0);
 		return BLK_STS_OK;
@@ -452,7 +454,7 @@ static blk_status_t dm_zone_map_bio_end(struct mapped_device *md,
 		 * Check that the target did not truncate the write operation
 		 * emulating a zone append.
 		 */
-		if (nr_sectors != bio_sectors(orig_bio)) {
+		if (nr_sectors != orig_bio_details->nr_sectors) {
 			DMWARN_LIMIT("Truncated write for zone append");
 			return BLK_STS_IOERR;
 		}
@@ -488,7 +490,7 @@ static inline void dm_zone_unlock(struct request_queue *q,
 	bio_clear_flag(clone, BIO_ZONE_WRITE_LOCKED);
 }
 
-static bool dm_need_zone_wp_tracking(struct bio *orig_bio)
+static bool dm_need_zone_wp_tracking(struct bio *bio)
 {
 	/*
 	 * Special processing is not needed for operations that do not need the
@@ -496,15 +498,15 @@ static bool dm_need_zone_wp_tracking(struct bio *orig_bio)
 	 * zones and all operations that do not modify directly a sequential
 	 * zone write pointer.
 	 */
-	if (op_is_flush(orig_bio->bi_opf) && !bio_sectors(orig_bio))
+	if (op_is_flush(bio->bi_opf) && !bio_sectors(bio))
 		return false;
-	switch (bio_op(orig_bio)) {
+	switch (bio_op(bio)) {
 	case REQ_OP_WRITE_ZEROES:
 	case REQ_OP_WRITE:
 	case REQ_OP_ZONE_RESET:
 	case REQ_OP_ZONE_FINISH:
 	case REQ_OP_ZONE_APPEND:
-		return bio_zone_is_seq(orig_bio);
+		return bio_zone_is_seq(bio);
 	default:
 		return false;
 	}
@@ -519,8 +521,8 @@ int dm_zone_map_bio(struct dm_target_io *tio)
 	struct dm_target *ti = tio->ti;
 	struct mapped_device *md = io->md;
 	struct request_queue *q = md->queue;
-	struct bio *orig_bio = io->orig_bio;
 	struct bio *clone = &tio->clone;
+	struct orig_bio_details orig_bio_details;
 	unsigned int zno;
 	blk_status_t sts;
 	int r;
@@ -529,18 +531,21 @@ int dm_zone_map_bio(struct dm_target_io *tio)
 	 * IOs that do not change a zone write pointer do not need
 	 * any additional special processing.
 	 */
-	if (!dm_need_zone_wp_tracking(orig_bio))
+	if (!dm_need_zone_wp_tracking(clone))
 		return ti->type->map(ti, clone);
 
 	/* Lock the target zone */
-	zno = bio_zone_no(orig_bio);
+	zno = bio_zone_no(clone);
 	dm_zone_lock(q, zno, clone);
+
+	orig_bio_details.nr_sectors = bio_sectors(clone);
+	orig_bio_details.op = bio_op(clone);
 
 	/*
 	 * Check that the bio and the target zone write pointer offset are
 	 * both valid, and if the bio is a zone append, remap it to a write.
 	 */
-	if (!dm_zone_map_bio_begin(md, orig_bio, clone)) {
+	if (!dm_zone_map_bio_begin(md, zno, clone)) {
 		dm_zone_unlock(q, zno, clone);
 		return DM_MAPIO_KILL;
 	}
@@ -560,7 +565,8 @@ int dm_zone_map_bio(struct dm_target_io *tio)
 		 * The target submitted the clone BIO. The target zone will
 		 * be unlocked on completion of the clone.
 		 */
-		sts = dm_zone_map_bio_end(md, orig_bio, *tio->len_ptr);
+		sts = dm_zone_map_bio_end(md, zno, &orig_bio_details,
+					  *tio->len_ptr);
 		break;
 	case DM_MAPIO_REMAPPED:
 		/*
@@ -568,7 +574,8 @@ int dm_zone_map_bio(struct dm_target_io *tio)
 		 * unlock the target zone here as the clone will not be
 		 * submitted.
 		 */
-		sts = dm_zone_map_bio_end(md, orig_bio, *tio->len_ptr);
+		sts = dm_zone_map_bio_end(md, zno, &orig_bio_details,
+					  *tio->len_ptr);
 		if (sts != BLK_STS_OK)
 			dm_zone_unlock(q, zno, clone);
 		break;

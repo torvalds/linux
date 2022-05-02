@@ -1124,7 +1124,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* NETIF_F_LLTX requires to do our own update of trans_start */
 	queue = netdev_get_tx_queue(dev, txq);
-	queue->trans_start = jiffies;
+	txq_trans_cond_update(queue);
 
 	/* Notify and wake up reader process */
 	if (tfile->flags & TUN_FASYNC)
