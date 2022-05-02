@@ -2041,6 +2041,18 @@ config STACKPROTECTOR_PER_TASK
 	def_bool y
 	depends on STACKPROTECTOR && CC_HAVE_STACKPROTECTOR_SYSREG
 
+# The GPIO number here must be sorted by descending number. In case of
+# a multiplatform kernel, we just want the highest value required by the
+# selected platforms.
+config ARCH_NR_GPIO
+        int
+        default 2048 if ARCH_APPLE
+        default 0
+        help
+          Maximum number of GPIOs in the system.
+
+          If unsure, leave the default value.
+
 endmenu
 
 menu "Boot options"
