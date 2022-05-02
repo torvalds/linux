@@ -396,11 +396,6 @@ struct gh_rm_connection *gh_rm_process_rply(void *recv_buff, size_t recv_buff_si
 
 	connection->rm_error = reply_hdr->err_code;
 
-	/* All the processing functions would have trimmed-off the header
-	 * and copied the data to connection->recv_buff. Hence, it's okay
-	 * to release the original packet that arrived.
-	 */
-	kfree(recv_buff);
 	return connection;
 }
 
@@ -499,23 +494,20 @@ static int gh_rm_recv_task_fn(void *data)
 	void *recv_buff;
 	int ret;
 
-	while (!kthread_should_stop()) {
-		recv_buff = kzalloc(GH_MSGQ_MAX_MSG_SIZE_BYTES, GFP_KERNEL);
-		if (!recv_buff)
-			continue;
+	recv_buff = kzalloc(GH_MSGQ_MAX_MSG_SIZE_BYTES, GFP_KERNEL);
+	if (!recv_buff)
+		return -ENOMEM;
 
+	while (!kthread_should_stop()) {
 		/* Block until a new message is received */
 		ret = gh_msgq_recv(gh_rm_msgq_desc, recv_buff,
 					GH_MSGQ_MAX_MSG_SIZE_BYTES,
 					&recv_buff_size, 0);
 		if (ret < 0) {
-			pr_err("%s: Failed to receive the message: %d\n",
-				__func__, ret);
-			kfree(recv_buff);
+			pr_err("%s: Failed to receive the message: %d\n", __func__, ret);
 			continue;
 		} else if (recv_buff_size <= sizeof(struct gh_rm_rpc_hdr)) {
 			pr_err("%s: Invalid message size received\n", __func__);
-			kfree(recv_buff);
 			continue;
 		}
 
@@ -556,6 +548,7 @@ static int gh_rm_recv_task_fn(void *data)
 			connection = NULL;
 	}
 
+	kfree(recv_buff);
 	return 0;
 }
 
