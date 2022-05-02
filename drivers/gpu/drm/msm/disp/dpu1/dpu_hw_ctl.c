@@ -270,6 +270,7 @@ static void dpu_hw_ctl_update_pending_flush_wb(struct dpu_hw_ctl *ctx,
 	case WB_1:
 	case WB_2:
 		ctx->pending_flush_mask |= BIT(WB_IDX);
+		break;
 	default:
 		break;
 	}
