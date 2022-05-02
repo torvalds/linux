@@ -391,6 +391,11 @@
 			status = "disabled";
 		};
 
+		cpu_ctrl: syscon@e00c0000 {
+			compatible = "microchip,lan966x-cpu-syscon", "syscon";
+			reg = <0xe00c0000 0x350>;
+		};
+
 		can0: can@e081c000 {
 			compatible = "bosch,m_can";
 			reg = <0xe081c000 0xfc>, <0x00100000 0x4000>;
@@ -406,10 +411,20 @@
 			status = "disabled";
 		};
 
+		reset: reset-controller@e200400c {
+			compatible = "microchip,lan966x-switch-reset";
+			reg = <0xe200400c 0x4>;
+			reg-names = "gcb";
+			#reset-cells = <1>;
+			cpu-syscon = <&cpu_ctrl>;
+		};
+
 		gpio: pinctrl@e2004064 {
 			compatible = "microchip,lan966x-pinctrl";
 			reg = <0xe2004064 0xb4>,
 			    <0xe2010024 0x138>;
+			resets = <&reset 0>;
+			reset-names = "switch";
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-ranges = <&gpio 0 0 78>;
@@ -453,6 +468,8 @@
 			compatible = "microchip,sparx5-sgpio";
 			reg = <0xe2004190 0x118>;
 			clocks = <&sys_clk>;
+			resets = <&reset 0>;
+			reset-names = "switch";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
