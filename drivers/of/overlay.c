@@ -152,13 +152,6 @@ int of_overlay_notifier_unregister(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(of_overlay_notifier_unregister);
 
-static char *of_overlay_action_name[] = {
-	"pre-apply",
-	"post-apply",
-	"pre-remove",
-	"post-remove",
-};
-
 static int overlay_notify(struct overlay_changeset *ovcs,
 		enum of_overlay_notify_action action)
 {
@@ -178,7 +171,7 @@ static int overlay_notify(struct overlay_changeset *ovcs,
 		if (notifier_to_errno(ret)) {
 			ret = notifier_to_errno(ret);
 			pr_err("overlay changeset %s notifier error %d, target: %pOF\n",
-			       of_overlay_action_name[action], ret, nd.target);
+			       of_overlay_action_name(action), ret, nd.target);
 			return ret;
 		}
 	}
@@ -925,10 +918,8 @@ static int of_overlay_apply(struct overlay_changeset *ovcs)
 		goto out;
 
 	ret = overlay_notify(ovcs, OF_OVERLAY_PRE_APPLY);
-	if (ret) {
-		pr_err("overlay changeset pre-apply notify error %d\n", ret);
+	if (ret)
 		goto out;
-	}
 
 	ret = build_changeset(ovcs);
 	if (ret)
@@ -951,12 +942,9 @@ static int of_overlay_apply(struct overlay_changeset *ovcs)
 	/* notify failure is not fatal, continue */
 
 	ret_tmp = overlay_notify(ovcs, OF_OVERLAY_POST_APPLY);
-	if (ret_tmp) {
-		pr_err("overlay changeset post-apply notify error %d\n",
-		       ret_tmp);
+	if (ret_tmp)
 		if (!ret)
 			ret = ret_tmp;
-	}
 
 out:
 	pr_debug("%s() err=%d\n", __func__, ret);
@@ -1192,10 +1180,8 @@ int of_overlay_remove(int *ovcs_id)
 	}
 
 	ret = overlay_notify(ovcs, OF_OVERLAY_PRE_REMOVE);
-	if (ret) {
-		pr_err("overlay changeset pre-remove notify error %d\n", ret);
+	if (ret)
 		goto err_unlock;
-	}
 
 	ret_apply = 0;
 	ret = __of_changeset_revert_entries(&ovcs->cset, &ret_apply);
@@ -1218,12 +1204,9 @@ int of_overlay_remove(int *ovcs_id)
 	 * OF_OVERLAY_POST_REMOVE returns an error.
 	 */
 	ret_tmp = overlay_notify(ovcs, OF_OVERLAY_POST_REMOVE);
-	if (ret_tmp) {
-		pr_err("overlay changeset post-remove notify error %d\n",
-		       ret_tmp);
+	if (ret_tmp)
 		if (!ret)
 			ret = ret_tmp;
-	}
 
 	free_overlay_changeset(ovcs);
 
