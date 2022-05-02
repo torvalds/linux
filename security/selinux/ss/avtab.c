@@ -40,15 +40,15 @@ static inline int avtab_hash(const struct avtab_key *keyp, u32 mask)
 
 	u32 hash = 0;
 
-#define mix(input) { \
-	u32 v = input; \
-	v *= c1; \
-	v = (v << r1) | (v >> (32 - r1)); \
-	v *= c2; \
-	hash ^= v; \
-	hash = (hash << r2) | (hash >> (32 - r2)); \
-	hash = hash * m + n; \
-}
+#define mix(input) do { \
+		u32 v = input; \
+		v *= c1; \
+		v = (v << r1) | (v >> (32 - r1)); \
+		v *= c2; \
+		hash ^= v; \
+		hash = (hash << r2) | (hash >> (32 - r2)); \
+		hash = hash * m + n; \
+	} while (0)
 
 	mix(keyp->target_class);
 	mix(keyp->target_type);
