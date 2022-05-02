@@ -207,7 +207,6 @@ struct dc_caps {
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
 	uint32_t max_otg_num;
-#ifdef CONFIG_DRM_AMD_DC_DCN
 	uint32_t max_cab_allocation_bytes;
 	uint32_t cache_line_size;
 	uint32_t cache_num_ways;
@@ -215,7 +214,6 @@ struct dc_caps {
 	uint16_t subvp_prefetch_end_to_mall_start_us;
 	uint16_t subvp_pstate_allow_width_us;
 	uint16_t subvp_vertical_int_margin_us;
-#endif
 	bool seamless_odm;
 };
 

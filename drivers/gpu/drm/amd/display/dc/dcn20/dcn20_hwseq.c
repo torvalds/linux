@@ -1308,6 +1308,15 @@ static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx
 		}
 		return;
 	}
+
+	/* For SubVP we need to unconditionally enable because any phantom pipes are
+	 * always removed then newly added for every full updates whenever SubVP is in use.
+	 * The remove-add sequence of the phantom pipe always results in the pipe
+	 * being blanked in enable_stream_timing (DPG).
+	 */
+	if (new_pipe->stream && new_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM)
+		new_pipe->update_flags.bits.enable = 1;
+
 	if (old_pipe->plane_state && !new_pipe->plane_state) {
 		new_pipe->update_flags.bits.disable = 1;
 		return;
@@ -1810,7 +1819,9 @@ void dcn20_post_unlock_program_front_end(
 	 */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-		if (pipe->plane_state && !pipe->top_pipe && pipe->update_flags.bits.enable) {
+		// Don't check flip pending on phantom pipes
+		if (pipe->plane_state && !pipe->top_pipe && pipe->update_flags.bits.enable &&
+				pipe->stream->mall_stream_config.type != SUBVP_PHANTOM) {
 			struct hubp *hubp = pipe->plane_res.hubp;
 			int j = 0;
 
@@ -1864,17 +1875,33 @@ void dcn20_prepare_bandwidth(
 {
 	struct hubbub *hubbub = dc->res_pool->hubbub;
 	unsigned int compbuf_size_kb = 0;
+	unsigned int cache_wm_a = context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns;
+	unsigned int i;
 
 	dc->clk_mgr->funcs->update_clocks(
 			dc->clk_mgr,
 			context,
 			false);
 
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		// At optimize don't restore the original watermark value
+		if (pipe->stream && pipe->stream->mall_stream_config.type != SUBVP_NONE) {
+			context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = 4U * 1000U * 1000U * 1000U;
+			break;
+		}
+	}
+
 	/* program dchubbub watermarks */
 	dc->wm_optimized_required = hubbub->funcs->program_watermarks(hubbub,
 					&context->bw_ctx.bw.dcn.watermarks,
 					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 					false);
+
+	// Restore the real watermark so we can commit the value to DMCUB
+	// DMCUB uses the "original" watermark value in SubVP MCLK switch
+	context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = cache_wm_a;
 
 	/* decrease compbuf size */
 	if (hubbub->funcs->program_compbuf_size) {
@@ -1893,6 +1920,16 @@ void dcn20_optimize_bandwidth(
 {
 	struct hubbub *hubbub = dc->res_pool->hubbub;
 	int i;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		// At optimize don't need  to restore the original watermark value
+		if (pipe->stream && pipe->stream->mall_stream_config.type != SUBVP_NONE) {
+			context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = 4U * 1000U * 1000U * 1000U;
+			break;
+		}
+	}
 
 	/* program dchubbub watermarks */
 	hubbub->funcs->program_watermarks(hubbub,

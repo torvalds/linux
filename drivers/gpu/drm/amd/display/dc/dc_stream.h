@@ -145,7 +145,6 @@ struct test_pattern {
 	unsigned int cust_pattern_size;
 };
 
-#ifdef CONFIG_DRM_AMD_DC_DCN
 #define SUBVP_DRR_MARGIN_US 500 // 500us for DRR margin (SubVP + DRR)
 
 enum mall_stream_type {
@@ -161,7 +160,6 @@ struct mall_stream_config {
 	enum mall_stream_type type;
 	struct dc_stream_state *paired_stream;	// master / slave stream
 };
-#endif
 
 struct dc_stream_state {
 	// sink is deprecated, new code should not reference
@@ -277,9 +275,7 @@ struct dc_stream_state {
 
 	bool has_non_synchronizable_pclk;
 	bool vblank_synchronized;
-#ifdef CONFIG_DRM_AMD_DC_DCN
 	struct mall_stream_config mall_stream_config;
-#endif
 };
 
 #define ABM_LEVEL_IMMEDIATE_DISABLE 255

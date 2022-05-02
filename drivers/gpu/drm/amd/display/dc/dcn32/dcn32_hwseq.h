@@ -63,4 +63,11 @@ void dcn32_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *
 
 unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsigned int *k1_div, unsigned int *k2_div);
 
+void dcn32_subvp_pipe_control_lock(struct dc *dc,
+		struct dc_state *context,
+		bool lock,
+		bool should_lock_all_pipes,
+		struct pipe_ctx *top_pipe_to_program,
+		bool subvp_prev_use);
+
 #endif /* __DC_HWSS_DCN32_H__ */

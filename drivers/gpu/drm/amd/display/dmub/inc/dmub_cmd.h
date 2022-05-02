@@ -92,6 +92,9 @@
  */
 #define NUM_BL_CURVE_SEGS               16
 
+/* Maximum number of SubVP streams */
+#define DMUB_MAX_SUBVP_STREAMS 2
+
 /* Maximum number of streams on any ASIC. */
 #define DMUB_MAX_STREAMS 6
 
@@ -689,6 +692,9 @@ enum dmub_cmd_type {
 	 * Command type used for <TODO:description>
 	 */
 	DMUB_CMD__CAB_FOR_SS = 75,
+
+	DMUB_CMD__FW_ASSISTED_MCLK_SWITCH = 76,
+
 	/**
 	 * Command type used for interfacing with DPIA.
 	 */
@@ -942,6 +948,80 @@ struct dmub_rb_cmd_cab_for_ss {
 	uint8_t cab_alloc_ways; /* total number of ways */
 	uint8_t debug_bits;     /* debug bits */
 };
+
+enum mclk_switch_mode {
+	NONE = 0,
+	FPO = 1,
+	SUBVP = 2,
+	VBLANK = 3,
+};
+
+/* Per pipe struct which stores the MCLK switch mode
+ * data to be sent to DMUB.
+ * Named "v2" for now -- once FPO and SUBVP are fully merged
+ * the type name can be updated
+ */
+struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 {
+	union {
+		struct {
+			uint32_t pix_clk_100hz;
+			uint16_t main_vblank_start;
+			uint16_t main_vblank_end;
+			uint16_t mall_region_lines;
+			uint16_t prefetch_lines;
+			uint16_t prefetch_to_mall_start_lines;
+			uint16_t processing_delay_lines;
+			uint16_t htotal; // required to calculate line time for multi-display cases
+			uint16_t vtotal;
+			uint8_t main_pipe_index;
+			uint8_t phantom_pipe_index;
+			uint8_t padding[2];
+		} subvp_data;
+
+		struct {
+			uint32_t pix_clk_100hz;
+			uint16_t vblank_start;
+			uint16_t vblank_end;
+			uint16_t vstartup_start;
+			uint16_t vtotal;
+			uint16_t htotal;
+			uint8_t vblank_pipe_index;
+			uint8_t padding[2];
+			struct {
+				uint8_t drr_in_use;
+				uint8_t drr_window_size_ms;	// Indicates largest VMIN/VMAX adjustment per frame
+				uint16_t min_vtotal_supported;	// Min VTOTAL that supports switching in VBLANK
+				uint16_t max_vtotal_supported;	// Max VTOTAL that can support SubVP static scheduling
+				uint8_t use_ramping;		// Use ramping or not
+			} drr_info;				// DRR considered as part of SubVP + VBLANK case
+		} vblank_data;
+	} pipe_config;
+
+	enum mclk_switch_mode mode;
+};
+
+/**
+ * Config data for Sub-VP and FPO
+ * Named "v2" for now -- once FPO and SUBVP are fully merged
+ * the type name can be updated
+ */
+struct dmub_cmd_fw_assisted_mclk_switch_config_v2 {
+	uint16_t watermark_a_cache;
+	uint8_t vertical_int_margin_us;
+	uint8_t pstate_allow_width_us;
+	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 pipe_data[DMUB_MAX_SUBVP_STREAMS];
+};
+
+/**
+ * DMUB rb command definition for Sub-VP and FPO
+ * Named "v2" for now -- once FPO and SUBVP are fully merged
+ * the type name can be updated
+ */
+struct dmub_rb_cmd_fw_assisted_mclk_switch_v2 {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_fw_assisted_mclk_switch_config_v2 config_data;
+};
+
 /**
  * enum dmub_cmd_idle_opt_type - Idle optimization command type.
  */
@@ -1492,6 +1572,12 @@ enum dmub_cmd_psr_type {
 	 * Set PSR power option
 	 */
 	DMUB_CMD__SET_PSR_POWER_OPT = 7,
+};
+
+enum dmub_cmd_fams_type {
+	DMUB_CMD__FAMS_SETUP_FW_CTRL	= 0,
+	DMUB_CMD__FAMS_DRR_UPDATE		= 1,
+	DMUB_CMD__HANDLE_SUBVP_CMD	= 2, // specifically for SubVP cmd
 };
 
 /**
@@ -2958,6 +3044,9 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__CAB command.
 	 */
 	struct dmub_rb_cmd_cab_for_ss cab;
+
+	struct dmub_rb_cmd_fw_assisted_mclk_switch_v2 fw_assisted_mclk_switch_v2;
+
 	/**
 	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_RESTORE command.
 	 */

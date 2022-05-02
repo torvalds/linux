@@ -202,9 +202,8 @@ struct resource_funcs {
             display_e2e_pipe_params_st *pipes,
 			unsigned int pipe_cnt,
             unsigned int index);
-	void (*remove_phantom_pipes)(
-            struct dc *dc,
-            struct dc_state *context);
+
+	bool (*remove_phantom_pipes)(struct dc *dc, struct dc_state *context);
 };
 
 struct audio_support{

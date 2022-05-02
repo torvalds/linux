@@ -362,6 +362,7 @@ struct _vcs_dpi_display_pipe_source_params_st {
 	unsigned int hostvm_levels_force;
 	int source_scan;
 	int source_rotation; // new in dml32
+	unsigned int det_size_override; // use to populate DETSizeOverride in vba struct
 	int sw_mode;
 	int macro_tile_size;
 	unsigned int surface_width_y;

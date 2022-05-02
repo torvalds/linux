@@ -47,7 +47,10 @@
 #include "clk_mgr.h"
 #include "dsc.h"
 #include "dcn20/dcn20_optc.h"
+#include "dmub_subvp_state.h"
+#include "dce/dmub_hw_lock_mgr.h"
 #include "dc_link_dp.h"
+#include "dmub/inc/dmub_subvp_state.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -405,6 +408,65 @@ void dcn32_commit_subvp_config(struct dc *dc, struct dc_state *context)
 */
 }
 
+/* Sub-Viewport DMUB lock needs to be acquired by driver whenever SubVP is active and:
+ * 1. Any full update for any SubVP main pipe
+ * 2. Any immediate flip for any SubVP pipe
+ * 3. Any flip for DRR pipe
+ * 4. If SubVP was previously in use (i.e. in old context)
+ */
+void dcn32_subvp_pipe_control_lock(struct dc *dc,
+		struct dc_state *context,
+		bool lock,
+		bool should_lock_all_pipes,
+		struct pipe_ctx *top_pipe_to_program,
+		bool subvp_prev_use)
+{
+	unsigned int i = 0;
+	bool subvp_immediate_flip = false;
+	bool subvp_in_use = false;
+	bool drr_pipe = false;
+	struct pipe_ctx *pipe, *old_pipe;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &context->res_ctx.pipe_ctx[i];
+		old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream && pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+			subvp_in_use = true;
+			break;
+		}
+	}
+
+	if (top_pipe_to_program && top_pipe_to_program->stream && top_pipe_to_program->plane_state) {
+		if (top_pipe_to_program->stream->mall_stream_config.type == SUBVP_MAIN &&
+				top_pipe_to_program->plane_state->flip_immediate)
+			subvp_immediate_flip = true;
+		else if (top_pipe_to_program->stream->mall_stream_config.type == SUBVP_NONE &&
+				top_pipe_to_program->stream->ignore_msa_timing_param)
+			drr_pipe = true;
+	}
+
+	if ((subvp_in_use && (should_lock_all_pipes || subvp_immediate_flip || drr_pipe)) || (!subvp_in_use && subvp_prev_use)) {
+		union dmub_inbox0_cmd_lock_hw hw_lock_cmd = { 0 };
+
+		if (!lock) {
+			for (i = 0; i < dc->res_pool->pipe_count; i++) {
+				pipe = &context->res_ctx.pipe_ctx[i];
+				if (pipe->stream && pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_MAIN &&
+						should_lock_all_pipes)
+					pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg, CRTC_STATE_VBLANK);
+			}
+		}
+
+		hw_lock_cmd.bits.command_code = DMUB_INBOX0_CMD__HW_LOCK;
+		hw_lock_cmd.bits.hw_lock_client = HW_LOCK_CLIENT_DRIVER;
+		hw_lock_cmd.bits.lock = lock;
+		hw_lock_cmd.bits.should_release = !lock;
+		dmub_hw_lock_mgr_inbox0_cmd(dc->ctx->dmub_srv, hw_lock_cmd);
+	}
+}
+
+
 static bool dcn32_set_mpc_shaper_3dlut(
 	struct pipe_ctx *pipe_ctx, const struct dc_stream_state *stream)
 {
@@ -500,7 +562,11 @@ void dcn32_subvp_update_force_pstate(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (pipe->stream && pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+		// For SubVP + DRR, also force disallow on the DRR pipe
+		// (We will force allow in the DMUB sequence -- some DRR timings by default won't allow P-State so we have
+		// to force once the vblank is stretched).
+		if (pipe->stream && pipe->plane_state && (pipe->stream->mall_stream_config.type == SUBVP_MAIN ||
+				(pipe->stream->mall_stream_config.type == SUBVP_NONE && pipe->stream->ignore_msa_timing_param))) {
 			struct hubp *hubp = pipe->plane_res.hubp;
 
 			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
@@ -544,9 +610,8 @@ void dcn32_program_mall_pipe_config(struct dc *dc, struct dc_state *context)
 {
 	int i;
 	struct dce_hwseq *hws = dc->hwseq;
-	// Update force P-state for each pipe accordingly
-	if (hws && hws->funcs.subvp_update_force_pstate)
-		hws->funcs.subvp_update_force_pstate(dc, context);
+
+	// Don't force p-state disallow -- can't block dummy p-state
 
 	// Update MALL_SEL register for each pipe
 	if (hws && hws->funcs.update_mall_sel)

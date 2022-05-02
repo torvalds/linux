@@ -28,6 +28,8 @@
 
 #include "core_types.h"
 
+#define DCN3_2_DET_SEG_SIZE 64
+
 #define TO_DCN32_RES_POOL(pool)\
 	container_of(pool, struct dcn32_resource_pool, base)
 
@@ -61,7 +63,7 @@ bool dcn32_release_post_bldn_3dlut(
 		struct dc_3dlut **lut,
 		struct dc_transfer_func **shaper);
 
-void dcn32_remove_phantom_pipes(struct dc *dc,
+bool dcn32_remove_phantom_pipes(struct dc *dc,
 		struct dc_state *context);
 
 void dcn32_add_phantom_pipes(struct dc *dc,
@@ -84,5 +86,21 @@ void dcn32_calculate_wm_and_dlg(
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt,
 		int vlevel);
+
+uint32_t dcn32_helper_calculate_num_ways_for_subvp
+		(struct dc *dc,
+		struct dc_state *context);
+
+void dcn32_merge_pipes_for_subvp(struct dc *dc,
+		struct dc_state *context);
+
+bool dcn32_all_pipes_have_stream_and_plane(struct dc *dc,
+		struct dc_state *context);
+
+bool dcn32_subvp_in_use(struct dc *dc,
+		struct dc_state *context);
+
+void dcn32_update_det_override_for_mpo(struct dc *dc, struct dc_state *context,
+	display_e2e_pipe_params_st *pipes);
 
 #endif /* _DCN32_RESOURCE_H_ */

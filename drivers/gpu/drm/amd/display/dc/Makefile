@@ -21,7 +21,31 @@
 #
 #
 # Makefile for Display Core (dc) component.
-#
+
+ifdef CONFIG_X86
+dmub_ccflags := -mhard-float -msse
+endif
+
+ifdef CONFIG_PPC64
+dmub_ccflags := -mhard-float -maltivec
+endif
+
+ifdef CONFIG_CC_IS_GCC
+ifeq ($(call cc-ifversion, -lt, 0701, y), y)
+IS_OLD_GCC = 1
+endif
+endif
+
+ifdef CONFIG_X86
+ifdef IS_OLD_GCC
+# Stack alignment mismatch, proceed with caution.
+# GCC < 7.1 cannot compile code using `double` and -mpreferred-stack-boundary=3
+# (8B stack alignment).
+dmub_ccflags += -mpreferred-stack-boundary=4
+else
+dmub_ccflags += -msse2
+endif
+endif
 
 DC_LIBS = basics bios dml clk_mgr dce gpio irq link virtual
 
@@ -75,6 +99,7 @@ AMD_DISPLAY_FILES += $(AMD_DISPLAY_CORE)
 AMD_DISPLAY_FILES += $(AMD_DM_REG_UPDATE)
 
 DC_DMUB += dc_dmub_srv.o
+CFLAGS_$(AMDDALPATH)/dc/dc_dmub_srv.o := $(dmub_ccflags)
 DC_EDID += dc_edid_parser.o
 AMD_DISPLAY_DMUB = $(addprefix $(AMDDALPATH)/dc/,$(DC_DMUB))
 AMD_DISPLAY_EDID = $(addprefix $(AMDDALPATH)/dc/,$(DC_EDID))

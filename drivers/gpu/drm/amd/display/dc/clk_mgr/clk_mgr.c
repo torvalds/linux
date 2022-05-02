@@ -58,6 +58,12 @@ int clk_mgr_helper_get_active_display_cnt(
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_stream_state *stream = context->streams[i];
 
+		/* Don't count SubVP phantom pipes as part of active
+		 * display count
+		 */
+		if (stream->mall_stream_config.type == SUBVP_PHANTOM)
+			continue;
+
 		/*
 		 * Only notify active stream or virtual stream.
 		 * Need to notify virtual stream to work around
