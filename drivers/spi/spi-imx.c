@@ -18,7 +18,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/spi_bitbang.h>
 #include <linux/types.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -86,7 +85,7 @@ struct spi_imx_devtype_data {
 };
 
 struct spi_imx_data {
-	struct spi_bitbang bitbang;
+	struct spi_controller *controller;
 	struct device *dev;
 
 	struct completion xfer_done;
@@ -580,7 +579,7 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 	 * the SPI communication as the device on the other end would consider
 	 * the change of SCLK polarity as a clock tick already.
 	 *
-	 * Because spi_imx->spi_bus_clk is only set in bitbang prepare_message
+	 * Because spi_imx->spi_bus_clk is only set in prepare_message
 	 * callback, iterate over all the transfers in spi_message, find the
 	 * one with lowest bus frequency, and use that bus frequency for the
 	 * delay calculation. In case all transfers have speed_hz == 0, then
@@ -1261,7 +1260,7 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 		spi_imx->dynamic_burst = 0;
 	}
 
-	if (spi_imx_can_dma(spi_imx->bitbang.master, spi, t))
+	if (spi_imx_can_dma(spi_imx->controller, spi, t))
 		spi_imx->usedma = true;
 	else
 		spi_imx->usedma = false;
@@ -1282,7 +1281,7 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 
 static void spi_imx_sdma_exit(struct spi_imx_data *spi_imx)
 {
-	struct spi_controller *controller = spi_imx->bitbang.master;
+	struct spi_controller *controller = spi_imx->controller;
 
 	if (controller->dma_rx) {
 		dma_release_channel(controller->dma_rx);
@@ -1324,7 +1323,7 @@ static int spi_imx_sdma_init(struct device *dev, struct spi_imx_data *spi_imx,
 	init_completion(&spi_imx->dma_tx_completion);
 	controller->can_dma = spi_imx_can_dma;
 	controller->max_dma_len = MAX_SDMA_BD_BYTES;
-	spi_imx->bitbang.master->flags = SPI_CONTROLLER_MUST_RX |
+	spi_imx->controller->flags = SPI_CONTROLLER_MUST_RX |
 					 SPI_CONTROLLER_MUST_TX;
 
 	return 0;
@@ -1367,7 +1366,7 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	struct dma_async_tx_descriptor *desc_tx, *desc_rx;
 	unsigned long transfer_timeout;
 	unsigned long timeout;
-	struct spi_controller *controller = spi_imx->bitbang.master;
+	struct spi_controller *controller = spi_imx->controller;
 	struct sg_table *tx = &transfer->tx_sg, *rx = &transfer->rx_sg;
 	struct scatterlist *last_sg = sg_last(rx->sgl, rx->nents);
 	unsigned int bytes_per_word, i;
@@ -1450,7 +1449,7 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 		return -ETIMEDOUT;
 	}
 
-	return transfer->len;
+	return 0;
 /* fallback to pio */
 dma_failure_no_start:
 	transfer->error |= SPI_TRANS_FAIL_NO_START;
@@ -1486,14 +1485,14 @@ static int spi_imx_pio_transfer(struct spi_device *spi,
 		return -ETIMEDOUT;
 	}
 
-	return transfer->len;
+	return 0;
 }
 
 static int spi_imx_pio_transfer_slave(struct spi_device *spi,
 				      struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_controller_get_devdata(spi->controller);
-	int ret = transfer->len;
+	int ret = 0;
 
 	if (is_imx53_ecspi(spi_imx) &&
 	    transfer->len > MX53_MAX_TRANSFER_BYTES) {
@@ -1533,11 +1532,13 @@ static int spi_imx_pio_transfer_slave(struct spi_device *spi,
 	return ret;
 }
 
-static int spi_imx_transfer(struct spi_device *spi,
+static int spi_imx_transfer_one(struct spi_controller *controller,
+				struct spi_device *spi,
 				struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_controller_get_devdata(spi->controller);
 
+	spi_imx_setupxfer(spi, transfer);
 	transfer->effective_speed_hz = spi_imx->spi_bus_clk;
 
 	/* flush rxfifo before transfer */
@@ -1642,7 +1643,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 	controller->use_gpio_descriptors = true;
 
 	spi_imx = spi_controller_get_devdata(controller);
-	spi_imx->bitbang.master = controller;
+	spi_imx->controller = controller;
 	spi_imx->dev = &pdev->dev;
 	spi_imx->slave_mode = slave_mode;
 
@@ -1659,20 +1660,20 @@ static int spi_imx_probe(struct platform_device *pdev)
 	else
 		controller->num_chipselect = 3;
 
-	spi_imx->bitbang.setup_transfer = spi_imx_setupxfer;
-	spi_imx->bitbang.txrx_bufs = spi_imx_transfer;
-	spi_imx->bitbang.master->setup = spi_imx_setup;
-	spi_imx->bitbang.master->cleanup = spi_imx_cleanup;
-	spi_imx->bitbang.master->prepare_message = spi_imx_prepare_message;
-	spi_imx->bitbang.master->unprepare_message = spi_imx_unprepare_message;
-	spi_imx->bitbang.master->slave_abort = spi_imx_slave_abort;
-	spi_imx->bitbang.master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_NO_CS;
+	spi_imx->controller->transfer_one = spi_imx_transfer_one;
+	spi_imx->controller->setup = spi_imx_setup;
+	spi_imx->controller->cleanup = spi_imx_cleanup;
+	spi_imx->controller->prepare_message = spi_imx_prepare_message;
+	spi_imx->controller->unprepare_message = spi_imx_unprepare_message;
+	spi_imx->controller->slave_abort = spi_imx_slave_abort;
+	spi_imx->controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_NO_CS;
+
 	if (is_imx35_cspi(spi_imx) || is_imx51_ecspi(spi_imx) ||
 	    is_imx53_ecspi(spi_imx))
-		spi_imx->bitbang.master->mode_bits |= SPI_LOOP | SPI_READY;
+		spi_imx->controller->mode_bits |= SPI_LOOP | SPI_READY;
 
 	if (is_imx51_ecspi(spi_imx) || is_imx53_ecspi(spi_imx))
-		spi_imx->bitbang.master->mode_bits |= SPI_RX_CPHA_FLIP;
+		spi_imx->controller->mode_bits |= SPI_RX_CPHA_FLIP;
 
 	if (is_imx51_ecspi(spi_imx) &&
 	    device_property_read_u32(&pdev->dev, "cs-gpios", NULL))
@@ -1681,7 +1682,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 		 * setting the burst length to the word size. This is
 		 * considerably faster than manually controlling the CS.
 		 */
-		spi_imx->bitbang.master->mode_bits |= SPI_CS_WORD;
+		spi_imx->controller->mode_bits |= SPI_CS_WORD;
 
 	spi_imx->spi_drctl = spi_drctl;
 
@@ -1754,10 +1755,10 @@ static int spi_imx_probe(struct platform_device *pdev)
 	spi_imx->devtype_data->intctrl(spi_imx, 0);
 
 	controller->dev.of_node = pdev->dev.of_node;
-	ret = spi_bitbang_start(&spi_imx->bitbang);
+	ret = spi_register_controller(controller);
 	if (ret) {
-		dev_err_probe(&pdev->dev, ret, "bitbang start failed\n");
-		goto out_bitbang_start;
+		dev_err_probe(&pdev->dev, ret, "register controller failed\n");
+		goto out_register_controller;
 	}
 
 	pm_runtime_mark_last_busy(spi_imx->dev);
@@ -1765,7 +1766,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	return ret;
 
-out_bitbang_start:
+out_register_controller:
 	if (spi_imx->devtype_data->has_dmamode)
 		spi_imx_sdma_exit(spi_imx);
 out_runtime_pm_put:
@@ -1788,7 +1789,7 @@ static int spi_imx_remove(struct platform_device *pdev)
 	struct spi_imx_data *spi_imx = spi_controller_get_devdata(controller);
 	int ret;
 
-	spi_bitbang_stop(&spi_imx->bitbang);
+	spi_unregister_controller(controller);
 
 	ret = pm_runtime_resume_and_get(spi_imx->dev);
 	if (ret < 0) {
@@ -1803,7 +1804,6 @@ static int spi_imx_remove(struct platform_device *pdev)
 	pm_runtime_disable(spi_imx->dev);
 
 	spi_imx_sdma_exit(spi_imx);
-	spi_controller_put(controller);
 
 	return 0;
 }

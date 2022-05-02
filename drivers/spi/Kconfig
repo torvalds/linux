@@ -414,7 +414,6 @@ config SPI_IMG_SPFI
 config SPI_IMX
 	tristate "Freescale i.MX SPI controllers"
 	depends on ARCH_MXC || COMPILE_TEST
-	select SPI_BITBANG
 	help
 	  This enables support for the Freescale i.MX SPI controllers.
 
