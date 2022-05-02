@@ -602,7 +602,6 @@ static int find_rsb_dir(struct dlm_ls *ls, char *name, int len,
 	 */
 
 	kref_get(&r->res_ref);
-	error = 0;
 	goto out_unlock;
 
 
@@ -1091,7 +1090,6 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, char *name, int len,
 	if (result)
 		*result = DLM_LU_ADD;
 	*r_nodeid = from_nodeid;
-	error = 0;
  out_unlock:
 	spin_unlock(&ls->ls_rsbtbl[b].lock);
 	return error;
@@ -5747,7 +5745,6 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 
 	attach_lkb(r, lkb);
 	add_lkb(r, lkb, rl->rl_status);
-	error = 0;
 	ls->ls_recover_locks_in++;
 
 	if (!list_empty(&r->res_waitqueue) || !list_empty(&r->res_convertqueue))
