@@ -145,6 +145,27 @@ static inline bool set_livepatch_module(struct module *mod)
 #endif
 }
 
+#ifdef CONFIG_MODULE_UNLOAD_TAINT_TRACKING
+struct mod_unload_taint {
+	struct list_head list;
+	char name[MODULE_NAME_LEN];
+	unsigned long taints;
+	u64 count;
+};
+
+int try_add_tainted_module(struct module *mod);
+void print_unloaded_tainted_modules(void);
+#else /* !CONFIG_MODULE_UNLOAD_TAINT_TRACKING */
+static inline int try_add_tainted_module(struct module *mod)
+{
+	return 0;
+}
+
+static inline void print_unloaded_tainted_modules(void)
+{
+}
+#endif /* CONFIG_MODULE_UNLOAD_TAINT_TRACKING */
+
 #ifdef CONFIG_MODULE_DECOMPRESS
 int module_decompress(struct load_info *info, const void *buf, size_t size);
 void module_decompress_cleanup(struct load_info *info);

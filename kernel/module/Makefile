@@ -18,3 +18,4 @@ obj-$(CONFIG_PROC_FS) += procfs.o
 obj-$(CONFIG_SYSFS) += sysfs.o
 obj-$(CONFIG_KGDB_KDB) += kdb.o
 obj-$(CONFIG_MODVERSIONS) += version.o
+obj-$(CONFIG_MODULE_UNLOAD_TAINT_TRACKING) += tracking.o
