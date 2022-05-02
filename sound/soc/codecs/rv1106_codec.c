@@ -108,21 +108,22 @@ struct rv1106_codec_priv {
 #endif
 };
 
-static const DECLARE_TLV_DB_SCALE(rv1106_codec_alc_agc_grp_gain_tlv,
+static const DECLARE_TLV_DB_SCALE(rv1106_codec_alc_agc_gain_tlv,
 				  -1800, 150, 2850);
-static const DECLARE_TLV_DB_SCALE(rv1106_codec_alc_agc_grp_max_gain_tlv,
+static const DECLARE_TLV_DB_SCALE(rv1106_codec_alc_agc_max_gain_tlv,
 				  -1350, 600, 2850);
-static const DECLARE_TLV_DB_SCALE(rv1106_codec_alc_agc_grp_min_gain_tlv,
+static const DECLARE_TLV_DB_SCALE(rv1106_codec_alc_agc_min_gain_tlv,
 				  -1800, 600, 2400);
 static const DECLARE_TLV_DB_SCALE(rv1106_codec_adc_alc_gain_tlv,
-				  -1800, 150, 2850);
+				  -900, 150, 3750);
+static const DECLARE_TLV_DB_SCALE(rv1106_codec_adc_dig_gain_tlv,
+				  -9750, 50, 3000);
 static const DECLARE_TLV_DB_SCALE(rv1106_codec_dac_lineout_gain_tlv,
 				  -600, 150, 0);
 static const DECLARE_TLV_DB_SCALE(rv1106_codec_dac_hpmix_gain_tlv,
 				  -600, 600, 0);
 
 static const DECLARE_TLV_DB_RANGE(rv1106_codec_adc_mic_gain_tlv,
-	0, 0, TLV_DB_SCALE_ITEM(0, 0, 0),
 	1, 1, TLV_DB_SCALE_ITEM(0, 0, 0),
 	2, 2, TLV_DB_SCALE_ITEM(2000, 0, 0),
 	3, 3, TLV_DB_SCALE_ITEM(1200, 0, 0),
@@ -272,7 +273,7 @@ static const struct soc_enum rv1106_agc_asr_enum_array[] = {
 	SOC_ENUM_SINGLE(0, 1, ARRAY_SIZE(agc_asr_text), agc_asr_text),
 };
 
-static const struct snd_kcontrol_new mic_gains[] = {
+static const struct snd_kcontrol_new rv1106_codec_dapm_controls[] = {
 	/* ADC MIC */
 	SOC_SINGLE_EXT_TLV("ADC MIC Left Gain",
 			   ACODEC_ADC_ANA_CTL2,
@@ -290,22 +291,52 @@ static const struct snd_kcontrol_new mic_gains[] = {
 			   rv1106_codec_mic_gain_get,
 			   rv1106_codec_mic_gain_put,
 			   rv1106_codec_adc_mic_gain_tlv),
-};
 
-static const struct snd_kcontrol_new rv1106_codec_dapm_controls[] = {
+	/* ADC ALC */
+	SOC_SINGLE_RANGE_TLV("ADC ALC Left Volume",
+			     ACODEC_ADC_ANA_CTL4,
+			     ACODEC_ADC_L_DIG_VOL_SFT,
+			     ACODEC_ADC_L_DIG_VOL_MIN,
+			     ACODEC_ADC_L_DIG_VOL_MAX,
+			     0, rv1106_codec_adc_alc_gain_tlv),
+	SOC_SINGLE_RANGE_TLV("ADC ALC Right Volume",
+			     ACODEC_ADC_ANA_CTL5,
+			     ACODEC_ADC_R_DIG_VOL_SFT,
+			     ACODEC_ADC_R_DIG_VOL_MIN,
+			     ACODEC_ADC_R_DIG_VOL_MAX,
+			     0, rv1106_codec_adc_alc_gain_tlv),
+
+	/* ADC Digital Volume */
+	SOC_SINGLE_RANGE_TLV("ADC Digital Left Volume",
+			     ACODEC_ADC_L_DIG_VOL,
+			     ACODEC_ADC_L_DIG_VOL_SFT,
+			     ACODEC_ADC_L_DIG_VOL_MIN,
+			     ACODEC_ADC_L_DIG_VOL_MAX,
+			     0, rv1106_codec_adc_dig_gain_tlv),
+	SOC_SINGLE_RANGE_TLV("ADC Digital Right Volume",
+			     ACODEC_ADC_R_DIG_VOL,
+			     ACODEC_ADC_R_DIG_VOL_SFT,
+			     ACODEC_ADC_R_DIG_VOL_MIN,
+			     ACODEC_ADC_R_DIG_VOL_MAX,
+			     0, rv1106_codec_adc_dig_gain_tlv),
+
+	/* ADC High Pass Filter */
+	SOC_ENUM_EXT("ADC HPF Cut-off", rv1106_hpf_enum_array[0],
+		     rv1106_codec_hpf_get, rv1106_codec_hpf_put),
+
 	/* ALC AGC Group */
 	SOC_SINGLE_RANGE_TLV("ALC AGC Left Volume",
 			     ACODEC_ADC_PGA_AGC_L_CTL3,
 			     ACODEC_AGC_PGA_GAIN_SFT,
 			     ACODEC_AGC_PGA_GAIN_MIN,
 			     ACODEC_AGC_PGA_GAIN_MAX,
-			     0, rv1106_codec_alc_agc_grp_gain_tlv),
+			     0, rv1106_codec_alc_agc_gain_tlv),
 	SOC_SINGLE_RANGE_TLV("ALC AGC Right Volume",
 			     ACODEC_ADC_PGA_AGC_R_CTL3,
 			     ACODEC_AGC_PGA_GAIN_SFT,
 			     ACODEC_AGC_PGA_GAIN_MIN,
 			     ACODEC_AGC_PGA_GAIN_MAX,
-			     0, rv1106_codec_alc_agc_grp_gain_tlv),
+			     0, rv1106_codec_alc_agc_gain_tlv),
 
 	/* ALC AGC MAX */
 	SOC_SINGLE_RANGE_TLV("ALC AGC Left Max Volume",
@@ -313,13 +344,13 @@ static const struct snd_kcontrol_new rv1106_codec_dapm_controls[] = {
 			     ACODEC_AGC_MAX_GAIN_PGA_SFT,
 			     ACODEC_AGC_MAX_GAIN_PGA_MIN,
 			     ACODEC_AGC_MAX_GAIN_PGA_MAX,
-			     0, rv1106_codec_alc_agc_grp_max_gain_tlv),
+			     0, rv1106_codec_alc_agc_max_gain_tlv),
 	SOC_SINGLE_RANGE_TLV("ALC AGC Right Max Volume",
 			     ACODEC_ADC_PGA_AGC_R_CTL9,
 			     ACODEC_AGC_MAX_GAIN_PGA_SFT,
 			     ACODEC_AGC_MAX_GAIN_PGA_MIN,
 			     ACODEC_AGC_MAX_GAIN_PGA_MAX,
-			     0, rv1106_codec_alc_agc_grp_max_gain_tlv),
+			     0, rv1106_codec_alc_agc_max_gain_tlv),
 
 	/* ALC AGC MIN */
 	SOC_SINGLE_RANGE_TLV("ALC AGC Left Min Volume",
@@ -327,13 +358,13 @@ static const struct snd_kcontrol_new rv1106_codec_dapm_controls[] = {
 			     ACODEC_AGC_MIN_GAIN_PGA_SFT,
 			     ACODEC_AGC_MIN_GAIN_PGA_MIN,
 			     ACODEC_AGC_MIN_GAIN_PGA_MAX,
-			     0, rv1106_codec_alc_agc_grp_min_gain_tlv),
+			     0, rv1106_codec_alc_agc_min_gain_tlv),
 	SOC_SINGLE_RANGE_TLV("ALC AGC Right Min Volume",
 			     ACODEC_ADC_PGA_AGC_R_CTL9,
 			     ACODEC_AGC_MIN_GAIN_PGA_SFT,
 			     ACODEC_AGC_MIN_GAIN_PGA_MIN,
 			     ACODEC_AGC_MIN_GAIN_PGA_MAX,
-			     0, rv1106_codec_alc_agc_grp_min_gain_tlv),
+			     0, rv1106_codec_alc_agc_min_gain_tlv),
 
 	/* ALC AGC Switch */
 	SOC_ENUM_EXT("ALC AGC Left Switch", rv1106_agc_enum_array[0],
@@ -359,33 +390,11 @@ static const struct snd_kcontrol_new rv1106_codec_dapm_controls[] = {
 	SOC_ENUM_EXT("ADC Main MICBIAS", rv1106_main_micbias_enum_array[0],
 		     rv1106_codec_main_micbias_get, rv1106_codec_main_micbias_put),
 
-	/* ADC MICBIAS Switch */
-	SOC_SINGLE("ADC MICBIAS", ACODEC_ADC_ANA_CTL0,
-		   ACODEC_MICBIAS_SFT, 1, 0),
-
 	/* ADC MIC Mute/Work Switch */
 	SOC_ENUM_EXT("ADC MIC Left Switch", rv1106_mic_mute_enum_array[0],
 		     rv1106_codec_mic_mute_get, rv1106_codec_mic_mute_put),
 	SOC_ENUM_EXT("ADC MIC Right Switch", rv1106_mic_mute_enum_array[1],
 		     rv1106_codec_mic_mute_get, rv1106_codec_mic_mute_put),
-
-	/* ADC ALC */
-	SOC_SINGLE_RANGE_TLV("ADC ALC Left Volume",
-			     ACODEC_ADC_ANA_CTL4,
-			     ACODEC_ADC_L_ALC_GAIN_SFT,
-			     ACODEC_ADC_L_ALC_GAIN_MIN,
-			     ACODEC_ADC_L_ALC_GAIN_MAX,
-			     0, rv1106_codec_adc_alc_gain_tlv),
-	SOC_SINGLE_RANGE_TLV("ADC ALC Right Volume",
-			     ACODEC_ADC_ANA_CTL5,
-			     ACODEC_ADC_R_ALC_GAIN_SFT,
-			     ACODEC_ADC_R_ALC_GAIN_MIN,
-			     ACODEC_ADC_R_ALC_GAIN_MAX,
-			     0, rv1106_codec_adc_alc_gain_tlv),
-
-	/* ADC High Pass Filter */
-	SOC_ENUM_EXT("ADC HPF Cut-off", rv1106_hpf_enum_array[0],
-		     rv1106_codec_hpf_get, rv1106_codec_hpf_put),
 
 	/* DAC LINEOUT */
 	SOC_SINGLE_EXT_TLV("DAC LINEOUT Volume",
@@ -717,23 +726,19 @@ static int rv1106_codec_mic_gain_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rv1106_codec_priv *rv1106 = snd_soc_component_get_drvdata(component);
-	unsigned int gain = ucontrol->value.integer.value[0];
-
-	if (gain > ACODEC_ADC_MIC_GAIN_MAX) {
-		dev_err(rv1106->plat_dev, "%s: invalid mic gain: %d\n",
-			__func__, gain);
-		return -EINVAL;
-	}
+	unsigned int index = ucontrol->value.integer.value[0];
 
 	/*
-	 * From the TRM, there are only suupport 0dB(gain==0) and
-	 * 20dB(gain==3) on the codec version A.
+	 * From the TRM, the gain of MIC Boost only supports:
+	 * 0dB (index == 1)
+	 * 20dB(index == 2)
+	 * 12dB(index == 3)
 	 */
-	if (!(gain == 0 || gain == ACODEC_ADC_MIC_GAIN_MAX)) {
-		dev_err(rv1106->plat_dev,
-			"version A doesn't supported: %d, expect: 0,%d\n",
-			gain, ACODEC_ADC_MIC_GAIN_MAX);
-		return 0;
+	if ((index < ACODEC_ADC_MIC_GAIN_MIN) ||
+	    (index > ACODEC_ADC_MIC_GAIN_MAX)) {
+		dev_err(rv1106->plat_dev, "%s: invalid mic gain index: %d\n",
+			__func__, index);
+		return -EINVAL;
 	}
 
 	return snd_soc_put_volsw_range(kcontrol, ucontrol);
@@ -1725,23 +1730,6 @@ static int rv1106_codec_default_gains(struct rv1106_codec_priv *rv1106)
 	return 0;
 }
 
-static int rv1106_codec_dapm_mic_gains(struct rv1106_codec_priv *rv1106)
-{
-	int ret;
-
-	ret = snd_soc_add_component_controls(rv1106->component,
-					     mic_gains,
-					     ARRAY_SIZE(mic_gains));
-	if (ret) {
-		dev_err(rv1106->plat_dev,
-			"%s: add mic_gains failed: %d\n",
-			__func__, ret);
-		return ret;
-	}
-
-	return 0;
-}
-
 static int rv1106_codec_check_micbias(struct rv1106_codec_priv *rv1106,
 				      struct device_node *np)
 {
@@ -1763,8 +1751,6 @@ static int rv1106_codec_dapm_controls_prepare(struct rv1106_codec_priv *rv1106)
 	rv1106->agc_r = 0;
 	rv1106->agc_asr_l = AGC_ASR_96KHZ;
 	rv1106->agc_asr_r = AGC_ASR_96KHZ;
-
-	rv1106_codec_dapm_mic_gains(rv1106);
 
 	return 0;
 }
