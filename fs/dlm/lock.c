@@ -1268,9 +1268,11 @@ static void kill_lkb(struct kref *kref)
 static int __put_lkb(struct dlm_ls *ls, struct dlm_lkb *lkb)
 {
 	uint32_t lkid = lkb->lkb_id;
+	int rv;
 
-	spin_lock(&ls->ls_lkbidr_spin);
-	if (kref_put(&lkb->lkb_ref, kill_lkb)) {
+	rv = kref_put_lock(&lkb->lkb_ref, kill_lkb,
+			   &ls->ls_lkbidr_spin);
+	if (rv) {
 		idr_remove(&ls->ls_lkbidr, lkid);
 		spin_unlock(&ls->ls_lkbidr_spin);
 
@@ -1280,11 +1282,9 @@ static int __put_lkb(struct dlm_ls *ls, struct dlm_lkb *lkb)
 		if (lkb->lkb_lvbptr && is_master_copy(lkb))
 			dlm_free_lvb(lkb->lkb_lvbptr);
 		dlm_free_lkb(lkb);
-		return 1;
-	} else {
-		spin_unlock(&ls->ls_lkbidr_spin);
-		return 0;
 	}
+
+	return rv;
 }
 
 int dlm_put_lkb(struct dlm_lkb *lkb)
