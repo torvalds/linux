@@ -51,6 +51,12 @@
 		};
 	};
 
+	mc_virt: interconnect-mc-virt {
+		compatible = "qcom,sdx65-mc-virt";
+		#interconnect-cells = <1>;
+		qcom,bcm-voters = <&apps_bcm_voter>;
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
@@ -139,6 +145,13 @@
 			status = "disabled";
 		};
 
+		system_noc: interconnect@1620000 {
+			compatible = "qcom,sdx65-system-noc";
+			reg = <0x01620000 0x31200>;
+			#interconnect-cells = <1>;
+			qcom,bcm-voters = <&apps_bcm_voter>;
+		};
+
 		tcsr_mutex: hwlock@1f40000 {
 			compatible = "qcom,tcsr-mutex";
 			reg = <0x01f40000 0x40000>;
@@ -156,6 +169,13 @@
 				 <&gcc GCC_SDCC1_AHB_CLK>;
 			clock-names = "core", "iface";
 			status = "disabled";
+		};
+
+		mem_noc: interconnect@9680000 {
+			compatible = "qcom,sdx65-mem-noc";
+			reg = <0x09680000 0x27200>;
+			#interconnect-cells = <1>;
+			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
 		spmi_bus: qcom,spmi@c440000 {
@@ -401,6 +421,11 @@
 					};
 				};
 			};
+
+			apps_bcm_voter: bcm-voter {
+				compatible = "qcom,bcm-voter";
+			};
+
 		};
 	};
 
