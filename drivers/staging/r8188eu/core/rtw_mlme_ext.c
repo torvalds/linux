@@ -33,9 +33,9 @@ static mlme_handler mlme_sta_tbl[] = {
 };
 
 static struct action_handler OnAction_tbl[] = {
-	{RTW_WLAN_CATEGORY_BACK, "ACTION_BACK", &OnAction_back},
-	{RTW_WLAN_CATEGORY_PUBLIC, "ACTION_PUBLIC", on_action_public},
-	{RTW_WLAN_CATEGORY_P2P, "ACTION_P2P", &OnAction_p2p},
+	{RTW_WLAN_CATEGORY_BACK, &OnAction_back},
+	{RTW_WLAN_CATEGORY_PUBLIC, on_action_public},
+	{RTW_WLAN_CATEGORY_P2P, &OnAction_p2p},
 };
 
 static u8 null_addr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};

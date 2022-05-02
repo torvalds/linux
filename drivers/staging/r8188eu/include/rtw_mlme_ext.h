@@ -188,7 +188,6 @@ typedef unsigned int (*mlme_handler)(struct adapter *adapt, struct recv_frame *f
 
 struct action_handler {
 	unsigned int   num;
-	char* str;
 	unsigned int (*func)(struct adapter *adapt, struct recv_frame *frame);
 };
 
