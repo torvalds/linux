@@ -5085,7 +5085,7 @@ static int qcom_qmp_phy_com_init(struct qmp_phy *qphy)
 	ret = regulator_bulk_enable(cfg->num_vregs, qmp->vregs);
 	if (ret) {
 		dev_err(qmp->dev, "failed to enable regulators, err=%d\n", ret);
-		goto err_reg_enable;
+		goto err_unlock;
 	}
 
 	for (i = 0; i < cfg->num_resets; i++) {
@@ -5093,7 +5093,7 @@ static int qcom_qmp_phy_com_init(struct qmp_phy *qphy)
 		if (ret) {
 			dev_err(qmp->dev, "%s reset assert failed\n",
 				cfg->reset_list[i]);
-			goto err_rst_assert;
+			goto err_disable_regulators;
 		}
 	}
 
@@ -5102,13 +5102,13 @@ static int qcom_qmp_phy_com_init(struct qmp_phy *qphy)
 		if (ret) {
 			dev_err(qmp->dev, "%s reset deassert failed\n",
 				qphy->cfg->reset_list[i]);
-			goto err_rst;
+			goto err_assert_reset;
 		}
 	}
 
 	ret = clk_bulk_prepare_enable(cfg->num_clks, qmp->clks);
 	if (ret)
-		goto err_rst;
+		goto err_assert_reset;
 
 	if (cfg->has_phy_dp_com_ctrl) {
 		qphy_setbits(dp_com, QPHY_V3_DP_COM_POWER_DOWN_CTRL,
@@ -5150,12 +5150,12 @@ static int qcom_qmp_phy_com_init(struct qmp_phy *qphy)
 
 	return 0;
 
-err_rst:
+err_assert_reset:
 	while (++i < cfg->num_resets)
 		reset_control_assert(qmp->resets[i]);
-err_rst_assert:
+err_disable_regulators:
 	regulator_bulk_disable(cfg->num_vregs, qmp->vregs);
-err_reg_enable:
+err_unlock:
 	mutex_unlock(&qmp->phy_mutex);
 
 	return ret;
@@ -5261,14 +5261,14 @@ static int qcom_qmp_phy_power_on(struct phy *phy)
 		if (ret) {
 			dev_err(qmp->dev, "lane%d reset deassert failed\n",
 				qphy->index);
-			goto err_lane_rst;
+			return ret;
 		}
 	}
 
 	ret = clk_prepare_enable(qphy->pipe_clk);
 	if (ret) {
 		dev_err(qmp->dev, "pipe_clk enable failed err=%d\n", ret);
-		goto err_clk_enable;
+		goto err_reset_lane;
 	}
 
 	/* Tx, Rx, and PCS configurations */
@@ -5319,7 +5319,7 @@ static int qcom_qmp_phy_power_on(struct phy *phy)
 
 	ret = reset_control_deassert(qmp->ufs_reset);
 	if (ret)
-		goto err_pcs_ready;
+		goto err_disable_pipe_clk;
 
 	qcom_qmp_phy_configure(pcs_misc, cfg->regs, cfg->pcs_misc_tbl,
 			       cfg->pcs_misc_tbl_num);
@@ -5358,17 +5358,17 @@ static int qcom_qmp_phy_power_on(struct phy *phy)
 					 PHY_INIT_COMPLETE_TIMEOUT);
 		if (ret) {
 			dev_err(qmp->dev, "phy initialization timed-out\n");
-			goto err_pcs_ready;
+			goto err_disable_pipe_clk;
 		}
 	}
 	return 0;
 
-err_pcs_ready:
+err_disable_pipe_clk:
 	clk_disable_unprepare(qphy->pipe_clk);
-err_clk_enable:
+err_reset_lane:
 	if (cfg->has_lane_rst)
 		reset_control_assert(qphy->lane_rst);
-err_lane_rst:
+
 	return ret;
 }
 
