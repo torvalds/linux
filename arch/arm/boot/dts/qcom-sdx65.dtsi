@@ -87,8 +87,10 @@
 		};
 
 		smem_mem: memory@8fe20000 {
-			no-map;
+			compatible = "qcom,smem";
 			reg = <0x8fe20000 0xc0000>;
+			hwlocks = <&tcsr_mutex 3>;
+			no-map;
 		};
 
 		cmd_db: reserved-memory@8fee0000 {
