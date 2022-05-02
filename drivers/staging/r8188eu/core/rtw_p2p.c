@@ -171,7 +171,7 @@ static void issue_p2p_devdisc_resp(struct wifidirect_info *pwdinfo, u8 *da, u8 s
 	struct adapter *padapter = pwdinfo->padapter;
 	struct xmit_priv			*pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
-	unsigned char category = RTW_WLAN_CATEGORY_PUBLIC;
+	unsigned char category = WLAN_CATEGORY_PUBLIC;
 	u8			action = P2P_PUB_ACTION_ACTION;
 	__be32			p2poui = cpu_to_be32(P2POUI);
 	u8			oui_subtype = P2P_DEVDISC_RESP;
@@ -233,7 +233,7 @@ static void issue_p2p_devdisc_resp(struct wifidirect_info *pwdinfo, u8 *da, u8 s
 static void issue_p2p_provision_resp(struct wifidirect_info *pwdinfo, u8 *raddr, u8 *frame_body, u16 config_method)
 {
 	struct adapter *padapter = pwdinfo->padapter;
-	unsigned char category = RTW_WLAN_CATEGORY_PUBLIC;
+	unsigned char category = WLAN_CATEGORY_PUBLIC;
 	u8			action = P2P_PUB_ACTION_ACTION;
 	u8			dialogToken = frame_body[7];	/*	The Dialog Token of provisioning discovery request frame. */
 	__be32			p2poui = cpu_to_be32(P2POUI);

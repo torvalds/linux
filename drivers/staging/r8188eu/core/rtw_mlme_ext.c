@@ -1494,7 +1494,7 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 	frame_body = (unsigned char *)(pframe + sizeof(struct ieee80211_hdr_3addr));
 
 	category = frame_body[0];
-	if (category == RTW_WLAN_CATEGORY_BACK) { /*  representing Block Ack */
+	if (category == WLAN_CATEGORY_BACK) { /*  representing Block Ack */
 		if (!pmlmeinfo->HT_enable)
 			return _SUCCESS;
 		action = frame_body[1];
@@ -1551,7 +1551,7 @@ static int get_reg_classes_full_count(struct p2p_channels *channel_list)
 
 void issue_p2p_GO_request(struct adapter *padapter, u8 *raddr)
 {
-	unsigned char category = RTW_WLAN_CATEGORY_PUBLIC;
+	unsigned char category = WLAN_CATEGORY_PUBLIC;
 	u8 action = P2P_PUB_ACTION_ACTION;
 	__be32 p2poui = cpu_to_be32(P2POUI);
 	u8 oui_subtype = P2P_GO_NEGO_REQ;
@@ -1881,7 +1881,7 @@ void issue_p2p_GO_request(struct adapter *padapter, u8 *raddr)
 
 static void issue_p2p_GO_response(struct adapter *padapter, u8 *raddr, u8 *frame_body, uint len, u8 result)
 {
-	unsigned char category = RTW_WLAN_CATEGORY_PUBLIC;
+	unsigned char category = WLAN_CATEGORY_PUBLIC;
 	u8 action = P2P_PUB_ACTION_ACTION;
 	__be32			p2poui = cpu_to_be32(P2POUI);
 	u8 oui_subtype = P2P_GO_NEGO_RESP;
@@ -2243,7 +2243,7 @@ static void issue_p2p_GO_response(struct adapter *padapter, u8 *raddr, u8 *frame
 
 static void issue_p2p_GO_confirm(struct adapter *padapter, u8 *raddr, u8 result)
 {
-	unsigned char category = RTW_WLAN_CATEGORY_PUBLIC;
+	unsigned char category = WLAN_CATEGORY_PUBLIC;
 	u8 action = P2P_PUB_ACTION_ACTION;
 	__be32			p2poui = cpu_to_be32(P2POUI);
 	u8 oui_subtype = P2P_GO_NEGO_CONF;
@@ -2404,7 +2404,7 @@ static void issue_p2p_GO_confirm(struct adapter *padapter, u8 *raddr, u8 result)
 
 void issue_p2p_invitation_request(struct adapter *padapter, u8 *raddr)
 {
-	unsigned char category = RTW_WLAN_CATEGORY_PUBLIC;
+	unsigned char category = WLAN_CATEGORY_PUBLIC;
 	u8 action = P2P_PUB_ACTION_ACTION;
 	__be32			p2poui = cpu_to_be32(P2POUI);
 	u8 oui_subtype = P2P_INVIT_REQ;
@@ -2651,7 +2651,7 @@ void issue_p2p_invitation_request(struct adapter *padapter, u8 *raddr)
 
 void issue_p2p_invitation_response(struct adapter *padapter, u8 *raddr, u8 dialogToken, u8 status_code)
 {
-	unsigned char category = RTW_WLAN_CATEGORY_PUBLIC;
+	unsigned char category = WLAN_CATEGORY_PUBLIC;
 	u8 action = P2P_PUB_ACTION_ACTION;
 	__be32			p2poui = cpu_to_be32(P2POUI);
 	u8 oui_subtype = P2P_INVIT_RESP;
@@ -2841,7 +2841,7 @@ void issue_p2p_invitation_response(struct adapter *padapter, u8 *raddr, u8 dialo
 
 void issue_p2p_provision_request(struct adapter *padapter, u8 *pssid, u8 ussidlen, u8 *pdev_raddr)
 {
-	unsigned char category = RTW_WLAN_CATEGORY_PUBLIC;
+	unsigned char category = WLAN_CATEGORY_PUBLIC;
 	u8 action = P2P_PUB_ACTION_ACTION;
 	u8 dialogToken = 1;
 	u8 oui_subtype = P2P_PROVISION_DISC_REQ;
@@ -3812,7 +3812,7 @@ unsigned int on_action_public(struct adapter *padapter, struct recv_frame *precv
 		goto exit;
 
 	category = frame_body[0];
-	if (category != RTW_WLAN_CATEGORY_PUBLIC)
+	if (category != WLAN_CATEGORY_PUBLIC)
 		goto exit;
 
 	action = frame_body[1];
@@ -3874,10 +3874,10 @@ unsigned int OnAction(struct adapter *padapter, struct recv_frame *precv_frame)
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
 
 	switch (mgmt->u.action.category) {
-	case RTW_WLAN_CATEGORY_BACK:
+	case WLAN_CATEGORY_BACK:
 		OnAction_back(padapter, precv_frame);
 		break;
-	case RTW_WLAN_CATEGORY_PUBLIC:
+	case WLAN_CATEGORY_PUBLIC:
 		on_action_public(padapter, precv_frame);
 		break;
 	case RTW_WLAN_CATEGORY_P2P:
@@ -5370,7 +5370,7 @@ exit:
 
 void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned char action, unsigned short status)
 {
-	u8 category = RTW_WLAN_CATEGORY_BACK;
+	u8 category = WLAN_CATEGORY_BACK;
 	u16 start_seq;
 	u16 BA_para_set;
 	u16 reason_code;
@@ -5504,7 +5504,7 @@ static void issue_action_BSSCoexistPacket(struct adapter *padapter)
 	if (pmlmeinfo->bwmode_updated)
 		return;
 
-	category = RTW_WLAN_CATEGORY_PUBLIC;
+	category = WLAN_CATEGORY_PUBLIC;
 	action = ACT_PUBLIC_BSSCOEXIST;
 
 	pmgntframe = alloc_mgtxmitframe(pxmitpriv);
