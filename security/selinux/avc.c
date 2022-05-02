@@ -668,7 +668,7 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 	struct common_audit_data *ad = a;
 	struct selinux_audit_data *sad = ad->selinux_audit_data;
 	u32 av = sad->audited;
-	const char **perms;
+	const char *const *perms;
 	int i, perm;
 
 	audit_log_format(ab, "avc:  %s ", sad->denied ? "denied" : "granted");

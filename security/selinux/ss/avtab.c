@@ -385,7 +385,7 @@ void avtab_hash_eval(struct avtab *h, char *tag)
 	       chain2_len_sum);
 }
 
-static uint16_t spec_order[] = {
+static const uint16_t spec_order[] = {
 	AVTAB_ALLOWED,
 	AVTAB_AUDITDENY,
 	AVTAB_AUDITALLOW,
