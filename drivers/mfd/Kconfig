@@ -921,6 +921,15 @@ config MFD_MAX8998
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_MAX96745
+	tristate "Maxim Semiconductor MAX96745 GMSL2 Serializer Support"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	select I2C_MUX
+	help
+	  Say yes here to add support for Maxim Semiconductor MAX96745.
+
 config MFD_MAX96752F
 	tristate "Maxim Semiconductor MAX96752F GMSL2 Deserializer Support"
 	depends on I2C
