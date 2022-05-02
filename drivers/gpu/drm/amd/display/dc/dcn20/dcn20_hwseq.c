@@ -1773,7 +1773,6 @@ void dcn20_post_unlock_program_front_end(
 	 */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-
 		if (pipe->plane_state && !pipe->top_pipe && pipe->update_flags.bits.enable) {
 			struct hubp *hubp = pipe->plane_res.hubp;
 			int j = 0;
