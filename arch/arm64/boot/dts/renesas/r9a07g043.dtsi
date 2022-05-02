@@ -498,12 +498,19 @@
 		};
 
 		sbc: spi@10060000 {
+			compatible = "renesas,r9a07g043-rpc-if",
+				     "renesas,rzg2l-rpc-if";
 			reg = <0 0x10060000 0 0x10000>,
 			      <0 0x20000000 0 0x10000000>,
 			      <0 0x10070000 0 0x10000>;
+			reg-names = "regs", "dirmap", "wbuf";
+			clocks = <&cpg CPG_MOD R9A07G043_SPI_CLK2>,
+				 <&cpg CPG_MOD R9A07G043_SPI_CLK>;
+			resets = <&cpg R9A07G043_SPI_RST>;
+			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			/* place holder */
+			status = "disabled";
 		};
 
 		cpg: clock-controller@11010000 {
