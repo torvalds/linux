@@ -63,6 +63,7 @@
 #define MAX_VMBUS_PKT_SIZE 0x4000
 
 #define SYNTHVID_VERSION(major, minor) ((minor) << 16 | (major))
+/* Support for VERSION_WIN7 is removed. #define is retained for reference. */
 #define SYNTHVID_VERSION_WIN7 SYNTHVID_VERSION(3, 0)
 #define SYNTHVID_VERSION_WIN8 SYNTHVID_VERSION(3, 2)
 #define SYNTHVID_VERSION_WIN10 SYNTHVID_VERSION(3, 5)
@@ -70,13 +71,7 @@
 #define SYNTHVID_VER_GET_MAJOR(ver) (ver & 0x0000ffff)
 #define SYNTHVID_VER_GET_MINOR(ver) ((ver & 0xffff0000) >> 16)
 
-#define SYNTHVID_DEPTH_WIN7 16
 #define SYNTHVID_DEPTH_WIN8 32
-
-#define SYNTHVID_FB_SIZE_WIN7 (4 * 1024 * 1024)
-#define SYNTHVID_WIDTH_MAX_WIN7 1600
-#define SYNTHVID_HEIGHT_MAX_WIN7 1200
-
 #define SYNTHVID_FB_SIZE_WIN8 (8 * 1024 * 1024)
 
 #define PCI_VENDOR_ID_MICROSOFT 0x1414
@@ -644,12 +639,6 @@ static int synthvid_connect_vsp(struct hv_device *hdev)
 	case VERSION_WIN8:
 	case VERSION_WIN8_1:
 		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN8);
-		if (!ret)
-			break;
-		fallthrough;
-	case VERSION_WS2008:
-	case VERSION_WIN7:
-		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN7);
 		break;
 	default:
 		ret = synthvid_negotiate_ver(hdev, SYNTHVID_VERSION_WIN10);
@@ -661,11 +650,7 @@ static int synthvid_connect_vsp(struct hv_device *hdev)
 		goto error;
 	}
 
-	if (par->synthvid_version == SYNTHVID_VERSION_WIN7)
-		screen_depth = SYNTHVID_DEPTH_WIN7;
-	else
-		screen_depth = SYNTHVID_DEPTH_WIN8;
-
+	screen_depth = SYNTHVID_DEPTH_WIN8;
 	if (synthvid_ver_ge(par->synthvid_version, SYNTHVID_VERSION_WIN10)) {
 		ret = synthvid_get_supported_resolution(hdev);
 		if (ret)
@@ -933,9 +918,7 @@ static void hvfb_get_option(struct fb_info *info)
 	    (synthvid_ver_ge(par->synthvid_version, SYNTHVID_VERSION_WIN10) &&
 	    (x * y * screen_depth / 8 > screen_fb_size)) ||
 	    (par->synthvid_version == SYNTHVID_VERSION_WIN8 &&
-	     x * y * screen_depth / 8 > SYNTHVID_FB_SIZE_WIN8) ||
-	    (par->synthvid_version == SYNTHVID_VERSION_WIN7 &&
-	     (x > SYNTHVID_WIDTH_MAX_WIN7 || y > SYNTHVID_HEIGHT_MAX_WIN7))) {
+	     x * y * screen_depth / 8 > SYNTHVID_FB_SIZE_WIN8)) {
 		pr_err("Screen resolution option is out of range: skipped\n");
 		return;
 	}
