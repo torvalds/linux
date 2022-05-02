@@ -64,15 +64,15 @@ enum spi_imx_devtype {
 struct spi_imx_data;
 
 struct spi_imx_devtype_data {
-	void (*intctrl)(struct spi_imx_data *, int);
-	int (*prepare_message)(struct spi_imx_data *, struct spi_message *);
-	int (*prepare_transfer)(struct spi_imx_data *, struct spi_device *);
-	void (*trigger)(struct spi_imx_data *);
-	int (*rx_available)(struct spi_imx_data *);
-	void (*reset)(struct spi_imx_data *);
-	void (*setup_wml)(struct spi_imx_data *);
-	void (*disable)(struct spi_imx_data *);
-	void (*disable_dma)(struct spi_imx_data *);
+	void (*intctrl)(struct spi_imx_data *spi_imx, int enable);
+	int (*prepare_message)(struct spi_imx_data *spi_imx, struct spi_message *msg);
+	int (*prepare_transfer)(struct spi_imx_data *spi_imx, struct spi_device *spi);
+	void (*trigger)(struct spi_imx_data *spi_imx);
+	int (*rx_available)(struct spi_imx_data *spi_imx);
+	void (*reset)(struct spi_imx_data *spi_imx);
+	void (*setup_wml)(struct spi_imx_data *spi_imx);
+	void (*disable)(struct spi_imx_data *spi_imx);
+	void (*disable_dma)(struct spi_imx_data *spi_imx);
 	bool has_dmamode;
 	bool has_slavemode;
 	unsigned int fifo_size;
@@ -102,8 +102,8 @@ struct spi_imx_data {
 	unsigned int spi_drctl;
 
 	unsigned int count, remainder;
-	void (*tx)(struct spi_imx_data *);
-	void (*rx)(struct spi_imx_data *);
+	void (*tx)(struct spi_imx_data *spi_imx);
+	void (*rx)(struct spi_imx_data *spi_imx);
 	void *rx_buf;
 	const void *tx_buf;
 	unsigned int txfifo; /* number of words pushed in tx FIFO */
