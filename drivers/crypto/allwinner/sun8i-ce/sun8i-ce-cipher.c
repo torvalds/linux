@@ -25,27 +25,54 @@ static int sun8i_ce_cipher_need_fallback(struct skcipher_request *areq)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
 	struct scatterlist *sg;
+	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
+	struct sun8i_ce_alg_template *algt;
+
+	algt = container_of(alg, struct sun8i_ce_alg_template, alg.skcipher);
 
 	if (sg_nents_for_len(areq->src, areq->cryptlen) > MAX_SG ||
-	    sg_nents_for_len(areq->dst, areq->cryptlen) > MAX_SG)
+	    sg_nents_for_len(areq->dst, areq->cryptlen) > MAX_SG) {
+		algt->stat_fb_maxsg++;
 		return true;
+	}
 
-	if (areq->cryptlen < crypto_skcipher_ivsize(tfm))
+	if (areq->cryptlen < crypto_skcipher_ivsize(tfm)) {
+		algt->stat_fb_leniv++;
 		return true;
+	}
 
-	if (areq->cryptlen == 0 || areq->cryptlen % 16)
+	if (areq->cryptlen == 0) {
+		algt->stat_fb_len0++;
 		return true;
+	}
+
+	if (areq->cryptlen % 16) {
+		algt->stat_fb_mod16++;
+		return true;
+	}
 
 	sg = areq->src;
 	while (sg) {
-		if (sg->length % 4 || !IS_ALIGNED(sg->offset, sizeof(u32)))
+		if (!IS_ALIGNED(sg->offset, sizeof(u32))) {
+			algt->stat_fb_srcali++;
 			return true;
+		}
+		if (sg->length % 4) {
+			algt->stat_fb_srclen++;
+			return true;
+		}
 		sg = sg_next(sg);
 	}
 	sg = areq->dst;
 	while (sg) {
-		if (sg->length % 4 || !IS_ALIGNED(sg->offset, sizeof(u32)))
+		if (!IS_ALIGNED(sg->offset, sizeof(u32))) {
+			algt->stat_fb_dstali++;
 			return true;
+		}
+		if (sg->length % 4) {
+			algt->stat_fb_dstlen++;
+			return true;
+		}
 		sg = sg_next(sg);
 	}
 	return false;
@@ -384,9 +411,9 @@ int sun8i_ce_cipher_init(struct crypto_tfm *tfm)
 	sktfm->reqsize = sizeof(struct sun8i_cipher_req_ctx) +
 			 crypto_skcipher_reqsize(op->fallback_tfm);
 
-	dev_info(op->ce->dev, "Fallback for %s is %s\n",
-		 crypto_tfm_alg_driver_name(&sktfm->base),
-		 crypto_tfm_alg_driver_name(crypto_skcipher_tfm(op->fallback_tfm)));
+	memcpy(algt->fbname,
+	       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(op->fallback_tfm)),
+	       CRYPTO_MAX_ALG_NAME);
 
 	op->enginectx.op.do_one_request = sun8i_ce_cipher_run;
 	op->enginectx.op.prepare_request = sun8i_ce_cipher_prepare;
