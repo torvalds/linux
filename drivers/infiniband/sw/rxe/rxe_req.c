@@ -33,8 +33,6 @@ static inline void retry_first_write_send(struct rxe_qp *qp,
 		} else {
 			advance_dma_data(&wqe->dma, to_send);
 		}
-		if (mask & WR_WRITE_MASK)
-			wqe->iova += qp->mtu;
 	}
 }
 
