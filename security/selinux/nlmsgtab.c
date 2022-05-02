@@ -25,8 +25,7 @@ struct nlmsg_perm {
 	u32	perm;
 };
 
-static const struct nlmsg_perm nlmsg_route_perms[] =
-{
+static const struct nlmsg_perm nlmsg_route_perms[] = {
 	{ RTM_NEWLINK,		NETLINK_ROUTE_SOCKET__NLMSG_WRITE },
 	{ RTM_DELLINK,		NETLINK_ROUTE_SOCKET__NLMSG_WRITE },
 	{ RTM_GETLINK,		NETLINK_ROUTE_SOCKET__NLMSG_READ  },
@@ -97,16 +96,14 @@ static const struct nlmsg_perm nlmsg_route_perms[] =
 	{ RTM_GETTUNNEL,	NETLINK_ROUTE_SOCKET__NLMSG_READ  },
 };
 
-static const struct nlmsg_perm nlmsg_tcpdiag_perms[] =
-{
+static const struct nlmsg_perm nlmsg_tcpdiag_perms[] = {
 	{ TCPDIAG_GETSOCK,	NETLINK_TCPDIAG_SOCKET__NLMSG_READ },
 	{ DCCPDIAG_GETSOCK,	NETLINK_TCPDIAG_SOCKET__NLMSG_READ },
 	{ SOCK_DIAG_BY_FAMILY,	NETLINK_TCPDIAG_SOCKET__NLMSG_READ },
 	{ SOCK_DESTROY,		NETLINK_TCPDIAG_SOCKET__NLMSG_WRITE },
 };
 
-static const struct nlmsg_perm nlmsg_xfrm_perms[] =
-{
+static const struct nlmsg_perm nlmsg_xfrm_perms[] = {
 	{ XFRM_MSG_NEWSA,	NETLINK_XFRM_SOCKET__NLMSG_WRITE },
 	{ XFRM_MSG_DELSA,	NETLINK_XFRM_SOCKET__NLMSG_WRITE },
 	{ XFRM_MSG_GETSA,	NETLINK_XFRM_SOCKET__NLMSG_READ  },
@@ -134,8 +131,7 @@ static const struct nlmsg_perm nlmsg_xfrm_perms[] =
 	{ XFRM_MSG_GETDEFAULT,	NETLINK_XFRM_SOCKET__NLMSG_READ  },
 };
 
-static const struct nlmsg_perm nlmsg_audit_perms[] =
-{
+static const struct nlmsg_perm nlmsg_audit_perms[] = {
 	{ AUDIT_GET,		NETLINK_AUDIT_SOCKET__NLMSG_READ     },
 	{ AUDIT_SET,		NETLINK_AUDIT_SOCKET__NLMSG_WRITE    },
 	{ AUDIT_LIST,		NETLINK_AUDIT_SOCKET__NLMSG_READPRIV },

@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-static const char *initial_sid_to_string[] =
-{
+static const char *initial_sid_to_string[] = {
 	NULL,
 	"kernel",
 	"security",

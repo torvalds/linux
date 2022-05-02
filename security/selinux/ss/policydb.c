@@ -314,8 +314,7 @@ static int cat_destroy(void *key, void *datum, void *p)
 	return 0;
 }
 
-static int (*destroy_f[SYM_NUM]) (void *key, void *datum, void *datap) =
-{
+static int (*destroy_f[SYM_NUM]) (void *key, void *datum, void *datap) = {
 	common_destroy,
 	cls_destroy,
 	role_destroy,
@@ -670,8 +669,7 @@ static int cat_index(void *key, void *datum, void *datap)
 	return 0;
 }
 
-static int (*index_f[SYM_NUM]) (void *key, void *datum, void *datap) =
-{
+static int (*index_f[SYM_NUM]) (void *key, void *datum, void *datap) = {
 	common_index,
 	class_index,
 	role_index,
@@ -1639,8 +1637,7 @@ bad:
 	return rc;
 }
 
-static int (*read_f[SYM_NUM]) (struct policydb *p, struct symtab *s, void *fp) =
-{
+static int (*read_f[SYM_NUM]) (struct policydb *p, struct symtab *s, void *fp) = {
 	common_read,
 	class_read,
 	role_read,
@@ -3242,8 +3239,7 @@ static int user_write(void *vkey, void *datum, void *ptr)
 }
 
 static int (*write_f[SYM_NUM]) (void *key, void *datum,
-				void *datap) =
-{
+				void *datap) = {
 	common_write,
 	class_write,
 	role_write,
