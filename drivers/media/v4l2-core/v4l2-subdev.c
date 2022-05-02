@@ -975,9 +975,8 @@ __v4l2_subdev_state_alloc(struct v4l2_subdev *sd, const char *lock_name,
 		state->lock = &state->_lock;
 
 	if (sd->entity.num_pads) {
-		state->pads = kvmalloc_array(sd->entity.num_pads,
-					     sizeof(*state->pads),
-					     GFP_KERNEL | __GFP_ZERO);
+		state->pads = kvcalloc(sd->entity.num_pads,
+				       sizeof(*state->pads), GFP_KERNEL);
 		if (!state->pads) {
 			ret = -ENOMEM;
 			goto err;
