@@ -119,14 +119,16 @@ static const DECLARE_TLV_DB_SCALE(rv1106_codec_adc_alc_gain_tlv,
 static const DECLARE_TLV_DB_SCALE(rv1106_codec_adc_dig_gain_tlv,
 				  -9750, 50, 3000);
 static const DECLARE_TLV_DB_SCALE(rv1106_codec_dac_lineout_gain_tlv,
-				  -600, 150, 0);
-static const DECLARE_TLV_DB_SCALE(rv1106_codec_dac_hpmix_gain_tlv,
-				  -600, 600, 0);
+				  -3900, 150, 600);
 
 static const DECLARE_TLV_DB_RANGE(rv1106_codec_adc_mic_gain_tlv,
 	1, 1, TLV_DB_SCALE_ITEM(0, 0, 0),
 	2, 2, TLV_DB_SCALE_ITEM(2000, 0, 0),
 	3, 3, TLV_DB_SCALE_ITEM(1200, 0, 0),
+);
+
+static const DECLARE_TLV_DB_RANGE(rv1106_codec_dac_hpmix_gain_tlv,
+	1, 2, TLV_DB_SCALE_ITEM(0, 600, 0),
 );
 
 static int check_micbias(int volt);
@@ -136,10 +138,10 @@ static int rv1106_codec_adc_disable(struct rv1106_codec_priv *rv1106);
 
 static int rv1106_codec_micbias_enable(struct rv1106_codec_priv *rv1106,
 				       int micbias_volt);
-static int rv1106_codec_lineout_get_tlv(struct snd_kcontrol *kcontrol,
-					struct snd_ctl_elem_value *ucontrol);
-static int rv1106_codec_lineout_put_tlv(struct snd_kcontrol *kcontrol,
-					struct snd_ctl_elem_value *ucontrol);
+static int rv1106_codec_hpmix_gain_get(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol);
+static int rv1106_codec_hpmix_gain_put(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol);
 static int rv1106_codec_micbias_disable(struct rv1106_codec_priv *rv1106);
 static int rv1106_codec_hpf_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol);
@@ -397,22 +399,22 @@ static const struct snd_kcontrol_new rv1106_codec_dapm_controls[] = {
 		     rv1106_codec_mic_mute_get, rv1106_codec_mic_mute_put),
 
 	/* DAC LINEOUT */
-	SOC_SINGLE_EXT_TLV("DAC LINEOUT Volume",
-			   ACODEC_DAC_ANA_CTL2,
-			   ACODEC_DAC_LINEOUT_GAIN_SFT,
-			   ACODEC_DAC_LINEOUT_GAIN_MAX,
-			   0,
-			   rv1106_codec_lineout_get_tlv,
-			   rv1106_codec_lineout_put_tlv,
-			   rv1106_codec_dac_lineout_gain_tlv),
+	SOC_SINGLE_RANGE_TLV("DAC LINEOUT Volume",
+			     ACODEC_DAC_ANA_CTL2,
+			     ACODEC_DAC_LINEOUT_GAIN_SFT,
+			     ACODEC_DAC_LINEOUT_GAIN_MIN,
+			     ACODEC_DAC_LINEOUT_GAIN_MAX,
+			     0, rv1106_codec_dac_lineout_gain_tlv),
 
 	/* DAC HPMIX */
-	SOC_SINGLE_RANGE_TLV("DAC HPMIX Volume",
-			     ACODEC_DAC_HPMIX_CTL,
-			     ACODEC_DAC_HPMIX_GAIN_SFT,
-			     ACODEC_DAC_HPMIX_GAIN_MIN,
-			     ACODEC_DAC_HPMIX_GAIN_MAX,
-			     0, rv1106_codec_dac_hpmix_gain_tlv),
+	SOC_SINGLE_EXT_TLV("DAC HPMIX Volume",
+			   ACODEC_DAC_HPMIX_CTL,
+			   ACODEC_DAC_HPMIX_GAIN_SFT,
+			   ACODEC_DAC_HPMIX_GAIN_MAX,
+			   0,
+			   rv1106_codec_hpmix_gain_get,
+			   rv1106_codec_hpmix_gain_put,
+			   rv1106_codec_dac_hpmix_gain_tlv),
 };
 
 static unsigned int using_adc_lr(enum adc_mode_e adc_mode)
@@ -1123,46 +1125,58 @@ static int rv1106_codec_dac_enable(struct rv1106_codec_priv *rv1106)
 
 static int rv1106_codec_dac_disable(struct rv1106_codec_priv *rv1106)
 {
-	/* Step 03 */
+	/* Step 02 */
 	regmap_update_bits(rv1106->regmap, ACODEC_DAC_ANA_CTL1,
 			   ACODEC_DAC_L_LINEOUT_MUTE_MSK,
 			   ACODEC_DAC_L_LINEOUT_MUTE);
 
-	/* Step 04 */
+	/* Step 03 */
 	regmap_update_bits(rv1106->regmap, ACODEC_DAC_ANA_CTL1,
 			   ACODEC_DAC_L_LINEOUT_SIGNAL_MSK,
 			   ACODEC_DAC_L_LINEOUT_SIGNAL_INIT);
-	/* Step 05 */
+	/* Step 04 */
 	regmap_update_bits(rv1106->regmap, ACODEC_DAC_ANA_CTL1,
 			   ACODEC_DAC_L_LINEOUT_MSK,
 			   ACODEC_DAC_L_LINEOUT_DIS);
-
+	/* Step 05 */
+	regmap_update_bits(rv1106->regmap, ACODEC_DAC_HPMIX_CTL,
+			   ACODEC_DAC_HPMIX_MUTE_MSK,
+			   ACODEC_DAC_HPMIX_MUTE);
 	/* Step 06 */
+	regmap_update_bits(rv1106->regmap, ACODEC_DAC_HPMIX_CTL,
+			   ACODEC_DAC_HPMIX_MDL_MSK,
+			   ACODEC_DAC_HPMIX_MDL_INIT);
+	/* Step 07 */
+	regmap_update_bits(rv1106->regmap, ACODEC_DAC_HPMIX_CTL,
+			   ACODEC_DAC_HPMIX_MSK,
+			   ACODEC_DAC_HPMIX_DIS);
+	/* Step 08 */
 	regmap_update_bits(rv1106->regmap, ACODEC_DAC_ANA_CTL0,
 			   ACODEC_DAC_SRC_SIGNAL_MSK,
 			   ACODEC_DAC_SRC_SIGNAL_DIS);
-
-	/* Step 07 */
+	/* Step 09 */
 	regmap_update_bits(rv1106->regmap, ACODEC_DAC_ANA_CTL0,
 			   ACODEC_DAC_L_CLK_MSK,
 			   ACODEC_DAC_L_CLK_DIS);
 
-	/* Step 08 */
+	/* Step 10 */
 	regmap_update_bits(rv1106->regmap, ACODEC_DAC_ANA_CTL0,
 			   ACODEC_DAC_L_REF_VOL_MSK,
 			   ACODEC_DAC_L_REF_VOL_DIS);
 
-	/* Step 10 */
+	/* Step 11, note: skip handing POP Sound */
+
+	/* Step 12 */
 	regmap_update_bits(rv1106->regmap, ACODEC_DAC_ANA_CTL0,
 			   ACODEC_DAC_L_REF_VOL_BUF_MSK,
 			   ACODEC_DAC_L_REF_VOL_BUF_DIS);
 
-	/* Step 11 */
+	/* Step 13 */
 	regmap_update_bits(rv1106->regmap, ACODEC_DAC_ANA_CTL0,
 			   ACODEC_DAC_IBIAS_MSK,
 			   ACODEC_DAC_IBIAS_DIS);
 
-	/* Step 12 */
+	/* Step 14 */
 	regmap_update_bits(rv1106->regmap, ACODEC_DAC_ANA_CTL0,
 			   ACODEC_DAC_L_SIGNAL_MSK,
 			   ACODEC_DAC_L_SIGNAL_INIT);
@@ -1325,22 +1339,23 @@ static int rv1106_codec_micbias_disable(struct rv1106_codec_priv *rv1106)
 	return 0;
 }
 
-static int rv1106_codec_lineout_get_tlv(struct snd_kcontrol *kcontrol,
+static int rv1106_codec_hpmix_gain_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	return snd_soc_get_volsw_range(kcontrol, ucontrol);
 }
 
-static int rv1106_codec_lineout_put_tlv(struct snd_kcontrol *kcontrol,
+static int rv1106_codec_hpmix_gain_put(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rv1106_codec_priv *rv1106 = snd_soc_component_get_drvdata(component);
-	unsigned int dgain = ucontrol->value.integer.value[0];
+	unsigned int index = ucontrol->value.integer.value[0];
 
-	if (dgain > ACODEC_DAC_LINEOUT_GAIN_MAX) {
-		dev_err(rv1106->plat_dev, "%s: invalid r_dgain: %d\n",
-			__func__, dgain);
+	if ((index < ACODEC_DAC_HPMIX_GAIN_MIN) ||
+	    (index > ACODEC_DAC_HPMIX_GAIN_MAX)) {
+		dev_err(rv1106->plat_dev, "%s: invalid gain index: %d\n",
+			__func__, index);
 		return -EINVAL;
 	}
 
