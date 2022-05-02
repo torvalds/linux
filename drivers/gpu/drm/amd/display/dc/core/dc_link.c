@@ -3274,6 +3274,8 @@ bool dc_link_setup_psr(struct dc_link *link,
 			psr_config->su_granularity_required;
 		psr_context->su_y_granularity =
 			psr_config->su_y_granularity;
+		psr_context->line_time_in_us =
+			psr_config->line_time_in_us;
 	}
 
 	psr_context->channel = link->ddc->ddc_pin->hw_info.ddc_channel;

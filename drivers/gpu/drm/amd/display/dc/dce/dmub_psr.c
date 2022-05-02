@@ -340,6 +340,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 		copy_settings_data->su_y_granularity = psr_context->su_y_granularity;
 
 	copy_settings_data->line_capture_indication = 0;
+	copy_settings_data->line_time_in_us = psr_context->line_time_in_us;
 	copy_settings_data->fec_enable_status = (link->fec_state == dc_link_fec_enabled);
 	copy_settings_data->fec_enable_delay_in100us = link->dc->debug.fec_enable_delay_in100us;
 	copy_settings_data->cmd_version =  DMUB_CMD_PSR_CONTROL_VERSION_1;

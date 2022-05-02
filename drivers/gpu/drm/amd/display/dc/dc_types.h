@@ -676,6 +676,7 @@ struct psr_config {
 	bool su_granularity_required;
 	/* psr2 selective update y granularity capability */
 	uint8_t su_y_granularity;
+	unsigned int line_time_in_us;
 };
 
 union dmcu_psr_level {
@@ -783,6 +784,7 @@ struct psr_context {
 	bool su_granularity_required;
 	/* psr2 selective update y granularity capability */
 	uint8_t su_y_granularity;
+	unsigned int line_time_in_us;
 };
 
 struct colorspace_transform {
