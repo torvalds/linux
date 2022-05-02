@@ -500,6 +500,14 @@
 			clocks = <&sys_clk>;
 		};
 
+		serdes: serdes@e202c000 {
+			compatible = "microchip,lan966x-serdes";
+			reg = <0xe202c000 0x9c>,
+			      <0xe2004010 0x4>;
+			#phy-cells = <2>;
+			status = "disabled";
+		};
+
 		gic: interrupt-controller@e8c11000 {
 			compatible = "arm,gic-400", "arm,cortex-a7-gic";
 			#interrupt-cells = <3>;
