@@ -1235,6 +1235,13 @@ config GPIO_MAX77650
 	  GPIO driver for MAX77650/77651 PMIC from Maxim Semiconductor.
 	  These chips have a single pin that can be configured as GPIO.
 
+config GPIO_MAX96752F
+	tristate "MAX96752F GPIO"
+	depends on MFD_MAX96752F
+	help
+	  Select this option to enable GPIO driver for the MAX96752F
+	  chip.
+
 config GPIO_MSIC
 	bool "Intel MSIC mixed signal gpio support"
 	depends on (X86 || COMPILE_TEST) && MFD_INTEL_MSIC
