@@ -350,10 +350,12 @@ static void put_rsb(struct dlm_rsb *r)
 {
 	struct dlm_ls *ls = r->res_ls;
 	uint32_t bucket = r->res_bucket;
+	int rv;
 
-	spin_lock(&ls->ls_rsbtbl[bucket].lock);
-	kref_put(&r->res_ref, toss_rsb);
-	spin_unlock(&ls->ls_rsbtbl[bucket].lock);
+	rv = kref_put_lock(&r->res_ref, toss_rsb,
+			   &ls->ls_rsbtbl[bucket].lock);
+	if (rv)
+		spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 }
 
 void dlm_put_rsb(struct dlm_rsb *r)
