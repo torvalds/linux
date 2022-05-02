@@ -64,10 +64,6 @@
 	};
 };
 
-&blsp1_uart3 {
-	status = "ok";
-};
-
 &apps_rsc {
 	pmx65-rpmh-regulators {
 		compatible = "qcom,pmx65-rpmh-regulators";
@@ -243,6 +239,14 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 	};
+};
+
+&blsp1_uart3 {
+	status = "okay";
+};
+
+&qpic_bam {
+	status = "okay";
 };
 
 &usb {
