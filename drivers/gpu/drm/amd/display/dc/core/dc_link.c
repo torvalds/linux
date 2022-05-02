@@ -3206,6 +3206,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 	unsigned int panel_inst;
 	/* updateSinkPsrDpcdConfig*/
 	union dpcd_psr_configuration psr_configuration;
+	union dpcd_alpm_configuration alpm_configuration;
 
 	psr_context->controllerId = CONTROLLER_ID_UNDEFINED;
 
@@ -3231,7 +3232,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 			psr_config->psr_frame_capture_indication_req;
 
 	/* Check for PSR v2*/
-	if (psr_config->psr_version == 0x2) {
+	if (link->psr_settings.psr_version == DC_PSR_VERSION_SU_1) {
 		/* For PSR v2 selective update.
 		 * Indicates whether sink should start capturing
 		 * immediately following active scan line,
@@ -3242,6 +3243,14 @@ bool dc_link_setup_psr(struct dc_link *link,
 		 * IRQ_HPD when CRC mismatch is detected.
 		 */
 		psr_configuration.bits.IRQ_HPD_WITH_CRC_ERROR    = 1;
+		/* For PSR v2, set the bit when the Source device will
+		 * be enabling PSR2 operation.
+		 */
+		psr_configuration.bits.ENABLE_PSR2    = 1;
+		/* For PSR v2, the Sink device must be able to receive
+		 * SU region updates early in the frame time.
+		 */
+		psr_configuration.bits.EARLY_TRANSPORT_ENABLE    = 1;
 	}
 
 	dm_helpers_dp_write_dpcd(
@@ -3250,6 +3259,18 @@ bool dc_link_setup_psr(struct dc_link *link,
 		368,
 		&psr_configuration.raw,
 		sizeof(psr_configuration.raw));
+
+	if (link->psr_settings.psr_version == DC_PSR_VERSION_SU_1) {
+		memset(&alpm_configuration, 0, sizeof(alpm_configuration));
+
+		alpm_configuration.bits.ENABLE = 1;
+		dm_helpers_dp_write_dpcd(
+			link->ctx,
+			link,
+			DP_RECEIVER_ALPM_CONFIG,
+			&alpm_configuration.raw,
+			sizeof(alpm_configuration.raw));
+	}
 
 	psr_context->channel = link->ddc->ddc_pin->hw_info.ddc_channel;
 	psr_context->transmitterId = link->link_enc->transmitter;

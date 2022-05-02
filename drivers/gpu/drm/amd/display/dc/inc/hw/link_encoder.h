@@ -85,7 +85,18 @@ union dpcd_psr_configuration {
 		unsigned char LINE_CAPTURE_INDICATION   : 1;
 		/* For eDP 1.4, PSR v2*/
 		unsigned char IRQ_HPD_WITH_CRC_ERROR    : 1;
-		unsigned char RESERVED                  : 2;
+		unsigned char ENABLE_PSR2               : 1;
+		/* For eDP 1.5, PSR v2 w/ early transport */
+		unsigned char EARLY_TRANSPORT_ENABLE    : 1;
+	} bits;
+	unsigned char raw;
+};
+
+union dpcd_alpm_configuration {
+	struct {
+		unsigned char ENABLE                    : 1;
+		unsigned char IRQ_HPD_ENABLE            : 1;
+		unsigned char RESERVED                  : 6;
 	} bits;
 	unsigned char raw;
 };
