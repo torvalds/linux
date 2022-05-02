@@ -247,7 +247,7 @@ static int dpu_encoder_phys_wb_atomic_check(
 		struct drm_connector_state *conn_state)
 {
 	struct drm_framebuffer *fb;
-	const struct drm_display_mode *mode;
+	const struct drm_display_mode *mode = &crtc_state->mode;
 
 	DPU_DEBUG("[atomic_check:%d, \"%s\",%d,%d]\n",
 			phys_enc->wb_idx, mode->name, mode->hdisplay, mode->vdisplay);
@@ -256,7 +256,6 @@ static int dpu_encoder_phys_wb_atomic_check(
 		return 0;
 
 	fb = conn_state->writeback_job->fb;
-	mode = &crtc_state->mode;
 
 	if (!conn_state || !conn_state->connector) {
 		DPU_ERROR("invalid connector state\n");
