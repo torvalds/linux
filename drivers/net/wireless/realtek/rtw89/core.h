@@ -2649,6 +2649,7 @@ struct rtw89_lck_info {
 struct rtw89_iqk_info {
 	bool lok_cor_fail[RTW89_IQK_CHS_NR][RTW89_IQK_PATH_NR];
 	bool lok_fin_fail[RTW89_IQK_CHS_NR][RTW89_IQK_PATH_NR];
+	bool lok_fail[RTW89_IQK_PATH_NR];
 	bool iqk_tx_fail[RTW89_IQK_CHS_NR][RTW89_IQK_PATH_NR];
 	bool iqk_rx_fail[RTW89_IQK_CHS_NR][RTW89_IQK_PATH_NR];
 	u32 iqk_fail_cnt;
@@ -2677,6 +2678,8 @@ struct rtw89_iqk_info {
 	u32 syn1to2;
 	u8 iqk_mcc_ch[RTW89_IQK_CHS_NR][RTW89_IQK_PATH_NR];
 	u8 iqk_table_idx[RTW89_IQK_PATH_NR];
+	u32 lok_idac[RTW89_IQK_CHS_NR][RTW89_IQK_PATH_NR];
+	u32 lok_vbuf[RTW89_IQK_CHS_NR][RTW89_IQK_PATH_NR];
 };
 
 #define RTW89_DPK_RF_PATH 2

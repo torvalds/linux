@@ -3202,6 +3202,7 @@
 #define RR_MOD_V_DPK 0x5
 #define RR_MOD_V_RXK1 0x6
 #define RR_MOD_V_RXK2 0x7
+#define RR_MOD_NBW GENMASK(15, 14)
 #define RR_MOD_M_RXG GENMASK(13, 4)
 #define RR_MOD_M_RXBB GENMASK(9, 5)
 #define RR_MODOPT 0x01
@@ -3210,8 +3211,20 @@
 #define RR_WLSEL_AG GENMASK(18, 16)
 #define RR_RSV1 0x05
 #define RR_RSV1_RST BIT(0)
+#define RR_BBDC 0x10005
+#define RR_BBDC_SEL BIT(0)
 #define RR_DTXLOK 0x08
 #define RR_RSV2 0x09
+#define RR_LOKVB 0x0a
+#define RR_LOKVB_COI GENMASK(19, 14)
+#define RR_LOKVB_COQ GENMASK(9, 4)
+#define RR_TXIG 0x11
+#define RR_TXIG_TG GENMASK(16, 12)
+#define RR_TXIG_GR1 GENMASK(6, 4)
+#define RR_TXIG_GR0 GENMASK(1, 0)
+#define RR_CHTR 0x17
+#define RR_CHTR_MOD GENMASK(11, 10)
+#define RR_CHTR_TXRX GENMASK(9, 0)
 #define RR_CFGCH 0x18
 #define RR_CFGCH_V1 0x10018
 #define RR_CFGCH_BAND1 GENMASK(17, 16)
@@ -3242,6 +3255,8 @@
 #define RR_RXKPLL_OFF GENMASK(5, 0)
 #define RR_RXKPLL_POW BIT(19)
 #define RR_RSV4 0x1f
+#define RR_RSV4_AGH GENMASK(17, 16)
+#define RR_RSV4_PLLCH GENMASK(9, 0)
 #define RR_RXK 0x20
 #define RR_RXK_SEL2G BIT(8)
 #define RR_RXK_SEL5G BIT(7)
@@ -3264,8 +3279,9 @@
 #define RR_TXG2_ATT0 BIT(11)
 #define RR_BSPAD 0x54
 #define RR_TXGA 0x55
-#define RR_TXGA_LOK_EN BIT(0)
 #define RR_TXGA_TRK_EN BIT(7)
+#define RR_TXGA_LOK_EXT GENMASK(4, 0)
+#define RR_TXGA_LOK_EN BIT(0)
 #define RR_GAINTX 0x56
 #define RR_GAINTX_ALL GENMASK(15, 0)
 #define RR_GAINTX_PAD GENMASK(9, 5)
@@ -3288,26 +3304,37 @@
 #define RR_BIASA2 0x63
 #define RR_BIASA2_LB GENMASK(4, 2)
 #define RR_TXATANK 0x64
+#define RR_TXATANK_LBSW2 GENMASK(17, 15)
 #define RR_TXATANK_LBSW GENMASK(16, 15)
+#define RR_TXA2 0x65
+#define RR_TXA2_LDO GENMASK(19, 16)
 #define RR_TRXIQ 0x66
 #define RR_RSV6 0x6d
 #define RR_TXPOW 0x7f
-#define RR_TXPOW_TXG BIT(1)
 #define RR_TXPOW_TXA BIT(8)
+#define RR_TXPOW_TXAS BIT(7)
+#define RR_TXPOW_TXG BIT(1)
 #define RR_RXPOW 0x80
 #define RR_RXPOW_IQK GENMASK(17, 16)
 #define RR_RXBB 0x83
+#define RR_RXBB_VOBUF GENMASK(15, 12)
 #define RR_RXBB_C2G GENMASK(16, 10)
 #define RR_RXBB_C1G GENMASK(9, 8)
 #define RR_RXBB_ATTR GENMASK(7, 4)
 #define RR_RXBB_ATTC GENMASK(2, 0)
+#define RR_RXG 0x84
+#define RR_RXG_IQKMOD GENMASK(19, 16)
 #define RR_XGLNA2 0x85
 #define RR_XGLNA2_SW GENMASK(1, 0)
+#define RR_RXAE 0x89
+#define RR_RXAE_IQKMOD GENMASK(3, 0)
 #define RR_RXA 0x8a
 #define RR_RXA_DPK GENMASK(9, 8)
 #define RR_RXA2 0x8c
-#define RR_RXA2_C2 GENMASK(9, 3)
 #define RR_RXA2_C1 GENMASK(12, 10)
+#define RR_RXA2_C2 GENMASK(9, 3)
+#define RR_RXA2_IATT GENMASK(7, 4)
+#define RR_RXA2_ATT GENMASK(3, 0)
 #define RR_RXIQGEN 0x8d
 #define RR_RXIQGEN_ATTL GENMASK(12, 8)
 #define RR_RXIQGEN_ATTH GENMASK(14, 13)
@@ -3336,6 +3363,8 @@
 #define RR_MALSEL 0xbe
 #define RR_LCK_TRG 0xd3
 #define RR_LCK_TRGSEL BIT(8)
+#define RR_IQKPLL 0xdc
+#define RR_IQKPLL_MOD GENMASK(9, 8)
 #define RR_RCKD 0xde
 #define RR_RCKD_POW GENMASK(19, 13)
 #define RR_RCKD_BW BIT(2)
@@ -3559,6 +3588,11 @@
 #define B_S0_ADDCK_Q GENMASK(19, 10)
 #define R_ADC_FIFO 0x20fc
 #define B_ADC_FIFO_RST GENMASK(31, 24)
+#define B_ADC_FIFO_RXK GENMASK(31, 16)
+#define B_ADC_FIFO_A3 BIT(28)
+#define B_ADC_FIFO_A2 BIT(24)
+#define B_ADC_FIFO_A1 BIT(20)
+#define B_ADC_FIFO_A0 BIT(16)
 #define R_TXFIR0 0x2300
 #define B_TXFIR_C01 GENMASK(23, 0)
 #define R_TXFIR2 0x2304
@@ -3727,6 +3761,8 @@
 #define B_P0_NBIIDX_NOTCH_EN_V1 BIT(12)
 #define R_P1_MODE 0x4718
 #define B_P1_MODE_SEL GENMASK(31, 30)
+#define R_P0_AGC_CTL 0x4730
+#define B_P0_AGC_EN BIT(31)
 #define R_PATH1_LNA_INIT 0x473C
 #define B_PATH1_LNA_INIT_IDX_MSK GENMASK(26, 24)
 #define R_PATH1_TIA_INIT 0x4748
@@ -3776,6 +3812,8 @@
 #define B_BK_FC0_INV_MSK_V1 GENMASK(18, 0)
 #define R_CCK_FC0_INV_V1 0x4A20
 #define B_CCK_FC0_INV_MSK_V1 GENMASK(18, 0)
+#define R_P1_AGC_CTL 0x4A9C
+#define B_P1_AGC_EN BIT(31)
 #define R_PATH0_RXBB_V1 0x4AD4
 #define B_PATH0_RXBB_MSK_V1 GENMASK(31, 0)
 #define R_PATH1_RXBB_V1 0x4AE0
@@ -3822,6 +3860,12 @@
 #define B_CFO_COMP_VALID_BIT BIT(29)
 #define B_CFO_COMP_WEIGHT_MSK GENMASK(27, 24)
 #define B_CFO_COMP_VAL_MSK GENMASK(11, 0)
+#define R_UPD_CLK 0x5670
+#define B_DAC_VAL BIT(31)
+#define B_ACK_VAL GENMASK(30, 29)
+#define B_DPD_DIS BIT(14)
+#define B_DPD_GDIS BIT(13)
+#define B_IQK_RFC_ON BIT(1)
 #define R_DPD_OFT_EN 0x5800
 #define B_DPD_OFT_EN BIT(28)
 #define R_DPD_OFT_ADDR 0x5804
@@ -3932,8 +3976,9 @@
 #define R_IQK_DIF2 0x8024
 #define B_IQK_DIF2_RXPI GENMASK(19, 0)
 #define R_IQK_DIF4 0x802C
-#define B_IQK_DIF4_TXT GENMASK(11, 0)
 #define B_IQK_DIF4_RXT GENMASK(27, 16)
+#define B_IQK_DIF4_TXT GENMASK(11, 0)
+#define IQK_DF4_TXT_8_25MHZ 0x021
 #define R_IQK_CFG 0x8034
 #define B_IQK_CFG_SET GENMASK(5, 4)
 #define R_TPG_MOD 0x806C
@@ -3995,8 +4040,10 @@
 #define R_CFIR_MAP 0x8150
 #define R_CFIR_LUT 0x8154
 #define B_CFIR_LUT_SEL BIT(8)
+#define B_CFIR_LUT_SET BIT(4)
 #define B_CFIR_LUT_G3 BIT(3)
 #define B_CFIR_LUT_G2 BIT(2)
+#define B_CFIR_LUT_GP_V1 GENMASK(2, 0)
 #define B_CFIR_LUT_GP GENMASK(1, 0)
 #define R_DPD_V1 0x81a0
 #define R_DPD_CH0 0x81AC
