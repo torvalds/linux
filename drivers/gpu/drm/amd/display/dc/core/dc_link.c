@@ -3270,6 +3270,10 @@ bool dc_link_setup_psr(struct dc_link *link,
 			DP_RECEIVER_ALPM_CONFIG,
 			&alpm_configuration.raw,
 			sizeof(alpm_configuration.raw));
+		psr_context->su_granularity_required =
+			psr_config->su_granularity_required;
+		psr_context->su_y_granularity =
+			psr_config->su_y_granularity;
 	}
 
 	psr_context->channel = link->ddc->ddc_pin->hw_info.ddc_channel;
