@@ -68,6 +68,9 @@ EXPORT_SYMBOL_GPL(fwnode_property_present);
  * Function reads an array of u8 properties with @propname from the device
  * firmware description and stores them to @val if found.
  *
+ * It's recommended to call device_property_count_u8() instead of calling
+ * this function with @val equals %NULL and @nval equals 0.
+ *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
  *	   %-EINVAL if given arguments are not valid,
@@ -92,6 +95,9 @@ EXPORT_SYMBOL_GPL(device_property_read_u8_array);
  *
  * Function reads an array of u16 properties with @propname from the device
  * firmware description and stores them to @val if found.
+ *
+ * It's recommended to call device_property_count_u16() instead of calling
+ * this function with @val equals %NULL and @nval equals 0.
  *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
@@ -118,6 +124,9 @@ EXPORT_SYMBOL_GPL(device_property_read_u16_array);
  * Function reads an array of u32 properties with @propname from the device
  * firmware description and stores them to @val if found.
  *
+ * It's recommended to call device_property_count_u32() instead of calling
+ * this function with @val equals %NULL and @nval equals 0.
+ *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
  *	   %-EINVAL if given arguments are not valid,
@@ -143,6 +152,9 @@ EXPORT_SYMBOL_GPL(device_property_read_u32_array);
  * Function reads an array of u64 properties with @propname from the device
  * firmware description and stores them to @val if found.
  *
+ * It's recommended to call device_property_count_u64() instead of calling
+ * this function with @val equals %NULL and @nval equals 0.
+ *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
  *	   %-EINVAL if given arguments are not valid,
@@ -167,6 +179,9 @@ EXPORT_SYMBOL_GPL(device_property_read_u64_array);
  *
  * Function reads an array of string properties with @propname from the device
  * firmware description and stores them to @val if found.
+ *
+ * It's recommended to call device_property_string_array_count() instead of calling
+ * this function with @val equals %NULL and @nval equals 0.
  *
  * Return: number of values read on success if @val is non-NULL,
  *	   number of values available on success if @val is NULL,
@@ -256,6 +271,9 @@ static int fwnode_property_read_int_array(const struct fwnode_handle *fwnode,
  * Read an array of u8 properties with @propname from @fwnode and stores them to
  * @val if found.
  *
+ * It's recommended to call fwnode_property_count_u8() instead of calling
+ * this function with @val equals %NULL and @nval equals 0.
+ *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
  *	   %-EINVAL if given arguments are not valid,
@@ -281,6 +299,9 @@ EXPORT_SYMBOL_GPL(fwnode_property_read_u8_array);
  *
  * Read an array of u16 properties with @propname from @fwnode and store them to
  * @val if found.
+ *
+ * It's recommended to call fwnode_property_count_u16() instead of calling
+ * this function with @val equals %NULL and @nval equals 0.
  *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
@@ -308,6 +329,9 @@ EXPORT_SYMBOL_GPL(fwnode_property_read_u16_array);
  * Read an array of u32 properties with @propname from @fwnode store them to
  * @val if found.
  *
+ * It's recommended to call fwnode_property_count_u32() instead of calling
+ * this function with @val equals %NULL and @nval equals 0.
+ *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
  *	   %-EINVAL if given arguments are not valid,
@@ -334,6 +358,9 @@ EXPORT_SYMBOL_GPL(fwnode_property_read_u32_array);
  * Read an array of u64 properties with @propname from @fwnode and store them to
  * @val if found.
  *
+ * It's recommended to call fwnode_property_count_u64() instead of calling
+ * this function with @val equals %NULL and @nval equals 0.
+ *
  * Return: number of values if @val was %NULL,
  *         %0 if the property was found (success),
  *	   %-EINVAL if given arguments are not valid,
@@ -359,6 +386,9 @@ EXPORT_SYMBOL_GPL(fwnode_property_read_u64_array);
  *
  * Read an string list property @propname from the given firmware node and store
  * them to @val if found.
+ *
+ * It's recommended to call fwnode_property_string_array_count() instead of calling
+ * this function with @val equals %NULL and @nval equals 0.
  *
  * Return: number of values read on success if @val is non-NULL,
  *	   number of values available on success if @val is NULL,
