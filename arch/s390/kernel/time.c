@@ -554,9 +554,7 @@ static int stp_sync_clock(void *data)
 		while (atomic_read(&sync->cpus) != 0)
 			cpu_relax();
 		rc = 0;
-		if (stp_info.todoff[0] || stp_info.todoff[1] ||
-		    stp_info.todoff[2] || stp_info.todoff[3] ||
-		    stp_info.tmd != 2) {
+		if (stp_info.todoff || stp_info.tmd != 2) {
 			flags = vdso_update_begin();
 			rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0,
 					&clock_delta);
