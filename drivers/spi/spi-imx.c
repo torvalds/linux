@@ -520,6 +520,7 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 	u32 min_speed_hz = ~0U;
 	u32 testreg, delay;
 	u32 cfg = readl(spi_imx->base + MX51_ECSPI_CONFIG);
+	u32 current_cfg = cfg;
 
 	/* set Master or Slave mode */
 	if (spi_imx->slave_mode)
@@ -571,6 +572,9 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 		cfg |= MX51_ECSPI_CONFIG_SSBPOL(spi->chip_select);
 	else
 		cfg &= ~MX51_ECSPI_CONFIG_SSBPOL(spi->chip_select);
+
+	if (cfg == current_cfg)
+		return 0;
 
 	writel(cfg, spi_imx->base + MX51_ECSPI_CONFIG);
 
