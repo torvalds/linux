@@ -297,7 +297,7 @@ static int i3c_mctp_probe(struct i3c_device *i3cdev)
 	/* register this i3c device with the driver core */
 	priv->dev = device_create(i3c_mctp_class, dev,
 				  MKDEV(MAJOR(i3c_mctp_devt), priv->id),
-				  NULL, "i3c-mctp-%s", dev_name(dev));
+				  NULL, "i3c-mctp-%d", priv->id);
 	if (IS_ERR(priv->dev)) {
 		ret = PTR_ERR(priv->dev);
 		goto error;
