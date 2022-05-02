@@ -310,6 +310,17 @@ config PINCTRL_MAX77620
 	  function in alternate mode. This driver also configure push-pull,
 	  open drain, FPS slots etc.
 
+config PINCTRL_MAX96752F
+	tristate "MAX96752F Pincontrol support"
+	depends on MFD_MAX96752F && OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINCONF
+	help
+	  Say Yes here to enable Pin control support for Maxim MAX96752F.
+
 config PINCTRL_PALMAS
 	tristate "Pinctrl driver for the PALMAS Series MFD devices"
 	depends on OF && MFD_PALMAS
