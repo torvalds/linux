@@ -7,6 +7,7 @@
 #include <linux/rcupdate.h>
 #include "en.h"
 #include "en/ptp.h"
+#include "en/htb.h"
 
 struct mlx5e_selq_params {
 	unsigned int num_regular_queues;

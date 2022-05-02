@@ -63,6 +63,7 @@
 #include "en/devlink.h"
 #include "lib/mlx5.h"
 #include "en/ptp.h"
+#include "en/htb.h"
 #include "qos.h"
 #include "en/trap.h"
 
