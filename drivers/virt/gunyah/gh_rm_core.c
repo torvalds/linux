@@ -51,12 +51,10 @@ struct gh_rm_connection {
 };
 
 struct gh_rm_notif_validate {
-	void *recv_buff;
-	void *payload;
-	size_t recv_buff_size;
 	struct gh_rm_connection *conn;
-	struct work_struct validate_work;
+	struct work_struct work;
 };
+
 const static struct {
 	enum gh_vm_names val;
 	const char *image_name;
@@ -225,50 +223,19 @@ gh_rm_validate_vm_exited_notif(void *payload, size_t payload_size)
 	return 0;
 }
 
-static struct gh_rm_connection *
-gh_rm_wait_for_notif_fragments(void *recv_buff, size_t recv_buff_size)
-{
-	struct gh_rm_rpc_hdr *hdr = recv_buff;
-	struct gh_rm_connection *connection;
-	bool seq_done_needed = false;
-	size_t payload_size;
-	int ret = 0;
-
-	connection = gh_rm_alloc_connection(hdr->msg_id, seq_done_needed);
-	if (IS_ERR_OR_NULL(connection))
-		return connection;
-
-	payload_size = recv_buff_size - sizeof(*hdr);
-
-	ret = gh_rm_init_connection_buff(connection, recv_buff,
-					sizeof(*hdr), payload_size);
-	if (ret < 0)
-		goto out;
-	return connection;
-
-out:
-	kfree(connection);
-	return ERR_PTR(ret);
-}
-
 static void gh_rm_validate_notif(struct work_struct *work)
 {
 	struct gh_rm_connection *connection = NULL;
 	struct gh_rm_notif_validate *validate_work;
-	void *recv_buff;
 	size_t payload_size;
 	void *payload;
-	struct gh_rm_rpc_hdr *hdr;
 	u32 notification;
 
-	validate_work = container_of(work, struct gh_rm_notif_validate,
-							validate_work);
-	recv_buff = validate_work->recv_buff;
-	payload = validate_work->payload;
-	payload_size = validate_work->recv_buff_size - sizeof(*hdr);
+	validate_work = container_of(work, struct gh_rm_notif_validate, work);
 	connection = validate_work->conn;
-	hdr = recv_buff;
-	notification = hdr->msg_id;
+	payload = connection->recv_buff;
+	payload_size = connection->recv_buff_size;
+	notification = connection->msg_id;
 	pr_debug("Notification received from RM-VM: %x\n", notification);
 
 	switch (notification) {
@@ -359,44 +326,38 @@ static void gh_rm_validate_notif(struct work_struct *work)
 
 	srcu_notifier_call_chain(&gh_rm_notifier, notification, payload);
 err:
-	kfree(recv_buff);
+	kfree(payload);
 	kfree(connection);
 	kfree(validate_work);
 }
 
 static
-struct gh_rm_connection *gh_rm_process_notif(void *recv_buff, size_t recv_buff_size)
+struct gh_rm_connection *gh_rm_process_notif(void *msg, size_t msg_size)
 {
-	struct gh_rm_connection *connection = NULL;
+	struct gh_rm_rpc_hdr *hdr = msg;
+	struct gh_rm_connection *connection;
 	struct gh_rm_notif_validate *validate_work;
-	struct gh_rm_rpc_hdr *hdr = recv_buff;
-	void *payload = NULL;
 
-	if (recv_buff_size > sizeof(*hdr))
-		payload = recv_buff + sizeof(*hdr);
+	connection = gh_rm_alloc_connection(hdr->msg_id, false);
+	if (!connection)
+		return NULL;
 
-	/* If the notification payload is split-up into
-	 * fragments, wait until all them arrive.
-	 */
-	if (hdr->fragments) {
-		connection = gh_rm_wait_for_notif_fragments(recv_buff,
-							recv_buff_size);
-		return connection;
+	if (gh_rm_init_connection_buff(connection, msg, sizeof(*hdr), msg_size - sizeof(*hdr))) {
+		kfree(connection);
+		return NULL;
 	}
 
-	/* Validate the notification received if there are no more
-	 * fragments to follow.
-	 */
+	if (hdr->fragments)
+		return connection;
+
+	/* Validate the notification received if there are no more fragments to follow */
 	validate_work = kzalloc(sizeof(*validate_work), GFP_KERNEL);
 	if (validate_work == NULL)
 		return ERR_PTR(-ENOMEM);
-	validate_work->recv_buff = recv_buff;
-	validate_work->recv_buff_size = recv_buff_size;
-	validate_work->payload = payload;
 	validate_work->conn = connection;
-	INIT_WORK(&validate_work->validate_work, gh_rm_validate_notif);
+	INIT_WORK(&validate_work->work, gh_rm_validate_notif);
 
-	schedule_work(&validate_work->validate_work);
+	schedule_work(&validate_work->work);
 	return connection;
 }
 
@@ -505,15 +466,10 @@ static int gh_rm_process_cont(struct gh_rm_connection *connection,
 						GFP_KERNEL);
 			if (validate_work == NULL)
 				return -ENOMEM;
-			validate_work->recv_buff = recv_buff;
-			validate_work->recv_buff_size =
-					connection->recv_buff_size;
-			validate_work->payload = connection->recv_buff;
 			validate_work->conn = connection;
-			INIT_WORK(&validate_work->validate_work,
-					gh_rm_validate_notif);
+			INIT_WORK(&validate_work->work, gh_rm_validate_notif);
 
-			schedule_work(&validate_work->validate_work);
+			schedule_work(&validate_work->work);
 			break;
 		default:
 			pr_err("%s: Invalid message type (%d) received\n",
