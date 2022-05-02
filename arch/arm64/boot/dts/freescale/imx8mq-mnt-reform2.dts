@@ -18,7 +18,7 @@
 		compatible = "pwm-backlight";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_backlight>;
-		pwms = <&pwm2 0 10000>;
+		pwms = <&pwm2 0 10000 0>;
 		power-supply = <&reg_main_usb>;
 		enable-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
 		brightness-levels = <0 32 64 128 160 200 255>;
