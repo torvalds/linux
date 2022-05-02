@@ -893,6 +893,10 @@
 	};
 };
 
+&wkup_m3_ipc {
+	firmware-name = "am43x-evm-scale-data.bin";
+};
+
 &pruss1_mdio {
 	status = "disabled";
 };
