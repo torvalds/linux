@@ -31,6 +31,12 @@ static bool use_dma = true;
 module_param(use_dma, bool, 0644);
 MODULE_PARM_DESC(use_dma, "Enable usage of DMA when available (default)");
 
+/* define polling limits */
+static unsigned int polling_limit_us = 30;
+module_param(polling_limit_us, uint, 0664);
+MODULE_PARM_DESC(polling_limit_us,
+		 "time in us to run a transfer in polling mode\n");
+
 #define MXC_RPM_TIMEOUT		2000 /* 2000ms */
 
 #define MXC_CSPIRXDATA		0x00
@@ -1488,6 +1494,54 @@ static int spi_imx_pio_transfer(struct spi_device *spi,
 	return 0;
 }
 
+static int spi_imx_poll_transfer(struct spi_device *spi,
+				 struct spi_transfer *transfer)
+{
+	struct spi_imx_data *spi_imx = spi_controller_get_devdata(spi->controller);
+	unsigned long timeout;
+
+	spi_imx->tx_buf = transfer->tx_buf;
+	spi_imx->rx_buf = transfer->rx_buf;
+	spi_imx->count = transfer->len;
+	spi_imx->txfifo = 0;
+	spi_imx->remainder = 0;
+
+	/* fill in the fifo before timeout calculations if we are
+	 * interrupted here, then the data is getting transferred by
+	 * the HW while we are interrupted
+	 */
+	spi_imx_push(spi_imx);
+
+	timeout = spi_imx_calculate_timeout(spi_imx, transfer->len) + jiffies;
+	while (spi_imx->txfifo) {
+		/* RX */
+		while (spi_imx->txfifo &&
+		       spi_imx->devtype_data->rx_available(spi_imx)) {
+			spi_imx->rx(spi_imx);
+			spi_imx->txfifo--;
+		}
+
+		/* TX */
+		if (spi_imx->count) {
+			spi_imx_push(spi_imx);
+			continue;
+		}
+
+		if (spi_imx->txfifo &&
+		    time_after(jiffies, timeout)) {
+
+			dev_err_ratelimited(&spi->dev,
+					    "timeout period reached: jiffies: %lu- falling back to interrupt mode\n",
+					    jiffies - timeout);
+
+			/* fall back to interrupt mode */
+			return spi_imx_pio_transfer(spi, transfer);
+		}
+	}
+
+	return 0;
+}
+
 static int spi_imx_pio_transfer_slave(struct spi_device *spi,
 				      struct spi_transfer *transfer)
 {
@@ -1537,6 +1591,7 @@ static int spi_imx_transfer_one(struct spi_controller *controller,
 				struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_controller_get_devdata(spi->controller);
+	unsigned long hz_per_byte, byte_limit;
 
 	spi_imx_setupxfer(spi, transfer);
 	transfer->effective_speed_hz = spi_imx->spi_bus_clk;
@@ -1547,6 +1602,17 @@ static int spi_imx_transfer_one(struct spi_controller *controller,
 
 	if (spi_imx->slave_mode)
 		return spi_imx_pio_transfer_slave(spi, transfer);
+
+	/*
+	 * Calculate the estimated time in us the transfer runs. Find
+	 * the number of Hz per byte per polling limit.
+	 */
+	hz_per_byte = polling_limit_us ? ((8 + 4) * USEC_PER_SEC) / polling_limit_us : 0;
+	byte_limit = hz_per_byte ? transfer->effective_speed_hz / hz_per_byte : 1;
+
+	/* run in polling mode for short transfers */
+	if (transfer->len < byte_limit)
+		return spi_imx_poll_transfer(spi, transfer);
 
 	if (spi_imx->usedma)
 		return spi_imx_dma_transfer(spi_imx, transfer);
