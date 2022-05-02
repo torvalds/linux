@@ -358,27 +358,27 @@ static int constraint_expr_eval(struct policydb *policydb,
 				l2 = &(tcontext->range.level[1]);
 				goto mls_ops;
 mls_ops:
-			switch (e->op) {
-			case CEXPR_EQ:
-				s[++sp] = mls_level_eq(l1, l2);
-				continue;
-			case CEXPR_NEQ:
-				s[++sp] = !mls_level_eq(l1, l2);
-				continue;
-			case CEXPR_DOM:
-				s[++sp] = mls_level_dom(l1, l2);
-				continue;
-			case CEXPR_DOMBY:
-				s[++sp] = mls_level_dom(l2, l1);
-				continue;
-			case CEXPR_INCOMP:
-				s[++sp] = mls_level_incomp(l2, l1);
-				continue;
-			default:
-				BUG();
-				return 0;
-			}
-			break;
+				switch (e->op) {
+				case CEXPR_EQ:
+					s[++sp] = mls_level_eq(l1, l2);
+					continue;
+				case CEXPR_NEQ:
+					s[++sp] = !mls_level_eq(l1, l2);
+					continue;
+				case CEXPR_DOM:
+					s[++sp] = mls_level_dom(l1, l2);
+					continue;
+				case CEXPR_DOMBY:
+					s[++sp] = mls_level_dom(l2, l1);
+					continue;
+				case CEXPR_INCOMP:
+					s[++sp] = mls_level_incomp(l2, l1);
+					continue;
+				default:
+					BUG();
+					return 0;
+				}
+				break;
 			default:
 				BUG();
 				return 0;
