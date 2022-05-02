@@ -1544,6 +1544,9 @@ static int __init init_nfsd(void)
 	retval = register_cld_notifier();
 	if (retval)
 		goto out_free_all;
+	retval = nfsd4_create_laundry_wq();
+	if (retval)
+		goto out_free_all;
 	return 0;
 out_free_all:
 	unregister_pernet_subsys(&nfsd_net_ops);
@@ -1566,6 +1569,7 @@ out_free_slabs:
 
 static void __exit exit_nfsd(void)
 {
+	nfsd4_destroy_laundry_wq();
 	unregister_cld_notifier();
 	unregister_pernet_subsys(&nfsd_net_ops);
 	nfsd_drc_slab_free();
