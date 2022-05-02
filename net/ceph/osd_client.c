@@ -2385,7 +2385,11 @@ again:
 		if (ceph_test_opt(osdc->client, ABORT_ON_FULL)) {
 			err = -ENOSPC;
 		} else {
-			pr_warn_ratelimited("FULL or reached pool quota\n");
+			if (ceph_osdmap_flag(osdc, CEPH_OSDMAP_FULL))
+				pr_warn_ratelimited("cluster is full (osdmap FULL)\n");
+			else
+				pr_warn_ratelimited("pool %lld is full or reached quota\n",
+						    req->r_t.base_oloc.pool);
 			req->r_t.paused = true;
 			maybe_request_map(osdc);
 		}

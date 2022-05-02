@@ -136,14 +136,14 @@ required:
   - reg
 
 if:
-  properties:
-    compatible:
-      contains:
-        enum:
-          - qcom,rpm-msg-ram
-          - rockchip,rk3288-pmu-sram
-
-else:
+  not:
+    properties:
+      compatible:
+        contains:
+          enum:
+            - qcom,rpm-msg-ram
+            - rockchip,rk3288-pmu-sram
+then:
   required:
     - "#address-cells"
     - "#size-cells"

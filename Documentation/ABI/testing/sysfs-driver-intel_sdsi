@@ -13,17 +13,19 @@ Description:
 		Should the operation fail, one of the following error codes
 		may be returned:
 
+		==========	=====
 		Error Code	Cause
-	        ----------	-----
-	        EIO		General mailbox failure. Log may indicate cause.
-	        EBUSY		Mailbox is owned by another agent.
-	        EPERM		SDSI capability is not enabled in hardware.
-	        EPROTO		Failure in mailbox protocol detected by driver.
+		==========	=====
+		EIO		General mailbox failure. Log may indicate cause.
+		EBUSY		Mailbox is owned by another agent.
+		EPERM		SDSI capability is not enabled in hardware.
+		EPROTO		Failure in mailbox protocol detected by driver.
 				See log for details.
-	        EOVERFLOW	For provision commands, the size of the data
+		EOVERFLOW	For provision commands, the size of the data
 				exceeds what may be written.
-	        ESPIPE		Seeking is not allowed.
-	        ETIMEDOUT	Failure to complete mailbox transaction in time.
+		ESPIPE		Seeking is not allowed.
+		ETIMEDOUT	Failure to complete mailbox transaction in time.
+		==========	=====
 
 What:		/sys/bus/auxiliary/devices/intel_vsec.sdsi.X/guid
 Date:		Feb 2022

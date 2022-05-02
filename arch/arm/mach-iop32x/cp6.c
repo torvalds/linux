@@ -7,6 +7,8 @@
 #include <asm/traps.h>
 #include <asm/ptrace.h>
 
+#include "iop3xx.h"
+
 void iop_enable_cp6(void)
 {
 	u32 temp;
