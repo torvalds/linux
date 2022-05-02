@@ -470,7 +470,7 @@ static unsigned int mx51_ecspi_clkdiv(struct spi_imx_data *spi_imx,
 
 static void mx51_ecspi_intctrl(struct spi_imx_data *spi_imx, int enable)
 {
-	unsigned val = 0;
+	unsigned int val = 0;
 
 	if (enable & MXC_INT_TE)
 		val |= MX51_ECSPI_INT_TEEN;
