@@ -3312,17 +3312,24 @@
 #define RR_RXIQGEN_ATTL GENMASK(12, 8)
 #define RR_RXIQGEN_ATTH GENMASK(14, 13)
 #define RR_RXBB2 0x8f
-#define RR_EN_TIA_IDA GENMASK(11, 10)
 #define RR_RXBB2_DAC_EN BIT(13)
+#define RR_RXBB2_CKT BIT(12)
+#define RR_EN_TIA_IDA GENMASK(11, 10)
+#define RR_RXBB2_IDAC GENMASK(11, 9)
+#define RR_RXBB2_EBW GENMASK(6, 5)
 #define RR_XALNA2 0x90
 #define RR_XALNA2_SW GENMASK(1, 0)
 #define RR_DCK 0x92
+#define RR_DCK_DONE GENMASK(7, 5)
 #define RR_DCK_FINE BIT(1)
 #define RR_DCK_LV BIT(0)
 #define RR_DCK1 0x93
+#define RR_DCK1_CLR GENMASK(3, 0)
 #define RR_DCK1_SEL BIT(3)
 #define RR_DCK2 0x94
 #define RR_DCK2_CYCLE GENMASK(7, 2)
+#define RR_DCKC 0x95
+#define RR_DCKC_CHK BIT(3)
 #define RR_MIXER 0x9f
 #define RR_MIXER_GN GENMASK(4, 3)
 #define RR_XTALX2 0xb8

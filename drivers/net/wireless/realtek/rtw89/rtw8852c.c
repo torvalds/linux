@@ -1779,12 +1779,14 @@ static void rtw8852c_rfk_init(struct rtw89_dev *rtwdev)
 
 	rtw8852c_rck(rtwdev);
 	rtw8852c_dack(rtwdev);
+	rtw8852c_rx_dck(rtwdev, RTW89_PHY_0, false);
 }
 
 static void rtw8852c_rfk_channel(struct rtw89_dev *rtwdev)
 {
 	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
 
+	rtw8852c_rx_dck(rtwdev, phy_idx, false);
 	rtw8852c_tssi(rtwdev, phy_idx);
 	rtw89_fw_h2c_rf_ntfy_mcc(rtwdev);
 }

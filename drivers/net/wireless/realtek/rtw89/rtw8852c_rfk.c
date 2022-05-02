@@ -505,6 +505,42 @@ static void _rck(struct rtw89_dev *rtwdev, enum rtw89_rf_path path)
 		    rtw89_read_rf(rtwdev, path, RR_RCKS, RFREG_MASK));
 }
 
+static void _rx_dck_toggle(struct rtw89_dev *rtwdev, u8 path)
+{
+	int ret;
+	u32 val;
+
+	rtw89_write_rf(rtwdev, path, RR_DCK, RR_DCK_LV, 0x0);
+	rtw89_write_rf(rtwdev, path, RR_DCK, RR_DCK_LV, 0x1);
+
+	ret = read_poll_timeout_atomic(rtw89_read_rf, val, val,
+				       2, 1000, false, rtwdev, path, 0x93, BIT(5));
+	if (ret)
+		rtw89_warn(rtwdev, "[RX_DCK] S%d RXDCK timeout\n", path);
+	else
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[RX_DCK] S%d RXDCK finish\n", path);
+
+	rtw89_write_rf(rtwdev, path, RR_DCK, RR_DCK_LV, 0x0);
+}
+
+static void _set_rx_dck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy, u8 path,
+			bool is_afe)
+{
+	u8 res;
+
+	rtw89_write_rf(rtwdev, path, RR_DCK1, RR_DCK1_CLR, 0x0);
+
+	_rx_dck_toggle(rtwdev, path);
+	if (rtw89_read_rf(rtwdev, path, RR_DCKC, RR_DCKC_CHK) == 0)
+		return;
+	res = rtw89_read_rf(rtwdev, path, RR_DCK, RR_DCK_DONE);
+	if (res > 1) {
+		rtw89_write_rf(rtwdev, path, RR_RXBB2, RR_RXBB2_IDAC, res);
+		_rx_dck_toggle(rtwdev, path);
+		rtw89_write_rf(rtwdev, path, RR_RXBB2, RR_RXBB2_IDAC, 0x1);
+	}
+}
+
 static void _tssi_set_sys(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 			  enum rtw89_rf_path path)
 {
@@ -1669,6 +1705,37 @@ void rtw8852c_dack(struct rtw89_dev *rtwdev)
 	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_DACK, BTC_WRFK_START);
 	_dac_cal(rtwdev, false);
 	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_DACK, BTC_WRFK_STOP);
+}
+
+#define RXDCK_VER_8852C 0xe
+
+void rtw8852c_rx_dck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy, bool is_afe)
+{
+	u8 path, kpath;
+	u32 rf_reg5;
+
+	kpath = _kpath(rtwdev, phy);
+	rtw89_debug(rtwdev, RTW89_DBG_RFK,
+		    "[RX_DCK] ****** RXDCK Start (Ver: 0x%x, Cv: %d) ******\n",
+		    RXDCK_VER_8852C, rtwdev->hal.cv);
+
+	for (path = 0; path < 2; path++) {
+		rf_reg5 = rtw89_read_rf(rtwdev, path, RR_RSV1, RFREG_MASK);
+		if (!(kpath & BIT(path)))
+			continue;
+
+		if (rtwdev->is_tssi_mode[path])
+			rtw89_phy_write32_mask(rtwdev, R_P0_TSSI_TRK + (path << 13),
+					       B_P0_TSSI_TRK_EN, 0x1);
+		rtw89_write_rf(rtwdev, path, RR_RSV1, RR_RSV1_RST, 0x0);
+		rtw89_write_rf(rtwdev, path, RR_MOD, RR_MOD_MASK, RR_MOD_V_RX);
+		_set_rx_dck(rtwdev, phy, path, is_afe);
+		rtw89_write_rf(rtwdev, path, RR_RSV1, RFREG_MASK, rf_reg5);
+
+		if (rtwdev->is_tssi_mode[path])
+			rtw89_phy_write32_mask(rtwdev, R_P0_TSSI_TRK + (path << 13),
+					       B_P0_TSSI_TRK_EN, 0x0);
+	}
 }
 
 void rtw8852c_tssi(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy)
