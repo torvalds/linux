@@ -569,8 +569,8 @@ static int gh_rm_send_request(u32 message_id,
 	unsigned long tx_flags;
 	u32 num_fragments = 0;
 	size_t payload_size;
-	void *send_buff;
-	int i, ret;
+	void *msg;
+	int i, ret = 0;
 
 	/* Drivers need probe defer
 	 * when do RM call before RM driver initialized
@@ -593,10 +593,15 @@ static int gh_rm_send_request(u32 message_id,
 		return -E2BIG;
 	}
 
-	if (mutex_lock_interruptible(&gh_rm_send_lock))
-		return -ERESTARTSYS;
+	msg = kzalloc(GH_RM_MAX_MSG_SIZE_BYTES, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
 
-	/* Consider also the 'request' packet for the loop count */
+	if (mutex_lock_interruptible(&gh_rm_send_lock)) {
+		ret = -ERESTARTSYS;
+		goto free_msg;
+	}
+
 	for (i = 0; i <= num_fragments; i++) {
 		if (buff_size_remaining > GH_RM_MAX_MSG_SIZE_BYTES) {
 			payload_size = GH_RM_MAX_MSG_SIZE_BYTES;
@@ -605,13 +610,10 @@ static int gh_rm_send_request(u32 message_id,
 			payload_size = buff_size_remaining;
 		}
 
-		send_buff = kzalloc(sizeof(*hdr) + payload_size, GFP_KERNEL);
-		if (!send_buff) {
-			mutex_unlock(&gh_rm_send_lock);
-			return -ENOMEM;
-		}
+		memset(msg, 0, GH_RM_MAX_MSG_SIZE_BYTES);
 
-		hdr = send_buff;
+		/* Fill header */
+		hdr = msg;
 		hdr->version = GH_RM_RPC_HDR_VERSION_ONE;
 		hdr->hdr_words = GH_RM_RPC_HDR_WORDS;
 		hdr->type = i == 0 ? GH_RM_RPC_TYPE_REQ : GH_RM_RPC_TYPE_CONT;
@@ -619,12 +621,11 @@ static int gh_rm_send_request(u32 message_id,
 		hdr->seq = connection->seq;
 		hdr->msg_id = message_id;
 
-		memcpy(send_buff + sizeof(*hdr), req_buff_curr, payload_size);
+		/* Copy payload */
+		memcpy(msg + sizeof(*hdr), req_buff_curr, payload_size);
 		req_buff_curr += payload_size;
 
-		/* Force the last fragment (or the request type)
-		 * to be sent immediately to the receiver
-		 */
+		/* Force the last fragment to be sent immediately to the receiver */
 		tx_flags = (i == num_fragments) ? GH_MSGQ_TX_PUSH : 0;
 
 		/* delay sending console characters to RM */
@@ -632,25 +633,16 @@ static int gh_rm_send_request(u32 message_id,
 		    message_id == GH_RM_RPC_MSG_ID_CALL_VM_CONSOLE_FLUSH)
 			udelay(800);
 
-		ret = gh_msgq_send(gh_rm_msgq_desc, send_buff,
-					sizeof(*hdr) + payload_size, tx_flags);
+		ret = gh_msgq_send(gh_rm_msgq_desc, msg, sizeof(*hdr) + payload_size, tx_flags);
 
-		/*
-		 * In the case of a success, the hypervisor would have consumed
-		 * the buffer. While in the case of a failure, we are going to
-		 * quit anyways. Hence, free the buffer regardless of the
-		 * return value.
-		 */
-		kfree(send_buff);
-
-		if (ret) {
-			mutex_unlock(&gh_rm_send_lock);
-			return ret;
-		}
+		if (ret)
+			break;
 	}
 
 	mutex_unlock(&gh_rm_send_lock);
-	return 0;
+free_msg:
+	kfree(msg);
+	return ret;
 }
 
 /**
