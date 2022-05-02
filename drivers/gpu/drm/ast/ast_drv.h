@@ -159,6 +159,7 @@ to_ast_sil164_connector(struct drm_connector *connector)
 struct ast_private {
 	struct drm_device base;
 
+	struct mutex ioregs_lock; /* Protects access to I/O registers in ioregs */
 	void __iomem *regs;
 	void __iomem *ioregs;
 	void __iomem *dp501_fw_buf;

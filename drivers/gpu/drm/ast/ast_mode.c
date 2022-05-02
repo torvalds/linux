@@ -1119,6 +1119,20 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	return 0;
 }
 
+static void ast_crtc_helper_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_state *state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct ast_private *ast = to_ast_private(dev);
+
+	/*
+	 * Concurrent operations could possibly trigger a call to
+	 * drm_connector_helper_funcs.get_modes by trying to read the
+	 * display modes. Protect access to I/O registers by acquiring
+	 * the I/O-register lock. Released in atomic_flush().
+	 */
+	mutex_lock(&ast->ioregs_lock);
+}
+
 static void
 ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 			     struct drm_atomic_state *state)
@@ -1127,7 +1141,8 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 									  crtc);
 	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
 									      crtc);
-	struct ast_private *ast = to_ast_private(crtc->dev);
+	struct drm_device *dev = crtc->dev;
+	struct ast_private *ast = to_ast_private(dev);
 	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
 	struct ast_crtc_state *old_ast_crtc_state = to_ast_crtc_state(old_crtc_state);
 	struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
@@ -1142,6 +1157,8 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 	//Set Aspeed Display-Port
 	if (ast->tx_chip_type == AST_TX_ASTDP)
 		ast_dp_set_mode(crtc, vbios_mode_info);
+
+	mutex_unlock(&ast->ioregs_lock);
 }
 
 static void
@@ -1200,6 +1217,7 @@ ast_crtc_helper_atomic_disable(struct drm_crtc *crtc,
 static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 	.mode_valid = ast_crtc_helper_mode_valid,
 	.atomic_check = ast_crtc_helper_atomic_check,
+	.atomic_begin = ast_crtc_helper_atomic_begin,
 	.atomic_flush = ast_crtc_helper_atomic_flush,
 	.atomic_enable = ast_crtc_helper_atomic_enable,
 	.atomic_disable = ast_crtc_helper_atomic_disable,
@@ -1285,21 +1303,33 @@ static int ast_crtc_init(struct drm_device *dev)
 static int ast_vga_connector_helper_get_modes(struct drm_connector *connector)
 {
 	struct ast_vga_connector *ast_vga_connector = to_ast_vga_connector(connector);
+	struct drm_device *dev = connector->dev;
+	struct ast_private *ast = to_ast_private(dev);
 	struct edid *edid;
 	int count;
 
 	if (!ast_vga_connector->i2c)
 		goto err_drm_connector_update_edid_property;
 
+	/*
+	 * Protect access to I/O registers from concurrent modesetting
+	 * by acquiring the I/O-register lock.
+	 */
+	mutex_lock(&ast->ioregs_lock);
+
 	edid = drm_get_edid(connector, &ast_vga_connector->i2c->adapter);
 	if (!edid)
-		goto err_drm_connector_update_edid_property;
+		goto err_mutex_unlock;
+
+	mutex_unlock(&ast->ioregs_lock);
 
 	count = drm_add_edid_modes(connector, edid);
 	kfree(edid);
 
 	return count;
 
+err_mutex_unlock:
+	mutex_unlock(&ast->ioregs_lock);
 err_drm_connector_update_edid_property:
 	drm_connector_update_edid_property(connector, NULL);
 	return 0;
@@ -1379,21 +1409,33 @@ static int ast_vga_output_init(struct ast_private *ast)
 static int ast_sil164_connector_helper_get_modes(struct drm_connector *connector)
 {
 	struct ast_sil164_connector *ast_sil164_connector = to_ast_sil164_connector(connector);
+	struct drm_device *dev = connector->dev;
+	struct ast_private *ast = to_ast_private(dev);
 	struct edid *edid;
 	int count;
 
 	if (!ast_sil164_connector->i2c)
 		goto err_drm_connector_update_edid_property;
 
+	/*
+	 * Protect access to I/O registers from concurrent modesetting
+	 * by acquiring the I/O-register lock.
+	 */
+	mutex_lock(&ast->ioregs_lock);
+
 	edid = drm_get_edid(connector, &ast_sil164_connector->i2c->adapter);
 	if (!edid)
-		goto err_drm_connector_update_edid_property;
+		goto err_mutex_unlock;
+
+	mutex_unlock(&ast->ioregs_lock);
 
 	count = drm_add_edid_modes(connector, edid);
 	kfree(edid);
 
 	return count;
 
+err_mutex_unlock:
+	mutex_unlock(&ast->ioregs_lock);
 err_drm_connector_update_edid_property:
 	drm_connector_update_edid_property(connector, NULL);
 	return 0;

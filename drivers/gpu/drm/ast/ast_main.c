@@ -421,6 +421,10 @@ struct ast_private *ast_device_create(const struct drm_driver *drv,
 
 	pci_set_drvdata(pdev, dev);
 
+	ret = drmm_mutex_init(dev, &ast->ioregs_lock);
+	if (ret)
+		return ERR_PTR(ret);
+
 	ast->regs = pcim_iomap(pdev, 1, 0);
 	if (!ast->regs)
 		return ERR_PTR(-EIO);
