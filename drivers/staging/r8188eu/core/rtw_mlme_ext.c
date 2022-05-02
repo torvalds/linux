@@ -35,7 +35,6 @@ static mlme_handler mlme_sta_tbl[] = {
 static struct action_handler OnAction_tbl[] = {
 	{RTW_WLAN_CATEGORY_BACK, "ACTION_BACK", &OnAction_back},
 	{RTW_WLAN_CATEGORY_PUBLIC, "ACTION_PUBLIC", on_action_public},
-	{RTW_WLAN_CATEGORY_WMM, "ACTION_WMM", &OnAction_wmm},
 	{RTW_WLAN_CATEGORY_P2P, "ACTION_P2P", &OnAction_p2p},
 };
 
@@ -3834,11 +3833,6 @@ unsigned int on_action_public(struct adapter *padapter, struct recv_frame *precv
 
 exit:
 	return ret;
-}
-
-unsigned int OnAction_wmm(struct adapter *padapter, struct recv_frame *precv_frame)
-{
-	return _SUCCESS;
 }
 
 unsigned int OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_frame)
