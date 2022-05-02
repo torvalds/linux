@@ -726,6 +726,17 @@ static uint32_t kgd_gfx_v11_set_wave_launch_trap_override(struct amdgpu_device *
 	return data;
 }
 
+static uint32_t kgd_gfx_v11_set_wave_launch_mode(struct amdgpu_device *adev,
+					uint8_t wave_launch_mode,
+					uint32_t vmid)
+{
+	uint32_t data = 0;
+
+	data = REG_SET_FIELD(data, SPI_GDBG_PER_VMID_CNTL, LAUNCH_MODE, wave_launch_mode);
+
+	return data;
+}
+
 const struct kfd2kgd_calls gfx_v11_kfd2kgd = {
 	.program_sh_mem_settings = program_sh_mem_settings_v11,
 	.set_pasid_vmid_mapping = set_pasid_vmid_mapping_v11,
@@ -745,5 +756,6 @@ const struct kfd2kgd_calls gfx_v11_kfd2kgd = {
 	.enable_debug_trap = kgd_gfx_v11_enable_debug_trap,
 	.disable_debug_trap = kgd_gfx_v11_disable_debug_trap,
 	.validate_trap_override_request = kgd_gfx_v11_validate_trap_override_request,
-	.set_wave_launch_trap_override = kgd_gfx_v11_set_wave_launch_trap_override
+	.set_wave_launch_trap_override = kgd_gfx_v11_set_wave_launch_trap_override,
+	.set_wave_launch_mode = kgd_gfx_v11_set_wave_launch_mode
 };
