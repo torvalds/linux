@@ -485,16 +485,21 @@ static bool wa_1209644611_applies(int ver, u32 size)
  * And CCS data can be copied in and out of CCS region through
  * XY_CTRL_SURF_COPY_BLT. CPU can't access the CCS data directly.
  *
- * When we exhaust the lmem, if the object's placements support smem, then we can
- * directly decompress the compressed lmem object into smem and start using it
- * from smem itself.
+ * I915 supports Flat-CCS on lmem only objects. When an objects has smem in
+ * its preference list, on memory pressure, i915 needs to migrate the lmem
+ * content into smem. If the lmem object is Flat-CCS compressed by userspace,
+ * then i915 needs to decompress it. But I915 lack the required information
+ * for such decompression. Hence I915 supports Flat-CCS only on lmem only objects.
  *
- * But when we need to swapout the compressed lmem object into a smem region
- * though objects' placement doesn't support smem, then we copy the lmem content
- * as it is into smem region along with ccs data (using XY_CTRL_SURF_COPY_BLT).
- * When the object is referred, lmem content will be swaped in along with
- * restoration of the CCS data (using XY_CTRL_SURF_COPY_BLT) at corresponding
- * location.
+ * When we exhaust the lmem, Flat-CCS capable objects' lmem backing memory can
+ * be temporarily evicted to smem, along with the auxiliary CCS state, where
+ * it can be potentially swapped-out at a later point, if required.
+ * If userspace later touches the evicted pages, then we always move
+ * the backing memory back to lmem, which includes restoring the saved CCS state,
+ * and potentially performing any required swap-in.
+ *
+ * For the migration of the lmem objects with smem in placement list, such as
+ * {lmem, smem}, objects are treated as non Flat-CCS capable objects.
  */
 
 static inline u32 *i915_flush_dw(u32 *cmd, u32 flags)
