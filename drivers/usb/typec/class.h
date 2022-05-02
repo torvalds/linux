@@ -33,12 +33,16 @@ struct typec_partner {
 	int				num_altmodes;
 	u16				pd_revision; /* 0300H = "3.0" */
 	enum usb_pd_svdm_ver		svdm_version;
+
+	struct usb_power_delivery	*pd;
 };
 
 struct typec_port {
 	unsigned int			id;
 	struct device			dev;
 	struct ida			mode_ids;
+
+	struct usb_power_delivery	*pd;
 
 	int				prefer_role;
 	enum typec_data_role		data_role;
