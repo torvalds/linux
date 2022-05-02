@@ -29,11 +29,10 @@ int plfxlc_set_beacon_interval(struct plfxlc_chip *chip, u16 interval,
 			       u8 dtim_period, int type)
 {
 	if (!interval ||
-	    (chip->beacon_set &&
-	     le16_to_cpu(chip->beacon_interval) == interval))
+	    (chip->beacon_set && chip->beacon_interval == interval))
 		return 0;
 
-	chip->beacon_interval = cpu_to_le16(interval);
+	chip->beacon_interval = interval;
 	chip->beacon_set = true;
 	return plfxlc_usb_wreq(chip->usb.ez_usb,
 			       &chip->beacon_interval,
