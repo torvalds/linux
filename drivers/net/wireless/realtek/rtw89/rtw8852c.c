@@ -1754,6 +1754,7 @@ static void rtw8852c_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
 		rtw89_chip_stop_sch_tx(rtwdev, RTW89_MAC_0, &p->tx_en, RTW89_SCH_TX_SEL_ALL);
 		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, false);
 		rtw8852c_dfs_en(rtwdev, false);
+		rtw8852c_tssi_cont_en_phyidx(rtwdev, false, RTW89_PHY_0);
 		rtw8852c_adc_en(rtwdev, false);
 		fsleep(40);
 		rtw8852c_bb_reset_en(rtwdev, phy_idx, false);
@@ -1761,6 +1762,7 @@ static void rtw8852c_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
 		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, true);
 		rtw8852c_adc_en(rtwdev, true);
 		rtw8852c_dfs_en(rtwdev, true);
+		rtw8852c_tssi_cont_en_phyidx(rtwdev, true, RTW89_PHY_0);
 		rtw8852c_bb_reset_en(rtwdev, phy_idx, true);
 		rtw89_chip_resume_sch_tx(rtwdev, RTW89_MAC_0, p->tx_en);
 	}
@@ -1770,6 +1772,8 @@ static void rtw8852c_rfk_init(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_info *mcc_info = &rtwdev->mcc;
 
+	rtwdev->is_tssi_mode[RF_PATH_A] = false;
+	rtwdev->is_tssi_mode[RF_PATH_B] = false;
 	memset(mcc_info, 0, sizeof(*mcc_info));
 	rtw8852c_lck_init(rtwdev);
 
@@ -1778,7 +1782,20 @@ static void rtw8852c_rfk_init(struct rtw89_dev *rtwdev)
 
 static void rtw8852c_rfk_channel(struct rtw89_dev *rtwdev)
 {
+	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
+
+	rtw8852c_tssi(rtwdev, phy_idx);
 	rtw89_fw_h2c_rf_ntfy_mcc(rtwdev);
+}
+
+static void rtw8852c_rfk_band_changed(struct rtw89_dev *rtwdev)
+{
+	rtw8852c_tssi_scan(rtwdev, RTW89_PHY_0);
+}
+
+static void rtw8852c_rfk_scan(struct rtw89_dev *rtwdev, bool start)
+{
+	rtw8852c_wifi_scan_notify(rtwdev, start, RTW89_PHY_0);
 }
 
 static void rtw8852c_rfk_track(struct rtw89_dev *rtwdev)
@@ -2714,6 +2731,8 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.read_phycap		= rtw8852c_read_phycap,
 	.rfk_init		= rtw8852c_rfk_init,
 	.rfk_channel		= rtw8852c_rfk_channel,
+	.rfk_band_changed	= rtw8852c_rfk_band_changed,
+	.rfk_scan		= rtw8852c_rfk_scan,
 	.rfk_track		= rtw8852c_rfk_track,
 	.power_trim		= rtw8852c_power_trim,
 	.set_txpwr		= rtw8852c_set_txpwr,
