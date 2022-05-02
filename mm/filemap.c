@@ -3483,7 +3483,7 @@ EXPORT_SYMBOL(generic_file_mmap);
 EXPORT_SYMBOL(generic_file_readonly_mmap);
 
 static struct folio *do_read_cache_folio(struct address_space *mapping,
-		pgoff_t index, filler_t filler, void *data, gfp_t gfp)
+		pgoff_t index, filler_t filler, struct file *file, gfp_t gfp)
 {
 	struct folio *folio;
 	int err;
@@ -3504,9 +3504,9 @@ repeat:
 
 filler:
 		if (filler)
-			err = filler(data, &folio->page);
+			err = filler(file, folio);
 		else
-			err = mapping->a_ops->read_folio(data, folio);
+			err = mapping->a_ops->read_folio(file, folio);
 
 		if (err < 0) {
 			folio_put(folio);
@@ -3557,44 +3557,44 @@ out:
 }
 
 /**
- * read_cache_folio - read into page cache, fill it if needed
- * @mapping:	the page's address_space
- * @index:	the page index
- * @filler:	function to perform the read
- * @data:	first arg to filler(data, page) function, often left as NULL
+ * read_cache_folio - Read into page cache, fill it if needed.
+ * @mapping: The address_space to read from.
+ * @index: The index to read.
+ * @filler: Function to perform the read, or NULL to use aops->read_folio().
+ * @file: Passed to filler function, may be NULL if not required.
  *
- * Read into the page cache. If a page already exists, and PageUptodate() is
- * not set, try to fill the page and wait for it to become unlocked.
+ * Read one page into the page cache.  If it succeeds, the folio returned
+ * will contain @index, but it may not be the first page of the folio.
  *
- * If the page does not get brought uptodate, return -EIO.
+ * If the filler function returns an error, it will be returned to the
+ * caller.
  *
- * The function expects mapping->invalidate_lock to be already held.
- *
- * Return: up to date page on success, ERR_PTR() on failure.
+ * Context: May sleep.  Expects mapping->invalidate_lock to be held.
+ * Return: An uptodate folio on success, ERR_PTR() on failure.
  */
 struct folio *read_cache_folio(struct address_space *mapping, pgoff_t index,
-		filler_t filler, void *data)
+		filler_t filler, struct file *file)
 {
-	return do_read_cache_folio(mapping, index, filler, data,
+	return do_read_cache_folio(mapping, index, filler, file,
 			mapping_gfp_mask(mapping));
 }
 EXPORT_SYMBOL(read_cache_folio);
 
 static struct page *do_read_cache_page(struct address_space *mapping,
-		pgoff_t index, filler_t *filler, void *data, gfp_t gfp)
+		pgoff_t index, filler_t *filler, struct file *file, gfp_t gfp)
 {
 	struct folio *folio;
 
-	folio = do_read_cache_folio(mapping, index, filler, data, gfp);
+	folio = do_read_cache_folio(mapping, index, filler, file, gfp);
 	if (IS_ERR(folio))
 		return &folio->page;
 	return folio_file_page(folio, index);
 }
 
 struct page *read_cache_page(struct address_space *mapping,
-				pgoff_t index, filler_t *filler, void *data)
+			pgoff_t index, filler_t *filler, struct file *file)
 {
-	return do_read_cache_page(mapping, index, filler, data,
+	return do_read_cache_page(mapping, index, filler, file,
 			mapping_gfp_mask(mapping));
 }
 EXPORT_SYMBOL(read_cache_page);

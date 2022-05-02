@@ -464,21 +464,24 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	return 0;
 }
 
-
-static int __gfs2_readpage(void *file, struct page *page)
+/**
+ * gfs2_read_folio - read a folio from a file
+ * @file: The file to read
+ * @folio: The folio in the file
+ */
+static int gfs2_read_folio(struct file *file, struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	int error;
 
 	if (!gfs2_is_jdata(ip) ||
-	    (i_blocksize(inode) == PAGE_SIZE && !page_has_buffers(page))) {
+	    (i_blocksize(inode) == PAGE_SIZE && !folio_buffers(folio))) {
 		error = iomap_read_folio(folio, &gfs2_iomap_ops);
 	} else if (gfs2_is_stuffed(ip)) {
-		error = stuffed_readpage(ip, page);
-		unlock_page(page);
+		error = stuffed_readpage(ip, &folio->page);
+		folio_unlock(folio);
 	} else {
 		error = mpage_read_folio(folio, gfs2_block_map);
 	}
@@ -487,16 +490,6 @@ static int __gfs2_readpage(void *file, struct page *page)
 		return -EIO;
 
 	return error;
-}
-
-/**
- * gfs2_read_folio - read a folio from a file
- * @file: The file to read
- * @folio: The folio in the file
- */
-static int gfs2_read_folio(struct file *file, struct folio *folio)
-{
-	return __gfs2_readpage(file, &folio->page);
 }
 
 /**
@@ -523,7 +516,7 @@ int gfs2_internal_read(struct gfs2_inode *ip, char *buf, loff_t *pos,
 		amt = size - copied;
 		if (offset + size > PAGE_SIZE)
 			amt = PAGE_SIZE - offset;
-		page = read_cache_page(mapping, index, __gfs2_readpage, NULL);
+		page = read_cache_page(mapping, index, gfs2_read_folio, NULL);
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 		p = kmap_atomic(page);
