@@ -40,6 +40,7 @@
  * @payload: Combined payload of all the fragments without any RPC headers
  * @size: Size of the payload.
  * @msg_id: Message ID from the header.
+ * @ret: Linux return code, set in case there was an error processing the connection.
  * @type: GH_RM_RPC_TYPE_RPLY or GH_RM_RPC_TYPE_NOTIF.
  * @num_fragments: total number of fragments expected to be received for this connection.
  * @fragments_recieved: fragments received so far.
@@ -50,6 +51,7 @@ struct gh_rm_connection {
 	void *payload;
 	size_t size;
 	u32 msg_id;
+	int ret;
 	u8 type;
 
 	u8 num_fragments;
@@ -474,6 +476,21 @@ static bool gh_rm_complete_connection(struct gh_rm_connection *connection)
 	return true;
 }
 
+static void gh_rm_abort_connection(struct gh_rm_connection *connection)
+{
+	switch (connection->type) {
+	case GH_RM_RPC_TYPE_RPLY:
+		connection->ret = -EIO;
+		complete(&connection->seq_done);
+		break;
+	case GH_RM_RPC_TYPE_NOTIF:
+		fallthrough;
+	default:
+		kfree(connection->payload);
+		kfree(connection);
+	}
+}
+
 static int gh_rm_recv_task_fn(void *data)
 {
 	struct gh_rm_connection *connection = NULL;
@@ -505,16 +522,28 @@ static int gh_rm_recv_task_fn(void *data)
 		hdr = recv_buff;
 		switch (hdr->type) {
 		case GH_RM_RPC_TYPE_NOTIF:
-			connection = gh_rm_process_notif(recv_buff,
-							recv_buff_size);
+			if (connection) {
+				/* Not possible per protocol. Do something better than BUG_ON */
+				pr_warn("Received start of new notification without finishing existing message series.\n");
+				gh_rm_abort_connection(connection);
+			}
+			connection = gh_rm_process_notif(recv_buff, recv_buff_size);
 			break;
 		case GH_RM_RPC_TYPE_RPLY:
-			connection = gh_rm_process_rply(recv_buff,
-							recv_buff_size);
+			if (connection) {
+				/* Not possible per protocol. Do something better than BUG_ON */
+				pr_warn("Received start of new reply without finishing existing message series.\n");
+				gh_rm_abort_connection(connection);
+			}
+			connection = gh_rm_process_rply(recv_buff, recv_buff_size);
 			break;
 		case GH_RM_RPC_TYPE_CONT:
-			gh_rm_process_cont(connection, recv_buff,
-							recv_buff_size);
+			if (!connection) {
+				/* Not possible per protocol. Do something better than BUG_ON */
+				pr_warn("Received a continuation message without receiving initial message\n");
+				break;
+			}
+			gh_rm_process_cont(connection, recv_buff, recv_buff_size);
 			break;
 		default:
 			pr_err("%s: Invalid message type (%d) received\n",
@@ -686,6 +715,12 @@ void *gh_rm_call(gh_rm_msgid_t message_id,
 		pr_err("%s: Reply for seq:%d failed with RM err: %d\n",
 			__func__, connection->seq, connection->rm_error);
 		ret = ERR_PTR(gh_remap_error(connection->rm_error));
+		kfree(connection->payload);
+		goto out;
+	}
+
+	if (connection->ret) {
+		ret = ERR_PTR(connection->ret);
 		kfree(connection->payload);
 		goto out;
 	}
