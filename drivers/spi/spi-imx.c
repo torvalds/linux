@@ -298,7 +298,7 @@ static void spi_imx_buf_rx_swap_u32(struct spi_imx_data *spi_imx)
 #ifdef __LITTLE_ENDIAN
 		bytes_per_word = spi_imx_bytes_per_word(spi_imx->bits_per_word);
 		if (bytes_per_word == 1)
-			val = cpu_to_be32(val);
+			swab32s(&val);
 		else if (bytes_per_word == 2)
 			val = (val << 16) | (val >> 16);
 #endif
@@ -354,7 +354,7 @@ static void spi_imx_buf_tx_swap_u32(struct spi_imx_data *spi_imx)
 	bytes_per_word = spi_imx_bytes_per_word(spi_imx->bits_per_word);
 
 	if (bytes_per_word == 1)
-		val = cpu_to_be32(val);
+		swab32s(&val);
 	else if (bytes_per_word == 2)
 		val = (val << 16) | (val >> 16);
 #endif
