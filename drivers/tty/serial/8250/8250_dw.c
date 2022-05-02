@@ -433,9 +433,9 @@ static void dw8250_prepare_rx_dma(struct uart_8250_port *p)
 static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 {
 	struct device_node *np = p->dev->of_node;
-	unsigned int quirks = data->pdata->quirks;
 
 	if (np) {
+		unsigned int quirks = data->pdata->quirks;
 		int id;
 
 		/* get index of serial line, if found in DT aliases */
