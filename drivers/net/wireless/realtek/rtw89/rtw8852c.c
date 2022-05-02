@@ -1771,6 +1771,8 @@ static void rtw8852c_rfk_init(struct rtw89_dev *rtwdev)
 	struct rtw89_mcc_info *mcc_info = &rtwdev->mcc;
 
 	memset(mcc_info, 0, sizeof(*mcc_info));
+
+	rtw8852c_dack(rtwdev);
 }
 
 static void rtw8852c_rfk_channel(struct rtw89_dev *rtwdev)
