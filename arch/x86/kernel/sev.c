@@ -589,20 +589,23 @@ static u64 __init get_secrets_page(void)
 static u64 __init get_snp_jump_table_addr(void)
 {
 	struct snp_secrets_page_layout *layout;
+	void __iomem *mem;
 	u64 pa, addr;
 
 	pa = get_secrets_page();
 	if (!pa)
 		return 0;
 
-	layout = (__force void *)ioremap_encrypted(pa, PAGE_SIZE);
-	if (!layout) {
+	mem = ioremap_encrypted(pa, PAGE_SIZE);
+	if (!mem) {
 		pr_err("Unable to locate AP jump table address: failed to map the SNP secrets page.\n");
 		return 0;
 	}
 
+	layout = (__force struct snp_secrets_page_layout *)mem;
+
 	addr = layout->os_area.ap_jump_table_pa;
-	iounmap(layout);
+	iounmap(mem);
 
 	return addr;
 }
