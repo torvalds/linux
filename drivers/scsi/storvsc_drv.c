@@ -1966,34 +1966,16 @@ static int storvsc_probe(struct hv_device *device,
 	bool is_fc = ((dev_id->driver_data == SFC_GUID) ? true : false);
 	int target = 0;
 	struct storvsc_device *stor_device;
-	int max_luns_per_target;
-	int max_targets;
-	int max_channels;
 	int max_sub_channels = 0;
 
 	/*
-	 * Based on the windows host we are running on,
-	 * set state to properly communicate with the host.
+	 * We support sub-channels for storage on SCSI and FC controllers.
+	 * The number of sub-channels offerred is based on the number of
+	 * VCPUs in the guest.
 	 */
-
-	if (vmbus_proto_version < VERSION_WIN8) {
-		max_luns_per_target = STORVSC_IDE_MAX_LUNS_PER_TARGET;
-		max_targets = STORVSC_IDE_MAX_TARGETS;
-		max_channels = STORVSC_IDE_MAX_CHANNELS;
-	} else {
-		max_luns_per_target = STORVSC_MAX_LUNS_PER_TARGET;
-		max_targets = STORVSC_MAX_TARGETS;
-		max_channels = STORVSC_MAX_CHANNELS;
-		/*
-		 * On Windows8 and above, we support sub-channels for storage
-		 * on SCSI and FC controllers.
-		 * The number of sub-channels offerred is based on the number of
-		 * VCPUs in the guest.
-		 */
-		if (!dev_is_ide)
-			max_sub_channels =
-				(num_cpus - 1) / storvsc_vcpus_per_sub_channel;
-	}
+	if (!dev_is_ide)
+		max_sub_channels =
+			(num_cpus - 1) / storvsc_vcpus_per_sub_channel;
 
 	scsi_driver.can_queue = max_outstanding_req_per_channel *
 				(max_sub_channels + 1) *
@@ -2046,9 +2028,9 @@ static int storvsc_probe(struct hv_device *device,
 		break;
 
 	case SCSI_GUID:
-		host->max_lun = max_luns_per_target;
-		host->max_id = max_targets;
-		host->max_channel = max_channels - 1;
+		host->max_lun = STORVSC_MAX_LUNS_PER_TARGET;
+		host->max_id = STORVSC_MAX_TARGETS;
+		host->max_channel = STORVSC_MAX_CHANNELS - 1;
 		break;
 
 	default:
