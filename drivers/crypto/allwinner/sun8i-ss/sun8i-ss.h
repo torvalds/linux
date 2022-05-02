@@ -239,6 +239,10 @@ struct sun8i_ss_hash_tfm_ctx {
 	struct crypto_engine_ctx enginectx;
 	struct crypto_ahash *fallback_tfm;
 	struct sun8i_ss_dev *ss;
+	u8 *ipad;
+	u8 *opad;
+	u8 key[SHA256_BLOCK_SIZE];
+	int keylen;
 };
 
 /*
@@ -319,3 +323,5 @@ int sun8i_ss_hash_update(struct ahash_request *areq);
 int sun8i_ss_hash_finup(struct ahash_request *areq);
 int sun8i_ss_hash_digest(struct ahash_request *areq);
 int sun8i_ss_hash_run(struct crypto_engine *engine, void *breq);
+int sun8i_ss_hmac_setkey(struct crypto_ahash *ahash, const u8 *key,
+			 unsigned int keylen);
