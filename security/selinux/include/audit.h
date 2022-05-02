@@ -12,6 +12,9 @@
 #ifndef _SELINUX_AUDIT_H
 #define _SELINUX_AUDIT_H
 
+#include <linux/audit.h>
+#include <linux/types.h>
+
 /**
  *	selinux_audit_rule_init - alloc/init an selinux audit rule structure.
  *	@field: the field this rule refers to

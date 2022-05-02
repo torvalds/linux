@@ -7,7 +7,7 @@
 #ifndef _SELINUX_AVC_SS_H_
 #define _SELINUX_AVC_SS_H_
 
-#include "flask.h"
+#include <linux/types.h>
 
 struct selinux_avc;
 int avc_ss_reset(struct selinux_avc *avc, u32 seqno);
