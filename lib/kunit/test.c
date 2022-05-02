@@ -244,7 +244,7 @@ static void kunit_print_string_stream(struct kunit *test,
 }
 
 static void kunit_fail(struct kunit *test, const struct kunit_loc *loc,
-		       enum kunit_assert_type type, struct kunit_assert *assert,
+		       enum kunit_assert_type type, const struct kunit_assert *assert,
 		       const struct va_format *message)
 {
 	struct string_stream *stream;
@@ -284,7 +284,7 @@ static void __noreturn kunit_abort(struct kunit *test)
 void kunit_do_failed_assertion(struct kunit *test,
 			       const struct kunit_loc *loc,
 			       enum kunit_assert_type type,
-			       struct kunit_assert *assert,
+			       const struct kunit_assert *assert,
 			       const char *fmt, ...)
 {
 	va_list args;
