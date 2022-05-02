@@ -2141,6 +2141,7 @@ free_mem:
 }
 
 static struct hl_mmap_mem_buf_behavior hl_ts_behavior = {
+	.topic = "TS",
 	.mem_id = HL_MMAP_TYPE_TS_BUFF,
 	.mmap = hl_ts_mmap,
 	.alloc = hl_ts_alloc_buf,

@@ -162,7 +162,8 @@ hl_mmap_mem_buf_alloc(struct hl_mem_mgr *mmg,
 	spin_unlock(&mmg->lock);
 	if (rc < 0) {
 		dev_err(mmg->dev,
-			"Failed to allocate IDR for a new buffer, rc=%d\n", rc);
+			"%s: Failed to allocate IDR for a new buffer, rc=%d\n",
+			behavior->topic, rc);
 		goto free_buf;
 	}
 
@@ -173,8 +174,8 @@ hl_mmap_mem_buf_alloc(struct hl_mem_mgr *mmg,
 
 	rc = buf->behavior->alloc(buf, gfp, args);
 	if (rc) {
-		dev_err(mmg->dev, "Failure in buffer alloc callback %d\n",
-			rc);
+		dev_err(mmg->dev, "%s: Failure in buffer alloc callback %d\n",
+			behavior->topic, rc);
 		goto remove_idr;
 	}
 
@@ -253,8 +254,8 @@ int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
 	user_mem_size = vma->vm_end - vma->vm_start;
 	if (user_mem_size != ALIGN(buf->mappable_size, PAGE_SIZE)) {
 		dev_err(mmg->dev,
-			"Memory mmap failed, mmap VM size 0x%llx != 0x%llx allocated physical mem size\n",
-			user_mem_size, buf->mappable_size);
+			"%s: Memory mmap failed, mmap VM size 0x%llx != 0x%llx allocated physical mem size\n",
+			buf->behavior->topic, user_mem_size, buf->mappable_size);
 		rc = -EINVAL;
 		goto put_mem;
 	}
@@ -266,8 +267,8 @@ int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
 	if (!access_ok((void __user *)(uintptr_t)vma->vm_start,
 		       user_mem_size)) {
 #endif
-		dev_err(mmg->dev, "user pointer is invalid - 0x%lx\n",
-			vma->vm_start);
+		dev_err(mmg->dev, "%s: User pointer is invalid - 0x%lx\n",
+			buf->behavior->topic, vma->vm_start);
 
 		rc = -EINVAL;
 		goto put_mem;
@@ -275,7 +276,8 @@ int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
 
 	if (atomic_cmpxchg(&buf->mmap, 0, 1)) {
 		dev_err(mmg->dev,
-			"Memory mmap failed, already mmaped to user\n");
+			"%s, Memory mmap failed, already mmaped to user\n",
+			buf->behavior->topic);
 		rc = -EINVAL;
 		goto put_mem;
 	}
@@ -328,14 +330,17 @@ void hl_mem_mgr_fini(struct hl_mem_mgr *mmg)
 {
 	struct hl_mmap_mem_buf *buf;
 	struct idr *idp;
+	const char *topic;
 	u32 id;
 
 	idp = &mmg->handles;
 
 	idr_for_each_entry(idp, buf, id) {
+		topic = buf->behavior->topic;
 		if (hl_mmap_mem_buf_put(buf) != 1)
 			dev_err(mmg->dev,
-				"Buff handle %u for CTX is still alive\n", id);
+				"%s: Buff handle %u for CTX is still alive\n",
+				topic, id);
 	}
 
 	/* TODO: can it happen that some buffer is still in use at this point? */

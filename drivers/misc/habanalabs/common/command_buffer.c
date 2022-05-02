@@ -319,6 +319,7 @@ static int hl_cb_mmap(struct hl_mmap_mem_buf *buf,
 }
 
 static struct hl_mmap_mem_buf_behavior cb_behavior = {
+	.topic = "CB",
 	.mem_id = HL_MMAP_TYPE_CB,
 	.alloc = hl_cb_mmap_mem_alloc,
 	.release = hl_cb_mmap_mem_release,

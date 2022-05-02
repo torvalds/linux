@@ -731,6 +731,7 @@ struct hl_mem_mgr {
 
 /**
  * struct hl_mmap_mem_buf_behavior - describes unified memory manager buffer behavior
+ * @topic: string identifier used for logging
  * @mem_id: memory type identifier, embedded in the handle and used to identify
  *          the memory type by handle.
  * @alloc: callback executed on buffer allocation, shall allocate the memory,
@@ -739,6 +740,7 @@ struct hl_mem_mgr {
  * @release: callback executed on release, must free the resources used by the buffer
  */
 struct hl_mmap_mem_buf_behavior {
+	const char *topic;
 	u64 mem_id;
 
 	int (*alloc)(struct hl_mmap_mem_buf *buf, gfp_t gfp, void *args);
