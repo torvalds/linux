@@ -444,6 +444,14 @@
 			};
 		};
 
+		hwmon: hwmon@e2010180 {
+			compatible = "microchip,lan9668-hwmon";
+			reg = <0xe2010180 0xc>,
+			      <0xe20042a8 0xc>;
+			reg-names = "pvt", "fan";
+			clocks = <&sys_clk>;
+		};
+
 		gic: interrupt-controller@e8c11000 {
 			compatible = "arm,gic-400", "arm,cortex-a7-gic";
 			#interrupt-cells = <3>;
