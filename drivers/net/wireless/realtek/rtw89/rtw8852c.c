@@ -1777,6 +1777,7 @@ static void rtw8852c_rfk_init(struct rtw89_dev *rtwdev)
 	memset(mcc_info, 0, sizeof(*mcc_info));
 	rtw8852c_lck_init(rtwdev);
 
+	rtw8852c_rck(rtwdev);
 	rtw8852c_dack(rtwdev);
 }
 
