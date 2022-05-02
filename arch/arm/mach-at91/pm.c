@@ -28,6 +28,7 @@
 
 #include "generic.h"
 #include "pm.h"
+#include "sam_secure.h"
 
 #define BACKUP_DDR_PHY_CALIBRATION	(9)
 
@@ -1078,6 +1079,35 @@ securam_fail:
 	return ret;
 }
 
+static void at91_pm_secure_init(void)
+{
+	int suspend_mode;
+	struct arm_smccc_res res;
+
+	suspend_mode = soc_pm.data.suspend_mode;
+
+	res = sam_smccc_call(SAMA5_SMC_SIP_SET_SUSPEND_MODE,
+			     suspend_mode, 0);
+	if (res.a0 == 0) {
+		pr_info("AT91: Secure PM: suspend mode set to %s\n",
+			pm_modes[suspend_mode].pattern);
+		return;
+	}
+
+	pr_warn("AT91: Secure PM: %s mode not supported !\n",
+		pm_modes[suspend_mode].pattern);
+
+	res = sam_smccc_call(SAMA5_SMC_SIP_GET_SUSPEND_MODE, 0, 0);
+	if (res.a0 == 0) {
+		pr_warn("AT91: Secure PM: failed to get default mode\n");
+		return;
+	}
+
+	pr_info("AT91: Secure PM: using default suspend mode %s\n",
+		pm_modes[suspend_mode].pattern);
+
+	soc_pm.data.suspend_mode = res.a1;
+}
 static const struct of_device_id atmel_shdwc_ids[] = {
 	{ .compatible = "atmel,sama5d2-shdwc" },
 	{ .compatible = "microchip,sam9x60-shdwc" },
@@ -1525,6 +1555,12 @@ void __init sama5d2_pm_init(void)
 
 	if (!IS_ENABLED(CONFIG_SOC_SAMA5D2))
 		return;
+
+	if (IS_ENABLED(CONFIG_ATMEL_SECURE_PM)) {
+		pr_warn("AT91: Secure PM: ignoring standby mode\n");
+		at91_pm_secure_init();
+		return;
+	}
 
 	at91_pm_modes_validate(modes, ARRAY_SIZE(modes));
 	at91_pm_modes_init(iomaps, ARRAY_SIZE(iomaps));

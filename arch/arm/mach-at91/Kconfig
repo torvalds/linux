@@ -218,7 +218,16 @@ config SOC_SAMA5
 	select SRAM if PM
 
 config ATMEL_PM
-	bool
+	bool "Atmel PM support"
+
+config ATMEL_SECURE_PM
+	bool "Atmel Secure PM support"
+	depends on SOC_SAMA5D2 && ATMEL_PM
+	select ARM_PSCI
+	help
+	  When running under a TEE, the suspend mode must be requested to be set
+	  at TEE level. When enable, this option will use secure monitor calls
+	  to set the suspend level. PSCI is then used to enter suspend.
 
 config SOC_SAMA7
 	bool
