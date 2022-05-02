@@ -98,9 +98,6 @@
 /*
  * 1st level paging: pgd
  */
-#define pgd_index(addr)		((addr) >> PGDIR_SHIFT)
-#define pgd_offset(mm, addr)	(((mm)->pgd) + pgd_index(addr))
-#define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
 #define pgd_ERROR(e) \
 	pr_crit("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 

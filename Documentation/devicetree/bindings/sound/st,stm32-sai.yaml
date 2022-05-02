@@ -136,8 +136,7 @@ allOf:
         compatible:
           contains:
             const: st,stm32f4-sai
-
-  - then:
+    then:
       properties:
         clocks:
           items:
@@ -148,8 +147,7 @@ allOf:
           items:
             - const: x8k
             - const: x11k
-
-  - else:
+    else:
       properties:
         clocks:
           items:

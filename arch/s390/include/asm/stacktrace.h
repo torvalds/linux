@@ -46,7 +46,7 @@ struct stack_frame {
 };
 
 /*
- * Unlike current_stack_pointer() which simply returns current value of %r15
+ * Unlike current_stack_pointer which simply contains the current value of %r15
  * current_frame_address() returns function stack frame address, which matches
  * %r15 upon function invocation. It may differ from %r15 later if function
  * allocates stack for local variables or new stack frame to call other

@@ -2143,7 +2143,7 @@ static int vgic_its_save_ite(struct vgic_its *its, struct its_device *dev,
 static int vgic_its_restore_ite(struct vgic_its *its, u32 event_id,
 				void *ptr, void *opaque)
 {
-	struct its_device *dev = (struct its_device *)opaque;
+	struct its_device *dev = opaque;
 	struct its_collection *collection;
 	struct kvm *kvm = its->dev->kvm;
 	struct kvm_vcpu *vcpu = NULL;

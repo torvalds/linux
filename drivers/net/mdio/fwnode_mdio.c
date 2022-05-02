@@ -43,6 +43,11 @@ int fwnode_mdiobus_phy_device_register(struct mii_bus *mdio,
 	int rc;
 
 	rc = fwnode_irq_get(child, 0);
+	/* Don't wait forever if the IRQ provider doesn't become available,
+	 * just fall back to poll mode
+	 */
+	if (rc == -EPROBE_DEFER)
+		rc = driver_deferred_probe_check_state(&phy->mdio.dev);
 	if (rc == -EPROBE_DEFER)
 		return rc;
 
