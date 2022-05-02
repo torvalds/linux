@@ -2845,7 +2845,7 @@ static void __init of_unittest_overlay_notify(void)
 
 	EXPECT_END(KERN_INFO, "OF: overlay: overlay changeset pre-apply notifier error -16, target: /testcase-data/overlay-node/test-bus");
 
-	unittest(!ovcs_id, "ovcs_id created for overlay_16\n");
+	unittest(ovcs_id, "ovcs_id not created for overlay_16\n");
 
 	/* ---  overlay 17  --- */
 
@@ -2856,7 +2856,13 @@ static void __init of_unittest_overlay_notify(void)
 
 	EXPECT_END(KERN_INFO, "OF: overlay: overlay changeset post-apply notifier error -17, target: /testcase-data/overlay-node/test-bus");
 
-	unittest(!ovcs_id, "ovcs_id created for overlay_17\n");
+	unittest(ovcs_id, "ovcs_id not created for overlay_17\n");
+
+	if (ovcs_id) {
+		ret = of_overlay_remove(&ovcs_id);
+		unittest(!ret,
+			"overlay_17 of_overlay_remove(), ret = %d\n", ret);
+	}
 
 	/* ---  overlay 18  --- */
 

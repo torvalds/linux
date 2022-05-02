@@ -952,6 +952,25 @@ out:
 	return ret;
 }
 
+/*
+ * of_overlay_fdt_apply() - Create and apply an overlay changeset
+ * @overlay_fdt:	pointer to overlay FDT
+ * @overlay_fdt_size:	number of bytes in @overlay_fdt
+ * @ret_ovcs_id:	pointer for returning created changeset id
+ *
+ * Creates and applies an overlay changeset.
+ *
+ * See of_overlay_apply() for important behavior information.
+ *
+ * Return: 0 on success, or a negative error number.  *@ret_ovcs_id is set to
+ * the value of overlay changeset id, which can be passed to of_overlay_remove()
+ * to remove the overlay.
+ *
+ * On error return, the changeset may be partially applied.  This is especially
+ * likely if an OF_OVERLAY_POST_APPLY notifier returns an error.  In this case
+ * the caller should call of_overlay_remove() with the value in *@ret_ovcs_id.
+ */
+
 int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
 			 int *ret_ovcs_id)
 {
@@ -1019,15 +1038,19 @@ int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
 	ovcs->overlay_mem = overlay_mem;
 
 	ret = of_overlay_apply(ovcs);
-	if (ret < 0)
-		goto err_free_ovcs;
+	/*
+	 * If of_overlay_apply() error, calling free_overlay_changeset() may
+	 * result in a memory leak if the apply partly succeeded, so do NOT
+	 * goto err_free_ovcs.  Instead, the caller of of_overlay_fdt_apply()
+	 * can call of_overlay_remove();
+	 */
 
 	mutex_unlock(&of_mutex);
 	of_overlay_mutex_unlock();
 
 	*ret_ovcs_id = ovcs->id;
 
-	return 0;
+	return ret;
 
 err_free_ovcs:
 	free_overlay_changeset(ovcs);
