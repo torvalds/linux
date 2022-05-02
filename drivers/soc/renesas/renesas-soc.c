@@ -232,7 +232,7 @@ static const struct renesas_soc soc_rcar_d3 __initconst __maybe_unused = {
 };
 
 static const struct renesas_soc soc_rcar_v3u __initconst __maybe_unused = {
-	.family	= &fam_rcar_gen3,
+	.family	= &fam_rcar_gen4,
 	.id	= 0x59,
 };
 
