@@ -714,15 +714,13 @@ static bool hv_cpuself_used(u32 cpu, struct vmbus_channel *chn)
 static int next_numa_node_id;
 
 /*
- * Starting with Win8, we can statically distribute the incoming
- * channel interrupt load by binding a channel to VCPU.
+ * We can statically distribute the incoming channel interrupt load
+ * by binding a channel to VCPU.
  *
- * For pre-win8 hosts or non-performance critical channels we assign the
- * VMBUS_CONNECT_CPU.
- *
- * Starting with win8, performance critical channels will be distributed
- * evenly among all the available NUMA nodes.  Once the node is assigned,
- * we will assign the CPU based on a simple round robin scheme.
+ * For non-performance critical channels we assign the VMBUS_CONNECT_CPU.
+ * Performance critical channels will be distributed evenly among all
+ * the available NUMA nodes.  Once the node is assigned, we will assign
+ * the CPU based on a simple round robin scheme.
  */
 static void init_vp_index(struct vmbus_channel *channel)
 {
@@ -733,13 +731,10 @@ static void init_vp_index(struct vmbus_channel *channel)
 	u32 target_cpu;
 	int numa_node;
 
-	if ((vmbus_proto_version == VERSION_WS2008) ||
-	    (vmbus_proto_version == VERSION_WIN7) || (!perf_chn) ||
+	if (!perf_chn ||
 	    !alloc_cpumask_var(&available_mask, GFP_KERNEL)) {
 		/*
-		 * Prior to win8, all channel interrupts are
-		 * delivered on VMBUS_CONNECT_CPU.
-		 * Also if the channel is not a performance critical
+		 * If the channel is not a performance critical
 		 * channel, bind it to VMBUS_CONNECT_CPU.
 		 * In case alloc_cpumask_var() fails, bind it to
 		 * VMBUS_CONNECT_CPU.
@@ -932,11 +927,9 @@ static void vmbus_setup_channel_state(struct vmbus_channel *channel,
 	 */
 	channel->sig_event = VMBUS_EVENT_CONNECTION_ID;
 
-	if (vmbus_proto_version != VERSION_WS2008) {
-		channel->is_dedicated_interrupt =
-				(offer->is_dedicated_interrupt != 0);
-		channel->sig_event = offer->connection_id;
-	}
+	channel->is_dedicated_interrupt =
+			(offer->is_dedicated_interrupt != 0);
+	channel->sig_event = offer->connection_id;
 
 	memcpy(&channel->offermsg, offer,
 	       sizeof(struct vmbus_channel_offer_channel));

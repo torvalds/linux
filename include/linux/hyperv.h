@@ -230,15 +230,19 @@ static inline u32 hv_get_avail_to_write_percent(
  * two 16 bit quantities: major_number. minor_number.
  *
  * 0 . 13 (Windows Server 2008)
- * 1 . 1  (Windows 7)
- * 2 . 4  (Windows 8)
- * 3 . 0  (Windows 8 R2)
+ * 1 . 1  (Windows 7, WS2008 R2)
+ * 2 . 4  (Windows 8, WS2012)
+ * 3 . 0  (Windows 8.1, WS2012 R2)
  * 4 . 0  (Windows 10)
  * 4 . 1  (Windows 10 RS3)
  * 5 . 0  (Newer Windows 10)
  * 5 . 1  (Windows 10 RS4)
  * 5 . 2  (Windows Server 2019, RS5)
  * 5 . 3  (Windows Server 2022)
+ *
+ * The WS2008 and WIN7 versions are listed here for
+ * completeness but are no longer supported in the
+ * Linux kernel.
  */
 
 #define VERSION_WS2008  ((0 << 16) | (13))

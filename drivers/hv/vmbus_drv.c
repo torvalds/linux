@@ -1263,23 +1263,17 @@ static void vmbus_chan_sched(struct hv_per_cpu_context *hv_cpu)
 	unsigned long *recv_int_page;
 	u32 maxbits, relid;
 
-	if (vmbus_proto_version < VERSION_WIN8) {
-		maxbits = MAX_NUM_CHANNELS_SUPPORTED;
-		recv_int_page = vmbus_connection.recv_int_page;
-	} else {
-		/*
-		 * When the host is win8 and beyond, the event page
-		 * can be directly checked to get the id of the channel
-		 * that has the interrupt pending.
-		 */
-		void *page_addr = hv_cpu->synic_event_page;
-		union hv_synic_event_flags *event
-			= (union hv_synic_event_flags *)page_addr +
-						 VMBUS_MESSAGE_SINT;
+	/*
+	 * The event page can be directly checked to get the id of
+	 * the channel that has the interrupt pending.
+	 */
+	void *page_addr = hv_cpu->synic_event_page;
+	union hv_synic_event_flags *event
+		= (union hv_synic_event_flags *)page_addr +
+					 VMBUS_MESSAGE_SINT;
 
-		maxbits = HV_EVENT_FLAGS_COUNT;
-		recv_int_page = event->flags;
-	}
+	maxbits = HV_EVENT_FLAGS_COUNT;
+	recv_int_page = event->flags;
 
 	if (unlikely(!recv_int_page))
 		return;
@@ -1351,40 +1345,10 @@ static void vmbus_isr(void)
 {
 	struct hv_per_cpu_context *hv_cpu
 		= this_cpu_ptr(hv_context.cpu_context);
-	void *page_addr = hv_cpu->synic_event_page;
+	void *page_addr;
 	struct hv_message *msg;
-	union hv_synic_event_flags *event;
-	bool handled = false;
 
-	if (unlikely(page_addr == NULL))
-		return;
-
-	event = (union hv_synic_event_flags *)page_addr +
-					 VMBUS_MESSAGE_SINT;
-	/*
-	 * Check for events before checking for messages. This is the order
-	 * in which events and messages are checked in Windows guests on
-	 * Hyper-V, and the Windows team suggested we do the same.
-	 */
-
-	if ((vmbus_proto_version == VERSION_WS2008) ||
-		(vmbus_proto_version == VERSION_WIN7)) {
-
-		/* Since we are a child, we only need to check bit 0 */
-		if (sync_test_and_clear_bit(0, event->flags))
-			handled = true;
-	} else {
-		/*
-		 * Our host is win8 or above. The signaling mechanism
-		 * has changed and we can directly look at the event page.
-		 * If bit n is set then we have an interrup on the channel
-		 * whose id is n.
-		 */
-		handled = true;
-	}
-
-	if (handled)
-		vmbus_chan_sched(hv_cpu);
+	vmbus_chan_sched(hv_cpu);
 
 	page_addr = hv_cpu->synic_message_page;
 	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
