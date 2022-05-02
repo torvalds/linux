@@ -55,16 +55,16 @@
 #define ACODEC_ADC_PGA_AGC_L_CTL9		0x124 /* REG 0x49 */
 
 /* The description of the agc register for the right channel */
-#define ACODEC_ADC_PGA_AGC_R_CTL0		0x100 /* REG 0x50 */
-#define ACODEC_ADC_PGA_AGC_R_CTL1		0x104 /* REG 0x51 */
-#define ACODEC_ADC_PGA_AGC_R_CTL2		0x108 /* REG 0x52 */
-#define ACODEC_ADC_PGA_AGC_R_CTL3		0x10c /* REG 0x53 */
-#define ACODEC_ADC_PGA_AGC_R_CTL4		0x110 /* REG 0x54 */
-#define ACODEC_ADC_PGA_AGC_R_CTL5		0x114 /* REG 0x55 */
-#define ACODEC_ADC_PGA_AGC_R_CTL6		0x118 /* REG 0x56 */
-#define ACODEC_ADC_PGA_AGC_R_CTL7		0x11c /* REG 0x57 */
-#define ACODEC_ADC_PGA_AGC_R_CTL8		0x120 /* REG 0x58 */
-#define ACODEC_ADC_PGA_AGC_R_CTL9		0x124 /* REG 0x59 */
+#define ACODEC_ADC_PGA_AGC_R_CTL0		0x140 /* REG 0x50 */
+#define ACODEC_ADC_PGA_AGC_R_CTL1		0x144 /* REG 0x51 */
+#define ACODEC_ADC_PGA_AGC_R_CTL2		0x148 /* REG 0x52 */
+#define ACODEC_ADC_PGA_AGC_R_CTL3		0x14c /* REG 0x53 */
+#define ACODEC_ADC_PGA_AGC_R_CTL4		0x150 /* REG 0x54 */
+#define ACODEC_ADC_PGA_AGC_R_CTL5		0x154 /* REG 0x55 */
+#define ACODEC_ADC_PGA_AGC_R_CTL6		0x158 /* REG 0x56 */
+#define ACODEC_ADC_PGA_AGC_R_CTL7		0x15c /* REG 0x57 */
+#define ACODEC_ADC_PGA_AGC_R_CTL8		0x160 /* REG 0x58 */
+#define ACODEC_ADC_PGA_AGC_R_CTL9		0x164 /* REG 0x59 */
 
 #define ACODEC_REG_MAX				ACODEC_ADC_PGA_AGC_R_CTL9
 
