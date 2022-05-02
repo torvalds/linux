@@ -290,17 +290,16 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 static void spi_imx_buf_rx_swap_u32(struct spi_imx_data *spi_imx)
 {
 	unsigned int val = readl(spi_imx->base + MXC_CSPIRXDATA);
-#ifdef __LITTLE_ENDIAN
-	unsigned int bytes_per_word;
-#endif
 
 	if (spi_imx->rx_buf) {
 #ifdef __LITTLE_ENDIAN
+		unsigned int bytes_per_word;
+
 		bytes_per_word = spi_imx_bytes_per_word(spi_imx->bits_per_word);
 		if (bytes_per_word == 1)
 			swab32s(&val);
 		else if (bytes_per_word == 2)
-			val = (val << 16) | (val >> 16);
+			swahw32s(&val);
 #endif
 		*(u32 *)spi_imx->rx_buf = val;
 		spi_imx->rx_buf += sizeof(u32);
@@ -356,7 +355,7 @@ static void spi_imx_buf_tx_swap_u32(struct spi_imx_data *spi_imx)
 	if (bytes_per_word == 1)
 		swab32s(&val);
 	else if (bytes_per_word == 2)
-		val = (val << 16) | (val >> 16);
+		swahw32s(&val);
 #endif
 	writel(val, spi_imx->base + MXC_CSPITXDATA);
 }
