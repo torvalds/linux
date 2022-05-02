@@ -2189,8 +2189,8 @@ static bool _dpk_sync_check(struct rtw89_dev *rtwdev,
 		    "[DPK] S%d Corr_idx / Corr_val = %d / %d\n", path, corr_idx,
 		    corr_val);
 
-	dpk->corr_idx[path] = corr_idx;
-	dpk->corr_val[path] = corr_val;
+	dpk->corr_idx[path][0] = corr_idx;
+	dpk->corr_val[path][0] = corr_val;
 
 	rtw89_phy_write32_mask(rtwdev, R_KIP_RPT1, B_KIP_RPT1_SEL, 0x9);
 
@@ -2203,8 +2203,8 @@ static bool _dpk_sync_check(struct rtw89_dev *rtwdev,
 	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DPK] S%d DC I/Q, = %d / %d\n",
 		    path, dc_i, dc_q);
 
-	dpk->dc_i[path] = dc_i;
-	dpk->dc_q[path] = dc_q;
+	dpk->dc_i[path][0] = dc_i;
+	dpk->dc_q[path][0] = dc_q;
 
 	if (dc_i > DPK_SYNC_TH_DC_I || dc_q > DPK_SYNC_TH_DC_Q ||
 	    corr_val < DPK_SYNC_TH_CORR)

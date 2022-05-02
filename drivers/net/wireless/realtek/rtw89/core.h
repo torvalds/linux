@@ -2690,6 +2690,7 @@ struct rtw89_dpk_bkup_para {
 	enum rtw89_bandwidth bw;
 	u8 ch;
 	bool path_ok;
+	u8 mdpd_en;
 	u8 txagc_dpk;
 	u8 ther_dpk;
 	u8 gs;
@@ -2699,11 +2700,12 @@ struct rtw89_dpk_bkup_para {
 struct rtw89_dpk_info {
 	bool is_dpk_enable;
 	bool is_dpk_reload_en;
-	u16 dc_i[RTW89_DPK_RF_PATH];
-	u16 dc_q[RTW89_DPK_RF_PATH];
-	u8 corr_val[RTW89_DPK_RF_PATH];
-	u8 corr_idx[RTW89_DPK_RF_PATH];
+	u16 dc_i[RTW89_DPK_RF_PATH][RTW89_DPK_BKUP_NUM];
+	u16 dc_q[RTW89_DPK_RF_PATH][RTW89_DPK_BKUP_NUM];
+	u8 corr_val[RTW89_DPK_RF_PATH][RTW89_DPK_BKUP_NUM];
+	u8 corr_idx[RTW89_DPK_RF_PATH][RTW89_DPK_BKUP_NUM];
 	u8 cur_idx[RTW89_DPK_RF_PATH];
+	u8 cur_k_set;
 	struct rtw89_dpk_bkup_para bp[RTW89_DPK_RF_PATH][RTW89_DPK_BKUP_NUM];
 };
 
@@ -2712,6 +2714,7 @@ struct rtw89_fem_info {
 	bool elna_5g;
 	bool epa_2g;
 	bool epa_5g;
+	bool epa_6g;
 };
 
 struct rtw89_phy_ch_info {

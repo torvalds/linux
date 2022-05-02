@@ -1789,6 +1789,7 @@ static void rtw8852c_rfk_channel(struct rtw89_dev *rtwdev)
 	rtw8852c_rx_dck(rtwdev, phy_idx, false);
 	rtw8852c_iqk(rtwdev, phy_idx);
 	rtw8852c_tssi(rtwdev, phy_idx);
+	rtw8852c_dpk(rtwdev, phy_idx);
 	rtw89_fw_h2c_rf_ntfy_mcc(rtwdev);
 }
 
@@ -1804,6 +1805,7 @@ static void rtw8852c_rfk_scan(struct rtw89_dev *rtwdev, bool start)
 
 static void rtw8852c_rfk_track(struct rtw89_dev *rtwdev)
 {
+	rtw8852c_dpk_track(rtwdev);
 	rtw8852c_lck_track(rtwdev);
 }
 
