@@ -3871,15 +3871,9 @@ unsigned int OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_fra
 
 unsigned int OnAction(struct adapter *padapter, struct recv_frame *precv_frame)
 {
-	unsigned char	category;
-	unsigned char	*frame_body;
-	u8 *pframe = precv_frame->rx_data;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
 
-	frame_body = (unsigned char *)(pframe + sizeof(struct ieee80211_hdr_3addr));
-
-	category = frame_body[0];
-
-	switch (category) {
+	switch (mgmt->u.action.category) {
 	case RTW_WLAN_CATEGORY_BACK:
 		OnAction_back(padapter, precv_frame);
 		break;
