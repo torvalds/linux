@@ -126,8 +126,7 @@ static void *vb2_dma_sg_alloc(struct vb2_buffer *vb, struct device *dev,
 	 * there is no memory consistency guarantee, hence dma-sg ignores DMA
 	 * attributes passed from the upper layer.
 	 */
-	buf->pages = kvmalloc_array(buf->num_pages, sizeof(struct page *),
-				    GFP_KERNEL | __GFP_ZERO);
+	buf->pages = kvcalloc(buf->num_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!buf->pages)
 		goto fail_pages_array_alloc;
 
