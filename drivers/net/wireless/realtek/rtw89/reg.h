@@ -3327,6 +3327,8 @@
 #define RR_MIXER_GN GENMASK(4, 3)
 #define RR_XTALX2 0xb8
 #define RR_MALSEL 0xbe
+#define RR_LCK_TRG 0xd3
+#define RR_LCK_TRGSEL BIT(8)
 #define RR_RCKD 0xde
 #define RR_RCKD_POW GENMASK(19, 13)
 #define RR_RCKD_BW BIT(2)

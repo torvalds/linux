@@ -632,6 +632,69 @@ static void _rxbb_bw(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 	}
 }
 
+static void _lck_keep_thermal(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_lck_info *lck = &rtwdev->lck;
+	int path;
+
+	for (path = 0; path < rtwdev->chip->rf_path_num; path++) {
+		lck->thermal[path] =
+			ewma_thermal_read(&rtwdev->phystat.avg_thermal[path]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK,
+			    "[LCK] path=%d thermal=0x%x", path, lck->thermal[path]);
+	}
+}
+
+static void _lck(struct rtw89_dev *rtwdev)
+{
+	u32 tmp18[2];
+	int path = rtwdev->dbcc_en ? 2 : 1;
+	int i;
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK, "[LCK] DO LCK\n");
+
+	tmp18[0] = rtw89_read_rf(rtwdev, RF_PATH_A, RR_CFGCH, RFREG_MASK);
+	tmp18[1] = rtw89_read_rf(rtwdev, RF_PATH_B, RR_CFGCH, RFREG_MASK);
+
+	for (i = 0; i < path; i++) {
+		rtw89_write_rf(rtwdev, i, RR_LCK_TRG, RR_LCK_TRGSEL, 0x1);
+		rtw89_write_rf(rtwdev, i, RR_CFGCH, RFREG_MASK, tmp18[i]);
+		rtw89_write_rf(rtwdev, i, RR_LCK_TRG, RR_LCK_TRGSEL, 0x0);
+	}
+
+	_lck_keep_thermal(rtwdev);
+}
+
+#define RTW8852C_LCK_TH 8
+
+void rtw8852c_lck_track(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_lck_info *lck = &rtwdev->lck;
+	u8 cur_thermal;
+	int delta;
+	int path;
+
+	for (path = 0; path < rtwdev->chip->rf_path_num; path++) {
+		cur_thermal =
+			ewma_thermal_read(&rtwdev->phystat.avg_thermal[path]);
+		delta = abs((int)cur_thermal - lck->thermal[path]);
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK,
+			    "[LCK] path=%d current thermal=0x%x delta=0x%x\n",
+			    path, cur_thermal, delta);
+
+		if (delta >= RTW8852C_LCK_TH) {
+			_lck(rtwdev);
+			return;
+		}
+	}
+}
+
+void rtw8852c_lck_init(struct rtw89_dev *rtwdev)
+{
+	_lck_keep_thermal(rtwdev);
+}
+
 static
 void rtw8852c_ctrl_bw_ch(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 			 u8 central_ch, enum rtw89_band band,

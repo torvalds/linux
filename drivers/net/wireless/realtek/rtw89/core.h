@@ -2642,6 +2642,10 @@ struct rtw89_mcc_info {
 	u8 table_idx;
 };
 
+struct rtw89_lck_info {
+	u8 thermal[RF_PATH_MAX];
+};
+
 struct rtw89_iqk_info {
 	bool lok_cor_fail[RTW89_IQK_CHS_NR][RTW89_IQK_PATH_NR];
 	bool lok_fin_fail[RTW89_IQK_CHS_NR][RTW89_IQK_PATH_NR];
@@ -3114,6 +3118,7 @@ struct rtw89_dev {
 	struct rtw89_iqk_info iqk;
 	struct rtw89_dpk_info dpk;
 	struct rtw89_mcc_info mcc;
+	struct rtw89_lck_info lck;
 	bool is_tssi_mode[RF_PATH_MAX];
 	bool is_bt_iqk_timeout;
 
