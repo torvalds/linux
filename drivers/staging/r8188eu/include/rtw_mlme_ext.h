@@ -567,12 +567,6 @@ unsigned int OnDeAuth(struct adapter *padapter,
 unsigned int OnAction(struct adapter *padapter,
 		      struct recv_frame *precv_frame);
 
-unsigned int on_action_spct(struct adapter *padapter,
-			    struct recv_frame *precv_frame);
-unsigned int OnAction_qos(struct adapter *padapter,
-			  struct recv_frame *precv_frame);
-unsigned int OnAction_dls(struct adapter *padapter,
-			  struct recv_frame *precv_frame);
 unsigned int OnAction_back(struct adapter *padapter,
 			   struct recv_frame *precv_frame);
 unsigned int on_action_public(struct adapter *padapter,
