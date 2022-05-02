@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/dma-mapping-fast.h>
@@ -358,6 +359,17 @@ int qcom_iommu_get_context_bank_nr(struct iommu_domain *domain)
 	return ops->get_context_bank_nr(domain);
 }
 EXPORT_SYMBOL(qcom_iommu_get_context_bank_nr);
+
+int qcom_iommu_get_asid_nr(struct iommu_domain *domain)
+{
+	struct qcom_iommu_ops *ops = to_qcom_iommu_ops(domain->ops);
+
+	if (unlikely(ops->get_asid_nr == NULL))
+		return -EINVAL;
+
+	return ops->get_asid_nr(domain);
+}
+EXPORT_SYMBOL(qcom_iommu_get_asid_nr);
 
 int qcom_iommu_set_secure_vmid(struct iommu_domain *domain, enum vmid vmid)
 {

@@ -14,7 +14,7 @@
  *	- Context fault reporting
  *	- Extended Stream ID (16 bit)
  *
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "arm-smmu: " fmt
@@ -2678,6 +2678,20 @@ static int arm_smmu_get_context_bank_nr(struct iommu_domain *domain)
 	return ret;
 }
 
+static int arm_smmu_get_asid_nr(struct iommu_domain *domain)
+{
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+	int ret;
+
+	mutex_lock(&smmu_domain->init_mutex);
+	if (!smmu_domain->smmu)
+		ret = -EINVAL;
+	else
+		ret = smmu_domain->cfg.asid;
+	mutex_unlock(&smmu_domain->init_mutex);
+	return ret;
+}
+
 static int arm_smmu_set_secure_vmid(struct iommu_domain *domain, enum vmid vmid)
 {
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
@@ -2770,6 +2784,7 @@ static struct qcom_iommu_ops arm_smmu_ops = {
 	.sid_switch			= arm_smmu_sid_switch,
 	.get_fault_ids			= arm_smmu_get_fault_ids,
 	.get_context_bank_nr		= arm_smmu_get_context_bank_nr,
+	.get_asid_nr			= arm_smmu_get_asid_nr,
 	.set_secure_vmid		= arm_smmu_set_secure_vmid,
 	.set_fault_model		= arm_smmu_set_fault_model,
 	.enable_s1_translation		= arm_smmu_enable_s1_translation,

@@ -93,6 +93,7 @@ struct qcom_iommu_ops {
 	int (*get_fault_ids)(struct iommu_domain *domain,
 			struct qcom_iommu_fault_ids *ids);
 	int (*get_context_bank_nr)(struct iommu_domain *domain);
+	int (*get_asid_nr)(struct iommu_domain *domain);
 	int (*set_secure_vmid)(struct iommu_domain *domain, enum vmid vmid);
 	int (*set_fault_model)(struct iommu_domain *domain, int fault_model);
 	int (*enable_s1_translation)(struct iommu_domain *domain);
@@ -125,6 +126,8 @@ extern int qcom_iommu_get_fault_ids(struct iommu_domain *domain,
 extern int qcom_iommu_get_msi_size(struct device *dev, u32 *msi_size);
 
 int qcom_iommu_get_context_bank_nr(struct iommu_domain *domain);
+
+int qcom_iommu_get_asid_nr(struct iommu_domain *domain);
 
 int qcom_iommu_set_secure_vmid(struct iommu_domain *domain, enum vmid vmid);
 
