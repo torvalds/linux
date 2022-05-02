@@ -51,7 +51,7 @@ int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *rule);
  *	@rule: rule to be checked
  *	Returns 1 if there are selinux fields specified in the rule, 0 otherwise.
  */
-int selinux_audit_rule_known(struct audit_krule *krule);
+int selinux_audit_rule_known(struct audit_krule *rule);
 
 #endif /* _SELINUX_AUDIT_H */
 
