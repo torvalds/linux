@@ -418,6 +418,37 @@
 			#interrupt-cells = <2>;
 		};
 
+		mdio0: mdio@e2004118 {
+			compatible = "microchip,lan966x-miim";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xe2004118 0x24>;
+			clocks = <&sys_clk>;
+			status = "disabled";
+		};
+
+		mdio1: mdio@e200413c {
+			compatible = "microchip,lan966x-miim";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xe200413c 0x24>,
+			      <0xe2010020 0x4>;
+			clocks = <&sys_clk>;
+			status = "disabled";
+
+			phy0: ethernet-phy@1 {
+				reg = <1>;
+				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
+
+			phy1: ethernet-phy@2 {
+				reg = <2>;
+				interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
+		};
+
 		sgpio: gpio@e2004190 {
 			compatible = "microchip,sparx5-sgpio";
 			reg = <0xe2004190 0x118>;
