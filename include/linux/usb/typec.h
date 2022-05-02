@@ -52,6 +52,16 @@ enum typec_role {
 	TYPEC_SOURCE,
 };
 
+static inline int is_sink(enum typec_role role)
+{
+	return role == TYPEC_SINK;
+}
+
+static inline int is_source(enum typec_role role)
+{
+	return role == TYPEC_SOURCE;
+}
+
 enum typec_pwr_opmode {
 	TYPEC_PWR_MODE_USB,
 	TYPEC_PWR_MODE_1_5A,
