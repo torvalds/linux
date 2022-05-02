@@ -36,6 +36,7 @@ struct wkup_m3_ipc {
 	int vtt_conf;
 	int isolation_conf;
 	int state;
+	u32 halt;
 
 	unsigned long volt_scale_offsets;
 	const char *sd_fw_name;
@@ -46,6 +47,7 @@ struct wkup_m3_ipc {
 
 	struct wkup_m3_ipc_ops *ops;
 	int is_rtc_only;
+	struct dentry *dbg_path;
 };
 
 struct wkup_m3_wakeup_src {

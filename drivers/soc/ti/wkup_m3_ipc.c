@@ -7,6 +7,7 @@
  * Dave Gerlach <d-gerlach@ti.com>
  */
 
+#include <linux/debugfs.h>
 #include <linux/err.h>
 #include <linux/firmware.h>
 #include <linux/kernel.h>
@@ -49,6 +50,9 @@
 #define IPC_VTT_GPIO_PIN_MASK		(0x3f << 4)
 #define IPC_IO_ISOLATION_STAT_SHIFT	(10)
 #define IPC_IO_ISOLATION_STAT_MASK	(0x1 << 10)
+
+#define IPC_DBG_HALT_SHIFT		(11)
+#define IPC_DBG_HALT_MASK		(0x1 << 11)
 
 #define M3_STATE_UNKNOWN		0
 #define M3_STATE_RESET			1
@@ -156,6 +160,73 @@ static int wkup_m3_init_scale_data(struct wkup_m3_ipc *m3_ipc,
 
 	return ret;
 }
+
+#ifdef CONFIG_DEBUG_FS
+static void wkup_m3_set_halt_late(bool enabled)
+{
+	if (enabled)
+		m3_ipc_state->halt = (1 << IPC_DBG_HALT_SHIFT);
+	else
+		m3_ipc_state->halt = 0;
+}
+
+static int option_get(void *data, u64 *val)
+{
+	u32 *option = data;
+
+	*val = *option;
+
+	return 0;
+}
+
+static int option_set(void *data, u64 val)
+{
+	u32 *option = data;
+
+	*option = val;
+
+	if (option == &m3_ipc_state->halt) {
+		if (val)
+			wkup_m3_set_halt_late(true);
+		else
+			wkup_m3_set_halt_late(false);
+	}
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(wkup_m3_ipc_option_fops, option_get, option_set,
+			"%llu\n");
+
+static int wkup_m3_ipc_dbg_init(struct wkup_m3_ipc *m3_ipc)
+{
+	m3_ipc->dbg_path = debugfs_create_dir("wkup_m3_ipc", NULL);
+
+	if (!m3_ipc->dbg_path)
+		return -EINVAL;
+
+	(void)debugfs_create_file("enable_late_halt", 0644,
+				  m3_ipc->dbg_path,
+				  &m3_ipc->halt,
+				  &wkup_m3_ipc_option_fops);
+
+	return 0;
+}
+
+static inline void wkup_m3_ipc_dbg_destroy(struct wkup_m3_ipc *m3_ipc)
+{
+	debugfs_remove_recursive(m3_ipc->dbg_path);
+}
+#else
+static inline int wkup_m3_ipc_dbg_init(struct wkup_m3_ipc *m3_ipc)
+{
+	return 0;
+}
+
+static inline void wkup_m3_ipc_dbg_destroy(struct wkup_m3_ipc *m3_ipc)
+{
+}
+#endif /* CONFIG_DEBUG_FS */
 
 static void am33xx_txev_eoi(struct wkup_m3_ipc *m3_ipc)
 {
@@ -402,7 +473,9 @@ static int wkup_m3_prepare_low_power(struct wkup_m3_ipc *m3_ipc, int state)
 	wkup_m3_ctrl_ipc_write(m3_ipc, m3_power_state, 1);
 	wkup_m3_ctrl_ipc_write(m3_ipc, m3_ipc->mem_type |
 			       m3_ipc->vtt_conf |
-			       m3_ipc->isolation_conf, 4);
+			       m3_ipc->isolation_conf |
+			       m3_ipc->halt, 4);
+
 	wkup_m3_ctrl_ipc_write(m3_ipc, DS_IPC_DEFAULT, 2);
 	wkup_m3_ctrl_ipc_write(m3_ipc, DS_IPC_DEFAULT, 3);
 	wkup_m3_ctrl_ipc_write(m3_ipc, DS_IPC_DEFAULT, 6);
@@ -631,6 +704,8 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 		goto err_put_rproc;
 	}
 
+	wkup_m3_ipc_dbg_init(m3_ipc);
+
 	return 0;
 
 err_put_rproc:
@@ -642,6 +717,8 @@ err_free_mbox:
 
 static int wkup_m3_ipc_remove(struct platform_device *pdev)
 {
+	wkup_m3_ipc_dbg_destroy(m3_ipc_state);
+
 	mbox_free_channel(m3_ipc_state->mbox);
 
 	rproc_shutdown(m3_ipc_state->rproc);
