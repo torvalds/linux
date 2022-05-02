@@ -186,11 +186,6 @@ enum SCAN_STATE {
 
 typedef unsigned int (*mlme_handler)(struct adapter *adapt, struct recv_frame *frame);
 
-struct action_handler {
-	unsigned int   num;
-	unsigned int (*func)(struct adapter *adapt, struct recv_frame *frame);
-};
-
 struct	ss_res {
 	int	state;
 	int	bss_cnt;

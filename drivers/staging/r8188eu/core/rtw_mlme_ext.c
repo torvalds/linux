@@ -32,12 +32,6 @@ static mlme_handler mlme_sta_tbl[] = {
 	OnAction,
 };
 
-static struct action_handler OnAction_tbl[] = {
-	{RTW_WLAN_CATEGORY_BACK, &OnAction_back},
-	{RTW_WLAN_CATEGORY_PUBLIC, on_action_public},
-	{RTW_WLAN_CATEGORY_P2P, &OnAction_p2p},
-};
-
 static u8 null_addr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
 
 /**************************************************
@@ -3877,9 +3871,7 @@ unsigned int OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_fra
 
 unsigned int OnAction(struct adapter *padapter, struct recv_frame *precv_frame)
 {
-	int i;
 	unsigned char	category;
-	struct action_handler *ptable;
 	unsigned char	*frame_body;
 	u8 *pframe = precv_frame->rx_data;
 
@@ -3887,10 +3879,16 @@ unsigned int OnAction(struct adapter *padapter, struct recv_frame *precv_frame)
 
 	category = frame_body[0];
 
-	for (i = 0; i < ARRAY_SIZE(OnAction_tbl); i++) {
-		ptable = &OnAction_tbl[i];
-		if (category == ptable->num)
-			ptable->func(padapter, precv_frame);
+	switch (category) {
+	case RTW_WLAN_CATEGORY_BACK:
+		OnAction_back(padapter, precv_frame);
+		break;
+	case RTW_WLAN_CATEGORY_PUBLIC:
+		on_action_public(padapter, precv_frame);
+		break;
+	case RTW_WLAN_CATEGORY_P2P:
+		OnAction_p2p(padapter, precv_frame);
+		break;
 	}
 	return _SUCCESS;
 }
