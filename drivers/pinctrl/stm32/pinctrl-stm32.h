@@ -59,6 +59,7 @@ struct stm32_desc_pin {
 struct stm32_pinctrl_match_data {
 	const struct stm32_desc_pin *pins;
 	const unsigned int npins;
+	bool secure_control;
 };
 
 struct stm32_gpio_bank;

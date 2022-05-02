@@ -1649,6 +1649,7 @@ static const struct stm32_desc_pin stm32mp135_pins[] = {
 static struct stm32_pinctrl_match_data stm32mp135_match_data = {
 	.pins = stm32mp135_pins,
 	.npins = ARRAY_SIZE(stm32mp135_pins),
+	.secure_control = true,
 };
 
 static const struct of_device_id stm32mp135_pctrl_match[] = {
