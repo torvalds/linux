@@ -118,17 +118,6 @@ static void mod_update_bounds(struct module *mod)
 #endif
 }
 
-static void module_assert_mutex_or_preempt(void)
-{
-#ifdef CONFIG_LOCKDEP
-	if (unlikely(!debug_locks))
-		return;
-
-	WARN_ON_ONCE(!rcu_read_lock_sched_held() &&
-		!lockdep_is_held(&module_mutex));
-#endif
-}
-
 /* Block module loading/unloading? */
 int modules_disabled = 0;
 core_param(nomodule, modules_disabled, bint, 0);

@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/rculist.h>
+#include <linux/rcupdate.h>
 
 #ifndef ARCH_SHF_SMALL
 #define ARCH_SHF_SMALL 0
@@ -101,6 +102,17 @@ long module_get_offset(struct module *mod, unsigned int *size, Elf_Shdr *sechdr,
 		       unsigned int section);
 char *module_flags(struct module *mod, char *buf);
 size_t module_flags_taint(unsigned long taints, char *buf);
+
+static inline void module_assert_mutex_or_preempt(void)
+{
+#ifdef CONFIG_LOCKDEP
+	if (unlikely(!debug_locks))
+		return;
+
+	WARN_ON_ONCE(!rcu_read_lock_sched_held() &&
+		     !lockdep_is_held(&module_mutex));
+#endif
+}
 
 static inline unsigned long kernel_symbol_value(const struct kernel_symbol *sym)
 {
