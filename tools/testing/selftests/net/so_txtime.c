@@ -421,7 +421,7 @@ static void usage(const char *progname)
 			"Options:\n"
 			"  -4            only IPv4\n"
 			"  -6            only IPv6\n"
-			"  -c <clock>    monotonic (default) or tai\n"
+			"  -c <clock>    monotonic or tai (default)\n"
 			"  -D <addr>     destination IP address (server)\n"
 			"  -S <addr>     source IP address (client)\n"
 			"  -r            run rx mode\n"
