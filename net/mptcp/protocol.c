@@ -3321,13 +3321,10 @@ bool mptcp_finish_join(struct sock *ssk)
 		return false;
 	}
 
-	if (!msk->pm.server_side)
+	if (!list_empty(&subflow->node))
 		goto out;
 
 	if (!mptcp_pm_allow_new_subflow(msk))
-		goto err_prohibited;
-
-	if (WARN_ON_ONCE(!list_empty(&subflow->node)))
 		goto err_prohibited;
 
 	/* active connections are already on conn_list.
