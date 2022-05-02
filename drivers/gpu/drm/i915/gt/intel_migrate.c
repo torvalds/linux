@@ -647,17 +647,9 @@ static int scatter_list_length(struct scatterlist *sg)
 
 static void
 calculate_chunk_sz(struct drm_i915_private *i915, bool src_is_lmem,
-		   int *src_sz, int *ccs_sz, u32 bytes_to_cpy,
-		   u32 ccs_bytes_to_cpy)
+		   int *src_sz, u32 bytes_to_cpy, u32 ccs_bytes_to_cpy)
 {
 	if (ccs_bytes_to_cpy) {
-		/*
-		 * We can only copy the ccs data corresponding to
-		 * the CHUNK_SZ of lmem which is
-		 * GET_CCS_BYTES(i915, CHUNK_SZ))
-		 */
-		*ccs_sz = min_t(int, ccs_bytes_to_cpy, GET_CCS_BYTES(i915, CHUNK_SZ));
-
 		if (!src_is_lmem)
 			/*
 			 * When CHUNK_SZ is passed all the pages upto CHUNK_SZ
@@ -707,10 +699,10 @@ intel_context_migrate_copy(struct intel_context *ce,
 	struct drm_i915_private *i915 = ce->engine->i915;
 	u32 ccs_bytes_to_cpy = 0, bytes_to_cpy;
 	enum i915_cache_level ccs_cache_level;
-	int src_sz, dst_sz, ccs_sz;
 	u32 src_offset, dst_offset;
 	u8 src_access, dst_access;
 	struct i915_request *rq;
+	int src_sz, dst_sz;
 	bool ccs_is_src;
 	int err;
 
@@ -791,7 +783,7 @@ intel_context_migrate_copy(struct intel_context *ce,
 		if (err)
 			goto out_rq;
 
-		calculate_chunk_sz(i915, src_is_lmem, &src_sz, &ccs_sz,
+		calculate_chunk_sz(i915, src_is_lmem, &src_sz,
 				   bytes_to_cpy, ccs_bytes_to_cpy);
 
 		len = emit_pte(rq, &it_src, src_cache_level, src_is_lmem,
@@ -825,37 +817,35 @@ intel_context_migrate_copy(struct intel_context *ce,
 		bytes_to_cpy -= len;
 
 		if (ccs_bytes_to_cpy) {
+			int ccs_sz;
+
 			err = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
 			if (err)
 				goto out_rq;
 
+			ccs_sz = GET_CCS_BYTES(i915, len);
 			err = emit_pte(rq, &it_ccs, ccs_cache_level, false,
 				       ccs_is_src ? src_offset : dst_offset,
 				       ccs_sz);
+			if (err < 0)
+				goto out_rq;
+			if (err < ccs_sz) {
+				err = -EINVAL;
+				goto out_rq;
+			}
 
 			err = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
 			if (err)
 				goto out_rq;
-
-			/*
-			 * Using max of src_sz and dst_sz, as we need to
-			 * pass the lmem size corresponding to the ccs
-			 * blocks we need to handle.
-			 */
-			ccs_sz = max_t(int, ccs_is_src ? ccs_sz : src_sz,
-				       ccs_is_src ? dst_sz : ccs_sz);
 
 			err = emit_copy_ccs(rq, dst_offset, dst_access,
-					    src_offset, src_access, ccs_sz);
+					    src_offset, src_access, len);
 			if (err)
 				goto out_rq;
 
 			err = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
 			if (err)
 				goto out_rq;
-
-			/* Converting back to ccs bytes */
-			ccs_sz = GET_CCS_BYTES(rq->engine->i915, ccs_sz);
 			ccs_bytes_to_cpy -= ccs_sz;
 		}
 
