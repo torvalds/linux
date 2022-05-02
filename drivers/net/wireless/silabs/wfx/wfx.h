@@ -57,6 +57,7 @@ struct wfx_dev {
 	struct mutex               rx_stats_lock;
 	struct wfx_hif_tx_power_loop_info tx_power_loop_info;
 	struct mutex               tx_power_loop_info_lock;
+	struct workqueue_struct    *bh_wq;
 };
 
 struct wfx_vif {
