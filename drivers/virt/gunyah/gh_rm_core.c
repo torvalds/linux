@@ -347,7 +347,6 @@ struct gh_rm_connection *gh_rm_process_notif(void *msg, size_t msg_size)
 {
 	struct gh_rm_rpc_hdr *hdr = msg;
 	struct gh_rm_connection *connection;
-	struct gh_rm_notif_validate *validate_work;
 
 	connection = gh_rm_alloc_connection(hdr->msg_id, false);
 	if (!connection)
@@ -358,17 +357,6 @@ struct gh_rm_connection *gh_rm_process_notif(void *msg, size_t msg_size)
 		return NULL;
 	}
 
-	if (hdr->fragments)
-		return connection;
-
-	/* Validate the notification received if there are no more fragments to follow */
-	validate_work = kzalloc(sizeof(*validate_work), GFP_KERNEL);
-	if (validate_work == NULL)
-		return ERR_PTR(-ENOMEM);
-	validate_work->conn = connection;
-	INIT_WORK(&validate_work->work, gh_rm_validate_notif);
-
-	schedule_work(&validate_work->work);
 	return connection;
 }
 
@@ -406,17 +394,6 @@ struct gh_rm_connection *gh_rm_process_rply(void *recv_buff, size_t recv_buff_si
 
 	connection->rm_error = reply_hdr->err_code;
 
-	/*
-	 * If the data is composed of a single message, wakeup the
-	 * receiver immediately.
-	 *
-	 * Else, if the data is split into multiple fragments, fill
-	 * this buffer as and when the fragments arrive, and finally
-	 * wakeup the receiver upon reception of the last fragment.
-	 */
-	if (!hdr->fragments)
-		complete(&connection->seq_done);
-
 	/* All the processing functions would have trimmed-off the header
 	 * and copied the data to connection->recv_buff. Hence, it's okay
 	 * to release the original packet that arrived.
@@ -428,7 +405,6 @@ struct gh_rm_connection *gh_rm_process_rply(void *recv_buff, size_t recv_buff_si
 static int gh_rm_process_cont(struct gh_rm_connection *connection,
 			void *recv_buff, size_t recv_buff_size)
 {
-	struct gh_rm_notif_validate *validate_work;
 	struct gh_rm_rpc_hdr *hdr = recv_buff;
 	size_t payload_size;
 
@@ -458,35 +434,44 @@ static int gh_rm_process_cont(struct gh_rm_connection *connection,
 	/* Keep appending the data to the previous fragment's end */
 	memcpy(connection->payload + connection->size, recv_buff + sizeof(*hdr), payload_size);
 	connection->size += payload_size;
-
-	if (++connection->fragments_received ==
-					connection->num_fragments) {
-		switch (connection->type) {
-		case GH_RM_RPC_TYPE_RPLY:
-			complete(&connection->seq_done);
-			/* All the processing functions would have trimmed-off the header
-			 * and copied the data to connection->payload. Hence, it's okay
-			 * to release the original packet that arrived.
-			 */
-			kfree(recv_buff);
-			break;
-		case GH_RM_RPC_TYPE_NOTIF:
-			validate_work = kzalloc(sizeof(*validate_work),
-						GFP_KERNEL);
-			if (validate_work == NULL)
-				return -ENOMEM;
-			validate_work->conn = connection;
-			INIT_WORK(&validate_work->work, gh_rm_validate_notif);
-
-			schedule_work(&validate_work->work);
-			break;
-		default:
-			pr_err("%s: Invalid message type (%d) received\n",
-				__func__, hdr->type);
-		}
-	}
+	connection->fragments_received++;
 
 	return 0;
+}
+
+static bool gh_rm_complete_connection(struct gh_rm_connection *connection)
+{
+	struct gh_rm_notif_validate *validate_work;
+
+	if (!connection)
+		return false;
+
+	if (connection->fragments_received != connection->num_fragments)
+		return false;
+
+	switch (connection->type) {
+	case GH_RM_RPC_TYPE_RPLY:
+		complete(&connection->seq_done);
+		break;
+	case GH_RM_RPC_TYPE_NOTIF:
+		validate_work = kzalloc(sizeof(*validate_work), GFP_KERNEL);
+		if (validate_work == NULL) {
+			kfree(connection->payload);
+			kfree(connection);
+			break;
+		}
+
+		validate_work->conn = connection;
+		INIT_WORK(&validate_work->work, gh_rm_validate_notif);
+
+		schedule_work(&validate_work->work);
+		break;
+	default:
+		pr_err("Invalid message type (%d) received\n", connection->type);
+		break;
+	}
+
+	return true;
 }
 
 static int gh_rm_recv_task_fn(void *data)
@@ -537,6 +522,9 @@ static int gh_rm_recv_task_fn(void *data)
 		}
 		print_hex_dump_debug("gh_rm_recv: ", DUMP_PREFIX_OFFSET,
 				     4, 1, recv_buff, recv_buff_size, false);
+
+		if (gh_rm_complete_connection(connection))
+			connection = NULL;
 	}
 
 	return 0;
