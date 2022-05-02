@@ -142,7 +142,6 @@ examples:
           device_type = "pci";
           reg = <0x0 0x0 0x0 0x0 0x0>;
           reset-gpios = <&pinctrl_ap 152 0>;
-          max-link-speed = <2>;
 
           #address-cells = <3>;
           #size-cells = <2>;
@@ -153,7 +152,6 @@ examples:
           device_type = "pci";
           reg = <0x800 0x0 0x0 0x0 0x0>;
           reset-gpios = <&pinctrl_ap 153 0>;
-          max-link-speed = <2>;
 
           #address-cells = <3>;
           #size-cells = <2>;
@@ -164,7 +162,6 @@ examples:
           device_type = "pci";
           reg = <0x1000 0x0 0x0 0x0 0x0>;
           reset-gpios = <&pinctrl_ap 33 0>;
-          max-link-speed = <1>;
 
           #address-cells = <3>;
           #size-cells = <2>;
