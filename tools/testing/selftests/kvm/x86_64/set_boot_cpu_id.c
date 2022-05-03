@@ -78,13 +78,10 @@ static void run_vcpu(struct kvm_vcpu *vcpu)
 static struct kvm_vm *create_vm(uint32_t nr_vcpus, uint32_t bsp_vcpu_id,
 				struct kvm_vcpu *vcpus[])
 {
-	uint64_t vcpu_pages = (DEFAULT_STACK_PGS) * nr_vcpus;
-	uint64_t extra_pg_pages = vcpu_pages / PTES_PER_MIN_PAGE * nr_vcpus;
-	uint64_t pages = DEFAULT_GUEST_PHY_PAGES + vcpu_pages + extra_pg_pages;
 	struct kvm_vm *vm;
 	uint32_t i;
 
-	vm = vm_create(pages);
+	vm = vm_create(nr_vcpus);
 
 	vm_ioctl(vm, KVM_SET_BOOT_CPU_ID, (void *)(unsigned long)bsp_vcpu_id);
 

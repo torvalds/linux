@@ -258,11 +258,45 @@ struct kvm_vm *____vm_create(enum vm_guest_mode mode, uint64_t nr_pages)
 	return vm;
 }
 
-struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint64_t nr_pages)
+static uint64_t vm_nr_pages_required(enum vm_guest_mode mode,
+				     uint32_t nr_runnable_vcpus,
+				     uint64_t extra_mem_pages)
 {
-	struct kvm_vm *vm;
+	uint64_t nr_pages;
 
-	nr_pages = vm_adjust_num_guest_pages(mode, nr_pages);
+	TEST_ASSERT(nr_runnable_vcpus,
+		    "Use vm_create_barebones() for VMs that _never_ have vCPUs\n");
+
+	TEST_ASSERT(nr_runnable_vcpus <= kvm_check_cap(KVM_CAP_MAX_VCPUS),
+		    "nr_vcpus = %d too large for host, max-vcpus = %d",
+		    nr_runnable_vcpus, kvm_check_cap(KVM_CAP_MAX_VCPUS));
+
+	nr_pages = DEFAULT_GUEST_PHY_PAGES;
+	nr_pages += nr_runnable_vcpus * DEFAULT_STACK_PGS;
+
+	/*
+	 * Account for the number of pages needed for the page tables.  The
+	 * maximum page table size for a memory region will be when the
+	 * smallest page size is used. Considering each page contains x page
+	 * table descriptors, the total extra size for page tables (for extra
+	 * N pages) will be: N/x+N/x^2+N/x^3+... which is definitely smaller
+	 * than N/x*2.
+	 */
+	nr_pages += (nr_pages + extra_mem_pages) / PTES_PER_MIN_PAGE * 2;
+
+	TEST_ASSERT(nr_runnable_vcpus <= kvm_check_cap(KVM_CAP_MAX_VCPUS),
+		    "Host doesn't support %d vCPUs, max-vcpus = %d",
+		    nr_runnable_vcpus, kvm_check_cap(KVM_CAP_MAX_VCPUS));
+
+	return vm_adjust_num_guest_pages(mode, nr_pages);
+}
+
+struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint32_t nr_runnable_vcpus,
+			   uint64_t nr_extra_pages)
+{
+	uint64_t nr_pages = vm_nr_pages_required(mode, nr_runnable_vcpus,
+						 nr_extra_pages);
+	struct kvm_vm *vm;
 
 	vm = ____vm_create(mode, nr_pages);
 
@@ -297,27 +331,12 @@ struct kvm_vm *__vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus
 				      uint64_t extra_mem_pages,
 				      void *guest_code, struct kvm_vcpu *vcpus[])
 {
-	uint64_t vcpu_pages, extra_pg_pages, pages;
 	struct kvm_vm *vm;
 	int i;
 
 	TEST_ASSERT(!nr_vcpus || vcpus, "Must provide vCPU array");
 
-	/* The maximum page table size for a memory region will be when the
-	 * smallest pages are used. Considering each page contains x page
-	 * table descriptors, the total extra size for page tables (for extra
-	 * N pages) will be: N/x+N/x^2+N/x^3+... which is definitely smaller
-	 * than N/x*2.
-	 */
-	vcpu_pages = nr_vcpus * DEFAULT_STACK_PGS;
-	extra_pg_pages = (DEFAULT_GUEST_PHY_PAGES + extra_mem_pages + vcpu_pages) / PTES_PER_MIN_PAGE * 2;
-	pages = DEFAULT_GUEST_PHY_PAGES + vcpu_pages + extra_pg_pages;
-
-	TEST_ASSERT(nr_vcpus <= kvm_check_cap(KVM_CAP_MAX_VCPUS),
-		    "nr_vcpus = %d too large for host, max-vcpus = %d",
-		    nr_vcpus, kvm_check_cap(KVM_CAP_MAX_VCPUS));
-
-	vm = __vm_create(mode, pages);
+	vm = __vm_create(mode, nr_vcpus, extra_mem_pages);
 
 	for (i = 0; i < nr_vcpus; ++i)
 		vcpus[i] = vm_vcpu_add(vm, i, guest_code);

@@ -419,7 +419,7 @@ static void test_v3_typer_accesses(void)
 	uint64_t addr;
 	int ret, i;
 
-	v.vm = vm_create(DEFAULT_GUEST_PHY_PAGES);
+	v.vm = vm_create(NR_VCPUS);
 	(void)vm_vcpu_add(v.vm, 0, guest_code);
 
 	v.gic_fd = kvm_create_device(v.vm, KVM_DEV_TYPE_ARM_VGIC_V3);
@@ -479,7 +479,7 @@ static struct vm_gic vm_gic_v3_create_with_vcpuids(int nr_vcpus,
 	struct vm_gic v;
 	int i;
 
-	v.vm = vm_create(DEFAULT_GUEST_PHY_PAGES);
+	v.vm = vm_create(nr_vcpus);
 	for (i = 0; i < nr_vcpus; i++)
 		vm_vcpu_add(v.vm, vcpuids[i], guest_code);
 

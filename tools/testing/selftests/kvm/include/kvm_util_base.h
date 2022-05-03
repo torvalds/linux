@@ -547,18 +547,21 @@ vm_paddr_t vm_alloc_page_table(struct kvm_vm *vm);
 /*
  * ____vm_create() does KVM_CREATE_VM and little else.  __vm_create() also
  * loads the test binary into guest memory and creates an IRQ chip (x86 only).
+ * __vm_create() does NOT create vCPUs, @nr_runnable_vcpus is used purely to
+ * calculate the amount of memory needed for per-vCPU data, e.g. stacks.
  */
 struct kvm_vm *____vm_create(enum vm_guest_mode mode, uint64_t nr_pages);
-struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint64_t nr_pages);
+struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint32_t nr_runnable_vcpus,
+			   uint64_t nr_extra_pages);
 
 static inline struct kvm_vm *vm_create_barebones(void)
 {
 	return ____vm_create(VM_MODE_DEFAULT, 0);
 }
 
-static inline struct kvm_vm *vm_create(uint64_t nr_pages)
+static inline struct kvm_vm *vm_create(uint32_t nr_runnable_vcpus)
 {
-	return __vm_create(VM_MODE_DEFAULT, nr_pages);
+	return __vm_create(VM_MODE_DEFAULT, nr_runnable_vcpus, 0);
 }
 
 struct kvm_vm *__vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus,

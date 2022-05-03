@@ -206,7 +206,7 @@ static struct kvm_vm *create_vm(struct kvm_vcpu **vcpu)
 {
 	struct kvm_vm *vm;
 
-	vm = vm_create(DEFAULT_GUEST_PHY_PAGES);
+	vm = vm_create(1);
 
 	*vcpu = vm_vcpu_add(vm, ARBITRARY_NON_ZERO_VCPU_ID, guest_code_initial);
 
