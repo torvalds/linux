@@ -108,6 +108,7 @@ struct psr_settings {
 	 */
 	bool psr_frame_capture_indication_req;
 	unsigned int psr_sdp_transmit_line_num_deadline;
+	uint8_t force_ffu_mode;
 	unsigned int psr_power_opt;
 };
 
