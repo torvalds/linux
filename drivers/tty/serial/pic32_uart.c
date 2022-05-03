@@ -63,7 +63,7 @@ struct pic32_sport {
 	const char *irq_rx_name;
 	int irq_tx;
 	const char *irq_tx_name;
-	u8 enable_tx_irq;
+	bool enable_tx_irq;
 
 	bool hw_flow_ctrl;
 	int cts_gpio;
@@ -74,7 +74,6 @@ struct pic32_sport {
 };
 #define to_pic32_sport(c) container_of(c, struct pic32_sport, port)
 #define pic32_get_port(sport) (&sport->port)
-#define tx_irq_enabled(sport) (sport->enable_tx_irq)
 
 static inline void pic32_uart_writel(struct pic32_sport *sport,
 					u32 reg, u32 val)
@@ -195,16 +194,16 @@ static unsigned int pic32_uart_get_mctrl(struct uart_port *port)
  */
 static inline void pic32_uart_irqtxen(struct pic32_sport *sport, u8 en)
 {
-	if (en && !tx_irq_enabled(sport)) {
+	if (en && !sport->enable_tx_irq) {
 		enable_irq(sport->irq_tx);
-		tx_irq_enabled(sport) = 1;
-	} else if (!en && tx_irq_enabled(sport)) {
+		sport->enable_tx_irq = true;
+	} else if (!en && sport->enable_tx_irq) {
 		/* use disable_irq_nosync() and not disable_irq() to avoid self
 		 * imposed deadlock by not waiting for irq handler to end,
 		 * since this callback is called from interrupt context.
 		 */
 		disable_irq_nosync(sport->irq_tx);
-		tx_irq_enabled(sport) = 0;
+		sport->enable_tx_irq = false;
 	}
 }
 
@@ -497,7 +496,7 @@ static int pic32_uart_startup(struct uart_port *port)
 	 * For each irq request_irq() is called with interrupt disabled.
 	 * And the irq is enabled as soon as we are ready to handle them.
 	 */
-	tx_irq_enabled(sport) = 0;
+	sport->enable_tx_irq = false;
 
 	sport->irq_fault_name = kasprintf(GFP_KERNEL, "%s%d-fault",
 					  pic32_uart_type(port),
