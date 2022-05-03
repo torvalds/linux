@@ -757,23 +757,6 @@ static void pch_dma_tx_complete(void *arg)
 	pch_uart_hal_enable_interrupt(priv, PCH_UART_HAL_TX_INT);
 }
 
-static bool pop_tx(struct eg20t_port *priv, unsigned int size)
-{
-	struct uart_port *port = &priv->port;
-	struct circ_buf *xmit = &port->state->xmit;
-	bool ret = false;
-
-	while (!uart_tx_stopped(port) && !uart_circ_empty(xmit) && size) {
-		iowrite8(xmit->buf[xmit->tail], priv->membase + PCH_UART_THR);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
-		size--;
-		ret = true;
-	}
-
-	return ret;
-}
-
 static int handle_rx_to(struct eg20t_port *priv)
 {
 	struct pch_uart_buffer *buf;
@@ -837,6 +820,7 @@ static int dma_handle_rx(struct eg20t_port *priv)
 static unsigned int handle_tx(struct eg20t_port *priv)
 {
 	struct uart_port *port = &priv->port;
+	struct circ_buf *xmit = &port->state->xmit;
 	int fifo_size;
 	int tx_empty;
 
@@ -858,8 +842,13 @@ static unsigned int handle_tx(struct eg20t_port *priv)
 		fifo_size--;
 	}
 
-	if (fifo_size && pop_tx(priv, fifo_size))
+	while (!uart_tx_stopped(port) && !uart_circ_empty(xmit) && fifo_size) {
+		iowrite8(xmit->buf[xmit->tail], priv->membase + PCH_UART_THR);
+		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
+		port->icount.tx++;
+		fifo_size--;
 		tx_empty = 0;
+	}
 
 	priv->tx_empty = tx_empty;
 
