@@ -123,6 +123,17 @@ http://savannah.nongnu.org/projects/quilt
 登録済みのバグエントリを修正するパッチであれば、そのバグエントリを示すバグ ID
 や URL を明記してください。
 
+特定のコミットを参照したい場合は、その SHA-1 ID だけでなく、一行サマリ
+も含めてください。それにより、それが何に関するコミットなのかがレビューする
+人にわかりやすくなります。
+例 (英文のママ):
+
+       Commit e21d2170f36602ae2708 ("video: remove unnecessary
+       platform_set_drvdata()") removed the unnecessary
+       platform_set_drvdata(), but left the variable "dev" unused,
+       delete it.
+
+
 3) パッチの分割
 
 意味のあるひとまとまりごとに変更を個々のパッチファイルに分けてください。
