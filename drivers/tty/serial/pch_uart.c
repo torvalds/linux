@@ -759,21 +759,19 @@ static void pch_dma_tx_complete(void *arg)
 
 static bool pop_tx(struct eg20t_port *priv, unsigned int size)
 {
-	unsigned int count = 0;
 	struct uart_port *port = &priv->port;
 	struct circ_buf *xmit = &port->state->xmit;
+	bool ret = false;
 
-	if (uart_tx_stopped(port))
-		return false;
-
-	while (!uart_circ_empty(xmit) && count < size) {
+	while (!uart_tx_stopped(port) && !uart_circ_empty(xmit) && size) {
 		iowrite8(xmit->buf[xmit->tail], priv->membase + PCH_UART_THR);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
-		count++;
+		size--;
+		ret = true;
 	}
 
-	return count;
+	return ret;
 }
 
 static int handle_rx_to(struct eg20t_port *priv)
