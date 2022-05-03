@@ -839,9 +839,7 @@ static int dma_handle_rx(struct eg20t_port *priv)
 static unsigned int handle_tx(struct eg20t_port *priv)
 {
 	struct uart_port *port = &priv->port;
-	struct circ_buf *xmit = &port->state->xmit;
 	int fifo_size;
-	int size;
 	int tx_empty;
 
 	if (!priv->start_tx) {
@@ -862,10 +860,7 @@ static unsigned int handle_tx(struct eg20t_port *priv)
 		fifo_size--;
 	}
 
-	size = min(xmit->head - xmit->tail, fifo_size);
-	if (size < 0)
-		size = fifo_size;
-	if (size && pop_tx(priv, size))
+	if (fifo_size && pop_tx(priv, fifo_size))
 		tx_empty = 0;
 
 	priv->tx_empty = tx_empty;
