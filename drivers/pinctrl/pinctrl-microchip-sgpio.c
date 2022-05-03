@@ -848,7 +848,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 	gc			= &bank->gpio;
 	gc->label		= pctl_desc->name;
 	gc->parent		= dev;
-	gc->of_node		= to_of_node(fwnode);
+	gc->fwnode		= fwnode;
 	gc->owner		= THIS_MODULE;
 	gc->get_direction	= microchip_sgpio_get_direction;
 	gc->direction_input	= microchip_sgpio_direction_input;
