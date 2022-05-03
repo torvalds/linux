@@ -4337,12 +4337,6 @@ out:
 }
 
 static int
-cea_db_extended_tag(const u8 *db)
-{
-	return db[1];
-}
-
-static int
 cea_revision(const u8 *cea)
 {
 	/*
@@ -4451,6 +4445,22 @@ static int cea_db_payload_len(const void *_db)
 static const void *cea_db_data(const struct cea_db *db)
 {
 	return db->data;
+}
+
+static bool cea_db_is_extended_tag(const struct cea_db *db, int tag)
+{
+	return cea_db_tag(db) == CTA_DB_EXTENDED_TAG &&
+		cea_db_payload_len(db) >= 1 &&
+		db->data[0] == tag;
+}
+
+static bool cea_db_is_vendor(const struct cea_db *db, int vendor_oui)
+{
+	const u8 *data = cea_db_data(db);
+
+	return cea_db_tag(db) == CTA_DB_VENDOR &&
+		cea_db_payload_len(db) >= 3 &&
+		oui(data[2], data[1], data[0]) == vendor_oui;
 }
 
 static void cea_db_iter_edid_begin(const struct edid *edid, struct cea_db_iter *iter)
@@ -4587,93 +4597,50 @@ static void cea_db_iter_end(struct cea_db_iter *iter)
 	memset(iter, 0, sizeof(*iter));
 }
 
-static bool cea_db_is_hdmi_vsdb(const u8 *db)
+static bool cea_db_is_hdmi_vsdb(const void *db)
 {
-	if (cea_db_tag(db) != CTA_DB_VENDOR)
-		return false;
-
-	if (cea_db_payload_len(db) < 5)
-		return false;
-
-	return oui(db[3], db[2], db[1]) == HDMI_IEEE_OUI;
+	return cea_db_is_vendor(db, HDMI_IEEE_OUI) &&
+		cea_db_payload_len(db) >= 5;
 }
 
-static bool cea_db_is_hdmi_forum_vsdb(const u8 *db)
+static bool cea_db_is_hdmi_forum_vsdb(const void *db)
 {
-	if (cea_db_tag(db) != CTA_DB_VENDOR)
-		return false;
-
-	if (cea_db_payload_len(db) < 7)
-		return false;
-
-	return oui(db[3], db[2], db[1]) == HDMI_FORUM_IEEE_OUI;
+	return cea_db_is_vendor(db, HDMI_FORUM_IEEE_OUI) &&
+		cea_db_payload_len(db) >= 7;
 }
 
-static bool cea_db_is_microsoft_vsdb(const u8 *db)
+static bool cea_db_is_microsoft_vsdb(const void *db)
 {
-	if (cea_db_tag(db) != CTA_DB_VENDOR)
-		return false;
-
-	if (cea_db_payload_len(db) != 21)
-		return false;
-
-	return oui(db[3], db[2], db[1]) == MICROSOFT_IEEE_OUI;
+	return cea_db_is_vendor(db, MICROSOFT_IEEE_OUI) &&
+		cea_db_payload_len(db) == 21;
 }
 
-static bool cea_db_is_vcdb(const u8 *db)
+static bool cea_db_is_vcdb(const void *db)
 {
-	if (cea_db_tag(db) != CTA_DB_EXTENDED_TAG)
-		return false;
-
-	if (cea_db_payload_len(db) != 2)
-		return false;
-
-	if (cea_db_extended_tag(db) != CTA_EXT_DB_VIDEO_CAP)
-		return false;
-
-	return true;
+	return cea_db_is_extended_tag(db, CTA_EXT_DB_VIDEO_CAP) &&
+		cea_db_payload_len(db) == 2;
 }
 
-static bool cea_db_is_hdmi_forum_scdb(const u8 *db)
+static bool cea_db_is_hdmi_forum_scdb(const void *db)
 {
-	if (cea_db_tag(db) != CTA_DB_EXTENDED_TAG)
-		return false;
-
-	if (cea_db_payload_len(db) < 7)
-		return false;
-
-	if (cea_db_extended_tag(db) != CTA_EXT_DB_HF_SCDB)
-		return false;
-
-	return true;
+	return cea_db_is_extended_tag(db, CTA_EXT_DB_HF_SCDB) &&
+		cea_db_payload_len(db) >= 7;
 }
 
-static bool cea_db_is_y420cmdb(const u8 *db)
+static bool cea_db_is_y420cmdb(const void *db)
 {
-	if (cea_db_tag(db) != CTA_DB_EXTENDED_TAG)
-		return false;
-
-	if (!cea_db_payload_len(db))
-		return false;
-
-	if (cea_db_extended_tag(db) != CTA_EXT_DB_420_VIDEO_CAP_MAP)
-		return false;
-
-	return true;
+	return cea_db_is_extended_tag(db, CTA_EXT_DB_420_VIDEO_CAP_MAP);
 }
 
-static bool cea_db_is_y420vdb(const u8 *db)
+static bool cea_db_is_y420vdb(const void *db)
 {
-	if (cea_db_tag(db) != CTA_DB_EXTENDED_TAG)
-		return false;
+	return cea_db_is_extended_tag(db, CTA_EXT_DB_420_VIDEO_DATA);
+}
 
-	if (!cea_db_payload_len(db))
-		return false;
-
-	if (cea_db_extended_tag(db) != CTA_EXT_DB_420_VIDEO_DATA)
-		return false;
-
-	return true;
+static bool cea_db_is_hdmi_hdr_metadata_block(const void *db)
+{
+	return cea_db_is_extended_tag(db, CTA_EXT_DB_HDR_STATIC_METADATA) &&
+		cea_db_payload_len(db) >= 3;
 }
 
 #define for_each_cea_db(cea, i, start, end) \
@@ -4807,20 +4774,6 @@ static void fixup_detailed_cea_mode_clock(struct drm_display_mode *mode)
 	DRM_DEBUG("detailed mode matches %s VIC %d, adjusting clock %d -> %d\n",
 		  type, vic, mode->clock, clock);
 	mode->clock = clock;
-}
-
-static bool cea_db_is_hdmi_hdr_metadata_block(const u8 *db)
-{
-	if (cea_db_tag(db) != CTA_DB_EXTENDED_TAG)
-		return false;
-
-	if (db[1] != CTA_EXT_DB_HDR_STATIC_METADATA)
-		return false;
-
-	if (cea_db_payload_len(db) < 3)
-		return false;
-
-	return true;
 }
 
 static uint8_t eotf_supported(const u8 *edid_ext)
