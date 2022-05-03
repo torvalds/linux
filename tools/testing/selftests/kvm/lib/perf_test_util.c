@@ -113,7 +113,7 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int nr_vcpus,
 {
 	struct perf_test_args *pta = &perf_test_args;
 	struct kvm_vm *vm;
-	uint64_t guest_num_pages, slot0_pages = DEFAULT_GUEST_PHY_PAGES;
+	uint64_t guest_num_pages, slot0_pages = 0;
 	uint64_t backing_src_pagesz = get_backing_src_pagesz(backing_src);
 	uint64_t region_end_gfn;
 	int i;
@@ -152,8 +152,7 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int nr_vcpus,
 	 * The memory is also added to memslot 0, but that's a benign side
 	 * effect as KVM allows aliasing HVAs in meslots.
 	 */
-	vm = __vm_create_with_vcpus(mode, nr_vcpus, DEFAULT_GUEST_PHY_PAGES,
-				    slot0_pages + guest_num_pages, 0,
+	vm = __vm_create_with_vcpus(mode, nr_vcpus, slot0_pages + guest_num_pages, 0,
 				    perf_test_guest_code, vcpus);
 
 	pta->vm = vm;

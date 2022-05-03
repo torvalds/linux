@@ -280,7 +280,6 @@ struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint64_t nr_pages)
  * Input Args:
  *   mode - VM Mode (e.g. VM_MODE_P52V48_4K)
  *   nr_vcpus - VCPU count
- *   slot0_mem_pages - Slot0 physical memory size
  *   extra_mem_pages - Non-slot0 physical memory total size
  *   num_percpu_pages - Per-cpu physical memory pages
  *   guest_code - Guest entry point
@@ -291,25 +290,19 @@ struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint64_t nr_pages)
  * Return:
  *   Pointer to opaque structure that describes the created VM.
  *
- * Creates a VM with the mode specified by mode (e.g. VM_MODE_P52V48_4K),
- * with customized slot0 memory size, at least 512 pages currently.
+ * Creates a VM with the mode specified by mode (e.g. VM_MODE_P52V48_4K).
  * extra_mem_pages is only used to calculate the maximum page table size,
  * no real memory allocation for non-slot0 memory in this function.
  */
 struct kvm_vm *__vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus,
-				      uint64_t slot0_mem_pages, uint64_t extra_mem_pages,
-				      uint32_t num_percpu_pages, void *guest_code,
-				      struct kvm_vcpu *vcpus[])
+				      uint64_t extra_mem_pages, uint32_t num_percpu_pages,
+				      void *guest_code, struct kvm_vcpu *vcpus[])
 {
 	uint64_t vcpu_pages, extra_pg_pages, pages;
 	struct kvm_vm *vm;
 	int i;
 
 	TEST_ASSERT(!nr_vcpus || vcpus, "Must provide vCPU array");
-
-	/* Force slot0 memory size not small than DEFAULT_GUEST_PHY_PAGES */
-	if (slot0_mem_pages < DEFAULT_GUEST_PHY_PAGES)
-		slot0_mem_pages = DEFAULT_GUEST_PHY_PAGES;
 
 	/* The maximum page table size for a memory region will be when the
 	 * smallest pages are used. Considering each page contains x page
@@ -318,8 +311,8 @@ struct kvm_vm *__vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus
 	 * than N/x*2.
 	 */
 	vcpu_pages = (DEFAULT_STACK_PGS + num_percpu_pages) * nr_vcpus;
-	extra_pg_pages = (slot0_mem_pages + extra_mem_pages + vcpu_pages) / PTES_PER_MIN_PAGE * 2;
-	pages = slot0_mem_pages + vcpu_pages + extra_pg_pages;
+	extra_pg_pages = (DEFAULT_GUEST_PHY_PAGES + extra_mem_pages + vcpu_pages) / PTES_PER_MIN_PAGE * 2;
+	pages = DEFAULT_GUEST_PHY_PAGES + vcpu_pages + extra_pg_pages;
 
 	TEST_ASSERT(nr_vcpus <= kvm_check_cap(KVM_CAP_MAX_VCPUS),
 		    "nr_vcpus = %d too large for host, max-vcpus = %d",
@@ -340,8 +333,8 @@ struct kvm_vm *__vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 	struct kvm_vcpu *vcpus[1];
 	struct kvm_vm *vm;
 
-	vm = __vm_create_with_vcpus(VM_MODE_DEFAULT, 1, DEFAULT_GUEST_PHY_PAGES,
-				    extra_mem_pages, 0, guest_code, vcpus);
+	vm = __vm_create_with_vcpus(VM_MODE_DEFAULT, 1, extra_mem_pages, 0,
+				    guest_code, vcpus);
 
 	*vcpu = vcpus[0];
 	return vm;

@@ -561,18 +561,15 @@ static inline struct kvm_vm *vm_create(uint64_t nr_pages)
 	return __vm_create(VM_MODE_DEFAULT, nr_pages);
 }
 
-/* Like vm_create_default_with_vcpus, but accepts mode and slot0 memory as a parameter */
 struct kvm_vm *__vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus,
-				      uint64_t slot0_mem_pages, uint64_t extra_mem_pages,
-				      uint32_t num_percpu_pages, void *guest_code,
-				      struct kvm_vcpu *vcpus[]);
+				      uint64_t extra_mem_pages, uint32_t num_percpu_pages,
+				      void *guest_code, struct kvm_vcpu *vcpus[]);
 
 static inline struct kvm_vm *vm_create_with_vcpus(uint32_t nr_vcpus,
 						  void *guest_code,
 						  struct kvm_vcpu *vcpus[])
 {
-	return __vm_create_with_vcpus(VM_MODE_DEFAULT, nr_vcpus,
-				      DEFAULT_GUEST_PHY_PAGES, 0, 0,
+	return __vm_create_with_vcpus(VM_MODE_DEFAULT, nr_vcpus, 0, 0,
 				      guest_code, vcpus);
 }
 
