@@ -173,29 +173,29 @@ DEFINE_QNODE(slv_qup_core_1, SC8180X_SLAVE_QUP_CORE_1, 1, 4);
 DEFINE_QNODE(slv_qup_core_2, SC8180X_SLAVE_QUP_CORE_2, 1, 4);
 
 DEFINE_QBCM(bcm_acv, "ACV", false, &slv_ebi);
-DEFINE_QBCM(bcm_mc0, "MC0", false, &slv_ebi);
-DEFINE_QBCM(bcm_sh0, "SH0", false, &slv_qns_llcc);
+DEFINE_QBCM(bcm_mc0, "MC0", true, &slv_ebi);
+DEFINE_QBCM(bcm_sh0, "SH0", true, &slv_qns_llcc);
 DEFINE_QBCM(bcm_mm0, "MM0", false, &slv_qns_mem_noc_hf);
 DEFINE_QBCM(bcm_co0, "CO0", false, &slv_qns_cdsp_mem_noc);
 DEFINE_QBCM(bcm_ce0, "CE0", false, &mas_qxm_crypto);
-DEFINE_QBCM(bcm_cn0, "CN0", false, &mas_qnm_snoc, &slv_qhs_a1_noc_cfg, &slv_qhs_a2_noc_cfg, &slv_qhs_ahb2phy_refgen_center, &slv_qhs_ahb2phy_refgen_east, &slv_qhs_ahb2phy_refgen_west, &slv_qhs_ahb2phy_south, &slv_qhs_aop, &slv_qhs_aoss, &slv_qhs_camera_cfg, &slv_qhs_clk_ctl, &slv_qhs_compute_dsp, &slv_qhs_cpr_cx, &slv_qhs_cpr_mmcx, &slv_qhs_cpr_mx, &slv_qhs_crypto0_cfg, &slv_qhs_ddrss_cfg, &slv_qhs_display_cfg, &slv_qhs_emac_cfg, &slv_qhs_glm, &slv_qhs_gpuss_cfg, &slv_qhs_imem_cfg, &slv_qhs_ipa, &slv_qhs_mnoc_cfg, &slv_qhs_npu_cfg, &slv_qhs_pcie0_cfg, &slv_qhs_pcie1_cfg, &slv_qhs_pcie2_cfg, &slv_qhs_pcie3_cfg, &slv_qhs_pdm, &slv_qhs_pimem_cfg, &slv_qhs_prng, &slv_qhs_qdss_cfg, &slv_qhs_qspi_0, &slv_qhs_qspi_1, &slv_qhs_qupv3_east0, &slv_qhs_qupv3_east1, &slv_qhs_qupv3_west, &slv_qhs_sdc2, &slv_qhs_sdc4, &slv_qhs_security, &slv_qhs_snoc_cfg, &slv_qhs_spss_cfg, &slv_qhs_tcsr, &slv_qhs_tlmm_east, &slv_qhs_tlmm_south, &slv_qhs_tlmm_west, &slv_qhs_tsif, &slv_qhs_ufs_card_cfg, &slv_qhs_ufs_mem0_cfg, &slv_qhs_ufs_mem1_cfg, &slv_qhs_usb3_0, &slv_qhs_usb3_1, &slv_qhs_usb3_2, &slv_qhs_venus_cfg, &slv_qhs_vsense_ctrl_cfg, &slv_srvc_cnoc);
+DEFINE_QBCM(bcm_cn0, "CN0", true, &mas_qnm_snoc, &slv_qhs_a1_noc_cfg, &slv_qhs_a2_noc_cfg, &slv_qhs_ahb2phy_refgen_center, &slv_qhs_ahb2phy_refgen_east, &slv_qhs_ahb2phy_refgen_west, &slv_qhs_ahb2phy_south, &slv_qhs_aop, &slv_qhs_aoss, &slv_qhs_camera_cfg, &slv_qhs_clk_ctl, &slv_qhs_compute_dsp, &slv_qhs_cpr_cx, &slv_qhs_cpr_mmcx, &slv_qhs_cpr_mx, &slv_qhs_crypto0_cfg, &slv_qhs_ddrss_cfg, &slv_qhs_display_cfg, &slv_qhs_emac_cfg, &slv_qhs_glm, &slv_qhs_gpuss_cfg, &slv_qhs_imem_cfg, &slv_qhs_ipa, &slv_qhs_mnoc_cfg, &slv_qhs_npu_cfg, &slv_qhs_pcie0_cfg, &slv_qhs_pcie1_cfg, &slv_qhs_pcie2_cfg, &slv_qhs_pcie3_cfg, &slv_qhs_pdm, &slv_qhs_pimem_cfg, &slv_qhs_prng, &slv_qhs_qdss_cfg, &slv_qhs_qspi_0, &slv_qhs_qspi_1, &slv_qhs_qupv3_east0, &slv_qhs_qupv3_east1, &slv_qhs_qupv3_west, &slv_qhs_sdc2, &slv_qhs_sdc4, &slv_qhs_security, &slv_qhs_snoc_cfg, &slv_qhs_spss_cfg, &slv_qhs_tcsr, &slv_qhs_tlmm_east, &slv_qhs_tlmm_south, &slv_qhs_tlmm_west, &slv_qhs_tsif, &slv_qhs_ufs_card_cfg, &slv_qhs_ufs_mem0_cfg, &slv_qhs_ufs_mem1_cfg, &slv_qhs_usb3_0, &slv_qhs_usb3_1, &slv_qhs_usb3_2, &slv_qhs_venus_cfg, &slv_qhs_vsense_ctrl_cfg, &slv_srvc_cnoc);
 DEFINE_QBCM(bcm_mm1, "MM1", false, &mas_qxm_camnoc_hf0_uncomp, &mas_qxm_camnoc_hf1_uncomp, &mas_qxm_camnoc_sf_uncomp, &mas_qxm_camnoc_hf0, &mas_qxm_camnoc_hf1, &mas_qxm_mdp0, &mas_qxm_mdp1);
 DEFINE_QBCM(bcm_qup0, "QUP0", false, &mas_qup_core_0, &mas_qup_core_1, &mas_qup_core_2);
 DEFINE_QBCM(bcm_sh2, "SH2", false, &slv_qns_gem_noc_snoc);
 DEFINE_QBCM(bcm_mm2, "MM2", false, &mas_qxm_camnoc_sf, &mas_qxm_rot, &mas_qxm_venus0, &mas_qxm_venus1, &mas_qxm_venus_arm9, &slv_qns2_mem_noc);
-DEFINE_QBCM(bcm_sh3, "SH3", false, &mas_acm_apps);
+DEFINE_QBCM(bcm_sh3, "SH3", true, &mas_acm_apps);
 DEFINE_QBCM(bcm_sn0, "SN0", false, &slv_qns_gemnoc_sf);
 DEFINE_QBCM(bcm_sn1, "SN1", false, &slv_qxs_imem);
-DEFINE_QBCM(bcm_sn2, "SN2", false, &slv_qns_gemnoc_gc);
+DEFINE_QBCM(bcm_sn2, "SN2", true, &slv_qns_gemnoc_gc);
 DEFINE_QBCM(bcm_co2, "CO2", false, &mas_qnm_npu);
 DEFINE_QBCM(bcm_ip0, "IP0", false, &slv_ipa_core_slave);
-DEFINE_QBCM(bcm_sn3, "SN3", false, &slv_srvc_aggre1_noc, &slv_qns_cnoc);
+DEFINE_QBCM(bcm_sn3, "SN3", true, &slv_srvc_aggre1_noc, &slv_qns_cnoc);
 DEFINE_QBCM(bcm_sn4, "SN4", false, &slv_qxs_pimem);
 DEFINE_QBCM(bcm_sn8, "SN8", false, &slv_xs_pcie_0, &slv_xs_pcie_1, &slv_xs_pcie_2, &slv_xs_pcie_3);
 DEFINE_QBCM(bcm_sn9, "SN9", false, &mas_qnm_aggre1_noc);
 DEFINE_QBCM(bcm_sn11, "SN11", false, &mas_qnm_aggre2_noc);
 DEFINE_QBCM(bcm_sn14, "SN14", false, &slv_qns_pcie_mem_noc);
-DEFINE_QBCM(bcm_sn15, "SN15", false, &mas_qnm_gemnoc);
+DEFINE_QBCM(bcm_sn15, "SN15", true, &mas_qnm_gemnoc);
 
 static struct qcom_icc_bcm * const aggre1_noc_bcms[] = {
 	&bcm_sn3,
