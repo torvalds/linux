@@ -1853,24 +1853,18 @@ bool btrfs_zone_activate(struct btrfs_block_group *block_group)
 			ret = false;
 			goto out_unlock;
 		}
-
-		/* Successfully activated all the zones */
-		if (i == map->num_stripes - 1)
-			block_group->zone_is_active = 1;
-
-
 	}
+
+	/* Successfully activated all the zones */
+	block_group->zone_is_active = 1;
 	spin_unlock(&block_group->lock);
 
-	if (block_group->zone_is_active) {
-		/* For the active block group list */
-		btrfs_get_block_group(block_group);
+	/* For the active block group list */
+	btrfs_get_block_group(block_group);
 
-		spin_lock(&fs_info->zone_active_bgs_lock);
-		list_add_tail(&block_group->active_bg_list,
-			      &fs_info->zone_active_bgs);
-		spin_unlock(&fs_info->zone_active_bgs_lock);
-	}
+	spin_lock(&fs_info->zone_active_bgs_lock);
+	list_add_tail(&block_group->active_bg_list, &fs_info->zone_active_bgs);
+	spin_unlock(&fs_info->zone_active_bgs_lock);
 
 	return true;
 
