@@ -113,3 +113,17 @@ Enum	7:4	AES
 EndEnum
 Res0	3:0
 EndSysreg
+
+SysregFields TTBRx_EL1
+Field	63:48	ASID
+Field	47:1	BADDR
+Field	0	CnP
+EndSysregFields
+
+Sysreg	TTBR0_EL1	3	0	2	0	0
+Fields	TTBRx_EL1
+EndSysreg
+
+Sysreg	TTBR1_EL1	3	0	2	0	1
+Fields	TTBRx_EL1
+EndSysreg
