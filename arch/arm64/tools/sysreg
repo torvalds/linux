@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# System register metadata
+
+# Each System register is described by a Sysreg block:
+
+# Sysreg 	<name>	<op0> 	<op1>	<crn>	<crm>	<op2>
+# <field>
+# ...
+# EndSysreg
+
+# Within a Sysreg block, each field can be described as one of:
+
+# Res0	<msb>[:<lsb>]
+
+# Res1	<msb>[:<lsb>]
+
+# Field	<msb>[:<lsb>]	<name>
+
+# Enum	<msb>[:<lsb>]	<name>
+#	<enumval>	<enumname>
+#	...
+# EndEnum
+
+# Alternatively if multiple registers share the same layout then
+# a SysregFields block can be used to describe the shared layout
+
+# SysregFields	<fieldsname>
+# <field>
+# ...
+# EndSysregFields
+
+# and referenced from within the Sysreg:
+
+# Sysreg 	<name>	<op0> 	<op1>	<crn>	<crm>	<op2>
+# Fields	<fieldsname>
+# EndSysreg
+
+# For ID registers we adopt a few conventions for translating the
+# language in the ARM into defines:
+#
+# NI  - Not implemented
+# IMP - Implemented
+#
+# In general it is recommended that new enumeration items be named for the
+# feature that introduces them (eg, FEAT_LS64_ACCDATA introduces enumeration
+# item ACCDATA) though it may be more taseful to do something else.
+
