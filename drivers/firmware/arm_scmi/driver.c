@@ -1205,18 +1205,21 @@ static void *scmi_iterator_init(const struct scmi_protocol_handle *ph,
 static int scmi_iterator_run(void *iter)
 {
 	int ret = -EINVAL;
+	struct scmi_iterator_ops *iops;
+	const struct scmi_protocol_handle *ph;
+	struct scmi_iterator_state *st;
 	struct scmi_iterator *i = iter;
-	struct scmi_iterator_state *st = &i->state;
-	struct scmi_iterator_ops *iops = i->ops;
-	const struct scmi_protocol_handle *ph = i->ph;
-	const struct scmi_xfer_ops *xops = ph->xops;
 
-	if (!i)
+	if (!i || !i->ops || !i->ph)
 		return ret;
+
+	iops = i->ops;
+	ph = i->ph;
+	st = &i->state;
 
 	do {
 		iops->prepare_message(i->msg, st->desc_index, i->priv);
-		ret = xops->do_xfer(ph, i->t);
+		ret = ph->xops->do_xfer(ph, i->t);
 		if (ret)
 			break;
 
@@ -1240,7 +1243,7 @@ static int scmi_iterator_run(void *iter)
 		}
 
 		st->desc_index += st->num_returned;
-		xops->reset_rx_to_maxsz(ph, i->t);
+		ph->xops->reset_rx_to_maxsz(ph, i->t);
 		/*
 		 * check for both returned and remaining to avoid infinite
 		 * loop due to buggy firmware
@@ -1249,7 +1252,7 @@ static int scmi_iterator_run(void *iter)
 
 out:
 	/* Finalize and destroy iterator */
-	xops->xfer_put(ph, i->t);
+	ph->xops->xfer_put(ph, i->t);
 	devm_kfree(ph->dev, i);
 
 	return ret;
