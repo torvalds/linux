@@ -914,7 +914,7 @@ int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
 	if (!tmp)
 		return -ENOMEM;
 
-	ret = qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
+	ret = qos_policer_conf_set(ocelot, pol_ix, &pp);
 	if (ret) {
 		kfree(tmp);
 		return ret;
@@ -945,7 +945,7 @@ int ocelot_vcap_policer_del(struct ocelot *ocelot, u32 pol_ix)
 
 	if (z) {
 		pp.mode = MSCC_QOS_RATE_MODE_DISABLED;
-		return qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
+		return qos_policer_conf_set(ocelot, pol_ix, &pp);
 	}
 
 	return 0;
