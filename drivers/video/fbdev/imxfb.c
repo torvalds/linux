@@ -925,10 +925,12 @@ static int imxfb_probe(struct platform_device *pdev)
 				sizeof(struct imx_fb_videomode), GFP_KERNEL);
 		if (!fbi->mode) {
 			ret = -ENOMEM;
+			of_node_put(display_np);
 			goto failed_of_parse;
 		}
 
 		ret = imxfb_of_read_mode(&pdev->dev, display_np, fbi->mode);
+		of_node_put(display_np);
 		if (ret)
 			goto failed_of_parse;
 	}

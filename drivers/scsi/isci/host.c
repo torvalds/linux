@@ -413,7 +413,7 @@ static void sci_controller_event_completion(struct isci_host *ihost, u32 ent)
 				dev_warn(&ihost->pdev->dev,
 					 "%s: SCIC Controller 0x%p received "
 					 "event 0x%x for io request object "
-					 "that doesnt exist.\n",
+					 "that doesn't exist.\n",
 					 __func__,
 					 ihost,
 					 ent);
@@ -428,7 +428,7 @@ static void sci_controller_event_completion(struct isci_host *ihost, u32 ent)
 				dev_warn(&ihost->pdev->dev,
 					 "%s: SCIC Controller 0x%p received "
 					 "event 0x%x for remote device object "
-					 "that doesnt exist.\n",
+					 "that doesn't exist.\n",
 					 __func__,
 					 ihost,
 					 ent);
@@ -462,7 +462,7 @@ static void sci_controller_event_completion(struct isci_host *ihost, u32 ent)
 		} else
 			dev_err(&ihost->pdev->dev,
 				"%s: SCIC Controller 0x%p received event 0x%x "
-				"for remote device object 0x%0x that doesnt "
+				"for remote device object 0x%0x that doesn't "
 				"exist.\n",
 				__func__,
 				ihost,

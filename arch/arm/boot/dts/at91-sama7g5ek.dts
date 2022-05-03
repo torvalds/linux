@@ -495,7 +495,7 @@
 	pinctrl_flx3_default: flx3_default {
 		pinmux = <PIN_PD16__FLEXCOM3_IO0>,
 			 <PIN_PD17__FLEXCOM3_IO1>;
-		bias-disable;
+		bias-pull-up;
 	};
 
 	pinctrl_flx4_default: flx4_default {
@@ -655,7 +655,7 @@
 			 <PIN_PB21__QSPI0_INT>;
 		bias-disable;
 		slew-rate = <0>;
-		atmel,drive-strength = <ATMEL_PIO_DRVSTR_HI>;
+		atmel,drive-strength = <ATMEL_PIO_DRVSTR_ME>;
 	};
 
 	pinctrl_sdmmc0_default: sdmmc0_default {

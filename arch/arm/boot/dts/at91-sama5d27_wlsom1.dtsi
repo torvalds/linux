@@ -214,7 +214,7 @@
 	pinctrl-0 = <&pinctrl_qspi1_default>;
 	status = "disabled";
 
-	qspi1_flash: spi_flash@0 {
+	qspi1_flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";

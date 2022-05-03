@@ -499,6 +499,10 @@ static const struct snd_malloc_ops snd_dma_wc_ops = {
 };
 #endif /* CONFIG_X86 */
 
+#ifdef CONFIG_SND_DMA_SGBUF
+static void *snd_dma_sg_fallback_alloc(struct snd_dma_buffer *dmab, size_t size);
+#endif
+
 /*
  * Non-contiguous pages allocator
  */
@@ -509,8 +513,18 @@ static void *snd_dma_noncontig_alloc(struct snd_dma_buffer *dmab, size_t size)
 
 	sgt = dma_alloc_noncontiguous(dmab->dev.dev, size, dmab->dev.dir,
 				      DEFAULT_GFP, 0);
-	if (!sgt)
+	if (!sgt) {
+#ifdef CONFIG_SND_DMA_SGBUF
+		if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC_SG)
+			dmab->dev.type = SNDRV_DMA_TYPE_DEV_WC_SG_FALLBACK;
+		else
+			dmab->dev.type = SNDRV_DMA_TYPE_DEV_SG_FALLBACK;
+		return snd_dma_sg_fallback_alloc(dmab, size);
+#else
 		return NULL;
+#endif
+	}
+
 	dmab->dev.need_sync = dma_need_sync(dmab->dev.dev,
 					    sg_dma_address(sgt->sgl));
 	p = dma_vmap_noncontiguous(dmab->dev.dev, size, sgt);
@@ -633,6 +647,8 @@ static void *snd_dma_sg_wc_alloc(struct snd_dma_buffer *dmab, size_t size)
 
 	if (!p)
 		return NULL;
+	if (dmab->dev.type != SNDRV_DMA_TYPE_DEV_WC_SG)
+		return p;
 	for_each_sgtable_page(sgt, &iter, 0)
 		set_memory_wc(sg_wc_address(&iter), 1);
 	return p;
@@ -664,6 +680,95 @@ static const struct snd_malloc_ops snd_dma_sg_wc_ops = {
 	.get_addr = snd_dma_noncontig_get_addr,
 	.get_page = snd_dma_noncontig_get_page,
 	.get_chunk_size = snd_dma_noncontig_get_chunk_size,
+};
+
+/* Fallback SG-buffer allocations for x86 */
+struct snd_dma_sg_fallback {
+	size_t count;
+	struct page **pages;
+	dma_addr_t *addrs;
+};
+
+static void __snd_dma_sg_fallback_free(struct snd_dma_buffer *dmab,
+				       struct snd_dma_sg_fallback *sgbuf)
+{
+	size_t i;
+
+	if (sgbuf->count && dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC_SG_FALLBACK)
+		set_pages_array_wb(sgbuf->pages, sgbuf->count);
+	for (i = 0; i < sgbuf->count && sgbuf->pages[i]; i++)
+		dma_free_coherent(dmab->dev.dev, PAGE_SIZE,
+				  page_address(sgbuf->pages[i]),
+				  sgbuf->addrs[i]);
+	kvfree(sgbuf->pages);
+	kvfree(sgbuf->addrs);
+	kfree(sgbuf);
+}
+
+static void *snd_dma_sg_fallback_alloc(struct snd_dma_buffer *dmab, size_t size)
+{
+	struct snd_dma_sg_fallback *sgbuf;
+	struct page **pages;
+	size_t i, count;
+	void *p;
+
+	sgbuf = kzalloc(sizeof(*sgbuf), GFP_KERNEL);
+	if (!sgbuf)
+		return NULL;
+	count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	pages = kvcalloc(count, sizeof(*pages), GFP_KERNEL);
+	if (!pages)
+		goto error;
+	sgbuf->pages = pages;
+	sgbuf->addrs = kvcalloc(count, sizeof(*sgbuf->addrs), GFP_KERNEL);
+	if (!sgbuf->addrs)
+		goto error;
+
+	for (i = 0; i < count; sgbuf->count++, i++) {
+		p = dma_alloc_coherent(dmab->dev.dev, PAGE_SIZE,
+				       &sgbuf->addrs[i], DEFAULT_GFP);
+		if (!p)
+			goto error;
+		sgbuf->pages[i] = virt_to_page(p);
+	}
+
+	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC_SG_FALLBACK)
+		set_pages_array_wc(pages, count);
+	p = vmap(pages, count, VM_MAP, PAGE_KERNEL);
+	if (!p)
+		goto error;
+	dmab->private_data = sgbuf;
+	return p;
+
+ error:
+	__snd_dma_sg_fallback_free(dmab, sgbuf);
+	return NULL;
+}
+
+static void snd_dma_sg_fallback_free(struct snd_dma_buffer *dmab)
+{
+	vunmap(dmab->area);
+	__snd_dma_sg_fallback_free(dmab, dmab->private_data);
+}
+
+static int snd_dma_sg_fallback_mmap(struct snd_dma_buffer *dmab,
+				    struct vm_area_struct *area)
+{
+	struct snd_dma_sg_fallback *sgbuf = dmab->private_data;
+
+	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC_SG_FALLBACK)
+		area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
+	return vm_map_pages(area, sgbuf->pages, sgbuf->count);
+}
+
+static const struct snd_malloc_ops snd_dma_sg_fallback_ops = {
+	.alloc = snd_dma_sg_fallback_alloc,
+	.free = snd_dma_sg_fallback_free,
+	.mmap = snd_dma_sg_fallback_mmap,
+	/* reuse vmalloc helpers */
+	.get_addr = snd_dma_vmalloc_get_addr,
+	.get_page = snd_dma_vmalloc_get_page,
+	.get_chunk_size = snd_dma_vmalloc_get_chunk_size,
 };
 #endif /* CONFIG_SND_DMA_SGBUF */
 
@@ -736,6 +841,10 @@ static const struct snd_malloc_ops *dma_ops[] = {
 #ifdef CONFIG_GENERIC_ALLOCATOR
 	[SNDRV_DMA_TYPE_DEV_IRAM] = &snd_dma_iram_ops,
 #endif /* CONFIG_GENERIC_ALLOCATOR */
+#ifdef CONFIG_SND_DMA_SGBUF
+	[SNDRV_DMA_TYPE_DEV_SG_FALLBACK] = &snd_dma_sg_fallback_ops,
+	[SNDRV_DMA_TYPE_DEV_WC_SG_FALLBACK] = &snd_dma_sg_fallback_ops,
+#endif
 #endif /* CONFIG_HAS_DMA */
 };
 

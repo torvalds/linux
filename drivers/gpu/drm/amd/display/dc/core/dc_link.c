@@ -983,8 +983,7 @@ static bool should_verify_link_capability_destructively(struct dc_link *link,
 				destrictive = false;
 			}
 		}
-	} else if (dc_is_hdmi_signal(link->local_sink->sink_signal))
-		destrictive = true;
+	}
 
 	return destrictive;
 }

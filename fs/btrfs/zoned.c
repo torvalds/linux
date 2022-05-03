@@ -1801,7 +1801,6 @@ struct btrfs_device *btrfs_zoned_get_device(struct btrfs_fs_info *fs_info,
 
 	map = em->map_lookup;
 	/* We only support single profile for now */
-	ASSERT(map->num_stripes == 1);
 	device = map->stripes[0].dev;
 
 	free_extent_map(em);
@@ -1976,18 +1975,16 @@ int btrfs_zone_finish(struct btrfs_block_group *block_group)
 
 bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices, u64 flags)
 {
+	struct btrfs_fs_info *fs_info = fs_devices->fs_info;
 	struct btrfs_device *device;
 	bool ret = false;
 
-	if (!btrfs_is_zoned(fs_devices->fs_info))
+	if (!btrfs_is_zoned(fs_info))
 		return true;
 
-	/* Non-single profiles are not supported yet */
-	ASSERT((flags & BTRFS_BLOCK_GROUP_PROFILE_MASK) == 0);
-
 	/* Check if there is a device with active zones left */
-	mutex_lock(&fs_devices->device_list_mutex);
-	list_for_each_entry(device, &fs_devices->devices, dev_list) {
+	mutex_lock(&fs_info->chunk_mutex);
+	list_for_each_entry(device, &fs_devices->alloc_list, dev_alloc_list) {
 		struct btrfs_zoned_device_info *zinfo = device->zone_info;
 
 		if (!device->bdev)
@@ -1999,7 +1996,7 @@ bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices, u64 flags)
 			break;
 		}
 	}
-	mutex_unlock(&fs_devices->device_list_mutex);
+	mutex_unlock(&fs_info->chunk_mutex);
 
 	return ret;
 }

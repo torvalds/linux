@@ -446,6 +446,12 @@ static bool lan966x_hw_offload(struct lan966x *lan966x, u32 port,
 		     ANA_CPU_FWD_CFG_MLD_REDIR_ENA)))
 		return true;
 
+	if (eth_type_vlan(skb->protocol)) {
+		skb = skb_vlan_untag(skb);
+		if (unlikely(!skb))
+			return false;
+	}
+
 	if (skb->protocol == htons(ETH_P_IP) &&
 	    ip_hdr(skb)->protocol == IPPROTO_IGMP)
 		return false;
@@ -665,6 +671,9 @@ static void lan966x_cleanup_ports(struct lan966x *lan966x)
 		disable_irq(lan966x->ana_irq);
 		lan966x->ana_irq = -ENXIO;
 	}
+
+	if (lan966x->ptp_irq)
+		devm_free_irq(lan966x->dev, lan966x->ptp_irq, lan966x);
 }
 
 static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
