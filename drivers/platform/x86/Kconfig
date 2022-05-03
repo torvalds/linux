@@ -1161,8 +1161,3 @@ config WINMATE_FM07_KEYS
 	  that delivers key events when these buttons are pressed.
 
 endif # X86_PLATFORM_DEVICES
-
-config PMC_ATOM
-       def_bool y
-       depends on PCI
-       select COMMON_CLK
