@@ -2064,8 +2064,6 @@ static void call_console_driver(struct console *con, const char *text, size_t le
 {
 	size_t dropped_len;
 
-	trace_console_rcuidle(text, len);
-
 	if (con->dropped && dropped_text) {
 		dropped_len = snprintf(dropped_text, DROPPED_TEXT_MAX,
 				       "** %lu printk messages dropped **\n",
@@ -2239,6 +2237,8 @@ static u16 printk_sprint(char *text, u16 size, int facility,
 			memmove(text, text + prefix_len, text_len);
 		}
 	}
+
+	trace_console_rcuidle(text, text_len);
 
 	return text_len;
 }
