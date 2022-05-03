@@ -569,14 +569,14 @@ static int pic32_uart_startup(struct uart_port *port)
 	return 0;
 
 out_t:
-	kfree(sport->irq_tx_name);
 	free_irq(sport->irq_tx, port);
+	kfree(sport->irq_tx_name);
 out_r:
-	kfree(sport->irq_rx_name);
 	free_irq(sport->irq_rx, port);
+	kfree(sport->irq_rx_name);
 out_f:
-	kfree(sport->irq_fault_name);
 	free_irq(sport->irq_fault, port);
+	kfree(sport->irq_fault_name);
 out_done:
 	return ret;
 }
@@ -595,8 +595,11 @@ static void pic32_uart_shutdown(struct uart_port *port)
 
 	/* free all 3 interrupts for this UART */
 	free_irq(sport->irq_fault, port);
+	kfree(sport->irq_fault_name);
 	free_irq(sport->irq_tx, port);
+	kfree(sport->irq_tx_name);
 	free_irq(sport->irq_rx, port);
+	kfree(sport->irq_rx_name);
 }
 
 /* serial core request to change current uart setting */
