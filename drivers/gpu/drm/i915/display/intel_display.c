@@ -5044,8 +5044,8 @@ compute_sink_pipe_bpp(const struct drm_connector_state *conn_state,
 
 	if (bpp < crtc_state->pipe_bpp) {
 		drm_dbg_kms(&i915->drm,
-			    "[CONNECTOR:%d:%s] Limiting display bpp to %d instead of "
-			    "EDID bpp %d, requested bpp %d, max platform bpp %d\n",
+			    "[CONNECTOR:%d:%s] Limiting display bpp to %d "
+			    "(EDID bpp %d, max requested bpp %d, max platform bpp %d)\n",
 			    connector->base.id, connector->name,
 			    bpp, 3 * info->bpc,
 			    3 * conn_state->max_requested_bpc,
@@ -5695,7 +5695,8 @@ intel_modeset_pipe_config(struct intel_atomic_state *state,
 
 		if (!check_single_encoder_cloning(state, crtc, encoder)) {
 			drm_dbg_kms(&i915->drm,
-				    "rejecting invalid cloning configuration\n");
+				    "[ENCODER:%d:%s] rejecting invalid cloning configuration\n",
+				    encoder->base.base.id, encoder->base.name);
 			return -EINVAL;
 		}
 
@@ -5736,7 +5737,8 @@ encoder_retry:
 		if (ret == -EDEADLK)
 			return ret;
 		if (ret < 0) {
-			drm_dbg_kms(&i915->drm, "Encoder config failure: %d\n", ret);
+			drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] config failure: %d\n",
+				    encoder->base.base.id, encoder->base.name, ret);
 			return ret;
 		}
 	}
@@ -5752,15 +5754,18 @@ encoder_retry:
 		return ret;
 	if (ret == -EAGAIN) {
 		if (drm_WARN(&i915->drm, !retry,
-			     "loop in pipe configuration computation\n"))
+			     "[CRTC:%d:%s] loop in pipe configuration computation\n",
+			     crtc->base.base.id, crtc->base.name))
 			return -EINVAL;
 
-		drm_dbg_kms(&i915->drm, "CRTC bw constrained, retrying\n");
+		drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] bw constrained, retrying\n",
+			    crtc->base.base.id, crtc->base.name);
 		retry = false;
 		goto encoder_retry;
 	}
 	if (ret < 0) {
-		drm_dbg_kms(&i915->drm, "CRTC config failure: %d\n", ret);
+		drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] config failure: %d\n",
+			    crtc->base.base.id, crtc->base.name, ret);
 		return ret;
 	}
 
@@ -5771,7 +5776,8 @@ encoder_retry:
 	crtc_state->dither = (crtc_state->pipe_bpp == 6*3) &&
 		!crtc_state->dither_force_disable;
 	drm_dbg_kms(&i915->drm,
-		    "hw max bpp: %i, pipe bpp: %i, dithering: %i\n",
+		    "[CRTC:%d:%s] hw max bpp: %i, pipe bpp: %i, dithering: %i\n",
+		    crtc->base.base.id, crtc->base.name,
 		    base_bpp, crtc_state->pipe_bpp, crtc_state->dither);
 
 	return 0;
