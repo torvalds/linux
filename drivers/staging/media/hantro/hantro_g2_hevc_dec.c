@@ -420,7 +420,7 @@ static int set_ref(struct hantro_ctx *ctx)
 	set_ref_pic_list(ctx);
 
 	/* We will only keep the reference pictures that are still used */
-	ctx->hevc_dec.ref_bufs_used = 0;
+	hantro_hevc_ref_init(ctx);
 
 	/* Set up addresses of DPB buffers */
 	dpb_longterm_e = 0;
@@ -460,8 +460,6 @@ static int set_ref(struct hantro_ctx *ctx)
 	hantro_write_addr(vpu, G2_OUT_LUMA_ADDR, luma_addr);
 	hantro_write_addr(vpu, G2_OUT_CHROMA_ADDR, chroma_addr);
 	hantro_write_addr(vpu, G2_OUT_MV_ADDR, mv_addr);
-
-	hantro_hevc_ref_remove_unused(ctx);
 
 	for (; i < V4L2_HEVC_DPB_ENTRIES_NUM_MAX; i++) {
 		hantro_write_addr(vpu, G2_REF_LUMA_ADDR(i), 0);
