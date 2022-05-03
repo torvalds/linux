@@ -45,13 +45,10 @@
  * @port: uart port descriptor
  * @idx: port index
  * @irq_fault: virtual fault interrupt number
- * @irqflags_fault: flags related to fault irq
  * @irq_fault_name: irq fault name
  * @irq_rx: virtual rx interrupt number
- * @irqflags_rx: flags related to rx irq
  * @irq_rx_name: irq rx name
  * @irq_tx: virtual tx interrupt number
- * @irqflags_tx: : flags related to tx irq
  * @irq_tx_name: irq tx name
  * @cts_gpio: clear to send gpio
  * @dev: device descriptor
@@ -61,13 +58,10 @@ struct pic32_sport {
 	int idx;
 
 	int irq_fault;
-	int irqflags_fault;
 	const char *irq_fault_name;
 	int irq_rx;
-	int irqflags_rx;
 	const char *irq_rx_name;
 	int irq_tx;
-	int irqflags_tx;
 	const char *irq_tx_name;
 	u8 enable_tx_irq;
 
@@ -533,7 +527,7 @@ static int pic32_uart_startup(struct uart_port *port)
 	}
 	irq_set_status_flags(sport->irq_fault, IRQ_NOAUTOEN);
 	ret = request_irq(sport->irq_fault, pic32_uart_fault_interrupt,
-			  sport->irqflags_fault, sport->irq_fault_name, port);
+			  IRQF_NO_THREAD, sport->irq_fault_name, port);
 	if (ret) {
 		dev_err(port->dev, "%s: request irq(%d) err! ret:%d name:%s\n",
 			__func__, sport->irq_fault, ret,
@@ -551,7 +545,7 @@ static int pic32_uart_startup(struct uart_port *port)
 	}
 	irq_set_status_flags(sport->irq_rx, IRQ_NOAUTOEN);
 	ret = request_irq(sport->irq_rx, pic32_uart_rx_interrupt,
-			  sport->irqflags_rx, sport->irq_rx_name, port);
+			  IRQF_NO_THREAD, sport->irq_rx_name, port);
 	if (ret) {
 		dev_err(port->dev, "%s: request irq(%d) err! ret:%d name:%s\n",
 			__func__, sport->irq_rx, ret,
@@ -569,7 +563,7 @@ static int pic32_uart_startup(struct uart_port *port)
 	}
 	irq_set_status_flags(sport->irq_tx, IRQ_NOAUTOEN);
 	ret = request_irq(sport->irq_tx, pic32_uart_tx_interrupt,
-			  sport->irqflags_tx, sport->irq_tx_name, port);
+			  IRQF_NO_THREAD, sport->irq_tx_name, port);
 	if (ret) {
 		dev_err(port->dev, "%s: request irq(%d) err! ret:%d name:%s\n",
 			__func__, sport->irq_tx, ret,
@@ -918,11 +912,8 @@ static int pic32_uart_probe(struct platform_device *pdev)
 
 	sport->idx		= uart_idx;
 	sport->irq_fault	= irq_of_parse_and_map(np, 0);
-	sport->irqflags_fault	= IRQF_NO_THREAD;
 	sport->irq_rx		= irq_of_parse_and_map(np, 1);
-	sport->irqflags_rx	= IRQF_NO_THREAD;
 	sport->irq_tx		= irq_of_parse_and_map(np, 2);
-	sport->irqflags_tx	= IRQF_NO_THREAD;
 	sport->clk		= devm_clk_get(&pdev->dev, NULL);
 	sport->cts_gpio		= -EINVAL;
 	sport->dev		= &pdev->dev;
