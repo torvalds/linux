@@ -90,7 +90,6 @@ define_db845c(
         "drivers/mmc/host/cqhci.ko",
         "drivers/mmc/host/sdhci-msm.ko",
         "drivers/net/can/spi/mcp251xfd/mcp251xfd.ko",
-        "drivers/net/usb/ax88179_178a.ko",
         "drivers/net/wireless/ath/ath.ko",
         "drivers/net/wireless/ath/ath10k/ath10k_core.ko",
         "drivers/net/wireless/ath/ath10k/ath10k_pci.ko",
