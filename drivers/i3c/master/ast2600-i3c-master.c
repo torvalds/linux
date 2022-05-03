@@ -612,13 +612,13 @@ static void aspeed_i3c_master_read_fifo(struct aspeed_i3c_master *master, u32 fi
 	}
 }
 
-static inline void aspeed_i3c_master_read_rx_fifo(struct aspeed_i3c_master *master,
+static void aspeed_i3c_master_read_rx_fifo(struct aspeed_i3c_master *master,
 					      u8 *bytes, int nbytes)
 {
 	aspeed_i3c_master_read_fifo(master, RX_TX_DATA_PORT, bytes, nbytes);
 }
 
-static inline void aspeed_i3c_master_read_ibi_fifo(struct aspeed_i3c_master *master,
+static void aspeed_i3c_master_read_ibi_fifo(struct aspeed_i3c_master *master,
 					       u8 *bytes, int nbytes)
 {
 	aspeed_i3c_master_read_fifo(master, IBI_QUEUE_DATA, bytes, nbytes);
