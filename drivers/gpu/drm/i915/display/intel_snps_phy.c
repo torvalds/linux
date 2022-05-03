@@ -629,7 +629,7 @@ int intel_mpllb_calc_state(struct intel_crtc_state *crtc_state,
 		return -EINVAL;
 
 	for (i = 0; tables[i]; i++) {
-		if (crtc_state->port_clock <= tables[i]->clock) {
+		if (crtc_state->port_clock == tables[i]->clock) {
 			crtc_state->mpllb_state = *tables[i];
 			return 0;
 		}
