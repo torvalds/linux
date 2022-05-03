@@ -281,13 +281,6 @@ static inline struct timespec64 fat_timespec64_trunc_2secs(struct timespec64 ts)
 	return (struct timespec64){ ts.tv_sec & ~1ULL, 0 };
 }
 
-static inline struct timespec64 fat_timespec64_trunc_10ms(struct timespec64 ts)
-{
-	if (ts.tv_nsec)
-		ts.tv_nsec -= ts.tv_nsec % 10000000UL;
-	return ts;
-}
-
 /*
  * truncate atime to 24 hour granularity (00:00:00 in local timezone)
  */
@@ -303,20 +296,6 @@ struct timespec64 fat_truncate_atime(const struct msdos_sb_info *sbi,
 	seconds = seconds + fat_tz_offset(sbi) - remainder;
 
 	return (struct timespec64){ seconds, 0 };
-}
-
-/*
- * truncate creation time with appropriate granularity:
- *   msdos - 2 seconds
- *   vfat  - 10 milliseconds
- */
-struct timespec64 fat_truncate_crtime(const struct msdos_sb_info *sbi,
-				      const struct timespec64 *ts)
-{
-	if (sbi->options.isvfat)
-		return fat_timespec64_trunc_10ms(*ts);
-	else
-		return fat_timespec64_trunc_2secs(*ts);
 }
 
 /*
