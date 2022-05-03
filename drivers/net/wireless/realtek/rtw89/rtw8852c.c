@@ -2616,16 +2616,14 @@ rtw8852c_btc_set_wl_txpwr_ctrl(struct rtw89_dev *rtwdev, u32 txpwr_val)
 
 #define __write_ctrl(_reg, _msk, _val, _en, _cond)		\
 do {								\
-	const typeof(_msk) __msk = _msk;			\
-	const typeof(_en) __en = _en;				\
-	u32 _wrt = FIELD_PREP(__msk, _val);			\
-	BUILD_BUG_ON((__msk & __en) != 0);			\
+	u32 _wrt = FIELD_PREP(_msk, _val);			\
+	BUILD_BUG_ON((_msk & _en) != 0);			\
 	if (_cond)						\
-		_wrt |= __en;					\
+		_wrt |= _en;					\
 	else							\
-		_wrt &= ~__en;					\
+		_wrt &= ~_en;					\
 	rtw89_mac_txpwr_write32_mask(rtwdev, RTW89_PHY_0, _reg,	\
-				     __msk | __en, _wrt);	\
+				     _msk | _en, _wrt);		\
 } while (0)
 
 	switch (arg.ctrl_all_time) {
