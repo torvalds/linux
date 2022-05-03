@@ -586,32 +586,8 @@ static bool is_ed_task_present(struct rq *rq, u64 wallclock, struct task_struct 
 	return false;
 }
 
-static void walt_sched_account_irqstart(int cpu, struct task_struct *curr)
-{
-	struct rq *rq = cpu_rq(cpu);
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
-
-	if (!wrq->window_start)
-		return;
-
-	/* We're here without rq->lock held, IRQ disabled */
-	raw_spin_lock(&rq->__lock);
-	update_task_cpu_cycles(curr, cpu, walt_sched_clock());
-	raw_spin_unlock(&rq->__lock);
-}
-
 static void walt_update_task_ravg(struct task_struct *p, struct rq *rq, int event,
 						u64 wallclock, u64 irqtime);
-static void walt_sched_account_irqend(int cpu, struct task_struct *curr, u64 delta)
-{
-	struct rq *rq = cpu_rq(cpu);
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&rq->__lock, flags);
-	walt_update_task_ravg(curr, rq, IRQ_UPDATE, walt_sched_clock(), delta);
-	raw_spin_unlock_irqrestore(&rq->__lock, flags);
-}
-
 /*
  * Return total number of tasks "eligible" to run on higher capacity cpus
  */
@@ -4099,18 +4075,49 @@ static void android_rvh_new_task_stats(void *unused, struct task_struct *p)
 	mark_task_starting(p);
 }
 
-static void android_rvh_account_irq(void *unused, struct task_struct *curr, int cpu, s64 delta)
+static void android_rvh_account_irq_start(void *unused, struct task_struct *curr, int cpu,
+					s64 delta)
 {
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct rq *rq;
+	struct walt_rq *wrq;
 
 	if (unlikely(walt_disabled))
 		return;
-	if (!!(curr->flags & PF_IDLE)) {
-		if (hardirq_count() || in_serving_softirq())
-			walt_sched_account_irqend(cpu, curr, delta);
-		else
-			walt_sched_account_irqstart(cpu, curr);
-	}
+
+	if (!is_idle_task(curr))
+		return;
+
+	rq = cpu_rq(cpu);
+	wrq = (struct walt_rq *) rq->android_vendor_data1;
+
+	if (!wrq->window_start)
+		return;
+
+	/* We're here without rq->lock held, IRQ disabled */
+	raw_spin_lock(&rq->__lock);
+	update_task_cpu_cycles(curr, cpu, walt_sched_clock());
+	raw_spin_unlock(&rq->__lock);
+}
+
+static void android_rvh_account_irq_end(void *unused, struct task_struct *curr, int cpu, s64 delta)
+{
+	struct rq *rq;
+	unsigned long flags;
+	struct walt_rq *wrq;
+
+	if (unlikely(walt_disabled))
+		return;
+
+	if (!is_idle_task(curr))
+		return;
+
+	rq = cpu_rq(cpu);
+	wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+
+	raw_spin_lock_irqsave(&rq->__lock, flags);
+	walt_update_task_ravg(curr, rq, IRQ_UPDATE, walt_sched_clock(), delta);
+	raw_spin_unlock_irqrestore(&rq->__lock, flags);
+
 	wrq->last_irq_window = wrq->window_start;
 }
 
@@ -4446,7 +4453,8 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_sched_cpu_dying(android_rvh_sched_cpu_dying, NULL);
 	register_trace_android_rvh_set_task_cpu(android_rvh_set_task_cpu, NULL);
 	register_trace_android_rvh_new_task_stats(android_rvh_new_task_stats, NULL);
-	register_trace_android_rvh_account_irq(android_rvh_account_irq, NULL);
+	register_trace_android_rvh_account_irq_start(android_rvh_account_irq_start, NULL);
+	register_trace_android_rvh_account_irq_end(android_rvh_account_irq_end, NULL);
 	register_trace_android_rvh_flush_task(android_rvh_flush_task, NULL);
 	register_trace_android_rvh_update_misfit_status(android_rvh_update_misfit_status, NULL);
 	register_trace_android_rvh_after_enqueue_task(android_rvh_enqueue_task, NULL);
