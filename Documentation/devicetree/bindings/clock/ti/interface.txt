@@ -28,6 +28,7 @@ Required properties:
 - reg : base address for the control register
 
 Optional properties:
+- clock-output-names : from common clock binding.
 - ti,bit-shift : bit shift for the bit enabling/disabling the clock (default 0)
 
 Examples:
