@@ -455,17 +455,9 @@ struct bch_option {
 	enum opt_flags		flags;
 	u64			min, max;
 
-	union {
-	struct {
-	};
-	struct {
-		const char * const *choices;
-	};
-	struct {
-		int (*parse)(struct bch_fs *, const char *, u64 *);
-		void (*to_text)(struct printbuf *, struct bch_fs *, struct bch_sb *, u64);
-	};
-	};
+	const char * const *choices;
+	int (*parse)(struct bch_fs *, const char *, u64 *);
+	void (*to_text)(struct printbuf *, struct bch_fs *, struct bch_sb *, u64);
 
 	const char		*hint;
 	const char		*help;
