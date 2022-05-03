@@ -68,7 +68,6 @@ struct pic32_sport {
 	bool hw_flow_ctrl;
 	int cts_gpio;
 
-	int ref_clk;
 	struct clk *clk;
 
 	struct device *dev;
@@ -136,23 +135,6 @@ static inline void pic32_wait_deplete_txbuf(struct pic32_sport *sport)
 	/* wait for tx empty, otherwise chars will be lost or corrupted */
 	while (!(pic32_uart_readl(sport, PIC32_UART_STA) & PIC32_UART_STA_TRMT))
 		udelay(1);
-}
-
-static inline int pic32_enable_clock(struct pic32_sport *sport)
-{
-	int ret = clk_prepare_enable(sport->clk);
-
-	if (ret)
-		return ret;
-
-	sport->ref_clk++;
-	return 0;
-}
-
-static inline void pic32_disable_clock(struct pic32_sport *sport)
-{
-	sport->ref_clk--;
-	clk_disable_unprepare(sport->clk);
 }
 
 /* serial core request to check if uart tx buffer is empty */
@@ -491,7 +473,7 @@ static int pic32_uart_startup(struct uart_port *port)
 
 	local_irq_save(flags);
 
-	ret = pic32_enable_clock(sport);
+	ret = clk_prepare_enable(sport->clk);
 	if (ret) {
 		local_irq_restore(flags);
 		goto out_done;
@@ -611,7 +593,7 @@ static void pic32_uart_shutdown(struct uart_port *port)
 	spin_lock_irqsave(&port->lock, flags);
 	pic32_uart_dsbl_and_mask(port);
 	spin_unlock_irqrestore(&port->lock, flags);
-	pic32_disable_clock(sport);
+	clk_disable_unprepare(sport->clk);
 
 	/* free all 3 interrupts for this UART */
 	free_irq(sport->irq_fault, port);
@@ -835,7 +817,7 @@ static int pic32_console_setup(struct console *co, char *options)
 		return -ENODEV;
 	port = pic32_get_port(sport);
 
-	ret = pic32_enable_clock(sport);
+	ret = clk_prepare_enable(sport->clk);
 	if (ret)
 		return ret;
 
@@ -965,7 +947,7 @@ static int pic32_uart_probe(struct platform_device *pdev)
 		/* The peripheral clock has been enabled by console_setup,
 		 * so disable it till the port is used.
 		 */
-		pic32_disable_clock(sport);
+		clk_disable_unprepare(sport->clk);
 	}
 #endif
 
@@ -986,7 +968,7 @@ static int pic32_uart_remove(struct platform_device *pdev)
 	struct pic32_sport *sport = to_pic32_sport(port);
 
 	uart_remove_one_port(&pic32_uart_driver, port);
-	pic32_disable_clock(sport);
+	clk_disable_unprepare(sport->clk);
 	platform_set_drvdata(pdev, NULL);
 	pic32_sports[sport->idx] = NULL;
 
