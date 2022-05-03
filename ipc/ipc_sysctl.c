@@ -68,7 +68,7 @@ static int proc_ipc_sem_dointvec(struct ctl_table *table, int write,
 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 
 	if (!ret)
-		ret = sem_check_semmni(current->nsproxy->ipc_ns);
+		ret = sem_check_semmni(ns);
 
 	/*
 	 * Reset the semmni value if an error happens.
