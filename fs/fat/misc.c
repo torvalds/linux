@@ -193,7 +193,7 @@ static long days_in_year[] = {
 	0,   0,  31,  59,  90, 120, 151, 181, 212, 243, 273, 304, 334, 0, 0, 0,
 };
 
-static inline int fat_tz_offset(struct msdos_sb_info *sbi)
+static inline int fat_tz_offset(const struct msdos_sb_info *sbi)
 {
 	return (sbi->options.tz_set ?
 	       -sbi->options.time_offset :
@@ -289,15 +289,48 @@ static inline struct timespec64 fat_timespec64_trunc_10ms(struct timespec64 ts)
 }
 
 /*
+ * truncate atime to 24 hour granularity (00:00:00 in local timezone)
+ */
+struct timespec64 fat_truncate_atime(const struct msdos_sb_info *sbi,
+				     const struct timespec64 *ts)
+{
+	/* to localtime */
+	time64_t seconds = ts->tv_sec - fat_tz_offset(sbi);
+	s32 remainder;
+
+	div_s64_rem(seconds, SECS_PER_DAY, &remainder);
+	/* to day boundary, and back to unix time */
+	seconds = seconds + fat_tz_offset(sbi) - remainder;
+
+	return (struct timespec64){ seconds, 0 };
+}
+
+/*
+ * truncate creation time with appropriate granularity:
+ *   msdos - 2 seconds
+ *   vfat  - 10 milliseconds
+ */
+struct timespec64 fat_truncate_crtime(const struct msdos_sb_info *sbi,
+				      const struct timespec64 *ts)
+{
+	if (sbi->options.isvfat)
+		return fat_timespec64_trunc_10ms(*ts);
+	else
+		return fat_timespec64_trunc_2secs(*ts);
+}
+
+/*
+ * truncate mtime to 2 second granularity
+ */
+struct timespec64 fat_truncate_mtime(const struct msdos_sb_info *sbi,
+				     const struct timespec64 *ts)
+{
+	return fat_timespec64_trunc_2secs(*ts);
+}
+
+/*
  * truncate the various times with appropriate granularity:
- *   root inode:
- *     all times always 0
- *   all other inodes:
- *     mtime - 2 seconds
- *     ctime
- *       msdos - 2 seconds
- *       vfat  - 10 milliseconds
- *     atime - 24 hours (00:00:00 in local timezone)
+ *   all times in root node are always 0
  */
 int fat_truncate_time(struct inode *inode, struct timespec64 *now, int flags)
 {
@@ -312,25 +345,12 @@ int fat_truncate_time(struct inode *inode, struct timespec64 *now, int flags)
 		ts = current_time(inode);
 	}
 
-	if (flags & S_ATIME) {
-		/* to localtime */
-		time64_t seconds = now->tv_sec - fat_tz_offset(sbi);
-		s32 remainder;
-
-		div_s64_rem(seconds, SECS_PER_DAY, &remainder);
-		/* to day boundary, and back to unix time */
-		seconds = seconds + fat_tz_offset(sbi) - remainder;
-
-		inode->i_atime = (struct timespec64){ seconds, 0 };
-	}
-	if (flags & S_CTIME) {
-		if (sbi->options.isvfat)
-			inode->i_ctime = fat_timespec64_trunc_10ms(*now);
-		else
-			inode->i_ctime = fat_timespec64_trunc_2secs(*now);
-	}
+	if (flags & S_ATIME)
+		inode->i_atime = fat_truncate_atime(sbi, now);
+	if (flags & S_CTIME)
+		inode->i_ctime = fat_truncate_crtime(sbi, now);
 	if (flags & S_MTIME)
-		inode->i_mtime = fat_timespec64_trunc_2secs(*now);
+		inode->i_mtime = fat_truncate_mtime(sbi, now);
 
 	return 0;
 }
