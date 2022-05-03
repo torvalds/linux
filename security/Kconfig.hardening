@@ -284,10 +284,11 @@ choice
 	  tools like Volatility against the system (unless the kernel
 	  source tree isn't cleaned after kernel installation).
 
-	  The seed used for compilation is located at
-	  scripts/randomize_layout_seed.h. It remains after a "make clean"
-	  to allow for external modules to be compiled with the existing
-	  seed and will be removed by a "make mrproper" or "make distclean".
+	  The seed used for compilation is in scripts/basic/randomize.seed.
+	  It remains after a "make clean" to allow for external modules to
+	  be compiled with the existing seed and will be removed by a
+	  "make mrproper" or "make distclean". This file should not be made
+	  public, or the structure layout can be determined.
 
 	config RANDSTRUCT_NONE
 		bool "Disable structure layout randomization"
