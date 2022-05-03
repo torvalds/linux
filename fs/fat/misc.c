@@ -347,10 +347,13 @@ int fat_truncate_time(struct inode *inode, struct timespec64 *now, int flags)
 
 	if (flags & S_ATIME)
 		inode->i_atime = fat_truncate_atime(sbi, now);
-	if (flags & S_CTIME)
-		inode->i_ctime = fat_truncate_crtime(sbi, now);
+	/*
+	 * ctime and mtime share the same on-disk field, and should be
+	 * identical in memory. all mtime updates will be applied to ctime,
+	 * but ctime updates are ignored.
+	 */
 	if (flags & S_MTIME)
-		inode->i_mtime = fat_truncate_mtime(sbi, now);
+		inode->i_mtime = inode->i_ctime = fat_truncate_mtime(sbi, now);
 
 	return 0;
 }
