@@ -51,7 +51,6 @@ static struct kmem_cache *amdgpu_sync_slab;
 void amdgpu_sync_create(struct amdgpu_sync *sync)
 {
 	hash_init(sync->fences);
-	sync->last_vm_update = NULL;
 }
 
 /**
@@ -169,23 +168,6 @@ int amdgpu_sync_fence(struct amdgpu_sync *sync, struct dma_fence *f)
 	hash_add(sync->fences, &e->node, f->context);
 	e->fence = dma_fence_get(f);
 	return 0;
-}
-
-/**
- * amdgpu_sync_vm_fence - remember to sync to this VM fence
- *
- * @sync: sync object to add fence to
- * @fence: the VM fence to add
- *
- * Add the fence to the sync object and remember it as VM update.
- */
-int amdgpu_sync_vm_fence(struct amdgpu_sync *sync, struct dma_fence *fence)
-{
-	if (!fence)
-		return 0;
-
-	amdgpu_sync_keep_later(&sync->last_vm_update, fence);
-	return amdgpu_sync_fence(sync, fence);
 }
 
 /* Determine based on the owner and mode if we should sync to a fence or not */
@@ -377,9 +359,6 @@ int amdgpu_sync_clone(struct amdgpu_sync *source, struct amdgpu_sync *clone)
 		}
 	}
 
-	dma_fence_put(clone->last_vm_update);
-	clone->last_vm_update = dma_fence_get(source->last_vm_update);
-
 	return 0;
 }
 
@@ -420,8 +399,6 @@ void amdgpu_sync_free(struct amdgpu_sync *sync)
 		dma_fence_put(e->fence);
 		kmem_cache_free(amdgpu_sync_slab, e);
 	}
-
-	dma_fence_put(sync->last_vm_update);
 }
 
 /**

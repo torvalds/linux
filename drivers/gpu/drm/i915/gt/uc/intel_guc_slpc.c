@@ -153,8 +153,8 @@ static int slpc_query_task_state(struct intel_guc_slpc *slpc)
 
 	ret = guc_action_slpc_query(guc, offset);
 	if (unlikely(ret))
-		drm_err(&i915->drm, "Failed to query task state (%pe)\n",
-			ERR_PTR(ret));
+		i915_probe_error(i915, "Failed to query task state (%pe)\n",
+				 ERR_PTR(ret));
 
 	drm_clflush_virt_range(slpc->vaddr, SLPC_PAGE_SIZE_BYTES);
 
@@ -171,8 +171,8 @@ static int slpc_set_param(struct intel_guc_slpc *slpc, u8 id, u32 value)
 
 	ret = guc_action_slpc_set_param(guc, id, value);
 	if (ret)
-		drm_err(&i915->drm, "Failed to set param %d to %u (%pe)\n",
-			id, value, ERR_PTR(ret));
+		i915_probe_error(i915, "Failed to set param %d to %u (%pe)\n",
+				 id, value, ERR_PTR(ret));
 
 	return ret;
 }
@@ -212,8 +212,8 @@ static int slpc_force_min_freq(struct intel_guc_slpc *slpc, u32 freq)
 				     SLPC_PARAM_GLOBAL_MIN_GT_UNSLICE_FREQ_MHZ,
 				     freq);
 		if (ret)
-			drm_err(&i915->drm, "Unable to force min freq to %u: %d",
-				freq, ret);
+			i915_probe_error(i915, "Unable to force min freq to %u: %d",
+					 freq, ret);
 	}
 
 	return ret;
@@ -248,9 +248,9 @@ int intel_guc_slpc_init(struct intel_guc_slpc *slpc)
 
 	err = intel_guc_allocate_and_map_vma(guc, size, &slpc->vma, (void **)&slpc->vaddr);
 	if (unlikely(err)) {
-		drm_err(&i915->drm,
-			"Failed to allocate SLPC struct (err=%pe)\n",
-			ERR_PTR(err));
+		i915_probe_error(i915,
+				 "Failed to allocate SLPC struct (err=%pe)\n",
+				 ERR_PTR(err));
 		return err;
 	}
 
@@ -317,15 +317,15 @@ static int slpc_reset(struct intel_guc_slpc *slpc)
 	ret = guc_action_slpc_reset(guc, offset);
 
 	if (unlikely(ret < 0)) {
-		drm_err(&i915->drm, "SLPC reset action failed (%pe)\n",
-			ERR_PTR(ret));
+		i915_probe_error(i915, "SLPC reset action failed (%pe)\n",
+				 ERR_PTR(ret));
 		return ret;
 	}
 
 	if (!ret) {
 		if (wait_for(slpc_is_running(slpc), SLPC_RESET_TIMEOUT_MS)) {
-			drm_err(&i915->drm, "SLPC not enabled! State = %s\n",
-				slpc_get_state_string(slpc));
+			i915_probe_error(i915, "SLPC not enabled! State = %s\n",
+					 slpc_get_state_string(slpc));
 			return -EIO;
 		}
 	}
@@ -582,16 +582,12 @@ static int slpc_use_fused_rp0(struct intel_guc_slpc *slpc)
 static void slpc_get_rp_values(struct intel_guc_slpc *slpc)
 {
 	struct intel_rps *rps = &slpc_to_gt(slpc)->rps;
-	u32 rp_state_cap;
+	struct intel_rps_freq_caps caps;
 
-	rp_state_cap = intel_rps_read_state_cap(rps);
-
-	slpc->rp0_freq = REG_FIELD_GET(RP0_CAP_MASK, rp_state_cap) *
-					GT_FREQUENCY_MULTIPLIER;
-	slpc->rp1_freq = REG_FIELD_GET(RP1_CAP_MASK, rp_state_cap) *
-					GT_FREQUENCY_MULTIPLIER;
-	slpc->min_freq = REG_FIELD_GET(RPN_CAP_MASK, rp_state_cap) *
-					GT_FREQUENCY_MULTIPLIER;
+	gen6_rps_get_freq_caps(rps, &caps);
+	slpc->rp0_freq = intel_gpu_freq(rps, caps.rp0_freq);
+	slpc->rp1_freq = intel_gpu_freq(rps, caps.rp1_freq);
+	slpc->min_freq = intel_gpu_freq(rps, caps.min_freq);
 
 	if (!slpc->boost_freq)
 		slpc->boost_freq = slpc->rp0_freq;
@@ -621,8 +617,8 @@ int intel_guc_slpc_enable(struct intel_guc_slpc *slpc)
 
 	ret = slpc_reset(slpc);
 	if (unlikely(ret < 0)) {
-		drm_err(&i915->drm, "SLPC Reset event returned (%pe)\n",
-			ERR_PTR(ret));
+		i915_probe_error(i915, "SLPC Reset event returned (%pe)\n",
+				 ERR_PTR(ret));
 		return ret;
 	}
 
@@ -637,24 +633,24 @@ int intel_guc_slpc_enable(struct intel_guc_slpc *slpc)
 	/* Ignore efficient freq and set min to platform min */
 	ret = slpc_ignore_eff_freq(slpc, true);
 	if (unlikely(ret)) {
-		drm_err(&i915->drm, "Failed to set SLPC min to RPn (%pe)\n",
-			ERR_PTR(ret));
+		i915_probe_error(i915, "Failed to set SLPC min to RPn (%pe)\n",
+				 ERR_PTR(ret));
 		return ret;
 	}
 
 	/* Set SLPC max limit to RP0 */
 	ret = slpc_use_fused_rp0(slpc);
 	if (unlikely(ret)) {
-		drm_err(&i915->drm, "Failed to set SLPC max to RP0 (%pe)\n",
-			ERR_PTR(ret));
+		i915_probe_error(i915, "Failed to set SLPC max to RP0 (%pe)\n",
+				 ERR_PTR(ret));
 		return ret;
 	}
 
 	/* Revert SLPC min/max to softlimits if necessary */
 	ret = slpc_set_softlimits(slpc);
 	if (unlikely(ret)) {
-		drm_err(&i915->drm, "Failed to set SLPC softlimits (%pe)\n",
-			ERR_PTR(ret));
+		i915_probe_error(i915, "Failed to set SLPC softlimits (%pe)\n",
+				 ERR_PTR(ret));
 		return ret;
 	}
 

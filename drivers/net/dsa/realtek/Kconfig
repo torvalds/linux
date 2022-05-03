@@ -9,34 +9,46 @@ menuconfig NET_DSA_REALTEK
 	help
 	  Select to enable support for Realtek Ethernet switch chips.
 
+	  Note that at least one interface driver must be enabled for the
+	  subdrivers to be loaded. Moreover, an interface driver cannot achieve
+	  anything without at least one subdriver enabled.
+
+if NET_DSA_REALTEK
+
 config NET_DSA_REALTEK_MDIO
-	tristate "Realtek MDIO connected switch driver"
-	depends on NET_DSA_REALTEK
+	tristate "Realtek MDIO interface driver"
 	depends on OF
+	depends on NET_DSA_REALTEK_RTL8365MB || NET_DSA_REALTEK_RTL8366RB
+	depends on NET_DSA_REALTEK_RTL8365MB || !NET_DSA_REALTEK_RTL8365MB
+	depends on NET_DSA_REALTEK_RTL8366RB || !NET_DSA_REALTEK_RTL8366RB
 	help
 	  Select to enable support for registering switches configured
 	  through MDIO.
 
 config NET_DSA_REALTEK_SMI
-	tristate "Realtek SMI connected switch driver"
-	depends on NET_DSA_REALTEK
+	tristate "Realtek SMI interface driver"
 	depends on OF
+	depends on NET_DSA_REALTEK_RTL8365MB || NET_DSA_REALTEK_RTL8366RB
+	depends on NET_DSA_REALTEK_RTL8365MB || !NET_DSA_REALTEK_RTL8365MB
+	depends on NET_DSA_REALTEK_RTL8366RB || !NET_DSA_REALTEK_RTL8366RB
 	help
 	  Select to enable support for registering switches connected
 	  through SMI.
 
 config NET_DSA_REALTEK_RTL8365MB
 	tristate "Realtek RTL8365MB switch subdriver"
-	depends on NET_DSA_REALTEK
-	depends on NET_DSA_REALTEK_SMI || NET_DSA_REALTEK_MDIO
+	imply NET_DSA_REALTEK_SMI
+	imply NET_DSA_REALTEK_MDIO
 	select NET_DSA_TAG_RTL8_4
 	help
 	  Select to enable support for Realtek RTL8365MB-VC and RTL8367S.
 
 config NET_DSA_REALTEK_RTL8366RB
 	tristate "Realtek RTL8366RB switch subdriver"
-	depends on NET_DSA_REALTEK
-	depends on NET_DSA_REALTEK_SMI || NET_DSA_REALTEK_MDIO
+	imply NET_DSA_REALTEK_SMI
+	imply NET_DSA_REALTEK_MDIO
 	select NET_DSA_TAG_RTL4_A
 	help
-	  Select to enable support for Realtek RTL8366RB
+	  Select to enable support for Realtek RTL8366RB.
+
+endif

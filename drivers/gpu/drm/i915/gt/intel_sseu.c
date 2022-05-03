@@ -10,6 +10,8 @@
 #include "intel_gt_regs.h"
 #include "intel_sseu.h"
 
+#include "linux/string_helpers.h"
+
 void intel_sseu_set_info(struct sseu_dev_info *sseu, u8 max_slices,
 			 u8 max_subslices, u8 max_eus_per_subslice)
 {
@@ -35,8 +37,8 @@ intel_sseu_subslice_total(const struct sseu_dev_info *sseu)
 }
 
 static u32
-_intel_sseu_get_subslices(const struct sseu_dev_info *sseu,
-			  const u8 *subslice_mask, u8 slice)
+sseu_get_subslices(const struct sseu_dev_info *sseu,
+		   const u8 *subslice_mask, u8 slice)
 {
 	int i, offset = slice * sseu->ss_stride;
 	u32 mask = 0;
@@ -51,12 +53,17 @@ _intel_sseu_get_subslices(const struct sseu_dev_info *sseu,
 
 u32 intel_sseu_get_subslices(const struct sseu_dev_info *sseu, u8 slice)
 {
-	return _intel_sseu_get_subslices(sseu, sseu->subslice_mask, slice);
+	return sseu_get_subslices(sseu, sseu->subslice_mask, slice);
+}
+
+static u32 sseu_get_geometry_subslices(const struct sseu_dev_info *sseu)
+{
+	return sseu_get_subslices(sseu, sseu->geometry_subslice_mask, 0);
 }
 
 u32 intel_sseu_get_compute_subslices(const struct sseu_dev_info *sseu)
 {
-	return _intel_sseu_get_subslices(sseu, sseu->compute_subslice_mask, 0);
+	return sseu_get_subslices(sseu, sseu->compute_subslice_mask, 0);
 }
 
 void intel_sseu_set_subslices(struct sseu_dev_info *sseu, int slice,
@@ -720,15 +727,10 @@ void intel_sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p)
 		   str_yes_no(sseu->has_eu_pg));
 }
 
-void intel_sseu_print_topology(const struct sseu_dev_info *sseu,
-			       struct drm_printer *p)
+static void sseu_print_hsw_topology(const struct sseu_dev_info *sseu,
+				    struct drm_printer *p)
 {
 	int s, ss;
-
-	if (sseu->max_slices == 0) {
-		drm_printf(p, "Unavailable\n");
-		return;
-	}
 
 	for (s = 0; s < sseu->max_slices; s++) {
 		drm_printf(p, "slice%d: %u subslice(s) (0x%08x):\n",
@@ -741,6 +743,36 @@ void intel_sseu_print_topology(const struct sseu_dev_info *sseu,
 			drm_printf(p, "\tsubslice%d: %u EUs (0x%hx)\n",
 				   ss, hweight16(enabled_eus), enabled_eus);
 		}
+	}
+}
+
+static void sseu_print_xehp_topology(const struct sseu_dev_info *sseu,
+				     struct drm_printer *p)
+{
+	u32 g_dss_mask = sseu_get_geometry_subslices(sseu);
+	u32 c_dss_mask = intel_sseu_get_compute_subslices(sseu);
+	int dss;
+
+	for (dss = 0; dss < sseu->max_subslices; dss++) {
+		u16 enabled_eus = sseu_get_eus(sseu, 0, dss);
+
+		drm_printf(p, "DSS_%02d: G:%3s C:%3s, %2u EUs (0x%04hx)\n", dss,
+			   str_yes_no(g_dss_mask & BIT(dss)),
+			   str_yes_no(c_dss_mask & BIT(dss)),
+			   hweight16(enabled_eus), enabled_eus);
+	}
+}
+
+void intel_sseu_print_topology(struct drm_i915_private *i915,
+			       const struct sseu_dev_info *sseu,
+			       struct drm_printer *p)
+{
+	if (sseu->max_slices == 0) {
+		drm_printf(p, "Unavailable\n");
+	} else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+		sseu_print_xehp_topology(sseu, p);
+	} else {
+		sseu_print_hsw_topology(sseu, p);
 	}
 }
 

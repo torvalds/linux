@@ -1128,14 +1128,6 @@ err_pdd:
 	return ret;
 }
 
-static bool kfd_flush_tlb_after_unmap(struct kfd_dev *dev)
-{
-	return KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2) ||
-		(KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 1) &&
-		dev->adev->sdma.instance[0].fw_version >= 18) ||
-		KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 0);
-}
-
 static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 					struct kfd_process *p, void *data)
 {
@@ -1146,7 +1138,6 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 	long err = 0;
 	int i;
 	uint32_t *devices_arr = NULL;
-	bool table_freed = false;
 
 	if (!args->n_devices) {
 		pr_debug("Device IDs array empty\n");
@@ -1208,7 +1199,7 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 
 		err = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 			peer_pdd->dev->adev, (struct kgd_mem *)mem,
-			peer_pdd->drm_priv, &table_freed);
+			peer_pdd->drm_priv);
 		if (err) {
 			struct pci_dev *pdev = peer_pdd->dev->adev->pdev;
 
@@ -1233,13 +1224,11 @@ static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
 	}
 
 	/* Flush TLBs after waiting for the page table updates to complete */
-	if (table_freed || !kfd_flush_tlb_after_unmap(dev)) {
-		for (i = 0; i < args->n_devices; i++) {
-			peer_pdd = kfd_process_device_data_by_id(p, devices_arr[i]);
-			if (WARN_ON_ONCE(!peer_pdd))
-				continue;
-			kfd_flush_tlb(peer_pdd, TLB_FLUSH_LEGACY);
-		}
+	for (i = 0; i < args->n_devices; i++) {
+		peer_pdd = kfd_process_device_data_by_id(p, devices_arr[i]);
+		if (WARN_ON_ONCE(!peer_pdd))
+			continue;
+		kfd_flush_tlb(peer_pdd, TLB_FLUSH_LEGACY);
 	}
 	kfree(devices_arr);
 
@@ -2206,8 +2195,8 @@ static int criu_restore_bo(struct kfd_process *p,
 		if (IS_ERR(peer_pdd))
 			return PTR_ERR(peer_pdd);
 
-		ret = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(peer->adev, kgd_mem, peer_pdd->drm_priv,
-							    NULL);
+		ret = amdgpu_amdkfd_gpuvm_map_memory_to_gpu(peer->adev, kgd_mem,
+							    peer_pdd->drm_priv);
 		if (ret) {
 			pr_err("Failed to map to gpu %d/%d\n", j, p->n_pdds);
 			return ret;
