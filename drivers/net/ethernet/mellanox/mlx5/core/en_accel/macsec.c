@@ -1607,37 +1607,6 @@ static void mlx5e_macsec_aso_cleanup(struct mlx5e_macsec_aso *aso, struct mlx5_c
 	mlx5_core_dealloc_pd(mdev, aso->pdn);
 }
 
-bool mlx5e_is_macsec_device(const struct mlx5_core_dev *mdev)
-{
-	if (!(MLX5_CAP_GEN_64(mdev, general_obj_types) &
-	    MLX5_GENERAL_OBJ_TYPES_CAP_MACSEC_OFFLOAD))
-		return false;
-
-	if (!MLX5_CAP_GEN(mdev, log_max_dek))
-		return false;
-
-	if (!MLX5_CAP_MACSEC(mdev, log_max_macsec_offload))
-		return false;
-
-	if (!MLX5_CAP_FLOWTABLE_NIC_RX(mdev, macsec_decrypt) ||
-	    !MLX5_CAP_FLOWTABLE_NIC_RX(mdev, reformat_remove_macsec))
-		return false;
-
-	if (!MLX5_CAP_FLOWTABLE_NIC_TX(mdev, macsec_encrypt) ||
-	    !MLX5_CAP_FLOWTABLE_NIC_TX(mdev, reformat_add_macsec))
-		return false;
-
-	if (!MLX5_CAP_MACSEC(mdev, macsec_crypto_esp_aes_gcm_128_encrypt) &&
-	    !MLX5_CAP_MACSEC(mdev, macsec_crypto_esp_aes_gcm_256_encrypt))
-		return false;
-
-	if (!MLX5_CAP_MACSEC(mdev, macsec_crypto_esp_aes_gcm_128_decrypt) &&
-	    !MLX5_CAP_MACSEC(mdev, macsec_crypto_esp_aes_gcm_256_decrypt))
-		return false;
-
-	return true;
-}
-
 static const struct macsec_ops macsec_offload_ops = {
 	.mdo_add_txsa = mlx5e_macsec_add_txsa,
 	.mdo_upd_txsa = mlx5e_macsec_upd_txsa,
