@@ -473,10 +473,7 @@ ENTRY(\name)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_ASYNC
 	MBEAR	%r11
 	stmg	%r8,%r9,__PT_PSW(%r11)
-	tm	%r8,0x0001		# coming from user space?
-	jno	1f
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE
-1:	lgr	%r2,%r11		# pass pointer to pt_regs
+	lgr	%r2,%r11		# pass pointer to pt_regs
 	brasl	%r14,\handler
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r11)
 	tmhh	%r8,0x0001		# returning to user ?
