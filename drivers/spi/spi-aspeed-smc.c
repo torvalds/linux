@@ -451,6 +451,8 @@ static int aspeed_spi_set_window(struct aspeed_spi *aspi,
  * - ioremap each window, not strictly necessary since the overall window
  *   is correct.
  */
+static const struct aspeed_spi_data ast2500_spi_data;
+
 static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
 					 u32 local_offset, u32 size)
 {
@@ -458,6 +460,16 @@ static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
 	struct aspeed_spi_window windows[ASPEED_SPI_MAX_NUM_CS] = { 0 };
 	struct aspeed_spi_window *win = &windows[chip->cs];
 	int ret;
+
+	/*
+	 * Due to an HW issue on the AST2500 SPI controller, the CE0
+	 * window size should be smaller than the maximum 128MB.
+	 */
+	if (aspi->data == &ast2500_spi_data && chip->cs == 0 && size == SZ_128M) {
+		size = 120 << 20;
+		dev_info(aspi->dev, "CE%d window resized to %dMB (AST2500 HW quirk)",
+			 chip->cs, size >> 20);
+	}
 
 	aspeed_spi_get_windows(aspi, windows);
 
