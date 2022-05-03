@@ -73,21 +73,16 @@ struct pic32_sport {
 	struct device *dev;
 };
 #define to_pic32_sport(c) container_of(c, struct pic32_sport, port)
-#define pic32_get_port(sport) (&sport->port)
 
 static inline void pic32_uart_writel(struct pic32_sport *sport,
 					u32 reg, u32 val)
 {
-	struct uart_port *port = pic32_get_port(sport);
-
-	__raw_writel(val, port->membase + reg);
+	__raw_writel(val, sport->port.membase + reg);
 }
 
 static inline u32 pic32_uart_readl(struct pic32_sport *sport, u32 reg)
 {
-	struct uart_port *port = pic32_get_port(sport);
-
-	return	__raw_readl(port->membase + reg);
+	return	__raw_readl(sport->port.membase + reg);
 }
 
 /* pic32 uart mode register bits */
@@ -789,10 +784,9 @@ static void pic32_console_write(struct console *co, const char *s,
 				unsigned int count)
 {
 	struct pic32_sport *sport = pic32_sports[co->index];
-	struct uart_port *port = pic32_get_port(sport);
 
 	/* call uart helper to deal with \r\n */
-	uart_console_write(port, s, count, pic32_console_putchar);
+	uart_console_write(&sport->port, s, count, pic32_console_putchar);
 }
 
 /* console core request to setup given console, find matching uart
@@ -801,7 +795,6 @@ static void pic32_console_write(struct console *co, const char *s,
 static int pic32_console_setup(struct console *co, char *options)
 {
 	struct pic32_sport *sport;
-	struct uart_port *port = NULL;
 	int baud = 115200;
 	int bits = 8;
 	int parity = 'n';
@@ -814,7 +807,6 @@ static int pic32_console_setup(struct console *co, char *options)
 	sport = pic32_sports[co->index];
 	if (!sport)
 		return -ENODEV;
-	port = pic32_get_port(sport);
 
 	ret = clk_prepare_enable(sport->clk);
 	if (ret)
@@ -823,7 +815,7 @@ static int pic32_console_setup(struct console *co, char *options)
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 
-	return uart_set_options(port, co, baud, parity, bits, flow);
+	return uart_set_options(&sport->port, co, baud, parity, bits, flow);
 }
 
 static struct uart_driver pic32_uart_driver;
