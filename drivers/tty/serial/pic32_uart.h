@@ -20,13 +20,6 @@
 #define PIC32_UART_RX		0x30
 #define PIC32_UART_BRG		0x40
 
-struct pic32_console_opt {
-	int baud;
-	int parity;
-	int bits;
-	int flow;
-};
-
 /* struct pic32_sport - pic32 serial port descriptor
  * @port: uart port descriptor
  * @idx: port index
@@ -44,7 +37,6 @@ struct pic32_console_opt {
  **/
 struct pic32_sport {
 	struct uart_port port;
-	struct pic32_console_opt opt;
 	int idx;
 
 	int irq_fault;
@@ -68,7 +60,6 @@ struct pic32_sport {
 };
 #define to_pic32_sport(c) container_of(c, struct pic32_sport, port)
 #define pic32_get_port(sport) (&sport->port)
-#define pic32_get_opt(sport) (&sport->opt)
 #define tx_irq_enabled(sport) (sport->enable_tx_irq)
 
 static inline void pic32_uart_writel(struct pic32_sport *sport,
