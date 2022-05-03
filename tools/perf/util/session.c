@@ -2576,7 +2576,7 @@ int perf_session__process_events(struct perf_session *session)
 	if (perf_data__is_pipe(session->data))
 		return __perf_session__process_pipe_events(session);
 
-	if (perf_data__is_dir(session->data))
+	if (perf_data__is_dir(session->data) && session->data->dir.nr)
 		return __perf_session__process_dir_events(session);
 
 	return __perf_session__process_events(session);

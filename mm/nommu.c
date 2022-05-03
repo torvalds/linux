@@ -226,6 +226,8 @@ void *vmalloc(unsigned long size)
 }
 EXPORT_SYMBOL(vmalloc);
 
+void *vmalloc_huge(unsigned long size, gfp_t gfp_mask) __weak __alias(__vmalloc);
+
 /*
  *	vzalloc - allocate virtually contiguous memory with zero fill
  *

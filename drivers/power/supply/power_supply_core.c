@@ -604,6 +604,12 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	err = samsung_sdi_battery_get_info(&psy->dev, value, &info);
 	if (!err)
 		goto out_ret_pointer;
+	else if (err == -ENODEV)
+		/*
+		 * Device does not have a static battery.
+		 * Proceed to look for a simple battery.
+		 */
+		err = 0;
 
 	if (strcmp("simple-battery", value)) {
 		err = -ENODEV;
