@@ -72,8 +72,6 @@ static void l1_guest_code(struct vmx_pages *vmx_pages, unsigned long high_gpa)
 int main(int argc, char *argv[])
 {
 	unsigned long apic_access_addr = ~0ul;
-	unsigned int paddr_width;
-	unsigned int vaddr_width;
 	vm_vaddr_t vmx_pages_gva;
 	unsigned long high_gpa;
 	struct vmx_pages *vmx;
@@ -86,12 +84,7 @@ int main(int argc, char *argv[])
 
 	vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code);
 
-	kvm_get_cpu_address_width(&paddr_width, &vaddr_width);
-	high_gpa = (1ul << paddr_width) - getpagesize();
-	if ((unsigned long)DEFAULT_GUEST_PHY_PAGES * getpagesize() > high_gpa) {
-		print_skip("No unbacked physical page available");
-		exit(KSFT_SKIP);
-	}
+	high_gpa = (vm->max_gfn - 1) << vm->page_shift;
 
 	vmx = vcpu_alloc_vmx(vm, &vmx_pages_gva);
 	prepare_virtualize_apic_accesses(vmx, vm);
