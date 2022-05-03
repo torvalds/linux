@@ -426,9 +426,9 @@ static void handle_removed_pt(struct kvm *kvm, tdp_ptep_t pt, bool shared)
 	tdp_mmu_unlink_sp(kvm, sp, shared);
 
 	for (i = 0; i < PT64_ENT_PER_PAGE; i++) {
-		u64 *sptep = rcu_dereference(pt) + i;
+		tdp_ptep_t sptep = pt + i;
 		gfn_t gfn = base_gfn + i * KVM_PAGES_PER_HPAGE(level);
-		u64 old_child_spte;
+		u64 old_spte;
 
 		if (shared) {
 			/*
@@ -440,8 +440,8 @@ static void handle_removed_pt(struct kvm *kvm, tdp_ptep_t pt, bool shared)
 			 * value to the removed SPTE value.
 			 */
 			for (;;) {
-				old_child_spte = xchg(sptep, REMOVED_SPTE);
-				if (!is_removed_spte(old_child_spte))
+				old_spte = kvm_tdp_mmu_write_spte_atomic(sptep, REMOVED_SPTE);
+				if (!is_removed_spte(old_spte))
 					break;
 				cpu_relax();
 			}
@@ -455,23 +455,43 @@ static void handle_removed_pt(struct kvm *kvm, tdp_ptep_t pt, bool shared)
 			 * are guarded by the memslots generation, not by being
 			 * unreachable.
 			 */
-			old_child_spte = READ_ONCE(*sptep);
-			if (!is_shadow_present_pte(old_child_spte))
+			old_spte = kvm_tdp_mmu_read_spte(sptep);
+			if (!is_shadow_present_pte(old_spte))
 				continue;
 
 			/*
-			 * Marking the SPTE as a removed SPTE is not
-			 * strictly necessary here as the MMU lock will
-			 * stop other threads from concurrently modifying
-			 * this SPTE. Using the removed SPTE value keeps
-			 * the two branches consistent and simplifies
-			 * the function.
+			 * Use the common helper instead of a raw WRITE_ONCE as
+			 * the SPTE needs to be updated atomically if it can be
+			 * modified by a different vCPU outside of mmu_lock.
+			 * Even though the parent SPTE is !PRESENT, the TLB
+			 * hasn't yet been flushed, and both Intel and AMD
+			 * document that A/D assists can use upper-level PxE
+			 * entries that are cached in the TLB, i.e. the CPU can
+			 * still access the page and mark it dirty.
+			 *
+			 * No retry is needed in the atomic update path as the
+			 * sole concern is dropping a Dirty bit, i.e. no other
+			 * task can zap/remove the SPTE as mmu_lock is held for
+			 * write.  Marking the SPTE as a removed SPTE is not
+			 * strictly necessary for the same reason, but using
+			 * the remove SPTE value keeps the shared/exclusive
+			 * paths consistent and allows the handle_changed_spte()
+			 * call below to hardcode the new value to REMOVED_SPTE.
+			 *
+			 * Note, even though dropping a Dirty bit is the only
+			 * scenario where a non-atomic update could result in a
+			 * functional bug, simply checking the Dirty bit isn't
+			 * sufficient as a fast page fault could read the upper
+			 * level SPTE before it is zapped, and then make this
+			 * target SPTE writable, resume the guest, and set the
+			 * Dirty bit between reading the SPTE above and writing
+			 * it here.
 			 */
-			WRITE_ONCE(*sptep, REMOVED_SPTE);
+			old_spte = kvm_tdp_mmu_write_spte(sptep, old_spte,
+							  REMOVED_SPTE, level);
 		}
 		handle_changed_spte(kvm, kvm_mmu_page_as_id(sp), gfn,
-				    old_child_spte, REMOVED_SPTE, level,
-				    shared);
+				    old_spte, REMOVED_SPTE, level, shared);
 	}
 
 	call_rcu(&sp->rcu_head, tdp_mmu_free_sp_rcu_callback);
@@ -667,14 +687,13 @@ static inline int tdp_mmu_zap_spte_atomic(struct kvm *kvm,
 					   KVM_PAGES_PER_HPAGE(iter->level));
 
 	/*
-	 * No other thread can overwrite the removed SPTE as they
-	 * must either wait on the MMU lock or use
-	 * tdp_mmu_set_spte_atomic which will not overwrite the
-	 * special removed SPTE value. No bookkeeping is needed
-	 * here since the SPTE is going from non-present
-	 * to non-present.
+	 * No other thread can overwrite the removed SPTE as they must either
+	 * wait on the MMU lock or use tdp_mmu_set_spte_atomic() which will not
+	 * overwrite the special removed SPTE value. No bookkeeping is needed
+	 * here since the SPTE is going from non-present to non-present.  Use
+	 * the raw write helper to avoid an unnecessary check on volatile bits.
 	 */
-	kvm_tdp_mmu_write_spte(iter->sptep, 0);
+	__kvm_tdp_mmu_write_spte(iter->sptep, 0);
 
 	return 0;
 }
@@ -699,10 +718,13 @@ static inline int tdp_mmu_zap_spte_atomic(struct kvm *kvm,
  *		      unless performing certain dirty logging operations.
  *		      Leaving record_dirty_log unset in that case prevents page
  *		      writes from being double counted.
+ *
+ * Returns the old SPTE value, which _may_ be different than @old_spte if the
+ * SPTE had voldatile bits.
  */
-static void __tdp_mmu_set_spte(struct kvm *kvm, int as_id, tdp_ptep_t sptep,
-			       u64 old_spte, u64 new_spte, gfn_t gfn, int level,
-			       bool record_acc_track, bool record_dirty_log)
+static u64 __tdp_mmu_set_spte(struct kvm *kvm, int as_id, tdp_ptep_t sptep,
+			      u64 old_spte, u64 new_spte, gfn_t gfn, int level,
+			      bool record_acc_track, bool record_dirty_log)
 {
 	lockdep_assert_held_write(&kvm->mmu_lock);
 
@@ -715,7 +737,7 @@ static void __tdp_mmu_set_spte(struct kvm *kvm, int as_id, tdp_ptep_t sptep,
 	 */
 	WARN_ON(is_removed_spte(old_spte) || is_removed_spte(new_spte));
 
-	kvm_tdp_mmu_write_spte(sptep, new_spte);
+	old_spte = kvm_tdp_mmu_write_spte(sptep, old_spte, new_spte, level);
 
 	__handle_changed_spte(kvm, as_id, gfn, old_spte, new_spte, level, false);
 
@@ -724,6 +746,7 @@ static void __tdp_mmu_set_spte(struct kvm *kvm, int as_id, tdp_ptep_t sptep,
 	if (record_dirty_log)
 		handle_changed_spte_dirty_log(kvm, as_id, gfn, old_spte,
 					      new_spte, level);
+	return old_spte;
 }
 
 static inline void _tdp_mmu_set_spte(struct kvm *kvm, struct tdp_iter *iter,
@@ -732,9 +755,10 @@ static inline void _tdp_mmu_set_spte(struct kvm *kvm, struct tdp_iter *iter,
 {
 	WARN_ON_ONCE(iter->yielded);
 
-	__tdp_mmu_set_spte(kvm, iter->as_id, iter->sptep, iter->old_spte,
-			   new_spte, iter->gfn, iter->level,
-			   record_acc_track, record_dirty_log);
+	iter->old_spte = __tdp_mmu_set_spte(kvm, iter->as_id, iter->sptep,
+					    iter->old_spte, new_spte,
+					    iter->gfn, iter->level,
+					    record_acc_track, record_dirty_log);
 }
 
 static inline void tdp_mmu_set_spte(struct kvm *kvm, struct tdp_iter *iter,
