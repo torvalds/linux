@@ -122,6 +122,7 @@
 #define IOVA_34_EN			BIT(8)
 #define SHARE_PGTABLE			BIT(9) /* 2 HW share pgtable */
 #define DCM_DISABLE			BIT(10)
+#define STD_AXI_MODE			BIT(11) /* For non MM iommu */
 
 #define MTK_IOMMU_HAS_FLAG(pdata, _x) \
 		((((pdata)->flags) & (_x)) == (_x))
@@ -785,7 +786,8 @@ static int mtk_iommu_hw_init(const struct mtk_iommu_data *data)
 		regval = 0;
 	} else {
 		regval = readl_relaxed(data->base + REG_MMU_MISC_CTRL);
-		regval &= ~F_MMU_STANDARD_AXI_MODE_MASK;
+		if (!MTK_IOMMU_HAS_FLAG(data->plat_data, STD_AXI_MODE))
+			regval &= ~F_MMU_STANDARD_AXI_MODE_MASK;
 		if (MTK_IOMMU_HAS_FLAG(data->plat_data, OUT_ORDER_WR_EN))
 			regval &= ~F_MMU_IN_ORDER_WR_EN_MASK;
 	}
