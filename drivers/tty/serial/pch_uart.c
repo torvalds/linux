@@ -764,7 +764,7 @@ static bool pop_tx(struct eg20t_port *priv, unsigned int size)
 	struct circ_buf *xmit = &port->state->xmit;
 
 	if (uart_tx_stopped(port))
-		goto pop_tx_end;
+		return false;
 
 	while (!uart_circ_empty(xmit) && count < size) {
 		iowrite8(xmit->buf[xmit->tail], priv->membase + PCH_UART_THR);
@@ -772,10 +772,6 @@ static bool pop_tx(struct eg20t_port *priv, unsigned int size)
 		port->icount.tx++;
 		count++;
 	}
-
-pop_tx_end:
-	dev_dbg(priv->port.dev, "%d characters. Remained %d characters.(%lu)\n",
-		 count, size - count, jiffies);
 
 	return count;
 }
