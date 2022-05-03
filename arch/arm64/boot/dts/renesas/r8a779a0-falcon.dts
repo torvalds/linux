@@ -37,6 +37,20 @@
 	};
 };
 
+&canfd {
+	pinctrl-0 = <&canfd0_pins>, <&canfd1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	channel0 {
+		status = "okay";
+	};
+
+	channel1 {
+		status = "okay";
+	};
+};
+
 &i2c0 {
 	eeprom@51 {
 		compatible = "rohm,br24g01", "atmel,24c01";
@@ -64,5 +78,15 @@
 			drive-strength = <21>;
 		};
 
+	};
+
+	canfd0_pins: canfd0 {
+		groups = "canfd0_data";
+		function = "canfd0";
+	};
+
+	canfd1_pins: canfd1 {
+		groups = "canfd1_data";
+		function = "canfd1";
 	};
 };
