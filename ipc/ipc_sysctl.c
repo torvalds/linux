@@ -68,25 +68,6 @@ static int proc_ipc_sem_dointvec(struct ctl_table *table, int write,
 	return ret;
 }
 
-#ifdef CONFIG_CHECKPOINT_RESTORE
-static int proc_ipc_dointvec_minmax_checkpoint_restore(struct ctl_table *table,
-		int write, void *buffer, size_t *lenp, loff_t *ppos)
-{
-	struct ipc_namespace *ns = table->extra1;
-	struct ctl_table ipc_table;
-
-	if (write && !checkpoint_restore_ns_capable(ns->user_ns))
-		return -EPERM;
-
-	memcpy(&ipc_table, table, sizeof(ipc_table));
-
-	ipc_table.extra1 = SYSCTL_ZERO;
-	ipc_table.extra2 = SYSCTL_INT_MAX;
-
-	return proc_dointvec_minmax(&ipc_table, write, buffer, lenp, ppos);
-}
-#endif
-
 int ipc_mni = IPCMNI;
 int ipc_mni_shift = IPCMNI_SHIFT;
 int ipc_min_cycle = RADIX_TREE_MAP_SIZE;
@@ -172,22 +153,28 @@ static struct ctl_table ipc_sysctls[] = {
 		.procname	= "sem_next_id",
 		.data		= &init_ipc_ns.ids[IPC_SEM_IDS].next_id,
 		.maxlen		= sizeof(init_ipc_ns.ids[IPC_SEM_IDS].next_id),
-		.mode		= 0666,
-		.proc_handler	= proc_ipc_dointvec_minmax_checkpoint_restore,
+		.mode		= 0444,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_INT_MAX,
 	},
 	{
 		.procname	= "msg_next_id",
 		.data		= &init_ipc_ns.ids[IPC_MSG_IDS].next_id,
 		.maxlen		= sizeof(init_ipc_ns.ids[IPC_MSG_IDS].next_id),
-		.mode		= 0666,
-		.proc_handler	= proc_ipc_dointvec_minmax_checkpoint_restore,
+		.mode		= 0444,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_INT_MAX,
 	},
 	{
 		.procname	= "shm_next_id",
 		.data		= &init_ipc_ns.ids[IPC_SHM_IDS].next_id,
 		.maxlen		= sizeof(init_ipc_ns.ids[IPC_SHM_IDS].next_id),
-		.mode		= 0666,
-		.proc_handler	= proc_ipc_dointvec_minmax_checkpoint_restore,
+		.mode		= 0444,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_INT_MAX,
 	},
 #endif
 	{}
@@ -203,8 +190,25 @@ static int set_is_seen(struct ctl_table_set *set)
 	return &current->nsproxy->ipc_ns->ipc_set == set;
 }
 
+static int ipc_permissions(struct ctl_table_header *head, struct ctl_table *table)
+{
+	int mode = table->mode;
+
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	struct ipc_namespace *ns = current->nsproxy->ipc_ns;
+
+	if (((table->data == &ns->ids[IPC_SEM_IDS].next_id) ||
+	     (table->data == &ns->ids[IPC_MSG_IDS].next_id) ||
+	     (table->data == &ns->ids[IPC_SHM_IDS].next_id)) &&
+	    checkpoint_restore_ns_capable(ns->user_ns))
+		mode = 0666;
+#endif
+	return mode;
+}
+
 static struct ctl_table_root set_root = {
 	.lookup = set_lookup,
+	.permissions = ipc_permissions,
 };
 
 bool setup_ipc_sysctls(struct ipc_namespace *ns)
@@ -244,15 +248,12 @@ bool setup_ipc_sysctls(struct ipc_namespace *ns)
 #ifdef CONFIG_CHECKPOINT_RESTORE
 			} else if (tbl[i].data == &init_ipc_ns.ids[IPC_SEM_IDS].next_id) {
 				tbl[i].data = &ns->ids[IPC_SEM_IDS].next_id;
-				tbl[i].extra1 = ns;
 
 			} else if (tbl[i].data == &init_ipc_ns.ids[IPC_MSG_IDS].next_id) {
 				tbl[i].data = &ns->ids[IPC_MSG_IDS].next_id;
-				tbl[i].extra1 = ns;
 
 			} else if (tbl[i].data == &init_ipc_ns.ids[IPC_SHM_IDS].next_id) {
 				tbl[i].data = &ns->ids[IPC_SHM_IDS].next_id;
-				tbl[i].extra1 = ns;
 #endif
 			} else {
 				tbl[i].data = NULL;
