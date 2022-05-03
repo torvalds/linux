@@ -203,7 +203,6 @@
 #define SYS_ID_AA64MMFR1_EL1		sys_reg(3, 0, 0, 7, 1)
 #define SYS_ID_AA64MMFR2_EL1		sys_reg(3, 0, 0, 7, 2)
 
-#define SYS_SCTLR_EL1			sys_reg(3, 0, 1, 0, 0)
 #define SYS_ACTLR_EL1			sys_reg(3, 0, 1, 0, 1)
 #define SYS_CPACR_EL1			sys_reg(3, 0, 1, 0, 2)
 #define SYS_RGSR_EL1			sys_reg(3, 0, 1, 0, 5)
@@ -677,43 +676,6 @@
 	(SCTLR_EL2_RES1 | ENDIAN_SET_EL2)
 
 /* SCTLR_EL1 specific flags. */
-#define SCTLR_EL1_EPAN		(BIT(57))
-#define SCTLR_EL1_ATA0		(BIT(42))
-
-#define SCTLR_EL1_TCF_SHIFT	40
-#define SCTLR_EL1_TCF_NONE	(UL(0x0))
-#define SCTLR_EL1_TCF_SYNC	(UL(0x1))
-#define SCTLR_EL1_TCF_ASYNC	(UL(0x2))
-#define SCTLR_EL1_TCF_ASYMM	(UL(0x3))
-#define SCTLR_EL1_TCF_MASK	(UL(0x3) << SCTLR_EL1_TCF_SHIFT)
-
-#define SCTLR_EL1_TCF0_SHIFT	38
-#define SCTLR_EL1_TCF0_NONE	(UL(0x0))
-#define SCTLR_EL1_TCF0_SYNC	(UL(0x1))
-#define SCTLR_EL1_TCF0_ASYNC	(UL(0x2))
-#define SCTLR_EL1_TCF0_ASYMM	(UL(0x3))
-#define SCTLR_EL1_TCF0_MASK	(UL(0x3) << SCTLR_EL1_TCF0_SHIFT)
-
-#define SCTLR_EL1_BT1		(BIT(36))
-#define SCTLR_EL1_BT0		(BIT(35))
-#define SCTLR_EL1_LSMAOE	(BIT(29))
-#define SCTLR_EL1_nTLSMD	(BIT(28))
-#define SCTLR_EL1_UCI		(BIT(26))
-#define SCTLR_EL1_E0E		(BIT(24))
-#define SCTLR_EL1_SPAN		(BIT(23))
-#define SCTLR_EL1_EIS		(BIT(22))
-#define SCTLR_EL1_TSCXT		(BIT(20))
-#define SCTLR_EL1_nTWE		(BIT(18))
-#define SCTLR_EL1_nTWI		(BIT(16))
-#define SCTLR_EL1_UCT		(BIT(15))
-#define SCTLR_EL1_DZE		(BIT(14))
-#define SCTLR_EL1_EOS		(BIT(11))
-#define SCTLR_EL1_UMA		(BIT(9))
-#define SCTLR_EL1_SED		(BIT(8))
-#define SCTLR_EL1_ITD		(BIT(7))
-#define SCTLR_EL1_CP15BEN	(BIT(5))
-#define SCTLR_EL1_SA0		(BIT(4))
-
 #ifdef CONFIG_CPU_BIG_ENDIAN
 #define ENDIAN_SET_EL1		(SCTLR_EL1_E0E | SCTLR_ELx_EE)
 #else
