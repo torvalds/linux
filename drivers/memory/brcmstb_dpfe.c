@@ -857,7 +857,6 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct brcmstb_dpfe_priv *priv;
-	struct resource *res;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -869,22 +868,19 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 	mutex_init(&priv->lock);
 	platform_set_drvdata(pdev, priv);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dpfe-cpu");
-	priv->regs = devm_ioremap_resource(dev, res);
+	priv->regs = devm_platform_ioremap_resource_byname(pdev, "dpfe-cpu");
 	if (IS_ERR(priv->regs)) {
 		dev_err(dev, "couldn't map DCPU registers\n");
 		return -ENODEV;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dpfe-dmem");
-	priv->dmem = devm_ioremap_resource(dev, res);
+	priv->dmem = devm_platform_ioremap_resource_byname(pdev, "dpfe-dmem");
 	if (IS_ERR(priv->dmem)) {
 		dev_err(dev, "Couldn't map DCPU data memory\n");
 		return -ENOENT;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dpfe-imem");
-	priv->imem = devm_ioremap_resource(dev, res);
+	priv->imem = devm_platform_ioremap_resource_byname(pdev, "dpfe-imem");
 	if (IS_ERR(priv->imem)) {
 		dev_err(dev, "Couldn't map DCPU instruction memory\n");
 		return -ENOENT;
