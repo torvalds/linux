@@ -1394,22 +1394,18 @@ static void ocelot_vcap_detect_constants(struct ocelot *ocelot,
 
 int ocelot_vcap_init(struct ocelot *ocelot)
 {
-	int i;
+	struct qos_policer_conf cpu_drop = {
+		.mode = MSCC_QOS_RATE_MODE_DATA,
+	};
+	int ret, i;
 
 	/* Create a policer that will drop the frames for the cpu.
 	 * This policer will be used as action in the acl rules to drop
 	 * frames.
 	 */
-	ocelot_write_gix(ocelot, 0x299, ANA_POL_MODE_CFG,
-			 OCELOT_POLICER_DISCARD);
-	ocelot_write_gix(ocelot, 0x1, ANA_POL_PIR_CFG,
-			 OCELOT_POLICER_DISCARD);
-	ocelot_write_gix(ocelot, 0x3fffff, ANA_POL_PIR_STATE,
-			 OCELOT_POLICER_DISCARD);
-	ocelot_write_gix(ocelot, 0x0, ANA_POL_CIR_CFG,
-			 OCELOT_POLICER_DISCARD);
-	ocelot_write_gix(ocelot, 0x3fffff, ANA_POL_CIR_STATE,
-			 OCELOT_POLICER_DISCARD);
+	ret = qos_policer_conf_set(ocelot, OCELOT_POLICER_DISCARD, &cpu_drop);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < OCELOT_NUM_VCAP_BLOCKS; i++) {
 		struct ocelot_vcap_block *block = &ocelot->block[i];
