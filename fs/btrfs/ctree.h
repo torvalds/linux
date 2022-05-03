@@ -675,8 +675,9 @@ struct btrfs_fs_info {
 	rwlock_t global_root_lock;
 	struct rb_root global_root_tree;
 
-	spinlock_t fs_roots_radix_lock;
-	struct radix_tree_root fs_roots_radix;
+	/* The xarray that holds all the FS roots */
+	spinlock_t fs_roots_lock;
+	struct xarray fs_roots;
 
 	/* block group cache stuff */
 	rwlock_t block_group_cache_lock;
@@ -1118,7 +1119,8 @@ enum {
 	 */
 	BTRFS_ROOT_SHAREABLE,
 	BTRFS_ROOT_TRACK_DIRTY,
-	BTRFS_ROOT_IN_RADIX,
+	/* The root is tracked in fs_info::fs_roots */
+	BTRFS_ROOT_REGISTERED,
 	BTRFS_ROOT_ORPHAN_ITEM_INSERTED,
 	BTRFS_ROOT_DEFRAG_RUNNING,
 	BTRFS_ROOT_FORCE_COW,
