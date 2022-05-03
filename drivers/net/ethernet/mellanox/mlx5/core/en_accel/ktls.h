@@ -4,6 +4,7 @@
 #ifndef __MLX5E_KTLS_H__
 #define __MLX5E_KTLS_H__
 
+#include <linux/debugfs.h>
 #include <linux/tls.h>
 #include <net/tls.h>
 #include "en.h"
@@ -72,10 +73,17 @@ struct mlx5e_tls_sw_stats {
 	atomic64_t rx_tls_del;
 };
 
+struct mlx5e_tls_debugfs {
+	struct dentry *dfs;
+	struct dentry *dfs_tx;
+};
+
 struct mlx5e_tls {
+	struct mlx5_core_dev *mdev;
 	struct mlx5e_tls_sw_stats sw_stats;
 	struct workqueue_struct *rx_wq;
 	struct mlx5e_tls_tx_pool *tx_pool;
+	struct mlx5e_tls_debugfs debugfs;
 };
 
 int mlx5e_ktls_init(struct mlx5e_priv *priv);

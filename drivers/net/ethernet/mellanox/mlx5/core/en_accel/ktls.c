@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 // Copyright (c) 2019 Mellanox Technologies.
 
+#include <linux/debugfs.h>
 #include "en.h"
 #include "lib/mlx5.h"
 #include "en_accel/ktls.h"
@@ -177,6 +178,15 @@ void mlx5e_ktls_cleanup_rx(struct mlx5e_priv *priv)
 	destroy_workqueue(priv->tls->rx_wq);
 }
 
+static void mlx5e_tls_debugfs_init(struct mlx5e_tls *tls,
+				   struct dentry *dfs_root)
+{
+	if (IS_ERR_OR_NULL(dfs_root))
+		return;
+
+	tls->debugfs.dfs = debugfs_create_dir("tls", dfs_root);
+}
+
 int mlx5e_ktls_init(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tls *tls;
@@ -189,11 +199,23 @@ int mlx5e_ktls_init(struct mlx5e_priv *priv)
 		return -ENOMEM;
 
 	priv->tls = tls;
+	priv->tls->mdev = priv->mdev;
+
+	mlx5e_tls_debugfs_init(tls, priv->dfs_root);
+
 	return 0;
 }
 
 void mlx5e_ktls_cleanup(struct mlx5e_priv *priv)
 {
+	struct mlx5e_tls *tls = priv->tls;
+
+	if (!mlx5e_is_ktls_device(priv->mdev))
+		return;
+
+	debugfs_remove_recursive(tls->debugfs.dfs);
+	tls->debugfs.dfs = NULL;
+
 	kfree(priv->tls);
 	priv->tls = NULL;
 }

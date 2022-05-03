@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 // Copyright (c) 2019 Mellanox Technologies.
 
+#include <linux/debugfs.h>
 #include "en_accel/ktls.h"
 #include "en_accel/ktls_txrx.h"
 #include "en_accel/ktls_utils.h"
@@ -886,14 +887,32 @@ err_out:
 	return false;
 }
 
+static void mlx5e_tls_tx_debugfs_init(struct mlx5e_tls *tls,
+				      struct dentry *dfs_root)
+{
+	if (IS_ERR_OR_NULL(dfs_root))
+		return;
+
+	tls->debugfs.dfs_tx = debugfs_create_dir("tx", dfs_root);
+	if (!tls->debugfs.dfs_tx)
+		return;
+
+	debugfs_create_size_t("pool_size", 0400, tls->debugfs.dfs_tx,
+			      &tls->tx_pool->size);
+}
+
 int mlx5e_ktls_init_tx(struct mlx5e_priv *priv)
 {
+	struct mlx5e_tls *tls = priv->tls;
+
 	if (!mlx5e_is_ktls_tx(priv->mdev))
 		return 0;
 
 	priv->tls->tx_pool = mlx5e_tls_tx_pool_init(priv->mdev, &priv->tls->sw_stats);
 	if (!priv->tls->tx_pool)
 		return -ENOMEM;
+
+	mlx5e_tls_tx_debugfs_init(tls, tls->debugfs.dfs);
 
 	return 0;
 }
@@ -902,6 +921,9 @@ void mlx5e_ktls_cleanup_tx(struct mlx5e_priv *priv)
 {
 	if (!mlx5e_is_ktls_tx(priv->mdev))
 		return;
+
+	debugfs_remove_recursive(priv->tls->debugfs.dfs_tx);
+	priv->tls->debugfs.dfs_tx = NULL;
 
 	mlx5e_tls_tx_pool_cleanup(priv->tls->tx_pool);
 	priv->tls->tx_pool = NULL;
