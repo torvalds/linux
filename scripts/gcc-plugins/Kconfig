@@ -46,44 +46,6 @@ config GCC_PLUGIN_LATENT_ENTROPY
 	   * https://grsecurity.net/
 	   * https://pax.grsecurity.net/
 
-config GCC_PLUGIN_RANDSTRUCT
-	bool "Randomize layout of sensitive kernel structures"
-	select MODVERSIONS if MODULES
-	help
-	  If you say Y here, the layouts of structures that are entirely
-	  function pointers (and have not been manually annotated with
-	  __no_randomize_layout), or structures that have been explicitly
-	  marked with __randomize_layout, will be randomized at compile-time.
-	  This can introduce the requirement of an additional information
-	  exposure vulnerability for exploits targeting these structure
-	  types.
-
-	  Enabling this feature will introduce some performance impact,
-	  slightly increase memory usage, and prevent the use of forensic
-	  tools like Volatility against the system (unless the kernel
-	  source tree isn't cleaned after kernel installation).
-
-	  The seed used for compilation is located at
-	  scripts/gcc-plugins/randomize_layout_seed.h.  It remains after
-	  a make clean to allow for external modules to be compiled with
-	  the existing seed and will be removed by a make mrproper or
-	  make distclean.
-
-	  This plugin was ported from grsecurity/PaX. More information at:
-	   * https://grsecurity.net/
-	   * https://pax.grsecurity.net/
-
-config GCC_PLUGIN_RANDSTRUCT_PERFORMANCE
-	bool "Use cacheline-aware structure randomization"
-	depends on GCC_PLUGIN_RANDSTRUCT
-	depends on !COMPILE_TEST	# do not reduce test coverage
-	help
-	  If you say Y here, the RANDSTRUCT randomization will make a
-	  best effort at restricting randomization to cacheline-sized
-	  groups of elements.  It will further not randomize bitfields
-	  in structures.  This reduces the performance hit of RANDSTRUCT
-	  at the cost of weakened randomization.
-
 config GCC_PLUGIN_ARM_SSP_PER_TASK
 	bool
 	depends on GCC_PLUGINS && ARM

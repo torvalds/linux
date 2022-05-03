@@ -24,8 +24,8 @@ gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_STRUCTLEAK)		\
 
 gcc-plugin-$(CONFIG_GCC_PLUGIN_RANDSTRUCT)	+= randomize_layout_plugin.so
 gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_RANDSTRUCT)		\
-		+= -DRANDSTRUCT_PLUGIN
-gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_RANDSTRUCT_PERFORMANCE)	\
+		+= -DRANDSTRUCT
+gcc-plugin-cflags-$(CONFIG_RANDSTRUCT_PERFORMANCE)		\
 		+= -fplugin-arg-randomize_layout_plugin-performance-mode
 
 gcc-plugin-$(CONFIG_GCC_PLUGIN_STACKLEAK)	+= stackleak_plugin.so

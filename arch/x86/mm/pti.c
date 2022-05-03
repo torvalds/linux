@@ -540,7 +540,7 @@ static inline bool pti_kernel_image_global_ok(void)
 	 * cases where RANDSTRUCT is in use to help keep the layout a
 	 * secret.
 	 */
-	if (IS_ENABLED(CONFIG_GCC_PLUGIN_RANDSTRUCT))
+	if (IS_ENABLED(CONFIG_RANDSTRUCT))
 		return false;
 
 	return true;

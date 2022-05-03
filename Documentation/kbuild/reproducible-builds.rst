@@ -99,10 +99,9 @@ unreproducible parts can be treated as sources:
 Structure randomisation
 -----------------------
 
-If you enable ``CONFIG_GCC_PLUGIN_RANDSTRUCT``, you will need to
-pre-generate the random seed in
-``scripts/gcc-plugins/randomize_layout_seed.h`` so the same value
-is used in rebuilds.
+If you enable ``CONFIG_RANDSTRUCT``, you will need to pre-generate
+the random seed in ``scripts/gcc-plugins/randomize_layout_seed.h``
+so the same value is used in rebuilds.
 
 Debug info conflicts
 --------------------
