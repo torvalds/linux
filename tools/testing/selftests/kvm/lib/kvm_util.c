@@ -271,7 +271,13 @@ static uint64_t vm_nr_pages_required(enum vm_guest_mode mode,
 		    "nr_vcpus = %d too large for host, max-vcpus = %d",
 		    nr_runnable_vcpus, kvm_check_cap(KVM_CAP_MAX_VCPUS));
 
-	nr_pages = DEFAULT_GUEST_PHY_PAGES;
+	/*
+	 * Arbitrarily allocate 512 pages (2mb when page size is 4kb) for the
+	 * test code and other per-VM assets that will be loaded into memslot0.
+	 */
+	nr_pages = 512;
+
+	/* Account for the per-vCPU stacks on behalf of the test. */
 	nr_pages += nr_runnable_vcpus * DEFAULT_STACK_PGS;
 
 	/*
