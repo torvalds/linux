@@ -926,6 +926,9 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	if (!enable)
 		return 0;
 
+	if (!priv->info->has_clk_mon_regs)
+		return 0;
+
 	for (i = 1000; i > 0; --i) {
 		if (((readl(priv->base + CLK_MON_R(reg))) & bitmask))
 			break;
@@ -996,7 +999,10 @@ static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 	if (clock->sibling)
 		return clock->enabled;
 
-	value = readl(priv->base + CLK_MON_R(clock->off));
+	if (priv->info->has_clk_mon_regs)
+		value = readl(priv->base + CLK_MON_R(clock->off));
+	else
+		value = readl(priv->base + clock->off);
 
 	return value & bitmask;
 }

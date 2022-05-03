@@ -418,6 +418,8 @@ const struct rzg2l_cpg_info r9a07g044_cpg_info = {
 	/* Resets */
 	.resets = r9a07g044_resets,
 	.num_resets = R9A07G044_TSU_PRESETN + 1, /* Last reset ID + 1 */
+
+	.has_clk_mon_regs = true,
 };
 
 #ifdef CONFIG_CLK_R9A07G054
@@ -440,5 +442,7 @@ const struct rzg2l_cpg_info r9a07g054_cpg_info = {
 	/* Resets */
 	.resets = r9a07g044_resets,
 	.num_resets = R9A07G054_STPAI_ARESETN + 1, /* Last reset ID + 1 */
+
+	.has_clk_mon_regs = true,
 };
 #endif
