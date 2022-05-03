@@ -60,6 +60,8 @@
 #define SKIP(s, ...)	XFAIL(s, ##__VA_ARGS__)
 #endif
 
+#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+
 #ifndef PR_SET_PTRACER
 # define PR_SET_PTRACER 0x59616d61
 #endif
@@ -267,6 +269,10 @@ struct seccomp_notif_addfd_big {
 
 #ifndef SECCOMP_FILTER_FLAG_TSYNC_ESRCH
 #define SECCOMP_FILTER_FLAG_TSYNC_ESRCH (1UL << 4)
+#endif
+
+#ifndef SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV
+#define SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV (1UL << 5)
 #endif
 
 #ifndef seccomp
@@ -4426,6 +4432,228 @@ restart_wait:
 		EXPECT_EQ(true, WIFEXITED(status));
 		EXPECT_EQ(0, WEXITSTATUS(status));
 	}
+}
+
+/* get_proc_syscall - Get the syscall in progress for a given pid
+ *
+ * Returns the current syscall number for a given process
+ * Returns -1 if not in syscall (running or blocked)
+ */
+static long get_proc_syscall(struct __test_metadata *_metadata, int pid)
+{
+	char proc_path[100] = {0};
+	long ret = -1;
+	ssize_t nread;
+	char *line;
+
+	snprintf(proc_path, sizeof(proc_path), "/proc/%d/syscall", pid);
+	nread = get_nth(_metadata, proc_path, 1, &line);
+	ASSERT_GT(nread, 0);
+
+	if (!strncmp("running", line, MIN(7, nread)))
+		ret = strtol(line, NULL, 16);
+
+	free(line);
+	return ret;
+}
+
+/* Ensure non-fatal signals prior to receive are unmodified */
+TEST(user_notification_wait_killable_pre_notification)
+{
+	struct sigaction new_action = {
+		.sa_handler = signal_handler,
+	};
+	int listener, status, sk_pair[2];
+	pid_t pid;
+	long ret;
+	char c;
+	/* 100 ms */
+	struct timespec delay = { .tv_nsec = 100000000 };
+
+	ASSERT_EQ(sigemptyset(&new_action.sa_mask), 0);
+
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret)
+	{
+		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+	}
+
+	ASSERT_EQ(socketpair(PF_LOCAL, SOCK_SEQPACKET, 0, sk_pair), 0);
+
+	listener = user_notif_syscall(
+		__NR_getppid, SECCOMP_FILTER_FLAG_NEW_LISTENER |
+				      SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV);
+	ASSERT_GE(listener, 0);
+
+	/*
+	 * Check that we can kill the process with SIGUSR1 prior to receiving
+	 * the notification. SIGUSR1 is wired up to a custom signal handler,
+	 * and make sure it gets called.
+	 */
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		close(sk_pair[0]);
+		handled = sk_pair[1];
+
+		/* Setup the non-fatal sigaction without SA_RESTART */
+		if (sigaction(SIGUSR1, &new_action, NULL)) {
+			perror("sigaction");
+			exit(1);
+		}
+
+		ret = syscall(__NR_getppid);
+		/* Make sure we got a return from a signal interruption */
+		exit(ret != -1 || errno != EINTR);
+	}
+
+	/*
+	 * Make sure we've gotten to the seccomp user notification wait
+	 * from getppid prior to sending any signals
+	 */
+	while (get_proc_syscall(_metadata, pid) != __NR_getppid &&
+	       get_proc_stat(_metadata, pid) != 'S')
+		nanosleep(&delay, NULL);
+
+	/* Send non-fatal kill signal */
+	EXPECT_EQ(kill(pid, SIGUSR1), 0);
+
+	/* wait for process to exit (exit checks for EINTR) */
+	EXPECT_EQ(waitpid(pid, &status, 0), pid);
+	EXPECT_EQ(true, WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	EXPECT_EQ(read(sk_pair[0], &c, 1), 1);
+}
+
+/* Ensure non-fatal signals after receive are blocked */
+TEST(user_notification_wait_killable)
+{
+	struct sigaction new_action = {
+		.sa_handler = signal_handler,
+	};
+	struct seccomp_notif_resp resp = {};
+	struct seccomp_notif req = {};
+	int listener, status, sk_pair[2];
+	pid_t pid;
+	long ret;
+	char c;
+	/* 100 ms */
+	struct timespec delay = { .tv_nsec = 100000000 };
+
+	ASSERT_EQ(sigemptyset(&new_action.sa_mask), 0);
+
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret)
+	{
+		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+	}
+
+	ASSERT_EQ(socketpair(PF_LOCAL, SOCK_SEQPACKET, 0, sk_pair), 0);
+
+	listener = user_notif_syscall(
+		__NR_getppid, SECCOMP_FILTER_FLAG_NEW_LISTENER |
+				      SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV);
+	ASSERT_GE(listener, 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		close(sk_pair[0]);
+		handled = sk_pair[1];
+
+		/* Setup the sigaction without SA_RESTART */
+		if (sigaction(SIGUSR1, &new_action, NULL)) {
+			perror("sigaction");
+			exit(1);
+		}
+
+		/* Make sure that the syscall is completed (no EINTR) */
+		ret = syscall(__NR_getppid);
+		exit(ret != USER_NOTIF_MAGIC);
+	}
+
+	/*
+	 * Get the notification, to make move the notifying process into a
+	 * non-preemptible (TASK_KILLABLE) state.
+	 */
+	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
+	/* Send non-fatal kill signal */
+	EXPECT_EQ(kill(pid, SIGUSR1), 0);
+
+	/*
+	 * Make sure the task enters moves to TASK_KILLABLE by waiting for
+	 * D (Disk Sleep) state after receiving non-fatal signal.
+	 */
+	while (get_proc_stat(_metadata, pid) != 'D')
+		nanosleep(&delay, NULL);
+
+	resp.id = req.id;
+	resp.val = USER_NOTIF_MAGIC;
+	/* Make sure the notification is found and able to be replied to */
+	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), 0);
+
+	/*
+	 * Make sure that the signal handler does get called once we're back in
+	 * userspace.
+	 */
+	EXPECT_EQ(read(sk_pair[0], &c, 1), 1);
+	/* wait for process to exit (exit checks for USER_NOTIF_MAGIC) */
+	EXPECT_EQ(waitpid(pid, &status, 0), pid);
+	EXPECT_EQ(true, WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+}
+
+/* Ensure fatal signals after receive are not blocked */
+TEST(user_notification_wait_killable_fatal)
+{
+	struct seccomp_notif req = {};
+	int listener, status;
+	pid_t pid;
+	long ret;
+	/* 100 ms */
+	struct timespec delay = { .tv_nsec = 100000000 };
+
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret)
+	{
+		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+	}
+
+	listener = user_notif_syscall(
+		__NR_getppid, SECCOMP_FILTER_FLAG_NEW_LISTENER |
+				      SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV);
+	ASSERT_GE(listener, 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		/* This should never complete as it should get a SIGTERM */
+		syscall(__NR_getppid);
+		exit(1);
+	}
+
+	while (get_proc_stat(_metadata, pid) != 'S')
+		nanosleep(&delay, NULL);
+
+	/*
+	 * Get the notification, to make move the notifying process into a
+	 * non-preemptible (TASK_KILLABLE) state.
+	 */
+	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
+	/* Kill the process with a fatal signal */
+	EXPECT_EQ(kill(pid, SIGTERM), 0);
+
+	/*
+	 * Wait for the process to exit, and make sure the process terminated
+	 * due to the SIGTERM signal.
+	 */
+	EXPECT_EQ(waitpid(pid, &status, 0), pid);
+	EXPECT_EQ(true, WIFSIGNALED(status));
+	EXPECT_EQ(SIGTERM, WTERMSIG(status));
 }
 
 /*
