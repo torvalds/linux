@@ -19,16 +19,11 @@
 static int proc_ipc_dointvec_minmax_orphans(struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ipc_namespace *ns = table->extra1;
-	struct ctl_table ipc_table;
+	struct ipc_namespace *ns =
+		container_of(table->data, struct ipc_namespace, shm_rmid_forced);
 	int err;
 
-	memcpy(&ipc_table, table, sizeof(ipc_table));
-
-	ipc_table.extra1 = SYSCTL_ZERO;
-	ipc_table.extra2 = SYSCTL_ONE;
-
-	err = proc_dointvec_minmax(&ipc_table, write, buffer, lenp, ppos);
+	err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 
 	if (err < 0)
 		return err;
@@ -55,14 +50,9 @@ static int proc_ipc_auto_msgmni(struct ctl_table *table, int write,
 static int proc_ipc_sem_dointvec(struct ctl_table *table, int write,
 	void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ipc_namespace *ns = table->extra1;
-	struct ctl_table ipc_table;
+	struct ipc_namespace *ns =
+		container_of(table->data, struct ipc_namespace, sem_ctls);
 	int ret, semmni;
-
-	memcpy(&ipc_table, table, sizeof(ipc_table));
-
-	ipc_table.extra1 = NULL;
-	ipc_table.extra2 = NULL;
 
 	semmni = ns->sem_ctls[3];
 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
@@ -131,6 +121,8 @@ static struct ctl_table ipc_sysctls[] = {
 		.maxlen		= sizeof(init_ipc_ns.shm_rmid_forced),
 		.mode		= 0644,
 		.proc_handler	= proc_ipc_dointvec_minmax_orphans,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	},
 	{
 		.procname	= "msgmax",
@@ -237,7 +229,6 @@ bool setup_ipc_sysctls(struct ipc_namespace *ns)
 
 			} else if (tbl[i].data == &init_ipc_ns.shm_rmid_forced) {
 				tbl[i].data = &ns->shm_rmid_forced;
-				tbl[i].extra1 = ns;
 
 			} else if (tbl[i].data == &init_ipc_ns.msg_ctlmax) {
 				tbl[i].data = &ns->msg_ctlmax;
@@ -250,7 +241,6 @@ bool setup_ipc_sysctls(struct ipc_namespace *ns)
 
 			} else if (tbl[i].data == &init_ipc_ns.sem_ctls) {
 				tbl[i].data = &ns->sem_ctls;
-				tbl[i].extra1 = ns;
 #ifdef CONFIG_CHECKPOINT_RESTORE
 			} else if (tbl[i].data == &init_ipc_ns.ids[IPC_SEM_IDS].next_id) {
 				tbl[i].data = &ns->ids[IPC_SEM_IDS].next_id;
