@@ -77,31 +77,56 @@ config TASKS_RCU_GENERIC
 	  This option enables generic infrastructure code supporting
 	  task-based RCU implementations.  Not for manual selection.
 
-config TASKS_RCU
-	def_bool PREEMPTION
+config FORCE_TASKS_RCU
+	bool "Force selection of TASKS_RCU"
+	depends on RCU_EXPERT
+	select TASKS_RCU
+	default n
 	help
-	  This option enables a task-based RCU implementation that uses
-	  only voluntary context switch (not preemption!), idle, and
-	  user-mode execution as quiescent states.  Not for manual selection.
+	  This option force-enables a task-based RCU implementation
+	  that uses only voluntary context switch (not preemption!),
+	  idle, and user-mode execution as quiescent states.  Not for
+	  manual selection in most cases.
+
+config TASKS_RCU
+	bool
+	default n
+	select IRQ_WORK
+
+config FORCE_TASKS_RUDE_RCU
+	bool "Force selection of Tasks Rude RCU"
+	depends on RCU_EXPERT
+	select TASKS_RUDE_RCU
+	default n
+	help
+	  This option force-enables a task-based RCU implementation
+	  that uses only context switch (including preemption) and
+	  user-mode execution as quiescent states.  It forces IPIs and
+	  context switches on all online CPUs, including idle ones,
+	  so use with caution.	Not for manual selection in most cases.
 
 config TASKS_RUDE_RCU
-	def_bool 0
-	help
-	  This option enables a task-based RCU implementation that uses
-	  only context switch (including preemption) and user-mode
-	  execution as quiescent states.  It forces IPIs and context
-	  switches on all online CPUs, including idle ones, so use
-	  with caution.
-
-config TASKS_TRACE_RCU
-	def_bool 0
+	bool
+	default n
 	select IRQ_WORK
+
+config FORCE_TASKS_TRACE_RCU
+	bool "Force selection of Tasks Trace RCU"
+	depends on RCU_EXPERT
+	select TASKS_TRACE_RCU
+	default n
 	help
 	  This option enables a task-based RCU implementation that uses
 	  explicit rcu_read_lock_trace() read-side markers, and allows
-	  these readers to appear in the idle loop as well as on the CPU
-	  hotplug code paths.  It can force IPIs on online CPUs, including
-	  idle ones, so use with caution.
+	  these readers to appear in the idle loop as well as on the
+	  CPU hotplug code paths.  It can force IPIs on online CPUs,
+	  including idle ones, so use with caution.  Not for manual
+	  selection in most cases.
+
+config TASKS_TRACE_RCU
+	bool
+	default n
+	select IRQ_WORK
 
 config RCU_STALL_COMMON
 	def_bool TREE_RCU
@@ -225,7 +250,7 @@ config RCU_NOCB_CPU
 
 config TASKS_TRACE_RCU_READ_MB
 	bool "Tasks Trace RCU readers use memory barriers in user and idle"
-	depends on RCU_EXPERT
+	depends on RCU_EXPERT && TASKS_TRACE_RCU
 	default PREEMPT_RT || NR_CPUS < 8
 	help
 	  Use this option to further reduce the number of IPIs sent
