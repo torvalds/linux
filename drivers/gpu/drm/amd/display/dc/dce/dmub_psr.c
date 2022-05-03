@@ -133,6 +133,9 @@ static bool dmub_psr_set_version(struct dmub_psr *dmub, struct dc_stream_state *
 	case DC_PSR_VERSION_1:
 		cmd.psr_set_version.psr_set_version_data.version = PSR_VERSION_1;
 		break;
+	case DC_PSR_VERSION_SU_1:
+		cmd.psr_set_version.psr_set_version_data.version = PSR_VERSION_SU_1;
+		break;
 	case DC_PSR_VERSION_UNSUPPORTED:
 	default:
 		cmd.psr_set_version.psr_set_version_data.version = PSR_VERSION_UNSUPPORTED;
