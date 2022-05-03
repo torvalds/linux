@@ -20,6 +20,7 @@
 #include <linux/version.h>
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
+#include <linux/version.h>
 
 #include <linux/platform_data/st_sensors_pdata.h>
 
@@ -2101,12 +2102,19 @@ int st_lsm6dsox_probe(struct device *dev, int irq, int hw_id,
 	if (err < 0)
 		return err;
 
-	err = iio_read_mount_matrix(dev, "mount-matrix", &hw->orientation);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
+	err = iio_read_mount_matrix(hw->dev, "mount-matrix", &hw->orientation);
 	if (err) {
 		dev_err(dev, "Failed to retrieve mounting matrix %d\n", err);
-
 		return err;
 	}
+#else /* LINUX_VERSION_CODE */
+	err = of_iio_read_mount_matrix(hw->dev, "mount-matrix", &hw->orientation);
+	if (err) {
+		dev_err(dev, "Failed to retrieve mounting matrix %d\n", err);
+		return err;
+	}
+#endif /* LINUX_VERSION_CODE */
 
 	/* register only data sensors */
 	for (i = 0; i < ARRAY_SIZE(st_lsm6dsox_main_sensor_list); i++) {

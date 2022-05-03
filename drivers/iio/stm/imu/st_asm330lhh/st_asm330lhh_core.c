@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/regulator/consumer.h>
+#include <linux/version.h>
 
 #include <linux/platform_data/st_sensors_pdata.h>
 
@@ -1802,9 +1803,15 @@ int st_asm330lhh_probe(struct device *dev, int irq,
 	if (err < 0)
 		return err;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
 	err = iio_read_mount_matrix(hw->dev, "mount-matrix", &hw->orientation);
 	if (err)
 		return err;
+#else /* LINUX_VERSION_CODE */
+	err = of_iio_read_mount_matrix(hw->dev, "mount-matrix", &hw->orientation);
+	if (err)
+		return err;
+#endif /* LINUX_VERSION_CODE */
 
 	for (i = 0; i < ST_ASM330LHH_ID_EVENT; i++) {
 		hw->iio_devs[i] = st_asm330lhh_alloc_iiodev(hw, i);
