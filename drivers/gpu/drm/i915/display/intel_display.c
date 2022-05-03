@@ -10268,8 +10268,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			crtc_state->min_voltage_level;
 
 		intel_bw_crtc_update(bw_state, crtc_state);
-
-		intel_pipe_config_sanity_check(dev_priv, crtc_state);
 	}
 }
 
