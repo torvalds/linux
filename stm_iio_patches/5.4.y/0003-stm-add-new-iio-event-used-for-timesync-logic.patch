@@ -1,0 +1,26 @@
+From 7f632aaebf1e9558d06dafcd56cd887e34f4c5a6 Mon Sep 17 00:00:00 2001
+From: Denis Ciocca <denis.ciocca@st.com>
+Date: Mon, 29 Nov 2021 15:15:48 -0800
+Subject: [PATCH 1/1] stm: add new iio event used for timesync logic
+
+Signed-off-by: Denis Ciocca <denis.ciocca@st.com>
+Change-Id: I05ec93ccdb9f4905d6a6c1900386332edf21fea2
+---
+ include/uapi/linux/iio/types.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/uapi/linux/iio/types.h b/include/uapi/linux/iio/types.h
+index b9c391c967f7..2e1c0b71fe92 100644
+--- a/include/uapi/linux/iio/types.h
++++ b/include/uapi/linux/iio/types.h
+@@ -105,6 +105,7 @@ enum iio_event_type {
+ 	IIO_EV_TYPE_MAG_ADAPTIVE,
+ 	IIO_EV_TYPE_CHANGE,
+ 	IIO_EV_TYPE_FIFO_FLUSH,
++	IIO_EV_TYPE_TIME_SYNC,
+ };
+ 
+ enum iio_event_direction {
+-- 
+2.25.1
+
