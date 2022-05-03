@@ -202,6 +202,21 @@ static int mlxsw_sp_sb_pr_write(struct mlxsw_sp *mlxsw_sp, u16 pool_index,
 	return 0;
 }
 
+static int mlxsw_sp_sb_pr_desc_write(struct mlxsw_sp *mlxsw_sp,
+				     enum mlxsw_reg_sbxx_dir dir,
+				     enum mlxsw_reg_sbpr_mode mode,
+				     u32 size, bool infi_size)
+{
+	char sbpr_pl[MLXSW_REG_SBPR_LEN];
+
+	/* The FW default descriptor buffer configuration uses only pool 14 for
+	 * descriptors.
+	 */
+	mlxsw_reg_sbpr_pack(sbpr_pl, 14, dir, mode, size, infi_size);
+	mlxsw_reg_sbpr_desc_set(sbpr_pl, true);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbpr), sbpr_pl);
+}
+
 static int mlxsw_sp_sb_cm_write(struct mlxsw_sp *mlxsw_sp, u16 local_port,
 				u8 pg_buff, u32 min_buff, u32 max_buff,
 				bool infi_max, u16 pool_index)
@@ -775,6 +790,17 @@ static int mlxsw_sp_sb_prs_init(struct mlxsw_sp *mlxsw_sp,
 		if (err)
 			return err;
 	}
+
+	err = mlxsw_sp_sb_pr_desc_write(mlxsw_sp, MLXSW_REG_SBXX_DIR_INGRESS,
+					MLXSW_REG_SBPR_MODE_DYNAMIC, 0, true);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_sb_pr_desc_write(mlxsw_sp, MLXSW_REG_SBXX_DIR_EGRESS,
+					MLXSW_REG_SBPR_MODE_DYNAMIC, 0, true);
+	if (err)
+		return err;
+
 	return 0;
 }
 

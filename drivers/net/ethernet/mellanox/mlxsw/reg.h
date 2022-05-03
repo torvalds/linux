@@ -12641,6 +12641,12 @@ static inline void mlxsw_reg_tidem_pack(char *payload, u8 underlay_ecn,
 
 MLXSW_REG_DEFINE(sbpr, MLXSW_REG_SBPR_ID, MLXSW_REG_SBPR_LEN);
 
+/* reg_sbpr_desc
+ * When set, configures descriptor buffer.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sbpr, desc, 0x00, 31, 1);
+
 /* shared direstion enum for SBPR, SBCM, SBPM */
 enum mlxsw_reg_sbxx_dir {
 	MLXSW_REG_SBXX_DIR_INGRESS,

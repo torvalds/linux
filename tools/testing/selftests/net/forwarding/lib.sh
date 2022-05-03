@@ -1375,25 +1375,40 @@ flood_test()
 
 __start_traffic()
 {
+	local pktsize=$1; shift
 	local proto=$1; shift
 	local h_in=$1; shift    # Where the traffic egresses the host
 	local sip=$1; shift
 	local dip=$1; shift
 	local dmac=$1; shift
 
-	$MZ $h_in -p 8000 -A $sip -B $dip -c 0 \
+	$MZ $h_in -p $pktsize -A $sip -B $dip -c 0 \
 		-a own -b $dmac -t "$proto" -q "$@" &
 	sleep 1
 }
 
+start_traffic_pktsize()
+{
+	local pktsize=$1; shift
+
+	__start_traffic $pktsize udp "$@"
+}
+
+start_tcp_traffic_pktsize()
+{
+	local pktsize=$1; shift
+
+	__start_traffic $pktsize tcp "$@"
+}
+
 start_traffic()
 {
-	__start_traffic udp "$@"
+	start_traffic_pktsize 8000 "$@"
 }
 
 start_tcp_traffic()
 {
-	__start_traffic tcp "$@"
+	start_tcp_traffic_pktsize 8000 "$@"
 }
 
 stop_traffic()
