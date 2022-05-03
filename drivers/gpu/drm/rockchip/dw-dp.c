@@ -273,6 +273,7 @@ struct dw_dp {
 	int id;
 	struct work_struct hpd_work;
 	struct gpio_desc *hpd_gpio;
+	bool force_hpd;
 	struct dw_dp_hotplug hotplug;
 	struct mutex irq_lock;
 	struct extcon_dev *extcon;
@@ -1734,7 +1735,7 @@ static void dw_dp_hpd_init(struct dw_dp *dp)
 {
 	dp->hotplug.status = dw_dp_detect(dp);
 
-	if (dp->hpd_gpio) {
+	if (dp->hpd_gpio || dp->force_hpd) {
 		regmap_update_bits(dp->regmap, DPTX_CCTL, FORCE_HPD,
 				   FIELD_PREP(FORCE_HPD, 1));
 		return;
@@ -3123,6 +3124,8 @@ static int dw_dp_probe(struct platform_device *pdev)
 	dp->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
 
 	platform_set_drvdata(pdev, dp);
+
+	dp->force_hpd = device_property_read_bool(dev, "force-hpd");
 
 	if (device_property_read_bool(dev, "split-mode")) {
 		struct dw_dp *secondary = dw_dp_find_by_id(dev->driver, !dp->id);
