@@ -1013,7 +1013,7 @@ static int ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
 		if (filter->prio < tmp->prio)
 			break;
 	}
-	list_add(&filter->list, pos->prev);
+	list_add_tail(&filter->list, pos);
 
 	return 0;
 }
