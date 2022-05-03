@@ -1050,6 +1050,7 @@ static int rtw89_mac_check_cpwm_state(struct rtw89_dev *rtwdev,
 void rtw89_mac_power_mode_change(struct rtw89_dev *rtwdev, bool enter)
 {
 	enum rtw89_rpwm_req_pwr_state state;
+	unsigned long delay = enter ? 10 : 150;
 	int ret;
 
 	if (enter)
@@ -1059,7 +1060,7 @@ void rtw89_mac_power_mode_change(struct rtw89_dev *rtwdev, bool enter)
 
 	rtw89_mac_send_rpwm(rtwdev, state, false);
 	ret = read_poll_timeout_atomic(rtw89_mac_check_cpwm_state, ret, !ret,
-				       1000, 15000, false, rtwdev, state);
+				       delay, 15000, false, rtwdev, state);
 	if (ret)
 		rtw89_err(rtwdev, "firmware failed to ack for %s ps mode\n",
 			  enter ? "entering" : "leaving");
