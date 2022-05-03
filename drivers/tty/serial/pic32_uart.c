@@ -72,7 +72,11 @@ struct pic32_sport {
 
 	struct device *dev;
 };
-#define to_pic32_sport(c) container_of(c, struct pic32_sport, port)
+
+static inline struct pic32_sport *to_pic32_sport(struct uart_port *port)
+{
+	return container_of(port, struct pic32_sport, port);
+}
 
 static inline void pic32_uart_writel(struct pic32_sport *sport,
 					u32 reg, u32 val)
