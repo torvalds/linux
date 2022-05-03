@@ -162,7 +162,8 @@ http://savannah.nongnu.org/projects/quilt
 
 MAINTAINERS ファイルとソースコードに目を通してください。そして、その変
 更がメンテナのいる特定のサブシステムに加えられるものであることが分か
-れば、その人に電子メールを送ってください。
+れば、その人に電子メールを送ってください。その際
+./scripts/get_maintainers.pl のスクリプトが有用です。
 
 もし、メンテナが載っていなかったり、メンテナからの応答がないなら、
 LKML ( linux-kernel@vger.kernel.org )へパッチを送ってください。ほとんど
