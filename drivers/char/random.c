@@ -467,10 +467,8 @@ static void crng_pre_init_inject(const void *input, size_t len, bool account)
 
 	if (account) {
 		crng_init_cnt += min_t(size_t, len, CRNG_INIT_CNT_THRESH - crng_init_cnt);
-		if (crng_init_cnt >= CRNG_INIT_CNT_THRESH) {
-			++base_crng.generation;
+		if (crng_init_cnt >= CRNG_INIT_CNT_THRESH)
 			crng_init = 1;
-		}
 	}
 
 	spin_unlock_irqrestore(&base_crng.lock, flags);
@@ -626,6 +624,11 @@ u64 get_random_u64(void)
 
 	warn_unseeded_randomness(&previous);
 
+	if  (!crng_ready()) {
+		_get_random_bytes(&ret, sizeof(ret));
+		return ret;
+	}
+
 	local_lock_irqsave(&batched_entropy_u64.lock, flags);
 	batch = raw_cpu_ptr(&batched_entropy_u64);
 
@@ -659,6 +662,11 @@ u32 get_random_u32(void)
 	unsigned long next_gen;
 
 	warn_unseeded_randomness(&previous);
+
+	if  (!crng_ready()) {
+		_get_random_bytes(&ret, sizeof(ret));
+		return ret;
+	}
 
 	local_lock_irqsave(&batched_entropy_u32.lock, flags);
 	batch = raw_cpu_ptr(&batched_entropy_u32);
