@@ -8,9 +8,12 @@ Required properties:
 - interrupts: Should contain one interrupt shared by all channel.
 - #dma-cells: must be <1>. Used to represent the number of integer
 	cells in the dmas property of client device.
-- #dma-channels : Number of DMA channels supported. Should be 32.
+- dma-channels : Number of DMA channels supported. Should be 32.
 - clock-names: Should contain the clock of the DMA controller.
 - clocks: Should contain a clock specifier for each entry in clock-names.
+
+Deprecated properties:
+- #dma-channels : Number of DMA channels supported. Should be 32.
 
 Example:
 
@@ -20,7 +23,7 @@ apdma: dma-controller@20100000 {
 	reg = <0x20100000 0x4000>;
 	interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 	#dma-cells = <1>;
-	#dma-channels = <32>;
+	dma-channels = <32>;
 	clock-names = "enable";
 	clocks = <&clk_ap_ahb_gates 5>;
 };
