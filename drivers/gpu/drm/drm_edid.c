@@ -5069,42 +5069,25 @@ EXPORT_SYMBOL(drm_edid_to_sad);
  */
 int drm_edid_to_speaker_allocation(const struct edid *edid, u8 **sadb)
 {
+	const struct cea_db *db;
+	struct cea_db_iter iter;
 	int count = 0;
-	int i, start, end, dbl;
-	const u8 *cea;
 
-	cea = drm_find_cea_extension(edid);
-	if (!cea) {
-		DRM_DEBUG_KMS("SAD: no CEA Extension found\n");
-		return 0;
-	}
-
-	if (cea_revision(cea) < 3) {
-		DRM_DEBUG_KMS("SAD: wrong CEA revision\n");
-		return 0;
-	}
-
-	if (cea_db_offsets(cea, &start, &end)) {
-		DRM_DEBUG_KMS("SAD: invalid data block offsets\n");
-		return -EPROTO;
-	}
-
-	for_each_cea_db(cea, i, start, end) {
-		const u8 *db = &cea[i];
-
-		if (cea_db_tag(db) == CTA_DB_SPEAKER) {
-			dbl = cea_db_payload_len(db);
-
-			/* Speaker Allocation Data Block */
-			if (dbl == 3) {
-				*sadb = kmemdup(&db[1], dbl, GFP_KERNEL);
-				if (!*sadb)
-					return -ENOMEM;
-				count = dbl;
-				break;
-			}
+	cea_db_iter_edid_begin(edid, &iter);
+	cea_db_iter_for_each(db, &iter) {
+		if (cea_db_tag(db) == CTA_DB_SPEAKER &&
+		    cea_db_payload_len(db) == 3) {
+			*sadb = kmemdup(db->data, cea_db_payload_len(db),
+					GFP_KERNEL);
+			if (!*sadb)
+				return -ENOMEM;
+			count = cea_db_payload_len(db);
+			break;
 		}
 	}
+	cea_db_iter_end(&iter);
+
+	DRM_DEBUG_KMS("Found %d Speaker Allocation Data Blocks\n", count);
 
 	return count;
 }
