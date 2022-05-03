@@ -2719,6 +2719,17 @@ userspace_tests()
 		chk_add_nr 0 0
 	fi
 
+	# userspace pm type does not echo add_addr without daemon
+	if reset "userspace pm no echo w/o daemon"; then
+		set_userspace_pm $ns2
+		pm_nl_set_limits $ns1 0 2
+		pm_nl_set_limits $ns2 0 2
+		pm_nl_add_endpoint $ns1 10.0.2.1 flags signal
+		run_tests $ns1 $ns2 10.0.1.1
+		chk_join_nr 0 0 0
+		chk_add_nr 1 0
+	fi
+
 	# userspace pm type rejects join
 	if reset "userspace pm type rejects join"; then
 		set_userspace_pm $ns1
