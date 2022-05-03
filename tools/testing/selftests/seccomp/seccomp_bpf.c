@@ -4297,32 +4297,54 @@ TEST_F(O_SUSPEND_SECCOMP, seize)
 	ASSERT_EQ(EPERM, errno);
 }
 
-static char get_proc_stat(int pid)
+/*
+ * get_nth - Get the nth, space separated entry in a file.
+ *
+ * Returns the length of the read field.
+ * Throws error if field is zero-lengthed.
+ */
+static ssize_t get_nth(struct __test_metadata *_metadata, const char *path,
+		     const unsigned int position, char **entry)
+{
+	char *line = NULL;
+	unsigned int i;
+	ssize_t nread;
+	size_t len = 0;
+	FILE *f;
+
+	f = fopen(path, "r");
+	ASSERT_NE(f, NULL) {
+		TH_LOG("Coud not open %s: %s", path, strerror(errno));
+	}
+
+	for (i = 0; i < position; i++) {
+		nread = getdelim(&line, &len, ' ', f);
+		ASSERT_GE(nread, 0) {
+			TH_LOG("Failed to read %d entry in file %s", i, path);
+		}
+	}
+	fclose(f);
+
+	ASSERT_GT(nread, 0) {
+		TH_LOG("Entry in file %s had zero length", path);
+	}
+
+	*entry = line;
+	return nread - 1;
+}
+
+/* For a given PID, get the task state (D, R, etc...) */
+static char get_proc_stat(struct __test_metadata *_metadata, pid_t pid)
 {
 	char proc_path[100] = {0};
-	char *line = NULL;
-	size_t len = 0;
-	ssize_t nread;
 	char status;
-	FILE *f;
-	int i;
+	char *line;
 
 	snprintf(proc_path, sizeof(proc_path), "/proc/%d/stat", pid);
-	f = fopen(proc_path, "r");
-	if (f == NULL)
-		ksft_exit_fail_msg("%s - Could not open %s\n",
-				   strerror(errno), proc_path);
-
-	for (i = 0; i < 3; i++) {
-		nread = getdelim(&line, &len, ' ', f);
-		if (nread <= 0)
-			ksft_exit_fail_msg("Failed to read status: %s\n",
-					   strerror(errno));
-	}
+	ASSERT_EQ(get_nth(_metadata, proc_path, 3, &line), 1);
 
 	status = *line;
 	free(line);
-	fclose(f);
 
 	return status;
 }
@@ -4383,7 +4405,7 @@ TEST(user_notification_fifo)
 	/* This spins until all of the children are sleeping */
 restart_wait:
 	for (i = 0; i < ARRAY_SIZE(pids); i++) {
-		if (get_proc_stat(pids[i]) != 'S') {
+		if (get_proc_stat(_metadata, pids[i]) != 'S') {
 			nanosleep(&delay, NULL);
 			goto restart_wait;
 		}
