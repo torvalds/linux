@@ -1004,7 +1004,7 @@ static int ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
 	block->count++;
 
 	if (list_empty(&block->rules)) {
-		list_add(&filter->list, &block->rules);
+		list_add_tail(&filter->list, &block->rules);
 		return 0;
 	}
 
