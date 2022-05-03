@@ -115,6 +115,14 @@
 #define SYS_DC_CISW			sys_insn(1, 0, 7, 14, 2)
 
 /*
+ * Automatically generated definitions for system registers, the
+ * manual encodings below are in the process of being converted to
+ * come from here. The header relies on the definition of sys_reg()
+ * earlier in this file.
+ */
+#include "asm/sysreg-defs.h"
+
+/*
  * System registers, organised loosely by encoding but grouped together
  * where the architected name contains an index. e.g. ID_MMFR<n>_EL1.
  */
