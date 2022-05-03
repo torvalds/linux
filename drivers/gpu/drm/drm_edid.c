@@ -3462,16 +3462,21 @@ add_detailed_modes(struct drm_connector *connector, const struct edid *edid,
 	return closure.modes;
 }
 
-#define AUDIO_BLOCK	0x01
-#define VIDEO_BLOCK     0x02
-#define VENDOR_BLOCK    0x03
-#define SPEAKER_BLOCK	0x04
-#define HDR_STATIC_METADATA_BLOCK	0x6
-#define USE_EXTENDED_TAG 0x07
-#define EXT_VIDEO_CAPABILITY_BLOCK 0x00
-#define EXT_VIDEO_DATA_BLOCK_420	0x0E
-#define EXT_VIDEO_CAP_BLOCK_Y420CMDB 0x0F
-#define EXT_VIDEO_HF_SCDB_DATA_BLOCK	0x79
+/* CTA-861-H Table 60 - CTA Tag Codes */
+#define CTA_DB_AUDIO			1
+#define CTA_DB_VIDEO			2
+#define CTA_DB_VENDOR			3
+#define CTA_DB_SPEAKER			4
+#define CTA_DB_EXTENDED_TAG		7
+
+/* CTA-861-H Table 62 - CTA Extended Tag Codes */
+#define CTA_EXT_DB_VIDEO_CAP		0
+#define CTA_EXT_DB_VENDOR		1
+#define CTA_EXT_DB_HDR_STATIC_METADATA	6
+#define CTA_EXT_DB_420_VIDEO_DATA	14
+#define CTA_EXT_DB_420_VIDEO_CAP_MAP	15
+#define CTA_EXT_DB_HF_SCDB		0x79
+
 #define EDID_BASIC_AUDIO	(1 << 6)
 #define EDID_CEA_YCRCB444	(1 << 5)
 #define EDID_CEA_YCRCB422	(1 << 4)
@@ -4358,7 +4363,7 @@ cea_db_offsets(const u8 *cea, int *start, int *end)
 
 static bool cea_db_is_hdmi_vsdb(const u8 *db)
 {
-	if (cea_db_tag(db) != VENDOR_BLOCK)
+	if (cea_db_tag(db) != CTA_DB_VENDOR)
 		return false;
 
 	if (cea_db_payload_len(db) < 5)
@@ -4369,7 +4374,7 @@ static bool cea_db_is_hdmi_vsdb(const u8 *db)
 
 static bool cea_db_is_hdmi_forum_vsdb(const u8 *db)
 {
-	if (cea_db_tag(db) != VENDOR_BLOCK)
+	if (cea_db_tag(db) != CTA_DB_VENDOR)
 		return false;
 
 	if (cea_db_payload_len(db) < 7)
@@ -4380,7 +4385,7 @@ static bool cea_db_is_hdmi_forum_vsdb(const u8 *db)
 
 static bool cea_db_is_microsoft_vsdb(const u8 *db)
 {
-	if (cea_db_tag(db) != VENDOR_BLOCK)
+	if (cea_db_tag(db) != CTA_DB_VENDOR)
 		return false;
 
 	if (cea_db_payload_len(db) != 21)
@@ -4391,13 +4396,13 @@ static bool cea_db_is_microsoft_vsdb(const u8 *db)
 
 static bool cea_db_is_vcdb(const u8 *db)
 {
-	if (cea_db_tag(db) != USE_EXTENDED_TAG)
+	if (cea_db_tag(db) != CTA_DB_EXTENDED_TAG)
 		return false;
 
 	if (cea_db_payload_len(db) != 2)
 		return false;
 
-	if (cea_db_extended_tag(db) != EXT_VIDEO_CAPABILITY_BLOCK)
+	if (cea_db_extended_tag(db) != CTA_EXT_DB_VIDEO_CAP)
 		return false;
 
 	return true;
@@ -4405,13 +4410,13 @@ static bool cea_db_is_vcdb(const u8 *db)
 
 static bool cea_db_is_hdmi_forum_scdb(const u8 *db)
 {
-	if (cea_db_tag(db) != USE_EXTENDED_TAG)
+	if (cea_db_tag(db) != CTA_DB_EXTENDED_TAG)
 		return false;
 
 	if (cea_db_payload_len(db) < 7)
 		return false;
 
-	if (cea_db_extended_tag(db) != EXT_VIDEO_HF_SCDB_DATA_BLOCK)
+	if (cea_db_extended_tag(db) != CTA_EXT_DB_HF_SCDB)
 		return false;
 
 	return true;
@@ -4419,13 +4424,13 @@ static bool cea_db_is_hdmi_forum_scdb(const u8 *db)
 
 static bool cea_db_is_y420cmdb(const u8 *db)
 {
-	if (cea_db_tag(db) != USE_EXTENDED_TAG)
+	if (cea_db_tag(db) != CTA_DB_EXTENDED_TAG)
 		return false;
 
 	if (!cea_db_payload_len(db))
 		return false;
 
-	if (cea_db_extended_tag(db) != EXT_VIDEO_CAP_BLOCK_Y420CMDB)
+	if (cea_db_extended_tag(db) != CTA_EXT_DB_420_VIDEO_CAP_MAP)
 		return false;
 
 	return true;
@@ -4433,13 +4438,13 @@ static bool cea_db_is_y420cmdb(const u8 *db)
 
 static bool cea_db_is_y420vdb(const u8 *db)
 {
-	if (cea_db_tag(db) != USE_EXTENDED_TAG)
+	if (cea_db_tag(db) != CTA_DB_EXTENDED_TAG)
 		return false;
 
 	if (!cea_db_payload_len(db))
 		return false;
 
-	if (cea_db_extended_tag(db) != EXT_VIDEO_DATA_BLOCK_420)
+	if (cea_db_extended_tag(db) != CTA_EXT_DB_420_VIDEO_DATA)
 		return false;
 
 	return true;
@@ -4506,7 +4511,7 @@ add_cea_modes(struct drm_connector *connector, const struct edid *edid)
 			db = &cea[i];
 			dbl = cea_db_payload_len(db);
 
-			if (cea_db_tag(db) == VIDEO_BLOCK) {
+			if (cea_db_tag(db) == CTA_DB_VIDEO) {
 				video = db + 1;
 				video_len = dbl;
 				modes += do_cea_modes(connector, video, dbl);
@@ -4580,10 +4585,10 @@ static void fixup_detailed_cea_mode_clock(struct drm_display_mode *mode)
 
 static bool cea_db_is_hdmi_hdr_metadata_block(const u8 *db)
 {
-	if (cea_db_tag(db) != USE_EXTENDED_TAG)
+	if (cea_db_tag(db) != CTA_DB_EXTENDED_TAG)
 		return false;
 
-	if (db[1] != HDR_STATIC_METADATA_BLOCK)
+	if (db[1] != CTA_EXT_DB_HDR_STATIC_METADATA)
 		return false;
 
 	if (cea_db_payload_len(db) < 3)
@@ -4777,7 +4782,7 @@ static void drm_edid_to_eld(struct drm_connector *connector,
 			dbl = cea_db_payload_len(db);
 
 			switch (cea_db_tag(db)) {
-			case AUDIO_BLOCK:
+			case CTA_DB_AUDIO:
 				/* Audio Data Block, contains SADs */
 				sad_count = min(dbl / 3, 15 - total_sad_count);
 				if (sad_count >= 1)
@@ -4785,12 +4790,12 @@ static void drm_edid_to_eld(struct drm_connector *connector,
 					       &db[1], sad_count * 3);
 				total_sad_count += sad_count;
 				break;
-			case SPEAKER_BLOCK:
+			case CTA_DB_SPEAKER:
 				/* Speaker Allocation Data Block */
 				if (dbl >= 1)
 					eld[DRM_ELD_SPEAKER] = db[1];
 				break;
-			case VENDOR_BLOCK:
+			case CTA_DB_VENDOR:
 				/* HDMI Vendor-Specific Data Block */
 				if (cea_db_is_hdmi_vsdb(db))
 					drm_parse_hdmi_vsdb_audio(connector, db);
@@ -4851,7 +4856,7 @@ int drm_edid_to_sad(const struct edid *edid, struct cea_sad **sads)
 	for_each_cea_db(cea, i, start, end) {
 		const u8 *db = &cea[i];
 
-		if (cea_db_tag(db) == AUDIO_BLOCK) {
+		if (cea_db_tag(db) == CTA_DB_AUDIO) {
 			int j;
 
 			dbl = cea_db_payload_len(db);
@@ -4913,7 +4918,7 @@ int drm_edid_to_speaker_allocation(const struct edid *edid, u8 **sadb)
 	for_each_cea_db(cea, i, start, end) {
 		const u8 *db = &cea[i];
 
-		if (cea_db_tag(db) == SPEAKER_BLOCK) {
+		if (cea_db_tag(db) == CTA_DB_SPEAKER) {
 			dbl = cea_db_payload_len(db);
 
 			/* Speaker Allocation Data Block */
@@ -5044,7 +5049,7 @@ bool drm_detect_monitor_audio(const struct edid *edid)
 		goto end;
 
 	for_each_cea_db(edid_ext, i, start_offset, end_offset) {
-		if (cea_db_tag(&edid_ext[i]) == AUDIO_BLOCK) {
+		if (cea_db_tag(&edid_ext[i]) == CTA_DB_AUDIO) {
 			has_audio = true;
 			for (j = 1; j < cea_db_payload_len(&edid_ext[i]) + 1; j += 3)
 				DRM_DEBUG_KMS("CEA audio format %d\n",
