@@ -1166,7 +1166,7 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 			if (props->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS)
 				props->weight = 20;
 			else if (props->iolink_type == CRAT_IOLINK_TYPE_XGMI)
-				props->weight = 15 * iolink->num_hops_xgmi;
+				props->weight = iolink->weight_xgmi;
 			else
 				props->weight = node_distance(id_from, id_to);
 
@@ -1972,6 +1972,9 @@ static void kfd_find_numa_node_in_srat(struct kfd_node *kdev)
 }
 #endif
 
+#define KFD_CRAT_INTRA_SOCKET_WEIGHT	13
+#define KFD_CRAT_XGMI_WEIGHT		15
+
 /* kfd_fill_gpu_direct_io_link - Fill in direct io link from GPU
  * to its NUMA node
  *	@avail_size: Available size in the memory
@@ -2003,6 +2006,12 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 	 * TODO: Fill-in other fields of iolink subtype
 	 */
 	if (kdev->adev->gmc.xgmi.connected_to_cpu) {
+		bool ext_cpu = KFD_GC_VERSION(kdev) != IP_VERSION(9, 4, 3);
+		int mem_bw = 819200, weight = ext_cpu ? KFD_CRAT_XGMI_WEIGHT :
+							KFD_CRAT_INTRA_SOCKET_WEIGHT;
+		uint32_t bandwidth = ext_cpu ? amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(
+							kdev->adev, NULL, true) : mem_bw;
+
 		/*
 		 * with host gpu xgmi link, host can access gpu memory whether
 		 * or not pcie bar type is large, so always create bidirectional
@@ -2010,14 +2019,9 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 		 */
 		sub_type_hdr->flags |= CRAT_IOLINK_FLAGS_BI_DIRECTIONAL;
 		sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_XGMI;
-		sub_type_hdr->num_hops_xgmi = 1;
-		if (KFD_GC_VERSION(kdev) == IP_VERSION(9, 4, 2)) {
-			sub_type_hdr->minimum_bandwidth_mbs =
-					amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(
-							kdev->adev, NULL, true);
-			sub_type_hdr->maximum_bandwidth_mbs =
-					sub_type_hdr->minimum_bandwidth_mbs;
-		}
+		sub_type_hdr->weight_xgmi = weight;
+		sub_type_hdr->minimum_bandwidth_mbs = bandwidth;
+		sub_type_hdr->maximum_bandwidth_mbs = bandwidth;
 	} else {
 		sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_PCIEXPRESS;
 		sub_type_hdr->minimum_bandwidth_mbs =
@@ -2050,6 +2054,8 @@ static int kfd_fill_gpu_xgmi_link_to_gpu(int *avail_size,
 			uint32_t proximity_domain_from,
 			uint32_t proximity_domain_to)
 {
+	bool use_ta_info = kdev->kfd->num_nodes == 1;
+
 	*avail_size -= sizeof(struct crat_subtype_iolink);
 	if (*avail_size < 0)
 		return -ENOMEM;
@@ -2064,12 +2070,25 @@ static int kfd_fill_gpu_xgmi_link_to_gpu(int *avail_size,
 	sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_XGMI;
 	sub_type_hdr->proximity_domain_from = proximity_domain_from;
 	sub_type_hdr->proximity_domain_to = proximity_domain_to;
-	sub_type_hdr->num_hops_xgmi =
-		amdgpu_amdkfd_get_xgmi_hops_count(kdev->adev, peer_kdev->adev);
-	sub_type_hdr->maximum_bandwidth_mbs =
-		amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(kdev->adev, peer_kdev->adev, false);
-	sub_type_hdr->minimum_bandwidth_mbs = sub_type_hdr->maximum_bandwidth_mbs ?
-		amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(kdev->adev, NULL, true) : 0;
+
+	if (use_ta_info) {
+		sub_type_hdr->weight_xgmi = KFD_CRAT_XGMI_WEIGHT *
+			amdgpu_amdkfd_get_xgmi_hops_count(kdev->adev, peer_kdev->adev);
+		sub_type_hdr->maximum_bandwidth_mbs =
+			amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(kdev->adev,
+							peer_kdev->adev, false);
+		sub_type_hdr->minimum_bandwidth_mbs = sub_type_hdr->maximum_bandwidth_mbs ?
+			amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(kdev->adev, NULL, true) : 0;
+	} else {
+		bool is_single_hop = kdev->kfd == peer_kdev->kfd;
+		int weight = is_single_hop ? KFD_CRAT_INTRA_SOCKET_WEIGHT :
+			(2 * KFD_CRAT_INTRA_SOCKET_WEIGHT) + KFD_CRAT_XGMI_WEIGHT;
+		int mem_bw = 819200;
+
+		sub_type_hdr->weight_xgmi = weight;
+		sub_type_hdr->maximum_bandwidth_mbs = is_single_hop ? mem_bw : 0;
+		sub_type_hdr->minimum_bandwidth_mbs = is_single_hop ? mem_bw : 0;
+	}
 
 	return 0;
 }

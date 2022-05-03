@@ -1926,7 +1926,11 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	dev->node_props.capability |=
 		((dev->gpu->adev->rev_id << HSA_CAP_ASIC_REVISION_SHIFT) &
 			HSA_CAP_ASIC_REVISION_MASK);
+
 	dev->node_props.location_id = pci_dev_id(gpu->adev->pdev);
+	if (KFD_GC_VERSION(dev->gpu->kfd) == IP_VERSION(9, 4, 3))
+		dev->node_props.location_id |= dev->gpu->node_id;
+
 	dev->node_props.domain = pci_domain_nr(gpu->adev->pdev->bus);
 	dev->node_props.max_engine_clk_fcompute =
 		amdgpu_amdkfd_get_max_engine_clock_in_mhz(dev->gpu->adev);

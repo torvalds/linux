@@ -702,6 +702,14 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	if (amdgpu_use_xgmi_p2p)
 		kfd->hive_id = kfd->adev->gmc.xgmi.hive_id;
 
+	/*
+	 * For GFX9.4.3, the KFD abstracts all partitions within a socket as
+	 * xGMI connected in the topology so assign a unique hive id per
+	 * device based on the pci device location if device is in PCIe mode.
+	 */
+	if (!kfd->hive_id && (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3)) && kfd->num_nodes > 1)
+		kfd->hive_id = pci_dev_id(kfd->adev->pdev);
+
 	kfd->noretry = kfd->adev->gmc.noretry;
 
 	/* If CRAT is broken, won't set iommu enabled */
