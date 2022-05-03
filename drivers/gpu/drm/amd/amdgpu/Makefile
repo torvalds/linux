@@ -167,6 +167,7 @@ amdgpu-y += \
 # add VCN and JPEG block
 amdgpu-y += \
 	amdgpu_vcn.o \
+	vcn_sw_ring.o \
 	vcn_v1_0.o \
 	vcn_v2_0.o \
 	vcn_v2_5.o \
