@@ -684,6 +684,7 @@ struct psr_config {
 	/* psr2 selective update y granularity capability */
 	uint8_t su_y_granularity;
 	unsigned int line_time_in_us;
+	uint8_t rate_control_caps;
 };
 
 union dmcu_psr_level {
@@ -794,6 +795,7 @@ struct psr_context {
 	/* psr2 selective update y granularity capability */
 	uint8_t su_y_granularity;
 	unsigned int line_time_in_us;
+	uint8_t rate_control_caps;
 };
 
 struct colorspace_transform {

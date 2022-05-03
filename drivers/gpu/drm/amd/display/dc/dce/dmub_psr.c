@@ -250,6 +250,27 @@ static void dmub_psr_set_level(struct dmub_psr *dmub, uint16_t psr_level, uint8_
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 }
 
+/**
+ * Set PSR vtotal requirement for FreeSync PSR.
+ */
+static void dmub_psr_set_sink_vtotal_in_psr_active(struct dmub_psr *dmub,
+		uint16_t psr_vtotal_idle, uint16_t psr_vtotal_su)
+{
+	union dmub_rb_cmd cmd;
+	struct dc_context *dc = dmub->ctx;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.psr_set_vtotal.header.type = DMUB_CMD__PSR;
+	cmd.psr_set_vtotal.header.sub_type = DMUB_CMD__SET_SINK_VTOTAL_IN_PSR_ACTIVE;
+	cmd.psr_set_vtotal.header.payload_bytes = sizeof(struct dmub_cmd_psr_set_vtotal_data);
+	cmd.psr_set_vtotal.psr_set_vtotal_data.psr_vtotal_idle = psr_vtotal_idle;
+	cmd.psr_set_vtotal.psr_set_vtotal_data.psr_vtotal_su = psr_vtotal_su;
+
+	dc_dmub_srv_cmd_queue(dc->dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(dc->dmub_srv);
+	dc_dmub_srv_wait_idle(dc->dmub_srv);
+}
+
 /*
  * Set PSR power optimization flags.
  */
@@ -358,6 +379,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 
 	copy_settings_data->line_capture_indication = 0;
 	copy_settings_data->line_time_in_us = psr_context->line_time_in_us;
+	copy_settings_data->rate_control_caps = psr_context->rate_control_caps;
 	copy_settings_data->fec_enable_status = (link->fec_state == dc_link_fec_enabled);
 	copy_settings_data->fec_enable_delay_in100us = link->dc->debug.fec_enable_delay_in100us;
 	copy_settings_data->cmd_version =  DMUB_CMD_PSR_CONTROL_VERSION_1;
@@ -435,6 +457,7 @@ static const struct dmub_psr_funcs psr_funcs = {
 	.psr_set_level			= dmub_psr_set_level,
 	.psr_force_static		= dmub_psr_force_static,
 	.psr_get_residency		= dmub_psr_get_residency,
+	.psr_set_sink_vtotal_in_psr_active	= dmub_psr_set_sink_vtotal_in_psr_active,
 	.psr_set_power_opt		= dmub_psr_set_power_opt,
 };
 

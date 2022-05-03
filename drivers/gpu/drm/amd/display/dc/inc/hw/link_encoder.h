@@ -101,6 +101,14 @@ union dpcd_alpm_configuration {
 	unsigned char raw;
 };
 
+union dpcd_sink_active_vtotal_control_mode {
+	struct {
+		unsigned char ENABLE                    : 1;
+		unsigned char RESERVED                  : 7;
+	} bits;
+	unsigned char raw;
+};
+
 union psr_error_status {
 	struct {
 		unsigned char LINK_CRC_ERROR        :1;

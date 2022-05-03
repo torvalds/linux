@@ -1795,6 +1795,7 @@ static bool dc_link_construct_legacy(struct dc_link *link,
 	 */
 	program_hpd_filter(link);
 
+	link->psr_settings.psr_vtotal_control_support = false;
 	link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
 
 	DC_LOG_DC("BIOS object table - %s finished successfully.\n", __func__);
@@ -3227,6 +3228,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 	/* updateSinkPsrDpcdConfig*/
 	union dpcd_psr_configuration psr_configuration;
 	union dpcd_alpm_configuration alpm_configuration;
+	union dpcd_sink_active_vtotal_control_mode vtotal_control = {0};
 
 	psr_context->controllerId = CONTROLLER_ID_UNDEFINED;
 
@@ -3296,6 +3298,13 @@ bool dc_link_setup_psr(struct dc_link *link,
 			psr_config->su_y_granularity;
 		psr_context->line_time_in_us =
 			psr_config->line_time_in_us;
+
+		if (link->psr_settings.psr_vtotal_control_support) {
+			psr_context->rate_control_caps = psr_config->rate_control_caps;
+			vtotal_control.bits.ENABLE = true;
+			core_link_write_dpcd(link, DP_SINK_PSR_ACTIVE_VTOTAL_CONTROL_MODE,
+							&vtotal_control.raw, sizeof(vtotal_control.raw));
+		}
 	}
 
 	psr_context->channel = link->ddc->ddc_pin->hw_info.ddc_channel;
@@ -3426,6 +3435,19 @@ void dc_link_get_psr_residency(const struct dc_link *link, uint32_t *residency)
 		psr->funcs->psr_get_residency(psr, residency, panel_inst);
 	else
 		*residency = 0;
+}
+
+bool dc_link_set_sink_vtotal_in_psr_active(const struct dc_link *link, uint16_t psr_vtotal_idle, uint16_t psr_vtotal_su)
+{
+	struct dc *dc = link->ctx->dc;
+	struct dmub_psr *psr = dc->res_pool->psr;
+
+	if (psr == NULL || !link->psr_settings.psr_feature_enabled || !link->psr_settings.psr_vtotal_control_support)
+		return false;
+
+	psr->funcs->psr_set_sink_vtotal_in_psr_active(psr, psr_vtotal_idle, psr_vtotal_su);
+
+	return true;
 }
 
 const struct dc_link_status *dc_link_get_status(const struct dc_link *link)
