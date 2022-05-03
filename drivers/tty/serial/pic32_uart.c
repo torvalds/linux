@@ -919,7 +919,6 @@ static int pic32_uart_probe(struct platform_device *pdev)
 
 	pic32_sports[uart_idx] = sport;
 	port = &sport->port;
-	memset(port, 0, sizeof(*port));
 	port->iotype	= UPIO_MEM;
 	port->mapbase	= res_mem->start;
 	port->ops	= &pic32_uart_ops;
