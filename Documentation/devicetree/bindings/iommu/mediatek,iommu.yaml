@@ -77,6 +77,8 @@ properties:
           - mediatek,mt8173-m4u  # generation two
           - mediatek,mt8183-m4u  # generation two
           - mediatek,mt8192-m4u  # generation two
+          - mediatek,mt8195-iommu-vdo        # generation two
+          - mediatek,mt8195-iommu-vpp        # generation two
 
       - description: mt7623 generation one
         items:
@@ -120,6 +122,7 @@ properties:
       dt-binding/memory/mt8173-larb-port.h for mt8173,
       dt-binding/memory/mt8183-larb-port.h for mt8183,
       dt-binding/memory/mt8192-larb-port.h for mt8192.
+      dt-binding/memory/mt8195-memory-port.h for mt8195.
 
   power-domains:
     maxItems: 1
@@ -141,6 +144,8 @@ allOf:
               - mediatek,mt2712-m4u
               - mediatek,mt8173-m4u
               - mediatek,mt8192-m4u
+              - mediatek,mt8195-iommu-vdo
+              - mediatek,mt8195-iommu-vpp
 
     then:
       required:
@@ -151,6 +156,8 @@ allOf:
         compatible:
           enum:
             - mediatek,mt8192-m4u
+            - mediatek,mt8195-iommu-vdo
+            - mediatek,mt8195-iommu-vpp
 
     then:
       required:
