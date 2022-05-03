@@ -2338,6 +2338,69 @@ static void rtw8852c_ctrl_tx_path_tmac(struct rtw89_dev *rtwdev, u8 tx_path,
 	}
 }
 
+static void rtw8852c_bb_ctrl_btc_preagc(struct rtw89_dev *rtwdev, bool bt_en)
+{
+	if (bt_en) {
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_FRC_FIR_TYPE_V1,
+				       B_PATH0_FRC_FIR_TYPE_MSK_V1, 0x3);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_FRC_FIR_TYPE_V1,
+				       B_PATH1_FRC_FIR_TYPE_MSK_V1, 0x3);
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_RXBB_V1,
+				       B_PATH0_RXBB_MSK_V1, 0xf);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_RXBB_V1,
+				       B_PATH1_RXBB_MSK_V1, 0xf);
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_G_LNA6_OP1DB_V1,
+				       B_PATH0_G_LNA6_OP1DB_V1, 0x80);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_G_LNA6_OP1DB_V1,
+				       B_PATH1_G_LNA6_OP1DB_V1, 0x80);
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_G_TIA0_LNA6_OP1DB_V1,
+				       B_PATH0_G_TIA0_LNA6_OP1DB_V1, 0x80);
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_G_TIA1_LNA6_OP1DB_V1,
+				       B_PATH0_G_TIA1_LNA6_OP1DB_V1, 0x80);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_G_TIA0_LNA6_OP1DB_V1,
+				       B_PATH1_G_TIA0_LNA6_OP1DB_V1, 0x80);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_G_TIA1_LNA6_OP1DB_V1,
+				       B_PATH1_G_TIA1_LNA6_OP1DB_V1, 0x80);
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_BT_BACKOFF_V1,
+				       B_PATH0_BT_BACKOFF_V1, 0x780D1E);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_BT_BACKOFF_V1,
+				       B_PATH1_BT_BACKOFF_V1, 0x780D1E);
+		rtw89_phy_write32_mask(rtwdev, R_P0_BACKOFF_IBADC_V1,
+				       B_P0_BACKOFF_IBADC_V1, 0x34);
+		rtw89_phy_write32_mask(rtwdev, R_P1_BACKOFF_IBADC_V1,
+				       B_P1_BACKOFF_IBADC_V1, 0x34);
+	} else {
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_FRC_FIR_TYPE_V1,
+				       B_PATH0_FRC_FIR_TYPE_MSK_V1, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_FRC_FIR_TYPE_V1,
+				       B_PATH1_FRC_FIR_TYPE_MSK_V1, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_RXBB_V1,
+				       B_PATH0_RXBB_MSK_V1, 0x60);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_RXBB_V1,
+				       B_PATH1_RXBB_MSK_V1, 0x60);
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_G_LNA6_OP1DB_V1,
+				       B_PATH0_G_LNA6_OP1DB_V1, 0x1a);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_G_LNA6_OP1DB_V1,
+				       B_PATH1_G_LNA6_OP1DB_V1, 0x1a);
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_G_TIA0_LNA6_OP1DB_V1,
+				       B_PATH0_G_TIA0_LNA6_OP1DB_V1, 0x2a);
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_G_TIA1_LNA6_OP1DB_V1,
+				       B_PATH0_G_TIA1_LNA6_OP1DB_V1, 0x2a);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_G_TIA0_LNA6_OP1DB_V1,
+				       B_PATH1_G_TIA0_LNA6_OP1DB_V1, 0x2a);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_G_TIA1_LNA6_OP1DB_V1,
+				       B_PATH1_G_TIA1_LNA6_OP1DB_V1, 0x2a);
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_BT_BACKOFF_V1,
+				       B_PATH0_BT_BACKOFF_V1, 0x79E99E);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_BT_BACKOFF_V1,
+				       B_PATH1_BT_BACKOFF_V1, 0x79E99E);
+		rtw89_phy_write32_mask(rtwdev, R_P0_BACKOFF_IBADC_V1,
+				       B_P0_BACKOFF_IBADC_V1, 0x26);
+		rtw89_phy_write32_mask(rtwdev, R_P1_BACKOFF_IBADC_V1,
+				       B_P1_BACKOFF_IBADC_V1, 0x26);
+	}
+}
+
 static void rtw8852c_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
@@ -2747,6 +2810,7 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.init_txpwr_unit	= rtw8852c_init_txpwr_unit,
 	.get_thermal		= rtw8852c_get_thermal,
 	.query_ppdu		= rtw8852c_query_ppdu,
+	.bb_ctrl_btc_preagc	= rtw8852c_bb_ctrl_btc_preagc,
 	.read_rf		= rtw89_phy_read_rf_v1,
 	.write_rf		= rtw89_phy_write_rf_v1,
 	.set_txpwr_ul_tb_offset	= rtw8852c_set_txpwr_ul_tb_offset,
