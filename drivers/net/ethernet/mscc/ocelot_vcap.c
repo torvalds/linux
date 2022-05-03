@@ -993,8 +993,8 @@ static int ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
 					   struct ocelot_vcap_filter *filter,
 					   struct netlink_ext_ack *extack)
 {
+	struct list_head *pos = &block->rules;
 	struct ocelot_vcap_filter *tmp;
-	struct list_head *pos, *n;
 	int ret;
 
 	ret = ocelot_vcap_filter_add_aux_resources(ocelot, filter, extack);
@@ -1003,15 +1003,11 @@ static int ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
 
 	block->count++;
 
-	if (list_empty(&block->rules)) {
-		list_add_tail(&filter->list, &block->rules);
-		return 0;
-	}
-
-	list_for_each_safe(pos, n, &block->rules) {
-		tmp = list_entry(pos, struct ocelot_vcap_filter, list);
-		if (filter->prio < tmp->prio)
+	list_for_each_entry(tmp, &block->rules, list) {
+		if (filter->prio < tmp->prio) {
+			pos = &tmp->list;
 			break;
+		}
 	}
 	list_add_tail(&filter->list, pos);
 
