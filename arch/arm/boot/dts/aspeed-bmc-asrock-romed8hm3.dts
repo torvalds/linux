@@ -100,12 +100,14 @@
 	lm25066@40 {
 		compatible = "lm25066";
 		reg = <0x40>;
+		shunt-resistor-micro-ohms = <1000>;
 	};
 
 	/* 12VSB PMIC */
 	lm25066@41 {
 		compatible = "lm25066";
 		reg = <0x41>;
+		shunt-resistor-micro-ohms = <10000>;
 	};
 };
 
@@ -196,7 +198,7 @@
 	gpio-line-names =
 		/*  A */ "LOCATORLED_STATUS_N", "BMC_MAC2_INTB", "NMI_BTN_N", "BMC_NMI",
 			"", "", "", "",
-		/*  B */ "DDR_MEM_TEMP", "", "", "", "", "", "", "",
+		/*  B */ "POST_COMPLETE_N", "", "", "", "", "", "", "",
 		/*  C */ "", "", "", "", "PCIE_HP_SEL_N", "PCIE_SATA_SEL_N", "LOCATORBTN", "",
 		/*  D */ "BMC_PSIN", "BMC_PSOUT", "BMC_RESETCON", "RESETCON",
 			"", "", "", "PSU_FAN_FAIL_N",
