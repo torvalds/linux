@@ -222,42 +222,41 @@ bool setup_ipc_sysctls(struct ipc_namespace *ns)
 		int i;
 
 		for (i = 0; i < ARRAY_SIZE(ipc_sysctls); i++) {
-			if (tbl[i].data == &init_ipc_ns.shm_ctlmax) {
+			if (tbl[i].data == &init_ipc_ns.shm_ctlmax)
 				tbl[i].data = &ns->shm_ctlmax;
 
-			} else if (tbl[i].data == &init_ipc_ns.shm_ctlall) {
+			else if (tbl[i].data == &init_ipc_ns.shm_ctlall)
 				tbl[i].data = &ns->shm_ctlall;
 
-			} else if (tbl[i].data == &init_ipc_ns.shm_ctlmni) {
+			else if (tbl[i].data == &init_ipc_ns.shm_ctlmni)
 				tbl[i].data = &ns->shm_ctlmni;
 
-			} else if (tbl[i].data == &init_ipc_ns.shm_rmid_forced) {
+			else if (tbl[i].data == &init_ipc_ns.shm_rmid_forced)
 				tbl[i].data = &ns->shm_rmid_forced;
 
-			} else if (tbl[i].data == &init_ipc_ns.msg_ctlmax) {
+			else if (tbl[i].data == &init_ipc_ns.msg_ctlmax)
 				tbl[i].data = &ns->msg_ctlmax;
 
-			} else if (tbl[i].data == &init_ipc_ns.msg_ctlmni) {
+			else if (tbl[i].data == &init_ipc_ns.msg_ctlmni)
 				tbl[i].data = &ns->msg_ctlmni;
 
-			} else if (tbl[i].data == &init_ipc_ns.msg_ctlmnb) {
+			else if (tbl[i].data == &init_ipc_ns.msg_ctlmnb)
 				tbl[i].data = &ns->msg_ctlmnb;
 
-			} else if (tbl[i].data == &init_ipc_ns.sem_ctls) {
+			else if (tbl[i].data == &init_ipc_ns.sem_ctls)
 				tbl[i].data = &ns->sem_ctls;
 #ifdef CONFIG_CHECKPOINT_RESTORE
-			} else if (tbl[i].data == &init_ipc_ns.ids[IPC_SEM_IDS].next_id) {
+			else if (tbl[i].data == &init_ipc_ns.ids[IPC_SEM_IDS].next_id)
 				tbl[i].data = &ns->ids[IPC_SEM_IDS].next_id;
 
-			} else if (tbl[i].data == &init_ipc_ns.ids[IPC_MSG_IDS].next_id) {
+			else if (tbl[i].data == &init_ipc_ns.ids[IPC_MSG_IDS].next_id)
 				tbl[i].data = &ns->ids[IPC_MSG_IDS].next_id;
 
-			} else if (tbl[i].data == &init_ipc_ns.ids[IPC_SHM_IDS].next_id) {
+			else if (tbl[i].data == &init_ipc_ns.ids[IPC_SHM_IDS].next_id)
 				tbl[i].data = &ns->ids[IPC_SHM_IDS].next_id;
 #endif
-			} else {
+			else
 				tbl[i].data = NULL;
-			}
 		}
 
 		ns->ipc_sysctls = __register_sysctl_table(&ns->ipc_set, "kernel", tbl);
