@@ -3364,6 +3364,10 @@ bool dc_link_setup_psr(struct dc_link *link,
 	 */
 	psr_context->psr_level.bits.DISABLE_PSR_ENTRY_ABORT = 1;
 
+	/* enable ALPM */
+	psr_context->psr_level.bits.DISABLE_ALPM = 0;
+	psr_context->psr_level.bits.ALPM_DEFAULT_PD_MODE = 1;
+
 	/* Controls additional delay after remote frame capture before
 	 * continuing power down, default = 0
 	 */
