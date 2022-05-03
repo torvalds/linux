@@ -1607,11 +1607,11 @@ static int st_ism330dlc_i2c_master_allocate_device(struct ism330dlc_data *cdata)
 
 	err = st_ism330dlc_i2c_master_init_sensor(sdata_ext);
 	if (err < 0)
-		goto iio_device_free;
+		return err;
 
 	err = st_ism330dlc_i2c_master_allocate_buffer(cdata);
 	if (err < 0)
-		goto iio_device_free;
+		return err;
 
 	err = st_ism330dlc_i2c_master_allocate_trigger(cdata);
 	if (err < 0)
@@ -1627,9 +1627,6 @@ iio_deallocate_trigger:
 	st_ism330dlc_i2c_master_deallocate_trigger(cdata);
 iio_deallocate_buffer:
 	st_ism330dlc_i2c_master_deallocate_buffer(cdata);
-iio_device_free:
-	iio_device_free(cdata->indio_dev[ST_MASK_ID_EXT0]);
-
 	return err;
 }
 
@@ -1638,7 +1635,6 @@ static void st_ism330dlc_i2c_master_deallocate_device(struct ism330dlc_data *cda
 	iio_device_unregister(cdata->indio_dev[ST_MASK_ID_EXT0]);
 	st_ism330dlc_i2c_master_deallocate_trigger(cdata);
 	st_ism330dlc_i2c_master_deallocate_buffer(cdata);
-	iio_device_free(cdata->indio_dev[ST_MASK_ID_EXT0]);
 }
 
 int st_ism330dlc_i2c_master_probe(struct ism330dlc_data *cdata)
@@ -1668,8 +1664,8 @@ int st_ism330dlc_i2c_master_probe(struct ism330dlc_data *cdata)
 	if (err < 0)
 		return err;
 
-	cdata->indio_dev[ST_MASK_ID_EXT0] = iio_device_alloc(cdata->dev,
-						    sizeof(*sdata_ext));
+	cdata->indio_dev[ST_MASK_ID_EXT0] = devm_iio_device_alloc(cdata->dev,
+							sizeof(*sdata_ext));
 	if (!cdata->indio_dev[ST_MASK_ID_EXT0])
 		return -ENOMEM;
 

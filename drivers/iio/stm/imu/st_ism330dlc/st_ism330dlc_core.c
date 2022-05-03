@@ -2587,11 +2587,11 @@ int st_ism330dlc_common_probe(struct ism330dlc_data *cdata, int irq)
 	}
 
 	for (i = 0; i < ST_INDIO_DEV_NUM; i++) {
-		cdata->indio_dev[i] = iio_device_alloc(cdata->dev,
-						       sizeof(struct ism330dlc_sensor_data));
+		cdata->indio_dev[i] = devm_iio_device_alloc(cdata->dev,
+						sizeof(struct ism330dlc_sensor_data));
 		if (!cdata->indio_dev[i]) {
 			err = -ENOMEM;
-			goto iio_device_free;
+			goto free_fifo_data;
 		}
 
 		sdata = iio_priv(cdata->indio_dev[i]);
@@ -2647,11 +2647,11 @@ int st_ism330dlc_common_probe(struct ism330dlc_data *cdata, int irq)
 
 	err = st_ism330dlc_init_sensor(cdata);
 	if (err < 0)
-		goto iio_device_free;
+		goto free_fifo_data;
 
 	err = st_ism330dlc_allocate_rings(cdata);
 	if (err < 0)
-		goto iio_device_free;
+		goto free_fifo_data;
 
 	if (irq > 0) {
 		err = st_ism330dlc_allocate_triggers(cdata,
@@ -2680,9 +2680,6 @@ iio_device_unregister_and_trigger_deallocate:
 		st_ism330dlc_deallocate_triggers(cdata);
 deallocate_ring:
 	st_ism330dlc_deallocate_rings(cdata);
-iio_device_free:
-	for (i--; i >= 0; i--)
-		iio_device_free(cdata->indio_dev[i]);
 free_fifo_data:
 	kfree(cdata->fifo_data);
 
@@ -2701,9 +2698,6 @@ void st_ism330dlc_common_remove(struct ism330dlc_data *cdata, int irq)
 		st_ism330dlc_deallocate_triggers(cdata);
 
 	st_ism330dlc_deallocate_rings(cdata);
-
-	for (i = 0; i < ST_INDIO_DEV_NUM; i++)
-		iio_device_free(cdata->indio_dev[i]);
 
 	kfree(cdata->fifo_data);
 

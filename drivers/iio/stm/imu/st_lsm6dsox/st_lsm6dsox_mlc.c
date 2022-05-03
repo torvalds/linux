@@ -16,6 +16,7 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/events.h>
 #include <linux/firmware.h>
+#include <linux/version.h>
 
 #include <linux/platform_data/st_sensors_pdata.h>
 
@@ -595,13 +596,17 @@ struct iio_dev *st_lsm6dsox_mlc_alloc_iio_dev(struct st_lsm6dsox_hw *hw,
 	struct st_lsm6dsox_sensor *sensor;
 	struct iio_chan_spec *channels;
 	struct iio_dev *iio_dev;
-        struct device *parent = NULL;
 
 	/* devm management only for ST_LSM6DSOX_ID_MLC */
-	if (id == ST_LSM6DSOX_ID_MLC)
+	if (id == ST_LSM6DSOX_ID_MLC) {
 		iio_dev = devm_iio_device_alloc(hw->dev, sizeof(*sensor));
-	else
-		iio_dev = iio_device_alloc(parent, sizeof(*sensor));
+	} else {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
+		iio_dev = iio_device_alloc(NULL, sizeof(*sensor));
+#else /* LINUX_VERSION_CODE */
+		iio_dev = iio_device_alloc(sizeof(*sensor));
+#endif /* LINUX_VERSION_CODE */
+	}
 
 	if (!iio_dev)
 		return NULL;

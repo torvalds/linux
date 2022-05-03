@@ -1166,14 +1166,10 @@ int ism303dac_common_probe(struct ism303dac_data *cdata, int irq)
 	cdata->power_mode = ISM303DAC_MODE_DEFAULT;
 
 	for (i = 0; i < ISM303DAC_SENSORS_NUMB; i++) {
-		piio_dev =
-			iio_device_alloc(cdata->dev,
-					 sizeof(struct ism303dac_sensor_data *));
-		if (piio_dev == NULL) {
-			err = -ENOMEM;
-
-			goto iio_device_free;
-		}
+		piio_dev = devm_iio_device_alloc(cdata->dev,
+					sizeof(struct ism303dac_sensor_data *));
+		if (!piio_dev)
+			return -ENOMEM;
 
 		cdata->iio_sensors_dev[i] = piio_dev;
 		sdata = iio_priv(piio_dev);
@@ -1194,11 +1190,11 @@ int ism303dac_common_probe(struct ism303dac_data *cdata, int irq)
 
 	err = ism303dac_init_sensors(cdata);
 	if (err < 0)
-		goto iio_device_free;
+		return err;
 
 	err = ism303dac_allocate_rings(cdata);
 	if (err < 0)
-		goto iio_device_free;
+		return err;
 
 	if (irq > 0) {
 		err = ism303dac_allocate_triggers(cdata, ISM303DAC_TRIGGER_OPS);
@@ -1221,11 +1217,6 @@ iio_device_unregister_and_trigger_deallocate:
 
 deallocate_ring:
 	ism303dac_deallocate_rings(cdata);
-
-iio_device_free:
-	for (i--; i >= 0; i--)
-		iio_device_free(cdata->iio_sensors_dev[i]);
-
 	return err;
 }
 EXPORT_SYMBOL(ism303dac_common_probe);
@@ -1241,9 +1232,6 @@ void ism303dac_common_remove(struct ism303dac_data *cdata, int irq)
 		ism303dac_deallocate_triggers(cdata);
 
 	ism303dac_deallocate_rings(cdata);
-
-	for (i = 0; i < ISM303DAC_SENSORS_NUMB; i++)
-		iio_device_free(cdata->iio_sensors_dev[i]);
 }
 EXPORT_SYMBOL(ism303dac_common_remove);
 
