@@ -7,6 +7,9 @@ randstruct-cflags-y	\
 	+= -fplugin=$(objtree)/scripts/gcc-plugins/randomize_layout_plugin.so
 randstruct-cflags-$(CONFIG_RANDSTRUCT_PERFORMANCE)		\
 	+= -fplugin-arg-randomize_layout_plugin-performance-mode
+else
+randstruct-cflags-y	\
+	+= -frandomize-layout-seed-file=$(objtree)/scripts/basic/randstruct.seed
 endif
 
 export RANDSTRUCT_CFLAGS := $(randstruct-cflags-y)

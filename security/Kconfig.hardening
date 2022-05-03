@@ -266,9 +266,12 @@ config ZERO_CALL_USED_REGS
 
 endmenu
 
+config CC_HAS_RANDSTRUCT
+	def_bool $(cc-option,-frandomize-layout-seed-file=/dev/null)
+
 choice
 	prompt "Randomize layout of sensitive kernel structures"
-	default RANDSTRUCT_FULL if COMPILE_TEST && GCC_PLUGINS
+	default RANDSTRUCT_FULL if COMPILE_TEST && (GCC_PLUGINS || CC_HAS_RANDSTRUCT)
 	default RANDSTRUCT_NONE
 	help
 	  If you enable this, the layouts of structures that are entirely
@@ -297,12 +300,19 @@ choice
 
 	config RANDSTRUCT_FULL
 		bool "Fully randomize structure layout"
-		depends on GCC_PLUGINS
+		depends on CC_HAS_RANDSTRUCT || GCC_PLUGINS
 		select MODVERSIONS if MODULES
 		help
 		  Fully randomize the member layout of sensitive
 		  structures as much as possible, which may have both a
 		  memory size and performance impact.
+
+		  One difference between the Clang and GCC plugin
+		  implementations is the handling of bitfields. The GCC
+		  plugin treats them as fully separate variables,
+		  introducing sometimes significant padding. Clang tries
+		  to keep adjacent bitfields together, but with their bit
+		  ordering randomized.
 
 	config RANDSTRUCT_PERFORMANCE
 		bool "Limit randomization of structure layout to cache-lines"
