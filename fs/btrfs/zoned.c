@@ -1835,18 +1835,18 @@ bool btrfs_zone_activate(struct btrfs_block_group *block_group)
 		goto out_unlock;
 	}
 
+	/* No space left */
+	if (block_group->alloc_offset == block_group->zone_capacity) {
+		ret = false;
+		goto out_unlock;
+	}
+
 	for (i = 0; i < map->num_stripes; i++) {
 		device = map->stripes[i].dev;
 		physical = map->stripes[i].physical;
 
 		if (device->zone_info->max_active_zones == 0)
 			continue;
-
-		/* No space left */
-		if (block_group->alloc_offset == block_group->zone_capacity) {
-			ret = false;
-			goto out_unlock;
-		}
 
 		if (!btrfs_dev_set_active_zone(device, physical)) {
 			/* Cannot activate the zone */
