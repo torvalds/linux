@@ -115,13 +115,6 @@ static const struct ath11k_pci_ops ath11k_pci_ops_qcn9074 = {
 	.window_read32 = ath11k_pci_window_read32,
 };
 
-static const struct ath11k_bus_params ath11k_pci_bus_params = {
-	.mhi_support = true,
-	.m3_fw_support = true,
-	.fixed_bdf_addr = false,
-	.fixed_mem_region = false,
-};
-
 static const struct ath11k_msi_config msi_config_one_msi = {
 	.total_vectors = 1,
 	.total_users = 4,
@@ -593,7 +586,7 @@ static int ath11k_pci_power_up(struct ath11k_base *ab)
 		return ret;
 	}
 
-	if (ab->bus_params.static_window_map)
+	if (ab->hw_params.static_window_map)
 		ath11k_pci_select_static_window(ab_pci);
 
 	return 0;
@@ -706,8 +699,8 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	u32 soc_hw_version_major, soc_hw_version_minor, addr;
 	int ret;
 
-	ab = ath11k_core_alloc(&pdev->dev, sizeof(*ab_pci), ATH11K_BUS_PCI,
-			       &ath11k_pci_bus_params);
+	ab = ath11k_core_alloc(&pdev->dev, sizeof(*ab_pci), ATH11K_BUS_PCI);
+
 	if (!ab) {
 		dev_err(&pdev->dev, "failed to allocate ath11k base\n");
 		return -ENOMEM;
@@ -764,7 +757,6 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 		ab->pci.ops = &ath11k_pci_ops_qca6390;
 		break;
 	case QCN9074_DEVICE_ID:
-		ab->bus_params.static_window_map = true;
 		ab->pci.ops = &ath11k_pci_ops_qcn9074;
 		ab->hw_rev = ATH11K_HW_QCN9074_HW10;
 		break;

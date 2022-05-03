@@ -1015,7 +1015,7 @@ static int ath10k_usb_probe(struct usb_interface *interface,
 	}
 
 	netif_napi_add(&ar->napi_dev, &ar->napi, ath10k_usb_napi_poll,
-		       ATH10K_NAPI_BUDGET);
+		       NAPI_POLL_WEIGHT);
 
 	usb_get_dev(dev);
 	vendor_id = le16_to_cpu(dev->descriptor.idVendor);

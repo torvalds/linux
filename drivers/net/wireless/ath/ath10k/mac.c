@@ -4119,11 +4119,10 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 		peer = ath10k_peer_find(ar, vdev_id, peer_addr);
 		spin_unlock_bh(&ar->data_lock);
 
-		if (peer)
+		if (peer) {
 			ath10k_warn(ar, "peer %pM on vdev %d already present\n",
 				    peer_addr, vdev_id);
-
-		if (!peer) {
+		} else {
 			ret = ath10k_peer_create(ar, NULL, NULL, vdev_id,
 						 peer_addr,
 						 WMI_PEER_TYPE_DEFAULT);
@@ -5340,13 +5339,29 @@ err:
 static void ath10k_stop(struct ieee80211_hw *hw)
 {
 	struct ath10k *ar = hw->priv;
+	u32 opt;
 
 	ath10k_drain_tx(ar);
 
 	mutex_lock(&ar->conf_mutex);
 	if (ar->state != ATH10K_STATE_OFF) {
-		if (!ar->hw_rfkill_on)
-			ath10k_halt(ar);
+		if (!ar->hw_rfkill_on) {
+			/* If the current driver state is RESTARTING but not yet
+			 * fully RESTARTED because of incoming suspend event,
+			 * then ath10k_halt() is already called via
+			 * ath10k_core_restart() and should not be called here.
+			 */
+			if (ar->state != ATH10K_STATE_RESTARTING) {
+				ath10k_halt(ar);
+			} else {
+				/* Suspending here, because when in RESTARTING
+				 * state, ath10k_core_stop() skips
+				 * ath10k_wait_for_suspend().
+				 */
+				opt = WMI_PDEV_SUSPEND_AND_DISABLE_INTR;
+				ath10k_wait_for_suspend(ar, opt);
+			}
+		}
 		ar->state = ATH10K_STATE_OFF;
 	}
 	mutex_unlock(&ar->conf_mutex);

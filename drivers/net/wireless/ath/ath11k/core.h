@@ -140,6 +140,7 @@ enum ath11k_hw_rev {
 	ATH11K_HW_QCN9074_HW10,
 	ATH11K_HW_WCN6855_HW20,
 	ATH11K_HW_WCN6855_HW21,
+	ATH11K_HW_WCN6750_HW10,
 };
 
 enum ath11k_firmware_mode {
@@ -169,12 +170,38 @@ struct ath11k_ext_irq_grp {
 	struct net_device napi_ndev;
 };
 
+enum ath11k_smbios_cc_type {
+	/* disable country code setting from SMBIOS */
+	ATH11K_SMBIOS_CC_DISABLE = 0,
+
+	/* set country code by ANSI country name, based on ISO3166-1 alpha2 */
+	ATH11K_SMBIOS_CC_ISO = 1,
+
+	/* worldwide regdomain */
+	ATH11K_SMBIOS_CC_WW = 2,
+};
+
 struct ath11k_smbios_bdf {
 	struct dmi_header hdr;
-	u32 padding;
+
+	u8 features_disabled;
+
+	/* enum ath11k_smbios_cc_type */
+	u8 country_code_flag;
+
+	/* To set specific country, you need to set country code
+	 * flag=ATH11K_SMBIOS_CC_ISO first, then if country is United
+	 * States, then country code value = 0x5553 ("US",'U' = 0x55, 'S'=
+	 * 0x53). To set country to INDONESIA, then country code value =
+	 * 0x4944 ("IN", 'I'=0x49, 'D'=0x44). If country code flag =
+	 * ATH11K_SMBIOS_CC_WW, then you can use worldwide regulatory
+	 * setting.
+	 */
+	u16 cc_code;
+
 	u8 bdf_enabled;
 	u8 bdf_ext[];
-};
+} __packed;
 
 #define HEHANDLE_CAP_PHYINFO_SIZE       3
 #define HECAP_PHYINFO_SIZE              9
@@ -722,14 +749,6 @@ struct ath11k_board_data {
 	size_t len;
 };
 
-struct ath11k_bus_params {
-	bool mhi_support;
-	bool m3_fw_support;
-	bool fixed_bdf_addr;
-	bool fixed_mem_region;
-	bool static_window_map;
-};
-
 struct ath11k_pci_ops {
 	int (*wakeup)(struct ath11k_base *ab);
 	void (*release)(struct ath11k_base *ab);
@@ -861,7 +880,6 @@ struct ath11k_base {
 	int bd_api;
 
 	struct ath11k_hw_params hw_params;
-	struct ath11k_bus_params bus_params;
 
 	const struct firmware *cal_file;
 
@@ -932,6 +950,7 @@ struct ath11k_base {
 		struct {
 			const struct ath11k_msi_config *config;
 			u32 ep_base_data;
+			u32 irqs[32];
 			u32 addr_lo;
 			u32 addr_hi;
 		} msi;
@@ -1109,8 +1128,7 @@ int ath11k_core_pre_init(struct ath11k_base *ab);
 int ath11k_core_init(struct ath11k_base *ath11k);
 void ath11k_core_deinit(struct ath11k_base *ath11k);
 struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
-				      enum ath11k_bus bus,
-				      const struct ath11k_bus_params *bus_params);
+				      enum ath11k_bus bus);
 void ath11k_core_free(struct ath11k_base *ath11k);
 int ath11k_core_fetch_bdf(struct ath11k_base *ath11k,
 			  struct ath11k_board_data *bd);

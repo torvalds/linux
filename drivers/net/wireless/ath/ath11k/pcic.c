@@ -106,6 +106,15 @@ static const struct ath11k_msi_config ath11k_msi_config[] = {
 		},
 		.hw_rev = ATH11K_HW_WCN6855_HW21,
 	},
+	{
+		.total_vectors = 28,
+		.total_users = 2,
+		.users = (struct ath11k_msi_user[]) {
+			{ .name = "CE", .num_vectors = 10, .base_vector = 0 },
+			{ .name = "DP", .num_vectors = 18, .base_vector = 10 },
+		},
+		.hw_rev = ATH11K_HW_WCN6750_HW10,
+	},
 };
 
 int ath11k_pcic_init_msi_config(struct ath11k_base *ab)
@@ -134,16 +143,13 @@ EXPORT_SYMBOL(ath11k_pcic_init_msi_config);
 static inline u32 ath11k_pcic_get_window_start(struct ath11k_base *ab,
 					       u32 offset)
 {
-	u32 window_start;
+	u32 window_start = 0;
 
-	/* If offset lies within DP register range, use 3rd window */
 	if ((offset ^ HAL_SEQ_WCSS_UMAC_OFFSET) < ATH11K_PCI_WINDOW_RANGE_MASK)
-		window_start = 3 * ATH11K_PCI_WINDOW_START;
-	/* If offset lies within CE register range, use 2nd window */
-	else if ((offset ^ HAL_CE_WFSS_CE_REG_BASE) < ATH11K_PCI_WINDOW_RANGE_MASK)
-		window_start = 2 * ATH11K_PCI_WINDOW_START;
-	else
-		window_start = ATH11K_PCI_WINDOW_START;
+		window_start = ab->hw_params.dp_window_idx * ATH11K_PCI_WINDOW_START;
+	else if ((offset ^ HAL_SEQ_WCSS_UMAC_CE0_SRC_REG(ab)) <
+		 ATH11K_PCI_WINDOW_RANGE_MASK)
+		window_start = ab->hw_params.ce_window_idx * ATH11K_PCI_WINDOW_START;
 
 	return window_start;
 }
@@ -162,19 +168,12 @@ void ath11k_pcic_write32(struct ath11k_base *ab, u32 offset, u32 value)
 
 	if (offset < ATH11K_PCI_WINDOW_START) {
 		iowrite32(value, ab->mem  + offset);
-	} else {
-		if (ab->bus_params.static_window_map)
-			window_start = ath11k_pcic_get_window_start(ab, offset);
-		else
-			window_start = ATH11K_PCI_WINDOW_START;
-
-		if (window_start == ATH11K_PCI_WINDOW_START &&
-		    ab->pci.ops->window_write32) {
-			ab->pci.ops->window_write32(ab, offset, value);
-		} else {
-			iowrite32(value, ab->mem + window_start +
-				  (offset & ATH11K_PCI_WINDOW_RANGE_MASK));
-		}
+	} else if (ab->hw_params.static_window_map) {
+		window_start = ath11k_pcic_get_window_start(ab, offset);
+		iowrite32(value, ab->mem + window_start +
+			  (offset & ATH11K_PCI_WINDOW_RANGE_MASK));
+	} else if (ab->pci.ops->window_write32) {
+		ab->pci.ops->window_write32(ab, offset, value);
 	}
 
 	if (test_bit(ATH11K_FLAG_DEVICE_INIT_DONE, &ab->dev_flags) &&
@@ -182,10 +181,12 @@ void ath11k_pcic_write32(struct ath11k_base *ab, u32 offset, u32 value)
 	    !ret)
 		ab->pci.ops->release(ab);
 }
+EXPORT_SYMBOL(ath11k_pcic_write32);
 
 u32 ath11k_pcic_read32(struct ath11k_base *ab, u32 offset)
 {
-	u32 val, window_start;
+	u32 val = 0;
+	u32 window_start;
 	int ret = 0;
 
 	/* for offset beyond BAR + 4K - 32, may
@@ -197,19 +198,12 @@ u32 ath11k_pcic_read32(struct ath11k_base *ab, u32 offset)
 
 	if (offset < ATH11K_PCI_WINDOW_START) {
 		val = ioread32(ab->mem + offset);
-	} else {
-		if (ab->bus_params.static_window_map)
-			window_start = ath11k_pcic_get_window_start(ab, offset);
-		else
-			window_start = ATH11K_PCI_WINDOW_START;
-
-		if (window_start == ATH11K_PCI_WINDOW_START &&
-		    ab->pci.ops->window_read32) {
-			val = ab->pci.ops->window_read32(ab, offset);
-		} else {
-			val = ioread32(ab->mem + window_start +
-				       (offset & ATH11K_PCI_WINDOW_RANGE_MASK));
-		}
+	} else if (ab->hw_params.static_window_map) {
+		window_start = ath11k_pcic_get_window_start(ab, offset);
+		val = ioread32(ab->mem + window_start +
+			       (offset & ATH11K_PCI_WINDOW_RANGE_MASK));
+	} else if (ab->pci.ops->window_read32) {
+		val = ab->pci.ops->window_read32(ab, offset);
 	}
 
 	if (test_bit(ATH11K_FLAG_DEVICE_INIT_DONE, &ab->dev_flags) &&
@@ -219,6 +213,7 @@ u32 ath11k_pcic_read32(struct ath11k_base *ab, u32 offset)
 
 	return val;
 }
+EXPORT_SYMBOL(ath11k_pcic_read32);
 
 void ath11k_pcic_get_msi_address(struct ath11k_base *ab, u32 *msi_addr_lo,
 				 u32 *msi_addr_hi)
@@ -226,6 +221,7 @@ void ath11k_pcic_get_msi_address(struct ath11k_base *ab, u32 *msi_addr_lo,
 	*msi_addr_lo = ab->pci.msi.addr_lo;
 	*msi_addr_hi = ab->pci.msi.addr_hi;
 }
+EXPORT_SYMBOL(ath11k_pcic_get_msi_address);
 
 int ath11k_pcic_get_user_msi_assignment(struct ath11k_base *ab, char *user_name,
 					int *num_vectors, u32 *user_base_data,
@@ -253,6 +249,7 @@ int ath11k_pcic_get_user_msi_assignment(struct ath11k_base *ab, char *user_name,
 
 	return -EINVAL;
 }
+EXPORT_SYMBOL(ath11k_pcic_get_user_msi_assignment);
 
 void ath11k_pcic_get_ce_msi_idx(struct ath11k_base *ab, u32 ce_id, u32 *msi_idx)
 {
@@ -269,6 +266,7 @@ void ath11k_pcic_get_ce_msi_idx(struct ath11k_base *ab, u32 ce_id, u32 *msi_idx)
 	}
 	*msi_idx = msi_data_idx;
 }
+EXPORT_SYMBOL(ath11k_pcic_get_ce_msi_idx);
 
 static void ath11k_pcic_free_ext_irq(struct ath11k_base *ab)
 {
@@ -297,6 +295,7 @@ void ath11k_pcic_free_irq(struct ath11k_base *ab)
 
 	ath11k_pcic_free_ext_irq(ab);
 }
+EXPORT_SYMBOL(ath11k_pcic_free_irq);
 
 static void ath11k_pcic_ce_irq_enable(struct ath11k_base *ab, u16 ce_id)
 {
@@ -447,6 +446,7 @@ void ath11k_pcic_ext_irq_enable(struct ath11k_base *ab)
 		ath11k_pcic_ext_grp_enable(irq_grp);
 	}
 }
+EXPORT_SYMBOL(ath11k_pcic_ext_irq_enable);
 
 static void ath11k_pcic_sync_ext_irqs(struct ath11k_base *ab)
 {
@@ -467,6 +467,7 @@ void ath11k_pcic_ext_irq_disable(struct ath11k_base *ab)
 	__ath11k_pcic_ext_irq_disable(ab);
 	ath11k_pcic_sync_ext_irqs(ab);
 }
+EXPORT_SYMBOL(ath11k_pcic_ext_irq_disable);
 
 static int ath11k_pcic_ext_grp_napi_poll(struct napi_struct *napi, int budget)
 {
@@ -646,6 +647,7 @@ int ath11k_pcic_config_irq(struct ath11k_base *ab)
 
 	return 0;
 }
+EXPORT_SYMBOL(ath11k_pcic_config_irq);
 
 void ath11k_pcic_ce_irqs_enable(struct ath11k_base *ab)
 {
@@ -659,6 +661,7 @@ void ath11k_pcic_ce_irqs_enable(struct ath11k_base *ab)
 		ath11k_pcic_ce_irq_enable(ab, i);
 	}
 }
+EXPORT_SYMBOL(ath11k_pcic_ce_irqs_enable);
 
 static void ath11k_pcic_kill_tasklets(struct ath11k_base *ab)
 {
@@ -680,12 +683,14 @@ void ath11k_pcic_ce_irq_disable_sync(struct ath11k_base *ab)
 	ath11k_pcic_sync_ce_irqs(ab);
 	ath11k_pcic_kill_tasklets(ab);
 }
+EXPORT_SYMBOL(ath11k_pcic_ce_irq_disable_sync);
 
 void ath11k_pcic_stop(struct ath11k_base *ab)
 {
 	ath11k_pcic_ce_irq_disable_sync(ab);
 	ath11k_ce_cleanup_pipes(ab);
 }
+EXPORT_SYMBOL(ath11k_pcic_stop);
 
 int ath11k_pcic_start(struct ath11k_base *ab)
 {
@@ -696,6 +701,7 @@ int ath11k_pcic_start(struct ath11k_base *ab)
 
 	return 0;
 }
+EXPORT_SYMBOL(ath11k_pcic_start);
 
 int ath11k_pcic_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
 				    u8 *ul_pipe, u8 *dl_pipe)
@@ -739,3 +745,4 @@ int ath11k_pcic_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
 
 	return 0;
 }
+EXPORT_SYMBOL(ath11k_pcic_map_service_to_pipe);

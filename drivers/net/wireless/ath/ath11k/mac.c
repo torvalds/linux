@@ -5594,7 +5594,7 @@ static int ath11k_mac_mgmt_tx(struct ath11k *ar, struct sk_buff *skb,
 
 	skb_queue_tail(q, skb);
 	atomic_inc(&ar->num_pending_mgmt_tx);
-	queue_work(ar->ab->workqueue, &ar->wmi_mgmt_tx_work);
+	queue_work(ar->ab->workqueue_aux, &ar->wmi_mgmt_tx_work);
 
 	return 0;
 }
@@ -8147,6 +8147,7 @@ static void ath11k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 	}
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static void ath11k_generate_ns_mc_addr(struct ath11k *ar,
 				       struct ath11k_arp_ns_offload *offload)
 {
@@ -8241,6 +8242,7 @@ generate:
 	/* generate ns multicast address */
 	ath11k_generate_ns_mc_addr(ar, offload);
 }
+#endif
 
 static void ath11k_mac_op_set_rekey_data(struct ieee80211_hw *hw,
 					 struct ieee80211_vif *vif,
@@ -8273,6 +8275,68 @@ static void ath11k_mac_op_set_rekey_data(struct ieee80211_hw *hw,
 			&rekey_data->replay_ctr, sizeof(rekey_data->replay_ctr));
 
 	mutex_unlock(&ar->conf_mutex);
+}
+
+static int ath11k_mac_op_set_bios_sar_specs(struct ieee80211_hw *hw,
+					    const struct cfg80211_sar_specs *sar)
+{
+	struct ath11k *ar = hw->priv;
+	const struct cfg80211_sar_sub_specs *sspec = sar->sub_specs;
+	int ret, index;
+	u8 *sar_tbl;
+	u32 i;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (!test_bit(WMI_TLV_SERVICE_BIOS_SAR_SUPPORT, ar->ab->wmi_ab.svc_map) ||
+	    !ar->ab->hw_params.bios_sar_capa) {
+		ret = -EOPNOTSUPP;
+		goto exit;
+	}
+
+	if (!sar || sar->type != NL80211_SAR_TYPE_POWER ||
+	    sar->num_sub_specs == 0) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	ret = ath11k_wmi_pdev_set_bios_geo_table_param(ar);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to set geo table: %d\n", ret);
+		goto exit;
+	}
+
+	sar_tbl = kzalloc(BIOS_SAR_TABLE_LEN, GFP_KERNEL);
+	if (!sar_tbl) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	for (i = 0; i < sar->num_sub_specs; i++) {
+		if (sspec->freq_range_index >= (BIOS_SAR_TABLE_LEN >> 1)) {
+			ath11k_warn(ar->ab, "Ignore bad frequency index %u, max allowed %u\n",
+				    sspec->freq_range_index, BIOS_SAR_TABLE_LEN >> 1);
+			continue;
+		}
+
+		/* chain0 and chain1 share same power setting */
+		sar_tbl[sspec->freq_range_index] = sspec->power;
+		index = sspec->freq_range_index + (BIOS_SAR_TABLE_LEN >> 1);
+		sar_tbl[index] = sspec->power;
+		ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "sar tbl[%d] = %d\n",
+			   sspec->freq_range_index, sar_tbl[sspec->freq_range_index]);
+		sspec++;
+	}
+
+	ret = ath11k_wmi_pdev_set_bios_sar_table_param(ar, sar_tbl);
+	if (ret)
+		ath11k_warn(ar->ab, "failed to set sar power: %d", ret);
+
+	kfree(sar_tbl);
+exit:
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
 }
 
 static const struct ieee80211_ops ath11k_ops = {
@@ -8326,6 +8390,7 @@ static const struct ieee80211_ops ath11k_ops = {
 	.ipv6_addr_change = ath11k_mac_op_ipv6_changed,
 #endif
 
+	.set_sar_specs			= ath11k_mac_op_set_bios_sar_specs,
 };
 
 static void ath11k_mac_update_ch_list(struct ath11k *ar,
@@ -8751,6 +8816,10 @@ static int __ath11k_mac_register(struct ath11k *ar)
 		ieee80211_hw_set(ar->hw, SUPPORT_FAST_XMIT);
 	}
 
+	if (test_bit(WMI_TLV_SERVICE_BIOS_SAR_SUPPORT, ar->ab->wmi_ab.svc_map) &&
+	    ab->hw_params.bios_sar_capa)
+		ar->hw->wiphy->sar_capa = ab->hw_params.bios_sar_capa;
+
 	ret = ieee80211_register_hw(ar->hw);
 	if (ret) {
 		ath11k_err(ar->ab, "ieee80211 registration failed: %d\n", ret);
@@ -8770,6 +8839,17 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	if (ret) {
 		ath11k_err(ar->ab, "ath11k regd update failed: %d\n", ret);
 		goto err_unregister_hw;
+	}
+
+	if (ab->hw_params.current_cc_support && ab->new_alpha2[0]) {
+		struct wmi_set_current_country_params set_current_param = {};
+
+		memcpy(&set_current_param.alpha2, ab->new_alpha2, 2);
+		memcpy(&ar->alpha2, ab->new_alpha2, 2);
+		ret = ath11k_wmi_send_set_current_country_cmd(ar, &set_current_param);
+		if (ret)
+			ath11k_warn(ar->ab,
+				    "failed set cc code for mac register: %d\n", ret);
 	}
 
 	ret = ath11k_debugfs_register(ar);

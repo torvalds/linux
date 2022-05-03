@@ -1271,7 +1271,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 		int phy;
 
 		if (!rates[i].count || (rates[i].idx < 0))
-			continue;
+			break;
 
 		rix = rates[i].idx;
 		info->rates[i].Tries = rates[i].count;
