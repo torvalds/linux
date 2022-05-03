@@ -196,7 +196,6 @@
 #define SYS_ID_AA64AFR0_EL1		sys_reg(3, 0, 0, 5, 4)
 #define SYS_ID_AA64AFR1_EL1		sys_reg(3, 0, 0, 5, 5)
 
-#define SYS_ID_AA64ISAR0_EL1		sys_reg(3, 0, 0, 6, 0)
 #define SYS_ID_AA64ISAR1_EL1		sys_reg(3, 0, 0, 6, 1)
 #define SYS_ID_AA64ISAR2_EL1		sys_reg(3, 0, 0, 6, 2)
 
@@ -746,25 +745,6 @@
 
 /* Position the attr at the correct index */
 #define MAIR_ATTRIDX(attr, idx)		((attr) << ((idx) * 8))
-
-/* id_aa64isar0 */
-#define ID_AA64ISAR0_EL1_RNDR_SHIFT		60
-#define ID_AA64ISAR0_EL1_TLB_SHIFT		56
-#define ID_AA64ISAR0_EL1_TS_SHIFT		52
-#define ID_AA64ISAR0_EL1_FHM_SHIFT		48
-#define ID_AA64ISAR0_EL1_DP_SHIFT		44
-#define ID_AA64ISAR0_EL1_SM4_SHIFT		40
-#define ID_AA64ISAR0_EL1_SM3_SHIFT		36
-#define ID_AA64ISAR0_EL1_SHA3_SHIFT		32
-#define ID_AA64ISAR0_EL1_RDM_SHIFT		28
-#define ID_AA64ISAR0_EL1_ATOMIC_SHIFT		20
-#define ID_AA64ISAR0_EL1_CRC32_SHIFT		16
-#define ID_AA64ISAR0_EL1_SHA2_SHIFT		12
-#define ID_AA64ISAR0_EL1_SHA1_SHIFT		8
-#define ID_AA64ISAR0_EL1_AES_SHIFT		4
-
-#define ID_AA64ISAR0_EL1_TLB_RANGE_NI		0x0
-#define ID_AA64ISAR0_EL1_TLB_RANGE		0x2
 
 /* id_aa64isar1 */
 #define ID_AA64ISAR1_I8MM_SHIFT		52
