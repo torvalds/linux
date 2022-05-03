@@ -106,7 +106,8 @@ int memcmp_pages(struct page *page1, struct page *page2)
 static inline void __mte_enable_kernel(const char *mode, unsigned long tcf)
 {
 	/* Enable MTE Sync Mode for EL1. */
-	sysreg_clear_set(sctlr_el1, SCTLR_ELx_TCF_MASK, tcf);
+	sysreg_clear_set(sctlr_el1, SCTLR_EL1_TCF_MASK,
+			 SYS_FIELD_PREP(SCTLR_EL1, TCF, tcf));
 	isb();
 
 	pr_info_once("MTE: enabled in %s mode at EL1\n", mode);
@@ -122,12 +123,12 @@ void mte_enable_kernel_sync(void)
 	WARN_ONCE(system_uses_mte_async_or_asymm_mode(),
 			"MTE async mode enabled system wide!");
 
-	__mte_enable_kernel("synchronous", SCTLR_ELx_TCF_SYNC);
+	__mte_enable_kernel("synchronous", SCTLR_EL1_TCF_SYNC);
 }
 
 void mte_enable_kernel_async(void)
 {
-	__mte_enable_kernel("asynchronous", SCTLR_ELx_TCF_ASYNC);
+	__mte_enable_kernel("asynchronous", SCTLR_EL1_TCF_ASYNC);
 
 	/*
 	 * MTE async mode is set system wide by the first PE that
@@ -144,7 +145,7 @@ void mte_enable_kernel_async(void)
 void mte_enable_kernel_asymm(void)
 {
 	if (cpus_have_cap(ARM64_MTE_ASYMM)) {
-		__mte_enable_kernel("asymmetric", SCTLR_ELx_TCF_ASYMM);
+		__mte_enable_kernel("asymmetric", SCTLR_EL1_TCF_ASYMM);
 
 		/*
 		 * MTE asymm mode behaves as async mode for store
