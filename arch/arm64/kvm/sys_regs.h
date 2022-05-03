@@ -47,7 +47,7 @@ struct sys_reg_desc {
 	const char *name;
 
 	enum {
-		AA32_ZEROHIGH,
+		AA32_DIRECT,
 		AA32_LO,
 		AA32_HI,
 	} aarch32_map;
