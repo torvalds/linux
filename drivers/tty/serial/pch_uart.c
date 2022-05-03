@@ -791,7 +791,7 @@ static int pop_tx(struct eg20t_port *priv, int size)
 	struct uart_port *port = &priv->port;
 	struct circ_buf *xmit = &port->state->xmit;
 
-	if (uart_tx_stopped(port) || uart_circ_empty(xmit) || count >= size)
+	if (uart_tx_stopped(port) || uart_circ_empty(xmit))
 		goto pop_tx_end;
 
 	do {
@@ -895,14 +895,16 @@ static unsigned int handle_tx(struct eg20t_port *priv)
 		tx_empty = 0;
 		fifo_size--;
 	}
+
 	size = min(xmit->head - xmit->tail, fifo_size);
 	if (size < 0)
 		size = fifo_size;
-
-	tx_size = pop_tx(priv, size);
-	if (tx_size > 0) {
-		port->icount.tx += tx_size;
-		tx_empty = 0;
+	if (size) {
+		tx_size = pop_tx(priv, size);
+		if (tx_size > 0) {
+			port->icount.tx += tx_size;
+			tx_empty = 0;
+		}
 	}
 
 	priv->tx_empty = tx_empty;
