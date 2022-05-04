@@ -957,6 +957,58 @@ static void __init exynosautov9_cmu_top_init(struct device_node *np)
 CLK_OF_DECLARE(exynosautov9_cmu_top, "samsung,exynosautov9-cmu-top",
 	       exynosautov9_cmu_top_init);
 
+/* ---- CMU_BUSMC ---------------------------------------------------------- */
+
+/* Register Offset definitions for CMU_BUSMC (0x1b200000) */
+#define PLL_CON0_MUX_CLKCMU_BUSMC_BUS_USER				0x0600
+#define CLK_CON_DIV_DIV_CLK_BUSMC_BUSP					0x1800
+#define CLK_CON_GAT_GOUT_BLK_BUSMC_UID_QE_PDMA0_IPCLKPORT_PCLK		0x2078
+#define CLK_CON_GAT_GOUT_BLK_BUSMC_UID_QE_SPDMA_IPCLKPORT_PCLK		0x2080
+
+static const unsigned long busmc_clk_regs[] __initconst = {
+	PLL_CON0_MUX_CLKCMU_BUSMC_BUS_USER,
+	CLK_CON_DIV_DIV_CLK_BUSMC_BUSP,
+	CLK_CON_GAT_GOUT_BLK_BUSMC_UID_QE_PDMA0_IPCLKPORT_PCLK,
+	CLK_CON_GAT_GOUT_BLK_BUSMC_UID_QE_SPDMA_IPCLKPORT_PCLK,
+};
+
+/* List of parent clocks for Muxes in CMU_BUSMC */
+PNAME(mout_busmc_bus_user_p) = { "oscclk", "dout_clkcmu_busmc_bus" };
+
+static const struct samsung_mux_clock busmc_mux_clks[] __initconst = {
+	MUX(CLK_MOUT_BUSMC_BUS_USER, "mout_busmc_bus_user",
+	    mout_busmc_bus_user_p, PLL_CON0_MUX_CLKCMU_BUSMC_BUS_USER, 4, 1),
+};
+
+static const struct samsung_div_clock busmc_div_clks[] __initconst = {
+	DIV(CLK_DOUT_BUSMC_BUSP, "dout_busmc_busp", "mout_busmc_bus_user",
+	    CLK_CON_DIV_DIV_CLK_BUSMC_BUSP, 0, 3),
+};
+
+static const struct samsung_gate_clock busmc_gate_clks[] __initconst = {
+	GATE(CLK_GOUT_BUSMC_PDMA0_PCLK, "gout_busmc_pdma0_pclk",
+	     "dout_busmc_busp",
+	     CLK_CON_GAT_GOUT_BLK_BUSMC_UID_QE_PDMA0_IPCLKPORT_PCLK, 21,
+	     0, 0),
+	GATE(CLK_GOUT_BUSMC_SPDMA_PCLK, "gout_busmc_spdma_pclk",
+	     "dout_busmc_busp",
+	     CLK_CON_GAT_GOUT_BLK_BUSMC_UID_QE_SPDMA_IPCLKPORT_PCLK, 21,
+	     0, 0),
+};
+
+static const struct samsung_cmu_info busmc_cmu_info __initconst = {
+	.mux_clks		= busmc_mux_clks,
+	.nr_mux_clks		= ARRAY_SIZE(busmc_mux_clks),
+	.div_clks		= busmc_div_clks,
+	.nr_div_clks		= ARRAY_SIZE(busmc_div_clks),
+	.gate_clks		= busmc_gate_clks,
+	.nr_gate_clks		= ARRAY_SIZE(busmc_gate_clks),
+	.nr_clk_ids		= BUSMC_NR_CLK,
+	.clk_regs		= busmc_clk_regs,
+	.nr_clk_regs		= ARRAY_SIZE(busmc_clk_regs),
+	.clk_name		= "dout_clkcmu_busmc_bus",
+};
+
 /* ---- CMU_CORE ----------------------------------------------------------- */
 
 /* Register Offset definitions for CMU_CORE (0x1b030000) */
@@ -1075,6 +1127,9 @@ static int __init exynosautov9_cmu_probe(struct platform_device *pdev)
 
 static const struct of_device_id exynosautov9_cmu_of_match[] = {
 	{
+		.compatible = "samsung,exynosautov9-cmu-busmc",
+		.data = &busmc_cmu_info,
+	}, {
 		.compatible = "samsung,exynosautov9-cmu-core",
 		.data = &core_cmu_info,
 	}, {
