@@ -630,8 +630,7 @@ static void kvm_routing_and_irqfd_check(struct kvm_vm *vm,
 
 	for (f = 0, i = intid; i < (uint64_t)intid + num; i++, f++) {
 		fd[f] = eventfd(0, 0);
-		TEST_ASSERT(fd[f] != -1,
-			"eventfd failed, errno: %i\n", errno);
+		TEST_ASSERT(fd[f] != -1, __KVM_SYSCALL_ERROR("eventfd()", fd[f]));
 	}
 
 	for (f = 0, i = intid; i < (uint64_t)intid + num; i++, f++) {
@@ -647,7 +646,7 @@ static void kvm_routing_and_irqfd_check(struct kvm_vm *vm,
 		val = 1;
 		ret = write(fd[f], &val, sizeof(uint64_t));
 		TEST_ASSERT(ret == sizeof(uint64_t),
-			"Write to KVM_IRQFD failed with ret: %d\n", ret);
+			    __KVM_SYSCALL_ERROR("write()", ret));
 	}
 
 	for (f = 0, i = intid; i < (uint64_t)intid + num; i++, f++)

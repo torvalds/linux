@@ -517,17 +517,15 @@ static void vm_vcpu_rm(struct kvm_vm *vm, struct vcpu *vcpu)
 
 	if (vcpu->dirty_gfns) {
 		ret = munmap(vcpu->dirty_gfns, vm->dirty_ring_size);
-		TEST_ASSERT(ret == 0, "munmap of VCPU dirty ring failed, "
-			    "rc: %i errno: %i", ret, errno);
+		TEST_ASSERT(!ret, __KVM_SYSCALL_ERROR("munmap()", ret));
 		vcpu->dirty_gfns = NULL;
 	}
 
 	ret = munmap(vcpu->state, vcpu_mmap_sz());
-	TEST_ASSERT(ret == 0, "munmap of VCPU fd failed, rc: %i "
-		"errno: %i", ret, errno);
+	TEST_ASSERT(!ret, __KVM_SYSCALL_ERROR("munmap()", ret));
+
 	ret = close(vcpu->fd);
-	TEST_ASSERT(ret == 0, "Close of VCPU fd failed, rc: %i "
-		"errno: %i", ret, errno);
+	TEST_ASSERT(!ret,  __KVM_SYSCALL_ERROR("close()", ret));
 
 	list_del(&vcpu->list);
 	free(vcpu);
@@ -542,12 +540,10 @@ void kvm_vm_release(struct kvm_vm *vmp)
 		vm_vcpu_rm(vmp, vcpu);
 
 	ret = close(vmp->fd);
-	TEST_ASSERT(ret == 0, "Close of vm fd failed,\n"
-		"  vmp->fd: %i rc: %i errno: %i", vmp->fd, ret, errno);
+	TEST_ASSERT(!ret,  __KVM_SYSCALL_ERROR("close()", ret));
 
 	ret = close(vmp->kvm_fd);
-	TEST_ASSERT(ret == 0, "Close of /dev/kvm fd failed,\n"
-		"  vmp->kvm_fd: %i rc: %i errno: %i", vmp->kvm_fd, ret, errno);
+	TEST_ASSERT(!ret,  __KVM_SYSCALL_ERROR("close()", ret));
 }
 
 static void __vm_mem_region_delete(struct kvm_vm *vm,
@@ -567,7 +563,7 @@ static void __vm_mem_region_delete(struct kvm_vm *vm,
 
 	sparsebit_free(&region->unused_phy_pages);
 	ret = munmap(region->mmap_start, region->mmap_size);
-	TEST_ASSERT(ret == 0, "munmap failed, rc: %i errno: %i", ret, errno);
+	TEST_ASSERT(!ret, __KVM_SYSCALL_ERROR("munmap()", ret));
 
 	free(region);
 }
@@ -607,14 +603,13 @@ int kvm_memfd_alloc(size_t size, bool hugepages)
 		memfd_flags |= MFD_HUGETLB;
 
 	fd = memfd_create("kvm_selftest", memfd_flags);
-	TEST_ASSERT(fd != -1, "memfd_create() failed, errno: %i (%s)",
-		    errno, strerror(errno));
+	TEST_ASSERT(fd != -1, __KVM_SYSCALL_ERROR("memfd_create()", fd));
 
 	r = ftruncate(fd, size);
-	TEST_ASSERT(!r, "ftruncate() failed, errno: %i (%s)", errno, strerror(errno));
+	TEST_ASSERT(!r, __KVM_SYSCALL_ERROR("ftruncate()", r));
 
 	r = fallocate(fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, 0, size);
-	TEST_ASSERT(!r, "fallocate() failed, errno: %i (%s)", errno, strerror(errno));
+	TEST_ASSERT(!r, __KVM_SYSCALL_ERROR("fallocate()", r));
 
 	return fd;
 }
@@ -880,8 +875,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 				  vm_mem_backing_src_alias(src_type)->flag,
 				  region->fd, 0);
 	TEST_ASSERT(region->mmap_start != MAP_FAILED,
-		    "test_malloc failed, mmap_start: %p errno: %i",
-		    region->mmap_start, errno);
+		    __KVM_SYSCALL_ERROR("mmap()", (int)(unsigned long)MAP_FAILED));
 
 	TEST_ASSERT(!is_backing_src_hugetlb(src_type) ||
 		    region->mmap_start == align_ptr_up(region->mmap_start, backing_src_pagesz),
@@ -929,7 +923,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 					  vm_mem_backing_src_alias(src_type)->flag,
 					  region->fd, 0);
 		TEST_ASSERT(region->mmap_alias != MAP_FAILED,
-			    "mmap of alias failed, errno: %i", errno);
+			    __KVM_SYSCALL_ERROR("mmap()",  (int)(unsigned long)MAP_FAILED));
 
 		/* Align host alias address */
 		region->host_alias = align_ptr_up(region->mmap_alias, alignment);
@@ -1115,8 +1109,8 @@ void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid)
 		vcpu_mmap_sz(), sizeof(*vcpu->state));
 	vcpu->state = (struct kvm_run *) mmap(NULL, vcpu_mmap_sz(),
 		PROT_READ | PROT_WRITE, MAP_SHARED, vcpu->fd, 0);
-	TEST_ASSERT(vcpu->state != MAP_FAILED, "mmap vcpu_state failed, "
-		"vcpu id: %u errno: %i", vcpuid, errno);
+	TEST_ASSERT(vcpu->state != MAP_FAILED,
+		    __KVM_SYSCALL_ERROR("mmap()", (int)(unsigned long)MAP_FAILED));
 
 	/* Add to linked-list of VCPUs. */
 	list_add(&vcpu->list, &vm->vcpus);
