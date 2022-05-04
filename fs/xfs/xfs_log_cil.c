@@ -476,7 +476,8 @@ insert:
 static void
 xlog_cil_insert_items(
 	struct xlog		*log,
-	struct xfs_trans	*tp)
+	struct xfs_trans	*tp,
+	uint32_t		released_space)
 {
 	struct xfs_cil		*cil = log->l_cilp;
 	struct xfs_cil_ctx	*ctx = cil->xc_ctx;
@@ -525,7 +526,9 @@ xlog_cil_insert_items(
 		ASSERT(tp->t_ticket->t_curr_res >= len);
 	}
 	tp->t_ticket->t_curr_res -= len;
+	tp->t_ticket->t_curr_res += released_space;
 	ctx->space_used += len;
+	ctx->space_used -= released_space;
 
 	/*
 	 * If we've overrun the reservation, dump the tx details before we move
@@ -970,11 +973,16 @@ xlog_cil_build_trans_hdr(
  * Pull all the log vectors off the items in the CIL, and remove the items from
  * the CIL. We don't need the CIL lock here because it's only needed on the
  * transaction commit side which is currently locked out by the flush lock.
+ *
+ * If a log item is marked with a whiteout, we do not need to write it to the
+ * journal and so we just move them to the whiteout list for the caller to
+ * dispose of appropriately.
  */
 static void
 xlog_cil_build_lv_chain(
 	struct xfs_cil		*cil,
 	struct xfs_cil_ctx	*ctx,
+	struct list_head	*whiteouts,
 	uint32_t		*num_iovecs,
 	uint32_t		*num_bytes)
 {
@@ -985,6 +993,13 @@ xlog_cil_build_lv_chain(
 
 		item = list_first_entry(&cil->xc_cil,
 					struct xfs_log_item, li_cil);
+
+		if (test_bit(XFS_LI_WHITEOUT, &item->li_flags)) {
+			list_move(&item->li_cil, whiteouts);
+			trace_xfs_cil_whiteout_skip(item);
+			continue;
+		}
+
 		list_del_init(&item->li_cil);
 		if (!ctx->lv_chain)
 			ctx->lv_chain = item->li_lv;
@@ -997,6 +1012,19 @@ xlog_cil_build_lv_chain(
 		/* we don't write ordered log vectors */
 		if (lv->lv_buf_len != XFS_LOG_VEC_ORDERED)
 			*num_bytes += lv->lv_bytes;
+	}
+}
+
+static void
+xlog_cil_cleanup_whiteouts(
+	struct list_head	*whiteouts)
+{
+	while (!list_empty(whiteouts)) {
+		struct xfs_log_item *item = list_first_entry(whiteouts,
+						struct xfs_log_item, li_cil);
+		list_del_init(&item->li_cil);
+		trace_xfs_cil_whiteout_unpin(item);
+		item->li_ops->iop_unpin(item, 1);
 	}
 }
 
@@ -1030,6 +1058,7 @@ xlog_cil_push_work(
 	struct xfs_log_vec	lvhdr = { NULL };
 	xfs_csn_t		push_seq;
 	bool			push_commit_stable;
+	LIST_HEAD		(whiteouts);
 
 	new_ctx = xlog_cil_ctx_alloc();
 	new_ctx->ticket = xlog_cil_ticket_alloc(log);
@@ -1098,7 +1127,7 @@ xlog_cil_push_work(
 	list_add(&ctx->committing, &cil->xc_committing);
 	spin_unlock(&cil->xc_push_lock);
 
-	xlog_cil_build_lv_chain(cil, ctx, &num_iovecs, &num_bytes);
+	xlog_cil_build_lv_chain(cil, ctx, &whiteouts, &num_iovecs, &num_bytes);
 
 	/*
 	 * Switch the contexts so we can drop the context lock and move out
@@ -1201,6 +1230,7 @@ xlog_cil_push_work(
 	/* Not safe to reference ctx now! */
 
 	spin_unlock(&log->l_icloglock);
+	xlog_cil_cleanup_whiteouts(&whiteouts);
 	return;
 
 out_skip:
@@ -1212,6 +1242,7 @@ out_skip:
 out_abort_free_ticket:
 	xfs_log_ticket_ungrant(log, ctx->ticket);
 	ASSERT(xlog_is_shutdown(log));
+	xlog_cil_cleanup_whiteouts(&whiteouts);
 	if (!ctx->commit_iclog) {
 		xlog_cil_committed(ctx);
 		return;
@@ -1361,6 +1392,43 @@ xlog_cil_empty(
 }
 
 /*
+ * If there are intent done items in this transaction and the related intent was
+ * committed in the current (same) CIL checkpoint, we don't need to write either
+ * the intent or intent done item to the journal as the change will be
+ * journalled atomically within this checkpoint. As we cannot remove items from
+ * the CIL here, mark the related intent with a whiteout so that the CIL push
+ * can remove it rather than writing it to the journal. Then remove the intent
+ * done item from the current transaction and release it so it doesn't get put
+ * into the CIL at all.
+ */
+static uint32_t
+xlog_cil_process_intents(
+	struct xfs_cil		*cil,
+	struct xfs_trans	*tp)
+{
+	struct xfs_log_item	*lip, *ilip, *next;
+	uint32_t		len = 0;
+
+	list_for_each_entry_safe(lip, next, &tp->t_items, li_trans) {
+		if (!(lip->li_ops->flags & XFS_ITEM_INTENT_DONE))
+			continue;
+
+		ilip = lip->li_ops->iop_intent(lip);
+		if (!ilip || !xlog_item_in_current_chkpt(cil, ilip))
+			continue;
+		set_bit(XFS_LI_WHITEOUT, &ilip->li_flags);
+		trace_xfs_cil_whiteout_mark(ilip);
+		len += ilip->li_lv->lv_bytes;
+		kmem_free(ilip->li_lv);
+		ilip->li_lv = NULL;
+
+		xfs_trans_del_item(lip);
+		lip->li_ops->iop_release(lip);
+	}
+	return len;
+}
+
+/*
  * Commit a transaction with the given vector to the Committed Item List.
  *
  * To do this, we need to format the item, pin it in memory if required and
@@ -1382,6 +1450,7 @@ xlog_cil_commit(
 {
 	struct xfs_cil		*cil = log->l_cilp;
 	struct xfs_log_item	*lip, *next;
+	uint32_t		released_space = 0;
 
 	/*
 	 * Do all necessary memory allocation before we lock the CIL.
@@ -1393,7 +1462,10 @@ xlog_cil_commit(
 	/* lock out background commit */
 	down_read(&cil->xc_ctx_lock);
 
-	xlog_cil_insert_items(log, tp);
+	if (tp->t_flags & XFS_TRANS_HAS_INTENT_DONE)
+		released_space = xlog_cil_process_intents(cil, tp);
+
+	xlog_cil_insert_items(log, tp, released_space);
 
 	if (regrant && !xlog_is_shutdown(log))
 		xfs_log_ticket_regrant(log, tp->t_ticket);
