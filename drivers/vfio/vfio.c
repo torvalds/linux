@@ -1731,6 +1731,27 @@ bool vfio_file_enforced_coherent(struct file *file)
 }
 EXPORT_SYMBOL_GPL(vfio_file_enforced_coherent);
 
+/**
+ * vfio_file_set_kvm - Link a kvm with VFIO drivers
+ * @file: VFIO group file
+ * @kvm: KVM to link
+ *
+ * The kvm pointer will be forwarded to all the vfio_device's attached to the
+ * VFIO file via the VFIO_GROUP_NOTIFY_SET_KVM notifier.
+ */
+void vfio_file_set_kvm(struct file *file, struct kvm *kvm)
+{
+	struct vfio_group *group = file->private_data;
+
+	if (file->f_op != &vfio_group_fops)
+		return;
+
+	group->kvm = kvm;
+	blocking_notifier_call_chain(&group->notifier,
+				     VFIO_GROUP_NOTIFY_SET_KVM, kvm);
+}
+EXPORT_SYMBOL_GPL(vfio_file_set_kvm);
+
 /*
  * Sub-module support
  */
@@ -1998,14 +2019,6 @@ static int vfio_unregister_iommu_notifier(struct vfio_group *group,
 		ret = -ENOTTY;
 	return ret;
 }
-
-void vfio_group_set_kvm(struct vfio_group *group, struct kvm *kvm)
-{
-	group->kvm = kvm;
-	blocking_notifier_call_chain(&group->notifier,
-				VFIO_GROUP_NOTIFY_SET_KVM, kvm);
-}
-EXPORT_SYMBOL_GPL(vfio_group_set_kvm);
 
 static int vfio_register_group_notifier(struct vfio_group *group,
 					unsigned long *events,

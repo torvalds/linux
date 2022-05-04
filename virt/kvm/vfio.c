@@ -62,17 +62,17 @@ static void kvm_vfio_group_put_external_user(struct vfio_group *vfio_group)
 	symbol_put(vfio_group_put_external_user);
 }
 
-static void kvm_vfio_group_set_kvm(struct vfio_group *group, struct kvm *kvm)
+static void kvm_vfio_file_set_kvm(struct file *file, struct kvm *kvm)
 {
-	void (*fn)(struct vfio_group *, struct kvm *);
+	void (*fn)(struct file *file, struct kvm *kvm);
 
-	fn = symbol_get(vfio_group_set_kvm);
+	fn = symbol_get(vfio_file_set_kvm);
 	if (!fn)
 		return;
 
-	fn(group, kvm);
+	fn(file, kvm);
 
-	symbol_put(vfio_group_set_kvm);
+	symbol_put(vfio_file_set_kvm);
 }
 
 static bool kvm_vfio_file_enforced_coherent(struct file *file)
@@ -195,7 +195,7 @@ static int kvm_vfio_group_add(struct kvm_device *dev, unsigned int fd)
 
 	mutex_unlock(&kv->lock);
 
-	kvm_vfio_group_set_kvm(vfio_group, dev->kvm);
+	kvm_vfio_file_set_kvm(kvg->file, dev->kvm);
 	kvm_vfio_update_coherency(dev);
 
 	return 0;
@@ -231,7 +231,7 @@ static int kvm_vfio_group_del(struct kvm_device *dev, unsigned int fd)
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 		kvm_spapr_tce_release_vfio_group(dev->kvm, kvg);
 #endif
-		kvm_vfio_group_set_kvm(kvg->vfio_group, NULL);
+		kvm_vfio_file_set_kvm(kvg->file, NULL);
 		kvm_vfio_group_put_external_user(kvg->vfio_group);
 		fput(kvg->file);
 		kfree(kvg);
@@ -360,7 +360,7 @@ static void kvm_vfio_destroy(struct kvm_device *dev)
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 		kvm_spapr_tce_release_vfio_group(dev->kvm, kvg);
 #endif
-		kvm_vfio_group_set_kvm(kvg->vfio_group, NULL);
+		kvm_vfio_file_set_kvm(kvg->file, NULL);
 		kvm_vfio_group_put_external_user(kvg->vfio_group);
 		fput(kvg->file);
 		list_del(&kvg->node);
