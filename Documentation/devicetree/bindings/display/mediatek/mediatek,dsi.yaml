@@ -28,6 +28,7 @@ properties:
       - mediatek,mt8167-dsi
       - mediatek,mt8173-dsi
       - mediatek,mt8183-dsi
+      - mediatek,mt8186-dsi
 
   reg:
     maxItems: 1
