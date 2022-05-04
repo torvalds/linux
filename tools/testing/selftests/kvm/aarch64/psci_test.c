@@ -45,10 +45,63 @@ static uint64_t psci_affinity_info(uint64_t target_affinity,
 	return res.a0;
 }
 
-static void guest_main(uint64_t target_cpu)
+static void vcpu_power_off(struct kvm_vm *vm, uint32_t vcpuid)
 {
-	GUEST_ASSERT(!psci_cpu_on(target_cpu, CPU_ON_ENTRY_ADDR, CPU_ON_CONTEXT_ID));
+	struct kvm_mp_state mp_state = {
+		.mp_state = KVM_MP_STATE_STOPPED,
+	};
+
+	vcpu_set_mp_state(vm, vcpuid, &mp_state);
+}
+
+static struct kvm_vm *setup_vm(void *guest_code)
+{
+	struct kvm_vcpu_init init;
+	struct kvm_vm *vm;
+
+	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
+	kvm_vm_elf_load(vm, program_invocation_name);
+	ucall_init(vm, NULL);
+
+	vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &init);
+	init.features[0] |= (1 << KVM_ARM_VCPU_PSCI_0_2);
+
+	aarch64_vcpu_add_default(vm, VCPU_ID_SOURCE, &init, guest_code);
+	aarch64_vcpu_add_default(vm, VCPU_ID_TARGET, &init, guest_code);
+
+	return vm;
+}
+
+static void enter_guest(struct kvm_vm *vm, uint32_t vcpuid)
+{
+	struct ucall uc;
+
+	vcpu_run(vm, vcpuid);
+	if (get_ucall(vm, vcpuid, &uc) == UCALL_ABORT)
+		TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0], __FILE__,
+			  uc.args[1]);
+}
+
+static void assert_vcpu_reset(struct kvm_vm *vm, uint32_t vcpuid)
+{
+	uint64_t obs_pc, obs_x0;
+
+	get_reg(vm, vcpuid, ARM64_CORE_REG(regs.pc), &obs_pc);
+	get_reg(vm, vcpuid, ARM64_CORE_REG(regs.regs[0]), &obs_x0);
+
+	TEST_ASSERT(obs_pc == CPU_ON_ENTRY_ADDR,
+		    "unexpected target cpu pc: %lx (expected: %lx)",
+		    obs_pc, CPU_ON_ENTRY_ADDR);
+	TEST_ASSERT(obs_x0 == CPU_ON_CONTEXT_ID,
+		    "unexpected target context id: %lx (expected: %lx)",
+		    obs_x0, CPU_ON_CONTEXT_ID);
+}
+
+static void guest_test_cpu_on(uint64_t target_cpu)
+{
 	uint64_t target_state;
+
+	GUEST_ASSERT(!psci_cpu_on(target_cpu, CPU_ON_ENTRY_ADDR, CPU_ON_CONTEXT_ID));
 
 	do {
 		target_state = psci_affinity_info(target_cpu, 0);
@@ -60,31 +113,13 @@ static void guest_main(uint64_t target_cpu)
 	GUEST_DONE();
 }
 
-static void vcpu_power_off(struct kvm_vm *vm, uint32_t vcpuid)
+static void host_test_cpu_on(void)
 {
-	struct kvm_mp_state mp_state = {
-		.mp_state = KVM_MP_STATE_STOPPED,
-	};
-
-	vcpu_set_mp_state(vm, vcpuid, &mp_state);
-}
-
-int main(void)
-{
-	uint64_t target_mpidr, obs_pc, obs_x0;
-	struct kvm_vcpu_init init;
+	uint64_t target_mpidr;
 	struct kvm_vm *vm;
 	struct ucall uc;
 
-	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
-	kvm_vm_elf_load(vm, program_invocation_name);
-	ucall_init(vm, NULL);
-
-	vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &init);
-	init.features[0] |= (1 << KVM_ARM_VCPU_PSCI_0_2);
-
-	aarch64_vcpu_add_default(vm, VCPU_ID_SOURCE, &init, guest_main);
-	aarch64_vcpu_add_default(vm, VCPU_ID_TARGET, &init, guest_main);
+	vm = setup_vm(guest_test_cpu_on);
 
 	/*
 	 * make sure the target is already off when executing the test.
@@ -93,29 +128,17 @@ int main(void)
 
 	get_reg(vm, VCPU_ID_TARGET, KVM_ARM64_SYS_REG(SYS_MPIDR_EL1), &target_mpidr);
 	vcpu_args_set(vm, VCPU_ID_SOURCE, 1, target_mpidr & MPIDR_HWID_BITMASK);
-	vcpu_run(vm, VCPU_ID_SOURCE);
+	enter_guest(vm, VCPU_ID_SOURCE);
 
-	switch (get_ucall(vm, VCPU_ID_SOURCE, &uc)) {
-	case UCALL_DONE:
-		break;
-	case UCALL_ABORT:
-		TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0], __FILE__,
-			  uc.args[1]);
-		break;
-	default:
+	if (get_ucall(vm, VCPU_ID_SOURCE, &uc) != UCALL_DONE)
 		TEST_FAIL("Unhandled ucall: %lu", uc.cmd);
-	}
 
-	get_reg(vm, VCPU_ID_TARGET, ARM64_CORE_REG(regs.pc), &obs_pc);
-	get_reg(vm, VCPU_ID_TARGET, ARM64_CORE_REG(regs.regs[0]), &obs_x0);
-
-	TEST_ASSERT(obs_pc == CPU_ON_ENTRY_ADDR,
-		    "unexpected target cpu pc: %lx (expected: %lx)",
-		    obs_pc, CPU_ON_ENTRY_ADDR);
-	TEST_ASSERT(obs_x0 == CPU_ON_CONTEXT_ID,
-		    "unexpected target context id: %lx (expected: %lx)",
-		    obs_x0, CPU_ON_CONTEXT_ID);
-
+	assert_vcpu_reset(vm, VCPU_ID_TARGET);
 	kvm_vm_free(vm);
+}
+
+int main(void)
+{
+	host_test_cpu_on();
 	return 0;
 }
