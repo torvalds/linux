@@ -462,7 +462,7 @@ xlog_recover_inode_commit_pass2(
 	ASSERT(in_f->ilf_size <= 4);
 	ASSERT((in_f->ilf_size == 3) || (fields & XFS_ILOG_AFORK));
 	ASSERT(!(fields & XFS_ILOG_DFORK) ||
-	       (len == in_f->ilf_dsize));
+	       (len == xlog_calc_iovec_len(in_f->ilf_dsize)));
 
 	switch (fields & XFS_ILOG_DFORK) {
 	case XFS_ILOG_DDATA:
@@ -497,7 +497,7 @@ xlog_recover_inode_commit_pass2(
 		}
 		len = item->ri_buf[attr_index].i_len;
 		src = item->ri_buf[attr_index].i_addr;
-		ASSERT(len == in_f->ilf_asize);
+		ASSERT(len == xlog_calc_iovec_len(in_f->ilf_asize));
 
 		switch (in_f->ilf_fields & XFS_ILOG_AFORK) {
 		case XFS_ILOG_ADATA:
