@@ -356,11 +356,6 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	kvm_arm_vcpu_destroy(vcpu);
 }
 
-int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
-{
-	return kvm_timer_is_pending(vcpu);
-}
-
 void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu)
 {
 
@@ -639,6 +634,7 @@ void kvm_vcpu_wfi(struct kvm_vcpu *vcpu)
 	preempt_enable();
 
 	kvm_vcpu_halt(vcpu);
+	vcpu->arch.flags &= ~KVM_ARM64_WFIT;
 	kvm_clear_request(KVM_REQ_UNHALT, vcpu);
 
 	preempt_disable();
