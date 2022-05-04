@@ -4320,7 +4320,7 @@ static ssize_t get_nth(struct __test_metadata *_metadata, const char *path,
 
 	f = fopen(path, "r");
 	ASSERT_NE(f, NULL) {
-		TH_LOG("Coud not open %s: %s", path, strerror(errno));
+		TH_LOG("Could not open %s: %s", path, strerror(errno));
 	}
 
 	for (i = 0; i < position; i++) {
