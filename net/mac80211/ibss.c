@@ -637,7 +637,7 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata, const u8 *bssid,
 
 	/* make sure mandatory rates are always added */
 	sband = local->hw.wiphy->bands[band];
-	sta->sta.supp_rates[band] = supp_rates |
+	sta->sta.deflink.supp_rates[band] = supp_rates |
 			ieee80211_mandatory_rates(sband, scan_width);
 
 	return ieee80211_ibss_finish_sta(sta);
@@ -1005,7 +1005,7 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 		if (sta) {
 			u32 prev_rates;
 
-			prev_rates = sta->sta.supp_rates[band];
+			prev_rates = sta->sta.deflink.supp_rates[band];
 			/* make sure mandatory rates are always added */
 			scan_width = NL80211_BSS_CHAN_WIDTH_20;
 			if (rx_status->bw == RATE_INFO_BW_5)
@@ -1013,13 +1013,13 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 			else if (rx_status->bw == RATE_INFO_BW_10)
 				scan_width = NL80211_BSS_CHAN_WIDTH_10;
 
-			sta->sta.supp_rates[band] = supp_rates |
+			sta->sta.deflink.supp_rates[band] = supp_rates |
 				ieee80211_mandatory_rates(sband, scan_width);
-			if (sta->sta.supp_rates[band] != prev_rates) {
+			if (sta->sta.deflink.supp_rates[band] != prev_rates) {
 				ibss_dbg(sdata,
 					 "updated supp_rates set for %pM based on beacon/probe_resp (0x%x -> 0x%x)\n",
 					 sta->sta.addr, prev_rates,
-					 sta->sta.supp_rates[band]);
+					 sta->sta.deflink.supp_rates[band]);
 				rates_updated = true;
 			}
 		} else {
@@ -1043,7 +1043,7 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 		/* we both use HT */
 		struct ieee80211_ht_cap htcap_ie;
 		struct cfg80211_chan_def chandef;
-		enum ieee80211_sta_rx_bandwidth bw = sta->sta.bandwidth;
+		enum ieee80211_sta_rx_bandwidth bw = sta->sta.deflink.bandwidth;
 
 		cfg80211_chandef_create(&chandef, channel, NL80211_CHAN_NO_HT);
 		ieee80211_chandef_ht_oper(elems->ht_operation, &chandef);
@@ -1058,7 +1058,7 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 		    sdata->u.ibss.chandef.width != NL80211_CHAN_WIDTH_40) {
 			/* we both use VHT */
 			struct ieee80211_vht_cap cap_ie;
-			struct ieee80211_sta_vht_cap cap = sta->sta.vht_cap;
+			struct ieee80211_sta_vht_cap cap = sta->sta.deflink.vht_cap;
 			u32 vht_cap_info =
 				le32_to_cpu(elems->vht_cap_elem->vht_cap_info);
 
@@ -1069,11 +1069,11 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 			memcpy(&cap_ie, elems->vht_cap_elem, sizeof(cap_ie));
 			ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
 							    &cap_ie, sta);
-			if (memcmp(&cap, &sta->sta.vht_cap, sizeof(cap)))
+			if (memcmp(&cap, &sta->sta.deflink.vht_cap, sizeof(cap)))
 				rates_updated |= true;
 		}
 
-		if (bw != sta->sta.bandwidth)
+		if (bw != sta->sta.deflink.bandwidth)
 			rates_updated |= true;
 
 		if (!cfg80211_chandef_compatible(&sdata->u.ibss.chandef,
@@ -1083,12 +1083,12 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 
 	if (sta && rates_updated) {
 		u32 changed = IEEE80211_RC_SUPP_RATES_CHANGED;
-		u8 rx_nss = sta->sta.rx_nss;
+		u8 rx_nss = sta->sta.deflink.rx_nss;
 
 		/* Force rx_nss recalculation */
-		sta->sta.rx_nss = 0;
+		sta->sta.deflink.rx_nss = 0;
 		rate_control_rate_init(sta);
-		if (sta->sta.rx_nss != rx_nss)
+		if (sta->sta.deflink.rx_nss != rx_nss)
 			changed |= IEEE80211_RC_NSS_CHANGED;
 
 		drv_sta_rc_update(local, sdata, &sta->sta, changed);
@@ -1235,7 +1235,7 @@ void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 
 	/* make sure mandatory rates are always added */
 	sband = local->hw.wiphy->bands[band];
-	sta->sta.supp_rates[band] = supp_rates |
+	sta->sta.deflink.supp_rates[band] = supp_rates |
 			ieee80211_mandatory_rates(sband, scan_width);
 
 	spin_lock(&ifibss->incomplete_lock);

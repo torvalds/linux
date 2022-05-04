@@ -1160,7 +1160,7 @@ static int ar5523_get_wlan_mode(struct ar5523 *ar,
 		ar5523_info(ar, "STA not found!\n");
 		return WLAN_MODE_11b;
 	}
-	sta_rate_set = sta->supp_rates[ar->hw->conf.chandef.chan->band];
+	sta_rate_set = sta->deflink.supp_rates[ar->hw->conf.chandef.chan->band];
 
 	for (bit = 0; bit < band->n_bitrates; bit++) {
 		if (sta_rate_set & 1) {
@@ -1198,7 +1198,7 @@ static void ar5523_create_rateset(struct ar5523 *ar,
 		ar5523_info(ar, "STA not found. Cannot set rates\n");
 		sta_rate_set = bss_conf->basic_rates;
 	} else
-		sta_rate_set = sta->supp_rates[ar->hw->conf.chandef.chan->band];
+		sta_rate_set = sta->deflink.supp_rates[ar->hw->conf.chandef.chan->band];
 
 	ar5523_dbg(ar, "sta rate_set = %08x\n", sta_rate_set);
 

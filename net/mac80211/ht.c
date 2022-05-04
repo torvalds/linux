@@ -243,9 +243,9 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 		sta->sta.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_3839;
 
  apply:
-	changed = memcmp(&sta->sta.ht_cap, &ht_cap, sizeof(ht_cap));
+	changed = memcmp(&sta->sta.deflink.ht_cap, &ht_cap, sizeof(ht_cap));
 
-	memcpy(&sta->sta.ht_cap, &ht_cap, sizeof(ht_cap));
+	memcpy(&sta->sta.deflink.ht_cap, &ht_cap, sizeof(ht_cap));
 
 	switch (sdata->vif.bss_conf.chandef.width) {
 	default:
@@ -264,9 +264,9 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
-	sta->sta.bandwidth = bw;
+	sta->sta.deflink.bandwidth = bw;
 
-	sta->cur_max_bandwidth =
+	sta->deflink.cur_max_bandwidth =
 		ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
 				IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
 

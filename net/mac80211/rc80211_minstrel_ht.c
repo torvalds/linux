@@ -362,6 +362,9 @@ minstrel_ht_get_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 
 	group = MINSTREL_CCK_GROUP;
 	for (idx = 0; idx < ARRAY_SIZE(mp->cck_rates); idx++) {
+		if (!(mi->supported[group] & BIT(idx)))
+			continue;
+
 		if (rate->idx != mp->cck_rates[idx])
 			continue;
 
@@ -603,7 +606,7 @@ minstrel_ht_prob_rate_reduce_streams(struct minstrel_ht_sta *mi)
 	int tmp_max_streams, group, tmp_idx, tmp_prob;
 	int tmp_tp = 0;
 
-	if (!mi->sta->ht_cap.ht_supported)
+	if (!mi->sta->deflink.ht_cap.ht_supported)
 		return;
 
 	group = MI_RATE_GROUP(mi->max_tp_rate[0]);
@@ -993,7 +996,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	u16 tmp_mcs_tp_rate[MAX_THR_RATES], tmp_group_tp_rate[MAX_THR_RATES];
 	u16 tmp_legacy_tp_rate[MAX_THR_RATES], tmp_max_prob_rate;
 	u16 index;
-	bool ht_supported = mi->sta->ht_cap.ht_supported;
+	bool ht_supported = mi->sta->deflink.ht_cap.ht_supported;
 
 	if (mi->ampdu_packets > 0) {
 		if (!ieee80211_hw_check(mp->hw, TX_STATUS_NO_AMPDU_LEN))
@@ -1416,7 +1419,7 @@ minstrel_ht_get_max_amsdu_len(struct minstrel_ht_sta *mi)
 	 * the limit here to avoid the complexity of having to de-aggregate
 	 * packets in the queue.
 	 */
-	if (!mi->sta->vht_cap.vht_supported)
+	if (!mi->sta->deflink.vht_cap.vht_supported)
 		return IEEE80211_MAX_MPDU_LEN_HT_BA;
 
 	/* unlimited */
@@ -1533,7 +1536,7 @@ minstrel_ht_update_cck(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	if (sband->band != NL80211_BAND_2GHZ)
 		return;
 
-	if (sta->ht_cap.ht_supported &&
+	if (sta->deflink.ht_cap.ht_supported &&
 	    !ieee80211_hw_check(mp->hw, SUPPORTS_HT_CCK_RATES))
 		return;
 
@@ -1556,7 +1559,7 @@ minstrel_ht_update_ofdm(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	const u8 *rates;
 	int i;
 
-	if (sta->ht_cap.ht_supported)
+	if (sta->deflink.ht_cap.ht_supported)
 		return;
 
 	rates = mp->ofdm_rates[sband->band];
@@ -1576,9 +1579,9 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 {
 	struct minstrel_priv *mp = priv;
 	struct minstrel_ht_sta *mi = priv_sta;
-	struct ieee80211_mcs_info *mcs = &sta->ht_cap.mcs;
-	u16 ht_cap = sta->ht_cap.cap;
-	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
+	struct ieee80211_mcs_info *mcs = &sta->deflink.ht_cap.mcs;
+	u16 ht_cap = sta->deflink.ht_cap.cap;
+	struct ieee80211_sta_vht_cap *vht_cap = &sta->deflink.vht_cap;
 	const struct ieee80211_rate *ctl_rate;
 	bool ldpc, erp;
 	int use_vht;
@@ -1650,7 +1653,7 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 		}
 
 		if (gflags & IEEE80211_TX_RC_40_MHZ_WIDTH &&
-		    sta->bandwidth < IEEE80211_STA_RX_BW_40)
+		    sta->deflink.bandwidth < IEEE80211_STA_RX_BW_40)
 			continue;
 
 		nss = minstrel_mcs_groups[i].streams;
@@ -1677,7 +1680,7 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 			continue;
 
 		if (gflags & IEEE80211_TX_RC_80_MHZ_WIDTH) {
-			if (sta->bandwidth < IEEE80211_STA_RX_BW_80 ||
+			if (sta->deflink.bandwidth < IEEE80211_STA_RX_BW_80 ||
 			    ((gflags & IEEE80211_TX_RC_SHORT_GI) &&
 			     !(vht_cap->cap & IEEE80211_VHT_CAP_SHORT_GI_80))) {
 				continue;

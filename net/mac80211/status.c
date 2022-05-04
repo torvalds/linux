@@ -72,7 +72,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	info->flags |= IEEE80211_TX_INTFL_RETRANSMISSION;
 	info->flags &= ~IEEE80211_TX_TEMPORARY_FLAGS;
 
-	sta->status_stats.filtered++;
+	sta->deflink.status_stats.filtered++;
 
 	/*
 	 * Clear more-data bit on filtered frames, it might be set
@@ -776,7 +776,7 @@ static void ieee80211_lost_packet(struct sta_info *sta,
 	    !(info->flags & IEEE80211_TX_STAT_AMPDU))
 		return;
 
-	sta->status_stats.lost_packets++;
+	sta->deflink.status_stats.lost_packets++;
 	if (sta->sta.tdls) {
 		pkt_time = STA_LOST_TDLS_PKT_TIME;
 		pkt_thr = STA_LOST_PKT_THRESHOLD;
@@ -789,13 +789,14 @@ static void ieee80211_lost_packet(struct sta_info *sta,
 	 * mechanism.
 	 * For non-TDLS, use STA_LOST_PKT_THRESHOLD and STA_LOST_PKT_TIME
 	 */
-	if (sta->status_stats.lost_packets < pkt_thr ||
-	    !time_after(jiffies, sta->status_stats.last_pkt_time + pkt_time))
+	if (sta->deflink.status_stats.lost_packets < pkt_thr ||
+	    !time_after(jiffies, sta->deflink.status_stats.last_pkt_time + pkt_time))
 		return;
 
 	cfg80211_cqm_pktloss_notify(sta->sdata->dev, sta->sta.addr,
-				    sta->status_stats.lost_packets, GFP_ATOMIC);
-	sta->status_stats.lost_packets = 0;
+				    sta->deflink.status_stats.lost_packets,
+				    GFP_ATOMIC);
+	sta->deflink.status_stats.lost_packets = 0;
 }
 
 static int ieee80211_tx_get_rates(struct ieee80211_hw *hw,
@@ -930,7 +931,7 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 		if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL) &&
 		    (ieee80211_is_data(hdr->frame_control)) &&
 		    (rates_idx != -1))
-			sta->tx_stats.last_rate =
+			sta->deflink.tx_stats.last_rate =
 				info->status.rates[rates_idx];
 
 		if ((info->flags & IEEE80211_TX_STAT_AMPDU_NO_BACK) &&
@@ -976,9 +977,9 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 			return;
 		} else if (ieee80211_is_data_present(fc)) {
 			if (!acked && !noack_success)
-				sta->status_stats.msdu_failed[tid]++;
+				sta->deflink.status_stats.msdu_failed[tid]++;
 
-			sta->status_stats.msdu_retries[tid] +=
+			sta->deflink.status_stats.msdu_retries[tid] +=
 				retry_count;
 		}
 
@@ -1111,7 +1112,7 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 		sta = container_of(pubsta, struct sta_info, sta);
 
 		if (status->rate)
-			sta->tx_stats.last_rate_info = *status->rate;
+			sta->deflink.tx_stats.last_rate_info = *status->rate;
 	}
 
 	if (skb && (tx_time_est =
@@ -1142,8 +1143,8 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 		struct ieee80211_sub_if_data *sdata = sta->sdata;
 
 		if (!acked && !noack_success)
-			sta->status_stats.retry_failed++;
-		sta->status_stats.retry_count += retry_count;
+			sta->deflink.status_stats.retry_failed++;
+		sta->deflink.status_stats.retry_count += retry_count;
 
 		if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
 			if (sdata->vif.type == NL80211_IFTYPE_STATION &&
@@ -1152,13 +1153,13 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 							acked, info->status.tx_time);
 
 			if (acked) {
-				sta->status_stats.last_ack = jiffies;
+				sta->deflink.status_stats.last_ack = jiffies;
 
-				if (sta->status_stats.lost_packets)
-					sta->status_stats.lost_packets = 0;
+				if (sta->deflink.status_stats.lost_packets)
+					sta->deflink.status_stats.lost_packets = 0;
 
 				/* Track when last packet was ACKed */
-				sta->status_stats.last_pkt_time = jiffies;
+				sta->deflink.status_stats.last_pkt_time = jiffies;
 
 				/* Reset connection monitor */
 				if (sdata->vif.type == NL80211_IFTYPE_STATION &&
@@ -1166,10 +1167,10 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 					sdata->u.mgd.probe_send_count = 0;
 
 				if (ack_signal_valid) {
-					sta->status_stats.last_ack_signal =
+					sta->deflink.status_stats.last_ack_signal =
 							 (s8)info->status.ack_signal;
-					sta->status_stats.ack_signal_filled = true;
-					ewma_avg_signal_add(&sta->status_stats.avg_ack_signal,
+					sta->deflink.status_stats.ack_signal_filled = true;
+					ewma_avg_signal_add(&sta->deflink.status_stats.avg_ack_signal,
 							    -info->status.ack_signal);
 				}
 			} else if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
@@ -1235,7 +1236,7 @@ void ieee80211_tx_rate_update(struct ieee80211_hw *hw,
 	rate_control_tx_status(local, sband, &status);
 
 	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL))
-		sta->tx_stats.last_rate = info->status.rates[0];
+		sta->deflink.tx_stats.last_rate = info->status.rates[0];
 }
 EXPORT_SYMBOL(ieee80211_tx_rate_update);
 

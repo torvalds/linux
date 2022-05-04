@@ -14,7 +14,7 @@ ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
 				    const struct ieee80211_eht_cap_elem *eht_cap_ie_elem,
 				    u8 eht_cap_len, struct sta_info *sta)
 {
-	struct ieee80211_sta_eht_cap *eht_cap = &sta->sta.eht_cap;
+	struct ieee80211_sta_eht_cap *eht_cap = &sta->sta.deflink.eht_cap;
 	struct ieee80211_he_cap_elem *he_cap_ie_elem = (void *)he_cap_ie;
 	u8 eht_ppe_size = 0;
 	u8 mcs_nss_size;
@@ -71,6 +71,6 @@ ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
 
 	eht_cap->has_eht = true;
 
-	sta->cur_max_bandwidth = ieee80211_sta_cap_rx_bw(sta);
-	sta->sta.bandwidth = ieee80211_sta_cur_vht_bw(sta);
+	sta->deflink.cur_max_bandwidth = ieee80211_sta_cap_rx_bw(sta);
+	sta->sta.deflink.bandwidth = ieee80211_sta_cur_vht_bw(sta);
 }

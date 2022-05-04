@@ -536,7 +536,7 @@ static void rtw_phy_ra_info_update_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw_dev *rtwdev = data;
 	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
 
-	rtw_update_sta_info(rtwdev, si);
+	rtw_update_sta_info(rtwdev, si, false);
 }
 
 static void rtw_phy_ra_info_update(struct rtw_dev *rtwdev)
