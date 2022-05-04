@@ -223,6 +223,9 @@ static void mgag200_set_startadd(struct mga_device *mdev,
 
 	startadd = offset / 8;
 
+	if (startadd > 0)
+		drm_WARN_ON_ONCE(dev, mdev->flags & MGAG200_FLAG_HW_BUG_NO_STARTADD);
+
 	/*
 	 * Can't store addresses any higher than that, but we also
 	 * don't have more than 16 MiB of memory, so it should be fine.
