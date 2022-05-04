@@ -1665,7 +1665,6 @@ static inline void skb_set_end_offset(struct sk_buff *skb, unsigned int offset)
 }
 #endif
 
-struct ubuf_info *msg_zerocopy_alloc(struct sock *sk, size_t size);
 struct ubuf_info *msg_zerocopy_realloc(struct sock *sk, size_t size,
 				       struct ubuf_info *uarg);
 
