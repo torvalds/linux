@@ -1559,8 +1559,8 @@ int usb_gadget_register_driver_owner(struct usb_gadget_driver *driver,
 		} else {
 			pr_info("%s: couldn't find an available UDC\n",
 					driver->function);
+			ret = 0;
 		}
-		ret = 0;
 	}
 	mutex_unlock(&udc_lock);
 
