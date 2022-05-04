@@ -72,6 +72,8 @@ int btrfs_zone_finish(struct btrfs_block_group *block_group);
 bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices, u64 flags);
 void btrfs_zone_finish_endio(struct btrfs_fs_info *fs_info, u64 logical,
 			     u64 length);
+void btrfs_schedule_zone_finish_bg(struct btrfs_block_group *bg,
+				   struct extent_buffer *eb);
 void btrfs_clear_data_reloc_bg(struct btrfs_block_group *bg);
 void btrfs_free_zone_cache(struct btrfs_fs_info *fs_info);
 bool btrfs_zoned_should_reclaim(struct btrfs_fs_info *fs_info);
@@ -229,6 +231,9 @@ static inline bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices,
 
 static inline void btrfs_zone_finish_endio(struct btrfs_fs_info *fs_info,
 					   u64 logical, u64 length) { }
+
+static inline void btrfs_schedule_zone_finish_bg(struct btrfs_block_group *bg,
+						 struct extent_buffer *eb) { }
 
 static inline void btrfs_clear_data_reloc_bg(struct btrfs_block_group *bg) { }
 
