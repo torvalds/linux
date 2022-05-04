@@ -22,14 +22,6 @@ static struct genl_family mptcp_genl_family;
 
 static int pm_nl_pernet_id;
 
-struct mptcp_pm_addr_entry {
-	struct list_head	list;
-	struct mptcp_addr_info	addr;
-	u8			flags;
-	int			ifindex;
-	struct socket		*lsk;
-};
-
 struct mptcp_pm_add_entry {
 	struct list_head	list;
 	struct mptcp_addr_info	addr;
@@ -66,8 +58,8 @@ pm_nl_get_pernet_from_msk(const struct mptcp_sock *msk)
 	return pm_nl_get_pernet(sock_net((struct sock *)msk));
 }
 
-static bool addresses_equal(const struct mptcp_addr_info *a,
-			    const struct mptcp_addr_info *b, bool use_port)
+bool mptcp_addresses_equal(const struct mptcp_addr_info *a,
+			   const struct mptcp_addr_info *b, bool use_port)
 {
 	bool addr_equals = false;
 
@@ -131,7 +123,7 @@ static bool lookup_subflow_by_saddr(const struct list_head *list,
 		skc = (struct sock_common *)mptcp_subflow_tcp_sock(subflow);
 
 		local_address(skc, &cur);
-		if (addresses_equal(&cur, saddr, saddr->port))
+		if (mptcp_addresses_equal(&cur, saddr, saddr->port))
 			return true;
 	}
 
@@ -149,7 +141,7 @@ static bool lookup_subflow_by_daddr(const struct list_head *list,
 		skc = (struct sock_common *)mptcp_subflow_tcp_sock(subflow);
 
 		remote_address(skc, &cur);
-		if (addresses_equal(&cur, daddr, daddr->port))
+		if (mptcp_addresses_equal(&cur, daddr, daddr->port))
 			return true;
 	}
 
@@ -269,7 +261,7 @@ mptcp_lookup_anno_list_by_saddr(const struct mptcp_sock *msk,
 	lockdep_assert_held(&msk->pm.lock);
 
 	list_for_each_entry(entry, &msk->pm.anno_list, list) {
-		if (addresses_equal(&entry->addr, addr, true))
+		if (mptcp_addresses_equal(&entry->addr, addr, true))
 			return entry;
 	}
 
@@ -286,7 +278,7 @@ bool mptcp_pm_sport_in_anno_list(struct mptcp_sock *msk, const struct sock *sk)
 
 	spin_lock_bh(&msk->pm.lock);
 	list_for_each_entry(entry, &msk->pm.anno_list, list) {
-		if (addresses_equal(&entry->addr, &saddr, true)) {
+		if (mptcp_addresses_equal(&entry->addr, &saddr, true)) {
 			ret = true;
 			goto out;
 		}
@@ -421,7 +413,7 @@ static bool lookup_address_in_vec(const struct mptcp_addr_info *addrs, unsigned 
 	int i;
 
 	for (i = 0; i < nr; i++) {
-		if (addresses_equal(&addrs[i], addr, addr->port))
+		if (mptcp_addresses_equal(&addrs[i], addr, addr->port))
 			return true;
 	}
 
@@ -457,7 +449,7 @@ static unsigned int fill_remote_addresses_vec(struct mptcp_sock *msk, bool fullm
 		mptcp_for_each_subflow(msk, subflow) {
 			ssk = mptcp_subflow_tcp_sock(subflow);
 			remote_address((struct sock_common *)ssk, &addrs[i]);
-			if (deny_id0 && addresses_equal(&addrs[i], &remote, false))
+			if (deny_id0 && mptcp_addresses_equal(&addrs[i], &remote, false))
 				continue;
 
 			if (!lookup_address_in_vec(addrs, i, &addrs[i]) &&
@@ -490,7 +482,7 @@ __lookup_addr(struct pm_nl_pernet *pernet, const struct mptcp_addr_info *info,
 	struct mptcp_pm_addr_entry *entry;
 
 	list_for_each_entry(entry, &pernet->local_addr_list, list) {
-		if ((!lookup_by_id && addresses_equal(&entry->addr, info, true)) ||
+		if ((!lookup_by_id && mptcp_addresses_equal(&entry->addr, info, true)) ||
 		    (lookup_by_id && entry->addr.id == info->id))
 			return entry;
 	}
@@ -505,7 +497,7 @@ lookup_id_by_addr(const struct pm_nl_pernet *pernet, const struct mptcp_addr_inf
 
 	rcu_read_lock();
 	list_for_each_entry(entry, &pernet->local_addr_list, list) {
-		if (addresses_equal(&entry->addr, addr, entry->addr.port)) {
+		if (mptcp_addresses_equal(&entry->addr, addr, entry->addr.port)) {
 			ret = entry->addr.id;
 			break;
 		}
@@ -739,7 +731,7 @@ static int mptcp_pm_nl_mp_prio_send_ack(struct mptcp_sock *msk,
 		struct mptcp_addr_info local;
 
 		local_address((struct sock_common *)ssk, &local);
-		if (!addresses_equal(&local, addr, addr->port))
+		if (!mptcp_addresses_equal(&local, addr, addr->port))
 			continue;
 
 		if (subflow->backup != bkup)
@@ -909,9 +901,9 @@ static int mptcp_pm_nl_append_new_local_addr(struct pm_nl_pernet *pernet,
 	 * singled addresses
 	 */
 	list_for_each_entry(cur, &pernet->local_addr_list, list) {
-		if (addresses_equal(&cur->addr, &entry->addr,
-				    address_use_port(entry) &&
-				    address_use_port(cur))) {
+		if (mptcp_addresses_equal(&cur->addr, &entry->addr,
+					  address_use_port(entry) &&
+					  address_use_port(cur))) {
 			/* allow replacing the exiting endpoint only if such
 			 * endpoint is an implicit one and the user-space
 			 * did not provide an endpoint id
@@ -1038,14 +1030,14 @@ int mptcp_pm_nl_get_local_id(struct mptcp_sock *msk, struct sock_common *skc)
 	 */
 	local_address((struct sock_common *)msk, &msk_local);
 	local_address((struct sock_common *)skc, &skc_local);
-	if (addresses_equal(&msk_local, &skc_local, false))
+	if (mptcp_addresses_equal(&msk_local, &skc_local, false))
 		return 0;
 
 	pernet = pm_nl_get_pernet_from_msk(msk);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(entry, &pernet->local_addr_list, list) {
-		if (addresses_equal(&entry->addr, &skc_local, entry->addr.port)) {
+		if (mptcp_addresses_equal(&entry->addr, &skc_local, entry->addr.port)) {
 			ret = entry->addr.id;
 			break;
 		}
@@ -1416,7 +1408,7 @@ static int mptcp_nl_remove_id_zero_address(struct net *net,
 			goto next;
 
 		local_address((struct sock_common *)msk, &msk_local);
-		if (!addresses_equal(&msk_local, addr, addr->port))
+		if (!mptcp_addresses_equal(&msk_local, addr, addr->port))
 			goto next;
 
 		lock_sock(sk);
