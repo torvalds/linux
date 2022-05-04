@@ -17,14 +17,14 @@ config NET_VENDOR_SOLARFLARE
 if NET_VENDOR_SOLARFLARE
 
 config SFC
-	tristate "Solarflare SFC9000/SFC9100/EF100-family support"
+	tristate "Solarflare SFC9100/EF100-family support"
 	depends on PCI
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select MDIO
 	select CRC32
 	help
 	  This driver supports 10/40-gigabit Ethernet cards based on
-	  the Solarflare SFC9000-family and SFC9100-family controllers.
+	  the Solarflare SFC9100-family controllers.
 
 	  It also supports 10/25/40/100-gigabit Ethernet cards based
 	  on the Solarflare EF100 networking IP in Xilinx FPGAs.
@@ -47,11 +47,11 @@ config SFC_MCDI_MON
 	  This exposes the on-board firmware-managed sensors as a
 	  hardware monitor device.
 config SFC_SRIOV
-	bool "Solarflare SFC9000-family SR-IOV support"
+	bool "Solarflare SFC9000/SFC9100-family SR-IOV support"
 	depends on SFC && PCI_IOV
 	default y
 	help
-	  This enables support for the SFC9000 I/O Virtualization
+	  This enables support for the Single Root I/O Virtualization
 	  features, allowing accelerated network performance in
 	  virtualized environments.
 config SFC_MCDI_LOGGING
