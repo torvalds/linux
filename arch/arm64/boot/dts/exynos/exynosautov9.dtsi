@@ -158,17 +158,6 @@
 		};
 
 		/*
-		 * Keep the stub clock for serial driver, until proper clock
-		 * driver is implemented.
-		 */
-		uart_clock: uart-clock {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <133250000>;
-			clock-output-names = "uart";
-		};
-
-		/*
 		 * Keep the stub clock for ufs driver, until proper clock
 		 * driver is implemented.
 		 */
@@ -354,7 +343,8 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
-			clocks = <&uart_clock>, <&uart_clock>;
+			clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_0>,
+				 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_0>;
 			clock-names = "pclk", "ipclk";
 			status = "disabled";
 
@@ -365,7 +355,8 @@
 				interrupts = <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&uart0_bus_dual>;
-				clocks = <&uart_clock>, <&uart_clock>;
+				clocks = <&cmu_peric0 CLK_GOUT_PERIC0_PCLK_0>,
+					 <&cmu_peric0 CLK_GOUT_PERIC0_IPCLK_0>;
 				clock-names = "uart", "clk_uart_baud0";
 				status = "disabled";
 			};
