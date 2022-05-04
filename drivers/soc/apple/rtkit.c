@@ -641,38 +641,6 @@ int apple_rtkit_send_message(struct apple_rtkit *rtk, u8 ep, u64 message,
 }
 EXPORT_SYMBOL_GPL(apple_rtkit_send_message);
 
-int apple_rtkit_send_message_wait(struct apple_rtkit *rtk, u8 ep, u64 message,
-				  unsigned long timeout, bool atomic)
-{
-	DECLARE_COMPLETION_ONSTACK(completion);
-	int ret;
-	long t;
-
-	ret = apple_rtkit_send_message(rtk, ep, message, &completion, atomic);
-	if (ret < 0)
-		return ret;
-
-	if (atomic) {
-		ret = mbox_flush(rtk->mbox_chan, timeout);
-		if (ret < 0)
-			return ret;
-
-		if (try_wait_for_completion(&completion))
-			return 0;
-
-		return -ETIME;
-	} else {
-		t = wait_for_completion_interruptible_timeout(
-			&completion, msecs_to_jiffies(timeout));
-		if (t < 0)
-			return t;
-		else if (t == 0)
-			return -ETIME;
-		return 0;
-	}
-}
-EXPORT_SYMBOL_GPL(apple_rtkit_send_message_wait);
-
 int apple_rtkit_poll(struct apple_rtkit *rtk)
 {
 	return mbox_client_peek_data(rtk->mbox_chan);
