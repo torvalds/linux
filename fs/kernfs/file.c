@@ -552,18 +552,19 @@ static int kernfs_get_open_node(struct kernfs_node *kn,
 }
 
 /**
- *	kernfs_put_open_node - put kernfs_open_node
+ *	kernfs_unlink_open_file - Unlink @of from @kn.
+ *
  *	@kn: target kernfs_node
  *	@of: associated kernfs_open_file
  *
- *	Put @kn->attr.open and unlink @of from the files list.  If
- *	list of associated open files becomes empty, disassociate and
- *	free kernfs_open_node.
+ *	Unlink @of from list of @kn's associated open files. If list of
+ *	associated open files becomes empty, disassociate and free
+ *	kernfs_open_node.
  *
  *	LOCKING:
  *	None.
  */
-static void kernfs_put_open_node(struct kernfs_node *kn,
+static void kernfs_unlink_open_file(struct kernfs_node *kn,
 				 struct kernfs_open_file *of)
 {
 	struct kernfs_open_node *on = kn->attr.open;
@@ -703,7 +704,7 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	return 0;
 
 err_put_node:
-	kernfs_put_open_node(kn, of);
+	kernfs_unlink_open_file(kn, of);
 err_seq_release:
 	seq_release(inode, file);
 err_free:
@@ -749,7 +750,7 @@ static int kernfs_fop_release(struct inode *inode, struct file *filp)
 		mutex_unlock(&kernfs_open_file_mutex);
 	}
 
-	kernfs_put_open_node(kn, of);
+	kernfs_unlink_open_file(kn, of);
 	seq_release(inode, filp);
 	kfree(of->prealloc_buf);
 	kfree(of);
@@ -765,8 +766,15 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
 	if (!(kn->flags & (KERNFS_HAS_MMAP | KERNFS_HAS_RELEASE)))
 		return;
 
-	on = kn->attr.open;
-	if (!on)
+	/*
+	 * lockless opportunistic check is safe below because no one is adding to
+	 * ->attr.open at this point of time. This check allows early bail out
+	 * if ->attr.open is already NULL. kernfs_unlink_open_file makes
+	 * ->attr.open NULL only while holding kernfs_open_file_mutex so below
+	 * check under kernfs_open_file_mutex will ensure bailing out if
+	 * ->attr.open became NULL while waiting for the mutex.
+	 */
+	if (!kn->attr.open)
 		return;
 
 	mutex_lock(&kernfs_open_file_mutex);
@@ -774,6 +782,8 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
 		mutex_unlock(&kernfs_open_file_mutex);
 		return;
 	}
+
+	on = kn->attr.open;
 
 	list_for_each_entry(of, &on->files, list) {
 		struct inode *inode = file_inode(of->file);
