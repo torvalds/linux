@@ -778,7 +778,7 @@ static inline bool should_fault_in_pages(struct iov_iter *i,
 	size_t count = iov_iter_count(i);
 	size_t size, offs;
 
-	if (likely(!count))
+	if (!count)
 		return false;
 	if (!iter_is_iovec(i))
 		return false;
@@ -1033,7 +1033,20 @@ retry:
 	ret = gfs2_glock_nq(gh);
 	if (ret)
 		goto out_uninit;
+	if (should_fault_in_pages(from, iocb, &prev_count, &window_size)) {
 retry_under_glock:
+		gfs2_holder_allow_demote(gh);
+		window_size -= fault_in_iov_iter_readable(from, window_size);
+		gfs2_holder_disallow_demote(gh);
+		if (!window_size) {
+			ret = -EFAULT;
+			goto out_unlock;
+		}
+		if (!gfs2_holder_queued(gh))
+			goto retry;
+		from->count = min(from->count, window_size);
+	}
+
 	if (inode == sdp->sd_rindex) {
 		struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
 
@@ -1060,17 +1073,8 @@ retry_under_glock:
 		goto out_unlock;
 
 	from->count = orig_count - written;
-	if (should_fault_in_pages(from, iocb, &prev_count, &window_size)) {
-		gfs2_holder_allow_demote(gh);
-		window_size -= fault_in_iov_iter_readable(from, window_size);
-		gfs2_holder_disallow_demote(gh);
-		if (window_size) {
-			from->count = min(from->count, window_size);
-			if (gfs2_holder_queued(gh))
-				goto retry_under_glock;
-			goto retry;
-		}
-	}
+	if (should_fault_in_pages(from, iocb, &prev_count, &window_size))
+		goto retry_under_glock;
 out_unlock:
 	if (gfs2_holder_queued(gh))
 		gfs2_glock_dq(gh);
