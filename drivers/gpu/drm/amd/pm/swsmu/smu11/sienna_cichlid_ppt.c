@@ -585,6 +585,100 @@ static uint32_t sienna_cichlid_get_throttler_status_locked(struct smu_context *s
 	return throttler_status;
 }
 
+static int sienna_cichlid_get_power_limit(struct smu_context *smu,
+					  uint32_t *current_power_limit,
+					  uint32_t *default_power_limit,
+					  uint32_t *max_power_limit)
+{
+	struct smu_11_0_7_powerplay_table *powerplay_table =
+		(struct smu_11_0_7_powerplay_table *)smu->smu_table.power_play_table;
+	uint32_t power_limit, od_percent;
+	uint16_t *table_member;
+
+	GET_PPTABLE_MEMBER(SocketPowerLimitAc, &table_member);
+
+	if (smu_v11_0_get_current_power_limit(smu, &power_limit)) {
+		power_limit =
+			table_member[PPT_THROTTLER_PPT0];
+	}
+
+	if (current_power_limit)
+		*current_power_limit = power_limit;
+	if (default_power_limit)
+		*default_power_limit = power_limit;
+
+	if (max_power_limit) {
+		if (smu->od_enabled) {
+			od_percent =
+				le32_to_cpu(powerplay_table->overdrive_table.max[
+							SMU_11_0_7_ODSETTING_POWERPERCENTAGE]);
+
+			dev_dbg(smu->adev->dev, "ODSETTING_POWERPERCENTAGE: %d (default: %d)\n",
+					od_percent, power_limit);
+
+			power_limit *= (100 + od_percent);
+			power_limit /= 100;
+		}
+		*max_power_limit = power_limit;
+	}
+
+	return 0;
+}
+
+static void sienna_cichlid_get_smartshift_power_percentage(struct smu_context *smu,
+					uint32_t *apu_percent,
+					uint32_t *dgpu_percent)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	SmuMetrics_V4_t *metrics_v4 =
+		&(((SmuMetricsExternal_t *)(smu_table->metrics_table))->SmuMetrics_V4);
+	uint16_t powerRatio = 0;
+	uint16_t apu_power_limit = 0;
+	uint16_t dgpu_power_limit = 0;
+	uint32_t apu_boost = 0;
+	uint32_t dgpu_boost = 0;
+	uint32_t cur_power_limit;
+
+	if (metrics_v4->ApuSTAPMSmartShiftLimit != 0) {
+		sienna_cichlid_get_power_limit(smu, &cur_power_limit, NULL, NULL);
+		apu_power_limit = metrics_v4->ApuSTAPMLimit;
+		dgpu_power_limit = cur_power_limit;
+		powerRatio = (((apu_power_limit +
+						  dgpu_power_limit) * 100) /
+						  metrics_v4->ApuSTAPMSmartShiftLimit);
+		if (powerRatio > 100) {
+			apu_power_limit = (apu_power_limit * 100) /
+									 powerRatio;
+			dgpu_power_limit = (dgpu_power_limit * 100) /
+									  powerRatio;
+		}
+		if (metrics_v4->AverageApuSocketPower > apu_power_limit &&
+			 apu_power_limit != 0) {
+			apu_boost = ((metrics_v4->AverageApuSocketPower -
+							apu_power_limit) * 100) /
+							apu_power_limit;
+			if (apu_boost > 100)
+				apu_boost = 100;
+		}
+
+		if (metrics_v4->AverageSocketPower > dgpu_power_limit &&
+			 dgpu_power_limit != 0) {
+			dgpu_boost = ((metrics_v4->AverageSocketPower -
+							 dgpu_power_limit) * 100) /
+							 dgpu_power_limit;
+			if (dgpu_boost > 100)
+				dgpu_boost = 100;
+		}
+
+		if (dgpu_boost >= apu_boost)
+			apu_boost = 0;
+		else
+			dgpu_boost = 0;
+	}
+	*apu_percent = apu_boost;
+	*dgpu_percent = dgpu_boost;
+}
+
 static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 					       MetricsMember_t member,
 					       uint32_t *value)
@@ -600,6 +694,8 @@ static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 	bool use_metrics_v3 = false;
 	uint16_t average_gfx_activity;
 	int ret = 0;
+	uint32_t apu_percent = 0;
+	uint32_t dgpu_percent = 0;
 
 	if ((smu->adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 7)) &&
 		(smu->smc_fw_version >= 0x3A4900))
@@ -738,6 +834,15 @@ static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 		/* Only supported in 0x3A5300+, metrics_v3 requires 0x3A4900+ */
 		*value = use_metrics_v3 ? metrics_v3->PublicSerialNumLower32 : 0;
 		break;
+	case METRICS_SS_APU_SHARE:
+		sienna_cichlid_get_smartshift_power_percentage(smu, &apu_percent, &dgpu_percent);
+		*value = apu_percent;
+		break;
+	case METRICS_SS_DGPU_SHARE:
+		sienna_cichlid_get_smartshift_power_percentage(smu, &apu_percent, &dgpu_percent);
+		*value = dgpu_percent;
+		break;
+
 	default:
 		*value = UINT_MAX;
 		break;
@@ -1728,6 +1833,7 @@ static int sienna_cichlid_read_sensor(struct smu_context *smu,
 {
 	int ret = 0;
 	uint16_t *temp;
+	struct amdgpu_device *adev = smu->adev;
 
 	if(!data || !size)
 		return -EINVAL;
@@ -1787,6 +1893,24 @@ static int sienna_cichlid_read_sensor(struct smu_context *smu,
 	case AMDGPU_PP_SENSOR_VDDGFX:
 		ret = smu_v11_0_get_gfx_vdd(smu, (uint32_t *)data);
 		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_SS_APU_SHARE:
+		if (adev->ip_versions[MP1_HWIP][0] != IP_VERSION(11, 0, 7)) {
+			ret = sienna_cichlid_get_smu_metrics_data(smu,
+						METRICS_SS_APU_SHARE, (uint32_t *)data);
+			*size = 4;
+		} else {
+			ret = -EOPNOTSUPP;
+		}
+		break;
+	case AMDGPU_PP_SENSOR_SS_DGPU_SHARE:
+		if (adev->ip_versions[MP1_HWIP][0] != IP_VERSION(11, 0, 7)) {
+			ret = sienna_cichlid_get_smu_metrics_data(smu,
+						METRICS_SS_DGPU_SHARE, (uint32_t *)data);
+			*size = 4;
+		} else {
+			ret = -EOPNOTSUPP;
+		}
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -1905,43 +2029,6 @@ static int sienna_cichlid_display_disable_memory_clock_switch(struct smu_context
 		smu->disable_uclk_switch = disable_memory_clock_switch;
 
 	return ret;
-}
-
-static int sienna_cichlid_get_power_limit(struct smu_context *smu,
-					  uint32_t *current_power_limit,
-					  uint32_t *default_power_limit,
-					  uint32_t *max_power_limit)
-{
-	struct smu_11_0_7_powerplay_table *powerplay_table =
-		(struct smu_11_0_7_powerplay_table *)smu->smu_table.power_play_table;
-	uint32_t power_limit, od_percent;
-	uint16_t *table_member;
-
-	GET_PPTABLE_MEMBER(SocketPowerLimitAc, &table_member);
-
-	if (smu_v11_0_get_current_power_limit(smu, &power_limit)) {
-		power_limit =
-			table_member[PPT_THROTTLER_PPT0];
-	}
-
-	if (current_power_limit)
-		*current_power_limit = power_limit;
-	if (default_power_limit)
-		*default_power_limit = power_limit;
-
-	if (max_power_limit) {
-		if (smu->od_enabled) {
-			od_percent = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_11_0_7_ODSETTING_POWERPERCENTAGE]);
-
-			dev_dbg(smu->adev->dev, "ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_percent, power_limit);
-
-			power_limit *= (100 + od_percent);
-			power_limit /= 100;
-		}
-		*max_power_limit = power_limit;
-	}
-
-	return 0;
 }
 
 static int sienna_cichlid_update_pcie_parameters(struct smu_context *smu,
