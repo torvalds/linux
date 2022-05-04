@@ -2612,11 +2612,15 @@
 			interrupt-names = "hs_phy_irq", "ss_phy_irq";
 
 			clocks = <&gcc GCC_SYS_NOC_USB3_AXI_CLK>,
-				<&gcc GCC_USB30_MASTER_CLK>,
-				<&gcc GCC_AGGRE2_USB3_AXI_CLK>,
-				<&gcc GCC_USB30_MOCK_UTMI_CLK>,
-				<&gcc GCC_USB30_SLEEP_CLK>,
-				<&gcc GCC_USB_PHY_CFG_AHB2PHY_CLK>;
+				 <&gcc GCC_USB30_MASTER_CLK>,
+				 <&gcc GCC_AGGRE2_USB3_AXI_CLK>,
+				 <&gcc GCC_USB30_SLEEP_CLK>,
+				 <&gcc GCC_USB30_MOCK_UTMI_CLK>;
+			clock-names = "cfg_noc",
+				      "core",
+				      "iface",
+				      "sleep",
+				      "mock_utmi";
 
 			assigned-clocks = <&gcc GCC_USB30_MOCK_UTMI_CLK>,
 					  <&gcc GCC_USB30_MASTER_CLK>;

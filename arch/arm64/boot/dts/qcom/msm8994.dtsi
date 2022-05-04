@@ -423,7 +423,10 @@
 				 <&gcc GCC_SYS_NOC_USB3_AXI_CLK>,
 				 <&gcc GCC_USB30_SLEEP_CLK>,
 				 <&gcc GCC_USB30_MOCK_UTMI_CLK>;
-			clock-names = "core", "iface", "sleep", "mock_utmi", "ref", "xo";
+			clock-names = "core",
+				      "iface",
+				      "sleep",
+				      "mock_utmi";
 
 			assigned-clocks = <&gcc GCC_USB30_MOCK_UTMI_CLK>,
 					  <&gcc GCC_USB30_MASTER_CLK>;
