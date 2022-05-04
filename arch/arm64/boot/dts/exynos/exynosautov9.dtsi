@@ -156,16 +156,6 @@
 			#clock-cells = <0>;
 			clock-output-names = "oscclk";
 		};
-
-		/*
-		 * Keep the stub clock for ufs driver, until proper clock
-		 * driver is implemented.
-		 */
-		ufs_core_clock: ufs-core-clock {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <166562500>;
-		};
 	};
 
 	soc: soc@0 {
@@ -382,8 +372,8 @@
 				<0x17dc0000 0x2200>;  /* 3: UFS protector */
 			reg-names = "hci", "vs_hci", "unipro", "ufsp";
 			interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ufs_core_clock>,
-				<&ufs_core_clock>;
+			clocks = <&cmu_fsys2 CLK_GOUT_FSYS2_UFS_EMBD0_ACLK>,
+				 <&cmu_fsys2 CLK_GOUT_FSYS2_UFS_EMBD0_UNIPRO>;
 			clock-names = "core_clk", "sclk_unipro_main";
 			freq-table-hz = <0 0>, <0 0>;
 			pinctrl-names = "default";
