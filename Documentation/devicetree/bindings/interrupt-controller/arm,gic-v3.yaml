@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: ARM Generic Interrupt Controller, version 3
 
 maintainers:
-  - Marc Zyngier <marc.zyngier@arm.com>
+  - Marc Zyngier <maz@kernel.org>
 
 description: |
   AArch64 SMP cores are often associated with a GICv3, providing Private
@@ -78,7 +78,11 @@ properties:
       - GIC Hypervisor interface (GICH)
       - GIC Virtual CPU interface (GICV)
 
-      GICC, GICH and GICV are optional.
+      GICC, GICH and GICV are optional, but must be described if the CPUs
+      support them. Examples of such CPUs are ARM's implementations of the
+      ARMv8.0 architecture such as Cortex-A32, A34, A35, A53, A57, A72 and
+      A73 (this list is not exhaustive).
+
     minItems: 2
     maxItems: 4096   # Should be enough?
 
