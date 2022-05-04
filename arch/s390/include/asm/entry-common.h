@@ -15,12 +15,12 @@
 void do_per_trap(struct pt_regs *regs);
 
 #ifdef CONFIG_DEBUG_ENTRY
-static __always_inline void arch_check_user_regs(struct pt_regs *regs)
+static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs)
 {
 	debug_user_asce(0);
 }
 
-#define arch_check_user_regs arch_check_user_regs
+#define arch_enter_from_user_mode arch_enter_from_user_mode
 #endif /* CONFIG_DEBUG_ENTRY */
 
 static __always_inline void arch_exit_to_user_mode_work(struct pt_regs *regs,

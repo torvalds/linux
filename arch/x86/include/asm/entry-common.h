@@ -10,7 +10,7 @@
 #include <asm/fpu/api.h>
 
 /* Check that the stack and regs on entry from user mode are sane. */
-static __always_inline void arch_check_user_regs(struct pt_regs *regs)
+static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs)
 {
 	if (IS_ENABLED(CONFIG_DEBUG_ENTRY)) {
 		/*
@@ -42,7 +42,7 @@ static __always_inline void arch_check_user_regs(struct pt_regs *regs)
 		WARN_ON_ONCE(regs != task_pt_regs(current));
 	}
 }
-#define arch_check_user_regs arch_check_user_regs
+#define arch_enter_from_user_mode arch_enter_from_user_mode
 
 static inline void arch_exit_to_user_mode_prepare(struct pt_regs *regs,
 						  unsigned long ti_work)
