@@ -1315,6 +1315,12 @@ set_sndbuf:
 		__sock_set_mark(sk, val);
 		break;
 	case SO_RCVMARK:
+		if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_RAW) &&
+		    !ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)) {
+			ret = -EPERM;
+			break;
+		}
+
 		sock_valbool_flag(sk, SOCK_RCVMARK, valbool);
 		break;
 
