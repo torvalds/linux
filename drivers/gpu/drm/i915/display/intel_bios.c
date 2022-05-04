@@ -618,13 +618,14 @@ parse_panel_options(struct drm_i915_private *i915)
 	} else {
 		if (lvds_options->panel_type > 0xf) {
 			drm_dbg_kms(&i915->drm,
-				    "Invalid VBT panel type 0x%x\n",
+				    "Invalid VBT panel type 0x%x, assuming 0\n",
 				    lvds_options->panel_type);
-			return;
+			panel_type = 0;
+		} else {
+			panel_type = lvds_options->panel_type;
+			drm_dbg_kms(&i915->drm, "Panel type: %d (VBT)\n",
+				    panel_type);
 		}
-		panel_type = lvds_options->panel_type;
-		drm_dbg_kms(&i915->drm, "Panel type: %d (VBT)\n",
-			    panel_type);
 	}
 
 	i915->vbt.panel_type = panel_type;
