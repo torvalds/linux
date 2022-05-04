@@ -418,6 +418,7 @@ DECLARE_EVENT_CLASS(xfs_buf_class,
 		__field(unsigned, lockval)
 		__field(unsigned, flags)
 		__field(unsigned long, caller_ip)
+		__field(const void *, buf_ops)
 	),
 	TP_fast_assign(
 		__entry->dev = bp->b_target->bt_dev;
@@ -428,9 +429,10 @@ DECLARE_EVENT_CLASS(xfs_buf_class,
 		__entry->lockval = bp->b_sema.count;
 		__entry->flags = bp->b_flags;
 		__entry->caller_ip = caller_ip;
+		__entry->buf_ops = bp->b_ops;
 	),
 	TP_printk("dev %d:%d daddr 0x%llx bbcount 0x%x hold %d pincount %d "
-		  "lock %d flags %s caller %pS",
+		  "lock %d flags %s bufops %pS caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->bno,
 		  __entry->nblks,
@@ -438,6 +440,7 @@ DECLARE_EVENT_CLASS(xfs_buf_class,
 		  __entry->pincount,
 		  __entry->lockval,
 		  __print_flags(__entry->flags, "|", XFS_BUF_FLAGS),
+		  __entry->buf_ops,
 		  (void *)__entry->caller_ip)
 )
 
