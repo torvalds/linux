@@ -3233,8 +3233,8 @@ static int gfar_probe(struct platform_device *ofdev)
 	for (i = 0; i < priv->num_grps; i++) {
 		netif_napi_add(dev, &priv->gfargrp[i].napi_rx,
 			       gfar_poll_rx_sq, NAPI_POLL_WEIGHT);
-		netif_tx_napi_add(dev, &priv->gfargrp[i].napi_tx,
-				  gfar_poll_tx_sq, 2);
+		netif_napi_add_tx_weight(dev, &priv->gfargrp[i].napi_tx,
+					 gfar_poll_tx_sq, 2);
 	}
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM) {
