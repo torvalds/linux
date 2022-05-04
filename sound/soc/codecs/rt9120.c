@@ -178,6 +178,7 @@ static const struct snd_soc_component_driver rt9120_component_driver = {
 	.num_dapm_widgets = ARRAY_SIZE(rt9120_dapm_widgets),
 	.dapm_routes = rt9120_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(rt9120_dapm_routes),
+	.endianness = 1,
 };
 
 static int rt9120_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
