@@ -2306,7 +2306,7 @@ static int kvm_handle_cp_64(struct kvm_vcpu *vcpu,
 			    size_t nr_global)
 {
 	struct sys_reg_params params;
-	u32 esr = kvm_vcpu_get_esr(vcpu);
+	u64 esr = kvm_vcpu_get_esr(vcpu);
 	int Rt = kvm_vcpu_sys_get_rt(vcpu);
 	int Rt2 = (esr >> 10) & 0x1f;
 
@@ -2353,7 +2353,7 @@ static bool emulate_sys_reg(struct kvm_vcpu *vcpu, struct sys_reg_params *params
  * registers. Abuse that fact so we can rely on the AArch64 handler for accesses
  * from AArch32.
  */
-static bool kvm_esr_cp10_id_to_sys64(u32 esr, struct sys_reg_params *params)
+static bool kvm_esr_cp10_id_to_sys64(u64 esr, struct sys_reg_params *params)
 {
 	u8 reg_id = (esr >> 10) & 0xf;
 	bool valid;
@@ -2404,7 +2404,7 @@ static bool kvm_esr_cp10_id_to_sys64(u32 esr, struct sys_reg_params *params)
 int kvm_handle_cp10_id(struct kvm_vcpu *vcpu)
 {
 	int Rt = kvm_vcpu_sys_get_rt(vcpu);
-	u32 esr = kvm_vcpu_get_esr(vcpu);
+	u64 esr = kvm_vcpu_get_esr(vcpu);
 	struct sys_reg_params params;
 
 	/* UNDEF on any unhandled register access */
