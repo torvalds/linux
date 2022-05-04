@@ -51,7 +51,7 @@ static const struct sunxi_desc_pin suniv_f1c100s_pins[] = {
 		  SUNXI_FUNCTION(0x3, "pwm0"),		/* PWM0 */
 		  SUNXI_FUNCTION(0x4, "i2s"),		/* IN */
 		  SUNXI_FUNCTION(0x5, "uart1"),		/* RX */
-		  SUNXI_FUNCTION(0x6, "spi1")),		/* MOSI */
+		  SUNXI_FUNCTION(0x6, "spi1")),		/* CLK */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(A, 3),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
