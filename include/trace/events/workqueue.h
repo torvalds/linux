@@ -22,7 +22,7 @@ struct pool_workqueue;
  */
 TRACE_EVENT(workqueue_queue_work,
 
-	TP_PROTO(unsigned int req_cpu, struct pool_workqueue *pwq,
+	TP_PROTO(int req_cpu, struct pool_workqueue *pwq,
 		 struct work_struct *work),
 
 	TP_ARGS(req_cpu, pwq, work),
@@ -31,8 +31,8 @@ TRACE_EVENT(workqueue_queue_work,
 		__field( void *,	work	)
 		__field( void *,	function)
 		__string( workqueue,	pwq->wq->name)
-		__field( unsigned int,	req_cpu	)
-		__field( unsigned int,	cpu	)
+		__field( int,	req_cpu	)
+		__field( int,	cpu	)
 	),
 
 	TP_fast_assign(
@@ -43,7 +43,7 @@ TRACE_EVENT(workqueue_queue_work,
 		__entry->cpu		= pwq->pool->cpu;
 	),
 
-	TP_printk("work struct=%p function=%ps workqueue=%s req_cpu=%u cpu=%u",
+	TP_printk("work struct=%p function=%ps workqueue=%s req_cpu=%d cpu=%d",
 		  __entry->work, __entry->function, __get_str(workqueue),
 		  __entry->req_cpu, __entry->cpu)
 );
