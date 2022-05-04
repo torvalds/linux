@@ -18,6 +18,7 @@
 #include <linux/iio/events.h>
 #include <linux/firmware.h>
 #include <linux/version.h>
+#include <linux/slab.h>
 
 #include <linux/platform_data/st_sensors_pdata.h>
 
