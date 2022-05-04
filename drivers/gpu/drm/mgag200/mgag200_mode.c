@@ -1121,6 +1121,8 @@ int mgag200_modeset_init(struct mga_device *mdev)
 		return ret;
 	}
 
+	drm_plane_enable_fb_damage_clips(&pipe->plane);
+
 	/* FIXME: legacy gamma tables; convert to CRTC state */
 	drm_mode_crtc_set_gamma_size(&pipe->crtc, MGAG200_LUT_SIZE);
 
