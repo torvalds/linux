@@ -63,6 +63,7 @@ struct hubp {
 	int opp_id;
 	int mpcc_id;
 	struct dc_cursor_attributes curs_attr;
+	struct dc_cursor_position curs_pos;
 	bool power_gated;
 };
 
