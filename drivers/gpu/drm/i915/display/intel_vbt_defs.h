@@ -735,7 +735,7 @@ struct lvds_lfp_data_ptr {
 } __packed;
 
 struct bdb_lvds_lfp_data_ptrs {
-	u8 lvds_entries; /* followed by one or more lvds_data_ptr structs */
+	u8 lvds_entries;
 	struct lvds_lfp_data_ptr ptr[16];
 	struct lvds_lfp_data_ptr_table panel_name; /* 156-163? */
 } __packed;
@@ -769,6 +769,11 @@ struct lvds_pnp_id {
 	u8 mfg_year;
 } __packed;
 
+/*
+ * For reference only. fp_timing has variable size so
+ * the data must be accessed using the data table pointers.
+ * Do not use this directly!
+ */
 struct lvds_lfp_data_entry {
 	struct lvds_fp_timing fp_timing;
 	struct lvds_dvo_timing dvo_timing;
