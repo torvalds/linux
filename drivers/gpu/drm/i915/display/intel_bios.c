@@ -488,24 +488,15 @@ parse_panel_options(struct drm_i915_private *i915)
 	}
 }
 
-/* Try to find integrated panel timing data */
 static void
-parse_lfp_panel_dtd(struct drm_i915_private *i915)
+parse_lfp_panel_dtd(struct drm_i915_private *i915,
+		    const struct bdb_lvds_lfp_data *lvds_lfp_data,
+		    const struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs)
 {
-	const struct bdb_lvds_lfp_data *lvds_lfp_data;
-	const struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs;
 	const struct lvds_dvo_timing *panel_dvo_timing;
 	const struct lvds_fp_timing *fp_timing;
 	struct drm_display_mode *panel_fixed_mode;
 	int panel_type = i915->vbt.panel_type;
-
-	lvds_lfp_data = find_section(i915, BDB_LVDS_LFP_DATA);
-	if (!lvds_lfp_data)
-		return;
-
-	lvds_lfp_data_ptrs = find_section(i915, BDB_LVDS_LFP_DATA_PTRS);
-	if (!lvds_lfp_data_ptrs)
-		return;
 
 	panel_dvo_timing = get_lvds_dvo_timing(lvds_lfp_data,
 					       lvds_lfp_data_ptrs,
@@ -538,12 +529,41 @@ parse_lfp_panel_dtd(struct drm_i915_private *i915)
 }
 
 static void
+parse_lfp_data(struct drm_i915_private *i915)
+{
+	const struct bdb_lvds_lfp_data *data;
+	const struct bdb_lvds_lfp_data_ptrs *ptrs;
+
+	ptrs = find_section(i915, BDB_LVDS_LFP_DATA_PTRS);
+	if (!ptrs)
+		return;
+
+	data = find_section(i915, BDB_LVDS_LFP_DATA);
+	if (!data)
+		return;
+
+	if (!i915->vbt.lfp_lvds_vbt_mode)
+		parse_lfp_panel_dtd(i915, data, ptrs);
+}
+
+static void
 parse_generic_dtd(struct drm_i915_private *i915)
 {
 	const struct bdb_generic_dtd *generic_dtd;
 	const struct generic_dtd_entry *dtd;
 	struct drm_display_mode *panel_fixed_mode;
 	int num_dtd;
+
+	/*
+	 * Older VBTs provided DTD information for internal displays through
+	 * the "LFP panel tables" block (42).  As of VBT revision 229 the
+	 * DTD information should be provided via a newer "generic DTD"
+	 * block (58).  Just to be safe, we'll try the new generic DTD block
+	 * first on VBT >= 229, but still fall back to trying the old LFP
+	 * block if that fails.
+	 */
+	if (i915->vbt.version < 229)
+		return;
 
 	generic_dtd = find_section(i915, BDB_GENERIC_DTD);
 	if (!generic_dtd)
@@ -613,23 +633,6 @@ parse_generic_dtd(struct drm_i915_private *i915)
 		    DRM_MODE_ARG(panel_fixed_mode));
 
 	i915->vbt.lfp_lvds_vbt_mode = panel_fixed_mode;
-}
-
-static void
-parse_panel_dtd(struct drm_i915_private *i915)
-{
-	/*
-	 * Older VBTs provided provided DTD information for internal displays
-	 * through the "LFP panel DTD" block (42).  As of VBT revision 229,
-	 * that block is now deprecated and DTD information should be provided
-	 * via a newer "generic DTD" block (58).  Just to be safe, we'll
-	 * try the new generic DTD block first on VBT >= 229, but still fall
-	 * back to trying the old LFP block if that fails.
-	 */
-	if (i915->vbt.version >= 229)
-		parse_generic_dtd(i915);
-	if (!i915->vbt.lfp_lvds_vbt_mode)
-		parse_lfp_panel_dtd(i915);
 }
 
 static void
@@ -2708,7 +2711,8 @@ void intel_bios_init(struct drm_i915_private *i915)
 	parse_general_features(i915);
 	parse_general_definitions(i915);
 	parse_panel_options(i915);
-	parse_panel_dtd(i915);
+	parse_generic_dtd(i915);
+	parse_lfp_data(i915);
 	parse_lfp_backlight(i915);
 	parse_sdvo_panel_data(i915);
 	parse_driver_features(i915);
