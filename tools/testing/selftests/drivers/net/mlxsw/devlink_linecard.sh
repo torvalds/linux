@@ -152,7 +152,6 @@ unprovision_test()
 
 LC_16X100G_TYPE="16x100G"
 LC_16X100G_PORT_COUNT=16
-LC_16X100G_DEVICE_COUNT=4
 
 supported_types_check()
 {
@@ -176,42 +175,6 @@ supported_types_check()
 	done
 	[ $lc_16x100_found = true ]
 	check_err $? "16X100G not found between supported types of linecard $lc"
-}
-
-lc_info_check()
-{
-	local lc=$1
-	local fixed_hw_revision
-	local running_ini_version
-
-	fixed_hw_revision=$(devlink lc -v info $DEVLINK_DEV lc $lc -j | \
-			    jq -e -r '.[][][].versions.fixed."hw.revision"')
-	check_err $? "Failed to get linecard $lc fixed.hw.revision"
-	log_info "Linecard $lc fixed.hw.revision: \"$fixed_hw_revision\""
-	running_ini_version=$(devlink lc -v info $DEVLINK_DEV lc $lc -j | \
-			      jq -e -r '.[][][].versions.running."ini.version"')
-	check_err $? "Failed to get linecard $lc running.ini.version"
-	log_info "Linecard $lc running.ini.version: \"$running_ini_version\""
-}
-
-lc_devices_check()
-{
-	local lc=$1
-	local expected_device_count=$2
-	local device_count
-	local device
-
-	device_count=$(devlink lc show $DEVLINK_DEV lc $lc -j | \
-		       jq -e -r ".[][][].devices |length")
-	check_err $? "Failed to get linecard $lc device count"
-	[ $device_count != 0 ]
-	check_err $? "No device found on linecard $lc"
-	[ $device_count == $expected_device_count ]
-	check_err $? "Unexpected device count on linecard $lc (got $expected_device_count, expected $device_count)"
-	for (( device=0; device<device_count; device++ ))
-	do
-		log_info "Linecard $lc device $device"
-	done
 }
 
 ports_check()
@@ -243,8 +206,6 @@ provision_test()
 		unprovision_one $lc
 	fi
 	provision_one $lc $LC_16X100G_TYPE
-	lc_devices_check $lc $LC_16X100G_DEVICE_COUNT
-	lc_info_check $lc
 	ports_check $lc $LC_16X100G_PORT_COUNT
 	log_test "Provision"
 }
@@ -257,26 +218,6 @@ interface_check()
 	ip link set $h2 up
 	ifaces_upped=true
 	setup_wait
-}
-
-lc_devices_info_check()
-{
-	local lc=$1
-	local expected_device_count=$2
-	local device_count
-	local device
-	local running_device_fw
-
-	device_count=$(devlink lc info $DEVLINK_DEV lc $lc -j | \
-		       jq -e -r ".[][][].devices |length")
-	check_err $? "Failed to get linecard $lc device count"
-	for (( device=0; device<device_count; device++ ))
-	do
-		running_device_fw=$(devlink lc -v info $DEVLINK_DEV lc $lc -j | \
-				    jq -e -r ".[][][].devices[$device].versions.running.fw")
-		check_err $? "Failed to get linecard $lc device $device running fw version"
-		log_info "Linecard $lc device $device running.fw: \"$running_device_fw\""
-	done
 }
 
 activation_16x100G_test()
@@ -294,8 +235,6 @@ activation_16x100G_test()
 	state=$(lc_wait_until_state_becomes $lc "active" \
 		$ACTIVATION_TIMEOUT)
 	check_err $? "Failed to get linecard $lc activated (timeout)"
-
-	lc_devices_info_check $lc $LC_16X100G_DEVICE_COUNT
 
 	interface_check
 

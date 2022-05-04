@@ -136,8 +136,6 @@ enum devlink_command {
 	DEVLINK_CMD_LINECARD_NEW,
 	DEVLINK_CMD_LINECARD_DEL,
 
-	DEVLINK_CMD_LINECARD_INFO_GET,		/* can dump */
-
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
 	DEVLINK_CMD_MAX = __DEVLINK_CMD_MAX - 1
@@ -577,9 +575,6 @@ enum devlink_attr {
 	DEVLINK_ATTR_LINECARD_STATE,		/* u8 */
 	DEVLINK_ATTR_LINECARD_TYPE,		/* string */
 	DEVLINK_ATTR_LINECARD_SUPPORTED_TYPES,	/* nested */
-	DEVLINK_ATTR_LINECARD_DEVICE_LIST,	/* nested */
-	DEVLINK_ATTR_LINECARD_DEVICE,		/* nested */
-	DEVLINK_ATTR_LINECARD_DEVICE_INDEX,	/* u32 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 

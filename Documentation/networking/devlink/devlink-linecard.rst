@@ -14,7 +14,6 @@ system. Following operations are provided:
   * Get a list of supported line card types.
   * Provision of a slot with specific line card type.
   * Get and monitor of line card state and its change.
-  * Get information about line card versions and devices.
 
 Line card according to the type may contain one or more gearboxes
 to mux the lanes with certain speed to multiple ports with lanes
@@ -121,6 +120,3 @@ Example usage
 
     # Set slot 8 to be unprovisioned:
     $ devlink lc set pci/0000:01:00.0 lc 8 notype
-
-    # Set info for slot 8:
-    $ devlink lc info pci/0000:01:00.0 lc 8
