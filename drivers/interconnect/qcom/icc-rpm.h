@@ -34,7 +34,7 @@ struct qcom_icc_provider {
 	enum qcom_icc_type type;
 	struct regmap *regmap;
 	unsigned int qos_offset;
-	u64 bus_clk_rate;
+	u64 *bus_clk_rate;
 	struct clk_bulk_data bus_clks[];
 };
 
