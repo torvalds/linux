@@ -143,11 +143,10 @@ static struct rxe_mcg *__rxe_lookup_mcg(struct rxe_dev *rxe,
 struct rxe_mcg *rxe_lookup_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
 {
 	struct rxe_mcg *mcg;
-	unsigned long flags;
 
-	spin_lock_irqsave(&rxe->mcg_lock, flags);
+	spin_lock_bh(&rxe->mcg_lock);
 	mcg = __rxe_lookup_mcg(rxe, mgid);
-	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+	spin_unlock_bh(&rxe->mcg_lock);
 
 	return mcg;
 }
@@ -189,7 +188,6 @@ static void __rxe_init_mcg(struct rxe_dev *rxe, union ib_gid *mgid,
 static struct rxe_mcg *rxe_get_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
 {
 	struct rxe_mcg *mcg, *tmp;
-	unsigned long flags;
 	int err;
 
 	if (rxe->attr.max_mcast_grp == 0)
@@ -211,18 +209,18 @@ static struct rxe_mcg *rxe_get_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
 	if (!mcg)
 		return ERR_PTR(-ENOMEM);
 
-	spin_lock_irqsave(&rxe->mcg_lock, flags);
+	spin_lock_bh(&rxe->mcg_lock);
 	/* re-check to see if someone else just added it */
 	tmp = __rxe_lookup_mcg(rxe, mgid);
 	if (tmp) {
-		spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+		spin_unlock_bh(&rxe->mcg_lock);
 		atomic_dec(&rxe->mcg_num);
 		kfree(mcg);
 		return tmp;
 	}
 
 	__rxe_init_mcg(rxe, mgid, mcg);
-	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+	spin_unlock_bh(&rxe->mcg_lock);
 
 	/* add mcast address outside of lock */
 	err = rxe_mcast_add(rxe, mgid);
@@ -272,14 +270,12 @@ static void __rxe_destroy_mcg(struct rxe_mcg *mcg)
  */
 static void rxe_destroy_mcg(struct rxe_mcg *mcg)
 {
-	unsigned long flags;
-
 	/* delete mcast address outside of lock */
 	rxe_mcast_del(mcg->rxe, &mcg->mgid);
 
-	spin_lock_irqsave(&mcg->rxe->mcg_lock, flags);
+	spin_lock_bh(&mcg->rxe->mcg_lock);
 	__rxe_destroy_mcg(mcg);
-	spin_unlock_irqrestore(&mcg->rxe->mcg_lock, flags);
+	spin_unlock_bh(&mcg->rxe->mcg_lock);
 }
 
 /**
@@ -334,25 +330,24 @@ static int rxe_attach_mcg(struct rxe_mcg *mcg, struct rxe_qp *qp)
 {
 	struct rxe_dev *rxe = mcg->rxe;
 	struct rxe_mca *mca, *tmp;
-	unsigned long flags;
 	int err;
 
 	/* check to see if the qp is already a member of the group */
-	spin_lock_irqsave(&rxe->mcg_lock, flags);
+	spin_lock_bh(&rxe->mcg_lock);
 	list_for_each_entry(mca, &mcg->qp_list, qp_list) {
 		if (mca->qp == qp) {
-			spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+			spin_unlock_bh(&rxe->mcg_lock);
 			return 0;
 		}
 	}
-	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+	spin_unlock_bh(&rxe->mcg_lock);
 
 	/* speculative alloc new mca without using GFP_ATOMIC */
 	mca = kzalloc(sizeof(*mca), GFP_KERNEL);
 	if (!mca)
 		return -ENOMEM;
 
-	spin_lock_irqsave(&rxe->mcg_lock, flags);
+	spin_lock_bh(&rxe->mcg_lock);
 	/* re-check to see if someone else just attached qp */
 	list_for_each_entry(tmp, &mcg->qp_list, qp_list) {
 		if (tmp->qp == qp) {
@@ -366,7 +361,7 @@ static int rxe_attach_mcg(struct rxe_mcg *mcg, struct rxe_qp *qp)
 	if (err)
 		kfree(mca);
 out:
-	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+	spin_unlock_bh(&rxe->mcg_lock);
 	return err;
 }
 
@@ -400,9 +395,8 @@ static int rxe_detach_mcg(struct rxe_mcg *mcg, struct rxe_qp *qp)
 {
 	struct rxe_dev *rxe = mcg->rxe;
 	struct rxe_mca *mca, *tmp;
-	unsigned long flags;
 
-	spin_lock_irqsave(&rxe->mcg_lock, flags);
+	spin_lock_bh(&rxe->mcg_lock);
 	list_for_each_entry_safe(mca, tmp, &mcg->qp_list, qp_list) {
 		if (mca->qp == qp) {
 			__rxe_cleanup_mca(mca, mcg);
@@ -416,13 +410,13 @@ static int rxe_detach_mcg(struct rxe_mcg *mcg, struct rxe_qp *qp)
 			if (atomic_read(&mcg->qp_num) <= 0)
 				__rxe_destroy_mcg(mcg);
 
-			spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+			spin_unlock_bh(&rxe->mcg_lock);
 			return 0;
 		}
 	}
 
 	/* we didn't find the qp on the list */
-	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+	spin_unlock_bh(&rxe->mcg_lock);
 	return -EINVAL;
 }
 
