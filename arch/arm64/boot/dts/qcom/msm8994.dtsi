@@ -413,7 +413,7 @@
 		};
 
 		usb3: usb@f92f8800 {
-			compatible = "qcom,msm8996-dwc3", "qcom,dwc3";
+			compatible = "qcom,msm8994-dwc3", "qcom,dwc3";
 			reg = <0xf92f8800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
