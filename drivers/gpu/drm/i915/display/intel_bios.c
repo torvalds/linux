@@ -594,6 +594,44 @@ get_lfp_data_tail(const struct bdb_lvds_lfp_data *data,
 		return NULL;
 }
 
+static int vbt_get_panel_type(struct drm_i915_private *i915)
+{
+	const struct bdb_lvds_options *lvds_options;
+
+	lvds_options = find_section(i915, BDB_LVDS_OPTIONS);
+	if (!lvds_options)
+		return -1;
+
+	if (lvds_options->panel_type > 0xf) {
+		drm_dbg_kms(&i915->drm, "Invalid VBT panel type 0x%x\n",
+			    lvds_options->panel_type);
+		return -1;
+	}
+
+	return lvds_options->panel_type;
+}
+
+static int get_panel_type(struct drm_i915_private *i915)
+{
+	int ret;
+
+	ret = intel_opregion_get_panel_type(i915);
+	if (ret >= 0) {
+		drm_WARN_ON(&i915->drm, ret > 0xf);
+		drm_dbg_kms(&i915->drm, "Panel type: %d (OpRegion)\n", ret);
+		return ret;
+	}
+
+	ret = vbt_get_panel_type(i915);
+	if (ret >= 0) {
+		drm_WARN_ON(&i915->drm, ret > 0xf);
+		drm_dbg_kms(&i915->drm, "Panel type: %d (VBT)\n", ret);
+		return ret;
+	}
+
+	return 0; /* fallback */
+}
+
 /* Parse general panel options */
 static void
 parse_panel_options(struct drm_i915_private *i915)
@@ -601,7 +639,6 @@ parse_panel_options(struct drm_i915_private *i915)
 	const struct bdb_lvds_options *lvds_options;
 	int panel_type;
 	int drrs_mode;
-	int ret;
 
 	lvds_options = find_section(i915, BDB_LVDS_OPTIONS);
 	if (!lvds_options)
@@ -609,24 +646,7 @@ parse_panel_options(struct drm_i915_private *i915)
 
 	i915->vbt.lvds_dither = lvds_options->pixel_dither;
 
-	ret = intel_opregion_get_panel_type(i915);
-	if (ret >= 0) {
-		drm_WARN_ON(&i915->drm, ret > 0xf);
-		panel_type = ret;
-		drm_dbg_kms(&i915->drm, "Panel type: %d (OpRegion)\n",
-			    panel_type);
-	} else {
-		if (lvds_options->panel_type > 0xf) {
-			drm_dbg_kms(&i915->drm,
-				    "Invalid VBT panel type 0x%x, assuming 0\n",
-				    lvds_options->panel_type);
-			panel_type = 0;
-		} else {
-			panel_type = lvds_options->panel_type;
-			drm_dbg_kms(&i915->drm, "Panel type: %d (VBT)\n",
-				    panel_type);
-		}
-	}
+	panel_type = get_panel_type(i915);
 
 	i915->vbt.panel_type = panel_type;
 
