@@ -337,9 +337,10 @@
 &usb3 {
 	status = "okay";
 
-	dwc3@7580000 {
-		dr_mode = "host";
-	};
+};
+
+&usb3_dwc3 {
+	dr_mode = "host";
 };
 
 &usb2_phy_prim {
