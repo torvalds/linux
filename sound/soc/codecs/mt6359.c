@@ -2576,12 +2576,9 @@ static const struct snd_soc_dai_ops mt6359_codec_dai_ops = {
 	.shutdown = mt6359_codec_dai_shutdown,
 };
 
-#define MT6359_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE |\
-			SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_U16_BE |\
-			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_BE |\
-			SNDRV_PCM_FMTBIT_U24_LE | SNDRV_PCM_FMTBIT_U24_BE |\
-			SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S32_BE |\
-			SNDRV_PCM_FMTBIT_U32_LE | SNDRV_PCM_FMTBIT_U32_BE)
+#define MT6359_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_U16_LE |\
+			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_U24_LE |\
+			SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_U32_LE)
 
 static struct snd_soc_dai_driver mt6359_dai_driver[] = {
 	{
@@ -2739,6 +2736,7 @@ static const struct snd_soc_component_driver mt6359_soc_component_driver = {
 	.num_dapm_widgets = ARRAY_SIZE(mt6359_dapm_widgets),
 	.dapm_routes = mt6359_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(mt6359_dapm_routes),
+	.endianness = 1,
 };
 
 static int mt6359_parse_dt(struct mt6359_priv *priv)
