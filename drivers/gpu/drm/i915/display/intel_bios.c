@@ -761,6 +761,7 @@ parse_lfp_data(struct drm_i915_private *i915)
 	const struct bdb_lvds_lfp_data *data;
 	const struct bdb_lvds_lfp_data_tail *tail;
 	const struct bdb_lvds_lfp_data_ptrs *ptrs;
+	int panel_type = i915->vbt.panel_type;
 
 	ptrs = find_section(i915, BDB_LVDS_LFP_DATA_PTRS);
 	if (!ptrs)
@@ -777,7 +778,13 @@ parse_lfp_data(struct drm_i915_private *i915)
 	if (!tail)
 		return;
 
-	(void)tail;
+	if (i915->vbt.version >= 188) {
+		i915->vbt.seamless_drrs_min_refresh_rate =
+			tail->seamless_drrs_min_refresh_rate[panel_type];
+		drm_dbg_kms(&i915->drm,
+			    "Seamless DRRS min refresh rate: %d Hz\n",
+			    i915->vbt.seamless_drrs_min_refresh_rate);
+	}
 }
 
 static void
