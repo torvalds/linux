@@ -274,7 +274,7 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 	do_div(rate, qn->buswidth);
 	rate = min_t(u64, rate, LONG_MAX);
 
-	if (qn->rate == rate)
+	if (qp->bus_clk_rate == rate)
 		return 0;
 
 	for (i = 0; i < qp->num_clks; i++) {
@@ -286,7 +286,7 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 		}
 	}
 
-	qn->rate = rate;
+	qp->bus_clk_rate = rate;
 
 	return 0;
 }
