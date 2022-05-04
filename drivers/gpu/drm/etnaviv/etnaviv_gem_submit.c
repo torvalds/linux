@@ -598,7 +598,12 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		sync_file = sync_file_create(submit->out_fence);
 		if (!sync_file) {
 			ret = -ENOMEM;
-			goto err_submit_job;
+			/*
+			 * When this late error is hit, the submit has already
+			 * been handed over to the scheduler. At this point
+			 * the sched_job must not be cleaned up.
+			 */
+			goto err_submit_put;
 		}
 		fd_install(out_fence_fd, sync_file->file);
 	}
@@ -607,7 +612,8 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	args->fence = submit->out_fence_id;
 
 err_submit_job:
-	drm_sched_job_cleanup(&submit->sched_job);
+	if (ret)
+		drm_sched_job_cleanup(&submit->sched_job);
 err_submit_put:
 	etnaviv_submit_put(submit);
 
