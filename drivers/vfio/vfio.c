@@ -1701,11 +1701,35 @@ struct iommu_group *vfio_file_iommu_group(struct file *file)
 }
 EXPORT_SYMBOL_GPL(vfio_file_iommu_group);
 
-long vfio_external_check_extension(struct vfio_group *group, unsigned long arg)
+/**
+ * vfio_file_enforced_coherent - True if the DMA associated with the VFIO file
+ *        is always CPU cache coherent
+ * @file: VFIO group file
+ *
+ * Enforced coherency means that the IOMMU ignores things like the PCIe no-snoop
+ * bit in DMA transactions. A return of false indicates that the user has
+ * rights to access additional instructions such as wbinvd on x86.
+ */
+bool vfio_file_enforced_coherent(struct file *file)
 {
-	return vfio_ioctl_check_extension(group->container, arg);
+	struct vfio_group *group = file->private_data;
+	bool ret;
+
+	if (file->f_op != &vfio_group_fops)
+		return true;
+
+	/*
+	 * Since the coherency state is determined only once a container is
+	 * attached the user must do so before they can prove they have
+	 * permission.
+	 */
+	if (vfio_group_add_container_user(group))
+		return true;
+	ret = vfio_ioctl_check_extension(group->container, VFIO_DMA_CC_IOMMU);
+	vfio_group_try_dissolve_container(group);
+	return ret;
 }
-EXPORT_SYMBOL_GPL(vfio_external_check_extension);
+EXPORT_SYMBOL_GPL(vfio_file_enforced_coherent);
 
 /*
  * Sub-module support

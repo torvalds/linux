@@ -75,20 +75,20 @@ static void kvm_vfio_group_set_kvm(struct vfio_group *group, struct kvm *kvm)
 	symbol_put(vfio_group_set_kvm);
 }
 
-static bool kvm_vfio_group_is_coherent(struct vfio_group *vfio_group)
+static bool kvm_vfio_file_enforced_coherent(struct file *file)
 {
-	long (*fn)(struct vfio_group *, unsigned long);
-	long ret;
+	bool (*fn)(struct file *file);
+	bool ret;
 
-	fn = symbol_get(vfio_external_check_extension);
+	fn = symbol_get(vfio_file_enforced_coherent);
 	if (!fn)
 		return false;
 
-	ret = fn(vfio_group, VFIO_DMA_CC_IOMMU);
+	ret = fn(file);
 
-	symbol_put(vfio_external_check_extension);
+	symbol_put(vfio_file_enforced_coherent);
 
-	return ret > 0;
+	return ret;
 }
 
 #ifdef CONFIG_SPAPR_TCE_IOMMU
@@ -136,7 +136,7 @@ static void kvm_vfio_update_coherency(struct kvm_device *dev)
 	mutex_lock(&kv->lock);
 
 	list_for_each_entry(kvg, &kv->group_list, node) {
-		if (!kvm_vfio_group_is_coherent(kvg->vfio_group)) {
+		if (!kvm_vfio_file_enforced_coherent(kvg->file)) {
 			noncoherent = true;
 			break;
 		}
