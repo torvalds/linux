@@ -1,0 +1,38 @@
+&sound{
+	/* i2s + wm8960 */
+	simple-audio-card,dai-link@0 {
+		reg = <0>;
+		status = "okay";
+		format = "i2s";
+		bitclock-master = <&sndcodec1>;
+		frame-master = <&sndcodec1>;
+		
+		widgets =
+				"Microphone", "Mic Jack",
+				"Line", "Line In",
+				"Line", "Line Out",
+				"Speaker", "Speaker",
+				"Headphone", "Headphone Jack";
+		routing =
+				"Headphone Jack", "HP_L",
+				"Headphone Jack", "HP_R",
+				"Speaker", "SPK_LP",
+				"Speaker", "SPK_LN",
+				"LINPUT1", "Mic Jack",
+				"LINPUT3", "Mic Jack",
+				"RINPUT1", "Mic Jack",
+				"RINPUT2", "Mic Jack";
+		cpu0 {
+			sound-dai = <&i2srx_3ch>;
+		};
+		cpu1 {
+			sound-dai = <&i2stx_4ch1>;
+		};
+		
+		sndcodec1:codec {
+			sound-dai = <&wm8960>;
+			clocks = <&clkgen JH7110_MCLK>;
+			clock-names = "mclk";
+		};
+	};
+};

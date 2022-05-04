@@ -6,6 +6,7 @@
 
 /dts-v1/;
 #include "jh7110-common.dtsi"
+//#include "codecs/sf_wm8960.dtsi"
 
 / {
 	model = "StarFive JH7110 FPGA";

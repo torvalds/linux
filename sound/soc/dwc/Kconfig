@@ -18,3 +18,11 @@ config SND_DESIGNWARE_PCM
 	 This functionality is specially suited for I2S devices that don't have
 	 DMA support.
 
+config SND_DESIGNWARE_I2S_STARFIVE_JH7110
+	bool "Synopsys I2S Device Driver for Starfive JH7110 SOC platform"
+	depends on SND_DESIGNWARE_I2S
+	help
+	 Say Y or N if you want to use on Starfive JH7110 SOC platform.
+
+	 This functionality is specially suited for I2S devices that run on
+	 Starfive JH7110 SOC platform.
