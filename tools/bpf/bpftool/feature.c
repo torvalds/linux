@@ -638,7 +638,7 @@ probe_map_type(enum bpf_map_type map_type, const char *define_prefix,
 
 		res = probe_map_type_ifindex(map_type, ifindex);
 	} else {
-		res = libbpf_probe_bpf_map_type(map_type, NULL);
+		res = libbpf_probe_bpf_map_type(map_type, NULL) > 0;
 	}
 
 	/* Probe result depends on the success of map creation, no additional
@@ -701,7 +701,7 @@ probe_helper_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 		if (ifindex)
 			res = probe_helper_ifindex(id, prog_type, ifindex);
 		else
-			res = libbpf_probe_bpf_helper(prog_type, id, NULL);
+			res = libbpf_probe_bpf_helper(prog_type, id, NULL) > 0;
 #ifdef USE_LIBCAP
 		/* Probe may succeed even if program load fails, for
 		 * unprivileged users check that we did not fail because of
