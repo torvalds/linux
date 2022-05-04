@@ -35,9 +35,7 @@
 #include <net/sock.h>
 
 #include "en.h"
-#include "ipsec_offload.h"
-#include "fpga/sdk.h"
-#include "en_accel/ipsec.h"
+#include "ipsec.h"
 
 static const struct counter_desc mlx5e_ipsec_sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_ipsec_sw_stats, ipsec_rx_drop_sp_alloc) },

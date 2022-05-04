@@ -34,9 +34,8 @@
 #include <crypto/aead.h>
 #include <net/xfrm.h>
 #include <net/esp.h>
-#include "ipsec_offload.h"
-#include "en_accel/ipsec_rxtx.h"
-#include "en_accel/ipsec.h"
+#include "ipsec.h"
+#include "ipsec_rxtx.h"
 #include "en.h"
 
 enum {
@@ -333,7 +332,6 @@ void mlx5e_ipsec_offload_handle_rx_skb(struct net_device *netdev,
 		return;
 	}
 
-	sp = skb_sec_path(skb);
 	sp->xvec[sp->len++] = xs;
 	sp->olen++;
 
