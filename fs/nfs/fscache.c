@@ -231,11 +231,10 @@ void nfs_fscache_release_file(struct inode *inode, struct file *filp)
 {
 	struct nfs_fscache_inode_auxdata auxdata;
 	struct fscache_cookie *cookie = nfs_i_fscache(inode);
+	loff_t i_size = i_size_read(inode);
 
-	if (fscache_cookie_valid(cookie)) {
-		nfs_fscache_update_auxdata(&auxdata, inode);
-		fscache_unuse_cookie(cookie, &auxdata, NULL);
-	}
+	nfs_fscache_update_auxdata(&auxdata, inode);
+	fscache_unuse_cookie(cookie, &auxdata, &i_size);
 }
 
 /*
