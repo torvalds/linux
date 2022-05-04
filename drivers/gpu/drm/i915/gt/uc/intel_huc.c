@@ -113,7 +113,7 @@ int intel_huc_init(struct intel_huc *huc)
 	return 0;
 
 out:
-	i915_probe_error(i915, "failed with %d\n", err);
+	drm_info(&i915->drm, "HuC init failed with %d\n", err);
 	return err;
 }
 
