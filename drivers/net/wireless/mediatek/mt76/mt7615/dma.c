@@ -284,8 +284,8 @@ int mt7615_dma_init(struct mt7615_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	netif_tx_napi_add(&dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
-			  mt7615_poll_tx, NAPI_POLL_WEIGHT);
+	netif_napi_add_tx(&dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
+			  mt7615_poll_tx);
 	napi_enable(&dev->mt76.tx_napi);
 
 	mt76_poll(dev, MT_WPDMA_GLO_CFG,
