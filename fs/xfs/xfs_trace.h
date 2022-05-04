@@ -3408,7 +3408,8 @@ DEFINE_INODE_IREC_EVENT(xfs_reflink_convert_cow);
 
 DEFINE_SIMPLE_IO_EVENT(xfs_reflink_cancel_cow_range);
 DEFINE_SIMPLE_IO_EVENT(xfs_reflink_end_cow);
-DEFINE_INODE_IREC_EVENT(xfs_reflink_cow_remap);
+DEFINE_INODE_IREC_EVENT(xfs_reflink_cow_remap_from);
+DEFINE_INODE_IREC_EVENT(xfs_reflink_cow_remap_to);
 
 DEFINE_INODE_ERROR_EVENT(xfs_reflink_cancel_cow_range_error);
 DEFINE_INODE_ERROR_EVENT(xfs_reflink_end_cow_error);
@@ -3503,7 +3504,7 @@ DEFINE_GETFSMAP_EVENT(xfs_getfsmap_low_key);
 DEFINE_GETFSMAP_EVENT(xfs_getfsmap_high_key);
 DEFINE_GETFSMAP_EVENT(xfs_getfsmap_mapping);
 
-TRACE_EVENT(xfs_trans_resv_calc,
+DECLARE_EVENT_CLASS(xfs_trans_resv_class,
 	TP_PROTO(struct xfs_mount *mp, unsigned int type,
 		 struct xfs_trans_res *res),
 	TP_ARGS(mp, type, res),
@@ -3527,6 +3528,33 @@ TRACE_EVENT(xfs_trans_resv_calc,
 		  __entry->logres,
 		  __entry->logcount,
 		  __entry->logflags)
+)
+
+#define DEFINE_TRANS_RESV_EVENT(name) \
+DEFINE_EVENT(xfs_trans_resv_class, name, \
+	TP_PROTO(struct xfs_mount *mp, unsigned int type, \
+		 struct xfs_trans_res *res), \
+	TP_ARGS(mp, type, res))
+DEFINE_TRANS_RESV_EVENT(xfs_trans_resv_calc);
+DEFINE_TRANS_RESV_EVENT(xfs_trans_resv_calc_minlogsize);
+
+TRACE_EVENT(xfs_log_get_max_trans_res,
+	TP_PROTO(struct xfs_mount *mp, const struct xfs_trans_res *res),
+	TP_ARGS(mp, res),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(uint, logres)
+		__field(int, logcount)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->logres = res->tr_logres;
+		__entry->logcount = res->tr_logcount;
+	),
+	TP_printk("dev %d:%d logres %u logcount %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->logres,
+		  __entry->logcount)
 );
 
 DECLARE_EVENT_CLASS(xfs_trans_class,

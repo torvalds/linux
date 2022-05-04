@@ -5280,7 +5280,6 @@ __xfs_bunmapi(
 	int			whichfork;	/* data or attribute fork */
 	xfs_fsblock_t		sum;
 	xfs_filblks_t		len = *rlen;	/* length to unmap in file */
-	xfs_fileoff_t		max_len;
 	xfs_fileoff_t		end;
 	struct xfs_iext_cursor	icur;
 	bool			done = false;
@@ -5298,16 +5297,6 @@ __xfs_bunmapi(
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(len > 0);
 	ASSERT(nexts >= 0);
-
-	/*
-	 * Guesstimate how many blocks we can unmap without running the risk of
-	 * blowing out the transaction with a mix of EFIs and reflink
-	 * adjustments.
-	 */
-	if (tp && xfs_is_reflink_inode(ip) && whichfork == XFS_DATA_FORK)
-		max_len = min(len, xfs_refcount_max_unmap(tp->t_log_res));
-	else
-		max_len = len;
 
 	error = xfs_iread_extents(tp, ip, whichfork);
 	if (error)
@@ -5347,7 +5336,7 @@ __xfs_bunmapi(
 
 	extno = 0;
 	while (end != (xfs_fileoff_t)-1 && end >= start &&
-	       (nexts == 0 || extno < nexts) && max_len > 0) {
+	       (nexts == 0 || extno < nexts)) {
 		/*
 		 * Is the found extent after a hole in which end lives?
 		 * Just back up to the previous extent, if so.
@@ -5380,14 +5369,6 @@ __xfs_bunmapi(
 		}
 		if (del.br_startoff + del.br_blockcount > end + 1)
 			del.br_blockcount = end + 1 - del.br_startoff;
-
-		/* How much can we safely unmap? */
-		if (max_len < del.br_blockcount) {
-			del.br_startoff += del.br_blockcount - max_len;
-			if (!wasdel)
-				del.br_startblock += del.br_blockcount - max_len;
-			del.br_blockcount = max_len;
-		}
 
 		if (!isrt)
 			goto delete;
@@ -5524,7 +5505,6 @@ delete:
 		if (error)
 			goto error0;
 
-		max_len -= del.br_blockcount;
 		end = del.br_startoff - 1;
 nodelete:
 		/*
