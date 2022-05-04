@@ -396,6 +396,7 @@ static int max98090_put_enab_tlv(struct snd_kcontrol *kcontrol,
 	unsigned int sel = ucontrol->value.integer.value[0];
 	unsigned int val = snd_soc_component_read(component, mc->reg);
 	unsigned int *select;
+	int change;
 
 	switch (mc->reg) {
 	case M98090_REG_MIC1_INPUT_LEVEL:
@@ -413,6 +414,10 @@ static int max98090_put_enab_tlv(struct snd_kcontrol *kcontrol,
 
 	val = (val >> mc->shift) & mask;
 
+	if (sel < 0 || sel > mc->max)
+		return -EINVAL;
+
+	change = *select != sel;
 	*select = sel;
 
 	/* Setting a volume is only valid if it is already On */
@@ -427,7 +432,7 @@ static int max98090_put_enab_tlv(struct snd_kcontrol *kcontrol,
 		mask << mc->shift,
 		sel << mc->shift);
 
-	return 0;
+	return change;
 }
 
 static const char *max98090_perf_pwr_text[] =
