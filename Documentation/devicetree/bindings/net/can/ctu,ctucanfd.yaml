@@ -25,6 +25,9 @@ maintainers:
   - Ondrej Ille <ondrej.ille@gmail.com>
   - Martin Jerabek <martin.jerabek01@gmail.com>
 
+allOf:
+  - $ref: can-controller.yaml#
+
 properties:
   compatible:
     oneOf:
