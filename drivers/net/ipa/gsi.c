@@ -1614,8 +1614,8 @@ static int gsi_channel_setup_one(struct gsi *gsi, u32 channel_id)
 	gsi_channel_program(channel, true);
 
 	if (channel->toward_ipa)
-		netif_tx_napi_add(&gsi->dummy_dev, &channel->napi,
-				  gsi_channel_poll, NAPI_POLL_WEIGHT);
+		netif_napi_add_tx(&gsi->dummy_dev, &channel->napi,
+				  gsi_channel_poll);
 	else
 		netif_napi_add(&gsi->dummy_dev, &channel->napi,
 			       gsi_channel_poll, NAPI_POLL_WEIGHT);

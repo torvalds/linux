@@ -3786,8 +3786,8 @@ void __init mptcp_proto_init(void)
 	for_each_possible_cpu(cpu) {
 		delegated = per_cpu_ptr(&mptcp_delegated_actions, cpu);
 		INIT_LIST_HEAD(&delegated->head);
-		netif_tx_napi_add(&mptcp_napi_dev, &delegated->napi, mptcp_napi_poll,
-				  NAPI_POLL_WEIGHT);
+		netif_napi_add_tx(&mptcp_napi_dev, &delegated->napi,
+				  mptcp_napi_poll);
 		napi_enable(&delegated->napi);
 	}
 

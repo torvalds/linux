@@ -1371,7 +1371,7 @@ static int mana_create_txq(struct mana_port_context *apc,
 
 		gc->cq_table[cq->gdma_id] = cq->gdma_cq;
 
-		netif_tx_napi_add(net, &cq->napi, mana_poll, NAPI_POLL_WEIGHT);
+		netif_napi_add_tx(net, &cq->napi, mana_poll);
 		napi_enable(&cq->napi);
 
 		mana_gd_ring_cq(cq->gdma_cq, SET_ARM_BIT);

@@ -1640,9 +1640,8 @@ static int cpsw_probe(struct platform_device *pdev)
 	netif_napi_add(ndev, &cpsw->napi_rx,
 		       cpsw->quirk_irq ? cpsw_rx_poll : cpsw_rx_mq_poll,
 		       NAPI_POLL_WEIGHT);
-	netif_tx_napi_add(ndev, &cpsw->napi_tx,
-			  cpsw->quirk_irq ? cpsw_tx_poll : cpsw_tx_mq_poll,
-			  NAPI_POLL_WEIGHT);
+	netif_napi_add_tx(ndev, &cpsw->napi_tx,
+			  cpsw->quirk_irq ? cpsw_tx_poll : cpsw_tx_mq_poll);
 
 	/* register the network device */
 	SET_NETDEV_DEV(ndev, dev);
