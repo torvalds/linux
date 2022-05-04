@@ -3045,30 +3045,34 @@ int dcn32_populate_dml_pipes_from_context(
 		pipe_cnt++;
 	}
 
+	/* For DET allocation, we don't want to use DML policy (not optimal for utilizing all
+	 * the DET available for each pipe). Use the DET override input to maintain our driver
+	 * policy.
+	 */
 	switch (pipe_cnt) {
 	case 1:
-		context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_MAX_DET_SIZE;
+		pipes[0].pipe.src.det_size_override = DCN3_2_MAX_DET_SIZE;
 		if (pipe->plane_state && !dc->debug.disable_z9_mpc) {
 			if (!is_dual_plane(pipe->plane_state->format)) {
-				context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_DEFAULT_DET_SIZE;
+				pipes[0].pipe.src.det_size_override = DCN3_2_DEFAULT_DET_SIZE;
 				pipes[0].pipe.src.unbounded_req_mode = true;
 				if (pipe->plane_state->src_rect.width >= 5120 &&
 					pipe->plane_state->src_rect.height >= 2880)
-					context->bw_ctx.dml.ip.det_buffer_size_kbytes = 320; // 5K or higher
+					pipes[0].pipe.src.det_size_override = 320; // 5K or higher
 			}
 		}
 		break;
 	case 2:
-		context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_MAX_DET_SIZE / 2; // 576 KB (9 segments)
-		break;
 	case 3:
-		context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_MAX_DET_SIZE / 3; // 384 KB (6 segments)
-		break;
 	case 4:
-	default:
-		context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_DEFAULT_DET_SIZE; // 256 KB (4 segments)
+		// For 2 and 3 pipes, use (MAX_DET_SIZE / pipe_cnt), for 4 pipes use default size for each pipe
+		for (i = 0; i < pipe_cnt; i++) {
+			pipes[i].pipe.src.det_size_override = (pipe_cnt < 4) ? (DCN3_2_MAX_DET_SIZE / pipe_cnt) : DCN3_2_DEFAULT_DET_SIZE;
+		}
 		break;
 	}
+
+	dcn32_update_det_override_for_mpo(dc, context, pipes);
 
 	return pipe_cnt;
 }
@@ -3365,8 +3369,8 @@ void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context, display
 			context->res_ctx.pipe_ctx[i].det_buffer_size_kb = 0;
 			context->res_ctx.pipe_ctx[i].unbounded_req = false;
 		} else {
-			context->res_ctx.pipe_ctx[i].det_buffer_size_kb =
-					context->bw_ctx.dml.ip.det_buffer_size_kbytes;
+			context->res_ctx.pipe_ctx[i].det_buffer_size_kb = get_det_buffer_size_kbytes(&context->bw_ctx.dml, pipes, pipe_cnt,
+							pipe_idx);
 			context->res_ctx.pipe_ctx[i].unbounded_req = pipes[pipe_idx].pipe.src.unbounded_req_mode;
 		}
 		if (context->bw_ctx.bw.dcn.clk.dppclk_khz < pipes[pipe_idx].clks_cfg.dppclk_mhz * 1000)
@@ -3383,8 +3387,12 @@ void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context, display
 	context->bw_ctx.bw.dcn.clk.max_supported_dispclk_khz = context->bw_ctx.dml.soc.clock_limits[vlevel].dispclk_mhz
 			* 1000;
 
-	context->bw_ctx.bw.dcn.compbuf_size_kb = context->bw_ctx.dml.ip.config_return_buffer_size_in_kbytes
-			- context->bw_ctx.dml.ip.det_buffer_size_kbytes * pipe_idx;
+	context->bw_ctx.bw.dcn.compbuf_size_kb = context->bw_ctx.dml.ip.config_return_buffer_size_in_kbytes;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].stream)
+			context->bw_ctx.bw.dcn.compbuf_size_kb -= context->res_ctx.pipe_ctx[i].det_buffer_size_kb;
+	}
 
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 
