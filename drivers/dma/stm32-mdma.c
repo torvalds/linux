@@ -1345,9 +1345,12 @@ static irqreturn_t stm32_mdma_irq_handler(int irq, void *devid)
 
 	if (!(status & ien)) {
 		spin_unlock(&chan->vchan.lock);
-		dev_warn(chan2dev(chan),
-			 "spurious it (status=0x%04x, ien=0x%04x)\n",
-			 status, ien);
+		if (chan->busy)
+			dev_warn(chan2dev(chan),
+				 "spurious it (status=0x%04x, ien=0x%04x)\n", status, ien);
+		else
+			dev_dbg(chan2dev(chan),
+				"spurious it (status=0x%04x, ien=0x%04x)\n", status, ien);
 		return IRQ_NONE;
 	}
 
