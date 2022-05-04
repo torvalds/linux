@@ -36,7 +36,7 @@ xfs_init_local_fork(
 	int64_t			size)
 {
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
-	int			mem_size = size, real_size = 0;
+	int			mem_size = size;
 	bool			zero_terminate;
 
 	/*
@@ -50,13 +50,7 @@ xfs_init_local_fork(
 		mem_size++;
 
 	if (size) {
-		/*
-		 * As we round up the allocation here, we need to ensure the
-		 * bytes we don't copy data into are zeroed because the log
-		 * vectors still copy them into the journal.
-		 */
-		real_size = roundup(mem_size, 4);
-		ifp->if_u1.if_data = kmem_zalloc(real_size, KM_NOFS);
+		ifp->if_u1.if_data = kmem_alloc(mem_size, KM_NOFS);
 		memcpy(ifp->if_u1.if_data, data, size);
 		if (zero_terminate)
 			ifp->if_u1.if_data[size] = '\0';
@@ -502,14 +496,8 @@ xfs_idata_realloc(
 		return;
 	}
 
-	/*
-	 * For inline data, the underlying buffer must be a multiple of 4 bytes
-	 * in size so that it can be logged and stay on word boundaries.
-	 * We enforce that here, and use __GFP_ZERO to ensure that size
-	 * extensions always zero the unused roundup area.
-	 */
-	ifp->if_u1.if_data = krealloc(ifp->if_u1.if_data, roundup(new_size, 4),
-				      GFP_NOFS | __GFP_NOFAIL | __GFP_ZERO);
+	ifp->if_u1.if_data = krealloc(ifp->if_u1.if_data, new_size,
+				      GFP_NOFS | __GFP_NOFAIL);
 	ifp->if_bytes = new_size;
 }
 
