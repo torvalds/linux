@@ -282,12 +282,23 @@ static bool psp_get_runtime_db_entry(struct amdgpu_device *adev,
 			case PSP_RUNTIME_ENTRY_TYPE_BOOT_CONFIG:
 				if (db_dir.entry_list[i].size < sizeof(struct psp_runtime_boot_cfg_entry)) {
 					/* invalid db entry size */
-					dev_warn(adev->dev, "Invalid PSP runtime database entry size\n");
+					dev_warn(adev->dev, "Invalid PSP runtime database boot cfg entry size\n");
 					return false;
 				}
 				/* read runtime database entry */
 				amdgpu_device_vram_access(adev, db_header_pos + db_dir.entry_list[i].offset,
 							  (uint32_t *)db_entry, sizeof(struct psp_runtime_boot_cfg_entry), false);
+				ret = true;
+				break;
+			case PSP_RUNTIME_ENTRY_TYPE_PPTABLE_ERR_STATUS:
+				if (db_dir.entry_list[i].size < sizeof(struct psp_runtime_scpm_entry)) {
+					/* invalid db entry size */
+					dev_warn(adev->dev, "Invalid PSP runtime database scpm entry size\n");
+					return false;
+				}
+				/* read runtime database entry */
+				amdgpu_device_vram_access(adev, db_header_pos + db_dir.entry_list[i].offset,
+							  (uint32_t *)db_entry, sizeof(struct psp_runtime_scpm_entry), false);
 				ret = true;
 				break;
 			default:
@@ -334,6 +345,7 @@ static int psp_sw_init(void *handle)
 	int ret;
 	struct psp_runtime_boot_cfg_entry boot_cfg_entry;
 	struct psp_memory_training_context *mem_training_ctx = &psp->mem_train_ctx;
+	struct psp_runtime_scpm_entry scpm_entry;
 
 	psp->cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!psp->cmd) {
@@ -353,6 +365,20 @@ static int psp_sw_init(void *handle)
 	adev->psp.xgmi_context.supports_extended_data =
 		!adev->gmc.xgmi.connected_to_cpu &&
 			adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 2);
+
+	memset(&scpm_entry, 0, sizeof(scpm_entry));
+	if ((psp_get_runtime_db_entry(adev,
+				PSP_RUNTIME_ENTRY_TYPE_PPTABLE_ERR_STATUS,
+				&scpm_entry)) &&
+	    (SCPM_DISABLE != scpm_entry.scpm_status)) {
+		adev->scpm_enabled = true;
+		adev->scpm_status = scpm_entry.scpm_status;
+	} else {
+		adev->scpm_enabled = false;
+		adev->scpm_status = SCPM_DISABLE;
+	}
+
+	/* TODO: stop gpu driver services and print alarm if scpm is enabled with error status */
 
 	memset(&boot_cfg_entry, 0, sizeof(boot_cfg_entry));
 	if (psp_get_runtime_db_entry(adev,

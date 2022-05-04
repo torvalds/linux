@@ -244,6 +244,7 @@ enum psp_runtime_entry_type {
 	PSP_RUNTIME_ENTRY_TYPE_MGPU_WAFL	= 0x3,  /* WAFL runtime data */
 	PSP_RUNTIME_ENTRY_TYPE_MGPU_XGMI	= 0x4,  /* XGMI runtime data */
 	PSP_RUNTIME_ENTRY_TYPE_BOOT_CONFIG	= 0x5,  /* Boot Config runtime data */
+	PSP_RUNTIME_ENTRY_TYPE_PPTABLE_ERR_STATUS = 0x6, /* SCPM validation data */
 };
 
 /* PSP runtime DB header */
@@ -278,10 +279,22 @@ enum psp_runtime_boot_cfg_feature {
 	BOOT_CFG_FEATURE_TWO_STAGE_DRAM_TRAINING    = 0x2,
 };
 
+/* PSP run time DB SCPM authentication defines */
+enum psp_runtime_scpm_authentication {
+	SCPM_DISABLE                     = 0x0,
+	SCPM_ENABLE                      = 0x1,
+	SCPM_ENABLE_WITH_SCPM_ERR        = 0x2,
+};
+
 /* PSP runtime DB boot config entry */
 struct psp_runtime_boot_cfg_entry {
 	uint32_t boot_cfg_bitmask;
 	uint32_t reserved;
+};
+
+/* PSP runtime DB SCPM entry */
+struct psp_runtime_scpm_entry {
+	enum psp_runtime_scpm_authentication scpm_status;
 };
 
 struct psp_context
