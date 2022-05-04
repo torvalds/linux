@@ -29,11 +29,7 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/delay.h>
-
-#ifdef CONFIG_PPC_PMAC
-#include <asm/prom.h>
-#endif
-
+#include <linux/of.h>
 #include <linux/sungem_phy.h>
 
 /* Link modes of the BCM5400 PHY */
