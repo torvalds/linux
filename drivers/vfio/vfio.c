@@ -1633,58 +1633,6 @@ static const struct file_operations vfio_device_fops = {
 	.mmap		= vfio_device_fops_mmap,
 };
 
-/*
- * External user API, exported by symbols to be linked dynamically.
- *
- * The protocol includes:
- *  1. do normal VFIO init operation:
- *	- opening a new container;
- *	- attaching group(s) to it;
- *	- setting an IOMMU driver for a container.
- * When IOMMU is set for a container, all groups in it are
- * considered ready to use by an external user.
- *
- * 2. User space passes a group fd to an external user.
- * The external user calls vfio_group_get_external_user()
- * to verify that:
- *	- the group is initialized;
- *	- IOMMU is set for it.
- * If both checks passed, vfio_group_get_external_user()
- * increments the container user counter to prevent
- * the VFIO group from disposal before KVM exits.
- *
- * 3. When the external KVM finishes, it calls
- * vfio_group_put_external_user() to release the VFIO group.
- * This call decrements the container user counter.
- */
-struct vfio_group *vfio_group_get_external_user(struct file *filep)
-{
-	struct vfio_group *group = filep->private_data;
-	int ret;
-
-	if (filep->f_op != &vfio_group_fops)
-		return ERR_PTR(-EINVAL);
-
-	ret = vfio_group_add_container_user(group);
-	if (ret)
-		return ERR_PTR(ret);
-
-	/*
-	 * Since the caller holds the fget on the file group->users must be >= 1
-	 */
-	vfio_group_get(group);
-
-	return group;
-}
-EXPORT_SYMBOL_GPL(vfio_group_get_external_user);
-
-void vfio_group_put_external_user(struct vfio_group *group)
-{
-	vfio_group_try_dissolve_container(group);
-	vfio_group_put(group);
-}
-EXPORT_SYMBOL_GPL(vfio_group_put_external_user);
-
 /**
  * vfio_file_iommu_group - Return the struct iommu_group for the vfio group file
  * @file: VFIO group file
@@ -1751,6 +1699,24 @@ void vfio_file_set_kvm(struct file *file, struct kvm *kvm)
 				     VFIO_GROUP_NOTIFY_SET_KVM, kvm);
 }
 EXPORT_SYMBOL_GPL(vfio_file_set_kvm);
+
+/**
+ * vfio_file_has_dev - True if the VFIO file is a handle for device
+ * @file: VFIO file to check
+ * @device: Device that must be part of the file
+ *
+ * Returns true if given file has permission to manipulate the given device.
+ */
+bool vfio_file_has_dev(struct file *file, struct vfio_device *device)
+{
+	struct vfio_group *group = file->private_data;
+
+	if (file->f_op != &vfio_group_fops)
+		return false;
+
+	return group == device->group;
+}
+EXPORT_SYMBOL_GPL(vfio_file_has_dev);
 
 /*
  * Sub-module support

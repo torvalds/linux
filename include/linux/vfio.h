@@ -138,11 +138,10 @@ int vfio_mig_get_next_state(struct vfio_device *device,
 /*
  * External user API
  */
-extern struct vfio_group *vfio_group_get_external_user(struct file *filep);
-extern void vfio_group_put_external_user(struct vfio_group *group);
 extern struct iommu_group *vfio_file_iommu_group(struct file *file);
 extern bool vfio_file_enforced_coherent(struct file *file);
 extern void vfio_file_set_kvm(struct file *file, struct kvm *kvm);
+extern bool vfio_file_has_dev(struct file *file, struct vfio_device *device);
 
 #define VFIO_PIN_PAGES_MAX_ENTRIES	(PAGE_SIZE/sizeof(unsigned long))
 
