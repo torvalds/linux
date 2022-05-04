@@ -24,7 +24,6 @@
 struct kvm_vfio_group {
 	struct list_head node;
 	struct file *file;
-	struct vfio_group *vfio_group;
 };
 
 struct kvm_vfio {
@@ -32,35 +31,6 @@ struct kvm_vfio {
 	struct mutex lock;
 	bool noncoherent;
 };
-
-static struct vfio_group *kvm_vfio_group_get_external_user(struct file *filep)
-{
-	struct vfio_group *vfio_group;
-	struct vfio_group *(*fn)(struct file *);
-
-	fn = symbol_get(vfio_group_get_external_user);
-	if (!fn)
-		return ERR_PTR(-EINVAL);
-
-	vfio_group = fn(filep);
-
-	symbol_put(vfio_group_get_external_user);
-
-	return vfio_group;
-}
-
-static void kvm_vfio_group_put_external_user(struct vfio_group *vfio_group)
-{
-	void (*fn)(struct vfio_group *);
-
-	fn = symbol_get(vfio_group_put_external_user);
-	if (!fn)
-		return;
-
-	fn(vfio_group);
-
-	symbol_put(vfio_group_put_external_user);
-}
 
 static void kvm_vfio_file_set_kvm(struct file *file, struct kvm *kvm)
 {
@@ -91,7 +61,6 @@ static bool kvm_vfio_file_enforced_coherent(struct file *file)
 	return ret;
 }
 
-#ifdef CONFIG_SPAPR_TCE_IOMMU
 static struct iommu_group *kvm_vfio_file_iommu_group(struct file *file)
 {
 	struct iommu_group *(*fn)(struct file *file);
@@ -108,6 +77,7 @@ static struct iommu_group *kvm_vfio_file_iommu_group(struct file *file)
 	return ret;
 }
 
+#ifdef CONFIG_SPAPR_TCE_IOMMU
 static void kvm_spapr_tce_release_vfio_group(struct kvm *kvm,
 					     struct kvm_vfio_group *kvg)
 {
@@ -157,7 +127,6 @@ static void kvm_vfio_update_coherency(struct kvm_device *dev)
 static int kvm_vfio_group_add(struct kvm_device *dev, unsigned int fd)
 {
 	struct kvm_vfio *kv = dev->private;
-	struct vfio_group *vfio_group;
 	struct kvm_vfio_group *kvg;
 	struct file *filp;
 	int ret;
@@ -165,6 +134,12 @@ static int kvm_vfio_group_add(struct kvm_device *dev, unsigned int fd)
 	filp = fget(fd);
 	if (!filp)
 		return -EBADF;
+
+	/* Ensure the FD is a vfio group FD.*/
+	if (!kvm_vfio_file_iommu_group(filp)) {
+		ret = -EINVAL;
+		goto err_fput;
+	}
 
 	mutex_lock(&kv->lock);
 
@@ -181,15 +156,8 @@ static int kvm_vfio_group_add(struct kvm_device *dev, unsigned int fd)
 		goto err_unlock;
 	}
 
-	vfio_group = kvm_vfio_group_get_external_user(filp);
-	if (IS_ERR(vfio_group)) {
-		ret = PTR_ERR(vfio_group);
-		goto err_free;
-	}
-
 	kvg->file = filp;
 	list_add_tail(&kvg->node, &kv->group_list);
-	kvg->vfio_group = vfio_group;
 
 	kvm_arch_start_assignment(dev->kvm);
 
@@ -199,10 +167,9 @@ static int kvm_vfio_group_add(struct kvm_device *dev, unsigned int fd)
 	kvm_vfio_update_coherency(dev);
 
 	return 0;
-err_free:
-	kfree(kvg);
 err_unlock:
 	mutex_unlock(&kv->lock);
+err_fput:
 	fput(filp);
 	return ret;
 }
@@ -232,7 +199,6 @@ static int kvm_vfio_group_del(struct kvm_device *dev, unsigned int fd)
 		kvm_spapr_tce_release_vfio_group(dev->kvm, kvg);
 #endif
 		kvm_vfio_file_set_kvm(kvg->file, NULL);
-		kvm_vfio_group_put_external_user(kvg->vfio_group);
 		fput(kvg->file);
 		kfree(kvg);
 		ret = 0;
@@ -361,7 +327,6 @@ static void kvm_vfio_destroy(struct kvm_device *dev)
 		kvm_spapr_tce_release_vfio_group(dev->kvm, kvg);
 #endif
 		kvm_vfio_file_set_kvm(kvg->file, NULL);
-		kvm_vfio_group_put_external_user(kvg->vfio_group);
 		fput(kvg->file);
 		list_del(&kvg->node);
 		kfree(kvg);
