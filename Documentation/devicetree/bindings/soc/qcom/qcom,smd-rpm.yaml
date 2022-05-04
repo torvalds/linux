@@ -52,6 +52,9 @@ properties:
     $ref: /schemas/clock/qcom,rpmcc.yaml#
     unevaluatedProperties: false
 
+  power-controller:
+    $ref: /schemas/power/qcom,rpmpd.yaml#
+
   qcom,smd-channels:
     $ref: /schemas/types.yaml#/definitions/string-array
     description: Channel name used for the RPM communication
