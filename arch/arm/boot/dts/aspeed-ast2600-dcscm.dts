@@ -267,3 +267,15 @@
 &mac3 {
 	status = "disabled";
 };
+
+&mdio0 {
+	status = "disabled";
+};
+
+&mdio2 {
+	status = "disabled";
+};
+
+&mdio3 {
+	status = "disabled";
+};
