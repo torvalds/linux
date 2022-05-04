@@ -1152,20 +1152,20 @@ static int adc3xxx_hw_params(struct snd_pcm_substream *substream,
 		return i;
 
 	/* select data word length */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		iface_len = ADC3XXX_IFACE_16BITS;
 		width = 16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		iface_len = ADC3XXX_IFACE_20BITS;
 		width = 20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iface_len = ADC3XXX_IFACE_24BITS;
 		width = 24;
 		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 32:
 		iface_len = ADC3XXX_IFACE_32BITS;
 		width = 32;
 		break;
@@ -1335,6 +1335,7 @@ static const struct snd_soc_component_driver soc_component_dev_adc3xxx = {
 	.num_dapm_widgets	= ARRAY_SIZE(adc3xxx_dapm_widgets),
 	.dapm_routes		= adc3xxx_intercon,
 	.num_dapm_routes	= ARRAY_SIZE(adc3xxx_intercon),
+	.endianness		= 1,
 };
 
 static const struct i2c_device_id adc3xxx_i2c_id[] = {
