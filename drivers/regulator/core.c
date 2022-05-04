@@ -83,6 +83,7 @@ struct regulator_supply_alias {
 
 static int _regulator_is_enabled(struct regulator_dev *rdev);
 static int _regulator_disable(struct regulator *regulator);
+static int _regulator_get_error_flags(struct regulator_dev *rdev, unsigned int *flags);
 static int _regulator_get_current_limit(struct regulator_dev *rdev);
 static unsigned int _regulator_get_mode(struct regulator_dev *rdev);
 static int _notifier_call_chain(struct regulator_dev *rdev,
@@ -910,6 +911,30 @@ static ssize_t bypass_show(struct device *dev,
 	return sprintf(buf, "%s\n", report);
 }
 static DEVICE_ATTR_RO(bypass);
+
+#define REGULATOR_ERROR_ATTR(name, bit)							\
+	static ssize_t name##_show(struct device *dev, struct device_attribute *attr,	\
+				   char *buf)						\
+	{										\
+		int ret;								\
+		unsigned int flags;							\
+		struct regulator_dev *rdev = dev_get_drvdata(dev);			\
+		ret = _regulator_get_error_flags(rdev, &flags);				\
+		if (ret)								\
+			return ret;							\
+		return sysfs_emit(buf, "%d\n", !!(flags & (bit)));			\
+	}										\
+	static DEVICE_ATTR_RO(name)
+
+REGULATOR_ERROR_ATTR(under_voltage, REGULATOR_ERROR_UNDER_VOLTAGE);
+REGULATOR_ERROR_ATTR(over_current, REGULATOR_ERROR_OVER_CURRENT);
+REGULATOR_ERROR_ATTR(regulation_out, REGULATOR_ERROR_REGULATION_OUT);
+REGULATOR_ERROR_ATTR(fail, REGULATOR_ERROR_FAIL);
+REGULATOR_ERROR_ATTR(over_temp, REGULATOR_ERROR_OVER_TEMP);
+REGULATOR_ERROR_ATTR(under_voltage_warn, REGULATOR_ERROR_UNDER_VOLTAGE_WARN);
+REGULATOR_ERROR_ATTR(over_current_warn, REGULATOR_ERROR_OVER_CURRENT_WARN);
+REGULATOR_ERROR_ATTR(over_voltage_warn, REGULATOR_ERROR_OVER_VOLTAGE_WARN);
+REGULATOR_ERROR_ATTR(over_temp_warn, REGULATOR_ERROR_OVER_TEMP_WARN);
 
 /* Calculate the new optimum regulator operating mode based on the new total
  * consumer load. All locks held by caller
@@ -4984,6 +5009,15 @@ static struct attribute *regulator_dev_attrs[] = {
 	&dev_attr_max_microvolts.attr,
 	&dev_attr_min_microamps.attr,
 	&dev_attr_max_microamps.attr,
+	&dev_attr_under_voltage.attr,
+	&dev_attr_over_current.attr,
+	&dev_attr_regulation_out.attr,
+	&dev_attr_fail.attr,
+	&dev_attr_over_temp.attr,
+	&dev_attr_under_voltage_warn.attr,
+	&dev_attr_over_current_warn.attr,
+	&dev_attr_over_voltage_warn.attr,
+	&dev_attr_over_temp_warn.attr,
 	&dev_attr_suspend_standby_state.attr,
 	&dev_attr_suspend_mem_state.attr,
 	&dev_attr_suspend_disk_state.attr,
@@ -5038,6 +5072,17 @@ static umode_t regulator_attr_is_visible(struct kobject *kobj,
 
 	if (attr == &dev_attr_bypass.attr)
 		return ops->get_bypass ? mode : 0;
+
+	if (attr == &dev_attr_under_voltage.attr ||
+	    attr == &dev_attr_over_current.attr ||
+	    attr == &dev_attr_regulation_out.attr ||
+	    attr == &dev_attr_fail.attr ||
+	    attr == &dev_attr_over_temp.attr ||
+	    attr == &dev_attr_under_voltage_warn.attr ||
+	    attr == &dev_attr_over_current_warn.attr ||
+	    attr == &dev_attr_over_voltage_warn.attr ||
+	    attr == &dev_attr_over_temp_warn.attr)
+		return ops->get_error_flags ? mode : 0;
 
 	/* constraints need specific supporting methods */
 	if (attr == &dev_attr_min_microvolts.attr ||
