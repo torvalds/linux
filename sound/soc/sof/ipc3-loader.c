@@ -9,7 +9,6 @@
 #include "sof-priv.h"
 #include "sof-audio.h"
 #include "ipc3-priv.h"
-#include "ipc3-ops.h"
 #include "ops.h"
 
 static int ipc3_fw_ext_man_get_version(struct snd_sof_dev *sdev,

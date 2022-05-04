@@ -763,4 +763,7 @@ static inline int sof_resume_clients(struct snd_sof_dev *sdev)
 }
 #endif /* CONFIG_SND_SOC_SOF_CLIENT */
 
+/* Main ops for IPC implementations */
+extern const struct sof_ipc_ops ipc3_ops;
+
 #endif

@@ -9,7 +9,7 @@
 
 #include "sof-priv.h"
 #include "sof-audio.h"
-#include "ipc3-ops.h"
+#include "ipc3-priv.h"
 
 /* IPC set()/get() for kcontrols. */
 static int sof_ipc3_set_get_kcontrol_data(struct snd_sof_control *scontrol, bool set)

@@ -17,7 +17,6 @@
 #include "sof-priv.h"
 #include "sof-audio.h"
 #include "ops.h"
-#include "ipc3-ops.h"
 
 /**
  * sof_ipc_send_msg - generic function to prepare and send one IPC message

@@ -12,6 +12,9 @@
 #include "sof-priv.h"
 
 /* IPC3 specific ops */
+extern const struct sof_ipc_pcm_ops ipc3_pcm_ops;
+extern const struct sof_ipc_tplg_ops ipc3_tplg_ops;
+extern const struct sof_ipc_tplg_control_ops tplg_ipc3_control_ops;
 extern const struct sof_ipc_fw_loader_ops ipc3_loader_ops;
 
 /* helpers for fw_ready and ext_manifest parsing */

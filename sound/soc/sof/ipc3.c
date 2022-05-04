@@ -12,7 +12,6 @@
 #include "sof-priv.h"
 #include "sof-audio.h"
 #include "ipc3-priv.h"
-#include "ipc3-ops.h"
 #include "ops.h"
 
 typedef void (*ipc3_rx_callback)(struct snd_sof_dev *sdev, void *msg_buf);

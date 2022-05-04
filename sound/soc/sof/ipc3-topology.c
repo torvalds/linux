@@ -11,7 +11,7 @@
 #include <sound/pcm_params.h>
 #include "sof-priv.h"
 #include "sof-audio.h"
-#include "ipc3-ops.h"
+#include "ipc3-priv.h"
 #include "ops.h"
 
 /* Full volume for default values */
