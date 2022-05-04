@@ -38,13 +38,13 @@ static int rxe_mcast_add(struct rxe_dev *rxe, union ib_gid *mgid)
 }
 
 /**
- * rxe_mcast_delete - delete multicast address from rxe device
+ * rxe_mcast_del - delete multicast address from rxe device
  * @rxe: rxe device object
  * @mgid: multicast address as a gid
  *
  * Returns 0 on success else an error
  */
-static int rxe_mcast_delete(struct rxe_dev *rxe, union ib_gid *mgid)
+static int rxe_mcast_del(struct rxe_dev *rxe, union ib_gid *mgid)
 {
 	unsigned char ll_addr[ETH_ALEN];
 
@@ -159,17 +159,10 @@ struct rxe_mcg *rxe_lookup_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
  * @mcg: new mcg object
  *
  * Context: caller should hold rxe->mcg lock
- * Returns: 0 on success else an error
  */
-static int __rxe_init_mcg(struct rxe_dev *rxe, union ib_gid *mgid,
-			  struct rxe_mcg *mcg)
+static void __rxe_init_mcg(struct rxe_dev *rxe, union ib_gid *mgid,
+			   struct rxe_mcg *mcg)
 {
-	int err;
-
-	err = rxe_mcast_add(rxe, mgid);
-	if (unlikely(err))
-		return err;
-
 	kref_init(&mcg->ref_cnt);
 	memcpy(&mcg->mgid, mgid, sizeof(mcg->mgid));
 	INIT_LIST_HEAD(&mcg->qp_list);
@@ -184,8 +177,6 @@ static int __rxe_init_mcg(struct rxe_dev *rxe, union ib_gid *mgid,
 	 */
 	kref_get(&mcg->ref_cnt);
 	__rxe_insert_mcg(mcg);
-
-	return 0;
 }
 
 /**
@@ -209,6 +200,12 @@ static struct rxe_mcg *rxe_get_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
 	if (mcg)
 		return mcg;
 
+	/* check to see if we have reached limit */
+	if (atomic_inc_return(&rxe->mcg_num) > rxe->attr.max_mcast_grp) {
+		err = -ENOMEM;
+		goto err_dec;
+	}
+
 	/* speculative alloc of new mcg */
 	mcg = kzalloc(sizeof(*mcg), GFP_KERNEL);
 	if (!mcg)
@@ -218,27 +215,23 @@ static struct rxe_mcg *rxe_get_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
 	/* re-check to see if someone else just added it */
 	tmp = __rxe_lookup_mcg(rxe, mgid);
 	if (tmp) {
+		spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+		atomic_dec(&rxe->mcg_num);
 		kfree(mcg);
-		mcg = tmp;
-		goto out;
+		return tmp;
 	}
 
-	if (atomic_inc_return(&rxe->mcg_num) > rxe->attr.max_mcast_grp) {
-		err = -ENOMEM;
-		goto err_dec;
-	}
-
-	err = __rxe_init_mcg(rxe, mgid, mcg);
-	if (err)
-		goto err_dec;
-out:
+	__rxe_init_mcg(rxe, mgid, mcg);
 	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
-	return mcg;
 
+	/* add mcast address outside of lock */
+	err = rxe_mcast_add(rxe, mgid);
+	if (!err)
+		return mcg;
+
+	kfree(mcg);
 err_dec:
 	atomic_dec(&rxe->mcg_num);
-	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
-	kfree(mcg);
 	return ERR_PTR(err);
 }
 
@@ -268,7 +261,6 @@ static void __rxe_destroy_mcg(struct rxe_mcg *mcg)
 	__rxe_remove_mcg(mcg);
 	kref_put(&mcg->ref_cnt, rxe_cleanup_mcg);
 
-	rxe_mcast_delete(mcg->rxe, &mcg->mgid);
 	atomic_dec(&rxe->mcg_num);
 }
 
@@ -281,6 +273,9 @@ static void __rxe_destroy_mcg(struct rxe_mcg *mcg)
 static void rxe_destroy_mcg(struct rxe_mcg *mcg)
 {
 	unsigned long flags;
+
+	/* delete mcast address outside of lock */
+	rxe_mcast_del(mcg->rxe, &mcg->mgid);
 
 	spin_lock_irqsave(&mcg->rxe->mcg_lock, flags);
 	__rxe_destroy_mcg(mcg);
