@@ -2394,6 +2394,26 @@ static int guc_context_policy_init(struct intel_context *ce, bool loop)
 	return ret;
 }
 
+static u32 map_guc_prio_to_lrc_desc_prio(u8 prio)
+{
+	/*
+	 * this matches the mapping we do in map_i915_prio_to_guc_prio()
+	 * (e.g. prio < I915_PRIORITY_NORMAL maps to GUC_CLIENT_PRIORITY_NORMAL)
+	 */
+	switch (prio) {
+	default:
+		MISSING_CASE(prio);
+		fallthrough;
+	case GUC_CLIENT_PRIORITY_KMD_NORMAL:
+		return GEN12_CTX_PRIORITY_NORMAL;
+	case GUC_CLIENT_PRIORITY_NORMAL:
+		return GEN12_CTX_PRIORITY_LOW;
+	case GUC_CLIENT_PRIORITY_HIGH:
+	case GUC_CLIENT_PRIORITY_KMD_HIGH:
+		return GEN12_CTX_PRIORITY_HIGH;
+	}
+}
+
 static void prepare_context_registration_info(struct intel_context *ce,
 					      struct guc_ctxt_registration_info *info)
 {
@@ -2420,6 +2440,8 @@ static void prepare_context_registration_info(struct intel_context *ce,
 	 */
 	info->hwlrca_lo = lower_32_bits(ce->lrc.lrca);
 	info->hwlrca_hi = upper_32_bits(ce->lrc.lrca);
+	if (engine->flags & I915_ENGINE_HAS_EU_PRIORITY)
+		info->hwlrca_lo |= map_guc_prio_to_lrc_desc_prio(ce->guc_state.prio);
 	info->flags = CONTEXT_REGISTRATION_FLAG_KMD;
 
 	/*
