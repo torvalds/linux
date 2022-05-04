@@ -553,7 +553,7 @@
 		};
 
 		usb_0: usb@8af8800 {
-			compatible = "qcom,dwc3";
+			compatible = "qcom,ipq8074-dwc3", "qcom,dwc3";
 			reg = <0x08af8800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -593,7 +593,7 @@
 		};
 
 		usb_1: usb@8cf8800 {
-			compatible = "qcom,dwc3";
+			compatible = "qcom,ipq8074-dwc3", "qcom,dwc3";
 			reg = <0x08cf8800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
