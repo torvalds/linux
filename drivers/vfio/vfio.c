@@ -1653,10 +1653,7 @@ static const struct file_operations vfio_device_fops = {
  * increments the container user counter to prevent
  * the VFIO group from disposal before KVM exits.
  *
- * 3. The external user calls vfio_external_user_iommu_id()
- * to know an IOMMU ID.
- *
- * 4. When the external KVM finishes, it calls
+ * 3. When the external KVM finishes, it calls
  * vfio_group_put_external_user() to release the VFIO group.
  * This call decrements the container user counter.
  */
@@ -1697,11 +1694,21 @@ bool vfio_external_group_match_file(struct vfio_group *test_group,
 }
 EXPORT_SYMBOL_GPL(vfio_external_group_match_file);
 
-int vfio_external_user_iommu_id(struct vfio_group *group)
+/**
+ * vfio_file_iommu_group - Return the struct iommu_group for the vfio group file
+ * @file: VFIO group file
+ *
+ * The returned iommu_group is valid as long as a ref is held on the file.
+ */
+struct iommu_group *vfio_file_iommu_group(struct file *file)
 {
-	return iommu_group_id(group->iommu_group);
+	struct vfio_group *group = file->private_data;
+
+	if (file->f_op != &vfio_group_fops)
+		return NULL;
+	return group->iommu_group;
 }
-EXPORT_SYMBOL_GPL(vfio_external_user_iommu_id);
+EXPORT_SYMBOL_GPL(vfio_file_iommu_group);
 
 long vfio_external_check_extension(struct vfio_group *group, unsigned long arg)
 {

@@ -108,43 +108,31 @@ static bool kvm_vfio_group_is_coherent(struct vfio_group *vfio_group)
 }
 
 #ifdef CONFIG_SPAPR_TCE_IOMMU
-static int kvm_vfio_external_user_iommu_id(struct vfio_group *vfio_group)
+static struct iommu_group *kvm_vfio_file_iommu_group(struct file *file)
 {
-	int (*fn)(struct vfio_group *);
-	int ret = -EINVAL;
+	struct iommu_group *(*fn)(struct file *file);
+	struct iommu_group *ret;
 
-	fn = symbol_get(vfio_external_user_iommu_id);
+	fn = symbol_get(vfio_file_iommu_group);
 	if (!fn)
-		return ret;
+		return NULL;
 
-	ret = fn(vfio_group);
+	ret = fn(file);
 
-	symbol_put(vfio_external_user_iommu_id);
+	symbol_put(vfio_file_iommu_group);
 
 	return ret;
 }
 
-static struct iommu_group *kvm_vfio_group_get_iommu_group(
-		struct vfio_group *group)
-{
-	int group_id = kvm_vfio_external_user_iommu_id(group);
-
-	if (group_id < 0)
-		return NULL;
-
-	return iommu_group_get_by_id(group_id);
-}
-
 static void kvm_spapr_tce_release_vfio_group(struct kvm *kvm,
-		struct vfio_group *vfio_group)
+					     struct kvm_vfio_group *kvg)
 {
-	struct iommu_group *grp = kvm_vfio_group_get_iommu_group(vfio_group);
+	struct iommu_group *grp = kvm_vfio_file_iommu_group(kvg->file);
 
 	if (WARN_ON_ONCE(!grp))
 		return;
 
 	kvm_spapr_tce_release_iommu_group(kvm, grp);
-	iommu_group_put(grp);
 }
 #endif
 
@@ -258,7 +246,7 @@ static int kvm_vfio_group_del(struct kvm_device *dev, unsigned int fd)
 		list_del(&kvg->node);
 		kvm_arch_end_assignment(dev->kvm);
 #ifdef CONFIG_SPAPR_TCE_IOMMU
-		kvm_spapr_tce_release_vfio_group(dev->kvm, kvg->vfio_group);
+		kvm_spapr_tce_release_vfio_group(dev->kvm, kvg);
 #endif
 		kvm_vfio_group_set_kvm(kvg->vfio_group, NULL);
 		kvm_vfio_group_put_external_user(kvg->vfio_group);
@@ -304,7 +292,7 @@ static int kvm_vfio_group_set_spapr_tce(struct kvm_device *dev,
 		if (kvg->file != f.file)
 			continue;
 
-		grp = kvm_vfio_group_get_iommu_group(kvg->vfio_group);
+		grp = kvm_vfio_file_iommu_group(kvg->file);
 		if (WARN_ON_ONCE(!grp)) {
 			ret = -EIO;
 			goto err_fdput;
@@ -312,7 +300,6 @@ static int kvm_vfio_group_set_spapr_tce(struct kvm_device *dev,
 
 		ret = kvm_spapr_tce_attach_iommu_group(dev->kvm, param.tablefd,
 						       grp);
-		iommu_group_put(grp);
 		break;
 	}
 
@@ -388,7 +375,7 @@ static void kvm_vfio_destroy(struct kvm_device *dev)
 
 	list_for_each_entry_safe(kvg, tmp, &kv->group_list, node) {
 #ifdef CONFIG_SPAPR_TCE_IOMMU
-		kvm_spapr_tce_release_vfio_group(dev->kvm, kvg->vfio_group);
+		kvm_spapr_tce_release_vfio_group(dev->kvm, kvg);
 #endif
 		kvm_vfio_group_set_kvm(kvg->vfio_group, NULL);
 		kvm_vfio_group_put_external_user(kvg->vfio_group);
