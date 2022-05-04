@@ -587,10 +587,6 @@ static int cs35l45_initialize(struct cs35l45_private *cs35l45)
 		return ret;
 	}
 
-	/* Default to boost bypass */
-	regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES, CS35L45_BST_EN_MASK,
-			   CS35L45_BST_DISABLE_FET_ON << CS35L45_BST_EN_SHIFT);
-
 	ret = cs35l45_apply_property_config(cs35l45);
 	if (ret < 0)
 		return ret;
