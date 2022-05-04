@@ -50,11 +50,6 @@ static inline bool intel_huc_is_used(struct intel_huc *huc)
 	return intel_uc_fw_is_available(&huc->fw);
 }
 
-static inline bool intel_huc_is_authenticated(struct intel_huc *huc)
-{
-	return intel_uc_fw_is_running(&huc->fw);
-}
-
 void intel_huc_load_status(struct intel_huc *huc, struct drm_printer *p);
 
 #endif
