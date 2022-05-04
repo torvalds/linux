@@ -582,6 +582,12 @@ mlx5_tc_ct_entry_set_registers(struct mlx5_tc_ct_priv *ct_priv,
 	return 0;
 }
 
+int mlx5_tc_ct_set_ct_clear_regs(struct mlx5_tc_ct_priv *priv,
+				 struct mlx5e_tc_mod_hdr_acts *mod_acts)
+{
+		return mlx5_tc_ct_entry_set_registers(priv, mod_acts, 0, 0, 0, 0);
+}
+
 static int
 mlx5_tc_ct_parse_mangle_to_mod_act(struct flow_action_entry *act,
 				   char *modact)
@@ -1410,9 +1416,6 @@ mlx5_tc_ct_parse_action(struct mlx5_tc_ct_priv *priv,
 			const struct flow_action_entry *act,
 			struct netlink_ext_ack *extack)
 {
-	bool clear_action = act->ct.action & TCA_CT_ACT_CLEAR;
-	int err;
-
 	if (!priv) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "offload of ct action isn't available");
@@ -1423,17 +1426,6 @@ mlx5_tc_ct_parse_action(struct mlx5_tc_ct_priv *priv,
 	attr->ct_attr.ct_action = act->ct.action;
 	attr->ct_attr.nf_ft = act->ct.flow_table;
 
-	if (!clear_action)
-		goto out;
-
-	err = mlx5_tc_ct_entry_set_registers(priv, mod_acts, 0, 0, 0, 0);
-	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Failed to set registers for ct clear");
-		return err;
-	}
-	attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
-
-out:
 	return 0;
 }
 
@@ -1749,6 +1741,8 @@ mlx5_tc_ct_flush_ft_entry(void *ptr, void *arg)
 static void
 mlx5_tc_ct_del_ft_cb(struct mlx5_tc_ct_priv *ct_priv, struct mlx5_ct_ft *ft)
 {
+	struct mlx5e_priv *priv;
+
 	if (!refcount_dec_and_test(&ft->refcount))
 		return;
 
@@ -1758,6 +1752,8 @@ mlx5_tc_ct_del_ft_cb(struct mlx5_tc_ct_priv *ct_priv, struct mlx5_ct_ft *ft)
 	rhashtable_free_and_destroy(&ft->ct_entries_ht,
 				    mlx5_tc_ct_flush_ft_entry,
 				    ct_priv);
+	priv = netdev_priv(ct_priv->netdev);
+	flush_workqueue(priv->wq);
 	mlx5_tc_ct_free_pre_ct_tables(ft);
 	mapping_remove(ct_priv->zone_mapping, ft->zone_restore_id);
 	kfree(ft);
