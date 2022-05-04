@@ -323,13 +323,9 @@ static int icl_calc_tbt_pll_link(struct drm_i915_private *dev_priv,
 	}
 }
 
-static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
+int intel_crtc_dotclock(const struct intel_crtc_state *pipe_config)
 {
 	int dotclock;
-
-	/* CRT dotclock is determined via other means */
-	if (pipe_config->has_pch_encoder)
-		return;
 
 	if (intel_crtc_has_dp_encoder(pipe_config))
 		dotclock = intel_dotclock_calculate(pipe_config->port_clock,
@@ -346,7 +342,17 @@ static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
 	if (pipe_config->pixel_multiplier)
 		dotclock /= pipe_config->pixel_multiplier;
 
-	pipe_config->hw.adjusted_mode.crtc_clock = dotclock;
+	return dotclock;
+}
+
+static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
+{
+	/* CRT dotclock is determined via other means */
+	if (pipe_config->has_pch_encoder)
+		return;
+
+	pipe_config->hw.adjusted_mode.crtc_clock =
+		intel_crtc_dotclock(pipe_config);
 }
 
 void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
