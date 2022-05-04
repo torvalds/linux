@@ -3,19 +3,14 @@
   * @file  pwmdac.h
   * @author  StarFive Technology
   * @version  V1.0
-  * @date  05/27/2021
+  * @date  05/05/2022
   * @brief
   ******************************************************************************
   * @copy
   *
-  * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
-  * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
-  * TIME. AS A RESULT, STARFIVE SHALL NOT BE HELD LIABLE FOR ANY
-  * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
-  * FROM THE CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
-  * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+  * PWMDAC driver for the StarFive JH7110 SoC
   *
-  * <h2><center>&copy; COPYRIGHT 20120 Shanghai StarFive Technology Co., Ltd. </center></h2>
+  * Copyright (C) 2022 StarFive Technology Co., Ltd.
   */
   
 #ifndef __STARFIVE_PWMDAC_LOCAL_H
@@ -27,22 +22,22 @@
 #include <sound/dmaengine_pcm.h>
 #include <sound/pcm.h>
 
-#define PWMDAC_WDATA	0///PWMDAC_BASE_ADDR
-#define PWMDAC_CTRL		0x04///PWMDAC_BASE_ADDR + 0x04
-#define PWMDAC_SATAE	0x08///PWMDAC_BASE_ADDR + 0x08
-#define PWMDAC_RESERVED	0x0C///PWMDAC_BASE_ADDR + 0x0C
+#define PWMDAC_WDATA		0	/*PWMDAC_BASE_ADDR*/
+#define PWMDAC_CTRL		0x04	/*PWMDAC_BASE_ADDR + 0x04*/
+#define PWMDAC_SATAE		0x08	/*PWMDAC_BASE_ADDR + 0x08*/
+#define PWMDAC_RESERVED		0x0C	/*PWMDAC_BASE_ADDR + 0x0C*/
 
-#define SFC_PWMDAC_SHIFT		BIT(1)
-#define SFC_PWMDAC_DUTY_CYCLE	BIT(2)
-#define SFC_PWMDAC_CNT_N		BIT(4)
+#define SFC_PWMDAC_SHIFT			BIT(1)
+#define SFC_PWMDAC_DUTY_CYCLE			BIT(2)
+#define SFC_PWMDAC_CNT_N			BIT(4)
 
 #define SFC_PWMDAC_LEFT_RIGHT_DATA_CHANGE	BIT(13)
-#define SFC_PWMDAC_DATA_MODE	BIT(14)
+#define SFC_PWMDAC_DATA_MODE			BIT(14)
 
 #define FIFO_UN_FULL	0
 #define FIFO_FULL	1
 
-#define PWMDAC_MCLK	(4096000)
+#define PWMDAC_MCLK	4096000
 
 enum pwmdac_lr_change{
 	NO_CHANGE = 0,
@@ -56,7 +51,7 @@ enum pwmdac_d_mode{
 
 enum pwmdac_shift_bit{
 	PWMDAC_SHIFT_8 = 8,		/*pwmdac shift 8 bit*/
-	PWMDAC_SHIFT_10 = 10,	/*pwmdac shift 10 bit*/
+	PWMDAC_SHIFT_10 = 10,		/*pwmdac shift 10 bit*/
 };
 
 enum pwmdac_duty_cycle{
@@ -74,7 +69,7 @@ enum pwmdac_sample_count{
 	PWMDAC_SAMPLE_CNT_5,
 	PWMDAC_SAMPLE_CNT_6,
 	PWMDAC_SAMPLE_CNT_7,
-	PWMDAC_SAMPLE_CNT_8 = 1,    //(32.468/8) == (12.288/3) == 4.096
+	PWMDAC_SAMPLE_CNT_8 = 1,	/*(32.468/8) == (12.288/3) == 4.096*/
 	PWMDAC_SAMPLE_CNT_9,
 	PWMDAC_SAMPLE_CNT_10,
 	PWMDAC_SAMPLE_CNT_11,
@@ -130,6 +125,11 @@ struct sf_pwmdac_dev {
 	bool use_pio;
 	spinlock_t lock;
 	int active;
+
+	struct clk *clk_apb0;
+	struct clk *clk_pwmdac_apb;
+	struct clk *clk_pwmdac_core;
+	struct reset_control *rst_apb;
 	
 	struct device *dev;
 	struct snd_dmaengine_dai_dma_data play_dma_data;

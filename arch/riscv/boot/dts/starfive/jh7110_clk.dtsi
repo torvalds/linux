@@ -117,18 +117,6 @@
 		clock-frequency = <4000000>;
 	};
 
-	stg_axiahb_clk: stg_axiahb_clk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <204800000>;
-	};
-
-	stg_apbclk: stg_apbclk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <51200000>;
-	};
-
 	gpu_core_clk: gpu_core_clk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;

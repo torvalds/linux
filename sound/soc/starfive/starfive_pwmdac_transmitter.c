@@ -90,9 +90,21 @@ static struct platform_driver pwmdac_dit_driver = {
 	},
 };
 
-module_platform_driver(pwmdac_dit_driver);
+static int __init pwmdac_dit_driver_init(void)
+{
+	return platform_driver_register(&pwmdac_dit_driver);
+}
 
-MODULE_AUTHOR("jenny.zhang <jenny.zhang@starfivetech.com>");
+static void pwmdac_dit_driver_exit(void)
+{
+	platform_driver_unregister(&pwmdac_dit_driver);
+}
+
+late_initcall(pwmdac_dit_driver_init);
+module_exit(pwmdac_dit_driver_exit);
+
+
+MODULE_AUTHOR("curry.zhang <curry.zhang@starfivetech.com>");
 MODULE_DESCRIPTION("pwmdac dummy codec driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform: starfive-pwmdac dummy codec");
