@@ -634,37 +634,127 @@ static void cs42l42_run_jack_detect(struct sub_codec *cs42l42)
 	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL2, 0xc0);
 }
 
+static int cs42l42_manual_hs_det(struct sub_codec *cs42l42)
+{
+	unsigned int hs_det_status;
+	unsigned int hs_det_comp1;
+	unsigned int hs_det_comp2;
+	unsigned int hs_det_sw;
+	unsigned int hs_type;
+
+	/* Set hs detect to manual, active mode */
+	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL2,
+			 (1 << CS42L42_HSDET_CTRL_SHIFT) |
+			 (0 << CS42L42_HSDET_SET_SHIFT) |
+			 (0 << CS42L42_HSBIAS_REF_SHIFT) |
+			 (0 << CS42L42_HSDET_AUTO_TIME_SHIFT));
+
+	/* Configure HS DET comparator reference levels. */
+	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL1,
+			 (CS42L42_HSDET_COMP1_LVL_VAL << CS42L42_HSDET_COMP1_LVL_SHIFT) |
+			 (CS42L42_HSDET_COMP2_LVL_VAL << CS42L42_HSDET_COMP2_LVL_SHIFT));
+
+	/* Open the SW_HSB_HS3 switch and close SW_HSB_HS4 for a Type 1 headset. */
+	cs8409_i2c_write(cs42l42, CS42L42_HS_SWITCH_CTL, CS42L42_HSDET_SW_COMP1);
+
+	msleep(100);
+
+	hs_det_status = cs8409_i2c_read(cs42l42, CS42L42_HS_DET_STATUS);
+
+	hs_det_comp1 = (hs_det_status & CS42L42_HSDET_COMP1_OUT_MASK) >>
+			CS42L42_HSDET_COMP1_OUT_SHIFT;
+	hs_det_comp2 = (hs_det_status & CS42L42_HSDET_COMP2_OUT_MASK) >>
+			CS42L42_HSDET_COMP2_OUT_SHIFT;
+
+	/* Close the SW_HSB_HS3 switch for a Type 2 headset. */
+	cs8409_i2c_write(cs42l42, CS42L42_HS_SWITCH_CTL, CS42L42_HSDET_SW_COMP2);
+
+	msleep(100);
+
+	hs_det_status = cs8409_i2c_read(cs42l42, CS42L42_HS_DET_STATUS);
+
+	hs_det_comp1 |= ((hs_det_status & CS42L42_HSDET_COMP1_OUT_MASK) >>
+			CS42L42_HSDET_COMP1_OUT_SHIFT) << 1;
+	hs_det_comp2 |= ((hs_det_status & CS42L42_HSDET_COMP2_OUT_MASK) >>
+			CS42L42_HSDET_COMP2_OUT_SHIFT) << 1;
+
+	/* Use Comparator 1 with 1.25V Threshold. */
+	switch (hs_det_comp1) {
+	case CS42L42_HSDET_COMP_TYPE1:
+		hs_type = CS42L42_PLUG_CTIA;
+		hs_det_sw = CS42L42_HSDET_SW_TYPE1;
+		break;
+	case CS42L42_HSDET_COMP_TYPE2:
+		hs_type = CS42L42_PLUG_OMTP;
+		hs_det_sw = CS42L42_HSDET_SW_TYPE2;
+		break;
+	default:
+		/* Fallback to Comparator 2 with 1.75V Threshold. */
+		switch (hs_det_comp2) {
+		case CS42L42_HSDET_COMP_TYPE1:
+			hs_type = CS42L42_PLUG_CTIA;
+			hs_det_sw = CS42L42_HSDET_SW_TYPE1;
+			break;
+		case CS42L42_HSDET_COMP_TYPE2:
+			hs_type = CS42L42_PLUG_OMTP;
+			hs_det_sw = CS42L42_HSDET_SW_TYPE2;
+			break;
+		case CS42L42_HSDET_COMP_TYPE3:
+			hs_type = CS42L42_PLUG_HEADPHONE;
+			hs_det_sw = CS42L42_HSDET_SW_TYPE3;
+			break;
+		default:
+			hs_type = CS42L42_PLUG_INVALID;
+			hs_det_sw = CS42L42_HSDET_SW_TYPE4;
+			break;
+		}
+	}
+
+	/* Set Switches */
+	cs8409_i2c_write(cs42l42, CS42L42_HS_SWITCH_CTL, hs_det_sw);
+
+	/* Set HSDET mode to Manual—Disabled */
+	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL2,
+			 (0 << CS42L42_HSDET_CTRL_SHIFT) |
+			 (0 << CS42L42_HSDET_SET_SHIFT) |
+			 (0 << CS42L42_HSBIAS_REF_SHIFT) |
+			 (0 << CS42L42_HSDET_AUTO_TIME_SHIFT));
+
+	/* Configure HS DET comparator reference levels. */
+	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL1,
+			 (CS42L42_HSDET_COMP1_LVL_DEFAULT << CS42L42_HSDET_COMP1_LVL_SHIFT) |
+			 (CS42L42_HSDET_COMP2_LVL_DEFAULT << CS42L42_HSDET_COMP2_LVL_SHIFT));
+
+	return hs_type;
+}
+
 static int cs42l42_handle_tip_sense(struct sub_codec *cs42l42, unsigned int reg_ts_status)
 {
-	int status_changed = cs42l42->force_status_change;
-
-	cs42l42->force_status_change = 0;
+	int status_changed = 0;
 
 	/* TIP_SENSE INSERT/REMOVE */
 	switch (reg_ts_status) {
 	case CS42L42_TS_PLUG:
-		if (!cs42l42->hp_jack_in) {
-			if (cs42l42->no_type_dect) {
-				status_changed = 1;
-				cs42l42->hp_jack_in = 1;
-				cs42l42->mic_jack_in = 0;
-			} else {
-				cs42l42_run_jack_detect(cs42l42);
-			}
+		if (cs42l42->no_type_dect) {
+			status_changed = 1;
+			cs42l42->hp_jack_in = 1;
+			cs42l42->mic_jack_in = 0;
+		} else {
+			cs42l42_run_jack_detect(cs42l42);
 		}
 		break;
 
 	case CS42L42_TS_UNPLUG:
-		if (cs42l42->hp_jack_in || cs42l42->mic_jack_in) {
-			status_changed = 1;
-			cs42l42->hp_jack_in = 0;
-			cs42l42->mic_jack_in = 0;
-		}
+		status_changed = 1;
+		cs42l42->hp_jack_in = 0;
+		cs42l42->mic_jack_in = 0;
 		break;
 	default:
 		/* jack in transition */
 		break;
 	}
+
+	codec_dbg(cs42l42->codec, "Tip Sense Detection: (%d)\n", reg_ts_status);
 
 	return status_changed;
 }
@@ -698,24 +788,40 @@ static int cs42l42_jack_unsol_event(struct sub_codec *cs42l42)
 
 		type = (reg_hs_status & CS42L42_HSDET_TYPE_MASK) >> CS42L42_HSDET_TYPE_SHIFT;
 
-		if (cs42l42->no_type_dect) {
-			status_changed = cs42l42_handle_tip_sense(cs42l42, current_plug_status);
-		} else if (type == CS42L42_PLUG_INVALID) {
-			/* Type CS42L42_PLUG_INVALID not supported	*/
-			status_changed = cs42l42_handle_tip_sense(cs42l42, CS42L42_TS_UNPLUG);
-		} else {
-			if (!cs42l42->hp_jack_in) {
-				status_changed = 1;
-				cs42l42->hp_jack_in = 1;
-			}
-			/* type = CS42L42_PLUG_HEADPHONE has no mic */
-			if ((!cs42l42->mic_jack_in) && (type != CS42L42_PLUG_HEADPHONE)) {
-				status_changed = 1;
-				cs42l42->mic_jack_in = 1;
-			}
-		}
 		/* Configure the HSDET mode. */
 		cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL2, 0x80);
+
+		if (cs42l42->no_type_dect) {
+			status_changed = cs42l42_handle_tip_sense(cs42l42, current_plug_status);
+		} else {
+			if (type == CS42L42_PLUG_INVALID || type == CS42L42_PLUG_HEADPHONE) {
+				codec_dbg(cs42l42->codec,
+					  "Auto detect value not valid (%d), running manual det\n",
+					  type);
+				type = cs42l42_manual_hs_det(cs42l42);
+			}
+
+			switch (type) {
+			case CS42L42_PLUG_CTIA:
+			case CS42L42_PLUG_OMTP:
+				status_changed = 1;
+				cs42l42->hp_jack_in = 1;
+				cs42l42->mic_jack_in = 1;
+				break;
+			case CS42L42_PLUG_HEADPHONE:
+				status_changed = 1;
+				cs42l42->hp_jack_in = 1;
+				cs42l42->mic_jack_in = 0;
+				break;
+			default:
+				status_changed = 1;
+				cs42l42->hp_jack_in = 0;
+				cs42l42->mic_jack_in = 0;
+				break;
+			}
+			codec_dbg(cs42l42->codec, "Detection done (%d)\n", type);
+		}
+
 		/* Enable the HPOUT ground clamp and configure the HP pull-down */
 		cs8409_i2c_write(cs42l42, CS42L42_DAC_CTL2, 0x02);
 		/* Re-Enable Tip Sense Interrupt */
@@ -803,7 +909,6 @@ static void cs42l42_suspend(struct sub_codec *cs42l42)
 	cs42l42->last_page = 0;
 	cs42l42->hp_jack_in = 0;
 	cs42l42->mic_jack_in = 0;
-	cs42l42->force_status_change = 1;
 
 	/* Put CS42L42 into Reset */
 	gpio_data = snd_hda_codec_read(codec, CS8409_PIN_AFG, 0, AC_VERB_GET_GPIO_DATA, 0);
