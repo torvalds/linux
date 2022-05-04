@@ -506,6 +506,13 @@ int iommu_get_group_resv_regions(struct iommu_group *group,
 	list_for_each_entry(device, &group->devices, list) {
 		struct list_head dev_resv_regions;
 
+		/*
+		 * Non-API groups still expose reserved_regions in sysfs,
+		 * so filter out calls that get here that way.
+		 */
+		if (!device->dev->iommu)
+			break;
+
 		INIT_LIST_HEAD(&dev_resv_regions);
 		iommu_get_resv_regions(device->dev, &dev_resv_regions);
 		ret = iommu_insert_device_resv_regions(&dev_resv_regions, head);
@@ -3019,7 +3026,7 @@ static ssize_t iommu_group_store_type(struct iommu_group *group,
 	if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
 		return -EACCES;
 
-	if (WARN_ON(!group))
+	if (WARN_ON(!group) || !group->default_domain)
 		return -EINVAL;
 
 	if (sysfs_streq(buf, "identity"))
