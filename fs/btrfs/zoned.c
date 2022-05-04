@@ -1836,7 +1836,7 @@ bool btrfs_zone_activate(struct btrfs_block_group *block_group)
 	}
 
 	/* No space left */
-	if (block_group->alloc_offset == block_group->zone_capacity) {
+	if (btrfs_zoned_bg_is_full(block_group)) {
 		ret = false;
 		goto out_unlock;
 	}

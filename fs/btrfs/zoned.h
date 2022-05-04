@@ -372,4 +372,10 @@ static inline void btrfs_zoned_data_reloc_unlock(struct btrfs_inode *inode)
 		mutex_unlock(&root->fs_info->zoned_data_reloc_io_lock);
 }
 
+static inline bool btrfs_zoned_bg_is_full(const struct btrfs_block_group *bg)
+{
+	ASSERT(btrfs_is_zoned(bg->fs_info));
+	return (bg->alloc_offset == bg->zone_capacity);
+}
+
 #endif
