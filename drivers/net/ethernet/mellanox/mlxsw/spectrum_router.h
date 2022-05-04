@@ -56,6 +56,7 @@ struct mlxsw_sp_router {
 	struct {
 		struct delayed_work dw;
 		unsigned long interval;	/* ms */
+		atomic_t neigh_count;
 	} neighs_update;
 	struct delayed_work nexthop_probe_dw;
 #define MLXSW_SP_UNRESOLVED_NH_PROBE_INTERVAL 5000 /* ms */
