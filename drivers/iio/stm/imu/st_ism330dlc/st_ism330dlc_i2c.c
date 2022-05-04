@@ -14,7 +14,11 @@
 #include <linux/of.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
+#include <linux/version.h>
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0)
 #include <linux/iio/buffer_impl.h>
+#endif /* LINUX_VERSION_CODE */
 
 #include "st_ism330dlc.h"
 

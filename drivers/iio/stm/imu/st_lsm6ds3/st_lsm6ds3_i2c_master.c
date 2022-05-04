@@ -18,11 +18,15 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/buffer_impl.h>
 #include <linux/iio/events.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <asm/unaligned.h>
+#include <linux/version.h>
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0)
+#include <linux/iio/buffer_impl.h>
+#endif /* LINUX_VERSION_CODE */
 
 #include "st_lsm6ds3.h"
 
