@@ -855,10 +855,6 @@ mgag200_handle_damage(struct mga_device *mdev, struct drm_framebuffer *fb,
 
 	dst += drm_fb_clip_offset(fb->pitches[0], fb->format, clip);
 	drm_fb_memcpy_toio(dst, fb->pitches[0], vmap, fb, clip);
-
-	/* Always scanout image at VRAM offset 0 */
-	mgag200_set_startadd(mdev, (u32)0);
-	mgag200_set_offset(mdev, fb);
 }
 
 static void
@@ -912,6 +908,10 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 	mgag200_enable_display(mdev);
 
 	mgag200_handle_damage(mdev, fb, &fullscreen, &shadow_plane_state->data[0]);
+
+	/* Always scanout image at VRAM offset 0 */
+	mgag200_set_startadd(mdev, (u32)0);
+	mgag200_set_offset(mdev, fb);
 
 	mutex_unlock(&mdev->rmmio_lock);
 }
@@ -969,14 +969,20 @@ mgag200_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_rect damage;
+	struct drm_atomic_helper_damage_iter iter;
 
 	if (!fb)
 		return;
 
 	mutex_lock(&mdev->rmmio_lock);
 
-	if (drm_atomic_helper_damage_merged(old_state, state, &damage))
+	drm_atomic_helper_damage_iter_init(&iter, old_state, state);
+	drm_atomic_for_each_plane_damage(&iter, &damage) {
 		mgag200_handle_damage(mdev, fb, &damage, &shadow_plane_state->data[0]);
+	}
+	/* Always scanout image at VRAM offset 0 */
+	mgag200_set_startadd(mdev, (u32)0);
+	mgag200_set_offset(mdev, fb);
 
 	mutex_unlock(&mdev->rmmio_lock);
 }
