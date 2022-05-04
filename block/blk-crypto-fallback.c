@@ -179,7 +179,6 @@ static struct bio *blk_crypto_fallback_clone_bio(struct bio *bio_src)
 		bio->bi_io_vec[bio->bi_vcnt++] = bv;
 
 	bio_clone_blkg_association(bio, bio_src);
-	blkcg_bio_issue_init(bio);
 
 	return bio;
 }

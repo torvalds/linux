@@ -768,7 +768,6 @@ static int __bio_clone(struct bio *bio, struct bio *bio_src, gfp_t gfp)
 	bio->bi_iter = bio_src->bi_iter;
 
 	bio_clone_blkg_association(bio, bio_src);
-	blkcg_bio_issue_init(bio);
 
 	if (bio_crypt_clone(bio, bio_src, gfp) < 0)
 		return -ENOMEM;

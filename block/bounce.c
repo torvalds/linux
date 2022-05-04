@@ -191,7 +191,6 @@ static struct bio *bounce_clone_bio(struct bio *bio_src)
 		goto err_put;
 
 	bio_clone_blkg_association(bio, bio_src);
-	blkcg_bio_issue_init(bio);
 
 	return bio;
 
