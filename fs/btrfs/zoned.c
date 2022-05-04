@@ -1873,19 +1873,13 @@ out_unlock:
 	return ret;
 }
 
-int btrfs_zone_finish(struct btrfs_block_group *block_group)
+static int do_zone_finish(struct btrfs_block_group *block_group, bool fully_written)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct map_lookup *map;
-	struct btrfs_device *device;
-	u64 physical;
+	bool need_zone_finish;
 	int ret = 0;
 	int i;
-
-	if (!btrfs_is_zoned(fs_info))
-		return 0;
-
-	map = block_group->physical_map;
 
 	spin_lock(&block_group->lock);
 	if (!block_group->zone_is_active) {
@@ -1900,35 +1894,51 @@ int btrfs_zone_finish(struct btrfs_block_group *block_group)
 		spin_unlock(&block_group->lock);
 		return -EAGAIN;
 	}
-	spin_unlock(&block_group->lock);
-
-	ret = btrfs_inc_block_group_ro(block_group, false);
-	if (ret)
-		return ret;
-
-	/* Ensure all writes in this block group finish */
-	btrfs_wait_block_group_reservations(block_group);
-	/* No need to wait for NOCOW writers. Zoned mode does not allow that. */
-	btrfs_wait_ordered_roots(fs_info, U64_MAX, block_group->start,
-				 block_group->length);
-
-	spin_lock(&block_group->lock);
 
 	/*
-	 * Bail out if someone already deactivated the block group, or
-	 * allocated space is left in the block group.
+	 * If we are sure that the block group is full (= no more room left for
+	 * new allocation) and the IO for the last usable block is completed, we
+	 * don't need to wait for the other IOs. This holds because we ensure
+	 * the sequential IO submissions using the ZONE_APPEND command for data
+	 * and block_group->meta_write_pointer for metadata.
 	 */
-	if (!block_group->zone_is_active) {
+	if (!fully_written) {
 		spin_unlock(&block_group->lock);
-		btrfs_dec_block_group_ro(block_group);
-		return 0;
+
+		ret = btrfs_inc_block_group_ro(block_group, false);
+		if (ret)
+			return ret;
+
+		/* Ensure all writes in this block group finish */
+		btrfs_wait_block_group_reservations(block_group);
+		/* No need to wait for NOCOW writers. Zoned mode does not allow that */
+		btrfs_wait_ordered_roots(fs_info, U64_MAX, block_group->start,
+					 block_group->length);
+
+		spin_lock(&block_group->lock);
+
+		/*
+		 * Bail out if someone already deactivated the block group, or
+		 * allocated space is left in the block group.
+		 */
+		if (!block_group->zone_is_active) {
+			spin_unlock(&block_group->lock);
+			btrfs_dec_block_group_ro(block_group);
+			return 0;
+		}
+
+		if (block_group->reserved) {
+			spin_unlock(&block_group->lock);
+			btrfs_dec_block_group_ro(block_group);
+			return -EAGAIN;
+		}
 	}
 
-	if (block_group->reserved) {
-		spin_unlock(&block_group->lock);
-		btrfs_dec_block_group_ro(block_group);
-		return -EAGAIN;
-	}
+	/*
+	 * The block group is not fully allocated, so not fully written yet. We
+	 * need to send ZONE_FINISH command to free up an active zone.
+	 */
+	need_zone_finish = !btrfs_zoned_bg_is_full(block_group);
 
 	block_group->zone_is_active = 0;
 	block_group->alloc_offset = block_group->zone_capacity;
@@ -1937,24 +1947,29 @@ int btrfs_zone_finish(struct btrfs_block_group *block_group)
 	btrfs_clear_data_reloc_bg(block_group);
 	spin_unlock(&block_group->lock);
 
+	map = block_group->physical_map;
 	for (i = 0; i < map->num_stripes; i++) {
-		device = map->stripes[i].dev;
-		physical = map->stripes[i].physical;
+		struct btrfs_device *device = map->stripes[i].dev;
+		const u64 physical = map->stripes[i].physical;
 
 		if (device->zone_info->max_active_zones == 0)
 			continue;
 
-		ret = blkdev_zone_mgmt(device->bdev, REQ_OP_ZONE_FINISH,
-				       physical >> SECTOR_SHIFT,
-				       device->zone_info->zone_size >> SECTOR_SHIFT,
-				       GFP_NOFS);
+		if (need_zone_finish) {
+			ret = blkdev_zone_mgmt(device->bdev, REQ_OP_ZONE_FINISH,
+					       physical >> SECTOR_SHIFT,
+					       device->zone_info->zone_size >> SECTOR_SHIFT,
+					       GFP_NOFS);
 
-		if (ret)
-			return ret;
+			if (ret)
+				return ret;
+		}
 
 		btrfs_dev_clear_active_zone(device, physical);
 	}
-	btrfs_dec_block_group_ro(block_group);
+
+	if (!fully_written)
+		btrfs_dec_block_group_ro(block_group);
 
 	spin_lock(&fs_info->zone_active_bgs_lock);
 	ASSERT(!list_empty(&block_group->active_bg_list));
@@ -1965,6 +1980,14 @@ int btrfs_zone_finish(struct btrfs_block_group *block_group)
 	btrfs_put_block_group(block_group);
 
 	return 0;
+}
+
+int btrfs_zone_finish(struct btrfs_block_group *block_group)
+{
+	if (!btrfs_is_zoned(block_group->fs_info))
+		return 0;
+
+	return do_zone_finish(block_group, false);
 }
 
 bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices, u64 flags)
@@ -1998,9 +2021,6 @@ bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices, u64 flags)
 void btrfs_zone_finish_endio(struct btrfs_fs_info *fs_info, u64 logical, u64 length)
 {
 	struct btrfs_block_group *block_group;
-	struct map_lookup *map;
-	struct btrfs_device *device;
-	u64 physical;
 
 	if (!btrfs_is_zoned(fs_info))
 		return;
@@ -2011,36 +2031,7 @@ void btrfs_zone_finish_endio(struct btrfs_fs_info *fs_info, u64 logical, u64 len
 	if (logical + length < block_group->start + block_group->zone_capacity)
 		goto out;
 
-	spin_lock(&block_group->lock);
-
-	if (!block_group->zone_is_active) {
-		spin_unlock(&block_group->lock);
-		goto out;
-	}
-
-	block_group->zone_is_active = 0;
-	/* We should have consumed all the free space */
-	ASSERT(block_group->alloc_offset == block_group->zone_capacity);
-	ASSERT(block_group->free_space_ctl->free_space == 0);
-	btrfs_clear_treelog_bg(block_group);
-	btrfs_clear_data_reloc_bg(block_group);
-	spin_unlock(&block_group->lock);
-
-	map = block_group->physical_map;
-	device = map->stripes[0].dev;
-	physical = map->stripes[0].physical;
-
-	if (!device->zone_info->max_active_zones)
-		goto out;
-
-	btrfs_dev_clear_active_zone(device, physical);
-
-	spin_lock(&fs_info->zone_active_bgs_lock);
-	ASSERT(!list_empty(&block_group->active_bg_list));
-	list_del_init(&block_group->active_bg_list);
-	spin_unlock(&fs_info->zone_active_bgs_lock);
-
-	btrfs_put_block_group(block_group);
+	do_zone_finish(block_group, true);
 
 out:
 	btrfs_put_block_group(block_group);
