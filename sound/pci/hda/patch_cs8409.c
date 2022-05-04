@@ -481,26 +481,26 @@ static void cs42l42_mute(struct sub_codec *cs42l42, int vol_type,
 	if (mute) {
 		if (vol_type == CS42L42_VOL_DAC) {
 			if (chs & BIT(0))
-				cs8409_i2c_write(cs42l42, CS42L42_REG_HS_VOL_CHA, 0x3f);
+				cs8409_i2c_write(cs42l42, CS42L42_MIXER_CHA_VOL, 0x3f);
 			if (chs & BIT(1))
-				cs8409_i2c_write(cs42l42, CS42L42_REG_HS_VOL_CHB, 0x3f);
+				cs8409_i2c_write(cs42l42, CS42L42_MIXER_CHB_VOL, 0x3f);
 		} else if (vol_type == CS42L42_VOL_ADC) {
 			if (chs & BIT(0))
-				cs8409_i2c_write(cs42l42, CS42L42_REG_AMIC_VOL, 0x9f);
+				cs8409_i2c_write(cs42l42, CS42L42_ADC_VOLUME, 0x9f);
 		}
 	} else {
 		if (vol_type == CS42L42_VOL_DAC) {
 			if (chs & BIT(0))
-				cs8409_i2c_write(cs42l42, CS42L42_REG_HS_VOL_CHA,
+				cs8409_i2c_write(cs42l42, CS42L42_MIXER_CHA_VOL,
 					-(cs42l42->vol[CS42L42_DAC_CH0_VOL_OFFSET])
-					& CS42L42_REG_HS_VOL_MASK);
+					& CS42L42_MIXER_CH_VOL_MASK);
 			if (chs & BIT(1))
-				cs8409_i2c_write(cs42l42, CS42L42_REG_HS_VOL_CHB,
+				cs8409_i2c_write(cs42l42, CS42L42_MIXER_CHB_VOL,
 					-(cs42l42->vol[CS42L42_DAC_CH1_VOL_OFFSET])
-					& CS42L42_REG_HS_VOL_MASK);
+					& CS42L42_MIXER_CH_VOL_MASK);
 		} else if (vol_type == CS42L42_VOL_ADC) {
 			if (chs & BIT(0))
-				cs8409_i2c_write(cs42l42, CS42L42_REG_AMIC_VOL,
+				cs8409_i2c_write(cs42l42, CS42L42_ADC_VOLUME,
 					cs42l42->vol[CS42L42_ADC_VOL_OFFSET]
 					& CS42L42_REG_AMIC_VOL_MASK);
 		}
@@ -601,37 +601,37 @@ static void cs42l42_capture_pcm_hook(struct hda_pcm_stream *hinfo,
 /* Configure CS42L42 slave codec for jack autodetect */
 static void cs42l42_enable_jack_detect(struct sub_codec *cs42l42)
 {
-	cs8409_i2c_write(cs42l42, 0x1b70, cs42l42->hsbias_hiz);
+	cs8409_i2c_write(cs42l42, CS42L42_HSBIAS_SC_AUTOCTL, cs42l42->hsbias_hiz);
 	/* Clear WAKE# */
-	cs8409_i2c_write(cs42l42, 0x1b71, 0x00C1);
+	cs8409_i2c_write(cs42l42, CS42L42_WAKE_CTL, 0x00C1);
 	/* Wait ~2.5ms */
 	usleep_range(2500, 3000);
 	/* Set mode WAKE# output follows the combination logic directly */
-	cs8409_i2c_write(cs42l42, 0x1b71, 0x00C0);
+	cs8409_i2c_write(cs42l42, CS42L42_WAKE_CTL, 0x00C0);
 	/* Clear interrupts status */
-	cs8409_i2c_read(cs42l42, 0x130f);
+	cs8409_i2c_read(cs42l42, CS42L42_TSRS_PLUG_STATUS);
 	/* Enable interrupt */
-	cs8409_i2c_write(cs42l42, 0x1320, 0xF3);
+	cs8409_i2c_write(cs42l42, CS42L42_TSRS_PLUG_INT_MASK, 0xF3);
 }
 
 /* Enable and run CS42L42 slave codec jack auto detect */
 static void cs42l42_run_jack_detect(struct sub_codec *cs42l42)
 {
 	/* Clear interrupts */
-	cs8409_i2c_read(cs42l42, 0x1308);
-	cs8409_i2c_read(cs42l42, 0x1b77);
-	cs8409_i2c_write(cs42l42, 0x1320, 0xFF);
-	cs8409_i2c_read(cs42l42, 0x130f);
+	cs8409_i2c_read(cs42l42, CS42L42_CODEC_STATUS);
+	cs8409_i2c_read(cs42l42, CS42L42_DET_STATUS1);
+	cs8409_i2c_write(cs42l42, CS42L42_TSRS_PLUG_INT_MASK, 0xFF);
+	cs8409_i2c_read(cs42l42, CS42L42_TSRS_PLUG_STATUS);
 
-	cs8409_i2c_write(cs42l42, 0x1102, 0x87);
-	cs8409_i2c_write(cs42l42, 0x1f06, 0x86);
-	cs8409_i2c_write(cs42l42, 0x1b74, 0x07);
-	cs8409_i2c_write(cs42l42, 0x131b, 0xFD);
-	cs8409_i2c_write(cs42l42, 0x1120, 0x80);
+	cs8409_i2c_write(cs42l42, CS42L42_PWR_CTL2, 0x87);
+	cs8409_i2c_write(cs42l42, CS42L42_DAC_CTL2, 0x86);
+	cs8409_i2c_write(cs42l42, CS42L42_MISC_DET_CTL, 0x07);
+	cs8409_i2c_write(cs42l42, CS42L42_CODEC_INT_MASK, 0xFD);
+	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL2, 0x80);
 	/* Wait ~20ms*/
 	usleep_range(20000, 25000);
-	cs8409_i2c_write(cs42l42, 0x111f, 0x77);
-	cs8409_i2c_write(cs42l42, 0x1120, 0xc0);
+	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL1, 0x77);
+	cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL2, 0xc0);
 }
 
 static int cs42l42_handle_tip_sense(struct sub_codec *cs42l42, unsigned int reg_ts_status)
@@ -642,7 +642,7 @@ static int cs42l42_handle_tip_sense(struct sub_codec *cs42l42, unsigned int reg_
 
 	/* TIP_SENSE INSERT/REMOVE */
 	switch (reg_ts_status) {
-	case CS42L42_JACK_INSERTED:
+	case CS42L42_TS_PLUG:
 		if (!cs42l42->hp_jack_in) {
 			if (cs42l42->no_type_dect) {
 				status_changed = 1;
@@ -654,7 +654,7 @@ static int cs42l42_handle_tip_sense(struct sub_codec *cs42l42, unsigned int reg_
 		}
 		break;
 
-	case CS42L42_JACK_REMOVED:
+	case CS42L42_TS_UNPLUG:
 		if (cs42l42->hp_jack_in || cs42l42->mic_jack_in) {
 			status_changed = 1;
 			cs42l42->hp_jack_in = 0;
@@ -671,6 +671,7 @@ static int cs42l42_handle_tip_sense(struct sub_codec *cs42l42, unsigned int reg_
 
 static int cs42l42_jack_unsol_event(struct sub_codec *cs42l42)
 {
+	int current_plug_status;
 	int status_changed = 0;
 	int reg_cdc_status;
 	int reg_hs_status;
@@ -678,46 +679,49 @@ static int cs42l42_jack_unsol_event(struct sub_codec *cs42l42)
 	int type;
 
 	/* Read jack detect status registers */
-	reg_cdc_status = cs8409_i2c_read(cs42l42, 0x1308);
-	reg_hs_status = cs8409_i2c_read(cs42l42, 0x1124);
-	reg_ts_status = cs8409_i2c_read(cs42l42, 0x130f);
+	reg_cdc_status = cs8409_i2c_read(cs42l42, CS42L42_CODEC_STATUS);
+	reg_hs_status = cs8409_i2c_read(cs42l42, CS42L42_HS_DET_STATUS);
+	reg_ts_status = cs8409_i2c_read(cs42l42, CS42L42_TSRS_PLUG_STATUS);
 
 	/* If status values are < 0, read error has occurred. */
 	if (reg_cdc_status < 0 || reg_hs_status < 0 || reg_ts_status < 0)
 		return -EIO;
 
+	current_plug_status = (reg_ts_status & (CS42L42_TS_PLUG_MASK | CS42L42_TS_UNPLUG_MASK))
+				>> CS42L42_TS_PLUG_SHIFT;
+
 	/* HSDET_AUTO_DONE */
-	if (reg_cdc_status & CS42L42_HSDET_AUTO_DONE) {
+	if (reg_cdc_status & CS42L42_HSDET_AUTO_DONE_MASK) {
 
 		/* Disable HSDET_AUTO_DONE */
-		cs8409_i2c_write(cs42l42, 0x131b, 0xFF);
+		cs8409_i2c_write(cs42l42, CS42L42_CODEC_INT_MASK, 0xFF);
 
-		type = ((reg_hs_status & CS42L42_HSTYPE_MASK) + 1);
+		type = (reg_hs_status & CS42L42_HSDET_TYPE_MASK) >> CS42L42_HSDET_TYPE_SHIFT;
 
 		if (cs42l42->no_type_dect) {
-			status_changed = cs42l42_handle_tip_sense(cs42l42, reg_ts_status);
-		} else if (type == 4) {
-			/* Type 4 not supported	*/
-			status_changed = cs42l42_handle_tip_sense(cs42l42, CS42L42_JACK_REMOVED);
+			status_changed = cs42l42_handle_tip_sense(cs42l42, current_plug_status);
+		} else if (type == CS42L42_PLUG_INVALID) {
+			/* Type CS42L42_PLUG_INVALID not supported	*/
+			status_changed = cs42l42_handle_tip_sense(cs42l42, CS42L42_TS_UNPLUG);
 		} else {
 			if (!cs42l42->hp_jack_in) {
 				status_changed = 1;
 				cs42l42->hp_jack_in = 1;
 			}
-			/* type = 3 has no mic */
-			if ((!cs42l42->mic_jack_in) && (type != 3)) {
+			/* type = CS42L42_PLUG_HEADPHONE has no mic */
+			if ((!cs42l42->mic_jack_in) && (type != CS42L42_PLUG_HEADPHONE)) {
 				status_changed = 1;
 				cs42l42->mic_jack_in = 1;
 			}
 		}
 		/* Configure the HSDET mode. */
-		cs8409_i2c_write(cs42l42, 0x1120, 0x80);
+		cs8409_i2c_write(cs42l42, CS42L42_HSDET_CTL2, 0x80);
 		/* Enable the HPOUT ground clamp and configure the HP pull-down */
-		cs8409_i2c_write(cs42l42, 0x1F06, 0x02);
+		cs8409_i2c_write(cs42l42, CS42L42_DAC_CTL2, 0x02);
 		/* Re-Enable Tip Sense Interrupt */
-		cs8409_i2c_write(cs42l42, 0x1320, 0xF3);
+		cs8409_i2c_write(cs42l42, CS42L42_TSRS_PLUG_INT_MASK, 0xF3);
 	} else {
-		status_changed = cs42l42_handle_tip_sense(cs42l42, reg_ts_status);
+		status_changed = cs42l42_handle_tip_sense(cs42l42, current_plug_status);
 	}
 
 	return status_changed;
@@ -728,10 +732,10 @@ static void cs42l42_resume(struct sub_codec *cs42l42)
 	struct hda_codec *codec = cs42l42->codec;
 	unsigned int gpio_data;
 	struct cs8409_i2c_param irq_regs[] = {
-		{ 0x1308, 0x00 },
-		{ 0x1309, 0x00 },
-		{ 0x130A, 0x00 },
-		{ 0x130F, 0x00 },
+		{ CS42L42_CODEC_STATUS, 0x00 },
+		{ CS42L42_DET_INT_STATUS1, 0x00 },
+		{ CS42L42_DET_INT_STATUS2, 0x00 },
+		{ CS42L42_TSRS_PLUG_STATUS, 0x00 },
 	};
 	int fsv_old, fsv_new;
 
@@ -750,13 +754,13 @@ static void cs42l42_resume(struct sub_codec *cs42l42)
 	/* Clear interrupts, by reading interrupt status registers */
 	cs8409_i2c_bulk_read(cs42l42, irq_regs, ARRAY_SIZE(irq_regs));
 
-	fsv_old = cs8409_i2c_read(cs42l42, 0x2001);
+	fsv_old = cs8409_i2c_read(cs42l42, CS42L42_HP_CTL);
 	if (cs42l42->full_scale_vol == CS42L42_FULL_SCALE_VOL_0DB)
 		fsv_new = fsv_old & ~CS42L42_FULL_SCALE_VOL_MASK;
 	else
 		fsv_new = fsv_old & CS42L42_FULL_SCALE_VOL_MASK;
 	if (fsv_new != fsv_old)
-		cs8409_i2c_write(cs42l42, 0x2001, fsv_new);
+		cs8409_i2c_write(cs42l42, CS42L42_HP_CTL, fsv_new);
 
 	/* we have to explicitly allow unsol event handling even during the
 	 * resume phase so that the jack event is processed properly
@@ -773,28 +777,28 @@ static void cs42l42_suspend(struct sub_codec *cs42l42)
 	unsigned int gpio_data;
 	int reg_cdc_status = 0;
 	const struct cs8409_i2c_param cs42l42_pwr_down_seq[] = {
-		{ 0x1F06, 0x02 },
-		{ 0x1129, 0x00 },
-		{ 0x2301, 0x3F },
-		{ 0x2302, 0x3F },
-		{ 0x2303, 0x3F },
-		{ 0x2001, 0x0F },
-		{ 0x2A01, 0x00 },
-		{ 0x1207, 0x00 },
-		{ 0x1101, 0xFE },
-		{ 0x1102, 0x8C },
-		{ 0x1101, 0xFF },
+		{ CS42L42_DAC_CTL2, 0x02 },
+		{ CS42L42_HS_CLAMP_DISABLE, 0x00 },
+		{ CS42L42_MIXER_CHA_VOL, 0x3F },
+		{ CS42L42_MIXER_ADC_VOL, 0x3F },
+		{ CS42L42_MIXER_CHB_VOL, 0x3F },
+		{ CS42L42_HP_CTL, 0x0F },
+		{ CS42L42_ASP_RX_DAI0_EN, 0x00 },
+		{ CS42L42_ASP_CLK_CFG, 0x00 },
+		{ CS42L42_PWR_CTL1, 0xFE },
+		{ CS42L42_PWR_CTL2, 0x8C },
+		{ CS42L42_PWR_CTL1, 0xFF },
 	};
 
 	cs8409_i2c_bulk_write(cs42l42, cs42l42_pwr_down_seq, ARRAY_SIZE(cs42l42_pwr_down_seq));
 
 	if (read_poll_timeout(cs8409_i2c_read, reg_cdc_status,
 			(reg_cdc_status & 0x1), CS42L42_PDN_SLEEP_US, CS42L42_PDN_TIMEOUT_US,
-			true, cs42l42, 0x1308) < 0)
+			true, cs42l42, CS42L42_CODEC_STATUS) < 0)
 		codec_warn(codec, "Timeout waiting for PDN_DONE for CS42L42\n");
 
 	/* Power down CS42L42 ASP/EQ/MIX/HP */
-	cs8409_i2c_write(cs42l42, 0x1102, 0x9C);
+	cs8409_i2c_write(cs42l42, CS42L42_PWR_CTL2, 0x9C);
 	cs42l42->suspended = 1;
 	cs42l42->last_page = 0;
 	cs42l42->hp_jack_in = 0;

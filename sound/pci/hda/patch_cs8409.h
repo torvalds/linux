@@ -12,6 +12,7 @@
 #include <linux/pci.h>
 #include <sound/tlv.h>
 #include <linux/workqueue.h>
+#include <sound/cs42l42.h>
 #include <sound/hda_codec.h>
 #include "hda_local.h"
 #include "hda_auto_parser.h"
@@ -222,15 +223,8 @@ enum cs8409_coefficient_index_registers {
 #define CS42L42_HP_VOL_REAL_MAX			(0)
 #define CS42L42_AMIC_VOL_REAL_MIN		(-97)
 #define CS42L42_AMIC_VOL_REAL_MAX		(12)
-#define CS42L42_REG_HS_VOL_CHA			(0x2301)
-#define CS42L42_REG_HS_VOL_CHB			(0x2303)
-#define CS42L42_REG_HS_VOL_MASK			(0x003F)
-#define CS42L42_REG_AMIC_VOL			(0x1D03)
 #define CS42L42_REG_AMIC_VOL_MASK		(0x00FF)
-#define CS42L42_HSDET_AUTO_DONE			(0x02)
 #define CS42L42_HSTYPE_MASK			(0x03)
-#define CS42L42_JACK_INSERTED			(0x0C)
-#define CS42L42_JACK_REMOVED			(0x00)
 #define CS42L42_I2C_TIMEOUT_US			(20000)
 #define CS42L42_I2C_SLEEP_US			(2000)
 #define CS42L42_PDN_TIMEOUT_US			(250000)
