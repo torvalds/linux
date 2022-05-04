@@ -377,7 +377,7 @@ int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 	return exit_code;
 }
 
-void __noreturn hyp_panic(void)
+asmlinkage void __noreturn hyp_panic(void)
 {
 	u64 spsr = read_sysreg_el2(SYS_SPSR);
 	u64 elr = read_sysreg_el2(SYS_ELR);
@@ -397,6 +397,11 @@ void __noreturn hyp_panic(void)
 
 	__hyp_do_panic(host_ctxt, spsr, elr, par);
 	unreachable();
+}
+
+asmlinkage void __noreturn hyp_panic_bad_stack(void)
+{
+	hyp_panic();
 }
 
 asmlinkage void kvm_unexpected_el2_exception(void)
