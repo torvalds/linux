@@ -266,6 +266,13 @@ $(info Building for $(CHOST) using $(CBUILD))
 export CROSS_COMPILE := $(CHOST)-
 export PATH := $(TOOLCHAIN_PATH)/bin:$(PATH)
 export CC := $(CHOST)-gcc
+CCACHE_PATH := $(shell which ccache 2>/dev/null)
+ifneq ($(CCACHE_PATH),)
+export KBUILD_BUILD_TIMESTAMP := Fri Jun  5 15:58:00 CEST 2015
+export PATH := $(TOOLCHAIN_PATH)/bin/ccache:$(PATH)
+export CCACHE_SLOPPINESS := file_macro,time_macros
+export CCACHE_DIR ?= $(PWD)/ccache
+endif
 
 USERSPACE_DEPS := $(TOOLCHAIN_PATH)/.installed $(TOOLCHAIN_PATH)/$(CHOST)/include/linux/.installed
 
@@ -329,6 +336,10 @@ $(TOOLCHAIN_PATH)/.installed: $(TOOLCHAIN_TAR)
 	mkdir -p $(BUILD_PATH)
 	flock -s $<.lock tar -C $(BUILD_PATH) -xf $<
 	$(STRIP) -s $(TOOLCHAIN_PATH)/$(CHOST)/lib/libc.so
+ifneq ($(CCACHE_PATH),)
+	mkdir -p $(TOOLCHAIN_PATH)/bin/ccache
+	ln -s $(CCACHE_PATH) $(TOOLCHAIN_PATH)/bin/ccache/$(CC)
+endif
 	touch $@
 
 $(IPERF_PATH)/.installed: $(IPERF_TAR)
@@ -421,8 +432,13 @@ clean:
 distclean: clean
 	rm -rf $(DISTFILES_PATH)
 
+cacheclean: clean
+ifneq ($(CCACHE_DIR),)
+	rm -rf $(CCACHE_DIR)
+endif
+
 menuconfig: $(KERNEL_BUILD_PATH)/.config
 	$(MAKE) -C $(KERNEL_PATH) O=$(KERNEL_BUILD_PATH) ARCH=$(KERNEL_ARCH) CROSS_COMPILE=$(CROSS_COMPILE) menuconfig
 
-.PHONY: qemu build clean distclean menuconfig
+.PHONY: qemu build clean distclean cacheclean menuconfig
 .DELETE_ON_ERROR:
