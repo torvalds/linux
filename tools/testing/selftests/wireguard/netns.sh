@@ -22,10 +22,12 @@
 # interfaces in $ns1 and $ns2. See https://www.wireguard.com/netns/ for further
 # details on how this is accomplished.
 set -e
+shopt -s extglob
 
 exec 3>&1
 export LANG=C
 export WG_HIDE_KEYS=never
+NPROC=( /sys/devices/system/cpu/cpu+([0-9]) ); NPROC=${#NPROC[@]}
 netns0="wg-test-$$-0"
 netns1="wg-test-$$-1"
 netns2="wg-test-$$-2"
@@ -143,17 +145,15 @@ tests() {
 	n1 iperf3 -Z -t 3 -b 0 -u -c fd00::2
 
 	# TCP over IPv4, in parallel
-	for max in 4 5 50; do
-		local pids=( )
-		for ((i=0; i < max; ++i)) do
-			n2 iperf3 -p $(( 5200 + i )) -s -1 -B 192.168.241.2 &
-			pids+=( $! ); waitiperf $netns2 $! $(( 5200 + i ))
-		done
-		for ((i=0; i < max; ++i)) do
-			n1 iperf3 -Z -t 3 -p $(( 5200 + i )) -c 192.168.241.2 &
-		done
-		wait "${pids[@]}"
+	local pids=( ) i
+	for ((i=0; i < NPROC; ++i)) do
+		n2 iperf3 -p $(( 5200 + i )) -s -1 -B 192.168.241.2 &
+		pids+=( $! ); waitiperf $netns2 $! $(( 5200 + i ))
 	done
+	for ((i=0; i < NPROC; ++i)) do
+		n1 iperf3 -Z -t 3 -p $(( 5200 + i )) -c 192.168.241.2 &
+	done
+	wait "${pids[@]}"
 }
 
 [[ $(ip1 link show dev wg0) =~ mtu\ ([0-9]+) ]] && orig_mtu="${BASH_REMATCH[1]}"
