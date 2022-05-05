@@ -1646,7 +1646,7 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 			vop2_win_multi_area_disable(win);
 		if (win->pd) {
 			vop2_power_domain_put(win->pd);
-			win->pd->vp_mask &= ~BIT(win->vp_mask);
+			win->pd->vp_mask &= ~win->vp_mask;
 		}
 		win->enabled = false;
 	}
