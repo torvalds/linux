@@ -247,8 +247,6 @@ static bool check_exported_symbol(const struct symsearch *syms,
 				  struct module *owner, unsigned int symnum,
 				  struct find_symbol_arg *fsa)
 {
-	if (!fsa->gplok && syms->license == GPL_ONLY)
-		return false;
 	fsa->owner = owner;
 	fsa->crc = symversion(syms->crcs, symnum);
 	fsa->sym = &syms->start[symnum];
@@ -286,6 +284,9 @@ static bool find_exported_symbol_in_section(const struct symsearch *syms,
 					    struct find_symbol_arg *fsa)
 {
 	struct kernel_symbol *sym;
+
+	if (!fsa->gplok && syms->license == GPL_ONLY)
+		return false;
 
 	sym = bsearch(fsa->name, syms->start, syms->stop - syms->start,
 			sizeof(struct kernel_symbol), cmp_name);
