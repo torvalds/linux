@@ -796,7 +796,7 @@
 		};
 
 		qfprom: qfprom@700000 {
-			compatible	= "qcom,qfprom";
+			compatible = "qcom,apq8064-qfprom", "qcom,qfprom";
 			reg		= <0x00700000 0x1000>;
 			#address-cells	= <1>;
 			#size-cells	= <1>;

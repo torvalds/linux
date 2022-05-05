@@ -242,7 +242,7 @@
 		qfprom: qfprom@fc4bc000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "qcom,qfprom";
+			compatible = "qcom,apq8084-qfprom", "qcom,qfprom";
 			reg = <0xfc4bc000 0x1000>;
 			tsens_calib: calib@d0 {
 				reg = <0xd0 0x18>;
