@@ -754,7 +754,7 @@ int tb_cfg_ack_plug(struct tb_ctl *ctl, u64 route, u32 port, bool unplug)
 		.pg = unplug ? TB_CFG_ERROR_PG_HOT_UNPLUG
 			     : TB_CFG_ERROR_PG_HOT_PLUG,
 	};
-	tb_ctl_dbg(ctl, "acking hot %splug event on %llx:%x\n",
+	tb_ctl_dbg(ctl, "acking hot %splug event on %llx:%u\n",
 		   unplug ? "un" : "", route, port);
 	return tb_ctl_tx(ctl, &pkg, sizeof(pkg), TB_CFG_PKG_ERROR);
 }

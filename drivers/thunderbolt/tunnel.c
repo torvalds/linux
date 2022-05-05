@@ -49,7 +49,7 @@ static const char * const tb_tunnel_names[] = { "PCI", "DP", "DMA", "USB3" };
 #define __TB_TUNNEL_PRINT(level, tunnel, fmt, arg...)                   \
 	do {                                                            \
 		struct tb_tunnel *__tunnel = (tunnel);                  \
-		level(__tunnel->tb, "%llx:%x <-> %llx:%x (%s): " fmt,   \
+		level(__tunnel->tb, "%llx:%u <-> %llx:%u (%s): " fmt,   \
 		      tb_route(__tunnel->src_port->sw),                 \
 		      __tunnel->src_port->port,                         \
 		      tb_route(__tunnel->dst_port->sw),                 \
