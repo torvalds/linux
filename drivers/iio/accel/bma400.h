@@ -94,6 +94,17 @@
 #define BMA400_ACC_ODR_MIN_WHOLE_HZ 25
 #define BMA400_ACC_ODR_MIN_HZ       12
 
+/* Generic interrupts register */
+#define BMA400_GEN1INT_CONFIG0      0x3f
+#define BMA400_GEN2INT_CONFIG0      0x4A
+#define BMA400_GEN_CONFIG1_OFF      0x01
+#define BMA400_GEN_CONFIG2_OFF      0x02
+#define BMA400_GEN_CONFIG3_OFF      0x03
+#define BMA400_GEN_CONFIG31_OFF     0x04
+#define BMA400_INT_GEN1_MSK         BIT(2)
+#define BMA400_INT_GEN2_MSK         BIT(3)
+#define BMA400_GEN_HYST_MSK         GENMASK(1, 0)
+
 /*
  * BMA400_SCALE_MIN macro value represents m/s^2 for 1 LSB before
  * converting to micro values for +-2g range.
