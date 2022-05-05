@@ -494,7 +494,7 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 	struct flowi6 flow6 = {};
 	struct neighbour *n;
 	struct nfp_app *app;
-	struct rtable *rt;
+	bool neigh_invalid;
 	bool ipv6 = false;
 	int err;
 
@@ -512,6 +512,8 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 
 	if (n->tbl->family == AF_INET6)
 		ipv6 = true;
+
+	neigh_invalid = !(n->nud_state & NUD_VALID) || n->dead;
 
 	if (ipv6)
 		flow6.daddr = *(struct in6_addr *)n->primary_key;
@@ -533,29 +535,41 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 #if IS_ENABLED(CONFIG_INET)
 	if (ipv6) {
 #if IS_ENABLED(CONFIG_IPV6)
-		struct dst_entry *dst;
+		if (!neigh_invalid) {
+			struct dst_entry *dst;
+			/* Use ipv6_dst_lookup_flow to populate flow6->saddr
+			 * and other fields. This information is only needed
+			 * for new entries, lookup can be skipped when an entry
+			 * gets invalidated - as only the daddr is needed for
+			 * deleting.
+			 */
+			dst = ip6_dst_lookup_flow(dev_net(n->dev), NULL,
+						  &flow6, NULL);
+			if (IS_ERR(dst))
+				return NOTIFY_DONE;
 
-		dst = ipv6_stub->ipv6_dst_lookup_flow(dev_net(n->dev), NULL,
-						      &flow6, NULL);
-		if (IS_ERR(dst))
-			return NOTIFY_DONE;
-
-		dst_release(dst);
-		flow6.flowi6_proto = IPPROTO_UDP;
+			dst_release(dst);
+		}
 		nfp_tun_write_neigh_v6(n->dev, app, &flow6, n, GFP_ATOMIC);
 #else
 		return NOTIFY_DONE;
 #endif /* CONFIG_IPV6 */
 	} else {
-		/* Do a route lookup to populate flow data. */
-		rt = ip_route_output_key(dev_net(n->dev), &flow4);
-		err = PTR_ERR_OR_ZERO(rt);
-		if (err)
-			return NOTIFY_DONE;
+		if (!neigh_invalid) {
+			struct rtable *rt;
+			/* Use ip_route_output_key to populate flow4->saddr and
+			 * other fields. This information is only needed for
+			 * new entries, lookup can be skipped when an entry
+			 * gets invalidated - as only the daddr is needed for
+			 * deleting.
+			 */
+			rt = ip_route_output_key(dev_net(n->dev), &flow4);
+			err = PTR_ERR_OR_ZERO(rt);
+			if (err)
+				return NOTIFY_DONE;
 
-		ip_rt_put(rt);
-
-		flow4.flowi4_proto = IPPROTO_UDP;
+			ip_rt_put(rt);
+		}
 		nfp_tun_write_neigh_v4(n->dev, app, &flow4, n, GFP_ATOMIC);
 	}
 #else
