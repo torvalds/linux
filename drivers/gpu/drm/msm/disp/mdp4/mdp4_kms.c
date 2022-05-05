@@ -390,6 +390,7 @@ static int mdp4_kms_init(struct drm_device *dev)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct mdp4_kms *mdp4_kms;
 	struct msm_kms *kms = NULL;
+	struct iommu_domain *iommu;
 	struct msm_gem_address_space *aspace;
 	int irq, ret;
 	u32 major, minor;
@@ -497,9 +498,9 @@ static int mdp4_kms_init(struct drm_device *dev)
 	mdp4_disable(mdp4_kms);
 	mdelay(16);
 
-	if (config->iommu) {
-		struct msm_mmu *mmu = msm_iommu_new(&pdev->dev,
-			config->iommu);
+	iommu = iommu_domain_alloc(pdev->dev.bus);
+	if (iommu) {
+		struct msm_mmu *mmu = msm_iommu_new(&pdev->dev, iommu);
 
 		aspace  = msm_gem_address_space_create(mmu,
 			"mdp4", 0x1000, 0x100000000 - 0x1000);
@@ -559,7 +560,6 @@ static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev)
 
 	/* TODO: Chips that aren't apq8064 have a 200 Mhz max_clk */
 	config.max_clk = 266667000;
-	config.iommu = iommu_domain_alloc(&platform_bus_type);
 
 	return &config;
 }

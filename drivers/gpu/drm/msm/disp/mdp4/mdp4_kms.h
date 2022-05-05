@@ -44,7 +44,6 @@ struct mdp4_kms {
 
 /* platform config data (ie. from DT, or pdata) */
 struct mdp4_platform_config {
-	struct iommu_domain *iommu;
 	uint32_t max_clk;
 };
 
