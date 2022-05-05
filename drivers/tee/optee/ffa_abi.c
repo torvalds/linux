@@ -759,7 +759,7 @@ static const struct optee_ops optee_ffa_ops = {
 
 static void optee_ffa_remove(struct ffa_device *ffa_dev)
 {
-	struct optee *optee = ffa_dev->dev.driver_data;
+	struct optee *optee = ffa_dev_get_drvdata(ffa_dev);
 
 	optee_remove_common(optee);
 
