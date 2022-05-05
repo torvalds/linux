@@ -797,9 +797,9 @@
 
 		qfprom: qfprom@700000 {
 			compatible = "qcom,apq8064-qfprom", "qcom,qfprom";
-			reg		= <0x00700000 0x1000>;
-			#address-cells	= <1>;
-			#size-cells	= <1>;
+			reg = <0x00700000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 			ranges;
 			tsens_calib: calib {
 				reg = <0x404 0x10>;
