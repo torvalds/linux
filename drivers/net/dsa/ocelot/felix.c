@@ -42,22 +42,6 @@ static struct net_device *felix_classify_db(struct dsa_db db)
 	}
 }
 
-/* We are called before felix_npi_port_init(), so ocelot->npi is -1. */
-static int felix_migrate_fdbs_to_npi_port(struct dsa_switch *ds, int port,
-					  const unsigned char *addr, u16 vid,
-					  struct dsa_db db)
-{
-	struct net_device *bridge_dev = felix_classify_db(db);
-	struct ocelot *ocelot = ds->priv;
-	int err;
-
-	err = ocelot_fdb_del(ocelot, port, addr, vid, bridge_dev);
-	if (err)
-		return err;
-
-	return ocelot_fdb_add(ocelot, PGID_CPU, addr, vid, bridge_dev);
-}
-
 static int felix_migrate_mdbs_to_npi_port(struct dsa_switch *ds, int port,
 					  const unsigned char *addr, u16 vid,
 					  struct dsa_db db)
@@ -114,26 +98,6 @@ felix_migrate_flood_to_tag_8021q_port(struct dsa_switch *ds, int port)
 	felix_migrate_pgid_bit(ds, ocelot->num_phys_ports, port, PGID_UC);
 	felix_migrate_pgid_bit(ds, ocelot->num_phys_ports, port, PGID_MC);
 	felix_migrate_pgid_bit(ds, ocelot->num_phys_ports, port, PGID_BC);
-}
-
-/* ocelot->npi was already set to -1 by felix_npi_port_deinit, so
- * ocelot_fdb_add() will not redirect FDB entries towards the
- * CPU port module here, which is what we want.
- */
-static int
-felix_migrate_fdbs_to_tag_8021q_port(struct dsa_switch *ds, int port,
-				     const unsigned char *addr, u16 vid,
-				     struct dsa_db db)
-{
-	struct net_device *bridge_dev = felix_classify_db(db);
-	struct ocelot *ocelot = ds->priv;
-	int err;
-
-	err = ocelot_fdb_del(ocelot, PGID_CPU, addr, vid, bridge_dev);
-	if (err)
-		return err;
-
-	return ocelot_fdb_add(ocelot, port, addr, vid, bridge_dev);
 }
 
 static int
@@ -486,13 +450,9 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
 	if (err)
 		return err;
 
-	err = dsa_port_walk_fdbs(ds, cpu, felix_migrate_fdbs_to_tag_8021q_port);
-	if (err)
-		goto out_tag_8021q_unregister;
-
 	err = dsa_port_walk_mdbs(ds, cpu, felix_migrate_mdbs_to_tag_8021q_port);
 	if (err)
-		goto out_migrate_fdbs;
+		goto out_tag_8021q_unregister;
 
 	felix_migrate_flood_to_tag_8021q_port(ds, cpu);
 
@@ -514,8 +474,6 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
 out_migrate_flood:
 	felix_migrate_flood_to_npi_port(ds, cpu);
 	dsa_port_walk_mdbs(ds, cpu, felix_migrate_mdbs_to_npi_port);
-out_migrate_fdbs:
-	dsa_port_walk_fdbs(ds, cpu, felix_migrate_fdbs_to_npi_port);
 out_tag_8021q_unregister:
 	dsa_tag_8021q_unregister(ds);
 	return err;
@@ -595,24 +553,15 @@ static int felix_setup_tag_npi(struct dsa_switch *ds, int cpu)
 	struct ocelot *ocelot = ds->priv;
 	int err;
 
-	err = dsa_port_walk_fdbs(ds, cpu, felix_migrate_fdbs_to_npi_port);
-	if (err)
-		return err;
-
 	err = dsa_port_walk_mdbs(ds, cpu, felix_migrate_mdbs_to_npi_port);
 	if (err)
-		goto out_migrate_fdbs;
+		return err;
 
 	felix_migrate_flood_to_npi_port(ds, cpu);
 
 	felix_npi_port_init(ocelot, cpu);
 
 	return 0;
-
-out_migrate_fdbs:
-	dsa_port_walk_fdbs(ds, cpu, felix_migrate_fdbs_to_tag_8021q_port);
-
-	return err;
 }
 
 static void felix_teardown_tag_npi(struct dsa_switch *ds, int cpu)
