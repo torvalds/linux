@@ -7859,6 +7859,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 
 		if (intstat & CSI_SIZE_ERR) {
 			cif_dev->irq_stats.csi_size_err_cnt++;
+			rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_CTRL, 0x000A0000);
 			v4l2_err(&cif_dev->v4l2_dev,
 				 "ERROR: csi size err, intstat:0x%x, lastline:%d!!\n",
 				 intstat, lastline);
@@ -8021,6 +8022,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 
 		if (intstat & DVP_SIZE_ERR) {
 			cif_dev->irq_stats.dvp_size_err_cnt++;
+			rkcif_write_register_or(cif_dev, CIF_REG_DVP_CTRL, 0x000A0000);
 			v4l2_info(&cif_dev->v4l2_dev, "dvp size err intstat 0x%x\n", intstat);
 		}
 
