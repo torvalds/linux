@@ -213,6 +213,18 @@
 		enable-active-high;
 	};
 
+	dp0: connector {
+		compatible = "dp-connector";
+		label = "DP0";
+		type = "full-size";
+		dp-pwr-supply = <&dp_pwr_3v3>;
+
+		port {
+			dp_connector_in: endpoint {
+				remote-endpoint = <&dp0_out>;
+			};
+		};
+	};
 };
 
 &main_pmx0 {
@@ -638,6 +650,8 @@
 &mhdp {
 	phys = <&torrent_phy_dp>;
 	phy-names = "dpphy";
+	pinctrl-names = "default";
+	pinctrl-0 = <&dp0_pins_default>;
 };
 
 &usbss0 {
@@ -716,6 +730,33 @@
 				 <&k3_clks 152 6>,	/* DPI0_EXT_CLKSEL_OUT0 */
 				 <&k3_clks 152 11>,	/* PLL18_HSDIV0 */
 				 <&k3_clks 152 18>;	/* DPI1_EXT_CLKSEL_OUT0 */
+};
+
+&dss_ports {
+	port {
+		dpi0_out: endpoint {
+			remote-endpoint = <&dp0_in>;
+		};
+	};
+};
+
+&dp0_ports {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	port@0 {
+		reg = <0>;
+		dp0_in: endpoint {
+			remote-endpoint = <&dpi0_out>;
+		};
+	};
+
+	port@4 {
+		reg = <4>;
+		dp0_out: endpoint {
+			remote-endpoint = <&dp_connector_in>;
+		};
+	};
 };
 
 &mcasp0 {
@@ -849,10 +890,6 @@
 
 &pcie3_ep {
 	/* Unused */
-	status = "disabled";
-};
-
-&dss {
 	status = "disabled";
 };
 
