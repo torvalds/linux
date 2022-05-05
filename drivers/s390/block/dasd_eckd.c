@@ -1480,7 +1480,7 @@ static int dasd_eckd_pe_handler(struct dasd_device *device,
 {
 	struct pe_handler_work_data *data;
 
-	data = kmalloc(sizeof(*data), GFP_ATOMIC | GFP_DMA);
+	data = kzalloc(sizeof(*data), GFP_ATOMIC | GFP_DMA);
 	if (!data) {
 		if (mutex_trylock(&dasd_pe_handler_mutex)) {
 			data = pe_handler_worker;
@@ -1488,9 +1488,6 @@ static int dasd_eckd_pe_handler(struct dasd_device *device,
 		} else {
 			return -ENOMEM;
 		}
-	} else {
-		memset(data, 0, sizeof(*data));
-		data->isglobal = 0;
 	}
 	INIT_WORK(&data->worker, do_pe_handler_work);
 	dasd_get_device(device);
