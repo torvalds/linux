@@ -797,6 +797,7 @@ enum offs_rev {
 
 /* ADIE */
 #define MT_ADIE_CHIP_ID			0x02c
+#define MT_ADIE_VERSION_MASK		GENMASK(15, 0)
 #define MT_ADIE_CHIP_ID_MASK		GENMASK(31, 16)
 #define MT_ADIE_IDX0			GENMASK(15, 0)
 #define MT_ADIE_IDX1			GENMASK(31, 16)

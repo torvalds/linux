@@ -471,17 +471,32 @@ static int mt7986_wmac_adie_xtal_trim_7976(struct mt7915_dev *dev, u8 adie)
 
 static int mt7986_wmac_adie_patch_7976(struct mt7915_dev *dev, u8 adie)
 {
+	u32 id, version, rg_xo_01, rg_xo_03;
 	int ret;
+
+	ret = mt76_wmac_spi_read(dev, adie, MT_ADIE_CHIP_ID, &id);
+	if (ret)
+		return ret;
+
+	version = FIELD_GET(MT_ADIE_VERSION_MASK, id);
 
 	ret = mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_TOP_THADC, 0x4a563b00);
 	if (ret)
 		return ret;
 
-	ret = mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_XO_01, 0x1d59080f);
+	if (version == 0x8a00 || version == 0x8a10 || version == 0x8b00) {
+		rg_xo_01 = 0x1d59080f;
+		rg_xo_03 = 0x34c00fe0;
+	} else {
+		rg_xo_01 = 0x1959f80f;
+		rg_xo_03 = 0x34d00fe0;
+	}
+
+	ret = mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_XO_01, rg_xo_01);
 	if (ret)
 		return ret;
 
-	return mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_XO_03, 0x34c00fe0);
+	return mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_XO_03, rg_xo_03);
 }
 
 static int
