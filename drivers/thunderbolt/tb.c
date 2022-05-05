@@ -350,7 +350,9 @@ static int tb_available_bandwidth(struct tb *tb, struct tb_port *src_port,
 	struct tb_tunnel *tunnel;
 	struct tb_port *port;
 
-	tb_port_dbg(dst_port, "calculating available bandwidth\n");
+	tb_dbg(tb, "calculating available bandwidth between %llx:%u <-> %llx:%u\n",
+	       tb_route(src_port->sw), src_port->port, tb_route(dst_port->sw),
+	       dst_port->port);
 
 	tunnel = tb_find_first_usb3_tunnel(tb, src_port, dst_port);
 	if (tunnel) {
@@ -387,7 +389,8 @@ static int tb_available_bandwidth(struct tb *tb, struct tb_port *src_port,
 		up_bw -= up_bw / 10;
 		down_bw = up_bw;
 
-		tb_port_dbg(port, "link total bandwidth %d Mb/s\n", up_bw);
+		tb_port_dbg(port, "link total bandwidth %d/%d Mb/s\n", up_bw,
+			    down_bw);
 
 		/*
 		 * Find all DP tunnels that cross the port and reduce
