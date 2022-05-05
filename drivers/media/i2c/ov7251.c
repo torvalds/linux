@@ -42,6 +42,16 @@
 #define OV7251_TIMING_FORMAT2_MIRROR	BIT(2)
 #define OV7251_PRE_ISP_00		0x5e00
 #define OV7251_PRE_ISP_00_TEST_PATTERN	BIT(7)
+#define OV7251_PLL1_PRE_DIV_REG		0x30b4
+#define OV7251_PLL1_MULT_REG		0x30b3
+#define OV7251_PLL1_DIVIDER_REG		0x30b1
+#define OV7251_PLL1_PIX_DIV_REG		0x30b0
+#define OV7251_PLL1_MIPI_DIV_REG	0x30b5
+#define OV7251_PLL2_PRE_DIV_REG		0x3098
+#define OV7251_PLL2_MULT_REG		0x3099
+#define OV7251_PLL2_DIVIDER_REG		0x309d
+#define OV7251_PLL2_SYS_DIV_REG		0x309a
+#define OV7251_PLL2_ADC_DIV_REG		0x309b
 
 struct reg_value {
 	u16 reg;
@@ -58,6 +68,36 @@ struct ov7251_mode_info {
 	u16 exposure_max;
 	u16 exposure_def;
 	struct v4l2_fract timeperframe;
+};
+
+struct ov7251_pll1_cfg {
+	unsigned int pre_div;
+	unsigned int mult;
+	unsigned int div;
+	unsigned int pix_div;
+	unsigned int mipi_div;
+};
+
+struct ov7251_pll2_cfg {
+	unsigned int pre_div;
+	unsigned int mult;
+	unsigned int div;
+	unsigned int sys_div;
+	unsigned int adc_div;
+};
+
+/*
+ * Rubbish ordering, but only PLL1 needs to have a separate configuration per
+ * link frequency and the array member needs to be last.
+ */
+struct ov7251_pll_cfgs {
+	const struct ov7251_pll2_cfg *pll2;
+	const struct ov7251_pll1_cfg *pll1[];
+};
+
+enum xclk_rate {
+	OV7251_24_MHZ,
+	OV7251_NUM_SUPPORTED_RATES
 };
 
 enum supported_link_freqs {
@@ -80,6 +120,7 @@ struct ov7251 {
 	struct regulator *core_regulator;
 	struct regulator *analog_regulator;
 
+	const struct ov7251_pll_cfgs *pll_cfgs;
 	enum supported_link_freqs link_freq_idx;
 	const struct ov7251_mode_info *current_mode;
 
@@ -106,6 +147,33 @@ static inline struct ov7251 *to_ov7251(struct v4l2_subdev *sd)
 	return container_of(sd, struct ov7251, sd);
 }
 
+static const struct ov7251_pll1_cfg ov7251_pll1_cfg_24_mhz_240_mhz = {
+	.pre_div = 0x03,
+	.mult = 0x64,
+	.div = 0x01,
+	.pix_div = 0x0a,
+	.mipi_div = 0x05,
+};
+
+static const struct ov7251_pll2_cfg ov7251_pll2_cfg_24_mhz = {
+	.pre_div = 0x04,
+	.mult = 0x28,
+	.div = 0x00,
+	.sys_div = 0x05,
+	.adc_div = 0x04,
+};
+
+static const struct ov7251_pll_cfgs ov7251_pll_cfgs_24_mhz = {
+	.pll2 = &ov7251_pll2_cfg_24_mhz,
+	.pll1 = {
+		[OV7251_LINK_FREQ_240_MHZ] = &ov7251_pll1_cfg_24_mhz_240_mhz,
+	},
+};
+
+static const struct ov7251_pll_cfgs *ov7251_pll_cfgs[] = {
+	[OV7251_24_MHZ] = &ov7251_pll_cfgs_24_mhz,
+};
+
 static const struct reg_value ov7251_global_init_setting[] = {
 	{ 0x0103, 0x01 },
 	{ 0x303b, 0x02 },
@@ -124,16 +192,6 @@ static const struct reg_value ov7251_setting_vga_30fps[] = {
 	{ 0x301c, 0xf0 },
 	{ 0x3023, 0x05 },
 	{ 0x3037, 0xf0 },
-	{ 0x3098, 0x04 }, /* pll2 pre divider */
-	{ 0x3099, 0x28 }, /* pll2 multiplier */
-	{ 0x309a, 0x05 }, /* pll2 sys divider */
-	{ 0x309b, 0x04 }, /* pll2 adc divider */
-	{ 0x309d, 0x00 }, /* pll2 divider */
-	{ 0x30b0, 0x0a }, /* pll1 pix divider */
-	{ 0x30b1, 0x01 }, /* pll1 divider */
-	{ 0x30b3, 0x64 }, /* pll1 multiplier */
-	{ 0x30b4, 0x03 }, /* pll1 pre divider */
-	{ 0x30b5, 0x05 }, /* pll1 mipi divider */
 	{ 0x3106, 0xda },
 	{ 0x3503, 0x07 },
 	{ 0x3509, 0x10 },
@@ -262,16 +320,6 @@ static const struct reg_value ov7251_setting_vga_60fps[] = {
 	{ 0x301c, 0x00 },
 	{ 0x3023, 0x05 },
 	{ 0x3037, 0xf0 },
-	{ 0x3098, 0x04 }, /* pll2 pre divider */
-	{ 0x3099, 0x28 }, /* pll2 multiplier */
-	{ 0x309a, 0x05 }, /* pll2 sys divider */
-	{ 0x309b, 0x04 }, /* pll2 adc divider */
-	{ 0x309d, 0x00 }, /* pll2 divider */
-	{ 0x30b0, 0x0a }, /* pll1 pix divider */
-	{ 0x30b1, 0x01 }, /* pll1 divider */
-	{ 0x30b3, 0x64 }, /* pll1 multiplier */
-	{ 0x30b4, 0x03 }, /* pll1 pre divider */
-	{ 0x30b5, 0x05 }, /* pll1 mipi divider */
 	{ 0x3106, 0xda },
 	{ 0x3503, 0x07 },
 	{ 0x3509, 0x10 },
@@ -400,16 +448,6 @@ static const struct reg_value ov7251_setting_vga_90fps[] = {
 	{ 0x301c, 0x00 },
 	{ 0x3023, 0x05 },
 	{ 0x3037, 0xf0 },
-	{ 0x3098, 0x04 }, /* pll2 pre divider */
-	{ 0x3099, 0x28 }, /* pll2 multiplier */
-	{ 0x309a, 0x05 }, /* pll2 sys divider */
-	{ 0x309b, 0x04 }, /* pll2 adc divider */
-	{ 0x309d, 0x00 }, /* pll2 divider */
-	{ 0x30b0, 0x0a }, /* pll1 pix divider */
-	{ 0x30b1, 0x01 }, /* pll1 divider */
-	{ 0x30b3, 0x64 }, /* pll1 multiplier */
-	{ 0x30b4, 0x03 }, /* pll1 pre divider */
-	{ 0x30b5, 0x05 }, /* pll1 mipi divider */
 	{ 0x3106, 0xda },
 	{ 0x3503, 0x07 },
 	{ 0x3509, 0x10 },
@@ -523,6 +561,10 @@ static const struct reg_value ov7251_setting_vga_90fps[] = {
 	{ 0x4a4b, 0x30 },
 	{ 0x5000, 0x85 },
 	{ 0x5001, 0x80 },
+};
+
+static const unsigned long supported_xclk_rates[] = {
+	[OV7251_24_MHZ] = 24000000,
 };
 
 static const s64 link_freq[] = {
@@ -694,6 +736,63 @@ static int ov7251_read_reg(struct ov7251 *ov7251, u16 reg, u8 *val)
 	}
 
 	return 0;
+}
+
+static int ov7251_pll_configure(struct ov7251 *ov7251)
+{
+	const struct ov7251_pll_cfgs *configs;
+	int ret;
+
+	configs = ov7251->pll_cfgs;
+
+	ret = ov7251_write_reg(ov7251, OV7251_PLL1_PRE_DIV_REG,
+			       configs->pll1[ov7251->link_freq_idx]->pre_div);
+	if (ret < 0)
+		return ret;
+
+	ret = ov7251_write_reg(ov7251, OV7251_PLL1_MULT_REG,
+			       configs->pll1[ov7251->link_freq_idx]->mult);
+	if (ret < 0)
+		return ret;
+	ret = ov7251_write_reg(ov7251, OV7251_PLL1_DIVIDER_REG,
+			       configs->pll1[ov7251->link_freq_idx]->div);
+	if (ret < 0)
+		return ret;
+
+	ret = ov7251_write_reg(ov7251, OV7251_PLL1_PIX_DIV_REG,
+			       configs->pll1[ov7251->link_freq_idx]->pix_div);
+	if (ret < 0)
+		return ret;
+
+	ret = ov7251_write_reg(ov7251, OV7251_PLL1_MIPI_DIV_REG,
+			       configs->pll1[ov7251->link_freq_idx]->mipi_div);
+	if (ret < 0)
+		return ret;
+
+	ret = ov7251_write_reg(ov7251, OV7251_PLL2_PRE_DIV_REG,
+			       configs->pll2->pre_div);
+	if (ret < 0)
+		return ret;
+
+	ret = ov7251_write_reg(ov7251, OV7251_PLL2_MULT_REG,
+			       configs->pll2->mult);
+	if (ret < 0)
+		return ret;
+
+	ret = ov7251_write_reg(ov7251, OV7251_PLL2_DIVIDER_REG,
+			       configs->pll2->div);
+	if (ret < 0)
+		return ret;
+
+	ret = ov7251_write_reg(ov7251, OV7251_PLL2_SYS_DIV_REG,
+			       configs->pll2->sys_div);
+	if (ret < 0)
+		return ret;
+
+	ret = ov7251_write_reg(ov7251, OV7251_PLL2_ADC_DIV_REG,
+			       configs->pll2->adc_div);
+
+	return ret;
 }
 
 static int ov7251_set_exposure(struct ov7251 *ov7251, s32 exposure)
@@ -1137,6 +1236,11 @@ static int ov7251_s_stream(struct v4l2_subdev *subdev, int enable)
 	mutex_lock(&ov7251->lock);
 
 	if (enable) {
+		ret = ov7251_pll_configure(ov7251);
+		if (ret)
+			return dev_err_probe(ov7251->dev, ret,
+					     "error configuring PLLs\n");
+
 		ret = ov7251_set_register_array(ov7251,
 					ov7251->current_mode->data,
 					ov7251->current_mode->data_size);
@@ -1295,6 +1399,7 @@ static int ov7251_probe(struct i2c_client *client)
 	u8 chip_id_high, chip_id_low, chip_rev;
 	s64 pixel_rate;
 	int ret;
+	int i;
 
 	ov7251 = devm_kzalloc(dev, sizeof(struct ov7251), GFP_KERNEL);
 	if (!ov7251)
@@ -1333,6 +1438,16 @@ static int ov7251_probe(struct i2c_client *client)
 		dev_err(dev, "could not set xclk frequency\n");
 		return ret;
 	}
+	for (i = 0; i < ARRAY_SIZE(supported_xclk_rates); i++)
+		if (ov7251->xclk_freq == supported_xclk_rates[i])
+			break;
+
+	if (i == ARRAY_SIZE(supported_xclk_rates))
+		return dev_err_probe(dev, -EINVAL,
+				     "clock rate %u Hz is unsupported\n",
+				     ov7251->xclk_freq);
+
+	ov7251->pll_cfgs = ov7251_pll_cfgs[i];
 
 	ov7251->io_regulator = devm_regulator_get(dev, "vdddo");
 	if (IS_ERR(ov7251->io_regulator)) {
