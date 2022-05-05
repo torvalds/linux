@@ -1,21 +1,16 @@
 /**
   ******************************************************************************
-  * @file  sf_pwmdac.c
+  * @file  starfive_pwmdac.c
   * @author  StarFive Technology
   * @version  V1.0
-  * @date  05/27/2021
+  * @date  05/05/2022
   * @brief
   ******************************************************************************
   * @copy
   *
-  * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
-  * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
-  * TIME. AS A RESULT, STARFIVE SHALL NOT BE HELD LIABLE FOR ANY
-  * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
-  * FROM THE CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
-  * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+  * PWMDAC driver for the StarFive JH7110 SoC
   *
-  * <h2><center>&copy; COPYRIGHT 20120 Shanghai StarFive Technology Co., Ltd. </center></h2>
+  * Copyright (C) 2022 StarFive Technology Co., Ltd.
   */
 
 #include <linux/clk.h>
@@ -30,8 +25,9 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
-#include "pwmdac.h"
 #include <linux/kthread.h>
+#include <linux/reset.h>
+#include "pwmdac.h"
 
 struct ct_pwmdac {
 	char *name; 
@@ -469,14 +465,14 @@ static int get_pwmdac_fifo_state(struct sf_pwmdac_dev *dev)
 
 static void pwmdac_set(struct sf_pwmdac_dev *dev)
 {
-	///8-bit + left + N=16
-    pwmdac_set_ctrl_shift(dev, dev->shift_bit);
-    pwmdac_set_ctrl_dutyCycle(dev, dev->duty_cycle);
-    pwmdac_set_ctrl_N(dev, dev->datan);
-    pwmdac_set_ctrl_enable(dev);
+	/*8-bit + left + N=16*/
+	pwmdac_set_ctrl_shift(dev, dev->shift_bit);
+	pwmdac_set_ctrl_dutyCycle(dev, dev->duty_cycle);
+	pwmdac_set_ctrl_N(dev, dev->datan);
+	pwmdac_set_ctrl_enable(dev);
 
-    pwmdac_LR_data_change(dev, dev->lr_change);
-    pwmdac_data_mode(dev, dev->data_mode);
+	pwmdac_LR_data_change(dev, dev->lr_change);
+	pwmdac_data_mode(dev, dev->data_mode);
 	if (dev->shift) {
 		pwmdac_data_shift(dev, dev->shift); 		
 	}
@@ -543,30 +539,8 @@ static int pwmdac_config(struct sf_pwmdac_dev *dev)
 static int sf_pwmdac_prepare(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {
-	struct sf_pwmdac_dev *dev = snd_soc_dai_get_drvdata(dai);
-	//pwmdac_set(dev);
 	return 0;
 }
-#if 0
-static int pwmdac_tx_thread(void *dev)
-{
-	struct sf_pwmdac_dev *pwmdac_dev =  (struct sf_pwmdac_dev *)dev;
-
-	set_current_state(TASK_INTERRUPTIBLE);
-	while (!schedule_timeout(usecs_to_jiffies(50))) {
-		if (pwmdac_dev->tx_thread_exit)
-			break;
-		if (get_pwmdac_fifo_state(pwmdac_dev)==0) {
-			sf_pwmdac_pcm_push_tx(pwmdac_dev);
-		}
-		
-		set_current_state(TASK_INTERRUPTIBLE);
-	}
-	
-	pwmdac_dev->tx_thread = NULL;
-	return 0;
-}
-#else
 
 int pwmdac_tx_thread(void *dev)
 {
@@ -590,8 +564,6 @@ int pwmdac_tx_thread(void *dev)
 	return 0;
 }
 
-
-#endif
 static int sf_pwmdac_trigger(struct snd_pcm_substream *substream,
 		int cmd, struct snd_soc_dai *dai)
 {
@@ -657,8 +629,74 @@ static int sf_pwmdac_hw_params(struct snd_pcm_substream *substream,
 	
 	snd_soc_dai_init_dma_data(dai, &dev->play_dma_data, NULL);
 	snd_soc_dai_set_drvdata(dai, dev);
-	
+
 	return 0;
+}
+
+static int sf_pwmdac_clks_get(struct platform_device *pdev,
+				struct sf_pwmdac_dev *dev)
+{
+	dev->clk_apb0 = devm_clk_get(&pdev->dev, "apb0");
+	if (IS_ERR(dev->clk_apb0))
+		return PTR_ERR(dev->clk_apb0);
+
+	dev->clk_pwmdac_apb = devm_clk_get(&pdev->dev, "pwmdac-apb");
+	if (IS_ERR(dev->clk_pwmdac_apb))
+		return PTR_ERR(dev->clk_pwmdac_apb);
+
+	dev->clk_pwmdac_core = devm_clk_get(&pdev->dev, "pwmdac-core");
+	if (IS_ERR(dev->clk_pwmdac_core))
+		return PTR_ERR(dev->clk_pwmdac_core);
+
+	return 0;
+}
+
+static int sf_pwmdac_resets_get(struct platform_device *pdev,
+				struct sf_pwmdac_dev *dev)
+{
+	dev->rst_apb = devm_reset_control_get_exclusive(&pdev->dev, "rst-apb");
+	if (IS_ERR(dev->rst_apb)) {
+		dev_err(&pdev->dev, "%s: failed to get pwmdac apb reset control\n", __func__);
+		return PTR_ERR(dev->rst_apb);
+	}
+
+	return 0;
+}
+
+static int sf_pwmdac_clk_init(struct platform_device *pdev,
+				struct sf_pwmdac_dev *dev)
+{
+	int ret = 0;
+
+	ret = clk_prepare_enable(dev->clk_apb0);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare enable clk_apb0\n");
+		goto err_clk_pwmdac;
+	}
+
+	ret = clk_prepare_enable(dev->clk_pwmdac_apb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare enable clk_pwmdac_apb\n");
+		goto err_clk_pwmdac;
+	}
+
+	ret = clk_prepare_enable(dev->clk_pwmdac_core);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare enable clk_pwmdac_core\n");
+		goto err_clk_pwmdac;
+	}
+	dev_info(&pdev->dev, "clk_apb0 = %lu, clk_pwmdac_apb = %lu, clk_pwmdac_core = %lu\n",
+		clk_get_rate(dev->clk_apb0), clk_get_rate(dev->clk_pwmdac_apb),
+		clk_get_rate(dev->clk_pwmdac_core));
+
+	ret = reset_control_deassert(dev->rst_apb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to deassert apb\n");
+		goto err_clk_pwmdac;
+	}
+
+err_clk_pwmdac:
+	return ret;
 }
 
 static int sf_pwmdac_dai_probe(struct snd_soc_dai *dai)
@@ -739,13 +777,31 @@ static int sf_pwmdac_probe(struct platform_device *pdev)
 		return PTR_ERR(dev->pwmdac_base);
 
 	dev->mapbase = res->start;
+
+	ret = sf_pwmdac_clks_get(pdev, dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to get pwmdac clock\n");
+		return ret;
+	}
+
+	ret = sf_pwmdac_resets_get(pdev, dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to get pwmdac reset controls\n");
+		return ret;
+        }
+
+	ret = sf_pwmdac_clk_init(pdev, dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable pwmdac clock\n");
+		return ret;
+	}
+
 	dev->dev = &pdev->dev;
 	dev->mode = shift_8Bit_inverter;
 	dev->fifo_th = 1;//8byte
 	pwmdac_config(dev);
 
 	dev->use_pio = false;
-	//dev->use_pio = true;
 	dev_set_drvdata(&pdev->dev, dev);
 	ret = devm_snd_soc_register_component(&pdev->dev, &sf_pwmdac_component,
 					 &pwmdac_dai, 1);
@@ -789,9 +845,21 @@ static struct platform_driver sf_pwmdac_driver = {
 	},
 };
 
-module_platform_driver(sf_pwmdac_driver);
 
-MODULE_AUTHOR("jenny.zhang <jenny.zhang@starfivetech.com>");
+static int __init pwmdac_driver_init(void)
+{
+	return platform_driver_register(&sf_pwmdac_driver);
+}
+
+static void pwmdac_driver_exit(void)
+{
+	platform_driver_unregister(&sf_pwmdac_driver);
+}
+
+late_initcall(pwmdac_driver_init);
+module_exit(pwmdac_driver_exit);
+
+MODULE_AUTHOR("curry.zhang <curry.zhang@starfivetech.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("starfive pwmdac SoC Interface");
 MODULE_ALIAS("platform:starfive-pwmdac");

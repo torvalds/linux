@@ -950,7 +950,12 @@
 		pwmdac: pwmdac@100b0000 {
 			compatible = "sf,pwmdac";
 			reg = <0x0 0x100b0000 0x0 0x1000>;
-			clocks = <&apb0clk>;
+			clocks = <&clkgen JH7110_APB0>,
+				<&clkgen JH7110_PWMDAC_CLK_APB>,
+				<&clkgen JH7110_PWMDAC_CLK_CORE>;
+			clock-names = "apb0", "pwmdac-apb", "pwmdac-core";
+			resets = <&rstgen RSTN_U0_PWMDAC_APB>;
+			reset-names = "rst-apb";
 			dmas = <&dma 22 1>;
 			dma-names = "tx";
 			#sound-dai-cells = <0>;
@@ -1360,20 +1365,26 @@
 			};
 		};
 
-		sound_pwmdac: snd-card_pwmdac {
+		sound:snd-card {
 			compatible = "simple-audio-card";
-			simple-audio-card,name = "Starfive-Pwmdac-Sound-Card";
-			simple-audio-card,bitclock-master = <&pwmdac_dailink_master>;
-			simple-audio-card,frame-master = <&pwmdac_dailink_master>;
-			simple-audio-card,format = "left_j";
-			status = "disabled";
+			simple-audio-card,name = "Starfive-Multi-Sound-Card";
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-			pwmdac_dailink_master: simple-audio-card,cpu {
-				sound-dai = <&pwmdac>;
-			};
+			simple-audio-card,dai-link@0 {
+				reg = <0>;
+				format = "left_j";
+				bitclock-master = <&sndcpu0>;
+				frame-master = <&sndcpu0>;
+				status = "okay";
 
-			simple-audio-card,codec {
-				sound-dai = <&pwmdac_codec>;
+				sndcpu0: cpu {
+					sound-dai = <&pwmdac>;
+				};
+
+				codec {
+					sound-dai = <&pwmdac_codec>;
+				};
 			};
 		};
 
