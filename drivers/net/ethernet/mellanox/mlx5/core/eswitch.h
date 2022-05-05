@@ -287,6 +287,10 @@ enum {
 
 struct mlx5_esw_bridge_offloads;
 
+enum {
+	MLX5_ESW_FDB_CREATED = BIT(0),
+};
+
 struct mlx5_eswitch {
 	struct mlx5_core_dev    *dev;
 	struct mlx5_nb          nb;
@@ -574,6 +578,11 @@ static inline u16
 mlx5_esw_devlink_port_index_to_vport_num(unsigned int dl_port_index)
 {
 	return dl_port_index & 0xffff;
+}
+
+static inline bool mlx5_esw_is_fdb_created(struct mlx5_eswitch *esw)
+{
+	return esw->fdb_table.flags & MLX5_ESW_FDB_CREATED;
 }
 
 /* TODO: This mlx5e_tc function shouldn't be called by eswitch */

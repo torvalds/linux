@@ -1274,6 +1274,8 @@ int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int mode, int num_vfs)
 	if (err)
 		goto abort;
 
+	esw->fdb_table.flags |= MLX5_ESW_FDB_CREATED;
+
 	mlx5_eswitch_event_handlers_register(esw);
 
 	esw_info(esw->dev, "Enable: mode(%s), nvfs(%d), active vports(%d)\n",
@@ -1356,6 +1358,7 @@ void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw, bool clear_vf)
 
 	mlx5_eswitch_event_handlers_unregister(esw);
 
+	esw->fdb_table.flags &= ~MLX5_ESW_FDB_CREATED;
 	if (esw->mode == MLX5_ESWITCH_LEGACY)
 		esw_legacy_disable(esw);
 	else if (esw->mode == MLX5_ESWITCH_OFFLOADS)
