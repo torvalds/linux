@@ -1405,28 +1405,7 @@ done:
 			rkvdec2_link_power_off(mpp);
 	}
 
-	mutex_lock(&queue->session_lock);
-	while (queue->detach_count) {
-		struct mpp_session *session = NULL;
-
-		session = list_first_entry_or_null(&queue->session_detach, struct mpp_session,
-				session_link);
-		if (session) {
-			list_del_init(&session->session_link);
-			queue->detach_count--;
-		}
-
-		mutex_unlock(&queue->session_lock);
-
-		if (session) {
-			mpp_dbg_session("%s detach count %d\n", dev_name(mpp->dev),
-					queue->detach_count);
-			mpp_session_deinit(session);
-		}
-
-		mutex_lock(&queue->session_lock);
-	}
-	mutex_unlock(&queue->session_lock);
+	mpp_session_cleanup_detach(queue, work_s);
 }
 
 void rkvdec2_link_session_deinit(struct mpp_session *session)
@@ -1439,9 +1418,9 @@ void rkvdec2_link_session_deinit(struct mpp_session *session)
 
 	if (session->dma) {
 		mpp_dbg_session("session %d destroy dma\n", session->index);
-		mpp_iommu_down_read(mpp->iommu_info);
+		mpp_iommu_down_write(mpp->iommu_info);
 		mpp_dma_session_destroy(session->dma);
-		mpp_iommu_up_read(mpp->iommu_info);
+		mpp_iommu_up_write(mpp->iommu_info);
 		session->dma = NULL;
 	}
 	if (session->srv) {
@@ -1565,36 +1544,6 @@ int rkvdec2_ccu_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec)
 	dec->link_dec = link_dec;
 
 	mpp_debug_leave();
-
-	return 0;
-}
-
-static int rkvdec2_ccu_link_session_detach(struct mpp_dev *mpp,
-					   struct mpp_taskqueue *queue)
-{
-	mutex_lock(&queue->session_lock);
-	while (queue->detach_count) {
-		struct mpp_session *session = NULL;
-
-		session = list_first_entry_or_null(&queue->session_detach,
-						   struct mpp_session,
-						   session_link);
-		if (session) {
-			list_del_init(&session->session_link);
-			queue->detach_count--;
-		}
-
-		mutex_unlock(&queue->session_lock);
-
-		if (session) {
-			mpp_dbg_session("%s detach count %d\n", dev_name(mpp->dev),
-					queue->detach_count);
-			mpp_session_deinit(session);
-		}
-
-		mutex_lock(&queue->session_lock);
-	}
-	mutex_unlock(&queue->session_lock);
 
 	return 0;
 }
@@ -1966,9 +1915,18 @@ get_task:
 		goto done;
 
 	if (test_bit(TASK_STATE_ABORT, &mpp_task->state)) {
+		struct rkvdec2_task *dec_task = to_rkvdec2_task(mpp_task);
+
 		mutex_lock(&queue->pending_lock);
 		list_del_init(&mpp_task->queue_link);
+
+		kref_get(&mpp_task->ref);
+		set_bit(TASK_STATE_ABORT_READY, &mpp_task->state);
+		set_bit(TASK_STATE_PROC_DONE, &mpp_task->state);
+
 		mutex_unlock(&queue->pending_lock);
+		wake_up(&dec_task->wait);
+		kref_put(&mpp_task->ref, rkvdec2_link_free_task);
 		goto get_task;
 	}
 	/* find one core is idle */
@@ -2001,7 +1959,7 @@ done:
 		rkvdec2_ccu_power_off(queue, dec->ccu);
 out:
 	/* session detach out of queue */
-	rkvdec2_ccu_link_session_detach(mpp, queue);
+	mpp_session_cleanup_detach(queue, work_s);
 
 	mpp_debug_leave();
 }
