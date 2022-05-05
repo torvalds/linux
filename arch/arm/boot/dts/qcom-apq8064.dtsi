@@ -801,10 +801,10 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
-			tsens_calib: calib {
+			tsens_calib: calib@404 {
 				reg = <0x404 0x10>;
 			};
-			tsens_backup: backup_calib {
+			tsens_backup: backup_calib@414 {
 				reg = <0x414 0x10>;
 			};
 		};
