@@ -6389,6 +6389,7 @@ F:	include/uapi/drm/savage_drm.h
 
 DRM DRIVER FOR SIMPLE FRAMEBUFFERS
 M:	Thomas Zimmermann <tzimmermann@suse.de>
+M:	Javier Martinez Canillas <javierm@redhat.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
