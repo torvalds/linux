@@ -771,6 +771,7 @@ static int gfs2_fsync(struct file *file, loff_t start, loff_t end,
 }
 
 static inline bool should_fault_in_pages(struct iov_iter *i,
+					 struct kiocb *iocb,
 					 size_t *prev_count,
 					 size_t *window_size)
 {
@@ -783,15 +784,13 @@ static inline bool should_fault_in_pages(struct iov_iter *i,
 		return false;
 
 	size = PAGE_SIZE;
-	offs = offset_in_page(i->iov[0].iov_base + i->iov_offset);
+	offs = offset_in_page(iocb->ki_pos);
 	if (*prev_count != count || !*window_size) {
 		size_t nr_dirtied;
 
-		size = ALIGN(offs + count, PAGE_SIZE);
-		size = min_t(size_t, size, SZ_1M);
 		nr_dirtied = max(current->nr_dirtied_pause -
 				 current->nr_dirtied, 8);
-		size = min(size, nr_dirtied << PAGE_SHIFT);
+		size = min_t(size_t, SZ_1M, nr_dirtied << PAGE_SHIFT);
 	}
 
 	*prev_count = count;
@@ -845,7 +844,7 @@ retry_under_glock:
 	if (ret > 0)
 		read = ret;
 
-	if (should_fault_in_pages(to, &prev_count, &window_size)) {
+	if (should_fault_in_pages(to, iocb, &prev_count, &window_size)) {
 		gfs2_holder_allow_demote(gh);
 		window_size -= fault_in_iov_iter_writeable(to, window_size);
 		gfs2_holder_disallow_demote(gh);
@@ -916,7 +915,7 @@ retry_under_glock:
 	if (ret > 0)
 		written = ret;
 
-	if (should_fault_in_pages(from, &prev_count, &window_size)) {
+	if (should_fault_in_pages(from, iocb, &prev_count, &window_size)) {
 		gfs2_holder_allow_demote(gh);
 		window_size -= fault_in_iov_iter_readable(from, window_size);
 		gfs2_holder_disallow_demote(gh);
@@ -984,7 +983,7 @@ retry_under_glock:
 	if (ret > 0)
 		read += ret;
 
-	if (should_fault_in_pages(to, &prev_count, &window_size)) {
+	if (should_fault_in_pages(to, iocb, &prev_count, &window_size)) {
 		gfs2_holder_allow_demote(&gh);
 		window_size -= fault_in_iov_iter_writeable(to, window_size);
 		gfs2_holder_disallow_demote(&gh);
@@ -1061,7 +1060,7 @@ retry_under_glock:
 		goto out_unlock;
 
 	from->count = orig_count - written;
-	if (should_fault_in_pages(from, &prev_count, &window_size)) {
+	if (should_fault_in_pages(from, iocb, &prev_count, &window_size)) {
 		gfs2_holder_allow_demote(gh);
 		window_size -= fault_in_iov_iter_readable(from, window_size);
 		gfs2_holder_disallow_demote(gh);
