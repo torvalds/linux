@@ -917,8 +917,12 @@
 		spdif0: spdif0@100a0000 {
 			compatible = "starfive,sf-spdif";
 			reg = <0x0 0x100a0000 0x0 0x1000>;
-			clocks = <&audioclk>;
-			clock-names = "audioclk";
+			clocks = <&clkgen JH7110_SPDIF_CLK_APB>,
+				<&clkgen JH7110_SPDIF_CLK_CORE>,
+				<&clkgen JH7110_MCLK>;
+			clock-names = "spdif-apb", "spdif-core", "audioclk";
+			resets = <&rstgen RSTN_U0_CDNS_SPDIF_APB>;
+			reset-names = "rst_apb";
 			interrupts = <84>;
 			interrupt-names = "tx";
 			#sound-dai-cells = <0>;

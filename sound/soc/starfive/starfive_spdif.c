@@ -26,6 +26,7 @@
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -203,6 +204,72 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int sf_spdif_clks_get(struct platform_device *pdev,
+				struct sf_spdif_dev *spdif)
+{
+
+	static struct clk_bulk_data clks[] = {
+			{ .id = "spdif-apb" },		//clock-names in dts file
+			{ .id = "spdif-core" },
+			{ .id = "audioclk" },
+	};
+	int ret = devm_clk_bulk_get(&pdev->dev, ARRAY_SIZE(clks), clks);
+	spdif->spdif_apb = clks[0].clk;
+	spdif->spdif_core = clks[1].clk;
+	spdif->audioclk = clks[2].clk;
+	return ret;
+}
+
+static int sf_spdif_resets_get(struct platform_device *pdev,
+				struct sf_spdif_dev *spdif)
+{
+	struct reset_control_bulk_data resets[] = {
+			{ .id = "rst_apb" },
+	};
+	int ret = devm_reset_control_bulk_get_exclusive(&pdev->dev, ARRAY_SIZE(resets), resets);
+	if (ret)
+		return ret;
+
+	spdif->rst_apb = resets[0].rstc;
+
+	return 0;
+}
+
+static int sf_spdif_clk_init(struct platform_device *pdev,
+				struct sf_spdif_dev *spdif)
+{
+	int ret = 0;
+
+	ret = clk_prepare_enable(spdif->spdif_apb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare enable spdif_apb\n");
+			goto err_clk_spdif;
+	}
+
+	ret = clk_prepare_enable(spdif->spdif_core);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare enable spdif_core\n");
+		goto err_clk_spdif;
+	}
+
+	ret = clk_prepare_enable(spdif->audioclk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare enable audioclk\n");
+		goto err_clk_spdif;
+	}
+
+	ret = reset_control_deassert(spdif->rst_apb);
+	if (ret) {
+		printk(KERN_INFO "failed to deassert apb\n");
+		goto err_clk_spdif;
+	}
+
+	printk(KERN_INFO "Initialize spdif...success\n");
+
+err_clk_spdif:
+		return ret;
+}
+
 static int sf_spdif_dai_probe(struct snd_soc_dai *dai)
 {
 	struct sf_spdif_dev *spdif = snd_soc_dai_get_drvdata(dai);
@@ -342,6 +409,24 @@ static int sf_spdif_probe(struct platform_device *pdev)
 					    &sf_spdif_regmap_config);
 	if (IS_ERR(spdif->regmap))
 		return PTR_ERR(spdif->regmap);
+
+	ret = sf_spdif_clks_get(pdev, spdif);
+	if (ret) {
+			dev_err(&pdev->dev, "failed to get audio clock\n");
+			return ret;
+	}
+
+	ret = sf_spdif_resets_get(pdev, spdif);
+	if (ret) {
+			dev_err(&pdev->dev, "failed to get audio reset controls\n");
+			return ret;
+	}
+
+	ret = sf_spdif_clk_init(pdev, spdif);
+	if (ret) {
+			dev_err(&pdev->dev, "failed to enable audio clock\n");
+			return ret;
+	}
 	
 	spdif->dev = &pdev->dev;
 	spdif->fifo_th = 16;
@@ -394,6 +479,6 @@ static struct platform_driver sf_spdif_driver = {
 };
 module_platform_driver(sf_spdif_driver);
 
-MODULE_AUTHOR("michael.yan <michael.yan@starfive.com>");
+MODULE_AUTHOR("curry.zhang <michael.yan@starfive.com>");
 MODULE_DESCRIPTION("starfive SPDIF driver");
 MODULE_LICENSE("GPL v2");
