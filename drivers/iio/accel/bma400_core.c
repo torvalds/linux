@@ -19,6 +19,9 @@
 #include <linux/mutex.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
+
+#include <asm/unaligned.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -74,6 +77,7 @@ struct bma400_data {
 	int oversampling_ratio;
 	int scale;
 	struct iio_trigger *trig;
+	int steps_enabled;
 	/* Correct time stamp alignment */
 	struct {
 		__le16 buff[3];
@@ -208,6 +212,12 @@ static const struct iio_chan_spec bma400_channels[] = {
 			.storagebits = 8,
 			.endianness = IIO_LE,
 		},
+	},
+	{
+		.type = IIO_STEPS,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED) |
+				      BIT(IIO_CHAN_INFO_ENABLE),
+		.scan_index = -1, /* No buffer support */
 	},
 	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
@@ -577,6 +587,40 @@ static int bma400_set_power_mode(struct bma400_data *data,
 	return 0;
 }
 
+static int bma400_enable_steps(struct bma400_data *data, int val)
+{
+	int ret;
+
+	if (data->steps_enabled == val)
+		return 0;
+
+	ret = regmap_update_bits(data->regmap, BMA400_INT_CONFIG1_REG,
+				 BMA400_STEP_INT_MSK,
+				 FIELD_PREP(BMA400_STEP_INT_MSK, val ? 1 : 0));
+	if (ret)
+		return ret;
+	data->steps_enabled = val;
+	return ret;
+}
+
+static int bma400_get_steps_reg(struct bma400_data *data, int *val)
+{
+	u8 *steps_raw;
+	int ret;
+
+	steps_raw = kmalloc(BMA400_STEP_RAW_LEN, GFP_KERNEL);
+	if (!steps_raw)
+		return -ENOMEM;
+
+	ret = regmap_bulk_read(data->regmap, BMA400_STEP_CNT0_REG,
+			       steps_raw, BMA400_STEP_RAW_LEN);
+	if (ret)
+		return ret;
+	*val = get_unaligned_le24(steps_raw);
+	kfree(steps_raw);
+	return IIO_VAL_INT;
+}
+
 static void bma400_init_tables(void)
 {
 	int raw;
@@ -716,10 +760,17 @@ static int bma400_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_PROCESSED:
-		mutex_lock(&data->mutex);
-		ret = bma400_get_temp_reg(data, val, val2);
-		mutex_unlock(&data->mutex);
-		return ret;
+		switch (chan->type) {
+		case IIO_TEMP:
+			mutex_lock(&data->mutex);
+			ret = bma400_get_temp_reg(data, val, val2);
+			mutex_unlock(&data->mutex);
+			return ret;
+		case IIO_STEPS:
+			return bma400_get_steps_reg(data, val);
+		default:
+			return -EINVAL;
+		}
 	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&data->mutex);
 		ret = bma400_get_accel_reg(data, chan, val);
@@ -759,6 +810,9 @@ static int bma400_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 
 		*val = data->oversampling_ratio;
+		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_ENABLE:
+		*val = data->steps_enabled;
 		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
@@ -825,6 +879,11 @@ static int bma400_write_raw(struct iio_dev *indio_dev,
 		ret = bma400_set_accel_oversampling_ratio(data, val);
 		mutex_unlock(&data->mutex);
 		return ret;
+	case IIO_CHAN_INFO_ENABLE:
+		mutex_lock(&data->mutex);
+		ret = bma400_enable_steps(data, val);
+		mutex_unlock(&data->mutex);
+		return ret;
 	default:
 		return -EINVAL;
 	}
@@ -840,6 +899,8 @@ static int bma400_write_raw_get_fmt(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_ENABLE:
 		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
