@@ -171,10 +171,17 @@ ifdef CONFIG_MODVERSIONS
 
 # Generate .o.symversions files for each .o with exported symbols, and link these
 # to the kernel and/or modules at the end.
+
+genksyms_format_rel_crc := [^_]*__crc_\([^ ]*\) = \.; LONG(\([^)]*\)).*
+genksyms_format_normal := __crc_\(.*\) = \(.*\);
+genksyms_format := $(if $(CONFIG_MODULE_REL_CRCS),$(genksyms_format_rel_crc),$(genksyms_format_normal))
+
 gen_symversions =								\
 	if $(NM) $@ 2>/dev/null | grep -q __ksymtab; then			\
 		$(call cmd_gensymtypes_$(1),$(KBUILD_SYMTYPES),$(@:.o=.symtypes)) \
 		    > $@.symversions;						\
+		sed -n 's/$(genksyms_format)/$(pound)SYMVER \1 \2/p' $@.symversions \
+			>> $(dot-target).cmd;					\
 	else									\
 		rm -f $@.symversions;						\
 	fi
