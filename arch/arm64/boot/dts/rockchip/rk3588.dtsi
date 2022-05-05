@@ -905,33 +905,6 @@
 	};
 };
 
-&vop {
-	clocks = <&cru ACLK_VOP>,
-		 <&cru HCLK_VOP>,
-		 <&cru DCLK_VOP0>,
-		 <&cru DCLK_VOP1>,
-		 <&cru DCLK_VOP2>,
-		 <&cru DCLK_VOP3>,
-		 <&cru PCLK_VOP_ROOT>,
-		 <&cru DCLK_VOP0_SRC>,
-		 <&cru DCLK_VOP1_SRC>,
-		 <&cru DCLK_VOP2_SRC>,
-		 <&hdptxphy_hdmi0>,
-		 <&hdptxphy_hdmi1>;
-	clock-names = "aclk_vop",
-		      "hclk_vop",
-		      "dclk_vp0",
-		      "dclk_vp1",
-		      "dclk_vp2",
-		      "dclk_vp3",
-		      "pclk_vop",
-		      "dclk_src_vp0",
-		      "dclk_src_vp1",
-		      "dclk_src_vp2",
-		      "hdmi0_phy_pll",
-		      "hdmi1_phy_pll";
-};
-
 &vp0 {
 	vp0_out_dp1: endpoint@3 {
 		reg = <3>;
