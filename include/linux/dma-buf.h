@@ -660,4 +660,15 @@ static inline void dma_buf_set_destructor(struct dma_buf *dmabuf,
 	dmabuf->dtor_data = dtor_data;
 }
 #endif
+
+#if IS_ENABLED(CONFIG_DMABUF_DEBUG)
+void dma_buf_reset_peak_size(void);
+size_t dma_buf_get_peak_size(void);
+size_t dma_buf_get_total_size(void);
+#else
+static inline void dma_buf_reset_peak_size(void) {}
+static inline size_t dma_buf_get_peak_size(void) { return 0; }
+static inline size_t dma_buf_get_total_size(void) { return 0; }
+#endif
+
 #endif /* __DMA_BUF_H__ */

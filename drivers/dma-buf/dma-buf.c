@@ -63,6 +63,43 @@ int get_each_dmabuf(int (*callback)(const struct dma_buf *dmabuf,
 }
 EXPORT_SYMBOL_GPL(get_each_dmabuf);
 
+#if IS_ENABLED(CONFIG_DMABUF_DEBUG)
+static size_t db_total_size;
+static size_t db_peak_size;
+
+void dma_buf_reset_peak_size(void)
+{
+	mutex_lock(&db_list.lock);
+	db_peak_size = 0;
+	mutex_unlock(&db_list.lock);
+}
+EXPORT_SYMBOL_GPL(dma_buf_reset_peak_size);
+
+size_t dma_buf_get_peak_size(void)
+{
+	size_t sz;
+
+	mutex_lock(&db_list.lock);
+	sz = db_peak_size;
+	mutex_unlock(&db_list.lock);
+
+	return sz;
+}
+EXPORT_SYMBOL_GPL(dma_buf_get_peak_size);
+
+size_t dma_buf_get_total_size(void)
+{
+	size_t sz;
+
+	mutex_lock(&db_list.lock);
+	sz = db_total_size;
+	mutex_unlock(&db_list.lock);
+
+	return sz;
+}
+EXPORT_SYMBOL_GPL(dma_buf_get_total_size);
+#endif
+
 static char *dmabuffs_dname(struct dentry *dentry, char *buffer, int buflen)
 {
 	struct dma_buf *dmabuf;
@@ -129,6 +166,9 @@ static int dma_buf_file_release(struct inode *inode, struct file *file)
 	dmabuf = file->private_data;
 
 	mutex_lock(&db_list.lock);
+#if IS_ENABLED(CONFIG_DMABUF_DEBUG)
+	db_total_size -= dmabuf->size;
+#endif
 	list_del(&dmabuf->list_node);
 	mutex_unlock(&db_list.lock);
 
@@ -700,6 +740,10 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 
 	mutex_lock(&db_list.lock);
 	list_add(&dmabuf->list_node, &db_list.head);
+#if IS_ENABLED(CONFIG_DMABUF_DEBUG)
+	db_total_size += dmabuf->size;
+	db_peak_size = max(db_total_size, db_peak_size);
+#endif
 	mutex_unlock(&db_list.lock);
 
 	if (IS_ENABLED(CONFIG_DMABUF_DEBUG))
