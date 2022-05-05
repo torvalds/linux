@@ -49,14 +49,13 @@ static int felix_migrate_fdbs_to_npi_port(struct dsa_switch *ds, int port,
 {
 	struct net_device *bridge_dev = felix_classify_db(db);
 	struct ocelot *ocelot = ds->priv;
-	int cpu = ocelot->num_phys_ports;
 	int err;
 
 	err = ocelot_fdb_del(ocelot, port, addr, vid, bridge_dev);
 	if (err)
 		return err;
 
-	return ocelot_fdb_add(ocelot, cpu, addr, vid, bridge_dev);
+	return ocelot_fdb_add(ocelot, PGID_CPU, addr, vid, bridge_dev);
 }
 
 static int felix_migrate_mdbs_to_npi_port(struct dsa_switch *ds, int port,
@@ -128,10 +127,9 @@ felix_migrate_fdbs_to_tag_8021q_port(struct dsa_switch *ds, int port,
 {
 	struct net_device *bridge_dev = felix_classify_db(db);
 	struct ocelot *ocelot = ds->priv;
-	int cpu = ocelot->num_phys_ports;
 	int err;
 
-	err = ocelot_fdb_del(ocelot, cpu, addr, vid, bridge_dev);
+	err = ocelot_fdb_del(ocelot, PGID_CPU, addr, vid, bridge_dev);
 	if (err)
 		return err;
 
