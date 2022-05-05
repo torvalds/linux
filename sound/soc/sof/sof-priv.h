@@ -350,6 +350,9 @@ struct snd_sof_ipc_msg {
 	size_t reply_size;
 	int reply_error;
 
+	/* notification, firmware initiated messages */
+	void *rx_data;
+
 	wait_queue_head_t waitq;
 	bool ipc_complete;
 };
@@ -765,5 +768,6 @@ static inline int sof_resume_clients(struct snd_sof_dev *sdev)
 
 /* Main ops for IPC implementations */
 extern const struct sof_ipc_ops ipc3_ops;
+extern const struct sof_ipc_ops ipc4_ops;
 
 #endif
