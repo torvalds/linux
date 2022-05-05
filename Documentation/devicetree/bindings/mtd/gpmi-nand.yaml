@@ -147,8 +147,6 @@ allOf:
             - description: SoC gpmi io clock
             - description: SoC gpmi bch apb clock
         clock-names:
-          minItems: 2
-          maxItems: 2
           items:
             - const: gpmi_io
             - const: gpmi_bch_apb
