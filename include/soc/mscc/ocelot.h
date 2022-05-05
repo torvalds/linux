@@ -998,6 +998,9 @@ int ocelot_mact_learn_streamdata(struct ocelot *ocelot, int dst_idx,
 				 enum macaccess_entry_type type,
 				 int sfid, int ssid);
 
+int ocelot_migrate_mdbs(struct ocelot *ocelot, unsigned long from_mask,
+			unsigned long to_mask);
+
 int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
 			    struct ocelot_policer *pol);
 int ocelot_vcap_policer_del(struct ocelot *ocelot, u32 pol_ix);
