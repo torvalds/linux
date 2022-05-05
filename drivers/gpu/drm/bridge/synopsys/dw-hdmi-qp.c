@@ -2724,8 +2724,10 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	hdmi_writel(hdmi, 0, MAINUNIT_0_INT_MASK_N);
 	hdmi_writel(hdmi, 0, MAINUNIT_1_INT_MASK_N);
 	hdmi_writel(hdmi, 428571429, TIMER_BASE_CONFIG0);
-	if ((hdmi_readl(hdmi, CMU_STATUS) & DISPLAY_CLK_MONITOR) == DISPLAY_CLK_LOCKED)
+	if ((hdmi_readl(hdmi, CMU_STATUS) & DISPLAY_CLK_MONITOR) == DISPLAY_CLK_LOCKED) {
 		hdmi->initialized = true;
+		hdmi->disabled = false;
+	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
