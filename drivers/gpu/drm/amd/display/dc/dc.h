@@ -340,6 +340,7 @@ struct dc_config {
 	bool is_asymmetric_memory;
 	bool is_single_rank_dimm;
 	bool use_pipe_ctx_sync_logic;
+	bool ignore_dpref_ss;
 };
 
 enum visual_confirm {
@@ -729,7 +730,6 @@ struct dc_debug_options {
 	bool apply_vendor_specific_lttpr_wa;
 	bool extended_blank_optimization;
 	union aux_wake_wa_options aux_wake_wa;
-	bool ignore_dpref_ss;
 	uint8_t psr_power_use_phy_fsm;
 };
 

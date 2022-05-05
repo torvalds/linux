@@ -24,6 +24,11 @@ properties:
           - const: hisilicon,hi3670-reset
           - const: hisilicon,hi3660-reset
 
+  hisi,rst-syscon:
+    deprecated: true
+    description: phandle of the reset's syscon, use hisilicon,rst-syscon instead
+    $ref: /schemas/types.yaml#/definitions/phandle
+
   hisilicon,rst-syscon:
     description: phandle of the reset's syscon.
     $ref: /schemas/types.yaml#/definitions/phandle

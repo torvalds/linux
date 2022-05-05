@@ -415,8 +415,8 @@ static u16 ice_fill_rx_descs(struct xsk_buff_pool *pool, struct xdp_buff **xdp,
  */
 static bool __ice_alloc_rx_bufs_zc(struct ice_rx_ring *rx_ring, u16 count)
 {
+	u32 nb_buffs_extra = 0, nb_buffs = 0;
 	union ice_32b_rx_flex_desc *rx_desc;
-	u32 nb_buffs_extra = 0, nb_buffs;
 	u16 ntu = rx_ring->next_to_use;
 	u16 total_count = count;
 	struct xdp_buff **xdp;
@@ -428,6 +428,10 @@ static bool __ice_alloc_rx_bufs_zc(struct ice_rx_ring *rx_ring, u16 count)
 		nb_buffs_extra = ice_fill_rx_descs(rx_ring->xsk_pool, xdp,
 						   rx_desc,
 						   rx_ring->count - ntu);
+		if (nb_buffs_extra != rx_ring->count - ntu) {
+			ntu += nb_buffs_extra;
+			goto exit;
+		}
 		rx_desc = ICE_RX_DESC(rx_ring, 0);
 		xdp = ice_xdp_buf(rx_ring, 0);
 		ntu = 0;
@@ -441,6 +445,7 @@ static bool __ice_alloc_rx_bufs_zc(struct ice_rx_ring *rx_ring, u16 count)
 	if (ntu == rx_ring->count)
 		ntu = 0;
 
+exit:
 	if (rx_ring->next_to_use != ntu)
 		ice_release_rx_desc(rx_ring, ntu);
 

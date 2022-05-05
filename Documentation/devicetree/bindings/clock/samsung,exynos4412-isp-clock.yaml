@@ -8,7 +8,7 @@ title: Samsung Exynos4412 SoC ISP clock controller
 
 maintainers:
   - Chanwoo Choi <cw00.choi@samsung.com>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
   - Sylwester Nawrocki <s.nawrocki@samsung.com>
   - Tomasz Figa <tomasz.figa@gmail.com>
 

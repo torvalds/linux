@@ -175,8 +175,6 @@ config ARM64
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
-	select HAVE_DYNAMIC_FTRACE_WITH_REGS \
-		if $(cc-option,-fpatchable-function-entry=2)
 	select FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY \
 		if DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
@@ -227,6 +225,17 @@ config ARM64
 	select TRACE_IRQFLAGS_SUPPORT
 	help
 	  ARM 64-bit (AArch64) Linux support.
+
+config CLANG_SUPPORTS_DYNAMIC_FTRACE_WITH_REGS
+	def_bool CC_IS_CLANG
+	# https://github.com/ClangBuiltLinux/linux/issues/1507
+	depends on AS_IS_GNU || (AS_IS_LLVM && (LD_IS_LLD || LD_VERSION >= 23600))
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+
+config GCC_SUPPORTS_DYNAMIC_FTRACE_WITH_REGS
+	def_bool CC_IS_GCC
+	depends on $(cc-option,-fpatchable-function-entry=2)
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 
 config 64BIT
 	def_bool y
@@ -678,7 +687,7 @@ config ARM64_ERRATUM_2051678
 	default y
 	help
 	  This options adds the workaround for ARM Cortex-A510 erratum ARM64_ERRATUM_2051678.
-	  Affected Coretex-A510 might not respect the ordering rules for
+	  Affected Cortex-A510 might not respect the ordering rules for
 	  hardware update of the page table's dirty bit. The workaround
 	  is to not enable the feature on affected CPUs.
 

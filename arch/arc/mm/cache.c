@@ -401,7 +401,7 @@ static inline void __before_dc_op(const int op)
 {
 	if (op == OP_FLUSH_N_INV) {
 		/* Dcache provides 2 cmd: FLUSH or INV
-		 * INV inturn has sub-modes: DISCARD or FLUSH-BEFORE
+		 * INV in turn has sub-modes: DISCARD or FLUSH-BEFORE
 		 * flush-n-inv is achieved by INV cmd but with IM=1
 		 * So toggle INV sub-mode depending on op request and default
 		 */

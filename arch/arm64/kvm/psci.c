@@ -215,15 +215,11 @@ static void kvm_psci_narrow_to_32bit(struct kvm_vcpu *vcpu)
 
 static unsigned long kvm_psci_check_allowed_function(struct kvm_vcpu *vcpu, u32 fn)
 {
-	switch(fn) {
-	case PSCI_0_2_FN64_CPU_SUSPEND:
-	case PSCI_0_2_FN64_CPU_ON:
-	case PSCI_0_2_FN64_AFFINITY_INFO:
-		/* Disallow these functions for 32bit guests */
-		if (vcpu_mode_is_32bit(vcpu))
-			return PSCI_RET_NOT_SUPPORTED;
-		break;
-	}
+	/*
+	 * Prevent 32 bit guests from calling 64 bit PSCI functions.
+	 */
+	if ((fn & PSCI_0_2_64BIT) && vcpu_mode_is_32bit(vcpu))
+		return PSCI_RET_NOT_SUPPORTED;
 
 	return 0;
 }
@@ -234,10 +230,6 @@ static int kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 	u32 psci_fn = smccc_get_function(vcpu);
 	unsigned long val;
 	int ret = 1;
-
-	val = kvm_psci_check_allowed_function(vcpu, psci_fn);
-	if (val)
-		goto out;
 
 	switch (psci_fn) {
 	case PSCI_0_2_FN_PSCI_VERSION:
@@ -306,7 +298,6 @@ static int kvm_psci_0_2_call(struct kvm_vcpu *vcpu)
 		break;
 	}
 
-out:
 	smccc_set_retval(vcpu, val, 0, 0, 0);
 	return ret;
 }
@@ -317,9 +308,6 @@ static int kvm_psci_1_x_call(struct kvm_vcpu *vcpu, u32 minor)
 	u32 arg;
 	unsigned long val;
 	int ret = 1;
-
-	if (minor > 1)
-		return -EINVAL;
 
 	switch(psci_fn) {
 	case PSCI_0_2_FN_PSCI_VERSION:
@@ -426,6 +414,15 @@ static int kvm_psci_0_1_call(struct kvm_vcpu *vcpu)
  */
 int kvm_psci_call(struct kvm_vcpu *vcpu)
 {
+	u32 psci_fn = smccc_get_function(vcpu);
+	unsigned long val;
+
+	val = kvm_psci_check_allowed_function(vcpu, psci_fn);
+	if (val) {
+		smccc_set_retval(vcpu, val, 0, 0, 0);
+		return 1;
+	}
+
 	switch (kvm_psci_version(vcpu)) {
 	case KVM_ARM_PSCI_1_1:
 		return kvm_psci_1_x_call(vcpu, 1);

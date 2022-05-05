@@ -287,8 +287,7 @@ static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 	}
 
 	/* legacy dts may still use "simple-bus" compatible */
-	ret = of_platform_populate(dev->dev.of_node, NULL, NULL,
-					&dev->dev);
+	ret = of_platform_default_populate(dev->dev.of_node, NULL, &dev->dev);
 	if (ret)
 		goto err_free_nandirq;
 
