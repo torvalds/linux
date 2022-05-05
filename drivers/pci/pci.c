@@ -1189,6 +1189,9 @@ static int pci_dev_wait(struct pci_dev *dev, char *reset_type, int timeout)
 /**
  * pci_power_up - Put the given device into D0
  * @dev: PCI device to power up
+ *
+ * On success, return 0 or 1, depending on whether or not it is necessary to
+ * restore the device's BARs subsequently (1 is returned in that case).
  */
 int pci_power_up(struct pci_dev *dev)
 {
@@ -1224,10 +1227,8 @@ int pci_power_up(struct pci_dev *dev)
 	need_restore = (state == PCI_D3hot || dev->current_state >= PCI_D3hot) &&
 			!(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET);
 
-	if (state == PCI_D0) {
-		dev->current_state = PCI_D0;
+	if (state == PCI_D0)
 		goto end;
-	}
 
 	/*
 	 * Force the entire word to 0. This doesn't affect PME_Status, disables
@@ -1241,13 +1242,41 @@ int pci_power_up(struct pci_dev *dev)
 	else if (state == PCI_D2)
 		udelay(PCI_PM_D2_DELAY);
 
+end:
+	dev->current_state = PCI_D0;
+	if (need_restore)
+		return 1;
+
+	return 0;
+}
+
+/**
+ * pci_set_full_power_state - Put a PCI device into D0 and update its state
+ * @dev: PCI device to power up
+ *
+ * Call pci_power_up() to put @dev into D0, read from its PCI_PM_CTRL register
+ * to confirm the state change, restore its BARs if they might be lost and
+ * reconfigure ASPM in acordance with the new power state.
+ *
+ * If pci_restore_state() is going to be called right after a power state change
+ * to D0, it is more efficient to use pci_power_up() directly instead of this
+ * function.
+ */
+static int pci_set_full_power_state(struct pci_dev *dev)
+{
+	u16 pmcsr;
+	int ret;
+
+	ret = pci_power_up(dev);
+	if (ret < 0)
+		return ret;
+
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
 	dev->current_state = pmcsr & PCI_PM_CTRL_STATE_MASK;
 	if (dev->current_state != PCI_D0)
 		pci_info_ratelimited(dev, "Refused to change power state from %s to D0\n",
 				     pci_power_name(dev->current_state));
 
-end:
 	/*
 	 * According to section 5.4.1 of the "PCI BUS POWER MANAGEMENT
 	 * INTERFACE SPECIFICATION, REV. 1.2", a device transitioning
@@ -1261,7 +1290,7 @@ end:
 	 * restore at least the BARs so that the device will be
 	 * accessible to its driver.
 	 */
-	if (need_restore)
+	if (ret > 0)
 		pci_restore_bars(dev);
 
 	if (dev->bus->self)
@@ -1415,7 +1444,7 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		return 0;
 
 	if (state == PCI_D0)
-		return pci_power_up(dev);
+		return pci_set_full_power_state(dev);
 
 	/*
 	 * This device is quirked not to be put into D3, so don't put it in
