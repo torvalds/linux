@@ -14,26 +14,24 @@ struct notifier_block;
 
 extern void add_device_randomness(const void *, size_t);
 extern void add_bootloader_randomness(const void *, size_t);
-
-#if defined(LATENT_ENTROPY_PLUGIN) && !defined(__CHECKER__)
-static inline void add_latent_entropy(void)
-{
-	add_device_randomness((const void *)&latent_entropy,
-			      sizeof(latent_entropy));
-}
-#else
-static inline void add_latent_entropy(void) {}
-#endif
-
 extern void add_input_randomness(unsigned int type, unsigned int code,
 				 unsigned int value) __latent_entropy;
 extern void add_interrupt_randomness(int irq) __latent_entropy;
 extern void add_hwgenerator_randomness(const void *buffer, size_t count,
 				       size_t entropy);
 
+#if defined(LATENT_ENTROPY_PLUGIN) && !defined(__CHECKER__)
+static inline void add_latent_entropy(void)
+{
+	add_device_randomness((const void *)&latent_entropy, sizeof(latent_entropy));
+}
+#else
+static inline void add_latent_entropy(void) {}
+#endif
+
 extern void get_random_bytes(void *buf, size_t nbytes);
 extern int wait_for_random_bytes(void);
-extern int __init rand_initialize(void);
+extern int __init random_init(const char *command_line);
 extern bool rng_is_initialized(void);
 extern int register_random_ready_notifier(struct notifier_block *nb);
 extern int unregister_random_ready_notifier(struct notifier_block *nb);
