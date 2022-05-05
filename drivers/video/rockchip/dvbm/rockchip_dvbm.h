@@ -208,6 +208,7 @@ struct dvbm_ctx {
 	u32 dump_s;
 	u32 dump_e;
 	u32 ignore_ovfl;
+	u32 loopcnt;
 };
 
 #endif

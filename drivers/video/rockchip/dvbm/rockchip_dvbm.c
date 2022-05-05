@@ -255,6 +255,10 @@ static int rk_dvbm_setup_iobuf(struct dvbm_ctx *ctx)
 	for (i = 0; i < sizeof(struct rk_dvbm_base) / sizeof(u32); i++)
 		rk_dvbm_set_reg(ctx, i * sizeof(u32) + DVBM_REG_OFFSET, data[i]);
 
+	for (i = 1; i < 65536; i++)
+		if (!((addr_base->ybuf_fstd * i) % (cfg->ybuf_top - cfg->ybuf_bot)))
+			break;
+	ctx->loopcnt = i;
 	return 0;
 }
 
@@ -421,13 +425,14 @@ EXPORT_SYMBOL(rk_dvbm_set_cb);
 
 static void rk_dvbm_update_next_adr(struct dvbm_ctx *ctx)
 {
-	u32 frame_cnt = ctx->isp_frm_info.frame_cnt;
+	u32 frame_cnt = ctx->isp_frm_start;
 	struct dvbm_isp_cfg_t *isp_cfg = &ctx->isp_cfg;
 	struct dvbm_addr_cfg *vepu_cfg = &ctx->vepu_cfg;
 	u32 y_wrap_size = isp_cfg->ybuf_top - isp_cfg->ybuf_bot;
 	u32 c_wrap_size = isp_cfg->cbuf_top - isp_cfg->cbuf_bot;
 	u32 s_off;
 
+	frame_cnt = (frame_cnt) % (ctx->loopcnt);
 	s_off = (frame_cnt * isp_cfg->ybuf_fstd) % y_wrap_size;
 	vepu_cfg->ybuf_sadr = isp_cfg->dma_addr + isp_cfg->ybuf_bot + s_off;
 
