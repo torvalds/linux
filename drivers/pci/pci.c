@@ -1192,23 +1192,24 @@ static int pci_dev_wait(struct pci_dev *dev, char *reset_type, int timeout)
  */
 int pci_power_up(struct pci_dev *dev)
 {
-	bool need_restore = false;
+	bool need_restore;
+	pci_power_t state;
 	u16 pmcsr;
-	int ret;
 
-	ret = platform_pci_set_power_state(dev, PCI_D0);
-	if (!ret) {
-		pci_update_current_state(dev, PCI_D0);
-	} else if (!dev->pm_cap) { /* Fall back to PCI_D0 */
-		dev->current_state = PCI_D0;
-		return 0;
-	}
+	platform_pci_set_power_state(dev, PCI_D0);
 
-	if (dev->current_state == PCI_D0)
-		return 0;
+	if (!dev->pm_cap) {
+		state = platform_pci_get_power_state(dev);
+		if (state == PCI_UNKNOWN)
+			dev->current_state = PCI_D0;
+		else
+			dev->current_state = state;
 
-	if (!dev->pm_cap)
+		if (state == PCI_D0)
+			return 0;
+
 		return -EIO;
+	}
 
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
 	if (PCI_POSSIBLE_ERROR(pmcsr)) {
@@ -1218,26 +1219,31 @@ int pci_power_up(struct pci_dev *dev)
 		return -EIO;
 	}
 
+	state = pmcsr & PCI_PM_CTRL_STATE_MASK;
+
+	need_restore = (state == PCI_D3hot || dev->current_state >= PCI_D3hot) &&
+			!(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET);
+
+	if (state == PCI_D0) {
+		dev->current_state = PCI_D0;
+		goto end;
+	}
+
 	/*
 	 * If we're (effectively) in D3, force entire word to 0. This doesn't
 	 * affect PME_Status, disables PME_En, and sets PowerState to 0.
 	 */
-	if (dev->current_state >= PCI_D3hot) {
-		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) == PCI_D3hot &&
-		    !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET))
-			need_restore = true;
-
+	if (state == PCI_D3hot)
 		pmcsr = 0;
-	} else {
+	else
 		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
-	}
 
 	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
 
 	/* Mandatory transition delays; see PCI PM 1.2. */
-	if (dev->current_state == PCI_D3hot)
+	if (state == PCI_D3hot)
 		pci_dev_d3_sleep(dev);
-	else if (dev->current_state == PCI_D2)
+	else if (state == PCI_D2)
 		udelay(PCI_PM_D2_DELAY);
 
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
@@ -1246,6 +1252,7 @@ int pci_power_up(struct pci_dev *dev)
 		pci_info_ratelimited(dev, "Refused to change power state from %s to D0\n",
 				     pci_power_name(dev->current_state));
 
+end:
 	/*
 	 * According to section 5.4.1 of the "PCI BUS POWER MANAGEMENT
 	 * INTERFACE SPECIFICATION, REV. 1.2", a device transitioning
