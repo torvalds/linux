@@ -267,7 +267,7 @@ struct rga_job {
 	/* The time only for hrtimer to calculate the load */
 	ktime_t hw_recoder_time;
 	unsigned int flags;
-	int ctx_id;
+	int request_id;
 	int priority;
 	int core;
 	int ret;
@@ -310,24 +310,26 @@ struct rga_scheduler_t {
 	struct rga_timer timer;
 };
 
-struct rga_internal_ctx_t {
-	struct rga_req *cached_cmd;
-	struct rga_session *session;
-
-	int cmd_num;
-	int flags;
-	int id;
-
-	uint8_t mpi_config_flags;
-	uint32_t sync_mode;
-
-	uint32_t finished_job_count;
+struct rga_request {
+	struct rga_req *task_list;
+	int task_count;
+	uint32_t finished_task_count;
 
 	bool use_batch_mode;
 	bool is_running;
+	uint32_t sync_mode;
 
-	struct dma_fence *out_fence;
-	int32_t out_fence_fd;
+	int32_t acquire_fence_fd;
+	int32_t release_fence_fd;
+	struct dma_fence *release_fence;
+	spinlock_t fence_lock;
+
+	wait_queue_head_t finished_wq;
+
+	int flags;
+	uint8_t mpi_config_flags;
+	int id;
+	struct rga_session *session;
 
 	spinlock_t lock;
 	struct kref refcount;
@@ -336,18 +338,18 @@ struct rga_internal_ctx_t {
 	/* TODO: add some common work */
 };
 
-struct rga_pending_ctx_manager {
+struct rga_pending_request_manager {
 	struct mutex lock;
 
 	/*
-	 * @ctx_id_idr:
+	 * @request_idr:
 	 *
-	 * Mapping of ctx id to object pointers. Used by the GEM
+	 * Mapping of request id to object pointers. Used by the GEM
 	 * subsystem. Protected by @lock.
 	 */
-	struct idr ctx_id_idr;
+	struct idr request_idr;
 
-	int ctx_count;
+	int request_count;
 };
 
 struct rga_session_manager {
@@ -370,7 +372,7 @@ struct rga_drvdata_t {
 	struct rga_mm *mm;
 
 	/* rga_job pending manager, import by RGA_START_CONFIG */
-	struct rga_pending_ctx_manager *pend_ctx_manager;
+	struct rga_pending_request_manager *pend_request_manager;
 
 	struct rga_session_manager *session_manager;
 

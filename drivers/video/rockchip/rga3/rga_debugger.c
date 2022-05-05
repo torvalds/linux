@@ -277,51 +277,51 @@ static int rga_mm_session_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int rga_ctx_manager_show(struct seq_file *m, void *data)
+static int rga_request_manager_show(struct seq_file *m, void *data)
 {
 	int id, i;
-	struct rga_pending_ctx_manager *ctx_manager;
-	struct rga_internal_ctx_t *ctx;
-	struct rga_req *cached_cmd;
+	struct rga_pending_request_manager *request_manager;
+	struct rga_request *request;
+	struct rga_req *task_list;
 	unsigned long flags;
-	int cmd_num = 0;
-	int finished_job_count = 0;
+	int task_count = 0;
+	int finished_task_count = 0;
 
-	ctx_manager = rga_drvdata->pend_ctx_manager;
+	request_manager = rga_drvdata->pend_request_manager;
 
-	seq_puts(m, "rga internal ctx dump:\n");
-	seq_printf(m, "ctx count = %d\n", ctx_manager->ctx_count);
+	seq_puts(m, "rga internal request dump:\n");
+	seq_printf(m, "request count = %d\n", request_manager->request_count);
 	seq_puts(m, "===============================================================\n");
 
-	mutex_lock(&ctx_manager->lock);
+	mutex_lock(&request_manager->lock);
 
-	idr_for_each_entry(&ctx_manager->ctx_id_idr, ctx, id) {
-		seq_printf(m, "------------------ ctx: %d ------------------\n", ctx->id);
+	idr_for_each_entry(&request_manager->request_idr, request, id) {
+		seq_printf(m, "------------------ request: %d ------------------\n", request->id);
 
-		spin_lock_irqsave(&ctx->lock, flags);
+		spin_lock_irqsave(&request->lock, flags);
 
-		cmd_num = ctx->cmd_num;
-		finished_job_count = ctx->finished_job_count;
-		cached_cmd = ctx->cached_cmd;
+		task_count = request->task_count;
+		finished_task_count = request->finished_task_count;
+		task_list = request->task_list;
 
-		spin_unlock_irqrestore(&ctx->lock, flags);
+		spin_unlock_irqrestore(&request->lock, flags);
 
-		if (cached_cmd == NULL) {
-			seq_puts(m, "\t can not find cached cmd from id\n");
+		if (task_list == NULL) {
+			seq_puts(m, "\t can not find task list from id\n");
 			continue;
 		}
 
 		seq_printf(m, "\t set cmd num: %d, finish job sum: %d\n",
-				cmd_num, finished_job_count);
+				task_count, finished_task_count);
 
 		seq_puts(m, "\t cmd dump:\n\n");
 
-		for (i = 0; i < ctx->cmd_num; i++)
-			rga_ctx_cache_cmd_debug_info(m, &(cached_cmd[i]));
+		for (i = 0; i < request->task_count; i++)
+			rga_request_task_debug_info(m, &(task_list[i]));
 
 	}
 
-	mutex_unlock(&ctx_manager->lock);
+	mutex_unlock(&request_manager->lock);
 
 	return 0;
 }
@@ -333,7 +333,7 @@ struct rga_debugger_list rga_debugger_root_list[] = {
 	{"load", rga_load_show, NULL, NULL},
 	{"scheduler_status", rga_scheduler_show, NULL, NULL},
 	{"mm_session", rga_mm_session_show, NULL, NULL},
-	{"ctx_manager", rga_ctx_manager_show, NULL, NULL},
+	{"request_manager", rga_request_manager_show, NULL, NULL},
 };
 
 static ssize_t rga_debugger_write(struct file *file, const char __user *ubuf,
@@ -604,7 +604,7 @@ CREATE_FAIL:
 }
 #endif /* #ifdef CONFIG_ROCKCHIP_RGA_PROC_FS */
 
-void rga_ctx_cache_cmd_debug_info(struct seq_file *m, struct rga_req *req)
+void rga_request_task_debug_info(struct seq_file *m, struct rga_req *req)
 {
 	seq_printf(m, "\t\t rotate_mode = %d\n", req->rotate_mode);
 	seq_printf(m, "\t\t src: y = %lx uv = %lx v = %lx aw = %d ah = %d vw = %d vh = %d\n",

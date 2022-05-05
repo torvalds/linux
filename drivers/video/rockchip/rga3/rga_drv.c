@@ -113,49 +113,54 @@ static void rga_mpi_set_channel_info(uint32_t flags_mask, uint32_t flags,
 int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 {
 	int ret = 0;
-	struct rga_pending_ctx_manager *ctx_manager;
-	struct rga_internal_ctx_t *ctx;
+	struct rga_pending_request_manager *request_manager;
+	struct rga_request *request;
 	struct rga_req *cached_cmd;
 	struct rga_req mpi_cmd;
 	unsigned long flags;
 
-	ctx_manager = rga_drvdata->pend_ctx_manager;
+	request_manager = rga_drvdata->pend_request_manager;
 
-	ctx = rga_internal_ctx_lookup(ctx_manager, mpi_job->ctx_id);
-	if (IS_ERR_OR_NULL(ctx)) {
-		pr_err("can not find internal ctx from id[%d]", mpi_job->ctx_id);
+	mutex_lock(&request_manager->lock);
+	request = rga_request_lookup(request_manager, mpi_job->ctx_id);
+	if (IS_ERR_OR_NULL(request)) {
+		pr_err("can not find request from id[%d]", mpi_job->ctx_id);
+		mutex_unlock(&request_manager->lock);
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&ctx->lock, flags);
+	rga_request_get(request);
+	mutex_unlock(&request_manager->lock);
+
+	spin_lock_irqsave(&request->lock, flags);
 
 	/* TODO: batch mode need mpi async mode */
-	ctx->sync_mode = RGA_BLIT_SYNC;
-	ctx->use_batch_mode = false;
+	request->sync_mode = RGA_BLIT_SYNC;
+	request->use_batch_mode = false;
 
-	cached_cmd = ctx->cached_cmd;
+	cached_cmd = request->task_list;
 	memcpy(&mpi_cmd, cached_cmd, sizeof(mpi_cmd));
 
-	spin_unlock_irqrestore(&ctx->lock, flags);
+	spin_unlock_irqrestore(&request->lock, flags);
 
 	/* set channel info */
-	if ((mpi_job->src != NULL) && (ctx->flags & RGA_CONTEXT_SRC_MASK))
+	if ((mpi_job->src != NULL) && (request->flags & RGA_CONTEXT_SRC_MASK))
 		rga_mpi_set_channel_info(RGA_CONTEXT_SRC_MASK,
-					 ctx->flags,
+					 request->flags,
 					 mpi_job->src,
 					 &mpi_cmd.src,
 					 &cached_cmd->src);
 
-	if ((mpi_job->pat != NULL) && (ctx->flags & RGA_CONTEXT_PAT_MASK))
+	if ((mpi_job->pat != NULL) && (request->flags & RGA_CONTEXT_PAT_MASK))
 		rga_mpi_set_channel_info(RGA_CONTEXT_PAT_MASK,
-					 ctx->flags,
+					 request->flags,
 					 mpi_job->pat,
 					 &mpi_cmd.pat,
 					 &cached_cmd->pat);
 
-	if ((mpi_job->dst != NULL) && (ctx->flags & RGA_CONTEXT_DST_MASK))
+	if ((mpi_job->dst != NULL) && (request->flags & RGA_CONTEXT_DST_MASK))
 		rga_mpi_set_channel_info(RGA_CONTEXT_DST_MASK,
-					 ctx->flags,
+					 request->flags,
 					 mpi_job->dst,
 					 &mpi_cmd.dst,
 					 &cached_cmd->dst);
@@ -164,7 +169,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 	if (mpi_job->dma_buf_src0 != NULL) {
 		ret = rga_mpi_set_channel_buffer(mpi_job->dma_buf_src0,
 						 &mpi_cmd.src,
-						 ctx->session);
+						 request->session);
 		if (ret < 0) {
 			pr_err("src channel set buffer handle failed!\n");
 			return ret;
@@ -174,7 +179,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 	if (mpi_job->dma_buf_src1 != NULL) {
 		ret = rga_mpi_set_channel_buffer(mpi_job->dma_buf_src1,
 						 &mpi_cmd.pat,
-						 ctx->session);
+						 request->session);
 		if (ret < 0) {
 			pr_err("src1 channel set buffer handle failed!\n");
 			return ret;
@@ -184,7 +189,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 	if (mpi_job->dma_buf_dst != NULL) {
 		ret = rga_mpi_set_channel_buffer(mpi_job->dma_buf_dst,
 						 &mpi_cmd.dst,
-						 ctx->session);
+						 request->session);
 		if (ret < 0) {
 			pr_err("dst channel set buffer handle failed!\n");
 			return ret;
@@ -196,8 +201,8 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 	mpi_cmd.mmu_info.mmu_flag = 0;
 
 	/* commit job */
-	if (ctx->cmd_num > 1) {
-		pr_err("Currently ctx does not support multiple tasks!");
+	if (request->task_count > 1) {
+		pr_err("Currently request does not support multiple tasks!");
 		/* TODO */
 		return -EINVAL;
 	}
@@ -205,7 +210,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 	if (DEBUGGER_EN(MSG))
 		rga_cmd_print_debug_info(&mpi_cmd);
 
-	ret = rga_job_mpi_commit(&mpi_cmd, ctx);
+	ret = rga_job_mpi_commit(&mpi_cmd, request);
 	if (ret < 0) {
 		if (ret == -ERESTARTSYS) {
 			if (DEBUGGER_EN(MSG))
@@ -237,6 +242,8 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 		mpi_job->output->format = mpi_cmd.dst.format;
 	}
 
+	rga_request_put(request);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(rga_mpi_commit);
@@ -244,15 +251,17 @@ EXPORT_SYMBOL_GPL(rga_mpi_commit);
 int rga_kernel_commit(struct rga_req *cmd)
 {
 	int ret = 0;
-	struct rga_internal_ctx_t ctx;
+	struct rga_request request;
 
 	if (DEBUGGER_EN(MSG))
 		rga_cmd_print_debug_info(cmd);
 
-	ctx.sync_mode = RGA_BLIT_SYNC;
-	ctx.use_batch_mode = false;
+	request.sync_mode = RGA_BLIT_SYNC;
+	request.use_batch_mode = false;
+	request.task_list = cmd;
+	request.task_count = 1;
 
-	ret = rga_job_commit(cmd, &ctx);
+	ret = rga_request_commit(&request);
 	if (ret < 0) {
 		if (ret == -ERESTARTSYS) {
 			if (DEBUGGER_EN(MSG))
@@ -495,29 +504,30 @@ static struct rga_session *rga_session_init(void)
 static int rga_session_deinit(struct rga_session *session)
 {
 	pid_t pid;
-	int ctx_id;
-	struct rga_pending_ctx_manager *ctx_manager;
-	struct rga_internal_ctx_t *ctx;
+	int request_id;
+	struct rga_pending_request_manager *request_manager;
+	struct rga_request *request;
 
 	pid = current->pid;
 
-	ctx_manager = rga_drvdata->pend_ctx_manager;
+	request_manager = rga_drvdata->pend_request_manager;
 
-	mutex_lock(&ctx_manager->lock);
+	mutex_lock(&request_manager->lock);
 
-	idr_for_each_entry(&ctx_manager->ctx_id_idr, ctx, ctx_id) {
+	idr_for_each_entry(&request_manager->request_idr, request, request_id) {
 
-		mutex_unlock(&ctx_manager->lock);
+		mutex_unlock(&request_manager->lock);
 
-		if (session == ctx->session) {
-			pr_err("[pid:%d] destroy ctx[%d] when the user exits", pid, ctx->id);
-			kref_put(&ctx->refcount, rga_internal_ctx_kref_release);
+		if (session == request->session) {
+			pr_err("[pid:%d] destroy request[%d] when the user exits",
+			       pid, request->id);
+			rga_request_put(request);
 		}
 
-		mutex_lock(&ctx_manager->lock);
+		mutex_lock(&request_manager->lock);
 	}
 
-	mutex_unlock(&ctx_manager->lock);
+	mutex_unlock(&request_manager->lock);
 
 	rga_job_session_destroy(session);
 	rga_mm_session_release_buffer(session);
@@ -659,115 +669,99 @@ err_free_external_buffer:
 	return ret;
 }
 
-static long rga_ioctl_cmd_start(unsigned long arg, struct rga_session *session)
+static long rga_ioctl_request_create(unsigned long arg, struct rga_session *session)
 {
-	uint32_t rga_user_ctx_id;
+	uint32_t id;
 	uint32_t flags;
-	int ret = 0;
 
-	if (copy_from_user(&flags, (void *)arg, sizeof(uint32_t)))
-		ret = -EFAULT;
-
-	rga_user_ctx_id = rga_internal_ctx_alloc_to_get_idr_id(flags, session);
-
-	if (copy_to_user((void *)arg, &rga_user_ctx_id, sizeof(uint32_t)))
-		ret = -EFAULT;
-
-	return ret;
-}
-
-static long rga_ioctl_cmd_config(unsigned long arg)
-{
-	struct rga_user_ctx_t rga_user_ctx;
-	int ret = 0;
-
-	if (unlikely(copy_from_user(&rga_user_ctx, (struct rga_user_ctx_t *)arg,
-			sizeof(rga_user_ctx)))) {
-		pr_err("rga_user_ctx copy_from_user failed!\n");
+	if (copy_from_user(&flags, (void *)arg, sizeof(uint32_t))) {
+		pr_err("%s failed to copy from usrer!\n", __func__);
 		return -EFAULT;
 	}
 
-	if (rga_user_ctx.cmd_num > RGA_CMD_NUM_MAX) {
-		pr_err("Cannot import more than %d buffers at a time!\n",
-			RGA_CMD_NUM_MAX);
-		return -EFBIG;
+	id = rga_request_alloc(flags, session);
+
+	if (copy_to_user((void *)arg, &id, sizeof(uint32_t))) {
+		pr_err("%s failed to copy to usrer!\n", __func__);
+		return -EFAULT;
 	}
 
-	if (rga_user_ctx.cmd_ptr == 0) {
-		pr_err("Cmd is NULL");
+	return 0;
+}
+
+static long rga_ioctl_request_submit(unsigned long arg, bool run_enbale)
+{
+	int ret = 0;
+	struct rga_user_request user_request;
+	struct rga_request *request = NULL;
+
+	if (unlikely(copy_from_user(&user_request,
+				    (struct rga_user_request *)arg,
+				    sizeof(user_request)))) {
+		pr_err("%s copy_from_user failed!\n", __func__);
+		return -EFAULT;
+	}
+
+	ret = rga_request_check(&user_request);
+	if (ret < 0) {
+		pr_err("user request check error!\n");
+		return ret;
+	}
+
+	if (DEBUGGER_EN(MSG))
+		pr_info("config request id = %d", user_request.id);
+
+	request = rga_request_config(&user_request);
+	if (IS_ERR_OR_NULL(request)) {
+		pr_err("request[%d] config failed!\n", user_request.id);
+		return -EFAULT;
+	}
+
+	if (run_enbale) {
+		ret = rga_request_submit(request);
+		if (ret < 0) {
+			pr_err("request[%d] submit failed!\n", user_request.id);
+			return -EFAULT;
+		}
+	}
+
+	return 0;
+}
+
+static long rga_ioctl_request_cancel(unsigned long arg)
+{
+	uint32_t id;
+	struct rga_pending_request_manager *request_manager;
+	struct rga_request *request;
+
+	request_manager = rga_drvdata->pend_request_manager;
+	if (request_manager == NULL) {
+		pr_err("rga_pending_request_manager is null!\n");
+		return -EFAULT;
+	}
+
+	if (unlikely(copy_from_user(&id, (uint32_t *)arg, sizeof(uint32_t)))) {
+		pr_err("request id copy_from_user failed!\n");
+		return -EFAULT;
+	}
+
+	if (DEBUGGER_EN(MSG))
+		pr_info("config cancel request id = %d", id);
+
+	mutex_lock(&request_manager->lock);
+
+	request = rga_request_lookup(request_manager, id);
+	if (IS_ERR_OR_NULL(request)) {
+		pr_err("can not find request from id[%d]", id);
+		mutex_unlock(&request_manager->lock);
 		return -EINVAL;
 	}
 
-	if (rga_user_ctx.id <= 0) {
-		pr_err("ctx id[%d] is invalid", rga_user_ctx.id);
-		return -EINVAL;
-	}
+	rga_request_put(request);
 
-	if (DEBUGGER_EN(MSG))
-		pr_info("config cmd id = %d", rga_user_ctx.id);
+	mutex_unlock(&request_manager->lock);
 
-	/* find internal_ctx to set cmd by user ctx (internal ctx id) */
-	ret = rga_internal_ctx_config_by_user_ctx(&rga_user_ctx);
-	if (ret < 0) {
-		pr_err("config ctx id[%d] failed!\n", rga_user_ctx.id);
-		return -EFAULT;
-	}
-
-	return ret;
-}
-
-static long rga_ioctl_cmd_end(unsigned long arg)
-{
-	struct rga_user_ctx_t rga_user_ctx;
-	int ret = 0;
-
-	if (unlikely(copy_from_user(&rga_user_ctx, (struct rga_user_ctx_t *)arg,
-			sizeof(rga_user_ctx)))) {
-		pr_err("rga_user_ctx copy_from_user failed!\n");
-		return -EFAULT;
-	}
-
-	if (DEBUGGER_EN(MSG))
-		pr_info("config end id = %d", rga_user_ctx.id);
-
-	/* find internal_ctx to set cmd by user ctx (internal ctx id) */
-	ret = rga_internal_ctx_commit_by_user_ctx(&rga_user_ctx);
-	if (ret < 0) {
-		pr_err("commit ctx id[%d] failed!\n", rga_user_ctx.id);
-		return -EFAULT;
-	}
-
-	if (copy_to_user((struct rga_user_ctx_t *)arg,
-			&rga_user_ctx, sizeof(struct rga_user_ctx_t))) {
-		pr_err("copy_to_user failed\n");
-		return -EFAULT;
-	}
-
-	return ret;
-}
-
-static long rga_ioctl_cmd_cancel(unsigned long arg)
-{
-	uint32_t rga_user_ctx_id;
-	int ret = 0;
-
-	if (unlikely(copy_from_user(&rga_user_ctx_id, (uint32_t *)arg,
-			sizeof(uint32_t)))) {
-		pr_err("rga_user_ctx_id copy_from_user failed!\n");
-		return -EFAULT;
-	}
-
-	if (DEBUGGER_EN(MSG))
-		pr_info("config cancel id = %d", rga_user_ctx_id);
-
-	/* find internal_ctx to set cmd by user ctx (internal ctx id) */
-	ret = rga_internal_ctx_cancel_by_user_ctx(rga_user_ctx_id);
-	if (ret < 0) {
-		pr_err("cancel ctx id[%d] failed!\n", rga_user_ctx_id);
-		return -EFAULT;
-	}
-
-	return ret;
+	return 0;
 }
 
 static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
@@ -780,7 +774,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	char version[16] = { 0 };
 	struct rga_version_t driver_version;
 	struct rga_hw_versions_t hw_versions;
-	struct rga_internal_ctx_t ctx;
+	struct rga_request request;
 
 	struct rga_session *session = file->private_data;
 
@@ -805,19 +799,21 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		if (DEBUGGER_EN(MSG))
 			rga_cmd_print_debug_info(&req_rga);
 
-		memset(&ctx, 0x0, sizeof(ctx));
+		memset(&request, 0x0, sizeof(request));
 
-		ctx.sync_mode = cmd;
-		ctx.use_batch_mode = false;
-		ctx.session = session;
+		request.sync_mode = cmd;
+		request.use_batch_mode = false;
+		request.session = session;
+		request.task_list = &req_rga;
+		request.task_count = 1;
 
-		ret = rga_job_commit(&req_rga, &ctx);
+		ret = rga_request_commit(&request);
 		if (ret < 0) {
 			if (ret == -ERESTARTSYS) {
 				if (DEBUGGER_EN(MSG))
-					pr_err("rga_job_commit failed, by a software interrupt.\n");
+					pr_err("rga_request_commit failed, by a software interrupt.\n");
 			} else {
-				pr_err("rga_job_commit failed\n");
+				pr_err("rga_request_commit failed\n");
 			}
 
 			break;
@@ -923,23 +919,23 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
 		break;
 
-	case RGA_START_CONFIG:
-		ret = rga_ioctl_cmd_start(arg, session);
+	case RGA_IOC_REQUEST_CREATE:
+		ret = rga_ioctl_request_create(arg, session);
 
 		break;
 
-	case RGA_END_CONFIG:
-		ret = rga_ioctl_cmd_end(arg);
+	case RGA_IOC_REQUEST_SUBMIT:
+		ret = rga_ioctl_request_submit(arg, true);
 
 		break;
 
-	case RGA_CMD_CONFIG:
-		ret = rga_ioctl_cmd_config(arg);
+	case RGA_IOC_REQUEST_CONFIG:
+		ret = rga_ioctl_request_submit(arg, false);
 
 		break;
 
-	case RGA_CANCEL_CONFIG:
-		ret = rga_ioctl_cmd_cancel(arg);
+	case RGA_IOC_REQUEST_CANCEL:
+		ret = rga_ioctl_request_cancel(arg);
 
 		break;
 
@@ -1483,7 +1479,7 @@ static int __init rga_init(void)
 
 	rga_mm_init(&rga_drvdata->mm);
 
-	rga_ctx_manager_init(&rga_drvdata->pend_ctx_manager);
+	rga_request_manager_init(&rga_drvdata->pend_request_manager);
 
 	rga_session_manager_init(&rga_drvdata->session_manager);
 
@@ -1531,7 +1527,7 @@ static void __exit rga_exit(void)
 
 	rga_mm_remove(&rga_drvdata->mm);
 
-	rga_ctx_manager_remove(&rga_drvdata->pend_ctx_manager);
+	rga_request_manager_remove(&rga_drvdata->pend_request_manager);
 
 	rga_session_manager_remove(&rga_drvdata->session_manager);
 
