@@ -68,7 +68,8 @@ struct nfp_app;
 	NFP_FL_FEATS_IPV6_TUN | \
 	NFP_FL_FEATS_VLAN_QINQ | \
 	NFP_FL_FEATS_QOS_PPS | \
-	NFP_FL_FEATS_QOS_METER)
+	NFP_FL_FEATS_QOS_METER | \
+	NFP_FL_FEATS_DECAP_V2)
 
 struct nfp_fl_mask_id {
 	struct circ_buf mask_id_free_list;
