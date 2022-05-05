@@ -51,6 +51,7 @@ struct nfp_app;
 #define NFP_FL_FEATS_VLAN_QINQ		BIT(8)
 #define NFP_FL_FEATS_QOS_PPS		BIT(9)
 #define NFP_FL_FEATS_QOS_METER		BIT(10)
+#define NFP_FL_FEATS_DECAP_V2		BIT(11)
 #define NFP_FL_FEATS_HOST_ACK		BIT(31)
 
 #define NFP_FL_ENABLE_FLOW_MERGE	BIT(0)
@@ -107,6 +108,80 @@ struct nfp_fl_tunnel_offloads {
 	spinlock_t neigh_off_lock_v6;
 	struct ida mac_off_ids;
 	struct notifier_block neigh_nb;
+};
+
+/**
+ * struct nfp_tun_neigh - neighbour/route entry on the NFP
+ * @dst_ipv4:	Destination IPv4 address
+ * @src_ipv4:	Source IPv4 address
+ * @dst_addr:	Destination MAC address
+ * @src_addr:	Source MAC address
+ * @port_id:	NFP port to output packet on - associated with source IPv4
+ * @vlan_tpid:	VLAN_TPID match field
+ * @vlan_tci:	VLAN_TCI match field
+ * @host_ctx:	Host context ID to be saved here
+ */
+struct nfp_tun_neigh {
+	__be32 dst_ipv4;
+	__be32 src_ipv4;
+	u8 dst_addr[ETH_ALEN];
+	u8 src_addr[ETH_ALEN];
+	__be32 port_id;
+	__be16 vlan_tpid;
+	__be16 vlan_tci;
+	__be32 host_ctx;
+};
+
+/**
+ * struct nfp_tun_neigh_v6 - neighbour/route entry on the NFP
+ * @dst_ipv6:	Destination IPv6 address
+ * @src_ipv6:	Source IPv6 address
+ * @dst_addr:	Destination MAC address
+ * @src_addr:	Source MAC address
+ * @port_id:	NFP port to output packet on - associated with source IPv6
+ * @vlan_tpid:	VLAN_TPID match field
+ * @vlan_tci:	VLAN_TCI match field
+ * @host_ctx:	Host context ID to be saved here
+ */
+struct nfp_tun_neigh_v6 {
+	struct in6_addr dst_ipv6;
+	struct in6_addr src_ipv6;
+	u8 dst_addr[ETH_ALEN];
+	u8 src_addr[ETH_ALEN];
+	__be32 port_id;
+	__be16 vlan_tpid;
+	__be16 vlan_tci;
+	__be32 host_ctx;
+};
+
+/**
+ * struct nfp_neigh_entry
+ * @neigh_cookie:	Cookie for hashtable lookup
+ * @ht_node:		rhash_head entry for hashtable
+ * @list_head:		Needed as member of linked_nn_entries list
+ * @payload:		The neighbour info payload
+ * @flow:		Linked flow rule
+ * @is_ipv6:		Flag to indicate if payload is ipv6 or ipv4
+ */
+struct nfp_neigh_entry {
+	unsigned long neigh_cookie;
+	struct rhash_head ht_node;
+	struct list_head list_head;
+	char *payload;
+	struct nfp_predt_entry *flow;
+	bool is_ipv6;
+};
+
+/**
+ * struct nfp_predt_entry
+ * @list_head:		List head to attach to predt_list
+ * @flow_pay:		Direct link to flow_payload
+ * @nn_list:		List of linked nfp_neigh_entries
+ */
+struct nfp_predt_entry {
+	struct list_head list_head;
+	struct nfp_fl_payload *flow_pay;
+	struct list_head nn_list;
 };
 
 /**
@@ -202,6 +277,9 @@ struct nfp_fl_internal_ports {
  * @ct_zone_table:	Hash table used to store the different zones
  * @ct_zone_wc:		Special zone entry for wildcarded zone matches
  * @ct_map_table:	Hash table used to referennce ct flows
+ * @predt_list:		List to keep track of decap pretun flows
+ * @neigh_table:	Table to keep track of neighbor entries
+ * @predt_lock:		Lock to serialise predt/neigh table updates
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -241,6 +319,9 @@ struct nfp_flower_priv {
 	struct rhashtable ct_zone_table;
 	struct nfp_fl_ct_zone_entry *ct_zone_wc;
 	struct rhashtable ct_map_table;
+	struct list_head predt_list;
+	struct rhashtable neigh_table;
+	spinlock_t predt_lock; /* Lock to serialise predt/neigh table updates */
 };
 
 /**
@@ -344,9 +425,14 @@ struct nfp_fl_payload {
 	struct list_head linked_flows;
 	bool in_hw;
 	struct {
+		struct nfp_predt_entry *predt;
 		struct net_device *dev;
+		__be16 vlan_tpid;
 		__be16 vlan_tci;
 		__be16 port_idx;
+		u8 loc_mac[ETH_ALEN];
+		u8 rem_mac[ETH_ALEN];
+		bool is_ipv6;
 	} pre_tun_rule;
 };
 
@@ -369,6 +455,7 @@ struct nfp_fl_payload_link {
 
 extern const struct rhashtable_params nfp_flower_table_params;
 extern const struct rhashtable_params merge_table_params;
+extern const struct rhashtable_params neigh_table_params;
 
 struct nfp_merge_info {
 	u64 parent_ctx;

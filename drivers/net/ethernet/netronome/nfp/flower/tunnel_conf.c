@@ -77,38 +77,6 @@ struct nfp_tun_active_tuns_v6 {
 };
 
 /**
- * struct nfp_tun_neigh - neighbour/route entry on the NFP
- * @dst_ipv4:	destination IPv4 address
- * @src_ipv4:	source IPv4 address
- * @dst_addr:	destination MAC address
- * @src_addr:	source MAC address
- * @port_id:	NFP port to output packet on - associated with source IPv4
- */
-struct nfp_tun_neigh {
-	__be32 dst_ipv4;
-	__be32 src_ipv4;
-	u8 dst_addr[ETH_ALEN];
-	u8 src_addr[ETH_ALEN];
-	__be32 port_id;
-};
-
-/**
- * struct nfp_tun_neigh_v6 - neighbour/route entry on the NFP
- * @dst_ipv6:	destination IPv6 address
- * @src_ipv6:	source IPv6 address
- * @dst_addr:	destination MAC address
- * @src_addr:	source MAC address
- * @port_id:	NFP port to output packet on - associated with source IPv6
- */
-struct nfp_tun_neigh_v6 {
-	struct in6_addr dst_ipv6;
-	struct in6_addr src_ipv6;
-	u8 dst_addr[ETH_ALEN];
-	u8 src_addr[ETH_ALEN];
-	__be32 port_id;
-};
-
-/**
  * struct nfp_tun_req_route_ipv4 - NFP requests a route/neighbour lookup
  * @ingress_port:	ingress port of packet that signalled request
  * @ipv4_addr:		destination ipv4 address for route
