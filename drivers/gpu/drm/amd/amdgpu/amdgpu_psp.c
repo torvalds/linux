@@ -3453,6 +3453,8 @@ static ssize_t amdgpu_psp_vbflash_write(struct file *filp, struct kobject *kobj,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 
+	adev->psp.vbflash_done = false;
+
 	/* Safeguard against memory drain */
 	if (adev->psp.vbflash_image_size > AMD_VBIOS_FILE_MAX_SIZE_B) {
 		dev_err(adev->dev, "File size cannot exceed %u", AMD_VBIOS_FILE_MAX_SIZE_B);
@@ -3524,12 +3526,31 @@ rel_buf:
 	return 0;
 }
 
+static ssize_t amdgpu_psp_vbflash_status(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	uint32_t vbflash_status;
+
+	vbflash_status = psp_vbflash_status(&adev->psp);
+	if (!adev->psp.vbflash_done)
+		vbflash_status = 0;
+	else if (adev->psp.vbflash_done && !(vbflash_status & 0x80000000))
+		vbflash_status = 1;
+
+	return sysfs_emit(buf, "0x%x\n", vbflash_status);
+}
+
 static const struct bin_attribute psp_vbflash_bin_attr = {
 	.attr = {.name = "psp_vbflash", .mode = 0664},
 	.size = 0,
 	.write = amdgpu_psp_vbflash_write,
 	.read = amdgpu_psp_vbflash_read,
 };
+
+static DEVICE_ATTR(psp_vbflash_status, 0444, amdgpu_psp_vbflash_status, NULL);
 
 int amdgpu_psp_sysfs_init(struct amdgpu_device *adev)
 {
@@ -3549,6 +3570,9 @@ int amdgpu_psp_sysfs_init(struct amdgpu_device *adev)
 		ret = sysfs_create_bin_file(&adev->dev->kobj, &psp_vbflash_bin_attr);
 		if (ret)
 			dev_err(adev->dev, "Failed to create device file psp_vbflash");
+		ret = device_create_file(adev->dev, &dev_attr_psp_vbflash_status);
+		if (ret)
+			dev_err(adev->dev, "Failed to create device file psp_vbflash_status");
 		return ret;
 	default:
 		return 0;
@@ -3586,6 +3610,7 @@ static int psp_sysfs_init(struct amdgpu_device *adev)
 void amdgpu_psp_sysfs_fini(struct amdgpu_device *adev)
 {
 	sysfs_remove_bin_file(&adev->dev->kobj, &psp_vbflash_bin_attr);
+	device_remove_file(adev->dev, &dev_attr_psp_vbflash_status);
 }
 
 static void psp_sysfs_fini(struct amdgpu_device *adev)

@@ -487,6 +487,9 @@ static int psp_v13_0_exec_spi_cmd(struct psp_context *psp, int cmd)
 	/* Ring the doorbell */
 	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_73, 1);
 
+	if (cmd == C2PMSG_CMD_SPI_UPDATE_FLASH_IMAGE)
+		return 0;
+
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_115),
 				MBOX_READY_FLAG, MBOX_READY_MASK, false);
 	if (ret) {
@@ -504,7 +507,8 @@ static int psp_v13_0_exec_spi_cmd(struct psp_context *psp, int cmd)
 	return 0;
 }
 
-int psp_v13_0_update_spirom(struct psp_context *psp, uint64_t fw_pri_mc_addr)
+static int psp_v13_0_update_spirom(struct psp_context *psp,
+				   uint64_t fw_pri_mc_addr)
 {
 	struct amdgpu_device *adev = psp->adev;
 	int ret;
@@ -529,11 +533,20 @@ int psp_v13_0_update_spirom(struct psp_context *psp, uint64_t fw_pri_mc_addr)
 	if (ret)
 		return ret;
 
+	psp->vbflash_done = true;
+
 	ret = psp_v13_0_exec_spi_cmd(psp, C2PMSG_CMD_SPI_UPDATE_FLASH_IMAGE);
 	if (ret)
 		return ret;
 
 	return 0;
+}
+
+static int psp_v13_0_vbflash_status(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	return RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_115);
 }
 
 static const struct psp_funcs psp_v13_0_funcs = {
@@ -553,7 +566,8 @@ static const struct psp_funcs psp_v13_0_funcs = {
 	.ring_set_wptr = psp_v13_0_ring_set_wptr,
 	.load_usbc_pd_fw = psp_v13_0_load_usbc_pd_fw,
 	.read_usbc_pd_fw = psp_v13_0_read_usbc_pd_fw,
-	.update_spirom = psp_v13_0_update_spirom
+	.update_spirom = psp_v13_0_update_spirom,
+	.vbflash_stat = psp_v13_0_vbflash_status
 };
 
 void psp_v13_0_set_psp_funcs(struct psp_context *psp)

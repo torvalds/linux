@@ -130,6 +130,7 @@ struct psp_funcs
 	int (*load_usbc_pd_fw)(struct psp_context *psp, uint64_t fw_pri_mc_addr);
 	int (*read_usbc_pd_fw)(struct psp_context *psp, uint32_t *fw_ver);
 	int (*update_spirom)(struct psp_context *psp, uint64_t fw_pri_mc_addr);
+	int (*vbflash_stat)(struct psp_context *psp);
 };
 
 #define AMDGPU_XGMI_MAX_CONNECTED_NODES		64
@@ -375,6 +376,7 @@ struct psp_context
 
 	char *vbflash_tmp_buf;
 	size_t vbflash_image_size;
+	bool vbflash_done;
 };
 
 struct amdgpu_psp_funcs {
@@ -424,6 +426,10 @@ struct amdgpu_psp_funcs {
 #define psp_update_spirom(psp, fw_pri_mc_addr) \
 	((psp)->funcs->update_spirom ? \
 	(psp)->funcs->update_spirom((psp), fw_pri_mc_addr) : -EINVAL)
+
+#define psp_vbflash_status(psp) \
+	((psp)->funcs->vbflash_stat ? \
+	(psp)->funcs->vbflash_stat((psp)) : -EINVAL)
 
 extern const struct amd_ip_funcs psp_ip_funcs;
 
