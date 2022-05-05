@@ -420,3 +420,8 @@
 &co_process {
 	status = "okay";
 };
+
+&usbdrd30 {
+	dr_mode = "host"; /*host or peripheral*/
+	status = "okay";
+};
