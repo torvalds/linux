@@ -403,7 +403,6 @@ struct btrfs_dio_private {
 	 * grab the file offset, thus need a dedicated member for file offset.
 	 */
 	u64 file_offset;
-	u64 disk_bytenr;
 	/* Used for bio::bi_size */
 	u32 bytes;
 
