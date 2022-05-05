@@ -155,12 +155,11 @@ static int lkl_run_init(struct linux_binprm *bprm)
 	if (strcmp("/init", bprm->filename) != 0)
 		return -EINVAL;
 
-	ret = flush_old_exec(bprm);
+	ret = begin_new_exec(bprm);
 	if (ret)
 		return ret;
 	set_personality(PER_LINUX);
 	setup_new_exec(bprm);
-	install_exec_creds(bprm);
 
 	set_binfmt(&lkl_run_init_binfmt);
 
