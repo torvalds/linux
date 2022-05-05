@@ -873,7 +873,7 @@ struct i3c_scl_timing_cfg {
 };
 
 static struct i3c_scl_timing_cfg jesd403_timing_cfg[5] = {
-	{ .fscl = I3C_BUS_TYP_I3C_SCL_RATE, .period_hi = 35, .period_lo = 45 },
+	{ .fscl = I3C_BUS_TYP_I3C_SCL_RATE, .period_hi = 40, .period_lo = 40 },
 	{ .fscl = I3C_BUS_SDR1_SCL_RATE, .period_hi = 50, .period_lo = 75 },
 	{ .fscl = I3C_BUS_SDR2_SCL_RATE, .period_hi = 65, .period_lo = 100 },
 	{ .fscl = I3C_BUS_SDR3_SCL_RATE, .period_hi = 100, .period_lo = 150 },
