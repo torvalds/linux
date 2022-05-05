@@ -153,11 +153,14 @@ int intel_gt_init_mmio(struct intel_gt *gt)
 	 * An mslice is unavailable only if both the meml3 for the slice is
 	 * disabled *and* all of the DSS in the slice (quadrant) are disabled.
 	 */
-	if (HAS_MSLICES(i915))
+	if (HAS_MSLICES(i915)) {
 		gt->info.mslice_mask =
 			slicemask(gt, GEN_DSS_PER_MSLICE) |
 			(intel_uncore_read(gt->uncore, GEN10_MIRROR_FUSE3) &
 			 GEN12_MEML3_EN_MASK);
+		if (!gt->info.mslice_mask) /* should be impossible! */
+			drm_warn(&i915->drm, "mslice mask all zero!\n");
+	}
 
 	if (IS_DG2(i915)) {
 		gt->steering_table[MSLICE] = xehpsdv_mslice_steering_table;
@@ -171,6 +174,8 @@ int intel_gt_init_mmio(struct intel_gt *gt)
 		gt->info.l3bank_mask =
 			~intel_uncore_read(gt->uncore, GEN10_MIRROR_FUSE3) &
 			GEN10_L3BANK_MASK;
+		if (!gt->info.l3bank_mask) /* should be impossible! */
+			drm_warn(&i915->drm, "L3 bank mask is all zero!\n");
 	} else if (HAS_MSLICES(i915)) {
 		MISSING_CASE(INTEL_INFO(i915)->platform);
 	}
@@ -882,24 +887,20 @@ static void intel_gt_get_valid_steering(struct intel_gt *gt,
 {
 	switch (type) {
 	case L3BANK:
-		GEM_DEBUG_WARN_ON(!gt->info.l3bank_mask); /* should be impossible! */
-
 		*sliceid = 0;		/* unused */
 		*subsliceid = __ffs(gt->info.l3bank_mask);
 		break;
 	case MSLICE:
-		GEM_DEBUG_WARN_ON(!gt->info.mslice_mask); /* should be impossible! */
-
+		GEM_WARN_ON(!HAS_MSLICES(gt->i915));
 		*sliceid = __ffs(gt->info.mslice_mask);
 		*subsliceid = 0;	/* unused */
 		break;
 	case LNCF:
-		GEM_DEBUG_WARN_ON(!gt->info.mslice_mask); /* should be impossible! */
-
 		/*
 		 * An LNCF is always present if its mslice is present, so we
 		 * can safely just steer to LNCF 0 in all cases.
 		 */
+		GEM_WARN_ON(!HAS_MSLICES(gt->i915));
 		*sliceid = __ffs(gt->info.mslice_mask) << 1;
 		*subsliceid = 0;	/* unused */
 		break;
