@@ -759,6 +759,22 @@ config PPC_256K_PAGES
 
 endchoice
 
+config PAGE_SIZE_4KB
+	def_bool y
+	depends on PPC_4K_PAGES
+
+config PAGE_SIZE_16KB
+	def_bool y
+	depends on PPC_16K_PAGES
+
+config PAGE_SIZE_64KB
+	def_bool y
+	depends on PPC_64K_PAGES
+
+config PAGE_SIZE_256KB
+	def_bool y
+	depends on PPC_256K_PAGES
+
 config PPC_PAGE_SHIFT
 	int
 	default 18 if PPC_256K_PAGES
