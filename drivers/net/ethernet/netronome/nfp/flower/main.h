@@ -111,47 +111,55 @@ struct nfp_fl_tunnel_offloads {
 };
 
 /**
- * struct nfp_tun_neigh - neighbour/route entry on the NFP
- * @dst_ipv4:	Destination IPv4 address
- * @src_ipv4:	Source IPv4 address
+ * struct nfp_tun_neigh - basic neighbour data
  * @dst_addr:	Destination MAC address
  * @src_addr:	Source MAC address
  * @port_id:	NFP port to output packet on - associated with source IPv4
+ */
+struct nfp_tun_neigh {
+	u8 dst_addr[ETH_ALEN];
+	u8 src_addr[ETH_ALEN];
+	__be32 port_id;
+};
+
+/**
+ * struct nfp_tun_neigh_ext - extended neighbour data
  * @vlan_tpid:	VLAN_TPID match field
  * @vlan_tci:	VLAN_TCI match field
  * @host_ctx:	Host context ID to be saved here
  */
-struct nfp_tun_neigh {
-	__be32 dst_ipv4;
-	__be32 src_ipv4;
-	u8 dst_addr[ETH_ALEN];
-	u8 src_addr[ETH_ALEN];
-	__be32 port_id;
+struct nfp_tun_neigh_ext {
 	__be16 vlan_tpid;
 	__be16 vlan_tci;
 	__be32 host_ctx;
 };
 
 /**
- * struct nfp_tun_neigh_v6 - neighbour/route entry on the NFP
+ * struct nfp_tun_neigh_v4 - neighbour/route entry on the NFP for IPv4
+ * @dst_ipv4:	Destination IPv4 address
+ * @src_ipv4:	Source IPv4 address
+ * @common:	Neighbour/route common info
+ * @ext:	Neighbour/route extended info
+ */
+struct nfp_tun_neigh_v4 {
+	__be32 dst_ipv4;
+	__be32 src_ipv4;
+	struct nfp_tun_neigh common;
+	struct nfp_tun_neigh_ext ext;
+};
+
+/**
+ * struct nfp_tun_neigh_v6 - neighbour/route entry on the NFP for IPv6
  * @dst_ipv6:	Destination IPv6 address
  * @src_ipv6:	Source IPv6 address
- * @dst_addr:	Destination MAC address
- * @src_addr:	Source MAC address
- * @port_id:	NFP port to output packet on - associated with source IPv6
- * @vlan_tpid:	VLAN_TPID match field
- * @vlan_tci:	VLAN_TCI match field
- * @host_ctx:	Host context ID to be saved here
+ * @common:	Neighbour/route common info
+ * @ext:	Neighbour/route extended info
  */
 struct nfp_tun_neigh_v6 {
 	struct in6_addr dst_ipv6;
 	struct in6_addr src_ipv6;
-	u8 dst_addr[ETH_ALEN];
-	u8 src_addr[ETH_ALEN];
-	__be32 port_id;
-	__be16 vlan_tpid;
-	__be16 vlan_tci;
-	__be32 host_ctx;
+	struct nfp_tun_neigh common;
+	struct nfp_tun_neigh_ext ext;
 };
 
 /**

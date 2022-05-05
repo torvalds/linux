@@ -281,8 +281,14 @@ static int
 nfp_flower_xmit_tun_conf(struct nfp_app *app, u8 mtype, u16 plen, void *pdata,
 			 gfp_t flag)
 {
+	struct nfp_flower_priv *priv = app->priv;
 	struct sk_buff *skb;
 	unsigned char *msg;
+
+	if (!(priv->flower_ext_feats & NFP_FL_FEATS_DECAP_V2) &&
+	    (mtype == NFP_FLOWER_CMSG_TYPE_TUN_NEIGH ||
+	     mtype == NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6))
+		plen -= sizeof(struct nfp_tun_neigh_ext);
 
 	skb = nfp_flower_cmsg_alloc(app, plen, mtype, flag);
 	if (!skb)
@@ -416,14 +422,14 @@ static void
 nfp_tun_write_neigh_v4(struct net_device *netdev, struct nfp_app *app,
 		       struct flowi4 *flow, struct neighbour *neigh, gfp_t flag)
 {
-	struct nfp_tun_neigh payload;
+	struct nfp_tun_neigh_v4 payload;
 	u32 port_id;
 
 	port_id = nfp_flower_get_port_id_from_netdev(app, netdev);
 	if (!port_id)
 		return;
 
-	memset(&payload, 0, sizeof(struct nfp_tun_neigh));
+	memset(&payload, 0, sizeof(struct nfp_tun_neigh_v4));
 	payload.dst_ipv4 = flow->daddr;
 
 	/* If entry has expired send dst IP with all other fields 0. */
@@ -436,15 +442,15 @@ nfp_tun_write_neigh_v4(struct net_device *netdev, struct nfp_app *app,
 
 	/* Have a valid neighbour so populate rest of entry. */
 	payload.src_ipv4 = flow->saddr;
-	ether_addr_copy(payload.src_addr, netdev->dev_addr);
-	neigh_ha_snapshot(payload.dst_addr, neigh, netdev);
-	payload.port_id = cpu_to_be32(port_id);
+	ether_addr_copy(payload.common.src_addr, netdev->dev_addr);
+	neigh_ha_snapshot(payload.common.dst_addr, neigh, netdev);
+	payload.common.port_id = cpu_to_be32(port_id);
 	/* Add destination of new route to NFP cache. */
 	nfp_tun_add_route_to_cache_v4(app, &payload.dst_ipv4);
 
 send_msg:
 	nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_TUN_NEIGH,
-				 sizeof(struct nfp_tun_neigh),
+				 sizeof(struct nfp_tun_neigh_v4),
 				 (unsigned char *)&payload, flag);
 }
 
@@ -472,9 +478,9 @@ nfp_tun_write_neigh_v6(struct net_device *netdev, struct nfp_app *app,
 
 	/* Have a valid neighbour so populate rest of entry. */
 	payload.src_ipv6 = flow->saddr;
-	ether_addr_copy(payload.src_addr, netdev->dev_addr);
-	neigh_ha_snapshot(payload.dst_addr, neigh, netdev);
-	payload.port_id = cpu_to_be32(port_id);
+	ether_addr_copy(payload.common.src_addr, netdev->dev_addr);
+	neigh_ha_snapshot(payload.common.dst_addr, neigh, netdev);
+	payload.common.port_id = cpu_to_be32(port_id);
 	/* Add destination of new route to NFP cache. */
 	nfp_tun_add_route_to_cache_v6(app, &payload.dst_ipv6);
 
@@ -1372,7 +1378,7 @@ void nfp_tunnel_config_stop(struct nfp_app *app)
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_ipv4_addr_entry *ip_entry;
 	struct nfp_tun_neigh_v6 ipv6_route;
-	struct nfp_tun_neigh ipv4_route;
+	struct nfp_tun_neigh_v4 ipv4_route;
 	struct list_head *ptr, *storage;
 
 	unregister_netevent_notifier(&priv->tun.neigh_nb);
@@ -1398,7 +1404,7 @@ void nfp_tunnel_config_stop(struct nfp_app *app)
 		kfree(route_entry);
 
 		nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_TUN_NEIGH,
-					 sizeof(struct nfp_tun_neigh),
+					 sizeof(struct nfp_tun_neigh_v4),
 					 (unsigned char *)&ipv4_route,
 					 GFP_KERNEL);
 	}
@@ -1412,7 +1418,7 @@ void nfp_tunnel_config_stop(struct nfp_app *app)
 		kfree(route_entry);
 
 		nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6,
-					 sizeof(struct nfp_tun_neigh),
+					 sizeof(struct nfp_tun_neigh_v6),
 					 (unsigned char *)&ipv6_route,
 					 GFP_KERNEL);
 	}
