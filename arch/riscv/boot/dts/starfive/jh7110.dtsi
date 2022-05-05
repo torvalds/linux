@@ -951,10 +951,22 @@
 			compatible = "starfive,sf-pdm";
 			reg = <0x0 0x100d0000 0x0 0x1000>;
 			reg-names = "pdm";
-			clocks = <&audioclk>;
-			clock-names = "audioclk";
+			clocks = <&clkgen JH7110_PDM_CLK_DMIC>,
+				 <&clkgen JH7110_APB0>,
+				 <&clkgen JH7110_PDM_CLK_APB>,
+				 <&clkgen JH7110_PDM_CLK_DMIC0_BCLK_SLV>,
+				 <&clkgen JH7110_PDM_CLK_DMIC0_LRCK_SLV>,
+				 <&clkgen JH7110_PDM_CLK_DMIC1_BCLK_SLV>,
+				 <&clkgen JH7110_PDM_CLK_DMIC1_LRCK_SLV>,
+				 <&clkgen JH7110_I2SRX0_3CH_BCLK>;
+			clock-names = "pdm_dmic", "clk_apb0", "pdm_apb",
+					"pdm_dmic0_bclk", "pdm_dmic0_lrck",
+					"pdm_dmic1_bclk", "pdm_dmic1_lrck",
+					"u0_i2srx_3ch_bclk";
+			resets = <&rstgen RSTN_U0_PDM_4MIC_DMIC>,
+				 <&rstgen RSTN_U0_PDM_4MIC_APB>;
+			reset-names = "pdm_dmic", "pdm_apb";
 			#sound-dai-cells = <0>;
-			status = "disabled";
 		};
 
 		i2srx_3ch: i2srx-3ch@100e0000 {
