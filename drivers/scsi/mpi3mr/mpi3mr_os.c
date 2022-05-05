@@ -911,9 +911,11 @@ void mpi3mr_rfresh_tgtdevs(struct mpi3mr_ioc *mrioc)
 
 	list_for_each_entry_safe(tgtdev, tgtdev_next, &mrioc->tgtdev_list,
 	    list) {
-		if ((tgtdev->dev_handle == MPI3MR_INVALID_DEV_HANDLE) &&
-		    tgtdev->host_exposed) {
-			mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
+		if (tgtdev->dev_handle == MPI3MR_INVALID_DEV_HANDLE) {
+			dprint_reset(mrioc, "removing target device with perst_id(%d)\n",
+			    tgtdev->perst_id);
+			if (tgtdev->host_exposed)
+				mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
 			mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
 			mpi3mr_tgtdev_put(tgtdev);
 		}
