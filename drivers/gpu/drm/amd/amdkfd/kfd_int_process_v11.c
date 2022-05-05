@@ -241,14 +241,14 @@ static bool event_interrupt_isr_v11(struct kfd_dev *dev,
 	if (/*!KFD_IRQ_IS_FENCE(client_id, source_id) &&*/
 	    (vmid < dev->vm_info.first_vmid_kfd ||
 	    vmid > dev->vm_info.last_vmid_kfd))
-		return 0;
+		return false;
 
 	pasid = SOC15_PASID_FROM_IH_ENTRY(ih_ring_entry);
 	context_id0 = SOC15_CONTEXT_ID0_FROM_IH_ENTRY(ih_ring_entry);
 
 	if ((source_id == SOC15_INTSRC_CP_END_OF_PIPE) &&
 	    (context_id0 & AMDGPU_FENCE_MES_QUEUE_FLAG))
-		return 0;
+		return false;
 
 	pr_debug("client id 0x%x, source id %d, vmid %d, pasid 0x%x. raw data:\n",
 		 client_id, source_id, vmid, pasid);
@@ -258,7 +258,7 @@ static bool event_interrupt_isr_v11(struct kfd_dev *dev,
 
 	/* If there is no valid PASID, it's likely a bug */
 	if (WARN_ONCE(pasid == 0, "Bug: No PASID in KFD interrupt"))
-		return 0;
+		return false;
 
 	/* Interrupt types we care about: various signals and faults.
 	 * They will be forwarded to a work queue (see below).
