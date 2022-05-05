@@ -8,6 +8,11 @@ define set_autoconf_var
   export LKL_HOST_CONFIG_$(1)=$(2)
 endef
 
+define set_kernel_config
+$(shell echo "#define $(1) $(2)" \
+	  >> $(OUTPUT)/include/kernel_config.h)
+endef
+
 define find_include
   $(eval include_paths=$(shell $(CC) -E -Wp,-v -xc /dev/null 2>&1 | grep '^ '))
   $(foreach f, $(include_paths), $(wildcard $(f)/$(1)))
@@ -101,6 +106,8 @@ define do_autoconf
   $(eval CC := $(CROSS_COMPILE)gcc)
   $(eval LD_FMT := $(shell $(LD) -r -print-output-format))
   $(eval EXEC_FMT := $(shell echo $(LD_FMT) | cut -d "-" -f1))
+  $(if $(or $(filter $(EXEC_FMT),elf64),$(filter $(LD_FMT),pe-x86-64)),$(call set_kernel_config,LKL_CONFIG_64BIT,1))
+  $(if $(filter $(EXEC_FMT),elf64-s390),$(call set_kernel_config,LKL_CONFIG_ENDIAN,1))
   $(if $(filter $(EXEC_FMT),$(POSIX_HOSTS)),$(call posix_host,$(LD_FMT)))
   $(if $(filter $(EXEC_FMT),$(NT_HOSTS)),$(call nt_host,$(LD_FMT)))
 endef
@@ -112,5 +119,6 @@ $(OUTPUT)Makefile.conf: Makefile.autoconf
 	$(shell mkdir -p $(OUTPUT)/include)
 	$(shell mkdir -p $(OUTPUT)/tests)
 	$(shell echo -n "" > $(OUTPUT)/include/lkl_autoconf.h)
+	$(shell echo -n "" > $(OUTPUT)/include/kernel_config.h)
 	$(shell echo -n "" > $(OUTPUT)/tests/autoconf.sh)
 	@echo "$$do_autoconf" > $(OUTPUT)/Makefile.conf

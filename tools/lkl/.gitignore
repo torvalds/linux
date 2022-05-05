@@ -11,5 +11,6 @@ tests/disk
 tests/vfio-pci
 Makefile.conf
 include/lkl_autoconf.h
+include/kernel_config.h
 tests/autoconf.sh
 *.pyc
