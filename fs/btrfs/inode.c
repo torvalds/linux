@@ -85,12 +85,14 @@ struct btrfs_dio_private {
 	 */
 	refcount_t refs;
 
-	/* dio_bio came from fs/direct-io.c */
-	struct bio *dio_bio;
-
 	/* Array of checksums */
-	u8 csums[];
+	u8 *csums;
+
+	/* This must be last */
+	struct bio bio;
 };
+
+static struct bio_set btrfs_dio_bioset;
 
 struct btrfs_rename_ctx {
 	/* Output field. Stores the index number of the old directory entry. */
@@ -7828,19 +7830,19 @@ static void btrfs_dio_private_put(struct btrfs_dio_private *dip)
 	if (!refcount_dec_and_test(&dip->refs))
 		return;
 
-	if (btrfs_op(dip->dio_bio) == BTRFS_MAP_WRITE) {
+	if (btrfs_op(&dip->bio) == BTRFS_MAP_WRITE) {
 		__endio_write_update_ordered(BTRFS_I(dip->inode),
 					     dip->file_offset,
 					     dip->bytes,
-					     !dip->dio_bio->bi_status);
+					     !dip->bio.bi_status);
 	} else {
 		unlock_extent(&BTRFS_I(dip->inode)->io_tree,
 			      dip->file_offset,
 			      dip->file_offset + dip->bytes - 1);
 	}
 
-	bio_endio(dip->dio_bio);
-	kfree(dip);
+	kfree(dip->csums);
+	bio_endio(&dip->bio);
 }
 
 static void submit_dio_repair_bio(struct inode *inode, struct bio *bio,
@@ -7942,7 +7944,7 @@ static void btrfs_end_dio_bio(struct bio *bio)
 		err = btrfs_check_read_dio_bio(dip, bbio, !err);
 
 	if (err)
-		dip->dio_bio->bi_status = err;
+		dip->bio.bi_status = err;
 
 	btrfs_record_physical_zoned(dip->inode, bbio->file_offset, bio);
 
@@ -7997,49 +7999,16 @@ err:
 	return ret;
 }
 
-/*
- * If this succeeds, the btrfs_dio_private is responsible for cleaning up locked
- * or ordered extents whether or not we submit any bios.
- */
-static struct btrfs_dio_private *btrfs_create_dio_private(struct bio *dio_bio,
-							  struct inode *inode,
-							  loff_t file_offset)
-{
-	const bool write = (btrfs_op(dio_bio) == BTRFS_MAP_WRITE);
-	const bool csum = !(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM);
-	size_t dip_size;
-	struct btrfs_dio_private *dip;
-
-	dip_size = sizeof(*dip);
-	if (!write && csum) {
-		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-		size_t nblocks;
-
-		nblocks = dio_bio->bi_iter.bi_size >> fs_info->sectorsize_bits;
-		dip_size += fs_info->csum_size * nblocks;
-	}
-
-	dip = kzalloc(dip_size, GFP_NOFS);
-	if (!dip)
-		return NULL;
-
-	dip->inode = inode;
-	dip->file_offset = file_offset;
-	dip->bytes = dio_bio->bi_iter.bi_size;
-	dip->dio_bio = dio_bio;
-	refcount_set(&dip->refs, 1);
-	return dip;
-}
-
 static void btrfs_submit_direct(const struct iomap_iter *iter,
 		struct bio *dio_bio, loff_t file_offset)
 {
+	struct btrfs_dio_private *dip =
+		container_of(dio_bio, struct btrfs_dio_private, bio);
 	struct inode *inode = iter->inode;
 	const bool write = (btrfs_op(dio_bio) == BTRFS_MAP_WRITE);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	const bool raid56 = (btrfs_data_alloc_profile(fs_info) &
 			     BTRFS_BLOCK_GROUP_RAID56_MASK);
-	struct btrfs_dio_private *dip;
 	struct bio *bio;
 	u64 start_sector;
 	int async_submit = 0;
@@ -8053,24 +8022,25 @@ static void btrfs_submit_direct(const struct iomap_iter *iter,
 	struct btrfs_dio_data *dio_data = iter->private;
 	struct extent_map *em = NULL;
 
-	dip = btrfs_create_dio_private(dio_bio, inode, file_offset);
-	if (!dip) {
-		if (!write) {
-			unlock_extent(&BTRFS_I(inode)->io_tree, file_offset,
-				file_offset + dio_bio->bi_iter.bi_size - 1);
-		}
-		dio_bio->bi_status = BLK_STS_RESOURCE;
-		bio_endio(dio_bio);
-		return;
-	}
+	dip->inode = inode;
+	dip->file_offset = file_offset;
+	dip->bytes = dio_bio->bi_iter.bi_size;
+	refcount_set(&dip->refs, 1);
+	dip->csums = NULL;
 
-	if (!write) {
+	if (!write && !(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
+		unsigned int nr_sectors =
+			(dio_bio->bi_iter.bi_size >> fs_info->sectorsize_bits);
+
 		/*
 		 * Load the csums up front to reduce csum tree searches and
 		 * contention when submitting bios.
-		 *
-		 * If we have csums disabled this will do nothing.
 		 */
+		status = BLK_STS_RESOURCE;
+		dip->csums = kcalloc(nr_sectors, fs_info->csum_size, GFP_NOFS);
+		if (!dip)
+			goto out_err;
+
 		status = btrfs_lookup_bio_sums(inode, dio_bio, dip->csums);
 		if (status != BLK_STS_OK)
 			goto out_err;
@@ -8160,7 +8130,7 @@ static void btrfs_submit_direct(const struct iomap_iter *iter,
 out_err_em:
 	free_extent_map(em);
 out_err:
-	dip->dio_bio->bi_status = status;
+	dio_bio->bi_status = status;
 	btrfs_dio_private_put(dip);
 }
 
@@ -8171,6 +8141,7 @@ static const struct iomap_ops btrfs_dio_iomap_ops = {
 
 static const struct iomap_dio_ops btrfs_dio_ops = {
 	.submit_io		= btrfs_submit_direct,
+	.bio_set		= &btrfs_dio_bioset,
 };
 
 ssize_t btrfs_dio_rw(struct kiocb *iocb, struct iov_iter *iter, size_t done_before)
@@ -8991,6 +8962,7 @@ void __cold btrfs_destroy_cachep(void)
 	 * destroy cache.
 	 */
 	rcu_barrier();
+	bioset_exit(&btrfs_dio_bioset);
 	kmem_cache_destroy(btrfs_inode_cachep);
 	kmem_cache_destroy(btrfs_trans_handle_cachep);
 	kmem_cache_destroy(btrfs_path_cachep);
@@ -9029,6 +9001,11 @@ int __init btrfs_init_cachep(void)
 							PAGE_SIZE, PAGE_SIZE,
 							SLAB_MEM_SPREAD, NULL);
 	if (!btrfs_free_space_bitmap_cachep)
+		goto fail;
+
+	if (bioset_init(&btrfs_dio_bioset, BIO_POOL_SIZE,
+			offsetof(struct btrfs_dio_private, bio),
+			BIOSET_NEED_BVECS))
 		goto fail;
 
 	return 0;
