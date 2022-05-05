@@ -526,7 +526,11 @@ static const struct reg_value ov7251_setting_vga_90fps[] = {
 };
 
 static const s64 link_freq[] = {
-	240000000,
+	[OV7251_LINK_FREQ_240_MHZ] = 240000000,
+};
+
+static const s64 pixel_rates[] = {
+	[OV7251_LINK_FREQ_240_MHZ] = 48000000,
 };
 
 static const struct ov7251_mode_info ov7251_mode_info_data[] = {
@@ -535,8 +539,6 @@ static const struct ov7251_mode_info ov7251_mode_info_data[] = {
 		.height = 480,
 		.data = ov7251_setting_vga_30fps,
 		.data_size = ARRAY_SIZE(ov7251_setting_vga_30fps),
-		.pixel_clock = 48000000,
-		.link_freq = 0, /* an index in link_freq[] */
 		.exposure_max = 1704,
 		.exposure_def = 504,
 		.timeperframe = {
@@ -549,8 +551,6 @@ static const struct ov7251_mode_info ov7251_mode_info_data[] = {
 		.height = 480,
 		.data = ov7251_setting_vga_60fps,
 		.data_size = ARRAY_SIZE(ov7251_setting_vga_60fps),
-		.pixel_clock = 48000000,
-		.link_freq = 0, /* an index in link_freq[] */
 		.exposure_max = 840,
 		.exposure_def = 504,
 		.timeperframe = {
@@ -563,8 +563,6 @@ static const struct ov7251_mode_info ov7251_mode_info_data[] = {
 		.height = 480,
 		.data = ov7251_setting_vga_90fps,
 		.data_size = ARRAY_SIZE(ov7251_setting_vga_90fps),
-		.pixel_clock = 48000000,
-		.link_freq = 0, /* an index in link_freq[] */
 		.exposure_max = 552,
 		.exposure_def = 504,
 		.timeperframe = {
@@ -1059,16 +1057,6 @@ static int ov7251_set_format(struct v4l2_subdev *sd,
 	__crop->height = new_mode->height;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		ret = __v4l2_ctrl_s_ctrl_int64(ov7251->pixel_clock,
-					       new_mode->pixel_clock);
-		if (ret < 0)
-			goto exit;
-
-		ret = __v4l2_ctrl_s_ctrl(ov7251->link_freq,
-					 new_mode->link_freq);
-		if (ret < 0)
-			goto exit;
-
 		ret = __v4l2_ctrl_modify_range(ov7251->exposure,
 					       1, new_mode->exposure_max,
 					       1, new_mode->exposure_def);
@@ -1199,16 +1187,6 @@ static int ov7251_set_frame_interval(struct v4l2_subdev *subdev,
 	new_mode = ov7251_find_mode_by_ival(ov7251, &fi->interval);
 
 	if (new_mode != ov7251->current_mode) {
-		ret = __v4l2_ctrl_s_ctrl_int64(ov7251->pixel_clock,
-					       new_mode->pixel_clock);
-		if (ret < 0)
-			goto exit;
-
-		ret = __v4l2_ctrl_s_ctrl(ov7251->link_freq,
-					 new_mode->link_freq);
-		if (ret < 0)
-			goto exit;
-
 		ret = __v4l2_ctrl_modify_range(ov7251->exposure,
 					       1, new_mode->exposure_max,
 					       1, new_mode->exposure_def);
@@ -1315,6 +1293,7 @@ static int ov7251_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct ov7251 *ov7251;
 	u8 chip_id_high, chip_id_low, chip_rev;
+	s64 pixel_rate;
 	int ret;
 
 	ov7251 = devm_kzalloc(dev, sizeof(struct ov7251), GFP_KERNEL);
@@ -1396,17 +1375,23 @@ static int ov7251_probe(struct i2c_client *client)
 				     V4L2_CID_TEST_PATTERN,
 				     ARRAY_SIZE(ov7251_test_pattern_menu) - 1,
 				     0, 0, ov7251_test_pattern_menu);
+
+	pixel_rate = pixel_rates[ov7251->link_freq_idx];
 	ov7251->pixel_clock = v4l2_ctrl_new_std(&ov7251->ctrls,
 						&ov7251_ctrl_ops,
 						V4L2_CID_PIXEL_RATE,
-						1, INT_MAX, 1, 1);
+						pixel_rate, INT_MAX,
+						pixel_rate, pixel_rate);
 	ov7251->link_freq = v4l2_ctrl_new_int_menu(&ov7251->ctrls,
 						   &ov7251_ctrl_ops,
 						   V4L2_CID_LINK_FREQ,
 						   ARRAY_SIZE(link_freq) - 1,
-						   0, link_freq);
+						   ov7251->link_freq_idx,
+						   link_freq);
 	if (ov7251->link_freq)
 		ov7251->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	if (ov7251->pixel_clock)
+		ov7251->pixel_clock->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	ov7251->sd.ctrl_handler = &ov7251->ctrls;
 
