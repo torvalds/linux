@@ -220,7 +220,8 @@ nfp_fl_output(struct nfp_app *app, struct nfp_fl_output *output,
 		}
 		output->port = cpu_to_be32(NFP_FL_LAG_OUT | gid);
 	} else if (nfp_flower_internal_port_can_offload(app, out_dev)) {
-		if (!(priv->flower_ext_feats & NFP_FL_FEATS_PRE_TUN_RULES)) {
+		if (!(priv->flower_ext_feats & NFP_FL_FEATS_PRE_TUN_RULES) &&
+		    !(priv->flower_ext_feats & NFP_FL_FEATS_DECAP_V2)) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: pre-tunnel rules not supported in loaded firmware");
 			return -EOPNOTSUPP;
 		}

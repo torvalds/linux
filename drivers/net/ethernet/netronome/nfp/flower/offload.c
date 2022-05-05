@@ -1362,11 +1362,29 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		goto err_release_metadata;
 	}
 
-	if (flow_pay->pre_tun_rule.dev)
-		err = nfp_flower_xmit_pre_tun_flow(app, flow_pay);
-	else
+	if (flow_pay->pre_tun_rule.dev) {
+		if (priv->flower_ext_feats & NFP_FL_FEATS_DECAP_V2) {
+			struct nfp_predt_entry *predt;
+
+			predt = kzalloc(sizeof(*predt), GFP_KERNEL);
+			if (!predt) {
+				err = -ENOMEM;
+				goto err_remove_rhash;
+			}
+			predt->flow_pay = flow_pay;
+			INIT_LIST_HEAD(&predt->nn_list);
+			spin_lock_bh(&priv->predt_lock);
+			list_add(&predt->list_head, &priv->predt_list);
+			spin_unlock_bh(&priv->predt_lock);
+			flow_pay->pre_tun_rule.predt = predt;
+		} else {
+			err = nfp_flower_xmit_pre_tun_flow(app, flow_pay);
+		}
+	} else {
 		err = nfp_flower_xmit_flow(app, flow_pay,
 					   NFP_FLOWER_CMSG_TYPE_FLOW_ADD);
+	}
+
 	if (err)
 		goto err_remove_rhash;
 
@@ -1538,11 +1556,24 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 		goto err_free_merge_flow;
 	}
 
-	if (nfp_flow->pre_tun_rule.dev)
-		err = nfp_flower_xmit_pre_tun_del_flow(app, nfp_flow);
-	else
+	if (nfp_flow->pre_tun_rule.dev) {
+		if (priv->flower_ext_feats & NFP_FL_FEATS_DECAP_V2) {
+			struct nfp_predt_entry *predt;
+
+			predt = nfp_flow->pre_tun_rule.predt;
+			if (predt) {
+				spin_lock_bh(&priv->predt_lock);
+				list_del(&predt->list_head);
+				spin_unlock_bh(&priv->predt_lock);
+				kfree(predt);
+			}
+		} else {
+			err = nfp_flower_xmit_pre_tun_del_flow(app, nfp_flow);
+		}
+	} else {
 		err = nfp_flower_xmit_flow(app, nfp_flow,
 					   NFP_FLOWER_CMSG_TYPE_FLOW_DEL);
+	}
 	/* Fall through on error. */
 
 err_free_merge_flow:
