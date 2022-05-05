@@ -64,6 +64,8 @@
 #define WM8960_PLL3		0x36
 #define WM8960_PLL4		0x37
 
+#define WM8960_REG_MAX		0x38
+
 
 /*
  * WM8960 Clock dividers

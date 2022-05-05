@@ -991,35 +991,67 @@
 			#sound-dai-cells = <0>;
 		};
 
-		i2srx_3ch: i2srx-3ch@100e0000 {
+		i2srx_3ch: i2srx_3ch@100e0000 {
 			compatible = "snps,designware-i2srx";
 			reg = <0x0 0x100e0000 0x0 0x1000>;
-			clocks = <&apb0clk>;
-			clock-names = "i2sclk";
+			clocks = <&clkgen JH7110_APB0>,
+				<&clkgen JH7110_I2SRX0_3CH_CLK_APB>,
+				<&clkgen JH7110_I2SRX_3CH_BCLK_MST>;
+			clock-names = "apb0", "3ch-apb",
+					"3ch-bclk";
+			resets = <&rstgen RSTN_U0_I2SRX_3CH_APB>,
+				<&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
+			reset-names = "rst_apb_rx", "rst_bclk_rx";
 			interrupts = <42>;
 			interrupt-names = "rx";
+			dmas = <&dma 24 1>;
+			dma-names = "rx";
 			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
 
-		i2stx_4ch0: i2stx-4ch0@120b0000 {
+		i2stx_4ch0: i2stx_4ch0@120b0000 {
 			compatible = "snps,designware-i2stx-4ch0";
 			reg = <0x0 0x120b0000 0x0 0x1000>;
-			clocks = <&apb0clk>;
-			clock-names = "i2sclk";
+			clocks = <&clkgen JH7110_MCLK_INNER>,
+				<&clkgen JH7110_I2STX_4CH0_BCLK_MST>,
+				<&clkgen JH7110_I2STX_4CH0_LRCK_MST>,
+				<&clkgen JH7110_MCLK>,
+				<&clkgen JH7110_I2STX0_4CHBCLK>,
+				<&clkgen JH7110_I2STX0_4CHLRCK>;
+			clock-names = "inner", "bclk-mst",
+					"lrck-mst", "mclk",
+					"bclk0", "lrck0";
+			resets = <&rstgen RSTN_U0_I2STX_4CH_APB>,
+                                        <&rstgen RSTN_U0_I2STX_4CH_BCLK>;
+                        reset-names = "rst_apb0", "rst_bclk0";
 			interrupts = <58>;
 			interrupt-names = "tx";
+			dmas = <&dma 47 1>;
+			dma-names = "tx";
 			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
 
-		i2stx_4ch1: i2sdac1@120c0000 {
+		i2stx_4ch1: i2stx_4ch1@120c0000 {
 			compatible = "snps,designware-i2stx-4ch1";
 			reg = <0x0 0x120c0000 0x0 0x1000>;
-			clocks = <&apb0clk>;
-			clock-names = "i2sclk";
+			clocks = <&clkgen JH7110_MCLK_INNER>,
+				<&clkgen JH7110_I2STX_4CH1_BCLK_MST>,
+                                <&clkgen JH7110_I2STX_4CH1_LRCK_MST>,
+                                <&clkgen JH7110_MCLK>,
+                                <&clkgen JH7110_I2STX1_4CHBCLK>,
+                                <&clkgen JH7110_I2STX1_4CHLRCK>;
+                        clock-names = "inner", "bclk-mst1",
+                                        "lrck-mst1", "mclk",
+                                        "bclk1", "lrck1";
+                        resets = <&rstgen RSTN_U1_I2STX_4CH_APB>,
+				<&rstgen RSTN_U1_I2STX_4CH_BCLK>;
+                        reset-names = "rst_apb1", "rst_bclk1";
 			interrupts = <59>;
 			interrupt-names = "tx";
+			dmas = <&dma 48 1>;
+			dma-names = "tx";
 			#sound-dai-cells = <0>;
 			status = "disabled";
 		};

@@ -81,6 +81,33 @@
 #define MAX_CHANNEL_NUM		8
 #define MIN_CHANNEL_NUM		2
 
+enum {
+	CLK_DAC_INNER = 0,
+	CLK_DAC_BCLK_MST,
+	CLK_DAC_LRCLK_MST,
+	CLK_MCLK,
+	CLK_DAC_BCLK0,
+	CLK_DAC_LRCLK0,
+	CLK_DAC_BCLK_MST_1,
+	CLK_DAC_LRCLK_MST_1,
+	CLK_DAC_BCLK_1,
+	CLK_DAC_LRCLK_1,
+	CLK_ADC_APB0,
+	CLK_ADC_APB,
+	CLK_ADC_LRCLK,
+	CLK_AUDIO_NUM,
+};
+
+enum {
+	RST_APB0_BUS = 0,
+	RST_BCLK_0,
+	RST_APB1_BUS,
+	RST_BCLK_1,
+	RST_APB_RX,
+	RST_BCLK_RX,
+	RST_AUDIO_NUM,
+};
+
 union dw_i2s_snd_dma_data {
 	struct i2s_dma_data pd;
 	struct snd_dmaengine_dai_dma_data dt;
@@ -98,6 +125,9 @@ struct dw_i2s_dev {
 	u32 ccr;
 	u32 xfer_resolution;
 	u32 fifo_th;
+
+	struct clk *clks[CLK_AUDIO_NUM];
+	struct reset_control *rstc[RST_AUDIO_NUM];
 
 	/* data related to DMA transfers b/w i2s and DMAC */
 	union dw_i2s_snd_dma_data play_dma_data;

@@ -22,10 +22,11 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <sound/wm8960.h>
+#include <linux/debugfs.h>
 
 #include "wm8960.h"
 
-#define WM8960_MCLK		 4096000
+#define WM8960_MCLK		 51200000//4096000
 /* R25 - Power 1 */
 #define WM8960_VMID_MASK 0x180
 #define WM8960_VREF      0x40
@@ -134,6 +135,7 @@ struct wm8960_priv {
 	int freq_in;
 	bool is_stream_in_use[2];
 	struct wm8960_data pdata;
+	struct dentry *debug_file;
 };
 
 #define wm8960_reset(c)	regmap_write(c, WM8960_RESET, 0)
@@ -695,6 +697,13 @@ int wm8960_configure_pll(struct snd_soc_component *component, int freq_in,
 	lrclk = wm8960->lrclk;
 	closest = freq_in;
 
+	/* Judge whether the lr clock is 0, if equal to 0, there is
+	 * no need to perform the following steps*/
+	if (!lrclk)
+	{
+		return 0;
+	}
+
 	best_freq_out = -EINVAL;
 	*sysclk_idx = *dac_idx = *bclk_idx = -1;
 
@@ -743,16 +752,9 @@ static int wm8960_configure_clocking(struct snd_soc_component *component)
 	int i, j, k;
 	int ret;
 
-	/*
-	 * For Slave mode clocking should still be configured,
-	 * so this if statement should be removed, but some platform
-	 * may not work if the sysclk is not configured, to avoid such
-	 * compatible issue, just add '!wm8960->sysclk' condition in
-	 * this if statement.
-	 */
-	if (!(iface1 & (1 << 6)) && !wm8960->sysclk) {
-		dev_warn(component->dev,
-			 "slave mode, but proceeding with no clock configuration\n");
+	if (!(iface1 & (1<<6))) {
+		dev_dbg(component->dev,
+			"Codec is slave mode, no need to configure clock\n");
 		return 0;
 	}
 
@@ -1288,8 +1290,7 @@ static int wm8960_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 {
 	struct snd_soc_component *component = dai->component;
 	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
-	clk_id = WM8960_SYSCLK_MCLK;
-
+	clk_id = WM8960_SYSCLK_PLL;
 
 	switch (clk_id) {
 	case WM8960_SYSCLK_MCLK:
@@ -1347,6 +1348,25 @@ static struct snd_soc_dai_driver wm8960_dai = {
 	.symmetric_rate = 1,
 };
 
+static int wm8960_reg_debug_show(struct seq_file *s, void *data)
+{
+	struct snd_soc_component *component = s->private;
+        int i, reg;
+	for (i = 0; i < WM8960_REG_MAX; i++)
+	{
+		reg = snd_soc_component_read(component, i);
+		printk("wm8960 reg:0x%x: 0x%x\n", i, reg);
+	}
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(wm8960_reg_debug);
+
+static void wm8960_create_debugfs(struct snd_soc_component *component)
+{
+	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
+	wm8960->debug_file = debugfs_create_file("wm8960_reg", 0666, NULL,
+		component, &wm8960_reg_debug_fops);
+}
 static int wm8960_probe(struct snd_soc_component *component)
 {
 	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
@@ -1376,6 +1396,7 @@ static int wm8960_probe(struct snd_soc_component *component)
 	snd_soc_add_component_controls(component, wm8960_snd_controls,
 				     ARRAY_SIZE(wm8960_snd_controls));
 	wm8960_add_widgets(component);
+	wm8960_create_debugfs(component);
 
 	return 0;
 }
@@ -1432,7 +1453,7 @@ static int wm8960_i2c_probe(struct i2c_client *i2c,
 	if (wm8960 == NULL)
 		return -ENOMEM;
 
-	wm8960->clk_id = WM8960_SYSCLK_MCLK;
+	wm8960->clk_id = WM8960_SYSCLK_PLL;
 
 	wm8960->mclk = devm_clk_get(&i2c->dev, "mclk");
 	if (IS_ERR(wm8960->mclk)) {
