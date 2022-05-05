@@ -282,9 +282,8 @@ static int ktd2692_parse_dt(struct ktd2692_context *led, struct device *dev,
 	if (ret)
 		return dev_err_probe(dev, ret, "cannot get ctrl-gpios\n");
 
-	led->aux_gpio = devm_gpiod_get(dev, "aux", GPIOD_ASIS);
-	ret = PTR_ERR_OR_ZERO(led->aux_gpio);
-	if (ret)
+	led->aux_gpio = devm_gpiod_get_optional(dev, "aux", GPIOD_ASIS);
+	if (IS_ERR(led->aux_gpio))
 		return dev_err_probe(dev, PTR_ERR(led->aux_gpio), "cannot get aux-gpios\n");
 
 	led->regulator = devm_regulator_get(dev, "vin");
