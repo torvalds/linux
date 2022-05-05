@@ -99,42 +99,6 @@ bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_gfx_scratch_get - Allocate a scratch register
- *
- * @adev: amdgpu_device pointer
- * @reg: scratch register mmio offset
- *
- * Allocate a CP scratch register for use by the driver (all asics).
- * Returns 0 on success or -EINVAL on failure.
- */
-int amdgpu_gfx_scratch_get(struct amdgpu_device *adev, uint32_t *reg)
-{
-	int i;
-
-	i = ffs(adev->gfx.scratch.free_mask);
-	if (i != 0 && i <= adev->gfx.scratch.num_reg) {
-		i--;
-		adev->gfx.scratch.free_mask &= ~(1u << i);
-		*reg = adev->gfx.scratch.reg_base + i;
-		return 0;
-	}
-	return -EINVAL;
-}
-
-/**
- * amdgpu_gfx_scratch_free - Free a scratch register
- *
- * @adev: amdgpu_device pointer
- * @reg: scratch register mmio offset
- *
- * Free a CP scratch register allocated for use by the driver (all asics)
- */
-void amdgpu_gfx_scratch_free(struct amdgpu_device *adev, uint32_t reg)
-{
-	adev->gfx.scratch.free_mask |= 1u << (reg - adev->gfx.scratch.reg_base);
-}
-
-/**
  * amdgpu_gfx_parse_disable_cu - Parse the disable_cu module parameter
  *
  * @mask: array in which the per-shader array disable masks will be stored

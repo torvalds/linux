@@ -297,13 +297,6 @@ static void gfx_v11_0_init_golden_registers(struct amdgpu_device *adev)
 	gfx_v11_0_init_spm_golden_registers(adev);
 }
 
-static void gfx_v11_0_scratch_init(struct amdgpu_device *adev)
-{
-	adev->gfx.scratch.num_reg = 8;
-	adev->gfx.scratch.reg_base = SOC15_REG_OFFSET(GC, 0, regSCRATCH_REG0);
-	adev->gfx.scratch.free_mask = (1u << adev->gfx.scratch.num_reg) - 1;
-}
-
 static void gfx_v11_0_write_data_to_reg(struct amdgpu_ring *ring, int eng_sel,
 				       bool wc, uint32_t reg, uint32_t val)
 {
@@ -340,24 +333,16 @@ static void gfx_v11_0_wait_reg_mem(struct amdgpu_ring *ring, int eng_sel,
 static int gfx_v11_0_ring_test_ring(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	uint32_t scratch;
+	uint32_t scratch = SOC15_REG_OFFSET(GC, 0, regSCRATCH_REG0);
 	uint32_t tmp = 0;
 	unsigned i;
 	int r;
 
-	r = amdgpu_gfx_scratch_get(adev, &scratch);
-	if (r) {
-		DRM_ERROR("amdgpu: cp failed to get scratch reg (%d).\n", r);
-		return r;
-	}
-
 	WREG32(scratch, 0xCAFEDEAD);
-
 	r = amdgpu_ring_alloc(ring, 5);
 	if (r) {
 		DRM_ERROR("amdgpu: cp failed to lock ring %d (%d).\n",
 			  ring->idx, r);
-		amdgpu_gfx_scratch_free(adev, scratch);
 		return r;
 	}
 
@@ -365,7 +350,8 @@ static int gfx_v11_0_ring_test_ring(struct amdgpu_ring *ring)
 		gfx_v11_0_ring_emit_wreg(ring, scratch, 0xDEADBEEF);
 	} else {
 		amdgpu_ring_write(ring, PACKET3(PACKET3_SET_UCONFIG_REG, 1));
-		amdgpu_ring_write(ring, (scratch - PACKET3_SET_UCONFIG_REG_START));
+		amdgpu_ring_write(ring, scratch -
+				  PACKET3_SET_UCONFIG_REG_START);
 		amdgpu_ring_write(ring, 0xDEADBEEF);
 	}
 	amdgpu_ring_commit(ring);
@@ -382,9 +368,6 @@ static int gfx_v11_0_ring_test_ring(struct amdgpu_ring *ring)
 
 	if (i >= adev->usec_timeout)
 		r = -ETIMEDOUT;
-
-	amdgpu_gfx_scratch_free(adev, scratch);
-
 	return r;
 }
 
@@ -1630,8 +1613,6 @@ static int gfx_v11_0_sw_init(void *handle)
 		return r;
 
 	adev->gfx.gfx_current_status = AMDGPU_GFX_NORMAL_MODE;
-
-	gfx_v11_0_scratch_init(adev);
 
 	if (adev->gfx.imu.funcs) {
 		if (adev->gfx.imu.funcs->init_microcode) {

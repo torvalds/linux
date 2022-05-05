@@ -111,15 +111,6 @@ struct amdgpu_kiq {
 };
 
 /*
- * GPU scratch registers structures, functions & helpers
- */
-struct amdgpu_scratch {
-	unsigned		num_reg;
-	uint32_t                reg_base;
-	uint32_t		free_mask;
-};
-
-/*
  * GFX configurations
  */
 #define AMDGPU_GFX_MAX_SE 4
@@ -288,7 +279,6 @@ struct amdgpu_gfx {
 	struct amdgpu_mec		mec;
 	struct amdgpu_kiq		kiq;
 	struct amdgpu_imu		imu;
-	struct amdgpu_scratch		scratch;
 	bool				rs64_enable; /* firmware format */
 	const struct firmware		*me_fw;	/* ME firmware */
 	uint32_t			me_fw_version;
@@ -375,9 +365,6 @@ static inline u32 amdgpu_gfx_create_bitmask(u32 bit_width)
 {
 	return (u32)((1ULL << bit_width) - 1);
 }
-
-int amdgpu_gfx_scratch_get(struct amdgpu_device *adev, uint32_t *reg);
-void amdgpu_gfx_scratch_free(struct amdgpu_device *adev, uint32_t reg);
 
 void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se,
 				 unsigned max_sh);
