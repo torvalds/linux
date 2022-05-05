@@ -918,6 +918,34 @@ repin:
 				   help_min_cap, enough_idle);
 }
 
+/* run newidle balance as a result of an unhalt operation */
+void walt_smp_newidle_balance(void *ignored)
+{
+	int cpu = raw_smp_processor_id();
+	struct rq *rq = cpu_rq(cpu);
+	struct rq_flags rf;
+	int pulled_task;
+	int done = 0;
+
+	rq_lock(rq, &rf);
+	update_rq_clock(rq);
+	walt_newidle_balance(NULL, rq, &rf, &pulled_task, &done);
+	resched_curr(rq);
+	rq_unlock(rq, &rf);
+}
+
+static DEFINE_PER_CPU(call_single_data_t, nib_csd);
+
+void walt_smp_call_newidle_balance(int cpu)
+{
+	call_single_data_t *csd = &per_cpu(nib_csd, cpu);
+
+	if (unlikely(walt_disabled))
+		return;
+
+	smp_call_function_single_async(cpu, csd);
+}
+
 static void walt_find_busiest_queue(void *unused, int dst_cpu,
 				    struct sched_group *group,
 				    struct cpumask *env_cpus,
@@ -1028,6 +1056,8 @@ static void walt_can_migrate_task(void *unused, struct task_struct *p,
 
 void walt_lb_init(void)
 {
+	int cpu;
+
 	walt_lb_rotate_work_init();
 
 	register_trace_android_rvh_migrate_queued_task(walt_migrate_queued_task, NULL);
@@ -1035,4 +1065,11 @@ void walt_lb_init(void)
 	register_trace_android_rvh_can_migrate_task(walt_can_migrate_task, NULL);
 	register_trace_android_rvh_find_busiest_queue(walt_find_busiest_queue, NULL);
 	register_trace_android_rvh_sched_newidle_balance(walt_newidle_balance, NULL);
+
+	for_each_cpu(cpu, cpu_possible_mask) {
+		call_single_data_t *csd;
+
+		csd = &per_cpu(nib_csd, cpu);
+		INIT_CSD(csd, walt_smp_newidle_balance, (void *)(unsigned long)cpu);
+	}
 }

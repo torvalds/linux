@@ -325,7 +325,7 @@ static int start_cpus(struct cpumask *cpus)
 		/* kick the cpu so it can pull tasks
 		 * after the mask has been cleared.
 		 */
-		walt_kick_cpu(cpu);
+		walt_smp_call_newidle_balance(cpu);
 	}
 
 	trace_halt_cpus(cpus, start_time, 0, 0);
