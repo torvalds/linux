@@ -149,6 +149,10 @@ struct sf_spdif_dev {
 	//unsigned int sample_bits;
 	unsigned int tx_ptr;
 	unsigned int rx_ptr;
+	struct clk* spdif_apb;
+	struct clk* spdif_core;
+	struct clk* audioclk;
+	struct reset_control *rst_apb;
 
 	struct snd_dmaengine_dai_dma_data dma_data;
 };
