@@ -17,6 +17,30 @@ config APPLE_PMGR_PWRSTATE
 	  controls for SoC devices. This driver manages them through the
 	  generic power domain framework, and also provides reset support.
 
+config APPLE_RTKIT
+	tristate "Apple RTKit co-processor IPC protocol"
+	depends on MAILBOX
+	depends on ARCH_APPLE || COMPILE_TEST
+	default ARCH_APPLE
+	help
+	  Apple SoCs such as the M1 come with various co-processors running
+	  their proprietary RTKit operating system. This option enables support
+	  for the protocol library used to communicate with those. It is used
+	  by various client drivers.
+
+	  Say 'y' here if you have an Apple SoC.
+
+config APPLE_SART
+	tristate "Apple SART DMA address filter"
+	depends on ARCH_APPLE || COMPILE_TEST
+	default ARCH_APPLE
+	help
+	  Apple SART is a simple DMA address filter used on Apple SoCs such
+	  as the M1. It is usually required for the NVMe coprocessor which does
+	  not use a proper IOMMU.
+
+	  Say 'y' here if you have an Apple SoC.
+
 endmenu
 
 endif
