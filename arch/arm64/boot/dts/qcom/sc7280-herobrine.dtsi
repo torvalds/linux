@@ -484,6 +484,10 @@ ap_i2c_tpm: &i2c14 {
 	cd-gpios = <&tlmm 91 GPIO_ACTIVE_LOW>;
 };
 
+&spi_flash {
+	spi-max-frequency = <50000000>;
+};
+
 /* Fingerprint, enabled on a per-board basis */
 ap_spi_fp: &spi9 {
 	pinctrl-0 = <&qup_spi9_data_clk>, <&qup_spi9_cs_gpio_init_high>, <&qup_spi9_cs_gpio>;
