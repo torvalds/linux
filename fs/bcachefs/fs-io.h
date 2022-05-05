@@ -15,7 +15,6 @@ int __must_check bch2_write_inode_size(struct bch_fs *,
 				       struct bch_inode_info *,
 				       loff_t, unsigned);
 
-int bch2_writepage(struct page *, struct writeback_control *);
 int bch2_read_folio(struct file *, struct folio *);
 
 int bch2_writepages(struct address_space *, struct writeback_control *);

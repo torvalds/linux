@@ -1469,20 +1469,6 @@ int bch2_writepages(struct address_space *mapping, struct writeback_control *wbc
 	return ret;
 }
 
-int bch2_writepage(struct page *page, struct writeback_control *wbc)
-{
-	struct bch_fs *c = page->mapping->host->i_sb->s_fs_info;
-	struct bch_writepage_state w =
-		bch_writepage_state_init(c, to_bch_ei(page->mapping->host));
-	int ret;
-
-	ret = __bch2_writepage(page_folio(page), wbc, &w);
-	if (w.io)
-		bch2_writepage_do_io(&w);
-
-	return ret;
-}
-
 /* buffered writes: */
 
 int bch2_write_begin(struct file *file, struct address_space *mapping,

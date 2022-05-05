@@ -1113,7 +1113,6 @@ static const struct inode_operations bch_special_inode_operations = {
 };
 
 static const struct address_space_operations bch_address_space_operations = {
-	.writepage	= bch2_writepage,
 	.read_folio	= bch2_read_folio,
 	.writepages	= bch2_writepages,
 	.readahead	= bch2_readahead,
