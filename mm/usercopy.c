@@ -163,9 +163,6 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 {
 	struct folio *folio;
 
-	if (!virt_addr_valid(ptr))
-		return;
-
 	if (is_kmap_addr(ptr)) {
 		unsigned long page_end = (unsigned long)ptr | (PAGE_SIZE - 1);
 
@@ -189,6 +186,9 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 			usercopy_abort("vmalloc", NULL, to_user, offset, n);
 		return;
 	}
+
+	if (!virt_addr_valid(ptr))
+		return;
 
 	folio = virt_to_folio(ptr);
 
