@@ -914,7 +914,7 @@ int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
 	if (!tmp)
 		return -ENOMEM;
 
-	ret = qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
+	ret = qos_policer_conf_set(ocelot, pol_ix, &pp);
 	if (ret) {
 		kfree(tmp);
 		return ret;
@@ -945,7 +945,7 @@ int ocelot_vcap_policer_del(struct ocelot *ocelot, u32 pol_ix)
 
 	if (z) {
 		pp.mode = MSCC_QOS_RATE_MODE_DISABLED;
-		return qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
+		return qos_policer_conf_set(ocelot, pol_ix, &pp);
 	}
 
 	return 0;
@@ -993,8 +993,8 @@ static int ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
 					   struct ocelot_vcap_filter *filter,
 					   struct netlink_ext_ack *extack)
 {
+	struct list_head *pos = &block->rules;
 	struct ocelot_vcap_filter *tmp;
-	struct list_head *pos, *n;
 	int ret;
 
 	ret = ocelot_vcap_filter_add_aux_resources(ocelot, filter, extack);
@@ -1003,17 +1003,13 @@ static int ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
 
 	block->count++;
 
-	if (list_empty(&block->rules)) {
-		list_add(&filter->list, &block->rules);
-		return 0;
-	}
-
-	list_for_each_safe(pos, n, &block->rules) {
-		tmp = list_entry(pos, struct ocelot_vcap_filter, list);
-		if (filter->prio < tmp->prio)
+	list_for_each_entry(tmp, &block->rules, list) {
+		if (filter->prio < tmp->prio) {
+			pos = &tmp->list;
 			break;
+		}
 	}
-	list_add(&filter->list, pos->prev);
+	list_add_tail(&filter->list, pos);
 
 	return 0;
 }
@@ -1398,22 +1394,18 @@ static void ocelot_vcap_detect_constants(struct ocelot *ocelot,
 
 int ocelot_vcap_init(struct ocelot *ocelot)
 {
-	int i;
+	struct qos_policer_conf cpu_drop = {
+		.mode = MSCC_QOS_RATE_MODE_DATA,
+	};
+	int ret, i;
 
 	/* Create a policer that will drop the frames for the cpu.
 	 * This policer will be used as action in the acl rules to drop
 	 * frames.
 	 */
-	ocelot_write_gix(ocelot, 0x299, ANA_POL_MODE_CFG,
-			 OCELOT_POLICER_DISCARD);
-	ocelot_write_gix(ocelot, 0x1, ANA_POL_PIR_CFG,
-			 OCELOT_POLICER_DISCARD);
-	ocelot_write_gix(ocelot, 0x3fffff, ANA_POL_PIR_STATE,
-			 OCELOT_POLICER_DISCARD);
-	ocelot_write_gix(ocelot, 0x0, ANA_POL_CIR_CFG,
-			 OCELOT_POLICER_DISCARD);
-	ocelot_write_gix(ocelot, 0x3fffff, ANA_POL_CIR_STATE,
-			 OCELOT_POLICER_DISCARD);
+	ret = qos_policer_conf_set(ocelot, OCELOT_POLICER_DISCARD, &cpu_drop);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < OCELOT_NUM_VCAP_BLOCKS; i++) {
 		struct ocelot_vcap_block *block = &ocelot->block[i];
