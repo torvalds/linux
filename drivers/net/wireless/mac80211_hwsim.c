@@ -2202,11 +2202,14 @@ mac80211_hwsim_sta_rc_update(struct ieee80211_hw *hw,
 	if (!data->use_chanctx) {
 		confbw = data->bw;
 	} else {
-		struct ieee80211_chanctx_conf *chanctx_conf =
-			rcu_dereference(vif->chanctx_conf);
+		struct ieee80211_chanctx_conf *chanctx_conf;
+
+		rcu_read_lock();
+		chanctx_conf = rcu_dereference(vif->chanctx_conf);
 
 		if (!WARN_ON(!chanctx_conf))
 			confbw = chanctx_conf->def.width;
+		rcu_read_unlock();
 	}
 
 	WARN(bw > hwsim_get_chanwidth(confbw),
