@@ -1402,8 +1402,9 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 			INIT_LIST_HEAD(&predt->nn_list);
 			spin_lock_bh(&priv->predt_lock);
 			list_add(&predt->list_head, &priv->predt_list);
-			spin_unlock_bh(&priv->predt_lock);
 			flow_pay->pre_tun_rule.predt = predt;
+			nfp_tun_link_and_update_nn_entries(app, predt);
+			spin_unlock_bh(&priv->predt_lock);
 		} else {
 			err = nfp_flower_xmit_pre_tun_flow(app, flow_pay);
 		}
@@ -1590,6 +1591,7 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 			predt = nfp_flow->pre_tun_rule.predt;
 			if (predt) {
 				spin_lock_bh(&priv->predt_lock);
+				nfp_tun_unlink_and_update_nn_entries(app, predt);
 				list_del(&predt->list_head);
 				spin_unlock_bh(&priv->predt_lock);
 				kfree(predt);

@@ -301,6 +301,150 @@ nfp_flower_xmit_tun_conf(struct nfp_app *app, u8 mtype, u16 plen, void *pdata,
 	return 0;
 }
 
+static void
+nfp_tun_mutual_link(struct nfp_predt_entry *predt,
+		    struct nfp_neigh_entry *neigh)
+{
+	struct nfp_fl_payload *flow_pay = predt->flow_pay;
+	struct nfp_tun_neigh_ext *ext;
+	struct nfp_tun_neigh *common;
+
+	if (flow_pay->pre_tun_rule.is_ipv6 != neigh->is_ipv6)
+		return;
+
+	/* In the case of bonding it is possible that there might already
+	 * be a flow linked (as the MAC address gets shared). If a flow
+	 * is already linked just return.
+	 */
+	if (neigh->flow)
+		return;
+
+	common = neigh->is_ipv6 ?
+		 &((struct nfp_tun_neigh_v6 *)neigh->payload)->common :
+		 &((struct nfp_tun_neigh_v4 *)neigh->payload)->common;
+	ext = neigh->is_ipv6 ?
+		 &((struct nfp_tun_neigh_v6 *)neigh->payload)->ext :
+		 &((struct nfp_tun_neigh_v4 *)neigh->payload)->ext;
+
+	if (memcmp(flow_pay->pre_tun_rule.loc_mac,
+		   common->src_addr, ETH_ALEN) ||
+	    memcmp(flow_pay->pre_tun_rule.rem_mac,
+		   common->dst_addr, ETH_ALEN))
+		return;
+
+	list_add(&neigh->list_head, &predt->nn_list);
+	neigh->flow = predt;
+	ext->host_ctx = flow_pay->meta.host_ctx_id;
+	ext->vlan_tci = flow_pay->pre_tun_rule.vlan_tci;
+	ext->vlan_tpid = flow_pay->pre_tun_rule.vlan_tpid;
+}
+
+static void
+nfp_tun_link_predt_entries(struct nfp_app *app,
+			   struct nfp_neigh_entry *nn_entry)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_predt_entry *predt, *tmp;
+
+	list_for_each_entry_safe(predt, tmp, &priv->predt_list, list_head) {
+		nfp_tun_mutual_link(predt, nn_entry);
+	}
+}
+
+void nfp_tun_link_and_update_nn_entries(struct nfp_app *app,
+					struct nfp_predt_entry *predt)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_neigh_entry *nn_entry;
+	struct rhashtable_iter iter;
+	size_t neigh_size;
+	u8 type;
+
+	rhashtable_walk_enter(&priv->neigh_table, &iter);
+	rhashtable_walk_start(&iter);
+	while ((nn_entry = rhashtable_walk_next(&iter)) != NULL) {
+		if (IS_ERR(nn_entry))
+			continue;
+		nfp_tun_mutual_link(predt, nn_entry);
+		neigh_size = nn_entry->is_ipv6 ?
+			     sizeof(struct nfp_tun_neigh_v6) :
+			     sizeof(struct nfp_tun_neigh_v4);
+		type = nn_entry->is_ipv6 ? NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6 :
+					   NFP_FLOWER_CMSG_TYPE_TUN_NEIGH;
+		nfp_flower_xmit_tun_conf(app, type, neigh_size,
+					 nn_entry->payload,
+					 GFP_ATOMIC);
+	}
+	rhashtable_walk_stop(&iter);
+	rhashtable_walk_exit(&iter);
+}
+
+static void nfp_tun_cleanup_nn_entries(struct nfp_app *app)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_neigh_entry *neigh;
+	struct nfp_tun_neigh_ext *ext;
+	struct rhashtable_iter iter;
+	size_t neigh_size;
+	u8 type;
+
+	rhashtable_walk_enter(&priv->neigh_table, &iter);
+	rhashtable_walk_start(&iter);
+	while ((neigh = rhashtable_walk_next(&iter)) != NULL) {
+		if (IS_ERR(neigh))
+			continue;
+		ext = neigh->is_ipv6 ?
+			 &((struct nfp_tun_neigh_v6 *)neigh->payload)->ext :
+			 &((struct nfp_tun_neigh_v4 *)neigh->payload)->ext;
+		ext->host_ctx = cpu_to_be32(U32_MAX);
+		ext->vlan_tpid = cpu_to_be16(U16_MAX);
+		ext->vlan_tci = cpu_to_be16(U16_MAX);
+
+		neigh_size = neigh->is_ipv6 ?
+			     sizeof(struct nfp_tun_neigh_v6) :
+			     sizeof(struct nfp_tun_neigh_v4);
+		type = neigh->is_ipv6 ? NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6 :
+					   NFP_FLOWER_CMSG_TYPE_TUN_NEIGH;
+		nfp_flower_xmit_tun_conf(app, type, neigh_size, neigh->payload,
+					 GFP_ATOMIC);
+
+		rhashtable_remove_fast(&priv->neigh_table, &neigh->ht_node,
+				       neigh_table_params);
+		if (neigh->flow)
+			list_del(&neigh->list_head);
+		kfree(neigh);
+	}
+	rhashtable_walk_stop(&iter);
+	rhashtable_walk_exit(&iter);
+}
+
+void nfp_tun_unlink_and_update_nn_entries(struct nfp_app *app,
+					  struct nfp_predt_entry *predt)
+{
+	struct nfp_neigh_entry *neigh, *tmp;
+	struct nfp_tun_neigh_ext *ext;
+	size_t neigh_size;
+	u8 type;
+
+	list_for_each_entry_safe(neigh, tmp, &predt->nn_list, list_head) {
+		ext = neigh->is_ipv6 ?
+			 &((struct nfp_tun_neigh_v6 *)neigh->payload)->ext :
+			 &((struct nfp_tun_neigh_v4 *)neigh->payload)->ext;
+		neigh->flow = NULL;
+		ext->host_ctx = cpu_to_be32(U32_MAX);
+		ext->vlan_tpid = cpu_to_be16(U16_MAX);
+		ext->vlan_tci = cpu_to_be16(U16_MAX);
+		list_del(&neigh->list_head);
+		neigh_size = neigh->is_ipv6 ?
+			     sizeof(struct nfp_tun_neigh_v6) :
+			     sizeof(struct nfp_tun_neigh_v4);
+		type = neigh->is_ipv6 ? NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6 :
+					   NFP_FLOWER_CMSG_TYPE_TUN_NEIGH;
+		nfp_flower_xmit_tun_conf(app, type, neigh_size, neigh->payload,
+					 GFP_ATOMIC);
+	}
+}
+
 static bool
 __nfp_tun_has_route(struct list_head *route_list, spinlock_t *list_lock,
 		    void *add, int add_len)
@@ -497,6 +641,7 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 			nfp_tun_add_route_to_cache_v4(app, &payload->dst_ipv4);
 		}
 
+		nfp_tun_link_predt_entries(app, nn_entry);
 		nfp_flower_xmit_tun_conf(app, mtype, neigh_size,
 					 nn_entry->payload,
 					 GFP_ATOMIC);
@@ -1482,4 +1627,6 @@ void nfp_tunnel_config_stop(struct nfp_app *app)
 	/* Destroy rhash. Entries should be cleaned on netdev notifier unreg. */
 	rhashtable_free_and_destroy(&priv->tun.offloaded_macs,
 				    nfp_check_rhashtable_empty, NULL);
+
+	nfp_tun_cleanup_nn_entries(app);
 }
