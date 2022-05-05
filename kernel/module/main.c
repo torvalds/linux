@@ -243,17 +243,6 @@ static __maybe_unused void *any_section_objs(const struct load_info *info,
 #define symversion(base, idx) ((base != NULL) ? ((base) + (idx)) : NULL)
 #endif
 
-static bool check_exported_symbol(const struct symsearch *syms,
-				  struct module *owner, unsigned int symnum,
-				  struct find_symbol_arg *fsa)
-{
-	fsa->owner = owner;
-	fsa->crc = symversion(syms->crcs, symnum);
-	fsa->sym = &syms->start[symnum];
-	fsa->license = syms->license;
-	return true;
-}
-
 static const char *kernel_symbol_name(const struct kernel_symbol *sym)
 {
 #ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
@@ -290,12 +279,15 @@ static bool find_exported_symbol_in_section(const struct symsearch *syms,
 
 	sym = bsearch(fsa->name, syms->start, syms->stop - syms->start,
 			sizeof(struct kernel_symbol), cmp_name);
+	if (!sym)
+		return false;
 
-	if (sym != NULL && check_exported_symbol(syms, owner,
-						 sym - syms->start, fsa))
-		return true;
+	fsa->owner = owner;
+	fsa->crc = symversion(syms->crcs, sym - syms->start);
+	fsa->sym = sym;
+	fsa->license = syms->license;
 
-	return false;
+	return true;
 }
 
 /*
