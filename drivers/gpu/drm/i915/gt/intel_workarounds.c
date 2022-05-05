@@ -1994,19 +1994,37 @@ void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
 static void
 engine_fake_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
-	u8 mocs;
+	u8 mocs_w, mocs_r;
 
 	/*
-	 * RING_CMD_CCTL are need to be programed to un-cached
-	 * for memory writes and reads outputted by Command
-	 * Streamers on Gen12 onward platforms.
+	 * RING_CMD_CCTL specifies the default MOCS entry that will be used
+	 * by the command streamer when executing commands that don't have
+	 * a way to explicitly specify a MOCS setting.  The default should
+	 * usually reference whichever MOCS entry corresponds to uncached
+	 * behavior, although use of a WB cached entry is recommended by the
+	 * spec in certain circumstances on specific platforms.
 	 */
 	if (GRAPHICS_VER(engine->i915) >= 12) {
-		mocs = engine->gt->mocs.uc_index;
+		mocs_r = engine->gt->mocs.uc_index;
+		mocs_w = engine->gt->mocs.uc_index;
+
+		if (HAS_L3_CCS_READ(engine->i915) &&
+		    engine->class == COMPUTE_CLASS) {
+			mocs_r = engine->gt->mocs.wb_index;
+
+			/*
+			 * Even on the few platforms where MOCS 0 is a
+			 * legitimate table entry, it's never the correct
+			 * setting to use here; we can assume the MOCS init
+			 * just forgot to initialize wb_index.
+			 */
+			drm_WARN_ON(&engine->i915->drm, mocs_r == 0);
+		}
+
 		wa_masked_field_set(wal,
 				    RING_CMD_CCTL(engine->mmio_base),
 				    CMD_CCTL_MOCS_MASK,
-				    CMD_CCTL_MOCS_OVERRIDE(mocs, mocs));
+				    CMD_CCTL_MOCS_OVERRIDE(mocs_w, mocs_r));
 	}
 }
 
