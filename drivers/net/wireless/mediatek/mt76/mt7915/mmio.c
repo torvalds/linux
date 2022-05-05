@@ -668,8 +668,6 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
 
 	tasklet_setup(&dev->irq_tasklet, mt7915_irq_tasklet);
 
-	mt76_wr(dev, MT_INT_MASK_CSR, 0);
-
 	return dev;
 
 error:

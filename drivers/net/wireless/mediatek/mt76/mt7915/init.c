@@ -652,6 +652,7 @@ mt7915_init_hardware(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 {
 	int ret, idx;
 
+	mt76_wr(dev, MT_INT_MASK_CSR, 0);
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
 
 	INIT_WORK(&dev->init_work, mt7915_init_work);
