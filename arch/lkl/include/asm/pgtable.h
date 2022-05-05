@@ -1,7 +1,7 @@
 #ifndef _LKL_PGTABLE_H
 #define _LKL_PGTABLE_H
 
-#include <asm-generic/4level-fixup.h>
+#include <asm-generic/pgtable-nopud.h>
 
 /*
  * (C) Copyright 2000-2002, Greg Ungerer <gerg@snapgear.com>
@@ -9,6 +9,7 @@
 
 #include <linux/slab.h>
 #include <asm/processor.h>
+#include <asm/page.h>
 #include <asm/io.h>
 
 #define pgd_present(pgd)	(1)
@@ -49,9 +50,5 @@ extern void *empty_zero_page;
 #define	VMALLOC_END		0xffffffff
 #define	KMAP_START		0
 #define	KMAP_END		0xffffffff
-
-#include <asm-generic/pgtable.h>
-
-#define check_pgt_cache()	do { } while (0)
 
 #endif
