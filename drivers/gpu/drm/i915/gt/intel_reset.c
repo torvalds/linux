@@ -699,7 +699,7 @@ bool intel_has_reset_engine(const struct intel_gt *gt)
 	if (gt->i915->params.reset < 2)
 		return false;
 
-	return INTEL_INFO(gt->i915)->has_reset_engine;
+	return GRAPHICS_VER(gt->i915) >= 7;
 }
 
 int intel_reset_guc(struct intel_gt *gt)
