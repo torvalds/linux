@@ -1283,10 +1283,8 @@ static int __remove_mapping(struct address_space *mapping, struct folio *folio,
 		put_swap_page(&folio->page, swap);
 	} else {
 		void (*free_folio)(struct folio *);
-		void (*freepage)(struct page *);
 
 		free_folio = mapping->a_ops->free_folio;
-		freepage = mapping->a_ops->freepage;
 		/*
 		 * Remember a shadow entry for reclaimed file cache in
 		 * order to detect refaults, thus thrashing, later on.
@@ -1314,8 +1312,6 @@ static int __remove_mapping(struct address_space *mapping, struct folio *folio,
 
 		if (free_folio)
 			free_folio(folio);
-		if (freepage)
-			freepage(&folio->page);
 	}
 
 	return 1;
