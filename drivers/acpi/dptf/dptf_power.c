@@ -115,7 +115,7 @@ static const struct attribute_group dptf_battery_attribute_group = {
 #define POWER_STATE_CHANGED		0x81
 #define STEADY_STATE_POWER_CHANGED	0x83
 #define POWER_PROP_CHANGE_EVENT	0x84
-#define IMPEDANCED_CHNGED		0x85
+#define IMPEDANCE_CHANGED		0x85
 #define VOLTAGE_CURRENT_CHANGED	0x86
 
 static long long dptf_participant_type(acpi_handle handle)
@@ -147,6 +147,9 @@ static void dptf_power_notify(acpi_handle handle, u32 event, void *data)
 		break;
 	case STEADY_STATE_POWER_CHANGED:
 		attr = "max_steady_state_power_mw";
+		break;
+	case IMPEDANCE_CHANGED:
+		attr = "high_freq_impedance_mohm";
 		break;
 	case VOLTAGE_CURRENT_CHANGED:
 		attr = "no_load_voltage_mv";
