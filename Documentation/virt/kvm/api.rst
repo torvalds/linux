@@ -6047,7 +6047,7 @@ Valid values for 'type' are:
    the VM.
 
 For arm/arm64:
-^^^^^^^^^^^^^^
+--------------
 
    KVM_SYSTEM_EVENT_SUSPEND exits are enabled with the
    KVM_CAP_ARM_SYSTEM_SUSPEND VM capability. If a guest invokes the PSCI
