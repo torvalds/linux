@@ -60,6 +60,11 @@ struct ov7251_mode_info {
 	struct v4l2_fract timeperframe;
 };
 
+enum supported_link_freqs {
+	OV7251_LINK_FREQ_240_MHZ,
+	OV7251_NUM_SUPPORTED_LINK_FREQS
+};
+
 struct ov7251 {
 	struct i2c_client *i2c_client;
 	struct device *dev;
@@ -75,6 +80,7 @@ struct ov7251 {
 	struct regulator *core_regulator;
 	struct regulator *analog_regulator;
 
+	enum supported_link_freqs link_freq_idx;
 	const struct ov7251_mode_info *current_mode;
 
 	struct v4l2_ctrl_handler ctrls;
@@ -1255,10 +1261,58 @@ static const struct v4l2_subdev_ops ov7251_subdev_ops = {
 	.pad = &ov7251_subdev_pad_ops,
 };
 
+static int ov7251_check_hwcfg(struct ov7251 *ov7251)
+{
+	struct fwnode_handle *fwnode = dev_fwnode(ov7251->dev);
+	struct v4l2_fwnode_endpoint bus_cfg = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY,
+	};
+	struct fwnode_handle *endpoint;
+	unsigned int i, j;
+	int ret;
+
+	endpoint = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	if (!endpoint)
+		return -EPROBE_DEFER; /* could be provided by cio2-bridge */
+
+	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &bus_cfg);
+	fwnode_handle_put(endpoint);
+	if (ret)
+		return dev_err_probe(ov7251->dev, ret,
+				     "parsing endpoint node failed\n");
+
+	if (!bus_cfg.nr_of_link_frequencies) {
+		ret = dev_err_probe(ov7251->dev, -EINVAL,
+				    "no link frequencies defined\n");
+		goto out_free_bus_cfg;
+	}
+
+	for (i = 0; i < bus_cfg.nr_of_link_frequencies; i++) {
+		for (j = 0; j < ARRAY_SIZE(link_freq); j++)
+			if (bus_cfg.link_frequencies[i] == link_freq[j])
+				break;
+
+		if (j < ARRAY_SIZE(link_freq))
+			break;
+	}
+
+	if (i == bus_cfg.nr_of_link_frequencies) {
+		ret = dev_err_probe(ov7251->dev, -EINVAL,
+				    "no supported link freq found\n");
+		goto out_free_bus_cfg;
+	}
+
+	ov7251->link_freq_idx = i;
+
+out_free_bus_cfg:
+	v4l2_fwnode_endpoint_free(&bus_cfg);
+
+	return ret;
+}
+
 static int ov7251_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct fwnode_handle *endpoint;
 	struct ov7251 *ov7251;
 	u8 chip_id_high, chip_id_low, chip_rev;
 	int ret;
@@ -1270,24 +1324,9 @@ static int ov7251_probe(struct i2c_client *client)
 	ov7251->i2c_client = client;
 	ov7251->dev = dev;
 
-	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
-	if (!endpoint) {
-		dev_err(dev, "endpoint node not found\n");
-		return -EINVAL;
-	}
-
-	ret = v4l2_fwnode_endpoint_parse(endpoint, &ov7251->ep);
-	fwnode_handle_put(endpoint);
-	if (ret < 0) {
-		dev_err(dev, "parsing endpoint node failed\n");
+	ret = ov7251_check_hwcfg(ov7251);
+	if (ret)
 		return ret;
-	}
-
-	if (ov7251->ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
-		dev_err(dev, "invalid bus type (%u), must be CSI2 (%u)\n",
-			ov7251->ep.bus_type, V4L2_MBUS_CSI2_DPHY);
-		return -EINVAL;
-	}
 
 	/* get system clock (xclk) */
 	ov7251->xclk = devm_clk_get(dev, "xclk");
