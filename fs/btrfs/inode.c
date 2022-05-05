@@ -8167,7 +8167,7 @@ static const struct iomap_dio_ops btrfs_dio_ops = {
 ssize_t btrfs_dio_rw(struct kiocb *iocb, struct iov_iter *iter, size_t done_before)
 {
 	return iomap_dio_rw(iocb, iter, &btrfs_dio_iomap_ops, &btrfs_dio_ops,
-			    IOMAP_DIO_PARTIAL, done_before);
+			    IOMAP_DIO_PARTIAL, NULL, done_before);
 }
 
 static int btrfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
