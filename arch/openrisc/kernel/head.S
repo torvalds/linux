@@ -525,7 +525,7 @@ _start:
 	 * Start the TTCR as early as possible, so that the RNG can make use of
 	 * measurements of boot time from the earliest opportunity. Especially
 	 * important is that the TTCR does not return zero by the time we reach
-	 * rand_initialize().
+	 * random_init().
 	 */
 	l.movhi r3,hi(SPR_TTMR_CR)
 	l.mtspr r0,r3,SPR_TTMR
