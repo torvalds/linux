@@ -244,11 +244,9 @@ static __maybe_unused void *any_section_objs(const struct load_info *info,
 #endif
 
 static bool check_exported_symbol(const struct symsearch *syms,
-				  struct module *owner,
-				  unsigned int symnum, void *data)
+				  struct module *owner, unsigned int symnum,
+				  struct find_symbol_arg *fsa)
 {
-	struct find_symbol_arg *fsa = data;
-
 	if (!fsa->gplok && syms->license == GPL_ONLY)
 		return false;
 	fsa->owner = owner;
@@ -285,16 +283,15 @@ int cmp_name(const void *name, const void *sym)
 
 static bool find_exported_symbol_in_section(const struct symsearch *syms,
 					    struct module *owner,
-					    void *data)
+					    struct find_symbol_arg *fsa)
 {
-	struct find_symbol_arg *fsa = data;
 	struct kernel_symbol *sym;
 
 	sym = bsearch(fsa->name, syms->start, syms->stop - syms->start,
 			sizeof(struct kernel_symbol), cmp_name);
 
 	if (sym != NULL && check_exported_symbol(syms, owner,
-						 sym - syms->start, data))
+						 sym - syms->start, fsa))
 		return true;
 
 	return false;
