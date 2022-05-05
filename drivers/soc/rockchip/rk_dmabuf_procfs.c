@@ -97,13 +97,6 @@ static int rk_dmabuf_cb(const struct dma_buf *dmabuf, void *private)
 	return 0;
 }
 
-static int rk_dmabuf_cb2(const struct dma_buf *dmabuf, void *private)
-{
-	*((unsigned long *)private) += dmabuf->size;
-
-	return 0;
-}
-
 static int rk_dmabuf_cb3(const struct dma_buf *dmabuf, void *private)
 {
 	struct seq_file *s = private;
@@ -138,13 +131,49 @@ static int rk_dmabuf_dev_show(struct seq_file *s, void *v)
 
 static int rk_dmabuf_size_show(struct seq_file *s, void *v)
 {
-	unsigned long total_size = 0;
-
-	get_each_dmabuf(rk_dmabuf_cb2, &total_size);
-	seq_printf(s, "Total: %lu KiB\n", K(total_size));
+	seq_printf(s, "Total: %lu KiB\n", K(dma_buf_get_total_size()));
 
 	return 0;
 }
+
+static int rk_dmabuf_peak_show(struct seq_file *s, void *v)
+{
+	seq_printf(s, "Peak: %lu MiB\n", K(K(dma_buf_get_peak_size())));
+
+	return 0;
+}
+
+static ssize_t rk_dmabuf_peak_write(struct file *file,
+				    const char __user *buffer,
+				    size_t count, loff_t *ppos)
+{
+	char c;
+	int rc;
+
+	rc = get_user(c, buffer);
+	if (rc)
+		return rc;
+
+	if (c != '0')
+		return -EINVAL;
+
+	dma_buf_reset_peak_size();
+
+	return count;
+}
+
+static int rk_dmabuf_peak_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rk_dmabuf_peak_show, NULL);
+}
+
+static const struct proc_ops rk_dmabuf_peak_ops = {
+	.proc_open	= rk_dmabuf_peak_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= rk_dmabuf_peak_write,
+};
 
 static int __init rk_dmabuf_init(void)
 {
@@ -163,6 +192,7 @@ static int __init rk_dmabuf_init(void)
 	proc_create_single("sgt", 0, root, rk_dmabuf_sgt_show);
 	proc_create_single("dev", 0, root, rk_dmabuf_dev_show);
 	proc_create_single("size", 0, root, rk_dmabuf_size_show);
+	proc_create("peak", 0644, root, &rk_dmabuf_peak_ops);
 
 	return 0;
 }
