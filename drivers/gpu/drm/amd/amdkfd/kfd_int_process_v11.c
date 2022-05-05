@@ -267,10 +267,11 @@ static bool event_interrupt_isr_v11(struct kfd_dev *dev,
 		source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG ||
 		source_id == SOC15_INTSRC_CP_BAD_OPCODE ||
 		source_id == SOC21_INTSRC_SDMA_TRAP ||
-		client_id == SOC21_IH_CLIENTID_VMC ||
-		((client_id == SOC21_IH_CLIENTID_GFX) &&
-		 (source_id == UTCL2_1_0__SRCID__FAULT)) /*||
-		   KFD_IRQ_IS_FENCE(client_id, source_id)*/;
+		/* KFD_IRQ_IS_FENCE(client_id, source_id) || */
+		(((client_id == SOC21_IH_CLIENTID_VMC) ||
+		 ((client_id == SOC21_IH_CLIENTID_GFX) &&
+		  (source_id == UTCL2_1_0__SRCID__FAULT))) &&
+		  !amdgpu_no_queue_eviction_on_vm_fault);
 }
 
 static void event_interrupt_wq_v11(struct kfd_dev *dev,
