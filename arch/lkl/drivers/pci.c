@@ -7,7 +7,7 @@
 #include <linux/types.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/scatterlist.h>
 #include <linux/mm.h>
 #include <asm/host_ops.h>
