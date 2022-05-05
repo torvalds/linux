@@ -815,14 +815,15 @@ static inline bool __must_check tdp_mmu_iter_cond_resched(struct kvm *kvm,
 	return iter->yielded;
 }
 
-static inline gfn_t tdp_mmu_max_gfn_host(void)
+static inline gfn_t tdp_mmu_max_gfn_exclusive(void)
 {
 	/*
-	 * Bound TDP MMU walks at host.MAXPHYADDR, guest accesses beyond that
-	 * will hit a #PF(RSVD) and never hit an EPT Violation/Misconfig / #NPF,
-	 * and so KVM will never install a SPTE for such addresses.
+	 * Bound TDP MMU walks at host.MAXPHYADDR.  KVM disallows memslots with
+	 * a gpa range that would exceed the max gfn, and KVM does not create
+	 * MMIO SPTEs for "impossible" gfns, instead sending such accesses down
+	 * the slow emulation path every time.
 	 */
-	return 1ULL << (shadow_phys_bits - PAGE_SHIFT);
+	return kvm_mmu_max_gfn() + 1;
 }
 
 static void __tdp_mmu_zap_root(struct kvm *kvm, struct kvm_mmu_page *root,
@@ -830,7 +831,7 @@ static void __tdp_mmu_zap_root(struct kvm *kvm, struct kvm_mmu_page *root,
 {
 	struct tdp_iter iter;
 
-	gfn_t end = tdp_mmu_max_gfn_host();
+	gfn_t end = tdp_mmu_max_gfn_exclusive();
 	gfn_t start = 0;
 
 	for_each_tdp_pte_min_level(iter, root, zap_level, start, end) {
@@ -923,7 +924,7 @@ static bool tdp_mmu_zap_leafs(struct kvm *kvm, struct kvm_mmu_page *root,
 {
 	struct tdp_iter iter;
 
-	end = min(end, tdp_mmu_max_gfn_host());
+	end = min(end, tdp_mmu_max_gfn_exclusive());
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
 

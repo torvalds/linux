@@ -569,7 +569,7 @@ static bool bfqq_request_over_limit(struct bfq_queue *bfqq, int limit)
 	struct bfq_entity *entity = &bfqq->entity;
 	struct bfq_entity *inline_entities[BFQ_LIMIT_INLINE_DEPTH];
 	struct bfq_entity **entities = inline_entities;
-	int depth, level;
+	int depth, level, alloc_depth = BFQ_LIMIT_INLINE_DEPTH;
 	int class_idx = bfqq->ioprio_class - 1;
 	struct bfq_sched_data *sched_data;
 	unsigned long wsum;
@@ -578,15 +578,21 @@ static bool bfqq_request_over_limit(struct bfq_queue *bfqq, int limit)
 	if (!entity->on_st_or_in_serv)
 		return false;
 
+retry:
+	spin_lock_irq(&bfqd->lock);
 	/* +1 for bfqq entity, root cgroup not included */
 	depth = bfqg_to_blkg(bfqq_group(bfqq))->blkcg->css.cgroup->level + 1;
-	if (depth > BFQ_LIMIT_INLINE_DEPTH) {
+	if (depth > alloc_depth) {
+		spin_unlock_irq(&bfqd->lock);
+		if (entities != inline_entities)
+			kfree(entities);
 		entities = kmalloc_array(depth, sizeof(*entities), GFP_NOIO);
 		if (!entities)
 			return false;
+		alloc_depth = depth;
+		goto retry;
 	}
 
-	spin_lock_irq(&bfqd->lock);
 	sched_data = entity->sched_data;
 	/* Gather our ancestors as we need to traverse them in reverse order */
 	level = 0;

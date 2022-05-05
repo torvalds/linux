@@ -3892,40 +3892,6 @@ static int si_set_boot_state(struct amdgpu_device *adev)
 }
 #endif
 
-static int si_set_powergating_by_smu(void *handle,
-				     uint32_t block_type,
-				     bool gate)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	switch (block_type) {
-	case AMD_IP_BLOCK_TYPE_UVD:
-		if (!gate) {
-			adev->pm.dpm.uvd_active = true;
-			adev->pm.dpm.state = POWER_STATE_TYPE_INTERNAL_UVD;
-		} else {
-			adev->pm.dpm.uvd_active = false;
-		}
-
-		amdgpu_legacy_dpm_compute_clocks(handle);
-		break;
-	case AMD_IP_BLOCK_TYPE_VCE:
-		if (!gate) {
-			adev->pm.dpm.vce_active = true;
-			/* XXX select vce level based on ring/task */
-			adev->pm.dpm.vce_level = AMD_VCE_LEVEL_AC_ALL;
-		} else {
-			adev->pm.dpm.vce_active = false;
-		}
-
-		amdgpu_legacy_dpm_compute_clocks(handle);
-		break;
-	default:
-		break;
-	}
-	return 0;
-}
-
 static int si_set_sw_state(struct amdgpu_device *adev)
 {
 	return (amdgpu_si_send_msg_to_smc(adev, PPSMC_MSG_SwitchToSwState) == PPSMC_Result_OK) ?
@@ -8125,7 +8091,6 @@ static const struct amd_pm_funcs si_dpm_funcs = {
 	.print_power_state = &si_dpm_print_power_state,
 	.debugfs_print_current_performance_level = &si_dpm_debugfs_print_current_performance_level,
 	.force_performance_level = &si_dpm_force_performance_level,
-	.set_powergating_by_smu = &si_set_powergating_by_smu,
 	.vblank_too_short = &si_dpm_vblank_too_short,
 	.set_fan_control_mode = &si_dpm_set_fan_control_mode,
 	.get_fan_control_mode = &si_dpm_get_fan_control_mode,

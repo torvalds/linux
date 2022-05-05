@@ -1151,6 +1151,16 @@ static int gmc_v10_0_set_clockgating_state(void *handle,
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	/*
+	 * The issue mmhub can't disconnect from DF with MMHUB clock gating being disabled
+	 * is a new problem observed at DF 3.0.3, however with the same suspend sequence not
+	 * seen any issue on the DF 3.0.2 series platform.
+	 */
+	if (adev->in_s0ix && adev->ip_versions[DF_HWIP][0] > IP_VERSION(3, 0, 2)) {
+		dev_dbg(adev->dev, "keep mmhub clock gating being enabled for s0ix\n");
+		return 0;
+	}
+
 	r = adev->mmhub.funcs->set_clockgating(adev, state);
 	if (r)
 		return r;
