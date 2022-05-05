@@ -1,3 +1,4 @@
+qcom_iommu_util.ko
 arm_smmu.ko
 qcom-scm.ko
 pinctrl-msm.ko
