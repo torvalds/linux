@@ -809,8 +809,7 @@ static const struct intel_device_info cml_gt2_info = {
 	.dbuf.size = 2048, \
 	.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2), \
 	.display.has_dsc = 1, \
-	.has_coherent_ggtt = false, \
-	.has_logical_ring_elsq = 1
+	.has_coherent_ggtt = false
 
 static const struct intel_device_info icl_info = {
 	GEN11_FEATURES,
@@ -997,7 +996,6 @@ static const struct intel_device_info adl_p_info = {
 	.has_global_mocs = 1, \
 	.has_llc = 1, \
 	.has_logical_ring_contexts = 1, \
-	.has_logical_ring_elsq = 1, \
 	.has_mslices = 1, \
 	.has_rps = 1, \
 	.has_runtime_pm = 1, \
