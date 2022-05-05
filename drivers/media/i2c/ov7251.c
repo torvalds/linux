@@ -62,6 +62,10 @@
 #define OV7251_ACTIVE_HEIGHT		488
 
 #define OV7251_FIXED_PPL		928
+#define OV7251_TIMING_VTS_REG		0x380e
+#define OV7251_TIMING_MIN_VTS		1
+#define OV7251_TIMING_MAX_VTS		0xffff
+#define OV7251_INTEGRATION_MARGIN	20
 
 struct reg_value {
 	u16 reg;
@@ -71,6 +75,7 @@ struct reg_value {
 struct ov7251_mode_info {
 	u32 width;
 	u32 height;
+	u32 vts;
 	const struct reg_value *data;
 	u32 data_size;
 	u32 pixel_clock;
@@ -142,6 +147,7 @@ struct ov7251 {
 	struct v4l2_ctrl *exposure;
 	struct v4l2_ctrl *gain;
 	struct v4l2_ctrl *hblank;
+	struct v4l2_ctrl *vblank;
 
 	/* Cached register values */
 	u8 aec_pk_manual;
@@ -637,6 +643,7 @@ static const struct ov7251_mode_info ov7251_mode_info_data[] = {
 	{
 		.width = 640,
 		.height = 480,
+		.vts = 1724,
 		.data = ov7251_setting_vga_30fps,
 		.data_size = ARRAY_SIZE(ov7251_setting_vga_30fps),
 		.exposure_max = 1704,
@@ -649,6 +656,7 @@ static const struct ov7251_mode_info ov7251_mode_info_data[] = {
 	{
 		.width = 640,
 		.height = 480,
+		.vts = 860,
 		.data = ov7251_setting_vga_60fps,
 		.data_size = ARRAY_SIZE(ov7251_setting_vga_60fps),
 		.exposure_max = 840,
@@ -661,6 +669,7 @@ static const struct ov7251_mode_info ov7251_mode_info_data[] = {
 	{
 		.width = 640,
 		.height = 480,
+		.vts = 572,
 		.data = ov7251_setting_vga_90fps,
 		.data_size = ARRAY_SIZE(ov7251_setting_vga_90fps),
 		.exposure_max = 552,
@@ -1001,11 +1010,35 @@ static const char * const ov7251_test_pattern_menu[] = {
 	"Vertical Pattern Bars",
 };
 
+static int ov7251_vts_configure(struct ov7251 *ov7251, s32 vblank)
+{
+	u8 vts[2];
+
+	vts[0] = ((ov7251->current_mode->height + vblank) & 0xff00) >> 8;
+	vts[1] = ((ov7251->current_mode->height + vblank) & 0x00ff);
+
+	return ov7251_write_seq_regs(ov7251, OV7251_TIMING_VTS_REG, vts, 2);
+}
+
 static int ov7251_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov7251 *ov7251 = container_of(ctrl->handler,
 					     struct ov7251, ctrls);
 	int ret;
+
+	/* If VBLANK is altered we need to update exposure to compensate */
+	if (ctrl->id == V4L2_CID_VBLANK) {
+		int exposure_max;
+
+		exposure_max = ov7251->current_mode->height + ctrl->val -
+			       OV7251_INTEGRATION_MARGIN;
+		__v4l2_ctrl_modify_range(ov7251->exposure,
+					 ov7251->exposure->minimum,
+					 exposure_max,
+					 ov7251->exposure->step,
+					 min(ov7251->exposure->val,
+					     exposure_max));
+	}
 
 	/* v4l2_ctrl_lock() locks our mutex */
 
@@ -1027,6 +1060,9 @@ static int ov7251_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_VFLIP:
 		ret = ov7251_set_vflip(ov7251, ctrl->val);
+		break;
+	case V4L2_CID_VBLANK:
+		ret = ov7251_vts_configure(ov7251, ctrl->val);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1179,6 +1215,7 @@ static int ov7251_set_format(struct v4l2_subdev *sd,
 {
 	struct ov7251 *ov7251 = to_ov7251(sd);
 	struct v4l2_mbus_framefmt *__format;
+	int vblank_max, vblank_def;
 	struct v4l2_rect *__crop;
 	const struct ov7251_mode_info *new_mode;
 	int ret = 0;
@@ -1209,6 +1246,14 @@ static int ov7251_set_format(struct v4l2_subdev *sd,
 			goto exit;
 
 		ret = __v4l2_ctrl_s_ctrl(ov7251->gain, 16);
+		if (ret < 0)
+			goto exit;
+
+		vblank_max = OV7251_TIMING_MAX_VTS - new_mode->height;
+		vblank_def = new_mode->vts - new_mode->height;
+		ret = __v4l2_ctrl_modify_range(ov7251->vblank,
+					       OV7251_TIMING_MIN_VTS,
+					       vblank_max, 1, vblank_def);
 		if (ret < 0)
 			goto exit;
 
@@ -1490,6 +1535,7 @@ static int ov7251_detect_chip(struct ov7251 *ov7251)
 
 static int ov7251_init_ctrls(struct ov7251 *ov7251)
 {
+	int vblank_max, vblank_def;
 	s64 pixel_rate;
 	int hblank;
 
@@ -1532,6 +1578,13 @@ static int ov7251_init_ctrls(struct ov7251 *ov7251)
 					   hblank);
 	if (ov7251->hblank)
 		ov7251->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	vblank_max = OV7251_TIMING_MAX_VTS - ov7251->current_mode->height;
+	vblank_def = ov7251->current_mode->vts - ov7251->current_mode->height;
+	ov7251->vblank = v4l2_ctrl_new_std(&ov7251->ctrls, &ov7251_ctrl_ops,
+					   V4L2_CID_VBLANK,
+					   OV7251_TIMING_MIN_VTS, vblank_max, 1,
+					   vblank_def);
 
 	ov7251->sd.ctrl_handler = &ov7251->ctrls;
 
