@@ -66,6 +66,7 @@
 #include "sdma_v5_0.h"
 #include "sdma_v5_2.h"
 #include "sdma_v6_0.h"
+#include "lsdma_v6_0.h"
 #include "vcn_v2_0.h"
 #include "jpeg_v2_0.h"
 #include "vcn_v3_0.h"
@@ -124,6 +125,7 @@ static const char *hw_id_names[HW_ID_MAX] = {
 	[SDMA1_HWID]		= "SDMA1",
 	[SDMA2_HWID]		= "SDMA2",
 	[SDMA3_HWID]		= "SDMA3",
+	[LSDMA_HWID]		= "LSDMA",
 	[ISP_HWID]		= "ISP",
 	[DBGU_IO_HWID]		= "DBGU_IO",
 	[DF_HWID]		= "DF",
@@ -173,6 +175,7 @@ static int hw_id_map[MAX_HWIP] = {
 	[SDMA1_HWIP]	= SDMA1_HWID,
 	[SDMA2_HWIP]    = SDMA2_HWID,
 	[SDMA3_HWIP]    = SDMA3_HWID,
+	[LSDMA_HWIP]    = LSDMA_HWID,
 	[MMHUB_HWIP]	= MMHUB_HWID,
 	[ATHUB_HWIP]	= ATHUB_HWID,
 	[NBIO_HWIP]	= NBIF_HWID,

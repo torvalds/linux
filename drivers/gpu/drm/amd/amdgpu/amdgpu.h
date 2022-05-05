@@ -86,6 +86,7 @@
 #include "amdgpu_gmc.h"
 #include "amdgpu_gfx.h"
 #include "amdgpu_sdma.h"
+#include "amdgpu_lsdma.h"
 #include "amdgpu_nbio.h"
 #include "amdgpu_hdp.h"
 #include "amdgpu_dm.h"
@@ -643,6 +644,7 @@ enum amd_hw_ip_block_type {
 	SDMA5_HWIP,
 	SDMA6_HWIP,
 	SDMA7_HWIP,
+	LSDMA_HWIP,
 	MMHUB_HWIP,
 	ATHUB_HWIP,
 	NBIO_HWIP,
@@ -908,6 +910,9 @@ struct amdgpu_device {
 
 	/* sdma */
 	struct amdgpu_sdma		sdma;
+
+	/* lsdma */
+	struct amdgpu_lsdma		lsdma;
 
 	/* uvd */
 	struct amdgpu_uvd		uvd;
