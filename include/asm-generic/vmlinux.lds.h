@@ -267,13 +267,13 @@
 
 #ifdef CONFIG_SECURITY
 #define LSM_TABLE()	. = ALIGN(8);					\
-			__start_lsm_info = .;				\
+			VMLINUX_SYMBOL(__start_lsm_info) = .;           \
 			KEEP(*(.lsm_info.init))				\
-			__end_lsm_info = .;
+			VMLINUX_SYMBOL(__end_lsm_info) = .;
 #define EARLY_LSM_TABLE()	. = ALIGN(8);				\
-			__start_early_lsm_info = .;			\
+			VMLINUX_SYMBOL(__start_early_lsm_info) = .;     \
 			KEEP(*(.early_lsm_info.init))			\
-			__end_early_lsm_info = .;
+			VMLINUX_SYMBOL(__end_early_lsm_info) = .;
 #else
 #define LSM_TABLE()
 #define EARLY_LSM_TABLE()
@@ -309,9 +309,9 @@
 #ifdef CONFIG_THERMAL
 #define THERMAL_TABLE(name)						\
 	. = ALIGN(8);							\
-	__##name##_thermal_table = .;					\
+	VMLINUX_SYMBOL(__##name##_thermal_table) = .;                   \
 	KEEP(*(__##name##_thermal_table))				\
-	__##name##_thermal_table_end = .;
+	VMLINUX_SYMBOL(__##name##_thermal_table_end) = .;
 #else
 #define THERMAL_TABLE(name)
 #endif
@@ -385,9 +385,9 @@
 
 #define JUMP_TABLE_DATA							\
 	. = ALIGN(8);							\
-	__start___jump_table = .;					\
+	VMLINUX_SYMBOL(__start___jump_table) = .;                       \
 	KEEP(*(__jump_table))						\
-	__stop___jump_table = .;
+	VMLINUX_SYMBOL(__stop___jump_table) = .;
 
 #define STATIC_CALL_DATA						\
 	. = ALIGN(8);							\
