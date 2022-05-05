@@ -772,6 +772,11 @@ bool amdgpu_amdkfd_have_atomics_support(struct amdgpu_device *adev)
 	return adev->have_atomics_support;
 }
 
+void amdgpu_amdkfd_debug_mem_fence(struct amdgpu_device *adev)
+{
+	amdgpu_device_flush_hdp(adev, NULL);
+}
+
 void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev, bool reset)
 {
 	amdgpu_umc_poison_handler(adev, reset);

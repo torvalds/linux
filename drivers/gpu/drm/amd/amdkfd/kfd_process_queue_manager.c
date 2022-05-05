@@ -187,6 +187,7 @@ static int init_user_queue(struct process_queue_manager *pqm,
 
 	/* Doorbell initialized in user space*/
 	q_properties->doorbell_ptr = NULL;
+	q_properties->exception_status = KFD_EC_MASK(EC_QUEUE_NEW);
 
 	/* let DQM handle it*/
 	q_properties->vmid = 0;

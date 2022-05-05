@@ -339,6 +339,13 @@ void kfd_dbg_trap_deactivate(struct kfd_process *target, bool unwind, int unwind
 	}
 
 	kfd_dbg_set_workaround(target, false);
+
+	if (!unwind) {
+		int resume_count = resume_queues(target, 0, NULL);
+
+		if (resume_count)
+			pr_debug("Resumed %d queues\n", resume_count);
+	}
 }
 
 static void kfd_dbg_clean_exception_status(struct kfd_process *target)
