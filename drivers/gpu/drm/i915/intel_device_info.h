@@ -162,7 +162,6 @@ enum intel_ppgtt_type {
 	func(cursor_needs_physical); \
 	func(has_cdclk_crawl); \
 	func(has_dmc); \
-	func(has_dp_mst); \
 	func(has_dsb); \
 	func(has_dsc); \
 	func(has_fpga_dbg); \
