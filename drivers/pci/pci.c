@@ -1230,15 +1230,10 @@ int pci_power_up(struct pci_dev *dev)
 	}
 
 	/*
-	 * If we're (effectively) in D3, force entire word to 0. This doesn't
-	 * affect PME_Status, disables PME_En, and sets PowerState to 0.
+	 * Force the entire word to 0. This doesn't affect PME_Status, disables
+	 * PME_En, and sets PowerState to 0.
 	 */
-	if (state == PCI_D3hot)
-		pmcsr = 0;
-	else
-		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
-
-	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
+	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, 0);
 
 	/* Mandatory transition delays; see PCI PM 1.2. */
 	if (state == PCI_D3hot)
