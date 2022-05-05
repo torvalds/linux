@@ -42,11 +42,6 @@ struct mdp4_kms {
 };
 #define to_mdp4_kms(x) container_of(x, struct mdp4_kms, base)
 
-/* platform config data (ie. from DT, or pdata) */
-struct mdp4_platform_config {
-	uint32_t max_clk;
-};
-
 static inline void mdp4_write(struct mdp4_kms *mdp4_kms, u32 reg, u32 data)
 {
 	msm_writel(data, mdp4_kms->mmio + reg);
